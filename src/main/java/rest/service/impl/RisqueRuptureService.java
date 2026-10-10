@@ -103,7 +103,7 @@ public class RisqueRuptureService {
                 + "   WHERE lg_TYPE_STOCK_ID = '2' AND lg_EMPLACEMENT_ID = ?1 GROUP BY lg_FAMILLE_ID) rs"
                 + "   ON rs.lg_FAMILLE_ID = f.lg_FAMILLE_ID"
                 + " LEFT JOIN (SELECT od.lg_FAMILLE_ID, SUM(od.int_NUMBER) qte FROM t_order_detail od"
-                + "   JOIN t_order o ON o.lg_ORDER_ID = od.lg_ORDER_ID WHERE o.str_STATUT IN ('is_Process', 'passed')"
+                + "   JOIN t_order o ON o.lg_ORDER_ID = od.lg_ORDER_ID WHERE o.str_STATUT IN ('is_Process', 'passed', 'pharma')"
                 + "   AND o.dt_UPDATED >= ?2 GROUP BY od.lg_FAMILLE_ID) ec ON ec.lg_FAMILLE_ID = f.lg_FAMILLE_ID"
                 + " LEFT JOIN t_grossiste g ON g.lg_GROSSISTE_ID = f.lg_GROSSISTE_ID"
                 + " LEFT JOIN t_zone_geographique z ON z.lg_ZONE_GEO_ID = f.lg_ZONE_GEO_ID"
@@ -114,8 +114,11 @@ public class RisqueRuptureService {
                 + "   LEFT JOIN t_grossiste gg ON gg.lg_GROSSISTE_ID = r.grossisteId"
                 + "   WHERE r.dtCreated >= ?3 GROUP BY d.produitId) rf ON rf.produitId = f.lg_FAMILLE_ID"
                 + " WHERE p.lg_EMPLACEMENT_ID = ?1").setParameter(1, emplacement)
-                .setParameter(2, Timestamp.valueOf(aujourdhui.minusDays(JOURS_COMMANDE_EN_COURS).atStartOfDay()))
-                .setParameter(3, java.sql.Date.valueOf(aujourdhui.minusDays(JOURS_RUPTURE_FOURNISSEUR)))
+                .setParameter(2, Timestamp.valueOf(aujourdhui
+                        .minusDays(parametre("KEY_PREVISION_JOURS_EN_COURS", JOURS_COMMANDE_EN_COURS)).atStartOfDay()))
+                .setParameter(3,
+                        java.sql.Date.valueOf(aujourdhui.minusDays(
+                                parametre("KEY_RISQUE_JOURS_RUPTURE_FOURNISSEUR", JOURS_RUPTURE_FOURNISSEUR))))
                 .getResultList();
         List<Ligne> sortie = new ArrayList<>(rows.size());
         for (Object[] o : rows) {

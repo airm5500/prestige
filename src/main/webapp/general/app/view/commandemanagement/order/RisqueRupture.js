@@ -8,6 +8,7 @@
 Ext.define('testextjs.view.commandemanagement.order.RisqueRupture', {
     extend: 'Ext.panel.Panel',
     xtype: 'risquerupture',
+    requires: ['testextjs.view.commandemanagement.analyse.ParametresCalcul'],
     layout: 'fit',
     border: false,
     cls: 'rr-ecran',
@@ -103,6 +104,13 @@ Ext.define('testextjs.view.commandemanagement.order.RisqueRupture', {
                                 }
                             });
                         }
+                    }
+                }, {
+                    /* retours du 10/10 : parametres du calcul modifiables dans l'ecran (droit P_PREVISION_PARAMETRER) */
+                    xtype: 'parametrescalcul', dock: 'top', itemId: 'parametresRisque', ecran: 'RISQUE', collapsed: true,
+                    titleCollapse: true, maxHeight: 330, autoScroll: true,
+                    apresEnregistrement: function () {
+                        me.store.loadPage(1);
                     }
                 }],
             items: [{

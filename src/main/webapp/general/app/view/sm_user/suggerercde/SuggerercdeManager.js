@@ -23,7 +23,7 @@ function amountformat(val) {
 
 Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
     extend: 'Ext.form.Panel',
-    requires: [
+    requires: ['testextjs.view.commandemanagement.analyse.FenetrePrevision',
         'Ext.selection.CellModel',
         'Ext.grid.*',
         'Ext.form.*',
@@ -426,7 +426,8 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
                                                     return 'x-hide-display';
                                                 }
                                             }}]},
-                                {xtype: 'actioncolumn', width: 30, sortable: false, menuDisabled: true, items: [{icon: 'resources/images/icons/fam/application_view_list.png', tooltip: 'Detail sur l\'article', scope: this, handler: this.onDetailClick}]},
+                                /* retours du 10/10 : meme icone, ouvre la fenetre de prevision du produit (detail habituel sans le droit) */
+                                {xtype: 'actioncolumn', width: 30, sortable: false, menuDisabled: true, items: [{icon: 'resources/images/icons/fam/application_view_list.png', tooltip: 'Prévision du produit : ventes, calcul de la quantité à commander', scope: this, handler: this.onPrevisionClick}]},
                                 {xtype: 'actioncolumn', width: 30, sortable: false, menuDisabled: true, items: [{/*icon: 'resources/images/icons/fam/delete.png',*/ tooltip: 'Supprimer', scope: this/*, handler: this.onRemoveClick*/}]}
                             ],
                         tbar: [
@@ -996,6 +997,16 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
     },
     
     
+    /** Retours du 10/10 : fenetre de prevision du produit ; sans acces aux previsions, le detail habituel. */
+    onPrevisionClick: function (grid, rowIndex) {
+        var me = this, rec = grid.getStore().getAt(rowIndex);
+        testextjs.view.commandemanagement.analyse.FenetrePrevision.ouvrir(rec.get('lg_FAMILLE_ID'), {
+            siRefus: function () {
+                me.onDetailClick(grid, rowIndex);
+            }
+        });
+    },
+
     onDetailClick: function (grid, rowIndex) {
         const rec = grid.getStore().getAt(rowIndex);
         var gridPanel = Ext.getCmp('gridpanelSuggestionID');

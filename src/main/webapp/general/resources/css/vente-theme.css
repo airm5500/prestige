@@ -3053,3 +3053,30 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
 /* Retours du 10/10 : contenu d'une suggestion plus compact (marges horizontales et verticales reduites) */
 .sugg-compacte .x-grid-cell-inner { padding: 2px 4px !important; }
 .sugg-compacte .x-column-header-inner { padding: 4px 4px !important; }
+/* Retours du 10/10 : definitions des methodes et parametres de calcul (previsions, risque de rupture) */
+.ac-methodes { border: 1px solid #e3e8ee; border-radius: 8px; background: #f8fafc; padding: 8px 12px; }
+.ac-methodes-titre { font-weight: 700; color: #1f3b5a; margin-bottom: 4px; }
+.ac-methodes table { border-collapse: collapse; width: 100%; }
+.ac-methodes td { padding: 3px 6px; vertical-align: top; color: #2b3a4a; font-size: 12px; }
+.ac-methodes td.ac-meth-nom { font-weight: 600; white-space: nowrap; width: 150px; }
+.ac-methodes-note { color: #5b6b7b; font-size: 11px; margin-top: 4px; }
+.param-calcul .param-unite { color: #7f8c8d; font-weight: normal; font-size: 11px; }
+.param-calcul .x-form-item-label { cursor: help; }
+/* Retours du 10/10 : onglet Previsions (actions par ligne, produits retires de la suggestion a generer) */
+.prev-action { display: inline-block; width: 20px; cursor: pointer; font-weight: 700; color: #2E75B6; }
+.prev-action.retirer { color: #b42318; }
+.prev-action.remettre { color: #17795f; }
+.prev-retire .x-grid-cell-inner { color: #9aa8b6 !important; text-decoration: line-through; }
+.prev-retire .x-grid-cell-inner .prev-action { text-decoration: none; }
+.prev-info-retires { color: #b45309; font-weight: 600; margin-left: 6px; }
+/* Retours du 10/10 (Q12) : fenetre produit des previsions — vert = ce qui s'ajoute, rouge doux = ce qui se retranche */
+.pv-calcul tr.pv-plus td { background: #eaf7ef; color: #14532d; }
+.pv-calcul tr.pv-moins td { background: #fdeeee; color: #8a2a2a; }
+.pv-calcul tr.pv-total td { font-weight: 700; border-top: 2px solid #1f3b5a; }
+.pv-calcul .pv-origine { color: #5b6b7b; font-size: 10px; font-weight: normal; }
+.pv-calcul tr { cursor: help; }
+/* Retours du 10/10 : onglet Analyse (nombre de lignes en vert, pastilles filtrantes, marqueur equivalent cliquable) */
+.ac-nb-lignes { color: #17795f; font-weight: 700; }
+.ac-puce-filtre, .ac-puce-eq { cursor: pointer; }
+.ac-puce-filtre.actif { background: #1f3b5a; color: #fff !important; }
+.ac-puce-eq:hover { text-decoration: underline; }

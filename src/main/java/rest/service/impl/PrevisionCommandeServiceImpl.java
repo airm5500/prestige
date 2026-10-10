@@ -90,6 +90,11 @@ public class PrevisionCommandeServiceImpl implements PrevisionCommandeService {
         return r.isEmpty() || r.get(0) == null ? defaut : String.valueOf(r.get(0));
     }
 
+    /** Parametre du catalogue (retours du 10/10 : modifiable dans l'ecran), avec son defaut. */
+    int param(String cle) {
+        return rest.service.impl.prevision.ParametresPrevision.valeur(cle, parametre(cle, null));
+    }
+
     int entierParametre(String cle, int defaut) {
         try {
             return Integer.parseInt(parametre(cle, String.valueOf(defaut)).trim());
@@ -219,12 +224,13 @@ public class PrevisionCommandeServiceImpl implements PrevisionCommandeService {
 
             List<Object[]> sortie = new ArrayList<>();
             long poids = 0, fiabilitePonderee = 0;
+            int moisTest = Math.max(1, param("KEY_PREVISION_MOIS_TEST"));
             for (String id : suivis) {
                 Produit p = produits.get(id);
                 Integer d = p.grossiste == null ? null : delais.get(p.grossiste);
                 p.delai = d != null && d > 0 ? d : delaiDefaut;
                 double[] serie = depuisPremiereVente(p.ventes);
-                Prevision.Resultat r = Prevision.analyser(serie);
+                Prevision.Resultat r = Prevision.analyser(serie, moisTest);
                 int stockTotal = Math.max(0, p.stock) + p.reserve;
                 int recommande = Recommandation.quantite(r.parJour(), r.ecartTypeMois, p.delai, couvertureVoulue,
                         stockTotal, p.enCours, p.equivalents);
@@ -355,9 +361,9 @@ public class PrevisionCommandeServiceImpl implements PrevisionCommandeService {
     private Map<String, Integer> enCoursCommandes() {
         Map<String, Integer> m = new HashMap<>();
         for (Object[] r : lignes("SELECT od.lg_FAMILLE_ID, SUM(od.int_NUMBER) FROM t_order_detail od"
-                + " JOIN t_order o ON o.lg_ORDER_ID = od.lg_ORDER_ID WHERE o.str_STATUT IN ('is_Process', 'passed')"
+                + " JOIN t_order o ON o.lg_ORDER_ID = od.lg_ORDER_ID WHERE o.str_STATUT IN ('is_Process', 'passed', 'pharma')"
                 + " AND o.dt_UPDATED >= ?1 GROUP BY od.lg_FAMILLE_ID",
-                Timestamp.valueOf(LocalDate.now().minusDays(JOURS_COMMANDE_EN_COURS).atStartOfDay()))) {
+                Timestamp.valueOf(LocalDate.now().minusDays(param("KEY_PREVISION_JOURS_EN_COURS")).atStartOfDay()))) {
             m.put(texte(r[0]), Math.max(0, entier(r[1])));
         }
         return m;
@@ -410,7 +416,8 @@ public class PrevisionCommandeServiceImpl implements PrevisionCommandeService {
                 + "   THEN p.stock * f.int_PAF ELSE 0 END), 0),"
                 + " COALESCE(SUM(CASE WHEN p.stock > 0 AND (p.derniere_vente IS NULL OR p.derniere_vente < ?2)"
                 + "   THEN 1 ELSE 0 END), 0),"
-                + " AVG(CASE WHEN p.ventes_12_mois > 0 AND p.couverture_jours IS NOT NULL THEN LEAST(p.couverture_jours, 365) END),"
+                + " AVG(CASE WHEN p.ventes_12_mois > 0 AND p.couverture_jours IS NOT NULL THEN LEAST(p.couverture_jours, "
+                + param("KEY_PREVISION_PLAFOND_COUVERTURE") + ") END),"
                 + " COALESCE(SUM(CASE WHEN p.ventes_12_mois > 0 THEN p.fiabilite * p.ventes_12_mois ELSE 0 END), 0),"
                 + " COALESCE(SUM(p.ventes_12_mois), 0),"
                 + " COALESCE(SUM(CASE WHEN p.recommande > 0 THEN 1 ELSE 0 END), 0),"
@@ -430,7 +437,9 @@ public class PrevisionCommandeServiceImpl implements PrevisionCommandeService {
                 .put("fiabilite", poids > 0 ? Math.round(reel(r[7]) / poids) : JSONObject.NULL)
                 .put("aCommander", entier(r[9])).put("valeurACommander", (long) reel(r[10]))
                 .put("surstock", entier(r[11])).put("joursLente", s.rotationLenteJours)
-                .put("joursSurstock", s.surstockJours);
+                .put("joursSurstock", s.surstockJours)
+                .put("plafondCouverture", param("KEY_PREVISION_PLAFOND_COUVERTURE"))
+                .put("seuilPeuFiable", param("KEY_PREVISION_SEUIL_PEU_FIABLE"));
         JSONArray methodes = new JSONArray();
         for (Object[] m : lignes(
                 "SELECT methode, COUNT(*), ROUND(AVG(fiabilite)) FROM t_prevision_produit"
@@ -452,7 +461,8 @@ public class PrevisionCommandeServiceImpl implements PrevisionCommandeService {
     private static final String COLONNES = "SELECT p.lg_FAMILLE_ID, f.str_NAME, f.int_CIP, p.methode, p.prevu_mois,"
             + " p.fiabilite, p.ventes_12_mois, DATE_FORMAT(p.derniere_vente, '%d/%m/%Y'), p.stock, p.en_cours,"
             + " p.equivalents, p.delai_jours, p.couverture_jours, p.recommande, COALESCE(f.int_PAF, 0),"
-            + " (SELECT g.str_LIBELLE FROM t_grossiste g WHERE g.lg_GROSSISTE_ID = f.lg_GROSSISTE_ID), p.historique";
+            + " (SELECT g.str_LIBELLE FROM t_grossiste g WHERE g.lg_GROSSISTE_ID = f.lg_GROSSISTE_ID), p.historique,"
+            + " p.ecart_type_mois";
 
     private static JSONObject ligne(Object[] r) {
         return new JSONObject().put("id", r[0]).put("nom", r[1]).put("cip", r[2]).put("methode", r[3])
@@ -461,62 +471,130 @@ public class PrevisionCommandeServiceImpl implements PrevisionCommandeService {
                 .put("equivalents", entier(r[10])).put("delai", entier(r[11]))
                 .put("couverture", r[12] == null ? JSONObject.NULL : entier(r[12])).put("recommande", entier(r[13]))
                 .put("paf", entier(r[14])).put("valeur", (long) entier(r[13]) * entier(r[14]))
-                .put("grossiste", r[15] == null ? "" : r[15]).put("historique", r[16] == null ? "" : r[16]);
+                .put("grossiste", r[15] == null ? "" : r[15]).put("historique", r[16] == null ? "" : r[16])
+                .put("ecartType", r.length > 17 ? reel(r[17]) : 0d);
     }
 
-    @Override
-    public JSONObject previsions(String emplacementId, String filtre, String recherche, int start, int limit) {
-        rafraichirEnCours(emplacementId);
-        AlertesLigne.Seuils s = seuils();
-        StringBuilder where = new StringBuilder(" FROM t_prevision_produit p JOIN t_famille f"
-                + " ON f.lg_FAMILLE_ID = p.lg_FAMILLE_ID WHERE p.lg_EMPLACEMENT_ID = ?1");
-        List<Object> params = new ArrayList<>();
-        params.add(emplacementId);
+    /** Clauses SQL d'une recherche de l'onglet Previsions (liste, exports, inventaire, suggestion : memes filtres). */
+    static final class Clauses {
+        final StringBuilder where = new StringBuilder();
+        final List<Object> params = new ArrayList<>();
         String tri = " ORDER BY p.ventes_12_mois DESC, f.str_NAME";
-        String f = filtre == null ? "" : filtre.trim().toUpperCase(Locale.ROOT);
+    }
+
+    /**
+     * Criteres : filtre (ACOMMANDER, RUPTURE, SURSTOCK, LENTE, PEU_FIABLE), query, et (retours du 10/10) methode
+     * (MOYENNE, SAISON, HOLT, HOLT_WINTERS), equivalent (1 = equivalent DCI en stock), stock (RUPTURE, EN_STOCK,
+     * SURSTOCK).
+     */
+    Clauses clauses(String emplacementId, Map<String, String> criteres) {
+        Clauses c = new Clauses();
+        AlertesLigne.Seuils s = seuils();
+        c.where.append(" FROM t_prevision_produit p JOIN t_famille f"
+                + " ON f.lg_FAMILLE_ID = p.lg_FAMILLE_ID WHERE p.lg_EMPLACEMENT_ID = ?1");
+        c.params.add(emplacementId);
+        String f = critere(criteres, "filtre");
         switch (f) {
         case "ACOMMANDER":
-            where.append(" AND p.recommande > 0");
-            tri = " ORDER BY p.recommande * f.int_PAF DESC, f.str_NAME";
+            c.where.append(" AND p.recommande > 0");
+            c.tri = " ORDER BY p.recommande * f.int_PAF DESC, f.str_NAME";
             break;
         case "RUPTURE":
-            where.append(" AND p.prevu_mois >= 1 AND p.stock <= 0");
+            c.where.append(" AND p.prevu_mois >= 1 AND p.stock <= 0");
             break;
         case "SURSTOCK":
-            where.append(" AND p.couverture_jours > ").append(s.surstockJours);
-            tri = " ORDER BY p.stock * f.int_PAF DESC, f.str_NAME";
+            c.where.append(" AND p.couverture_jours > ").append(s.surstockJours);
+            c.tri = " ORDER BY p.stock * f.int_PAF DESC, f.str_NAME";
             break;
         case "LENTE":
-            where.append(" AND p.stock > 0 AND (p.derniere_vente IS NULL OR p.derniere_vente < ?2)");
-            params.add(Timestamp.valueOf(LocalDate.now().minusDays(s.rotationLenteJours).atStartOfDay()));
-            tri = " ORDER BY p.stock * f.int_PAF DESC, f.str_NAME";
+            c.params.add(Timestamp.valueOf(LocalDate.now().minusDays(s.rotationLenteJours).atStartOfDay()));
+            c.where.append(" AND p.stock > 0 AND (p.derniere_vente IS NULL OR p.derniere_vente < ?")
+                    .append(c.params.size()).append(')');
+            c.tri = " ORDER BY p.stock * f.int_PAF DESC, f.str_NAME";
             break;
         case "PEU_FIABLE":
-            where.append(" AND p.ventes_12_mois > 0 AND p.fiabilite < 50");
+            c.where.append(" AND p.ventes_12_mois > 0 AND p.fiabilite < ")
+                    .append(param("KEY_PREVISION_SEUIL_PEU_FIABLE"));
             break;
         default:
             break;
         }
-        String r = recherche == null ? "" : recherche.trim();
-        if (!r.isEmpty()) {
-            params.add("%" + r.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%");
-            int n = params.size();
-            where.append(" AND (f.str_NAME LIKE ?").append(n).append(" OR f.int_CIP LIKE ?").append(n).append(')');
+        String m = critere(criteres, "methode");
+        if (Arrays.asList(Prevision.MOYENNE, Prevision.SAISON, Prevision.HOLT, Prevision.HOLT_WINTERS).contains(m)) {
+            c.params.add(m);
+            c.where.append(" AND p.methode = ?").append(c.params.size());
         }
+        if ("1".equals(critere(criteres, "equivalent"))) {
+            c.where.append(" AND p.equivalents > 0");
+        }
+        switch (critere(criteres, "stock")) {
+        case "RUPTURE":
+            c.where.append(" AND p.stock <= 0");
+            break;
+        case "EN_STOCK":
+            c.where.append(" AND p.stock > 0");
+            break;
+        case "SURSTOCK":
+            c.where.append(" AND p.couverture_jours > ").append(s.surstockJours);
+            break;
+        default:
+            break;
+        }
+        String r = criteres == null || criteres.get("query") == null ? "" : criteres.get("query").trim();
+        if (!r.isEmpty()) {
+            c.params.add("%" + r.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%");
+            int n = c.params.size();
+            c.where.append(" AND (f.str_NAME LIKE ?").append(n).append(" OR f.int_CIP LIKE ?").append(n).append(')');
+        }
+        return c;
+    }
+
+    private static String critere(Map<String, String> criteres, String cle) {
+        String v = criteres == null ? null : criteres.get(cle);
+        return v == null ? "" : v.trim().toUpperCase(Locale.ROOT);
+    }
+
+    @Override
+    public JSONObject previsions(String emplacementId, String filtre, String recherche, int start, int limit) {
+        Map<String, String> criteres = new HashMap<>();
+        criteres.put("filtre", filtre);
+        criteres.put("query", recherche);
+        return previsions(emplacementId, criteres, start, limit);
+    }
+
+    @Override
+    public JSONObject previsions(String emplacementId, Map<String, String> criteres, int start, int limit) {
+        rafraichirEnCours(emplacementId);
+        Clauses c = clauses(emplacementId, criteres);
         int debut = Math.max(0, start), taille = limit <= 0 ? 25 : Math.min(limit, 500);
-        long total = (long) reel(lignes("SELECT COUNT(*)" + where, params.toArray()).get(0)[0]);
+        long total = (long) reel(lignes("SELECT COUNT(*)" + c.where, c.params.toArray()).get(0)[0]);
         JSONArray data = new JSONArray();
-        for (Object[] x : lignes(COLONNES + where + tri + " LIMIT " + taille + " OFFSET " + debut, params.toArray())) {
+        for (Object[] x : lignes(COLONNES + c.where + c.tri + " LIMIT " + taille + " OFFSET " + debut,
+                c.params.toArray())) {
             data.put(ligne(x));
         }
-        return new JSONObject().put("success", true).put("total", total).put("data", data);
+        return new JSONObject().put("success", true).put("total", total).put("data", data).put("couvertureVoulue",
+                Math.max(0, entierParametre("KEY_PREVISION_COUVERTURE_JOURS", 15)));
+    }
+
+    /** Plafond de lignes d'un export ou d'une generation (catalogue entier d'une officine). */
+    static final int MAX_TOUTES = 50000;
+
+    @Override
+    public List<JSONObject> toutes(String emplacementId, Map<String, String> criteres) {
+        rafraichirEnCours(emplacementId);
+        Clauses c = clauses(emplacementId, criteres);
+        List<JSONObject> sortie = new ArrayList<>();
+        for (Object[] x : lignes(COLONNES + c.where + c.tri + " LIMIT " + MAX_TOUTES, c.params.toArray())) {
+            sortie.add(ligne(x));
+        }
+        return sortie;
     }
 
     @Override
     public JSONObject produit(String emplacementId, String familleId) {
         rafraichirEnCours(emplacementId);
-        List<Object[]> r = lignes(COLONNES
-                + ", p.ecart_type_mois, p.erreurs FROM t_prevision_produit p JOIN t_famille f"
+        List<Object[]> r = lignes(COLONNES + ", p.erreurs FROM t_prevision_produit p JOIN t_famille f"
                 + " ON f.lg_FAMILLE_ID = p.lg_FAMILLE_ID WHERE p.lg_EMPLACEMENT_ID = ?1 AND p.lg_FAMILLE_ID = ?2",
                 emplacementId, familleId);
         if (r.isEmpty()) {
@@ -558,7 +636,40 @@ public class PrevisionCommandeServiceImpl implements PrevisionCommandeService {
                 new JSONObject().put("parJour", Math.round(parJour * 100) / 100.0).put("delai", delai)
                         .put("couvertureVoulue", couverture).put("besoin", Math.round(besoin * 10) / 10.0)
                         .put("securite", Math.round(securite * 10) / 10.0).put("ecartType", ecartType));
+        detailFenetre(o, emplacementId, familleId);
         return o;
+    }
+
+    /**
+     * Retours du 10/10 : complements de la fenetre produit — origine du delai (grossiste ou parametre), stock rayon et
+     * reserve separes, quantite de la derniere vente.
+     */
+    private void detailFenetre(JSONObject o, String emplacementId, String familleId) {
+        List<Object[]> g = lignes("SELECT g.str_LIBELLE, COALESCE(g.int_DELAI_REAPPROVISIONNEMENT, 0),"
+                + " (SELECT COALESCE(SUM(s.int_NUMBER_AVAILABLE), 0) FROM t_famille_stock s WHERE s.lg_FAMILLE_ID = f.lg_FAMILLE_ID"
+                + "   AND s.lg_EMPLACEMENT_ID = ?2),"
+                + " (SELECT COALESCE(SUM(t.int_NUMBER), 0) FROM t_type_stock_famille t WHERE t.lg_FAMILLE_ID = f.lg_FAMILLE_ID"
+                + "   AND t.lg_TYPE_STOCK_ID = '2' AND t.lg_EMPLACEMENT_ID = ?2)"
+                + " FROM t_famille f LEFT JOIN t_grossiste g ON g.lg_GROSSISTE_ID = f.lg_GROSSISTE_ID WHERE f.lg_FAMILLE_ID = ?1",
+                familleId, emplacementId);
+        if (!g.isEmpty()) {
+            Object[] x = g.get(0);
+            boolean duGrossiste = entier(x[1]) > 0;
+            o.put("delaiOrigine", duGrossiste ? "délai du grossiste " + texte(x[0]) : "paramètre (délai par défaut)")
+                    .put("delaiDuGrossiste", duGrossiste).put("rayon", Math.max(0, entier(x[2])))
+                    .put("reserve", Math.max(0, entier(x[3])));
+        }
+        o.put("couvertureOrigine", "paramètre (couverture voulue)");
+        /* derniere vente : meme perimetre que le calcul (ventes cloturees, non annulees, vendeurs de l'emplacement) */
+        List<Object[]> v = lignes("SELECT DATE_FORMAT(p.dt_UPDATED, '%d/%m/%Y'), SUM(d.int_QUANTITY)"
+                + " FROM t_preenregistrement p JOIN t_preenregistrement_detail d ON d.lg_PREENREGISTREMENT_ID = p.lg_PREENREGISTREMENT_ID"
+                + " JOIN t_user u ON u.lg_USER_ID = p.lg_USER_ID AND u.lg_EMPLACEMENT_ID = ?2"
+                + " WHERE d.lg_FAMILLE_ID = ?1 AND p.str_STATUT = 'is_Closed' AND p.b_IS_CANCEL = 0 AND p.int_PRICE > 0"
+                + " GROUP BY p.lg_PREENREGISTREMENT_ID, p.dt_UPDATED ORDER BY p.dt_UPDATED DESC LIMIT 1", familleId,
+                emplacementId);
+        if (!v.isEmpty() && v.get(0)[0] != null) {
+            o.put("derniereVente", texte(v.get(0)[0])).put("derniereVenteQte", entier(v.get(0)[1]));
+        }
     }
 
     @Override
@@ -568,7 +679,9 @@ public class PrevisionCommandeServiceImpl implements PrevisionCommandeService {
                 + " DATE_FORMAT(s.dt_UPDATED, '%d/%m/%Y %H:%i'), s.str_STATUT,"
                 + " (SELECT COUNT(*) FROM t_suggestion_order_details d WHERE d.lg_SUGGESTION_ORDER_ID = s.lg_SUGGESTION_ORDER_ID)"
                 + " FROM t_suggestion_order s LEFT JOIN t_grossiste g ON g.lg_GROSSISTE_ID = s.lg_GROSSISTE_ID"
-                + " ORDER BY s.dt_UPDATED DESC LIMIT 40")) {
+                /* retours du 10/10 : suggestions actives seulement (ni commandees ni cloturees) */
+                + " WHERE s.str_STATUT IN ('is_Process', 'auto', 'pending')"
+                + " ORDER BY s.dt_UPDATED DESC LIMIT 300")) {
             data.put(new JSONObject().put("type", SUGGESTION).put("id", r[0]).put("ref", r[1] == null ? "" : r[1])
                     .put("grossiste", r[2] == null ? "" : r[2]).put("date", r[3])
                     .put("statut", r[4] == null ? "" : r[4]).put("lignes", entier(r[5])));
@@ -577,7 +690,8 @@ public class PrevisionCommandeServiceImpl implements PrevisionCommandeService {
                 + " DATE_FORMAT(o.dt_UPDATED, '%d/%m/%Y %H:%i'), o.str_STATUT,"
                 + " (SELECT COUNT(*) FROM t_order_detail d WHERE d.lg_ORDER_ID = o.lg_ORDER_ID)"
                 + " FROM t_order o LEFT JOIN t_grossiste g ON g.lg_GROSSISTE_ID = o.lg_GROSSISTE_ID"
-                + " WHERE o.str_STATUT IN ('is_Process', 'passed') ORDER BY o.dt_UPDATED DESC LIMIT 40")) {
+                /* retours du 10/10 : memes commandes que le menu Commandes en cours (is_Process, pharma) */
+                + " WHERE o.str_STATUT IN ('is_Process', 'pharma') ORDER BY o.dt_UPDATED DESC LIMIT 300")) {
             data.put(new JSONObject().put("type", COMMANDE).put("id", r[0]).put("ref", r[1] == null ? "" : r[1])
                     .put("grossiste", r[2] == null ? "" : r[2]).put("date", r[3])
                     .put("statut", r[4] == null ? "" : r[4]).put("lignes", entier(r[5])));
@@ -603,8 +717,8 @@ public class PrevisionCommandeServiceImpl implements PrevisionCommandeService {
             return new JSONObject().put("success", false).put("message",
                     commande ? "Commande introuvable." : "Suggestion introuvable.");
         }
-        boolean commandeEnCours = commande
-                && ("is_Process".equals(texte(entete.get(0)[2])) || "passed".equals(texte(entete.get(0)[2])));
+        boolean commandeEnCours = commande && ("is_Process".equals(texte(entete.get(0)[2]))
+                || "passed".equals(texte(entete.get(0)[2])) || "pharma".equals(texte(entete.get(0)[2])));
         String sql = commande ? "SELECT d.lg_FAMILLE_ID, f.str_NAME, f.int_CIP, SUM(COALESCE(d.int_NUMBER, 0)),"
                 + " MAX(COALESCE(NULLIF(d.int_PAF_DETAIL, 0), NULLIF(d.prixAchat, 0), f.int_PAF, 0))"
                 + " FROM t_order_detail d JOIN t_famille f ON f.lg_FAMILLE_ID = d.lg_FAMILLE_ID"
@@ -717,5 +831,213 @@ public class PrevisionCommandeServiceImpl implements PrevisionCommandeService {
     /** Pour les messages : une date au format de l'ecran. */
     static String jour(LocalDate d) {
         return d == null ? "" : d.format(JOUR);
+    }
+
+    @Override
+    public JSONObject parametres(String ecran) {
+        JSONArray liste = new JSONArray();
+        for (rest.service.impl.prevision.ParametresPrevision.Definition d : rest.service.impl.prevision.ParametresPrevision
+                .catalogue().values()) {
+            if (ecran != null && !ecran.isEmpty() && !d.ecrans.contains(ecran)) {
+                continue;
+            }
+            liste.put(new JSONObject().put("cle", d.cle).put("libelle", d.libelle).put("aide", d.aide)
+                    .put("unite", d.unite).put("defaut", d.defaut).put("min", d.min).put("max", d.max)
+                    .put("valeur", param(d.cle)).put("ecrans", new JSONArray(d.ecrans)));
+        }
+        return new JSONObject().put("success", true).put("data", liste);
+    }
+
+    @Override
+    public JSONObject enregistrerParametres(JSONObject valeurs) {
+        List<String> erreurs = new ArrayList<>();
+        Map<String, String> aEcrire = new java.util.LinkedHashMap<>();
+        for (String cle : valeurs.keySet()) {
+            String saisie = String.valueOf(valeurs.opt(cle)).trim();
+            String refus = rest.service.impl.prevision.ParametresPrevision.controler(cle, saisie);
+            if (refus != null) {
+                erreurs.add(refus);
+            } else {
+                aEcrire.put(cle, String.valueOf(Integer.parseInt(saisie)));
+            }
+        }
+        if (!erreurs.isEmpty() || aEcrire.isEmpty()) {
+            return new JSONObject().put("success", false).put("msg",
+                    erreurs.isEmpty() ? "Aucune valeur à enregistrer." : String.join("<br>", erreurs));
+        }
+        int modifies = 0;
+        for (Map.Entry<String, String> e : aEcrire.entrySet()) {
+            rest.service.impl.prevision.ParametresPrevision.Definition d = rest.service.impl.prevision.ParametresPrevision
+                    .definition(e.getKey());
+            if (String.valueOf(param(e.getKey())).equals(e.getValue())) {
+                continue;
+            }
+            int n = em
+                    .createNativeQuery("UPDATE t_parameters SET str_VALUE = ?1, dt_UPDATED = NOW() WHERE str_KEY = ?2")
+                    .setParameter(1, e.getValue()).setParameter(2, e.getKey()).executeUpdate();
+            if (n == 0) {
+                em.createNativeQuery(
+                        "INSERT INTO t_parameters (str_KEY, str_VALUE, str_DESCRIPTION, str_TYPE, str_STATUT,"
+                                + " dt_CREATED, dt_UPDATED) VALUES (?1, ?2, ?3, 'SYSTEME', 'enable', NOW(), NOW())")
+                        .setParameter(1, e.getKey()).setParameter(2, e.getValue()).setParameter(3, d.libelle)
+                        .executeUpdate();
+            }
+            modifies++;
+        }
+        return new JSONObject().put("success", true).put("modifies", modifies);
+    }
+
+    @Override
+    public String officine() {
+        try {
+            dal.TOfficine o = em.find(dal.TOfficine.class, "1");
+            return o == null || o.getStrNOMABREGE() == null ? "" : o.getStrNOMABREGE();
+        } catch (RuntimeException e) {
+            return "";
+        }
+    }
+
+    @javax.ejb.EJB
+    private SubstitutionService substitutionService;
+
+    @Override
+    public JSONObject equivalents(String emplacementId, String familleId) {
+        JSONObject o = substitutionService.substituts(familleId, emplacementId);
+        JSONArray data = o.optJSONArray("data");
+        List<String> ids = new ArrayList<>();
+        ids.add(familleId);
+        for (int i = 0; data != null && i < data.length(); i++) {
+            ids.add(data.getJSONObject(i).getString("id"));
+        }
+        Map<String, Integer> reserve = new HashMap<>();
+        for (Object[] r : lignes(
+                "SELECT lg_FAMILLE_ID, SUM(int_NUMBER) FROM t_type_stock_famille"
+                        + " WHERE lg_TYPE_STOCK_ID = '2' AND lg_EMPLACEMENT_ID = ?1 AND lg_FAMILLE_ID IN ("
+                        + java.util.stream.IntStream.rangeClosed(2, ids.size() + 1).mapToObj(n -> "?" + n)
+                                .collect(java.util.stream.Collectors.joining(","))
+                        + ") GROUP BY lg_FAMILLE_ID",
+                parametresIn(emplacementId, ids))) {
+            reserve.put(texte(r[0]), Math.max(0, entier(r[1])));
+        }
+        for (int i = 0; data != null && i < data.length(); i++) {
+            JSONObject l = data.getJSONObject(i);
+            l.put("rayon", l.optInt("stock")).put("reserve", reserve.getOrDefault(l.getString("id"), 0));
+        }
+        List<Object[]> g = lignes("SELECT f.lg_GROSSISTE_ID, g.str_LIBELLE, COALESCE(s.int_NUMBER_AVAILABLE, 0)"
+                + " FROM t_famille f LEFT JOIN t_grossiste g ON g.lg_GROSSISTE_ID = f.lg_GROSSISTE_ID"
+                + " LEFT JOIN t_famille_stock s ON s.lg_FAMILLE_ID = f.lg_FAMILLE_ID AND s.lg_EMPLACEMENT_ID = ?2"
+                + " WHERE f.lg_FAMILLE_ID = ?1", familleId, emplacementId);
+        if (!g.isEmpty()) {
+            o.put("grossisteId", g.get(0)[0] == null ? "" : g.get(0)[0])
+                    .put("grossiste", g.get(0)[1] == null ? "" : g.get(0)[1]).put("rayon", entier(g.get(0)[2]))
+                    .put("reserve", reserve.getOrDefault(familleId, 0));
+        }
+        return o;
+    }
+
+    /** Parametres positionnels : ?1 = emplacement, puis un ?n par identifiant. */
+    private static Object[] parametresIn(String emplacementId, List<String> ids) {
+        Object[] p = new Object[ids.size() + 1];
+        p[0] = emplacementId;
+        for (int i = 0; i < ids.size(); i++) {
+            p[i + 1] = ids.get(i);
+        }
+        return p;
+    }
+
+    @javax.ejb.EJB
+    private rest.service.SuggestionService suggestionService;
+
+    static final java.util.Set<String> SUGGESTION_MODIFIABLE = new HashSet<>(
+            Arrays.asList("is_Process", "auto", "pending"));
+    static final java.util.Set<String> COMMANDE_MODIFIABLE = new HashSet<>(Arrays.asList("is_Process", "pharma"));
+
+    @Override
+    public JSONObject appliquerRecommande(String emplacementId, String type, String id, dal.TUser user) {
+        boolean commande = COMMANDE.equals(type);
+        List<Object[]> e = commande ? lignes("SELECT str_STATUT FROM t_order WHERE lg_ORDER_ID = ?1", id)
+                : lignes("SELECT str_STATUT FROM t_suggestion_order WHERE lg_SUGGESTION_ORDER_ID = ?1", id);
+        if (e.isEmpty()) {
+            return new JSONObject().put("success", false).put("message",
+                    commande ? "Commande introuvable." : "Suggestion introuvable.");
+        }
+        if (!(commande ? COMMANDE_MODIFIABLE : SUGGESTION_MODIFIABLE).contains(texte(e.get(0)[0]))) {
+            return new JSONObject().put("success", false)
+                    .put("message", commande
+                            ? "Cette commande n'est plus en cours : ses quantités ne peuvent plus être modifiées."
+                            : "Cette suggestion n'est plus active (commandée ou clôturée).");
+        }
+        JSONObject a = analyser(emplacementId, type, id);
+        if (!a.optBoolean("success")) {
+            return a;
+        }
+        Map<String, Integer> recommande = new HashMap<>();
+        JSONArray data = a.getJSONArray("data");
+        for (int i = 0; i < data.length(); i++) {
+            JSONObject l = data.getJSONObject(i);
+            recommande.put(l.getString("id"), Math.max(0, l.optInt("recommande")));
+        }
+        if (recommande.values().stream().allMatch(q -> q == 0)) {
+            return new JSONObject().put("success", false).put("message",
+                    "Toutes les lignes sont recommandées à 0 :" + " rien n'est modifié. Supprimez "
+                            + (commande ? "la commande" : "la suggestion") + " si c'est voulu.");
+        }
+        List<Object[]> items = commande
+                ? lignes("SELECT lg_ORDERDETAIL_ID, lg_FAMILLE_ID, COALESCE(int_NUMBER, 0) FROM t_order_detail"
+                        + " WHERE lg_ORDER_ID = ?1 ORDER BY dt_CREATED, lg_ORDERDETAIL_ID", id)
+                : lignes("SELECT lg_SUGGESTION_ORDER_DETAILS_ID, lg_FAMILLE_ID, COALESCE(int_NUMBER, 0)"
+                        + " FROM t_suggestion_order_details WHERE lg_SUGGESTION_ORDER_ID = ?1"
+                        + " ORDER BY dt_CREATED, lg_SUGGESTION_ORDER_DETAILS_ID", id);
+        Set<String> vus = new HashSet<>();
+        int modifiees = 0, supprimees = 0, inchangees = 0;
+        for (Object[] it : items) {
+            String itemId = texte(it[0]), fid = texte(it[1]);
+            Integer q = recommande.get(fid);
+            boolean doublon = !vus.add(fid);
+            if (q == null) {
+                inchangees++;
+                continue;
+            }
+            if (q == 0 || doublon) {
+                /*
+                 * recommande a 0 : la ligne n'a pas lieu d'etre ; doublon du meme produit : une seule ligne garde la
+                 * quantite
+                 */
+                if (commande) {
+                    em.remove(em.find(dal.TOrderDetail.class, itemId));
+                } else {
+                    suggestionService.removeItem(itemId, user == null ? null : user.getLgUSERID());
+                }
+                supprimees++;
+            } else if (entier(it[2]) != q) {
+                if (commande) {
+                    dal.TOrderDetail d = em.find(dal.TOrderDetail.class, itemId);
+                    d.setIntNUMBER(q);
+                    d.setIntQTEREPGROSSISTE(q);
+                    d.setIntQTEMANQUANT(q);
+                    d.setIntPRICE(q * (d.getIntPAFDETAIL() == null ? 0 : d.getIntPAFDETAIL()));
+                    d.setDtUPDATED(new java.util.Date());
+                    em.merge(d);
+                } else {
+                    rest.service.dto.SuggestionOrderDetailDTO dto = new rest.service.dto.SuggestionOrderDetailDTO();
+                    dto.setItemId(itemId);
+                    dto.setQte(q);
+                    suggestionService.updateItemQteCmde(dto);
+                }
+                modifiees++;
+            } else {
+                inchangees++;
+            }
+        }
+        if (commande) {
+            dal.TOrder o = em.find(dal.TOrder.class, id);
+            o.setDtUPDATED(new java.util.Date());
+            em.merge(o);
+        } else {
+            em.createNativeQuery("UPDATE t_suggestion_order SET dt_UPDATED = NOW() WHERE lg_SUGGESTION_ORDER_ID = ?1")
+                    .setParameter(1, id).executeUpdate();
+        }
+        return new JSONObject().put("success", true).put("modifiees", modifiees).put("supprimees", supprimees)
+                .put("inchangees", inchangees);
     }
 }

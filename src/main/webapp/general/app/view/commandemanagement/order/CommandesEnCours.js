@@ -11,7 +11,7 @@ Ext.define('testextjs.view.commandemanagement.order.CommandesEnCours', {
     extend: 'Ext.panel.Panel',
     xtype: 'commandesencours',
     requires: ['testextjs.view.commandemanagement.order.OrderManager', 'testextjs.view.pharmaml.Rupturepharma',
-        'testextjs.view.commandemanagement.order.RisqueRupture'],
+        'testextjs.view.commandemanagement.order.RisqueRupture', 'testextjs.view.commandemanagement.order.SuiviEquivalence'],
     layout: 'card',
     border: false,
     header: false,
@@ -29,6 +29,8 @@ Ext.define('testextjs.view.commandemanagement.order.CommandesEnCours', {
         {cle: 'risque', texte: 'Risque de rupture'},
         {cle: 'substitutions', texte: 'Substitutions', onglet: 'ongletSubstitutions', pastille: 'aDecider'},
         {cle: 'alertes', texte: 'Alertes', onglet: 'ongletAlertes', pastille: 'alertesNonLues'},
+        /* retours du 10/10 : deplace d'Analyse article */
+        {cle: 'equivalence', texte: 'Suivi équivalence'},
         {cle: 'tableau', texte: 'Tableau de bord', onglet: 'ongletTableauBord'}
     ],
 
@@ -150,6 +152,15 @@ Ext.define('testextjs.view.commandemanagement.order.CommandesEnCours', {
             }
             me.getLayout().setActiveItem(me.ecranRisque);
             return me.ecranRisque;
+        }
+        if (cle === 'equivalence') {
+            if (!me.ecranEquivalence) {
+                me.ecranEquivalence = Ext.create('testextjs.view.commandemanagement.order.SuiviEquivalence');
+                me.habiller(me.ecranEquivalence);
+                me.add(me.ecranEquivalence);
+            }
+            me.getLayout().setActiveItem(me.ecranEquivalence);
+            return me.ecranEquivalence;
         }
         var e = me.pml();
         me.getLayout().setActiveItem(e);

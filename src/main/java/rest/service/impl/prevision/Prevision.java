@@ -117,11 +117,16 @@ public final class Prevision {
     }
 
     public static Resultat analyser(double[] serie) {
+        return analyser(serie, MOIS_TEST);
+    }
+
+    /** Retours du 10/10 : nombre de mois d'essai des methodes parametrable. */
+    public static Resultat analyser(double[] serie, int moisTest) {
         String[] candidates = { MOYENNE, SAISON, HOLT, HOLT_WINTERS };
         List<String> jugees = new ArrayList<>();
         List<Double> erreurs = new ArrayList<>();
         int n = serie.length;
-        int test = Math.min(MOIS_TEST, Math.max(0, n - 3));
+        int test = Math.min(Math.max(1, moisTest), Math.max(0, n - 3));
         String meilleure = MOYENNE;
         double meilleureErreur = Double.MAX_VALUE;
         for (String m : candidates) {

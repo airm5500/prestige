@@ -13,6 +13,7 @@
 Ext.define('testextjs.view.commandemanagement.analyse.AnalyseCommande', {
     extend: 'Ext.tab.Panel',
     xtype: 'analysecommande',
+    requires: ['testextjs.view.commandemanagement.analyse.ParametresCalcul', 'testextjs.view.commandemanagement.analyse.FenetrePrevision', 'testextjs.view.commandemanagement.disponibilite.DisponibilitePharmaMl'],
     id: 'analysecommandeID',
     title: 'Prévisions vente / achat / analyse',
     cls: 'ordo-onglets',
@@ -49,9 +50,9 @@ Ext.define('testextjs.view.commandemanagement.analyse.AnalyseCommande', {
     nombre: function (v) {
         return v === null || v === undefined || v === '' ? '—' : Math.round(Number(v)).toLocaleString('fr-FR').replace(/[\u202f\u00a0]/g, ' ');
     },
-    lire: function (url, ok, methode) {
+    lire: function (url, ok, methode, corps) {
         var me = this;
-        Ext.Ajax.request({url: url, method: methode || 'GET', timeout: 300000,
+        Ext.Ajax.request({url: url, method: methode || 'GET', timeout: 300000, jsonData: corps,
             success: function (r) {
                 var o = {};
                 try {
@@ -90,8 +91,28 @@ Ext.define('testextjs.view.commandemanagement.analyse.AnalyseCommande', {
                             handler: function () {
                                 me.recalculer();
                             }}]}],
-            items: [{xtype: 'component', itemId: 'tuiles', html: '<div style="color:#7f8c8d">Chargement…</div>'}]
+            items: [{xtype: 'component', itemId: 'tuiles', html: '<div style="color:#7f8c8d">Chargement…</div>'},
+                /* retours du 10/10 : definition de chaque methode, puis parametres modifiables dans l'ecran */
+                {xtype: 'component', itemId: 'methodesDef', margin: '12 0 0 0', html: me.htmlMethodes()},
+                {xtype: 'parametrescalcul', itemId: 'parametresCalcul', ecran: 'PREVISIONS', margin: '12 0 0 0'}]
         };
+    },
+
+    DEFINITIONS: [
+        ['MOYENNE', 'Moyenne des ventes des 3 derniers mois. Simple et stable : convient aux produits réguliers.'],
+        ['SAISON', 'Ventes du même mois l\'an dernier ; avec deux ans d\'historique, corrigées de l\'évolution d\'une année sur l\'autre (entre ×0,5 et ×2). Pour les produits saisonniers (antipaludéens, antigrippaux…) ; demande 12 mois d\'historique.'],
+        ['HOLT', 'Lissage qui suit le niveau et la tendance (hausse ou baisse régulière) des ventes. Pour un produit qui progresse ou recule ; demande 4 mois d\'historique.'],
+        ['HOLT_WINTERS', 'Lissage de Holt avec en plus l\'effet du mois (saison). Pour un produit à la fois en tendance et saisonnier ; demande 24 mois d\'historique.']
+    ],
+
+    htmlMethodes: function () {
+        var me = this, l = '';
+        Ext.Array.each(me.DEFINITIONS, function (d) {
+            l += '<tr><td class="ac-meth-nom">' + me.h(me.METHODES[d[0]]) + '</td><td>' + me.h(d[1]) + '</td></tr>';
+        });
+        return '<div class="ac-methodes"><div class="ac-methodes-titre">Méthodes de prévision</div><table>' + l + '</table>'
+                + '<div class="ac-methodes-note">Pour chaque produit, chaque méthode prévoit les derniers mois déjà connus (« mois d\'essai » ci-dessous) ;'
+                + ' celle qui s\'est le moins trompée est retenue. Fiabilité = 100 − son erreur moyenne (en %).</div></div>';
     },
 
     chargerTableau: function () {
@@ -133,14 +154,14 @@ Ext.define('testextjs.view.commandemanagement.analyse.AnalyseCommande', {
                             me.nombre(o.surstock) + ' produits au-delà de ' + o.joursSurstock + ' j', 'SURSTOCK',
                             'Jours de vente couverts par le stock et les commandes en cours (plafonné à 1 an par produit)',
                             'Couverture d\'un produit = (stock + commandes en cours) ÷ ventes prévues par jour. Moyenne sur les produits vendus, '
-                            + 'chaque produit plafonné à 365 j. <b>' + me.nombre(o.surstock) + '</b> produits dépassent <b>' + o.joursSurstock
+                            + 'chaque produit plafonné à ' + (o.plafondCouverture || 365) + ' j. <b>' + me.nombre(o.surstock) + '</b> produits dépassent <b>' + o.joursSurstock
                             + ' jours</b> (paramètre KEY_PREVISION_SURSTOCK_JOURS) : surstock.')
                     + tuile('t-vert', 'Fiabilité des prévisions', o.fiabilite === null ? '—' : o.fiabilite + ' %',
                             'pondérée par les ventes des 12 derniers mois', 'PEU_FIABLE',
                             '100 − erreur moyenne de la méthode retenue, mesurée sur les 6 derniers mois connus',
                             'Pour chaque produit, chaque méthode (moyenne, saison, tendance…) prévoit les 6 derniers mois comme si on ne les '
                             + 'connaissait pas ; on compare à ce qui a été vendu. Fiabilité = 100 − erreur moyenne (en %). La moyenne affichée '
-                            + 'est pondérée par les ventes : un produit qui se vend beaucoup compte plus. En dessous de 50 %, la prévision est peu fiable.')
+                            + 'est pondérée par les ventes : un produit qui se vend beaucoup compte plus. En dessous de ' + (o.seuilPeuFiable === undefined ? 50 : o.seuilPeuFiable) + ' %, la prévision est peu fiable.')
                     + tuile('t-orange', 'À commander', me.nombre(o.aCommander) + ' produits',
                             me.nombre(o.valeurACommander) + ' F au prix d\'achat', 'ACOMMANDER',
                             'Produits dont la quantité recommandée est positive',
@@ -233,86 +254,342 @@ Ext.define('testextjs.view.commandemanagement.analyse.AnalyseCommande', {
 
     ongletPrevisions: function () {
         var me = this;
+        me.retires = {};
         var store = Ext.create('Ext.data.Store', {
             fields: ['id', 'nom', 'cip', 'methode', {name: 'prevuMois', type: 'float'}, {name: 'fiabilite', type: 'int'},
                 {name: 'ventes12', type: 'int'}, 'derniereVente', {name: 'stock', type: 'int'}, {name: 'enCours', type: 'int'},
                 {name: 'equivalents', type: 'int'}, {name: 'delai', type: 'int'}, 'couverture', {name: 'recommande', type: 'int'},
-                {name: 'paf', type: 'int'}, {name: 'valeur', type: 'int'}, 'grossiste', 'historique'],
+                {name: 'paf', type: 'int'}, {name: 'valeur', type: 'int'}, 'grossiste', 'historique', {name: 'ecartType', type: 'float'}],
             pageSize: 25, remoteSort: false, autoLoad: false,
             proxy: {type: 'ajax', url: '../api/v1/analyse-commande/previsions', timeout: 120000,
                 reader: {type: 'json', root: 'data', totalProperty: 'total'}}
         });
         store.on('beforeload', function (st) {
-            var g = me.down('#ongletPrevisions');
-            st.getProxy().extraParams = {filtre: g.down('#filtre').getValue() || '', query: g.down('#query').getValue() || ''};
+            st.getProxy().extraParams = me.criteres();
+        });
+        store.on('load', function (st) {
+            var raw = st.getProxy().getReader().rawData || {};
+            me.couvertureVoulue = raw.couvertureVoulue;
+            me.majRetires();
         });
         var entree = {specialkey: function (f, e) {
                 if (e.getKey() === e.ENTER) {
                     store.loadPage(1);
                 }
             }};
+        var recharger = {select: function () {
+                store.loadPage(1);
+            }};
+        var combo = function (itemId, largeur, donnees, vide) {
+            return {xtype: 'combobox', itemId: itemId, width: largeur, editable: false, queryMode: 'local', displayField: 'l',
+                valueField: 'v', value: '', store: Ext.create('Ext.data.Store', {fields: ['v', 'l'], data: [{v: '', l: vide}].concat(donnees)}),
+                listeners: recharger};
+        };
+        var qtip = function (m, texte) {
+            m.tdAttr = 'data-qtip="' + Ext.String.htmlEncode(texte) + '"';
+        };
         return {
             xtype: 'grid', itemId: 'ongletPrevisions', title: 'Prévisions', store: store,
-            viewConfig: {emptyText: 'Aucun produit pour ces critères.', deferEmptyText: false, stripeRows: true},
+            selModel: Ext.create('Ext.selection.CheckboxModel', {checkOnly: true, mode: 'MULTI'}),
+            viewConfig: {emptyText: 'Aucun produit pour ces critères.', deferEmptyText: false, stripeRows: true,
+                getRowClass: function (r) {
+                    return me.retires[r.get('id')] ? 'prev-retire' : '';
+                }},
             columns: [
-                {text: 'Produit', dataIndex: 'nom', flex: 1, minWidth: 260, tooltip: 'Désignation · code CIP · grossiste habituel',
+                {text: 'Produit', dataIndex: 'nom', flex: 1, minWidth: 250, tooltip: 'Désignation · code CIP · grossiste habituel',
                     renderer: function (v, m, r) {
                         return me.produitUneLigne(m, v, r.get('cip'), r.get('grossiste'));
                     }},
-                {text: 'Ventes 12 mois', dataIndex: 'ventes12', width: 90, align: 'right', tooltip: 'Quantité vendue sur les 12 derniers mois complets'},
-                {text: 'Tendance', dataIndex: 'historique', width: 120, sortable: false, tooltip: 'Ventes mois par mois sur 12 mois (le plus récent à droite)', renderer: function (v) {
+                {text: 'Ventes 12 mois', dataIndex: 'ventes12', width: 85, align: 'right', tooltip: 'Quantité vendue sur les 12 derniers mois complets',
+                    renderer: function (v, m, r) {
+                        qtip(m, 'Ventes des 12 derniers mois complets : ' + v + ' (soit ' + (Math.round(v / 12 * 10) / 10).toString().replace('.', ',') + ' par mois en moyenne)'
+                                + (r.get('derniereVente') ? ' · dernière vente le ' + r.get('derniereVente') : ''));
+                        return v;
+                    }},
+                {text: 'Tendance', dataIndex: 'historique', width: 115, sortable: false, tooltip: 'Ventes mois par mois sur 12 mois (le plus récent à droite)', renderer: function (v, m) {
+                        qtip(m, '12 derniers mois (du plus ancien au plus récent) : ' + String(v || '').split(',').slice(-12).join(' · '));
                         return me.miniCourbe(v);
                     }},
-                {text: 'Prévu / mois', dataIndex: 'prevuMois', width: 85, align: 'right', tooltip: 'Ventes prévues pour le mois qui vient, par la méthode retenue', renderer: function (v) {
-                        return '<b>' + String(v).replace('.', ',') + '</b>';
+                {text: 'Prévu / mois', dataIndex: 'prevuMois', width: 80, align: 'right', tooltip: 'Ventes prévues pour le mois qui vient, par la méthode retenue', renderer: function (v, m, r) {
+                        qtip(m, 'Prévision du mois par « ' + (me.METHODES[r.get('methode')] || r.get('methode')) + ' » : ' + me.dec(v)
+                                + ' · soit ' + me.dec(v / 30, 2) + ' par jour (÷ 30)');
+                        return '<b>' + me.dec(v) + '</b>';
                     }},
-                {text: 'Méthode', dataIndex: 'methode', width: 115, tooltip: 'Méthode de prévision retenue : celle qui s\'est le moins trompée sur les 6 derniers mois', renderer: function (v) {
+                {text: 'Méthode', dataIndex: 'methode', width: 110, tooltip: 'Méthode de prévision retenue : celle qui s\'est le moins trompée sur les derniers mois connus (voir l\'onglet Tableau)', renderer: function (v, m) {
+                        var d = Ext.Array.findBy(me.DEFINITIONS, function (x) {
+                            return x[0] === v;
+                        });
+                        if (d) {
+                            qtip(m, d[1]);
+                        }
                         return me.h(me.METHODES[v] || v);
                     }},
-                {text: 'Fiabilité', dataIndex: 'fiabilite', width: 110, tooltip: '100 − erreur moyenne de la prévision sur les 6 derniers mois (100 % = parfaite)', renderer: function (v, m, r) {
+                {text: 'Fiabilité', dataIndex: 'fiabilite', width: 105, tooltip: '100 − erreur moyenne de la méthode retenue sur les mois d\'essai (100 % = parfaite)', renderer: function (v, m, r) {
+                        if (r.get('ventes12') > 0) {
+                            qtip(m, 'Fiabilité = 100 − erreur moyenne (en %) de la méthode retenue sur les mois d\'essai = ' + v + ' %');
+                        }
                         return r.get('ventes12') > 0 ? me.fiabilite(v) : '<span style="color:#9aa8b6">sans vente</span>';
                     }},
-                {text: 'Stock', dataIndex: 'stock', width: 60, align: 'right', tooltip: 'Stock actuel, rayon et réserve', renderer: function (v) {
+                {text: 'Stock', dataIndex: 'stock', width: 55, align: 'right', tooltip: 'Stock actuel, rayon et réserve', renderer: function (v, m) {
+                        qtip(m, 'Stock rayon + réserve de l\'emplacement : ' + v);
                         return v > 0 ? v : '<b style="color:#c0392b">' + v + '</b>';
                     }},
-                {text: 'En cours', dataIndex: 'enCours', width: 65, align: 'right', tooltip: 'Quantité en commande, pas encore livrée (commandes de moins de 45 jours)'},
-                {text: 'Équiv. DCI', dataIndex: 'equivalents', width: 70, align: 'right', tooltip: 'Stock des équivalents DCI directs (même DCI, dosage et forme), déduit de la quantité recommandée', renderer: function (v, m) {
+                {text: 'En cours', dataIndex: 'enCours', width: 60, align: 'right', tooltip: 'Quantité en commande, pas encore livrée (commandes en cours ou passées récentes)', renderer: function (v, m) {
+                        qtip(m, 'Quantité commandée pas encore livrée (commandes en cours ou passées récentes, lue en direct) : ' + v);
+                        return v;
+                    }},
+                {text: 'Équiv. DCI', dataIndex: 'equivalents', width: 65, align: 'right', tooltip: 'Stock des équivalents DCI directs (même DCI, dosage et forme), déduit de la quantité recommandée', renderer: function (v, m) {
                         if (v > 0) {
-                            m.tdAttr = 'data-qtip="Stock des équivalents DCI directs (même DCI, dosage et forme)"';
+                            qtip(m, 'Stock rayon des équivalents DCI directs (même DCI, dosage et forme) : ' + v + ', déduit du recommandé · bouton ≡ pour la liste');
                         }
                         return v > 0 ? v : '';
                     }},
-                {text: 'Couverture', dataIndex: 'couverture', width: 80, align: 'right', tooltip: 'Nombre de jours de vente couverts par le stock et les commandes en cours', renderer: function (v) {
+                {text: 'Couverture', dataIndex: 'couverture', width: 75, align: 'right', tooltip: 'Nombre de jours de vente couverts par le stock et les commandes en cours', renderer: function (v, m, r) {
+                        if (v !== null && v !== undefined && v !== '') {
+                            qtip(m, '(stock ' + r.get('stock') + ' + en cours ' + r.get('enCours') + ') ÷ ventes par jour ' + me.dec(r.get('prevuMois') / 30, 2) + ' = ' + v + ' jours');
+                        }
                         return v === null || v === undefined || v === '' ? '<span style="color:#9aa8b6">—</span>' : (v > 999 ? '> 999' : v) + ' j';
                     }},
-                {text: 'Recommandé', dataIndex: 'recommande', width: 90, align: 'right', tooltip: 'Quantité à commander : ventes prévues sur le délai de livraison et la couverture voulue + stock de sécurité − stock − en cours − équivalents', renderer: function (v) {
-                        return v > 0 ? '<b style="color:#d35400">' + v + '</b>' : '0';
+                {text: 'Recommandé', dataIndex: 'recommande', width: 85, align: 'right', tooltip: 'Quantité à commander : ventes prévues sur le délai de livraison et la couverture voulue + stock de sécurité − stock − en cours − équivalents', renderer: function (v, m, r) {
+                        qtip(m, me.calculRecommande(r));
+                        return v > 0 ? '<b style="color:#17795f">' + v + '</b>' : '0';
                     }},
-                {text: 'Valeur', dataIndex: 'valeur', width: 90, align: 'right', tooltip: 'Quantité recommandée × prix d\'achat', renderer: function (v) {
+                {text: 'Valeur', dataIndex: 'valeur', width: 85, align: 'right', tooltip: 'Quantité recommandée × prix d\'achat', renderer: function (v, m, r) {
+                        if (v > 0) {
+                            qtip(m, r.get('recommande') + ' × prix d\'achat ' + me.nombre(r.get('paf')) + ' = ' + me.nombre(v));
+                        }
                         return v > 0 ? me.nombre(v) : '';
+                    }},
+                {text: '', width: 62, sortable: false, menuDisabled: true, align: 'center', tooltip: 'Équivalents · retirer de la suggestion à générer',
+                    renderer: function (v, m, r) {
+                        var retire = !!me.retires[r.get('id')];
+                        return '<span class="prev-action" data-action="equivalents" data-qtip="Équivalents (stock rayon / réserve, disponibilité PharmaML)">≡</span>'
+                                + '<span class="prev-action ' + (retire ? 'remettre' : 'retirer') + '" data-action="retirer" data-qtip="'
+                                + (retire ? 'Remettre ce produit dans la suggestion à générer' : 'Retirer ce produit de la suggestion à générer') + '">' + (retire ? '↺' : '✕') + '</span>';
                     }}
             ],
             dockedItems: [{xtype: 'toolbar', dock: 'top', items: [
-                        {xtype: 'combobox', itemId: 'filtre', width: 230, editable: false, queryMode: 'local', displayField: 'l',
-                            valueField: 'v', value: '',
-                            store: Ext.create('Ext.data.Store', {fields: ['v', 'l'], data: [
-                                    {v: '', l: 'Tous les produits suivis'}, {v: 'ACOMMANDER', l: 'À commander'},
-                                    {v: 'RUPTURE', l: 'En rupture (vendus régulièrement)'}, {v: 'SURSTOCK', l: 'En surstock'},
-                                    {v: 'LENTE', l: 'Rotation lente (invendus)'}, {v: 'PEU_FIABLE', l: 'Prévision peu fiable (< 50 %)'}]}),
-                            listeners: {select: function () {
+                        combo('filtre', 205, [{v: 'ACOMMANDER', l: 'À commander'},
+                            {v: 'RUPTURE', l: 'En rupture (vendus régulièrement)'}, {v: 'SURSTOCK', l: 'En surstock'},
+                            {v: 'LENTE', l: 'Rotation lente (invendus)'}, {v: 'PEU_FIABLE', l: 'Prévision peu fiable'}], 'Tous les produits suivis'),
+                        combo('methode', 150, [{v: 'MOYENNE', l: 'Moyenne 3 mois'}, {v: 'SAISON', l: 'Saisonnière'},
+                            {v: 'HOLT', l: 'Tendance (Holt)'}, {v: 'HOLT_WINTERS', l: 'Tendance + saison'}], 'Toutes méthodes'),
+                        combo('stock', 130, [{v: 'RUPTURE', l: 'Stock à zéro'}, {v: 'EN_STOCK', l: 'En stock'}, {v: 'SURSTOCK', l: 'Surstock'}], 'Tout stock'),
+                        {xtype: 'checkbox', itemId: 'equivalent', boxLabel: 'Avec équivalent en stock', listeners: {change: function () {
                                     store.loadPage(1);
                                 }}},
-                        {xtype: 'textfield', itemId: 'query', width: 220, emptyText: 'Nom ou CIP…', maxLength: 100, enforceMaxLength: true,
+                        {xtype: 'textfield', itemId: 'query', width: 170, emptyText: 'Nom ou CIP…', maxLength: 100, enforceMaxLength: true,
                             listeners: entree},
                         {text: 'Rechercher', iconCls: 'searchicon', handler: function () {
                                 store.loadPage(1);
+                            }}]},
+                {xtype: 'toolbar', dock: 'top', items: [
+                        {text: 'Générer une suggestion', itemId: 'btnGenerer', iconCls: 'add',
+                            tooltip: 'Une suggestion par grossiste habituel, à partir de toute la liste filtrée (toutes les pages) : quantité = recommandé, lignes à 0 exclues, produits retirés exclus',
+                            handler: function () {
+                                me.genererSuggestion();
                             }},
-                        '->', {xtype: 'component', html: '<span style="color:#7f8c8d">Un clic sur une ligne : détail et calcul</span>'}]},
-                {xtype: 'pagingtoolbar', dock: 'bottom', store: store, displayInfo: true}],
-            listeners: {itemclick: function (v, r) {
+                        {xtype: 'component', itemId: 'infoRetires', html: ''}, '-',
+                        {text: 'Excel', icon: 'resources/images/icons/fam/excel_icon.png', tooltip: 'Exporter la liste filtrée (toutes les pages) en Excel', handler: function () {
+                                window.open('../api/v1/analyse-commande/previsions/excel?' + Ext.Object.toQueryString(me.criteres()));
+                            }},
+                        {text: 'PDF', iconCls: 'printable', tooltip: 'Imprimer la liste filtrée (toutes les pages)', handler: function () {
+                                window.open('../api/v1/analyse-commande/previsions/pdf?' + Ext.Object.toQueryString(me.criteres()));
+                            }},
+                        {text: 'Créer un inventaire', itemId: 'btnInventaire', icon: 'resources/images/icons/fam/table_refresh.png',
+                            tooltip: 'Inventaire des produits cochés, ou de toute la liste filtrée si rien n\'est coché', handler: function () {
+                                me.creerInventaire();
+                            }},
+                        '->', {xtype: 'component', html: '<span style="color:#7f8c8d">Clic sur une ligne : détail et calcul</span>'}]},
+                {xtype: 'pagingtoolbar', dock: 'bottom', store: store, displayInfo: true,
+                    items: ['-', window.PrestigeAffichage.choixLignes(store, [25, 50, 100, 200])]}],
+            listeners: {
+                itemclick: function (v, r, item, index, e) {
+                    var action = e && e.getTarget ? e.getTarget('.prev-action') : null;
+                    if (action) {
+                        if (action.getAttribute('data-action') === 'equivalents') {
+                            me.fenetreEquivalents(r);
+                        } else {
+                            me.basculerRetire(r.get('id'));
+                        }
+                        return;
+                    }
+                    if (e && e.getTarget && e.getTarget('.x-grid-row-checker')) {
+                        return;
+                    }
                     me.detail(r.get('id'));
-                }}
+                }
+            }
         };
+    },
+
+    dec: function (v, n) {
+        var f = Math.pow(10, n || 1);
+        return String(Math.round(Number(v || 0) * f) / f).replace('.', ',');
+    },
+
+    /** Criteres de la recherche (liste, exports, inventaire et suggestion : les memes). */
+    criteres: function () {
+        var g = this.down('#ongletPrevisions');
+        return {filtre: g.down('#filtre').getValue() || '', query: g.down('#query').getValue() || '', methode: g.down('#methode').getValue() || '',
+            stock: g.down('#stock').getValue() || '', equivalent: g.down('#equivalent').getValue() ? '1' : ''};
+    },
+
+    /** Infobulle « Recommande » : le calcul de la ligne, chiffre par chiffre (meme formule que le serveur). */
+    calculRecommande: function (r) {
+        var me = this, parJour = r.get('prevuMois') / 30, delai = r.get('delai'), couv = me.couvertureVoulue === undefined ? 15 : me.couvertureVoulue;
+        var besoin = parJour * (delai + couv), securite = 1.65 * (r.get('ecartType') / Math.sqrt(30)) * Math.sqrt(Math.max(1, delai));
+        return 'Ventes par jour ' + me.dec(parJour, 2) + ' × (délai ' + delai + ' j + couverture ' + couv + ' j) = ' + me.dec(besoin)
+                + ' ; + stock de sécurité ' + me.dec(securite) + ' ; − stock ' + r.get('stock') + ' ; − en cours ' + r.get('enCours')
+                + ' ; − équivalents ' + r.get('equivalents') + ' = ' + r.get('recommande') + ' (arrondi au-dessus, jamais négatif)';
+    },
+
+    basculerRetire: function (id) {
+        var me = this;
+        if (me.retires[id]) {
+            delete me.retires[id];
+        } else {
+            me.retires[id] = true;
+        }
+        var g = me.down('#ongletPrevisions'), r = g.getStore().getById(id) || g.getStore().findRecord('id', id, 0, false, true, true);
+        if (r) {
+            g.getView().refreshNode(g.getStore().indexOf(r));
+        }
+        me.majRetires();
+    },
+
+    majRetires: function () {
+        var n = Ext.Object.getSize(this.retires), c = this.down('#infoRetires');
+        if (c) {
+            c.update(n ? '<span class="prev-info-retires">' + n + ' produit(s) retiré(s) <a href="#" data-remettre="1">tout remettre</a></span>' : '');
+            var me = this, el = c.getEl();
+            if (el && !c.ecoute) {
+                c.ecoute = true;
+                el.on('click', function (e) {
+                    if (e.getTarget('[data-remettre]')) {
+                        e.preventDefault();
+                        me.retires = {};
+                        me.down('#ongletPrevisions').getView().refresh();
+                        me.majRetires();
+                    }
+                });
+            }
+        }
+    },
+
+    genererSuggestion: function () {
+        var me = this, g = me.down('#ongletPrevisions'), n = g.getStore().getTotalCount(), retires = Ext.Object.getKeys(me.retires);
+        Ext.MessageBox.confirm('Générer une suggestion',
+                'Créer une suggestion par grossiste habituel à partir des <b>' + n + '</b> produit(s) de la liste filtrée (toutes les pages) ?<br>'
+                + 'Quantité = recommandé ; lignes à 0 exclues' + (retires.length ? ' ; <b>' + retires.length + '</b> produit(s) retiré(s) exclus' : '') + '.',
+                function (b) {
+                    if (b !== 'yes') {
+                        return;
+                    }
+                    Ext.MessageBox.wait('Création des suggestions…', 'Générer une suggestion');
+                    Ext.Ajax.request({url: '../api/v1/analyse-commande/previsions/suggestion', method: 'POST', timeout: 300000,
+                        jsonData: {criteres: me.criteres(), retires: retires},
+                        success: function (r) {
+                            var o = Ext.decode(r.responseText, true) || {}, sans = o.sansGrossiste || [];
+                            Ext.MessageBox.hide();
+                            var t = o.success ? '<b>' + (o.suggestions || o.count || 0) + '</b> suggestion(s) créée(s)'
+                                    + (o.references && o.references.length ? ' : ' + Ext.String.htmlEncode(o.references.join(', ')) : '')
+                                    + '<br>' + (o.count || 0) + ' produit(s) mis en suggestion' : Ext.String.htmlEncode(o.msg || 'Aucune suggestion créée.');
+                            t += o.aZero ? '<br>' + o.aZero + ' produit(s) à 0 non repris' : '';
+                            t += o.ignores ? '<br>' + o.ignores + ' produit(s) ignoré(s) (déconditionné ou introuvable)' : '';
+                            if (sans.length) {
+                                t += '<br><br><b>Sans grossiste habituel (' + sans.length + ')</b> : ' + Ext.String.htmlEncode(sans.slice(0, 15).join(', ')) + (sans.length > 15 ? '…' : '');
+                            }
+                            Ext.defer(function () {
+                                Ext.MessageBox.show({title: 'Générer une suggestion', msg: t, width: 480, buttons: Ext.MessageBox.OK,
+                                    icon: o.success ? Ext.MessageBox.INFO : Ext.MessageBox.WARNING});
+                            }, 60);
+                        },
+                        failure: function (r) {
+                            Ext.MessageBox.alert('Générer une suggestion', 'Le serveur n\'a pas répondu (' + r.status + ').');
+                        }});
+                });
+    },
+
+    creerInventaire: function () {
+        var me = this, g = me.down('#ongletPrevisions'), coches = Ext.Array.map(g.getSelectionModel().getSelection(), function (r) {
+            return r.get('id');
+        });
+        var n = coches.length || g.getStore().getTotalCount();
+        Ext.MessageBox.confirm('Créer un inventaire', 'Créer un inventaire des <b>' + n + '</b> produit(s) '
+                + (coches.length ? 'cochés' : 'de la liste filtrée (toutes les pages)') + ' ?', function (b) {
+                    if (b !== 'yes') {
+                        return;
+                    }
+                    Ext.Ajax.request({url: '../api/v1/analyse-commande/previsions/inventaire', method: 'POST', timeout: 300000,
+                        jsonData: {criteres: me.criteres(), ids: coches},
+                        success: function (r) {
+                            var o = Ext.decode(r.responseText, true) || {};
+                            Ext.MessageBox.alert('Créer un inventaire', o.success ? 'Inventaire « ' + Ext.String.htmlEncode(o.nom) + ' » créé : ' + o.count + ' produit(s).'
+                                    : Ext.String.htmlEncode(o.msg || 'Inventaire non créé.'));
+                        }});
+                });
+    },
+
+    /** Equivalents d'un produit (lecture seule) : stock rayon / reserve, disponibilite PharmaML, retrait. */
+    fenetreEquivalents: function (rec) {
+        var me = this, id = rec.get('id');
+        me.lire('../api/v1/analyse-commande/equivalents/' + encodeURIComponent(id), function (o) {
+            var Dispo = testextjs.view.commandemanagement.disponibilite.DisponibilitePharmaMl, etat = {};
+            var lignes = [{id: id, nom: rec.get('nom'), cip: rec.get('cip'), niveau: 'PRODUIT', rayon: o.rayon || 0, reserve: o.reserve || 0, prix: null, raison: 'Produit analysé'}]
+                    .concat(o.data || []);
+            var st = Ext.create('Ext.data.Store', {fields: ['id', 'nom', 'cip', 'niveau', 'rayon', 'reserve', 'prix', 'raison'], data: lignes});
+            var w = Ext.create('Ext.window.Window', {
+                title: 'Équivalents — ' + me.h(rec.get('nom')), itemId: 'fenEquivalents', width: 860, maxHeight: 520, modal: true, layout: 'fit', cls: 'prev-equivalents',
+                items: [{xtype: 'grid', store: st, viewConfig: {emptyText: 'Aucun équivalent.', deferEmptyText: false},
+                        columns: [
+                            {text: '', width: 34, sortable: false, renderer: function (v, m, r) {
+                                    return Dispo.rendu(etat[r.get('id')], m) || '';
+                                }},
+                            {text: 'Niveau', dataIndex: 'niveau', width: 105, renderer: function (v, m, r) {
+                                    m.tdAttr = 'data-qtip="' + Ext.String.htmlEncode(r.get('raison') || '') + '"';
+                                    return v === 'PRODUIT' ? '<b>Produit</b>' : (v === 'DIRECT' ? '<span style="color:#17795f">Direct</span>' : '<span style="color:#b45309">À adapter</span>');
+                                }},
+                            {text: 'Désignation', dataIndex: 'nom', flex: 1},
+                            {text: 'CIP', dataIndex: 'cip', width: 80},
+                            {text: 'Rayon', dataIndex: 'rayon', width: 60, align: 'right'},
+                            {text: 'Réserve', dataIndex: 'reserve', width: 65, align: 'right'},
+                            {text: 'Prix', dataIndex: 'prix', width: 70, align: 'right', renderer: function (v) {
+                                    return v === null || v === undefined ? '' : me.nombre(v);
+                                }}
+                        ]}],
+                dockedItems: [{xtype: 'toolbar', dock: 'top', items: [
+                            {xtype: 'component', html: o.sansDci ? '<span style="color:#b42318">' + me.h(o.message) + '</span>'
+                                        : '<span style="color:#3b4a5a">' + (o.data || []).length + ' équivalent(s)' + (o.avertissement ? ' · ' + me.h(o.avertissement) : '') + '</span>'}]},
+                    {xtype: 'toolbar', dock: 'bottom', items: [
+                            {text: 'Vérifier la disponibilité PharmaML', itemId: 'btnDispoEq', disabled: !o.grossisteId,
+                                tooltip: o.grossisteId ? 'Interroge ' + me.h(o.grossiste) + ' (grossiste habituel) pour le produit et ses équivalents' : 'Produit sans grossiste habituel',
+                                handler: function () {
+                                    Dispo.lancer({source: 'FICHE', id: id, apres: function (e) {
+                                            etat = e || {};
+                                            if (!w.isDestroyed) {
+                                                w.down('grid').getView().refresh();
+                                            }
+                                        }}, st.collect('id'), o.grossisteId);
+                                }},
+                            '->',
+                            {text: me.retires[id] ? 'Remettre dans la suggestion à générer' : 'Retirer de la suggestion à générer', itemId: 'btnRetirerEq',
+                                handler: function (b) {
+                                    me.basculerRetire(id);
+                                    b.setText(me.retires[id] ? 'Remettre dans la suggestion à générer' : 'Retirer de la suggestion à générer');
+                                }},
+                            {text: 'Fermer', handler: function () {
+                                    w.close();
+                                }}]}]
+            });
+            w.show();
+            Dispo.chargerEtat('FICHE', id, function (e) {
+                etat = e || {};
+                if (!w.isDestroyed) {
+                    w.down('grid').getView().refresh();
+                }
+            });
+        });
     },
 
     /** Petite courbe des 12 derniers mois (SVG), pour voir la tendance d'un coup d'oeil. */
@@ -330,54 +607,9 @@ Ext.define('testextjs.view.commandemanagement.analyse.AnalyseCommande', {
         return '<svg width="' + l + '" height="' + hgt + '"><polyline fill="none" stroke="#2980b9" stroke-width="1.5" points="' + pts + '"/></svg>';
     },
 
+    /** Fenetre produit : composant commun (aussi ouvert depuis la suggestion et la commande). */
     detail: function (id) {
-        var me = this;
-        me.lire('../api/v1/analyse-commande/produit/' + encodeURIComponent(id), function (o) {
-            var mois = o.mois || [], max = 1;
-            mois.forEach(function (m) {
-                max = Math.max(max, m.ventes);
-            });
-            max = Math.max(max, o.prevuMois);
-            var l = 760, hgt = 190, n = mois.length + 1, larg = Math.max(8, Math.floor(l / n) - 6), svg = '';
-            mois.forEach(function (m, i) {
-                var hh = Math.round(m.ventes / max * (hgt - 30)), x = i * (l / n) + 3;
-                svg += '<rect rx="3" x="' + x + '" y="' + (hgt - 18 - hh) + '" width="' + larg + '" height="' + hh + '" fill="#7fb3d5"><title>'
-                        + me.h(m.mois) + ' : ' + m.ventes + '</title></rect>'
-                        + (i % 3 === 0 ? '<text x="' + x + '" y="' + (hgt - 4) + '" font-size="10" fill="#7f8c8d">' + me.h(m.mois) + '</text>' : '');
-            });
-            var hp = Math.round(o.prevuMois / max * (hgt - 30)), xp = mois.length * (l / n) + 3;
-            svg += '<rect rx="3" x="' + xp + '" y="' + (hgt - 18 - hp) + '" width="' + larg + '" height="' + hp
-                    + '" fill="#e67e22" stroke="#d35400" stroke-dasharray="3,2"><title>Prévu ' + me.h(o.prochainMois) + ' : '
-                    + String(o.prevuMois).replace('.', ',') + '</title></rect><text x="' + (xp - 4) + '" y="' + (hgt - 4)
-                    + '" font-size="10" fill="#d35400">prévu</text>';
-            var c = o.calcul || {};
-            var methodes = (o.methodes || []).map(function (m) {
-                return '<tr' + (m.retenue ? ' style="font-weight:700;background:#fef5e7"' : '') + '><td>' + me.h(me.METHODES[m.methode] || m.methode)
-                        + (m.retenue ? ' ✓' : '') + '</td><td class="n">' + String(m.erreur).replace('.', ',') + ' %</td></tr>';
-            }).join('') || '<tr><td colspan="2" style="color:#7f8c8d">Pas assez d\'historique pour comparer les méthodes (moins de 4 mois).</td></tr>';
-            var html = '<div class="ac-detail">'
-                    + '<div class="ac-bloc-t">Ventes mensuelles (' + mois.length + ' derniers mois complets) et prévision de ' + me.h(o.prochainMois) + '</div>'
-                    + '<svg width="' + l + '" height="' + hgt + '">' + svg + '</svg>'
-                    + '<div class="ac-colonnes"><div><div class="ac-bloc-t">Méthodes essayées (erreur sur les 6 derniers mois connus)</div>'
-                    + '<table class="ac-table"><tr><th>Méthode</th><th class="n">Erreur</th></tr>' + methodes + '</table>'
-                    + '<div class="ac-note">Fiabilité retenue : ' + me.fiabilite(o.fiabilite) + '</div></div>'
-                    + '<div><div class="ac-bloc-t">Quantité recommandée : ' + o.recommande + '</div><table class="ac-table">'
-                    + '<tr><td>Ventes prévues par jour</td><td class="n">' + String(c.parJour).replace('.', ',') + '</td></tr>'
-                    + '<tr><td>× (délai ' + c.delai + ' j + couverture ' + c.couvertureVoulue + ' j)</td><td class="n">' + String(c.besoin).replace('.', ',') + '</td></tr>'
-                    + '<tr><td>+ stock de sécurité (95 %)</td><td class="n">' + String(c.securite).replace('.', ',') + '</td></tr>'
-                    + '<tr><td>− stock rayon et réserve</td><td class="n">' + o.stock + '</td></tr>'
-                    + '<tr><td>− commandes en cours</td><td class="n">' + o.enCours + '</td></tr>'
-                    + '<tr><td>− équivalents DCI directs en stock</td><td class="n">' + o.equivalents + '</td></tr>'
-                    + '<tr style="font-weight:700"><td>= à commander (arrondi, jamais négatif)</td><td class="n">' + o.recommande + '</td></tr></table>'
-                    + '<div class="ac-note">Dernière vente : ' + me.h(o.derniereVente || 'jamais') + '</div></div></div></div>';
-            Ext.create('Ext.window.Window', {
-                title: me.h(o.nom) + ' — ' + me.h(o.cip), width: 820, maxHeight: Ext.getBody().getViewSize().height - 40,
-                autoScroll: true, modal: true, bodyPadding: 12, html: html,
-                buttons: [{text: 'Fermer', handler: function (b) {
-                            b.up('window').close();
-                        }}]
-            }).show();
-        });
+        testextjs.view.commandemanagement.analyse.FenetrePrevision.ouvrir(id);
     },
 
     /* ------------------------------------------------------------------ Analyse */
@@ -402,6 +634,31 @@ Ext.define('testextjs.view.commandemanagement.analyse.AnalyseCommande', {
         });
         return {
             xtype: 'grid', itemId: 'ongletAnalyse', title: 'Analyse d\'une suggestion / commande', store: store,
+            listeners: {
+                itemclick: function (v, r, item, index, e) {
+                    if (e && e.getTarget && e.getTarget('[data-eq]')) {
+                        me.fenetreEquivalents(r);
+                    }
+                },
+                afterrender: function (g) {
+                    var resume = g.down('#resume'), brancher = function (t) {
+                        t.getEl().on('click', function (e) {
+                            var p = e.getTarget('[data-alerte]');
+                            if (p) {
+                                var code = p.getAttribute('data-alerte');
+                                me.filtreAlerte = me.filtreAlerte === code ? null : code;
+                                me.majResume();
+                                me.filtrerAlertes();
+                            }
+                        });
+                    };
+                    if (resume.rendered) {
+                        brancher(resume);
+                    } else {
+                        resume.on('afterrender', brancher, null, {single: true});
+                    }
+                }
+            },
             viewConfig: {emptyText: 'Choisissez une suggestion ou une commande.', deferEmptyText: false,
                 getRowClass: function (r) {
                     return r.get('grave') ? 'ac-ligne-grave' : '';
@@ -414,7 +671,10 @@ Ext.define('testextjs.view.commandemanagement.analyse.AnalyseCommande', {
                 {text: 'Proposé', dataIndex: 'quantite', width: 70, align: 'right', tooltip: 'Quantité inscrite sur la suggestion ou la commande', renderer: function (v) {
                         return '<b>' + v + '</b>';
                     }},
-                {text: 'Recommandé', dataIndex: 'recommande', width: 90, align: 'right', tooltip: 'Quantité que la prévision recommande pour ce produit'},
+                {text: 'Recommandé', dataIndex: 'recommande', width: 90, align: 'right', tooltip: 'Quantité que la prévision recommande pour ce produit',
+                    renderer: function (v) {
+                        return v > 0 ? '<b style="color:#17795f">' + v + '</b>' : '<span style="color:#17795f">0</span>';
+                    }},
                 {text: 'Écart', dataIndex: 'ecart', width: 65, align: 'right', tooltip: 'Proposé − recommandé : en violet, on commande plus que prévu ; en orange, moins', renderer: function (v) {
                         return v === 0 ? '0' : '<span style="color:' + (v > 0 ? '#8e44ad' : '#d35400') + '">' + (v > 0 ? '+' : '') + v + '</span>';
                     }},
@@ -441,23 +701,58 @@ Ext.define('testextjs.view.commandemanagement.analyse.AnalyseCommande', {
                         }).join('<br>')) + '"';
                         return a.map(function (x) {
                             var d = me.ALERTES[x.code] || [x.code, '#555'];
-                            return '<span class="ac-puce" style="border-color:' + d[1] + ';color:' + d[1] + '">' + d[0] + '</span>';
+                            /* retours du 10/10 : « equivalent DCI en stock » cliquable -> liste des equivalents */
+                            return '<span class="ac-puce' + (x.code === 'EQUIVALENT' ? ' ac-puce-eq" data-eq="1' : '') + '" style="border-color:' + d[1] + ';color:' + d[1] + '">' + d[0] + '</span>';
                         }).join(' ');
                     }}
             ],
             dockedItems: [{xtype: 'toolbar', dock: 'top', items: [
-                        {xtype: 'combobox', itemId: 'choix', width: 520, editable: false, queryMode: 'local', store: choix,
-                            displayField: 'libelle', valueField: 'cle', emptyText: 'Choisir une suggestion ou une commande…',
+                        /* retours du 10/10 : zone de choix sur toute la ligne, nombre de lignes en vert */
+                        {xtype: 'combobox', itemId: 'choix', flex: 1, maxWidth: 4000, editable: false, queryMode: 'local', store: choix,
+                            displayField: 'libelle', valueField: 'cle', emptyText: 'Choisir une suggestion active ou une commande en cours…',
+                            listConfig: {getInnerTpl: function () {
+                                    return '{[values.type === "COMMANDE" ? "Commande" : "Suggestion"]} <b>{ref:htmlEncode}</b> — {grossiste:htmlEncode} — {date}'
+                                            + ' <span class="ac-nb-lignes">({lignes} lignes)</span>';
+                                }},
                             listeners: {select: function () {
                                     me.analyser();
-                                }}},
-                        {xtype: 'checkbox', itemId: 'seulementAlertes', boxLabel: 'Lignes avec alerte seulement', margin: '0 0 0 10',
-                            listeners: {change: function () {
-                                    me.filtrerAlertes();
                                 }}},
                         {text: 'Actualiser', iconCls: 'refresh', handler: function () {
                                 choix.load();
                                 me.analyser();
+                            }}]},
+                {xtype: 'toolbar', dock: 'top', items: [
+                        {xtype: 'checkbox', itemId: 'seulementAlertes', boxLabel: 'Lignes avec alerte seulement',
+                            listeners: {change: function () {
+                                    me.filtrerAlertes();
+                                }}},
+                        {xtype: 'combobox', itemId: 'filtreRecommande', width: 175, editable: false, queryMode: 'local', displayField: 'l', valueField: 'v', value: '',
+                            store: Ext.create('Ext.data.Store', {fields: ['v', 'l'], data: [{v: '', l: 'Tout recommandé'}, {v: 'POSITIF', l: 'Recommandé > 0'},
+                                    {v: 'ZERO', l: 'Recommandé = 0'}, {v: 'ECART', l: 'Proposé ≠ recommandé'}]}),
+                            listeners: {select: function () {
+                                    me.filtrerAlertes();
+                                }}},
+                        {xtype: 'combobox', itemId: 'filtreStock', width: 130, editable: false, queryMode: 'local', displayField: 'l', valueField: 'v', value: '',
+                            store: Ext.create('Ext.data.Store', {fields: ['v', 'l'], data: [{v: '', l: 'Tout stock'}, {v: 'ZERO', l: 'Stock à zéro'}, {v: 'EN_STOCK', l: 'En stock'}]}),
+                            listeners: {select: function () {
+                                    me.filtrerAlertes();
+                                }}},
+                        '-',
+                        {text: 'Appliquer les quantités recommandées', itemId: 'btnAppliquer', iconCls: 'save', disabled: true,
+                            tooltip: 'Met la quantité recommandée sur chaque ligne de la suggestion ou de la commande choisie ; une ligne recommandée à 0 est supprimée',
+                            handler: function () {
+                                me.appliquerRecommande();
+                            }},
+                        '->',
+                        {text: 'Excel', itemId: 'btnExcelAnalyse', disabled: true, icon: 'resources/images/icons/fam/excel_icon.png', tooltip: 'Exporter l\'analyse en Excel', handler: function () {
+                                me.exporterAnalyse('excel');
+                            }},
+                        {text: 'PDF', itemId: 'btnPdfAnalyse', disabled: true, iconCls: 'printable', tooltip: 'Imprimer l\'analyse', handler: function () {
+                                me.exporterAnalyse('pdf');
+                            }},
+                        {text: 'Créer un inventaire', itemId: 'btnInventaireAnalyse', disabled: true, icon: 'resources/images/icons/fam/table_refresh.png',
+                            tooltip: 'Inventaire des produits des lignes affichées', handler: function () {
+                                me.inventaireAnalyse();
                             }}]},
                 {xtype: 'toolbar', dock: 'top', itemId: 'resume', hidden: true, items: [{xtype: 'component', itemId: 'resumeTexte', html: ''}]}]
         };
@@ -473,30 +768,108 @@ Ext.define('testextjs.view.commandemanagement.analyse.AnalyseCommande', {
         me.lire('../api/v1/analyse-commande/analyse?type=' + p[0] + '&id=' + encodeURIComponent(p[1]), function (o) {
             g.setLoading(false);
             g.getStore().loadData(o.data || []);
+            me.filtreAlerte = null;
+            me.derniereAnalyse = o;
             me.filtrerAlertes();
-            var r = o.resume || {}, puces = [];
-            Ext.Object.each(me.ALERTES, function (k, d) {
-                if (r[k]) {
-                    puces.push('<span class="ac-puce" style="border-color:' + d[1] + ';color:' + d[1] + '">' + d[0] + ' : ' + r[k] + '</span>');
-                }
+            me.majResume();
+            Ext.each(['#btnAppliquer', '#btnExcelAnalyse', '#btnPdfAnalyse', '#btnInventaireAnalyse'], function (b) {
+                g.down(b).setDisabled(!(o.data || []).length);
             });
-            g.down('#resume').show();
-            g.down('#resumeTexte').update('<b>' + (r.lignes || 0) + '</b> lignes, <b>' + (r.lignesAlerte || 0) + '</b> avec alerte · valeur proposée <b>'
-                    + me.nombre(r.valeurProposee) + ' F</b>, recommandée <b>' + me.nombre(r.valeurRecommandee) + ' F</b> ' + puces.join(' ')
-                    + (o.calcule === false ? ' <span style="color:#c0392b">· prévisions non calculées : recalculez dans l\'onglet Tableau</span>' : ''));
         });
         Ext.defer(function () {
             g.setLoading(false);
         }, 120000);
     },
 
+    /** Resume de l'analyse ; retours du 10/10 : chaque pastille d'alerte filtre la liste (nouveau clic : retire le filtre). */
+    majResume: function () {
+        var me = this, g = me.down('#ongletAnalyse'), o = me.derniereAnalyse || {}, r = o.resume || {}, puces = [];
+        Ext.Object.each(me.ALERTES, function (k, d) {
+            if (r[k]) {
+                puces.push('<span class="ac-puce ac-puce-filtre' + (me.filtreAlerte === k ? ' actif' : '') + '" data-alerte="' + k + '" data-qtip="Afficher seulement ces lignes (nouveau clic : toutes)"'
+                        + ' style="border-color:' + d[1] + ';color:' + d[1] + '">' + d[0] + ' : ' + r[k] + '</span>');
+            }
+        });
+        g.down('#resume').show();
+        g.down('#resumeTexte').update('<b class="ac-nb-lignes">' + (r.lignes || 0) + '</b> lignes, <b>' + (r.lignesAlerte || 0) + '</b> avec alerte · valeur proposée <b>'
+                + me.nombre(r.valeurProposee) + ' F</b>, recommandée <b style="color:#17795f">' + me.nombre(r.valeurRecommandee) + ' F</b> ' + puces.join(' ')
+                + (o.calcule === false ? ' <span style="color:#c0392b">· prévisions non calculées : recalculez dans l\'onglet Tableau</span>' : ''));
+    },
+
     filtrerAlertes: function () {
-        var me = this, g = me.down('#ongletAnalyse'), st = g.getStore();
+        var me = this, g = me.down('#ongletAnalyse'), st = g.getStore(), seul = g.down('#seulementAlertes').getValue(),
+                rec = g.down('#filtreRecommande').getValue(), stock = g.down('#filtreStock').getValue(), code = me.filtreAlerte;
         st.clearFilter();
-        if (g.down('#seulementAlertes').getValue()) {
-            st.filterBy(function (r) {
-                return (r.get('alertes') || []).length > 0;
-            });
+        st.filterBy(function (r) {
+            var a = r.get('alertes') || [];
+            if (seul && !a.length) {
+                return false;
+            }
+            if (code && !Ext.Array.some(a, function (x) {
+                return x.code === code;
+            })) {
+                return false;
+            }
+            if ((rec === 'POSITIF' && r.get('recommande') <= 0) || (rec === 'ZERO' && r.get('recommande') !== 0) || (rec === 'ECART' && r.get('ecart') === 0)) {
+                return false;
+            }
+            return !((stock === 'ZERO' && r.get('stock') > 0) || (stock === 'EN_STOCK' && r.get('stock') <= 0));
+        });
+    },
+
+    choixAnalyse: function () {
+        var v = this.down('#ongletAnalyse #choix').getValue();
+        return v ? {type: v.split('|')[0], id: v.split('|')[1]} : null;
+    },
+
+    appliquerRecommande: function () {
+        var me = this, c = me.choixAnalyse(), st = me.down('#ongletAnalyse').getStore();
+        if (!c) {
+            return;
         }
+        var lignes = st.snapshot ? st.snapshot.getRange() : st.getRange(), zero = 0, change = 0;
+        Ext.each(lignes, function (r) {
+            if (r.get('recommande') === 0) {
+                zero++;
+            } else if (r.get('recommande') !== r.get('quantite')) {
+                change++;
+            }
+        });
+        Ext.MessageBox.confirm('Appliquer les quantités recommandées', 'Sur ' + (c.type === 'COMMANDE' ? 'la commande' : 'la suggestion') + ' choisie :<br>'
+                + '• <b>' + change + '</b> ligne(s) prendront la quantité recommandée ;<br>• <b>' + zero + '</b> ligne(s) recommandée(s) à 0 seront supprimées'
+                + (c.type === 'SUGGESTION' ? ' (récupérables dans les produits retirés)' : '') + '.<br>Toutes les lignes sont concernées, quel que soit le filtre affiché.',
+                function (b) {
+                    if (b !== 'yes') {
+                        return;
+                    }
+                    me.lire('../api/v1/analyse-commande/analyse/appliquer', function (o) {
+                        Ext.MessageBox.alert('Appliquer les quantités recommandées', o.modifiees + ' ligne(s) modifiée(s), ' + o.supprimees + ' supprimée(s), '
+                                + o.inchangees + ' inchangée(s).');
+                        me.down('#ongletAnalyse #choix').getStore().load();
+                        me.analyser();
+                    }, 'POST', {type: c.type, id: c.id});
+                });
+    },
+
+    exporterAnalyse: function (format) {
+        var c = this.choixAnalyse();
+        if (c) {
+            window.open('../api/v1/analyse-commande/analyse/' + format + '?' + Ext.Object.toQueryString(c));
+        }
+    },
+
+    inventaireAnalyse: function () {
+        var me = this, st = me.down('#ongletAnalyse').getStore(), ids = st.collect('id');
+        if (!ids.length) {
+            return;
+        }
+        Ext.MessageBox.confirm('Créer un inventaire', 'Créer un inventaire des <b>' + ids.length + '</b> produit(s) affiché(s) ?', function (b) {
+            if (b !== 'yes') {
+                return;
+            }
+            me.lire('../api/v1/analyse-commande/previsions/inventaire', function (o) {
+                Ext.MessageBox.alert('Créer un inventaire', 'Inventaire « ' + me.h(o.nom) + ' » créé : ' + o.count + ' produit(s).');
+            }, 'POST', {ids: ids});
+        });
     }
 });

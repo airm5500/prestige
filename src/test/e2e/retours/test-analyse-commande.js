@@ -85,11 +85,12 @@ const SUG = 'e2e-l12-' + Date.now();
     const trouve = await p.evaluate(() => Ext.ComponentQuery.query('analysecommande #ongletPrevisions')[0].getStore().getRange().map((r) => r.get('id')));
     ok('Recherche par CIP : le produit est trouvé', trouve.includes(echant), JSON.stringify(trouve));
     await p.evaluate((id) => { const g = Ext.ComponentQuery.query('analysecommande #ongletPrevisions')[0]; const r = g.getStore().getById ? g.getStore().findRecord('id', id) : null; g.fireEvent('itemclick', g.getView(), r); }, echant);
-    await p.waitForTimeout(2000);
-    const det = await p.evaluate(() => { const w = Ext.WindowManager.getActive(); if (!w || !w.getEl()) { return null; } const d = w.getEl().dom;
+    /* retours du 10/10 : fenetre produit commune (FenetrePrevision) */
+    await p.waitForFunction(() => Ext.ComponentQuery.query('#fenPrevision').length > 0, null, { timeout: 60000 });
+    const det = await p.evaluate(() => { const w = Ext.ComponentQuery.query('#fenPrevision')[0]; if (!w || !w.getEl()) { return null; } const d = w.getEl().dom;
       return { titre: w.title, barres: d.querySelectorAll('svg rect').length, texte: d.textContent }; });
     ok('Détail : graphique (mois + prévision), méthodes essayées, calcul expliqué', det && det.barres === hist.length + 1 && /Méthodes essayées/.test(det.texte) && /= à commander/.test(det.texte) && det.texte.includes('− stock rayon et réserve'), det && JSON.stringify({ t: det.titre, b: det.barres, h: hist.length }));
-    await p.evaluate(() => { const w = Ext.WindowManager.getActive(); if (w && w.close) { w.close(); } });
+    await p.evaluate(() => { const w = Ext.ComponentQuery.query('#fenPrevision')[0] || Ext.WindowManager.getActive(); if (w && w.close) { w.close(); } });
 
     /* ------------------------------------------------ 4. analyse d'une suggestion d'essai */
     const gros = q('SELECT lg_GROSSISTE_ID FROM t_grossiste LIMIT 1');

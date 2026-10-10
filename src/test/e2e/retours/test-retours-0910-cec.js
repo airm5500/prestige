@@ -109,7 +109,7 @@ const url = (u) => exec("UPDATE t_grossiste SET str_URL_PHARMAML = " + (u === nu
 
     /* 2) Commandes en cours : bouton « VÉRIFIER L'IMPORT » retire ; 5 onglets avec les droits */
     let onglets = await ouvrirHub();
-    ok('Avec les droits : 6 onglets (dont Risque de rupture)', onglets === 'Commandes en cours|Ruptures de commande|Risque de rupture|Substitutions|Alertes|Tableau de bord', onglets);
+    ok('Avec les droits : 7 onglets (dont Risque de rupture et Suivi équivalence)', onglets === 'Commandes en cours|Ruptures de commande|Risque de rupture|Substitutions|Alertes|Suivi équivalence|Tableau de bord', onglets);
     const barre = await p.evaluate(() => Ext.ComponentQuery.query('i_order_manager')[0].query('button').filter((x) => x.isVisible()).map((x) => x.getText()).join('|'));
     ok('Bouton « VÉRIFIER L\'IMPORT » retiré, les autres boutons restent', !/VÉRIFIER L'IMPORT|Verifier l'importation/i.test(barre) && /IMPORTER UNE COMMANDE/.test(barre) && /FUSIONNER DES COMMANDES/.test(barre) && /RÉPONSES PHARMAML/.test(barre), barre);
     const coupe = await p.evaluate(() => { const g = Ext.ComponentQuery.query('i_order_manager')[0], gr = g.getEl().dom.getBoundingClientRect();
@@ -156,7 +156,7 @@ const url = (u) => exec("UPDATE t_grossiste SET str_URL_PHARMAML = " + (u === nu
     p = await ctx.newPage();
     await connexion();
     onglets = await ouvrirHub();
-    ok('Sans les droits Alertes et Tableau de bord : ces onglets disparaissent', onglets === 'Commandes en cours|Ruptures de commande|Risque de rupture|Substitutions', onglets);
+    ok('Sans les droits Alertes et Tableau de bord : ces onglets disparaissent', onglets === 'Commandes en cours|Ruptures de commande|Risque de rupture|Substitutions|Suivi équivalence', onglets);
     const api = await p.evaluate(async () => {
       const j = async (u) => (await fetch(u)).json();
       return { alertes: await j('/prestige/api/v1/pharma/alertes'), tb: await j('/prestige/api/v1/pharma/tableau-bord'), subst: await j('/prestige/api/v1/pharma/substitutions') };

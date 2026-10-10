@@ -43,7 +43,7 @@ function amountformat(val) {
 
 Ext.define('testextjs.view.commandemanagement.order.action.add', {
     extend: 'Ext.form.Panel',
-    requires: [
+    requires: ['testextjs.view.commandemanagement.analyse.FenetrePrevision',
         'testextjs.view.commandemanagement.disponibilite.DisponibilitePharmaMl',
         'Ext.selection.CellModel',
         'Ext.grid.*',
@@ -701,11 +701,12 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                                     width: 30,
                                     sortable: false,
                                     menuDisabled: true,
+                                    /* retours du 10/10 : meme icone, fenetre de prevision du produit (detail habituel sans le droit) */
                                     items: [{
                                             icon: 'resources/images/icons/fam/application_view_list.png',
-                                            tooltip: 'Detail sur l\'article',
+                                            tooltip: 'Prévision du produit : ventes, calcul de la quantité à commander',
                                             scope: this,
-                                            handler: this.onDetailClick
+                                            handler: this.onPrevisionClick
                                         }]
                                 },
                                 {
@@ -1803,6 +1804,16 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
 
                     }
                 });
+    },
+
+    /** Retours du 10/10 : fenetre de prevision du produit ; sans acces aux previsions, le detail habituel. */
+    onPrevisionClick: function (grid, rowIndex) {
+        var me = this, rec = grid.getStore().getAt(rowIndex);
+        testextjs.view.commandemanagement.analyse.FenetrePrevision.ouvrir(rec.get('lg_FAMILLE_ID'), {
+            siRefus: function () {
+                me.onDetailClick(grid, rowIndex);
+            }
+        });
     },
 
     onDetailClick: function (grid, rowIndex) {

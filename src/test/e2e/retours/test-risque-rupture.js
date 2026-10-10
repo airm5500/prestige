@@ -71,7 +71,7 @@ function attendu(id) {
   try {
     await connexion();
     const o1 = await onglets();
-    ok('Onglet « Risque de rupture » présent, après « Ruptures de commande »', o1 === 'Commandes en cours|Ruptures de commande|Risque de rupture|Substitutions|Alertes|Tableau de bord', o1);
+    ok('Onglet « Risque de rupture » présent, après « Ruptures de commande »', o1 === 'Commandes en cours|Ruptures de commande|Risque de rupture|Substitutions|Alertes|Suivi équivalence|Tableau de bord', o1);
     const id = await p.evaluate(() => Ext.ComponentQuery.query('commandesencours')[0].down('#cec-risque').getEl().dom.id);
     await p.click('#' + id);
     await charge();
@@ -172,7 +172,7 @@ function attendu(id) {
     await connexion();
     const o2 = await onglets();
     const refus = await p.evaluate(async () => (await fetch('/prestige/api/v1/risque-rupture')).json());
-    ok('Sans le droit : onglet absent et données refusées par le serveur', o2 === 'Commandes en cours|Ruptures de commande|Substitutions|Alertes|Tableau de bord' && refus.success === false && refus.interdit === true, o2 + ' ' + JSON.stringify(refus));
+    ok('Sans le droit : onglet absent et données refusées par le serveur', o2 === 'Commandes en cours|Ruptures de commande|Substitutions|Alertes|Suivi équivalence|Tableau de bord' && refus.success === false && refus.interdit === true, o2 + ' ' + JSON.stringify(refus));
     ok('Aucune erreur JavaScript', err.length === 0, JSON.stringify(err));
   } catch (e) {
     ok('Parcours sans exception', false, e.stack);
