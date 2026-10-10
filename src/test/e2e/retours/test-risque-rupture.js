@@ -115,12 +115,28 @@ function attendu(id) {
       l.some((x) => x.id === cible.id && /TEDIS/.test(x.ruptureFournisseur) && /Manque fabricant/.test(x.ruptureFournisseur)) && l.every((x) => x.ruptureFournisseur), JSON.stringify(l.slice(0, 2).map((x) => x.cip + ' ' + x.ruptureFournisseur)));
     await recharger("r.down('#ruptureFournisseur').setValue(false); r.choisis = ['RUPTURE','CRITIQUE','RISQUE','A_SURVEILLER'];", null);
 
-    /* compteurs cliquables */
-    const clic = await p.evaluate(() => { const el = Ext.ComponentQuery.query('risquerupture')[0].down('#bandeauRisque').getEl().dom.querySelector('.rr-filtre[data-statut=SURSTOCK]'); return el ? el.getBoundingClientRect() : null; });
-    await p.mouse.click(clic.x + 10, clic.y + 5);
+    /* compteurs cliquables (retours du 10/10) : clic = ce statut seul ; re-clic = statuts a traiter ; Ctrl + clic = ajout */
+    const pos = (st) => p.evaluate((x) => { const el = Ext.ComponentQuery.query('risquerupture')[0].down('#bandeauRisque').getEl().dom.querySelector('.rr-filtre[data-statut=' + x + ']'); return el ? el.getBoundingClientRect() : null; }, st);
+    const etat = () => p.evaluate(() => { const r = Ext.ComponentQuery.query('risquerupture')[0], raw = r.store.getProxy().getReader().rawData || {};
+      return { choisis: r.choisis.join(','), statuts: [...new Set(r.store.getRange().map((x) => x.get('statut')))], total: r.store.getTotalCount(), compteur: (raw.compteurs || {}).RUPTURE }; });
+    let c = await pos('RUPTURE');
+    await p.mouse.click(c.x + 10, c.y + 5);
     await charge();
-    const apres = await p.evaluate(() => ({ choisis: Ext.ComponentQuery.query('risquerupture')[0].choisis.join(','), statuts: [...new Set(Ext.ComponentQuery.query('risquerupture')[0].store.getRange().map((x) => x.get('statut')))] }));
-    ok('Clic sur le compteur « Surstock » : ajouté au filtre', /SURSTOCK/.test(apres.choisis), JSON.stringify(apres));
+    let e = await etat();
+    ok('Clic sur « Rupture » : seules les ruptures, autant que le compteur', e.choisis === 'RUPTURE' && e.statuts.every((x) => x === 'RUPTURE') && e.total === e.compteur, JSON.stringify(e));
+    c = await pos('RUPTURE');
+    await p.mouse.click(c.x + 10, c.y + 5);
+    await charge();
+    e = await etat();
+    ok('Nouveau clic sur « Rupture » : retour aux statuts à traiter', e.choisis === 'RUPTURE,CRITIQUE,RISQUE,A_SURVEILLER', JSON.stringify(e));
+    c = await pos('SURSTOCK');
+    await p.keyboard.down('Control');
+    await p.mouse.click(c.x + 10, c.y + 5);
+    await p.keyboard.up('Control');
+    await charge();
+    e = await etat();
+    ok('Ctrl + clic sur « Surstock » : ajouté au filtre', /SURSTOCK/.test(e.choisis) && /RUPTURE/.test(e.choisis), JSON.stringify(e));
+    await recharger("r.choisis = ['RUPTURE','CRITIQUE','RISQUE','A_SURVEILLER']; r.charger();", null);
 
     /* saisie absurde */
     await recharger("r.down('#recherche').setValue(a); r.charger();", 'x'.repeat(150) + "'%;--<b>");

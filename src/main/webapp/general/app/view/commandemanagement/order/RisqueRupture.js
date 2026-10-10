@@ -99,7 +99,7 @@ Ext.define('testextjs.view.commandemanagement.order.RisqueRupture', {
                             c.getEl().on('click', function (e) {
                                 var t = e.getTarget('.rr-filtre');
                                 if (t) {
-                                    me.basculer(t.getAttribute('data-statut'));
+                                    me.basculer(t.getAttribute('data-statut'), e.ctrlKey || e.metaKey);
                                 }
                             });
                         }
@@ -167,15 +167,25 @@ Ext.define('testextjs.view.commandemanagement.order.RisqueRupture', {
         this.store.loadPage(1);
     },
 
-    /* clic sur un compteur : ajoute ou retire ce statut du filtre (au moins un reste choisi) */
-    basculer: function (cle) {
+    /*
+     * Retours du 10/10 (4) : clic sur un compteur = n'afficher QUE ce statut (« Rupture 600 » -> les 600 ruptures) ;
+     * nouveau clic sur le seul statut affiche = retour aux statuts a traiter ; Ctrl + clic = ajouter ou retirer ce
+     * statut de la selection (au moins un reste choisi).
+     */
+    basculer: function (cle, ajout) {
         var me = this;
-        if (Ext.Array.contains(me.choisis, cle)) {
-            if (me.choisis.length > 1) {
-                Ext.Array.remove(me.choisis, cle);
+        if (ajout) {
+            if (Ext.Array.contains(me.choisis, cle)) {
+                if (me.choisis.length > 1) {
+                    Ext.Array.remove(me.choisis, cle);
+                }
+            } else {
+                me.choisis.push(cle);
             }
+        } else if (me.choisis.length === 1 && me.choisis[0] === cle) {
+            me.choisis = Ext.Array.clone(me.A_TRAITER);
         } else {
-            me.choisis.push(cle);
+            me.choisis = [cle];
         }
         me.charger();
     },
@@ -193,7 +203,7 @@ Ext.define('testextjs.view.commandemanagement.order.RisqueRupture', {
         var filtres = Ext.Array.map(me.STATUTS, function (s) {
             var actif = Ext.Array.contains(me.choisis, s.cle);
             return '<span class="rr-filtre' + (actif ? ' rr-actif' : '') + '" data-statut="' + s.cle + '" data-qtip="' + enc(s.info)
-                    + ' — cliquer pour afficher ou masquer" style="border-color:' + s.couleur + ';' + (actif ? 'background:' + s.couleur + ';color:#fff' : 'color:' + s.couleur + ';background:' + s.fond)
+                    + ' — clic : n\'afficher que ce statut (re-clic : statuts à traiter) ; Ctrl + clic : ajouter ou retirer" style="border-color:' + s.couleur + ';' + (actif ? 'background:' + s.couleur + ';color:#fff' : 'color:' + s.couleur + ';background:' + s.fond)
                     + '">' + enc(s.texte) + ' <b>' + (c[s.cle] || 0) + '</b></span>';
         }).join('');
         b.update('<div class="rr-filtres">' + filtres + '</div><div class="rr-regle">Couverture = stock ÷ ventes par jour ; risque quand elle ne dépasse pas '
