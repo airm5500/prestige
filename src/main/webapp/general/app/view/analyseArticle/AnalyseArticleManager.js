@@ -122,16 +122,16 @@ Ext.define('testextjs.view.analyseArticle.AnalyseArticleManager', {
                     editable: false,
                     value: 'TROIS_MOIS'
                 }, {
-                    xtype: 'datefield', fieldLabel: 'Du', itemId: 'dtStart', labelWidth: 20, width: 140,
+                    xtype: 'datefield', fieldLabel: 'Du', itemId: 'dtStart', labelWidth: 20, width: 130,
                     submitFormat: 'Y-m-d', maxValue: new Date(), format: 'd/m/Y', value: new Date(), disabled: true
                 }, {
-                    xtype: 'datefield', fieldLabel: 'Au', itemId: 'dtEnd', labelWidth: 20, width: 140,
+                    xtype: 'datefield', fieldLabel: 'Au', itemId: 'dtEnd', labelWidth: 20, width: 130,
                     submitFormat: 'Y-m-d', maxValue: new Date(), format: 'd/m/Y', value: new Date(), disabled: true
                 }, '-', {
                     // Les seuils : vides, ce sont les medianes de l'assortiment qui s'appliquent (rappelees
                     // dans l'en-tete de la matrice) ; saisis, ils remplacent les medianes.
-                    xtype: 'numberfield', itemId: 'seuilMarge', fieldLabel: 'Marge élevée ≥', labelWidth: 112,
-                    width: 192, minValue: 0, maxValue: 100, allowDecimals: true, decimalPrecision: 1,
+                    xtype: 'numberfield', itemId: 'seuilMarge', fieldLabel: 'Marge élevée ≥', labelWidth: 106,
+                    width: 184, minValue: 0, maxValue: 100, allowDecimals: true, decimalPrecision: 1,
                     emptyText: 'médiane', hideTrigger: true
                 }, {
                     xtype: 'displayfield', value: '%', margin: '0 8 0 2'
