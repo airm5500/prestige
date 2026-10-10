@@ -17,14 +17,14 @@ const MARQUE = 'E2E-H1';
 
 let PRODUITS = [], USER = '';
 
-/* Une garde de DEUX nuits (du 5 au 7 septembre 2026, 20 h a 8 h). Les ventes de 20h30 le 5 et de
+/* Une garde de DEUX nuits (du 5 au 7 septembre 2034, 20 h a 8 h). Les ventes de 20h30 le 5 et de
    21h00 le 6 doivent se retrouver dans la MEME tranche 20h - 22h : c'est le cumul sur la periode.
    Couts renseignes pour la marge : (montant - remise - tva) - prixAchat x quantite. */
 const VENTES = [
-  { id: MARQUE + '-1', quand: '2026-09-05 20:30:00', prod: 0, qte: 2, montant: 1000, remise: 0, tva: 0, achat: 300 },
-  { id: MARQUE + '-2', quand: '2026-09-06 21:00:00', prod: 0, qte: 1, montant: 500, remise: 0, tva: 0, achat: 300 },
-  { id: MARQUE + '-3', quand: '2026-09-05 23:15:00', prod: 1, qte: 10, montant: 4000, remise: 400, tva: 600, achat: 200 },
-  { id: MARQUE + '-4', quand: '2026-09-07 03:00:00', prod: 2, qte: 1, montant: 600, remise: 0, tva: 0, achat: 900 }
+  { id: MARQUE + '-1', quand: '2034-09-05 20:30:00', prod: 0, qte: 2, montant: 1000, remise: 0, tva: 0, achat: 300 },
+  { id: MARQUE + '-2', quand: '2034-09-06 21:00:00', prod: 0, qte: 1, montant: 500, remise: 0, tva: 0, achat: 300 },
+  { id: MARQUE + '-3', quand: '2034-09-05 23:15:00', prod: 1, qte: 10, montant: 4000, remise: 400, tva: 600, achat: 200 },
+  { id: MARQUE + '-4', quand: '2034-09-07 03:00:00', prod: 2, qte: 1, montant: 600, remise: 0, tva: 0, achat: 900 }
 ];
 /* Marges attendues : P0 = (1500 - 0 - 0) - 300 x 3 = 600 ; P1 = (4000 - 400 - 600) - 200 x 10 = 1000 ;
    P2 = 600 - 900 = -300. Chiffre : P1 4000 et P0 1500 en classe A (cumul avant P0 : 65,6 %), P2 600 en B. */
@@ -102,18 +102,18 @@ function semer() {
 
   try {
     // ---------------------------------------------------------------- jeu d'essai : 4 gardes sur 2 ans
-    const g26 = await poster({ libelle: MARQUE + ' deux nuits 2026', dateDebut: '2026-09-05 20:00', dateFin: '2026-09-07 08:00' });
-    const g26b = await poster({ libelle: MARQUE + ' nuit vide 2026', dateDebut: '2026-08-01 20:00', dateFin: '2026-08-02 08:00' });
-    const g25 = await poster({ libelle: MARQUE + ' nuit A 2025', dateDebut: '2025-03-01 20:00', dateFin: '2025-03-02 08:00' });
-    const g25b = await poster({ libelle: MARQUE + ' nuit B 2025', dateDebut: '2025-04-01 20:00', dateFin: '2025-04-02 08:00' });
+    const g26 = await poster({ libelle: MARQUE + ' deux nuits 2034', dateDebut: '2034-09-05 20:00', dateFin: '2034-09-07 08:00' });
+    const g26b = await poster({ libelle: MARQUE + ' nuit vide 2034', dateDebut: '2034-08-01 20:00', dateFin: '2034-08-02 08:00' });
+    const g25 = await poster({ libelle: MARQUE + ' nuit A 2033', dateDebut: '2033-03-01 20:00', dateFin: '2033-03-02 08:00' });
+    const g25b = await poster({ libelle: MARQUE + ' nuit B 2033', dateDebut: '2033-04-01 20:00', dateFin: '2033-04-02 08:00' });
     ok('Quatre gardes de jeu d\'essai enregistrees',
       [g26, g26b, g25, g25b].every(r => r.success), JSON.stringify([g26, g26b, g25, g25b].map(r => r.msg)));
     const annees = await lire('/annees');
-    ok('Les annees proposees couvrent 2025 et 2026',
-      (annees.data || []).some(a => a.annee === 2025) && (annees.data || []).some(a => a.annee === 2026),
+    ok('Les annees proposees couvrent 2033 et 2034',
+      (annees.data || []).some(a => a.annee === 2033) && (annees.data || []).some(a => a.annee === 2034),
       JSON.stringify(annees.data));
     ok('Le filtre par annee ne rend que les gardes de l\'annee',
-      ((await lire('?annee=2025')).data || []).every(g => g.dateDebut.startsWith('2025')),
+      ((await lire('?annee=2033')).data || []).every(g => g.dateDebut.startsWith('2033')),
       'lecture API');
 
     // ---------------------------------------------------------------- l'ecran, par le menu
@@ -141,18 +141,18 @@ function semer() {
     ok('L\'ecran est dessine', liste.hauteur > 300, liste.hauteur);
 
     // ---------------------------------------------------------------- filtre par annee, a la souris
-    await choisir('gardemanager #gardeAnnee', '2025');
+    await choisir('gardemanager #gardeAnnee', '2033');
     await attendreStore("Ext.ComponentQuery.query('gardemanager')[0].gardeStore");
     await p.waitForTimeout(500);
-    const en2025 = await p.evaluate(() => Ext.ComponentQuery.query('gardemanager #grilleGardes')[0].getStore()
+    const en2033 = await p.evaluate(() => Ext.ComponentQuery.query('gardemanager #grilleGardes')[0].getStore()
       .getRange().map(g => g.get('dateDebut')));
-    ok('Le filtre 2025 ne laisse que les gardes de 2025',
-      en2025.length >= 2 && en2025.every(d => d.startsWith('2025')), en2025.join(' | '));
+    ok('Le filtre 2033 ne laisse que les gardes de 2033',
+      en2033.length >= 2 && en2033.every(d => d.startsWith('2033')), en2033.join(' | '));
     await choisir('gardemanager #gardeAnnee', 'Toutes les années');
     await attendreStore("Ext.ComponentQuery.query('gardemanager')[0].gardeStore");
     await p.waitForTimeout(500);
     const toutes = await p.evaluate(() => Ext.ComponentQuery.query('gardemanager #grilleGardes')[0].getStore().getCount());
-    ok('« Toutes les annees » les ramene', toutes > en2025.length, toutes);
+    ok('« Toutes les annees » les ramene', toutes > en2033.length, toutes);
 
     // ---------------------------------------------------------------- analyse : clic sur la garde
     const ligne = await p.evaluate((libelle) => {
@@ -162,7 +162,7 @@ function semer() {
       cellule.scrollIntoView();
       const r = cellule.getBoundingClientRect();
       return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
-    }, MARQUE + ' deux nuits 2026');
+    }, MARQUE + ' deux nuits 2034');
     await p.mouse.click(ligne.x, ligne.y);
     await analyseFinie();
 
@@ -269,7 +269,7 @@ function semer() {
         const r = n.getBoundingClientRect();
         return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
       });
-    }, [MARQUE + ' nuit A 2025', MARQUE + ' nuit B 2025']);
+    }, [MARQUE + ' nuit A 2033', MARQUE + ' nuit B 2033']);
     await p.mouse.click(cases[0].x, cases[0].y);
     await p.mouse.click(cases[1].x, cases[1].y);
     await p.waitForTimeout(400);
@@ -283,20 +283,20 @@ function semer() {
       texte: Ext.MessageBox.msg.el.dom.innerText,
       oui: Ext.MessageBox.msgButtons.yes.getId()
     }));
-    ok('La confirmation annonce les 2 gardes cochees', /2/.test(confirmation.texte) && /nuit A 2025/.test(confirmation.texte),
+    ok('La confirmation annonce les 2 gardes cochees', /2/.test(confirmation.texte) && /nuit A 2033/.test(confirmation.texte),
       confirmation.texte);
     await p.click('#' + confirmation.oui);
     await p.waitForTimeout(1500);
     await attendreStore("Ext.ComponentQuery.query('gardemanager')[0].gardeStore");
-    ok('Les deux gardes de 2025 sont supprimees en base',
-      q("SELECT COUNT(*) FROM garde WHERE libelle LIKE '" + MARQUE + " nuit % 2025'") === '0');
+    ok('Les deux gardes de 2033 sont supprimees en base',
+      q("SELECT COUNT(*) FROM garde WHERE libelle LIKE '" + MARQUE + " nuit % 2033'") === '0');
     ok('...et la garde analysee est toujours la',
-      q("SELECT COUNT(*) FROM garde WHERE libelle='" + MARQUE + " deux nuits 2026'") === '1');
+      q("SELECT COUNT(*) FROM garde WHERE libelle='" + MARQUE + " deux nuits 2034'") === '1');
     const apres = await p.evaluate(() => ({
       lignes: Ext.ComponentQuery.query('gardemanager #grilleGardes')[0].getStore().getRange().map(g => g.get('libelle')),
       annees: Ext.ComponentQuery.query('gardemanager')[0].anneeStore.getRange().map(a => a.get('libelle'))
     }));
-    ok('La liste ne les montre plus', !apres.lignes.some(l => /2025/.test(l)), apres.lignes.filter(l => /E2E-H1/.test(l)).join(' | '));
+    ok('La liste ne les montre plus', !apres.lignes.some(l => /2033/.test(l)), apres.lignes.filter(l => /E2E-H1/.test(l)).join(' | '));
     ok('Aucune vente n\'a ete touchee',
       q("SELECT COUNT(*) FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID LIKE '" + MARQUE + "-%'") === '4');
 

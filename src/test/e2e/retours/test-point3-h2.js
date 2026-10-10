@@ -26,14 +26,14 @@ let PRODUIT = '', USER = '', CLIENTS = [];
      V5 22h00 comptant 3 000, client C1, especes ; V6 23h00 comptant 1 000, anonyme, cheque
    Evolution B / A sur le chiffre : (4 000 - 8 800) / 8 800 = -54,55 %. */
 const VENTES = [
-  { id: MARQUE + '-1', quand: '2026-09-05 20:30:00', type: 1, montant: 1000, part: 1000, client: 0, regl: [['1', 1000]] },
-  { id: MARQUE + '-2', quand: '2026-09-05 20:45:00', type: 2, montant: 5000, part: 1000, client: 1, regl: [['1', 1000]] },
-  { id: MARQUE + '-3', quand: '2026-09-05 21:00:00', type: 1, montant: 2000, part: 2000, client: null, regl: [['7', 1500], ['3', 500]] },
-  { id: MARQUE + '-4', quand: '2026-09-05 21:30:00', type: 1, montant: 800, part: 800, client: null, regl: [['4', 800]] },
-  { id: MARQUE + '-5', quand: '2026-09-12 22:00:00', type: 1, montant: 3000, part: 3000, client: 0, regl: [['1', 3000]] },
-  { id: MARQUE + '-6', quand: '2026-09-12 23:00:00', type: 1, montant: 1000, part: 1000, client: null, regl: [['2', 1000]] }
+  { id: MARQUE + '-1', quand: '2035-09-05 20:30:00', type: 1, montant: 1000, part: 1000, client: 0, regl: [['1', 1000]] },
+  { id: MARQUE + '-2', quand: '2035-09-05 20:45:00', type: 2, montant: 5000, part: 1000, client: 1, regl: [['1', 1000]] },
+  { id: MARQUE + '-3', quand: '2035-09-05 21:00:00', type: 1, montant: 2000, part: 2000, client: null, regl: [['7', 1500], ['3', 500]] },
+  { id: MARQUE + '-4', quand: '2035-09-05 21:30:00', type: 1, montant: 800, part: 800, client: null, regl: [['4', 800]] },
+  { id: MARQUE + '-5', quand: '2035-09-12 22:00:00', type: 1, montant: 3000, part: 3000, client: 0, regl: [['1', 3000]] },
+  { id: MARQUE + '-6', quand: '2035-09-12 23:00:00', type: 1, montant: 1000, part: 1000, client: null, regl: [['2', 1000]] }
 ];
-const RATES = ['2026-09-05 21:10:00', '2026-09-06 02:00:00', '2026-09-06 11:00:00'];
+const RATES = ['2035-09-05 21:10:00', '2035-09-06 02:00:00', '2035-09-06 11:00:00'];
 
 function purger() {
   exec("DELETE FROM vente_reglement WHERE vente_id LIKE '" + MARQUE + "-%'");
@@ -129,8 +129,8 @@ function semer() {
   };
 
   try {
-    const gA = await poster({ libelle: MARQUE + ' nuit A', dateDebut: '2026-09-05 20:00', dateFin: '2026-09-06 08:00' });
-    const gB = await poster({ libelle: MARQUE + ' nuit B', dateDebut: '2026-09-12 20:00', dateFin: '2026-09-13 08:00' });
+    const gA = await poster({ libelle: MARQUE + ' nuit A', dateDebut: '2035-09-05 20:00', dateFin: '2035-09-06 08:00' });
+    const gB = await poster({ libelle: MARQUE + ' nuit B', dateDebut: '2035-09-12 20:00', dateFin: '2035-09-13 08:00' });
     ok('Deux gardes de jeu d\'essai', gA.success && gB.success, JSON.stringify([gA.msg, gB.msg]));
 
     // ---------------------------------------------------------------- les indicateurs par l'API

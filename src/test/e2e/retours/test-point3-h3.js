@@ -25,14 +25,14 @@ let PRODUITS = [], KGA3 = '', AUTRE = '', GROSSISTE = '';
      commande a 23h00 : P0 x5 (vendu pendant la garde), P2 x4 (NON vendu) ; commande de jour le 6 : P1 x9 (hors garde)
    Garde « nuit 2 » du 12 au 13 : V4 21h00 P1 x1 = 2 000 (autre vendeur). */
 const VENTES = [
-  { id: MARQUE + '-1', quand: '2030-09-05 20:30:00', prod: 0, qte: 2, montant: 1000, vendeur: 'KGA3' },
-  { id: MARQUE + '-2', quand: '2030-09-05 21:00:00', prod: 1, qte: 1, montant: 4000, vendeur: 'AUTRE' },
-  { id: MARQUE + '-3', quand: '2030-09-05 22:00:00', prod: 0, qte: 3, montant: 1500, vendeur: 'KGA3' },
-  { id: MARQUE + '-4', quand: '2030-09-12 21:00:00', prod: 1, qte: 1, montant: 2000, vendeur: 'AUTRE' }
+  { id: MARQUE + '-1', quand: '2032-09-05 20:30:00', prod: 0, qte: 2, montant: 1000, vendeur: 'KGA3' },
+  { id: MARQUE + '-2', quand: '2032-09-05 21:00:00', prod: 1, qte: 1, montant: 4000, vendeur: 'AUTRE' },
+  { id: MARQUE + '-3', quand: '2032-09-05 22:00:00', prod: 0, qte: 3, montant: 1500, vendeur: 'KGA3' },
+  { id: MARQUE + '-4', quand: '2032-09-12 21:00:00', prod: 1, qte: 1, montant: 2000, vendeur: 'AUTRE' }
 ];
 const COMMANDES = [
-  { id: 'E2EH3-ORD-1', quand: '2030-09-05 23:00:00', lignes: [[0, 5], [2, 4]] },
-  { id: 'E2EH3-ORD-2', quand: '2030-09-06 12:00:00', lignes: [[1, 9]] }
+  { id: 'E2EH3-ORD-1', quand: '2032-09-05 23:00:00', lignes: [[0, 5], [2, 4]] },
+  { id: 'E2EH3-ORD-2', quand: '2032-09-06 12:00:00', lignes: [[1, 9]] }
 ];
 
 function purger() {
@@ -160,8 +160,8 @@ function semer() {
   };
 
   try {
-    const g1 = await poster({ libelle: MARQUE + ' nuit', dateDebut: '2030-09-05 20:00', dateFin: '2030-09-06 08:00' });
-    const g2 = await poster({ libelle: MARQUE + ' nuit 2', dateDebut: '2030-09-12 20:00', dateFin: '2030-09-13 08:00' });
+    const g1 = await poster({ libelle: MARQUE + ' nuit', dateDebut: '2032-09-05 20:00', dateFin: '2032-09-06 08:00' });
+    const g2 = await poster({ libelle: MARQUE + ' nuit 2', dateDebut: '2032-09-12 20:00', dateFin: '2032-09-13 08:00' });
     ok('Deux gardes de jeu d\'essai', g1.success && g2.success, JSON.stringify([g1.msg, g2.msg]));
 
     await p.evaluate(() => testextjs.app.getController('App').onRedirectTo('gardemanager', {}));

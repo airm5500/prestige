@@ -17,17 +17,17 @@ const TMP = '/tmp/claude-0/lot-rs';
 const MARQUE = 'E2E-RS';
 
 let PRODUITS = [], KGA3 = '', AUTRE = '', GROSSISTE = '';
-/* Garde « nuit » du 5 au 6 mars 2027 (20 h - 8 h) : V1 P0 x2 = 1 000 (KGA3), V2 P1 x1 = 4 000 (autre),
+/* Garde « nuit » du 5 au 6 mars 2036 (20 h - 8 h) : V1 P0 x2 = 1 000 (KGA3), V2 P1 x1 = 4 000 (autre),
    V3 P0 x3 = 1 500 (KGA3) ; commande a 23 h : P0 x5 (vendu 5 -> 100 %), P2 x4 (non vendu -> 0 %).
    Garde « nuit 2 » du 12 au 13 mars : V4 P1 x1 = 2 000 (autre). */
-const DEBUT = '2027-03-05 20:00', FIN = '2027-03-06 08:00', DEBUT2 = '2027-03-12 20:00', FIN2 = '2027-03-13 08:00';
+const DEBUT = '2036-03-05 20:00', FIN = '2036-03-06 08:00', DEBUT2 = '2036-03-12 20:00', FIN2 = '2036-03-13 08:00';
 const VENTES = [
-  { id: MARQUE + '-1', quand: '2027-03-05 20:30:00', prod: 0, qte: 2, montant: 1000, vendeur: 'KGA3' },
-  { id: MARQUE + '-2', quand: '2027-03-05 21:00:00', prod: 1, qte: 1, montant: 4000, vendeur: 'AUTRE' },
-  { id: MARQUE + '-3', quand: '2027-03-05 22:00:00', prod: 0, qte: 3, montant: 1500, vendeur: 'KGA3' },
-  { id: MARQUE + '-4', quand: '2027-03-12 21:00:00', prod: 1, qte: 1, montant: 2000, vendeur: 'AUTRE' }
+  { id: MARQUE + '-1', quand: '2036-03-05 20:30:00', prod: 0, qte: 2, montant: 1000, vendeur: 'KGA3' },
+  { id: MARQUE + '-2', quand: '2036-03-05 21:00:00', prod: 1, qte: 1, montant: 4000, vendeur: 'AUTRE' },
+  { id: MARQUE + '-3', quand: '2036-03-05 22:00:00', prod: 0, qte: 3, montant: 1500, vendeur: 'KGA3' },
+  { id: MARQUE + '-4', quand: '2036-03-12 21:00:00', prod: 1, qte: 1, montant: 2000, vendeur: 'AUTRE' }
 ];
-const COMMANDES = [{ id: MARQUE + '-ORD-1', quand: '2027-03-05 23:00:00', lignes: [[0, 5], [2, 4]] }];
+const COMMANDES = [{ id: MARQUE + '-ORD-1', quand: '2036-03-05 23:00:00', lignes: [[0, 5], [2, 4]] }];
 
 function purger() {
   exec("DELETE FROM t_preenregistrement_detail WHERE lg_PREENREGISTREMENT_ID LIKE '" + MARQUE + "-%'");
@@ -176,7 +176,8 @@ function semer() {
       const store = c.store;
       const hauteur = c.getHeight();
       return { axe: c.axes.getAt(0).title, gutter: serie.gutter, groupGutter: serie.groupGutter, hauteur,
-        valeurs: store.getRange().map(r => r.get('s2')), max: c.axes.getAt(0).maximum, pas: c.axes.getAt(0).majorTickSteps };
+        valeurs: store.getRange().map(r => r.get('s2')), max: c.axes.getAt(0).maximum, pas: c.axes.getAt(0).majorTickSteps,
+        maxAffiche: Math.max(0, ...store.getRange().map(r => Math.max(...Object.keys(r.data).filter(k => /^s\d+$/.test(k)).map(k => r.get(k) || 0)))) };
     });
     const gNet = await lireGraphique();
     ok('R : le graphique est plus bas (230 px) et ses barres plus fines (espace entre groupes 60 %)',
@@ -195,8 +196,10 @@ function semer() {
     }, MOIS_A.slice(0, 4));
     const valeursAnnee = await p.evaluate((i) => Ext.ComponentQuery.query('balancesalecahs #graphiqueAnalyse chart')[0].store.getRange().map(r => r.get('s' + i)), serieAnnee);
     ok('R : choisir « Nombre de ventes » redessine le graphique sans rappeler le serveur : axe « Nombre de ventes », 3 puis 2 ventes sur les mois du jeu d essai, axe en unites entieres',
-      gVentes && gVentes.axe === 'Nombre de ventes' && valeursAnnee[moisA] === 3 && valeursAnnee[parseInt(MOIS_B.slice(5, 7), 10) - 1] === 2 && gVentes.max === 3 && gVentes.pas === 2,
-      JSON.stringify({ axe: gVentes && gVentes.axe, valeurs: valeursAnnee, max: gVentes && gVentes.max, pas: gVentes && gVentes.pas }));
+      gVentes && gVentes.axe === 'Nombre de ventes' && valeursAnnee[moisA] === 3 && valeursAnnee[parseInt(MOIS_B.slice(5, 7), 10) - 1] === 2
+        /* axe en unites entieres quand le plus grand nombre affiche (toutes annees) est au plus 10 ; le banc a aussi de vraies ventes */
+        && (gVentes.maxAffiche > 10 ? !(gVentes.max <= 10) : gVentes.max === gVentes.maxAffiche && gVentes.pas === Math.max(1, gVentes.maxAffiche - 1)),
+      JSON.stringify({ axe: gVentes && gVentes.axe, valeurs: valeursAnnee, max: gVentes && gVentes.max, pas: gVentes && gVentes.pas, maxAffiche: gVentes && gVentes.maxAffiche }));
     await p.screenshot({ path: TMP + '/analyse.png' });
     // retours des tests 4 : sur une periode libre (une barre par periode), TOUS les indicateurs a la fois
     const idsLibre = await p.evaluate(() => {
@@ -266,7 +269,7 @@ function semer() {
       const heures = colonnes.find(c => /Heures tenues/.test(c.text));
       return { indicateurs: v.down('#gardeIndicateurs').el.dom.innerText, heuresCachee: heures ? heures.hidden === true : null,
         masques: window.__masques.slice(), vendeursBoutons: !!v.down('#vendeursImprimer') && !!v.down('#vendeursExporter'),
-        commandesFiltre: !!v.down('#commandesFiltre'), colonnePourcentage: v.down('#ongletCommandes').headerCt.getGridColumns().some(c => /% de vente/.test(c.text)) };
+        commandesFiltre: !!v.down('#commandesFiltre'), colonnePourcentage: v.down('#ongletCommandes').query('gridcolumn').some(c => /% (de )?vente/.test(c.text || '')) /* scindee le 21/09 : « % vente » (prép. / cmd) */ };
     });
     ok('S : les indicateurs de la garde ne disent plus ni « ligne(s) » ni « unité(s) » (ventes, produits, total, par heure, marge restent)',
       /3 vente\(s\)/.test(analyse.indicateurs) && /2 produit\(s\)/.test(analyse.indicateurs) && /au total/.test(analyse.indicateurs) && /par heure/.test(analyse.indicateurs)
@@ -282,7 +285,7 @@ function semer() {
     await analyseFinie();
     const masquesFiltre = await p.evaluate(() => window.__masques.slice());
     ok('S : changer un filtre pose l indicateur de chargement sur l onglet Analyse', masquesFiltre[0] === 'ongletAnalyseGarde:on' && masquesFiltre.indexOf('ongletAnalyseGarde:off') > 0, JSON.stringify(masquesFiltre));
-    await p.evaluate(() => Ext.ComponentQuery.query('gardemanager #abcClasse')[0].setValue(''));
+    await p.evaluate(() => { Ext.ComponentQuery.query('gardemanager #abcClasse')[0].setValue(''); });
 
     // une seule garde sur l'onglet Analyse
     await cliquerGarde(MARQUE + ' nuit 2', true);
@@ -346,7 +349,8 @@ function semer() {
     const lireCommandes = () => p.evaluate(() => {
       const v = Ext.ComponentQuery.query('gardemanager')[0];
       const grille = v.down('#ongletCommandes');
-      const idx = grille.headerCt.getGridColumns().findIndex(c => /% de vente/.test(c.text));
+      /* « % de vente » scinde le 21/09 : vendu / commande = sous-colonne « cmd » (pourcentageCommande) */
+      const idx = grille.headerCt.getGridColumns().findIndex(c => c.dataIndex === 'pourcentageCommande');
       return { lignes: Array.from(grille.getView().getEl().dom.querySelectorAll('tr.x-grid-row')).map(tr => {
         const tds = tr.querySelectorAll('td.x-grid-cell');
         return { pct: tds[idx].innerText.trim(), statut: tds[tds.length - 1].innerText.trim() };
@@ -354,7 +358,7 @@ function semer() {
     });
     const cmdTous = await lireCommandes();
     ok('S : commandes : « % de vente » = quantite vendue / quantite commandee (P0 5/5 = 100,00), les non vendus restent a 0 ; indicateur de chargement',
-      cmdTous.lignes.length === 2 && cmdTous.lignes.some(l => l.statut === 'Vendu' && /^100[.,]00$/.test(l.pct)) && cmdTous.lignes.some(l => l.statut === 'Non vendu' && /^0[.,]00$/.test(l.pct))
+      cmdTous.lignes.length === 2 && cmdTous.lignes.some(l => l.statut === 'Vendu' && /^100[.,]00$/.test(l.pct)) && cmdTous.lignes.some(l => l.statut === 'Non vendu' && /^(0[.,]00)?$/.test(l.pct)) /* depuis le 22/09 : case vide pour 0 */
       && cmdTous.masques.indexOf('ongletCommandes:on') >= 0, JSON.stringify(cmdTous));
     await choisir('gardemanager #commandesFiltre', 'Non vendus');
     await p.waitForTimeout(600);
