@@ -162,7 +162,7 @@ const TMP = '/tmp/claude-0/lot-n';
     await p.screenshot({ path: TMP + '/analyse.png', fullPage: false });
 
     // 3 dernieres annees : le graphique mois par mois, une barre par annee, avec le jeu d'essai
-    await p.evaluate(() => Ext.ComponentQuery.query('balancesalecahs #typePeriode')[0].setValue('TROIS_ANS'));
+    await p.evaluate(() => { Ext.ComponentQuery.query('balancesalecahs #typePeriode')[0].setValue('TROIS_ANS'); });
     await p.click('#' + idsA.rechercher);
     await p.waitForFunction(() => {
       const c = Ext.ComponentQuery.query('balancesalecahs #graphiqueAnalyse')[0].down('chart');

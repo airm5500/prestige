@@ -114,7 +114,10 @@ function retirerJeuDEssai() {
      !(ordinaire.data || []).some(t => t.lgTIERSPAYANTID === TP), 'total=' + (ordinaire.data || []).length);
   const depots = JSON.parse((await appel('GET', '../api/v1/client/tiers-payants?carnetDepot=true')).corps);
   ok('le menu du carnet depot ne propose QUE les carnets depot',
-     (depots.data || []).length >= 1 && (depots.data || []).every(t => t.lgTIERSPAYANTID === TP), JSON.stringify(depots.data || []).slice(0, 150));
+     /* le banc a aussi ses propres carnets depot : chacun doit en etre un en base, et celui du test en fait partie */
+     (depots.data || []).some(t => t.lgTIERSPAYANTID === TP)
+       && Number(q("SELECT COUNT(*) FROM t_tiers_payant WHERE is_depot=1 AND lg_TIERS_PAYANT_ID IN ('" + (depots.data || []).map(t => t.lgTIERSPAYANTID).join("','") + "')")) === (depots.data || []).length,
+     JSON.stringify(depots.data || []).slice(0, 150));
   const tous = JSON.parse((await appel('GET', '../api/v1/client/tiers-payants')).corps);
   ok('sans parametre, la liste reste celle de toujours (aucun autre appelant ne change)',
      (tous.data || []).some(t => t.lgTIERSPAYANTID === TP) && (tous.data || []).length > (depots.data || []).length);

@@ -22,18 +22,19 @@ const PRIVILEGE = q("SELECT lg_PRIVELEGE_ID FROM t_privilege WHERE str_NAME='P_B
 const sansPrivilege = require('../support/privilege-essai')(q, exec, process.env.E2E_LOGIN || 'admin', 'P_BALANCE_ANCIENNE_PRESENTATION');
 
 let PRODUITS = [], USER = '', STOCK_AVANT = null;
-const DEBUT = '2027-02-05 20:00', FIN = '2027-02-06 08:00';
+const DEBUT = '2037-02-05 20:00', FIN = '2037-02-06 08:00';
 const VENTES = [
-  { id: MARQUE + '-1', quand: '2027-02-05 20:30:00', prod: 0, qte: 2, montant: 1000, achat: 300 },   // marge 40 %
-  { id: MARQUE + '-2', quand: '2027-02-05 23:15:00', prod: 1, qte: 10, montant: 4000, achat: 200 },  // marge 50 %
-  { id: MARQUE + '-3', quand: '2027-02-06 03:00:00', prod: 2, qte: 1, montant: 600, achat: 900 }     // marge -50 %
+  { id: MARQUE + '-1', quand: '2037-02-05 20:30:00', prod: 0, qte: 2, montant: 1000, achat: 300 },   // marge 40 %
+  { id: MARQUE + '-2', quand: '2037-02-05 23:15:00', prod: 1, qte: 10, montant: 4000, achat: 200 },  // marge 50 %
+  { id: MARQUE + '-3', quand: '2037-02-06 03:00:00', prod: 2, qte: 1, montant: 600, achat: 900 }     // marge -50 %
 ];
 function purgerGarde() {
   exec("DELETE FROM t_preenregistrement_detail WHERE lg_PREENREGISTREMENT_ID LIKE '" + MARQUE + "-%'");
   exec("DELETE FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID LIKE '" + MARQUE + "-%'");
   exec("DELETE FROM garde WHERE libelle LIKE '" + MARQUE + " %'");
   if (PRODUITS[0] && STOCK_AVANT !== null) {
-    exec("UPDATE t_famille_stock SET int_NUMBER_AVAILABLE=" + STOCK_AVANT + " WHERE lg_FAMILLE_ID='" + PRODUITS[0] + "' AND lg_EMPLACEMENT_ID='1'");
+    /* stock d'origine des trois produits (P1 et P2 sont poses sous 7 : le filtre « stock >= 7 » ne garde que P0) */
+    STOCK_AVANT.forEach((st, i) => exec("UPDATE t_famille_stock SET int_NUMBER_AVAILABLE=" + st + " WHERE lg_FAMILLE_ID='" + PRODUITS[i] + "' AND lg_EMPLACEMENT_ID='1'"));
     STOCK_AVANT = null;
   }
   exec("DELETE FROM t_role_privelege WHERE lg_ROLE_PRIVILEGE='" + MARQUE + "-PRIV'");
@@ -43,7 +44,8 @@ function semerGarde() {
   PRODUITS = q("SELECT f.lg_FAMILLE_ID FROM t_famille f JOIN t_famille_stock s ON s.lg_FAMILLE_ID=f.lg_FAMILLE_ID AND s.lg_EMPLACEMENT_ID='1'"
     + " WHERE f.str_STATUT='enable' AND f.bool_DECONDITIONNE=0 ORDER BY f.str_NAME LIMIT 3").split('\n').filter(Boolean).map(x => x.trim());
   if (!USER || PRODUITS.length !== 3) { return false; }
-  STOCK_AVANT = q("SELECT int_NUMBER_AVAILABLE FROM t_famille_stock WHERE lg_FAMILLE_ID='" + PRODUITS[0] + "' AND lg_EMPLACEMENT_ID='1' LIMIT 1");
+  STOCK_AVANT = PRODUITS.map((id) => q("SELECT int_NUMBER_AVAILABLE FROM t_famille_stock WHERE lg_FAMILLE_ID='" + id + "' AND lg_EMPLACEMENT_ID='1' LIMIT 1"));
+  exec("UPDATE t_famille_stock SET int_NUMBER_AVAILABLE=3 WHERE lg_FAMILLE_ID IN ('" + PRODUITS[1] + "','" + PRODUITS[2] + "') AND lg_EMPLACEMENT_ID='1'");
   exec("UPDATE t_famille_stock SET int_NUMBER_AVAILABLE=7 WHERE lg_FAMILLE_ID='" + PRODUITS[0] + "' AND lg_EMPLACEMENT_ID='1'");
   VENTES.forEach(v => {
     exec("INSERT INTO t_preenregistrement (lg_PREENREGISTREMENT_ID, str_REF, str_REF_TICKET, int_PRICE, int_PRICE_REMISE, str_STATUT, dt_CREATED, dt_UPDATED, lg_TYPE_VENTE_ID,"
@@ -217,7 +219,8 @@ function semerGarde() {
         filtres: ['abcStockOp', 'abcStockVal', 'abcQteOp', 'abcQteVal', 'abcMargeOp', 'abcMargeVal'].every(id => !!v.down('#' + id)),
         ligneA: a ? getComputedStyle(a).color + ' ' + getComputedStyle(a).fontWeight : null,
         stocks: v.down('#grilleAbc').getStore().getRange().map(r => r.get('stock')),
-        axe: chart ? chart.axes.getAt(2).title : '',
+        /* barres depuis le 21/09 : deux axes, celui du bas porte « Gardes comparées » */
+        axe: chart ? (chart.axes.findBy((x) => x.position === 'bottom') || {}).title : '',
         vendeursColonne: v.down('#ongletVendeurs').headerCt.getGridColumns().map(c => c.text).indexOf('% du chiffre') >= 0
       };
     });

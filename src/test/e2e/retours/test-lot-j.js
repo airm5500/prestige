@@ -244,8 +244,12 @@ function retirerJeuDEssai() {
     ok('La recherche par reference de vente retrouve la vente', true);
     await p.evaluate(() => { const g = Ext.ComponentQuery.query('window{isVisible()} #grilleBonsFacture')[0]; g.getSelectionModel().select(0); });
     await p.waitForFunction(() => { const g = Ext.ComponentQuery.query('window{isVisible()} #grilleArticlesFacture')[0]; return g && !g.getStore().isLoading() && g.getStore().getCount() > 0; }, null, { timeout: 20000 });
-    const articles = await p.evaluate(() => { const g = Ext.ComponentQuery.query('window{isVisible()} #grilleArticlesFacture')[0]; const w = g.up('window'); const r = { n: g.getStore().getCount(), premier: g.getStore().getAt(0).getData() }; w.destroy(); return r; });
-    ok('La vente choisie montre ses medicaments, pagines', articles.n === 1 && !!articles.premier.strNAME && articles.premier.intPRICE === 3000, JSON.stringify(articles).slice(0, 200));
+    const articles = await p.evaluate(() => { const g = Ext.ComponentQuery.query('window{isVisible()} #grilleArticlesFacture')[0]; const w = g.up('window'); const r = { n: g.getStore().getCount(), total: g.getStore().getTotalCount(), premier: g.getStore().getAt(0).getData(),
+        semee: g.getStore().getRange().some((x) => x.get('intPRICE') === 3000 && x.get('intQUANTITY') === 2) }; w.destroy(); return r; });
+    /* la vente du banc a deja ses lignes ; la ligne posee par le test s'y ajoute (sur la page affichee, ou une suivante) */
+    const lignesVente = Number(q("SELECT COUNT(*) FROM t_preenregistrement_detail WHERE lg_PREENREGISTREMENT_ID='" + venteFixture + "'"));
+    ok('La vente choisie montre ses medicaments, pagines', articles.n > 0 && !!articles.premier.strNAME && articles.total === lignesVente
+      && (articles.semee || articles.total > articles.n), JSON.stringify(Object.assign({ lignesVente }, articles)).slice(0, 250));
 
     // Editions : une seule ouverture, dans le clic, sur un flux PDF
     await p.evaluate((id) => {

@@ -34,6 +34,10 @@ function semer() {
     exec("INSERT INTO t_dossier_reglement (lg_DOSSIER_REGLEMENT_ID, str_LIBELLE, str_NATURE_DOSSIER, dbl_AMOUNT, str_ORGANISME_ID, dt_CREATED, dt_UPDATED,"
       + " str_STATUT, lg_FACTURE_ID, lg_USER_ID, dbl_MONTANT_ATTENDU, dt_REGLEMENT) VALUES ('" + MARQUE + "-DOS', 'E2E reglement', 'FACTURE', 15000, '" + organisme + "',"
       + " NOW(), NOW(), 'enable', '" + facture + "', (SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='" + (process.env.E2E_LOGIN || 'admin') + "'), 15000, NOW())");
+    /* la liste ne montre que les dossiers rattaches a une ligne de facture */
+    exec("INSERT INTO t_dossier_reglement_detail (lg_DOSSIER_REGLEMENT_DETAIL_ID, lg_DOSSIER_REGLEMENT_ID, str_REF, dbl_AMOUNT, str_STATUT, dt_UPDATED, dt_CREATED, lg_FACTURE_DETAIL_ID)"
+      + " SELECT '" + MARQUE + "-DET', '" + MARQUE + "-DOS', 'E2E', 15000, 'enable', NOW(), NOW(), lg_FACTURE_DETAIL_ID FROM t_facture_detail"
+      + " ORDER BY (lg_FACTURE_ID = '" + facture + "') DESC LIMIT 1");
     dossier = MARQUE + '-DOS';
   }
   const user = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='" + (process.env.E2E_LOGIN || 'admin') + "'");
@@ -49,6 +53,7 @@ function semer() {
 }
 function nettoyer() {
   exec("DELETE FROM t_reglement WHERE lg_REGLEMENT_ID='" + MARQUE + "'");
+  exec("DELETE FROM t_dossier_reglement_detail WHERE lg_DOSSIER_REGLEMENT_DETAIL_ID='" + MARQUE + "-DET'");
   exec("DELETE FROM t_dossier_reglement WHERE lg_DOSSIER_REGLEMENT_ID='" + MARQUE + "-DOS'");
 }
 
