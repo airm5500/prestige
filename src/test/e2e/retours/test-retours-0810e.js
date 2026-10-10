@@ -75,6 +75,9 @@ function poser(cmd) {
   P = lus.map((x) => x.split(':')[0]); cips = lus.map((x) => x.split(':')[1]);
   fgAvant = q("SELECT IFNULL(GROUP_CONCAT(lg_FAMILLE_GROSSISTE_ID), '') FROM t_famille_grossiste WHERE lg_FAMILLE_ID = '" + P[2] + "' AND lg_GROSSISTE_ID = '" + G + "'");
   nettoyer();
+  /* la colonne « Clé » de la liste ne s'affiche que pour un grossiste PharmaML : adresse posee ici (le test ne depend
+     plus de l'etat laisse par un autre), remise a la fin */
+  exec("UPDATE t_grossiste SET str_URL_PHARMAML = 'http://127.0.0.1:" + PORT + "/tedis/' WHERE lg_GROSSISTE_ID = '" + G + "'");
   const { chromium } = require('playwright-core');
   const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
   const p = await (await b.newContext({ viewport: { width: 1366, height: 768 } })).newPage();

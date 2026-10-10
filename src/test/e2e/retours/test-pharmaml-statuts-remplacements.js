@@ -130,6 +130,8 @@ const url = (u) => exec("UPDATE t_grossiste SET str_URL_PHARMAML = " + (u === nu
     const apres = q("SELECT CONCAT(r.str_STATUT, '|', r.str_MODE, '|', d.produitId) FROM t_pharmaml_remplacement r JOIN rupture_detail d ON d.id = r.lg_RUPTURE_DETAIL_ID WHERE r.lg_ID = '" + idProp + "'");
     const fenetres = await p.evaluate(() => Ext.ComponentQuery.query('window[hidden=false]').length + (Ext.MessageBox.isVisible() ? 1 : 0));
     ok('Accepter (clic sur la ligne, sans fenêtre) : la ligne de rupture passe sur l\'équivalent, statut ACCEPTE / MANUEL', apres === 'ACCEPTE|MANUEL|' + P[2] && fenetres === 0, apres + ' fenetres=' + fenetres);
+    /* le tableau se recharge apres l'acceptation : on lit le resultat une fois le rechargement termine */
+    await p.waitForFunction(() => !Ext.ComponentQuery.query('rupturepharma #grilleEquivalents')[0].getStore().isLoading(), null, { timeout: 20000 });
     const restant = await p.evaluate((ref) => { const st = Ext.ComponentQuery.query('rupturepharma #grilleEquivalents')[0].getStore(); return st.isLoading() ? -2 : st.findExact('reference', ref); }, CMDS[0]);
     ok('La proposition traitée disparaît du tableau', restant === -1, restant);
     const deux = await p.evaluate(async (id) => (await fetch('../api/v1/pharma/remplacements/' + id + '?decision=REFUSER', { method: 'POST' })).json(), idProp);
