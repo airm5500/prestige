@@ -33,7 +33,7 @@ function purgerAvoir() {
 }
 /* Une vente cloturee au nom de KGA3 avec deux produits ; avoir en cours d'aujourd'hui, ou vente ordinaire d'un jour donne. */
 function poserVente(id, avoir, jour) {
-  const user = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='KGA3'");
+  const user = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='" + (process.env.E2E_LOGIN || 'admin') + "'");
   const produits = q("SELECT lg_FAMILLE_ID FROM t_famille WHERE str_STATUT='enable' ORDER BY str_NAME LIMIT 2").split('\n').filter(Boolean);
   const quand = jour + ' 10:00:00';
   const AVOIR = id, isAvoir = avoir ? 1 : 0;
@@ -61,7 +61,7 @@ function purgerMouvements() {
 /* Trois mouvements de KGA3, controles, crees un meme jour mais dates (date du mouvement) de jours differents. */
 function poserMouvements(jour) {
   purgerMouvements();
-  const user = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='KGA3'");
+  const user = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='" + (process.env.E2E_LOGIN || 'admin') + "'");
   [['5', 3000, -3, 'Apport du gerant'], ['5', 1000, -1, ''], ['4', 500, -2, 'Achat de fournitures']].forEach(function (m, i) {
     exec("INSERT INTO t_mvt_caisse (lg_MVT_CAISSE_ID, lg_TYPE_MVT_CAISSE_ID, lg_USER_ID, str_NUM_COMPTE, str_COMMENTAIRE,"
       + " lg_MODE_REGLEMENT_ID, int_AMOUNT, dt_DATE_MVT, dt_CREATED, dt_UPDATED, str_CREATED_BY, str_STATUT, P_KEY, str_REF_TICKET, bool_CHECKED)"
@@ -82,7 +82,7 @@ function xlsxTexte(fichier) {
   const p = await ctx.newPage();
   const err = []; p.on('pageerror', e => err.push(String(e.message)));
   await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-  await p.fill('#str_login', 'KGA3'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+  await p.fill('#str_login', process.env.E2E_LOGIN || 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
   await p.waitForURL('**/general/**', { timeout: 30000 });
   await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 60000 });
   await p.waitForTimeout(1500);
@@ -185,7 +185,7 @@ function xlsxTexte(fichier) {
     const jourMvt = q("SELECT DATE_SUB(CURDATE(), INTERVAL 410 DAY)");
     poserMouvements(jourMvt);
     try {
-      const userId = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='KGA3'");
+      const userId = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='" + (process.env.E2E_LOGIN || 'admin') + "'");
       const pdfMvt = await p.evaluate(async (u) => {
         const x = await fetch(u); return { statut: x.status, type: x.headers.get('content-type'), octets: Array.from(new Uint8Array(await x.arrayBuffer())) };
       }, '../CaisseServlet?dtStart=' + jourMvt + '&dtEnd=' + jourMvt + '&userId=' + userId + '&checked=true&typeMvtId=');

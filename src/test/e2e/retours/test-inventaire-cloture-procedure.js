@@ -12,7 +12,7 @@ const exec = (s) => execFileSync('mariadb', [BASE, '-e', s], { encoding: 'utf8' 
 const q = (s) => execFileSync('mariadb', [BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const IDS = ['E2E-INV-PROC-A', 'E2E-INV-PROC-B', 'E2E-INV-PROC-C'];
 const T0 = q('SELECT NOW()');
-const USER = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='KGA3'");
+const USER = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='" + (process.env.E2E_LOGIN || 'admin') + "'");
 function poser(id, nb) {
   exec("INSERT INTO t_inventaire (lg_INVENTAIRE_ID, str_NAME, str_DESCRIPTION, str_TYPE, str_STATUT, dt_CREATED, dt_UPDATED, lg_USER_ID, lg_EMPLACEMENT_ID) VALUES ('" + id + "', '" + id + "', '" + id + "', 'emplacement', 'enable', NOW(), NOW(), '" + USER + "', '1');"
     + "INSERT INTO t_inventaire_famille (lg_INVENTAIRE_ID, lg_FAMILLE_ID, int_NUMBER, int_NUMBER_INIT, str_STATUT, dt_CREATED, dt_UPDATED, bool_INVENTAIRE, str_UPDATED_ID, lg_FAMILLE_STOCK_ID)"
@@ -42,7 +42,7 @@ function retablir() {
     ok('Jeu d essai : deux inventaires identiques de 40 lignes avec des ecarts', ecarts > 0 && q("SELECT COUNT(*) FROM t_inventaire_famille WHERE lg_INVENTAIRE_ID='" + IDS[0] + "' AND int_NUMBER<>int_NUMBER_INIT") === String(ecarts), ecarts);
 
     await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', 'KGA3'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', process.env.E2E_LOGIN || 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 30000 });
     const cloturer = async (id) => { const t = Date.now(); const r = await p.evaluate(async (u) => { const x = await fetch(u, { method: 'PUT', headers: { 'Content-Type': 'application/json' } }); return { statut: x.status, corps: await x.text() }; }, '../api/v1/commande/clotureinventaire/' + id); r.ms = Date.now() - t; return r; };
 

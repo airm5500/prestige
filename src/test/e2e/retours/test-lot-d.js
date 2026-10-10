@@ -51,7 +51,7 @@ function poserJeuDEssai(jour) {
   ids.forEach(function (id, i) {
     exec("INSERT INTO mvttransaction (uuid,categorie,createdAt,mvtdate,pkey,reference,typeTransaction,caisse,"
       + "lg_EMPLACEMENT_ID,lg_USER_ID,montant) VALUES ('" + MARQUE + '-' + i + "',1,NOW(),'" + jour + "','" + id
-      + "','" + MARQUE + "',1,'1','1',(SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='KGA3'),0);");
+      + "','" + MARQUE + "',1,'1','1',(SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='" + (process.env.E2E_LOGIN || 'admin') + "'),0);");
   });
   /* Les ventes du banc n'ont plus leurs lignes de detail : sans elles, l'edition « avec
      produits » n'aurait rien a detailler. On en pose une par vente choisie. */
@@ -101,7 +101,7 @@ function retirerJeuDEssai() {
   const p = await b.newPage({ viewport: { width: 1600, height: 950 } });
   const err = []; p.on('pageerror', e => err.push(String(e.message)));
   await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-  await p.fill('#str_login', 'KGA3'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+  await p.fill('#str_login', process.env.E2E_LOGIN || 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
   await p.waitForURL('**/general/**', { timeout: 30000 });
   await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 60000 });
   await p.waitForTimeout(2000);

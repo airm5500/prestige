@@ -20,7 +20,7 @@ const TMP = '/tmp/inv-analyse'; fs.mkdirSync(TMP, { recursive: true });
 function poser() {
   exec("DELETE FROM t_inventaire_famille WHERE lg_INVENTAIRE_ID='" + ID + "'; DELETE FROM t_inventaire WHERE lg_INVENTAIRE_ID='" + ID + "';"
     + "INSERT INTO t_inventaire (lg_INVENTAIRE_ID, str_NAME, str_DESCRIPTION, str_TYPE, str_STATUT, dt_CREATED, dt_UPDATED, lg_USER_ID, lg_EMPLACEMENT_ID)"
-    + " SELECT '" + ID + "', 'E2E ANALYSE', 'E2E analyse inventaire', 'emplacement', 'enable', NOW(), NOW(), lg_USER_ID, '1' FROM t_user WHERE str_LOGIN='KGA3';"
+    + " SELECT '" + ID + "', 'E2E ANALYSE', 'E2E analyse inventaire', 'emplacement', 'enable', NOW(), NOW(), lg_USER_ID, '1' FROM t_user WHERE str_LOGIN='" + (process.env.E2E_LOGIN || 'admin') + "';"
     /* 12 produits par zone sur 8 zones : ecarts negatifs (RAND < 0.3), positifs (RAND < 0.5) ou nuls */
     + "INSERT INTO t_inventaire_famille (lg_INVENTAIRE_ID, lg_FAMILLE_ID, int_NUMBER, int_NUMBER_INIT, str_STATUT, dt_CREATED, dt_UPDATED, bool_INVENTAIRE, str_UPDATED_ID, lg_FAMILLE_STOCK_ID)"
     + " SELECT '" + ID + "', x.lg_FAMILLE_ID,"
@@ -61,7 +61,7 @@ function section(texte, titre) {
     ok('Jeu d essai : produits sur plusieurs emplacements, ecarts en plus et en moins', attendu[0] >= 60 && attendu[1] > 10 && attendu[2] >= 7, attendu.join('/'));
 
     await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', 'KGA3'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', process.env.E2E_LOGIN || 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 30000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 60000 });
     await p.waitForTimeout(1500);

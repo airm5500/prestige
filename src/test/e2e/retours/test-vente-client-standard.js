@@ -21,7 +21,7 @@ const TEL = '0731' + suffixe;
 const TEL2 = '0532' + suffixe;
 const ventes = [];
 const DROIT = "(SELECT lg_PRIVELEGE_ID FROM t_privilege WHERE str_NAME = 'P_CLIENT_STANDARD_MAJ')";
-const ROLE = "(SELECT ru.lg_ROLE_ID FROM t_role_user ru JOIN t_user u ON u.lg_USER_ID = ru.lg_USER_ID WHERE u.str_LOGIN = 'KGA3' LIMIT 1)";
+const ROLE = "(SELECT ru.lg_ROLE_ID FROM t_role_user ru JOIN t_user u ON u.lg_USER_ID = ru.lg_USER_ID WHERE u.str_LOGIN = '" + (process.env.E2E_LOGIN || 'admin') + "' LIMIT 1)";
 const RETIRER = 'DELETE FROM t_role_privelege WHERE lg_PRIVILEGE_ID = ' + DROIT + ' AND lg_ROLE_ID = ' + ROLE;
 const RENDRE = 'INSERT INTO t_role_privelege (lg_ROLE_PRIVILEGE, lg_ROLE_ID, lg_PRIVILEGE_ID, dt_CREATED, dt_UPDATED)'
   + ' SELECT LEFT(UUID(), 40), ' + ROLE + ', ' + DROIT + ', NOW(), NOW() FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM t_role_privelege'
@@ -74,7 +74,7 @@ async function venteComptant(p) {
     /* Sur le banc, KGA3 a le role Administrateur : le droit lui est retire le temps de sa connexion (les droits sont
        lus a la connexion), puis rendu aussitot, et dans tous les cas en fin de test. */
     exec(RETIRER);
-    const caisse = await connecter(b, 'KGA3');
+    const caisse = await connecter(b, process.env.E2E_LOGIN || 'admin');
     exec(RENDRE);
     const droitCaisse = await caisse.evaluate(async () => JSON.parse(await (await fetch('../api/v1/vente-client-standard/droit')).text()));
     ok('Caissier sans le droit : le service le dit', droitCaisse.success === true && droitCaisse.modifier === false, JSON.stringify(droitCaisse));

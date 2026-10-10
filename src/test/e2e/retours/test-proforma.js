@@ -21,9 +21,9 @@ function retirer() {
   const err = []; p.on('pageerror', e => err.push(String(e.message)));
   try {
     const produits = q("SELECT f.lg_FAMILLE_ID, f.int_PRICE, f.int_CIP FROM t_famille f JOIN t_famille_stock s ON s.lg_FAMILLE_ID=f.lg_FAMILLE_ID AND s.lg_EMPLACEMENT_ID='1' WHERE s.int_NUMBER_AVAILABLE>20 AND f.int_PRICE>0 AND f.str_STATUT='enable' AND f.int_CIP IS NOT NULL AND f.int_CIP<>'' LIMIT 2").split('\n').map(l => l.split('\t'));
-    const user = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='KGA3'");
+    const user = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='" + (process.env.E2E_LOGIN || 'admin') + "'");
     await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', 'KGA3'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', process.env.E2E_LOGIN || 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 30000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 60000 });
     await p.waitForTimeout(1500);

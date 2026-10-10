@@ -28,7 +28,7 @@ let privilegeAjoute = false;
 
 function roleDuTesteur() {
   return q("SELECT ru.lg_ROLE_ID FROM t_role_user ru JOIN t_user u ON u.lg_USER_ID=ru.lg_USER_ID"
-    + " WHERE u.str_LOGIN='KGA3' LIMIT 1");
+    + " WHERE u.str_LOGIN='" + (process.env.E2E_LOGIN || 'admin') + "' LIMIT 1");
 }
 function accorderPrivilege() {
   const role = roleDuTesteur();
@@ -77,7 +77,7 @@ function restaurer() {
   const p = await b.newPage({ viewport: { width: 1700, height: 950 } });
   const err = []; p.on('pageerror', e => err.push(String(e.message)));
   await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-  await p.fill('#str_login', 'KGA3'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+  await p.fill('#str_login', process.env.E2E_LOGIN || 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
   await p.waitForURL('**/general/**', { timeout: 30000 });
   await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 60000 });
   await p.waitForTimeout(3000);

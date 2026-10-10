@@ -27,7 +27,7 @@ function purgerVentes() {
 }
 function semerVentes() {
   purgerVentes();
-  const USER = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='KGA3'");
+  const USER = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='" + (process.env.E2E_LOGIN || 'admin') + "'");
   const PRODUIT = q("SELECT lg_FAMILLE_ID FROM t_famille WHERE str_STATUT='enable' AND lg_FAMILLEARTICLE_ID IS NOT NULL ORDER BY str_NAME LIMIT 1");
   [['E2ELI-1', MOIS_DERNIER, 2000], ['E2ELI-2', CE_MOIS, 3000]].forEach(([id, quand, montant]) => {
     exec("INSERT INTO t_preenregistrement (lg_PREENREGISTREMENT_ID, str_REF, str_REF_TICKET, int_PRICE,"
@@ -53,7 +53,7 @@ semerVentes();
   const p = await b.newPage({ viewport: { width: 1600, height: 950 } });
   const err = []; p.on('pageerror', e => err.push(String(e.message)));
   await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-  await p.fill('#str_login', 'KGA3'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+  await p.fill('#str_login', process.env.E2E_LOGIN || 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
   await p.waitForURL('**/general/**', { timeout: 30000 });
   await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app && document.querySelector('iframe'), null, { timeout: 60000 });
   await p.waitForTimeout(8000);
@@ -126,7 +126,7 @@ semerVentes();
     const pdf = JSON.parse((await lire('../api/v1/ca-zone-geo/pdf?typePeriode=TROIS_MOIS&regroupement=FAMILLE')).corps);
     ok('L\'edition CA par famille aboutit', pdf.success === true && !!pdf.url, JSON.stringify(pdf).slice(0, 200));
     if (pdf.url) {
-      const fichier = '/opt/CONF/reports/pdf/' + pdf.url.split('/').pop();
+      const fichier = require('../support/editions').fichierEdition(pdf.url);
       const texte = execSync('pdftotext -layout "' + fichier + '" -', { encoding: 'utf8' });
       const evolutions = (texte.match(/[+-]\d+,\d %/g) || []);
       ok('Le PDF porte des evolutions « +x,x % » sous les montants', evolutions.length > 0, evolutions.join(' '));

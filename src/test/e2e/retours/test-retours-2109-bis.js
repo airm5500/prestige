@@ -23,7 +23,7 @@ const MARQUE = 'E2E-G21B';
 let KGA3 = '';
 
 (async () => {
-  KGA3 = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='KGA3'");
+  KGA3 = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='" + (process.env.E2E_LOGIN || 'admin') + "'");
   exec("DELETE FROM garde WHERE libelle LIKE '" + MARQUE + " %'");
   const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
   const ctx = await b.newContext({ viewport: { width: 1800, height: 1000 } });

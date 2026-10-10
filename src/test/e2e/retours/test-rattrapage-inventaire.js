@@ -29,7 +29,7 @@ function poser() {
     + "  AND EXISTS (SELECT 1 FROM t_type_stock_famille t WHERE t.lg_FAMILLE_ID=f.lg_FAMILLE_ID AND t.lg_EMPLACEMENT_ID='1' AND t.lg_TYPE_STOCK_ID='1' AND t.str_STATUT='enable')"
     + "  AND NOT EXISTS (SELECT 1 FROM t_mouvement m WHERE m.lg_FAMILLE_ID=f.lg_FAMILLE_ID AND m.dt_DAY='" + JOUR + "')"
     + " ORDER BY f.lg_FAMILLE_ID LIMIT 12;");
-  const user = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='KGA3'");
+  const user = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='" + (process.env.E2E_LOGIN || 'admin') + "'");
   /* A : les 6 premiers produits, 4 en ecart. Cloture « ancienne version REST » : stock rayon a jour et
      HMvtProduit ecrit, mais ni mouvement du jour, ni instantane, ni date produit, ni stock par type. */
   exec("INSERT INTO t_inventaire (lg_INVENTAIRE_ID, str_NAME, str_DESCRIPTION, str_TYPE, str_STATUT, dt_CREATED, dt_UPDATED, lg_USER_ID, lg_EMPLACEMENT_ID)"

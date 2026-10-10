@@ -58,7 +58,7 @@ const cache = (e, di) => (e.find(c => c.di === di) || {}).h;
   const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
 
   // ---- utilisateur 1 ----
-  const s1 = await session(b, 'KGA3');
+  const s1 = await session(b, process.env.E2E_LOGIN || 'admin');
   const p = s1.p;
   await p.ouvrir('inventaire', 'Inventaire');
   const depart = await p.etat();

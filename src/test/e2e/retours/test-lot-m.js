@@ -56,7 +56,7 @@ function purger() {
 
 function semer() {
   purger();
-  USER = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='KGA3'");
+  USER = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='" + (process.env.E2E_LOGIN || 'admin') + "'");
   TP = q("SELECT lg_TIERS_PAYANT_ID FROM t_tiers_payant LIMIT 1");
   // deux produits du meme grossiste, un troisieme d'un autre
   const l = q("SELECT f.lg_FAMILLE_ID, f.lg_GROSSISTE_ID FROM t_famille f JOIN t_grossiste g ON g.lg_GROSSISTE_ID=f.lg_GROSSISTE_ID"
@@ -126,7 +126,7 @@ function semer() {
   const err = []; p.on('pageerror', e => err.push(String(e.message)));
   const popups = []; ctx.on('page', pg => popups.push(pg));
   await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-  await p.fill('#str_login', 'KGA3'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+  await p.fill('#str_login', process.env.E2E_LOGIN || 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
   await p.waitForURL('**/general/**', { timeout: 30000 });
   await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 60000 });
   await p.waitForTimeout(2500);

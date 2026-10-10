@@ -15,7 +15,7 @@ const sql = (q) => execFileSync('mariadb', [BASE, '-e', q], { encoding: 'utf8' }
 const AUJ = new Date().toISOString().slice(0, 10);
 function semer() {
   nettoyer();
-  const user = sql("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='KGA3'").trim().split('\n')[1];
+  const user = sql("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='" + (process.env.E2E_LOGIN || 'admin') + "'").trim().split('\n')[1];
   // Le journal lit t_mvt_caisse, avec bool_CHECKED=1 et la date de creation dans la periode.
   [{t: '5'}, {t: '3'}, {t: '4'}].forEach(function (m, i) {
     sql("INSERT INTO t_mvt_caisse (lg_MVT_CAISSE_ID, lg_TYPE_MVT_CAISSE_ID, lg_USER_ID,"
@@ -39,7 +39,7 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
   // On observe le parametre typeMvtId reellement envoye par la recherche du journal.
   const requetes = []; p.on('request', r => { if (r.url().indexOf('typeMvtId=') !== -1) requetes.push(r.url()); });
   await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-  await p.fill('#str_login', 'KGA3'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+  await p.fill('#str_login', process.env.E2E_LOGIN || 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
   await p.waitForURL('**/general/**', { timeout: 30000 });
   await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 60000 });
   await p.waitForTimeout(3000);

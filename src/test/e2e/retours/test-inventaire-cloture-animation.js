@@ -16,7 +16,7 @@ const T0 = q('SELECT NOW()');
 function poser() {
   exec("DROP TABLE IF EXISTS e2e_sauvegarde_anim; CREATE TABLE e2e_sauvegarde_anim AS SELECT s.lg_FAMILLE_STOCK_ID, s.lg_FAMILLE_ID, s.int_NUMBER, s.int_NUMBER_AVAILABLE, s.dt_UPDATED, f.dt_LAST_INVENTAIRE AS dt_last, t.int_NUMBER AS type_stock, t.dt_UPDATED AS type_dt FROM t_famille_stock s JOIN t_famille f ON f.lg_FAMILLE_ID=s.lg_FAMILLE_ID LEFT JOIN t_type_stock_famille t ON t.lg_FAMILLE_ID=f.lg_FAMILLE_ID AND t.lg_EMPLACEMENT_ID='1' AND t.lg_TYPE_STOCK_ID='1' AND t.str_STATUT='enable' WHERE s.lg_EMPLACEMENT_ID='1' AND f.str_STATUT='enable' AND s.int_NUMBER_AVAILABLE > 3 ORDER BY s.lg_FAMILLE_ID DESC LIMIT 200;"
     + "DELETE FROM t_inventaire_famille WHERE lg_INVENTAIRE_ID='" + ID + "'; DELETE FROM t_inventaire WHERE lg_INVENTAIRE_ID='" + ID + "';"
-    + "INSERT INTO t_inventaire (lg_INVENTAIRE_ID, str_NAME, str_DESCRIPTION, str_TYPE, str_STATUT, dt_CREATED, dt_UPDATED, lg_USER_ID, lg_EMPLACEMENT_ID) SELECT '" + ID + "', 'E2E animation', 'E2E animation cloture', 'emplacement', 'enable', NOW(), NOW(), lg_USER_ID, '1' FROM t_user WHERE str_LOGIN='KGA3';"
+    + "INSERT INTO t_inventaire (lg_INVENTAIRE_ID, str_NAME, str_DESCRIPTION, str_TYPE, str_STATUT, dt_CREATED, dt_UPDATED, lg_USER_ID, lg_EMPLACEMENT_ID) SELECT '" + ID + "', 'E2E animation', 'E2E animation cloture', 'emplacement', 'enable', NOW(), NOW(), lg_USER_ID, '1' FROM t_user WHERE str_LOGIN='" + (process.env.E2E_LOGIN || 'admin') + "';"
     + "INSERT INTO t_inventaire_famille (lg_INVENTAIRE_ID, lg_FAMILLE_ID, int_NUMBER, int_NUMBER_INIT, str_STATUT, dt_CREATED, dt_UPDATED, bool_INVENTAIRE, str_UPDATED_ID, lg_FAMILLE_STOCK_ID) SELECT '" + ID + "', b.lg_FAMILLE_ID, CASE WHEN RAND(11) < 0.25 THEN b.int_NUMBER_AVAILABLE + 3 WHEN RAND(13) < 0.25 THEN b.int_NUMBER_AVAILABLE - 2 ELSE b.int_NUMBER_AVAILABLE END, b.int_NUMBER_AVAILABLE, 'enable', NOW(), NOW(), 1, '', b.lg_FAMILLE_STOCK_ID FROM e2e_sauvegarde_anim b;");
 }
 function retablir() {
@@ -39,7 +39,7 @@ function retablir() {
     ok('Jeu d essai : 200 lignes avec des ecarts en plus et en moins', attendu[0] === 200 && attendu[1] > 0 && attendu[2] > 0 && attendu[3] > 0, attendu.join('/'));
 
     await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', 'KGA3'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', process.env.E2E_LOGIN || 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 30000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 60000 });
     await p.waitForTimeout(1500);

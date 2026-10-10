@@ -130,7 +130,7 @@ function nettoyer() {
      JSON.stringify(pdf.json));
 
   if (pdf.json && pdf.json.success) {
-    const fichier = path.join(process.env.REPORTS_PDF || '/opt/CONF/reports/pdf', pdf.json.msg.split('/').pop());
+    const fichier = require('../support/editions').fichierEdition(pdf.json.msg);
     ok('le PDF a bien ete ecrit', fs.existsSync(fichier), fichier);
     if (fs.existsSync(fichier)) {
       const brut = fs.readFileSync(fichier);

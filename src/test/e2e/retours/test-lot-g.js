@@ -13,7 +13,7 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
 const BASE = process.env.DB_TEST || 'capitale';
 const q = (s) => execFileSync('mariadb', [BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 /* banc : E2E_LOGIN, sinon KGA3 s'il existe, sinon admin (mot de passe e2etest) */
-const LOGIN = process.env.E2E_LOGIN || (q("SELECT COUNT(*) FROM t_user WHERE str_LOGIN='KGA3'") === '1' ? 'KGA3' : 'admin');
+const LOGIN = process.env.E2E_LOGIN || (q("SELECT COUNT(*) FROM t_user WHERE str_LOGIN='" + (process.env.E2E_LOGIN || 'admin') + "'") === '1' ? 'KGA3' : 'admin');
 const exec = (s) => execFileSync('mariadb', [BASE, '-e', s], { encoding: 'utf8' });
 const MARQUE = 'E2E-LOT-G';
 let tpDepot = null;

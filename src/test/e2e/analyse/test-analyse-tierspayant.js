@@ -18,7 +18,7 @@ const MARQUE = 'E2E-A5';
    puis la retire. Sans cela l'ecran resterait vide et rien ne serait reellement verifie. */
 function semer() {
   nettoyer();
-  const user = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='KGA3'");
+  const user = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='" + (process.env.E2E_LOGIN || 'admin') + "'");
   const cctp = q("SELECT lg_COMPTE_CLIENT_TIERS_PAYANT_ID FROM t_compte_client_tiers_payant LIMIT 1");
   const produits = q("SELECT f.lg_FAMILLE_ID FROM t_famille f"
     + " JOIN t_famille_stock fs ON fs.lg_FAMILLE_ID=f.lg_FAMILLE_ID AND fs.lg_EMPLACEMENT_ID='1'"
@@ -67,7 +67,7 @@ function nettoyerSuggestions(avant) {
   let appelsTp = 0;
   p.on('request', r => { if (r.url().includes('analyse-tierspayant/tiers-payants')) appelsTp++; });
   await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-  await p.fill('#str_login', 'KGA3'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+  await p.fill('#str_login', process.env.E2E_LOGIN || 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
   await p.waitForURL('**/general/**', { timeout: 30000 });
   await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 60000 });
   await p.waitForTimeout(3000);

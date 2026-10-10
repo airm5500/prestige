@@ -9,7 +9,7 @@
  *  - rien ne change dans le comportement : memes boutons visibles, meme bouton qui a le focus, la reponse donnee est
  *    bien celle du bouton clique ; Oui sur « Caisse fermee » ouvre la fenetre d'ouverture de caisse (dessin du theme,
  *    focus sur le montant), et sa fermeture relit l'etat de la caisse comme avant ;
- *  - hors de l'ecran de vente, les boites restent telles qu'avant.
+ *  - hors de l'ecran de vente : meme dessin (retours du 07/10, toutes les boites au nouveau design), memes boutons.
  * La caisse n'est pas ouverte par le test (la fenetre est refermee sans valider).
  */
 const { chromium } = require('playwright-core');
@@ -83,12 +83,15 @@ const CAPT = process.env.CAPTURES || '/tmp';
     await p.waitForTimeout(1500);
     ok('Fermeture sans valider : l\'état de la caisse est relu comme avant', appels.length >= 1, appels.length);
 
-    /* 4. Hors de l'ecran de vente : rien ne change */
+    /* 4. Hors de l'ecran de vente : depuis les retours du 07/10, toutes les boites de message ont le dessin du theme
+       (THEME_PARTOUT) ; le comportement ne change pas (memes boutons, Oui en principal comme a la vente). */
     await p.evaluate(() => { testextjs.app.getController('App').onLoadNewComponent('facturesubrogatoire', 'Factures subrogatoires', ''); });
     await p.waitForTimeout(2500);
     await question(); await p.waitForTimeout(400);
     const h = await etat();
-    ok('Hors écran de vente : boîte inchangée (ni classe, ni bouton principal)', !h.theme && h.principal === '' && h.visibles === avant.visibles, JSON.stringify(h));
+    const partout = await p.evaluate(() => window.PrestigeAffichage.THEME_PARTOUT === true);
+    ok('Hors écran de vente : même dessin qu\'à la vente (retours du 07/10 : toutes les boîtes), mêmes boutons qu\'avant',
+      partout && h.theme && h.principal === q.principal && h.visibles === avant.visibles, JSON.stringify({ partout, h }));
     await p.evaluate(() => Ext.MessageBox.hide());
     ok('Aucune erreur JavaScript', err.length === 0, JSON.stringify(err));
   } catch (e) {

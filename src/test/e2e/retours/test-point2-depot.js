@@ -59,8 +59,8 @@ function poserUtilisateursManquants() {
     + " WHERE cl.lg_TIERS_PAYANT_ID='" + TP + "' AND DATE(p.dt_UPDATED)='" + JOUR + "' AND u.lg_USER_ID IS NULL")
     .split('\n').filter(Boolean);
   manquants.forEach(function (id, i) {
-    exec("INSERT IGNORE INTO t_user SELECT * FROM t_user WHERE str_LOGIN='KGA3';"); // sans effet : cle identique
-    exec("CREATE TEMPORARY TABLE IF NOT EXISTS tmp_u AS SELECT * FROM t_user WHERE str_LOGIN='KGA3';"
+    exec("INSERT IGNORE INTO t_user SELECT * FROM t_user WHERE str_LOGIN='" + (process.env.E2E_LOGIN || 'admin') + "';"); // sans effet : cle identique
+    exec("CREATE TEMPORARY TABLE IF NOT EXISTS tmp_u AS SELECT * FROM t_user WHERE str_LOGIN='" + (process.env.E2E_LOGIN || 'admin') + "';"
       + " UPDATE tmp_u SET lg_USER_ID='" + id + "', str_LOGIN='" + MARQUE + "-U" + i + "';"
       + " INSERT IGNORE INTO t_user SELECT * FROM tmp_u; DROP TEMPORARY TABLE tmp_u;");
   });
@@ -98,7 +98,7 @@ function retirerJeuDEssai() {
   const p = await b.newPage({ viewport: { width: 1600, height: 950 } });
   const err = []; p.on('pageerror', e => err.push(String(e.message)));
   await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-  await p.fill('#str_login', 'KGA3'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+  await p.fill('#str_login', process.env.E2E_LOGIN || 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
   await p.waitForURL('**/general/**', { timeout: 30000 });
   await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 60000 });
   await p.waitForTimeout(2500);

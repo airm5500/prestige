@@ -20,7 +20,7 @@ function ok(name, cond, detail) {
     const page = await browser.newPage({ viewport: { width: 1700, height: 1000 } });
 
     await page.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-    await page.fill('#str_login', 'KGA3');
+    await page.fill('#str_login', process.env.E2E_LOGIN || 'admin');
     await page.fill('#str_password', 'e2etest');
     await page.click('#login');
     await page.waitForURL('**/general/**', { timeout: 30000 });

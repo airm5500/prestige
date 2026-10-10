@@ -26,7 +26,7 @@ function semer() {
   const dossier = q("SELECT lg_DOSSIER_REGLEMENT_ID FROM t_dossier_reglement o"
     + " JOIN t_tiers_payant p ON p.lg_TIERS_PAYANT_ID = o.str_ORGANISME_ID"
     + " WHERE o.lg_FACTURE_ID IS NOT NULL LIMIT 1");
-  const user = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='KGA3'");
+  const user = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='" + (process.env.E2E_LOGIN || 'admin') + "'");
   const mode = q("SELECT lg_MODE_REGLEMENT_ID FROM t_mode_reglement WHERE str_STATUT='enable' LIMIT 1");
   exec("INSERT INTO t_reglement (lg_REGLEMENT_ID, str_REF_RESSOURCE, lg_MODE_REGLEMENT_ID, dt_CREATED,"
      + " dt_UPDATED, str_STATUT, dt_REGLEMENT, lg_USER_ID, bool_CHECKED)"
@@ -48,7 +48,7 @@ function nettoyer() {
   const err = []; p.on('pageerror', e => err.push(String(e.message)));
   const requetes = []; p.on('request', r => { if (r.url().includes('reglement-facture/list')) requetes.push(r.url()); });
   await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-  await p.fill('#str_login', 'KGA3'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+  await p.fill('#str_login', process.env.E2E_LOGIN || 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
   await p.waitForURL('**/general/**', { timeout: 30000 });
   await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 60000 });
   await p.waitForTimeout(3000);
@@ -132,7 +132,7 @@ function nettoyer() {
      JSON.stringify(pdf.json));
 
   if (pdf.json && pdf.json.success) {
-    const fichier = path.join(process.env.REPORTS_PDF || '/opt/CONF/reports/pdf', pdf.json.msg.split('/').pop());
+    const fichier = require('../support/editions').fichierEdition(pdf.json.msg);
     ok('le PDF a bien ete ecrit', fs.existsSync(fichier), fichier);
     if (fs.existsSync(fichier)) {
       const brut = fs.readFileSync(fichier);

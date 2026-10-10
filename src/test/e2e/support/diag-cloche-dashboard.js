@@ -8,7 +8,7 @@ const { chromium } = require('playwright-core');
   const requetes = []; p.on('request', r => { if (/dashboard\.html|count|en-attente|perimes|avoirs-ouverts|app-params/.test(r.url())) requetes.push(r.method() + ' ' + r.url().replace(/^.*\/prestige\//, '')); });
   const reponses = []; p.on('response', async r => { if (/count|en-attente\b|perimes\/count|avoirs-ouverts\/count|KEY_NOTIFICATION/.test(r.url())) { let t = ''; try { t = (await r.text()).slice(0, 120); } catch (e) { } reponses.push(r.status() + ' ' + r.url().replace(/^.*\/prestige\//, '') + ' => ' + t); } });
   await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-  await p.fill('#str_login', 'KGA3'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+  await p.fill('#str_login', process.env.E2E_LOGIN || 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
   await p.waitForURL('**/general/**', { timeout: 30000 });
   await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 60000 });
   await p.waitForTimeout(8000);

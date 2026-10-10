@@ -8,7 +8,7 @@
  */
 const http = require('http');
 const HOTE = 'localhost', PORT = 8080, BASE = '/prestige';
-const LOGIN = process.env.LOGIN || 'KGA3';
+const LOGIN = process.env.LOGIN || process.env.E2E_LOGIN || 'admin';
 const MOTDEPASSE = process.env.PASSWORD || 'e2etest';
 const NB = parseInt(process.argv[2] || '8', 10);
 const VAGUES = parseInt(process.argv[3] || '6', 10);

@@ -40,7 +40,7 @@ function purger() {
 
 function semer() {
   purger();
-  USER = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='KGA3'");
+  USER = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='" + (process.env.E2E_LOGIN || 'admin') + "'");
   q("SELECT lg_FAMILLE_ID FROM t_famille WHERE str_STATUT='enable' ORDER BY str_NAME LIMIT 3")
     .split('\n').filter(Boolean).forEach(id => PRODUITS.push(id.trim()));
   if (!USER || PRODUITS.length !== 3) { return false; }
@@ -70,7 +70,7 @@ function semer() {
   const p = await b.newPage({ viewport: { width: 1700, height: 950 } });
   const err = []; p.on('pageerror', e => err.push(String(e.message)));
   await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-  await p.fill('#str_login', 'KGA3'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+  await p.fill('#str_login', process.env.E2E_LOGIN || 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
   await p.waitForURL('**/general/**', { timeout: 30000 });
   await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 60000 });
   await p.waitForTimeout(3000);
@@ -210,7 +210,7 @@ function semer() {
     if (pdf.url) {
       const fs = require('fs');
       ok('Le PDF est ecrit sur le disque',
-        fs.existsSync('/opt/CONF/reports/pdf/' + pdf.url.split('/').pop()), pdf.url);
+        fs.existsSync(require('../support/editions').fichierEdition(pdf.url)), pdf.url);
     }
     const excel = await p.evaluate(async (id) => {
       const r2 = await fetch('../api/v1/gardes/' + id + '/excel?heures=2', { credentials: 'same-origin' });

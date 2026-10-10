@@ -38,7 +38,7 @@ const JOURS = [
 ];
 
 /* Banc : E2E_LOGIN, sinon KGA3 s'il existe, sinon admin (mot de passe e2etest). */
-const LOGIN = process.env.E2E_LOGIN || (q("SELECT COUNT(*) FROM t_user WHERE str_LOGIN='KGA3'") === '1' ? 'KGA3' : 'admin');
+const LOGIN = process.env.E2E_LOGIN || (q("SELECT COUNT(*) FROM t_user WHERE str_LOGIN='" + (process.env.E2E_LOGIN || 'admin') + "'") === '1' ? 'KGA3' : 'admin');
 
 /* Les ventes du jeu d'essai sont creees par le test (et non prises parmi les ventes reelles, dont la date etait
    modifiee et qui portent deja leur mouvement de caisse sur un autre banc). */

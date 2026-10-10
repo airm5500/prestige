@@ -32,7 +32,7 @@ function nettoyer() {
   const err=[]; p.on('pageerror',e=>err.push(String(e.message)));
   let appels=0; p.on('request', r=>{ if(r.url().includes('carnet-depot/ventes')) appels++; });
   await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr',{waitUntil:'domcontentloaded'});
-  await p.fill('#str_login','KGA3'); await p.fill('#str_password','e2etest'); await p.click('#login');
+  await p.fill('#str_login', process.env.E2E_LOGIN || 'admin'); await p.fill('#str_password','e2etest'); await p.click('#login');
   await p.waitForURL('**/general/**',{timeout:30000});
   await p.waitForFunction(()=>window.Ext&&window.testextjs&&testextjs.app,null,{timeout:60000});
   await p.waitForTimeout(3000);

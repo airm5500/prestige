@@ -6,7 +6,7 @@ const fs = require('fs');
   const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
   const p = await b.newPage();
   await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-  await p.fill('#str_login', 'KGA3'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+  await p.fill('#str_login', process.env.E2E_LOGIN || 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
   await p.waitForURL('**/general/**', { timeout: 30000 });
   const r = await p.evaluate(async (u) => { const x = await fetch(u); return { statut: x.status, type: x.headers.get('content-type'), octets: Array.from(new Uint8Array(await x.arrayBuffer())) }; }, url);
   fs.writeFileSync(sortie, Buffer.from(r.octets));

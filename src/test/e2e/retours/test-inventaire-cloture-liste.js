@@ -11,7 +11,7 @@ const q = (s) => execFileSync('mariadb', [BASE, '-sN', '-e', s], { encoding: 'ut
 const ID = 'E2E-INV-LISTE';
 function poser() {
   exec("DELETE FROM t_inventaire_famille WHERE lg_INVENTAIRE_ID='" + ID + "'; DELETE FROM t_inventaire WHERE lg_INVENTAIRE_ID='" + ID + "';"
-    + "INSERT INTO t_inventaire (lg_INVENTAIRE_ID, str_NAME, str_DESCRIPTION, str_TYPE, str_STATUT, dt_CREATED, dt_UPDATED, lg_USER_ID, lg_EMPLACEMENT_ID) SELECT '" + ID + "', 'E2E liste cloture', 'E2E liste cloture', 'emplacement', 'enable', NOW(), NOW(), lg_USER_ID, '1' FROM t_user WHERE str_LOGIN='KGA3';"
+    + "INSERT INTO t_inventaire (lg_INVENTAIRE_ID, str_NAME, str_DESCRIPTION, str_TYPE, str_STATUT, dt_CREATED, dt_UPDATED, lg_USER_ID, lg_EMPLACEMENT_ID) SELECT '" + ID + "', 'E2E liste cloture', 'E2E liste cloture', 'emplacement', 'enable', NOW(), NOW(), lg_USER_ID, '1' FROM t_user WHERE str_LOGIN='" + (process.env.E2E_LOGIN || 'admin') + "';"
     + "INSERT INTO t_inventaire_famille (lg_INVENTAIRE_ID, lg_FAMILLE_ID, int_NUMBER, int_NUMBER_INIT, str_STATUT, dt_CREATED, dt_UPDATED, bool_INVENTAIRE, str_UPDATED_ID, lg_FAMILLE_STOCK_ID) SELECT '" + ID + "', s.lg_FAMILLE_ID, s.int_NUMBER_AVAILABLE, s.int_NUMBER_AVAILABLE, 'enable', NOW(), NOW(), 1, '', s.lg_FAMILLE_STOCK_ID FROM t_famille_stock s JOIN t_famille f ON f.lg_FAMILLE_ID=s.lg_FAMILLE_ID WHERE s.lg_EMPLACEMENT_ID='1' AND f.str_STATUT='enable' ORDER BY s.lg_FAMILLE_ID LIMIT 2;");
 }
 function retirer() {
@@ -25,7 +25,7 @@ function retirer() {
   try {
     poser();
     await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', 'KGA3'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', process.env.E2E_LOGIN || 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 30000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 60000 });
     await p.waitForTimeout(1500);

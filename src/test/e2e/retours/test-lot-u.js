@@ -148,7 +148,7 @@ function poserLots(ps) {
     // l'edition rend l'URL du fichier genere (comme les autres editions de cet ecran) : on lit le fichier lui-meme
     const pdf = await octets('../api/v1/ca-zone-geo/pdf?typePeriode=LIBRE&dtStart=' + jour + '&dtEnd=' + jour + '&regroupement=LABORATOIRE&zoneId=&familleId=');
     let reponsePdf = {}; try { reponsePdf = JSON.parse(Buffer.from(pdf.octets).toString('utf8')); } catch (e) { }
-    const fichierPdf = reponsePdf.url ? '/opt/CONF/reports/pdf/' + reponsePdf.url.split('/').pop() : '';
+    const fichierPdf = reponsePdf.url ? require('../support/editions').fichierEdition(reponsePdf.url) : '';
     const textePdf = fichierPdf && fs.existsSync(fichierPdf) ? execSync('pdftotext -layout ' + fichierPdf + ' -', { encoding: 'utf8' }) : '';
     ok('Point 9 : le PDF par laboratoire s edite avec son titre', reponsePdf.success === true && /PAR LABORATOIRE/.test(textePdf) && /Sans laboratoire/.test(textePdf),
       JSON.stringify(reponsePdf).slice(0, 150) + ' ' + textePdf.slice(0, 200));

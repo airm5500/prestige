@@ -28,7 +28,7 @@ let PRODUITS = [], SCHED_AVANT = {}, CLIENTS = [], USER = '';
 function semer() {
   // Un passage precedent interrompu peut avoir laisse des traces : on repart d'une base propre.
   purger();
-  USER = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='KGA3'");
+  USER = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='" + (process.env.E2E_LOGIN || 'admin') + "'");
   // Trois produits porteurs d'un code tableau : ce sont eux que le registre doit retenir.
   q("SELECT CONCAT_WS('~',lg_FAMILLE_ID,IFNULL(is_scheduled,0),int_T) FROM t_famille"
     + " WHERE int_T IN ('A','C','II') AND str_STATUT='enable' ORDER BY str_NAME LIMIT 3")
@@ -106,7 +106,7 @@ function nettoyer() {
   const p = await b.newPage({ viewport: { width: 1700, height: 950 } });
   const err = []; p.on('pageerror', e => err.push(String(e.message)));
   await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-  await p.fill('#str_login', 'KGA3'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+  await p.fill('#str_login', process.env.E2E_LOGIN || 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
   await p.waitForURL('**/general/**', { timeout: 30000 });
   await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 60000 });
   await p.waitForTimeout(3000);
@@ -244,7 +244,7 @@ function nettoyer() {
     }, jour);
     ok('L\'edition PDF aboutit', pdf.success === true && !!pdf.url, JSON.stringify(pdf));
     if (pdf.url) {
-      const chemin = '/opt/CONF/reports/pdf/' + pdf.url.split('/').pop();
+      const chemin = require('../support/editions').fichierEdition(pdf.url);
       const fs = require('fs');
       const existe = fs.existsSync(chemin);
       ok('Le fichier PDF est ecrit sur le disque', existe, chemin);
@@ -377,7 +377,7 @@ function nettoyer() {
     if (analysePdf.url) {
       const fs = require('fs');
       ok('Le PDF de l\'analyse est ecrit sur le disque',
-        fs.existsSync('/opt/CONF/reports/pdf/' + analysePdf.url.split('/').pop()), analysePdf.url);
+        fs.existsSync(require('../support/editions').fichierEdition(analysePdf.url)), analysePdf.url);
     }
 
     const analyseExcel = await p.evaluate(async (params) => {

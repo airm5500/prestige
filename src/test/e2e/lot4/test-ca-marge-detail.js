@@ -43,7 +43,7 @@ function nettoyer() {
 
 function semer() {
   nettoyer();
-  const utilisateur = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='KGA3'");
+  const utilisateur = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='" + (process.env.E2E_LOGIN || 'admin') + "'");
   // Trois produits d'une meme zone : la ligne « zone » de l'analyse les regroupe tous les trois.
   const zoneEtProduits = q("SELECT CONCAT(f.lg_ZONE_GEO_ID, '#', GROUP_CONCAT(f.lg_FAMILLE_ID))"
     + " FROM t_famille f WHERE f.str_STATUT='enable' AND f.lg_ZONE_GEO_ID IS NOT NULL"
@@ -91,7 +91,7 @@ function semer() {
   const p = await b.newPage({ viewport: { width: 1700, height: 950 } });
   const err = []; p.on('pageerror', e => err.push(String(e.message)));
   await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-  await p.fill('#str_login', 'KGA3'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+  await p.fill('#str_login', process.env.E2E_LOGIN || 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
   await p.waitForURL('**/general/**', { timeout: 30000 });
   await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 60000 });
   await p.waitForTimeout(3000);
@@ -202,7 +202,7 @@ function semer() {
       /* Le PDF est lu SUR LE DISQUE : le repertoire des editions est configure hors de
          l'application, et l'URL rendue n'est servie par le serveur que si l'exploitant l'a montee.
          Ce qui doit etre verifie ici, c'est le CONTENU de l'etat. */
-      const dossier = process.env.REPORTS_PDF || '/opt/CONF/reports/pdf';
+      const dossier = require('../support/editions').dossierEditions();
       const fichier = path.join(dossier, pdf.json.msg.split('/').pop());
       ok('point 19 : le PDF a bien ete ecrit', fs.existsSync(fichier), fichier);
       if (fs.existsSync(fichier)) {

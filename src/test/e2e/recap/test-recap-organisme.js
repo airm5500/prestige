@@ -16,7 +16,7 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
   const err = []; p.on('pageerror', e => err.push(String(e.message)));
   const requetes = []; p.on('request', r => { if (r.url().includes('recap-organisme/list')) requetes.push(r.url()); });
   await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-  await p.fill('#str_login', 'KGA3'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+  await p.fill('#str_login', process.env.E2E_LOGIN || 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
   await p.waitForURL('**/general/**', { timeout: 30000 });
   await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 60000 });
   await p.waitForTimeout(3000);
@@ -128,7 +128,7 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
     /* Le PDF est lu SUR LE DISQUE : le repertoire des editions est configure hors de
        l'application (jdom.scr_report_pdf), et l'URL rendue n'est servie par le serveur que si
        l'exploitant l'a montee. Ce qui doit etre verifie ici, c'est le contenu de l'etat. */
-    const dossier = process.env.REPORTS_PDF || '/opt/CONF/reports/pdf';
+    const dossier = require('../support/editions').dossierEditions();
     const fichier = path.join(dossier, pdf.json.msg.split('/').pop());
     ok('le PDF a bien ete ecrit', fs.existsSync(fichier), fichier);
     if (fs.existsSync(fichier)) {

@@ -53,7 +53,7 @@ async function okButtonSelector(page) {
 
     // connexion au clavier
     await page.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-    await page.click('#str_login'); await page.keyboard.type('KGA3', { delay: 30 });
+    await page.click('#str_login'); await page.keyboard.type(process.env.E2E_LOGIN || 'admin', { delay: 30 });
     await page.click('#str_password'); await page.keyboard.type('e2etest', { delay: 30 });
     await page.click('#login');
     await page.waitForURL('**/general/**', { timeout: 30000 });

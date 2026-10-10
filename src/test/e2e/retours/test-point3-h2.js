@@ -45,7 +45,7 @@ function purger() {
 
 function semer() {
   purger();
-  USER = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='KGA3'");
+  USER = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='" + (process.env.E2E_LOGIN || 'admin') + "'");
   PRODUIT = q("SELECT lg_FAMILLE_ID FROM t_famille WHERE str_STATUT='enable' ORDER BY str_NAME LIMIT 1");
   CLIENTS = q("SELECT lg_CLIENT_ID FROM t_client ORDER BY lg_CLIENT_ID LIMIT 2").split('\n').filter(Boolean);
   if (!USER || !PRODUIT || CLIENTS.length !== 2) { return false; }
@@ -84,7 +84,7 @@ function semer() {
   const p = await b.newPage({ viewport: { width: 1800, height: 1000 } });
   const err = []; p.on('pageerror', e => err.push(String(e.message)));
   await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-  await p.fill('#str_login', 'KGA3'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+  await p.fill('#str_login', process.env.E2E_LOGIN || 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
   await p.waitForURL('**/general/**', { timeout: 30000 });
   await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 60000 });
   await p.waitForTimeout(2500);

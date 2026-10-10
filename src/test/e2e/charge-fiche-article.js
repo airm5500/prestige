@@ -14,7 +14,7 @@
 const http = require('http');
 
 const HOTE = 'localhost', PORT = 8080, BASE = '/prestige';
-const LOGIN = process.env.LOGIN || 'KGA3';
+const LOGIN = process.env.LOGIN || process.env.E2E_LOGIN || 'admin';
 const MOTDEPASSE = process.env.PASSWORD || 'e2etest';
 const NB = parseInt(process.argv[2] || '10', 10);
 const DUREE = parseInt(process.argv[3] || '20', 10) * 1000;
