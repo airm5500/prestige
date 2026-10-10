@@ -1348,13 +1348,13 @@ Ext.define('testextjs.controller.VenteCtr', {
      * - mode classique: renseigne stock/emplacement puis focus quantité
      * - mode autoAdd: si résultat unique => ajoute directement qté=1 (sans passer par la saisie quantité)
      */
-    checkDouchette(field, autoAdd) {
+    checkDouchette(field, autoAdd, code) {
         let me = this;
         autoAdd = (autoAdd === true);
         Ext.Ajax.request({
             method: 'GET',
             headers: {'Content-Type': 'application/json'},
-            url: '../api/v1/vente/findone/' + field.getValue(),
+            url: '../api/v1/vente/findone/' + encodeURIComponent(code || field.getValue()),
             success: function (response, options) {
                 const result = Ext.JSON.decode(response.responseText, true);
                 if (result.success) {
@@ -1685,6 +1685,19 @@ Ext.define('testextjs.controller.VenteCtr', {
             combo.collapse();
             me.lireGs1(combo);
             return;
+        }
+        // Retours du 10/10 : lecture GS1 desactivee (0) et etiquette 2D scannee : on en tire seulement le CIP (sinon
+        // l'EAN), sans appel de plus, et le scan continue comme un code-barres classique (pas de controle de lot).
+        if (!me.lectureGs1 && me.ressembleGs1(combo.getRawValue())) {
+            const code = me.codeDeGs1(combo.getRawValue());
+            if (code) {
+                e.stopEvent();
+                combo.collapse();
+                combo.setRawValue(code);
+                me.toastVente('Étiquette 2D : CIP ' + code + ' lu (sans contrôle du lot)');
+                me.checkDouchette(combo, true, code);
+                return;
+            }
         }
 
         // 1) Si la liste est ouverte, on évite toute validation en arrière plan
@@ -7776,6 +7789,81 @@ Ext.define('testextjs.controller.VenteCtr', {
         const v = String(brut || '').trim();
         return /^\](d2|Q3|C1)/.test(v) || /^\((01|17|10|240)\)/.test(v) || /^01\d{14}(17|10|240)/.test(v) || /^17\d{6}(10|240)/.test(v)
                 || /^10[^\u001d|<]+(\u001d|<GS>|\|)240/.test(v);
+    },
+
+    /**
+     * CIP contenu dans une etiquette GS1 (champ 240), a defaut l'EAN tire du GTIN (01) ; null si aucun. Lecture locale, sans
+     * appel au serveur : prefixes de lecteur 2D, forme entre parentheses, separateurs GS (caractere 29, « <GS> », « ^] »,
+     * « ~1 », « | »).
+     */
+    codeDeGs1: function (brut) {
+        let v = String(brut || '').trim().replace(/^\](d2|Q3|C1)/, '');
+        let cip = null, gtin = null;
+        if (/^\(/.test(v)) {
+            const re = /\((\d{2,4})\)([^(]*)/g;
+            let m;
+            while ((m = re.exec(v)) !== null) {
+                if (m[1] === '240') {
+                    cip = m[2].replace(/<GS>|[\u001d|]/g, '').trim();
+                } else if (m[1] === '01') {
+                    gtin = m[2].replace(/<GS>|[\u001d|]/g, '').trim();
+                }
+            }
+        } else {
+            v = v.replace(/<GS>|\^\]|~1|\|/g, '\u001d');
+            let i = 0;
+            while (i < v.length) {
+                if (v.charAt(i) === '\u001d') {
+                    i++;
+                    continue;
+                }
+                const ai3 = v.substr(i, 3), ai2 = v.substr(i, 2);
+                if (ai2 === '01' || ai2 === '17') {
+                    const n = ai2 === '01' ? 14 : 6;
+                    if (ai2 === '01') {
+                        gtin = v.substr(i + 2, n);
+                    }
+                    i += 2 + n;
+                } else if (ai2 === '10' || ai3 === '240') {
+                    const debut = i + (ai2 === '10' ? 2 : 3);
+                    let fin = v.indexOf('\u001d', debut);
+                    fin = fin < 0 ? v.length : fin;
+                    if (ai3 === '240' && ai2 !== '10') {
+                        cip = v.substring(debut, fin);
+                    }
+                    i = fin;
+                } else {
+                    break;
+                }
+            }
+        }
+        if (cip && /^[0-9A-Za-z]{1,30}$/.test(cip)) {
+            return cip;
+        }
+        if (gtin && /^\d{14}$/.test(gtin)) {
+            return gtin.charAt(0) === '0' ? gtin.substr(1) : gtin;
+        }
+        return null;
+    },
+
+    /** Petite alerte flottante qui disparait seule (ne prend pas le focus : la saisie continue). */
+    toastVente: function (texte) {
+        const el = document.createElement('div');
+        el.className = 'vente-toast';
+        el.setAttribute('role', 'status');
+        el.textContent = texte;
+        el.style.cssText = 'position:fixed;right:24px;bottom:24px;z-index:99999;padding:10px 16px;border-radius:6px;'
+                + 'background:#0D47A1;color:#fff;font-weight:bold;box-shadow:0 2px 8px rgba(0,0,0,.3);pointer-events:none;'
+                + 'transition:opacity .4s;opacity:1;';
+        document.body.appendChild(el);
+        setTimeout(function () {
+            el.style.opacity = '0';
+            setTimeout(function () {
+                if (el.parentNode) {
+                    el.parentNode.removeChild(el);
+                }
+            }, 450);
+        }, 4000);
     },
 
     /**

@@ -184,7 +184,9 @@ const decoder = (pdf) => {
     await scanner(scan);
     const msg0 = await p.evaluate(() => (Ext.Msg.isVisible() ? Ext.Msg.msg.getEl().dom.textContent : ''));
     await p.evaluate(() => { if (Ext.Msg.isVisible()) { Ext.Msg.hide(); } });
-    ok('Paramètre à 0 : pas de lecture GS1, rien n\'est ajouté (comportement d\'avant)', appelsGs1.length === 0 && lignes() === 0, appelsGs1.length + ' / ' + msg0);
+    /* retours du 10/10 : a 0, pas de lecture GS1 (aucun appel), mais le CIP de l'etiquette est pris : produit ajoute */
+    ok('Paramètre à 0 : pas de lecture GS1 ; seul le CIP de l\'étiquette est pris (produit ajouté, sans dialogue)', appelsGs1.length === 0 && lignes() === 1 && !msg0, appelsGs1.length + ' / ' + lignes() + ' / ' + msg0);
+    const lignes0 = lignes();
 
     q("UPDATE t_parameters SET str_VALUE = '1' WHERE str_KEY = 'KEY_VENTE_LECTURE_GS1'");
     /* retours du 10/10 : un lot plus proche (demain) est celui que Prestige sort ; la boite E2ELOT7 n'est donc pas la bonne */
@@ -198,8 +200,8 @@ const decoder = (pdf) => {
     await p.waitForTimeout(1500);
     const per = await p.evaluate(() => { const c = Ext.ComponentQuery.query('doventemanager')[0]; const ctr = testextjs.app.getController('VenteCtr'); const f = ctr.getPeremptionProcheField();
       return f ? String(f.getValue()).replace(/<[^>]+>/g, '') : ''; });
-    ok('Paramètre à 1 : le scan GS1 ajoute le produit (quantité 1)', appelsGs1.length === 1 && lignes() === 1
-      && q(`SELECT d.int_QUANTITY FROM t_preenregistrement_detail d JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = d.lg_PREENREGISTREMENT_ID WHERE p.dt_CREATED >= '${DEBUT}' AND p.lg_USER_ID = '${ADMIN}' AND d.lg_FAMILLE_ID = '${FID}'`) === '1',
+    ok('Paramètre à 1 : le scan GS1 ajoute le produit (quantité 1)', appelsGs1.length === 1 && lignes() === lignes0 + 1
+      && q(`SELECT d.int_QUANTITY FROM t_preenregistrement_detail d JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = d.lg_PREENREGISTREMENT_ID WHERE p.dt_CREATED >= '${DEBUT}' AND p.lg_USER_ID = '${ADMIN}' AND d.lg_FAMILLE_ID = '${FID}' ORDER BY p.dt_CREATED DESC LIMIT 1`) === '1',
       appelsGs1.length + ' appel(s), ' + lignes() + ' ligne(s)');
     const prevu = await p.evaluate(async (id) => (await fetch('../api/v1/vente/peremption-proche/' + id)).json(), FID);
     ok('Précondition : Prestige sort le lot le plus proche (E2ELOT8, demain)', prevu.lot === 'E2ELOT8' && prevu.date === jjProche, JSON.stringify(prevu));
@@ -211,7 +213,7 @@ const decoder = (pdf) => {
     await scanner(`01${gtin}17230101` + `10PERIME|240${CIP}`);
     const msgPerime = await p.evaluate(() => (Ext.Msg.isVisible() ? Ext.Msg.msg.getEl().dom.textContent : ''));
     await p.evaluate(() => { if (Ext.Msg.isVisible()) { Ext.Msg.hide(); } });
-    ok('Lot périmé (01/01/2023) : refusé, non ajouté', /périmé/.test(msgPerime) && lignes() === 1, msgPerime);
+    ok('Lot périmé (01/01/2023) : refusé, non ajouté', /périmé/.test(msgPerime) && lignes() === lignes0 + 1, msgPerime);
     /* la bonne boite (lot que Prestige sort) : conforme, en vert */
     await scanner(`01${gtin}17${aammjjProche}` + `10E2ELOT8|240${CIP}`);
     await p.waitForFunction(() => !Ext.Ajax.isLoading(), null, { timeout: 15000 }).catch(() => {});

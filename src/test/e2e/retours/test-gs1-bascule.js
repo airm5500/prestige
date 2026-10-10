@@ -1,5 +1,5 @@
 /* LECTURE GS1 A LA VENTE : BASCULE DU PARAMETRE KEY_VENTE_LECTURE_GS1 (question de l'officine du 10/10).
- *  - 0 : une etiquette 2D (QR / DataMatrix) scannee n'est pas lue comme GS1 ; que se passe-t-il ? (rien d'ajoute a tort) ;
+ *  - 0 : une etiquette 2D (QR / DataMatrix) scannee n'est pas lue comme GS1 : seul son CIP est pris (alerte flottante) ;
  *  - 1 : un ancien produit a l'etiquette code-barres classique (CIP, EAN-13) s'ajoute comme avant, sans controle de lot.
  * Meme jeu d'essai que le controle du lot (ci-dessous, repris tel quel). */
 /* (Reprise) LECTURE GS1 A LA VENTE : CONTROLE DU LOT (retours du 10/10), parametre KEY_VENTE_CONTROLE_LOT_GS1.
@@ -135,19 +135,32 @@ function nettoyer() {
     e = await scanner(EAN);
     ok('0 : puis EAN-13 → quantité 2', ligne(v) === '2|', ligne(v));
 
+    /* retours du 10/10 : a 0, l'etiquette 2D donne seulement son CIP (lu dans le navigateur, sans appel de plus),
+       le produit s'ajoute comme un code-barres classique, une alerte flottante le signale et disparait seule */
+    const toast = () => p.evaluate(() => [...document.querySelectorAll('.vente-toast')].map((t) => t.textContent).join(' / '));
     await nouvelleVente();
     e = await scanner(B8);
     v = await venteCourante();
-    ok('0 : étiquette 2D scannée → pas de lecture GS1 (aucun contrôle de lot, aucun message)', !e.controle && !e.message && !e.boite, JSON.stringify(e));
-    ok('0 : étiquette 2D scannée → aucun produit ajouté à tort, aucune vente créée', !v, 'vente=' + v);
-    const champ = await p.evaluate(() => { const c = Ext.ComponentQuery.query('doventemanager #produit')[0]; return { brut: c.getRawValue(), liste: c.getStore().getCount() }; });
-    ok('0 : le texte de l\'étiquette reste dans le champ produit, liste vide', champ.liste === 0 && champ.brut.indexOf('E2ELOT8') >= 0, JSON.stringify(champ));
-    /* defaut corrige : la liste restee ouverte et vide avalait l'Entree du scan suivant */
+    ok('0 : étiquette 2D scannée → produit ajouté par son CIP (quantité 1)', v && ligne(v) === '1|', v && ligne(v));
+    ok('0 : aucune lecture GS1 : pas de contrôle du lot, aucune boîte de dialogue', !e.controle && !e.boite && !/Lot (conforme|différent)/.test(e.message), JSON.stringify(e));
+    const tst = await toast();
+    ok('0 : alerte flottante « Étiquette 2D : CIP … lu »', tst.indexOf('CIP ' + CIP + ' lu') >= 0, tst);
+    ok('0 : le curseur reste dans le champ produit (l\'alerte ne prend pas la main)', await p.evaluate(() => document.activeElement === Ext.ComponentQuery.query('doventemanager #produit')[0].inputEl.dom));
+    await p.waitForTimeout(3500);
+    ok('0 : l\'alerte a disparu seule', (await toast()) === '', await toast());
+    e = await scanner(B7);
+    ok('0 : autre lot du même produit → même ligne, quantité 2, rien noté', ligne(v) === '2|', ligne(v));
+    e = await scanner('(01)' + gtin + '(17)271231(10)E2ELOTP(240)' + CIP);
+    ok('0 : forme entre parenthèses → quantité 3', ligne(v) === '3|', ligne(v));
+    e = await scanner(']d201' + gtin + '17271231' + '10E2ELOTG<GS>240' + CIP);
+    ok('0 : préfixe de lecteur « ]d2 » et séparateur <GS> → quantité 4', ligne(v) === '4|', ligne(v));
+    e = await scanner('01' + gtin + '17271231' + '10E2ELOTS');
+    ok('0 : étiquette sans CIP (240) : l\'EAN tiré du GTIN (01) → quantité 5', ligne(v) === '5|', ligne(v));
     e = await scanner(CIP);
-    v = await venteCourante();
-    ok('0 : le scan suivant (CIP) s\'ajoute normalement (Entrée plus avalée par la liste vide)', v && ligne(v) === '1|', v && ligne(v));
-    e = await scanner(EAN);
-    ok('0 : puis EAN-13 → quantité 2', ligne(v) === '2|', ligne(v));
+    ok('0 : puis le CIP classique → quantité 6', ligne(v) === '6|', ligne(v));
+    const c0 = await cloturer(v);
+    ok('0 : clôture : 6 boîtes du lot le plus proche (20→14), aucun lot scanné noté', c0.success && stockLot('E2ELOT8') === '14' && stockLot('E2ELOT7') === '5', JSON.stringify(c0).slice(0, 100) + ' lots=' + lots());
+    /* defaut corrige : une liste restee ouverte et vide avalait l'Entree du scan suivant */
     await nouvelleVente();
     await scanner('ZZQQXX999');
     e = await scanner(CIP);
@@ -167,7 +180,7 @@ function nettoyer() {
     e = await scanner(B8);
     ok('1 : puis l\'étiquette 2D du même produit → lue, « Lot conforme », quantité 3', e.controle === 'CONFORME' && ligne(v) === '3|', ligne(v) + ' ' + JSON.stringify(e));
     const c = await cloturer(v);
-    ok('1 : vente mixte (CIP, EAN, 2D) clôturée, 3 boîtes du lot le plus proche (20→17)', c.success && stockLot('E2ELOT8') === '17', JSON.stringify(c).slice(0, 120) + ' lot8=' + stockLot('E2ELOT8'));
+    ok('1 : vente mixte (CIP, EAN, 2D) clôturée, 3 boîtes du lot le plus proche (14→11)', c.success && stockLot('E2ELOT8') === '11', JSON.stringify(c).slice(0, 120) + ' lot8=' + stockLot('E2ELOT8'));
     ok('Aucune erreur JavaScript', err.length === 0, err.join(' | '));
   } catch (ex) {
     ok('Déroulement du test', false, ex.stack || ex);
