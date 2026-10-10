@@ -318,6 +318,28 @@ public class PharmaMlResource {
                 .build();
     }
 
+    @javax.annotation.Resource(name = "concurrent/__defaultManagedExecutorService")
+    private javax.enterprise.concurrent.ManagedExecutorService executeur;
+
+    /**
+     * Retours du 10/10 : envoi de la commande en arriere-plan (l'ecran n'attend plus la reponse du grossiste) ; rend le
+     * jeton a suivre par GET envoi/{jeton}. Une commande deja en cours d'envoi n'est pas renvoyee.
+     */
+    @POST
+    @Path("{id}/envoi")
+    public Response envoiPharmaCommandeArrierePlan(@PathParam("id") String commandeId) throws JSONException {
+        String jeton = rest.service.impl.EnvoisPharmaMlEnCours.lancer("commande:" + commandeId, executeur,
+                () -> pharmaMlService.envoiCommande(commandeId, LocalDate.now().plusDays(1), 0, null, null));
+        return Response.ok().entity(new JSONObject().put("success", true).put("jeton", jeton).toString()).build();
+    }
+
+    /** Ou en est un envoi lance en arriere-plan (commande ou suggestion). */
+    @GET
+    @Path("envoi/{jeton}")
+    public Response etatEnvoi(@PathParam("jeton") String jeton) {
+        return Response.ok().entity(rest.service.impl.EnvoisPharmaMlEnCours.etat(jeton).toString()).build();
+    }
+
     @PUT
     @Path("{id}")
     public Response envoiPharmaCommande(@PathParam("id") String commandeId) throws JSONException {

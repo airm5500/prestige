@@ -421,15 +421,9 @@ Ext.define('testextjs.view.commandemanagement.order.OrderManager', {
 
     envoiPharmaML: function (grid, rowIndex) {
         const record = grid.getStore().getAt(rowIndex);
-        const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
-        Ext.Ajax.request({
-            method: 'PUT',
-            timeout: 240000,
-            headers: {'Content-Type': 'application/json'},
-            url: '../api/v1/pharma/' + record.get('lg_ORDER_ID'),
-            success: function (response) {
-                progress.hide();
-                const result = Ext.JSON.decode(response.responseText, true) || {};
+        /* retours du 10/10 : envoi en arriere-plan, l'ecran reste utilisable pendant la reponse du grossiste */
+        testextjs.view.commandemanagement.order.EnvoiPharmaMl.suivre('../api/v1/pharma/' + encodeURIComponent(record.get('lg_ORDER_ID')) + '/envoi',
+                'Commande ' + (record.get('str_REF_ORDER') || ''), function (result) {
                 let message;
                 if (result.success && result.enAttente) {
                     message = result.msg; /* recue par le grossiste, reponse differee */
@@ -450,12 +444,7 @@ Ext.define('testextjs.view.commandemanagement.order.OrderManager', {
                     icon: result.success ? Ext.MessageBox.INFO : Ext.MessageBox.ERROR
                 });
                 grid.getStore().reload();
-            },
-            failure: function (response) {
-                progress.hide();
-                Ext.Msg.alert("Message", 'Erreur du serveur ' + response.status);
-            }
-        });
+            });
     },
 
     /*

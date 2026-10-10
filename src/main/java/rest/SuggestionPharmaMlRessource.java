@@ -67,6 +67,25 @@ public class SuggestionPharmaMlRessource {
         return json(suggestionService.apercuCommandePharmaMl(id));
     }
 
+    @javax.annotation.Resource(name = "concurrent/__defaultManagedExecutorService")
+    private javax.enterprise.concurrent.ManagedExecutorService executeur;
+
+    /**
+     * Retours du 10/10 : commande de la suggestion en arriere-plan (l'ecran n'attend plus la reponse du grossiste) ; le
+     * jeton se suit par GET v1/pharma/envoi/{jeton}. Une suggestion deja en cours d'envoi n'est pas renvoyee.
+     */
+    @POST
+    @Path("{id}/envoi")
+    public Response commanderArrierePlan(@PathParam("id") String id) {
+        TUser u = utilisateur();
+        if (u == null) {
+            return json(new JSONObject().put("success", false).put("msg", Constant.DECONNECTED_MESSAGE));
+        }
+        String jeton = rest.service.impl.EnvoisPharmaMlEnCours.lancer("suggestion:" + id, executeur,
+                () -> commanderMaintenant(id, u));
+        return json(new JSONObject().put("success", true).put("jeton", jeton));
+    }
+
     @POST
     @Path("{id}")
     public Response commander(@PathParam("id") String id) {
@@ -74,18 +93,22 @@ public class SuggestionPharmaMlRessource {
         if (u == null) {
             return json(new JSONObject().put("success", false).put("msg", Constant.DECONNECTED_MESSAGE));
         }
+        return json(commanderMaintenant(id, u));
+    }
+
+    private JSONObject commanderMaintenant(String id, TUser u) {
         JSONObject a = suggestionService.apercuCommandePharmaMl(id);
         if (!a.optBoolean("success")) {
-            return json(a);
+            return (a);
         }
         if (a.optBoolean("commandee")) {
-            return json(new JSONObject().put("success", false).put("msg", "La suggestion est déjà commandée"));
+            return (new JSONObject().put("success", false).put("msg", "La suggestion est déjà commandée"));
         }
         if (a.optInt("lignes") == 0) {
-            return json(new JSONObject().put("success", false).put("msg", "La suggestion n'a aucune ligne"));
+            return (new JSONObject().put("success", false).put("msg", "La suggestion n'a aucune ligne"));
         }
         if (!a.optBoolean("pharmaml")) {
-            return json(new JSONObject().put("success", false).put("msg",
+            return (new JSONObject().put("success", false).put("msg",
                     "Le grossiste " + a.optString("grossiste") + " n'a pas de lien PharmaML (fiche grossiste)"));
         }
         String orderId = a.optString("commandeId");
@@ -97,25 +120,25 @@ public class SuggestionPharmaMlRessource {
             }
             JSONObject envoi = pharmaMlService.envoiCommande(orderId, LocalDate.now().plusDays(1), 0, null, null);
             if (envoi == null || !envoi.optBoolean("success")) {
-                return json(new JSONObject().put("success", false).put("commandeCreee", true).put("reprise", reprise)
-                        .put("msg",
-                                "L'envoi PharmaML n'a pas abouti"
-                                        + (envoi != null && envoi.has("msg") ? " : " + envoi.optString("msg") : "")
-                                        + ". La commande reste dans les commandes en cours ;"
-                                        + " un nouvel essai la reprendra."));
+                return (new JSONObject().put("success", false).put("commandeCreee", true).put("reprise", reprise).put(
+                        "msg",
+                        "L'envoi PharmaML n'a pas abouti"
+                                + (envoi != null && envoi.has("msg") ? " : " + envoi.optString("msg") : "")
+                                + ". La commande reste dans les commandes en cours ;"
+                                + " un nouvel essai la reprendra."));
             }
             if (envoi.optBoolean("enAttente")) {
                 /* recue par le grossiste, reponse differee : « Commandee » seulement a l'arrivee de la reponse */
-                return json(new JSONObject().put("success", true).put("reprise", reprise).put("commandeId", orderId)
+                return (new JSONObject().put("success", true).put("reprise", reprise).put("commandeId", orderId)
                         .put("enAttente", true).put("msg", envoi.optString("msg")).put("envoi", envoi));
             }
             JSONObject statut = suggestionService.marquerCommandee(id, SuggestionService.MODE_COMMANDE_PHARMAML,
                     orderId, u);
-            return json(new JSONObject().put("success", true).put("reprise", reprise).put("commandeId", orderId)
+            return (new JSONObject().put("success", true).put("reprise", reprise).put("commandeId", orderId)
                     .put("statut", statut.optString("statut")).put("envoi", envoi));
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "commander une suggestion par PharmaML", e);
-            return json(new JSONObject().put("success", false).put("msg", "La commande n'a pas pu être passée."));
+            return (new JSONObject().put("success", false).put("msg", "La commande n'a pas pu être passée."));
         }
     }
 }

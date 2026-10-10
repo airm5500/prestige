@@ -45,6 +45,66 @@ Ext.define('testextjs.view.commandemanagement.order.EnvoiPharmaMl', {
                         + 'font-size:10.5px;font-weight:700;color:#fff;background:#b26a00">' + n + ' à décider</span>' : '');
     },
 
+    /**
+     * Retours du 10/10 : l'envoi part en ARRIERE-PLAN. Le serveur rend un jeton ; on demande ou en est l'envoi toutes
+     * les 2 s, avec un bandeau discret « envoi en cours » : l'ecran reste utilisable pendant que le grossiste repond.
+     * fini(resultat) recoit la meme reponse qu'avant (succes, attente, refus...).
+     */
+    suivre: function (urlDemarrage, libelle, fini) {
+        var me = this, enc = Ext.String.htmlEncode;
+        var bandeau = Ext.create('Ext.Component', {
+            floating: true, shadow: false, cls: 'pml-envoi-en-cours', renderTo: Ext.getBody(),
+            style: 'background:#1f5f9e;color:#fff;padding:8px 14px;border-radius:6px;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,.25)',
+            html: enc(libelle) + ' : envoi au grossiste en cours…'
+        });
+        bandeau.show();
+        bandeau.alignTo(Ext.getBody(), 'br-br', [-20, -20]);
+        var terminer = function (r) {
+            bandeau.destroy();
+            fini(r || {success: false, msg: 'Envoi impossible.'});
+        };
+        var erreurs = 0;
+        var interroger = function (jeton) {
+            Ext.Ajax.request({
+                method: 'GET', url: '../api/v1/pharma/envoi/' + encodeURIComponent(jeton),
+                success: function (response) {
+                    erreurs = 0;
+                    var r = Ext.JSON.decode(response.responseText, true) || {};
+                    if (r.enCours) {
+                        if (!bandeau.isDestroyed) {
+                            bandeau.update(enc(libelle) + ' : envoi au grossiste en cours… (' + (r.secondes || 0) + ' s)');
+                        }
+                        Ext.defer(interroger, 2000, me, [jeton]);
+                    } else {
+                        terminer(r);
+                    }
+                },
+                failure: function () {
+                    /* coupure passagere : on reessaie, l'envoi continue sur le serveur */
+                    if (++erreurs < 30) {
+                        Ext.defer(interroger, 3000, me, [jeton]);
+                    } else {
+                        terminer({success: false, msg: 'Le serveur ne répond plus : regardez le statut PharmaML de la commande avant tout nouvel envoi.'});
+                    }
+                }
+            });
+        };
+        Ext.Ajax.request({
+            method: 'POST', url: urlDemarrage, headers: {'Content-Type': 'application/json'},
+            success: function (response) {
+                var r = Ext.JSON.decode(response.responseText, true) || {};
+                if (r.jeton) {
+                    interroger(r.jeton);
+                } else {
+                    terminer(r);
+                }
+            },
+            failure: function (response) {
+                terminer({success: false, msg: 'Erreur du serveur ' + response.status});
+            }
+        });
+    },
+
     /** Envoi deja recu ou repondu par le grossiste : pas de renvoi (doublon, double commande). */
     ENVOIS_CLOS: {EN_ATTENTE: 'reçue par le grossiste, réponse en attente', REPONDUE: 'déjà répondue par le grossiste',
         PARTIELLE: 'déjà répondue par le grossiste', RUPTURE: 'déjà répondue par le grossiste'},
@@ -61,13 +121,9 @@ Ext.define('testextjs.view.commandemanagement.order.EnvoiPharmaMl', {
                     if (btn !== 'yes') {
                         return;
                     }
-                    var progress = Ext.MessageBox.wait('Envoi au grossiste . . .', 'Commander par PharmaML');
-                    Ext.Ajax.request({
-                        method: 'PUT', timeout: 240000, headers: {'Content-Type': 'application/json'},
-                        url: '../api/v1/pharma/' + encodeURIComponent(cfg.commandeId),
-                        success: function (response) {
-                            progress.hide();
-                            var r = Ext.JSON.decode(response.responseText, true) || {}, message;
+                    testextjs.view.commandemanagement.order.EnvoiPharmaMl.suivre('../api/v1/pharma/' + encodeURIComponent(cfg.commandeId) + '/envoi',
+                            'Commande ' + (cfg.reference || ''), function (r) {
+                            var message;
                             if (r.success && r.enAttente) {
                                 message = r.msg;
                             } else if (r.success) {
@@ -83,12 +139,7 @@ Ext.define('testextjs.view.commandemanagement.order.EnvoiPharmaMl', {
                             if (apres) {
                                 apres(r);
                             }
-                        },
-                        failure: function (response) {
-                            progress.hide();
-                            Ext.Msg.alert('Commander par PharmaML', 'Erreur du serveur ' + response.status);
-                        }
-                    });
+                        });
                 });
     },
 
@@ -119,12 +170,8 @@ Ext.define('testextjs.view.commandemanagement.order.EnvoiPharmaMl', {
                             if (btn !== 'yes') {
                                 return;
                             }
-                            App.ShowWaitingProcess();
-                            Ext.Ajax.request({
-                                method: 'POST', url: '../api/v1/suggestion-pharmaml/' + encodeURIComponent(id), timeout: 600000,
-                                success: function (r2) {
-                                    App.StopWaitingProcess();
-                                    var o = Ext.decode(r2.responseText, true) || {};
+                            testextjs.view.commandemanagement.order.EnvoiPharmaMl.suivre('../api/v1/suggestion-pharmaml/' + encodeURIComponent(id) + '/envoi',
+                                    'Suggestion ' + (a.reference || ''), function (o) {
                                     if (!o.success) {
                                         Ext.MessageBox.alert('Commander par PharmaML', enc(o.msg || 'L\'envoi n\'a pas abouti.'));
                                     } else if (o.enAttente) {
@@ -138,12 +185,7 @@ Ext.define('testextjs.view.commandemanagement.order.EnvoiPharmaMl', {
                                     if (apres) {
                                         apres(o);
                                     }
-                                },
-                                failure: function () {
-                                    App.StopWaitingProcess();
-                                    Ext.MessageBox.alert('Commander par PharmaML', 'Le serveur ne répond pas.');
-                                }
-                            });
+                                });
                         });
             }
         });
