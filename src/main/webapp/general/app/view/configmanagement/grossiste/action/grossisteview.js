@@ -1,7 +1,7 @@
 var url_services_data_grossiste = '../webservices/configmanagement/grossiste/ws_data.jsp';
 var url_services_data_passation = '../webservices/configmanagement/typepassation/ws_data.jsp';
 var url_services_transaction_grossiste = '../webservices/configmanagement/grossiste/ws_transaction.jsp?mode=';
-var url_services_data_grossiste_order = '../webservices/commandemanagement/order/ws_data_order_passed_grossiste.jsp?lg_GROSSISTE_ID=';
+var url_services_data_grossiste_order = '../api/v1/commande/grossiste/';
 var url_services_data_bl_list = '../webservices/commandemanagement/bonlivraison/ws_data_bl_grossiste.jsp?lg_GROSSISTE_ID=';
 var url_services_data_ville = '../webservices/configmanagement/ville/ws_data.jsp';
 var url_services_data_typereglement = "../webservices/sm_user/typereglement/ws_data.jsp";
@@ -67,7 +67,8 @@ Ext.define('testextjs.view.configmanagement.grossiste.action.grossisteview', {
 
         });
 
-        url_services_data_grossiste_order = '../webservices/commandemanagement/order/ws_data_order_passed_grossiste.jsp?lg_GROSSISTE_ID=' + ref;
+        // retours du 10/10 : API REST (l'ancienne page JSP ne savait plus lire la colonne « lots » en JSON)
+        url_services_data_grossiste_order = '../api/v1/commande/grossiste/' + encodeURIComponent(ref);
         url_services_data_bl_list = '../webservices/commandemanagement/bonlivraison/ws_data_bl_grossiste.jsp?lg_GROSSISTE_ID=' + ref;
         store_bl = new Ext.data.Store({
             model: 'testextjs.model.BonLivraison',

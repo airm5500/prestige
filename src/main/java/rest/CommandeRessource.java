@@ -161,6 +161,14 @@ public class CommandeRessource {
 
     }
 
+    /** Retours du 10/10 : commandes d'un grossiste (fiche grossiste), au lieu de l'ancienne page JSP. */
+    @GET
+    @Path("grossiste/{id}")
+    public Response commandesDuGrossiste(@PathParam("id") String id, @QueryParam(value = "start") int start,
+            @QueryParam(value = "limit") int limit) {
+        return Response.ok().entity(orderService.commandesDuGrossiste(id, start, limit).toString()).build();
+    }
+
     @GET
     @Path("list")
     public Response fetchAll(@QueryParam(value = "start") int start, @QueryParam(value = "limit") int limit,

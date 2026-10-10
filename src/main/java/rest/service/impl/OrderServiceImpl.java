@@ -1408,6 +1408,75 @@ public class OrderServiceImpl implements OrderService {
         }
     }
 
+    /** Statuts listes dans la fiche grossiste (comme l'ancienne page JSP). */
+    static final List<String> STATUTS_FICHE_GROSSISTE = java.util.Arrays.asList("is_Process", "is_Partial", "passed",
+            "is_Closed");
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public JSONObject commandesDuGrossiste(String grossisteId, int start, int limit) {
+        JSONArray resultats = new JSONArray();
+        long total = 0;
+        try {
+            total = ((Number) getEmg()
+                    .createNativeQuery(
+                            "SELECT COUNT(*) FROM t_order o WHERE o.lg_GROSSISTE_ID = ?1 AND o.str_STATUT IN ?2")
+                    .setParameter(1, grossisteId).setParameter(2, STATUTS_FICHE_GROSSISTE).getSingleResult())
+                            .longValue();
+            List<Object[]> commandes = getEmg().createNativeQuery(
+                    "SELECT o.lg_ORDER_ID, o.str_REF_ORDER, o.str_STATUT, o.dt_CREATED, o.dt_UPDATED, g.lg_GROSSISTE_ID,"
+                            + " g.str_LIBELLE FROM t_order o LEFT JOIN t_grossiste g ON g.lg_GROSSISTE_ID = o.lg_GROSSISTE_ID"
+                            + " WHERE o.lg_GROSSISTE_ID = ?1 AND o.str_STATUT IN ?2 ORDER BY o.dt_CREATED DESC")
+                    .setParameter(1, grossisteId).setParameter(2, STATUTS_FICHE_GROSSISTE)
+                    .setFirstResult(Math.max(0, start)).setMaxResults(limit > 0 ? limit : 20).getResultList();
+            for (Object[] c : commandes) {
+                /* lignes au statut de la commande, comme l'ancienne page ; lues sans charger la colonne « lots » */
+                List<Object[]> lignes = getEmg().createNativeQuery(
+                        "SELECT f.int_CIP, f.str_NAME, d.int_PAF_DETAIL, d.int_QTE_REP_GROSSISTE, d.int_PRICE, d.int_PRICE_DETAIL"
+                                + " FROM t_order_detail d LEFT JOIN t_famille f ON f.lg_FAMILLE_ID = d.lg_FAMILLE_ID"
+                                + " WHERE d.lg_ORDER_ID = ?1 AND d.str_STATUT = ?2 ORDER BY d.dt_UPDATED DESC, f.str_DESCRIPTION ASC")
+                        .setParameter(1, c[0]).setParameter(2, c[2]).getResultList();
+                StringBuilder produits = new StringBuilder();
+                int nb = 0, achat = 0, vente = 0;
+                for (Object[] l : lignes) {
+                    int qte = entier(l[3]);
+                    produits.insert(0,
+                            "<b>" + echapperHtml(l[0]) + "&nbsp;&nbsp;&nbsp;-&nbsp;&nbsp;&nbsp;"
+                                    + echapperHtml(l[1] == null ? "(produit retiré)" : l[1])
+                                    + "&nbsp;&nbsp;&nbsp;-&nbsp;&nbsp;&nbsp;"
+                                    + toolkits.utils.conversion.AmountFormat(entier(l[2]), '.')
+                                    + " F CFA&nbsp;&nbsp; :  (" + qte + ")</b><br> ");
+                    nb += qte;
+                    achat += entier(l[4]);
+                    vente += entier(l[5]) * qte;
+                }
+                JSONObject o = new JSONObject().put("lg_ORDER_ID", c[0]).put("str_REF_ORDER", c[1] == null ? "" : c[1])
+                        .put("int_LINE", lignes.size()).put("lg_GROSSISTE_ID", c[5] == null ? "" : c[5])
+                        .put("str_GROSSISTE_LIBELLE", c[6] == null ? "" : c[6])
+                        .put("str_FAMILLE_ITEM", produits.toString()).put("int_NBRE_PRODUIT", nb)
+                        .put("PRIX_ACHAT_TOTAL", toolkits.utils.conversion.AmountFormat(achat, '.'))
+                        .put("PRIX_VENTE_TOTAL", toolkits.utils.conversion.AmountFormat(vente, '.'))
+                        .put("str_STATUT", c[2] == null ? "" : c[2]);
+                if (c[3] instanceof java.util.Date) {
+                    o.put("dt_CREATED",
+                            new java.text.SimpleDateFormat("dd-MM-yyyy HH:mm:ss").format((java.util.Date) c[3]));
+                }
+                if (c[4] instanceof java.util.Date) {
+                    o.put("dt_UPDATED",
+                            new java.text.SimpleDateFormat("dd-MM-yyyy HH:mm:ss").format((java.util.Date) c[4]));
+                }
+                resultats.put(o);
+            }
+        } catch (RuntimeException e) {
+            LOG.log(Level.SEVERE, "commandes du grossiste", e);
+        }
+        return new JSONObject().put("total", total).put("results", resultats);
+    }
+
+    private static String echapperHtml(Object v) {
+        return v == null ? "" : String.valueOf(v).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
+    }
+
     private List<CommandeDTO> getOrders(String search, Set<String> status, int start, int limit) {
         return getListOrder(search, status, start, limit).stream().map(this::buildFromTuple)
                 .collect(Collectors.toList());

@@ -271,14 +271,17 @@ public class CommandeEncourDetailDTO {
                 : DateCommonUtils.formatDate(detail.getDtUPDATED());
 
         TOrder order = detail.getLgORDERID();
-        TGrossiste grossiste = order.getLgGROSSISTEID();
+        /* retours du 10/10 : commande sans grossiste -> la ligne s'affiche quand meme */
+        TGrossiste grossiste = order.getLgGROSSISTEID() != null ? order.getLgGROSSISTEID()
+                : (detail.getLgGROSSISTEID() != null ? detail.getLgGROSSISTEID() : new TGrossiste());
         this.lgGROSSISTEID = grossiste.getLgGROSSISTEID();
         TFamille famille = detail.getLgFAMILLEID();
 
         Collection<TFamilleGrossiste> tFamilleGrossisteCollection = famille.getTFamilleGrossisteCollection();
         if (CollectionUtils.isNotEmpty(tFamilleGrossisteCollection)) {
             famille.getTFamilleGrossisteCollection().stream()
-                    .filter(t -> t.getLgGROSSISTEID().getLgGROSSISTEID().equals(grossiste.getLgGROSSISTEID())
+                    .filter(t -> t.getLgGROSSISTEID() != null
+                            && t.getLgGROSSISTEID().getLgGROSSISTEID().equals(grossiste.getLgGROSSISTEID())
                             && "enable".equals(t.getStrSTATUT()))
                     .findFirst().ifPresentOrElse(t -> {
                         this.produitCip = t.getStrCODEARTICLE();
@@ -316,7 +319,7 @@ public class CommandeEncourDetailDTO {
                 .filter(s -> s.getLgEMPLACEMENTID().equals(order.getLgUSERID().getLgEMPLACEMENTID())).findFirst()
                 .ifPresentOrElse(e -> {
                     this.stock = e.getIntNUMBERAVAILABLE();
-                    this.qteReasor = Math.abs(e.getIntNUMBERAVAILABLE() - famille.getIntSEUILMIN());
+                    this.qteReasor = Math.abs(entier(e.getIntNUMBERAVAILABLE()) - entier(famille.getIntSEUILMIN()));
 
                 }, () -> {
                     this.stock = 0;
@@ -387,7 +390,9 @@ public class CommandeEncourDetailDTO {
                 : DateCommonUtils.formatDate(detail.getDtUPDATED());
 
         TOrder order = detail.getLgORDERID();
-        TGrossiste grossiste = order.getLgGROSSISTEID();
+        /* retours du 10/10 : commande sans grossiste -> la ligne s'affiche quand meme */
+        TGrossiste grossiste = order.getLgGROSSISTEID() != null ? order.getLgGROSSISTEID()
+                : (detail.getLgGROSSISTEID() != null ? detail.getLgGROSSISTEID() : new TGrossiste());
         this.lgGROSSISTEID = grossiste.getLgGROSSISTEID();
         TFamille famille = detail.getLgFAMILLEID();
 
@@ -427,8 +432,13 @@ public class CommandeEncourDetailDTO {
         this.qteLivree = (detail.getIntNUMBER() == null ? 0 : detail.getIntNUMBER())
                 - (detail.getIntQTEMANQUANT() == null ? 0 : detail.getIntQTEMANQUANT());
         this.seuil = famille.getIntSEUILMIN();
-        this.stock = familleStock.getIntNUMBERAVAILABLE();
-        this.qteReasor = Math.abs(familleStock.getIntNUMBERAVAILABLE() - famille.getIntSEUILMIN());
+        /*
+         * Retours du 10/10 (journal de l'officine, NullPointerException a l'ouverture d'une commande « commandee ») :
+         * un produit sans ligne de stock active, ou sans seuil, vidait TOUT le detail de la commande. Stock absent = 0,
+         * seuil absent = 0.
+         */
+        this.stock = familleStock == null ? 0 : entier(familleStock.getIntNUMBERAVAILABLE());
+        this.qteReasor = Math.abs(this.stock - entier(famille.getIntSEUILMIN()));
         this.lots = fetchLots(detail.getLots());
         this.datePeremption = buildDatePeremption(this.lots);
         this.lotNums = buildLotNums(this.lots);
@@ -458,5 +468,9 @@ public class CommandeEncourDetailDTO {
                     .distinct().collect(Collectors.toSet());
         }
         return Set.of();
+    }
+
+    private static int entier(Integer v) {
+        return v == null ? 0 : v;
     }
 }

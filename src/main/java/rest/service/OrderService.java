@@ -94,6 +94,12 @@ public interface OrderService {
 
     JSONObject fetch(String query, Set<String> status, int start, int limit);
 
+    /**
+     * Retours du 10/10 : commandes d'un grossiste (fiche grossiste), memes champs que l'ancienne page JSP ; une ligne
+     * incomplete (produit retire, prix ou quantite absents) ne fait plus echouer la liste.
+     */
+    JSONObject commandesDuGrossiste(String grossisteId, int start, int limit);
+
     void removeItem(String itemId);
 
     JSONObject getCommandeAmount(String commandeId);
