@@ -178,7 +178,7 @@ function nettoyer() {
     ok('Désignation rendue facultative : le produit sans désignation n\'est pas en erreur', pr[3].e === '' && pr[3].nom === '', JSON.stringify(pr[3]));
     ok('Ligne correcte : 2 étiquettes, mention « Rayon R1 / lot A12 »', pr[0].e === '' && pr[0].et === 2 && pr[0].mention === 'Rayon R1 / lot A12', JSON.stringify(pr[0]));
     await p.mouse.move(2, 2);
-    const rouge = await p.evaluate(() => { const g = Ext.ComponentQuery.query('etiquetagepro #grilleProduits')[0]; g.getSelectionModel().deselectAll(); const n = g.getView().getNode(1); return n && /etqp-ligne-erreur/.test(n.className) && getComputedStyle(n.querySelector('.x-grid-cell')).backgroundColor + ' ' + n.className; });
+    const rouge = await p.evaluate(() => { const g = Ext.ComponentQuery.query('etiquetagepro #grilleProduits')[0]; g.getSelectionModel().deselectAll(); const n = g.getView().getNode(1); n.classList.remove('x-grid-row-over', 'x-grid-item-over'); /* survol de la souris : couleur du survol, pas de l'erreur */ return n && /etqp-ligne-erreur/.test(n.className) && getComputedStyle(n.querySelector('.x-grid-cell')).backgroundColor + ' ' + n.className; });
     ok('Lignes en erreur en rouge', String(rouge).startsWith('rgb(253, 236, 234) '), rouge);
     let compte = await p.evaluate(() => Ext.ComponentQuery.query('etiquetagepro #compteurs')[0].getEl().dom.textContent);
     ok('Compteurs : 4 lignes, 2 en erreur, 3 étiquettes', /4 ligne\(s\) ; 2 en erreur.*3 étiquette\(s\)/.test(compte), compte);
