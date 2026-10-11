@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#0f5b4f">
+<title>Votre avis</title>
+<link rel="stylesheet" href="avis.css">
+</head>
+<body>
+<main id="page" class="page" aria-live="polite">
+
+  <header class="entete">
+    <div class="logo" aria-hidden="true">
+      <svg viewBox="0 0 24 24"><path d="M9 3h6v6h6v6h-6v6H9v-6H3V9h6z"/></svg>
+    </div>
+    <div>
+      <h1 id="pharmacie">Pharmacie</h1>
+      <p id="adresse" class="adresse"></p>
+    </div>
+  </header>
+
+  <!-- chargement / lien invalide -->
+  <section id="etatLien" class="carte etat" hidden>
+    <p id="etatTexte"></p>
+  </section>
+
+  <form id="formulaire" class="formulaire" novalidate hidden>
+    <section class="carte intro">
+      <h2>Votre avis compte</h2>
+      <p>Quelques secondes suffisent. Votre avis est lu par la direction de la pharmacie.</p>
+    </section>
+
+    <!-- 1. note -->
+    <section class="carte">
+      <h3><span class="num">1</span>Votre impression générale</h3>
+      <div class="etoiles" role="radiogroup" aria-label="Note de 1 à 5 étoiles" id="etoiles">
+        <button type="button" role="radio" aria-checked="false" data-note="1" aria-label="1 étoile — Très déçu"></button>
+        <button type="button" role="radio" aria-checked="false" data-note="2" aria-label="2 étoiles — Déçu"></button>
+        <button type="button" role="radio" aria-checked="false" data-note="3" aria-label="3 étoiles — Correct"></button>
+        <button type="button" role="radio" aria-checked="false" data-note="4" aria-label="4 étoiles — Satisfait"></button>
+        <button type="button" role="radio" aria-checked="false" data-note="5" aria-label="5 étoiles — Très satisfait"></button>
+      </div>
+      <p id="noteTexte" class="note-texte">Touchez une étoile</p>
+    </section>
+
+    <!-- 2. points forts / a ameliorer -->
+    <section class="carte">
+      <h3><span class="num">2</span>En un coup d'œil <small>facultatif</small></h3>
+      <p class="aide">Touchez une fois : <b class="plus">j'ai apprécié</b> · deux fois : <b class="moins">à améliorer</b></p>
+      <div class="puces" id="criteres">
+        <button type="button" data-critere="ACCUEIL">Accueil</button>
+        <button type="button" data-critere="ATTENTE">Temps d'attente</button>
+        <button type="button" data-critere="CONSEIL">Conseils</button>
+        <button type="button" data-critere="DISPONIBILITE">Produits disponibles</button>
+        <button type="button" data-critere="PRIX">Prix</button>
+        <button type="button" data-critere="PROPRETE">Propreté</button>
+      </div>
+    </section>
+
+    <!-- 3. ressenti -->
+    <section class="carte">
+      <h3><span class="num">3</span>Votre ressenti</h3>
+      <label class="champ">
+        <textarea id="texte" rows="4" maxlength="1500" placeholder="Racontez-nous votre passage : ce qui vous a plu, ce qui peut être amélioré…"></textarea>
+        <span class="compteur"><span id="compteur">0</span> / 1500</span>
+      </label>
+
+      <label class="bascule">
+        <input type="checkbox" id="probleme">
+        <span class="interrupteur" aria-hidden="true"></span>
+        <span>J'ai rencontré un problème avec un membre du personnel</span>
+      </label>
+      <div id="blocEmploye" class="sous-bloc" hidden>
+        <label class="champ">
+          <span class="etiquette">Nom ou description de la personne</span>
+          <input id="employe" type="text" maxlength="60" autocomplete="off" placeholder="Ex. : Awa, le pharmacien à lunettes…">
+        </label>
+      </div>
+    </section>
+
+    <!-- 4. identite -->
+    <section class="carte">
+      <h3><span class="num">4</span>Vous</h3>
+      <div class="choix-deux" role="radiogroup" aria-label="Identité">
+        <label><input type="radio" name="identite" value="ANONYME" checked><span>Rester anonyme</span></label>
+        <label><input type="radio" name="identite" value="IDENTIFIE"><span>Laisser mes coordonnées</span></label>
+      </div>
+      <div id="blocIdentite" class="sous-bloc" hidden>
+        <label class="champ"><span class="etiquette">Nom</span>
+          <input id="nom" type="text" maxlength="60" autocomplete="name"></label>
+        <label class="champ"><span class="etiquette">Téléphone / WhatsApp</span>
+          <input id="telephone" type="tel" maxlength="20" inputmode="tel" autocomplete="tel" placeholder="07 00 00 00 00"></label>
+        <label class="champ"><span class="etiquette">E-mail</span>
+          <input id="email" type="email" maxlength="80" autocomplete="email"></label>
+        <label class="bascule">
+          <input type="checkbox" id="rappel">
+          <span class="interrupteur" aria-hidden="true"></span>
+          <span>J'accepte que la pharmacie me réponde</span>
+        </label>
+      </div>
+      <p class="aide discret">Vos coordonnées servent uniquement à vous répondre. Elles ne sont ni publiées ni transmises.</p>
+    </section>
+
+    <!-- piege a robots : invisible pour une personne -->
+    <div class="hp" aria-hidden="true"><label>Site web <input id="site" type="text" tabindex="-1" autocomplete="off"></label></div>
+
+    <p id="erreur" class="erreur" role="alert" hidden></p>
+    <div class="barre-envoi">
+      <button id="envoyer" type="submit" class="bouton" disabled>Envoyer mon avis</button>
+    </div>
+  </form>
+
+  <!-- remerciement -->
+  <section id="merci" class="carte merci" hidden>
+    <div class="coche" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg></div>
+    <h2>Merci !</h2>
+    <p id="merciTexte">Votre avis a bien été transmis à la pharmacie.</p>
+  </section>
+
+  <footer class="pied">Vos réponses restent dans la pharmacie.</footer>
+</main>
+<script src="avis.js"></script>
+</body>
+</html>
