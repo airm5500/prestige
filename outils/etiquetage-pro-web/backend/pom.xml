@@ -143,6 +143,22 @@
                             </resources>
                         </configuration>
                     </execution>
+                    <execution>
+                        <!-- interface Angular construite (frontend/dist), servie par l'application : construire.sh -->
+                        <id>interface</id>
+                        <phase>process-resources</phase>
+                        <goals>
+                            <goal>copy-resources</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${project.build.outputDirectory}/static</outputDirectory>
+                            <resources>
+                                <resource>
+                                    <directory>${project.basedir}/../frontend/dist/etiquettage/browser</directory>
+                                </resource>
+                            </resources>
+                        </configuration>
+                    </execution>
                 </executions>
             </plugin>
             <plugin>
