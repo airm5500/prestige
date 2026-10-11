@@ -223,13 +223,13 @@ Ext.define('testextjs.view.stockmanagement.etiquetagepro.EtiquetagePro', {
     },
 
     /** Onglets Personnalisation (4) et Lire une etiquette (5) : hors de l'assistant, ils ne perdent rien de l'assistant. */
-    ouvrirOutil: function (i) {
+    ouvrirOutil: function (i, preset) {
         var me = this, outils = {4: ['#personnalisation', '#outilPerso'], 5: ['#lecture', '#outilLecture'], 6: ['#types', '#outilTypes'],
             7: ['#impressionPrestige', '#outilImpression']}, o = outils[i], carte = me.down(o[0]);
         me.down('#navigation').hide();
         me.down('#cartes').getLayout().setActiveItem(carte);
         me.down(o[1]).toggle(true, true);
-        carte.ouvrir();
+        carte.ouvrir(preset);
     },
 
     majSuivant: function () {

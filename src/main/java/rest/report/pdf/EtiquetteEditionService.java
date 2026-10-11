@@ -261,7 +261,7 @@ public class EtiquetteEditionService {
         return m;
     }
 
-    /** Bons de livraison recents (ou cherches par reference), pour l'apercu avant impression. */
+    /** Bons de livraison recents (ou cherches par reference ou identifiant), pour l'apercu avant impression. */
     @SuppressWarnings("unchecked")
     public org.json.JSONArray bonsPourEtiquettes(String recherche) {
         org.json.JSONArray a = new org.json.JSONArray();
@@ -271,10 +271,10 @@ public class EtiquetteEditionService {
                 + " (SELECT IFNULL(SUM(d.int_QTE_RECUE), 0) FROM t_bon_livraison_detail d WHERE d.lg_BON_LIVRAISON_ID ="
                 + " b.lg_BON_LIVRAISON_ID) FROM t_bon_livraison b LEFT JOIN t_order o ON o.lg_ORDER_ID = b.lg_ORDER_ID"
                 + " LEFT JOIN t_grossiste g ON g.lg_GROSSISTE_ID = o.lg_GROSSISTE_ID WHERE b.str_STATUT <> 'delete'"
-                + (r.isEmpty() ? "" : " AND b.str_REF_LIVRAISON LIKE ?1")
+                + (r.isEmpty() ? "" : " AND (b.str_REF_LIVRAISON LIKE ?1 OR b.lg_BON_LIVRAISON_ID = ?2)")
                 + " ORDER BY b.dt_DATE_LIVRAISON DESC, b.dt_CREATED DESC");
         if (!r.isEmpty()) {
-            q.setParameter(1, r + "%");
+            q.setParameter(1, r + "%").setParameter(2, r);
         }
         for (Object[] x : (List<Object[]>) q.setMaxResults(50).getResultList()) {
             a.put(new org.json.JSONObject().put("id", x[0]).put("ref", StringUtils.defaultString((String) x[1]))

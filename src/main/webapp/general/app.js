@@ -408,6 +408,7 @@ Ext.application({
         'testextjs.view.stockmanagement.etiquetagepro.LectureEtiquette',
         'testextjs.view.stockmanagement.etiquetagepro.TypesEtiquette',
         'testextjs.view.stockmanagement.etiquetagepro.ImpressionPrestige',
+        'testextjs.view.stockmanagement.etiquetagepro.Passerelle',
         'testextjs.view.stockmanagement.etiquetagepro.EtiquetagePro',
         'testextjs.view.stockmanagement.suivistockvente.SuiviStockVenteManager',
         'testextjs.view.stockmanagement.perime.PerimeManager',

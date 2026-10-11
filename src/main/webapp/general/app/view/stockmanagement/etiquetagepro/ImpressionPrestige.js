@@ -35,7 +35,8 @@ Ext.define('testextjs.view.stockmanagement.etiquetagepro.ImpressionPrestige', {
             {xtype: 'container', width: 470, layout: 'anchor', defaults: {anchor: '100%', labelWidth: 150}, items: [
                     {xtype: 'radiogroup', itemId: 'impSource', fieldLabel: 'Étiquettes à imprimer', columns: 1, items: [
                             {boxLabel: 'Panier de l\'étiquetage massif (gestion des étiquettes)', name: 'source', inputValue: 'PANIER', checked: true},
-                            {boxLabel: 'Bon de livraison (quantités reçues)', name: 'source', inputValue: 'BL'}
+                            {boxLabel: 'Bon de livraison (quantités reçues)', name: 'source', inputValue: 'BL'},
+                            {boxLabel: 'Ligne d\'étiquette choisie (gestion des étiquettes)', name: 'source', inputValue: 'LIGNE', itemId: 'impSourceLigne', hidden: true}
                         ], listeners: {change: function () {
                                 me.majSource();
                             }}},
@@ -86,9 +87,22 @@ Ext.define('testextjs.view.stockmanagement.etiquetagepro.ImpressionPrestige', {
         me.callParent(arguments);
     },
 
-    /** Appelee par l'ecran a l'ouverture de l'onglet : reglages de Prestige. */
-    ouvrir: function () {
+    /**
+     * Appelee par l'ecran a l'ouverture de l'onglet : reglages de Prestige. {@code preset} (retours du 11/10) : impression
+     * demandee depuis un ancien bouton (panier, ligne, bon de livraison) - source, bon ou ligne, position, code et planche
+     * deja choisis. Voir Passerelle.
+     */
+    ouvrir: function (preset) {
         var me = this;
+        me.preset = preset || null;
+        me.ligneId = preset && preset.source === 'LIGNE' ? preset.id : null;
+        me.down('#impSourceLigne').setVisible(!!me.ligneId);
+        if (!me.ligneId && me.source() === 'LIGNE') {
+            me.down('#impSource').setValue({source: 'PANIER'});
+        }
+        if (!preset) {
+            me.down('#impPosition').setValue(1);
+        }
         me.ecran.appel('impression/reglages', null, function (o) {
             me.cfg = o;
             me.down('#impCode').setValue({impcode: o.code});
@@ -105,9 +119,45 @@ Ext.define('testextjs.view.stockmanagement.etiquetagepro.ImpressionPrestige', {
                 }
             });
             me.down('#impEnregistrer').setVisible(o.peutEnregistrer);
+            if (me.preset) {
+                me.appliquerPreset(me.preset);
+                return;
+            }
             me.majFormat();
             me.majSource();
         });
+    },
+
+    /** Choix faits sur l'ancien ecran, repris tels quels dans l'apercu. */
+    appliquerPreset: function (p) {
+        var me = this, src = me.down('#impSource');
+        if (p.code) {
+            me.down('#impCode').setValue({impcode: p.code});
+        }
+        if (p.modele && me.ecran.modelesStore.findExact('id', p.modele) >= 0) {
+            me.down('#impModele').setValue(p.modele);
+        }
+        if (p.position) {
+            me.down('#impPosition').setValue(Number(p.position) || 1);
+        }
+        src.suspendEvents();
+        src.setValue({source: p.source});
+        src.resumeEvents();
+        me.majFormat();
+        if (p.source === 'BL') {
+            me.down('#impBon').show();
+            me.ecran.appel('impression/bons?recherche=' + encodeURIComponent(p.id), null, function (o) {
+                if (me.isDestroyed) {
+                    return;
+                }
+                me.bonsStore.loadData(o.bons);
+                me.down('#impBon').setValue(p.id);
+                me.resume();
+            });
+            return;
+        }
+        me.down('#impBon').hide();
+        me.resume();
     },
 
     source: function () {
@@ -149,17 +199,25 @@ Ext.define('testextjs.view.stockmanagement.etiquetagepro.ImpressionPrestige', {
 
     resume: function () {
         var me = this;
-        if (!me.cfg) {
+        /* appel differe (apres une impression) alors que l'ecran a ete quitte */
+        if (me.isDestroyed || !me.cfg) {
             return;
         }
-        var id = me.source() === 'BL' ? me.down('#impBon').getValue() : '';
+        var id = me.source() === 'BL' ? me.down('#impBon').getValue() : me.source() === 'LIGNE' ? me.ligneId : '';
         if (me.source() === 'BL' && !id) {
             me.etat = {total: 0, parType: {}, produits: 0};
             me.majApercu();
             return;
         }
-        me.ecran.appel('impression/resume', {source: me.source(), id: id || '', parProduit: me.down('#impParProduit').getValue(),
-            code: me.down('#impCode').getValue().impcode || 'CODE128'}, function (o) {
+        var demande = {source: me.source(), id: id || '', parProduit: me.down('#impParProduit').getValue(),
+            code: me.down('#impCode').getValue().impcode || 'CODE128'};
+        me.ecran.appel('impression/resume', demande, function (o) {
+            if (me.isDestroyed) {
+                return;
+            }
+            /* source du resume : un resume plus ancien ne doit pas passer pour celui de la source affichee */
+            o.pourSource = demande.source;
+            o.pourId = demande.id;
             me.etat = o;
             me.majApercu();
         });
@@ -223,6 +281,9 @@ Ext.define('testextjs.view.stockmanagement.etiquetagepro.ImpressionPrestige', {
         } else if (me.source() === 'BL') {
             q.lg_BON_LIVRAISON_ID = me.down('#impBon').getValue();
             q.int_NUMBER = pos;
+        } else if (me.source() === 'LIGNE') {
+            q.lg_ETIQUETTE_ID = me.ligneId;
+            q.begin = pos;
         } else {
             q.etiquettes = 'EN_PREPARATION';
             q.int_NUMBER = pos;

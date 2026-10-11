@@ -152,10 +152,16 @@ Ext.define('testextjs.view.stockmanagement.etiquette.action.printEtiquette', {
         if (form.isValid()) {
             var linkUrl = url_services_etiquette_moteur + '?lg_ETIQUETTE_ID=' + encodeURIComponent(ref) + "&begin=" + Ext.getCmp('intQUANTITY').getValue()
                     + "&code=" + encodeURIComponent(Ext.getCmp('code_ETIQUETTE_LIGNE').getValue() || '');
-            window.open(linkUrl);
+            /* retours du 11/10 : apercu d'Etiquettage Pro pour cette ligne, sinon impression historique */
+            var preset = {source: 'LIGNE', id: ref, position: Ext.getCmp('intQUANTITY').getValue(),
+                code: Ext.getCmp('code_ETIQUETTE_LIGNE').getValue() || ''};
             win.close();
-            Me_Workflow = Oview;
-            Me_Workflow.onRechClick();
+            if (!testextjs.view.stockmanagement.etiquetagepro.Passerelle.imprimer(preset, function () {
+                window.open(linkUrl);
+            })) {
+                Me_Workflow = Oview;
+                Me_Workflow.onRechClick();
+            }
         } else {
             Ext.MessageBox.show({
                 title: 'Message d\'erreur',

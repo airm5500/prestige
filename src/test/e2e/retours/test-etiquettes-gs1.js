@@ -97,6 +97,7 @@ const decoder = (pdf) => {
     await p.waitForFunction(() => Ext.ComponentQuery.query('etiquette')[0] && Ext.getCmp('rechecher') && Ext.getCmp('rechecher').rendered, null, { timeout: 30000 });
     await p.click('#rechecher-inputEl'); await p.keyboard.type('E2E-GS1'); await p.keyboard.press('Enter');
     await p.waitForFunction((et) => Ext.ComponentQuery.query('etiquette')[0].getStore().findExact('lg_ETIQUETTE_ID', et) >= 0, ET, { timeout: 30000 });
+    const apercus = [];
     const imprimer = async (code) => {
       /* la liste se recharge apres une impression : attendre la fin avant de viser la ligne */
       await p.waitForTimeout(1200);
@@ -108,9 +109,19 @@ const decoder = (pdf) => {
       await p.evaluate(() => { const w = Ext.getCmp('code_ETIQUETTE_LIGNE').up('window'); w.down('button[text=Enregistrer]').getEl().dom.setAttribute('data-e2e', 'imp'); });
       const avant = await p.evaluate(() => window.__ouverts.length);
       await p.click('[data-e2e=imp]');
+      /* retours du 11/10 : l'ancien bouton passe par l'apercu d'Etiquettage Pro (ligne, code et position repris), d'ou
+         le PDF est genere avec le meme moteur */
+      await p.waitForFunction((c) => { const v = Ext.ComponentQuery.query('etqimpression')[0];
+        return v && v.isVisible(true) && v.etat && v.etat.total > 0 && v.source() === 'LIGNE' && (!c || v.down('#impCode').getValue().impcode === c); }, code, { timeout: 20000 });
+      apercus.push(code);
+      await p.evaluate(() => { Ext.ComponentQuery.query('etqimpression #impPdf')[0].btnEl.dom.setAttribute('data-e2e', 'pdf'); });
+      await p.click('[data-e2e=pdf]');
       await p.waitForFunction((n) => window.__ouverts.length > n, avant, { timeout: 15000 });
       const url = await p.evaluate(() => window.__ouverts[window.__ouverts.length - 1]);
-      await p.evaluate(() => { Ext.ComponentQuery.query('window').forEach((w) => { if (w.isVisible() && w.down('#code_ETIQUETTE_LIGNE')) { w.close(); } }); });
+      /* retour a la gestion des etiquettes pour l'impression suivante */
+      await p.evaluate(() => testextjs.app.getController('App').onLoadNewComponent('etiquette', 'Gestion des étiquettes', ''));
+      await p.waitForFunction(() => Ext.ComponentQuery.query('etiquette')[0] && Ext.getCmp('rechecher') && Ext.getCmp('rechecher').rendered, null, { timeout: 30000 });
+      await p.click('#rechecher-inputEl'); await p.keyboard.type('E2E-GS1'); await p.keyboard.press('Enter');
       const pdf = await p.evaluate(async (u) => Array.from(new Uint8Array(await (await fetch(u)).arrayBuffer())), url);
       const codes = decoder(pdf);
       return { url, codes, mots: codes.mots };

@@ -105,7 +105,11 @@ Ext.define('testextjs.view.stockmanagement.etiquette.action.add', {
         
        // '../Etiquete?lg_BON_LIVRAISON_ID=' + ref + "&int_NUMBER=" + Ext.getCmp('int_NUMBER').getValue();
         var url = url_services_pdf_fiche_etiquette + '?lg_BON_LIVRAISON_ID=' + ref + "&int_NUMBER=" + Ext.getCmp('int_NUMBER').getValue();
-        window.open(url);
+        var preset = {source: 'BL', id: ref, position: Ext.getCmp('int_NUMBER').getValue()};
         this.up('window').close();
+        /* retours du 11/10 : apercu d'Etiquettage Pro pour ce bon, sinon impression historique */
+        testextjs.view.stockmanagement.etiquetagepro.Passerelle.imprimer(preset, function () {
+            window.open(url);
+        });
     }
 });

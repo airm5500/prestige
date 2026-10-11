@@ -435,8 +435,14 @@ Ext.define('testextjs.view.stockmanagement.etiquette.action.addBis', {
                     if (btn === 'yes') {
                         var linkUrl = url_services_etiquette_moteur_massif + "?etiquettes=EN_PREPARATION&int_NUMBER=" + Ext.getCmp('int_NUMBER').getValue()
                                 + "&code=" + encodeURIComponent(Ext.getCmp('code_ETIQUETTE_MASSIF').getValue() || '');
-                        window.open(linkUrl);
-                        Me.onbtnback();
+                        /* retours du 11/10 : apercu d'Etiquettage Pro s'il a les etiquettes du panier, sinon impression historique */
+                        var apercu = testextjs.view.stockmanagement.etiquetagepro.Passerelle.imprimer({source: 'PANIER',
+                            position: Ext.getCmp('int_NUMBER').getValue(), code: Ext.getCmp('code_ETIQUETTE_MASSIF').getValue() || ''}, function () {
+                            window.open(linkUrl);
+                        });
+                        if (!apercu) {
+                            Me.onbtnback();
+                        }
                     }
                 });
     },

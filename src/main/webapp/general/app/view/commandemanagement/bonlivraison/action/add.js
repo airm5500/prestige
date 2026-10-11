@@ -728,8 +728,14 @@ function doEntreeStock(lg_BON_LIVRAISON_ID) {
                                                     var modeleEtiquette = Ext.getCmp('modele_ETIQUETTE_BL') ? (Ext.getCmp('modele_ETIQUETTE_BL').getValue() || '') : '';
                                                     const linkUrl = url_services_pdf_fiche_etiquette + '?lg_BON_LIVRAISON_ID=' + lg_BON_LIVRAISON_ID + "&int_NUMBER=" + Ext.getCmp('int_NUMBER_ETIQUETTE').getValue() + "&modele_ETIQUETTE=" + encodeURIComponent(modeleEtiquette)
                                                             + "&code=" + encodeURIComponent(Ext.getCmp('code_ETIQUETTE_BL') ? (Ext.getCmp('code_ETIQUETTE_BL').getValue() || '') : '');
-                                                    onPdfBLClick(linkUrl);
-                                                    testextjs.app.getController('App').onLoadNewComponentWithDataSource("bonlivraisonmanager", "", "", "");
+                                                    /* retours du 11/10 : apercu d'Etiquettage Pro pour ce bon, sinon impression historique */
+                                                    if (!testextjs.view.stockmanagement.etiquetagepro.Passerelle.imprimer({source: 'BL', id: lg_BON_LIVRAISON_ID,
+                                                        position: Ext.getCmp('int_NUMBER_ETIQUETTE').getValue(), modele: modeleEtiquette,
+                                                        code: Ext.getCmp('code_ETIQUETTE_BL') ? (Ext.getCmp('code_ETIQUETTE_BL').getValue() || '') : ''}, function () {
+                                                        onPdfBLClick(linkUrl);
+                                                    })) {
+                                                        testextjs.app.getController('App').onLoadNewComponentWithDataSource("bonlivraisonmanager", "", "", "");
+                                                    }
                                                 } else {
                                                     testextjs.app.getController('App').onLoadNewComponentWithDataSource("bonlivraisonmanager", "", "", "");
                                                 }
