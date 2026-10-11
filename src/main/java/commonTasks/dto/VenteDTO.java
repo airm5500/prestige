@@ -419,6 +419,25 @@ public class VenteDTO implements Serializable {
         this.dtUPDATED = dtUPDATED;
     }
 
+    /** Poste d'ou la vente a ete saisie, et poste de l'encaissement (colonne « P » des ventes terminees). */
+    private String posteSaisie, posteEncaissement;
+
+    public String getPosteSaisie() {
+        return posteSaisie;
+    }
+
+    public void setPosteSaisie(String posteSaisie) {
+        this.posteSaisie = posteSaisie;
+    }
+
+    public String getPosteEncaissement() {
+        return posteEncaissement;
+    }
+
+    public void setPosteEncaissement(String posteEncaissement) {
+        this.posteEncaissement = posteEncaissement;
+    }
+
     public String getHeure() {
         return heure;
     }

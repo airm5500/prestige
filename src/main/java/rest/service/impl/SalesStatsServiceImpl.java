@@ -159,7 +159,7 @@ public class SalesStatsServiceImpl implements SalesStatsService {
              */
             + "(SELECT SUM(pcc.int_PRICE_RESTE) FROM t_preenregistrement_compte_client pcc"
             + " WHERE pcc.lg_PREENREGISTREMENT_ID=p.lg_PREENREGISTREMENT_ID) as intPRICERESTE,"
-            + "p.dt_ANNULER as dtANNULER,p.lg_USER_CAISSIER_ID as lgUSERCAISSIERID,CONCAT(caissier.str_FIRST_NAME,' ',caissier.str_LAST_NAME) AS userCaissierName,CONCAT(c.str_FIRST_NAME,' ',c.str_LAST_NAME) AS clientFullName, CONCAT(vendeur.str_FIRST_NAME,' ',vendeur.str_LAST_NAME) AS userVendeurName,CONCAT(op.str_FIRST_NAME,' ',op.str_LAST_NAME) AS userValidateur,p.dt_CLOTURE_AVOIR as dtClotureAvoir,em.lg_EMPLACEMENT_ID AS  pkBrand from {select_placeholder} INNER JOIN t_user caissier ON caissier.lg_USER_ID=p.lg_USER_CAISSIER_ID LEFT JOIN t_user vendeur ON vendeur.lg_USER_ID=p.lg_USER_VENDEUR_ID LEFT JOIN t_user op ON op.lg_USER_ID=p.lg_USER_ID LEFT  JOIN  t_client c ON p.lg_CLIENT_ID=c.lg_CLIENT_ID "
+            + "p.str_POSTE_SAISIE as posteSaisie,p.str_POSTE as posteEncaissement,p.dt_ANNULER as dtANNULER,p.lg_USER_CAISSIER_ID as lgUSERCAISSIERID,CONCAT(caissier.str_FIRST_NAME,' ',caissier.str_LAST_NAME) AS userCaissierName,CONCAT(c.str_FIRST_NAME,' ',c.str_LAST_NAME) AS clientFullName, CONCAT(vendeur.str_FIRST_NAME,' ',vendeur.str_LAST_NAME) AS userVendeurName,CONCAT(op.str_FIRST_NAME,' ',op.str_LAST_NAME) AS userValidateur,p.dt_CLOTURE_AVOIR as dtClotureAvoir,em.lg_EMPLACEMENT_ID AS  pkBrand from {select_placeholder} INNER JOIN t_user caissier ON caissier.lg_USER_ID=p.lg_USER_CAISSIER_ID LEFT JOIN t_user vendeur ON vendeur.lg_USER_ID=p.lg_USER_VENDEUR_ID LEFT JOIN t_user op ON op.lg_USER_ID=p.lg_USER_ID LEFT  JOIN  t_client c ON p.lg_CLIENT_ID=c.lg_CLIENT_ID "
             + " LEFT JOIN t_emplacement em ON em.lg_EMPLACEMENT_ID=p.PK_BRAND {produit_join} where p.dt_UPDATED >=:dtStart and p.dt_UPDATED <=:dtEnd and p.str_STATUT=:status";
     private static final String NATURE_CLOSE2 = " and p.lg_NATURE_VENTE_ID=:natureVente";
     private static final String TYPE_CLOSE = " and p.str_TYPE_VENTE=:typeVente";
@@ -3078,6 +3078,8 @@ public class SalesStatsServiceImpl implements SalesStatsService {
         }
 
         venteDTO.setLgTYPEVENTEID(tuple.get("lgTYPEVENTEID", String.class));
+        venteDTO.setPosteSaisie(tuple.get("posteSaisie", String.class));
+        venteDTO.setPosteEncaissement(tuple.get("posteEncaissement", String.class));
         Boolean copy = tuple.get("copy", Boolean.class);
         if (copy != null) {
             venteDTO.setCopy(copy);

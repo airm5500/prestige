@@ -474,7 +474,7 @@ public class SalesStatsRessource {
             lignes.add(null); // sentinelle : ligne d'avertissement
         }
         String[] headers = { "Reference", "N° ticket", "Type", "Categorie", "Client", "Montant", "Part client",
-                "Remise", "Montant différé", "Date", "Heure", "Vendeur", "Caissier" };
+                "Remise", "Différé", "Date", "Heure", "Vendeur", "Caissier", "Poste de saisie" };
         byte[] data = excelExportService.createLandscapeExcelReport(titreExportVentes(body), headers, lignes,
                 (row, v) -> {
                     if (v == null) {
@@ -495,6 +495,7 @@ public class SalesStatsRessource {
                     row.createCell(10).setCellValue(nonNul(v.getHeure()));
                     row.createCell(11).setCellValue(nonNul(v.getUserVendeurName()));
                     row.createCell(12).setCellValue(nonNul(v.getUserCaissierName()));
+                    row.createCell(13).setCellValue(nonNul(v.getPosteSaisie()));
                 });
         String filename = (body.isOnlyAvoir() ? "avoirs_" : "ventes_terminees_")
                 + LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd_MM_yyyy_H_mm_ss")) + ".xls";

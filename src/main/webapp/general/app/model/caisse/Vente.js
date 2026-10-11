@@ -59,6 +59,14 @@ Ext.define('testextjs.model.caisse.Vente', {
             type: 'string'
         },
         {
+            name: 'posteSaisie',
+            type: 'string'
+        },
+        {
+            name: 'posteEncaissement',
+            type: 'string'
+        },
+        {
             name: 'dtCLOTUREAVOIR',
             type: 'string'
         },

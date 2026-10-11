@@ -315,7 +315,7 @@ Ext.define('testextjs.view.vente.VentesFinis', {
                         {
                             sortable: false,
                             menuDisabled: true,
-                            header: 'Montant différé',
+                            header: 'Différé',
                             xtype: 'numbercolumn',
                             dataIndex: 'intPRICERESTE',
                             align: 'right',
@@ -325,19 +325,17 @@ Ext.define('testextjs.view.vente.VentesFinis', {
                         },
 
                         {
+                            /* retours du 11/10 : date et heure dans une seule colonne */
                             sortable: false,
                             menuDisabled: true,
                             header: 'Date',
+                            itemId: 'colDateHeure',
                             dataIndex: 'dtUPDATED',
-                            flex: 0.6,
-                            align: 'center'
-                        }, {
-                            sortable: false,
-                            menuDisabled: true,
-                            header: 'Heure',
-                            dataIndex: 'heure',
-                            flex: 0.6,
-                            align: 'center'
+                            flex: 0.9,
+                            align: 'center',
+                            renderer: function (v, meta, r) {
+                                return Ext.String.trim((v || '') + ' ' + (r.get('heure') || ''));
+                            }
                         }
 
                         , {
@@ -354,6 +352,25 @@ Ext.define('testextjs.view.vente.VentesFinis', {
                             header: 'Caissier',
                             dataIndex: 'userCaissierName',
                             flex: 1
+                        },
+                        {
+                            /* retours du 11/10 : poste de saisie de la vente ; le nom est coupe selon la place,
+                               l'infobulle le donne en entier avec le poste d'encaissement */
+                            sortable: false,
+                            menuDisabled: true,
+                            header: 'P',
+                            itemId: 'colPoste',
+                            tooltip: 'Poste de saisie',
+                            dataIndex: 'posteSaisie',
+                            flex: 0.6,
+                            tdCls: 'vf-poste',
+                            renderer: function (v, meta, r) {
+                                const enc = r.get('posteEncaissement');
+                                const info = 'Saisie : ' + (v || 'non connu')
+                                        + (enc ? '<br>Encaissement : ' + enc : '');
+                                meta.tdAttr = 'data-qtip="' + Ext.String.htmlEncode(info) + '"';
+                                return Ext.String.htmlEncode(v || '');
+                            }
                         },
                         {
                             /* Une seule colonne pour toutes les actions (retour du 05/10) : une colonne par icone laissait
