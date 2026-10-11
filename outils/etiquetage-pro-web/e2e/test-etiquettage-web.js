@@ -25,7 +25,7 @@ if (!/_test$/.test(BASE)) {
   throw new Error('Base de test attendue (nom en _test) : ' + BASE);
 }
 const res = [];
-function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined && !c ? '  [' + String(d).slice(0, 400) + ']' : '')); }
+function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined && !c ? '  [' + String(d).slice(0, 1500) + ']' : '')); }
 const q = (s) => execFileSync('mysql', ['-u' + (process.env.DB_USER || 'etiquettage_test'), '-p' + (process.env.DB_PASSWORD || 'etiquettage_test'),
   '--default-character-set=utf8mb4', BASE, '-sN'], { input: s, encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'] }).trim();
 /* mot de passe d'origine documente (admin / admin), chiffre BCrypt */
@@ -56,6 +56,9 @@ const CSV = ['Code CIP;Libellé;Prix public;Péremption;Lot;Famille;Remarque int
   const err = [];
   p.on('pageerror', (e) => err.push('page: ' + e.message));
   p.on('console', (m) => { if (m.type() === 'error' && !/401|409|400|410/.test(m.text())) err.push('console: ' + m.text()); });
+  const journalCharger = [];
+  p.on('request', (r) => { if (r.url().includes('/personnalisation/charger')) journalCharger.push('-> ' + r.postData()); });
+  p.on('response', async (r) => { if (r.url().includes('/personnalisation/charger')) journalCharger.push('<- ' + (await r.text().catch(() => '')).slice(0, 60)); });
   p.on('dialog', (d) => { err.push('DIALOGUE ' + d.message()); d.dismiss(); });
   const texte = (s) => p.locator(s).first().innerText().catch(() => '');
   const attendre = (ms) => p.waitForTimeout(ms);
@@ -317,11 +320,16 @@ const CSV = ['Code CIP;Libellé;Prix public;Péremption;Lot;Famille;Remarque int
 
     /* ---------------------------------------------------------------- personnalisation */
     await menu('Personnaliser').click();
-    await p.getByLabel('Type de code').selectOption('QR_PLUS');
-    await p.getByLabel('Planche').selectOption('CARRE_38X21_2');
+    await p.getByRole('heading', { name: 'Personnaliser l\'étiquette' }).waitFor();
+    /* choix immediat, avant la fin du chargement initial : c'est lui qui doit s'afficher */
+    await p.getByLabel('Type de code', { exact: true }).selectOption('QR_PLUS');
+    await p.getByLabel('Planche', { exact: true }).selectOption('CARRE_38X21_2');
     await p.locator('svg.svg text').first().waitFor();
+    await p.waitForFunction(() => /Disposition proposée|Dessin d'origine|enregistrée|échelle/.test((document.querySelector('main .bandeau.info') || {}).textContent || ''));
     ok('apercu dessine (texte et code)', (await p.locator('svg.svg text').count()) > 2 && (await p.locator('svg.svg rect').count()) > 50);
-    ok('disposition proposee annoncee', (await texte('.bandeau.info')).includes('Disposition proposée'));
+    ok('disposition proposee annoncee', (await texte('.bandeau.info')).includes('Disposition proposée'),
+      (await p.locator('main .bandeau').allInnerTexts()).join(' / ') + ' / code=' + await p.locator('#p-code').inputValue() + ' modele=' + await p.locator('#p-modele').inputValue()
+      + ' dispositions=' + q('SELECT cle FROM disposition') + ' ' + journalCharger.join(' | '));
     ok('lisible sur ce format', (await texte('.dessin .bandeau.ok')).includes('lisible'), await texte('.dessin'));
     await p.getByLabel('Produit d\'exemple (CIP)').fill('3400930000014');
     await p.waitForFunction(() => Array.from(document.querySelectorAll('svg.svg text')).some((t) => t.textContent.includes('DOLIPRANE')));
@@ -335,8 +343,8 @@ const CSV = ['Code CIP;Libellé;Prix public;Péremption;Lot;Famille;Remarque int
     await p.getByLabel('h Code (mm)').fill('3');
     await p.locator('.dessin .bandeau.erreur').first().waitFor();
     ok('code trop petit : probleme bloquant, enregistrement grise', await p.getByRole('button', { name: 'Enregistrer la disposition' }).isDisabled());
-    await p.getByLabel('Type de code').selectOption('CODE128');
-    await p.getByLabel('Type de code').selectOption('QR_PLUS');
+    await p.getByLabel('Type de code', { exact: true }).selectOption('CODE128');
+    await p.getByLabel('Type de code', { exact: true }).selectOption('QR_PLUS');
     await p.locator('.dessin .bandeau.ok').waitFor();
     await p.getByRole('button', { name: 'Enregistrer la disposition' }).click();
     await p.getByText('Disposition enregistrée : elle sert').waitFor();
@@ -386,6 +394,25 @@ const CSV = ['Code CIP;Libellé;Prix public;Péremption;Lot;Famille;Remarque int
     ok('boutons de 44 px au moins', petits.length === 0, petits.join(', '));
     await mobile.close();
     ok('aucune fenetre surgissante, aucune erreur de page ni de CSP', err.length === 0, err.join(' | '));
+
+    /* arret de l'application depuis « Mon compte » (dernier pas : le serveur s'arrete) */
+    if (process.env.ETIQUETTAGE_TEST_ARRET !== 'non') {
+      await p.goto(URL0 + '/connexion');
+      await p.getByLabel('Mot de passe').fill('admin');
+      await p.getByLabel('Mot de passe').press('Enter');
+      await p.waitForURL(/\/catalogue/);
+      await p.goto(URL0 + '/compte');
+      await p.getByRole('button', { name: 'Arrêter l\'application…' }).click();
+      ok('arret : confirmation dans la page', await p.getByText('Arrêter l\'application maintenant ?').waitFor({ timeout: 3000 }).then(() => true, () => false));
+      await p.getByRole('button', { name: 'Oui, arrêter' }).click();
+      await p.getByText('Vous pouvez fermer cet onglet.').waitFor();
+      let arrete = false;
+      for (let i = 0; i < 30 && !arrete; i++) {
+        await attendre(500);
+        arrete = await fetch(URL0 + '/api/etat').then(() => false, () => true);
+      }
+      ok('arret : le serveur ne repond plus', arrete);
+    }
   } catch (e) {
     ok('deroulement', false, e.stack);
     console.log('URL : ' + p.url() + '\nECRAN :\n' + (await p.locator('body').innerText().catch(() => '')).slice(0, 5000));

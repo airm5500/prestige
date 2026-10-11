@@ -34,13 +34,13 @@ const PT_MM = 25.4 / 72;
       @if (erreur()) { <div class="bandeau erreur" role="alert">{{ erreur() }}</div> }
       <div class="filtres">
         <div class="champ"><label for="p-code">Type de code</label>
-          <select id="p-code" [ngModel]="code()" (ngModelChange)="code.set($event); charger()">@for (c of codes; track c[0]) { <option [value]="c[0]">{{ c[1] }}</option> }</select></div>
+          <select id="p-code" [ngModel]="code()" (ngModelChange)="choisi_ = true; code.set($event); charger()">@for (c of codes; track c[0]) { <option [value]="c[0]">{{ c[1] }}</option> }</select></div>
         <div class="champ"><label for="p-modele">Planche</label>
-          <select id="p-modele" [ngModel]="modele()" (ngModelChange)="modele.set($event); charger()">@for (m of modeles; track m[0]) { <option [value]="m[0]">{{ m[1] }}</option> }</select></div>
+          <select id="p-modele" [ngModel]="modele()" (ngModelChange)="choisi_ = true; modele.set($event); charger()">@for (m of modeles; track m[0]) { <option [value]="m[0]">{{ m[1] }}</option> }</select></div>
         <div class="champ"><label for="p-cip">Produit d'exemple (CIP)</label>
           <input id="p-cip" type="text" inputmode="numeric" [ngModel]="exempleCip()" (ngModelChange)="exempleCip.set($event); controler()" placeholder="exemple par défaut"></div>
       </div>
-      @if (info()) { <div class="bandeau info">{{ info() }}</div> }
+      @if (info()) { <div class="bandeau info" role="status" [attr.aria-busy]="!charge()">{{ info() }}</div> }
 
       @if (placements().length) {
         <div class="colonnes">
@@ -105,7 +105,7 @@ const PT_MM = 25.4 / 72;
             </table></div>
             <div class="petit doux">Positions et tailles en millimètres, police en points. Un élément décoché n'est pas imprimé ; « dans le code » le met seulement dans le code 2D.</div>
             <div class="rangee">
-              <button type="button" class="bouton prim" [disabled]="!valide()" (click)="enregistrer()">Enregistrer la disposition</button>
+              <button type="button" class="bouton prim" [disabled]="!valide() || !charge()" (click)="enregistrer()">Enregistrer la disposition</button>
               <button type="button" class="bouton" (click)="retablir()">Rétablir la disposition d'origine</button>
               <label for="p-case" class="petit">Case</label>
               <input id="p-case" type="text" inputmode="numeric" class="case-essai" [(ngModel)]="caseEssai">
@@ -157,13 +157,18 @@ export class Personnalisation implements OnInit {
   protected readonly choisi = signal('');
   protected readonly erreur = signal('');
   protected readonly info = signal('');
+  /** vrai quand la disposition affichee est celle du type et de la planche choisis */
+  protected readonly charge = signal(false);
   protected readonly pdf = signal<string | null>(null);
   protected readonly pdfSur = signal<SafeResourceUrl | null>(null);
   protected caseEssai = '1';
+  /** vrai des que l'utilisateur a choisi un type ou une planche */
+  protected choisi_ = false;
   private typeCode = '';
   private planche: Record<string, string> = {};
   private minuterie: ReturnType<typeof setTimeout> | undefined;
   private numero = 0;
+  private chargement = 0;
 
   protected readonly valide = computed(() => !this.problemes().some((p) => p.bloquant));
   protected readonly deuxD = computed(() => this.typeCode !== 'CODE128' && this.code() !== 'CODE128');
@@ -175,6 +180,11 @@ export class Personnalisation implements OnInit {
   async ngOnInit() {
     try {
       const r = await this.api.reglages();
+      if (this.choisi_) {
+        /* l'utilisateur a deja choisi : ses choix l'emportent sur les reglages par defaut */
+        this.planche = Object.fromEntries(Object.entries(r.planche).filter(([, v]) => v)) as Record<string, string>;
+        return;
+      }
       this.code.set(r.code);
       this.modele.set(r.modele);
       this.planche = Object.fromEntries(Object.entries(r.planche).filter(([, v]) => v)) as Record<string, string>;
@@ -184,10 +194,16 @@ export class Personnalisation implements OnInit {
     await this.charger();
   }
 
+  /** Chargement pour le type et la planche choisis ; une reponse plus ancienne que le dernier choix est ignoree. */
   protected async charger() {
     this.erreur.set('');
+    const n = ++this.chargement;
+    this.charge.set(false);
+    this.info.set('Chargement…');
     try {
       const d = await this.api.chargerDisposition({ code: this.code(), modele: this.modele(), planche: this.planche });
+      if (n !== this.chargement) return;
+      this.charge.set(true);
       this.typeCode = d.type;
       this.largeur.set(d.largeur);
       this.hauteur.set(d.hauteur);
@@ -198,9 +214,12 @@ export class Personnalisation implements OnInit {
         : d.source === 'echelle' ? 'Reprise à l\'échelle de la disposition ' + d.depuis + ' : vérifiez-la puis enregistrez-la.'
         : d.historique ? 'Dessin d\'origine (non personnalisé).' : 'Disposition proposée : ajustez-la puis enregistrez-la.');
       this.fermerPdf();
-      await this.controler(true);
+      this.controler(true);
     } catch (e) {
-      this.erreur.set(messageErreur(e));
+      if (n === this.chargement) {
+        this.info.set('');
+        this.erreur.set(messageErreur(e));
+      }
     }
   }
 
@@ -213,26 +232,30 @@ export class Personnalisation implements OnInit {
     return /^\d{7}$|^\d{13}$/.test(c) ? { cip: c } : {};
   }
 
-  protected controler(immediat = false): Promise<void> {
+  /** Controle de la disposition en cours (apres une courte pause de saisie) ; seule la derniere reponse compte. */
+  protected controler(immediat = false) {
     clearTimeout(this.minuterie);
-    return new Promise((fin) => {
-      this.minuterie = setTimeout(async () => {
-        const n = ++this.numero;
-        try {
-          const r = await this.api.controlerDisposition(this.disposition(), this.exemple());
-          if (n === this.numero) {
-            this.problemes.set(r.controle.problemes);
-            this.valeurs.set(r.valeurs);
-            this.mise.set(r.mise);
-            this.symbole.set(r.symbole);
-            this.contenuLisible.set(r.contenuLisible);
-          }
-        } catch (e) {
-          this.erreur.set(messageErreur(e));
-        }
-        fin();
-      }, immediat ? 0 : 200);
-    });
+    if (immediat) {
+      this.envoyerControle();
+    } else {
+      this.minuterie = setTimeout(() => this.envoyerControle(), 200);
+    }
+  }
+
+  private async envoyerControle() {
+    const n = ++this.numero;
+    try {
+      const r = await this.api.controlerDisposition(this.disposition(), this.exemple());
+      if (n === this.numero) {
+        this.problemes.set(r.controle.problemes);
+        this.valeurs.set(r.valeurs);
+        this.mise.set(r.mise);
+        this.symbole.set(r.symbole);
+        this.contenuLisible.set(r.contenuLisible);
+      }
+    } catch (e) {
+      if (n === this.numero) this.erreur.set(messageErreur(e));
+    }
   }
 
   protected libelleDe(id: string): string {

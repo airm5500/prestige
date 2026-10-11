@@ -18,6 +18,10 @@ import org.springframework.core.env.Environment;
 public class EtiquettageProApplication {
 
     public static void main(String[] args) {
+        if (!Instance.choisirPort()) {
+            /* deja lance sur ce poste : le raccourci ouvre seulement le navigateur */
+            return;
+        }
         BaseEmbarquee.demarrerSiDemande();
         SpringApplication app = new SpringApplication(EtiquettageProApplication.class);
         app.addListeners((ApplicationReadyEvent e) -> ouvrirNavigateur(e.getApplicationContext()));
@@ -29,7 +33,10 @@ public class EtiquettageProApplication {
         if (!env.getProperty("etiquettage.ouvrir-navigateur", Boolean.class, false)) {
             return;
         }
-        String url = "http://127.0.0.1:" + env.getProperty("local.server.port", "8095") + "/";
+        ouvrir("http://127.0.0.1:" + env.getProperty("local.server.port", "8095") + "/");
+    }
+
+    static void ouvrir(String url) {
         try {
             if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
                 Desktop.getDesktop().browse(URI.create(url));

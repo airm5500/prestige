@@ -49,12 +49,12 @@ export const PLANCHE: { nom: string; libelle: string; aide: string; perso?: bool
           <fieldset>
             <legend>Type de code</legend>
             @for (c of codes; track c[0]) {
-              <label class="choix" [class.coche]="code() === c[0]"><input type="radio" name="code" [value]="c[0]" [ngModel]="code()" (ngModelChange)="code.set($event); actualiser()"> {{ c[1] }}</label>
+              <label class="choix" [class.coche]="code() === c[0]"><input type="radio" name="code" [value]="c[0]" [ngModel]="code()" (ngModelChange)="choisi_ = true; code.set($event); actualiser()"> {{ c[1] }}</label>
             }
           </fieldset>
           <div class="champ">
             <label for="planche">Format de planche</label>
-            <select id="planche" [ngModel]="modele()" (ngModelChange)="modele.set($event); actualiser()">
+            <select id="planche" [ngModel]="modele()" (ngModelChange)="choisi_ = true; modele.set($event); actualiser()">
               @for (m of modeles; track m[0]) { <option [value]="m[0]">{{ m[1] }}</option> }
             </select>
           </div>
@@ -192,6 +192,8 @@ export class Impression implements OnInit {
   protected reg: { officine: string; monnaie: string; code: string; modele: string; planche: Planche } =
     { officine: '', monnaie: 'CFA', code: 'CODE128', modele: 'CARRE_38X21_2', planche: {} };
   private minuterie: ReturnType<typeof setTimeout> | undefined;
+  /** vrai des que l'utilisateur a choisi un type de code ou une planche */
+  protected choisi_ = false;
 
   protected readonly colonnesPlanche = computed(() => {
     const r = this.resume();
@@ -224,8 +226,11 @@ export class Impression implements OnInit {
     try {
       const r = await this.api.reglages();
       this.prendreReglages(r);
-      this.code.set(r.code);
-      this.modele.set(r.modele);
+      if (!this.choisi_) {
+        /* reglages par defaut, sauf si l'utilisateur a deja choisi */
+        this.code.set(r.code);
+        this.modele.set(r.modele);
+      }
       const premiers = this.selection.cips().slice(0, 65);
       const p = await Promise.all(premiers.map((c) => this.api.produit(c).catch(() => null)));
       this.produits.set(p.filter((x): x is Produit => !!x));

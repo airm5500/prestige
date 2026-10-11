@@ -216,6 +216,7 @@ export class Api {
   moi() { return this.get<Utilisateur>('/api/moi'); }
   connexion(login: string, motDePasse: string) { return this.post<Utilisateur>('/api/connexion', { login, motDePasse }); }
   deconnexion() { return this.post<unknown>('/api/deconnexion', {}); }
+  arreter() { return this.post<{ message: string }>('/api/arret', {}); }
   motDePasse(actuel: string, nouveau: string) { return this.post<unknown>('/api/mot-de-passe', { actuel, nouveau }); }
 
   champs() { return this.get<Champ[]>('/api/champs'); }

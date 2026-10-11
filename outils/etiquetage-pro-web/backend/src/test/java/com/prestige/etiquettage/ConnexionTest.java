@@ -91,6 +91,28 @@ class ConnexionTest extends BaseDeTest {
         mvc.perform(get("/api/etat")).andExpect(jsonPath("$.premierLancement").value(false));
     }
 
+    @Autowired
+    com.prestige.etiquettage.securite.CompteParDefaut compteParDefaut;
+
+    @Test
+    void motDePasseOublieParFichier() throws Exception {
+        java.nio.file.Path dossier = java.nio.file.Paths.get("target", "donnees-essai").toAbsolutePath();
+        java.nio.file.Files.createDirectories(dossier);
+        MockHttpSession s = connecter("admin", "admin", 200);
+        mvc.perform(post("/api/mot-de-passe").session(s).with(csrf()).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"actuel\":\"admin\",\"nouveau\":\"oublie123\"}")).andExpect(status().isOk());
+        jdbc.update("UPDATE utilisateur SET actif = 0 WHERE login = 'admin'");
+        connecter("admin", "oublie123", 401);
+        org.junit.jupiter.api.Assertions.assertFalse(compteParDefaut.reinitialiserSiDemande(dossier), "sans fichier : rien");
+        java.nio.file.Path f = dossier.resolve(com.prestige.etiquettage.securite.CompteParDefaut.REINITIALISER);
+        java.nio.file.Files.writeString(f, "");
+        org.junit.jupiter.api.Assertions.assertTrue(compteParDefaut.reinitialiserSiDemande(dossier));
+        org.junit.jupiter.api.Assertions.assertFalse(java.nio.file.Files.exists(f), "fichier retire");
+        MockHttpSession s2 = connecter("admin", "admin", 200);
+        mvc.perform(get("/api/moi").session(s2)).andExpect(jsonPath("$.motDePasseParDefaut").value(true));
+        java.nio.file.Files.deleteIfExists(dossier);
+    }
+
     @Test
     void deconnexion() throws Exception {
         MockHttpSession s = connecter("admin", "admin", 200);

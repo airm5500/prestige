@@ -27,9 +27,26 @@ import { Session } from './session';
         @if (erreur()) { <div class="bandeau erreur" role="alert">{{ erreur() }}</div> }
         <div class="rangee"><button type="submit" class="bouton prim" [disabled]="enCours()">Enregistrer le mot de passe</button></div>
       </form>
+      <section class="carte formulaire">
+        <h2>Arrêter Étiquettage Pro</h2>
+        <p class="petit doux">Ferme l'application et sa base (par exemple avant une mise à jour). Pour la relancer : raccourci « Étiquettage Pro ».</p>
+        @if (arrete()) {
+          <div class="bandeau ok" role="status">{{ arrete() }} Vous pouvez fermer cet onglet.</div>
+        } @else if (confirmerArret()) {
+          <div class="bandeau alerte" role="alert">
+            <span>Arrêter l'application maintenant ?</span>
+            <span class="actions">
+              <button type="button" class="bouton danger plein-danger" (click)="arreter()">Oui, arrêter</button>
+              <button type="button" class="bouton" (click)="confirmerArret.set(false)">Non</button>
+            </span>
+          </div>
+        } @else {
+          <div class="rangee"><button type="button" class="bouton danger" (click)="confirmerArret.set(true)">Arrêter l'application…</button></div>
+        }
+      </section>
     </main>
   `,
-  styles: `.formulaire { max-width: 480px; }`,
+  styles: `.formulaire { max-width: 560px; } p { margin: 0; }`,
 })
 export class Compte {
   private readonly api = inject(Api);
@@ -39,6 +56,17 @@ export class Compte {
   protected confirme = '';
   protected readonly erreur = signal('');
   protected readonly enCours = signal(false);
+  protected readonly confirmerArret = signal(false);
+  protected readonly arrete = signal('');
+
+  async arreter() {
+    try {
+      this.arrete.set((await this.api.arreter()).message);
+      this.session.utilisateur.set(null);
+    } catch (e) {
+      this.erreur.set(messageErreur(e));
+    }
+  }
 
   async changer() {
     this.erreur.set('');

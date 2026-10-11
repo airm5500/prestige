@@ -59,8 +59,14 @@
         <!-- MariaDB embarque : binaires de MariaDB pour Windows et Linux, lances par l'application elle-meme -->
         <dependency>
             <groupId>ch.vorburger.mariaDB4j</groupId>
-            <artifactId>mariaDB4j</artifactId>
+            <artifactId>mariaDB4j-core</artifactId>
             <version>${mariadb4j.version}</version>
+        </dependency>
+        <!-- MariaDB 10.11 pour Windows (poste de la pharmacie) ; Linux : profil binaires-linux (developpement) -->
+        <dependency>
+            <groupId>ch.vorburger.mariaDB4j</groupId>
+            <artifactId>mariaDB4j-db-winx64</artifactId>
+            <version>10.11.5-fix1</version>
         </dependency>
 
         <!-- bibliotheques du moteur d'etiquettes (memes versions que Prestige) -->
@@ -110,6 +116,26 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
+
+    <profiles>
+        <!-- binaires MariaDB pour Linux (141 Mo) : seulement pour construire et tester sous Linux, jamais dans
+             l'installateur Windows (construit sous Windows : profil inactif) -->
+        <profile>
+            <id>binaires-linux</id>
+            <activation>
+                <os>
+                    <family>unix</family>
+                </os>
+            </activation>
+            <dependencies>
+                <dependency>
+                    <groupId>ch.vorburger.mariaDB4j</groupId>
+                    <artifactId>mariaDB4j-db-linux64</artifactId>
+                    <version>10.11.5</version>
+                </dependency>
+            </dependencies>
+        </profile>
+    </profiles>
 
     <build>
         <finalName>etiquettage-pro</finalName>
