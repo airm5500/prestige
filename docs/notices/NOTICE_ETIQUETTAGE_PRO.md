@@ -173,7 +173,15 @@ L'aperçu avant impression des étiquettes de Prestige, comme l'étape 4 de l'as
 - **Page de test** et **Générer le PDF** (moteur de Prestige, avec les réglages de l'écran) ; le panier est soldé après l'impression, comme avant ;
 - **Enregistrer comme réglages par défaut** : les réglages de l'écran deviennent ceux de toutes les impressions d'étiquettes de Prestige (administrateur seulement).
 
-Les impressions depuis la gestion des étiquettes et les bons de livraison fonctionnent toujours comme avant.
+### Les anciens boutons d'impression passent par l'aperçu
+
+Étiquetage massif (*Imprimer*), ligne de la gestion des étiquettes, réédition des étiquettes d'une entrée en stock
+(états de contrôle) et « imprimer aussi les étiquettes » à la validation d'un bon de livraison : **si Étiquettage Pro a
+des étiquettes à imprimer pour cette demande**, l'aperçu *Impression Prestige* s'ouvre avec les choix faits sur l'ancien
+écran (panier, ligne ou bon, position de départ, code, planche) et l'impression se lance depuis l'aperçu.
+
+**Sinon** (rien à imprimer, droit Étiquettage Pro absent, serveur indisponible), l'ancienne impression part
+directement, exactement comme avant : aucun processus existant n'est bloqué.
 
 ## Lire une étiquette (onglet en haut à droite)
 
