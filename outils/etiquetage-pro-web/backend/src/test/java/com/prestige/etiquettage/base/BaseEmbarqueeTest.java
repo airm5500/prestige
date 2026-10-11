@@ -78,6 +78,9 @@ class BaseEmbarqueeTest {
             b.arreter();
         }
 
+        /* base installee : le lancement suivant ne la reinstalle pas (Windows refusait un dossier non vide) */
+        assertTrue(MariaDbLocale.installee(DOSSIER.resolve("base").toString()));
+
         /* second lancement : meme acces, donnees gardees, toujours protegee */
         BaseEmbarquee b2 = new BaseEmbarquee(DOSSIER);
         BaseEmbarquee.Acces a2 = b2.demarrer();

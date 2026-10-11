@@ -130,7 +130,7 @@ public final class BaseEmbarquee {
             /* poste de developpement Linux lance en root : MariaDB refuse sinon (sans objet sous Windows) */
             c.addArg("--user=root");
         }
-        db = DB.newEmbeddedDB(c.build());
+        db = MariaDbLocale.ouvrir(c.build());
         db.start();
         return port;
     }
