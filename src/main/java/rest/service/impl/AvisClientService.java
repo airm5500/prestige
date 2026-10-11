@@ -1,6 +1,7 @@
 package rest.service.impl;
 
 import avisclients.Analyse;
+import avisclients.AvisRefus;
 import avisclients.Avis;
 import avisclients.Limiteur;
 import avisclients.Saisie;
@@ -132,22 +133,22 @@ public class AvisClientService {
     public void enregistrerReglages(JSONObject r) {
         String ip = StringUtils.trimToEmpty(r.optString("adresse"));
         if (!ip.isEmpty() && !ip.matches("(\\d{1,3}\\.){3}\\d{1,3}|[A-Za-z0-9]([A-Za-z0-9-]{0,62}\\.)+[A-Za-z]{2,}")) {
-            throw new IllegalArgumentException("Adresse publique invalide (ex. : 41.207.10.20).");
+            throw new AvisRefus("Adresse publique invalide (ex. : 41.207.10.20).");
         }
         if (ip.matches("(\\d{1,3}\\.){3}\\d{1,3}")) {
             for (String o : ip.split("\\.")) {
                 if (Integer.parseInt(o) > 255) {
-                    throw new IllegalArgumentException("Adresse publique invalide (ex. : 41.207.10.20).");
+                    throw new AvisRefus("Adresse publique invalide (ex. : 41.207.10.20).");
                 }
             }
         }
         int port = r.optInt("port", 0);
         if (port < 1 || port > 65535) {
-            throw new IllegalArgumentException("Port public invalide (1 à 65535).");
+            throw new AvisRefus("Port public invalide (1 à 65535).");
         }
         int max = r.optInt("maxHeure", 0);
         if (max < 1 || max > 50) {
-            throw new IllegalArgumentException("Avis par heure et par appareil : de 1 à 50.");
+            throw new AvisRefus("Avis par heure et par appareil : de 1 à 50.");
         }
         ecrire(ADRESSE, ip);
         ecrire(PORT, String.valueOf(port));
@@ -393,7 +394,7 @@ public class AvisClientService {
     /** Statut (NOUVEAU, LU, TRAITE) et note interne. */
     public void traiter(String id, String statut, String noteInterne) {
         if (!"NOUVEAU".equals(statut) && !"LU".equals(statut) && !"TRAITE".equals(statut)) {
-            throw new IllegalArgumentException("Statut inconnu.");
+            throw new AvisRefus("Statut inconnu.");
         }
         int n = em
                 .createNativeQuery("UPDATE t_avis_client SET statut = ?1, note_interne = ?2,"
@@ -401,7 +402,7 @@ public class AvisClientService {
                 .setParameter(1, statut).setParameter(2, Texte.libre(noteInterne, 1500)).setParameter(3, id)
                 .executeUpdate();
         if (n == 0) {
-            throw new IllegalArgumentException("Avis introuvable.");
+            throw new AvisRefus("Avis introuvable.");
         }
     }
 
@@ -412,28 +413,28 @@ public class AvisClientService {
     public JSONObject repondre(String id, String canal, String texte, String auteur) {
         JSONObject a = detail(id, false);
         if (a == null) {
-            throw new IllegalArgumentException("Avis introuvable.");
+            throw new AvisRefus("Avis introuvable.");
         }
         String t = Texte.libre(texte, 1000);
         if (t == null) {
-            throw new IllegalArgumentException("Écrivez la réponse.");
+            throw new AvisRefus("Écrivez la réponse.");
         }
         if (!a.getBoolean("rappel")) {
-            throw new IllegalArgumentException("Le client n'a pas accepté d'être recontacté.");
+            throw new AvisRefus("Le client n'a pas accepté d'être recontacté.");
         }
         JSONObject r;
         if ("WHATSAPP".equals(canal)) {
             if (a.getString("telephone").isEmpty()) {
-                throw new IllegalArgumentException("Le client n'a pas laissé de numéro.");
+                throw new AvisRefus("Le client n'a pas laissé de numéro.");
             }
             r = whatsAppService.envoyerTexte(a.getString("telephone"), t);
         } else if ("EMAIL".equals(canal)) {
             if (a.getString("email").isEmpty()) {
-                throw new IllegalArgumentException("Le client n'a pas laissé d'e-mail.");
+                throw new AvisRefus("Le client n'a pas laissé d'e-mail.");
             }
             r = envoyerEmail(a.getString("email"), "Votre avis — " + pharmacie()[0], t);
         } else {
-            throw new IllegalArgumentException("Canal inconnu.");
+            throw new AvisRefus("Canal inconnu.");
         }
         if (!r.optBoolean("success")) {
             em.createNativeQuery("UPDATE t_avis_client SET statut_reponse = 'ECHEC', canal_reponse = ?1,"

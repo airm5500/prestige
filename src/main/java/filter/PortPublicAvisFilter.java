@@ -52,8 +52,9 @@ public class PortPublicAvisFilter implements Filter {
         int port = service == null ? -1 : service.portPublic();
         if (port > 0 && r.getLocalPort() == port) {
             String m = r.getMethod();
+            /* l'envoi en POST seulement, tout le reste en lecture seulement */
             boolean ouvert = OUVERTS.contains(c)
-                    && ("GET".equals(m) || "HEAD".equals(m) || "POST".equals(m) && c.endsWith("/envoyer"));
+                    && (c.endsWith("/envoyer") ? "POST".equals(m) : "GET".equals(m) || "HEAD".equals(m));
             if (!ouvert) {
                 /* 404 sans page d'erreur du serveur : rien a apprendre sur ce qui tourne derriere */
                 s.setStatus(HttpServletResponse.SC_NOT_FOUND);

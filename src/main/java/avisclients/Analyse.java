@@ -385,15 +385,14 @@ public final class Analyse {
                 ref = k;
             }
             groupes.computeIfAbsent(ref, x -> new ArrayList<>()).add(a);
-            variantes.computeIfAbsent(ref, x -> new HashMap<>()).merge(a.employe.trim(), 1, Integer::sum);
+            variantes.computeIfAbsent(ref, x -> new LinkedHashMap<>()).merge(a.employe.trim(), 1, Integer::sum);
         });
         LocalDateTime limite30 = LocalDateTime.now().minusDays(30);
         List<JSONObject> l = new ArrayList<>();
         groupes.forEach((ref, la) -> {
             Map<String, Integer> v = variantes.get(ref);
-            String libelle = v.entrySet().stream()
-                    .max(Map.Entry.<String, Integer> comparingByValue().thenComparing(e -> -e.getKey().length()))
-                    .map(Map.Entry::getKey).orElse(ref);
+            /* l'ecriture la plus frequente ; a egalite, la premiere rencontree */
+            String libelle = v.entrySet().stream().max(Map.Entry.comparingByValue()).map(Map.Entry::getKey).orElse(ref);
             JSONObject criteresNeg = new JSONObject();
             LIBELLES_CRITERES.forEach((c, lib) -> {
                 long n = la.stream().filter(x -> "MOINS".equals(x.criteres.get(c))).count();

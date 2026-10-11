@@ -61,37 +61,37 @@ public final class AvisPdf {
         d.open();
         PdfContentByte cb = w.getDirectContentUnder();
         cb.setColorFill(VERT);
-        cb.rectangle(0, page.getHeight() - 150 * k, page.getWidth(), 150 * k);
+        cb.rectangle(0, page.getHeight() - 118 * k, page.getWidth(), 118 * k);
         cb.fill();
         Paragraph nom = new Paragraph(pharmacie.toUpperCase(java.util.Locale.FRANCE),
                 police(26 * k, Font.BOLD, BaseColor.WHITE));
         nom.setAlignment(Element.ALIGN_CENTER);
-        nom.setSpacingBefore(48 * k);
+        nom.setSpacingBefore(40 * k);
         d.add(nom);
         Paragraph ad = new Paragraph(adresse, police(13 * k, Font.NORMAL, BaseColor.WHITE));
         ad.setAlignment(Element.ALIGN_CENTER);
         d.add(ad);
         Paragraph titre = new Paragraph("Votre avis nous intéresse", police(34 * k, Font.BOLD, VERT));
         titre.setAlignment(Element.ALIGN_CENTER);
-        titre.setSpacingBefore(70 * k);
+        titre.setSpacingBefore(56 * k);
         d.add(titre);
+        /* cinq etoiles sous le titre (Helvetica n'a pas le caractere : dessinees), a la position reelle du texte */
+        float y = w.getVerticalPosition(true) - 24 * k;
+        PdfContentByte dessus = w.getDirectContent();
+        dessus.setColorFill(OR);
+        for (int i = 0; i < 5; i++) {
+            etoile(dessus, page.getWidth() / 2 + (i - 2) * 34 * k, y, 13 * k);
+        }
         Paragraph sous = new Paragraph("Scannez ce code avec l'appareil photo de votre téléphone",
                 police(15 * k, Font.NORMAL, GRIS));
         sous.setAlignment(Element.ALIGN_CENTER);
-        sous.setSpacingBefore(46 * k);
+        sous.setSpacingBefore(58 * k);
         d.add(sous);
-        float cote = 250 * k;
+        float cote = 290 * k;
         Image code = qr(lien, cote);
         code.setAlignment(Element.ALIGN_CENTER);
         code.setSpacingBefore(14 * k);
         d.add(code);
-        /* cinq etoiles sous le titre (Helvetica n'a pas le caractere : dessinees) */
-        float y = page.getHeight() - 150 * k - 132 * k;
-        PdfContentByte dessus = w.getDirectContent();
-        dessus.setColorFill(OR);
-        for (int i = 0; i < 5; i++) {
-            etoile(dessus, page.getWidth() / 2 + (i - 2) * 30 * k, y, 11 * k);
-        }
         Paragraph points = new Paragraph("1 minute  ·  anonyme si vous le souhaitez  ·  lu par la direction",
                 police(13 * k, Font.BOLD, VERT));
         points.setAlignment(Element.ALIGN_CENTER);

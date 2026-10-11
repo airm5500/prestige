@@ -687,6 +687,7 @@ Ext.application({
         'testextjs.view.configmanagement.client.rappels.RappelsTraitement',
         'testextjs.view.notification.WhatsAppComptes',
         'testextjs.view.rh.RhManager',
+        'testextjs.view.avisclients.AvisClients',
         'testextjs.view.commandemanagement.analyse.AnalyseCommande',
         'testextjs.view.configmanagement.famille.action.add2',
         'testextjs.view.stockmanagement.suivistockvente.action.detailAjustement',

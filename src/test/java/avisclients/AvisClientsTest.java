@@ -128,6 +128,7 @@ class AvisClientsTest {
         assertEquals(3, awa.getInt("negatifs"));
         assertEquals(1.3, awa.getDouble("moyenne"));
         assertEquals("Awa TRAORE (atraore)", awa.getString("correspondance"));
+        assertEquals("Mme Awa", awa.getString("employe"), "ecriture la plus frequente, la premiere a egalite");
         assertEquals(2, awa.getJSONObject("criteresNegatifs").getInt("Accueil"));
         assertEquals("Ibrahim KONE (ikone)", e.getJSONObject(1).getString("correspondance"));
         assertFalse(Analyse.memePersonne("ali", "alia"));
