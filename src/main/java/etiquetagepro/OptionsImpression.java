@@ -20,6 +20,9 @@ public final class OptionsImpression {
     private String officine = "";
     private String monnaie = "CFA";
     private String dateParDefaut = "";
+    /** Retours du 11/10 : type d'etiquette de chaque produit (CIP -> code), prioritaire sur le type choisi. */
+    private Map<String, String> codesParCip = new HashMap<>();
+    private boolean parProduit;
 
     public OptionsImpression typeCode(String t) {
         /* Etiquettage Pro : les 3 codes habituels et les codes etendus QR+ / DataMatrix+ (hors vente) */
@@ -29,6 +32,26 @@ public final class OptionsImpression {
 
     public String getTypeCode() {
         return typeCode;
+    }
+
+    /**
+     * Imprimer selon le type d'etiquette de chaque produit : un CIP present dans {@code codes} prend son code, les
+     * autres le type choisi.
+     */
+    public OptionsImpression parProduit(boolean p, Map<String, String> codes) {
+        this.parProduit = p;
+        this.codesParCip = codes == null ? new HashMap<>() : new HashMap<>(codes);
+        return this;
+    }
+
+    public boolean isParProduit() {
+        return parProduit;
+    }
+
+    /** Code d'etiquette pour ce CIP : le type du produit si l'impression suit les produits, sinon le type choisi. */
+    public String typeCodePour(String cip) {
+        String c = parProduit && cip != null ? codesParCip.get(cip.trim()) : null;
+        return c == null ? typeCode : LabelSheetPdf.typeCodeEtendu(c);
     }
 
     public OptionsImpression modele(String m) {

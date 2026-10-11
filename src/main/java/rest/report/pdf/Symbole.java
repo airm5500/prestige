@@ -41,7 +41,8 @@ public final class Symbole {
                 boolean[][] b = new boolean[n][n];
                 for (int y = 0; y < n; y++) {
                     for (int x = 0; x < n; x++) {
-                        b[y][x] = m.get(x + q, y + q) == 1;
+                        /* matrice d'iText : 0 = noir, -1 (255) = blanc */
+                        b[y][x] = m.get(x + q, y + q) == 0;
                     }
                 }
                 return new Symbole(b, q, false);

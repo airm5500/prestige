@@ -65,15 +65,40 @@ public class Etiquete extends HttpServlet {
 
     /** Parametre : code des etiquettes par defaut (CODE128, QR ou DATAMATRIX). */
     static final String KEY_CODE = "KEY_ETIQUETTE_CODE";
+    /** Retours du 11/10 : 1 = chaque produit selon son type d'etiquette (defaut), 0 = le code choisi pour tous. */
+    static final String KEY_PAR_PRODUIT = "KEY_ETIQUETTE_CODE_PAR_PRODUIT";
     private static final ThreadLocal<String> codeDemande = new ThreadLocal<>();
+    /** Reglages de l'apercu avant impression (onglet d'Etiquettage Pro) : priorite sur la configuration. */
+    private static final ThreadLocal<HttpServletRequest> demande = new ThreadLocal<>();
+    static final String[] REGLAGES = { LabelSheetPdf.KEY_NB_COLONNES, LabelSheetPdf.KEY_NB_LIGNES,
+            LabelSheetPdf.KEY_LARGEUR_MM, LabelSheetPdf.KEY_HAUTEUR_MM, LabelSheetPdf.KEY_ESPACE_H_MM,
+            LabelSheetPdf.KEY_ESPACE_V_MM, LabelSheetPdf.KEY_MARGE_GAUCHE_MM, LabelSheetPdf.KEY_MARGE_HAUT_MM,
+            LabelSheetPdf.KEY_DECALAGE_X_MM, LabelSheetPdf.KEY_DECALAGE_Y_MM, LabelSheetPdf.KEY_ECHELLE_POURCENT };
+    @EJB
+    private rest.service.impl.EtiquetteTypeService typeService;
+
+    /** Valeur d'un reglage : celle envoyee par l'apercu si elle est donnee, sinon la configuration. */
+    private String reglage(String cle) {
+        HttpServletRequest r = demande.get();
+        if (r != null) {
+            for (String k : REGLAGES) {
+                if (k.equals(cle) && StringUtils.isNotBlank(r.getParameter(k))) {
+                    return r.getParameter(k).trim();
+                }
+            }
+        }
+        return reportUtil.findParameterValue(cle);
+    }
 
     protected void processRequest(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, Exception {
         codeDemande.set(request.getParameter("code"));
+        demande.set(request);
         try {
             traiter(request, response);
         } finally {
             codeDemande.remove();
+            demande.remove();
         }
     }
 
@@ -83,7 +108,7 @@ public class Etiquete extends HttpServlet {
         if (StringUtils.isBlank(modele)) {
             modele = reportUtil.findParameterValue(LabelSheetPdf.KEY_MODELE);
         }
-        LabelSheetPdf.SheetFormat format = LabelSheetPdf.formatFor(modele, reportUtil::findParameterValue);
+        LabelSheetPdf.SheetFormat format = LabelSheetPdf.formatFor(modele, this::reglage);
 
         // page de test de calibrage : contours des etiquettes, sans donnees (toujours nouveau moteur)
         if ("1".equals(request.getParameter("test")) || "true".equalsIgnoreCase(request.getParameter("test"))) {
@@ -158,18 +183,67 @@ public class Etiquete extends HttpServlet {
          */
         String type = LabelSheetPdf.typeCode(StringUtils.isNotBlank(codeDemande.get()) ? codeDemande.get()
                 : reportUtil.findParameterValue(KEY_CODE));
-        if (!LabelSheetPdf.CODE_BARRES.equals(type)) {
-            etiquetteEditionService.completerGs1(labels, type);
+        HttpServletRequest r = demande.get();
+        /* date d'edition choisie dans l'apercu (sinon la date du jour) */
+        if (r != null && r.getParameter("date") != null) {
+            for (LabelSheetPdf.LabelData l : labels) {
+                l.dateEdition(r.getParameter("date"));
+            }
+        }
+        /*
+         * retours du 11/10 : selon le type d'etiquette de chaque produit (parametre KEY_ETIQUETTE_CODE_PAR_PRODUIT, 1
+         * par defaut, ou choix de l'apercu) ; un produit sans type a code (anciens types) garde le code ci-dessus, donc
+         * exactement l'impression d'avant
+         */
+        String demandeParProduit = r == null ? null : r.getParameter("parProduit");
+        boolean parProduit = demandeParProduit != null ? "1".equals(demandeParProduit)
+                : !"0".equals(StringUtils.trimToEmpty(reportUtil.findParameterValue(KEY_PAR_PRODUIT)));
+        java.util.Map<String, String> codes = new java.util.HashMap<>();
+        if (parProduit) {
+            List<String> familles = new ArrayList<>();
+            for (LabelSheetPdf.LabelData l : labels) {
+                familles.add(l.getFamilleId());
+            }
+            codes = typeService.codesDesProduits(familles);
+        }
+        java.util.Map<String, List<LabelSheetPdf.LabelData>> parType = new java.util.LinkedHashMap<>();
+        for (LabelSheetPdf.LabelData l : labels) {
+            String t = codes.getOrDefault(StringUtils.defaultString(l.getFamilleId()), type);
+            parType.computeIfAbsent(t, k -> new ArrayList<>()).add(l);
+        }
+        float[] dim = LabelSheetPdf.dimension(format);
+        for (java.util.Map.Entry<String, List<LabelSheetPdf.LabelData>> e : parType.entrySet()) {
+            if (!LabelSheetPdf.CODE_BARRES.equals(e.getKey())) {
+                etiquetteEditionService.completerGs1(e.getValue(), e.getKey());
+            }
+            if (LabelSheetPdf.QR_PLUS.equals(e.getKey()) || LabelSheetPdf.DATAMATRIX_PLUS.equals(e.getKey())) {
+                /* code etendu : refuse sur un format ou il ne serait pas lisible */
+                etiquetagepro.disposition.Disposition d = etiquetteEditionService.dispositionEnregistree(e.getKey(),
+                        dim[0], dim[1]);
+                try {
+                    etiquetagepro.MoteurEtiquettes.controlerLisible(d != null ? d
+                            : etiquetagepro.disposition.Disposition.parDefaut(e.getKey(), dim[0], dim[1]));
+                } catch (IllegalArgumentException illisible) {
+                    response.setContentType("text/html; charset=UTF-8");
+                    response.getOutputStream()
+                            .write(("<!doctype html><html><head><meta charset=\"utf-8\"><title>Étiquettes"
+                                    + "</title></head><body style=\"font-family:sans-serif;padding:24px\"><h3>Étiquettes</h3><p>"
+                                    + StringUtils.defaultString(illisible.getMessage()).replace("&", "&amp;")
+                                            .replace("<", "&lt;")
+                                    + "</p></body></html>").getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                    return;
+                }
+            }
         }
         response.setContentType("application/pdf");
         response.setHeader("Content-Disposition", contentDisposition() + "; filename=\"etiquettes.pdf\"");
         /*
-         * personnalisation : une disposition enregistree s'applique aux etiquettes QR et DataMatrix ; le code-barres
-         * classique garde son dessin
+         * personnalisation : une disposition enregistree s'applique aux etiquettes QR et DataMatrix (et etendues) ; le
+         * code-barres classique garde son dessin
          */
         LabelSheetPdf.write(response.getOutputStream(), labels, startPosition, format,
-                (t, l, h) -> LabelSheetPdf.QR.equals(t) || LabelSheetPdf.DATAMATRIX.equals(t)
-                        ? etiquetteEditionService.dispositionEnregistree(t, l, h) : null);
+                (t, l, h) -> LabelSheetPdf.CODE_BARRES.equals(t) ? null
+                        : etiquetteEditionService.dispositionEnregistree(t, l, h));
     }
 
     /**
@@ -198,11 +272,11 @@ public class Etiquete extends HttpServlet {
                 String prix = conversion.AmountFormat(famille.getIntPRICE(), ' ') + " CFA";
                 for (int i = 0; i < quantite; i++) {
                     labels.add(new LabelSheetPdf.LabelData(nomOfficine, grossiste, famille.getStrDESCRIPTION(),
-                            famille.getIntCIP(), prix, dateToday).source(famille.getLgFAMILLEID(),
-                                    EtiquetteEditionService.ean(famille),
-                                    EtiquetteEditionService.jour(famille.getDtPEREMPTION()),
-                                    bonItem.getLgBONLIVRAISONID() == null ? null
-                                            : bonItem.getLgBONLIVRAISONID().getStrREFLIVRAISON()));
+                            famille.getIntCIP(), prix, dateToday).codeGeo(EtiquetteEditionService.codeGeo(famille))
+                                    .source(famille.getLgFAMILLEID(), EtiquetteEditionService.ean(famille),
+                                            EtiquetteEditionService.jour(famille.getDtPEREMPTION()),
+                                            bonItem.getLgBONLIVRAISONID() == null ? null
+                                                    : bonItem.getLgBONLIVRAISONID().getStrREFLIVRAISON()));
                 }
             }
         } catch (Exception e) {

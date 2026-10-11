@@ -62,12 +62,14 @@ public final class MoteurEtiquettes {
                     + " au plus) : imprimez en plusieurs fois.");
         }
         List<LabelSheetPdf.LabelData> resultat = new ArrayList<>();
-        boolean deuxD = !LabelSheetPdf.CODE_BARRES.equals(o.getTypeCode());
         for (LigneEtiquette l : lignes) {
             if (!l.imprimable()) {
                 continue;
             }
             String cip = l.valeur(Zone.CIP);
+            /* retours du 11/10 : le type d'etiquette du produit, s'il en a un et que l'impression suit les produits */
+            String type = o.typeCodePour(cip);
+            boolean deuxD = !LabelSheetPdf.CODE_BARRES.equals(type);
             String date = l.valeur(Zone.DATE).isEmpty() ? o.getDateParDefaut() : l.valeur(Zone.DATE);
             String prix = prixAffiche(l.getPrix(), o.getMonnaie());
             String brute = deuxD ? Gs1.brute(l.valeur(Zone.EAN), l.getPeremption(), l.valeur(Zone.LOT), cip) : null;
@@ -78,7 +80,7 @@ public final class MoteurEtiquettes {
                         l.valeur(Zone.DESIGNATION), cip, prix, date).mention(l.valeur(Zone.MENTION))
                                 .codeGeo(l.valeur(Zone.CODE_GEO));
                 if (deuxD && brute != null && !brute.isEmpty()) {
-                    d.codeEtendu(o.getTypeCode(), brute, lot, per);
+                    d.codeEtendu(type, brute, lot, per);
                     d.codeUnique(registre == null ? null : registre.attribuer(cip));
                 }
                 resultat.add(d);
@@ -101,7 +103,24 @@ public final class MoteurEtiquettes {
             RegistreCodes registre, UnaryOperator<String> configuration, LabelSheetPdf.SourceDisposition dispositions)
             throws Exception {
         LabelSheetPdf.SheetFormat format = o.planche(configuration);
-        etiquetagepro.disposition.Disposition d = dispositionEffective(o.getTypeCode(), format, dispositions);
+        java.util.Set<String> types = new java.util.LinkedHashSet<>();
+        for (LigneEtiquette l : lignes) {
+            if (l.imprimable()) {
+                types.add(o.typeCodePour(l.valeur(Zone.CIP)));
+            }
+        }
+        for (String t : types) {
+            controlerLisible(dispositionEffective(t, format, dispositions));
+        }
+        List<LabelSheetPdf.LabelData> e = etiquettes(lignes, o, registre);
+        if (e.isEmpty()) {
+            throw new IllegalArgumentException("Aucune étiquette à imprimer : corrigez les lignes en erreur.");
+        }
+        LabelSheetPdf.write(sortie, e, o.getPositionDepart(), format, dispositions);
+    }
+
+    /** Refuse une disposition illisible sur son format, avec la raison. */
+    public static void controlerLisible(etiquetagepro.disposition.Disposition d) {
         if (d != null) {
             etiquetagepro.disposition.ControleDisposition.Resultat r = etiquetagepro.disposition.ControleDisposition
                     .controler(d);
@@ -120,11 +139,6 @@ public final class MoteurEtiquettes {
                                 .toString());
             }
         }
-        List<LabelSheetPdf.LabelData> e = etiquettes(lignes, o, registre);
-        if (e.isEmpty()) {
-            throw new IllegalArgumentException("Aucune étiquette à imprimer : corrigez les lignes en erreur.");
-        }
-        LabelSheetPdf.write(sortie, e, o.getPositionDepart(), format, dispositions);
     }
 
     /** Disposition qui servira pour ce type et cette planche (null : dessin historique). */

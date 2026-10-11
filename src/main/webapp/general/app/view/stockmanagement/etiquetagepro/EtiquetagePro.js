@@ -18,7 +18,9 @@
 Ext.define('testextjs.view.stockmanagement.etiquetagepro.EtiquetagePro', {
     extend: 'Ext.panel.Panel',
     requires: ['testextjs.view.stockmanagement.etiquetagepro.Personnalisation',
-        'testextjs.view.stockmanagement.etiquetagepro.LectureEtiquette'],
+        'testextjs.view.stockmanagement.etiquetagepro.LectureEtiquette',
+        'testextjs.view.stockmanagement.etiquetagepro.TypesEtiquette',
+        'testextjs.view.stockmanagement.etiquetagepro.ImpressionPrestige'],
     xtype: 'etiquetagepro',
     title: 'Étiquettage Pro',
     cls: 'etqp-ecran',
@@ -68,6 +70,16 @@ Ext.define('testextjs.view.stockmanagement.etiquetagepro.EtiquetagePro', {
                         handler: function () {
                             me.ouvrirOutil(4);
                         }},
+                    {text: 'Types d\'étiquette', itemId: 'outilTypes', enableToggle: true, toggleGroup: 'etqp-etape-' + me.id,
+                        allowDepress: false, tooltip: 'Types d\'étiquette des produits et mise à jour sélective',
+                        handler: function () {
+                            me.ouvrirOutil(6);
+                        }},
+                    {text: 'Impression Prestige', itemId: 'outilImpression', enableToggle: true, toggleGroup: 'etqp-etape-' + me.id,
+                        allowDepress: false, tooltip: 'Aperçu et réglages des impressions d\'étiquettes de Prestige (panier, bons de livraison)',
+                        handler: function () {
+                            me.ouvrirOutil(7);
+                        }},
                     {text: 'Lire une étiquette', itemId: 'outilLecture', enableToggle: true, toggleGroup: 'etqp-etape-' + me.id,
                         allowDepress: false, tooltip: 'Scanner une étiquette (DataMatrix+, QR+, GS1, CIP) et voir toutes ses informations',
                         handler: function () {
@@ -76,7 +88,9 @@ Ext.define('testextjs.view.stockmanagement.etiquetagepro.EtiquetagePro', {
             {xtype: 'container', itemId: 'cartes', flex: 1, layout: 'card', items: [
                     me.carteSource(), me.carteZones(), me.carteProduits(), me.carteImpression(),
                     {xtype: 'etqpersonnalisation', itemId: 'personnalisation', ecran: me},
-                    {xtype: 'etqlecture', itemId: 'lecture', ecran: me}
+                    {xtype: 'etqlecture', itemId: 'lecture', ecran: me},
+                    {xtype: 'etqtypes', itemId: 'types', ecran: me},
+                    {xtype: 'etqimpression', itemId: 'impressionPrestige', ecran: me}
                 ]},
             {xtype: 'toolbar', itemId: 'navigation', dock: 'bottom', items: [
                     {text: '« Précédent', itemId: 'precedent', disabled: true, handler: function () {
@@ -210,10 +224,11 @@ Ext.define('testextjs.view.stockmanagement.etiquetagepro.EtiquetagePro', {
 
     /** Onglets Personnalisation (4) et Lire une etiquette (5) : hors de l'assistant, ils ne perdent rien de l'assistant. */
     ouvrirOutil: function (i) {
-        var me = this, carte = me.down(i === 4 ? '#personnalisation' : '#lecture');
+        var me = this, outils = {4: ['#personnalisation', '#outilPerso'], 5: ['#lecture', '#outilLecture'], 6: ['#types', '#outilTypes'],
+            7: ['#impressionPrestige', '#outilImpression']}, o = outils[i], carte = me.down(o[0]);
         me.down('#navigation').hide();
         me.down('#cartes').getLayout().setActiveItem(carte);
-        me.down(i === 4 ? '#outilPerso' : '#outilLecture').toggle(true, true);
+        me.down(o[1]).toggle(true, true);
         carte.ouvrir();
     },
 
@@ -850,6 +865,8 @@ Ext.define('testextjs.view.stockmanagement.etiquetagepro.EtiquetagePro', {
                                     itemId: 'codeDATAMATRIX_PLUS'},
                                 {boxLabel: 'QR+ (étendu, hors vente : texte lisible au téléphone)', name: 'code', inputValue: 'QR_PLUS', itemId: 'codeQR_PLUS'}
                             ]},
+                        {xtype: 'checkbox', itemId: 'parProduit', fieldLabel: ' ', labelSeparator: '', checked: true,
+                            boxLabel: 'Selon le type d\'étiquette de chaque produit dans Prestige (sinon le type ci-dessus)'},
                         {xtype: 'combobox', itemId: 'modele', fieldLabel: 'Planche', store: me.modelesStore, valueField: 'id', displayField: 'libelle',
                             queryMode: 'local', editable: false, listeners: {change: function () {
                                     me.majFormat();
@@ -860,8 +877,8 @@ Ext.define('testextjs.view.stockmanagement.etiquetagepro.EtiquetagePro', {
                                 }}},
                         {xtype: 'textfield', itemId: 'officine', fieldLabel: 'Nom de la pharmacie', maxLength: 60},
                         {xtype: 'textfield', itemId: 'monnaie', fieldLabel: 'Monnaie du prix', maxLength: 10},
-                        {xtype: 'textfield', itemId: 'date', fieldLabel: 'Date (code-barres standard)', maxLength: 20,
-                            emptyText: 'vide : pas de date'},
+                        {xtype: 'textfield', itemId: 'date', fieldLabel: 'Date d\'édition', maxLength: 20,
+                            emptyText: 'vide : pas de date imprimée'},
                         {xtype: 'component', itemId: 'resume', margin: '12 0', html: ''},
                         {xtype: 'container', layout: 'hbox', items: [
                                 {xtype: 'button', text: 'Page de test', itemId: 'pageTest', margin: '0 10 0 0', handler: function () {
@@ -915,7 +932,8 @@ Ext.define('testextjs.view.stockmanagement.etiquetagepro.EtiquetagePro', {
                 reglages[x[0]] = String(f.getValue());
             }
         });
-        return {code: me.down('#code').getValue().code || 'CODE128', modele: me.down('#modele').getValue(), position: me.down('#position').getValue() || 1,
+        return {code: me.down('#code').getValue().code || 'CODE128', parProduit: me.down('#parProduit').getValue(),
+            modele: me.down('#modele').getValue(), position: me.down('#position').getValue() || 1,
             officine: me.down('#officine').getValue(), monnaie: me.down('#monnaie').getValue(), date: me.down('#date').getValue(), reglages: reglages};
     },
 

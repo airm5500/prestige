@@ -225,6 +225,77 @@ public class EtiquetteEditionService {
                 StringUtils.defaultIfBlank(f.getLgZONEGEOID().getStrLIBELLEE(), f.getLgZONEGEOID().getStrCODE()));
     }
 
+    /* ------------------------------------------- apercu avant impression */
+
+    /**
+     * Apercu avant impression des etiquettes de Prestige : nombre d'etiquettes par produit pour la source donnee
+     * (PANIER = etiquetage massif en preparation, LIGNE = une ligne de la gestion des etiquettes, BL = un bon de
+     * livraison, quantites recues). Lecture seule.
+     */
+    @SuppressWarnings("unchecked")
+    public java.util.Map<String, Integer> etiquettesParProduit(String source, String id) {
+        java.util.Map<String, Integer> m = new java.util.LinkedHashMap<>();
+        if ("BL".equals(source)) {
+            for (Object[] r : (List<Object[]>) em
+                    .createNativeQuery("SELECT lg_FAMILLE_ID, SUM(IFNULL(int_QTE_RECUE, 0))"
+                            + " FROM t_bon_livraison_detail WHERE lg_BON_LIVRAISON_ID = ?1 AND lg_FAMILLE_ID IS NOT NULL"
+                            + " GROUP BY lg_FAMILLE_ID")
+                    .setParameter(1, StringUtils.defaultString(id)).getResultList()) {
+                int n = ((Number) r[1]).intValue();
+                if (n > 0) {
+                    m.put((String) r[0], n);
+                }
+            }
+            return m;
+        }
+        List<TEtiquette> etiquettes;
+        if ("LIGNE".equals(source)) {
+            TEtiquette e = id == null ? null : em.find(TEtiquette.class, id);
+            etiquettes = e == null ? new ArrayList<>() : Collections.singletonList(e);
+        } else {
+            etiquettes = em.createQuery("SELECT t FROM TEtiquette t WHERE t.strSTATUT = ?1", TEtiquette.class)
+                    .setParameter(1, commonparameter.statut_is_Process).getResultList();
+        }
+        for (TEtiquette e : etiquettes) {
+            if (e.getLgFAMILLEID() != null) {
+                m.merge(e.getLgFAMILLEID().getLgFAMILLEID(), nombreExemplaires(e.getIntNUMBER()), Integer::sum);
+            }
+        }
+        return m;
+    }
+
+    /** Bons de livraison recents (ou cherches par reference), pour l'apercu avant impression. */
+    @SuppressWarnings("unchecked")
+    public org.json.JSONArray bonsPourEtiquettes(String recherche) {
+        org.json.JSONArray a = new org.json.JSONArray();
+        String r = StringUtils.trimToEmpty(recherche);
+        javax.persistence.Query q = em.createNativeQuery("SELECT b.lg_BON_LIVRAISON_ID, b.str_REF_LIVRAISON,"
+                + " DATE_FORMAT(b.dt_DATE_LIVRAISON, '%d/%m/%Y'), IFNULL(g.str_LIBELLE, ''),"
+                + " (SELECT IFNULL(SUM(d.int_QTE_RECUE), 0) FROM t_bon_livraison_detail d WHERE d.lg_BON_LIVRAISON_ID ="
+                + " b.lg_BON_LIVRAISON_ID) FROM t_bon_livraison b LEFT JOIN t_order o ON o.lg_ORDER_ID = b.lg_ORDER_ID"
+                + " LEFT JOIN t_grossiste g ON g.lg_GROSSISTE_ID = o.lg_GROSSISTE_ID WHERE b.str_STATUT <> 'delete'"
+                + (r.isEmpty() ? "" : " AND b.str_REF_LIVRAISON LIKE ?1")
+                + " ORDER BY b.dt_DATE_LIVRAISON DESC, b.dt_CREATED DESC");
+        if (!r.isEmpty()) {
+            q.setParameter(1, r + "%");
+        }
+        for (Object[] x : (List<Object[]>) q.setMaxResults(50).getResultList()) {
+            a.put(new org.json.JSONObject().put("id", x[0]).put("ref", StringUtils.defaultString((String) x[1]))
+                    .put("date", StringUtils.defaultString((String) x[2])).put("grossiste", x[3])
+                    .put("etiquettes", ((Number) x[4]).intValue()));
+        }
+        return a;
+    }
+
+    /** Ecrit un parametre de Prestige (cree s'il manque). */
+    public void ecrireParametre(String cle, String valeur, String description) {
+        em.createNativeQuery("INSERT INTO t_parameters (str_KEY, str_VALUE, str_DESCRIPTION, str_TYPE, str_STATUT,"
+                + " dt_CREATED, dt_UPDATED) VALUES (?1, ?2, ?3, 'CUSTOMER', 'enable', NOW(), NOW())"
+                + " ON DUPLICATE KEY UPDATE str_VALUE = VALUES(str_VALUE), dt_UPDATED = NOW()").setParameter(1, cle)
+                .setParameter(2, StringUtils.defaultString(valeur))
+                .setParameter(3, StringUtils.defaultString(description)).executeUpdate();
+    }
+
     /* ------------------------------------------------- personnalisation */
 
     /** Disposition enregistree pour ce type de code et cette dimension, sinon null (dessin historique). */
@@ -368,7 +439,8 @@ public class EtiquetteEditionService {
             String numLot = lot[0] == null ? null : String.valueOf(lot[0]).trim();
             java.time.LocalDate per = lot[1] instanceof Date ? jour((Date) lot[1]) : l.getPeremptionConnue();
             String brute = Gs1.brute(l.getEan(), per, numLot, l.getCip());
-            l.code2D(type, brute.isEmpty() ? null : brute, numLot, per == null ? null : per.format(jj));
+            /* code2D pour QR / DataMatrix, et les codes etendus quand le type du produit le demande */
+            l.codeEtendu(type, brute.isEmpty() ? null : brute, numLot, per == null ? null : per.format(jj));
             if (!LabelSheetPdf.CODE_BARRES.equals(l.getCode())) {
                 if (longueurCode[0] == 0) {
                     longueurCode[0] = longueurDuRegistre();

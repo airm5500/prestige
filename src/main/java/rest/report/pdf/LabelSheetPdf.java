@@ -61,7 +61,7 @@ public final class LabelSheetPdf {
         private final String designation;
         private final String cip;
         private final String prix;
-        private final String date;
+        private String date;
 
         /** Retours du 10/10 (point 5) : code de l'etiquette (CODE128 = code-barres du CIP, QR ou DATAMATRIX GS1). */
         private String code = CODE_BARRES;
@@ -96,6 +96,14 @@ public final class LabelSheetPdf {
             code2D(type, gs1Brute, lotAffiche, peremptionAffichee);
             if (QR_PLUS.equals(type) || DATAMATRIX_PLUS.equals(type)) {
                 this.code = type;
+            }
+            return this;
+        }
+
+        /** Retours du 11/10 : date d'edition choisie a l'impression (remplace la date du jour). */
+        public LabelData dateEdition(String d) {
+            if (d != null) {
+                this.date = d.trim();
             }
             return this;
         }

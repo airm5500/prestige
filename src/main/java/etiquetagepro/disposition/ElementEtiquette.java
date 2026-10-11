@@ -15,7 +15,7 @@ public enum ElementEtiquette {
     PRIX("Prix", 9f, true, 1, true), GROSSISTE("Grossiste", 6f, false, 1, true),
     CODE_GEO("Code géo (position)", 6f, true, 1, true), LOT("Lot", 5.5f, false, 1, false),
     PEREMPTION("Péremption", 5.5f, false, 1, false), CODE_UNIQUE("Code de l'étiquette", 6.5f, true, 1, true),
-    DATE("Date", 6f, false, 1, false), MENTION("Mention libre", 5.5f, false, 1, false);
+    DATE("Date d'édition", 6f, false, 1, false), MENTION("Mention libre", 5.5f, false, 1, false);
 
     /** Police minimale lisible (pt) : en dessous, la disposition est refusee. */
     public static final float POLICE_MIN = 4.5f;

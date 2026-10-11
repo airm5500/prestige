@@ -436,6 +436,27 @@ public class EtiquetageProRessource {
         return opt;
     }
 
+    @EJB
+    private rest.service.impl.EtiquetteTypeService typeService;
+
+    /**
+     * Retours du 11/10 : « selon le type de chaque produit » (option de l'ecran, cochee par defaut) : un CIP connu de
+     * Prestige dont le type d'etiquette designe un code prend ce code ; les autres gardent le type choisi.
+     */
+    OptionsImpression typesDesProduits(OptionsImpression o, JSONObject d, List<LigneEtiquette> lignes) {
+        JSONObject x = d.optJSONObject("options");
+        if (x == null || !x.optBoolean("parProduit", false)) {
+            return o;
+        }
+        List<String> cips = new ArrayList<>();
+        for (LigneEtiquette l : lignes) {
+            if (l.imprimable()) {
+                cips.add(l.valeur(Zone.CIP));
+            }
+        }
+        return o.parProduit(true, typeService.codesParCip(cips));
+    }
+
     private Response page(String message) {
         String html = "<!doctype html><html><head><meta charset=\"utf-8\"><title>Étiquettage Pro</title></head>"
                 + "<body style=\"font-family:sans-serif;padding:24px\"><h3>Étiquettage Pro</h3><p>" + echapper(message)
@@ -463,7 +484,8 @@ public class EtiquetageProRessource {
         }
         try {
             JSONObject d = new JSONObject(StringUtils.defaultIfBlank(donnees, "{}"));
-            byte[] pdf = service.etiquetagePro(lignes(d), options(d), reportUtil::findParameterValue);
+            List<LigneEtiquette> l = lignes(d);
+            byte[] pdf = service.etiquetagePro(l, typesDesProduits(options(d), d, l), reportUtil::findParameterValue);
             return Response.ok(pdf, "application/pdf").header("Content-Disposition", disposition("etiquettes.pdf"))
                     .build();
         } catch (Exception e) {
@@ -783,5 +805,248 @@ public class EtiquetageProRessource {
         if (StringUtils.isNotBlank(v)) {
             m.put(cle, v);
         }
+    }
+
+    /* ------------------------------------------------- types d'etiquette */
+
+    static final String DROIT_TYPE = "P_SM_ETIQUETTE_TYPE";
+
+    @SuppressWarnings("unchecked")
+    private boolean peutAffecter() {
+        HttpSession s = servletRequest.getSession(false);
+        return s != null && CommonUtils
+                .hasAuthorityByName((List<TPrivilege>) s.getAttribute(commonparameter.USER_LIST_PRIVILEGE), DROIT_TYPE);
+    }
+
+    private JSONObject refusType() {
+        JSONObject r = refus();
+        if (r != null) {
+            return r;
+        }
+        return peutAffecter() ? null
+                : echec("Vous n'avez pas le droit de modifier les types d'étiquette.").put("interdit", true);
+    }
+
+    /** Types d'etiquette, listes des filtres, dernieres mises a jour. */
+    @GET
+    @Path("types")
+    public Response types() {
+        JSONObject r = refus();
+        if (r != null) {
+            return json(r);
+        }
+        return json(new JSONObject().put("success", true).put("types", typeService.types())
+                .put("filtres", typeService.filtres()).put("journal", typeService.journal(10))
+                .put("peutAffecter", peutAffecter()).put("codes", codes()));
+    }
+
+    @POST
+    @Path("types/enregistrer")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Response enregistrerType(String corps) {
+        JSONObject r = refusType();
+        if (r != null) {
+            return json(r);
+        }
+        JSONObject d = new JSONObject(StringUtils.defaultIfBlank(corps, "{}"));
+        try {
+            String id = d.optString("id");
+            if (StringUtils.isBlank(id)) {
+                id = typeService.creerType(d.optString("nom"), d.optString("description"), d.optString("code"));
+            } else {
+                typeService.modifierType(id, d.optString("nom"), d.optString("description"), d.optString("code"),
+                        d.optBoolean("actif", true));
+            }
+            return json(new JSONObject().put("success", true).put("id", id).put("msg", "Type d'étiquette enregistré."));
+        } catch (IllegalArgumentException e) {
+            return json(echec(e.getMessage()));
+        } catch (javax.ejb.EJBException e) {
+            Throwable c = e.getCause();
+            if (c instanceof IllegalArgumentException) {
+                return json(echec(c.getMessage()));
+            }
+            throw e;
+        }
+    }
+
+    /** Produits du filtre (mise a jour selective), page par page. */
+    @POST
+    @Path("types/produits")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Response produitsDuFiltre(String corps) {
+        JSONObject r = refus();
+        if (r != null) {
+            return json(r);
+        }
+        JSONObject d = new JSONObject(StringUtils.defaultIfBlank(corps, "{}"));
+        JSONObject f = d.optJSONObject("filtres");
+        return json(typeService.produits(f == null ? new JSONObject() : f, d.optInt("start", 0), d.optInt("limit", 50))
+                .put("success", true));
+    }
+
+    /** Mise a jour selective : produits coches, ou tout le filtre. */
+    @POST
+    @Path("types/affecter")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Response affecter(String corps) {
+        JSONObject r = refusType();
+        if (r != null) {
+            return json(r);
+        }
+        JSONObject d = new JSONObject(StringUtils.defaultIfBlank(corps, "{}"));
+        List<String> produits = new ArrayList<>();
+        JSONArray a = d.optJSONArray("produits");
+        for (int i = 0; a != null && i < a.length(); i++) {
+            produits.add(a.optString(i));
+        }
+        try {
+            JSONObject res = typeService.affecter(d.optString("type"), produits,
+                    d.optBoolean("toutLeFiltre") ? d.optJSONObject("filtres") : null, utilisateur());
+            return json(res.put("success", true).put("msg", res.getInt("modifies") + " produit(s) mis à jour."));
+        } catch (IllegalArgumentException e) {
+            return json(echec(e.getMessage()));
+        } catch (javax.ejb.EJBException e) {
+            if (e.getCause() instanceof IllegalArgumentException) {
+                return json(echec(e.getCause().getMessage()));
+            }
+            throw e;
+        }
+    }
+
+    @POST
+    @Path("types/annuler")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Response annulerAffectation(String corps) {
+        JSONObject r = refusType();
+        if (r != null) {
+            return json(r);
+        }
+        try {
+            int n = typeService.annuler(new JSONObject(StringUtils.defaultIfBlank(corps, "{}")).optString("lot"));
+            return json(new JSONObject().put("success", true).put("remis", n).put("msg",
+                    n + " produit(s) remis sur leur type d'avant."));
+        } catch (IllegalArgumentException e) {
+            return json(echec(e.getMessage()));
+        } catch (javax.ejb.EJBException e) {
+            if (e.getCause() instanceof IllegalArgumentException) {
+                return json(echec(e.getCause().getMessage()));
+            }
+            throw e;
+        }
+    }
+
+    /* ------------------------------------ apercu des impressions de Prestige */
+
+    static final String[] CLES_APERCU = { LabelSheetPdf.KEY_NB_COLONNES, LabelSheetPdf.KEY_NB_LIGNES,
+            LabelSheetPdf.KEY_LARGEUR_MM, LabelSheetPdf.KEY_HAUTEUR_MM, LabelSheetPdf.KEY_ESPACE_H_MM,
+            LabelSheetPdf.KEY_ESPACE_V_MM, LabelSheetPdf.KEY_MARGE_GAUCHE_MM, LabelSheetPdf.KEY_MARGE_HAUT_MM,
+            LabelSheetPdf.KEY_DECALAGE_X_MM, LabelSheetPdf.KEY_DECALAGE_Y_MM, LabelSheetPdf.KEY_ECHELLE_POURCENT };
+
+    /** Reglages d'impression de Prestige (parametres), en visuel ; peut-on les enregistrer (administrateur). */
+    @GET
+    @Path("impression/reglages")
+    public Response reglagesPrestige() {
+        JSONObject r = refus();
+        if (r != null) {
+            return json(r);
+        }
+        JSONObject reglages = new JSONObject();
+        for (String k : CLES_APERCU) {
+            reglages.put(k, StringUtils.defaultString(reportUtil.findParameterValue(k)));
+        }
+        String modele = StringUtils.defaultIfBlank(reportUtil.findParameterValue(LabelSheetPdf.KEY_MODELE),
+                LabelSheetPdf.MODELE_CARRE_38X21_2).toUpperCase();
+        return json(new JSONObject().put("success", true)
+                .put("code", LabelSheetPdf.typeCode(reportUtil.findParameterValue("KEY_ETIQUETTE_CODE")))
+                .put("parProduit",
+                        !"0".equals(StringUtils
+                                .trimToEmpty(reportUtil.findParameterValue("KEY_ETIQUETTE_CODE_PAR_PRODUIT"))))
+                .put("modele", modele).put("reglages", reglages)
+                .put("telechargement", "1".equals(reportUtil.findParameterValue("KEY_ETIQUETTE_TELECHARGEMENT")))
+                .put("officine", StringUtils.defaultString(service.officine()))
+                .put("date", LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yy")))
+                .put("peutEnregistrer", peutPersonnaliser()));
+    }
+
+    /** Enregistre les reglages de l'apercu comme reglages par defaut de Prestige (administrateur). */
+    @POST
+    @Path("impression/reglages/enregistrer")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Response enregistrerReglagesPrestige(String corps) {
+        JSONObject r = refus();
+        if (r != null) {
+            return json(r);
+        }
+        if (!peutPersonnaliser()) {
+            return json(echec("Seul l'administrateur enregistre les réglages par défaut.").put("interdit", true));
+        }
+        JSONObject d = new JSONObject(StringUtils.defaultIfBlank(corps, "{}"));
+        String code = LabelSheetPdf.typeCode(d.optString("code"));
+        String modele = d.optString("modele");
+        boolean modeleConnu = false;
+        for (String m : new String[] { LabelSheetPdf.MODELE_CARRE_38X21_2, LabelSheetPdf.MODELE_CARRE_38_1X21_2,
+                LabelSheetPdf.MODELE_ARRONDI_38X21, LabelSheetPdf.MODELE_PERSONNALISE }) {
+            modeleConnu |= m.equals(modele);
+        }
+        if (!modeleConnu) {
+            return json(echec("Planche inconnue."));
+        }
+        JSONObject reglages = d.optJSONObject("reglages");
+        java.util.Map<String, String> valeurs = new LinkedHashMap<>();
+        for (String k : CLES_APERCU) {
+            String v = reglages == null || reglages.isNull(k) ? ""
+                    : String.valueOf(reglages.opt(k)).trim().replace(',', '.');
+            if (!v.isEmpty() && !v.matches("-?\\d+(\\.\\d+)?")) {
+                return json(echec("Valeur illisible pour " + k + " : " + v));
+            }
+            valeurs.put(k, v);
+        }
+        service.ecrireParametre("KEY_ETIQUETTE_CODE", code, "Code des etiquettes par defaut (CODE128, QR, DATAMATRIX)");
+        service.ecrireParametre("KEY_ETIQUETTE_CODE_PAR_PRODUIT", d.optBoolean("parProduit", true) ? "1" : "0",
+                "Etiquettes : imprimer selon le type d'etiquette de chaque produit (1) ou le code choisi (0)");
+        service.ecrireParametre(LabelSheetPdf.KEY_MODELE, modele, "Modele de planche d'etiquettes");
+        for (java.util.Map.Entry<String, String> e : valeurs.entrySet()) {
+            service.ecrireParametre(e.getKey(), e.getValue(), "Reglage des planches d'etiquettes");
+        }
+        return json(new JSONObject().put("success", true).put("msg",
+                "Réglages enregistrés : ils servent désormais à toutes les impressions d'étiquettes de Prestige."));
+    }
+
+    /** Source de l'apercu : etiquettes par type (selon les types des produits ou le code choisi) et planches. */
+    @POST
+    @Path("impression/resume")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Response resumeImpression(String corps) {
+        JSONObject r = refus();
+        if (r != null) {
+            return json(r);
+        }
+        JSONObject d = new JSONObject(StringUtils.defaultIfBlank(corps, "{}"));
+        String source = d.optString("source", "PANIER");
+        java.util.Map<String, Integer> parProduit = service.etiquettesParProduit(source, d.optString("id"));
+        String code = LabelSheetPdf.typeCode(d.optString("code"));
+        java.util.Map<String, String> codes = d.optBoolean("parProduit", true)
+                ? typeService.codesDesProduits(parProduit.keySet()) : new java.util.HashMap<>();
+        JSONObject parType = new JSONObject();
+        int total = 0;
+        for (java.util.Map.Entry<String, Integer> e : parProduit.entrySet()) {
+            String t = codes.getOrDefault(e.getKey(), code);
+            parType.put(t, parType.optInt(t) + e.getValue());
+            total += e.getValue();
+        }
+        return json(new JSONObject().put("success", true).put("total", total).put("produits", parProduit.size())
+                .put("parType", parType).put("bons", "BL".equals(source) && StringUtils.isBlank(d.optString("id"))
+                        ? service.bonsPourEtiquettes(d.optString("recherche")) : new JSONArray()));
+    }
+
+    /** Bons de livraison (recents ou par reference) pour l'apercu. */
+    @GET
+    @Path("impression/bons")
+    public Response bons(@javax.ws.rs.QueryParam("recherche") String recherche) {
+        JSONObject r = refus();
+        if (r != null) {
+            return json(r);
+        }
+        return json(new JSONObject().put("success", true).put("bons", service.bonsPourEtiquettes(recherche)));
     }
 }

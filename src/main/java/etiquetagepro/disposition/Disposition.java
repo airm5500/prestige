@@ -169,8 +169,9 @@ public final class Disposition {
             d.ajouter(new Placement(ElementEtiquette.CODE, xCode, y + (zone - cote) / 2f, cote, cote, 0f));
             float colonne = xCode - 0.6f - m;
             /* colonne de gauche : on reduit les polices (pas sous le minimum) puis on retire ce qui ne tient pas */
-            ElementEtiquette[] ordre = { ElementEtiquette.CIP, ElementEtiquette.PRIX, ElementEtiquette.CODE_GEO,
-                    ElementEtiquette.GROSSISTE, ElementEtiquette.CODE_UNIQUE };
+            /* retours du 11/10 : la date d'edition est tres importante, elle reste toujours (jamais retiree) */
+            ElementEtiquette[] ordre = { ElementEtiquette.CIP, ElementEtiquette.PRIX, ElementEtiquette.DATE,
+                    ElementEtiquette.CODE_GEO, ElementEtiquette.GROSSISTE, ElementEtiquette.CODE_UNIQUE };
             Map<ElementEtiquette, Float> polices = new EnumMap<>(ElementEtiquette.class);
             for (ElementEtiquette e : ordre) {
                 polices.put(e, e == ElementEtiquette.PRIX && petite ? 8.5f : e.getPoliceDefaut());

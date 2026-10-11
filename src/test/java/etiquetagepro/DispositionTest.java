@@ -50,6 +50,9 @@ class DispositionTest {
         String brute = Gs1.brute("3400930000014", LocalDate.of(2027, 12, 31), "A2410B", "3400930000014");
         String dm = ContenuEtendu.dataMatrixPlus(brute, infos());
         assertTrue(dm.startsWith(brute + Gs1.GS + "91EPLUS1"), dm);
+        /* jeu de caracteres GS1 strict dans les champs internes : pas d'espace (un lecteur GS1 s'y arreterait) */
+        assertFalse(dm.contains(" "), dm);
+        assertTrue(dm.contains(Gs1.GS + "92DOLIPRANE_1000MG_CPR_B/8"), dm);
         /* une douchette ou un logiciel tiers lit toujours le standard */
         Gs1.Contenu c = Gs1.lire(dm);
         assertEquals("3400930000014", c.cip);
@@ -70,8 +73,8 @@ class DispositionTest {
         assertEquals(lu, ContenuEtendu.lire("]d2" + dm.replace(String.valueOf(Gs1.GS), "<GS>")));
         assertEquals(lu, ContenuEtendu.lire(dm.replace(Gs1.GS, '|')));
         /* forme lisible entre parentheses */
-        String lisible = "(01)03400930000014(17)271231(10)A2410B(240)3400930000014(91)EPLUS1(92)DOLIPRANE 1000MG CPR B/8"
-                + "(93)1250(94)Pharmacie de l'Etoile(96)B-04";
+        String lisible = "(01)03400930000014(17)271231(10)A2410B(240)3400930000014(91)EPLUS1(92)DOLIPRANE_1000MG_CPR_B/8"
+                + "(93)1250(94)Pharmacie_de_l'Etoile(96)B-04";
         assertEquals(lu, ContenuEtendu.lire(lisible));
     }
 
@@ -128,6 +131,17 @@ class DispositionTest {
         assertTrue(des.getH() >= 2 * Disposition.hauteurLigne(des.getPolice()) - 0.01f, "deux lignes possibles");
         assertTrue(des.getPolice() >= 5.5f, "police de depart lisible");
         assertTrue(d.placement(ElementEtiquette.CODE_GEO).isImprime(), "code geo propose (imprime s'il existe)");
+        /* retours du 11/10 : date d'edition affichee sur tous les types, jamais dans le code */
+        for (String t : TYPES) {
+            for (float[] f : new float[][] { { 38f, 21.2f }, { 70f, 37f } }) {
+                Disposition x = Disposition.parDefaut(t, f[0], f[1]);
+                assertTrue(x.placement(ElementEtiquette.DATE).isImprime(), "date d'edition " + t + " " + f[0]);
+                assertFalse(x.placement(ElementEtiquette.DATE).isDansLeCode());
+                x.placement(ElementEtiquette.DATE).dansLeCode(true);
+                assertFalse(x.placement(ElementEtiquette.DATE).isDansLeCode(), "la date ne va jamais dans le code");
+            }
+        }
+        assertEquals("Date d'édition", ElementEtiquette.DATE.getLibelle());
         Placement code = d.placement(ElementEtiquette.CODE);
         assertEquals(code.getL(), code.getH(), 0.001f);
     }
@@ -254,6 +268,10 @@ class DispositionTest {
                 Symbole.de(LabelSheetPdf.DATAMATRIX, brute).getModules()));
         Symbole qr = Symbole.de(LabelSheetPdf.QR, brute);
         assertEquals(4, qr.getSilence());
+        /* motif de reperage du QR (coin haut-gauche) : 7 modules noirs, puis noir-blanc*5-noir */
+        assertTrue(qr.lignes()[0].startsWith("1111111"), qr.lignes()[0]);
+        assertTrue(qr.lignes()[1].startsWith("1000001"), qr.lignes()[1]);
+        assertTrue(qr.lignes()[2].startsWith("1011101"), qr.lignes()[2]);
         assertEquals(qr.getModules().length, qr.getModules()[0].length);
         Symbole b = Symbole.de(LabelSheetPdf.CODE_BARRES, "3400930000014");
         assertTrue(b.isLineaire());

@@ -406,6 +406,8 @@ Ext.application({
         'testextjs.view.configmanagement.client.fidelite.FideliteClients',
         'testextjs.view.stockmanagement.etiquetagepro.Personnalisation',
         'testextjs.view.stockmanagement.etiquetagepro.LectureEtiquette',
+        'testextjs.view.stockmanagement.etiquetagepro.TypesEtiquette',
+        'testextjs.view.stockmanagement.etiquetagepro.ImpressionPrestige',
         'testextjs.view.stockmanagement.etiquetagepro.EtiquetagePro',
         'testextjs.view.stockmanagement.suivistockvente.SuiviStockVenteManager',
         'testextjs.view.stockmanagement.perime.PerimeManager',

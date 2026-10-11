@@ -110,7 +110,7 @@ Deux types de code s'ajoutent aux trois habituels, **sans rien changer à ces de
 
 | Type | Contenu | Pour qui |
 |---|---|---|
-| **DataMatrix+** | La chaîne GS1 habituelle — (01) GTIN, (17) péremption, (10) lot, (240) CIP — puis les champs « usage interne » de la norme : (91) marqueur `EPLUS1`, (92) désignation, (93) prix, (94) pharmacie, (95) grossiste, (96) code géo, (97) code de l'étiquette. | Douchettes. Une douchette ou un logiciel tiers lit toujours le produit, le lot et la péremption ; Prestige lit tout. |
+| **DataMatrix+** | La chaîne GS1 habituelle — (01) GTIN, (17) péremption, (10) lot, (240) CIP — puis les champs « usage interne » de la norme (jeu de caractères GS1 : l'espace s'écrit « _ », Prestige le remet à la lecture) : (91) marqueur `EPLUS1`, (92) désignation, (93) prix, (94) pharmacie, (95) grossiste, (96) code géo, (97) code de l'étiquette. | Douchettes. Une douchette ou un logiciel tiers lit toujours le produit, le lot et la péremption ; Prestige lit tout. |
 | **QR+** | Un texte clair sur une ligne : `EP1\|CIP:3400930000014\|NOM:DOLIPRANE 1000MG\|PRIX:1250\|LOT:A2410B\|PER:31/12/2027\|PHA:…\|GEO:B-04` | Téléphones (lisible tel quel). Prestige le lit aussi. |
 
 - Le CIP, le lot, la péremption (et l'EAN) y sont toujours. Les autres informations se choisissent dans la Personnalisation (case **« Dans le code »**) ; par défaut : désignation, prix, pharmacie, code géo.
@@ -139,6 +139,40 @@ Une **vue réelle** de l'étiquette, pour un type de code et une planche (dimens
 - Sans disposition enregistrée, les étiquettes code-barres, QR et DataMatrix gardent **exactement** leur dessin d'origine. La disposition proposée (nom du produit sous la pharmacie, code géo) ne sert qu'une fois validée.
 - Changement de planche : la disposition d'un autre format du même type est reportée à l'échelle, à vérifier puis valider.
 - Les étiquettes QR / DataMatrix imprimées depuis la gestion des étiquettes et les bons de livraison suivent aussi la disposition validée ; le code-barres classique n'est pas concerné.
+
+## Date d'édition
+
+La date d'impression (« Date d'édition », date du jour par défaut, modifiable à l'impression) s'affiche sur les 5 types de code et se place dans la Personnalisation comme les autres informations. Elle n'entre jamais dans le code.
+
+## Types d'étiquette des produits (onglet en haut à droite)
+
+Chaque produit porte un **type d'étiquette** (fiche article, `lg_TYPEETIQUETTE_ID`). Cinq types reliés à un code s'ajoutent : **Code-barres** (par défaut), **DataMatrix**, **QR code**, **DataMatrix+**, **QR+**. On peut en créer d'autres (nom unique, code obligatoire) ; ils sont proposés sur la fiche article.
+
+Les 5 types d'origine (CIP, CIP_PRIX, CIP_DESIGNATION, CIP_PRIX_DESIGNATION, POSITION) sont **gardés tels quels** : aucun produit n'a été modifié. Un produit sur un type d'origine s'imprime comme aujourd'hui (code du paramétrage).
+
+**Mise à jour sélective** :
+
+1. Filtres : zone géographique, famille, grossiste, type actuel, recherche (CIP ou désignation).
+2. Cocher des produits, ou prendre tout le filtre.
+3. Choisir le nouveau type, puis « Appliquer » : une confirmation s'affiche dans l'écran (nombre de produits, type visé). Rien n'est écrit avant « Confirmer ».
+4. Chaque mise à jour est notée (qui, quand, ancien et nouveau type) dans « Dernières mises à jour » ; le lien **Annuler** remet les produits sur leur type d'avant (sauf ceux modifiés depuis).
+
+Droit **P_SM_ETIQUETTE_TYPE** (administrateur par défaut) ; sans lui, l'onglet est en lecture seule.
+
+**À l'impression**, l'option « Selon le type d'étiquette de chaque produit » (cochée par défaut, paramètre `KEY_ETIQUETTE_CODE_PAR_PRODUIT`) imprime chaque produit avec le code de son type : une même planche peut mélanger code-barres, DataMatrix et DataMatrix+. Décochée, le code choisi vaut pour tous. Cela vaut pour l'assistant d'Étiquettage Pro et pour les impressions de Prestige.
+
+## Impression Prestige (onglet en haut à droite)
+
+L'aperçu avant impression des étiquettes de Prestige, comme l'étape 4 de l'assistant :
+
+- étiquettes à imprimer : **panier de l'étiquetage massif** ou **bon de livraison** (quantités reçues) ;
+- réglages de Prestige affichés et modifiables à l'écran : type de code, « selon le type de chaque produit », planche, format libre et calage, position de départ, date d'édition ;
+- **aperçu de la planche** : cases déjà utilisées en gris, étiquettes à imprimer en couleur par type ; **un clic sur une case** choisit la position de départ ;
+- résumé : nombre d'étiquettes par type et nombre de planches ;
+- **Page de test** et **Générer le PDF** (moteur de Prestige, avec les réglages de l'écran) ; le panier est soldé après l'impression, comme avant ;
+- **Enregistrer comme réglages par défaut** : les réglages de l'écran deviennent ceux de toutes les impressions d'étiquettes de Prestige (administrateur seulement).
+
+Les impressions depuis la gestion des étiquettes et les bons de livraison fonctionnent toujours comme avant.
 
 ## Lire une étiquette (onglet en haut à droite)
 

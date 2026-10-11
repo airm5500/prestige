@@ -8,8 +8,9 @@ import java.util.Map;
  * existants (QR et DataMatrix GS1, code-barres du CIP) ne changent pas.
  * <ul>
  * <li><b>DataMatrix+</b> : la chaine GS1 habituelle — (01) GTIN, (17) peremption, (10) lot, (240) CIP — que toute
- * douchette comprend, suivie des champs « usage interne » de la norme : (91) le marqueur {@value #MARQUEUR}, puis (92)
- * designation, (93) prix, (94) pharmacie, (95) grossiste, (96) code geo, (97) code de l'etiquette.</li>
+ * douchette comprend, suivie des champs « usage interne » de la norme (jeu de caracteres GS1 strict : espace ecrit « _
+ * ») : (91) le marqueur {@value #MARQUEUR}, puis (92) designation, (93) prix, (94) pharmacie, (95) grossiste, (96) code
+ * geo, (97) code de l'etiquette.</li>
  * <li><b>QR+</b> : un texte clair sur une ligne, lisible par un telephone :
  * {@code EP1|CIP:3400930000014|NOM:DOLIPRANE 1000MG|PRIX:1250|LOT:A2410B|PER:31/12/2027|PHA:...|GEO:B-04}.</li>
  * </ul>
@@ -79,7 +80,12 @@ public final class ContenuEtendu {
         }
         s.append("91").append(MARQUEUR);
         for (String[] c : CHAMPS_DM) {
+            /*
+             * jeu de caracteres GS1 strict : l'espace n'en fait pas partie (un lecteur GS1 s'arreterait la), il devient
+             * « _ » ; Prestige le remet en espace a la lecture
+             */
             String v = nettoyer(infos.get(c[0]), Integer.parseInt(c[2]));
+            v = v == null ? null : v.replace(' ', '_');
             if (v != null) {
                 s.append(Gs1.GS).append(c[1]).append(v);
             }
@@ -185,7 +191,7 @@ public final class ContenuEtendu {
     private static void ranger(Map<String, String> r, String ai, String valeur) {
         for (String[] c : CHAMPS_DM) {
             if (c[1].equals(ai) && !valeur.replace(String.valueOf(Gs1.GS), "").trim().isEmpty()) {
-                r.put(c[0], valeur.replace(String.valueOf(Gs1.GS), "").trim());
+                r.put(c[0], valeur.replace(String.valueOf(Gs1.GS), "").replace('_', ' ').trim());
             }
         }
     }

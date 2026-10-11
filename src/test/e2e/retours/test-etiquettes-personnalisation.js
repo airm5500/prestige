@@ -45,6 +45,16 @@ function texteDuPdf(binaire) {
   return execFileSync('pdftotext', ['-raw', f, '-'], { encoding: 'utf8' });
 }
 
+/* decodeur independant (zxing) des codes imprimes : contenu brut (octets) de chaque code de la premiere page */
+function decoderPdf(binaire) {
+  const f = path.join(DOSSIER, 'd' + Date.now() + '.pdf');
+  fs.writeFileSync(f, Buffer.from(binaire, 'latin1'));
+  execFileSync('pdftoppm', ['-r', '600', '-png', '-f', '1', '-l', '1', f, f.replace('.pdf', '')]);
+  const png = fs.readdirSync(DOSSIER).filter((x) => x.startsWith(path.basename(f, '.pdf') + '-') && x.endsWith('.png')).map((x) => path.join(DOSSIER, x))[0];
+  return JSON.parse(execFileSync('python3', ['-I', '-c', 'import sys, json, zxingcpp\nfrom PIL import Image\nprint(json.dumps([{"format": str(x.format), "texte": bytes(x.bytes).decode("latin-1")}'
+    + ' for x in zxingcpp.read_barcodes(Image.open(sys.argv[1]))]))', png], { encoding: 'utf8' }));
+}
+
 const ventes = () => q("SELECT IFNULL(GROUP_CONCAT(CONCAT('''', lg_PREENREGISTREMENT_ID, '''')), '''-''') FROM t_preenregistrement WHERE dt_CREATED >= '" + DEBUT + "' AND lg_USER_ID = '" + ADMIN + "'");
 function nettoyer() {
   const v = ventes();
@@ -213,6 +223,18 @@ function nettoyer() {
     await p.evaluate(() => { Ext.ComponentQuery.query('etiquetagepro #code')[0].setValue({ code: 'DATAMATRIX' }); Ext.ComponentQuery.query('etiquetagepro #modele')[0].setValue('CARRE_38X21_2'); });
     pdf = await pdfDe('**/etiquetage-pro/pdf', () => bouton('#imprimer'));
     ok('Impression DataMatrix : la disposition validée sert (désignation et code géo imprimés)', pdf.pdf && pdf.texte.includes(PGEO) && pdf.texte.includes(PNOM.split(' ')[0]), pdf.texte.slice(0, 300));
+    const dmLu = decoderPdf(pdf.brut);
+    ok('… le DataMatrix imprimé avec la disposition se lit (décodeur indépendant) : GS1 avec le CIP', dmLu.some((x) => /Data ?Matrix/.test(x.format) && x.texte.includes('240' + PCIP)), JSON.stringify(dmLu).slice(0, 200));
+    /* QR avec une disposition validee : se lit aussi */
+    await bouton('#outilPerso');
+    await choisirType('QR');
+    await bouton('#persoValider');
+    await bouton('#etape3');
+    await p.evaluate(() => { Ext.ComponentQuery.query('etiquetagepro #code')[0].setValue({ code: 'QR' }); Ext.ComponentQuery.query('etiquetagepro #modele')[0].setValue('CARRE_38X21_2'); });
+    pdf = await pdfDe('**/etiquetage-pro/pdf', () => bouton('#imprimer'));
+    const qrLu = decoderPdf(pdf.brut);
+    ok('QR avec une disposition validée : imprimé avec la date d\'édition et le code géo, et se lit (décodeur indépendant)', pdf.texte.includes(PGEO)
+      && qrLu.some((x) => /QR/.test(x.format) && x.texte.includes('240' + PCIP)), JSON.stringify(qrLu).slice(0, 200));
     /* code-barres classique : pas de disposition enregistree -> dessin d'origine (sans code geo) */
     await p.evaluate(() => { Ext.ComponentQuery.query('etiquetagepro #code')[0].setValue({ code: 'CODE128' }); });
     pdf = await pdfDe('**/etiquetage-pro/pdf', () => bouton('#imprimer'));
@@ -272,6 +294,9 @@ function nettoyer() {
     await p.evaluate(() => { const e = Ext.ComponentQuery.query('etiquetagepro')[0]; e.down('#modele').setValue('CARRE_38X21_2'); e.down('#code').setValue({ code: 'QR_PLUS' }); });
     pdf = await pdfDe('**/etiquetage-pro/pdf', () => bouton('#imprimer'));
     ok('QR+ sur 38 × 21,2 : PDF imprimé', pdf.pdf, pdf.texte.slice(0, 200));
+    /* le code imprime se lit vraiment (decodeur independant) : texte clair EP1|CIP:... */
+    const decode = decoderPdf(pdf.brut);
+    ok('QR+ imprimé : décodé par un lecteur indépendant, « EP1|CIP:… »', decode.some((c) => /QR/.test(c.format) && c.texte.startsWith('EP1|CIP:' + PCIP)), JSON.stringify(decode).slice(0, 300));
 
     /* ------------------------------------------------ 5. lecture seule sans le droit */
     droit.retirer();
