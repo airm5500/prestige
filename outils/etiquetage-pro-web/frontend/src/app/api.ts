@@ -224,6 +224,7 @@ export class Api {
     return this.get<PageProduits>('/api/produits', params(f, { page, taille }));
   }
   cips(f: Filtre) { return this.get<string[]>('/api/produits/cips', params(f)); }
+  lot(cips: string[]) { return this.post<Produit[]>('/api/produits/lot', { cips }); }
   produit(cip: string) { return this.get<Produit>('/api/produits/' + encodeURIComponent(cip)); }
   historique(cip: string) { return this.get<Evenement[]>('/api/produits/' + encodeURIComponent(cip) + '/historique'); }
   controler(saisie: Record<string, string>, cip?: string) {

@@ -316,6 +316,9 @@ const CSV = ['Code CIP;Libellé;Prix public;Péremption;Lot;Famille;Remarque int
     ok('planche personnalisee : 24 par page, 63,5 × 33,9 mm', (await texte('.options .petit')).includes('63,5 × 33,9 mm'));
     ok('options changees : le PDF deja affiche laisse la place a l\'apercu', await p.locator('.feuille').isVisible());
     ok('apercu : 3 colonnes', (await p.locator('.feuille').evaluate((e) => getComputedStyle(e).gridTemplateColumns.split(' ').length)) === 3);
+    await p.getByLabel('Colonnes', { exact: true }).fill('4');
+    ok('apercu : suit les colonnes saisies avant enregistrement', await p.waitForFunction(() => getComputedStyle(document.querySelector('.feuille')).gridTemplateColumns.split(' ').length === 4, null, { timeout: 3000 }).then(() => true, () => false));
+    await p.getByLabel('Colonnes', { exact: true }).fill('3');
     await p.getByLabel('Format de planche').selectOption('CARRE_38X21_2');
 
     /* ---------------------------------------------------------------- personnalisation */
@@ -330,6 +333,7 @@ const CSV = ['Code CIP;Libellé;Prix public;Péremption;Lot;Famille;Remarque int
     ok('disposition proposee annoncee', (await texte('.bandeau.info')).includes('Disposition proposée'),
       (await p.locator('main .bandeau').allInnerTexts()).join(' / ') + ' / code=' + await p.locator('#p-code').inputValue() + ' modele=' + await p.locator('#p-modele').inputValue()
       + ' dispositions=' + q('SELECT cle FROM disposition') + ' ' + journalCharger.join(' | '));
+    ok('code 2D : option « dans le code » proposee', await p.waitForFunction(() => document.querySelectorAll('input[aria-label^="Mettre "]').length > 0, null, { timeout: 3000 }).then(() => true, () => false));
     ok('lisible sur ce format', (await texte('.dessin .bandeau.ok')).includes('lisible'), await texte('.dessin'));
     await p.getByLabel('Produit d\'exemple (CIP)').fill('3400930000014');
     await p.waitForFunction(() => Array.from(document.querySelectorAll('svg.svg text')).some((t) => t.textContent.includes('DOLIPRANE')));

@@ -134,7 +134,7 @@ export const PLANCHE: { nom: string; libelle: string; aide: string; perso?: bool
             @if (!p.perso || reg.modele === 'PERSONNALISE' || modele() === 'PERSONNALISE') {
               <div class="champ">
                 <label [for]="'p-' + p.nom">{{ p.libelle }}</label>
-                <input type="text" inputmode="decimal" [id]="'p-' + p.nom" [(ngModel)]="reg.planche[p.nom]" [class.invalide]="!!erreursReglages()[p.nom]">
+                <input type="text" inputmode="decimal" [id]="'p-' + p.nom" [(ngModel)]="reg.planche[p.nom]" (ngModelChange)="plancheModifiee()" [class.invalide]="!!erreursReglages()[p.nom]">
                 @if (erreursReglages()[p.nom]) { <span class="msg-erreur">{{ erreursReglages()[p.nom] }}</span> } @else { <span class="aide">{{ p.aide }}</span> }
               </div>
             }
@@ -195,7 +195,11 @@ export class Impression implements OnInit {
   /** vrai des que l'utilisateur a choisi un type de code ou une planche */
   protected choisi_ = false;
 
+  /** change a chaque saisie dans les reglages de planche (reg est un objet simple, non suivi par Angular) */
+  private readonly versionPlanche = signal(0);
+
   protected readonly colonnesPlanche = computed(() => {
+    this.versionPlanche();
     const r = this.resume();
     if (this.modele() === 'PERSONNALISE') return Math.max(1, Math.min(20, Number(this.reg.planche['colonnes']) || 5));
     return r ? Math.max(1, Math.round(r.parPage / 13)) : 5;
@@ -218,6 +222,12 @@ export class Impression implements OnInit {
     return l;
   });
 
+  /** Reglage de planche saisi : apercu redessine, resume recalcule si la planche personnalisee est choisie. */
+  protected plancheModifiee() {
+    this.versionPlanche.update((v) => v + 1);
+    if (this.modele() === 'PERSONNALISE') this.actualiser();
+  }
+
   protected dim(v: number) {
     return String(v).replace('.', ',');
   }
@@ -231,9 +241,8 @@ export class Impression implements OnInit {
         this.code.set(r.code);
         this.modele.set(r.modele);
       }
-      const premiers = this.selection.cips().slice(0, 65);
-      const p = await Promise.all(premiers.map((c) => this.api.produit(c).catch(() => null)));
-      this.produits.set(p.filter((x): x is Produit => !!x));
+      /* produits de l'apercu : une seule requete */
+      this.produits.set(await this.api.lot(this.selection.cips().slice(0, 65)));
     } catch (e) {
       this.erreur.set(messageErreur(e));
     }

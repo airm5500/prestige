@@ -160,7 +160,8 @@ class ImpressionTest extends BaseDeTest {
         assertEquals(1, pages(p));
         assertTrue(texte(p).contains("24"), "positions numerotees jusqu'a 24");
         json(post("/api/impression/test"), "{\"modele\":\"PERSONNALISE\",\"planche\":{\"largeur\":\"5\"}}")
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.erreurs.largeur").value("Nombre de 10 à 210 attendu."));
         json(post("/api/impression/resume"), "{\"cips\":[\"3400930000014\"],\"modele\":\"PERSONNALISE\","
                 + "\"planche\":{\"colonnes\":\"3\",\"lignes\":\"8\",\"largeur\":\"63.5\",\"hauteur\":\"33.9\"}}")
                 .andExpect(jsonPath("$.parPage").value(24)).andExpect(jsonPath("$.largeur").value(63.5));

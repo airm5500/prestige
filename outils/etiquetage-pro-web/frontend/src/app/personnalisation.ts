@@ -164,14 +164,15 @@ export class Personnalisation implements OnInit {
   protected caseEssai = '1';
   /** vrai des que l'utilisateur a choisi un type ou une planche */
   protected choisi_ = false;
-  private typeCode = '';
+  /** type de la disposition affichee (signal : deuxD en depend) */
+  private readonly typeCode = signal('');
   private planche: Record<string, string> = {};
   private minuterie: ReturnType<typeof setTimeout> | undefined;
   private numero = 0;
   private chargement = 0;
 
   protected readonly valide = computed(() => !this.problemes().some((p) => p.bloquant));
-  protected readonly deuxD = computed(() => this.typeCode !== 'CODE128' && this.code() !== 'CODE128');
+  protected readonly deuxD = computed(() => this.typeCode() !== 'CODE128' && this.code() !== 'CODE128');
 
   protected dim(v: number) {
     return String(Math.round(v * 10) / 10).replace('.', ',');
@@ -204,7 +205,7 @@ export class Personnalisation implements OnInit {
       const d = await this.api.chargerDisposition({ code: this.code(), modele: this.modele(), planche: this.planche });
       if (n !== this.chargement) return;
       this.charge.set(true);
-      this.typeCode = d.type;
+      this.typeCode.set(d.type);
       this.largeur.set(d.largeur);
       this.hauteur.set(d.hauteur);
       this.elements.set(d.elements);
@@ -224,7 +225,7 @@ export class Personnalisation implements OnInit {
   }
 
   private disposition() {
-    return { version: 1, typeCode: this.typeCode, largeur: this.largeur(), hauteur: this.hauteur(), elements: this.placements() };
+    return { version: 1, typeCode: this.typeCode(), largeur: this.largeur(), hauteur: this.hauteur(), elements: this.placements() };
   }
 
   private exemple() {
@@ -342,7 +343,7 @@ export class Personnalisation implements OnInit {
 
   protected async retablir() {
     try {
-      const r = await this.api.supprimerDisposition(this.typeCode, this.largeur(), this.hauteur());
+      const r = await this.api.supprimerDisposition(this.typeCode(), this.largeur(), this.hauteur());
       this.session.annoncer(r.message, r.supprimee ? 'ok' : 'info');
       await this.charger();
     } catch (e) {

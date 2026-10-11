@@ -282,10 +282,12 @@ public class ImpressionService {
     }
 
     public byte[] pageDeTest(String modele, Map<String, String> planche) {
+        /* reglages controles avant : un refus reste un 400 avec le champ fautif */
+        OptionsImpression o = new OptionsImpression().modele(modeleValide(modele == null ? reglages.lire("modele") : modele));
+        UnaryOperator<String> conf = configuration(planche);
         ByteArrayOutputStream sortie = new ByteArrayOutputStream();
         try {
-            MoteurEtiquettes.pageDeTest(sortie, new OptionsImpression().modele(modeleValide(modele == null ? reglages.lire("modele") : modele)),
-                    configuration(planche));
+            MoteurEtiquettes.pageDeTest(sortie, o, conf);
         } catch (Exception e) {
             throw new IllegalStateException("Page de test impossible", e);
         }

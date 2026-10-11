@@ -18,7 +18,7 @@ public final class Controles {
     public static final DateTimeFormatter JJ_MM_AAAA = DateTimeFormatter.ofPattern("dd/MM/yyyy");
     private static final Pattern DATE_FR = Pattern.compile("(\\d{1,2})[/.\\-](\\d{1,2})[/.\\-](\\d{2}|\\d{4})");
     private static final Pattern DATE_ISO = Pattern.compile("(\\d{4})-(\\d{1,2})-(\\d{1,2})(?:[T ].*)?");
-    private static final Pattern MOIS_ANNEE = Pattern.compile("(\\d{1,2})[/.\\-](\\d{4}|\\d{2})");
+    private static final Pattern MOIS_ANNEE = Pattern.compile("(\\d{1,2})[/\\-](\\d{4}|\\d{2})");
     private static final String[] MOIS = { "", "janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août",
             "septembre", "octobre", "novembre", "décembre" };
 
@@ -110,9 +110,13 @@ public final class Controles {
     }
 
     static Resultat entier(Champ c, String v, boolean prix) {
-        String s = v.replaceAll("[\\s ]", "");
+        String s = v.replaceAll("[\\s\\u00A0\\u202F\\u2007\\u2009]", "");
         if (prix) {
             s = s.replaceAll("(?i)(f|fcfa|cfa|xof|€|eur|euros?)$", "");
+        }
+        if (s.matches("\\d{1,3}(\\.\\d{3})+")) {
+            /* point des milliers : 1.250 ou 1.250.000 */
+            s = s.replace(".", "");
         }
         s = s.replace(',', '.');
         BigDecimal n;

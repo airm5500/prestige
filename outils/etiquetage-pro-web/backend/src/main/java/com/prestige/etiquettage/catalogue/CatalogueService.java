@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -23,9 +24,6 @@ public class CatalogueService {
     public static final int CIPS_MAX = 20000;
     /** Code GS1 lu sur une boite : (01) GTIN 14, eventuellement precede de l'identifiant de symbologie. */
     private static final Pattern GS1 = Pattern.compile("^(?:\\][a-zA-Z]\\d)?\\(?01\\)?(\\d{14})");
-    private static final Map<String, String> TRIS_FIXES = Map.of("cip", "cip", "designation", "designation", "prix",
-            "prix", "ean", "ean", "grossiste", "grossiste", "lot", "lot", "peremption", "peremption", "code_geo",
-            "code_geo", "mention", "mention", "nombre", "nombre");
 
     private final ChampDepot champs;
     private final Produits produits;
@@ -109,7 +107,13 @@ public class CatalogueService {
             throw new Refus(HttpStatus.CONFLICT, "Le CIP " + cip + " existe déjà dans le catalogue.",
                     Map.of("cip", "Ce CIP existe déjà."));
         }
-        produits.inserer(c.valeurs(), qui);
+        try {
+            produits.inserer(c.valeurs(), qui);
+        } catch (DuplicateKeyException deja) {
+            /* meme CIP cree au meme moment (deux onglets, double clic) */
+            throw new Refus(HttpStatus.CONFLICT, "Le CIP " + cip + " existe déjà dans le catalogue.",
+                    Map.of("cip", "Ce CIP existe déjà."));
+        }
         historique.ajouter(cip, qui, "Création (fiche)", null);
         return produits.lire(cip);
     }
@@ -136,6 +140,17 @@ public class CatalogueService {
             }
         }
         return n;
+    }
+
+    public List<Produit> lot(List<String> cips) {
+        Map<String, Produit> m = produits.lire(new java.util.LinkedHashSet<>(cips));
+        List<Produit> r = new ArrayList<>();
+        for (String c : new java.util.LinkedHashSet<>(cips)) {
+            if (m.containsKey(c)) {
+                r.add(m.get(c));
+            }
+        }
+        return r;
     }
 
     public List<Map<String, Object>> historique(String cip) {
@@ -207,9 +222,9 @@ public class CatalogueService {
         if ("modifie".equals(tri)) {
             return " ORDER BY COALESCE(modifie_le, cree_le)" + sens + ", cip";
         }
-        String col = TRIS_FIXES.get(tri);
-        if (col != null) {
-            return " ORDER BY " + col + sens + ", cip";
+        if (Produits.FIXES.contains(tri)) {
+            /* colonne fixe : nom pris dans la liste connue, jamais dans la requete */
+            return " ORDER BY " + tri + sens + ", cip";
         }
         Champ c = champs.parNom().get(tri);
         if (c == null) {

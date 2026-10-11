@@ -166,6 +166,15 @@ class CatalogueTest extends BaseDeTest {
     }
 
     @Test
+    void lotDansLOrdre() throws Exception {
+        creer("3400930000014", "A", "1", "");
+        creer("3400930000021", "B", "2", "");
+        json(post("/api/produits/lot"), "{\"cips\":[\"3400930000021\",\"9999999\",\"3400930000014\",\"3400930000021\"]}")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[*].cip", contains("3400930000021", "3400930000014")));
+    }
+
+    @Test
     void suppression() throws Exception {
         creer("3400930000014", "A", "1", "");
         creer("3400930000021", "B", "2", "");

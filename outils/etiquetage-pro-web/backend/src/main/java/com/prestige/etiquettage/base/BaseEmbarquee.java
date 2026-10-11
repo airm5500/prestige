@@ -137,8 +137,9 @@ public final class BaseEmbarquee {
 
     /**
      * Pose la protection : base sans controle des droits le temps de creer l'utilisateur de l'application et de
-     * donner un mot de passe a root, puis arret. Les mots de passe sont ecrits avant d'etre poses : une coupure entre
-     * les deux laisse un fichier valide pour la tentative suivante.
+     * donner un mot de passe a root, puis arret. Le fichier d'acces n'est ecrit qu'une fois tout pose : une coupure
+     * avant lui ne laisse aucun fichier, et la protection est refaite au lancement suivant (sans controle des droits,
+     * donc meme si root a deja recu un mot de passe).
      */
     private Properties proteger() throws Exception {
         Properties p = new Properties();

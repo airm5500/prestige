@@ -63,7 +63,11 @@ class ControlesTest {
         assertEquals("1250", ok(PRIX, "1 250 FCFA"));
         assertEquals("1250", ok(PRIX, "1250,00"));
         assertEquals("1250", ok(PRIX, "1 250"));
+        assertEquals("1250", ok(PRIX, "1.250"), "point des milliers");
+        assertEquals("1250000", ok(PRIX, "1.250.000 F"));
+        assertEquals("1250", ok(PRIX, "1\u00A0250"));
         assertTrue(erreur(PRIX, "12,50").contains("entier"));
+        assertTrue(erreur(PRIX, "12.5").contains("entier"));
         assertTrue(erreur(PRIX, "-5").contains("négatif"));
         assertTrue(erreur(PRIX, "douze").contains("nombre attendu"));
     }
@@ -81,6 +85,10 @@ class ControlesTest {
         assertEquals("Date invalide : février n'a pas de 29. Format jj/mm/aaaa.", erreur(PER, "29/02/2027"));
         assertTrue(erreur(PER, "12/13/2027").contains("mois 13"));
         assertTrue(erreur(PER, "demain").contains("format jj/mm/aaaa"));
+        /* un nombre decimal n'est pas une date (mois/annee : separateur / ou - seulement) */
+        assertTrue(erreur(PER, "1.50").contains("format jj/mm/aaaa"));
+        assertTrue(erreur(PER, "12.99").contains("format jj/mm/aaaa"));
+        assertEquals("28/02/2027", ok(PER, "02-2027"));
     }
 
     @Test

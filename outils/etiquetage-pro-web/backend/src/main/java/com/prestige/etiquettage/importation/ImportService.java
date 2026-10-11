@@ -535,8 +535,8 @@ public class ImportService {
                 throw new Refus(HttpStatus.CONFLICT, "Cet import a déjà été appliqué.");
             }
             Map<String, Champ> cs = champs.parNom();
-            /* verifie tout avant de creer le moindre champ */
-            planifier(e, colonnes, cs);
+            /* correspondance verifiee (dont les noms des nouveaux champs) avant de creer le moindre champ */
+            cibles(colonnes, e.tableau, cs);
             List<Colonne> definitives = new ArrayList<>();
             List<String> ajoutes = new ArrayList<>();
             for (Colonne c : colonnes) {

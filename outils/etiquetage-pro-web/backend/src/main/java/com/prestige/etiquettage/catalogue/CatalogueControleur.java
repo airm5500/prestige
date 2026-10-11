@@ -103,6 +103,15 @@ public class CatalogueControleur {
         return Map.of("supprimes", service.supprimer(s.cips(), p.getName()));
     }
 
+    /** Plusieurs produits d'un coup (apercu d'impression), dans l'ordre demande ; 500 au plus, inconnus omis. */
+    @PostMapping("/produits/lot")
+    public List<Produit> lot(@RequestBody Selection s) {
+        if (s.cips() == null || s.cips().size() > CatalogueService.TAILLE_MAX) {
+            throw Refus.requete("De 0 à " + CatalogueService.TAILLE_MAX + " produits par demande.");
+        }
+        return service.lot(s.cips());
+    }
+
     @GetMapping("/produits/{cip}/historique")
     public List<Map<String, Object>> historique(@PathVariable String cip) {
         return service.historique(cipValide(cip));
