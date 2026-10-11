@@ -70,6 +70,13 @@ const texteXls = (f) => execFileSync('python3', ['-I', '-c', "import sys,xlrd;s=
     await p.waitForFunction(() => Ext.ComponentQuery.query('avisclients')[0] && Ext.ComponentQuery.query('avisclients')[0].droits.success, null, { timeout: 30000 });
     await attendre();
     const onglets = await vue(() => Ext.ComponentQuery.query('avisclients')[0].items.getRange().map((t) => t.title + (t.tab.isVisible() ? '' : ' (masqué)')));
+    /* retours du 11/10 : nouveaux menus dans correctifs-affichage.js (colle en haut, toute la place, theme) */
+    const pose = async (xtype) => vue((x) => { const v = Ext.ComponentQuery.query(x)[0], c = v.ownerCt.body.getViewSize();
+      return { colle: v.collerEnHaut === true, titreDouble: !!(v.header && v.header.isVisible && v.header.isVisible()), theme: v.hasCls('theme-liste'),
+        l: v.getWidth(), lc: c.width, h: v.getHeight(), hc: c.height }; }, xtype);
+    const poseAvis = await pose('avisclients');
+    ok('Affichage : Avis clients collé en haut, sur toute la place, sans titre en double, au thème', poseAvis.colle && !poseAvis.titreDouble && poseAvis.theme
+      && Math.abs(poseAvis.l - poseAvis.lc) <= 2 && Math.abs(poseAvis.h - poseAvis.hc) <= 2, JSON.stringify(poseAvis));
     ok('Écran : 3 onglets Avis / Analyse / Réglages et affiche', onglets.join('|') === 'Avis|Analyse|Réglages et affiche', onglets.join('|'));
     ok('Page non publiée : bandeau qui renvoie aux réglages', origine.KEY_AVIS_ADRESSE_PUBLIQUE !== '' || await vue(() => Ext.ComponentQuery.query('avisclients #bandeauPublication')[0].isVisible()));
 
@@ -255,6 +262,8 @@ const texteXls = (f) => execFileSync('python3', ['-I', '-c', "import sys,xlrd;s=
     await vue(() => Ext.ComponentQuery.query('avisclients #enregistrerTraitement')[0].btnEl.dom.setAttribute('data-e2e', 'enrTrait'));
     await p.click('[data-e2e=enrTrait]');
     await p.waitForFunction(() => /✓/.test(Ext.ComponentQuery.query('avisclients #enregistrerTraitement')[0].getText()), null, { timeout: 15000 });
+    const presse = await vue(() => { const b = Ext.ComponentQuery.query('avisclients #stLU')[0]; return { p: b.pressed, fond: getComputedStyle(b.getEl().dom).backgroundColor }; });
+    ok('Statut : le bouton du statut courant est visiblement enfoncé', presse.p && presse.fond === 'rgb(29, 138, 118)', JSON.stringify(presse));
     ok('Traitement : note interne enregistrée', q("SELECT note_interne FROM t_avis_client WHERE dt_CREATED >= '" + DEBUT + "' AND note = 1") === 'Vu avec Awa le 11/10.');
     await vue(() => Ext.ComponentQuery.query('avisclients #envoyerReponse')[0].btnEl.dom.setAttribute('data-e2e', 'envoyer'));
     await p.click('[data-e2e=envoyer]');
@@ -343,6 +352,13 @@ const texteXls = (f) => execFileSync('python3', ['-I', '-c', "import sys,xlrd;s=
     await s1.c.close();
     reglages.remettre();
     ok('Sans P_AVIS_REGLAGES : onglet masqué, réglages et affiche (qui contient le jeton) refusés', sansRg.r.success === false && sansRg.a === 403 && !sansRg.onglet, JSON.stringify(sansRg));
+    await vue(() => testextjs.app.getController('App').onLoadNewComponent('etiquetagepro', 'Étiquetage Pro', ''));
+    await p.waitForFunction(() => Ext.ComponentQuery.query('etiquetagepro')[0] && Ext.ComponentQuery.query('etiquetagepro')[0].rendered, null, { timeout: 30000 });
+    await p.waitForTimeout(800);
+    const poseEtq = await pose('etiquetagepro');
+    await p.screenshot({ path: process.env.CAPTURE_ETQ || path.join(TMP, 'etiquetagepro.png') });
+    ok('Affichage : Étiquetage Pro collé en haut, sur toute la place, au thème', poseEtq.colle && !poseEtq.titreDouble && poseEtq.theme
+      && Math.abs(poseEtq.l - poseEtq.lc) <= 2 && Math.abs(poseEtq.h - poseEtq.hc) <= 2, JSON.stringify(poseEtq));
     ok('Aucune erreur JavaScript, aucune fenêtre', err.length === 0, err.join(' / '));
   } catch (e) {
     ok('Exécution sans exception', false, e.stack);

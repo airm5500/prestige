@@ -390,9 +390,9 @@ Ext.define('testextjs.view.avisclients.AvisClients', {
             items: [{
                 xtype: 'container', layout: 'hbox', itemId: 'statutBoutons', margin: '0 0 6 0', items: [
                     {xtype: 'tbtext', text: 'Statut :', margin: '4 8 0 0'},
-                    {xtype: 'button', text: 'Nouveau', itemId: 'stNOUVEAU', toggleGroup: 'avStatut', allowDepress: false, margin: '0 4 0 0'},
-                    {xtype: 'button', text: 'Lu', itemId: 'stLU', toggleGroup: 'avStatut', allowDepress: false, margin: '0 4 0 0'},
-                    {xtype: 'button', text: 'Traité', itemId: 'stTRAITE', toggleGroup: 'avStatut', allowDepress: false}
+                    {xtype: 'button', text: 'Nouveau', itemId: 'stNOUVEAU', toggleGroup: 'avStatut', allowDepress: false, listeners: {toggle: me.marquerStatut}, margin: '0 4 0 0'},
+                    {xtype: 'button', text: 'Lu', itemId: 'stLU', toggleGroup: 'avStatut', allowDepress: false, listeners: {toggle: me.marquerStatut}, margin: '0 4 0 0'},
+                    {xtype: 'button', text: 'Traité', itemId: 'stTRAITE', toggleGroup: 'avStatut', allowDepress: false, listeners: {toggle: me.marquerStatut}}
                 ]
             }, {
                 xtype: 'textarea', itemId: 'noteInterne', fieldLabel: 'Note interne (non visible du client)', height: 54, maxLength: 1500
@@ -462,6 +462,10 @@ Ext.define('testextjs.view.avisclients.AvisClients', {
         f.show();
         me.down('#statutBoutons').setDisabled(!peut);
         me.down('#st' + a.statut).toggle(true, true);
+        Ext.each(['NOUVEAU', 'LU', 'TRAITE'], function (x) {
+            var b = me.down('#st' + x);
+            me.marquerStatut(b, b.pressed);
+        });
         me.down('#noteInterne').setValue(a.noteInterne);
         me.down('#noteInterne').setReadOnly(!peut);
         me.down('#enregistrerTraitement').setVisible(peut);
@@ -484,6 +488,19 @@ Ext.define('testextjs.view.avisclients.AvisClients', {
                 : a.note <= 2 ? 'Merci d\'avoir pris le temps de nous écrire. Nous sommes désolés de votre expérience et nous avons pris en compte vos remarques.'
                 : 'Merci pour votre avis, il nous aide à nous améliorer.';
         return 'Bonjour' + nom + ',\n' + debut + '\n\nCordialement,\nLa pharmacie';
+    },
+
+    /** Statut courant bien visible : style pose sur le bouton lui-meme (le theme des boutons passerait devant une regle CSS). */
+    marquerStatut: function (b, presse) {
+        var el = b.getEl(), inner = el && el.down('.x-btn-inner');
+        if (!el) {
+            return;
+        }
+        el.dom.style.setProperty('background', presse ? '#1d8a76' : '', presse ? 'important' : '');
+        el.dom.style.setProperty('border-color', presse ? '#1d8a76' : '', presse ? 'important' : '');
+        if (inner) {
+            inner.dom.style.setProperty('color', presse ? '#fff' : '', presse ? 'important' : '');
+        }
     },
 
     statutChoisi: function () {
