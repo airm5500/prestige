@@ -809,7 +809,8 @@ public class OrderServiceImpl implements OrderService {
             mouvementprice.setLgUSERID(u);
             mouvementprice.setStrACTION(Constant.ACTION_COMMANDE);
             mouvementprice.setDtUPDATED(new Date());
-            mouvementprice.setDtCREATED(mouvementprice.getDtCREATED());
+            // date de creation = date de mise a jour (se recopiait elle-meme et restait vide)
+            mouvementprice.setDtCREATED(mouvementprice.getDtUPDATED());
             mouvementprice.setIntPRICENEW(prix);
             mouvementprice.setIntPRICEOLD(oldPrice);
             mouvementprice.setStrREF(ref);
