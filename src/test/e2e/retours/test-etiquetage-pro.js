@@ -133,7 +133,7 @@ function nettoyer() {
     await ouvrir();
     ok('Écran ouvert par son menu, étape 1 « Source », étapes suivantes verrouillées', await p.evaluate(() => {
       const c = Ext.ComponentQuery.query('etiquetagepro')[0];
-      return c.etape === 0 && c.down('#etape1').isDisabled() && c.down('#suivant').isDisabled() && c.cfg.zones.length === 10;
+      return c.etape === 0 && c.down('#etape1').isDisabled() && c.down('#suivant').isDisabled() && c.cfg.zones.length === 11; /* 11/10 : zone « Code géo » ajoutée */
     }));
     await importer(path.join(DOSSIER, 'produits.csv'));
     const ap = await p.evaluate(() => { const c = Ext.ComponentQuery.query('etiquetagepro')[0]; return { lignes: c.apercuStore.getCount(), cols: c.down('#apercu').headerCt.getGridColumns().map((x) => x.text), info: c.down('#infoFichier').getEl().dom.textContent }; });
@@ -148,7 +148,7 @@ function nettoyer() {
     let cols = await colonnes();
     ok('Indication des colonnes du fichier : exemple et zone reprise (« Code produit » → CIP, « Rayon » → Mention libre)', cols.length === 2
       && JSON.stringify(cols[0][1]) === JSON.stringify(['Code produit', '1234567', '→ CIP']) && cols[0][8][0] === 'Rayon' && cols[0][8][2] === '→ Mention libre', JSON.stringify(cols[0]));
-    ok('Titres reconnus par zone affichés (CIP *, « code produit », « libelle »…)', cols[1].length === 11 && cols[1][1][0] === 'CIP *' && /code produit/.test(cols[1][1][1])
+    ok('Titres reconnus par zone affichés (CIP *, « code produit », « libelle »…)', cols[1].length === 12 && cols[1][1][0] === 'CIP *' && /code produit/.test(cols[1][1][1])
       && /libelle/.test(cols[1][2][1]), JSON.stringify(cols[1].slice(0, 3)));
     ok('CIP et désignation obligatoires par défaut, le CIP verrouillé', z['CIP'][1] && z['Désignation'][1] && !z['Prix'][1]
       && await p.evaluate(() => Ext.ComponentQuery.query('etiquetagepro')[0].zonesStore.findRecord('id', 'CIP').get('verrouillee')));
@@ -258,7 +258,7 @@ function nettoyer() {
     await dl.saveAs(modele);
     const texteModele = fs.readFileSync(modele, 'utf8');
     ok('Fichier modèle téléchargé (une colonne par zone, 2 lignes d\'exemple)', dl.suggestedFilename() === 'etiquettage-pro-modele.csv'
-      && texteModele.split(/\r?\n/)[0].replace(/^\ufeff/, '').split(';').length === 10, texteModele.split(/\r?\n/)[0]);
+      && texteModele.split(/\r?\n/)[0].replace(/^\ufeff/, '').split(';').length === 11, texteModele.split(/\r?\n/)[0]);
     await importer(modele);
     z = await zones();
     cols = await colonnes();

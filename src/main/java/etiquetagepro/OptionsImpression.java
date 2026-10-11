@@ -22,7 +22,8 @@ public final class OptionsImpression {
     private String dateParDefaut = "";
 
     public OptionsImpression typeCode(String t) {
-        this.typeCode = LabelSheetPdf.typeCode(t);
+        /* Etiquettage Pro : les 3 codes habituels et les codes etendus QR+ / DataMatrix+ (hors vente) */
+        this.typeCode = LabelSheetPdf.typeCodeEtendu(t);
         return this;
     }
 

@@ -17,6 +17,8 @@
  */
 Ext.define('testextjs.view.stockmanagement.etiquetagepro.EtiquetagePro', {
     extend: 'Ext.panel.Panel',
+    requires: ['testextjs.view.stockmanagement.etiquetagepro.Personnalisation',
+        'testextjs.view.stockmanagement.etiquetagepro.LectureEtiquette'],
     xtype: 'etiquetagepro',
     title: 'Étiquettage Pro',
     cls: 'etqp-ecran',
@@ -61,11 +63,22 @@ Ext.define('testextjs.view.stockmanagement.etiquetagepro.EtiquetagePro', {
                         allowDepress: false, disabled: i > 0, handler: function () {
                             me.allerA(i);
                         }};
-                })},
+                }).concat(['->', {text: 'Personnalisation', itemId: 'outilPerso', enableToggle: true, toggleGroup: 'etqp-etape-' + me.id,
+                        allowDepress: false, tooltip: 'Disposition des informations et du code sur l\'étiquette, vue réelle',
+                        handler: function () {
+                            me.ouvrirOutil(4);
+                        }},
+                    {text: 'Lire une étiquette', itemId: 'outilLecture', enableToggle: true, toggleGroup: 'etqp-etape-' + me.id,
+                        allowDepress: false, tooltip: 'Scanner une étiquette (DataMatrix+, QR+, GS1, CIP) et voir toutes ses informations',
+                        handler: function () {
+                            me.ouvrirOutil(5);
+                        }}])},
             {xtype: 'container', itemId: 'cartes', flex: 1, layout: 'card', items: [
-                    me.carteSource(), me.carteZones(), me.carteProduits(), me.carteImpression()
+                    me.carteSource(), me.carteZones(), me.carteProduits(), me.carteImpression(),
+                    {xtype: 'etqpersonnalisation', itemId: 'personnalisation', ecran: me},
+                    {xtype: 'etqlecture', itemId: 'lecture', ecran: me}
                 ]},
-            {xtype: 'toolbar', dock: 'bottom', items: [
+            {xtype: 'toolbar', itemId: 'navigation', dock: 'bottom', items: [
                     {text: '« Précédent', itemId: 'precedent', disabled: true, handler: function () {
                             me.allerA(me.etape - 1);
                         }},
@@ -94,7 +107,7 @@ Ext.define('testextjs.view.stockmanagement.etiquetagepro.EtiquetagePro', {
     /* ------------------------------------------------------------------ outils */
 
     champsProduits: function (ajoutees) {
-        var f = ['numero', 'CIP', 'DESIGNATION', 'PRIX', 'GROSSISTE', 'LOT', 'PEREMPTION', 'EAN', 'NOMBRE', 'DATE', 'MENTION',
+        var f = ['numero', 'CIP', 'DESIGNATION', 'PRIX', 'GROSSISTE', 'LOT', 'PEREMPTION', 'EAN', 'NOMBRE', 'DATE', 'MENTION', 'CODE_GEO',
             'erreurs', 'avertissements', {name: 'imprimable', type: 'boolean', defaultValue: true}, {name: 'etiquettes', type: 'int'}];
         Ext.each(ajoutees, function (a) {
             f.push('A:' + a);
@@ -187,11 +200,21 @@ Ext.define('testextjs.view.stockmanagement.etiquetagepro.EtiquetagePro', {
             me.majResume();
         }
         me.etape = i;
+        me.down('#navigation').show();
         me.down('#cartes').getLayout().setActiveItem(i);
         me.down('#etape' + i).toggle(true, true);
         me.down('#precedent').setDisabled(i === 0);
         me.down('#suivant').setVisible(i < 3);
         me.majSuivant();
+    },
+
+    /** Onglets Personnalisation (4) et Lire une etiquette (5) : hors de l'assistant, ils ne perdent rien de l'assistant. */
+    ouvrirOutil: function (i) {
+        var me = this, carte = me.down(i === 4 ? '#personnalisation' : '#lecture');
+        me.down('#navigation').hide();
+        me.down('#cartes').getLayout().setActiveItem(carte);
+        me.down(i === 4 ? '#outilPerso' : '#outilLecture').toggle(true, true);
+        carte.ouvrir();
     },
 
     majSuivant: function () {
@@ -628,6 +651,7 @@ Ext.define('testextjs.view.stockmanagement.etiquetagepro.EtiquetagePro', {
             col('EAN', 'EAN', 115),
             col('NOMBRE', 'Nb étiq.', 65, {align: 'right'}),
             col('MENTION', 'Mention', 110),
+            col('CODE_GEO', 'Code géo', 85),
             col('DATE', 'Date', 80)
         ];
         Ext.each(me.ajoutees, function (a) {
@@ -677,7 +701,7 @@ Ext.define('testextjs.view.stockmanagement.etiquetagepro.EtiquetagePro', {
                                 me.majCompteurs();
                                 me.majSuivant();
                             }},
-                        {text: 'Compléter depuis Prestige', itemId: 'completer', tooltip: 'Reprend la désignation, le prix, l\'EAN et le grossiste des produits de Prestige (par le CIP), dans les cases vides seulement',
+                        {text: 'Compléter depuis Prestige', itemId: 'completer', tooltip: 'Reprend la désignation, le prix, l\'EAN, le grossiste et le code géo des produits de Prestige (par le CIP), dans les cases vides seulement',
                             handler: function () {
                                 me.completer();
                             }},
@@ -709,7 +733,7 @@ Ext.define('testextjs.view.stockmanagement.etiquetagepro.EtiquetagePro', {
 
     ligneJson: function (r) {
         var me = this, v = {}, a = {};
-        ['CIP', 'DESIGNATION', 'PRIX', 'GROSSISTE', 'LOT', 'PEREMPTION', 'EAN', 'NOMBRE', 'DATE', 'MENTION'].forEach(function (z) {
+        ['CIP', 'DESIGNATION', 'PRIX', 'GROSSISTE', 'LOT', 'PEREMPTION', 'EAN', 'NOMBRE', 'DATE', 'MENTION', 'CODE_GEO'].forEach(function (z) {
             v[z] = r.get(z) === null || r.get(z) === undefined ? '' : String(r.get(z));
         });
         Ext.each(me.ajoutees, function (n) {
@@ -789,7 +813,7 @@ Ext.define('testextjs.view.stockmanagement.etiquetagepro.EtiquetagePro', {
                 }
                 trouves++;
                 var changes = {};
-                [['DESIGNATION', 'designation'], ['PRIX', 'prix'], ['EAN', 'ean'], ['GROSSISTE', 'grossiste']].forEach(function (x) {
+                [['DESIGNATION', 'designation'], ['PRIX', 'prix'], ['EAN', 'ean'], ['GROSSISTE', 'grossiste'], ['CODE_GEO', 'codeGeo']].forEach(function (x) {
                     if (!r.get(x[0]) && p[x[1]]) {
                         changes[x[0]] = p[x[1]];
                     }
@@ -821,7 +845,10 @@ Ext.define('testextjs.view.stockmanagement.etiquetagepro.EtiquetagePro', {
                         {xtype: 'radiogroup', itemId: 'code', fieldLabel: 'Type de code', columns: 1, items: [
                                 {boxLabel: 'Code-barres standard (CIP)', name: 'code', inputValue: 'CODE128', itemId: 'codeCODE128'},
                                 {boxLabel: 'DataMatrix (GS1 : EAN, péremption, lot, CIP)', name: 'code', inputValue: 'DATAMATRIX', itemId: 'codeDATAMATRIX'},
-                                {boxLabel: 'QR code (GS1 : EAN, péremption, lot, CIP)', name: 'code', inputValue: 'QR', itemId: 'codeQR'}
+                                {boxLabel: 'QR code (GS1 : EAN, péremption, lot, CIP)', name: 'code', inputValue: 'QR', itemId: 'codeQR'},
+                                {boxLabel: 'DataMatrix+ (étendu, hors vente : + désignation, prix, pharmacie…)', name: 'code', inputValue: 'DATAMATRIX_PLUS',
+                                    itemId: 'codeDATAMATRIX_PLUS'},
+                                {boxLabel: 'QR+ (étendu, hors vente : texte lisible au téléphone)', name: 'code', inputValue: 'QR_PLUS', itemId: 'codeQR_PLUS'}
                             ]},
                         {xtype: 'combobox', itemId: 'modele', fieldLabel: 'Planche', store: me.modelesStore, valueField: 'id', displayField: 'libelle',
                             queryMode: 'local', editable: false, listeners: {change: function () {

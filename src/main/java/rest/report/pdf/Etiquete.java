@@ -163,7 +163,13 @@ public class Etiquete extends HttpServlet {
         }
         response.setContentType("application/pdf");
         response.setHeader("Content-Disposition", contentDisposition() + "; filename=\"etiquettes.pdf\"");
-        LabelSheetPdf.write(response.getOutputStream(), labels, startPosition, format);
+        /*
+         * personnalisation : une disposition enregistree s'applique aux etiquettes QR et DataMatrix ; le code-barres
+         * classique garde son dessin
+         */
+        LabelSheetPdf.write(response.getOutputStream(), labels, startPosition, format,
+                (t, l, h) -> LabelSheetPdf.QR.equals(t) || LabelSheetPdf.DATAMATRIX.equals(t)
+                        ? etiquetteEditionService.dispositionEnregistree(t, l, h) : null);
     }
 
     /**

@@ -1650,6 +1650,32 @@ Ext.define('testextjs.controller.VenteEnDepotCtr', {
             return false;
         }
     },
+    /**
+     * Retours du 11/10 : etiquettes etendues d'Etiquettage Pro (DataMatrix+ et QR+) reservees a la commande, a la
+     * reception et a l'inventaire : jamais a la vente. Reconnues par leur marqueur (EP1| pour le QR+, champ 91 EPLUS1
+     * pour le DataMatrix+), sous toutes les formes que transmettent les douchettes.
+     */
+    estEtiquetteEtendue: function (brut) {
+        const v = String(brut || '').trim().replace(/^\](d2|Q3|Q1|C1|e0)/, '');
+        return /^EP1\|/i.test(v) || /(\u001d|<GS>|\^\]|~1|\|)91EPLUS1/.test(v) || /\(91\)EPLUS1/.test(v) || /^91EPLUS1/.test(v);
+    },
+
+    refuserEtiquetteEtendue: function (combo) {
+        if (combo.collapse) {
+            combo.collapse();
+        }
+        if (combo.clearValue) {
+            combo.clearValue();
+        } else {
+            combo.setRawValue('');
+        }
+        Ext.MessageBox.alert('Étiquette étendue', 'Cette étiquette (DataMatrix+ ou QR+) est réservée à la commande, à la'
+                + ' réception et à l\'inventaire : elle ne passe pas à la vente.<br>Scannez le code de la boîte ou l\'étiquette'
+                + ' standard du produit.', function () {
+                    combo.focus(true, 100);
+                });
+    },
+
     onProduitSpecialKey: function (combo, e) {
         const me = this;
 
@@ -1686,6 +1712,12 @@ Ext.define('testextjs.controller.VenteEnDepotCtr', {
         }
 
         if (e.getKey() !== e.ENTER) {
+            return;
+        }
+        // retours du 11/10 : etiquette etendue (DataMatrix+, QR+) : refusee a la vente
+        if (me.estEtiquetteEtendue(combo.getRawValue())) {
+            e.stopEvent();
+            me.refuserEtiquetteEtendue(combo);
             return;
         }
 

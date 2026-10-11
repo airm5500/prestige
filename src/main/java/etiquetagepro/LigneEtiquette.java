@@ -147,7 +147,7 @@ public final class LigneEtiquette {
      * Montant ecrit librement : « 1 500 », « 1500 F », « 1.500 », « 1 500,50 », « 12,5 € », « 1500 CFA ». Le point
      * suivi de trois chiffres est un separateur de milliers ; sinon point et virgule sont des decimales.
      */
-    static BigDecimal lirePrix(String s) {
+    public static BigDecimal lirePrix(String s) {
         String t = s.replaceAll("(?i)(f\\s*cfa|cfa|fcfa|xof|eur|euros?|€|f)\\s*$", "")
                 .replaceAll("[\\s\\u00a0\\u202f']", "");
         if (t.isEmpty()) {
@@ -171,7 +171,7 @@ public final class LigneEtiquette {
      * Date ecrite librement : jj/mm/aaaa, jj/mm/aa, jj-mm-aaaa, jj.mm.aaaa, aaaa-mm-jj, mm/aaaa et mm/aa (dernier jour
      * du mois), ou numero de jour Excel (cellule non formatee).
      */
-    static LocalDate lireDate(String s) {
+    public static LocalDate lireDate(String s) {
         String t = s.trim();
         try {
             java.util.regex.Matcher m = java.util.regex.Pattern

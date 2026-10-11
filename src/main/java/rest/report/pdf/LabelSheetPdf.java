@@ -88,6 +88,58 @@ public final class LabelSheetPdf {
             return this;
         }
 
+        /**
+         * Etiquettage Pro : comme {@link #code2D}, avec en plus les codes etendus (QR+ et DataMatrix+, hors vente). Ne
+         * sert qu'a Etiquettage Pro : les autres editions passent par code2D et ne peuvent pas les demander.
+         */
+        public LabelData codeEtendu(String type, String gs1Brute, String lotAffiche, String peremptionAffichee) {
+            code2D(type, gs1Brute, lotAffiche, peremptionAffichee);
+            if (QR_PLUS.equals(type) || DATAMATRIX_PLUS.equals(type)) {
+                this.code = type;
+            }
+            return this;
+        }
+
+        /** Personnalisation : code geo (position) principal du produit. */
+        private String codeGeo;
+
+        public LabelData codeGeo(String c) {
+            this.codeGeo = StringUtils.isBlank(c) ? null : c.trim();
+            return this;
+        }
+
+        public String getCodeGeo() {
+            return codeGeo;
+        }
+
+        /** Texte de chaque element de la personnalisation (tel qu'imprime). */
+        public java.util.Map<etiquetagepro.disposition.ElementEtiquette, String> valeurs() {
+            java.util.Map<etiquetagepro.disposition.ElementEtiquette, String> v = new java.util.EnumMap<>(
+                    etiquetagepro.disposition.ElementEtiquette.class);
+            v.put(etiquetagepro.disposition.ElementEtiquette.PHARMACIE, officine);
+            v.put(etiquetagepro.disposition.ElementEtiquette.DESIGNATION, designation);
+            v.put(etiquetagepro.disposition.ElementEtiquette.CIP, cip);
+            v.put(etiquetagepro.disposition.ElementEtiquette.PRIX, prix);
+            v.put(etiquetagepro.disposition.ElementEtiquette.GROSSISTE, grossiste2D());
+            v.put(etiquetagepro.disposition.ElementEtiquette.CODE_GEO, codeGeo);
+            v.put(etiquetagepro.disposition.ElementEtiquette.LOT, StringUtils.isBlank(lot) ? null : "Lot " + lot);
+            v.put(etiquetagepro.disposition.ElementEtiquette.PEREMPTION,
+                    StringUtils.isBlank(peremption) ? null : "Pér. " + peremption);
+            v.put(etiquetagepro.disposition.ElementEtiquette.CODE_UNIQUE, codeUnique);
+            v.put(etiquetagepro.disposition.ElementEtiquette.DATE, date);
+            v.put(etiquetagepro.disposition.ElementEtiquette.MENTION, mention);
+            return v;
+        }
+
+        /** Contenu du code selon la disposition (code-barres : CIP ; QR/DataMatrix : GS1 ; etendus : GS1 + infos). */
+        public String contenuCode(etiquetagepro.disposition.Disposition d) {
+            java.util.Map<etiquetagepro.disposition.ElementEtiquette, String> v = valeurs();
+            v.put(etiquetagepro.disposition.ElementEtiquette.GROSSISTE, grossiste2D());
+            Gs1.Contenu c = gs1 == null ? null : Gs1.lire(gs1);
+            return etiquetagepro.disposition.ContenuCode.contenu(d, v, cip, gs1, c == null ? lot : c.lot, peremption,
+                    c == null || c.gtin == null ? ean : Gs1.ean13(c.gtin));
+        }
+
         public String getCode() {
             return code;
         }
@@ -170,6 +222,23 @@ public final class LabelSheetPdf {
     }
 
     public static final String CODE_BARRES = "CODE128", QR = "QR", DATAMATRIX = "DATAMATRIX";
+    /** Codes etendus d'Etiquettage Pro (hors vente) : voir {@link ContenuEtendu}. */
+    public static final String QR_PLUS = "QR_PLUS", DATAMATRIX_PLUS = "DATAMATRIX_PLUS";
+
+    /** Type de code d'Etiquettage Pro : les 3 types habituels et les 2 codes etendus ; inconnu = CODE128. */
+    public static String typeCodeEtendu(String valeur) {
+        String v = valeur == null ? "" : valeur.trim().toUpperCase(Locale.ROOT);
+        return QR_PLUS.equals(v) || DATAMATRIX_PLUS.equals(v) ? v : typeCode(v);
+    }
+
+    /**
+     * Personnalisation : disposition enregistree pour ce type de code et cette dimension d'etiquette, ou null (dessin
+     * historique). Les codes etendus, sans dessin historique, prennent la disposition proposee.
+     */
+    @FunctionalInterface
+    public interface SourceDisposition {
+        etiquetagepro.disposition.Disposition pour(String typeCode, float largeurMm, float hauteurMm);
+    }
 
     /** Type de code demande (parametre ou ecran) : CODE128 par defaut, valeur inconnue = CODE128. */
     public static String typeCode(String valeur) {
@@ -344,6 +413,12 @@ public final class LabelSheetPdf {
      */
     public static void write(OutputStream out, List<LabelData> labels, int startPosition, SheetFormat format)
             throws Exception {
+        write(out, labels, startPosition, format, null);
+    }
+
+    /** Comme {@link #write(OutputStream, List, int, SheetFormat)}, avec les dispositions personnalisees. */
+    public static void write(OutputStream out, List<LabelData> labels, int startPosition, SheetFormat format,
+            SourceDisposition dispositions) throws Exception {
         Grid grid = new Grid(format);
         Document document = new Document(new Rectangle(grid.pageWidth, grid.pageHeight), 0, 0, 0, 0);
         PdfWriter writer = PdfWriter.getInstance(document, out);
@@ -369,11 +444,31 @@ public final class LabelSheetPdf {
             cb.saveState();
             // le contenu est dessine en cotes nominales puis mis a l'echelle dans la cellule
             cb.concatCTM(grid.scale, 0, 0, grid.scale, grid.x(col), grid.y(row));
-            drawLabel(cb, label, labelWidth, labelHeight, regular, bold);
+            etiquetagepro.disposition.Disposition d = disposition(dispositions, label.code, format);
+            if (d != null) {
+                RenduDisposition.dessiner(cb, d, label.valeurs(), label.contenuCode(d), labelHeight, regular, bold);
+            } else {
+                drawLabel(cb, label, labelWidth, labelHeight, regular, bold);
+            }
             cb.restoreState();
             position++;
         }
         document.close();
+    }
+
+    private static etiquetagepro.disposition.Disposition disposition(SourceDisposition source, String code,
+            SheetFormat format) {
+        etiquetagepro.disposition.Disposition d = source == null ? null
+                : source.pour(code, format.labelWidthMm, format.labelHeightMm);
+        if (d == null && (QR_PLUS.equals(code) || DATAMATRIX_PLUS.equals(code))) {
+            d = etiquetagepro.disposition.Disposition.parDefaut(code, format.labelWidthMm, format.labelHeightMm);
+        }
+        return d;
+    }
+
+    /** Dimension d'une etiquette de la planche (mm) : largeur, hauteur. */
+    public static float[] dimension(SheetFormat format) {
+        return new float[] { format.labelWidthMm, format.labelHeightMm };
     }
 
     /**

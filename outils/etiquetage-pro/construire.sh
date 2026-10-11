@@ -12,7 +12,7 @@ TRAVAIL="$ICI/build"
 rm -rf "$TRAVAIL" "$ICI/dist"
 mkdir -p "$TRAVAIL/classes" "$ICI/dist"
 
-DEPENDANCES="itextpdf barcode4j avalon-framework-impl commons-lang3 commons-csv poi poi-ooxml poi-ooxml-schemas xmlbeans commons-compress commons-collections4 commons-math3 commons-codec"
+DEPENDANCES="json itextpdf barcode4j avalon-framework-impl commons-lang3 commons-csv poi poi-ooxml poi-ooxml-schemas xmlbeans commons-compress commons-collections4 commons-math3 commons-codec"
 CP=""
 for d in $DEPENDANCES; do
   f=$(ls "$LIBS"/$d-[0-9]*.jar 2>/dev/null | head -1)
@@ -21,8 +21,8 @@ for d in $DEPENDANCES; do
 done
 
 SOURCES="$TRAVAIL/sources.txt"
-ls "$RACINE"/src/main/java/etiquetagepro/*.java > "$SOURCES"
-for f in LabelSheetPdf Gs1 Gs1DataMatrix; do echo "$RACINE/src/main/java/rest/report/pdf/$f.java" >> "$SOURCES"; done
+ls "$RACINE"/src/main/java/etiquetagepro/*.java "$RACINE"/src/main/java/etiquetagepro/disposition/*.java > "$SOURCES"
+for f in LabelSheetPdf Gs1 Gs1DataMatrix ContenuEtendu Symbole RenduDisposition; do echo "$RACINE/src/main/java/rest/report/pdf/$f.java" >> "$SOURCES"; done
 find "$ICI/src/main/java" -name "*.java" >> "$SOURCES"
 "$JAVAC" --release 8 -encoding UTF-8 -nowarn -d "$TRAVAIL/classes" -cp "${CP#:}" @"$SOURCES"
 

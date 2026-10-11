@@ -583,6 +583,16 @@ public class SalesRessource {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
         JSONObject o = new JSONObject().put("success", false).put("actif", lectureGs1Service.active());
+        /*
+         * retours du 11/10 : les etiquettes etendues (DataMatrix+, QR+) ne passent jamais a la vente, quel que soit le
+         * parametre de lecture GS1
+         */
+        if (rest.report.pdf.ContenuEtendu.estEtendu(code)) {
+            return Response.ok().entity(o.put("etendu", true).put("msg",
+                    "Étiquette étendue (DataMatrix+ ou QR+) : réservée à la commande, à la réception et à l'inventaire,"
+                            + " elle ne passe pas à la vente. Scannez le code de la boîte ou l'étiquette standard.")
+                    .toString()).build();
+        }
         if (!o.getBoolean("actif")) {
             return Response.ok().entity(o.put("msg", "Lecture des étiquettes GS1 désactivée.").toString()).build();
         }

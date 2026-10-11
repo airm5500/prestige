@@ -75,9 +75,10 @@ public final class MoteurEtiquettes {
             String lot = l.valeur(Zone.LOT).isEmpty() ? null : l.valeur(Zone.LOT);
             for (int i = 0; i < l.getNombre(); i++) {
                 LabelSheetPdf.LabelData d = new LabelSheetPdf.LabelData(o.getOfficine(), l.valeur(Zone.GROSSISTE),
-                        l.valeur(Zone.DESIGNATION), cip, prix, date).mention(l.valeur(Zone.MENTION));
+                        l.valeur(Zone.DESIGNATION), cip, prix, date).mention(l.valeur(Zone.MENTION))
+                                .codeGeo(l.valeur(Zone.CODE_GEO));
                 if (deuxD && brute != null && !brute.isEmpty()) {
-                    d.code2D(o.getTypeCode(), brute, lot, per);
+                    d.codeEtendu(o.getTypeCode(), brute, lot, per);
                     d.codeUnique(registre == null ? null : registre.attribuer(cip));
                 }
                 resultat.add(d);
@@ -89,11 +90,52 @@ public final class MoteurEtiquettes {
     /** Planche PDF des lignes imprimables. */
     public static void pdf(OutputStream sortie, List<LigneEtiquette> lignes, OptionsImpression o,
             RegistreCodes registre, UnaryOperator<String> configuration) throws Exception {
+        pdf(sortie, lignes, o, registre, configuration, null);
+    }
+
+    /**
+     * Planche PDF avec les dispositions personnalisees (null : dessin historique ; les codes etendus prennent la
+     * disposition proposee). Une disposition illisible sur ce format n'est pas imprimee : le message dit pourquoi.
+     */
+    public static void pdf(OutputStream sortie, List<LigneEtiquette> lignes, OptionsImpression o,
+            RegistreCodes registre, UnaryOperator<String> configuration, LabelSheetPdf.SourceDisposition dispositions)
+            throws Exception {
+        LabelSheetPdf.SheetFormat format = o.planche(configuration);
+        etiquetagepro.disposition.Disposition d = dispositionEffective(o.getTypeCode(), format, dispositions);
+        if (d != null) {
+            etiquetagepro.disposition.ControleDisposition.Resultat r = etiquetagepro.disposition.ControleDisposition
+                    .controler(d);
+            if (!r.valide()) {
+                StringBuilder m = new StringBuilder("Étiquette illisible sur ce format (")
+                        .append(etiquetagepro.disposition.Disposition
+                                .cle(d.getTypeCode(), d.getLargeur(), d.getHauteur()).replace('|', ' '))
+                        .append(") : ");
+                for (etiquetagepro.disposition.ControleDisposition.Probleme p : r.problemes) {
+                    if (p.bloquant) {
+                        m.append(p.message).append(' ');
+                    }
+                }
+                throw new IllegalArgumentException(
+                        m.append("Ajustez-la dans l'onglet Personnalisation ou choisissez une planche plus grande.")
+                                .toString());
+            }
+        }
         List<LabelSheetPdf.LabelData> e = etiquettes(lignes, o, registre);
         if (e.isEmpty()) {
             throw new IllegalArgumentException("Aucune étiquette à imprimer : corrigez les lignes en erreur.");
         }
-        LabelSheetPdf.write(sortie, e, o.getPositionDepart(), o.planche(configuration));
+        LabelSheetPdf.write(sortie, e, o.getPositionDepart(), format, dispositions);
+    }
+
+    /** Disposition qui servira pour ce type et cette planche (null : dessin historique). */
+    public static etiquetagepro.disposition.Disposition dispositionEffective(String type,
+            LabelSheetPdf.SheetFormat format, LabelSheetPdf.SourceDisposition dispositions) {
+        float[] dim = LabelSheetPdf.dimension(format);
+        etiquetagepro.disposition.Disposition d = dispositions == null ? null : dispositions.pour(type, dim[0], dim[1]);
+        if (d == null && (LabelSheetPdf.QR_PLUS.equals(type) || LabelSheetPdf.DATAMATRIX_PLUS.equals(type))) {
+            d = etiquetagepro.disposition.Disposition.parDefaut(type, dim[0], dim[1]);
+        }
+        return d;
     }
 
     /** Page de test de la planche (contours numerotes), pour caler l'imprimante. */

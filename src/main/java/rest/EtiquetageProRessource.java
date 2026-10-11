@@ -87,6 +87,22 @@ public class EtiquetageProRessource {
         return null;
     }
 
+    static final String DROIT_PERSO = "P_SM_ETIQUETTE_PERSO";
+
+    /** Personnalisation : droit de modifier les dispositions (administrateur par defaut). */
+    @SuppressWarnings("unchecked")
+    private boolean peutPersonnaliser() {
+        HttpSession s = servletRequest.getSession(false);
+        return s != null && CommonUtils.hasAuthorityByName(
+                (List<TPrivilege>) s.getAttribute(commonparameter.USER_LIST_PRIVILEGE), DROIT_PERSO);
+    }
+
+    private String utilisateur() {
+        HttpSession s = servletRequest.getSession(false);
+        Object u = s == null ? null : s.getAttribute(commonparameter.AIRTIME_USER);
+        return u instanceof TUser ? ((TUser) u).getStrLOGIN() : "";
+    }
+
     private static JSONObject echec(String msg) {
         return new JSONObject().put("success", false).put("msg", msg);
     }
@@ -129,10 +145,23 @@ public class EtiquetageProRessource {
         return json(new JSONObject().put("success", true).put("officine", StringUtils.defaultString(service.officine()))
                 .put("modeles", modeles).put("modele", modele.toUpperCase())
                 .put("code", LabelSheetPdf.typeCode(reportUtil.findParameterValue("KEY_ETIQUETTE_CODE")))
-                .put("reglages", reglages).put("zones", zones).put("monnaie", "CFA")
+                .put("codes", codes()).put("personnaliser", peutPersonnaliser()).put("reglages", reglages)
+                .put("zones", zones).put("monnaie", "CFA")
                 .put("date", LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yy")))
                 .put("modeleCsv", Zone.fichierModele()).put("maxEtiquettes", MoteurEtiquettes.MAX_ETIQUETTES)
                 .put("maxLignes", LecteurTableau.MAX_LIGNES));
+    }
+
+    /** Types de code proposes : les 3 habituels et les 2 codes etendus (hors vente). */
+    static JSONArray codes() {
+        return new JSONArray()
+                .put(new JSONObject().put("id", LabelSheetPdf.CODE_BARRES).put("libelle", "Code-barres (CIP)"))
+                .put(new JSONObject().put("id", LabelSheetPdf.DATAMATRIX).put("libelle", "DataMatrix GS1"))
+                .put(new JSONObject().put("id", LabelSheetPdf.QR).put("libelle", "QR code GS1"))
+                .put(new JSONObject().put("id", LabelSheetPdf.DATAMATRIX_PLUS).put("etendu", true).put("libelle",
+                        "DataMatrix+ (étendu, hors vente)"))
+                .put(new JSONObject().put("id", LabelSheetPdf.QR_PLUS).put("etendu", true).put("libelle",
+                        "QR+ (étendu, hors vente)"));
     }
 
     static String libelleModele(String m) {
@@ -468,6 +497,291 @@ public class EtiquetageProRessource {
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "Etiquettage Pro : page de test", e);
             return page("Page de test impossible : " + e.getMessage());
+        }
+    }
+
+    /* --------------------------------------------------- personnalisation */
+
+    /** Elements de la personnalisation (libelle, police de depart, lignes, possible dans le code). */
+    static JSONArray elements() {
+        JSONArray a = new JSONArray();
+        for (etiquetagepro.disposition.ElementEtiquette e : etiquetagepro.disposition.ElementEtiquette.values()) {
+            a.put(new JSONObject().put("id", e.name()).put("libelle", e.getLibelle()).put("police", e.getPoliceDefaut())
+                    .put("lignes", e.getLignesMax()).put("dansLeCode", e.isPossibleDansLeCode())
+                    .put("texte", e.estTexte()).put("gras", e.isGras()));
+        }
+        return a;
+    }
+
+    /**
+     * Disposition qui sert aujourd'hui pour ce type et la planche choisie : enregistree, sinon reportee a l'echelle
+     * d'une disposition enregistree du meme type (a recontroler), sinon la disposition proposee.
+     */
+    @POST
+    @Path("disposition/charger")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Response chargerDisposition(String corps) {
+        JSONObject r = refus();
+        if (r != null) {
+            return json(r);
+        }
+        JSONObject d = new JSONObject(StringUtils.defaultIfBlank(corps, "{}"));
+        OptionsImpression o = options(d);
+        float[] dim = LabelSheetPdf.dimension(o.planche(reportUtil::findParameterValue));
+        String type = o.getTypeCode();
+        etiquetagepro.disposition.Disposition disp = service.dispositionEnregistree(type, dim[0], dim[1]);
+        String source = "enregistree";
+        String depuis = null;
+        if (disp == null) {
+            List<etiquetagepro.disposition.Disposition> autres = service.dispositionsDuType(type);
+            if (!autres.isEmpty()) {
+                disp = autres.get(0).aLEchelle(dim[0], dim[1]);
+                source = "echelle";
+                depuis = autres.get(0).getLargeur() + " x " + autres.get(0).getHauteur() + " mm";
+            } else {
+                disp = etiquetagepro.disposition.Disposition.parDefaut(type, dim[0], dim[1]);
+                source = "proposee";
+            }
+        }
+        boolean historique = !"enregistree".equals(source) && !disp.estEtendu();
+        return json(new JSONObject().put("success", true).put("type", type).put("largeur", disp.getLargeur())
+                .put("hauteur", disp.getHauteur()).put("source", source).put("depuis", depuis)
+                .put("historique", historique).put("disposition", disp.json())
+                .put("controle", etiquetagepro.disposition.ControleDisposition.controler(disp).json())
+                .put("elements", elements()).put("personnaliser", peutPersonnaliser())
+                .put("enregistrees", service.dispositionsEnregistrees())
+                .put("marge", etiquetagepro.disposition.Disposition.MARGE));
+    }
+
+    /** Etiquette d'exemple (valeurs saisies a l'ecran ou produit choisi) pour l'apercu. */
+    static LabelSheetPdf.LabelData exemple(JSONObject e, String type) {
+        JSONObject x = e == null ? new JSONObject() : e;
+        String cip = StringUtils.defaultIfBlank(x.optString("cip"), "3400930000014");
+        String prix = x.has("prix") && !x.optString("prix").isEmpty() ? MoteurEtiquettes
+                .prixAffiche(LigneEtiquette.lirePrix(x.optString("prix")), x.optString("monnaie", "CFA")) : "";
+        LabelSheetPdf.LabelData l = new LabelSheetPdf.LabelData(x.optString("officine"), x.optString("grossiste"),
+                x.optString("designation"), cip, prix, x.optString("date")).codeGeo(x.optString("codeGeo"))
+                        .mention(x.optString("mention"));
+        java.time.LocalDate per = LigneEtiquette.lireDate(x.optString("peremption"));
+        String lot = StringUtils.trimToNull(x.optString("lot"));
+        String brute = rest.report.pdf.Gs1.brute(x.optString("ean"), per, lot, cip);
+        if (!LabelSheetPdf.CODE_BARRES.equals(type)) {
+            l.codeEtendu(type, brute, lot, per == null ? null : per.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")))
+                    .codeUnique(StringUtils.defaultIfBlank(x.optString("codeUnique"), "AB2CD"));
+        }
+        return l;
+    }
+
+    /**
+     * Controle d'une disposition en cours de modification, avec ce qu'il faut pour l'apercu reel : le texte de chaque
+     * element et les modules du code pour l'etiquette d'exemple.
+     */
+    @POST
+    @Path("disposition/controler")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Response controlerDisposition(String corps) {
+        JSONObject r = refus();
+        if (r != null) {
+            return json(r);
+        }
+        try {
+            JSONObject d = new JSONObject(StringUtils.defaultIfBlank(corps, "{}"));
+            etiquetagepro.disposition.Disposition disp = etiquetagepro.disposition.Disposition
+                    .lire(d.getJSONObject("disposition"));
+            LabelSheetPdf.LabelData l = exemple(d.optJSONObject("exemple"), disp.getTypeCode());
+            JSONObject valeurs = new JSONObject(), mise = new JSONObject();
+            for (Map.Entry<etiquetagepro.disposition.ElementEtiquette, String> v : l.valeurs().entrySet()) {
+                valeurs.put(v.getKey().name(), StringUtils.defaultString(v.getValue()));
+                etiquetagepro.disposition.Placement p = disp.placement(v.getKey());
+                if (p != null && StringUtils.isNotBlank(v.getValue()) && p.getL() > 0 && p.getH() > 0) {
+                    mise.put(v.getKey().name(),
+                            rest.report.pdf.RenduDisposition.miseEnPage(v.getKey().isGras(), v.getValue(), p));
+                }
+            }
+            JSONObject symbole = new JSONObject();
+            String contenu = l.contenuCode(disp);
+            try {
+                rest.report.pdf.Symbole s = rest.report.pdf.Symbole.de(disp.getTypeCode(), contenu);
+                symbole.put("lignes", new JSONArray(s.lignes())).put("silence", s.getSilence())
+                        .put("lineaire", s.isLineaire()).put("caracteres", StringUtils.length(contenu));
+            } catch (IllegalArgumentException e) {
+                symbole.put("erreur", "Contenu trop long pour ce code.");
+            }
+            return json(new JSONObject().put("success", true).put("disposition", disp.json())
+                    .put("controle", etiquetagepro.disposition.ControleDisposition.controler(disp).json())
+                    .put("valeurs", valeurs).put("mise", mise).put("symbole", symbole)
+                    .put("contenuLisible", lisible(disp.getTypeCode(), contenu)));
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "Etiquettage Pro : controler la disposition", e);
+            return json(echec("Disposition illisible."));
+        }
+    }
+
+    /** Ce que rend le code au scan, lisible (separateur GS montre « <GS> »). */
+    static String lisible(String type, String contenu) {
+        if (contenu == null) {
+            return "";
+        }
+        if (LabelSheetPdf.QR.equals(type) || LabelSheetPdf.DATAMATRIX.equals(type)) {
+            return rest.report.pdf.Gs1.lisible(contenu);
+        }
+        return contenu.replace(String.valueOf(rest.report.pdf.Gs1.GS), "<GS>");
+    }
+
+    @POST
+    @Path("disposition/enregistrer")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Response enregistrerDisposition(String corps) {
+        JSONObject r = refus();
+        if (r != null) {
+            return json(r);
+        }
+        if (!peutPersonnaliser()) {
+            return json(echec("Vous n'avez pas le droit de personnaliser les étiquettes.").put("interdit", true));
+        }
+        try {
+            etiquetagepro.disposition.Disposition disp = etiquetagepro.disposition.Disposition
+                    .lire(new JSONObject(corps).getJSONObject("disposition"));
+            etiquetagepro.disposition.ControleDisposition.Resultat c = etiquetagepro.disposition.ControleDisposition
+                    .controler(disp);
+            if (!c.valide()) {
+                return json(echec("Disposition non enregistrée : corrigez d'abord ce qui est signalé en rouge.")
+                        .put("controle", c.json()));
+            }
+            service.enregistrerDisposition(disp, utilisateur());
+            return json(new JSONObject().put("success", true).put("cle", disp.cle()).put("controle", c.json())
+                    .put("msg", "Disposition enregistrée : elle sert désormais à toutes les impressions de ce type"
+                            + " et de ce format."));
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "Etiquettage Pro : enregistrer la disposition", e);
+            return json(echec("Disposition illisible."));
+        }
+    }
+
+    @POST
+    @Path("disposition/supprimer")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Response supprimerDisposition(String corps) {
+        JSONObject r = refus();
+        if (r != null) {
+            return json(r);
+        }
+        if (!peutPersonnaliser()) {
+            return json(echec("Vous n'avez pas le droit de personnaliser les étiquettes.").put("interdit", true));
+        }
+        JSONObject d = new JSONObject(StringUtils.defaultIfBlank(corps, "{}"));
+        boolean fait = service.supprimerDisposition(LabelSheetPdf.typeCodeEtendu(d.optString("type")),
+                (float) d.optDouble("largeur", 0), (float) d.optDouble("hauteur", 0));
+        return json(new JSONObject().put("success", true).put("supprimee", fait).put("msg", fait
+                ? "Disposition d'origine rétablie pour ce type et ce format." : "Aucune disposition enregistrée."));
+    }
+
+    /** Page de test de la disposition : une etiquette d'exemple dessinee comme a l'impression (premiere case). */
+    @POST
+    @Path("disposition/pdf")
+    @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
+    @Produces({ "application/pdf", "text/html" })
+    public Response pdfDisposition(@FormParam("donnees") String donnees) {
+        JSONObject r = refus();
+        if (r != null) {
+            return page(r.optString("msg"));
+        }
+        try {
+            JSONObject d = new JSONObject(StringUtils.defaultIfBlank(donnees, "{}"));
+            etiquetagepro.disposition.Disposition disp = etiquetagepro.disposition.Disposition
+                    .lire(d.getJSONObject("disposition"));
+            OptionsImpression o = options(d);
+            LabelSheetPdf.SheetFormat f = o.planche(reportUtil::findParameterValue);
+            java.io.ByteArrayOutputStream sortie = new java.io.ByteArrayOutputStream();
+            LabelSheetPdf.write(sortie,
+                    java.util.Collections.singletonList(exemple(d.optJSONObject("exemple"), disp.getTypeCode())),
+                    Math.max(1, o.getPositionDepart()), f, (t, l, h) -> disp);
+            return Response.ok(sortie.toByteArray(), "application/pdf")
+                    .header("Content-Disposition", disposition("etiquette_essai.pdf")).build();
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "Etiquettage Pro : essai de disposition", e);
+            return page("Essai impossible : " + e.getMessage());
+        }
+    }
+
+    /* ------------------------------------------------- lire une etiquette */
+
+    /**
+     * Lire une etiquette (hors vente) : code etendu (DataMatrix+, QR+) avec toutes ses informations, etiquette GS1
+     * habituelle, ou simple CIP / EAN ; le produit de Prestige et les alertes (prix etiquete different du prix actuel,
+     * peremption depassee ou proche, produit inconnu).
+     */
+    @GET
+    @Path("lire-etiquette")
+    public Response lireEtiquette(@javax.ws.rs.QueryParam("code") String code) {
+        JSONObject r = refus();
+        if (r != null) {
+            return json(r);
+        }
+        if (StringUtils.isBlank(code)) {
+            return json(echec("Scannez ou saisissez une étiquette."));
+        }
+        Map<String, String> infos = rest.report.pdf.ContenuEtendu.lire(code);
+        String type;
+        if (infos != null) {
+            type = infos.remove("TYPE");
+        } else if (rest.report.pdf.Gs1.estGs1(code)) {
+            rest.report.pdf.Gs1.Contenu c = rest.report.pdf.Gs1.lire(code);
+            infos = new LinkedHashMap<>();
+            putSi(infos, rest.report.pdf.ContenuEtendu.CIP, c.cip);
+            putSi(infos, rest.report.pdf.ContenuEtendu.LOT, c.lot);
+            putSi(infos, rest.report.pdf.ContenuEtendu.PER,
+                    c.peremption == null ? null : c.peremption.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")));
+            putSi(infos, rest.report.pdf.ContenuEtendu.EAN, c.gtin == null ? null : rest.report.pdf.Gs1.ean13(c.gtin));
+            type = "GS1";
+        } else {
+            infos = new LinkedHashMap<>();
+            infos.put(rest.report.pdf.ContenuEtendu.CIP, code.trim());
+            type = "CIP";
+        }
+        JSONObject produit = service.produitPourLecture(infos.get(rest.report.pdf.ContenuEtendu.CIP));
+        if (produit == null && infos.containsKey(rest.report.pdf.ContenuEtendu.EAN)) {
+            produit = service.produitPourLecture(infos.get(rest.report.pdf.ContenuEtendu.EAN));
+        }
+        JSONArray alertes = new JSONArray();
+        if (produit == null) {
+            alertes.put("Produit inconnu dans Prestige (CIP "
+                    + StringUtils.defaultString(infos.get(rest.report.pdf.ContenuEtendu.CIP), "-") + ").");
+        } else {
+            String prixCode = infos.get(rest.report.pdf.ContenuEtendu.PRIX);
+            if (prixCode != null) {
+                try {
+                    long etiquete = new java.math.BigDecimal(prixCode).longValue();
+                    long actuel = produit.optLong("prix");
+                    if (etiquete != actuel) {
+                        alertes.put("Prix étiqueté "
+                                + MoteurEtiquettes.prixAffiche(java.math.BigDecimal.valueOf(etiquete), "")
+                                + ", prix actuel "
+                                + MoteurEtiquettes.prixAffiche(java.math.BigDecimal.valueOf(actuel), "")
+                                + " : étiquette à refaire.");
+                    }
+                } catch (NumberFormatException e) {
+                    alertes.put("Prix illisible dans le code.");
+                }
+            }
+        }
+        java.time.LocalDate per = LigneEtiquette
+                .lireDate(StringUtils.defaultString(infos.get(rest.report.pdf.ContenuEtendu.PER)));
+        if (per != null) {
+            if (per.isBefore(LocalDate.now())) {
+                alertes.put("Lot périmé depuis le " + infos.get(rest.report.pdf.ContenuEtendu.PER) + ".");
+            } else if (!per.isAfter(LocalDate.now().plusMonths(3))) {
+                alertes.put("Péremption proche : " + infos.get(rest.report.pdf.ContenuEtendu.PER) + ".");
+            }
+        }
+        return json(new JSONObject().put("success", true).put("type", type).put("infos", new JSONObject(infos))
+                .put("produit", produit == null ? JSONObject.NULL : produit).put("alertes", alertes)
+                .put("venteAutorisee", !"DATAMATRIX+".equals(type) && !"QR+".equals(type)));
+    }
+
+    private static void putSi(Map<String, String> m, String cle, String v) {
+        if (StringUtils.isNotBlank(v)) {
+            m.put(cle, v);
         }
     }
 }

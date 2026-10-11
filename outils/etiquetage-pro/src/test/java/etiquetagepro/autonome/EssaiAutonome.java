@@ -258,7 +258,8 @@ public final class EssaiAutonome {
                 b.importer(modele, null);
                 return null;
             });
-            ok("Fichier modèle : 10 colonnes, toutes prises par leur zone", edt(() -> b.tableau.getColonnes().size() == 10
+            ok("Fichier modèle : une colonne par zone (" + etiquetagepro.Zone.values().length + "), toutes prises par leur zone",
+                    edt(() -> b.tableau.getColonnes().size() == etiquetagepro.Zone.values().length
                     && b.tableau.getColonnes().stream().allMatch(c -> !b.zonesDeLaColonne(c).isEmpty())), edt(() -> b.tableau.getColonnes()));
 
             /* ------------------------------------------------------- Excel */

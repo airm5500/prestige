@@ -23,7 +23,10 @@ public enum Zone {
             "qte", "qty", "quantity", "copies", "exemplaires"),
     DATE("Date imprimée", false, false, "date", "date imprimee", "date etiquette", "date impression", "date reception"),
     MENTION("Mention libre", false, false, "mention", "mention libre", "commentaire", "remarque", "note", "rayon",
-            "emplacement");
+            "emplacement"),
+    /** Personnalisation : code geo (position) du produit, facultatif ; Prestige le complete depuis la fiche article. */
+    CODE_GEO("Code géo", false, false, "code geo", "code geographique", "zone geo", "zone geographique", "position",
+            "code position", "geo");
 
     private final String libelle;
     private final boolean obligatoireParDefaut;
@@ -76,6 +79,8 @@ public enum Zone {
             return "2";
         case DATE:
             return "10/10/26";
+        case CODE_GEO:
+            return "B-04";
         default:
             return "Rayon 4";
         }

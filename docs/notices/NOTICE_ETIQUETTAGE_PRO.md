@@ -96,12 +96,59 @@ Ce que l'étiquette affiche dépend du type de code :
 
 - **Code-barres standard** : pharmacie, puis « grossiste - date - mention », puis désignation, puis le code du CIP, puis « CIP -- prix ». Si cette 2e ligne est trop longue, le grossiste est abrégé, puis la date est retirée : la mention reste lisible.
 - **DataMatrix / QR code** : pharmacie en haut. À gauche : CIP, prix, grossiste, mention et code unique de l'étiquette. Le code est à droite.
+- **DataMatrix+ / QR+** : disposition de la Personnalisation (voir plus bas).
+
+Une disposition validée dans l'onglet **Personnalisation** remplace ce dessin pour son type de code et sa dimension.
 
 **Code unique** : chaque étiquette 2D porte un code de 5 caractères, jamais reproduit. Il passe à 6, puis 7, puis 8 caractères quand les codes d'une longueur s'épuisent.
+
+**Code géo** : nouvelle zone facultative (titres reconnus : « code géo », « position », « zone géo »…). « Compléter depuis Prestige » reprend le code géo principal de la fiche article.
+
+## Codes étendus : DataMatrix+ et QR+ (hors vente)
+
+Deux types de code s'ajoutent aux trois habituels, **sans rien changer à ces derniers**. Ils servent à la commande, à la réception, à l'inventaire et au contrôle de rayon : au scan, on récupère tout d'un coup.
+
+| Type | Contenu | Pour qui |
+|---|---|---|
+| **DataMatrix+** | La chaîne GS1 habituelle — (01) GTIN, (17) péremption, (10) lot, (240) CIP — puis les champs « usage interne » de la norme : (91) marqueur `EPLUS1`, (92) désignation, (93) prix, (94) pharmacie, (95) grossiste, (96) code géo, (97) code de l'étiquette. | Douchettes. Une douchette ou un logiciel tiers lit toujours le produit, le lot et la péremption ; Prestige lit tout. |
+| **QR+** | Un texte clair sur une ligne : `EP1\|CIP:3400930000014\|NOM:DOLIPRANE 1000MG\|PRIX:1250\|LOT:A2410B\|PER:31/12/2027\|PHA:…\|GEO:B-04` | Téléphones (lisible tel quel). Prestige le lit aussi. |
+
+- Le CIP, le lot, la péremption (et l'EAN) y sont toujours. Les autres informations se choisissent dans la Personnalisation (case **« Dans le code »**) ; par défaut : désignation, prix, pharmacie, code géo.
+- Les accents sont retirés (les douchettes les déforment) et chaque information est bornée en longueur.
+- **Le prix du code est figé au jour de l'impression** : il ne sert jamais à la vente. Hors vente, « Lire une étiquette » signale l'écart avec le prix actuel.
+- **À la caisse, les deux codes étendus sont refusés** (vente, vente en dépôt, devis), quel que soit le paramètre de lecture GS1 : « Cette étiquette est réservée à la commande, à la réception et à l'inventaire ». L'étiquette GS1 habituelle passe comme avant.
+- Plus d'informations = un code plus dense. Sur une petite étiquette, la disposition proposée met moins d'informations dans le code pour qu'il reste lisible ; si le format est vraiment trop petit, l'impression est refusée avec la raison.
+
+## Personnalisation (onglet en haut à droite)
+
+Une **vue réelle** de l'étiquette, pour un type de code et une planche (dimension en mm). Une disposition est enregistrée **par type de code et par dimension**, et choisie automatiquement à l'impression.
+
+- **Informations** à cocher : nom de la pharmacie, désignation (nom en machine, deux lignes possibles), CIP, prix, grossiste, code géo, lot, péremption, code de l'étiquette, date, mention ; pour DataMatrix+ / QR+, la case « Dans le code ».
+- **Déplacer** : glisser à la souris, ou flèches du clavier (0,1 mm ; Maj + flèches : 1 mm).
+- **Agrandir** : les points d'extension autour de l'élément sélectionné. Un texte agrandi en hauteur grossit sa police ; le code 2D reste carré.
+- **Police et alignement** : colonne « Police (pt) » et boutons Gauche / Centre / Droite.
+- **Zoom** : agrandit la zone de travail, jamais la taille réelle de l'étiquette.
+- **Aperçu avec un produit** (son CIP) et **Pire cas** (nom, prix et lot les plus longs).
+- **Garde-fous** (en rouge, « Valider » grisé tant qu'il en reste) :
+  - rien ne sort de l'étiquette (1 mm de marge au bord) et rien ne se chevauche ; le cadre du code comprend sa zone de silence ;
+  - code 2D : point de 0,25 mm au moins, contrôlé sur le contenu le plus long possible (avertissement sous 0,33 mm : limite sur une imprimante thermique de base) ;
+  - code-barres : barre fine de 0,19 mm au moins, 5 mm de haut au moins ;
+  - texte : 4,5 pt au moins, cadre assez haut pour une ligne.
+- Un texte trop long : la police descend jusqu'au minimum lisible (la désignation passe d'abord sur deux lignes), puis il est abrégé. La vue montre exactement ce que donnera l'impression.
+- **Valider** enregistre ; **Essai (PDF)** imprime une étiquette d'exemple ; **Rétablir la disposition d'origine** supprime la disposition enregistrée.
+- Sans disposition enregistrée, les étiquettes code-barres, QR et DataMatrix gardent **exactement** leur dessin d'origine. La disposition proposée (nom du produit sous la pharmacie, code géo) ne sert qu'une fois validée.
+- Changement de planche : la disposition d'un autre format du même type est reportée à l'échelle, à vérifier puis valider.
+- Les étiquettes QR / DataMatrix imprimées depuis la gestion des étiquettes et les bons de livraison suivent aussi la disposition validée ; le code-barres classique n'est pas concerné.
+
+## Lire une étiquette (onglet en haut à droite)
+
+On scanne (ou on colle) une étiquette DataMatrix+, QR+, GS1 habituelle ou un simple CIP, puis Entrée : toutes les informations s'affichent, avec le produit de Prestige et les **alertes** : prix étiqueté différent du prix actuel (« étiquette à refaire »), lot périmé ou péremption à moins de 3 mois, produit inconnu. Le champ se vide et garde le focus : on enchaîne les scans.
 
 ## Droits (Prestige)
 
 Le menu est protégé par le droit **P_SM_ETIQUETAGE_PRO**. Il a été donné aux rôles qui ont déjà la gestion des étiquettes, et à l'administrateur. Pour les autres rôles, on l'ajoute dans la gestion des rôles.
+
+**Modifier la personnalisation** demande le droit **P_SM_ETIQUETTE_PERSO**, donné au seul administrateur par défaut. Sans lui, l'onglet est en lecture seule.
 
 ## Application autonome : EtiquettagePro.jar
 

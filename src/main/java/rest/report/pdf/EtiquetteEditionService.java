@@ -123,7 +123,8 @@ public class EtiquetteEditionService {
                                                 : famille.getDtPEREMPTION()),
                                         null)
                                 .grossisteProduit(famille.getLgGROSSISTEID() == null ? null
-                                        : famille.getLgGROSSISTEID().getStrLIBELLE()));
+                                        : famille.getLgGROSSISTEID().getStrLIBELLE())
+                                .codeGeo(codeGeo(famille)));
             }
         }
         return labels;
@@ -168,7 +169,8 @@ public class EtiquetteEditionService {
             return code;
         };
         java.io.ByteArrayOutputStream sortie = new java.io.ByteArrayOutputStream();
-        etiquetagepro.MoteurEtiquettes.pdf(sortie, lignes, options, registre, configuration);
+        etiquetagepro.MoteurEtiquettes.pdf(sortie, lignes, options, registre, configuration,
+                this::dispositionEnregistree);
         return sortie.toByteArray();
     }
 
@@ -205,9 +207,112 @@ public class EtiquetteEditionService {
                             .put("grossiste",
                                     f.getLgGROSSISTEID() == null ? ""
                                             : StringUtils.defaultString(f.getLgGROSSISTEID().getStrLIBELLE()))
+                            .put("codeGeo", StringUtils.defaultString(codeGeo(f)))
                             .put("statut", StringUtils.defaultString(f.getStrSTATUT())));
         }
         return resultat;
+    }
+
+    /**
+     * Personnalisation : code geo (position) principal du produit, celui de sa fiche ; vide si aucun ou si c'est
+     * l'emplacement par defaut sans libelle.
+     */
+    public static String codeGeo(TFamille f) {
+        if (f == null || f.getLgZONEGEOID() == null) {
+            return null;
+        }
+        return StringUtils.trimToNull(
+                StringUtils.defaultIfBlank(f.getLgZONEGEOID().getStrLIBELLEE(), f.getLgZONEGEOID().getStrCODE()));
+    }
+
+    /* ------------------------------------------------- personnalisation */
+
+    /** Disposition enregistree pour ce type de code et cette dimension, sinon null (dessin historique). */
+    @SuppressWarnings("unchecked")
+    public etiquetagepro.disposition.Disposition dispositionEnregistree(String type, float largeur, float hauteur) {
+        try {
+            List<Object> r = em.createNativeQuery("SELECT contenu FROM t_etiquette_disposition WHERE cle = ?1")
+                    .setParameter(1, etiquetagepro.disposition.Disposition.cle(type, largeur, hauteur)).getResultList();
+            return r.isEmpty() ? null
+                    : etiquetagepro.disposition.Disposition.lire(new org.json.JSONObject(String.valueOf(r.get(0))));
+        } catch (Exception e) {
+            /* une disposition illisible ne doit pas empecher l'impression : dessin historique */
+            LOG.log(Level.WARNING, "dispositionEnregistree " + type, e);
+            return null;
+        }
+    }
+
+    /** Dispositions enregistrees du meme type (autres dimensions), la plus recente d'abord. */
+    @SuppressWarnings("unchecked")
+    public List<etiquetagepro.disposition.Disposition> dispositionsDuType(String type) {
+        List<etiquetagepro.disposition.Disposition> l = new ArrayList<>();
+        for (Object c : em
+                .createNativeQuery(
+                        "SELECT contenu FROM t_etiquette_disposition WHERE type_code = ?1 ORDER BY dt_UPDATED DESC")
+                .setParameter(1, type).getResultList()) {
+            try {
+                l.add(etiquetagepro.disposition.Disposition.lire(new org.json.JSONObject(String.valueOf(c))));
+            } catch (Exception e) {
+                LOG.log(Level.WARNING, "disposition illisible ignoree", e);
+            }
+        }
+        return l;
+    }
+
+    /** Liste des dispositions enregistrees (cle, type, dimension, auteur, date). */
+    @SuppressWarnings("unchecked")
+    public org.json.JSONArray dispositionsEnregistrees() {
+        org.json.JSONArray a = new org.json.JSONArray();
+        for (Object[] r : (List<Object[]>) em.createNativeQuery(
+                "SELECT cle, type_code, largeur_mm, hauteur_mm, modifie_par, DATE_FORMAT(dt_UPDATED, '%d/%m/%Y %H:%i')"
+                        + " FROM t_etiquette_disposition ORDER BY type_code, largeur_mm, hauteur_mm")
+                .getResultList()) {
+            a.put(new org.json.JSONObject().put("cle", r[0]).put("type", r[1]).put("largeur", r[2]).put("hauteur", r[3])
+                    .put("par", StringUtils.defaultString((String) r[4])).put("le", r[5]));
+        }
+        return a;
+    }
+
+    /** Enregistre (ou remplace) la disposition de ce type et de cette dimension. */
+    public void enregistrerDisposition(etiquetagepro.disposition.Disposition d, String utilisateur) {
+        em.createNativeQuery("INSERT INTO t_etiquette_disposition (cle, type_code, largeur_mm, hauteur_mm, contenu,"
+                + " modifie_par, dt_UPDATED) VALUES (?1, ?2, ?3, ?4, ?5, ?6, NOW()) ON DUPLICATE KEY UPDATE"
+                + " contenu = VALUES(contenu), modifie_par = VALUES(modifie_par), dt_UPDATED = NOW()")
+                .setParameter(1, d.cle()).setParameter(2, d.getTypeCode()).setParameter(3, d.getLargeur())
+                .setParameter(4, d.getHauteur()).setParameter(5, d.json().toString())
+                .setParameter(6, StringUtils.abbreviate(StringUtils.defaultString(utilisateur), 100)).executeUpdate();
+    }
+
+    /** Retire la disposition : ce type et cette dimension reviennent au dessin d'origine. */
+    public boolean supprimerDisposition(String type, float largeur, float hauteur) {
+        return em.createNativeQuery("DELETE FROM t_etiquette_disposition WHERE cle = ?1")
+                .setParameter(1, etiquetagepro.disposition.Disposition.cle(type, largeur, hauteur)).executeUpdate() > 0;
+    }
+
+    /**
+     * Produit de Prestige pour la lecture d'une etiquette : designation, prix actuel, code geo, peremption la plus
+     * proche en stock. Lecture seule ; null si le CIP est inconnu.
+     */
+    @SuppressWarnings("unchecked")
+    public org.json.JSONObject produitPourLecture(String cip) {
+        if (StringUtils.isBlank(cip)) {
+            return null;
+        }
+        List<TFamille> f = em.createQuery(
+                "SELECT f FROM TFamille f WHERE f.intCIP = ?1 ORDER BY CASE WHEN f.strSTATUT = 'enable' THEN 0 ELSE 1 END",
+                TFamille.class).setParameter(1, cip.trim()).setMaxResults(1).getResultList();
+        if (f.isEmpty()) {
+            return null;
+        }
+        TFamille p = f.get(0);
+        return new org.json.JSONObject().put("id", p.getLgFAMILLEID())
+                .put("designation", StringUtils.defaultString(p.getStrDESCRIPTION()))
+                .put("prix", p.getIntPRICE() == null ? 0 : p.getIntPRICE())
+                .put("codeGeo", StringUtils.defaultString(codeGeo(p)))
+                .put("grossiste",
+                        p.getLgGROSSISTEID() == null ? ""
+                                : StringUtils.defaultString(p.getLgGROSSISTEID().getStrLIBELLE()))
+                .put("statut", StringUtils.defaultString(p.getStrSTATUT()));
     }
 
     private String nomOfficine() {
