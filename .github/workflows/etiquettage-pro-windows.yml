@@ -1,0 +1,119 @@
+# Etiquettage Pro (version web) : installateur Windows (.exe) construit sur une machine Windows de GitHub.
+# - a la demande (onglet Actions > « Etiquettage Pro - installateur Windows » > Run workflow) ;
+# - a chaque modification de outils/etiquetage-pro-web (ou de ce fichier) poussee sur une branche.
+# Resultat : artefact « Etiquettage-Pro-installateur » (le .exe), garde 30 jours.
+name: Etiquettage Pro - installateur Windows
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'outils/etiquetage-pro-web/**'
+      - 'src/main/java/etiquetagepro/**'
+      - 'src/main/java/rest/report/pdf/LabelSheetPdf.java'
+      - 'src/main/java/rest/report/pdf/Gs1*.java'
+      - 'src/main/java/rest/report/pdf/ContenuEtendu.java'
+      - 'src/main/java/rest/report/pdf/Symbole.java'
+      - 'src/main/java/rest/report/pdf/RenduDisposition.java'
+      - '.github/workflows/etiquettage-pro-windows.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: etiquettage-pro-windows-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  installateur:
+    runs-on: windows-2022
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+          cache-dependency-path: outils/etiquetage-pro-web/backend/pom.xml
+
+      - name: Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: outils/etiquetage-pro-web/frontend/package-lock.json
+
+      - name: WiX Toolset 3.14 (exige par jpackage)
+        run: |
+          if (-not (Get-Command candle.exe -ErrorAction SilentlyContinue)) {
+            $wix = Get-ChildItem 'C:\Program Files (x86)' -Directory -Filter 'WiX Toolset v3*' -ErrorAction SilentlyContinue | Select-Object -Last 1
+            if (-not $wix) {
+              choco install wixtoolset --version 3.14.1 -y --no-progress
+              $wix = Get-ChildItem 'C:\Program Files (x86)' -Directory -Filter 'WiX Toolset v3*' | Select-Object -Last 1
+            }
+            Add-Content $env:GITHUB_PATH (Join-Path $wix.FullName 'bin')
+          }
+
+      - name: Tests sous Windows (base MariaDB embarquee, controles, instance)
+        working-directory: outils/etiquetage-pro-web/backend
+        run: mvn -B test "-Dtest=BaseEmbarqueeTest,ControlesTest,InstanceTest" "-Dsurefire.failIfNoSpecifiedTests=false"
+
+      - name: Installateur (.exe)
+        run: ./outils/etiquetage-pro-web/installateur/construire-windows.ps1
+
+      - name: Essai de l'application (base embarquee, connexion, catalogue, arret)
+        working-directory: outils/etiquetage-pro-web/backend
+        run: |
+          $donnees = Join-Path $env:RUNNER_TEMP 'ep-donnees'
+          $env:ETIQUETTAGE_DONNEES = $donnees
+          $env:ETIQUETTAGE_NAVIGATEUR = 'false'
+          $env:ETIQUETTAGE_PORT = '8095'
+          $p = Start-Process java -ArgumentList '-jar', 'target\etiquettage-pro.jar' -PassThru -RedirectStandardOutput "$env:RUNNER_TEMP\ep.log" -RedirectStandardError "$env:RUNNER_TEMP\ep-err.log"
+          $url = 'http://127.0.0.1:8095'
+          $ok = $false
+          for ($i = 0; $i -lt 120 -and -not $ok; $i++) {
+            Start-Sleep -Seconds 1
+            try { Invoke-RestMethod "$url/api/etat" | Out-Null; $ok = $true } catch { }
+          }
+          if (-not $ok) { Get-Content "$env:RUNNER_TEMP\ep.log" -Tail 60; throw "L'application n'a pas demarre." }
+          $etat = Invoke-RestMethod "$url/api/etat" -SessionVariable s
+          if (-not $etat.premierLancement) { throw 'premier lancement attendu' }
+          $jeton = { $s.Cookies.GetCookies($url)['XSRF-TOKEN'].Value }
+          $moi = Invoke-RestMethod "$url/api/connexion" -Method Post -WebSession $s -ContentType 'application/json' `
+            -Headers @{ 'X-XSRF-TOKEN' = (& $jeton) } -Body '{"login":"admin","motDePasse":"admin"}'
+          if ($moi.login -ne 'admin') { throw 'connexion admin/admin impossible' }
+          Invoke-RestMethod "$url/api/produits" -Method Post -WebSession $s -ContentType 'application/json' `
+            -Headers @{ 'X-XSRF-TOKEN' = (& $jeton) } -Body '{"cip":"3400930000014","designation":"essai windows","prix":"1250"}' | Out-Null
+          $liste = Invoke-RestMethod "$url/api/produits" -WebSession $s
+          if ($liste.total -ne 1) { throw 'produit non enregistre' }
+          $pdf = Invoke-WebRequest "$url/api/impression/pdf" -Method Post -WebSession $s -ContentType 'application/json' `
+            -Headers @{ 'X-XSRF-TOKEN' = (& $jeton) } -Body '{"cips":["3400930000014"],"code":"DATAMATRIX_PLUS"}'
+          if ($pdf.Headers['Content-Type'] -notlike 'application/pdf*') { throw 'PDF attendu' }
+          $index = Invoke-WebRequest "$url/catalogue"
+          if ($index.Content -notmatch '<app-root>') { throw 'interface absente' }
+          if (-not (Test-Path (Join-Path $donnees 'acces-base.properties'))) { throw 'base non protegee' }
+          Invoke-RestMethod "$url/api/arret" -Method Post -WebSession $s -Headers @{ 'X-XSRF-TOKEN' = (& $jeton) } | Out-Null
+          if (-not $p.WaitForExit(60000)) { Stop-Process -Id $p.Id -Force; throw "l'application ne s'est pas arretee" }
+          Start-Sleep -Seconds 3
+          if (Get-Process mariadbd, mysqld -ErrorAction SilentlyContinue) { throw 'MariaDB toujours lance apres l arret' }
+          Write-Host 'Essai Windows : demarrage, connexion, catalogue, impression PDF, arret : OK'
+
+      - name: Journal de l'essai (en cas d'echec)
+        if: failure()
+        run: |
+          Get-Content "$env:RUNNER_TEMP\ep.log" -Tail 200 -ErrorAction SilentlyContinue
+          Get-Content "$env:RUNNER_TEMP\ep-err.log" -Tail 50 -ErrorAction SilentlyContinue
+
+      - name: Publier l'installateur
+        uses: actions/upload-artifact@v4
+        with:
+          name: Etiquettage-Pro-installateur
+          path: outils/etiquetage-pro-web/backend/target/installateur/*.exe
+          if-no-files-found: error
+          retention-days: 30

@@ -68,7 +68,11 @@ class BaseEmbarqueeTest {
             assertThrows(SQLException.class, () -> DriverManager.getConnection(racine, "", "").close(),
                     "aucun compte anonyme");
             Path f = DOSSIER.resolve(BaseEmbarquee.FICHIER_ACCES);
-            assertEquals("rw-------", PosixFilePermissions.toString(Files.getPosixFilePermissions(f)));
+            assertTrue(Files.isRegularFile(f));
+            if (f.getFileSystem().supportedFileAttributeViews().contains("posix")) {
+                /* Windows : le dossier %LOCALAPPDATA% est deja propre a l'utilisateur */
+                assertEquals("rw-------", PosixFilePermissions.toString(Files.getPosixFilePermissions(f)));
+            }
             motDePasse = a.motDePasse();
         } finally {
             b.arreter();
