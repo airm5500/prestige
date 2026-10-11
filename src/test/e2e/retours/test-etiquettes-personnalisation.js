@@ -30,13 +30,14 @@ const P_LECTURE = q("SELECT str_VALUE FROM t_parameters WHERE str_KEY = 'KEY_VEN
 const DISPOS_AVANT = q("SELECT IFNULL(GROUP_CONCAT(CONCAT('''', cle, '''')), '''-''') FROM t_etiquette_disposition");
 const REGLAGES_AVANT = q("SELECT IFNULL(GROUP_CONCAT(CONCAT(str_KEY, '=', str_VALUE) SEPARATOR ';'), '') FROM t_parameters WHERE str_KEY LIKE 'KEY_ETIQUETTE_%'");
 
-/* un produit de Prestige avec un code geo nomme, CIP unique, prix */
-const [FID, PCIP, PNOM, PPRIX, PGEO] = q("SELECT CONCAT_WS('|', f.lg_FAMILLE_ID, f.int_CIP, f.str_DESCRIPTION, f.int_PRICE, z.str_LIBELLEE) FROM t_famille f"
-  + " JOIN t_zone_geographique z ON z.lg_ZONE_GEO_ID = f.lg_ZONE_GEO_ID AND z.str_LIBELLEE <> ''"
+/* un produit de Prestige (CIP unique, prix) ; son code geo d'article (str_CODE_GEO_ARTICLE) est pose le temps du test */
+const PGEO = 'E2E-B04';
+const [FID, PCIP, PNOM, PPRIX] = q("SELECT CONCAT_WS('|', f.lg_FAMILLE_ID, f.int_CIP, f.str_DESCRIPTION, f.int_PRICE) FROM t_famille f"
   + " JOIN t_famille_stock s ON s.lg_FAMILLE_ID = f.lg_FAMILLE_ID AND s.lg_EMPLACEMENT_ID = '1'"
   + " WHERE f.str_STATUT = 'enable' AND f.int_CIP REGEXP '^[0-9]{7}$' AND f.int_PRICE > 0 AND f.str_DESCRIPTION <> ''"
   + " AND COALESCE(f.bool_DECONDITIONNE, 0) = 0 AND COALESCE(f.lg_FAMILLE_PARENT_ID, '') = '' AND f.bool_ACCOUNT = 1"
   + " AND (SELECT COUNT(*) FROM t_famille g WHERE g.int_CIP = f.int_CIP) = 1 ORDER BY f.str_NAME LIMIT 1").split('|');
+const GEO_AVANT = q(`SELECT IFNULL(str_CODE_GEO_ARTICLE, '<NULL>') FROM t_famille WHERE lg_FAMILLE_ID = '${FID}'`);
 const STOCK = q(`SELECT CONCAT(int_NUMBER_AVAILABLE, '|', int_NUMBER) FROM t_famille_stock WHERE lg_FAMILLE_ID = '${FID}' AND lg_EMPLACEMENT_ID = '1'`).split('|');
 
 function texteDuPdf(binaire) {
@@ -65,6 +66,7 @@ function nettoyer() {
     + `DELETE FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID IN (${v});`
     + `UPDATE t_famille_stock SET int_NUMBER_AVAILABLE = ${STOCK[0]}, int_NUMBER = ${STOCK[1]} WHERE lg_FAMILLE_ID = '${FID}' AND lg_EMPLACEMENT_ID = '1';`
     + `UPDATE t_parameters SET str_VALUE = '${P_LECTURE}' WHERE str_KEY = 'KEY_VENTE_LECTURE_GS1';`
+    + `UPDATE t_famille SET str_CODE_GEO_ARTICLE = ${GEO_AVANT === '<NULL>' ? 'NULL' : "'" + GEO_AVANT.replace(/'/g, "''") + "'"} WHERE lg_FAMILLE_ID = '${FID}';`
     + (caisseCreee ? `DELETE FROM t_resume_caisse WHERE ld_CAISSE_ID = '${CAISSE}';` : ''));
 }
 
@@ -116,7 +118,8 @@ function nettoyer() {
 
   try {
     nettoyer();
-    ok('Précondition : produit avec code géo (' + PCIP + ', ' + PGEO + ')', !!FID && !!PGEO);
+    q(`UPDATE t_famille SET str_CODE_GEO_ARTICLE = '${PGEO}' WHERE lg_FAMILLE_ID = '${FID}'`);
+    ok('Précondition : produit avec un code géo d\'article (' + PCIP + ', ' + PGEO + ')', !!FID);
     ok('Migration : table des dispositions, droit P_SM_ETIQUETTE_PERSO donné à l\'administrateur seulement',
       q("SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 't_etiquette_disposition'") === '1'
       && q("SELECT COUNT(DISTINCT rp.lg_ROLE_ID) FROM t_role_privelege rp JOIN t_privilege p ON p.lg_PRIVELEGE_ID = rp.lg_PRIVILEGE_ID WHERE p.str_NAME = 'P_SM_ETIQUETTE_PERSO'") === '1');
@@ -131,7 +134,8 @@ function nettoyer() {
     let s = await perso();
     ok('Onglet Personnalisation : 5 types de code (dont DataMatrix+ et QR+), dimension réelle affichée', s.types === 'CODE128,DATAMATRIX,QR,DATAMATRIX_PLUS,QR_PLUS' && /38,0 × 21,2 mm/.test(s.dim), s.types + ' / ' + s.dim);
     ok('Sans disposition enregistrée : « l\'impression utilise le dessin d\'origine », proposition affichée', /Aucune disposition enregistrée/.test(s.source) && /dessin d'origine/.test(s.source), s.source);
-    ok('Vue réelle : pharmacie, désignation dessous, code, CIP, prix, code géo', ['PHARMACIE', 'DESIGNATION', 'CODE', 'CIP', 'PRIX', 'CODE_GEO'].every((k) => s.el[k])
+    ok('Vue réelle : pharmacie, désignation dessous, code, CIP, prix, date d\'édition, grossiste ; code géo facultatif (non affiché)',
+      ['PHARMACIE', 'DESIGNATION', 'CODE', 'CIP', 'PRIX', 'DATE', 'GROSSISTE'].every((k) => s.el[k]) && !s.el.CODE_GEO
       && s.el.DESIGNATION.top >= s.el.PHARMACIE.top + s.el.PHARMACIE.h - 1, JSON.stringify(Object.keys(s.el)));
     ok('Proposition lisible (point du code affiché)', /Lisible : code et informations/.test(s.controle) && /Point du code : 0,\d+ mm/.test(s.controle), s.controle);
     ok('Code dessiné module par module (canvas) avec sa zone de silence', await p.evaluate(() => !!document.querySelector('.etqp-el[data-el=CODE] canvas') && !!document.querySelector('.etqp-silence')));
@@ -140,8 +144,18 @@ function nettoyer() {
     await p.evaluate((cip) => { Ext.ComponentQuery.query('etqpersonnalisation #persoCip')[0].setValue(cip); }, PCIP);
     await bouton('#persoExemple');
     s = await perso();
-    ok('Aperçu avec le produit : désignation de Prestige et code géo, texte tel qu\'imprimé', s.el.DESIGNATION.txt.replace(/\s+/g, ' ').includes(PNOM.split(' ')[0]) && s.el.CODE_GEO.txt === PGEO,
-      s.el.DESIGNATION.txt + ' / ' + s.el.CODE_GEO.txt);
+    ok('Aperçu avec le produit : désignation de Prestige, texte tel qu\'imprimé', s.el.DESIGNATION.txt.replace(/\s+/g, ' ').includes(PNOM.split(' ')[0]), s.el.DESIGNATION.txt);
+    /* le code geo, facultatif, se coche (colonne « Imprimée ») apres avoir retire le code de l'etiquette : il se pose sur une place libre */
+    const cocher = async (id) => {
+      await p.evaluate((x) => { const c2 = Ext.ComponentQuery.query('etqpersonnalisation')[0], g2 = c2.down('#persoElements');
+        const n = g2.getView().getNode(c2.elementsStore.findRecord('id', x)); n.querySelector('.x-grid-cell-colImprime').setAttribute('data-e2e', 'imp-' + x); }, id);
+      await p.click('[data-e2e=imp-' + id + '] .x-grid-checkcolumn'); await attendre();
+    };
+    await cocher('CODE_UNIQUE');
+    await cocher('CODE_GEO');
+    s = await perso();
+    ok('Code géo coché : posé sur une place libre, avec le code géo de l\'article, lisible', !!s.el.CODE_GEO && s.el.CODE_GEO.txt === PGEO && !/etqp-bloquant/.test(s.el.CODE_GEO.cls)
+      && !s.el.CODE_UNIQUE && /Lisible/.test(s.controle), (s.el.CODE_GEO ? s.el.CODE_GEO.txt + ' ' + s.el.CODE_GEO.cls : 'absent') + ' / ' + s.controle);
 
     /* zoom : l'affichage grandit, la dimension de l'etiquette non */
     await p.evaluate(() => { Ext.ComponentQuery.query('etqpersonnalisation #persoZoom')[0].setValue(300); });
@@ -162,7 +176,7 @@ function nettoyer() {
     ok('Prix glissé sur le code : en rouge, « chevauche le code », Valider grisé', /etqp-bloquant/.test(s.el.PRIX.cls) && /chevauche le code/.test(s.controle) && !s.valider, s.controle);
     await bouton('#persoAnnuler');
     s = await perso();
-    ok('Annuler les modifications : disposition d\'origine, lisible', /Lisible/.test(s.controle) && !/etqp-bloquant/.test(JSON.stringify(s.el)), s.controle);
+    ok('Annuler les modifications : disposition d\'origine, lisible', /Lisible/.test(s.controle) && !/etqp-bloquant/.test(JSON.stringify(s.el)) && !s.el.CODE_GEO, s.controle);
 
     /* point d'extension : code reduit a l'extreme -> trop petit pour etre lu */
     await p.evaluate(() => { const c2 = Ext.ComponentQuery.query('etqpersonnalisation')[0]; c2.selectionner('CODE'); });
@@ -187,7 +201,9 @@ function nettoyer() {
     ok('Point d\'extension d\'un texte agrandi en hauteur : la police grossit', apresPolice > avantPolice, avantPolice + ' -> ' + apresPolice);
     await bouton('#persoAnnuler');
 
-    /* clavier : le code geo deplace de 0,5 mm a droite, puis Valider */
+    /* clavier : le code geo (recoche) deplace de 0,5 mm a droite, puis Valider */
+    await cocher('CODE_UNIQUE');
+    await cocher('CODE_GEO');
     await p.evaluate(() => { Ext.ComponentQuery.query('etqpersonnalisation')[0].selectionner('CODE_GEO'); });
     await p.waitForTimeout(300);
     const geoAvant = (await perso()).disp.elements.find((x) => x.element === 'CODE_GEO');
@@ -233,7 +249,8 @@ function nettoyer() {
     await p.evaluate(() => { Ext.ComponentQuery.query('etiquetagepro #code')[0].setValue({ code: 'QR' }); Ext.ComponentQuery.query('etiquetagepro #modele')[0].setValue('CARRE_38X21_2'); });
     pdf = await pdfDe('**/etiquetage-pro/pdf', () => bouton('#imprimer'));
     const qrLu = decoderPdf(pdf.brut);
-    ok('QR avec une disposition validée : imprimé avec la date d\'édition et le code géo, et se lit (décodeur indépendant)', pdf.texte.includes(PGEO)
+    const dateEdition = await p.evaluate(() => Ext.ComponentQuery.query('etiquetagepro #date')[0].getValue());
+    ok('QR avec la disposition proposée validée : date d\'édition imprimée, code géo absent (facultatif), et se lit (décodeur indépendant)', pdf.texte.includes(dateEdition) && !pdf.texte.includes(PGEO)
       && qrLu.some((x) => /QR/.test(x.format) && x.texte.includes('240' + PCIP)), JSON.stringify(qrLu).slice(0, 200));
     /* code-barres classique : pas de disposition enregistree -> dessin d'origine (sans code geo) */
     await p.evaluate(() => { Ext.ComponentQuery.query('etiquetagepro #code')[0].setValue({ code: 'CODE128' }); });
@@ -364,7 +381,8 @@ function nettoyer() {
     await b.close();
     try { droit.remettre(); nettoyer(); } catch (e) { console.log('nettoyage : ' + e.message); }
     try { fs.rmSync(DOSSIER, { recursive: true, force: true }); } catch (e) { /* rien */ }
-    ok('Remise en état : dispositions, codes, vente, paramètres, droit, réglages de planche', q(`SELECT COUNT(*) FROM t_etiquette_disposition WHERE cle NOT IN (${DISPOS_AVANT})`) === '0'
+    ok('Remise en état : dispositions, codes, vente, paramètres, droit, réglages de planche, code géo du produit', q(`SELECT COUNT(*) FROM t_etiquette_disposition WHERE cle NOT IN (${DISPOS_AVANT})`) === '0'
+      && q(`SELECT IFNULL(str_CODE_GEO_ARTICLE, '<NULL>') FROM t_famille WHERE lg_FAMILLE_ID = '${FID}'`) === GEO_AVANT
       && q(`SELECT COUNT(*) FROM t_etiquette_code WHERE dt_CREATED >= '${DEBUT}'`) === '0' && q("SELECT str_VALUE FROM t_parameters WHERE str_KEY = 'KEY_VENTE_LECTURE_GS1'") === P_LECTURE
       && q("SELECT IFNULL(GROUP_CONCAT(CONCAT(str_KEY, '=', str_VALUE) SEPARATOR ';'), '') FROM t_parameters WHERE str_KEY LIKE 'KEY_ETIQUETTE_%'") === REGLAGES_AVANT
       && q("SELECT COUNT(*) FROM t_role_privelege rp JOIN t_privilege p ON p.lg_PRIVELEGE_ID = rp.lg_PRIVILEGE_ID WHERE p.str_NAME = 'P_SM_ETIQUETTE_PERSO'") === '1');

@@ -89,7 +89,7 @@ Ext.define('testextjs.view.stockmanagement.etiquetagepro.Personnalisation', {
                             return '<span style="color:' + couleur + (etat ? ';font-weight:bold' : '') + '">' + Ext.String.htmlEncode(v)
                                     + (etat === 'bloquant' ? ' ⛔' : etat === 'avertissement' ? ' ⚠' : '') + '</span>';
                         }},
-                    {xtype: 'checkcolumn', text: 'Imprimée', dataIndex: 'imprime', width: 72, listeners: {
+                    {xtype: 'checkcolumn', text: 'Imprimée', itemId: 'colImprime', dataIndex: 'imprime', width: 72, listeners: {
                             beforecheckchange: function (c, i) {
                                 var r = me.elementsStore.getAt(i);
                                 return me.peutModifier() && r.get('id') !== 'CODE';
@@ -355,7 +355,7 @@ Ext.define('testextjs.view.stockmanagement.etiquetagepro.Personnalisation', {
                     + enc(o.depuis) + ' : vérifiez-la, puis validez pour l\'utiliser sur ce format.</div>';
         } else if (o.historique) {
             html = '<div class="etqp-info"><b>Aucune disposition enregistrée</b> : l\'impression utilise le dessin d\'origine.'
-                    + ' Ci-dessous, la disposition proposée (nom du produit sous la pharmacie, code géo) : validez-la pour l\'utiliser.</div>';
+                    + ' Ci-dessous, la disposition proposée (nom du produit sous la pharmacie, date d\'édition, grossiste) : validez-la pour l\'utiliser.</div>';
         } else {
             html = '<div class="etqp-info"><b>Disposition proposée</b> : utilisée à l\'impression de ce code étendu tant qu\'aucune'
                     + ' autre n\'est validée.</div>';
@@ -592,8 +592,55 @@ Ext.define('testextjs.view.stockmanagement.etiquetagepro.Personnalisation', {
         p[champ] = coche;
         if (champ === 'imprime' && coche) {
             me.selection = id;
+            me.placerLibre(p);
         }
         me.marquerModifie();
+    },
+
+    /**
+     * Information cochee : posee sur la premiere place libre de l'etiquette (dans les marges, sans toucher les autres
+     * ni le code) ; s'il n'y en a pas, elle reste ou elle est et apparait en rouge avec la raison.
+     */
+    placerLibre: function (p) {
+        var me = this, d = me.disp, marge = (me.etat && me.etat.marge) || 1, autres = Ext.Array.filter(d.elements, function (x) {
+            return x.imprime && x.element !== p.element;
+        });
+        var libre = function (x, y) {
+            return !Ext.Array.some(autres, function (o) {
+                return x < o.x + o.l && o.x < x + p.l && y < o.y + o.h && o.y < y + p.h;
+            });
+        };
+        if (libre(p.x, p.y) && p.x >= marge && p.y >= marge && p.x + p.l <= d.largeur - marge && p.y + p.h <= d.hauteur - marge) {
+            return;
+        }
+        /* a sa taille, puis plus etroit, puis police reduite (jamais sous le minimum lisible) */
+        var depart = {l: p.l, h: p.h, police: p.police};
+        for (var police = depart.police; police >= me.POLICE_MIN - 0.001; police -= 0.5) {
+            var h = p.element === 'CODE' ? depart.h : Math.max(police * me.PT_MM * 1.15, police === depart.police ? depart.h : 0);
+            for (var largeur = depart.l; largeur >= Math.min(depart.l, 8) - 0.001; largeur -= 2) {
+                p.l = largeur;
+                p.h = h;
+                for (var y = marge; y + p.h <= d.hauteur - marge + 0.001; y += me.PAS) {
+                    for (var x = marge; x + p.l <= d.largeur - marge + 0.001; x += me.PAS) {
+                        if (libre(x, y)) {
+                            p.x = me.arrondi(x);
+                            p.y = me.arrondi(y);
+                            p.l = me.arrondi(p.l);
+                            p.h = Math.ceil(p.h * 100) / 100;
+                            p.police = police;
+                            return;
+                        }
+                    }
+                }
+            }
+            if (p.element === 'CODE') {
+                break;
+            }
+        }
+        /* aucune place : il reste a sa place d'origine, en rouge avec la raison */
+        p.l = depart.l;
+        p.h = depart.h;
+        p.police = depart.police;
     },
 
     changerPolice: function (id, valeur) {

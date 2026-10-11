@@ -170,8 +170,12 @@ public final class Disposition {
             float colonne = xCode - 0.6f - m;
             /* colonne de gauche : on reduit les polices (pas sous le minimum) puis on retire ce qui ne tient pas */
             /* retours du 11/10 : la date d'edition est tres importante, elle reste toujours (jamais retiree) */
+            /*
+             * retours du 11/10 (validation) : le grossiste reste aussi sur la petite etiquette ; le code geo
+             * (str_CODE_GEO_ARTICLE) est facultatif : disponible, jamais affiche par defaut
+             */
             ElementEtiquette[] ordre = { ElementEtiquette.CIP, ElementEtiquette.PRIX, ElementEtiquette.DATE,
-                    ElementEtiquette.CODE_GEO, ElementEtiquette.GROSSISTE, ElementEtiquette.CODE_UNIQUE };
+                    ElementEtiquette.GROSSISTE, ElementEtiquette.CODE_UNIQUE };
             Map<ElementEtiquette, Float> polices = new EnumMap<>(ElementEtiquette.class);
             for (ElementEtiquette e : ordre) {
                 polices.put(e, e == ElementEtiquette.PRIX && petite ? 8.5f : e.getPoliceDefaut());
@@ -182,8 +186,8 @@ public final class Disposition {
                     polices.put(e, Math.max(5f, polices.get(e) - 0.5f));
                 }
             }
-            for (ElementEtiquette retire : new ElementEtiquette[] { ElementEtiquette.GROSSISTE,
-                    ElementEtiquette.CODE_UNIQUE, ElementEtiquette.CODE_GEO }) {
+            for (ElementEtiquette retire : new ElementEtiquette[] { ElementEtiquette.CODE_UNIQUE,
+                    ElementEtiquette.GROSSISTE }) {
                 if (total(gardes, polices) > zone) {
                     gardes.remove(retire);
                 }
@@ -210,18 +214,18 @@ public final class Disposition {
             }
         }
         if (d.estEtendu()) {
-            /* contenu par defaut des codes etendus : designation, prix, pharmacie, code geo */
+            /* contenu par defaut des codes etendus : designation, prix, pharmacie (code geo facultatif) */
             for (ElementEtiquette e : new ElementEtiquette[] { ElementEtiquette.DESIGNATION, ElementEtiquette.PRIX,
-                    ElementEtiquette.PHARMACIE, ElementEtiquette.CODE_GEO }) {
+                    ElementEtiquette.PHARMACIE }) {
                 d.placement(e).dansLeCode(true);
             }
             /*
-             * petite etiquette : si le code n'est plus lisible avec tout cela, on retire du code le code geo, puis la
-             * pharmacie, puis le prix, en dernier la designation (le CIP, le lot et la peremption restent toujours) ;
-             * l'utilisateur peut les recocher sur une etiquette plus grande
+             * petite etiquette : si le code n'est plus lisible avec tout cela, on retire du code la pharmacie, puis le
+             * prix, en dernier la designation (le CIP, le lot et la peremption restent toujours) ; l'utilisateur peut
+             * les recocher sur une etiquette plus grande
              */
-            for (ElementEtiquette e : new ElementEtiquette[] { ElementEtiquette.CODE_GEO, ElementEtiquette.PHARMACIE,
-                    ElementEtiquette.PRIX, ElementEtiquette.DESIGNATION }) {
+            for (ElementEtiquette e : new ElementEtiquette[] { ElementEtiquette.PHARMACIE, ElementEtiquette.PRIX,
+                    ElementEtiquette.DESIGNATION }) {
                 if (codeLisible(d)) {
                     break;
                 }

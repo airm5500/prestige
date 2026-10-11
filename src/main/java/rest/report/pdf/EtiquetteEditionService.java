@@ -218,11 +218,8 @@ public class EtiquetteEditionService {
      * l'emplacement par defaut sans libelle.
      */
     public static String codeGeo(TFamille f) {
-        if (f == null || f.getLgZONEGEOID() == null) {
-            return null;
-        }
-        return StringUtils.trimToNull(
-                StringUtils.defaultIfBlank(f.getLgZONEGEOID().getStrLIBELLEE(), f.getLgZONEGEOID().getStrCODE()));
+        /* retours du 11/10 (validation) : le code geo de l'article (fiche article, str_CODE_GEO_ARTICLE) */
+        return f == null ? null : StringUtils.trimToNull(f.getStrCODEGEOARTICLE());
     }
 
     /* ------------------------------------------- apercu avant impression */

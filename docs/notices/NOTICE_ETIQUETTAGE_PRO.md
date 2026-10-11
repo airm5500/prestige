@@ -102,7 +102,7 @@ Une disposition validée dans l'onglet **Personnalisation** remplace ce dessin p
 
 **Code unique** : chaque étiquette 2D porte un code de 5 caractères, jamais reproduit. Il passe à 6, puis 7, puis 8 caractères quand les codes d'une longueur s'épuisent.
 
-**Code géo** : nouvelle zone facultative (titres reconnus : « code géo », « position », « zone géo »…). « Compléter depuis Prestige » reprend le code géo principal de la fiche article.
+**Code géo** : nouvelle zone facultative (titres reconnus : « code géo », « position », « zone géo »…). « Compléter depuis Prestige » reprend le **code géo de l'article** (fiche article, `str_CODE_GEO_ARTICLE`). Il n'est pas affiché par défaut sur l'étiquette : on le coche dans la Personnalisation.
 
 ## Codes étendus : DataMatrix+ et QR+ (hors vente)
 
@@ -113,7 +113,7 @@ Deux types de code s'ajoutent aux trois habituels, **sans rien changer à ces de
 | **DataMatrix+** | La chaîne GS1 habituelle — (01) GTIN, (17) péremption, (10) lot, (240) CIP — puis les champs « usage interne » de la norme (jeu de caractères GS1 : l'espace s'écrit « _ », Prestige le remet à la lecture) : (91) marqueur `EPLUS1`, (92) désignation, (93) prix, (94) pharmacie, (95) grossiste, (96) code géo, (97) code de l'étiquette. | Douchettes. Une douchette ou un logiciel tiers lit toujours le produit, le lot et la péremption ; Prestige lit tout. |
 | **QR+** | Un texte clair sur une ligne : `EP1\|CIP:3400930000014\|NOM:DOLIPRANE 1000MG\|PRIX:1250\|LOT:A2410B\|PER:31/12/2027\|PHA:…\|GEO:B-04` | Téléphones (lisible tel quel). Prestige le lit aussi. |
 
-- Le CIP, le lot, la péremption (et l'EAN) y sont toujours. Les autres informations se choisissent dans la Personnalisation (case **« Dans le code »**) ; par défaut : désignation, prix, pharmacie, code géo.
+- Le CIP, le lot, la péremption (et l'EAN) y sont toujours. Les autres informations se choisissent dans la Personnalisation (case **« Dans le code »**) ; par défaut : désignation, prix, pharmacie (le code géo, facultatif, se coche).
 - Les accents sont retirés (les douchettes les déforment) et chaque information est bornée en longueur.
 - **Le prix du code est figé au jour de l'impression** : il ne sert jamais à la vente. Hors vente, « Lire une étiquette » signale l'écart avec le prix actuel.
 - **À la caisse, les deux codes étendus sont refusés** (vente, vente en dépôt, devis), quel que soit le paramètre de lecture GS1 : « Cette étiquette est réservée à la commande, à la réception et à l'inventaire ». L'étiquette GS1 habituelle passe comme avant.
@@ -136,7 +136,8 @@ Une **vue réelle** de l'étiquette, pour un type de code et une planche (dimens
   - texte : 4,5 pt au moins, cadre assez haut pour une ligne.
 - Un texte trop long : la police descend jusqu'au minimum lisible (la désignation passe d'abord sur deux lignes), puis il est abrégé. La vue montre exactement ce que donnera l'impression.
 - **Valider** enregistre ; **Essai (PDF)** imprime une étiquette d'exemple ; **Rétablir la disposition d'origine** supprime la disposition enregistrée.
-- Sans disposition enregistrée, les étiquettes code-barres, QR et DataMatrix gardent **exactement** leur dessin d'origine. La disposition proposée (nom du produit sous la pharmacie, code géo) ne sert qu'une fois validée.
+- Sans disposition enregistrée, les étiquettes code-barres, QR et DataMatrix gardent **exactement** leur dessin d'origine. La disposition proposée ne sert qu'une fois validée : pharmacie en haut, désignation dessous, puis à gauche CIP, prix, date d'édition, grossiste et code de l'étiquette (le grossiste reste aussi sur le 38 x 21,2), le code à droite. Le code géo est facultatif : non affiché par défaut.
+- Une information cochée se pose toute seule sur une place libre (police réduite si besoin, jamais sous le minimum lisible) ; s'il n'y a pas de place, elle apparaît en rouge avec la raison.
 - Changement de planche : la disposition d'un autre format du même type est reportée à l'échelle, à vérifier puis valider.
 - Les étiquettes QR / DataMatrix imprimées depuis la gestion des étiquettes et les bons de livraison suivent aussi la disposition validée ; le code-barres classique n'est pas concerné.
 

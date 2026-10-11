@@ -130,7 +130,9 @@ class DispositionTest {
         assertTrue(des.getY() >= ph.getY() + ph.getH(), "designation sous le nom de la pharmacie");
         assertTrue(des.getH() >= 2 * Disposition.hauteurLigne(des.getPolice()) - 0.01f, "deux lignes possibles");
         assertTrue(des.getPolice() >= 5.5f, "police de depart lisible");
-        assertTrue(d.placement(ElementEtiquette.CODE_GEO).isImprime(), "code geo propose (imprime s'il existe)");
+        /* retours du 11/10 (validation) : code geo facultatif (pas affiche par defaut), grossiste garde en 38 x 21,2 */
+        assertFalse(d.placement(ElementEtiquette.CODE_GEO).isImprime(), "code geo facultatif");
+        assertTrue(d.placement(ElementEtiquette.GROSSISTE).isImprime(), "grossiste sur la petite etiquette");
         /* retours du 11/10 : date d'edition affichee sur tous les types, jamais dans le code */
         for (String t : TYPES) {
             for (float[] f : new float[][] { { 38f, 21.2f }, { 70f, 37f } }) {
@@ -150,10 +152,11 @@ class DispositionTest {
     void codesEtendusContenuParDefautEtPetitesEtiquettes() {
         Disposition grande = Disposition.parDefaut(LabelSheetPdf.DATAMATRIX_PLUS, 70f, 37f);
         for (ElementEtiquette e : Arrays.asList(ElementEtiquette.DESIGNATION, ElementEtiquette.PRIX,
-                ElementEtiquette.PHARMACIE, ElementEtiquette.CODE_GEO)) {
+                ElementEtiquette.PHARMACIE)) {
             assertTrue(grande.placement(e).isDansLeCode(), e.name());
         }
         assertFalse(grande.placement(ElementEtiquette.GROSSISTE).isDansLeCode());
+        assertFalse(grande.placement(ElementEtiquette.CODE_GEO).isDansLeCode(), "code geo facultatif");
         assertFalse(grande.placement(ElementEtiquette.CIP).isDansLeCode(), "le CIP y est toujours, pas une option");
         /*
          * petite etiquette : moins d'informations dans le code pour qu'il reste lisible (DataMatrix+ : la designation
@@ -298,7 +301,9 @@ class DispositionTest {
         String texte = PdfTextExtractor.getTextFromPage(new PdfReader(o.toByteArray()), 1);
         int ph = texte.indexOf("PHARMACIE DE L'ETOILE"), des = texte.indexOf("DOLIPRANE");
         assertTrue(ph >= 0 && des > ph, texte);
-        assertTrue(texte.contains("B-04") && texte.contains("1 250 CFA") && texte.contains("3400930000014"), texte);
+        assertTrue(texte.contains("1 250 CFA") && texte.contains("3400930000014") && texte.contains("10/10/26")
+                && texte.contains("LABOREX"), texte);
+        assertFalse(texte.contains("B-04"), "code geo facultatif : pas imprime par defaut");
     }
 
     @Test
