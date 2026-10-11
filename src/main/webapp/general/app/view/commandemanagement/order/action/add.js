@@ -364,6 +364,36 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                                         }
                                     },
                                     listeners: {
+                                        /* retours du 11/10 : etiquette DataMatrix+ / QR+ d'un grossiste (ou code GS1) en cours
+                                           de scan : pas de recherche par nom sur ce texte */
+                                        beforequery: function (qe) {
+                                            if (ecranCommande(qe.combo).ressembleEtiquette(qe.query)) {
+                                                qe.cancel = true;
+                                                qe.combo.collapse();
+                                                return false;
+                                            }
+                                        },
+                                        /* une recherche lancee sur les premiers caracteres du scan a pu ouvrir la liste :
+                                           Entree n'y choisit rien, le scan est traite comme tel */
+                                        beforeselect: function (cmp) {
+                                            if (ecranCommande(cmp).ressembleEtiquette(cmp.getRawValue())) {
+                                                cmp.collapse();
+                                                ecranCommande(cmp).scannerEtiquette(cmp.getRawValue());
+                                                return false;
+                                            }
+                                        },
+                                        expand: function (cmp) {
+                                            if (ecranCommande(cmp).ressembleEtiquette(cmp.getRawValue())) {
+                                                cmp.collapse();
+                                            }
+                                        },
+                                        specialkey: function (cmp, e) {
+                                            if (e.getKey() === e.ENTER && ecranCommande(cmp).ressembleEtiquette(cmp.getRawValue())) {
+                                                e.stopEvent();
+                                                cmp.collapse();
+                                                ecranCommande(cmp).scannerEtiquette(cmp.getRawValue());
+                                            }
+                                        },
                                         select: function (cmp) {
                                             let value = cmp.getValue();
                                             let record = cmp.findRecord(cmp.valueField || cmp.displayField, value); //recupere la ligne de l'element selectionné
@@ -409,10 +439,14 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                                         specialKey: function (field, e, options) {
                                             if (e.getKey() === e.ENTER) {
 
-                                                if (Ext.getCmp('str_NAME').getValue() !== "") {
+                                                const ecranCde = ecranCommande(field);
+                                                if (ecranCde.scanEnAttente) {
+                                                    /* mode « scan puis quantite » : la quantite saisie part avec l'etiquette */
+                                                    ecranCde.ajouterScan(ecranCde.scanEnAttente, Ext.getCmp('int_QUANTITE').getValue());
+                                                } else if (Ext.getCmp('str_NAME').getValue() !== "") {
 
                                                     if (Ext.getCmp('int_QUANTITE').getValue() > 0) {
-                                                        ecranCommande(field).onAddNewItem();
+                                                        ecranCde.onAddNewItem();
 
                                                     } else {
                                                         Ext.MessageBox.alert('Error Message', 'La quantité doit être supérieure à 0 ');
@@ -449,6 +483,53 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                                     handler: this.onbtndetail,
                                     disabled: true
                                 }]
+                        },
+                        {
+                            /* retours du 11/10 : reception d'un grossiste equipe d'Etiquettage Pro */
+                            xtype: 'container', layout: 'hbox', margin: '0 0 4 105', items: [
+                                {xtype: 'radiogroup', id: 'scanMode', width: 330, columns: 2, items: [
+                                        {boxLabel: 'Scan : 1 boîte par scan', name: 'scanMode', inputValue: 'UNITE', checked: true},
+                                        {boxLabel: 'Scan puis quantité', name: 'scanMode', inputValue: 'QUANTITE'}
+                                    ]},
+                                {xtype: 'component', id: 'scanEtat', flex: 1, margin: '4 0 0 10', html: ''}
+                            ]
+                        },
+                        {
+                            xtype: 'container', id: 'scanCreation', hidden: true, margin: '4 0 6 105', padding: 10,
+                            style: 'background:#fff8e6;border:1px solid #f0c36d;border-radius:8px',
+                            layout: {type: 'vbox', align: 'stretch'},
+                            items: [
+                                {xtype: 'component', id: 'scanCreationTitre', html: '', margin: '0 0 6 0'},
+                                {xtype: 'container', layout: 'hbox', defaults: {labelAlign: 'top', margin: '0 8 0 0'}, items: [
+                                        {xtype: 'textfield', id: 'scanCip', fieldLabel: 'CIP', width: 110, allowBlank: false, maxLength: 20},
+                                        {xtype: 'textfield', id: 'scanEan', fieldLabel: 'EAN', width: 130, maxLength: 20},
+                                        {xtype: 'textfield', id: 'scanNom', fieldLabel: 'Désignation', flex: 1, allowBlank: false, maxLength: 100},
+                                        {xtype: 'numberfield', id: 'scanPv', fieldLabel: 'Prix de vente', width: 100, minValue: 1, allowDecimals: false, allowBlank: false},
+                                        {xtype: 'numberfield', id: 'scanPaf', fieldLabel: 'Prix d\'achat', width: 100, minValue: 1, allowDecimals: false, allowBlank: false, emptyText: 'à saisir'}
+                                    ]},
+                                {xtype: 'container', layout: 'hbox', margin: '6 0 0 0', defaults: {labelAlign: 'top', margin: '0 8 0 0'}, items: [
+                                        {xtype: 'combobox', id: 'scanFamille', fieldLabel: 'Famille', width: 220, editable: false, queryMode: 'local',
+                                            valueField: 'id', displayField: 'libelle', allowBlank: false,
+                                            store: Ext.create('Ext.data.Store', {model: 'testextjs.model.FamilleArticle', proxy: {type: 'ajax', url: '../api/v1/common/famillearticle',
+                                                    reader: {type: 'json', root: 'data', totalProperty: 'total'}}})},
+                                        {xtype: 'combobox', id: 'scanEmplacement', fieldLabel: 'Emplacement', width: 180, editable: false, queryMode: 'local',
+                                            valueField: 'id', displayField: 'libelle', allowBlank: false,
+                                            store: Ext.create('Ext.data.Store', {model: 'testextjs.model.ZoneGeographique', pageSize: 100, proxy: {type: 'ajax', url: '../api/v1/common/emplacement',
+                                                    reader: {type: 'json', root: 'data', totalProperty: 'total'}}})},
+                                        {xtype: 'combobox', id: 'scanTva', fieldLabel: 'TVA', width: 140, editable: false, queryMode: 'local',
+                                            valueField: 'lg_CODE_TVA_ID', displayField: 'str_NAME', allowBlank: false,
+                                            store: Ext.create('Ext.data.Store', {model: 'testextjs.model.CodeTva', proxy: {type: 'ajax', url: '../api/v1/common/tvas',
+                                                    reader: {type: 'json', root: 'results', totalProperty: 'total'}}})},
+                                        {xtype: 'numberfield', id: 'scanQte', fieldLabel: 'Quantité', width: 80, minValue: 1, allowDecimals: false, value: 1},
+                                        {xtype: 'button', id: 'scanCreer', text: 'Créer la fiche et ajouter', margin: '19 6 0 0', cls: 'btn-primary', handler: function (b) {
+                                                ecranCommande(b).creerProduitScanne();
+                                            }},
+                                        {xtype: 'button', id: 'scanAnnuler', text: 'Annuler', margin: '19 0 0 0', handler: function (b) {
+                                                ecranCommande(b).fermerCreationScan();
+                                            }}
+                                    ]},
+                                {xtype: 'component', id: 'scanCreationEtat', margin: '6 0 0 0', html: ''}
+                            ]
                         }
                     ]
                 }
@@ -1975,6 +2056,194 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
         const linkUrl = '../EditionCommandeServlet?orderId=' + me.getNameintern() + '&refCommande=' + me.getOdatasource().str_REF_ORDER;
         window.open(linkUrl);
     },
+    /* ------------------------------------------------------------ scan d'etiquette grossiste (retours du 11/10) */
+
+    /** Etiquette DataMatrix+ / QR+ d'Etiquettage Pro, ou debut d'un code GS1 (« 01 » + 14 chiffres). */
+    ressembleEtiquette: function (brut) {
+        const v = String(brut || '').trim().replace(/^\](d2|Q3|Q1|C1|e0)/, '');
+        return /^EP1/i.test(v) || /91EPLUS1/.test(v) || /^\(01\)\d{14}/.test(v) || /^01\d{14}/.test(v) || /\u001d/.test(v);
+    },
+
+    etatScan: function (html, couleur) {
+        Ext.getCmp('scanEtat').update(html ? '<span style="color:' + (couleur || '#1e8449') + ';font-weight:600">' + html + '</span>' : '');
+    },
+
+    viderSaisieScan: function () {
+        const c = Ext.getCmp('str_NAME');
+        this.scanEnAttente = null;
+        Ext.getCmp('int_QUANTITE').setValue(1);
+        c.clearValue();
+        c.setRawValue('');
+        c.focus(true, 50);
+    },
+
+    /** Scan valide (Entree) : 1 boite par scan, ou identification puis quantite. */
+    scannerEtiquette: function (saisie) {
+        const me = this, mode = Ext.getCmp('scanMode').getValue().scanMode, maintenant = Date.now();
+        /* Entree peut arriver par deux chemins (champ et liste) : un meme scan n'est traite qu'une fois */
+        if (me.dernierScan && me.dernierScan.saisie === saisie && maintenant - me.dernierScan.t < 800) {
+            return;
+        }
+        me.dernierScan = {saisie: saisie, t: maintenant};
+        if (mode === 'QUANTITE') {
+            me.appelScan(saisie, 0, false, function (r) {
+                me.scanEnAttente = saisie;
+                Ext.getCmp('str_NAME').setRawValue(r.produit.nom);
+                me.etatScan(Ext.String.htmlEncode(r.produit.nom) + (r.infos.lot ? ' — lot ' + Ext.String.htmlEncode(r.infos.lot) : '')
+                        + ' : saisissez la quantité puis Entrée', '#1f6fb2');
+                Ext.getCmp('int_QUANTITE').focus(true, 50);
+            });
+        } else {
+            me.ajouterScan(saisie, 1);
+        }
+    },
+
+    ajouterScan: function (saisie, qte) {
+        const me = this;
+        if (!(qte > 0)) {
+            me.etatScan('La quantité doit être supérieure à 0.', '#c0392b');
+            return;
+        }
+        me.appelScan(saisie, qte, true, function (r) {
+            me.nameintern = r.orderId;
+            me.etatScan('✓ ' + Ext.String.htmlEncode(r.message));
+            me.viderSaisieScan();
+            me.onRechClick();
+            me.getCommandeAmount(r.orderId);
+        });
+    },
+
+    /** Appel du serveur ; produit inconnu : proposition de creation dans l'ecran ; code ordinaire : recherche habituelle. */
+    appelScan: function (saisie, qte, ajouter, suite) {
+        const me = this, grossiste = Ext.getCmp('lgGROSSISTEID').getValue();
+        if (ajouter && !grossiste) {
+            me.etatScan('Choisissez d\'abord le grossiste de la commande.', '#c0392b');
+            return;
+        }
+        Ext.Ajax.request({
+            url: '../api/v1/commande/scan-etiquette', method: 'POST', headers: {'Content-Type': 'application/json'},
+            params: Ext.JSON.encode({orderId: me.getNameintern(), grossisteId: grossiste || '', statut: str_STATUT, saisie: saisie, qte: qte, ajouter: ajouter}),
+            success: function (response) {
+                const r = Ext.JSON.decode(response.responseText, true) || {};
+                if (!r.success) {
+                    me.etatScan(Ext.String.htmlEncode(r.msg || r.message || 'Scan refusé.'), '#c0392b');
+                    return;
+                }
+                if (!r.etendu) {
+                    /* code ordinaire : la recherche habituelle reprend */
+                    me.etatScan('');
+                    Ext.getCmp('str_NAME').doQuery(saisie, true);
+                    return;
+                }
+                if (r.inconnu) {
+                    me.proposerCreationScan(saisie, r, qte);
+                    return;
+                }
+                suite(r);
+            },
+            failure: function () {
+                me.etatScan('Le serveur n\'a pas répondu.', '#c0392b');
+            }
+        });
+    },
+
+    /** CIP inconnu : fiche pre-remplie avec l'etiquette (CIP, EAN, designation, prix), dans l'ecran. */
+    proposerCreationScan: function (saisie, r, qte) {
+        const me = this, i = r.infos;
+        me.scanACreer = saisie;
+        me.etatScan(Ext.String.htmlEncode(r.message), '#b9770e');
+        Ext.getCmp('scanCreationTitre').update('<b>Produit inconnu</b> — informations lues sur l\'étiquette'
+                + (i.gro ? ' (' + Ext.String.htmlEncode(i.gro) + ')' : '') + (i.lot ? ', lot ' + Ext.String.htmlEncode(i.lot) : '')
+                + (i.per ? ', péremption ' + Ext.String.htmlEncode(i.per) : '') + '. Complétez le prix d\'achat puis créez la fiche.');
+        Ext.getCmp('scanCip').setValue(i.cip);
+        Ext.getCmp('scanEan').setValue(i.ean);
+        Ext.getCmp('scanNom').setValue(i.nom);
+        Ext.getCmp('scanPv').setValue(i.prixEntier);
+        Ext.getCmp('scanPaf').setValue(null);
+        Ext.getCmp('scanQte').setValue(qte > 0 ? qte : 1);
+        Ext.getCmp('scanCreationEtat').update('');
+        const defaut = function (id, test) {
+            const c = Ext.getCmp(id), st = c.getStore();
+            const poser = function () {
+                if (!c.getValue() && st.getCount()) {
+                    const n = st.findBy(test);
+                    c.setValue(st.getAt(n >= 0 ? n : 0).get(c.valueField));
+                }
+            };
+            if (st.getCount()) {
+                poser();
+            } else {
+                st.load({callback: poser});
+            }
+        };
+        defaut('scanFamille', function (x) {
+            return x.get('libelle') === 'SPECIALITES PUBLIQUES';
+        });
+        defaut('scanEmplacement', function (x) {
+            return x.get('id') === '1';
+        });
+        defaut('scanTva', function () {
+            return false;
+        });
+        Ext.getCmp('scanCreation').show();
+        Ext.getCmp(i.nom ? 'scanPaf' : 'scanNom').focus(true, 100);
+    },
+
+    fermerCreationScan: function () {
+        this.scanACreer = null;
+        Ext.getCmp('scanCreation').hide();
+        this.etatScan('');
+        this.viderSaisieScan();
+    },
+
+    creerProduitScanne: function () {
+        const me = this, v = function (id) {
+            return Ext.getCmp(id).getValue();
+        }, etat = function (t) {
+            Ext.getCmp('scanCreationEtat').update('<span style="color:#c0392b">' + Ext.String.htmlEncode(t) + '</span>');
+        };
+        const champs = ['scanCip', 'scanNom', 'scanPv', 'scanPaf', 'scanFamille', 'scanEmplacement', 'scanTva', 'scanQte'];
+        if (!Ext.Array.every(champs, function (id) {
+            return Ext.getCmp(id).isValid();
+        })) {
+            etat('Complétez les champs en rouge.');
+            return;
+        }
+        if (v('scanPaf') > v('scanPv')) {
+            etat('Le prix d\'achat ne peut pas être supérieur au prix de vente.');
+            return;
+        }
+        if (!Ext.getCmp('lgGROSSISTEID').getValue()) {
+            etat('Choisissez d\'abord le grossiste de la commande.');
+            return;
+        }
+        Ext.getCmp('scanCreer').disable();
+        Ext.Ajax.request({
+            url: '../api/v1/fichearticle/enregistrer?mode=create', method: 'POST',
+            params: {lg_GROSSISTE_ID: Ext.getCmp('lgGROSSISTEID').getValue(), int_PAT: v('scanPaf'), int_PAF: v('scanPaf'), int_PRICE: v('scanPv'),
+                lg_FAMILLEARTICLE_ID: v('scanFamille'), lg_ZONE_GEO_ID: v('scanEmplacement'), str_DESCRIPTION: Ext.String.trim(v('scanNom')),
+                int_CIP: Ext.String.trim(v('scanCip')), lg_CODE_TVA_ID: v('scanTva'), int_T: '', int_EAN13: Ext.String.trim(v('scanEan') || ''), str_CODE_REMISE: 0},
+            success: function (response) {
+                Ext.getCmp('scanCreer').enable();
+                const o = Ext.JSON.decode(response.responseText, true) || {};
+                if (!o.success || o.success === '0' || o.success === 0) {
+                    etat(o.errors || o.msg || 'Création refusée.');
+                    return;
+                }
+                const saisie = me.scanACreer, qte = v('scanQte');
+                Ext.getCmp('scanCreation').hide();
+                me.scanACreer = null;
+                /* la fiche existe : l'etiquette est rejouee (ligne, prix de l'etiquette, lot) */
+                me.ajouterScan(saisie, qte);
+            },
+            failure: function (response) {
+                Ext.getCmp('scanCreer').enable();
+                etat(response.status === 403 ? 'Vous n\'avez pas le droit de créer un produit.' : 'Le serveur n\'a pas répondu.');
+            }
+        });
+    },
+
+
     onAddNewItem: function () {
         const  me = this;
         if (Ext.getCmp('lgGROSSISTEID').getValue() === null) {

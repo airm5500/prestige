@@ -183,6 +183,24 @@ des étiquettes à imprimer pour cette demande**, l'aperçu *Impression Prestige
 **Sinon** (rien à imprimer, droit Étiquettage Pro absent, serveur indisponible), l'ancienne impression part
 directement, exactement comme avant : aucun processus existant n'est bloqué.
 
+## Réception d'un grossiste équipé d'Étiquettage Pro
+
+Quand le grossiste étiquette ses boîtes en **DataMatrix+** ou **QR+**, la pharmacie les scanne dans la **commande en
+cours** (*Ajouter les articles à une commande*, champ « Article ») : un seul scan donne le produit, le prix, le lot et la
+péremption.
+
+- **Produit** : retrouvé par son CIP, sinon par son EAN.
+- **Quantité** : *Scan : 1 boîte par scan* (chaque scan ajoute une boîte) ou *Scan puis quantité* (le produit et le lot
+  s'affichent, on tape la quantité totale puis Entrée).
+- **Prix** : le prix de l'étiquette devient le prix de vente de la ligne (même chemin que la modification à la main :
+  mouvement de prix et notification). Un prix inchangé n'est pas réenregistré.
+- **Lot et péremption** : ajoutés aux lots de la ligne (un même lot se cumule) et repris sur le bon de livraison comme
+  ceux d'un fichier importé.
+- **CIP inconnu** : un cadre s'ouvre dans l'écran avec la fiche pré-remplie (CIP, EAN, désignation, prix de vente,
+  famille et emplacement par défaut) ; on complète le **prix d'achat** puis *Créer la fiche et ajouter* (droit de
+  création d'article habituel). Aucune fenêtre.
+- Un code ordinaire (CIP, nom) suit la recherche habituelle. À la caisse, ces codes étendus restent refusés.
+
 ## Lire une étiquette (onglet en haut à droite)
 
 On scanne (ou on colle) une étiquette DataMatrix+, QR+, GS1 habituelle ou un simple CIP, puis Entrée : toutes les informations s'affichent, avec le produit de Prestige et les **alertes** : prix étiqueté différent du prix actuel (« étiquette à refaire »), lot périmé ou péremption à moins de 3 mois, produit inconnu. Le champ se vide et garde le focus : on enchaîne les scans.

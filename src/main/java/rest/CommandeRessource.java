@@ -61,6 +61,35 @@ public class CommandeRessource {
     CommandeService commandeService;
     @EJB
     OrderService orderService;
+    @EJB
+    rest.service.impl.ReceptionEtiquetteService receptionEtiquette;
+
+    /**
+     * Retours du 11/10 : scan d'une etiquette DataMatrix+ / QR+ d'un grossiste dans la commande en cours (produit, prix
+     * de l'etiquette, lot et peremption). Corps : orderId, grossisteId, statut, saisie, qte, ajouter.
+     */
+    @POST
+    @Path("scan-etiquette")
+    public Response scanEtiquette(String corps) {
+        HttpSession hs = servletRequest.getSession();
+        TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
+        if (tu == null) {
+            return Response.ok()
+                    .entity(new JSONObject().put("success", false).put("msg", Constant.DECONNECTED_MESSAGE).toString())
+                    .build();
+        }
+        try {
+            JSONObject j = new JSONObject(corps == null || corps.isEmpty() ? "{}" : corps);
+            return Response.ok()
+                    .entity(receptionEtiquette.scanner(j.optString("orderId", "0"), j.optString("grossisteId", ""),
+                            j.optString("statut", "is_Process"), j.optString("saisie", ""), j.optInt("qte", 1),
+                            j.optBoolean("ajouter", true), tu).toString())
+                    .build();
+        } catch (org.json.JSONException e) {
+            return Response.ok()
+                    .entity(new JSONObject().put("success", false).put("msg", "Requête illisible.").toString()).build();
+        }
+    }
 
     @PUT
     @Path("validerbl/{id}")
