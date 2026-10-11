@@ -26,6 +26,12 @@ public interface WhatsAppService {
     JSONObject tester(String numero, String texte, TUser operateur);
 
     /**
+     * Avis clients : envoie un texte a un numero qui n'est pas forcement un client de la base (reponse a un avis).
+     * Resultat : success, simule, statut (ENVOYE, SIMULE, ECHEC), message. Le texte n'est jamais journalise.
+     */
+    JSONObject envoyerTexte(String numero, String texte);
+
+    /**
      * Envoie par WhatsApp une notification deja enregistree (un message par destinataire, consentement WhatsApp et
      * numero controles). Avec {@code repliSms}, les destinataires non servis sont repris dans une notification SMS dont
      * l'identifiant est rendu ({@code repliNotificationId}) pour etre envoyee apres validation.

@@ -49,7 +49,10 @@ public class AuthenticationFilter implements ContainerRequestFilter, ContainerRe
             "v1/espace-produit/ventes-mensuelles",
             // Liste des DCI ayant des produits (nom de molecule et nombre de produits, rien d'autre) :
             // le selecteur de l'espace produit, demande du 21/09
-            "v1/espace-produit/dci");
+            "v1/espace-produit/dci",
+            // Page publique des avis clients : jeton du QR code verifie a chaque appel, saisies controlees, envois
+            // limites - voir rest.AvisPublicRessource et filter.PortPublicAvisFilter
+            "v1/avis-public/contexte", "v1/avis-public/envoyer");
 
     private static final String CHEMIN_MOBILE = "v1/mobile/";
     private static final String CONNEXION_MOBILE = "v1/mobile/connexion";

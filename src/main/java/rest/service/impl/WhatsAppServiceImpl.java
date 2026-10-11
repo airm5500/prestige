@@ -181,6 +181,24 @@ public class WhatsAppServiceImpl implements WhatsAppService {
     }
 
     @Override
+    public JSONObject envoyerTexte(String numero, String texte) {
+        TelephoneCi.Resultat tel = TelephoneCi.controler(numero);
+        if (!tel.isValide()) {
+            return refus("Numéro invalide : " + tel.getMotif() + ".").put("statut", "ECHEC");
+        }
+        WhatsAppCompte c = compte(modeDefaut());
+        WhatsAppEnvoi.Resultat r = WhatsAppEnvoi.envoyer(c, tel.getInternational(), texte);
+        journaliser(null, null, tel.getLocal(), c == null ? modeDefaut() : c.mode, r, false);
+        String statut = r.accepte ? (r.simule ? "SIMULE" : "ENVOYE") : "ECHEC";
+        return new JSONObject()
+                .put("success", r.accepte).put("simule",
+                        r.simule)
+                .put("statut", statut)
+                .put("message", r.accepte ? (r.simule ? "Message simulé (mode test) : aucun envoi réel."
+                        : "Message accepté par WhatsApp.") : "Envoi refusé : " + r.erreur);
+    }
+
+    @Override
     public JSONObject envoyerNotification(String notificationId, boolean repliSms) {
         Notification n = em.find(Notification.class, notificationId);
         if (n == null) {

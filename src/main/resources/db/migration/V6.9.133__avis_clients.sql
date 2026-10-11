@@ -32,11 +32,12 @@ CREATE TABLE IF NOT EXISTS t_avis_client (
     KEY ix_avis_statut (statut)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
 
--- Reglages. Le jeton du QR code est tire au hasard ici (jamais dans le code ni dans Git) et se regenere depuis l'ecran.
+-- Reglages. Le jeton du QR code est tire par Prestige (generateur aleatoire sur) a sa premiere utilisation, jamais ecrit
+-- dans le code ni dans Git ; il se regenere depuis l'ecran (les anciennes affiches cessent alors de fonctionner).
 INSERT IGNORE INTO t_parameters (str_KEY, str_VALUE, str_DESCRIPTION, str_TYPE, str_STATUT, dt_CREATED) VALUES
 ('KEY_AVIS_ADRESSE_PUBLIQUE', '', 'Avis clients : adresse IP publique fixe de la pharmacie (vide = page d''avis non publiee)', 'CUSTOMER', 'enable', NOW()),
 ('KEY_AVIS_PORT_PUBLIC', '8090', 'Avis clients : port public dedie (seule la page d''avis y repond)', 'CUSTOMER', 'enable', NOW()),
-('KEY_AVIS_JETON', LOWER(CONCAT(REPLACE(UUID(), '-', ''), LEFT(SHA2(CONCAT(UUID(), RAND()), 256), 16))), 'Avis clients : jeton secret du QR code (regenerer pour invalider les anciennes affiches)', 'CUSTOMER', 'enable', NOW()),
+('KEY_AVIS_JETON', '', 'Avis clients : jeton secret du QR code (regenerer pour invalider les anciennes affiches)', 'CUSTOMER', 'enable', NOW()),
 ('KEY_AVIS_ACTIF', '1', 'Avis clients : reception des avis (1) ou suspendue (0)', 'CUSTOMER', 'enable', NOW()),
 ('KEY_AVIS_MAX_HEURE', '5', 'Avis clients : avis acceptes par heure depuis une meme adresse', 'CUSTOMER', 'enable', NOW()),
 ('KEY_AVIS_ADRESSE_AFFICHEE', '', 'Avis clients : adresse affichee sur la page et l''affiche (vide = adresse et telephone de l''officine)', 'CUSTOMER', 'enable', NOW());

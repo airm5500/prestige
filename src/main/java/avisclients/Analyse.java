@@ -210,7 +210,17 @@ public final class Analyse {
         return new JSONArray(tri);
     }
 
-    static boolean evoque(Avis a, String[] racines) {
+    /** Noms des themes reconnus. */
+    public static java.util.List<String> themes() {
+        return new ArrayList<>(THEMES.keySet());
+    }
+
+    /** Racines d'un theme (nom affiche), null s'il est inconnu. */
+    public static String[] racinesTheme(String theme) {
+        return THEMES.get(theme);
+    }
+
+    public static boolean evoque(Avis a, String[] racines) {
         if (a.texte == null) {
             return false;
         }
