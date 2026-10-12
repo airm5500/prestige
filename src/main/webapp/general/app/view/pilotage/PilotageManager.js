@@ -517,6 +517,8 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
             items: [me.barrePeriode(), me.onglets()]
         });
         me.callParent(arguments);
+        /* retours du 12/10 : ordre des tuiles et des cartes choisi par l'utilisateur, retrouve a chaque ouverture */
+        me.on('afterrender', me.chargerDisposition, me, {single: true});
     },
 
     /* ================================================================= l'axe de comparaison */
@@ -975,6 +977,9 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
                 },
                 refresh: function (vue) {
                     var corps = vue.getEl();
+                    if (vue.up('pilotage') && vue.up('pilotage').TUILES_RANGEABLES[cle]) {
+                        vue.up('pilotage').brancherGlisserTuiles(vue, cle);
+                    }
                     /* Quand la bande est posee en COLONNE a cote du graphique, sa hauteur est celle du
                        bandeau : la mesurer sur le contenu la ferait grandir a chaque chargement. */
                     if (!corps || vue.ajustementHauteur === false) {
@@ -1252,6 +1257,183 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
         }
     },
 
+    /* ------------------------------------------------ disposition des tuiles et des cartes (retours du 12/10) */
+
+    TUILES_RANGEABLES: {asuivre: true, kpi: true},
+    CLE_DISPOSITION: 'pilotage.disposition',
+
+    disposition: function () {
+        this.dispo = this.dispo || {tuiles: {}, cartes: null};
+        return this.dispo;
+    },
+
+    chargerDisposition: function () {
+        var me = this;
+        Ext.Ajax.request({url: '../api/v1/preferences/' + me.CLE_DISPOSITION, method: 'GET', success: function (r) {
+                var v = (Ext.decode(r.responseText, true) || {}).valeur;
+                if (me.isDestroyed || !v || typeof v !== 'object') {
+                    return;
+                }
+                me.dispo = {tuiles: v.tuiles || {}, cartes: Ext.isArray(v.cartes) ? v.cartes : null};
+                Ext.Object.each(me.TUILES_RANGEABLES, function (cle) {
+                    me.rangerStoreTuiles(cle);
+                });
+                me.rangerCartes();
+            }});
+    },
+
+    sauverDisposition: function () {
+        Ext.Ajax.request({url: '../api/v1/preferences/' + this.CLE_DISPOSITION, method: 'PUT',
+            headers: {'Content-Type': 'application/json'}, jsonData: this.disposition()});
+    },
+
+    /** Range une liste de tuiles (donnees du serveur) dans l'ordre choisi ; une tuile inconnue de l'ordre garde sa place apres. */
+    ordonnerTuiles: function (cle, tuiles) {
+        var ordre = (this.disposition().tuiles || {})[cle];
+        if (!this.TUILES_RANGEABLES[cle] || !Ext.isArray(ordre) || !ordre.length) {
+            return tuiles;
+        }
+        var rang = function (t, i) {
+            var k = ordre.indexOf(t.cle);
+            return k < 0 ? 1000 + i : k;
+        };
+        return Ext.Array.map(tuiles, function (t, i) {
+            return {t: t, r: rang(t, i)};
+        }).sort(function (a, b) {
+            return a.r - b.r;
+        }).map(function (x) {
+            return x.t;
+        });
+    },
+
+    rangerStoreTuiles: function (cle) {
+        var st = this.stores[cle] && this.stores[cle].tuiles;
+        if (st && st.getCount()) {
+            st.loadData(this.ordonnerTuiles(cle, Ext.Array.map(st.getRange(), function (r) {
+                return Ext.apply({}, r.getData());
+            })));
+        }
+    },
+
+    rangerCartes: function () {
+        var ordre = this.disposition().cartes, c = this.down('#suiviCartes');
+        if (!c || !c.getEl() || !Ext.isArray(ordre)) {
+            return;
+        }
+        var grille = c.getEl().dom;
+        ordre.forEach(function (k) {
+            var n = grille.querySelector('.sv-carte[data-carte="' + k + '"]');
+            if (n) {
+                grille.appendChild(n);
+            }
+        });
+        /* une carte absente de l'ordre (nouvelle) reste a la fin */
+    },
+
+    dispositionParDefaut: function (cle) {
+        var me = this, d = me.disposition();
+        delete d.tuiles[cle];
+        if (cle === 'asuivre') {
+            d.cartes = null;
+            var c = me.down('#suiviCartes');
+            if (c && c.getEl()) {
+                var grille = c.getEl().dom;
+                Ext.each(me.CARTES_SUIVI, function (x) {
+                    grille.appendChild(grille.querySelector('.sv-carte[data-carte="' + x[0] + '"]'));
+                });
+            }
+        }
+        me.sauverDisposition();
+        /* l'ordre du serveur (celui des coches pour les KPI) revient au prochain chargement : on le redemande */
+        testextjs.app.getController('PilotageCtr').actualiser();
+    },
+
+    /** Glisser-deposer HTML5, comme le tableau de bord : la tuile lachee prend la place de celle visee. */
+    brancherGlisser: function (zone, selecteur, poignee, surOrdre) {
+        var src = null, depuisPoignee = false;
+        zone.addEventListener('mousedown', function (e) {
+            depuisPoignee = !poignee || !!(e.target.closest && e.target.closest(poignee));
+        });
+        zone.addEventListener('dragstart', function (e) {
+            var el = e.target.closest ? e.target.closest(selecteur) : null;
+            if (!el || !depuisPoignee) {
+                e.preventDefault();
+                return;
+            }
+            src = el;
+            el.classList.add('tb-glisse');
+            try {
+                e.dataTransfer.setData('text/plain', 'pilotage');
+                e.dataTransfer.effectAllowed = 'move';
+            } catch (x) {
+                /* rien */
+            }
+        });
+        zone.addEventListener('dragover', function (e) {
+            var el = e.target.closest ? e.target.closest(selecteur) : null;
+            if (src && el && el !== src) {
+                e.preventDefault();
+                Ext.each(Ext.Array.slice(zone.querySelectorAll('.tb-cible')), function (x) {
+                    x.classList.remove('tb-cible');
+                });
+                el.classList.add('tb-cible');
+            }
+        });
+        zone.addEventListener('drop', function (e) {
+            var el = e.target.closest ? e.target.closest(selecteur) : null;
+            e.preventDefault();
+            if (!src || !el || el === src) {
+                return;
+            }
+            var r = Ext.Array.slice(zone.querySelectorAll(selecteur));
+            if (r.indexOf(src) < r.indexOf(el)) {
+                el.parentNode.insertBefore(src, el.nextSibling);
+            } else {
+                el.parentNode.insertBefore(src, el);
+            }
+        });
+        zone.addEventListener('dragend', function () {
+            Ext.each(Ext.Array.slice(zone.querySelectorAll('.tb-cible, .tb-glisse')), function (x) {
+                x.classList.remove('tb-cible');
+                x.classList.remove('tb-glisse');
+            });
+            if (src) {
+                src = null;
+                surOrdre(Ext.Array.slice(zone.querySelectorAll(selecteur)));
+            }
+        });
+    },
+
+    brancherGlisserTuiles: function (vue, cle) {
+        var me = this, zone = vue.getEl().dom;
+        Ext.each(Ext.Array.slice(zone.querySelectorAll('.pilotage-tuile')), function (t) {
+            t.setAttribute('draggable', 'true');
+        });
+        if (zone.glisserBranche) {
+            return;
+        }
+        zone.glisserBranche = true;
+        me.brancherGlisser(zone, '.pilotage-tuile', null, function (noeuds) {
+            me.disposition().tuiles[cle] = noeuds.map(function (n) {
+                return n.getAttribute('data-cle');
+            });
+            me.sauverDisposition();
+            /* le magasin suit l'ordre affiche : un rendu suivant le garde */
+            me.rangerStoreTuiles(cle);
+        });
+    },
+
+    brancherGlisserCartes: function (grille) {
+        var me = this;
+        me.brancherGlisser(grille, '.sv-carte', '.sv-titre', function (noeuds) {
+            me.disposition().cartes = noeuds.map(function (n) {
+                return n.getAttribute('data-carte');
+            });
+            me.sauverDisposition();
+        });
+        me.rangerCartes();
+    },
+
     /* ------------------------------------------------ recherches KPI enregistrees (11/10) */
 
     CLE_RECHERCHES: 'pilotage.kpi.recherches',
@@ -1481,9 +1663,18 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
         var me = this;
         return {xtype: 'panel', itemId: 'onglet-' + onglet.cle, title: onglet.titre, cleOnglet: onglet.cle, border: false,
             autoScroll: true, layout: {type: 'vbox', align: 'stretch'}, items: [
+                {xtype: 'component', itemId: 'aideDisposition', cls: 'sv-aide', html: '<span class="fa-solid fa-up-down-left-right"></span> Glissez les tuiles,'
+                            + ' et les cartes par leur titre, pour les ranger dans l\'ordre voulu (ordre enregistré pour vous).'
+                            + ' <button type="button" class="sv-lien" data-defaut="asuivre">Disposition par défaut</button>',
+                    listeners: {afterrender: function (c) {
+                            c.getEl().on('click', function () {
+                                me.dispositionParDefaut('asuivre');
+                            }, null, {delegate: 'button[data-defaut]'});
+                        }}},
                 Ext.apply(me.tuiles('asuivre'), {cls: 'pilotage-tuiles pilotage-tuiles-suivi'}),
                 {xtype: 'component', itemId: 'suiviCartes', cls: 'sv-cartes', html: me.squeletteSuivi(),
                     listeners: {afterrender: function (c) {
+                            me.brancherGlisserCartes(c.getEl().dom);
                             c.getEl().on('change', function (e, t) {
                                 me.surReglageSuivi(t);
                             }, null, {delegate: 'select[data-ctl]'});
@@ -1506,7 +1697,7 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
 
     squeletteSuivi: function () {
         return Ext.Array.map(this.CARTES_SUIVI, function (c) {
-            return '<div class="sv-carte sv-' + c[3] + '" data-carte="' + c[0] + '"><div class="sv-tete"><span class="sv-titre"><i class="fa-solid ' + c[2]
+            return '<div class="sv-carte sv-' + c[3] + '" data-carte="' + c[0] + '" draggable="true"><div class="sv-tete"><span class="sv-titre" title="Glisser pour déplacer la carte"><i class="fa-solid ' + c[2]
                     + '"></i> ' + c[1] + '</span><span class="sv-outils"></span></div><div class="sv-corps"><div class="sv-attente">Chargement…</div></div></div>';
         }).join('');
     },
@@ -2025,7 +2216,11 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
                             tooltip: 'Supprime la recherche choisie', handler: function () {
                                 me.supprimerRecherche();
                             }},
-                        {xtype: 'tbtext', itemId: 'messageRechercheKpi', text: ''}]}],
+                        {xtype: 'tbtext', itemId: 'messageRechercheKpi', text: ''}, '->',
+                        {xtype: 'tbtext', text: '<span class="fa-solid fa-up-down-left-right"></span> Glissez les tuiles pour les ranger'},
+                        {text: 'Ordre par défaut', itemId: 'ordreKpiDefaut', tooltip: 'Remet les tuiles dans l\'ordre des cases cochées', handler: function () {
+                                me.dispositionParDefaut('kpi');
+                            }}]}],
             listeners: {afterrender: function () {
                     me.chargerRecherches();
                 }},

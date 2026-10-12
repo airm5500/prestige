@@ -93,11 +93,14 @@ const nettoyer = () => { q("DELETE FROM t_vente_ratee WHERE lg_VENTE_RATEE_ID LI
       return { tuiles: tops.length, uneLigne: new Set(tops).size === 1, fondsDoux: new Set(fonds).size >= 6 && fonds.every((f) => f !== 'rgb(255, 255, 255)'),
         cartes: [...document.querySelectorAll('.sv-carte')].map((c) => c.getAttribute('data-carte')).join(','), tetesDistinctes: new Set(tetes).size,
         courbes: [...document.querySelectorAll('.sv-carte[data-carte="ca"] .sv-courbe')].length, alertes: document.querySelectorAll('.sv-carte[data-carte="alertes"] .pilotage-alertes li').length,
-        empl: document.querySelectorAll('.sv-carte[data-carte="emplacements"] tr').length }; });
+        empl: document.querySelectorAll('.sv-carte[data-carte="emplacements"] tr').length,
+        /* la reponse de l'onglet est gardee quelques minutes par le serveur : on compare a celle que l'ecran a recue */
+        recues: Ext.ComponentQuery.query('pilotage')[0].donneesSuivi.alertes.length,
+        emplRecus: Ext.ComponentQuery.query('pilotage')[0].donneesSuivi.emplacements.length }; });
     ok('Les 7 tuiles tiennent sur une seule ligne, chacune sur fond de couleur douce', ecr.tuiles === 7 && ecr.uneLigne && ecr.fondsDoux, JSON.stringify(ecr));
     ok('Cartes : alertes, fréquentation, CA, encaissements, achats, TVA, marge, panier, emplacements, familles ; en-têtes de couleurs douces différentes',
       ecr.cartes === 'alertes,frequentation,ca,encaisse,achats,tva,marge,panier,emplacements,familles' && ecr.tetesDistinctes >= 9, JSON.stringify(ecr));
-    ok('Évolution du CA en courbes (N et N-1 par défaut), alertes et emplacements remplis', ecr.courbes === 2 && ecr.alertes === s.alertes.length && ecr.empl === s.emplacements.length + 1, JSON.stringify(ecr));
+    ok('Évolution du CA en courbes (N et N-1 par défaut), alertes et emplacements remplis', ecr.courbes === 2 && ecr.alertes === ecr.recues && ecr.recues > 0 && ecr.empl === ecr.emplRecus + 1, JSON.stringify(ecr));
     /* reglages : N-3 et semaine sur le CA, tranche et comparaison de la frequentation */
     await p.click('.sv-carte[data-carte="ca"] button[data-ctl="comp"][data-v="3"]');
     await p.waitForFunction(() => document.querySelectorAll('.sv-carte[data-carte="ca"] .sv-courbe').length === 4, null, { timeout: 120000 });

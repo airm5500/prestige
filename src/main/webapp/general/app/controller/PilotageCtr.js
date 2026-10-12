@@ -543,7 +543,8 @@ Ext.define('testextjs.controller.PilotageCtr', {
                 me.declarerChamps(stores.mois, r.grossistesColonnes);
                 me.declarerChamps(stores.detail, r.modes);
                 me.declarerChamps(stores.detail, r.grossistesColonnes);
-                stores.tuiles.loadData(r.tuiles || []);
+                /* retours du 12/10 : ordre des tuiles choisi par l'utilisateur (A suivre, KPI) */
+                stores.tuiles.loadData(ecran.ordonnerTuiles(cle, r.tuiles || []));
                 stores.mois.loadData(r.mois || []);
                 /*
                  * Le même contenu, dans l'autre sens : la courbe va du plus ancien au plus récent, le tableau

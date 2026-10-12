@@ -1987,6 +1987,12 @@ body.x-body,
 .pilotage-ardoise .pilotage-alertes .pilotage-alerte-critique { color: #c0392b; }
 .pilotage-ardoise .pilotage-alertes .pilotage-alerte-alerte { color: #b9770e; }
 .pilotage-ardoise .pilotage-alertes .pilotage-alerte-ok { color: #1e8449; }
+/* Rangement des tuiles et cartes (retours du 12/10) */
+.pilotage-ardoise .pilotage-tuiles-suivi .pilotage-tuile,
+.pilotage-ardoise .pilotage-onglet-kpi .pilotage-tuile { cursor: grab; }
+.pilotage-ardoise .sv-titre { cursor: grab; }
+.pilotage-ardoise .sv-aide { font-size: 12px; color: #64748b; padding: 4px 2px 0 2px; }
+.pilotage-ardoise .sv-lien { border: 0; background: none; color: #1565c0; text-decoration: underline; cursor: pointer; font-size: 12px; }
 /* La tuile porte son liseré ambre : c'est le seul accent de couleur de l'ecran, la variation gardant
    le vert et le rouge qui lui appartiennent. */
 .pilotage-ardoise .pilotage-tuile {
