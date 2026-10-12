@@ -119,6 +119,9 @@ const texteXls = (f) => execFileSync('python3', ['-I', '-c', "import sys,xlrd;s=
     ok('Affiche A4 : PDF, le QR imprimé redonne exactement le lien', aff.t === 'application/pdf' && lu === lien, lu);
     ok('Affiche : nom de la pharmacie et invitation', /Votre avis nous intéresse/.test(txtAffiche) && txtAffiche.indexOf(q('SELECT str_NOM_COMPLET FROM t_officine LIMIT 1').toUpperCase()) >= 0, txtAffiche.slice(0, 200));
     fs.copyFileSync(path.join(TMP, 'affiche.png'), process.env.CAPTURE_AFFICHE || path.join(TMP, 'affiche-copie.png'));
+    const dispo = await p.evaluate(async () => (await fetch('../api/v1/avis-clients/affiche?format=A4')).headers.get('content-disposition'));
+    const slugOff = q("SELECT str_NOM_COMPLET FROM t_officine LIMIT 1").normalize('NFD').replace(/\p{M}/gu, '').replace(/[^A-Za-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 40);
+    ok('Affiche : fichier affiche_avis_<officine>_<horodatage>.pdf', new RegExp('filename="affiche_avis_' + slugOff + '_\\d{2}_\\d{2}_\\d{4}_\\d{2}_\\d{2}\\.pdf"').test(dispo || ''), dispo);
     const a5 = await p.evaluate(async () => (await fetch('../api/v1/avis-clients/affiche?format=A5')).headers.get('content-type'));
     ok('Affiche A5 disponible', a5 === 'application/pdf');
 

@@ -399,7 +399,7 @@ public class AvisClientRessource {
         try {
             String[] p = service.pharmacie();
             return fichier(AvisPdf.affiche(p[0], p[1], lien, "A5".equalsIgnoreCase(format)), "application/pdf",
-                    "affiche_avis.pdf");
+                    "affiche_avis_" + AbcArticleRessource.slug(p[0]) + "_" + horodatage() + ".pdf");
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "Avis : affiche", e);
             return Response.status(500).entity(echec("Affiche impossible.").toString()).type(MediaType.APPLICATION_JSON)
