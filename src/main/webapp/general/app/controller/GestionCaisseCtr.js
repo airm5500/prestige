@@ -207,10 +207,8 @@ Ext.define('testextjs.controller.GestionCaisseCtr', {
         me.onValidateClotureClick(record);
     },
     setdate: function (cmp) {
-        const CurrentDate = new Date();
-        CurrentDate.setMonth(CurrentDate.getMonth() - 1);
-        cmp.setValue(CurrentDate);
-
+        /* besoins du 11/10 : a l'ouverture, les donnees du jour (la periode reste modifiable) */
+        cmp.setValue(new Date());
     },
     handleActionColumn: function (view, rowIndex, colIndex, item, e, r, row) {
         const me = this;
