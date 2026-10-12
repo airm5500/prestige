@@ -1456,8 +1456,44 @@ public class InventaireManager extends bllBase {
      *
      * @return nombre total de lignes creees ; l'inventaire est supprime s'il n'en reste aucune
      */
+    /**
+     * Retire de l'inventaire les produits dont le nom ne commence pas par une lettre de l'intervalle ; rend le nombre
+     * de lignes gardees.
+     */
+    long garderLettres(String inventaireId, String lettreDebut, String lettreFin) {
+        javax.persistence.EntityManager em = this.getOdataManager().getEm();
+        String premiere = "UPPER(LEFT(TRIM(f.str_NAME), 1))";
+        boolean ouverte = !em.getTransaction().isActive();
+        if (ouverte) {
+            em.getTransaction().begin();
+        }
+        em.createNativeQuery(
+                "DELETE i FROM t_inventaire_famille i JOIN t_famille f ON f.lg_FAMILLE_ID = i.lg_FAMILLE_ID"
+                        + " WHERE i.lg_INVENTAIRE_ID = ?1 AND NOT (" + premiere + " BETWEEN ?2 AND ?3)")
+                .setParameter(1, inventaireId).setParameter(2, lettreDebut == null ? "A" : lettreDebut)
+                .setParameter(3, lettreFin == null ? "Z" : lettreFin).executeUpdate();
+        if (ouverte) {
+            em.getTransaction().commit();
+        }
+        Object n = em.createNativeQuery("SELECT COUNT(*) FROM t_inventaire_famille WHERE lg_INVENTAIRE_ID = ?1")
+                .setParameter(1, inventaireId).getSingleResult();
+        return ((Number) n).longValue();
+    }
+
     public long createInventaireMultiCriteres(String str_NAME, List<String> valeurs, String axe, String str_BEGIN,
             String str_END, String str_TYPE, int bool_INVENTAIRE, String stockFilter, Integer stockProduit) {
+        return createInventaireMultiCriteres(str_NAME, valeurs, axe, str_BEGIN, str_END, str_TYPE, bool_INVENTAIRE,
+                stockFilter, stockProduit, null, null);
+    }
+
+    /**
+     * Besoins du 11/10 (point 15) : meme creation, limitee aux produits dont le nom commence par une lettre de
+     * {@code lettreDebut} a {@code lettreFin} (incluses ; null = pas de limite de ce cote). Les lignes hors intervalle
+     * sont retirees juste apres la creation, sans toucher aux procedures d'inventaire.
+     */
+    public long createInventaireMultiCriteres(String str_NAME, List<String> valeurs, String axe, String str_BEGIN,
+            String str_END, String str_TYPE, int bool_INVENTAIRE, String stockFilter, Integer stockProduit,
+            String lettreDebut, String lettreFin) {
         long count = 0;
         Date today = new Date();
         TInventaire creePartiellement = null;
@@ -1502,6 +1538,9 @@ public class InventaireManager extends bllBase {
                         str_BEGIN, str_END, bool_INVENTAIRE, str_TYPE, stockFilter, stockProduit);
             }
 
+            if (count > 0 && (lettreDebut != null || lettreFin != null)) {
+                count = garderLettres(oTInventaire.getLgINVENTAIREID(), lettreDebut, lettreFin);
+            }
             if (count == 0) {
                 // Meme regle que la creation a critere unique : pas de ligne, pas d'inventaire.
                 this.delete(oTInventaire);

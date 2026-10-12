@@ -150,6 +150,11 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.addBis', {
                                     OGridemplacement.hide();
                                     OGridGrossiste.hide();
 
+                                    /* lettres du nom : sans objet pour un inventaire de reserve */
+                                    var lettres = cmp.up('window').down('#lettresNom');
+                                    if (lettres) {
+                                        lettres.setVisible(value != "Reserve");
+                                    }
                                     if (value == "Reserve") {
                                         // Aucun critere a choisir : ce sont TOUS les produits
                                         // marques geres en reserve qui sont inventories.
@@ -317,6 +322,19 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.addBis', {
                             hidden: true,
                             id: 'stockProduit'
                         },
+                        {
+                            // besoins du 11/10 (point 15) : inventaire partiel d'un emplacement, produits dont le nom
+                            // commence par une lettre de l'intervalle (ex. SUPPO de F a M, puis de A a E...)
+                            xtype: 'fieldcontainer',
+                            itemId: 'lettresNom',
+                            fieldLabel: 'Lettres du nom',
+                            layout: 'hbox',
+                            items: [
+                                Ext.apply({itemId: 'lettreDebut', emptyText: 'A', fieldLabel: 'de', labelWidth: 20}, lettresCombo()),
+                                Ext.apply({itemId: 'lettreFin', emptyText: 'Z', fieldLabel: 'à', labelWidth: 20, margin: '0 0 0 10'}, lettresCombo()),
+                                {xtype: 'displayfield', margin: '0 0 0 10', value: '<span style="color:#666;">vide : toutes les lettres</span>'}
+                            ]
+                        },
 
                         {
                             // Selection multiple des criteres, en deux volets : la liste de l'axe
@@ -483,6 +501,13 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.addBis', {
         var valeurs = panneau ? panneau.getValeurs() : [];
         var debut = Ext.getCmp('str_BEGIN').getRawValue();
         var fin = Ext.getCmp('str_END').getRawValue();
+        /* lettres du nom controlees avant toute autre question */
+        var lettreDebut = fenetre.down('#lettreDebut') ? fenetre.down('#lettreDebut').getValue() : null;
+        var lettreFin = fenetre.down('#lettreFin') ? fenetre.down('#lettreFin').getValue() : null;
+        if (lettreDebut && lettreFin && lettreDebut > lettreFin) {
+            Ext.MessageBox.alert('Lettres du nom', 'La première lettre doit précéder la seconde (ex. de F à M).');
+            return;
+        }
 
         if (valeurs.length === 0 && (!debut || !fin)) {
             Ext.MessageBox.confirm('Confirmation',
@@ -498,6 +523,16 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.addBis', {
         envoyerCreationInventaire(button, valeurs, debut, fin);
     }
 });
+
+/** Liste des lettres A a Z pour l'intervalle du nom. */
+function lettresCombo() {
+    var lettres = [];
+    for (var i = 0; i < 26; i++) {
+        lettres.push({l: String.fromCharCode(65 + i)});
+    }
+    return {xtype: 'combobox', width: 80, editable: true, forceSelection: true, queryMode: 'local',
+        displayField: 'l', valueField: 'l', store: Ext.create('Ext.data.Store', {fields: ['l'], data: lettres})};
+}
 
 /** Envoi de la creation au service REST qui remplace ws_transactions.jsp?mode=createbis. */
 function envoyerCreationInventaire(button, valeurs, debut, fin) {
@@ -519,6 +554,8 @@ function envoyerCreationInventaire(button, valeurs, debut, fin) {
                 str_END: fin || '',
                 stockFilter: stockFiltre ? stockFiltre.getValue() : 'ALL',
                 stockProduit: stockQte ? stockQte.getValue() : null,
+                lettreDebut: (button.up('window').down('#lettreDebut') || {getValue: Ext.emptyFn}).getValue() || '',
+                lettreFin: (button.up('window').down('#lettreFin') || {getValue: Ext.emptyFn}).getValue() || '',
                 bool_INVENTAIRE: 1
             },
             success: function (response) {

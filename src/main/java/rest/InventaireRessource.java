@@ -409,8 +409,14 @@ public class InventaireRessource {
         odm.initEntityManager();
         try {
             InventaireManager manager = new InventaireManager(odm, user);
+            String lettreDebut = lettre(in.optString("lettreDebut", ""));
+            String lettreFin = lettre(in.optString("lettreFin", ""));
+            if (lettreDebut != null && lettreFin != null && lettreDebut.compareTo(lettreFin) > 0) {
+                return refus("La premiere lettre doit preceder la seconde (ex. de F a M).");
+            }
             long lignes = manager.createInventaireMultiCriteres(nom, valeurs, axeDepuisType(type), debut, fin, type,
-                    in.optInt("bool_INVENTAIRE", 1), in.optString("stockFilter", "ALL"), stockProduit);
+                    in.optInt("bool_INVENTAIRE", 1), in.optString("stockFilter", "ALL"), stockProduit, lettreDebut,
+                    lettreFin);
 
             if (lignes == InventaireManager.ECHEC_TECHNIQUE) {
                 // Panne, et non absence de resultat : les deux ne doivent pas porter le meme message.
@@ -429,6 +435,12 @@ public class InventaireRessource {
         } finally {
             odm.closeEntityManager();
         }
+    }
+
+    /** Une lettre A-Z, ou null (pas de limite). */
+    static String lettre(String s) {
+        String l = s == null ? "" : s.trim().toUpperCase();
+        return l.matches("[A-Z]") ? l : null;
     }
 
     /** Nomme ce qui est vide, selon l'axe choisi, pour que le message dise quoi corriger. */
