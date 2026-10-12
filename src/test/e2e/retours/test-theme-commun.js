@@ -30,7 +30,7 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
     await p.click('#' + await p.evaluate(() => Ext.ComponentQuery.query('ordonnanceclient #anaFinRaccourcis')[0].getId()));
     await p.waitForSelector('.periode-menu .x-menu-item', { timeout: 5000 });
     const libelles = await p.evaluate(() => [...document.querySelectorAll('.periode-menu .x-menu-item-text')].map((x) => x.textContent));
-    ok('Bouton « Période » : les raccourcis du jour à l\'année', libelles.join('|') === "Aujourd'hui|Hier|7 derniers jours|30 derniers jours|Ce mois|Mois dernier|12 derniers mois|Cette année", libelles.join('|'));
+    ok('Bouton « Période » : les raccourcis du jour à l\'année', libelles.join('|') === "Aujourd'hui|Hier|7 derniers jours|30 derniers jours|3 dernières semaines|Ce mois|Mois dernier|3 derniers mois|12 derniers mois|Cette année|Année N-1", libelles.join('|'));
     const avant = requetes.length;
     await p.locator('.periode-menu .x-menu-item-text', { hasText: 'Mois dernier' }).click();
     await p.waitForTimeout(2000);
