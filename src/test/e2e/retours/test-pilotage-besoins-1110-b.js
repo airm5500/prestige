@@ -16,7 +16,9 @@ const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BAS
 const SORTIE = process.env.SORTIE || '/tmp';
 const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = 'admin'");
 const PREF_AVANT = q("SELECT COUNT(*) FROM t_preference_utilisateur WHERE lg_USER_ID = '" + ADMIN + "' AND str_CLE = 'pilotage.kpi.recherches'");
+const PREF_SUIVI = q("SELECT COUNT(*) FROM t_preference_utilisateur WHERE lg_USER_ID = '" + ADMIN + "' AND str_CLE = 'pilotage.suivi'");
 const nettoyer = () => { q("DELETE FROM t_vente_ratee WHERE lg_VENTE_RATEE_ID LIKE 'e2e-p1110b-%'");
+  if (PREF_SUIVI === '0') { q("DELETE FROM t_preference_utilisateur WHERE lg_USER_ID = '" + ADMIN + "' AND str_CLE = 'pilotage.suivi'"); }
   if (PREF_AVANT === '0') { q("DELETE FROM t_preference_utilisateur WHERE lg_USER_ID = '" + ADMIN + "' AND str_CLE = 'pilotage.kpi.recherches'"); } };
 
 (async () => {
@@ -59,16 +61,58 @@ const nettoyer = () => { q("DELETE FROM t_vente_ratee WHERE lg_VENTE_RATEE_ID LI
     const somme = (l) => (l || []).reduce((x, y) => x + y.ca, 0);
     ok('CA par emplacement : ' + (s.emplacements || []).length + ' ligne(s), total = CA de la période (si 20 au plus)', (s.emplacements || []).length > 0 && ((s.emplacements || []).length === 20 || Math.abs(somme(s.emplacements) - s.caLignes) <= 1), somme(s.emplacements) + ' / ' + s.caLignes);
     ok('CA par famille : total = CA de la période (si 20 au plus)', (s.familles || []).length > 0 && ((s.familles || []).length === 20 || Math.abs(somme(s.familles) - s.caLignes) <= 1), somme(s.familles) + ' / ' + s.caLignes);
+    /* cartes (retours du 12/10) : evolution N face a N-1..N-3, frequentation comparee, encaissements par mode */
+    const an = new Date().getFullYear(), auj = new Date().toISOString().slice(0, 10);
+    const evo = await api('../api/v1/pilotage/suivi/evolution?mesure=ca&pas=MOIS&comparer=2');
+    const caAn = Number(q("SELECT COALESCE(SUM(int_PRICE - IFNULL(int_PRICE_REMISE,0)),0) FROM t_preenregistrement WHERE int_PRICE > 0 AND str_STATUT = 'is_Closed' AND b_IS_CANCEL = 0"
+      + " AND lg_TYPE_VENTE_ID <> '5' AND dt_UPDATED >= '" + an + "-01-01' AND dt_UPDATED < CURDATE() + INTERVAL 1 DAY"));
+    const sommeN = evo.series && evo.series[0].valeurs.reduce((x, v) => x + (v || 0), 0);
+    ok('Évolution du CA par mois : 3 années (N, N-1, N-2), total de N = calcul indépendant, mois à venir vides', evo.success && evo.series.length === 3 && evo.series[0].annee === an
+      && Math.abs(sommeN - caAn) <= 12 && evo.series[0].aDate === caAn && evo.series[0].valeurs[11] === null && evo.series[0].valeurs.length === 12, JSON.stringify({ n: evo.series && evo.series.length, sommeN, caAn }));
+    const sem = await api('../api/v1/pilotage/suivi/evolution?mesure=achats&pas=SEMAINE&comparer=1');
+    ok('Achats par semaine : 53 semaines ISO, N et N-1', sem.success && sem.series.length === 2 && sem.series[0].valeurs.length === 53, JSON.stringify(sem.series && sem.series.map((x) => x.annee)));
+    const ann = await api('../api/v1/pilotage/suivi/evolution?mesure=panier&pas=ANNEE&comparer=3');
+    ok('Panier moyen par année : 4 années (N-3 à N)', ann.success && ann.series.length === 4 && ann.series[3].annee === an - 3, JSON.stringify(ann.series && ann.series.map((x) => x.annee + ':' + x.total)));
+    const bad = await api('../api/v1/pilotage/suivi/evolution?mesure=ca&pas=MOIS&comparer=4');
+    ok('Refus : comparaison au-delà de N-3', bad.success === false, bad.message);
+    const enc = await api('../api/v1/pilotage/suivi/encaissements?axe=MOIS&dtStart=&dtEnd=');
+    const encSql = Number(q("SELECT COALESCE(SUM(vr.montant),0) FROM vente_reglement vr JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = vr.vente_id WHERE p.int_PRICE > 0 AND p.str_STATUT = 'is_Closed'"
+      + " AND p.b_IS_CANCEL = 0 AND p.lg_TYPE_VENTE_ID <> '5' AND p.dt_UPDATED >= DATE_FORMAT(CURDATE(), '%Y-%m-01') AND p.dt_UPDATED < CURDATE() + INTERVAL 1 DAY"));
+    ok('Encaissements par mode du mois : total = vente_reglement (comme le ticket Z)', enc.success && enc.total === encSql && enc.modes.reduce((x, m) => x + m.montant, 0) === enc.total, enc.total + ' / ' + encSql);
+    const fr = await api('../api/v1/pilotage/suivi/frequentation?axe=MOIS&dtStart=&dtEnd=&comparaison=N1');
+    const nbMois = Number(q("SELECT COUNT(*) FROM t_preenregistrement WHERE int_PRICE > 0 AND str_STATUT = 'is_Closed' AND b_IS_CANCEL = 0 AND lg_TYPE_VENTE_ID <> '5'"
+      + " AND dt_UPDATED >= DATE_FORMAT(CURDATE(), '%Y-%m-01') AND dt_UPDATED < CURDATE() + INTERVAL 1 DAY"));
+    ok('Fréquentation : 24 heures, total = ventes du mois ; comparaison « même période N-1 » un an avant', fr.success && fr.courante.ventesH.length === 24
+      && fr.courante.ventesH.reduce((x, v) => x + v, 0) === nbMois && fr.reference.debut === (an - 1) + auj.slice(4, 8) + '01' && /N-1/.test(fr.reference.libelle), JSON.stringify(fr.reference && { d: fr.reference.debut, l: fr.reference.libelle }));
     await onglet('asuivre');
-    const ecr = await p.evaluate(() => { const e = Ext.ComponentQuery.query('pilotage')[0];
-      return { alertes: e.down('#suiviAlertes').getEl().dom.querySelectorAll('.pilotage-alertes li').length, empl: e.down('#suiviEmplacements').getEl().dom.querySelectorAll('tr').length,
-        fam: e.down('#suiviFamilles').getEl().dom.querySelectorAll('tr').length, heures: e.storeSuiviHoraire.getCount(),
-        parts: Math.round(e.storeSuiviHoraire.sum('part')), panier: e.down('#graphique-asuivre').series.getAt(0).yField }; });
-    ok('Écran : alertes, tableaux emplacement et famille, fréquentation (parts = 100 %), courbe du panier', ecr.alertes === s.alertes.length && ecr.empl === s.emplacements.length + 1
-      && ecr.fam === s.familles.length + 1 && ecr.heures === s.horaire.length && (ecr.heures === 0 || ecr.parts === 100) && ecr.panier === 'panier', JSON.stringify(ecr));
-    const bulle = await p.evaluate(() => { const g = Ext.ComponentQuery.query('pilotage #suiviHoraire')[0], sr = g.series.getAt(0), st = Ext.ComponentQuery.query('pilotage')[0].storeSuiviHoraire;
-      if (!st.getCount()) { return 'vide'; } sr.tooltip.renderer.call(sr.tooltip, st.getAt(0), { series: sr }); return sr.tooltip.title; });
-    ok('Infobulle de la fréquentation : % du CA', /% du CA/.test(bulle) || bulle === 'vide', bulle);
+    await p.waitForFunction(() => document.querySelectorAll('.sv-carte[data-carte="ca"] .sv-courbe').length > 0 && document.querySelectorAll('.sv-carte[data-carte="frequentation"] .sv-barre').length > 0
+      && document.querySelectorAll('.sv-carte[data-carte="encaisse"] .sv-mode').length > 0, null, { timeout: 120000 });
+    const ecr = await p.evaluate(() => { const tops = [...document.querySelectorAll('.pilotage-tuiles-suivi .pilotage-tuile')].map((t) => Math.round(t.getBoundingClientRect().top));
+      const fonds = [...document.querySelectorAll('.pilotage-tuiles-suivi .pilotage-tuile')].map((t) => getComputedStyle(t).backgroundColor);
+      const tetes = [...document.querySelectorAll('.sv-carte .sv-tete')].map((t) => getComputedStyle(t).backgroundColor);
+      return { tuiles: tops.length, uneLigne: new Set(tops).size === 1, fondsDoux: new Set(fonds).size >= 6 && fonds.every((f) => f !== 'rgb(255, 255, 255)'),
+        cartes: [...document.querySelectorAll('.sv-carte')].map((c) => c.getAttribute('data-carte')).join(','), tetesDistinctes: new Set(tetes).size,
+        courbes: [...document.querySelectorAll('.sv-carte[data-carte="ca"] .sv-courbe')].length, alertes: document.querySelectorAll('.sv-carte[data-carte="alertes"] .pilotage-alertes li').length,
+        empl: document.querySelectorAll('.sv-carte[data-carte="emplacements"] tr').length }; });
+    ok('Les 7 tuiles tiennent sur une seule ligne, chacune sur fond de couleur douce', ecr.tuiles === 7 && ecr.uneLigne && ecr.fondsDoux, JSON.stringify(ecr));
+    ok('Cartes : alertes, fréquentation, CA, encaissements, achats, TVA, marge, panier, emplacements, familles ; en-têtes de couleurs douces différentes',
+      ecr.cartes === 'alertes,frequentation,ca,encaisse,achats,tva,marge,panier,emplacements,familles' && ecr.tetesDistinctes >= 9, JSON.stringify(ecr));
+    ok('Évolution du CA en courbes (N et N-1 par défaut), alertes et emplacements remplis', ecr.courbes === 2 && ecr.alertes === s.alertes.length && ecr.empl === s.emplacements.length + 1, JSON.stringify(ecr));
+    /* reglages : N-3 et semaine sur le CA, tranche et comparaison de la frequentation */
+    await p.click('.sv-carte[data-carte="ca"] button[data-ctl="comp"][data-v="3"]');
+    await p.waitForFunction(() => document.querySelectorAll('.sv-carte[data-carte="ca"] .sv-courbe').length === 4, null, { timeout: 120000 });
+    await p.click('.sv-carte[data-carte="ca"] button[data-ctl="pas"][data-v="SEMAINE"]');
+    await p.waitForFunction(() => { const t = document.querySelector('.sv-carte[data-carte="ca"] .sv-svg'); return t && /S41/.test(t.textContent) && document.querySelector('.sv-carte[data-carte="ca"] button[data-ctl="pas"][data-v="SEMAINE"]').classList.contains('on'); }, null, { timeout: 120000 });
+    ok('CA : « N-3 » trace 4 années, « Semaine » passe aux semaines ISO', true);
+    await p.selectOption('.sv-carte[data-carte="frequentation"] select[data-ctl="tranche"]', '3');
+    await p.waitForFunction(() => [...document.querySelectorAll('.sv-carte[data-carte="frequentation"] text')].some((t) => /^\d+h-\d+h$/.test(t.textContent) && /^(6|9|12|15|18)h-/.test(t.textContent)), null, { timeout: 30000 });
+    await p.selectOption('.sv-carte[data-carte="frequentation"] select[data-ctl="comp"]', 'N1');
+    await p.waitForFunction(() => /Même période N-1/.test(document.querySelector('.sv-carte[data-carte="frequentation"] .sv-legende').textContent), null, { timeout: 60000 });
+    const bulleF = await p.evaluate(() => document.querySelector('.sv-carte[data-carte="frequentation"] .sv-barre title').textContent);
+    ok('Fréquentation : tranche de 3 h et comparaison « même période N-1 » ; survol avec la part du CA', /% du CA/.test(bulleF), bulleF);
+    await p.waitForTimeout(1500);
+    const prefS = await api('../api/v1/preferences/pilotage.suivi');
+    ok('Réglages des cartes retenus pour l\'utilisateur', prefS.valeur && prefS.valeur.ca.comp === 3 && prefS.valeur.ca.pas === 'SEMAINE' && prefS.valeur.freq.tranche === 3 && prefS.valeur.freq.comp === 'N1', JSON.stringify(prefS.valeur));
     await p.screenshot({ path: SORTIE + '/pilotage-asuivre.png' });
 
     /* ------------------------------------------------ Stock : listes */

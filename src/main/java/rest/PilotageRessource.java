@@ -200,6 +200,68 @@ public class PilotageRessource {
      *            code d'axe de comparaison ({@code MOIS}, {@code VS_M1}, {@code VS_N1}, {@code YTD}, {@code G12},
      *            {@code PERSO}) ; un code inconnu retombe sur le mois en cours plutot que d'echouer
      */
+    @EJB
+    private rest.service.impl.PilotageSuiviService suivi;
+
+    private static Response echecSuivi(String message) {
+        return Response.ok().entity(new JSONObject().put("success", false).put("message", message).toString()).build();
+    }
+
+    /** Onglet A suivre : evolution d'une grandeur, annee en cours face a N-1 .. N-3 (retours du 12/10). */
+    @GET
+    @Path("suivi/evolution")
+    public Response evolution(@QueryParam("mesure") String mesure, @QueryParam("pas") String pas,
+            @QueryParam("comparer") Integer comparer) {
+        if (utilisateur() == null) {
+            return deconnecte();
+        }
+        if (!autorise()) {
+            return refus();
+        }
+        int k = comparer == null ? 1 : comparer;
+        if (!rest.service.impl.PilotageSuiviService.MESURES.contains(mesure)
+                || !rest.service.impl.PilotageSuiviService.PAS.contains(pas) || k < 0 || k > 3) {
+            return echecSuivi("Grandeur, pas (semaine, mois, année) ou comparaison (N-1 à N-3) inconnus.");
+        }
+        try {
+            return Response.ok().entity(suivi.evolution(mesure, pas, k, java.time.LocalDate.now()).toString()).build();
+        } catch (Exception e) {
+            LOG.log(java.util.logging.Level.SEVERE, "pilotage : evolution " + mesure, e);
+            return echecSuivi("L'évolution n'a pas pu être calculée.");
+        }
+    }
+
+    /** Onglet A suivre : frequentation et encaissements de la periode regardee (axe du Pilotage). */
+    @GET
+    @Path("suivi/{carte}")
+    public Response carteSuivi(@PathParam("carte") String carte, @QueryParam("axe") String axe,
+            @QueryParam("dtStart") String debut, @QueryParam("dtEnd") String fin,
+            @QueryParam("comparaison") String comparaison) {
+        if (utilisateur() == null) {
+            return deconnecte();
+        }
+        if (!autorise()) {
+            return refus();
+        }
+        try {
+            rest.service.impl.PilotagePeriodes.Axe a = rest.service.impl.PilotagePeriodes.calculer(axe,
+                    java.time.LocalDate.now(), rest.service.impl.OrdonnanceClientSaisie.date(debut),
+                    rest.service.impl.OrdonnanceClientSaisie.date(fin));
+            JSONObject r;
+            if ("frequentation".equals(carte)) {
+                r = suivi.frequentation(a.courante.debut, a.courante.fin, comparaison);
+            } else if ("encaissements".equals(carte)) {
+                r = suivi.encaissements(a.courante.debut, a.courante.fin);
+            } else {
+                return echecSuivi("Carte inconnue.");
+            }
+            return Response.ok().entity(r.put("periode", a.courante.libelle).toString()).build();
+        } catch (Exception e) {
+            LOG.log(java.util.logging.Level.SEVERE, "pilotage : carte " + carte, e);
+            return echecSuivi("La carte n'a pas pu être calculée.");
+        }
+    }
+
     /** Besoins du 11/10 (point 11) : les produits derriere une tuile de l'onglet Stock. */
     @GET
     @Path("stock/produits")

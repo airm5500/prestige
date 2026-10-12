@@ -1899,6 +1899,94 @@ body.x-body,
 .pilotage-ardoise .pilotage-onglet-stock .pilotage-tuile {
     cursor: pointer;
 }
+/* ---- Onglet « À suivre » (retours du 12/10) : tuiles sur une ligne, couleurs douces, cartes ---- */
+.pilotage-ardoise .pilotage-tuiles-suivi {
+    display: flex;
+    gap: 8px;
+}
+.pilotage-ardoise .pilotage-tuiles-suivi .pilotage-tuile {
+    flex: 1 1 0;
+    width: auto;
+    min-width: 0;
+    margin: 4px 0;
+}
+.pilotage-ardoise .pilotage-tuiles-suivi .pilotage-tuile[data-cle="rotation"] { background: #eef4ff; border-left-color: #6b8fd6; }
+.pilotage-ardoise .pilotage-tuiles-suivi .pilotage-tuile[data-cle="tauxRupture"] { background: #fff6e8; border-left-color: #e0a54a; }
+.pilotage-ardoise .pilotage-tuiles-suivi .pilotage-tuile[data-cle="evolPanier"] { background: #f4efff; border-left-color: #9a84d6; }
+.pilotage-ardoise .pilotage-tuiles-suivi .pilotage-tuile[data-cle="rupturesVendus"] { background: #fff0f0; }
+.pilotage-ardoise .pilotage-tuiles-suivi .pilotage-tuile[data-cle="rateesACommander"] { background: #fff3ea; border-left-color: #e8925a; }
+.pilotage-ardoise .pilotage-tuiles-suivi .pilotage-tuile[data-cle="margeNegative"] { background: #fdf0f6; border-left-color: #d97aa5; }
+.pilotage-ardoise .pilotage-tuiles-suivi .pilotage-tuile[data-cle="peremption"] { background: #edf8f1; border-left-color: #5fb487; }
+.pilotage-ardoise .sv-cartes {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    padding: 6px 2px 12px 2px;
+}
+.pilotage-ardoise .sv-carte {
+    background: #ffffff;
+    border: 1px solid #dde4ec;
+    border-radius: 8px;
+    overflow: hidden;
+    min-width: 0;
+}
+.pilotage-ardoise .sv-tete {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 7px 10px;
+    border-bottom: 1px solid rgba(30, 41, 59, 0.08);
+}
+.pilotage-ardoise .sv-titre { font-weight: 700; color: #1e293b; }
+.pilotage-ardoise .sv-titre .fa-solid { margin-right: 4px; }
+.pilotage-ardoise .sv-rose .sv-tete { background: #fdecef; }
+.pilotage-ardoise .sv-cyan .sv-tete { background: #e3f5f9; }
+.pilotage-ardoise .sv-bleu .sv-tete { background: #e8effd; }
+.pilotage-ardoise .sv-vert .sv-tete { background: #e5f5ec; }
+.pilotage-ardoise .sv-orange .sv-tete { background: #fff1e2; }
+.pilotage-ardoise .sv-violet .sv-tete { background: #f1eafd; }
+.pilotage-ardoise .sv-menthe .sv-tete { background: #e6f7f3; }
+.pilotage-ardoise .sv-jaune .sv-tete { background: #fdf7e1; }
+.pilotage-ardoise .sv-gris .sv-tete { background: #eef2f6; }
+.pilotage-ardoise .sv-ardoise .sv-tete { background: #e9eef4; }
+.pilotage-ardoise .sv-corps { padding: 8px 10px; }
+.pilotage-ardoise .sv-defile { max-height: 300px; overflow: auto; }
+.pilotage-ardoise .sv-outils select {
+    font-size: 12px;
+    padding: 2px 4px;
+    border: 1px solid #c9d4df;
+    border-radius: 4px;
+    background: #fff;
+}
+.pilotage-ardoise .sv-seg { display: inline-flex; border: 1px solid #c9d4df; border-radius: 5px; overflow: hidden; }
+.pilotage-ardoise .sv-seg button {
+    border: 0;
+    background: #fff;
+    padding: 3px 8px;
+    font-size: 12px;
+    cursor: pointer;
+    color: #334155;
+}
+.pilotage-ardoise .sv-seg button + button { border-left: 1px solid #c9d4df; }
+.pilotage-ardoise .sv-seg button.on { background: #1e3a5f; color: #fff; font-weight: 700; }
+.pilotage-ardoise .sv-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.pilotage-ardoise .sv-table th { text-align: left; color: #64748b; font-weight: 700; padding: 3px 4px; border-bottom: 1px solid #e3e9f0; }
+.pilotage-ardoise .sv-table td { padding: 3px 4px; border-bottom: 1px solid #f1f4f8; }
+.pilotage-ardoise .sv-table .n { text-align: right; }
+.pilotage-ardoise .sv-sous-titre { margin: 8px 0 4px; font-weight: 700; color: #334155; }
+.pilotage-ardoise .sv-note, .pilotage-ardoise .sv-attente { color: #7f8c8d; font-size: 12px; }
+.pilotage-ardoise .sv-legende { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 11.5px; color: #475569; margin-top: 4px; }
+.pilotage-ardoise .sv-legende i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: middle; }
+.pilotage-ardoise .sv-hausse { color: #16a34a; }
+.pilotage-ardoise .sv-baisse { color: #dc2626; }
+.pilotage-ardoise .sv-anneau { display: flex; gap: 12px; align-items: center; margin-bottom: 6px; }
+.pilotage-ardoise .sv-puce { display: inline-block; width: 9px; height: 9px; border-radius: 50%; }
+.pilotage-ardoise .sv-svg { display: block; }
+.pilotage-ardoise .pilotage-alertes .pilotage-alerte-critique { color: #c0392b; }
+.pilotage-ardoise .pilotage-alertes .pilotage-alerte-alerte { color: #b9770e; }
+.pilotage-ardoise .pilotage-alertes .pilotage-alerte-ok { color: #1e8449; }
 /* La tuile porte son liseré ambre : c'est le seul accent de couleur de l'ecran, la variation gardant
    le vert et le rouge qui lui appartiennent. */
 .pilotage-ardoise .pilotage-tuile {

@@ -1479,51 +1479,147 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
 
     ongletSuivi: function (onglet) {
         var me = this;
-        me.storeSuiviHoraire = Ext.create('Ext.data.Store', {fields: ['libelle', {name: 'nbVentes', type: 'int'},
-                {name: 'caTTC', type: 'float'}, {name: 'part', type: 'float'}]});
         return {xtype: 'panel', itemId: 'onglet-' + onglet.cle, title: onglet.titre, cleOnglet: onglet.cle, border: false,
             autoScroll: true, layout: {type: 'vbox', align: 'stretch'}, items: [
-                me.tuiles('asuivre'),
-                {xtype: 'container', layout: {type: 'hbox', align: 'stretch'}, height: 290, margin: '0 0 6 0', items: [
-                        {xtype: 'panel', itemId: 'suiviAlertes', title: 'Alertes', flex: 1, autoScroll: true, bodyPadding: 8, html: ''},
-                        {xtype: 'panel', title: 'Fréquentation horaire de la période', flex: 1.2, margin: '0 0 0 6', layout: 'fit', items: [{
-                                    xtype: 'chart', itemId: 'suiviHoraire', animate: false, shadow: false, store: me.storeSuiviHoraire,
-                                    insetPadding: testextjs.view.pilotage.PilotageManager.INSET,
-                                    axes: [{type: 'Numeric', position: 'left', fields: ['nbVentes'], minimum: 0, title: 'Clients servis',
-                                            grid: {stroke: '#e3e9ef'}},
-                                        {type: 'Category', position: 'bottom', fields: ['libelle']}],
-                                    series: [{type: 'column', axis: 'left', xField: 'libelle', yField: 'nbVentes', style: {fill: '#1565c0'},
-                                            tips: testextjs.view.pilotage.PilotageManager.infobulle(function (r) {
-                                                var f = testextjs.view.pilotage.PilotageManager;
-                                                return '<b>' + Ext.String.htmlEncode(r.get('libelle')) + '</b><br>' + f.nombre(r.get('nbVentes'))
-                                                        + ' client(s) servi(s)<br>' + f.nombre(r.get('caTTC')) + ' F — <b>'
-                                                        + f.nombre(r.get('part'), '0,000.0') + ' % du CA</b>';
-                                            })}]
-                                }]}]},
-                {xtype: 'container', layout: {type: 'hbox', align: 'stretch'}, margin: '0 0 6 0', items: [
-                        {xtype: 'panel', itemId: 'suiviEmplacements', title: 'CA par emplacement', flex: 1, bodyPadding: 6, html: ''},
-                        {xtype: 'panel', itemId: 'suiviFamilles', title: 'CA par famille', flex: 1, margin: '0 0 0 6', bodyPadding: 6, html: ''}]},
-                Ext.apply(me.graphique('asuivre'), {flex: undefined, height: 300})
+                Ext.apply(me.tuiles('asuivre'), {cls: 'pilotage-tuiles pilotage-tuiles-suivi'}),
+                {xtype: 'component', itemId: 'suiviCartes', cls: 'sv-cartes', html: me.squeletteSuivi(),
+                    listeners: {afterrender: function (c) {
+                            c.getEl().on('change', function (e, t) {
+                                me.surReglageSuivi(t);
+                            }, null, {delegate: 'select[data-ctl]'});
+                            c.getEl().on('click', function (e, t) {
+                                me.surReglageSuivi(t);
+                            }, null, {delegate: 'button[data-ctl]'});
+                        }}}
             ]};
     },
 
-    /** Remplit l'onglet A suivre a partir de la reponse du serveur. */
+    /* Les cartes de l'onglet A suivre : [cle, titre, icone, couleur douce]. */
+    CARTES_SUIVI: [['alertes', 'Alertes', 'fa-bell', 'rose'], ['frequentation', 'Fréquentation par tranche horaire', 'fa-clock', 'cyan'],
+        ['ca', 'Évolution du chiffre d\'affaires', 'fa-chart-line', 'bleu'], ['encaisse', 'Encaissements', 'fa-money-bill-wave', 'vert'],
+        ['achats', 'Évolution des achats', 'fa-truck', 'orange'], ['tva', 'Évolution de la TVA collectée', 'fa-receipt', 'violet'],
+        ['marge', 'Évolution de la marge', 'fa-percent', 'menthe'], ['panier', 'Évolution du panier moyen', 'fa-basket-shopping', 'jaune'],
+        ['emplacements', 'CA par emplacement', 'fa-location-dot', 'gris'], ['familles', 'CA par famille', 'fa-layer-group', 'ardoise']],
+
+    /* Grandeurs dont l'evolution se lit sur une courbe ; « encaisse » a aussi son anneau par mode. */
+    EVOLUTIONS: {ca: 'ca', encaisse: 'encaisse', achats: 'achats', tva: 'tva', marge: 'marge', panier: 'panier'},
+
+    squeletteSuivi: function () {
+        return Ext.Array.map(this.CARTES_SUIVI, function (c) {
+            return '<div class="sv-carte sv-' + c[3] + '" data-carte="' + c[0] + '"><div class="sv-tete"><span class="sv-titre"><i class="fa-solid ' + c[2]
+                    + '"></i> ' + c[1] + '</span><span class="sv-outils"></span></div><div class="sv-corps"><div class="sv-attente">Chargement…</div></div></div>';
+        }).join('');
+    },
+
+    carteSuivi: function (cle) {
+        var c = this.down('#suiviCartes');
+        return c && c.getEl() ? c.getEl().dom.querySelector('.sv-carte[data-carte="' + cle + '"]') : null;
+    },
+
+    prefsSuivi: function () {
+        var me = this;
+        if (!me.suiviPrefs) {
+            me.suiviPrefs = {freq: {tranche: 2, comp: 'PREC', vue: 'moyenne'}};
+            Ext.Object.each(me.EVOLUTIONS, function (k) {
+                me.suiviPrefs[k] = {pas: 'MOIS', comp: 1};
+            });
+        }
+        return me.suiviPrefs;
+    },
+
+    sauverPrefsSuivi: function () {
+        Ext.Ajax.request({url: '../api/v1/preferences/pilotage.suivi', method: 'PUT', headers: {'Content-Type': 'application/json'},
+            jsonData: this.prefsSuivi()});
+    },
+
+    /** Un reglage d'une carte a change (tranche, comparaison, pas, vue) : la carte seule est redessinee. */
+    surReglageSuivi: function (t) {
+        var me = this, carte = t.closest('.sv-carte').getAttribute('data-carte'), ctl = t.getAttribute('data-ctl');
+        var v = t.tagName === 'BUTTON' ? t.getAttribute('data-v') : t.value, p = me.prefsSuivi();
+        if (carte === 'frequentation') {
+            p.freq[ctl] = ctl === 'tranche' ? parseInt(v, 10) : v;
+            if (ctl === 'comp') {
+                me.chargerFrequentation();
+            } else {
+                me.dessinerFrequentation();
+            }
+        } else if (me.EVOLUTIONS[carte]) {
+            p[carte][ctl] = ctl === 'comp' ? parseInt(v, 10) : v;
+            me.chargerEvolution(carte);
+        }
+        me.sauverPrefsSuivi();
+    },
+
+    /** Remplit l'onglet A suivre : alertes et repartitions (reponse de l'onglet), puis chaque carte. */
     afficherSuivi: function (r) {
         var me = this, F = testextjs.view.pilotage.PilotageManager, enc = Ext.String.htmlEncode;
-        var couleurs = {critique: '#c0392b', alerte: '#b9770e', ok: '#1e8449'};
+        me.donneesSuivi = r;
+        var go = function () {
+            me.dessinerAlertes(r);
+            var repartition = function (lignes) {
+                var t = '<table class="sv-table"><tr><th></th><th class="n">CA</th><th class="n">Part</th><th class="n">Marge</th><th class="n">Ventes</th></tr>';
+                Ext.each(lignes || [], function (x) {
+                    t += '<tr><td>' + enc(x.libelle) + '</td><td class="n">' + F.nombre(x.ca) + '</td><td class="n"><span class="suivi-barre" style="width:'
+                            + Math.max(2, Math.round(x.part * 0.6)) + 'px"></span> ' + F.nombre(x.part, '0,000.0') + ' %</td><td class="n">' + F.nombre(x.marge)
+                            + '</td><td class="n">' + F.nombre(x.ventes) + '</td></tr>';
+                });
+                return t + ((lignes || []).length ? '' : '<tr><td colspan="5" class="sv-note">Aucune vente sur la période.</td></tr>') + '</table>';
+            };
+            me.corpsSuivi('emplacements', repartition(r.emplacements));
+            me.corpsSuivi('familles', repartition(r.familles));
+            me.chargerFrequentation();
+            Ext.Object.each(me.EVOLUTIONS, function (k) {
+                me.chargerEvolution(k);
+            });
+        };
+        if (me.prefsChargees) {
+            go();
+            return;
+        }
+        Ext.Ajax.request({url: '../api/v1/preferences/pilotage.suivi', method: 'GET', callback: function (o, ok, rep) {
+                var v = ok ? (Ext.decode(rep.responseText, true) || {}).valeur : null, p = me.prefsSuivi();
+                if (v && typeof v === 'object') {
+                    Ext.Object.each(p, function (k) {
+                        if (v[k]) {
+                            Ext.apply(p[k], v[k]);
+                        }
+                    });
+                }
+                me.prefsChargees = true;
+                go();
+            }});
+    },
+
+    corpsSuivi: function (cle, html) {
+        var c = this.carteSuivi(cle);
+        if (c) {
+            c.querySelector('.sv-corps').innerHTML = html;
+        }
+        return c;
+    },
+
+    outilsSuivi: function (cle, html) {
+        var c = this.carteSuivi(cle);
+        if (c) {
+            c.querySelector('.sv-outils').innerHTML = html;
+        }
+    },
+
+    segSuivi: function (ctl, valeur, choix) {
+        return '<span class="sv-seg">' + Ext.Array.map(choix, function (x) {
+            return '<button type="button" data-ctl="' + ctl + '" data-v="' + x[0] + '" class="' + (String(x[0]) === String(valeur) ? 'on' : '') + '">' + x[1] + '</button>';
+        }).join('') + '</span>';
+    },
+
+    dessinerAlertes: function (r) {
+        var me = this, enc = Ext.String.htmlEncode, F = testextjs.view.pilotage.PilotageManager;
         var icones = {critique: 'fa-circle-exclamation', alerte: 'fa-triangle-exclamation', ok: 'fa-circle-check'};
-        var html = '<ul class="pilotage-alertes">';
-        Ext.each(r.alertes || [], function (a) {
-            html += '<li class="pilotage-alerte-' + a.niveau + '" style="color:' + couleurs[a.niveau] + '"><span class="fa-solid '
-                    + icones[a.niveau] + '"></span> ' + enc(a.texte) + '</li>';
-        });
-        html += '</ul>';
+        var html = '<ul class="pilotage-alertes">' + Ext.Array.map(r.alertes || [], function (a) {
+            return '<li class="pilotage-alerte-' + a.niveau + '"><span class="fa-solid ' + icones[a.niveau] + '"></span> ' + enc(a.texte) + '</li>';
+        }).join('') + '</ul>';
         var liste = function (titre, lignes, colonnes) {
-            if (!lignes || !lignes.length) {
-                return '';
-            }
-            return '<div class="ac-bloc-t" style="margin-top:8px">' + titre + '</div><table class="ac-table">' + colonnes(null)
-                    + lignes.map(colonnes).join('') + '</table>';
+            return lignes && lignes.length ? '<div class="sv-sous-titre">' + titre + '</div><table class="sv-table">' + colonnes(null)
+                    + lignes.map(colonnes).join('') + '</table>' : '';
         };
         html += liste('Produits vendus en rupture (les plus demandés)', r.ruptures, function (x) {
             return x ? '<tr class="suivi-rupture"><td>' + enc(x.cip) + '</td><td>' + enc(x.libelle) + '</td><td class="n">' + F.nombre(x.vendus) + '</td></tr>'
@@ -1534,25 +1630,246 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
                     + '</td><td class="n">' + F.nombre(x.paf) + '</td></tr>'
                     : '<tr><th>CIP</th><th>Produit</th><th class="n">Prix vendu</th><th class="n">Prix d\'achat</th></tr>';
         });
-        me.down('#suiviAlertes').update(html);
-        var repartition = function (lignes) {
-            var t = '<table class="ac-table suivi-repartition"><tr><th></th><th class="n">CA</th><th class="n">Part</th><th class="n">Marge</th><th class="n">Ventes</th></tr>';
-            Ext.each(lignes || [], function (x) {
-                t += '<tr><td>' + enc(x.libelle) + '</td><td class="n">' + F.nombre(x.ca) + '</td><td class="n"><span class="suivi-barre" style="width:'
-                        + Math.max(2, Math.round(x.part)) + 'px"></span> ' + F.nombre(x.part, '0,000.0') + ' %</td><td class="n">' + F.nombre(x.marge)
-                        + '</td><td class="n">' + F.nombre(x.ventes) + '</td></tr>';
+        me.corpsSuivi('alertes', '<div class="sv-defile">' + html + '</div>');
+    },
+
+    /* ---------------------------------------------------------------- frequentation (comme le tableau de bord) */
+
+    chargerFrequentation: function () {
+        var me = this, p = me.prefsSuivi().freq, ctr = testextjs.app.getController('PilotageCtr');
+        Ext.Ajax.request({url: '../api/v1/pilotage/suivi/frequentation', method: 'GET', timeout: 120000,
+            params: Ext.apply({comparaison: p.comp}, ctr.parametres()), success: function (r) {
+                me.donneesFreq = Ext.decode(r.responseText, true) || {};
+                me.dessinerFrequentation();
+            }});
+    },
+
+    dessinerFrequentation: function () {
+        var me = this, o = me.donneesFreq, p = me.prefsSuivi().freq, c = me.carteSuivi('frequentation');
+        var F = testextjs.view.pilotage.PilotageManager;
+        if (!c || !o) {
+            return;
+        }
+        me.outilsSuivi('frequentation', '<select data-ctl="tranche" title="Tranche horaire">' + [1, 2, 3, 4, 5, 6].map(function (n) {
+            return '<option value="' + n + '"' + (n === p.tranche ? ' selected' : '') + '>Tranche de ' + n + ' h</option>';
+        }).join('') + '</select> <select data-ctl="comp" title="Comparer à">' + [['PREC', 'Période précédente'], ['N1', 'Même période N-1'],
+            ['N2', 'Même période N-2'], ['N3', 'Même période N-3']].map(function (x) {
+            return '<option value="' + x[0] + '"' + (x[0] === p.comp ? ' selected' : '') + '>' + x[1] + '</option>';
+        }).join('') + '</select> ' + me.segSuivi('vue', p.vue, [['moyenne', 'Moyenne par jour'], ['total', 'Total']]));
+        if (o.success !== true) {
+            me.corpsSuivi('frequentation', '<div class="sv-note">' + Ext.String.htmlEncode(o.message || 'Indisponible.') + '</div>');
+            return;
+        }
+        var pas = p.tranche, moy = p.vue !== 'total';
+        var grouper = function (x) {
+            var n = Math.ceil(24 / pas), v = [], ca = [];
+            for (var k = 0; k < n; k++) {
+                v[k] = 0;
+                ca[k] = 0;
+            }
+            x.ventesH.forEach(function (q, h) {
+                v[Math.floor(h / pas)] += q;
+                ca[Math.floor(h / pas)] += x.caH[h];
             });
-            return t + ((lignes || []).length ? '' : '<tr><td colspan="5" style="color:#7f8c8d">Aucune vente sur la période.</td></tr>') + '</table>';
+            return {v: v, ca: ca, caTotal: Ext.Array.sum(ca), jours: x.jours, x: x};
         };
-        me.down('#suiviEmplacements').update(repartition(r.emplacements));
-        me.down('#suiviFamilles').update(repartition(r.familles));
-        var total = 0;
-        Ext.each(r.horaire || [], function (h) {
-            total += h.caTTC || 0;
+        var a = grouper(o.reference), b = grouper(o.courante);
+        var val = function (g, i) {
+            return moy ? (g.jours ? g.v[i] / g.jours : 0) : g.v[i];
+        };
+        var tranches = [];
+        for (var i = 0; i < a.v.length; i++) {
+            if (a.v[i] + b.v[i] > 0) {
+                tranches.push(i);
+            }
+        }
+        if (!tranches.length) {
+            me.corpsSuivi('frequentation', '<div class="sv-note">Aucune vente sur les deux périodes.</div>');
+            return;
+        }
+        var max = 0;
+        tranches.forEach(function (i) {
+            max = Math.max(max, val(a, i), val(b, i));
         });
-        me.storeSuiviHoraire.loadData(Ext.Array.map(r.horaire || [], function (h) {
-            return {libelle: h.libelle, nbVentes: h.nbVentes, caTTC: h.caTTC, part: total ? h.caTTC * 100 / total : 0};
-        }));
+        var corps = c.querySelector('.sv-corps'), w = Math.max(corps.clientWidth - 8, 360), h = 240, pg = 44, pd = 8, ph = 20, pb = 34;
+        var bande = (w - pg - pd) / tranches.length, lb = Math.min(26, bande * 0.32);
+        var Y = function (v) {
+            return ph + (h - ph - pb) * (1 - v / (max || 1));
+        };
+        var nb = function (v) {
+            return moy ? (Math.round(v * 10) / 10).toLocaleString('fr-FR') : Math.round(v).toLocaleString('fr-FR');
+        };
+        var lib = function (i) {
+            return (i * pas) + 'h-' + Math.min(24, i * pas + pas) + 'h';
+        };
+        var part = function (g, i) {
+            return g.caTotal > 0 ? ' — ' + (Math.round(g.ca[i] * 1000 / g.caTotal) / 10).toLocaleString('fr-FR') + ' % du CA' : '';
+        };
+        var svg = '<svg class="sv-svg" width="' + w + '" height="' + h + '">';
+        [0, 0.5, 1].forEach(function (f) {
+            svg += '<line x1="' + pg + '" x2="' + (w - pd) + '" y1="' + Y(max * f) + '" y2="' + Y(max * f) + '" stroke="#e3e9f0"/><text x="' + (pg - 6) + '" y="'
+                    + (Y(max * f) + 4) + '" font-size="11" fill="#475569" text-anchor="end">' + nb(max * f) + '</text>';
+        });
+        tranches.forEach(function (i, k) {
+            var x0 = pg + k * bande + bande / 2, v0 = val(a, i), v1 = val(b, i), ev = v0 > 0 ? Math.round((v1 / v0 - 1) * 100) : null;
+            svg += '<rect class="sv-barre-ref" x="' + (x0 - lb - 1) + '" y="' + Y(v0) + '" width="' + lb + '" height="' + (h - pb - Y(v0)) + '" rx="3" fill="#b8c6d6"><title>'
+                    + Ext.String.htmlEncode(a.x.libelle) + ', ' + lib(i) + ' : ' + nb(v0) + part(a, i) + '</title></rect>';
+            svg += '<rect class="sv-barre" x="' + (x0 + 1) + '" y="' + Y(v1) + '" width="' + lb + '" height="' + (h - pb - Y(v1)) + '" rx="3" fill="#0891b2"><title>Période regardée, '
+                    + lib(i) + ' : ' + nb(v1) + part(b, i) + '</title></rect>';
+            svg += '<text x="' + x0 + '" y="' + (h - 18) + '" font-size="11" font-weight="700" fill="#1e3a5f" text-anchor="middle">' + lib(i) + '</text>';
+            if (ev !== null) {
+                svg += '<text x="' + x0 + '" y="' + (h - 4) + '" font-size="10" font-weight="800" fill="' + (ev > 0 ? '#16a34a' : ev < 0 ? '#dc2626' : '#64748b')
+                        + '" text-anchor="middle">' + (ev > 0 ? '+' : '') + ev + '%</text>';
+            }
+        });
+        var d = function (x) {
+            return x.split('-').reverse().join('/');
+        };
+        me.corpsSuivi('frequentation', svg + '</svg><div class="sv-legende"><span><i style="background:#b8c6d6"></i>' + Ext.String.htmlEncode(a.x.libelle) + ' ('
+                + d(a.x.debut) + ' → ' + d(a.x.fin) + ') : <b>' + F.nombre(Ext.Array.sum(a.v)) + '</b> ventes sur ' + a.jours + ' j</span><span><i style="background:#0891b2"></i>'
+                + 'Période regardée (' + d(b.x.debut) + ' → ' + d(b.x.fin) + ') : <b>' + F.nombre(Ext.Array.sum(b.v)) + '</b> ventes sur ' + b.jours + ' j</span><span>'
+                + (moy ? 'Moyenne par jour de vente' : 'Total de chaque période') + ' ; % : évolution de la période regardée ; survol : part du CA</span></div>');
+    },
+
+    /* ---------------------------------------------------------------- evolutions (N face a N-1 .. N-3) */
+
+    COULEURS_ANNEES: ['#1565c0', '#ef6c00', '#16a34a', '#8b5cf6'],
+    MOIS_SUIVI: ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'],
+
+    chargerEvolution: function (cle) {
+        var me = this, p = me.prefsSuivi()[cle];
+        var choixPas = [['SEMAINE', 'Semaine'], ['MOIS', 'Mois'], ['ANNEE', 'Année']];
+        me.outilsSuivi(cle, me.segSuivi('pas', p.pas, choixPas) + ' ' + me.segSuivi('comp', p.comp, p.pas === 'ANNEE'
+                ? [[1, '2 ans'], [2, '3 ans'], [3, '4 ans']] : [[0, 'Sans'], [1, 'N-1'], [2, 'N-2'], [3, 'N-3']]));
+        Ext.Ajax.request({url: '../api/v1/pilotage/suivi/evolution', method: 'GET', timeout: 180000,
+            params: {mesure: me.EVOLUTIONS[cle], pas: p.pas, comparer: p.pas === 'ANNEE' ? Math.max(1, p.comp) : p.comp},
+            success: function (r) {
+                var o = Ext.decode(r.responseText, true) || {};
+                me['donneesEvo_' + cle] = o;
+                me.dessinerEvolution(cle, o);
+            }});
+        if (cle === 'encaisse') {
+            Ext.Ajax.request({url: '../api/v1/pilotage/suivi/encaissements', method: 'GET', timeout: 120000,
+                params: testextjs.app.getController('PilotageCtr').parametres(), success: function (r) {
+                    me.donneesModes = Ext.decode(r.responseText, true) || {};
+                    if (me['donneesEvo_encaisse']) {
+                        me.dessinerEvolution('encaisse', me['donneesEvo_encaisse']);
+                    }
+                }});
+        }
+    },
+
+    /** Anneau des encaissements de la periode par mode (comme le tableau de bord). */
+    anneauModes: function () {
+        var o = this.donneesModes, F = testextjs.view.pilotage.PilotageManager, enc = Ext.String.htmlEncode;
+        var couleurs = ['#1e3a5f', '#17987e', '#7b68c8', '#e08a1e', '#2a9bb3', '#d0576b', '#8a99a8'];
+        if (!o || o.success !== true) {
+            return '';
+        }
+        if (!(o.modes || []).length) {
+            return '<div class="sv-note">Aucun encaissement sur la période (' + enc(o.periode || '') + ').</div>';
+        }
+        var tot = o.total || 1, r = 42, C = 2 * Math.PI * r, off = 0, seg = '', t = '';
+        o.modes.forEach(function (m, i) {
+            var l = m.montant / tot * C, c = couleurs[i % couleurs.length];
+            seg += '<circle cx="55" cy="55" r="' + r + '" fill="none" stroke="' + c + '" stroke-width="18" stroke-dasharray="' + l + ' ' + (C - l)
+                    + '" stroke-dashoffset="' + (-off) + '" transform="rotate(-90 55 55)"><title>' + enc(m.libelle) + ' : ' + F.nombre(m.montant) + '</title></circle>';
+            off += l;
+            t += '<tr class="sv-mode"><td><i class="sv-puce" style="background:' + c + '"></i> ' + enc(m.libelle) + '</td><td class="n">' + F.nombre(m.montant)
+                    + '</td><td class="n">' + F.nombre(m.montant * 100 / tot, '0,000.0') + ' %</td></tr>';
+        });
+        return '<div class="sv-anneau"><svg width="110" height="110">' + seg + '<text x="55" y="52" text-anchor="middle" font-size="10" fill="#5b6b7c">Total</text><text x="55" y="67" text-anchor="middle" font-size="12" font-weight="800" fill="#1e3a5f">'
+                + F.nombre(tot / 1e6, '0,000.00') + ' M</text></svg><div style="flex:1"><div class="sv-note">' + enc(o.periode || '')
+                + '</div><table class="sv-table">' + t + '</table></div></div>';
+    },
+
+    dessinerEvolution: function (cle, o) {
+        var me = this, c = me.carteSuivi(cle), F = testextjs.view.pilotage.PilotageManager;
+        if (!c) {
+            return;
+        }
+        var avant = cle === 'encaisse' ? me.anneauModes() : '';
+        if (!o || o.success !== true) {
+            me.corpsSuivi(cle, avant + '<div class="sv-note">' + Ext.String.htmlEncode((o && o.message) || 'Indisponible.') + '</div>');
+            return;
+        }
+        var series = o.series || [], annee = o.pas === 'ANNEE';
+        var corps = c.querySelector('.sv-corps'), w = Math.max(corps.clientWidth - 8, 360), h = 210, pg = 58, pd = 12, ph = 14, pb = 26;
+        var pts = annee ? series.slice().reverse().map(function (s) {
+            return {x: String(s.annee), v: s.total};
+        }) : null;
+        var nbx = annee ? pts.length : series[0].valeurs.length;
+        var max = 0, min = 0;
+        if (annee) {
+            pts.forEach(function (p) {
+                max = Math.max(max, p.v);
+                min = Math.min(min, p.v);
+            });
+        } else {
+            series.forEach(function (s) {
+                s.valeurs.forEach(function (v) {
+                    if (v !== null) {
+                        max = Math.max(max, v);
+                        min = Math.min(min, v);
+                    }
+                });
+            });
+        }
+        max = max || 1;
+        var X = function (i) {
+            return pg + (nbx === 1 ? 0 : i * (w - pg - pd) / (nbx - 1));
+        };
+        var Y = function (v) {
+            return ph + (h - ph - pb) * (max - v) / (max - min || 1);
+        };
+        var court = function (v) {
+            var a = Math.abs(v);
+            return a >= 1e6 ? F.nombre(v / 1e6, '0,000.0') + ' M' : a >= 1e4 ? F.nombre(v / 1e3, '0,000') + ' k' : F.nombre(v);
+        };
+        var libX = function (i) {
+            return annee ? pts[i].x : o.pas === 'MOIS' ? me.MOIS_SUIVI[i] : 'S' + (i + 1);
+        };
+        var svg = '<svg class="sv-svg" width="' + w + '" height="' + h + '">';
+        [0, 0.5, 1].forEach(function (f) {
+            var v = min + (max - min) * f;
+            svg += '<line x1="' + pg + '" x2="' + (w - pd) + '" y1="' + Y(v) + '" y2="' + Y(v) + '" stroke="#e3e9f0"/><text x="' + (pg - 6) + '" y="' + (Y(v) + 4)
+                    + '" font-size="11" fill="#475569" text-anchor="end">' + court(v) + '</text>';
+        });
+        for (var i = 0; i < nbx; i++) {
+            if (o.pas !== 'SEMAINE' || i % 4 === 0) {
+                svg += '<text x="' + X(i) + '" y="' + (h - 8) + '" font-size="10" fill="#475569" text-anchor="middle">' + libX(i) + '</text>';
+            }
+        }
+        var trace = function (valeurs, couleur, nom, epais, tirets) {
+            var d = '', pt = '';
+            valeurs.forEach(function (v, i) {
+                if (v === null || v === undefined) {
+                    return;
+                }
+                d += (d ? ' L' : 'M') + X(i).toFixed(1) + ' ' + Y(v).toFixed(1);
+                pt += '<circle class="sv-point" cx="' + X(i) + '" cy="' + Y(v) + '" r="' + (o.pas === 'SEMAINE' ? 2.5 : 3.5) + '" fill="' + couleur + '"><title>'
+                        + nom + ' — ' + libX(i) + ' : ' + F.nombre(v) + '</title></circle>';
+            });
+            return '<path class="sv-courbe" d="' + d + '" fill="none" stroke="' + couleur + '" stroke-width="' + epais + '"' + (tirets ? ' stroke-dasharray="6,4"' : '')
+                    + '/>' + pt;
+        };
+        if (annee) {
+            svg += trace(pts.map(function (p) {
+                return p.v;
+            }), me.COULEURS_ANNEES[0], 'Année', 3, false);
+        } else {
+            for (var k = series.length - 1; k >= 0; k--) {
+                svg += trace(series[k].valeurs, me.COULEURS_ANNEES[k], String(series[k].annee), k === 0 ? 3 : 2, k > 0);
+            }
+        }
+        svg += '</svg>';
+        var resume = '<div class="sv-legende">' + series.map(function (s, k) {
+            return '<span><i style="background:' + me.COULEURS_ANNEES[annee ? 0 : k] + '"></i>' + s.annee + ' au ' + o.aDate + ' : <b>' + F.nombre(s.aDate) + '</b>'
+                    + (k > 0 ? (s.evolution === null || s.evolution === undefined ? ' <span class="sv-note">n.d.</span>' : ' <b class="'
+                            + (s.evolution >= 0 ? 'sv-hausse' : 'sv-baisse') + '">' + (s.evolution > 0 ? '+' : '') + F.nombre(s.evolution, '0,000.0') + ' %</b>') : '')
+                    + '</span>';
+        }).join('') + '<span>' + (cle === 'panier' ? 'Panier moyen' : 'Cumul') + ' du 1er janvier au ' + o.aDate + ', comparé d\'une année à l\'autre</span></div>';
+        me.corpsSuivi(cle, avant + svg + resume);
     },
 
     /**
