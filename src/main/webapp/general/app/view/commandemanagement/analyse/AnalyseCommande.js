@@ -30,13 +30,15 @@ Ext.define('testextjs.view.commandemanagement.analyse.AnalyseCommande', {
 
     initComponent: function () {
         var me = this;
-        me.items = [me.ongletTableau(), me.ongletPrevisions(), me.ongletAnalyse()];
+        me.items = [me.ongletTableau(), me.ongletPrevisions(), me.ongletAnalyse(), me.ongletDemande()];
         me.callParent(arguments);
         me.on('tabchange', function (tp, t) {
             if (t.itemId === 'ongletPrevisions' && !t.getStore().getCount()) {
                 t.getStore().loadPage(1);
             } else if (t.itemId === 'ongletAnalyse') {
                 me.down('#choix').getStore().load();
+            } else if (t.itemId === 'ongletDemande' && !me.demande) {
+                me.chargerDemande();
             }
         });
         me.on('afterrender', function () {
@@ -76,6 +78,168 @@ Ext.define('testextjs.view.commandemanagement.analyse.AnalyseCommande', {
         }
         var c = v >= 70 ? '#27ae60' : (v >= 40 ? '#e67e22' : '#c0392b');
         return '<span class="ac-fiab"><span style="width:' + Math.max(2, v) + '%;background:' + c + '"></span></span> ' + v + ' %';
+    },
+
+    /* ------------------------------------------------------- Analyse de la demande (besoins du 11/10, 14) */
+
+    MOIS_COURTS: ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'],
+
+    ongletDemande: function () {
+        var me = this, relancer = {select: function () {
+                me.chargerDemande();
+            }};
+        return {
+            xtype: 'panel', itemId: 'ongletDemande', title: 'Analyse de la demande', autoScroll: true, bodyPadding: 12, cls: 'dem-onglet',
+            dockedItems: [{xtype: 'toolbar', dock: 'top', items: [
+                        {xtype: 'combobox', itemId: 'demMois', fieldLabel: 'Sur', labelWidth: 28, width: 160, editable: false, queryMode: 'local',
+                            valueField: 'v', displayField: 'l', value: 24, listeners: relancer,
+                            store: Ext.create('Ext.data.Store', {fields: ['v', 'l'], data: [{v: 12, l: '12 derniers mois'},
+                                    {v: 24, l: '24 derniers mois'}, {v: 36, l: '36 derniers mois'}]})},
+                        {xtype: 'textfield', itemId: 'demRecherche', emptyText: 'Produit : nom ou CIP (début)…', width: 230, maxLength: 100,
+                            enforceMaxLength: true, listeners: {specialkey: function (f, e) {
+                                    if (e.getKey() === e.ENTER) {
+                                        me.chargerDemande();
+                                    }
+                                }}},
+                        {xtype: 'combobox', itemId: 'demRayon', width: 190, valueField: 'id', displayField: 'libelle', queryMode: 'remote',
+                            minChars: 2, pageSize: 99999, emptyText: 'Tous les emplacements', listeners: relancer,
+                            store: Ext.create('Ext.data.Store', {fields: ['id', 'libelle'], pageSize: 9999, proxy: {type: 'ajax',
+                                    url: '../api/v1/common/rayons', reader: {type: 'json', root: 'data', totalProperty: 'total'}}})},
+                        {text: 'Analyser', itemId: 'demAnalyser', iconCls: 'searchicon', handler: function () {
+                                me.chargerDemande();
+                            }},
+                        '->', {xtype: 'component', itemId: 'demFenetre', html: ''}]}],
+            items: [{xtype: 'component', itemId: 'demContenu', html: '<div style="color:#7f8c8d">Chargement…</div>',
+                    listeners: {afterrender: function (c) {
+                            c.getEl().on('click', function (e, t) {
+                                var l = Ext.fly(t).up('tr.dem-produit');
+                                if (l && l.getAttribute('data-id')) {
+                                    me.detail(l.getAttribute('data-id'));
+                                }
+                            });
+                        }}}]
+        };
+    },
+
+    chargerDemande: function () {
+        var me = this, o = me.down('#ongletDemande'), contenu = o.down('#demContenu');
+        o.setLoading('Calcul…');
+        me.demandeEnCours = true;
+        Ext.Ajax.request({url: '../api/v1/analyse-commande/demande', method: 'GET', timeout: 300000, params: {
+                mois: o.down('#demMois').getValue(), query: o.down('#demRecherche').getValue() || '',
+                rayonId: o.down('#demRayon').getValue() || ''},
+            success: function (r) {
+                me.demandeEnCours = false;
+                if (o.isDestroyed) {
+                    return;
+                }
+                o.setLoading(false);
+                var d = Ext.decode(r.responseText, true) || {};
+                if (d.success !== true) {
+                    me.demande = null;
+                    contenu.update('<span style="color:#b42318">' + me.h(d.msg || d.message || 'Analyse indisponible.') + '</span>');
+                    return;
+                }
+                me.demande = d;
+                o.down('#demFenetre').update('<span style="color:#5d6d7e">Mois complets : ' + me.moisLong(d.debut) + ' → ' + me.moisLong(d.fin) + '</span>');
+                contenu.update(me.htmlDemande(d));
+            },
+            failure: function (r) {
+                me.demandeEnCours = false;
+                if (!o.isDestroyed) {
+                    o.setLoading(false);
+                    contenu.update('<span style="color:#b42318">Le serveur n\'a pas répondu (' + r.status + ').</span>');
+                }
+            }});
+    },
+
+    moisLong: function (cle) {
+        var p = String(cle || '').split('-');
+        return p.length === 2 ? this.MOIS_COURTS[parseInt(p[1], 10) - 1] + ' ' + p[0] : this.h(cle);
+    },
+
+    /** Couleur d'un indice saisonnier : vert au-dessus de la normale, rouge en dessous. */
+    couleurIndice: function (v) {
+        if (!v) {
+            return '#f4f6f7';
+        }
+        return v >= 1.3 ? '#a9dfbf' : v >= 1.1 ? '#d5f5e3' : v <= 0.7 ? '#f5b7b1' : v <= 0.9 ? '#fadbd8' : '#ffffff';
+    },
+
+    htmlDemande: function (d) {
+        var me = this, M = me.MOIS_COURTS, n = function (v) {
+            return me.nombre(v);
+        }, ind = function (v) {
+            return d.total ? String((v || 0).toFixed(2)).replace('.', ',') : '—';
+        };
+        var tuile = function (cls, titre, valeur, detail, aide) {
+            return '<div class="pml-tuile ' + cls + '" data-qtip="' + me.h(aide) + '"><div class="pml-tuile-valeur">' + valeur + '</div>'
+                    + '<div class="pml-tuile-titre">' + titre + '</div><div class="pml-tuile-detail">' + detail + '</div></div>';
+        };
+        var t = d.tendance || {}, evo = t.evolution;
+        var tous = Ext.Array.map(d.indices, function (v, i) {
+            return {v: v, m: i};
+        });
+        var tri = tous.filter(function (x) {
+            return x.v > 0;
+        }).sort(function (a, b) {
+            return b.v - a.v;
+        });
+        var noms = function (l) {
+            return l.map(function (x) {
+                return M[x.m];
+            }).join(', ') || '—';
+        };
+        /* mois les plus faibles : les mois sans vente d'abord (plus de trois : leur nombre) */
+        var sansVente = tous.filter(function (x) {
+            return !x.v;
+        });
+        var faibles = !d.total ? '—' : sansVente.length > 3 ? sansVente.length + ' mois sans vente'
+                : noms(sansVente.concat(tri.slice().reverse()).slice(0, 3));
+        var html = '<div class="pml-tuiles dem-tuiles">'
+                + tuile('info', 'Unités vendues', n(d.total), d.mois + ' mois complets', 'Unités vendues sur la période (mois en cours exclu)')
+                + tuile(d.pic ? 'ok' : '', 'Mois le plus fort', d.pic ? M[d.pic - 1] : '—', 'pics : ' + noms(tri.slice(0, 3)),
+                        'Mois dont l\'indice saisonnier est le plus haut')
+                + tuile('', 'Mois les plus faibles', faibles, 'force de la saison : ' + ind(d.force),
+                        'Force : écart des indices des mois (0 = demande régulière, 0,3 et plus = saison marquée)')
+                + tuile(evo === null || evo === undefined ? '' : evo >= 0 ? 'ok' : 'alerte', 'Tendance sur 12 mois',
+                        evo === null || evo === undefined ? '—' : (evo > 0 ? '+' : '') + String(evo).replace('.', ',') + ' %',
+                        t.recent !== undefined ? n(t.recent) + ' contre ' + n(t.avant) + ' unités' : 'sur 24 mois et plus',
+                        '12 derniers mois complets contre les 12 précédents')
+                + '</div>';
+        /* matrice annee x mois + ligne des indices */
+        var entete = '<th>Année</th>' + M.map(function (m) {
+            return '<th class="n">' + m + '</th>';
+        }).join('') + '<th class="n">Total</th>';
+        var lignes = '';
+        Ext.each(d.annees || [], function (a) {
+            lignes += '<tr class="dem-annee"><td><b>' + a.annee + '</b></td>' + a.mois.map(function (v) {
+                return '<td class="n">' + (v === null ? '<span style="color:#bbb">·</span>' : n(v)) + '</td>';
+            }).join('') + '<td class="n"><b>' + n(a.total) + '</b></td></tr>';
+        });
+        lignes += '<tr class="dem-indices"><td><b>Indice</b></td>' + d.indices.map(function (v) {
+            return '<td class="n" style="background:' + me.couleurIndice(v) + '" data-qtip="1 = mois normal ; 1,5 = 50 % de plus que la moyenne">'
+                    + ind(v) + '</td>';
+        }).join('') + '<td></td></tr>';
+        html += '<div class="ac-bloc-t" style="margin-top:14px">Unités vendues par mois et indice saisonnier</div>'
+                + '<table class="ac-table dem-matrice"><tr>' + entete + '</tr>' + lignes + '</table>';
+        var produits = function (titre, cls, liste, vide) {
+            var l = '';
+            Ext.each(liste || [], function (p) {
+                l += '<tr class="dem-produit" data-id="' + me.h(p.id) + '" style="cursor:pointer" data-qtip="Ouvrir la prévision du produit"><td>'
+                        + me.h(p.cip) + '</td><td>' + me.h(p.libelle) + '</td><td class="n">' + n(p.unites) + '</td><td>' + M[p.pic - 1]
+                        + '</td><td class="n">' + ind(p.indicePic) + '</td><td class="n">' + ind(p.force) + '</td><td>'
+                        + (p.anticiper ? '<b style="color:#b9770e">À anticiper</b>' : '') + '</td></tr>';
+            });
+            return '<div class="ac-bloc-t" style="margin-top:14px">' + titre + '</div><table class="ac-table ' + cls + '"><tr><th>CIP</th><th>Produit</th>'
+                    + '<th class="n">Unités</th><th>Pic</th><th class="n">Indice du pic</th><th class="n">Force</th><th></th></tr>'
+                    + (l || '<tr><td colspan="7" style="color:#7f8c8d">' + vide + '</td></tr>') + '</table>';
+        };
+        html += produits('À anticiper : pic de demande en ' + M[d.prochainMois - 1] + ' ou ' + M[d.prochainMois % 12], 'dem-anticiper', d.anticiper,
+                'Aucun produit dont le pic arrive dans les deux prochains mois.');
+        html += produits('Produits les plus saisonniers (30 premiers, ' + me.nombre(d.produitsClasses) + ' classés)', 'dem-saisonniers', d.produits,
+                'Pas assez de ventes pour classer les produits (24 unités au moins sur la période).');
+        return html;
     },
 
     /* ------------------------------------------------------------------ Tableau */

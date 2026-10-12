@@ -38,6 +38,8 @@ public class PrevisionCommandeRessource {
     @EJB
     private PrevisionCommandeService service;
     @EJB
+    private rest.service.impl.DemandeSaisonniereService demande;
+    @EJB
     private rest.service.SuggestionService suggestionService;
     @EJB
     private rest.service.InventaireService inventaireService;
@@ -341,6 +343,25 @@ public class PrevisionCommandeRessource {
     public Response equivalents(@PathParam("id") String id) {
         Response r = controle();
         return r != null ? r : reponse(service.equivalents(emplacement(), id));
+    }
+
+    /** Besoins du 11/10 (point 14) : analyse saisonniere de la demande (unites vendues), lecture seule. */
+    @GET
+    @Path("demande")
+    public Response demande(@QueryParam("mois") Integer mois, @QueryParam("query") String query,
+            @QueryParam("rayonId") String rayonId) {
+        Response r = controle();
+        if (r != null) {
+            return r;
+        }
+        int n = mois == null ? 24 : mois;
+        if (n != 12 && n != 24 && n != 36) {
+            return refus("Durée : 12, 24 ou 36 mois.");
+        }
+        if (query != null && query.length() > 100) {
+            return refus("Recherche trop longue (100 caractères au plus).");
+        }
+        return reponse(demande.analyser(java.time.LocalDate.now(), n, query, rayonId));
     }
 
     @GET

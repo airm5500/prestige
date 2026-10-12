@@ -78,7 +78,7 @@ const nettoyer = () => q("DELETE FROM t_warehouse WHERE lg_WAREHOUSE_ID LIKE 'E2
     await p.locator('.periode-menu .x-menu-item-text', { hasText: 'Année N-1' }).click();
     const recalcul = await p.waitForFunction(() => { const o = Ext.ComponentQuery.query('saisieperimeonglets')[0]; return o.donnees && !/sept\. 2026/i.test(o.analyse.down('#spContenu').getEl().dom.innerText); }, null, { timeout: 30000 }).then(() => true).catch(() => false);
     ok('Raccourci « Année N-1 » : analyse recalculée sur la nouvelle période', recalcul);
-    const doublons = await p.evaluate(() => { const vus = {}; let n = 0; document.querySelectorAll('[id]').forEach((e) => { if (vus[e.id]) { n++; } vus[e.id] = 1; }); return n; });
+    const doublons = await p.evaluate(() => { const vus = {}; let n = 0; document.querySelectorAll('[id]:not([id=""])').forEach((e) => { if (vus[e.id]) { n++; } vus[e.id] = 1; }); return n; });
     ok('Aucun élément en double dans la page (bouton fantôme de la barre)', doublons === 0, doublons);
     ok('Aucune erreur de page', err.length === 0, err.join(' | '));
   } catch (e) {

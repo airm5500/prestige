@@ -36,7 +36,7 @@ const SUG = 'e2e-l12-' + Date.now();
     await p.evaluate(() => testextjs.app.getController('App').onLoadNewComponent('analysecommande', 'Prévisions vente / achat / analyse', ''));
     await p.waitForFunction(() => Ext.ComponentQuery.query('analysecommande').length, null, { timeout: 20000 });
     const onglets = await p.evaluate(() => Ext.ComponentQuery.query('analysecommande')[0].items.getRange().map((t) => t.title));
-    ok('Trois onglets : Tableau, Prévisions, Analyse', onglets.join('|') === "Tableau|Prévisions|Analyse d'une suggestion / commande", onglets.join('|'));
+    ok('Quatre onglets : Tableau, Prévisions, Analyse, Analyse de la demande (besoins du 11/10, 14)', onglets.join('|') === "Tableau|Prévisions|Analyse d'une suggestion / commande|Analyse de la demande", onglets.join('|'));
     await p.evaluate(() => { const b = Ext.ComponentQuery.query('analysecommande #btnRecalculer')[0]; b.btnEl.dom.click(); });
     await p.waitForFunction(() => { const b = Ext.ComponentQuery.query('analysecommande #btnRecalculer')[0]; return b && !b.isDisabled(); }, null, { timeout: 300000 });
     await p.waitForTimeout(1500);

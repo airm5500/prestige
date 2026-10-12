@@ -103,7 +103,7 @@ const attendu = (filtre) => q("SELECT COUNT(DISTINCT p.lg_PREENREGISTREMENT_ID),
     await p.evaluate(() => Ext.ComponentQuery.query('produitsonglets #pa-liste')[0].btnEl.dom.click());
     const retour = await p.evaluate(() => Ext.ComponentQuery.query('produitsonglets')[0].getLayout().getActiveItem().xtype);
     ok('Retour à l\'onglet Liste', retour === 'produitsxx', retour);
-    const doublons = await p.evaluate(() => { const vus = {}; let n = 0; document.querySelectorAll('[id]').forEach((e) => { if (vus[e.id]) { n++; } vus[e.id] = 1; }); return n; });
+    const doublons = await p.evaluate(() => { const vus = {}; let n = 0; document.querySelectorAll('[id]:not([id=""])').forEach((e) => { if (vus[e.id]) { n++; } vus[e.id] = 1; }); return n; });
     ok('Aucun élément en double dans la page (bouton fantôme de la barre)', doublons === 0, doublons);
     ok('Aucune erreur JavaScript', err.length === 0, err.join(' | '));
   } catch (e) {
