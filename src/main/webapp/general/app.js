@@ -772,6 +772,7 @@ Ext.application({
         'testextjs.view.caisseManager.GestionCaisseOnglets',
         'testextjs.view.actions.action',
         'testextjs.view.configmanagement.famille.Products',
+        'testextjs.view.configmanagement.famille.ProduitsOnglets',
         'testextjs.view.depot.Export',
         'testextjs.view.depot.Import',
         'testextjs.view.depot.Export',

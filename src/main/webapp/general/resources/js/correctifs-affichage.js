@@ -765,7 +765,7 @@ window.PrestigeAffichage.ECRANS_COLLES = [
     // gardes (retour des tests du 09/09)
     'gardemanager', 'analysearticle',
     // articles
-    'famillemanager', 'produitsxx', 'articlevendumanager', 'articlevendurecapitulatif',
+    'famillemanager', 'produitsxx', 'produitsonglets', 'articlevendumanager', 'articlevendurecapitulatif',
     'ugmanager', 'mouvementprixvente', 'produitscodegeo', 'rappelshabitude', 'whatsappcomptes', 'rhmanager', 'analysecommande',
     // commandes et approvisionnement
     'reservesuggestionsgrid', 'i_sugg_manager', 'suggerercdemanager',
@@ -838,7 +838,7 @@ window.PrestigeAffichage.ECRANS_DESSIN_PROPRE = ['doventemanager', 'ventemanager
 
 window.PrestigeAffichage.ECRANS_STYLE_VENTE = [
     // retours du 07/10
-    'produitsxx',
+    'produitsxx', 'produitsonglets',
     // lot 1
     'preenregistrementmanager', 'devismanager',
     // lot 2 : ventes, ventes annulees, suppressions de vente, ordonnancier

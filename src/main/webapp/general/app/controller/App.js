@@ -226,6 +226,10 @@ Ext.define('testextjs.controller.App', {
         if (xtype === 'rappelshabitude' && Ext.ClassManager.getNameByAlias('widget.rappelstraitement')) {
             return 'rappelstraitement';
         }
+        /* besoins du 11/10 (point 13) : le menu Produits s'ouvre dans son conteneur (liste + analyse des ventes) */
+        if (xtype === 'produitsxx' && Ext.ClassManager.getNameByAlias('widget.produitsonglets')) {
+            return 'produitsonglets';
+        }
         /* besoins du 11/10 (point 2) : la saisie des perimes s'ouvre dans son conteneur (liste + analyse) */
         if (xtype === 'saisieperime' && Ext.ClassManager.getNameByAlias('widget.saisieperimeonglets')) {
             return 'saisieperimeonglets';

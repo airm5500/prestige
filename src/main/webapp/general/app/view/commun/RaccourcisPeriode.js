@@ -70,7 +70,14 @@ Ext.define('testextjs.view.commun.RaccourcisPeriode', {
 
     monter: function () {
         var me = this, fin = me.fin, parent = fin.ownerCt;
-        if (!parent) {
+        if (!parent || me.bouton) {
+            return;
+        }
+        /* insere pendant le rendu de la barre, le bouton laissait une copie fantome du bouton suivant (meme id,
+         * dessinee au debut de la barre, par-dessus le champ « Du ») : on attend la fin de sa mise en page */
+        if (!me.barrePrete) {
+            me.barrePrete = true;
+            parent.on('afterlayout', me.monter, me, {single: true});
             return;
         }
         var menu = Ext.Array.map(me.self.periodes(), function (p) {
@@ -93,7 +100,13 @@ Ext.define('testextjs.view.commun.RaccourcisPeriode', {
         fin.fireEvent('select', fin, dates[1]);
         var bouton = me.declencher ? fin.ownerCt.down('#' + me.declencher) : null;
         if (bouton && !bouton.disabled) {
-            bouton.fireEvent('click', bouton);
+            /* comme un vrai clic : evenement « click » (controleurs) PUIS handler du bouton ; fireEvent seul
+             * n'appelait pas le handler (onglets Analyse des perimes et des produits non recalcules) */
+            if (bouton.fireHandler) {
+                bouton.fireHandler(Ext.EventObject);
+            } else {
+                bouton.fireEvent('click', bouton);
+            }
         }
     }
 });
