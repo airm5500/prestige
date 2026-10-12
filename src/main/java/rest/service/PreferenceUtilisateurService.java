@@ -18,8 +18,4 @@ public interface PreferenceUtilisateurService {
     void ecrire(String userId, String cle, String valeur);
 
     void supprimer(String userId, String cle);
-
-    static boolean cleValide(String cle) {
-        return cle != null && cle.matches("[A-Za-z0-9_.-]{1,80}");
-    }
 }

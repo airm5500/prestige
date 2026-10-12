@@ -48,7 +48,7 @@ public class PreferenceUtilisateurRessource {
         if (u == null) {
             return echec(Constant.DECONNECTED_MESSAGE);
         }
-        if (!PreferenceUtilisateurService.cleValide(cle)) {
+        if (!rest.service.PreferenceCles.cleValide(cle)) {
             return echec("Clé invalide");
         }
         String v = service.lire(u.getLgUSERID(), cle);
@@ -70,7 +70,7 @@ public class PreferenceUtilisateurRessource {
         if (u == null) {
             return echec(Constant.DECONNECTED_MESSAGE);
         }
-        if (!PreferenceUtilisateurService.cleValide(cle)) {
+        if (!rest.service.PreferenceCles.cleValide(cle)) {
             return echec("Clé invalide");
         }
         if (corps == null || corps.length() > PreferenceUtilisateurService.TAILLE_MAX) {
@@ -97,7 +97,7 @@ public class PreferenceUtilisateurRessource {
         if (u == null) {
             return echec(Constant.DECONNECTED_MESSAGE);
         }
-        if (!PreferenceUtilisateurService.cleValide(cle)) {
+        if (!rest.service.PreferenceCles.cleValide(cle)) {
             return echec("Clé invalide");
         }
         service.supprimer(u.getLgUSERID(), cle);

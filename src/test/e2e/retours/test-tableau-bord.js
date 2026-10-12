@@ -86,7 +86,7 @@ const n = (v) => Number(v || 0);
       + " + SUM(CASE WHEN (o.str_TYPE_VENTE='VNO' AND o.lg_NATURE_VENTE_ID<>'3') THEN (o.int_PRICE-o.int_PRICE_REMISE) ELSE 0 END) + SUM(CASE WHEN o.str_TYPE_VENTE='VO' THEN (o.int_CUST_PART-o.int_PRICE_REMISE) ELSE 0 END))"
       + " / (COUNT(IF((o.str_TYPE_VENTE='VNO' AND o.lg_NATURE_VENTE_ID<>'3'),1,NULL)) + COUNT(IF((o.str_TYPE_VENTE='VO' AND o.lg_NATURE_VENTE_ID<>'3'),1,NULL)))) FROM t_preenregistrement o WHERE " + w);
     ok('Tuile panier moyen = formule de l\'ancien tableau de bord', t.panier === n(pm), t.panier + ' / ' + pm);
-    const ach = q("SELECT CONCAT(SUM(int_HTTC), '|', COUNT(*), '|', SUM(int_MHT), '|', SUM(int_TVA)) FROM t_bon_livraison WHERE str_STATUT = 'is_Closed' AND dt_UPDATED >= '" + D + "' AND dt_UPDATED < DATE_ADD('" + D + "', INTERVAL 1 DAY)").split('|');
+    const ach = q("SELECT CONCAT(COALESCE(SUM(int_HTTC),0), '|', COUNT(*), '|', COALESCE(SUM(int_MHT),0), '|', COALESCE(SUM(int_TVA),0)) FROM t_bon_livraison WHERE str_STATUT = 'is_Closed' AND dt_UPDATED >= '" + D + "' AND dt_UPDATED < DATE_ADD('" + D + "', INTERVAL 1 DAY)").split('|');
     ok('Tuile achats (saisie) : TTC et nombre de BL de l\'ancien, HT + TVA en plus', t.achats.ttc === n(ach[0]) && t.achats.bl === n(ach[1]) && t.achats.ht === n(ach[2]) && t.achats.tva === n(ach[3]), JSON.stringify(t.achats) + ' / ' + ach.join('|'));
     const achBl = await api('../api/v1/tableau-bord/tuiles?achats=bl&date=' + D);
     const nbBl = q("SELECT COUNT(*) FROM t_bon_livraison WHERE str_STATUT = 'is_Closed' AND dt_DATE_LIVRAISON >= '" + D + "' AND dt_DATE_LIVRAISON < DATE_ADD('" + D + "', INTERVAL 1 DAY)");
