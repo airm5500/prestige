@@ -58,4 +58,10 @@ public interface CommandeService {
 
     JSONObject addLigneReconciliee(ReconcilierLigneDTO dto);
 
+    /**
+     * Reconciliation BL : produits du depot de l'operateur dont le CIP, le nom, l'EAN ou le code article commence par
+     * la saisie ; {@code desactives} : aussi les produits desactives (marques). 50 au plus.
+     */
+    JSONObject produitsReconciliation(String query, boolean desactives, String emplacementId);
+
 }

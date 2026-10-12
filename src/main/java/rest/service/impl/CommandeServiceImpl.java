@@ -1320,6 +1320,33 @@ public class CommandeServiceImpl implements CommandeService {
     }
 
     @Override
+    public JSONObject produitsReconciliation(String query, boolean desactives, String emplacementId) {
+        JSONArray data = new JSONArray();
+        String q = query == null ? "" : query.trim();
+        if (q.length() >= 3) {
+            String like = q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%";
+            @SuppressWarnings("unchecked")
+            List<Object[]> lignes = getEm()
+                    .createNativeQuery("SELECT f.lg_FAMILLE_ID, f.int_CIP, f.str_NAME, f.int_PRICE,"
+                            + " s.int_NUMBER_AVAILABLE, f.str_STATUT FROM t_famille f JOIN t_famille_stock s"
+                            + " ON s.lg_FAMILLE_ID = f.lg_FAMILLE_ID AND s.lg_EMPLACEMENT_ID = ?1"
+                            + " WHERE f.str_STATUT IN ('enable', ?2) AND (f.int_CIP LIKE ?3 OR f.str_NAME LIKE ?3"
+                            + " OR f.int_EAN13 LIKE ?3 OR f.code_ean_fabriquant LIKE ?3 OR EXISTS (SELECT 1 FROM"
+                            + " t_famille_grossiste g WHERE g.lg_FAMILLE_ID = f.lg_FAMILLE_ID AND g.str_CODE_ARTICLE LIKE ?3))"
+                            + " ORDER BY f.str_STATUT = 'disable', f.str_NAME LIMIT 50")
+                    .setParameter(1, emplacementId)
+                    .setParameter(2, desactives ? Constant.STATUT_DISABLE : Constant.STATUT_ENABLE)
+                    .setParameter(3, like).getResultList();
+            for (Object[] l : lignes) {
+                data.put(new JSONObject().put("lgFAMILLEID", l[0]).put("intCIP", l[1]).put("strNAME", l[2])
+                        .put("intPRICE", l[3]).put("intNUMBERAVAILABLE", l[4])
+                        .put("desactive", Constant.STATUT_DISABLE.equals(l[5])));
+            }
+        }
+        return new JSONObject().put("success", true).put("total", data.length()).put("data", data);
+    }
+
+    @Override
     public JSONObject addLigneReconciliee(ReconcilierLigneDTO dto) {
         JSONObject json = new JSONObject();
         try {

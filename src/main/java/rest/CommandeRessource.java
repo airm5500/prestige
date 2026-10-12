@@ -456,6 +456,20 @@ public class CommandeRessource {
                 .header("Content-Disposition", "attachment; filename=\"commande_" + orderId + "_details.xls\"").build();
     }
 
+    /** Reconciliation BL : recherche de produits, avec option « rechercher dans les desactives ». */
+    @GET
+    @Path("produits-reconciliation")
+    public Response produitsReconciliation(@QueryParam("query") String query,
+            @QueryParam("desactives") boolean desactives) {
+        TUser tu = (TUser) servletRequest.getSession().getAttribute(Constant.AIRTIME_USER);
+        if (tu == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        return Response.ok().entity(commandeService
+                .produitsReconciliation(query, desactives, tu.getLgEMPLACEMENTID().getLgEMPLACEMENTID()).toString())
+                .build();
+    }
+
     @POST
     @Path("reconcilier-ligne")
     public Response reconcilierLigne(ReconcilierLigneDTO dto) throws JSONException {

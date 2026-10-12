@@ -252,15 +252,28 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.ReconciliationPanel',
     openAssocierDialog: function (record, rowIndex) {
         var me = this;
 
+        /* besoins du 11/10 (point 7) : recherche dediee, avec option « rechercher dans les desactives » */
         var searchStore = Ext.create('Ext.data.Store', {
-            fields: ['lgFAMILLEID', 'strNAME', 'intCIP', 'intPRICE', 'intNUMBERAVAILABLE'],
+            fields: ['lgFAMILLEID', 'strNAME', 'intCIP', 'intPRICE', 'intNUMBERAVAILABLE', {name: 'desactive', type: 'boolean'}],
             autoLoad: false,
             proxy: {
                 type: 'ajax',
-                url: '../api/v1/vente/search',
+                url: '../api/v1/commande/produits-reconciliation',
                 reader: { type: 'json', root: 'data' }
             }
         });
+        var rechercher = function () {
+            var val = dialog.down('#searchField').getValue();
+            if (val && val.length >= 3) {
+                searchStore.load({ params: { query: val, desactives: dialog.down('#chercherDesactives').getValue() } });
+            } else {
+                searchStore.removeAll();
+            }
+        };
+        var nomProduit = function (v, meta, r) {
+            var nom = Ext.String.htmlEncode(v || '');
+            return r.get('desactive') ? '<span style="color:#c62828;font-weight:bold;">' + nom + ' (désactivé)</span>' : nom;
+        };
 
         var dialog = Ext.create('Ext.window.Window', {
             title: 'Associer — Code BL : ' + record.get('cip') + '  |  ' + record.get('libelle'),
@@ -274,23 +287,32 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.ReconciliationPanel',
                     region: 'north',
                     height: 50,
                     bodyPadding: '10 15',
+                    layout: 'hbox',
                     items: [
                         {
                             xtype: 'textfield',
                             itemId: 'searchField',
                             fieldLabel: 'Rechercher',
                             labelWidth: 80,
-                            width: 400,
+                            width: 380,
                             emptyText: 'Nom ou code CIP (min. 3 caractères)...',
                             enableKeyEvents: true,
                             listeners: {
-                                keyup: function (field) {
-                                    var val = field.getValue();
-                                    if (val && val.length >= 3) {
-                                        searchStore.load({ params: { query: val } });
-                                    } else if (!val || val.length === 0) {
-                                        searchStore.removeAll();
-                                    }
+                                keyup: function () {
+                                    rechercher();
+                                }
+                            }
+                        },
+                        {
+                            xtype: 'checkboxfield',
+                            itemId: 'chercherDesactives',
+                            boxLabel: 'Rechercher dans les désactivés',
+                            margin: '0 0 0 15',
+                            checked: false,
+                            listeners: {
+                                /* effet immediat : la recherche est relancee */
+                                change: function () {
+                                    rechercher();
                                 }
                             }
                         }
@@ -303,13 +325,13 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.ReconciliationPanel',
                     store: searchStore,
                     columns: [
                         { text: 'CIP', dataIndex: 'intCIP', width: 100 },
-                        { text: 'Nom', dataIndex: 'strNAME', flex: 1 },
+                        { text: 'Nom', dataIndex: 'strNAME', flex: 1, renderer: nomProduit },
                         { text: 'Stock', dataIndex: 'intNUMBERAVAILABLE', width: 70, align: 'center' },
                         { text: 'Prix', dataIndex: 'intPRICE', width: 80, align: 'right' }
                     ],
                     listeners: {
                         itemdblclick: function (grid, selectedRecord) {
-                            me.confirmerAssociation(record, rowIndex, selectedRecord, dialog);
+                            me.associerSiActif(record, rowIndex, selectedRecord, dialog);
                         }
                     }
                 }
@@ -324,7 +346,7 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.ReconciliationPanel',
                             Ext.Msg.alert('Sélection requise', 'Veuillez sélectionner un produit dans la liste.');
                             return;
                         }
-                        me.confirmerAssociation(record, rowIndex, sel[0], dialog);
+                        me.associerSiActif(record, rowIndex, sel[0], dialog);
                     }
                 },
                 {
@@ -345,6 +367,40 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.ReconciliationPanel',
         });
 
         dialog.show();
+    },
+
+    /** Produit desactive : proposer de l'activer avant de l'associer (sans quitter la commande). */
+    associerSiActif: function (blRecord, rowIndex, produitRecord, dialog) {
+        var me = this;
+        if (!produitRecord.get('desactive')) {
+            me.confirmerAssociation(blRecord, rowIndex, produitRecord, dialog);
+            return;
+        }
+        Ext.MessageBox.confirm('Produit désactivé',
+            'Le produit <b>' + Ext.String.htmlEncode(produitRecord.get('strNAME')) + '</b> est désactivé.<br><br>'
+            + 'Voulez-vous l\'activer pour l\'associer à cette ligne ?',
+            function (btn) {
+                if (btn !== 'yes') {
+                    return;
+                }
+                Ext.Ajax.request({
+                    url: '../api/v1/produit/enable-desactives/' + encodeURIComponent(produitRecord.get('lgFAMILLEID')),
+                    method: 'POST',
+                    success: function (response) {
+                        var r = Ext.decode(response.responseText, true) || {};
+                        if (!r.success) {
+                            Ext.MessageBox.alert('Activation impossible', r.msg || 'Le produit n\'a pas pu être activé.');
+                            return;
+                        }
+                        produitRecord.set('desactive', false);
+                        produitRecord.commit();
+                        me.confirmerAssociation(blRecord, rowIndex, produitRecord, dialog);
+                    },
+                    failure: function () {
+                        Ext.MessageBox.alert('Activation impossible', 'Le serveur n\'a pas répondu.');
+                    }
+                });
+            });
     },
 
     confirmerAssociation: function (blRecord, rowIndex, produitRecord, dialog) {
