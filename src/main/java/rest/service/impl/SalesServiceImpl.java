@@ -5870,7 +5870,7 @@ public class SalesServiceImpl implements SalesService {
         preenregistrement.setClient(tc);
         preenregistrement.setStrFIRSTNAMECUSTOMER(tc.getStrFIRSTNAME());
         preenregistrement.setStrLASTNAMECUSTOMER(tc.getStrLASTNAME());
-        preenregistrement.setStrPHONECUSTOME(tc.getStrADRESSE());
+        preenregistrement.setStrPHONECUSTOME(tc.getStrTELEPHONE());
         em.merge(preenregistrement);
     }
 

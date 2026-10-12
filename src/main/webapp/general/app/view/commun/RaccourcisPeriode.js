@@ -6,7 +6,7 @@
  *
  * Plugin pose sur le champ de FIN ; il retrouve le champ de debut par son itemId (option debut) dans le meme conteneur.
  * Il ajoute juste apres un bouton « Période ▾ » dont le menu pose les deux dates (Aujourd'hui, Hier, 7 jours,
- * 30 jours, Ce mois, Mois dernier, 12 mois, Cette année). Les champs restent ceux que lisent les controleurs ; apres un
+ * 30 jours, 3 semaines, Ce mois, Mois dernier, 3 mois, 12 mois, Cette année, Année N-1). Les champs restent ceux que lisent les controleurs ; apres un
  * raccourci, 'select' est emis sur le champ de fin comme si l'utilisateur l'avait choisi dans le calendrier, puis le
  * bouton « declencher » (s'il est donne) recoit un clic.
  */
@@ -36,6 +36,9 @@ Ext.define('testextjs.view.commun.RaccourcisPeriode', {
                 ['30 derniers jours', function (j) {
                         return [D.add(j, D.DAY, -29), j];
                     }],
+                ['3 dernières semaines', function (j) {
+                        return [D.add(j, D.DAY, -20), j];
+                    }],
                 ['Ce mois', function (j) {
                         return [D.getFirstDateOfMonth(j), j];
                     }],
@@ -43,11 +46,17 @@ Ext.define('testextjs.view.commun.RaccourcisPeriode', {
                         var m = D.add(D.getFirstDateOfMonth(j), D.MONTH, -1);
                         return [m, D.getLastDateOfMonth(m)];
                     }],
+                ['3 derniers mois', function (j) {
+                        return [D.add(j, D.MONTH, -3), j];
+                    }],
                 ['12 derniers mois', function (j) {
                         return [D.add(j, D.MONTH, -12), j];
                     }],
                 ['Cette année', function (j) {
                         return [new Date(j.getFullYear(), 0, 1), j];
+                    }],
+                ['Année N-1', function (j) {
+                        return [new Date(j.getFullYear() - 1, 0, 1), new Date(j.getFullYear() - 1, 11, 31)];
                     }]
             ];
         }
