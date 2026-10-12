@@ -200,6 +200,36 @@ public class PilotageRessource {
      *            code d'axe de comparaison ({@code MOIS}, {@code VS_M1}, {@code VS_N1}, {@code YTD}, {@code G12},
      *            {@code PERSO}) ; un code inconnu retombe sur le mois en cours plutot que d'echouer
      */
+    /** Besoins du 11/10 (point 11) : les produits derriere une tuile de l'onglet Stock. */
+    @GET
+    @Path("stock/produits")
+    public Response produitsStock(@QueryParam("type") String type, @QueryParam("mois") Integer mois) {
+        if (utilisateur() == null) {
+            return deconnecte();
+        }
+        if (!autorise()) {
+            return refus();
+        }
+        if (type == null || !PilotageService.LISTES_STOCK.contains(type)) {
+            return Response.ok()
+                    .entity(new JSONObject().put("success", false).put("message", "Liste inconnue.").toString())
+                    .build();
+        }
+        int m = mois == null ? 12 : mois;
+        if (m != 3 && m != 6 && m != 12 && m != 24) {
+            return Response.ok().entity(new JSONObject().put("success", false)
+                    .put("message", "Stock dormant : 3, 6, 12 ou 24 mois.").toString()).build();
+        }
+        try {
+            return Response.ok().entity(pilotageService.produitsStock(type, m).toString()).build();
+        } catch (Exception e) {
+            LOG.log(java.util.logging.Level.SEVERE, "pilotage : produits du stock", e);
+            return Response.ok().entity(
+                    new JSONObject().put("success", false).put("message", "La liste n'a pas pu être lue.").toString())
+                    .build();
+        }
+    }
+
     @GET
     @Path("onglet/{onglet}")
     public Response onglet(@PathParam("onglet") String onglet, @QueryParam("axe") String axe,

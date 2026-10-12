@@ -67,6 +67,8 @@ public class PilotageService {
     public static final String ONGLET_KPI = "kpi";
     public static final String ONGLET_COMPARATEUR = "comparateur";
     public static final String ONGLET_ACHATS_VENTES = "achatsventes";
+    /** Besoins du 11/10 (point 11) : alertes, CA par emplacement et famille, frequentation, panier moyen. */
+    public static final String ONGLET_SUIVI = "asuivre";
 
     /** Les trois decoupages de l'onglet Achats / Ventes. */
     public static final String DECOUPAGE_TRIMESTRE = "TRIMESTRE";
@@ -193,6 +195,9 @@ public class PilotageService {
                 break;
             case ONGLET_ACHATS_VENTES:
                 reponse = achatsVentes(choix == null ? DECOUPAGE_TRIMESTRE : choix.decoupage);
+                break;
+            case ONGLET_SUIVI:
+                reponse = aSuivre(axe);
                 break;
             default:
                 reponse = synthese(axe);
@@ -925,6 +930,10 @@ public class PilotageService {
         data.put(kpi("nbBons", "Bons de livraison", "", "Achats", true));
         data.put(kpi("ratioVA", "Ratio ventes / achats", "", "Achats", false));
         data.put(kpi("frequentation", "Fréquentation horaire", "", "Activité", true));
+        /* besoins du 11/10 (point 11) */
+        data.put(kpi("rotation", "Rotation des stocks (fois par an)", "", "Stock", false));
+        data.put(kpi("tauxRupture", "Taux de rupture (ventes ratées)", "%", "Stock", false));
+        data.put(kpi("evolPanier", "Évolution du panier moyen", "%", "Activité", false));
         return new JSONObject().put("success", true).put("total", data.length()).put("data", data);
     }
 
@@ -978,6 +987,9 @@ public class PilotageService {
                 tuiles.put(tuileHeureDePointe(horaire));
                 continue;
             }
+            if (KPI_STOCK_PANIER.contains(cle)) {
+                continue; /* tuile posee par ajouterKpiStockPanier, a sa place dans l'ordre des coches */
+            }
             tuiles.put(tuile(cle, libelleKpi(cle), valeurKpi(cle, courant, encaisseCourant),
                     reference == null ? null
                             : valeurKpi(cle, reference, encaisseReference == null ? 0 : encaisseReference),
@@ -989,6 +1001,9 @@ public class PilotageService {
          * remplace les quatre requetes de detail qui parcouraient la fenetre entiere.
          */
         JSONArray mois = moisAgreges(axe);
+        if (retenus.stream().anyMatch(KPI_STOCK_PANIER::contains)) {
+            ajouterKpiStockPanier(axe, courant, reference, mois, tuiles, retenus);
+        }
 
         JSONObject reponse = new JSONObject().put("tuiles", tuiles).put("mois", mois).put("coches",
                 new JSONArray(retenus));
@@ -997,6 +1012,353 @@ public class PilotageService {
             reponse.put("horaire", horaire);
         }
         return reponse;
+    }
+
+    /* ------------------------------------------- rotation, rupture, evolution du panier (besoins du 11/10, 11) */
+
+    static final List<String> KPI_STOCK_PANIER = java.util.Arrays.asList("rotation", "tauxRupture", "evolPanier");
+
+    /** Valeur du stock au prix d'achat, aujourd'hui : celle de l'onglet Stock (officine, articles actifs). */
+    private double valeurStockAchat() {
+        return etatDuStock().valeurAchat;
+    }
+
+    /** Par mois de la periode : [lignes de vente, quantites ratees saisies]. */
+    private Map<String, long[]> demandesParMois(Periode periode) {
+        Map<String, long[]> r = new java.util.TreeMap<>();
+        for (Tuple t : liste("SELECT DATE_FORMAT(p.dt_UPDATED, '%Y-%m') AS mois, COUNT(*) AS lignes"
+                + " FROM t_preenregistrement_detail d JOIN t_preenregistrement p"
+                + " ON p.lg_PREENREGISTREMENT_ID = d.lg_PREENREGISTREMENT_ID WHERE p.int_PRICE > 0"
+                + " AND p.str_STATUT = 'is_Closed' AND p.b_IS_CANCEL = 0 AND p.lg_TYPE_VENTE_ID <> :typeExclu"
+                + " AND p.dt_UPDATED >= :debut AND p.dt_UPDATED < :fin GROUP BY mois", periode)) {
+            r.computeIfAbsent(t.get("mois", String.class), k -> new long[2])[0] = entier(t.get("lignes"));
+        }
+        for (Tuple t : liste(
+                "SELECT DATE_FORMAT(v.dt_CREATED, '%Y-%m') AS mois, COALESCE(SUM(v.int_QUANTITE), 0) AS ratees"
+                        + " FROM t_vente_ratee v WHERE v.str_STATUT <> 'delete' AND v.dt_CREATED >= :debut"
+                        + " AND v.dt_CREATED < :fin GROUP BY mois",
+                periode)) {
+            r.computeIfAbsent(t.get("mois", String.class), k -> new long[2])[1] = entier(t.get("ratees"));
+        }
+        return r;
+    }
+
+    /** Demandes non servies / demandes (lignes vendues + quantites ratees), en %. */
+    static double tauxRupture(long lignes, long ratees) {
+        return lignes + ratees == 0 ? 0 : arrondi(ratees * 100d / (lignes + ratees));
+    }
+
+    /** Rotation annualisee : cout d'achat des ventes ramene a un an / valeur du stock au prix d'achat. */
+    static double rotation(double coutAchat, long jours, double valeurStock) {
+        return valeurStock <= 0 || jours <= 0 ? 0 : arrondi(coutAchat * 365d / jours / valeurStock);
+    }
+
+    static double evolution(double valeur, double precedente) {
+        return precedente == 0 ? 0 : arrondi((valeur - precedente) / precedente * 100d);
+    }
+
+    private void ajouterKpiStockPanier(Axe axe, Totaux courant, Totaux reference, JSONArray mois, JSONArray tuiles,
+            List<String> retenus) {
+        double stock = valeurStockAchat();
+        Map<String, long[]> demandes = demandesParMois(axe.graphique);
+        long lignes = 0, ratees = 0, lignesRef = 0, rateesRef = 0;
+        for (Map.Entry<String, long[]> e : demandesParMois(axe.courante).entrySet()) {
+            lignes += e.getValue()[0];
+            ratees += e.getValue()[1];
+        }
+        if (axe.reference != null) {
+            for (Map.Entry<String, long[]> e : demandesParMois(axe.reference).entrySet()) {
+                lignesRef += e.getValue()[0];
+                rateesRef += e.getValue()[1];
+            }
+        }
+        /* colonnes mensuelles : chaque mois, et l'evolution du panier par rapport au mois d'avant */
+        double panierAvant = 0;
+        for (int i = 0; i < mois.length(); i++) {
+            JSONObject l = mois.getJSONObject(i);
+            long[] d = demandes.getOrDefault(l.optString("mois"), new long[2]);
+            java.time.YearMonth ym = java.time.YearMonth.parse(l.optString("mois"));
+            /* jours du mois reellement couverts : le mois en cours n'est pas entier */
+            LocalDate debutMois = ym.atDay(1).isBefore(axe.graphique.debut) ? axe.graphique.debut : ym.atDay(1);
+            LocalDate borne = axe.graphique.fin.isAfter(LocalDate.now().plusDays(1)) ? LocalDate.now().plusDays(1)
+                    : axe.graphique.fin;
+            LocalDate finMois = ym.plusMonths(1).atDay(1).isAfter(borne) ? borne : ym.plusMonths(1).atDay(1);
+            l.put("rotation", rotation(l.optDouble("coutAchat", 0),
+                    java.time.temporal.ChronoUnit.DAYS.between(debutMois, finMois), stock));
+            l.put("tauxRupture", tauxRupture(d[0], d[1]));
+            double panier = l.optDouble("panier", 0);
+            if (i > 0) {
+                l.put("evolPanier", evolution(panier, panierAvant));
+            }
+            panierAvant = panier;
+        }
+        /* tuiles, inserees a la place de leur coche */
+        JSONArray rangees = new JSONArray();
+        int k = 0;
+        for (String cle : retenus) {
+            JSONObject t = null;
+            if ("rotation".equals(cle)) {
+                t = tuile(cle, libelleKpi(cle), rotation(courant.coutAchat, axe.courante.jours(), stock),
+                        reference == null ? null : rotation(reference.coutAchat, axe.reference.jours(), stock), "",
+                        "Coût d'achat des ventes ramené à un an ÷ valeur du stock au prix d'achat ("
+                                + String.format("%,.0f", stock).replace(',', ' ') + " F)");
+            } else if ("tauxRupture".equals(cle)) {
+                t = tuile(cle, libelleKpi(cle), tauxRupture(lignes, ratees),
+                        reference == null ? null : tauxRupture(lignesRef, rateesRef), "%",
+                        ratees + " demande(s) non servie(s) sur " + (lignes + ratees));
+            } else if ("evolPanier".equals(cle)) {
+                t = tuile(cle, libelleKpi(cle),
+                        reference == null ? 0 : evolution(courant.panierMoyen(), reference.panierMoyen()), null, "%",
+                        reference == null ? "Choisissez une comparaison (« Vs ... ») pour la mesurer"
+                                : "Panier " + Math.round(courant.panierMoyen()) + " F contre "
+                                        + Math.round(reference.panierMoyen()) + " F");
+            } else {
+                /* les autres tuiles ont ete posees dans l'ordre des coches : on les reprend une a une */
+                t = k < tuiles.length() ? tuiles.getJSONObject(k++) : null;
+            }
+            if (t != null) {
+                rangees.put(t);
+            }
+        }
+        while (k < tuiles.length()) {
+            rangees.put(tuiles.getJSONObject(k++));
+        }
+        for (int i = tuiles.length() - 1; i >= 0; i--) {
+            tuiles.remove(i);
+        }
+        for (int i = 0; i < rangees.length(); i++) {
+            tuiles.put(rangees.get(i));
+        }
+    }
+
+    /* =========================================================== onglet A suivre (besoins du 11/10, 11) */
+
+    /** Conditions des ventes de la periode, sur les lignes (memes que le reste de l'ecran). */
+    private static final String LIGNES_VENTES = " FROM t_preenregistrement_detail d"
+            + " JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = d.lg_PREENREGISTREMENT_ID"
+            + " JOIN t_famille f ON f.lg_FAMILLE_ID = d.lg_FAMILLE_ID"
+            + " LEFT JOIN t_code_tva v ON v.lg_CODE_TVA_ID = f.lg_CODE_TVA_ID"
+            + " WHERE p.int_PRICE > 0 AND p.str_STATUT = 'is_Closed' AND p.b_IS_CANCEL = 0"
+            + " AND p.lg_TYPE_VENTE_ID <> :typeExclu AND p.dt_UPDATED >= :debut AND p.dt_UPDATED < :fin";
+    private static final String MESURES_LIGNES = " COALESCE(SUM(d.int_PRICE - COALESCE(d.int_PRICE_REMISE, 0)), 0) AS ca,"
+            + " COALESCE(SUM((d.int_PRICE - COALESCE(d.int_PRICE_REMISE, 0)) / (1 + COALESCE(v.int_VALUE, 0) / 100)"
+            + " - f.int_PAF * d.int_QUANTITY), 0) AS marge, COUNT(DISTINCT p.lg_PREENREGISTREMENT_ID) AS ventes";
+
+    /** CA, marge et part du CA par emplacement ou par famille, sur la periode regardee (20 premiers). */
+    private JSONArray repartition(Periode periode, String cle, String libelle, String jointure, double caTotal) {
+        JSONArray r = new JSONArray();
+        for (Tuple t : liste("SELECT " + cle + " AS id, " + libelle + " AS libelle," + MESURES_LIGNES
+                + LIGNES_VENTES.replace(" WHERE ", jointure + " WHERE ")
+                + " GROUP BY id, libelle ORDER BY ca DESC LIMIT 20", periode)) {
+            double ca = nombre(t.get("ca"));
+            r.put(new JSONObject()
+                    .put("libelle", StringUtils.defaultIfBlank(t.get("libelle", String.class), "(non renseigné)"))
+                    .put("ca", arrondi(ca)).put("marge", arrondi(nombre(t.get("marge"))))
+                    .put("ventes", entier(t.get("ventes")))
+                    .put("part", caTotal == 0 ? 0 : arrondi(ca * 100d / caTotal)));
+        }
+        return r;
+    }
+
+    private JSONObject aSuivre(Axe axe) {
+        Totaux courant = totaux(axe.courante);
+        Totaux reference = axe.reference == null ? null : totaux(axe.reference);
+        JSONArray mois = moisAgreges(axe);
+        JSONArray tuiles = new JSONArray();
+        ajouterKpiStockPanier(axe, courant, reference, mois, tuiles, KPI_STOCK_PANIER);
+
+        /* produits vendus ces 90 derniers jours et en rupture aujourd'hui (officine) */
+        Query q = em.createNativeQuery("SELECT f.int_CIP AS cip, f.str_NAME AS libelle, SUM(d.int_QUANTITY) AS vendus"
+                + " FROM t_preenregistrement_detail d JOIN t_preenregistrement p"
+                + " ON p.lg_PREENREGISTREMENT_ID = d.lg_PREENREGISTREMENT_ID JOIN t_famille f"
+                + " ON f.lg_FAMILLE_ID = d.lg_FAMILLE_ID WHERE p.int_PRICE > 0 AND p.str_STATUT = 'is_Closed'"
+                + " AND p.b_IS_CANCEL = 0 AND p.dt_UPDATED >= :depuis AND f.str_STATUT = 'enable'"
+                + " AND NOT EXISTS (SELECT 1 FROM t_famille_stock s WHERE s.lg_FAMILLE_ID = f.lg_FAMILLE_ID"
+                + " AND s.lg_EMPLACEMENT_ID = :emplacement AND s.int_NUMBER_AVAILABLE > 0)"
+                + " GROUP BY f.lg_FAMILLE_ID, f.int_CIP, f.str_NAME ORDER BY vendus DESC", Tuple.class);
+        q.setParameter("depuis", java.sql.Timestamp.valueOf(LocalDate.now().minusDays(90).atStartOfDay()));
+        q.setParameter("emplacement", PilotageSql.EMPLACEMENT_OFFICINE);
+        @SuppressWarnings("unchecked")
+        List<Tuple> enRupture = q.getResultList();
+        JSONArray ruptures = new JSONArray();
+        for (int i = 0; i < Math.min(15, enRupture.size()); i++) {
+            Tuple t = enRupture.get(i);
+            ruptures.put(new JSONObject().put("cip", t.get("cip", String.class))
+                    .put("libelle", t.get("libelle", String.class)).put("vendus", entier(t.get("vendus"))));
+        }
+        tuiles.put(alerter(tuile("rupturesVendus", "Produits vendus en rupture", enRupture.size(), null, "",
+                "vendus ces 90 derniers jours, stock à zéro aujourd'hui"), !enRupture.isEmpty()));
+
+        Number aCommander = (Number) em
+                .createNativeQuery(
+                        "SELECT COUNT(*) FROM t_vente_ratee" + " WHERE str_STATUT = 'enable' AND bool_COMMANDE = 0")
+                .getSingleResult();
+        tuiles.put(tuile("rateesACommander", "Ventes ratées à commander", aCommander.intValue(), null, "",
+                "demandes non servies, pas encore commandées"));
+
+        JSONArray margeNegative = new JSONArray();
+        for (Tuple t : liste(
+                "SELECT f.int_CIP AS cip, f.str_NAME AS libelle, f.int_PAF AS paf,"
+                        + " MIN(d.int_PRICE_UNITAIR) AS prix, SUM(d.int_QUANTITY) AS vendus" + LIGNES_VENTES
+                        + " AND d.int_PRICE_UNITAIR > 0 AND d.int_PRICE_UNITAIR < f.int_PAF"
+                        + " GROUP BY f.lg_FAMILLE_ID, f.int_CIP, f.str_NAME, f.int_PAF ORDER BY vendus DESC LIMIT 15",
+                axe.courante)) {
+            margeNegative.put(new JSONObject().put("cip", t.get("cip", String.class))
+                    .put("libelle", t.get("libelle", String.class)).put("paf", entier(t.get("paf")))
+                    .put("prix", entier(t.get("prix"))).put("vendus", entier(t.get("vendus"))));
+        }
+        tuiles.put(alerter(tuile("margeNegative", "Vendus sous le prix d'achat", margeNegative.length(), null, "",
+                "produits vendus à perte sur la période (15 au plus)"), margeNegative.length() > 0));
+        Peremptions peremptions = peremptionsProches();
+        tuiles.put(alerter(
+                tuile("peremption", "Péremptions < 6 mois", peremptions.produits, null, "",
+                        peremptions.lots + " lot(s), " + montant(peremptions.valeurAchat) + " au prix d'achat"),
+                peremptions.produits > 0));
+
+        /* les alertes en phrases, de la plus urgente a la moins urgente */
+        JSONArray alertes = new JSONArray();
+        if (!enRupture.isEmpty()) {
+            alertes.put(new JSONObject().put("niveau", "critique").put("texte",
+                    enRupture.size() + " produit(s) vendu(s) ces 90 derniers jours sont en rupture : à commander."));
+        }
+        if (margeNegative.length() > 0) {
+            alertes.put(new JSONObject().put("niveau", "critique").put("texte", margeNegative.length()
+                    + " produit(s) vendu(s) sous leur prix d'achat sur la période : vérifier les prix."));
+        }
+        if (peremptions.produits > 0) {
+            alertes.put(new JSONObject().put("niveau", "alerte").put("texte",
+                    peremptions.produits + " produit(s) avec un lot qui périme dans les 6 mois ("
+                            + montant(peremptions.valeurAchat) + ")."));
+        }
+        if (aCommander.intValue() > 0) {
+            alertes.put(new JSONObject().put("niveau", "alerte").put("texte",
+                    aCommander.intValue() + " vente(s) ratée(s) pas encore commandée(s)."));
+        }
+        for (int i = 0; i < tuiles.length(); i++) {
+            JSONObject t = tuiles.getJSONObject(i);
+            if ("tauxRupture".equals(t.optString("cle")) && t.optDouble("valeur", 0) >= 5) {
+                alertes.put(new JSONObject().put("niveau", "alerte").put("texte", "Taux de rupture de "
+                        + pourcent(t.optDouble("valeur")) + " : plus d'une demande sur vingt n'est pas servie."));
+            }
+            if ("evolPanier".equals(t.optString("cle")) && reference != null && t.optDouble("valeur", 0) <= -10) {
+                alertes.put(new JSONObject().put("niveau", "alerte").put("texte", "Le panier moyen baisse de "
+                        + pourcent(-t.optDouble("valeur")) + " par rapport à " + axe.reference.libelle + "."));
+            }
+        }
+        if (alertes.length() == 0) {
+            alertes.put(new JSONObject().put("niveau", "ok").put("texte", "Rien à signaler sur la période."));
+        }
+        double ca = 0;
+        for (Tuple t : liste("SELECT" + MESURES_LIGNES + LIGNES_VENTES, axe.courante)) {
+            ca = nombre(t.get("ca"));
+        }
+        return new JSONObject().put("tuiles", tuiles).put("mois", mois).put("alertes", alertes)
+                .put("ruptures", ruptures).put("margeNegative", margeNegative)
+                .put("emplacements",
+                        repartition(axe.courante, "f.lg_ZONE_GEO_ID", "z.str_LIBELLEE",
+                                " LEFT JOIN t_zone_geographique z ON z.lg_ZONE_GEO_ID = f.lg_ZONE_GEO_ID", ca))
+                .put("familles", repartition(axe.courante, "f.lg_FAMILLEARTICLE_ID", "fa.str_LIBELLE",
+                        " LEFT JOIN t_famillearticle fa ON fa.lg_FAMILLEARTICLE_ID = f.lg_FAMILLEARTICLE_ID", ca))
+                .put("horaire", frequentation(axe.courante)).put("caLignes", arrondi(ca));
+    }
+
+    /* ======================================== onglet Stock : liste des produits d'une tuile (besoins du 11/10) */
+
+    public static final List<String> LISTES_STOCK = java.util.Arrays.asList("ruptures", "negatifs", "sousSeuil",
+            "dormant", "peremption");
+
+    /**
+     * Les produits derriere une tuile de l'onglet Stock, avec les MEMES conditions que la tuile (officine) ; le stock
+     * dormant sur une duree au choix (3, 6, 12 ou 24 mois). 200 lignes au plus, le total est donne a part.
+     */
+    @SuppressWarnings("unchecked")
+    public JSONObject produitsStock(String type, int mois) {
+        String select, where, ordre;
+        boolean dormant = "dormant".equals(type);
+        switch (type) {
+        case "ruptures":
+            where = " AND s.int_NUMBER_AVAILABLE = 0";
+            ordre = " ORDER BY f.str_NAME";
+            break;
+        case "negatifs":
+            where = " AND s.int_NUMBER_AVAILABLE < 0";
+            ordre = " ORDER BY s.int_NUMBER_AVAILABLE, f.str_NAME";
+            break;
+        case "sousSeuil":
+            where = " AND f.int_SEUIL_MIN > 0 AND s.int_NUMBER_AVAILABLE < f.int_SEUIL_MIN";
+            ordre = " ORDER BY (f.int_SEUIL_MIN - s.int_NUMBER_AVAILABLE) DESC, f.str_NAME";
+            break;
+        case "dormant":
+            where = " AND s.int_NUMBER_AVAILABLE > 0 AND NOT EXISTS (SELECT 1 FROM t_preenregistrement_detail d"
+                    + " JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = d.lg_PREENREGISTREMENT_ID"
+                    + " WHERE d.lg_FAMILLE_ID = s.lg_FAMILLE_ID AND p.str_STATUT = 'is_Closed'"
+                    + " AND p.b_IS_CANCEL = 0 AND p.dt_UPDATED >= :depuis)";
+            ordre = " ORDER BY s.int_NUMBER_AVAILABLE * f.int_PAF DESC, f.str_NAME";
+            break;
+        default:
+            return peremptionsListe();
+        }
+        select = " FROM t_famille_stock s JOIN t_famille f ON f.lg_FAMILLE_ID = s.lg_FAMILLE_ID"
+                + " LEFT JOIN t_zone_geographique z ON z.lg_ZONE_GEO_ID = f.lg_ZONE_GEO_ID"
+                + " WHERE s.lg_EMPLACEMENT_ID = :emplacement" + where;
+        Query total = em.createNativeQuery("SELECT COUNT(*) AS n, COALESCE(SUM(CASE WHEN s.int_NUMBER_AVAILABLE > 0"
+                + " THEN s.int_NUMBER_AVAILABLE * f.int_PAF ELSE 0 END), 0) AS valeur" + select, Tuple.class);
+        Query liste = em.createNativeQuery("SELECT f.lg_FAMILLE_ID AS id, f.int_CIP AS cip, f.str_NAME AS libelle,"
+                + " f.str_STATUT AS statut, s.int_NUMBER_AVAILABLE AS stock, f.int_SEUIL_MIN AS seuil,"
+                + " f.int_PAF AS paf, z.str_LIBELLEE AS emplacement,"
+                + " (SELECT MAX(p.dt_UPDATED) FROM t_preenregistrement_detail d JOIN t_preenregistrement p"
+                + " ON p.lg_PREENREGISTREMENT_ID = d.lg_PREENREGISTREMENT_ID WHERE d.lg_FAMILLE_ID = f.lg_FAMILLE_ID"
+                + " AND p.str_STATUT = 'is_Closed' AND p.b_IS_CANCEL = 0) AS derniereVente" + select + ordre
+                + " LIMIT 200", Tuple.class);
+        for (Query x : new Query[] { total, liste }) {
+            x.setParameter("emplacement", PilotageSql.EMPLACEMENT_OFFICINE);
+            if (dormant) {
+                x.setParameter("depuis", java.sql.Timestamp.valueOf(LocalDate.now().minusMonths(mois).atStartOfDay()));
+            }
+        }
+        Tuple t = ((List<Tuple>) total.getResultList()).get(0);
+        JSONArray produits = new JSONArray();
+        for (Tuple l : (List<Tuple>) liste.getResultList()) {
+            Object vente = l.get("derniereVente");
+            produits.put(new JSONObject().put("id", l.get("id", String.class)).put("cip", l.get("cip", String.class))
+                    .put("libelle", l.get("libelle", String.class)).put("statut", l.get("statut", String.class))
+                    .put("stock", entier(l.get("stock"))).put("seuil", entier(l.get("seuil")))
+                    .put("paf", entier(l.get("paf")))
+                    .put("valeur", Math.max(0, entier(l.get("stock"))) * (long) entier(l.get("paf")))
+                    .put("emplacement", StringUtils.defaultString(l.get("emplacement", String.class)))
+                    .put("derniereVente", vente == null ? "" : vente.toString().substring(0, 10)));
+        }
+        return new JSONObject().put("success", true).put("type", type).put("mois", mois)
+                .put("total", entier(t.get("n"))).put("valeurAchat", arrondi(nombre(t.get("valeur"))))
+                .put("produits", produits);
+    }
+
+    /** Les lots qui periment dans les six mois (memes conditions que la tuile). */
+    @SuppressWarnings("unchecked")
+    private JSONObject peremptionsListe() {
+        String from = " FROM t_lot l JOIN t_famille f ON f.lg_FAMILLE_ID = l.lg_FAMILLE_ID"
+                + " LEFT JOIN t_zone_geographique z ON z.lg_ZONE_GEO_ID = f.lg_ZONE_GEO_ID"
+                + " WHERE l.str_STATUT = 'enable' AND l.dt_PEREMPTION IS NOT NULL"
+                + " AND IFNULL(l.current_stock, l.int_NUMBER) > 0 AND DATE(l.dt_PEREMPTION) >= CURDATE()"
+                + " AND DATE(l.dt_PEREMPTION) < DATE_ADD(CURDATE(), INTERVAL 6 MONTH)";
+        Tuple t = ((List<Tuple>) em.createNativeQuery(
+                "SELECT COUNT(DISTINCT l.lg_FAMILLE_ID) AS n,"
+                        + " COALESCE(SUM(IFNULL(l.current_stock, l.int_NUMBER) * f.int_PAF), 0) AS valeur" + from,
+                Tuple.class).getResultList()).get(0);
+        JSONArray produits = new JSONArray();
+        for (Tuple l : (List<Tuple>) em.createNativeQuery("SELECT f.lg_FAMILLE_ID AS id, f.int_CIP AS cip,"
+                + " f.str_NAME AS libelle, l.int_NUM_LOT AS lot, DATE_FORMAT(l.dt_PEREMPTION, '%Y-%m-%d') AS peremption,"
+                + " IFNULL(l.current_stock, l.int_NUMBER) AS stock, f.int_PAF AS paf, z.str_LIBELLEE AS emplacement"
+                + from + " ORDER BY l.dt_PEREMPTION, f.str_NAME LIMIT 200", Tuple.class).getResultList()) {
+            produits.put(new JSONObject().put("id", l.get("id", String.class)).put("cip", l.get("cip", String.class))
+                    .put("libelle", l.get("libelle", String.class)).put("lot", String.valueOf(l.get("lot")))
+                    .put("peremption", l.get("peremption", String.class)).put("stock", entier(l.get("stock")))
+                    .put("paf", entier(l.get("paf")))
+                    .put("valeur", (long) entier(l.get("stock")) * entier(l.get("paf")))
+                    .put("emplacement", StringUtils.defaultString(l.get("emplacement", String.class))));
+        }
+        return new JSONObject().put("success", true).put("type", "peremption").put("total", entier(t.get("n")))
+                .put("valeurAchat", arrondi(nombre(t.get("valeur")))).put("produits", produits);
     }
 
     /** L'heure ou l'on sert le plus de clients, et sa part dans la periode ; sans vente, une tuile a zero. */
@@ -1182,6 +1544,19 @@ public class PilotageService {
      */
     private JSONObject croisement(Axe axe, String grandeur, String axeCle) {
         String cleAxe = StringUtils.upperCase(axeCle);
+        /* besoins du 11/10 (point 11) : « HEURE:2 » = par tranche de 2 heures (1, 2, 3, 4 ou 6) */
+        int tranche = 1;
+        if (cleAxe != null && cleAxe.startsWith(PilotageSql.AXE_HEURE + ":")) {
+            try {
+                tranche = Integer.parseInt(cleAxe.substring(PilotageSql.AXE_HEURE.length() + 1));
+            } catch (NumberFormatException e) {
+                tranche = 1;
+            }
+            if (tranche != 2 && tranche != 3 && tranche != 4 && tranche != 6) {
+                tranche = 1;
+            }
+            cleAxe = PilotageSql.AXE_HEURE;
+        }
         boolean parMode = PilotageSql.AXE_MODE.equals(cleAxe);
         /* Par mode de reglement, la seule grandeur qui a un sens est le montant regle : on l'impose et on le dit. */
         String mesure = parMode ? "encaisse" : grandeur;
@@ -1190,15 +1565,33 @@ public class PilotageService {
         List<JSONObject> lignes = new ArrayList<>();
         double total = 0d;
         long totalVentes = 0L;
+        List<Object[]> brut = new ArrayList<>();
         for (Tuple t : liste(sql, axe.courante)) {
-            double valeur = nombre(t.get("valeur"));
-            long ventes = entier(t.get("nbVentes"));
+            brut.add(new Object[] { t.get("cle"), t.get("libelle"), nombre(t.get("valeur")),
+                    (long) entier(t.get("nbVentes")) });
+        }
+        if (tranche > 1) {
+            /* regroupement des heures sur les sommes brutes : un panier moyen se recalcule, il ne s'additionne pas */
+            final int pas = tranche;
+            Map<Integer, Object[]> parTranche = new java.util.TreeMap<>();
+            for (Object[] b : brut) {
+                int debut = entier(b[0]) / pas * pas;
+                Object[] g = parTranche.computeIfAbsent(debut,
+                        k -> new Object[] { k, String.format("%02dh-%02dh", k, Math.min(24, k + pas)), 0d, 0L });
+                g[2] = (double) g[2] + (double) b[2];
+                g[3] = (long) g[3] + (long) b[3];
+            }
+            brut = new ArrayList<>(parTranche.values());
+        }
+        for (Object[] b : brut) {
+            double valeur = (double) b[2];
+            long ventes = (long) b[3];
             if (panier) {
                 valeur = ventes == 0 ? 0 : valeur / ventes;
             }
-            String libelle = libelleAxe(cleAxe, t.get("cle"), t.get("libelle"));
-            lignes.add(new JSONObject().put("cle", String.valueOf(t.get("cle"))).put("libelle", libelle)
-                    .put("mois", libelle).put("a", arrondi(valeur)).put("nbVentes", ventes));
+            String libelle = tranche > 1 ? (String) b[1] : libelleAxe(cleAxe, b[0], b[1]);
+            lignes.add(new JSONObject().put("cle", String.valueOf(b[0])).put("libelle", libelle).put("mois", libelle)
+                    .put("a", arrondi(valeur)).put("nbVentes", ventes));
             total += valeur;
             totalVentes += ventes;
         }
@@ -1235,7 +1628,7 @@ public class PilotageService {
                 .put("comparaison",
                         new JSONObject().put("type", CROISER).put("grandeur", mesure).put("libelleA", libelleGrandeur)
                                 .put("libelleB", "Part %").put("libelleGrandeur", libelleGrandeur).put("axe", cleAxe)
-                                .put("libelleAxe", libelleAxeComplet(cleAxe)))
+                                .put("tranche", tranche).put("libelleAxe", libelleAxeComplet(cleAxe)))
                 .put("note", (parMode
                         ? "Par mode de règlement, la grandeur est le montant réglé (source : vente_reglement, comme le ticket Z). "
                         : "") + libelleGrandeur + " réparti par " + libelleAxeComplet(cleAxe).toLowerCase()

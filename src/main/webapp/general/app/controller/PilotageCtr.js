@@ -304,6 +304,11 @@ Ext.define('testextjs.controller.PilotageCtr', {
             parametres.objetA = comparateur.down('#objetA').getValue() || '';
             parametres.objetB = comparateur.down('#objetB').getValue() || '';
             parametres.grandeur = comparateur.down('#grandeurComparee').getValue() || 'caTTC';
+            /* croisement par heure : la tranche voyage avec l'axe (« HEURE:2 »), besoins du 11/10 */
+            var tranche = comparateur.down('#trancheHoraire');
+            if (parametres.type === 'CROISER' && parametres.objetB === 'HEURE' && tranche && tranche.getValue() > 1) {
+                parametres.objetB = 'HEURE:' + tranche.getValue();
+            }
         }
         return parametres;
     },
@@ -366,6 +371,9 @@ Ext.define('testextjs.controller.PilotageCtr', {
             return Ext.create('Ext.data.Store', {fields: ['cle', 'libelle'],
                 data: Ext.Array.map(paires, function (p) { return {cle: p[0], libelle: p[1]}; })});
         };
+        Ext.defer(function () {
+            ecran.majTrancheComparateur();
+        }, 1);
         /* Les libelles A / B redeviennent ceux d'une comparaison, sauf pour le croisement. */
         a.setFieldLabel(type === 'CROISER' ? 'Grandeur' : 'A');
         bb.setFieldLabel(type === 'CROISER' ? 'Par' : 'B');
@@ -552,6 +560,12 @@ Ext.define('testextjs.controller.PilotageCtr', {
                 me.afficherKpi(cle, r);
                 me.afficherComparateur(cle, r);
                 me.afficherAchatsVentes(cle, r);
+                /* besoins du 11/10 (point 11) */
+                if (cle === 'asuivre') {
+                    ecran.afficherSuivi(r);
+                } else if (cle === 'stock') {
+                    ecran.apresChargementStock();
+                }
             },
             failure: function () {
                 Ext.Msg.alert('Pilotage', 'Les chiffres n\'ont pas pu être rassemblés.');
@@ -599,11 +613,9 @@ Ext.define('testextjs.controller.PilotageCtr', {
             var compare = axe && axe.comparaison === true;
             seconde.title = compare ? (axe.libelleReference || 'Période comparée') : 'Période comparée';
             graphique.series.getAt(0).title = axe && axe.libelle ? axe.libelle : 'Période choisie';
-            if (compare) {
-                seconde.showAll();
-            } else {
-                seconde.hideAll();
-            }
+            /* la courbe comparee suit aussi la grandeur choisie (besoins du 11/10, point 11) */
+            this.getEcran().comparaisonActive = compare;
+            this.getEcran().montrerSeconde(graphique, cle);
             if (graphique.legend && graphique.legend.isLegend) {
                 graphique.legend.create();
             }
@@ -830,17 +842,57 @@ Ext.define('testextjs.controller.PilotageCtr', {
             return;
         }
         var actuel = panneau.down('chart');
-        var estBarres = actuel && actuel.series.getCount() === 1 && actuel.series.getAt(0).type === 'column';
-        if (actuel && (croisement === !!estBarres)) {
+        /* besoins du 11/10 (point 11) : la forme se choisit ; « automatique » garde le dessin d'avant */
+        var forme = ecran.formeComparateur || (croisement ? 'bandes' : 'courbe');
+        var cleForme = (croisement ? 'X' : 'C') + forme;
+        if (actuel && panneau.formeConstruite === cleForme) {
             return;
         }
+        if (actuel && !panneau.formeConstruite) {
+            var estBarres = actuel.series.getCount() === 1 && actuel.series.getAt(0).type === 'column';
+            if (croisement === !!estBarres && cleForme === (croisement ? 'Xbandes' : 'Ccourbe')) {
+                panneau.formeConstruite = cleForme;
+                return;
+            }
+        }
         panneau.removeAll(true);
-        if (!croisement) {
+        panneau.formeConstruite = cleForme;
+        var f = testextjs.view.pilotage.PilotageManager;
+        if (!croisement && forme === 'courbe') {
             /* La configuration d'origine du comparateur : les deux courbes A et B. */
             panneau.add(ecran.graphique('comparateur').items[0]);
             return;
         }
-        var f = testextjs.view.pilotage.PilotageManager;
+        if (!croisement) {
+            /* comparaison en bandes : A et B cote a cote, mois par mois */
+            var axeAB = f.axeMontants(['a', 'b'], true);
+            panneau.add({xtype: 'chart', itemId: 'graphique-comparateur', animate: false, shadow: false, insetPadding: f.INSET,
+                legend: {position: 'top'}, theme: 'PilotageAB', store: ecran.stores.comparateur.mois,
+                axes: [axeAB, f.axeMois()],
+                series: [{type: 'column', axis: 'left', xField: 'libelle', yField: ['a', 'b'],
+                        title: [(comparaison && comparaison.libelleA) || 'Objet A', (comparaison && comparaison.libelleB) || 'Objet B'],
+                        tips: f.infobulle(function (record) {
+                            return '<b>' + Ext.String.htmlEncode(record.get('libelle') || '') + '</b><br>'
+                                    + Ext.String.htmlEncode((comparaison && comparaison.libelleA) || 'A') + ' : ' + f.nombre(record.get('a')) + '<br>'
+                                    + Ext.String.htmlEncode((comparaison && comparaison.libelleB) || 'B') + ' : ' + f.nombre(record.get('b'));
+                        })}]});
+            return;
+        }
+        if (forme === 'courbe') {
+            /* croisement en courbe : la grandeur le long de l'axe (heures, jours...) */
+            var axeC = f.axeMontants(['a']);
+            panneau.add({xtype: 'chart', itemId: 'graphique-comparateur', animate: false, shadow: false, insetPadding: f.INSET,
+                store: ecran.stores.comparateur.mois,
+                axes: [axeC, {type: 'Category', position: 'bottom', fields: ['libelle'], label: {font: '11px Arial', rotate: {degrees: 315}}}],
+                series: [{type: 'line', axis: 'left', xField: 'libelle', yField: 'a', style: {stroke: '#1565c0', 'stroke-width': 3},
+                        markerConfig: {radius: 4, type: 'circle', fill: '#1565c0', stroke: '#1565c0'},
+                        tips: f.infobulle(function (record) {
+                            return '<b>' + Ext.String.htmlEncode(record.get('libelle') || '') + '</b><br>'
+                                    + Ext.String.htmlEncode((comparaison && comparaison.libelleGrandeur) || '') + ' : ' + f.nombre(record.get('a'))
+                                    + (record.get('b') ? '<br>' + f.nombre(record.get('b'), '0,000.0') + ' % du total' : '');
+                        })}]});
+            return;
+        }
         var axeY = f.axeMontants(['a']);
         axeY.minimum = 0;
         panneau.add({
@@ -1049,6 +1101,7 @@ Ext.define('testextjs.controller.PilotageCtr', {
             return;
         }
         var ecran = this.getEcran();
+        ecran.derniereReponseComparateur = reponse;
         var comparaison = reponse.comparaison || {};
         var croisement = comparaison.type === 'CROISER';
         var grille = ecran.down('#detail-comparateur');
@@ -1093,7 +1146,10 @@ Ext.define('testextjs.controller.PilotageCtr', {
             try {
                 var titres = [comparaison.libelleA || 'Objet A', comparaison.libelleB || 'Objet B'];
                 graphique.series.each(function (serie, index) {
-                    if (titres[index]) {
+                    if (serie.type === 'column') {
+                        /* comparaison en bandes : une serie, deux grandeurs */
+                        serie.title = titres;
+                    } else if (titres[index]) {
                         serie.title = titres[index];
                     }
                 });

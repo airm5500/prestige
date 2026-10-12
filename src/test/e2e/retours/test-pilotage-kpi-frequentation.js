@@ -60,7 +60,7 @@ const VENTES = "p.int_PRICE>0 AND p.str_STATUT='is_Closed' AND p.b_IS_CANCEL=0 A
     });
     const clic = (k, v) => p.evaluate(([k, v]) => { Ext.ComponentQuery.query('pilotage #casesKpi checkbox').filter((c) => c.cleKpi === k)[0].setValue(v); }, [k, v]);
     const cles = await p.evaluate(() => Ext.ComponentQuery.query('pilotage #casesKpi checkbox').map((c) => c.cleKpi));
-    ok('Le catalogue porte ses quinze indicateurs, dont la fréquentation', cles.length === 15 && cles.indexOf('frequentation') >= 0, cles.join(','));
+    ok('Le catalogue porte ses dix-huit indicateurs (besoins du 11/10), dont la fréquentation', cles.length === 18 && cles.indexOf('frequentation') >= 0, cles.join(','));
 
     const parDefaut = ['caTTC', 'nbVentes', 'panier'];
     const manques = [];

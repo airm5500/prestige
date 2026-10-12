@@ -1849,6 +1849,56 @@ body.x-body,
     color: #1e293b;
     font-weight: 700;
 }
+/* Besoins du 11/10 (point 11) : une pastille sur l'onglet ouvert, une icone sur chaque onglet, et la main
+   au survol (les onglets se deplacent par glisser-deposer). */
+.pilotage-ardoise .x-tab-active .x-tab-inner:after {
+    content: '';
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    margin-left: 7px;
+    border-radius: 50%;
+    background: #16a34a;
+    box-shadow: 0 0 0 2px #dcfce7;
+    vertical-align: middle;
+}
+.pilotage-ardoise .x-tab-icon-el.pilotage-icone,
+.pilotage-ardoise .x-btn-icon-el.pilotage-icone {
+    background-image: none;
+    font-size: 12px;
+    line-height: 16px;
+    text-align: center;
+    color: #5b6b7f;
+}
+.pilotage-ardoise .x-tab-over .x-tab-icon-el.pilotage-icone {
+    color: #1e293b;
+}
+.pilotage-ardoise .x-tab-active .x-tab-icon-el.pilotage-icone {
+    color: #b7791f;
+}
+.pilotage-ardoise .pilotage-onglets .x-tab {
+    cursor: grab;
+}
+/* Onglet « À suivre » et listes de l'onglet Stock (besoins du 11/10, point 11) */
+.pilotage-ardoise .pilotage-alertes {
+    margin: 0 0 6px 0;
+    padding: 0;
+    list-style: none;
+}
+.pilotage-ardoise .pilotage-alertes li {
+    padding: 4px 0;
+    font-weight: 600;
+}
+.pilotage-ardoise .suivi-barre {
+    display: inline-block;
+    height: 8px;
+    background: #b7791f;
+    border-radius: 2px;
+    vertical-align: middle;
+}
+.pilotage-ardoise .pilotage-onglet-stock .pilotage-tuile {
+    cursor: pointer;
+}
 /* La tuile porte son liseré ambre : c'est le seul accent de couleur de l'ecran, la variation gardant
    le vert et le rouge qui lui appartiennent. */
 .pilotage-ardoise .pilotage-tuile {

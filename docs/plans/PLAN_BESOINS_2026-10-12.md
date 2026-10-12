@@ -46,3 +46,22 @@ Chaque lot : tests serveur + test de bout en bout par l'écran, commit et push p
 - **Set Valorisation** : droit dédié, donné à personne par défaut ; valeur cible atteinte en ajustant les quantités
   proportionnellement ; rien n'est écrit dans le stock.
 - **Rentabilité nette** : écran de saisie des charges mensuelles ; résultat net = marge brute − charges.
+
+## Avancement (12/10)
+
+| Point | État | Où |
+| --- | --- | --- |
+| 5 Gestion caisse | fait | onglet Liste au jour |
+| 7 Réconciliation BL | fait | case « désactivés », réactivation proposée |
+| 8 Menus | fait | 47 libellés courts (≤ 25), test de garde |
+| 12 Fréquentation | fait | REST, tranche au choix, % du CA |
+| 15 Inventaire | fait | intervalle de lettres dans un emplacement |
+| 13 Périodes | fait | 3 dernières semaines, 3 derniers mois, année N-1 |
+| 2 Périmés | fait | onglet Analyse (emplacements, produits, ratio / CA) |
+| 3 Client différé | fait | bandeau « Corriger le client » sous la liste des différés (nom recopié sur ses ventes) ; pendant la vente : bouton « Modifier » existant |
+| 13 Produits | fait | onglet Analyse : ventes, CA, marge par jour / semaine / mois / année, top 50 |
+| 14 Prévisions | fait | onglet « Analyse de la demande » (indices saisonniers, à anticiper) |
+| 11 Pilotage | fait (hors rentabilité nette) | pastille, icônes, onglets déplaçables, courbes au choix (Synthèse, Ventes, Caisse), taux de marge en infobulle, KPI rotation / rupture / évolution du panier, onglet « À suivre », listes et stock dormant au choix (Stock), recherches KPI enregistrées, Comparateur bandes / courbe et tranche horaire |
+
+Défauts trouvés en chemin et corrigés : sélecteur de période commun (le raccourci ne relançait pas un bouton à
+« handler », bouton fantôme par-dessus « Du ») ; téléphone remplacé par l'adresse à la correction d'un client.

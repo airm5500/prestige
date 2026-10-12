@@ -36,12 +36,23 @@ Ext.define('Ext.chart.theme.PilotageBandes', {
     }
 });
 
+/* Comparateur en bandes (besoins du 11/10, point 11) : A en bleu, B en orange, comme leurs courbes. */
+Ext.define('Ext.chart.theme.PilotageAB', {
+    extend: 'Ext.chart.theme.Base',
+    constructor: function (config) {
+        this.callParent([Ext.apply({colors: ['#1565c0', '#ef6c00']}, config)]);
+    }
+});
+
+/* Onglets deplacables (besoins du 11/10, point 11) : extension ExtJS livree avec le framework. */
+Ext.Loader.setPath('Ext.ux', '/prestige/general/ext/src/ux');
+
 Ext.define('testextjs.view.pilotage.PilotageManager', {
     extend: 'Ext.panel.Panel',
     xtype: 'pilotage',
     itemId: 'pilotage',
     requires: ['Ext.chart.Chart', 'Ext.chart.series.Line', 'Ext.chart.series.Area',
-        'Ext.chart.axis.Numeric', 'Ext.chart.axis.Category'],
+        'Ext.chart.axis.Numeric', 'Ext.chart.axis.Category', 'Ext.ux.TabReorderer'],
     frame: true,
     title: 'PILOTAGE DE L\'OFFICINE',
     width: '99%',
@@ -246,6 +257,21 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
          */
         INSET: 24,
 
+        /* Tuiles de l'onglet Stock qui ouvrent la liste de leurs produits. */
+        LISTES_STOCK: {ruptures: 'Références en rupture', negatifs: 'Stock négatif', sousSeuil: 'Sous le seuil de réappro',
+            dormant: 'Stock dormant', peremption: 'Péremptions dans les 6 mois'},
+
+        /* Nom de chaque grandeur des courbes, et celles qui se lisent aussi en part du chiffre d'affaires. */
+        LIBELLES_COURBES: {caTTC: 'CA TTC', caHT: 'CA HT', nbVentes: 'Nombre de ventes', panier: 'Panier moyen',
+            marge: 'Marge', partTiersPayant: 'Part tiers-payant', encaisse: 'Encaissé au comptoir', credit: 'Crédit',
+            tpRegle: 'Tiers-payant réglé', achatTTC: 'Achats TTC', valeurAchat: 'Valeur du stock', nbAnnulees: 'Ventes annulées',
+            a: 'Objet A', b: 'Objet B'},
+        EN_PART_DU_CA: {caHT: true, marge: true, partTiersPayant: true, encaisse: true, credit: true, tpRegle: true,
+            achatTTC: true, valeurAchat: true},
+        /* Grandeurs qui ont leur valeur de la periode comparee (courbe en pointilles). */
+        AVEC_REFERENCE: {caTTC: true, caHT: true, marge: true, achatTTC: true, encaisse: true, nbVentes: true, panier: true,
+            nbAnnulees: true, valeurAchat: true},
+
         /*
          * L'INFOBULLE DES COURBES, ECRITE UNE SEULE FOIS ET PARTAGEE PAR TOUS LES GRAPHIQUES.
          *
@@ -276,22 +302,62 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
     },
 
     /* Les onglets de cette livraison. Chacun porte ses colonnes de detail : le reste est commun. */
+    /* L'icone de chaque onglet (besoins du 11/10, point 11) : Font Awesome, deja charge par l'application. */
     ONGLETS: [
-        {cle: 'synthese', titre: 'Synthèse'},
-        {cle: 'ventes', titre: 'Ventes'},
-        {cle: 'marge', titre: 'Marge'},
-        {cle: 'achats', titre: 'Achats'},
-        {cle: 'caisse', titre: 'Caisse & tiers-payant'},
-        {cle: 'stock', titre: 'Stock'},
-        {cle: 'qualite', titre: 'Qualité–Exploitation'},
-        {cle: 'kpi', titre: 'KPI Analyse'},
-        {cle: 'comparateur', titre: 'Comparateur'},
+        {cle: 'synthese', titre: 'Synthèse', icone: 'fa-gauge-high'},
+        {cle: 'ventes', titre: 'Ventes', icone: 'fa-cart-shopping'},
+        {cle: 'marge', titre: 'Marge', icone: 'fa-percent'},
+        {cle: 'achats', titre: 'Achats', icone: 'fa-truck'},
+        {cle: 'caisse', titre: 'Caisse & tiers-payant', icone: 'fa-cash-register'},
+        {cle: 'stock', titre: 'Stock', icone: 'fa-boxes-stacked'},
+        {cle: 'qualite', titre: 'Qualité–Exploitation', icone: 'fa-clipboard-check'},
+        {cle: 'kpi', titre: 'KPI Analyse', icone: 'fa-chart-line'},
+        {cle: 'comparateur', titre: 'Comparateur', icone: 'fa-scale-balanced'},
         /*
          * Ajoute EN DERNIER, a dessein : l'officine connait la place de ses onglets, et en inserer un au
          * milieu obligerait chacun a rechercher les siens.
          */
-        {cle: 'achatsventes', titre: 'Achats / Ventes'}
+        {cle: 'achatsventes', titre: 'Achats / Ventes', icone: 'fa-right-left'},
+        /* besoins du 11/10 (point 11) : alertes, CA par emplacement et famille, frequentation, panier moyen */
+        {cle: 'asuivre', titre: 'À suivre', icone: 'fa-bell'}
     ],
+
+    /* Ordre des onglets choisi par glisser-deposer : propre au poste (simple confort d'affichage). */
+    CLE_ORDRE: 'prestige.pilotage.ordreOnglets',
+
+    ordreMemorise: function () {
+        try {
+            var o = JSON.parse(window.localStorage.getItem(this.CLE_ORDRE) || 'null');
+            return Ext.isArray(o) ? o : null;
+        } catch (e) {
+            return null;
+        }
+    },
+
+    /** Ordre lu sur la barre d'onglets (l'evenement « drop » part avant que les cartes ne suivent). */
+    memoriserOrdre: function (barre) {
+        try {
+            window.localStorage.setItem(this.CLE_ORDRE, JSON.stringify(Ext.Array.map(barre.items.getRange(), function (t) {
+                return t.card ? t.card.cleOnglet : null;
+            })));
+        } catch (e) {
+            /* stockage indisponible (navigation privee) : l'ordre ne sera simplement pas retenu */
+        }
+    },
+
+    /** Les onglets dans l'ordre memorise ; un onglet inconnu de l'ordre (nouveau) se range a sa place d'origine. */
+    ongletsOrdonnes: function () {
+        var me = this, ordre = me.ordreMemorise();
+        if (!ordre) {
+            return me.ONGLETS.slice();
+        }
+        return me.ONGLETS.slice().sort(function (a, b) {
+            var ia = ordre.indexOf(a.cle), ib = ordre.indexOf(b.cle);
+            ia = ia < 0 ? 100 + me.ONGLETS.indexOf(a) : ia;
+            ib = ib < 0 ? 100 + me.ONGLETS.indexOf(b) : ib;
+            return ia - ib;
+        });
+    },
 
     initComponent: function () {
         var me = this;
@@ -388,6 +454,9 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
                         {name: 'annuleEspece', type: 'float'},
                         {name: 'tauxRemise', type: 'float'}, {name: 'tauxAnnulation', type: 'float'},
                         {name: 'ratioVA', type: 'float'},
+                        /* besoins du 11/10 (point 11) : rotation des stocks, taux de rupture, evolution du panier */
+                        {name: 'rotation', type: 'float'}, {name: 'tauxRupture', type: 'float'},
+                        {name: 'evolPanier', type: 'float', useNull: true},
                         /* Comparateur : les deux objets compares et leur ecart. */
                         {name: 'a', type: 'float'}, {name: 'b', type: 'float'},
                         {name: 'ecart', type: 'float'}, {name: 'rapport', type: 'float'},
@@ -498,7 +567,7 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
                             xtype: 'button',
                             itemId: 'actualiser',
                             text: 'Actualiser',
-                            iconCls: 'search'
+                            iconCls: 'fa-solid fa-rotate-right pilotage-icone'
                         }, {
                             xtype: 'button',
                             /*
@@ -509,7 +578,7 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
                              */
                             itemId: 'recalculer',
                             text: 'Recalculer',
-                            iconCls: 'icon-refresh',
+                            iconCls: 'fa-solid fa-calculator pilotage-icone',
                             tooltip: 'Reprend les mois affichés à partir des ventes et des achats, après une '
                                     + 'correction portant sur un mois déjà passé.'
                         }, {
@@ -561,15 +630,22 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
     onglets: function () {
         var me = this;
         var onglets = [];
-        Ext.each(me.ONGLETS, function (onglet) {
-            onglets.push(me.onglet(onglet));
+        Ext.each(me.ongletsOrdonnes(), function (onglet) {
+            /* icone de l'onglet ; l'onglet ouvert porte en plus une pastille (CSS pilotage-ardoise) */
+            onglets.push(Ext.apply(me.onglet(onglet), {iconCls: 'fa-solid ' + onglet.icone + ' pilotage-icone',
+                cls: 'pilotage-onglet-' + onglet.cle,
+                tabConfig: {tooltip: 'Glisser pour déplacer l\'onglet'}}));
         });
         return {
             xtype: 'tabpanel',
             itemId: 'onglets',
+            cls: 'pilotage-onglets',
             flex: 1,
             minHeight: 520,
             activeTab: 0,
+            plugins: [Ext.create('Ext.ux.TabReorderer', {listeners: {drop: function (r, barre) {
+                            me.memoriserOrdre(barre);
+                        }}})],
             items: onglets
         };
     },
@@ -655,8 +731,17 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
          * gauche, et la repartition par grossiste prend toute la colonne de droite - c'est elle qui a besoin
          * de hauteur, puisqu'une officine travaille avec une vingtaine de fournisseurs.
          */
+        if (onglet.cle === 'asuivre') {
+            return me.ongletSuivi(onglet);
+        }
+        if (onglet.cle === 'stock') {
+            contenu.push(me.barreStock());
+        }
         if (me.DEUX_COLONNES[onglet.cle]) {
             contenu.push(me.bandeauDeuxColonnes(onglet.cle));
+            if (onglet.cle === 'stock') {
+                contenu.push(me.listeStock());
+            }
             contenu.push(me.detail(onglet.cle));
             return {
                 xtype: 'panel',
@@ -882,6 +967,12 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
              */
             height: 96,
             listeners: {
+                /* onglet Stock : un clic sur une tuile liste ses produits sous le bandeau (besoins du 11/10) */
+                itemclick: function (vue, rec) {
+                    if (cle === 'stock' && testextjs.view.pilotage.PilotageManager.LISTES_STOCK[rec.get('cle')]) {
+                        vue.up('pilotage').listerStock(rec.get('cle'));
+                    }
+                },
                 refresh: function (vue) {
                     var corps = vue.getEl();
                     /* Quand la bande est posee en COLONNE a cote du graphique, sa hauteur est celle du
@@ -983,11 +1074,12 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
     graphique: function (cle) {
         var champs = {synthese: 'caTTC', ventes: 'caTTC', marge: 'marge', achats: 'achatTTC',
             caisse: 'encaisse', stock: 'valeurAchat', qualite: 'nbAnnulees', kpi: 'caTTC',
-            comparateur: 'a'};
+            comparateur: 'a', asuivre: 'panier'};
         var titres = {synthese: 'Chiffre d\'affaires TTC mensuel', ventes: 'Chiffre d\'affaires TTC mensuel',
             marge: 'Marge mensuelle', achats: 'Achats mensuels', caisse: 'Encaissé au comptoir, par mois',
             stock: 'Valeur du stock au prix d\'achat, fin de mois',
             qualite: 'Ventes annulées par mois', kpi: 'Évolution du premier indicateur coché',
+            asuivre: 'Évolution du panier moyen, par mois',
             comparateur: 'Évolution comparée des deux objets'};
         var comparateur = cle === 'comparateur';
         /* Les deux couleurs du comparateur : un bleu franc et un orange, lisibles cote a cote et
@@ -1019,15 +1111,23 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
                  * dimensionne maintenant sur son contenu et reste affichée tant que le curseur ne quitte pas
                  * la courbe — retour de l'officine du 19/09.
                  */
-                tips: testextjs.view.pilotage.PilotageManager.infobulle(function (record) {
+                tips: testextjs.view.pilotage.PilotageManager.infobulle(function (record, item) {
                     var f = testextjs.view.pilotage.PilotageManager;
-                    var v = record.get(champ);
+                    /* la grandeur suit le selecteur de courbe (besoins du 11/10, point 11) */
+                    var yChamp = item && item.series && item.series.yField ? item.series.yField : champ;
+                    var base = String(yChamp).replace(/Ref$/, '');
+                    var v = record.get(yChamp);
                     var ca = record.get('caTTC');
                     var texte = '<b>' + Ext.String.htmlEncode(record.get('libelle') || '') + '</b><br>'
-                            + Ext.String.htmlEncode(titre) + ' : ' + (f.nombre(v) || '—');
-                    if (ca && champ !== 'caTTC' && v !== null && v !== undefined) {
+                            + Ext.String.htmlEncode(item && item.series && item.series.title || titre) + ' — '
+                            + Ext.String.htmlEncode(f.LIBELLES_COURBES[base] || '') + ' : ' + (f.nombre(v) || '—');
+                    if (ca && f.EN_PART_DU_CA[base] && v !== null && v !== undefined) {
                         texte += '<br>soit ' + f.nombre(v / ca * 100, '0,000.0')
                                 + ' % du chiffre d\'affaires du mois';
+                    }
+                    /* marge : son taux (sur le hors taxes), demande du 11/10 */
+                    if (base === 'marge' && yChamp === 'marge' && record.get('tauxMarge') !== null && record.get('tauxMarge') !== undefined) {
+                        texte += '<br>taux de marge : <b>' + f.nombre(record.get('tauxMarge'), '0,000.0') + ' %</b>';
                     }
                     return texte;
                 })
@@ -1043,10 +1143,30 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
                 ? [serie('a', BLEU, 'Objet A'), serie('b', ORANGE, 'Objet B', true)]
                 : [serie(champs[cle], BLEU, 'Période choisie'),
                     serie(champs[cle] + 'Ref', ORANGE, 'Période comparée', true)];
+        var me = this, choix = me.COURBES[cle];
         return {
             xtype: 'panel',
             itemId: 'graphiquePanneau-' + cle,
             title: titres[cle],
+            /* besoins du 11/10 (point 11) : la grandeur de la courbe se choisit (sous-onglets) */
+            dockedItems: cle === 'comparateur' ? [{xtype: 'toolbar', dock: 'top', itemId: 'formeComparateur', cls: 'pilotage-courbes',
+                    items: [{xtype: 'tbtext', text: 'Dessin :'}].concat(Ext.Array.map([['auto', 'Automatique', 'Courbes pour une comparaison, bandes pour un croisement'],
+                        ['courbe', 'Courbe', 'Toujours en courbe'], ['bandes', 'Bandes', 'Toujours en bandes']], function (f) {
+                        return {xtype: 'button', itemId: 'forme-' + f[0], text: f[1], tooltip: f[2], cls: 'seg-courbe',
+                            toggleGroup: 'forme-comparateur-' + me.id, allowDepress: false, pressed: f[0] === 'auto', handler: function () {
+                                me.formeComparateur = f[0] === 'auto' ? null : f[0];
+                                if (me.derniereReponseComparateur) {
+                                    testextjs.app.getController('PilotageCtr').afficherComparateur('comparateur', me.derniereReponseComparateur);
+                                }
+                            }};
+                    }))}] : choix ? [{xtype: 'toolbar', dock: 'top', itemId: 'courbes-' + cle, cls: 'pilotage-courbes',
+                    items: Ext.Array.map(choix, function (c, i) {
+                        return {xtype: 'button', itemId: 'courbe-' + c.champ, text: c.texte, cls: 'seg-courbe',
+                            toggleGroup: 'courbes-' + cle + '-' + me.id, allowDepress: false, pressed: i === 0,
+                            tooltip: c.titre, handler: function () {
+                                me.choisirCourbe(cle, c);
+                            }};
+                    })}] : undefined,
             /* Le graphique et le detail se partagent l'espace restant a parts egales : hauteurs egales
                demandees le 19/09, et plus de bande vide sous la grille. */
             flex: 1,
@@ -1066,6 +1186,373 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
                     series: series
                 }]
         };
+    },
+
+    /* Les grandeurs proposees par onglet ; la premiere est celle d'avant (rien ne change sans clic). */
+    COURBES: {
+        synthese: [{champ: 'caTTC', texte: 'CA TTC', titre: 'Chiffre d\'affaires TTC mensuel'},
+            {champ: 'caHT', texte: 'CA HT', titre: 'Chiffre d\'affaires hors taxes mensuel'},
+            {champ: 'nbVentes', texte: 'Ventes', titre: 'Nombre de ventes par mois'},
+            {champ: 'panier', texte: 'Panier moyen', titre: 'Panier moyen par mois'},
+            {champ: 'marge', texte: 'Marge', titre: 'Marge mensuelle'},
+            {champ: 'partTiersPayant', texte: 'Part TP', titre: 'Part tiers-payant par mois'}],
+        ventes: [{champ: 'caTTC', texte: 'CA TTC', titre: 'Chiffre d\'affaires TTC mensuel'},
+            {champ: 'caHT', texte: 'CA HT', titre: 'Chiffre d\'affaires hors taxes mensuel'},
+            {champ: 'nbVentes', texte: 'Ventes', titre: 'Nombre de ventes par mois'},
+            {champ: 'panier', texte: 'Panier moyen', titre: 'Panier moyen par mois'},
+            {champ: 'marge', texte: 'Marge', titre: 'Marge mensuelle'},
+            {champ: 'partTiersPayant', texte: 'Part TP', titre: 'Part tiers-payant par mois'}],
+        caisse: [{champ: 'encaisse', texte: 'Encaissé comptoir', titre: 'Encaissé au comptoir, par mois'},
+            {champ: 'credit', texte: 'Crédit', titre: 'Ventes à crédit, par mois'},
+            {champ: 'tpRegle', texte: 'TP réglé', titre: 'Tiers-payant réglé, par mois'}]
+    },
+
+    /**
+     * Change la grandeur de la courbe d'un onglet : la periode choisie et, si elle existe pour cette grandeur, la
+     * periode comparee. Aucun appel au serveur : les mois charges portent deja toutes les grandeurs.
+     */
+    choisirCourbe: function (cle, choix) {
+        var me = this, F = testextjs.view.pilotage.PilotageManager;
+        var graphique = me.down('#graphique-' + cle), panneau = me.down('#graphiquePanneau-' + cle);
+        me.courbes = me.courbes || {};
+        me.courbes[cle] = choix.champ;
+        if (panneau) {
+            panneau.setTitle(choix.titre);
+        }
+        if (!graphique || graphique.series.getCount() < 2) {
+            return;
+        }
+        var premiere = graphique.series.getAt(0), seconde = graphique.series.getAt(1);
+        premiere.yField = choix.champ;
+        seconde.yField = choix.champ + 'Ref';
+        graphique.axes.getAt(0).fields = F.AVEC_REFERENCE[choix.champ] ? [choix.champ, choix.champ + 'Ref'] : [choix.champ];
+        me.montrerSeconde(graphique, cle);
+        graphique.redraw();
+    },
+
+    /** La courbe comparee ne se montre que s'il y a une comparaison ET une valeur comparee pour cette grandeur. */
+    montrerSeconde: function (graphique, cle) {
+        var F = testextjs.view.pilotage.PilotageManager, champ = (this.courbes || {})[cle];
+        var seconde = graphique.series.getAt(1);
+        if (!seconde) {
+            return;
+        }
+        if (this.comparaisonActive && (!champ || F.AVEC_REFERENCE[champ])) {
+            seconde.showAll();
+        } else {
+            seconde.hideAll();
+        }
+    },
+
+    /** La tranche horaire ne se propose que pour un croisement par heure. */
+    majTrancheComparateur: function () {
+        var barre = this.down('#choixComparateur'), t = barre && barre.down('#trancheHoraire');
+        if (t) {
+            t.setVisible(barre.down('#typeComparaison').getValue() === 'CROISER' && barre.down('#objetB').getValue() === 'HEURE');
+        }
+    },
+
+    /* ------------------------------------------------ recherches KPI enregistrees (11/10) */
+
+    CLE_RECHERCHES: 'pilotage.kpi.recherches',
+
+    messageRecherche: function (texte, erreur) {
+        var m = this.down('#messageRechercheKpi');
+        if (m) {
+            m.update(texte ? '<span style="color:' + (erreur ? '#c0392b' : '#1e8449') + ';font-weight:600">'
+                    + Ext.String.htmlEncode(texte) + '</span>' : '');
+        }
+    },
+
+    chargerRecherches: function () {
+        var me = this;
+        Ext.Ajax.request({url: '../api/v1/preferences/' + me.CLE_RECHERCHES, method: 'GET', success: function (r) {
+                var o = Ext.decode(r.responseText, true) || {};
+                if (!me.isDestroyed) {
+                    me.storeRecherches.loadData(Ext.isArray(o.valeur) ? o.valeur : []);
+                }
+            }});
+    },
+
+    sauverRecherches: function (message) {
+        var me = this, data = [];
+        me.storeRecherches.each(function (r) {
+            data.push({nom: r.get('nom'), axe: r.get('axe'), dtStart: r.get('dtStart'), dtEnd: r.get('dtEnd'), kpis: r.get('kpis')});
+        });
+        Ext.Ajax.request({url: '../api/v1/preferences/' + me.CLE_RECHERCHES, method: 'PUT',
+            headers: {'Content-Type': 'application/json'}, jsonData: data,
+            success: function (r) {
+                var o = Ext.decode(r.responseText, true) || {};
+                me.messageRecherche(o.success ? message : (o.message || 'Non enregistré.'), !o.success);
+            },
+            failure: function () {
+                me.messageRecherche('Le serveur n\'a pas répondu.', true);
+            }});
+    },
+
+    enregistrerRecherche: function () {
+        var me = this, nom = Ext.String.trim(me.down('#nomRechercheKpi').getValue() || '');
+        var barre = me.down('#barrePeriode'), kpis = [];
+        Ext.each(me.query('#casesKpi checkbox'), function (c) {
+            if (c.getValue()) {
+                kpis.push(c.cleKpi);
+            }
+        });
+        if (!nom) {
+            me.messageRecherche('Donnez un nom à la recherche.', true);
+            return;
+        }
+        if (!kpis.length) {
+            me.messageRecherche('Cochez au moins un indicateur.', true);
+            return;
+        }
+        var i = me.storeRecherches.findExact('nom', nom);
+        if (i < 0 && me.storeRecherches.getCount() >= 20) {
+            me.messageRecherche('20 recherches au plus : supprimez-en une.', true);
+            return;
+        }
+        var jour = function (s) {
+            var v = barre.down(s).getValue();
+            return v ? Ext.Date.format(v, 'Y-m-d') : '';
+        };
+        var valeur = {nom: nom, axe: barre.down('#axe').getValue() || 'MOIS', dtStart: jour('#dtStart'), dtEnd: jour('#dtEnd'), kpis: kpis};
+        if (i >= 0) {
+            me.storeRecherches.removeAt(i);
+        }
+        me.storeRecherches.add(valeur);
+        me.storeRecherches.sort('nom', 'ASC');
+        me.down('#rechercheKpi').setValue(nom);
+        me.sauverRecherches('Recherche « ' + nom + ' » enregistrée.');
+    },
+
+    supprimerRecherche: function () {
+        var me = this, nom = me.down('#rechercheKpi').getValue(), i = me.storeRecherches.findExact('nom', nom);
+        if (i < 0) {
+            me.messageRecherche('Choisissez la recherche à supprimer.', true);
+            return;
+        }
+        me.storeRecherches.removeAt(i);
+        me.down('#rechercheKpi').clearValue();
+        me.sauverRecherches('Recherche « ' + nom + ' » supprimée.');
+    },
+
+    /** Recoche les indicateurs et remet la periode de la recherche, puis une seule analyse. */
+    appliquerRecherche: function (nom) {
+        var me = this, r = me.storeRecherches.getAt(me.storeRecherches.findExact('nom', nom));
+        var ctr = testextjs.app.getController('PilotageCtr'), barre = me.down('#barrePeriode');
+        if (!r) {
+            return;
+        }
+        var kpis = r.get('kpis') || [];
+        Ext.each(me.query('#casesKpi checkbox'), function (c) {
+            c.suspendEvents(false);
+            c.setValue(kpis.indexOf(c.cleKpi) >= 0);
+            c.resumeEvents();
+        });
+        barre.down('#axe').setValue(r.get('axe') || 'MOIS');
+        if (r.get('axe') === 'PERSO') {
+            barre.down('#dtStart').setValue(r.get('dtStart') ? Ext.Date.parse(r.get('dtStart'), 'Y-m-d') : null);
+            barre.down('#dtEnd').setValue(r.get('dtEnd') ? Ext.Date.parse(r.get('dtEnd'), 'Y-m-d') : null);
+        }
+        me.down('#nomRechercheKpi').setValue(nom);
+        me.messageRecherche('');
+        /* le changement d'axe active les dates et relance l'onglet (une seule requete) */
+        ctr.surChangementAxe();
+    },
+
+    /* ------------------------------------------------ onglet Stock : listes et stock dormant (11/10) */
+
+    barreStock: function () {
+        var me = this;
+        return {xtype: 'toolbar', itemId: 'barreStock', cls: 'pilotage-barre-stock', items: [
+                {xtype: 'tbtext', text: '<span class="fa-solid fa-hand-pointer"></span> Cliquez sur une tuile pour voir ses produits.'},
+                '->', {xtype: 'combobox', itemId: 'dormantMois', fieldLabel: 'Stock dormant sur', labelWidth: 110, width: 220,
+                    editable: false, queryMode: 'local', valueField: 'v', displayField: 'l', value: 12,
+                    store: Ext.create('Ext.data.Store', {fields: ['v', 'l'], data: [{v: 3, l: '3 mois'}, {v: 6, l: '6 mois'},
+                            {v: 12, l: '12 mois'}, {v: 24, l: '24 mois'}]}),
+                    listeners: {select: function (c) {
+                            me.majDormant(c.getValue(), true);
+                        }}}]};
+    },
+
+    listeStock: function () {
+        var me = this;
+        return {xtype: 'gridpanel', itemId: 'listeStock', hidden: true, height: 320, margin: '0 0 6 0', cls: 'pilotage-liste-stock',
+            title: 'Produits', store: Ext.create('Ext.data.Store', {fields: ['id', 'cip', 'libelle', 'statut', 'emplacement', 'lot', 'peremption',
+                    'derniereVente', {name: 'stock', type: 'int'}, {name: 'seuil', type: 'int'}, {name: 'paf', type: 'int'},
+                    {name: 'valeur', type: 'float'}]}),
+            tools: [{type: 'close', tooltip: 'Fermer la liste', handler: function () {
+                        me.down('#listeStock').hide();
+                    }}],
+            viewConfig: {emptyText: 'Aucun produit.', deferEmptyText: false},
+            columns: [{text: 'CIP', dataIndex: 'cip', width: 95},
+                {text: 'Produit', dataIndex: 'libelle', flex: 1, renderer: function (v, m, r) {
+                        return Ext.String.htmlEncode(v) + (r.get('statut') && r.get('statut') !== 'enable'
+                                ? ' <span style="color:#c0392b">(désactivé)</span>' : '');
+                    }},
+                {text: 'Emplacement', dataIndex: 'emplacement', width: 150},
+                {text: 'Stock', dataIndex: 'stock', width: 70, align: 'right'},
+                {text: 'Seuil', dataIndex: 'seuil', width: 70, align: 'right', itemId: 'colSeuil'},
+                {text: 'Lot', dataIndex: 'lot', width: 100, itemId: 'colLot', hidden: true},
+                {text: 'Péremption', dataIndex: 'peremption', width: 100, itemId: 'colPeremption', hidden: true,
+                    renderer: function (v) {
+                        return v ? v.split('-').reverse().join('/') : '';
+                    }},
+                {text: 'Prix d\'achat', dataIndex: 'paf', width: 95, align: 'right', renderer: function (v) {
+                        return testextjs.view.pilotage.PilotageManager.nombre(v);
+                    }},
+                {text: 'Valeur (achat)', dataIndex: 'valeur', width: 110, align: 'right', renderer: function (v) {
+                        return testextjs.view.pilotage.PilotageManager.nombre(v);
+                    }},
+                {text: 'Dernière vente', dataIndex: 'derniereVente', width: 110, itemId: 'colVente', renderer: function (v) {
+                        return v ? v.split('-').reverse().join('/') : '<span style="color:#9aa8b6">jamais</span>';
+                    }}]};
+    },
+
+    /** Liste, sous le bandeau, les produits d'une tuile de l'onglet Stock (dans la page, sans fenetre). */
+    listerStock: function (type) {
+        var me = this, g = me.down('#listeStock'), mois = me.down('#dormantMois').getValue();
+        var F = testextjs.view.pilotage.PilotageManager;
+        me.listeOuverte = type;
+        g.show();
+        g.setLoading('Lecture…');
+        Ext.Ajax.request({url: '../api/v1/pilotage/stock/produits', method: 'GET', params: {type: type, mois: mois}, timeout: 120000,
+            success: function (r) {
+                if (g.isDestroyed) {
+                    return;
+                }
+                g.setLoading(false);
+                var o = Ext.decode(r.responseText, true) || {};
+                if (o.success !== true) {
+                    g.setTitle('<span style="color:#c0392b">' + Ext.String.htmlEncode(o.message || 'Liste indisponible.') + '</span>');
+                    g.getStore().removeAll();
+                    return;
+                }
+                var peremption = type === 'peremption';
+                g.down('#colLot').setVisible(peremption);
+                g.down('#colPeremption').setVisible(peremption);
+                g.down('#colVente').setVisible(!peremption);
+                g.down('#colSeuil').setVisible(!peremption);
+                g.getStore().loadData(o.produits || []);
+                g.setTitle(F.LISTES_STOCK[type] + (type === 'dormant' ? ' (' + mois + ' mois sans vente)' : '') + ' — '
+                        + F.nombre(o.total) + ' produit(s), ' + F.nombre(o.valeurAchat) + ' F au prix d\'achat'
+                        + (o.total > (o.produits || []).length ? ' (les ' + (o.produits || []).length + ' premiers affichés)' : ''));
+            },
+            failure: function (r) {
+                if (!g.isDestroyed) {
+                    g.setLoading(false);
+                    g.setTitle('<span style="color:#c0392b">Le serveur n\'a pas répondu (' + r.status + ').</span>');
+                }
+            }});
+    },
+
+    /** Stock dormant sur la duree choisie : la tuile (valeur, nombre) et, si elle est ouverte, sa liste. */
+    majDormant: function (mois, lister) {
+        var me = this, st = me.stores.stock.tuiles, i = st.find('cle', 'dormant');
+        Ext.Ajax.request({url: '../api/v1/pilotage/stock/produits', method: 'GET', params: {type: 'dormant', mois: mois}, timeout: 120000,
+            success: function (r) {
+                var o = Ext.decode(r.responseText, true) || {};
+                var rec = st.getAt(st.find('cle', 'dormant'));
+                if (o.success === true && rec) {
+                    rec.set('libelle', 'Stock dormant (' + mois + ' mois)');
+                    rec.set('valeur', o.valeurAchat);
+                    rec.set('sousTitre', o.total + ' référence(s) en stock sans une seule vente');
+                    rec.commit();
+                }
+            }});
+        if (lister) {
+            me.listerStock('dormant');
+        }
+    },
+
+    /** Apres chaque chargement de l'onglet Stock : la duree choisie du stock dormant est reappliquee. */
+    apresChargementStock: function () {
+        var c = this.down('#dormantMois');
+        if (c && c.getValue() !== 12) {
+            this.majDormant(c.getValue(), this.listeOuverte === 'dormant');
+        } else if (this.listeOuverte && this.down('#listeStock').isVisible()) {
+            this.listerStock(this.listeOuverte);
+        }
+    },
+
+    /* ------------------------------------------------ onglet A suivre (11/10) */
+
+    ongletSuivi: function (onglet) {
+        var me = this;
+        me.storeSuiviHoraire = Ext.create('Ext.data.Store', {fields: ['libelle', {name: 'nbVentes', type: 'int'},
+                {name: 'caTTC', type: 'float'}, {name: 'part', type: 'float'}]});
+        return {xtype: 'panel', itemId: 'onglet-' + onglet.cle, title: onglet.titre, cleOnglet: onglet.cle, border: false,
+            autoScroll: true, layout: {type: 'vbox', align: 'stretch'}, items: [
+                me.tuiles('asuivre'),
+                {xtype: 'container', layout: {type: 'hbox', align: 'stretch'}, height: 290, margin: '0 0 6 0', items: [
+                        {xtype: 'panel', itemId: 'suiviAlertes', title: 'Alertes', flex: 1, autoScroll: true, bodyPadding: 8, html: ''},
+                        {xtype: 'panel', title: 'Fréquentation horaire de la période', flex: 1.2, margin: '0 0 0 6', layout: 'fit', items: [{
+                                    xtype: 'chart', itemId: 'suiviHoraire', animate: false, shadow: false, store: me.storeSuiviHoraire,
+                                    insetPadding: testextjs.view.pilotage.PilotageManager.INSET,
+                                    axes: [{type: 'Numeric', position: 'left', fields: ['nbVentes'], minimum: 0, title: 'Clients servis',
+                                            grid: {stroke: '#e3e9ef'}},
+                                        {type: 'Category', position: 'bottom', fields: ['libelle']}],
+                                    series: [{type: 'column', axis: 'left', xField: 'libelle', yField: 'nbVentes', style: {fill: '#1565c0'},
+                                            tips: testextjs.view.pilotage.PilotageManager.infobulle(function (r) {
+                                                var f = testextjs.view.pilotage.PilotageManager;
+                                                return '<b>' + Ext.String.htmlEncode(r.get('libelle')) + '</b><br>' + f.nombre(r.get('nbVentes'))
+                                                        + ' client(s) servi(s)<br>' + f.nombre(r.get('caTTC')) + ' F — <b>'
+                                                        + f.nombre(r.get('part'), '0,000.0') + ' % du CA</b>';
+                                            })}]
+                                }]}]},
+                {xtype: 'container', layout: {type: 'hbox', align: 'stretch'}, margin: '0 0 6 0', items: [
+                        {xtype: 'panel', itemId: 'suiviEmplacements', title: 'CA par emplacement', flex: 1, bodyPadding: 6, html: ''},
+                        {xtype: 'panel', itemId: 'suiviFamilles', title: 'CA par famille', flex: 1, margin: '0 0 0 6', bodyPadding: 6, html: ''}]},
+                Ext.apply(me.graphique('asuivre'), {flex: undefined, height: 300})
+            ]};
+    },
+
+    /** Remplit l'onglet A suivre a partir de la reponse du serveur. */
+    afficherSuivi: function (r) {
+        var me = this, F = testextjs.view.pilotage.PilotageManager, enc = Ext.String.htmlEncode;
+        var couleurs = {critique: '#c0392b', alerte: '#b9770e', ok: '#1e8449'};
+        var icones = {critique: 'fa-circle-exclamation', alerte: 'fa-triangle-exclamation', ok: 'fa-circle-check'};
+        var html = '<ul class="pilotage-alertes">';
+        Ext.each(r.alertes || [], function (a) {
+            html += '<li class="pilotage-alerte-' + a.niveau + '" style="color:' + couleurs[a.niveau] + '"><span class="fa-solid '
+                    + icones[a.niveau] + '"></span> ' + enc(a.texte) + '</li>';
+        });
+        html += '</ul>';
+        var liste = function (titre, lignes, colonnes) {
+            if (!lignes || !lignes.length) {
+                return '';
+            }
+            return '<div class="ac-bloc-t" style="margin-top:8px">' + titre + '</div><table class="ac-table">' + colonnes(null)
+                    + lignes.map(colonnes).join('') + '</table>';
+        };
+        html += liste('Produits vendus en rupture (les plus demandés)', r.ruptures, function (x) {
+            return x ? '<tr class="suivi-rupture"><td>' + enc(x.cip) + '</td><td>' + enc(x.libelle) + '</td><td class="n">' + F.nombre(x.vendus) + '</td></tr>'
+                    : '<tr><th>CIP</th><th>Produit</th><th class="n">Vendus (90 j)</th></tr>';
+        });
+        html += liste('Vendus sous le prix d\'achat', r.margeNegative, function (x) {
+            return x ? '<tr class="suivi-perte"><td>' + enc(x.cip) + '</td><td>' + enc(x.libelle) + '</td><td class="n">' + F.nombre(x.prix)
+                    + '</td><td class="n">' + F.nombre(x.paf) + '</td></tr>'
+                    : '<tr><th>CIP</th><th>Produit</th><th class="n">Prix vendu</th><th class="n">Prix d\'achat</th></tr>';
+        });
+        me.down('#suiviAlertes').update(html);
+        var repartition = function (lignes) {
+            var t = '<table class="ac-table suivi-repartition"><tr><th></th><th class="n">CA</th><th class="n">Part</th><th class="n">Marge</th><th class="n">Ventes</th></tr>';
+            Ext.each(lignes || [], function (x) {
+                t += '<tr><td>' + enc(x.libelle) + '</td><td class="n">' + F.nombre(x.ca) + '</td><td class="n"><span class="suivi-barre" style="width:'
+                        + Math.max(2, Math.round(x.part)) + 'px"></span> ' + F.nombre(x.part, '0,000.0') + ' %</td><td class="n">' + F.nombre(x.marge)
+                        + '</td><td class="n">' + F.nombre(x.ventes) + '</td></tr>';
+            });
+            return t + ((lignes || []).length ? '' : '<tr><td colspan="5" style="color:#7f8c8d">Aucune vente sur la période.</td></tr>') + '</table>';
+        };
+        me.down('#suiviEmplacements').update(repartition(r.emplacements));
+        me.down('#suiviFamilles').update(repartition(r.familles));
+        var total = 0;
+        Ext.each(r.horaire || [], function (h) {
+            total += h.caTTC || 0;
+        });
+        me.storeSuiviHoraire.loadData(Ext.Array.map(r.horaire || [], function (h) {
+            return {libelle: h.libelle, nbVentes: h.nbVentes, caTTC: h.caTTC, part: total ? h.caTTC * 100 / total : 0};
+        }));
     },
 
     /**
@@ -1144,7 +1631,7 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
                         xtype: 'button',
                         itemId: 'basculerCourbe',
                         text: 'Afficher le diagramme',
-                        iconCls: 'icon-chart',
+                        iconCls: 'fa-solid fa-chart-column pilotage-icone',
                         enableToggle: true,
                         margin: '0 4 0 0'
                     }]).concat([{
@@ -1152,7 +1639,7 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
                     itemId: 'exporterDetail',
                     text: 'Excel',
                     tooltip: 'Reprendre ce tableau dans un classeur Excel, tel qu\'il est affiché',
-                    iconCls: 'icon-excel',
+                    iconCls: 'fa-solid fa-file-excel pilotage-icone',
                     margin: '0 8 0 8'
                 }])
             },
@@ -1191,13 +1678,40 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
      * rendu par le serveur, regroupees par famille d'indicateurs : l'ecran n'en connait pas la liste.
      */
     casesKpi: function () {
+        var me = this;
+        me.storeRecherches = Ext.create('Ext.data.Store', {fields: ['nom', 'axe', 'dtStart', 'dtEnd', 'kpis']});
         return {
             xtype: 'panel',
             itemId: 'casesKpi',
             title: 'Indicateurs à analyser (cochez ce que vous voulez suivre)',
             bodyPadding: 6,
             layout: {type: 'vbox', align: 'stretch'},
-            height: 160,
+            height: 196,
+            /* besoins du 11/10 (point 11) : recherches enregistrees (indicateurs coches + periode), par utilisateur */
+            dockedItems: [{xtype: 'toolbar', dock: 'top', itemId: 'recherchesKpi', items: [
+                        {xtype: 'combobox', itemId: 'rechercheKpi', fieldLabel: 'Recherches enregistrées', labelWidth: 150, width: 380,
+                            store: me.storeRecherches, queryMode: 'local', displayField: 'nom', valueField: 'nom', editable: false,
+                            emptyText: 'Choisir une recherche…', listeners: {select: function (c) {
+                                    me.appliquerRecherche(c.getValue());
+                                }}},
+                        {xtype: 'textfield', itemId: 'nomRechercheKpi', emptyText: 'Nom de la recherche', width: 200, maxLength: 40,
+                            enforceMaxLength: true, listeners: {specialkey: function (f, e) {
+                                    if (e.getKey() === e.ENTER) {
+                                        me.enregistrerRecherche();
+                                    }
+                                }}},
+                        {text: 'Enregistrer', itemId: 'enregistrerRechercheKpi', iconCls: 'fa-solid fa-floppy-disk pilotage-icone',
+                            tooltip: 'Enregistre les indicateurs cochés et la période sous ce nom (Entrée)', handler: function () {
+                                me.enregistrerRecherche();
+                            }},
+                        {text: 'Supprimer', itemId: 'supprimerRechercheKpi', iconCls: 'fa-solid fa-trash pilotage-icone',
+                            tooltip: 'Supprime la recherche choisie', handler: function () {
+                                me.supprimerRecherche();
+                            }},
+                        {xtype: 'tbtext', itemId: 'messageRechercheKpi', text: ''}]}],
+            listeners: {afterrender: function () {
+                    me.chargerRecherches();
+                }},
             autoScroll: true,
             items: [{
                     xtype: 'container',
@@ -1335,7 +1849,25 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
                     displayField: 'libelle',
                     valueField: 'cle',
                     queryMode: 'local',
-                    value: 'achatTTC'
+                    value: 'achatTTC',
+                    listeners: {change: function () {
+                            me.majTrancheComparateur();
+                        }}
+                }, {
+                    /* besoins du 11/10 (point 11) : croisement par heure, tranche au choix */
+                    xtype: 'combobox',
+                    itemId: 'trancheHoraire',
+                    fieldLabel: 'Tranche',
+                    labelWidth: 50,
+                    width: 170,
+                    editable: false,
+                    hidden: true,
+                    queryMode: 'local',
+                    valueField: 'v',
+                    displayField: 'l',
+                    value: 1,
+                    store: Ext.create('Ext.data.Store', {fields: ['v', 'l'], data: [{v: 1, l: '1 heure'}, {v: 2, l: '2 heures'},
+                            {v: 3, l: '3 heures'}, {v: 4, l: '4 heures'}, {v: 6, l: '6 heures'}]})
                 }, {
                     xtype: 'combobox',
                     itemId: 'grandeurComparee',
@@ -1367,7 +1899,7 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
                     xtype: 'button',
                     itemId: 'comparer',
                     text: 'Comparer',
-                    iconCls: 'search'
+                    iconCls: 'fa-solid fa-scale-balanced pilotage-icone'
                 }, {
                     xtype: 'component',
                     flex: 1

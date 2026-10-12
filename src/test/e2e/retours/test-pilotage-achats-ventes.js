@@ -74,9 +74,10 @@ function texteDuPdf(octets) {
 
     const onglets = await p.evaluate(() =>
       Ext.ComponentQuery.query('pilotage #onglets')[0].items.items.map((o) => o.title));
-    ok('L onglet « Achats / Ventes » est ajouté EN DERNIER, sans déplacer les précédents',
-      onglets[onglets.length - 1] === 'Achats / Ventes' && onglets[0] === 'Synthèse'
-      && onglets[7] === 'KPI Analyse' && onglets[8] === 'Comparateur', JSON.stringify(onglets));
+    /* besoins du 11/10 : « À suivre » s'ajoute a son tour apres lui, sans rien deplacer */
+    ok('L onglet « Achats / Ventes » est ajouté après les précédents, sans les déplacer (« À suivre » vient ensuite)',
+      onglets[9] === 'Achats / Ventes' && onglets[0] === 'Synthèse'
+      && onglets[7] === 'KPI Analyse' && onglets[8] === 'Comparateur' && onglets[10] === 'À suivre', JSON.stringify(onglets));
 
     /*
      * AUCUNE REQUETE DE CALCUL. L'onglet lit les agregats mensuels deja enregistres et les additionne : il ne

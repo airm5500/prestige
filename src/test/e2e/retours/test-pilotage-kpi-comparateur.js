@@ -91,10 +91,11 @@ function texteDuPdf(octets) {
         colonnes: e.down('#detail-kpi').headerCt.getGridColumns().map((c) => c.text),
         horaireVisible: e.down('#frequentation').isVisible() };
     });
-    ok('Le catalogue des KPI vient du serveur et compte les quinze indicateurs',
-      kpi.catalogue === 15, String(kpi.catalogue));
+    /* 18 depuis les besoins du 11/10 (rotation des stocks, taux de rupture, evolution du panier) */
+    ok('Le catalogue des KPI vient du serveur et compte les dix-huit indicateurs',
+      kpi.catalogue === 18, String(kpi.catalogue));
     ok('Une case à cocher par indicateur, construite depuis ce catalogue',
-      kpi.cases.length === 15, String(kpi.cases.length));
+      kpi.cases.length === 18, String(kpi.cases.length));
     ok('Trois indicateurs sont cochés au départ : un écran d analyse vide ne dit rien à personne',
       kpi.cases.filter((c) => c.coche).map((c) => c.cle).join(',') === 'caTTC,nbVentes,panier',
       JSON.stringify(kpi.cases.filter((c) => c.coche).map((c) => c.cle)));
