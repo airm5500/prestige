@@ -32,7 +32,7 @@ const SUG = 'e2e-l12-' + Date.now();
 
     /* ------------------------------------------------ 1. menu et calcul */
     const menu = q("SELECT CONCAT(m.str_VALUE, '|', s.str_DESCRIPTION, '|', s.P_KEY) FROM t_sous_menu s JOIN t_menu m ON m.lg_MENU_ID = s.lg_MENU_ID WHERE s.str_COMPOSANT = 'analysecommande'");
-    ok('Menu « Prévisions vente / achat / analyse » sous GESTION DES COMMANDES, droit P_SM_ANALYSE_COMMANDE', /COMMANDE/i.test(menu.split('|')[0]) && menu.endsWith('|Prévisions vente / achat / analyse|P_SM_ANALYSE_COMMANDE'), menu);
+    ok('Menu « Prévisions » (libellé court, besoins du 11/10) sous GESTION DES COMMANDES, droit P_SM_ANALYSE_COMMANDE', /COMMANDE/i.test(menu.split('|')[0]) && menu.endsWith('|Prévisions|P_SM_ANALYSE_COMMANDE'), menu);
     await p.evaluate(() => testextjs.app.getController('App').onLoadNewComponent('analysecommande', 'Prévisions vente / achat / analyse', ''));
     await p.waitForFunction(() => Ext.ComponentQuery.query('analysecommande').length, null, { timeout: 20000 });
     const onglets = await p.evaluate(() => Ext.ComponentQuery.query('analysecommande')[0].items.getRange().map((t) => t.title));
