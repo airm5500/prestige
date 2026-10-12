@@ -1,271 +1,164 @@
 /* global Ext */
 
-// Construit les points de la courbe d'evolution par tranche horaire, dans
-// l'ordre chronologique, a partir de la ligne cumulee : affluence (nombre de
-// ventes) et montant des ventes.
-function buildVisitorEvolutionData(record) {
-    function part(field, index) {
-        var v = record.get(field);
-        return v ? Number(v.split('_')[index]) : 0;
-    }
-    function point(horaire, field) {
-        return {HORAIRE: horaire, NBRE: part(field, 1), MONTANT: part(field, 0)};
-    }
-    return [
-        point('00:00-6:59', 'DIX'),
-        point('7:00-8:59', 'UN'),
-        point('9:00-10:59', 'DEUX'),
-        point('11:00-13:59', 'TROIS'),
-        point('14:00-15:59', 'QUATRE'),
-        point('16:00-16:59', 'CINQ'),
-        point('17:00-17:59', 'SIX'),
-        point('18:00-18:59', 'SEPT'),
-        point('19:00-19:59', 'HUIT'),
-        point('20:00-23:59', 'NEUF')
-    ];
-}
-
+/*
+ * Analyse de frequentation horaire (besoins du 11/10, point 12) : API REST v1/frequentation-horaire, choix de la tranche
+ * (plages habituelles ou tranches regulieres de 1 a 6 h), tableau par tranche (ventes, montant, panier, quantites, part
+ * du CA et des ventes), courbes dont l'infobulle donne la part de la tranche dans le chiffre d'affaires.
+ */
 Ext.define('testextjs.view.Report.analyseFrequentationOff.analyseFrequentationOffManager', {
     extend: 'Ext.panel.Panel',
     xtype: 'analyseFrequentationOffManager',
     id: 'analyseFrequentationOffManagerID',
-    requires: [
-        'testextjs.view.Report.analyseFrequentationOff.VistorGrid'
-    ],
-    title: 'Analyse de fréquentation par plage Horaire',
+    title: 'Analyse de fréquentation par plage horaire',
     frame: true,
     width: '98%',
-    height: 570,
+    height: 620,
     minHeight: 570,
-    maxHeight: 800,
     cls: 'custompanel',
-    layout: {
-        type: 'vbox',
-        align: 'stretch'
-    },
-    items: [
-        {
-            xtype: 'visitor-grid',
-            height: 210
-        },
-        {
-            xtype: 'chart',
-            flex: 1,
-            animate: true,
-            style: 'background:#fff',
-            legend: {
-                position: 'bottom'
+    layout: {type: 'vbox', align: 'stretch'},
+
+    initComponent: function () {
+        var me = this;
+        var nombre = function (v) {
+            return Ext.util.Format.number(v || 0, '0,000');
+        };
+        var pourcent = function (v) {
+            return Ext.util.Format.number(v || 0, '0.0') + ' %';
+        };
+        me.donnees = Ext.create('Ext.data.Store', {
+            fields: ['tranche', {name: 'ventes', type: 'int'}, {name: 'montant', type: 'int'}, {name: 'panier', type: 'int'},
+                {name: 'quantites', type: 'int'}, {name: 'partCa', type: 'float'}, {name: 'partVentes', type: 'float'}],
+            data: []
+        });
+        me.items = [
+            {
+                xtype: 'gridpanel',
+                itemId: 'grilleFrequentation',
+                height: 260,
+                store: me.donnees,
+                features: [{ftype: 'summary'}],
+                viewConfig: {emptyText: '<div style="padding:20px;text-align:center;">Pas de données sur la période</div>', deferEmptyText: false},
+                columns: [
+                    {text: 'Tranche horaire', dataIndex: 'tranche', flex: 1, summaryRenderer: function () {
+                            return '<b>Total</b>';
+                        }},
+                    {text: 'Ventes', dataIndex: 'ventes', align: 'right', width: 90, renderer: nombre, summaryType: 'sum',
+                        summaryRenderer: function (v) {
+                            return '<b>' + nombre(v) + '</b>';
+                        }},
+                    {text: '% des ventes', dataIndex: 'partVentes', align: 'right', width: 105, renderer: pourcent},
+                    {text: 'Montant', dataIndex: 'montant', align: 'right', width: 120, renderer: nombre, summaryType: 'sum',
+                        summaryRenderer: function (v) {
+                            return '<b>' + nombre(v) + '</b>';
+                        }},
+                    {text: '% du CA', dataIndex: 'partCa', align: 'right', width: 90, renderer: function (v) {
+                            return '<b>' + pourcent(v) + '</b>';
+                        }},
+                    {text: 'Panier moyen', dataIndex: 'panier', align: 'right', width: 110, renderer: nombre},
+                    {text: 'Quantités', dataIndex: 'quantites', align: 'right', width: 100, renderer: nombre, summaryType: 'sum',
+                        summaryRenderer: function (v) {
+                            return '<b>' + nombre(v) + '</b>';
+                        }}
+                ]
             },
-            store: Ext.create('Ext.data.Store', {
-                fields: ['HORAIRE', 'NBRE', 'MONTANT'],
-                data: []
-            }),
-            axes: [
-                {
-                    type: 'Numeric',
-                    position: 'left',
-                    fields: ['NBRE'],
-                    title: 'Nombre de ventes',
-                    minimum: 0,
-                    grid: true
-                },
-                {
-                    type: 'Numeric',
-                    position: 'right',
-                    fields: ['MONTANT'],
-                    title: 'Montant ventes',
-                    minimum: 0,
-                    label: {
-                        renderer: function (v) {
-                            return Ext.util.Format.number(v, '0,000');
-                        }
-                    }
-                },
-                {
-                    type: 'Category',
-                    position: 'bottom',
-                    fields: ['HORAIRE'],
-                    title: 'Tranche horaire'
-                }
-            ],
-            series: [
-                {
-                    type: 'line',
-                    axis: 'left',
-                    title: 'Nombre de ventes',
-                    xField: 'HORAIRE',
-                    yField: 'NBRE',
-                    smooth: true,
-                    style: {
-                        stroke: '#3892d3',
-                        'stroke-width': 2
-                    },
-                    markerConfig: {
-                        type: 'circle',
-                        size: 4,
-                        radius: 4,
-                        fill: '#3892d3',
-                        stroke: '#3892d3'
-                    },
-                    highlight: {
-                        size: 7,
-                        radius: 7
-                    },
-                    tips: {
-                        trackMouse: true,
-                        width: 170,
-                        height: 30,
-                        renderer: function (storeItem) {
-                            this.setTitle(storeItem.get('HORAIRE') + ' : ' + storeItem.get('NBRE') + ' ventes');
-                        }
-                    }
-                },
-                {
-                    type: 'line',
-                    axis: 'right',
-                    title: 'Montant ventes',
-                    xField: 'HORAIRE',
-                    yField: 'MONTANT',
-                    smooth: true,
-                    style: {
-                        stroke: '#cc3333',
-                        'stroke-width': 2
-                    },
-                    markerConfig: {
-                        type: 'circle',
-                        size: 4,
-                        radius: 4,
-                        fill: '#cc3333',
-                        stroke: '#cc3333'
-                    },
-                    highlight: {
-                        size: 7,
-                        radius: 7
-                    },
-                    tips: {
-                        trackMouse: true,
-                        width: 200,
-                        height: 30,
-                        renderer: function (storeItem) {
-                            this.setTitle(storeItem.get('HORAIRE') + ' : ' + Ext.util.Format.number(storeItem.get('MONTANT'), '0,000'));
-                        }
-                    }
-                }
-            ]
-        }
-    ],
-    listeners: {
-        afterrender: function (panel) {
-            var chart = panel.down('chart');
-            var gridStore = Ext.getCmp('VisitorGrid').getStore();
-            var refresh = function () {
-                if (gridStore.getCount() > 0) {
-                    chart.getStore().loadData(buildVisitorEvolutionData(gridStore.getAt(0)));
-                } else {
-                    chart.getStore().removeAll();
-                }
-            };
-            gridStore.on('load', refresh);
-            refresh();
-        }
+            {
+                xtype: 'chart',
+                itemId: 'courbeFrequentation',
+                flex: 1,
+                animate: true,
+                style: 'background:#fff',
+                legend: {position: 'bottom'},
+                store: me.donnees,
+                axes: [
+                    {type: 'Numeric', position: 'left', fields: ['ventes'], title: 'Nombre de ventes', minimum: 0, grid: true},
+                    {type: 'Numeric', position: 'right', fields: ['montant'], title: 'Montant ventes', minimum: 0,
+                        label: {renderer: function (v) {
+                                return Ext.util.Format.number(v, '0,000');
+                            }}},
+                    {type: 'Category', position: 'bottom', fields: ['tranche'], title: 'Tranche horaire'}
+                ],
+                series: [
+                    me.serie('ventes', 'left', 'Nombre de ventes', '#3892d3'),
+                    me.serie('montant', 'right', 'Montant ventes', '#cc3333')
+                ]
+            }
+        ];
+        me.dockedItems = [{
+                xtype: 'toolbar',
+                dock: 'top',
+                items: [
+                    {xtype: 'datefield', format: 'd/m/Y', submitFormat: 'Y-m-d', fieldLabel: 'Du', labelWidth: 20, width: 140,
+                        itemId: 'debut', id: 'dt_start_Visitor', value: Ext.Date.getFirstDateOfMonth(new Date()), maxValue: new Date()},
+                    {xtype: 'datefield', format: 'd/m/Y', submitFormat: 'Y-m-d', fieldLabel: 'Au', labelWidth: 20, width: 140,
+                        itemId: 'fin', id: 'dt_end_Visitor', value: new Date(), maxValue: new Date()},
+                    {xtype: 'combobox', itemId: 'tranche', fieldLabel: 'Tranche', labelWidth: 50, width: 210, editable: false,
+                        queryMode: 'local', displayField: 'libelle', valueField: 'valeur', value: 0,
+                        store: Ext.create('Ext.data.Store', {fields: ['valeur', 'libelle'], data: [
+                                {valeur: 0, libelle: 'Plages habituelles'}, {valeur: 1, libelle: 'Toutes les heures'},
+                                {valeur: 2, libelle: 'Toutes les 2 heures'}, {valeur: 3, libelle: 'Toutes les 3 heures'},
+                                {valeur: 4, libelle: 'Toutes les 4 heures'}, {valeur: 6, libelle: 'Toutes les 6 heures'}]}),
+                        listeners: {select: function () {
+                                me.charger();
+                            }}},
+                    {xtype: 'button', itemId: 'rechercher', text: 'Rechercher', iconCls: 'searchicon', handler: function () {
+                            me.charger();
+                        }},
+                    '->',
+                    {xtype: 'button', itemId: 'imprimer', text: 'Imprimer', iconCls: 'printable',
+                        tooltip: 'Impression des plages habituelles', handler: function () {
+                            window.open('../webservices/Report/visitorstatistics/ws_visitorstatistics_pdf.jsp?dt_start_vente='
+                                    + me.down('#debut').getSubmitValue() + '&dt_end_vente=' + me.down('#fin').getSubmitValue());
+                        }}
+                ]
+            }];
+        me.callParent(arguments);
+        me.on('afterrender', function () {
+            me.charger();
+        });
     },
-    dockedItems: [{
-            xtype: 'toolbar',
-            dock: 'top',
-            items: [
-                {
-                    xtype: 'datefield',
-                    format: 'd/m/Y',
-                    emptyText: 'Date debut',
-                    submitFormat: 'Y-m-d',
-                    fieldLabel: 'Du',
-                    labelWidth: 20,
-                    flex: 0.7,
-                    id: 'dt_start_Visitor',
-                    listeners: {
-                        change: function () {
-                            Ext.getCmp('dt_end_Visitor').setMinValue(this.getValue());
-                        }
-                    }
 
-                }, {
-                    xtype: 'tbseparator'
+    serie: function (champ, axe, titre, couleur) {
+        var me = this;
+        return {
+            type: 'line', axis: axe, title: titre, xField: 'tranche', yField: champ, smooth: true,
+            style: {stroke: couleur, 'stroke-width': 2},
+            markerConfig: {type: 'circle', size: 4, radius: 4, fill: couleur, stroke: couleur},
+            highlight: {size: 7, radius: 7},
+            tips: {
+                trackMouse: true, width: 240, height: 78,
+                renderer: function (r) {
+                    this.setTitle(Ext.String.htmlEncode(r.get('tranche')) + '<br>'
+                            + Ext.util.Format.number(r.get('ventes'), '0,000') + ' ventes (' + Ext.util.Format.number(r.get('partVentes'), '0.0') + ' %)<br>'
+                            + Ext.util.Format.number(r.get('montant'), '0,000') + ' — <b>' + Ext.util.Format.number(r.get('partCa'), '0.0') + ' % du CA</b>');
                 }
+            }
+        };
+    },
 
-                ,
-                {
-                    xtype: 'datefield',
-                    format: 'd/m/Y',
-                    emptyText: 'Date fin',
-                    submitFormat: 'Y-m-d',
-                    fieldLabel: 'Au',
-                    labelWidth: 20,
-                    flex: 0.7,
-                    id: 'dt_end_Visitor',
-                    listeners: {
-                        change: function () {
-
-                            Ext.getCmp('dt_start_Visitor').setMaxValue(this.getValue());
-                        }
-                    }
-
+    charger: function () {
+        var me = this;
+        var debut = me.down('#debut').getSubmitValue(), fin = me.down('#fin').getSubmitValue();
+        var tranche = me.down('#tranche').getValue();
+        me.down('#imprimer').setDisabled(tranche !== 0);
+        me.setLoading('Chargement…');
+        Ext.Ajax.request({
+            method: 'GET',
+            url: '../api/v1/frequentation-horaire',
+            params: {debut: debut, fin: fin, tranche: tranche},
+            success: function (response) {
+                me.setLoading(false);
+                var r = Ext.decode(response.responseText, true) || {};
+                if (!r.success) {
+                    me.donnees.removeAll();
+                    Ext.MessageBox.alert('Fréquentation horaire', r.msg || 'Analyse impossible.');
+                    return;
                 }
-
-                , {
-                    xtype: 'tbseparator'
-                },
-                {
-                    width: 100,
-                    xtype: 'button',
-                    iconCls: 'searchicon',
-                    text: 'Rechercher',
-                    listeners: {
-                        click: function () {
-                            var grid = Ext.getCmp('VisitorGrid');
-                            var dt_start_vente = Ext.getCmp('dt_start_Visitor').getSubmitValue();
-                            var dt_end_vente = Ext.getCmp('dt_end_Visitor').getSubmitValue();
-
-                            grid.getStore().load({
-                                params: {
-                                    dt_start_vente: dt_start_vente,
-                                    dt_end_vente: dt_end_vente
-                                }
-                            });
-                        }
-                    }
-
-
-                }
-
-
-                , {
-                    xtype: 'tbseparator'
-                }
-                ,
-                {
-                    width: 100,
-                    xtype: 'button',
-                    text: 'Imprimer',
-                    iconCls: 'printable',
-                    listeners: {
-                        click: function () {
-
-                            var dt_start_vente = Ext.getCmp('dt_start_Visitor').getSubmitValue();
-                            var dt_end_vente = Ext.getCmp('dt_end_Visitor').getSubmitValue();
-
-                            var linkUrl = "../webservices/Report/visitorstatistics/ws_visitorstatistics_pdf.jsp" + "?dt_start_vente=" + dt_start_vente + "&dt_end_vente=" + dt_end_vente;
-                            window.open(linkUrl);
-
-                        }
-                    }
-
-
-                }
-
-
-            ]
-        }
-
-    ]
-
+                me.donnees.loadData(r.total && r.total.ventes > 0 ? r.data : []);
+            },
+            failure: function () {
+                me.setLoading(false);
+                Ext.MessageBox.alert('Fréquentation horaire', 'Le serveur n\'a pas répondu.');
+            }
+        });
+    }
 });
