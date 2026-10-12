@@ -227,6 +227,20 @@ public class MobileClientRefService {
         return result;
     }
 
+    /** Cles conservees : elles ne servent qu'aux reprises d'envoi, quelques jours suffisent. */
+    public static final int CONSERVATION_JOURS = 90;
+
+    /** Purge de nuit des cles anciennes (retours du 12/10) ; rien si la table n'existe pas. */
+    @TransactionAttribute(TransactionAttributeType.REQUIRED)
+    public int purger() {
+        if (!disponible()) {
+            return 0;
+        }
+        return em.createNativeQuery(
+                "DELETE FROM mobile_client_ref WHERE created_at < NOW() - INTERVAL " + CONSERVATION_JOURS + " DAY")
+                .executeUpdate();
+    }
+
     private static String s(Object o) {
         return o == null ? null : o.toString();
     }
