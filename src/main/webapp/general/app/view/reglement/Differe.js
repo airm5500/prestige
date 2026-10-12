@@ -572,6 +572,126 @@ Ext.define('testextjs.view.reglement.Differe', {
         me.callParent(arguments);
         /* retours du 07/10 : onglet « Solde » (releve date et heure, debit, credit, solde, solde de fin de mois) */
         me.add(me.ongletSolde());
+        /* besoins du 11/10 (3) : correction du nom du client d'un differe, dans la page (pas de fenetre) */
+        var liste = me.down('#liste');
+        if (liste) {
+            liste.addDocked(me.bandeauCorrection());
+            liste.on('itemclick', function (v, rec) {
+                me.choisirClientCorrection(rec.get('clientId'));
+            });
+        }
+    },
+
+    bandeauCorrection: function () {
+        var me = this, entree = {
+            specialkey: function (f, e) {
+                if (e.getKey() === e.ENTER) {
+                    me.corrigerClient();
+                }
+            }
+        };
+        var bandeau = {
+            xtype: 'toolbar', dock: 'bottom', itemId: 'corrigerClient', cls: 'differe-corr',
+            items: [
+                {xtype: 'tbtext', text: '<b>Corriger le client</b> (ligne choisie) :'},
+                {xtype: 'textfield', itemId: 'corrNom', cls: 'differe-corr-nom', fieldLabel: 'Nom', labelWidth: 35, width: 230,
+                    maxLength: 50, enforceMaxLength: true, disabled: true, fieldStyle: 'text-transform:uppercase', listeners: entree},
+                {xtype: 'textfield', itemId: 'corrPrenoms', cls: 'differe-corr-prenoms', fieldLabel: 'Prénoms', labelWidth: 60,
+                    width: 280, maxLength: 50, enforceMaxLength: true, disabled: true, fieldStyle: 'text-transform:uppercase',
+                    listeners: entree},
+                {xtype: 'button', itemId: 'corrValider', text: 'Corriger', iconCls: 'icon-save', disabled: true,
+                    tooltip: 'Corrige le nom sur la fiche du client et sur ses ventes qui portent l\'ancien nom (Entrée)',
+                    handler: function () {
+                        me.corrigerClient();
+                    }},
+                {xtype: 'tbtext', itemId: 'corrMessage', text: ''}
+            ],
+            listeners: {
+                afterrender: function (b) {
+                    Ext.Ajax.request({
+                        method: 'GET', url: '../api/v1/vente-client-standard/droit',
+                        success: function (r) {
+                            var o = Ext.decode(r.responseText, true) || {};
+                            if (!b.isDestroyed) {
+                                b.setVisible(o.modifier === true);
+                            }
+                        },
+                        failure: function () {
+                            if (!b.isDestroyed) {
+                                b.hide();
+                            }
+                        }
+                    });
+                }
+            }
+        };
+        return bandeau;
+    },
+
+    messageCorrection: function (texte, erreur) {
+        var m = this.down('#corrigerClient #corrMessage');
+        if (m) {
+            m.update(texte ? '<span style="color:' + (erreur ? '#c0392b' : '#1e8449') + ';font-weight:bold">'
+                    + Ext.String.htmlEncode(texte) + '</span>' : '');
+        }
+    },
+
+    choisirClientCorrection: function (clientId) {
+        var me = this, b = me.down('#corrigerClient');
+        if (!b || !b.isVisible() || !clientId) {
+            return;
+        }
+        me.clientCorrection = null;
+        Ext.Ajax.request({
+            method: 'GET', url: '../api/v1/differe-client/' + encodeURIComponent(clientId),
+            success: function (r) {
+                var o = Ext.decode(r.responseText, true) || {}, actif = o.success === true && o.client;
+                if (b.isDestroyed) {
+                    return;
+                }
+                me.clientCorrection = actif ? o.client.id : null;
+                b.down('#corrNom').setValue(actif ? o.client.nom : '');
+                b.down('#corrPrenoms').setValue(actif ? o.client.prenoms : '');
+                Ext.each(['#corrNom', '#corrPrenoms', '#corrValider'], function (s) {
+                    b.down(s).setDisabled(!actif);
+                });
+                me.messageCorrection(actif ? '' : (o.message || 'Client indisponible.'), !actif);
+            }
+        });
+    },
+
+    corrigerClient: function () {
+        var me = this, b = me.down('#corrigerClient');
+        if (!b || !me.clientCorrection || b.down('#corrValider').isDisabled()) {
+            return;
+        }
+        b.down('#corrValider').disable();
+        Ext.Ajax.request({
+            method: 'POST', url: '../api/v1/differe-client/' + encodeURIComponent(me.clientCorrection),
+            headers: {'Content-Type': 'application/json'},
+            jsonData: {nom: b.down('#corrNom').getValue(), prenoms: b.down('#corrPrenoms').getValue()},
+            success: function (r) {
+                var o = Ext.decode(r.responseText, true) || {};
+                if (b.isDestroyed) {
+                    return;
+                }
+                b.down('#corrValider').enable();
+                if (o.success === true) {
+                    b.down('#corrNom').setValue(o.client.nom);
+                    b.down('#corrPrenoms').setValue(o.client.prenoms);
+                    me.messageCorrection(o.message, false);
+                    me.down('#liste').getStore().reload();
+                } else {
+                    me.messageCorrection(o.message || 'Le nom n\'a pas pu être corrigé.', true);
+                }
+            },
+            failure: function (r) {
+                if (!b.isDestroyed) {
+                    b.down('#corrValider').enable();
+                    me.messageCorrection('Le serveur ne répond pas (' + r.status + ').', true);
+                }
+            }
+        });
     },
 
     /* Retours du 09/10 (1) : releve de l'onglet Solde en PDF ou Excel (API v1/reglement/releve/pdf|excel) */
