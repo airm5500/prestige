@@ -23,6 +23,7 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Response;
 import org.json.JSONObject;
 import rest.service.GestionPerimesService;
+import rest.service.impl.AnalysePerimesService;
 import toolkits.parameters.commonparameter;
 import util.Constant;
 
@@ -39,6 +40,32 @@ public class GestionPerimesResource {
     private HttpServletRequest servletRequest;
     @EJB
     private GestionPerimesService gestionPerimesService;
+
+    @EJB
+    private AnalysePerimesService analyse;
+
+    /** Besoins du 11/10 (point 2) : analyse des perimes d'une periode (date de saisie). */
+    @GET
+    @Path("analyse")
+    public Response analyser(@QueryParam("dtStart") String dtStart, @QueryParam("dtEnd") String dtEnd) {
+        TUser tu = (TUser) servletRequest.getSession().getAttribute(commonparameter.AIRTIME_USER);
+        if (tu == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        java.time.LocalDate debut, fin;
+        try {
+            fin = dtEnd == null || dtEnd.isBlank() ? java.time.LocalDate.now() : java.time.LocalDate.parse(dtEnd);
+            debut = dtStart == null || dtStart.isBlank() ? fin.withDayOfYear(1) : java.time.LocalDate.parse(dtStart);
+        } catch (java.time.format.DateTimeParseException e) {
+            return Response.ok(new JSONObject().put("success", false).put("msg", "Dates invalides.").toString())
+                    .build();
+        }
+        if (debut.isAfter(fin)) {
+            return Response.ok(new JSONObject().put("success", false)
+                    .put("msg", "La date de début doit précéder la date de fin.").toString()).build();
+        }
+        return Response.ok(analyse.analyser(debut, fin).toString()).build();
+    }
 
     @POST
     @Path("add")

@@ -750,6 +750,7 @@ Ext.application({
         'testextjs.model.Quinzaine',
         'testextjs.view.configmanagement.famille.action.detailArticleVendus',
         'testextjs.view.Report.saisieperimes.SaisiePerimeManager',
+        'testextjs.view.Report.saisieperimes.SaisiePerimeOnglets',
         /* 0603207 */
         'testextjs.view.configmanagement.categoryclient.CategoryClientManger',
         'testextjs.view.Report.uniteGratuite.UniteGratuite',
