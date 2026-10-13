@@ -35,7 +35,7 @@
         <title><%= jdom.APP_NAME%> :: Ver <%= jdom.APP_VERSION%></title>
     </head>
     <body>
-        <script>window.location.replace("security/index.jsp?content=panelInfos.jsp&lng=fr");</script>
+        <script>window.location.replace("security/index.html?content=panelInfos.jsp&lng=fr");</script>
 
     </body>
 </html>

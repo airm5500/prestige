@@ -5,6 +5,8 @@
  */
 package rest;
 
+import java.util.logging.Level;
+
 import com.google.common.collect.HashBiMap;
 import commonTasks.dto.ManagedUserVM;
 import dal.TPrivilege;
@@ -39,6 +41,9 @@ import util.Constant;
 @Consumes("application/json")
 public class AccountResource {
 
+    private static final java.util.logging.Logger LOG = java.util.logging.Logger
+            .getLogger(AccountResource.class.getName());
+
     @EJB
     private UserService userService;
     @Inject
@@ -50,11 +55,37 @@ public class AccountResource {
         var dashboard = "dashboard";
         JSONObject json = new JSONObject();
 
+        String login = managedUser == null ? null : managedUser.getLogin();
+        String ip = request.getRemoteAddr();
+        rest.securite.LimiteConnexion limite = rest.securite.LimiteConnexion.instance();
+        long attente = limite.attenteSecondes(login, ip);
+        if (attente > 0) {
+            /* audit du 12/10 (E2) : trop d'essais, le mot de passe n'est meme pas verifie */
+            LOG.log(Level.WARNING, "Connexion refusee (trop d''essais) depuis {0}", ip);
+            return Response.ok().entity(json.put("success", false).put("attente", attente)
+                    .put("message", rest.securite.LimiteConnexion.message(attente)).toString()).build();
+        }
+        /*
+         * audit du 12/10 (E3) : un identifiant de session connu avant la connexion n'est plus valable apres (fixation
+         * de session). Change AVANT la connexion, pour que le journal des sessions note le nouvel identifiant.
+         */
+        if (request.getSession(false) != null) {
+            request.changeSessionId();
+        }
         TUser tu = userService.connexion(managedUser, request);
         if (tu == null) {
+            long bloque = limite.echec(login, ip);
             json.put("success", false);
+            json.put("message", bloque > 0 ? rest.securite.LimiteConnexion.message(bloque)
+                    : "Identifiant ou mot de passe incorrect.");
+            if (bloque > 0) {
+                json.put("attente", bloque);
+                LOG.log(Level.WARNING, "Connexion bloquee {0} s apres plusieurs echecs depuis {1}",
+                        new Object[] { bloque, ip });
+            }
             return Response.ok().entity(json.toString()).build();
         } else {
+            limite.succes(login, ip);
             String xtypeuser = "mainmenumanager";
             HttpSession hs = request.getSession(true);
             json.put("str_LOGIN", tu.getStrLOGIN());

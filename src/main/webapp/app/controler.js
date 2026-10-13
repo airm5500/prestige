@@ -27,7 +27,24 @@ function Doconnexion(str_LOGIN, Str_PASSWORD) {
 
 }
 
+/*
+ * Message de la page de connexion (13/10) : affiche dans la page, jamais de fenetre. Vide = message efface.
+ * Ancienne page sans zone de message : fenetre d'alerte comme avant.
+ */
+function messageConnexion(texte) {
+    var zone = document.getElementById('pl-message');
+    if (!zone) {
+        if (texte) {
+            alert(texte);
+        }
+        return;
+    }
+    zone.textContent = texte || '';
+    zone.hidden = !texte;
+}
+
 function authenticate(str_LOGIN, Str_PASSWORD) {
+    messageConnexion('');
     //  alert(str_LOGIN);
         $("#loader").show();
     jQuery.ajax(
@@ -54,12 +71,12 @@ function authenticate(str_LOGIN, Str_PASSWORD) {
                             window.location.replace("../general/");
                         }
                     }else{
-                        alert("Erreur de connexion. Veuillez  ressayer");
+                        messageConnexion(data.message || "Identifiant ou mot de passe incorrect.");
                         $("#loader").hide();
                     }
 
                 }, error: function () {
-                    alert("Erreur de connexion. Veuillez  ressayer");
+                    messageConnexion("Le serveur ne répond pas. Vérifiez le réseau et réessayez.");
                     $("#loader").hide();
                 }
             }

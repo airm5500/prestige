@@ -41,7 +41,7 @@
         %>
 
         <script>
-            window.location.replace("../security/index.jsp?content=panelInfos.jsp&lng=fr");
+            window.location.replace("../security/index.html?content=panelInfos.jsp&lng=fr");
         </script>
 
         <%

@@ -62,6 +62,11 @@ public class MobileServiceImpl implements MobileService {
         if (StringUtils.isAnyBlank(login, motDePasse) || app == null) {
             return refus("Identifiant, mot de passe et appareil obligatoires.");
         }
+        /* audit du 12/10 (E2) : meme limite d'essais que la connexion de l'ecran */
+        long attente = rest.securite.LimiteConnexion.instance().attenteSecondes(login, adresse);
+        if (attente > 0) {
+            return refus(rest.securite.LimiteConnexion.message(attente));
+        }
         @SuppressWarnings("unchecked")
         List<TUser> l = em
                 .createQuery("SELECT t FROM TUser t WHERE t.strLOGIN = ?1 AND t.strPASSWORD = ?2 AND t.strSTATUT = ?3",
@@ -69,8 +74,11 @@ public class MobileServiceImpl implements MobileService {
                 .setParameter(1, login.trim()).setParameter(2, toolkits.security.Md5.encode(motDePasse))
                 .setParameter(3, Constant.STATUT_ENABLE).setMaxResults(1).getResultList();
         if (l.isEmpty() || "00".equals(l.get(0).getLgUSERID())) {
-            return refus("Identifiant ou mot de passe incorrect.");
+            long bloque = rest.securite.LimiteConnexion.instance().echec(login, adresse);
+            return refus(bloque > 0 ? rest.securite.LimiteConnexion.message(bloque)
+                    : "Identifiant ou mot de passe incorrect.");
         }
+        rest.securite.LimiteConnexion.instance().succes(login, adresse);
         TUser u = l.get(0);
         String terminal = premier("SELECT id FROM t_mobile_terminal WHERE lg_USER_ID = ?1 AND appareil = ?2",
                 u.getLgUSERID(), app);

@@ -40,8 +40,8 @@ public class AuthenticationFilter implements ContainerRequestFilter, ContainerRe
             // Webhooks WhatsApp (plan d'octobre, 4.2) : appeles par Meta / le service compagnon, sans session ; chaque
             // appel est authentifie par signature HMAC ou jeton partage - voir rest.WhatsAppRessource.
             "v1/whatsapp/webhook", "v1/whatsapp/webhook-web",
-            // connexion, deconnexion et nom de l'officine affiche sur la page de connexion
-            "v1/user/auth", "v1/user/logout", "v1/officine",
+            // connexion, deconnexion, nom de l'officine, nom et version de l'application (page de connexion)
+            "v1/user/auth", "v1/user/logout", "v1/officine", "v1/app/info",
             // Espace produit de l'ecran de connexion : consultation libre assumee par l'officine.
             // La ressource ne sert que CIP, designation, emplacement, prix de vente et stocks,
             // 50 lignes au plus - voir rest.EspaceProduitRessource.
