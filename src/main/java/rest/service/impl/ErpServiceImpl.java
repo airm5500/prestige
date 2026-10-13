@@ -403,10 +403,16 @@ public class ErpServiceImpl implements ErpService {
                         + " (o.lgFAMILLEID.strNAME LIKE ?1 OR o.lgFAMILLEID.intCIP LIKE ?1 ) AND o.lgFAMILLEID.strSTATUT='enable'  ",
                 TFamilleStock.class);
         q.setParameter(1, nom);
+        List<TFamilleStock> stocks = q.getResultList();
+        // Infos complementaires en quelques requetes groupees (et non 6 a 7 requetes par produit : 13/10)
+        Map<String, ProduitExtraInfoDTO> extras = produitExtraInfoService.getExtraInfos(
+                stocks.stream().map(fs -> new String[] { fs.getLgFAMILLEID().getLgFAMILLEID(), emplacement(fs) })
+                        .collect(Collectors.toList()));
         List<ErProduitDTO> datas = new ArrayList<>();
-        q.getResultList().forEach(fs -> {
+        stocks.forEach(fs -> {
             ErProduitDTO dto = new ErProduitDTO(fs);
-            enrichirCheckProduit(dto, fs);
+            enrichirCheckProduit(dto,
+                    extras.get(ProduitExtraInfoService.cle(fs.getLgFAMILLEID().getLgFAMILLEID(), emplacement(fs))));
             datas.add(dto);
         });
         return datas;
@@ -416,10 +422,11 @@ public class ErpServiceImpl implements ErpService {
      * Complete les infos produit du checkproduit via le service partage (derniere vente, dernier achat, dernier
      * inventaire, code geo, classe ABC et stock reserve avec ses seuils si le produit est en reserve).
      */
-    private void enrichirCheckProduit(ErProduitDTO dto, TFamilleStock fs) {
-        String emplacementId = fs.getLgEMPLACEMENTID() != null ? fs.getLgEMPLACEMENTID().getLgEMPLACEMENTID() : null;
-        ProduitExtraInfoDTO extra = produitExtraInfoService.getExtraInfo(fs.getLgFAMILLEID().getLgFAMILLEID(),
-                emplacementId);
+    private static String emplacement(TFamilleStock fs) {
+        return fs.getLgEMPLACEMENTID() != null ? fs.getLgEMPLACEMENTID().getLgEMPLACEMENTID() : null;
+    }
+
+    private void enrichirCheckProduit(ErProduitDTO dto, ProduitExtraInfoDTO extra) {
         dto.setDateDerniereVente(extra.getDateDerniereVente());
         dto.setQteDerniereVente(extra.getQteDerniereVente());
         dto.setDateDernierAchat(extra.getDateDernierAchat());

@@ -5,6 +5,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -37,21 +38,24 @@ public class InfoArticleServiceImpl implements InfoArticleService {
     public List<InfoArticleDTO> fetchInfoArticles(LocalDate dtStart, String search) {
         try {
             String searchValue = search + "%";
-            return (List<InfoArticleDTO>) em.createNativeQuery(getQuery(), Tuple.class)
-                    .setParameter(1, DateUtil.from(dtStart)).setParameter(2, searchValue).setParameter(3, searchValue)
-                    .setParameter(4, DateUtil.from(dtStart)).getResultList().stream().map(this::tupleToDto)
-                    .collect(Collectors.toList());
+            List<Tuple> lignes = em.createNativeQuery(getQuery(), Tuple.class).setParameter(1, DateUtil.from(dtStart))
+                    .setParameter(2, searchValue).setParameter(3, searchValue).setParameter(4, DateUtil.from(dtStart))
+                    .getResultList();
+            // Infos complementaires en quelques requetes groupees (et non 6 a 7 requetes par produit : 13/10)
+            Map<String, ProduitExtraInfoDTO> extras = produitExtraInfoService.getExtraInfos(lignes.stream()
+                    .map(t -> new String[] { t.get("produitId", String.class), t.get("emplacementId", String.class) })
+                    .collect(Collectors.toList()));
+            return lignes.stream().map(t -> tupleToDto(t, extras)).collect(Collectors.toList());
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "Erreur lors de la récupération des informations articles", e);
             return Collections.emptyList();
         }
     }
 
-    private InfoArticleDTO tupleToDto(Object o) {
-        Tuple tuple = (Tuple) o;
+    private InfoArticleDTO tupleToDto(Tuple tuple, Map<String, ProduitExtraInfoDTO> extras) {
         String produitId = tuple.get("produitId", String.class);
         String emplacementId = tuple.get("emplacementId", String.class);
-        ProduitExtraInfoDTO extra = produitExtraInfoService.getExtraInfo(produitId, emplacementId);
+        ProduitExtraInfoDTO extra = extras.get(ProduitExtraInfoService.cle(produitId, emplacementId));
         return InfoArticleDTO.builder().grossiste(tuple.get("grossiste", String.class))
                 .emplacement(tuple.get("emplacement", String.class)).produitId(produitId)
                 .codeCip(tuple.get("codeCip", String.class)).libelle(tuple.get("libelle", String.class))
