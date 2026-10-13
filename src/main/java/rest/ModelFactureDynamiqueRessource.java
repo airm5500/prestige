@@ -503,6 +503,175 @@ public class ModelFactureDynamiqueRessource {
         }
     }
 
+    /* ------------------------------------------------------------------ cachet / signature (besoins du 11/10) */
+
+    @SuppressWarnings("unchecked")
+    private boolean peutModifierModeles() {
+        javax.servlet.http.HttpSession hs = servletRequest.getSession(false);
+        return hs != null && hs.getAttribute(commonparameter.AIRTIME_USER) != null
+                && util.CommonUtils.hasAuthorityByName(
+                        (List<dal.TPrivilege>) hs.getAttribute(commonparameter.USER_LIST_PRIVILEGE),
+                        "P_SM_MODEL_FACTURE_DYNAMIQUE");
+    }
+
+    /** Cachets en place : le commun et celui du modele (modelId), avec leur largeur. */
+    @GET
+    @Path("cachet/info")
+    @SuppressWarnings("unchecked")
+    public Response cachetInfo(@QueryParam("modelId") String modelId) {
+        if (utilisateurSession() == null) {
+            return reponseDeconnecte();
+        }
+        String cibleModele = modelId == null || modelId.isEmpty() ? null
+                : rest.service.impl.facture.CachetFacture.cible(modelId);
+        dataManager odm = new dataManager();
+        try {
+            odm.initEntityManager();
+            List<Object[]> r = odm.getEm()
+                    .createNativeQuery(
+                            "SELECT cible, largeur, type, nom FROM t_cachet_facture" + " WHERE cible IN (?1, ?2)")
+                    .setParameter(1, rest.service.impl.facture.CachetFacture.COMMUN)
+                    .setParameter(2, cibleModele == null ? "-" : cibleModele).getResultList();
+            JSONObject json = new JSONObject().put("success", true).put("peutModifier", peutModifierModeles());
+            for (Object[] o : r) {
+                json.put(rest.service.impl.facture.CachetFacture.COMMUN.equals(o[0]) ? "commun" : "modele",
+                        new JSONObject().put("cible", o[0]).put("largeur", o[1]).put("type", o[2]).put("nom",
+                                o[3] == null ? "" : o[3]));
+            }
+            return reponseJson(json);
+        } finally {
+            odm.closeEntityManager();
+        }
+    }
+
+    @GET
+    @Path("cachet/image")
+    @Produces({ "image/png", "image/jpeg", "application/json" })
+    @SuppressWarnings("unchecked")
+    public Response cachetImage(@QueryParam("cible") String cibleParam) {
+        String cible = rest.service.impl.facture.CachetFacture.cible(cibleParam);
+        if (utilisateurSession() == null || cible == null) {
+            return Response.status(Response.Status.NOT_FOUND).build();
+        }
+        dataManager odm = new dataManager();
+        try {
+            odm.initEntityManager();
+            List<Object[]> r = odm.getEm()
+                    .createNativeQuery("SELECT image, type FROM t_cachet_facture WHERE cible = ?1")
+                    .setParameter(1, cible).getResultList();
+            if (r.isEmpty()) {
+                return Response.status(Response.Status.NOT_FOUND).build();
+            }
+            return Response.ok(r.get(0)[0], "image/" + r.get(0)[1]).header("Cache-Control", "no-store").build();
+        } finally {
+            odm.closeEntityManager();
+        }
+    }
+
+    /** Enregistre (ou remplace) un cachet : {cible: "commun" | id du modele, donnees: base64, nom, largeur}. */
+    @POST
+    @Path("cachet")
+    public Response cachetEnregistrer(String corps) {
+        TUser u = utilisateurSession();
+        if (u == null) {
+            return reponseDeconnecte();
+        }
+        if (!peutModifierModeles()) {
+            return reponseJson(new JSONObject().put("success", false).put("msg",
+                    "Vous n'avez pas le droit de modifier les modèles de facture."));
+        }
+        JSONObject c = new JSONObject(StringUtils.defaultIfBlank(corps, "{}"));
+        String cible = rest.service.impl.facture.CachetFacture.cible(c.optString("cible"));
+        if (cible == null) {
+            return reponseJson(new JSONObject().put("success", false).put("msg", "Modèle inconnu."));
+        }
+        byte[] image;
+        try {
+            image = rest.service.impl.facture.CachetFacture.decoder(c.optString("donnees"));
+        } catch (IllegalArgumentException e) {
+            return reponseJson(new JSONObject().put("success", false).put("msg", e.getMessage()));
+        }
+        int largeur = rest.service.impl.facture.CachetFacture.largeur(c.has("largeur") ? c.optInt("largeur") : null);
+        String nom = StringUtils.left(c.optString("nom"), 200);
+        dataManager odm = new dataManager();
+        try {
+            odm.initEntityManager();
+            EntityManager em = odm.getEm();
+            em.getTransaction().begin();
+            em.createNativeQuery("DELETE FROM t_cachet_facture WHERE cible = ?1").setParameter(1, cible)
+                    .executeUpdate();
+            em.createNativeQuery(
+                    "INSERT INTO t_cachet_facture (cible, image, type, nom, largeur, created_at, lg_USER_ID)"
+                            + " VALUES (?1, ?2, ?3, ?4, ?5, NOW(), ?6)")
+                    .setParameter(1, cible).setParameter(2, image)
+                    .setParameter(3, rest.service.impl.facture.CachetFacture.type(image)).setParameter(4, nom)
+                    .setParameter(5, largeur).setParameter(6, u.getLgUSERID()).executeUpdate();
+            em.getTransaction().commit();
+            return reponseJson(new JSONObject().put("success", true).put("msg", "Cachet enregistré."));
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "cachet enregistrer", e);
+            if (odm.getEm().getTransaction().isActive()) {
+                odm.getEm().getTransaction().rollback();
+            }
+            return reponseJson(new JSONObject().put("success", false).put("msg", "Enregistrement impossible."));
+        } finally {
+            odm.closeEntityManager();
+        }
+    }
+
+    /** Largeur seule (sans changer l'image) : {cible, largeur}. */
+    @POST
+    @Path("cachet/largeur")
+    public Response cachetLargeur(String corps) {
+        return cachetMaj(corps, true);
+    }
+
+    /** Retire un cachet : {cible}. La facture reprend le texte « LE PHARMACIEN » (ou le cachet commun). */
+    @POST
+    @Path("cachet/supprimer")
+    public Response cachetSupprimer(String corps) {
+        return cachetMaj(corps, false);
+    }
+
+    private Response cachetMaj(String corps, boolean largeurSeule) {
+        if (utilisateurSession() == null) {
+            return reponseDeconnecte();
+        }
+        if (!peutModifierModeles()) {
+            return reponseJson(new JSONObject().put("success", false).put("msg",
+                    "Vous n'avez pas le droit de modifier les modèles de facture."));
+        }
+        JSONObject c = new JSONObject(StringUtils.defaultIfBlank(corps, "{}"));
+        String cible = rest.service.impl.facture.CachetFacture.cible(c.optString("cible"));
+        if (cible == null) {
+            return reponseJson(new JSONObject().put("success", false).put("msg", "Modèle inconnu."));
+        }
+        dataManager odm = new dataManager();
+        try {
+            odm.initEntityManager();
+            EntityManager em = odm.getEm();
+            em.getTransaction().begin();
+            int n = largeurSeule
+                    ? em.createNativeQuery("UPDATE t_cachet_facture SET largeur = ?2 WHERE cible = ?1")
+                            .setParameter(1, cible)
+                            .setParameter(2, rest.service.impl.facture.CachetFacture.largeur(c.optInt("largeur")))
+                            .executeUpdate()
+                    : em.createNativeQuery("DELETE FROM t_cachet_facture WHERE cible = ?1").setParameter(1, cible)
+                            .executeUpdate();
+            em.getTransaction().commit();
+            return reponseJson(new JSONObject().put("success", n > 0).put("msg",
+                    n > 0 ? "C'est fait." : "Aucun cachet pour ce choix."));
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "cachet", e);
+            if (odm.getEm().getTransaction().isActive()) {
+                odm.getEm().getTransaction().rollback();
+            }
+            return reponseJson(new JSONObject().put("success", false).put("msg", "Opération impossible."));
+        } finally {
+            odm.closeEntityManager();
+        }
+    }
+
     /** Edition PDF d'une facture selon le modele dynamique du tiers payant. */
     @GET
     @Path("pdf/{factureId}")
@@ -802,10 +971,21 @@ public class ModelFactureDynamiqueRessource {
         document.add(new Paragraph(conversion.GetNumberTowords(montantNet).toUpperCase() + " ("
                 + conversion.AmountFormat((int) montantNet) + " FCFA)", fontBlocGras));
 
-        Paragraph signature = new Paragraph("LE PHARMACIEN", fontSignature);
-        signature.setAlignment(Element.ALIGN_RIGHT);
-        signature.setSpacingBefore(20);
-        document.add(signature);
+        // Cachet / signature (besoins du 11/10) : l'image du modele, sinon l'image commune, a la place du texte
+        Object[] cachet = rest.service.impl.facture.CachetFacture.pourModele(em, modele.getId());
+        if (cachet != null) {
+            com.itextpdf.text.Image image = com.itextpdf.text.Image.getInstance((byte[]) cachet[0]);
+            float largeur = ((Number) cachet[1]).floatValue();
+            image.scaleToFit(largeur, largeur);
+            image.setAlignment(com.itextpdf.text.Image.ALIGN_RIGHT);
+            image.setSpacingBefore(12);
+            document.add(image);
+        } else {
+            Paragraph signature = new Paragraph("LE PHARMACIEN", fontSignature);
+            signature.setAlignment(Element.ALIGN_RIGHT);
+            signature.setSpacingBefore(20);
+            document.add(signature);
+        }
 
         document.close();
         return out.toByteArray();

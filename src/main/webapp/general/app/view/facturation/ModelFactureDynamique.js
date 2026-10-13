@@ -62,6 +62,13 @@ Ext.define('testextjs.view.facturation.ModelFactureDynamique', {
                         forceFit: true,
                         columnLines: true
                     },
+                    itemId: 'grilleModeles',
+                    listeners: {
+                        selectionchange: function () {
+                            me.chargerCachet();
+                        }
+                    },
+                    dockedItems: [me.panneauCachet()],
                     tbar: [{
                             text: 'Cr&eacute;er un mod&egrave;le',
                             iconCls: 'addicon',
@@ -163,6 +170,161 @@ Ext.define('testextjs.view.facturation.ModelFactureDynamique', {
                 }]
         });
         this.callParent();
+        me.on('afterrender', function () {
+            me.chargerCachet();
+        });
+    },
+
+    /* ------------------------------------------------------------------ cachet / signature (besoins du 11/10) */
+
+    /*
+     * Image du cachet ou de la signature imprimee en bas des factures, a la place du texte « LE PHARMACIEN » :
+     * commune a tous les modeles, ou propre au modele choisi dans la liste (elle prime). Sans fenetre.
+     */
+    panneauCachet: function () {
+        var me = this;
+        return {
+            xtype: 'panel', dock: 'bottom', itemId: 'panneauCachet', title: 'Cachet / signature des factures',
+            collapsible: true, bodyPadding: '8 10', layout: {type: 'hbox', align: 'top'},
+            items: [{
+                    xtype: 'container', flex: 1, layout: {type: 'vbox', align: 'stretch'}, defaults: {margin: '0 0 6 0'},
+                    items: [
+                        {xtype: 'radiogroup', itemId: 'cibleCachet', fieldLabel: 'Pour', labelWidth: 60, columns: 2,
+                            items: [{boxLabel: 'Tous les modèles (commun)', name: 'cibleCachet', inputValue: 'commun', checked: true},
+                                {boxLabel: 'Le modèle choisi', name: 'cibleCachet', inputValue: 'modele', itemId: 'cibleModele', disabled: true}],
+                            listeners: {change: function () {
+                                    me.afficherCachet();
+                                }}},
+                        {xtype: 'filefield', itemId: 'fichierCachet', fieldLabel: 'Image', labelWidth: 60, buttonText: 'Choisir…',
+                            emptyText: 'PNG ou JPEG, 1 Mo au plus (fond transparent conseillé)'},
+                        {xtype: 'container', layout: 'hbox', items: [
+                                {xtype: 'numberfield', itemId: 'largeurCachet', fieldLabel: 'Largeur', labelWidth: 60, width: 160,
+                                    minValue: 40, maxValue: 300, value: 140, step: 10},
+                                {xtype: 'tbtext', text: 'points (140 ≈ 5 cm)', margin: '4 0 0 6'}]},
+                        {xtype: 'container', layout: 'hbox', defaults: {margin: '0 6 0 0'}, items: [
+                                {xtype: 'button', itemId: 'enregistrerCachet', text: 'Enregistrer', handler: function () {
+                                        me.enregistrerCachet();
+                                    }},
+                                {xtype: 'button', itemId: 'supprimerCachet', text: 'Retirer le cachet', handler: function () {
+                                        me.majCachet('supprimer');
+                                    }},
+                                {xtype: 'tbtext', itemId: 'etatCachet', text: '', margin: '4 0 0 6'}]}
+                    ]
+                }, {
+                    xtype: 'component', itemId: 'apercuCachet', width: 330, minHeight: 110, margin: '0 0 0 14',
+                    style: 'border:1px dashed #b8c2cc;border-radius:6px;padding:8px;background:#fff', html: ''
+                }]
+        };
+    },
+
+    cachetModeleId: function () {
+        var g = this.down('#grilleModeles'), sel = g ? g.getSelectionModel().getSelection() : [];
+        return sel.length ? sel[0].get('id') : null;
+    },
+
+    chargerCachet: function () {
+        var me = this, p = me.down('#panneauCachet'), id = me.cachetModeleId();
+        var radio = p.down('#cibleModele');
+        radio.setDisabled(!id);
+        radio.setBoxLabel(id ? 'Le modèle « ' + Ext.String.htmlEncode(me.down('#grilleModeles').getSelectionModel().getSelection()[0].get('nom')) + ' »' : 'Le modèle choisi');
+        if (!id) {
+            p.down('#cibleCachet').setValue({cibleCachet: 'commun'});
+        }
+        Ext.Ajax.request({
+            url: url_rest_model_facture_dynamique + 'cachet/info', method: 'GET', params: id ? {modelId: id} : {},
+            success: function (response) {
+                me.infoCachet = Ext.JSON.decode(response.responseText, true) || {};
+                me.afficherCachet();
+            }
+        });
+    },
+
+    cibleCachet: function () {
+        var v = this.down('#panneauCachet #cibleCachet').getValue().cibleCachet;
+        return v === 'modele' && this.cachetModeleId() ? String(this.cachetModeleId()) : 'commun';
+    },
+
+    afficherCachet: function () {
+        var me = this, p = me.down('#panneauCachet'), info = me.infoCachet || {};
+        var surModele = me.cibleCachet() !== 'commun', c = surModele ? info.modele : info.commun;
+        var droit = info.peutModifier !== false;
+        p.down('#enregistrerCachet').setDisabled(!droit);
+        p.down('#supprimerCachet').setDisabled(!droit || !c);
+        if (c) {
+            p.down('#largeurCachet').setValue(c.largeur);
+        }
+        var h;
+        if (c) {
+            h = '<div style="color:#555;margin-bottom:4px">Imprimé en bas à droite des factures' + (surModele ? ' de ce modèle' : '') + ' :</div>'
+                    + '<div style="text-align:right"><img class="apercu-cachet" style="max-width:' + c.largeur + 'px;max-height:' + c.largeur + 'px" src="'
+                    + url_rest_model_facture_dynamique + 'cachet/image?cible=' + encodeURIComponent(c.cible) + '&_dc=' + Date.now() + '"></div>';
+        } else if (surModele && info.commun) {
+            h = '<div style="color:#555">Pas de cachet propre à ce modèle : le cachet commun est imprimé.</div>';
+        } else {
+            h = '<div style="color:#555">Aucun cachet : les factures portent le texte « LE PHARMACIEN ».</div>';
+        }
+        if (!droit) {
+            h += '<div style="color:#b9770e;margin-top:6px">Consultation seule : la modification demande le droit du créateur de modèles.</div>';
+        }
+        p.down('#apercuCachet').update(h);
+    },
+
+    enregistrerCachet: function () {
+        var me = this, p = me.down('#panneauCachet'), champ = p.down('#fichierCachet');
+        var fichier = champ.fileInputEl && champ.fileInputEl.dom.files ? champ.fileInputEl.dom.files[0] : null;
+        var etat = p.down('#etatCachet');
+        if (!fichier) {
+            if (me.cachetActuel()) {
+                me.majCachet('largeur');
+            } else {
+                etat.setText('<span style="color:#c0392b">Choisissez une image.</span>');
+            }
+            return;
+        }
+        if (!/^image\/(png|jpeg)$/.test(fichier.type)) {
+            etat.setText('<span style="color:#c0392b">PNG ou JPEG seulement.</span>');
+            return;
+        }
+        if (fichier.size > 1024 * 1024) {
+            etat.setText('<span style="color:#c0392b">Image trop lourde (1 Mo au plus).</span>');
+            return;
+        }
+        var lecteur = new FileReader();
+        lecteur.onload = function () {
+            Ext.Ajax.request({
+                url: url_rest_model_facture_dynamique + 'cachet', method: 'POST',
+                jsonData: {cible: me.cibleCachet(), donnees: lecteur.result, nom: fichier.name, largeur: p.down('#largeurCachet').getValue()},
+                success: function (response) {
+                    var r = Ext.JSON.decode(response.responseText, true) || {};
+                    etat.setText(r.success ? '<span style="color:#1e8449">' + Ext.String.htmlEncode(r.msg) + '</span>'
+                            : '<span style="color:#c0392b">' + Ext.String.htmlEncode(r.msg || 'Refusé') + '</span>');
+                    if (r.success) {
+                        champ.reset();
+                        me.chargerCachet();
+                    }
+                }
+            });
+        };
+        lecteur.readAsDataURL(fichier);
+    },
+
+    cachetActuel: function () {
+        var info = this.infoCachet || {};
+        return this.cibleCachet() !== 'commun' ? info.modele : info.commun;
+    },
+
+    majCachet: function (action) {
+        var me = this, p = me.down('#panneauCachet'), etat = p.down('#etatCachet');
+        Ext.Ajax.request({
+            url: url_rest_model_facture_dynamique + 'cachet/' + action, method: 'POST',
+            jsonData: {cible: me.cibleCachet(), largeur: p.down('#largeurCachet').getValue()},
+            success: function (response) {
+                var r = Ext.JSON.decode(response.responseText, true) || {};
+                etat.setText(r.success ? '<span style="color:#1e8449">' + (action === 'supprimer' ? 'Cachet retiré.' : 'Largeur enregistrée.') + '</span>'
+                        : '<span style="color:#c0392b">' + Ext.String.htmlEncode(r.msg || 'Refusé') + '</span>');
+                me.chargerCachet();
+            }
+        });
     },
 
     // Telechargement du fichier de mise en page Jasper : le navigateur enregistre le .jrxml,
