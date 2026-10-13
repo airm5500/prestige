@@ -3145,8 +3145,9 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
 .pml-tuiles-pied { font-size: 11px; color: #6b7785; margin-top: 6px; }
 
 /* Retours du 08/10 (12) : Commandes en cours en onglets (liste + suivi PharmaML) */
-.cec-onglets.x-toolbar { background: #eef2f6; border: 0; border-bottom: 1px solid #d5dde6; padding: 6px 8px 0 8px; }
-.cec-onglets .cec-onglet.x-btn { border-radius: 8px 8px 0 0; border: 1px solid #d5dde6; border-bottom: 0; background: #fff; margin-right: 4px; padding: 4px 12px; }
+/* 13/10 : onglets a gauche et centres verticalement : marges egales en haut et en bas, onglets entiers */
+.cec-onglets.x-toolbar { background: #eef2f6; border: 0; border-bottom: 1px solid #d5dde6; padding: 5px 8px; }
+.cec-onglets .cec-onglet.x-btn { border-radius: 8px; border: 1px solid #d5dde6; background: #fff; margin-right: 4px; padding: 4px 12px; }
 .cec-onglets .cec-onglet.x-btn .x-btn-inner { color: #2b3a4a; font-weight: 600; font-size: 12px; }
 .cec-onglets .cec-onglet.x-btn-pressed { background: #1f3b5a; border-color: #1f3b5a; }
 .cec-onglets .cec-onglet.x-btn-pressed .x-btn-inner { color: #fff; }

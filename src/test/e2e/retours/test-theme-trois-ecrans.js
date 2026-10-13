@@ -3,7 +3,7 @@
  *    (statActiviteOperateurManager) : ouverts par leur menu, ils prennent le theme (mv-panneau theme-liste) ;
  *  - le menu « Statistiques rupture stock » ouvre bien l'ecran des ruptures : l'ecran des factures fournisseurs
  *    portait le meme nom (conflit), il a desormais le sien ;
- *  - Commandes en cours : onglets centres, « Ruptures de commande », « Fusionner les ruptures » ;
+ *  - Commandes en cours : onglets a gauche (13/10, avant centres), « Ruptures de commande », « Fusionner les ruptures » ;
  *  - Etat de controle des achats : « Rechercher » juste apres le champ, « Excel », « Inventaire » ;
  *  - aucun « Sectionner » dans les ecrans.
  */
@@ -49,7 +49,7 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
       return { textes: bs.map((x) => x.getText()), gauche: premier.x - zone.x, droite: zone.right - dernier.right };
     });
     ok('Commandes en cours : « Ruptures de commande »', cec.textes.indexOf('Ruptures de commande') >= 0, JSON.stringify(cec.textes));
-    ok('Commandes en cours : onglets centrés (marges gauche et droite égales à 4 px près)', Math.abs(cec.gauche - cec.droite) <= 4 && cec.gauche > 20, JSON.stringify(cec));
+    ok('Commandes en cours : onglets à gauche (13/10)', cec.gauche <= 12 && cec.droite > cec.gauche, JSON.stringify(cec));
     ok('Ruptures : « Fusionner les ruptures »', await p.evaluate(async () => /text: 'Fusionner les ruptures'/.test(await (await fetch('app/view/pharmaml/Rupturepharma.js?_=' + Date.now())).text())));
 
     await ouvrir('etatscontrolemanager', 'Etat de controle des achats');

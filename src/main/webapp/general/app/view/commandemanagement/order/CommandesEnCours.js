@@ -44,8 +44,8 @@ Ext.define('testextjs.view.commandemanagement.order.CommandesEnCours', {
             items: [me.liste],
             dockedItems: [{
                     xtype: 'toolbar', dock: 'top', itemId: 'ongletsCec', cls: 'cec-onglets',
-                    /* retours du 10/10 : onglets centres */
-                    layout: {type: 'hbox', pack: 'center'},
+                    /* 13/10 : onglets a gauche, centres verticalement dans la barre (avant : centres, 10/10) */
+                    layout: {type: 'hbox', pack: 'start', align: 'middle'},
                     items: Ext.Array.map(me.ONGLETS, function (o) {
                         return {
                             xtype: 'button', itemId: 'cec-' + o.cle, text: o.texte, cls: 'cec-onglet', toggleGroup: 'cec-onglets-' + me.id,

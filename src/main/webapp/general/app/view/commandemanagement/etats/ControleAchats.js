@@ -32,7 +32,7 @@ Ext.define('testextjs.view.commandemanagement.etats.ControleAchats', {
         Ext.apply(me, {
             items: [me.liste, me.tableau],
             dockedItems: [{
-                    xtype: 'toolbar', dock: 'top', itemId: 'ongletsCa', cls: 'cec-onglets', layout: {type: 'hbox', pack: 'center'},
+                    xtype: 'toolbar', dock: 'top', itemId: 'ongletsCa', cls: 'cec-onglets', layout: {type: 'hbox', pack: 'start', align: 'middle'},
                     items: Ext.Array.map(me.ONGLETS, function (o) {
                         return {xtype: 'button', itemId: 'ca-' + o.cle, text: o.texte, cls: 'cec-onglet', toggleGroup: 'ca-onglets-' + me.id,
                             allowDepress: false, pressed: o.cle === 'liste', handler: function () {

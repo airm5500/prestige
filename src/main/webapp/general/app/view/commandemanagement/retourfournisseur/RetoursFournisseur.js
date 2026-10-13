@@ -33,7 +33,7 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.RetoursFournisse
         Ext.apply(me, {
             items: [me.liste, me.tableau],
             dockedItems: [{
-                    xtype: 'toolbar', dock: 'top', itemId: 'ongletsRf', cls: 'cec-onglets', layout: {type: 'hbox', pack: 'center'},
+                    xtype: 'toolbar', dock: 'top', itemId: 'ongletsRf', cls: 'cec-onglets', layout: {type: 'hbox', pack: 'start', align: 'middle'},
                     items: Ext.Array.map(me.ONGLETS, function (o) {
                         return {xtype: 'button', itemId: 'rf-' + o.cle, text: o.texte, cls: 'cec-onglet', toggleGroup: 'rf-onglets-' + me.id,
                             allowDepress: false, pressed: o.cle === 'liste', tooltip: o.cle === 'liste' ? 'Retours fournisseur de la période'

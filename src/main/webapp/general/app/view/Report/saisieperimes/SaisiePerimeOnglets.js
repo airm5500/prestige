@@ -32,7 +32,7 @@ Ext.define('testextjs.view.Report.saisieperimes.SaisiePerimeOnglets', {
         Ext.apply(me, {
             items: [me.liste, me.analyse],
             dockedItems: [{
-                    xtype: 'toolbar', dock: 'top', itemId: 'ongletsSp', cls: 'cec-onglets', layout: {type: 'hbox', pack: 'center'},
+                    xtype: 'toolbar', dock: 'top', itemId: 'ongletsSp', cls: 'cec-onglets', layout: {type: 'hbox', pack: 'start', align: 'middle'},
                     items: Ext.Array.map(me.ONGLETS, function (o) {
                         return {xtype: 'button', itemId: 'sp-' + o.cle, text: o.texte, cls: 'cec-onglet', toggleGroup: 'sp-onglets-' + me.id,
                             allowDepress: false, pressed: o.cle === 'liste', tooltip: o.aide, handler: function () {

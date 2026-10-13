@@ -39,7 +39,7 @@ Ext.define('testextjs.view.configmanagement.famille.ProduitsOnglets', {
         Ext.apply(me, {
             items: [me.liste, me.analyse],
             dockedItems: [{
-                    xtype: 'toolbar', dock: 'top', itemId: 'ongletsPa', cls: 'cec-onglets', layout: {type: 'hbox', pack: 'center'},
+                    xtype: 'toolbar', dock: 'top', itemId: 'ongletsPa', cls: 'cec-onglets', layout: {type: 'hbox', pack: 'start', align: 'middle'},
                     items: Ext.Array.map(me.ONGLETS, function (o) {
                         return {xtype: 'button', itemId: 'pa-' + o.cle, text: o.texte, cls: 'cec-onglet', toggleGroup: 'pa-onglets-' + me.id,
                             allowDepress: false, pressed: o.cle === 'liste', tooltip: o.aide, handler: function () {
