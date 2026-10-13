@@ -41,6 +41,8 @@ public class CaZoneGeoRessource {
     private static final Logger LOG = Logger.getLogger(CaZoneGeoRessource.class.getName());
 
     @EJB
+    private rest.service.impl.LibellesFiltres libellesFiltres;
+    @EJB
     private CaZoneGeoService caZoneGeoService;
     @EJB
     private ReportExcelExportService reportExcelExportService;
@@ -307,30 +309,9 @@ public class CaZoneGeoRessource {
         }
     }
 
-    /** Rappel des filtres zone / famille, lus dans la premiere ligne de la reponse (libelles). */
-    private static String filtresTexte(JSONObject json, Filtres filtres) {
-        StringBuilder sb = new StringBuilder();
-        JSONArray data = json.optJSONArray("data");
-        JSONObject premiere = data != null && data.length() > 0 ? data.getJSONObject(0) : null;
-        /* 13/10 : plusieurs rayons / familles / grossistes coches -> leur nombre ; un seul -> son libelle */
-        int zones = util.FiltreListe.valeurs(filtres.getZoneId()).size();
-        if (zones == 1) {
-            sb.append(" - Zone : ").append(premiere == null ? filtres.getZoneId().trim() : premiere.optString("zone"));
-        } else if (zones > 1) {
-            sb.append(" - Zones : ").append(zones).append(" sélectionnées");
-        }
-        int familles = util.FiltreListe.valeurs(filtres.getFamilleId()).size();
-        if (familles == 1) {
-            sb.append(" - Famille : ")
-                    .append(premiere == null ? filtres.getFamilleId().trim() : premiere.optString("famille"));
-        } else if (familles > 1) {
-            sb.append(" - Familles : ").append(familles).append(" sélectionnées");
-        }
-        int grossistes = util.FiltreListe.valeurs(filtres.getGrossisteId()).size();
-        if (grossistes > 0) {
-            sb.append(" - Grossistes : ").append(grossistes).append(grossistes > 1 ? " sélectionnés" : " sélectionné");
-        }
-        return sb.toString();
+    /** Rappel des filtres : NOMS des rayons, familles et grossistes coches (13/10). */
+    private String filtresTexte(JSONObject json, Filtres filtres) {
+        return libellesFiltres.resume(filtres.getZoneId(), filtres.getFamilleId(), filtres.getGrossisteId());
     }
 
     /**

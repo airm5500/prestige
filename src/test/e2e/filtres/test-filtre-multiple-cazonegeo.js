@@ -10,6 +10,7 @@
  */
 const { chromium } = require('playwright-core');
 const { execFileSync } = require('child_process');
+const { fichierEdition } = require('../support/editions');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 300) + ']' : '')); }
 const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', process.env.DB_TEST || 'capitale', '-sN', '-e', s], { encoding: 'utf8' }).trim();
@@ -120,6 +121,15 @@ const PREF = q("SELECT COALESCE((SELECT txt_VALEUR FROM t_preference_utilisateur
     await p.click('.fm .fm-presentation');
     await p.waitForTimeout(800);
     ok('Retour à la présentation B', await p.evaluate(() => Ext.ComponentQuery.query('cazonegeomanager #filtres')[0].presentation) === 'B');
+
+    /* impression : NOMS des rayons et du grossiste coches dans le titre */
+    const noms = rayons.slice(0, 2).map((z) => q("SELECT str_LIBELLEE FROM t_zone_geographique WHERE lg_ZONE_GEO_ID = '" + z + "'"));
+    const nomGros = q("SELECT str_LIBELLE FROM t_grossiste WHERE lg_GROSSISTE_ID = '" + gros + "'");
+    const pdf = await p.evaluate(async (u) => (await fetch('../api/v1/ca-zone-geo/pdf?' + u)).json(),
+      new URLSearchParams({ typePeriode: 'TROIS_MOIS', regroupement: 'ZONE', zoneId: rayons.slice(0, 2).join(','), grossisteId: gros }).toString());
+    const texte = pdf.msg ? execFileSync('pdftotext', ['-layout', fichierEdition(pdf.msg), '-'], { encoding: 'utf8' }).replace(/\s+/g, ' ') : '';
+    ok('Impression : les noms des rayons et du grossiste cochés', noms.every((n) => texte.indexOf(n.replace(/\s+/g, ' ')) >= 0) && texte.indexOf(nomGros) >= 0 && /Rayons :/.test(texte),
+      noms.join(' / ') + ' + ' + nomGros + ' :: ' + texte.slice(0, 300) + (pdf.msg ? '' : JSON.stringify(pdf)));
 
     /* compatibilite et saisie piegee */
     const un = await api({ zoneId: rayons[0] });
