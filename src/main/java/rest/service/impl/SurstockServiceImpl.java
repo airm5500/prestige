@@ -441,7 +441,10 @@ public class SurstockServiceImpl implements SurstockService {
                 .thenComparing(Comparator.comparingLong(SurstockDTO::getValeurSurplus).reversed())
                 .thenComparing(SurstockDTO::getLibelle, String.CASE_INSENSITIVE_ORDER));
         Map<String, Object> parameters = reportUtil.officineData(user);
-        parameters.put("P_H_CLT_INFOS", titre(moisHistorique, moisProjection));
+        /* 13/10 : noms des rayons, familles et grossistes filtres (le titre de l'Excel ne change pas) */
+        String filtres = LibellesFiltres.ligne(em, codeRayon, codeFamille, codeGrossiste);
+        parameters.put("P_H_CLT_INFOS",
+                titre(moisHistorique, moisProjection) + (filtres.isEmpty() ? "" : " \n " + filtres));
         LocalDate m0 = LocalDate.now().withDayOfMonth(1);
         parameters.put("P_MOIS0", moisLabel(m0));
         parameters.put("P_MOIS1", moisLabel(m0.minusMonths(1)));

@@ -49,6 +49,8 @@ public class FicheArticleRessource {
     @Inject
     private HttpServletRequest servletRequest;
     @EJB
+    private rest.service.impl.LibellesFiltres libellesFiltres;
+    @EJB
     private FicheArticleService ficheArticleService;
     @EJB
     private SuggestionService suggestionService;
@@ -863,19 +865,15 @@ public class FicheArticleRessource {
     }
 
     /** Rappel des criteres en sous-titre : une edition sans ses criteres n'est pas relisible un mois plus tard. */
-    private static String criteresComparaison(String query, String codeFamile, String codeRayon, String codeGrossiste) {
+    /** 13/10 : NOMS des rayons, familles et grossistes filtres (avant : leurs identifiants). */
+    private String criteresComparaison(String query, String codeFamile, String codeRayon, String codeGrossiste) {
         StringBuilder sb = new StringBuilder();
         if (org.apache.commons.lang3.StringUtils.isNotBlank(query)) {
             sb.append("Recherche : ").append(query);
         }
-        if (org.apache.commons.lang3.StringUtils.isNotBlank(codeFamile) && !"ALL".equalsIgnoreCase(codeFamile)) {
-            sb.append(sb.length() > 0 ? " - " : "").append("Famille : ").append(codeFamile);
-        }
-        if (org.apache.commons.lang3.StringUtils.isNotBlank(codeRayon) && !"ALL".equalsIgnoreCase(codeRayon)) {
-            sb.append(sb.length() > 0 ? " - " : "").append("Emplacement : ").append(codeRayon);
-        }
-        if (org.apache.commons.lang3.StringUtils.isNotBlank(codeGrossiste) && !"ALL".equalsIgnoreCase(codeGrossiste)) {
-            sb.append(sb.length() > 0 ? " - " : "").append("Grossiste : ").append(codeGrossiste);
+        String filtres = libellesFiltres.ligne(codeRayon, codeFamile, codeGrossiste);
+        if (!filtres.isEmpty()) {
+            sb.append(sb.length() > 0 ? " - " : "").append(filtres);
         }
         return sb.length() == 0 ? "Tous les articles" : sb.toString();
     }

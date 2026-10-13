@@ -53,6 +53,8 @@ public class AnalyseArticleRessource {
     private static final DateTimeFormatter JOUR = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
     @EJB
+    private rest.service.impl.LibellesFiltres libellesFiltres;
+    @EJB
     private AnalyseArticleService analyseArticleService;
     @EJB
     private InventaireService inventaireService;
@@ -295,8 +297,11 @@ public class AnalyseArticleRessource {
         List<ArticleAnalyseDTO> retenus = AnalyseArticle.filtrer(a.articles, quadrant, famille, rayon, grossiste,
                 recherche, AnalyseArticle.Borne.de(stockOp, stockVal), AnalyseArticle.Borne.de(qteOp, qteVal));
         Map<String, Object> parametres = reportUtil.officineData(user);
-        parametres.put("P_PERIODE", "Du " + a.debut.format(JOUR) + " au " + a.fin.format(JOUR)
-                + (quadrant > 0 ? "  -  " + AnalyseArticle.libelleQuadrant(quadrant) : ""));
+        parametres.put("P_PERIODE",
+                "Du " + a.debut.format(JOUR) + " au " + a.fin.format(JOUR)
+                        + (quadrant > 0 ? "  -  " + AnalyseArticle.libelleQuadrant(quadrant) : "")
+                        + (libellesFiltres.ligne(rayon, famille, grossiste).isEmpty() ? ""
+                                : "  -  " + libellesFiltres.ligne(rayon, famille, grossiste)));
         parametres.put("P_SEUILS", a.regleMarge() + "  -  " + a.regleRotation() + "  -  " + a.regleRupture());
         parametres.put("P_RESUME", resumeTexte(AnalyseArticle.resume(a.articles)));
         String url = reportUtil.buildReport(parametres, "analyse_article", retenus);

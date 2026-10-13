@@ -121,7 +121,9 @@
         String P_H_INSTITUTION = oTOfficine.getStrNOMABREGE();
         String P_INSTITUTION_ADRESSE = oTOfficine.getStrADRESSSEPOSTALE();
 
-        parameters.put("P_H_CLT_INFOS", title);
+        /* 13/10 : noms des rayons, familles et grossistes filtres */
+        String filtresNoms = rest.service.impl.LibellesFiltres.ligne(OdataManager.getEm(), lg_ZONE_GEO_ID, lg_FAMILLEARTICLE_ID, lg_GROSSISTE_ID);
+        parameters.put("P_H_CLT_INFOS", title + (filtresNoms.isEmpty() ? "" : " \n " + filtresNoms));
 
         String P_H_LOGO = jdom.scr_report_file_logo;
 

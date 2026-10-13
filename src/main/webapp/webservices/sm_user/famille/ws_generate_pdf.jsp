@@ -84,8 +84,13 @@
     String zone_condition = "";
     String lg_ZONE_GEO_ID = request.getParameter("lg_ZONE_GEO_ID");
     if (lg_ZONE_GEO_ID != null && !lg_ZONE_GEO_ID.trim().equals("") && !lg_ZONE_GEO_ID.equalsIgnoreCase("ALL")) {
-        zone_condition = " AND lg_FAMILLE_ID IN (SELECT lg_FAMILLE_ID FROM t_famille WHERE lg_ZONE_GEO_ID = '"
-                + lg_ZONE_GEO_ID.trim() + "') ";
+        /* 13/10 : plusieurs rayons coches (filtre multiple) ; valeurs echappees (audit du 12/10) */
+        StringBuilder zones = new StringBuilder();
+        for (String z : util.FiltreListe.valeurs(lg_ZONE_GEO_ID)) {
+            zones.append(zones.length() == 0 ? "'" : ",'").append(util.SqlTexte.litteral(z)).append("'");
+        }
+        zone_condition = zones.length() == 0 ? ""
+                : " AND lg_FAMILLE_ID IN (SELECT lg_FAMILLE_ID FROM t_famille WHERE lg_ZONE_GEO_ID IN (" + zones + ")) ";
         new logger().OCategory.info("zone_condition " + zone_condition);
     }
     // Filtre TVA (lg_CODE_TVA_ID) : meme principe que le filtre rayon, via une sous-requete sur t_famille.

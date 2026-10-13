@@ -38,6 +38,15 @@ import toolkits.utils.jdom;
 @Stateless
 public class Stock {
 
+    @javax.ejb.EJB
+    private rest.service.impl.LibellesFiltres libellesFiltres;
+
+    /** 13/10 : rappel des rayons, familles et grossistes filtres (leurs NOMS), en fin de titre ; vide sans filtre. */
+    private String filtresImpression(String codeRayon, String codeFamille, String codeGrossiste) {
+        String r = libellesFiltres.resume(codeRayon, codeFamille, codeGrossiste);
+        return r.isEmpty() ? "" : " \n " + r.substring(3);
+    }
+
     @EJB
     private ProduitService produitService;
     @EJB
@@ -269,7 +278,8 @@ public class Stock {
         if (!body.getDtStart().equals(body.getDtEnd())) {
             P_PERIODE += " AU " + body.getDtEnd().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
         }
-        parameters.put("P_H_CLT_INFOS", "Liste des articles vendus " + P_PERIODE);
+        parameters.put("P_H_CLT_INFOS", "Liste des articles vendus " + P_PERIODE
+                + filtresImpression(body.getRayonId(), null, body.getGrossisteId()));
         String scr_report_file = "";
         String report_generate_file = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH_mm_ss")) + ".pdf";
         List<VenteDetailsDTO> data;

@@ -58,6 +58,14 @@ public class DataReporting {
     private DonneesExploitation donneesExploitationService;
     @EJB
     private MvtProduitService mvtProduitService;
+    @EJB
+    private rest.service.impl.LibellesFiltres libellesFiltres;
+
+    /** 13/10 : rappel des rayons, familles et grossistes filtres (leurs NOMS), en fin de titre ; vide sans filtre. */
+    private String filtres(String codeRayon, String codeFamille, String codeGrossiste) {
+        String r = libellesFiltres.resume(codeRayon, codeFamille, codeGrossiste);
+        return r.isEmpty() ? "" : " \n " + r.substring(3);
+    }
 
     public String margeProduitsVendus(String dtStart, String dtEnd, String codeFamile, Integer critere, String query,
             TUser tu, String codeRayon, String codeGrossiste, MargeEnum filtre) throws IOException {
@@ -74,7 +82,8 @@ public class DataReporting {
         if (!dtEn.isEqual(dtSt)) {
             P_PERIODE += " AU " + dtEn.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
         }
-        parameters.put("P_H_CLT_INFOS", "MARGES DES PRODUITS VENDUS " + P_PERIODE);
+        parameters.put("P_H_CLT_INFOS",
+                "MARGES DES PRODUITS VENDUS " + P_PERIODE + filtres(codeRayon, codeFamile, codeGrossiste));
         String report_generate_file = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH_mm_ss")) + ".pdf";
         List<FamilleArticleStatDTO> data = dataReporingService.margeProduitsVendus(dtStart, dtEnd, codeFamile, critere,
                 query, tu, codeRayon, codeGrossiste, 0, 0, true, filtre).getRight();
@@ -98,7 +107,8 @@ public class DataReporting {
         if (!dtEn.isEqual(dtSt)) {
             P_PERIODE += " AU " + dtEn.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
         }
-        parameters.put("P_H_CLT_INFOS", "MARGES DES PRODUITS VENDUS " + P_PERIODE);
+        parameters.put("P_H_CLT_INFOS",
+                "MARGES DES PRODUITS VENDUS " + P_PERIODE + filtres(codeRayon, codeFamile, codeGrossiste));
         String report_generate_file = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH_mm_ss")) + ".pdf";
         List<FamilleArticleStatDTO> data = dataReporingService
                 .statsUnintesVendues(dtStart, dtEnd, codeFamile, query, tu, codeRayon, codeGrossiste, 0, 0, true)
@@ -184,8 +194,9 @@ public class DataReporting {
         long totalValorisation = data.stream().mapToLong(a -> (long) a.getStock() * a.getPrixAchat()).sum();
         String totalValorisationFmt = DateConverter.amountFormat(totalValorisation, ' ');
         parameters.put("P_TOTAL_VALORISATION", totalValorisationFmt);
-        parameters.put("P_H_CLT_INFOS", "ARTICLES NON VENDUS " + P_PERIODE
-                + " - TOTAL VALORISATION (STOCK x PRIX ACHAT) : " + totalValorisationFmt + " F CFA");
+        parameters.put("P_H_CLT_INFOS",
+                "ARTICLES NON VENDUS " + P_PERIODE + " - TOTAL VALORISATION (STOCK x PRIX ACHAT) : "
+                        + totalValorisationFmt + " F CFA" + filtres(codeRayon, codeFamile, codeGrossiste));
 
         reportUtil.buildReport(parameters, scr_report_file, jdom.scr_report_file,
                 jdom.scr_report_pdf + "articles_invendus_" + report_generate_file, data);
@@ -285,7 +296,8 @@ public class DataReporting {
             }
         }
 
-        parameters.put("P_H_CLT_INFOS", "LISTE DES ARTICLES  \n " + P_PERIODE);
+        parameters.put("P_H_CLT_INFOS",
+                "LISTE DES ARTICLES  \n " + P_PERIODE + filtres(codeRayon, codeFamile, codeGrossiste));
         LocalDate now = LocalDate.now();
         parameters.put("consommationsOne", now.minusMonths(1).format(DateTimeFormatter.ofPattern("MMMM")));
         parameters.put("consommationsTwo", now.minusMonths(2).format(DateTimeFormatter.ofPattern("MMMM")));

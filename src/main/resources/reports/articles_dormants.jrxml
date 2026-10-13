@@ -10,6 +10,8 @@
     <parameter name="P_PRINTED_BY" class="java.lang.String"/>
     <parameter name="P_H_CLT_INFOS" class="java.lang.String"/>
     <parameter name="P_TOTAUX" class="java.lang.String"/>
+    <!-- 13/10 : rayons, familles et grossistes filtres (noms) -->
+    <parameter name="P_FILTRES" class="java.lang.String"/>
     <field name="cip" class="java.lang.String"/>
     <field name="designation" class="java.lang.String"/>
     <field name="rayon" class="java.lang.String"/>
@@ -23,12 +25,13 @@
     <field name="prixVente" class="java.lang.Integer"/>
     <field name="valeurStock" class="java.lang.Long"/>
     <title>
-        <band height="70">
+        <band height="80">
             <textField isBlankWhenNull="true"><reportElement x="0" y="0" width="560" height="16"/><textElement><font size="11" isBold="true"/></textElement><textFieldExpression><![CDATA[$P{P_H_INSTITUTION}]]></textFieldExpression></textField>
             <textField><reportElement x="600" y="0" width="202" height="12"/><textElement textAlignment="Right"><font size="7"/></textElement><textFieldExpression><![CDATA["Imprimé le " + new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm").format(new java.util.Date())]]></textFieldExpression></textField>
             <textField isBlankWhenNull="true"><reportElement x="600" y="13" width="202" height="12"/><textElement textAlignment="Right"><font size="7"/></textElement><textFieldExpression><![CDATA["Par : " + $P{P_PRINTED_BY}]]></textFieldExpression></textField>
             <textField isBlankWhenNull="true"><reportElement x="0" y="30" width="802" height="16"/><textElement textAlignment="Center"><font size="11" isBold="true"/></textElement><textFieldExpression><![CDATA[$P{P_H_CLT_INFOS}]]></textFieldExpression></textField>
             <textField isBlankWhenNull="true"><reportElement x="0" y="50" width="802" height="14"/><textElement textAlignment="Center"><font size="8"/></textElement><textFieldExpression><![CDATA[$P{P_TOTAUX}]]></textFieldExpression></textField>
+            <textField isStretchWithOverflow="true" isBlankWhenNull="true"><reportElement positionType="Float" stretchType="RelativeToTallestObject" x="0" y="66" width="802" height="12"/><textElement textAlignment="Center"><font size="8" isItalic="true"/></textElement><textFieldExpression><![CDATA[$P{P_FILTRES}]]></textFieldExpression></textField>
         </band>
     </title>
     <columnHeader>

@@ -64,6 +64,15 @@ import util.NumberUtils;
 @Stateless
 public class Balance {
 
+    @javax.ejb.EJB
+    private rest.service.impl.LibellesFiltres libellesFiltres;
+
+    /** 13/10 : rappel des rayons, familles et grossistes filtres (leurs NOMS), en fin de titre ; vide sans filtre. */
+    private String filtresImpression(String codeRayon, String codeFamille, String codeGrossiste) {
+        String r = libellesFiltres.resume(codeRayon, codeFamille, codeGrossiste);
+        return r.isEmpty() ? "" : " \n " + r.substring(3);
+    }
+
     @EJB
     CaisseService caisseService;
     @EJB
@@ -1009,7 +1018,8 @@ public class Balance {
         if (!dtEn.isEqual(dtSt)) {
             P_PERIODE += " AU " + dtEn.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
         }
-        parameters.put("P_H_CLT_INFOS", "PRODUITS PERIMES " + P_PERIODE);
+        parameters.put("P_H_CLT_INFOS",
+                "PRODUITS PERIMES " + P_PERIODE + filtresImpression(codeRayon, codeFamile, codeGrossiste));
         String report_generate_file = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH_mm_ss")) + ".pdf";
         List<VenteDetailsDTO> data = ficheArticleService.saisiePerimes(query, dtStart, dtEnd, codeFamile, codeRayon,
                 codeGrossiste, grouby, 0, 0, true);

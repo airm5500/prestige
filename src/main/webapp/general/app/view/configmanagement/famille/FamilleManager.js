@@ -1654,7 +1654,8 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
     const opSymbols = {LESS: '<', MORE: '>', EQUAL: '=', LESSOREQUAL: '<=', MOREOREQUAL: '>='};
     const filtreParts = [];
     if (lg_ZONE_GEO_ID && rayonLabel) {
-        filtreParts.push('emplacement ' + rayonLabel);
+        /* 13/10 : un ou plusieurs rayons coches (filtre multiple) */
+        filtreParts.push((String(lg_ZONE_GEO_ID).indexOf(',') >= 0 ? 'rayons ' : 'rayon ') + rayonLabel);
     }
     if (stock_operator && opSymbols[stock_operator] && stock_value !== '') {
         filtreParts.push('stock ' + opSymbols[stock_operator] + ' ' + stock_value);

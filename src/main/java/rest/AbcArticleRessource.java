@@ -24,6 +24,8 @@ import rest.service.AbcAnalysisService;
 public class AbcArticleRessource {
 
     @EJB
+    private rest.service.impl.LibellesFiltres libellesFiltres;
+    @EJB
     private AbcAnalysisService abcAnalysisService;
     @EJB
     private rest.report.ReportUtil reportUtil;
@@ -188,7 +190,9 @@ public class AbcArticleRessource {
         byte[] data = rest.report.pdf.FeuilleDeMatchSimplePdf.construire(lignes,
                 String.valueOf(enTete.getOrDefault("P_H_INSTITUTION", "")),
                 "Période du " + (dtStart == null ? "" : dtStart) + " au " + (dtEnd == null ? "" : dtEnd) + " - "
-                        + lignes.size() + " produit(s)",
+                        + lignes.size() + " produit(s)"
+                        + (libellesFiltres.ligne(codeRayon, codeFamille, codeGrossiste).isEmpty() ? ""
+                                : " - " + libellesFiltres.ligne(codeRayon, codeFamille, codeGrossiste)),
                 String.valueOf(enTete.getOrDefault("P_PRINTED_BY", "")).trim());
         return Response.ok(data)
                 .header("Content-Disposition", "inline; filename=\"" + nomFichierFeuille(dtStart, dtEnd, "pdf") + "\"")

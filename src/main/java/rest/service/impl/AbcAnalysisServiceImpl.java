@@ -96,6 +96,12 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
     /**
      * 13/10 : identifiants coches separes par des virgules (filtre multiple, FIND_IN_SET des procedures) ; ALL = "".
      */
+    /** 13/10 : « \n Rayons : A, B - Familles : C » a la fin d'un titre ; vide sans filtre. */
+    private String filtresTitre(String codeRayon, String codeFamille, String codeGrossiste) {
+        String f = LibellesFiltres.ligne(em, codeRayon, codeFamille, codeGrossiste);
+        return f.isEmpty() ? "" : " \n " + f;
+    }
+
     private static String norm(String v) {
         return String.join(",", util.FiltreListe.valeurs(v));
     }
@@ -673,6 +679,11 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
             document.add(title);
 
             document.add(buildPdfSummaryLine(rows));
+            /* 13/10 : noms des rayons, familles et grossistes filtres */
+            String filtresAbc = LibellesFiltres.ligne(em, codeRayon, codeFamille, codeGrossiste);
+            if (!filtresAbc.isEmpty()) {
+                document.add(new Paragraph(filtresAbc, FontFactory.getFont(FontFactory.HELVETICA_OBLIQUE, 8)));
+            }
 
             PdfPTable table = new PdfPTable(headers.length);
             table.setWidthPercentage(100);
@@ -1522,8 +1533,10 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
             String typeLabel = "MARGE".equalsIgnoreCase(type) ? "marge"
                     : ("CA".equalsIgnoreCase(type) ? "chiffre d'affaires" : "quantité");
             Map<String, Object> parameters = reportUtil.officineData(sessionHelperService.getCurrentUser());
-            parameters.put("P_H_CLT_INFOS", "FEUILLE DE MATCH (TOP " + rows.size() + " - "
-                    + typeLabel.toUpperCase(java.util.Locale.FRENCH) + ") DU " + nz(dtStart) + " AU " + nz(dtEnd));
+            parameters.put("P_H_CLT_INFOS",
+                    "FEUILLE DE MATCH (TOP " + rows.size() + " - " + typeLabel.toUpperCase(java.util.Locale.FRENCH)
+                            + ") DU " + nz(dtStart) + " AU " + nz(dtEnd)
+                            + filtresTitre(codeRayon, codeFamille, codeGrossiste));
             parameters.put("P_MOIS_COURANT", fmNomMois(0));
             parameters.put("P_MOIS_1", fmNomMois(1));
             parameters.put("P_MOIS_2", fmNomMois(2));

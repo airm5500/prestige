@@ -29,6 +29,11 @@ public class LibellesFiltres {
 
     /** Noms dans l'ordre coche ; un identifiant inconnu garde son identifiant. */
     public List<String> noms(int axe, String brut) {
+        return noms(em, axe, brut);
+    }
+
+    /** Meme chose avec l'EntityManager de l'appelant (servlets, JSP, classes d'edition). */
+    public static List<String> noms(EntityManager em, int axe, String brut) {
         List<String> ids = FiltreListe.valeurs(brut);
         List<String> noms = new ArrayList<>();
         if (ids.isEmpty()) {
@@ -55,15 +60,31 @@ public class LibellesFiltres {
 
     /** « - Rayons : A, B - Familles : C - Grossiste : D » (vide si aucun filtre). */
     public String resume(String rayons, String familles, String grossistes) {
+        return resume(em, rayons, familles, grossistes);
+    }
+
+    /** « - Rayons : A, B - Familles : C » avec l'EntityManager de l'appelant ; vide si aucun filtre. */
+    public static String resume(EntityManager em, String rayons, String familles, String grossistes) {
         String[] valeurs = { rayons, familles, grossistes };
         StringBuilder sb = new StringBuilder();
         for (int a = 0; a < AXES.length; a++) {
-            List<String> n = noms(a, valeurs[a]);
+            List<String> n = noms(em, a, valeurs[a]);
             if (!n.isEmpty()) {
                 sb.append(" - ").append(n.size() > 1 ? AXES[a][1] : AXES[a][0]).append(" : ")
                         .append(String.join(", ", n));
             }
         }
         return sb.toString();
+    }
+
+    /** « Rayons : A, B - Familles : C » (vide si aucun filtre). */
+    public String ligne(String rayons, String familles, String grossistes) {
+        return ligne(em, rayons, familles, grossistes);
+    }
+
+    /** Le meme texte sans le tiret de tete, pour une ligne a part : « Rayons : A, B - Familles : C ». */
+    public static String ligne(EntityManager em, String rayons, String familles, String grossistes) {
+        String r = resume(em, rayons, familles, grossistes);
+        return r.isEmpty() ? "" : r.substring(3);
     }
 }

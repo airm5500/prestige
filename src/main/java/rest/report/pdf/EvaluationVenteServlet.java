@@ -28,6 +28,8 @@ import util.Constant;
 public class EvaluationVenteServlet extends HttpServlet {
 
     @EJB
+    private rest.service.impl.LibellesFiltres libellesFiltres;
+    @EJB
     private EvaluationVenteService evaluationVenteService;
     @EJB
     private ReportUtil reportUtil;
@@ -74,13 +76,25 @@ public class EvaluationVenteServlet extends HttpServlet {
 
         String reportName = "rp_evaluation_vente";
 
-        parameters.put("P_H_CLT_INFOS", "EVALUATION DES VENTE \n DU  " + periode);
+        /* 13/10 : rayons et familles filtres (leurs noms) */
+        String filtres = libellesFiltres.resume(emplacementId, familleId, null);
+        parameters.put("P_H_CLT_INFOS",
+                "EVALUATION DES VENTE \n DU  " + periode + (filtres.isEmpty() ? "" : " \n " + filtres.substring(3)));
         EvaluationVenteFiltre evaluationVenteFiltre = new EvaluationVenteFiltre();
         evaluationVenteFiltre.setEmplacementId(emplacementId);
         evaluationVenteFiltre.setFamilleId(familleId);
         evaluationVenteFiltre.setQuery(query);
         evaluationVenteFiltre.setFiltre(filtre);
-        evaluationVenteFiltre.setFiltreValue(Objects.nonNull(filtreValue) ? Float.valueOf(filtreValue) : null);
+        /* 13/10 : valeur vide (cas courant) = pas de seuil ; avant, l'impression plantait (NumberFormatException) */
+        Float seuil = null;
+        if (Objects.nonNull(filtreValue) && !filtreValue.trim().isEmpty()) {
+            try {
+                seuil = Float.valueOf(filtreValue.trim().replace(',', '.'));
+            } catch (NumberFormatException e) {
+                seuil = null;
+            }
+        }
+        evaluationVenteFiltre.setFiltreValue(seuil);
         List<EvaluationVenteDto> datas = this.evaluationVenteService.getEvaluationVentes(evaluationVenteFiltre);
 
         parameters.put("quantiteVendueCurrentMonth", dtSt.format(DateTimeFormatter.ofPattern(pattern)));
