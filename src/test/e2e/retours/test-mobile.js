@@ -77,7 +77,8 @@ async function appel(chemin, o) {
     r = await appel('moi', { headers: { 'X-User-Info': JSON.stringify({ id: ADMIN }), 'X-Token-Exp': '2099-01-01T00:00:00Z', 'X-client': 'mobile' } });
     ok('Anciens en-têtes X-User-Info refusés sur v1/mobile', r.statut === 401, r.statut);
     const ancien = await fetch(URL + '/api/v1/recap/dashboardmob?dtStart=2026-10-01&dtEnd=2026-10-06', { headers: { 'X-User-Info': JSON.stringify({ id: ADMIN }), 'X-Token-Exp': '2099-01-01T00:00:00Z', 'X-client': 'mobile' } });
-    ok('Chemin mobile existant inchangé (v1/recap/dashboardmob répond)', ancien.status !== 401 && ancien.status < 500, ancien.status);
+    /* audit du 12/10 (C1, C2) : ces en-tetes ne valent plus connexion et la route exige une session */
+    ok('Anciens en-têtes X-User-Info refusés aussi sur v1/recap/dashboardmob (audit du 12/10)', ancien.status === 401, ancien.status);
     r = await appel('moi', { jeton });
     ok('Avec le jeton : profil, droit photos, pas de pointage sans employé', r.j.success === true && r.j.droits.photos === true
       && r.j.droits.pointage === false && r.j.employe === null, r.t);

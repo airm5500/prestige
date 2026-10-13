@@ -11,6 +11,41 @@
         <filter-name>PortPublicAvisFilter</filter-name>
         <url-pattern>/*</url-pattern>
     </filter-mapping>
+    <!-- Audit du 12/10 (I1) : anciennes JSP et servlets reservees aux utilisateurs connectes -->
+    <filter>
+        <filter-name>SessionObligatoireFilter</filter-name>
+        <filter-class>filter.SessionObligatoireFilter</filter-class>
+    </filter>
+    <filter-mapping>
+        <filter-name>SessionObligatoireFilter</filter-name>
+        <url-pattern>/webservices/*</url-pattern>
+        <url-pattern>/Grossiste</url-pattern>
+        <url-pattern>/Vinght20x80</url-pattern>
+        <url-pattern>/cautionServlet</url-pattern>
+        <url-pattern>/EvaluationVenteServlet</url-pattern>
+        <url-pattern>/ListBonsServlet</url-pattern>
+        <url-pattern>/RecapRecetteCaisseServlet</url-pattern>
+        <url-pattern>/TvaServlet</url-pattern>
+        <url-pattern>/releveFactureServlet</url-pattern>
+        <url-pattern>/releveFactureGroupeServlet</url-pattern>
+        <url-pattern>/Etiquete</url-pattern>
+        <url-pattern>/ExcelExporter</url-pattern>
+        <url-pattern>/EditionCommandeServlet</url-pattern>
+        <url-pattern>/FactureDataExport</url-pattern>
+        <url-pattern>/commande</url-pattern>
+        <url-pattern>/UserCtr</url-pattern>
+        <url-pattern>/RetourFourData</url-pattern>
+        <url-pattern>/myBean</url-pattern>
+        <url-pattern>/ImportDepot</url-pattern>
+        <url-pattern>/generateTicket</url-pattern>
+        <url-pattern>/support-contact</url-pattern>
+        <url-pattern>/ExportInventaire</url-pattern>
+        <url-pattern>/RetourFournisseur</url-pattern>
+        <url-pattern>/ImportationVenteCtr</url-pattern>
+        <url-pattern>/ImportInventaire</url-pattern>
+        <url-pattern>/modeReglementQrCode</url-pattern>
+        <url-pattern>/VericationCommande</url-pattern>
+    </filter-mapping>
     <servlet>
         <servlet-name>DownloadFileServlet</servlet-name>
         <servlet-class>fileupload.DownloadFileServlet</servlet-class>

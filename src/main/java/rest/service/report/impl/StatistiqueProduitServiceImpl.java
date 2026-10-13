@@ -101,13 +101,14 @@ public class StatistiqueProduitServiceImpl implements StatistiqueProduitService 
     private String builQuery(String search, String rayonId, String sql) {
 
         if (StringUtils.isNotEmpty(search)) {
-            sql = sql.replace("{likeStatement}",
-                    " AND (f.`int_CIP` LIKE '" + search + "%' OR f.`str_NAME` LIKE '" + search + "%' )");
+            sql = sql.replace("{likeStatement}", " AND (f.`int_CIP` LIKE '" + util.SqlTexte.litteral(search)
+                    + "%' OR f.`str_NAME` LIKE '" + util.SqlTexte.litteral(search) + "%' )");
         } else {
             sql = sql.replace("{likeStatement}", "");
         }
         if (StringUtils.isNotBlank(rayonId)) {
-            sql = sql.replace("{rayonStatement}", String.format(" AND f.`lg_ZONE_GEO_ID`=%s ", rayonId));
+            sql = sql.replace("{rayonStatement}",
+                    String.format(" AND f.`lg_ZONE_GEO_ID`=%s ", util.SqlTexte.identifiant(rayonId)));
         } else {
             sql = sql.replace("{rayonStatement}", "");
         }

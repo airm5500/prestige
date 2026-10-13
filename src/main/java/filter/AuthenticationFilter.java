@@ -29,18 +29,19 @@ import util.Constant;
 @Provider
 public class AuthenticationFilter implements ContainerRequestFilter, ContainerResponseFilter {
 
-    private static final Set<String> SKIP_PATHS = Set.of("v1/sms/dr-callback",
+    /*
+     * Chemins ouverts SANS connexion. Audit du 12/10 (constat C2) : les routes de gestion (chiffre d'affaires, TVA,
+     * factures, credits, inventaires, valorisation...) etaient ouvertes ici pour une liaison exterieure qu'aucun
+     * logiciel n'utilise : les ecrans les appellent connectes. Elles exigent maintenant une session comme le reste.
+     */
+    private static final Set<String> SKIP_PATHS = Set.of(
+            // rappel du fournisseur SMS : authentifie par son secret, voir la ressource
+            "v1/sms/dr-callback",
             // Webhooks WhatsApp (plan d'octobre, 4.2) : appeles par Meta / le service compagnon, sans session ; chaque
             // appel est authentifie par signature HMAC ou jeton partage - voir rest.WhatsAppRessource.
-            "v1/whatsapp/webhook", "v1/whatsapp/webhook-web", "v1/user/auth", "v1/user/logout", "v1/ws/",
-            "v1/valorisation", "v1/valorisation/all", "v1/ca-comptant", "v1/ca-credit", "v1/reglements", "v1/factures",
-            "v1/fournisseurs", "v1/achats-fournisseurs", "v1/stock", "v1/tierspayants", "v1/avoirs-fournisseurs",
-            "v1/whareouse-vno", "v1/whareouse-maxmin", "v1/ca-all", "v1/checkproduit", "v1/ws/ca-achats-ventes",
-            "v1/ws/inventaires", "v1/ws/inventaires/rayons", "v1/ws/inventaires/details", "v1/balance/etat-annuel",
-            "v1/etat-control-bon/etat-annuel", "v1/balance/balanceventecaisse", "v1/recap/dashboardmob",
-            "v1/recap/creditsmob", "v1/recap/credits/totauxmob", "v3/tvamobile", "v1/produit/stats/vente-annuellep",
-            "v1/evaluation-vente/produit", "v1/info", "v1/officine", "v1/modereglement", "v1/licence/find",
-            "v1/licence/save/", "v1/motifreglement", "v1/modereglement/all",
+            "v1/whatsapp/webhook", "v1/whatsapp/webhook-web",
+            // connexion, deconnexion et nom de l'officine affiche sur la page de connexion
+            "v1/user/auth", "v1/user/logout", "v1/officine",
             // Espace produit de l'ecran de connexion : consultation libre assumee par l'officine.
             // La ressource ne sert que CIP, designation, emplacement, prix de vente et stocks,
             // 50 lignes au plus - voir rest.EspaceProduitRessource.
@@ -64,6 +65,8 @@ public class AuthenticationFilter implements ContainerRequestFilter, ContainerRe
 
     @EJB
     private SessionHelperService sessionHelperService;
+    @EJB
+    private rest.service.securite.SecuriteAccesService securiteAcces;
     @EJB
     private UserService userService;
     @EJB
@@ -105,11 +108,19 @@ public class AuthenticationFilter implements ContainerRequestFilter, ContainerRe
         String client = requestContext.getHeaderString("X-client");
 
         String userId = null;
-        if (StringUtils.isNotEmpty(userS)) {
-            userId = new JSONObject(userS).getString("id");
+        /*
+         * Audit du 12/10 (constat C1) : ces en-tetes declarent l'utilisateur sans aucune preuve. Ils ne valent
+         * connexion que si l'officine les a explicitement reactives (KEY_ENTETES_X_USER_INFO = 1).
+         */
+        if (StringUtils.isNotEmpty(userS) && securiteAcces.entetesUtilisateurAcceptes()) {
+            try {
+                userId = new JSONObject(userS).optString("id", null);
+            } catch (org.json.JSONException e) {
+                userId = null;
+            }
         }
         if (StringUtils.isNotEmpty(userId) && StringUtils.isNotEmpty(token) && StringUtils.isNotEmpty(client)
-                && Instant.parse(token).isAfter(Instant.now())) {
+                && dansLAvenir(token)) {
             currentUser = userService.findById(userId);
 
             sessionHelperService.setCurrentUser(currentUser);
@@ -156,6 +167,14 @@ public class AuthenticationFilter implements ContainerRequestFilter, ContainerRe
         sessionHelperService.setCurrentUser(null);
         sessionHelperService.setData(null);
         util.ContexteRequete.effacer();
+    }
+
+    private static boolean dansLAvenir(String date) {
+        try {
+            return Instant.parse(date).isAfter(Instant.now());
+        } catch (java.time.format.DateTimeParseException e) {
+            return false;
+        }
     }
 
     private boolean shouldSkipPath(String path) {

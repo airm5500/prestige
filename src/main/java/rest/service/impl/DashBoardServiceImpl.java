@@ -509,7 +509,8 @@ public class DashBoardServiceImpl implements DashBoardService {
         }
         if (StringUtils.isNotEmpty(balanceParams.getQuery())) {
             sql = String.format(sql,
-                    String.format(RAPPORT_SQL_LIKE, balanceParams.getQuery() + "%", balanceParams.getQuery() + "%"));
+                    String.format(RAPPORT_SQL_LIKE, util.SqlTexte.litteral(balanceParams.getQuery()) + "%",
+                            util.SqlTexte.litteral(balanceParams.getQuery()) + "%"));
         } else {
             sql = String.format(sql, "");
         }
