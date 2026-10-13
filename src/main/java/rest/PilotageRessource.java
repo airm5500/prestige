@@ -64,6 +64,57 @@ public class PilotageRessource {
                 .build();
     }
 
+    /* ------------------------------------------------------------ charges mensuelles (rentabilite nette, 11/10) */
+
+    @SuppressWarnings("unchecked")
+    private boolean peutSaisirCharges() {
+        return CommonUtils.hasAuthorityByName(
+                (List<TPrivilege>) servletRequest.getSession().getAttribute(commonparameter.USER_LIST_PRIVILEGE),
+                "P_PILOTAGE_CHARGES");
+    }
+
+    /** Grille des charges d'une annee (lecture : droit du Pilotage). */
+    @GET
+    @Path("charges")
+    public Response charges(@QueryParam("annee") Integer annee) {
+        if (utilisateur() == null) {
+            return deconnecte();
+        }
+        if (!autorise()) {
+            return refus();
+        }
+        int a = annee == null ? java.time.LocalDate.now().getYear() : annee;
+        return Response.ok().entity(pilotageService.grilleCharges(a).put("peutSaisir", peutSaisirCharges()).toString())
+                .build();
+    }
+
+    /** Saisie d'une charge : {annee, mois (1-12), categorie, montant (vide ou 0 : retiree)}. */
+    @javax.ws.rs.POST
+    @Path("charges")
+    @javax.ws.rs.Consumes("application/json")
+    public Response saisirCharge(String corps) {
+        TUser u = utilisateur();
+        if (u == null) {
+            return deconnecte();
+        }
+        if (!autorise() || !peutSaisirCharges()) {
+            return Response.ok().entity(new JSONObject().put("success", false)
+                    .put("message", "Vous n'avez pas le droit de saisir les charges.").toString()).build();
+        }
+        JSONObject c = new JSONObject(corps == null || corps.isEmpty() ? "{}" : corps);
+        Long montant = c.isNull("montant") || String.valueOf(c.opt("montant")).trim().isEmpty() ? null
+                : Math.round(c.optDouble("montant", -1));
+        String erreur = rest.service.impl.PilotageCharges.controler(c.optInt("annee"), c.optInt("mois"),
+                c.optString("categorie"), montant);
+        if (erreur != null) {
+            return Response.ok().entity(new JSONObject().put("success", false).put("message", erreur).toString())
+                    .build();
+        }
+        pilotageService.saisirCharge(c.optInt("annee"), c.optInt("mois"), c.optString("categorie"), montant,
+                u.getLgUSERID());
+        return Response.ok().entity(new JSONObject().put("success", true).toString()).build();
+    }
+
     /** Les axes de comparaison proposes : la liste vient du serveur, pour que l'ecran et le calcul ne divergent pas. */
     @GET
     @Path("axes")

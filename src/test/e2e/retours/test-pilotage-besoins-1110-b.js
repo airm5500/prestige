@@ -45,8 +45,9 @@ const nettoyer = () => { q("DELETE FROM t_vente_ratee WHERE lg_VENTE_RATEE_ID LI
     await p.waitForFunction(() => { const e = Ext.ComponentQuery.query('pilotage')[0]; return e && e.stores.synthese.mois.getCount() > 0; }, null, { timeout: 120000 });
 
     /* ------------------------------------------------ A suivre */
-    const dernier = await p.evaluate(() => { const t = Ext.ComponentQuery.query('pilotage #onglets')[0], o = t.items.last(); return o.cleOnglet + '|' + o.title + '|' + o.iconCls; });
-    ok('« À suivre » : dernier onglet, avec son icône', /^asuivre\|À suivre\|fa-solid fa-bell/.test(dernier), dernier);
+    /* 13/10 : « Rentabilite » est ajoute apres lui ; « A suivre » est donc l'avant-dernier onglet */
+    const dernier = await p.evaluate(() => { const t = Ext.ComponentQuery.query('pilotage #onglets')[0], o = t.items.getAt(t.items.getCount() - 2); return o.cleOnglet + '|' + o.title + '|' + o.iconCls; });
+    ok('« À suivre » : avant-dernier onglet (avant « Rentabilité »), avec son icône', /^asuivre\|À suivre\|fa-solid fa-bell/.test(dernier), dernier);
     const s = await api('../api/v1/pilotage/onglet/asuivre?axe=MOIS&dtStart=&dtEnd=');
     const cles = (s.tuiles || []).map((x) => x.cle).join(',');
     ok('Tuiles : rotation, rupture, panier, produits vendus en rupture, ratées à commander, ventes à perte, péremptions', cles === 'rotation,tauxRupture,evolPanier,rupturesVendus,rateesACommander,margeNegative,peremption', cles);

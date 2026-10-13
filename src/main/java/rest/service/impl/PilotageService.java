@@ -69,6 +69,8 @@ public class PilotageService {
     public static final String ONGLET_ACHATS_VENTES = "achatsventes";
     /** Besoins du 11/10 (point 11) : alertes, CA par emplacement et famille, frequentation, panier moyen. */
     public static final String ONGLET_SUIVI = "asuivre";
+    /** Besoins du 11/10 (point 11) : rentabilite nette = marge brute - charges saisies par mois. */
+    public static final String ONGLET_RENTABILITE = "rentabilite";
 
     /** Les trois decoupages de l'onglet Achats / Ventes. */
     public static final String DECOUPAGE_TRIMESTRE = "TRIMESTRE";
@@ -199,6 +201,9 @@ public class PilotageService {
             case ONGLET_SUIVI:
                 reponse = aSuivre(axe);
                 break;
+            case ONGLET_RENTABILITE:
+                reponse = rentabilite(axe);
+                break;
             default:
                 reponse = synthese(axe);
                 break;
@@ -320,6 +325,77 @@ public class PilotageService {
                 reference == null ? null : reference.ratioVA(), "", null));
 
         return new JSONObject().put("tuiles", tuiles).put("mois", moisAgreges(axe));
+    }
+
+    /* =========================================================================== onglet Rentabilite */
+
+    public JSONObject grilleCharges(int annee) {
+        return PilotageCharges.grille(em, annee);
+    }
+
+    /** Saisie d'une charge (deja controlee) ; les chiffres deja calcules ne valent plus. Seule ecriture du service. */
+    @javax.ejb.TransactionAttribute(javax.ejb.TransactionAttributeType.REQUIRED)
+    public void saisirCharge(int annee, int mois, String categorie, Long montant, String userId) {
+        PilotageCharges.enregistrer(em, annee, mois, categorie, montant, userId);
+        CACHE.clear();
+    }
+
+    private Map<String, Long> charges(Periode p) {
+        return PilotageCharges.parMois(em, java.time.YearMonth.from(p.debut),
+                java.time.YearMonth.from(p.fin.minusDays(1)));
+    }
+
+    private static long somme(Map<String, Long> m) {
+        return m.values().stream().mapToLong(Long::longValue).sum();
+    }
+
+    /**
+     * Rentabilite nette (besoins du 11/10, point 11) : marge brute de la periode, charges saisies pour ses mois,
+     * resultat net et son taux sur le CA hors taxes. Les charges sont celles des mois ENTIERS de la periode : sur un
+     * mois en cours, la marge est partielle et la tuile le dit.
+     */
+    private JSONObject rentabilite(Axe axe) {
+        Totaux courant = totaux(axe.courante);
+        Totaux reference = axe.reference == null ? null : totaux(axe.reference);
+        Map<String, Long> chargesCourantes = charges(axe.courante);
+        long ch = somme(chargesCourantes);
+        Long chRef = reference == null ? null : somme(charges(axe.reference));
+        long nbMois = java.time.temporal.ChronoUnit.MONTHS.between(java.time.YearMonth.from(axe.courante.debut),
+                java.time.YearMonth.from(axe.courante.fin.minusDays(1))) + 1;
+        double[] r = PilotageCharges.resultat(courant.marge, ch, courant.caHT);
+        double[] rr = reference == null ? null : PilotageCharges.resultat(reference.marge, chRef, reference.caHT);
+        boolean partiel = !axe.courante.fin.minusDays(1)
+                .equals(axe.courante.fin.minusDays(1).withDayOfMonth(axe.courante.fin.minusDays(1).lengthOfMonth()))
+                && axe.courante.fin.minusDays(1).isEqual(LocalDate.now());
+        JSONArray tuiles = new JSONArray();
+        tuiles.put(tuile("marge", "Marge brute", courant.marge, reference == null ? null : reference.marge, "FCFA",
+                "taux : " + pourcent(courant.tauxMarge())));
+        tuiles.put(
+                tuile("charges", "Charges", ch, chRef == null ? null : (double) chRef, "FCFA", chargesCourantes.size()
+                        + " mois saisi(s) sur " + nbMois + (partiel ? " — mois en cours incomplet" : "")));
+        tuiles.put(
+                tuile("resultatNet", "Résultat net", r[0], rr == null ? null : rr[0], "FCFA", "marge brute − charges"));
+        tuiles.put(tuile("tauxNet", "Rentabilité nette", Double.isNaN(r[1]) ? 0 : r[1],
+                rr == null || Double.isNaN(rr[1]) ? null : rr[1], "%", "résultat net rapporté au CA hors taxes"));
+        JSONArray mois = moisAgreges(axe);
+        Map<String, Long> chGraphique = charges(axe.graphique);
+        int decalage = decalageReference(axe);
+        Map<String, Long> chPasse = decalage == 0 ? new java.util.HashMap<>()
+                : PilotageCharges.parMois(em, java.time.YearMonth.from(axe.graphique.debut).minusMonths(decalage),
+                        java.time.YearMonth.from(axe.graphique.fin.minusDays(1)).minusMonths(decalage));
+        for (int i = 0; i < mois.length(); i++) {
+            JSONObject l = mois.getJSONObject(i);
+            long c = chGraphique.getOrDefault(l.optString("mois"), 0L);
+            double[] x = PilotageCharges.resultat(l.optDouble("marge", 0), c, l.optDouble("caHT", 0));
+            l.put("charges", c).put("resultatNet", Math.round(x[0]))
+                    .put("tauxNet", Double.isNaN(x[1]) ? 0 : arrondi(x[1]))
+                    .put("chargesSaisies", chGraphique.containsKey(l.optString("mois")));
+            if (decalage > 0 && l.has("margeRef")) {
+                String m = java.time.YearMonth.parse(l.optString("mois")).minusMonths(decalage).toString();
+                l.put("resultatNetRef", Math.round(l.optDouble("margeRef", 0) - chPasse.getOrDefault(m, 0L)));
+            }
+        }
+        return new JSONObject().put("tuiles", tuiles).put("mois", mois);
     }
 
     /* ================================================================================ onglet Achats */
@@ -1837,6 +1913,13 @@ public class PilotageService {
             colonnes.add(new String[] { "caTTC", "CA TTC" });
             colonnes.add(new String[] { "achatTTC", "ACHATS TTC" });
             break;
+        case ONGLET_RENTABILITE:
+            colonnes.add(new String[] { "marge", "MARGE BRUTE" });
+            colonnes.add(new String[] { "charges", "CHARGES" });
+            colonnes.add(new String[] { "resultatNet", "RÉSULTAT NET" });
+            colonnes.add(new String[] { "tauxNet", "RENTABILITÉ %" });
+            colonnes.add(new String[] { "caHT", "CA HT" });
+            break;
         case ONGLET_ACHATS_VENTES: {
             /*
              * L'ORDRE DES COLONNES EST CHOISI POUR LA PAGE A4, qui n'en porte que sept : les trois annees de ventes,
@@ -1900,6 +1983,8 @@ public class PilotageService {
             return "PILOTAGE - COMPARATEUR";
         case ONGLET_ACHATS_VENTES:
             return "PILOTAGE - ACHATS ET VENTES COMPARÉS";
+        case ONGLET_RENTABILITE:
+            return "PILOTAGE - RENTABILITÉ NETTE";
         default:
             return "PILOTAGE - SYNTHÈSE";
         }

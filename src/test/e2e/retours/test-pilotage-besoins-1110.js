@@ -49,7 +49,8 @@ const nettoyer = () => q("DELETE FROM t_vente_ratee WHERE lg_VENTE_RATEE_ID LIKE
       const autre = getComputedStyle(t.items.items[1].tab.getEl().dom.querySelector('.x-tab-inner'), '::after');
       return { n: icones.length, icones: icones.filter((x) => x[1] && x[2]).length, pastille: pastille.backgroundColor + ' ' + pastille.width, autre: autre.content,
         plugin: !!t.plugins && t.plugins.some((x) => x instanceof Ext.ux.TabReorderer), ordre: t.items.items.map((c) => c.cleOnglet).join(',') }; });
-    ok('Onze onglets (dont « À suivre »), chacun avec son icône (dessinée)', o.n === 11 && o.icones === 11, JSON.stringify(o));
+    /* 13/10 : un douzieme onglet, « Rentabilite », ajoute a la fin (rentabilite nette) */
+    ok('Douze onglets (dont « À suivre » et « Rentabilité »), chacun avec son icône (dessinée)', o.n === 12 && o.icones === 12, JSON.stringify(o));
     ok('Pastille verte sur l\'onglet ouvert seulement', o.pastille === 'rgb(22, 163, 74) 8px' && (o.autre === 'none' || o.autre === 'normal'), o.pastille + ' / ' + o.autre);
     ok('Onglets déplaçables (glisser-déposer)', o.plugin, o.ordre);
     const boutons = await p.evaluate(() => ['actualiser', 'recalculer'].map((i) => { const bt = Ext.ComponentQuery.query('pilotage #barrePeriode #' + i)[0];

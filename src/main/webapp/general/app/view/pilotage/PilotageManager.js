@@ -319,7 +319,9 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
          */
         {cle: 'achatsventes', titre: 'Achats / Ventes', icone: 'fa-right-left'},
         /* besoins du 11/10 (point 11) : alertes, CA par emplacement et famille, frequentation, panier moyen */
-        {cle: 'asuivre', titre: 'À suivre', icone: 'fa-bell'}
+        {cle: 'asuivre', titre: 'À suivre', icone: 'fa-bell'},
+        /* besoins du 11/10 (point 11) : rentabilite nette = marge brute - charges saisies par mois */
+        {cle: 'rentabilite', titre: 'Rentabilité', icone: 'fa-sack-dollar'}
     ],
 
     /* Ordre des onglets choisi par glisser-deposer : propre au poste (simple confort d'affichage). */
@@ -457,6 +459,10 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
                         /* besoins du 11/10 (point 11) : rotation des stocks, taux de rupture, evolution du panier */
                         {name: 'rotation', type: 'float'}, {name: 'tauxRupture', type: 'float'},
                         {name: 'evolPanier', type: 'float', useNull: true},
+                        /* rentabilite nette (besoins du 11/10) */
+                        {name: 'charges', type: 'float'}, {name: 'resultatNet', type: 'float'},
+                        {name: 'tauxNet', type: 'float'}, {name: 'chargesSaisies', type: 'boolean'},
+                        {name: 'resultatNetRef', type: 'float', useNull: true},
                         /* Comparateur : les deux objets compares et leur ecart. */
                         {name: 'a', type: 'float'}, {name: 'b', type: 'float'},
                         {name: 'ecart', type: 'float'}, {name: 'rapport', type: 'float'},
@@ -666,6 +672,7 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
     DEUX_COLONNES: {
         synthese: {hauteur: 272, tuiles: 692},
         marge: {hauteur: 272, tuiles: 692},
+        rentabilite: {hauteur: 272, tuiles: 692},
         achats: {hauteur: 420, tuiles: 692, graphiqueDessous: true},
         caisse: {hauteur: 272, tuiles: 692},
         stock: {hauteur: 272, tuiles: 692},
@@ -745,6 +752,9 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
                 contenu.push(me.listeStock());
             }
             contenu.push(me.detail(onglet.cle));
+            if (onglet.cle === 'rentabilite') {
+                contenu.push(me.saisieCharges());
+            }
             return {
                 xtype: 'panel',
                 itemId: 'onglet-' + onglet.cle,
@@ -1079,12 +1089,13 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
     graphique: function (cle) {
         var champs = {synthese: 'caTTC', ventes: 'caTTC', marge: 'marge', achats: 'achatTTC',
             caisse: 'encaisse', stock: 'valeurAchat', qualite: 'nbAnnulees', kpi: 'caTTC',
-            comparateur: 'a', asuivre: 'panier'};
+            comparateur: 'a', asuivre: 'panier', rentabilite: 'resultatNet'};
         var titres = {synthese: 'Chiffre d\'affaires TTC mensuel', ventes: 'Chiffre d\'affaires TTC mensuel',
             marge: 'Marge mensuelle', achats: 'Achats mensuels', caisse: 'Encaissé au comptoir, par mois',
             stock: 'Valeur du stock au prix d\'achat, fin de mois',
             qualite: 'Ventes annulées par mois', kpi: 'Évolution du premier indicateur coché',
             asuivre: 'Évolution du panier moyen, par mois',
+            rentabilite: 'Résultat net mensuel (marge brute − charges)',
             comparateur: 'Évolution comparée des deux objets'};
         var comparateur = cle === 'comparateur';
         /* Les deux couleurs du comparateur : un bleu franc et un orange, lisibles cote a cote et
@@ -2473,6 +2484,135 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
     },
 
     /** Colonnes du detail mensuel, par onglet. Les montants portent leur total en pied de grille. */
+    /* ================================================================= rentabilite : saisie des charges */
+
+    /*
+     * Les charges de l'officine, par categorie et par mois, pour une annee : on saisit directement dans le tableau
+     * (clic sur la case, Entree pour valider), sans fenetre. Chaque case est enregistree aussitot ; une case vide ou a
+     * zero retire la charge. Saisie reservee au droit « Saisir les charges mensuelles ».
+     */
+    saisieCharges: function () {
+        var me = this, annee = new Date().getFullYear(), annees = [];
+        for (var a = annee + 1; a >= annee - 5; a--) {
+            annees.push({a: a});
+        }
+        var MOIS = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
+        var champs = ['categorie', 'libelle'], colonnes = [{text: 'CATÉGORIE', dataIndex: 'libelle', flex: 1, minWidth: 210,
+                summaryRenderer: function () {
+                    return '<b>Total du mois</b>';
+                }}];
+        var f = testextjs.view.pilotage.PilotageManager;
+        Ext.each(MOIS, function (m, i) {
+            var c = 'm' + (i < 9 ? '0' : '') + (i + 1);
+            champs.push({name: c, type: 'float', useNull: true});
+            colonnes.push({text: m.toUpperCase(), dataIndex: c, width: 92, align: 'right', itemId: 'charge-' + c,
+                editor: {xtype: 'numberfield', minValue: 0, hideTrigger: true, allowDecimals: false},
+                renderer: function (v) {
+                    return v === null || v === undefined ? '' : f.nombre(v);
+                },
+                summaryType: 'sum', summaryRenderer: function (v) {
+                    return '<b>' + f.nombre(v || 0) + '</b>';
+                }});
+        });
+        var totalLigne = function (r) {
+            var t = 0;
+            Ext.each(MOIS, function (x, i) {
+                t += r.get('m' + (i < 9 ? '0' : '') + (i + 1)) || 0;
+            });
+            return t;
+        };
+        colonnes.push({text: 'TOTAL', itemId: 'charge-total', width: 120, align: 'right', renderer: function (v, m, r) {
+                return '<b>' + f.nombre(totalLigne(r)) + '</b>';
+            },
+            /* total de l'annee, sous la colonne TOTAL */
+            summaryType: function (records) {
+                var t = 0;
+                Ext.each(records, function (r) {
+                    t += totalLigne(r);
+                });
+                return t;
+            }, summaryRenderer: function (v) {
+                return '<b>' + f.nombre(v || 0) + '</b>';
+            }});
+        return {
+            xtype: 'gridpanel', itemId: 'saisieCharges', title: 'Charges mensuelles de l\'officine (saisie)',
+            minHeight: 330, columnLines: true, margin: '6 0 0 0',
+            header: {titlePosition: 0, items: [
+                    {xtype: 'combobox', itemId: 'anneeCharges', width: 110, margin: '0 8 0 12', editable: false,
+                        queryMode: 'local', displayField: 'a', valueField: 'a', value: annee,
+                        store: Ext.create('Ext.data.Store', {fields: ['a'], data: annees}),
+                        listeners: {change: function () {
+                                me.chargerCharges();
+                            }}},
+                    {xtype: 'tbtext', itemId: 'etatCharges', text: '', style: 'color:#7a5410;font-style:italic'}]},
+            store: Ext.create('Ext.data.Store', {fields: champs, data: []}),
+            features: [{ftype: 'summary'}],
+            plugins: [Ext.create('Ext.grid.plugin.CellEditing', {clicksToEdit: 1})],
+            columns: colonnes,
+            listeners: {
+                afterrender: function (g) {
+                    /*
+                     * Ecoutes posees sur le PLUGIN, apres sa creation : en Ext JS 4.2, celles de sa configuration ne sont
+                     * pas branchees, et un « return false » ecoute sur la grille n'empeche pas l'edition.
+                     */
+                    var plugin = g.findPlugin('cellediting');
+                    plugin.on('beforeedit', function () {
+                        return me.peutSaisirCharges === true;
+                    });
+                    plugin.on('edit', function (ed, e) {
+                        if (e.value === e.originalValue) {
+                            return;
+                        }
+                        me.enregistrerCharge(e.record, e.field, e.value);
+                    });
+                    me.chargerCharges();
+                }
+            }
+        };
+    },
+
+    chargerCharges: function () {
+        var me = this, g = me.down('#saisieCharges');
+        if (!g) {
+            return;
+        }
+        Ext.Ajax.request({
+            url: '../api/v1/pilotage/charges', method: 'GET', params: {annee: g.down('#anneeCharges').getValue()},
+            success: function (r) {
+                var x = Ext.decode(r.responseText, true) || {};
+                if (x.success !== true) {
+                    g.down('#etatCharges').setText(Ext.String.htmlEncode(x.message || ''));
+                    return;
+                }
+                me.peutSaisirCharges = x.peutSaisir === true;
+                g.getStore().loadData(x.data || []);
+                g.down('#etatCharges').setText(me.peutSaisirCharges ? 'Cliquez sur une case pour saisir le montant du mois'
+                        : 'Consultation seule : la saisie demande le droit « Saisir les charges mensuelles »');
+            }
+        });
+    },
+
+    enregistrerCharge: function (record, champ, valeur) {
+        var me = this, g = me.down('#saisieCharges');
+        Ext.Ajax.request({
+            url: '../api/v1/pilotage/charges', method: 'POST',
+            jsonData: {annee: g.down('#anneeCharges').getValue(), mois: parseInt(champ.substring(1), 10),
+                categorie: record.get('categorie'), montant: valeur === null || valeur === undefined ? '' : valeur},
+            success: function (r) {
+                var x = Ext.decode(r.responseText, true) || {};
+                if (x.success !== true) {
+                    g.down('#etatCharges').setText(Ext.String.htmlEncode(x.message || 'Refusé'));
+                    record.reject();
+                    return;
+                }
+                record.commit();
+                g.down('#etatCharges').setText('Enregistré');
+                /* les tuiles et le detail de l'onglet se recalculent avec la nouvelle charge */
+                testextjs.app.getController('PilotageCtr').actualiser();
+            }
+        });
+    },
+
     colonnes: function (cle) {
         /*
          * Les colonnes qui ne sont PAS un montant a rapporter au chiffre d'affaires : un nombre de ventes,
@@ -2521,6 +2661,11 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
             return [mois, montant('CA HT', 'caHT'), montant('COÛT D\'ACHAT', 'coutAchat'),
                 montant('MARGE', 'marge'), taux('TAUX DE MARGE', 'tauxMarge'),
                 montant('CA TTC', 'caTTC'), montant('ACHATS TTC', 'achatTTC')];
+        }
+        if (cle === 'rentabilite') {
+            return [mois, montant('MARGE BRUTE', 'marge'), montant('CHARGES', 'charges'),
+                montant('RÉSULTAT NET', 'resultatNet'), taux('RENTABILITÉ NETTE', 'tauxNet', 140),
+                montant('CA HT', 'caHT')];
         }
         if (cle === 'achats') {
             /* Les colonnes de grossistes s'ajoutent au chargement : elles dependent de qui a livre. */
