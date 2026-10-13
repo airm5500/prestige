@@ -10,6 +10,9 @@
  *  - un texte ET une DCI se restreignent l'un l'autre ;
  *  - « Effacer » rend la recherche par texte, qui marche comme avant (aucune regression) ;
  *  - l'API refuse toujours une recherche sans DCI ni deux caracteres.
+ *
+ * DONNEES (13/10) : le test ne depend plus du banc. Il rattache lui-meme deux DCI a quelques produits par la route
+ * de la fiche article (v1/referentiel-article/dci-famille/associer, connecte), et retire ces rattachements a la fin.
  */
 const { chromium } = require('playwright-core');
 const { execFileSync } = require('child_process');
@@ -23,7 +26,28 @@ const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BAS
   const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
   const p = await (await b.newContext({ viewport: { width: 1300, height: 900 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
+  const crees = [];
   try {
+    /* preparation : 2 DCI rattachees a 3 et 2 produits, par la route de la fiche article */
+    const dcis = q("SELECT d.lg_DCI_ID FROM t_dci d WHERE d.str_STATUT='enable' AND LENGTH(d.str_NAME) BETWEEN 8 AND 20"
+      + " AND NOT EXISTS (SELECT 1 FROM t_famille_dci fd WHERE fd.lg_DCI_ID=d.lg_DCI_ID) ORDER BY d.str_NAME LIMIT 2").split('\n').filter(Boolean);
+    const produits = q("SELECT f.lg_FAMILLE_ID FROM t_famille f JOIN t_famille_stock s ON s.lg_FAMILLE_ID=f.lg_FAMILLE_ID AND s.str_STATUT='enable' AND s.lg_EMPLACEMENT_ID='1'"
+      + " WHERE f.str_STATUT='enable' AND NOT EXISTS (SELECT 1 FROM t_famille_dci fd WHERE fd.lg_FAMILLE_ID=f.lg_FAMILLE_ID) ORDER BY f.str_NAME LIMIT 5").split('\n').filter(Boolean);
+    const admin = await (await b.newContext()).newPage();
+    await admin.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
+    await admin.fill('#str_login', 'admin'); await admin.fill('#str_password', 'e2etest'); await admin.click('#login');
+    await admin.waitForURL('**/general/**', { timeout: 60000 });
+    const avant = q("SELECT COALESCE(GROUP_CONCAT(lg_FAMILLE_DCI_ID), '') FROM t_famille_dci");
+    const liens = [[dcis[0], produits[0]], [dcis[0], produits[1]], [dcis[0], produits[2]], [dcis[1], produits[3]], [dcis[1], produits[4]]];
+    const reponses = [];
+    for (const [d, f] of liens) {
+      reponses.push(await admin.evaluate(async ([d, f]) => (await fetch('../api/v1/referentiel-article/dci-famille/associer', { method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'lg_DCI_ID=' + encodeURIComponent(d) + '&lg_FAMILLE_ID=' + encodeURIComponent(f) })).json(), [d, f]));
+    }
+    q("SELECT lg_FAMILLE_DCI_ID FROM t_famille_dci").split('\n').filter((x) => x && avant.split(',').indexOf(x) < 0).forEach((x) => crees.push(x));
+    await admin.close();
+    ok('Préparation : 5 rattachements DCI–produit créés par la route de la fiche article', crees.length === 5, JSON.stringify(reponses[0]));
+
     const attendues = q("SELECT CONCAT(d.lg_DCI_ID,'|',d.str_NAME,'|',COUNT(DISTINCT f.lg_FAMILLE_ID)) FROM t_dci d"
       + " JOIN t_famille_dci fd ON fd.lg_DCI_ID=d.lg_DCI_ID AND fd.str_STATUT='enable'"
       + " JOIN t_famille f ON f.lg_FAMILLE_ID=fd.lg_FAMILLE_ID AND f.str_STATUT='enable'"
@@ -96,6 +120,10 @@ const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BAS
   } catch (e) {
     ok('Le parcours va au bout', false, e.message + ' ' + (e.stack || '').split('\n')[1]);
   } finally {
+    if (crees.length) {
+      q("DELETE FROM t_famille_dci WHERE lg_FAMILLE_DCI_ID IN ('" + crees.join("','") + "')");
+    }
+    ok('Rattachements d\'essai retirés', crees.length === 0 || q("SELECT COUNT(*) FROM t_famille_dci WHERE lg_FAMILLE_DCI_ID IN ('" + crees.join("','") + "')") === '0');
     await b.close();
     const kos = res.filter((r) => !r.c);
     console.log('\n' + res.filter((r) => r.c).length + '/' + res.length + ' controles OK');
