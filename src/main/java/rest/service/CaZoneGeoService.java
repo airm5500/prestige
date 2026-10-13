@@ -54,6 +54,8 @@ public interface CaZoneGeoService {
         private java.time.LocalDate fin;
         private String zoneId;
         private String familleId;
+        /** 13/10 : grossiste(s) de la fiche article, separes par des virgules ; vide = tous */
+        private String grossisteId;
         private String gammeId;
         private String laboratoireId;
         /*
@@ -102,6 +104,15 @@ public interface CaZoneGeoService {
 
         public String getFamilleId() {
             return familleId;
+        }
+
+        public String getGrossisteId() {
+            return grossisteId;
+        }
+
+        public Filtres grossisteId(String grossisteId) {
+            this.grossisteId = grossisteId;
+            return this;
         }
 
         public Filtres familleId(String familleId) {

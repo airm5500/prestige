@@ -12,6 +12,7 @@
 Ext.define('testextjs.view.cazonegeo.CaZoneGeoManager', {
     extend: 'Ext.tab.Panel',
     xtype: 'cazonegeomanager',
+    requires: ['testextjs.view.commun.FiltresMulti'],
     frame: true,
     width: '97%',
     height: 620,
@@ -109,6 +110,7 @@ Ext.define('testextjs.view.cazonegeo.CaZoneGeoManager', {
                         }, {
                             xtype: 'combobox',
                             itemId: 'zone',
+                            hidden: true,
                             flex: 1,
                             store: zones,
                             valueField: 'id',
@@ -120,6 +122,7 @@ Ext.define('testextjs.view.cazonegeo.CaZoneGeoManager', {
                         }, {
                             xtype: 'combobox',
                             itemId: 'famille',
+                            hidden: true,
                             flex: 1,
                             store: familles,
                             valueField: 'id',
@@ -128,6 +131,12 @@ Ext.define('testextjs.view.cazonegeo.CaZoneGeoManager', {
                             typeAhead: true,
                             forceSelection: true,
                             emptyText: 'Toutes les familles d\'articles'
+                        }, {
+                            /* 13/10 : rayons, familles et grossistes COCHES (filtre multiple) ; les deux listes
+                               a choix unique ci-dessus restent en place, masquees (filtresmulti les remplace) */
+                            xtype: 'filtresmulti',
+                            itemId: 'filtres',
+                            axes: ['rayon', 'famille', 'grossiste']
                         }, {
                             xtype: 'combobox',
                             itemId: 'regroupement',

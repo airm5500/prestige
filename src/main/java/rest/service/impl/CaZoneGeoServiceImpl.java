@@ -92,8 +92,11 @@ public class CaZoneGeoServiceImpl implements CaZoneGeoService {
             // Filtres facultatifs, numerotes a la suite des cinq parametres fixes (retours du 12/09 : gamme et
             // laboratoire en plus de la zone et de la famille)
             List<String> valeursFiltres = new ArrayList<>();
-            String[][] filtresFacultatifs = { { "f.lg_ZONE_GEO_ID", filtres.getZoneId() },
-                    { "f.lg_FAMILLEARTICLE_ID", filtres.getFamilleId() }, { "f.gamme_id", filtres.getGammeId() },
+            /* 13/10 : rayons, familles et grossistes coches (plusieurs possibles, un seul comme avant) */
+            util.FiltreListe.ajouter(sql, "f.lg_ZONE_GEO_ID", filtres.getZoneId(), valeursFiltres, 6);
+            util.FiltreListe.ajouter(sql, "f.lg_FAMILLEARTICLE_ID", filtres.getFamilleId(), valeursFiltres, 6);
+            util.FiltreListe.ajouter(sql, "f.lg_GROSSISTE_ID", filtres.getGrossisteId(), valeursFiltres, 6);
+            String[][] filtresFacultatifs = { { "f.gamme_id", filtres.getGammeId() },
                     { "f.laboratoire_id", filtres.getLaboratoireId() } };
             for (String[] f : filtresFacultatifs) {
                 if (estRenseigne(f[1])) {
@@ -281,17 +284,11 @@ public class CaZoneGeoServiceImpl implements CaZoneGeoService {
              * affichee, sans quoi on ouvrirait le detail d'une ligne filtree et l'on verrait des produits que le total
              * ne compte pas.
              */
-            boolean filtreZone = estRenseigne(filtres.getZoneId());
-            boolean filtreFamille = estRenseigne(filtres.getFamilleId());
             List<Object> supplementaires = new ArrayList<>();
-            if (filtreZone) {
-                sql.append(" AND f.lg_ZONE_GEO_ID = ?").append(6 + supplementaires.size());
-                supplementaires.add(filtres.getZoneId());
-            }
-            if (filtreFamille) {
-                sql.append(" AND f.lg_FAMILLEARTICLE_ID = ?").append(6 + supplementaires.size());
-                supplementaires.add(filtres.getFamilleId());
-            }
+            /* 13/10 : memes filtres multiples que le tableau (rayons, familles, grossistes coches) */
+            util.FiltreListe.ajouter(sql, "f.lg_ZONE_GEO_ID", filtres.getZoneId(), supplementaires, 6);
+            util.FiltreListe.ajouter(sql, "f.lg_FAMILLEARTICLE_ID", filtres.getFamilleId(), supplementaires, 6);
+            util.FiltreListe.ajouter(sql, "f.lg_GROSSISTE_ID", filtres.getGrossisteId(), supplementaires, 6);
             // filtres gamme / laboratoire de l'onglet, puis gamme ou laboratoire de la LIGNE cliquee (retours du 12/09)
             String[][] parGammeLabo = { { "f.gamme_id", filtres.getGammeId() },
                     { "f.laboratoire_id", filtres.getLaboratoireId() }, { "f.gamme_id", gammeId },

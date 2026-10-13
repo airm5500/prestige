@@ -55,15 +55,15 @@ public class CaZoneGeoRessource {
     public Response chiffreAffaires(@QueryParam("typePeriode") String typePeriode,
             @QueryParam("dtStart") String dtStart, @QueryParam("dtEnd") String dtEnd,
             @QueryParam("zoneId") String zoneId, @QueryParam("familleId") String familleId,
-            @QueryParam("regroupement") String regroupement, @QueryParam("gammeId") String gammeId,
-            @QueryParam("laboratoireId") String laboratoireId) {
+            @QueryParam("grossisteId") String grossisteId, @QueryParam("regroupement") String regroupement,
+            @QueryParam("gammeId") String gammeId, @QueryParam("laboratoireId") String laboratoireId) {
         TUser utilisateur = utilisateur();
         if (utilisateur == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
         JSONObject json = caZoneGeoService.chiffreAffaires(utilisateur,
-                filtres(typePeriode, dtStart, dtEnd, zoneId, familleId, regroupement).gammeId(gammeId)
-                        .laboratoireId(laboratoireId));
+                filtres(typePeriode, dtStart, dtEnd, zoneId, familleId, regroupement).grossisteId(grossisteId)
+                        .gammeId(gammeId).laboratoireId(laboratoireId));
         return Response.ok().entity(json.toString()).build();
     }
 
@@ -72,15 +72,15 @@ public class CaZoneGeoRessource {
     @Produces("application/vnd.ms-excel")
     public Response excel(@QueryParam("typePeriode") String typePeriode, @QueryParam("dtStart") String dtStart,
             @QueryParam("dtEnd") String dtEnd, @QueryParam("zoneId") String zoneId,
-            @QueryParam("familleId") String familleId, @QueryParam("regroupement") String regroupement,
-            @QueryParam("gammeId") String gammeId, @QueryParam("laboratoireId") String laboratoireId)
-            throws java.io.IOException {
+            @QueryParam("familleId") String familleId, @QueryParam("grossisteId") String grossisteId,
+            @QueryParam("regroupement") String regroupement, @QueryParam("gammeId") String gammeId,
+            @QueryParam("laboratoireId") String laboratoireId) throws java.io.IOException {
         TUser utilisateur = utilisateur();
         if (utilisateur == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
-        Filtres filtres = filtres(typePeriode, dtStart, dtEnd, zoneId, familleId, regroupement).gammeId(gammeId)
-                .laboratoireId(laboratoireId);
+        Filtres filtres = filtres(typePeriode, dtStart, dtEnd, zoneId, familleId, regroupement).grossisteId(grossisteId)
+                .gammeId(gammeId).laboratoireId(laboratoireId);
         JSONObject json = caZoneGeoService.chiffreAffaires(utilisateur, filtres);
         JSONArray tranches = json.optJSONArray("tranches") == null ? new JSONArray() : json.getJSONArray("tranches");
         JSONArray data = json.optJSONArray("data") == null ? new JSONArray() : json.getJSONArray("data");
@@ -175,12 +175,13 @@ public class CaZoneGeoRessource {
     @Path("pdf")
     public Response pdf(@QueryParam("typePeriode") String typePeriode, @QueryParam("dtStart") String dtStart,
             @QueryParam("dtEnd") String dtEnd, @QueryParam("zoneId") String zoneId,
-            @QueryParam("familleId") String familleId, @QueryParam("regroupement") String regroupement,
-            @QueryParam("gammeId") String gammeId, @QueryParam("laboratoireId") String laboratoireId) {
+            @QueryParam("familleId") String familleId, @QueryParam("grossisteId") String grossisteId,
+            @QueryParam("regroupement") String regroupement, @QueryParam("gammeId") String gammeId,
+            @QueryParam("laboratoireId") String laboratoireId) {
         long depart = System.currentTimeMillis();
         try {
-            Response r = construirePdf(typePeriode, dtStart, dtEnd, zoneId, familleId, regroupement, gammeId,
-                    laboratoireId);
+            Response r = construirePdf(typePeriode, dtStart, dtEnd, zoneId, familleId, grossisteId, regroupement,
+                    gammeId, laboratoireId);
             LOG.log(Level.INFO, "Edition CA zone geo en {0} ms", System.currentTimeMillis() - depart);
             return r;
         } catch (Throwable t) {
@@ -194,13 +195,13 @@ public class CaZoneGeoRessource {
     }
 
     private Response construirePdf(String typePeriode, String dtStart, String dtEnd, String zoneId, String familleId,
-            String regroupement, String gammeId, String laboratoireId) {
+            String grossisteId, String regroupement, String gammeId, String laboratoireId) {
         TUser utilisateur = utilisateur();
         if (utilisateur == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
-        Filtres filtres = filtres(typePeriode, dtStart, dtEnd, zoneId, familleId, regroupement).gammeId(gammeId)
-                .laboratoireId(laboratoireId);
+        Filtres filtres = filtres(typePeriode, dtStart, dtEnd, zoneId, familleId, regroupement).grossisteId(grossisteId)
+                .gammeId(gammeId).laboratoireId(laboratoireId);
         JSONObject json = caZoneGeoService.chiffreAffaires(utilisateur, filtres);
         if (!json.optBoolean("success")) {
             return Response.ok().entity(ResultFactory.getFailResult(json.optString("msg"))).build();
@@ -311,13 +312,23 @@ public class CaZoneGeoRessource {
         StringBuilder sb = new StringBuilder();
         JSONArray data = json.optJSONArray("data");
         JSONObject premiere = data != null && data.length() > 0 ? data.getJSONObject(0) : null;
-        if (filtres.getZoneId() != null && !filtres.getZoneId().isBlank() && !"ALL".equals(filtres.getZoneId())) {
-            sb.append(" - Zone : ").append(premiere == null ? filtres.getZoneId() : premiere.optString("zone"));
+        /* 13/10 : plusieurs rayons / familles / grossistes coches -> leur nombre ; un seul -> son libelle */
+        int zones = util.FiltreListe.valeurs(filtres.getZoneId()).size();
+        if (zones == 1) {
+            sb.append(" - Zone : ").append(premiere == null ? filtres.getZoneId().trim() : premiere.optString("zone"));
+        } else if (zones > 1) {
+            sb.append(" - Zones : ").append(zones).append(" sélectionnées");
         }
-        if (filtres.getFamilleId() != null && !filtres.getFamilleId().isBlank()
-                && !"ALL".equals(filtres.getFamilleId())) {
+        int familles = util.FiltreListe.valeurs(filtres.getFamilleId()).size();
+        if (familles == 1) {
             sb.append(" - Famille : ")
-                    .append(premiere == null ? filtres.getFamilleId() : premiere.optString("famille"));
+                    .append(premiere == null ? filtres.getFamilleId().trim() : premiere.optString("famille"));
+        } else if (familles > 1) {
+            sb.append(" - Familles : ").append(familles).append(" sélectionnées");
+        }
+        int grossistes = util.FiltreListe.valeurs(filtres.getGrossisteId()).size();
+        if (grossistes > 0) {
+            sb.append(" - Grossistes : ").append(grossistes).append(grossistes > 1 ? " sélectionnés" : " sélectionné");
         }
         return sb.toString();
     }
@@ -335,8 +346,9 @@ public class CaZoneGeoRessource {
     @Path("detail")
     public Response detail(@QueryParam("typePeriode") String typePeriode, @QueryParam("dtStart") String dtStart,
             @QueryParam("dtEnd") String dtEnd, @QueryParam("zoneId") String zoneId,
-            @QueryParam("familleId") String familleId, @QueryParam("regroupement") String regroupement,
-            @QueryParam("ligneZoneId") String ligneZoneId, @QueryParam("ligneGammeId") String ligneGammeId,
+            @QueryParam("familleId") String familleId, @QueryParam("grossisteId") String grossisteId,
+            @QueryParam("regroupement") String regroupement, @QueryParam("ligneZoneId") String ligneZoneId,
+            @QueryParam("ligneGammeId") String ligneGammeId,
             @QueryParam("ligneLaboratoireId") String ligneLaboratoireId, @QueryParam("gammeId") String gammeId,
             @QueryParam("laboratoireId") String laboratoireId, @QueryParam("ligneFamilleId") String ligneFamilleId) {
         TUser utilisateur = utilisateur();
@@ -344,8 +356,9 @@ public class CaZoneGeoRessource {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
         JSONObject json = caZoneGeoService.produitsDeLaLigne(utilisateur,
-                filtres(typePeriode, dtStart, dtEnd, zoneId, familleId, regroupement).gammeId(gammeId)
-                        .laboratoireId(laboratoireId).ligneGammeId(ligneGammeId).ligneLaboratoireId(ligneLaboratoireId),
+                filtres(typePeriode, dtStart, dtEnd, zoneId, familleId, regroupement).grossisteId(grossisteId)
+                        .gammeId(gammeId).laboratoireId(laboratoireId).ligneGammeId(ligneGammeId)
+                        .ligneLaboratoireId(ligneLaboratoireId),
                 ligneZoneId, ligneFamilleId);
         return Response.ok().entity(json.toString()).build();
     }
@@ -356,8 +369,9 @@ public class CaZoneGeoRessource {
     @Produces(javax.ws.rs.core.MediaType.APPLICATION_OCTET_STREAM)
     public Response detailExcel(@QueryParam("typePeriode") String typePeriode, @QueryParam("dtStart") String dtStart,
             @QueryParam("dtEnd") String dtEnd, @QueryParam("zoneId") String zoneId,
-            @QueryParam("familleId") String familleId, @QueryParam("regroupement") String regroupement,
-            @QueryParam("ligneZoneId") String ligneZoneId, @QueryParam("ligneGammeId") String ligneGammeId,
+            @QueryParam("familleId") String familleId, @QueryParam("grossisteId") String grossisteId,
+            @QueryParam("regroupement") String regroupement, @QueryParam("ligneZoneId") String ligneZoneId,
+            @QueryParam("ligneGammeId") String ligneGammeId,
             @QueryParam("ligneLaboratoireId") String ligneLaboratoireId, @QueryParam("gammeId") String gammeId,
             @QueryParam("laboratoireId") String laboratoireId, @QueryParam("ligneFamilleId") String ligneFamilleId,
             @QueryParam("libelle") String libelle) throws java.io.IOException {
@@ -366,8 +380,9 @@ public class CaZoneGeoRessource {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
         JSONObject json = caZoneGeoService.produitsDeLaLigne(utilisateur,
-                filtres(typePeriode, dtStart, dtEnd, zoneId, familleId, regroupement).gammeId(gammeId)
-                        .laboratoireId(laboratoireId).ligneGammeId(ligneGammeId).ligneLaboratoireId(ligneLaboratoireId),
+                filtres(typePeriode, dtStart, dtEnd, zoneId, familleId, regroupement).grossisteId(grossisteId)
+                        .gammeId(gammeId).laboratoireId(laboratoireId).ligneGammeId(ligneGammeId)
+                        .ligneLaboratoireId(ligneLaboratoireId),
                 ligneZoneId, ligneFamilleId);
         JSONArray data = json.optJSONArray("data") == null ? new JSONArray() : json.getJSONArray("data");
         JSONObject totaux = json.optJSONObject("totaux") == null ? new JSONObject() : json.getJSONObject("totaux");
@@ -394,8 +409,9 @@ public class CaZoneGeoRessource {
     @Path("detail/pdf")
     public Response detailPdf(@QueryParam("typePeriode") String typePeriode, @QueryParam("dtStart") String dtStart,
             @QueryParam("dtEnd") String dtEnd, @QueryParam("zoneId") String zoneId,
-            @QueryParam("familleId") String familleId, @QueryParam("regroupement") String regroupement,
-            @QueryParam("ligneZoneId") String ligneZoneId, @QueryParam("ligneGammeId") String ligneGammeId,
+            @QueryParam("familleId") String familleId, @QueryParam("grossisteId") String grossisteId,
+            @QueryParam("regroupement") String regroupement, @QueryParam("ligneZoneId") String ligneZoneId,
+            @QueryParam("ligneGammeId") String ligneGammeId,
             @QueryParam("ligneLaboratoireId") String ligneLaboratoireId, @QueryParam("gammeId") String gammeId,
             @QueryParam("laboratoireId") String laboratoireId, @QueryParam("ligneFamilleId") String ligneFamilleId,
             @QueryParam("libelle") String libelle) {
@@ -405,8 +421,8 @@ public class CaZoneGeoRessource {
         }
         try {
             JSONObject json = caZoneGeoService.produitsDeLaLigne(utilisateur,
-                    filtres(typePeriode, dtStart, dtEnd, zoneId, familleId, regroupement).gammeId(gammeId)
-                            .laboratoireId(laboratoireId).ligneGammeId(ligneGammeId)
+                    filtres(typePeriode, dtStart, dtEnd, zoneId, familleId, regroupement).grossisteId(grossisteId)
+                            .gammeId(gammeId).laboratoireId(laboratoireId).ligneGammeId(ligneGammeId)
                             .ligneLaboratoireId(ligneLaboratoireId),
                     ligneZoneId, ligneFamilleId);
             JSONArray data = json.optJSONArray("data") == null ? new JSONArray() : json.getJSONArray("data");
@@ -466,8 +482,8 @@ public class CaZoneGeoRessource {
     public Response detailInventaire(@QueryParam("typePeriode") String typePeriode,
             @QueryParam("dtStart") String dtStart, @QueryParam("dtEnd") String dtEnd,
             @QueryParam("zoneId") String zoneId, @QueryParam("familleId") String familleId,
-            @QueryParam("regroupement") String regroupement, @QueryParam("ligneZoneId") String ligneZoneId,
-            @QueryParam("ligneGammeId") String ligneGammeId,
+            @QueryParam("grossisteId") String grossisteId, @QueryParam("regroupement") String regroupement,
+            @QueryParam("ligneZoneId") String ligneZoneId, @QueryParam("ligneGammeId") String ligneGammeId,
             @QueryParam("ligneLaboratoireId") String ligneLaboratoireId, @QueryParam("gammeId") String gammeId,
             @QueryParam("laboratoireId") String laboratoireId, @QueryParam("ligneFamilleId") String ligneFamilleId,
             @QueryParam("libelle") String libelle) {
@@ -476,8 +492,9 @@ public class CaZoneGeoRessource {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
         JSONObject json = caZoneGeoService.produitsDeLaLigne(utilisateur,
-                filtres(typePeriode, dtStart, dtEnd, zoneId, familleId, regroupement).gammeId(gammeId)
-                        .laboratoireId(laboratoireId).ligneGammeId(ligneGammeId).ligneLaboratoireId(ligneLaboratoireId),
+                filtres(typePeriode, dtStart, dtEnd, zoneId, familleId, regroupement).grossisteId(grossisteId)
+                        .gammeId(gammeId).laboratoireId(laboratoireId).ligneGammeId(ligneGammeId)
+                        .ligneLaboratoireId(ligneLaboratoireId),
                 ligneZoneId, ligneFamilleId);
         JSONArray data = json.optJSONArray("data") == null ? new JSONArray() : json.getJSONArray("data");
         java.util.Set<String> produits = new java.util.LinkedHashSet<>();

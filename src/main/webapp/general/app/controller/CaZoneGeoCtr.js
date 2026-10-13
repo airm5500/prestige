@@ -26,6 +26,7 @@ Ext.define('testextjs.controller.CaZoneGeoCtr', {
         {ref: 'dtEnd', selector: 'cazonegeomanager #dtEnd'},
         {ref: 'zone', selector: 'cazonegeomanager #zone'},
         {ref: 'famille', selector: 'cazonegeomanager #famille'},
+        {ref: 'filtres', selector: 'cazonegeomanager #filtres'},
         {ref: 'regroupement', selector: 'cazonegeomanager #regroupement'},
         {ref: 'periodeTexte', selector: 'cazonegeomanager #periodeTexte'},
         {ref: 'totalTexte', selector: 'cazonegeomanager #totalTexte'},
@@ -54,6 +55,10 @@ Ext.define('testextjs.controller.CaZoneGeoCtr', {
             },
             'cazonegeomanager #famille': {
                 select: this.rechercher
+            },
+            /* 13/10 : filtre multiple - la recherche repart quand le choix change */
+            'cazonegeomanager #filtres': {
+                change: this.rechercher
             },
             'cazonegeomanager #regroupement': {
                 select: this.rechercher
@@ -173,8 +178,10 @@ Ext.define('testextjs.controller.CaZoneGeoCtr', {
         const p = {
             typePeriode: me.getTypePeriode().getValue(),
             regroupement: me.regroupementActif(),
-            zoneId: me.getZone().getValue() || '',
-            familleId: me.getFamille().getValue() || '',
+            /* 13/10 : rayons / familles / grossistes coches (identifiants separes par des virgules) */
+            zoneId: me.getFiltres() ? me.getFiltres().getParam('rayon') : (me.getZone().getValue() || ''),
+            familleId: me.getFiltres() ? me.getFiltres().getParam('famille') : (me.getFamille().getValue() || ''),
+            grossisteId: me.getFiltres() ? me.getFiltres().getParam('grossiste') : '',
             // filtres de l'onglet Gammes / Laboratoires (retours du 12/09)
             gammeId: (me.getGammeFiltre() && me.getGammeFiltre().getValue()) || '',
             laboratoireId: (me.getLaboratoireFiltre() && me.getLaboratoireFiltre().getValue()) || ''
