@@ -89,4 +89,38 @@ public class LigneBorneJourneeTest {
         HMvtProduit vente = ligne(DateConverter.VENTE, T0, 11, 4);
         assertSame(vente, ProduitServiceImpl.ligneBorneJournee(Collections.singletonList(vente)));
     }
+
+    /* Stock d'ouverture de la journee (13/10) : la ligne VENTE suit desormais la ligne de deconditionnement. */
+
+    @Test
+    public void ouvertureDeJournee_historiqueCorrige_stockAvantLeDecon() {
+        // 2 en rayon, boite de 20 ouverte, vente de 3, meme seconde : decon 2 -> 22, vente 22 -> 19
+        HMvtProduit decon = ligne(DateConverter.DECONDTIONNEMENT_POSITIF, T0, 2, 22);
+        HMvtProduit vente = ligne(DateConverter.VENTE, T0, 22, 19);
+        assertEquals(Integer.valueOf(2), ProduitServiceImpl.stockOuvertureJournee(Arrays.asList(decon, vente)));
+        assertEquals(Integer.valueOf(2), ProduitServiceImpl.stockOuvertureJournee(Arrays.asList(vente, decon)));
+    }
+
+    @Test
+    public void ouvertureDeJournee_ancienHistorique_inchange() {
+        // avant le 05/09 : decon gonfle (104 -> 204), vente partant du stock d'avant ouverture (4)
+        assertEquals(Integer.valueOf(4), ProduitServiceImpl.stockOuvertureJournee(Arrays.asList(
+                ligne(DateConverter.DECONDTIONNEMENT_POSITIF, T0, 104, 204), ligne(DateConverter.VENTE, T0, 4, 99))));
+        // du 05/09 au 13/10 : decon sain (2 -> 22), vente partant encore de 2
+        assertEquals(Integer.valueOf(2), ProduitServiceImpl.stockOuvertureJournee(Arrays.asList(
+                ligne(DateConverter.DECONDTIONNEMENT_POSITIF, T0, 2, 22), ligne(DateConverter.VENTE, T0, 2, 19))));
+    }
+
+    @Test
+    public void ouvertureDeJournee_venteAuDepot_et_casSimples() {
+        HMvtProduit decon = ligne(DateConverter.DECONDTIONNEMENT_POSITIF, T0, 2, 22);
+        HMvtProduit venteDepot = ligne(DateConverter.TMVTP_VENTE_DEPOT_EXTENSION, T0, 22, 19);
+        assertEquals(Integer.valueOf(2), ProduitServiceImpl.stockOuvertureJournee(Arrays.asList(venteDepot, decon)));
+        assertEquals(Integer.valueOf(11), ProduitServiceImpl
+                .stockOuvertureJournee(Collections.singletonList(ligne(DateConverter.VENTE, T0, 11, 4))));
+        assertNull(ProduitServiceImpl.stockOuvertureJournee(Collections.<HMvtProduit> emptyList()));
+        // decon manuel en debut de journee, vente plus tard : le decon ouvre la journee
+        assertEquals(Integer.valueOf(5), ProduitServiceImpl.stockOuvertureJournee(Arrays.asList(
+                ligne(DateConverter.DECONDTIONNEMENT_POSITIF, T0, 5, 25), ligne(DateConverter.VENTE, T1, 25, 20))));
+    }
 }

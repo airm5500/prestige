@@ -222,8 +222,10 @@ public class MvtProduitServiceImpl implements MvtProduitService {
             }
 
             updatefamillenbvente(tFamille, it.getIntQUANTITY(), isDepot);
-            // qteFinale lue sur le stock courant (mis a jour par le deconditionnement eventuel), pas sur
-            // initStock fige avant le decon : sinon la ligne VENTE historisait un stock final faux.
+            // Stock avant ET apres lus sur le stock courant, donc APRES le deconditionnement eventuel : la ligne
+            // VENTE suit la ligne de deconditionnement (13/10 ; avant, elle repartait du stock d'avant l'ouverture
+            // de la boite et l'historique ne s'enchainait plus).
+            initStock = familleStock.getIntNUMBERAVAILABLE();
             mouvementProduitService.saveMvtProduit(it.getIntPRICEUNITAIR(), it, typemvtproduit, tFamille, tu,
                     emplacement, it.getIntQUANTITY(), initStock,
                     familleStock.getIntNUMBERAVAILABLE() - it.getIntQUANTITY(), it.getValeurTva(), tp.getChecked(),
@@ -329,6 +331,8 @@ public class MvtProduitServiceImpl implements MvtProduitService {
 
             }
             updatefamillenbvente(tFamille, it.getIntQUANTITY(), isDepot);
+            // stock avant lu apres le deconditionnement eventuel : la ligne VENTE suit la ligne de deconditionnement
+            initStock = familleStock.getIntNUMBERAVAILABLE();
             mouvementProduitService.saveMvtProduit(it.getIntPRICEUNITAIR(), it, typemvtproduit, tFamille, tu,
                     emplacement, it.getIntQUANTITY(), initStock,
                     familleStock.getIntNUMBERAVAILABLE() - it.getIntQUANTITY(), it.getValeurTva(), true, it.getIntUG());
@@ -412,8 +416,9 @@ public class MvtProduitServiceImpl implements MvtProduitService {
             }
 
         }
+        // Entree en stock du depot : le stock MONTE de qty (13/10 ; elle etait historisee en baisse)
         mouvementProduitService.saveMvtProduit2(oTFamille.getIntPRICE(), familleStock.getLgFAMILLESTOCKID(),
-                typemvtproduit, oTFamille, ooTUser, oEmplacement, qty, initStock, initStock - qty, 0, false, 0);
+                typemvtproduit, oTFamille, ooTUser, oEmplacement, qty, initStock, initStock + qty, 0, false, 0);
 
     }
 

@@ -600,8 +600,31 @@ public class ProduitServiceImpl implements ProduitService {
     }
 
     private Integer findInitialQty(LocalDate dtStart, String produitId) {
-        HMvtProduit ligne = ligneBorneJournee(lignesBorneJournee(dtStart, produitId, false));
-        return ligne == null ? null : ligne.getQteDebut();
+        return stockOuvertureJournee(lignesBorneJournee(dtStart, produitId, false));
+    }
+
+    /**
+     * Stock d'ouverture de la journee, lignes triees par createdAt croissant. Regle de {@link #ligneBorneJournee} (la
+     * vente prime a horodatage egal), sauf quand la vente s'enchaine sur le deconditionnement automatique de la meme
+     * seconde (qteDebut de la vente = qteFinale du deconditionnement : historique ecrit depuis le 13/10) : le stock
+     * d'ouverture est alors celui d'avant l'ouverture de la boite, porte par la ligne de deconditionnement. Les
+     * historiques plus anciens (vente partant du stock d'avant ouverture) gardent la regle d'origine.
+     */
+    static Integer stockOuvertureJournee(List<HMvtProduit> lignesTriees) {
+        HMvtProduit ligne = ligneBorneJournee(lignesTriees);
+        if (ligne == null) {
+            return null;
+        }
+        if (!DateConverter.DECONDTIONNEMENT_POSITIF.equals(ligne.getTypemvtproduit().getId())) {
+            for (HMvtProduit autre : lignesTriees) {
+                if (autre.getCreatedAt().equals(ligne.getCreatedAt())
+                        && DateConverter.DECONDTIONNEMENT_POSITIF.equals(autre.getTypemvtproduit().getId())
+                        && autre.getQteFinale() != null && autre.getQteFinale().equals(ligne.getQteDebut())) {
+                    return autre.getQteDebut();
+                }
+            }
+        }
+        return ligne.getQteDebut();
     }
 
     private Integer findFinalQty(LocalDate dtStart, String produitId) {
