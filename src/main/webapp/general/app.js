@@ -690,6 +690,7 @@ Ext.application({
         'testextjs.view.rh.RhManager',
         'testextjs.view.avisclients.AvisClients',
         'testextjs.view.audit.AuditRapprochements',
+        'testextjs.view.stockmanagement.valorisation.SetValorisation',
         'testextjs.view.commandemanagement.analyse.AnalyseCommande',
         'testextjs.view.configmanagement.famille.action.add2',
         'testextjs.view.stockmanagement.suivistockvente.action.detailAjustement',

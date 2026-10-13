@@ -32,6 +32,8 @@ public final class TableauPdf {
     private static final Font ENTETE = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 7f);
     private static final Font CELLULE = FontFactory.getFont(FontFactory.HELVETICA, 7f);
     private static final Font PIED = FontFactory.getFont(FontFactory.HELVETICA, 7f);
+    private static final Font FILIGRANE = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 34f,
+            new BaseColor(0xC0, 0x1B, 0x1B));
     private static final BaseColor GRIS_ENTETE = new BaseColor(0xE8, 0xE8, 0xE8);
 
     /** Description de l'edition. */
@@ -41,21 +43,38 @@ public final class TableauPdf {
         public float[] largeurs;
         /** colonnes alignees a droite (nombres) */
         public boolean[] droite;
+        /** mention en filigrane, en travers de chaque page, et en tete du pied (null : aucune) */
+        public String filigrane;
     }
 
     private TableauPdf() {
     }
 
     private static final class Pied extends PdfPageEventHelper {
-        private final String texte;
+        private final String texte, filigrane;
 
         Pied(String texte) {
-            this.texte = texte;
+            this(texte, null);
+        }
+
+        Pied(String texte, String filigrane) {
+            this.texte = filigrane == null || filigrane.trim().isEmpty() ? texte : filigrane + " · " + texte;
+            this.filigrane = filigrane == null || filigrane.trim().isEmpty() ? null : filigrane;
         }
 
         @Override
         public void onEndPage(PdfWriter writer, Document document) {
             PdfContentByte cb = writer.getDirectContent();
+            if (filigrane != null) {
+                PdfContentByte dessous = writer.getDirectContentUnder();
+                dessous.saveState();
+                com.itextpdf.text.pdf.PdfGState g = new com.itextpdf.text.pdf.PdfGState();
+                g.setFillOpacity(0.16f);
+                dessous.setGState(g);
+                ColumnText.showTextAligned(dessous, Element.ALIGN_CENTER, new Phrase(filigrane, FILIGRANE),
+                        document.getPageSize().getWidth() / 2, document.getPageSize().getHeight() / 2, 28);
+                dessous.restoreState();
+            }
             ColumnText.showTextAligned(cb, Element.ALIGN_LEFT, new Phrase(texte, PIED), document.leftMargin(),
                     document.bottomMargin() - 12, 0);
             ColumnText.showTextAligned(cb, Element.ALIGN_RIGHT, new Phrase("Page " + writer.getPageNumber(), PIED),
@@ -67,9 +86,10 @@ public final class TableauPdf {
         try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Document doc = new Document(PageSize.A4.rotate(), 18, 18, 20, 30);
             PdfWriter writer = PdfWriter.getInstance(doc, out);
-            writer.setPageEvent(
-                    new Pied("Imprimé le " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"))
-                            + (e.imprimePar == null || e.imprimePar.isEmpty() ? "" : " par " + e.imprimePar)));
+            writer.setPageEvent(new Pied(
+                    "Imprimé le " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"))
+                            + (e.imprimePar == null || e.imprimePar.isEmpty() ? "" : " par " + e.imprimePar),
+                    e.filigrane));
             doc.open();
             if (e.officine != null && !e.officine.trim().isEmpty()) {
                 doc.add(new Paragraph(e.officine, OFFICINE));
@@ -128,9 +148,10 @@ public final class TableauPdf {
         try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Document doc = new Document(PageSize.A4.rotate(), 18, 18, 20, 30);
             PdfWriter writer = PdfWriter.getInstance(doc, out);
-            writer.setPageEvent(
-                    new Pied("Imprimé le " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"))
-                            + (e.imprimePar == null || e.imprimePar.isEmpty() ? "" : " par " + e.imprimePar)));
+            writer.setPageEvent(new Pied(
+                    "Imprimé le " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"))
+                            + (e.imprimePar == null || e.imprimePar.isEmpty() ? "" : " par " + e.imprimePar),
+                    e.filigrane));
             doc.open();
             if (e.officine != null && !e.officine.trim().isEmpty()) {
                 doc.add(new Paragraph(e.officine, OFFICINE));
