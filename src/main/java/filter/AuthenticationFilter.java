@@ -42,6 +42,10 @@ public class AuthenticationFilter implements ContainerRequestFilter, ContainerRe
             "v1/whatsapp/webhook", "v1/whatsapp/webhook-web",
             // connexion, deconnexion, nom de l'officine, nom et version de l'application (page de connexion)
             "v1/user/auth", "v1/user/logout", "v1/officine", "v1/app/info",
+            // Lecture de la licence par les applications mobiles AVANT connexion (ecran de lancement : l'application
+            // est-elle activee pour cette officine ?). Lecture seule, cle masquee sans session - voir
+            // rest.LicenceRessource. L'enregistrement (v1/licence/save) reste derriere la connexion.
+            "v1/licence/find",
             // Espace produit de l'ecran de connexion : consultation libre assumee par l'officine.
             // La ressource ne sert que CIP, designation, emplacement, prix de vente et stocks,
             // 50 lignes au plus - voir rest.EspaceProduitRessource.
