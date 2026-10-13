@@ -1533,14 +1533,14 @@ public class SalesStatsServiceImpl implements SalesStatsService {
             predicates.add(cb.equal(root.get(TPreenregistrementDetail_.lgPREENREGISTREMENTID)
                     .get(TPreenregistrement_.lgUSERCAISSIERID).get(TUser_.lgUSERID), param.getUser()));
         }
-        if (!StringUtils.isEmpty(param.getRayonId()) && !"ALL".equals(param.getRayonId())) {
-            predicates.add(cb.equal(root.get(TPreenregistrementDetail_.lgFAMILLEID).get(TFamille_.lgZONEGEOID)
-                    .get(TZoneGeographique_.lgZONEGEOID), param.getRayonId()));
+        if (util.FiltreListe.actif(param.getRayonId())) {
+            predicates.add(util.FiltreListe.predicat(root.get(TPreenregistrementDetail_.lgFAMILLEID)
+                    .get(TFamille_.lgZONEGEOID).get(TZoneGeographique_.lgZONEGEOID), param.getRayonId()));
         }
 
-        if (!StringUtils.isEmpty(param.getGrossisteId()) && !"ALL".equals(param.getGrossisteId())) {
-            predicates.add(cb.equal(root.get(TPreenregistrementDetail_.lgFAMILLEID).get(TFamille_.lgGROSSISTEID)
-                    .get(TGrossiste_.lgGROSSISTEID), param.getGrossisteId()));
+        if (util.FiltreListe.actif(param.getGrossisteId())) {
+            predicates.add(util.FiltreListe.predicat(root.get(TPreenregistrementDetail_.lgFAMILLEID)
+                    .get(TFamille_.lgGROSSISTEID).get(TGrossiste_.lgGROSSISTEID), param.getGrossisteId()));
         }
 
         predicates.add(cb.equal(st.get("lgEMPLACEMENTID").get("lgEMPLACEMENTID"), lgEmplacementId));

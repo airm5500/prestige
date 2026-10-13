@@ -125,17 +125,17 @@ public class DataReporingServiceImpl implements DataReporingService {
                     cb.like(root.get(TPreenregistrementDetail_.lgFAMILLEID).get(TFamille_.intCIP), query + "%"),
                     cb.like(root.get(TPreenregistrementDetail_.lgFAMILLEID).get(TFamille_.strNAME), query + "%")));
         }
-        if (!StringUtils.isEmpty(codeFamille)) {
-            predicates.add(cb.equal(root.get(TPreenregistrementDetail_.lgFAMILLEID).get(TFamille_.lgFAMILLEARTICLEID)
-                    .get(TFamillearticle_.lgFAMILLEARTICLEID), codeFamille));
+        if (util.FiltreListe.actif(codeFamille)) {
+            predicates.add(util.FiltreListe.predicat(root.get(TPreenregistrementDetail_.lgFAMILLEID)
+                    .get(TFamille_.lgFAMILLEARTICLEID).get(TFamillearticle_.lgFAMILLEARTICLEID), codeFamille));
         }
-        if (!StringUtils.isEmpty(codeRayon)) {
-            predicates.add(cb.equal(root.get(TPreenregistrementDetail_.lgFAMILLEID).get(TFamille_.lgZONEGEOID)
-                    .get(TZoneGeographique_.lgZONEGEOID), codeRayon));
+        if (util.FiltreListe.actif(codeRayon)) {
+            predicates.add(util.FiltreListe.predicat(root.get(TPreenregistrementDetail_.lgFAMILLEID)
+                    .get(TFamille_.lgZONEGEOID).get(TZoneGeographique_.lgZONEGEOID), codeRayon));
         }
-        if (!StringUtils.isEmpty(codeGrossiste)) {
-            predicates.add(cb.equal(root.get(TPreenregistrementDetail_.lgFAMILLEID).get(TFamille_.lgGROSSISTEID)
-                    .get(TGrossiste_.lgGROSSISTEID), codeGrossiste));
+        if (util.FiltreListe.actif(codeGrossiste)) {
+            predicates.add(util.FiltreListe.predicat(root.get(TPreenregistrementDetail_.lgFAMILLEID)
+                    .get(TFamille_.lgGROSSISTEID).get(TGrossiste_.lgGROSSISTEID), codeGrossiste));
         }
 
         return predicates;
@@ -281,17 +281,17 @@ public class DataReporingServiceImpl implements DataReporingService {
                     cb.like(root.get(TPreenregistrementDetail_.lgFAMILLEID).get(TFamille_.intCIP), query + "%"),
                     cb.like(root.get(TPreenregistrementDetail_.lgFAMILLEID).get(TFamille_.strNAME), query + "%")));
         }
-        if (!StringUtils.isEmpty(codeFamille)) {
-            predicates.add(cb.equal(root.get(TPreenregistrementDetail_.lgFAMILLEID).get(TFamille_.lgFAMILLEARTICLEID)
-                    .get(TFamillearticle_.lgFAMILLEARTICLEID), codeFamille));
+        if (util.FiltreListe.actif(codeFamille)) {
+            predicates.add(util.FiltreListe.predicat(root.get(TPreenregistrementDetail_.lgFAMILLEID)
+                    .get(TFamille_.lgFAMILLEARTICLEID).get(TFamillearticle_.lgFAMILLEARTICLEID), codeFamille));
         }
-        if (!StringUtils.isEmpty(codeRayon)) {
-            predicates.add(cb.equal(root.get(TPreenregistrementDetail_.lgFAMILLEID).get(TFamille_.lgZONEGEOID)
-                    .get(TZoneGeographique_.lgZONEGEOID), codeRayon));
+        if (util.FiltreListe.actif(codeRayon)) {
+            predicates.add(util.FiltreListe.predicat(root.get(TPreenregistrementDetail_.lgFAMILLEID)
+                    .get(TFamille_.lgZONEGEOID).get(TZoneGeographique_.lgZONEGEOID), codeRayon));
         }
-        if (!StringUtils.isEmpty(codeGrossiste)) {
-            predicates.add(cb.equal(root.get(TPreenregistrementDetail_.lgFAMILLEID).get(TFamille_.lgGROSSISTEID)
-                    .get(TGrossiste_.lgGROSSISTEID), codeGrossiste));
+        if (util.FiltreListe.actif(codeGrossiste)) {
+            predicates.add(util.FiltreListe.predicat(root.get(TPreenregistrementDetail_.lgFAMILLEID)
+                    .get(TFamille_.lgGROSSISTEID).get(TGrossiste_.lgGROSSISTEID), codeGrossiste));
         }
 
         return predicates;
@@ -411,17 +411,17 @@ public class DataReporingServiceImpl implements DataReporingService {
                     cb.like(root.get(TPreenregistrementDetail_.lgFAMILLEID).get(TFamille_.intCIP), query + "%"),
                     cb.like(root.get(TPreenregistrementDetail_.lgFAMILLEID).get(TFamille_.strNAME), query + "%")));
         }
-        if (!StringUtils.isEmpty(codeFamille)) {
-            predicates.add(cb.equal(root.get(TPreenregistrementDetail_.lgFAMILLEID).get(TFamille_.lgFAMILLEARTICLEID)
-                    .get(TFamillearticle_.lgFAMILLEARTICLEID), codeFamille));
+        if (util.FiltreListe.actif(codeFamille)) {
+            predicates.add(util.FiltreListe.predicat(root.get(TPreenregistrementDetail_.lgFAMILLEID)
+                    .get(TFamille_.lgFAMILLEARTICLEID).get(TFamillearticle_.lgFAMILLEARTICLEID), codeFamille));
         }
-        if (!StringUtils.isEmpty(codeRayon)) {
-            predicates.add(cb.equal(root.get(TPreenregistrementDetail_.lgFAMILLEID).get(TFamille_.lgZONEGEOID)
-                    .get(TZoneGeographique_.lgZONEGEOID), codeRayon));
+        if (util.FiltreListe.actif(codeRayon)) {
+            predicates.add(util.FiltreListe.predicat(root.get(TPreenregistrementDetail_.lgFAMILLEID)
+                    .get(TFamille_.lgZONEGEOID).get(TZoneGeographique_.lgZONEGEOID), codeRayon));
         }
-        if (!StringUtils.isEmpty(codeGrossiste)) {
-            predicates.add(cb.equal(root.get(TPreenregistrementDetail_.lgFAMILLEID).get(TFamille_.lgGROSSISTEID)
-                    .get(TGrossiste_.lgGROSSISTEID), codeGrossiste));
+        if (util.FiltreListe.actif(codeGrossiste)) {
+            predicates.add(util.FiltreListe.predicat(root.get(TPreenregistrementDetail_.lgFAMILLEID)
+                    .get(TFamille_.lgGROSSISTEID).get(TGrossiste_.lgGROSSISTEID), codeGrossiste));
         }
         if (!StringUtils.isEmpty(gammeId)) {
             predicates.add(
@@ -454,17 +454,17 @@ public class DataReporingServiceImpl implements DataReporingService {
                     cb.like(root.get(TPreenregistrementDetail_.lgFAMILLEID).get(TFamille_.intCIP), query + "%"),
                     cb.like(root.get(TPreenregistrementDetail_.lgFAMILLEID).get(TFamille_.strNAME), query + "%")));
         }
-        if (!StringUtils.isEmpty(codeFamille)) {
-            predicates.add(cb.equal(root.get(TPreenregistrementDetail_.lgFAMILLEID).get(TFamille_.lgFAMILLEARTICLEID)
-                    .get(TFamillearticle_.lgFAMILLEARTICLEID), codeFamille));
+        if (util.FiltreListe.actif(codeFamille)) {
+            predicates.add(util.FiltreListe.predicat(root.get(TPreenregistrementDetail_.lgFAMILLEID)
+                    .get(TFamille_.lgFAMILLEARTICLEID).get(TFamillearticle_.lgFAMILLEARTICLEID), codeFamille));
         }
-        if (!StringUtils.isEmpty(codeRayon)) {
-            predicates.add(cb.equal(root.get(TPreenregistrementDetail_.lgFAMILLEID).get(TFamille_.lgZONEGEOID)
-                    .get(TZoneGeographique_.lgZONEGEOID), codeRayon));
+        if (util.FiltreListe.actif(codeRayon)) {
+            predicates.add(util.FiltreListe.predicat(root.get(TPreenregistrementDetail_.lgFAMILLEID)
+                    .get(TFamille_.lgZONEGEOID).get(TZoneGeographique_.lgZONEGEOID), codeRayon));
         }
-        if (!StringUtils.isEmpty(codeGrossiste)) {
-            predicates.add(cb.equal(root.get(TPreenregistrementDetail_.lgFAMILLEID).get(TFamille_.lgGROSSISTEID)
-                    .get(TGrossiste_.lgGROSSISTEID), codeGrossiste));
+        if (util.FiltreListe.actif(codeGrossiste)) {
+            predicates.add(util.FiltreListe.predicat(root.get(TPreenregistrementDetail_.lgFAMILLEID)
+                    .get(TFamille_.lgGROSSISTEID).get(TGrossiste_.lgGROSSISTEID), codeGrossiste));
         }
         if (!StringUtils.isEmpty(laboratoireId)) {
             predicates.add(cb.equal(
@@ -751,15 +751,17 @@ public class DataReporingServiceImpl implements DataReporingService {
             predicates.add(cb.or(cb.like(root.get(TFamille_.intCIP), query + "%"),
                     cb.like(root.get(TFamille_.strNAME), query + "%")));
         }
-        if (!StringUtils.isEmpty(codeFamille) && !codeFamille.equalsIgnoreCase(DateConverter.ALL)) {
-            predicates.add(cb.equal(root.get(TFamille_.lgFAMILLEARTICLEID).get(TFamillearticle_.lgFAMILLEARTICLEID),
-                    codeFamille));
+        if (util.FiltreListe.actif(codeFamille)) {
+            predicates.add(util.FiltreListe.predicat(
+                    root.get(TFamille_.lgFAMILLEARTICLEID).get(TFamillearticle_.lgFAMILLEARTICLEID), codeFamille));
         }
-        if (!StringUtils.isEmpty(codeRayon) && !codeRayon.equalsIgnoreCase(DateConverter.ALL)) {
-            predicates.add(cb.equal(root.get(TFamille_.lgZONEGEOID).get(TZoneGeographique_.lgZONEGEOID), codeRayon));
+        if (util.FiltreListe.actif(codeRayon)) {
+            predicates.add(util.FiltreListe
+                    .predicat(root.get(TFamille_.lgZONEGEOID).get(TZoneGeographique_.lgZONEGEOID), codeRayon));
         }
-        if (!StringUtils.isEmpty(codeGrossiste) && !codeGrossiste.equalsIgnoreCase(DateConverter.ALL)) {
-            predicates.add(cb.equal(root.get(TFamille_.lgGROSSISTEID).get(TGrossiste_.lgGROSSISTEID), codeGrossiste));
+        if (util.FiltreListe.actif(codeGrossiste)) {
+            predicates.add(util.FiltreListe.predicat(root.get(TFamille_.lgGROSSISTEID).get(TGrossiste_.lgGROSSISTEID),
+                    codeGrossiste));
         }
         if (stockFiltre != null && stockFiltre != MargeEnum.ALL) {
             switch (stockFiltre) {

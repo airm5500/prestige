@@ -159,18 +159,10 @@ public class ArticlesDormantsService {
             s.append(" AND (f.int_CIP LIKE ?").append(p.size() - 1).append(" OR f.str_NAME LIKE ?").append(p.size())
                     .append(")");
         }
-        if (c.rayon != null) {
-            p.add(c.rayon);
-            s.append(" AND f.lg_ZONE_GEO_ID = ?").append(p.size());
-        }
-        if (c.grossiste != null) {
-            p.add(c.grossiste);
-            s.append(" AND f.lg_GROSSISTE_ID = ?").append(p.size());
-        }
-        if (c.famille != null) {
-            p.add(c.famille);
-            s.append(" AND f.lg_FAMILLEARTICLE_ID = ?").append(p.size());
-        }
+        /* 13/10 : rayons, grossistes et familles coches (filtre multiple) ; un seul comme avant */
+        util.FiltreListe.ajouter(s, "f.lg_ZONE_GEO_ID", c.rayon, p, 1);
+        util.FiltreListe.ajouter(s, "f.lg_GROSSISTE_ID", c.grossiste, p, 1);
+        util.FiltreListe.ajouter(s, "f.lg_FAMILLEARTICLE_ID", c.famille, p, 1);
         return s.toString();
     }
 

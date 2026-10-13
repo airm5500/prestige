@@ -1513,3 +1513,61 @@ Ext.onReady(function () {
         }
     });
 });
+
+/**
+ * FILTRE MULTIPLE (maquette validee le 13/10) : dans ces ecrans, les listes a choix unique de rayon, famille et
+ * grossiste sont remplacees par le filtre multiple (testextjs.view.commun.FiltresMulti.remplacer). Les listes restent
+ * en place, masquees, et rendent la selection : le code de chaque ecran (recherche, exports, impressions) n'est pas
+ * modifie. Le branchement se fait sur la CLASSE de l'ecran, pour couvrir aussi les ecrans ouverts dans un onglet.
+ * Cle : nom de classe ; valeur : selecteur de la liste de chaque axe.
+ */
+window.PrestigeAffichage.FILTRES_MULTIPLES = {
+    'testextjs.view.produits.ArticlesInvendus': {rayon: '#rayons', famille: '#codeFamile', grossiste: '#grossiste'},
+    'testextjs.view.produits.ArticlesDormants': {rayon: '#rayon', famille: '#famille', grossiste: '#grossiste'},
+    'testextjs.view.produits.GestionSurstock': {rayon: '#rayons', famille: '#codeFamille', grossiste: '#grossiste'},
+    'testextjs.view.Dashboard.MargeManager': {rayon: '#rayons', famille: '#codeFamile', grossiste: '#grossiste'},
+    'testextjs.view.stockmanagement.etatstock.EtatStockManager': {rayon: '#lg_ZONE_GEO_ID', famille: '#lg_FAMILLEARTICLE_ID', grossiste: '#lg_GROSSISTE_ID'},
+    'testextjs.view.configmanagement.famille.ArticleVenduBis': {rayon: '#rayons', grossiste: '#grossiste'},
+    'testextjs.view.configmanagement.famille.ArticleVendu': {rayon: '#rayons'},
+    'testextjs.view.produits.ComparaisonStock': {rayon: '#rayons', famille: '#codeFamile', grossiste: '#grossiste'},
+    'testextjs.view.stockmanagement.suivistockvente.EvaluationVenteMoyenneManager': {rayon: '#emplacementId', famille: '#familleId'},
+    'testextjs.view.Report.saisieperimes.SaisiePerimeManager': {rayon: '#codeRayon', famille: '#codeFamile', grossiste: '#codeGrossiste'},
+    'testextjs.view.configmanagement.famille.FamilleManager': {rayon: '#lg_ZONE_GEO_ID'},
+    'testextjs.view.Report.abc.AbcManager': {rayon: '#rayons', famille: '#codeFamile', grossiste: '#grossiste'},
+    'testextjs.view.Report.abc.FeuilleDeMatchManager': {rayon: '#rayons', famille: '#codeFamile', grossiste: '#grossiste'},
+    'testextjs.view.analyseArticle.AnalyseArticleManager': {rayon: '#filtreRayon', famille: '#filtreFamille', grossiste: '#filtreGrossiste'},
+    'testextjs.view.stat.ArticleMvtGrid': {rayon: '#filtreEmplacement', famille: '#filtreFamille'}
+};
+
+(function () {
+    'use strict';
+    function brancher(nom) {
+        var listes = window.PrestigeAffichage.FILTRES_MULTIPLES[nom];
+        Ext.ClassManager.onCreated(function () {
+            /* l'initComponent d'origine est appele tel quel (son callParent garde ses reperes), puis le filtre est pose */
+            var proto = Ext.ClassManager.get(nom).prototype, origine = proto.initComponent;
+            if (origine.filtreMultiBranche) {
+                return;
+            }
+            proto.initComponent = function () {
+                var r = origine.apply(this, arguments);
+                try {
+                    Ext.syncRequire('testextjs.view.commun.FiltresMulti');
+                    testextjs.view.commun.FiltresMulti.remplacer(this, listes);
+                } catch (e) {
+                    // l'ecran reste avec ses listes d'origine
+                    if (window.console) {
+                        console.warn('Filtre multiple non branche sur ' + nom, e);
+                    }
+                }
+                return r;
+            };
+            proto.initComponent.filtreMultiBranche = true;
+        }, null, nom);
+    }
+    if (window.Ext && Ext.ClassManager) {
+        Ext.Object.each(window.PrestigeAffichage.FILTRES_MULTIPLES, function (nom) {
+            brancher(nom);
+        });
+    }
+})();

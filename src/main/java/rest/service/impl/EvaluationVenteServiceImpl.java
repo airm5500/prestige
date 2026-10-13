@@ -151,26 +151,27 @@ public class EvaluationVenteServiceImpl implements EvaluationVenteService {
         }
     }
 
+    /** « AND colonne IN ('a','b') » : valeurs echappees (requete a gabarit, sans parametres lies). Vide = rien. */
+    private static String filtreIn(String colonne, String brut) {
+        java.util.List<String> v = util.FiltreListe.valeurs(brut);
+        if (v.isEmpty()) {
+            return "";
+        }
+        StringBuilder sb = new StringBuilder(" AND ").append(colonne).append(" IN (");
+        for (int i = 0; i < v.size(); i++) {
+            sb.append(i == 0 ? "" : ",").append('\'').append(util.SqlTexte.litteral(v.get(i))).append('\'');
+        }
+        return sb.append(") ").toString();
+    }
+
     private String replacePlaceHolder(String sql, EvaluationVenteFiltre evaluationVenteFiltre) {
-        if (StringUtils.isNotEmpty(evaluationVenteFiltre.getFamilleId())
-                && !"ALL".equals(evaluationVenteFiltre.getFamilleId())) {
-            sql = sql.replace("{famille_article}",
-                    String.format(" AND p.lg_FAMILLEARTICLE_ID='%s' ", evaluationVenteFiltre.getFamilleId()));
-
-        } else {
-            sql = sql.replace("{famille_article}", "");
-        }
-        if (StringUtils.isNotEmpty(evaluationVenteFiltre.getEmplacementId())
-                && !"ALL".equals(evaluationVenteFiltre.getEmplacementId())) {
-            sql = sql.replace("{zone_geog}",
-                    String.format(" AND p.lg_ZONE_GEO_ID='%s' ", evaluationVenteFiltre.getEmplacementId()));
-
-        } else {
-            sql = sql.replace("{zone_geog}", "");
-        }
+        /* 13/10 : familles et rayons coches (filtre multiple) ; valeurs echappees (audit du 12/10, I3) */
+        sql = sql.replace("{famille_article}",
+                filtreIn("p.lg_FAMILLEARTICLE_ID", evaluationVenteFiltre.getFamilleId()));
+        sql = sql.replace("{zone_geog}", filtreIn("p.lg_ZONE_GEO_ID", evaluationVenteFiltre.getEmplacementId()));
 
         if (StringUtils.isNotEmpty(evaluationVenteFiltre.getQuery())) {
-            String searchQuery = evaluationVenteFiltre.getQuery() + "%";
+            String searchQuery = util.SqlTexte.litteral(evaluationVenteFiltre.getQuery()) + "%";
             sql = sql.replace("{search}",
                     String.format(" AND (p.int_CIP LIKE '%s' OR p.str_NAME LIKE '%s') ", searchQuery, searchQuery));
 

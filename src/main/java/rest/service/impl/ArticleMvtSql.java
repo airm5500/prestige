@@ -59,10 +59,10 @@ final class ArticleMvtSql {
                     .append(P_RECHERCHE).append(" ) ");
         }
         if (filtre.emplacementOuNull() != null) {
-            sb.append(" AND f.lg_ZONE_GEO_ID = :").append(P_EMPLACEMENT).append(' ');
+            sb.append(" AND f.lg_ZONE_GEO_ID IN (:").append(P_EMPLACEMENT).append(") ");
         }
         if (filtre.familleOuNull() != null) {
-            sb.append(" AND f.lg_FAMILLEARTICLE_ID = :").append(P_FAMILLE).append(' ');
+            sb.append(" AND f.lg_FAMILLEARTICLE_ID IN (:").append(P_FAMILLE).append(") ");
         }
         return sb.toString();
     }

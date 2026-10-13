@@ -33,6 +33,75 @@ Ext.define('testextjs.view.commun.FiltresMulti', {
         /** Listes chargees une fois par session : {axe: [{id, libelle}]}. */
         donnees: {},
         attentes: {},
+        /**
+         * Remplace les listes a choix unique d'un ecran existant (13/10), sans toucher a son code : les listes sont
+         * masquees, le filtre multiple prend la place de la premiere, et chaque liste rend desormais la selection de
+         * son axe par getValue() (identifiants separes par des virgules ; null si rien) et ses noms par getRawValue().
+         * Un changement de selection declenche l'evenement 'select' de la liste de l'axe modifie, comme un choix dans
+         * la liste : les recherches automatiques de l'ecran partent donc comme avant.
+         *
+         * @param ecran composant qui contient les listes
+         * @param listes {rayon: '#selecteur', famille: '#selecteur', grossiste: '#selecteur'} (axes presents seulement)
+         * @return le filtre multiple cree, ou null si une liste manque (l'ecran reste alors tel quel)
+         */
+        remplacer: function (ecran, listes) {
+            var axes = [], combos = {}, premier = null;
+            Ext.each(['rayon', 'famille', 'grossiste'], function (a) {
+                if (listes[a]) {
+                    var c = Ext.isString(listes[a]) ? ecran.down(listes[a]) : listes[a];
+                    if (c) {
+                        axes.push(a);
+                        combos[a] = c;
+                        premier = premier || c;
+                    }
+                }
+            });
+            if (!premier || !premier.ownerCt) {
+                return null;
+            }
+            var conteneur = premier.ownerCt;
+            var filtre = conteneur.insert(conteneur.items.indexOf(premier), {xtype: 'filtresmulti', itemId: 'filtresMulti',
+                axes: axes, margin: premier.margin || '0 5 0 0'});
+            Ext.Object.each(combos, function (a, c) {
+                c.hide();
+                c.filtreMulti = filtre;
+                c.getValue = function () {
+                    var v = filtre.getParam(a);
+                    return v === '' ? null : v;
+                };
+                c.getSubmitValue = c.getValue;
+                c.getRawValue = function () {
+                    return Ext.Array.map(filtre.valeurs[a], function (id) {
+                        return filtre.libelleDe(a, id);
+                    }).join(', ');
+                };
+                c.setValue = function (v) {
+                    var ids = Ext.isArray(v) ? v : (v === null || v === undefined || v === '' ? [] : String(v).split(','));
+                    filtre.valeurs[a] = Ext.Array.map(Ext.Array.filter(ids, function (x) {
+                        return x !== '' && x !== 'ALL';
+                    }), String);
+                    filtre.rafraichir();
+                    return c;
+                };
+                c.clearValue = function () {
+                    return c.setValue(null);
+                };
+                c.reset = c.clearValue;
+            });
+            var avant = filtre.getValeurs();
+            filtre.on('change', function () {
+                var apres = filtre.getValeurs(), declenche = false;
+                Ext.each(axes, function (a) {
+                    if (!declenche && Ext.encode(avant[a]) !== Ext.encode(apres[a])) {
+                        declenche = true;
+                        combos[a].fireEvent('select', combos[a], []);
+                    }
+                });
+                avant = apres;
+            });
+            return filtre;
+        },
+
         /** Lit la liste d'un axe (une seule requete par axe, partagee par tous les ecrans). */
         charger: function (axe, rappel) {
             var S = this;

@@ -82,10 +82,14 @@ public class ArticleMvtSqlTest {
         assertTrue(
                 ArticleMvtSql.liste(filtre("4", null, null, null)).contains("h.typeMvt = :" + ArticleMvtSql.P_TYPE_MVT),
                 "le mode de mouvement se filtre dans l EXISTS, pas apres");
-        assertTrue(ArticleMvtSql.liste(filtre(null, "ZONE1", null, null))
-                .contains("f.lg_ZONE_GEO_ID = :" + ArticleMvtSql.P_EMPLACEMENT));
-        assertTrue(ArticleMvtSql.liste(filtre(null, null, "FAM1", null))
-                .contains("f.lg_FAMILLEARTICLE_ID = :" + ArticleMvtSql.P_FAMILLE));
+        assertTrue(
+                ArticleMvtSql.liste(filtre(null, "ZONE1", null, null))
+                        .contains("f.lg_ZONE_GEO_ID IN (:" + ArticleMvtSql.P_EMPLACEMENT + ")"),
+                "13/10 : plusieurs rayons coches");
+        assertTrue(
+                ArticleMvtSql.liste(filtre(null, null, "FAM1", null))
+                        .contains("f.lg_FAMILLEARTICLE_ID IN (:" + ArticleMvtSql.P_FAMILLE + ")"),
+                "13/10 : plusieurs familles cochees");
         assertTrue(ArticleMvtSql.liste(filtre(null, null, null, "DOLI"))
                 .contains("f.str_NAME LIKE :" + ArticleMvtSql.P_RECHERCHE));
     }

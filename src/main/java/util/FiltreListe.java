@@ -32,6 +32,16 @@ public final class FiltreListe {
         return new ArrayList<>(v);
     }
 
+    /**
+     * Criteria : « chemin IN (valeurs) », ou null s'il n'y a pas de filtre (l'appelant n'ajoute alors rien). Un seul
+     * identifiant donne un IN a une valeur, equivalent de l'ancien cb.equal.
+     */
+    public static javax.persistence.criteria.Predicate predicat(javax.persistence.criteria.Expression<?> chemin,
+            String brut) {
+        List<String> v = valeurs(brut);
+        return v.isEmpty() ? null : chemin.in(v);
+    }
+
     public static boolean actif(String brut) {
         return !valeurs(brut).isEmpty();
     }

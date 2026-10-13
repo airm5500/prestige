@@ -93,8 +93,11 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
         }
     }
 
+    /**
+     * 13/10 : identifiants coches separes par des virgules (filtre multiple, FIND_IN_SET des procedures) ; ALL = "".
+     */
     private static String norm(String v) {
-        return ("ALL".equalsIgnoreCase(v)) ? "" : (v == null ? "" : v);
+        return String.join(",", util.FiltreListe.valeurs(v));
     }
 
     private static int asInt(Object o) {

@@ -2362,17 +2362,18 @@ public class StockManager extends bllBase {
 
             predicate = cb.and(predicate,
                     cb.equal(st.get("lgEMPLACEMENTID").get("lgEMPLACEMENTID"), lg_EMPLACEMENT_ID));
-            if (!"".equals(lg_FAMILLEARTICLE_ID)) {
+            if (util.FiltreListe.actif(lg_FAMILLEARTICLE_ID)) {
                 Join<TFamille, TFamillearticle> famillearticle = root.join("lgFAMILLEARTICLEID", JoinType.INNER);
-                predicate = cb.and(predicate, cb.equal(famillearticle.get("lgFAMILLEARTICLEID"), lg_FAMILLEARTICLE_ID));
+                predicate = cb.and(predicate,
+                        famillearticle.get("lgFAMILLEARTICLEID").in(util.FiltreListe.valeurs(lg_FAMILLEARTICLE_ID)));
             }
-            if (!"".equals(lg_ZONE_GEO_ID)) {
+            if (util.FiltreListe.actif(lg_ZONE_GEO_ID)) {
                 Join<TFamille, TZoneGeographique> zoJoin = root.join("lgZONEGEOID", JoinType.INNER);
-                predicate = cb.and(predicate, cb.equal(zoJoin.get("lgZONEGEOID"), lg_ZONE_GEO_ID));
+                predicate = cb.and(predicate, zoJoin.get("lgZONEGEOID").in(util.FiltreListe.valeurs(lg_ZONE_GEO_ID)));
             }
-            if (!"".equals(lg_GROSSISTE_ID)) {
+            if (util.FiltreListe.actif(lg_GROSSISTE_ID)) {
                 Join<TFamille, TGrossiste> g = root.join("lgGROSSISTEID", JoinType.INNER);
-                predicate = cb.and(predicate, cb.equal(g.get("lgGROSSISTEID"), lg_GROSSISTE_ID));
+                predicate = cb.and(predicate, g.get("lgGROSSISTEID").in(util.FiltreListe.valeurs(lg_GROSSISTE_ID)));
             }
             switch (str_TYPE_TRANSACTION) {
             case Parameter.LESS:
@@ -2554,17 +2555,18 @@ public class StockManager extends bllBase {
             predicate = cb.and(predicate,
                     cb.equal(st.get("lgEMPLACEMENTID").get("lgEMPLACEMENTID"), lg_EMPLACEMENT_ID));
             predicate = cb.and(predicate, cb.equal(sp.get("lgTYPESTOCKID").get("lgTYPESTOCKID"), lg_TYPE_STOCK_ID));
-            if (!"".equals(lg_FAMILLEARTICLE_ID)) {
+            if (util.FiltreListe.actif(lg_FAMILLEARTICLE_ID)) {
                 Join<TFamille, TFamillearticle> famillearticle = root.join("lgFAMILLEARTICLEID", JoinType.INNER);
-                predicate = cb.and(predicate, cb.equal(famillearticle.get("lgFAMILLEARTICLEID"), lg_FAMILLEARTICLE_ID));
+                predicate = cb.and(predicate,
+                        famillearticle.get("lgFAMILLEARTICLEID").in(util.FiltreListe.valeurs(lg_FAMILLEARTICLE_ID)));
             }
-            if (!"".equals(lg_ZONE_GEO_ID)) {
+            if (util.FiltreListe.actif(lg_ZONE_GEO_ID)) {
                 Join<TFamille, TZoneGeographique> zoJoin = root.join("lgZONEGEOID", JoinType.INNER);
-                predicate = cb.and(predicate, cb.equal(zoJoin.get("lgZONEGEOID"), lg_ZONE_GEO_ID));
+                predicate = cb.and(predicate, zoJoin.get("lgZONEGEOID").in(util.FiltreListe.valeurs(lg_ZONE_GEO_ID)));
             }
-            if (!"".equals(lg_GROSSISTE_ID)) {
+            if (util.FiltreListe.actif(lg_GROSSISTE_ID)) {
                 Join<TFamille, TGrossiste> g = root.join("lgGROSSISTEID", JoinType.INNER);
-                predicate = cb.and(predicate, cb.equal(g.get("lgGROSSISTEID"), lg_GROSSISTE_ID));
+                predicate = cb.and(predicate, g.get("lgGROSSISTEID").in(util.FiltreListe.valeurs(lg_GROSSISTE_ID)));
             }
             switch (str_TYPE_TRANSACTION) {
             case Parameter.LESS:
@@ -2917,17 +2919,18 @@ public class StockManager extends bllBase {
             predicate = cb.and(predicate, cb.equal(root.get(TFamille_.strSTATUT), "enable"));
             predicate = cb.and(predicate,
                     cb.equal(st.get("lgEMPLACEMENTID").get("lgEMPLACEMENTID"), lg_EMPLACEMENT_ID));
-            if (!"".equals(lg_FAMILLEARTICLE_ID)) {
+            if (util.FiltreListe.actif(lg_FAMILLEARTICLE_ID)) {
                 Join<TFamille, TFamillearticle> famillearticle = root.join("lgFAMILLEARTICLEID", JoinType.INNER);
-                predicate = cb.and(predicate, cb.equal(famillearticle.get("lgFAMILLEARTICLEID"), lg_FAMILLEARTICLE_ID));
+                predicate = cb.and(predicate,
+                        famillearticle.get("lgFAMILLEARTICLEID").in(util.FiltreListe.valeurs(lg_FAMILLEARTICLE_ID)));
             }
-            if (!"".equals(lg_ZONE_GEO_ID)) {
+            if (util.FiltreListe.actif(lg_ZONE_GEO_ID)) {
                 Join<TFamille, TZoneGeographique> zoJoin = root.join("lgZONEGEOID", JoinType.INNER);
-                predicate = cb.and(predicate, cb.equal(zoJoin.get("lgZONEGEOID"), lg_ZONE_GEO_ID));
+                predicate = cb.and(predicate, zoJoin.get("lgZONEGEOID").in(util.FiltreListe.valeurs(lg_ZONE_GEO_ID)));
             }
-            if (!"".equals(lg_GROSSISTE_ID)) {
+            if (util.FiltreListe.actif(lg_GROSSISTE_ID)) {
                 Join<TFamille, TGrossiste> g = root.join("lgGROSSISTEID", JoinType.INNER);
-                predicate = cb.and(predicate, cb.equal(g.get("lgGROSSISTEID"), lg_GROSSISTE_ID));
+                predicate = cb.and(predicate, g.get("lgGROSSISTEID").in(util.FiltreListe.valeurs(lg_GROSSISTE_ID)));
             }
             switch (str_TYPE_TRANSACTION) {
             case Parameter.LESS:

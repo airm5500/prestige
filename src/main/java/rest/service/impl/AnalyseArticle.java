@@ -323,13 +323,13 @@ public final class AnalyseArticle {
             if (quantite != null && !quantite.accepte(a.getQuantite())) {
                 continue;
             }
-            if (renseigne(famille) && !famille.equals(a.getFamilleId())) {
+            if (renseigne(famille) && !util.FiltreListe.valeurs(famille).contains(a.getFamilleId())) {
                 continue;
             }
-            if (renseigne(rayon) && !rayon.equals(a.getRayonId())) {
+            if (renseigne(rayon) && !util.FiltreListe.valeurs(rayon).contains(a.getRayonId())) {
                 continue;
             }
-            if (renseigne(grossiste) && !grossiste.equals(a.getGrossisteId())) {
+            if (renseigne(grossiste) && !util.FiltreListe.valeurs(grossiste).contains(a.getGrossisteId())) {
                 continue;
             }
             if (!texte.isEmpty() && !(a.getLibelle().toLowerCase(Locale.FRENCH).contains(texte)

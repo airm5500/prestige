@@ -129,14 +129,14 @@ public class SurstockServiceImpl implements SurstockService {
         if (StringUtils.isNotEmpty(query)) {
             sb.append(" AND (f.int_CIP LIKE :search OR f.str_NAME LIKE :search OR f.int_EAN13 LIKE :search)");
         }
-        if (StringUtils.isNotEmpty(codeRayon)) {
-            sb.append(" AND f.lg_ZONE_GEO_ID = :rayon");
+        if (util.FiltreListe.actif(codeRayon)) {
+            sb.append(" AND f.lg_ZONE_GEO_ID IN (:rayon)");
         }
-        if (StringUtils.isNotEmpty(codeGrossiste)) {
-            sb.append(" AND f.lg_GROSSISTE_ID = :grossiste");
+        if (util.FiltreListe.actif(codeGrossiste)) {
+            sb.append(" AND f.lg_GROSSISTE_ID IN (:grossiste)");
         }
-        if (StringUtils.isNotEmpty(codeFamille)) {
-            sb.append(" AND f.lg_FAMILLEARTICLE_ID = :famille");
+        if (util.FiltreListe.actif(codeFamille)) {
+            sb.append(" AND f.lg_FAMILLEARTICLE_ID IN (:famille)");
         }
         return sb.toString();
     }
@@ -237,14 +237,14 @@ public class SurstockServiceImpl implements SurstockService {
         if (StringUtils.isNotEmpty(query)) {
             q.setParameter("search", query.trim() + "%");
         }
-        if (StringUtils.isNotEmpty(codeRayon)) {
-            q.setParameter("rayon", codeRayon);
+        if (util.FiltreListe.actif(codeRayon)) {
+            q.setParameter("rayon", util.FiltreListe.valeurs(codeRayon));
         }
-        if (StringUtils.isNotEmpty(codeGrossiste)) {
-            q.setParameter("grossiste", codeGrossiste);
+        if (util.FiltreListe.actif(codeGrossiste)) {
+            q.setParameter("grossiste", util.FiltreListe.valeurs(codeGrossiste));
         }
-        if (StringUtils.isNotEmpty(codeFamille)) {
-            q.setParameter("famille", codeFamille);
+        if (util.FiltreListe.actif(codeFamille)) {
+            q.setParameter("famille", util.FiltreListe.valeurs(codeFamille));
         }
     }
 

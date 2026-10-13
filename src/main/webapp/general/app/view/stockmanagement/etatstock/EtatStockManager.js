@@ -285,7 +285,11 @@ Ext.define('testextjs.view.stockmanagement.etatstock.EtatStockManager', {
                 selType: 'cellmodel'
             },
 
-            tbar: [{
+            /* 13/10 : filtres sur la 1re ligne, actions (impressions, inventaire, suggestion, exports) sur la 2e :
+               sur une seule ligne, tout n'etait pas visible */
+            dockedItems: [{
+                    xtype: 'toolbar', dock: 'top', itemId: 'filtresEtatStock',
+                    items: [{
                     xtype: 'combobox',
                     name: 'str_TYPE_TRANSACTION',
                     margins: '0 0 0 10',
@@ -418,7 +422,10 @@ Ext.define('testextjs.view.stockmanagement.etatstock.EtatStockManager', {
                     scope: this,
                     iconCls: 'ventesearch',
                     handler: this.onRechClick
-                },
+                }]
+                }, {
+                    xtype: 'toolbar', dock: 'top', itemId: 'actionsEtatStock',
+                    items: [
                 {
                     text: 'Imprimer',
                     tooltip: 'Imprimer',
@@ -501,10 +508,8 @@ Ext.define('testextjs.view.stockmanagement.etatstock.EtatStockManager', {
                         window.open(url_services_rest_etat_stock + 'export/excel?' + Me.filtresQueryString());
                     }
                 }
-
-
-
-            ],
+                    ]
+                }],
             bbar: {
                 xtype: 'pagingtoolbar',
                 store: store, // same store GridPanel is using

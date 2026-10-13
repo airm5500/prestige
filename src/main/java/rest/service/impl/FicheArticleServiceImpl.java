@@ -327,14 +327,14 @@ public class FicheArticleServiceImpl implements FicheArticleService {
             predicates.add(cb.or(cb.like(joinLot.get(TFamille_.intCIP), query),
                     cb.like(joinLot.get(TFamille_.strNAME), query)));
         }
-        if (!StringUtils.isEmpty(codeFamille) && !codeFamille.equals("ALL")) {
-            predicates.add(cb.equal(joinFa.get(TFamillearticle_.lgFAMILLEARTICLEID), codeFamille));
+        if (util.FiltreListe.actif(codeFamille)) {
+            predicates.add(util.FiltreListe.predicat(joinFa.get(TFamillearticle_.lgFAMILLEARTICLEID), codeFamille));
         }
-        if (!StringUtils.isEmpty(codeRayon) && !codeRayon.equals("ALL")) {
-            predicates.add(cb.equal(joinFaz.get(TZoneGeographique_.lgZONEGEOID), codeRayon));
+        if (util.FiltreListe.actif(codeRayon)) {
+            predicates.add(util.FiltreListe.predicat(joinFaz.get(TZoneGeographique_.lgZONEGEOID), codeRayon));
         }
-        if (!StringUtils.isEmpty(codeGrossiste) && !codeGrossiste.equals("ALL")) {
-            predicates.add(cb.equal(joinFaG.get(TGrossiste_.lgGROSSISTEID), codeGrossiste));
+        if (util.FiltreListe.actif(codeGrossiste)) {
+            predicates.add(util.FiltreListe.predicat(joinFaG.get(TGrossiste_.lgGROSSISTEID), codeGrossiste));
         }
         // Bornes appliquees DIRECTEMENT sur la colonne dt_PEREMPTION (memes resultats que
         // l'ancien DATE(dt_PEREMPTION), qui interdisait tout usage d'index : chaque appel
@@ -589,15 +589,17 @@ public class FicheArticleServiceImpl implements FicheArticleService {
             predicates.add(cb.or(cb.like(root.get(TFamille_.intCIP), query + "%"),
                     cb.like(root.get(TFamille_.strNAME), query + "%")));
         }
-        if (!StringUtils.isEmpty(codeFamille) && !codeFamille.equalsIgnoreCase(DateConverter.ALL)) {
-            predicates.add(cb.equal(root.get(TFamille_.lgFAMILLEARTICLEID).get(TFamillearticle_.lgFAMILLEARTICLEID),
-                    codeFamille));
+        if (util.FiltreListe.actif(codeFamille)) {
+            predicates.add(util.FiltreListe.predicat(
+                    root.get(TFamille_.lgFAMILLEARTICLEID).get(TFamillearticle_.lgFAMILLEARTICLEID), codeFamille));
         }
-        if (!StringUtils.isEmpty(codeRayon) && !codeRayon.equalsIgnoreCase(DateConverter.ALL)) {
-            predicates.add(cb.equal(root.get(TFamille_.lgZONEGEOID).get(TZoneGeographique_.lgZONEGEOID), codeRayon));
+        if (util.FiltreListe.actif(codeRayon)) {
+            predicates.add(util.FiltreListe
+                    .predicat(root.get(TFamille_.lgZONEGEOID).get(TZoneGeographique_.lgZONEGEOID), codeRayon));
         }
-        if (!StringUtils.isEmpty(codeGrossiste) && !codeGrossiste.equalsIgnoreCase(DateConverter.ALL)) {
-            predicates.add(cb.equal(root.get(TFamille_.lgGROSSISTEID).get(TGrossiste_.lgGROSSISTEID), codeGrossiste));
+        if (util.FiltreListe.actif(codeGrossiste)) {
+            predicates.add(util.FiltreListe.predicat(root.get(TFamille_.lgGROSSISTEID).get(TGrossiste_.lgGROSSISTEID),
+                    codeGrossiste));
         }
 
         return predicates;
@@ -953,15 +955,17 @@ public class FicheArticleServiceImpl implements FicheArticleService {
             predicates.add(cb.or(cb.like(root.get(TFamille_.intCIP), query + "%"),
                     cb.like(root.get(TFamille_.strNAME), query + "%")));
         }
-        if (!StringUtils.isEmpty(codeFamille) && !codeFamille.equalsIgnoreCase(DateConverter.ALL)) {
-            predicates.add(cb.equal(root.get(TFamille_.lgFAMILLEARTICLEID).get(TFamillearticle_.lgFAMILLEARTICLEID),
-                    codeFamille));
+        if (util.FiltreListe.actif(codeFamille)) {
+            predicates.add(util.FiltreListe.predicat(
+                    root.get(TFamille_.lgFAMILLEARTICLEID).get(TFamillearticle_.lgFAMILLEARTICLEID), codeFamille));
         }
-        if (!StringUtils.isEmpty(codeRayon) && !codeRayon.equalsIgnoreCase(DateConverter.ALL)) {
-            predicates.add(cb.equal(root.get(TFamille_.lgZONEGEOID).get(TZoneGeographique_.lgZONEGEOID), codeRayon));
+        if (util.FiltreListe.actif(codeRayon)) {
+            predicates.add(util.FiltreListe
+                    .predicat(root.get(TFamille_.lgZONEGEOID).get(TZoneGeographique_.lgZONEGEOID), codeRayon));
         }
-        if (!StringUtils.isEmpty(codeGrossiste) && !codeGrossiste.equalsIgnoreCase(DateConverter.ALL)) {
-            predicates.add(cb.equal(root.get(TFamille_.lgGROSSISTEID).get(TGrossiste_.lgGROSSISTEID), codeGrossiste));
+        if (util.FiltreListe.actif(codeGrossiste)) {
+            predicates.add(util.FiltreListe.predicat(root.get(TFamille_.lgGROSSISTEID).get(TGrossiste_.lgGROSSISTEID),
+                    codeGrossiste));
         }
 
         if (stockFiltre != null && stockFiltre != MargeEnum.ALL) {
@@ -1232,15 +1236,17 @@ public class FicheArticleServiceImpl implements FicheArticleService {
                     cb.like(fa.get(TFamille_.strNAME), query + "%"),
                     cb.like(root.get(TWarehouse_.intNUMLOT), query + "%")));
         }
-        if (!StringUtils.isEmpty(codeFamille) && !codeFamille.equals("ALL")) {
-            predicates.add(cb.equal(fa.get(TFamille_.lgFAMILLEARTICLEID).get(TFamillearticle_.lgFAMILLEARTICLEID),
-                    codeFamille));
+        if (util.FiltreListe.actif(codeFamille)) {
+            predicates.add(util.FiltreListe.predicat(
+                    fa.get(TFamille_.lgFAMILLEARTICLEID).get(TFamillearticle_.lgFAMILLEARTICLEID), codeFamille));
         }
-        if (!StringUtils.isEmpty(codeRayon) && !codeRayon.equals("ALL")) {
-            predicates.add(cb.equal(fa.get(TFamille_.lgZONEGEOID).get(TZoneGeographique_.lgZONEGEOID), codeRayon));
+        if (util.FiltreListe.actif(codeRayon)) {
+            predicates.add(util.FiltreListe.predicat(fa.get(TFamille_.lgZONEGEOID).get(TZoneGeographique_.lgZONEGEOID),
+                    codeRayon));
         }
-        if (!StringUtils.isEmpty(codeGrossiste) && !codeGrossiste.equals("ALL")) {
-            predicates.add(cb.equal(fa.get(TFamille_.lgGROSSISTEID).get(TGrossiste_.lgGROSSISTEID), codeGrossiste));
+        if (util.FiltreListe.actif(codeGrossiste)) {
+            predicates.add(util.FiltreListe.predicat(fa.get(TFamille_.lgGROSSISTEID).get(TGrossiste_.lgGROSSISTEID),
+                    codeGrossiste));
 
         }
         try {

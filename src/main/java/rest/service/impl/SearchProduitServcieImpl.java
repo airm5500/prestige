@@ -571,8 +571,9 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
             sql.append("AND EXISTS (SELECT 1 FROM t_famille_dci fd WHERE fd.lg_FAMILLE_ID = t.lg_FAMILLE_ID ")
                     .append("AND fd.lg_DCI_ID = :diciId) ");
         }
-        if (StringUtils.isNotEmpty(zoneGeoId) && !"ALL".equalsIgnoreCase(zoneGeoId)) {
-            sql.append("AND t.lg_ZONE_GEO_ID = :zoneGeoId ");
+        if (util.FiltreListe.actif(zoneGeoId)) {
+            /* 13/10 : rayons coches (filtre multiple) */
+            sql.append("AND t.lg_ZONE_GEO_ID IN (:zoneGeoId) ");
         }
         if (StringUtils.isNotEmpty(tvaId) && !"ALL".equalsIgnoreCase(tvaId)) {
             sql.append("AND t.lg_CODE_TVA_ID = :tvaId ");
@@ -613,8 +614,8 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
         if (StringUtils.isNotEmpty(diciId)) {
             q.setParameter("diciId", diciId);
         }
-        if (StringUtils.isNotEmpty(zoneGeoId) && !"ALL".equalsIgnoreCase(zoneGeoId)) {
-            q.setParameter("zoneGeoId", zoneGeoId);
+        if (util.FiltreListe.actif(zoneGeoId)) {
+            q.setParameter("zoneGeoId", util.FiltreListe.valeurs(zoneGeoId));
         }
         if (StringUtils.isNotEmpty(tvaId) && !"ALL".equalsIgnoreCase(tvaId)) {
             q.setParameter("tvaId", tvaId);

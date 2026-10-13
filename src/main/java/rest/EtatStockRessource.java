@@ -58,6 +58,8 @@ public class EtatStockRessource {
     @Inject
     private HttpServletRequest servletRequest;
     @EJB
+    private rest.service.impl.LibellesFiltres libellesFiltres;
+    @EJB
     private EtatStockService etatStockService;
     @EJB
     private InventaireService inventaireService;
@@ -303,21 +305,19 @@ public class EtatStockRessource {
         }
     }
 
-    /** Rappel des criteres en sous-titre : une edition sans ses criteres n'est pas relisible un mois plus tard. */
-    private static String criteresEtatStock(String searchValue, String familleArticleId, String zoneGeoId,
+    /**
+     * Rappel des criteres en sous-titre : une edition sans ses criteres n'est pas relisible un mois plus tard. 13/10 :
+     * NOMS des rayons, familles et grossistes coches (avant : leurs identifiants).
+     */
+    private String criteresEtatStock(String searchValue, String familleArticleId, String zoneGeoId,
             String grossisteId) {
         StringBuilder sb = new StringBuilder();
         if (StringUtils.isNotBlank(searchValue)) {
             sb.append("Recherche : ").append(searchValue);
         }
-        if (StringUtils.isNotBlank(familleArticleId)) {
-            sb.append(sb.length() > 0 ? " - " : "").append("Famille : ").append(familleArticleId);
-        }
-        if (StringUtils.isNotBlank(zoneGeoId)) {
-            sb.append(sb.length() > 0 ? " - " : "").append("Emplacement : ").append(zoneGeoId);
-        }
-        if (StringUtils.isNotBlank(grossisteId)) {
-            sb.append(sb.length() > 0 ? " - " : "").append("Fournisseur : ").append(grossisteId);
+        String filtres = libellesFiltres.resume(zoneGeoId, familleArticleId, grossisteId);
+        if (!filtres.isEmpty()) {
+            sb.append(sb.length() > 0 ? filtres : filtres.substring(3));
         }
         return sb.length() == 0 ? "Tous les articles" : sb.toString();
     }

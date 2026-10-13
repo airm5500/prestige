@@ -131,10 +131,11 @@ public class ArticleMvtServiceImpl implements ArticleMvtService {
             q.setParameter(ArticleMvtSql.P_TYPE_MVT, filtre.typeMvtOuNull());
         }
         if (filtre.emplacementOuNull() != null) {
-            q.setParameter(ArticleMvtSql.P_EMPLACEMENT, filtre.emplacementOuNull());
+            /* 13/10 : rayons coches (filtre multiple) */
+            q.setParameter(ArticleMvtSql.P_EMPLACEMENT, util.FiltreListe.valeurs(filtre.emplacementOuNull()));
         }
         if (filtre.familleOuNull() != null) {
-            q.setParameter(ArticleMvtSql.P_FAMILLE, filtre.familleOuNull());
+            q.setParameter(ArticleMvtSql.P_FAMILLE, util.FiltreListe.valeurs(filtre.familleOuNull()));
         }
         return q;
     }
