@@ -6,6 +6,8 @@
  * L'analyse affichee a l'ouverture n'est pas conservee ; « Lancer l'analyse » la conserve dans les rapports.
  * Onglet Rapports : rapports conserves, relecture (dans l'onglet Analyse), comparaison de deux rapports (ecarts
  * apparus, disparus, persistants), PDF et Excel.
+ * Onglet Regularisations : corrections d'historique et caisses oubliees, appliquees une par une apres validation
+ * (droit P_AUDIT_REGULARISER, commentaire obligatoire, journal) ; les autres ecarts renvoient a leur ecran habituel.
  */
 Ext.define('testextjs.view.audit.AuditRapprochements', {
     extend: 'Ext.tab.Panel',
@@ -35,7 +37,7 @@ Ext.define('testextjs.view.audit.AuditRapprochements', {
     initComponent: function () {
         var me = this;
         me.styles();
-        me.items = [me.ongletAnalyse(), me.ongletRapports()];
+        me.items = [me.ongletAnalyse(), me.ongletRapports(), me.ongletRegularisations()];
         me.callParent(arguments);
         me.on('afterrender', function () {
             me.lancer(false);
@@ -43,6 +45,8 @@ Ext.define('testextjs.view.audit.AuditRapprochements', {
         me.on('tabchange', function (p, t) {
             if (t.itemId === 'ongletRapports') {
                 me.chargerRapports();
+            } else if (t.itemId === 'ongletRegularisations') {
+                me.chargerRegularisations();
             }
         });
     },
@@ -76,7 +80,11 @@ Ext.define('testextjs.view.audit.AuditRapprochements', {
                 + '.audit-comp{padding:8px 10px}.audit-comp table{border-collapse:collapse;width:100%;margin-bottom:10px}'
                 + '.audit-comp th,.audit-comp td{border:1px solid #d5dbe1;padding:4px 8px;text-align:left;vertical-align:top}'
                 + '.audit-comp th{background:#1f3a5f;color:#fff}.audit-comp .plus{color:#c0392b}.audit-comp .moins{color:#1e8449}'
-                + '.audit-comp ul{margin:2px 0 2px 18px;padding:0}',
+                + '.audit-comp ul{margin:2px 0 2px 18px;padding:0}'
+                + '.audit-renvois{padding:4px 10px}.audit-renvoi{display:flex;align-items:center;gap:10px;padding:4px 0;border-bottom:1px solid #eef1f4}'
+                + '.audit-renvoi .n{min-width:60px;text-align:right;font-weight:bold;color:#c0392b}'
+                + '.audit-renvoi a{color:#1f6fb2;cursor:pointer;text-decoration:underline;white-space:nowrap}'
+                + '.audit-titre{font-weight:bold;color:#1f3a5f;padding:8px 10px 2px}',
                 'audit-styles');
     },
 
@@ -397,5 +405,222 @@ Ext.define('testextjs.view.audit.AuditRapprochements', {
         }
         /* ouverte dans le clic : un onglet du navigateur, jamais une fenetre bloquee */
         window.open('../api/v1/audit/rapports/' + encodeURIComponent(sel[0].get('id')) + '/' + format, '_blank');
+    },
+
+    /* ------------------------------------------------------------------ onglet Regularisations */
+
+    /* ecarts corriges dans leur ecran habituel : [ecran (xtype du menu), titre de l'ecran] */
+    RENVOIS: {
+        STOCK: ['ajustementmanager', 'Ajustement du stock'],
+        STOCK_NEGATIF: ['ajustementmanager', 'Ajustement du stock'],
+        BILLETAGE: ['gestcaissemanager', 'Gestion caisse'],
+        DIFFERES: ['delayed', 'Gestion des différés'],
+        CARNETS: ['reglementdepot', 'Gestion carnet dépôt'],
+        CONTROLES: ['supportdiagnostic', 'Diagnostic & bugs']
+    },
+
+    ongletRegularisations: function () {
+        var me = this;
+        return {
+            xtype: 'panel', title: 'Régularisations', itemId: 'ongletRegularisations', layout: {type: 'vbox', align: 'stretch'}, autoScroll: false,
+            dockedItems: [{
+                    xtype: 'toolbar', dock: 'top', items: [
+                        {xtype: 'textfield', itemId: 'commentaire', fieldLabel: 'Commentaire', labelWidth: 85, width: 420, maxLength: 1000,
+                            emptyText: 'Obligatoire : motif de la régularisation'},
+                        {xtype: 'numberfield', itemId: 'montant', fieldLabel: 'Montant compté', labelWidth: 105, width: 230, minValue: 0,
+                            hideTrigger: true, disabled: true, emptyText: 'caisse seulement'},
+                        {xtype: 'button', itemId: 'valider', text: 'Valider la sélection', disabled: true, handler: function () {
+                                me.valider();
+                            }},
+                        '->', {xtype: 'tbtext', itemId: 'etat', text: ''}
+                    ]
+                }],
+            items: [
+                {xtype: 'container', layout: {type: 'hbox', align: 'middle'}, items: [
+                        {xtype: 'component', html: '<div class="audit-titre">À appliquer après validation</div>'},
+                        {xtype: 'combobox', itemId: 'filtreType', margin: '6 0 0 16', width: 360, editable: false, queryMode: 'local',
+                            displayField: 't', valueField: 'v', value: '',
+                            store: Ext.create('Ext.data.Store', {fields: ['v', 't'], data: [{v: '', t: 'Toutes les régularisations'}]}),
+                            listeners: {change: function (c, v) {
+                                    var st = me.down('#ongletRegularisations #grilleRegul').getStore();
+                                    st.clearFilter();
+                                    if (v) {
+                                        st.filter('type', v);
+                                    }
+                                }}}
+                    ]},
+                {xtype: 'grid', itemId: 'grilleRegul', flex: 3, margin: '0 10 4 10',
+                    selModel: Ext.create('Ext.selection.CheckboxModel', {mode: 'SIMPLE'}),
+                    store: Ext.create('Ext.data.Store', {fields: ['type', 'typeLibelle', 'cle', 'objet', 'lignes', 'montantRequis', 'effet'], data: []}),
+                    columns: [
+                        {text: 'Régularisation', dataIndex: 'typeLibelle', width: 330, renderer: function (v) {
+                                return me.esc(v);
+                            }},
+                        {text: 'Objet', dataIndex: 'objet', flex: 1, renderer: function (v) {
+                                return me.esc(v);
+                            }},
+                        {text: 'Lignes', dataIndex: 'lignes', width: 70, align: 'right'},
+                        {text: 'Ce qui sera fait', dataIndex: 'effet', flex: 1, renderer: function (v, m) {
+                                m.tdAttr = 'data-qtip="' + me.esc(v) + '"';
+                                return me.esc(v);
+                            }}
+                    ],
+                    viewConfig: {emptyText: '<div style="padding:10px;color:#1e8449">Aucune régularisation à appliquer.</div>', deferEmptyText: false},
+                    listeners: {selectionchange: function () {
+                            me.majBoutons();
+                        }}},
+                {xtype: 'component', html: '<div class="audit-titre">À corriger dans l\'écran habituel</div>'},
+                {xtype: 'component', itemId: 'renvois', html: '', autoScroll: true, maxHeight: 170},
+                {xtype: 'component', html: '<div class="audit-titre">Journal des régularisations</div>'},
+                {xtype: 'grid', itemId: 'grilleJournal', flex: 2, margin: '0 10 10 10',
+                    store: Ext.create('Ext.data.Store', {fields: ['date', 'auteur', 'type', 'objet', 'lignes', 'montant', 'commentaire'], data: []}),
+                    columns: [
+                        {text: 'Date', dataIndex: 'date', width: 120},
+                        {text: 'Validée par', dataIndex: 'auteur', width: 140, renderer: function (v) {
+                                return me.esc(v);
+                            }},
+                        {text: 'Régularisation', dataIndex: 'type', width: 300, renderer: function (v) {
+                                return me.esc(v);
+                            }},
+                        {text: 'Objet', dataIndex: 'objet', flex: 1, renderer: function (v) {
+                                return me.esc(v);
+                            }},
+                        {text: 'Lignes', dataIndex: 'lignes', width: 65, align: 'right'},
+                        {text: 'Montant', dataIndex: 'montant', width: 90, align: 'right', renderer: function (v) {
+                                return v === '' || v === null ? '' : me.nombre(v);
+                            }},
+                        {text: 'Commentaire', dataIndex: 'commentaire', flex: 1, renderer: function (v) {
+                                return me.esc(v);
+                            }}
+                    ],
+                    viewConfig: {emptyText: '<div style="padding:10px">Aucune régularisation n\'a encore été appliquée.</div>', deferEmptyText: false}}
+            ]
+        };
+    },
+
+    chargerRegularisations: function () {
+        var me = this, t = me.down('#ongletRegularisations');
+        Ext.Ajax.request({
+            url: '../api/v1/audit/regularisations', method: 'GET',
+            success: function (response) {
+                var r = Ext.JSON.decode(response.responseText, true) || {};
+                if (r.success === false) {
+                    t.down('#etat').setText(me.esc(r.msg));
+                    return;
+                }
+                me.peutValider = !!r.peutValider;
+                var types = [{v: '', t: 'Toutes les régularisations'}], vus = {};
+                Ext.each(r.data || [], function (x) {
+                    vus[x.type] = vus[x.type] || {v: x.type, t: x.typeLibelle, n: 0};
+                    vus[x.type].n++;
+                });
+                Ext.Object.each(vus, function (k, x) {
+                    types.push({v: x.v, t: x.t + ' (' + x.n + ')'});
+                });
+                var filtre = t.down('#filtreType'), garde = filtre.getValue();
+                filtre.getStore().loadData(types);
+                var st = t.down('#grilleRegul').getStore();
+                st.clearFilter(true);
+                st.loadData(r.data || []);
+                filtre.setValue(vus[garde] ? garde : '');
+                if (vus[garde]) {
+                    st.filter('type', garde);
+                }
+                t.down('#etat').setText(me.peutValider ? (r.data || []).length + ' régularisation(s) proposée(s)'
+                        : 'Consultation seule : la validation demande le droit « Valider les régularisations »');
+                me.majBoutons();
+            }
+        });
+        Ext.Ajax.request({
+            url: '../api/v1/audit/regularisations/journal', method: 'GET',
+            success: function (response) {
+                var r = Ext.JSON.decode(response.responseText, true) || {};
+                t.down('#grilleJournal').getStore().loadData(r.data || []);
+            }
+        });
+        me.afficherRenvois();
+    },
+
+    afficherRenvois: function () {
+        var me = this, t = me.down('#ongletRegularisations'), h = '<div class="audit-renvois">', n = 0;
+        Ext.each((me.resultat || {}).sections || [], function (s) {
+            var r = me.RENVOIS[s.code];
+            if (!r || !(s.nb > 0)) {
+                return;
+            }
+            n++;
+            h += '<div class="audit-renvoi"><span class="n">' + me.nombre(s.nb) + '</span><span style="flex:1">' + me.esc(s.titre)
+                    + '</span><a data-ecran="' + r[0] + '" data-titre="' + me.esc(r[1]) + '">Ouvrir « ' + me.esc(r[1]) + ' »</a></div>';
+        });
+        t.down('#renvois').update(n ? h + '</div>' : '<div class="audit-renvois" style="color:#1e8449">Aucun écart à corriger ailleurs dans la dernière analyse.</div>');
+        Ext.each(t.down('#renvois').getEl().query('a[data-ecran]'), function (a) {
+            Ext.get(a).on('click', function () {
+                testextjs.app.getController('App').onLoadNewComponent(a.getAttribute('data-ecran'), a.getAttribute('data-titre'), '');
+            });
+        });
+    },
+
+    majBoutons: function () {
+        var me = this, t = me.down('#ongletRegularisations');
+        var sel = t.down('#grilleRegul').getSelectionModel().getSelection();
+        var caisses = Ext.Array.filter(sel, function (r) {
+            return r.get('montantRequis');
+        });
+        /* une caisse se ferme seule, avec son montant compte */
+        var caisseSeule = sel.length === 1 && caisses.length === 1;
+        t.down('#montant').setDisabled(!caisseSeule);
+        t.down('#valider').setDisabled(!me.peutValider || sel.length === 0 || (caisses.length > 0 && !caisseSeule));
+        if (caisses.length > 0 && !caisseSeule) {
+            t.down('#etat').setText('Une caisse se ferme seule : décochez les autres lignes');
+        }
+    },
+
+    valider: function () {
+        var me = this, t = me.down('#ongletRegularisations');
+        var sel = t.down('#grilleRegul').getSelectionModel().getSelection();
+        var commentaire = Ext.String.trim(t.down('#commentaire').getValue() || '');
+        if (commentaire.length < 3) {
+            t.down('#etat').setText('<span style="color:#c0392b">Le commentaire est obligatoire.</span>');
+            t.down('#commentaire').focus();
+            return;
+        }
+        var montant = t.down('#montant').getValue();
+        if (sel.length === 1 && sel[0].get('montantRequis') && (montant === null || montant === undefined || montant === '')) {
+            t.down('#etat').setText('<span style="color:#c0392b">Indiquez le montant compté dans la caisse.</span>');
+            t.down('#montant').focus();
+            return;
+        }
+        var restant = sel.slice(), faites = 0, refus = [];
+        t.setLoading('Application…');
+        var suivante = function () {
+            var r = restant.shift();
+            if (!r) {
+                t.setLoading(false);
+                t.down('#etat').setText(faites + ' régularisation(s) appliquée(s)' + (refus.length ? ' ; refusée(s) : ' + me.esc(refus.join(' ; ')) : ''));
+                t.down('#commentaire').setValue('');
+                t.down('#montant').setValue(null);
+                me.chargerRegularisations();
+                return;
+            }
+            Ext.Ajax.request({
+                url: '../api/v1/audit/regularisations/appliquer', method: 'POST',
+                jsonData: {type: r.get('type'), cle: r.get('cle'), commentaire: commentaire,
+                    montant: r.get('montantRequis') ? montant : null},
+                success: function (response) {
+                    var x = Ext.JSON.decode(response.responseText, true) || {};
+                    if (x.success) {
+                        faites++;
+                    } else {
+                        refus.push(r.get('objet') + ' : ' + (x.msg || 'refusée'));
+                    }
+                    suivante();
+                },
+                failure: function () {
+                    refus.push(r.get('objet') + ' : le serveur n\'a pas répondu');
+                    suivante();
+                }
+            });
+        };
+        suivante();
     }
 });

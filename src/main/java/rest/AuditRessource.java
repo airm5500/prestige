@@ -8,6 +8,7 @@ import javax.ejb.EJB;
 import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
+import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -18,6 +19,7 @@ import javax.ws.rs.core.Response;
 import org.json.JSONObject;
 import rest.service.impl.audit.AuditAnalyseService;
 import rest.service.impl.audit.AuditRapportService;
+import rest.service.impl.audit.AuditRegularisationService;
 import toolkits.parameters.commonparameter;
 import util.CommonUtils;
 import util.Constant;
@@ -29,7 +31,7 @@ import util.Constant;
 @Produces("application/json; charset=UTF-8")
 public class AuditRessource {
 
-    static final String LIRE = "P_SM_AUDIT";
+    static final String LIRE = "P_SM_AUDIT", REGULARISER = "P_AUDIT_REGULARISER";
 
     @Inject
     private HttpServletRequest servletRequest;
@@ -37,6 +39,8 @@ public class AuditRessource {
     private AuditAnalyseService analyse;
     @EJB
     private AuditRapportService rapports;
+    @EJB
+    private AuditRegularisationService regularisations;
 
     @SuppressWarnings("unchecked")
     private TUser autorise() {
@@ -47,6 +51,13 @@ public class AuditRessource {
             return null;
         }
         return (TUser) u;
+    }
+
+    @SuppressWarnings("unchecked")
+    private boolean peutRegulariser() {
+        HttpSession s = servletRequest.getSession(false);
+        return s != null && CommonUtils.hasAuthorityByName(
+                (List<TPrivilege>) s.getAttribute(commonparameter.USER_LIST_PRIVILEGE), REGULARISER);
     }
 
     private static Response echec(String message) {
@@ -170,5 +181,52 @@ public class AuditRessource {
     private static Response fichier(byte[] data, String type, String disposition, String nom) {
         return Response.ok(data, type).header("Content-Disposition", disposition + "; filename=\"" + nom + "\"")
                 .header("Cache-Control", "no-store").build();
+    }
+
+    /* ------------------------------------------------------------------ regularisations */
+
+    @GET
+    @Path("regularisations")
+    public Response propositions() {
+        if (autorise() == null) {
+            return refus();
+        }
+        return Response.ok(new JSONObject().put("success", true).put("peutValider", peutRegulariser())
+                .put("data", regularisations.propositions()).toString()).build();
+    }
+
+    /** Applique UNE regularisation validee : {type, cle, commentaire, montant (caisse)}. */
+    @POST
+    @Path("regularisations/appliquer")
+    @Consumes("application/json")
+    public Response appliquer(String corps) {
+        TUser u = autorise();
+        if (u == null) {
+            return refus();
+        }
+        if (!peutRegulariser()) {
+            return echec("Vous n'avez pas le droit de valider les régularisations.");
+        }
+        JSONObject c;
+        try {
+            c = new JSONObject(corps == null ? "{}" : corps);
+        } catch (RuntimeException e) {
+            return echec("Demande illisible.");
+        }
+        Long montant = c.has("montant") && !c.isNull("montant") && !String.valueOf(c.get("montant")).isEmpty()
+                ? c.optLong("montant", -1) : null;
+        return Response.ok(regularisations
+                .appliquer(c.optString("type"), c.optString("cle"), c.optString("commentaire"), montant, u).toString())
+                .build();
+    }
+
+    @GET
+    @Path("regularisations/journal")
+    public Response journal() {
+        if (autorise() == null) {
+            return refus();
+        }
+        return Response.ok(new JSONObject().put("success", true).put("data", regularisations.journal(500)).toString())
+                .build();
     }
 }
