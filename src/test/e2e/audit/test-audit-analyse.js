@@ -5,7 +5,7 @@
  *    differe (reste du 4 000 / releve 5 000), carnet depot (+1 000) ; controles de coherence listes ;
  *  - l'analyse n'ecrit rien (sommes de controle des tables lues identiques avant et apres) ;
  *  - aucune fenetre ; sans le droit P_SM_AUDIT, l'API refuse.
- * Tout ce qui est pose est retire a la fin.
+ * Tout ce qui est pose est retire a la fin, rapports conserves par « Lancer l'analyse » compris.
  */
 const { chromium } = require('playwright-core');
 const { execFileSync } = require('child_process');
@@ -17,6 +17,7 @@ const exec = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', 
 const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = 'admin'");
 const M = 'E2E-AUD';
+const DEBUT = q('SELECT NOW() - INTERVAL 1 SECOND');
 const CAISSE = q('SELECT lg_CAISSE_ID FROM t_caisse LIMIT 1');
 
 /* produit a l'officine dont le stock concorde avec son dernier mouvement */
@@ -146,6 +147,7 @@ function poser() {
   } finally {
     droit.remettre();
     retirer();
+    exec(`DELETE FROM t_audit_rapport WHERE created_at >= '${DEBUT}'`); /* rapports conserves par « Lancer l'analyse » */
     await b.close();
     ok('Données d\'essai retirées', q(`SELECT COUNT(*) FROM t_resume_caisse WHERE ld_CAISSE_ID LIKE '${M}-%'`) === '0'
       && q(`SELECT COUNT(*) FROM t_client WHERE lg_CLIENT_ID = '${M}-C'`) === '0'
