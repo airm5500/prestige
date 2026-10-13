@@ -1,18 +1,21 @@
 <%@page import="util.Constant"%>
 <%@page import="dal.TUser"%>
+<%@page import="javax.servlet.http.HttpSession"%>
 <%@page import="toolkits.utils.logger"%>
 <%@page import="toolkits.parameters.commonparameter"%>
 <%@page import="toolkits.utils.jdom"  %>
 
 
-<%@page contentType="text/html" pageEncoding="UTF-8"%>
+<%@page contentType="text/html" pageEncoding="UTF-8" session="false"%>
 <%
     jdom.InitRessource();
     jdom.LoadRessource();
 
     TUser OTUser = null;
     try {
-        OTUser = (TUser) session.getAttribute(Constant.AIRTIME_USER);
+        /* 13/10 : sans session existante, on n'en cree pas une (page d'entree ouverte a tous) */
+        HttpSession existante = request.getSession(false);
+        OTUser = existante != null ? (TUser) existante.getAttribute(Constant.AIRTIME_USER) : null;
        
     } catch (Exception e) {
 

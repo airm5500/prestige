@@ -1,4 +1,4 @@
-<%@page contentType="text/html" pageEncoding="UTF-8"%><%
+<%@page contentType="text/html" pageEncoding="UTF-8" session="false"%><%
     /* 13/10 : la page de connexion est maintenant security/index.html (donnees par l'API v1/app/info).
        Cette adresse est gardee pour les anciens liens et favoris : elle y renvoie, parametres compris. */
     String q = request.getQueryString();

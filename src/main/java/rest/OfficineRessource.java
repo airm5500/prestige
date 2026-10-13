@@ -53,7 +53,8 @@ public class OfficineRessource {
     }
 
     private TUser currentUser() {
-        return (TUser) servletRequest.getSession().getAttribute(Constant.AIRTIME_USER);
+        javax.servlet.http.HttpSession session = servletRequest.getSession(false);
+        return session != null ? (TUser) session.getAttribute(Constant.AIRTIME_USER) : null;
     }
 
     private Response deconnecte() {

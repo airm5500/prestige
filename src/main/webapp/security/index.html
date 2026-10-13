@@ -292,6 +292,10 @@
       .then(function (i) {
         if (!i) { return; }
         if (i.connecte) { window.location.replace(accueil); return; }
+        /* retour apres expiration de la session (longue inactivite) : message dans la page, pas de fenetre */
+        if (/[?&]expiree=1/.test(window.location.search) && window.messageConnexion) {
+          window.messageConnexion('Votre session a expiré après une longue inactivité : reconnectez-vous.');
+        }
         var nom = i.nom || 'Prestige';
         var version = i.version ? ' · v' + i.version : '';
         document.title = nom + version;

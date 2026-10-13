@@ -58,6 +58,9 @@ const FAUX = 'e2e_inconnu_' + Date.now();
     ok('Écran : message de blocage affiché', /Trop d'essais/.test(await p.textContent('#pl-message')), await p.textContent('#pl-message'));
 
     /* un autre compte passe ; la session change */
+    ok('Page de connexion : aucune session créée avant la connexion (13/10)', !(await ctx.cookies()).some((c) => c.name === 'JSESSIONID'));
+    /* fixation de session : un identifiant impose avant la connexion n'est pas repris */
+    await ctx.addCookies([{ name: 'JSESSIONID', value: 'identifiant-impose-e2e', domain: 'localhost', path: '/prestige' }]);
     const avant = (await ctx.cookies()).find((c) => c.name === 'JSESSIONID');
     await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });

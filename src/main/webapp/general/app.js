@@ -1438,6 +1438,34 @@ Ext.define('Prestige.override.GrilleLigneActive', {
             }
         });
 
+        /*
+         * Session expiree (13/10 : les sessions expirent apres une longue inactivite, parametre
+         * KEY_DUREE_SESSION_MINUTES) : sur un 401, on demande au serveur si le poste est encore connecte et,
+         * s'il ne l'est plus, on revient a la page de connexion avec un message (pas de fenetre). Un 401 alors
+         * que le poste est connecte (droit manquant) ne change rien.
+         */
+        var verificationSession = false;
+        Ext.Ajax.on('requestexception', function (conn, response) {
+            if (!response || response.status !== 401 || verificationSession) {
+                return;
+            }
+            verificationSession = true;
+            fetch('../api/v1/app/info', {cache: 'no-store', credentials: 'same-origin'})
+                    .then(function (r) {
+                        return r.ok ? r.json() : null;
+                    })
+                    .then(function (i) {
+                        if (i && i.connecte === false) {
+                            window.location.replace('../security/index.html?expiree=1');
+                            return;
+                        }
+                        verificationSession = false;
+                    })
+                    .catch(function () {
+                        verificationSession = false;
+                    });
+        });
+
         Ext.Ajax.on('requestexception', function (conn, response, options) {
             try {
                 var url = (options && options.url) ? String(options.url) : '';

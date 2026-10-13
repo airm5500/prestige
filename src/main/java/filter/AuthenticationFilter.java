@@ -140,8 +140,10 @@ public class AuthenticationFilter implements ContainerRequestFilter, ContainerRe
             sessionHelperService.setData(data);
 
         } else {
-            HttpSession session = servletRequest.getSession();
-            currentUser = (TUser) session.getAttribute(Constant.AIRTIME_USER);
+            // getSession(false) : un appel sans session (routes publiques, poste deconnecte) n'en cree plus une ;
+            // les sessions n'etant liberees qu'a expiration, chaque appel anonyme en laissait une en memoire (13/10).
+            HttpSession session = servletRequest.getSession(false);
+            currentUser = session != null ? (TUser) session.getAttribute(Constant.AIRTIME_USER) : null;
 
             if (currentUser != null) {
                 sessionHelperService.setCurrentUser(currentUser);

@@ -147,7 +147,11 @@ public class AccountResource {
     @Path("logout")
     public Response deconnection() {
         JSONObject json = new JSONObject();
-        HttpSession hs = request.getSession();
+        HttpSession hs = request.getSession(false);
+        if (hs == null) {
+            // deja deconnecte : rien a fermer, et surtout pas de session creee pour l'occasion (13/10)
+            return Response.ok().entity(json.put("success", true).toString()).build();
+        }
         TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
         boolean invalide = userService.deConnexion(request, tu);
         json.put("success", invalide);
