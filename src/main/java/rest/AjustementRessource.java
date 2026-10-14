@@ -18,6 +18,7 @@ import javax.servlet.http.HttpSession;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
+import javax.ws.rs.HeaderParam;
 import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
@@ -29,6 +30,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import rest.service.AjustementAnalyseService;
 import rest.service.MvtProduitService;
+import rest.service.mobile.MobileClientRefService;
 import toolkits.parameters.commonparameter;
 import util.DateConverter;
 import util.Constant;
@@ -41,6 +43,10 @@ import util.Constant;
 @Produces("application/json")
 @Consumes("application/json")
 public class AjustementRessource {
+
+    private static final String X_CLIENT_REF = "X-Client-Ref";
+    @EJB
+    private MobileClientRefService mobileClientRefService;
 
     @Inject
     private HttpServletRequest servletRequest;
@@ -60,7 +66,7 @@ public class AjustementRessource {
 
     @POST
     @Path("creeation")
-    public Response createAjustement(Params params) throws JSONException {
+    public Response createAjustement(Params params, @HeaderParam(X_CLIENT_REF) String clientRef) throws JSONException {
         HttpSession hs = servletRequest.getSession();
 
         TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
@@ -68,16 +74,38 @@ public class AjustementRessource {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
         params.setOperateur(tu);
-        JSONObject json = mvtProduitService.creerAjustement(params);
-        return Response.ok().entity(json.toString()).build();
+        String json = uneFois(clientRef, MobileClientRefService.TYPE_AJUSTEMENT,
+                () -> mvtProduitService.creerAjustement(params), r -> {
+                    JSONObject data = r.optJSONObject("data");
+                    return data == null ? null : data.optString("lgAJUSTEMENTID", null);
+                });
+        return Response.ok().entity(json).build();
     }
 
     @PUT
     @Path("{id}")
-    public Response cloreAjustement(@PathParam("id") String id, Params params) throws JSONException {
+    public Response cloreAjustement(@PathParam("id") String id, Params params,
+            @HeaderParam(X_CLIENT_REF) String clientRef) throws JSONException {
         params.setRefParent(id);
-        JSONObject json = mvtProduitService.cloreAjustement(params);
-        return Response.ok().entity(json.toString()).build();
+        String json = uneFois(clientRef, MobileClientRefService.TYPE_CLOTURE_AJUSTEMENT,
+                () -> mvtProduitService.cloreAjustement(params), r -> id);
+        return Response.ok().entity(json).build();
+    }
+
+    /**
+     * Demandes des applications mobiles (1, 13) : avec l'en-tete X-Client-Ref, une operation renvoyee (reseau instable,
+     * double appui) rend la reponse de la premiere sans rien refaire. Sans en-tete : comportement d'origine.
+     */
+    private String uneFois(String clientRef, String type, java.util.function.Supplier<JSONObject> operation,
+            java.util.function.Function<JSONObject, String> identifiant) {
+        if (MobileClientRefService.normaliser(clientRef) == null) {
+            return operation.get().toString();
+        }
+        return mobileClientRefService.executer(clientRef, type, () -> operation.get().toString(), r -> {
+            JSONObject o = new JSONObject(r);
+            String id = o.optBoolean("success") ? identifiant.apply(o) : null;
+            return id == null ? null : new MobileClientRefService.Cree(id, null, r);
+        }, e -> e.reponse, msg -> new JSONObject().put("success", false).put("msg", msg).toString());
     }
 
     @POST

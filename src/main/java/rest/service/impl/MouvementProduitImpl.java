@@ -358,11 +358,17 @@ public class MouvementProduitImpl implements MouvementProduitService {
         EntityManager emg = this.getEmg();
         try {
 
-            TAjustement ajustement = emg.find(TAjustement.class, params.getRefParent());
+            // meme regle que v1 (demandes des applications mobiles, 13) : une seule cloture
+            TAjustement ajustement = emg.find(TAjustement.class, params.getRefParent(),
+                    javax.persistence.LockModeType.PESSIMISTIC_WRITE);
             if (ajustement == null) {
 
                 json.put("success", false).put("msg", "L'opération a échoué");
                 return json;
+            }
+            if (!util.Constant.STATUT_IS_PROGRESS.equals(ajustement.getStrSTATUT())) {
+                return json.put("success", false).put("code", "ETAT").put("msg",
+                        "Ajustement déjà clôturé : le stock n'a pas été corrigé une seconde fois.");
             }
             TUser tUser = ajustement.getLgUSERID();
             TEmplacement emplacement = tUser.getLgEMPLACEMENTID();
@@ -668,7 +674,12 @@ public class MouvementProduitImpl implements MouvementProduitService {
         EntityManager emg = this.getEmg();
         try {
 
-            TAjustement ajustement = emg.find(TAjustement.class, id);
+            TAjustement ajustement = emg.find(TAjustement.class, id, javax.persistence.LockModeType.PESSIMISTIC_WRITE);
+            // meme regle que v1 (demandes des applications mobiles, 14) : un ajustement cloture ne s'annule pas
+            if (ajustement != null && !util.Constant.STATUT_IS_PROGRESS.equals(ajustement.getStrSTATUT())) {
+                return json.put("success", false).put("code", "ETAT").put("msg",
+                        "Ajustement clôturé : il ne s'annule pas (le stock a déjà été corrigé).");
+            }
             List<TAjustementDetail> ajustementDetails = findAjustementDetailsByParenId(id, emg);
 
             ajustementDetails.forEach(c -> {

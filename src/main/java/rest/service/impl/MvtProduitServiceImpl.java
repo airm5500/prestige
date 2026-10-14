@@ -616,6 +616,10 @@ public class MvtProduitServiceImpl implements MvtProduitService {
         JSONObject json = new JSONObject();
         try {
             TAjustement ajustement = emg.find(TAjustement.class, params.getRefParent());
+            String refus = refusModificationAjustement(ajustement);
+            if (refus != null) {
+                return json.put("success", false).put("code", "ETAT").put("msg", refus);
+            }
             ajusterProduitAjustement(params, ajustement);
             json.put("success", true).put("msg", "L'opération effectuée avec success");
             json.put("data", new JSONObject().put("lgAJUSTEMENTID", ajustement.getLgAJUSTEMENTID()));
@@ -722,6 +726,10 @@ public class MvtProduitServiceImpl implements MvtProduitService {
                 json.put("success", false).put("msg", "L'opération a échoué");
                 return json;
             }
+            String refus = refusModificationAjustement(ajustementDetail.getLgAJUSTEMENTID());
+            if (refus != null) {
+                return json.put("success", false).put("code", "ETAT").put("msg", refus);
+            }
             ajustementDetail.setIntNUMBER(params.getValue());
             // Le stock de depart est celui deja enregistre sur la ligne, dans la zone reellement
             // ajustee. S'en remettre a la valeur transmise par l'ecran donnerait une quantite
@@ -765,11 +773,20 @@ public class MvtProduitServiceImpl implements MvtProduitService {
         JSONObject json = new JSONObject();
         EntityManager emg = this.getEmg();
         try {
-            TAjustement ajustement = emg.find(TAjustement.class, params.getRefParent());
+            /*
+             * Demandes des applications mobiles (13) : verrou sur l'ajustement et controle du statut. Avant, une
+             * seconde cloture (double clic, renvoi reseau, deux postes) re-appliquait toutes les lignes.
+             */
+            TAjustement ajustement = emg.find(TAjustement.class, params.getRefParent(),
+                    javax.persistence.LockModeType.PESSIMISTIC_WRITE);
             if (ajustement == null) {
 
                 json.put("success", false).put("msg", "L'opération a échoué");
                 return json;
+            }
+            if (!STATUT_IS_PROGRESS.equals(ajustement.getStrSTATUT())) {
+                return json.put("success", false).put("code", "ETAT").put("msg",
+                        "Ajustement déjà clôturé : le stock n'a pas été corrigé une seconde fois.");
             }
             ajustement.setDtUPDATED(new Date());
             TUser tUser = ajustement.getLgUSERID();
@@ -828,6 +845,9 @@ public class MvtProduitServiceImpl implements MvtProduitService {
             ajustement.setStrCOMMENTAIRE(params.getDescription());
             ajustement.setStrSTATUT(STATUT_ENABLE);
             emg.merge(ajustement);
+            // emplacement dont le stock a ete corrige (celui du createur de l'ajustement, regle historique)
+            json.put("emplacement", emplacement.getStrNAME()).put("emplacementId", emplacement.getLgEMPLACEMENTID())
+                    .put("zone", surReserve ? dal.TAjustement.ZONE_RESERVE : dal.TAjustement.ZONE_RAYON);
             if (!refus.isEmpty()) {
                 // Les autres lignes ont bien ete appliquees : on ne les annule pas, mais on nomme
                 // precisement celles qui ne l'ont pas ete.
@@ -848,6 +868,14 @@ public class MvtProduitServiceImpl implements MvtProduitService {
             json.put("success", false).put("msg", "L'opération a échoué");
             return json;
         }
+    }
+
+    /** Motif du refus de modifier les lignes de cet ajustement (null : modifiable, encore en cours). */
+    private static String refusModificationAjustement(TAjustement ajustement) {
+        if (ajustement != null && !STATUT_IS_PROGRESS.equals(ajustement.getStrSTATUT())) {
+            return "Ajustement clôturé : ses lignes ne se modifient plus.";
+        }
+        return null;
     }
 
     /** Identifie un produit dans un message d'erreur, de facon lisible par l'utilisateur. */
@@ -988,6 +1016,11 @@ public class MvtProduitServiceImpl implements MvtProduitService {
         try {
 
             TAjustementDetail ajustementDetail = emg.find(TAjustementDetail.class, id);
+            String refus = ajustementDetail == null ? null
+                    : refusModificationAjustement(ajustementDetail.getLgAJUSTEMENTID());
+            if (refus != null) {
+                return json.put("success", false).put("code", "ETAT").put("msg", refus);
+            }
             emg.remove(ajustementDetail);
             return json.put("success", true).put("msg", "Opération effectuée avec success");
         } catch (Exception e) {
@@ -1117,7 +1150,15 @@ public class MvtProduitServiceImpl implements MvtProduitService {
         JSONObject json = new JSONObject();
         EntityManager emg = this.getEmg();
         try {
-            TAjustement ajustement = emg.find(TAjustement.class, id);
+            TAjustement ajustement = emg.find(TAjustement.class, id, javax.persistence.LockModeType.PESSIMISTIC_WRITE);
+            /*
+             * Demandes des applications mobiles (14) : un ajustement cloture a deja corrige le stock ; le supprimer
+             * effacait l'historique sans rendre le stock. Refus simple (decision du pharmacien, 14/10).
+             */
+            if (ajustement != null && !STATUT_IS_PROGRESS.equals(ajustement.getStrSTATUT())) {
+                return json.put("success", false).put("code", "ETAT").put("msg",
+                        "Ajustement clôturé : il ne s'annule pas (le stock a déjà été corrigé). Faites un nouvel ajustement inverse si besoin.");
+            }
             List<TAjustementDetail> ajustementDetails = findAjustementDetailsByParenId(id);
             ajustementDetails.forEach(c -> emg.remove(c));
             emg.remove(ajustement);
