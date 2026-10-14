@@ -99,7 +99,10 @@ Ext.define('testextjs.view.stockmanagement.etatstock.action.removeLot', {
                                     idBonDetail: me.getOdatasource().lg_BON_LIVRAISON_DETAIL,
                                     idProduit: me.getOdatasource().lg_FAMILLE_ID,
                                     refBon: me.getOdatasource().str_REF_LIVRAISON,
-                                    numLot: Ext.getCmp('int_NUM_LOT').getValue()
+                                    numLot: Ext.getCmp('int_NUM_LOT').getValue(),
+                                    /* le lot saisi seulement, comme le dit la confirmation (avant : tous les lots
+                                       du produit sur le BL) ; le serveur le cherche sur ce BL uniquement */
+                                    removeLot: true
                                 }),
                                 success: function (response)
                                 {

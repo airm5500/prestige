@@ -2294,7 +2294,7 @@ public class OrderServiceImpl implements OrderService {
 
         for (TLot lot : lots) {
 
-            freeQty += lot.getIntNUMBERGRATUIT();
+            freeQty += Objects.requireNonNullElse(lot.getIntNUMBERGRATUIT(), 0);
             getEmg().remove(lot);
         }
         getWSByIdProduitAndRefBon(deleteLot).forEach(this.getEmg()::remove);
@@ -2313,20 +2313,34 @@ public class OrderServiceImpl implements OrderService {
         return typedQuery.getResultList();
     }
 
+    /*
+     * Demandes des applications mobiles (16, D1) : le lot est toujours cherche SUR CE BL. Avant, il l'etait par numero
+     * + produit seulement : le meme numero de lot etait supprime sur tous les BL, y compris ceux deja entres en stock.
+     */
     private List<TLot> getLotByIdProduitAndNumLot(DeleteLot deleteLot) {
-        TypedQuery<TLot> typedQuery = getEmg()
-                .createQuery("SELECT o FROM TLot o WHERE o.intNUMLOT =?1 AND o.lgFAMILLEID.lgFAMILLEID=?2", TLot.class);
+        TypedQuery<TLot> typedQuery = getEmg().createQuery(
+                "SELECT o FROM TLot o WHERE o.intNUMLOT =?1 AND o.lgFAMILLEID.lgFAMILLEID=?2 AND o.strREFLIVRAISON=?3",
+                TLot.class);
         typedQuery.setParameter(1, deleteLot.getNumLot());
         typedQuery.setParameter(2, deleteLot.getIdProduit());
+        typedQuery.setParameter(3, deleteLot.getRefBon());
         return typedQuery.getResultList();
     }
 
+    /*
+     * Lignes d'entrepot du BL (n° de BL, et n° de lot si un seul lot est retire). Avant, le n° de BL etait compare au
+     * numero de lot : elles n'etaient jamais retirees.
+     */
     private List<TWarehouse> getWSByIdProduitAndRefBon(DeleteLot deleteLot) {
-        TypedQuery<TWarehouse> typedQuery = getEmg().createQuery(
-                "SELECT o FROM TWarehouse o WHERE o.strREFLIVRAISON =?1 AND o.lgFAMILLEID.lgFAMILLEID=?2",
-                TWarehouse.class);
-        typedQuery.setParameter(1, deleteLot.getNumLot());
+        boolean unLot = deleteLot.isRemoveLot() && StringUtils.isNotEmpty(deleteLot.getNumLot());
+        TypedQuery<TWarehouse> typedQuery = getEmg()
+                .createQuery("SELECT o FROM TWarehouse o WHERE o.strREFLIVRAISON =?1 AND o.lgFAMILLEID.lgFAMILLEID=?2"
+                        + (unLot ? " AND o.intNUMLOT=?3" : ""), TWarehouse.class);
+        typedQuery.setParameter(1, deleteLot.getRefBon());
         typedQuery.setParameter(2, deleteLot.getIdProduit());
+        if (unLot) {
+            typedQuery.setParameter(3, deleteLot.getNumLot());
+        }
         return typedQuery.getResultList();
     }
 

@@ -18,10 +18,27 @@ const BASE = process.env.DB_TEST || 'capitale';
 const exec = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE], { encoding: 'utf8', input: s });
 const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 
-const [P, CIP] = q("SELECT f.lg_FAMILLE_ID, f.int_CIP FROM t_famille f JOIN t_famille_stock s ON s.lg_FAMILLE_ID = f.lg_FAMILLE_ID AND s.lg_EMPLACEMENT_ID = '1'"
+/* Produit d'essai JAMAIS recu en BL : le banc peuple sur 3 ans n'en a plus aucun ; il est copie d'un produit existant
+   (fiche, stock, grossiste) sous un identifiant et un CIP d'essai, puis retire a la fin. */
+const MODELE = q("SELECT f.lg_FAMILLE_ID FROM t_famille f JOIN t_famille_stock s ON s.lg_FAMILLE_ID = f.lg_FAMILLE_ID AND s.lg_EMPLACEMENT_ID = '1'"
   + " WHERE f.str_STATUT = 'enable' AND f.bool_DECONDITIONNE = 0 AND f.int_CIP IS NOT NULL AND f.int_CIP <> ''"
-  + " AND NOT EXISTS (SELECT 1 FROM t_bon_livraison_detail d WHERE d.lg_FAMILLE_ID = f.lg_FAMILLE_ID)"
-  + " AND EXISTS (SELECT 1 FROM t_famille_grossiste g WHERE g.lg_FAMILLE_ID = f.lg_FAMILLE_ID) ORDER BY f.int_CIP LIMIT 1").split('\t');
+  + " AND EXISTS (SELECT 1 FROM t_famille_grossiste g WHERE g.lg_FAMILLE_ID = f.lg_FAMILLE_ID) ORDER BY f.int_CIP LIMIT 1");
+const P = 'E2E-DE-PRODUIT', CIP = '9E2EDE1';
+function creerProduit() {
+  exec("CREATE TEMPORARY TABLE e2e_de_f AS SELECT * FROM t_famille WHERE lg_FAMILLE_ID = '" + MODELE + "';"
+    + "UPDATE e2e_de_f SET lg_FAMILLE_ID = '" + P + "', int_CIP = '" + CIP + "', str_NAME = CONCAT('ZZE2E ', str_NAME), str_DESCRIPTION = CONCAT('ZZE2E ', str_DESCRIPTION);"
+    + "INSERT INTO t_famille SELECT * FROM e2e_de_f;"
+    + "CREATE TEMPORARY TABLE e2e_de_s AS SELECT * FROM t_famille_stock WHERE lg_FAMILLE_ID = '" + MODELE + "' AND lg_EMPLACEMENT_ID = '1';"
+    + "UPDATE e2e_de_s SET lg_FAMILLE_STOCK_ID = 'E2E-DE-STOCK', lg_FAMILLE_ID = '" + P + "';"
+    + "INSERT INTO t_famille_stock SELECT * FROM e2e_de_s;"
+    + "CREATE TEMPORARY TABLE e2e_de_g AS SELECT * FROM t_famille_grossiste WHERE lg_FAMILLE_ID = '" + MODELE + "' LIMIT 1;"
+    + "UPDATE e2e_de_g SET lg_FAMILLE_GROSSISTE_ID = 'E2E-DE-GROS', lg_FAMILLE_ID = '" + P + "', str_CODE_ARTICLE = '" + CIP + "';"
+    + "INSERT INTO t_famille_grossiste SELECT * FROM e2e_de_g;");
+}
+function retirerProduit() {
+  exec("SET FOREIGN_KEY_CHECKS = 0; DELETE FROM t_famille_grossiste WHERE lg_FAMILLE_ID = '" + P + "'; DELETE FROM t_famille_stock WHERE lg_FAMILLE_ID = '" + P + "';"
+    + " DELETE FROM t_famille WHERE lg_FAMILLE_ID = '" + P + "'; SET FOREIGN_KEY_CHECKS = 1;");
+}
 const [G, GNOM] = q("SELECT lg_GROSSISTE_ID, str_LIBELLE FROM t_grossiste ORDER BY str_LIBELLE LIMIT 1").split('\t');
 const ORDER = q("SELECT lg_ORDER_ID FROM t_order LIMIT 1");
 const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = 'admin'");
@@ -39,6 +56,8 @@ function bl(id, statut, dateBl, cloture, qte) {
 
 (async () => {
   nettoyer();
+  retirerProduit();
+  creerProduit();
   const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
   const p = await (await b.newContext({ viewport: { width: 1600, height: 950 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
@@ -102,7 +121,8 @@ function bl(id, statut, dateBl, cloture, qte) {
   } finally {
     await b.close();
     nettoyer();
-    ok('Jeu d\'essai retiré', q("SELECT (SELECT COUNT(*) FROM t_bon_livraison WHERE lg_BON_LIVRAISON_ID LIKE 'E2E-DE-%') + (SELECT COUNT(*) FROM t_bon_livraison_detail WHERE lg_BON_LIVRAISON_DETAIL LIKE 'E2E-DE-%') + (SELECT COUNT(*) FROM hmvtproduit WHERE uuid LIKE 'E2E-DE-%')") === '0');
+    retirerProduit();
+    ok('Jeu d\'essai retiré', q("SELECT (SELECT COUNT(*) FROM t_famille WHERE lg_FAMILLE_ID = '" + P + "') + (SELECT COUNT(*) FROM t_bon_livraison WHERE lg_BON_LIVRAISON_ID LIKE 'E2E-DE-%') + (SELECT COUNT(*) FROM t_bon_livraison_detail WHERE lg_BON_LIVRAISON_DETAIL LIKE 'E2E-DE-%') + (SELECT COUNT(*) FROM hmvtproduit WHERE uuid LIKE 'E2E-DE-%')") === '0');
     const n = res.filter((r) => r.c).length;
     console.log('\n' + n + '/' + res.length + (n === res.length ? ' OK' : ' ECHEC'));
     process.exit(n === res.length ? 0 : 1);
