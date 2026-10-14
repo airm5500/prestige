@@ -373,16 +373,44 @@ public class SuggestionImpl implements SuggestionService {
     }
 
     private boolean checkQteSeuilCondition(TFamilleStock oFamilleStock, TFamille famille) {
+        Integer stock = stockACommander(oFamilleStock, famille);
         switch (getOptionSuggestion()) {
         case EQUALS:
-            return oFamilleStock.getIntNUMBERAVAILABLE().compareTo(famille.getIntSEUILMIN()) == 0;
+            return stock.compareTo(famille.getIntSEUILMIN()) == 0;
         case LESS:
-            return oFamilleStock.getIntNUMBERAVAILABLE().compareTo(famille.getIntSEUILMIN()) == -1;
+            return stock.compareTo(famille.getIntSEUILMIN()) == -1;
         case LESS_EQUALS:
-            return oFamilleStock.getIntNUMBERAVAILABLE().compareTo(famille.getIntSEUILMIN()) < 1;
+            return stock.compareTo(famille.getIntSEUILMIN()) < 1;
 
         default:
             return false;
+        }
+    }
+
+    /**
+     * Stock a comparer au seuil de commande : rayon, plus la reserve quand le produit y est gere (retours du 13/10,
+     * point 7). Un produit dont la reserve couvre le seuil ne se commande pas : c'est un reassort reserve -> rayon,
+     * plafonne a la capacite du rayon (suggestions de la reserve), qui le remet en rayon.
+     */
+    private Integer stockACommander(TFamilleStock oFamilleStock, TFamille famille) {
+        int rayon = oFamilleStock.getIntNUMBERAVAILABLE() == null ? 0 : oFamilleStock.getIntNUMBERAVAILABLE();
+        if (!Boolean.TRUE.equals(famille.getBoolRESERVE()) || oFamilleStock.getLgEMPLACEMENTID() == null) {
+            return rayon;
+        }
+        return rayon + stockReserve(famille.getLgFAMILLEID(), oFamilleStock.getLgEMPLACEMENTID().getLgEMPLACEMENTID());
+    }
+
+    private int stockReserve(String familleId, String emplacementId) {
+        try {
+            Object total = getEmg()
+                    .createNativeQuery("SELECT COALESCE(SUM(int_NUMBER), 0) FROM t_type_stock_famille"
+                            + " WHERE lg_FAMILLE_ID = ?1 AND lg_EMPLACEMENT_ID = ?2 AND lg_TYPE_STOCK_ID = '2'"
+                            + " AND str_STATUT = 'enable'")
+                    .setParameter(1, familleId).setParameter(2, emplacementId).getSingleResult();
+            return total == null ? 0 : Math.max(0, ((Number) total).intValue());
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "stockReserve " + familleId, e);
+            return 0;
         }
     }
 
@@ -536,7 +564,7 @@ public class SuggestionImpl implements SuggestionService {
 
             } else if (Objects.nonNull(tf.getIntQTEREAPPROVISIONNEMENT())) {
 
-                qteReappro = (tf.getIntSEUILMIN() - oFamilleStock.getIntNUMBERAVAILABLE())
+                qteReappro = (tf.getIntSEUILMIN() - stockACommander(oFamilleStock, tf))
                         + tf.getIntQTEREAPPROVISIONNEMENT();
 
             }
@@ -1379,6 +1407,10 @@ public class SuggestionImpl implements SuggestionService {
         String base = " FROM TFamilleStock s JOIN s.lgFAMILLEID f WHERE s.strSTATUT = ?1"
                 + " AND s.lgEMPLACEMENTID.lgEMPLACEMENTID = ?2 AND f.intSEUILMIN IS NOT NULL"
                 + " AND s.intNUMBERAVAILABLE <= f.intSEUILMIN" + " AND f.strSTATUT NOT IN (?5, ?6)"
+                // produit gere en reserve et couvert par elle : un reassort, pas un manque (retours du 13/10)
+                + " AND NOT (f.boolRESERVE = TRUE AND s.intNUMBERAVAILABLE + COALESCE((SELECT SUM(r.intNUMBER)"
+                + " FROM TTypeStockFamille r WHERE r.lgFAMILLEID = f AND r.lgEMPLACEMENTID = s.lgEMPLACEMENTID"
+                + " AND r.lgTYPESTOCKID.lgTYPESTOCKID = '2' AND r.strSTATUT = ?1), 0) > f.intSEUILMIN)"
                 + " AND NOT EXISTS (SELECT d FROM TSuggestionOrderDetails d WHERE d.lgFAMILLEID = f"
                 + " AND (d.strSTATUT = ?3 OR d.strSTATUT = ?4) AND d.lgSUGGESTIONORDERID.strSTATUT = ?3)";
         TypedQuery<TFamille> q = getEmg().createQuery("SELECT f" + base + " ORDER BY f.strNAME", TFamille.class);
