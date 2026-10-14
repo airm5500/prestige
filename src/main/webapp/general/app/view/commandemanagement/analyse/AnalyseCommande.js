@@ -386,25 +386,28 @@ Ext.define('testextjs.view.commandemanagement.analyse.AnalyseCommande', {
         return '<b>' + me.h(nom) + '</b> <span style="color:#7f8c8d">· ' + me.h(cip) + (suite ? ' · ' + me.h(suite) : '') + '</span>';
     },
 
+    /* retours du 13/10 (point 9) : le recalcul de tout le catalogue prend du temps (32 s pour 10 794 produits) ; le
+       bouton le montre (roue, secondes ecoulees, barre en haut de l'ecran) et dit comment il s'est termine */
     recalculer: function () {
         var me = this, b = me.down('#btnRecalculer');
-        b.disable();
-        b.setText('Calcul en cours…');
-        me.lire('../api/v1/analyse-commande/recalculer', function (o) {
-            b.enable();
-            b.setText('Recalculer maintenant');
-            me.chargerTableau();
-            var p = me.down('#ongletPrevisions');
-            if (p.getStore().getCount()) {
-                p.getStore().loadPage(1);
-            }
-        }, 'POST');
-        Ext.defer(function () {
-            if (b.isDisabled()) {
-                b.enable();
-                b.setText('Recalculer maintenant');
-            }
-        }, 300000);
+        var fin = PrestigeChargement.occuper(b, 'Calcul des prévisions');
+        Ext.Ajax.request({url: '../api/v1/analyse-commande/recalculer', method: 'POST', timeout: 600000,
+            success: function (r) {
+                var o = Ext.decode(r.responseText, true) || {};
+                if (o.success === false) {
+                    fin(o.message || o.msg || 'Échec du calcul', false);
+                    return;
+                }
+                fin('Prévisions recalculées', true);
+                me.chargerTableau();
+                var p = me.down('#ongletPrevisions');
+                if (p.getStore().getCount()) {
+                    p.getStore().loadPage(1);
+                }
+            },
+            failure: function (r) {
+                fin('Le serveur n\'a pas répondu (' + r.status + ')', false);
+            }});
     },
 
     /* ------------------------------------------------------------------ Previsions */

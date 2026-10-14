@@ -272,16 +272,16 @@ Ext.define('testextjs.controller.ArticleInvendusCtr', {
     };
 },
 
-onExportExcel: function () {
-    var params = this.buildFiltersParams();
-    var qs = Ext.Object.toQueryString(params);
-    window.location = '../api/v1/datareporting/articleInvendus/excel?' + qs;
+/* retours du 13/10 (point 8) : l'export peut prendre du temps sur un gros catalogue ; le bouton le montre (roue,
+   secondes ecoulees, barre en haut de l'ecran) et dit quand le fichier est pret */
+onExportExcel: function (bouton) {
+    var qs = Ext.Object.toQueryString(this.buildFiltersParams());
+    PrestigeChargement.telecharger(bouton, '../api/v1/datareporting/articleInvendus/excel?' + qs, 'Préparation de l\'export', 'articles_invendus.xls');
 },
 
-onExportCsv: function () {
-    var params = this.buildFiltersParams();
-    var qs = Ext.Object.toQueryString(params);
-    window.location = '../api/v1/datareporting/articleInvendus/csv?' + qs;
+onExportCsv: function (bouton) {
+    var qs = Ext.Object.toQueryString(this.buildFiltersParams());
+    PrestigeChargement.telecharger(bouton, '../api/v1/datareporting/articleInvendus/csv?' + qs, 'Préparation de l\'export', 'articles_invendus.csv');
 },
 
 onCreateInventaire: function () {

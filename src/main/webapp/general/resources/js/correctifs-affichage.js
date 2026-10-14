@@ -1571,3 +1571,124 @@ window.PrestigeAffichage.FILTRES_MULTIPLES = {
         });
     }
 })();
+
+/**
+ * Indicateur de chargement des actions longues (retours du 13/10, points 8 et 9 : export des invendus, recalcul des
+ * previsions). Le bouton montre une roue et le temps ecoule, une fine barre court en haut de l'ecran, et le resultat
+ * s'affiche dans le bouton lui-meme (aucune fenetre) avant qu'il ne reprenne son libelle.
+ *
+ *   var fin = PrestigeChargement.occuper(bouton, 'Préparation de l\'export');
+ *   ... fin('Export prêt', true)  ou  fin('Échec de l\'export', false)
+ *   PrestigeChargement.telecharger(bouton, url, 'Préparation de l\'export');   // export par fetch, avec indicateur
+ */
+window.PrestigeChargement = (function () {
+    var enCours = 0;
+    function style() {
+        if (document.getElementById('pr-chargement-style')) {
+            return;
+        }
+        var s = document.createElement('style');
+        s.id = 'pr-chargement-style';
+        s.textContent = '@keyframes prRoue{to{transform:rotate(360deg)}}'
+                + '@keyframes prBarre{0%{left:-35%;width:35%}60%{left:100%;width:35%}100%{left:100%;width:0}}'
+                + '.pr-roue{display:inline-block;width:12px;height:12px;margin-right:6px;vertical-align:-2px;border:2px solid rgba(30,58,95,.25);'
+                + 'border-top-color:#1e3a5f;border-radius:50%;animation:prRoue .8s linear infinite}'
+                + '#pr-barre-chargement{position:fixed;top:0;left:0;right:0;height:3px;z-index:100000;overflow:hidden;pointer-events:none;display:none}'
+                + '#pr-barre-chargement i{position:absolute;top:0;height:3px;background:linear-gradient(90deg,#17987e,#2a9bb3);'
+                + 'border-radius:2px;animation:prBarre 1.4s ease-in-out infinite}'
+                + '.pr-fini-ok .x-btn-inner{color:#17987e !important}.pr-fini-ko .x-btn-inner{color:#c0392b !important}';
+        document.head.appendChild(s);
+    }
+    function barre(visible) {
+        var b = document.getElementById('pr-barre-chargement');
+        if (!b) {
+            b = document.createElement('div');
+            b.id = 'pr-barre-chargement';
+            b.innerHTML = '<i></i>';
+            document.body.appendChild(b);
+        }
+        enCours = Math.max(0, enCours + (visible ? 1 : -1));
+        b.style.display = enCours > 0 ? 'block' : 'none';
+    }
+    function occuper(bouton, texte) {
+        style();
+        barre(true);
+        var origine = {texte: bouton.getText ? bouton.getText() : '', icone: bouton.iconCls, icon: bouton.icon}, debut = Date.now(), fini = false;
+        var majTexte = function () {
+            var s = Math.floor((Date.now() - debut) / 1000);
+            bouton.setText('<span class="pr-roue"></span>' + texte + '…' + (s >= 2 ? ' ' + s + ' s' : ''));
+        };
+        if (bouton.setIconCls) {
+            bouton.setIconCls('');
+        }
+        if (bouton.setIcon) {
+            bouton.setIcon('');
+        }
+        bouton.disable();
+        bouton.addCls('pr-occupe');
+        majTexte();
+        var minuteur = setInterval(majTexte, 1000);
+        return function (message, ok) {
+            if (fini) {
+                return;
+            }
+            fini = true;
+            clearInterval(minuteur);
+            barre(false);
+            if (bouton.isDestroyed) {
+                return;
+            }
+            bouton.removeCls('pr-occupe');
+            bouton.enable();
+            var remettre = function () {
+                if (bouton.isDestroyed) {
+                    return;
+                }
+                bouton.removeCls('pr-fini-ok');
+                bouton.removeCls('pr-fini-ko');
+                bouton.setText(origine.texte);
+                if (origine.icone && bouton.setIconCls) {
+                    bouton.setIconCls(origine.icone);
+                }
+                if (origine.icon && bouton.setIcon) {
+                    bouton.setIcon(origine.icon);
+                }
+            };
+            if (message) {
+                bouton.addCls(ok === false ? 'pr-fini-ko' : 'pr-fini-ok');
+                bouton.setText((ok === false ? '✕ ' : '✓ ') + message);
+                setTimeout(remettre, ok === false ? 6000 : 2500);
+            } else {
+                remettre();
+            }
+        };
+    }
+    function nomFichier(reponse, defaut) {
+        var cd = reponse.headers.get('content-disposition') || '', m = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(cd);
+        return m ? decodeURIComponent(m[1]) : defaut;
+    }
+    function telecharger(bouton, url, texte, defaut) {
+        var fin = occuper(bouton, texte || 'Préparation du fichier');
+        return fetch(url, {credentials: 'same-origin'}).then(function (r) {
+            if (!r.ok) {
+                throw new Error('code ' + r.status);
+            }
+            var nom = nomFichier(r, defaut || 'export');
+            return r.blob().then(function (b) {
+                var lien = document.createElement('a');
+                lien.href = URL.createObjectURL(b);
+                lien.download = nom;
+                document.body.appendChild(lien);
+                lien.click();
+                setTimeout(function () {
+                    URL.revokeObjectURL(lien.href);
+                    lien.remove();
+                }, 1000);
+                fin('Fichier prêt', true);
+            });
+        }).catch(function (e) {
+            fin('Échec (' + (e && e.message ? e.message : 'réseau') + ')', false);
+        });
+    }
+    return {occuper: occuper, telecharger: telecharger};
+})();
