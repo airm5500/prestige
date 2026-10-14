@@ -295,7 +295,7 @@ Ext.define('testextjs.view.vente.VenteView', {
                             plugins: [{ptype: 'segments', pastille: true, libelles: {'1': 'Au comptant', '2': 'Assurance', '3': 'Carnet'}}],
                             emptyText: 'Choisir un type de vente...'
                         },
-                        {xtype: 'component', cls: 'seg-lib', html: 'Nature', margin: '0 10 0 32'},
+                        {xtype: 'component', cls: 'seg-lib', html: 'Nature', margin: '0 10 0 16'},
                         {
                             xtype: 'combobox',
                             itemId: 'nature',
@@ -309,7 +309,7 @@ Ext.define('testextjs.view.vente.VenteView', {
                             plugins: [{ptype: 'segments', libelles: {'3': 'Dépôt'}}],
                             emptyText: 'Selectionner la nature ...'
                         },
-                        {xtype: 'component', cls: 'seg-lib', html: 'Vendeur', margin: '0 10 0 32'},
+                        {xtype: 'component', cls: 'seg-lib', html: 'Vendeur', margin: '0 10 0 16'},
                         {
                             xtype: 'combobox',
                             itemId: 'user',
@@ -326,7 +326,7 @@ Ext.define('testextjs.view.vente.VenteView', {
                         },
                         /* retours du 13/10 (point 11) : la personne qui a conseille le client, facultatif ; reprise dans les
                            statistiques d'activite par operateur */
-                        {xtype: 'component', cls: 'seg-lib', html: 'Conseil', margin: '0 10 0 24'},
+                        {xtype: 'component', cls: 'seg-lib', html: 'Conseil', margin: '0 10 0 16'},
                         {
                             xtype: 'combobox',
                             itemId: 'conseil',
@@ -337,7 +337,9 @@ Ext.define('testextjs.view.vente.VenteView', {
                             valueField: 'lgUSERID',
                             displayField: 'fullName',
                             typeAhead: false,
-                            width: 220,
+                            flex: 1,
+                            minWidth: 135,
+                            maxWidth: 220,
                             height: 30,
                             minChars: 2,
                             queryMode: 'remote',

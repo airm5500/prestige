@@ -41,6 +41,14 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
         vendeur: v.down('#user').getWidth(), espace: Math.round(libs[1].getBoundingClientRect().left - ctrl[0].getBoundingClientRect().right) }; });
     ok('Libellés Type / Nature / Vendeur / Conseil centrés sur leurs choix, espacés ; vendeur à largeur fixe', dessin.libs.join('|') === 'Type|Nature|Vendeur|Conseil' && dessin.ecarts.every((x) => x <= 2)
       && dessin.espace >= 24 && dessin.vendeur === 300, JSON.stringify(dessin));
+    /* retours du 13/10 (point 11) : avec « Conseil », la ligne tient encore sur un ecran de 1366 px */
+    const tailleAvant = p.viewportSize();
+    await p.setViewportSize({ width: 1366, height: 768 }); await p.waitForTimeout(800);
+    const etroit = await p.evaluate(() => { const v = Ext.ComponentQuery.query('doventemanager')[0];
+      return { ligne: Math.round(v.down('#ligneTypeVente').getEl().dom.getBoundingClientRect().right), conseil: Math.round(v.down('#conseil').getEl().dom.getBoundingClientRect().right),
+        largeurConseil: v.down('#conseil').getWidth() }; });
+    ok('Écran de 1366 px : le combo « Conseil » reste dans la ligne, lisible', etroit.conseil <= etroit.ligne && etroit.largeurConseil >= 135, JSON.stringify(etroit));
+    await p.setViewportSize(tailleAvant); await p.waitForTimeout(800);
     ok('Type actif : pastille clignotante (seulement sur le type), fond foncé', dessin.pastilleType && dessin.pastilleAilleurs === 1 && dessin.fondActif === 'rgb(30, 58, 95)', JSON.stringify(dessin));
     /* Survol : le libelle reste lisible, sur le choix actif comme sur les autres. */
     const survol = async (sel) => { await p.hover(sel); await p.waitForTimeout(250); return p.evaluate((s) => { const b = document.querySelector(s); const c = getComputedStyle(b); return c.color + ' / ' + c.backgroundColor; }, sel); };
