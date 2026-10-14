@@ -5,6 +5,8 @@
  */
 package rest.service.impl;
 
+import rest.service.RefusMetier;
+
 import commonTasks.dto.ErpAvoir;
 import commonTasks.dto.RetourDetailsDTO;
 import commonTasks.dto.RetourFournisseurDTO;
@@ -122,6 +124,9 @@ public class RetourFournisseurServiceImpl implements RetourFournisseurService {
         if (item.getIntNUMBERRETURN() + params.getIntNUMBERRETURN() > bonLivraisonDetail.getIntQTERECUE()) {
             return false;
         }
+        controlerStock(item.getLgFAMILLEID().getLgFAMILLEID(),
+                item.getLgRETOURFRSID().getLgUSERID().getLgEMPLACEMENTID().getLgEMPLACEMENTID(),
+                item.getIntNUMBERRETURN() + params.getIntNUMBERRETURN());
         item.setIntNUMBERRETURN(item.getIntNUMBERRETURN() + params.getIntNUMBERRETURN());
         item.setDtUPDATED(new Date());
         getEntityManager().merge(item);
@@ -136,6 +141,9 @@ public class RetourFournisseurServiceImpl implements RetourFournisseurService {
         if (params.getIntNUMBERRETURN() > bonLivraisonDetail.getIntQTERECUE()) {
             return null;
         }
+        controlerStock(item.getLgFAMILLEID().getLgFAMILLEID(),
+                item.getLgRETOURFRSID().getLgUSERID().getLgEMPLACEMENTID().getLgEMPLACEMENTID(),
+                params.getIntNUMBERRETURN());
         item.setIntNUMBERRETURN(params.getIntNUMBERRETURN());
         item.setDtUPDATED(new Date());
         getEntityManager().merge(item);
@@ -161,7 +169,9 @@ public class RetourFournisseurServiceImpl implements RetourFournisseurService {
                         + " ORDER BY t.lgBONLIVRAISONID.dtCREATED DESC",
                 TBonLivraisonDetail.class).setParameter(1, lgBONLIVRAISONID).setParameter(2, lgFAMILLEID);
         qry.setMaxResults(1);
-        return qry.getSingleResult();
+        // demandes des applications mobiles (D2) : produit absent du BL -> null (avant : NoResultException, erreur 500)
+        List<TBonLivraisonDetail> l = qry.getResultList();
+        return l.isEmpty() ? null : l.get(0);
 
     }
 
@@ -183,17 +193,35 @@ public class RetourFournisseurServiceImpl implements RetourFournisseurService {
                 TFamilleStock.class);
         q.setParameter(1, produitId).setParameter(2, emplacementId);
         q.setMaxResults(1);
-        return q.getSingleResult();
+        List<TFamilleStock> l = q.getResultList();
+        return l.isEmpty() ? null : l.get(0);
+    }
+
+    /** Stock disponible du produit dans l'emplacement (0 sans fiche de stock). */
+    private int stockDisponible(String produitId, String emplacementId) {
+        TFamilleStock st = getFamilleStock(produitId, emplacementId);
+        return st == null || st.getIntNUMBERAVAILABLE() == null ? 0 : st.getIntNUMBERAVAILABLE();
+    }
+
+    /* demandes des applications mobiles (3, D4) : une ligne de retour ne depasse jamais le stock disponible */
+    private void controlerStock(String produitId, String emplacementId, int quantite) {
+        int dispo = stockDisponible(produitId, emplacementId);
+        if (quantite > dispo) {
+            throw new RefusMetier(
+                    "Stock disponible insuffisant : " + dispo + " en stock, " + quantite + " à retourner.");
+        }
     }
 
     private TRetourFournisseurDetail newItem(RetourDetailsDTO item, String bonId, String emplacementId) {
         TBonLivraisonDetail bonLivraisonDetail = getTBonLivraisonDetailLast(bonId, item.getProduitId());
         if (bonLivraisonDetail == null) {
-            return null;
+            throw new RefusMetier("Ce produit n'est pas sur le BL n° " + bonId + ".");
         }
         if (item.getIntNUMBERRETURN() > bonLivraisonDetail.getIntQTERECUE()) {
-            return null;
+            throw new RefusMetier("Quantité à retourner (" + item.getIntNUMBERRETURN()
+                    + ") supérieure à la quantité reçue sur ce BL (" + bonLivraisonDetail.getIntQTERECUE() + ").");
         }
+        controlerStock(item.getProduitId(), emplacementId, item.getIntNUMBERRETURN());
         TRetourFournisseurDetail oTRetourFournisseurDetail = new TRetourFournisseurDetail(UUID.randomUUID().toString());
         oTRetourFournisseurDetail.setIntNUMBERRETURN(item.getIntNUMBERRETURN());
         oTRetourFournisseurDetail.setIntNUMBERANSWER(0);
@@ -203,8 +231,7 @@ public class RetourFournisseurServiceImpl implements RetourFournisseurService {
         oTRetourFournisseurDetail.setDtUPDATED(oTRetourFournisseurDetail.getDtCREATED());
         oTRetourFournisseurDetail.setStrSTATUT(DateConverter.STATUT_PROCESS);
         oTRetourFournisseurDetail.setLgFAMILLEID(getFamille(item.getProduitId()));
-        oTRetourFournisseurDetail
-                .setIntSTOCK(getFamilleStock(item.getProduitId(), emplacementId).getIntNUMBERAVAILABLE());
+        oTRetourFournisseurDetail.setIntSTOCK(stockDisponible(item.getProduitId(), emplacementId));
         oTRetourFournisseurDetail.setLgMOTIFRETOUR(getFromId(item.getLgMOTIFRETOUR()));
 
         return oTRetourFournisseurDetail;

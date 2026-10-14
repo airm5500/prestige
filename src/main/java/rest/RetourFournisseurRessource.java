@@ -25,6 +25,7 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Response;
 import rest.service.RetourFournisseurService;
+import rest.service.RefusMetier;
 import rest.service.mobile.MobileClientRefService;
 import rest.service.dto.UpdateRetourDTO;
 import rest.service.dto.UpdateRetourItemDTO;
@@ -195,6 +196,15 @@ public class RetourFournisseurRessource {
     @POST
     @Path("new")
     public Response create(RetourFournisseurDTO params, @HeaderParam("X-Client-Ref") String clientRef) {
+        try {
+            return creer(params, clientRef);
+        } catch (RefusMetier e) {
+            // produit absent du BL, quantite ou stock insuffisants : message lisible, rien d'enregistre
+            return Response.ok().entity(ResultFactory.getFailResult(e.getMessage())).build();
+        }
+    }
+
+    private Response creer(RetourFournisseurDTO params, String clientRef) {
 
         RetourFournisseurDTO data;
         if (MobileClientRefService.normaliser(clientRef) == null) {
@@ -226,7 +236,12 @@ public class RetourFournisseurRessource {
     @Path("add-item")
     public Response addItem(RetourDetailsDTO params) {
 
-        RetourDetailsDTO data = retourFournisseurService.addItem(params);
+        RetourDetailsDTO data;
+        try {
+            data = retourFournisseurService.addItem(params);
+        } catch (RefusMetier e) {
+            return Response.ok().entity(ResultFactory.getFailResult(e.getMessage())).build();
+        }
         if (data != null) {
             return Response.ok().entity(ResultFactory.getSuccessResult(data, 1)).build();
         }
@@ -239,7 +254,12 @@ public class RetourFournisseurRessource {
     @Path("update-item")
     public Response updateItem(RetourDetailsDTO params) {
 
-        RetourDetailsDTO data = retourFournisseurService.updateItem(params);
+        RetourDetailsDTO data;
+        try {
+            data = retourFournisseurService.updateItem(params);
+        } catch (RefusMetier e) {
+            return Response.ok().entity(ResultFactory.getFailResult(e.getMessage())).build();
+        }
         if (data != null) {
             return Response.ok().entity(ResultFactory.getSuccessResult(data, 1)).build();
         }

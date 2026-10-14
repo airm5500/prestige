@@ -1220,9 +1220,12 @@ public class MvtProduitServiceImpl implements MvtProduitService {
              * retours du 13/10 (point 1) : un retour ne sort du stock qu'une fois. Deja valide (ou supprime) : refus,
              * rien n'est destocke une deuxieme fois.
              */
-            if (fournisseur == null || !retourAValider(fournisseur.getStrSTATUT())) {
-                return json.put("success", false).put("msg", fournisseur == null ? "Retour introuvable"
-                        : "Ce retour est déjà validé : rien n'a été modifié");
+            if (fournisseur == null) {
+                return json.put("success", false).put("msg", "Retour introuvable");
+            }
+            if (!retourAValider(fournisseur.getStrSTATUT())) {
+                return json.put("success", false).put("code", "ETAT").put("msg",
+                        "Ce retour est déjà validé : rien n'a été modifié");
             }
             List<TRetourFournisseurDetail> details = getTRetourFournisseurDetail(params.getRef());
             DoubleAdder amount = new DoubleAdder();
@@ -1236,6 +1239,29 @@ public class MvtProduitServiceImpl implements MvtProduitService {
              * avant.
              */
             java.util.Map<String, Integer> acceptees = RetourPharmaMl.quantitesAcceptees(emg, params.getRef());
+            /*
+             * demandes des applications mobiles (3) : le stock a pu baisser depuis la saisie ; aucune ligne ne doit le
+             * rendre negatif. Controle de TOUTES les lignes avant d'en sortir une seule : tout ou rien.
+             */
+            List<String> manques = new ArrayList<>();
+            for (TRetourFournisseurDetail d : details) {
+                Integer acceptee = acceptees.get(d.getLgRETOURFRSDETAIL());
+                int quantite = acceptee != null && acceptee < d.getIntNUMBERRETURN() ? Math.max(0, acceptee)
+                        : d.getIntNUMBERRETURN();
+                if (quantite == 0) {
+                    continue;
+                }
+                TFamilleStock st = findStockByProduitId(d.getLgFAMILLEID().getLgFAMILLEID(), emplecementId);
+                int dispo = st == null || st.getIntNUMBERAVAILABLE() == null ? 0 : st.getIntNUMBERAVAILABLE();
+                if (quantite > dispo) {
+                    manques.add(
+                            texteCourt(d.getLgFAMILLEID()) + " : " + dispo + " en stock, " + quantite + " à retourner");
+                }
+            }
+            if (!manques.isEmpty()) {
+                return json.put("success", false).put("code", "STOCK_INSUFFISANT").put("msg",
+                        "Stock insuffisant, rien n'est sorti du stock :<br>- " + String.join("<br>- ", manques));
+            }
             details.forEach(d -> {
 
                 TFamille tf = d.getLgFAMILLEID();
