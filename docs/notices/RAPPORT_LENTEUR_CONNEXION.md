@@ -117,11 +117,73 @@ lignes par jour, soit quelques dizaines de Mo sur 14 jours, et 5 fois moins qu'a
 - Tests de la stabilité du serveur, des campagnes, du Set valorisation, de la rentabilité, de l'audit, du cachet et de
   la vente (droits retirés puis donnés, accès refusés puis ouverts) : tous passent.
 
-**Point trouvé en passant, sans lien avec cette correction** : le test « Points fidélité » attend le libellé de menu
-« Points fidélité » (demande du 10/10). La migration « libellés courts » du 12/10 l'a remplacé par « Suivi fidélité ».
-C'est à confirmer : quel libellé garder ?
+**Point trouvé en passant, sans lien avec cette correction** : la migration « libellés courts » du 12/10 avait
+remplacé le libellé de menu « Points fidélité » (demande du 10/10) par « Suivi fidélité ». Décision du 14/10 : on garde
+« Points fidélité » (migration V6.9.150).
 
-## 7. Tests ajoutés
+## 7. Mesures avec 3 ans de données (demande du 14/10)
+
+La base de l'officine est trop volumineuse pour être envoyée. Le banc a donc été **peuplé avec 3 ans d'activité
+réaliste** par `outils/banc/peupler_banc.py`. Le peuplement a été fait uniquement sur le banc, jamais sur une base
+de production.
+
+| | Banc peuplé |
+|---|---|
+| Période | octobre 2023 à aujourd'hui |
+| Ventes | **418 745** (22 % assurées, avec tiers payant), 877 363 lignes |
+| Chiffre d'affaires | ~1,1 M/jour il y a 3 ans, **~2,3 M/jour** sur les 30 derniers jours (2,5 à 2,8 M en semaine, creux le dimanche) |
+| Ventes par jour | ~510 en ce moment, panier moyen ~4 500 FCFA |
+| Mouvements de stock | 940 000 ; réapprovisionnement par 5 468 bons de livraison et leurs commandes |
+| Autres | 3 000 assurés, 15 tiers payants, ouverture et clôture des caisses chaque jour |
+| Base | 5 Go, réglages MariaDB des officines (`innodb_buffer_pool_size` = 3,5 Go…) |
+
+Le générateur recopie de vraies lignes du banc (même format que l'application) et ne fait varier que les identifiants,
+dates, produits, quantités et montants. Le stock du jour reste inchangé : l'historique est reconstruit en remontant le
+temps. Tout se retire avec `--retirer`.
+
+### 7.1 Ce qui reste rapide avec ce volume
+
+- **Connexion** : application prête en 2,2 à 2,6 s, dont l'essentiel est le chargement des fichiers. Les appels du
+  tableau de bord prennent moins de 100 ms côté serveur. La connexion n'est pas sensible au volume.
+- **Recherche de produit à la caisse** : 20 à 70 ms.
+- **122 écrans sur 128** (tous les écrans du menu administrateur, ouverts un par un) : moins de 2 s.
+- **Tâches automatiques** (surveillance, pool, notifications…) : 0,06 s de travail en base en 5 minutes. C'est
+  négligeable, même multiplié par 20 postes.
+
+### 7.2 Lenteurs trouvées et corrigées
+
+Les réponses ont été comparées avant et après chaque correction (JSON ou texte du PDF) : elles sont identiques.
+
+| Écran / action | Avant | Après | Cause |
+|---|---|---|---|
+| **Audit & rapprochements** | 30 s, **écran vide** (délai du navigateur dépassé ; 68 s côté serveur) | **1,4 s** | Contrôle « vente comptant sans mouvement de caisse » : un `OR` empêchait les index, et toute la table des mouvements de caisse était relue pour chaque vente (62 s → 21 ms). Il manquait aussi deux index : date de clôture des ventes, et (produit, emplacement, heure) pour le dernier mouvement de chaque produit (3,5 s → 0,11 s). |
+| **Recherche dans les ventes terminées** (par produit, référence, ticket, sur 30 jours) | 6,3 à 6,7 s | **0,13 à 0,37 s** | La requête partait de tous les produits et de toutes leurs lignes de vente depuis 3 ans. Elle part maintenant des ventes de la période. |
+| **Relevé PDF des factures subrogatoires** (2 mois, 6 792 bons) | **597 s (10 min)** | **2,7 s** | Coût **quadratique** : une requête par bon dans la même transaction, et Hibernate revérifiait avant chacune tous les objets déjà chargés. Les tiers payants sont maintenant lus par paquets de 500. |
+| **Ticket Z** | 1,6 à 3,4 s | 0,12 à 1,1 s | Date comparée à travers une fonction (index inutilisable), `IN (…)` sur 846 000 lignes de vente, et une requête par vente. |
+| États de TVA | 1 à 1,5 s | 0,2 à 1 s | Même `IN (…)` sur les lignes de vente. |
+| Balance âgée détaillée | 2,8 s | 2,8 s | 161 requêtes inutiles retirées (recherche du client « %% »). Le reste vient de l'ancien calcul mois par mois (voir 7.3). |
+
+La migration **V6.9.151** crée les deux index « en ligne », sans bloquer les tables. Sur le banc, elle a pris 3,3 s
+pour 420 000 ventes et 940 000 mouvements. Chez une officine plus grosse, il faut compter quelques secondes de plus au
+démarrage qui suit la mise à jour.
+
+### 7.3 Lenteurs restantes (à décider)
+
+| Écran | Temps | Pourquoi | Piste |
+|---|---|---|---|
+| **Comparaison CA familles** | 6,7 s (jusqu'à ~28 s au premier accès du matin) | Additionne 2 années de lignes de vente (~600 000). | Un index « couvrant » le ramène à 3,3 s, mais alourdit chaque vente enregistrée. Mieux : un cumul mensuel par famille, calculé la nuit. |
+| **Balance âgée détaillée** | 2,8 s (plus le réseau : ~800 allers-retours) | Ancien code : 8 requêtes par tiers payant, construites par concaténation (risque d'injection SQL). | Une seule requête groupée en API REST, en reproduisant exactement les filtres anciens. |
+| Pilotage | 0,9 s ; 1,7 s à froid | Correct. Le premier balayage, juste après le chargement des données, donnait 47 s : le cache disque était vide. | — |
+| Écrans de l'ancien code (EclipseLink) | — | Chaque requête de l'ancien code reprend une connexion et paie les 4 échanges techniques de Payara. Le réglage fait pour Hibernate ne les concerne pas. | Passer ces écrans en API REST au fil de l'eau, ou changer le pilote MariaDB (voir § 5). |
+
+### 7.4 Premier accès du matin
+
+Après un redémarrage du serveur, les données ne sont pas encore en mémoire. Les premières ouvertures d'écrans
+d'analyse sont donc plus lentes : Pilotage passe de 0,9 s à 1,7 s, le tableau de bord met 1,2 à 1,4 s par requête au
+lieu de 0,1 s. C'est normal et ça ne dure pas : avec `innodb_buffer_pool_size` = 3,5 Go, la partie utile de la base
+reste ensuite en mémoire.
+
+## 8. Tests ajoutés
 
 - `src/test/e2e/support/test-connexion-allers-retours.js`, par l'écran de connexion :
   - administrateur et caissier temporaire : au plus 70 allers-retours ;
