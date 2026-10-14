@@ -1,0 +1,84 @@
+# Prestige Veille : installateur Windows (.exe, Java inclus) construit sur une machine Windows de GitHub.
+# - a la demande (onglet Actions > « Prestige Veille - installateur Windows » > Run workflow) ;
+# - a chaque modification de outils/prestige-veille (ou de ce fichier) poussee sur une branche.
+# Resultat : artefact « Prestige-Veille-installateur » (le .exe), garde 30 jours.
+name: Prestige Veille - installateur Windows
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'outils/prestige-veille/**'
+      - '.github/workflows/prestige-veille-windows.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: prestige-veille-windows-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  installateur:
+    runs-on: windows-2022
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+          cache-dependency-path: outils/prestige-veille/backend/pom.xml
+
+      - name: WiX Toolset 3.14 (exige par jpackage)
+        run: |
+          if (-not (Get-Command candle.exe -ErrorAction SilentlyContinue)) {
+            $wix = Get-ChildItem 'C:\Program Files (x86)' -Directory -Filter 'WiX Toolset v3*' -ErrorAction SilentlyContinue | Select-Object -Last 1
+            if (-not $wix) {
+              choco install wixtoolset --version 3.14.1 -y --no-progress
+              $wix = Get-ChildItem 'C:\Program Files (x86)' -Directory -Filter 'WiX Toolset v3*' | Select-Object -Last 1
+            }
+            Add-Content $env:GITHUB_PATH (Join-Path $wix.FullName 'bin')
+          }
+
+      - name: Installateur (.exe), tests de l'application compris
+        run: ./outils/prestige-veille/installateur/construire-windows.ps1
+
+      - name: Essai de l'application sous Windows (demarrage, etat, connexion admin)
+        working-directory: outils/prestige-veille/backend
+        run: |
+          $env:VEILLE_DONNEES = Join-Path $env:RUNNER_TEMP 'veille-donnees'
+          $env:VEILLE_PORT = '8099'
+          $env:VEILLE_ADRESSE = '127.0.0.1'
+          $p = Start-Process java -ArgumentList '-jar', 'target\prestige-veille.jar' -PassThru -RedirectStandardOutput "$env:RUNNER_TEMP\veille.log" -RedirectStandardError "$env:RUNNER_TEMP\veille-err.log"
+          $url = 'http://127.0.0.1:8099'
+          $ok = $false
+          for ($i = 0; $i -lt 120 -and -not $ok; $i++) {
+            Start-Sleep -Seconds 1
+            try { Invoke-RestMethod "$url/api/etat" | Out-Null; $ok = $true } catch { }
+          }
+          if (-not $ok) { Get-Content "$env:RUNNER_TEMP\veille.log" -Tail 80; throw "La veille n'a pas demarre." }
+          $index = Invoke-WebRequest "$url/"
+          if ($index.StatusCode -ne 200) { throw 'tableau de bord absent' }
+          Stop-Process -Id $p.Id -Force
+          Write-Host 'Essai Windows : demarrage, etat, tableau de bord : OK'
+
+      - name: Journal de l'essai (en cas d'echec)
+        if: failure()
+        run: |
+          Get-Content "$env:RUNNER_TEMP\veille.log" -Tail 200 -ErrorAction SilentlyContinue
+          Get-Content "$env:RUNNER_TEMP\veille-err.log" -Tail 50 -ErrorAction SilentlyContinue
+
+      - name: Publier l'installateur
+        uses: actions/upload-artifact@v4
+        with:
+          name: Prestige-Veille-installateur
+          path: outils/prestige-veille/backend/target/installateur/*.exe
+          if-no-files-found: error
+          retention-days: 30

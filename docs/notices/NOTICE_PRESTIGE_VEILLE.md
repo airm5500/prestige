@@ -20,6 +20,18 @@ Le tableau de bord se consulte dans un navigateur, sur le serveur ou depuis n'im
 
 ---
 
+## 0. Récupérer l'installateur
+
+L'installateur `Prestige Veille-<version>.exe` est construit par GitHub, sur une machine Windows, à chaque
+modification de `outils/prestige-veille` :
+
+1. sur GitHub, ouvrir le dépôt, onglet **Actions**, puis le workflow **« Prestige Veille - installateur Windows »** ;
+2. ouvrir la dernière exécution en vert ;
+3. en bas de la page, section **Artifacts**, télécharger **Prestige-Veille-installateur** (un .zip qui contient
+   le .exe, gardé 30 jours).
+
+Pour le reconstruire à la demande : même workflow, bouton **Run workflow**.
+
 ## 1. Installation (sur le serveur, une seule fois)
 
 1. Lancer `Prestige Veille-1.0.0.exe` **en administrateur**. Java est inclus : il n'y a rien d'autre à installer.
