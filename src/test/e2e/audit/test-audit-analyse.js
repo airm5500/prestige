@@ -24,10 +24,22 @@ const CAISSE = q('SELECT lg_CAISSE_ID FROM t_caisse LIMIT 1');
 const [PS, CIP_S, STOCK_S] = q("SELECT CONCAT_WS('|', s.lg_FAMILLE_ID, f.int_CIP, s.int_NUMBER_AVAILABLE) FROM t_famille_stock s JOIN t_famille f ON f.lg_FAMILLE_ID = s.lg_FAMILLE_ID"
   + " WHERE s.lg_EMPLACEMENT_ID = '1' AND f.str_STATUT = 'enable' AND f.int_CIP <> '' AND s.int_NUMBER_AVAILABLE = (SELECT h.qteFinale FROM hmvtproduit h WHERE h.lg_FAMILLE_ID = s.lg_FAMILLE_ID"
   + " AND h.lg_EMPLACEMENT_ID = '1' ORDER BY h.createdAt DESC, h.typeMvt = '05' LIMIT 1) ORDER BY f.str_NAME LIMIT 1").split('|');
-/* produit a l'officine sans aucun mouvement, stock positif */
-const [PN, CIP_N, STOCK_N] = q("SELECT CONCAT_WS('|', s.lg_FAMILLE_ID, f.int_CIP, s.int_NUMBER_AVAILABLE) FROM t_famille_stock s JOIN t_famille f ON f.lg_FAMILLE_ID = s.lg_FAMILLE_ID"
+/* produit a l'officine sans aucun mouvement, stock positif. Sur une base ou tous les produits ont deja vendu (banc
+   peuple sur 3 ans), le test en cree un, copie d'un produit existant, qu'il retire a la fin. */
+let [PN, CIP_N, STOCK_N] = q("SELECT CONCAT_WS('|', s.lg_FAMILLE_ID, f.int_CIP, s.int_NUMBER_AVAILABLE) FROM t_famille_stock s JOIN t_famille f ON f.lg_FAMILLE_ID = s.lg_FAMILLE_ID"
   + " WHERE s.lg_EMPLACEMENT_ID = '1' AND f.str_STATUT = 'enable' AND f.int_CIP <> '' AND s.int_NUMBER_AVAILABLE >= 0"
   + " AND NOT EXISTS (SELECT 1 FROM hmvtproduit h WHERE h.lg_FAMILLE_ID = s.lg_FAMILLE_ID) ORDER BY f.str_NAME LIMIT 1").split('|');
+const PN_CREE = !PN;
+if (PN_CREE) {
+  PN = 'E2E-AUD-PN'; CIP_N = '9990417'; STOCK_N = '0';
+  exec(`DELETE FROM t_famille_stock WHERE lg_FAMILLE_ID = '${PN}'; DELETE FROM t_famille WHERE lg_FAMILLE_ID = '${PN}';`
+    + `CREATE TEMPORARY TABLE tmp_f SELECT * FROM t_famille WHERE lg_FAMILLE_ID = '${PS}';`
+    + `UPDATE tmp_f SET lg_FAMILLE_ID = '${PN}', int_CIP = '${CIP_N}', str_NAME = 'ZZ E2E AUDIT SANS MOUVEMENT', int_EAN13 = NULL;`
+    + 'INSERT INTO t_famille SELECT * FROM tmp_f; DROP TEMPORARY TABLE tmp_f;'
+    + `CREATE TEMPORARY TABLE tmp_s SELECT * FROM t_famille_stock WHERE lg_FAMILLE_ID = '${PS}' AND lg_EMPLACEMENT_ID = '1' LIMIT 1;`
+    + `UPDATE tmp_s SET lg_FAMILLE_STOCK_ID = '${PN}', lg_FAMILLE_ID = '${PN}', int_NUMBER_AVAILABLE = 0, int_NUMBER = 0;`
+    + 'INSERT INTO t_famille_stock SELECT * FROM tmp_s; DROP TEMPORARY TABLE tmp_s;');
+}
 const [TP, TP_NOM, TP_SOLDE] = q("SELECT CONCAT_WS('|', lg_TIERS_PAYANT_ID, str_NAME, COALESCE(account, 0)) FROM t_tiers_payant WHERE is_depot = 1 ORDER BY str_NAME LIMIT 1").split('|');
 const HIER = q('SELECT CURDATE() - INTERVAL 1 DAY');
 const IL_Y_A_3_JOURS = q("SELECT CONCAT(CURDATE() - INTERVAL 3 DAY, ' 08:30:00')");
@@ -47,6 +59,12 @@ function retirer() {
     + `UPDATE t_famille_stock SET int_NUMBER_AVAILABLE = ${STOCK_S}, int_NUMBER = ${STOCK_S} WHERE lg_FAMILLE_ID = '${PS}' AND lg_EMPLACEMENT_ID = '1';`
     + `UPDATE t_famille_stock SET int_NUMBER_AVAILABLE = ${STOCK_N}, int_NUMBER = ${STOCK_N} WHERE lg_FAMILLE_ID = '${PN}' AND lg_EMPLACEMENT_ID = '1';`
     + `UPDATE t_tiers_payant SET account = ${TP_SOLDE} WHERE lg_TIERS_PAYANT_ID = '${TP}';`);
+}
+
+function retirerProduitCree() {
+  if (PN_CREE) {
+    exec(`DELETE FROM t_famille_stock WHERE lg_FAMILLE_ID = '${PN}'; DELETE FROM t_famille WHERE lg_FAMILLE_ID = '${PN}';`);
+  }
 }
 
 function poser() {
@@ -147,6 +165,7 @@ function poser() {
   } finally {
     droit.remettre();
     retirer();
+    retirerProduitCree();
     exec(`DELETE FROM t_audit_rapport WHERE created_at >= '${DEBUT}'`); /* rapports conserves par « Lancer l'analyse » */
     await b.close();
     ok('Données d\'essai retirées', q(`SELECT COUNT(*) FROM t_resume_caisse WHERE ld_CAISSE_ID LIKE '${M}-%'`) === '0'
