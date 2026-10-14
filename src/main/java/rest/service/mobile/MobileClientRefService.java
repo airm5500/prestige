@@ -41,6 +41,8 @@ public class MobileClientRefService {
 
     public static final String TYPE_VENTE = "VENTE";
     public static final String TYPE_RETOUR_FOURNISSEUR = "RETOUR_FRS";
+    /** Annulation de vente (POST vente/{id}/annuler) : meme cle = meme reponse, rien de refait. */
+    public static final String TYPE_ANNULATION_VENTE = "ANNULATION_VENTE";
     /** Longueur maximale d'une cle (colonne ref). */
     public static final int LONGUEUR_MAX = 64;
 

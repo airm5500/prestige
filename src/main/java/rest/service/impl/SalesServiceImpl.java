@@ -401,7 +401,13 @@ public class SalesServiceImpl implements SalesService {
 
     @Override
     public JSONObject annulerVente(TUser ooTUser, String id) {
-        TPreenregistrement preenregistrement = this.getEm().find(TPreenregistrement.class, id);
+        /*
+         * Demandes des applications mobiles (lot 1) : verrou sur la vente, pour qu'une seconde annulation (double clic,
+         * rechargement, nouvelle tentative d'un telephone, deux appels simultanes) attende la premiere puis la voie
+         * annulee. Avant : la vente etait annulee une seconde fois et le stock recredite deux fois.
+         */
+        TPreenregistrement preenregistrement = this.getEm().find(TPreenregistrement.class, id,
+                javax.persistence.LockModeType.PESSIMISTIC_WRITE);
         JSONObject json;
         if (preenregistrement == null) {
             json = new JSONObject();
@@ -410,9 +416,34 @@ public class SalesServiceImpl implements SalesService {
             return json;
 
         }
+        String refus = refusAnnulation(preenregistrement);
+        if (refus != null) {
+            json = new JSONObject();
+            json.put("success", false);
+            json.put("code", "ETAT");
+            json.put("msg", refus);
+            return json;
+        }
 
         return annulerVente(ooTUser, preenregistrement);
 
+    }
+
+    /** Motif du refus d'annuler cette vente en l'etat (null : annulable). */
+    static String refusAnnulation(TPreenregistrement tp) {
+        if (Boolean.TRUE.equals(tp.getBISCANCEL())) {
+            return "Vente déjà annulée"
+                    + (tp.getDtANNULER() == null ? ""
+                            : " le " + new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm").format(tp.getDtANNULER()))
+                    + " : rien n'a été refait.";
+        }
+        if (StringUtils.isNotBlank(tp.getLgPREENGISTREMENTANNULEID())) {
+            return "Cette vente est l'annulation d'une autre vente : elle ne s'annule pas.";
+        }
+        if (!STATUT_IS_CLOSED.equals(tp.getStrSTATUT())) {
+            return "Seule une vente terminée s'annule.";
+        }
+        return null;
     }
 
     public Optional<TPreenregistrementCompteClient> findOptionalCmt(TPreenregistrement preenregistrement) {

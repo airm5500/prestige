@@ -333,6 +333,43 @@ public class SalesRessource {
         return Response.ok().entity(jsono.toString()).build();
     }
 
+    /**
+     * Annulation de vente pour les applications (demande 6 des applications mobiles) : POST (un GET peut etre rejoue ou
+     * precharge sans intention), droit P_BT_ANNULER_VENTE (refus 403, jamais 401), vente deja annulee : code ETAT, meme
+     * en-tete X-Client-Ref : meme reponse, rien de refait. La route GET de l'ecran web reste.
+     */
+    @POST
+    @Path("{id}/annuler")
+    public Response annulerVente(@PathParam("id") String id, @HeaderParam(X_CLIENT_REF) String clientRef) {
+        HttpSession hs = servletRequest.getSession(false);
+        TUser tu = hs == null ? null : (TUser) hs.getAttribute(Constant.AIRTIME_USER);
+        if (tu == null) {
+            return Response.status(Response.Status.UNAUTHORIZED)
+                    .entity(new JSONObject().put("success", false).put("msg", "Veuillez vous connecter").toString())
+                    .build();
+        }
+        if (!CommonUtils.hasAuthorityByName((List<TPrivilege>) hs.getAttribute(Constant.USER_LIST_PRIVILEGE),
+                Constant.P_BT_ANNULER_VENTE)) {
+            return Response.status(Response.Status.FORBIDDEN).entity(new JSONObject().put("success", false)
+                    .put("interdit", true).put("msg", "Vous n'avez pas l'autorisation d'annuler une vente").toString())
+                    .build();
+        }
+        java.util.function.Supplier<String> annulation = () -> {
+            JSONObject r = salesService.annulerVente(tu, id);
+            if (r.optBoolean("success")) {
+                r.put("annulee", true).put("venteId", id).put("dtAnnulation",
+                        new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm").format(new java.util.Date()));
+            }
+            return r.toString();
+        };
+        String json = MobileClientRefService.normaliser(clientRef) == null ? annulation.get()
+                : mobileClientRefService.executer(clientRef, MobileClientRefService.TYPE_ANNULATION_VENTE, annulation,
+                        r -> new JSONObject(r).optBoolean("success") ? new MobileClientRefService.Cree(id, null, r)
+                                : null,
+                        e -> e.reponse, msg -> new JSONObject().put("success", false).put("msg", msg).toString());
+        return Response.ok().entity(json).build();
+    }
+
     @GET
     @Path("annulation/{id}")
     public Response deleteVente(@PathParam("id") String id) {
