@@ -34,6 +34,8 @@ public class EtatControlBonResource {
     private ExportExcelUtilService exportExcelUtilService;
     @EJB
     private rest.service.ReserveService reserveService;
+    @EJB
+    private rest.service.InventaireService inventaireService;
     /** Edition de l'etat de controle des achats (point 17). */
     @EJB
     private rest.report.ReportUtil reportUtil;
@@ -196,12 +198,27 @@ public class EtatControlBonResource {
             return Response.ok().entity(new org.json.JSONObject().put("success", false)
                     .put("msg", "Ces bons de livraison ne contiennent aucun produit.").toString()).build();
         }
-        String quoi = bons.size() == 1 ? "du bon de livraison " + bons.get(0)
-                : "de " + bons.size() + " bons de livraison";
-        // Titre laisse au service : il porte la convention de nommage et l'horodatage des inventaires.
-        return Response.ok().entity(
-                reserveService.createInventaireFromSelection(user, produits, "Inventaire issu " + quoi).toString())
-                .build();
+        String quoi = bons.size() == 1 ? "BL " + etatControlBonService.referenceDuBon(bons.get(0))
+                : bons.size() + " BL";
+        /*
+         * Retours du 13/10 : un bon de livraison entre en stock RAYON. L'inventaire passait par la reserve (type «
+         * reserve », quantites de la reserve) : un produit present aux deux endroits voyait son stock reserve corrige a
+         * la place de son stock rayon. C'est desormais un inventaire de l'emplacement, sur le stock rayon.
+         */
+        String nom = "Inventaire rayon " + quoi + " "
+                + java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("ddMMyyyy-HHmmss"));
+        int compte = inventaireService.create(produits, nom, nom);
+        org.json.JSONObject r = new org.json.JSONObject().put("success", compte > 0).put("count", compte).put("name",
+                nom);
+        if (compte > 0) {
+            int ecartes = produits.size() - compte;
+            r.put("msg", "Inventaire créé : " + compte + " article(s), sur le stock rayon. Il s'appelle « " + nom
+                    + " » dans la liste des inventaires."
+                    + (ecartes > 0 ? " " + ecartes + " article(s) sans stock à cet emplacement écarté(s)." : ""));
+        } else {
+            r.put("msg", "Aucun article de ces bons n'a de stock à cet emplacement : rien à inventorier.");
+        }
+        return Response.ok().entity(r.toString()).build();
     }
 
     /**

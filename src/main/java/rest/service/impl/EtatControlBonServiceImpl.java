@@ -502,6 +502,13 @@ public class EtatControlBonServiceImpl implements EtatControlBonService {
         }
     }
 
+    @Override
+    public String referenceDuBon(String bonId) {
+        List<String> r = em.createQuery("SELECT b.strREFLIVRAISON FROM TBonLivraison b WHERE b.lgBONLIVRAISONID = :id",
+                String.class).setParameter("id", bonId).getResultList();
+        return r.isEmpty() || r.get(0) == null ? bonId : r.get(0);
+    }
+
     /** Les trois seuls etats qu'un bon puisse porter, ecrits tels que la table les attend. */
     static final String NON_REGLE = "NON REGLE";
     static final String REGLE_EN_PARTIE = "REGLE EN PARTIE";

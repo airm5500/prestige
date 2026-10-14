@@ -1,5 +1,5 @@
 /* ETAT DE CONTROLE DES ACHATS : TABLEAU DE BORD ET GROUPE DE GROSSISTES (retours du 10/10, lot 4, Q7) — par l'ecran.
- * Jeu d'essai : 3 BL du 10/01/2025 (periode sans autre BL) :
+ * Jeu d'essai : 3 BL du 10/01/2019 (periode sans autre BL, avant tout historique : la base peut porter 3 ans de bons) :
  *   BL1 LABOREX YOP (groupe 1) saisi le jour meme, controle termine ;
  *   BL2 LABOREX ZONE 3 (groupe 1) saisi 3 jours apres, non controle ;
  *   BL3 DPCI (groupe 2) saisi le lendemain, controle termine.
@@ -29,16 +29,16 @@ function nettoyer() {
 function bl(n, grossiste, saisie, controle) {
   const o = 'E2E-CA-O' + n, b = 'E2E-CA-' + n;
   return "INSERT INTO t_order (lg_ORDER_ID, str_REF_ORDER, int_LINE, lg_GROSSISTE_ID, lg_USER_ID, str_STATUT, dt_CREATED, dt_UPDATED, int_PRICE, recu, direct_import)"
-    + " VALUES ('" + o + "', '" + o + "', 1, '" + grossiste + "', '" + ADMIN + "', 'is_Closed', '2025-01-09', '2025-01-09', 1000, 1, 0);"
+    + " VALUES ('" + o + "', '" + o + "', 1, '" + grossiste + "', '" + ADMIN + "', 'is_Closed', '2019-01-09', '2019-01-09', 1000, 1, 0);"
     + "INSERT INTO t_bon_livraison (lg_BON_LIVRAISON_ID, str_REF_LIVRAISON, dt_DATE_LIVRAISON, int_MHT, int_TVA, int_HTTC, lg_ORDER_ID, str_STATUT, dt_CREATED, dt_UPDATED, lg_USER_ID)"
-    + " VALUES ('" + b + "', 'E2ECA" + n + "', '2025-01-10', 1000, 0, " + (1000 * n) + ", '" + o + "', 'is_Closed', '" + saisie + "', '" + saisie + "', '" + ADMIN + "');"
+    + " VALUES ('" + b + "', 'E2ECA" + n + "', '2019-01-10', 1000, 0, " + (1000 * n) + ", '" + o + "', 'is_Closed', '" + saisie + "', '" + saisie + "', '" + ADMIN + "');"
     + "INSERT INTO t_bon_livraison_detail (lg_BON_LIVRAISON_DETAIL, lg_GROSSISTE_ID, lg_FAMILLE_ID, lg_BON_LIVRAISON_ID, int_QTE_CMDE, int_QTE_RECUE, int_QTE_UG, int_PAF, int_PRIX_VENTE, prixTarif, lg_ZONE_GEO_ID, str_STATUT, dt_CREATED, dt_UPDATED, checked)"
     + " VALUES ('" + b + "-L', '" + grossiste + "', '" + P + "', '" + b + "', 2, 2, 0, 500, 800, 500, '1', 'is_Closed', '" + saisie + "', '" + saisie + "', " + (controle ? 1 : 0) + ");";
 }
 
 (async () => {
   nettoyer();
-  exec(bl(1, G1, '2025-01-10 09:00:00', true) + bl(2, G1B, '2025-01-13 09:00:00', false) + bl(3, G2, '2025-01-11 09:00:00', true)
+  exec(bl(1, G1, '2019-01-10 09:00:00', true) + bl(2, G1B, '2019-01-13 09:00:00', false) + bl(3, G2, '2019-01-11 09:00:00', true)
     + "UPDATE t_parameters SET str_VALUE = '1' WHERE str_KEY = 'KEY_CONTROLE_ACHAT_DELAI_SAISIE_JOURS'");
   const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
   const p = await (await b.newContext({ viewport: { width: 1366, height: 768 } })).newPage();
@@ -55,7 +55,7 @@ function bl(n, grossiste, saisie, controle) {
     ok('Le menu ouvre « Liste des BL | Tableau de bord », la liste d\'origine affichée', ouv.onglets.join('|') === 'Liste des BL|Tableau de bord' && ouv.liste === true, JSON.stringify(ouv));
 
     /* liste : filtre groupe */
-    await p.evaluate(() => { Ext.getCmp('datedebut').setValue(new Date(2025, 0, 1)); Ext.getCmp('datefin').setValue(new Date(2025, 0, 31)); });
+    await p.evaluate(() => { Ext.getCmp('datedebut').setValue(new Date(2019, 0, 1)); Ext.getCmp('datefin').setValue(new Date(2019, 0, 31)); });
     await p.waitForFunction(() => Ext.getCmp('lg_GROUPE_GROSSISTE_ID').getStore().getCount() > 1, null, { timeout: 30000 });
     const charger = () => p.waitForFunction(() => !Ext.ComponentQuery.query('etatscontrolemanager')[0].getStore().isLoading(), null, { timeout: 60000 });
     await p.evaluate(() => { const c = Ext.getCmp('lg_GROUPE_GROSSISTE_ID'); c.setValue('1'); c.fireEvent('select', c); });
@@ -80,7 +80,7 @@ function bl(n, grossiste, saisie, controle) {
         lignes: [...d.querySelectorAll('table.ca-repartition tr')].slice(1).map((x) => [...x.querySelectorAll('td')].map((c) => c.textContent.trim()).join('|')),
         debut: t.down('#tbDebut').getSubmitValue(), seuil: t.down('#tbSeuil').getValue(), modifiable: t.down('#tbEnregistrerSeuil').isVisible() }; });
     let t = await lire();
-    ok('Tableau : reprend la période de la liste', t.debut === '2025-01-01', t.debut);
+    ok('Tableau : reprend la période de la liste', t.debut === '2019-01-01', t.debut);
     ok('Tuiles : 3 BL, 2 / 3 contrôlés (67 %), 2 dans le délai (≤ 1 j), 1 en retard, délai moyen 1,3 j',
       /^3\s*BL de la période/.test(t.tuiles[0]) && /^2 \/ 3\s*BL contrôlés\s*67 %/.test(t.tuiles[1]) && /^2\s*Saisis dans le délai\s*67 % · ≤ 1 j/.test(t.tuiles[2])
       && /^1\s*Saisis en retard/.test(t.tuiles[3]) && /^1,3 j\s*Délai moyen/.test(t.tuiles[4]), JSON.stringify(t.tuiles));

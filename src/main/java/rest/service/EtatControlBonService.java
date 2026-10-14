@@ -57,6 +57,9 @@ public interface EtatControlBonService {
      */
     java.util.Set<String> produitsDesBons(List<String> bonIds);
 
+    /** Reference du bon (numero du grossiste), ou son identifiant s'il est introuvable. */
+    String referenceDuBon(String bonId);
+
     /**
      * Marque le reglement d'un ou plusieurs bons de livraison.
      *

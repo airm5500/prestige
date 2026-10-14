@@ -698,6 +698,21 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
                     handler: this.onReglerSelectionBL
                 }
             ],
+            /* retours du 13/10 : question et resultat de l'inventaire dans la page, en entier (plus de fenetre
+               qui tronquait le message) */
+            dockedItems: [{
+                    xtype: 'container', dock: 'top', itemId: 'bandeInventaire', hidden: true, padding: '8 10',
+                    style: 'background:#eef4fb;border-bottom:1px solid #c9d8ea',
+                    layout: {type: 'hbox', align: 'middle'},
+                    items: [
+                        {xtype: 'component', itemId: 'texteInventaire', flex: 1,
+                            style: 'white-space:normal;word-wrap:break-word;font-size:12px;line-height:1.5;color:#1e3a5f'},
+                        {xtype: 'button', itemId: 'creerInventaire', text: 'Créer l\'inventaire', margin: '0 6 0 10',
+                            handler: function () { Me.lancerInventaire(); }},
+                        {xtype: 'button', itemId: 'annulerInventaire', text: 'Annuler',
+                            handler: function () { Me.fermerBandeInventaire(); }}
+                    ]
+                }],
             bbar: {
                 xtype: 'pagingtoolbar',
                 pageSize: 10,
@@ -958,8 +973,9 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
         if (!rec) {
             return;
         }
-        Me.creerInventaire([rec.get('lgBONLIVRAISONID')],
-                'Créer un inventaire des produits du bon ' + (rec.get('strREFLIVRAISON') || '') + ' ?');
+        Me.proposerInventaire([rec.get('lgBONLIVRAISONID')],
+                'Créer un inventaire des produits du bon <b>' + Ext.util.Format.htmlEncode(rec.get('strREFLIVRAISON') || '')
+                + '</b> ? Il portera sur le <b>stock rayon</b>, celui où le bon est entré.');
     },
 
     /**
@@ -968,14 +984,42 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
      */
     onInventaireDeLaSelection: function () {
         if (selectedBLs.length === 0) {
-            Ext.MessageBox.alert('Inventaire', 'Aucun bon de livraison sélectionné.');
+            Me.afficherBandeInventaire('Cochez d\'abord un ou plusieurs bons de livraison.', 'info');
             return;
         }
         var ids = Ext.Array.map(selectedBLs, function (r) {
             return r.get('lgBONLIVRAISONID');
         });
-        Me.creerInventaire(ids, 'Créer un inventaire des produits contenus dans les '
-                + ids.length + ' bons sélectionnés ?');
+        Me.proposerInventaire(ids, 'Créer un inventaire des produits contenus dans les <b>' + ids.length
+                + '</b> bons sélectionnés ? Il portera sur le <b>stock rayon</b>, celui où les bons sont entrés.');
+    },
+
+    /* Bandeau de l'inventaire : question (avec Creer / Annuler), puis resultat (avec Fermer). */
+    bandeInventaire: function () {
+        return Ext.ComponentQuery.query('etatscontrolemanager #bandeInventaire')[0];
+    },
+
+    afficherBandeInventaire: function (html, etat) {
+        var b = Me.bandeInventaire(), couleurs = {question: '#eef4fb', ok: '#e8f6ee', erreur: '#fdecea', info: '#fff8e1'};
+        b.down('#texteInventaire').update(html);
+        b.down('#creerInventaire').setVisible(etat === 'question');
+        b.down('#creerInventaire').enable();
+        b.down('#creerInventaire').setText('Créer l\'inventaire');
+        b.down('#annulerInventaire').setText(etat === 'question' ? 'Annuler' : 'Fermer');
+        b.show();
+        if (b.getEl()) {
+            b.getEl().setStyle('background', couleurs[etat] || couleurs.question);
+        }
+    },
+
+    fermerBandeInventaire: function () {
+        Me.bonsInventaire = null;
+        Me.bandeInventaire().hide();
+    },
+
+    proposerInventaire: function (bonIds, question) {
+        Me.bonsInventaire = bonIds;
+        Me.afficherBandeInventaire(question, 'question');
     },
 
     /**
@@ -984,39 +1028,30 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
      * Seuls les identifiants des BONS partent : un bon peut porter des centaines de lignes, c'est au serveur
      * d'en tirer la liste des produits, sans doublon entre deux bons.
      */
-    creerInventaire: function (bonIds, question) {
-        Ext.MessageBox.confirm('Confirmation', question, function (btn) {
-            if (btn !== 'yes') {
-                return;
+    lancerInventaire: function () {
+        var bonIds = Me.bonsInventaire, b = Me.bandeInventaire(), bouton = b.down('#creerInventaire');
+        if (!bonIds || !bonIds.length) {
+            return;
+        }
+        bouton.disable();
+        bouton.setText('Création en cours…');
+        Ext.Ajax.request({
+            method: 'POST',
+            url: '../api/v1/etat-control-bon/inventaire',
+            headers: {'Content-Type': 'application/json'},
+            // 4 minutes : un inventaire sur plusieurs bons touche beaucoup d'articles.
+            timeout: 240000,
+            params: Ext.JSON.encode(bonIds),
+            success: function (response) {
+                var o = Ext.decode(response.responseText, true) || {};
+                Me.bonsInventaire = null;
+                Me.afficherBandeInventaire(Ext.util.Format.htmlEncode(o.msg || (o.success ? 'Inventaire créé.' : 'L\'opération n\'a pas abouti.')),
+                        o.success ? 'ok' : 'erreur');
+            },
+            failure: function (response) {
+                Me.bonsInventaire = null;
+                Me.afficherBandeInventaire('Erreur lors de la création de l\'inventaire (code ' + response.status + ').', 'erreur');
             }
-            var attente = Ext.MessageBox.wait('Création de l\'inventaire . . .', 'Veuillez patienter');
-            Ext.Ajax.request({
-                method: 'POST',
-                url: '../api/v1/etat-control-bon/inventaire',
-                headers: {'Content-Type': 'application/json'},
-                // 4 minutes : un inventaire sur plusieurs bons touche beaucoup d'articles.
-                timeout: 240000,
-                params: Ext.JSON.encode(bonIds),
-                success: function (response) {
-                    attente.hide();
-                    var o = Ext.decode(response.responseText, true) || {};
-                    if (o.success === false) {
-                        Ext.MessageBox.alert('Inventaire', o.msg || 'L\'opération n\'a pas abouti.');
-                        return;
-                    }
-                    if (o.count > 0) {
-                        Ext.MessageBox.alert('Inventaire',
-                                'Inventaire créé : ' + o.count + ' article(s).<br>' + (o.message || ''));
-                    } else {
-                        Ext.MessageBox.alert('Inventaire', 'Aucun article à inventorier pour ces bons.');
-                    }
-                },
-                failure: function (response) {
-                    attente.hide();
-                    Ext.MessageBox.alert('Inventaire',
-                            'Erreur lors de la création de l\'inventaire (code ' + response.status + ').');
-                }
-            });
         });
     },
 
