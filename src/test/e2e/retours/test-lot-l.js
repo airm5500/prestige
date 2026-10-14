@@ -225,9 +225,16 @@ const TMP = '/tmp/claude-0/lot-l';
     });
     await p.fill('#' + idsR.du, fr(MOIS_A)); await p.keyboard.press('Tab');
     await p.fill('#' + idsR.au, fr(FIN_B)); await p.keyboard.press('Tab');
+    /* attendre le rechargement demande par « Rechercher » : sur une base active, la periode par defaut affiche deja
+       plus de 2 lignes, et la grille d'avant passerait pour le resultat */
+    await p.evaluate(() => { window.__rechargeRecap = 0; Ext.ComponentQuery.query('caisserecetterecap #caisserecetterecapGrid')[0].getStore()
+      .on('load', () => { window.__rechargeRecap++; }, null, { single: true }); });
     await p.click('#' + idsR.rechercher);
-    await p.waitForFunction(() => Ext.ComponentQuery.query('caisserecetterecap #caisserecetterecapGrid')[0].getStore().getCount() >= 2, null, { timeout: 20000 });
-    await p.waitForTimeout(1500);
+    await p.waitForFunction(() => window.__rechargeRecap > 0 && Ext.ComponentQuery.query('caisserecetterecap #caisserecetterecapGrid')[0].getStore().getCount() >= 2, null, { timeout: 20000 });
+    /* le recap des modes vient d'un second appel, plus long : on attend qu'il porte la periode demandee */
+    await p.waitForFunction(() => /CA réalisé|aucune vente/.test((Ext.ComponentQuery.query('caisserecetterecap')[0].getEl().dom.querySelector('.recap-modes-ca') || {}).innerText || ''),
+      null, { timeout: 60000 }).catch(() => {});
+    await p.waitForTimeout(500);
     const recap = await p.evaluate(() => {
       const grille = Ext.ComponentQuery.query('caisserecetterecap #caisserecetterecapGrid')[0];
       const vueEl = grille.getView().getEl().dom;
@@ -239,7 +246,8 @@ const TMP = '/tmp/claude-0/lot-l';
         lignes: grille.getStore().getCount(),
         corps: corps.length, visibles: visibles.length,
         texteVisibles: visibles.map(tr => tr.innerText.replace(/\s+/g, ' ').trim()),
-        recap: (document.querySelector('.recap-modes-ca') || {}).innerText || ''
+        /* dans l'ecran du recap : le tableau de bord ouvert a la connexion a aussi un recap des modes (celui du jour) */
+        recap: (Ext.ComponentQuery.query('caisserecetterecap')[0].getEl().dom.querySelector('.recap-modes-ca') || {}).innerText || ''
       };
     });
     ok('caisse/recette : plus aucun « + » (ni plugin rowexpander, ni icone) sur le tableau',

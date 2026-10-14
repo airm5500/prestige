@@ -237,17 +237,37 @@ Ext.define('testextjs.controller.RecapRecetteCaisseCtr', {
         if (!grille) {
             return;
         }
-        grille.getStore().load({
+        /* retours du 14/10 : la reponse d'une recherche precedente (periode par defaut, plus longue a calculer) pouvait
+           arriver APRES celle de la periode demandee et remplacer le recap, la courbe et la synthese par des chiffres
+           perimes. La requete precedente est annulee, et seule la reponse de la derniere demande est affichee. */
+        const store = grille.getStore();
+        if (me.requeteModes) {
+            Ext.Ajax.abort(me.requeteModes);
+        }
+        const demande = me.demandeModes = (me.demandeModes || 0) + 1;
+        me.requeteModes = Ext.Ajax.request({
+            url: store.getProxy().url,
+            method: 'GET',
+            timeout: store.getProxy().timeout,
             params: {
                 dtStart: me.getStartDateField().getSubmitValue(),
                 dtEnd: me.getEndDateField().getSubmitValue(),
                 groupByYear: me.getGroupByYear().checked
             },
-            callback: function (enregistrements, operation, succes) {
-                const json = (operation.response && Ext.JSON.decode(operation.response.responseText, true))
-                        || grille.getStore().getProxy().getReader().rawData || {};
+            success: function (reponse) {
+                if (demande !== me.demandeModes || grille.isDestroyed) {
+                    return;
+                }
+                me.requeteModes = null;
+                const json = Ext.JSON.decode(reponse.responseText, true) || {};
+                store.loadRawData(json);
                 me.construireCourbeModes(json);
                 me.afficherRecapModesCa(json);
+            },
+            failure: function () {
+                if (demande === me.demandeModes) {
+                    me.requeteModes = null;
+                }
             }
         });
     },

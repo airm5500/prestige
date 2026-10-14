@@ -8,9 +8,12 @@ const exec = (s) => execFileSync('mariadb', [BASE, '-e', s], { encoding: 'utf8' 
 const MARQUE = 'E2E-LL';
 const ESP = '1', ORANGE = '7', WAVE = '10';
 
-// deux mois consecutifs, il y a plus d'un an : aucune donnee reelle n'y vit
-const MOIS_A = q("SELECT DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 16 MONTH), '%Y-%m-01')");
-const MOIS_B = q("SELECT DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 15 MONTH), '%Y-%m-01')");
+// deux mois consecutifs ou aucune donnee reelle ne vit : il y a plus d'un an, et AVANT la plus ancienne vente de la
+// base (une officine, ou le banc peuple sur 3 ans, a des ventes 15 mois en arriere)
+const AVANT = q("SELECT LEAST(DATE_SUB(CURDATE(), INTERVAL 15 MONTH), IFNULL(DATE_SUB((SELECT MIN(dt_UPDATED) FROM t_preenregistrement"
+  + " WHERE lg_PREENREGISTREMENT_ID NOT LIKE 'E2E-%'), INTERVAL 2 MONTH), CURDATE()))");
+const MOIS_A = q("SELECT DATE_FORMAT(DATE_SUB('" + AVANT + "', INTERVAL 1 MONTH), '%Y-%m-01')");
+const MOIS_B = q("SELECT DATE_FORMAT('" + AVANT + "', '%Y-%m-01')");
 const FIN_B = q("SELECT LAST_DAY('" + MOIS_B + "')");
 const jour = (mois, j) => mois.slice(0, 8) + String(j).padStart(2, '0');
 const fr = (iso) => iso.slice(8, 10) + '/' + iso.slice(5, 7) + '/' + iso.slice(0, 4);

@@ -855,16 +855,22 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
     private Map<String, long[]> monthlyConso(String produitId, int months) {
         int monthsBack = Math.max(0, months - 1);
         String emplacement = sessionHelperService.getCurrentUser().getLgEMPLACEMENTID().getLgEMPLACEMENTID();
-        StringBuilder sql = new StringBuilder().append("SELECT t.eff_id, t.m_index, SUM(t.qty_equiv) FROM (").append(
-                "SELECT CASE WHEN f.bool_DECONDITIONNE=1 AND f.lg_FAMILLE_PARENT_ID IS NOT NULL AND f.lg_FAMILLE_PARENT_ID<>'' ")
-                .append("THEN f.lg_FAMILLE_PARENT_ID ELSE f.lg_FAMILLE_ID END AS eff_id, ")
+        /*
+         * Journaux du 13/10 (export ABC bloque 21 s) : les lignes de vente sont d'abord regroupees par produit, mois et
+         * quantite, puis jointes aux produits (une fois par groupe au lieu d'une fois par ligne : 6,7 s -> 1,2 s sur 3
+         * ans). La quantite equivalente boite reste arrondie a 4 decimales LIGNE PAR LIGNE avant la somme, comme avant
+         * : memes valeurs a la 4e decimale.
+         */
+        String deconditionne = "f.bool_DECONDITIONNE=1 AND f.lg_FAMILLE_PARENT_ID IS NOT NULL AND f.lg_FAMILLE_PARENT_ID<>'' ";
+        StringBuilder sql = new StringBuilder().append("SELECT CASE WHEN ").append(deconditionne)
+                .append("THEN f.lg_FAMILLE_PARENT_ID ELSE f.lg_FAMILLE_ID END AS eff_id, g.m_index, ")
+                .append("SUM(g.n * CASE WHEN ").append(deconditionne)
+                .append("THEN ROUND(g.q/COALESCE(NULLIF(parent.int_NUMBERDETAIL,0),1), 4) ELSE g.q END) FROM (")
+                .append("SELECT pd.lg_FAMILLE_ID AS fid, ")
                 .append("((YEAR(CURDATE())*12+MONTH(CURDATE())) - (YEAR(p.dt_UPDATED)*12+MONTH(p.dt_UPDATED))) AS m_index, ")
-                .append("CASE WHEN f.bool_DECONDITIONNE=1 AND f.lg_FAMILLE_PARENT_ID IS NOT NULL AND f.lg_FAMILLE_PARENT_ID<>'' ")
-                .append("THEN pd.int_QUANTITY/COALESCE(NULLIF(parent.int_NUMBERDETAIL,0),1) ELSE pd.int_QUANTITY END AS qty_equiv ")
-                .append("FROM t_preenregistrement p ").append("JOIN t_user u ON p.lg_USER_ID=u.lg_USER_ID ")
+                .append("pd.int_QUANTITY AS q, COUNT(*) AS n ").append("FROM t_preenregistrement p ")
+                .append("JOIN t_user u ON p.lg_USER_ID=u.lg_USER_ID ")
                 .append("JOIN t_preenregistrement_detail pd ON pd.lg_PREENREGISTREMENT_ID=p.lg_PREENREGISTREMENT_ID ")
-                .append("JOIN t_famille f ON pd.lg_FAMILLE_ID=f.lg_FAMILLE_ID ")
-                .append("LEFT JOIN t_famille parent ON parent.lg_FAMILLE_ID=f.lg_FAMILLE_PARENT_ID ")
                 .append("WHERE p.str_STATUT='is_Closed' AND p.b_IS_CANCEL=0 AND p.int_PRICE>0 AND p.lg_TYPE_VENTE_ID<>'5' ")
                 .append("AND u.lg_EMPLACEMENT_ID=? ")
                 .append("AND p.dt_UPDATED >= DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL ? MONTH),'%Y-%m-01')");
@@ -874,7 +880,10 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
             sql.append(" AND pd.lg_FAMILLE_ID IN (SELECT cf.lg_FAMILLE_ID FROM t_famille cf "
                     + "WHERE cf.lg_FAMILLE_ID=? OR cf.lg_FAMILLE_PARENT_ID=?)");
         }
-        sql.append(") t WHERE t.m_index BETWEEN 0 AND ? GROUP BY t.eff_id, t.m_index");
+        sql.append(" GROUP BY pd.lg_FAMILLE_ID, m_index, pd.int_QUANTITY) g")
+                .append(" JOIN t_famille f ON g.fid=f.lg_FAMILLE_ID")
+                .append(" LEFT JOIN t_famille parent ON parent.lg_FAMILLE_ID=f.lg_FAMILLE_PARENT_ID")
+                .append(" WHERE g.m_index BETWEEN 0 AND ? GROUP BY eff_id, g.m_index");
 
         Map<String, long[]> map = new HashMap<>();
         try {

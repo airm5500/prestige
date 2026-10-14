@@ -116,7 +116,7 @@ public class StatCaisseRecetteServiceImpl implements StatCaisseRecetteService {
             + " FROM vente_reglement vr" + " JOIN t_type_reglement tr ON tr.lg_TYPE_REGLEMENT_ID = vr.type_regelement"
             + " JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = vr.vente_id"
             + " JOIN mvttransaction m ON m.vente_id = p.lg_PREENREGISTREMENT_ID"
-            + " WHERE DATE(vr.mvtDate) BETWEEN ?1 AND ?2 AND p.str_STATUT = 'is_Closed'"
+            + " WHERE vr.mvtDate >= ?1 AND vr.mvtDate < ?2 AND p.str_STATUT = 'is_Closed'"
             + " AND m.lg_EMPLACEMENT_ID = ?3 AND p.lg_TYPE_VENTE_ID <> '5' AND p.imported = 0"
             + " AND p.lg_PREENREGISTREMENT_ID NOT IN (SELECT v.preenregistrement_id FROM vente_exclu v)"
             + " GROUP BY tr.lg_TYPE_REGLEMENT_ID, tr.str_NAME, tranche ORDER BY tranche";
@@ -129,7 +129,7 @@ public class StatCaisseRecetteServiceImpl implements StatCaisseRecetteService {
     private static final String CA_QUERY = "SELECT COALESCE(SUM(m.montantNet),0) AS chiffreAffaires,"
             + " COALESCE(SUM(m.montantCredit),0) AS montantCredit FROM mvttransaction m"
             + " JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = m.vente_id"
-            + " WHERE DATE(p.dt_UPDATED) BETWEEN ?1 AND ?2 AND p.str_STATUT = 'is_Closed'"
+            + " WHERE p.dt_UPDATED >= ?1 AND p.dt_UPDATED < ?2 AND p.str_STATUT = 'is_Closed'"
             + " AND m.lg_EMPLACEMENT_ID = ?3 AND p.lg_TYPE_VENTE_ID <> '5' AND p.imported = 0"
             + " AND p.lg_PREENREGISTREMENT_ID NOT IN (SELECT v.preenregistrement_id FROM vente_exclu v)";
 
@@ -137,18 +137,23 @@ public class StatCaisseRecetteServiceImpl implements StatCaisseRecetteService {
     public JSONObject suiviModesReglement(String dateDebut, String dateFin, boolean groupByYear, String emplacementId) {
         JSONObject json = new JSONObject();
         try {
+            /*
+             * bornes [debut, lendemain de la fin[ sur la colonne elle-meme : DATE(colonne) empechait l'index (4,5 s
+             * meme sur une periode vide, retours du 14/10). Memes lignes.
+             */
+            java.sql.Date debut = java.sql.Date.valueOf(dateDebut);
+            java.sql.Date lendemainFin = java.sql.Date.valueOf(java.time.LocalDate.parse(dateFin).plusDays(1));
             javax.persistence.Tuple ca = (javax.persistence.Tuple) em
-                    .createNativeQuery(CA_QUERY, javax.persistence.Tuple.class)
-                    .setParameter(1, java.sql.Date.valueOf(dateDebut)).setParameter(2, java.sql.Date.valueOf(dateFin))
-                    .setParameter(3, emplacementId).getSingleResult();
+                    .createNativeQuery(CA_QUERY, javax.persistence.Tuple.class).setParameter(1, debut)
+                    .setParameter(2, lendemainFin).setParameter(3, emplacementId).getSingleResult();
             long chiffreAffaires = ((Number) ca.get("chiffreAffaires")).longValue();
             long montantCredit = ((Number) ca.get("montantCredit")).longValue();
             String sql = MODES_QUERY.replace("{tranche}",
                     groupByYear ? "YEAR(vr.mvtDate)" : "DATE_FORMAT(vr.mvtDate, '%Y-%m-%d')");
             @SuppressWarnings("unchecked")
             List<javax.persistence.Tuple> resultat = em.createNativeQuery(sql, javax.persistence.Tuple.class)
-                    .setParameter(1, java.sql.Date.valueOf(dateDebut)).setParameter(2, java.sql.Date.valueOf(dateFin))
-                    .setParameter(3, emplacementId).getResultList();
+                    .setParameter(1, debut).setParameter(2, lendemainFin).setParameter(3, emplacementId)
+                    .getResultList();
 
             // Un mode = un cumul ; une tranche = un point de la courbe. Les deux se remplissent en un seul parcours.
             Map<String, JSONObject> parMode = new java.util.LinkedHashMap<>();
