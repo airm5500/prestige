@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "additionalDirectories": [
+      "D:\\Payara_Server\\glassfish\\domains\\domain1\\logs",
+      "D:\\CONF\\LABOREX\\REPORTS"
+    ]
+  },
+  "env": {
+    "DB_TEST": "laborex_v1_db"
+  }
+}

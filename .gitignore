@@ -19,3 +19,6 @@ __pycache__/
 /captures/
 /outils/etiquetage-pro/build/
 /outils/etiquetage-pro/dist/
+
+# réglages Claude Code propres au poste (chemins, mots de passe locaux) : jamais dans Git
+.claude/settings.local.json
