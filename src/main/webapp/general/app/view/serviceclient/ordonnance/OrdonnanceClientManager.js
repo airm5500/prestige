@@ -23,7 +23,7 @@ Ext.define('testextjs.view.serviceclient.ordonnance.OrdonnanceClientManager', {
     xtype: 'ordonnanceclient',
     itemId: 'ordonnanceClient',
     frame: true,
-    title: 'ORDONNANCES CLIENTS',
+    title: 'SUIVI DOSSIER CLIENT',
     width: '99%',
     height: 'auto',
     minHeight: 560,

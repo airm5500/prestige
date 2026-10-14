@@ -730,7 +730,7 @@ public class OrdonnanceClientService {
     public byte[] excelHistorique(Criteres criteres) throws java.io.IOException {
         String[] entetes = { "N° ORDONNANCE", "DATE", "CLIENT", "TYPE CLIENT", "PRESCRIPTEUR", "ÉTABLISSEMENT",
                 "PRODUIT PRESCRIT", "CIP", "QUANTITÉ", "QTÉ SERVIE", "POSOLOGIE", "DURÉE", "ÉTAT" };
-        return excelService.createLandscapeExcelReport("Ordonnances clients", entetes, produitsHistorique(criteres),
+        return excelService.createLandscapeExcelReport("Suivi dossier client", entetes, produitsHistorique(criteres),
                 (ligne, p) -> {
                     int c = 0;
                     ligne.createCell(c++).setCellValue(p.getNumero());

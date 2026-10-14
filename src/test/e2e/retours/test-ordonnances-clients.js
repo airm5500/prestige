@@ -77,8 +77,10 @@ function poser() {
     /* --------------------------------------------------------------- le menu et les droits */
     const menu = q("SELECT CONCAT(s.str_VALUE, '|', s.P_KEY, '|', m.str_VALUE) FROM t_sous_menu s"
       + " JOIN t_menu m ON m.lg_MENU_ID = s.lg_MENU_ID WHERE s.str_COMPOSANT='ordonnanceclient'");
-    ok('Le menu « Ordonnances clients » est dans SERVICE CLIENT, sous son privilège',
-      menu === 'Ordonnances clients|P_ORDONNANCE_CLIENT|SERVICE CLIENT', menu);
+    /* retours du 13/10, point 12 : le menu s'appelle « Suivi dossier client » */
+    ok('Le menu « Suivi dossier client » est dans SERVICE CLIENT, sous son privilège',
+      menu === 'Suivi dossier client|P_ORDONNANCE_CLIENT|SERVICE CLIENT'
+      && q("SELECT str_DESCRIPTION FROM t_sous_menu WHERE str_COMPOSANT='ordonnanceclient'") === 'Suivi dossier client', menu);
     const libelle = q("SELECT CONCAT(CHAR_LENGTH(str_VALUE), '/', CHAR_LENGTH(str_DESCRIPTION))"
       + " FROM t_sous_menu WHERE str_COMPOSANT='ordonnanceclient'").split('/');
     ok('Libellé et description restent courts (règle de l officine : 25 et 30)',
