@@ -137,6 +137,9 @@ de production.
 | Autres | 3 000 assurés, 15 tiers payants, ouverture et clôture des caisses chaque jour |
 | Base | 5 Go, réglages MariaDB des officines (`innodb_buffer_pool_size` = 3,5 Go…) |
 
+Chaque bon de livraison généré produit aussi son **entrée en stock** (date, quantité, péremption entre 10 et 36 mois),
+comme à la réception réelle : « dernière entrée », articles dormants et périmés travaillent donc sur 52 000 entrées.
+
 Le générateur recopie de vraies lignes du banc (même format que l'application) et ne fait varier que les identifiants,
 dates, produits, quantités et montants. Le stock du jour reste inchangé : l'historique est reconstruit en remontant le
 temps. Tout se retire avec `--retirer`.
@@ -161,6 +164,7 @@ Les réponses ont été comparées avant et après chaque correction (JSON ou te
 | **Relevé PDF des factures subrogatoires** (2 mois, 6 792 bons) | **597 s (10 min)** | **2,7 s** | Coût **quadratique** : une requête par bon dans la même transaction, et Hibernate revérifiait avant chacune tous les objets déjà chargés. Les tiers payants sont maintenant lus par paquets de 500. |
 | **Ticket Z** | 1,6 à 3,4 s | 0,12 à 1,1 s | Date comparée à travers une fonction (index inutilisable), `IN (…)` sur 846 000 lignes de vente, et une requête par vente. |
 | États de TVA | 1 à 1,5 s | 0,2 à 1 s | Même `IN (…)` sur les lignes de vente. |
+| **Application mobile : fiche produit (`v1/info`, `checkproduit`)** | 57 s et 61 s | **13,5 s et 18 s** | La dernière vente de chaque produit, par emplacement, était cherchée en deux passages sur 3 ans de lignes de vente. Elle est trouvée en un seul passage (11,6 s → 2,5 s par lot de 500 produits). Résultat identique ligne à ligne (1 498 lignes). |
 | Balance âgée détaillée | 2,8 s | 2,8 s | 161 requêtes inutiles retirées (recherche du client « %% »). Le reste vient de l'ancien calcul mois par mois (voir 7.3). |
 
 La migration **V6.9.151** crée les deux index « en ligne », sans bloquer les tables. Sur le banc, elle a pris 3,3 s
@@ -184,6 +188,16 @@ lieu de 0,1 s. C'est normal et ça ne dure pas : avec `innodb_buffer_pool_size` 
 reste ensuite en mémoire.
 
 ## 8. Tests ajoutés
+
+- Tests rendus **indépendants du volume** (ils supposaient une base presque vide) : chacun crée ses propres données
+  quand la base n'en offre plus, et les retire à la fin.
+  - `test-audit-analyse`, `test-audit-rapports`, `test-audit-regularisations` : créent leur produit sans mouvement.
+  - `test-suppression-vente-origine`, `test-import-clients` : créent leur utilisateur.
+  - `test-tableau-bord-impression` : une carte vide garantie.
+  - `test-proforma` : client standard, le seul proposé par la recherche de l'écran.
+  - `test-facture-subrogatoire-api`, `test-recap-caisse-modes` : dates calculées et non plus fixes.
+- Défaut d'affichage trouvé au passage : l'impression des **articles dormants sans résultat** perdait l'en-tête et
+  les filtres. Elle les garde maintenant, comme les autres états.
 
 - `src/test/e2e/support/test-connexion-allers-retours.js`, par l'écran de connexion :
   - administrateur et caissier temporaire : au plus 70 allers-retours ;
