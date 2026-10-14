@@ -18,6 +18,11 @@
       <!--   <property name="hibernate.hbm2ddl.auto" value="update"/>
            <property name="hibernate.show_sql" value="true"/>-->
             <property name="hibernate.transaction.jta.platform" value="org.hibernate.service.jta.platform.internal.SunOneJtaPlatform"/>
+            <!-- Retour du 14/10 (lenteur a la connexion) : une connexion par transaction, et non une par requete. Par
+                 defaut sous JTA, Hibernate rend la connexion apres CHAQUE requete ; Payara, a chaque emprunt, lit puis
+                 remet les informations client de la connexion (4 echanges avec la base) : chaque requete coutait
+                 5 allers-retours avec la base centrale au lieu d'un. -->
+            <property name="hibernate.connection.handling_mode" value="DELAYED_ACQUISITION_AND_RELEASE_AFTER_TRANSACTION"/>
         </properties>
     </persistence-unit>
 </persistence>

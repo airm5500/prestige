@@ -3,6 +3,7 @@
  *    ses lots : t_rum recoit ECRAN (cle = ecran) et API (methode + chemin SANS parametres ni identifiants) ;
  *  - Stabilite du serveur > Experience utilisateur : courbe, poste, ecrans et appels les plus lents ;
  *  - SUPPORT_RUM_ACTIF = 0 : le navigateur cesse d'envoyer ;
+ *  - cout : 20 mesures = une ecriture groupee, une seule connexion empruntee (au plus 11 allers-retours), par 5 minutes ;
  *  - v1/support/veille : ferme si le jeton est vide en base, refuse sans jeton ou avec un mauvais jeton, repond avec
  *    le bon jeton (memoire, pool, base) et sans aucune donnee de vente ou de client ;
  *  - jeton cree par l'ecran (Reglages conseilles) : confirmation dans le bouton, affiche une fois, l'ancien refuse,
@@ -20,7 +21,8 @@ const URL = 'http://localhost:8080/prestige';
 const JETON = 'E2E-VEILLE-' + Date.now();
 
 (async () => {
-  const debut = q("SELECT DATE_FORMAT(NOW() - INTERVAL 1 MINUTE, '%Y-%m-%d %H:%i:00')");
+  /* les mesures sont rangees par tranche de 5 minutes : depart = debut de la tranche d'il y a une minute */
+  const debut = q("SELECT DATE_FORMAT(NOW() - INTERVAL 1 MINUTE - INTERVAL (MINUTE(NOW() - INTERVAL 1 MINUTE) % 5) MINUTE, '%Y-%m-%d %H:%i:00')");
   const rumAvant = q("SELECT str_VALUE FROM t_parameters WHERE str_KEY = 'SUPPORT_RUM_ACTIF'");
   const jetonAvant = q("SELECT str_VALUE FROM t_parameters WHERE str_KEY = 'SUPPORT_VEILLE_JETON'");
   exec("UPDATE t_parameters SET str_VALUE = '1' WHERE str_KEY = 'SUPPORT_RUM_ACTIF'; UPDATE t_parameters SET str_VALUE = '' WHERE str_KEY = 'SUPPORT_VEILLE_JETON'");
@@ -66,6 +68,22 @@ const JETON = 'E2E-VEILLE-' + Date.now();
     await p.waitForTimeout(2000);
     ok('SUPPORT_RUM_ACTIF = 0 : le navigateur cesse d\'envoyer', await p.evaluate(() => window.PrestigeRum.etat().actif) === false);
 
+    /* cout d'un envoi (retour du 14/10 « pas de cout sur l'exploitation ? ») : 20 mesures = une ecriture groupee,
+       pas une ecriture par mesure ; regroupement par 5 minutes (5 fois moins de lignes) */
+    exec("UPDATE t_parameters SET str_VALUE = '1' WHERE str_KEY = 'SUPPORT_RUM_ACTIF'");
+    const journalAvant = q('SELECT @@general_log'), sortieAvant = q('SELECT @@log_output');
+    exec("SET GLOBAL log_output = 'TABLE'; TRUNCATE mysql.general_log; SET GLOBAL general_log = 1");
+    const lots20 = [];
+    const t5 = Math.floor((Date.now() - 600000) / 300000) * 300000;
+    for (let i = 0; i < 20; i++) lots20.push({ minute: t5 + (i % 5) * 60000, type: 'ECRAN', cle: 'e2e-cout-' + (i % 4), nombre: 1, totalMs: 100 + i, maxMs: 100 + i, echecs: 0 });
+    const envoi = await p.evaluate(async (l) => (await fetch('../api/v1/support/rum', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ lots: l }) })).json(), lots20);
+    await p.waitForTimeout(300);
+    const allers = Number(q("SELECT COUNT(*) FROM mysql.general_log WHERE command_type IN ('Query', 'Execute') AND argument NOT LIKE '%general_log%'"));
+    exec(`SET GLOBAL general_log = ${journalAvant}; SET GLOBAL log_output = '${sortieAvant}'; TRUNCATE mysql.general_log`);
+    ok('Envoi de 20 mesures : 20 retenues, une seule connexion empruntée (au plus 11 allers-retours, 116 avant)', envoi.retenus === 20 && allers <= 11, allers + ' allers-retours');
+    const lignes = q("SELECT COUNT(*), COALESCE(SUM(nombre), 0), COUNT(DISTINCT minute) FROM t_rum WHERE utilisateur = 'admin' AND cle LIKE 'e2e-cout-%'").split('\t');
+    ok('Regroupement par 5 minutes : 4 lignes pour 20 mesures (4 écrans), rien de perdu', lignes[0] === '4' && lignes[1] === '20' && lignes[2] === '1', lignes.join(' '));
+
     /* point de veille */
     const appel = (jeton) => p.evaluate(async (j) => { const h = j === null ? {} : { 'X-Veille-Jeton': j }; const r = await fetch('../api/v1/support/veille', { headers: h, credentials: 'omit' });
       return { status: r.status, corps: await r.text() }; }, jeton);
@@ -103,7 +121,7 @@ const JETON = 'E2E-VEILLE-' + Date.now();
   } finally {
     await b.close();
     exec(`UPDATE t_parameters SET str_VALUE = '${rumAvant}' WHERE str_KEY = 'SUPPORT_RUM_ACTIF'; UPDATE t_parameters SET str_VALUE = '${jetonAvant}' WHERE str_KEY = 'SUPPORT_VEILLE_JETON';`
-      + `DELETE FROM t_rum WHERE utilisateur = 'admin' AND minute >= '${debut}'`);
+      + `DELETE FROM t_rum WHERE utilisateur = 'admin' AND (minute >= '${debut}' OR cle LIKE 'e2e-cout-%')`);
     ok('Paramètres et mesures du test remis', q("SELECT str_VALUE FROM t_parameters WHERE str_KEY = 'SUPPORT_VEILLE_JETON'") === jetonAvant);
     const ko = res.filter((x) => !x.c).length;
     console.log('\n' + (res.length - ko) + '/' + res.length + ' OK');

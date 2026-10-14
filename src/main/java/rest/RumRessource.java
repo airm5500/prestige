@@ -79,16 +79,16 @@ public class RumRessource {
         if (!(u instanceof TUser)) {
             return Response.status(Response.Status.UNAUTHORIZED).build();
         }
-        boolean actif = !"0".equals(parametre("SUPPORT_RUM_ACTIF", "1"));
+        boolean actif = true;
         int n = 0;
-        if (actif) {
-            try {
-                JSONObject o = new JSONObject(StringUtils.defaultIfBlank(corps, "{}"));
-                n = rumService.enregistrer(poste(), StringUtils.defaultString(((TUser) u).getStrLOGIN()),
-                        o.optJSONArray("lots"));
-            } catch (Exception e) {
-                LOG.log(Level.FINE, "mesures RUM refusees", e);
-            }
+        try {
+            JSONObject o = new JSONObject(StringUtils.defaultIfBlank(corps, "{}"));
+            n = rumService.enregistrerSiActif(poste(), StringUtils.defaultString(((TUser) u).getStrLOGIN()),
+                    o.optJSONArray("lots"));
+            actif = n >= 0;
+            n = Math.max(0, n);
+        } catch (Exception e) {
+            LOG.log(Level.FINE, "mesures RUM refusees", e);
         }
         return Response.ok(new JSONObject().put("success", true).put("actif", actif).put("retenus", n).toString())
                 .build();

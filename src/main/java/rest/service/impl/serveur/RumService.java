@@ -33,10 +33,45 @@ public class RumService {
      *
      * @return nombre de lots retenus
      */
+    /** Regroupement des mesures en base (minutes) : 5 fois moins de lignes qu'a la minute, courbes inchangees. */
+    static final int PAS_MINUTES = 5;
+
+    /** Derniere purge des mesures de plus de JOURS jours : une fois par heure, et non a chaque envoi. */
+    private static volatile long dernierePurge;
+
+    /** Debut de la tranche de PAS_MINUTES minutes contenant ce moment. */
+    static LocalDateTime tranche(LocalDateTime t) {
+        LocalDateTime m = t.truncatedTo(ChronoUnit.MINUTES);
+        return m.minusMinutes(m.getMinute() % PAS_MINUTES);
+    }
+
+    /**
+     * Enregistrement si le parametre SUPPORT_RUM_ACTIF ne vaut pas 0, lu dans la MEME transaction que l'ecriture : une
+     * seule connexion empruntee au pool par envoi (chaque emprunt coute 7 echanges avec la base).
+     *
+     * @return nombre de lots retenus, ou -1 si l'envoi est arrete
+     */
+    @TransactionAttribute(TransactionAttributeType.REQUIRED)
+    public int enregistrerSiActif(String poste, String utilisateur, JSONArray lots) {
+        @SuppressWarnings("unchecked")
+        List<Object> v = em.createNativeQuery("SELECT str_VALUE FROM t_parameters WHERE str_KEY = 'SUPPORT_RUM_ACTIF'")
+                .getResultList();
+        if (!v.isEmpty() && v.get(0) != null && "0".equals(String.valueOf(v.get(0)).trim())) {
+            return -1;
+        }
+        return enregistrer(poste, utilisateur, lots);
+    }
+
     @TransactionAttribute(TransactionAttributeType.REQUIRED)
     public int enregistrer(String poste, String utilisateur, JSONArray lots) {
-        int n = 0;
+        /*
+         * Retour du 14/10 (cout sur l'exploitation) : les lots sont regroupes par tranche de 5 minutes puis ecrits en
+         * UNE requete (une ecriture par mesure avant : 20 mesures = 116 allers-retours avec la base centrale).
+         */
         LocalDateTime maintenant = LocalDateTime.now().truncatedTo(ChronoUnit.MINUTES);
+        java.util.Map<String, long[]> cumul = new java.util.LinkedHashMap<>();
+        java.util.Map<String, Object[]> cles = new java.util.HashMap<>();
+        int n = 0;
         for (int i = 0; lots != null && i < lots.length() && i < Rum.MAX_LOTS; i++) {
             JSONObject l = lots.optJSONObject(i);
             Rum.Type type = l == null ? null : Rum.type(l.optString("type"));
@@ -60,19 +95,53 @@ public class RumService {
                     minute = m;
                 }
             }
-            em.createNativeQuery(
-                    "INSERT INTO t_rum (minute, poste, utilisateur, type, cle, nombre, total_ms, max_ms, echecs)"
-                            + " VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9) ON DUPLICATE KEY UPDATE nombre = nombre + VALUES(nombre),"
-                            + " total_ms = total_ms + VALUES(total_ms), max_ms = GREATEST(max_ms, VALUES(max_ms)),"
-                            + " echecs = echecs + VALUES(echecs)")
-                    .setParameter(1, Timestamp.valueOf(minute)).setParameter(2, StringUtils.left(poste, 80))
-                    .setParameter(3, StringUtils.left(utilisateur, 40)).setParameter(4, type.name())
-                    .setParameter(5, cle).setParameter(6, nombre).setParameter(7, total).setParameter(8, max)
-                    .setParameter(9, echecs).executeUpdate();
+            minute = tranche(minute);
+            String k = minute + "|" + type.name() + "|" + cle;
+            long[] c = cumul.computeIfAbsent(k, x -> new long[4]);
+            c[0] += nombre;
+            c[1] += total;
+            c[2] = Math.max(c[2], max);
+            c[3] += echecs;
+            cles.putIfAbsent(k, new Object[] { Timestamp.valueOf(minute), type.name(), cle });
             n++;
         }
-        em.createNativeQuery("DELETE FROM t_rum WHERE minute < ?1 LIMIT 5000")
-                .setParameter(1, Timestamp.valueOf(LocalDateTime.now().minusDays(JOURS))).executeUpdate();
+        if (!cumul.isEmpty()) {
+            StringBuilder sql = new StringBuilder(
+                    "INSERT INTO t_rum (minute, poste, utilisateur, type, cle, nombre, total_ms, max_ms, echecs) VALUES ");
+            List<Object> p = new java.util.ArrayList<>();
+            for (java.util.Map.Entry<String, long[]> e : cumul.entrySet()) {
+                Object[] c = cles.get(e.getKey());
+                long[] v = e.getValue();
+                sql.append(p.isEmpty() ? "(" : ", (");
+                for (int j = 1; j <= 9; j++) {
+                    sql.append(j == 1 ? "" : ", ").append('?').append(p.size() + j);
+                }
+                sql.append(')');
+                p.add(c[0]);
+                p.add(StringUtils.left(poste, 80));
+                p.add(StringUtils.left(utilisateur, 40));
+                p.add(c[1]);
+                p.add(c[2]);
+                p.add((int) v[0]);
+                p.add(v[1]);
+                p.add(v[2]);
+                p.add((int) v[3]);
+            }
+            sql.append(
+                    " ON DUPLICATE KEY UPDATE nombre = nombre + VALUES(nombre), total_ms = total_ms + VALUES(total_ms),"
+                            + " max_ms = GREATEST(max_ms, VALUES(max_ms)), echecs = echecs + VALUES(echecs)");
+            Query q = em.createNativeQuery(sql.toString());
+            for (int i = 0; i < p.size(); i++) {
+                q.setParameter(i + 1, p.get(i));
+            }
+            q.executeUpdate();
+        }
+        long now = System.currentTimeMillis();
+        if (now - dernierePurge > 3_600_000L) {
+            dernierePurge = now;
+            em.createNativeQuery("DELETE FROM t_rum WHERE minute < ?1 LIMIT 5000")
+                    .setParameter(1, Timestamp.valueOf(LocalDateTime.now().minusDays(JOURS))).executeUpdate();
+        }
         return n;
     }
 

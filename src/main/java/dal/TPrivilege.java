@@ -69,7 +69,12 @@ public class TPrivilege implements Serializable {
     private String lgUPDATEDBY;
     @Column(name = "str_STATUT", length = 20)
     private String strSTATUT;
-    @OneToMany(mappedBy = "lgPRIVILEGEID", fetch = FetchType.EAGER)
+    /*
+     * Retour du 14/10 (lenteur a la connexion) : en EAGER, chaque droit charge relancait une requete pour cette liste,
+     * soit une requete par droit a chaque connexion (211 pour un administrateur). Elle n'est lue nulle part
+     * (@XmlTransient) : chargement a la demande.
+     */
+    @OneToMany(mappedBy = "lgPRIVILEGEID", fetch = FetchType.LAZY)
     private Collection<TRolePrivelege> tRolePrivelegeCollection = new ArrayList<>();
 
     public TPrivilege() {

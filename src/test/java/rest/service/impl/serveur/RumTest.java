@@ -3,6 +3,7 @@ package rest.service.impl.serveur;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
+import java.time.LocalDateTime;
 import org.junit.jupiter.api.Test;
 
 class RumTest {
@@ -29,5 +30,14 @@ class RumTest {
         assertEquals(0, Rum.duree(-5));
         assertEquals(0, Rum.duree(10_000_000));
         assertEquals(1200, Rum.duree(1200));
+    }
+
+    @Test
+    void tranchesDeCinqMinutes() {
+        LocalDateTime t = LocalDateTime.of(2026, 10, 14, 10, 7, 42);
+        assertEquals(LocalDateTime.of(2026, 10, 14, 10, 5), RumService.tranche(t));
+        assertEquals(LocalDateTime.of(2026, 10, 14, 10, 0), RumService.tranche(LocalDateTime.of(2026, 10, 14, 10, 0)));
+        assertEquals(LocalDateTime.of(2026, 10, 14, 23, 55),
+                RumService.tranche(LocalDateTime.of(2026, 10, 14, 23, 59, 59)));
     }
 }

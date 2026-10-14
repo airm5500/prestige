@@ -234,33 +234,36 @@ public class UserServiceImpl implements UserService {
 
     }
 
-    private List<TRolePrivelege> loadTRolePrivelege(String roleId) {
-        TypedQuery<TRolePrivelege> q = this.getEm().createQuery(
-                "SELECT o FROM  TRolePrivelege o WHERE o.lgROLEID.lgROLEID =?1 AND o.lgPRIVILEGEID.strSTATUT='enable'",
-                TRolePrivelege.class);
-        q.setParameter(1, roleId);
-        return q.getResultList();
-    }
-
     @Override
     public List<TPrivilege> getAllPrivilege(TUser oTUser) {
-
+        /*
+         * Retour du 14/10 (lenteur a la connexion) : les droits de tous les roles de l'utilisateur en UNE requete. Ils
+         * etaient charges un par un (une requete par droit et par role : 211 pour un administrateur, une de plus a
+         * chaque nouveau droit), soit autant d'allers-retours avec la base centrale a chaque connexion d'un poste. Meme
+         * resultat : droits actifs des roles de l'utilisateur, role par role, doublons entre roles compris.
+         */
         List<TPrivilege> lstTPrivilege = new ArrayList<>();
         try {
-
-            Collection<TRoleUser> roleUsers = oTUser.getTRoleUserCollection();
-            for (TRoleUser roleUser : roleUsers) {
-                List<TRolePrivelege> rolePrivelege = loadTRolePrivelege(roleUser.getLgROLEID().getLgROLEID());
-                for (TRolePrivelege tRolePrivelege : rolePrivelege) {
-                    lstTPrivilege.add(tRolePrivelege.getLgPRIVILEGEID());
-                }
-
+            List<String> roles = new ArrayList<>();
+            for (TRoleUser roleUser : oTUser.getTRoleUserCollection()) {
+                roles.add(roleUser.getLgROLEID().getLgROLEID());
             }
-
+            if (roles.isEmpty()) {
+                return lstTPrivilege;
+            }
+            List<Object[]> lignes = this.getEm().createQuery(
+                    "SELECT o.lgROLEID.lgROLEID, p FROM TRolePrivelege o JOIN o.lgPRIVILEGEID p WHERE o.lgROLEID.lgROLEID IN :roles AND p.strSTATUT = 'enable'",
+                    Object[].class).setParameter("roles", roles).getResultList();
+            for (String role : roles) {
+                for (Object[] l : lignes) {
+                    if (role.equals(l[0])) {
+                        lstTPrivilege.add((TPrivilege) l[1]);
+                    }
+                }
+            }
         } catch (Exception e) {
             LOG.log(Level.SEVERE, null, e);
         }
-
         return lstTPrivilege;
     }
 
