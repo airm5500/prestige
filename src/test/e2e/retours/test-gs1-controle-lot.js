@@ -55,7 +55,7 @@ function nettoyer() {
 
 (async () => {
   const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
-  const p = await (await b.newContext({ viewport: { width: 1500, height: 950 } })).newPage();
+  const p = await (await b.newContext({ viewport: { width: 1366, height: 768 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   const api = (m, u, c) => p.evaluate(([m, u, c]) => new Promise((ok2) => Ext.Ajax.request({ url: u, method: m, jsonData: c || undefined,
     success: (r) => { try { ok2(JSON.parse(r.responseText)); } catch (e) { ok2({ brut: r.responseText }); } }, failure: (r) => ok2({ success: false, status: r.status }) })), [m, u, c]);
@@ -103,10 +103,22 @@ function nettoyer() {
       await p.waitForFunction(() => !Ext.Ajax.isLoading(), null, { timeout: 15000 }).catch(() => {});
       await p.waitForTimeout(800);
       const etat = await p.evaluate(() => { const ctr = testextjs.app.getController('VenteCtr'), f = ctr.getPeremptionProcheField();
-        return { message: f ? String(f.getValue()).replace(/<[^>]+>/g, '') : '', boite: Ext.Msg.isVisible() ? Ext.Msg.msg.getEl().dom.textContent : '', controle: ctr.dernierControleGs1 }; });
-      await p.evaluate(() => { if (Ext.Msg.isVisible()) { Ext.Msg.hide(); } });
+        /* retours du 14/10 : ergonomie - texte de la boite entier, champ sur une ligne, liste fermee, notification a droite */
+        let boiteCoupee = 0;
+        if (Ext.Msg.isVisible()) { const m = Ext.Msg.msg.getEl().dom, rg = document.createRange(); rg.selectNodeContents(m); const t = rg.getBoundingClientRect();
+          for (let n = m; n && n !== document.body; n = n.parentElement) { if (getComputedStyle(n).overflowY !== 'visible') { boiteCoupee = Math.max(boiteCoupee, Math.round(t.bottom - n.getBoundingClientRect().bottom)); } } }
+        let champDeborde = false;
+        if (f && f.rendered) { const zone = f.inputEl.dom, cadre = f.up('fieldset') || f.ownerCt; const rz = zone.getBoundingClientRect(), rc = cadre.getEl().dom.getBoundingClientRect();
+          const rg = document.createRange(); rg.selectNodeContents(zone); const rt = rg.getBoundingClientRect();
+          champDeborde = zone.textContent !== '' && (rg.getClientRects().length > 0 && (rt.bottom > rc.bottom + 1 || rt.height > 26)); }
+        const combo = Ext.ComponentQuery.query('doventemanager #produit')[0];
+        const toasts = [...document.querySelectorAll('.prestige-toast')].map((t) => ({ texte: t.textContent, niveau: t.getAttribute('data-niveau'), droite: Math.round(window.innerWidth - t.getBoundingClientRect().right) }));
+        return { message: f ? String(f.getValue()).replace(/<[^>]+>/g, '') : '', boite: Ext.Msg.isVisible() ? Ext.Msg.msg.getEl().dom.textContent : '', controle: ctr.dernierControleGs1,
+          boiteCoupee, champDeborde, listeOuverte: !!(combo && combo.isExpanded), toasts }; });
       return etat;
     };
+    const fermerBoite = async () => { if (await p.evaluate(() => Ext.Msg.isVisible())) { await p.keyboard.press('Enter'); await p.waitForTimeout(500); }
+      await p.evaluate(() => { if (Ext.Msg.isVisible()) { Ext.Msg.down('#ok').btnEl.dom.click(); } }); await p.waitForTimeout(400); };
     const venteCourante = () => p.evaluate(() => { const v = testextjs.app.getController('VenteCtr').getCurrent(); return v ? v.lgPREENREGISTREMENTID : null; });
     const ligne = (v) => q(`SELECT CONCAT(int_QUANTITY, '|', IFNULL(str_LOTS_SCANNES, '')) FROM t_preenregistrement_detail WHERE lg_PREENREGISTREMENT_ID = '${v}' AND lg_FAMILLE_ID = '${FID}'`);
     const cloturer = async (venteId) => {
@@ -125,6 +137,8 @@ function nettoyer() {
     let v = await venteCourante();
     ok('A : boîte d\'un autre lot → « Lot différent », produit ajouté, aucun lot noté sur la ligne', /^⚠ Lot différent : boîte scannée lot E2ELOT7 - pér\. 31\/03\/2027 ; Prestige sort lot E2ELOT8/.test(e.message)
       && !e.boite && v && ligne(v) === '1|', JSON.stringify(e) + ' ligne=' + (v && ligne(v)));
+    ok('A : le message tient sur une ligne (sans déborder), détail complet en notification orange à droite', !e.champDeborde
+      && e.toasts.some((t) => t.niveau === 'alerte' && /Lot différent.*E2ELOT7.*E2ELOT8/.test(t.texte) && t.droite < 60), JSON.stringify({ d: e.champDeborde, t: e.toasts }));
     let c = await cloturer(v);
     ok('A : à la clôture, Prestige sort SON lot (E2ELOT8 20→19), la boîte scannée E2ELOT7 reste à 5', c.success && lots() === '5/19', JSON.stringify(c).slice(0, 100) + ' lots=' + lots());
 
@@ -159,6 +173,12 @@ function nettoyer() {
     v = await venteCourante();
     ok('C : boîte d\'un autre lot → refusée, message « prenez la boîte du lot E2ELOT8 », rien n\'est ajouté', /Ce n'est pas la boîte à sortir.*Prenez la boîte du lot E2ELOT8/.test(e.boite)
       && /^⛔ Boîte refusée/.test(e.message) && e.controle === 'BLOQUE' && (!v || ligne(v) === ''), JSON.stringify(e) + ' vente=' + v);
+    ok('C : boîte lisible en entier, liste des produits refermée, notification rouge à droite', e.boiteCoupee <= 0 && !e.listeOuverte && !e.champDeborde
+      && e.toasts.some((t) => t.niveau === 'erreur' && /Boîte refusée.*E2ELOT7.*E2ELOT8/.test(t.texte)), JSON.stringify({ c: e.boiteCoupee, l: e.listeOuverte, d: e.champDeborde, t: e.toasts }));
+    await fermerBoite();
+    const apresOk = await p.evaluate(() => { const f = testextjs.app.getController('VenteCtr').getPeremptionProcheField(), c = Ext.ComponentQuery.query('doventemanager #produit')[0];
+      return { champ: String(f.getValue() || ''), produit: c.getRawValue(), focus: document.activeElement === c.inputEl.dom }; });
+    ok('C : après « OK », le message rouge disparaît du champ, la recherche produit est vide et reprend le curseur', apresOk.champ === '' && apresOk.produit === '' && apresOk.focus, JSON.stringify(apresOk));
     e = await scanner(B8);
     v = await venteCourante();
     ok('C : la bonne boîte → « Lot conforme », ajoutée', /^✔ Lot conforme/.test(e.message) && !e.boite && v && ligne(v) === '1|', JSON.stringify(e) + ' ' + (v && ligne(v)));

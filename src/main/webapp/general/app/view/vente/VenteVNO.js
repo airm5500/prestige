@@ -469,8 +469,17 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                                     labelWidth: 75,
                                                     labelStyle: 'font-weight:bold;',
                                                     itemId: 'peremptionProcheId',
+                                                    /* retours du 14/10 : une seule ligne, detail en infobulle */
+                                                    cls: 'peremption-champ',
                                                     margin: '0 0 0 20',
-                                                    flex: 1.6
+                                                    flex: 1.6,
+                                                    listeners: {
+                                                        change: function (champ, valeur) {
+                                                            if (champ.inputEl) {
+                                                                champ.inputEl.dom.setAttribute('title', String(valeur || '').replace(/<[^>]+>/g, ''));
+                                                            }
+                                                        }
+                                                    }
                                                 }
                                             ]
                                         }

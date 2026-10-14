@@ -702,6 +702,20 @@ body.x-body,
 .x-message-box .x-window-body {
     overflow-y: auto !important;
 }
+/* Retours du 14/10 : texte encore coupe (« Le produit n'est pas ajouté » cache). ExtJS mesure la hauteur du texte
+   sur sa largeur naturelle (2 lignes), puis le resserre a la largeur maximale de la boite (3 lignes) sans remesurer :
+   les conteneurs internes gardent l'ancienne hauteur et rognent. Ils laissent maintenant deborder dans le corps ; le
+   correctif JS mesure ce corps et agrandit la boite de ce qui manque. */
+.x-message-box .x-window-body .x-box-inner,
+.x-message-box .x-window-body .x-box-item {
+    overflow: visible !important;
+}
+/* Ecran de vente : la peremption tient sur une ligne (detail complet dans l'infobulle et dans la notification) */
+.peremption-champ .x-form-display-field {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
 
 /* Bouton "Retirer le modele" de la fenetre d'affectation des tiers payants.
    Il etait gris et sans icone (sa classe iconCls "cancelicon" n'existe dans aucune feuille

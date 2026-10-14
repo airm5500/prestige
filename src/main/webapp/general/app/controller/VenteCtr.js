@@ -1296,6 +1296,11 @@ Ext.define('testextjs.controller.VenteCtr', {
                 }
                 champ.setValue(proche ? '<span class="peremption-clignote">' + texte + '</span>'
                         : '<span style="color:#0D47A1;font-weight:bold;">' + texte + '</span>');
+                /* retours du 14/10 : aussi en notification a droite (moins de six mois : orange) */
+                if (window.PrestigeToast) {
+                    PrestigeToast.afficher(Ext.util.Format.htmlDecode(texte), {niveau: proche ? 'alerte' : 'info',
+                        titre: proche ? 'Péremption proche (moins de 6 mois)' : 'Péremption la plus proche', duree: proche ? 6000 : 4000});
+                }
             },
             failure: function () {
                 champ.setValue('');
@@ -7989,6 +7994,35 @@ Ext.define('testextjs.controller.VenteCtr', {
                 const champ = me.getPeremptionProcheField();
                 const enc = Ext.String.htmlEncode;
                 const info = (r.lot ? 'lot ' + enc(r.lot) : '') + (r.peremption ? (r.lot ? ' - ' : '') + 'pér. ' + enc(r.peremption) : '');
+                /* retours du 14/10 : la liste des produits ne reste pas ouverte par-dessus la boite ; le detail part en
+                   notification a droite (texte brut) ; le champ ne garde pas un refus apres « OK » */
+                const brut = (h) => Ext.util.Format.htmlDecode(String(h || '').replace(/<br\s*\/?>/gi, ' ').replace(/<[^>]+>/g, ''));
+                const notifier = (h, niveau) => {
+                    if (window.PrestigeToast) {
+                        PrestigeToast.afficher(brut(h).replace(/^[\u26D4\u26A0\u2714]\s*/, ''), {niveau: niveau, titre: 'Étiquette GS1'});
+                    }
+                };
+                /* la recherche lancee par la frappe du scan peut revenir apres la boite et rouvrir la liste */
+                if (!combo.gardeBoiteGs1) {
+                    combo.gardeBoiteGs1 = true;
+                    combo.on('expand', function (c) {
+                        if (me.boiteGs1Ouverte) {
+                            c.collapse();
+                        }
+                    });
+                }
+                const apresRefus = function () {
+                    me.boiteGs1Ouverte = false;
+                    if (champ && me.getPeremptionProcheField()) {
+                        champ.setValue('');
+                    }
+                    me.infoGs1Garde = null;
+                    combo.clearValue();
+                    combo.focus(true, 100);
+                };
+                if (combo.collapse) {
+                    combo.collapse();
+                }
                 if (!r.success) {
                     Ext.MessageBox.alert('Étiquette GS1', enc(r.msg || 'Étiquette illisible.'), function () {
                         combo.focus(true, 100);
@@ -7999,10 +8033,9 @@ Ext.define('testextjs.controller.VenteCtr', {
                     if (champ) {
                         champ.setValue('<span class="peremption-clignote" style="color:#d40000;font-weight:bold">PÉRIMÉ : ' + info + '</span>');
                     }
-                    Ext.MessageBox.alert('Étiquette GS1', 'Ce lot est périmé (' + info + ') : il n\'est pas ajouté à la vente.', function () {
-                        combo.clearValue();
-                        combo.focus(true, 100);
-                    });
+                    notifier('Lot périmé : ' + info + '. Produit non ajouté.', 'erreur');
+                    me.boiteGs1Ouverte = true;
+                    Ext.MessageBox.alert('Étiquette GS1', 'Ce lot est périmé (' + info + ') : il n\'est pas ajouté à la vente.', apresRefus);
                     return;
                 }
                 const produit = r.data;
@@ -8017,11 +8050,10 @@ Ext.define('testextjs.controller.VenteCtr', {
                         champ.setValue('<span class="gs1-controle gs1-bloque" style="color:#c62828;font-weight:bold;">\u26D4 Boîte refusée : '
                                 + info + ' ; prenez la boîte du ' + prevu + '</span>');
                     }
+                    notifier('Boîte refusée : ' + info + '. Prenez la boîte du ' + prevu + ' et scannez-la.', 'erreur');
+                    me.boiteGs1Ouverte = true;
                     Ext.MessageBox.alert('Étiquette GS1', 'Ce n\'est pas la boîte à sortir : ' + info + '.<br>Prenez la boîte du <b>' + prevu
-                            + '</b> et scannez-la. Le produit n\'est pas ajouté.', function () {
-                        combo.clearValue();
-                        combo.focus(true, 100);
-                    });
+                            + '</b> et scannez-la. Le produit n\'est pas ajouté.', apresRefus);
                     return;
                 }
                 me.updateStockField(produit.intNUMBERAVAILABLE);
@@ -8044,6 +8076,9 @@ Ext.define('testextjs.controller.VenteCtr', {
                 if (champ && html) {
                     me.peremptionDemandee = null;
                     champ.setValue(html);
+                }
+                if (html) {
+                    notifier(html, r.controle === 'CONFORME' ? 'ok' : (r.controle === 'DIFFERENT' ? 'alerte' : 'info'));
                 }
             },
             failure: function () {

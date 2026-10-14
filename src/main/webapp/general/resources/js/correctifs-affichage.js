@@ -1845,3 +1845,93 @@ window.PrestigeRechercheClient = (function () {
     });
     return {mode: mode, choisir: choisir, selecteur: selecteur};
 })();
+
+/**
+ * Notifications a droite de l'ecran (retours du 14/10) : une information qui ne doit pas rester affichee
+ * (controle du lot scanne, peremption la plus proche...) apparait en haut a droite puis disparait seule.
+ * Elle ne prend jamais le curseur : la saisie continue. Survol : reste affichee ; clic : fermee.
+ *
+ *   PrestigeToast.afficher('Texte', {niveau: 'erreur'|'alerte'|'ok'|'info', titre: '...', duree: 6000})
+ *
+ * Le texte est echappe (aucun HTML). Au plus 4 notifications a la fois : la plus ancienne part.
+ */
+window.PrestigeToast = (function () {
+    var COULEURS = {erreur: '#c62828', alerte: '#e67e22', ok: '#1b7f3b', info: '#1e3a5f'};
+    var ICONES = {erreur: '⛔', alerte: '⚠', ok: '✔', info: 'ℹ'};
+    function pile() {
+        var p = document.getElementById('prestige-toasts');
+        if (!p) {
+            p = document.createElement('div');
+            p.id = 'prestige-toasts';
+            p.style.cssText = 'position:fixed;top:78px;right:16px;z-index:100000;display:flex;flex-direction:column;gap:8px;'
+                    + 'width:360px;max-width:calc(100vw - 32px);pointer-events:none;';
+            document.body.appendChild(p);
+        }
+        return p;
+    }
+    function fermer(el) {
+        if (!el.parentNode || el.fermeture) {
+            return;
+        }
+        el.fermeture = true;
+        el.style.opacity = '0';
+        el.style.transform = 'translateX(30px)';
+        setTimeout(function () {
+            if (el.parentNode) {
+                el.parentNode.removeChild(el);
+            }
+        }, 300);
+    }
+    function afficher(texte, options) {
+        var o = options || {}, niveau = COULEURS[o.niveau] ? o.niveau : 'info', duree = o.duree || (niveau === 'erreur' ? 8000 : 6000);
+        var p = pile(), el = document.createElement('div'), restant = duree, depart = Date.now(), minuteur;
+        el.className = 'prestige-toast';
+        el.setAttribute('data-niveau', niveau);
+        el.setAttribute('role', niveau === 'erreur' ? 'alert' : 'status');
+        el.style.cssText = 'pointer-events:auto;cursor:pointer;display:flex;gap:10px;align-items:flex-start;padding:10px 14px;border-radius:8px;'
+                + 'background:#fff;color:#1e2a36;font-size:13px;line-height:18px;box-shadow:0 4px 14px rgba(0,0,0,.18);'
+                + 'border-left:6px solid ' + COULEURS[niveau] + ';transition:opacity .3s,transform .3s;opacity:0;transform:translateX(30px);';
+        var icone = document.createElement('span');
+        icone.textContent = ICONES[niveau];
+        icone.style.cssText = 'color:' + COULEURS[niveau] + ';font-size:18px;line-height:18px;';
+        var corps = document.createElement('div');
+        if (o.titre) {
+            var t = document.createElement('div');
+            t.textContent = o.titre;
+            t.style.cssText = 'font-weight:bold;color:' + COULEURS[niveau] + ';margin-bottom:2px;';
+            corps.appendChild(t);
+        }
+        var m = document.createElement('div');
+        m.textContent = texte;
+        corps.appendChild(m);
+        el.appendChild(icone);
+        el.appendChild(corps);
+        p.insertBefore(el, p.firstChild);
+        while (p.children.length > 4) {
+            p.removeChild(p.lastChild);
+        }
+        requestAnimationFrame(function () {
+            el.style.opacity = '1';
+            el.style.transform = 'none';
+        });
+        var armer = function () {
+            depart = Date.now();
+            minuteur = setTimeout(function () {
+                fermer(el);
+            }, restant);
+        };
+        el.addEventListener('mouseenter', function () {
+            clearTimeout(minuteur);
+            restant = Math.max(1500, restant - (Date.now() - depart));
+        });
+        el.addEventListener('mouseleave', armer);
+        /* mousedown sans prise du curseur : la saisie en cours garde le focus */
+        el.addEventListener('mousedown', function (e) {
+            e.preventDefault();
+            fermer(el);
+        });
+        armer();
+        return el;
+    }
+    return {afficher: afficher};
+})();

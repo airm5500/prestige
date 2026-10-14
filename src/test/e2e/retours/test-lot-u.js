@@ -60,7 +60,8 @@ function poserLots(ps) {
 
 (async () => {
   purger();
-  const jour = q("SELECT DATE_SUB(CURDATE(), INTERVAL 420 DAY)");
+  /* un jour SANS vente : le banc est peuple sur 3 ans, 420 jours en arriere tombe dans ses ventes -> avant la premiere */
+  const jour = q("SELECT DATE_SUB(LEAST(DATE_SUB(CURDATE(), INTERVAL 420 DAY), IFNULL((SELECT DATE(MIN(dt_CREATED)) FROM t_preenregistrement), CURDATE())), INTERVAL 30 DAY)");
   const ps = poserVente(jour);
   poserLots(ps);
   const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
