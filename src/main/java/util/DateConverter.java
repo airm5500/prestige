@@ -174,6 +174,8 @@ public final class DateConverter {
     public static final String P_BTN_DESACTIVER_CLIENT = "P_BTN_DESACTIVER_CLIENT";
     /** Import de clients depuis un fichier : creation en masse, reservee aux profils qui la portent. */
     public static final String P_IMPORT_CLIENTS = "P_IMPORT_CLIENTS";
+    /* retours du 13/10 (point 1) : sans ce droit, un retour fournisseur est mis en attente (rien ne sort du stock) */
+    public static final String P_VALIDER_RETOUR_FRS = "P_VALIDER_RETOUR_FRS";
     /*
      * « Gestion depots extensions » : un privilege PAR ONGLET.
      *

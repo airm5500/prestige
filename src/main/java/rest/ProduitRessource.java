@@ -130,6 +130,15 @@ public class ProduitRessource {
         if (tu == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
+        /* retours du 13/10 (point 1) : seul un profil qui porte le droit fait sortir le retour du stock */
+        List<TPrivilege> privileges = (List<TPrivilege>) hs.getAttribute(Constant.USER_LIST_PRIVILEGE);
+        if (!DateConverter.hasAuthorityByName(privileges, DateConverter.P_VALIDER_RETOUR_FRS)) {
+            return Response.ok()
+                    .entity(new JSONObject().put("success", false).put("msg",
+                            "Vous n'avez pas le droit de valider un retour : mettez-le en attente de validation")
+                            .toString())
+                    .build();
+        }
         params.setOperateur(tu);
         JSONObject json = mvtProduitService.validerRetourFournisseur(params);
         return Response.ok().entity(json.toString()).build();

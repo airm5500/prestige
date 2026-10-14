@@ -59,9 +59,10 @@ const ECRANS = process.env.LOT ? process.env.LOT.split(',').map((l) => LOTS[l]).
         /* barres de pagination affichees : chacune doit porter les numeros (ceux d'un onglet cache se dessinent a son affichage) */
         pages: c.query('pagingtoolbar').filter((y) => y.rendered && y.child('#pagesNumerotees')).length, barresPages: c.query('pagingtoolbar').filter((y) => y.rendered).length,
         /* les intercalaires vides (item sans icone ni info-bulle : image transparente) ne comptent pas */
-        images: n ? [...n.querySelectorAll('img.x-action-col-icon')].filter((i) => i.offsetParent !== null && !i.classList.contains('act-ico')
+        images: n ? [...n.querySelectorAll('img.x-action-col-icon')].filter((i) => i.offsetParent !== null && !i.classList.contains('act-ico') && !i.classList.contains('retour-frs-ligne')
           && !(/^data:image\/gif/.test(i.getAttribute('src') || '') && !i.getAttribute('data-qtip') && i.className.trim().split(/\s+/).length <= 2)).length : -1,
-        traits: n ? [...n.querySelectorAll('.act-ico')].filter((i) => i.offsetParent !== null).length : -1,
+        /* la fleche « Retour fournisseur » (retours du 08/10) est deja une icone dessinee : elle compte comme un trait */
+        traits: n ? [...n.querySelectorAll('.act-ico, img.retour-frs-ligne')].filter((i) => i.offsetParent !== null).length : -1,
         deborde: barres.filter((t) => t.rendered && t.isVisible(true)).some((t) => [...t.getEl().dom.querySelectorAll('.x-btn, .x-form-text')].filter((x) => x.offsetParent !== null).some((x) => x.getBoundingClientRect().right > t.getEl().getRight() + 1)),
         config: c.query('actioncolumn').map((col) => (col.items || []).map((it) => (it.tooltip || '') + ' | ' + (it.handler ? String(it.handler).replace(/\s+/g, ' ').slice(0, 160) : '') + ' | ' + (it.getClass ? 'getClass' : '')).join(' / ')),
         itemIds: c.query('[itemId]').map((y) => y.itemId).filter((i) => !/^pagesNumerotees$/.test(i)).sort().join(','),

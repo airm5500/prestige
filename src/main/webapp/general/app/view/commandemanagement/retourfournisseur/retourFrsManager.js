@@ -140,6 +140,18 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.retourFrsManager
                     flex: 1
                 },
                 {
+                    /* retours du 13/10 (point 1) : un retour en attente n'est pas encore sorti du stock */
+                    header: 'État',
+                    dataIndex: 'str_STATUT',
+                    itemId: 'colEtatRetour',
+                    width: 150,
+                    renderer: function (v) {
+                        return v === 'is_Waiting'
+                                ? '<span class="retour-attente" style="display:inline-block;padding:1px 8px;border-radius:9px;background:#fff3cd;color:#8a5a00;font-weight:600">En attente de validation</span>'
+                                : '<span style="color:#17987e">Validé</span>';
+                    }
+                },
+                {
                     header: 'Reponse',
                     dataIndex: 'str_REPONSE_FRS',
                     flex: 1
@@ -181,11 +193,11 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.retourFrsManager
                     menuDisabled: true,
                     items: [{
                             icon: 'resources/images/icons/fam/page_white_edit.png',
-                            tooltip: 'Modifier le retour (ajouter, retirer des produits)',
+                            tooltip: 'Ouvrir le retour (le modifier, le valider)',
                             scope: this,
                             handler: this.onManageDetailsClick,
                             getClass: function (value, metadata, record) {
-                                if (record.get('str_STATUT') == "is_Process") {  //read your condition from the record
+                                if (record.get('str_STATUT') == "is_Process" || record.get('str_STATUT') == "is_Waiting") {  //read your condition from the record
                                     return ''; //affiche l'icone
                                 } else {
                                     return 'x-hide-display'; //cache l'icone
@@ -198,7 +210,8 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.retourFrsManager
                             scope: this,
                             handler: this.Response,
                             getClass: function (value, metadata, record) {
-                                if (!record.get('closed')) {  //read your condition from the record
+                                /* la reponse du fournisseur suit la validation : rien a saisir sur un retour en attente */
+                                if (!record.get('closed') && record.get('str_STATUT') !== 'is_Waiting') {  //read your condition from the record
                                     return ''; //affiche l'icone
                                 } else {
                                     return 'x-hide-display'; //cache l'icone

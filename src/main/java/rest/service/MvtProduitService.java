@@ -57,6 +57,8 @@ public interface MvtProduitService {
 
     JSONObject validerRetourFournisseur(Params params) throws JSONException;
 
+    JSONObject mettreRetourEnAttente(Params params) throws JSONException;
+
     TFamilleStock updateStock(TFamille tf, TEmplacement emplacementId, int qty, int ug);
 
     int updateStockReturnInitStock(TFamille tf, TEmplacement emplacementId, int qty, int ug);

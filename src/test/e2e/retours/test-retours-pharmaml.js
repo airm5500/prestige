@@ -127,7 +127,7 @@ function nettoyer() {
       /Retour fournisseur/.test(bulle) && ouvert.g && !/object/.test(ouvert.g), JSON.stringify(ouvert) + ' ' + bulle);
 
     /* deux lignes : produit casse (retour) et erreur de livraison (reclamation) */
-    await p.evaluate(() => Ext.getCmp('str_COMMENTAIRE').setValue('E2E-RETOUR-PML'));
+    await p.evaluate(() => { Ext.getCmp('str_COMMENTAIRE').setValue('E2E-RETOUR-PML'); });
     await ajouterLigne(produits[0][0], motif('PC'));
     await ajouterLigne(produits[1][0], motif('EL'));
     retourId = q("SELECT lg_RETOUR_FRS_ID FROM t_retour_fournisseur WHERE str_COMMENTAIRE = 'E2E-RETOUR-PML' LIMIT 1");
@@ -191,11 +191,11 @@ function nettoyer() {
     const mvtAvant = q("SELECT COUNT(*) FROM HMvtProduit WHERE lg_FAMILLE_ID = '" + produits[0][0] + "'");
     await p.evaluate(() => Ext.getCmp('gridpanelID').getStore().load({ params: { retourId: Ext.ComponentQuery.query('retourfournisseurmanagerlist')[0].idRetour() } }));
     await p.waitForTimeout(800);
+    /* retours du 13/10 (point 1) : la confirmation se fait dans le bouton (deux clics), plus de fenetre */
     await p.evaluate(() => { Ext.getCmp('btn_save').getEl().dom.id = 'e2e-valider'; });
     await p.click('#e2e-valider');
-    await p.waitForFunction(() => Ext.MessageBox.isVisible() && Ext.MessageBox.title === 'Confirmation', null, { timeout: 10000 });
-    await p.evaluate(() => { Ext.MessageBox.down('button[itemId=yes]').getEl().dom.id = 'e2e-oui2'; });
-    await p.click('#e2e-oui2');
+    await p.waitForFunction(() => /Confirmer/.test(Ext.getCmp('btn_save').getText()), null, { timeout: 10000 });
+    await p.click('#e2e-valider');
     for (let i = 0; i < 40 && q("SELECT str_STATUT FROM t_retour_fournisseur WHERE lg_RETOUR_FRS_ID = '" + retourId + "'") !== 'enable'; i++) { await p.waitForTimeout(500); }
     const apres = q("SELECT CONCAT(r.str_STATUT, '|', d.str_STATUT, '|', d.int_NUMBER_RETURN, '|', d.int_PML_QTE_DEMANDEE) FROM t_retour_fournisseur r JOIN t_retour_fournisseur_detail d ON d.lg_RETOUR_FRS_ID = r.lg_RETOUR_FRS_ID WHERE r.lg_RETOUR_FRS_ID = '" + retourId + "'");
     const stockApres = q("SELECT int_NUMBER_AVAILABLE FROM t_famille_stock WHERE lg_FAMILLE_ID = '" + produits[0][0] + "' AND lg_EMPLACEMENT_ID = '1'");

@@ -49,6 +49,45 @@ public class RetourFournisseurRessource {
     @EJB
     private rest.service.utils.ReportExcelExportService reportExcelExportService;
 
+    @Inject
+    private HttpServletRequest servletRequest;
+
+    private TUser utilisateur() {
+        HttpSession hs = servletRequest.getSession(false);
+        return hs == null ? null : (TUser) hs.getAttribute(util.Constant.AIRTIME_USER);
+    }
+
+    private boolean peutValider() {
+        HttpSession hs = servletRequest.getSession(false);
+        return hs != null && util.DateConverter.hasAuthorityByName(
+                (List<dal.TPrivilege>) hs.getAttribute(util.Constant.USER_LIST_PRIVILEGE),
+                util.DateConverter.P_VALIDER_RETOUR_FRS);
+    }
+
+    /* retours du 13/10 (point 1) : l'ecran sait s'il valide le retour ou s'il le met en attente */
+    @GET
+    @Path("droits")
+    public Response droits() throws org.json.JSONException {
+        if (utilisateur() == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(util.Constant.DECONNECTED_MESSAGE)).build();
+        }
+        return Response.ok()
+                .entity(new org.json.JSONObject().put("success", true).put("peutValider", peutValider()).toString())
+                .build();
+    }
+
+    /* retours du 13/10 (point 1) : sans le droit de validation, le retour est mis en attente ; rien ne sort du stock */
+    @POST
+    @Path("mettre-en-attente")
+    public Response mettreEnAttente(commonTasks.dto.Params params) throws org.json.JSONException {
+        TUser tu = utilisateur();
+        if (tu == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(util.Constant.DECONNECTED_MESSAGE)).build();
+        }
+        params.setOperateur(tu);
+        return Response.ok().entity(mvtProduitService.mettreRetourEnAttente(params).toString()).build();
+    }
+
     private String defaultDate(String date) {
         return org.apache.commons.lang3.StringUtils.isEmpty(date) ? java.time.LocalDate.now().toString() : date;
     }
@@ -222,7 +261,14 @@ public class RetourFournisseurRessource {
     @Path("full-bl/{id}")
     public Response returnFullBonLivraison(@PathParam("id") String id, RetourDetailsDTO params)
             throws CloneNotSupportedException {
-
+        /*
+         * retours du 13/10 (point 1) : le retour du bon complet sort aussitot du stock : reserve au droit de validation
+         */
+        if (!peutValider()) {
+            return Response.ok().entity(ResultFactory.getFailResult(
+                    "Vous n'avez pas le droit de valider un retour : saisissez-le ligne par ligne pour le mettre en attente"))
+                    .build();
+        }
         retourFournisseurService.returnFullBonLivraison(id, params.getLgMOTIFRETOUR());
 
         return Response.ok().entity(ResultFactory.getSuccessResultMsg()).build();

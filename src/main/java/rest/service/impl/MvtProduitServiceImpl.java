@@ -1132,12 +1132,57 @@ public class MvtProduitServiceImpl implements MvtProduitService {
 
     }
 
+    /** Statuts d'un retour qui n'est pas encore sorti du stock : en saisie ou en attente de validation. */
+    public static boolean retourAValider(String statut) {
+        return "is_Process".equals(statut) || RETOUR_EN_ATTENTE.equals(statut);
+    }
+
+    public static final String RETOUR_EN_ATTENTE = "is_Waiting";
+
+    @Override
+    public JSONObject mettreRetourEnAttente(Params params) throws JSONException {
+        JSONObject json = new JSONObject();
+        EntityManager emg = this.getEmg();
+        TRetourFournisseur fournisseur = emg.find(TRetourFournisseur.class, params.getRef());
+        if (fournisseur == null) {
+            return json.put("success", false).put("msg", "Retour introuvable");
+        }
+        if (!retourAValider(fournisseur.getStrSTATUT())) {
+            return json.put("success", false).put("msg", "Ce retour est déjà validé : rien n'a été modifié");
+        }
+        if (getTRetourFournisseurDetail(params.getRef()).isEmpty()) {
+            return json.put("success", false).put("msg", "Le retour ne contient aucun produit");
+        }
+        /* rien ne sort du stock : le retour attend qu'un profil autorise le valide */
+        fournisseur.setStrSTATUT(RETOUR_EN_ATTENTE);
+        fournisseur.setDtUPDATED(new Date());
+        fournisseur.setStrCOMMENTAIRE(params.getDescription());
+        fournisseur.setStrREPONSEFRS(params.getRefTwo());
+        emg.merge(fournisseur);
+        emg.flush();
+        emg.createNativeQuery(
+                "UPDATE t_retour_fournisseur SET dt_ATTENTE = NOW(), lg_USER_ATTENTE = ?1 WHERE lg_RETOUR_FRS_ID = ?2")
+                .setParameter(1, params.getOperateur().getLgUSERID()).setParameter(2, fournisseur.getLgRETOURFRSID())
+                .executeUpdate();
+        return json.put("success", true).put("msg", "Retour mis en attente de validation : rien n'est sorti du stock");
+    }
+
     @Override
     public JSONObject validerRetourFournisseur(Params params) throws JSONException {
         JSONObject json = new JSONObject();
         EntityManager emg = this.getEmg();
         try {
-            TRetourFournisseur fournisseur = emg.find(TRetourFournisseur.class, params.getRef());
+            /* verrou sur la ligne : deux validations simultanees ne destockent pas deux fois */
+            TRetourFournisseur fournisseur = emg.find(TRetourFournisseur.class, params.getRef(),
+                    javax.persistence.LockModeType.PESSIMISTIC_WRITE);
+            /*
+             * retours du 13/10 (point 1) : un retour ne sort du stock qu'une fois. Deja valide (ou supprime) : refus,
+             * rien n'est destocke une deuxieme fois.
+             */
+            if (fournisseur == null || !retourAValider(fournisseur.getStrSTATUT())) {
+                return json.put("success", false).put("msg", fournisseur == null ? "Retour introuvable"
+                        : "Ce retour est déjà validé : rien n'a été modifié");
+            }
             List<TRetourFournisseurDetail> details = getTRetourFournisseurDetail(params.getRef());
             DoubleAdder amount = new DoubleAdder();
             final TEmplacement empl = params.getOperateur().getLgEMPLACEMENTID();
@@ -1286,10 +1331,14 @@ public class MvtProduitServiceImpl implements MvtProduitService {
             CriteriaQuery<TRetourFournisseur> cq = cb.createQuery(TRetourFournisseur.class);
             Root<TRetourFournisseur> root = cq.from(TRetourFournisseur.class);
             cq.select(root).distinct(true);
-            predicates.add(cb.equal(root.get(TRetourFournisseur_.strSTATUT), STATUT_ENABLE));
+            /*
+             * retours du 13/10 (point 1) : la liste montre aussi les retours EN ATTENTE de validation, quelle que soit
+             * leur date (ils restent visibles tant qu'ils ne sont pas valides).
+             */
             Predicate btw = cb.between(cb.function("DATE", Date.class, root.get(TRetourFournisseur_.dtUPDATED)),
                     java.sql.Date.valueOf(dtStart), java.sql.Date.valueOf(dtEnd));
-            predicates.add(btw);
+            predicates.add(cb.or(cb.and(cb.equal(root.get(TRetourFournisseur_.strSTATUT), STATUT_ENABLE), btw),
+                    cb.equal(root.get(TRetourFournisseur_.strSTATUT), RETOUR_EN_ATTENTE)));
             if (!StringUtils.isEmpty(fourId)) {
                 predicates.add(
                         cb.equal(root.get(TRetourFournisseur_.lgGROSSISTEID).get(TGrossiste_.lgGROSSISTEID), fourId));

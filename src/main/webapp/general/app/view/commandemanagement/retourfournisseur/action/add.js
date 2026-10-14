@@ -577,7 +577,7 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.action.add', {
                             handler: this.envoyerPharmaMl
                         },
                         {
-                            text: 'Enregistrer',
+                            text: 'Valider le retour',
                             id: 'btn_save',
                             iconCls: 'icon-clear-group',
                             scope: this,
@@ -596,6 +596,8 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.action.add', {
                 }]
         });
         this.callParent();
+        Me.peutValider = null;
+        Me.chargerDroits();
         this.on('afterlayout', this.loadStore, this, {
             delay: 1,
             single: true
@@ -787,47 +789,77 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.action.add', {
 
         testextjs.app.getController('App').onLoadNewComponentWithDataSource('retourfrsmanager', "", "", "");
     },
-    onbtnvalider: function () {
-
-        Ext.MessageBox.confirm('Confirmation',
-                'Les quantites seront destockees du stock <br> Voulez vous continuer?',
-                function (btn) {
-                    if (btn == 'yes') {
-                        testextjs.app.getController('App').ShowWaitingProcess();
-                        let param = {"ref": Me.getCurrent(),
-                            "refTwo": Ext.getCmp('str_REPONSE_FRS').getValue(),
-                            "description": Ext.getCmp('str_COMMENTAIRE').getValue()
-                        };
-                        Ext.Ajax.request({
-                            method: 'POST',
-                            headers: {'Content-Type': 'application/json'},
-                            url: '../api/v1/produit/validerretourfour',
-                            params: Ext.JSON.encode(param),
-                            success: function (response)
-                            {
-                                Me.current = null;
-                                testextjs.app.getController('App').StopWaitingProcess();
-                                let object = Ext.JSON.decode(response.responseText, false);
-                                if (!object.success) {
-                                    Ext.MessageBox.alert('Error Message', object.msg);
-
-                                } else {
-                                    Ext.MessageBox.alert('Confirmation', object.msg);
-
-                                    const xtype = "retourfrsmanager";
-                                    testextjs.app.getController('App').onLoadNewComponentWithDataSource(xtype, "", "", "");
-                                }
-
-                            },
-                            failure: function (response)
-                            {
-                                testextjs.app.getController('App').StopWaitingProcess();
-
-                                Ext.MessageBox.alert('Error Message', response.responseText);
-                            }
-                        });
-                    }
-                });
+    /*
+     * retours du 13/10 (point 1) : un profil qui porte le droit P_VALIDER_RETOUR_FRS valide le retour (sortie du stock) ;
+     * sans ce droit, le retour est mis EN ATTENTE de validation (rien ne sort du stock). La confirmation se fait dans
+     * le bouton lui-meme (premier clic : « Confirmer… », second clic : envoi), le resultat s'affiche dans le bouton.
+     */
+    peutValider: null,
+    libelleEnregistrer: function () {
+        return Me.peutValider === false ? 'Mettre en attente de validation' : 'Valider le retour';
+    },
+    chargerDroits: function () {
+        Ext.Ajax.request({
+            method: 'GET',
+            url: '../api/v1/retourfournisseur/droits',
+            success: function (response) {
+                var r = Ext.JSON.decode(response.responseText, true) || {};
+                Me.peutValider = r.peutValider === true;
+                var b = Ext.getCmp('btn_save');
+                if (b && !b.isDestroyed && !b.arme && !b.isDisabled()) {
+                    b.setText(Me.libelleEnregistrer());
+                    b.setTooltip(Me.peutValider ? 'Les quantités sortent du stock'
+                            : 'Le retour attend qu\'un profil autorisé le valide : rien ne sort du stock en attendant');
+                }
+            }
+        });
+    },
+    onbtnvalider: function (b) {
+        b = b || Ext.getCmp('btn_save');
+        if (!b.arme) {
+            b.arme = true;
+            b.setText(Me.peutValider === false ? 'Confirmer la mise en attente' : 'Confirmer : les quantités sortent du stock');
+            b.addCls('pr-fini-ko');
+            b.minuteur = setTimeout(function () {
+                if (!b.isDestroyed && b.arme) {
+                    b.arme = false;
+                    b.removeCls('pr-fini-ko');
+                    b.setText(Me.libelleEnregistrer());
+                }
+            }, 6000);
+            return;
+        }
+        clearTimeout(b.minuteur);
+        b.arme = false;
+        b.removeCls('pr-fini-ko');
+        b.setText(Me.libelleEnregistrer());
+        var valider = Me.peutValider !== false;
+        var fin = PrestigeChargement.occuper(b, valider ? 'Validation du retour' : 'Mise en attente');
+        var param = {"ref": Me.idRetour(),
+            "refTwo": Ext.getCmp('str_REPONSE_FRS').getValue(),
+            "description": Ext.getCmp('str_COMMENTAIRE').getValue()
+        };
+        Ext.Ajax.request({
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            url: valider ? '../api/v1/produit/validerretourfour' : '../api/v1/retourfournisseur/mettre-en-attente',
+            params: Ext.JSON.encode(param),
+            success: function (response) {
+                var object = Ext.JSON.decode(response.responseText, true) || {};
+                if (!object.success) {
+                    fin(object.msg || 'Échec de l\'opération', false);
+                    return;
+                }
+                Me.current = null;
+                fin(valider ? 'Retour validé' : 'Retour mis en attente de validation', true);
+                setTimeout(function () {
+                    testextjs.app.getController('App').onLoadNewComponentWithDataSource('retourfrsmanager', "", "", "");
+                }, 1200);
+            },
+            failure: function (response) {
+                fin('Le serveur n\'a pas répondu (' + response.status + ')', false);
+            }
+        });
     },
     onbtnadd: function () {
 
