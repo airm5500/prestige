@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Prestige Veille</title>
+    <link rel="stylesheet" href="veille.css">
+</head>
+<body>
+<div id="connexion" class="ecran-connexion" hidden>
+    <form id="formConnexion" class="carte-connexion" autocomplete="on">
+        <h1>Prestige Veille</h1>
+        <p class="sous-titre">Surveillance de Prestige, indépendante de Prestige</p>
+        <label>Identifiant <input id="login" name="login" autocomplete="username" required></label>
+        <label>Mot de passe <input id="motDePasse" name="motDePasse" type="password" autocomplete="current-password" required></label>
+        <button type="submit">Se connecter</button>
+        <p id="erreurConnexion" class="erreur" role="alert"></p>
+    </form>
+</div>
+
+<div id="changement" class="ecran-connexion" hidden>
+    <form id="formChangement" class="carte-connexion">
+        <h1>Nouveau mot de passe</h1>
+        <p class="sous-titre">La veille est consultable depuis le réseau : le mot de passe par défaut doit être changé avant tout accès.</p>
+        <label>Mot de passe actuel <input id="mdpActuel" type="password" autocomplete="current-password" required></label>
+        <label>Nouveau mot de passe (8 caractères au moins) <input id="mdpNouveau" type="password" autocomplete="new-password" minlength="8" required></label>
+        <button type="submit">Enregistrer</button>
+        <p id="erreurChangement" class="erreur" role="alert"></p>
+    </form>
+</div>
+
+<div id="application" hidden>
+    <header class="entete">
+        <div class="marque"><span class="pastille" id="pastilleGlobale"></span> Prestige Veille</div>
+        <nav class="onglets" id="onglets">
+            <button data-onglet="ensemble" class="actif">Vue d'ensemble</button>
+            <button data-onglet="courbes">Courbes</button>
+            <button data-onglet="experience">Expérience utilisateur</button>
+            <button data-onglet="incidents">Incidents</button>
+            <button data-onglet="actions">Actions</button>
+            <button data-onglet="journal">Journal</button>
+            <button data-onglet="reglages">Réglages</button>
+        </nav>
+        <div class="droite">
+            <span id="derniereSonde" class="discret"></span>
+            <button id="sonder" class="secondaire" title="Lancer toutes les sondes maintenant">Sonder</button>
+            <button id="deconnexion" class="secondaire">Déconnexion</button>
+        </div>
+    </header>
+
+    <main>
+        <section id="onglet-ensemble" class="onglet">
+            <div id="bandeauIncidents"></div>
+            <div id="tuiles" class="tuiles"></div>
+            <h2>Disponibilité sur 24 heures</h2>
+            <table class="tableau" id="disponibilite"><thead><tr><th>Élément surveillé</th><th>Disponibilité</th><th>Temps de réponse moyen</th><th>Mesures</th></tr></thead><tbody></tbody></table>
+        </section>
+
+        <section id="onglet-courbes" class="onglet" hidden>
+            <div class="filtres">
+                <label>Élément <select id="cibleCourbes"></select></label>
+                <label>Période <select id="periodeCourbes">
+                    <option value="1">1 heure</option><option value="6">6 heures</option><option value="24" selected>24 heures</option>
+                    <option value="168">7 jours</option><option value="720">30 jours</option></select></label>
+            </div>
+            <div id="courbes" class="grille-courbes"></div>
+        </section>
+
+        <section id="onglet-experience" class="onglet" hidden>
+            <div class="filtres">
+                <label>Période <select id="periodeExperience">
+                    <option value="1">1 heure</option><option value="6">6 heures</option><option value="24" selected>24 heures</option>
+                    <option value="168">7 jours</option></select></label>
+                <span class="discret">Ce que vivent les utilisateurs de Prestige : temps d'ouverture des écrans et des appels au serveur, erreurs.
+                    Le détail par écran et par poste est dans Prestige &gt; Centre de support &gt; Stabilité du serveur &gt; Expérience utilisateur.</span>
+            </div>
+            <div id="courbesExperience" class="grille-courbes"></div>
+        </section>
+
+        <section id="onglet-incidents" class="onglet" hidden>
+            <div class="filtres"><label>Période <select id="periodeIncidents"><option value="1">24 heures</option><option value="7" selected>7 jours</option>
+                <option value="30">30 jours</option><option value="90">90 jours</option></select></label></div>
+            <table class="tableau" id="incidents"><thead><tr><th>Début</th><th>Fin</th><th>Durée</th><th>Élément</th><th>Nature</th><th>Message</th></tr></thead><tbody></tbody></table>
+        </section>
+
+        <section id="onglet-actions" class="onglet" hidden>
+            <div class="actions">
+                <div class="carte-action">
+                    <h3>Vider le pool de connexions</h3>
+                    <p>Jette les connexions de Prestige à la base et les remplace. À utiliser quand Prestige répond mais que les données ne s'affichent plus. Sans risque pour les ventes enregistrées.</p>
+                    <button data-action="vider-pool" data-confirmer="Confirmer le vidage du pool">Vider le pool</button>
+                </div>
+                <div class="carte-action">
+                    <h3>Redémarrer le service Payara</h3>
+                    <p>Arrête puis redémarre Prestige sur le serveur (1 à 3 minutes). Les caisses perdent leur écran le temps du redémarrage : à faire hors encaissement si possible.</p>
+                    <button data-action="redemarrer-payara" data-confirmer="Confirmer le redémarrage maintenant" class="danger">Redémarrer Payara</button>
+                </div>
+                <div class="carte-action">
+                    <h3>Tester les alertes</h3>
+                    <p>Envoie une alerte d'essai par les canaux activés (écran du serveur, e-mail).</p>
+                    <button data-action="tester-alerte">Envoyer une alerte d'essai</button>
+                </div>
+            </div>
+            <p id="resultatAction" class="resultat" role="status"></p>
+            <p class="discret" id="etatRedemarrageAuto"></p>
+        </section>
+
+        <section id="onglet-journal" class="onglet" hidden>
+            <table class="tableau" id="journal"><thead><tr><th>Date</th><th>Par</th><th>Action</th><th>Résultat</th></tr></thead><tbody></tbody></table>
+        </section>
+
+        <section id="onglet-reglages" class="onglet" hidden>
+            <form id="formReglages"></form>
+            <div class="barre-bas"><button id="enregistrerReglages">Enregistrer</button> <span id="resultatReglages" class="resultat"></span></div>
+        </section>
+    </main>
+</div>
+<div id="infobulle" class="infobulle" hidden></div>
+<script src="veille.js"></script>
+</body>
+</html>

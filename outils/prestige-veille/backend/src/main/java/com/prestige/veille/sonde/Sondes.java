@@ -122,7 +122,9 @@ public class Sondes {
                 m.detail = "HTTP " + rep.statusCode();
                 return m;
             }
-            if (!jeton.isEmpty()) {
+            if (jeton.isEmpty()) {
+                m.detail = "Jeton de veille non renseigné (Réglages) : seule la disponibilité est mesurée";
+            } else {
                 JsonNode o = json.readTree(rep.body());
                 double max = o.path("memoireMaxMo").asDouble(0);
                 m.memoirePct = max > 0 ? o.path("memoireMo").asDouble(0) * 100 / max : null;
@@ -182,7 +184,7 @@ public class Sondes {
         } catch (Exception e) {
             m.ok = false;
             m.ms = (int) ((System.nanoTime() - t) / 1_000_000);
-            m.detail = "Connexion impossible (" + e.getClass().getSimpleName() + ")";
+            m.detail = Regles.erreurMariadb(e instanceof java.sql.SQLException q ? q.getSQLState() : null, e.getClass().getSimpleName());
         }
         return m;
     }

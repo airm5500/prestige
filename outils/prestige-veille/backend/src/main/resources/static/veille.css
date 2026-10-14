@@ -1,0 +1,83 @@
+:root {
+    --fond: #f3f5f8; --carte: #fff; --texte: #1b2631; --discret: #5d6d7e; --bord: #d5dbe1;
+    --bleu: #1f6fb2; --vert: #1e8449; --orange: #d68910; --rouge: #c0392b; --violet: #7d3c98;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; font-family: "Segoe UI", Roboto, Arial, sans-serif; background: var(--fond); color: var(--texte); font-size: 14px; }
+button { font: inherit; border: 0; border-radius: 6px; padding: 7px 14px; background: var(--bleu); color: #fff; cursor: pointer; }
+button:hover { filter: brightness(1.08); }
+button.secondaire { background: #e8eef5; color: var(--bleu); }
+button.danger { background: var(--rouge); }
+button.confirmer { background: var(--rouge) !important; color: #fff !important; }
+input, select, textarea { font: inherit; padding: 6px 8px; border: 1px solid var(--bord); border-radius: 6px; background: #fff; }
+.erreur { color: var(--rouge); min-height: 1.2em; }
+.discret { color: var(--discret); font-size: 12px; }
+.resultat { color: var(--bleu); font-weight: 600; }
+
+.ecran-connexion { display: flex; min-height: 100vh; align-items: center; justify-content: center; background: linear-gradient(135deg, #154360, #1f6fb2); }
+.carte-connexion { background: #fff; padding: 28px 32px; border-radius: 12px; width: 380px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 10px 30px rgba(0,0,0,.25); }
+.carte-connexion h1 { margin: 0; font-size: 22px; color: var(--bleu); }
+.carte-connexion label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--discret); }
+.sous-titre { margin: 0 0 6px; color: var(--discret); font-size: 13px; }
+
+.entete { display: flex; align-items: center; gap: 18px; padding: 8px 18px; background: #154360; color: #fff; position: sticky; top: 0; z-index: 2; flex-wrap: wrap; }
+.marque { font-weight: 700; font-size: 17px; display: flex; align-items: center; gap: 8px; }
+.pastille { width: 12px; height: 12px; border-radius: 50%; background: #95a5a6; display: inline-block; }
+.pastille.ok { background: #2ecc71; } .pastille.ko { background: #e74c3c; animation: clignote 1s infinite; } .pastille.attention { background: #f39c12; }
+@keyframes clignote { 50% { opacity: .35; } }
+.onglets { display: flex; gap: 4px; flex-wrap: wrap; }
+.onglets button { background: transparent; color: #d6eaf8; }
+.onglets button.actif { background: #fff; color: #154360; font-weight: 600; }
+.entete .droite { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.entete .discret { color: #aed6f1; }
+main { padding: 16px 18px 40px; }
+h2 { font-size: 15px; margin: 22px 0 8px; color: #154360; }
+
+.tuiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+.tuile { background: var(--carte); border: 1px solid var(--bord); border-left: 6px solid var(--vert); border-radius: 10px; padding: 12px 14px; cursor: pointer; }
+.tuile:hover { box-shadow: 0 2px 10px rgba(0,0,0,.1); }
+.tuile.ko { border-left-color: var(--rouge); } .tuile.attention { border-left-color: var(--orange); }
+.tuile .nom { font-weight: 700; display: flex; justify-content: space-between; }
+.tuile .etat { font-size: 12px; font-weight: 700; color: var(--vert); } .tuile.ko .etat { color: var(--rouge); } .tuile.attention .etat { color: var(--orange); }
+.tuile .valeurs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; margin-top: 8px; font-size: 12px; color: var(--discret); }
+.tuile .valeurs b { color: var(--texte); font-size: 14px; }
+.tuile .detail { margin-top: 6px; font-size: 12px; color: var(--discret); }
+.tuile.ko .detail, .tuile.attention .detail { color: var(--rouge); }
+
+.bandeau { background: #fdecea; border: 1px solid #f5b7b1; color: #7b241c; padding: 10px 14px; border-radius: 8px; margin-bottom: 12px; }
+.bandeau.calme { background: #e9f7ef; border-color: #a9dfbf; color: #145a32; }
+
+.tableau { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; }
+.tableau th { text-align: left; background: #eaf2f8; color: #154360; font-size: 12px; text-transform: uppercase; letter-spacing: .3px; padding: 8px 10px; }
+.tableau td { border-top: 1px solid #eef1f4; padding: 7px 10px; vertical-align: top; }
+.tableau tr.ouvert td { background: #fdf2f0; }
+.badge { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 11px; font-weight: 700; }
+.badge.CRITIQUE { background: #fadbd8; color: var(--rouge); } .badge.ATTENTION { background: #fdebd0; color: var(--orange); }
+
+.filtres { display: flex; gap: 14px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+.grille-courbes { display: grid; grid-template-columns: repeat(auto-fill, minmax(520px, 1fr)); gap: 14px; }
+.courbe { background: #fff; border: 1px solid var(--bord); border-radius: 10px; padding: 10px 12px; }
+.courbe h3 { margin: 0 0 4px; font-size: 13px; color: #154360; display: flex; justify-content: space-between; }
+.courbe h3 span { color: var(--discret); font-weight: 400; }
+.courbe svg { width: 100%; height: 180px; display: block; }
+.courbe .vide { color: var(--discret); padding: 60px 0; text-align: center; }
+.infobulle { position: fixed; pointer-events: none; background: #1b2631; color: #fff; padding: 5px 8px; border-radius: 5px; font-size: 12px; z-index: 10; }
+
+.actions { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+.carte-action { background: #fff; border: 1px solid var(--bord); border-radius: 10px; padding: 14px 16px; }
+.carte-action h3 { margin: 0 0 6px; font-size: 15px; }
+.carte-action p { color: var(--discret); font-size: 13px; }
+
+#formReglages fieldset { border: 1px solid var(--bord); border-radius: 10px; background: #fff; margin: 0 0 14px; padding: 10px 14px; }
+#formReglages legend { font-weight: 700; color: #154360; padding: 0 6px; }
+#formReglages .ligne { display: grid; grid-template-columns: 380px 1fr; gap: 12px; align-items: center; padding: 5px 0; }
+#formReglages .ligne label { font-size: 13px; color: var(--discret); }
+#formReglages textarea { min-height: 70px; width: 100%; }
+#formReglages input { width: 100%; }
+.barre-bas { position: sticky; bottom: 0; background: var(--fond); padding: 10px 0; }
+
+@media (max-width: 720px) {
+    .grille-courbes { grid-template-columns: 1fr; }
+    #formReglages .ligne { grid-template-columns: 1fr; }
+}

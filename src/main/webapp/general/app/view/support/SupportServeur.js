@@ -37,6 +37,7 @@ Ext.define('testextjs.view.support.SupportServeur', {
                 me.chargerArrets();
             } else if (t.itemId === 'ongletReglages') {
                 me.chargerReglages();
+                me.etatJetonVeille();
             } else if (t.itemId === 'ongletExperience') {
                 me.chargerExperience();
             } else if (t.itemId === 'ongletLexique') {
@@ -75,7 +76,9 @@ Ext.define('testextjs.view.support.SupportServeur', {
                 + '.srv-lex-groupe{margin:16px 0 6px;color:#1f6fb2;font-size:15px}'
                 + '.srv-lex{border:1px solid #d5dbe1;border-left:5px solid #1f6fb2;border-radius:8px;background:#fff;padding:10px 12px;margin-bottom:10px;line-height:1.55}'
                 + '.srv-lex>div{margin-top:3px}.srv-lex-terme{font-weight:bold;font-size:14px;color:#1b2631}'
-                + '.srv-lex-ici{background:#f4f6f8;border-radius:4px;padding:1px 6px;margin-left:6px}', 'srv-styles');
+                + '.srv-lex-ici{background:#f4f6f8;border-radius:4px;padding:1px 6px;margin-left:6px}'
+                + '.srv-confirmer,.srv-confirmer .x-btn-inner{background:#c0392b !important;color:#fff !important}'
+                + '.srv-jeton{font-family:Consolas,monospace;background:#f4f6f8;padding:2px 6px;border-radius:4px;user-select:all}', 'srv-styles');
     },
 
     esc: function (v) {
@@ -355,6 +358,12 @@ Ext.define('testextjs.view.support.SupportServeur', {
                 {text: 'Recalculer', iconCls: 'fa fa-refresh', handler: function () {
                         me.enregistrerPostes();
                     }},
+                '-', {itemId: 'jetonVeille', text: 'Jeton Prestige Veille', iconCls: 'fa fa-key',
+                    tooltip: 'Prestige Veille (outil de surveillance installé sur le serveur) lit l\'état de Prestige avec ce jeton.',
+                    handler: function (b) {
+                        me.genererJetonVeille(b);
+                    }},
+                {xtype: 'tbtext', itemId: 'etatJetonVeille', text: ''},
                 '->', {xtype: 'tbtext', itemId: 'machineReglages', text: ''}],
             items: [
                 {xtype: 'gridpanel', itemId: 'reglages', flex: 3, columnLines: true,
@@ -473,6 +482,67 @@ Ext.define('testextjs.view.support.SupportServeur', {
                     + '</div>';
         });
         me.down('#lexique').update(html);
+    },
+
+    /* Prestige Veille : nouveau jeton, confirme dans le bouton (l'ancien cesse de fonctionner), affiche une seule fois */
+    etatJetonVeille: function () {
+        var me = this;
+        me.appel('GET', 'veille-jeton', null, function (r) {
+            var t = me.down('#etatJetonVeille');
+            if (t && r.success) {
+                t.update(r.configure ? '<span class="srv-ok">renseigné</span>' : '<span class="srv-ajuster">non renseigné</span>');
+            }
+        });
+    },
+
+    genererJetonVeille: function (b) {
+        var me = this;
+        if (!b.arme) {
+            b.arme = true;
+            b.setText(me.etatJetonVeilleConfigure() ? 'Confirmer : l\'ancien jeton cessera de fonctionner' : 'Confirmer la création du jeton');
+            b.addCls('srv-confirmer');
+            b.minuteur = setTimeout(function () {
+                if (!b.isDestroyed) {
+                    b.arme = false;
+                    b.setText('Jeton Prestige Veille');
+                    b.removeCls('srv-confirmer');
+                }
+            }, 6000);
+            return;
+        }
+        clearTimeout(b.minuteur);
+        b.arme = false;
+        b.setText('Jeton Prestige Veille');
+        b.removeCls('srv-confirmer');
+        me.appel('POST', 'veille-jeton', {}, function (r) {
+            var e = me.down('#etatReglages');
+            if (!r.success) {
+                e.update('<span class="srv-critique">' + me.esc(r.message) + '</span>');
+                return;
+            }
+            e.update('Jeton de Prestige Veille : <code class="srv-jeton" id="srvJetonVeille">' + me.esc(r.jeton) + '</code> '
+                    + '<a href="#" class="srv-copier-jeton">Copier</a><br>À coller dans Prestige Veille &gt; Réglages &gt; « Jeton de veille ». '
+                    + 'Il ne sera plus affiché : en cas de perte, en créer un nouveau.');
+            var a = e.getEl().down('.srv-copier-jeton');
+            a.on('click', function (ev) {
+                ev.preventDefault();
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(r.jeton).then(function () {
+                        a.update('Copié');
+                    }, function () {
+                        a.update('Sélectionner le jeton puis Ctrl+C');
+                    });
+                } else {
+                    a.update('Sélectionner le jeton puis Ctrl+C');
+                }
+            });
+            me.etatJetonVeille();
+        });
+    },
+
+    etatJetonVeilleConfigure: function () {
+        var t = this.down('#etatJetonVeille');
+        return !!(t && t.getEl() && /renseigné/.test(t.getEl().dom.textContent) && !/non renseigné/.test(t.getEl().dom.textContent));
     },
 
     enregistrerPostes: function () {

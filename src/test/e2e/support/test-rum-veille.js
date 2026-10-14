@@ -5,6 +5,8 @@
  *  - SUPPORT_RUM_ACTIF = 0 : le navigateur cesse d'envoyer ;
  *  - v1/support/veille : ferme si le jeton est vide en base, refuse sans jeton ou avec un mauvais jeton, repond avec
  *    le bon jeton (memoire, pool, base) et sans aucune donnee de vente ou de client ;
+ *  - jeton cree par l'ecran (Reglages conseilles) : confirmation dans le bouton, affiche une fois, l'ancien refuse,
+ *    absent du journal du serveur ;
  *  - aucune fenetre, aucune erreur JavaScript ; parametres et mesures du test remis.
  */
 const { chromium } = require('playwright-core');
@@ -76,6 +78,25 @@ const JETON = 'E2E-VEILLE-' + Date.now();
     const o = JSON.parse(v.corps);
     ok('Veille : bon jeton, sans session -> mémoire, pool, base, expérience utilisateur', v.status === 200 && o.memoireMaxMo > 0 && o.poolMs >= 0 && o.bddConnexions > 0 && Array.isArray(o.rum), v.corps.slice(0, 200));
     ok('Veille : aucune donnée de vente ou de client', !/client|vente|montant|patient/i.test(Object.keys(o).join(' ')), Object.keys(o).join(','));
+
+    /* jeton cree par l'ecran (Stabilite du serveur > Reglages conseilles), confirmation dans le bouton */
+    const clic = async (sel) => { const id = await p.evaluate((sel) => Ext.ComponentQuery.query(sel)[0].getEl().id, sel); await p.click('#' + id); };
+    await p.click('.supportserveur .x-tab:has-text("Réglages conseillés")');
+    await p.waitForFunction(() => /renseigné/.test(Ext.ComponentQuery.query('supportserveur #etatJetonVeille')[0].getEl().dom.textContent), null, { timeout: 30000 });
+    ok('Réglages : jeton de veille indiqué « renseigné » sans afficher sa valeur', await p.evaluate(() => Ext.ComponentQuery.query('supportserveur #etatJetonVeille')[0].getEl().dom.textContent) === 'renseigné'
+      && (await p.content()).indexOf(JETON) < 0);
+    await clic('supportserveur #jetonVeille');
+    const texte = await p.evaluate(() => Ext.ComponentQuery.query('supportserveur #jetonVeille')[0].getText());
+    ok('Nouveau jeton : confirmation dans le bouton (l\'ancien cessera de fonctionner)', /Confirmer : l'ancien jeton cessera de fonctionner/.test(texte), texte);
+    ok('Rien n\'est changé avant la confirmation', q("SELECT str_VALUE FROM t_parameters WHERE str_KEY = 'SUPPORT_VEILLE_JETON'") === JETON);
+    await clic('supportserveur #jetonVeille');
+    await p.waitForSelector('#srvJetonVeille', { timeout: 15000 });
+    const nouveau = (await p.textContent('#srvJetonVeille')).trim();
+    ok('Jeton affiché une fois, aléatoire (43 caractères), avec la marche à suivre', /^[A-Za-z0-9_-]{43}$/.test(nouveau) && /Prestige Veille > Réglages > « Jeton de veille »/.test(await p.evaluate(() => document.getElementById('srvJetonVeille').parentNode.textContent)), nouveau.length);
+    const nv = await appel(nouveau), ancien = await appel(JETON);
+    ok('Le nouveau jeton ouvre la veille, l\'ancien est refusé', nv.status === 200 && ancien.status === 403, nv.status + ' ' + ancien.status);
+    const log = execFileSync('sh', ['-c', 'tail -c 2000000 /opt/payara5/glassfish/domains/domain1/logs/server.log'], { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 });
+    ok('Jeton absent du journal du serveur (seul l\'auteur est noté)', log.indexOf(nouveau) < 0 && /Jeton de Prestige Veille renouvele par admin/.test(log));
     ok('Aucune fenêtre, aucune erreur JavaScript', dialogues.length === 0 && err.length === 0, dialogues.concat(err).join(' | '));
   } catch (e) {
     ok('Exécution sans exception', false, e.stack);

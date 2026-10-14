@@ -53,4 +53,11 @@ class ReglesTest {
         assertEquals("STOPPED", Regles.etatService("NOM_SERVICE : MariaDB\n        ÉTAT               : 1  STOPPED\n"));
         assertNull(Regles.etatService("[SC] OpenService a échoué 1060 :"));
     }
+
+    @Test
+    void messagesMariadb() {
+        assertTrue(Regles.erreurMariadb("28000", "SQLInvalidAuthorizationSpecException").startsWith("Identifiant ou mot de passe MariaDB refusé"));
+        assertTrue(Regles.erreurMariadb("08000", "SQLNonTransientConnectionException").startsWith("MariaDB injoignable"));
+        assertEquals("Connexion impossible (SQLException)", Regles.erreurMariadb(null, "SQLException"));
+    }
 }

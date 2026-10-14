@@ -250,4 +250,36 @@ public class SupportServeurRessource {
         vie.enregistrerParametre("SUPPORT_SERVEUR_POSTES", String.valueOf(p));
         return ok(new JSONObject().put("postes", p));
     }
+
+    /** Prestige Veille : le jeton est-il renseigne ? (sa valeur n'est jamais relue). */
+    @GET
+    @Path("veille-jeton")
+    public Response veilleJeton() {
+        Response r = controle();
+        if (r != null) {
+            return r;
+        }
+        return ok(new JSONObject().put("configure",
+                StringUtils.isNotBlank(supportEventService.getParameter("SUPPORT_VEILLE_JETON"))));
+    }
+
+    /**
+     * Prestige Veille : nouveau jeton (aleatoire, 32 octets), renvoye UNE fois pour etre colle dans les reglages de la
+     * veille ; l'ancien cesse aussitot de fonctionner. La valeur n'est ni journalisee ni relisible.
+     */
+    @POST
+    @Path("veille-jeton")
+    public Response genererVeilleJeton() {
+        Response r = controle();
+        if (r != null) {
+            return r;
+        }
+        byte[] b = new byte[32];
+        new java.security.SecureRandom().nextBytes(b);
+        String jeton = java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(b);
+        vie.enregistrerParametre("SUPPORT_VEILLE_JETON", jeton);
+        LOG.info(() -> "Jeton de Prestige Veille renouvele par "
+                + ((TUser) servletRequest.getSession(false).getAttribute(commonparameter.AIRTIME_USER)).getStrLOGIN());
+        return ok(new JSONObject().put("jeton", jeton));
+    }
 }

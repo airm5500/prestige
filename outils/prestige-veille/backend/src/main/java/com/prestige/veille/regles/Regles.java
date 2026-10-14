@@ -89,4 +89,15 @@ public final class Regles {
         }
         return null;
     }
+
+    /** Message lisible d'un echec de connexion a MariaDB (etat SQL : 28000 = acces refuse, 08xxx = injoignable). */
+    public static String erreurMariadb(String etatSql, String classe) {
+        if (etatSql != null && etatSql.startsWith("28")) {
+            return "Identifiant ou mot de passe MariaDB refusé : à saisir dans Réglages > MariaDB";
+        }
+        if (etatSql != null && etatSql.startsWith("08")) {
+            return "MariaDB injoignable : service arrêté ou adresse incorrecte";
+        }
+        return "Connexion impossible (" + classe + ")";
+    }
 }
