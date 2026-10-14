@@ -328,7 +328,12 @@ public class ErpRessource {
     @PUT
     @Path("ws/inventaires/details")
     public Response updateDetailQuantity(UpdateInventaireDetailDTO updateInventaire) {
-        inventaireService.updateDetailQuantity(updateInventaire);
-        return Response.ok().build();
+        org.json.JSONObject r = inventaireService.updateDetailQuantity(updateInventaire);
+        int status = r.optInt("status", 200);
+        if (status == 200) {
+            return Response.ok().build(); // reponse d'origine (vide) : les terminaux n'en attendent pas d'autre
+        }
+        return Response.status(status).type("application/json").entity(new org.json.JSONObject().put("success", 0)
+                .put("code", r.optString("code")).put("message", r.optString("message")).toString()).build();
     }
 }

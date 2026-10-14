@@ -42,7 +42,7 @@ public interface InventaireService {
 
     List<DetailInventaireDTO> fetchDetailsAllEcarts(String idInventaire, String query, Integer page, Integer maxResult);
 
-    void updateDetailQuantity(UpdateInventaireDetailDTO updateInventaire);
+    org.json.JSONObject updateDetailQuantity(UpdateInventaireDetailDTO updateInventaire);
 
     void refreshStockLigneInventaire(String inventaireId);
 

@@ -446,6 +446,11 @@ public class InventaireServiceImpl implements InventaireService {
             // L'ancienne page partait en erreur technique dans ce cas ; on rend un refus lisible.
             return json.put("success", 0).put("errors", "Cette ligne d'inventaire n'existe plus.");
         }
+        String cloture = refusInventaireCloture(ligne);
+        if (cloture != null) {
+            // forme de cette route : 200 + success 0 (404/405 y voudrait dire « route absente » pour les terminaux)
+            return json.put("success", 0).put("code", "INVENTAIRE_CLOTURE").put("errors", cloture);
+        }
         ligne.setIntNUMBER(quantite);
         ligne.setDtUPDATED(new Date());
         // Auteur de la saisie. La colonne restait vide sur ce chemin, ce qui privait le filtre
@@ -714,11 +719,56 @@ public class InventaireServiceImpl implements InventaireService {
         return json.put("success", 1).put("errors", "Article retire de l'inventaire.");
     }
 
+    /**
+     * Saisie d'une quantite par les terminaux d'inventaire (PUT ws/inventaires/details). Demandes des applications
+     * mobiles (8, 27) : ligne inconnue -> 404 lisible (avant : NullPointerException, erreur 500) ; inventaire clos ->
+     * 409, rien d'ecrit (avant : la quantite d'un inventaire clos etait modifiee) ; quantite absente ou negative -> 400
+     * ; auteur de la saisie enregistre (la colonne restait vide sur ce chemin).
+     *
+     * @return {status: code HTTP, code, message} ; status 200 : enregistre
+     */
     @Override
-    public void updateDetailQuantity(UpdateInventaireDetailDTO updateInventaire) {
-        TInventaireFamille inventaireFamille = em.find(TInventaireFamille.class, updateInventaire.getId());
+    public JSONObject updateDetailQuantity(UpdateInventaireDetailDTO updateInventaire) {
+        JSONObject r = new JSONObject();
+        if (updateInventaire == null || updateInventaire.getQuantite() == null || updateInventaire.getQuantite() < 0) {
+            return r.put("status", 400).put("code", "QUANTITE_INVALIDE").put("message", "Quantité invalide.");
+        }
+        TInventaireFamille inventaireFamille = updateInventaire.getId() == null ? null
+                : em.find(TInventaireFamille.class, updateInventaire.getId());
+        if (inventaireFamille == null) {
+            return r.put("status", 404).put("code", "LIGNE_INCONNUE").put("message",
+                    "Cette ligne d'inventaire n'existe plus.");
+        }
+        String cloture = refusInventaireCloture(inventaireFamille);
+        if (cloture != null) {
+            return r.put("status", 409).put("code", "INVENTAIRE_CLOTURE").put("message", cloture);
+        }
         inventaireFamille.setIntNUMBER(updateInventaire.getQuantite());
         inventaireFamille.setDtUPDATED(new Date());
+        try {
+            TUser auteur = sessionHelperService.getCurrentUser();
+            if (auteur != null) {
+                inventaireFamille.setStrUPDATEDID(auteur.getLgUSERID());
+            }
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "updateDetailQuantity : auteur non identifie", e);
+        }
+        return r.put("status", 200);
+    }
+
+    /** Motif du refus de saisir sur cette ligne (null : l'inventaire est ouvert). */
+    private static String refusInventaireCloture(TInventaireFamille ligne) {
+        TInventaire inv = ligne.getLgINVENTAIREID();
+        boolean clos = Constant.STATUT_IS_CLOSED.equals(ligne.getStrSTATUT())
+                || (inv != null && (Constant.STATUT_IS_CLOSED.equals(inv.getStrSTATUT())
+                        || Constant.STATUT_DELETE.equals(inv.getStrSTATUT())));
+        if (!clos) {
+            return null;
+        }
+        String date = inv == null || inv.getDtUPDATED() == null ? ""
+                : " le " + new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm").format(inv.getDtUPDATED());
+        return "Inventaire « " + (inv == null ? "" : inv.getStrNAME()) + " » clôturé" + date
+                + " : la quantité n'a pas été enregistrée.";
     }
 
     private String buildQuery(String userId, String sql) {
