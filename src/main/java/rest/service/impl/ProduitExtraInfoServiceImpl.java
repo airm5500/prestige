@@ -225,18 +225,21 @@ public class ProduitExtraInfoServiceImpl implements ProduitExtraInfoService {
             + "f.bool_RESERVE, f.int_SEUIL_RESERVE, f.int_SEUIL_MINI_RAYON FROM t_famille f "
             + "LEFT JOIN t_classe_abc c ON c.lg_CLASSE_ABC_ID = f.lg_CLASSE_ABC_ID WHERE f.lg_FAMILLE_ID IN (:ids)";
 
-    /** Derniere vente cloturee par produit et emplacement du vendeur, et quantite totale vendue ce jour-la. */
-    private static final String REQ_VENTES = "SELECT m.f, m.e, m.dmax, (SELECT COALESCE(SUM(d.int_QUANTITY), 0) "
-            + "FROM t_preenregistrement_detail d "
-            + "JOIN t_preenregistrement v ON v.lg_PREENREGISTREMENT_ID = d.lg_PREENREGISTREMENT_ID "
-            + "JOIN t_user u ON u.lg_USER_ID = v.lg_USER_ID WHERE d.lg_FAMILLE_ID = m.f AND v.str_STATUT = 'is_Closed' "
-            + "AND u.lg_EMPLACEMENT_ID = m.e AND DATE(v.dt_UPDATED) = DATE(m.dmax)) FROM ("
-            + "SELECT d.lg_FAMILLE_ID f, u.lg_EMPLACEMENT_ID e, MAX(v.dt_UPDATED) dmax "
+    /**
+     * Derniere vente cloturee par produit et emplacement du vendeur, et quantite totale vendue ce jour-la.
+     * <p>
+     * Retour du 14/10 (3 ans de donnees : v1/info 57 s) : un seul passage sur les lignes de vente, regroupees par
+     * produit, emplacement et jour, puis le jour le plus recent. Avant, chaque produit relisait toutes ses lignes une
+     * seconde fois pour la quantite du dernier jour (DATE(...) = DATE(...), sans index). Memes lignes, memes valeurs.
+     */
+    private static final String REQ_VENTES = "SELECT x.f, x.e, x.dmax, x.qte FROM (SELECT j.f, j.e, MAX(j.dt) dmax, "
+            + "SUM(j.q) qte, ROW_NUMBER() OVER (PARTITION BY j.f, j.e ORDER BY MAX(j.dt) DESC) rn FROM ("
+            + "SELECT d.lg_FAMILLE_ID f, u.lg_EMPLACEMENT_ID e, v.dt_UPDATED dt, d.int_QUANTITY q "
             + "FROM t_preenregistrement_detail d "
             + "JOIN t_preenregistrement v ON v.lg_PREENREGISTREMENT_ID = d.lg_PREENREGISTREMENT_ID "
             + "JOIN t_user u ON u.lg_USER_ID = v.lg_USER_ID "
-            + "WHERE v.str_STATUT = 'is_Closed' AND d.lg_FAMILLE_ID IN (:ids) AND u.lg_EMPLACEMENT_ID IS NOT NULL "
-            + "GROUP BY d.lg_FAMILLE_ID, u.lg_EMPLACEMENT_ID) m";
+            + "WHERE v.str_STATUT = 'is_Closed' AND d.lg_FAMILLE_ID IN (:ids) AND u.lg_EMPLACEMENT_ID IS NOT NULL) j "
+            + "GROUP BY j.f, j.e, DATE(j.dt)) x WHERE x.rn = 1";
 
     /** Dernier bon de livraison par produit, et quantite totale recue ce jour-la. */
     private static final String REQ_ACHATS = "SELECT m.f, m.dmax, (SELECT COALESCE(SUM(d.int_QTE_RECUE), 0) "

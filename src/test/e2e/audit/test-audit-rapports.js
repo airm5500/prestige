@@ -22,9 +22,22 @@ const DEBUT = q('SELECT NOW() - INTERVAL 1 SECOND');
 const [PS, CIP_S, STOCK_S] = q("SELECT CONCAT_WS('|', s.lg_FAMILLE_ID, f.int_CIP, s.int_NUMBER_AVAILABLE) FROM t_famille_stock s JOIN t_famille f ON f.lg_FAMILLE_ID = s.lg_FAMILLE_ID"
   + " WHERE s.lg_EMPLACEMENT_ID = '1' AND f.str_STATUT = 'enable' AND f.int_CIP <> '' AND s.int_NUMBER_AVAILABLE = (SELECT h.qteFinale FROM hmvtproduit h WHERE h.lg_FAMILLE_ID = s.lg_FAMILLE_ID"
   + " AND h.lg_EMPLACEMENT_ID = '1' ORDER BY h.createdAt DESC, h.typeMvt = '05' LIMIT 1) ORDER BY f.str_NAME LIMIT 1").split('|');
-const [PN, CIP_N, STOCK_N] = q("SELECT CONCAT_WS('|', s.lg_FAMILLE_ID, f.int_CIP, s.int_NUMBER_AVAILABLE) FROM t_famille_stock s JOIN t_famille f ON f.lg_FAMILLE_ID = s.lg_FAMILLE_ID"
+/* produit sans aucun mouvement : sur une base ou tous ont deja vendu (banc peuple sur 3 ans), le test en cree un,
+   copie d'un produit existant, qu'il retire a la fin */
+let [PN, CIP_N, STOCK_N] = q("SELECT CONCAT_WS('|', s.lg_FAMILLE_ID, f.int_CIP, s.int_NUMBER_AVAILABLE) FROM t_famille_stock s JOIN t_famille f ON f.lg_FAMILLE_ID = s.lg_FAMILLE_ID"
   + " WHERE s.lg_EMPLACEMENT_ID = '1' AND f.str_STATUT = 'enable' AND f.int_CIP <> '' AND s.int_NUMBER_AVAILABLE >= 0"
   + " AND NOT EXISTS (SELECT 1 FROM hmvtproduit h WHERE h.lg_FAMILLE_ID = s.lg_FAMILLE_ID) ORDER BY f.str_NAME LIMIT 1").split('|');
+const PN_CREE = !PN;
+if (PN_CREE) {
+  PN = 'E2E-AUDR-PN'; CIP_N = '9990418'; STOCK_N = '0';
+  exec(`DELETE FROM t_famille_stock WHERE lg_FAMILLE_ID = '${PN}'; DELETE FROM t_famille WHERE lg_FAMILLE_ID = '${PN}';`
+    + `CREATE TEMPORARY TABLE tmp_f SELECT * FROM t_famille WHERE lg_FAMILLE_ID = '${PS}';`
+    + `UPDATE tmp_f SET lg_FAMILLE_ID = '${PN}', int_CIP = '${CIP_N}', str_NAME = 'ZZ E2E AUDIT RAPPORTS SANS MOUVEMENT', int_EAN13 = NULL;`
+    + 'INSERT INTO t_famille SELECT * FROM tmp_f; DROP TEMPORARY TABLE tmp_f;'
+    + `CREATE TEMPORARY TABLE tmp_s SELECT * FROM t_famille_stock WHERE lg_FAMILLE_ID = '${PS}' AND lg_EMPLACEMENT_ID = '1' LIMIT 1;`
+    + `UPDATE tmp_s SET lg_FAMILLE_STOCK_ID = '${PN}', lg_FAMILLE_ID = '${PN}', int_NUMBER_AVAILABLE = 0, int_NUMBER = 0;`
+    + 'INSERT INTO t_famille_stock SELECT * FROM tmp_s; DROP TEMPORARY TABLE tmp_s;');
+}
 const stock = (f, v) => exec(`UPDATE t_famille_stock SET int_NUMBER_AVAILABLE = ${v}, int_NUMBER = ${v} WHERE lg_FAMILLE_ID = '${f}' AND lg_EMPLACEMENT_ID = '1'`);
 const rapportsDuTest = () => q(`SELECT COUNT(*) FROM t_audit_rapport WHERE created_at >= '${DEBUT}'`);
 
@@ -46,6 +59,8 @@ const rapportsDuTest = () => q(`SELECT COUNT(*) FROM t_audit_rapport WHERE creat
     const lancer = async () => {
       const n = +rapportsDuTest();
       await p.click('text=Lancer l\'analyse');
+      /* le message « rapport conserve » du lancement precedent est encore affiche : on attend le rapport en base */
+      for (let i = 0; i < 120 && +rapportsDuTest() < n + 1; i++) { await p.waitForTimeout(500); }
       await p.waitForFunction((m) => /rapport conservé/.test(Ext.ComponentQuery.query('auditrapprochements #resume')[0].text || ''), n, { timeout: 60000 });
       return +rapportsDuTest() === n + 1;
     };
@@ -122,6 +137,9 @@ const rapportsDuTest = () => q(`SELECT COUNT(*) FROM t_audit_rapport WHERE creat
     await b.close();
     ok('Données retirées (stocks, rapports du test)', rapportsDuTest() === '0'
       && q(`SELECT int_NUMBER_AVAILABLE FROM t_famille_stock WHERE lg_FAMILLE_ID = '${PN}' AND lg_EMPLACEMENT_ID = '1'`) === STOCK_N);
+    if (PN_CREE) {
+      exec(`DELETE FROM t_famille_stock WHERE lg_FAMILLE_ID = '${PN}'; DELETE FROM t_famille WHERE lg_FAMILLE_ID = '${PN}';`);
+    }
   }
   const ko = res.filter((x) => !x.c).length;
   console.log('\n' + (res.length - ko) + '/' + res.length + ' OK');
