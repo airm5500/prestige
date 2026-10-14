@@ -79,6 +79,17 @@ public class FamilleArticleServiceImpl implements FamilleArticleService {
     @PersistenceContext(unitName = "JTA_UNIT")
     private EntityManager em;
 
+    /**
+     * Pourcentage arrondi comme avant (2 decimales du rapport, puis x 100), et 0 quand le denominateur est nul : une
+     * periode sans vente (ou a HT nul) faisait « Infinite or NaN », avalee, et tronquait la liste (journaux du 13/10).
+     */
+    static Double pourcent(double numerateur, double denominateur) {
+        if (denominateur == 0) {
+            return 0d;
+        }
+        return new BigDecimal(numerateur / denominateur).setScale(2, RoundingMode.HALF_UP).doubleValue() * 100;
+    }
+
     public EntityManager getEntityManager() {
         return em;
     }
@@ -115,8 +126,7 @@ public class FamilleArticleServiceImpl implements FamilleArticleService {
                             montantTTC.add(x.getMontantTTC());
                             montantAchat.add(x.getMontantAchat());
                             montantHT.add(x.getMontantHT());
-                            Double p = new BigDecimal(Double.valueOf(x.getMontantHT()) / montanttotalHt)
-                                    .setScale(2, RoundingMode.HALF_UP).doubleValue() * 100;
+                            Double p = pourcent(x.getMontantHT(), montanttotalHt);
                             x.setPourcentageTH(p.longValue());
                             list.add(x);
 
@@ -129,8 +139,7 @@ public class FamilleArticleServiceImpl implements FamilleArticleService {
                             montantAchat.add(x.getMontantAchat());
                             montantHT.add(x.getMontantHT());
                             cumulFamilleArticles(periode, x, u);
-                            Double p = new BigDecimal(Double.valueOf(x.getMontantHT()) / montanttotalHt)
-                                    .setScale(2, RoundingMode.HALF_UP).doubleValue() * 100;
+                            Double p = pourcent(x.getMontantHT(), montanttotalHt);
                             x.setPourcentageTH(p.longValue());
                             list.add(x);
 
@@ -141,9 +150,8 @@ public class FamilleArticleServiceImpl implements FamilleArticleService {
             summary.setMontantCumulHT(montantHT.longValue());
             summary.setMontantCumulMarge(montantMarge.longValue());
             summary.setMontantCumulTTC(montantTTC.longValue());
-            summary.setPourcentageTH((montanttotalHt / montanttotalHt) * 100);
-            Double ux = new BigDecimal(Double.valueOf(summary.getMontantCumulMarge()) / summary.getMontantCumulHT())
-                    .setScale(2, RoundingMode.HALF_UP).doubleValue() * 100;
+            summary.setPourcentageTH(montanttotalHt == 0 ? 0 : 100);
+            Double ux = pourcent(summary.getMontantCumulMarge(), summary.getMontantCumulHT());
             summary.setPourcentageCumulMage(ux.longValue());
         } catch (Exception e) {
         }
@@ -273,10 +281,7 @@ public class FamilleArticleServiceImpl implements FamilleArticleService {
             familleArticleStatDTO.setMontantCumulTTC(t.getMontantCumulTTC());
             familleArticleStatDTO.setMontantCumulTva(t.getMontantCumulTva());
             familleArticleStatDTO.setMontantCumulHT(t.getMontantCumulHT());
-            Double p = new BigDecimal(
-                    Double.valueOf(familleArticleStatDTO.getMontantHT()) / familleArticleStatDTO.getMontantCumulHT())
-                            .setScale(2, RoundingMode.HALF_UP).doubleValue()
-                    * 100;
+            Double p = pourcent(familleArticleStatDTO.getMontantHT(), familleArticleStatDTO.getMontantCumulHT());
             familleArticleStatDTO.setValeurPeriode(p.intValue());
             return familleArticleStatDTO;
         } catch (Exception e) {
@@ -306,7 +311,9 @@ public class FamilleArticleServiceImpl implements FamilleArticleService {
 
             Query q = getEntityManager().createQuery(cq);
             q.setMaxResults(1);
-            return ((Number) q.getSingleResult()).longValue();
+            /* periode sans vente : la somme revient vide (NullPointerException journalisee le 13/10) */
+            Number total = (Number) q.getSingleResult();
+            return total == null ? 0 : total.longValue();
         } catch (Exception e) {
             LOG.log(Level.SEVERE, null, e);
             return 0;
@@ -568,8 +575,7 @@ public class FamilleArticleServiceImpl implements FamilleArticleService {
                         montantAchat.add(x.getMontantAchat());
                         montantHT.add(x.getMontantHT());
                         cumulStatisticRayons(periode, x, u);
-                        Double p = new BigDecimal(Double.valueOf(x.getMontantHT()) / montanttotalHt)
-                                .setScale(2, RoundingMode.HALF_UP).doubleValue() * 100;
+                        Double p = pourcent(x.getMontantHT(), montanttotalHt);
                         x.setPourcentageTH(p.longValue());
                         list.add(x);
 
@@ -579,12 +585,11 @@ public class FamilleArticleServiceImpl implements FamilleArticleService {
             summary.setMontantCumulMarge(montantMarge.longValue());
             summary.setMontantCumulTTC(montantTTC.longValue());
             try {
-                summary.setPourcentageTH((montanttotalHt / montanttotalHt) * 100);
+                summary.setPourcentageTH(montanttotalHt == 0 ? 0 : 100);
             } catch (ArithmeticException e) {
             }
 
-            Double ux = new BigDecimal(Double.valueOf(summary.getMontantCumulMarge()) / summary.getMontantCumulHT())
-                    .setScale(2, RoundingMode.HALF_UP).doubleValue() * 100;
+            Double ux = pourcent(summary.getMontantCumulMarge(), summary.getMontantCumulHT());
             summary.setPourcentageCumulMage(ux.longValue());
         } catch (Exception e) {
             LOG.log(Level.SEVERE, null, e);
@@ -613,8 +618,7 @@ public class FamilleArticleServiceImpl implements FamilleArticleService {
                         montantAchat.add(x.getMontantAchat());
                         montantHT.add(x.getMontantHT());
                         cumulStatisticGrossistes(periode, x, u);
-                        Double p = new BigDecimal(Double.valueOf(x.getMontantHT()) / montanttotalHt)
-                                .setScale(2, RoundingMode.HALF_UP).doubleValue() * 100;
+                        Double p = pourcent(x.getMontantHT(), montanttotalHt);
                         x.setPourcentageTH(p.longValue());
                         list.add(x);
 
@@ -623,9 +627,8 @@ public class FamilleArticleServiceImpl implements FamilleArticleService {
             summary.setMontantCumulHT(montantHT.longValue());
             summary.setMontantCumulMarge(montantMarge.longValue());
             summary.setMontantCumulTTC(montantTTC.longValue());
-            summary.setPourcentageTH((montanttotalHt / montanttotalHt) * 100);
-            Double ux = new BigDecimal(Double.valueOf(summary.getMontantCumulMarge()) / summary.getMontantCumulHT())
-                    .setScale(2, RoundingMode.HALF_UP).doubleValue() * 100;
+            summary.setPourcentageTH(montanttotalHt == 0 ? 0 : 100);
+            Double ux = pourcent(summary.getMontantCumulMarge(), summary.getMontantCumulHT());
             summary.setPourcentageCumulMage(ux.longValue());
         } catch (Exception e) {
             LOG.log(Level.SEVERE, null, e);
@@ -698,10 +701,7 @@ public class FamilleArticleServiceImpl implements FamilleArticleService {
             familleArticleStatDTO.setMontantCumulTTC(t.getMontantCumulTTC());
             familleArticleStatDTO.setMontantCumulTva(t.getMontantCumulTva());
             familleArticleStatDTO.setMontantCumulHT(t.getMontantCumulHT());
-            Double p = new BigDecimal(
-                    Double.valueOf(familleArticleStatDTO.getMontantHT()) / familleArticleStatDTO.getMontantCumulHT())
-                            .setScale(2, RoundingMode.HALF_UP).doubleValue()
-                    * 100;
+            Double p = pourcent(familleArticleStatDTO.getMontantHT(), familleArticleStatDTO.getMontantCumulHT());
             familleArticleStatDTO.setValeurPeriode(p.intValue());
             return familleArticleStatDTO;
         } catch (Exception e) {
@@ -746,10 +746,7 @@ public class FamilleArticleServiceImpl implements FamilleArticleService {
             familleArticleStatDTO.setMontantCumulTTC(t.getMontantCumulTTC());
             familleArticleStatDTO.setMontantCumulTva(t.getMontantCumulTva());
             familleArticleStatDTO.setMontantCumulHT(t.getMontantCumulHT());
-            Double p = new BigDecimal(
-                    Double.valueOf(familleArticleStatDTO.getMontantHT()) / familleArticleStatDTO.getMontantCumulHT())
-                            .setScale(2, RoundingMode.HALF_UP).doubleValue()
-                    * 100;
+            Double p = pourcent(familleArticleStatDTO.getMontantHT(), familleArticleStatDTO.getMontantCumulHT());
             familleArticleStatDTO.setValeurPeriode(p.intValue());
             return familleArticleStatDTO;
         } catch (Exception e) {
@@ -833,10 +830,7 @@ public class FamilleArticleServiceImpl implements FamilleArticleService {
             familleArticleStatDTO.setMontantCumulTTC(t.getMontantCumulTTC());
             familleArticleStatDTO.setMontantCumulTva(t.getMontantCumulTva());
             familleArticleStatDTO.setMontantCumulHT(t.getMontantCumulHT());
-            Double p = new BigDecimal(
-                    Double.valueOf(familleArticleStatDTO.getMontantHT()) / familleArticleStatDTO.getMontantCumulHT())
-                            .setScale(2, RoundingMode.HALF_UP).doubleValue()
-                    * 100;
+            Double p = pourcent(familleArticleStatDTO.getMontantHT(), familleArticleStatDTO.getMontantCumulHT());
             familleArticleStatDTO.setValeurPeriode(p.intValue());
             return familleArticleStatDTO;
         } catch (Exception e) {
@@ -934,14 +928,11 @@ public class FamilleArticleServiceImpl implements FamilleArticleService {
                                             totalRemiseVNO.add(x.getMontantRemise());
                                         }
                                     });
-                                    Double p = new BigDecimal(Double.valueOf(montantHT_.longValue()) / montanttotalHt)
-                                            .setScale(2, RoundingMode.HALF_UP).doubleValue() * 100;
+                                    Double p = pourcent(montantHT_.longValue(), montanttotalHt);
                                     familleArticleStat.setPourcentageTH(p.longValue());
-                                    Double ma = new BigDecimal(Double.valueOf(
-                                            familleArticleStat.getMontantHT() - familleArticleStat.getMontantAchat())
-                                            / familleArticleStat.getMontantHT()).setScale(2, RoundingMode.HALF_UP)
-                                                    .doubleValue()
-                                            * 100;
+                                    Double ma = pourcent(
+                                            familleArticleStat.getMontantHT() - familleArticleStat.getMontantAchat(),
+                                            familleArticleStat.getMontantHT());
                                     familleArticleStat.setMontantMarge(
                                             familleArticleStat.getMontantHT() - familleArticleStat.getMontantAchat());
                                     familleArticleStat.setPourcentageMage(ma.intValue());
@@ -994,14 +985,11 @@ public class FamilleArticleServiceImpl implements FamilleArticleService {
                                             totalRemiseVNO.add(x.getMontantRemise());
                                         }
                                     });
-                                    Double p = new BigDecimal(Double.valueOf(montantHT_.longValue()) / montanttotalHt)
-                                            .setScale(2, RoundingMode.HALF_UP).doubleValue() * 100;
+                                    Double p = pourcent(montantHT_.longValue(), montanttotalHt);
                                     familleArticleStat.setPourcentageTH(p.longValue());
-                                    Double ma = new BigDecimal(Double.valueOf(
-                                            familleArticleStat.getMontantHT() - familleArticleStat.getMontantAchat())
-                                            / familleArticleStat.getMontantHT()).setScale(2, RoundingMode.HALF_UP)
-                                                    .doubleValue()
-                                            * 100;
+                                    Double ma = pourcent(
+                                            familleArticleStat.getMontantHT() - familleArticleStat.getMontantAchat(),
+                                            familleArticleStat.getMontantHT());
                                     familleArticleStat.setMontantMarge(
                                             familleArticleStat.getMontantHT() - familleArticleStat.getMontantAchat());
                                     familleArticleStat.setPourcentageMage(ma.intValue());
@@ -1015,13 +1003,12 @@ public class FamilleArticleServiceImpl implements FamilleArticleService {
             summary.setMontantCumulMarge(montantMarge.longValue());
             summary.setMontantCumulTTC(montantTTC.longValue());
             try {
-                summary.setPourcentageTH((montanttotalHt / montanttotalHt) * 100);
+                summary.setPourcentageTH(montanttotalHt == 0 ? 0 : 100);
             } catch (Exception e) {
             }
             Double ux = 0d;
             try {
-                ux = new BigDecimal(Double.valueOf(summary.getMontantCumulMarge()) / summary.getMontantCumulHT())
-                        .setScale(2, RoundingMode.HALF_UP).doubleValue() * 100;
+                ux = pourcent(summary.getMontantCumulMarge(), summary.getMontantCumulHT());
             } catch (Exception e) {
             }
 
@@ -1060,7 +1047,9 @@ public class FamilleArticleServiceImpl implements FamilleArticleService {
             cq.where(cb.and(predicates.toArray(Predicate[]::new)));
             Query q = getEntityManager().createQuery(cq);
             q.setMaxResults(1);
-            return ((Number) q.getSingleResult()).longValue();
+            /* periode sans vente : la somme revient vide (NullPointerException journalisee le 13/10) */
+            Number total = (Number) q.getSingleResult();
+            return total == null ? 0 : total.longValue();
         } catch (Exception e) {
             LOG.log(Level.SEVERE, null, e);
             return 0;
@@ -1182,8 +1171,7 @@ public class FamilleArticleServiceImpl implements FamilleArticleService {
                 o.setMontantRemise(montantRemise * (-1));
                 long marge = (montantTTC - montantTva) - montantAchat;
                 o.setMontantMarge(marge * (-1));
-                Double p = new BigDecimal(Double.valueOf(marge) / montantHT).setScale(2, RoundingMode.HALF_UP)
-                        .doubleValue() * 100;
+                Double p = pourcent(marge, montantHT);
                 o.setPourcentageMage(p.intValue() * (-1));
                 results.add(o);
             }
