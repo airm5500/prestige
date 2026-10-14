@@ -98,7 +98,8 @@ const connexion = async (p, login) => {
     await p.waitForFunction(() => Ext.ComponentQuery.query('clientgestion').length > 0, null, { timeout: 25000 });
     await p.waitForTimeout(4000);
     let visible = await p.evaluate(() => {
-      const btn = Ext.ComponentQuery.query('clientgestion #btnImportClientStandard')[0];
+      /* retours du 13/10 : un seul bouton « Importer » et son selecteur porte la visibilite */
+      const btn = Ext.ComponentQuery.query('clientgestion #btnImporter')[0];
       return btn ? !btn.isHidden() : null;
     });
     ok('Le bouton d import lui reste caché', visible === false, String(visible));
@@ -117,8 +118,8 @@ const connexion = async (p, login) => {
     /* Retour du 17/09 (point 5) : l import HISTORIQUE cree les memes clients en masse. Il suit
      * desormais le meme privilege - le bouton ET le service. */
     const historiqueCache = await p.evaluate(() => {
-      const btn = Ext.getCmp('btn_import');
-      return btn ? btn.isHidden() : null;
+      const btn = Ext.ComponentQuery.query('clientgestion #btnImporter')[0];
+      return btn && Ext.getCmp('btn_import') ? btn.isHidden() : null;
     });
     ok('L import historique lui est caché aussi : les deux imports suivent le même privilège',
       historiqueCache === true, String(historiqueCache));
@@ -147,19 +148,20 @@ const connexion = async (p, login) => {
     await p.waitForFunction(() => Ext.ComponentQuery.query('clientgestion').length > 0, null, { timeout: 25000 });
     await p.waitForTimeout(4000);
     visible = await p.evaluate(() => {
-      const btn = Ext.ComponentQuery.query('clientgestion #btnImportClientStandard')[0];
+      /* retours du 13/10 : un seul bouton « Importer » et son selecteur porte la visibilite */
+      const btn = Ext.ComponentQuery.query('clientgestion #btnImporter')[0];
       return btn ? !btn.isHidden() : null;
     });
     ok('Le bouton d import lui est proposé, à côté de l import historique', visible === true, String(visible));
     const importHistorique = await p.evaluate(() => {
-      const btn = Ext.getCmp('btn_import');
-      return { existe: !!btn, visible: btn ? !btn.isHidden() : null };
+      const btn = Ext.getCmp('btn_import'), selecteur = Ext.ComponentQuery.query('clientgestion #btnImporter')[0];
+      return { existe: !!btn && !!selecteur && selecteur.menu.items.contains(btn), visible: selecteur ? !selecteur.isHidden() : null };
     });
     ok('L import historique est conservé, et proposé à ce profil qui porte le privilège',
       importHistorique.existe === true && importHistorique.visible === true, JSON.stringify(importHistorique));
 
     await p.evaluate(() => {
-      const btn = Ext.ComponentQuery.query('clientgestion #btnImportClientStandard')[0];
+      const btn = Ext.ComponentQuery.query('clientgestion #btnImporter')[0].menu.down('#btnImportClientStandard');
       btn.handler.call(btn.scope || btn, btn);
     });
     await p.waitForFunction(() => Ext.ComponentQuery.query('importclientstandard').length > 0, null, { timeout: 15000 });

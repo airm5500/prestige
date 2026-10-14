@@ -432,12 +432,16 @@ Ext.define('testextjs.view.configmanagement.client.ClientManager', {
                     iconCls: 'addicon',
                     handler: this.onAddStandardClick
                 }, '-', {
+                    /* retours du 13/10 (point 15) : largeur propre et marge, le filtre ne se confond plus avec la
+                       recherche qui le suit */
                     xtype: 'combobox',
-                    fieldLabel: 'Type Client',
+                    fieldLabel: 'Type client',
+                    labelWidth: 72,
+                    width: 290,
+                    margin: '0 14 0 0',
                     name: 'lg_TYPE_CLIENT_FILTER_ID',
                     id: 'lg_TYPE_CLIENT_FILTER_ID',
                     store: store_type_tp,
-                    flex: 1,
                     valueField: 'lg_TYPE_TIERS_PAYANT_ID',
                     displayField: 'str_LIBELLE_TYPE_TIERS_PAYANT',
 //                    typeAhead: true,
@@ -456,7 +460,9 @@ Ext.define('testextjs.view.configmanagement.client.ClientManager', {
                     xtype: 'textfield',
                     id: 'rechecher',
                     name: 'user',
-                    emptyText: 'Recherche',
+                    width: 310,
+                    margin: '0 0 0 14',
+                    emptyText: 'Rechercher un client : nom, prénom, numéro…',
                     listeners: {
                         'render': function (cmp) {
                             cmp.getEl().on('keypress', function (e) {
@@ -479,27 +485,33 @@ Ext.define('testextjs.view.configmanagement.client.ClientManager', {
                     iconCls: 'printable',
                     handler: this.onPrintClick
                 }, '-', {
-                    // Retour du 17/09 (point 5) : cet import cree lui aussi des clients en masse.
-                    // Il passe donc sous le meme privilege que l'import « colonnes au choix »
-                    // (P_IMPORT_CLIENTS). Le service ws_transaction.jsp le reverifie : masquer un
-                    // bouton n'est pas un controle d'acces.
+                    /*
+                     * Retours du 13/10 (point 15) : UN bouton « Importer » et son selecteur, au lieu de deux boutons.
+                     * Les deux imports creent des clients en masse : le bouton n'apparait qu'aux profils portant le
+                     * privilege P_IMPORT_CLIENTS (voir onAfterRender), et les services le reverifient.
+                     */
                     text: 'Importer',
-                    tooltip: 'Importer',
-                    id: 'btn_import',
-                    iconCls: 'importicon',
-                    hidden: true, // visible seulement avec le privilege, voir plus bas
-                    scope: this,
-                    handler: this.onbtnimport
-                }, {
-                    // Import avec choix des colonnes et controle des lignes, sous privilege
-                    // (P_IMPORT_CLIENTS). L'import historique reste accessible par le bouton ci-dessus.
-                    text: 'Importer (colonnes au choix)',
-                    tooltip: 'Choisir les colonnes du fichier et contr&ocirc;ler les lignes avant d\'importer',
-                    itemId: 'btnImportClientStandard',
+                    tooltip: 'Importer des clients depuis un fichier',
+                    itemId: 'btnImporter',
                     iconCls: 'importicon',
                     hidden: true, // visible seulement avec le privilege, voir onAfterRender
-                    scope: this,
-                    handler: this.onbtnImportStandard
+                    menu: {
+                        items: [{
+                                // Import avec choix des colonnes et controle des lignes (recommande)
+                                text: 'Colonnes au choix, lignes contrôlées (recommandé)',
+                                itemId: 'btnImportClientStandard',
+                                iconCls: 'importicon',
+                                scope: this,
+                                handler: this.onbtnImportStandard
+                            }, {
+                                // Import historique, au fichier modele (ws_transaction.jsp)
+                                text: 'Fichier modèle (import historique)',
+                                id: 'btn_import',
+                                iconCls: 'importicon',
+                                scope: this,
+                                handler: this.onbtnimport
+                            }]
+                    }
                 }, '-',
                 {
                     text: 'Exporter CSV',
@@ -582,12 +594,10 @@ Ext.define('testextjs.view.configmanagement.client.ClientManager', {
                 var autorise = !!(objet && objet.authorize === true);
                 // Les DEUX imports de clients suivent le meme privilege : l'un sans l'autre
                 // laisserait une porte ouverte sur la meme operation.
-                Ext.Array.each(['#btnImportClientStandard', '#btn_import'], function (selecteur) {
-                    var bouton = ecran.down(selecteur);
-                    if (bouton && autorise) {
-                        bouton.show();
-                    }
-                });
+                var bouton = ecran.down('#btnImporter');
+                if (bouton && autorise) {
+                    bouton.show();
+                }
             }
         });
     },
@@ -606,7 +616,7 @@ Ext.define('testextjs.view.configmanagement.client.ClientManager', {
             odatasource: 'TABLE_CLIENT',
             parentview: this,
             mode: "importfile",
-            titre: "Importation des differents articles de l'officine"
+            titre: "Importation des clients (fichier modèle)"
         });
     },
     onPrintClick: function () {

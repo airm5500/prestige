@@ -50,6 +50,7 @@ Ext.define('testextjs.view.configmanagement.client.action.addClientStandard', {
                     itemId: 'formulaire',
                     border: false,
                     fieldDefaults: { labelWidth: 95, msgTarget: 'side' },
+                    defaults: { anchor: '-24' },
                     /* retours du 13/10 : le premier champ etait colle au haut du cadre */
                     bodyPadding: '14 4 0 0',
                     items: [{
@@ -99,7 +100,7 @@ Ext.define('testextjs.view.configmanagement.client.action.addClientStandard', {
                             minValue: new Date(1900, 0, 1),
                             minText: 'Date de naissance improbable.',
                             invalidText: 'Date attendue au format jj/mm/aaaa.',
-                            emptyText: 'jj/mm/aaaa (facultatif)',
+                            emptyText: 'jj/mm/aaaa',
                             enableKeyEvents: true
                         }, {
                             xtype: 'radiogroup',
