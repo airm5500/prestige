@@ -19,7 +19,10 @@ Ext.define('testextjs.model.statistics.Operateur', {
         {name: 'PANIER_MOYEN_VNO', type: 'float'},
          {name: 'M Ord', type: 'float'},
           {name: 'M Non Ord', type: 'float'},
-        {name: 'CA', type: 'float'}
+        {name: 'CA', type: 'float'},
+        /* retours du 13/10 (point 11) : ventes conseillees (« Conseil » choisi a la vente) */
+        {name: 'NB_CONSEIL', type: 'int'},
+        {name: 'MONTANT_CONSEIL', type: 'float'}
     ]
 });
 

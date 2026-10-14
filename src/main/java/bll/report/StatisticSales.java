@@ -318,13 +318,58 @@ public class StatisticSales extends bll.bllBase {
                 json.put("M Ord", (amount_vo + amount_vop));
                 json.put("M Non Ord", amount_vno);
 
+                json.put("userId", row[0]);
                 array.put(json);
             }
+            ventesConseillees(array, dateDebut, hasEnd ? dateFinExclusive : null, search_value);
         } catch (Exception e) {
             e.printStackTrace();
         }
         return array;
 
+    }
+
+    /**
+     * Retours du 13/10 (point 11) : ventes conseillees par chaque utilisateur (« Conseil » choisi a la vente), meme
+     * perimetre que l'activite par operateur. Ajoutees a la ligne de l'operateur ; un utilisateur qui n'a que conseille
+     * a sa propre ligne.
+     */
+    @SuppressWarnings("unchecked")
+    private void ventesConseillees(JSONArray array, Date debut, Date finExclusive, String search) throws Exception {
+        String sql = "SELECT p.lg_USER_CONSEIL_ID, u.str_FIRST_NAME, u.str_LAST_NAME, COUNT(*), SUM(p.int_PRICE - IFNULL(p.int_PRICE_REMISE, 0))"
+                + " FROM t_preenregistrement p JOIN t_user u ON u.lg_USER_ID = p.lg_USER_CONSEIL_ID"
+                + " WHERE p.lg_USER_CONSEIL_ID IS NOT NULL AND p.dt_CREATED >= ?1"
+                + (finExclusive != null ? " AND p.dt_CREATED < ?2" : "")
+                + " AND p.int_PRICE > 0 AND p.b_IS_CANCEL = 0 AND p.str_STATUT = ?3 AND (u.str_FIRST_NAME LIKE ?4 OR u.str_LAST_NAME LIKE ?4)"
+                + " GROUP BY p.lg_USER_CONSEIL_ID, u.str_FIRST_NAME, u.str_LAST_NAME";
+        Query q = this.getOdataManager().getEm().createNativeQuery(sql).setParameter(1, debut)
+                .setParameter(3, commonparameter.statut_is_Closed).setParameter(4, search + "%");
+        if (finExclusive != null) {
+            q.setParameter(2, finExclusive);
+        }
+        java.util.Map<String, JSONObject> parUtilisateur = new java.util.HashMap<>();
+        for (int i = 0; i < array.length(); i++) {
+            JSONObject o = array.getJSONObject(i);
+            o.put("NB_CONSEIL", 0).put("MONTANT_CONSEIL", 0);
+            parUtilisateur.put(o.optString("userId"), o);
+        }
+        for (Object[] r : (List<Object[]>) q.getResultList()) {
+            JSONObject o = parUtilisateur.get(String.valueOf(r[0]));
+            if (o == null) {
+                String prenom = r[1] == null ? "" : String.valueOf(r[1]);
+                o = new JSONObject().put("id", array.length() + 1)
+                        .put("Operateur",
+                                (prenom.isEmpty() ? "" : prenom.substring(0, 1).toUpperCase() + ".")
+                                        + (r[2] == null ? "" : r[2]))
+                        .put("NB CLIENT", 0).put("NB_VO", 0).put("NB_VNO", 0).put("NB_VOP", 0).put("VO_MONTANT", 0)
+                        .put("VNO_MONTANT", 0).put("BRUT TTC", 0).put("NET TTC", 0).put("REMISE", 0)
+                        .put("VO_MONTANTP", 0).put("PANIER_MOYEN_VNO", 0).put("PANIER_MOYEN_VOP", 0).put("CA", 0)
+                        .put("PANIER MOYEN", 0).put("M Ord", 0).put("M Non Ord", 0).put("userId", r[0]);
+                array.put(o);
+            }
+            o.put("NB_CONSEIL", ((Number) r[3]).longValue()).put("MONTANT_CONSEIL",
+                    r[4] == null ? 0 : ((Number) r[4]).longValue());
+        }
     }
 
     public List<EntityData> getListArticleVendu(String search_value, String dt_start, String dt_end) {

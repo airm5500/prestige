@@ -1781,3 +1781,62 @@ window.PrestigeApercuEtiquette = (function () {
     return {dessiner: dessiner};
 })();
 
+/**
+ * Recherche des clients « Commence par » (par defaut, comme avant) ou « Contient » (retours du 13/10, point 11).
+ * Un seul reglage, memorise sur le poste, applique a toutes les recherches de clients (vente, fenetres de choix du
+ * client, gestion des clients) ; un selecteur le montre a cote des champs de recherche.
+ *
+ *   PrestigeRechercheClient.selecteur({margin: '0 0 0 8'})   // config ExtJS du selecteur
+ */
+window.PrestigeRechercheClient = (function () {
+    var CLE = 'prestige.rechercheClient.mode', memoire = 'commence';
+    var URLS = /\/api\/v1\/client\/(lambda|all|bytype\/|gestion)/;
+    function mode() {
+        try {
+            var v = window.localStorage.getItem(CLE);
+            return v === 'contient' ? 'contient' : 'commence';
+        } catch (e) {
+            return memoire;
+        }
+    }
+    function choisir(m) {
+        memoire = m === 'contient' ? 'contient' : 'commence';
+        try {
+            window.localStorage.setItem(CLE, memoire);
+        } catch (e) {
+            /* sans stockage : le reglage vaut pour la page */
+        }
+        Ext.each(Ext.ComponentQuery.query('container[prRechercheClient]'), function (c) {
+            c.items.each(function (b) {
+                b.toggle(b.modeRecherche === memoire, true);
+            });
+        });
+    }
+    function selecteur(cfg) {
+        var groupe = 'pr-recherche-client-' + Ext.id();
+        var bouton = function (m, texte, aide) {
+            return {xtype: 'button', text: texte, modeRecherche: m, toggleGroup: groupe, allowDepress: false, pressed: mode() === m,
+                cls: 'pr-mode-recherche', tooltip: aide, handler: function () {
+                    choisir(m);
+                }};
+        };
+        return Ext.apply({xtype: 'container', prRechercheClient: true, itemId: 'modeRechercheClient', layout: {type: 'hbox', align: 'middle'},
+            items: [bouton('commence', 'Commence par', 'Nom, prénom ou numéro qui commence par la saisie'),
+                bouton('contient', 'Contient', 'Nom, prénom ou numéro qui contient la saisie')]}, cfg || {});
+    }
+    Ext.onReady(function () {
+        Ext.Ajax.on('beforerequest', function (conn, options) {
+            if (!options || !URLS.test(options.url || '') || /[?&]mode=/.test(options.url || '')) {
+                return;
+            }
+            if (options.params && typeof options.params !== 'object') {
+                return;
+            }
+            options.params = Ext.apply({}, options.params);
+            if (!options.params.mode) {
+                options.params.mode = mode();
+            }
+        });
+    });
+    return {mode: mode, choisir: choisir, selecteur: selecteur};
+})();

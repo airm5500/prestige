@@ -323,6 +323,26 @@ Ext.define('testextjs.view.vente.VenteView', {
                             minChars: 2,
                             queryMode: 'remote',
                             emptyText: 'Choisir un vendeur...'
+                        },
+                        /* retours du 13/10 (point 11) : la personne qui a conseille le client, facultatif ; reprise dans les
+                           statistiques d'activite par operateur */
+                        {xtype: 'component', cls: 'seg-lib', html: 'Conseil', margin: '0 10 0 24'},
+                        {
+                            xtype: 'combobox',
+                            itemId: 'conseil',
+                            store: Ext.create('Ext.data.Store', {model: 'testextjs.model.caisse.User', pageSize: 100, autoLoad: false,
+                                proxy: {type: 'ajax', url: '../api/v1/common/users', extraParams: {excludeAdmin: true},
+                                    reader: {type: 'json', root: 'data', totalProperty: 'total'}}}),
+                            pageSize: null,
+                            valueField: 'lgUSERID',
+                            displayField: 'fullName',
+                            typeAhead: false,
+                            width: 220,
+                            height: 30,
+                            minChars: 2,
+                            queryMode: 'remote',
+                            emptyText: 'Facultatif',
+                            tooltip: 'Personne qui a conseillé le client (facultatif)'
                         }
                     ]
                 },

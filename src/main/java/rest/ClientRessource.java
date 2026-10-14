@@ -287,8 +287,8 @@ public class ClientRessource {
 
     @GET
     @Path("lambda")
-    public Response getUsers(@QueryParam(value = "query") String query) {
-        List<ClientLambdaDTO> data = clientService.findClientLambda(query);
+    public Response getUsers(@QueryParam(value = "query") String query, @QueryParam(value = "mode") String mode) {
+        List<ClientLambdaDTO> data = clientService.findClientLambda(query, mode);
         return Response.ok().entity(ResultFactory.getSuccessResult(data, data.size())).build();
     }
 
@@ -340,8 +340,8 @@ public class ClientRessource {
     @GET
     @Path("all")
     public Response findAllClients(@QueryParam(value = "query") String query,
-            @QueryParam(value = "typeClientId") String typeClientId) {
-        List<ClientDTO> data = clientService.findClientAssurance(query, typeClientId);
+            @QueryParam(value = "typeClientId") String typeClientId, @QueryParam(value = "mode") String mode) {
+        List<ClientDTO> data = clientService.findClientAssurance(query, typeClientId, mode);
         return Response.ok().entity(ResultFactory.getSuccessResult(data, data.size())).build();
     }
 
@@ -357,8 +357,8 @@ public class ClientRessource {
     @GET
     @Path("bytype/{type}")
     public Response findAllClients(@QueryParam(value = "query") String query, @PathParam("type") String id,
-            String typeClientId) {
-        List<ClientDTO> data = clientService.findClientAssurance(query, typeClientId);
+            @QueryParam(value = "mode") String mode, String typeClientId) {
+        List<ClientDTO> data = clientService.findClientAssurance(query, typeClientId, mode);
         return Response.ok().entity(ResultFactory.getSuccessResult(data, data.size())).build();
     }
 
@@ -688,7 +688,8 @@ public class ClientRessource {
     public Response listeGestion(@QueryParam("search_value") String searchValue, @QueryParam("query") String query,
             @QueryParam("lg_TYPE_CLIENT_ID") String typeClientId,
             @DefaultValue("true") @QueryParam("actifs") boolean actifs,
-            @DefaultValue("0") @QueryParam("start") int start, @DefaultValue("20") @QueryParam("limit") int limit) {
+            @DefaultValue("0") @QueryParam("start") int start, @DefaultValue("20") @QueryParam("limit") int limit,
+            @QueryParam("mode") String mode) {
         TUser user = utilisateurSession();
         if (user == null) {
             return reponseDeconnecte();
@@ -697,9 +698,8 @@ public class ClientRessource {
         List<TPrivilege> privileges = privilegesSession();
         boolean btnDelete = CommonUtils.hasAuthorityById(privileges, DateConverter.ACTIONDELETE);
         boolean btnDesactiver = CommonUtils.hasAuthorityByName(privileges, DateConverter.P_BTN_DESACTIVER_CLIENT);
-        return Response
-                .ok().entity(clientService
-                        .listClients(search, typeClientId, actifs, btnDelete, btnDesactiver, start, limit).toString())
+        return Response.ok().entity(clientService
+                .listClients(search, typeClientId, actifs, btnDelete, btnDesactiver, start, limit, mode).toString())
                 .build();
     }
 

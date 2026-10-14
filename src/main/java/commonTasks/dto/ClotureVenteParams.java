@@ -262,4 +262,14 @@ public class ClotureVenteParams implements Serializable {
                 + ", natureVenteId=" + natureVenteId + '}';
     }
 
+    /* retours du 13/10 (point 11) : « Conseil » (facultatif) */
+    private String userConseilId;
+
+    public String getUserConseilId() {
+        return userConseilId;
+    }
+
+    public void setUserConseilId(String userConseilId) {
+        this.userConseilId = userConseilId;
+    }
 }

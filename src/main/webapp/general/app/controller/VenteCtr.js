@@ -2445,6 +2445,7 @@ Ext.define('testextjs.controller.VenteCtr', {
                 "remiseId": remiseId,
                 "venteId": venteId,
                 "userVendeurId": userCombo,
+                "userConseilId": me.conseilChoisi(), // retours du 13/10 (point 11), facultatif
                 "montantRecu": montantRecu,
                 "montantRemis": montantRemis,
                 "montantPaye": montantPaye,
@@ -3163,10 +3164,13 @@ Ext.define('testextjs.controller.VenteCtr', {
                             xtype: 'textfield',
                             itemId: 'queryClientLambda',
                             emptyText: 'Rechercher un client (2 caractères)',
-                            width: '70%',
+                            width: '55%',
                             height: 45,
                             enableKeyEvents: true
-                        }, '-', {
+                        },
+                        /* retours du 13/10 (point 11) : recherche « commence par » ou « contient » */
+                        window.PrestigeRechercheClient ? PrestigeRechercheClient.selecteur({margin: '0 6'}) : {xtype: 'tbspacer'},
+                        '-', {
                             text: 'rechercher',
                             tooltip: 'rechercher',
                             scope: this,
@@ -3588,6 +3592,11 @@ Ext.define('testextjs.controller.VenteCtr', {
             });
         }
 
+    },
+    /* retours du 13/10 (point 11) : « Conseil » choisi a la vente (facultatif) */
+    conseilChoisi: function () {
+        var c = Ext.ComponentQuery.query('doventemanager #conseil')[0];
+        return c && c.getValue() ? c.getValue() : null;
     },
     queryClientLambda: function () {
         const me = this, query = me.getQueryClientLambda().getValue();
@@ -4487,6 +4496,11 @@ Ext.define('testextjs.controller.VenteCtr', {
         me.getMontantRecu().setValue(0);
         me.getUserCombo().clearValue();
         me.getUserCombo().setValue(null);
+        /* retours du 13/10 (point 11) : le conseil ne passe pas d'une vente a la suivante */
+        var conseil = Ext.ComponentQuery.query('doventemanager #conseil')[0];
+        if (conseil) {
+            conseil.clearValue();
+        }
         me.getVnobtnCloture().enable();
         if (me.getInfosClientStandard().isVisible()) {
             me.resetClientLambdaInfos();
@@ -6757,6 +6771,7 @@ Ext.define('testextjs.controller.VenteCtr', {
                 "remiseId": remiseId,
                 "venteId": venteId,
                 "userVendeurId": userCombo,
+                "userConseilId": me.conseilChoisi(), // retours du 13/10 (point 11), facultatif
                 "montantRecu": montantRecu,
                 "montantRemis": montantRemis,
                 "montantPaye": montantPaye,

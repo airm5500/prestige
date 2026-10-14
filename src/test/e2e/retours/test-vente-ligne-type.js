@@ -34,12 +34,12 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
     const dessin = await p.evaluate(() => { const v = Ext.ComponentQuery.query('doventemanager')[0]; const ligne = v.down('#ligneTypeVente');
       const centre = (el) => { const r = el.getBoundingClientRect(); return r.top + r.height / 2; };
       const libs = [...ligne.getEl().dom.querySelectorAll('.seg-lib')];
-      const ctrl = [v.down('#typeVente').bodyEl.dom.querySelector('.seg-groupe'), v.down('#nature').bodyEl.dom.querySelector('.seg-groupe'), v.down('#user').inputEl.dom];
+      const ctrl = [v.down('#typeVente').bodyEl.dom.querySelector('.seg-groupe'), v.down('#nature').bodyEl.dom.querySelector('.seg-groupe'), v.down('#user').inputEl.dom, v.down('#conseil').inputEl.dom];
       const actif = v.down('#typeVente').bodyEl.dom.querySelector('.seg-actif');
       return { libs: libs.map((l) => l.textContent), ecarts: libs.map((l, i) => Math.round(Math.abs(centre(l) - centre(ctrl[i])))),
         pastilleType: !!actif.querySelector('.seg-point'), pastilleAilleurs: document.querySelectorAll('.seg-point').length, fondActif: getComputedStyle(actif).backgroundColor,
         vendeur: v.down('#user').getWidth(), espace: Math.round(libs[1].getBoundingClientRect().left - ctrl[0].getBoundingClientRect().right) }; });
-    ok('Libellés Type / Nature / Vendeur centrés sur leurs choix, espacés ; vendeur à largeur fixe', dessin.libs.join('|') === 'Type|Nature|Vendeur' && dessin.ecarts.every((x) => x <= 2)
+    ok('Libellés Type / Nature / Vendeur / Conseil centrés sur leurs choix, espacés ; vendeur à largeur fixe', dessin.libs.join('|') === 'Type|Nature|Vendeur|Conseil' && dessin.ecarts.every((x) => x <= 2)
       && dessin.espace >= 24 && dessin.vendeur === 300, JSON.stringify(dessin));
     ok('Type actif : pastille clignotante (seulement sur le type), fond foncé', dessin.pastilleType && dessin.pastilleAilleurs === 1 && dessin.fondActif === 'rgb(30, 58, 95)', JSON.stringify(dessin));
     /* Survol : le libelle reste lisible, sur le choix actif comme sur les autres. */

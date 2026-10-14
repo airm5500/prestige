@@ -2667,6 +2667,7 @@ public class SalesServiceImpl implements SalesService {
             tp.setLgREGLEMENTID(tReglement);
             tp.setLgUSERID(clotureVenteParams.getUserId());
             tp.setLgUSERVENDEURID(vendeur != null ? vendeur : clotureVenteParams.getUserId());
+            appliquerConseil(tp, clotureVenteParams);
             tp.setLgUSERCAISSIERID(tp.getLgUSERID());
             tp.setStrREFTICKET(DateConverter.getShortId(10));
             tp.setBISAVOIR(isAvoir);
@@ -2926,6 +2927,7 @@ public class SalesServiceImpl implements SalesService {
             tp.setLgREGLEMENTID(tReglement);
             tp.setLgUSERID(clotureVenteParams.getUserId());
             tp.setLgUSERVENDEURID(vendeur != null ? vendeur : clotureVenteParams.getUserId());
+            appliquerConseil(tp, clotureVenteParams);
             tp.setLgUSERCAISSIERID(tp.getLgUSERID());
             tp.setStrREFTICKET(DateConverter.getShortId(10));
             tp.setBISAVOIR(isAvoir);
@@ -3795,6 +3797,7 @@ public class SalesServiceImpl implements SalesService {
             tp.setDtUPDATED(new Date());
             tp.setLgUSERID(clotureVenteParams.getUserId());
             tp.setLgUSERVENDEURID(vendeur != null ? vendeur : clotureVenteParams.getUserId());
+            appliquerConseil(tp, clotureVenteParams);
             tp.setLgUSERCAISSIERID(tp.getLgUSERID());
             tp.setStrREFTICKET(DateConverter.getShortId(10));
             tp.setBISAVOIR(isAvoir);
@@ -3926,6 +3929,7 @@ public class SalesServiceImpl implements SalesService {
             tp.setCompletionDate(tp.getDtUPDATED());
             tp.setLgUSERID(clotureVenteParams.getUserId());
             tp.setLgUSERVENDEURID(vendeur != null ? vendeur : clotureVenteParams.getUserId());
+            appliquerConseil(tp, clotureVenteParams);
             tp.setLgUSERCAISSIERID(tp.getLgUSERID());
             tp.setStrREFTICKET(DateConverter.getShortId(10));
             tp.setBISAVOIR(isAvoir);
@@ -5874,4 +5878,14 @@ public class SalesServiceImpl implements SalesService {
         em.merge(preenregistrement);
     }
 
+    /**
+     * Retours du 13/10 (point 11) : « Conseil » choisi a la vente (facultatif). Seul un utilisateur connu est retenu ;
+     * sans choix, rien n'est efface (une vente reprise garde son conseil).
+     */
+    private void appliquerConseil(TPreenregistrement tp, ClotureVenteParams params) {
+        String id = params == null ? null : org.apache.commons.lang3.StringUtils.trimToNull(params.getUserConseilId());
+        if (id != null && em.find(TUser.class, id) != null) {
+            tp.setLgUSERCONSEILID(id);
+        }
+    }
 }

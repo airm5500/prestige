@@ -191,7 +191,9 @@ Ext.define('testextjs.view.vente.user.ClientGrid', {
                                     height: 35,
                                     enableKeyEvents: true,
                                     emptyText: 'Rechercher un client (2 caractères)'
-                                }
+                                },
+                                /* retours du 13/10 (point 11) : recherche « commence par » ou « contient » */
+                                window.PrestigeRechercheClient ? PrestigeRechercheClient.selecteur({margin: '0 0 0 8'}) : {xtype: 'tbspacer'}
                             ]
                         }
 

@@ -209,6 +209,21 @@ public class ClientServiceImpl implements ClientService {
 
     @Override
     public List<ClientLambdaDTO> findClientLambda(String query) {
+        return findClientLambda(query, null);
+    }
+
+    /** Expression d'un numero sans separateurs (retours du 13/10, point 11). */
+    private static javax.persistence.criteria.Expression<String> sansSeparateurs(CriteriaBuilder cb,
+            javax.persistence.criteria.Expression<String> colonne) {
+        javax.persistence.criteria.Expression<String> e = colonne;
+        for (String sep : new String[] { " ", ".", "-" }) {
+            e = cb.function("REPLACE", String.class, e, cb.literal(sep), cb.literal(""));
+        }
+        return e;
+    }
+
+    @Override
+    public List<ClientLambdaDTO> findClientLambda(String query, String mode) {
         try {
             EntityManager emg = this.getEmg();
             List<Predicate> predicates = new ArrayList<>();
@@ -224,11 +239,20 @@ public class ClientServiceImpl implements ClientService {
                     cb.equal(root.get(TClient_.lgTYPECLIENTID).get("lgTYPECLIENTID"), Constant.STANDART_CLIENT_ID)));
 
             if (query != null && !query.equals("")) {
-                query = query.trim() + "%"; // espaces parasites ignores, dans la saisie comme en base
-                predicates.add(cb.or(cb.like(cb.trim(root.get(TClient_.strFIRSTNAME)), query),
-                        cb.like(cb.trim(root.get(TClient_.strLASTNAME)), query),
-                        cb.like(cb.concat(cb.concat(cb.trim(root.get(TClient_.strFIRSTNAME)), " "),
-                                cb.trim(root.get(TClient_.strLASTNAME))), query)));
+                /* retours du 13/10 (point 11) : « commence par » (defaut) ou « contient », et par numero */
+                String numero = util.RechercheClient.motifChiffres(query, mode);
+                query = util.RechercheClient.motif(query, mode); // espaces parasites ignores, dans la saisie comme en
+                                                                 // base
+                List<Predicate> ou = new ArrayList<>(
+                        java.util.Arrays.asList(cb.like(cb.trim(root.get(TClient_.strFIRSTNAME)), query),
+                                cb.like(cb.trim(root.get(TClient_.strLASTNAME)), query),
+                                cb.like(cb.concat(cb.concat(cb.trim(root.get(TClient_.strFIRSTNAME)), " "),
+                                        cb.trim(root.get(TClient_.strLASTNAME))), query),
+                                cb.like(root.get(TClient_.strCODEINTERNE), query)));
+                if (numero != null) {
+                    ou.add(cb.like(sansSeparateurs(cb, root.get(TClient_.strTELEPHONE)), numero));
+                }
+                predicates.add(cb.or(ou.toArray(Predicate[]::new)));
             }
 
             cq.where(cb.and(predicates.toArray(Predicate[]::new)));
@@ -242,6 +266,11 @@ public class ClientServiceImpl implements ClientService {
 
     @Override
     public List<ClientDTO> findClientAssurance(String query, String typeClientId) {
+        return findClientAssurance(query, typeClientId, null);
+    }
+
+    @Override
+    public List<ClientDTO> findClientAssurance(String query, String typeClientId, String mode) {
         try {
             EntityManager emg = this.getEmg();
             List<Predicate> predicates = new ArrayList<>();
@@ -257,11 +286,26 @@ public class ClientServiceImpl implements ClientService {
                 predicates.add(cb.and(cb.equal(root.get(TClient_.lgTYPECLIENTID).get("lgTYPECLIENTID"), typeClientId)));
             }
             if (!StringUtils.isEmpty(query)) {
-                query = query.trim() + "%"; // espaces parasites ignores, dans la saisie comme en base
-                predicates.add(cb.or(cb.like(root.get(TClient_.strNUMEROSECURITESOCIAL), query),
-                        cb.like(cb.trim(root.get(TClient_.strFIRSTNAME)), query),
-                        cb.like(cb.concat(cb.concat(cb.trim(root.get(TClient_.strFIRSTNAME)), " "),
-                                cb.trim(root.get(TClient_.strLASTNAME))), query)));
+                /*
+                 * retours du 13/10 (point 11) : « commence par » (defaut) ou « contient » ; prenoms, code interne et
+                 * telephone (avec ou sans separateurs) en plus du matricule et du nom
+                 */
+                String numero = util.RechercheClient.motifChiffres(query, mode);
+                query = util.RechercheClient.motif(query, mode); // espaces parasites ignores, dans la saisie comme en
+                                                                 // base
+                List<Predicate> ou = new ArrayList<>(
+                        java.util.Arrays
+                                .asList(cb.like(root.get(TClient_.strNUMEROSECURITESOCIAL), query),
+                                        cb.like(cb.trim(root
+                                                .get(TClient_.strFIRSTNAME)), query),
+                                        cb.like(cb.trim(root.get(TClient_.strLASTNAME)), query),
+                                        cb.like(cb.concat(cb.concat(cb.trim(root.get(TClient_.strFIRSTNAME)), " "),
+                                                cb.trim(root.get(TClient_.strLASTNAME))), query),
+                                        cb.like(root.get(TClient_.strCODEINTERNE), query)));
+                if (numero != null) {
+                    ou.add(cb.like(sansSeparateurs(cb, root.get(TClient_.strTELEPHONE)), numero));
+                }
+                predicates.add(cb.or(ou.toArray(Predicate[]::new)));
             }
             cq.where(cb.and(predicates.toArray(Predicate[]::new)));
             Query q = emg.createQuery(cq);
@@ -1866,7 +1910,16 @@ public class ClientServiceImpl implements ClientService {
 
     // ------------------- Ecran Gestion des Clients (remplace client/ws_data.jsp) -------------------
 
+    /** Parametres numerotes sans trou (Hibernate) : le telephone suit le type quand il est filtre. */
+    private static int indiceTelephone(String typeClientId) {
+        return StringUtils.isNotBlank(typeClientId) ? 4 : 3;
+    }
+
     private String clauseListeClients(String search, String typeClientId) {
+        return clauseListeClients(search, typeClientId, null);
+    }
+
+    private String clauseListeClients(String search, String typeClientId, String mode) {
         StringBuilder where = new StringBuilder(" FROM TClient t WHERE t.strSTATUT = ?2");
         if (StringUtils.isNotBlank(search)) {
             where.append(" AND (t.strFIRSTNAME LIKE ?1 OR t.strLASTNAME LIKE ?1")
@@ -1875,7 +1928,13 @@ public class ClientServiceImpl implements ClientService {
                     .append(" OR t.strNUMEROSECURITESOCIAL LIKE ?1 OR t.strCODEINTERNE LIKE ?1")
                     // Le telephone est le seul identifiant d'un client standard : on doit pouvoir
                     // le retrouver par son numero, saisi avec ou sans separateurs.
-                    .append(" OR t.strTELEPHONE LIKE ?1)");
+                    .append(" OR t.strTELEPHONE LIKE ?1")
+                    /* retours du 13/10 (point 11) : numero saisi avec ou sans separateurs */
+                    .append(util.RechercheClient.chiffres(search) != null
+                            ? " OR " + util.RechercheClient.sansSeparateursJpql("t.strTELEPHONE") + " LIKE ?"
+                                    + indiceTelephone(typeClientId)
+                            : "")
+                    .append(")");
         }
         if (StringUtils.isNotBlank(typeClientId)) {
             where.append(" AND t.lgTYPECLIENTID.lgTYPECLIENTID = ?3");
@@ -1884,9 +1943,17 @@ public class ClientServiceImpl implements ClientService {
     }
 
     private void bindClauseListeClients(TypedQuery<?> query, String search, String typeClientId, String statut) {
+        bindClauseListeClients(query, search, typeClientId, statut, null);
+    }
+
+    private void bindClauseListeClients(TypedQuery<?> query, String search, String typeClientId, String statut,
+            String mode) {
         query.setParameter(2, statut);
         if (StringUtils.isNotBlank(search)) {
-            query.setParameter(1, search.trim() + "%");
+            query.setParameter(1, util.RechercheClient.motif(search, mode));
+            if (util.RechercheClient.chiffres(search) != null) {
+                query.setParameter(indiceTelephone(typeClientId), util.RechercheClient.motifChiffres(search, mode));
+            }
         }
         if (StringUtils.isNotBlank(typeClientId)) {
             query.setParameter(3, typeClientId);
@@ -2113,20 +2180,26 @@ public class ClientServiceImpl implements ClientService {
     @Override
     public JSONObject listClients(String search, String typeClientId, boolean actifs, boolean btnDelete,
             boolean btnDesactiver, int start, int limit) {
+        return listClients(search, typeClientId, actifs, btnDelete, btnDesactiver, start, limit, null);
+    }
+
+    @Override
+    public JSONObject listClients(String search, String typeClientId, boolean actifs, boolean btnDelete,
+            boolean btnDesactiver, int start, int limit, String mode) {
         JSONObject json = new JSONObject();
         JSONArray results = new JSONArray();
         try {
             String statut = actifs ? commonparameter.statut_enable : commonparameter.statut_disable;
-            String where = clauseListeClients(search, typeClientId);
+            String where = clauseListeClients(search, typeClientId, mode);
 
             TypedQuery<Long> qc = em.createQuery("SELECT COUNT(t)" + where, Long.class);
-            bindClauseListeClients(qc, search, typeClientId, statut);
+            bindClauseListeClients(qc, search, typeClientId, statut, mode);
             long total = qc.getSingleResult();
 
             TypedQuery<TClient> q = em.createQuery(
                     "SELECT t" + where + " ORDER BY t.lgTYPECLIENTID.strDESCRIPTION ASC, t.strFIRSTNAME ASC",
                     TClient.class);
-            bindClauseListeClients(q, search, typeClientId, statut);
+            bindClauseListeClients(q, search, typeClientId, statut, mode);
             if (limit > 0) {
                 q.setFirstResult(Math.max(0, start)).setMaxResults(limit);
             }

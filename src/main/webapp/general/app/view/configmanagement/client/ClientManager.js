@@ -473,7 +473,9 @@ Ext.define('testextjs.view.configmanagement.client.ClientManager', {
                         }
                     }
 
-                }, '-', {
+                },
+                /* retours du 13/10 (point 11) : recherche « commence par » ou « contient » */
+                window.PrestigeRechercheClient ? PrestigeRechercheClient.selecteur({margin: '0 0 0 6'}) : {xtype: 'tbspacer'}, '-', {
                     text: 'rechercher',
                     tooltip: 'rechercher',
                     iconCls: 'searchicon',

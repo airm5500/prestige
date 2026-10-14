@@ -37,11 +37,16 @@ public interface ClientService {
 
     List<ClientLambdaDTO> findClientLambda(String query);
 
+    /** Retours du 13/10 (point 11) : mode « commence » (defaut) ou « contient ». */
+    List<ClientLambdaDTO> findClientLambda(String query, String mode);
+
     List<ClientDTO> clientDifferes(String query, String empl);
 
     List<ClientDTO> clientDiffere(String query, String empl);
 
     List<ClientDTO> findClientAssurance(String query, String typeClientId);
+
+    List<ClientDTO> findClientAssurance(String query, String typeClientId, String mode);
 
     List<TiersPayantParams> findTiersPayantByClientId(String clientId);
 
@@ -117,6 +122,9 @@ public interface ClientService {
 
     JSONObject listClients(String search, String typeClientId, boolean actifs, boolean btnDelete, boolean btnDesactiver,
             int start, int limit);
+
+    JSONObject listClients(String search, String typeClientId, boolean actifs, boolean btnDelete, boolean btnDesactiver,
+            int start, int limit, String mode);
 
     /** Consentement SMS / WhatsApp de la fiche client (point 2) : {success, consentSms: true|false|null}. */
     org.json.JSONObject lireConsentement(String clientId);

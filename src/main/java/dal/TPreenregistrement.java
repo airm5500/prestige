@@ -158,6 +158,18 @@ public class TPreenregistrement implements Serializable {
     @JoinColumn(name = "lg_USER_VENDEUR_ID", referencedColumnName = "lg_USER_ID")
     @ManyToOne
     private TUser lgUSERVENDEURID;
+    /* retours du 13/10 (point 11) : personne qui a conseille le client (facultatif), id d'utilisateur */
+    @Column(name = "lg_USER_CONSEIL_ID", length = 40)
+    private String lgUSERCONSEILID;
+
+    public String getLgUSERCONSEILID() {
+        return lgUSERCONSEILID;
+    }
+
+    public void setLgUSERCONSEILID(String lgUSERCONSEILID) {
+        this.lgUSERCONSEILID = lgUSERCONSEILID;
+    }
+
     @JoinColumn(name = "lg_TYPE_VENTE_ID", referencedColumnName = "lg_TYPE_VENTE_ID")
     @ManyToOne
     private TTypeVente lgTYPEVENTEID;

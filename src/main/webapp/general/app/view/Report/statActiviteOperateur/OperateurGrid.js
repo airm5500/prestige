@@ -230,6 +230,18 @@ Ext.define('testextjs.view.Report.statActiviteOperateur.OperateurGrid', {
                 }
 
                 , {
+                    /* retours du 13/10 (point 11) : ventes ou l'operateur a ete choisi comme « Conseil » */
+                    text: 'Conseil',
+                    itemId: 'colConseil',
+                    columns: [
+                        {text: 'Nombre', dataIndex: 'NB_CONSEIL', itemId: 'colNbConseil', flex: 0.5, align: 'right', summaryType: 'sum'},
+                        {text: 'Montant', dataIndex: 'MONTANT_CONSEIL', itemId: 'colMontantConseil', flex: 0.6, align: 'right', renderer: amountformat,
+                            summaryType: 'sum', summaryRenderer: function (value) {
+                                return value > 0 ? "<b><span style='color:blue;'>" + amountformat(value) + "  F</span></b>" : '';
+                            }}
+                    ]
+                }
+                , {
                     text: '%CA',
                     dataIndex: 'CA',
                     summaryType: "sum",
