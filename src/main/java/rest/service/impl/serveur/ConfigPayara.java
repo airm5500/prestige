@@ -92,9 +92,23 @@ public final class ConfigPayara {
         return c;
     }
 
-    /** Fils HTTP conseilles : 5 par poste (ecrans qui chargent en parallele, terminaux), entre 50 et 200. */
-    public static int filsConseilles(int postes) {
-        return Math.max(50, Math.min(200, postes * 5));
+    /**
+     * Fils HTTP conseilles pour UN Payara : une caisse (un utilisateur, mais chaque ecran lance plusieurs appels a la
+     * fois) 50 ; le serveur, qui sert aussi les terminaux et les telephones, 100.
+     */
+    public static int filsConseilles(boolean serveur) {
+        return serveur ? 100 : 50;
+    }
+
+    /** Vrai si l'hote designe cette machine (adresse de bouclage ou nom de la machine). */
+    public static boolean locale(String hote, String nomMachine) {
+        String h = hote == null ? "" : hote.trim().toLowerCase(Locale.ROOT);
+        return h.equals("127.0.0.1") || h.equals("localhost") || h.equals("::1") || h.equals("[::1]")
+                || (nomMachine != null && h.equalsIgnoreCase(nomMachine.trim()));
+    }
+
+    static boolean ipv4(String hote) {
+        return hote != null && hote.matches("\\d{1,3}(\\.\\d{1,3}){3}");
     }
 
     private static boolean option(List<String> options, String prefixe) {
@@ -116,7 +130,7 @@ public final class ConfigPayara {
     }
 
     /** Hote de MariaDB dans une URL JDBC (vide si illisible). */
-    static String hoteBase(String url) {
+    public static String hoteBase(String url) {
         Matcher m = url == null ? null : Pattern.compile("jdbc:(?:mariadb|mysql)://([^:/?]+)").matcher(url);
         return m != null && m.find() ? m.group(1) : "";
     }
@@ -152,8 +166,19 @@ public final class ConfigPayara {
      */
     public List<Reglage> comparer(List<String> options, long heapConseille, int postes, String dossierVidages,
             String dossierLogs) {
+        return comparer(options, heapConseille, true, true, dossierVidages, dossierLogs);
+    }
+
+    /**
+     * @param serveur
+     *            poste serveur (sinon : poste de caisse)
+     * @param mariadbLocale
+     *            MariaDB tourne sur cette machine
+     */
+    public List<Reglage> comparer(List<String> options, long heapConseille, boolean serveur, boolean mariadbLocale,
+            String dossierVidages, String dossierLogs) {
         List<Reglage> l = new ArrayList<>();
-        int fils = filsConseilles(postes);
+        int fils = filsConseilles(serveur);
         reglage(l, "http-thread-pool", "Fils HTTP (requêtes traitées en même temps)", String.valueOf(filsHttpMax),
                 String.valueOf(fils),
                 filsHttpMax < 25 ? Niveau.CRITIQUE : filsHttpMax < fils ? Niveau.A_AJUSTER : Niveau.OK,
@@ -183,14 +208,24 @@ public final class ConfigPayara {
                         + ".connection-creation-retry-attempts=6" + "\nasadmin set resources.jdbc-connection-pool."
                         + pool + ".connection-creation-retry-interval-in-seconds=10");
         String hote = hoteBase(poolUrl);
-        boolean boucle = "127.0.0.1".equals(hote);
-        reglage(l, "pool-adresse", "Adresse de la base dans le pool", hote.isEmpty() ? "?" : hote, "127.0.0.1",
-                boucle || hote.isEmpty() ? Niveau.OK : Niveau.A_AJUSTER,
-                "localhost".equalsIgnoreCase(hote)
-                        ? "localhost fonctionne, mais Windows essaie parfois d'abord l'adresse IPv6 ::1 : 127.0.0.1 ne dépend de rien."
-                        : "Un nom d'ordinateur ou une adresse du réseau dépend de la box et de la carte réseau, souvent pas prêtes après une coupure : MariaDB étant sur la même machine, 127.0.0.1 ne dépend de rien.",
-                poolUrl.isEmpty() || boucle ? "" : "asadmin set \"resources.jdbc-connection-pool." + pool
-                        + ".property.url=" + poolUrl.replaceFirst("//[^:/?]+", "//127.0.0.1") + "\"");
+        if (mariadbLocale) {
+            boolean boucle = "127.0.0.1".equals(hote);
+            reglage(l, "pool-adresse", "Adresse de la base dans le pool", hote.isEmpty() ? "?" : hote, "127.0.0.1",
+                    boucle || hote.isEmpty() ? Niveau.OK : Niveau.A_AJUSTER,
+                    "localhost".equalsIgnoreCase(hote)
+                            ? "localhost fonctionne, mais Windows essaie parfois d'abord l'adresse IPv6 ::1 : 127.0.0.1 ne dépend de rien."
+                            : "MariaDB est sur cette machine : 127.0.0.1 ne dépend ni de la box ni de la carte réseau, souvent pas prêtes après une coupure.",
+                    poolUrl.isEmpty() || boucle ? "" : "asadmin set \"resources.jdbc-connection-pool." + pool
+                            + ".property.url=" + poolUrl.replaceFirst("//[^:/?]+", "//127.0.0.1") + "\"");
+        } else {
+            boolean ip = ipv4(hote);
+            reglage(l, "pool-adresse", "Adresse du serveur de base dans le pool", hote.isEmpty() ? "?" : hote,
+                    "adresse IP fixe du serveur", ip || hote.isEmpty() ? Niveau.OK : Niveau.A_AJUSTER,
+                    ip ? "Adresse IP : vérifiez qu'elle est RÉSERVÉE au serveur dans la box (sinon elle peut changer après une coupure)."
+                            : "Un nom d'ordinateur doit être traduit par le réseau ; après une coupure, la box redémarre après les postes et la traduction échoue. Mettez l'adresse IP du serveur, réservée dans la box.",
+                    poolUrl.isEmpty() || ip ? "" : "asadmin set \"resources.jdbc-connection-pool." + pool
+                            + ".property.url=" + poolUrl.replaceFirst("//[^:/?]+", "//<IP_DU_SERVEUR>") + "\"");
+        }
         reglage(l, "surveillance", "Compteurs du pool et des fils",
                 "pool " + niveauSurveillancePool + ", fils " + niveauSurveillanceFils, "HIGH",
                 "HIGH".equals(niveauSurveillancePool) ? Niveau.OK : Niveau.A_AJUSTER,

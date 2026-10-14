@@ -38,6 +38,35 @@ public class SupportMaintenanceRessource {
     @EJB
     private SupportMaintenanceService supportMaintenanceService;
 
+    @EJB
+    private rest.service.impl.serveur.ServeurVieService serveurVie;
+    @EJB
+    private rest.service.SupportEventService supportEventService;
+
+    /**
+     * Connexions a la base par poste (lot 4) : pic depuis le demarrage de MariaDB, connexions en cours par machine,
+     * max_connections conseille pour le nombre de postes (chacun a son propre pool). Lecture seule.
+     */
+    @GET
+    @Path("connexions-base")
+    public Response connexionsBase() {
+        TUser user = currentUser();
+        if (user == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        if (!isAdmin(user)) {
+            return Response.ok().entity(ResultFactory.getFailResult("Action réservée aux administrateurs")).build();
+        }
+        int postes = 1;
+        try {
+            postes = Integer.parseInt(org.apache.commons.lang3.StringUtils
+                    .defaultIfBlank(supportEventService.getParameter("SUPPORT_SERVEUR_POSTES"), "1").trim());
+        } catch (NumberFormatException e) {
+            postes = 1;
+        }
+        return Response.ok(serveurVie.connexionsBase(postes).put("success", true).toString()).build();
+    }
+
     @GET
     @Path("counts")
     public Response counts() {

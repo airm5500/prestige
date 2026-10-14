@@ -279,6 +279,12 @@ public class PoolReparation {
         return "laborex_pool";
     }
 
+    /** Temps pour obtenir et utiliser une connexion du pool (ms), -1 en cas d'echec. */
+    public long tempsReponseMs() {
+        long t = System.nanoTime();
+        return poolOk() ? (System.nanoTime() - t) / 1_000_000L : -1L;
+    }
+
     /** Etat pour l'ecran de surveillance. */
     public java.util.Map<String, Object> etat() {
         java.util.Map<String, Object> m = new java.util.LinkedHashMap<>();

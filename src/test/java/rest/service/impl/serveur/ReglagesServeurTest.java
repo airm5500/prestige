@@ -45,13 +45,17 @@ class ReglagesServeurTest {
         assertEquals(4 * GO, ReglagesServeur.bufferPoolConseille(12 * GO));
         assertEquals(11 * GO, ReglagesServeur.bufferPoolConseille(32 * GO));
         assertEquals(1 * GO, ReglagesServeur.bufferPoolConseille(4 * GO));
-        assertEquals(32, ReglagesServeur.poolConseille(3));
-        assertEquals(70, ReglagesServeur.poolConseille(20));
+        assertEquals(50, ReglagesServeur.poolConseille(true));
+        assertEquals(32, ReglagesServeur.poolConseille(false));
+        /* 20 postes, chacun son Payara : 19 caisses x 32 + serveur 50 + marge 50 */
+        assertEquals(708, ReglagesServeur.connexionsMariadb(20));
+        assertEquals(164, ReglagesServeur.connexionsMariadb(3));
+        assertEquals(151, ReglagesServeur.connexionsMariadb(1));
     }
 
     @Test
     void configurationDesOfficinesSur12Go() {
-        List<Reglage> l = ReglagesServeur.comparer(12 * GO, 16, 3 * GO, myIniOfficine(), 20, 70);
+        List<Reglage> l = ReglagesServeur.comparer(12 * GO, 16, 3 * GO, myIniOfficine(), 4, 50);
         assertEquals(Niveau.CRITIQUE, r(l, "innodb_log_buffer_size").niveau, "2 Go de journal en mémoire");
         assertEquals("innodb_log_buffer_size=64M", r(l, "innodb_log_buffer_size").ligne);
         assertEquals(Niveau.OK, r(l, "innodb_buffer_pool_size").niveau, "3500M pour 4 Go conseillés");
@@ -61,10 +65,25 @@ class ReglagesServeurTest {
         assertEquals(Niveau.A_AJUSTER, r(l, "slow_query_log").niveau);
         assertEquals(Niveau.A_AJUSTER, r(l, "long_query_time").niveau);
         assertEquals(Niveau.OK, r(l, "Xmx").niveau);
-        assertEquals(Niveau.OK, r(l, "max_connections").niveau);
+        assertEquals(Niveau.OK, r(l, "max_connections").niveau, "251 pour 4 postes");
         String bloc = ReglagesServeur.blocMyIni(l);
         assertTrue(bloc.startsWith("[mysqld]\n") && bloc.contains("innodb_buffer_pool_size=4G")
                 && bloc.contains("slow_query_log=1"), bloc);
+    }
+
+    @Test
+    void posteDeCaisseSansMariadb() {
+        List<Reglage> l = ReglagesServeur.comparer(8 * GO, 8, 2 * GO, new HashMap<>(), 4, 32, false, false);
+        assertTrue(l.stream().noneMatch(x -> "MARIADB".equals(x.domaine)),
+                "les réglages de MariaDB ne concernent que le serveur");
+        assertEquals(Niveau.OK, r(l, "max-pool-size").niveau);
+        assertEquals("32", r(l, "max-pool-size").conseille);
+    }
+
+    @Test
+    void vingtPostesDemandentPlusDeConnexions() {
+        assertEquals(Niveau.A_AJUSTER,
+                r(ReglagesServeur.comparer(12 * GO, 16, 3 * GO, myIniOfficine(), 20, 50), "max_connections").niveau);
     }
 
     @Test

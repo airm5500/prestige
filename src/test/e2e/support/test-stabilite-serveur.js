@@ -55,6 +55,8 @@ const HOTE_ESSAI = 'E2E-SERVEUR';
     const etat = await p.evaluate(() => ({ tuiles: Ext.ComponentQuery.query('supportserveur #tuiles')[0].getEl().dom.textContent,
       mesures: Ext.ComponentQuery.query('supportserveur #ongletEtat')[0].mesures.getCount() }));
     ok('État : tuiles mémoire, machine, processeur, requêtes, base', ['En marche depuis', 'Mémoire du serveur Java', 'Mémoire de la machine', 'Processeur', 'Requêtes en traitement', 'Connexions à la base'].every((x) => etat.tuiles.indexOf(x) >= 0), etat.tuiles.slice(0, 200));
+    ok('État : tuile du pool de connexions (temps de réponse) et actualisation automatique cochée', /Pool de connexions\d+ ms/.test(etat.tuiles)
+      && await p.evaluate(() => Ext.ComponentQuery.query('supportserveur #auto')[0].getValue() === true), etat.tuiles.slice(etat.tuiles.indexOf('Pool'), etat.tuiles.indexOf('Pool') + 60));
     ok('État : courbes alimentées par les relevés', etat.mesures === Number(q("SELECT COUNT(*) FROM t_serveur_mesure WHERE mesure_at >= NOW() - INTERVAL 24 HOUR")) && etat.mesures > 0, etat.mesures);
 
     await p.click('.supportserveur .x-tab:has-text("Arrêts")');
@@ -75,13 +77,36 @@ const HOTE_ESSAI = 'E2E-SERVEUR';
     ok('Tampon InnoDB en place = valeur de MariaDB', r.o.innodb_buffer_pool_size && r.o.innodb_buffer_pool_size.split('|')[0] !== '?', r.o.innodb_buffer_pool_size);
     ok('Bloc my.ini et commandes asadmin, sans mot de passe', /^\[mysqld\]\ninnodb_buffer_pool_size=/.test(r.myIni) && /call asadmin set configs\.config\.server-config\.thread-pools/.test(r.asadmin)
       && !/password/i.test(r.myIni + r.asadmin), r.asadmin.slice(0, 200));
-    /* nombre de postes : 40 -> fils conseilles 200, pool conseille 100 */
+    /* nombre de postes : 40 -> MariaDB doit accepter 39 caisses x 32 + serveur 50 + marge 50 ; fils et pool restent ceux d'UN poste */
     await p.evaluate(() => { Ext.ComponentQuery.query('supportserveur #postes')[0].setValue(40); });
     await p.click('.supportserveur .x-btn:has-text("Recalculer")');
     await p.waitForTimeout(3000);
     r = await lire();
-    ok('40 postes : 200 fils HTTP et 100 connexions conseillés, enregistré', r.o['http-thread-pool'].split('|')[1] === '200' && r.o['max-pool-size'].split('|')[1] === '100'
-      && q("SELECT str_VALUE FROM t_parameters WHERE str_KEY = 'SUPPORT_SERVEUR_POSTES'") === '40' && r.postes === 40, JSON.stringify([r.o['http-thread-pool'], r.o['max-pool-size']]));
+    ok('40 postes : max_connections conseillé 1348 ; fils (100) et pool (50) du serveur inchangés ; enregistré',
+      r.o.max_connections.split('|')[1] === '1348' && r.o['http-thread-pool'].split('|')[1] === '100' && r.o['max-pool-size'].split('|')[1] === '50'
+      && q("SELECT str_VALUE FROM t_parameters WHERE str_KEY = 'SUPPORT_SERVEUR_POSTES'") === '40' && r.postes === 40,
+      JSON.stringify([r.o.max_connections, r.o['http-thread-pool'], r.o['max-pool-size']]));
+    /* lexique */
+    await p.click('.supportserveur .x-tab:has-text("Lexique")');
+    await p.waitForFunction(() => /Sur cette machine/.test(Ext.ComponentQuery.query('supportserveur #lexique')[0].getEl().dom.textContent), null, { timeout: 30000 });
+    const lex = await p.evaluate(() => { const t = Ext.ComponentQuery.query('supportserveur #lexique')[0].getEl().dom;
+      return { n: t.querySelectorAll('.srv-lex').length, total: testextjs.view.support.LexiqueServeur.ENTREES.length, texte: t.textContent }; });
+    ok('Lexique : toutes les entrées, image du restaurant, cas Prestige, valeur pour cette machine', lex.n === lex.total && lex.n >= 25
+      && /imaginez un restaurant/.test(lex.texte) && /Dans Prestige/.test(lex.texte) && /Sur cette machine : en place/.test(lex.texte), lex.n + '/' + lex.total);
+    await p.evaluate(() => { Ext.ComponentQuery.query('supportserveur #filtreLexique')[0].setValue('coupure'); });
+    await p.waitForTimeout(800);
+    const filtre = await p.evaluate(() => Array.from(Ext.ComponentQuery.query('supportserveur #lexique')[0].getEl().dom.querySelectorAll('.srv-lex-terme')).map((x) => x.textContent));
+    ok('Lexique : recherche « coupure »', filtre.length >= 3 && filtre.length < lex.n && filtre.some((x) => /Onduleur/.test(x)), filtre.join(' | ').slice(0, 200));
+
+    /* Maintenance : connexions a la base par poste */
+    await p.evaluate(() => testextjs.app.getController('App').onRedirectTo('supportmaintenance', {}));
+    await p.waitForFunction(() => { const c = Ext.ComponentQuery.query('supportmaintenance #resumeConnexions')[0]; return c && /max_connections/.test(c.getEl().dom.textContent); }, null, { timeout: 30000 });
+    const cx = await p.evaluate(() => ({ resume: Ext.ComponentQuery.query('supportmaintenance #resumeConnexions')[0].getEl().dom.textContent,
+      lignes: Ext.ComponentQuery.query('supportmaintenance #grilleConnexions')[0].getStore().getCount(),
+      requetes: Ext.ComponentQuery.query('supportmaintenance #requetesConnexions')[0].getEl().dom.textContent }));
+    const max = q("SELECT @@max_connections");
+    ok('Maintenance : limite, pic, connexions par poste, calcul et requêtes affichés', cx.resume.indexOf('(max_connections) : ' + max) >= 0 && /Pic depuis son démarrage/.test(cx.resume)
+      && /caisse\(s\) × 32 \+ serveur 50 \+ marge 50/.test(cx.resume) && cx.lignes >= 1 && /Max_used_connections/.test(cx.requetes), cx.resume.slice(0, 250));
     ok('Lecture seule : domain.xml et MariaDB inchangés', empreinte(DOMAIN) === domaineAvant
       && q("SELECT GROUP_CONCAT(CONCAT(VARIABLE_NAME, '=', VARIABLE_VALUE) ORDER BY VARIABLE_NAME) FROM information_schema.GLOBAL_VARIABLES WHERE VARIABLE_NAME IN ('INNODB_BUFFER_POOL_SIZE','MAX_CONNECTIONS','SLOW_QUERY_LOG','THREAD_CACHE_SIZE')") === varsAvant);
 

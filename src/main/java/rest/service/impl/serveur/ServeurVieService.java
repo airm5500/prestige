@@ -132,6 +132,66 @@ public class ServeurVieService {
         }
     }
 
+    /**
+     * Connexions a MariaDB, pour dimensionner max_connections : en ce moment, pic depuis son demarrage, et detail par
+     * poste (machine d'origine). Sans le droit PROCESS, le compte de l'application ne voit que ses propres connexions :
+     * le detail est alors partiel (signale).
+     */
+    @SuppressWarnings("unchecked")
+    public JSONObject connexionsBase(int postesDeclares) {
+        java.util.Map<String, String> v = variablesMariadb();
+        long max = ReglagesServeur.octets(v.get("max_connections"));
+        Long pic = statutMariadb("Max_used_connections"), maintenant = statutMariadb("Threads_connected"),
+                uptime = statutMariadb("Uptime"), refusees = statutMariadb("Connection_errors_max_connections");
+        JSONArray postes = new JSONArray();
+        int vues = 0, distants = 0;
+        for (Object[] r : (List<Object[]>) em.createNativeQuery("SELECT SUBSTRING_INDEX(HOST, ':', 1) AS poste,"
+                + " COUNT(*) AS total, SUM(CASE WHEN COMMAND = 'Sleep' THEN 1 ELSE 0 END) AS repos,"
+                + " MAX(CASE WHEN COMMAND = 'Sleep' THEN 0 ELSE TIME END) AS plusLongue"
+                + " FROM information_schema.PROCESSLIST WHERE COMMAND <> 'Daemon' AND USER <> 'system user'"
+                + " GROUP BY SUBSTRING_INDEX(HOST, ':', 1) ORDER BY total DESC").getResultList()) {
+            String poste = String.valueOf(r[0]);
+            int total = ((Number) r[1]).intValue();
+            vues += total;
+            boolean local = ConfigPayara.locale(poste, null);
+            distants += local ? 0 : 1;
+            postes.put(new JSONObject().put("poste", local ? poste + " (cette machine)" : poste).put("total", total)
+                    .put("repos", r[2] == null ? 0 : ((Number) r[2]).intValue())
+                    .put("actives", total - (r[2] == null ? 0 : ((Number) r[2]).intValue()))
+                    .put("plusLongueS", r[3] == null ? 0 : ((Number) r[3]).longValue()));
+        }
+        boolean complet = maintenant == null || vues >= maintenant;
+        int postesRetenus = Math.max(postesDeclares, distants + 1);
+        int conseil = ReglagesServeur.connexionsMariadb(postesRetenus);
+        String avis;
+        if (max > 0 && pic != null && pic >= max) {
+            avis = "MariaDB a déjà atteint sa limite (" + pic + " / " + max
+                    + ") : des postes ont été refusés (« Too many connections »).";
+        } else if (max > 0 && pic != null && pic >= max * 0.8) {
+            avis = "Le pic (" + pic + ") approche la limite (" + max + ") : à relever avant qu'un poste soit refusé.";
+        } else if (max > 0 && max < conseil) {
+            avis = "Pic actuel sous la limite, mais si chaque poste remplit son pool (32), " + postesRetenus
+                    + " poste(s) peuvent demander jusqu'à " + conseil + " connexions.";
+        } else {
+            avis = "Limite suffisante pour " + postesRetenus + " poste(s).";
+        }
+        return new JSONObject().put("maxConnections", max).put("pic", pic == null ? JSONObject.NULL : pic)
+                .put("maintenant", maintenant == null ? JSONObject.NULL : maintenant)
+                .put("refusees", refusees == null ? JSONObject.NULL : refusees)
+                .put("depuisHeures", uptime == null ? JSONObject.NULL : uptime / 3600).put("postes", postes)
+                .put("postesVus", distants + 1).put("postesDeclares", postesDeclares).put("conseil", conseil)
+                .put("complet", complet).put("avis", avis)
+                .put("calcul",
+                        (postesRetenus - 1) + " caisse(s) × " + ReglagesServeur.poolConseille(false) + " + serveur "
+                                + ReglagesServeur.poolConseille(true) + " + marge 50 (sauvegardes, outils) = " + conseil
+                                + (conseil == 151 ? " (151 minimum)" : ""))
+                .put("requetes", new JSONArray().put("SHOW GLOBAL VARIABLES LIKE 'max_connections';")
+                        .put("SHOW GLOBAL STATUS LIKE 'Max_used_connections';")
+                        .put("SHOW GLOBAL STATUS LIKE 'Threads_connected';")
+                        .put("SELECT SUBSTRING_INDEX(HOST, ':', 1) AS poste, COUNT(*) AS connexions"
+                                + " FROM information_schema.PROCESSLIST GROUP BY poste ORDER BY connexions DESC;"));
+    }
+
     /** Variables de MariaDB (SHOW GLOBAL VARIABLES), noms en minuscules. */
     @SuppressWarnings("unchecked")
     public java.util.Map<String, String> variablesMariadb() {

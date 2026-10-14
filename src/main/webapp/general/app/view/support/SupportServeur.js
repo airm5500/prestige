@@ -25,7 +25,7 @@ Ext.define('testextjs.view.support.SupportServeur', {
     initComponent: function () {
         var me = this;
         me.styles();
-        me.items = [me.ongletEtat(), me.ongletArrets(), me.ongletReglages()];
+        me.items = [me.ongletEtat(), me.ongletArrets(), me.ongletReglages(), me.ongletLexique()];
         me.callParent(arguments);
         me.on('afterrender', function () {
             me.chargerEtat();
@@ -37,7 +37,19 @@ Ext.define('testextjs.view.support.SupportServeur', {
                 me.chargerArrets();
             } else if (t.itemId === 'ongletReglages') {
                 me.chargerReglages();
+            } else if (t.itemId === 'ongletLexique') {
+                me.afficherLexique();
             }
+        });
+        /* monitoring en direct : l'onglet Etat se rafraichit toutes les 15 s tant qu'il est affiche */
+        me.minuteur = setInterval(function () {
+            var t = me.getActiveTab(), auto = me.down('#auto');
+            if (!me.isDestroyed && t && t.itemId === 'ongletEtat' && auto && auto.getValue() && me.isVisible(true)) {
+                me.chargerEtat(true);
+            }
+        }, 15000);
+        me.on('destroy', function () {
+            clearInterval(me.minuteur);
         });
     },
 
@@ -56,7 +68,12 @@ Ext.define('testextjs.view.support.SupportServeur', {
                 + '.srv-ok{color:#1e8449;font-weight:bold}.srv-ajuster{color:#b9770e;font-weight:bold}.srv-critique{color:#c0392b;font-weight:bold}'
                 + '.srv-brutal{color:#c0392b;font-weight:bold}.srv-propre{color:#1e8449}.srv-encours{color:#1f6fb2}'
                 + '.srv-etat{padding:4px 10px;min-height:22px;color:#34495e}'
-                + '.srv-code textarea{font-family:Consolas,monospace !important;font-size:12px !important}', 'srv-styles');
+                + '.srv-code textarea{font-family:Consolas,monospace !important;font-size:12px !important}'
+                + '.srv-lex-image{padding:10px 12px;background:#eaf2f8;border-radius:6px;color:#1b4f72;margin-bottom:6px}'
+                + '.srv-lex-groupe{margin:16px 0 6px;color:#1f6fb2;font-size:15px}'
+                + '.srv-lex{border:1px solid #d5dbe1;border-left:5px solid #1f6fb2;border-radius:8px;background:#fff;padding:10px 12px;margin-bottom:10px;line-height:1.55}'
+                + '.srv-lex>div{margin-top:3px}.srv-lex-terme{font-weight:bold;font-size:14px;color:#1b2631}'
+                + '.srv-lex-ici{background:#f4f6f8;border-radius:4px;padding:1px 6px;margin-left:6px}', 'srv-styles');
     },
 
     esc: function (v) {
@@ -90,7 +107,8 @@ Ext.define('testextjs.view.support.SupportServeur', {
             mesures: store,
             tbar: [{text: 'Actualiser', iconCls: 'fa fa-refresh', handler: function () {
                         me.chargerEtat();
-                    }}, '->', {xtype: 'tbtext', itemId: 'machine', text: ''}],
+                    }}, {xtype: 'checkbox', itemId: 'auto', boxLabel: 'Actualisation automatique (15 s)', checked: true, margin: '0 0 0 10'},
+                {xtype: 'tbtext', itemId: 'heure', text: ''}, '->', {xtype: 'tbtext', itemId: 'machine', text: ''}],
             items: [
                 {xtype: 'component', itemId: 'cause', html: ''},
                 {xtype: 'component', itemId: 'tuiles', html: ''},
@@ -115,7 +133,7 @@ Ext.define('testextjs.view.support.SupportServeur', {
                 + (sous ? '<div class="s">' + sous + '</div>' : '') + '</div>';
     },
 
-    chargerEtat: function () {
+    chargerEtat: function (silencieux) {
         var me = this, o = me.down('#ongletEtat');
         me.appel('GET', 'etat', null, function (r) {
             if (!r.success) {
@@ -124,7 +142,9 @@ Ext.define('testextjs.view.support.SupportServeur', {
             }
             var pct = r.memoireMaxMo ? Math.round(r.memoireMo * 100 / r.memoireMaxMo) : null;
             var ramPct = r.ramTotaleMo ? Math.round((r.ramTotaleMo - r.ramLibreMo) * 100 / r.ramTotaleMo) : null;
-            o.down('#machine').setText(me.esc(r.hote) + ' · Java ' + me.esc(r.java) + ' · ' + r.processeurs + ' processeur(s)');
+            o.down('#machine').setText(me.esc(r.role) + ' ' + me.esc(r.hote) + ' · Java ' + me.esc(r.java) + ' · ' + r.processeurs + ' processeur(s)');
+            o.down('#heure').setText('Mesuré à ' + Ext.Date.format(new Date(), 'H:i:s'));
+            var pool = r.pool || {};
             o.down('#tuiles').update('<div class="srv-tuiles">'
                     + me.tuile('En marche depuis', me.esc(r.depuis))
                     + me.tuile('Mémoire du serveur Java', pct === null ? '—' : pct + ' %', me.nombre(r.memoireMo) + ' / ' + me.nombre(r.memoireMaxMo) + ' Mo',
@@ -133,7 +153,10 @@ Ext.define('testextjs.view.support.SupportServeur', {
                             ramPct >= 92 ? 'alerte' : ramPct >= 85 ? 'attention' : '')
                     + me.tuile('Processeur', r.cpuMachine === null ? '—' : Math.round(r.cpuMachine) + ' %', 'dont serveur Java ' + (r.cpuServeur === null ? '—' : Math.round(r.cpuServeur) + ' %'))
                     + me.tuile('Requêtes en traitement', me.nombre(r.filsHttp), me.nombre(r.fils) + ' fils au total')
-                    + me.tuile('Connexions à la base', me.nombre(r.bddConnexions), me.nombre(r.bddActives) + ' actives')
+                    + me.tuile('Pool de connexions', r.poolMs < 0 ? 'En échec' : r.poolMs + ' ms', me.esc(pool.etat || '')
+                            + (pool.reparationsDepuisDemarrage ? ' · ' + pool.reparationsDepuisDemarrage + ' réparation(s)' : ''),
+                            r.poolMs < 0 ? 'alerte' : r.poolMs > 500 ? 'attention' : '')
+                    + me.tuile('Connexions à la base', me.nombre(r.bddConnexions), me.nombre(r.bddActives) + ' actives (tous postes)')
                     + me.tuile('Interblocages (base)', me.nombre(r.bddInterblocages), 'depuis le démarrage de MariaDB', r.bddInterblocages > 0 ? 'attention' : '')
                     + '</div>');
             var c = r.derniereCause;
@@ -273,6 +296,10 @@ Ext.define('testextjs.view.support.SupportServeur', {
             o.down('#postes').setValue(r.postes);
             o.down('#machineReglages').setText('Machine : ' + me.esc(r.ram) + ' de mémoire, ' + r.processeurs + ' processeur(s) · MariaDB ' + me.esc(r.mariadb));
             o.down('#reglages').getStore().loadData(r.data || []);
+            me.reglages = {};
+            Ext.each(r.data || [], function (x) {
+                me.reglages[x.cle] = x;
+            });
             o.down('#myIni').setValue(r.myIni || '');
             o.down('#asadmin').setValue(r.asadmin || (r.payaraLu ? 'Aucun réglage Payara à appliquer.' : 'Configuration de Payara illisible.'));
             var n = {CRITIQUE: 0, A_AJUSTER: 0};
@@ -285,6 +312,58 @@ Ext.define('testextjs.view.support.SupportServeur', {
                     + (n.A_AJUSTER ? '<span class="srv-ajuster">' + n.A_AJUSTER + ' à ajuster</span> · ' : '')
                     + 'Calcul pour ' + r.postes + ' poste(s). L\'écran ne modifie rien : les réglages s\'appliquent avec les blocs ci-dessus.');
         });
+    },
+
+    /* ============================================================================================ lexique */
+
+    ongletLexique: function () {
+        var me = this;
+        return {
+            title: 'Lexique', itemId: 'ongletLexique', iconCls: 'fa fa-book', autoScroll: true, bodyPadding: 10,
+            tbar: [{xtype: 'textfield', itemId: 'filtreLexique', emptyText: 'Chercher un terme (ex. tampon, pool, coupure)', width: 360,
+                    listeners: {change: {buffer: 250, fn: function () {
+                                me.afficherLexique();
+                            }}}}],
+            items: [{xtype: 'component', itemId: 'lexique', html: ''}]
+        };
+    },
+
+    afficherLexique: function () {
+        var me = this, L = testextjs.view.support.LexiqueServeur, f = (me.down('#filtreLexique').getValue() || '').toLowerCase();
+        if (!me.reglages && !me.lexiqueDemande) {
+            /* valeurs conseillees POUR CETTE MACHINE : lues une fois dans l'onglet Reglages */
+            me.lexiqueDemande = true;
+            me.appel('GET', 'reglages', null, function (r) {
+                if (r.success) {
+                    me.reglages = {};
+                    Ext.each(r.data || [], function (x) {
+                        me.reglages[x.cle] = x;
+                    });
+                    me.afficherLexique();
+                }
+            });
+        }
+        var html = '<div class="srv-lex-image">' + me.esc(L.IMAGE) + '</div>', groupe = null;
+        Ext.each(L.ENTREES, function (e) {
+            var texte = (e.terme + ' ' + e.image + ' ' + e.prestige + ' ' + e.conseil + ' ' + e.groupe).toLowerCase();
+            if (f && texte.indexOf(f) < 0) {
+                return;
+            }
+            if (e.groupe !== groupe) {
+                groupe = e.groupe;
+                html += '<h3 class="srv-lex-groupe">' + me.esc(groupe) + '</h3>';
+            }
+            var r = me.reglages && e.cle ? me.reglages[e.cle] : null, n = r ? me.NIVEAUX[r.niveau] : null;
+            html += '<div class="srv-lex">'
+                    + '<div class="srv-lex-terme">' + me.esc(e.terme) + (n ? ' <span class="' + n[0] + '">· ' + n[1] + ' ici</span>' : '') + '</div>'
+                    + '<div><b>En clair :</b> ' + me.esc(e.image) + '</div>'
+                    + '<div><b>Dans Prestige :</b> ' + me.esc(e.prestige) + '</div>'
+                    + '<div><b>Valeur conseillée :</b> ' + me.esc(e.conseil)
+                    + (r ? ' <span class="srv-lex-ici">Sur cette machine : en place <b>' + me.esc(r.actuel) + '</b>, conseillé <b>' + me.esc(r.conseille) + '</b></span>' : '') + '</div>'
+                    + '<div><b>Si c\'est mal réglé :</b> ' + me.esc(e.risque) + '</div>'
+                    + '</div>';
+        });
+        me.down('#lexique').update(html);
     },
 
     enregistrerPostes: function () {

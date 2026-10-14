@@ -62,9 +62,17 @@ public final class ReglagesServeur {
         return v / (512 * MO) * (512 * MO);
     }
 
-    /** Connexions du pool du serveur Java : 3 par poste (ecrans, taches, mobiles), entre 32 et 100. */
-    public static int poolConseille(int postes) {
-        return Math.max(32, Math.min(100, postes * 3 + 10));
+    /**
+     * Connexions du pool d'UN Payara : chaque poste a le sien (un utilisateur a la caisse) ; celui du serveur sert
+     * aussi les terminaux, les telephones et les taches planifiees.
+     */
+    public static int poolConseille(boolean serveur) {
+        return serveur ? 50 : 32;
+    }
+
+    /** Connexions que MariaDB doit accepter : les pools de tous les postes, plus une marge pour les outils. */
+    public static int connexionsMariadb(int postes) {
+        return Math.max(151, (Math.max(1, postes) - 1) * poolConseille(false) + poolConseille(true) + 50);
     }
 
     /** « 3500M », « 2G », « 3670016000 », « 64M » -> octets ; -1 si illisible. */
@@ -167,8 +175,19 @@ public final class ReglagesServeur {
      */
     public static List<Reglage> comparer(long ram, int processeurs, long heapActuel, Map<String, String> mariadb,
             int postes, int poolActuel) {
+        return comparer(ram, processeurs, heapActuel, mariadb, postes, poolActuel, true, true);
+    }
+
+    /**
+     * @param serveur
+     *            poste serveur (sinon : poste de caisse, un seul utilisateur)
+     * @param mariadbLocale
+     *            MariaDB tourne sur cette machine (ses reglages et sa memoire n'ont de sens que la)
+     */
+    public static List<Reglage> comparer(long ram, int processeurs, long heapActuel, Map<String, String> mariadb,
+            int postes, int poolActuel, boolean serveur, boolean mariadbLocale) {
         List<Reglage> l = new ArrayList<>();
-        long heap = heapConseille(ram), bp = bufferPoolConseille(ram);
+        long heap = heapConseille(ram), bp = mariadbLocale ? bufferPoolConseille(ram) : 0;
 
         Reglage h = new Reglage("JAVA", "Xmx", "Mémoire maximale du serveur Java (Payara)");
         h.actuel = taille(heapActuel);
@@ -179,16 +198,20 @@ public final class ReglagesServeur {
                 : heapActuel < heap * 0.9 || heapActuel > heap * 1.6 ? Niveau.A_AJUSTER : Niveau.OK;
         l.add(h);
 
-        int pool = poolConseille(postes);
+        int pool = poolConseille(serveur);
         Reglage p = new Reglage("JAVA", "max-pool-size", "Connexions du serveur Java à la base (pool)");
         p.actuel = poolActuel < 0 ? "?" : String.valueOf(poolActuel);
         p.conseille = String.valueOf(pool);
         p.ligne = "asadmin set resources.jdbc-connection-pool.<pool>.max-pool-size=" + pool;
-        p.explication = "Pour " + postes
-                + " poste(s) : trop peu de connexions fait attendre les caisses aux heures de pointe.";
+        p.explication = serveur
+                ? "Le serveur sert aussi les terminaux, les téléphones et les tâches planifiées : trop peu de connexions les fait attendre."
+                : "Une caisse n'a qu'un utilisateur : 32 connexions suffisent, même pendant une clôture ou un état lourd.";
         p.niveau = poolActuel < 0 ? Niveau.OK : poolActuel < pool * 0.6 ? Niveau.A_AJUSTER : Niveau.OK;
         l.add(p);
 
+        if (!mariadbLocale) {
+            return machine(l, ram, processeurs, heap, 0);
+        }
         taille(l, mariadb, "innodb_buffer_pool_size", "Tampon InnoDB (données en mémoire)", bp, (long) (bp * 0.7),
                 (long) (bp * 1.3),
                 "Principal réglage de vitesse ; au-delà, Windows et le serveur Java manquent de mémoire.");
@@ -200,8 +223,10 @@ public final class ReglagesServeur {
                 "Réservé par requête qui trie ou regroupe : à garder modéré.");
         taille(l, mariadb, "max_heap_table_size", "Tables en mémoire (maximum)", 128 * MO, 32 * MO, 256 * MO,
                 "Doit rester égal à tmp_table_size.");
-        nombre(l, mariadb, "max_connections", "Connexions simultanées à MariaDB", Math.max(151, pool + 100), pool + 20,
-                1000, "Doit dépasser le pool du serveur Java plus les outils (sauvegardes, Workbench).");
+        int connexions = connexionsMariadb(postes);
+        nombre(l, mariadb, "max_connections", "Connexions simultanées à MariaDB", connexions, connexions - 30, 2000,
+                "Chacun des " + postes
+                        + " poste(s) a son propre pool de connexions : MariaDB doit les accepter tous, plus les outils (sauvegardes).");
         nombre(l, mariadb, "thread_cache_size", "Fils réutilisés par MariaDB", 64, 32, 256,
                 "Évite de recréer un fil à chaque connexion des caisses et terminaux.");
         nombre(l, mariadb, "table_open_cache", "Tables ouvertes gardées en cache", 4000, 2000, 20000,
@@ -217,12 +242,16 @@ public final class ReglagesServeur {
         interrupteur(l, mariadb, "innodb_print_all_deadlocks", "Trace des interblocages", true,
                 "Chaque interblocage (deux caisses sur le même produit) est écrit dans le journal d'erreurs de MariaDB.");
 
+        return machine(l, ram, processeurs, heap, bp);
+    }
+
+    private static List<Reglage> machine(List<Reglage> l, long ram, int processeurs, long heap, long bp) {
         long total = heap + bp + 64 * MO + 3 * GO;
         Reglage m = new Reglage("MACHINE", "memoire", "Mémoire de la machine");
         m.actuel = taille(ram) + ", " + processeurs + " processeur(s) logique(s)";
         m.conseille = "≥ " + taille(total + 2 * GO);
-        m.explication = "Budget : Windows 3 Go, serveur Java " + taille(heap) + ", MariaDB " + taille(bp)
-                + " + tampons ; le reste absorbe les pointes.";
+        m.explication = "Budget : Windows 3 Go, serveur Java " + taille(heap)
+                + (bp > 0 ? ", MariaDB " + taille(bp) + " + tampons" : "") + " ; le reste absorbe les pointes.";
         m.ligne = "";
         m.niveau = ram < total ? Niveau.CRITIQUE : ram < total + 2 * GO ? Niveau.A_AJUSTER : Niveau.OK;
         l.add(m);

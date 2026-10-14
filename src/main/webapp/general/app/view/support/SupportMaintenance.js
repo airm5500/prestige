@@ -422,7 +422,67 @@ Ext.define('testextjs.view.support.SupportMaintenance', {
             ]
         });
 
+        /*
+         * Lot 4 (14/10) : connexions a la base PAR POSTE. Chaque poste a son propre serveur (Payara) et son propre pool :
+         * MariaDB doit accepter la somme. Pic depuis son demarrage, connexions en cours par machine, max_connections
+         * conseille et requetes utilisees (a rejouer dans un client MariaDB). Lecture seule.
+         */
+        const storeConnexions = Ext.create('Ext.data.Store', {fields: ['poste', 'total', 'actives', 'repos', 'plusLongueS'], data: []});
+        cartes.unshift({
+            xtype: 'panel', itemId: 'carteConnexions', title: 'Connexions à la base par poste (max_connections)', margin: '0 0 14 0',
+            bodyPadding: 10, layout: {type: 'vbox', align: 'stretch'},
+            tools: [{xtype: 'button', text: 'Mesurer', handler: function () {
+                        chargerConnexions();
+                    }}],
+            items: [
+                {xtype: 'component', itemId: 'resumeConnexions', html: ''},
+                {xtype: 'gridpanel', itemId: 'grilleConnexions', store: storeConnexions, height: 200, margin: '8 0', columnLines: true,
+                    viewConfig: {emptyText: '<div style="padding:10px;color:#7f8c8d">Aucune connexion visible.</div>', deferEmptyText: false},
+                    columns: [
+                        {text: 'Poste (machine)', dataIndex: 'poste', flex: 1},
+                        {text: 'Connexions', dataIndex: 'total', width: 110, align: 'right'},
+                        {text: 'En travail', dataIndex: 'actives', width: 100, align: 'right'},
+                        {text: 'Au repos', dataIndex: 'repos', width: 100, align: 'right'},
+                        {text: 'Requête la plus longue (s)', dataIndex: 'plusLongueS', width: 180, align: 'right'}
+                    ]},
+                {xtype: 'component', itemId: 'requetesConnexions', html: ''}
+            ]
+        });
+
+        function chargerConnexions() {
+            const c = me.down('#carteConnexions');
+            if (!c) {
+                return;
+            }
+            Ext.Ajax.request({
+                url: '../api/v1/support/maintenance/connexions-base', method: 'GET',
+                success: function (r) {
+                    const o = Ext.decode(r.responseText, true) || {};
+                    if (!o.success) {
+                        c.down('#resumeConnexions').update('<span style="color:#c0392b">' + Ext.String.htmlEncode(o.msg || o.message || 'Mesure impossible.') + '</span>');
+                        return;
+                    }
+                    const e = Ext.String.htmlEncode, alerte = o.pic !== null && o.maxConnections > 0 && o.pic >= o.maxConnections * 0.8;
+                    c.down('#resumeConnexions').update('<div style="line-height:1.7">'
+                            + 'Limite de MariaDB (max_connections) : <b>' + o.maxConnections + '</b> · '
+                            + 'Pic depuis son démarrage (il y a ' + o.depuisHeures + ' h) : <b style="color:' + (alerte ? '#c0392b' : '#1e8449') + '">' + o.pic + '</b> · '
+                            + 'En ce moment : <b>' + o.maintenant + '</b>'
+                            + (o.refusees ? ' · <b style="color:#c0392b">' + o.refusees + ' connexion(s) refusée(s) pour limite atteinte</b>' : '') + '<br>'
+                            + 'Postes vus : <b>' + o.postesVus + '</b> (déclarés : ' + o.postesDeclares + ') · Conseillé : <b>' + o.conseil + '</b>'
+                            + ' <span style="color:#5d6d7e">(' + e(o.calcul) + ')</span><br>'
+                            + '<i>' + e(o.avis) + '</i>'
+                            + (o.complet ? '' : '<br><span style="color:#b9770e">Détail partiel : le compte de l\'application n\'a pas le droit PROCESS de MariaDB '
+                                    + '(GRANT PROCESS ON *.* TO \'prestige\'@\'%\';), il ne voit que ses propres connexions.</span>')
+                            + '</div>');
+                    storeConnexions.loadData(o.postes || []);
+                    c.down('#requetesConnexions').update('<div style="color:#5d6d7e;font-size:11px">Requêtes utilisées (à rejouer dans un client MariaDB) :<br><code>'
+                            + Ext.Array.map(o.requetes || [], e).join('<br>') + '</code></div>');
+                }
+            });
+        }
+
         function chargerTousLesCompteurs() {
+            chargerConnexions();
             chargerCompteurs();
             chargerComptesPiecesJointes();
             chargerComptesPharmaMl();

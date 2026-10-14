@@ -48,7 +48,7 @@ class ConfigPayaraTest {
         List<Reglage> l = c.comparer(Arrays.asList("-Xmx2g", "-server"), 3 * ReglagesServeur.GO, 20,
                 "D:/prestige/support/dumps", "D:/payara5/glassfish/domains/domain1/logs");
         assertEquals(Niveau.CRITIQUE, r(l, "http-thread-pool").niveau);
-        assertEquals("100", r(l, "http-thread-pool").conseille);
+        assertEquals("100", r(l, "http-thread-pool").conseille, "serveur");
         assertTrue(r(l, "http-thread-pool").ligne.endsWith("max-thread-pool-size=100"));
         assertEquals(Niveau.A_AJUSTER, r(l, "pool-validation").niveau);
         assertEquals(Niveau.A_AJUSTER, r(l, "pool-reprise").niveau);
@@ -73,6 +73,21 @@ class ConfigPayaraTest {
         assertTrue(script.contains("call asadmin set configs.config.server-config.thread-pools")
                 && script.endsWith("call asadmin restart-domain domain1\n"));
         assertFalse(script.contains("secret"));
+    }
+
+    @Test
+    void posteDeCaisse() {
+        ConfigPayara c = ConfigPayara.lire(DOMAIN);
+        List<Reglage> l = c.comparer(Arrays.asList("-Xmx2g"), 2 * ReglagesServeur.GO, false, false, "D:/d", "D:/l");
+        assertEquals("50", r(l, "http-thread-pool").conseille);
+        assertEquals(Niveau.A_AJUSTER, r(l, "pool-adresse").niveau, "nom d'ordinateur");
+        assertTrue(r(l, "pool-adresse").ligne.contains("//<IP_DU_SERVEUR>:3306"), r(l, "pool-adresse").ligne);
+        ConfigPayara ip = ConfigPayara.lire(DOMAIN.replace("PC-OFFICINE", "192.168.1.10"));
+        assertEquals(Niveau.OK,
+                r(ip.comparer(Arrays.asList("-Xmx2g"), 2 * ReglagesServeur.GO, false, false, "D:/d", "D:/l"),
+                        "pool-adresse").niveau);
+        assertTrue(ConfigPayara.locale("localhost", "X") && ConfigPayara.locale("pc-officine", "PC-OFFICINE")
+                && !ConfigPayara.locale("192.168.1.10", "PC-OFFICINE"));
     }
 
     @Test

@@ -65,6 +65,10 @@ public class SupportServeurRessource {
     private job.SupportWatchdog watchdog;
     @EJB
     private SupportEventService supportEventService;
+    @Inject
+    private config.AppConfig appConfig;
+    @EJB
+    private job.PoolReparation poolReparation;
 
     @SuppressWarnings("unchecked")
     private Response controle() {
@@ -111,7 +115,9 @@ public class SupportServeurRessource {
                 .put("bddConnexions", n(vie.statutMariadb("Threads_connected")))
                 .put("bddActives", n(vie.statutMariadb("Threads_running")))
                 .put("bddInterblocages", n(vie.statutMariadb("Innodb_deadlocks")))
-                .put("bddUptime", n(vie.statutMariadb("Uptime")));
+                .put("bddUptime", n(vie.statutMariadb("Uptime"))).put("poolMs", poolReparation.tempsReponseMs())
+                .put("pool", new JSONObject(poolReparation.etat()))
+                .put("role", appConfig == null || appConfig.isServerMode() ? "Serveur" : "Caisse");
         CauseArret.Diagnostic c = watchdog.getDerniereCause();
         if (c != null) {
             o.put("derniereCause", new JSONObject().put("libelle", c.code.libelle).put("explication", c.explication)
@@ -183,9 +189,13 @@ public class SupportServeurRessource {
             ConfigPayara payara = ConfigPayara.lire(xml);
             long ram = MesureServeur.ramMachine();
             Map<String, String> variables = vie.variablesMariadb();
+            boolean serveur = appConfig == null || appConfig.isServerMode();
+            boolean mariadbLocale = !payara.lu || payara.poolUrl.isEmpty()
+                    || ConfigPayara.locale(ConfigPayara.hoteBase(payara.poolUrl), watchdog.getHote());
             List<Reglage> l = new ArrayList<>();
             for (Reglage x : ReglagesServeur.comparer(ram, Runtime.getRuntime().availableProcessors(),
-                    Runtime.getRuntime().maxMemory(), variables, postes, payara.lu ? payara.poolMax : -1)) {
+                    Runtime.getRuntime().maxMemory(), variables, postes, payara.lu ? payara.poolMax : -1, serveur,
+                    mariadbLocale)) {
                 /* la memoire du serveur Java est traitee avec les options de Payara (-Xms et -Xmx ensemble) */
                 if (!(payara.lu && "Xmx".equals(x.cle))) {
                     l.add(x);
@@ -193,7 +203,7 @@ public class SupportServeurRessource {
             }
             List<Reglage> lp = payara.lu
                     ? payara.comparer(ManagementFactory.getRuntimeMXBean().getInputArguments(),
-                            ReglagesServeur.heapConseille(ram), postes,
+                            ReglagesServeur.heapConseille(ram), serveur, mariadbLocale,
                             barres(watchdog.getStorageBase().resolve("dumps")), barres(watchdog.dossierLogs()))
                     : new ArrayList<>();
             l.addAll(lp);
@@ -204,7 +214,8 @@ public class SupportServeurRessource {
             return ok(new JSONObject().put("data", a).put("postes", postes).put("ram", ReglagesServeur.taille(ram))
                     .put("processeurs", Runtime.getRuntime().availableProcessors()).put("payaraLu", payara.lu)
                     .put("myIni", ReglagesServeur.blocMyIni(l)).put("asadmin", payara.lu ? ConfigPayara.script(lp) : "")
-                    .put("mariadb", StringUtils.defaultString(variables.get("version"))));
+                    .put("mariadb", StringUtils.defaultString(variables.get("version"))).put("serveur", serveur)
+                    .put("mariadbLocale", mariadbLocale));
         } catch (Exception e) {
             LOG.log(Level.WARNING, "reglages du serveur", e);
             return echec("Lecture des réglages impossible : " + e.getClass().getSimpleName());
