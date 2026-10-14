@@ -214,6 +214,38 @@ public class EtiquetteEditionService {
     }
 
     /**
+     * Retours du 13/10 (point 2) : donnees de l'etiquette d'un produit pour son apercu dans la fiche article (type
+     * d'etiquette, CIP, designation, prix, EAN, grossiste, code geo). Lecture seule ; null si le produit n'existe pas.
+     */
+    public org.json.JSONObject produitPourApercu(String familleId) {
+        TFamille f = StringUtils.isBlank(familleId) ? null : em.find(TFamille.class, familleId);
+        if (f == null) {
+            return null;
+        }
+        dal.TTypeetiquette t = f.getLgTYPEETIQUETTEID();
+        return new org.json.JSONObject().put("cip", StringUtils.defaultString(f.getIntCIP()))
+                .put("designation", StringUtils.defaultString(f.getStrDESCRIPTION()))
+                .put("prix", f.getIntPRICE() == null ? "" : String.valueOf(f.getIntPRICE()))
+                .put("ean", StringUtils.defaultString(ean(f)))
+                .put("grossiste",
+                        f.getLgGROSSISTEID() == null ? ""
+                                : StringUtils.defaultString(f.getLgGROSSISTEID().getStrLIBELLE()))
+                .put("codeGeo", StringUtils.defaultString(codeGeo(f)))
+                .put("typeId", t == null ? "" : StringUtils.defaultString(t.getLgTYPEETIQUETTEID()))
+                .put("typeNom", t == null ? "" : StringUtils.defaultString(t.getStrNAME()))
+                .put("typeDescription", t == null ? "" : StringUtils.defaultString(t.getStrDESCRIPTION()))
+                .put("typeCode", t == null ? "" : StringUtils.defaultString(codeDuType(t.getLgTYPEETIQUETTEID())));
+    }
+
+    /** Code d'impression d'un type d'etiquette (CODE128, DATAMATRIX, QR...) ; vide pour les types historiques. */
+    private String codeDuType(String typeId) {
+        java.util.List<?> r = em
+                .createNativeQuery("SELECT str_CODE FROM t_typeetiquette WHERE lg_TYPEETIQUETTE_ID = ?1")
+                .setParameter(1, typeId).getResultList();
+        return r.isEmpty() || r.get(0) == null ? null : String.valueOf(r.get(0));
+    }
+
+    /**
      * Personnalisation : code geo (position) principal du produit, celui de sa fiche ; vide si aucun ou si c'est
      * l'emplacement par defaut sans libelle.
      */

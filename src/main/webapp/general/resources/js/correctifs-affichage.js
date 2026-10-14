@@ -1692,3 +1692,91 @@ window.PrestigeChargement = (function () {
     }
     return {occuper: occuper, telecharger: telecharger};
 })();
+
+/**
+ * Apercu d'une etiquette telle qu'elle sera imprimee (retours du 13/10, point 2 : fiche article). Dessine, a partir
+ * de la reponse du serveur (disposition, texte de chaque element, modules du code), l'etiquette dans un element.
+ *
+ *   PrestigeApercuEtiquette.dessiner(element, reponse, largeurPx);
+ */
+window.PrestigeApercuEtiquette = (function () {
+    var PT_MM = 25.4 / 72;
+    function texte(el, p, k, r, gras) {
+        var mise = r.mise && r.mise[p.element];
+        if (!mise || !mise.lignes || !mise.lignes.length) {
+            return false;
+        }
+        var align = p.alignement === 'G' ? 'left' : p.alignement === 'D' ? 'right' : 'center';
+        var taille = mise.taille * PT_MM * k, hl = taille * 1.15, total = mise.lignes.length * hl;
+        el.style.fontWeight = gras ? 'bold' : 'normal';
+        el.style.fontSize = taille + 'px';
+        el.style.lineHeight = hl + 'px';
+        el.style.textAlign = align;
+        el.style.whiteSpace = 'nowrap';
+        el.innerHTML = '<div style="padding-top:' + Math.max(0, (p.h * k - total) / 2) + 'px">' + mise.lignes.map(function (l) {
+            return '<div>' + Ext.String.htmlEncode(l) + '</div>';
+        }).join('') + '</div>';
+        return true;
+    }
+    function code(el, p, k, s) {
+        if (!s || !s.lignes || !s.lignes.length) {
+            return false;
+        }
+        var cv = document.createElement('canvas'), lp = Math.max(1, Math.round(p.l * k)), hp = Math.max(1, Math.round(p.h * k));
+        cv.width = lp;
+        cv.height = hp;
+        var c = cv.getContext('2d'), lignes = s.lignes, n = lignes[0].length, q = s.silence || 0, i, y;
+        c.fillStyle = '#000';
+        if (s.lineaire) {
+            var mod = lp / (n + 2 * q), x0 = q * mod;
+            for (i = 0; i < n; i++) {
+                if (lignes[0].charAt(i) === '1') {
+                    c.fillRect(x0 + i * mod, 0, mod + 0.3, hp);
+                }
+            }
+        } else {
+            var tot = Math.min(lp, hp), m = tot / (n + 2 * q), ox = (lp - tot) / 2 + q * m, oy = (hp - tot) / 2 + q * m;
+            for (y = 0; y < lignes.length; y++) {
+                for (i = 0; i < n; i++) {
+                    if (lignes[y].charAt(i) === '1') {
+                        c.fillRect(ox + i * m, oy + y * m, m + 0.3, m + 0.3);
+                    }
+                }
+            }
+        }
+        el.appendChild(cv);
+        return true;
+    }
+    function dessiner(cible, r, largeurPx) {
+        var d = r && r.disposition;
+        cible.innerHTML = '';
+        if (!d || !d.largeur) {
+            cible.innerHTML = '<div class="pr-etq-vide">Aperçu indisponible</div>';
+            return;
+        }
+        var k = (largeurPx || 260) / d.largeur, gras = {};
+        (r.elements || []).forEach(function (e) {
+            gras[e.id] = !!e.gras;
+        });
+        var plan = document.createElement('div');
+        plan.className = 'pr-etq-apercu';
+        plan.setAttribute('role', 'img');
+        plan.setAttribute('aria-label', 'Exemple d\'étiquette');
+        plan.style.cssText = 'position:relative;overflow:hidden;background:#fff;border:1px solid #b9c6d3;border-radius:3px;'
+                + 'box-shadow:0 1px 4px rgba(0,0,0,.18);color:#000;font-family:Helvetica,Arial,sans-serif;'
+                + 'width:' + (d.largeur * k) + 'px;height:' + (d.hauteur * k) + 'px';
+        (d.elements || []).forEach(function (p) {
+            if (!p.imprime || !(p.l > 0) || !(p.h > 0)) {
+                return;
+            }
+            var el = document.createElement('div');
+            el.setAttribute('data-el', p.element);
+            el.style.cssText = 'position:absolute;overflow:hidden;left:' + p.x * k + 'px;top:' + p.y * k + 'px;width:' + p.l * k + 'px;height:' + p.h * k + 'px';
+            if (p.element === 'CODE' ? code(el, p, k, r.symbole) : texte(el, p, k, r, gras[p.element])) {
+                plan.appendChild(el);
+            }
+        });
+        cible.appendChild(plan);
+    }
+    return {dessiner: dessiner};
+})();

@@ -350,6 +350,9 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
                         /* Plan d'octobre (6) : localisation dans la reserve et colisage (informatif) */
                         { fieldLabel: 'Code Geo réserve', xtype: 'textfield', emptyText: 'Ex: R02-E04', maxLength: 50, name: 'str_CODE_GEO_ARTICLE_RESERVE', itemId: 'str_CODE_GEO_ARTICLE_RESERVE' },
                         { fieldLabel: 'Colisage', xtype: 'numberfield', minValue: 0, allowDecimals: false, emptyText: 'Unités par colis', name: 'int_COLISAGE', itemId: 'int_COLISAGE' },
+                        /* retours du 13/10 (point 2) : le type d'etiquette se choisit dans la fiche (il etait cache) */
+                        { xtype: 'combobox', fieldLabel: 'Type d\'étiquette', name: 'lg_TYPEETIQUETTE_ID', itemId: 'lg_TYPEETIQUETTE_ID', store: store_etiquette, valueField: 'lg_TYPEETIQUETTE_ID', displayField: 'str_DESCRIPTION', queryMode: 'local', editable: false, forceSelection: true, emptyText: 'Choisir un type d\'étiquette...' },
+                        { xtype: 'displayfield', itemId: 'typeEtiquetteMessage', hidden: true, hideLabel: true, fieldStyle: 'color:#c0392b;font-weight:bold' },
                         { xtype: 'displayfield', fieldLabel: 'Classe ABC', name: 'classe_abc_display', itemId: 'classe_abc_display', value: 'Non classe', fieldStyle: 'color:blue;font-weight:bold;' },
                         {
                             // Calcul seuil, Suggerer, Article remisable, Semois Q1 et Q2 sur la meme ligne
@@ -449,8 +452,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
                         { hidden: true, fieldLabel: 'Prix.Reference', xtype: 'textfield', maskRe: /[0-9.]/, emptyText: 'PRIX TIPS', name: 'int_PRICE_TIPS', itemId: 'int_PRICE_TIPS' },
                         { hidden: true, xtype: 'combobox', fieldLabel: 'Code.Acte', name: 'lg_CODE_ACTE_ID', itemId: 'lg_CODE_ACTE_ID', store: store_codeacte_famille, valueField: 'lg_CODE_ACTE_ID', displayField: 'str_LIBELLEE', typeAhead: true, autoSelect: true, selectOnFocus: true, queryMode: 'remote', emptyText: 'Choisir un code acte...' },
                         { hidden: true, fieldLabel: 'Date.Péremption', xtype: 'datefield', format: 'd/m/Y', submitFormat: 'Y-m-d', emptyText: 'Date.Péremption', name: 'dt_Peremtion_new', itemId: 'dt_Peremtion_new' },
-                        { hidden: true, fieldLabel: 'Code.Taux.Remb', value: 0, emptyText: 'TAUX REMBOURSEMENT', name: 'str_CODE_TAUX_REMBOURSEMENT', itemId: 'str_CODE_TAUX_REMBOURSEMENT' },
-                        { hidden: true, xtype: 'combobox', fieldLabel: 'Code etiquette', name: 'lg_TYPEETIQUETTE_ID', itemId: 'lg_TYPEETIQUETTE_ID', store: store_etiquette, valueField: 'lg_TYPEETIQUETTE_ID', displayField: 'str_DESCRIPTION', typeAhead: true, queryMode: 'remote', emptyText: 'Choisir un code d\'etiquette...', autoSelect: true, selectOnFocus: true }
+                        { hidden: true, fieldLabel: 'Code.Taux.Remb', value: 0, emptyText: 'TAUX REMBOURSEMENT', name: 'str_CODE_TAUX_REMBOURSEMENT', itemId: 'str_CODE_TAUX_REMBOURSEMENT' }
                     ]
                 },
                 {
@@ -575,7 +577,19 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
             g('int_STOCK_REAPROVISONEMENT').setValue(ds.int_STOCK_REAPROVISONEMENT);
             g('int_QTE_REAPPROVISIONNEMENT').setValue(ds.int_QTE_REAPPROVISIONNEMENT);
             g('str_CODE_REMISE').setValue(ds.str_CODE_REMISE);
-            g('lg_TYPEETIQUETTE_ID').setValue(ds.lg_TYPEETIQUETTE_ID);
+            /* le type arrive par son libelle : on retrouve son identifiant une fois la liste chargee */
+            var comboType = g('lg_TYPEETIQUETTE_ID'), meType = this;
+            var choisirType = function () {
+                var st = comboType.getStore(), v = ds.lg_TYPEETIQUETTE_ID;
+                var r = st.findRecord('lg_TYPEETIQUETTE_ID', v, 0, false, false, true) || st.findRecord('str_DESCRIPTION', v, 0, false, false, true);
+                meType.typeEtiquetteOrigine = r ? r.get('lg_TYPEETIQUETTE_ID') : null;
+                comboType.setValue(r ? r.get('lg_TYPEETIQUETTE_ID') : v);
+            };
+            if (comboType.getStore().getCount() > 0) {
+                choisirType();
+            } else {
+                comboType.getStore().on('load', choisirType, this, { single: true });
+            }
             g('lg_FABRIQUANT_ID').setValue(ds.lg_FABRIQUANT_ID); g('lg_FABRIQUANT_ID').show();
             g('int_T').setValue(ds.int_T);
             g('str_CODE_TAUX_REMBOURSEMENT').setValue(ds.str_CODE_TAUX_REMBOURSEMENT);
@@ -726,7 +740,38 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
     },
 
     onbtnsave: function (button) {
-        var win = button.up('window'), form = win.down('form'), g = this._g;
+        var win = button.up('window'), form = win.down('form'), g = this._g, me = this;
+        /*
+         * retours du 13/10 (point 2) : un changement de type d'etiquette en modification passe par la mise a jour des
+         * types (meme droit et meme journal que l'ecran « Types d'étiquette ») ; s'il est refuse, rien n'est enregistre
+         * et la raison s'affiche sous la liste.
+         */
+        var comboType = g('lg_TYPEETIQUETTE_ID'), msgType = g('typeEtiquetteMessage');
+        if (Omode === 'update' && comboType && me.typeEtiquetteOrigine
+                && comboType.getValue() && comboType.getValue() !== me.typeEtiquetteOrigine) {
+            var fin = PrestigeChargement.occuper(button, 'Type d\'étiquette');
+            Ext.Ajax.request({
+                method: 'POST', url: '../api/v1/etiquetage-pro/types/affecter', headers: { 'Content-Type': 'application/json' },
+                params: Ext.JSON.encode({ type: comboType.getValue(), produits: [ref] }),
+                success: function (response) {
+                    var r = Ext.JSON.decode(response.responseText, true) || {};
+                    if (!r.success) {
+                        fin('Non enregistré', false);
+                        msgType.setValue(Ext.String.htmlEncode(r.msg || 'Type d\'étiquette refusé.'));
+                        msgType.show();
+                        return;
+                    }
+                    msgType.hide();
+                    me.typeEtiquetteOrigine = comboType.getValue();
+                    fin();
+                    me.onbtnsave(button);
+                },
+                failure: function (response) {
+                    fin('Le serveur n\'a pas répondu (' + response.status + ')', false);
+                }
+            });
+            return;
+        }
 
         // état cohérent juste avant la validation
         var ds = this.getOdatasource() || {};

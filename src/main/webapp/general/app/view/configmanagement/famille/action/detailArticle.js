@@ -746,6 +746,55 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                     ]
                 },
                 {
+                    /*
+                     * retours du 13/10 (point 2) : reserve (seuil mini rayon, capacite maxi rayon, quantite en reserve),
+                     * codes geo, contenance, DCI et type d'etiquette, avec un exemple de l'etiquette telle qu'imprimee.
+                     */
+                    xtype: 'fieldset',
+                    id: 'fieldset_reserve_etiquette',
+                    title: '<span style="color:#8a5a00;font-weight:bold;letter-spacing:.5px;">RÉSERVE, DCI ET ÉTIQUETTE</span>',
+                    style: 'border-top:4px solid #b8860b;',
+                    collapsible: true,
+                    layout: {type: 'hbox', align: 'stretch'},
+                    items: [
+                        {
+                            xtype: 'container', flex: 1, margin: '0 10 0 0', padding: 6,
+                            style: 'background:#fdf6ec;border:1px solid #e0d3bd;border-radius:6px;',
+                            defaultType: 'displayfield',
+                            defaults: {labelWidth: 150, labelStyle: 'color:#6b4b16;font-weight:bold', fieldStyle: 'font-weight:bold;font-size:13.5px', value: ''},
+                            items: [
+                                {xtype: 'component', html: '<div style="font-size:11.5px;font-weight:bold;letter-spacing:.5px;color:#8a5a00;border-bottom:2px solid #e0d3bd;padding-bottom:3px;margin-bottom:5px;">RÉSERVE</div>'},
+                                {fieldLabel: 'Gestion en réserve', id: 'detRes_gestion'},
+                                {fieldLabel: 'Seuil mini rayon', id: 'detRes_seuilMini'},
+                                {fieldLabel: 'Capacité maxi rayon', id: 'detRes_capacite'},
+                                {fieldLabel: 'Quantité en réserve', id: 'detRes_quantite', fieldStyle: 'color:green;font-weight:bold;font-size:13.5px'},
+                                {fieldLabel: 'Code géo article', id: 'detRes_geoArticle'},
+                                {fieldLabel: 'Code géo réserve', id: 'detRes_geoReserve'}
+                            ]
+                        },
+                        {
+                            xtype: 'container', flex: 1, margin: '0 10 0 0', padding: 6,
+                            style: 'background:#eef4fb;border:1px solid #cfe0f1;border-radius:6px;',
+                            defaultType: 'displayfield',
+                            defaults: {labelWidth: 150, labelStyle: 'color:#1a5f9e;font-weight:bold', fieldStyle: 'font-weight:bold;font-size:13.5px', value: ''},
+                            items: [
+                                {xtype: 'component', html: '<div style="font-size:11.5px;font-weight:bold;letter-spacing:.5px;color:#1a5f9e;border-bottom:2px solid #cfe0f1;padding-bottom:3px;margin-bottom:5px;">PRODUIT</div>'},
+                                {fieldLabel: 'Contenance (qté détail)', id: 'detRes_contenance'},
+                                {fieldLabel: 'DCI', id: 'detRes_dci'},
+                                {fieldLabel: 'Type d\'étiquette', id: 'detRes_typeEtiquette'}
+                            ]
+                        },
+                        {
+                            xtype: 'container', width: 330, padding: 6,
+                            style: 'background:#f7f7f2;border:1px solid #deded2;border-radius:6px;',
+                            items: [
+                                {xtype: 'component', html: '<div style="font-size:11.5px;font-weight:bold;letter-spacing:.5px;color:#4a4a3a;border-bottom:2px solid #deded2;padding-bottom:3px;margin-bottom:8px;">EXEMPLE D\'ÉTIQUETTE</div>'},
+                                {xtype: 'component', id: 'detRes_apercu', minHeight: 90, html: '<div class="pr-etq-vide" style="color:#888">Chargement de l\'aperçu…</div>'}
+                            ]
+                        }
+                    ]
+                },
+                {
                     xtype: 'fieldset',
                     id: 'fieldset_conso_detail',
                     title: '<span style="color:#0d6a74;font-weight:bold;letter-spacing:.5px;">CONSOMMATIONS (SORTIES)</span>',
@@ -1471,6 +1520,60 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
         cmp.setValue(html + '</span>');
         cmp.show();
     },
+    /* retours du 13/10 (point 2) : reserve, codes geo, contenance, DCI, type d'etiquette et exemple d'etiquette */
+    afficherReserveEtiquette: function (rec) {
+        var val = function (id, v) {
+            var c = Ext.getCmp(id);
+            if (c) {
+                c.setValue(v === null || v === undefined || v === '' ? '<span style="color:#999;font-weight:normal">—</span>' : Ext.String.htmlEncode(String(v)));
+            }
+        };
+        var reserve = rec.bool_RESERVE === true || rec.bool_RESERVE === 'true';
+        val('detRes_gestion', reserve ? 'Oui' : 'Non');
+        val('detRes_seuilMini', reserve ? rec.int_SEUIL_MINI_RAYON : null);
+        val('detRes_capacite', reserve ? rec.int_SEUIL_RESERVE : null);
+        val('detRes_quantite', reserve ? (parseInt(rec.int_STOCK_RESERVE, 10) || 0) : null);
+        val('detRes_geoArticle', rec.str_CODE_GEO_ARTICLE);
+        val('detRes_geoReserve', rec.str_CODE_GEO_ARTICLE_RESERVE);
+        val('detRes_contenance', rec.int_NUMBERDETAIL);
+        val('detRes_typeEtiquette', rec.lg_TYPEETIQUETTE_ID);
+        val('detRes_dci', null);
+        var id = rec.lg_FAMILLE_ID;
+        if (!id) {
+            return;
+        }
+        Ext.Ajax.request({
+            method: 'GET', url: '../api/v1/referentiel-article/dci-famille', params: {lg_FAMILLE_ID: id, limit: 50},
+            success: function (response) {
+                var r = Ext.JSON.decode(response.responseText, true) || {}, lignes = r.results || r.data || [];
+                var noms = Ext.Array.unique(Ext.Array.map(lignes, function (l) {
+                    return l.dci_str_NAME || l.str_NAME || '';
+                }).filter(function (n) {
+                    return n;
+                }));
+                val('detRes_dci', noms.join(', '));
+            }
+        });
+        Ext.Ajax.request({
+            method: 'GET', url: '../api/v1/etiquetage-pro/apercu-produit/' + encodeURIComponent(id),
+            success: function (response) {
+                var r = Ext.JSON.decode(response.responseText, true) || {}, c = Ext.getCmp('detRes_apercu');
+                if (!c || c.isDestroyed || !c.getEl()) {
+                    return;
+                }
+                if (!r.success) {
+                    c.update('<div class="pr-etq-vide" style="color:#888">' + Ext.String.htmlEncode(r.msg || 'Aperçu indisponible') + '</div>');
+                    return;
+                }
+                if (r.produit && r.produit.typeNom) {
+                    val('detRes_typeEtiquette', r.produit.typeDescription || r.produit.typeNom);
+                }
+                c.update('');
+                PrestigeApercuEtiquette.dessiner(c.getEl().dom, r, 300);
+                c.updateLayout();
+            }
+        });
+    },
     updateCmp: function (rec) {
         // Separateur de millier (espace) pour les montants affiches.
         const formatMillier = function (v) {
@@ -1518,6 +1621,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
         Ext.getCmp('int_CIP').setValue(rec.int_CIP);
         Ext.getCmp('int_QTEDETAIL').setValue(rec.int_NUMBERDETAIL);
         Ext.getCmp('int_EAN13').setValue(rec.int_EAN13);
+        this.afficherReserveEtiquette(rec);
         if (rec.lg_EMPLACEMENT_ID === "1") {
             Ext.getCmp('infoconsorecu').show();
             Ext.getCmp('infoventerealise').show();

@@ -611,28 +611,7 @@ public class EtiquetageProRessource {
             etiquetagepro.disposition.Disposition disp = etiquetagepro.disposition.Disposition
                     .lire(d.getJSONObject("disposition"));
             LabelSheetPdf.LabelData l = exemple(d.optJSONObject("exemple"), disp.getTypeCode());
-            JSONObject valeurs = new JSONObject(), mise = new JSONObject();
-            for (Map.Entry<etiquetagepro.disposition.ElementEtiquette, String> v : l.valeurs().entrySet()) {
-                valeurs.put(v.getKey().name(), StringUtils.defaultString(v.getValue()));
-                etiquetagepro.disposition.Placement p = disp.placement(v.getKey());
-                if (p != null && StringUtils.isNotBlank(v.getValue()) && p.getL() > 0 && p.getH() > 0) {
-                    mise.put(v.getKey().name(),
-                            rest.report.pdf.RenduDisposition.miseEnPage(v.getKey().isGras(), v.getValue(), p));
-                }
-            }
-            JSONObject symbole = new JSONObject();
-            String contenu = l.contenuCode(disp);
-            try {
-                rest.report.pdf.Symbole s = rest.report.pdf.Symbole.de(disp.getTypeCode(), contenu);
-                symbole.put("lignes", new JSONArray(s.lignes())).put("silence", s.getSilence())
-                        .put("lineaire", s.isLineaire()).put("caracteres", StringUtils.length(contenu));
-            } catch (IllegalArgumentException e) {
-                symbole.put("erreur", "Contenu trop long pour ce code.");
-            }
-            return json(new JSONObject().put("success", true).put("disposition", disp.json())
-                    .put("controle", etiquetagepro.disposition.ControleDisposition.controler(disp).json())
-                    .put("valeurs", valeurs).put("mise", mise).put("symbole", symbole)
-                    .put("contenuLisible", lisible(disp.getTypeCode(), contenu)));
+            return json(rendu(disp, l));
         } catch (Exception e) {
             LOG.log(Level.WARNING, "Etiquettage Pro : controler la disposition", e);
             return json(echec("Disposition illisible."));
@@ -696,6 +675,71 @@ public class EtiquetageProRessource {
                 (float) d.optDouble("largeur", 0), (float) d.optDouble("hauteur", 0));
         return json(new JSONObject().put("success", true).put("supprimee", fait).put("msg", fait
                 ? "Disposition d'origine rétablie pour ce type et ce format." : "Aucune disposition enregistrée."));
+    }
+
+    /** Ce qu'il faut pour dessiner une etiquette comme a l'impression : texte de chaque element et modules du code. */
+    private static JSONObject rendu(etiquetagepro.disposition.Disposition disp, LabelSheetPdf.LabelData l) {
+        JSONObject valeurs = new JSONObject(), mise = new JSONObject();
+        for (Map.Entry<etiquetagepro.disposition.ElementEtiquette, String> v : l.valeurs().entrySet()) {
+            valeurs.put(v.getKey().name(), StringUtils.defaultString(v.getValue()));
+            etiquetagepro.disposition.Placement p = disp.placement(v.getKey());
+            if (p != null && StringUtils.isNotBlank(v.getValue()) && p.getL() > 0 && p.getH() > 0) {
+                mise.put(v.getKey().name(),
+                        rest.report.pdf.RenduDisposition.miseEnPage(v.getKey().isGras(), v.getValue(), p));
+            }
+        }
+        JSONObject symbole = new JSONObject();
+        String contenu = l.contenuCode(disp);
+        try {
+            rest.report.pdf.Symbole s = rest.report.pdf.Symbole.de(disp.getTypeCode(), contenu);
+            symbole.put("lignes", new JSONArray(s.lignes())).put("silence", s.getSilence())
+                    .put("lineaire", s.isLineaire()).put("caracteres", StringUtils.length(contenu));
+        } catch (IllegalArgumentException e) {
+            symbole.put("erreur", "Contenu trop long pour ce code.");
+        }
+        return new JSONObject().put("success", true).put("disposition", disp.json())
+                .put("controle", etiquetagepro.disposition.ControleDisposition.controler(disp).json())
+                .put("valeurs", valeurs).put("mise", mise).put("symbole", symbole)
+                .put("contenuLisible", lisible(disp.getTypeCode(), contenu));
+    }
+
+    /**
+     * Retours du 13/10 (point 2) : exemple visuel de l'etiquette d'un produit, dans le detail de la fiche article. Type
+     * d'etiquette du produit, disposition qui sert aujourd'hui (planche par defaut), donnees du produit. Lecture seule
+     * ; il suffit d'etre connecte (ce sont les informations de la fiche que l'on consulte).
+     */
+    @GET
+    @Path("apercu-produit/{id}")
+    public Response apercuProduit(@javax.ws.rs.PathParam("id") String id) {
+        HttpSession s = servletRequest.getSession(false);
+        if (s == null || s.getAttribute(commonparameter.AIRTIME_USER) == null) {
+            return json(echec(Constant.DECONNECTED_MESSAGE));
+        }
+        JSONObject produit = service.produitPourApercu(id);
+        if (produit == null) {
+            return json(echec("Produit introuvable."));
+        }
+        try {
+            String type = LabelSheetPdf.typeCodeEtendu(produit.optString("typeCode"));
+            OptionsImpression o = new OptionsImpression().typeCode(type);
+            float[] dim = LabelSheetPdf.dimension(o.planche(reportUtil::findParameterValue));
+            etiquetagepro.disposition.Disposition disp = service.dispositionEnregistree(type, dim[0], dim[1]);
+            if (disp == null) {
+                List<etiquetagepro.disposition.Disposition> autres = service.dispositionsDuType(type);
+                disp = autres.isEmpty() ? etiquetagepro.disposition.Disposition.parDefaut(type, dim[0], dim[1])
+                        : autres.get(0).aLEchelle(dim[0], dim[1]);
+            }
+            JSONObject x = new JSONObject().put("officine", StringUtils.defaultString(service.officine()))
+                    .put("designation", produit.optString("designation")).put("cip", produit.optString("cip"))
+                    .put("ean", produit.optString("ean")).put("prix", produit.optString("prix"))
+                    .put("codeGeo", produit.optString("codeGeo")).put("grossiste", produit.optString("grossiste"))
+                    .put("date", java.time.LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")));
+            return json(rendu(disp, exemple(x, disp.getTypeCode())).put("produit", produit).put("typeCode", type)
+                    .put("elements", elements()));
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "Etiquettage Pro : apercu de l'etiquette d'un produit", e);
+            return json(echec("Aperçu indisponible."));
+        }
     }
 
     /** Page de test de la disposition : une etiquette d'exemple dessinee comme a l'impression (premiere case). */
