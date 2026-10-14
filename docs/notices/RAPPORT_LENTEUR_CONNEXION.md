@@ -10,7 +10,7 @@ Prestige ?
 |---|---|---|
 | Allers-retours avec la base pour **se connecter** (administrateur, 219 droits) | 272 | **42** |
 | Allers-retours avec la base pour **se connecter** (caissier, 71 droits) | 132 | **41** |
-| Allers-retours pour **la connexion complète** (jusqu'au tableau de bord affiché) | 518 | __TOTAL_APRES__ |
+| Allers-retours pour **la connexion complète** (jusqu'au tableau de bord affiché) | 518 | **223** |
 | Allers-retours pour **un envoi RUM** (20 mesures) | 116 | **9** |
 | Lignes RUM en base | 1 par minute | 1 par **5 minutes** |
 
@@ -47,15 +47,16 @@ Toutes les mesures ont été faites sur le banc d'essai, par le vrai écran de c
 
 Temps passé en base pour **une** connexion, selon la qualité du réseau entre le poste et la base centrale :
 
-| Réseau | Avant (518 requêtes) | Après (__TOTAL_APRES__ requêtes) |
+| Réseau | Avant (518 requêtes) | Après (223 requêtes) |
 |---|---|---|
-| Aucun (base sur la même machine) | 0,09 s | négligeable |
-| Bon réseau filaire (aller-retour 0,5 ms) | 0,5 s | __T05__ |
-| Réseau ordinaire (1 ms) | 0,8 s | __T1__ |
-| Réseau chargé (2 ms) | 1,35 s | __T2__ |
-| Wi-Fi (5 ms) | 2,9 s | __T5__ |
+| Aucun (base sur la même machine) | 0,09 s | 0,03 s |
+| Bon réseau filaire (aller-retour 0,5 ms) | 0,5 s | **0,19 s** |
+| Réseau ordinaire (1 ms) | 0,8 s | **0,31 s** |
+| Réseau chargé (2 ms) | 1,35 s | **0,55 s** |
+| Wi-Fi (5 ms) | 2,9 s | **1,24 s** |
 
-Le temps est quasiment proportionnel au nombre d'allers-retours. Les postes en Wi-Fi, ou sur un réseau chargé, sont
+Le temps passé en base à la connexion est divisé par environ 2,5, quel que soit le réseau. Le temps est quasiment
+proportionnel au nombre d'allers-retours. Les postes en Wi-Fi, ou sur un réseau chargé, sont
 les plus touchés.
 
 ## 3. Corrections
@@ -98,7 +99,23 @@ lignes par jour, soit quelques dizaines de Mo sur 14 jours, et 5 fois moins qu'a
 
 ## 6. Non-régression
 
-__NON_REGRESSION__
+- Tests unitaires : **1432 sur 1432**.
+- Tests d'écran :
+  - tous ceux hors du dossier `retours`, plus un échantillon de 46 tests de `retours` choisis parce qu'ils écrivent en
+    base (ventes, différés, avoirs, caisse du jour, inventaires, commandes, réceptions, dépôts, ordonnances, RH,
+    fidélité, WhatsApp, tableau de bord) ;
+  - au total **85 tests sur 91 passent** ;
+  - les **6 échecs sont identiques sur la version précédant la correction** (reconstruite et redéployée sur le banc
+    pour le vérifier) : ils existaient avant et n'ont pas de lien avec la correction.
+    - `lot4/test-recap-caisse-modes` : ouverture du sous-détail d'une ligne (contrôle fait dans le navigateur) ;
+    - `retours/test-suppression-vente-origine` : le script s'arrête au démarrage ;
+    - `retours/test-depot-extension-stock` : la liste propose aussi d'autres officines du banc ;
+    - `retours/test-import-clients` : la connexion d'essai dépasse 40 s ;
+    - `retours/test-facture-subrogatoire-api` : la référence JSP renvoie une page HTML ;
+    - `retours/test-valorisation-archivee` : modèle d'état `rp_valoristion` absent du banc.
+- Après correction, le journal du serveur ne contient aucune erreur.
+- Tests de la stabilité du serveur, des campagnes, du Set valorisation, de la rentabilité, de l'audit, du cachet et de
+  la vente (droits retirés puis donnés, accès refusés puis ouverts) : tous passent.
 
 **Point trouvé en passant, sans lien avec cette correction** : le test « Points fidélité » attend le libellé de menu
 « Points fidélité » (demande du 10/10). La migration « libellés courts » du 12/10 l'a remplacé par « Suivi fidélité ».
