@@ -24,6 +24,11 @@ public final class ConfigPayara {
     public int poolMax = 32;
     public boolean poolValidation;
     public int poolFuiteSecondes;
+    /** Reprise apres coupure : toutes les connexions jetees si l'une est morte, nouvelles tentatives de creation. */
+    public boolean poolToutJeter;
+    public int poolTentatives;
+    /** URL de la base declaree dans le pool (sans le mot de passe, qui est une autre propriete). */
+    public String poolUrl = "";
     public String niveauSurveillancePool = "OFF", niveauSurveillanceFils = "OFF";
     public List<String> optionsJvm = new ArrayList<>();
     public boolean lu;
@@ -58,6 +63,12 @@ public final class ConfigPayara {
                 c.poolMax = entier(attribut(b, "max-pool-size"), 32);
                 c.poolValidation = "true".equalsIgnoreCase(attribut(b, "is-connection-validation-required"));
                 c.poolFuiteSecondes = entier(attribut(b, "connection-leak-timeout-in-seconds"), 0);
+                c.poolToutJeter = "true".equalsIgnoreCase(attribut(b, "fail-all-connections"));
+                c.poolTentatives = entier(attribut(b, "connection-creation-retry-attempts"), 0);
+                int finPool = xml.indexOf("</jdbc-connection-pool>", p.start());
+                String corps = finPool < 0 ? "" : xml.substring(p.start(), finPool);
+                Matcher u = Pattern.compile("<property name=\"(?:url|URL)\" value=\"([^\"]*)\"").matcher(corps);
+                c.poolUrl = u.find() ? u.group(1).replace("&amp;", "&") : "";
             }
         }
         int debut = xml.indexOf("<config name=\"server-config\"");
@@ -102,6 +113,12 @@ public final class ConfigPayara {
             }
         }
         return null;
+    }
+
+    /** Hote de MariaDB dans une URL JDBC (vide si illisible). */
+    static String hoteBase(String url) {
+        Matcher m = url == null ? null : Pattern.compile("jdbc:(?:mariadb|mysql)://([^:/?]+)").matcher(url);
+        return m != null && m.find() ? m.group(1) : "";
     }
 
     /** asadmin echappe les « : » d'une option de la JVM. */
@@ -157,6 +174,23 @@ public final class ConfigPayara {
                 poolFuiteSecondes > 0 ? Niveau.OK : Niveau.A_AJUSTER,
                 "Écrit dans le journal l'endroit du code qui garde une connexion plus de 5 minutes : la cause d'un pool épuisé.",
                 "asadmin set resources.jdbc-connection-pool." + pool + ".connection-leak-timeout-in-seconds=300");
+        reglage(l, "pool-reprise", "Reprise du pool après une coupure",
+                poolToutJeter && poolTentatives > 0 ? "activée (" + poolTentatives + " essais)" : "désactivée",
+                "activée (6 essais, 10 s)", poolToutJeter && poolTentatives > 0 ? Niveau.OK : Niveau.A_AJUSTER,
+                "Une connexion morte fait jeter toutes les autres (elles le sont aussi) ; si MariaDB n'est pas encore prête, le pool réessaie au lieu d'abandonner.",
+                "asadmin set resources.jdbc-connection-pool." + pool + ".fail-all-connections=true"
+                        + "\nasadmin set resources.jdbc-connection-pool." + pool
+                        + ".connection-creation-retry-attempts=6" + "\nasadmin set resources.jdbc-connection-pool."
+                        + pool + ".connection-creation-retry-interval-in-seconds=10");
+        String hote = hoteBase(poolUrl);
+        boolean boucle = "127.0.0.1".equals(hote);
+        reglage(l, "pool-adresse", "Adresse de la base dans le pool", hote.isEmpty() ? "?" : hote, "127.0.0.1",
+                boucle || hote.isEmpty() ? Niveau.OK : Niveau.A_AJUSTER,
+                "localhost".equalsIgnoreCase(hote)
+                        ? "localhost fonctionne, mais Windows essaie parfois d'abord l'adresse IPv6 ::1 : 127.0.0.1 ne dépend de rien."
+                        : "Un nom d'ordinateur ou une adresse du réseau dépend de la box et de la carte réseau, souvent pas prêtes après une coupure : MariaDB étant sur la même machine, 127.0.0.1 ne dépend de rien.",
+                poolUrl.isEmpty() || boucle ? "" : "asadmin set \"resources.jdbc-connection-pool." + pool
+                        + ".property.url=" + poolUrl.replaceFirst("//[^:/?]+", "//127.0.0.1") + "\"");
         reglage(l, "surveillance", "Compteurs du pool et des fils",
                 "pool " + niveauSurveillancePool + ", fils " + niveauSurveillanceFils, "HIGH",
                 "HIGH".equals(niveauSurveillancePool) ? Niveau.OK : Niveau.A_AJUSTER,

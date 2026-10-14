@@ -15,7 +15,8 @@ class ConfigPayaraTest {
     /** Extrait du domain.xml installe (pool et fils sans attributs : valeurs par defaut de Payara). */
     static final String DOMAIN = "<domain><resources>"
             + "<jdbc-connection-pool datasource-classname=\"org.mariadb.jdbc.MariaDbDataSource\" name=\"laborex_pool\" res-type=\"javax.sql.DataSource\">"
-            + "<property name=\"password\" value=\"secret\"></property></jdbc-connection-pool>"
+            + "<property name=\"password\" value=\"secret\"></property>"
+            + "<property name=\"url\" value=\"jdbc:mariadb://PC-OFFICINE:3306/capitale?useUnicode=true&amp;characterEncoding=UTF-8\"></property></jdbc-connection-pool>"
             + "<jdbc-resource pool-name=\"laborex_pool\" jndi-name=\"jdbc/__laborex_pool\"></jdbc-resource></resources><configs>"
             + "<config name=\"server-config\"><java-config><jvm-options>-server</jvm-options><jvm-options>-Xmx2g</jvm-options></java-config>"
             + "<thread-pools><thread-pool name=\"admin-thread-pool\" max-thread-pool-size=\"15\"></thread-pool>"
@@ -50,6 +51,14 @@ class ConfigPayaraTest {
         assertEquals("100", r(l, "http-thread-pool").conseille);
         assertTrue(r(l, "http-thread-pool").ligne.endsWith("max-thread-pool-size=100"));
         assertEquals(Niveau.A_AJUSTER, r(l, "pool-validation").niveau);
+        assertEquals(Niveau.A_AJUSTER, r(l, "pool-reprise").niveau);
+        assertEquals("PC-OFFICINE", r(l, "pool-adresse").actuel);
+        assertEquals(Niveau.A_AJUSTER, r(l, "pool-adresse").niveau);
+        assertTrue(
+                r(l, "pool-adresse").ligne.contains(
+                        "property.url=jdbc:mariadb://127.0.0.1:3306/capitale?useUnicode=true&characterEncoding=UTF-8"),
+                r(l, "pool-adresse").ligne);
+        assertFalse(r(l, "pool-adresse").ligne.contains("secret"));
         assertTrue(r(l, "Xms").ligne.contains("delete-jvm-options -Xmx2g")
                 && r(l, "Xms").ligne.contains("create-jvm-options -Xms3g"));
         assertEquals(Niveau.A_AJUSTER, r(l, "Xms").niveau);

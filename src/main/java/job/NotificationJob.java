@@ -51,7 +51,12 @@ public class NotificationJob {
                 t.cancel();
             }
         }
-        TimerConfig recapActivity = new TimerConfig("recapActivity", true);
+        /*
+         * Minuteur NON persistant (lot 4, stabilite) : un minuteur persistant est range dans la base interne de Payara
+         * (fichier ejbtimer) qu'une coupure de courant peut corrompre ; Payara ne demarre alors plus l'application.
+         * Celui-ci est de toute facon annule et recree a chaque demarrage : la persistance ne servait a rien.
+         */
+        TimerConfig recapActivity = new TimerConfig("recapActivity", false);
         timerService.createCalendarTimer(
                 new ScheduleExpression().hour(findHeureEnvoiSmsRecap()).dayOfMonth("*").year("*"), recapActivity);
     }
