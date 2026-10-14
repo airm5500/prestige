@@ -1,0 +1,219 @@
+package rest.service.impl.serveur;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import rest.service.impl.serveur.ReglagesServeur.Niveau;
+import rest.service.impl.serveur.ReglagesServeur.Reglage;
+
+/**
+ * STABILITE DU SERVEUR : reglages de Payara lus dans domain.xml (configuration « server-config » et pool de la base de
+ * l'application), et reglages conseilles avec la commande asadmin qui les applique. Regles pures (testees a part).
+ * <p>
+ * Valeurs par defaut de Payara quand l'attribut est absent : 5 fils HTTP au plus, pool de 32 connexions sans validation
+ * ni detection de fuite.
+ */
+public final class ConfigPayara {
+
+    public static final String POOL_JNDI = "jdbc/__laborex_pool";
+
+    public int filsHttpMax = 5;
+    public String pool = "";
+    public int poolMax = 32;
+    public boolean poolValidation;
+    public int poolFuiteSecondes;
+    public String niveauSurveillancePool = "OFF", niveauSurveillanceFils = "OFF";
+    public List<String> optionsJvm = new ArrayList<>();
+    public boolean lu;
+
+    private static String attribut(String balise, String nom) {
+        Matcher m = Pattern.compile("\\s" + Pattern.quote(nom) + "=\"([^\"]*)\"").matcher(balise);
+        return m.find() ? m.group(1) : null;
+    }
+
+    private static int entier(String v, int defaut) {
+        try {
+            return v == null ? defaut : Integer.parseInt(v.trim());
+        } catch (NumberFormatException e) {
+            return defaut;
+        }
+    }
+
+    /** Lecture de domain.xml ; renvoie une configuration « non lue » si le texte est vide ou illisible. */
+    public static ConfigPayara lire(String xml) {
+        ConfigPayara c = new ConfigPayara();
+        if (xml == null || xml.isEmpty()) {
+            return c;
+        }
+        Matcher res = Pattern.compile("<jdbc-resource[^>]*jndi-name=\"" + Pattern.quote(POOL_JNDI) + "\"[^>]*>")
+                .matcher(xml);
+        if (res.find()) {
+            c.pool = attribut(res.group(), "pool-name");
+            Matcher p = Pattern.compile("<jdbc-connection-pool[^>]*\\sname=\"" + Pattern.quote(c.pool) + "\"[^>]*>")
+                    .matcher(xml);
+            if (p.find()) {
+                String b = p.group();
+                c.poolMax = entier(attribut(b, "max-pool-size"), 32);
+                c.poolValidation = "true".equalsIgnoreCase(attribut(b, "is-connection-validation-required"));
+                c.poolFuiteSecondes = entier(attribut(b, "connection-leak-timeout-in-seconds"), 0);
+            }
+        }
+        int debut = xml.indexOf("<config name=\"server-config\"");
+        int fin = debut < 0 ? -1 : xml.indexOf("</config>", debut);
+        String cfg = debut < 0 || fin < 0 ? "" : xml.substring(debut, fin);
+        Matcher t = Pattern.compile("<thread-pool[^>]*\\sname=\"http-thread-pool\"[^>]*>").matcher(cfg);
+        if (t.find()) {
+            c.filsHttpMax = entier(attribut(t.group(), "max-thread-pool-size"), 5);
+        }
+        Matcher mon = Pattern.compile("<module-monitoring-levels[^>]*>").matcher(cfg);
+        if (mon.find()) {
+            String jdbc = attribut(mon.group(), "jdbc-connection-pool"), fils = attribut(mon.group(), "thread-pool");
+            c.niveauSurveillancePool = jdbc == null ? "OFF" : jdbc.toUpperCase(Locale.ROOT);
+            c.niveauSurveillanceFils = fils == null ? "OFF" : fils.toUpperCase(Locale.ROOT);
+        }
+        Matcher o = Pattern.compile("<jvm-options>([^<]*)</jvm-options>").matcher(cfg);
+        while (o.find()) {
+            c.optionsJvm.add(o.group(1).trim());
+        }
+        c.lu = !cfg.isEmpty();
+        return c;
+    }
+
+    /** Fils HTTP conseilles : 5 par poste (ecrans qui chargent en parallele, terminaux), entre 50 et 200. */
+    public static int filsConseilles(int postes) {
+        return Math.max(50, Math.min(200, postes * 5));
+    }
+
+    private static boolean option(List<String> options, String prefixe) {
+        for (String o : options) {
+            if (o.startsWith(prefixe)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static String valeur(List<String> options, String prefixe) {
+        for (String o : options) {
+            if (o.startsWith(prefixe)) {
+                return o.substring(prefixe.length());
+            }
+        }
+        return null;
+    }
+
+    /** asadmin echappe les « : » d'une option de la JVM. */
+    static String echapper(String option) {
+        return option.replace(":", "\\:");
+    }
+
+    private static Reglage reglage(List<Reglage> l, String cle, String libelle, String actuel, String conseille,
+            Niveau niveau, String explication, String ligne) {
+        Reglage r = new Reglage("PAYARA", cle, libelle);
+        r.actuel = actuel;
+        r.conseille = conseille;
+        r.niveau = niveau;
+        r.explication = explication;
+        r.ligne = ligne;
+        l.add(r);
+        return r;
+    }
+
+    /**
+     * Reglages de Payara conseilles.
+     *
+     * @param options
+     *            options de la JVM en cours (RuntimeMXBean)
+     * @param heapConseille
+     *            memoire conseillee du serveur Java (octets)
+     * @param dossierVidages
+     *            dossier des vidages memoire et rapports de plantage (barres obliques)
+     * @param dossierLogs
+     *            dossier des journaux de Payara (barres obliques)
+     */
+    public List<Reglage> comparer(List<String> options, long heapConseille, int postes, String dossierVidages,
+            String dossierLogs) {
+        List<Reglage> l = new ArrayList<>();
+        int fils = filsConseilles(postes);
+        reglage(l, "http-thread-pool", "Fils HTTP (requêtes traitées en même temps)", String.valueOf(filsHttpMax),
+                String.valueOf(fils),
+                filsHttpMax < 25 ? Niveau.CRITIQUE : filsHttpMax < fils ? Niveau.A_AJUSTER : Niveau.OK,
+                "Avec " + filsHttpMax + " fils, une " + (filsHttpMax + 1)
+                        + "e requête attend qu'une autre se termine : les caisses se figent aux heures de pointe.",
+                "asadmin set configs.config.server-config.thread-pools.thread-pool.http-thread-pool.max-thread-pool-size="
+                        + fils);
+        reglage(l, "pool-validation", "Contrôle des connexions à la base", poolValidation ? "activé" : "désactivé",
+                "activé", poolValidation ? Niveau.OK : Niveau.A_AJUSTER,
+                "Après un redémarrage de MariaDB ou une coupure réseau, les connexions mortes sont remplacées au lieu de faire échouer les ventes.",
+                "asadmin set resources.jdbc-connection-pool." + pool + ".is-connection-validation-required=true"
+                        + "\nasadmin set resources.jdbc-connection-pool." + pool
+                        + ".connection-validation-method=custom-validation"
+                        + "\nasadmin set resources.jdbc-connection-pool." + pool
+                        + ".validation-classname=org.glassfish.api.jdbc.validation.MySQLConnectionValidation");
+        reglage(l, "pool-fuite", "Détection des connexions non rendues",
+                poolFuiteSecondes > 0 ? poolFuiteSecondes + " s" : "désactivée", "300 s",
+                poolFuiteSecondes > 0 ? Niveau.OK : Niveau.A_AJUSTER,
+                "Écrit dans le journal l'endroit du code qui garde une connexion plus de 5 minutes : la cause d'un pool épuisé.",
+                "asadmin set resources.jdbc-connection-pool." + pool + ".connection-leak-timeout-in-seconds=300");
+        reglage(l, "surveillance", "Compteurs du pool et des fils",
+                "pool " + niveauSurveillancePool + ", fils " + niveauSurveillanceFils, "HIGH",
+                "HIGH".equals(niveauSurveillancePool) ? Niveau.OK : Niveau.A_AJUSTER,
+                "Donne au Centre de support le nombre de connexions utilisées et en attente.",
+                "asadmin set configs.config.server-config.monitoring-service.module-monitoring-levels.jdbc-connection-pool=HIGH"
+                        + "\nasadmin set configs.config.server-config.monitoring-service.module-monitoring-levels.thread-pool=HIGH");
+
+        String xmx = valeur(options, "-Xmx"), xms = valeur(options, "-Xms");
+        String h = heapConseille % ReglagesServeur.GO == 0 ? (heapConseille / ReglagesServeur.GO) + "g"
+                : (heapConseille / ReglagesServeur.MO) + "m";
+        StringBuilder memoire = new StringBuilder();
+        if (xmx != null) {
+            memoire.append("asadmin delete-jvm-options -Xmx").append(xmx).append('\n');
+        }
+        if (xms != null) {
+            memoire.append("asadmin delete-jvm-options -Xms").append(xms).append('\n');
+        }
+        memoire.append("asadmin create-jvm-options -Xmx").append(h).append("\nasadmin create-jvm-options -Xms")
+                .append(h);
+        long actuelle = xmx == null ? -1 : ReglagesServeur.octets(xmx);
+        boolean assez = actuelle >= heapConseille * 0.9;
+        reglage(l, "Xms", "Mémoire du serveur Java (-Xms = -Xmx)",
+                "-Xms " + (xms == null ? "absente" : xms) + ", -Xmx " + (xmx == null ? "absente" : xmx), h,
+                !assez && actuelle >= 0 && actuelle < heapConseille * 0.66 ? Niveau.CRITIQUE
+                        : xms != null && xms.equalsIgnoreCase(xmx) && assez ? Niveau.OK : Niveau.A_AJUSTER,
+                "Assez de mémoire pour le serveur, réservée dès le démarrage : elle ne manque pas plus tard, quand Windows l'a donnée à d'autres.",
+                memoire.toString());
+        reglage(l, "HeapDumpOnOutOfMemoryError", "Vidage mémoire en cas de mémoire épuisée",
+                option(options, "-XX:+HeapDumpOnOutOfMemoryError") ? "activé" : "désactivé", "activé",
+                option(options, "-XX:+HeapDumpOnOutOfMemoryError") && option(options, "-XX:HeapDumpPath=") ? Niveau.OK
+                        : Niveau.A_AJUSTER,
+                "Montre ce qui remplissait la mémoire au moment de l'arrêt (fichier .hprof).",
+                "asadmin create-jvm-options -XX\\:+HeapDumpOnOutOfMemoryError\nasadmin create-jvm-options "
+                        + echapper("-XX:HeapDumpPath=" + dossierVidages));
+        reglage(l, "ErrorFile", "Rapport de plantage de Java",
+                option(options, "-XX:ErrorFile=") ? "configuré" : "par défaut", "dans le dossier du support",
+                option(options, "-XX:ErrorFile=") ? Niveau.OK : Niveau.A_AJUSTER,
+                "Le rapport hs_err est écrit là où le Centre de support le cherche.",
+                "asadmin create-jvm-options " + echapper("-XX:ErrorFile=" + dossierVidages + "/hs_err_pid%p.log"));
+        reglage(l, "gc-log", "Journal du ramasse-miettes", option(options, "-Xlog:gc") ? "activé" : "désactivé",
+                "activé", option(options, "-Xlog:gc") ? Niveau.OK : Niveau.A_AJUSTER,
+                "Montre si le serveur passait son temps à libérer de la mémoire avant de ralentir ou de tomber (5 fichiers de 20 Mo).",
+                "asadmin create-jvm-options "
+                        + echapper("-Xlog:gc*:file=" + dossierLogs + "/gc.log:time,uptime:filecount=5,filesize=20m"));
+        return l;
+    }
+
+    /** Commandes asadmin des reglages a appliquer (domaine arrete puis redemarre pour la memoire et les options). */
+    public static String script(List<Reglage> reglages) {
+        StringBuilder sb = new StringBuilder(
+                "REM Reglages conseilles par Prestige (a lancer dans le dossier bin de Payara)\n");
+        for (Reglage r : reglages) {
+            if (r.niveau != Niveau.OK && r.ligne != null && r.ligne.startsWith("asadmin")) {
+                sb.append("REM ").append(r.libelle).append('\n').append(r.ligne.replace("asadmin ", "call asadmin "))
+                        .append('\n');
+            }
+        }
+        return sb.append("call asadmin restart-domain domain1\n").toString();
+    }
+}
