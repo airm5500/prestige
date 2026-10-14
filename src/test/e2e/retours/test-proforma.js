@@ -52,7 +52,8 @@ function retirer() {
     await p.waitForTimeout(2500);
 
     /* un client d abord : la proforma est etablie pour quelqu un */
-    const client = q("SELECT str_FIRST_NAME FROM t_client WHERE str_STATUT='enable' AND str_FIRST_NAME IS NOT NULL AND str_FIRST_NAME<>'' ORDER BY str_FIRST_NAME LIMIT 1");
+    /* la recherche de l'ecran ne propose que les clients standard (type 6) : un client assure n'y figure pas */
+    const client = q("SELECT str_FIRST_NAME FROM t_client WHERE str_STATUT='enable' AND lg_TYPE_CLIENT_ID='6' AND str_FIRST_NAME IS NOT NULL AND str_FIRST_NAME<>'' ORDER BY str_FIRST_NAME LIMIT 1");
     const champClient = await p.evaluate(() => Ext.ComponentQuery.query('doDevis #clientSearchTextField')[0].inputEl.id);
     await p.fill('#' + champClient, client);
     await p.press('#' + champClient, 'Enter');
