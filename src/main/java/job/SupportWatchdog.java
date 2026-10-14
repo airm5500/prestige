@@ -45,6 +45,7 @@ import util.BoiteNoire;
 @Singleton
 @Startup
 @PermitAll
+@javax.ejb.DependsOn({ "FlywayStartupBean" })
 public class SupportWatchdog {
 
     private static final Logger LOG = Logger.getLogger(SupportWatchdog.class.getName());
@@ -54,6 +55,14 @@ public class SupportWatchdog {
 
     @EJB
     private SupportEventService supportEventService;
+    @EJB
+    private rest.service.impl.serveur.ServeurVieService vie;
+
+    /**
+     * Stabilite du serveur (lot 4) : session en cours dans t_serveur_vie (-1 si non enregistree) et nom de la machine.
+     */
+    private volatile long vieId = -1;
+    private volatile String hote = "?";
 
     private volatile boolean enabled;
     private volatile String serverLogDir;
@@ -78,17 +87,31 @@ public class SupportWatchdog {
             storageBase = resolveStorageBase();
             heartbeatFile = storageBase.resolve("watchdog").resolve("heartbeat.flag");
             LocalDateTime now = LocalDateTime.now();
+            enregistrerSession();
+            Object[] precedente = precedenteEnCours();
             if (Files.isRegularFile(heartbeatFile)) {
                 // Le fichier temoin n'a pas ete supprime par un arret propre -> crash. On relit la boite noire AVANT
                 // de reecrire le temoin : c'est le dernier etat connu du serveur, il serait perdu sinon.
                 BoiteNoire.Instantane dernier = lireBattement(now);
                 avantCrash = dernier;
                 long downMin = Math.max(0, ChronoUnit.MINUTES.between(dernier.horodatage, now));
-                String message = "Redemarrage inattendu du serveur (arret non propre) - indisponibilite ~" + downMin
+                rest.service.impl.serveur.CauseArret.Diagnostic d = diagnostiquer(dernier);
+                derniereCause = d;
+                String message = "Arret brutal du serveur : " + d.code.libelle + " - indisponibilite ~" + downMin
                         + " min";
-                supportEventService.recordServerIncident("crash-" + dernier.horodatage.format(STAMP), "ERROR", message,
-                        buildDetail(dernier, now, downMin));
+                supportEventService.recordServerIncident("crash-" + dernier.horodatage.format(STAMP), d.code.niveau,
+                        message, buildDetail(dernier, now, downMin));
+                if (precedente != null) {
+                    vie.cloturerBrutal((Long) precedente[0], d, downMin);
+                }
                 LOG.log(Level.WARNING, "Crash serveur detecte : {0}", message);
+            } else if (precedente != null) {
+                // session restee « en cours » sans temoin (temoin supprime par l'arret, base injoignable a ce moment)
+                try {
+                    vie.arretPropre((Long) precedente[0]);
+                } catch (Exception e) {
+                    LOG.log(Level.FINE, "watchdog session precedente", e);
+                }
             }
             ecrireBattement(now);
         } catch (Exception e) {
@@ -106,6 +129,22 @@ public class SupportWatchdog {
         } catch (Exception e) {
             LOG.log(Level.FINE, "watchdog battement", e);
         }
+        // Stabilite du serveur (lot 4) : releve detaille conserve 14 jours et signe de vie de la session
+        try {
+            rest.service.impl.serveur.ServeurVieService.Mesure m = rest.service.impl.serveur.MesureServeur.releve();
+            m.vieId = vieId < 0 ? null : vieId;
+            m.disqueLibreMo = disqueLibreMo() < 0 ? null : disqueLibreMo();
+            List<filter.SlowRequestFilter.RequeteEnCours> enCours = filter.SlowRequestFilter.requetesEnCours();
+            m.requetes = enCours.size();
+            Long connexions = vie.statutMariadb("Threads_connected");
+            m.bddConnexions = connexions == null ? null : connexions.intValue();
+            vie.mesurer(hote, m);
+            if (vieId >= 0) {
+                vie.signe(vieId);
+            }
+        } catch (Exception e) {
+            LOG.log(Level.FINE, "watchdog releve", e);
+        }
     }
 
     @PreDestroy
@@ -118,7 +157,146 @@ public class SupportWatchdog {
         } catch (Exception e) {
             LOG.log(Level.FINE, "watchdog arret", e);
         }
+        try {
+            if (vieId >= 0) {
+                vie.arretPropre(vieId);
+            }
+        } catch (Exception e) {
+            LOG.log(Level.FINE, "watchdog arret (historique)", e);
+        }
     }
+
+    /** Derniere cause diagnostiquee au demarrage (null s'il n'y a pas eu d'arret brutal). */
+    private volatile rest.service.impl.serveur.CauseArret.Diagnostic derniereCause;
+
+    public rest.service.impl.serveur.CauseArret.Diagnostic getDerniereCause() {
+        return derniereCause;
+    }
+
+    /** Nom de la machine (cle de l'historique : une base peut servir plusieurs postes serveurs successifs). */
+    public String getHote() {
+        return hote;
+    }
+
+    private void enregistrerSession() {
+        try {
+            hote = java.net.InetAddress.getLocalHost().getHostName();
+        } catch (Exception e) {
+            hote = StringUtils.defaultIfBlank(System.getenv("COMPUTERNAME"), "serveur");
+        }
+        try {
+            java.lang.management.RuntimeMXBean rt = java.lang.management.ManagementFactory.getRuntimeMXBean();
+            vieId = vie.demarrer(hote, ProcessHandle.current().pid(), System.getProperty("java.version"),
+                    Runtime.getRuntime().maxMemory() / (1024L * 1024L), String.join(" ",
+                            rest.service.impl.serveur.ServeurVieService.optionsUtiles(rt.getInputArguments())));
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "historique du serveur non enregistre : {0}", e.getClass().getSimpleName());
+        }
+    }
+
+    private Object[] precedenteEnCours() {
+        try {
+            return vieId < 0 ? null : vie.precedenteEnCours(hote, vieId);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /** Heure de demarrage de la JVM courante. */
+    private static LocalDateTime demarrageJvm() {
+        return LocalDateTime.ofInstant(
+                java.time.Instant
+                        .ofEpochMilli(java.lang.management.ManagementFactory.getRuntimeMXBean().getStartTime()),
+                ZoneId.systemDefault());
+    }
+
+    /** Dossier des journaux de Payara : parametre s'il existe, sinon celui du domaine en cours. */
+    private Path dossierLogs() {
+        if (StringUtils.isNotBlank(serverLogDir) && Files.isDirectory(Paths.get(serverLogDir))) {
+            return Paths.get(serverLogDir);
+        }
+        String racine = System.getProperty("com.sun.aas.instanceRoot");
+        Path p = racine == null ? null : Paths.get(racine, "logs");
+        return p != null && Files.isDirectory(p) ? p : null;
+    }
+
+    /**
+     * Fin du journal de la session tombee : server.log et ses fichiers renouvele(s) modifies depuis le dernier
+     * battement, limites a la periode [dernier battement - 10 min, redemarrage de la JVM[ (le redemarrage ecrit lui
+     * aussi beaucoup).
+     */
+    private String journalSessionTombee(LocalDateTime dernierSigne, LocalDateTime redemarrage) {
+        Path dossier = dossierLogs();
+        if (dossier == null) {
+            return "";
+        }
+        long depuis = dernierSigne.minusMinutes(10).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
+        StringBuilder tout = new StringBuilder();
+        try (Stream<Path> flux = Files.list(dossier)) {
+            flux.filter(p -> p.getFileName().toString().startsWith("server.log"))
+                    .filter(p -> p.toFile().lastModified() >= depuis)
+                    .sorted(java.util.Comparator.comparingLong(p -> p.toFile().lastModified())).forEach(p -> {
+                        try {
+                            tout.append(readTail(p, 1024 * 1024)).append('\n');
+                        } catch (IOException e) {
+                            LOG.log(Level.FINE, "lecture journal", e);
+                        }
+                    });
+        } catch (IOException e) {
+            LOG.log(Level.FINE, "liste des journaux", e);
+        }
+        return rest.service.impl.serveur.CauseArret.extrait(tout.toString(), dernierSigne.minusMinutes(10),
+                redemarrage);
+    }
+
+    /** Fichiers d'un dossier modifies depuis un instant, par prefixe et suffixe de nom. */
+    private static boolean fichierRecent(List<Path> dossiers, String prefixe, String suffixe, LocalDateTime depuis) {
+        long ms = depuis.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
+        for (Path d : dossiers) {
+            if (d == null || !Files.isDirectory(d)) {
+                continue;
+            }
+            try (Stream<Path> flux = Files.list(d)) {
+                if (flux.anyMatch(p -> p.getFileName().toString().startsWith(prefixe)
+                        && p.getFileName().toString().endsWith(suffixe) && p.toFile().lastModified() >= ms)) {
+                    return true;
+                }
+            } catch (IOException e) {
+                LOG.log(Level.FINE, "recherche " + suffixe, e);
+            }
+        }
+        return false;
+    }
+
+    private rest.service.impl.serveur.CauseArret.Diagnostic diagnostiquer(BoiteNoire.Instantane dernier) {
+        rest.service.impl.serveur.CauseArret.Indices x = new rest.service.impl.serveur.CauseArret.Indices();
+        x.dernierSigne = dernier.horodatage;
+        x.redemarrage = demarrageJvm();
+        x.memoirePct = dernier.pourcentageMemoire();
+        x.disqueLibreMo = dernier.disqueLibreMo;
+        x.extraitLog = journalSessionTombee(dernier.horodatage, x.redemarrage);
+        dernierExtrait = x.extraitLog;
+        List<Path> dossiers = new ArrayList<>();
+        dossiers.add(dossierLogs());
+        dossiers.add(dossierLogs() == null ? null : dossierLogs().getParent());
+        dossiers.add(Paths.get(System.getProperty("user.dir", ".")));
+        dossiers.add(storageBase == null ? null : storageBase.resolve("dumps"));
+        x.rapportJvm = fichierRecent(dossiers, "hs_err_pid", ".log", dernier.horodatage.minusMinutes(5));
+        x.vidageMemoire = fichierRecent(dossiers, "java_pid", ".hprof", dernier.horodatage.minusMinutes(5));
+        x.windows = rest.service.impl.serveur.MesureServeur.journalWindows(storageBase.resolve("watchdog"));
+        dernierWindows = x.windows;
+        try {
+            Long uptime = vie.statutMariadb("Uptime");
+            x.mariadbRedemarree = uptime != null
+                    && uptime < ChronoUnit.SECONDS.between(dernier.horodatage, LocalDateTime.now());
+        } catch (Exception e) {
+            LOG.log(Level.FINE, "uptime MariaDB", e);
+        }
+        return rest.service.impl.serveur.CauseArret.diagnostiquer(x);
+    }
+
+    private volatile String dernierExtrait = "";
+    private volatile List<rest.service.impl.serveur.CauseArret.EvenementWindows> dernierWindows = new ArrayList<>();
 
     private Path resolveStorageBase() {
         String configured = StringUtils.trimToEmpty(supportEventService.getParameter("SUPPORT_STORAGE_DIR"));
@@ -231,9 +409,59 @@ public class SupportWatchdog {
         sb.append("Indisponibilite estimee  : ~").append(downMin).append(" min\n\n");
         // Boite noire : dans quel etat se trouvait le serveur au dernier battement. Le server.log dit ce qui s'est
         // passe, ces mesures disent s'il etait deja en difficulte (memoire saturee, disque plein, requetes bloquees).
+        rest.service.impl.serveur.CauseArret.Diagnostic d = derniereCause;
+        if (d != null) {
+            sb.append("=== Cause probable ===\n").append(d.code.libelle).append("\n").append(d.explication)
+                    .append("\nConseil : ").append(d.conseil).append("\n");
+            if (d.demarrageWindows != null) {
+                sb.append("Demarrage de Windows : ").append(d.demarrageWindows.format(FMT)).append("\n");
+            }
+            sb.append("\n");
+        }
         sb.append("=== Boite noire : dernier etat connu avant l'arret ===\n");
         sb.append(dernier.enTexte()).append("\n");
-        sb.append(collectCrashCause(dernier.horodatage));
+        sb.append(tendanceAvantArret(dernier.horodatage));
+        if (!dernierWindows.isEmpty()) {
+            sb.append("=== Journal Systeme de Windows (evenements utiles) ===\n");
+            for (rest.service.impl.serveur.CauseArret.EvenementWindows e : dernierWindows) {
+                if (!e.quand.isBefore(dernier.horodatage.minusHours(1))) {
+                    sb.append(e.quand.format(FMT)).append("  ").append(e.id).append("  ").append(e.source)
+                            .append(e.donnees.isEmpty() ? "" : "  " + StringUtils.abbreviate(e.donnees, 120))
+                            .append('\n');
+                }
+            }
+            sb.append('\n');
+        }
+        if (StringUtils.isNotBlank(dernierExtrait)) {
+            sb.append("=== Fin du journal de la session tombee ===\n").append(StringUtils.right(dernierExtrait, 8000))
+                    .append('\n');
+            appendHsErr(sb, dernier.horodatage);
+        } else {
+            sb.append(collectCrashCause(dernier.horodatage));
+        }
+        return sb.toString();
+    }
+
+    /** Releves des 20 dernieres minutes avant l'arret : la memoire montait-elle, les fils HTTP etaient-ils satures ? */
+    private String tendanceAvantArret(LocalDateTime avant) {
+        StringBuilder sb = new StringBuilder();
+        try {
+            List<Object[]> l = vie.mesuresAvant(hote, avant.plusMinutes(1), 10);
+            if (l.isEmpty()) {
+                return "";
+            }
+            sb.append(
+                    "=== Releves avant l'arret (memoire Mo/max, fils, fils HTTP actifs, CPU serveur %, CPU machine %,")
+                    .append(" RAM libre Mo, connexions base) ===\n");
+            for (Object[] r : l) {
+                sb.append(r[0]).append("  ").append(r[1]).append('/').append(r[2]).append("  ").append(r[3])
+                        .append("  ").append(r[4]).append("  ").append(r[5]).append("  ").append(r[6]).append("  ")
+                        .append(r[7]).append("  ").append(r[10]).append('\n');
+            }
+            sb.append('\n');
+        } catch (Exception e) {
+            LOG.log(Level.FINE, "tendance", e);
+        }
         return sb.toString();
     }
 
