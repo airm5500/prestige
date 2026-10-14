@@ -210,3 +210,44 @@ reste ensuite en mémoire.
 - `src/test/e2e/support/test-rum-veille.js` : un envoi de 20 mesures fait au plus 11 allers-retours ; regroupement par
   5 minutes sans perte de mesure.
 - `RumTest.tranchesDeCinqMinutes` : test unitaire du découpage en tranches.
+
+## 9. Test de charge des connexions (retours du 13/10, point 20)
+
+Script : `outils/charge/charge-connexion.js` (à lancer seul, sur une copie de travail).
+
+Chaque utilisateur simulé :
+- sur le poste, se connecte (`POST api/v1/user/auth`) puis charge son premier écran, c'est-à-dire les 20 appels
+  relevés dans le navigateur entre la connexion et le tableau de bord (menu, compte, officine, tuiles, alertes,
+  encaissements, cloche…), 6 à la fois comme un navigateur ;
+- sur Prestige Mobile (Android), se connecte (`POST api/v1/mobile/connexion`) puis lit son profil.
+
+Un « témoin », déjà connecté, envoie une requête légère toutes les 300 ms : il mesure ce que ressent la personne qui
+travaille pendant que les autres se connectent.
+
+Mesures du 14/10/2026, sur le banc (3 ans de données, 4 cœurs, MariaDB 10.11, Payara 5), sans autre test en cours :
+
+| Simultanés (poste + tél.) | Durée | Échecs | Connexion poste médiane / 95 % | Connexion + 1er écran 95 % / max | Connexion tél. médiane / 95 % | Témoin médiane / 95 % / max |
+|---|---|---|---|---|---|---|
+| 1 + 1 | 58 ms | 0 | 22 / 22 ms | 58 / 58 ms | 17 / 17 ms | 25 / 25 / 25 ms |
+| 5 + 5 | 224 ms | 0 | 44 / 78 ms | 223 / 223 ms | 49 / 68 ms | 42 / 42 / 42 ms |
+| 10 + 10 | 461 ms | 0 | 76 / 137 ms | 459 / 459 ms | 75 / 123 ms | 36 / 124 / 124 ms |
+| 20 + 20 | 969 ms | 0 | 158 / 257 ms | 964 / 965 ms | 144 / 244 ms | 113 / 231 / 231 ms |
+| 40 + 40 | 1745 ms | 0 | 236 / 425 ms | 1737 / 1741 ms | 174 / 422 ms | 466 / 478 / 478 ms |
+
+Appel le plus lent à chaque palier : le menu (`ws_tree_menu.jsp`, ancienne JSP) — 31 ms seul, 631 ms à 40 + 40.
+
+**Lecture**
+- Aucun refus, aucune erreur, jusqu'à 80 connexions simultanées (40 postes + 40 téléphones).
+- Le temps croît à peu près linéairement : le serveur met les demandes en file, il ne s'effondre pas.
+- La personne déjà connectée garde moins d'un quart de seconde jusqu'à 20 + 20. À 40 + 40, elle attend environ
+  0,5 s, seulement pendant les 2 s du pic.
+- Une officine réelle (5 à 15 postes, quelques téléphones) reste dans les deux premières lignes du tableau.
+- Ces mesures ne comptent pas le temps du navigateur. Seul, il met environ 3 s entre le clic « Connexion » et le
+  tableau de bord affiché, chargement des scripts compris.
+
+**À refaire sur le poste de l'officine** (données réelles, autre matériel) :
+`node outils/charge/charge-connexion.js 1,5,10,20,40`, puis le nettoyage affiché à la fin.
+
+**Piste si le pic devient gênant :** le menu est recalculé à chaque connexion par l'ancienne JSP. Le mettre en
+cache par profil, en REST, est le gain le plus net. Ce n'est pas fait : il faut une décision, car cela touche
+l'ancienne JSP.
