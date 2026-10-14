@@ -8,7 +8,7 @@
  * et n'est ouvert qu'aux profils portant P_IMPORT_CLIENTS.
  *
  * Le parcours est joue a l'ecran : choix du fichier, lecture des colonnes, designation, controle, import.
- * Les clients crees et le mot de passe de l'operateur d'essai sont remis en etat a la fin. */
+ * Les clients crees et l'operateur d'essai (cree par le test, sans le privilege) sont retires a la fin. */
 const { chromium } = require('playwright-core');
 const { execFileSync } = require('child_process');
 const fs = require('fs');
@@ -22,16 +22,19 @@ const q = (s) => execFileSync('mariadb', [BASE, '-sN', '-e', s], { encoding: 'ut
 
 const NOM = 'E2EIMPORT';
 const TMP = '/tmp/e2e-import-clients';
-const MDP_VENDEUR_ORIGINE = q("SELECT str_PASSWORD FROM t_user WHERE str_LOGIN='VENDEUR'");
-// md5('e2etest')
-const MDP_E2E = '484555f12d770efb8b0be1260cbf7a1b';
+/* operateur sans le privilege P_IMPORT_CLIENTS : cree par le test (role Caisse/Commande/Stock), supprime a la fin */
+const VENDEUR_ID = 'E2E-IMPORT-VENDEUR', VENDEUR = 'e2e.import.vendeur';
+const ROLE_CAISSE = q("SELECT lg_ROLE_ID FROM t_role WHERE str_NAME = 'Caisse/Commande/Stock' LIMIT 1");
 // Numero deja porte par un client standard existant : il doit etre refuse a l'import.
 const DEJA_PRIS = q("SELECT str_TELEPHONE FROM t_client WHERE lg_TYPE_CLIENT_ID='6' AND str_TELEPHONE IS NOT NULL LIMIT 1");
 
 function nettoyer() {
   exec("DELETE FROM t_compte_client WHERE lg_CLIENT_ID IN (SELECT lg_CLIENT_ID FROM t_client WHERE str_FIRST_NAME LIKE '" + NOM + "%');"
     + "DELETE FROM t_client WHERE str_FIRST_NAME LIKE '" + NOM + "%';"
-    + "UPDATE t_user SET str_PASSWORD='" + MDP_VENDEUR_ORIGINE + "' WHERE str_LOGIN='VENDEUR';");
+    + "DELETE FROM t_session_utilisateur WHERE lg_USER_ID='" + VENDEUR_ID + "';"
+    + "DELETE FROM t_event_log WHERE lg_USER_ID='" + VENDEUR_ID + "';"
+    + "DELETE FROM t_role_user WHERE lg_USER_ID='" + VENDEUR_ID + "';"
+    + "DELETE FROM t_user WHERE lg_USER_ID='" + VENDEUR_ID + "';");
 }
 
 /* Un fichier volontairement penible : colonnes dans un ordre inattendu, en-tete, une ligne sans
@@ -56,7 +59,7 @@ function ecrireFichier() {
 }
 
 const connexion = async (p, login) => {
-  await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
+  await p.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'domcontentloaded' });
   await p.fill('#str_login', login); await p.fill('#str_password', 'e2etest'); await p.click('#login');
   await p.waitForURL('**/general/**', { timeout: 40000 });
   await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 90000 });
@@ -65,7 +68,11 @@ const connexion = async (p, login) => {
 
 (async () => {
   nettoyer();
-  exec("UPDATE t_user SET str_PASSWORD='" + MDP_E2E + "' WHERE str_LOGIN='VENDEUR';");
+  exec("INSERT INTO t_user (lg_USER_ID, str_LOGIN, str_PASSWORD, str_FIRST_NAME, str_LAST_NAME, str_FUNCTION, str_STATUT,"
+    + " lg_EMPLACEMENT_ID, dt_CREATED, int_CONNEXION) VALUES ('" + VENDEUR_ID + "', '" + VENDEUR + "', MD5('e2etest'),"
+    + " 'VENDEUR', 'E2E', 'Vendeur', 'enable', '1', NOW(), 0);"
+    + "INSERT INTO t_role_user (lg_USER_ROLE_ID, lg_ROLE_ID, lg_USER_ID, dt_CREATED) VALUES ('" + VENDEUR_ID + "', '"
+    + ROLE_CAISSE + "', '" + VENDEUR_ID + "', NOW());");
   const fichier = ecrireFichier();
   const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
   const err = [];
@@ -80,7 +87,7 @@ const connexion = async (p, login) => {
   let p = await nouvelOnglet();
   try {
     /* ---------- 1. le privilege commande l acces ---------- */
-    await connexion(p, 'VENDEUR');
+    await connexion(p, VENDEUR);
     let autorise = await p.evaluate(async () => {
       const r = await fetch('../api/v1/client/import/autorise');
       return JSON.parse(await r.text());
@@ -293,9 +300,8 @@ const connexion = async (p, login) => {
     nettoyer();
     try { fs.rmSync(TMP, { recursive: true, force: true }); } catch (e) { /* deja retire */ }
     const reste = q("SELECT CONCAT((SELECT COUNT(*) FROM t_client WHERE str_FIRST_NAME LIKE '" + NOM + "%'), '|',"
-      + " (SELECT str_PASSWORD FROM t_user WHERE str_LOGIN='VENDEUR'))");
-    ok('Tout ce que le test a posé est retiré et le mot de passe d essai restauré',
-      reste === '0|' + MDP_VENDEUR_ORIGINE, reste);
+      + " (SELECT COUNT(*) FROM t_user WHERE lg_USER_ID='" + VENDEUR_ID + "'))");
+    ok('Tout ce que le test a posé est retiré (clients importés, opérateur d essai)', reste === '0|0', reste);
   }
   const echecs = res.filter((r) => !r.c).length;
   console.log('\n' + (res.length - echecs) + '/' + res.length + ' controles OK');

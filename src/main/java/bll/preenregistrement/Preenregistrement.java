@@ -8780,7 +8780,11 @@ public class Preenregistrement extends bll.bllBase {
             List<Object[]> list = new ArrayList<>();
             String UserName = "%%";
             String UserLastName = "%%";
-            if (!"".equals(lg_USER_ID)) {
+            /*
+             * retour du 14/10 : « %% » (tous les comptes) n'est pas un identifiant de client ; le chercher coutait une
+             * requete inutile par tiers payant et par colonne de la balance agee (161 pour une page)
+             */
+            if (!"".equals(lg_USER_ID) && !lg_USER_ID.contains("%")) {
                 TClient OClient = this.getOdataManager().getEm().find(TClient.class, lg_USER_ID);
                 if (OClient != null) {
                     UserName = OClient.getStrFIRSTNAME();
@@ -8838,7 +8842,11 @@ public class Preenregistrement extends bll.bllBase {
 
             String UserName = "%%";
             String UserLastName = "%%";
-            if (!"".equals(lg_USER_ID)) {
+            /*
+             * retour du 14/10 : « %% » (tous les comptes) n'est pas un identifiant de client ; le chercher coutait une
+             * requete inutile par tiers payant et par colonne de la balance agee (161 pour une page)
+             */
+            if (!"".equals(lg_USER_ID) && !lg_USER_ID.contains("%")) {
                 TClient OClient = this.getOdataManager().getEm().find(TClient.class, lg_USER_ID);
                 if (OClient != null) {
                     UserName = OClient.getStrFIRSTNAME();
@@ -8879,7 +8887,11 @@ public class Preenregistrement extends bll.bllBase {
             }
             String UserName = "";
             String UserLastName = "";
-            if (!"".equals(lg_USER_ID)) {
+            /*
+             * retour du 14/10 : « %% » (tous les comptes) n'est pas un identifiant de client ; le chercher coutait une
+             * requete inutile par tiers payant et par colonne de la balance agee (161 pour une page)
+             */
+            if (!"".equals(lg_USER_ID) && !lg_USER_ID.contains("%")) {
                 TClient OClient = this.getOdataManager().getEm().find(TClient.class, lg_USER_ID);
                 if (OClient != null) {
                     UserName = OClient.getStrFIRSTNAME();
@@ -8924,7 +8936,11 @@ public class Preenregistrement extends bll.bllBase {
             }
             String UserName = "";
             String UserLastName = "";
-            if (!"".equals(lg_USER_ID)) {
+            /*
+             * retour du 14/10 : « %% » (tous les comptes) n'est pas un identifiant de client ; le chercher coutait une
+             * requete inutile par tiers payant et par colonne de la balance agee (161 pour une page)
+             */
+            if (!"".equals(lg_USER_ID) && !lg_USER_ID.contains("%")) {
                 TClient OClient = this.getOdataManager().getEm().find(TClient.class, lg_USER_ID);
                 if (OClient != null) {
                     UserName = OClient.getStrFIRSTNAME();
@@ -8969,7 +8985,11 @@ public class Preenregistrement extends bll.bllBase {
             }
             String UserName = "%%";
             String UserLastName = "%%";
-            if (!"".equals(lg_USER_ID)) {
+            /*
+             * retour du 14/10 : « %% » (tous les comptes) n'est pas un identifiant de client ; le chercher coutait une
+             * requete inutile par tiers payant et par colonne de la balance agee (161 pour une page)
+             */
+            if (!"".equals(lg_USER_ID) && !lg_USER_ID.contains("%")) {
                 TClient OClient = this.getOdataManager().getEm().find(TClient.class, lg_USER_ID);
                 if (OClient != null) {
                     UserName = OClient.getStrFIRSTNAME();

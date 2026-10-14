@@ -198,15 +198,6 @@ public class FactureSubrogatoireService {
     }
 
     /** Tiers payants en texte simple, pour l'edition : « NOM (80 %) bon REF ; ... ». */
-    private String detailTexte(String venteId) {
-        List<String> parts = new ArrayList<>();
-        for (TPreenregistrementCompteClientTiersPayent o : tiersPayants(venteId)) {
-            parts.add(
-                    o.getLgCOMPTECLIENTTIERSPAYANTID().getLgTIERSPAYANTID().getStrFULLNAME() + " (" + o.getIntPERCENT()
-                            + " %)" + (StringUtils.isNotBlank(o.getStrREFBON()) ? " bon " + o.getStrREFBON() : ""));
-        }
-        return String.join(" ; ", parts);
-    }
 
     /** Une page de la liste, aux noms et formats de la page JSP ; total = nombre de ventes de la periode. */
     public JSONObject page(List<Vente> ventes, int start, int limit) {
@@ -226,10 +217,37 @@ public class FactureSubrogatoireService {
         return new JSONObject().put("total", ventes.size()).put("results", resultats);
     }
 
-    /** Les ventes avec leurs tiers payants en texte, pour l'edition PDF. */
+    /**
+     * Les ventes avec leurs tiers payants en texte, pour l'edition PDF.
+     * <p>
+     * Retour du 14/10 : une requete par vente dans la meme transaction faisait reverifier a Hibernate, avant chaque
+     * requete, tous les objets deja charges : le temps croissait comme le CARRE du nombre de ventes (2 mois, 6 792
+     * ventes : 597 s). Les tiers payants sont lus par paquets de 500 ventes, sans verification (lecture seule), dans le
+     * meme ordre (pourcentage decroissant) : meme texte.
+     */
     public List<Vente> pourEdition(List<Vente> ventes) {
+        /* seulement les 4 valeurs utiles (et non les objets complets, qui chargeaient vente et compte une par une) */
+        java.util.Map<String, List<String>> parVente = new java.util.HashMap<>();
+        List<String> ids = new ArrayList<>();
         for (Vente v : ventes) {
-            v.tiersPayants = detailTexte(v.id);
+            ids.add(v.id);
+        }
+        for (int i = 0; i < ids.size(); i += 500) {
+            for (Object[] o : em.createQuery(
+                    "SELECT t.lgPREENREGISTREMENTID.lgPREENREGISTREMENTID, tp.strFULLNAME, t.intPERCENT, t.strREFBON"
+                            + " FROM TPreenregistrementCompteClientTiersPayent t JOIN t.lgCOMPTECLIENTTIERSPAYANTID c"
+                            + " JOIN c.lgTIERSPAYANTID tp WHERE t.lgPREENREGISTREMENTID.lgPREENREGISTREMENTID IN ?1"
+                            + " AND t.strSTATUT = ?2 ORDER BY t.intPERCENT DESC",
+                    Object[].class).setParameter(1, ids.subList(i, Math.min(ids.size(), i + 500)))
+                    .setParameter(2, commonparameter.statut_is_Closed)
+                    .setFlushMode(javax.persistence.FlushModeType.COMMIT).getResultList()) {
+                String refBon = (String) o[3];
+                parVente.computeIfAbsent((String) o[0], k -> new ArrayList<>())
+                        .add(o[1] + " (" + o[2] + " %)" + (StringUtils.isNotBlank(refBon) ? " bon " + refBon : ""));
+            }
+        }
+        for (Vente v : ventes) {
+            v.tiersPayants = String.join(" ; ", parVente.getOrDefault(v.id, java.util.Collections.emptyList()));
         }
         return ventes;
     }

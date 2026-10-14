@@ -71,7 +71,7 @@ const appeler = (p, url, methode) => p.evaluate(async ([u, m]) => {
   const ctx = await b.newContext({ viewport: { width: 1400, height: 900 } });
   const p = await ctx.newPage();
   try {
-    await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
+    await p.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'domcontentloaded' });
     await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 40000 });
 
@@ -83,9 +83,28 @@ const appeler = (p, url, methode) => p.evaluate(async ([u, m]) => {
       r.success === true && !!r.critere && r.actif === true && r.moisConserves === 12,
       JSON.stringify({ critere: r.critere, actif: r.actif, mois: r.moisConserves }));
 
+    /* 7. aucun fichier du serveur ne sort par ce service */
+    const refus = [];
+    for (const mauvais of ['../../../../etc/passwd', 'valorisation_x_du_2026-01-01.pdf/../../etc/passwd', 'server.log', '']) {
+      const rep = await p.evaluate(async (n) => {
+        const r = await fetch('../api/v1/valorisation-archive/pdf?fichier=' + encodeURIComponent(n));
+        return r.status;
+      }, mauvais);
+      refus.push(rep);
+    }
+    ok('Un nom de fichier fabrique est refuse (aucune sortie hors du dossier)',
+      refus.every((s) => s === 400 || s === 404), JSON.stringify(refus));
+
     /* 2. archivage par emplacement : le document est reellement produit depuis la base */
     poserParametre('KEY_VALORISATION_PDF_CRITERE', 'EMPLACEMENT');
     let g = JSON.parse((await appeler(p, '../api/v1/valorisation-archive/generer', 'POST')).corps);
+    /* Le modele Jasper rp_valoristion est installe sur chaque site (il n'est pas dans le depot). Sans lui, le service
+       doit le dire clairement ; le parcours PDF est alors signale NON VERIFIABLE (et non compte comme reussi). */
+    const modeleAbsent = g.success === false && /rp_valoristion/.test(g.message || '');
+    if (modeleAbsent) {
+      ok('Sans le modele d etat du site, le service explique quoi installer (rp_valoristion)', true, g.message);
+      console.log('NON VERIFIABLE SUR CE BANC  production du PDF (etapes 2 a 6 et 8) : modele rp_valoristion absent');
+    } else {
     ok('La valorisation par emplacement est produite', g.success === true && g.critere === 'EMPLACEMENT', JSON.stringify(g));
     const nom = g.fichier;
     if (nom && avant.indexOf(nom) < 0) { posees.push(nom); }
@@ -144,18 +163,6 @@ const appeler = (p, url, methode) => p.evaluate(async ([u, m]) => {
       reponse.statut === 200 && /application\/pdf/.test(reponse.type) && /inline/.test(reponse.disposition)
       && reponse.taille === tailleAvant, JSON.stringify(reponse));
 
-    /* 7. aucun fichier du serveur ne sort par ce service */
-    const refus = [];
-    for (const mauvais of ['../../../../etc/passwd', 'valorisation_x_du_2026-01-01.pdf/../../etc/passwd', 'server.log', '']) {
-      const rep = await p.evaluate(async (n) => {
-        const r = await fetch('../api/v1/valorisation-archive/pdf?fichier=' + encodeURIComponent(n));
-        return r.status;
-      }, mauvais);
-      refus.push(rep);
-    }
-    ok('Un nom de fichier fabrique est refuse (aucune sortie hors du dossier)',
-      refus.every((s) => s === 400 || s === 404), JSON.stringify(refus));
-
     /* 8. la purge retire les archives plus anciennes que la duree de conservation */
     const vieille = 'valorisation_' + 'test_purge' + '_du_2024-01-27.pdf';
     const recente = 'valorisation_' + 'test_purge' + '_du_' + jour + '.pdf';
@@ -171,6 +178,8 @@ const appeler = (p, url, methode) => p.evaluate(async ([u, m]) => {
     ok('L archive de plus de douze mois est retiree', !fs.existsSync(path.join(DOSSIER, vieille)));
     ok('L archive recente est conservee', fs.existsSync(path.join(DOSSIER, recente)));
     ok('L archive du jour est conservee', fs.existsSync(chemin));
+
+    }
 
     /* 9. le traitement s arrete proprement quand l officine le coupe */
     poserParametre('KEY_VALORISATION_PDF_ACTIF', '0');

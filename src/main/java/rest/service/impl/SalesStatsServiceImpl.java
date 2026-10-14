@@ -174,6 +174,16 @@ public class SalesStatsServiceImpl implements SalesStatsService {
     private static final String MODE_REGLEMENT_CLOSE = " and exists (select 1 from vente_reglement vr"
             + " where vr.vente_id=p.lg_PREENREGISTREMENT_ID and vr.type_regelement=:modeReglementId)";
     private static final String SEARCH_CLOSE2 = " and (f.int_CIP like :searchTerm or p.str_REF_TICKET like :searchTerm or p.str_REF like :searchTerm or f.str_NAME like :searchTerm or f.int_EAN13 like :searchTerm) ";
+    /*
+     * Retour du 14/10 (recherche dans les ventes terminees : 6,5 s sur 30 jours avec 3 ans de donnees) : sans produit
+     * precis, la vente est retenue si sa reference ou son ticket correspond, ou si l'un de ses produits correspond
+     * (EXISTS). La requete part ainsi des ventes de la periode (index sur la date) au lieu de relire toutes les lignes
+     * de vente de tous les produits depuis l'origine. Memes ventes retenues que la jointure + DISTINCT.
+     */
+    private static final String SEARCH_CLOSE_VENTE = " and (p.str_REF_TICKET like :searchTerm or p.str_REF like :searchTerm"
+            + " or exists (select 1 from t_preenregistrement_detail dq join t_famille fq on fq.lg_FAMILLE_ID=dq.lg_FAMILLE_ID"
+            + " where dq.lg_PREENREGISTREMENT_ID=p.lg_PREENREGISTREMENT_ID and (fq.int_CIP like :searchTerm"
+            + " or fq.str_NAME like :searchTerm or fq.int_EAN13 like :searchTerm))) ";
     private static final String SELECT_P = " t_preenregistrement p ";
     private static final String ORDER_BY = " order by p.dt_UPDATED ";
     private static final String LIMIT = " LIMIT :start,:limit";
@@ -989,7 +999,7 @@ public class SalesStatsServiceImpl implements SalesStatsService {
             String venteType) {
         try {
             TypedQuery<HMvtProduit> query = getEntityManager().createQuery(
-                    "SELECT o FROM HMvtProduit o WHERE o.mvtDate BETWEEN :dtStart AND :dtEnd AND o.emplacement.lgEMPLACEMENTID=:empl AND o.checked=:checked AND o.typemvtproduit.id IN :categ AND o.pkey IN (SELECT e.lgPREENREGISTREMENTDETAILID FROM TPreenregistrementDetail e WHERE e.lgPREENREGISTREMENTID.strTYPEVENTE=:typeVente)",
+                    "SELECT o FROM HMvtProduit o WHERE o.mvtDate BETWEEN :dtStart AND :dtEnd AND o.emplacement.lgEMPLACEMENTID=:empl AND o.checked=:checked AND o.typemvtproduit.id IN :categ AND EXISTS (SELECT e.lgPREENREGISTREMENTDETAILID FROM TPreenregistrementDetail e WHERE e.lgPREENREGISTREMENTDETAILID = o.pkey AND e.lgPREENREGISTREMENTID.strTYPEVENTE=:typeVente)",
                     HMvtProduit.class);
             query.setParameter("dtStart", dtStart);
             query.setParameter("dtEnd", dtEnd);
@@ -1027,7 +1037,7 @@ public class SalesStatsServiceImpl implements SalesStatsService {
             String venteType) {
         try {
             TypedQuery<TvaDTO> query = getEntityManager().createQuery(
-                    "SELECT new commonTasks.dto.TvaDTO(SUM(o.prixUn*o.qteMvt)) FROM HMvtProduit o WHERE o.mvtDate BETWEEN :dtStart AND :dtEnd AND o.emplacement.lgEMPLACEMENTID=:empl AND o.checked=:checked AND o.typemvtproduit.id IN :categ AND o.pkey IN (SELECT e.lgPREENREGISTREMENTDETAILID FROM TPreenregistrementDetail e WHERE e.lgPREENREGISTREMENTID.strTYPEVENTE=:typeVente)",
+                    "SELECT new commonTasks.dto.TvaDTO(SUM(o.prixUn*o.qteMvt)) FROM HMvtProduit o WHERE o.mvtDate BETWEEN :dtStart AND :dtEnd AND o.emplacement.lgEMPLACEMENTID=:empl AND o.checked=:checked AND o.typemvtproduit.id IN :categ AND EXISTS (SELECT e.lgPREENREGISTREMENTDETAILID FROM TPreenregistrementDetail e WHERE e.lgPREENREGISTREMENTDETAILID = o.pkey AND e.lgPREENREGISTREMENTID.strTYPEVENTE=:typeVente)",
                     TvaDTO.class);
             query.setParameter("dtStart", dtStart);
             query.setParameter("dtEnd", dtEnd);
@@ -2428,7 +2438,7 @@ public class SalesStatsServiceImpl implements SalesStatsService {
         try {
 
             TypedQuery<TvaDTO> query = getEntityManager().createQuery(
-                    "SELECT new commonTasks.dto.TvaDTO(o.valeurTva,SUM(o.qteMvt*o.prixUn)) FROM HMvtProduit o WHERE o.mvtDate BETWEEN :dtStart AND :dtEnd AND o.emplacement.lgEMPLACEMENTID=:empl AND o.checked=:checked AND o.typemvtproduit.id IN :categ AND o.pkey IN (SELECT e.lgPREENREGISTREMENTDETAILID FROM TPreenregistrementDetail e WHERE e.lgPREENREGISTREMENTID.strTYPEVENTE=:typeVente) GROUP BY o.valeurTva",
+                    "SELECT new commonTasks.dto.TvaDTO(o.valeurTva,SUM(o.qteMvt*o.prixUn)) FROM HMvtProduit o WHERE o.mvtDate BETWEEN :dtStart AND :dtEnd AND o.emplacement.lgEMPLACEMENTID=:empl AND o.checked=:checked AND o.typemvtproduit.id IN :categ AND EXISTS (SELECT e.lgPREENREGISTREMENTDETAILID FROM TPreenregistrementDetail e WHERE e.lgPREENREGISTREMENTDETAILID = o.pkey AND e.lgPREENREGISTREMENTID.strTYPEVENTE=:typeVente) GROUP BY o.valeurTva",
                     TvaDTO.class);
             query.setParameter("dtStart", dtStart);
             query.setParameter("dtEnd", dtEnd);
@@ -2478,7 +2488,7 @@ public class SalesStatsServiceImpl implements SalesStatsService {
             String venteType) {
         try {
             TypedQuery<TvaDTO> query = getEntityManager().createQuery(
-                    "SELECT new commonTasks.dto.TvaDTO(o.valeurTva,SUM(o.prixUn*o.qteMvt)) FROM HMvtProduit o WHERE o.mvtDate BETWEEN :dtStart AND :dtEnd AND o.emplacement.lgEMPLACEMENTID=:empl AND o.checked=:checked AND o.typemvtproduit.id IN :categ AND o.pkey IN (SELECT e.lgPREENREGISTREMENTDETAILID FROM TPreenregistrementDetail e WHERE e.lgPREENREGISTREMENTID.strTYPEVENTE=:typeVente) GROUP BY o.valeurTva",
+                    "SELECT new commonTasks.dto.TvaDTO(o.valeurTva,SUM(o.prixUn*o.qteMvt)) FROM HMvtProduit o WHERE o.mvtDate BETWEEN :dtStart AND :dtEnd AND o.emplacement.lgEMPLACEMENTID=:empl AND o.checked=:checked AND o.typemvtproduit.id IN :categ AND EXISTS (SELECT e.lgPREENREGISTREMENTDETAILID FROM TPreenregistrementDetail e WHERE e.lgPREENREGISTREMENTDETAILID = o.pkey AND e.lgPREENREGISTREMENTID.strTYPEVENTE=:typeVente) GROUP BY o.valeurTva",
                     TvaDTO.class);
             query.setParameter("dtStart", dtStart);
             query.setParameter("dtEnd", dtEnd);
@@ -3160,7 +3170,10 @@ public class SalesStatsServiceImpl implements SalesStatsService {
     private StringBuilder buildWhereClose(SalesStatsParams params, String sqlQ) {
         String produitJoin = "";
         String selectPlaceholder;
-        boolean hasProductCriteria = StringUtils.isNotEmpty(params.getQuery());
+        /* jointure aux lignes de vente seulement quand un produit precis est demande avec la recherche */
+        boolean rechercheVente = StringUtils.isNotEmpty(params.getQuery())
+                && StringUtils.isEmpty(params.getProduitId());
+        boolean hasProductCriteria = StringUtils.isNotEmpty(params.getQuery()) && !rechercheVente;
 
         if (hasProductCriteria) {
             selectPlaceholder = SELECT_DETAIL;
@@ -3198,7 +3211,9 @@ public class SalesStatsServiceImpl implements SalesStatsService {
         if (StringUtils.isNotEmpty(params.getModeReglementId())) {
             finalSql.append(MODE_REGLEMENT_CLOSE);
         }
-        if (StringUtils.isNotEmpty(params.getQuery())) {
+        if (rechercheVente) {
+            finalSql.append(SEARCH_CLOSE_VENTE);
+        } else if (StringUtils.isNotEmpty(params.getQuery())) {
             finalSql.append(SEARCH_CLOSE2);
         }
 

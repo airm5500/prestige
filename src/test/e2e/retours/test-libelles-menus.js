@@ -15,7 +15,7 @@ const LOGIN = process.env.E2E_LOGIN || 'admin';
     + " UNION ALL SELECT CONCAT(str_COMPOSANT, '=', str_DESCRIPTION) FROM t_sous_menu WHERE str_Status = 'enable' AND CHAR_LENGTH(str_DESCRIPTION) > 25");
   ok('Aucun libellé de menu actif de plus de 25 caractères', longs === '', longs.replace(/\n/g, ' | '));
   const [fid, fidAide] = q("SELECT str_DESCRIPTION, str_VALUE FROM t_sous_menu WHERE str_COMPOSANT = 'fideliteclients'").split('\t');
-  ok('Points fidélité → « Suivi fidélité », texte long en infobulle', fid === 'Suivi fidélité' && /Points de fidelite des clients/.test(fidAide), fid + ' / ' + fidAide);
+  ok('Menu « Points fidélité » (retour du 14/10), texte long en infobulle', fid === 'Points fidélité' && /Points de fidelite des clients/.test(fidAide), fid + ' / ' + fidAide);
   const [ep, epAide] = q("SELECT str_DESCRIPTION, str_VALUE FROM t_sous_menu WHERE str_COMPOSANT = 'etiquetagepro'").split('\t');
   ok('Étiquettes de produits importés → « Étiquettage Pro »', ep === 'Étiquettage Pro' && /produits importes/.test(epAide), ep + ' / ' + epAide);
   ok('Prévisions : infobulle descriptive conservée', /quantit.+recommand/.test(q("SELECT str_VALUE FROM t_sous_menu WHERE str_COMPOSANT = 'analysecommande'")));
@@ -33,7 +33,7 @@ const LOGIN = process.env.E2E_LOGIN || 'admin';
     /* libelles reellement affiches dans l'arbre des menus */
     const textes = await p.evaluate(() => { const out = []; Ext.ComponentQuery.query('treepanel').forEach((tr) => tr.getRootNode()
       .cascadeBy((n) => { if (n.get('text')) out.push(n.get('text')); })); return out; });
-    ok('Arbre des menus : « Suivi fidélité » affiché', textes.includes('Suivi fidélité'), textes.filter((t) => /fid/i.test(t)).join(','));
+    ok('Arbre des menus : « Points fidélité » affiché', textes.includes('Points fidélité'), textes.filter((t) => /fid/i.test(t)).join(','));
     ok('Arbre des menus : « Étiquettage Pro » et « Prévisions » affichés', textes.includes('Étiquettage Pro') && textes.includes('Prévisions'));
     ok('Arbre des menus : aucun libellé de plus de 25 caractères', textes.every((t) => t.length <= 25), textes.filter((t) => t.length > 25).join(' | '));
     ok('Aucune erreur de page', err.length === 0, err.join(' | '));

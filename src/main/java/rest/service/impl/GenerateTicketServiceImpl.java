@@ -1918,15 +1918,21 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
         LocalDateTime dtEnd = LocalDate.parse(params.getDtEnd(), DateTimeFormatter.ISO_DATE)
                 .atTime(LocalTime.parse(params.getHrEnd().concat(":59")));
         q.setParameter("empl", params.getOperateur().getLgEMPLACEMENTID().getLgEMPLACEMENTID());
-        q.setParameter("dtStart", java.sql.Timestamp.valueOf(dtStart), TemporalType.TIMESTAMP);
-        q.setParameter("dtEnd", java.sql.Timestamp.valueOf(dtEnd), TemporalType.TIMESTAMP);
+        /*
+         * Retour du 14/10 (Ticket Z : 1,6 a 3,4 s sur 3 ans de donnees) : la date est comparee directement, sans
+         * TIMESTAMP(o.createdAt) qui empechait l'usage de l'index (emplacement, date) et faisait relire toute la table.
+         * Les requetes chargent aussi la vente de chaque mouvement (JOIN FETCH) : une requete par vente avant (663 pour
+         * une journee).
+         */
+        q.setParameter("dtStart", dtStart);
+        q.setParameter("dtEnd", dtEnd);
         if (StringUtils.isNotEmpty(params.getUserId()) && !"ALL".equals(params.getUserId())) {
             q.setParameter("userId", params.getUserId());
         }
     }
 
     List<MvtTransaction> ticketZVenteData(Params params) {
-        String sql = "SELECT o FROM MvtTransaction o WHERE TIMESTAMP(o.createdAt)  BETWEEN :dtStart AND :dtEnd AND o.checked=TRUE AND o.magasin.lgEMPLACEMENTID=:empl AND  o.typeTransaction IN :typetransac {userId} AND o.pkey IN (SELECT p.lgPREENREGISTREMENTID.lgPREENREGISTREMENTID FROM TPreenregistrementDetail p) ";
+        String sql = "SELECT o FROM MvtTransaction o LEFT JOIN FETCH o.preenregistrement WHERE o.createdAt BETWEEN :dtStart AND :dtEnd AND o.checked=TRUE AND o.magasin.lgEMPLACEMENTID=:empl AND  o.typeTransaction IN :typetransac {userId} AND EXISTS (SELECT p.lgPREENREGISTREMENTDETAILID FROM TPreenregistrementDetail p WHERE p.lgPREENREGISTREMENTID.lgPREENREGISTREMENTID = o.pkey) ";
 
         try {
             TypedQuery<MvtTransaction> q = getEntityManager().createQuery(replaceSql(params, sql),
@@ -1941,7 +1947,7 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
     }
 
     List<MvtTransaction> ticketZSortieData(Params params) {
-        String sql = "SELECT o FROM MvtTransaction o WHERE TIMESTAMP(o.createdAt)  BETWEEN :dtStart AND :dtEnd AND o.checked=TRUE AND o.magasin.lgEMPLACEMENTID=:empl AND  o.typeTransaction=:typetransac {userId}";
+        String sql = "SELECT o FROM MvtTransaction o LEFT JOIN FETCH o.preenregistrement WHERE o.createdAt BETWEEN :dtStart AND :dtEnd AND o.checked=TRUE AND o.magasin.lgEMPLACEMENTID=:empl AND  o.typeTransaction=:typetransac {userId}";
 
         try {
             TypedQuery<MvtTransaction> q = getEntityManager().createQuery(replaceSql(params, sql),
@@ -1965,7 +1971,7 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
     }
 
     List<MvtTransaction> ticketZEntreesData(Params params) {
-        String sql = "SELECT o FROM MvtTransaction o WHERE TIMESTAMP(o.createdAt)  BETWEEN :dtStart AND :dtEnd AND o.checked=TRUE AND o.magasin.lgEMPLACEMENTID=:empl AND  o.typeTransaction=:typetransac {userId}";
+        String sql = "SELECT o FROM MvtTransaction o LEFT JOIN FETCH o.preenregistrement WHERE o.createdAt BETWEEN :dtStart AND :dtEnd AND o.checked=TRUE AND o.magasin.lgEMPLACEMENTID=:empl AND  o.typeTransaction=:typetransac {userId}";
 
         try {
             TypedQuery<MvtTransaction> q = getEntityManager().createQuery(replaceSql(params, sql),

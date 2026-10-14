@@ -14,18 +14,24 @@ const q = (s) => execFileSync('mariadb', [BASE, '-sN', '-e', s], { encoding: 'ut
 
 const VENTE = 'E2E-SUPPR-ORIG';
 const REF = 'E2E260915';
+/* l'operateur qui ouvre la vente est cree par le test (il n'existe pas forcement sur la base d'essai) */
+const OUVREUR = 'E2E-SUPPR-OUVREUR';
 
 function nettoyer() {
   exec("DELETE FROM vente_suppression WHERE vente_id='" + VENTE + "' OR vente_ref='" + REF + "';"
     + "DELETE FROM t_preenregistrement_detail WHERE lg_PREENREGISTREMENT_ID='" + VENTE + "';"
-    + "DELETE FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID='" + VENTE + "';");
+    + "DELETE FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID='" + VENTE + "';"
+    + "DELETE FROM t_user WHERE lg_USER_ID='" + OUVREUR + "';");
 }
 
 /* Une vente en attente ouverte par un AUTRE operateur que celui qui va la supprimer : c'est le seul
    moyen de voir que les deux colonnes portent bien deux personnes differentes. */
 function poser() {
   nettoyer();
-  const ouvreur = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='BLAISE'");
+  exec("INSERT INTO t_user (lg_USER_ID, str_LOGIN, str_PASSWORD, str_FIRST_NAME, str_LAST_NAME, str_STATUT,"
+    + " lg_EMPLACEMENT_ID, dt_CREATED, int_CONNEXION) VALUES ('" + OUVREUR + "', 'e2e.suppr.ouvreur', MD5(UUID()),"
+    + " 'OUVREUR', 'E2E', 'enable', '1', NOW(), 0);");
+  const ouvreur = OUVREUR;
   const produit = q("SELECT lg_FAMILLE_ID FROM t_famille WHERE str_STATUT='enable' AND int_CIP IS NOT NULL"
     + " ORDER BY lg_FAMILLE_ID LIMIT 1");
   exec("INSERT INTO t_preenregistrement (lg_PREENREGISTREMENT_ID, str_REF, str_REF_TICKET, lg_USER_ID, int_PRICE,"
@@ -39,7 +45,7 @@ function poser() {
     + " dt_UPDATED, b_IS_AVOIR, valeurTva, prixAchat, montanttvaug, int_AVOIR_INITIAL)"
     + " VALUES ('" + VENTE + "-D1', '" + VENTE + "', '" + produit + "', 2, 2, 3000, 1500, 'pending', NOW(), NOW(),"
     + " 0, 0, 1000, 0, 0);");
-  return { ouvreur: q("SELECT CONCAT(TRIM(str_FIRST_NAME), ' ', TRIM(str_LAST_NAME)) FROM t_user WHERE str_LOGIN='BLAISE'") };
+  return { ouvreur: q("SELECT CONCAT(TRIM(str_FIRST_NAME), ' ', TRIM(str_LAST_NAME)) FROM t_user WHERE lg_USER_ID='" + OUVREUR + "'") };
 }
 
 (async () => {

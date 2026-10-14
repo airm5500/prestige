@@ -12,6 +12,9 @@ const BASE = process.env.DB_TEST || 'capitale';
 const q = (s) => execFileSync('mariadb', [BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const exec = (s) => execFileSync('mariadb', [BASE, '-e', s], { encoding: 'utf8' });
 const MARQUE = 'E2EL4B';
+/* journees posees loin dans le passe (2000 jours) : la base d'essai peut contenir des annees de ventes reelles ou
+   simulees, et le test ne doit compter que les siennes */
+const RECUL = 2000;
 
 /* Deux journees, quatre modes dont TROIS mobiles : le sous-detail doit donc porter trois lignes
    et leur somme doit valoir le montant Mobile. Les montants sont choisis pour etre reconnaissables
@@ -45,7 +48,7 @@ function semer() {
   JOURNEES.forEach(j => {
     const venteId = MARQUE + '-V' + j.jour;
     const total = j.reglements.reduce((s, r) => s + r[1], 0);
-    const dateSql = "DATE_SUB(CURDATE(), INTERVAL " + j.jour + " DAY)";
+    const dateSql = "DATE_SUB(CURDATE(), INTERVAL " + (RECUL + j.jour) + " DAY)";
     // La vente et le mouvement de caisse sont CLONES : ils portent des dizaines de colonnes liees,
     // et une insertion a la main en oublierait toujours une.
     exec("CREATE TEMPORARY TABLE tmp_v SELECT * FROM t_preenregistrement WHERE str_STATUT='is_Closed' LIMIT 1;"
@@ -79,7 +82,7 @@ function semer() {
   const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
   const p = await b.newPage({ viewport: { width: 1700, height: 950 } });
   const err = []; p.on('pageerror', e => err.push(String(e.message)));
-  await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
+  await p.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'domcontentloaded' });
   await p.fill('#str_login', process.env.E2E_LOGIN || 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
   await p.waitForURL('**/general/**', { timeout: 30000 });
   await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 60000 });
@@ -92,8 +95,8 @@ function semer() {
     return { status: r.status, json: json, texte: t.slice(0, 300) };
   }, url);
 
-  const isoDebut = new Date(Date.now() - 5 * 86400000).toISOString().slice(0, 10);
-  const isoFin = new Date().toISOString().slice(0, 10);
+  const isoDebut = new Date(Date.now() - (RECUL + 5) * 86400000).toISOString().slice(0, 10);
+  const isoFin = new Date(Date.now() - (RECUL - 1) * 86400000).toISOString().slice(0, 10);
 
   try {
     // ---------------- sous-detail des paiements mobiles
@@ -193,8 +196,10 @@ function semer() {
         modes: grilleModes ? grilleModes.getStore().getCount() : -1,
         courbe: !!vue.down('#courbeModes chart'),
         legende: !!(vue.down('#courbeModes chart') && vue.down('#courbeModes chart').legend),
-        extenseur: grille.plugins && grille.plugins.some(pl => pl.ptype === 'rowexpander'
-          || (pl.getPluginId && pl.getPluginId() === 'rowexpander') || pl.rowBodyTpl),
+        /* retour du 09/09 (point 7) : le sous-detail n'est plus derriere un « + » (rowexpander) mais affiche
+           TOUJOURS sous la journee (fonction rowbody) ; on compte les journees qui le montrent */
+        extenseur: !!(grille.getView().getFeature && grille.features && grille.features.some(f => f.ftype === 'rowbody'))
+          && grille.getEl().query('.detail-mobile-jour').length,
         rendu: rendu,
         colonnes: colonnes.map(c => c.t)
       };
@@ -204,7 +209,8 @@ function semer() {
        ecran.ouvert && ecran.onglets.length === 2
          && ecran.onglets[1].indexOf('Suivi des modes') !== -1, JSON.stringify(ecran.onglets));
     ok('point 22 : le tableau du recapitulatif est toujours rempli', ecran.lignes >= 2, 'lignes=' + ecran.lignes);
-    ok('point 22 : chaque ligne peut s ouvrir sur son sous-detail', !!ecran.extenseur, String(ecran.extenseur));
+    ok('point 22 : chaque journee avec du mobile money affiche son sous-detail sous la ligne (sans clic)',
+       ecran.extenseur >= 2, String(ecran.extenseur) + ' ligne(s) de detail affichee(s)');
     ok('point 22 : la synthese par mode est remplie', ecran.modes > 0, 'modes=' + ecran.modes);
     ok('point 22 : la courbe est tracee', ecran.courbe, String(ecran.courbe));
     ok('point 22 : la courbe porte une legende', ecran.legende, String(ecran.legende));

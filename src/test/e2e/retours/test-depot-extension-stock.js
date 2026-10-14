@@ -197,9 +197,13 @@ const recupererPdf = (p, url) => p.evaluate(async (u) => {
       const v = []; c.getStore().each((r) => v.push([r.get('id'), r.get('nom')]));
       return v;
     });
+    /* attendu : tous les depots d extension actifs de la base (ceux du test et ceux deja presents), jamais l officine */
+    const depotsAttendus = q("SELECT lg_EMPLACEMENT_ID FROM t_emplacement WHERE lg_EMPLACEMENT_ID <> '1' AND lg_TYPEDEPOT_ID = '2'"
+      + " AND str_STATUT = 'enable'").split('\n').filter(Boolean).sort();
+    const proposes = depots.map((d) => d[0]).sort();
     ok('Le choix ne propose que les dépôts d extension, jamais l officine',
-      depots.length === 2 && depots.every((d) => d[0] !== '1')
-      && depots.some((d) => d[1] === 'DEPOT E2E NORD'), JSON.stringify(depots));
+      JSON.stringify(proposes) === JSON.stringify(depotsAttendus) && depots.every((d) => d[0] !== '1')
+      && depots.some((d) => d[1] === 'DEPOT E2E NORD'), JSON.stringify(depots) + ' attendus ' + depotsAttendus.join(','));
 
     /* 3. choix du depot : stock et valorisation */
     const choisirDepot = async (id) => {

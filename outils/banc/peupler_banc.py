@@ -43,7 +43,7 @@ MARQUE = 'f00d'
 TABLES = ['t_tiers_payant', 't_client', 't_compte_client', 't_ayant_droit', 't_compte_client_tiers_payant',
           't_order', 't_bon_livraison', 't_bon_livraison_detail', 't_reglement', 't_preenregistrement',
           't_preenregistrement_detail', 't_preenregistrement_compte_client_tiers_payent', 'vente_reglement',
-          'mvttransaction', 't_recettes', 'hmvtproduit', 't_resume_caisse']
+          'mvttransaction', 't_recettes', 'hmvtproduit', 't_resume_caisse', 't_order_detail', 'ligne_resume_caisse']
 
 
 def sql(q):
@@ -83,7 +83,7 @@ CLES = {'t_tiers_payant': 'lg_TIERS_PAYANT_ID', 't_client': 'lg_CLIENT_ID', 't_c
         't_preenregistrement': 'lg_PREENREGISTREMENT_ID', 't_preenregistrement_detail': 'lg_PREENREGISTREMENT_DETAIL_ID',
         't_preenregistrement_compte_client_tiers_payent': 'lg_PREENREGISTREMENT_COMPTE_CLIENT_PAYENT_ID',
         'vente_reglement': 'id', 'mvttransaction': 'uuid', 't_recettes': 'ID_RECETTE', 'hmvtproduit': 'uuid',
-        't_resume_caisse': 'ld_CAISSE_ID'}
+        't_resume_caisse': 'ld_CAISSE_ID', 't_order_detail': 'lg_ORDERDETAIL_ID', 'ligne_resume_caisse': 'resume_caisse_id'}
 
 if A.retirer:
     q = 'SET FOREIGN_KEY_CHECKS = 0; ' + ' '.join(
@@ -127,6 +127,7 @@ M = {
 }
 M['bl_det'] = modele('t_bon_livraison_detail', f"lg_BON_LIVRAISON_ID = '{M['bl']['lg_BON_LIVRAISON_ID']}'")
 M['order'] = modele('t_order', f"lg_ORDER_ID = '{M['bl']['lg_ORDER_ID']}'")
+M['order_det'] = modele('t_order_detail', "str_STATUT <> 'delete' ORDER BY dt_UPDATED DESC")
 M['cctp'] = modele('t_compte_client_tiers_payant',
                    f"lg_COMPTE_CLIENT_TIERS_PAYANT_ID = '{M['tp_vente']['lg_COMPTE_CLIENT_TIERS_PAYANT_ID']}'")
 M['cc'] = modele('t_compte_client', f"lg_COMPTE_CLIENT_ID = '{M['cctp']['lg_COMPTE_CLIENT_ID']}'")
@@ -240,6 +241,7 @@ jours = (maintenant.date() - debut.date()).days + 1
 SEMAINE = [1.08, 1.0, 1.0, 1.02, 1.1, 1.15, 0.55]
 MOIS = {1: 0.95, 2: 0.92, 3: 0.97, 4: 1.0, 5: 1.03, 6: 1.1, 7: 1.12, 8: 1.0, 9: 0.98, 10: 1.0, 11: 1.02, 12: 1.12}
 EVENEMENTS = defaultdict(list)  # produit -> [(instant, quantite, ligne hmvt)]
+LIGNE_CAISSE = [9 * 10 ** 15]  # identifiants des lignes de cloture de caisse (bigint), hors de ceux de l'application
 stats = defaultdict(int)
 
 
@@ -260,13 +262,17 @@ for k in range(jours):
     cle_jour = jour.strftime('%y%m%d')
     numero = existants.get(cle_jour, 0)
     caissiers = R.sample(CAISSIERS, min(len(CAISSIERS), 2 + (jour.weekday() < 6)))
+    caisses = {}
     for c in caissiers:
-        ecrire('t_resume_caisse', copie(M['caisse'], ld_CAISSE_ID=ident('t_resume_caisse', 'ld_CAISSE_ID'),
+        caisses[c] = ident('t_resume_caisse', 'ld_CAISSE_ID')
+        ecrire('t_resume_caisse', copie(M['caisse'], ld_CAISSE_ID=caisses[c],
                                         lg_USER_ID=c, lg_CREATED_BY=c, lg_UPDATED_BY=c, dt_DAY=str(jour),
                                         dt_CREATED=h(dt.datetime.combine(jour, dt.time(7, 30))),
                                         dt_UPDATED=h(dt.datetime.combine(jour, dt.time(22, 0))),
                                         int_SOLDE_MATIN=R.choice([25000, 50000, 50000, 100000]),
-                                        int_SOLDE_SOIR=0, str_STATUT='is_Closed', ID_COFFRE_CAISSE=None))
+                                        int_SOLDE_SOIR=0, str_STATUT='is_Closed' if jour < maintenant.date() else 'is_Using',
+                                        ID_COFFRE_CAISSE=None))
+    encaisse = defaultdict(int)  # (caissier, type de reglement) -> montant encaisse dans la journee
     ventes = []
     ca = 0
     while ca < cible:
@@ -349,6 +355,7 @@ for k in range(jours):
             mvtdate=str(fin.date()), pkey=vid, reference=ref, caisse=caissier, typeReglementId=typ,
             lg_USER_ID=caissier, organisme=v.get('lg_CLIENT_ID') if vo else None,
             montantAcc=total if not vo else 0, vente_id=vid, flag_id=None))
+        encaisse[(caissier, typ)] += part_client
         if part_client > 0:
             ecrire('t_recettes', copie(M['rec'], ID_RECETTE=ident('t_recettes', 'ID_RECETTE'), dt_CREATED=h(fin),
                                        dt_UPDATED=h(fin), int_AMOUNT=part_client, str_REF_FACTURE=vid,
@@ -360,6 +367,12 @@ for k in range(jours):
         if jour >= (maintenant.date() - dt.timedelta(days=30)):
             stats['ca30'] += total
             stats['jours30'] = 30
+    # cloture des caisses de la journee (sauf aujourd'hui) : une ligne VENTE par type de reglement encaisse
+    if jour < maintenant.date():
+        for (c, typ), montant in sorted(encaisse.items()):
+            LIGNE_CAISSE[0] += 1
+            ecrire('ligne_resume_caisse', {'id': LIGNE_CAISSE[0], 'montant': montant, 'type_ligne': 0,
+                                           'resume_caisse_id': caisses[c], 'type_reglement_id': typ})
 
 # ------------------------------------------------------------------------------------------------- stock et achats
 # Stock reconstruit en remontant le temps : le stock d'aujourd'hui (t_famille_stock) ne change pas. A chaque debut
@@ -405,6 +418,12 @@ for (jour, grossiste), lignes in sorted(LIVRAISONS.items()):
                                     int_HTTC=mht + tva, lg_ORDER_ID=oid, dt_CREATED=h(t), dt_UPDATED=h(t),
                                     lg_USER_ID=R.choice(CAISSIERS), STATUS='REGLE' if jour < maintenant.date() - dt.timedelta(days=45) else 'NON REGLE'))
     for p, q, avant, apres in lignes:
+        ecrire('t_order_detail', copie(M['order_det'], lg_ORDERDETAIL_ID=ident('t_order_detail', 'lg_ORDERDETAIL_ID'),
+                                       lg_ORDER_ID=oid, lg_FAMILLE_ID=p['id'], lg_GROSSISTE_ID=grossiste, int_NUMBER=q,
+                                       int_PRICE=p['paf'] * q, int_PAF_DETAIL=p['paf'], int_PRICE_DETAIL=p['prix'],
+                                       int_QTE_MANQUANT=0, int_QTE_REP_GROSSISTE=q, str_STATUT='is_Closed',
+                                       dt_CREATED=h(t - dt.timedelta(days=1)), dt_UPDATED=h(t), int_ORERSTATUS=2,
+                                       prixAchat=p['paf'], ug=0, lots='[]', checked=0, quantite_controle=None))
         did = ident('t_bon_livraison_detail', 'lg_BON_LIVRAISON_DETAIL')
         ecrire('t_bon_livraison_detail', copie(M['bl_det'], lg_BON_LIVRAISON_DETAIL=did, lg_GROSSISTE_ID=grossiste,
                                                lg_FAMILLE_ID=p['id'], lg_BON_LIVRAISON_ID=bid, int_QTE_CMDE=q,

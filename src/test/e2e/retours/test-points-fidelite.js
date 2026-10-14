@@ -92,7 +92,7 @@ const gains = () => q(`SELECT GROUP_CONCAT(CONCAT(lg_PREENREGISTREMENT_ID, ':', 
     /* le titre de l'ecran est repris par le panneau central (menu) : on lit celui de la classe */
     const titres = await p.evaluate(() => ({ ecran: Ext.ClassManager.getByAlias('widget.fideliteclients').prototype.title }));
     ok('Libellé « Points fidélité » (écran et menu)', titres.ecran === 'Points fidélité'
-      && q("SELECT str_VALUE FROM t_sous_menu WHERE str_COMPOSANT = 'fideliteclients'") === 'Points fidélité', JSON.stringify(titres));
+      && q("SELECT str_DESCRIPTION FROM t_sous_menu WHERE str_COMPOSANT = 'fideliteclients'") === 'Points fidélité', JSON.stringify(titres));
 
     /* ------------------------------------------------ exclusions : familles <-> emplacements */
     await p.evaluate(() => { const e = Ext.ComponentQuery.query('fideliteclients')[0]; e.down('#ongletParametres').tab.getEl().dom.setAttribute('data-e2e', 'onglet'); });
