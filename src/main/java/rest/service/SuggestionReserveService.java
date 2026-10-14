@@ -273,4 +273,10 @@ public interface SuggestionReserveService {
      * a {@code 0} desactive ce declenchement sans redeploiement.
      */
     void evaluerApresVente(TUser user, java.util.Collection<String> familleIds);
+
+    /**
+     * Retours du 13/10 (point 6) : apres une entree en stock, lignes des suggestions de reserve automatiques ouvertes
+     * pour ces produits (seuil de reserve atteint), pour les montrer et ouvrir la suggestion. Lecture seule.
+     */
+    org.json.JSONArray lignesOuvertesAuto(TUser user, java.util.Collection<String> familleIds);
 }

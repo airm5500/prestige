@@ -389,6 +389,12 @@ public class CommandeServiceImpl implements CommandeService {
             } catch (Exception e) {
                 LOG.log(Level.WARNING, "Suggestions de reserve non evaluees apres cloture du BL " + id, e);
             }
+            /* retours du 13/10 (point 6) : produits du bon dont le seuil de reserve est atteint, montres a l'ecran */
+            try {
+                json.put("reserve", suggestionReserveService.lignesOuvertesAuto(user, famillesEntreesEnStock));
+            } catch (Exception e) {
+                LOG.log(Level.WARNING, "Suggestions de reserve non lues apres cloture du BL " + id, e);
+            }
 
             // Envoi immédiat des SMS d'avoir (après commit pour que la notification
             // soit persistée). Asynchrone : n'impacte pas la réponse de l'entrée en

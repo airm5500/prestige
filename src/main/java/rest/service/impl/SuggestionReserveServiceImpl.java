@@ -1480,6 +1480,35 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
         }
     }
 
+    @Override
+    @SuppressWarnings("unchecked")
+    public org.json.JSONArray lignesOuvertesAuto(TUser user, java.util.Collection<String> familleIds) {
+        org.json.JSONArray a = new org.json.JSONArray();
+        if (user == null || familleIds == null || familleIds.isEmpty()) {
+            return a;
+        }
+        List<Object[]> r = em.createNativeQuery(
+                "SELECT s.lg_SUGGESTION_RESERVE_ID, s.str_REF, s.str_CATEGORIE, f.int_CIP, f.str_NAME,"
+                        + " d.int_STOCK_RAYON, d.int_STOCK_RESERVE, d.int_SEUIL_DECLENCHEUR, d.int_QTE_PROPOSEE, f.lg_FAMILLE_ID"
+                        + " FROM t_suggestion_reserve_detail d JOIN t_suggestion_reserve s ON s.lg_SUGGESTION_RESERVE_ID = d.lg_SUGGESTION_RESERVE_ID"
+                        + " JOIN t_famille f ON f.lg_FAMILLE_ID = d.lg_FAMILLE_ID"
+                        + " WHERE s.str_ORIGINE = ?1 AND s.str_STATUT IN (?2, ?3) AND s.lg_EMPLACEMENT_ID = ?4"
+                        + " AND d.str_ETAT IN ('PROPOSEE', 'MODIFIEE') AND d.lg_FAMILLE_ID IN ?5 ORDER BY s.str_CATEGORIE, f.str_NAME")
+                .setParameter(1, TSuggestionReserve.ORIGINE_AUTOMATIQUE)
+                .setParameter(2, TSuggestionReserve.STATUT_A_TRAITER)
+                .setParameter(3, TSuggestionReserve.STATUT_EN_COURS)
+                .setParameter(4, user.getLgEMPLACEMENTID().getLgEMPLACEMENTID())
+                .setParameter(5, new ArrayList<>(familleIds)).getResultList();
+        for (Object[] l : r) {
+            a.put(new org.json.JSONObject().put("suggestionId", l[0]).put("ref", l[1]).put("categorie", l[2])
+                    .put("cip", l[3]).put("nom", l[4]).put("stockRayon", l[5] == null ? 0 : ((Number) l[5]).intValue())
+                    .put("stockReserve", l[6] == null ? 0 : ((Number) l[6]).intValue())
+                    .put("seuil", l[7] == null ? 0 : ((Number) l[7]).intValue())
+                    .put("quantite", l[8] == null ? 0 : ((Number) l[8]).intValue()).put("produitId", l[9]));
+        }
+        return a;
+    }
+
     private TSuggestionReserve suggestionAutoOuverte(TUser user, String categorie) {
         try {
             TypedQuery<TSuggestionReserve> q = em.createNamedQuery("TSuggestionReserve.findOuverteAuto",

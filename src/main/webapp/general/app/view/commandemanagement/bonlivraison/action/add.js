@@ -26,7 +26,8 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.action.add', {
         'Ext.selection.CellModel', 'Ext.grid.*', 'Ext.form.*', 'Ext.layout.container.Column',
         'testextjs.model.Famille', 'testextjs.model.Grossiste', 'testextjs.model.BonLivraisonDetail',
         'testextjs.view.commandemanagement.bonlivraison.BonLivraisonManager',
-        'testextjs.view.commandemanagement.AvoirsBonFenetre'
+        'testextjs.view.commandemanagement.AvoirsBonFenetre',
+        'testextjs.view.commandemanagement.ReserveApresEntreeFenetre'
     ],
     config: {
         odatasource: '', parentview: '', mode: '', titre: '', plain: true,
@@ -707,6 +708,11 @@ function doEntreeStock(lg_BON_LIVRAISON_ID) {
                         } else {
                             /* Produits en avoir de ce bon (demande du 05/10) : la fenetre s'ouvre d'abord s'il y en a, et la suite
                                habituelle (impressions) reprend a sa fermeture ; sans avoir, rien ne change. */
+                            /* retours du 13/10 (point 6) : a la fin, les produits dont le seuil de reserve est atteint */
+                            var reserve = object.reserve || [];
+                            var finEntree = function (versListe) {
+                                testextjs.view.commandemanagement.ReserveApresEntreeFenetre.afficherPuis(reserve, versListe);
+                            };
                             testextjs.view.commandemanagement.AvoirsBonFenetre.afficherPuis(lg_BON_LIVRAISON_ID, function () {
                             Ext.Msg.show({
                                 title: 'Message',
@@ -734,15 +740,23 @@ function doEntreeStock(lg_BON_LIVRAISON_ID) {
                                                         code: Ext.getCmp('code_ETIQUETTE_BL') ? (Ext.getCmp('code_ETIQUETTE_BL').getValue() || '') : ''}, function () {
                                                         onPdfBLClick(linkUrl);
                                                     })) {
-                                                        testextjs.app.getController('App').onLoadNewComponentWithDataSource("bonlivraisonmanager", "", "", "");
+                                                        finEntree(function () {
+                                                            testextjs.app.getController('App').onLoadNewComponentWithDataSource("bonlivraisonmanager", "", "", "");
+                                                        });
+                                                    } else {
+                                                        finEntree(null);
                                                     }
                                                 } else {
-                                                    testextjs.app.getController('App').onLoadNewComponentWithDataSource("bonlivraisonmanager", "", "", "");
+                                                    finEntree(function () {
+                                                        testextjs.app.getController('App').onLoadNewComponentWithDataSource("bonlivraisonmanager", "", "", "");
+                                                    });
                                                 }
                                             }
                                         });
                                     } else {
-                                        testextjs.app.getController('App').onLoadNewComponent("bonlivraisonmanager", "Bon de livraison", "");
+                                        finEntree(function () {
+                                            testextjs.app.getController('App').onLoadNewComponent("bonlivraisonmanager", "Bon de livraison", "");
+                                        });
                                     }
                                 }
                             });
