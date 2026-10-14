@@ -47,7 +47,8 @@ public class GestionPerimesResource {
     /** Besoins du 11/10 (point 2) : analyse des perimes d'une periode (date de saisie). */
     @GET
     @Path("analyse")
-    public Response analyser(@QueryParam("dtStart") String dtStart, @QueryParam("dtEnd") String dtEnd) {
+    public Response analyser(@QueryParam("dtStart") String dtStart, @QueryParam("dtEnd") String dtEnd,
+            @QueryParam("pas") String pas) {
         TUser tu = (TUser) servletRequest.getSession().getAttribute(commonparameter.AIRTIME_USER);
         if (tu == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
@@ -64,7 +65,28 @@ public class GestionPerimesResource {
             return Response.ok(new JSONObject().put("success", false)
                     .put("msg", "La date de début doit précéder la date de fin.").toString()).build();
         }
-        return Response.ok(analyse.analyser(debut, fin).toString()).build();
+        return Response.ok(analyse.analyser(debut, fin, pas).toString()).build();
+    }
+
+    /** Retours du 13/10 (point 4) : objectif du taux de peremption (%), reglable depuis l'onglet Analyse. */
+    @POST
+    @Path("analyse/objectif")
+    @javax.ws.rs.Consumes(javax.ws.rs.core.MediaType.APPLICATION_JSON)
+    public Response objectif(String corps) {
+        TUser tu = (TUser) servletRequest.getSession().getAttribute(commonparameter.AIRTIME_USER);
+        if (tu == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        double v;
+        try {
+            v = new JSONObject(corps == null || corps.isBlank() ? "{}" : corps).getDouble("valeur");
+        } catch (Exception e) {
+            v = Double.NaN;
+        }
+        String refus = analyse.enregistrerObjectif(v);
+        JSONObject r = refus == null ? new JSONObject().put("success", true).put("objectif", analyse.objectif())
+                .put("msg", "Objectif enregistré.") : new JSONObject().put("success", false).put("msg", refus);
+        return Response.ok(r.toString()).build();
     }
 
     @POST

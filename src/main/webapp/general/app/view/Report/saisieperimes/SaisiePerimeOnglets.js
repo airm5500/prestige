@@ -82,6 +82,33 @@ Ext.define('testextjs.view.Report.saisieperimes.SaisiePerimeOnglets', {
                             plugins: [{ptype: 'raccourcisperiode', debut: 'spDebut', declencher: 'spActualiser'}]},
                         {text: 'Actualiser', itemId: 'spActualiser', iconCls: 'refresh', tooltip: 'Recalculer l\'analyse', handler: function () {
                                 me.chargerAnalyse();
+                            }},
+                        /* retours du 13/10 (point 4) : intervalle d'evolution reglable */
+                        {xtype: 'tbseparator'}, {xtype: 'tbtext', text: 'Par'},
+                        {xtype: 'combobox', itemId: 'spPas', width: 105, editable: false, queryMode: 'local', displayField: 'l', valueField: 'v', value: 'mois',
+                            tooltip: 'Intervalle de l\'évolution', store: Ext.create('Ext.data.Store', {fields: ['v', 'l'],
+                                data: [{v: 'semaine', l: 'semaine'}, {v: 'mois', l: 'mois'}, {v: 'trimestre', l: 'trimestre'}, {v: 'annee', l: 'année'}]}),
+                            listeners: {select: function () {
+                                    me.chargerAnalyse();
+                                }}},
+                        /* produits : par valeur ou par frequence */
+                        {xtype: 'tbseparator'}, {xtype: 'tbtext', text: 'Produits'},
+                        {xtype: 'button', itemId: 'spTriValeur', text: 'Par valeur', toggleGroup: 'sp-tri-' + me.id, allowDepress: false, pressed: true,
+                            tooltip: 'Produits dont la valeur périmée est la plus forte', handler: function () {
+                                me.redessiner();
+                            }},
+                        {xtype: 'button', itemId: 'spTriFrequence', text: 'Les plus fréquents', toggleGroup: 'sp-tri-' + me.id, allowDepress: false,
+                            tooltip: 'Produits qui se périment le plus souvent (nombre de saisies)', handler: function () {
+                                me.redessiner();
+                            }},
+                        '->',
+                        /* objectif du taux de peremption */
+                        {xtype: 'numberfield', itemId: 'spObjectif', fieldLabel: 'Objectif taux &lt;', labelSeparator: '', labelWidth: 96, width: 150, labelStyle: 'white-space:nowrap', minValue: 0.01, maxValue: 20,
+                            decimalPrecision: 2, step: 0.1, decimalSeparator: ',', hideTrigger: true, tooltip: 'Taux de péremption à ne pas dépasser (%)'},
+                        {xtype: 'tbtext', text: '%'},
+                        {xtype: 'button', itemId: 'spObjectifEnregistrer', text: 'Enregistrer l\'objectif', tooltip: 'Garder cet objectif pour les prochaines analyses',
+                            handler: function (b) {
+                                me.enregistrerObjectif(b);
                             }}]}],
             items: [{xtype: 'component', itemId: 'spContenu', html: '<div style="color:#7f8c8d">Chargement…</div>'}]
         });
@@ -96,7 +123,7 @@ Ext.define('testextjs.view.Report.saisieperimes.SaisiePerimeOnglets', {
         }
         a.setLoading('Calcul…');
         me.donnees = null;
-        Ext.Ajax.request({url: '../api/v1/gestionperime/analyse', method: 'GET', params: {dtStart: debut, dtEnd: fin}, timeout: 120000,
+        Ext.Ajax.request({url: '../api/v1/gestionperime/analyse', method: 'GET', params: {dtStart: debut, dtEnd: fin, pas: a.down('#spPas').getValue()}, timeout: 120000,
             success: function (r) {
                 if (a.isDestroyed) {
                     return;
@@ -108,6 +135,11 @@ Ext.define('testextjs.view.Report.saisieperimes.SaisiePerimeOnglets', {
                     return;
                 }
                 me.donnees = o;
+                var obj = a.down('#spObjectif');
+                if (obj && !obj.hasFocus && !obj.isDirty()) {
+                    obj.setValue(o.objectif);
+                    obj.resetOriginalValue();
+                }
                 contenu.update(me.htmlAnalyse(o));
             },
             failure: function (r) {
@@ -118,10 +150,65 @@ Ext.define('testextjs.view.Report.saisieperimes.SaisiePerimeOnglets', {
             }});
     },
 
+    redessiner: function () {
+        var me = this;
+        if (me.donnees) {
+            me.analyse.down('#spContenu').update(me.htmlAnalyse(me.donnees));
+        }
+    },
+
+    enregistrerObjectif: function (b) {
+        var me = this, champ = me.analyse.down('#spObjectif'), v = champ.getValue();
+        if (v === null || !champ.isValid()) {
+            var fin0 = PrestigeChargement.occuper(b, 'Objectif');
+            fin0('Entre 0,01 et 20 %', false);
+            return;
+        }
+        var fin = PrestigeChargement.occuper(b, 'Enregistrement');
+        Ext.Ajax.request({url: '../api/v1/gestionperime/analyse/objectif', method: 'POST', jsonData: {valeur: v},
+            success: function (r) {
+                var o = Ext.decode(r.responseText, true) || {};
+                if (!o.success) {
+                    fin(o.msg || 'Refusé', false);
+                    return;
+                }
+                fin('Objectif enregistré', true);
+                champ.setValue(o.objectif);
+                champ.resetOriginalValue();
+                if (me.donnees) {
+                    me.donnees.objectif = o.objectif;
+                    me.donnees.total.objectif = o.objectif;
+                    me.donnees.total.objectifAtteint = me.donnees.total.ratio < o.objectif;
+                    me.redessiner();
+                }
+            },
+            failure: function (r) {
+                fin('Le serveur n\'a pas répondu (' + r.status + ')', false);
+            }});
+    },
+
+    libellePeriode: function (pas, v) {
+        var me = this, p = String(v).split('-');
+        if (pas === 'mois' && p.length === 2) {
+            return me.MOIS[parseInt(p[1], 10) - 1] + ' ' + p[0];
+        }
+        if (pas === 'semaine' && p.length === 2) {
+            return 'Semaine ' + p[1].replace('S', '') + ' ' + p[0];
+        }
+        if (pas === 'trimestre' && p.length === 2) {
+            return p[1].replace('T', '') + (p[1] === 'T1' ? 'er' : 'e') + ' trimestre ' + p[0];
+        }
+        return Ext.String.htmlEncode(String(v));
+    },
+
     MOIS: ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'],
 
     htmlAnalyse: function (o) {
-        var me = this, enc = Ext.String.htmlEncode, t = o.total || {};
+        var me = this, enc = Ext.String.htmlEncode, t = o.total || {}, objectif = typeof o.objectif === 'number' ? o.objectif : null;
+        var parFrequence = !!(me.analyse && me.analyse.down('#spTriFrequence') && me.analyse.down('#spTriFrequence').pressed);
+        var couleur = function (ratio) {
+            return objectif === null ? '' : (ratio < objectif ? 'color:#1e8449;font-weight:bold' : 'color:#c0392b;font-weight:bold');
+        };
         var entier = function (v) {
             return String(Math.round(v || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
         }, pct = function (v) {
@@ -135,8 +222,9 @@ Ext.define('testextjs.view.Report.saisieperimes.SaisiePerimeOnglets', {
                 + tuile(t.valeur ? 'critique' : 'ok', 'Valeur périmée', entier(t.valeur) + ' F', 'achat : ' + entier(t.valeurAchat) + ' F',
                         'Quantités périmées × prix de vente (achat : × prix d\'achat)')
                 + tuile('info', 'Chiffre d\'affaires', entier(t.ca) + ' F', 'même période', 'Ventes clôturées de la période')
-                + tuile(t.ratio >= 1 ? 'critique' : t.ratio >= 0.5 ? 'alerte' : 'ok', 'Ratio périmés / CA', pct(t.ratio),
-                        entier(t.valeur) + ' ÷ ' + entier(t.ca), 'Valeur périmée ÷ chiffre d\'affaires de la période')
+                + tuile((objectif === null ? t.ratio >= 1 : !(t.ratio < objectif)) ? 'critique sp-hors-objectif' : 'ok sp-objectif-atteint', 'Taux de péremption (périmés / CA)', pct(t.ratio),
+                        'objectif &lt; ' + pct(objectif === null ? 0.5 : objectif) + ' · ' + entier(t.valeur) + ' ÷ ' + entier(t.ca),
+                        'Valeur périmée ÷ chiffre d\'affaires de la période ; vert sous l\'objectif, rouge au-dessus')
                 + tuile('', 'Produits périmés', entier(t.produits), entier(t.saisies) + ' saisie(s) · ' + entier(t.quantite) + ' unité(s)',
                         'Produits distincts, saisies et quantités de la période')
                 + '</div>';
@@ -152,21 +240,24 @@ Ext.define('testextjs.view.Report.saisieperimes.SaisiePerimeOnglets', {
         html += tableau('Emplacements les plus touchés', 'sp-par-zone', '<th>Emplacement</th><th class="n">Saisies</th><th class="n">Produits</th>'
                 + '<th class="n">Quantité</th><th class="n">Valeur</th><th class="n">Part</th>', l, 6, 'Aucun périmé sur la période.');
         l = '';
-        Ext.each(o.produits || [], function (p) {
+        Ext.each((parFrequence ? o.frequents : o.produits) || o.produits || [], function (p) {
             l += '<tr class="sp-produit"><td>' + enc(p.cip) + '</td><td>' + enc(p.libelle) + '</td><td>' + enc(p.emplacement) + '</td><td class="n">'
                     + entier(p.fois) + '</td><td class="n">' + entier(p.quantite) + '</td><td class="n">' + entier(p.valeur) + '</td><td class="n">'
                     + pct(p.part) + '</td></tr>';
         });
-        html += tableau('Produits qui se périment le plus (50 premiers, par valeur)', 'sp-par-produit', '<th>CIP</th><th>Produit</th><th>Emplacement</th>'
+        html += tableau(parFrequence ? 'Produits qui se périment le plus souvent (50 premiers, par nombre de saisies)'
+                : 'Produits qui se périment le plus (50 premiers, par valeur)', 'sp-par-produit' + (parFrequence ? ' sp-frequents' : ''), '<th>CIP</th><th>Produit</th><th>Emplacement</th>'
                 + '<th class="n">Fois</th><th class="n">Quantité</th><th class="n">Valeur</th><th class="n">Part</th>', l, 7, 'Aucun périmé sur la période.');
         l = '';
-        Ext.each(o.mois || [], function (m) {
-            var p = String(m.mois).split('-');
-            l += '<tr class="sp-mois"><td>' + (p.length === 2 ? me.MOIS[parseInt(p[1], 10) - 1] + ' ' + p[0] : enc(m.mois)) + '</td><td class="n">'
-                    + entier(m.valeur) + '</td><td class="n">' + entier(m.ca) + '</td><td class="n">' + pct(m.ratio) + '</td></tr>';
+        var pas = o.pas || 'mois', noms = {semaine: 'semaine', mois: 'mois', trimestre: 'trimestre', annee: 'année'};
+        Ext.each(o.periodes || o.mois || [], function (m) {
+            var v = m.periode || m.mois;
+            l += '<tr class="sp-mois sp-periode"><td>' + me.libellePeriode(pas, v) + '</td><td class="n">'
+                    + entier(m.valeur) + '</td><td class="n">' + entier(m.ca) + '</td><td class="n" style="' + couleur(m.ratio) + '">' + pct(m.ratio) + '</td></tr>';
         });
-        html += tableau('Par mois : valeur périmée et chiffre d\'affaires', 'sp-par-mois', '<th>Mois</th><th class="n">Valeur périmée</th>'
-                + '<th class="n">Chiffre d\'affaires</th><th class="n">Ratio</th>', l, 4, 'Aucune donnée sur la période.');
+        html += tableau('Par ' + noms[pas] + ' : valeur périmée, chiffre d\'affaires et taux (vert sous l\'objectif, rouge au-dessus)', 'sp-par-mois sp-par-' + pas,
+                '<th>' + Ext.String.capitalize(noms[pas]) + '</th><th class="n">Valeur périmée</th>'
+                + '<th class="n">Chiffre d\'affaires</th><th class="n">Taux</th>', l, 4, 'Aucune donnée sur la période.');
         return html;
     }
 });

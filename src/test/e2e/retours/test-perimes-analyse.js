@@ -69,7 +69,7 @@ const nettoyer = () => q("DELETE FROM t_warehouse WHERE lg_WAREHOUSE_ID LIKE 'E2
       o.analyse.down('#spFin').setValue(new Date(2026, 8, 30)); o.afficher('analyse'); });
     await p.waitForFunction(() => !!Ext.ComponentQuery.query('saisieperimeonglets')[0].donnees, null, { timeout: 30000 });
     const html = await p.evaluate(() => Ext.ComponentQuery.query('saisieperimeonglets #spContenu')[0].getEl().dom.innerText);
-    ok('Écran Analyse : tuiles valeur périmée, CA, ratio', /Valeur périmée/i.test(html) && /Ratio périmés \/ CA/i.test(html), html.slice(0, 200));
+    ok('Écran Analyse : tuiles valeur périmée, CA, ratio', /Valeur périmée/i.test(html) && /Taux de péremption \(périmés \/ CA\)/i.test(html), html.slice(0, 200));
     ok('Écran Analyse : emplacements, produits, mois', /Emplacements les plus touchés/i.test(html) && /se périment le plus/i.test(html) && /sept\. 2026/i.test(html));
     ok('Conteneur ajouté à correctifs-affichage.js', await p.evaluate(() => window.PrestigeAffichage.ECRANS_COLLES.includes('saisieperimeonglets')));
     /* raccourci de periode : l'analyse doit etre recalculee (le bouton Actualiser n'avait qu'un handler) */
