@@ -82,8 +82,9 @@ function nettoyer() {
     /* prix d'achat modifie dans la grille */
     const pa = Number(q(`SELECT d.int_PAF_DETAIL FROM t_order_detail d JOIN t_order o ON o.lg_ORDER_ID = d.lg_ORDER_ID WHERE o.dt_CREATED >= '${DEBUT}' AND d.lg_FAMILLE_ID = '${P[0]}'`)) + 10;
     await modifierCellule('int_PAF', pa);
+    /* les deux mouvements peuvent tomber dans la meme seconde : on cherche celui du prix d'achat par sa valeur */
     m = mouvements().split(' ; ').filter((x) => x);
-    ok('Prix d\'achat changé (PA.IMPORT) : un 2e mouvement de prix, daté lui aussi', m.length === 2 && champs(m[1])[1] === String(pa) && m.every((x) => champs(x)[2] !== 'VIDE'), mouvements());
+    ok('Prix d\'achat changé (PA.IMPORT) : un 2e mouvement de prix, daté lui aussi', m.length === 2 && m.some((x) => champs(x)[1] === String(pa)) && m.every((x) => champs(x)[2] !== 'VIDE'), mouvements());
     ok('Historique des prix : les deux mouvements sont trouvés par leur date de création', q(`SELECT COUNT(*) FROM t_mouvementprice WHERE lg_FAMILLE_ID = '${P[0]}' AND dt_CREATED >= '${DEBUT}' AND str_ACTION = 'COMMANDE'`) === '2');
     ok('Aucune erreur JavaScript', err.length === 0, err.join(' / '));
   } catch (e) {
