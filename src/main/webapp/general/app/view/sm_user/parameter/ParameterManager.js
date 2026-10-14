@@ -98,6 +98,16 @@ Ext.define('testextjs.view.sm_user.parameter.ParameterManager', {
                     flex: 0.5
                 },
                 {
+                    /* retours du 13/10 (point 16) */
+                    header: 'Rubrique',
+                    dataIndex: 'rubriqueLibelle',
+                    itemId: 'colRubrique',
+                    width: 190,
+                    renderer: function (v, m, r) {
+                        return v ? '<span class="param-pastille" style="background:' + Ext.String.htmlEncode(r.get('rubriqueCouleur') || '#95a5a6') + '">'
+                                + Ext.String.htmlEncode(v) + '</span>' : '';
+                    }
+                }, {
                     header: 'Description',
                     dataIndex: 'str_DESCRIPTION',
                     flex: 3
@@ -261,8 +271,48 @@ Ext.define('testextjs.view.sm_user.parameter.ParameterManager', {
                 store: store, // same store GridPanel is using
                 dock: 'bottom',
                 displayInfo: true
-            }
+            },
+            /* retours du 13/10 (point 16) : les parametres ranges par rubrique ; une rubrique se choisit a gauche */
+            dockedItems: [{
+                    xtype: 'dataview', dock: 'left', itemId: 'rubriquesParam', width: 235, cls: 'param-rubriques', autoScroll: true,
+                    singleSelect: true, trackOver: true, overItemCls: 'param-rubrique-survol', selectedItemCls: 'param-rubrique-choisie',
+                    itemSelector: 'div.param-rubrique',
+                    store: new Ext.data.Store({
+                        fields: ['code', 'libelle', 'couleur', {name: 'nombre', type: 'int'}], autoLoad: true,
+                        proxy: {type: 'ajax', url: '../api/v1/app-params/rubriques', reader: {type: 'json', root: 'results', totalProperty: 'total'}}
+                    }),
+                    tpl: new Ext.XTemplate('<div class="param-rubriques-titre">Rubriques</div><tpl for=".">'
+                            + '<div class="param-rubrique" data-code="{code}" style="border-left-color:{couleur}">'
+                            + '<span class="param-rubrique-libelle">{libelle}</span><span class="param-rubrique-nombre" style="background:{couleur}">{nombre}</span></div></tpl>'),
+                    listeners: {
+                        /* premier argument : le modele de selection, pas la vue ; « this » est la vue */
+                        selectionchange: function (modele, choix) {
+                            var ecran = ecranDuComposant(this);
+                            if (ecran) {
+                                ecran.rubrique = choix && choix[0] ? choix[0].get('code') : '';
+                                ecran.onRechClick();
+                            }
+                        },
+                        viewready: function (vue) {
+                            vue.getStore().on('load', function (st) {
+                                if (st.getCount() && !vue.getSelectionModel().hasSelection()) {
+                                    vue.getSelectionModel().select(0, false, true);
+                                }
+                            }, null, {single: true});
+                        }
+                    }
+                }]
         });
+        if (!Ext.get('param-rubriques-style')) {
+            Ext.util.CSS.createStyleSheet('.param-rubriques{background:#f4f6f9;border-right:1px solid #dbe4ec;padding:6px}'
+                    + '.param-rubriques-titre{font-weight:bold;color:#1e3a5f;margin:4px 6px 8px;letter-spacing:.5px;text-transform:uppercase;font-size:11px}'
+                    + '.param-rubrique{display:flex;align-items:center;justify-content:space-between;padding:7px 8px;margin:0 0 4px;background:#fff;'
+                    + 'border:1px solid #e1e8ef;border-left:5px solid #95a5a6;border-radius:6px;cursor:pointer;font-size:12px}'
+                    + '.param-rubrique-survol{background:#eef4fb}'
+                    + '.param-rubrique-choisie{background:#1e3a5f;color:#fff;border-color:#1e3a5f}'
+                    + '.param-rubrique-nombre{color:#fff;border-radius:10px;padding:0 7px;font-size:11px;font-weight:bold;margin-left:6px}'
+                    + '.param-pastille{display:inline-block;padding:1px 8px;border-radius:9px;color:#fff;font-size:11px;white-space:nowrap}', 'param-rubriques-style');
+        }
 
         this.callParent();
 
@@ -390,6 +440,7 @@ Ext.define('testextjs.view.sm_user.parameter.ParameterManager', {
         var store = this.getStore();
         store.getProxy().setExtraParam('search_value', val ? val.getValue() : '');
         store.getProxy().setExtraParam('type_filtre', (combo && combo.getValue()) ? combo.getValue() : '');
+        store.getProxy().setExtraParam('rubrique', this.rubrique || '');
         store.loadPage(1);
     }
 

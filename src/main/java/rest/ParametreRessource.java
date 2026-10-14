@@ -153,7 +153,7 @@ public class ParametreRessource {
     @Path("liste")
     public Response liste(@QueryParam("search_value") String searchValue, @QueryParam("query") String query,
             @QueryParam("type_filtre") String typeFiltre, @DefaultValue("0") @QueryParam("start") int start,
-            @DefaultValue("20") @QueryParam("limit") int limit) {
+            @DefaultValue("20") @QueryParam("limit") int limit, @QueryParam("rubrique") String rubrique) {
         TUser sessionUser = currentUser();
         if (sessionUser == null) {
             return deconnecte();
@@ -176,6 +176,12 @@ public class ParametreRessource {
             // liee a son profil. Le premier restreint a l'interieur du second, il ne l'elargit jamais.
             List<TParameters> parametres = manager.listeParameter(StringUtils.defaultString(search), type,
                     StringUtils.trimToNull(typeFiltre));
+            /* retours du 13/10 (point 16) : filtre par rubrique (deduite de la cle) */
+            if (StringUtils.isNotBlank(rubrique)) {
+                parametres = parametres.stream()
+                        .filter(x -> rubrique.equals(util.RubriqueParametre.de(x.getStrKEY()).code))
+                        .collect(java.util.stream.Collectors.toList());
+            }
             JSONArray results = new JSONArray();
             int fin = limit > 0 ? Math.min(parametres.size(), Math.max(0, start) + limit) : parametres.size();
             for (int i = Math.max(0, start); i < fin; i++) {
@@ -183,6 +189,8 @@ public class ParametreRessource {
                 JSONObject row = new JSONObject().put("str_KEY", p.getStrKEY()).put("str_VALUE", p.getStrVALUE())
                         .put("str_DESCRIPTION", p.getStrDESCRIPTION()).put("str_TYPE", p.getStrTYPE())
                         .put("str_STATUT", p.getStrSTATUT());
+                util.RubriqueParametre.Rubrique r = util.RubriqueParametre.de(p.getStrKEY());
+                row.put("rubrique", r.code).put("rubriqueLibelle", r.libelle).put("rubriqueCouleur", r.couleur);
                 try {
                     row.put("str_SECTION_KEY", p.getStrSECTIONKEY());
                 } catch (Exception ignore) {
@@ -194,6 +202,53 @@ public class ParametreRessource {
                     .build();
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "liste parametres", e);
+            return Response.ok().entity(new JSONObject().put("total", 0).put("results", new JSONArray()).toString())
+                    .build();
+        } finally {
+            odm.closeEntityManager();
+        }
+    }
+
+    /**
+     * Retours du 13/10 (point 16) : rubriques des parametres visibles par le profil, avec leur nombre (meme regle de
+     * visibilite que la liste).
+     */
+    @GET
+    @Path("rubriques")
+    public Response rubriques() {
+        TUser sessionUser = currentUser();
+        if (sessionUser == null) {
+            return deconnecte();
+        }
+        dataManager odm = new dataManager();
+        odm.initEntityManager();
+        try {
+            String type = commonparameter.PARAMETER_CUSTOMER;
+            bll.userManagement.user ouser = new bll.userManagement.user(odm);
+            TRole role = ouser.getTRoleUser(sessionUser.getLgUSERID()).getLgROLEID();
+            if (role != null && (bll.userManagement.user.isSuperAdminRole(role.getStrNAME())
+                    || bll.userManagement.user.isAdminRole(role.getStrNAME())
+                    || commonparameter.PARAMETER_ADMIN.equalsIgnoreCase(role.getStrTYPE()))) {
+                type = "%%";
+            }
+            java.util.Map<String, Integer> nombres = new java.util.HashMap<>();
+            int total = 0;
+            for (TParameters p : new TparameterManager(odm, sessionUser).listeParameter("", type)) {
+                nombres.merge(util.RubriqueParametre.de(p.getStrKEY()).code, 1, Integer::sum);
+                total++;
+            }
+            JSONArray results = new JSONArray().put(new JSONObject().put("code", "")
+                    .put("libelle", "Toutes les rubriques").put("couleur", "#1e3a5f").put("nombre", total));
+            for (util.RubriqueParametre.Rubrique r : util.RubriqueParametre.toutes()) {
+                if (nombres.containsKey(r.code)) {
+                    results.put(new JSONObject().put("code", r.code).put("libelle", r.libelle).put("couleur", r.couleur)
+                            .put("nombre", nombres.get(r.code)));
+                }
+            }
+            return Response.ok()
+                    .entity(new JSONObject().put("total", results.length()).put("results", results).toString()).build();
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "rubriques parametres", e);
             return Response.ok().entity(new JSONObject().put("total", 0).put("results", new JSONArray()).toString())
                     .build();
         } finally {

@@ -28,6 +28,6 @@ Ext.define('testextjs.model.Parameter', {
     {
         name: 'str_SECTION_KEY',
         type: 'string'
-    }
+    }, {name: 'rubrique', type: 'string'}, {name: 'rubriqueLibelle', type: 'string'}, {name: 'rubriqueCouleur', type: 'string'}
     ]
 });
