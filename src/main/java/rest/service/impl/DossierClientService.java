@@ -346,6 +346,66 @@ public class DossierClientService {
         }
     }
 
+    /**
+     * Retours du 13/10 (point 14) : complete la date de naissance et / ou le sexe d'un client QUAND ILS MANQUENT. Ce
+     * qui est deja renseigne n'est jamais ecrase (une correction passe par la fiche complete du client).
+     * {@code naissance} : AAAA-MM-JJ, ni future ni avant 1900 ; {@code sexe} : F ou M.
+     */
+    @SuppressWarnings("unchecked")
+    public JSONObject completerIdentite(String clientId, JSONObject r) {
+        String naissance = StringUtils.trimToNull(r.optString("naissance", null));
+        String sexe = StringUtils.upperCase(StringUtils.trimToNull(r.optString("sexe", null)));
+        java.time.LocalDate date = null;
+        if (naissance != null) {
+            try {
+                date = java.time.LocalDate.parse(naissance);
+            } catch (java.time.format.DateTimeParseException e) {
+                return refus("Date de naissance illisible : jj/mm/aaaa attendu.");
+            }
+            if (date.isAfter(java.time.LocalDate.now())) {
+                return refus("La date de naissance ne peut pas être dans le futur.");
+            }
+            if (date.getYear() < 1900) {
+                return refus("Date de naissance improbable.");
+            }
+        }
+        if (sexe != null && !"F".equals(sexe) && !"M".equals(sexe)) {
+            return refus("Sexe attendu : Féminin ou Masculin.");
+        }
+        if (date == null && sexe == null) {
+            return refus("Rien à compléter : indiquez la date de naissance ou le sexe.");
+        }
+        try {
+            List<Object[]> l = em
+                    .createNativeQuery("SELECT dt_NAISSANCE, str_SEXE FROM t_client WHERE lg_CLIENT_ID = ?1")
+                    .setParameter(1, StringUtils.defaultString(clientId)).getResultList();
+            if (l.isEmpty()) {
+                return refus("Client introuvable.");
+            }
+            List<String> faits = new ArrayList<>();
+            if (date != null && l.get(0)[0] == null) {
+                em.createNativeQuery("UPDATE t_client SET dt_NAISSANCE = ?1, dt_UPDATED = NOW() WHERE lg_CLIENT_ID = ?2"
+                        + " AND dt_NAISSANCE IS NULL").setParameter(1, java.sql.Date.valueOf(date))
+                        .setParameter(2, clientId).executeUpdate();
+                faits.add("date de naissance");
+            }
+            if (sexe != null && StringUtils.isBlank(l.get(0)[1] == null ? null : String.valueOf(l.get(0)[1]))) {
+                em.createNativeQuery("UPDATE t_client SET str_SEXE = ?1, dt_UPDATED = NOW() WHERE lg_CLIENT_ID = ?2"
+                        + " AND IFNULL(TRIM(str_SEXE), '') = ''").setParameter(1, sexe).setParameter(2, clientId)
+                        .executeUpdate();
+                faits.add("sexe");
+            }
+            if (faits.isEmpty()) {
+                return refus("Déjà renseigné : la fiche n'a pas été modifiée.");
+            }
+            return new JSONObject().put("success", true).put("message",
+                    "Fiche complétée : " + String.join(" et ", faits) + ".");
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "identite d'un client", e);
+            return refus("La fiche n'a pas pu être complétée.");
+        }
+    }
+
     /** Ajoute des terrains au dossier (sans rien retirer). Un identifiant inconnu est ignore. */
     public void ajouterTerrains(String clientId, JSONArray terrains) {
         for (int i = 0; terrains != null && i < terrains.length(); i++) {

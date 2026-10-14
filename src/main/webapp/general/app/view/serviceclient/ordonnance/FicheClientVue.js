@@ -79,6 +79,27 @@ Ext.define('testextjs.view.serviceclient.ordonnance.FicheClientVue', {
                         items: [{
                                 xtype: 'component', itemId: 'fcIdentite', cls: 'fc-carte', html: ''
                             }, {
+                                /* retours du 13/10 (point 14) : completer la date de naissance et le sexe s'ils
+                                   manquent ; ce qui est renseigne n'est jamais ecrase */
+                                xtype: 'container', itemId: 'fcCompleter', hidden: true, cls: 'fc-carte',
+                                margin: '6 0 0 0', padding: '8 10',
+                                layout: {type: 'vbox', align: 'stretch'},
+                                items: [{
+                                        xtype: 'component', html: '<div class="ordo-lib">Compléter la fiche</div>'
+                                    }, {
+                                        xtype: 'champdatenaissance', itemId: 'fcNaissance', fieldLabel: 'Né(e) le',
+                                        labelWidth: 70
+                                    }, {
+                                        xtype: 'radiogroup', itemId: 'fcSexe', fieldLabel: 'Sexe', labelWidth: 70,
+                                        columns: 2,
+                                        items: [{boxLabel: 'Féminin', name: 'fcSexeChoix', inputValue: 'F'},
+                                            {boxLabel: 'Masculin', name: 'fcSexeChoix', inputValue: 'M'}]
+                                    }, {
+                                        xtype: 'container', layout: {type: 'hbox', pack: 'end'},
+                                        items: [{xtype: 'button', itemId: 'fcCompleterBtn', text: 'Enregistrer',
+                                                cls: 'ordo-btn-primaire', icon: 'resources/images/icons/fam/accept.png'}]
+                                    }]
+                            }, {
                                 xtype: 'panel',
                                 itemId: 'fcTerrains',
                                 title: 'Terrains et allergies',
@@ -172,6 +193,14 @@ Ext.define('testextjs.view.serviceclient.ordonnance.FicheClientVue', {
                                 cls: 'ordo-carte sec-vert',
                                 margin: '10 0 0 0',
                                 bodyPadding: '6 12 10 12',
+                                /* retours du 13/10 (point 13) : par vente (defaut) ou par produit */
+                                tools: [{
+                                        xtype: 'container', itemId: 'fcConsoMode', layout: 'hbox',
+                                        defaults: {xtype: 'button', toggleGroup: 'fcConsoMode', allowDepress: false,
+                                            margin: '0 0 0 4', scale: 'small'},
+                                        items: [{text: 'Par vente', itemId: 'fcParVente', pressed: true},
+                                            {text: 'Par produit', itemId: 'fcParProduit'}]
+                                    }],
                                 items: [{xtype: 'component', itemId: 'fcConsoCorps', html: ''}]
                             }]
                     }]
@@ -199,6 +228,14 @@ Ext.define('testextjs.view.serviceclient.ordonnance.FicheClientVue', {
             }
         });
         me.down('#fcEnregistrerDossier').on('click', me.enregistrerDossier, me);
+        me.down('#fcCompleterBtn').on('click', me.completerIdentite, me);
+        Ext.each(me.query('#fcConsoMode button'), function (b) {
+            b.on('toggle', function (bouton, presse) {
+                if (presse) {
+                    me.chargerConso();
+                }
+            });
+        });
         me.down('#fcAjouter').on('click', me.ajouterMesure, me);
         Ext.each(me.query('#fcSaisie field'), function (f) {
             f.on('specialkey', function (champ, e) {
@@ -308,6 +345,53 @@ Ext.define('testextjs.view.serviceclient.ordonnance.FicheClientVue', {
                 + (naissance ? '' : ligne('Âge', age ? age + ' (d\'après ses ordonnances)' : ''))
                 + ligne('Sexe', c.sexe === 'F' ? 'Féminin' : (c.sexe === 'M' ? 'Masculin' : ''))
                 + ligne('Ordonnances', r.nbOrdonnances || '0'));
+        this.afficherCompleter(c);
+    },
+
+    /** Bloc « Compléter la fiche » : seulement ce qui manque, et seulement pour qui peut ecrire. */
+    afficherCompleter: function (c) {
+        var bloc = this.down('#fcCompleter'), manqueDate = !c.naissance, manqueSexe = c.sexe !== 'F' && c.sexe !== 'M';
+        bloc.down('#fcNaissance').setVisible(manqueDate);
+        bloc.down('#fcNaissance').setValue('');
+        bloc.down('#fcSexe').setVisible(manqueSexe);
+        bloc.down('#fcSexe').reset();
+        bloc.setVisible(this.peutEcrire() && (manqueDate || manqueSexe));
+    },
+
+    completerIdentite: function () {
+        var me = this, bloc = me.down('#fcCompleter'), champ = bloc.down('#fcNaissance'), corps = {};
+        if (champ.isVisible() && Ext.String.trim(champ.getValue() || '')) {
+            var d = testextjs.view.serviceclient.ordonnance.ChampDateNaissance.lire(champ.getValue());
+            if (!d || d > new Date()) {
+                me.dire(!d ? 'Date de naissance illisible : jj/mm/aaaa attendu.' : 'La date de naissance ne peut pas être dans le futur.', true);
+                champ.focus(true, 20);
+                return;
+            }
+            corps.naissance = Ext.Date.format(d, 'Y-m-d');
+        }
+        var sexe = bloc.down('#fcSexe').getValue().fcSexeChoix;
+        if (bloc.down('#fcSexe').isVisible() && sexe) {
+            corps.sexe = sexe;
+        }
+        if (!corps.naissance && !corps.sexe) {
+            me.dire('Indiquez la date de naissance ou le sexe.', true);
+            return;
+        }
+        var bouton = bloc.down('#fcCompleterBtn'), fin = PrestigeChargement.occuper(bouton, 'Enregistrement');
+        Ext.Ajax.request({method: 'POST', url: '../api/v1/ordonnance-client/client/' + encodeURIComponent(me.clientId) + '/identite',
+            jsonData: corps,
+            success: function (reponse) { if (me.isDestroyed) { return; }
+                var r = Ext.decode(reponse.responseText, true) || {};
+                fin(r.success ? 'Enregistré' : 'Refusé', r.success !== false);
+                me.dire(r.message || (r.success ? 'Fiche complétée.' : 'La fiche n\'a pas pu être complétée.'), r.success !== true);
+                if (r.success) {
+                    me.ouvrir(me.clientId);
+                }
+            },
+            failure: function (reponse) { if (me.isDestroyed) { return; }
+                fin('Erreur', false);
+                me.dire('Le serveur n\'a pas répondu (' + reponse.status + ').', true);
+            }});
     },
 
     /** Puces des terrains et allergies : cochees = celles du dossier ; un clic bascule (si on peut ecrire). */
@@ -725,8 +809,43 @@ Ext.define('testextjs.view.serviceclient.ordonnance.FicheClientVue', {
         });
     },
 
-    /** Suivi de consommation : les produits achetes sur 12 mois, frequence et habitude. */
+    /** Suivi de consommation : par vente (defaut, retours du 13/10) ou par produit (achats, frequence, habitude). */
     chargerConso: function () {
+        var me = this, parVente = me.down('#fcParVente');
+        if (parVente && parVente.pressed) {
+            me.chargerVentes();
+            return;
+        }
+        me.chargerConsoProduits();
+    },
+
+    /** Les ventes du client sur 12 mois, une ligne par vente : date, ticket, montant, produits. */
+    chargerVentes: function () {
+        var me = this, fin = new Date(), clientId = me.clientId, enc = Ext.String.htmlEncode;
+        me.down('#fcConsoCorps').update('<div class="fc-vide-petit">Chargement des ventes…</div>');
+        Ext.Ajax.request({
+            method: 'GET',
+            url: '../api/v1/ordonnance-client/client/' + encodeURIComponent(clientId) + '/ventes',
+            params: {dtStart: Ext.Date.format(Ext.Date.add(fin, Ext.Date.MONTH, -12), 'Y-m-d'), dtEnd: Ext.Date.format(fin, 'Y-m-d')},
+            success: function (reponse) { if (me.isDestroyed || me.clientId !== clientId || !me.down('#fcParVente').pressed) { return; }
+                var r = Ext.decode(reponse.responseText, true) || {}, lignes = r.data || [];
+                var montant = function (v) {
+                    return Ext.util.Format.number(v || 0, '0,000').replace(/,/g, ' ');
+                };
+                me.down('#fcConsoCorps').update(lignes.length ? '<div class="vc-tableau"><table><thead><tr><th>Date</th><th>Ticket</th>'
+                        + '<th class="vc-n">Montant</th><th>Produits</th></tr></thead><tbody>' + Ext.Array.map(lignes, function (l) {
+                            var d = Ext.Date.parse(l.date, 'Y-m-d H:i');
+                            return '<tr><td>' + (d ? Ext.Date.format(d, 'd/m/Y H:i') : enc(l.date || '')) + '</td><td>' + enc(l.ref || '')
+                                    + '</td><td class="vc-n">' + montant(l.montant) + '</td><td class="vc-produit" title="' + enc(l.produits || '') + '">'
+                                    + '<b>' + (l.nbLignes || 0) + '</b> · ' + enc(Ext.String.ellipsis(l.produits || '', 70)) + '</td></tr>';
+                        }).join('') + '</tbody></table></div>'
+                        + (lignes.length >= 50 ? '<div class="ordo-aide">Les 50 ventes les plus récentes.</div>' : '')
+                        : '<div class="fc-vide-petit">Aucune vente à ce client sur les 12 derniers mois.</div>');
+            }
+        });
+    },
+
+    chargerConsoProduits: function () {
         var me = this;
         var fin = new Date();
         var clientId = me.clientId;
@@ -736,7 +855,7 @@ Ext.define('testextjs.view.serviceclient.ordonnance.FicheClientVue', {
             params: {dtStart: Ext.Date.format(Ext.Date.add(fin, Ext.Date.MONTH, -12), 'Y-m-d'),
                 dtEnd: Ext.Date.format(fin, 'Y-m-d')},
             success: function (reponse) { if (me.isDestroyed) { return; } /* retours du 10/10 : fiche fermee (fenetre) avant la reponse */
-                if (me.clientId !== clientId) {
+                if (me.clientId !== clientId || me.down('#fcParVente').pressed) {
                     return;
                 }
                 var r = Ext.decode(reponse.responseText, true) || {};

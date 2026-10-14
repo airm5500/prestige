@@ -868,6 +868,36 @@ public class OrdonnanceClientRessource {
                 : Response.ok().entity(dossierService.enregistrerDossier(clientId, r, operateur).toString()).build();
     }
 
+    /** Retours du 13/10 (point 14) : complete la date de naissance et le sexe manquants (jamais d'ecrasement). */
+    @POST
+    @Path("client/{clientId}/identite")
+    public Response completerIdentite(@PathParam("clientId") String clientId, String corps) {
+        TUser operateur = utilisateur();
+        if (operateur == null) {
+            return deconnecte();
+        }
+        if (!autorise(DateConverter.P_ORDONNANCE_CLIENT_MAJ)) {
+            return refusEcriture();
+        }
+        JSONObject r = lireCorps(corps);
+        return r == null ? refus("La saisie n'a pas pu être lue.")
+                : Response.ok().entity(dossierService.completerIdentite(clientId, r).toString()).build();
+    }
+
+    /** Retours du 13/10 (point 13) : les ventes du client sur la periode, une ligne par vente (« Par vente »). */
+    @GET
+    @Path("client/{clientId}/ventes")
+    public Response ventesClient(@PathParam("clientId") String clientId, @QueryParam("dtStart") String debut,
+            @QueryParam("dtEnd") String fin) {
+        if (utilisateur() == null) {
+            return deconnecte();
+        }
+        if (!autorise(DateConverter.P_ORDONNANCE_CLIENT)) {
+            return refusConsultation();
+        }
+        return Response.ok().entity(ordonnanceService.ventesClient(clientId, debut, fin).toString()).build();
+    }
+
     @GET
     @Path("client/{clientId}/mesures")
     public Response mesures(@PathParam("clientId") String clientId, @QueryParam("parametreId") String parametreId) {

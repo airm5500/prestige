@@ -1301,6 +1301,64 @@ public class OrdonnanceClientService {
                 + " " + StringUtils.defaultString(client.getStrLASTNAME()));
     }
 
+    /** Nombre de ventes rendues par {@link #ventesClient} (les plus recentes). */
+    static final int VENTES_CLIENT_MAX = 50;
+
+    /**
+     * Retours du 13/10 (point 13) : les ventes du client, une ligne par vente, des plus recentes aux plus anciennes (50
+     * au plus). Memes ventes que le suivi de consommation : cloturees, non annulees, de montant positif.
+     */
+    @SuppressWarnings("unchecked")
+    public JSONObject ventesClient(String clientId, String debut, String fin) {
+        JSONArray data = new JSONArray();
+        if (StringUtils.isBlank(clientId)) {
+            return new JSONObject().put("success", false).put("data", data).put("message", "Client inconnu.");
+        }
+        java.time.LocalDate f = lireDate(fin, java.time.LocalDate.now());
+        java.time.LocalDate d = lireDate(debut, f.minusMonths(12));
+        try {
+            List<Tuple> lignes = em.createNativeQuery("SELECT p.lg_PREENREGISTREMENT_ID AS id, p.str_REF AS ref,"
+                    + " p.dt_UPDATED AS dt, p.int_PRICE AS montant, COUNT(l.lg_PREENREGISTREMENT_DETAIL_ID) AS nbLignes,"
+                    + " COALESCE(SUM(l.int_QUANTITY), 0) AS qte,"
+                    + " SUBSTRING(GROUP_CONCAT(f.str_NAME ORDER BY l.int_PRICE DESC SEPARATOR ', '), 1, 400) AS produits"
+                    + " FROM t_preenregistrement p"
+                    + " LEFT JOIN t_preenregistrement_detail l ON l.lg_PREENREGISTREMENT_ID = p.lg_PREENREGISTREMENT_ID"
+                    + " LEFT JOIN t_famille f ON f.lg_FAMILLE_ID = l.lg_FAMILLE_ID"
+                    + " WHERE p.lg_CLIENT_ID = ?1 AND p.str_STATUT = 'is_Closed' AND p.b_IS_CANCEL = 0 AND p.int_PRICE > 0"
+                    + " AND p.dt_UPDATED >= ?2 AND p.dt_UPDATED < ?3"
+                    + " GROUP BY p.lg_PREENREGISTREMENT_ID, p.str_REF, p.dt_UPDATED, p.int_PRICE"
+                    + " ORDER BY p.dt_UPDATED DESC", Tuple.class).setParameter(1, clientId)
+                    .setParameter(2, java.sql.Date.valueOf(d)).setParameter(3, java.sql.Date.valueOf(f.plusDays(1)))
+                    .setMaxResults(VENTES_CLIENT_MAX).getResultList();
+            java.text.SimpleDateFormat iso = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm");
+            for (Tuple t : lignes) {
+                Object dt = t.get("dt");
+                data.put(
+                        new JSONObject().put("id", t.get("id"))
+                                .put("ref", StringUtils.defaultString((String) t.get("ref")))
+                                .put("date", dt instanceof java.util.Date ? iso.format((java.util.Date) dt)
+                                        : (dt instanceof java.time.LocalDateTime ? ((java.time.LocalDateTime) dt)
+                                                .toString().replace('T', ' ').substring(0, 16) : String.valueOf(dt)))
+                                .put("montant", entier(t.get("montant"))).put("nbLignes", entier(t.get("nbLignes")))
+                                .put("qte", entier(t.get("qte")))
+                                .put("produits", StringUtils.defaultString((String) t.get("produits"))));
+            }
+            return new JSONObject().put("success", true).put("data", data).put("total", data.length());
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "ventes d'un client", e);
+            return new JSONObject().put("success", false).put("data", data).put("message",
+                    "Les ventes du client n'ont pas pu être lues.");
+        }
+    }
+
+    private static java.time.LocalDate lireDate(String valeur, java.time.LocalDate defaut) {
+        try {
+            return StringUtils.isBlank(valeur) ? defaut : java.time.LocalDate.parse(valeur.trim());
+        } catch (Exception e) {
+            return defaut;
+        }
+    }
+
     public JSONObject consommationClient(String clientId, String debut, String fin, String emplacementId) {
         if (StringUtils.isBlank(clientId)) {
             return new JSONObject().put("success", false).put("total", 0).put("data", new JSONArray()).put("message",
