@@ -99,23 +99,25 @@ lignes par jour, soit quelques dizaines de Mo sur 14 jours, et 5 fois moins qu'a
 
 ## 6. Non-régression
 
-- Tests unitaires : **1432 sur 1432**.
-- Tests d'écran :
-  - tous ceux hors du dossier `retours`, plus un échantillon de 46 tests de `retours` choisis parce qu'ils écrivent en
-    base (ventes, différés, avoirs, caisse du jour, inventaires, commandes, réceptions, dépôts, ordonnances, RH,
-    fidélité, WhatsApp, tableau de bord) ;
-  - au total **85 tests sur 91 passent** ;
-  - les **6 échecs sont identiques sur la version précédant la correction** (reconstruite et redéployée sur le banc
-    pour le vérifier) : ils existaient avant et n'ont pas de lien avec la correction.
-    - `lot4/test-recap-caisse-modes` : ouverture du sous-détail d'une ligne (contrôle fait dans le navigateur) ;
-    - `retours/test-suppression-vente-origine` : le script s'arrête au démarrage ;
-    - `retours/test-depot-extension-stock` : la liste propose aussi d'autres officines du banc ;
-    - `retours/test-import-clients` : la connexion d'essai dépasse 40 s ;
-    - `retours/test-facture-subrogatoire-api` : la référence JSP renvoie une page HTML ;
-    - `retours/test-valorisation-archivee` : modèle d'état `rp_valoristion` absent du banc.
-- Après correction, le journal du serveur ne contient aucune erreur.
-- Tests de la stabilité du serveur, des campagnes, du Set valorisation, de la rentabilité, de l'audit, du cachet et de
-  la vente (droits retirés puis donnés, accès refusés puis ouverts) : tous passent.
+### Résultat final, sur la base peuplée (3 ans de données)
+
+- **Tests unitaires : 1433 sur 1433.**
+- **Tests d'écran : 91 sur 91.**
+  - Ils ont été lancés un par un, sans aucun autre test en parallèle.
+  - **89 sur 91** au passage complet. Les 2 échecs ont été corrigés, puis chaque test relancé seul :
+    - `mobile/test-info-articles-rapide` : `checkproduit` sur tout le catalogue prenait 20,3 s pour un seuil de 20 s.
+      Corrigé : il prend maintenant 14 à 16 s (voir § 7.2). Le test passe à 10 sur 10.
+    - `retours/test-mouvement-prix-commande` : les deux mouvements de prix étaient bien enregistrés et datés, mais ils
+      tombaient dans la même seconde, et le test attendait un ordre précis. Le test cherche maintenant le mouvement par
+      sa valeur. Il passe à 8 sur 8.
+- Le passage précédent comptait 83 sur 91. Les 8 échecs venaient de tests qui supposaient une base presque vide, sauf
+  deux vrais défauts, corrigés : le PDF des factures subrogatoires (597 s) et l'impression vide des articles dormants
+  (voir § 8).
+
+### Avant le peuplement
+
+Tests unitaires : 1432 sur 1432. Tests d'écran : 85 sur 91. Les 6 échecs existaient déjà sur la version précédente.
+Ils sont tous corrigés depuis.
 
 **Point trouvé en passant, sans lien avec cette correction** : la migration « libellés courts » du 12/10 avait
 remplacé le libellé de menu « Points fidélité » (demande du 10/10) par « Suivi fidélité ». Décision du 14/10 : on garde
@@ -164,7 +166,7 @@ Les réponses ont été comparées avant et après chaque correction (JSON ou te
 | **Relevé PDF des factures subrogatoires** (2 mois, 6 792 bons) | **597 s (10 min)** | **2,7 s** | Coût **quadratique** : une requête par bon dans la même transaction, et Hibernate revérifiait avant chacune tous les objets déjà chargés. Les tiers payants sont maintenant lus par paquets de 500. |
 | **Ticket Z** | 1,6 à 3,4 s | 0,12 à 1,1 s | Date comparée à travers une fonction (index inutilisable), `IN (…)` sur 846 000 lignes de vente, et une requête par vente. |
 | États de TVA | 1 à 1,5 s | 0,2 à 1 s | Même `IN (…)` sur les lignes de vente. |
-| **Application mobile : fiche produit (`v1/info`, `checkproduit`)** | 57 s et 61 s | **13,5 s et 18 s** | La dernière vente de chaque produit, par emplacement, était cherchée en deux passages sur 3 ans de lignes de vente. Elle est trouvée en un seul passage (11,6 s → 2,5 s par lot de 500 produits). Résultat identique ligne à ligne (1 498 lignes). |
+| **Application mobile : fiche produit (`v1/info`, `checkproduit`)** | 57 s et 61 s | **13 s et 14 à 16 s** | La dernière vente de chaque produit, par emplacement, était cherchée en deux passages sur 3 ans de lignes de vente. Elle est trouvée en un seul passage (11,6 s → 2,5 s par lot de 500 produits). En plus, `checkproduit` chargeait les produits **un par un** : 1 793 requêtes, donc 1 793 allers-retours réseau chez l'officine. Ils sont maintenant chargés avec leur stock, en une seule requête (2 170 → 376 requêtes, dont l'essentiel pour la connexion). Les réponses sont identiques octet par octet avant et après. |
 | Balance âgée détaillée | 2,8 s | 2,8 s | 161 requêtes inutiles retirées (recherche du client « %% »). Le reste vient de l'ancien calcul mois par mois (voir 7.3). |
 
 La migration **V6.9.151** crée les deux index « en ligne », sans bloquer les tables. Sur le banc, elle a pris 3,3 s
@@ -177,6 +179,7 @@ démarrage qui suit la mise à jour.
 |---|---|---|---|
 | **Comparaison CA familles** | 6,7 s (jusqu'à ~28 s au premier accès du matin) | Additionne 2 années de lignes de vente (~600 000). | Un index « couvrant » le ramène à 3,3 s, mais alourdit chaque vente enregistrée. Mieux : un cumul mensuel par famille, calculé la nuit. |
 | **Balance âgée détaillée** | 2,8 s (plus le réseau : ~800 allers-retours) | Ancien code : 8 requêtes par tiers payant, construites par concaténation (risque d'injection SQL). | Une seule requête groupée en API REST, en reproduisant exactement les filtres anciens. |
+| Application mobile : tout le catalogue (`v1/info`, `checkproduit`) | 13 à 16 s | Chaque appel relit les 3 ans de lignes de vente pour trouver la dernière vente de chaque produit. Lire ces lignes prend déjà 2 s par lot de 500 produits ; deux autres façons d'écrire la requête ont été essayées, avec le même résultat mais plus lentes. | Tenir à jour une table « dernière vente par produit et emplacement », mise à jour à la clôture de chaque vente : l'appel tomberait sous 2 s. Cela touche à l'enregistrement des ventes, donc à décider. |
 | Pilotage | 0,9 s ; 1,7 s à froid | Correct. Le premier balayage, juste après le chargement des données, donnait 47 s : le cache disque était vide. | — |
 | Écrans de l'ancien code (EclipseLink) | — | Chaque requête de l'ancien code reprend une connexion et paie les 4 échanges techniques de Payara. Le réglage fait pour Hibernate ne les concerne pas. | Passer ces écrans en API REST au fil de l'eau, ou changer le pilote MariaDB (voir § 5). |
 

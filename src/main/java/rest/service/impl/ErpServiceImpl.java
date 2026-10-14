@@ -399,7 +399,7 @@ public class ErpServiceImpl implements ErpService {
             nom = nom.toUpperCase() + "%";
         }
         TypedQuery<TFamilleStock> q = getEntityManager().createQuery(
-                "SELECT o FROM TFamilleStock o WHERE o.strSTATUT='enable' AND "
+                "SELECT o FROM TFamilleStock o JOIN FETCH o.lgFAMILLEID f LEFT JOIN FETCH o.lgEMPLACEMENTID WHERE o.strSTATUT='enable' AND "
                         + " (o.lgFAMILLEID.strNAME LIKE ?1 OR o.lgFAMILLEID.intCIP LIKE ?1 ) AND o.lgFAMILLEID.strSTATUT='enable'  ",
                 TFamilleStock.class);
         q.setParameter(1, nom);
