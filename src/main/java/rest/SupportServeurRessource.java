@@ -126,6 +126,20 @@ public class SupportServeurRessource {
         return ok(o);
     }
 
+    @EJB
+    private rest.service.impl.serveur.RumService rumService;
+
+    /** Experience utilisateur (RUM) : ecrans et appels les plus lents, erreurs, par poste, evolution. */
+    @GET
+    @Path("rum")
+    public Response rum(@QueryParam("heures") Integer heures, @QueryParam("poste") String poste) {
+        Response r = controle();
+        if (r != null) {
+            return r;
+        }
+        return ok(rumService.synthese(heures == null ? 24 : heures, poste).put("heures", heures == null ? 24 : heures));
+    }
+
     @GET
     @Path("historique")
     public Response historique(@QueryParam("limit") Integer limit) {

@@ -245,6 +245,10 @@ Ext.define('testextjs.controller.App', {
         ComponentXtype = this.ecranReel(ComponentXtype);
         // alert(ComponentXtype);
 
+        // Experience utilisateur (RUM) : debut de l'ouverture de l'ecran.
+        if (window.PrestigeRum) {
+            window.PrestigeRum.debutEcran(ComponentXtype);
+        }
         // Fil d'Ariane du Centre de Support : trace l'ecran ouvert.
         if (window.__prestigeSupport) {
             window.__prestigeSupport.push('ECRAN ' + (ComponentLabel || ComponentXtype));
@@ -315,6 +319,10 @@ Ext.define('testextjs.controller.App', {
         }
 
         contentPanel.setTitle(text);
+        // Experience utilisateur (RUM) : fin de l'ouverture quand l'ecran et ses appels sont termines.
+        if (window.PrestigeRum) {
+            window.PrestigeRum.finEcranQuandCalme(xtype);
+        }
 
         // alert("Ok dd");
 
@@ -335,6 +343,10 @@ Ext.define('testextjs.controller.App', {
 
     onLoadNewComponentWithDataSource: function (ComponentXtype, ComponentLabel, name_ressource, ODatatasource) {
         ComponentXtype = this.ecranReel(ComponentXtype);
+        // Experience utilisateur (RUM) : debut de l'ouverture de l'ecran.
+        if (window.PrestigeRum) {
+            window.PrestigeRum.debutEcran(ComponentXtype);
+        }
 
         var text = ComponentLabel,
                 xtype = ComponentXtype,
@@ -396,6 +408,9 @@ Ext.define('testextjs.controller.App', {
             }
         }
         contentPanel.add(cmp);
+        if (window.PrestigeRum) {
+            window.PrestigeRum.finEcranQuandCalme(xtype);
+        }
         if (cmp.floating) {
             cmp.show();
         } else {
@@ -963,6 +978,10 @@ Ext.define('testextjs.controller.App', {
 
     onRedirectTo: function (ComponentXtype, data) {
         ComponentXtype = this.ecranReel(ComponentXtype);
+        // Experience utilisateur (RUM) : debut de l'ouverture de l'ecran.
+        if (window.PrestigeRum) {
+            window.PrestigeRum.debutEcran(ComponentXtype);
+        }
 
 
         var
@@ -1022,6 +1041,9 @@ Ext.define('testextjs.controller.App', {
             }
         }
         contentPanel.add(cmp);
+        if (window.PrestigeRum) {
+            window.PrestigeRum.finEcranQuandCalme(xtype);
+        }
         if (cmp.floating) {
             cmp.show();
         } else {

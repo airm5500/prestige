@@ -75,6 +75,8 @@
         <!-- Refonte ecran de vente (direction A) : surcharge visuelle uniquement -->
         <link rel="stylesheet" type="text/css" href="resources/css/vente-theme.css" />
         <script src="resources/js/sans-unload.js"></script>
+        <!-- Experience utilisateur (RUM) : temps d'ecran et d'appel, avant tout autre script qui appelle le serveur -->
+        <script src="resources/js/mesures-rum.js"></script>
         <script src="ext/ext-all.js"></script>
         <!-- Empeche ExtJS de couper la fin du texte des info-bulles et des boites de
              message (on lisait "Avoir deja" au lieu de "Avoir deja certifie"). A charger

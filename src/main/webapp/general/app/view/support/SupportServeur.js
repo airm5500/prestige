@@ -25,7 +25,7 @@ Ext.define('testextjs.view.support.SupportServeur', {
     initComponent: function () {
         var me = this;
         me.styles();
-        me.items = [me.ongletEtat(), me.ongletArrets(), me.ongletReglages(), me.ongletLexique()];
+        me.items = [me.ongletEtat(), me.ongletExperience(), me.ongletArrets(), me.ongletReglages(), me.ongletLexique()];
         me.callParent(arguments);
         me.on('afterrender', function () {
             me.chargerEtat();
@@ -37,6 +37,8 @@ Ext.define('testextjs.view.support.SupportServeur', {
                 me.chargerArrets();
             } else if (t.itemId === 'ongletReglages') {
                 me.chargerReglages();
+            } else if (t.itemId === 'ongletExperience') {
+                me.chargerExperience();
             } else if (t.itemId === 'ongletLexique') {
                 me.afficherLexique();
             }
@@ -173,6 +175,113 @@ Ext.define('testextjs.view.support.SupportServeur', {
             });
             o.mesures.loadData(l);
             o.down('#etat').update(l.length ? l.length + ' relevé(s) sur 24 h (toutes les 2 minutes).' : 'Aucun relevé pour l\'instant : le premier arrive dans 2 minutes.');
+        });
+    },
+
+    /* ============================================================================================ experience (RUM) */
+
+    grilleRum: function (itemId, titre, cle) {
+        var me = this;
+        return {xtype: 'gridpanel', itemId: itemId, title: titre, flex: 1, margin: 4, columnLines: true,
+            store: Ext.create('Ext.data.Store', {fields: ['cle', 'nombre', 'moyenneMs', 'maxMs', 'echecs', 'postes'], data: []}),
+            viewConfig: {emptyText: '<div style="padding:10px;color:#7f8c8d">Aucune mesure sur la période.</div>', deferEmptyText: false},
+            columns: [{text: cle, dataIndex: 'cle', flex: 1, minWidth: 200, renderer: function (v) {
+                        return me.esc(v);
+                    }},
+                {text: 'Fois', dataIndex: 'nombre', width: 70, align: 'right', renderer: me.nombre},
+                {text: 'Moyenne', dataIndex: 'moyenneMs', width: 90, align: 'right', renderer: function (v) {
+                        return me.duree(v);
+                    }},
+                {text: 'Pire', dataIndex: 'maxMs', width: 90, align: 'right', renderer: function (v) {
+                        return me.duree(v);
+                    }},
+                {text: 'Échecs', dataIndex: 'echecs', width: 70, align: 'right', renderer: function (v) {
+                        return v > 0 ? '<span class="srv-critique">' + me.nombre(v) + '</span>' : '0';
+                    }}]};
+    },
+
+    duree: function (ms) {
+        ms = Number(ms || 0);
+        var t = ms >= 1000 ? (Math.round(ms / 100) / 10).toString().replace('.', ',') + ' s' : Math.round(ms) + ' ms';
+        return ms >= 5000 ? '<span class="srv-critique">' + t + '</span>' : ms >= 2000 ? '<span class="srv-ajuster">' + t + '</span>' : t;
+    },
+
+    ongletExperience: function () {
+        var me = this;
+        var serie = Ext.create('Ext.data.Store', {fields: ['t', {name: 'appelMoyenMs', type: 'int'}, {name: 'ecranMoyenMs', type: 'int'}, {name: 'erreurs', type: 'int'}], data: []});
+        return {
+            title: 'Expérience utilisateur', itemId: 'ongletExperience', iconCls: 'fa fa-users', autoScroll: true,
+            layout: {type: 'vbox', align: 'stretch'}, serie: serie,
+            tbar: [{xtype: 'combobox', itemId: 'periodeRum', fieldLabel: 'Période', labelWidth: 55, width: 200, editable: false, queryMode: 'local', value: 24,
+                    displayField: 't', valueField: 'v', store: Ext.create('Ext.data.Store', {fields: ['v', 't'], data: [{v: 1, t: 'Dernière heure'}, {v: 6, t: '6 heures'},
+                            {v: 24, t: '24 heures'}, {v: 168, t: '7 jours'}, {v: 336, t: '14 jours'}]}), listeners: {select: function () {
+                            me.chargerExperience();
+                        }}},
+                {xtype: 'combobox', itemId: 'posteRum', fieldLabel: 'Poste', labelWidth: 40, width: 280, editable: false, queryMode: 'local', value: '',
+                    displayField: 't', valueField: 'v', store: Ext.create('Ext.data.Store', {fields: ['v', 't'], data: [{v: '', t: 'Tous les postes'}]}),
+                    listeners: {select: function () {
+                            me.chargerExperience();
+                        }}},
+                {text: 'Actualiser', iconCls: 'fa fa-refresh', handler: function () {
+                        me.chargerExperience();
+                    }},
+                '->', {xtype: 'tbtext', text: 'Ce que vivent les utilisateurs dans leur navigateur : écrans, appels au serveur, erreurs.'}],
+            items: [
+                {xtype: 'chart', itemId: 'courbeRum', height: 240, margin: '6 10', store: serie, animate: false, shadow: false, legend: {position: 'top'},
+                    axes: [{type: 'Numeric', position: 'left', fields: ['appelMoyenMs', 'ecranMoyenMs'], minimum: 0, title: 'ms', grid: true},
+                        {type: 'Category', position: 'bottom', fields: ['t'], label: {renderer: function (v) {
+                                    return String(v).substr(11, 5) || String(v).substr(5, 5);
+                                }}}],
+                    series: [{type: 'line', axis: 'left', xField: 't', yField: 'ecranMoyenMs', title: 'Ouverture d\'écran (moyenne)', showMarkers: false, style: {'stroke-width': 2}},
+                        {type: 'line', axis: 'left', xField: 't', yField: 'appelMoyenMs', title: 'Appel au serveur (moyenne)', showMarkers: false, style: {'stroke-width': 2}}]},
+                {xtype: 'gridpanel', itemId: 'postesRum', title: 'Par poste', height: 170, margin: '0 4', columnLines: true,
+                    store: Ext.create('Ext.data.Store', {fields: ['poste', 'utilisateurs', 'appels', 'appelMoyenMs', 'echecs', 'erreursJs', 'ecrans', 'ecranMoyenMs', 'derniereActivite'], data: []}),
+                    columns: [{text: 'Poste', dataIndex: 'poste', flex: 1},
+                        {text: 'Utilisateurs', dataIndex: 'utilisateurs', width: 90, align: 'right'},
+                        {text: 'Écrans ouverts', dataIndex: 'ecrans', width: 110, align: 'right', renderer: me.nombre},
+                        {text: 'Ouverture moy.', dataIndex: 'ecranMoyenMs', width: 110, align: 'right', renderer: function (v) {
+                                return me.duree(v);
+                            }},
+                        {text: 'Appels', dataIndex: 'appels', width: 90, align: 'right', renderer: me.nombre},
+                        {text: 'Appel moy.', dataIndex: 'appelMoyenMs', width: 100, align: 'right', renderer: function (v) {
+                                return me.duree(v);
+                            }},
+                        {text: 'Appels en échec', dataIndex: 'echecs', width: 120, align: 'right', renderer: function (v) {
+                                return v > 0 ? '<span class="srv-critique">' + me.nombre(v) + '</span>' : '0';
+                            }},
+                        {text: 'Erreurs JS', dataIndex: 'erreursJs', width: 90, align: 'right'},
+                        {text: 'Dernière activité', dataIndex: 'derniereActivite', width: 130}]},
+                {xtype: 'container', height: 300, layout: {type: 'hbox', align: 'stretch'}, items: [
+                        me.grilleRum('ecransRum', 'Écrans les plus lents à s\'ouvrir', 'Écran'),
+                        me.grilleRum('apisRum', 'Appels les plus lents', 'Appel')]},
+                {xtype: 'container', height: 260, layout: {type: 'hbox', align: 'stretch'}, items: [
+                        me.grilleRum('echecsRum', 'Appels en échec', 'Appel'),
+                        me.grilleRum('erreursRum', 'Erreurs JavaScript', 'Erreur')]}
+            ]
+        };
+    },
+
+    chargerExperience: function () {
+        var me = this, o = me.down('#ongletExperience'), h = o.down('#periodeRum').getValue(), p = o.down('#posteRum').getValue() || '';
+        me.appel('GET', 'rum?heures=' + h + '&poste=' + encodeURIComponent(p), null, function (r) {
+            if (!r.success) {
+                return;
+            }
+            o.serie.loadData(r.serie || []);
+            o.down('#postesRum').getStore().loadData(r.postes || []);
+            o.down('#ecransRum').getStore().loadData(r.ecrans || []);
+            o.down('#apisRum').getStore().loadData(r.apis || []);
+            o.down('#echecsRum').getStore().loadData(Ext.Array.filter(r.apisEchecs || [], function (x) {
+                return x.echecs > 0;
+            }));
+            o.down('#erreursRum').getStore().loadData(r.erreurs || []);
+            var c = o.down('#posteRum'), l = [{v: '', t: 'Tous les postes'}];
+            if (!p) {
+                Ext.each(r.postes || [], function (x) {
+                    l.push({v: x.poste, t: x.poste});
+                });
+                c.getStore().loadData(l);
+            }
         });
     },
 

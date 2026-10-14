@@ -118,7 +118,7 @@ function nettoyer() {
   try {
     ok('Précondition : un produit de Prestige à compléter (' + PCIP + ')', !!PCIP && !!PNOM);
     ok('Migration : menu « Étiquettage Pro » dans GESTION DU STOCK, droit donné à l\'administrateur',
-      q("SELECT CONCAT(s.str_VALUE, '|', m.str_VALUE, '|', s.P_KEY) FROM t_sous_menu s JOIN t_menu m ON m.lg_MENU_ID=s.lg_MENU_ID WHERE s.str_COMPOSANT='etiquetagepro'") === 'Étiquettage Pro|GESTION DU STOCK|P_SM_ETIQUETAGE_PRO'
+      q("SELECT CONCAT(s.str_DESCRIPTION, '|', m.str_VALUE, '|', s.P_KEY) FROM t_sous_menu s JOIN t_menu m ON m.lg_MENU_ID=s.lg_MENU_ID WHERE s.str_COMPOSANT='etiquetagepro'") === 'Étiquettage Pro|GESTION DU STOCK|P_SM_ETIQUETAGE_PRO'
       && q("SELECT COUNT(*) FROM t_role_privelege rp JOIN t_privilege p ON p.lg_PRIVELEGE_ID=rp.lg_PRIVILEGE_ID JOIN t_role_user ru ON ru.lg_ROLE_ID=rp.lg_ROLE_ID JOIN t_user u ON u.lg_USER_ID=ru.lg_USER_ID WHERE u.str_LOGIN='admin' AND p.str_NAME='P_SM_ETIQUETAGE_PRO'") !== '0');
 
     /* ---------------------------------------------------------------- droit */
