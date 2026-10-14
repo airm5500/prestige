@@ -234,6 +234,10 @@ Ext.define('testextjs.controller.App', {
         if (xtype === 'saisieperime' && Ext.ClassManager.getNameByAlias('widget.saisieperimeonglets')) {
             return 'saisieperimeonglets';
         }
+        /* retours du 13/10 (point 21) : la marge sur produits vendus s'ouvre dans son conteneur (liste + analyse) */
+        if (xtype === 'margeproducts' && Ext.ClassManager.getNameByAlias('widget.margeonglets')) {
+            return 'margeonglets';
+        }
         /* retours du 10/10 (section 16) : la gestion de caisse s'ouvre dans son conteneur (liste + analyse des ecarts) */
         if (xtype === 'gestcaissemanager' && Ext.ClassManager.getNameByAlias('widget.gestioncaisseonglets')) {
             return 'gestioncaisseonglets';

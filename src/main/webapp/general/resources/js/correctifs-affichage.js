@@ -777,7 +777,7 @@ window.PrestigeAffichage.ECRANS_COLLES = [
     // stock
     'ajustementmanager', 'etatstock', 'inventaire', 'editinventaireManager',
     'monitoringproduct', 'suivientreevente', 'monitoringarticlecomplet',
-    'detailsmanager', 'gestionsurstock', 'stockmort', 'saisieperime', 'saisieperimeonglets',
+    'detailsmanager', 'gestionsurstock', 'stockmort', 'saisieperime', 'saisieperimeonglets', 'margeonglets',
     'evolutionstock', 'famillestockcomparaisonmanager', 'peremptionquery',
     'articlemvtgrid',
     'depotextension',
@@ -856,7 +856,7 @@ window.PrestigeAffichage.ECRANS_STYLE_VENTE = [
     // lot C : achats et stock
     'etatscontrolemanager', 'bonlivraisonmanager', 'i_order_manager', 'retourfrsmanager', 'detailsmanager', 'ajustementmanager',
     'inventaire', 'peremptionquery', 'monitoringarticlecomplet', 'etatstock', 'evaluationventemoyenne', 'reservemanager',
-    'saisieperime', 'saisieperimeonglets', 'gestionsurstock', 'i_sugg_manager',
+    'saisieperime', 'saisieperimeonglets', 'margeonglets', 'gestionsurstock', 'i_sugg_manager',
     // lot D : statistiques, parametres, administration
     'info_officine', 'parametermanager', 'grossistemanager', 'smsfournisseur', 'dcimanager', 'cazonegeomanager', 'analyseFrequentationOffManager', 'gardemanager',
     'tvastat', 'margeproducts', 'abcmanager', 'feuilledematch', 'recap', 'usermanager', 'rolemanager', 'myaccountmanager',
@@ -1780,3 +1780,4 @@ window.PrestigeApercuEtiquette = (function () {
     }
     return {dessiner: dessiner};
 })();
+

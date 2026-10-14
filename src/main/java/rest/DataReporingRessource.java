@@ -174,6 +174,62 @@ public class DataReporingRessource {
         }
     }
 
+    @javax.ejb.EJB
+    private rest.service.impl.AnalyseMargesService analyseMarges;
+
+    /** Retours du 13/10 (point 21) : onglet « Analyse » de la marge sur produits vendus. */
+    @GET
+    @Path("marges/analyse")
+    public Response analyserMarges(@QueryParam(value = "dtStart") String dtStart,
+            @QueryParam(value = "dtEnd") String dtEnd) throws JSONException {
+        TUser tu = (TUser) servletRequest.getSession().getAttribute(commonparameter.AIRTIME_USER);
+        if (tu == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        java.time.LocalDate debut, fin;
+        try {
+            fin = org.apache.commons.lang3.StringUtils.isBlank(dtEnd) ? java.time.LocalDate.now()
+                    : java.time.LocalDate.parse(dtEnd);
+            debut = org.apache.commons.lang3.StringUtils.isBlank(dtStart) ? fin.withDayOfMonth(1)
+                    : java.time.LocalDate.parse(dtStart);
+        } catch (java.time.format.DateTimeParseException e) {
+            return Response.ok(new JSONObject().put("success", false).put("msg", "Dates invalides.").toString())
+                    .build();
+        }
+        if (debut.isAfter(fin)) {
+            return Response.ok(new JSONObject().put("success", false)
+                    .put("msg", "La date de début doit précéder la date de fin.").toString()).build();
+        }
+        return Response.ok(analyseMarges.analyser(debut, fin, tu.getLgEMPLACEMENTID().getLgEMPLACEMENTID()).toString())
+                .build();
+    }
+
+    /** Retours du 13/10 (point 21) : objectifs de taux de marque et de taux de marge (%). */
+    @javax.ws.rs.POST
+    @Path("marges/analyse/objectifs")
+    @javax.ws.rs.Consumes(javax.ws.rs.core.MediaType.APPLICATION_JSON)
+    public Response objectifsMarges(String corps) throws JSONException {
+        TUser tu = (TUser) servletRequest.getSession().getAttribute(commonparameter.AIRTIME_USER);
+        if (tu == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        double marque, marge;
+        try {
+            JSONObject d = new JSONObject(org.apache.commons.lang3.StringUtils.defaultIfBlank(corps, "{}"));
+            marque = d.getDouble("tauxMarque");
+            marge = d.getDouble("tauxMarge");
+        } catch (Exception e) {
+            marque = Double.NaN;
+            marge = Double.NaN;
+        }
+        String refus = analyseMarges.enregistrerObjectifs(marque, marge);
+        return Response.ok(
+                (refus == null ? new JSONObject().put("success", true).put("objectifs", analyseMarges.objectifs()).put(
+                        "msg", "Objectifs enregistrés.") : new JSONObject().put("success", false).put("msg", refus))
+                                .toString())
+                .build();
+    }
+
     @GET
     @Path("margeproduitsvendus")
     public Response margeProduitsVendus(@QueryParam(value = "dtStart") String dtStart,
