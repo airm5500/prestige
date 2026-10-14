@@ -1825,6 +1825,11 @@ window.PrestigeRechercheClient = (function () {
                 bouton('contient', 'Contient', 'Nom, prénom ou numéro qui contient la saisie')]}, cfg || {});
     }
     Ext.onReady(function () {
+        /* le choix actif se voit : fond fonce, texte blanc (comme les boutons segmentes de la vente) */
+        if (!Ext.get('pr-mode-recherche-style')) {
+            Ext.util.CSS.createStyleSheet('.x-btn.pr-mode-recherche.x-btn-pressed{background:#1e3a5f !important;border-color:#1e3a5f !important;background-image:none !important}'
+                    + '.x-btn.pr-mode-recherche.x-btn-pressed .x-btn-inner{color:#fff !important}', 'pr-mode-recherche-style');
+        }
         Ext.Ajax.on('beforerequest', function (conn, options) {
             if (!options || !URLS.test(options.url || '') || /[?&]mode=/.test(options.url || '')) {
                 return;

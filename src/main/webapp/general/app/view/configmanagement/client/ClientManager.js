@@ -416,7 +416,8 @@ Ext.define('testextjs.view.configmanagement.client.ClientManager', {
             selModel: {
                 selType: 'cellmodel'
             },
-            tbar: [
+            /* retours du 13/10 (point 11) : deux lignes (recherche, puis actions) ; une seule debordait sur 1366 px */
+            dockedItems: [{xtype: 'toolbar', dock: 'top', items: [
                 {
                     text: 'Cr&eacute;er',
                     scope: this,
@@ -481,7 +482,7 @@ Ext.define('testextjs.view.configmanagement.client.ClientManager', {
                     iconCls: 'searchicon',
                     scope: this,
                     handler: this.onRechClick
-                }, '-', {
+                }]}, {xtype: 'toolbar', dock: 'top', items: [{
                     text: 'Imprimer',
                     id: 'P_BT_PRINT',
                     iconCls: 'printable',
@@ -541,7 +542,7 @@ Ext.define('testextjs.view.configmanagement.client.ClientManager', {
                         store.getProxy().setExtraParam('actifs', !pressed);
                         store.loadPage(1);
                     }
-                }],
+                }]}],
             bbar: {
                 xtype: 'pagingtoolbar',
                 store: store, // same store GridPanel is using

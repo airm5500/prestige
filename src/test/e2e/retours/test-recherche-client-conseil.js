@@ -104,6 +104,16 @@ function nettoyer() {
     const selecteur = await p.evaluate(() => { const c = Ext.ComponentQuery.query('clientgestion #modeRechercheClient')[0];
       return c ? c.items.getRange().map((x) => x.text + (x.pressed ? '*' : '')) : null; });
     ok('Gestion des clients : « Commence par / Contient » à côté de la recherche, « Commence par » par défaut', JSON.stringify(selecteur) === '["Commence par*","Contient"]', JSON.stringify(selecteur));
+    /* ergonomie : le choix actif se voit, et la barre tient sur 1366 px (recherche sur une ligne, actions sur l'autre) */
+    const tailleAvant = p.viewportSize();
+    await p.setViewportSize({ width: 1366, height: 768 }); await p.waitForTimeout(800);
+    const barre = await p.evaluate(() => { const g = Ext.ComponentQuery.query('clientgestion')[0];
+      const actif = g.down('#modeRechercheClient').items.getAt(0).getEl().dom, autre = g.down('#modeRechercheClient').items.getAt(1).getEl().dom;
+      return { fondActif: getComputedStyle(actif).backgroundColor, fondAutre: getComputedStyle(autre).backgroundColor,
+        deborde: g.query('toolbar').filter((t) => t.isVisible(true)).some((t) => [...t.getEl().dom.querySelectorAll('.x-btn, .x-form-text')]
+          .filter((x) => x.offsetParent !== null).some((x) => x.getBoundingClientRect().right > t.getEl().getRight() + 1)) }; });
+    ok('Choix actif bien visible (fond foncé), barres sans débordement sur 1366 px', barre.fondActif === 'rgb(30, 58, 95)' && barre.fondAutre !== barre.fondActif && !barre.deborde, JSON.stringify(barre));
+    await p.setViewportSize(tailleAvant); await p.waitForTimeout(800);
     const chercher = (texte) => p.evaluate((t) => new Promise((ok) => { const e = Ext.ComponentQuery.query('clientgestion')[0];
       Ext.getCmp('rechecher').setValue(t); e.getStore().on('load', (s) => ok(s.collect('lg_CLIENT_ID')), null, { single: true }); e.onRechClick(); }), texte);
     ok('Gestion, « Commence par » : « RCHKOUASS » ne trouve pas', !(await chercher('RCHKOUASS')).includes(CS));
