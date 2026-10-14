@@ -174,6 +174,12 @@ Ext.define('testextjs.controller.ListeAvoirCtr', {
         if (!tab) {
             return;
         }
+        /* retours du 13/10 (point 10) : l'onglet Analyse se calcule sur la periode de la barre */
+        if (tab.itemId === 'tabAnalyse') {
+            var p = this.buildParams('EN_COURS');
+            this.getVenteavoirmanager().chargerAnalyse(p.dtStart, p.dtEnd);
+            return;
+        }
         var grid = tab.down('gridpanel');
         if (!grid) {
             return;
@@ -348,8 +354,16 @@ Ext.define('testextjs.controller.ListeAvoirCtr', {
             return;
         }
         var active = tabs.getActiveTab();
+        /* impression, export et inventaire portent sur les listes, pas sur l'analyse */
+        var surAnalyse = active && active.itemId === 'tabAnalyse', ecran = this.getVenteavoirmanager();
+        Ext.each(['#printPdf', '#exporterExcel', '#creerInventaire'], function (s) {
+            var b = ecran && ecran.down(s);
+            if (b) {
+                b.setDisabled(surAnalyse);
+            }
+        });
         tabs.items.each(function (card) {
-            var label = (card.avoirStatut === 'CLOTURE') ? 'Avoir clôturé' : 'Avoir en cours';
+            var label = card.libelleOnglet || ((card.avoirStatut === 'CLOTURE') ? 'Avoir clôturé' : 'Avoir en cours');
             if (card === active) {
                 card.setTitle('<span class="avoir-pastille"></span><span class="avoir-tab-on-label">'
                         + label + '</span>');

@@ -818,3 +818,52 @@
     font-size: 12.5px;
     line-height: 22px;
 }
+
+/* ---- Retours du 13/10 (point 10) : onglets de la liste des avoirs restyles (pastilles arrondies) ---- */
+.avoir-onglets > .x-tab-bar {
+    background: #f4f6f9 !important;
+    border: none !important;
+    padding: 6px 8px 0 8px !important;
+}
+.avoir-onglets > .x-tab-bar .x-tab {
+    border-radius: 18px !important;
+    margin-right: 8px !important;
+    padding: 2px 10px !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, .12);
+    transition: transform .12s ease, box-shadow .12s ease;
+}
+.avoir-onglets > .x-tab-bar .x-tab:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 3px 6px rgba(0, 0, 0, .15);
+}
+.avoir-onglets > .x-tab-bar .x-tab.x-tab-active {
+    box-shadow: 0 3px 8px rgba(0, 0, 0, .22);
+}
+.avoir-onglets > .x-tab-bar .x-tab .x-frame-mc,
+.avoir-onglets > .x-tab-bar .x-tab .x-tab-inner {
+    border-radius: 18px !important;
+}
+.avoir-tab-analyse,
+.avoir-tab-analyse .x-frame-mc,
+.avoir-tab-analyse .x-tab-inner {
+    background-color: #c9d8f0 !important;
+    background-image: none !important;
+    border-color: #9db6dd !important;
+    color: #1e3a5f !important;
+    font-weight: bold !important;
+}
+.avoir-tab-analyse.x-tab-active,
+.avoir-tab-analyse.x-tab-active .x-frame-mc,
+.avoir-tab-analyse.x-tab-active .x-tab-inner {
+    background-color: #2f5e9e !important;
+    border-color: #1e3a5f !important;
+    color: #ffffff !important;
+}
+/* la pastille entiere porte la couleur de l'onglet (le theme peignait le fond en blanc) */
+.avoir-onglets > .x-tab-bar .x-tab.avoir-tab-encours { background: #f5cfa8 !important; border-color: #e0a96d !important; }
+.avoir-onglets > .x-tab-bar .x-tab.avoir-tab-cloture { background: #aee0c4 !important; border-color: #82c9a3 !important; }
+.avoir-onglets > .x-tab-bar .x-tab.avoir-tab-analyse { background: #c9d8f0 !important; border-color: #9db6dd !important; }
+.avoir-onglets > .x-tab-bar .x-tab.avoir-tab-encours.x-tab-active { background: #e67e22 !important; border-color: #a04e10 !important; }
+.avoir-onglets > .x-tab-bar .x-tab.avoir-tab-cloture.x-tab-active { background: #27ae60 !important; border-color: #14622f !important; }
+.avoir-onglets > .x-tab-bar .x-tab.avoir-tab-analyse.x-tab-active { background: #2f5e9e !important; border-color: #1e3a5f !important; }
+.avoir-onglets > .x-tab-bar .x-tab .x-tab-inner { background: transparent !important; }

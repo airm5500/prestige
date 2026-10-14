@@ -424,6 +424,33 @@ public class SalesStatsRessource {
         return Response.ok().entity(jsono.toString()).build();
     }
 
+    @javax.ejb.EJB
+    private rest.service.impl.AnalyseAvoirsService analyseAvoirs;
+
+    /** Retours du 13/10 (point 10) : onglet « Analyse » de la liste des avoirs. */
+    @GET
+    @Path("avoirs/analyse")
+    public Response analyserAvoirs(@QueryParam(value = "dtStart") String dtStart,
+            @QueryParam(value = "dtEnd") String dtEnd) throws JSONException {
+        javax.servlet.http.HttpSession hs = servletRequest.getSession(false);
+        if (hs == null || hs.getAttribute(Constant.AIRTIME_USER) == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        LocalDate debut, fin;
+        try {
+            fin = StringUtils.isBlank(dtEnd) ? LocalDate.now() : LocalDate.parse(dtEnd);
+            debut = StringUtils.isBlank(dtStart) ? fin.withDayOfMonth(1) : LocalDate.parse(dtStart);
+        } catch (java.time.format.DateTimeParseException e) {
+            return Response.ok(new JSONObject().put("success", false).put("msg", "Dates invalides.").toString())
+                    .build();
+        }
+        if (debut.isAfter(fin)) {
+            return Response.ok(new JSONObject().put("success", false)
+                    .put("msg", "La date de début doit précéder la date de fin.").toString()).build();
+        }
+        return Response.ok(analyseAvoirs.analyser(debut, fin).toString()).build();
+    }
+
     /**
      * Plafond de lignes de l'export Excel. Le fichier reste ouvrable et la memoire du serveur bornee. Au-dela, une
      * derniere ligne du tableau le dit explicitement : un export tronque en silence se lirait comme un export complet.
