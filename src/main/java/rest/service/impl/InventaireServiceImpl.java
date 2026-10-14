@@ -91,7 +91,7 @@ public class InventaireServiceImpl implements InventaireService {
             return q.getResultList();
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "fetch", e);
-            return List.of();
+            throw new IllegalStateException("Lecture d'inventaire impossible (fetch)", e);
         }
     }
 
@@ -110,7 +110,7 @@ public class InventaireServiceImpl implements InventaireService {
             return q.getResultList();
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "fetchRayon", e);
-            return List.of();
+            throw new IllegalStateException("Lecture d'inventaire impossible (fetchRayon)", e);
         }
 
     }
@@ -156,7 +156,7 @@ public class InventaireServiceImpl implements InventaireService {
             return q.getResultList();
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "fetchDetails", e);
-            return List.of();
+            throw new IllegalStateException("Lecture d'inventaire impossible (fetchDetails)", e);
         }
     }
 
@@ -201,7 +201,7 @@ public class InventaireServiceImpl implements InventaireService {
             return q.getResultList();
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "fetchDetailsUntouchedRayon", e);
-            return List.of();
+            throw new IllegalStateException("Lecture d'inventaire impossible (fetchDetailsUntouchedRayon)", e);
         }
     }
 
@@ -246,7 +246,7 @@ public class InventaireServiceImpl implements InventaireService {
             return q.getResultList();
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "fetchDetailsTouchedRayon", e);
-            return List.of();
+            throw new IllegalStateException("Lecture d'inventaire impossible (fetchDetailsTouchedRayon)", e);
         }
     }
 
@@ -289,7 +289,7 @@ public class InventaireServiceImpl implements InventaireService {
             return q.getResultList();
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "fetchDetailsAll", e);
-            return List.of();
+            throw new IllegalStateException("Lecture d'inventaire impossible (fetchDetailsAll)", e);
         }
     }
 
@@ -336,7 +336,7 @@ public class InventaireServiceImpl implements InventaireService {
             return q.getResultList();
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "fetchDetailsAllUntouched", e);
-            return List.of();
+            throw new IllegalStateException("Lecture d'inventaire impossible (fetchDetailsAllUntouched)", e);
         }
     }
 
@@ -384,7 +384,7 @@ public class InventaireServiceImpl implements InventaireService {
             return q.getResultList();
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "fetchDetailsAllTouched", e);
-            return List.of();
+            throw new IllegalStateException("Lecture d'inventaire impossible (fetchDetailsAllTouched)", e);
         }
     }
 
@@ -428,7 +428,7 @@ public class InventaireServiceImpl implements InventaireService {
             return q.getResultList();
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "fetchDetailsAllEcarts", e);
-            return List.of();
+            throw new IllegalStateException("Lecture d'inventaire impossible (fetchDetailsAllEcarts)", e);
         }
     }
 
