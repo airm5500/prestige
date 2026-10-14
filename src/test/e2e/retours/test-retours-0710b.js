@@ -83,7 +83,7 @@ const SORTIE = process.env.SORTIE || '/tmp';
 
     /* ------------------------------------------------ menus */
     const menus = await p.evaluate(() => { const s = Ext.ComponentQuery.query('navigation')[0].getStore(); return ['rappelshabitude', 'analysecommande'].map((id) => { const n = s.getNodeById(id); return n ? n.get('text') + '|' + (n.raw.aide || '') : id + ' ?'; }); });
-    ok('Menus renommés, explication en info-bulle', /^Rappels traitement\|.+/.test(menus[0]) && /^Prévisions vente \/ achat \/ analyse\|Prévisions de ventes/.test(menus[1]), menus.join(' / '));
+    ok('Menus renommés, explication en info-bulle', /^Rappels traitement\|.+/.test(menus[0]) && /^Prévisions\|Prévisions de ventes/.test(menus[1]) /* libelle court du 11/10 (V6.9.134), explication en info-bulle */, menus.join(' / '));
     /* « oui, passe les autres menus en libelle court » : libelle court, explication en info-bulle */
     const COURTS = { rhmanager: 'Ressources humaines', gardemanager: 'Gestion des gardes', analysearticle: 'Analyse article',
       whatsappcomptes: 'Comptes WhatsApp', modelemessagemanager: 'Modèles de messages', detailsmanager: 'Détails',
