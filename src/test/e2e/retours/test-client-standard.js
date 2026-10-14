@@ -112,9 +112,13 @@ function nettoyer() {
     await ouvrir();
     const champs = await p.evaluate(() => Ext.ComponentQuery.query('addclientstandard')[0].down('#formulaire')
       .getForm().getFields().getRange().map((f) => f.getName()));
-    ok('La fenêtre ne demande que le nom, les prénoms et le téléphone',
-      champs.length === 3 && champs.indexOf('str_FIRST_NAME') >= 0 && champs.indexOf('str_LAST_NAME') >= 0
-      && champs.indexOf('str_TELEPHONE') >= 0, JSON.stringify(champs));
+    /* retours du 13/10 (point 14) : date de naissance et sexe s'ajoutent, facultatifs */
+    const obligatoires = await p.evaluate(() => Ext.ComponentQuery.query('addclientstandard')[0].down('#formulaire')
+      .getForm().getFields().getRange().filter((f) => f.allowBlank === false).map((f) => f.getName()));
+    ok('La fenêtre demande le nom, les prénoms et le téléphone ; date de naissance et sexe facultatifs',
+      obligatoires.length === 3 && obligatoires.indexOf('str_FIRST_NAME') >= 0 && obligatoires.indexOf('str_LAST_NAME') >= 0
+      && obligatoires.indexOf('str_TELEPHONE') >= 0 && champs.indexOf('dt_NAISSANCE') >= 0 && champs.indexOf('str_SEXE') >= 0,
+      JSON.stringify({ champs, obligatoires }));
 
     await saisir(NOM + '-A', 'Jean Marc', '07 08 47 37 50');
     await enregistrer();
@@ -220,7 +224,7 @@ function nettoyer() {
       const w = Ext.ComponentQuery.query('addclientstandard')[0];
       if (!w) { return null; }
       const actif = document.activeElement;
-      const trouve = ['nom', 'prenoms', 'telephone'].filter((id) => {
+      const trouve = ['nom', 'prenoms', 'telephone', 'naissance'].filter((id) => {
         const c = w.down('#' + id);
         return c && c.inputEl && c.inputEl.dom === actif;
       });
@@ -252,7 +256,11 @@ function nettoyer() {
     await p.keyboard.type('0708473777', { delay: 20 });
     await p.keyboard.press('Enter');
     await p.waitForTimeout(400);
-    ok('Entrée depuis le Téléphone passe au bouton Enregistrer', await focusCourant() === 'bouton',
+    ok('Entrée depuis le Téléphone passe à la date de naissance (facultative)', await focusCourant() === 'naissance',
+      String(await focusCourant()));
+    await p.keyboard.press('Enter');
+    await p.waitForTimeout(400);
+    ok('Entrée depuis la date de naissance laissée vide passe au bouton Enregistrer', await focusCourant() === 'bouton',
       String(await focusCourant()));
 
     /* Rien ne doit s etre enregistre : le bouton est une ETAPE, pas un raccourci. */

@@ -1,7 +1,8 @@
 /* global Ext, testextjs */
 
 /**
- * Creation d'un client standard (evolution 5, point 3) : nom, prenoms et numero de telephone, rien d'autre.
+ * Creation d'un client standard (evolution 5, point 3) : nom, prenoms et numero de telephone ; date de naissance et
+ * sexe facultatifs (retours du 13/10).
  *
  * Le formulaire complet (addClientLast) reste disponible par le bouton « Creer » et n'est pas modifie : celui-ci
  * s'ajoute a cote pour le cas courant du comptoir, ou l'on n'a que ces trois informations.
@@ -49,6 +50,8 @@ Ext.define('testextjs.view.configmanagement.client.action.addClientStandard', {
                     itemId: 'formulaire',
                     border: false,
                     fieldDefaults: { labelWidth: 95, msgTarget: 'side' },
+                    /* retours du 13/10 : le premier champ etait colle au haut du cadre */
+                    bodyPadding: '14 4 0 0',
                     items: [{
                             xtype: 'textfield',
                             fieldLabel: 'Nom',
@@ -80,6 +83,35 @@ Ext.define('testextjs.view.configmanagement.client.action.addClientStandard', {
                             regex: /^(\+?225|00225)?[\s.\-()]*0[157]([\s.\-()]*[0-9]){8}[\s.\-()]*$/,
                             regexText: 'Numéro ivoirien attendu : dix chiffres commençant par 01, 05 ou 07.',
                             enableKeyEvents: true
+                        }, {
+                            /* retours du 13/10 (point 14) : date de naissance et sexe, FACULTATIFS. Ils completent la
+                               fiche (age pour le suivi du dossier, posologies) sans ralentir le comptoir. */
+                            xtype: 'datefield',
+                            fieldLabel: 'Né(e) le',
+                            itemId: 'naissance',
+                            name: 'dt_NAISSANCE',
+                            allowBlank: true,
+                            format: 'd/m/Y',
+                            altFormats: 'd/m/y|dmY|d-m-Y|d.m.Y',
+                            submitFormat: 'Y-m-d',
+                            maxValue: new Date(),
+                            maxText: 'La date de naissance ne peut pas être dans le futur.',
+                            minValue: new Date(1900, 0, 1),
+                            minText: 'Date de naissance improbable.',
+                            invalidText: 'Date attendue au format jj/mm/aaaa.',
+                            emptyText: 'jj/mm/aaaa (facultatif)',
+                            enableKeyEvents: true
+                        }, {
+                            xtype: 'radiogroup',
+                            fieldLabel: 'Sexe',
+                            itemId: 'sexe',
+                            allowBlank: true,
+                            columns: 2,
+                            width: 300,
+                            items: [
+                                {boxLabel: 'Féminin', name: 'str_SEXE', inputValue: 'F'},
+                                {boxLabel: 'Masculin', name: 'str_SEXE', inputValue: 'M'}
+                            ]
                         }, {
                             // Toujours rendue, vide par defaut : basculer sa visibilite avant son rendu
                             // levait une erreur JavaScript, et une zone vide ne gene pas la mise en page.
@@ -129,7 +161,7 @@ Ext.define('testextjs.view.configmanagement.client.action.addClientStandard', {
      */
     enchainerLesChamps: function () {
         var me = this;
-        var suite = ['nom', 'prenoms', 'telephone'];
+        var suite = ['nom', 'prenoms', 'telephone', 'naissance'];
 
         Ext.Array.each(suite, function (id, i) {
             var champ = me.down('#' + id);
@@ -220,7 +252,7 @@ Ext.define('testextjs.view.configmanagement.client.action.addClientStandard', {
                     // L'erreur est affichee DANS la fenetre, a cote du champ fautif : l'operateur
                     // corrige sans avoir a refermer une boite de dialogue ni a resaisir le reste.
                     me.afficherErreur(resultat.errors || 'La création du client n\'a pas abouti.');
-                    var champ = me.down('#' + (resultat.champ === 'str_TELEPHONE' ? 'telephone' : 'nom'));
+                    var champ = me.down('#' + ({str_TELEPHONE: 'telephone', dt_NAISSANCE: 'naissance', str_SEXE: 'sexe'}[resultat.champ] || 'nom'));
                     if (champ) { champ.focus(true, 50); }
                     return;
                 }

@@ -713,14 +713,51 @@ public class ClientRessource {
      * retrouve la fiche existante au lieu d'en creer une seconde.
      * </p>
      */
+    /**
+     * Date de naissance saisie (aaaa-mm-jj), facultative : null si vide ; refusee si illisible, future ou avant 1900.
+     */
+    static java.util.Date dateNaissanceSaisie(String valeur) {
+        String v = org.apache.commons.lang3.StringUtils.trimToEmpty(valeur);
+        if (v.isEmpty()) {
+            return null;
+        }
+        java.time.LocalDate d;
+        try {
+            d = java.time.LocalDate.parse(v);
+        } catch (java.time.format.DateTimeParseException e) {
+            throw new IllegalArgumentException("Date de naissance illisible : jj/mm/aaaa attendu.");
+        }
+        if (d.isAfter(java.time.LocalDate.now())) {
+            throw new IllegalArgumentException("La date de naissance ne peut pas être dans le futur.");
+        }
+        if (d.getYear() < 1900) {
+            throw new IllegalArgumentException("Date de naissance improbable.");
+        }
+        return java.sql.Date.valueOf(d);
+    }
+
     @POST
     @Path("gestion/create-standard")
     @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
     public Response creerClientStandard(@FormParam("str_FIRST_NAME") String nom,
-            @FormParam("str_LAST_NAME") String prenoms, @FormParam("str_TELEPHONE") String telephone) {
+            @FormParam("str_LAST_NAME") String prenoms, @FormParam("str_TELEPHONE") String telephone,
+            @FormParam("dt_NAISSANCE") String naissance, @FormParam("str_SEXE") String sexe) {
         TUser sessionUser = utilisateurSession();
         if (sessionUser == null) {
             return reponseDeconnecte();
+        }
+        /* retours du 13/10 (point 14) : date de naissance et sexe facultatifs, controles ici aussi */
+        java.util.Date dateNaissance;
+        String sexeLu = org.apache.commons.lang3.StringUtils.trimToEmpty(sexe).toUpperCase();
+        try {
+            dateNaissance = dateNaissanceSaisie(naissance);
+        } catch (IllegalArgumentException e) {
+            return Response.ok().entity(new JSONObject().put("success", false).put("champ", "dt_NAISSANCE")
+                    .put("errors", e.getMessage()).toString()).build();
+        }
+        if (!sexeLu.isEmpty() && !"M".equals(sexeLu) && !"F".equals(sexeLu)) {
+            return Response.ok().entity(new JSONObject().put("success", false).put("champ", "str_SEXE")
+                    .put("errors", "Sexe attendu : Féminin ou Masculin.").toString()).build();
         }
         rest.service.impl.ClientStandardSaisie saisie = rest.service.impl.ClientStandardSaisie.controler(nom, prenoms,
                 telephone);
@@ -746,8 +783,8 @@ public class ClientRessource {
             clientManagement ocm = new clientManagement(odm, user);
             // Meme chemin de creation que le formulaire complet : toutes les regles metier historiques
             // s'appliquent (code interne genere, compte client cree). Seuls les champs utiles sont poses.
-            TCompteClient compte = ocm.createClient(saisie.getNom(), saisie.getPrenoms(), "", null, "", "", "", "", "",
-                    "", "", 0.0, 0.0, 0, rest.service.impl.ClientStandardSaisie.TYPE_CLIENT_STANDARD,
+            TCompteClient compte = ocm.createClient(saisie.getNom(), saisie.getPrenoms(), "", dateNaissance, sexeLu, "",
+                    "", "", "", "", "", 0.0, 0.0, 0, rest.service.impl.ClientStandardSaisie.TYPE_CLIENT_STANDARD,
                     CATEGORIE_AYANT_DROIT_DEFAUT, RISQUE_DEFAUT, "", 0, 1, "", 0.0, "", 0, false, null);
             if (compte == null) {
                 return Response.ok()
