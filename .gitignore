@@ -13,6 +13,8 @@ nb-configuration.xml
 .idea/**
 /src/main/resources/build.properties
 *.properties
+# configuration de Prestige Veille : aucun secret (ports, dossier de donnees), indispensable a la construction
+!outils/prestige-veille/backend/src/main/resources/application.properties
 src/main/resources/build.properties
 *.md
 __pycache__/
