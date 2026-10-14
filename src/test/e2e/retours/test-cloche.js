@@ -71,8 +71,9 @@ const exec = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', 
     await p.evaluate(() => prestigeNotifConfigurer());
     await p.waitForFunction(() => Ext.getCmp('notif-config-win'), null, { timeout: 10000 });
     const choix = await p.evaluate(() => Array.from(document.querySelectorAll('#notif-config-win .pn-choix')).map((e) => ({ cle: e.getAttribute('data-cle'), coche: e.querySelector('input').checked })));
-    ok('« Choisir les notifications » : historiques cochées, nouvelles proposées (menus de l\'utilisateur)', choix.slice(0, 3).every((x) => x.coche) && choix.length === 9
-      && choix.slice(3).every((x) => !x.coche), JSON.stringify(choix));
+    /* lot 4 (11/10) : « Campagnes proposées à envoyer » est cochee d'office (le nombre doit sortir dans la cloche) */
+    ok('« Choisir les notifications » : historiques et campagnes cochées, autres nouvelles proposées (menus de l\'utilisateur)', choix.slice(0, 3).every((x) => x.coche) && choix.length === 10
+      && choix.slice(3).every((x) => x.coche === (x.cle === 'campagnes')), JSON.stringify(choix));
     // cocher « commandes », decocher « perimes », mettre « commandes » en tete
     await p.evaluate(() => {
       const w = document.getElementById('notif-config-win');

@@ -74,13 +74,18 @@ public class NotificationsCentreServiceImpl implements NotificationsCentreServic
                 .put(cat("a-preparer", "Traitements habituels à préparer", "fa-medkit", "#58d68d", "rappelshabitude",
                         false))
                 .put(cat("conges", "Congés et absences à valider", "fa-calendar-check-o", "#a569bd", "rhmanager",
-                        false));
+                        false))
+                .put(cat("campagnes", "Campagnes proposées à envoyer", "fa-bullhorn", "#f1948a", "campagnes", false));
     }
 
     /* ------------------------------------------------------------------ requetes */
 
     private static final String SQL_CONGES = " FROM t_absence a JOIN t_employe e ON e.id = a.employe_id"
             + " WHERE a.statut = 'DEMANDE'";
+
+    /** Campagnes (lot 4) : messages des propositions automatiques en attente de validation. */
+    private static final String SQL_CAMPAGNES = " FROM t_campagne_ligne l JOIN t_campagne c ON c.id = l.campagne_id"
+            + " WHERE c.statut = 'PROPOSEE' AND l.statut = 'PROPOSE'";
 
     private static final String SQL_A_PREPARER = " FROM t_rappel_habitude r"
             + " JOIN t_client c ON c.lg_CLIENT_ID = r.lg_CLIENT_ID JOIN t_famille f ON f.lg_FAMILLE_ID = r.lg_FAMILLE_ID"
@@ -180,6 +185,9 @@ public class NotificationsCentreServiceImpl implements NotificationsCentreServic
                 case "conges":
                     m.put(cle, compter(SQL_CONGES));
                     break;
+                case "campagnes":
+                    m.put(cle, compter(SQL_CAMPAGNES));
+                    break;
                 default:
                     break;
                 }
@@ -260,6 +268,21 @@ public class NotificationsCentreServiceImpl implements NotificationsCentreServic
                     a.put(new JSONObject().put("titre", t(r[0]))
                             .put("detail", t(r[1]).toLowerCase() + " du " + jour(r[2]) + " au " + jour(r[3]))
                             .put("date", jour(r[2])).put("id", t(r[4])));
+                }
+                break;
+            case "campagnes":
+                total = compter(SQL_CAMPAGNES);
+                for (Object[] r : lignes(
+                        "SELECT c.categorie, f.libelle, c.date_cible, COUNT(*), c.id"
+                                + " FROM t_campagne_ligne l JOIN t_campagne c ON c.id = l.campagne_id"
+                                + " LEFT JOIN t_fete f ON f.code = c.fete_code"
+                                + " WHERE c.statut = 'PROPOSEE' AND l.statut = 'PROPOSE'"
+                                + " GROUP BY c.id, c.categorie, f.libelle, c.date_cible ORDER BY c.date_cible DESC",
+                        limite)) {
+                    String titre = "FETE".equals(t(r[0])) ? "Fête — " + t(r[1]) : "Anniversaires";
+                    a.put(new JSONObject().put("titre", titre)
+                            .put("detail", t(r[3]) + " message(s) à valider · " + jour(r[2])).put("date", jour(r[2]))
+                            .put("id", t(r[4])));
                 }
                 break;
             case "a-preparer":

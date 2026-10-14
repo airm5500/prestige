@@ -26,7 +26,9 @@ public enum TypeNotification {
     SAISIS_PERIMES("Saisis de périmés"), AJOUT_DE_NOUVEAU_PRODUIT("Ajout de nouveau produit"),
     AJOUT_DE_DETAIL_PRODUIT("Creation de detail de  produit"),
     /* Rappel SMS du renouvellement d'une ordonnance client (30/09), canal SMS. */
-    RAPPEL_RENOUVELLEMENT("Rappel de renouvellement d'ordonnance"), RAPPEL_HABITUDE("Rappel de traitement habituel");
+    RAPPEL_RENOUVELLEMENT("Rappel de renouvellement d'ordonnance"), RAPPEL_HABITUDE("Rappel de traitement habituel"),
+    /* Campagnes clients (besoins du 11/10, lot 4), canal SMS. */
+    CAMPAGNE("Campagnes clients (SMS / WhatsApp)");
 
     private final String value;
 

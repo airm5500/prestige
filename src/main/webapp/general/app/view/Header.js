@@ -493,7 +493,13 @@ var PrestigeNotif = (function () {
     /** Categories affichees : celles cochees (defaut : les categories historiques). */
     function actives() {
         var choix = prefs && prefs.actives;
+        var vues = (prefs && prefs.ordre) || [];
         return Ext.Array.filter(disponibles(), function (p) {
+            /* parDefaut : categorie optionnelle affichee d'office a ceux qui ont son menu, tant qu'ils ne l'ont pas
+               vue dans « Choisir les notifications » (leur choix enregistre la mentionne alors, cochee ou non) */
+            if (p.parDefaut) {
+                return choix && vues.indexOf(p.key) >= 0 ? choix.indexOf(p.key) >= 0 : menuAccessible(p.menu);
+            }
             return choix ? choix.indexOf(p.key) >= 0 : !p.optionnel;
         });
     }
@@ -921,11 +927,13 @@ function prestigeNotifOuvrirMenu(xtype) {
         /* plan d'octobre, 4.1 (L10) : traitements habituels dont le prochain achat arrive (piluliers) */
         {key: 'a-preparer', label: 'Traitements habituels à préparer', icon: 'fa-medkit', color: '#58d68d', menu: 'rappelshabitude'},
         /* plan d'octobre, 3 (L11) : demandes de conges et d'absences en attente de decision */
-        {key: 'conges', label: 'Congés et absences à valider', icon: 'fa-calendar-check-o', color: '#a569bd', menu: 'rhmanager'}
+        {key: 'conges', label: 'Congés et absences à valider', icon: 'fa-calendar-check-o', color: '#a569bd', menu: 'rhmanager'},
+        /* besoins du 11/10 (lot 4) : messages des campagnes proposees (anniversaires, fetes) a valider */
+        {key: 'campagnes', label: 'Campagnes proposées à envoyer', icon: 'fa-bullhorn', color: '#f1948a', menu: 'campagnes', parDefaut: true}
     ];
     Ext.each(nouvelles, function (c) {
         PrestigeNotif.register({
-            key: c.key, label: c.label, icon: c.icon, color: c.color, menu: c.menu, optionnel: true,
+            key: c.key, label: c.label, icon: c.icon, color: c.color, menu: c.menu, optionnel: true, parDefaut: !!c.parDefaut,
             url: '../api/v1/notifications-centre/liste?cle=' + c.key,
             limit: 50,
             renderItem: function (n) {

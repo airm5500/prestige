@@ -773,7 +773,7 @@ window.PrestigeAffichage.ECRANS_COLLES = [
     'bonlivraisonmanager', 'retourfrsmanager', 'retourfournisseurmanagerlist',
     'bonlivraisondetail', 'pointagebl', 'fideliteclients',
     // retours du 11/10 : nouveaux menus
-    'avisclients', 'etiquetagepro', 'auditrapprochements', 'setvalorisation',
+    'avisclients', 'etiquetagepro', 'auditrapprochements', 'setvalorisation', 'campagnes',
     // stock
     'ajustementmanager', 'etatstock', 'inventaire', 'editinventaireManager',
     'monitoringproduct', 'suivientreevente', 'monitoringarticlecomplet',
@@ -862,7 +862,7 @@ window.PrestigeAffichage.ECRANS_STYLE_VENTE = [
     'tvastat', 'margeproducts', 'abcmanager', 'feuilledematch', 'recap', 'usermanager', 'rolemanager', 'myaccountmanager',
     'menunotification', 'evolutionstock', 'stockmort', 'articlemvtgrid',
     // retours du 09/10 (5) : pointage des BL et avoirs ; (6) fidelite clients
-    'pointagebl', 'fideliteclients', 'avisclients', 'etiquetagepro', 'auditrapprochements', 'setvalorisation',
+    'pointagebl', 'fideliteclients', 'avisclients', 'etiquetagepro', 'auditrapprochements', 'setvalorisation', 'campagnes',
     // retours du 06/10 : contenu d'une suggestion
     'suggerercdemanager',
     // retours du 06/10 (4) : balance vente / caisse
