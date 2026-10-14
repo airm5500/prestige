@@ -30,10 +30,12 @@ function nettoyer() {
   exec("DELETE FROM t_equipe_membre WHERE equipe_id IN (SELECT id FROM t_equipe WHERE nom LIKE 'ZZ Équipe E2E%');"
     + "DELETE FROM t_equipe_programme WHERE equipe_id IN (SELECT id FROM t_equipe WHERE nom LIKE 'ZZ Équipe E2E%');"
     + "DELETE FROM t_equipe WHERE nom LIKE 'ZZ Équipe E2E%';");
-  exec("DELETE FROM t_employe WHERE lg_USER_ID IN ('" + UE.join("','") + "');"
+  exec("DELETE FROM t_rh_badge WHERE employe_id IN (SELECT id FROM t_employe WHERE lg_USER_ID IN ('" + UE.join("','") + "'));"
+    + "DELETE FROM t_employe WHERE lg_USER_ID IN ('" + UE.join("','") + "');"
     + "DELETE FROM t_user WHERE lg_USER_ID IN ('" + UE.join("','") + "');");
   exec("DELETE FROM t_planning WHERE employe_id IN (SELECT id FROM t_employe WHERE matricule LIKE 'E2E-RH%');"
     + "DELETE FROM t_absence WHERE employe_id IN (SELECT id FROM t_employe WHERE matricule LIKE 'E2E-RH%');"
+    + "DELETE FROM t_rh_badge WHERE employe_id IN (SELECT id FROM t_employe WHERE matricule LIKE 'E2E-RH%');"
     + "DELETE FROM t_employe WHERE matricule LIKE 'E2E-RH%';");
 }
 

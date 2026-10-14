@@ -121,6 +121,60 @@ public class RhRessource {
         return r != null ? r : ok(service.enregistrerEmploye(corps(c), utilisateur()));
     }
 
+    /* ---------------------------------------------------------------- badges (retours du 13/10, point 3) */
+
+    @EJB
+    private rest.service.impl.RhBadgeService badges;
+
+    @GET
+    @Path("badges")
+    public Response badges(@QueryParam("query") String query,
+            @DefaultValue("false") @QueryParam("inactifs") boolean inactifs) {
+        Response r = controle();
+        return r != null ? r : ok(badges.badges(query, inactifs));
+    }
+
+    @POST
+    @Path("badges")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Response enregistrerBadge(String c) {
+        Response r = controle();
+        return r != null ? r : ok(badges.enregistrer(corps(c), utilisateur()));
+    }
+
+    @POST
+    @Path("badges/{id}/desactiver")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Response desactiverBadge(@PathParam("id") String id, String c) {
+        Response r = controle();
+        return r != null ? r : ok(badges.desactiver(id, corps(c).optString("motif"), utilisateur()));
+    }
+
+    /** Cartes des badges choisis (actifs), en PDF ouvert dans l'onglet ; chaque impression est comptee. */
+    @GET
+    @Path("badges/pdf")
+    @Produces("application/pdf")
+    public Response badgesPdf(@QueryParam("ids") String ids) {
+        if (controle() != null) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+        java.util.List<String> liste = new java.util.ArrayList<>();
+        for (String id : StringUtils.defaultString(ids).split(",")) {
+            if (StringUtils.isNotBlank(id) && liste.size() < 200) {
+                liste.add(id.trim());
+            }
+        }
+        try {
+            byte[] pdf = rest.service.impl.BadgePdf.ecrire(badges.pourImpression(liste), badges.officine());
+            return Response.ok(pdf, "application/pdf").header("Content-Disposition", "inline; filename=badges.pdf")
+                    .build();
+        } catch (Exception e) {
+            java.util.logging.Logger.getLogger(RhRessource.class.getName()).log(java.util.logging.Level.SEVERE,
+                    "badges pdf", e);
+            return Response.serverError().build();
+        }
+    }
+
     @GET
     @Path("utilisateurs-libres")
     public Response utilisateursLibres(@QueryParam("employeId") String employeId) {

@@ -35,6 +35,8 @@ public class RhServiceImpl implements RhService {
 
     @PersistenceContext(unitName = "JTA_UNIT")
     private EntityManager em;
+    @javax.ejb.EJB
+    private RhBadgeService badges;
 
     /* ------------------------------------------------------------------ employes */
 
@@ -164,6 +166,8 @@ public class RhServiceImpl implements RhService {
         if (n == 0) {
             return refus("Employé introuvable.");
         }
+        /* retours du 13/10 (point 3) : l'historique des badges suit le numero saisi dans la fiche */
+        badges.suivreFicheEmploye(id, badge, operateur);
         return ok().put("id", id).put("message", nouveau ? "Employé créé." : "Employé enregistré.");
     }
 

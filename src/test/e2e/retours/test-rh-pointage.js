@@ -29,6 +29,7 @@ function nettoyer() {
     + "DELETE FROM t_pointage_modele WHERE marque LIKE 'E2E%';"
     + "DELETE FROM t_planning WHERE employe_id IN (SELECT id FROM t_employe WHERE matricule LIKE 'E2E-PT%');"
     + "DELETE FROM t_absence WHERE employe_id IN (SELECT id FROM t_employe WHERE matricule LIKE 'E2E-PT%');"
+    + "DELETE FROM t_rh_badge WHERE employe_id IN (SELECT id FROM t_employe WHERE matricule LIKE 'E2E-PT%');"
     + "DELETE FROM t_employe WHERE matricule LIKE 'E2E-PT%';");
 }
 

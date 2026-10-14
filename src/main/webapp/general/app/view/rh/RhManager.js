@@ -34,7 +34,7 @@ Ext.define('testextjs.view.rh.RhManager', {
         me.lundi = me.lundiDe(new Date());
         me.mois = Ext.Date.getFirstDateOfMonth(new Date());
         me.items = [me.ongletPlanning(), me.ongletPresence(), me.ongletAbsences(), me.ongletPointages(), me.ongletTableau(),
-            me.ongletEmployes(), me.ongletConnexions(), me.ongletMobile()];
+            me.ongletEmployes(), me.ongletBadges(), me.ongletConnexions(), me.ongletMobile()];
         me.callParent(arguments);
         me.on('afterrender', function () {
             me.appel('GET', '../api/v1/rh/droits', null, function (r) {
@@ -51,6 +51,8 @@ Ext.define('testextjs.view.rh.RhManager', {
                 me.chargerAbsences();
             } else if (t.itemId === 'ongletEmployes') {
                 me.down('#ongletEmployes').getStore().load();
+            } else if (t.itemId === 'ongletBadges') {
+                me.chargerBadges();
             } else if (t.itemId === 'ongletConnexions') {
                 me.down('#ongletConnexions').getStore().load();
             } else if (t.itemId === 'ongletPlanning') {
@@ -806,6 +808,234 @@ Ext.define('testextjs.view.rh.RhManager', {
             f.up('window').hide();
             me.down('#ongletEmployes').getStore().load();
         });
+    },
+
+    /* ------------------------------------------------------------------ badges (retours du 13/10, point 3) */
+
+    /*
+     * Badges des employes : creer, modifier, desactiver, imprimer. Le formulaire est a droite de la liste (aucune
+     * fenetre) ; la desactivation se confirme dans le bouton ; les messages s'affichent sous le formulaire.
+     */
+    ongletBadges: function () {
+        var me = this;
+        var store = Ext.create('Ext.data.Store', {
+            fields: ['id', 'employeId', 'numero', 'statut', 'dtEmission', 'dtExpiration', 'motif', 'dtDesactivation', 'impressions',
+                'dtImpression', 'matricule', 'nom', 'prenoms', 'poste', 'expire'],
+            proxy: {type: 'ajax', url: '../api/v1/rh/badges', reader: {type: 'json', root: 'data', totalProperty: 'total'}}
+        });
+        store.on('beforeload', function (s) {
+            var o = me.down('#ongletBadges');
+            s.getProxy().extraParams = {query: o.down('#rechercheBadge').getValue() || '', inactifs: !!o.down('#badgesInactifs').getValue()};
+        });
+        var employes = Ext.create('Ext.data.Store', {fields: ['id', 'matricule', 'nom', 'prenoms', 'badge', {name: 'libelle', convert: function (v, r) {
+                        return (r.get('nom') + ' ' + (r.get('prenoms') || '')).trim() + ' (' + r.get('matricule') + ')' + (r.get('badge') ? ' · badge ' + r.get('badge') : '');
+                    }}],
+            proxy: {type: 'ajax', url: '../api/v1/rh/employes', reader: {type: 'json', root: 'data'}}});
+        return {
+            xtype: 'panel', itemId: 'ongletBadges', title: 'Badges', layout: {type: 'hbox', align: 'stretch'}, bodyPadding: 8,
+            items: [{
+                    xtype: 'grid', itemId: 'grilleBadges', flex: 1, margin: '0 10 0 0', store: store,
+                    selModel: Ext.create('Ext.selection.CheckboxModel', {mode: 'MULTI'}),
+                    viewConfig: {emptyText: 'Aucun badge.', deferEmptyText: false},
+                    tbar: [
+                        {xtype: 'textfield', itemId: 'rechercheBadge', emptyText: 'Numéro, nom, matricule…', width: 220, listeners: {specialkey: function (f, e) {
+                                    if (e.getKey() === e.ENTER) {
+                                        store.load();
+                                    }
+                                }}},
+                        {xtype: 'checkbox', itemId: 'badgesInactifs', boxLabel: 'Afficher les désactivés', listeners: {change: function () {
+                                    store.load();
+                                }}},
+                        {text: 'Rechercher', handler: function () {
+                                store.load();
+                            }},
+                        '->',
+                        {text: 'Imprimer les badges cochés', itemId: 'btnImprimerBadges', iconCls: 'printable', tooltip: 'Cartes au format carte bancaire, dix par page (PDF)',
+                            handler: function () {
+                                me.imprimerBadges();
+                            }}
+                    ],
+                    columns: [
+                        {text: 'Badge', dataIndex: 'numero', width: 110, renderer: function (v) {
+                                return '<b>' + me.esc(v) + '</b>';
+                            }},
+                        {text: 'Employé', dataIndex: 'nom', flex: 1, renderer: function (v, m, r) {
+                                return '<b>' + me.esc(v) + '</b> ' + me.esc(r.get('prenoms')) + '<div style="color:#7f8c8d;font-size:11px">'
+                                        + me.esc(r.get('matricule')) + (r.get('poste') ? ' · ' + me.esc(r.get('poste')) : '') + '</div>';
+                            }},
+                        {text: 'Émis le', dataIndex: 'dtEmission', width: 90, renderer: function (v) {
+                                return me.fr(v);
+                            }},
+                        {text: 'Expire le', dataIndex: 'dtExpiration', width: 90, renderer: function (v, m, r) {
+                                return v ? (r.get('expire') ? '<b style="color:#c0392b">' + me.fr(v) + '</b>' : me.fr(v)) : '<span style="color:#b0bec5">—</span>';
+                            }},
+                        {text: 'Imprimé', dataIndex: 'impressions', width: 80, align: 'center', renderer: function (v) {
+                                return v ? v + ' fois' : '<span style="color:#b0bec5">jamais</span>';
+                            }},
+                        {text: 'État', dataIndex: 'statut', width: 170, renderer: function (v, m, r) {
+                                if (v === 'ACTIF') {
+                                    return r.get('expire') ? '<b style="color:#c0392b">Expiré</b>' : '<b style="color:#1e8449">Actif</b>';
+                                }
+                                return '<span style="color:#7f8c8d">Désactivé</span>' + (r.get('motif') ? '<div style="color:#7f8c8d;font-size:11px">' + me.esc(r.get('motif')) + '</div>' : '');
+                            }}
+                    ],
+                    listeners: {select: function (sm, r) {
+                            me.editerBadge(r);
+                        }}
+                }, {
+                    xtype: 'form', itemId: 'ficheBadge', width: 340, bodyPadding: 12, title: 'Nouveau badge', cls: 'rh-fiche fen-section', autoScroll: true,
+                    defaults: {anchor: '100%', labelWidth: 110},
+                    items: [
+                        {xtype: 'hiddenfield', name: 'id'},
+                        {xtype: 'combobox', name: 'employeId', itemId: 'badgeEmploye', fieldLabel: 'Employé', store: employes, queryMode: 'local', anyMatch: true,
+                            displayField: 'libelle', valueField: 'id', forceSelection: true, emptyText: 'Choisir l\'employé'},
+                        {xtype: 'textfield', name: 'numero', itemId: 'badgeNumero', fieldLabel: 'Numéro', maxLength: 40, enforceMaxLength: true,
+                            emptyText: 'Vide : numéro attribué (BDG…)', maskRe: /[A-Za-z0-9-]/},
+                        {xtype: 'datefield', name: 'dtExpiration', itemId: 'badgeExpiration', fieldLabel: 'Expire le', format: 'd/m/Y', emptyText: 'jj/mm/aaaa (facultatif)',
+                            minValue: new Date()},
+                        {xtype: 'component', itemId: 'badgeInfo', margin: '4 0 8 0', html: ''},
+                        {xtype: 'textfield', name: 'motif', itemId: 'badgeMotif', fieldLabel: 'Motif', hidden: true, maxLength: 200, enforceMaxLength: true,
+                            emptyText: 'Ex. : badge perdu, départ'},
+                        {xtype: 'component', itemId: 'badgeMessage', margin: '8 0 0 0', html: ''}
+                    ],
+                    buttons: [
+                        {text: 'Nouveau', itemId: 'btnNouveauBadge', cls: 'fen-btn', tooltip: 'Vider le formulaire pour créer un badge', handler: function () {
+                                me.editerBadge(null);
+                            }},
+                        {text: 'Désactiver', itemId: 'btnDesactiverBadge', cls: 'fen-btn', disabled: true, tooltip: 'Le badge ne sera plus reconnu au pointage',
+                            handler: function (b) {
+                                me.desactiverBadge(b);
+                            }},
+                        {text: 'Enregistrer', itemId: 'btnEnregistrerBadge', cls: 'fen-btn fen-btn-principal', handler: function (b) {
+                                me.enregistrerBadge(b);
+                            }}
+                    ]
+                }]
+        };
+    },
+
+    chargerBadges: function () {
+        var me = this, o = me.down('#ongletBadges');
+        o.down('#grilleBadges').getStore().load();
+        o.down('#badgeEmploye').getStore().load();
+    },
+
+    messageBadge: function (texte, ok) {
+        var c = this.down('#badgeMessage');
+        c.update(texte ? '<div style="padding:6px 8px;border-radius:4px;font-weight:bold;background:' + (ok === false ? '#fdecea;color:#c0392b' : '#e8f6ef;color:#1e8449') + '">'
+                + this.esc(texte) + '</div>' : '');
+    },
+
+    editerBadge: function (rec) {
+        var me = this, f = me.down('#ficheBadge'), d = rec ? rec.data : {}, actif = !rec || d.statut === 'ACTIF';
+        var b = f.down('#btnDesactiverBadge');
+        clearTimeout(b.minuteur);
+        b.arme = false;
+        b.setText('Désactiver');
+        f.getForm().reset();
+        f.setTitle(rec ? 'Badge ' + me.esc(d.numero) : 'Nouveau badge');
+        f.getForm().setValues({id: d.id || '', employeId: d.employeId || '', numero: d.numero || '',
+            dtExpiration: d.dtExpiration ? Ext.Date.parse(d.dtExpiration, 'Y-m-d') : null});
+        f.down('#badgeEmploye').setDisabled(!!rec);
+        f.down('#badgeNumero').setDisabled(!actif);
+        f.down('#badgeExpiration').setDisabled(!actif);
+        f.down('#btnEnregistrerBadge').setDisabled(!actif);
+        b.setDisabled(!rec || !actif);
+        f.down('#badgeMotif').hide();
+        f.down('#badgeInfo').update(rec ? '<span style="color:#7f8c8d">' + me.esc((d.nom + ' ' + (d.prenoms || '')).trim()) + ' · émis le ' + me.fr(d.dtEmission)
+                + (actif ? '' : '<br>Désactivé le ' + me.fr((d.dtDesactivation || '').substring(0, 10)) + (d.motif ? ' : ' + me.esc(d.motif) : '')) + '</span>'
+                : '<span style="color:#7f8c8d">Un employé qui a déjà un badge actif reçoit le nouveau ; l\'ancien est désactivé.</span>');
+        me.messageBadge('');
+    },
+
+    appelBadge: function (bouton, texte, url, corps, suite) {
+        var me = this, fin = PrestigeChargement.occuper(bouton, texte);
+        Ext.Ajax.request({
+            url: url, method: 'POST', jsonData: corps,
+            success: function (response) {
+                var r = Ext.JSON.decode(response.responseText, true) || {};
+                if (r.success === false) {
+                    fin('Refusé', false);
+                    me.messageBadge(r.msg || 'Action refusée.', false);
+                    return;
+                }
+                fin('Fait', true);
+                me.messageBadge(r.msg || 'Enregistré.', true);
+                suite(r);
+            },
+            failure: function (response) {
+                fin('Échec', false);
+                me.messageBadge('Le serveur n\'a pas répondu (' + response.status + ').', false);
+            }
+        });
+    },
+
+    enregistrerBadge: function (bouton) {
+        var me = this, f = me.down('#ficheBadge'), v = f.getForm().getValues(), id = v.id || null;
+        if (!id && !v.employeId) {
+            me.messageBadge('Choisissez l\'employé.', false);
+            return;
+        }
+        var exp = f.down('#badgeExpiration').getValue();
+        me.appelBadge(bouton, 'Enregistrement', '../api/v1/rh/badges', {id: id, employeId: v.employeId || f.down('#badgeEmploye').getValue(),
+            numero: Ext.String.trim(f.down('#badgeNumero').getValue() || ''), dtExpiration: exp ? me.iso(exp) : ''}, function (r) {
+            var g = me.down('#grilleBadges');
+            g.getStore().load({callback: function () {
+                    var rec = g.getStore().findRecord('id', r.id, 0, false, false, true);
+                    if (rec) {
+                        g.getSelectionModel().select(rec);
+                        me.messageBadge(r.msg, true);
+                    }
+                }});
+            me.down('#badgeEmploye').getStore().load();
+        });
+    },
+
+    desactiverBadge: function (b) {
+        var me = this, f = me.down('#ficheBadge'), motif = f.down('#badgeMotif');
+        if (!b.arme) {
+            /* premier clic : motif propose et confirmation dans le bouton */
+            b.arme = true;
+            motif.show();
+            motif.focus(false, 50);
+            b.setText('Confirmer la désactivation');
+            b.minuteur = setTimeout(function () {
+                if (!b.isDestroyed && b.arme) {
+                    b.arme = false;
+                    b.setText('Désactiver');
+                }
+            }, 8000);
+            return;
+        }
+        clearTimeout(b.minuteur);
+        b.arme = false;
+        b.setText('Désactiver');
+        var id = f.getForm().findField('id').getValue();
+        me.appelBadge(b, 'Désactivation', '../api/v1/rh/badges/' + encodeURIComponent(id) + '/desactiver', {motif: motif.getValue() || ''}, function (r) {
+            var msg = r.msg;
+            me.down('#grilleBadges').getStore().load();
+            me.down('#badgeEmploye').getStore().load();
+            me.editerBadge(null);
+            me.messageBadge(msg, true);
+        });
+    },
+
+    imprimerBadges: function () {
+        var me = this, g = me.down('#grilleBadges');
+        var ids = Ext.Array.map(Ext.Array.filter(g.getSelectionModel().getSelection(), function (r) {
+            return r.get('statut') === 'ACTIF';
+        }), function (r) {
+            return r.get('id');
+        });
+        if (!ids.length) {
+            me.messageBadge('Cochez au moins un badge actif à imprimer.', false);
+            return;
+        }
+        window.open('../api/v1/rh/badges/pdf?ids=' + encodeURIComponent(ids.join(',')), '_blank');
+        me.messageBadge(ids.length + ' badge(s) envoyé(s) à l\'impression.', true);
+        Ext.defer(function () {
+            g.getStore().load();
+        }, 1500);
     },
 
     /* ------------------------------------------------------------------ connexions */

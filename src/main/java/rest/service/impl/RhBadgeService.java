@@ -1,0 +1,271 @@
+package rest.service.impl;
+
+import dal.TUser;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.UUID;
+import javax.ejb.Stateless;
+import javax.persistence.EntityManager;
+import javax.persistence.PersistenceContext;
+import org.apache.commons.lang3.StringUtils;
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+/**
+ * Retours du 13/10 (point 3) : badges des employes (onglet « Badges » des ressources humaines). Creer, modifier,
+ * desactiver, imprimer. Un seul badge actif par employe ; le numero du badge actif est recopie dans t_employe.badge,
+ * que la pointeuse utilise deja : un badge desactive n'est plus reconnu au pointage.
+ */
+@Stateless
+public class RhBadgeService {
+
+    public static final String ACTIF = "ACTIF";
+    public static final String DESACTIVE = "DESACTIVE";
+
+    @PersistenceContext(unitName = "JTA_UNIT")
+    private EntityManager em;
+
+    private static JSONObject refus(String msg) {
+        return new JSONObject().put("success", false).put("msg", msg);
+    }
+
+    private static String t(Object o) {
+        return o == null ? "" : String.valueOf(o);
+    }
+
+    @SuppressWarnings("unchecked")
+    private String premier(String sql, Object... p) {
+        javax.persistence.Query q = em.createNativeQuery(sql);
+        for (int i = 0; i < p.length; i++) {
+            q.setParameter(i + 1, p[i]);
+        }
+        List<Object> r = q.setMaxResults(1).getResultList();
+        return r.isEmpty() || r.get(0) == null ? null : String.valueOf(r.get(0));
+    }
+
+    /** Badges (actifs, ou tous), avec l'employe. */
+    @SuppressWarnings("unchecked")
+    public JSONObject badges(String query, boolean inactifs) {
+        StringBuilder sql = new StringBuilder(
+                "SELECT b.id, b.employe_id, b.numero, b.statut, b.dt_emission, b.dt_expiration,"
+                        + " b.motif, b.dt_desactivation, b.nb_impressions, b.dt_impression, e.matricule, e.nom, e.prenoms, e.poste"
+                        + " FROM t_rh_badge b JOIN t_employe e ON e.id = b.employe_id WHERE 1 = 1");
+        if (!inactifs) {
+            sql.append(" AND b.statut = 'ACTIF'");
+        }
+        boolean filtre = StringUtils.isNotBlank(query);
+        if (filtre) {
+            sql.append(" AND CONCAT_WS(' ', b.numero, e.matricule, e.nom, e.prenoms, e.poste) LIKE ?1");
+        }
+        sql.append(" ORDER BY b.statut, e.nom, e.prenoms, b.created_at DESC");
+        javax.persistence.Query q = em.createNativeQuery(sql.toString());
+        if (filtre) {
+            q.setParameter(1, "%" + query.trim() + "%");
+        }
+        JSONArray a = new JSONArray();
+        LocalDate auj = LocalDate.now();
+        for (Object[] l : (List<Object[]>) q.getResultList()) {
+            String exp = t(l[5]);
+            a.put(new JSONObject().put("id", l[0]).put("employeId", l[1]).put("numero", l[2]).put("statut", l[3])
+                    .put("dtEmission", t(l[4])).put("dtExpiration", exp).put("motif", t(l[6]))
+                    .put("dtDesactivation", t(l[7])).put("impressions", ((Number) l[8]).intValue())
+                    .put("dtImpression", t(l[9])).put("matricule", t(l[10])).put("nom", t(l[11]))
+                    .put("prenoms", t(l[12])).put("poste", t(l[13]))
+                    .put("expire", ACTIF.equals(l[3]) && !exp.isEmpty() && LocalDate.parse(exp).isBefore(auj)));
+        }
+        return new JSONObject().put("success", true).put("data", a).put("total", a.length());
+    }
+
+    /** Numero propose quand aucun n'est saisi : BDG suivi d'un compteur (BDG00001, BDG00002...). */
+    String numeroLibre() {
+        String max = premier(
+                "SELECT MAX(CAST(SUBSTRING(numero, 4) AS UNSIGNED)) FROM t_rh_badge WHERE numero REGEXP '^BDG[0-9]+$'");
+        long n = max == null ? 0 : Long.parseLong(max);
+        String numero;
+        do {
+            n++;
+            numero = String.format("BDG%05d", n);
+        } while (premier("SELECT id FROM t_employe WHERE badge = ?1", numero) != null);
+        return numero;
+    }
+
+    /**
+     * Creer (id vide) ou modifier un badge. A la creation, le badge actif de l'employe (s'il en a un) est desactive :
+     * le nouveau le remplace. Seul un badge actif se modifie (numero, expiration).
+     */
+    public JSONObject enregistrer(JSONObject s, TUser operateur) {
+        String id = StringUtils.trimToNull(s.optString("id", null));
+        String employeId = StringUtils.trimToNull(s.optString("employeId", null));
+        String numero = StringUtils.trimToNull(s.optString("numero", null));
+        String saisie = util.ControleSaisie.premier(util.ControleSaisie.longueur("Le numéro du badge", numero, 40),
+                util.ControleSaisie.date("La date d'expiration", s.optString("dtExpiration", null)));
+        if (saisie != null) {
+            return refus(saisie);
+        }
+        LocalDate expiration = StringUtils.isBlank(s.optString("dtExpiration", null)) ? null
+                : LocalDate.parse(s.optString("dtExpiration").substring(0, 10));
+        if (expiration != null && expiration.isBefore(LocalDate.now())) {
+            return refus("La date d'expiration est déjà passée.");
+        }
+        if (numero != null && !numero.matches("[A-Za-z0-9-]+")) {
+            return refus("Le numéro du badge ne contient que des lettres, des chiffres et des tirets.");
+        }
+        String auteur = operateur == null ? null : operateur.getLgUSERID();
+        if (id == null) {
+            if (employeId == null
+                    || premier("SELECT id FROM t_employe WHERE id = ?1 AND statut = 'ACTIF'", employeId) == null) {
+                return refus("Choisissez un employé actif.");
+            }
+            if (numero == null) {
+                numero = numeroLibre();
+            }
+            String porte = porteur(numero, employeId);
+            if (porte != null) {
+                return refus("Ce numéro est déjà porté par " + porte + ".");
+            }
+            String ancien = premier("SELECT numero FROM t_rh_badge WHERE employe_id = ?1 AND statut = 'ACTIF'",
+                    employeId);
+            if (ancien != null) {
+                desactiverActif(employeId, "Remplacé par le badge " + numero, auteur);
+            }
+            id = UUID.randomUUID().toString();
+            em.createNativeQuery("INSERT INTO t_rh_badge (id, employe_id, numero, statut, dt_emission, dt_expiration,"
+                    + " created_at, created_by) VALUES (?1, ?2, ?3, 'ACTIF', CURDATE(), ?4, NOW(), ?5)")
+                    .setParameter(1, id).setParameter(2, employeId).setParameter(3, numero)
+                    .setParameter(4, expiration == null ? null : java.sql.Date.valueOf(expiration))
+                    .setParameter(5, auteur).executeUpdate();
+            recopier(employeId, numero);
+            return new JSONObject().put("success", true).put("id", id).put("numero", numero).put("msg",
+                    ancien == null ? "Badge " + numero + " créé."
+                            : "Badge " + numero + " créé ; il remplace le badge " + ancien + ".");
+        }
+        String[] b = badge(id);
+        if (b == null) {
+            return refus("Badge introuvable.");
+        }
+        if (!ACTIF.equals(b[1])) {
+            return refus("Ce badge est désactivé : créez-en un nouveau.");
+        }
+        if (numero == null) {
+            numero = b[2];
+        }
+        String porte = porteur(numero, b[0]);
+        if (porte != null) {
+            return refus("Ce numéro est déjà porté par " + porte + ".");
+        }
+        em.createNativeQuery("UPDATE t_rh_badge SET numero = ?1, dt_expiration = ?2, updated_at = NOW() WHERE id = ?3")
+                .setParameter(1, numero).setParameter(2, expiration == null ? null : java.sql.Date.valueOf(expiration))
+                .setParameter(3, id).executeUpdate();
+        recopier(b[0], numero);
+        return new JSONObject().put("success", true).put("id", id).put("numero", numero).put("msg",
+                "Badge " + numero + " enregistré.");
+    }
+
+    /** Desactiver un badge actif (perdu, rendu, abime...) : il n'est plus reconnu au pointage. */
+    public JSONObject desactiver(String id, String motif, TUser operateur) {
+        String[] b = badge(id);
+        if (b == null) {
+            return refus("Badge introuvable.");
+        }
+        if (!ACTIF.equals(b[1])) {
+            return refus("Ce badge est déjà désactivé.");
+        }
+        String m = StringUtils.abbreviate(StringUtils.defaultIfBlank(StringUtils.trimToNull(motif), "Désactivé"), 200);
+        desactiverActif(b[0], m, operateur == null ? null : operateur.getLgUSERID());
+        return new JSONObject().put("success", true).put("msg",
+                "Badge " + b[2] + " désactivé : il n'est plus reconnu au pointage.");
+    }
+
+    /**
+     * Fiche employe (numero saisi dans la fiche) : l'historique suit. Nouveau numero : l'ancien badge actif est
+     * desactive et le nouveau devient actif ; numero efface : le badge actif est desactive.
+     */
+    public void suivreFicheEmploye(String employeId, String numero, TUser operateur) {
+        String actif = premier("SELECT numero FROM t_rh_badge WHERE employe_id = ?1 AND statut = 'ACTIF'", employeId);
+        String n = StringUtils.trimToNull(numero);
+        if (StringUtils.equals(actif, n)) {
+            return;
+        }
+        String auteur = operateur == null ? null : operateur.getLgUSERID();
+        if (actif != null) {
+            desactiverActif(employeId,
+                    n == null ? "Retiré depuis la fiche employé" : "Remplacé depuis la fiche employé par " + n, auteur);
+        }
+        if (n != null) {
+            /*
+             * un ancien badge desactive portant ce numero reste dans l'historique ; le nouveau est une nouvelle ligne
+             */
+            em.createNativeQuery(
+                    "INSERT INTO t_rh_badge (id, employe_id, numero, statut, dt_emission, created_at, created_by)"
+                            + " VALUES (?1, ?2, ?3, 'ACTIF', CURDATE(), NOW(), ?4)")
+                    .setParameter(1, UUID.randomUUID().toString()).setParameter(2, employeId).setParameter(3, n)
+                    .setParameter(4, auteur).executeUpdate();
+        }
+        recopier(employeId, n);
+    }
+
+    /** Badges a imprimer (dans l'ordre donne), impressions comptees. Seuls les badges actifs s'impriment. */
+    @SuppressWarnings("unchecked")
+    public List<BadgePdf.Carte> pourImpression(Collection<String> ids) {
+        List<BadgePdf.Carte> cartes = new ArrayList<>();
+        for (String id : ids) {
+            List<Object[]> r = em
+                    .createNativeQuery("SELECT b.numero, e.nom, e.prenoms, e.poste, e.matricule, b.dt_expiration"
+                            + " FROM t_rh_badge b JOIN t_employe e ON e.id = b.employe_id WHERE b.id = ?1 AND b.statut = 'ACTIF'")
+                    .setParameter(1, id).getResultList();
+            if (r.isEmpty()) {
+                continue;
+            }
+            Object[] l = r.get(0);
+            cartes.add(new BadgePdf.Carte(t(l[0]), t(l[1]), t(l[2]), t(l[3]), t(l[4]),
+                    l[5] == null ? null : LocalDate.parse(t(l[5]))));
+            em.createNativeQuery(
+                    "UPDATE t_rh_badge SET nb_impressions = nb_impressions + 1, dt_impression = NOW() WHERE id = ?1")
+                    .setParameter(1, id).executeUpdate();
+        }
+        return cartes;
+    }
+
+    /** Nom abrege de l'officine (bandeau des cartes). */
+    public String officine() {
+        return StringUtils
+                .defaultString(premier("SELECT COALESCE(NULLIF(str_NOM_ABREGE, ''), str_NOM_COMPLET) FROM t_officine"
+                        + " ORDER BY lg_OFFICINE_ID = '1' DESC"));
+    }
+
+    /** employe, statut, numero ; null si inconnu. */
+    @SuppressWarnings("unchecked")
+    private String[] badge(String id) {
+        List<Object[]> r = em.createNativeQuery("SELECT employe_id, statut, numero FROM t_rh_badge WHERE id = ?1")
+                .setParameter(1, StringUtils.defaultString(id)).getResultList();
+        return r.isEmpty() ? null : new String[] { t(r.get(0)[0]), t(r.get(0)[1]), t(r.get(0)[2]) };
+    }
+
+    /** Nom de l'autre employe qui porte deja ce numero (badge actif ou fiche), sinon null. */
+    private String porteur(String numero, String employeId) {
+        String nom = premier(
+                "SELECT CONCAT(e.nom, ' ', COALESCE(e.prenoms, '')) FROM t_rh_badge b JOIN t_employe e ON e.id = b.employe_id"
+                        + " WHERE b.numero_actif = ?1 AND b.employe_id <> ?2",
+                numero, employeId);
+        if (nom == null) {
+            nom = premier("SELECT CONCAT(nom, ' ', COALESCE(prenoms, '')) FROM t_employe WHERE badge = ?1 AND id <> ?2",
+                    numero, employeId);
+        }
+        return nom == null ? null : nom.trim();
+    }
+
+    private void desactiverActif(String employeId, String motif, String auteur) {
+        em.createNativeQuery(
+                "UPDATE t_rh_badge SET statut = 'DESACTIVE', motif = ?1, dt_desactivation = NOW(), desactive_par = ?2,"
+                        + " updated_at = NOW() WHERE employe_id = ?3 AND statut = 'ACTIF'")
+                .setParameter(1, motif).setParameter(2, auteur).setParameter(3, employeId).executeUpdate();
+        recopier(employeId, null);
+    }
+
+    private void recopier(String employeId, String numero) {
+        em.createNativeQuery("UPDATE t_employe SET badge = ?1, updated_at = NOW() WHERE id = ?2")
+                .setParameter(1, numero).setParameter(2, employeId).executeUpdate();
+    }
+}
