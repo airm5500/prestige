@@ -82,6 +82,12 @@ public class ServeurVieService {
     }
 
     @TransactionAttribute(TransactionAttributeType.REQUIRES_NEW)
+    public void enregistrerParametre(String cle, String valeur) {
+        em.createNativeQuery("UPDATE t_parameters SET str_VALUE = ?1, dt_UPDATED = NOW() WHERE str_KEY = ?2")
+                .setParameter(1, valeur).setParameter(2, cle).executeUpdate();
+    }
+
+    @TransactionAttribute(TransactionAttributeType.REQUIRES_NEW)
     public void signe(long id) {
         em.createNativeQuery("UPDATE t_serveur_vie SET dernier_signe_at = NOW() WHERE id = ?1").setParameter(1, id)
                 .executeUpdate();
@@ -154,7 +160,7 @@ public class ServeurVieService {
         for (Object[] r : (List<Object[]>) em
                 .createNativeQuery("SELECT id, hote, demarre_at, dernier_signe_at, arrete_at,"
                         + " arret, cause_code, cause_libelle, cause_explication, cause_conseil, indisponibilite_min, java_version,"
-                        + " memoire_max_mo FROM t_serveur_vie ORDER BY id DESC LIMIT "
+                        + " memoire_max_mo FROM t_serveur_vie ORDER BY demarre_at DESC, id DESC LIMIT "
                         + Math.max(1, Math.min(500, limite)))
                 .getResultList()) {
             a.put(new JSONObject().put("id", l(r[0])).put("hote", r[1]).put("demarre", texte(r[2]))

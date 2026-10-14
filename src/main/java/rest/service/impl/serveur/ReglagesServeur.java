@@ -195,7 +195,7 @@ public final class ReglagesServeur {
         taille(l, mariadb, "innodb_log_buffer_size", "Journal InnoDB en mémoire", 64 * MO, 16 * MO, 256 * MO,
                 "64 Mo suffisent ; une grande valeur immobilise de la mémoire sans rien accélérer.");
         taille(l, mariadb, "max_allowed_packet", "Taille maximale d'une requête", 256 * MO, 64 * MO, 512 * MO,
-                "1 Go autorise des requêtes énormes qui peuvent saturer la mémoire ; 256 Mo couvrent les images et imports.");
+                "Trop grand, une requête énorme peut saturer la mémoire ; trop petit, les images et les imports échouent. 256 Mo couvrent les deux.");
         taille(l, mariadb, "tmp_table_size", "Tables temporaires en mémoire", 128 * MO, 32 * MO, 256 * MO,
                 "Réservé par requête qui trie ou regroupe : à garder modéré.");
         taille(l, mariadb, "max_heap_table_size", "Tables en mémoire (maximum)", 128 * MO, 32 * MO, 256 * MO,

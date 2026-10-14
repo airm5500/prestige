@@ -802,7 +802,7 @@ window.PrestigeAffichage.ECRANS_COLLES = [
     'diffmanager','valorisationstock',
     // centre de support
     'supportcontact', 'supporttickets', 'supportdiagnostic',
-    'supportsante', 'supporthistorique', 'supportmaintenance',
+    'supportsante', 'supportserveur', 'supporthistorique', 'supportmaintenance',
     // depots et carnets
     'tierpayantasdepot', 'reglementdepot',
     // ventes et caisse

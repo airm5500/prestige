@@ -178,6 +178,11 @@ public class SupportWatchdog {
         return hote;
     }
 
+    /** Dossier du support (vidages memoire, rapports de plantage : sous-dossier « dumps »). */
+    public Path getStorageBase() {
+        return storageBase != null ? storageBase : resolveStorageBase();
+    }
+
     private void enregistrerSession() {
         try {
             hote = java.net.InetAddress.getLocalHost().getHostName();
@@ -211,7 +216,7 @@ public class SupportWatchdog {
     }
 
     /** Dossier des journaux de Payara : parametre s'il existe, sinon celui du domaine en cours. */
-    private Path dossierLogs() {
+    public Path dossierLogs() {
         if (StringUtils.isNotBlank(serverLogDir) && Files.isDirectory(Paths.get(serverLogDir))) {
             return Paths.get(serverLogDir);
         }
