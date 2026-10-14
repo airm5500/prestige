@@ -91,6 +91,9 @@ function nettoyer() {
     const lignes1 = q("SELECT CONCAT_WS('|', str_CHEMIN, IFNULL(str_CHEMIN_VIGNETTE, ''), str_TYPE, bool_PRINCIPALE, int_LARGEUR) FROM t_famille_image WHERE lg_FAMILLE_ID = '" + P + "'");
     ok('Ajout par l\'écran : image affichée (vignette ≤ 240 px), bouton « Modifier »', v1.img && v1.l > 0 && v1.l <= 240 && v1.bouton === 'Modifier', JSON.stringify(v1));
     ok('En base : chemin relatif images-produits/AAAA/MM, vignette, PNG, principale, largeur 900', /^images-produits\/\d{4}\/\d{2}\/[0-9a-f-]+\.png\|images-produits\/\d{4}\/\d{2}\/[0-9a-f-]+_v\.jpg\|png\|1\|900$/.test(lignes1), lignes1);
+    /* retours du 13/10 (point 2) : ni chemin du fichier ni dossier des images sur la fiche */
+    ok('Aucun chemin de fichier ni dossier affiché sur la fiche', await p.evaluate(() => !document.querySelector('.img-chemin')
+      && !/images_produits|images-produits|Dossier des images/.test(document.body.innerText)));
     ok('Fichier et vignette écrits sur le disque', fichiers().length === n0 + 2 && lignes1.split('|').slice(0, 2).every((c) => fs.existsSync(disque(c))));
     await p.screenshot({ path: CAPT + '/image-produit-modification.png' });
 
