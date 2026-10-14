@@ -89,8 +89,9 @@ function nettoyer(debut) {
   try {
     const p = await (await b.newContext({ viewport: { width: 1600, height: 1000 } })).newPage();
     await ouvrir(p);
-    const nav = await p.evaluate(() => { let t = null; Ext.ComponentQuery.query('navigation')[0].getStore().getRootNode().cascadeBy((n) => { if (n.get('id') === 'campagnes') { t = n.get('text'); } }); return t; });
-    ok('Menu « Campagnes SMS / WhatsApp » présent (SERVICE CLIENT)', nav === 'Campagnes SMS / WhatsApp', nav);
+    const nav = await p.evaluate(() => { let t = null; Ext.ComponentQuery.query('navigation')[0].getStore().getRootNode().cascadeBy((n) => {
+      if (n.get('id') === 'campagnes') { const m = n.parentNode; t = m.get('text') + ' > ' + m.childNodes.map((x) => x.get('text')).join(', '); } }); return t; });
+    ok('Menu « Campagnes SMS / WhatsApp » (menu principal) : sous-menus Campagnes et Comptes WhatsApp', nav === 'Campagnes SMS / WhatsApp > Campagnes, Comptes WhatsApp', nav);
     await p.evaluate(() => testextjs.app.getController('App').onRedirectTo('campagnes', {}));
     await p.waitForFunction(() => { const v = Ext.ComponentQuery.query('campagnes')[0]; return v && v.contexte; }, null, { timeout: 60000 });
     await p.waitForTimeout(1000);
