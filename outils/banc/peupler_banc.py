@@ -38,12 +38,14 @@ P.add_argument('--dossier', default='/tmp/peuplement')
 P.add_argument('--retirer', action='store_true')
 A = P.parse_args()
 R = random.Random(A.graine)
+RP = random.Random(A.graine + 1)  # peremptions : tirage a part, le reste du peuplement est inchange
 MARQUE = 'f00d'
 
 TABLES = ['t_tiers_payant', 't_client', 't_compte_client', 't_ayant_droit', 't_compte_client_tiers_payant',
           't_order', 't_bon_livraison', 't_bon_livraison_detail', 't_reglement', 't_preenregistrement',
           't_preenregistrement_detail', 't_preenregistrement_compte_client_tiers_payent', 'vente_reglement',
-          'mvttransaction', 't_recettes', 'hmvtproduit', 't_resume_caisse', 't_order_detail', 'ligne_resume_caisse']
+          'mvttransaction', 't_recettes', 'hmvtproduit', 't_resume_caisse', 't_order_detail', 'ligne_resume_caisse',
+          't_warehouse']
 
 
 def sql(q):
@@ -83,7 +85,8 @@ CLES = {'t_tiers_payant': 'lg_TIERS_PAYANT_ID', 't_client': 'lg_CLIENT_ID', 't_c
         't_preenregistrement': 'lg_PREENREGISTREMENT_ID', 't_preenregistrement_detail': 'lg_PREENREGISTREMENT_DETAIL_ID',
         't_preenregistrement_compte_client_tiers_payent': 'lg_PREENREGISTREMENT_COMPTE_CLIENT_PAYENT_ID',
         'vente_reglement': 'id', 'mvttransaction': 'uuid', 't_recettes': 'ID_RECETTE', 'hmvtproduit': 'uuid',
-        't_resume_caisse': 'ld_CAISSE_ID', 't_order_detail': 'lg_ORDERDETAIL_ID', 'ligne_resume_caisse': 'resume_caisse_id'}
+        't_resume_caisse': 'ld_CAISSE_ID', 't_order_detail': 'lg_ORDERDETAIL_ID', 'ligne_resume_caisse': 'resume_caisse_id',
+        't_warehouse': 'lg_WAREHOUSE_ID'}
 
 if A.retirer:
     q = 'SET FOREIGN_KEY_CHECKS = 0; ' + ' '.join(
@@ -124,6 +127,7 @@ M = {
     'tp_vente': modele('t_preenregistrement_compte_client_tiers_payent', f"lg_PREENREGISTREMENT_ID = '{VO}'"),
     'bl': modele('t_bon_livraison', "str_STATUT = 'is_Closed' ORDER BY dt_UPDATED DESC"),
     'caisse': modele('t_resume_caisse', '1 = 1 ORDER BY dt_CREATED DESC'),
+    'wh': modele('t_warehouse', '1 = 1 ORDER BY dt_CREATED DESC'),
 }
 M['bl_det'] = modele('t_bon_livraison_detail', f"lg_BON_LIVRAISON_ID = '{M['bl']['lg_BON_LIVRAISON_ID']}'")
 M['order'] = modele('t_order', f"lg_ORDER_ID = '{M['bl']['lg_ORDER_ID']}'")
@@ -411,12 +415,14 @@ for (jour, grossiste), lignes in sorted(LIVRAISONS.items()):
                             int_PRICE=sum(p['paf'] * q for p, q, _, _ in lignes),
                             str_REF_ORDER='CMD' + jour.strftime('%y%m%d') + str(R.randint(100, 999))))
     bid = ident('t_bon_livraison', 'lg_BON_LIVRAISON_ID')
+    ref_bl = str(R.randrange(10 ** 11, 10 ** 12))  # meme ordre de tirage qu'avant (reference puis receptionnaire)
+    reception = R.choice(CAISSIERS)
     mht = sum(p['paf'] * q for p, q, _, _ in lignes)
     tva = sum(round(p['paf'] * q * p['tva'] / 100) for p, q, _, _ in lignes)
-    ecrire('t_bon_livraison', copie(M['bl'], lg_BON_LIVRAISON_ID=bid, str_REF_LIVRAISON=str(R.randrange(10 ** 11, 10 ** 12)),
+    ecrire('t_bon_livraison', copie(M['bl'], lg_BON_LIVRAISON_ID=bid, str_REF_LIVRAISON=ref_bl,
                                     dt_DATE_LIVRAISON=h(dt.datetime.combine(jour, dt.time())), int_MHT=mht, int_TVA=tva,
                                     int_HTTC=mht + tva, lg_ORDER_ID=oid, dt_CREATED=h(t), dt_UPDATED=h(t),
-                                    lg_USER_ID=R.choice(CAISSIERS), STATUS='REGLE' if jour < maintenant.date() - dt.timedelta(days=45) else 'NON REGLE'))
+                                    lg_USER_ID=reception, STATUS='REGLE' if jour < maintenant.date() - dt.timedelta(days=45) else 'NON REGLE'))
     for p, q, avant, apres in lignes:
         ecrire('t_order_detail', copie(M['order_det'], lg_ORDERDETAIL_ID=ident('t_order_detail', 'lg_ORDERDETAIL_ID'),
                                        lg_ORDER_ID=oid, lg_FAMILLE_ID=p['id'], lg_GROSSISTE_ID=grossiste, int_NUMBER=q,
@@ -431,6 +437,13 @@ for (jour, grossiste), lignes in sorted(LIVRAISONS.items()):
                                                int_PRIX_VENTE=p['prix'], int_PAF=p['paf'], int_PA_REEL=p['paf'],
                                                dt_CREATED=h(t), dt_UPDATED=h(t), int_QTE_MANQUANT=0, int_INITSTOCK=avant,
                                                prixTarif=p['paf'], lots='[]'))
+        # entree en stock (t_warehouse) : derniere entree, articles dormants, perimes
+        ecrire('t_warehouse', copie(M['wh'], lg_WAREHOUSE_ID=did, lg_USER_ID=reception, lg_FAMILLE_ID=p['id'],
+                                    int_NUM_LOT=None, int_NUMBER=q, dt_CREATED=h(t), dt_UPDATED=h(t),
+                                    lg_GROSSISTE_ID=grossiste, str_REF_LIVRAISON=ref_bl, dt_SORTIE_USINE=h(t),
+                                    dt_PEREMPTION=h(t + dt.timedelta(days=RP.randint(300, 1100))),
+                                    int_NUMBER_GRATUIT=0, str_STATUT='enable', str_REF_ORDER=None,
+                                    str_CODE_ETIQUETTE=None, int_NUMBER_DELETE=0, stock_initial=avant, stock_final=apres))
         ecrire('hmvtproduit', copie(M['hmvt_bl'], uuid=ident('hmvtproduit', 'uuid'), createdAt=h(t), mvtdate=str(jour),
                                     pkey=did, prixAchat=p['paf'], prixUn=p['prix'], qteDebut=avant, qteFinale=apres,
                                     qteMvt=q, valeurTva=p['tva'], lg_EMPLACEMENT_ID='1', lg_FAMILLE_ID=p['id'],

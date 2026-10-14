@@ -24,7 +24,21 @@ const DEBUT = q('SELECT NOW() - INTERVAL 1 SECOND');
 const M = 'E2E-REG', U = 'E2E-REG-U', CAISSE = 'E2E-REG-CAISSE';
 const SANS_MVT = "SELECT f.lg_FAMILLE_ID FROM t_famille f WHERE f.str_STATUT = 'enable' AND f.int_CIP <> ''"
   + " AND NOT EXISTS (SELECT 1 FROM hmvtproduit h WHERE h.lg_FAMILLE_ID = f.lg_FAMILLE_ID) ORDER BY f.str_NAME LIMIT 2";
-const [F1, F2] = q(SANS_MVT).split('\n');
+/* deux produits sans aucun mouvement. Sur une base ou tous les produits ont deja bouge (banc peuple sur 3 ans),
+   le test les cree, copies d'un produit existant, et les retire a la fin. */
+let [F1, F2] = q(SANS_MVT).split('\n');
+const CREES = [];
+if (!F1 || !F2) {
+  const MODELE = q("SELECT lg_FAMILLE_ID FROM t_famille WHERE str_STATUT = 'enable' AND int_CIP <> '' ORDER BY str_NAME LIMIT 1");
+  [['E2E-REG-F1', '9990421'], ['E2E-REG-F2', '9990422']].forEach(([id, cip]) => {
+    exec(`DELETE FROM t_famille WHERE lg_FAMILLE_ID = '${id}';`
+      + `CREATE TEMPORARY TABLE tmp_f SELECT * FROM t_famille WHERE lg_FAMILLE_ID = '${MODELE}';`
+      + `UPDATE tmp_f SET lg_FAMILLE_ID = '${id}', int_CIP = '${cip}', str_NAME = 'ZZ E2E REGUL ${id.slice(-2)}', int_EAN13 = NULL;`
+      + 'INSERT INTO t_famille SELECT * FROM tmp_f; DROP TEMPORARY TABLE tmp_f;');
+    CREES.push(id);
+  });
+  [F1, F2] = CREES;
+}
 const DEP = q("SELECT lg_EMPLACEMENT_ID FROM t_emplacement WHERE lg_EMPLACEMENT_ID <> '1' ORDER BY lg_EMPLACEMENT_ID LIMIT 1");
 const droit = privilegeEssai(q, exec, 'admin', 'P_AUDIT_REGULARISER');
 const ligne = (id, quand, debut, fin, qte, type, f, e) => `('${M}-${id}', b'1', '2038-08-20 ${quand}', '2038-08-20', '${M}', 100, 200, ${debut}, ${fin}, ${qte}, 0, '${e}', '${f}', '${ADMIN}', '${type}', 0)`;
@@ -159,9 +173,11 @@ function poser() {
   } finally {
     droit.remettre();
     retirer();
+    if (CREES.length) exec(`DELETE FROM t_famille WHERE lg_FAMILLE_ID IN ('${CREES.join("','")}')`);
     await b.close();
     ok('Données du test retirées', q(`SELECT COUNT(*) FROM hmvtproduit WHERE uuid LIKE '${M}-%'`) === '0'
-      && q(`SELECT COUNT(*) FROM t_user WHERE lg_USER_ID = '${U}'`) === '0' && q(`SELECT COUNT(*) FROM t_audit_regularisation WHERE created_at >= '${DEBUT}'`) === '0');
+      && q(`SELECT COUNT(*) FROM t_user WHERE lg_USER_ID = '${U}'`) === '0' && q(`SELECT COUNT(*) FROM t_audit_regularisation WHERE created_at >= '${DEBUT}'`) === '0'
+      && q("SELECT COUNT(*) FROM t_famille WHERE lg_FAMILLE_ID LIKE 'E2E-REG-F%'") === '0');
   }
   const ko = res.filter((x) => !x.c).length;
   console.log('\n' + (res.length - ko) + '/' + res.length + ' OK');

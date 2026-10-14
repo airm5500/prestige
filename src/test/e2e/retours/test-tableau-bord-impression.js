@@ -29,6 +29,9 @@ const mesurer = (sel) => {
   const p = await (await b.newContext({ viewport: { width: 1600, height: 1000 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   try {
+    /* une carte vide garantie quel que soit le volume de la base (sur une base active, toutes les cartes ont des données) :
+       la réponse des encaissements du jour est remplacée par « aucun mode » */
+    await p.route('**/api/v1/tableau-bord/encaissements**', (r) => r.fulfill({ contentType: 'application/json', body: JSON.stringify({ success: true, modes: [] }) }));
     await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
     await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
