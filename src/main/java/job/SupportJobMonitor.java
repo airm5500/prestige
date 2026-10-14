@@ -49,7 +49,8 @@ public class SupportJobMonitor {
             List<Object[]> jobs = lireJobsActifs();
             for (Object[] job : jobs) {
                 verifierJob(String.valueOf(job[0]), String.valueOf(job[1]), String.valueOf(job[2]),
-                        ((Number) job[3]).longValue(), job[4] == null ? null : String.valueOf(job[4]));
+                        ((Number) job[3]).longValue(), job[4] == null ? null : String.valueOf(job[4]),
+                        toLocalDateTime(job[5]));
             }
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "SupportJobMonitor.verifier", e);
@@ -58,11 +59,12 @@ public class SupportJobMonitor {
 
     @SuppressWarnings("unchecked")
     private List<Object[]> lireJobsActifs() {
-        return em.createNativeQuery("SELECT code, libelle, requete_sql, max_age_minutes, parametre_actif"
+        return em.createNativeQuery("SELECT code, libelle, requete_sql, max_age_minutes, parametre_actif, absent_depuis"
                 + " FROM t_support_job WHERE actif = 1 ORDER BY ordre").getResultList();
     }
 
-    private void verifierJob(String code, String libelle, String sql, long maxAgeMinutes, String parametreActif) {
+    private void verifierJob(String code, String libelle, String sql, long maxAgeMinutes, String parametreActif,
+            LocalDateTime absentDepuis) {
         try {
             if (!isSelectSeul(sql)) {
                 return;
@@ -75,17 +77,50 @@ public class SupportJobMonitor {
             }
             LocalDateTime dernier = premierResultatDate(sql);
             LocalDateTime now = LocalDateTime.now();
-            if (dernier == null) {
-                alerter(code, libelle, "aucun passage trouve (le job n'a peut-etre jamais tourne)", null,
-                        maxAgeMinutes);
-                return;
+            if (dernier == null && absentDepuis == null) {
+                absentDepuis = now;
+                noterAbsence(code, now);
+            } else if (dernier != null && absentDepuis != null) {
+                noterAbsence(code, null);
             }
-            long ageMinutes = ChronoUnit.MINUTES.between(dernier, now);
-            if (ageMinutes > maxAgeMinutes) {
-                alerter(code, libelle, "dernier passage il y a " + (ageMinutes / 60) + " h", dernier, maxAgeMinutes);
+            String retard = retard(dernier, absentDepuis, now, maxAgeMinutes);
+            if (retard != null) {
+                alerter(code, libelle, retard, dernier, maxAgeMinutes);
             }
         } catch (Exception e) {
             LOG.log(Level.WARNING, "verifierJob " + code, e);
+        }
+    }
+
+    /**
+     * Retard d'un job, ou null s'il n'y en a pas. Jamais passe : en retard seulement une fois le delai tolere ecoule
+     * depuis le premier constat de son absence (journaux du 13/10 : un job mensuel etait signale toutes les heures
+     * avant meme son premier jour de passage).
+     */
+    static String retard(LocalDateTime dernier, LocalDateTime absentDepuis, LocalDateTime now, long maxAgeMinutes) {
+        if (dernier == null) {
+            if (absentDepuis == null || ChronoUnit.MINUTES.between(absentDepuis, now) <= maxAgeMinutes) {
+                return null;
+            }
+            return "aucun passage depuis le "
+                    + absentDepuis.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"))
+                    + " (premier constat)";
+        }
+        long ageMinutes = ChronoUnit.MINUTES.between(dernier, now);
+        return ageMinutes > maxAgeMinutes ? "dernier passage il y a " + (ageMinutes / 60) + " h" : null;
+    }
+
+    private void noterAbsence(String code, LocalDateTime quand) {
+        try {
+            if (quand == null) {
+                em.createNativeQuery("UPDATE t_support_job SET absent_depuis = NULL WHERE code = ?")
+                        .setParameter(1, code).executeUpdate();
+            } else {
+                em.createNativeQuery("UPDATE t_support_job SET absent_depuis = ? WHERE code = ?")
+                        .setParameter(1, Timestamp.valueOf(quand)).setParameter(2, code).executeUpdate();
+            }
+        } catch (Exception e) {
+            LOG.log(Level.FINE, "noterAbsence " + code, e);
         }
     }
 

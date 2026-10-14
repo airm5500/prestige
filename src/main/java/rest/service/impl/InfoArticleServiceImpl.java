@@ -15,6 +15,7 @@ import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 import javax.persistence.Tuple;
 import rest.service.InfoArticleService;
+import rest.service.ProduitExtraInfoCles;
 import rest.service.ProduitExtraInfoService;
 import rest.service.dto.InfoArticleDTO;
 import util.DateUtil;
@@ -55,7 +56,7 @@ public class InfoArticleServiceImpl implements InfoArticleService {
     private InfoArticleDTO tupleToDto(Tuple tuple, Map<String, ProduitExtraInfoDTO> extras) {
         String produitId = tuple.get("produitId", String.class);
         String emplacementId = tuple.get("emplacementId", String.class);
-        ProduitExtraInfoDTO extra = extras.get(ProduitExtraInfoService.cle(produitId, emplacementId));
+        ProduitExtraInfoDTO extra = extras.get(ProduitExtraInfoCles.cle(produitId, emplacementId));
         return InfoArticleDTO.builder().grossiste(tuple.get("grossiste", String.class))
                 .emplacement(tuple.get("emplacement", String.class)).produitId(produitId)
                 .codeCip(tuple.get("codeCip", String.class)).libelle(tuple.get("libelle", String.class))

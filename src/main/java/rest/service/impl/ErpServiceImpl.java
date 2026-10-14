@@ -65,6 +65,7 @@ import javax.persistence.criteria.Root;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.math.NumberUtils;
 import rest.service.ErpService;
+import rest.service.ProduitExtraInfoCles;
 import rest.service.ProduitExtraInfoService;
 import util.DateConverter;
 import util.DateUtil;
@@ -412,7 +413,7 @@ public class ErpServiceImpl implements ErpService {
         stocks.forEach(fs -> {
             ErProduitDTO dto = new ErProduitDTO(fs);
             enrichirCheckProduit(dto,
-                    extras.get(ProduitExtraInfoService.cle(fs.getLgFAMILLEID().getLgFAMILLEID(), emplacement(fs))));
+                    extras.get(ProduitExtraInfoCles.cle(fs.getLgFAMILLEID().getLgFAMILLEID(), emplacement(fs))));
             datas.add(dto);
         });
         return datas;

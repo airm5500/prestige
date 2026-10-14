@@ -111,7 +111,8 @@ public class SupportPreflight {
         boolean anomalie = aAnomalie(controles);
         String synthese = synthese(controles);
         if (anomalie) {
-            LOG.log(Level.WARNING, "Auto-diagnostic du support : {0}", synthese);
+            LOG.log(Level.WARNING, "Auto-diagnostic du support : {0} : {1}",
+                    new Object[] { synthese, anomaliesEnClair(controles) });
             if (tracer) {
                 tracerAnomalies(controles, synthese);
             }
@@ -477,6 +478,17 @@ public class SupportPreflight {
             }
         }
         return false;
+    }
+
+    /** Points en anomalie, nommes, pour le journal du serveur (libelle : detail ; ...). */
+    static String anomaliesEnClair(List<Controle> controles) {
+        StringBuilder sb = new StringBuilder();
+        for (Controle controle : controles) {
+            if (!controle.ok) {
+                sb.append(sb.length() == 0 ? "" : " ; ").append(controle.libelle).append(" : ").append(controle.detail);
+            }
+        }
+        return sb.toString();
     }
 
     static String synthese(List<Controle> controles) {

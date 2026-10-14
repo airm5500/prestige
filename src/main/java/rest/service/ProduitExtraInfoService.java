@@ -17,11 +17,8 @@ public interface ProduitExtraInfoService {
     /**
      * Meme calcul que {@link #getExtraInfo(String, String)} pour une liste de produits, en quelques requetes groupees
      * au lieu de 6 a 7 requetes par produit. Cles : {familleId, emplacementId} ; resultat indexe par
-     * {@link #cle(String, String)}. Un produit absent de la base donne un DTO vide, comme getExtraInfo.
+     * {@link ProduitExtraInfoCles#cle(String, String)}. Un produit absent de la base donne un DTO vide, comme
+     * getExtraInfo.
      */
     Map<String, ProduitExtraInfoDTO> getExtraInfos(Collection<String[]> cles);
-
-    static String cle(String familleId, String emplacementId) {
-        return familleId + "|" + emplacementId;
-    }
 }

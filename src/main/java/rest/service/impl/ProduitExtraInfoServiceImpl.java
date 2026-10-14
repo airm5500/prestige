@@ -17,6 +17,7 @@ import javax.ejb.Stateless;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 import javax.persistence.TemporalType;
+import rest.service.ProduitExtraInfoCles;
 import rest.service.ProduitExtraInfoService;
 import util.DateUtil;
 
@@ -153,17 +154,17 @@ public class ProduitExtraInfoServiceImpl implements ProduitExtraInfoService {
             List<String> tranche = liste.subList(i, Math.min(i + TRANCHE, liste.size()));
             lignes(REQ_FAMILLES, tranche).forEach(r -> familles.put((String) r[0], r));
             lignes(REQ_VENTES, tranche)
-                    .forEach(r -> ventes.put(ProduitExtraInfoService.cle((String) r[0], (String) r[1]), r));
+                    .forEach(r -> ventes.put(ProduitExtraInfoCles.cle((String) r[0], (String) r[1]), r));
             lignes(REQ_ACHATS, tranche).forEach(r -> achats.put((String) r[0], r));
             lignes(REQ_INVENTAIRES, tranche)
-                    .forEach(r -> inventaires.put(ProduitExtraInfoService.cle((String) r[0], (String) r[1]), r));
-            lignes(REQ_RESERVES, tranche).forEach(r -> reserves
-                    .putIfAbsent(ProduitExtraInfoService.cle((String) r[0], (String) r[1]), (Number) r[2]));
+                    .forEach(r -> inventaires.put(ProduitExtraInfoCles.cle((String) r[0], (String) r[1]), r));
+            lignes(REQ_RESERVES, tranche).forEach(
+                    r -> reserves.putIfAbsent(ProduitExtraInfoCles.cle((String) r[0], (String) r[1]), (Number) r[2]));
         }
         for (String[] c : cles) {
             String familleId = c[0];
             String emplacementId = c[1];
-            String cle = ProduitExtraInfoService.cle(familleId, emplacementId);
+            String cle = ProduitExtraInfoCles.cle(familleId, emplacementId);
             ProduitExtraInfoDTO extra = new ProduitExtraInfoDTO();
             resultat.put(cle, extra);
             Object[] f = familles.get(familleId);
@@ -193,7 +194,7 @@ public class ProduitExtraInfoServiceImpl implements ProduitExtraInfoService {
                 extra.setSeuilReserve(f[4] != null ? ((Number) f[4]).intValue() : null);
                 extra.setSeuilMiniRayon(f[5] != null ? ((Number) f[5]).intValue() : null);
                 Number reserve = reserves
-                        .get(ProduitExtraInfoService.cle(familleId, emplacementId != null ? emplacementId : ""));
+                        .get(ProduitExtraInfoCles.cle(familleId, emplacementId != null ? emplacementId : ""));
                 extra.setStockReserve(reserve != null ? reserve.intValue() : 0);
             }
         }

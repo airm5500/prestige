@@ -189,4 +189,14 @@ class SupportPreflightTest {
                 .count();
         assertEquals(1L, lignesEnAnomalie, "une seule ligne en anomalie");
     }
+
+    /** Journaux du 13/10 : « 2 anomalie(s) sur 11 » sans dire lesquelles. Le journal les nomme maintenant. */
+    @Test
+    void anomaliesNommeesDansLeJournal() {
+        List<SupportPreflight.Controle> controles = Arrays.asList(SupportPreflight.Controle.ok("A", "Stockage", "ok"),
+                SupportPreflight.Controle.anomalie("B", "Privilege PROCESS", "refuse"), SupportPreflight.Controle
+                        .anomalie("C", "Destinataire des notifications d'incident", "SUPPORT_EMAIL vide"));
+        assertEquals("Privilege PROCESS : refuse ; Destinataire des notifications d'incident : SUPPORT_EMAIL vide",
+                SupportPreflight.anomaliesEnClair(controles));
+    }
 }
