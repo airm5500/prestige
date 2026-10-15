@@ -46,6 +46,8 @@ public class MobileClientRefService {
     /** Reserve (demande 15) : creation de suggestion, assort / reassort. */
     public static final String TYPE_SUGGESTION_RESERVE = "SUGG_RESERVE";
     public static final String TYPE_MOUVEMENT_RESERVE = "MVT_RESERVE";
+    /** Reserve (demande 33) : ajout d'une ligne a une suggestion. */
+    public static final String TYPE_LIGNE_RESERVE = "LIGNE_RESERVE";
     /** Envoi PharmaML d'une suggestion (demande 2). */
     public static final String TYPE_ENVOI_PHARMAML = "ENVOI_PHARMAML";
     /** Creation et cloture d'ajustement (demandes 1 et 13) : meme cle = meme reponse, rien de refait. */

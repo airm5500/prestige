@@ -256,6 +256,34 @@ public class SuggestionReserveRessource {
         return Response.ok().entity(json.toString()).build();
     }
 
+    /**
+     * Demandes serveur (33) : ajoute un produit a la suggestion. Corps {produitId (lg_FAMILLE_ID), quantite} ; meme
+     * X-Client-Ref = meme reponse, une seule ligne.
+     */
+    @POST
+    @Path("{id}/lignes")
+    public Response ajouterLigne(@PathParam("id") String id, String body,
+            @javax.ws.rs.HeaderParam("X-Client-Ref") String clientRef) throws JSONException {
+        Response refusDroit = Droits.refus(servletRequest, "Traiter la réserve", "P_TRAITER_RESERVE", "P_SM_RESERVE");
+        if (refusDroit != null) {
+            return refusDroit;
+        }
+        TUser user = currentUser();
+        if (user == null) {
+            return deconnecte();
+        }
+        JSONObject in = new JSONObject(body == null || body.trim().isEmpty() ? "{}" : body);
+        String produitId = in.optString("produitId", null);
+        int quantite = in.optInt("quantite", 0);
+        return Response.ok()
+                .entity(mobileClientRefService
+                        .uneFois(clientRef, rest.service.mobile.MobileClientRefService.TYPE_LIGNE_RESERVE,
+                                () -> suggestionReserveService.ajouterLigneSaisie(user, id, produitId, quantite),
+                                r -> r.optJSONObject("ligne") == null ? null
+                                        : r.optJSONObject("ligne").optString("lg_SUGGESTION_RESERVE_DETAIL_ID", null)))
+                .build();
+    }
+
     /** Retire une ligne de la suggestion, en conservant la trace de la suppression. */
     @DELETE
     @Path("ligne/{detailId}")

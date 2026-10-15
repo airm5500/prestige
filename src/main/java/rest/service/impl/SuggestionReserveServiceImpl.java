@@ -583,6 +583,45 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
     // ------------------------------------------------------------ SAISIE LIGNES
 
     @Override
+    public JSONObject ajouterLigneSaisie(TUser user, String suggestionId, String produitId, int quantite) {
+        TSuggestionReserve s = suggestionId == null ? null : em.find(TSuggestionReserve.class, suggestionId);
+        // meme refus que ouvrir : une suggestion d'un autre emplacement n'existe pas pour cet utilisateur
+        if (s == null || !memeEmplacement(user, s)) {
+            return echec("Suggestion introuvable.");
+        }
+        if (!TSuggestionReserve.STATUT_A_TRAITER.equals(s.getStrSTATUT())
+                && !TSuggestionReserve.STATUT_EN_COURS.equals(s.getStrSTATUT())) {
+            return echec("Cette suggestion est cloturee : elle est consultable uniquement.").put("code",
+                    "SUGGESTION_CLOTUREE");
+        }
+        if (!notBlank(produitId)) {
+            return echec("Produit absent.");
+        }
+        if (quantite <= 0) {
+            return echec("La quantite doit etre superieure a zero.");
+        }
+        TFamille famille = em.find(TFamille.class, produitId.trim());
+        if (famille == null || !"enable".equals(famille.getStrSTATUT())) {
+            return echec("Produit introuvable.");
+        }
+        if (ligneExiste(s.getLgSUGGESTIONRESERVEID(), famille.getLgFAMILLEID())) {
+            return echec("Ce produit est deja dans la suggestion : modifiez sa quantite.").put("code", "DEJA_PRESENT");
+        }
+        JSONObject refus = verifierVerrou(user, s);
+        if (refus != null) {
+            return refus;
+        }
+        TSuggestionReserveDetail d = ajouterLigne(user, s, famille.getLgFAMILLEID(), quantite);
+        if (d == null) {
+            return echec("Ce produit ne peut pas etre suggere pour la reserve.").put("code", "NON_PROPOSABLE");
+        }
+        marquerEnCours(s, user);
+        LOG.log(Level.INFO, "ligne ajoutee suggestion={0} produit={1} user={2}",
+                new Object[] { suggestionId, famille.getLgFAMILLEID(), user.getLgUSERID() });
+        return new JSONObject().put("success", true).put("ligne", ligneJson(user, d));
+    }
+
+    @Override
     public JSONObject majQuantiteRetenue(TUser user, String detailId, int qte, String motif) {
         TSuggestionReserveDetail d = em.find(TSuggestionReserveDetail.class, detailId);
         if (d == null) {

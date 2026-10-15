@@ -115,6 +115,12 @@ public interface SuggestionReserveService {
      */
     JSONObject majQuantiteRetenue(TUser user, String detailId, int qte, String motif);
 
+    /**
+     * Demandes serveur (33) : ajoute un produit a une suggestion A_TRAITER ou EN_COURS dont l'utilisateur detient le
+     * verrou. Reponse : {success, ligne} (format des lignes de ouvrirPourTraitement) ou refus (DEJA_PRESENT, ...).
+     */
+    JSONObject ajouterLigneSaisie(TUser user, String suggestionId, String produitId, int quantite);
+
     /** Retire une ligne de la suggestion, en conservant la trace de la suppression et son motif. */
     JSONObject supprimerLigne(TUser user, String detailId, String motif);
 
