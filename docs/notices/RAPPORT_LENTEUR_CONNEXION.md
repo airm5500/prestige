@@ -251,3 +251,26 @@ Appel le plus lent à chaque palier : le menu (`ws_tree_menu.jsp`, ancienne JSP)
 **Piste si le pic devient gênant :** le menu est recalculé à chaque connexion par l'ancienne JSP. Le mettre en
 cache par profil, en REST, est le gain le plus net. Ce n'est pas fait : il faut une décision, car cela touche
 l'ancienne JSP.
+
+## Requêtes lentes relevées par la série de non-régression du 15/10 (banc de 3 ans)
+
+Source : Centre de support, alertes « Requête lente (> 5 s) » créées pendant les séries de tests du 15/10 (01 h à 04 h).
+**Réserve importante** : une partie de ces alertes date de la période où le serveur était engorgé (opérations
+Hazelcast retardées de plus de 10 s, redéploiement bloqué), avant son redémarrage vers 02 h 25. Elles signalent des
+routes à mesurer seules, pas une lenteur établie.
+
+| Alertes | Route |
+|---:|---|
+| 26 | `GET etat-control-bon/list` |
+| 20 | `GET info` |
+| 19 | `GET checkproduit` |
+| 16 | `GET balance/balancesalecash/analyse` |
+| 14 | `GET ventestats/article-vendus-recap` |
+| 9 | `POST suggestion-pharmaml/{id}` (test d'envoi PharmaML) |
+| 7 | `GET analyse-commande/demande` |
+| 3 | `GET analyse-article/matrice` |
+| 1 à 2 | `ventestats/annulations`, `stats-recette-caisse/data`, `evaluation-vente/data`, `produit/stats/vente-annuellep`, `analyse-commande/recalculer`, `facture-tiers-payant/details-vente`, `famille-grossiste` |
+
+**À faire** : mesurer chacune seule, serveur au repos, sur le banc puis sur la copie `laborex_v1_db`, avant toute
+optimisation. Les routes nouvelles du 15/10 ont été mesurées : état des rayons d'un inventaire < 300 ms, routes de
+comptage (`…/nombre`) quelques dizaines de millisecondes.
