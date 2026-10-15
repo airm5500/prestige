@@ -39,14 +39,24 @@ public class InfoArticleServiceImpl implements InfoArticleService {
     public List<InfoArticleDTO> fetchInfoArticles(LocalDate dtStart, String search) {
         try {
             String searchValue = search + "%";
-            List<Tuple> lignes = em.createNativeQuery(getQuery(), Tuple.class).setParameter(1, DateUtil.from(dtStart))
-                    .setParameter(2, searchValue).setParameter(3, searchValue).setParameter(4, DateUtil.from(dtStart))
-                    .getResultList();
+            List<Tuple> lignes = em.createNativeQuery(getQuery(search != null && !search.trim().isEmpty()), Tuple.class)
+                    .setParameter(1, DateUtil.from(dtStart)).setParameter(2, searchValue).setParameter(3, searchValue)
+                    .setParameter(4, DateUtil.from(dtStart)).getResultList();
             // Infos complementaires en quelques requetes groupees (et non 6 a 7 requetes par produit : 13/10)
             Map<String, ProduitExtraInfoDTO> extras = produitExtraInfoService.getExtraInfos(lignes.stream()
                     .map(t -> new String[] { t.get("produitId", String.class), t.get("emplacementId", String.class) })
                     .collect(Collectors.toList()));
-            return lignes.stream().map(t -> tupleToDto(t, extras)).collect(Collectors.toList());
+            // demandes serveur (44) : une ligne en erreur est ecartee (et journalisee) sans vider toute la reponse
+            List<InfoArticleDTO> sortie = new java.util.ArrayList<>();
+            for (Tuple t : lignes) {
+                try {
+                    sortie.add(tupleToDto(t, extras));
+                } catch (RuntimeException e) {
+                    LOG.log(Level.WARNING, "Ligne d'information article ecartee : " + t.get("produitId", String.class),
+                            e);
+                }
+            }
+            return sortie;
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "Erreur lors de la récupération des informations articles", e);
             return Collections.emptyList();
@@ -57,6 +67,9 @@ public class InfoArticleServiceImpl implements InfoArticleService {
         String produitId = tuple.get("produitId", String.class);
         String emplacementId = tuple.get("emplacementId", String.class);
         ProduitExtraInfoDTO extra = extras.get(ProduitExtraInfoCles.cle(produitId, emplacementId));
+        if (extra == null) {
+            extra = new ProduitExtraInfoDTO();
+        }
         return InfoArticleDTO.builder().grossiste(tuple.get("grossiste", String.class))
                 .emplacement(tuple.get("emplacement", String.class)).produitId(produitId)
                 .codeCip(tuple.get("codeCip", String.class)).libelle(tuple.get("libelle", String.class))
@@ -71,7 +84,12 @@ public class InfoArticleServiceImpl implements InfoArticleService {
                 .seuilMiniRayon(extra.getSeuilMiniRayon()).build();
     }
 
-    private String getQuery() {
+    /**
+     * @param limiterAuxProduits
+     *            demandes serveur (44) : avec une recherche, les ventes ne sont agregees que pour les produits cherches
+     *            ; sans recherche (tout le catalogue), le filtre n'apporterait rien et ralentirait la requete
+     */
+    private String getQuery(boolean limiterAuxProduits) {
         return "SELECT \n" + "  g.str_LIBELLE AS grossiste,\n" + "  z.str_LIBELLEE AS emplacement,\n"
                 + "  p.lg_FAMILLE_ID AS produitId,\n" + "  p.int_CIP AS codeCip,\n" + "  p.str_NAME AS libelle,\n"
                 + "  p.int_PRICE AS prixVente,\n" + "  p.int_PAF AS prixAchat,\n" + "  f.int_NUMBER AS stock,\n"
@@ -92,6 +110,10 @@ public class InfoArticleServiceImpl implements InfoArticleService {
                 + "      WHERE v.b_IS_CANCEL = 0\n" + "        AND v.str_STATUT = 'is_Closed'\n"
                 + "        AND v.int_PRICE > 0\n"
                 + "        AND v.dt_UPDATED >= ?1 AND v.dt_UPDATED < DATE_ADD(CURDATE(), INTERVAL 1 DAY)\n"
+                + (limiterAuxProduits
+                        ? "        AND d.lg_FAMILLE_ID IN (SELECT p2.lg_FAMILLE_ID FROM t_famille p2 WHERE p2.str_STATUT = 'enable'"
+                                + " AND (p2.int_CIP LIKE ?2 OR p2.str_NAME LIKE ?3))\n"
+                        : "")
                 + "      GROUP BY d.lg_FAMILLE_ID, MONTH(v.dt_UPDATED)\n" + "   ) x\n" + "   GROUP BY produitId\n"
                 + ") vAgg ON vAgg.produitId = p.lg_FAMILLE_ID\n" + "WHERE p.str_STATUT = 'enable'\n"
                 + "  AND (p.int_CIP LIKE ?2 OR p.str_NAME LIKE ?3)\n" + "GROUP BY p.lg_FAMILLE_ID\n"
