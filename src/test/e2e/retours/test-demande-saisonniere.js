@@ -64,6 +64,13 @@ const vente = (id, quand, qte) => q("INSERT INTO t_preenregistrement (lg_PREENRE
     ok('« À anticiper » quand décembre est le mois prochain ou le suivant (' + prochain + '/' + suivant + ')', (d.anticiper.length === 1) === attendu && prod.anticiper === attendu, JSON.stringify(d.anticiper));
     const douze = await api('../api/v1/analyse-commande/demande?mois=12&query=' + CIP);
     ok('Sur 12 mois (oct. 2025 → sept. 2026) : seul décembre 2025 (40), pas de tendance', douze.total === 40 && Object.keys(douze.tendance).length === 0, douze.total);
+    /* filtre par rayon seul (sans recherche) : avant, numerotation des parametres avec un trou -> erreur, 0 unite */
+    const RAYON = q("SELECT lg_ZONE_GEO_ID FROM t_famille WHERE lg_FAMILLE_ID = '" + FAM + "'");
+    const parRayon = await api('../api/v1/analyse-commande/demande?mois=24&rayonId=' + encodeURIComponent(RAYON));
+    const enBase = Number(q("SELECT COALESCE(SUM(d.int_QUANTITY), 0) FROM t_preenregistrement p JOIN t_preenregistrement_detail d ON d.lg_PREENREGISTREMENT_ID = p.lg_PREENREGISTREMENT_ID"
+      + " JOIN t_famille f ON f.lg_FAMILLE_ID = d.lg_FAMILLE_ID WHERE p.int_PRICE > 0 AND p.str_STATUT = 'is_Closed' AND p.b_IS_CANCEL = 0 AND p.lg_TYPE_VENTE_ID <> '5'"
+      + " AND f.lg_ZONE_GEO_ID = '" + RAYON + "' AND p.dt_UPDATED >= '" + d.debut + "-01' AND p.dt_UPDATED < DATE_ADD('" + d.fin + "-01', INTERVAL 1 MONTH)"));
+    ok('Filtre rayon seul : unités du rayon, comme la base (' + enBase + ')', parRayon.success && parRayon.total === enBase && enBase > 0, JSON.stringify({ api: parRayon.total, base: enBase, msg: parRayon.msg }));
     const refus = await api('../api/v1/analyse-commande/demande?mois=7');
     ok('Durée refusée (7 mois) : message', refus.success === false && /12, 24 ou 36/.test(refus.msg), refus.msg);
     const vide = await api('../api/v1/analyse-commande/demande?mois=24&query=' + encodeURIComponent("ZZ%_'!INEXISTANT"));

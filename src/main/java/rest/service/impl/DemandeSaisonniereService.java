@@ -109,8 +109,10 @@ public class DemandeSaisonniereService {
     @SuppressWarnings("unchecked")
     private List<Object[]> lignes(String select, String suite, YearMonth debut, YearMonth fin, String texte,
             String rayon) {
+        // numerotation sans trou : rayon seul -> ?3 (avant : ?4, refuse par Hibernate « gap in ordinal parameter »)
+        int nRayon = texte == null ? 3 : 4;
         String filtre = (texte == null ? "" : " AND (f.int_CIP LIKE ?3 ESCAPE '!' OR f.str_NAME LIKE ?3 ESCAPE '!')")
-                + (rayon == null ? "" : " AND f.lg_ZONE_GEO_ID = ?4");
+                + (rayon == null ? "" : " AND f.lg_ZONE_GEO_ID = ?" + nRayon);
         String fiche = texte == null && rayon == null ? "" : " JOIN t_famille f ON f.lg_FAMILLE_ID = d.lg_FAMILLE_ID";
         Query q = em.createNativeQuery(select + LIGNES.replace("{fiche}", fiche) + filtre + suite)
                 .setParameter(1, debut.atDay(1).toString()).setParameter(2, fin.plusMonths(1).atDay(1).toString());
@@ -118,7 +120,7 @@ public class DemandeSaisonniereService {
             q.setParameter(3, echapper(texte));
         }
         if (rayon != null) {
-            q.setParameter(4, rayon);
+            q.setParameter(nRayon, rayon);
         }
         return q.getResultList();
     }
