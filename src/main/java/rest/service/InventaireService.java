@@ -139,6 +139,13 @@ public interface InventaireService {
      * @param produitIds
      *            identifiants de produits, resolus dans l'inventaire indique
      */
+    /**
+     * Demandes serveur (46) : inventaire limite a une liste de produits (lg_FAMILLE_ID ou codes), lignes retenues, cree
+     * en une seule transaction. axe/valeurs : critere facultatif en plus (intersection).
+     */
+    org.json.JSONObject creerInventaireProduits(dal.TUser auteur, String nom, String type,
+            java.util.List<String> produits, String axe, java.util.List<String> valeurs);
+
     org.json.JSONObject retenirLignes(String inventaireId, java.util.List<Long> ligneIds,
             java.util.List<String> produitIds, boolean retenue);
 

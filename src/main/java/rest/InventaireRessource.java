@@ -423,6 +423,31 @@ public class InventaireRessource {
             }
         }
 
+        /*
+         * Demandes serveur (46) : « produits » non vide -> l'inventaire ne contient que ces produits (lignes retenues,
+         * une seule transaction). « valeurs » reste possible en plus (intersection). Absent : comportement habituel.
+         */
+        JSONArray produits = in.optJSONArray("produits");
+        if (produits != null && produits.length() > 0) {
+            if (produits.length() > rest.service.impl.InventaireServiceImpl.CREATION_PRODUITS_MAX) {
+                String m = rest.service.impl.InventaireServiceImpl.CREATION_PRODUITS_MAX
+                        + " produits au plus par inventaire.";
+                return Response.status(413).type("application/json")
+                        .entity(new JSONObject().put("success", 0).put("message", m).put("msg", m).toString()).build();
+            }
+            java.util.List<String> liste = new java.util.ArrayList<>();
+            for (int i = 0; i < produits.length(); i++) {
+                liste.add(produits.optString(i, ""));
+            }
+            try {
+                return Response.ok().entity(inventaireService
+                        .creerInventaireProduits(user, nom, type, liste, axeDepuisType(type), valeurs).toString())
+                        .build();
+            } catch (Exception e) {
+                return incident("creerInventaire", "La creation de l'inventaire a echoue.", e);
+            }
+        }
+
         String debut = in.optString("str_BEGIN", "");
         String fin = in.optString("str_END", "");
         if (valeurs.isEmpty() && (debut.isEmpty() || fin.isEmpty()) && brut != null && brut.length() > 0) {

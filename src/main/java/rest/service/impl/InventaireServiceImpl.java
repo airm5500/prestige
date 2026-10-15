@@ -782,6 +782,125 @@ public class InventaireServiceImpl implements InventaireService {
         return json.put("success", 1).put("errors", retenue ? "Article retenu." : "Article ecarte.");
     }
 
+    /** Demandes serveur (46) : nombre d'elements au plus dans « produits ». */
+    public static final int CREATION_PRODUITS_MAX = 500;
+
+    @Override
+    public JSONObject creerInventaireProduits(TUser auteur, String nom, String type, List<String> produits, String axe,
+            List<String> valeurs) {
+        String empl = auteur.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
+        JSONArray inconnus = new JSONArray();
+        JSONArray horsCriteres = new JSONArray();
+        // produit retenu -> [ligne de stock, stock] ; l'ordre de la liste est garde, un produit cite deux fois compte
+        // une fois
+        Map<String, Object[]> retenus = new java.util.LinkedHashMap<>();
+        for (String element : produits) {
+            String e = StringUtils.trimToEmpty(element);
+            String produitId = resoudreProduit(e);
+            if (produitId == null) {
+                inconnus.put(e);
+                continue;
+            }
+            if (!dansLeCritere(produitId, axe, valeurs)) {
+                horsCriteres.put(e);
+                continue;
+            }
+            if (retenus.containsKey(produitId)) {
+                continue;
+            }
+            @SuppressWarnings("unchecked")
+            List<Object[]> stock = em
+                    .createNativeQuery("SELECT lg_FAMILLE_STOCK_ID, int_NUMBER_AVAILABLE FROM t_famille_stock"
+                            + " WHERE lg_FAMILLE_ID = ?1 AND lg_EMPLACEMENT_ID = ?2 LIMIT 1")
+                    .setParameter(1, produitId).setParameter(2, empl).getResultList();
+            if (stock.isEmpty()) {
+                // pas de stock a l'emplacement de l'utilisateur : comme la creation habituelle, le produit n'entre pas
+                inconnus.put(e);
+                continue;
+            }
+            retenus.put(produitId, stock.get(0));
+        }
+        JSONObject json = new JSONObject().put("inconnus", inconnus);
+        if (horsCriteres.length() > 0) {
+            json.put("horsCriteres", horsCriteres);
+        }
+        if (retenus.isEmpty()) {
+            String m = "Aucun inventaire n'a ete cree : aucun des produits n'a ete retrouve"
+                    + (horsCriteres.length() > 0 ? " dans le critere choisi." : ".");
+            return json.put("success", 0).put("nombre", m).put("message", m);
+        }
+        TUser createur = em.find(TUser.class, auteur.getLgUSERID());
+        Date maintenant = new Date();
+        TInventaire inventaire = new TInventaire(UUID.randomUUID().toString().replace("-", "").substring(0, 20));
+        inventaire.setStrNAME(nom);
+        inventaire.setStrDESCRIPTION(nom);
+        inventaire.setLgUSERID(createur);
+        inventaire.setStrTYPE(type.toLowerCase());
+        inventaire.setStrSTATUT(Constant.STATUT_ENABLE);
+        inventaire.setDtCREATED(maintenant);
+        inventaire.setDtUPDATED(maintenant);
+        inventaire.setLgEMPLACEMENTID(em.find(TEmplacement.class, empl));
+        em.persist(inventaire);
+        em.flush();
+        // memes colonnes que la procedure proc_inventaire ; lignes retenues d'emblee ; meme transaction
+        for (Map.Entry<String, Object[]> r : retenus.entrySet()) {
+            em.createNativeQuery("INSERT INTO t_inventaire_famille (lg_INVENTAIRE_ID, lg_FAMILLE_ID, int_NUMBER,"
+                    + " int_NUMBER_INIT, str_STATUT, dt_CREATED, bool_INVENTAIRE, lg_FAMILLE_STOCK_ID)"
+                    + " VALUES (?1, ?2, ?3, ?3, 'enable', NOW(), 1, ?4)")
+                    .setParameter(1, inventaire.getLgINVENTAIREID()).setParameter(2, r.getKey())
+                    .setParameter(3, r.getValue()[1]).setParameter(4, r.getValue()[0]).executeUpdate();
+        }
+        return json.put("success", 1).put("lignes", retenus.size())
+                .put("nombre", retenus.size() + " article(s) inventorie(s)")
+                .put("lgInventaireId", inventaire.getLgINVENTAIREID()).put("libelle", nom);
+    }
+
+    /**
+     * Produit designe par son identifiant, ou par un code tel que scanne (memes regles que le versement, 37 : CIP,
+     * EAN-13, EAN fabricant, code article grossiste ; et les formes du code, 49). Null si inconnu ou ambigu.
+     */
+    private String resoudreProduit(String element) {
+        if (element.isEmpty()) {
+            return null;
+        }
+        @SuppressWarnings("unchecked")
+        List<Object> parId = em
+                .createNativeQuery(
+                        "SELECT lg_FAMILLE_ID FROM t_famille WHERE lg_FAMILLE_ID = ?1" + " AND str_STATUT = 'enable'")
+                .setParameter(1, element).getResultList();
+        if (!parId.isEmpty()) {
+            return String.valueOf(parId.get(0));
+        }
+        for (String code : util.CodeProduit.formes(element)) {
+            @SuppressWarnings("unchecked")
+            List<Object> l = em.createNativeQuery("SELECT DISTINCT f.lg_FAMILLE_ID FROM t_famille f"
+                    + " WHERE f.str_STATUT = 'enable' AND (f.int_CIP = ?1 OR f.int_EAN13 = ?1 OR f.code_ean_fabriquant = ?1"
+                    + " OR EXISTS (SELECT 1 FROM t_famille_grossiste g WHERE g.lg_FAMILLE_ID = f.lg_FAMILLE_ID"
+                    + " AND g.str_CODE_ARTICLE = ?1)) LIMIT 2").setParameter(1, code).getResultList();
+            if (l.size() == 1) {
+                return String.valueOf(l.get(0));
+            }
+            if (l.size() > 1) {
+                return null; // ambigu
+            }
+        }
+        return null;
+    }
+
+    private boolean dansLeCritere(String produitId, String axe, List<String> valeurs) {
+        if (valeurs == null || valeurs.isEmpty()) {
+            return true;
+        }
+        String colonne = "EMPLACEMENT".equals(axe) ? "lg_ZONE_GEO_ID"
+                : "FAMILLE".equals(axe) ? "lg_FAMILLEARTICLE_ID" : "GROSSISTE".equals(axe) ? "lg_GROSSISTE_ID" : null;
+        if (colonne == null) {
+            return true;
+        }
+        Object v = em.createNativeQuery("SELECT " + colonne + " FROM t_famille WHERE lg_FAMILLE_ID = ?1")
+                .setParameter(1, produitId).getSingleResult();
+        return v != null && valeurs.contains(String.valueOf(v));
+    }
+
     @Override
     public JSONObject retenirLignes(String inventaireId, List<Long> ligneIds, List<String> produitIds,
             boolean retenue) {
