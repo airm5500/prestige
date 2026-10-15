@@ -5,6 +5,7 @@
  *  - meme cle renvoyee : meme rapport, dejaTraite, une seule addition ; meme cle, autre contenu : 409 CLE_REUTILISEE ;
  *  - deux versements simultanes (cles differentes) sur la meme ligne : somme exacte ;
  *  - « remplacer » ; code inconnu, quantite invalide ; code EAN et code article grossiste reconnus ;
+ *  - (49) EAN-13 « 34009 + CIP7 + cle » et GTIN-14 « 0 + EAN-13 » reconnus par le CIP7 ;
  *  - 401 sans session, 410 inventaire inconnu, 413 au-dela de 500 lignes, 400 corps invalide.
  */
 const { chromium } = require('playwright-core');
@@ -63,6 +64,13 @@ const CLE = 'e2e-versement-';
     if (A[5]) {
       const ean = await verser({ cle: CLE + '6', mode: 'remplacer', lignes: [{ code: A[5], quantite: 8 }] });
       ok('Code EAN reconnu', ean.s === 200 && lig(ean, 0).statut === 'ok' && nombre(A) === '8', JSON.stringify(ean.j).slice(0, 200));
+    }
+    if (/^\d{7}$/.test(A[1])) {
+      /* 49 : EAN-13 « 34009 + CIP7 + cle » et GTIN-14 « 0 + EAN-13 » reconnus par le CIP7 */
+      const e13 = await verser({ cle: CLE + '6b', mode: 'remplacer', lignes: [{ code: '34009' + A[1] + '8', quantite: 11 }] });
+      ok('EAN-13 « 34009 + CIP7 + clé » reconnu (49)', e13.s === 200 && lig(e13, 0).statut === 'ok' && nombre(A) === '11', JSON.stringify(e13.j).slice(0, 200));
+      const g14 = await verser({ cle: CLE + '6c', mode: 'remplacer', lignes: [{ code: '034009' + A[1] + '8', quantite: 12 }] });
+      ok('GTIN-14 « 0 + EAN-13 » reconnu (49)', g14.s === 200 && lig(g14, 0).statut === 'ok' && nombre(A) === '12', JSON.stringify(g14.j).slice(0, 200));
     }
     const ga = q("SELECT g.str_CODE_ARTICLE FROM t_famille_grossiste g JOIN t_inventaire_famille i ON i.lg_FAMILLE_ID = g.lg_FAMILLE_ID WHERE i.lg_INVENTAIRE_FAMILLE_ID = '" + B[0] + "'"
       + " AND g.str_CODE_ARTICLE <> '' AND (SELECT COUNT(*) FROM t_famille_grossiste h JOIN t_inventaire_famille j ON j.lg_FAMILLE_ID = h.lg_FAMILLE_ID WHERE j.lg_INVENTAIRE_ID = '" + INV + "' AND h.str_CODE_ARTICLE = g.str_CODE_ARTICLE) = 1 LIMIT 1");

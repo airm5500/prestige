@@ -7,6 +7,7 @@
  *    est rendu dans « inconnus » ;
  *  - exactement ces lignes, retenues, stock initial = stock de l'emplacement (calcul SQL) ;
  *  - 4 produits de 4 rayons : ws/inventaires/rayons rend ces 4 rayons seulement ;
+ *  - (47) lignes ecartees : rayons, etat des rayons et criteres ne montrent que les rayons des lignes retenues ;
  *  - « valeurs » en plus : intersection (un produit hors du rayon choisi n'entre pas) ;
  *  - tous inconnus : refus, aucun inventaire ; 501 elements : 413 ; 500 elements : accepte ;
  *  - sans « produits » : la reponse n'a pas de champ « inconnus » (comportement actuel inchange).
@@ -56,6 +57,20 @@ const nettoyer = () => exec("DELETE f FROM t_inventaire_famille f JOIN t_inventa
     const ids = (Array.isArray(rayons) ? rayons : Object.values(rayons).filter((x) => x && typeof x === 'object')).map((r) => r.id || r.rayonId || r.lgZONEGEOID).sort();
     ok('Rayons de l\'inventaire : les 4 rayons des produits, rien d\'autre', JSON.stringify(ids) === JSON.stringify(P.map((x) => x.zone).sort()), JSON.stringify(ids));
     ok('Inventaire à l\'emplacement d\'admin', q("SELECT lg_EMPLACEMENT_ID FROM t_inventaire WHERE lg_INVENTAIRE_ID = '" + c1.lgInventaireId + "'") === EMP);
+
+    /* 47 : deux lignes ecartees -> rayons, etat des rayons et criteres « emplacement » ne montrent que les 2 rayons
+       des lignes retenues */
+    await api('POST', '../api/v1/inventaire/lignes/retenue', { lg_INVENTAIRE_ID: c1.lgInventaireId, produits: [P[2].id, P[3].id], retenue: false });
+    const deux = [P[0].zone, P[1].zone].sort();
+    const r2 = await api('GET', '../api/v1/ws/inventaires/rayons?idInventaire=' + c1.lgInventaireId);
+    const ids2 = (Array.isArray(r2) ? r2 : Object.values(r2).filter((x) => x && typeof x === 'object')).map((r) => r.id || r.rayonId || r.lgZONEGEOID).sort();
+    ok('47 : ws/inventaires/rayons limité aux rayons des lignes retenues', JSON.stringify(ids2) === JSON.stringify(deux), JSON.stringify(ids2));
+    const e2 = await api('GET', '../api/v1/ws/inventaires/' + c1.lgInventaireId + '/rayons/etat');
+    const ide = (Array.isArray(e2) ? e2 : Object.values(e2).filter((x) => x && typeof x === 'object')).map((r) => r.rayonId).sort();
+    ok('47 : rayons/etat limité aux rayons à compter', JSON.stringify(ide) === JSON.stringify(deux), JSON.stringify(ide));
+    const cr = await api('GET', '../api/v1/inventaire/criteres?axe=ZONE&lg_INVENTAIRE_ID=' + c1.lgInventaireId);
+    const idc = (cr.results || []).map((r) => r.id || r.lg_ZONE_GEO_ID || r.value).filter((x) => x).sort();
+    ok('47 : critères « emplacement » limités aux lignes retenues (plus « Tous »)', (cr.results || []).length === 3 && JSON.stringify(idc) === JSON.stringify(deux), JSON.stringify(cr.results).slice(0, 250));
 
     const c2 = await api('POST', '../api/v1/inventaire/creation', { str_NAME: 'E2E-46-B', str_TYPE_TRANSACTION: 'Emplacement',
       valeurs: [P[0].zone], produits: [P[0].id, P[1].id] });

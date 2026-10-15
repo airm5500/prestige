@@ -100,7 +100,7 @@ public class InventaireServiceImpl implements InventaireService {
 
         try {
             TypedQuery<RayonDTO> q = em.createQuery(
-                    "SELECT new rest.service.inventaire.dto.RayonDTO( o.lgFAMILLEID.lgZONEGEOID.lgZONEGEOID,o.lgFAMILLEID.lgZONEGEOID.strCODE,o.lgFAMILLEID.lgZONEGEOID.strLIBELLEE ) FROM TInventaireFamille o   WHERE o.lgINVENTAIREID.lgINVENTAIREID=?1  GROUP BY  o.lgFAMILLEID.lgZONEGEOID.lgZONEGEOID ORDER BY  o.lgFAMILLEID.lgZONEGEOID.strLIBELLEE ASC",
+                    "SELECT new rest.service.inventaire.dto.RayonDTO( o.lgFAMILLEID.lgZONEGEOID.lgZONEGEOID,o.lgFAMILLEID.lgZONEGEOID.strCODE,o.lgFAMILLEID.lgZONEGEOID.strLIBELLEE ) FROM TInventaireFamille o   WHERE o.lgINVENTAIREID.lgINVENTAIREID=?1 AND o.boolINVENTAIRE = true  GROUP BY  o.lgFAMILLEID.lgZONEGEOID.lgZONEGEOID ORDER BY  o.lgFAMILLEID.lgZONEGEOID.strLIBELLEE ASC",
                     RayonDTO.class);
             q.setParameter(1, idInventaire);
             if (Objects.nonNull(maxResult) && Objects.nonNull(page)) {
@@ -139,6 +139,8 @@ public class InventaireServiceImpl implements InventaireService {
                     + " JOIN t_zone_geographique z ON z.lg_ZONE_GEO_ID = f.lg_ZONE_GEO_ID"
                     + (avecAuteurs ? " LEFT JOIN t_user u ON u.lg_USER_ID = i.str_UPDATED_ID" : "")
                     + " WHERE i.lg_INVENTAIRE_ID = ?1 GROUP BY z.lg_ZONE_GEO_ID, z.str_CODE, z.str_LIBELLEE"
+                    // demandes serveur (47) : seulement les rayons qui ont des lignes a compter
+                    + " HAVING COUNT(DISTINCT CASE WHEN i.bool_INVENTAIRE = 1 THEN i.lg_INVENTAIRE_FAMILLE_ID END) > 0"
                     + " ORDER BY z.str_LIBELLEE ASC").setParameter(1, idInventaire).getResultList();
             org.json.JSONArray sortie = new org.json.JSONArray();
             for (Object[] r : lignes) {
@@ -226,13 +228,21 @@ public class InventaireServiceImpl implements InventaireService {
                 nRefuse++;
                 continue;
             }
-            @SuppressWarnings("unchecked")
-            List<Object[]> trouvees = em.createNativeQuery("SELECT i.lg_INVENTAIRE_FAMILLE_ID, f.int_CIP, f.str_NAME,"
-                    + " i.str_STATUT FROM t_inventaire_famille i JOIN t_famille f ON f.lg_FAMILLE_ID = i.lg_FAMILLE_ID"
-                    + " WHERE i.lg_INVENTAIRE_ID = ?1 AND i.bool_INVENTAIRE = 1 AND (f.int_CIP = ?2 OR f.int_EAN13 = ?2"
-                    + " OR f.code_ean_fabriquant = ?2 OR EXISTS (SELECT 1 FROM t_famille_grossiste g"
-                    + " WHERE g.lg_FAMILLE_ID = f.lg_FAMILLE_ID AND g.str_CODE_ARTICLE = ?2))")
-                    .setParameter(1, idInventaire).setParameter(2, code).getResultList();
+            // le code tel quel d'abord, puis ses autres formes (49 : GTIN-14 -> EAN-13, EAN-13 34009 -> CIP7)
+            List<Object[]> trouvees = new ArrayList<>();
+            for (String forme : util.CodeProduit.formes(code)) {
+                @SuppressWarnings("unchecked")
+                List<Object[]> l = em.createNativeQuery("SELECT i.lg_INVENTAIRE_FAMILLE_ID, f.int_CIP, f.str_NAME,"
+                        + " i.str_STATUT FROM t_inventaire_famille i JOIN t_famille f ON f.lg_FAMILLE_ID = i.lg_FAMILLE_ID"
+                        + " WHERE i.lg_INVENTAIRE_ID = ?1 AND i.bool_INVENTAIRE = 1 AND (f.int_CIP = ?2 OR f.int_EAN13 = ?2"
+                        + " OR f.code_ean_fabriquant = ?2 OR EXISTS (SELECT 1 FROM t_famille_grossiste g"
+                        + " WHERE g.lg_FAMILLE_ID = f.lg_FAMILLE_ID AND g.str_CODE_ARTICLE = ?2))")
+                        .setParameter(1, idInventaire).setParameter(2, forme).getResultList();
+                if (!l.isEmpty()) {
+                    trouvees = l;
+                    break;
+                }
+            }
             if (trouvees.isEmpty()) {
                 sortie.put(r.put("statut", "inconnu"));
                 nInconnu++;
@@ -682,10 +692,11 @@ public class InventaireServiceImpl implements InventaireService {
             libelle = "strLIBELLEE";
             code = "strCODE";
         }
-        // On ne ramene que les valeurs REELLEMENT presentes dans cet inventaire.
+        // On ne ramene que les valeurs REELLEMENT presentes dans cet inventaire, sur les lignes a compter (47) : la
+        // liste de saisie ne montre que celles-la.
         String jpql = "SELECT DISTINCT c FROM TInventaireFamille t JOIN " + chemin + " c"
-                + " WHERE t.lgINVENTAIREID.lgINVENTAIREID = ?1" + " AND (c." + libelle + " LIKE ?2 OR c." + code
-                + " LIKE ?2)" + " ORDER BY c." + libelle;
+                + " WHERE t.lgINVENTAIREID.lgINVENTAIREID = ?1 AND t.boolINVENTAIRE = true" + " AND (c." + libelle
+                + " LIKE ?2 OR c." + code + " LIKE ?2)" + " ORDER BY c." + libelle;
         @SuppressWarnings("unchecked")
         List<Object> lignes = em.createQuery(jpql).setParameter(1, inventaireId).setParameter(2, like).getResultList();
         for (Object o : lignes) {
