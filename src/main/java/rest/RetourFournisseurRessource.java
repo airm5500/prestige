@@ -353,4 +353,16 @@ public class RetourFournisseurRessource {
 
         return Response.ok().entity(ResultFactory.getSuccessResultMsg()).build();
     }
+
+    @javax.ejb.EJB
+    private rest.service.impl.ReceptionMobileService receptionMobile;
+
+    /** D15 : retours encore en preparation, sur un BL ou d'un utilisateur. */
+    @GET
+    @Path("en-preparation")
+    public Response enPreparation(@QueryParam("blId") String blId, @QueryParam("utilisateur") String utilisateur) {
+        return Droits.utilisateur(servletRequest) == null ? ReceptionMobileRessource.sansSession()
+                : ReceptionMobileRessource.repondre(receptionMobile.retoursEnPreparation(blId, utilisateur));
+    }
+
 }

@@ -63,6 +63,27 @@ public class TRetourFournisseurDetail implements Serializable {
     @ManyToOne
     @JoinColumn(name = "bonLivraisonDetail_id", referencedColumnName = "lg_BON_LIVRAISON_DETAIL")
     private TBonLivraisonDetail bonLivraisonDetail;
+    /** D14 (retour mobile) : lot retourne. */
+    @Column(name = "num_lot", length = 40)
+    private String numLot;
+    @Column(name = "lg_LOT_ID", length = 40)
+    private String lgLOTID;
+
+    public String getNumLot() {
+        return numLot;
+    }
+
+    public void setNumLot(String numLot) {
+        this.numLot = numLot;
+    }
+
+    public String getLgLOTID() {
+        return lgLOTID;
+    }
+
+    public void setLgLOTID(String lgLOTID) {
+        this.lgLOTID = lgLOTID;
+    }
 
     public TRetourFournisseurDetail() {
     }

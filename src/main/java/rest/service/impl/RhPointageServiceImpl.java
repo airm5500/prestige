@@ -306,16 +306,146 @@ public class RhPointageServiceImpl implements RhPointageService {
         if (t.isAfter(LocalDateTime.now().plusMinutes(5))) {
             return refus("Un pointage ne peut pas être dans le futur.");
         }
+        /*
+         * Point 31 (terminal de pointage) : identifiant donne par le terminal, pour lui envoyer ensuite la photo de
+         * controle ; le meme identifiant renvoye (reseau coupe puis repris) ne cree rien de plus.
+         */
+        String id = StringUtils.trimToNull(s.optString("id", null));
+        if (id != null && !id.matches("[A-Za-z0-9-]{8,40}")) {
+            return refus("Identifiant de pointage invalide.");
+        }
+        if (id != null && premier("SELECT id FROM t_pointage WHERE id = ?1", id) != null) {
+            return ok().put("id", id).put("deja", true).put("message", "Pointage déjà existant.");
+        }
+        String photoStatut = null, photoMotif = null;
+        JSONObject controle = s.optJSONObject("controle");
+        if (controle != null) {
+            photoStatut = controle.optBoolean("photo", false) ? PHOTO_ATTENDUE : PHOTO_SANS;
+            photoMotif = PHOTO_SANS.equals(photoStatut)
+                    ? StringUtils.left(StringUtils.trimToNull(controle.optString("motif", null)), 60) : null;
+        }
+        String nouvelId = id == null ? UUID.randomUUID().toString() : id;
         int n = em
                 .createNativeQuery(
                         "INSERT IGNORE INTO t_pointage (id, employe_id, horodatage, sens, source, saisi_par, motif,"
-                                + " created_at) VALUES (?1, ?2, ?3, ?4, 'MANUEL', ?5, ?6, NOW())")
-                .setParameter(1, UUID.randomUUID().toString()).setParameter(2, employe)
-                .setParameter(3, Timestamp.valueOf(t)).setParameter(4, sens)
-                .setParameter(5, operateur == null ? null : operateur.getLgUSERID())
-                .setParameter(6, StringUtils.left(motif, 250)).executeUpdate();
+                                + " created_at, photo_statut, photo_motif) VALUES (?1, ?2, ?3, ?4, 'MANUEL', ?5, ?6,"
+                                + " NOW(), ?7, ?8)")
+                .setParameter(1, nouvelId).setParameter(2, employe).setParameter(3, Timestamp.valueOf(t))
+                .setParameter(4, sens).setParameter(5, operateur == null ? null : operateur.getLgUSERID())
+                .setParameter(6, StringUtils.left(motif, 250)).setParameter(7, photoStatut).setParameter(8, photoMotif)
+                .executeUpdate();
         return n == 0 ? refus("Un pointage existe déjà à cette heure pour cet employé.")
-                : ok().put("message", "Pointage manuel enregistré.");
+                : ok().put("id", nouvelId).put("message", "Pointage manuel enregistré.");
+    }
+
+    /* ----------------------------------------------------- photo de controle (point 31) */
+
+    static final String PHOTO_AVEC = "AVEC";
+    static final String PHOTO_SANS = "SANS";
+    static final String PHOTO_ATTENDUE = "ATTENDUE";
+    static final String PARAM_PHOTO_RETENTION = "KEY_RH_PHOTO_RETENTION_JOURS";
+    static final int PHOTO_TAILLE_MAX = 150 * 1024;
+    static final int PHOTO_COTE_MAX = 1024;
+
+    @Override
+    public int photoRetentionJours() {
+        return Math.max(7, Math.min(90, entier(PARAM_PHOTO_RETENTION, 30)));
+    }
+
+    @Override
+    public JSONObject enregistrerPhoto(String pointageId, byte[] jpeg, String prise, TUser operateur) {
+        Object[] p = pointage(pointageId);
+        if (p == null) {
+            return refus("Pointage introuvable.");
+        }
+        if (!"MANUEL".equals(p[0]) || !StringUtils.startsWith(t(p[1]), "Badge terminal")) {
+            return refus("Seul un pointage par badge du terminal reçoit une photo.");
+        }
+        if (jpeg == null || jpeg.length == 0) {
+            return refus("Aucune photo reçue.");
+        }
+        if (jpeg.length > PHOTO_TAILLE_MAX) {
+            return refus("Photo trop lourde : " + (jpeg.length / 1024) + " Ko, 150 Ko au plus.");
+        }
+        if (jpeg.length < 3 || (jpeg[0] & 0xFF) != 0xFF || (jpeg[1] & 0xFF) != 0xD8 || (jpeg[2] & 0xFF) != 0xFF) {
+            return refus("La photo doit être au format JPEG.");
+        }
+        int[] dim = dimensionsJpeg(jpeg);
+        if (dim == null) {
+            return refus("Photo JPEG illisible.");
+        }
+        if (dim[0] > PHOTO_COTE_MAX || dim[1] > PHOTO_COTE_MAX) {
+            return refus("Photo trop grande : " + dim[0] + " x " + dim[1] + " px, 1024 px au plus.");
+        }
+        Timestamp priseLe = null;
+        try {
+            priseLe = StringUtils.isBlank(prise) ? null : Timestamp
+                    .valueOf(LocalDateTime.parse(prise.trim().substring(0, Math.min(19, prise.trim().length()))));
+        } catch (RuntimeException e) {
+            priseLe = null;
+        }
+        // une seule photo par pointage : un nouvel envoi remplace le precedent
+        em.createNativeQuery("REPLACE INTO t_pointage_photo (pointage_id, photo, taille, largeur, hauteur, prise_le,"
+                + " recue_le, recue_par) VALUES (?1, ?2, ?3, ?4, ?5, ?6, NOW(), ?7)").setParameter(1, pointageId)
+                .setParameter(2, jpeg).setParameter(3, jpeg.length).setParameter(4, dim[0]).setParameter(5, dim[1])
+                .setParameter(6, priseLe).setParameter(7, operateur == null ? null : operateur.getLgUSERID())
+                .executeUpdate();
+        em.createNativeQuery("UPDATE t_pointage SET photo_statut = ?2, photo_motif = NULL WHERE id = ?1")
+                .setParameter(1, pointageId).setParameter(2, PHOTO_AVEC).executeUpdate();
+        return ok().put("id", pointageId).put("message", "Photo de contrôle enregistrée.");
+    }
+
+    @Override
+    public byte[] photo(String pointageId) {
+        Object o = premierObjet("SELECT photo FROM t_pointage_photo WHERE pointage_id = ?1", pointageId);
+        return o instanceof byte[] ? (byte[]) o : null;
+    }
+
+    @Override
+    public int purgerPhotos() {
+        return em.createNativeQuery("DELETE FROM t_pointage_photo WHERE recue_le < NOW() - INTERVAL ?1 DAY")
+                .setParameter(1, photoRetentionJours()).executeUpdate();
+    }
+
+    @SuppressWarnings("unchecked")
+    private Object[] pointage(String id) {
+        List<Object[]> l = em.createNativeQuery("SELECT source, motif FROM t_pointage WHERE id = ?1")
+                .setParameter(1, id).getResultList();
+        return l.isEmpty() ? null : l.get(0);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Object premierObjet(String sql, Object param) {
+        List<Object> l = em.createNativeQuery(sql).setParameter(1, param).setMaxResults(1).getResultList();
+        return l.isEmpty() ? null : l.get(0);
+    }
+
+    /** Largeur et hauteur lues dans l'en-tete JPEG (segment SOF), sans decoder l'image. */
+    static int[] dimensionsJpeg(byte[] b) {
+        int i = 2;
+        while (i + 9 < b.length) {
+            if ((b[i] & 0xFF) != 0xFF) {
+                return null;
+            }
+            int marqueur = b[i + 1] & 0xFF;
+            if (marqueur == 0xD8 || marqueur == 0x01 || (marqueur >= 0xD0 && marqueur <= 0xD7)) {
+                i += 2;
+                continue;
+            }
+            int longueur = ((b[i + 2] & 0xFF) << 8) | (b[i + 3] & 0xFF);
+            boolean sof = marqueur >= 0xC0 && marqueur <= 0xCF && marqueur != 0xC4 && marqueur != 0xC8
+                    && marqueur != 0xCC;
+            if (sof) {
+                int hauteur = ((b[i + 5] & 0xFF) << 8) | (b[i + 6] & 0xFF);
+                int largeur = ((b[i + 7] & 0xFF) << 8) | (b[i + 8] & 0xFF);
+                return largeur > 0 && hauteur > 0 ? new int[] { largeur, hauteur } : null;
+            }
+            if (longueur < 2) {
+                return null;
+            }
+            i += 2 + longueur;
+        }
+        return null;
     }
 
     @Override
@@ -331,12 +461,18 @@ public class RhPointageServiceImpl implements RhPointageService {
     public JSONObject pointagesDuJour(LocalDate jour) {
         JSONArray a = new JSONArray();
         for (Object[] l : (List<Object[]>) em
-                .createNativeQuery("SELECT p.id, p.employe_id, p.horodatage, p.sens, p.source, p.motif"
+                .createNativeQuery("SELECT p.id, p.employe_id, p.horodatage, p.sens, p.source, p.motif,"
+                        + " p.photo_statut, p.photo_motif, (SELECT COUNT(*) FROM t_pointage_photo f"
+                        + " WHERE f.pointage_id = p.id)"
                         + " FROM t_pointage p WHERE p.horodatage >= ?1 AND p.horodatage < ?2 ORDER BY p.horodatage")
                 .setParameter(1, Timestamp.valueOf(jour.atStartOfDay()))
                 .setParameter(2, Timestamp.valueOf(jour.plusDays(1).atTime(12, 0))).getResultList()) {
             a.put(new JSONObject().put("id", l[0]).put("employeId", l[1]).put("horodatage", t(l[2]).substring(0, 16))
-                    .put("sens", l[3]).put("source", l[4]).put("motif", t(l[5])));
+                    .put("sens", l[3]).put("source", l[4]).put("motif", t(l[5]))
+                    // point 31 : statut de la photo de controle ; « photo » vrai seulement si elle est consultable
+                    .put("photoStatut", l[6] == null ? JSONObject.NULL : l[6])
+                    .put("photo", ((Number) l[8]).intValue() > 0)
+                    .put("photoMotif", l[7] == null ? JSONObject.NULL : l[7]));
         }
         return ok().put("data", a);
     }

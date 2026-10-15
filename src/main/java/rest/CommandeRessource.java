@@ -389,8 +389,12 @@ public class CommandeRessource {
     @POST
     @Path("add-lot")
     public Response addLot(AddLot addLot) {
-
-        return Response.ok(this.orderService.addLot(addLot).toString()).build();
+        try {
+            return Response.ok(this.orderService.addLot(addLot).toString()).build();
+        } catch (rest.service.RefusMetier e) {
+            return Response.ok(new JSONObject().put("success", false).put("code", "SERIE_DEJA_CONSOMMEE")
+                    .put("msg", e.getMessage()).toString()).build();
+        }
     }
 
     // Le segment 'famille' rend l'identifiant explicite dans l'URL : c'est l'id de l'article
@@ -475,6 +479,25 @@ public class CommandeRessource {
     public Response reconcilierLigne(ReconcilierLigneDTO dto) throws JSONException {
         JSONObject json = commandeService.addLigneReconciliee(dto);
         return Response.ok().entity(json.toString()).build();
+    }
+
+    @javax.ejb.EJB
+    private rest.service.impl.ReceptionMobileService receptionMobile;
+
+    /** D11 : lots d'une ligne de BL, avec auteur et heure. */
+    @GET
+    @Path("bon/items/{detailId}/lots")
+    public Response lots(@PathParam("detailId") String detailId) {
+        return Droits.utilisateur(servletRequest) == null ? ReceptionMobileRessource.sansSession()
+                : ReceptionMobileRessource.repondre(receptionMobile.lotsDeLigne(detailId));
+    }
+
+    /** D11 : effacer un seul lot (droit P_BL_MOBILE_CORRIGER, BL non entre en stock). */
+    @javax.ws.rs.DELETE
+    @Path("bon/lots/{lotId}")
+    public Response supprimerLot(@PathParam("lotId") String lotId) {
+        Response refus = Droits.refus(servletRequest, "Corriger la réception mobile", "P_BL_MOBILE_CORRIGER");
+        return refus != null ? refus : ReceptionMobileRessource.repondre(receptionMobile.supprimerLot(lotId));
     }
 
 }

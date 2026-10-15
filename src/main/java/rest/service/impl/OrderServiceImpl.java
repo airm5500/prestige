@@ -2357,6 +2357,37 @@ public class OrderServiceImpl implements OrderService {
         TUser tUser = this.sessionHelperService.getCurrentUser();
         TBonLivraisonDetail bonLivraisonDetail = getEmg().find(TBonLivraisonDetail.class, lot.getIdBonDetail());
         TBonLivraison bonLivraison = bonLivraisonDetail.getLgBONLIVRAISONID();
+        /*
+         * D18 (reception mobile) : une boite dont le numero de serie DataMatrix a deja ete scanne est refusee. Sans
+         * serie, rien ne change.
+         */
+        String serie = StringUtils.trimToNull(lot.getSerie());
+        String gtin = null;
+        if (serie != null) {
+            TFamille produit = bonLivraisonDetail.getLgFAMILLEID();
+            gtin = StringUtils.left(StringUtils.defaultIfBlank(StringUtils.trimToNull(lot.getGtin()),
+                    StringUtils.defaultIfBlank(produit.getIntEAN13(), produit.getIntCIP())), 20);
+            serie = StringUtils.left(serie, 40);
+            if (!getEmg().createNativeQuery("SELECT 1 FROM t_serie_consommee WHERE gtin = ?1 AND serie = ?2")
+                    .setParameter(1, gtin).setParameter(2, serie).getResultList().isEmpty()) {
+                return new JSONObject().put("success", false).put("code", "SERIE_DEJA_CONSOMMEE").put("msg",
+                        "Boîte déjà scannée");
+            }
+        }
+        JSONObject r = ajouterLot(lot, tUser, bonLivraisonDetail, bonLivraison);
+        if (serie != null && r.optBoolean("success", false) && getEmg().createNativeQuery(
+                "INSERT IGNORE INTO t_serie_consommee (gtin, serie, lg_BON_LIVRAISON_DETAIL, lg_USER_ID, created_at)"
+                        + " VALUES (?1, ?2, ?3, ?4, NOW())")
+                .setParameter(1, gtin).setParameter(2, serie).setParameter(3, lot.getIdBonDetail())
+                .setParameter(4, tUser == null ? null : tUser.getLgUSERID()).executeUpdate() == 0) {
+            // meme boite scannee au meme instant sur un autre terminal : ce lot-ci est annule
+            throw new rest.service.RefusMetier("Boîte déjà scannée");
+        }
+        return r;
+    }
+
+    private JSONObject ajouterLot(AddLot lot, TUser tUser, TBonLivraisonDetail bonLivraisonDetail,
+            TBonLivraison bonLivraison) {
 
         if (!lot.isDirectImport()) {
             return addNewLot(lot, bonLivraisonDetail, tUser, bonLivraison, false);

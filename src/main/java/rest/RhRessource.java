@@ -92,7 +92,8 @@ public class RhRessource {
     @Path("droits")
     public Response droits() {
         Response r = controle();
-        return r != null ? r : ok(new JSONObject().put("success", true).put("valider", autorise(VALIDER)));
+        return r != null ? r : ok(new JSONObject().put("success", true).put("valider", autorise(VALIDER))
+                .put("photoRetentionJours", pointages.photoRetentionJours()));
     }
 
     /* ---------------------------------------------------------------- employes */
@@ -389,6 +390,65 @@ public class RhRessource {
     public Response saisirPointage(String c) {
         Response r = controle();
         return r != null ? r : ok(pointages.saisirPointage(corps(c), utilisateur()));
+    }
+
+    /**
+     * Photo de controle d'un pointage par badge (point 31) : multipart, champ « photo » (JPEG, 150 Ko et 1024 px au
+     * plus), champ « prise » facultatif. Le contenu n'est jamais journalise.
+     */
+    @POST
+    @Path("pointages/{id}/photo")
+    @Consumes(MediaType.MULTIPART_FORM_DATA)
+    @SuppressWarnings("unchecked")
+    public Response envoyerPhoto(@PathParam("id") String id) {
+        Response r = controle();
+        if (r != null) {
+            return r;
+        }
+        try {
+            org.apache.commons.fileupload.servlet.ServletFileUpload upload = new org.apache.commons.fileupload.servlet.ServletFileUpload(
+                    new org.apache.commons.fileupload.disk.DiskFileItemFactory());
+            // garde-fou : rien au-dela de 2 Mo n'est lu (la limite metier de 150 Ko est controlee ensuite)
+            upload.setSizeMax(2L * 1024 * 1024);
+            byte[] photo = null;
+            String prise = null;
+            for (org.apache.commons.fileupload.FileItem item : (List<org.apache.commons.fileupload.FileItem>) upload
+                    .parseRequest(servletRequest)) {
+                if (item.isFormField() && "prise".equals(item.getFieldName())) {
+                    prise = item.getString("UTF-8");
+                } else if (!item.isFormField() && "photo".equals(item.getFieldName())) {
+                    photo = item.get();
+                }
+            }
+            return ok(pointages.enregistrerPhoto(id, photo, prise, utilisateur()));
+        } catch (org.apache.commons.fileupload.FileUploadBase.SizeLimitExceededException e) {
+            return refus("Photo trop lourde : 150 Ko au plus.");
+        } catch (Exception e) {
+            return refus("Lecture de la photo impossible.");
+        }
+    }
+
+    /** Photo de controle (droit P_SM_RH), jamais mise en cache ; chaque consultation est tracee (sans l'image). */
+    @GET
+    @Path("pointages/{id}/photo")
+    @Produces({ "image/jpeg", MediaType.APPLICATION_JSON })
+    public Response lirePhoto(@PathParam("id") String id) {
+        Response r = controle();
+        if (r != null) {
+            return Response.status(Response.Status.FORBIDDEN).type(MediaType.APPLICATION_JSON).entity(r.getEntity())
+                    .build();
+        }
+        byte[] photo = pointages.photo(id);
+        java.util.logging.Logger.getLogger(RhRessource.class.getName()).log(java.util.logging.Level.INFO,
+                "photo de pointage consultee pointage={0} par={1} trouvee={2}",
+                new Object[] { id, utilisateur().getLgUSERID(), photo != null });
+        if (photo == null) {
+            return Response
+                    .status(Response.Status.NOT_FOUND).type(MediaType.APPLICATION_JSON).entity(new JSONObject()
+                            .put("success", false).put("msg", "Aucune photo pour ce pointage.").toString())
+                    .header("Cache-Control", "no-store").build();
+        }
+        return Response.ok(photo, "image/jpeg").header("Cache-Control", "no-store").build();
     }
 
     @DELETE

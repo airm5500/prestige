@@ -1293,6 +1293,12 @@ public class MvtProduitServiceImpl implements MvtProduitService {
                 stock.setDtUPDATED(new Date());
                 emg.merge(stock);
                 emg.merge(d);
+                /* D14 : le lot retourne perd les boites renvoyees */
+                if (d.getLgLOTID() != null) {
+                    emg.createNativeQuery("UPDATE t_lot SET current_stock = GREATEST(0, COALESCE(current_stock,"
+                            + " int_NUMBER) - ?1), dt_UPDATED = NOW() WHERE lg_LOT_ID = ?2")
+                            .setParameter(1, d.getIntNUMBERRETURN()).setParameter(2, d.getLgLOTID()).executeUpdate();
+                }
                 mouvementProduitService.saveMvtProduit(0, d.getIntPAF(), d.getLgRETOURFRSDETAIL(), RETOUR_FOURNISSEUR,
                         tf, params.getOperateur(), empl, d.getIntNUMBERRETURN(), sockInit, finalQty, 0);
 

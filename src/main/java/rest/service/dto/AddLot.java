@@ -16,6 +16,25 @@ public class AddLot {
     private String datePeremption;
     private boolean directImport;
     private boolean onlyFreeQty;
+    /** D18 : numero de serie DataMatrix (AI 21) et GTIN (AI 01), facultatifs. */
+    private String serie;
+    private String gtin;
+
+    public String getSerie() {
+        return serie;
+    }
+
+    public void setSerie(String serie) {
+        this.serie = serie;
+    }
+
+    public String getGtin() {
+        return gtin;
+    }
+
+    public void setGtin(String gtin) {
+        this.gtin = gtin;
+    }
 
     public int getQty() {
         return qty;

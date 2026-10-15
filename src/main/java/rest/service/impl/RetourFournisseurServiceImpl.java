@@ -233,8 +233,35 @@ public class RetourFournisseurServiceImpl implements RetourFournisseurService {
         oTRetourFournisseurDetail.setLgFAMILLEID(getFamille(item.getProduitId()));
         oTRetourFournisseurDetail.setIntSTOCK(stockDisponible(item.getProduitId(), emplacementId));
         oTRetourFournisseurDetail.setLgMOTIFRETOUR(getFromId(item.getLgMOTIFRETOUR()));
+        appliquerLot(oTRetourFournisseurDetail, item, bonLivraisonDetail);
 
         return oTRetourFournisseurDetail;
+    }
+
+    /**
+     * D14 : lot retourne, donne par son identifiant (liste des lots recus sur la ligne) ou par son numero (DataMatrix).
+     * Le lot doit appartenir a ce BL et a ce produit ; sans lot, rien ne change.
+     */
+    private void appliquerLot(TRetourFournisseurDetail d, RetourDetailsDTO item, TBonLivraisonDetail ligne) {
+        String lotId = StringUtils.trimToNull(item.getLotId());
+        String numLot = StringUtils.trimToNull(item.getNumLot());
+        if (lotId == null && numLot == null) {
+            return;
+        }
+        @SuppressWarnings("unchecked")
+        List<Object[]> lots = getEntityManager()
+                .createNativeQuery("SELECT lg_LOT_ID, int_NUM_LOT FROM t_lot"
+                        + " WHERE str_REF_LIVRAISON = ?1 AND lg_FAMILLE_ID = ?2"
+                        + (lotId != null ? " AND lg_LOT_ID = ?3" : " AND int_NUM_LOT = ?3") + " ORDER BY dt_CREATED")
+                .setParameter(1, ligne.getLgBONLIVRAISONID().getStrREFLIVRAISON())
+                .setParameter(2, ligne.getLgFAMILLEID().getLgFAMILLEID())
+                .setParameter(3, lotId != null ? lotId : numLot).getResultList();
+        if (lots.isEmpty()) {
+            throw new RefusMetier(
+                    "Le lot " + (numLot != null ? numLot : lotId) + " n'a pas été reçu sur ce BL pour ce produit.");
+        }
+        d.setLgLOTID(String.valueOf(lots.get(0)[0]));
+        d.setNumLot(lots.get(0)[1] == null ? numLot : String.valueOf(lots.get(0)[1]));
     }
 
     private TMotifRetour getFromId(String id) {

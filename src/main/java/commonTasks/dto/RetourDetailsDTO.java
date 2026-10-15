@@ -33,6 +33,25 @@ public class RetourDetailsDTO implements Serializable {
     private String lgRETOURFRSDETAIL, strNAME, intCIP, strLIBELLE, motif, dtCREATED, HEURE, produitId, lgMOTIFRETOUR,
             lgRETOURFRSID;
     private Integer intNUMBERRETURN = 0, intNUMBERANSWER = 0, qtyMvt = 0, prixPaf = 0, intSTOCK, ecart;
+    /** D14 : lot retourne (entree et sortie). */
+    private String numLot, lotId;
+
+    public String getNumLot() {
+        return numLot;
+    }
+
+    public void setNumLot(String numLot) {
+        this.numLot = numLot;
+    }
+
+    public String getLotId() {
+        return lotId;
+    }
+
+    public void setLotId(String lotId) {
+        this.lotId = lotId;
+    }
+
     private String strCOMMENTAIRE, strREFRETOURFRS;
     private String referenceBl;
 
@@ -203,6 +222,8 @@ public class RetourDetailsDTO implements Serializable {
         this.intNUMBERANSWER = d.getIntNUMBERANSWER();
 
         this.intNUMBERRETURN = d.getIntNUMBERRETURN();
+        this.numLot = d.getNumLot();
+        this.lotId = d.getLgLOTID();
 
         TBonLivraisonDetail bonLivraisonDetail = d.getBonLivraisonDetail();
         if (bonLivraisonDetail != null) {

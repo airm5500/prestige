@@ -27,6 +27,18 @@ public interface RhPointageService {
     /** Pointage manuel : motif obligatoire, trace (saisi par). */
     JSONObject saisirPointage(JSONObject saisie, TUser operateur);
 
+    /** Duree de conservation des photos de controle (7 a 90 jours). */
+    int photoRetentionJours();
+
+    /** Photo de controle d'un pointage par badge (JPEG, 150 Ko et 1024 px au plus) : remplace la precedente. */
+    JSONObject enregistrerPhoto(String pointageId, byte[] jpeg, String prise, TUser operateur);
+
+    /** Photo de controle, ou null (absente ou purgee). */
+    byte[] photo(String pointageId);
+
+    /** Retire les photos plus anciennes que la duree de conservation ; le pointage reste. */
+    int purgerPhotos();
+
     /** Seuls les pointages manuels se suppriment. */
     JSONObject supprimerPointage(String id);
 
