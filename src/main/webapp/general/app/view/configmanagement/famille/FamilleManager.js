@@ -1964,10 +1964,16 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
             });
             
         } else {
+            /* verrou du double clic (15/10) : une seule fenetre de creation du detail */
+            const fin = window.PrestigeChargement ? PrestigeChargement.verrou('creer-detail', grid, 'Ouverture de la création du détail') : Ext.emptyFn;
+            if (!fin) {
+                return;
+            }
             Ext.Ajax.request({
                 method: 'GET',
                 headers: {'Content-Type': 'application/json'},
                 url: '../api/v1/produit-search/produits/' + rec.data.lg_FAMILLE_ID,
+                callback: fin,
                 success: function (response, options) {
                     const result = Ext.JSON.decode(response.responseText, true);
                     const produit = result.data;

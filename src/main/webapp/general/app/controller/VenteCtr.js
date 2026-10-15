@@ -3471,11 +3471,12 @@ Ext.define('testextjs.controller.VenteCtr', {
         }
     },
 
-    onFicheClientClick: function () {
+    onFicheClientClick: function (btn) {
         const c = this.client;
         if (c && c.get && c.get('lgCLIENTID')) {
             testextjs.view.serviceclient.ordonnance.FenetreFicheClient.ouvrir(c.get('lgCLIENTID'),
-                    Ext.String.trim((c.get('strFIRSTNAME') || '') + ' ' + (c.get('strLASTNAME') || '')));
+                    Ext.String.trim((c.get('strFIRSTNAME') || '') + ' ' + (c.get('strLASTNAME') || '')),
+                    btn && btn.up ? btn.up('panel') : null);
         }
     },
 
@@ -4932,7 +4933,7 @@ Ext.define('testextjs.controller.VenteCtr', {
         tpContainerForm.add(cmp);
     },
 
-    onbtnModifierInfo: function () {
+    onbtnModifierInfo: function (btn) {
         const me = this;
         let      typeVenteCombo = me.getTypeVenteCombo().getValue();
         let client = me.getClient();
@@ -4944,9 +4945,15 @@ Ext.define('testextjs.controller.VenteCtr', {
         // (propagation d'un plafond depuis la fiche du tiers payant, modification sur un autre
         // poste). On recharge depuis la base avant d'alimenter le formulaire ; si la lecture
         // echoue, on garde le record en memoire plutot que d'empecher la modification.
+        /* verrou du double clic (15/10) : une seule fenetre tant que le serveur n'a pas repondu */
+        const fin = window.PrestigeChargement ? PrestigeChargement.verrou('modifier-client', btn && btn.up ? btn.up('panel') : null, 'Ouverture de la fiche du client') : Ext.emptyFn;
+        if (!fin) {
+            return;
+        }
         Ext.Ajax.request({
             method: 'GET',
             url: '../api/v1/client/client-assurance/' + client.get('lgCLIENTID') + '/0',
+            callback: fin,
             success: function (response) {
                 const result = Ext.JSON.decode(response.responseText, true);
                 if (result && result.success && result.data) {
@@ -8117,10 +8124,16 @@ Ext.define('testextjs.controller.VenteCtr', {
     },
     loadAyantDroits: function (clientId) {
         const me = this;
+        /* verrou du double clic (15/10) */
+        const fin = window.PrestigeChargement ? PrestigeChargement.verrou('ayants-droit', null, 'Ouverture des ayants droit') : Ext.emptyFn;
+        if (!fin) {
+            return;
+        }
         Ext.Ajax.request({
             method: 'GET',
             url: '../api/v1/client/ayant-droits',
             params: {"clientId": clientId},
+            callback: fin,
             success: function (response, options) {
                 const result = Ext.JSON.decode(response.responseText, true);
                 const ayantDroitWin = Ext.create('testextjs.view.vente.user.AyantDroitGrid');
@@ -8542,6 +8555,11 @@ Ext.define('testextjs.controller.VenteCtr', {
 
     searchAndLoadPrevente: function (value) {
         var me = this;
+        /* verrou du double clic / Entree repetee (15/10) : une seule recherche, un seul chargement de vente */
+        var fin = window.PrestigeChargement ? PrestigeChargement.verrou('recherche-prevente', null, 'Recherche de la vente') : Ext.emptyFn;
+        if (!fin) {
+            return;
+        }
 
         var isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 
@@ -8549,6 +8567,7 @@ Ext.define('testextjs.controller.VenteCtr', {
             Ext.Ajax.request({
                 method: 'GET',
                 url: '../api/v1/ventestats/' + value,
+                callback: fin,
                 success: function (response) {
                     var result = Ext.decode(response.responseText, true);
                     if (result && result.data && result.data.lgPREENREGISTREMENTID) {
@@ -8568,6 +8587,7 @@ Ext.define('testextjs.controller.VenteCtr', {
         Ext.Ajax.request({
             method: 'GET',
             url: '../api/v1/ventestats/preventes',
+            callback: fin,
             params: {
                 statut: 'is_Process',
                 query: value,

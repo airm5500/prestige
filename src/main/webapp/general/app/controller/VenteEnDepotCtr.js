@@ -4794,7 +4794,7 @@ Ext.define('testextjs.controller.VenteEnDepotCtr', {
         tpContainerForm.add(cmp);
     },
 
-    onbtnModifierInfo: function () {
+    onbtnModifierInfo: function (btn) {
         const me = this;
         let      typeVenteCombo = me.getTypeVenteCombo().getValue();
         let client = me.getClient();
@@ -4806,9 +4806,15 @@ Ext.define('testextjs.controller.VenteEnDepotCtr', {
         // (propagation d'un plafond depuis la fiche du tiers payant, modification sur un autre
         // poste). On recharge depuis la base avant d'alimenter le formulaire ; si la lecture
         // echoue, on garde le record en memoire plutot que d'empecher la modification.
+        /* verrou du double clic (15/10) : une seule fenetre tant que le serveur n'a pas repondu */
+        const fin = window.PrestigeChargement ? PrestigeChargement.verrou('modifier-client', btn && btn.up ? btn.up('panel') : null, 'Ouverture de la fiche du client') : Ext.emptyFn;
+        if (!fin) {
+            return;
+        }
         Ext.Ajax.request({
             method: 'GET',
             url: '../api/v1/client/client-assurance/' + client.get('lgCLIENTID') + '/0',
+            callback: fin,
             success: function (response) {
                 const result = Ext.JSON.decode(response.responseText, true);
                 if (result && result.success && result.data) {
@@ -7853,10 +7859,16 @@ Ext.define('testextjs.controller.VenteEnDepotCtr', {
     },
     loadAyantDroits: function (clientId) {
         const me = this;
+        /* verrou du double clic (15/10) */
+        const fin = window.PrestigeChargement ? PrestigeChargement.verrou('ayants-droit', null, 'Ouverture des ayants droit') : Ext.emptyFn;
+        if (!fin) {
+            return;
+        }
         Ext.Ajax.request({
             method: 'GET',
             url: '../api/v1/client/ayant-droits',
             params: {"clientId": clientId},
+            callback: fin,
             success: function (response, options) {
                 const result = Ext.JSON.decode(response.responseText, true);
                 const ayantDroitWin = Ext.create('testextjs.view.vente.endepot.AyantDroitGrid');
@@ -8278,6 +8290,11 @@ Ext.define('testextjs.controller.VenteEnDepotCtr', {
 
     searchAndLoadPrevente: function (value) {
         var me = this;
+        /* verrou du double clic / Entree repetee (15/10) : une seule recherche, un seul chargement de vente */
+        var fin = window.PrestigeChargement ? PrestigeChargement.verrou('recherche-prevente', null, 'Recherche de la vente') : Ext.emptyFn;
+        if (!fin) {
+            return;
+        }
 
         var isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 
@@ -8285,6 +8302,7 @@ Ext.define('testextjs.controller.VenteEnDepotCtr', {
             Ext.Ajax.request({
                 method: 'GET',
                 url: '../api/v1/ventestats/' + value,
+                callback: fin,
                 success: function (response) {
                     var result = Ext.decode(response.responseText, true);
                     if (result && result.data && result.data.lgPREENREGISTREMENTID) {
@@ -8304,6 +8322,7 @@ Ext.define('testextjs.controller.VenteEnDepotCtr', {
         Ext.Ajax.request({
             method: 'GET',
             url: '../api/v1/ventestats/preventes',
+            callback: fin,
             params: {
                 statut: 'is_Process',
                 query: value,

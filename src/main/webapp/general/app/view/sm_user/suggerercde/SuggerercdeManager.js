@@ -1001,6 +1001,7 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
     onPrevisionClick: function (grid, rowIndex) {
         var me = this, rec = grid.getStore().getAt(rowIndex);
         testextjs.view.commandemanagement.analyse.FenetrePrevision.ouvrir(rec.get('lg_FAMILLE_ID'), {
+            cible: grid,
             siRefus: function () {
                 me.onDetailClick(grid, rowIndex);
             }
@@ -1084,10 +1085,16 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
             Me_Window.lastEditContext = gridPanel.getPlugin('cellplugin').context;
         }
 
+        /* verrou du double clic (15/10) : une seule fenetre « STOCK DETAIL » */
+        const fin = window.PrestigeChargement ? PrestigeChargement.verrou('qte-detail', grid, 'Ouverture du stock détail') : Ext.emptyFn;
+        if (!fin) {
+            return;
+        }
         Ext.Ajax.request({
             method: 'GET',
             headers: {'Content-Type': 'application/json'},
             url: '../api/v1/suggestion/qty-detail/' + rec.get('lg_FAMILLE_ID'),
+            callback: fin,
             success: function (response, options) {
                 var result = Ext.JSON.decode(response.responseText, true);
                 if (result.success) {

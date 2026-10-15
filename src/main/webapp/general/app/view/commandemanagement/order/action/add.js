@@ -1887,6 +1887,7 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
     onPrevisionClick: function (grid, rowIndex) {
         var me = this, rec = grid.getStore().getAt(rowIndex);
         testextjs.view.commandemanagement.analyse.FenetrePrevision.ouvrir(rec.get('lg_FAMILLE_ID'), {
+            cible: grid,
             siRefus: function () {
                 me.onDetailClick(grid, rowIndex);
             }

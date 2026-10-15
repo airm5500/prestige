@@ -36,15 +36,23 @@ Ext.define('testextjs.view.serviceclient.ordonnance.FenetreFicheClient', {
         };
     },
 
-    /** Ouvre la fiche du client (clientId) ; nom : titre de la fenetre. */
-    ouvrir: function (clientId, nom) {
+    /**
+     * Ouvre la fiche du client (clientId) ; nom : titre de la fenetre ; cible (facultative) : composant qui montre le
+     * message d'ouverture. Verrou du double clic (15/10) : une seule fenetre tant que le serveur n'a pas repondu.
+     */
+    ouvrir: function (clientId, nom, cible) {
         var me = this;
         if (!clientId) {
             Ext.MessageBox.alert('Fiche client', 'Aucun client choisi.');
             return;
         }
+        var fin = window.PrestigeChargement ? PrestigeChargement.verrou('fiche-client', cible, 'Ouverture de la fiche client') : Ext.emptyFn;
+        if (!fin) {
+            return;
+        }
         Ext.Ajax.request({
             method: 'GET', url: '../api/v1/ordonnance-client/droits',
+            callback: fin,
             success: function (r) {
                 var d = Ext.decode(r.responseText, true) || {};
                 if (d.consulter !== true) {

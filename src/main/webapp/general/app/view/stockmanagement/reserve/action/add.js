@@ -243,9 +243,15 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.add', {
         var motifId = cboMotif.getValue();
         var commentaire = (txtCom && txtCom.getValue()) ? txtCom.getValue() : null;
 
+        /* verrou du double clic (15/10) : un double clic creait deux suggestions et ouvrait deux fenetres */
+        var fin = window.PrestigeChargement ? PrestigeChargement.verrou('creer-suggestion-reserve', win, 'Création de la suggestion') : Ext.emptyFn;
+        if (!fin) {
+            return;
+        }
         Ext.Ajax.request({
             method: 'POST',
             url: '../api/v1/suggestion-reserve/creer',
+            callback: fin,
             jsonData: {
                 categorie: categorie,
                 motifId: motifId,

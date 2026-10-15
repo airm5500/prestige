@@ -858,6 +858,11 @@ Ext.define('testextjs.view.vente.user.UpdateVenteClientTpForm', {
     },
     changeAyantDroit: function (btn) {
         let me = btn.up('window');
+        /* verrou du double clic (15/10) : une seule fenetre « choisir un ayant droit » */
+        const fin = window.PrestigeChargement ? PrestigeChargement.verrou('autre-ayant-droit', me, 'Ouverture des ayants droit') : Ext.emptyFn;
+        if (!fin) {
+            return;
+        }
         var ayantStore = Ext.create('Ext.data.Store', {
             model: 'testextjs.model.caisse.AyantDroit',
             autoLoad: false,
@@ -877,6 +882,7 @@ Ext.define('testextjs.view.vente.user.UpdateVenteClientTpForm', {
             scope: this,
             params: {"clientId": me.getClient().lgCLIENTID},
             callback: function (records, operation, successful) {
+                fin();
                 ayantStore.add({lgAYANTSDROITSID: '0', fullName: 'AJOUTER UN NOUVEL AYANT  DROIT'});
                 if (successful) {
                     var form = Ext.create('Ext.window.Window',

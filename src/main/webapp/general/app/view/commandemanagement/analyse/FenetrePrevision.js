@@ -30,12 +30,18 @@ Ext.define('testextjs.view.commandemanagement.analyse.FenetrePrevision', {
 
     /**
      * Ouvre la fenetre du produit. cfg.siRefus(message) : appele quand l'utilisateur n'a pas acces aux previsions
-     * (la suggestion et la commande retombent alors sur leur detail habituel).
+     * (la suggestion et la commande retombent alors sur leur detail habituel). cfg.cible : composant qui montre le
+     * message d'ouverture. Verrou du double clic (15/10) : une seule fenetre tant que le serveur n'a pas repondu.
      */
     ouvrir: function (familleId, cfg) {
         var me = this;
         cfg = cfg || {};
+        var fin = window.PrestigeChargement ? PrestigeChargement.verrou('prevision-produit', cfg.cible, 'Ouverture de la prévision', 125000) : Ext.emptyFn;
+        if (!fin) {
+            return;
+        }
         Ext.Ajax.request({url: '../api/v1/analyse-commande/produit/' + encodeURIComponent(familleId), method: 'GET', timeout: 120000,
+            callback: fin,
             success: function (r) {
                 var o = Ext.decode(r.responseText, true) || {};
                 if (o.success === false) {

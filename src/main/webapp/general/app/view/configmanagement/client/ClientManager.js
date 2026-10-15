@@ -837,7 +837,7 @@ Ext.define('testextjs.view.configmanagement.client.ClientManager', {
     onFicheClientClick: function (grid, rowIndex) {
         var rec = grid.getStore().getAt(rowIndex);
         testextjs.view.serviceclient.ordonnance.FenetreFicheClient.ouvrir(rec.get('lg_CLIENT_ID'),
-                Ext.String.trim((rec.get('str_FIRST_NAME') || '') + ' ' + (rec.get('str_LAST_NAME') || '')));
+                Ext.String.trim((rec.get('str_FIRST_NAME') || '') + ' ' + (rec.get('str_LAST_NAME') || '')), grid);
     },
 
     onConsommationClick: function (grid, rowIndex) {

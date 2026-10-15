@@ -304,9 +304,15 @@ Ext.define('testextjs.view.commandemanagement.order.EnvoiPharmaMl', {
         var me = this, enc = Ext.String.htmlEncode, nb = function (v) {
             return v === null || v === undefined ? '' : Ext.util.Format.number(v, '0,000');
         };
+        /* verrou du double clic (15/10) : une seule fenetre du bon de livraison */
+        var fin = window.PrestigeChargement ? PrestigeChargement.verrou('voir-blv', null, 'Ouverture du bon de livraison') : Ext.emptyFn;
+        if (!fin) {
+            return;
+        }
         Ext.Ajax.request({
             url: '../api/v1/pharma/blv/' + encodeURIComponent(blvId) + (commandeId ? '?commande=' + encodeURIComponent(commandeId) : ''),
             method: 'GET',
+            callback: fin,
             success: function (resp) {
                 var r = Ext.JSON.decode(resp.responseText, true) || {};
                 if (!r.success) {
@@ -405,8 +411,14 @@ Ext.define('testextjs.view.commandemanagement.order.EnvoiPharmaMl', {
      */
     voirReponse: function (commandeId, reference) {
         var me = this, enc = Ext.String.htmlEncode;
+        /* verrou du double clic (15/10) : une seule fenetre de la reponse du grossiste */
+        var fin = window.PrestigeChargement ? PrestigeChargement.verrou('voir-reponse-grossiste', null, 'Ouverture de la réponse du grossiste') : Ext.emptyFn;
+        if (!fin) {
+            return;
+        }
         Ext.Ajax.request({
             method: 'GET', url: '../api/v1/pharma/reponse/' + encodeURIComponent(commandeId),
+            callback: fin,
             success: function (response) {
                 var r = Ext.JSON.decode(response.responseText, true) || {};
                 if (r.success === false) {

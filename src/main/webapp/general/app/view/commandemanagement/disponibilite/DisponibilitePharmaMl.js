@@ -96,9 +96,15 @@ Ext.define('testextjs.view.commandemanagement.disponibilite.DisponibilitePharmaM
      */
     verifier: function (cfg) {
         var me = this;
+        /* verrou du double clic (15/10) : une seule lecture, une seule fenetre / verification lancee */
+        var fin = window.PrestigeChargement ? PrestigeChargement.verrou('verifier-disponibilite', null, 'Préparation de la vérification') : Ext.emptyFn;
+        if (!fin) {
+            return;
+        }
         Ext.Ajax.request({
             method: 'GET', url: '../api/v1/disponibilite/produits',
             params: {source: cfg.source, id: cfg.id, indisponibles: !!cfg.indisponibles},
+            callback: fin,
             success: function (r) {
                 var o = Ext.decode(r.responseText, true) || {};
                 if (!o.success) {

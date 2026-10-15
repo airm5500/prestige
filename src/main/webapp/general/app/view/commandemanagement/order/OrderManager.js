@@ -534,9 +534,15 @@ Ext.define('testextjs.view.commandemanagement.order.OrderManager', {
         const rec = grid.getStore().getAt(rowIndex);
         const orderId = rec.get('lg_ORDER_ID');
         const parentGrid = grid;
+        /* verrou du double clic (15/10) : une seule fenetre de reconciliation */
+        const fin = window.PrestigeChargement ? PrestigeChargement.verrou('reconcilier', grid, 'Ouverture de la réconciliation') : Ext.emptyFn;
+        if (!fin) {
+            return;
+        }
         Ext.Ajax.request({
             url: '../commande?action=reconciliation&orderId=' + orderId,
             method: 'GET',
+            callback: fin,
             success: function (response) {
                 var res = Ext.JSON.decode(response.responseText, true);
                 if (res && res.success && res.nonReconnus && res.nonReconnus.length > 0) {
