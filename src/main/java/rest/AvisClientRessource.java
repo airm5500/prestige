@@ -165,12 +165,17 @@ public class AvisClientRessource {
 
     @GET
     @Path("avis/{id}")
-    public Response detail(@PathParam("id") String id) {
+    public Response detail(@PathParam("id") String id,
+            @javax.ws.rs.DefaultValue("true") @javax.ws.rs.QueryParam("marquerLu") boolean marquerLu) {
         JSONObject r = refus(LIRE);
         if (r != null) {
             return json(r);
         }
-        JSONObject a = service.detail(id, true);
+        /*
+         * demandes des applications mobiles (22) : ?marquerLu=false rend l'avis sans le marquer « lu » pour toute
+         * l'equipe (apercu, rechargement) ; sans parametre : comportement d'origine (poste web)
+         */
+        JSONObject a = service.detail(id, marquerLu);
         return json(a == null ? echec("Avis introuvable.") : new JSONObject().put("success", true).put("data", a));
     }
 

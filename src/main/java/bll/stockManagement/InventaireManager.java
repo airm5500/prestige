@@ -1480,6 +1480,13 @@ public class InventaireManager extends bllBase {
         return ((Number) n).longValue();
     }
 
+    /** Identifiant du dernier inventaire cree par createInventaireMultiCriteres (null si aucun). */
+    private String dernierInventaireCree;
+
+    public String getDernierInventaireCree() {
+        return dernierInventaireCree;
+    }
+
     public long createInventaireMultiCriteres(String str_NAME, List<String> valeurs, String axe, String str_BEGIN,
             String str_END, String str_TYPE, int bool_INVENTAIRE, String stockFilter, Integer stockProduit) {
         return createInventaireMultiCriteres(str_NAME, valeurs, axe, str_BEGIN, str_END, str_TYPE, bool_INVENTAIRE,
@@ -1523,6 +1530,7 @@ public class InventaireManager extends bllBase {
                 return ECHEC_TECHNIQUE;
             }
             creePartiellement = oTInventaire;
+            dernierInventaireCree = oTInventaire.getLgINVENTAIREID();
 
             List<String> aParcourir = (valeurs == null || valeurs.isEmpty()) ? Arrays.asList("%%") : valeurs;
             for (String valeur : aParcourir) {

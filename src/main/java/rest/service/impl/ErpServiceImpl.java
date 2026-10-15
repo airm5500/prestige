@@ -241,14 +241,18 @@ public class ErpServiceImpl implements ErpService {
             }
             // ventilation des encaissements par mode de reglement depuis les lignes
             // de reglement effectives
-            List<Tuple> reglements = getEntityManager().createNativeQuery(
-                    "SELECT sum(v.montant_attentu) AS montantVerse,m.mvtdate,v.type_regelement FROM mvttransaction m, vente_reglement v where m.vente_id=v.vente_id AND m.checked=1 AND (m.typeTransaction=0 OR m.typeTransaction=1) AND m.lg_EMPLACEMENT_ID='1' AND DATE(m.mvtdate) BETWEEN ?1 AND ?2 GROUP BY m.mvtdate,v.type_regelement",
-                    Tuple.class).setParameter(1, LocalDate.parse(dtStart)).setParameter(2, LocalDate.parse(dtEnd))
-                    .getResultList();
+            List<Tuple> reglements = getEntityManager()
+                    .createNativeQuery("SELECT sum(v.montant_attentu) AS montantVerse,m.mvtdate,v.type_regelement,"
+                            // libelle de l'operateur (demandes des applications mobiles, 25) : meme regroupement
+                            + " (SELECT r.str_NAME FROM t_type_reglement r WHERE r.lg_TYPE_REGLEMENT_ID = v.type_regelement) AS libelle"
+                            + " FROM mvttransaction m, vente_reglement v where m.vente_id=v.vente_id AND m.checked=1 AND (m.typeTransaction=0 OR m.typeTransaction=1) AND m.lg_EMPLACEMENT_ID='1' AND DATE(m.mvtdate) BETWEEN ?1 AND ?2 GROUP BY m.mvtdate,v.type_regelement",
+                            Tuple.class)
+                    .setParameter(1, LocalDate.parse(dtStart)).setParameter(2, LocalDate.parse(dtEnd)).getResultList();
             for (Tuple t : reglements) {
                 String mvtDate = t.get("mvtdate", java.sql.Date.class).toLocalDate().format(fmt);
                 long montantPaye = t.get("montantVerse", BigDecimal.class).longValue();
                 String typeReglement = t.get("type_regelement", String.class);
+                String libelleMode = t.get("libelle", String.class);
                 ErpCaComptant caComptant = parDate.computeIfAbsent(mvtDate, k -> {
                     ErpCaComptant c = new ErpCaComptant();
                     c.setMvtDate(k);
@@ -272,12 +276,12 @@ public class ErpServiceImpl implements ErpService {
                 case DateConverter.MODE_MTN:
                 case DateConverter.MODE_WAVE:
                 case DateConverter.MODE_DJAMO:
-                    caComptant.setTotMobile(caComptant.getTotMobile() + montantPaye);
+                    caComptant.ajouterMobile(typeReglement, libelleMode, montantPaye);
                     break;
                 default:
                     // Mode mobile money cree par l'officine : regroupe avec les operateurs historiques.
                     if (util.MobileMoney.est(typeReglement)) {
-                        caComptant.setTotMobile(caComptant.getTotMobile() + montantPaye);
+                        caComptant.ajouterMobile(typeReglement, libelleMode, montantPaye);
                     } else if (FideliteService.TYPE_REGLEMENT.equals(typeReglement)) {
                         caComptant.setTotPointsFidelite(caComptant.getTotPointsFidelite() + montantPaye);
                     }

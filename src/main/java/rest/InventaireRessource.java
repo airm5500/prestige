@@ -331,9 +331,14 @@ public class InventaireRessource {
             return Response.ok().entity(new JSONObject().put("success", 0).put("code_statut", "0")
                     .put("desc_satut", "Inventaire non identifie.").toString()).build();
         }
-        dataManager odm = new dataManager();
-        odm.initEntityManager();
+        /*
+         * demandes des applications mobiles (20, D1) : l'acces a la base est prepare DANS le try ; une panne (fichier
+         * de configuration absent...) donne une reponse lisible avec sa reference, plus une erreur 500 brute
+         */
+        dataManager odm = null;
         try {
+            odm = new dataManager();
+            odm.initEntityManager();
             InventaireManager manager = new InventaireManager(odm, user);
             boolean ok = manager.deleteInventaire(inventaireId);
             String detail = StringUtils.defaultIfBlank(manager.getDetailmessage(),
@@ -439,12 +444,18 @@ public class InventaireRessource {
                 // Le message nomme la cause pour que l'utilisateur sache quoi corriger.
                 return refus("Aucun inventaire n'a ete cree. Cause : " + causeSelectionVide(type) + ".");
             }
-            return Response.ok().entity(new JSONObject().put("success", 1).put("lignes", lignes)
-                    .put("nombre", lignes + " article(s) inventorie(s)").toString()).build();
+            // D2 : identifiant et libelle de l'inventaire cree (le terminal ne le retrouve plus par son libelle)
+            return Response.ok()
+                    .entity(new JSONObject().put("success", 1).put("lignes", lignes)
+                            .put("nombre", lignes + " article(s) inventorie(s)")
+                            .put("lgInventaireId", manager.getDernierInventaireCree()).put("libelle", nom).toString())
+                    .build();
         } catch (Exception e) {
             return incident("creerInventaire", "La creation de l'inventaire a echoue.", e);
         } finally {
-            odm.closeEntityManager();
+            if (odm != null) {
+                odm.closeEntityManager();
+            }
         }
     }
 

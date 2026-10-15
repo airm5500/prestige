@@ -19,6 +19,65 @@ public class ErpCaComptant implements Serializable {
     private long montantCredit;
     /** Retours du 09/10 (6) : part payee avec des points de fidelite. */
     private long totPointsFidelite;
+    /**
+     * Demandes des applications mobiles (25) : detail du Mobile Money par operateur ; la somme des montants est egale a
+     * totMobile par construction (memes lignes). Vide pour un jour sans Mobile Money.
+     */
+    private java.util.List<DetailMobile> detailMobile = new java.util.ArrayList<>();
+
+    public java.util.List<DetailMobile> getDetailMobile() {
+        return detailMobile;
+    }
+
+    public void setDetailMobile(java.util.List<DetailMobile> detailMobile) {
+        this.detailMobile = detailMobile;
+    }
+
+    /** Ajoute au total Mobile Money et a la ligne de l'operateur. */
+    public void ajouterMobile(String modeId, String libelle, long montant) {
+        this.totMobile += montant;
+        for (DetailMobile d : detailMobile) {
+            if (d.getModeId().equals(modeId)) {
+                d.setMontant(d.getMontant() + montant);
+                return;
+            }
+        }
+        DetailMobile d = new DetailMobile();
+        d.setModeId(modeId);
+        d.setLibelle(libelle);
+        d.setMontant(montant);
+        detailMobile.add(d);
+    }
+
+    public static class DetailMobile implements Serializable {
+        private static final long serialVersionUID = 1L;
+        private String modeId, libelle;
+        private long montant;
+
+        public String getModeId() {
+            return modeId;
+        }
+
+        public void setModeId(String modeId) {
+            this.modeId = modeId;
+        }
+
+        public String getLibelle() {
+            return libelle;
+        }
+
+        public void setLibelle(String libelle) {
+            this.libelle = libelle;
+        }
+
+        public long getMontant() {
+            return montant;
+        }
+
+        public void setMontant(long montant) {
+            this.montant = montant;
+        }
+    }
 
     public long getTotEsp() {
         return totEsp;
