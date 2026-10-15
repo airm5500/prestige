@@ -233,6 +233,8 @@ public final class Constant {
     public static final String STATUT_ENCOURS_PEREMPTION = "en peremption";
     public static final String STATUT_UNPAID = "unpaid";
     public static final String KEY_MONTH_PERIME = "KEY_MONTH_PERIME";
+    /** Demandes serveur (43) : empreintes des employes partagees entre terminaux (1 = active, 0 par defaut). */
+    public static final String KEY_EMPREINTES_PARTAGEES = "KEY_EMPREINTES_PARTAGEES";
     public static final String PARAM_TRUE = "1";
     public static final String PARAM_FALSE = "0";
     public static final String TYPE_TIERS_PAYANT_CARNET_ID = "2";

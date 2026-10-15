@@ -621,6 +621,45 @@ public class RhRessource {
         return r != null ? r : ok(mobile.revoquerTousLesJetons());
     }
 
+    /* ---------------------------------------------------------------- empreintes partagees (demandes serveur, 43) */
+
+    @EJB
+    private rest.service.EmpreinteService empreintes;
+    @EJB
+    private rest.service.mobile.MobileClientRefService clientRef;
+
+    /**
+     * Enrolement : {modeles:[base64], format, capteur, doigt, consentement:{le, par}} ; meme X-Client-Ref = meme
+     * reponse.
+     */
+    @POST
+    @Path("employes/{id}/empreintes")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Response enrolerEmpreintes(@PathParam("id") String id, String c,
+            @javax.ws.rs.HeaderParam("X-Client-Ref") String ref) {
+        Response r = controle();
+        return r != null ? r
+                : Response.ok(clientRef.uneFois(ref, rest.service.mobile.MobileClientRefService.TYPE_EMPREINTE,
+                        () -> empreintes.enroler(id, corps(c), utilisateur()), o -> o.optString("nombre", null)))
+                        .build();
+    }
+
+    /** Gabarits des employes actifs crees depuis « depuis » pour ce format, et suppressions a appliquer. */
+    @GET
+    @Path("empreintes")
+    public Response lireEmpreintes(@QueryParam("depuis") String depuis, @QueryParam("format") String format) {
+        Response r = controle();
+        return r != null ? r : Response.ok(empreintes.lire(depuis, format, utilisateur()))
+                .header("Cache-Control", "no-store").build();
+    }
+
+    @DELETE
+    @Path("employes/{id}/empreintes")
+    public Response supprimerEmpreintes(@PathParam("id") String id) {
+        Response r = controle();
+        return r != null ? r : ok(empreintes.supprimer(id, utilisateur()));
+    }
+
     /* ---------------------------------------------------------------- editions PDF des onglets (retours du 10/10) */
 
     private static String hm(int minutes) {

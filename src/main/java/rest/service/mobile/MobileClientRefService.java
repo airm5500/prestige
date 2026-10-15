@@ -48,6 +48,8 @@ public class MobileClientRefService {
     public static final String TYPE_MOUVEMENT_RESERVE = "MVT_RESERVE";
     /** Reserve (demande 33) : ajout d'une ligne a une suggestion. */
     public static final String TYPE_LIGNE_RESERVE = "LIGNE_RESERVE";
+    /** RH (demande 43) : enrolement d'empreintes. */
+    public static final String TYPE_EMPREINTE = "EMPREINTE";
     /** Envoi PharmaML d'une suggestion (demande 2). */
     public static final String TYPE_ENVOI_PHARMAML = "ENVOI_PHARMAML";
     /** Creation et cloture d'ajustement (demandes 1 et 13) : meme cle = meme reponse, rien de refait. */
