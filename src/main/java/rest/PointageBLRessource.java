@@ -104,7 +104,9 @@ public class PointageBLRessource {
             return json((JSONObject) crit);
         }
         Criteres c = (Criteres) crit;
-        return json(service.liste(c.grossistes, emplacement(utilisateur()), c.debut, c.fin, etat));
+        // demandes serveur (45) : total par grossiste quand on cherche par groupe seulement
+        boolean parGroupe = StringUtils.isBlank(grossiste) && StringUtils.isNotBlank(groupe);
+        return json(service.liste(c.grossistes, emplacement(utilisateur()), c.debut, c.fin, etat, parGroupe));
     }
 
     /**

@@ -41,6 +41,8 @@ public class PointageBLService {
     static class PieceVue {
 
         String type, id, reference, referenceAvoir, sequence, statut, pointePar, pointeLe, blId;
+        /* demandes serveur (45) : grossiste de la piece */
+        String grossisteId, grossiste;
         LocalDate date;
         long montantHt;
 
@@ -59,7 +61,9 @@ public class PointageBLService {
                     .put("montantHt", TYPE_BL.equals(type) ? montantHt : -Math.abs(montantHt))
                     .put("pointable", !TYPE_RECEPTION.equals(type)).put("pointe", pointeLe != null)
                     .put("pointeLe", StringUtils.defaultString(pointeLe))
-                    .put("pointePar", StringUtils.defaultString(pointePar));
+                    .put("pointePar", StringUtils.defaultString(pointePar))
+                    .put("grossisteId", StringUtils.defaultString(grossisteId))
+                    .put("grossiste", StringUtils.defaultString(grossiste));
         }
     }
 
@@ -180,9 +184,23 @@ public class PointageBLService {
      * Retours du 10/10 : pieces de plusieurs grossistes (filtre « groupe de grossistes »), dans l'ordre des dates.
      */
     public JSONObject liste(List<String> grossistes, String emplacement, LocalDate du, LocalDate au, String etat) {
+        return liste(grossistes, emplacement, du, au, etat, false);
+    }
+
+    /**
+     * Demandes serveur (45) : chaque piece porte son grossiste ; avec parGrossiste (recherche par groupe), un total par
+     * grossiste du groupe ayant au moins une piece, calcule sur toutes les pieces de la periode quel que soit l'etat.
+     */
+    public JSONObject liste(List<String> grossistes, String emplacement, LocalDate du, LocalDate au, String etat,
+            boolean parGrossiste) {
         List<PieceVue> toutes = new java.util.ArrayList<>();
         for (String g : grossistes) {
-            toutes.addAll(pieces(g, emplacement, du, au));
+            String libelle = libelleGrossiste(g);
+            for (PieceVue p : pieces(g, emplacement, du, au)) {
+                p.grossisteId = g;
+                p.grossiste = libelle;
+                toutes.add(p);
+            }
         }
         if (grossistes.size() > 1) {
             toutes.sort(java.util.Comparator.comparing((PieceVue p) -> p.date == null ? LocalDate.MIN : p.date)
@@ -217,9 +235,49 @@ public class PointageBLService {
                     c == null ? 0 : c.optInt("ecarts"));
             data.put(j);
         }
-        return new JSONObject().put("success", true).put("data", data).put("total", data.length()).put("totalBl", bl)
-                .put("totalAvoirs", avoirs).put("net", bl + avoirs).put("pointes", pointes)
+        JSONObject sortie = new JSONObject().put("success", true).put("data", data).put("total", data.length())
+                .put("totalBl", bl).put("totalAvoirs", avoirs).put("net", bl + avoirs).put("pointes", pointes)
                 .put("nonPointes", nonPointes);
+        if (parGrossiste) {
+            sortie.put("parGrossiste", totauxParGrossiste(toutes));
+        }
+        return sortie;
+    }
+
+    /** Memes regles que les totaux du groupe : HT entiers, avoirs en negatif, receptions hors pointes / non pointes. */
+    private static JSONArray totauxParGrossiste(List<PieceVue> toutes) {
+        java.util.Map<String, long[]> t = new java.util.HashMap<>();
+        java.util.Map<String, String> libelles = new java.util.HashMap<>();
+        for (PieceVue p : toutes) {
+            long[] v = t.computeIfAbsent(p.grossisteId, k -> new long[5]); // bl, avoirs, pieces, pointes, nonPointes
+            libelles.put(p.grossisteId, StringUtils.defaultString(p.grossiste));
+            if (TYPE_BL.equals(p.type)) {
+                v[0] += p.montantHt;
+            } else {
+                v[1] -= p.montantHt;
+            }
+            v[2]++;
+            if (!TYPE_RECEPTION.equals(p.type)) {
+                v[p.pointeLe != null ? 3 : 4]++;
+            }
+        }
+        List<String> ids = new ArrayList<>(t.keySet());
+        ids.sort(java.util.Comparator.comparing(libelles::get));
+        JSONArray a = new JSONArray();
+        for (String id : ids) {
+            long[] v = t.get(id);
+            a.put(new JSONObject().put("grossisteId", id).put("libelle", libelles.get(id)).put("totalBl", v[0])
+                    .put("totalAvoirs", v[1]).put("net", v[0] + v[1]).put("pieces", v[2]).put("pointes", v[3])
+                    .put("nonPointes", v[4]));
+        }
+        return a;
+    }
+
+    private String libelleGrossiste(String grossisteId) {
+        @SuppressWarnings("unchecked")
+        List<Object> l = em.createNativeQuery("SELECT str_LIBELLE FROM t_grossiste WHERE lg_GROSSISTE_ID = ?1")
+                .setParameter(1, grossisteId).getResultList();
+        return l.isEmpty() || l.get(0) == null ? "" : String.valueOf(l.get(0));
     }
 
     /** Pointer ou depointer un BL ou un avoir (retour). */
