@@ -1690,7 +1690,45 @@ window.PrestigeChargement = (function () {
             fin('Échec (' + (e && e.message ? e.message : 'réseau') + ')', false);
         });
     }
-    return {occuper: occuper, telecharger: telecharger};
+    /*
+     * Verrou des actions qui demandent d'abord des donnees au serveur puis ouvrent une fenetre dans la reponse
+     * (retour du 15/10) : un double clic lancait deux appels et ouvrait deux fenetres. Tant que la reponse n'est pas
+     * revenue, un nouveau clic sur la meme action est ignore ; la cible (grille, bouton, ecran) montre le message
+     * d'ouverture. Liberation de secours apres « secours » ms si la reponse ne vient jamais.
+     *
+     *   var fin = PrestigeChargement.verrou('detail-vente', grille, 'Ouverture du détail');
+     *   if (!fin) { return; }          // deja en cours : clic ignore
+     *   Ext.Ajax.request({..., callback: fin, success: ...});
+     */
+    var verrous = {};
+    function verrou(cle, cible, texte, secours) {
+        if (verrous[cle]) {
+            return null;
+        }
+        style();
+        barre(true);
+        var masque = cible && cible.setLoading && !cible.isDestroyed ? cible : null;
+        if (masque) {
+            masque.setLoading((texte || 'Ouverture') + '…');
+        }
+        var fini = false;
+        var fin = function () {
+            if (fini) {
+                return;
+            }
+            fini = true;
+            clearTimeout(minuteur);
+            delete verrous[cle];
+            barre(false);
+            if (masque && !masque.isDestroyed) {
+                masque.setLoading(false);
+            }
+        };
+        var minuteur = setTimeout(fin, secours || 30000);
+        verrous[cle] = fin;
+        return fin;
+    }
+    return {occuper: occuper, telecharger: telecharger, verrou: verrou};
 })();
 
 /**

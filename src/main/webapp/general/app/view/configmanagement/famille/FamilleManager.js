@@ -1919,10 +1919,16 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
 
     onDetailClick: function (grid, rowIndex) {
         const rec = grid.getStore().getAt(rowIndex);
+        /* verrou du double clic (15/10) : une seule ouverture tant que le serveur n'a pas repondu */
+        const fin = window.PrestigeChargement ? PrestigeChargement.verrou('detail-article', grid, 'Ouverture du détail') : Ext.emptyFn;
+        if (!fin) {
+            return;
+        }
         Ext.Ajax.request({
             method: 'GET',
             headers: {'Content-Type': 'application/json'},
             url: '../api/v1/produit-search/produits/' + rec.data.lg_FAMILLE_ID,
+            callback: fin,
             success: function (response, options) {
                 const result = Ext.JSON.decode(response.responseText, true);
                 const produit = result.data;
