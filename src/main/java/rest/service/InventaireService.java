@@ -23,6 +23,17 @@ public interface InventaireService {
 
     List<RayonDTO> fetchRayon(String idInventaire, Integer page, Integer maxResult);
 
+    /**
+     * Etat de comptage de chaque rayon d'un inventaire en une requete ({@code null} si l'inventaire n'existe pas).
+     */
+    org.json.JSONArray etatRayons(String idInventaire, boolean avecAuteurs);
+
+    /**
+     * Versement d'une collecte en lot (point 37) : rapport par ligne ; la reponse porte « status » (200, 400, 409, 410,
+     * 413).
+     */
+    JSONObject versement(String idInventaire, JSONObject corps, TUser auteur);
+
     List<DetailInventaireDTO> fetchDetails(String idInventaire, String idRayon, String query, Integer page,
             Integer maxResult);
 

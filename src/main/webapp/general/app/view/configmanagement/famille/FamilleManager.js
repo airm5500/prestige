@@ -1724,14 +1724,30 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
     const self = this; // Stocker la référence de 'this' pour l'utiliser dans les callbacks
 
     if (rec.get('lg_EMPLACEMENT_ID') == "1") {
-
+        // Un seul chargement a la fois, signale par un masque : un second clic pendant l'attente ouvrait une seconde
+        // fenetre, et rien n'indiquait que la fiche etait en train d'arriver.
+        if (self.chargementModification) {
+            return;
+        }
+        self.chargementModification = true;
+        self.setLoading('Chargement de l\'article...');
         Ext.Ajax.request({
             method: 'GET',
             headers: {'Content-Type': 'application/json'},
             url: '../api/v1/produit-search/produits/' + rec.data.lg_FAMILLE_ID,
+            callback: function () {
+                self.chargementModification = false;
+                if (!self.isDestroyed) {
+                    self.setLoading(false);
+                }
+            },
             success: function (response, options) {
                 const result = Ext.JSON.decode(response.responseText, true);
-                const produit = result.data;
+                const produit = result ? result.data : null;
+                if (!produit) {
+                    Ext.Msg.alert("Erreur", "Impossible de charger les données du produit");
+                    return;
+                }
                 
                 // Créer la fenêtre de modification
                 new testextjs.view.configmanagement.famille.action.add({

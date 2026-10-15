@@ -375,8 +375,42 @@ public class PrevisionCommandeServiceImpl implements PrevisionCommandeService {
      * quantite recommandee et la couverture sont recalculees avec la meme formule que le calcul complet, de sorte que
      * colonnes, filtres et tris restent coherents.
      */
+    /**
+     * Demandes serveur des applications mobiles (point 23) : chaque lecture (tableau, chaque page « Afficher plus »,
+     * fiche produit, exports) relisait toutes les lignes de prevision. La relecture n'a d'effet que si l'en-cours des
+     * commandes ou le dernier calcul ont change depuis la fois precedente : on retient, par emplacement, la signature
+     * de ces deux sources, et l'on ne relit les lignes que si elle a change (creation, reception, suppression ou
+     * modification de commande, nouveau calcul). Rien n'est donc jamais servi en retard.
+     */
+    private static final Map<String, String> SIGNATURE_EN_COURS = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final Map<String, String> HEURE_EN_COURS = new java.util.concurrent.ConcurrentHashMap<>();
+
     void rafraichirEnCours(String emplacementId) {
         Map<String, Integer> enCours = enCoursCommandes();
+        String cle = emplacementId == null ? "" : emplacementId;
+        List<Object[]> calcul = lignes("SELECT id, IFNULL(DATE_FORMAT(fin, '%Y%m%d%H%i%s'), 'EN_COURS')"
+                + " FROM t_prevision_calcul WHERE lg_EMPLACEMENT_ID = ?1 ORDER BY id DESC LIMIT 1", cle);
+        String signature = empreinte(new java.util.TreeMap<>(enCours).toString()) + "|" + enCours.size() + "|"
+                + (calcul.isEmpty() ? "-" : texte(calcul.get(0)[0]) + "/" + texte(calcul.get(0)[1]));
+        if (!signature.equals(SIGNATURE_EN_COURS.get(cle))) {
+            rafraichirLignesEnCours(emplacementId, enCours);
+            SIGNATURE_EN_COURS.put(cle, signature);
+        }
+        // heure a laquelle l'en-cours a ete verifie (il l'est a chaque lecture)
+        HEURE_EN_COURS.put(cle, LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")));
+    }
+
+    private static String empreinte(String texte) {
+        try {
+            byte[] h = java.security.MessageDigest.getInstance("SHA-256")
+                    .digest(texte.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            return java.util.Base64.getEncoder().encodeToString(h);
+        } catch (java.security.NoSuchAlgorithmException e) {
+            return texte;
+        }
+    }
+
+    private void rafraichirLignesEnCours(String emplacementId, Map<String, Integer> enCours) {
         int couvertureVoulue = Math.max(0, entierParametre("KEY_PREVISION_COUVERTURE_JOURS", 15));
         for (Object[] r : lignes("SELECT lg_FAMILLE_ID, prevu_mois, ecart_type_mois, stock, en_cours, equivalents,"
                 + " delai_jours FROM t_prevision_produit WHERE lg_EMPLACEMENT_ID = ?1", emplacementId)) {
@@ -407,7 +441,8 @@ public class PrevisionCommandeServiceImpl implements PrevisionCommandeService {
         if (c.isEmpty()) {
             return o.put("calcule", false);
         }
-        o.put("calcule", true).put("dernierCalcul", c.get(0)[0]).put("origine", c.get(0)[3]);
+        o.put("calcule", true).put("dernierCalcul", c.get(0)[0]).put("origine", c.get(0)[3]).put("enCoursAJour",
+                HEURE_EN_COURS.getOrDefault(emplacementId == null ? "" : emplacementId, ""));
         AlertesLigne.Seuils s = seuils();
         Object[] r = lignes("SELECT COUNT(*)," + " COALESCE(SUM(CASE WHEN p.ventes_12_mois > 0 THEN 1 ELSE 0 END), 0),"
                 + " COALESCE(SUM(CASE WHEN p.prevu_mois >= 1 THEN 1 ELSE 0 END), 0),"

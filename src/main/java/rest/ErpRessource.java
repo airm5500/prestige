@@ -20,6 +20,7 @@ import javax.ws.rs.DefaultValue;
 import javax.ws.rs.GET;
 import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Response;
@@ -252,6 +253,28 @@ public class ErpRessource {
     public Response fetchRayon(@QueryParam(value = "idInventaire") String idInventaire,
             @QueryParam(value = "page") Integer page, @QueryParam(value = "maxResult") Integer maxResult) {
         return Response.ok().entity(inventaireService.fetchRayon(idInventaire, page, maxResult)).build();
+    }
+
+    /**
+     * Etat de comptage de tous les rayons d'un inventaire (point 30) : session exigee, 410 si l'inventaire n'existe
+     * pas.
+     */
+    @GET
+    @Path("ws/inventaires/{idInventaire}/rayons/etat")
+    public Response etatRayons(@PathParam("idInventaire") String idInventaire,
+            @QueryParam(value = "avecAuteurs") String avecAuteurs) {
+        if (servletRequest.getSession(false) == null
+                || servletRequest.getSession(false).getAttribute(Constant.AIRTIME_USER) == null) {
+            return Response.status(Response.Status.UNAUTHORIZED)
+                    .entity(new JSONObject().put("success", 0).put("code", "SESSION").toString()).build();
+        }
+        org.json.JSONArray etat = inventaireService.etatRayons(idInventaire,
+                "1".equals(avecAuteurs) || "true".equalsIgnoreCase(avecAuteurs));
+        if (etat == null) {
+            return Response.status(Response.Status.GONE)
+                    .entity(new JSONObject().put("success", 0).put("code", "INVENTAIRE_INCONNU").toString()).build();
+        }
+        return Response.ok().entity(etat.toString()).build();
     }
 
     @GET

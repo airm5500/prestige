@@ -115,6 +115,182 @@ public class InventaireServiceImpl implements InventaireService {
 
     }
 
+    /**
+     * Demandes des applications mobiles (point 30) : « ANTIBIOTIQUES : 38 / 52 comptés » pour tous les rayons d'un
+     * coup, au lieu de deux listes completes par rayon. Memes rayons que {@code fetchRayon} ; un produit est compte une
+     * fois par ligne d'inventaire (les grossistes du produit ne le dupliquent pas). Comptes = lignes a inventorier deja
+     * saisies, comme {@code detailsTouchedRayon}.
+     */
+    @Override
+    public org.json.JSONArray etatRayons(String idInventaire, boolean avecAuteurs) {
+        if (idInventaire == null || em.find(TInventaire.class, idInventaire) == null) {
+            return null;
+        }
+        try {
+            @SuppressWarnings("unchecked")
+            List<Object[]> lignes = em.createNativeQuery("SELECT z.lg_ZONE_GEO_ID, z.str_CODE, z.str_LIBELLEE,"
+                    + " COUNT(DISTINCT CASE WHEN i.bool_INVENTAIRE = 1 THEN i.lg_INVENTAIRE_FAMILLE_ID END),"
+                    + " COUNT(DISTINCT CASE WHEN i.bool_INVENTAIRE = 1 AND i.dt_UPDATED IS NOT NULL"
+                    + "   THEN i.lg_INVENTAIRE_FAMILLE_ID END),"
+                    + " DATE_FORMAT(MAX(CASE WHEN i.bool_INVENTAIRE = 1 THEN i.dt_UPDATED END), '%Y-%m-%dT%H:%i:%s'),"
+                    + (avecAuteurs ? " GROUP_CONCAT(DISTINCT CASE WHEN i.bool_INVENTAIRE = 1 THEN u.str_LOGIN END"
+                            + " ORDER BY u.str_LOGIN SEPARATOR ',')" : " ''")
+                    + " FROM t_inventaire_famille i JOIN t_famille f ON f.lg_FAMILLE_ID = i.lg_FAMILLE_ID"
+                    + " JOIN t_zone_geographique z ON z.lg_ZONE_GEO_ID = f.lg_ZONE_GEO_ID"
+                    + (avecAuteurs ? " LEFT JOIN t_user u ON u.lg_USER_ID = i.str_UPDATED_ID" : "")
+                    + " WHERE i.lg_INVENTAIRE_ID = ?1 GROUP BY z.lg_ZONE_GEO_ID, z.str_CODE, z.str_LIBELLEE"
+                    + " ORDER BY z.str_LIBELLEE ASC").setParameter(1, idInventaire).getResultList();
+            org.json.JSONArray sortie = new org.json.JSONArray();
+            for (Object[] r : lignes) {
+                int total = ((Number) r[3]).intValue(), comptes = ((Number) r[4]).intValue();
+                JSONObject o = new JSONObject().put("rayonId", r[0]).put("code", r[1] == null ? "" : r[1])
+                        .put("libelle", r[2] == null ? "" : r[2]).put("totalProduits", total).put("comptes", comptes)
+                        .put("restants", total - comptes).put("derniereSaisie", r[5] == null ? JSONObject.NULL : r[5]);
+                if (avecAuteurs) {
+                    o.put("auteurs", r[6] == null ? new org.json.JSONArray()
+                            : new org.json.JSONArray(java.util.Arrays.asList(String.valueOf(r[6]).split(","))));
+                }
+                sortie.put(o);
+            }
+            return sortie;
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "etatRayons", e);
+            throw new IllegalStateException("Lecture d'inventaire impossible (etatRayons)", e);
+        }
+    }
+
+    static final int VERSEMENT_MAX_LIGNES = 500;
+
+    /**
+     * Demandes des applications mobiles (point 37) : une collecte hors ligne versee en une requete, au lieu d'une
+     * lecture puis d'une ecriture par produit. En mode « ajouter », la quantite s'ajoute en base dans la meme
+     * instruction (deux terminaux qui versent en meme temps : somme exacte) ; une ligne jamais comptee part de 0 et non
+     * du stock theorique. La cle du terminal rend le versement idempotent.
+     */
+    @Override
+    public JSONObject versement(String idInventaire, JSONObject corps, TUser auteur) {
+        String cle = corps == null ? "" : StringUtils.trimToEmpty(corps.optString("cle", ""));
+        String mode = corps == null ? "" : corps.optString("mode", "");
+        JSONArray lignes = corps == null ? null : corps.optJSONArray("lignes");
+        if (cle.isEmpty() || cle.length() > 64 || lignes == null
+                || !("ajouter".equals(mode) || "remplacer".equals(mode))) {
+            return new JSONObject().put("status", 400).put("success", 0).put("code", "REQUETE_INVALIDE").put("message",
+                    "Attendu : {cle, mode: ajouter|remplacer, lignes: [{code, quantite}]}.");
+        }
+        if (lignes.length() > VERSEMENT_MAX_LIGNES) {
+            return new JSONObject().put("status", 413).put("success", 0).put("code", "TROP_DE_LIGNES").put("message",
+                    VERSEMENT_MAX_LIGNES + " lignes au plus par versement.");
+        }
+        TInventaire inv = idInventaire == null ? null : em.find(TInventaire.class, idInventaire);
+        if (inv == null) {
+            return new JSONObject().put("status", 410).put("success", 0).put("code", "INVENTAIRE_INCONNU");
+        }
+        if (Constant.STATUT_IS_CLOSED.equals(inv.getStrSTATUT()) || Constant.STATUT_DELETE.equals(inv.getStrSTATUT())) {
+            return new JSONObject().put("status", 409).put("success", 0).put("code", "INVENTAIRE_CLOTURE")
+                    .put("message", "Inventaire « " + inv.getStrNAME() + " » clôturé : rien n'a été enregistré.");
+        }
+        em.createNativeQuery("DELETE FROM t_inventaire_versement WHERE created_at < NOW() - INTERVAL 30 DAY")
+                .executeUpdate();
+        String empreinte = empreinte(mode + "|" + lignes.toString());
+        // la cle est reservee d'abord : un second envoi simultane attend la fin du premier, puis lit son rapport
+        int reservee = em
+                .createNativeQuery("INSERT IGNORE INTO t_inventaire_versement (cle, lg_INVENTAIRE_ID,"
+                        + " empreinte, rapport, lg_USER_ID, created_at) VALUES (?1, ?2, ?3, '{}', ?4, NOW())")
+                .setParameter(1, cle).setParameter(2, idInventaire).setParameter(3, empreinte)
+                .setParameter(4, auteur == null ? null : auteur.getLgUSERID()).executeUpdate();
+        if (reservee == 0) {
+            @SuppressWarnings("unchecked")
+            List<Object[]> l = em
+                    .createNativeQuery(
+                            "SELECT lg_INVENTAIRE_ID, empreinte, rapport FROM t_inventaire_versement WHERE cle = ?1")
+                    .setParameter(1, cle).getResultList();
+            if (l.isEmpty() || !idInventaire.equals(l.get(0)[0]) || !empreinte.equals(l.get(0)[1])) {
+                return new JSONObject().put("status", 409).put("success", 0).put("code", "CLE_REUTILISEE")
+                        .put("message", "Cette clé a déjà servi pour un autre versement.");
+            }
+            return new JSONObject(String.valueOf(l.get(0)[2])).put("status", 200).put("dejaTraite", true);
+        }
+        JSONArray sortie = new JSONArray();
+        int nOk = 0, nInconnu = 0, nAmbigu = 0, nRefuse = 0;
+        for (int i = 0; i < lignes.length(); i++) {
+            JSONObject e = lignes.optJSONObject(i);
+            String code = e == null ? "" : StringUtils.trimToEmpty(e.optString("code", ""));
+            JSONObject r = new JSONObject().put("index", i).put("code", code);
+            Object q = e == null ? null : e.opt("quantite");
+            int quantite = q instanceof Number && ((Number) q).doubleValue() == Math.rint(((Number) q).doubleValue())
+                    ? ((Number) q).intValue() : -1;
+            r.put("quantite", q == null ? JSONObject.NULL : q);
+            if (code.isEmpty() || quantite < 0 || quantite > 1_000_000) {
+                sortie.put(
+                        r.put("statut", "refuse").put("motif", code.isEmpty() ? "Code absent." : "Quantité invalide."));
+                nRefuse++;
+                continue;
+            }
+            @SuppressWarnings("unchecked")
+            List<Object[]> trouvees = em.createNativeQuery("SELECT i.lg_INVENTAIRE_FAMILLE_ID, f.int_CIP, f.str_NAME,"
+                    + " i.str_STATUT FROM t_inventaire_famille i JOIN t_famille f ON f.lg_FAMILLE_ID = i.lg_FAMILLE_ID"
+                    + " WHERE i.lg_INVENTAIRE_ID = ?1 AND i.bool_INVENTAIRE = 1 AND (f.int_CIP = ?2 OR f.int_EAN13 = ?2"
+                    + " OR f.code_ean_fabriquant = ?2 OR EXISTS (SELECT 1 FROM t_famille_grossiste g"
+                    + " WHERE g.lg_FAMILLE_ID = f.lg_FAMILLE_ID AND g.str_CODE_ARTICLE = ?2))")
+                    .setParameter(1, idInventaire).setParameter(2, code).getResultList();
+            if (trouvees.isEmpty()) {
+                sortie.put(r.put("statut", "inconnu"));
+                nInconnu++;
+                continue;
+            }
+            if (trouvees.size() > 1) {
+                JSONArray possibles = new JSONArray();
+                trouvees.forEach(t -> possibles.put(new JSONObject().put("id", String.valueOf(t[0]))
+                        .put("cip", t[1] == null ? "" : t[1]).put("libelle", t[2] == null ? "" : t[2])));
+                sortie.put(r.put("statut", "ambigu").put("lignesPossibles", possibles));
+                nAmbigu++;
+                continue;
+            }
+            String ligneId = String.valueOf(trouvees.get(0)[0]);
+            if (Constant.STATUT_IS_CLOSED.equals(trouvees.get(0)[3])) {
+                sortie.put(r.put("statut", "refuse").put("ligneId", ligneId).put("motif", "Ligne clôturée."));
+                nRefuse++;
+                continue;
+            }
+            em.createNativeQuery("ajouter".equals(mode)
+                    ? "UPDATE t_inventaire_famille SET int_NUMBER = CASE WHEN dt_UPDATED IS NULL THEN ?1"
+                            + " ELSE int_NUMBER + ?1 END, dt_UPDATED = NOW(), str_UPDATED_ID = ?2"
+                            + " WHERE lg_INVENTAIRE_FAMILLE_ID = ?3"
+                    : "UPDATE t_inventaire_famille SET int_NUMBER = ?1, dt_UPDATED = NOW(), str_UPDATED_ID = ?2"
+                            + " WHERE lg_INVENTAIRE_FAMILLE_ID = ?3")
+                    .setParameter(1, quantite).setParameter(2, auteur == null ? null : auteur.getLgUSERID())
+                    .setParameter(3, ligneId).executeUpdate();
+            Object finale = em
+                    .createNativeQuery(
+                            "SELECT int_NUMBER FROM t_inventaire_famille WHERE lg_INVENTAIRE_FAMILLE_ID = ?1")
+                    .setParameter(1, ligneId).getSingleResult();
+            sortie.put(r.put("statut", "ok").put("ligneId", ligneId).put("quantiteFinale", finale));
+            nOk++;
+        }
+        JSONObject rapport = new JSONObject().put("success", 1).put("dejaTraite", false).put("mode", mode)
+                .put("total", lignes.length()).put("ok", nOk).put("inconnu", nInconnu).put("ambigu", nAmbigu)
+                .put("refuse", nRefuse).put("lignes", sortie);
+        em.createNativeQuery("UPDATE t_inventaire_versement SET rapport = ?1 WHERE cle = ?2")
+                .setParameter(1, rapport.toString()).setParameter(2, cle).executeUpdate();
+        // les entites deja chargees dans ce contexte ne doivent pas masquer les ecritures directes
+        em.getEntityManagerFactory().getCache().evict(TInventaireFamille.class);
+        return rapport.put("status", 200);
+    }
+
+    private static String empreinte(String texte) {
+        try {
+            byte[] h = java.security.MessageDigest.getInstance("SHA-256")
+                    .digest(texte.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder();
+            for (byte b : h) {
+                sb.append(String.format("%02x", b));
+            }
+            return sb.toString();
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
     @Override
     public List<DetailInventaireDTO> fetchDetails(String idInventaire, String idRayon, String query, Integer page,
             Integer maxResult) {

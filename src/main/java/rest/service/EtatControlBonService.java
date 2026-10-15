@@ -26,6 +26,14 @@ public interface EtatControlBonService {
     JSONObject list(boolean fullAuth, String search, String dtStart, String dtEnd, String grossisteId, int start,
             int limit, String dateType, String statutControle, String ecart);
 
+    /** Nombre de BL de la liste avec les memes criteres. */
+    long nombre(String search, String dtStart, String dtEnd, String grossisteId, String dateType, String statutControle,
+            String ecart, String userId);
+
+    /** Meme liste, limitee aux BL saisis par un utilisateur ({@code userId} vide ou ALL : tous). */
+    JSONObject list(boolean fullAuth, String search, String dtStart, String dtEnd, String grossisteId, int start,
+            int limit, String dateType, String statutControle, String ecart, String userId);
+
     /** Toutes les lignes retenues par les criteres, sans pagination : impression et export. */
     List<EtatControlBon> tous(boolean fullAuth, String search, String dtStart, String dtEnd, String grossisteId,
             String dateType, String statutControle, String ecart);

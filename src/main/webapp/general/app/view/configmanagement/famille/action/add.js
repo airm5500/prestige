@@ -278,6 +278,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
                         { xtype: 'combobox', fieldLabel: 'Fabriquant', name: 'lg_FABRIQUANT_ID', itemId: 'lg_FABRIQUANT_ID', store: store_fabriquant, valueField: 'lg_FABRIQUANT_ID', displayField: 'str_NAME', pageSize: 20, typeAhead: true, hidden: true, queryMode: 'remote', emptyText: 'Choisir un frabriquant...' },
                         { xtype: 'combobox', fieldLabel: 'Grossiste', name: 'lg_GROSSISTE_ID', itemId: 'lg_GROSSISTE_ID', store: store_grossiste_famille, valueField: 'lg_GROSSISTE_ID', pageSize: 20, displayField: 'str_LIBELLE', minChars: 2, allowBlank: false, queryMode: 'remote', emptyText: 'Choisir un grossiste...' },
                         { fieldLabel: 'Code EAN 13', xtype: 'textfield', maskRe: /[0-9.]/, emptyText: 'Code EAN 13', name: 'int_EAN13', itemId: 'int_EAN13' },
+                        { fieldLabel: 'Code EAN fabricant', xtype: 'textfield', maxLength: 40, enforceMaxLength: true, emptyText: 'Code EAN fabricant', name: 'code_EAN_FABRIQUANT', itemId: 'code_EAN_FABRIQUANT' },
                         { xtype: 'combobox', fieldLabel: 'Code TVA', name: 'lg_CODE_TVA_ID', itemId: 'lg_CODE_TVA_ID', store: store_codetva, valueField: 'lg_CODE_TVA_ID', displayField: 'str_NAME', typeAhead: true, allowBlank: false, queryMode: 'remote', emptyText: 'Choisir un code TVA...' },
                         { xtype: 'displayfield', fieldLabel: 'Stock', hidden: true, name: 'int_NUMBER_AVAILABLE', itemId: 'int_NUMBER_AVAILABLE', fieldStyle: 'color:blue;font-weight:bold;', value: 0 } ]
                         },
@@ -538,6 +539,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
             var lg_CODE_ACTE_IDcom = g('lg_CODE_ACTE_ID');
             if (lg_CODE_ACTE_IDcom) {
                 lg_CODE_ACTE_IDcom.getStore().on('load', function () {
+                    if (lg_CODE_ACTE_IDcom.isDestroyed || !lg_CODE_ACTE_IDcom.getStore()) return;
                     lg_CODE_ACTE_IDcom.getStore().each(function (r) {
                         if (r.get('lg_CODE_ACTE_ID') === '0') lg_CODE_ACTE_IDcom.setValue(r.get('lg_CODE_ACTE_ID'));
                     });
@@ -547,6 +549,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
             var combo = g('lg_TYPEETIQUETTE_ID');
             if (combo) {
                 combo.getStore().on('load', function () {
+                    if (combo.isDestroyed || !combo.getStore()) return;
                     combo.getStore().each(function (r) {
                         if (r.get('lg_TYPEETIQUETTE_ID') === '2') combo.setValue(r.get('lg_TYPEETIQUETTE_ID'));
                     });
@@ -580,6 +583,10 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
             /* le type arrive par son libelle : on retrouve son identifiant une fois la liste chargee */
             var comboType = g('lg_TYPEETIQUETTE_ID'), meType = this;
             var choisirType = function () {
+                // la liste des types est partagee : son chargement peut arriver apres la fermeture de la fenetre
+                if (comboType.isDestroyed || !comboType.getStore()) {
+                    return;
+                }
                 var st = comboType.getStore(), v = ds.lg_TYPEETIQUETTE_ID;
                 var r = st.findRecord('lg_TYPEETIQUETTE_ID', v, 0, false, false, true) || st.findRecord('str_DESCRIPTION', v, 0, false, false, true);
                 meType.typeEtiquetteOrigine = r ? r.get('lg_TYPEETIQUETTE_ID') : null;
@@ -633,6 +640,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
             g('int_NUMBERDETAIL').setValue(ds.int_NUMBERDETAIL);
             g('lg_CODE_TVA_ID').setValue(ds.lg_CODE_TVA_ID);
             g('int_EAN13').setValue(ds.int_EAN13);
+            g('code_EAN_FABRIQUANT').setValue(ds.codeEanFabriquant || '');
             g('bool_RESERVE').setValue(ds.bool_RESERVE);
             if (g('bool_CALCUL_SEUIL')) { g('bool_CALCUL_SEUIL').setValue(ds.bool_CALCUL_SEUIL === undefined ? true : ds.bool_CALCUL_SEUIL); }
             if (g('bool_SUGGERABLE')) { g('bool_SUGGERABLE').setValue(ds.bool_SUGGERABLE === undefined ? true : ds.bool_SUGGERABLE); }
@@ -891,6 +899,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
                 str_DESCRIPTION: str_DESCRIPTION,
                 int_CIP: g('int_CIP').getValue(),
                 int_EAN13: g('int_EAN13').getValue(),
+                code_EAN_FABRIQUANT: Ext.String.trim(g('code_EAN_FABRIQUANT').getValue() || ''),
                 lg_CODE_TVA_ID: g('lg_CODE_TVA_ID').getValue(),
                 int_SEUIL_RESERVE: (function(){ var s=form.down('#int_SEUIL_RESERVE'); return s ? s.getValue() : 0; })(),
                 int_SEUIL_MINI_RAYON: form.down('#int_SEUIL_MINI_RAYON') ? form.down('#int_SEUIL_MINI_RAYON').getValue() : null,

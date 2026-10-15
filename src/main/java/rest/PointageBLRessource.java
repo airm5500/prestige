@@ -107,6 +107,34 @@ public class PointageBLRessource {
         return json(service.liste(c.grossistes, emplacement(utilisateur()), c.debut, c.fin, etat));
     }
 
+    /**
+     * Nombre de pieces seul (accueil des applications, point 29) : memes criteres et meme droit que la liste ; sans
+     * grossiste ni groupe, toutes les pieces des grossistes actifs.
+     */
+    @GET
+    @Path("nombre")
+    public Response nombre(@QueryParam("grossiste") String grossiste, @QueryParam("du") String du,
+            @QueryParam("au") String au, @QueryParam("etat") String etat, @QueryParam("groupe") String groupe) {
+        JSONObject r = refus();
+        if (r != null) {
+            return json(r);
+        }
+        boolean tous = StringUtils.isBlank(grossiste) && StringUtils.isBlank(groupe);
+        Object crit = criteres(tous ? "-" : grossiste, groupe, du, au);
+        if (crit instanceof JSONObject) {
+            return json((JSONObject) crit);
+        }
+        Criteres c = (Criteres) crit;
+        if (tous) {
+            c.grossistes = service.grossistesActifs();
+        }
+        JSONObject l = service.liste(c.grossistes, emplacement(utilisateur()), c.debut, c.fin, etat);
+        if (!l.optBoolean("success", false)) {
+            return json(l);
+        }
+        return json(new JSONObject().put("success", true).put("nombre", l.optInt("total", 0)));
+    }
+
     /** Criteres communs a la liste et a son edition PDF. */
     private static final class Criteres {
         java.util.List<String> grossistes;

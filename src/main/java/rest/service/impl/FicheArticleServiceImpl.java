@@ -409,6 +409,22 @@ public class FicheArticleServiceImpl implements FicheArticleService {
     }
 
     @Override
+    public JSONObject modifierCodeEanFabricant(String lgFAMILLEID, String code) throws JSONException {
+        String valeur = code == null ? "" : code.trim();
+        String refus = util.ControleSaisie.longueur("Le code EAN fabricant", valeur, 40);
+        if (refus != null) {
+            return new JSONObject().put("success", false).put("msg", refus);
+        }
+        TFamille famille = lgFAMILLEID == null ? null : em.find(TFamille.class, lgFAMILLEID);
+        if (famille == null) {
+            return new JSONObject().put("success", false).put("msg", "Article introuvable");
+        }
+        famille.setCodeEanFabriquant(valeur.isEmpty() ? null : valeur);
+        famille.setDtUPDATED(new java.util.Date());
+        return new JSONObject().put("success", true).put("codeEanFabriquant", valeur);
+    }
+
+    @Override
     public JSONObject modifierCodeEan(String lgFAMILLEID, String codeEan) throws JSONException {
         String code = rest.CodeEanUtil.normaliser(codeEan);
         if (!rest.CodeEanUtil.estRenseigne(code)) {

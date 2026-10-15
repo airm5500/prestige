@@ -57,14 +57,34 @@ public class EtatControlBonResource {
             @QueryParam(value = "dateType") String dateType,
             @DefaultValue("") @QueryParam(value = "statutControle") String statutControle,
             @DefaultValue("") @QueryParam(value = "ecart") String ecart,
-            @QueryParam(value = "groupeId") String groupeId) {
+            @QueryParam(value = "groupeId") String groupeId, @QueryParam(value = "userId") String userId) {
         grossisteId = cible(grossisteId, groupeId);
         boolean returnFullBLLAuthority = Utils.hasAuthorityByName(Utils.getconnectedUserPrivileges(servletRequest),
                 Parameter.ACTION_RETURN_FULL_BL);
 
         return Response.ok().entity(etatControlBonService.list(returnFullBLLAuthority, search, dtStart, dtEnd,
-                grossisteId, start, limit, dateType, statutControle, ecart).toString()).build();
+                grossisteId, start, limit, dateType, statutControle, ecart, userId).toString()).build();
 
+    }
+
+    /**
+     * Nombre seul, memes filtres et meme session que {@code list} (demandes des applications mobiles, point 29) : un
+     * COUNT, sans montants ni totaux.
+     */
+    @GET
+    @Path("nombre")
+    public Response nombre(@QueryParam(value = "search") String search,
+            @QueryParam(value = "grossisteId") String grossisteId, @QueryParam(value = "dtStart") String dtStart,
+            @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "dateType") String dateType,
+            @DefaultValue("") @QueryParam(value = "statutControle") String statutControle,
+            @DefaultValue("") @QueryParam(value = "ecart") String ecart,
+            @QueryParam(value = "groupeId") String groupeId, @QueryParam(value = "userId") String userId) {
+        grossisteId = cible(grossisteId, groupeId);
+        return Response.ok()
+                .entity(new org.json.JSONObject().put("success", true).put("nombre", etatControlBonService
+                        .nombre(search, dtStart, dtEnd, grossisteId, dateType, statutControle, ecart, userId))
+                        .toString())
+                .build();
     }
 
     /**

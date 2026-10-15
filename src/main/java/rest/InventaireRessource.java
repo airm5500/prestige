@@ -848,4 +848,29 @@ public class InventaireRessource {
         return Response.ok().entity(json.toString()).build();
     }
 
+    /**
+     * Versement d'une collecte d'inventaire en lot (point 37) : session exigee ; 400, 409 (cloture, cle reutilisee),
+     * 410 (inventaire inconnu), 413 (plus de 500 lignes).
+     */
+    @POST
+    @Path("{idInventaire}/versement")
+    @Consumes(javax.ws.rs.core.MediaType.APPLICATION_JSON)
+    public Response versement(@javax.ws.rs.PathParam("idInventaire") String idInventaire, String corps) {
+        HttpSession hs = servletRequest.getSession(false);
+        TUser tu = hs == null ? null : (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
+        if (tu == null) {
+            return Response.status(Response.Status.UNAUTHORIZED)
+                    .entity(new JSONObject().put("success", 0).put("code", "SESSION").toString()).build();
+        }
+        JSONObject in;
+        try {
+            in = new JSONObject(corps == null ? "" : corps);
+        } catch (org.json.JSONException e) {
+            in = null;
+        }
+        JSONObject r = inventaireService.versement(idInventaire, in, tu);
+        int status = r.optInt("status", 200);
+        r.remove("status");
+        return Response.status(status).entity(r.toString()).build();
+    }
 }

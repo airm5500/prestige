@@ -494,6 +494,93 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                                     margin: '0 20 0 0'
                                 },
                                 {
+                                    // Code EAN fabricant : saisi, modifie ou efface ici ; l'enregistrement se confirme
+                                    // dans le bouton (droit du bouton « Modifier » de la fiche).
+                                    xtype: 'container',
+                                    layout: {type: 'hbox', align: 'middle'},
+                                    margin: '0 20 0 0',
+                                    items: [
+                                        {
+                                            xtype: 'textfield',
+                                            fieldLabel: 'EAN fabricant',
+                                            labelWidth: 90,
+                                            labelStyle: 'color:#7a7a7a;font-size:13px',
+                                            id: 'eanFabricantDetail',
+                                            width: 260,
+                                            maxLength: 40,
+                                            enforceMaxLength: true,
+                                            readOnly: true,
+                                            emptyText: 'aucun',
+                                            enableKeyEvents: true,
+                                            listeners: {
+                                                change: function (f) {
+                                                    var b = Ext.getCmp('btnEanFabricantDetail');
+                                                    if (b && !b.hidden) {
+                                                        b.arme = false;
+                                                        b.setText('Enregistrer');
+                                                        b.setDisabled(Ext.String.trim(f.getValue() || '') === (f.valeurEnregistree || ''));
+                                                    }
+                                                },
+                                                specialkey: function (f, e) {
+                                                    var b = Ext.getCmp('btnEanFabricantDetail');
+                                                    if (e.getKey() === e.ENTER && b && !b.hidden && !b.disabled) {
+                                                        b.fireHandler(e);
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        {
+                                            xtype: 'button',
+                                            id: 'btnEanFabricantDetail',
+                                            text: 'Enregistrer',
+                                            hidden: true,
+                                            disabled: true,
+                                            margin: '0 0 0 4',
+                                            handler: function (b) {
+                                                var f = Ext.getCmp('eanFabricantDetail');
+                                                var code = Ext.String.trim(f.getValue() || '');
+                                                if (!b.arme) {
+                                                    b.arme = true;
+                                                    b.setText(code === '' ? 'Confirmer l\'effacement' : 'Confirmer');
+                                                    b.minuteur = setTimeout(function () {
+                                                        if (!b.isDestroyed && b.arme) {
+                                                            b.arme = false;
+                                                            b.setText('Enregistrer');
+                                                        }
+                                                    }, 8000);
+                                                    return;
+                                                }
+                                                clearTimeout(b.minuteur);
+                                                b.arme = false;
+                                                b.setDisabled(true);
+                                                b.setText('Enregistrement...');
+                                                Ext.Ajax.request({
+                                                    method: 'POST',
+                                                    url: '../api/v1/fichearticle/' + encodeURIComponent(f.produitId) + '/code-ean-fabricant',
+                                                    jsonData: {code: code},
+                                                    callback: function (o, ok, response) {
+                                                        if (b.isDestroyed) {
+                                                            return;
+                                                        }
+                                                        var r = Ext.JSON.decode(response.responseText, true) || {};
+                                                        if (ok && r.success) {
+                                                            f.valeurEnregistree = r.codeEanFabriquant || '';
+                                                            f.setValue(f.valeurEnregistree);
+                                                            b.setDisabled(true);
+                                                            b.setText(f.valeurEnregistree === '' ? 'Effacé' : 'Enregistré');
+                                                        } else {
+                                                            b.setDisabled(false);
+                                                            b.setText('Enregistrer');
+                                                            b.setTooltip(r.msg || 'Échec de l\'enregistrement');
+                                                            f.markInvalid(r.msg || 'Échec de l\'enregistrement');
+                                                        }
+                                                    }
+                                                });
+                                            }
+                                        }
+                                    ]
+                                },
+                                {
                                     fieldLabel: 'Classe ABC',
                                     labelWidth: 80,
                                     labelStyle: 'color:#7a7a7a;font-size:13px;font-weight:bold',
@@ -1441,6 +1528,21 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
             }
         });
     },
+    afficherEanFabricant: function (rec) {
+        var f = Ext.getCmp('eanFabricantDetail'), b = Ext.getCmp('btnEanFabricantDetail');
+        if (!f || !b) {
+            return;
+        }
+        var modifiable = rec.P_BT_UPDATE === true;
+        f.produitId = rec.lg_FAMILLE_ID;
+        f.valeurEnregistree = rec.codeEanFabriquant || '';
+        f.setReadOnly(!modifiable);
+        f.setValue(f.valeurEnregistree);
+        b.setVisible(modifiable);
+        b.arme = false;
+        b.setText('Enregistrer');
+        b.setDisabled(true);
+    },
     loadArticle: function (produitId) {
         const me = this;
         Ext.Ajax.request({
@@ -1621,6 +1723,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
         Ext.getCmp('int_CIP').setValue(rec.int_CIP);
         Ext.getCmp('int_QTEDETAIL').setValue(rec.int_NUMBERDETAIL);
         Ext.getCmp('int_EAN13').setValue(rec.int_EAN13);
+        this.afficherEanFabricant(rec);
         this.afficherReserveEtiquette(rec);
         if (rec.lg_EMPLACEMENT_ID === "1") {
             Ext.getCmp('infoconsorecu').show();

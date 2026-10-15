@@ -111,6 +111,22 @@ public class FicheArticleRessource {
         return Response.ok().entity(ficheArticleService.modifierCodeEan(id, ean).toString()).build();
     }
 
+    /**
+     * Code EAN fabricant saisi depuis le detail de l'article : ajoute, modifie, ou efface quand il arrive vide. Meme
+     * droit que le bouton « Modifier » de la fiche.
+     */
+    @POST
+    @Path("{id}/code-ean-fabricant")
+    public Response modifierCodeEanFabricant(@PathParam("id") String id, String body) throws JSONException {
+        Response refus = Droits.refus(servletRequest, "Modifier un article", "P_BT_UPDATE");
+        if (refus != null) {
+            return refus;
+        }
+        JSONObject in = body == null || body.isBlank() ? new JSONObject() : new JSONObject(body);
+        return Response.ok()
+                .entity(ficheArticleService.modifierCodeEanFabricant(id, in.optString("code", "")).toString()).build();
+    }
+
     /** Code EAN actuel d'un article, presente avant correction. */
     @GET
     @Path("code-ean/{id}")
@@ -572,7 +588,8 @@ public class FicheArticleRessource {
             @FormParam("lg_ZONE_GEO_ID") String zoneGeoId, @FormParam("bool_CALCUL_SEUIL") String boolCalculSeuil,
             @FormParam("bool_SUGGERABLE") String boolSuggerable, @FormParam("bool_REMISE") String boolRemise,
             @FormParam("int_Q1_SEUIL_REAPPRO") String q1SeuilReappro,
-            @FormParam("int_Q2_QTE_REAPPRO") String q2QteReappro) {
+            @FormParam("int_Q2_QTE_REAPPRO") String q2QteReappro,
+            @FormParam("code_EAN_FABRIQUANT") String codeEanFabriquant) {
         HttpSession hs = servletRequest.getSession();
         TUser sessionUser = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
         if (sessionUser == null) {
@@ -591,6 +608,7 @@ public class FicheArticleRessource {
         String refus = util.ControleSaisie.premier(util.ControleSaisie.longueur("Le libellé", description, 60),
                 util.ControleSaisie.longueur("Le code CIP", intCip, 20),
                 util.ControleSaisie.longueur("Le code EAN", intEan13, 50),
+                util.ControleSaisie.longueur("Le code EAN fabricant", codeEanFabriquant, 40),
                 util.ControleSaisie.montant("Le prix de vente", intPrice),
                 util.ControleSaisie.montant("Le prix d'achat", intPaf),
                 util.ControleSaisie.montant("Le prix d'achat tarif", intPat),
@@ -638,6 +656,9 @@ public class FicheArticleRessource {
                     ref = famille.getLgFAMILLEID();
                 } catch (Exception e) {
                 }
+                if (famille != null) {
+                    enregistrerEanFabricant(odm, ofm.getMessage(), ref, codeEanFabriquant);
+                }
                 return reponseEnregistrement(ofm.getMessage(), ref, ofm.getDetailmessage());
             }
             if ("update".equals(mode)) {
@@ -653,6 +674,7 @@ public class FicheArticleRessource {
                         texte(laboratoireId, ""), entierOuNull(cmuPrice), entierOuNull(seuilMiniRayon),
                         booleenOuNull(boolCalculSeuil), booleenOuNull(boolSuggerable), booleenOuNull(boolRemise),
                         entierOuNull(q1SeuilReappro), entierOuNull(q2QteReappro));
+                enregistrerEanFabricant(odm, ofm.getMessage(), familleId, codeEanFabriquant);
                 return reponseEnregistrement(ofm.getMessage(), familleId, ofm.getDetailmessage());
             }
             return reponseEnregistrement(commonparameter.PROCESS_FAILED, familleId, "PAS D'ACTION");
@@ -700,6 +722,27 @@ public class FicheArticleRessource {
         } finally {
             odm.closeEntityManager();
         }
+    }
+
+    /**
+     * Code EAN fabricant de la fiche article : absent de la requete, il reste tel quel (anciens appels) ; vide, il est
+     * efface ; sinon il est enregistre sans les espaces autour. Ecrit seulement si l'article a bien ete enregistre.
+     */
+    private static void enregistrerEanFabricant(dal.dataManager odm, String resultat, String familleId,
+            String codeEanFabriquant) {
+        if (codeEanFabriquant == null || !commonparameter.PROCESS_SUCCESS.equals(resultat) || familleId == null
+                || familleId.isEmpty()) {
+            return;
+        }
+        String code = codeEanFabriquant.trim();
+        dal.TFamille famille = odm.getEm().find(dal.TFamille.class, familleId);
+        if (famille == null) {
+            return;
+        }
+        odm.beginTransaction();
+        famille.setCodeEanFabriquant(code.isEmpty() ? null : code);
+        odm.closeTransaction();
+        odm.getEm().getEntityManagerFactory().getCache().evict(dal.TFamille.class, familleId);
     }
 
     private static Response reponseEnregistrement(String success, String ref, String errors) {

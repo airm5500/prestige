@@ -614,6 +614,18 @@ public class PointageBLService {
         return l;
     }
 
+    /** Grossistes actifs : compteur de l'accueil sans grossiste choisi. */
+    public List<String> grossistesActifs() {
+        List<String> l = new java.util.ArrayList<>();
+        for (Object o : em
+                .createNativeQuery(
+                        "SELECT lg_GROSSISTE_ID FROM t_grossiste WHERE str_STATUT = 'enable' ORDER BY str_LIBELLE")
+                .getResultList()) {
+            l.add(String.valueOf(o));
+        }
+        return l;
+    }
+
     /** Libelle d'un grossiste ou d'un groupe (en-tete des editions). */
     public String libelle(String grossisteId, String groupeId) {
         List<?> r = StringUtils.isNotBlank(grossisteId)

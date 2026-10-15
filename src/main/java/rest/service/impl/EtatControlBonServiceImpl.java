@@ -6,6 +6,7 @@ import dal.TBonLivraison;
 import dal.TBonLivraisonDetail;
 import dal.TBonLivraisonDetail_;
 import dal.TBonLivraison_;
+import dal.TUser_;
 import dal.TFamille_;
 import dal.TGrossiste;
 import dal.TGrossiste_;
@@ -109,6 +110,11 @@ public class EtatControlBonServiceImpl implements EtatControlBonService {
     @Override
     public List<EtatControlBon> list(boolean fullAuth, String search, String dtStart, String dtEnd, String grossisteId,
             int start, int limit, boolean all, String dateType) {
+        return lister(fullAuth, search, dtStart, dtEnd, grossisteId, start, limit, all, dateType, null);
+    }
+
+    private List<EtatControlBon> lister(boolean fullAuth, String search, String dtStart, String dtEnd,
+            String grossisteId, int start, int limit, boolean all, String dateType, String userId) {
 
         SingularAttribute<TBonLivraison, Date> dateAttr = dateAttribute(dateType);
         CriteriaBuilder cb = em.getCriteriaBuilder();
@@ -116,7 +122,7 @@ public class EtatControlBonServiceImpl implements EtatControlBonService {
         Root<TBonLivraison> root = cq.from(TBonLivraison.class);
         cq.select(root).distinct(true).orderBy(cb.desc(root.get(dateAttr)));
         List<Predicate> predicates = listPredicates(cb, root, LocalDate.parse(dtStart), LocalDate.parse(dtEnd),
-                grossisteId, search, dateAttr);
+                grossisteId, search, dateAttr, userId);
         cq.where(cb.and(predicates.toArray(Predicate[]::new)));
         TypedQuery<TBonLivraison> q = em.createQuery(cq);
         if (!all) {
@@ -145,13 +151,14 @@ public class EtatControlBonServiceImpl implements EtatControlBonService {
         return bons;
     }
 
-    private long count(String search, String dtStart, String dtEnd, String grossisteId, String dateType) {
+    private long count(String search, String dtStart, String dtEnd, String grossisteId, String dateType,
+            String userId) {
         CriteriaBuilder cb = em.getCriteriaBuilder();
         CriteriaQuery<Long> cq = cb.createQuery(Long.class);
         Root<TBonLivraison> root = cq.from(TBonLivraison.class);
         cq.select(cb.countDistinct(root));
         List<Predicate> predicates = listPredicates(cb, root, LocalDate.parse(dtStart), LocalDate.parse(dtEnd),
-                grossisteId, search, dateAttribute(dateType));
+                grossisteId, search, dateAttribute(dateType), userId);
         cq.where(cb.and(predicates.toArray(Predicate[]::new)));
         TypedQuery<Long> q = em.createQuery(cq);
         return Objects.isNull(q.getSingleResult()) ? 0 : q.getSingleResult();
@@ -159,8 +166,13 @@ public class EtatControlBonServiceImpl implements EtatControlBonService {
     }
 
     private List<Predicate> listPredicates(CriteriaBuilder cb, Root<TBonLivraison> root, LocalDate dtStart,
-            LocalDate dtEnd, String grossisteId, String search, SingularAttribute<TBonLivraison, Date> dateAttr) {
+            LocalDate dtEnd, String grossisteId, String search, SingularAttribute<TBonLivraison, Date> dateAttr,
+            String userId) {
         List<Predicate> predicates = new ArrayList<>();
+        // Demandes des applications mobiles (point 26) : BL saisis par l'utilisateur choisi
+        if (StringUtils.isNotBlank(userId) && !"ALL".equalsIgnoreCase(userId.trim())) {
+            predicates.add(cb.equal(root.get(TBonLivraison_.lgUSERID).get(TUser_.lgUSERID), userId.trim()));
+        }
 
         // On compare directement la colonne (TIMESTAMP) avec des bornes, sans l'envelopper dans DATE(...).
         // Cela rend le predicat "sargable" : MySQL peut utiliser l'index sur la colonne de date
@@ -202,9 +214,14 @@ public class EtatControlBonServiceImpl implements EtatControlBonService {
     @Override
     public JSONObject list(boolean fullAuth, String search, String dtStart, String dtEnd, String grossisteId, int start,
             int limit, String dateType) {
-        long count = count(search, dtStart, dtEnd, grossisteId, dateType);
-        return FunctionUtils
-                .returnData(list(fullAuth, search, dtStart, dtEnd, grossisteId, start, limit, false, dateType), count);
+        return listePaginee(fullAuth, search, dtStart, dtEnd, grossisteId, start, limit, dateType, null);
+    }
+
+    private JSONObject listePaginee(boolean fullAuth, String search, String dtStart, String dtEnd, String grossisteId,
+            int start, int limit, String dateType, String userId) {
+        long count = count(search, dtStart, dtEnd, grossisteId, dateType, userId);
+        return FunctionUtils.returnData(
+                lister(fullAuth, search, dtStart, dtEnd, grossisteId, start, limit, false, dateType, userId), count);
     }
 
     /**
@@ -219,16 +236,38 @@ public class EtatControlBonServiceImpl implements EtatControlBonService {
     @Override
     public JSONObject list(boolean fullAuth, String search, String dtStart, String dtEnd, String grossisteId, int start,
             int limit, String dateType, String statutControle, String ecart) {
+        return list(fullAuth, search, dtStart, dtEnd, grossisteId, start, limit, dateType, statutControle, ecart, null);
+    }
+
+    @Override
+    public JSONObject list(boolean fullAuth, String search, String dtStart, String dtEnd, String grossisteId, int start,
+            int limit, String dateType, String statutControle, String ecart, String userId) {
         rest.service.filtre.FiltresControleAchat filtres = new rest.service.filtre.FiltresControleAchat(statutControle,
                 ecart);
         if (filtres.inactif()) {
-            return list(fullAuth, search, dtStart, dtEnd, grossisteId, start, limit, dateType);
+            return listePaginee(fullAuth, search, dtStart, dtEnd, grossisteId, start, limit, dateType, userId);
         }
         List<EtatControlBon> retenus = filtres
-                .appliquer(list(fullAuth, search, dtStart, dtEnd, grossisteId, 0, 0, true, dateType));
+                .appliquer(lister(fullAuth, search, dtStart, dtEnd, grossisteId, 0, 0, true, dateType, userId));
         int debut = Math.max(0, Math.min(start, retenus.size()));
         int fin = limit > 0 ? Math.min(debut + limit, retenus.size()) : retenus.size();
         return FunctionUtils.returnData(retenus.subList(debut, fin), retenus.size());
+    }
+
+    /**
+     * Nombre de BL que montre la liste avec les memes criteres (point 29 : accueil des applications), sans charger les
+     * bons quand aucun filtre calcule (statut, ecart) n'est demande.
+     */
+    @Override
+    public long nombre(String search, String dtStart, String dtEnd, String grossisteId, String dateType,
+            String statutControle, String ecart, String userId) {
+        rest.service.filtre.FiltresControleAchat filtres = new rest.service.filtre.FiltresControleAchat(statutControle,
+                ecart);
+        if (filtres.inactif()) {
+            return count(search, dtStart, dtEnd, grossisteId, dateType, userId);
+        }
+        return filtres.appliquer(lister(false, search, dtStart, dtEnd, grossisteId, 0, 0, true, dateType, userId))
+                .size();
     }
 
     /** Toutes les lignes retenues par les criteres, sans pagination : pour l'impression et l'export. */

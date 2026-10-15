@@ -163,6 +163,28 @@ public class AvisClientRessource {
         }
     }
 
+    /** Nombre seul, memes filtres et meme droit que {@code liste} (accueil des applications, point 29). */
+    @GET
+    @Path("nombre")
+    public Response nombre(@QueryParam("du") String du, @QueryParam("au") String au, @QueryParam("note") String note,
+            @QueryParam("statut") String statut, @QueryParam("contient") String contient,
+            @QueryParam("motCle") String motCle, @QueryParam("employe") String employe,
+            @QueryParam("theme") String theme, @QueryParam("reponse") String reponse) {
+        JSONObject r = refus(LIRE);
+        if (r != null) {
+            return json(r);
+        }
+        try {
+            LocalDate[] p = periode(du, au);
+            int total = service
+                    .liste(p[0], p[1], filtres(note, statut, contient, motCle, employe, theme, reponse, null), 0, 1)
+                    .getInt("total");
+            return json(new JSONObject().put("success", true).put("nombre", total));
+        } catch (IllegalArgumentException e) {
+            return json(echec(e.getMessage()));
+        }
+    }
+
     @GET
     @Path("avis/{id}")
     public Response detail(@PathParam("id") String id,

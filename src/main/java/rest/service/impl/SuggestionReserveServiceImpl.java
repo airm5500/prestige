@@ -218,7 +218,9 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
     public JSONObject lister(TUser user, String statut, String categorie, String origine, Integer motifId,
             String search, String dtStart, String dtEnd, String userId, String controle, String tri, int start,
             int limit) {
-        StringBuilder jpql = new StringBuilder("SELECT s FROM TSuggestionReserve s WHERE 1=1");
+        // Seulement l'emplacement de l'utilisateur (les suggestions anciennes sans emplacement restent visibles).
+        StringBuilder jpql = new StringBuilder("SELECT s FROM TSuggestionReserve s LEFT JOIN s.lgEMPLACEMENTID se"
+                + " WHERE (se IS NULL OR se.lgEMPLACEMENTID = :emplUtilisateur)");
         if (notBlank(statut)) {
             jpql.append(" AND s.strSTATUT = :statut");
         }
@@ -259,6 +261,7 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
 
         TypedQuery<TSuggestionReserve> q = em.createQuery(jpql.toString(), TSuggestionReserve.class);
         appliquerParametres(q, statut, categorie, origine, motifId, search, dtStart, dtEnd, userId);
+        q.setParameter("emplUtilisateur", emplacementDe(user));
 
         // Comptage sur les memes criteres, en remplacant la projection.
         String countJpql = jpql.toString().replaceFirst("SELECT s FROM", "SELECT COUNT(s) FROM");
@@ -268,6 +271,7 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
         }
         TypedQuery<Long> qc = em.createQuery(countJpql, Long.class);
         appliquerParametres(qc, statut, categorie, origine, motifId, search, dtStart, dtEnd, userId);
+        qc.setParameter("emplUtilisateur", emplacementDe(user));
         long total = qc.getSingleResult();
 
         if (limit > 0) {
@@ -453,10 +457,20 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
 
     // ------------------------------------------------------------------- DETAIL
 
+    private static String emplacementDe(TUser user) {
+        return user != null && user.getLgEMPLACEMENTID() != null ? user.getLgEMPLACEMENTID().getLgEMPLACEMENTID() : "";
+    }
+
+    /** Une suggestion d'un autre emplacement n'est ni lue ni ouverte (une suggestion sans emplacement l'est). */
+    private static boolean memeEmplacement(TUser user, TSuggestionReserve s) {
+        return s.getLgEMPLACEMENTID() == null
+                || emplacementDe(user).equals(s.getLgEMPLACEMENTID().getLgEMPLACEMENTID());
+    }
+
     @Override
     public JSONObject detail(TUser user, String suggestionId) {
         TSuggestionReserve s = em.find(TSuggestionReserve.class, suggestionId);
-        if (s == null) {
+        if (s == null || !memeEmplacement(user, s)) {
             return echec("Suggestion introuvable.");
         }
         JSONArray lignes = new JSONArray();
@@ -484,7 +498,7 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
     @Override
     public JSONObject ouvrirPourTraitement(TUser user, String suggestionId) {
         TSuggestionReserve s = em.find(TSuggestionReserve.class, suggestionId);
-        if (s == null) {
+        if (s == null || !memeEmplacement(user, s)) {
             return echec("Suggestion introuvable.");
         }
         JSONObject detail = detail(user, suggestionId);
@@ -500,7 +514,8 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
 
         // Une suggestion close n'est plus modifiable : inutile de la verrouiller.
         boolean close = TSuggestionReserve.STATUT_TRAITEE.equals(s.getStrSTATUT())
-                || TSuggestionReserve.STATUT_SUPPRIMEE.equals(s.getStrSTATUT());
+                || TSuggestionReserve.STATUT_SUPPRIMEE.equals(s.getStrSTATUT())
+                || TSuggestionReserve.STATUT_ANNULEE.equals(s.getStrSTATUT());
 
         if (close) {
             return detail.put("modifiable", false).put("verrou_par", "").put("verrou_depuis", "")

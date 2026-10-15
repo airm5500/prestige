@@ -71,6 +71,9 @@ public interface FicheArticleService {
      */
     JSONObject modifierCodeEan(String lgFAMILLEID, String codeEan) throws JSONException;
 
+    /** Code EAN fabricant d'un article : vide, il est efface. */
+    JSONObject modifierCodeEanFabricant(String lgFAMILLEID, String code) throws JSONException;
+
     /**
      * Code EAN actuel d'un article, pour le presenter avant correction.
      *
