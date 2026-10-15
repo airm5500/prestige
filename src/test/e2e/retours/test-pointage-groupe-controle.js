@@ -51,7 +51,8 @@ function bl(n, grossiste, recue) {
     await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 120000 });
-    ok('Menu « Pointer les BL / Avoirs »', q("SELECT str_VALUE FROM t_sous_menu WHERE str_COMPOSANT = 'pointagebl'") === 'Pointer les BL / Avoirs');
+    // libelle affiche = str_DESCRIPTION, raccourci a 25 caracteres au plus (migration 6.9.134, besoins du 11/10)
+    ok('Menu « Pointer BL et avoirs »', q("SELECT str_DESCRIPTION FROM t_sous_menu WHERE str_COMPOSANT = 'pointagebl'") === 'Pointer BL et avoirs');
 
     /* controle mobile : meme appel que l'application (3 comptes sur 4 recus => 1 ecart) */
     const avant = Date.now();

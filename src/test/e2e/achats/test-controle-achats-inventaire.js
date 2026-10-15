@@ -34,6 +34,10 @@ function retirer() {
     await p.waitForURL('**/general/**', { timeout: 60000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 90000 });
     await p.evaluate(() => testextjs.app.getController('App').onRedirectTo('etatscontrolemanager', {}));
+    /* l'ecran s'ouvre sur la journee, qui peut n'avoir aucun BL (banc, petit matin) : les 30 derniers jours */
+    await p.waitForFunction(() => Ext.getCmp('gridID') && Ext.getCmp('datedebut'), null, { timeout: 90000 });
+    await p.evaluate(() => { Ext.getCmp('datedebut').setValue(Ext.Date.add(new Date(), Ext.Date.DAY, -30)); Ext.getCmp('datefin').setValue(new Date());
+      Ext.ComponentQuery.query('etatscontrolemanager')[0].onRechClick(); });
     await p.waitForFunction(() => { const g = Ext.getCmp('gridID'); return g && !g.getStore().isLoading() && g.getStore().getCount() > 0; }, null, { timeout: 90000 });
 
     /* premier bon de la grille ayant des lignes */

@@ -30,6 +30,12 @@ module.exports = function produitsEssai(q, exec, marque) {
           int_CIP: texte(cip), int_EAN13: 'NULL', code_ean_fabriquant: 'NULL', dt_CREATED: 'NOW()', dt_UPDATED: 'NOW()' });
         copier('t_famille_stock', 'lg_FAMILLE_STOCK_ID', stock, { lg_FAMILLE_STOCK_ID: texte(id + 'S'), lg_FAMILLE_ID: texte(id),
           int_NUMBER: '20', int_NUMBER_AVAILABLE: '20', dt_CREATED: 'NOW()', dt_UPDATED: 'NOW()' });
+        // la recherche de la vente joint les grossistes du produit (jointure interne)
+        const fg = q("SELECT lg_FAMILLE_GROSSISTE_ID FROM t_famille_grossiste WHERE lg_FAMILLE_ID = '" + source + "' LIMIT 1");
+        if (fg) {
+          copier('t_famille_grossiste', 'lg_FAMILLE_GROSSISTE_ID', fg, { lg_FAMILLE_GROSSISTE_ID: texte(id + 'G'), lg_FAMILLE_ID: texte(id),
+            str_CODE_ARTICLE: texte(cip), dt_CREATED: 'NOW()', dt_UPDATED: 'NOW()' });
+        }
         crees.push(nom);
       });
       return crees;
@@ -37,7 +43,8 @@ module.exports = function produitsEssai(q, exec, marque) {
     retirer
   };
   function retirer() {
-    exec("DELETE FROM t_famille_stock WHERE lg_FAMILLE_ID LIKE '" + marque + "P%';"
+    exec("DELETE FROM t_famille_grossiste WHERE lg_FAMILLE_ID LIKE '" + marque + "P%';"
+      + " DELETE FROM t_famille_stock WHERE lg_FAMILLE_ID LIKE '" + marque + "P%';"
       + " DELETE FROM t_famille WHERE lg_FAMILLE_ID LIKE '" + marque + "P%';");
   }
 };

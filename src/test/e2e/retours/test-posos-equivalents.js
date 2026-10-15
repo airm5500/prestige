@@ -99,7 +99,7 @@ const produits = require('../support/produits-essai')(q, exec, 'E2E-PSE-');
     await b.close();
     exec("DELETE FROM t_famille_dci WHERE lg_FAMILLE_DCI_ID LIKE '" + MARQUE + "%'");
     exec("DELETE d FROM t_ordonnance_client_detail d JOIN t_ordonnance_client o ON o.lg_ORDONNANCE_ID=d.lg_ORDONNANCE_ID WHERE o.str_OBSERVATIONS='" + MARQUE + "'; DELETE FROM t_ordonnance_client WHERE str_OBSERVATIONS='" + MARQUE + "'");
-    ok('Remise en état (configuration, liens DCI, ordonnance de test)', !fs.readFileSync(CONF).toString().includes('POSOS_MODE') && q("SELECT COUNT(*) FROM t_famille_dci WHERE lg_FAMILLE_DCI_ID LIKE '" + MARQUE + "%'") === '0');
+    ok('Remise en état (configuration, liens DCI, ordonnance de test)', !/^POSOS_MODE=/m.test(fs.readFileSync(CONF).toString()) && q("SELECT COUNT(*) FROM t_famille_dci WHERE lg_FAMILLE_DCI_ID LIKE '" + MARQUE + "%'") === '0');
     produits.retirer();
     const kos = res.filter((r) => !r.c);
     console.log('\n' + res.filter((r) => r.c).length + '/' + res.length + ' controles OK');
