@@ -40,6 +40,12 @@ public class AuthenticationFilter implements ContainerRequestFilter, ContainerRe
             // Webhooks WhatsApp (plan d'octobre, 4.2) : appeles par Meta / le service compagnon, sans session ; chaque
             // appel est authentifie par signature HMAC ou jeton partage - voir rest.WhatsAppRessource.
             "v1/whatsapp/webhook", "v1/whatsapp/webhook-web",
+            // B3 (Prestige Mobile) : notifications des agregateurs de paiement, sans session ; chaque appel est
+            // authentifie par la signature du fournisseur configure PUIS le statut relu aupres de son API (404 tant
+            // qu'aucun fournisseur n'est configure) - voir rest.PaiementsMobileRessource. « retour » : page de
+            // remerciement sans donnee.
+            "v1/paiements-mobile/notification/cinetpay", "v1/paiements-mobile/notification/wave",
+            "v1/paiements-mobile/notification/simulateur", "v1/paiements-mobile/retour",
             // connexion, deconnexion, nom de l'officine, nom et version de l'application (page de connexion)
             "v1/user/auth", "v1/user/logout", "v1/officine", "v1/app/info",
             // Lecture de la licence par les applications mobiles AVANT connexion (ecran de lancement : l'application
