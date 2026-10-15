@@ -43,6 +43,9 @@ public class MobileClientRefService {
     public static final String TYPE_RETOUR_FOURNISSEUR = "RETOUR_FRS";
     /** Annulation de vente (POST vente/{id}/annuler) : meme cle = meme reponse, rien de refait. */
     public static final String TYPE_ANNULATION_VENTE = "ANNULATION_VENTE";
+    /** Reserve (demande 15) : creation de suggestion, assort / reassort. */
+    public static final String TYPE_SUGGESTION_RESERVE = "SUGG_RESERVE";
+    public static final String TYPE_MOUVEMENT_RESERVE = "MVT_RESERVE";
     /** Creation et cloture d'ajustement (demandes 1 et 13) : meme cle = meme reponse, rien de refait. */
     public static final String TYPE_AJUSTEMENT = "AJUSTEMENT";
     public static final String TYPE_CLOTURE_AJUSTEMENT = "CLOTURE_AJUSTEMENT";
@@ -200,6 +203,30 @@ public class MobileClientRefService {
             LOG.log(Level.SEVERE, "X-Client-Ref " + r + " : creation impossible", e);
             return echec.apply("Erreur :: l'opération a échouée");
         }
+    }
+
+    /**
+     * Operation a reponse JSON ({success, ...}) faite une seule fois par cle X-Client-Ref : la meme cle renvoie la
+     * reponse de la premiere fois, sans rien refaire. Sans cle : l'operation, comme avant. Un echec n'est pas garde (la
+     * cle reste libre pour un nouvel essai).
+     *
+     * @param identifiant
+     *            identifiant de l'objet cree tire de la reponse (null : « OK »)
+     */
+    @TransactionAttribute(TransactionAttributeType.NOT_SUPPORTED)
+    public String uneFois(String clientRef, String type, Supplier<org.json.JSONObject> operation,
+            Function<org.json.JSONObject, String> identifiant) {
+        if (normaliser(clientRef) == null) {
+            return operation.get().toString();
+        }
+        return executer(clientRef, type, () -> operation.get().toString(), r -> {
+            org.json.JSONObject o = new org.json.JSONObject(r);
+            if (!o.optBoolean("success")) {
+                return null;
+            }
+            String id = identifiant == null ? null : identifiant.apply(o);
+            return new Cree(StringUtils.isBlank(id) ? "OK" : id, null, r);
+        }, e -> e.reponse, msg -> new org.json.JSONObject().put("success", false).put("msg", msg).toString());
     }
 
     private static <T> T rejouer(Entree e, String type, Function<Entree, T> rejouer, Function<String, T> echec) {

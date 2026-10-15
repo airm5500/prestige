@@ -37,6 +37,7 @@ public class ReserveRessource {
     @Inject
     private HttpServletRequest servletRequest;
     private @EJB ReserveService reserveService;
+    private @EJB rest.service.mobile.MobileClientRefService mobileClientRefService;
 
     private TUser currentUser() {
         HttpSession hs = servletRequest.getSession();
@@ -227,27 +228,38 @@ public class ReserveRessource {
 
     @POST
     @Path("assort")
-    public Response assort(String body) throws JSONException {
+    public Response assort(String body, @javax.ws.rs.HeaderParam("X-Client-Ref") String clientRef)
+            throws JSONException {
         TUser user = currentUser();
         if (user == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
         JSONObject in = new JSONObject(body);
-        JSONObject json = reserveService.assort(user, in.optString("lg_FAMILLE_ID", null), in.optInt("int_NUMBER", 0));
-        return Response.ok().entity(json.toString()).build();
+        /* demandes des applications mobiles (15) : meme X-Client-Ref = un seul mouvement de stock */
+        return Response.ok()
+                .entity(mobileClientRefService.uneFois(clientRef,
+                        rest.service.mobile.MobileClientRefService.TYPE_MOUVEMENT_RESERVE, () -> reserveService
+                                .assort(user, in.optString("lg_FAMILLE_ID", null), in.optInt("int_NUMBER", 0)),
+                        null))
+                .build();
     }
 
     @POST
     @Path("reassort")
-    public Response reassort(String body) throws JSONException {
+    public Response reassort(String body, @javax.ws.rs.HeaderParam("X-Client-Ref") String clientRef)
+            throws JSONException {
         TUser user = currentUser();
         if (user == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
         JSONObject in = new JSONObject(body);
-        JSONObject json = reserveService.reassort(user, in.optString("lg_FAMILLE_ID", null),
-                in.optInt("int_NUMBER", 0));
-        return Response.ok().entity(json.toString()).build();
+        /* demandes des applications mobiles (15) : meme X-Client-Ref = un seul mouvement de stock */
+        return Response.ok()
+                .entity(mobileClientRefService.uneFois(clientRef,
+                        rest.service.mobile.MobileClientRefService.TYPE_MOUVEMENT_RESERVE, () -> reserveService
+                                .reassort(user, in.optString("lg_FAMILLE_ID", null), in.optInt("int_NUMBER", 0)),
+                        null))
+                .build();
     }
 
     @POST

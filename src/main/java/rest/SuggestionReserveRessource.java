@@ -39,6 +39,7 @@ public class SuggestionReserveRessource {
     private HttpServletRequest servletRequest;
     private @EJB SuggestionReserveService suggestionReserveService;
     private @EJB rest.service.ReserveService reserveService;
+    private @EJB rest.service.mobile.MobileClientRefService mobileClientRefService;
 
     private TUser currentUser() {
         HttpSession hs = servletRequest.getSession();
@@ -196,7 +197,7 @@ public class SuggestionReserveRessource {
      */
     @POST
     @Path("creer")
-    public Response creer(String body) throws JSONException {
+    public Response creer(String body, @javax.ws.rs.HeaderParam("X-Client-Ref") String clientRef) throws JSONException {
         TUser user = currentUser();
         if (user == null) {
             return deconnecte();
@@ -213,8 +214,13 @@ public class SuggestionReserveRessource {
                 items.add(arr.getJSONObject(i));
             }
         }
-        JSONObject json = suggestionReserveService.creer(user, categorie, motifId, commentaire, items);
-        return Response.ok().entity(json.toString()).build();
+        /* demandes des applications mobiles (15) : meme X-Client-Ref = une seule suggestion, meme reponse */
+        return Response.ok()
+                .entity(mobileClientRefService.uneFois(clientRef,
+                        rest.service.mobile.MobileClientRefService.TYPE_SUGGESTION_RESERVE,
+                        () -> suggestionReserveService.creer(user, categorie, motifId, commentaire, items),
+                        r -> r.optString("lg_SUGGESTION_RESERVE_ID", null)))
+                .build();
     }
 
     /**
@@ -300,16 +306,21 @@ public class SuggestionReserveRessource {
      */
     @POST
     @Path("creer-depuis-recherche")
-    public Response creerDepuisRecherche(String body) throws JSONException {
+    public Response creerDepuisRecherche(String body, @javax.ws.rs.HeaderParam("X-Client-Ref") String clientRef)
+            throws JSONException {
         TUser user = currentUser();
         if (user == null) {
             return deconnecte();
         }
         JSONObject in = new JSONObject(body == null || body.trim().isEmpty() ? "{}" : body);
         Integer motifId = in.has("motifId") && !in.isNull("motifId") ? in.optInt("motifId") : null;
-        JSONObject json = suggestionReserveService.creerDepuisRecherche(user, in.optString("type", null),
-                in.optString("search", null), motifId, in.optString("commentaire", null));
-        return Response.ok().entity(json.toString()).build();
+        return Response.ok()
+                .entity(mobileClientRefService.uneFois(clientRef,
+                        rest.service.mobile.MobileClientRefService.TYPE_SUGGESTION_RESERVE,
+                        () -> suggestionReserveService.creerDepuisRecherche(user, in.optString("type", null),
+                                in.optString("search", null), motifId, in.optString("commentaire", null)),
+                        r -> r.optString("lg_SUGGESTION_RESERVE_ID", null)))
+                .build();
     }
 
     /**

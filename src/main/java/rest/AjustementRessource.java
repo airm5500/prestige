@@ -92,20 +92,10 @@ public class AjustementRessource {
         return Response.ok().entity(json).build();
     }
 
-    /**
-     * Demandes des applications mobiles (1, 13) : avec l'en-tete X-Client-Ref, une operation renvoyee (reseau instable,
-     * double appui) rend la reponse de la premiere sans rien refaire. Sans en-tete : comportement d'origine.
-     */
+    /* Demandes des applications mobiles (1, 13) : meme X-Client-Ref = meme reponse, rien de refait. */
     private String uneFois(String clientRef, String type, java.util.function.Supplier<JSONObject> operation,
             java.util.function.Function<JSONObject, String> identifiant) {
-        if (MobileClientRefService.normaliser(clientRef) == null) {
-            return operation.get().toString();
-        }
-        return mobileClientRefService.executer(clientRef, type, () -> operation.get().toString(), r -> {
-            JSONObject o = new JSONObject(r);
-            String id = o.optBoolean("success") ? identifiant.apply(o) : null;
-            return id == null ? null : new MobileClientRefService.Cree(id, null, r);
-        }, e -> e.reponse, msg -> new JSONObject().put("success", false).put("msg", msg).toString());
+        return mobileClientRefService.uneFois(clientRef, type, operation, identifiant);
     }
 
     @POST
