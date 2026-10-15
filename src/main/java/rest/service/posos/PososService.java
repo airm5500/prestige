@@ -174,6 +174,25 @@ public class PososService {
     }
 
     /** Les produits d'une vente, identifies par leur nom. */
+    /** Produit du catalogue par identifiant ou CIP, pret a analyser (route unitaire, point 35) ; null si inconnu. */
+    @SuppressWarnings("unchecked")
+    public PososDemande.Produit produitDuCatalogue(String idOuCip) {
+        if (idOuCip == null || idOuCip.trim().isEmpty()) {
+            return null;
+        }
+        List<Object[]> l = em
+                .createNativeQuery("SELECT str_NAME, int_CIP FROM t_famille WHERE lg_FAMILLE_ID = ?1"
+                        + " OR (int_CIP = ?1 AND str_STATUT = 'enable') LIMIT 1")
+                .setParameter(1, idOuCip.trim()).getResultList();
+        if (l.isEmpty()) {
+            return null;
+        }
+        PososDemande.Produit p = new PososDemande.Produit();
+        p.setNom(String.valueOf(l.get(0)[0]));
+        p.setCip(l.get(0)[1] == null ? null : String.valueOf(l.get(0)[1]));
+        return p;
+    }
+
     public List<PososDemande.Produit> produitsDeLaVente(String venteId) {
         List<PososDemande.Produit> produits = new ArrayList<>();
         if (StringUtils.isBlank(venteId)) {

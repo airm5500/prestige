@@ -33,6 +33,9 @@ import util.Constant;
 @Consumes("application/json")
 public class PososRessource {
 
+    @javax.ejb.EJB
+    private rest.service.posos.PososHistorique historique;
+
     @Inject
     private HttpServletRequest servletRequest;
 
@@ -148,6 +151,12 @@ public class PososRessource {
             demande.setProduits(produits(entree.optJSONArray("produits")));
             resultat = pososService.analyser(demande);
         }
+        // point 35 : trace de l'analyse (comptes seulement, ni produits ni contexte du patient)
+        historique.noter(utilisateur().getLgUSERID(),
+                venteId == null || venteId.trim().isEmpty() ? "LIBRE"
+                        : (contexteOrdonnance != null ? "ORDONNANCE" : "VENTE"),
+                venteId == null ? null : venteId.trim(),
+                analyses != null ? analyses.length() : produits(entree.optJSONArray("produits")).size(), resultat);
         JSONObject sortie = enJson(resultat);
         ajouterEquivalents(sortie, resultat);
         if (analyses != null) {
@@ -158,6 +167,65 @@ public class PososRessource {
             sortie.put("contexteOrdonnance", contexteOrdonnance);
         }
         return Response.ok().entity(sortie.toString()).build();
+    }
+
+    /** Historique des analyses (point 35), meme droit que l'analyse ; par defaut le mois en cours. */
+    @GET
+    @Path("historique")
+    public Response historique(@javax.ws.rs.QueryParam("du") String du, @javax.ws.rs.QueryParam("au") String au,
+            @javax.ws.rs.QueryParam("utilisateur") String utilisateur) {
+        if (utilisateur() == null) {
+            return deconnecte();
+        }
+        if (!Droits.a(servletRequest, DROITS_POSOS)) {
+            return Droits.interdit("Analyse Posologie");
+        }
+        java.time.LocalDate a = jour(au, java.time.LocalDate.now());
+        java.time.LocalDate d = jour(du, a.withDayOfMonth(1));
+        return Response.ok().entity(historique.lister(d.isAfter(a) ? a : d, a, utilisateur).toString()).build();
+    }
+
+    /**
+     * Route unitaire (point 35) : interaction entre deux produits du catalogue, donnes par leur identifiant ou leur
+     * CIP. Meme analyse, meme droit et meme trace que l'ecran.
+     */
+    @POST
+    @Path("interaction")
+    public Response interaction(String corps) {
+        if (utilisateur() == null) {
+            return deconnecte();
+        }
+        if (!Droits.a(servletRequest, DROITS_POSOS)) {
+            return Droits.interdit("Analyse Posologie");
+        }
+        JSONObject in;
+        try {
+            in = new JSONObject(corps == null ? "{}" : corps);
+        } catch (Exception e) {
+            in = new JSONObject();
+        }
+        java.util.List<PososDemande.Produit> deux = new java.util.ArrayList<>();
+        for (String cle : new String[] { "produitA", "produitB" }) {
+            PososDemande.Produit p = pososService.produitDuCatalogue(in.optString(cle, ""));
+            if (p == null) {
+                return Response.status(400).entity(new JSONObject().put("success", false).put("code", "PRODUIT_INCONNU")
+                        .put("message", "Produit inconnu : " + cle + ".").toString()).build();
+            }
+            deux.add(p);
+        }
+        PososResultat resultat = pososService.analyserProduits(deux, new PososDemande.Contexte());
+        historique.noter(utilisateur().getLgUSERID(), "UNITAIRE", null, 2, resultat);
+        JSONObject sortie = enJson(resultat);
+        ajouterEquivalents(sortie, resultat);
+        return Response.ok().entity(sortie.toString()).build();
+    }
+
+    private static java.time.LocalDate jour(String v, java.time.LocalDate defaut) {
+        try {
+            return v == null || v.trim().isEmpty() ? defaut : java.time.LocalDate.parse(v.trim());
+        } catch (RuntimeException e) {
+            return defaut;
+        }
     }
 
     /**
