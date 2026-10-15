@@ -95,7 +95,12 @@ function semer() {
   return true;
 }
 
+/* l'ecran « CA emplacement / famille » demande son menu (P_SM_CA_ZONE_GEO), que le role du compte de test n'a pas
+   sur le banc : il le recoit le temps du test (le serveur verifie ce droit sur la creation d'inventaire) */
+const droitMenu = require('../support/privilege-essai')(q, exec, 'admin', 'P_SM_CA_ZONE_GEO');
+
 (async () => {
+  droitMenu.accorder();
   if (!semer()) { console.log('FATAL : impossible de semer la vente de test'); process.exit(1); }
   const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
   const p = await b.newPage({ viewport: { width: 1700, height: 950 } });
@@ -279,6 +284,7 @@ function semer() {
   } finally {
     await b.close();
     nettoyer();
+    droitMenu.reprendre();
   }
   const total = res.length, passes = res.filter(r => r.c).length;
   console.log('\n===== ' + passes + '/' + total + ' PASS =====');

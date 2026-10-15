@@ -11,6 +11,17 @@ module.exports = function privilegeEssai(q, exec, login, privilege) {
         + " INSERT INTO " + table + " SELECT * FROM t_role_privelege WHERE lg_ROLE_ID='" + role() + "' AND lg_PRIVILEGE_ID='" + priv() + "';"
         + " DELETE FROM t_role_privelege WHERE lg_ROLE_ID='" + role() + "' AND lg_PRIVILEGE_ID='" + priv() + "';");
     },
+    /* inverse : donne le privilege au role le temps du test (s'il ne l'a pas), et seulement ce qui a ete ajoute est
+       retire par reprendre() */
+    accorder() {
+      exec("DELETE FROM t_role_privelege WHERE lg_ROLE_PRIVILEGE = 'E2E-ACCORD-" + privilege + "';"
+        + " INSERT INTO t_role_privelege (lg_ROLE_PRIVILEGE, lg_ROLE_ID, lg_PRIVILEGE_ID, dt_CREATED, dt_UPDATED)"
+        + " SELECT 'E2E-ACCORD-" + privilege + "', '" + role() + "', '" + priv() + "', NOW(), NOW() FROM DUAL"
+        + " WHERE NOT EXISTS (SELECT 1 FROM t_role_privelege WHERE lg_ROLE_ID = '" + role() + "' AND lg_PRIVILEGE_ID = '" + priv() + "');");
+    },
+    reprendre() {
+      exec("DELETE FROM t_role_privelege WHERE lg_ROLE_PRIVILEGE = 'E2E-ACCORD-" + privilege + "';");
+    },
     remettre() {
       exec("CREATE TABLE IF NOT EXISTS " + table + " AS SELECT * FROM t_role_privelege WHERE 1 = 0;"
         + " INSERT IGNORE INTO t_role_privelege SELECT * FROM " + table + "; DROP TABLE " + table + ";");

@@ -56,8 +56,13 @@ function semer() {
   return true;
 }
 
+/* le point 15 cree un inventaire depuis « CA emplacement / famille », dont le serveur verifie le menu
+   (P_SM_CA_ZONE_GEO) : le role du compte de test le recoit le temps du test */
+const droitMenu = require('../support/privilege-essai')(q, exec, process.env.E2E_LOGIN || 'admin', 'P_SM_CA_ZONE_GEO');
+
 (async () => {
-  if (!semer()) { console.log('FATAL : jeu d\'essai incomplet'); purger(); process.exit(1); }
+  droitMenu.accorder();
+  if (!semer()) { console.log('FATAL : jeu d\'essai incomplet'); purger(); droitMenu.reprendre(); process.exit(1); }
   const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
   const p = await b.newPage({ viewport: { width: 1700, height: 950 } });
   const err = []; p.on('pageerror', e => err.push(String(e.message)));
@@ -217,6 +222,7 @@ function semer() {
   } catch (e) {
     ok('Deroulement sans exception', false, e.message + '\n' + e.stack);
   } finally {
+    droitMenu.reprendre();
     purger();
     ok('Jeu d\'essai entierement retire',
       q("SELECT COUNT(*) FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID LIKE 'E2ELA-%'") === '0'

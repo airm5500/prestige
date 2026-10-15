@@ -32,7 +32,7 @@ function nettoyer() {
     + "DELETE FROM mvttransaction WHERE pkey IN (" + v + ") OR vente_id IN (" + v + ");"
     + "DELETE FROM t_recettes WHERE str_REF_FACTURE IN (" + v + ");"
     + "DELETE FROM t_preenregistrement_compte_client WHERE lg_PREENREGISTREMENT_ID IN (" + v + ");"
-    + "DELETE FROM mobile_client_ref WHERE reference LIKE 'E2E-ANN-%';"
+    + "DELETE FROM mobile_client_ref WHERE ref LIKE 'E2E-ANN-%';"
     + "DELETE FROM t_preenregistrement_detail WHERE lg_PREENREGISTREMENT_ID IN (" + v + ");"
     + "UPDATE t_preenregistrement SET lg_PREENGISTREMENT_ANNULE_ID = NULL, lg_PARENT_ID = NULL, lg_REGLEMENT_ID = NULL WHERE lg_PREENREGISTREMENT_ID IN (" + v + ");"
     + "DELETE FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID IN (" + v + ");"
@@ -47,6 +47,7 @@ function nettoyer() {
 }
 
 (async () => {
+  exec("DELETE FROM mobile_client_ref WHERE ref LIKE 'E2E-ANN-%'");
   const a = q("SELECT CONCAT(f.lg_FAMILLE_ID, ':', f.int_PRICE) FROM t_famille f JOIN t_famille_stock s ON s.lg_FAMILLE_ID = f.lg_FAMILLE_ID AND s.lg_EMPLACEMENT_ID = '1'"
     + " WHERE f.str_STATUT = 'enable' AND f.int_PRICE BETWEEN 200 AND 2000 AND COALESCE(f.bool_DECONDITIONNE, 0) = 0 AND COALESCE(f.lg_FAMILLE_PARENT_ID, '') = ''"
     + " AND s.int_NUMBER_AVAILABLE >= 0 ORDER BY f.str_NAME LIMIT 1 OFFSET 7").split(':');
