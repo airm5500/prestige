@@ -1191,37 +1191,43 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
         }
     }
 
+    /*
+     * Retour du 15/10 (lenteur a l'ouverture de « Modification » et « Detail sur l'article ») : l'ancien calcul
+     * joignait TOUTES les lignes de vente de l'article puis triait (22 000 lignes pour un gros vendeur du banc, 118 ms
+     * a chaud, bien plus a froid). Meme resultat, en deux lectures courtes appuyees sur l'index (lg_FAMILLE_ID,
+     * dt_CREATED) (migration V7.1.8) : 1. la vente valide de la ligne la plus recente de l'article (lecture a rebours,
+     * arret a la premiere valide) ; 2. une vente valide de l'article cloturee APRES celle-ci (vente restee en attente
+     * puis cloturee plus tard) : la plus recente l'emporte. Le resultat est donc exactement le maximum des dates de
+     * vente, comme avant.
+     */
+    private static final String VENTE_VALIDE = " JOIN t_user u ON u.lg_USER_ID = p.lg_USER_ID"
+            + " WHERE u.lg_EMPLACEMENT_ID = ?2 AND p.b_IS_CANCEL = 0 AND p.str_STATUT = 'is_Closed' AND p.int_PRICE > 0";
+
     public String dateDerniereVente(String lgFAMILLEID, TUser user) {
-        String date = "";
         try {
-
-            CriteriaBuilder cb = em.getCriteriaBuilder();
-            CriteriaQuery<String> cq = cb.createQuery(String.class);
-            Root<TPreenregistrementDetail> root = cq.from(TPreenregistrementDetail.class);
-            Join<TPreenregistrementDetail, TPreenregistrement> jp = root.join("lgPREENREGISTREMENTID", JoinType.INNER);
-            Join<TPreenregistrementDetail, TFamille> jf = root.join("lgFAMILLEID", JoinType.INNER);
-            Predicate predicate = cb.conjunction();
-            predicate = cb.and(predicate, cb.equal(jp.get("lgUSERID").get("lgEMPLACEMENTID").get("lgEMPLACEMENTID"),
-                    user.getLgEMPLACEMENTID().getLgEMPLACEMENTID()));
-            predicate = cb.and(predicate, cb.equal(jp.get(TPreenregistrement_.bISCANCEL), Boolean.FALSE));
-            predicate = cb.and(predicate, cb.equal(jp.get(TPreenregistrement_.strSTATUT), "is_Closed"));
-            Predicate ge = cb.greaterThan(jp.get(TPreenregistrement_.intPRICE), 0);
-            predicate = cb.and(predicate, ge);
-            predicate = cb.and(predicate, cb.equal(jf.get(TFamille_.lgFAMILLEID), lgFAMILLEID));
-            cq.select(cb.function("DATE_FORMAT", String.class, jp.get(TPreenregistrement_.dtUPDATED),
-                    cb.literal("%d/%m/%Y %H:%i"))).orderBy(cb.desc(jp.get(TPreenregistrement_.dtUPDATED)));
-
-            cq.where(predicate);
-            Query q = em.createQuery(cq);
-
-            q.setFirstResult(0);
-            q.setMaxResults(1);
-            date = (String) q.getSingleResult();
-
+            String empl = user.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
+            @SuppressWarnings("unchecked")
+            List<Object> l = em
+                    .createNativeQuery("SELECT p.dt_UPDATED FROM t_preenregistrement_detail d"
+                            + " JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = d.lg_PREENREGISTREMENT_ID"
+                            + VENTE_VALIDE + " AND d.lg_FAMILLE_ID = ?1 ORDER BY d.dt_CREATED DESC LIMIT 1")
+                    .setParameter(1, lgFAMILLEID).setParameter(2, empl).getResultList();
+            if (l.isEmpty() || l.get(0) == null) {
+                return "";
+            }
+            java.util.Date derniere = (java.util.Date) l.get(0);
+            Object plusTard = em.createNativeQuery("SELECT MAX(p.dt_UPDATED) FROM t_preenregistrement p"
+                    + " JOIN t_preenregistrement_detail d ON d.lg_PREENREGISTREMENT_ID = p.lg_PREENREGISTREMENT_ID"
+                    + " AND d.lg_FAMILLE_ID = ?1" + VENTE_VALIDE + " AND p.dt_UPDATED > ?3")
+                    .setParameter(1, lgFAMILLEID).setParameter(2, empl).setParameter(3, derniere).getSingleResult();
+            if (plusTard instanceof java.util.Date) {
+                derniere = (java.util.Date) plusTard;
+            }
+            return new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm").format(derniere);
         } catch (Exception e) {
-            // e.printStackTrace();
+            LOG.log(Level.FINE, "Derniere vente non calculee", e);
+            return "";
         }
-        return date;
     }
 
     public String dateDerniereInventare(String lgFAMILLEID, TUser user) {

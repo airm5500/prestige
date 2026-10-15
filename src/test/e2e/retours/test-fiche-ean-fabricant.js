@@ -6,8 +6,9 @@
  *  - un clic sur « Modifier » masque la liste pendant le chargement, un second clic n'ouvre pas une seconde fenetre ;
  *  - modification : champ « Code EAN fabricant » ; ajouter, reafficher a la reouverture, modifier, effacer (NULL) ;
  *    le reste de la fiche est inchange ; plus de 40 caracteres est refuse par le serveur ;
- *  - detail de l'article : le code est affiche ; modifier puis effacer, confirmation dans le bouton (deux clics) ;
- *  - sans le droit « Modifier » (P_BT_UPDATE) : champ en lecture seule, route refusee (403) ;
+ *  - detail de l'article : le code est affiche en lecture seule, sans champ de saisie ni bouton (retour du 15/10 :
+ *    il se saisit a la creation ou en modification seulement) ;
+ *  - sans le droit « Modifier » (P_BT_UPDATE) : la route d'ecriture du code refuse (403) ;
  *  - aucune erreur JavaScript.
  */
 const { chromium } = require('playwright-core');
@@ -64,7 +65,7 @@ let P, cip, origine, resteAvant;
   };
   const ouvrirDetail = async () => {
     await p.evaluate((P) => { const g = Ext.ComponentQuery.query('famillemanager')[0]; g.onDetailClick(g, g.getStore().findExact('lg_FAMILLE_ID', P)); }, P);
-    await p.waitForFunction((P) => { const f = Ext.getCmp('eanFabricantDetail'); return f && f.produitId === P; }, P, { timeout: 30000 });
+    await p.waitForFunction(() => { const f = Ext.getCmp('eanFabricantDetail'); return f && f.isVisible() && !!f.getValue(); }, null, { timeout: 30000 });
     await p.waitForTimeout(800);
   };
   const fermerDetail = async () => {
@@ -145,26 +146,10 @@ let P, cip, origine, resteAvant;
     /* 4. detail de l'article */
     exec("UPDATE t_famille SET code_ean_fabriquant = 'E2E-FAB-DET' WHERE lg_FAMILLE_ID = '" + P + "'");
     await ouvrirDetail();
-    const det = await p.evaluate(() => { const f = Ext.getCmp('eanFabricantDetail'), b = Ext.getCmp('btnEanFabricantDetail'); return { v: f.getValue(), ro: f.readOnly, bv: b.isVisible(), bd: b.disabled }; });
-    ok('Détail : code affiché, modifiable, bouton grisé tant que rien ne change', det.v === 'E2E-FAB-DET' && !det.ro && det.bv && det.bd, JSON.stringify(det));
-    await p.click('#eanFabricantDetail input');
-    await p.keyboard.press('Control+A'); await p.keyboard.type('E2E-FAB-DET2');
-    await p.waitForTimeout(300); // l'evenement change d'Ext 4.2 suit la frappe de 50 ms
-    await p.click('#btnEanFabricantDetail');
-    const arme = await p.evaluate(() => Ext.getCmp('btnEanFabricantDetail').getText());
-    ok('Premier clic : confirmation dans le bouton, rien n\'est écrit', arme === 'Confirmer' && ean() === 'E2E-FAB-DET', arme);
+    const det = await p.evaluate(() => { const f = Ext.getCmp('eanFabricantDetail'); return { v: f.getValue(), type: f.xtype, saisie: !!(f.el && f.el.down('input')), bouton: !!Ext.getCmp('btnEanFabricantDetail') }; });
+    ok('Détail : code affiché en lecture seule, ni champ de saisie ni bouton', det.v === 'E2E-FAB-DET' && det.type === 'displayfield' && !det.saisie && !det.bouton, JSON.stringify(det));
     await p.screenshot({ path: CAPT + '/fiche-ean-fabricant-detail.png' });
-    await p.click('#btnEanFabricantDetail');
-    await p.waitForFunction(() => Ext.getCmp('btnEanFabricantDetail').getText() === 'Enregistré', null, { timeout: 15000 });
-    ok('Second clic : code modifié en base', ean() === 'E2E-FAB-DET2', ean());
-    await p.click('#eanFabricantDetail input');
-    await p.keyboard.press('Control+A'); await p.keyboard.press('Delete');
-    await p.waitForTimeout(300);
-    await p.click('#btnEanFabricantDetail');
-    const armeEff = await p.evaluate(() => Ext.getCmp('btnEanFabricantDetail').getText());
-    await p.click('#btnEanFabricantDetail');
-    await p.waitForFunction(() => Ext.getCmp('btnEanFabricantDetail').getText() === 'Effacé', null, { timeout: 15000 });
-    ok('Effacer depuis le détail : « Confirmer l\'effacement » puis NULL en base', armeEff === 'Confirmer l\'effacement' && ean() === 'NULL', armeEff + ' / ' + ean());
+    ok('Le détail n\'écrit rien', ean() === 'E2E-FAB-DET', ean());
     await fermerDetail();
     ok('Le reste de la fiche est inchangé après le détail', q("SELECT " + RESTE + " FROM t_famille WHERE lg_FAMILLE_ID = '" + P + "'") === resteAvant);
     ok('Aucune erreur JavaScript', err.length === 0, JSON.stringify(err));
@@ -175,8 +160,8 @@ let P, cip, origine, resteAvant;
     await connecter();
     exec("UPDATE t_famille SET code_ean_fabriquant = 'E2E-FAB-RO' WHERE lg_FAMILLE_ID = '" + P + "'");
     await ouvrirDetail();
-    const ro = await p.evaluate(() => { const f = Ext.getCmp('eanFabricantDetail'); return { v: f.getValue(), ro: f.readOnly, bv: Ext.getCmp('btnEanFabricantDetail').isVisible() }; });
-    ok('Sans le droit : code affiché en lecture seule, pas de bouton', ro.v === 'E2E-FAB-RO' && ro.ro && !ro.bv, JSON.stringify(ro));
+    const ro = await p.evaluate(() => Ext.getCmp('eanFabricantDetail').getValue());
+    ok('Sans le droit : code affiché', ro === 'E2E-FAB-RO', ro);
     const refus = await p.evaluate(async (P) => { const r = await fetch('../api/v1/fichearticle/' + P + '/code-ean-fabricant', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: 'PIRATE' }) }); return r.status + ' ' + (await r.text()); }, P);
     ok('Sans le droit : la route refuse (403), rien n\'est écrit', /^403/.test(refus) && ean() === 'E2E-FAB-RO', refus);
     await fermerDetail();
