@@ -22,6 +22,11 @@ public class DetailInventaireDTO {
 
     private final boolean boolInventaire;
 
+    /* demandes serveur (50) : auteur de la derniere saisie, complete apres lecture (InventaireServiceImpl) */
+    private String auteurId;
+    private String auteurLogin;
+    private String auteurNom;
+
     public DetailInventaireDTO(Long id, String produitName, String produitCip, int produitPrixAchat, int produitPrixUni,
             int quantiteInitiale, int quantiteSaisie, Date dtUpdated, boolean boolInventaire) {
         this.id = id;
@@ -98,5 +103,23 @@ public class DetailInventaireDTO {
 
     public Date getdtUpdated() {
         return dtUpdated;
+    }
+
+    public String getAuteurId() {
+        return auteurId;
+    }
+
+    public String getAuteurLogin() {
+        return auteurLogin;
+    }
+
+    public String getAuteurNom() {
+        return auteurNom;
+    }
+
+    public void setAuteur(String id, String login, String nom) {
+        this.auteurId = id;
+        this.auteurLogin = login;
+        this.auteurNom = nom;
     }
 }

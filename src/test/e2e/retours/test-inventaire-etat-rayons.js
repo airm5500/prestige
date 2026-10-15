@@ -7,6 +7,7 @@
  *  - memes rayons, dans le meme ordre, que ws/inventaires/rayons ;
  *  - pour chaque rayon : comptes = nombre de lignes de detailsTouchedRayon, restants = detailsUntouchedRayon ;
  *  - derniereSaisie et auteurs (avecAuteurs=1) sur le rayon des lignes saisies ;
+ *  - (50) auteur de la saisie (auteurId, auteurLogin, auteurNom) dans les routes details* ;
  *  - inventaire inconnu : 410 INVENTAIRE_INCONNU ; sans session : 401 ;
  *  - reponse en moins de 300 ms.
  */
@@ -61,6 +62,19 @@ const exec = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', 
     const r1 = (avec.j || []).find((r) => r.rayonId === rayonSaisi) || {};
     ok('Rayon saisi : dernière saisie datée et auteur « admin »', r1.comptes >= 1 && /^\d{4}-\d\d-\d\dT/.test(r1.derniereSaisie || '') && (r1.auteurs || []).indexOf('admin') >= 0, JSON.stringify(r1));
     ok('Sans avecAuteurs : pas de champ auteurs', (etat.j || []).every((r) => !('auteurs' in r)));
+    /* 50 : auteur de la saisie dans les routes details* */
+    const ADM = q("SELECT CONCAT_WS('|', lg_USER_ID, str_LOGIN, CONCAT(str_FIRST_NAME, ' ', str_LAST_NAME)) FROM t_user WHERE str_LOGIN = 'admin'").split('|');
+    const routes = ['detailsTouchedRayon?idInventaire=' + INV + '&idRayon=' + rayonSaisi, 'details?idInventaire=' + INV + '&idRayon=' + rayonSaisi, 'detailsAll?idInventaire=' + INV,
+      'detailsAllTouched?idInventaire=' + INV, 'detailsAllEcarts?idInventaire=' + INV];
+    const manquants = [];
+    for (const r of routes) {
+      const l = await lire('../api/v1/ws/inventaires/' + r + (r.indexOf('All') >= 0 ? '&maxResult=5000' : ''));
+      const ligne = (l.j || []).find((x) => String(x.id) === String(lignes[0][0]));
+      if (!ligne || ligne.auteurId !== ADM[0] || ligne.auteurLogin !== ADM[1] || ligne.auteurNom !== ADM[2]) { manquants.push(r.split('?')[0] + ' ' + JSON.stringify(ligne || null).slice(0, 160)); }
+    }
+    ok('50 : auteurId, auteurLogin, auteurNom de la saisie dans les routes details*', manquants.length === 0, manquants.join(' ; '));
+    const nonSaisie = await lire('../api/v1/ws/inventaires/detailsUntouchedRayon?idInventaire=' + INV + '&idRayon=' + rayonSaisi);
+    ok('50 : ligne jamais saisie : auteur nul', (nonSaisie.j || []).length === 0 || (nonSaisie.j || []).every((x) => x.auteurLogin === null || x.auteurLogin === undefined || !x.dtUpdated), JSON.stringify((nonSaisie.j || [])[0] || {}).slice(0, 200));
     const inconnu = await lire('../api/v1/ws/inventaires/ZZZ-INCONNU/rayons/etat');
     ok('Inventaire inconnu : 410 INVENTAIRE_INCONNU', inconnu.s === 410 && inconnu.j && inconnu.j.code === 'INVENTAIRE_INCONNU', inconnu.s + ' ' + JSON.stringify(inconnu.j));
   } catch (e) {

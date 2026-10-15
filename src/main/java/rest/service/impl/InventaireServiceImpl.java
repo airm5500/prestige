@@ -301,6 +301,44 @@ public class InventaireServiceImpl implements InventaireService {
         }
     }
 
+    /**
+     * Demandes serveur (50) : auteur de la derniere saisie (str_UPDATED_ID) sur les lignes lues par les routes
+     * ws/inventaires/details*, en une seule requete pour toute la page.
+     */
+    private List<DetailInventaireDTO> avecAuteurs(List<DetailInventaireDTO> lignes) {
+        if (lignes == null || lignes.isEmpty()) {
+            return lignes;
+        }
+        List<Long> ids = new ArrayList<>();
+        lignes.forEach(l -> ids.add(l.getId()));
+        Map<String, Object[]> auteurs = new HashMap<>();
+        for (int debut = 0; debut < ids.size(); debut += 1000) {
+            List<Long> lot = ids.subList(debut, Math.min(ids.size(), debut + 1000));
+            StringBuilder marques = new StringBuilder();
+            for (int i = 0; i < lot.size(); i++) {
+                marques.append(i == 0 ? "?" : ",?").append(i + 1);
+            }
+            javax.persistence.Query q = em
+                    .createNativeQuery("SELECT i.lg_INVENTAIRE_FAMILLE_ID, u.lg_USER_ID, u.str_LOGIN,"
+                            + " TRIM(CONCAT(IFNULL(u.str_FIRST_NAME, ''), ' ', IFNULL(u.str_LAST_NAME, '')))"
+                            + " FROM t_inventaire_famille i JOIN t_user u ON u.lg_USER_ID = i.str_UPDATED_ID"
+                            + " WHERE i.lg_INVENTAIRE_FAMILLE_ID IN (" + marques + ")");
+            for (int i = 0; i < lot.size(); i++) {
+                q.setParameter(i + 1, lot.get(i));
+            }
+            @SuppressWarnings("unchecked")
+            List<Object[]> l = q.getResultList();
+            l.forEach(r -> auteurs.put(String.valueOf(r[0]), r));
+        }
+        for (DetailInventaireDTO d : lignes) {
+            Object[] a = auteurs.get(String.valueOf(d.getId()));
+            if (a != null) {
+                d.setAuteur((String) a[1], (String) a[2], (String) a[3]);
+            }
+        }
+        return lignes;
+    }
+
     @Override
     public List<DetailInventaireDTO> fetchDetails(String idInventaire, String idRayon, String query, Integer page,
             Integer maxResult) {
@@ -339,7 +377,7 @@ public class InventaireServiceImpl implements InventaireService {
                 q.setMaxResults(maxResult);
             }
 
-            return q.getResultList();
+            return avecAuteurs(q.getResultList());
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "fetchDetails", e);
             throw new IllegalStateException("Lecture d'inventaire impossible (fetchDetails)", e);
@@ -384,7 +422,7 @@ public class InventaireServiceImpl implements InventaireService {
                 q.setMaxResults(maxResult);
             }
 
-            return q.getResultList();
+            return avecAuteurs(q.getResultList());
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "fetchDetailsUntouchedRayon", e);
             throw new IllegalStateException("Lecture d'inventaire impossible (fetchDetailsUntouchedRayon)", e);
@@ -429,7 +467,7 @@ public class InventaireServiceImpl implements InventaireService {
                 q.setMaxResults(maxResult);
             }
 
-            return q.getResultList();
+            return avecAuteurs(q.getResultList());
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "fetchDetailsTouchedRayon", e);
             throw new IllegalStateException("Lecture d'inventaire impossible (fetchDetailsTouchedRayon)", e);
@@ -472,7 +510,7 @@ public class InventaireServiceImpl implements InventaireService {
                 q.setMaxResults(maxResult);
             }
 
-            return q.getResultList();
+            return avecAuteurs(q.getResultList());
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "fetchDetailsAll", e);
             throw new IllegalStateException("Lecture d'inventaire impossible (fetchDetailsAll)", e);
@@ -519,7 +557,7 @@ public class InventaireServiceImpl implements InventaireService {
                 q.setMaxResults(maxResult);
             }
 
-            return q.getResultList();
+            return avecAuteurs(q.getResultList());
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "fetchDetailsAllUntouched", e);
             throw new IllegalStateException("Lecture d'inventaire impossible (fetchDetailsAllUntouched)", e);
@@ -567,7 +605,7 @@ public class InventaireServiceImpl implements InventaireService {
                 q.setMaxResults(maxResult);
             }
 
-            return q.getResultList();
+            return avecAuteurs(q.getResultList());
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "fetchDetailsAllTouched", e);
             throw new IllegalStateException("Lecture d'inventaire impossible (fetchDetailsAllTouched)", e);
@@ -611,7 +649,7 @@ public class InventaireServiceImpl implements InventaireService {
                 q.setMaxResults(maxResult);
             }
 
-            return q.getResultList();
+            return avecAuteurs(q.getResultList());
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "fetchDetailsAllEcarts", e);
             throw new IllegalStateException("Lecture d'inventaire impossible (fetchDetailsAllEcarts)", e);
