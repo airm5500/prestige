@@ -870,6 +870,12 @@ public class MvtProduitServiceImpl implements MvtProduitService {
         }
     }
 
+    @Override
+    public String createurAjustement(String id) {
+        TAjustement a = id == null ? null : getEmg().find(TAjustement.class, id);
+        return a == null || a.getLgUSERID() == null ? null : a.getLgUSERID().getLgUSERID();
+    }
+
     /** Motif du refus de modifier les lignes de cet ajustement (null : modifiable, encore en cours). */
     private static String refusModificationAjustement(TAjustement ajustement) {
         if (ajustement != null && !STATUT_IS_PROGRESS.equals(ajustement.getStrSTATUT())) {

@@ -49,6 +49,11 @@ public class AjustRessource {
     @POST
     @Path("creeation")
     public Response createAjustement(Params params) throws JSONException {
+        // meme droit que v1 (demandes des applications mobiles, 1)
+        Response refus = Droits.refus(servletRequest, "Ajustement du stock", "P_SM_AJUSTEMENT");
+        if (refus != null) {
+            return refus;
+        }
         HttpSession hs = servletRequest.getSession();
 
         TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
@@ -63,6 +68,11 @@ public class AjustRessource {
     @PUT
     @Path("{id}")
     public Response cloreAjustement(@PathParam("id") String id, Params params) throws JSONException {
+        // meme droit que v1 (demandes des applications mobiles, 1)
+        Response refus = Droits.refus(servletRequest, "Ajustement du stock", "P_SM_AJUSTEMENT");
+        if (refus != null) {
+            return refus;
+        }
         params.setRefParent(id);
 
         JSONObject json = mvtProduitService.cloreAjustement(params);
@@ -72,6 +82,11 @@ public class AjustRessource {
     @POST
     @Path("add/item")
     public Response ajusterProduitAjustement(Params params) throws JSONException {
+        // meme droit que v1 (demandes des applications mobiles, 1)
+        Response refus = Droits.refus(servletRequest, "Ajustement du stock", "P_SM_AJUSTEMENT");
+        if (refus != null) {
+            return refus;
+        }
         JSONObject json = mvtProduitService.ajusterProduitAjustement(params);
         return Response.ok().entity(json.toString()).build();
     }
@@ -79,6 +94,11 @@ public class AjustRessource {
     @PUT
     @Path("item/{id}")
     public Response modifierProduitAjustement(@PathParam("id") String id, Params params) throws JSONException {
+        // meme droit que v1 (demandes des applications mobiles, 1)
+        Response refus = Droits.refus(servletRequest, "Ajustement du stock", "P_SM_AJUSTEMENT");
+        if (refus != null) {
+            return refus;
+        }
         params.setRef(id);
         JSONObject json = mvtProduitService.modifierProduitAjustement(params);
         return Response.ok().entity(json.toString()).build();
@@ -87,6 +107,11 @@ public class AjustRessource {
     @DELETE
     @Path("item/{id}")
     public Response modifierProduitAjustement(@PathParam("id") String id) throws JSONException {
+        // meme droit que v1 (demandes des applications mobiles, 1)
+        Response refus = Droits.refus(servletRequest, "Ajustement du stock", "P_SM_AJUSTEMENT");
+        if (refus != null) {
+            return refus;
+        }
         JSONObject json = mvtProduitService.removeAjustementDetail(id);
         return Response.ok().entity(json.toString()).build();
     }
@@ -94,6 +119,11 @@ public class AjustRessource {
     @DELETE
     @Path("{id}")
     public Response annulerAjustement(@PathParam("id") String id) throws JSONException {
+        // meme droit que v1 (demandes des applications mobiles, 1)
+        Response refus = Droits.refus(servletRequest, "Ajustement du stock", "P_SM_AJUSTEMENT");
+        if (refus != null) {
+            return refus;
+        }
         JSONObject json = mvtProduitService.annulerAjustement(id);
         return Response.ok().entity(json.toString()).build();
     }

@@ -51,6 +51,9 @@ public interface MvtProduitService {
 
     JSONObject annulerAjustement(String id) throws JSONException;
 
+    /** Identifiant de l'utilisateur qui a cree l'ajustement (null s'il n'existe pas). */
+    String createurAjustement(String id);
+
     JSONObject ajsutements(SalesStatsParams params) throws JSONException;
 
     JSONObject ajsutementsDetails(SalesStatsParams params, String idAjustement) throws JSONException;
