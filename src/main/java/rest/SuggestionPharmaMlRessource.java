@@ -40,6 +40,8 @@ public class SuggestionPharmaMlRessource {
 
     @Inject
     private HttpServletRequest servletRequest;
+    @EJB
+    private rest.service.mobile.MobileClientRefService mobileClientRefService;
 
     @EJB
     private SuggestionService suggestionService;
@@ -61,6 +63,11 @@ public class SuggestionPharmaMlRessource {
     @GET
     @Path("{id}")
     public Response apercu(@PathParam("id") String id) {
+        Response refusDroit = Droits.refus(servletRequest, "Commandes et suggestions", "P_SM_SUGGERER_CDE",
+                "P_SM_SUGGESTION", "P_SM_SUGG_REAPPRO", "P_M_COMMANDE", "P_SM_COMMANDE_PROCESS");
+        if (refusDroit != null) {
+            return refusDroit;
+        }
         if (utilisateur() == null) {
             return json(new JSONObject().put("success", false).put("msg", Constant.DECONNECTED_MESSAGE));
         }
@@ -76,19 +83,37 @@ public class SuggestionPharmaMlRessource {
      */
     @POST
     @Path("{id}/envoi")
-    public Response commanderArrierePlan(@PathParam("id") String id) {
+    public Response commanderArrierePlan(@PathParam("id") String id,
+            @javax.ws.rs.HeaderParam("X-Client-Ref") String clientRef) {
         TUser u = utilisateur();
         if (u == null) {
             return json(new JSONObject().put("success", false).put("msg", Constant.DECONNECTED_MESSAGE));
         }
-        String jeton = rest.service.impl.EnvoisPharmaMlEnCours.lancer("suggestion:" + id, executeur,
-                () -> commanderMaintenant(id, u));
-        return json(new JSONObject().put("success", true).put("jeton", jeton));
+        // demandes des applications mobiles (2) : engagement financier -> droit des commandes verifie ici
+        Response refusDroit = Droits.refus(servletRequest, "Commandes et suggestions", "P_SM_SUGGERER_CDE",
+                "P_SM_SUGGESTION", "P_SM_SUGG_REAPPRO", "P_M_COMMANDE", "P_SM_COMMANDE_PROCESS");
+        if (refusDroit != null) {
+            return refusDroit;
+        }
+        // meme X-Client-Ref : meme jeton, rien de relance
+        return Response
+                .ok(mobileClientRefService
+                        .uneFois(clientRef, rest.service.mobile.MobileClientRefService.TYPE_ENVOI_PHARMAML,
+                                () -> new JSONObject().put("success", true).put("jeton",
+                                        rest.service.impl.EnvoisPharmaMlEnCours.lancer("suggestion:" + id, executeur,
+                                                () -> commanderMaintenant(id, u))),
+                                r -> r.optString("jeton", null)))
+                .build();
     }
 
     @POST
     @Path("{id}")
     public Response commander(@PathParam("id") String id) {
+        Response refusDroit = Droits.refus(servletRequest, "Commandes et suggestions", "P_SM_SUGGERER_CDE",
+                "P_SM_SUGGESTION", "P_SM_SUGG_REAPPRO", "P_M_COMMANDE", "P_SM_COMMANDE_PROCESS");
+        if (refusDroit != null) {
+            return refusDroit;
+        }
         TUser u = utilisateur();
         if (u == null) {
             return json(new JSONObject().put("success", false).put("msg", Constant.DECONNECTED_MESSAGE));

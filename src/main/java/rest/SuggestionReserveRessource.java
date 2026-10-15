@@ -159,6 +159,11 @@ public class SuggestionReserveRessource {
     @Consumes(javax.ws.rs.core.MediaType.MULTIPART_FORM_DATA)
     @Produces(javax.ws.rs.core.MediaType.TEXT_HTML)
     public Response importLignes(@QueryParam("categorie") String categorie) {
+        if (currentUser() != null && !Droits.a(servletRequest, "P_TRAITER_RESERVE", "P_SM_RESERVE")) {
+            // reponse lue dans une iframe : meme forme que les autres refus de cette route
+            return Response.ok().entity(new JSONObject().put("success", false).put("interdit", true)
+                    .put("message", "Droit manquant : Traiter la réserve").toString()).build();
+        }
         TUser user = currentUser();
         if (user == null) {
             return Response.ok().entity(
@@ -198,6 +203,10 @@ public class SuggestionReserveRessource {
     @POST
     @Path("creer")
     public Response creer(String body, @javax.ws.rs.HeaderParam("X-Client-Ref") String clientRef) throws JSONException {
+        Response refusDroit = Droits.refus(servletRequest, "Traiter la réserve", "P_TRAITER_RESERVE", "P_SM_RESERVE");
+        if (refusDroit != null) {
+            return refusDroit;
+        }
         TUser user = currentUser();
         if (user == null) {
             return deconnecte();
@@ -232,6 +241,10 @@ public class SuggestionReserveRessource {
     @PUT
     @Path("ligne/{detailId}/quantite")
     public Response majQuantite(@PathParam("detailId") String detailId, String body) throws JSONException {
+        Response refusDroit = Droits.refus(servletRequest, "Traiter la réserve", "P_TRAITER_RESERVE", "P_SM_RESERVE");
+        if (refusDroit != null) {
+            return refusDroit;
+        }
         TUser user = currentUser();
         if (user == null) {
             return deconnecte();
@@ -247,6 +260,10 @@ public class SuggestionReserveRessource {
     @DELETE
     @Path("ligne/{detailId}")
     public Response supprimerLigne(@PathParam("detailId") String detailId, @QueryParam("motif") String motif) {
+        Response refusDroit = Droits.refus(servletRequest, "Traiter la réserve", "P_TRAITER_RESERVE", "P_SM_RESERVE");
+        if (refusDroit != null) {
+            return refusDroit;
+        }
         TUser user = currentUser();
         if (user == null) {
             return deconnecte();
@@ -258,6 +275,10 @@ public class SuggestionReserveRessource {
     @DELETE
     @Path("{id}")
     public Response supprimer(@PathParam("id") String id, @QueryParam("motif") String motif) {
+        Response refusDroit = Droits.refus(servletRequest, "Traiter la réserve", "P_TRAITER_RESERVE", "P_SM_RESERVE");
+        if (refusDroit != null) {
+            return refusDroit;
+        }
         TUser user = currentUser();
         if (user == null) {
             return deconnecte();
@@ -269,6 +290,10 @@ public class SuggestionReserveRessource {
     @PUT
     @Path("{id}/traiter")
     public Response traiter(@PathParam("id") String id) {
+        Response refusDroit = Droits.refus(servletRequest, "Traiter la réserve", "P_TRAITER_RESERVE", "P_SM_RESERVE");
+        if (refusDroit != null) {
+            return refusDroit;
+        }
         TUser user = currentUser();
         if (user == null) {
             return deconnecte();
@@ -280,6 +305,10 @@ public class SuggestionReserveRessource {
     @PUT
     @Path("{id}/reessayer")
     public Response reessayer(@PathParam("id") String id) {
+        Response refusDroit = Droits.refus(servletRequest, "Traiter la réserve", "P_TRAITER_RESERVE", "P_SM_RESERVE");
+        if (refusDroit != null) {
+            return refusDroit;
+        }
         TUser user = currentUser();
         if (user == null) {
             return deconnecte();
@@ -308,6 +337,10 @@ public class SuggestionReserveRessource {
     @Path("creer-depuis-recherche")
     public Response creerDepuisRecherche(String body, @javax.ws.rs.HeaderParam("X-Client-Ref") String clientRef)
             throws JSONException {
+        Response refusDroit = Droits.refus(servletRequest, "Traiter la réserve", "P_TRAITER_RESERVE", "P_SM_RESERVE");
+        if (refusDroit != null) {
+            return refusDroit;
+        }
         TUser user = currentUser();
         if (user == null) {
             return deconnecte();
@@ -330,6 +363,10 @@ public class SuggestionReserveRessource {
     @PUT
     @Path("{id}/ouvrir")
     public Response ouvrir(@PathParam("id") String id) {
+        Response refusDroit = Droits.refus(servletRequest, "Traiter la réserve", "P_TRAITER_RESERVE", "P_SM_RESERVE");
+        if (refusDroit != null) {
+            return refusDroit;
+        }
         TUser user = currentUser();
         if (user == null) {
             return deconnecte();
@@ -341,6 +378,10 @@ public class SuggestionReserveRessource {
     @PUT
     @Path("{id}/liberer")
     public Response liberer(@PathParam("id") String id) {
+        Response refusDroit = Droits.refus(servletRequest, "Traiter la réserve", "P_TRAITER_RESERVE", "P_SM_RESERVE");
+        if (refusDroit != null) {
+            return refusDroit;
+        }
         TUser user = currentUser();
         if (user == null) {
             return deconnecte();
@@ -352,6 +393,10 @@ public class SuggestionReserveRessource {
     @PUT
     @Path("{id}/controler")
     public Response controler(@PathParam("id") String id, String body) throws JSONException {
+        Response refusDroit = Droits.refus(servletRequest, "Traiter la réserve", "P_TRAITER_RESERVE", "P_SM_RESERVE");
+        if (refusDroit != null) {
+            return refusDroit;
+        }
         TUser user = currentUser();
         if (user == null) {
             return deconnecte();
@@ -365,6 +410,10 @@ public class SuggestionReserveRessource {
     @POST
     @Path("{id}/inventaire")
     public Response creerInventaire(@PathParam("id") String id) {
+        Response refusDroit = Droits.refus(servletRequest, "Traiter la réserve", "P_TRAITER_RESERVE", "P_SM_RESERVE");
+        if (refusDroit != null) {
+            return refusDroit;
+        }
         TUser user = currentUser();
         if (user == null) {
             return deconnecte();
@@ -376,6 +425,10 @@ public class SuggestionReserveRessource {
     @PUT
     @Path("ligne/{detailId}/annuler")
     public Response annulerLigne(@PathParam("detailId") String detailId, String body) throws JSONException {
+        Response refusDroit = Droits.refus(servletRequest, "Traiter la réserve", "P_TRAITER_RESERVE", "P_SM_RESERVE");
+        if (refusDroit != null) {
+            return refusDroit;
+        }
         TUser user = currentUser();
         if (user == null) {
             return deconnecte();
@@ -389,6 +442,10 @@ public class SuggestionReserveRessource {
     @PUT
     @Path("{id}/annuler")
     public Response annulerSuggestion(@PathParam("id") String id, String body) throws JSONException {
+        Response refusDroit = Droits.refus(servletRequest, "Traiter la réserve", "P_TRAITER_RESERVE", "P_SM_RESERVE");
+        if (refusDroit != null) {
+            return refusDroit;
+        }
         TUser user = currentUser();
         if (user == null) {
             return deconnecte();

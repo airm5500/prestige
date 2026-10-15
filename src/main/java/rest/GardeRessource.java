@@ -183,6 +183,11 @@ public class GardeRessource {
     @Path("supprimer")
     @Consumes("application/x-www-form-urlencoded")
     public Response supprimerPlusieurs(@javax.ws.rs.FormParam("ids") String ids) {
+        // demandes des applications mobiles (7) : ecritures reservees au menu « Gestion des gardes »
+        Response refusDroit = Droits.refus(servletRequest, "Gestion des gardes", "P_SM_GESTION_GARDES");
+        if (refusDroit != null) {
+            return refusDroit;
+        }
         if (utilisateur() == null) {
             return echec(Constant.DECONNECTED_MESSAGE);
         }
@@ -213,6 +218,11 @@ public class GardeRessource {
     public Response enregistrer(@javax.ws.rs.FormParam("id") String id,
             @javax.ws.rs.FormParam("libelle") String libelle, @javax.ws.rs.FormParam("dateDebut") String dateDebut,
             @javax.ws.rs.FormParam("dateFin") String dateFin) {
+        // demandes des applications mobiles (7) : ecritures reservees au menu « Gestion des gardes »
+        Response refusDroit = Droits.refus(servletRequest, "Gestion des gardes", "P_SM_GESTION_GARDES");
+        if (refusDroit != null) {
+            return refusDroit;
+        }
         if (utilisateur() == null) {
             return echec(Constant.DECONNECTED_MESSAGE);
         }
@@ -237,6 +247,11 @@ public class GardeRessource {
     @DELETE
     @Path("{id}")
     public Response supprimer(@PathParam("id") String id) {
+        // demandes des applications mobiles (7) : ecritures reservees au menu « Gestion des gardes »
+        Response refusDroit = Droits.refus(servletRequest, "Gestion des gardes", "P_SM_GESTION_GARDES");
+        if (refusDroit != null) {
+            return refusDroit;
+        }
         if (utilisateur() == null) {
             return echec(Constant.DECONNECTED_MESSAGE);
         }
@@ -553,6 +568,11 @@ public class GardeRessource {
     @POST
     @Path("{id}/inventaire")
     public Response inventaire(@PathParam("id") String id, String corps) {
+        // demandes des applications mobiles (7) : ecritures reservees au menu « Gestion des gardes »
+        Response refusDroit = Droits.refus(servletRequest, "Gestion des gardes", "P_SM_GESTION_GARDES");
+        if (refusDroit != null) {
+            return refusDroit;
+        }
         if (utilisateur() == null) {
             return echec(Constant.DECONNECTED_MESSAGE);
         }
@@ -587,6 +607,11 @@ public class GardeRessource {
     @POST
     @Path("{id}/suggestion")
     public Response suggestion(@PathParam("id") String id, String corps) {
+        // demandes des applications mobiles (7) : ecritures reservees au menu « Gestion des gardes »
+        Response refusDroit = Droits.refus(servletRequest, "Gestion des gardes", "P_SM_GESTION_GARDES");
+        if (refusDroit != null) {
+            return refusDroit;
+        }
         TUser user = utilisateur();
         if (user == null) {
             return echec(Constant.DECONNECTED_MESSAGE);

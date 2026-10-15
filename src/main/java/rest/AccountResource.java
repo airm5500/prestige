@@ -118,6 +118,7 @@ public class AccountResource {
             }
 
             json.put("xtypeuser", xtypeuser);
+            hs.setAttribute("PRESTIGE_XTYPEUSER", xtypeuser);
 
             json.put("str_PIC", "../general/resources/images/photo_personne/" + tu.getStrPIC());
             json.put("lg_EMPLACEMENT_ID", tu.getLgEMPLACEMENTID().getLgEMPLACEMENTID());
@@ -134,6 +135,15 @@ public class AccountResource {
             hs.setAttribute(Constant.P_SHOW_ALL_ACTIVITY, allActivitis);
             hs.setAttribute(Constant.SHOW_VENTE, asAuthorityVente);
             hs.setAttribute(Constant.UPDATE_PRICE, asAuthority);
+            /*
+             * demandes des applications mobiles (10) : role explicite et droit de creer un inventaire (ajouts :
+             * xtypeuser et privileges restent)
+             */
+            JSONObject role = roleDe(tu);
+            hs.setAttribute("PRESTIGE_ROLE", role.toString());
+            json.put("role", role);
+            json.put("droits", new JSONObject().put("creerInventaire",
+                    CommonUtils.hasAuthorityByName(lstTPrivilege, "P_CREER_INVENTAIRE")));
             json.put("success", true);
             json.put("privileges", new JSONArray(List.of(new Privilege("canUpdatePrice", asAuthority),
                     new Privilege("showStock", afficherStockVente))));
@@ -181,5 +191,61 @@ public class AccountResource {
         tu = this.userService.updateProfilUser(accountInfo);
         hs.setAttribute(Constant.AIRTIME_USER, tu);
         return Response.ok().build();
+    }
+
+    /** Code de role stable (SYSTEME, SUPER_ADMINISTRATEUR, ADMINISTRATEUR, PHARMACIEN, AUTRE) et libelle affichable. */
+    static JSONObject roleDe(TUser tu) {
+        if ("00".equals(tu.getLgUSERID())) {
+            return new JSONObject().put("code", "SYSTEME").put("libelle", "Système");
+        }
+        TRole role = tu.getTRoleUserCollection() == null ? null : tu.getTRoleUserCollection().stream()
+                .filter(e -> e.getLgROLEID() != null && Constant.STATUT_ENABLE.equals(e.getLgROLEID().getStrSTATUT()))
+                .map(TRoleUser::getLgROLEID).findFirst().orElse(null);
+        String nom = role == null ? null : role.getStrNAME();
+        String code;
+        if (nom == null) {
+            code = "AUTRE";
+        } else if (bll.userManagement.user.isSuperAdminRole(nom)) {
+            code = "SUPER_ADMINISTRATEUR";
+        } else if (bll.userManagement.user.isAdminRole(nom)) {
+            code = "ADMINISTRATEUR";
+        } else if (nom.equalsIgnoreCase(Constant.ROLE_PHARMACIEN)) {
+            code = "PHARMACIEN";
+        } else if ("SYSTEM_USER".equalsIgnoreCase(nom)) {
+            code = "SYSTEME";
+        } else {
+            code = "AUTRE";
+        }
+        return new JSONObject().put("code", code).put("libelle", nom == null ? "" : nom);
+    }
+
+    /**
+     * Demandes des applications mobiles (9) : les droits de la session, en une fois, sous leur nom technique. Lecture
+     * seule (tout est en session). Les applications masquent menus et boutons ; le serveur reste juge a chaque appel.
+     */
+    @GET
+    @Path("droits")
+    @SuppressWarnings("unchecked")
+    public Response droits() {
+        HttpSession hs = request.getSession(false);
+        TUser tu = hs == null ? null : (TUser) hs.getAttribute(Constant.AIRTIME_USER);
+        if (tu == null) {
+            return Response.status(Response.Status.UNAUTHORIZED).type("application/json")
+                    .entity(new JSONObject().put("success", false).put("msg", "Veuillez vous connecter").toString())
+                    .build();
+        }
+        List<TPrivilege> l = (List<TPrivilege>) hs.getAttribute(Constant.USER_LIST_PRIVILEGE);
+        JSONArray noms = new JSONArray();
+        if (l != null) {
+            l.stream().map(TPrivilege::getStrNAME).filter(java.util.Objects::nonNull).distinct().sorted()
+                    .forEach(noms::put);
+        }
+        Object role = hs.getAttribute("PRESTIGE_ROLE");
+        return Response.ok()
+                .entity(new JSONObject().put("success", true)
+                        .put("profil", String.valueOf(hs.getAttribute("PRESTIGE_XTYPEUSER")))
+                        .put("role", role == null ? roleDe(tu) : new JSONObject(role.toString())).put("droits", noms)
+                        .toString())
+                .build();
     }
 }

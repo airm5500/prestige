@@ -226,10 +226,28 @@ public class ReserveRessource {
         return Response.ok().entity(json.toString()).build();
     }
 
+    /** Demandes des applications mobiles (4) : le terminal sait s'il peut traiter la reserve (menu Reserve). */
+    @GET
+    @Path("droits")
+    public Response droits() {
+        if (currentUser() == null) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+        return Response.ok()
+                .entity(new JSONObject().put("success", true)
+                        .put("traiter", Droits.a(servletRequest, "P_TRAITER_RESERVE", "P_SM_RESERVE"))
+                        .put("annulerMouvement", Droits.a(servletRequest, "P_ANNULER_MOUVEMENT_RESERVE")).toString())
+                .build();
+    }
+
     @POST
     @Path("assort")
     public Response assort(String body, @javax.ws.rs.HeaderParam("X-Client-Ref") String clientRef)
             throws JSONException {
+        Response refusDroit = Droits.refus(servletRequest, "Traiter la réserve", "P_TRAITER_RESERVE", "P_SM_RESERVE");
+        if (refusDroit != null) {
+            return refusDroit;
+        }
         TUser user = currentUser();
         if (user == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
@@ -248,6 +266,10 @@ public class ReserveRessource {
     @Path("reassort")
     public Response reassort(String body, @javax.ws.rs.HeaderParam("X-Client-Ref") String clientRef)
             throws JSONException {
+        Response refusDroit = Droits.refus(servletRequest, "Traiter la réserve", "P_TRAITER_RESERVE", "P_SM_RESERVE");
+        if (refusDroit != null) {
+            return refusDroit;
+        }
         TUser user = currentUser();
         if (user == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
@@ -265,6 +287,10 @@ public class ReserveRessource {
     @POST
     @Path("reassort-batch")
     public Response reassortBatch(String body) throws JSONException {
+        Response refusDroit = Droits.refus(servletRequest, "Traiter la réserve", "P_TRAITER_RESERVE", "P_SM_RESERVE");
+        if (refusDroit != null) {
+            return refusDroit;
+        }
         TUser user = currentUser();
         if (user == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
@@ -283,6 +309,10 @@ public class ReserveRessource {
     @POST
     @Path("assort-batch")
     public Response assortBatch(String body) throws JSONException {
+        Response refusDroit = Droits.refus(servletRequest, "Traiter la réserve", "P_TRAITER_RESERVE", "P_SM_RESERVE");
+        if (refusDroit != null) {
+            return refusDroit;
+        }
         TUser user = currentUser();
         if (user == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
@@ -326,6 +356,10 @@ public class ReserveRessource {
     @POST
     @Path("create-inventaire-selection")
     public Response createInventaireSelection(String body) throws JSONException {
+        Response refusDroit = Droits.refus(servletRequest, "Traiter la réserve", "P_TRAITER_RESERVE", "P_SM_RESERVE");
+        if (refusDroit != null) {
+            return refusDroit;
+        }
         TUser user = currentUser();
         if (user == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();

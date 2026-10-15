@@ -62,6 +62,10 @@ public class VenteModifieeRessource {
     @POST
     @Path("create-inventaire")
     public Response createInventaire(String body) throws JSONException {
+        Response refusDroit = Droits.refus(servletRequest, "Ventes modifiées", "P_SM_VENTES_MODIFIEES");
+        if (refusDroit != null) {
+            return refusDroit;
+        }
         JSONObject payload = new JSONObject(body);
         JSONArray ids = payload.optJSONArray("ids");
         List<String> modificationIds = new ArrayList<>();

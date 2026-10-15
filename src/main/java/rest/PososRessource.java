@@ -76,11 +76,31 @@ public class PososRessource {
      * Analyse. Deux formes acceptees : une liste de produits envoyee par l'ecran, ou l'identifiant d'une vente dont les
      * produits sont relus en base - la seconde est preferable, le navigateur pouvant se tromper de produit.
      */
+    /*
+     * Demandes des applications mobiles (5) : chaque analyse consomme le service payant Posos ; droit du menu « Analyse
+     * Posologie » ou de la fiche client (ordonnances), qui s'en sert aussi.
+     */
+    private static final String[] DROITS_POSOS = { "P_SM_POSOS", util.DateConverter.P_ORDONNANCE_CLIENT };
+
+    /** Le terminal sait s'il peut lancer une analyse. */
+    @GET
+    @Path("droits")
+    public Response droits() {
+        if (utilisateur() == null) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+        return Response.ok().entity(new JSONObject().put("success", true)
+                .put("analyser", Droits.a(servletRequest, DROITS_POSOS)).toString()).build();
+    }
+
     @POST
     @Path("analyse")
     public Response analyse(String corps) {
         if (utilisateur() == null) {
             return deconnecte();
+        }
+        if (!Droits.a(servletRequest, DROITS_POSOS)) {
+            return Droits.interdit("Analyse Posologie");
         }
         JSONObject entree;
         try {

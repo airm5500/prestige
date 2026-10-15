@@ -64,6 +64,10 @@ public class VenteSuppressionRessource {
     @POST
     @Path("create-inventaire")
     public Response createInventaire(String body) throws JSONException {
+        Response refusDroit = Droits.refus(servletRequest, "Suppressions à la vente", "P_SM_SUPPRESSIONS_VENTE");
+        if (refusDroit != null) {
+            return refusDroit;
+        }
         JSONObject payload = new JSONObject(body);
         JSONArray ids = payload.optJSONArray("ids");
         Set<String> produitIds = new LinkedHashSet<>();

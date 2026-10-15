@@ -468,6 +468,11 @@ public class CaZoneGeoRessource {
             @QueryParam("ligneLaboratoireId") String ligneLaboratoireId, @QueryParam("gammeId") String gammeId,
             @QueryParam("laboratoireId") String laboratoireId, @QueryParam("ligneFamilleId") String ligneFamilleId,
             @QueryParam("libelle") String libelle) {
+        Response refusDroit = Droits.refus(servletRequest, "Chiffre d'affaires par zone géographique",
+                "P_SM_CA_ZONE_GEO");
+        if (refusDroit != null) {
+            return refusDroit;
+        }
         TUser utilisateur = utilisateur();
         if (utilisateur == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();

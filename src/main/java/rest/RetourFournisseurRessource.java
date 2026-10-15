@@ -81,6 +81,12 @@ public class RetourFournisseurRessource {
     @POST
     @Path("mettre-en-attente")
     public Response mettreEnAttente(commonTasks.dto.Params params) throws org.json.JSONException {
+        // demandes des applications mobiles (3) : preparation reservee au menu « Retours fournisseur »
+        Response refusDroit = Droits.refus(servletRequest, "Retours fournisseur", "P_SM_RETOUR_FRS",
+                "P_VALIDER_RETOUR_FRS");
+        if (refusDroit != null) {
+            return refusDroit;
+        }
         TUser tu = utilisateur();
         if (tu == null) {
             return Response.ok().entity(ResultFactory.getFailResult(util.Constant.DECONNECTED_MESSAGE)).build();
@@ -196,6 +202,12 @@ public class RetourFournisseurRessource {
     @POST
     @Path("new")
     public Response create(RetourFournisseurDTO params, @HeaderParam("X-Client-Ref") String clientRef) {
+        // demandes des applications mobiles (3) : preparation reservee au menu « Retours fournisseur »
+        Response refusDroit = Droits.refus(servletRequest, "Retours fournisseur", "P_SM_RETOUR_FRS",
+                "P_VALIDER_RETOUR_FRS");
+        if (refusDroit != null) {
+            return refusDroit;
+        }
         try {
             return creer(params, clientRef);
         } catch (RefusMetier e) {
@@ -235,6 +247,12 @@ public class RetourFournisseurRessource {
     @POST
     @Path("add-item")
     public Response addItem(RetourDetailsDTO params) {
+        // demandes des applications mobiles (3) : preparation reservee au menu « Retours fournisseur »
+        Response refusDroit = Droits.refus(servletRequest, "Retours fournisseur", "P_SM_RETOUR_FRS",
+                "P_VALIDER_RETOUR_FRS");
+        if (refusDroit != null) {
+            return refusDroit;
+        }
 
         RetourDetailsDTO data;
         try {
@@ -253,6 +271,12 @@ public class RetourFournisseurRessource {
     @POST
     @Path("update-item")
     public Response updateItem(RetourDetailsDTO params) {
+        // demandes des applications mobiles (3) : preparation reservee au menu « Retours fournisseur »
+        Response refusDroit = Droits.refus(servletRequest, "Retours fournisseur", "P_SM_RETOUR_FRS",
+                "P_VALIDER_RETOUR_FRS");
+        if (refusDroit != null) {
+            return refusDroit;
+        }
 
         RetourDetailsDTO data;
         try {
@@ -271,6 +295,12 @@ public class RetourFournisseurRessource {
     @DELETE
     @Path("remove-item/{id}")
     public Response removeItem(@PathParam("id") String id) {
+        // demandes des applications mobiles (3) : preparation reservee au menu « Retours fournisseur »
+        Response refusDroit = Droits.refus(servletRequest, "Retours fournisseur", "P_SM_RETOUR_FRS",
+                "P_VALIDER_RETOUR_FRS");
+        if (refusDroit != null) {
+            return refusDroit;
+        }
 
         retourFournisseurService.removeItem(id);
         return Response.ok().entity(ResultFactory.getSuccessResultMsg()).build();
@@ -297,6 +327,12 @@ public class RetourFournisseurRessource {
     @POST
     @Path("update-item-response")
     public Response updateQuantiteReponse(UpdateRetourItemDTO retourItem) throws CloneNotSupportedException {
+        // demandes des applications mobiles (3) : preparation reservee au menu « Retours fournisseur »
+        Response refusDroit = Droits.refus(servletRequest, "Retours fournisseur", "P_SM_RETOUR_FRS",
+                "P_VALIDER_RETOUR_FRS");
+        if (refusDroit != null) {
+            return refusDroit;
+        }
 
         retourFournisseurService.updateQuantiteReponse(retourItem);
 
@@ -306,6 +342,12 @@ public class RetourFournisseurRessource {
     @POST
     @Path("finaliser-retour-response")
     public Response finaliserRetourFournisseur(UpdateRetourDTO updateRetourDTO) throws CloneNotSupportedException {
+        // demandes des applications mobiles (3) : preparation reservee au menu « Retours fournisseur »
+        Response refusDroit = Droits.refus(servletRequest, "Retours fournisseur", "P_SM_RETOUR_FRS",
+                "P_VALIDER_RETOUR_FRS");
+        if (refusDroit != null) {
+            return refusDroit;
+        }
 
         retourFournisseurService.finaliserRetourFournisseur(updateRetourDTO);
 

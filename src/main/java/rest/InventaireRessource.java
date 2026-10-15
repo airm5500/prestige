@@ -372,6 +372,17 @@ public class InventaireRessource {
         if (user == null) {
             return deconnecte();
         }
+        /*
+         * demandes des applications mobiles (10) : creation reservee aux profils qui portent P_CREER_INVENTAIRE
+         * (pharmacien, administrateurs, et profils qui avaient le menu « Travaux d'inventaire »)
+         */
+        if (!Droits.a(servletRequest, "P_CREER_INVENTAIRE")) {
+            return Response.status(Response.Status.FORBIDDEN).type("application/json")
+                    .entity(new JSONObject().put("success", 0).put("interdit", true)
+                            .put("msg", "Droit manquant : Créer un inventaire")
+                            .put("message", "Droit manquant : Créer un inventaire").toString())
+                    .build();
+        }
         JSONObject in = StringUtils.isBlank(payload) ? new JSONObject() : new JSONObject(payload);
         String nom = in.optString("str_NAME", "").trim();
         String type = in.optString("str_TYPE_TRANSACTION", "").trim();
