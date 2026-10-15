@@ -246,7 +246,7 @@ public class RetourFournisseurRessource {
 
     @POST
     @Path("add-item")
-    public Response addItem(RetourDetailsDTO params) {
+    public Response addItem(RetourDetailsDTO params, @HeaderParam("X-Client-Ref") String clientRef) {
         // demandes des applications mobiles (3) : preparation reservee au menu « Retours fournisseur »
         Response refusDroit = Droits.refus(servletRequest, "Retours fournisseur", "P_SM_RETOUR_FRS",
                 "P_VALIDER_RETOUR_FRS");
@@ -254,6 +254,35 @@ public class RetourFournisseurRessource {
             return refusDroit;
         }
 
+        /* D17 : la meme cle d'evenement (X-Client-Ref ou clientEventId) n'ajoute la ligne qu'une fois */
+        String cle = org.apache.commons.lang3.StringUtils.defaultIfBlank(clientRef, params.getClientEventId());
+        if (MobileClientRefService.normaliser(cle) == null) {
+            return ajouterLigne(params);
+        }
+        String[] refus = new String[1];
+        RetourDetailsDTO data;
+        try {
+            data = mobileClientRefService.executer(cle, "RETOUR_ITEM", () -> retourFournisseurService.addItem(params),
+                    d -> d == null ? null : new MobileClientRefService.Cree(d.getLgRETOURFRSDETAIL(), null, null),
+                    e -> retourFournisseurService.loadDetailRetourFournisseur(params.getLgRETOURFRSID()).stream()
+                            .filter(x -> e.entityId.equals(x.getLgRETOURFRSDETAIL())).findFirst().orElse(null),
+                    msg -> {
+                        refus[0] = msg;
+                        return null;
+                    });
+        } catch (RefusMetier e) {
+            // refus metier (lot non recu, quantite, stock) : rien d'enregistre, la cle reste libre
+            return Response.ok().entity(ResultFactory.getFailResult(e.getMessage())).build();
+        }
+        if (data != null) {
+            return Response.ok().entity(ResultFactory.getSuccessResult(data, 1)).build();
+        }
+        return Response.ok().entity(ResultFactory.getFailResult(
+                refus[0] != null ? refus[0] : "L'opération a échoué . Veuillez vérifier la quantité à retourner"))
+                .build();
+    }
+
+    private Response ajouterLigne(RetourDetailsDTO params) {
         RetourDetailsDTO data;
         try {
             data = retourFournisseurService.addItem(params);

@@ -388,10 +388,18 @@ public class CommandeRessource {
 
     @POST
     @Path("add-lot")
-    public Response addLot(AddLot addLot) {
+    public Response addLot(AddLot addLot, @javax.ws.rs.HeaderParam("X-Client-Ref") String clientRef) {
+        /*
+         * D17 (reception mobile hors connexion) : la meme cle d'evenement (en-tete X-Client-Ref ou clientEventId)
+         * renvoie la reponse d'origine sans enregistrer le lot une seconde fois. Sans cle : comme avant.
+         */
+        String cle = org.apache.commons.lang3.StringUtils.defaultIfBlank(clientRef, addLot.getClientEventId());
         try {
-            return Response.ok(this.orderService.addLot(addLot).toString()).build();
+            return Response.ok(
+                    mobileClientRefService.uneFois(cle, "ADD_LOT", () -> this.orderService.addLot(addLot), r -> null))
+                    .build();
         } catch (rest.service.RefusMetier e) {
+            // meme boite scannee au meme instant sur un autre terminal (D18) : rien d'enregistre
             return Response.ok(new JSONObject().put("success", false).put("code", "SERIE_DEJA_CONSOMMEE")
                     .put("msg", e.getMessage()).toString()).build();
         }
@@ -500,4 +508,6 @@ public class CommandeRessource {
         return refus != null ? refus : ReceptionMobileRessource.repondre(receptionMobile.supprimerLot(lotId));
     }
 
+    @javax.ejb.EJB
+    private rest.service.mobile.MobileClientRefService mobileClientRefService;
 }

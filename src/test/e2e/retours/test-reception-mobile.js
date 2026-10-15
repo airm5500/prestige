@@ -42,6 +42,7 @@ function retirer() {
     + `DELETE FROM notification WHERE entity_ref IN (${ids});`
     + `DELETE FROM t_retour_fournisseur_detail WHERE lg_RETOUR_FRS_ID IN (${ids});`
     + `DELETE FROM t_retour_fournisseur WHERE lg_RETOUR_FRS_ID IN (${ids});`
+    + `DELETE FROM mobile_client_ref WHERE ref LIKE 'e2e-rm-evt-%';`
     + `DELETE FROM t_serie_consommee WHERE lg_BON_LIVRAISON_DETAIL = '${M}D1' OR serie LIKE 'E2ERM%';`
     + `DELETE FROM t_reception_peremption_courte WHERE lg_BON_LIVRAISON_ID = '${M}B1';`
     + `DELETE FROM t_reception_anomalie WHERE lg_BON_LIVRAISON_ID = '${M}B1';`
@@ -94,6 +95,14 @@ function poser() {
     ok('D18 : même numéro de série : « Boîte déjà scannée », aucun lot de plus', l3.success === false && /déjà scannée/.test(l3.msg || '') && nbLots() === '2', JSON.stringify(l3));
     const l4 = await api('POST', '../api/v1/commande/add-lot', { idBonDetail: M + 'D1', qty: 1, freeQty: 0, numLot: 'E2ERMC', datePeremption: peremption });
     ok('Sans numéro de série : saisie inchangée', l4.success === true && nbLots() === '3', JSON.stringify(l4));
+    /* D17 : meme cle d'evenement envoyee deux fois (reseau coupe puis repris) : un seul lot */
+    const avecCle = (corps, cle) => p.evaluate(async ([c, k]) => { const r = await fetch('../api/v1/commande/add-lot', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Client-Ref': k }, body: JSON.stringify(c) }); return r.json(); }, [corps, cle]);
+    const k1 = await avecCle({ idBonDetail: M + 'D1', qty: 1, freeQty: 0, numLot: 'E2ERMD', datePeremption: peremption }, 'e2e-rm-evt-1');
+    const k2 = await avecCle({ idBonDetail: M + 'D1', qty: 1, freeQty: 0, numLot: 'E2ERMD', datePeremption: peremption }, 'e2e-rm-evt-1');
+    const k3 = await api('POST', '../api/v1/commande/add-lot', { idBonDetail: M + 'D1', qty: 1, freeQty: 0, numLot: 'E2ERMD', datePeremption: peremption, clientEventId: 'e2e-rm-evt-1' });
+    ok('D17 : même clé (en-tête ou clientEventId) : un seul lot, même réponse', k1.success === true && k2.success === true && k3.success === true
+      && q(`SELECT COUNT(*) FROM t_lot WHERE str_REF_LIVRAISON = '${REF}' AND int_NUM_LOT = 'E2ERMD'`) === '1', JSON.stringify([k1, k2, k3]));
+    exec(`DELETE FROM t_lot WHERE str_REF_LIVRAISON = '${REF}' AND int_NUM_LOT = 'E2ERMD'; DELETE FROM t_warehouse WHERE str_REF_LIVRAISON = '${REF}' AND int_NUM_LOT = 'E2ERMD'`);
 
     /* D11 */
     const lots = await api('GET', '../api/v1/commande/bon/items/' + M + 'D1/lots');
@@ -144,11 +153,16 @@ function poser() {
     const r = await api('POST', '../api/v1/retourfournisseur/new', { lgBONLIVRAISONID: REF, strCOMMENTAIRE: NOTE, items: [{ produitId: PRODUIT, lgMOTIFRETOUR: MOTIF, intNUMBERRETURN: 2, numLot: 'E2ERMA' }] });
     const retourId = r.data && r.data.lgRETOURFRSID;
     ok('D14 : retour avec lot : lot rangé sur la ligne', r.success === true && q(`SELECT CONCAT(num_lot, '|', lg_LOT_ID) FROM t_retour_fournisseur_detail WHERE lg_RETOUR_FRS_ID = '${retourId}'`) === 'E2ERMA|' + a.lotId, JSON.stringify(r).slice(0, 200));
+    const item = (cle) => p.evaluate(async ([c, k]) => { const r = await fetch('../api/v1/retourfournisseur/add-item', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Client-Ref': k }, body: JSON.stringify(c) }); return r.json(); },
+      [{ lgRETOURFRSID: retourId, produitId: PRODUIT, lgMOTIFRETOUR: MOTIF, intNUMBERRETURN: 1, numLot: 'E2ERMA' }, cle]);
+    const i1 = await item('e2e-rm-evt-2'), i2 = await item('e2e-rm-evt-2');
+    ok('D17 : ligne de retour, même clé deux fois : une seule addition (2 + 1 = 3)', i1.success === true && i2.success === true
+      && q(`SELECT int_NUMBER_RETURN FROM t_retour_fournisseur_detail WHERE lg_RETOUR_FRS_ID = '${retourId}'`) === '3', JSON.stringify([i1, i2]).slice(0, 250));
     const prep = await api('GET', '../api/v1/retourfournisseur/en-preparation?blId=' + M + 'B1');
     ok('D15 : retour en préparation retrouvé sur ce BL', prep.http === 200 && prep.data.length === 1 && prep.data[0].lgRETOURFRSID === retourId && prep.data[0].nbLignes === 1 && prep.data[0].blRef === REF, JSON.stringify(prep.data));
     const avantLot = q(`SELECT IFNULL(current_stock, int_NUMBER) FROM t_lot WHERE lg_LOT_ID = '${a.lotId}'`);
     const v = await api('POST', '../api/v1/produit/validerretourfour', { ref: retourId, refTwo: '', description: NOTE });
-    ok('D14 : validation : le lot perd les 2 boîtes retournées', v.success === true && q(`SELECT current_stock FROM t_lot WHERE lg_LOT_ID = '${a.lotId}'`) === String(Number(avantLot) - 2), avantLot + ' → ' + q(`SELECT current_stock FROM t_lot WHERE lg_LOT_ID = '${a.lotId}'`));
+    ok('D14 : validation : le lot perd les 3 boîtes retournées', v.success === true && q(`SELECT current_stock FROM t_lot WHERE lg_LOT_ID = '${a.lotId}'`) === String(Number(avantLot) - 3), avantLot + ' → ' + q(`SELECT current_stock FROM t_lot WHERE lg_LOT_ID = '${a.lotId}'`));
     const prep2 = await api('GET', '../api/v1/retourfournisseur/en-preparation?blId=' + M + 'B1');
     ok('D15 : retour validé : plus en préparation', prep2.data.length === 0, JSON.stringify(prep2.data));
 

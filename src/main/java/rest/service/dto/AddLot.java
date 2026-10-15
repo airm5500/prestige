@@ -19,6 +19,16 @@ public class AddLot {
     /** D18 : numero de serie DataMatrix (AI 21) et GTIN (AI 01), facultatifs. */
     private String serie;
     private String gtin;
+    /** D17 : identifiant d'evenement du terminal (a defaut de l'en-tete X-Client-Ref). */
+    private String clientEventId;
+
+    public String getClientEventId() {
+        return clientEventId;
+    }
+
+    public void setClientEventId(String clientEventId) {
+        this.clientEventId = clientEventId;
+    }
 
     public String getSerie() {
         return serie;

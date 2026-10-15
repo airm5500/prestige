@@ -35,6 +35,16 @@ public class RetourDetailsDTO implements Serializable {
     private Integer intNUMBERRETURN = 0, intNUMBERANSWER = 0, qtyMvt = 0, prixPaf = 0, intSTOCK, ecart;
     /** D14 : lot retourne (entree et sortie). */
     private String numLot, lotId;
+    /** D17 : identifiant d'evenement du terminal (a defaut de l'en-tete X-Client-Ref). */
+    private String clientEventId;
+
+    public String getClientEventId() {
+        return clientEventId;
+    }
+
+    public void setClientEventId(String clientEventId) {
+        this.clientEventId = clientEventId;
+    }
 
     public String getNumLot() {
         return numLot;
