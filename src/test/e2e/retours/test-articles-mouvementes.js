@@ -16,6 +16,9 @@ const q = (s) => execFileSync('mariadb', [BASE, '-sN', '-e', s], { encoding: 'ut
 
 const MARQUE = 'E2E-ARTMVT';           // prefixe de pkey : tout ce que le test pose est retrouvable
 const LIB = 'INVENTAIRE ARTICLES EN MOUVEMENT DU %';
+/* Jour SANS mouvement : le banc peuple sur 3 ans a des mouvements tous les jours (dont aujourd'hui) ; les 7 mouvements
+   du test sont poses une semaine avant le premier mouvement de la base, et cette periode est saisie a l'ecran. */
+const JOUR = q("SELECT DATE_FORMAT(DATE_SUB(IFNULL(MIN(mvtdate), CURDATE()), INTERVAL 7 DAY), '%Y-%m-%d') FROM hmvtproduit WHERE pkey NOT LIKE 'E2E-ARTMVT%'");
 
 function nettoyer() {
   exec("DELETE FROM hmvtproduit WHERE pkey LIKE '" + MARQUE + "%';"
@@ -40,7 +43,7 @@ function poser() {
   });
   // (article, type de mouvement) : 7 mouvements pour 6 articles
   const mvts = [[0, '02'], [0, '01'], [1, '02'], [2, '01'], [3, '04'], [4, '08'], [5, '08']];
-  const valeurs = mvts.map((m, i) => "('" + MARQUE + '-' + i + "', 1, NOW(), CURDATE(), '" + MARQUE + '-' + i + "',"
+  const valeurs = mvts.map((m, i) => "('" + MARQUE + '-' + i + "', 1, NOW(), '" + JOUR + "', '" + MARQUE + '-' + i + "',"
     + " 100, 200, 10, 10, 1, 0, '1', '" + arts[m[0]].id + "', '" + user + "', '" + m[1] + "', 0)").join(',');
   exec("INSERT INTO hmvtproduit (uuid, checked, createdAt, mvtdate, pkey, prixAchat, prixUn, qteDebut, qteFinale,"
     + " qteMvt, valeurTva, lg_EMPLACEMENT_ID, lg_FAMILLE_ID, lg_USER_ID, typeMvt, ug) VALUES " + valeurs + ";");
@@ -63,6 +66,11 @@ function poser() {
     await p.evaluate(() => { testextjs.app.getController('App').onRedirectTo('articlemvtgrid', {}); });
     await p.waitForFunction(() => Ext.ComponentQuery.query('articlemvtgrid').length > 0, null, { timeout: 25000 });
     await p.waitForTimeout(4000);
+    /* la periode du jeu d'essai, saisie comme l'utilisateur, puis recherche */
+    const periode = () => p.evaluate((j) => { const g = Ext.ComponentQuery.query('articlemvtgrid')[0], d = Ext.Date.parse(j, 'Y-m-d');
+      g.down('#dtStart').setValue(d); g.down('#dtEnd').setValue(d); testextjs.app.getController('ArticleMvtController').onSearch(g); }, JOUR);
+    await periode();
+    await p.waitForTimeout(2500);
 
     const attendre = () => p.waitForTimeout(2500);
     const grille = () => p.evaluate(() => {
@@ -168,16 +176,18 @@ function poser() {
     const apresReset = await p.evaluate(() => ['filtreTypeMvt', 'filtreEmplacement', 'filtreFamille']
       .map((id) => Ext.ComponentQuery.query('articlemvtgrid combobox[itemId=' + id + ']')[0].getValue()));
     ok('Reinitialiser remet les trois filtres a Tous', apresReset.every((v) => !v || v === 'ALL'), JSON.stringify(apresReset));
+    await periode();
+    await p.waitForTimeout(2500);
     d = await grille();
     ok('Apres reinitialisation la liste complete revient (6 articles)', d.total === 6, d.total);
 
     /* 9. export Excel : les criteres de l ecran partent avec la demande, et rien ne s ouvre en fenetre.
        On repose une periode explicite apres la reinitialisation, comme le ferait l utilisateur. */
-    const jourTexte = q("SELECT DATE_FORMAT(CURDATE(), '%Y-%m-%d')");
-    await p.evaluate(() => {
-      Ext.ComponentQuery.query('articlemvtgrid #dtStart')[0].setValue(new Date());
-      Ext.ComponentQuery.query('articlemvtgrid #dtEnd')[0].setValue(new Date());
-    });
+    const jourTexte = JOUR;
+    await p.evaluate((j) => {
+      Ext.ComponentQuery.query('articlemvtgrid #dtStart')[0].setValue(Ext.Date.parse(j, 'Y-m-d'));
+      Ext.ComponentQuery.query('articlemvtgrid #dtEnd')[0].setValue(Ext.Date.parse(j, 'Y-m-d'));
+    }, JOUR);
     await choisir('filtreTypeMvt', idVente);
     const attenteExport = p.waitForRequest((r) => r.url().indexOf('/api/v1/articlemvt/export') >= 0, { timeout: 20000 });
     const fenetres = ctx.pages().length;
