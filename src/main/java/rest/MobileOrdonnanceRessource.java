@@ -16,6 +16,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 import rest.service.SessionHelperService;
 import rest.service.mobile.MobileCatalogueDeltaService;
+import rest.service.mobile.MobileLectureAvanceeService;
 import rest.service.mobile.MobileOrdonnanceCorrectionService;
 
 /**
@@ -30,6 +31,11 @@ import rest.service.mobile.MobileOrdonnanceCorrectionService;
  * {@code {success, depuis, serveurMaintenant, total, start, limit, data:[{cle, segment, produitId, cip, nom, at,
  * recuLe}]}} ({@code depuis} absent : tout).
  * <p>
+ * {@code POST v1/app-vente/ordonnances/lecture-avancee} (O5) corps = image JPEG de la zone des medicaments (recadree et
+ * masquee par le telephone) → {@code {success, lignes:[{nom, dosage, forme, posologie, quantite, confiance}],
+ * fournisseur, modele, coutEstime, quotaRestant}} ; l'image n'est jamais enregistree. 503 si non configuree, 429 quota
+ * / lecture deja en cours, 502 / 504 erreur / delai du fournisseur.
+ * <p>
  * Authentification : session habituelle de l'application (cookie), comme H4 / H5 ; aucune exception dans
  * filter.AuthenticationFilter.
  */
@@ -41,6 +47,20 @@ public class MobileOrdonnanceRessource {
     private MobileOrdonnanceCorrectionService service;
     @EJB
     private SessionHelperService sessionHelperService;
+    @EJB
+    private MobileLectureAvanceeService lectureAvanceeService;
+
+    @POST
+    @Path("lecture-avancee")
+    @Consumes(MediaType.WILDCARD)
+    public Response lectureAvancee(byte[] image) {
+        TUser u = sessionHelperService.getCurrentUser();
+        if (u == null) {
+            return erreur(Response.Status.UNAUTHORIZED, "Veuillez vous connecter.");
+        }
+        MobileLectureAvanceeService.Reponse r = lectureAvanceeService.lire(image, u.getLgUSERID());
+        return Response.status(r.statut).type(MediaType.APPLICATION_JSON).entity(r.corps.toString()).build();
+    }
 
     @POST
     @Path("corrections")

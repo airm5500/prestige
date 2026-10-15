@@ -9,6 +9,7 @@ import javax.ws.rs.core.Response;
 import org.json.JSONObject;
 import rest.service.mobile.MobileCatalogueDeltaService;
 import rest.service.mobile.MobileClientRefService;
+import rest.service.mobile.MobileLectureAvanceeService;
 import rest.service.mobile.MobileOrdonnanceCorrectionService;
 
 /**
@@ -25,6 +26,9 @@ import rest.service.mobile.MobileOrdonnanceCorrectionService;
  * <p>
  * {@code ordonnanceCorrections} (O4) : {@code POST/GET v1/app-vente/ordonnances/corrections} (apprentissages des
  * ordonnances partages entre terminaux). Faux si la table mobile_ordonnance_correction n'existe pas.
+ * <p>
+ * {@code lectureAvancee} (O5) : {@code POST v1/app-vente/ordonnances/lecture-avancee}, vrai SEULEMENT si un fournisseur
+ * est configure sur le serveur (cle presente) et la migration passee.
  */
 @Path("v1/app-vente/capacites")
 @Produces(MediaType.APPLICATION_JSON)
@@ -36,6 +40,8 @@ public class MobileCapacitesRessource {
     private MobileCatalogueDeltaService catalogueDeltaService;
     @EJB
     private MobileOrdonnanceCorrectionService ordonnanceCorrectionService;
+    @EJB
+    private MobileLectureAvanceeService lectureAvanceeService;
 
     @GET
     public Response capacites() {
@@ -46,6 +52,8 @@ public class MobileCapacitesRessource {
                 MobileCatalogueDeltaService.format(catalogueDeltaService.maintenant()));
         boolean corrections = ordonnanceCorrectionService.disponible();
         o.put("ordonnanceCorrections", corrections).put("ordonnanceCorrectionsVersion", corrections ? 1 : 0);
+        boolean lecture = lectureAvanceeService.disponible();
+        o.put("lectureAvancee", lecture).put("lectureAvanceeVersion", lecture ? 1 : 0);
         return Response.ok(o.toString(), MediaType.APPLICATION_JSON).build();
     }
 }
