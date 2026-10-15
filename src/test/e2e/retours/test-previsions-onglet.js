@@ -61,7 +61,10 @@ function nettoyer() {
     const compter = (cond) => Number(q('SELECT COUNT(*)' + SQLBASE + cond));
 
     let r = await chercher({ methode: 'HOLT' });
-    ok('Filtre méthode « Tendance (Holt) » : ' + r.total + ' produit(s), comme la base', r.total === compter(" AND p.methode = 'HOLT'") && r.ids.indexOf(A) >= 0, JSON.stringify(r).slice(0, 200));
+    /* le produit d'essai est cherche par son CIP : avec le banc peuple, il n'est plus forcement sur la premiere page */
+    const holtA = await chercher({ methode: 'HOLT', query: CIPA });
+    ok('Filtre méthode « Tendance (Holt) » : ' + r.total + ' produit(s), comme la base, dont le produit passé en Holt', r.total === compter(" AND p.methode = 'HOLT'") && holtA.ids.indexOf(A) >= 0,
+      JSON.stringify({ total: r.total, base: compter(" AND p.methode = 'HOLT'"), a: holtA.ids }).slice(0, 200));
     r = await chercher({ methode: 'MOYENNE' });
     ok('Filtre méthode « Moyenne 3 mois » : ' + r.total + ' produit(s)', r.total === compter(" AND p.methode = 'MOYENNE'"), r.total);
     r = await chercher({ equivalent: true });
