@@ -772,6 +772,11 @@ public class InventaireServiceImpl implements InventaireService {
         if (ligne == null) {
             return json.put("success", 0).put("errors", "Cette ligne d'inventaire n'existe plus.");
         }
+        String cloture = refusInventaireCloture(ligne);
+        if (cloture != null) {
+            String m = cloture.replace("la quantité n'a pas été enregistrée", "aucune ligne n'a été modifiée");
+            return json.put("success", 0).put("code", "INVENTAIRE_CLOTURE").put("errors", m).put("msg", m);
+        }
         ligne.setBoolINVENTAIRE(retenue);
         em.merge(ligne);
         return json.put("success", 1).put("errors", retenue ? "Article retenu." : "Article ecarte.");
@@ -797,14 +802,32 @@ public class InventaireServiceImpl implements InventaireService {
         if (aTraiter.isEmpty()) {
             return json.put("success", 0).put("errors", "Aucun article a traiter.");
         }
-        int count = 0;
+        /*
+         * Demandes serveur (48) : une ligne d'un AUTRE inventaire que celui indique n'est pas touchee ; un inventaire
+         * cloture refuse tout le lot (409 INVENTAIRE_CLOTURE), rien n'est modifie.
+         */
+        List<TInventaireFamille> lignes = new ArrayList<>();
         for (Long id : aTraiter) {
             TInventaireFamille ligne = em.find(TInventaireFamille.class, id);
-            if (ligne != null) {
-                ligne.setBoolINVENTAIRE(retenue);
-                em.merge(ligne);
-                count++;
+            if (ligne == null || (StringUtils.isNotBlank(inventaireId) && (ligne.getLgINVENTAIREID() == null
+                    || !inventaireId.equals(ligne.getLgINVENTAIREID().getLgINVENTAIREID())))) {
+                continue;
             }
+            String cloture = refusInventaireCloture(ligne);
+            if (cloture != null) {
+                return json.put("success", 0).put("code", "INVENTAIRE_CLOTURE")
+                        .put("errors",
+                                cloture.replace("la quantité n'a pas été enregistrée", "aucune ligne n'a été modifiée"))
+                        .put("msg", cloture.replace("la quantité n'a pas été enregistrée",
+                                "aucune ligne n'a été modifiée"));
+            }
+            lignes.add(ligne);
+        }
+        int count = 0;
+        for (TInventaireFamille ligne : lignes) {
+            ligne.setBoolINVENTAIRE(retenue);
+            em.merge(ligne);
+            count++;
         }
         return json.put("success", count > 0 ? 1 : 0).put("count", count).put("errors",
                 count + (retenue ? " article(s) ajoute(s) a l'inventaire." : " article(s) retire(s)."));

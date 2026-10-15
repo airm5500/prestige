@@ -233,9 +233,10 @@ public class InventaireRessource {
     @POST
     @Path("ligne/retenue")
     public Response retenirLigne(String payload) {
-        TUser user = currentUser();
-        if (user == null) {
-            return deconnecte();
+        // Demandes serveur (48) : memes regles que lignes/retenue (session, droit, inventaire cloture).
+        Response refus = Droits.refus(servletRequest, "Créer un inventaire", "P_CREER_INVENTAIRE", "P_SM_INVENTAIRE");
+        if (refus != null) {
+            return refus;
         }
         JSONObject in = StringUtils.isBlank(payload) ? new JSONObject() : new JSONObject(payload);
         Long ligneId;
@@ -244,8 +245,12 @@ public class InventaireRessource {
         } catch (NumberFormatException e) {
             ligneId = null;
         }
-        return Response.ok().entity(inventaireService.retenirLigne(ligneId, in.optBoolean("retenue", true)).toString())
-                .build();
+        JSONObject resultat = inventaireService.retenirLigne(ligneId, in.optBoolean("retenue", true));
+        if ("INVENTAIRE_CLOTURE".equals(resultat.optString("code"))) {
+            return Response.status(Response.Status.CONFLICT).type("application/json").entity(resultat.toString())
+                    .build();
+        }
+        return Response.ok().entity(resultat.toString()).build();
     }
 
     /**
@@ -259,9 +264,13 @@ public class InventaireRessource {
     @POST
     @Path("lignes/retenue")
     public Response retenirLignes(String payload) {
-        TUser user = currentUser();
-        if (user == null) {
-            return deconnecte();
+        /*
+         * Demandes serveur (48) : retenir ou ecarter decide de ce qui sera cloture. Session exigee (401), droit de
+         * creer un inventaire ou menu « Travaux d'inventaire » (403), inventaire cloture refuse (409).
+         */
+        Response refus = Droits.refus(servletRequest, "Créer un inventaire", "P_CREER_INVENTAIRE", "P_SM_INVENTAIRE");
+        if (refus != null) {
+            return refus;
         }
         JSONObject in = StringUtils.isBlank(payload) ? new JSONObject() : new JSONObject(payload);
         java.util.List<Long> ligneIds = new java.util.ArrayList<>();
@@ -287,6 +296,9 @@ public class InventaireRessource {
         }
         JSONObject json = inventaireService.retenirLignes(in.optString("lg_INVENTAIRE_ID", ""), ligneIds, produitIds,
                 in.optBoolean("retenue", true));
+        if ("INVENTAIRE_CLOTURE".equals(json.optString("code"))) {
+            return Response.status(Response.Status.CONFLICT).type("application/json").entity(json.toString()).build();
+        }
         return Response.ok().entity(json.toString()).build();
     }
 

@@ -518,13 +518,9 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.addArticle', {
                             },
                             failure: function (response)
                             {
-
-                                var object = Ext.JSON.decode(response.responseText, false);
-                                //  alert(object);
-
-                                console.log("Bug " + response.responseText);
-                                Ext.MessageBox.alert('Error Message', response.responseText);
-
+                                // demandes serveur (48) : droit manquant (403) ou inventaire cloture (409), motif lisible
+                                var object = (Ext.JSON.decode(response.responseText, true) || {});
+                                Ext.MessageBox.alert('Ajout impossible', object.msg || object.errors || ('Erreur du serveur (' + response.status + ').'));
                             }
                         });
                         return;
@@ -628,9 +624,10 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.addArticle', {
                 var bouton = button.up('window');
                 bouton.close();
             },
-            failure: function () {
+            failure: function (response) {
                 progres.hide();
-                Ext.MessageBox.alert('Erreur', "L'ajout des articles a echoue.");
+                var object = (Ext.JSON.decode(response.responseText, true) || {});
+                Ext.MessageBox.alert('Erreur', object.msg || object.errors || "L'ajout des articles a echoue.");
             }
         });
     },
@@ -663,9 +660,10 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.addArticle', {
             },
             failure: function (response)
             {
-                var object = Ext.JSON.decode(response.responseText, false);
-                console.log("Bug " + response.responseText);
-                // Ext.MessageBox.alert('Error Message', response.responseText);
+                // refus (droit, inventaire cloture) : la case revient a son etat et le motif est affiche
+                var object = (Ext.JSON.decode(response.responseText, true) || {});
+                record.reject();
+                Ext.MessageBox.alert('Modification impossible', object.msg || object.errors || ('Erreur du serveur (' + response.status + ').'));
             }
         });
     },
@@ -688,8 +686,9 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.addArticle', {
             },
             failure: function (response)
             {
-                var object = Ext.JSON.decode(response.responseText, false);
-                console.log("Bug " + response.responseText);
+                var object = (Ext.JSON.decode(response.responseText, true) || {});
+                record.reject();
+                Ext.MessageBox.alert('Modification impossible', object.msg || object.errors || ('Erreur du serveur (' + response.status + ').'));
             }
         });
     }
