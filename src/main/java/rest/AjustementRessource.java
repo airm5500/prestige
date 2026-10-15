@@ -7,7 +7,6 @@ package rest;
 
 import commonTasks.dto.Params;
 import commonTasks.dto.SalesStatsParams;
-import dal.TPrivilege;
 import dal.TUser;
 import java.time.LocalDate;
 import java.util.List;
@@ -32,7 +31,6 @@ import rest.service.AjustementAnalyseService;
 import rest.service.MvtProduitService;
 import rest.service.mobile.MobileClientRefService;
 import toolkits.parameters.commonparameter;
-import util.DateConverter;
 import util.Constant;
 
 /**
@@ -242,13 +240,16 @@ public class AjustementRessource {
         if (tu == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
-        List<TPrivilege> attribute = (List<TPrivilege>) hs.getAttribute(commonparameter.USER_LIST_PRIVILEGE);
-        boolean canCancel = DateConverter.hasAuthorityByName(attribute, DateConverter.ACTIONDELETEAJUSTEMENT);
+        /*
+         * Un ajustement cloture ne s'annule jamais (refus serveur, code ETAT) : la liste n'offre aucune annulation.
+         * L'ancien calcul comparait un NOM de privilege a son identifiant ("030920172") et valait donc toujours faux ;
+         * la valeur est maintenant fixee explicitement, sans changement de comportement (15/10).
+         */
         SalesStatsParams body = new SalesStatsParams();
         body.setLimit(limit);
         body.setStart(start);
         body.setQuery(query);
-        body.setCanCancel(canCancel);
+        body.setCanCancel(false);
         body.setShowAll(true);
         body.setAll(false);
         body.setUserId(tu);
