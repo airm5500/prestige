@@ -246,8 +246,8 @@ function demarrerPosos() {
     prods.forEach((pr, i) => {
       exec("INSERT INTO t_preenregistrement_detail (lg_PREENREGISTREMENT_DETAIL_ID, lg_PREENREGISTREMENT_ID,"
         + " lg_FAMILLE_ID, int_QUANTITY, int_PRICE, int_PRICE_UNITAIR, dt_CREATED, dt_UPDATED, str_STATUT,"
-        + " int_QUANTITY_SERVED) VALUES ('E2E-POSOS-D" + i + "', '" + venteId + "', '" + pr.id + "', " + (i + 2)
-        + ", 500, 500, NOW(), NOW(), 'is_Closed', " + (i + 2) + ");");
+        + " int_QUANTITY_SERVED, prixAchat) VALUES ('E2E-POSOS-D" + i + "', '" + venteId + "', '" + pr.id + "', " + (i + 2)
+        + ", 500, 500, NOW(), NOW(), 'is_Closed', " + (i + 2) + ", 300);");
     });
     reponseAnalyse = { alerts: [] };
     const parRef = await json('../api/v1/posos/analyse', { venteId: reference });

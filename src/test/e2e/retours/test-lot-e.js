@@ -107,9 +107,13 @@ function retirerJeuDEssai() {
 (async () => {
   fs.mkdirSync(TMP, { recursive: true });
   retirerJeuDEssai();
-  // deux journees consecutives dans le passe proche, hors de toute donnee existante
-  const j1 = q("SELECT DATE_SUB(CURDATE(), INTERVAL 400 DAY)");
-  const j2 = q("SELECT DATE_SUB(CURDATE(), INTERVAL 399 DAY)");
+  // deux journees consecutives hors de toute donnee existante : le banc porte trois ans de ventes, on se place
+  // un mois avant la plus ancienne (vente, reglement ou mouvement de caisse)
+  const avant = "DATE_SUB(LEAST(COALESCE((SELECT MIN(DATE(dt_CREATED)) FROM t_preenregistrement), CURDATE()),"
+    + " COALESCE((SELECT MIN(DATE(mvtDate)) FROM vente_reglement), CURDATE()),"
+    + " COALESCE((SELECT MIN(DATE(dt_CREATED)) FROM t_mvt_caisse), CURDATE()), DATE_SUB(CURDATE(), INTERVAL 370 DAY)), INTERVAL ";
+  const j1 = q("SELECT " + avant + "31 DAY)");
+  const j2 = q("SELECT " + avant + "30 DAY)");
   const poses = poserJeuDEssai([j1, j2]);
   ok('jeu d essai en place (2 journees aux montants choisis)', poses === 2, j1 + ' / ' + j2);
 

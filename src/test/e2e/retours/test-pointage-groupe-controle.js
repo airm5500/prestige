@@ -86,7 +86,7 @@ function bl(n, grossiste, recue) {
     ok('« Aucun groupe » : grossiste de nouveau choisissable', await p.evaluate(() => !Ext.ComponentQuery.query('pointagebl #grossiste')[0].isDisabled()));
 
     /* etat de controle des achats : meme information */
-    const lst = await p.evaluate(async () => (await fetch('../api/v1/etat-control-bon/list?start=0&limit=50&dtStart=2025-02-01&dtEnd=2025-02-28&dateType=LIVRAISON')).json());
+    const lst = await p.evaluate(async () => (await fetch('../api/v1/etat-control-bon/list?start=0&limit=50&search=E2EPG&dtStart=2025-02-01&dtEnd=2025-02-28&dateType=LIVRAISON')).json());
     const b1 = (lst.data || []).find((x) => x.strREFLIVRAISON === 'E2EPG1') || {}, b2 = (lst.data || []).find((x) => x.strREFLIVRAISON === 'E2EPG2') || {};
     ok('Contrôle des achats : contrôle de l\'application (qui, quand, écart) sur le BL ; rien sur le BL non contrôlé',
       /^1\/1 · 1 écart · par /.test(b1.controleResume || '') && b1.controlePar === NOM && b1.controleEcarts === 1 && !b2.controleResume, JSON.stringify({ b1: b1.controleResume, b2: b2.controleResume }));

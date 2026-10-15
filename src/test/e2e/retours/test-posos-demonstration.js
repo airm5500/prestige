@@ -19,7 +19,11 @@ const exec = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', 
 const CONF = process.env.POSOS_CONF || '/root/prestige/config/posos.properties';
 const MARQUE = 'E2E-DEMO';
 
+/* produits de la demonstration absents du catalogue du banc : crees le temps du test */
+const produits = require('../support/produits-essai')(q, exec, 'E2E-PSD-');
+
 (async () => {
+  produits.assurer(['SINTROM 4MG CPR SEC B/30', 'BRUFEN 400MG CPR DRG B/30', 'TAHOR 20MG CPR B/28']);
   const avant = fs.existsSync(CONF) ? fs.readFileSync(CONF) : null;
   const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
   const p = await (await b.newContext({ viewport: { width: 1700, height: 1000 } })).newPage();
@@ -87,6 +91,7 @@ const MARQUE = 'E2E-DEMO';
     if (avant !== null) { fs.writeFileSync(CONF, avant); } else if (fs.existsSync(CONF)) { fs.unlinkSync(CONF); }
     await b.close();
     exec("DELETE d FROM t_ordonnance_client_detail d JOIN t_ordonnance_client o ON o.lg_ORDONNANCE_ID=d.lg_ORDONNANCE_ID WHERE o.str_OBSERVATIONS='" + MARQUE + "'; DELETE FROM t_ordonnance_client WHERE str_OBSERVATIONS='" + MARQUE + "'");
+    produits.retirer();
     const kos = res.filter((r) => !r.c);
     console.log('\n' + res.filter((r) => r.c).length + '/' + res.length + ' controles OK');
     process.exit(kos.length ? 1 : 0);
