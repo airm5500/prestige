@@ -187,7 +187,8 @@ public class RhPointageServiceImpl implements RhPointageService {
         List<Object[]> aEcrire = new ArrayList<>();
         for (ImportPointeuse.Ligne l : lignes) {
             String statut, motif = null, employe = null;
-            String[] e = badges.get(l.badge.trim().toUpperCase());
+            // badge lu en QR code (demande du 16/10) : le numero est extrait de son contenu
+            String[] e = badges.get(util.BadgeQr.numero(l.badge).toUpperCase());
             if (!l.retenue()) {
                 statut = "REJETEE";
                 motif = l.erreur;

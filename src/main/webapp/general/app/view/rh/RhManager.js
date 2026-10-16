@@ -850,6 +850,16 @@ Ext.define('testextjs.view.rh.RhManager', {
                                 store.load();
                             }},
                         '->',
+                        /* demande du 16/10 : QR code (numero, login, secret du badge) par defaut, ou code-barres du numero */
+                        {xtype: 'combo', itemId: 'typeCodeBadge', fieldLabel: 'Code', labelWidth: 35, width: 165,
+                            editable: false, queryMode: 'local', displayField: 'libelle', valueField: 'code', value: 'QR',
+                            store: Ext.create('Ext.data.Store', {fields: ['code', 'libelle'],
+                                data: [{code: 'QR', libelle: 'QR code'}, {code: 'CODE128', libelle: 'Code-barres'}]}),
+                            listeners: {afterrender: function (c) {
+                                    Ext.create('Ext.tip.ToolTip', {target: c.getEl(), html: '<div style="white-space:normal;width:260px;line-height:1.5">'
+                                                + '<b>QR code</b> : numéro du badge, login et secret propre au badge (jamais le mot de passe). '
+                                                + 'Chaque impression en QR code rend l\'exemplaire précédent invalide.<br><b>Code-barres</b> : numéro seul.</div>'});
+                                }}},
                         {text: 'Imprimer les badges cochés', itemId: 'btnImprimerBadges', iconCls: 'printable', tooltip: 'Cartes au format carte bancaire, dix par page (PDF)',
                             handler: function () {
                                 me.imprimerBadges();
@@ -1031,7 +1041,8 @@ Ext.define('testextjs.view.rh.RhManager', {
             me.messageBadge('Cochez au moins un badge actif à imprimer.', false);
             return;
         }
-        window.open('../api/v1/rh/badges/pdf?ids=' + encodeURIComponent(ids.join(',')), '_blank');
+        var code = me.down('#typeCodeBadge') ? me.down('#typeCodeBadge').getValue() : 'QR';
+        window.open('../api/v1/rh/badges/pdf?ids=' + encodeURIComponent(ids.join(',')) + '&code=' + encodeURIComponent(code || 'QR'), '_blank');
         me.messageBadge(ids.length + ' badge(s) envoyé(s) à l\'impression.', true);
         Ext.defer(function () {
             g.getStore().load();

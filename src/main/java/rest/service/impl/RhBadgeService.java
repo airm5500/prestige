@@ -207,20 +207,37 @@ public class RhBadgeService {
     }
 
     /** Badges a imprimer (dans l'ordre donne), impressions comptees. Seuls les badges actifs s'impriment. */
-    @SuppressWarnings("unchecked")
     public List<BadgePdf.Carte> pourImpression(Collection<String> ids) {
+        return pourImpression(ids, false);
+    }
+
+    /**
+     * Demande du 16/10 : avec qr, chaque carte porte un QR code (numero, login de l'employe, secret propre au badge) ;
+     * un nouveau secret est tire a chaque impression, seule son empreinte est gardee : l'exemplaire precedent n'est
+     * plus valable. Sans qr : code-barres du numero, secret inchange.
+     */
+    @SuppressWarnings("unchecked")
+    public List<BadgePdf.Carte> pourImpression(Collection<String> ids, boolean qr) {
         List<BadgePdf.Carte> cartes = new ArrayList<>();
         for (String id : ids) {
-            List<Object[]> r = em
-                    .createNativeQuery("SELECT b.numero, e.nom, e.prenoms, e.poste, e.matricule, b.dt_expiration"
-                            + " FROM t_rh_badge b JOIN t_employe e ON e.id = b.employe_id WHERE b.id = ?1 AND b.statut = 'ACTIF'")
+            List<Object[]> r = em.createNativeQuery(
+                    "SELECT b.numero, e.nom, e.prenoms, e.poste, e.matricule, b.dt_expiration, u.str_LOGIN"
+                            + " FROM t_rh_badge b JOIN t_employe e ON e.id = b.employe_id"
+                            + " LEFT JOIN t_user u ON u.lg_USER_ID = e.lg_USER_ID WHERE b.id = ?1 AND b.statut = 'ACTIF'")
                     .setParameter(1, id).getResultList();
             if (r.isEmpty()) {
                 continue;
             }
             Object[] l = r.get(0);
+            String contenuQr = null;
+            if (qr) {
+                String secret = util.BadgeQr.nouveauSecret();
+                em.createNativeQuery("UPDATE t_rh_badge SET secret_hash = ?1, dt_secret = NOW() WHERE id = ?2")
+                        .setParameter(1, util.BadgeQr.empreinte(secret)).setParameter(2, id).executeUpdate();
+                contenuQr = util.BadgeQr.contenu(t(l[0]), t(l[6]), secret);
+            }
             cartes.add(new BadgePdf.Carte(t(l[0]), t(l[1]), t(l[2]), t(l[3]), t(l[4]),
-                    l[5] == null ? null : LocalDate.parse(t(l[5]))));
+                    l[5] == null ? null : LocalDate.parse(t(l[5])), contenuQr));
             em.createNativeQuery(
                     "UPDATE t_rh_badge SET nb_impressions = nb_impressions + 1, dt_impression = NOW() WHERE id = ?1")
                     .setParameter(1, id).executeUpdate();
