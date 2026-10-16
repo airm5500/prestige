@@ -256,6 +256,32 @@ public class RhBadgeService {
         return cartes;
     }
 
+    /**
+     * Demande du 16/10 (connexion par badge) : identifiant de l'utilisateur dont le badge ouvre la session, ou
+     * {@code null}. Exige un badge ACTIF non expire portant ce numero, un employe ACTIF rattache a un utilisateur actif
+     * de ce login, et l'empreinte du secret lu egale a celle du dernier exemplaire imprime (comparaison a temps
+     * constant). Ne dit pas laquelle des conditions manque.
+     */
+    @SuppressWarnings("unchecked")
+    public String utilisateurDuBadge(String numero, String login, String secret) {
+        if (StringUtils.isAnyBlank(numero, login, secret)) {
+            return null;
+        }
+        List<Object[]> r = em
+                .createNativeQuery("SELECT u.lg_USER_ID, b.secret_hash FROM t_rh_badge b"
+                        + " JOIN t_employe e ON e.id = b.employe_id AND e.statut = 'ACTIF'"
+                        + " JOIN t_user u ON u.lg_USER_ID = e.lg_USER_ID AND u.str_STATUT = 'enable'"
+                        + " WHERE b.numero = ?1 AND b.statut = 'ACTIF' AND b.secret_hash IS NOT NULL"
+                        + " AND (b.dt_expiration IS NULL OR b.dt_expiration >= CURDATE()) AND u.str_LOGIN = ?2")
+                .setParameter(1, numero).setParameter(2, login).setMaxResults(1).getResultList();
+        if (r.isEmpty()) {
+            return null;
+        }
+        byte[] attendu = t(r.get(0)[1]).getBytes(java.nio.charset.StandardCharsets.US_ASCII);
+        byte[] lu = util.BadgeQr.empreinte(secret).getBytes(java.nio.charset.StandardCharsets.US_ASCII);
+        return java.security.MessageDigest.isEqual(attendu, lu) ? t(r.get(0)[0]) : null;
+    }
+
     /** Nom abrege de l'officine (bandeau des cartes). */
     public String officine() {
         return StringUtils

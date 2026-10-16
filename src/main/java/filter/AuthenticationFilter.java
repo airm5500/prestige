@@ -48,6 +48,9 @@ public class AuthenticationFilter implements ContainerRequestFilter, ContainerRe
             "v1/paiements-mobile/notification/simulateur", "v1/paiements-mobile/retour",
             // connexion, deconnexion, nom de l'officine, nom et version de l'application (page de connexion)
             "v1/user/auth", "v1/user/logout", "v1/officine", "v1/app/info",
+            // Demande du 16/10 : connexion par le QR code du badge RH (meme limite d'essais que le mot de passe) - voir
+            // rest.AccountResource#authBadge.
+            "v1/user/auth-badge",
             // Lecture de la licence par les applications mobiles AVANT connexion (ecran de lancement : l'application
             // est-elle activee pour cette officine ?). Lecture seule, cle masquee sans session - voir
             // rest.LicenceRessource. L'enregistrement (v1/licence/save) reste derriere la connexion.

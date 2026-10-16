@@ -25,6 +25,12 @@ public interface UserService {
 
     TUser connexion(ManagedUserVM managedUser, HttpServletRequest request);
 
+    /**
+     * Demande du 16/10 : connexion par le contenu lu du QR code d'un badge RH ; memes etapes que le mot de passe.
+     * {@code null} si le badge n'ouvre pas de session (quelle qu'en soit la raison).
+     */
+    TUser connexionParBadge(String contenu, HttpServletRequest request);
+
     boolean deConnexion(HttpServletRequest request, TUser user);
 
     TRoleUser getTRoleUser(String userId);

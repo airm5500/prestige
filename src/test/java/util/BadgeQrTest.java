@@ -28,4 +28,20 @@ class BadgeQrTest {
         // SHA-256("abc"), valeur de reference
         assertEquals("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad", BadgeQr.empreinte("abc"));
     }
+
+    @Test
+    void champsPourLaConnexion() {
+        String[] c = BadgeQr.champs(" " + BadgeQr.contenu("PGB-26-00017-K", "jdupont", "s3cr") + "\n");
+        assertEquals("PGB-26-00017-K", c[0]);
+        assertEquals("jdupont", c[1]);
+        assertEquals("s3cr", c[2]);
+        assertNull(BadgeQr.champs(null));
+        assertNull(BadgeQr.champs("PGB-26-00017-K"));
+        assertNull(BadgeQr.champs("PRESTIGE-BADGE|1|PGB-26-00017-K"));
+        assertNull(BadgeQr.champs("PRESTIGE-BADGE|2|PGB-26-00017-K|jdupont|s3cr"));
+        assertNull(BadgeQr.champs("PRESTIGE-BADGE|1|PGB-26-00017-K|jdupont|"));
+        assertNull(BadgeQr.champs("PRESTIGE-BADGE|1|PGB-26-00017-K||s3cr"));
+        assertNull(BadgeQr.champs("PRESTIGE-BADGE|1|PGB-26-00017-K|jdupont|s3cr|x"));
+        assertNull(BadgeQr.champs("AUTRE|1|PGB-26-00017-K|jdupont|s3cr"));
+    }
 }

@@ -68,6 +68,8 @@ public class UserServiceImpl implements UserService {
     private LogService logService;
     @EJB
     private rest.service.RhService rhService;
+    @EJB
+    private RhBadgeService rhBadgeService;
 
     @Override
     public TUser connexion(ManagedUserVM managedUser, HttpServletRequest request) {
@@ -82,44 +84,70 @@ public class UserServiceImpl implements UserService {
                 // incidents cote supervision).
                 return null;
             }
-            user.setStrLASTCONNECTIONDATE(new Date());
-            user.setIntCONNEXION(user.getIntCONNEXION() + 1);
-            user.setBIsConnected(true);
-            getEm().merge(user);
-            // Le flush est ici volontaire, avant l'ecriture du journal.
-            //
-            // La ligne de journal reference l'utilisateur (cle etrangere de t_event_log
-            // vers t_user) : son insertion prend un verrou PARTAGE sur la ligne de
-            // l'utilisateur, tandis que la mise a jour ci-dessus en demande un verrou
-            // EXCLUSIF. Or Hibernate execute ses insertions avant ses mises a jour.
-            // Deux connexions simultanees sur le MEME compte prenaient donc chacune le
-            // verrou partage, puis attendaient l'exclusif que l'autre empechait :
-            // interblocage, et MySQL en annulait une (« Deadlock found when trying to
-            // get lock »), soit un utilisateur sur trois refuse a l'ouverture.
-            //
-            // En forcant la mise a jour maintenant, toutes les connexions prennent le
-            // verrou exclusif d'abord, donc dans le meme ordre : elles s'attendent
-            // brievement au lieu de s'interbloquer.
-            getEm().flush();
-            // Une seule lecture du nom de poste : elle etait faite deux fois, et chacune pouvait
-            // bloquer sur la resolution DNS inverse (voir util.NomDePoste).
-            String nomPoste = getHostName(request);
-            String desc = "Authentification de " + user.getStrFIRSTNAME() + " " + user.getStrLASTNAME()
-                    + " à partir de l'adresse " + request.getRemoteAddr() + " : nom poste " + nomPoste;
-            logService.updateLogFile(user, user.getStrLOGIN(), desc, TypeLog.AUTHENTIFICATION, user, nomPoste,
-                    request.getRemoteAddr());
-            afficheur("Caisse: " + user.getStrLASTNAME());
-            /* Plan d'octobre (3) : journal des connexions RH ; sa propre transaction, jamais bloquant. */
-            try {
-                rhService.ouvrirSession(user, request, nomPoste);
-            } catch (Exception e) {
-                LOG.log(Level.WARNING, "journal des connexions", e);
-            }
-            return user;
+            return ouvrir(user, request, "");
         } catch (Exception e) {
             LOG.log(Level.SEVERE, null, e);
             return null;
         }
+    }
+
+    @Override
+    public TUser connexionParBadge(String contenu, HttpServletRequest request) {
+        try {
+            /* coupee seulement par '0' : le parametre absent laisse la connexion par badge permise */
+            if ("0".equals(StringUtils.trimToEmpty(parametre(Constant.KEY_CONNEXION_BADGE)))) {
+                return null;
+            }
+            String[] c = BadgeQr.champs(contenu);
+            if (c == null) {
+                return null;
+            }
+            String id = rhBadgeService.utilisateurDuBadge(c[0], c[1], c[2]);
+            TUser user = id == null ? null : getEm().find(TUser.class, id);
+            return user == null ? null : ouvrir(user, request, " par badge " + c[0]);
+        } catch (Exception e) {
+            /* jamais le contenu lu dans la trace : il porte le secret du badge */
+            LOG.log(Level.SEVERE, "connexion par badge : " + e.getClass().getName());
+            return null;
+        }
+    }
+
+    /** Etapes communes a toute connexion acceptee ; {@code mode} complete la ligne du journal (« par badge ... »). */
+    private TUser ouvrir(TUser user, HttpServletRequest request, String mode) {
+        user.setStrLASTCONNECTIONDATE(new Date());
+        user.setIntCONNEXION(user.getIntCONNEXION() + 1);
+        user.setBIsConnected(true);
+        getEm().merge(user);
+        // Le flush est ici volontaire, avant l'ecriture du journal.
+        //
+        // La ligne de journal reference l'utilisateur (cle etrangere de t_event_log
+        // vers t_user) : son insertion prend un verrou PARTAGE sur la ligne de
+        // l'utilisateur, tandis que la mise a jour ci-dessus en demande un verrou
+        // EXCLUSIF. Or Hibernate execute ses insertions avant ses mises a jour.
+        // Deux connexions simultanees sur le MEME compte prenaient donc chacune le
+        // verrou partage, puis attendaient l'exclusif que l'autre empechait :
+        // interblocage, et MySQL en annulait une (« Deadlock found when trying to
+        // get lock »), soit un utilisateur sur trois refuse a l'ouverture.
+        //
+        // En forcant la mise a jour maintenant, toutes les connexions prennent le
+        // verrou exclusif d'abord, donc dans le meme ordre : elles s'attendent
+        // brievement au lieu de s'interbloquer.
+        getEm().flush();
+        // Une seule lecture du nom de poste : elle etait faite deux fois, et chacune pouvait
+        // bloquer sur la resolution DNS inverse (voir util.NomDePoste).
+        String nomPoste = getHostName(request);
+        String desc = "Authentification" + mode + " de " + user.getStrFIRSTNAME() + " " + user.getStrLASTNAME()
+                + " à partir de l'adresse " + request.getRemoteAddr() + " : nom poste " + nomPoste;
+        logService.updateLogFile(user, user.getStrLOGIN(), desc, TypeLog.AUTHENTIFICATION, user, nomPoste,
+                request.getRemoteAddr());
+        afficheur("Caisse: " + user.getStrLASTNAME());
+        /* Plan d'octobre (3) : journal des connexions RH ; sa propre transaction, jamais bloquant. */
+        try {
+            rhService.ouvrirSession(user, request, nomPoste);
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "journal des connexions", e);
+        }
+        return user;
     }
 
     private TUser connectUser(ManagedUserVM managedUser) {

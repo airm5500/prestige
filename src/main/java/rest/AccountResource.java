@@ -28,6 +28,7 @@ import javax.ws.rs.core.Response;
 import org.json.JSONArray;
 
 import org.json.JSONObject;
+import rest.service.dto.ConnexionBadgeDTO;
 import rest.service.UserService;
 import rest.service.dto.AccountInfoDTO;
 import util.CommonUtils;
@@ -52,7 +53,6 @@ public class AccountResource {
     @POST
     @Path("auth")
     public Response auth(ManagedUserVM managedUser) {
-        var dashboard = "dashboard";
         JSONObject json = new JSONObject();
 
         String login = managedUser == null ? null : managedUser.getLogin();
@@ -84,73 +84,118 @@ public class AccountResource {
                         new Object[] { bloque, ip });
             }
             return Response.ok().entity(json.toString()).build();
-        } else {
-            limite.succes(login, ip);
-            String xtypeuser = "mainmenumanager";
-            HttpSession hs = request.getSession(true);
-            json.put("str_LOGIN", tu.getStrLOGIN());
-            json.put("str_USER_ID", tu.getLgUSERID());
-            json.put("str_FIRST_NAME", tu.getStrFIRSTNAME());
-            json.put("str_LAST_NAME", tu.getStrLASTNAME());
-            json.put("str_PHONE", tu.getStrPHONE());
-            hs.setAttribute(Constant.AIRTIME_USER, tu);
+        }
+        limite.succes(login, ip);
+        return sessionOuverte(tu);
+    }
 
-            if (tu.getLgUSERID().equals("00")) {
-                xtypeuser = dashboard;
-                hs.setAttribute(Constant.USER_ROLE_ID, "00");
-            } else {
-
-                Collection<TRoleUser> tRoleUserCollection = tu.getTRoleUserCollection();
-
-                TRoleUser oTRoleUser = tRoleUserCollection.stream()
-                        .filter(e -> e.getLgROLEID().getStrSTATUT().equals(Constant.STATUT_ENABLE)).findFirst()
-                        .orElse(null);
-                TRole role = oTRoleUser.getLgROLEID();
-                hs.setAttribute(Constant.USER_ROLE_ID, role.getLgROLEID());
-                // Detection admin/super-admin par prefixe (gere les noms suffixes "... du systeme")
-                // pour que ces profils arrivent bien sur le dashboard apres connexion.
-                String roleName = role.getStrNAME();
-                boolean goDashboard = (roleName != null && roleName.equalsIgnoreCase(Constant.ROLE_PHARMACIEN))
-                        || bll.userManagement.user.isSuperAdminRole(roleName)
-                        || bll.userManagement.user.isAdminRole(roleName);
-                xtypeuser = goDashboard ? dashboard : "mainmenumanager";
-
+    /**
+     * Demande du 16/10 : connexion par le QR code du badge RH (douchette sur la page de connexion). Meme session que le
+     * mot de passe ; refus sans motif (« Badge non reconnu »). Essais limites par numero de badge et par poste, comme
+     * le mot de passe. Le contenu lu porte le secret du badge : il n'est jamais trace.
+     */
+    @POST
+    @Path("auth-badge")
+    public Response authBadge(ConnexionBadgeDTO lu) {
+        String contenu = lu == null ? null : lu.getContenu();
+        String numero = util.BadgeQr.numero(contenu);
+        String cle = "badge:" + (numero == null || numero.indexOf('|') >= 0 ? "" : numero);
+        String ip = request.getRemoteAddr();
+        rest.securite.LimiteConnexion limite = rest.securite.LimiteConnexion.instance();
+        JSONObject json = new JSONObject();
+        long attente = limite.attenteSecondes(cle, ip);
+        if (attente > 0) {
+            LOG.log(Level.WARNING, "Connexion par badge refusee (trop d''essais) depuis {0}", ip);
+            return Response.ok().entity(json.put("success", false).put("attente", attente)
+                    .put("message", rest.securite.LimiteConnexion.message(attente)).toString()).build();
+        }
+        if (request.getSession(false) != null) {
+            request.changeSessionId();
+        }
+        TUser tu = userService.connexionParBadge(contenu, request);
+        if (tu == null) {
+            long bloque = limite.echec(cle, ip);
+            json.put("success", false).put("message",
+                    bloque > 0 ? rest.securite.LimiteConnexion.message(bloque) : Constant.MSG_BADGE_NON_RECONNU);
+            if (bloque > 0) {
+                json.put("attente", bloque);
+                LOG.log(Level.WARNING, "Connexion par badge bloquee {0} s apres plusieurs echecs depuis {1}",
+                        new Object[] { bloque, ip });
             }
-
-            json.put("xtypeuser", xtypeuser);
-            hs.setAttribute("PRESTIGE_XTYPEUSER", xtypeuser);
-
-            json.put("str_PIC", "../general/resources/images/photo_personne/" + tu.getStrPIC());
-            json.put("lg_EMPLACEMENT_ID", tu.getLgEMPLACEMENTID().getLgEMPLACEMENTID());
-            json.put("OFFICINE", tu.getLgEMPLACEMENTID().getLgEMPLACEMENTID().equals(Constant.PROCESS_SUCCESS)
-                    ? userService.getOfficine().getStrNOMABREGE() : tu.getLgEMPLACEMENTID().getStrDESCRIPTION());
-            List<TPrivilege> lstTPrivilege = userService.getAllPrivilege(tu);
-            hs.setAttribute(Constant.USER_LIST_PRIVILEGE, lstTPrivilege);
-            boolean asAuthority = CommonUtils.hasAuthorityByName(lstTPrivilege, Constant.P_BT_UPDATE_PRICE_EDIT);
-            List<TPrivilege> hsAttribute = (List<TPrivilege>) hs.getAttribute(Constant.USER_LIST_PRIVILEGE);
-            boolean asAuthorityVente = CommonUtils.hasAuthorityByName(hsAttribute, Constant.SHOW_VENTE);
-            boolean allActivitis = CommonUtils.hasAuthorityByName(hsAttribute, Constant.P_SHOW_ALL_ACTIVITY);
-            boolean afficherStockVente = CommonUtils.hasAuthorityByName(lstTPrivilege,
-                    Constant.P_AFFICHER_STOCK_A_LA_VENTE);
-            hs.setAttribute(Constant.P_SHOW_ALL_ACTIVITY, allActivitis);
-            hs.setAttribute(Constant.SHOW_VENTE, asAuthorityVente);
-            hs.setAttribute(Constant.UPDATE_PRICE, asAuthority);
-            /*
-             * demandes des applications mobiles (10) : role explicite et droit de creer un inventaire (ajouts :
-             * xtypeuser et privileges restent)
-             */
-            JSONObject role = roleDe(tu);
-            hs.setAttribute("PRESTIGE_ROLE", role.toString());
-            json.put("role", role);
-            json.put("droits", new JSONObject().put("creerInventaire",
-                    CommonUtils.hasAuthorityByName(lstTPrivilege, "P_CREER_INVENTAIRE")));
-            json.put("success", true);
-            json.put("privileges", new JSONArray(List.of(new Privilege("canUpdatePrice", asAuthority),
-                    new Privilege("showStock", afficherStockVente))));
-
             return Response.ok().entity(json.toString()).build();
         }
+        limite.succes(cle, ip);
+        return sessionOuverte(tu);
+    }
 
+    /** Session d'un utilisateur dont la connexion vient d'etre acceptee (mot de passe ou badge). */
+    @SuppressWarnings("unchecked")
+    private Response sessionOuverte(TUser tu) {
+        var dashboard = "dashboard";
+        JSONObject json = new JSONObject();
+        String xtypeuser = "mainmenumanager";
+        HttpSession hs = request.getSession(true);
+        json.put("str_LOGIN", tu.getStrLOGIN());
+        json.put("str_USER_ID", tu.getLgUSERID());
+        json.put("str_FIRST_NAME", tu.getStrFIRSTNAME());
+        json.put("str_LAST_NAME", tu.getStrLASTNAME());
+        json.put("str_PHONE", tu.getStrPHONE());
+        hs.setAttribute(Constant.AIRTIME_USER, tu);
+
+        if (tu.getLgUSERID().equals("00")) {
+            xtypeuser = dashboard;
+            hs.setAttribute(Constant.USER_ROLE_ID, "00");
+        } else {
+
+            Collection<TRoleUser> tRoleUserCollection = tu.getTRoleUserCollection();
+
+            TRoleUser oTRoleUser = tRoleUserCollection.stream()
+                    .filter(e -> e.getLgROLEID().getStrSTATUT().equals(Constant.STATUT_ENABLE)).findFirst()
+                    .orElse(null);
+            TRole role = oTRoleUser.getLgROLEID();
+            hs.setAttribute(Constant.USER_ROLE_ID, role.getLgROLEID());
+            // Detection admin/super-admin par prefixe (gere les noms suffixes "... du systeme")
+            // pour que ces profils arrivent bien sur le dashboard apres connexion.
+            String roleName = role.getStrNAME();
+            boolean goDashboard = (roleName != null && roleName.equalsIgnoreCase(Constant.ROLE_PHARMACIEN))
+                    || bll.userManagement.user.isSuperAdminRole(roleName)
+                    || bll.userManagement.user.isAdminRole(roleName);
+            xtypeuser = goDashboard ? dashboard : "mainmenumanager";
+
+        }
+
+        json.put("xtypeuser", xtypeuser);
+        hs.setAttribute("PRESTIGE_XTYPEUSER", xtypeuser);
+
+        json.put("str_PIC", "../general/resources/images/photo_personne/" + tu.getStrPIC());
+        json.put("lg_EMPLACEMENT_ID", tu.getLgEMPLACEMENTID().getLgEMPLACEMENTID());
+        json.put("OFFICINE", tu.getLgEMPLACEMENTID().getLgEMPLACEMENTID().equals(Constant.PROCESS_SUCCESS)
+                ? userService.getOfficine().getStrNOMABREGE() : tu.getLgEMPLACEMENTID().getStrDESCRIPTION());
+        List<TPrivilege> lstTPrivilege = userService.getAllPrivilege(tu);
+        hs.setAttribute(Constant.USER_LIST_PRIVILEGE, lstTPrivilege);
+        boolean asAuthority = CommonUtils.hasAuthorityByName(lstTPrivilege, Constant.P_BT_UPDATE_PRICE_EDIT);
+        List<TPrivilege> hsAttribute = (List<TPrivilege>) hs.getAttribute(Constant.USER_LIST_PRIVILEGE);
+        boolean asAuthorityVente = CommonUtils.hasAuthorityByName(hsAttribute, Constant.SHOW_VENTE);
+        boolean allActivitis = CommonUtils.hasAuthorityByName(hsAttribute, Constant.P_SHOW_ALL_ACTIVITY);
+        boolean afficherStockVente = CommonUtils.hasAuthorityByName(lstTPrivilege,
+                Constant.P_AFFICHER_STOCK_A_LA_VENTE);
+        hs.setAttribute(Constant.P_SHOW_ALL_ACTIVITY, allActivitis);
+        hs.setAttribute(Constant.SHOW_VENTE, asAuthorityVente);
+        hs.setAttribute(Constant.UPDATE_PRICE, asAuthority);
+        /*
+         * demandes des applications mobiles (10) : role explicite et droit de creer un inventaire (ajouts : xtypeuser
+         * et privileges restent)
+         */
+        JSONObject role = roleDe(tu);
+        hs.setAttribute("PRESTIGE_ROLE", role.toString());
+        json.put("role", role);
+        json.put("droits", new JSONObject().put("creerInventaire",
+                CommonUtils.hasAuthorityByName(lstTPrivilege, "P_CREER_INVENTAIRE")));
+        json.put("success", true);
+        json.put("privileges", new JSONArray(
+                List.of(new Privilege("canUpdatePrice", asAuthority), new Privilege("showStock", afficherStockVente))));
+
+        return Response.ok().entity(json.toString()).build();
     }
 
     @POST

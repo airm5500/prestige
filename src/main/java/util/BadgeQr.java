@@ -48,6 +48,26 @@ public final class BadgeQr {
         return v;
     }
 
+    /**
+     * Demande du 16/10 (connexion par badge) : numero, login et secret d'un contenu de QR complet, ou {@code null} si
+     * le contenu n'est pas un QR de badge de cette version (prefixe, version, 5 champs, aucun vide).
+     */
+    public static String[] champs(String lu) {
+        if (lu == null) {
+            return null;
+        }
+        String[] p = lu.trim().split("\\|", -1);
+        if (p.length != 5 || !PREFIXE.equals(p[0]) || !VERSION.equals(p[1])) {
+            return null;
+        }
+        for (int i = 2; i < 5; i++) {
+            if (p[i].trim().isEmpty()) {
+                return null;
+            }
+        }
+        return new String[] { p[2].trim(), p[3].trim(), p[4].trim() };
+    }
+
     public static String empreinte(String secret) {
         try {
             byte[] h = MessageDigest.getInstance("SHA-256").digest(secret.getBytes(StandardCharsets.UTF_8));

@@ -43,6 +43,18 @@ function messageConnexion(texte) {
     zone.hidden = !texte;
 }
 
+/* Session ouverte (mot de passe ou badge, 16/10) : memes reperes locaux, puis l'accueil. */
+function connexionAcceptee(data) {
+    if (Modernizr.localstorage) {
+        localStorage.setItem("xtypeuser", data.xtypeuser);
+        localStorage.setItem("OFFICINE", data.OFFICINE);
+        localStorage.setItem("str_PIC", data.str_PIC);
+        localStorage.setItem("lg_EMPLACEMENT_ID", data.lg_EMPLACEMENT_ID);
+
+        window.location.replace("../general/");
+    }
+}
+
 function authenticate(str_LOGIN, Str_PASSWORD) {
     messageConnexion('');
     //  alert(str_LOGIN);
@@ -60,16 +72,7 @@ function authenticate(str_LOGIN, Str_PASSWORD) {
                 }, success: function (data) {
                     console.log(data.success);
                     if (data.success) {
-                         console.log(data.success);
-                        if (Modernizr.localstorage) {
-                            var xtypeuser = data.xtypeuser;
-                            localStorage.setItem("xtypeuser", xtypeuser);
-                            localStorage.setItem("OFFICINE", data.OFFICINE);
-                            localStorage.setItem("str_PIC", data.str_PIC);
-                            localStorage.setItem("lg_EMPLACEMENT_ID", data.lg_EMPLACEMENT_ID);
-
-                            window.location.replace("../general/");
-                        }
+                        connexionAcceptee(data);
                     }else{
                         messageConnexion(data.message || "Identifiant ou mot de passe incorrect.");
                         $("#loader").hide();

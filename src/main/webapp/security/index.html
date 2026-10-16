@@ -61,8 +61,8 @@
 
         <div class="pl-login-panel">
           <div class="pl-panel-header">
-            <h2>Connexion</h2>
-            <p>Renseignez vos identifiants pour continuer.</p>
+            <h2 id="pl-titre-connexion">Connexion</h2>
+            <p id="pl-sous-titre-connexion">Renseignez vos identifiants pour continuer.</p>
           </div>
           <img class="pl-login-pill" src="../resources/images/pill-blue.png" alt="" aria-hidden="true">
 
@@ -86,6 +86,13 @@
               <span class="pl-btn__arrow" aria-hidden="true">→</span>
             </button>
 
+            <!-- Demande du 16/10 : connexion par le QR code du badge RH -->
+            <div class="pl-ou" aria-hidden="true"><span>ou</span></div>
+            <button type="button" id="pl-badge" class="pl-btn-badge">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 20h4M20 17v3"/></svg>
+              <span>Se connecter avec mon badge</span>
+            </button>
+
             <p id="pl-message" class="pl-message" role="alert" aria-live="assertive" hidden
                style="margin:10px 0 0;padding:8px 12px;border-radius:8px;background:#fdecea;color:#8a1c12;font-size:13px;line-height:1.4;"></p>
 
@@ -97,6 +104,17 @@
                 <span class="pl-loader__text">Connexion en cours…</span>
               </span>
             </span>
+          </div>
+
+          <div id="pl-badge-mode" class="pl-bm" hidden>
+            <div id="pl-badge-zone" class="pl-bz" data-etat="attente">
+              <div class="pl-bz__icone" aria-hidden="true"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><path d="M14 14h2v2h-2zM18 18h2v2h-2zM14 19h1M19 14v2"/><path class="pl-bz__trait" d="M2 12h20"/></svg></div>
+              <strong id="pl-bz-titre" class="pl-bz__titre">Présentez votre badge…</strong>
+              <div id="pl-bz-texte" class="pl-bz__texte" role="status" aria-live="polite">Passez le QR code de votre badge devant la douchette.<br>Aucun mot de passe à taper.</div>
+              <div id="pl-bz-encore" class="pl-bz__encore" hidden>Présentez à nouveau un badge pour réessayer.</div>
+              <input id="pl-badge-saisie" class="pl-bz__saisie" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Lecture du badge">
+            </div>
+            <a href="#" id="pl-badge-retour" class="pl-bm__retour">← Revenir à l'identifiant et au mot de passe</a>
           </div>
         </div>
       </div>
@@ -141,6 +159,26 @@
     .pl-pf__barre{width:110px;height:6px;border-radius:3px;background:#e3e8ee;overflow:hidden;display:inline-block}
     .pl-pf__barre span{display:block;height:100%;background:#17987e;transition:width 1s linear}
     .pl-pf__note{margin:12px 0 0;color:#7a8794;font-size:11px}
+    .pl-ou{display:flex;align-items:center;gap:10px;margin:14px 0 10px;color:#7a8794;font:12px Inter,Arial,sans-serif}
+    .pl-ou::before,.pl-ou::after{content:"";flex:1;height:1px;background:#d5dde5}
+    .pl-btn-badge{width:100%;display:flex;align-items:center;justify-content:center;gap:10px;padding:13px 16px;border-radius:999px;border:2px solid #17987e;background:#fff;color:#0f5c48;font:600 15px Inter,Arial,sans-serif;cursor:pointer;transition:background .15s,box-shadow .15s}
+    .pl-btn-badge:hover,.pl-btn-badge:focus-visible{background:#eefaf6;box-shadow:0 6px 18px rgba(23,152,126,.18)}
+    .pl-col--form[hidden],.pl-bm[hidden],.pl-bz__encore[hidden]{display:none}
+    .pl-bz{position:relative;border:2px dashed #17987e;border-radius:18px;background:rgba(255,255,255,.75);padding:26px 22px 22px;text-align:center;font-family:Inter,Arial,sans-serif;cursor:text}
+    .pl-bz__icone{width:84px;height:84px;margin:0 auto 14px;border-radius:18px;background:linear-gradient(135deg,#17987e,#2a3f8f);display:flex;align-items:center;justify-content:center}
+    .pl-bz[data-etat="refus"] .pl-bz__icone{background:linear-gradient(135deg,#c0392b,#8a1c12)}
+    .pl-bz[data-etat="refus"] .pl-bz__trait,.pl-bz[data-etat="lu"] .pl-bz__trait{display:none}
+    .pl-bz__trait{stroke:#7ff0d4;animation:pl-bz-balaye 1.6s ease-in-out infinite}
+    @keyframes pl-bz-balaye{0%,100%{transform:translateY(-6px)}50%{transform:translateY(6px)}}
+    .pl-bz__titre{display:block;font-size:19px;color:#0f2a3d;margin-bottom:6px}
+    .pl-bz__texte{color:#4f5d6b;font-size:13px;line-height:1.5}
+    .pl-bz[data-etat="lu"] .pl-bz__texte{display:flex;align-items:center;gap:10px;text-align:left;background:#e8f6f1;color:#0f5c48;border-radius:10px;padding:10px 14px;margin-top:8px}
+    .pl-bz[data-etat="lu"] .pl-bz__texte::before{content:"";flex:none;width:18px;height:18px;border-radius:50%;border:3px solid #b9e3d6;border-top-color:#17987e;animation:pl-bz-tourne .8s linear infinite}
+    @keyframes pl-bz-tourne{to{transform:rotate(360deg)}}
+    .pl-bz[data-etat="refus"] .pl-bz__texte{text-align:left;background:#fdecea;color:#8a1c12;border-radius:10px;padding:10px 14px;margin-top:8px}
+    .pl-bz__encore{margin-top:12px;color:#4f5d6b;font-size:12px}
+    .pl-bz__saisie{position:absolute;left:0;bottom:0;width:1px;height:1px;opacity:0;border:0;padding:0;pointer-events:none}
+    .pl-bm__retour{display:inline-block;margin-top:14px;color:#2a3f8f;font:13px Inter,Arial,sans-serif}
   </style>
   <script src="../general/resources/js/qrcode-generator-1.4.4.js"></script>
   <script>
@@ -190,6 +228,114 @@
     fenetre.addEventListener('click', function (e) { if (e.target === fenetre) { fermer(); } });
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !fenetre.hidden) { fermer(); } });
     lire().then(function (d) { bouton.hidden = !(d && d.actif); });
+  })();
+  </script>
+
+  <script>
+  /* Demande du 16/10 : connexion par le QR code du badge RH. La douchette tape le contenu du QR puis Entree, dans un
+     champ de lecture invisible (le contenu porte le secret du badge : il n'est jamais affiche). Une lecture faite par
+     erreur dans « Identifiant » est reprise ici et le champ est vide. Aucune fenetre : tout se passe dans le cadre. */
+  (function () {
+    var PREFIXE = 'PRESTIGE-BADGE|';
+    var form = document.querySelector('.pl-col--form'), mode = document.getElementById('pl-badge-mode');
+    var zone = document.getElementById('pl-badge-zone'), saisie = document.getElementById('pl-badge-saisie');
+    var titre = document.getElementById('pl-bz-titre'), texte = document.getElementById('pl-bz-texte');
+    var encore = document.getElementById('pl-bz-encore'), login = document.getElementById('str_login');
+    var h2 = document.getElementById('pl-titre-connexion'), sous = document.getElementById('pl-sous-titre-connexion');
+    var enCours = false, attente = null;
+
+    function etat(e, t, html) {
+      zone.setAttribute('data-etat', e);
+      titre.textContent = t;
+      texte.innerHTML = '';
+      if (html) { texte.appendChild(html); }
+      encore.hidden = e !== 'refus';
+    }
+    function noeud(parts) {
+      var f = document.createDocumentFragment();
+      parts.forEach(function (p) {
+        if (p === '<br>') { f.appendChild(document.createElement('br')); return; }
+        if (p && p.b) { var b = document.createElement('b'); b.textContent = p.b; f.appendChild(b); return; }
+        f.appendChild(document.createTextNode(p));
+      });
+      return f;
+    }
+    function attendre() {
+      etat('attente', 'Présentez votre badge…', noeud(['Passez le QR code de votre badge devant la douchette.', '<br>', 'Aucun mot de passe à taper.']));
+    }
+    function ouvrir(dejaLu) {
+      if (window.messageConnexion) { messageConnexion(''); }
+      form.hidden = true;
+      mode.hidden = false;
+      h2.textContent = 'Connexion par badge';
+      sous.textContent = 'Présentez le QR code de votre badge au lecteur.';
+      if (!enCours) { attendre(); }
+      saisie.value = dejaLu || '';
+      saisie.focus();
+    }
+    function fermer() {
+      mode.hidden = true;
+      form.hidden = false;
+      h2.textContent = 'Connexion';
+      sous.textContent = 'Renseignez vos identifiants pour continuer.';
+      saisie.value = '';
+      login.focus();
+    }
+    function numeroDe(c) { var p = c.split('|'); return p.length > 2 ? p[2] : ''; }
+    function envoyer() {
+      clearTimeout(attente);
+      var contenu = saisie.value.trim();
+      saisie.value = '';
+      if (!contenu || enCours) { return; }
+      enCours = true;
+      var numero = numeroDe(contenu);
+      etat('lu', 'Badge lu', noeud(['Connexion en cours…']));
+      fetch('../api/v1/user/auth-badge', { method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }, body: JSON.stringify({ contenu: contenu }) })
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          if (d && d.success) {
+            var nom = ((d.str_FIRST_NAME || '') + ' ' + (d.str_LAST_NAME || '')).trim() || d.str_LOGIN || '';
+            etat('lu', 'Badge lu', noeud(['Connexion de ', { b: nom }, numero ? ' (badge ' + numero + ')…' : '…']));
+            connexionAcceptee(d);
+            return;
+          }
+          enCours = false;
+          etat('refus', 'Badge non reconnu', noeud([d && d.attente ? d.message
+            : 'Ce badge ne permet pas de se connecter. S\'il a été réimprimé ou désactivé, utilisez le dernier badge remis ou votre mot de passe.']));
+          saisie.focus();
+        })
+        .catch(function () {
+          enCours = false;
+          etat('refus', 'Connexion impossible', noeud(['Le serveur ne répond pas. Vérifiez le réseau et réessayez.']));
+          saisie.focus();
+        });
+    }
+    /* lecture complete sans Entree (douchette reglee sans suffixe) : envoi apres un court silence */
+    function complet(v) { var p = v.split('|'); return v.indexOf(PREFIXE) === 0 && p.length === 5 && p[4].length >= 40; }
+
+    document.getElementById('pl-badge').addEventListener('click', function () { ouvrir(''); });
+    document.getElementById('pl-badge-retour').addEventListener('click', function (e) { e.preventDefault(); fermer(); });
+    zone.addEventListener('click', function () { saisie.focus(); });
+    saisie.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); envoyer(); }
+      else if (e.key === 'Escape') { fermer(); }
+    });
+    saisie.addEventListener('input', function () {
+      clearTimeout(attente);
+      if (complet(saisie.value)) { attente = setTimeout(envoyer, 300); }
+    });
+    saisie.addEventListener('blur', function () {
+      setTimeout(function () { if (!mode.hidden && document.activeElement === document.body) { saisie.focus(); } }, 0);
+    });
+    /* badge lu dans « Identifiant » : repris par la lecture du badge, le champ est vide */
+    login.addEventListener('input', function () {
+      if (login.value.indexOf(PREFIXE) === 0) {
+        var lu = login.value;
+        login.value = '';
+        ouvrir(lu);
+      }
+    });
   })();
   </script>
 

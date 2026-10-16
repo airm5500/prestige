@@ -8,6 +8,11 @@ import java.util.List;
  */
 public final class Constant {
 
+    /** Demande du 16/10 : connexion par le QR code du badge RH ('0' = coupee ; absent ou autre valeur = permise). */
+    public static final String KEY_CONNEXION_BADGE = "KEY_CONNEXION_BADGE";
+    /** Message unique de refus d'un badge : ne dit jamais pourquoi (secret, statut, employe, login). */
+    public static final String MSG_BADGE_NON_RECONNU = "Badge non reconnu.";
+
     public static final String UPDATE_PRICE = "UPDATE_PRICE";
     public static final String P_BT_ANNULER_VENTE = "P_BT_ANNULER_VENTE";
     public static final String DECONDTIONNEMENT_POSITIF = "05";
