@@ -841,30 +841,8 @@ public class FicheArticleServiceImpl implements FicheArticleService {
                 return resultList;
             }
             if (all) {
-                return resultList.stream().map(x -> {
-                    Map<String, Integer> conso = consomationArticle(x.getId() + "", emId, 6);
-                    TBonLivraisonDetail bonLivraisonDetail = bonLivraisonByArticleId(x.getId() + "");
-                    Date ent = bonLivraisonDetail != null ? bonLivraisonDetail.getLgBONLIVRAISONID().getDtUPDATED()
-                            : null;
-                    int qtyEntree = bonLivraisonDetail != null ? bonLivraisonDetail.getIntQTERECUE() : 0;
-                    return x.dateBon(getDateBonLivraison(x.getId())).dateEntree(ent).qtyEntree(qtyEntree)
-                            .dateInventaire(getDateInventaire(x.getId(), emId))
-                            .lastDateVente(getDateDerniereVente(x.getId(), emId))
-                            .consommationUn(conso
-                                    .getOrDefault(LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM")), 0))
-                            .consommationsOne(conso.getOrDefault(
-                                    LocalDate.now().minusMonths(1).format(DateTimeFormatter.ofPattern("yyyy-MM")), 0))
-                            .consommationsTwo(conso.getOrDefault(
-                                    LocalDate.now().minusMonths(2).format(DateTimeFormatter.ofPattern("yyyy-MM")), 0))
-                            .consommationsThree(conso.getOrDefault(
-                                    LocalDate.now().minusMonths(3).format(DateTimeFormatter.ofPattern("yyyy-MM")), 0))
-                            .consommationsFour(conso.getOrDefault(
-                                    LocalDate.now().minusMonths(4).format(DateTimeFormatter.ofPattern("yyyy-MM")), 0))
-                            .consommationsFive(conso.getOrDefault(
-                                    LocalDate.now().minusMonths(5).format(DateTimeFormatter.ofPattern("yyyy-MM")), 0))
-                            .consommationsSix(conso.getOrDefault(
-                                    LocalDate.now().minusMonths(6).format(DateTimeFormatter.ofPattern("yyyy-MM")), 0));
-                }).collect(Collectors.toList());
+                /* exports et impressions : lectures groupees, plus six requetes par article (journal du 15/10) */
+                return enrichirEnLot(resultList, emId);
             }
             return resultList.stream()
                     .map(x -> x.dateBon(getDateBonLivraison(x.getId())).dateEntree(getDateEntreeStock(x.getId()))
@@ -944,33 +922,118 @@ public class FicheArticleServiceImpl implements FicheArticleService {
             return lignes;
         }
         String emId = u.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
-        List<String> ids = lignes.stream().map(x -> String.valueOf(x.getId())).distinct().collect(Collectors.toList());
         Map<String, Date> ventes = new HashMap<>();
-        for (int debut = 0; debut < ids.size(); debut += TAILLE_LOT_IN) {
-            List<String> lot = ids.subList(debut, Math.min(debut + TAILLE_LOT_IN, ids.size()));
-            StringBuilder places = new StringBuilder();
-            for (int i = 0; i < lot.size(); i++) {
-                places.append(i == 0 ? "" : ", ").append('?').append(i + 2);
-            }
-            javax.persistence.Query requete = getEntityManager()
-                    .createNativeQuery("SELECT d.lg_FAMILLE_ID, MAX(p.dt_UPDATED) FROM t_preenregistrement_detail d"
-                            + " JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = d.lg_PREENREGISTREMENT_ID"
-                            + " JOIN t_user us ON us.lg_USER_ID = p.lg_USER_ID"
-                            + " WHERE p.str_STATUT = 'is_Closed' AND us.lg_EMPLACEMENT_ID = ?1"
-                            + " AND d.lg_FAMILLE_ID IN (" + places + ") GROUP BY d.lg_FAMILLE_ID")
-                    .setParameter(1, emId);
-            for (int i = 0; i < lot.size(); i++) {
-                requete.setParameter(i + 2, lot.get(i));
-            }
-            @SuppressWarnings("unchecked")
-            List<Object[]> res = requete.getResultList();
-            for (Object[] l : res) {
-                if (l[0] != null && l[1] instanceof Date) {
-                    ventes.put(String.valueOf(l[0]), (Date) l[1]);
-                }
+        for (Object[] l : parLots("SELECT d.lg_FAMILLE_ID, MAX(p.dt_UPDATED)" + SQL_VENTES_CLOTUREES,
+                " GROUP BY d.lg_FAMILLE_ID", List.of(emId), identifiants(lignes))) {
+            if (l[1] instanceof Date) {
+                ventes.put(String.valueOf(l[0]), (Date) l[1]);
             }
         }
         lignes.forEach(x -> x.lastDateVente(ventes.get(String.valueOf(x.getId()))));
+        return lignes;
+    }
+
+    /** Lignes de vente cloturees saisies par un utilisateur de l'emplacement ?1 ; suivi de « d.lg_FAMILLE_ID IN ». */
+    private static final String SQL_VENTES_CLOTUREES = " FROM t_preenregistrement_detail d"
+            + " JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = d.lg_PREENREGISTREMENT_ID"
+            + " JOIN t_user us ON us.lg_USER_ID = p.lg_USER_ID"
+            + " WHERE p.str_STATUT = 'is_Closed' AND us.lg_EMPLACEMENT_ID = ?1 AND d.lg_FAMILLE_ID IN ";
+
+    private static List<String> identifiants(List<ArticleDTO> lignes) {
+        return lignes.stream().map(x -> String.valueOf(x.getId())).distinct().collect(Collectors.toList());
+    }
+
+    /**
+     * Requete native {@code avantIn (?, ?, ...) apresIn} executee par lots de 500 identifiants : les parametres
+     * {@code params} sont ?1..?n, les identifiants les suivent.
+     */
+    @SuppressWarnings("unchecked")
+    private List<Object[]> parLots(String avantIn, String apresIn, List<Object> params, List<String> ids) {
+        List<Object[]> tout = new ArrayList<>();
+        for (int debut = 0; debut < ids.size(); debut += TAILLE_LOT_IN) {
+            List<String> lot = ids.subList(debut, Math.min(debut + TAILLE_LOT_IN, ids.size()));
+            StringBuilder places = new StringBuilder("(");
+            for (int i = 0; i < lot.size(); i++) {
+                places.append(i == 0 ? "" : ", ").append('?').append(params.size() + i + 1);
+            }
+            javax.persistence.Query q = getEntityManager().createNativeQuery(avantIn + places + ")" + apresIn);
+            for (int i = 0; i < params.size(); i++) {
+                q.setParameter(i + 1, params.get(i));
+            }
+            for (int i = 0; i < lot.size(); i++) {
+                q.setParameter(params.size() + i + 1, lot.get(i));
+            }
+            tout.addAll(q.getResultList());
+        }
+        return tout;
+    }
+
+    private static int entier(Object o) {
+        return o instanceof Number ? ((Number) o).intValue() : 0;
+    }
+
+    /**
+     * Journal du 15/10 : memes informations que la lecture article par article de la comparaison stock (impression PDF,
+     * suggestion), lues par lots de 500 articles. Memes regles : consommations des 6 derniers mois (ventes cloturees,
+     * non annulees, de montant positif, de l'emplacement), dernier bon de livraison cloture (date de livraison la plus
+     * recente), dernier inventaire cloture et derniere vente de l'emplacement.
+     */
+    private List<ArticleDTO> enrichirEnLot(List<ArticleDTO> lignes, String emId) {
+        if (lignes.isEmpty()) {
+            return lignes;
+        }
+        List<String> ids = identifiants(lignes);
+        LocalDate aujourdhui = LocalDate.now();
+        DateTimeFormatter mois = DateTimeFormatter.ofPattern("yyyy-MM");
+
+        Map<String, Map<String, Integer>> conso = new HashMap<>();
+        for (Object[] l : parLots(
+                "SELECT d.lg_FAMILLE_ID, DATE_FORMAT(p.dt_UPDATED, '%Y-%m'), SUM(d.int_QUANTITY)"
+                        + SQL_VENTES_CLOTUREES,
+                " AND p.b_IS_CANCEL = 0 AND p.int_PRICE > 0 AND DATE(p.dt_UPDATED) BETWEEN ?2 AND ?3"
+                        + " GROUP BY d.lg_FAMILLE_ID, DATE_FORMAT(p.dt_UPDATED, '%Y-%m')",
+                List.of(emId, java.sql.Date.valueOf(aujourdhui.minusMonths(6)), java.sql.Date.valueOf(aujourdhui)),
+                ids)) {
+            conso.computeIfAbsent(String.valueOf(l[0]), k -> new HashMap<>()).put(String.valueOf(l[1]), entier(l[2]));
+        }
+        Map<String, Date> ventes = new HashMap<>();
+        for (Object[] l : parLots("SELECT d.lg_FAMILLE_ID, MAX(p.dt_UPDATED)" + SQL_VENTES_CLOTUREES,
+                " GROUP BY d.lg_FAMILLE_ID", List.of(emId), ids)) {
+            ventes.put(String.valueOf(l[0]), (Date) l[1]);
+        }
+        Map<String, Object[]> bons = new HashMap<>();
+        for (Object[] l : parLots("SELECT x.lg_FAMILLE_ID, x.dt_DATE_LIVRAISON, x.dt_UPDATED, x.int_QTE_RECUE FROM ("
+                + "SELECT d.lg_FAMILLE_ID, b.dt_DATE_LIVRAISON, b.dt_UPDATED, d.int_QTE_RECUE, ROW_NUMBER() OVER"
+                + " (PARTITION BY d.lg_FAMILLE_ID ORDER BY b.dt_DATE_LIVRAISON DESC, b.dt_UPDATED DESC,"
+                + " d.dt_UPDATED DESC, d.lg_BON_LIVRAISON_DETAIL DESC) AS rang"
+                + " FROM t_bon_livraison_detail d JOIN t_bon_livraison b ON b.lg_BON_LIVRAISON_ID = d.lg_BON_LIVRAISON_ID"
+                + " WHERE b.str_STATUT = 'is_Closed' AND d.lg_FAMILLE_ID IN ", ") x WHERE x.rang = 1", List.of(),
+                ids)) {
+            bons.put(String.valueOf(l[0]), l);
+        }
+        Map<String, Date> inventaires = new HashMap<>();
+        for (Object[] l : parLots(
+                "SELECT f.lg_FAMILLE_ID, MAX(i.dt_UPDATED) FROM t_inventaire_famille f"
+                        + " JOIN t_inventaire i ON i.lg_INVENTAIRE_ID = f.lg_INVENTAIRE_ID"
+                        + " JOIN t_user us ON us.lg_USER_ID = i.lg_USER_ID"
+                        + " WHERE i.str_STATUT = 'is_Closed' AND us.lg_EMPLACEMENT_ID = ?1 AND f.lg_FAMILLE_ID IN ",
+                " GROUP BY f.lg_FAMILLE_ID", List.of(emId), ids)) {
+            inventaires.put(String.valueOf(l[0]), (Date) l[1]);
+        }
+        for (ArticleDTO x : lignes) {
+            String id = String.valueOf(x.getId());
+            Map<String, Integer> c = conso.getOrDefault(id, Collections.emptyMap());
+            Object[] bon = bons.get(id);
+            x.dateBon(bon == null ? null : (Date) bon[1]).dateEntree(bon == null ? null : (Date) bon[2])
+                    .qtyEntree(bon == null ? 0 : entier(bon[3])).dateInventaire(inventaires.get(id))
+                    .lastDateVente(ventes.get(id)).consommationUn(c.getOrDefault(aujourdhui.format(mois), 0))
+                    .consommationsOne(c.getOrDefault(aujourdhui.minusMonths(1).format(mois), 0))
+                    .consommationsTwo(c.getOrDefault(aujourdhui.minusMonths(2).format(mois), 0))
+                    .consommationsThree(c.getOrDefault(aujourdhui.minusMonths(3).format(mois), 0))
+                    .consommationsFour(c.getOrDefault(aujourdhui.minusMonths(4).format(mois), 0))
+                    .consommationsFive(c.getOrDefault(aujourdhui.minusMonths(5).format(mois), 0))
+                    .consommationsSix(c.getOrDefault(aujourdhui.minusMonths(6).format(mois), 0));
+        }
         return lignes;
     }
 
