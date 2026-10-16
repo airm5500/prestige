@@ -31,7 +31,9 @@ import dal.HMvtProduit;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -170,7 +172,42 @@ public class DataExportService {
 
     public List<SaleDTO> listVentes(String dtStart, String dtEnd, String type) {
         List<TPreenregistrement> data = fromDtStartToDtEndAndByType(dtStart, dtEnd, type);
-        return data.stream().map(e -> buildVNO(e)).collect(Collectors.toList());
+        /*
+         * Journal du 15/10 (audit des exports) : lignes, paiements et mouvements de stock lus par lots de 500 ventes,
+         * au lieu de deux requetes par vente et d'une par ligne de vente. Memes donnees, meme ordre.
+         */
+        Map<String, List<TPreenregistrementDetail>> lignes = new HashMap<>();
+        Map<String, MvtTransaction> paiements = new HashMap<>();
+        Map<String, HMvtProduit> mouvements = new HashMap<>();
+        List<String> ids = data.stream().map(TPreenregistrement::getLgPREENREGISTREMENTID).collect(Collectors.toList());
+        for (List<String> lot : lots(ids)) {
+            getEntityManager()
+                    .createQuery(
+                            "SELECT o FROM TPreenregistrementDetail o"
+                                    + " WHERE o.lgPREENREGISTREMENTID.lgPREENREGISTREMENTID IN :ids",
+                            TPreenregistrementDetail.class)
+                    .setParameter("ids", lot).getResultList()
+                    .forEach(d -> lignes.computeIfAbsent(d.getLgPREENREGISTREMENTID().getLgPREENREGISTREMENTID(),
+                            k -> new ArrayList<>()).add(d));
+            getEntityManager().createQuery("SELECT o FROM MvtTransaction o WHERE o.pkey IN :ids", MvtTransaction.class)
+                    .setParameter("ids", lot).getResultList().forEach(m -> paiements.putIfAbsent(m.getPkey(), m));
+        }
+        List<String> idsLignes = lignes.values().stream().flatMap(List::stream)
+                .map(TPreenregistrementDetail::getLgPREENREGISTREMENTDETAILID).collect(Collectors.toList());
+        for (List<String> lot : lots(idsLignes)) {
+            getEntityManager().createQuery("SELECT o FROM HMvtProduit o WHERE o.pkey IN :ids", HMvtProduit.class)
+                    .setParameter("ids", lot).getResultList().forEach(h -> mouvements.putIfAbsent(h.getPkey(), h));
+        }
+        return data.stream().map(e -> buildVNO(e, lignes.getOrDefault(e.getLgPREENREGISTREMENTID(), List.of()),
+                paiements.get(e.getLgPREENREGISTREMENTID()), mouvements)).collect(Collectors.toList());
+    }
+
+    private static List<List<String>> lots(List<String> ids) {
+        List<List<String>> lots = new ArrayList<>();
+        for (int i = 0; i < ids.size(); i += 500) {
+            lots.add(ids.subList(i, Math.min(i + 500, ids.size())));
+        }
+        return lots;
     }
 
     private List<TPreenregistrement> fromDtStartToDtEndAndByType(String dtStart, String dtEnd, String type) {
@@ -184,30 +221,7 @@ public class DataExportService {
 
     }
 
-    private List<TPreenregistrementDetail> findItemsById(String id) {
-        TypedQuery<TPreenregistrementDetail> l = getEntityManager().createQuery(
-                "SELECT o from TPreenregistrementDetail o WHERE  o.lgPREENREGISTREMENTID.lgPREENREGISTREMENTID=?1",
-                TPreenregistrementDetail.class);
-        l.setParameter(1, id);
-        return l.getResultList();
-
-    }
-
-    private MvtTransaction findPaymentById(String id) {
-        try {
-            TypedQuery<MvtTransaction> l = getEntityManager()
-                    .createQuery("SELECT o from MvtTransaction o WHERE  o.pkey=?1", MvtTransaction.class);
-            l.setParameter(1, id);
-            l.setMaxResults(1);
-            return l.getSingleResult();
-        } catch (Exception e) {
-            return null;
-        }
-
-    }
-
-    private void buildVenteDetails(SaleDTO o, String id) {
-        List<TPreenregistrementDetail> itm = findItemsById(id);
+    private void buildVenteDetails(SaleDTO o, List<TPreenregistrementDetail> itm, Map<String, HMvtProduit> mouvements) {
         Integer costAmount = 0, ttc = 0;
         List<SaleLineDTO> d = new ArrayList<>();
         for (TPreenregistrementDetail i : itm) {
@@ -239,7 +253,7 @@ public class DataExportService {
             t.setUpdatedAt(DateConverter.convertDateToLocalDateTime(i.getDtUPDATED()).toInstant(ZoneOffset.UTC));
             t.setEffectiveUpdateDate(t.getUpdatedAt());
             t.setProduitLibelle(i.getLgFAMILLEID().getStrNAME());
-            HMvtProduit h = findSnapshotByPkey(i.getLgPREENREGISTREMENTDETAILID());
+            HMvtProduit h = mouvements.get(i.getLgPREENREGISTREMENTDETAILID());
             if (h != null) {
                 commonTasks.dto.InventoryTransactionDTO n = new commonTasks.dto.InventoryTransactionDTO();
                 n.setProduitLibelle(t.getProduitLibelle());
@@ -255,7 +269,8 @@ public class DataExportService {
         o.setSalesLines(d);
     }
 
-    private SaleDTO buildVNO(TPreenregistrement tp) {
+    private SaleDTO buildVNO(TPreenregistrement tp, List<TPreenregistrementDetail> lignes, MvtTransaction paiement,
+            Map<String, HMvtProduit> mouvements) {
         SaleDTO o = new SaleDTO();
         o.setAmountToBePaid(tp.getIntPRICE() - tp.getIntPRICEREMISE());
         o.setAmountToBeTakenIntoAccount(tp.getIntPRICE() - tp.getIntPRICEREMISE());
@@ -288,8 +303,8 @@ public class DataExportService {
         if (vendeur != null) {
             o.setSellerUserName(vendeur.getStrLOGIN());
         }
-        buildVenteDetails(o, tp.getLgPREENREGISTREMENTID());
-        buildPaymentDTO(o, tp.getLgPREENREGISTREMENTID());
+        buildVenteDetails(o, lignes, mouvements);
+        buildPaymentDTO(o, paiement);
         TClient c = tp.getClient();
         if (c != null) {
             o.setCustomerNum(c.getStrCODEINTERNE());
@@ -297,8 +312,7 @@ public class DataExportService {
         return o;
     }
 
-    private void buildPaymentDTO(SaleDTO o, String id) {
-        MvtTransaction n = findPaymentById(id);
+    private void buildPaymentDTO(SaleDTO o, MvtTransaction n) {
         if (n != null) {
             PaymentDTO p = new PaymentDTO();
             p.setCreatedAt(o.getCreatedAt());
@@ -328,15 +342,4 @@ public class DataExportService {
         return andMinDate;
     }
 
-    private HMvtProduit findSnapshotByPkey(String pkey) {
-        try {
-            TypedQuery<HMvtProduit> q = getEntityManager().createQuery("SELECT o FROM HMvtProduit o WHERE o.pkey=?1",
-                    HMvtProduit.class);
-            q.setParameter(1, pkey);
-            q.setMaxResults(1);
-            return q.getSingleResult();
-        } catch (Exception e) {
-            return null;
-        }
-    }
 }
