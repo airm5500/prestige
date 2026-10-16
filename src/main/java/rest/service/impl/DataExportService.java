@@ -17,6 +17,7 @@ import dal.MvtTransaction;
 import dal.TClient;
 import dal.TCodeTva;
 import dal.TFamille;
+import dal.TFamilleGrossiste;
 import dal.TFamilleStock;
 import dal.TFamillearticle;
 import dal.TFormeArticle;
@@ -31,6 +32,7 @@ import dal.HMvtProduit;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -79,7 +81,8 @@ public class DataExportService {
                 .getResultList();
     }
 
-    private ProduitDTO build(TFamille f) {
+    private ProduitDTO build(TFamille f, Map<String, TFamille> details,
+            Map<String, List<TFamilleGrossiste>> fournisseurs, Map<String, List<TFamilleStock>> stocks) {
         ProduitDTO o = new ProduitDTO();
         o.setItemQty(1);
         o.setTypeProduit(1);
@@ -93,14 +96,18 @@ public class DataExportService {
         o.setItemRegularUnitPrice(f.getIntPRICE());
         TGrossiste gros = f.getLgGROSSISTEID();
         o.setStatus(f.getStrSTATUT().equals("enable") ? 0 : 1);
-        f.getTFamilleGrossisteCollection().stream().map(FournisseurProduitDTO::new).forEach(a -> {
+        Collection<TFamilleGrossiste> lus = fournisseurs.containsKey(f.getLgFAMILLEID())
+                ? fournisseurs.get(f.getLgFAMILLEID()) : f.getTFamilleGrossisteCollection();
+        lus.stream().map(FournisseurProduitDTO::new).forEach(a -> {
             if (a.getFournisseurLibelle().equalsIgnoreCase(gros.getStrLIBELLE())) {
                 a.setPrincipal(true);
             }
             o.getFournisseurProduits().add(a);
         });
 
-        Optional<TFamilleStock> familleStock = f.getTFamilleStockCollection().stream()
+        Collection<TFamilleStock> stocksLus = stocks.containsKey(f.getLgFAMILLEID()) ? stocks.get(f.getLgFAMILLEID())
+                : f.getTFamilleStockCollection();
+        Optional<TFamilleStock> familleStock = stocksLus.stream()
                 .filter(s -> s.getLgEMPLACEMENTID().getLgEMPLACEMENTID().equals(DateConverter.OFFICINE)).findFirst();
         if (familleStock.isPresent()) {
             TFamilleStock s = familleStock.get();
@@ -109,13 +116,14 @@ public class DataExportService {
         }
 
         if (Short.valueOf((short) 1).equals(f.getBoolDECONDITIONNEEXIST())) {
-            TFamille d = detail(f.getLgFAMILLEID());
+            TFamille d = details.containsKey(f.getLgFAMILLEID()) ? details.get(f.getLgFAMILLEID())
+                    : detail(f.getLgFAMILLEID());
             o.setDeconditionnable(Boolean.TRUE);
             o.setItemQty(f.getIntNUMBERDETAIL());
             if (d != null) {
                 o.setItemCostAmount(d.getIntPAF());
                 o.setItemRegularUnitPrice(d.getIntPRICE());
-                o.getProduits().add(build(d));
+                o.getProduits().add(build(d, details, fournisseurs, stocks));
             }
 
         }
@@ -166,8 +174,44 @@ public class DataExportService {
     public List<ProduitDTO> listProduits() {
         List<ProduitDTO> datas = new ArrayList<>();
         List<TFamille> familles = familles();
+        /*
+         * Audit des exports (journal du 15/10) : fournisseurs, stocks et article detail lus par lots de 500 articles,
+         * au lieu de deux a trois requetes par article. Memes donnees (l'ordre des fournisseurs n'a jamais ete fixe :
+         * ProduitDTO les range dans un HashSet).
+         */
+        List<String> ids = familles.stream().map(TFamille::getLgFAMILLEID).collect(Collectors.toList());
+        Map<String, TFamille> details = new HashMap<>();
+        for (List<String> lot : lots(ids)) {
+            getEntityManager()
+                    .createQuery(
+                            "SELECT o FROM TFamille o WHERE o.strSTATUT <> 'delete' AND o.lgFAMILLEPARENTID IN :ids",
+                            TFamille.class)
+                    .setParameter("ids", lot).getResultList()
+                    .forEach(d -> details.putIfAbsent(d.getLgFAMILLEPARENTID(), d));
+        }
+        List<String> tous = new ArrayList<>(ids);
+        details.values().forEach(d -> tous.add(d.getLgFAMILLEID()));
+        Map<String, List<TFamilleGrossiste>> fournisseurs = new HashMap<>();
+        Map<String, List<TFamilleStock>> stocks = new HashMap<>();
+        for (List<String> lot : lots(tous)) {
+            getEntityManager()
+                    .createQuery("SELECT o FROM TFamilleGrossiste o WHERE o.lgFAMILLEID.lgFAMILLEID IN :ids",
+                            TFamilleGrossiste.class)
+                    .setParameter("ids", lot).getResultList().forEach(g -> fournisseurs
+                            .computeIfAbsent(g.getLgFAMILLEID().getLgFAMILLEID(), k -> new ArrayList<>()).add(g));
+            getEntityManager()
+                    .createQuery("SELECT o FROM TFamilleStock o WHERE o.lgFAMILLEID.lgFAMILLEID IN :ids",
+                            TFamilleStock.class)
+                    .setParameter("ids", lot).getResultList().forEach(t -> stocks
+                            .computeIfAbsent(t.getLgFAMILLEID().getLgFAMILLEID(), k -> new ArrayList<>()).add(t));
+        }
+        /* un article absent des lots (detail d'un detail) garde la lecture d'origine */
+        tous.forEach(id -> {
+            fournisseurs.putIfAbsent(id, new ArrayList<>());
+            stocks.putIfAbsent(id, new ArrayList<>());
+        });
         familles.forEach(f -> {
-            datas.add(build(f));
+            datas.add(build(f, details, fournisseurs, stocks));
         });
 
         return datas;

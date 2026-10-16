@@ -537,9 +537,13 @@ public class FicheArticleServiceImpl implements FicheArticleService {
             TypedQuery<Object[]> typedQuery = getEntityManager().createQuery(cq);
 
             List<Object[]> resultList = typedQuery.getResultList();
+            /* audit des exports (journal du 15/10) : consommations lues par lots, plus une requete par article */
+            Map<String, Map<String, Integer>> consommations = consommationsEnLot(
+                    resultList.stream().map(x -> x[0] + "").distinct().collect(Collectors.toList()), emId,
+                    nbreConsommation);
 
             return resultList.stream().map(x -> {
-                Map<String, Integer> conso = consomationArticle(x[0] + "", emId, nbreConsommation);
+                Map<String, Integer> conso = consommations.getOrDefault(x[0] + "", Collections.emptyMap());
                 return new ArticleDTO().id(x[0] + "").code(x[1] + "").libelle(x[2] + "").filterId(x[3] + "")
                         .filterLibelle(x[4] + "").prixAchat(Integer.parseInt(x[5] + ""))
                         .prixVente(Integer.parseInt(x[6] + "")).codeGrossiste(x[7] + "")
@@ -973,6 +977,27 @@ public class FicheArticleServiceImpl implements FicheArticleService {
     }
 
     /**
+     * Consommations mensuelles (« yyyy-MM » -> quantite) des articles sur les {@code nbreMois} derniers mois, par lots
+     * : meme regle que {@link #consomationArticle} (ventes cloturees, non annulees, de montant positif, de
+     * l'emplacement).
+     */
+    private Map<String, Map<String, Integer>> consommationsEnLot(List<String> ids, String emId, int nbreMois) {
+        Map<String, Map<String, Integer>> conso = new HashMap<>();
+        LocalDate aujourdhui = LocalDate.now();
+        for (Object[] l : parLots(
+                "SELECT d.lg_FAMILLE_ID, DATE_FORMAT(p.dt_UPDATED, '%Y-%m'), SUM(d.int_QUANTITY)"
+                        + SQL_VENTES_CLOTUREES,
+                " AND p.b_IS_CANCEL = 0 AND p.int_PRICE > 0 AND DATE(p.dt_UPDATED) BETWEEN ?2 AND ?3"
+                        + " GROUP BY d.lg_FAMILLE_ID, DATE_FORMAT(p.dt_UPDATED, '%Y-%m')",
+                List.of(emId, java.sql.Date.valueOf(aujourdhui.minusMonths(nbreMois)),
+                        java.sql.Date.valueOf(aujourdhui)),
+                ids)) {
+            conso.computeIfAbsent(String.valueOf(l[0]), k -> new HashMap<>()).put(String.valueOf(l[1]), entier(l[2]));
+        }
+        return conso;
+    }
+
+    /**
      * Journal du 15/10 : memes informations que la lecture article par article de la comparaison stock (impression PDF,
      * suggestion), lues par lots de 500 articles. Memes regles : consommations des 6 derniers mois (ventes cloturees,
      * non annulees, de montant positif, de l'emplacement), dernier bon de livraison cloture (date de livraison la plus
@@ -986,16 +1011,7 @@ public class FicheArticleServiceImpl implements FicheArticleService {
         LocalDate aujourdhui = LocalDate.now();
         DateTimeFormatter mois = DateTimeFormatter.ofPattern("yyyy-MM");
 
-        Map<String, Map<String, Integer>> conso = new HashMap<>();
-        for (Object[] l : parLots(
-                "SELECT d.lg_FAMILLE_ID, DATE_FORMAT(p.dt_UPDATED, '%Y-%m'), SUM(d.int_QUANTITY)"
-                        + SQL_VENTES_CLOTUREES,
-                " AND p.b_IS_CANCEL = 0 AND p.int_PRICE > 0 AND DATE(p.dt_UPDATED) BETWEEN ?2 AND ?3"
-                        + " GROUP BY d.lg_FAMILLE_ID, DATE_FORMAT(p.dt_UPDATED, '%Y-%m')",
-                List.of(emId, java.sql.Date.valueOf(aujourdhui.minusMonths(6)), java.sql.Date.valueOf(aujourdhui)),
-                ids)) {
-            conso.computeIfAbsent(String.valueOf(l[0]), k -> new HashMap<>()).put(String.valueOf(l[1]), entier(l[2]));
-        }
+        Map<String, Map<String, Integer>> conso = consommationsEnLot(ids, emId, 6);
         Map<String, Date> ventes = new HashMap<>();
         for (Object[] l : parLots("SELECT d.lg_FAMILLE_ID, MAX(p.dt_UPDATED)" + SQL_VENTES_CLOTUREES,
                 " GROUP BY d.lg_FAMILLE_ID", List.of(emId), ids)) {

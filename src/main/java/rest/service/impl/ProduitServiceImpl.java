@@ -792,14 +792,18 @@ public class ProduitServiceImpl implements ProduitService {
         try {
 
             List<TFamille> familles = produitMvtArticle(params);
+            List<String> ids = familles.stream().map(TFamille::getLgFAMILLEID).collect(Collectors.toList());
+            /* audit des exports (journal du 15/10) : stocks et mouvements lus par lots, plus par article */
+            Map<String, Mouvements> mouvements = mouvementsParArticle(ids, params);
+            Map<String, Integer> stocks = stocksRayon(ids, params.getMagasinId());
             List<MvtProduitDTO> mvtProduits = new ArrayList<>();
             familles.stream().forEach(v -> {
                 MvtProduitDTO mvtProduit = new MvtProduitDTO();
                 mvtProduit.setCip(v.getIntCIP());
                 mvtProduit.setProduitId(v.getLgFAMILLEID());
                 mvtProduit.setProduitName(v.getStrNAME());
-                mvtProduit.setCurrentStock(getFamilleStockByProduitId(v.getLgFAMILLEID(), params.getMagasinId()));
-                remplirQuantitesGenerales(mvtProduit, params);
+                mvtProduit.setCurrentStock(stocks.getOrDefault(v.getLgFAMILLEID(), 0));
+                remplirQuantites(mvtProduit, mouvements.get(v.getLgFAMILLEID()));
                 mvtProduits.add(mvtProduit);
             });
             mvtProduits.sort(comparatorByLibelle);
@@ -813,54 +817,55 @@ public class ProduitServiceImpl implements ProduitService {
     /**
      * Agrege les mouvements HMvtProduit d'un article sur la periode et renseigne les quantites du DTO. Partage entre le
      * suivi mouvement article 2 et le suivi complet : les deux ecrans affichent donc rigoureusement les memes chiffres
-     * pour les mouvements generaux.
+     * pour les mouvements generaux. Les mouvements sont lus par lots pour tous les articles (audit du 15/10).
      */
-    private void remplirQuantitesGenerales(MvtProduitDTO mvtProduit, MvtArticleParams params) {
+    private void remplirQuantites(MvtProduitDTO mvtProduit, Mouvements mouvements) {
         LongAdder venteStock = new LongAdder();
-        Map<String, List<HMvtProduit>> hmps = suivitMvtArcticle(params.getDtStart(), params.getDtEnd(),
-                mvtProduit.getProduitId(), params.getMagasinId()).stream()
-                        .collect(Collectors.groupingBy(p -> p.getTypemvtproduit().getId()));
-        hmps.forEach((k, values) -> {
+        if (mouvements == null) {
+            mvtProduit.setQtyVente(0);
+            return;
+        }
+        mouvements.parType.forEach((k, total) -> {
             switch (k) {
             case DateConverter.ENTREE_EN_STOCK:
                 // case DateConverter.TMVTP_RETOUR_DEPOT:
-                mvtProduit.setQtyEntree(values.stream().map(HMvtProduit::getQteMvt).reduce(0, Integer::sum));
+                mvtProduit.setQtyEntree(total);
                 break;
             case DateConverter.VENTE:
             case DateConverter.TMVTP_VENTE_DEPOT_EXTENSION:
-                Integer qtyVente = values.parallelStream().map(HMvtProduit::getQteMvt).reduce(0, Integer::sum);
+                Integer qtyVente = total;
                 venteStock.add(qtyVente);
                 break;
             case DateConverter.ANNULATION_DE_VENTE:
             case DateConverter.TMVTP_ANNUL_VENTE_DEPOT_EXTENSION:
-                mvtProduit.setQtyAnnulation(values.stream().map(HMvtProduit::getQteMvt).reduce(0, Integer::sum));
+                mvtProduit.setQtyAnnulation(total);
                 break;
 
             case DateConverter.INVENTAIRE:
-                mvtProduit.setEcartInventaire(findEcartInventaire(Long.parseLong(values.get(0).getPkey())));
-                mvtProduit.setQtyInv(values.stream().map(HMvtProduit::getQteMvt).reduce(0, Integer::sum));
+                mvtProduit.setEcartInventaire(findEcartInventaire(Long.parseLong(mouvements.pkeyInventaire)));
+                mvtProduit.setQtyInv(total);
                 break;
             case DateConverter.DECONDTIONNEMENT_POSITIF:
-                mvtProduit.setQtyDeconEntrant(values.stream().map(HMvtProduit::getQteMvt).reduce(0, Integer::sum));
+                mvtProduit.setQtyDeconEntrant(total);
                 break;
             case DateConverter.DECONDTIONNEMENT_NEGATIF:
-                mvtProduit.setQtyDecondSortant(values.stream().map(HMvtProduit::getQteMvt).reduce(0, Integer::sum));
+                mvtProduit.setQtyDecondSortant(total);
                 break;
 
             case DateConverter.AJUSTEMENT_NEGATIF:
-                mvtProduit.setQtyAjustSortie(values.stream().map(HMvtProduit::getQteMvt).reduce(0, Integer::sum));
+                mvtProduit.setQtyAjustSortie(total);
                 break;
             case DateConverter.AJUSTEMENT_POSITIF:
-                mvtProduit.setQtyAjust(values.stream().map(HMvtProduit::getQteMvt).reduce(0, Integer::sum));
+                mvtProduit.setQtyAjust(total);
                 break;
             case DateConverter.RETOUR_FOURNISSEUR:
-                mvtProduit.setQtyRetour(values.stream().map(HMvtProduit::getQteMvt).reduce(0, Integer::sum));
+                mvtProduit.setQtyRetour(total);
                 break;
             case DateConverter.PERIME:
-                mvtProduit.setQtyPerime(values.stream().map(HMvtProduit::getQteMvt).reduce(0, Integer::sum));
+                mvtProduit.setQtyPerime(total);
                 break;
             case DateConverter.TMVTP_RETOUR_DEPOT:
-                mvtProduit.setQtyRetourDepot(values.stream().map(HMvtProduit::getQteMvt).reduce(0, Integer::sum));
+                mvtProduit.setQtyRetourDepot(total);
                 break;
             default:
                 break;
@@ -1294,6 +1299,70 @@ public class ProduitServiceImpl implements ProduitService {
         }
     }
 
+    private static List<List<String>> lots(List<String> ids) {
+        List<List<String>> lots = new ArrayList<>();
+        for (int i = 0; i < ids.size(); i += 500) {
+            lots.add(ids.subList(i, Math.min(i + 500, ids.size())));
+        }
+        return lots;
+    }
+
+    /** Totaux des mouvements d'un article sur la periode, par type, et premier mouvement d'inventaire. */
+    private static final class Mouvements {
+        final Map<String, Integer> parType = new HashMap<>();
+        String pkeyInventaire;
+    }
+
+    /**
+     * Audit des exports (journal du 15/10) : totaux des mouvements de la periode de tous les articles, calcules par la
+     * base par lots de 500 articles, au lieu de charger chaque mouvement (et ses objets lies) article par article. Meme
+     * filtre que {@link #suivitMvtArcticle(LocalDate, LocalDate, String, String)} ; le premier mouvement d'inventaire
+     * est le plus ancien de la periode, comme l'ordre de lecture d'origine (index article, emplacement, date).
+     */
+    private Map<String, Mouvements> mouvementsParArticle(List<String> ids, MvtArticleParams params) {
+        Map<String, Mouvements> out = new HashMap<>();
+        for (List<String> lot : lots(ids)) {
+            getEntityManager().createQuery("SELECT o.famille.lgFAMILLEID, o.typemvtproduit.id, SUM(o.qteMvt)"
+                    + " FROM HMvtProduit o WHERE o.mvtDate BETWEEN :debut AND :fin AND o.famille.lgFAMILLEID IN :ids"
+                    + " AND o.emplacement.lgEMPLACEMENTID = :empl GROUP BY o.famille.lgFAMILLEID, o.typemvtproduit.id",
+                    Object[].class).setParameter("debut", params.getDtStart()).setParameter("fin", params.getDtEnd())
+                    .setParameter("ids", lot).setParameter("empl", params.getMagasinId()).getResultList()
+                    .forEach(r -> out.computeIfAbsent((String) r[0], k -> new Mouvements()).parType.put((String) r[1],
+                            r[2] == null ? 0 : ((Number) r[2]).intValue()));
+            getEntityManager()
+                    .createQuery("SELECT o.famille.lgFAMILLEID, o.pkey FROM HMvtProduit o"
+                            + " WHERE o.mvtDate BETWEEN :debut AND :fin AND o.famille.lgFAMILLEID IN :ids"
+                            + " AND o.emplacement.lgEMPLACEMENTID = :empl AND o.typemvtproduit.id = :inv"
+                            + " ORDER BY o.famille.lgFAMILLEID, o.mvtDate, o.uuid", Object[].class)
+                    .setParameter("debut", params.getDtStart()).setParameter("fin", params.getDtEnd())
+                    .setParameter("ids", lot).setParameter("empl", params.getMagasinId())
+                    .setParameter("inv", DateConverter.INVENTAIRE).getResultList().forEach(r -> {
+                        Mouvements m = out.computeIfAbsent((String) r[0], k -> new Mouvements());
+                        if (m.pkeyInventaire == null) {
+                            m.pkeyInventaire = (String) r[1];
+                        }
+                    });
+        }
+        return out;
+    }
+
+    /** Stock rayon de chaque article, par lots ; meme regle que {@link #getFamilleStockByProduitId}. */
+    private Map<String, Integer> stocksRayon(List<String> ids, String empl) {
+        Map<String, Integer> out = new HashMap<>();
+        for (List<String> lot : lots(ids)) {
+            getEntityManager()
+                    .createQuery("SELECT o.lgFAMILLEID.lgFAMILLEID, o.intNUMBERAVAILABLE FROM TFamilleStock o"
+                            + " WHERE o.lgFAMILLEID.lgFAMILLEID IN :ids AND o.lgEMPLACEMENTID.lgEMPLACEMENTID = :empl"
+                            + " AND o.strSTATUT = 'enable'", Object[].class)
+                    .setParameter("ids", lot).setParameter("empl", empl).getResultList().forEach(r -> {
+                        if (!out.containsKey((String) r[0])) {
+                            out.put((String) r[0], (Integer) r[1]);
+                        }
+                    });
+        }
+        return out;
+    }
+
     /** Construit les lignes du suivi complet pour une page de familles [id, nom]. */
     private List<MvtProduitCompletDTO> lignesSuiviComplet(List<Object[]> familles, MvtArticleParams params) {
         List<String> ids = new ArrayList<>();
@@ -1302,10 +1371,17 @@ public class ProduitServiceImpl implements ProduitService {
         }
         Map<String, int[]> interne = agregatsMouvementsReserve(ids, params);
         Map<String, Integer> stocksReserve = stocksReserve(ids, params.getMagasinId());
+        Map<String, Mouvements> mouvements = mouvementsParArticle(ids, params);
+        Map<String, Integer> stocks = stocksRayon(ids, params.getMagasinId());
+        Map<String, TFamille> articles = new HashMap<>();
+        for (List<String> lot : lots(ids)) {
+            getEntityManager().createQuery("SELECT o FROM TFamille o WHERE o.lgFAMILLEID IN :ids", TFamille.class)
+                    .setParameter("ids", lot).getResultList().forEach(f -> articles.put(f.getLgFAMILLEID(), f));
+        }
         List<MvtProduitCompletDTO> out = new ArrayList<>();
         for (Object[] r : familles) {
             String id = (String) r[0];
-            TFamille famille = getEntityManager().find(TFamille.class, id);
+            TFamille famille = articles.get(id);
             if (famille == null) {
                 continue;
             }
@@ -1313,8 +1389,8 @@ public class ProduitServiceImpl implements ProduitService {
             dto.setCip(famille.getIntCIP());
             dto.setProduitId(id);
             dto.setProduitName(famille.getStrNAME());
-            dto.setCurrentStock(getFamilleStockByProduitId(id, params.getMagasinId()));
-            remplirQuantitesGenerales(dto, params);
+            dto.setCurrentStock(stocks.getOrDefault(id, 0));
+            remplirQuantites(dto, mouvements.get(id));
             int[] mi = interne.get(id);
             if (mi != null) {
                 dto.setQtyVersReserve(mi[0]);

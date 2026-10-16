@@ -474,18 +474,22 @@ public class DataReporingServiceImpl implements DataReporingService {
         return predicates;
     }
 
-    private Integer stockProduit(String idProduit, String empl) {
-        try {
-            Query q = getEntityManager().createQuery(
-                    "SELECT o.intNUMBERAVAILABLE FROM TFamilleStock o WHERE o.strSTATUT='enable' AND o.lgEMPLACEMENTID.lgEMPLACEMENTID=?1 AND o.lgFAMILLEID.lgFAMILLEID=?2 ");
-            q.setMaxResults(1);
-            q.setParameter(1, empl);
-            q.setParameter(2, idProduit);
-            return (Integer) q.getSingleResult();
-        } catch (Exception e) {
-
-            return 0;
+    /** Stock rayon (premier stock actif de l'emplacement) de chaque article, par lots de 500. */
+    private Map<String, Integer> stocksProduits(List<String> ids, String empl) {
+        Map<String, Integer> out = new java.util.HashMap<>();
+        for (int i = 0; i < ids.size(); i += 500) {
+            List<String> lot = ids.subList(i, Math.min(i + 500, ids.size()));
+            getEntityManager()
+                    .createQuery("SELECT o.lgFAMILLEID.lgFAMILLEID, o.intNUMBERAVAILABLE FROM TFamilleStock o"
+                            + " WHERE o.strSTATUT = 'enable' AND o.lgEMPLACEMENTID.lgEMPLACEMENTID = :empl"
+                            + " AND o.lgFAMILLEID.lgFAMILLEID IN :ids", Object[].class)
+                    .setParameter("empl", empl).setParameter("ids", lot).getResultList().forEach(r -> {
+                        if (!out.containsKey((String) r[0])) {
+                            out.put((String) r[0], (Integer) r[1]);
+                        }
+                    });
         }
+        return out;
     }
 
     private Long countStatsUnintesVendues(String dtStart, String dtEnd, String codeFamille, String query, TUser u,
@@ -584,8 +588,12 @@ public class DataReporingServiceImpl implements DataReporingService {
             } else {
                 l = new LinkedList<>(q.getResultList());
             }
+            /* audit des exports (journal du 15/10) : stocks lus par lots de 500 articles, plus un par article */
+            Map<String, Integer> stocks = stocksProduits(l.stream().map(FamilleArticleStatDTO::getId).distinct()
+                    .collect(java.util.stream.Collectors.toList()), empId);
             l.stream().forEach(x -> {
-                x.setMontantCumulTva(stockProduit(x.getId(), empId));
+                Integer stock = stocks.get(x.getId());
+                x.setMontantCumulTva(stock == null ? 0 : stock);
                 data.add(x);
             });
             return Pair.of(count, data);
