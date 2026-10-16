@@ -555,15 +555,19 @@ public class DataReporingServiceImpl implements DataReporingService {
                             .get(TFamillearticle_.strCODEFAMILLE),
                     root.get(TPreenregistrementDetail_.lgFAMILLEID).get(TFamille_.lgFAMILLEARTICLEID)
                             .get(TFamillearticle_.strLIBELLE),
-                    cb.selectCase()
+                    /*
+                     * demande du 16/10 : quantite des ventes au comptant et quantite des ventes VO, ligne par ligne.
+                     * Avant, le total de l'article etait range d'un cote ou de l'autre selon le type d'une seule vente,
+                     * prise au hasard parmi les siennes (colonne non groupee).
+                     */
+                    cb.sum(cb.<Integer> selectCase()
                             .when(cb.equal(join.get(TPreenregistrement_.lgTYPEVENTEID).get(TTypeVente_.lgTYPEVENTEID),
-                                    DateConverter.VENTE_COMPTANT_ID),
-                                    cb.sum(root.get(TPreenregistrementDetail_.intQUANTITY)))
-                            .otherwise(0),
-                    cb.selectCase()
+                                    DateConverter.VENTE_COMPTANT_ID), root.get(TPreenregistrementDetail_.intQUANTITY))
+                            .otherwise(0)),
+                    cb.sum(cb.<Integer> selectCase()
                             .when(cb.equal(join.get(TPreenregistrement_.strTYPEVENTE), DateConverter.VENTE_ASSURANCE),
-                                    cb.sum(root.get(TPreenregistrementDetail_.intQUANTITY)))
-                            .otherwise(0),
+                                    root.get(TPreenregistrementDetail_.intQUANTITY))
+                            .otherwise(0)),
                     cb.sum(root.get(TPreenregistrementDetail_.intQUANTITY)),
                     cb.countDistinct(join.get(TPreenregistrement_.lgPREENREGISTREMENTID)),
                     cb.sum(root.get(TPreenregistrementDetail_.intPRICE)),
