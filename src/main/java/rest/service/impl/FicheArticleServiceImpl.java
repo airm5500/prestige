@@ -929,6 +929,51 @@ public class FicheArticleServiceImpl implements FicheArticleService {
         return reserves;
     }
 
+    /**
+     * Journal du 15/10 (« BLOCAGE DETECTE ... comparaison/excel ») : lignes des exports de la comparaison stock. Le
+     * fichier ne montre, en plus des colonnes de la requete principale, que la date de derniere vente : elle est lue en
+     * une requete par lot de 500 articles, au lieu des six lectures par article (consommations sur 6 mois, bons de
+     * livraison, inventaire, derniere vente) qui faisaient durer l'export plusieurs minutes. Meme regle que
+     * {@link #getDateDerniereVente} : vente cloturee, saisie par un utilisateur de l'emplacement.
+     */
+    private List<ArticleDTO> comparaisonPourExport(TUser u, String query, MargeEnum filtreStock, MargeEnum filtreSeuil,
+            String codeFamile, String codeRayon, String codeGrossiste, int stock, int seuil) {
+        List<ArticleDTO> lignes = comparaisonStock(u, query, filtreStock, filtreSeuil, codeFamile, codeRayon,
+                codeGrossiste, stock, seuil, 0, 0, true, false);
+        if (lignes.isEmpty()) {
+            return lignes;
+        }
+        String emId = u.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
+        List<String> ids = lignes.stream().map(x -> String.valueOf(x.getId())).distinct().collect(Collectors.toList());
+        Map<String, Date> ventes = new HashMap<>();
+        for (int debut = 0; debut < ids.size(); debut += TAILLE_LOT_IN) {
+            List<String> lot = ids.subList(debut, Math.min(debut + TAILLE_LOT_IN, ids.size()));
+            StringBuilder places = new StringBuilder();
+            for (int i = 0; i < lot.size(); i++) {
+                places.append(i == 0 ? "" : ", ").append('?').append(i + 2);
+            }
+            javax.persistence.Query requete = getEntityManager()
+                    .createNativeQuery("SELECT d.lg_FAMILLE_ID, MAX(p.dt_UPDATED) FROM t_preenregistrement_detail d"
+                            + " JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = d.lg_PREENREGISTREMENT_ID"
+                            + " JOIN t_user us ON us.lg_USER_ID = p.lg_USER_ID"
+                            + " WHERE p.str_STATUT = 'is_Closed' AND us.lg_EMPLACEMENT_ID = ?1"
+                            + " AND d.lg_FAMILLE_ID IN (" + places + ") GROUP BY d.lg_FAMILLE_ID")
+                    .setParameter(1, emId);
+            for (int i = 0; i < lot.size(); i++) {
+                requete.setParameter(i + 2, lot.get(i));
+            }
+            @SuppressWarnings("unchecked")
+            List<Object[]> res = requete.getResultList();
+            for (Object[] l : res) {
+                if (l[0] != null && l[1] instanceof Date) {
+                    ventes.put(String.valueOf(l[0]), (Date) l[1]);
+                }
+            }
+        }
+        lignes.forEach(x -> x.lastDateVente(ventes.get(String.valueOf(x.getId()))));
+        return lignes;
+    }
+
     /** Reporte le stock de reserve sur les lignes retournees. Le stock total s'en deduit dans le DTO. */
     private List<ArticleDTO> avecStockReserve(List<ArticleDTO> lignes, String emplacementId) {
         if (lignes.isEmpty()) {
@@ -1781,8 +1826,8 @@ public class FicheArticleServiceImpl implements FicheArticleService {
     public byte[] buildComparaisonExcel(TUser u, String query, MargeEnum filtreStock, MargeEnum filtreSeuil,
             String codeFamile, String codeRayon, String codeGrossiste, int stock, int seuil) throws JSONException {
 
-        List<ArticleDTO> datas = comparaisonStock(u, query, filtreStock, filtreSeuil, codeFamile, codeRayon,
-                codeGrossiste, stock, seuil, 0, 0, true);
+        List<ArticleDTO> datas = comparaisonPourExport(u, query, filtreStock, filtreSeuil, codeFamile, codeRayon,
+                codeGrossiste, stock, seuil);
 
         if (datas.isEmpty()) {
             return new byte[0];
@@ -1819,8 +1864,8 @@ public class FicheArticleServiceImpl implements FicheArticleService {
     public byte[] buildComparaisonCsv(TUser u, String query, MargeEnum filtreStock, MargeEnum filtreSeuil,
             String codeFamile, String codeRayon, String codeGrossiste, int stock, int seuil) throws JSONException {
 
-        List<ArticleDTO> datas = comparaisonStock(u, query, filtreStock, filtreSeuil, codeFamile, codeRayon,
-                codeGrossiste, stock, seuil, 0, 0, true);
+        List<ArticleDTO> datas = comparaisonPourExport(u, query, filtreStock, filtreSeuil, codeFamile, codeRayon,
+                codeGrossiste, stock, seuil);
 
         if (datas.isEmpty()) {
             return new byte[0];
@@ -1851,8 +1896,9 @@ public class FicheArticleServiceImpl implements FicheArticleService {
     public JSONObject createInventaireComparaison(TUser u, String query, MargeEnum filtreStock, MargeEnum filtreSeuil,
             String codeFamile, String codeRayon, String codeGrossiste, int stock, int seuil) throws JSONException {
 
+        /* seuls les identifiants servent : aucune lecture article par article (journal du 15/10) */
         List<ArticleDTO> datas = comparaisonStock(u, query, filtreStock, filtreSeuil, codeFamile, codeRayon,
-                codeGrossiste, stock, seuil, 0, 0, true);
+                codeGrossiste, stock, seuil, 0, 0, true, false);
 
         if (datas.isEmpty()) {
             return new JSONObject().put("count", 0);
