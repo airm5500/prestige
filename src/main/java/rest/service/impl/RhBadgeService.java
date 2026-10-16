@@ -78,16 +78,27 @@ public class RhBadgeService {
         return new JSONObject().put("success", true).put("data", a).put("total", a.length());
     }
 
-    /** Numero propose quand aucun n'est saisi : BDG suivi d'un compteur (BDG00001, BDG00002...). */
+    /**
+     * Numero propose quand aucun n'est saisi (demande du 16/10) : PRE-AA-NNNNN-C, par exemple PGB-26-00017-K. PRE :
+     * parametre KEY_BADGE_PREFIXE s'il est renseigne, sinon l'abreviation du nom de l'officine ; numero d'ordre dans
+     * l'annee ; lettre de controle. Les badges deja emis (BDG...) gardent leur numero.
+     */
     String numeroLibre() {
+        String parametre = premier("SELECT str_VALUE FROM t_parameters WHERE str_KEY = 'KEY_BADGE_PREFIXE'");
+        String prefixe = parametre != null && parametre.trim().matches("[A-Za-z]{3}") ? parametre.trim().toUpperCase()
+                : util.NumeroBadge.prefixe(officine());
+        int annee = LocalDate.now().getYear();
+        String debut = prefixe + "-" + String.format("%02d", annee % 100) + "-";
         String max = premier(
-                "SELECT MAX(CAST(SUBSTRING(numero, 4) AS UNSIGNED)) FROM t_rh_badge WHERE numero REGEXP '^BDG[0-9]+$'");
-        long n = max == null ? 0 : Long.parseLong(max);
+                "SELECT MAX(CAST(SUBSTRING(numero, 8, 5) AS UNSIGNED)) FROM t_rh_badge WHERE numero LIKE ?1",
+                debut + "%");
+        int n = max == null ? 0 : Integer.parseInt(max);
         String numero;
         do {
             n++;
-            numero = String.format("BDG%05d", n);
-        } while (premier("SELECT id FROM t_employe WHERE badge = ?1", numero) != null);
+            numero = util.NumeroBadge.numero(prefixe, annee, n);
+        } while (premier("SELECT id FROM t_employe WHERE badge = ?1", numero) != null
+                || premier("SELECT id FROM t_rh_badge WHERE numero = ?1", numero) != null);
         return numero;
     }
 

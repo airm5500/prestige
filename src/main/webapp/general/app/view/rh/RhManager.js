@@ -900,7 +900,7 @@ Ext.define('testextjs.view.rh.RhManager', {
                         {xtype: 'combobox', name: 'employeId', itemId: 'badgeEmploye', fieldLabel: 'Employé', store: employes, queryMode: 'local', anyMatch: true,
                             displayField: 'libelle', valueField: 'id', forceSelection: true, emptyText: 'Choisir l\'employé'},
                         {xtype: 'textfield', name: 'numero', itemId: 'badgeNumero', fieldLabel: 'Numéro', maxLength: 40, enforceMaxLength: true,
-                            emptyText: 'Vide : numéro attribué (BDG…)', maskRe: /[A-Za-z0-9-]/},
+                            emptyText: 'Vide : numéro attribué (ex. PGB-26-00017-K)', maskRe: /[A-Za-z0-9-]/},
                         {xtype: 'datefield', name: 'dtExpiration', itemId: 'badgeExpiration', fieldLabel: 'Expire le', format: 'd/m/Y', emptyText: 'jj/mm/aaaa (facultatif)',
                             minValue: new Date()},
                         {xtype: 'component', itemId: 'badgeInfo', margin: '4 0 8 0', html: ''},

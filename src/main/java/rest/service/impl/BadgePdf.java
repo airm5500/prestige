@@ -106,25 +106,28 @@ public final class BadgePdf {
         cb.fill();
         cb.restoreState();
         float marge = 4 * MM, largeurTexte = LARGEUR - 2 * marge;
-        /* QR code en bas a droite (demande du 16/10), sous les lignes de texte : le texte garde toute la largeur */
-        float coteQr = 24 * MM;
-        float largeurNom = largeurTexte;
+        /* QR code de 32 mm a droite (demande du 16/10) : le texte reste a sa gauche */
+        float coteQr = 32 * MM;
+        float largeurNom = c.qr == null ? largeurTexte : largeurTexte - coteQr - 2 * MM;
         texte(cb, StringUtils.abbreviate(officine.toUpperCase(), 40), police(9, Font.BOLD, BaseColor.WHITE), x + marge,
                 y + HAUTEUR - bandeau + 3 * MM, largeurTexte, Element.ALIGN_LEFT);
         texte(cb, "BADGE", police(7, Font.BOLD, new BaseColor(0xcf, 0xe0, 0xf1)), x + marge,
                 y + HAUTEUR - bandeau + 3 * MM, largeurTexte, Element.ALIGN_RIGHT);
         float ligne = y + HAUTEUR - bandeau - 6 * MM;
-        texte(cb, StringUtils.abbreviate(StringUtils.defaultString(c.nom).toUpperCase(), 30),
+        texte(cb, StringUtils.abbreviate(StringUtils.defaultString(c.nom).toUpperCase(), c.qr == null ? 30 : 17),
                 police(13, Font.BOLD, BaseColor.BLACK), x + marge, ligne, largeurNom, Element.ALIGN_LEFT);
         ligne -= 4.8f * MM;
-        texte(cb, StringUtils.abbreviate(StringUtils.defaultString(c.prenoms), 40),
+        texte(cb, StringUtils.abbreviate(StringUtils.defaultString(c.prenoms), c.qr == null ? 40 : 24),
                 police(10, Font.NORMAL, BaseColor.BLACK), x + marge, ligne, largeurNom, Element.ALIGN_LEFT);
         ligne -= 4.6f * MM;
-        String sous = StringUtils.defaultString(c.poste) + (StringUtils.isNotBlank(c.matricule)
-                ? (StringUtils.isNotBlank(c.poste) ? "  ·  " : "") + "Matricule " + c.matricule : "");
-        texte(cb, StringUtils.abbreviate(sous, 55), police(8, Font.NORMAL, GRIS), x + marge, ligne, largeurNom,
-                Element.ALIGN_LEFT);
         if (c.qr != null) {
+            /* poste et matricule sur deux lignes, a gauche du QR */
+            texte(cb, StringUtils.abbreviate(StringUtils.defaultString(c.poste), 28), police(8, Font.NORMAL, GRIS),
+                    x + marge, ligne, largeurNom, Element.ALIGN_LEFT);
+            if (StringUtils.isNotBlank(c.matricule)) {
+                texte(cb, StringUtils.abbreviate("Matricule " + c.matricule, 28), police(8, Font.NORMAL, GRIS),
+                        x + marge, ligne - 3.6f * MM, largeurNom, Element.ALIGN_LEFT);
+            }
             java.util.Map<com.itextpdf.text.pdf.qrcode.EncodeHintType, Object> options = new java.util.HashMap<>();
             options.put(com.itextpdf.text.pdf.qrcode.EncodeHintType.ERROR_CORRECTION,
                     com.itextpdf.text.pdf.qrcode.ErrorCorrectionLevel.M);
@@ -132,15 +135,19 @@ public final class BadgePdf {
             img.scaleAbsolute(coteQr, coteQr);
             img.setAbsolutePosition(x + LARGEUR - marge - coteQr + 1 * MM, y + 2.5f * MM);
             cb.addImage(img);
-            float gauche = largeurTexte - coteQr - 2 * MM;
-            texte(cb, c.numero, police(9, Font.BOLD, BaseColor.BLACK), x + marge, y + 7 * MM, gauche,
-                    Element.ALIGN_LEFT);
+            float gauche = largeurNom;
+            texte(cb, c.numero, new Font(Font.FontFamily.COURIER, 10.5f, Font.BOLD, BaseColor.BLACK), x + marge,
+                    y + 7 * MM, gauche, Element.ALIGN_LEFT);
             if (c.expiration != null) {
                 texte(cb, "Expire le " + c.expiration.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")),
                         police(7, Font.NORMAL, GRIS), x + marge, y + 2.5f * MM, gauche, Element.ALIGN_LEFT);
             }
             return;
         }
+        String sous = StringUtils.defaultString(c.poste) + (StringUtils.isNotBlank(c.matricule)
+                ? (StringUtils.isNotBlank(c.poste) ? "  ·  " : "") + "Matricule " + c.matricule : "");
+        texte(cb, StringUtils.abbreviate(sous, 55), police(8, Font.NORMAL, GRIS), x + marge, ligne, largeurTexte,
+                Element.ALIGN_LEFT);
         /* code-barres du numero, sous le texte */
         Barcode128 code = new Barcode128();
         code.setCode(c.numero);

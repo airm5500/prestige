@@ -1,5 +1,5 @@
 /* RH : ONGLET « BADGES » (retours du 13/10, point 3). Par l'ecran « Ressources humaines », admin.
- *  - creer un badge pour un employe (numero attribue BDG… si vide) ; formulaire a droite de la liste, aucune fenetre ;
+ *  - creer un badge pour un employe (numero attribue PRE-AA-NNNNN-C si vide) ; formulaire a droite de la liste, aucune fenetre ;
  *  - le numero du badge actif est celui que la pointeuse reconnait (fiche employe) ;
  *  - modifier (numero, expiration) ; numero deja porte : refus motive, affiche sous le formulaire ;
  *  - un nouveau badge pour le meme employe remplace l'ancien (ancien desactive, motif « Remplacé par… ») ;
@@ -63,7 +63,7 @@ const fiche = (id) => q(`SELECT IFNULL(badge, 'AUCUN') FROM t_employe WHERE id =
     await cliquer('#btnEnregistrerBadge');
     let m = await attendreMessage('créé|Refus|déjà');
     const b1 = q(`SELECT CONCAT_WS('|', id, numero, statut) FROM t_rh_badge WHERE employe_id = '${E1}' AND statut = 'ACTIF'`).split('|');
-    ok('Création : numéro attribué (BDG…), badge actif, message sous le formulaire', /^BDG\d{5}$/.test(b1[1]) && b1[2] === 'ACTIF' && /créé/.test(m), b1.join('|') + ' / ' + m);
+    ok('Création : numéro attribué (PRE-AA-NNNNN-C, demande du 16/10), badge actif, message sous le formulaire', /^[A-Z]{3}-\d{2}-\d{5}-[A-Z]$/.test(b1[1]) && b1[2] === 'ACTIF' && /créé/.test(m), b1.join('|') + ' / ' + m);
     ok('Le numéro est celui que la pointeuse reconnaît (fiche employé)', fiche(E1) === b1[1], fiche(E1));
 
     /* 2. modification : numero et expiration ; numero deja porte refuse */

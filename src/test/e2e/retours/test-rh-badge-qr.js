@@ -57,7 +57,7 @@ function lireQr(pdf) {
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 120000 });
 
     const cree = await api('POST', '../api/v1/rh/badges', { employeId: E });
-    ok('Badge créé, numéro généré automatiquement', cree.success === true && /^BDG\d+$/.test(cree.numero || ''), JSON.stringify(cree).slice(0, 160));
+    ok('Badge créé, numéro généré automatiquement (PRE-AA-NNNNN-C)', cree.success === true && /^[A-Z]{3}-\d{2}-\d{5}-[A-Z]$/.test(cree.numero || ''), JSON.stringify(cree).slice(0, 160));
 
     /* ecran : choix du code, QR par defaut */
     await p.evaluate(() => testextjs.app.getController('App').onLoadNewComponent('rhmanager', 'Ressources humaines', ''));
