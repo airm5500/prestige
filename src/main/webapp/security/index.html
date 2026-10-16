@@ -23,6 +23,7 @@
 
 <body class="pl-body">
   <main class="pl-center">
+    <div class="pl-cadre">
     <section class="pl-card" role="dialog" aria-labelledby="pl-title">
       <span class="pl-glow pl-glow--primary" aria-hidden="true"></span>
       <span class="pl-glow pl-glow--secondary" aria-hidden="true"></span>
@@ -100,7 +101,97 @@
         </div>
       </div>
     </section>
+    <!-- Demande du 16/10 : QR de pointage mobile (postes de l'officine), bouton a cheval sur le haut du cadre -->
+    <button type="button" id="pl-pointage" class="pl-pointage" hidden aria-haspopup="dialog" title="Afficher le QR code de pointage mobile">
+      <span class="pl-pointage__rond" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5"/><path d="M9 2h6"/><path d="M12 2v3"/></svg></span>
+      <span class="pl-pointage__libelle">Pointage</span>
+    </button>
+    </div>
   </main>
+
+  <div id="pl-pointage-fenetre" class="pl-pf" hidden role="dialog" aria-modal="true" aria-labelledby="pl-pf-titre">
+    <div class="pl-pf__boite">
+      <button type="button" id="pl-pointage-fermer" class="pl-pf__fermer" aria-label="Fermer">×</button>
+      <div class="pl-pf__icone" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5"/><path d="M9 2h6"/><path d="M12 2v3"/></svg></div>
+      <h2 id="pl-pf-titre">Pointage mobile</h2>
+      <p class="pl-pf__aide">Scannez ce code avec l'application Prestige sur votre téléphone pour pointer votre arrivée ou votre départ.</p>
+      <div id="pl-pf-qr" class="pl-pf__qr"></div>
+      <div class="pl-pf__reste"><span class="pl-pf__barre"><span id="pl-pf-barre"></span></span>Nouveau code dans <b id="pl-pf-reste">0:00</b></div>
+      <p class="pl-pf__note">Le code change chaque minute. Affiché uniquement sur les postes de l'officine.</p>
+    </div>
+  </div>
+  <style>
+    .pl-cadre{position:relative}
+    @media (max-width:1100px){.pl-cadre{margin-top:34px}}
+    .pl-pointage{position:absolute;left:50%;top:-30px;transform:translateX(-50%);z-index:5;display:flex;flex-direction:column;align-items:center;gap:5px;background:none;border:0;padding:0;cursor:pointer;font:600 12px Inter,Arial,sans-serif;color:#1e3a5f}
+    .pl-pointage[hidden]{display:none}
+    .pl-pointage__rond{width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#17987e,#2a3f8f);display:flex;align-items:center;justify-content:center;border:3px solid #fff;box-shadow:0 8px 22px rgba(30,58,95,.35);transition:transform .15s}
+    .pl-pointage:hover .pl-pointage__rond,.pl-pointage:focus-visible .pl-pointage__rond{transform:scale(1.06)}
+    .pl-pointage__libelle{background:rgba(255,255,255,.88);padding:2px 10px;border-radius:10px}
+    .pl-pf{position:fixed;inset:0;z-index:1000;background:rgba(15,31,52,.55);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:16px}
+    .pl-pf[hidden]{display:none}
+    .pl-pf__boite{position:relative;width:min(420px,100%);background:#fff;border-radius:22px;padding:26px 28px 22px;text-align:center;font-family:Inter,Arial,sans-serif;box-shadow:0 20px 60px rgba(0,0,0,.3);box-sizing:border-box}
+    .pl-pf__fermer{position:absolute;right:14px;top:10px;border:0;background:none;font-size:24px;color:#7a8794;cursor:pointer;line-height:1}
+    .pl-pf__icone{width:52px;height:52px;margin:0 auto;border-radius:50%;background:linear-gradient(135deg,#17987e,#2a3f8f);display:flex;align-items:center;justify-content:center}
+    .pl-pf h2{margin:12px 0 4px;font-size:22px;color:#0f2a3d}
+    .pl-pf__aide{margin:0 0 14px;color:#4f5d6b;font-size:13px;line-height:1.45}
+    .pl-pf__qr{width:250px;height:250px;margin:0 auto;border:1px solid #e3e8ee;border-radius:12px;padding:8px;box-sizing:content-box;background:#fff}
+    .pl-pf__qr svg{width:100%;height:100%;display:block}
+    .pl-pf__reste{margin-top:12px;display:flex;align-items:center;justify-content:center;gap:10px;color:#0f5c48;font-size:14px}
+    .pl-pf__barre{width:110px;height:6px;border-radius:3px;background:#e3e8ee;overflow:hidden;display:inline-block}
+    .pl-pf__barre span{display:block;height:100%;background:#17987e;transition:width 1s linear}
+    .pl-pf__note{margin:12px 0 0;color:#7a8794;font-size:11px}
+  </style>
+  <script src="../general/resources/js/qrcode-generator-1.4.4.js"></script>
+  <script>
+  /* Demande du 16/10 : bouton « Pointage » de la page de connexion. Le serveur ne rend le code qu'aux postes de
+     l'officine ; sinon (ou pointage mobile desactive) le bouton reste masque. Aucun appel tant que la fenetre est
+     fermee, sauf la verification initiale. */
+  (function () {
+    var bouton = document.getElementById('pl-pointage'), fenetre = document.getElementById('pl-pointage-fenetre');
+    var minuteur = null, reste = 0, periode = 60;
+    function lire() {
+      return fetch('../api/v1/pointage-affichage', { cache: 'no-store', credentials: 'same-origin' })
+        .then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; });
+    }
+    function afficher(d) {
+      if (!d || !d.actif || !d.contenu || !window.qrcode) { fermer(); bouton.hidden = true; return; }
+      var q = window.qrcode(0, 'M');
+      q.addData(d.contenu);
+      q.make();
+      document.getElementById('pl-pf-qr').innerHTML = q.createSvgTag({ cellSize: 6, margin: 2, scalable: true });
+      reste = d.resteSec || 0;
+      periode = d.periodeSec || 60;
+      compter();
+    }
+    function compter() {
+      document.getElementById('pl-pf-reste').textContent = Math.floor(reste / 60) + ':' + ('0' + (reste % 60)).slice(-2);
+      document.getElementById('pl-pf-barre').style.width = Math.round(100 * reste / periode) + '%';
+    }
+    function ouvrir() {
+      lire().then(function (d) {
+        afficher(d);
+        if (!d || !d.actif) { return; }
+        fenetre.hidden = false;
+        clearInterval(minuteur);
+        minuteur = setInterval(function () {
+          reste -= 1;
+          if (reste <= 0) { lire().then(afficher); } else { compter(); }
+        }, 1000);
+      });
+    }
+    function fermer() {
+      fenetre.hidden = true;
+      clearInterval(minuteur);
+      minuteur = null;
+    }
+    bouton.addEventListener('click', ouvrir);
+    document.getElementById('pl-pointage-fermer').addEventListener('click', fermer);
+    fenetre.addEventListener('click', function (e) { if (e.target === fenetre) { fermer(); } });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !fenetre.hidden) { fermer(); } });
+    lire().then(function (d) { bouton.hidden = !(d && d.actif); });
+  })();
+  </script>
 
   <!-- Espace produit en fenetre modale : la surcouche couvre toute la page de connexion,
        le contenu (espace-produit.html) est charge dans le cadre, et son bouton

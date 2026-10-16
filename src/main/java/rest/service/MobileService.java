@@ -36,6 +36,12 @@ public interface MobileService {
     /** Code de pointage courant (pour le QR affiche a l'officine) et reglages du pointage mobile. */
     JSONObject codePointage();
 
+    /**
+     * Demande du 16/10 : QR de pointage pour la page de connexion, seulement pour un poste de l'officine (adresse
+     * locale ou du reseau interne) ; code et delai seulement.
+     */
+    rest.service.dto.CodePointageAffichageDTO codePointageAffichage(String adresse);
+
     JSONObject terminaux();
 
     JSONObject changerTerminal(String id, boolean actif, TUser operateur);

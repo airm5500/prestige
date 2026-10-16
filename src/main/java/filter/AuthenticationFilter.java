@@ -66,7 +66,10 @@ public class AuthenticationFilter implements ContainerRequestFilter, ContainerRe
             "v1/espace-produit/dci",
             // Page publique des avis clients : jeton du QR code verifie a chaque appel, saisies controlees, envois
             // limites - voir rest.AvisPublicRessource et filter.PortPublicAvisFilter
-            "v1/avis-public/contexte", "v1/avis-public/envoyer");
+            "v1/avis-public/contexte", "v1/avis-public/envoyer",
+            // QR de pointage mobile sur la page de connexion (demande du 16/10) : postes de l'officine seulement
+            // (adresse locale verifiee par le service), code et delai seulement - voir rest.PointageAffichageRessource
+            "v1/pointage-affichage");
 
     private static final String CHEMIN_MOBILE = "v1/mobile/";
     private static final String CONNEXION_MOBILE = "v1/mobile/connexion";

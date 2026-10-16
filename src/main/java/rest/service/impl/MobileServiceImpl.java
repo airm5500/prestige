@@ -276,6 +276,24 @@ public class MobileServiceImpl implements MobileService {
     }
 
     @Override
+    public rest.service.dto.CodePointageAffichageDTO codePointageAffichage(String adresse) {
+        if (!util.PosteOfficine.estLocal(adresse)) {
+            return rest.service.dto.CodePointageAffichageDTO.builder().success(false).actif(false)
+                    .msg("Le QR de pointage ne s'affiche que sur les postes de l'officine.").build();
+        }
+        boolean actif = "1".equals(parametre("KEY_RH_MOBILE_POINTAGE", "1"))
+                && "1".equals(parametre("KEY_RH_MOBILE_QR", "1"));
+        if (!actif) {
+            return rest.service.dto.CodePointageAffichageDTO.builder().success(true).actif(false).build();
+        }
+        long t = Instant.now().getEpochSecond();
+        String code = CodePointage.code(cle(), t);
+        return rest.service.dto.CodePointageAffichageDTO.builder().success(true).actif(true).code(code)
+                .contenu(CodePointage.PREFIXE + code).resteSec(CodePointage.resteSec(t))
+                .periodeSec(CodePointage.PERIODE_SEC).build();
+    }
+
+    @Override
     @SuppressWarnings("unchecked")
     public JSONObject terminaux() {
         JSONArray a = new JSONArray();
