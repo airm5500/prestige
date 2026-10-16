@@ -1189,6 +1189,19 @@ public class CaisseServiceImpl implements CaisseService {
 
     }
 
+    /** Clients des mouvements (organisme), par lots de 500 ; meme resultat que {@link #findClientByVenteId}. */
+    private Map<String, TClient> clientsParId(List<MvtTransaction> mouvements) {
+        List<String> ids = mouvements.stream().map(MvtTransaction::getOrganisme).filter(o -> o != null && !o.isEmpty())
+                .distinct().collect(Collectors.toList());
+        Map<String, TClient> out = new HashMap<>();
+        for (int i = 0; i < ids.size(); i += 500) {
+            getEntityManager().createQuery("SELECT c FROM TClient c WHERE c.lgCLIENTID IN :ids", TClient.class)
+                    .setParameter("ids", ids.subList(i, Math.min(i + 500, ids.size()))).getResultList()
+                    .forEach(c -> out.put(c.getLgCLIENTID(), c));
+        }
+        return out;
+    }
+
     private TClient findClientByVenteId(String id) {
         try {
             return getEntityManager().find(TClient.class, id);
@@ -1205,9 +1218,21 @@ public class CaisseServiceImpl implements CaisseService {
         try {
             List<Predicate> predicates = new ArrayList<>();
             CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();
-            CriteriaQuery<MvtTransaction> cq = cb.createQuery(MvtTransaction.class);
+            /*
+             * audit des exports (journal du 15/10) : seules les colonnes utiles a l'ecran et a l'impression sont lues.
+             * Charger les mouvements entiers chargeait aussi, un par un, la vente liee et ses propres liens (reglement,
+             * client...) : 39 s pour un mois sur le banc.
+             */
+            CriteriaQuery<Object[]> cq = cb.createQuery(Object[].class);
             Root<MvtTransaction> root = cq.from(MvtTransaction.class);
-            cq.select(root).orderBy(cb.asc(root.get(MvtTransaction_.createdAt)));
+            cq.multiselect(root.get(MvtTransaction_.tTypeMvtCaisse).get(TTypeMvtCaisse_.lgTYPEMVTCAISSEID),
+                    root.get(MvtTransaction_.reference), root.get(MvtTransaction_.caisse).get(TUser_.lgUSERID),
+                    root.get(MvtTransaction_.montantRegle), root.get(MvtTransaction_.montant),
+                    root.get(MvtTransaction_.montantNet), root.get(MvtTransaction_.montantPaye),
+                    root.get(MvtTransaction_.montantRestant),
+                    root.get(MvtTransaction_.reglement).get(TTypeReglement_.lgTYPEREGLEMENTID),
+                    root.get(MvtTransaction_.createdAt), root.get(MvtTransaction_.mvtDate),
+                    root.get(MvtTransaction_.organisme)).orderBy(cb.asc(root.get(MvtTransaction_.createdAt)));
 
             predicates.add(cb.and(cb.equal(root.get(MvtTransaction_.magasin).get(TEmplacement_.lgEMPLACEMENTID),
                     caisseParams.getEmplacementId())));
@@ -1237,15 +1262,36 @@ public class CaisseServiceImpl implements CaisseService {
             }
 
             cq.where(cb.and(predicates.toArray(Predicate[]::new)));
-            TypedQuery<MvtTransaction> q = getEntityManager().createQuery(cq);
+            TypedQuery<Object[]> q = getEntityManager().createQuery(cq);
             if (!all) {
                 q.setFirstResult(caisseParams.getStart());
                 q.setMaxResults(caisseParams.getLimit());
             }
+            List<MvtTransaction> mouvements = new ArrayList<>();
+            for (Object[] l : q.getResultList()) {
+                /*
+                 * mouvement non enregistre, rempli des seules colonnes lues ; types, caissiers et modes : peu nombreux
+                 */
+                MvtTransaction m = new MvtTransaction();
+                m.settTypeMvtCaisse(getEntityManager().find(TTypeMvtCaisse.class, l[0]));
+                m.setReference((String) l[1]);
+                m.setCaisse(getEntityManager().find(TUser.class, l[2]));
+                m.setMontantRegle((Integer) l[3]);
+                m.setMontant((Integer) l[4]);
+                m.setMontantNet((Integer) l[5]);
+                m.setMontantPaye((Integer) l[6]);
+                m.setMontantRestant((Integer) l[7]);
+                m.setReglement(getEntityManager().find(TTypeReglement.class, l[8]));
+                m.setCreatedAt((LocalDateTime) l[9]);
+                m.setMvtDate((LocalDate) l[10]);
+                m.setOrganisme((String) l[11]);
+                mouvements.add(m);
+            }
+            Map<String, TClient> clients = caisseParams.isFindClient() ? clientsParId(mouvements) : Map.of();
 
-            return q.getResultList().stream()
+            return mouvements.stream()
                     .map(x -> new VisualisationCaisseDTO(x,
-                            caisseParams.isFindClient() ? findClientByVenteId(x.getOrganisme()) : null))
+                            caisseParams.isFindClient() ? clients.get(x.getOrganisme()) : null))
                     /* .filter(w->Objects.nonNull(w.getTypeMouvement()) ) */.sorted(comparatorCaisse)
                     .collect(Collectors.toList());
         } catch (Exception e) {

@@ -174,6 +174,7 @@ Les réponses ont été comparées avant et après chaque correction (JSON ou te
 | Export du catalogue vers l'ERP (`v1/stock`) | **erreur 500** (article détail sans indicateur) ; 7,7 s une fois corrigé | **1,1 à 2,5 s** | Fournisseurs, stocks et article détail lus par lots. Même contenu ; l'ordre des fournisseurs d'un article n'a jamais été fixé (HashSet), il varie d'un appel à l'autre avant comme après. |
 | Articles en surstock (grille et PDF) | 8,3 s | 4,9 s | Consommations lues par lots. Réponse identique octet pour octet. |
 | Unités vendues (grille et PDF ; septembre, 1 751 articles) | 11,9 s | 10,1 s | Stock lu par lots. Stock identique pour chaque article. Colonnes « Nbre.VNO / Nbre.VO » corrigées ensuite (demande du 16/10) : la requête prenait le type d'une vente au hasard parmi celles de l'article ; 1 282 articles sur 1 751 étaient faux en septembre. |
+| **Impression « Liste des caisses »** (septembre, 16 565 mouvements, 8 caissiers) | **39 s** | **0,8 à 2,7 s** | Chaque mouvement était chargé entier avec, un par un, sa vente liée et les liens de celle-ci (règlement, client…). Seules les colonnes utiles sont lues ; clients par lots. Données remises à l'impression identiques (empreinte MD5 de chaque caissier et totaux). |
 | Balance âgée détaillée | 2,8 s | 2,8 s | 161 requêtes inutiles retirées (recherche du client « %% »). Le reste vient de l'ancien calcul mois par mois (voir 7.3). |
 
 La migration **V6.9.151** crée les deux index « en ligne », sans bloquer les tables. Sur le banc, elle a pris 3,3 s
