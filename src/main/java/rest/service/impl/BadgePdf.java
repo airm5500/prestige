@@ -133,7 +133,8 @@ public final class BadgePdf {
                     com.itextpdf.text.pdf.qrcode.ErrorCorrectionLevel.M);
             com.itextpdf.text.Image img = new com.itextpdf.text.pdf.BarcodeQRCode(c.qr, 1, 1, options).getImage();
             img.scaleAbsolute(coteQr, coteQr);
-            img.setAbsolutePosition(x + LARGEUR - marge - coteQr + 1 * MM, y + 2.5f * MM);
+            /* centre verticalement dans la carte, sous le bandeau (demande du 16/10) */
+            img.setAbsolutePosition(x + LARGEUR - marge - coteQr + 1 * MM, y + (HAUTEUR - bandeau - coteQr) / 2);
             cb.addImage(img);
             float gauche = largeurNom;
             texte(cb, c.numero, new Font(Font.FontFamily.COURIER, 10.5f, Font.BOLD, BaseColor.BLACK), x + marge,

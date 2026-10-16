@@ -7,7 +7,8 @@
  *  - impression par defaut : QR lisible (decode depuis le PDF rendu), au format PRESTIGE-BADGE|1|numero|login|secret ;
  *    numero = badge, login = celui de l'utilisateur, SHA-256(secret) = empreinte en base ; le mot de passe n'y est pas ;
  *  - reimpression : nouveau secret (l'ancien exemplaire n'est plus valable) ;
- *  - impression en code-barres : pas de QR, secret inchange.
+ *  - impression en code-barres : pas de QR, secret inchange ;
+ *  - QR centre verticalement dans la carte, sous le bandeau de l'officine (demande du 16/10).
  * Prerequis : jsqr et pngjs (NODE_PATH), pdftoppm.
  */
 const { chromium } = require('playwright-core');
@@ -35,8 +36,12 @@ function lireQr(pdf) {
   const png = PNG.sync.read(fs.readFileSync(path.join(dir, fichier)));
   const r = jsQR(new Uint8ClampedArray(png.data), png.width, png.height);
   fs.rmSync(dir, { recursive: true, force: true });
+  if (r) { dernierePosition = r.location; }
   return r ? r.data : null;
 }
+let dernierePosition = null;
+/* premiere carte de la planche A4 (2 x 5 cartes de 85,6 x 54 mm, 4 mm entre lignes) : haut de la carte, en mm */
+const HAUT_CARTE = (297 - 5 * 54 - 4 * 4) / 2, BANDEAU = 9, PX_MM = 300 / 25.4;
 
 (async () => {
   nettoyer();
@@ -73,6 +78,13 @@ function lireQr(pdf) {
     ok('QR : numéro du badge et login de l\'employé', parts[2] === cree.numero && parts[3] === U[1], parts.slice(2, 4).join(' / '));
     ok('QR : SHA-256(secret) = empreinte en base ; secret long et aléatoire', parts[4] && parts[4].length >= 40 && crypto.createHash('sha256').update(parts[4]).digest('hex') === empreinte(), empreinte().slice(0, 12));
     ok('QR : le mot de passe (même haché) n\'y figure pas', !!c1 && (!MDP || c1.indexOf(MDP) < 0));
+
+    /* centre vertical du QR (motifs de reperage) par rapport a la zone sous le bandeau */
+    const l = dernierePosition;
+    const centreQr = l ? ((l.topLeftCorner.y + l.bottomLeftCorner.y + l.topRightCorner.y + l.bottomRightCorner.y) / 4) / PX_MM : null;
+    const centreZone = HAUT_CARTE + BANDEAU + (54 - BANDEAU) / 2;
+    ok('QR centré verticalement sous le bandeau (écart < 0,8 mm)', centreQr !== null && Math.abs(centreQr - centreZone) < 0.8,
+      centreQr && ('centre QR ' + centreQr.toFixed(1) + ' mm, centre de la zone ' + centreZone.toFixed(1) + ' mm'));
 
     const h1 = empreinte();
     const d2 = await pdf('../api/v1/rh/badges/pdf?ids=' + cree.id + '&code=QR');
