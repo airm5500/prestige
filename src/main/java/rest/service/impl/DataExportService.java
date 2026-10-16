@@ -83,7 +83,10 @@ public class DataExportService {
         ProduitDTO o = new ProduitDTO();
         o.setItemQty(1);
         o.setTypeProduit(1);
-        if (f.getBoolDECONDITIONNE().compareTo((short) 1) == 0) {
+        /*
+         * champs vides (NULL) = non : un article detail cree par l'ecran n'a pas bool_DECONDITIONNE_EXIST (erreur 500)
+         */
+        if (Short.valueOf((short) 1).equals(f.getBoolDECONDITIONNE())) {
             o.setTypeProduit(0);
         }
         o.setItemCostAmount(f.getIntPAF());
@@ -105,7 +108,7 @@ public class DataExportService {
             o.setQtyUG(s.getIntUG());
         }
 
-        if (f.getBoolDECONDITIONNEEXIST().compareTo((short) 1) == 0) {
+        if (Short.valueOf((short) 1).equals(f.getBoolDECONDITIONNEEXIST())) {
             TFamille d = detail(f.getLgFAMILLEID());
             o.setDeconditionnable(Boolean.TRUE);
             o.setItemQty(f.getIntNUMBERDETAIL());
