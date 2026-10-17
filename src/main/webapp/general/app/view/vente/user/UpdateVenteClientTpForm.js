@@ -240,6 +240,8 @@ Ext.define('testextjs.view.vente.user.UpdateVenteClientTpForm', {
                                                 {
                                                     text: 'Modifier infos  client ',
                                                     itemId: 'btnModifierClient',
+                                                    /* journal du 15/10 : actif une fois la vente chargee (loadVenteById) */
+                                                    disabled: true,
                                                     margin: '10 0 0 0',
                                                     style: 'background-color:green !important;border-color:green !important; background:green !important;',
                                                     xtype: 'button',
@@ -313,6 +315,7 @@ Ext.define('testextjs.view.vente.user.UpdateVenteClientTpForm', {
                                                 {
                                                     text: 'Modifier infos ayant droit ',
                                                     itemId: 'btnModifierAyantDroit',
+                                                    disabled: true,
                                                     margin: '10 0 0 0',
                                                     style: 'background-color:green !important;border-color:green !important; background:green !important;',
                                                     xtype: 'button',
@@ -509,6 +512,9 @@ Ext.define('testextjs.view.vente.user.UpdateVenteClientTpForm', {
         const me = btn.up('window');
         let ayantDroit = me.getAyantDroit();
         let client = me.getClient();
+        if (!client || !ayantDroit) {
+            return;
+        }
         if (client.strNUMEROSECURITESOCIAL === ayantDroit.strNUMEROSECURITESOCIAL) {
             Ext.MessageBox.show({
                 title: 'Message',
@@ -664,6 +670,9 @@ Ext.define('testextjs.view.vente.user.UpdateVenteClientTpForm', {
     changeClientInfos: function (btn) {
         let me = btn.up('window');
         let client = me.getClient();
+        if (!client) {
+            return;
+        }
         var form = Ext.create('Ext.window.Window',
                 {
 
@@ -1073,6 +1082,7 @@ Ext.define('testextjs.view.vente.user.UpdateVenteClientTpForm', {
 //                                            tpContainerForm.removeAll();
                                             me.client = clientRecord.data;
                                             me.clientId = clientRecord.get('lgCLIENTID');
+                                            me.down('#btnModifierClient').setDisabled(false);
 //                                            var cmp = me.buildCmp(tiersPayant, taux, me.getData().strREFBON );
 //                                            tpContainerForm.add(cmp);
                                             form.destroy();
@@ -1313,6 +1323,9 @@ Ext.define('testextjs.view.vente.user.UpdateVenteClientTpForm', {
                     me.client = me.getData().client;
                     me.tiersparent = me.getData().tierspayants;
                     me.ayantDroit = me.getData().ayantDroit;
+                    /* journal du 15/10 : les infos du client et de l'ayant droit ne se modifient qu'une fois connues */
+                    me.down('#btnModifierClient').setDisabled(!me.getClient());
+                    me.down('#btnModifierAyantDroit').setDisabled(!me.getClient() || !me.getAyantDroit());
                     me.clientId = me.getClient().lgCLIENTID;
                     me.ayantDroitId = me.getAyantDroit().lgAYANTSDROITSID;
                     montantPaye.setValue(me.getData().montantPaye);
