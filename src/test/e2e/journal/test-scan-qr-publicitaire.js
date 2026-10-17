@@ -1,13 +1,21 @@
 /* QR CODE PUBLICITAIRE SCANNE EN CAISSE (journal du 16/10 : « vente/findone/https://... » en erreur 404, une vingtaine
- * de fois). Le QR de la boite renvoie vers un site internet : ce n'est pas un code produit. Ce que le test etablit (ecran de
- * vente, admin, rien n'est enregistre) :
- *  - lien scanne dans « Produit » + Entree : aucun appel au serveur, message « QR code publicitaire » dans la page (sans
- *    fenetre), champ vide pret pour le scan suivant ;
- *  - un vrai code (CIP) scanne ensuite est cherche normalement ;
- *  - les ecrans dépôt, devis, ajustement et vente en depot reconnaissent aussi le lien (meme fonction commune).
+ * de fois). Le QR de la boite renvoie vers un site internet : ce n'est pas un code produit.
+ *
+ * Parcours par les vues (admin, aucune vente enregistree) : chaque ecran est ouvert par son menu et son bouton, le
+ * geste prealable de l'ecran est fait (depot choisi, client recherche), puis le lien est tape dans son champ « Produit »
+ * et Entree, comme une douchette. Le Proforma demande un client : un client d'essai fictif (« E2ESCANQR ») est cree
+ * avant et retire a la fin ; aucun client reel n'est lu.
+ *  - vente (SERVICE CLIENT > Ventes > Nouvelle vente) : aucun appel au serveur avec le lien, message « QR code
+ *    publicitaire » dans la page (sans fenetre), champ vide ; un vrai code (CIP) scanne ensuite est cherche (la douchette
+ *    l'ajoute a une vente en cours, retiree a la fin par la route de suppression de l'ecran Ventes) ;
+ *  - vente depot (SERVICE CLIENT > Vente dépôt > Nouvelle vente, depot choisi), proforma (SERVICE CLIENT > Proforma >
+ *    Nouveau, client recherche), ajustement (GESTION DU STOCK > Ajustement du Stock > Ajustement rayon), vente en
+ *    depot (GESTION DES TIERS-PAYANTS > Gestion depots extensions, depot choisi en haut de l'ecran) : meme refus ;
+ *  - aucun ajustement ni vente cree par l'essai.
  */
 const { chromium } = require('playwright-core');
 const { execFileSync } = require('child_process');
+const { connexion, ouvrirMenu, cliquer, choisir, texteMessage, repondre } = require('../outils/vues');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
 const BASE = process.env.DB_TEST || 'capitale';
@@ -15,48 +23,83 @@ const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BAS
 const CIP = q("SELECT f.int_CIP FROM t_famille f JOIN t_famille_stock s ON s.lg_FAMILLE_ID = f.lg_FAMILLE_ID AND s.lg_EMPLACEMENT_ID = '1'"
   + " WHERE f.str_STATUT = 'enable' AND s.int_NUMBER_AVAILABLE > 5 AND LENGTH(f.int_CIP) = 7 LIMIT 1");
 const LIEN = 'https://happymamabybledina.com';
+const CLIENT = 'E2E-SCAN-CL';
+const ventesCreees = [];
+const compte = () => q("SELECT CONCAT((SELECT COUNT(*) FROM t_ajustement), '/', (SELECT COUNT(*) FROM t_preenregistrement))");
+const retirerClient = () => q("DELETE FROM t_client WHERE lg_CLIENT_ID = '" + CLIENT + "'");
+
+/* ecran : menu, bouton d'ajout eventuel, champ produit */
+const ECRANS = [
+  { nom: 'Vente', menu: ['SERVICE CLIENT', 'Ventes'], ajout: 'cloturerventemanager #addBtn', produit: 'doventemanager #contenu [xtype=fieldcontainer] #produit' },
+  { nom: 'Vente dépôt', menu: ['SERVICE CLIENT', 'Vente dépôt'], ajout: 'ventedepot #addBtn', avant: (p) => choisir(p, 'addventedepotbis #typeVente', 0), produit: 'addventedepotbis #contenu [xtype=fieldcontainer] #produit' },
+  { nom: 'Proforma', menu: ['SERVICE CLIENT', 'Proforma'], ajout: 'devismanager #addBtn', avant: async (p) => {
+      await cliquer(p, 'doDevis #contenu #clientSearchTextField');
+      await p.keyboard.type('E2ESCANQR'); await p.keyboard.press('Enter');
+      await p.waitForFunction(() => { const c = testextjs.app.getController('DevisCtr').client; return !!c; }, null, { timeout: 15000 }); }, produit: 'doDevis #contenu [xtype=fieldcontainer] #produit' },
+  { nom: 'Ajustement', menu: ['GESTION DU STOCK', 'Ajustement du Stock'], ajout: 'ajustementgestion #addBtnRayon', produit: 'doajustementmanager #produit' },
+  { nom: 'Vente en dépôt (extensions)', menu: ['GESTION DES TIERS-PAYANTS', 'Gestion depots extensions'],
+    avant: (p) => choisir(p, 'depotextension #depotEcran', 0), produit: 'depotextension doventeendepot #contenu [xtype=fieldcontainer] #produit' }
+];
 
 (async () => {
+  retirerClient();
+  const avant = compte();
+  q("INSERT INTO t_client (lg_CLIENT_ID, str_FIRST_NAME, str_LAST_NAME, lg_TYPE_CLIENT_ID, str_STATUT, dt_CREATED) VALUES ('" + CLIENT + "', 'E2ESCANQR', 'ESSAI', '6', 'enable', NOW())");
   const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
   const p = await b.newPage({ viewport: { width: 1600, height: 900 } });
   const erreurs = []; p.on('pageerror', (e) => erreurs.push(e.message));
-  const appels = []; p.on('request', (r) => { if (/\/vente\/findone\//.test(r.url())) { appels.push(decodeURIComponent(r.url())); } });
+  const appels = []; p.on('request', (r) => { const u = decodeURIComponent(r.url()); if (/happymama/.test(u) || (CIP && u.indexOf(CIP) >= 0)) { appels.push(u); } });
+  const scanner = async (champ, texte) => {
+    await cliquer(p, champ);
+    await p.keyboard.press('Control+A'); await p.keyboard.press('Backspace');
+    await p.keyboard.type(texte, { delay: 5 });
+    await p.keyboard.press('Enter');
+    await p.waitForTimeout(2000);
+  };
   try {
-    await p.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
-    await p.waitForURL('**/general/**', { timeout: 60000 });
-    await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 120000 });
-    await p.evaluate(() => testextjs.app.getController('App').onRedirectTo('doventemanager', {}));
-    await p.waitForFunction(() => { const c = Ext.ComponentQuery.query('doventemanager #produit')[0]; return c && c.isVisible(); }, null, { timeout: 30000 });
-    await p.waitForTimeout(1500);
-    const scanner = async (texte) => {
-      await p.evaluate(() => { const c = Ext.ComponentQuery.query('doventemanager #produit')[0]; c.clearValue(); c.inputEl.dom.setAttribute('data-e2e', 'produit'); c.focus(); });
-      await p.click('[data-e2e=produit]');
-      await p.keyboard.type(texte, { delay: 5 });
-      await p.keyboard.press('Enter');
-      await p.waitForTimeout(2000);
-    };
-    await scanner(LIEN);
-    const etat = await p.evaluate(() => ({ champ: Ext.ComponentQuery.query('doventemanager #produit')[0].getRawValue(), fenetre: Ext.Msg.isVisible(),
-      texte: document.body.innerText.indexOf('QR code publicitaire') >= 0 }));
-    ok('Lien scanné : aucun appel au serveur, message « QR code publicitaire » sans fenêtre, champ vidé',
-      appels.length === 0 && etat.texte && !etat.fenetre && etat.champ === '', JSON.stringify(etat) + ' appels : ' + appels.join(' '));
-    await scanner(CIP);
-    ok('Un vrai code scanné ensuite est cherché normalement', appels.some((u) => u.indexOf(CIP) >= 0), appels.join(' '));
-    const commun = await p.evaluate(() => ({ fn: !!(window.PrestigeScan && PrestigeScan.estLienInternet),
-      lien: window.PrestigeScan && PrestigeScan.estLienInternet('https://www.exphar.be/p/a/10') && PrestigeScan.estLienInternet('http://www.masculan.de/')
-        && PrestigeScan.estLienInternet('www.exemple.com/x'),
-      code: window.PrestigeScan && !PrestigeScan.estLienInternet('3400936123456') && !PrestigeScan.estLienInternet('(01)18902502124180(412)8902502000026')
-        && !PrestigeScan.estLienInternet('0108961102261886GEN-M DS  30MG/180MG100132') }));
-    ok('Fonction commune : liens reconnus, codes produits et étiquettes GS1 non', commun.fn && commun.lien && commun.code, JSON.stringify(commun));
-    const ecrans = await p.evaluate(() => ['AjustementCtr', 'DepotCtr', 'DevisCtr', 'VenteEnDepotCtr', 'VenteCtr'].map((n) => {
-      const c = testextjs.app.getController(n); return n + ':' + (c && /PrestigeScan\.refuserSiLien/.test(String(c.checkDouchette))); }));
-    ok('Les cinq écrans de scan utilisent la vérification', ecrans.every((x) => /:true$/.test(x)), ecrans.join(' '));
+    await connexion(p, 'admin', 'e2etest');
+    for (const e of ECRANS) {
+      try {
+        appels.length = 0;
+        await ouvrirMenu(p, e.menu[0], e.menu[1]);
+        if (e.ajout) {
+          await p.waitForFunction((r) => Ext.ComponentQuery.query(r).some((x) => x.isVisible(true)), e.ajout, { timeout: 60000 });
+          await cliquer(p, e.ajout);
+        }
+        await p.waitForFunction((r) => Ext.ComponentQuery.query(r).some((x) => x.isVisible(true)), e.produit, { timeout: 60000 });
+        await p.waitForTimeout(1500);
+        if (e.avant) { await e.avant(p); await p.waitForTimeout(800); }
+        await scanner(e.produit, LIEN);
+        const etat = await p.evaluate((r) => ({ champ: Ext.ComponentQuery.query(r).filter((x) => x.isVisible(true))[0].getRawValue(),
+          fenetre: Ext.ComponentQuery.query('messagebox{isVisible()}').length > 0, texte: document.body.innerText.indexOf('QR code publicitaire') >= 0 }), e.produit);
+        ok(e.nom + ' : lien scanné → aucun appel au serveur, « QR code publicitaire » sans fenêtre, champ vidé',
+          appels.length === 0 && etat.texte && !etat.fenetre && etat.champ === '', JSON.stringify(etat) + ' appels : ' + appels.join(' '));
+        if (e.nom === 'Vente') {
+          await p.waitForFunction(() => document.body.innerText.indexOf('QR code publicitaire') < 0, null, { timeout: 15000 }).catch(() => {});
+          await scanner(e.produit, CIP);
+          ok('Vente : un vrai code scanné ensuite est cherché normalement', appels.some((u) => u.indexOf(CIP) >= 0), appels.join(' '));
+          await p.waitForFunction(() => { const c = testextjs.app.getController('VenteCtr').current; return c && c.lgPREENREGISTREMENTID; }, null, { timeout: 15000 }).catch(() => {});
+          const id = await p.evaluate(() => { const c = testextjs.app.getController('VenteCtr').current; return c && c.lgPREENREGISTREMENTID; });
+          if (id) { ventesCreees.push(id); }
+        }
+      } catch (x) {
+        ok(e.nom + ' : parcours sans exception', false, x.message);
+      }
+      /* un message reste ouvert apres un echec : il est ferme pour l'ecran suivant ; une fenetre (ajustement) aussi, par sa croix */
+      for (let i = 0; i < 3 && await texteMessage(p); i++) { await repondre(p, 'ok').catch(() => repondre(p, 'no')).catch(() => {}); await p.waitForTimeout(300); }
+      for (const croix of await p.locator('.x-window .x-tool-close').filter({ visible: true }).all()) { await croix.click().catch(() => {}); await p.waitForTimeout(500); }
+    }
     ok('Aucune erreur JavaScript', erreurs.length === 0, erreurs.join(' | '));
   } catch (e) {
     ok('Parcours sans exception', false, e.stack);
   } finally {
+    for (const id of ventesCreees) {
+      await p.evaluate((id) => fetch('../api/v1/ventestats/remove/' + id, { method: 'POST' }).then((r) => r.status), id).catch(() => 0);
+    }
     await b.close();
+    retirerClient();
+    ok('Aucun ajustement ni vente créé par l\'essai', compte() === avant, avant + ' → ' + compte());
+    ok('Client d\'essai retiré', q("SELECT COUNT(*) FROM t_client WHERE lg_CLIENT_ID = '" + CLIENT + "'") === '0');
   }
   const ko = res.filter((x) => !x.c).length;
   console.log('\n' + (res.length - ko) + '/' + res.length + (ko ? ' ECHEC' : ' OK'));
