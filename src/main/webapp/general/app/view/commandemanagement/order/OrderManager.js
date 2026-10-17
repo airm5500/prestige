@@ -73,12 +73,15 @@ Ext.define('testextjs.view.commandemanagement.order.OrderManager', {
                 {
                     header: 'Ref.',
                     dataIndex: 'str_REF_ORDER',
-                    flex: 1
+                    flex: 1,
+                    /* ecran etroit : la liste defile plutot que d'ecraser la colonne (reference entiere) */
+                    minWidth: 130
                 },
                 {
                     header: 'Grossiste',
                     dataIndex: 'str_GROSSISTE_LIBELLE',
                     flex: 1,
+                    minWidth: 110,
                     renderer: function (value) {
                         return '<div style="font-weight: bold; color: purple;">' + value + '</div>';
                     }
@@ -89,7 +92,7 @@ Ext.define('testextjs.view.commandemanagement.order.OrderManager', {
                     header: 'PharmaML',
                     dataIndex: 'str_ENVOI_PHARMAML',
                     itemId: 'colEnvoiPharmaml',
-                    width: 168,
+                    width: 144,
                     renderer: function (v, meta, r) {
                         return testextjs.view.commandemanagement.order.EnvoiPharmaMl.rendu(v, meta, r);
                     }
@@ -99,7 +102,7 @@ Ext.define('testextjs.view.commandemanagement.order.OrderManager', {
                     header: 'Avancement',
                     dataIndex: 'str_AVANCEMENT',
                     itemId: 'colAvancement',
-                    width: 160,
+                    width: 132,
                     renderer: function (v, meta, r) {
                         return testextjs.view.commandemanagement.order.EnvoiPharmaMl.renduAvancement(v, meta, r);
                     }
@@ -144,7 +147,8 @@ Ext.define('testextjs.view.commandemanagement.order.OrderManager', {
                     header: 'Op&eacute;rateur',
                     dataIndex: 'lg_USER_ID',
                     align: 'center',
-                    flex: 1
+                    flex: 1,
+                    minWidth: 90
                 },
                 {
                     /* Retours du 08/10 : date et heure dans une seule colonne (place pour le statut PharmaML) */
@@ -169,7 +173,10 @@ Ext.define('testextjs.view.commandemanagement.order.OrderManager', {
                 },
                 {
                     xtype: 'actioncolumn',
-                    flex: 2,
+                    /* largeur de ses 12 icones (28 px chacune) : en « flex », la cellule coupait les dernieres
+                       (Modifier, Cloner, Supprimer), hors de portee sans barre de defilement. Les separateurs '-'
+                       etaient des images vides de 16 px chacune. */
+                    width: 12 * 28 + 8,
                     sortable: false,
                     menuDisabled: true,
                     items: [
@@ -180,7 +187,7 @@ Ext.define('testextjs.view.commandemanagement.order.OrderManager', {
                             scope: this,
                             hidden: true,
                             handler: this.envoiPharmaML
-                        }, '-',
+                        },
 
                         {
                             /* Retours du 08/10 : reponse PharmaML en attente, recuperee depuis la ligne */
@@ -209,50 +216,50 @@ Ext.define('testextjs.view.commandemanagement.order.OrderManager', {
                             tooltip: 'Créer le bon de livraisson',
                             scope: this,
                             handler: this.onCreateBLClick
-                        }, '-',
+                        },
                         {
                             icon: 'resources/images/icons/fam/printer.png',
                             tooltip: 'Imprimer',
                             scope: this,
                             handler: this.onbtnprint
-                        }, '-',
+                        },
                         {
                             icon: 'resources/images/icons/fam/upload_icone.png',
                             tooltip: 'Importer la reponse du grossiste',
                             scope: this,
                             handler: this.onEditOrderByImportClick
-                        }, '-',
+                        },
                         {
                             icon: 'resources/images/icons/fam/coches.png',
                             tooltip: 'Réconcilier les produits non reconnus',
                             scope: this,
                             handler: this.onReconcilierClick
-                        }, '-',
+                        },
                         {
                             icon: 'resources/images/icons/fam/excel_csv.png',
                             tooltip: 'Generer le fichier CSV de la commande',
                             scope: this,
                             handler: this.onbtnexport
-                        }, '-',
+                        },
                         {
                             //icon: 'resources/images/icons/fam/exceller.png',
                             tooltip: 'Exporter la commande en Excel (détails produits)',
                             scope: this,
                             handler: this.onbtnExportExcel,
                             iconCls: 'export_excel_icon'
-                        },'-',
+                        },
                         {
                             icon: 'resources/images/icons/fam/page_white_edit.png',
                             tooltip: 'Modifier',
                             scope: this,
                             handler: this.onManageDetailsClick
-                        }, '-',
+                        },
                         {
                             icon: 'resources/images/icons/fam/page_copy.png',
                             tooltip: 'Cloner la commande',
                             scope: this,
                             handler: this.onCloneCommandeClick
-                        }, '-',
+                        },
                         {
                             icon: 'resources/images/icons/fam/delete.gif',
                             tooltip: 'Supprimer',
@@ -287,7 +294,8 @@ Ext.define('testextjs.view.commandemanagement.order.OrderManager', {
                         'render': function (cmp) {
                             cmp.getEl().on('keypress', function (e) {
                                 if (e.getKey() === e.ENTER) {
-                                    Me.onRechClick();
+                                    /* la liste de ce champ, pas la globale Me (reprise par d'autres ecrans) */
+                                    cmp.up('i_order_manager').onRechClick();
 
                                 }
                             });
@@ -600,7 +608,9 @@ Ext.define('testextjs.view.commandemanagement.order.OrderManager', {
     onRechClick: function () {
         this.getStore().load({
             params: {
-                query: Ext.getCmp('rechecher').value
+                /* getValue : le texte tape ; .value n'est a jour que 50 ms apres la derniere touche (Entree juste apres
+                   la frappe, douchette : l'ancienne recherche partait) */
+                query: Ext.getCmp('rechecher').getValue()
             }
         });
 
