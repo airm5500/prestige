@@ -10,7 +10,8 @@ async function connexion(p, login, mdp) {
   await p.goto(BASE + '/security/index.html', { waitUntil: 'domcontentloaded' });
   await p.fill('#str_login', login); await p.fill('#str_password', mdp); await p.click('#login');
   await p.waitForURL('**/general/**', { timeout: 60000 });
-  await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 120000 });
+  /* premier chargement apres un deploiement : jusqu'a 2 a 3 min */
+  await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 240000 });
   await p.waitForFunction(() => { const n = Ext.ComponentQuery.query('navigation')[0];
     return n && n.getStore().getRootNode().childNodes.length > 0 && !n.getStore().isLoading(); }, null, { timeout: 120000 });
   await p.waitForLoadState('networkidle').catch(() => {});
