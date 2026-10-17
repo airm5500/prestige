@@ -1,7 +1,8 @@
 /*
  * Tests UI navigateur (Playwright) de la caisse — deconditionnement des produits detail.
  *
- * Verifie dans un vrai Chromium, en pilotant l'ecran de vente comme une caissiere :
+ * Verifie dans un vrai Chromium, en pilotant l'ecran de vente comme une caissiere (formulaire de connexion,
+ * menu SERVICE CLIENT > Ventes, bouton « Nouvelle vente », saisie au clavier, clics sur les boutons des messages) :
  *  UI-1  vendre EXACTEMENT le stock vendable (rayon 0 + 1 boite de N details -> N) passe par le
  *        popup "Voulez-vous faire un deconditionnement ?" et est ACCEPTE apres "Oui"
  *        (non-regression du "<" strict qui refusait de vendre le dernier detail disponible) ;
@@ -12,17 +13,19 @@
  * Prerequis : WAR deploye sur un Payara local, base de TEST (jamais la production), un produit
  * detail trouvable par la recherche caisse (ligne t_famille_grossiste), stocks poses AVANT :
  *   detail : int_NUMBER_AVAILABLE = 0 ; boite parent : 1 (int_NUMBERDETAIL = QTE_VENDABLE).
- * Pour UI-3 : creer une vente en cours du produit puis mettre la boite a 0, et passer son id
- * dans VENTE_UI3 (le test est saute si la variable est absente).
+ * CIP est celui de l'article DETAIL (ex. 8423349D), pas celui de la boite.
+ * Pour UI-3 : creer une vente en cours du produit puis mettre la boite a 0, et passer sa reference
+ * (str_REF, colonne Reference de l'ecran Ventes) dans VENTE_UI3 (le test est saute si la variable est absente).
+ * Les ventes creees par UI-1 et UI-2 sont retirees a la fin ; les stocks sont a remettre par l'appelant.
  *
  * Execution :
  *   npm install playwright-core
  *   BASE=http://localhost:8080/prestige LOGIN=... PASSWORD=... CIP=8835833D QTE_VENDABLE=100 \
- *   [VENTE_UI3=<lgPREENREGISTREMENTID>] node ui-caisse-deconditionnement.js
+ *   [VENTE_UI3=<reference de la vente>] node ui-caisse-deconditionnement.js
  */
 const { chromium } = require('playwright-core');
+const { connexion, ouvrirMenu, cliquer, attendreMessage, repondre, texteMessage } = require('./outils/vues');
 
-const BASE = process.env.BASE || 'http://localhost:8080/prestige';
 const LOGIN = process.env.LOGIN;
 const PASSWORD = process.env.PASSWORD;
 const CIP = process.env.CIP;
@@ -30,91 +33,57 @@ const QTE_VENDABLE = parseInt(process.env.QTE_VENDABLE || '100', 10);
 const VENTE_UI3 = process.env.VENTE_UI3;
 const CHROMIUM = process.env.CHROMIUM || '/opt/pw-browsers/chromium';
 const results = [];
+const ventesCreees = [];
 
 function ok(name, cond, detail) {
     results.push({ name, pass: !!cond });
     console.log((cond ? 'PASS' : 'FAIL') + '  ' + name + (detail ? '  [' + String(detail).slice(0, 140) + ']' : ''));
 }
 
-async function visibleMsgBoxText(page) {
-    return page.evaluate(() => {
-        const boxes = Ext.ComponentQuery.query('messagebox{isVisible()}');
-        return boxes.length ? boxes.map(b => (b.el && b.el.dom ? b.el.dom.textContent : '')).join(' | ') : '';
-    });
-}
-
-async function clickMsgBoxButton(page, itemId) {
-    return page.evaluate((itemId) => {
-        const boxes = Ext.ComponentQuery.query('messagebox{isVisible()}');
-        for (const b of boxes) {
-            const btn = b.down('button[itemId=' + itemId + ']');
-            if (btn && btn.isVisible()) { btn.el.dom.click(); return true; }
-        }
-        return false;
-    }, itemId);
-}
-
-async function waitForMsgBoxContaining(page, text, timeoutMs) {
-    const deadline = Date.now() + (timeoutMs || 10000);
-    while (Date.now() < deadline) {
-        const t = await visibleMsgBoxText(page);
-        if (t && t.indexOf(text) !== -1) { return t; }
-        await page.waitForTimeout(200);
-    }
-    return null;
-}
-
-async function fermerPopupsResiduels(page) {
-    for (let i = 0; i < 4; i++) {
-        const closed = await page.evaluate(() => {
-            const boxes = Ext.ComponentQuery.query('messagebox{isVisible()}');
-            for (const b of boxes) {
-                for (const id of ['ok', 'no', 'cancel', 'yes']) {
-                    const btn = b.down('button[itemId=' + id + ']');
-                    if (btn && btn.isVisible()) { btn.el.dom.click(); return true; }
-                }
-                b.hide();
-                return true;
+async function fermerMessagesResiduels(page) {
+    for (let i = 0; i < 4 && await texteMessage(page); i++) {
+        for (const b of ['ok', 'no', 'cancel']) {
+            if (await page.evaluate((b) => Ext.ComponentQuery.query('messagebox{isVisible()} button[itemId=' + b + ']').some((x) => x.isVisible(true)), b)) {
+                await repondre(page, b);
+                break;
             }
-            return false;
-        });
-        if (!closed) { break; }
+        }
         await page.waitForTimeout(300);
     }
 }
 
-async function openCaisseVno(page) {
-    await page.evaluate(() => {
-        testextjs.app.getController('App').onRedirectTo('doventemanager', { isEdit: false, record: {} });
-    });
-    await page.waitForFunction(() =>
-        Ext.ComponentQuery.query('doventemanager #contenu [xtype=fieldcontainer] #produit').length > 0,
-            null, { timeout: 15000 });
+/* menu SERVICE CLIENT > Ventes, puis bouton « Nouvelle vente » */
+async function nouvelleVente(page) {
+    await ouvrirMenu(page, 'SERVICE CLIENT', 'Ventes');
+    await page.waitForFunction(() => Ext.ComponentQuery.query('cloturerventemanager #addBtn').some((b) => b.isVisible(true)), null, { timeout: 30000 });
+    await cliquer(page, 'cloturerventemanager #addBtn');
+    await page.waitForFunction(() => Ext.ComponentQuery.query('doventemanager #contenu [xtype=fieldcontainer] #produit').some((c) => c.isVisible(true)),
+            null, { timeout: 30000 });
     await page.waitForTimeout(1200);
-    await fermerPopupsResiduels(page);
+    await fermerMessagesResiduels(page);
 }
 
-async function selectProduitEtQuantite(page, cip, qte) {
-    // saisie reelle dans le combo produit, choix dans la liste, valeur posee par l'API Ext
-    // (page.fill ne declenche pas checkChange), puis ENTREE reelle sur le champ quantite
-    const comboInputId = await page.evaluate(() => {
-        const c = Ext.ComponentQuery.query('doventemanager #contenu [xtype=fieldcontainer] #produit')[0];
-        c.setValue('');
-        return c.inputEl.id;
-    });
-    await page.click('#' + comboInputId, { force: true });
-    await page.type('#' + comboInputId, cip, { delay: 60 });
-    await page.waitForSelector('.x-boundlist-item', { timeout: 15000 });
-    await page.click('.x-boundlist-item', { force: true });
+/* frappe du CIP dans la recherche produit, choix dans la liste, frappe de la quantite puis Entree */
+async function saisirProduitEtQuantite(page, cip, qte) {
+    await cliquer(page, 'doventemanager #contenu [xtype=fieldcontainer] #produit', { force: true });
+    await page.keyboard.press('Control+A');
+    await page.keyboard.press('Backspace');
+    await page.keyboard.type(cip, { delay: 60 });
+    const choix = page.locator('.x-boundlist-item').filter({ visible: true }).first();
+    await choix.waitFor({ timeout: 15000 });
+    await choix.click();
     await page.waitForTimeout(700);
-    const qtyInputId = await page.evaluate((q) => {
-        const f = Ext.ComponentQuery.query('doventemanager #contenu [xtype=fieldcontainer] #qtyField')[0];
-        f.setValue(q);
-        return f.inputEl.id;
-    }, qte);
-    await page.press('#' + qtyInputId, 'Enter');
+    await cliquer(page, 'doventemanager #contenu [xtype=fieldcontainer] #qtyField');
+    await page.keyboard.press('Control+A');
+    await page.keyboard.type(String(qte), { delay: 30 });
+    await page.keyboard.press('Enter');
     await page.waitForTimeout(500);
 }
+
+const venteCourante = (page) => page.evaluate(() => {
+    const c = testextjs.app.getController('VenteCtr').current;
+    return c ? { id: c.lgPREENREGISTREMENTID, prix: parseInt(c.intPRICE, 10) || 0 } : null;
+});
 
 (async () => {
     if (!LOGIN || !PASSWORD || !CIP) {
@@ -123,56 +92,64 @@ async function selectProduitEtQuantite(page, cip, qte) {
     }
     const browser = await chromium.launch({ executablePath: CHROMIUM, headless: true });
     const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
+    try {
+        await connexion(page, LOGIN, PASSWORD);
+        ok('login formulaire -> application chargee', true);
 
-    await page.goto(BASE + '/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-    await page.fill('#str_login', LOGIN);
-    await page.fill('#str_password', PASSWORD);
-    await page.click('#login');
-    await page.waitForURL('**/general/**', { timeout: 30000 });
-    await page.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 60000 });
-    await page.waitForTimeout(3000);
-    ok('login formulaire -> application chargee', true);
+        // UI-1 : vendable exact accepte via le message de deconditionnement
+        await nouvelleVente(page);
+        await saisirProduitEtQuantite(page, CIP, QTE_VENDABLE);
+        let t = await attendreMessage(page, 'Voulez-vous faire un déconditionnement', 10000);
+        ok('UI-1a message de deconditionnement propose', !!t, t || await texteMessage(page));
+        if (t) {
+            await repondre(page, 'yes');
+            const ligne = page.locator('.x-grid-row').filter({ visible: true, hasText: CIP }).first();
+            const affichee = await ligne.waitFor({ timeout: 15000 }).then(() => true).catch(() => false);
+            const v = await venteCourante(page);
+            if (v && v.id) { ventesCreees.push(v.id); }
+            ok('UI-1b vente du vendable exact ACCEPTEE apres "Oui" (ligne affichee dans la vente)', affichee && v && v.prix > 0,
+                    'ligne ' + affichee + ', montant ' + (v && v.prix));
+        }
 
-    // UI-1 : vendable exact accepte via le popup decon
-    await openCaisseVno(page);
-    await selectProduitEtQuantite(page, CIP, QTE_VENDABLE);
-    let t = await waitForMsgBoxContaining(page, 'Voulez-vous faire un déconditionnement', 10000);
-    ok('UI-1a popup deconditionnement propose', !!t);
-    if (t) {
-        await clickMsgBoxButton(page, 'yes');
-        const added = await page.waitForFunction((attendu) => {
-            const ctr = testextjs.app.getController('VenteCtr');
-            return ctr.current && parseInt(ctr.current.intPRICE, 10) > 0;
-        }, QTE_VENDABLE, { timeout: 15000 }).then(() => true).catch(() => false);
-        ok('UI-1b vente du vendable exact ACCEPTEE apres "Oui"', added);
+        // UI-2 : vendable + 1 refuse
+        await nouvelleVente(page);
+        await saisirProduitEtQuantite(page, CIP, QTE_VENDABLE + 1);
+        t = await attendreMessage(page, 'Voulez-vous faire un déconditionnement', 10000);
+        ok('UI-2a message de deconditionnement propose', !!t, t || await texteMessage(page));
+        if (t) {
+            await repondre(page, 'yes');
+            const refus = await attendreMessage(page, 'Le stock est insuffisant', 10000);
+            ok('UI-2b vente au-dela du vendable REFUSEE', !!refus, refus);
+            if (refus) { await repondre(page, 'ok'); }
+        }
+        const v2 = await venteCourante(page);
+        if (v2 && v2.id && ventesCreees.indexOf(v2.id) < 0) { ventesCreees.push(v2.id); }
+
+        // UI-3 : avertissement a la reprise du panier (menu Ventes, recherche, bouton Modifier de la ligne)
+        if (VENTE_UI3) {
+            await ouvrirMenu(page, 'SERVICE CLIENT', 'Ventes');
+            await page.waitForFunction(() => Ext.ComponentQuery.query('cloturerventemanager #query').some((c) => c.isVisible(true)), null, { timeout: 30000 });
+            await cliquer(page, 'cloturerventemanager #query');
+            await page.keyboard.type(VENTE_UI3, { delay: 30 });
+            await cliquer(page, 'cloturerventemanager #rechercher');
+            const ligne = page.locator('.x-grid-row').filter({ visible: true, hasText: VENTE_UI3 }).first();
+            await ligne.waitFor({ timeout: 15000 });
+            await ligne.locator('.act-modifier').click();
+            t = await attendreMessage(page, 'Stock insuffisant pour', 15000);
+            ok('UI-3 avertissement a la reprise du panier', !!t, t || 'aucun avertissement');
+            if (t) { await repondre(page, 'ok'); }
+        } else {
+            console.log('SKIP  UI-3 (VENTE_UI3 non fournie)');
+        }
+    } catch (e) {
+        ok('Parcours sans exception', false, e.stack);
+    } finally {
+        // retrait des ventes de l'essai (meme route que la suppression de l'ecran Ventes)
+        for (const id of ventesCreees) {
+            await page.evaluate((id) => fetch('../api/v1/ventestats/remove/' + id, { method: 'POST' }).then((r) => r.status), id).catch(() => 0);
+        }
+        await browser.close();
     }
-
-    // UI-2 : vendable + 1 refuse
-    await openCaisseVno(page);
-    await selectProduitEtQuantite(page, CIP, QTE_VENDABLE + 1);
-    t = await waitForMsgBoxContaining(page, 'Voulez-vous faire un déconditionnement', 10000);
-    ok('UI-2a popup deconditionnement propose', !!t);
-    if (t) {
-        await clickMsgBoxButton(page, 'yes');
-        const refus = await waitForMsgBoxContaining(page, 'Le stock est insuffisant', 10000);
-        ok('UI-2b vente au-dela du vendable REFUSEE', !!refus, refus);
-        if (refus) { await clickMsgBoxButton(page, 'ok'); }
-    }
-
-    // UI-3 : avertissement a la reprise du panier (si une vente de test est fournie)
-    if (VENTE_UI3) {
-        await page.evaluate((venteId) => {
-            testextjs.app.getController('App').onRedirectTo('doventemanager',
-                    { isEdit: true, categorie: 'VENTE', record: { lgPREENREGISTREMENTID: venteId } });
-        }, VENTE_UI3);
-        t = await waitForMsgBoxContaining(page, 'Stock insuffisant pour', 15000);
-        ok('UI-3 avertissement a la reprise du panier', !!t, t || 'aucun avertissement');
-        if (t) { await clickMsgBoxButton(page, 'ok'); }
-    } else {
-        console.log('SKIP  UI-3 (VENTE_UI3 non fournie)');
-    }
-
-    await browser.close();
     const failed = results.filter(r => !r.pass);
     console.log('\n== ' + (results.length - failed.length) + '/' + results.length + ' assertions OK');
     process.exit(failed.length ? 1 : 0);
