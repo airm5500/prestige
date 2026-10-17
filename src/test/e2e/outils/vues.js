@@ -39,6 +39,28 @@ async function cliquer(p, requete, options) {
   await p.click('#' + id, options);
 }
 
+/* liste deroulante : clic sur sa fleche, puis clic sur l'element de rang donne (ou de libelle donne) de la liste */
+async function choisir(p, requete, element) {
+  const ids = await p.evaluate((r) => { const c = Ext.ComponentQuery.query(r).filter((x) => x.isVisible(true))[0]; if (!c) { return null; }
+    const t = c.triggerEl && (c.triggerEl.first ? c.triggerEl.first() : c.triggerEl.item(0)); return { trigger: t && t.dom.id, picker: c.getPicker().getId() }; }, requete);
+  if (!ids || !ids.trigger) { throw new Error('Liste déroulante absente ou masquée : ' + requete); }
+  await p.click('#' + ids.trigger);
+  const items = p.locator('#' + ids.picker + ' .x-boundlist-item');
+  await items.first().waitFor({ timeout: 15000 });
+  const cible = typeof element === 'number' ? items.nth(element) : items.filter({ hasText: element }).first();
+  const texte = (await cible.textContent()).trim();
+  await cible.click();
+  return texte;
+}
+
+/* champ texte ou date : clic, tout selectionner, frappe, puis Tab */
+async function saisir(p, requete, texte) {
+  await cliquer(p, requete);
+  await p.keyboard.press('Control+A');
+  await p.keyboard.type(texte, { delay: 20 });
+  await p.keyboard.press('Tab');
+}
+
 /* texte des boites de message visibles */
 const texteMessage = (p) => p.evaluate(() => Ext.ComponentQuery.query('messagebox{isVisible()}').map((b) => b.el.dom.textContent).join(' | '));
 
@@ -51,4 +73,4 @@ async function attendreMessage(p, texte, delai) {
 /* clic sur le bouton (ok, yes, no, cancel) de la boite de message visible */
 const repondre = (p, bouton) => cliquer(p, 'messagebox{isVisible()} button[itemId=' + bouton + ']');
 
-module.exports = { BASE, connexion, ouvrirMenu, cliquer, texteMessage, attendreMessage, repondre };
+module.exports = { BASE, connexion, ouvrirMenu, cliquer, choisir, saisir, texteMessage, attendreMessage, repondre };

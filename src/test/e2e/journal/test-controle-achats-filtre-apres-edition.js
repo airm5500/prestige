@@ -2,74 +2,80 @@
  *
  * « Uncaught TypeError: Me.onRechClick is not a function » (EtatControleManager.js) : l'ecran gardait son instance dans
  * la variable globale Me, que la fenetre de mise a jour d'un BL (cmde_passees/action/edit.js) reprend pour elle
- * (Me = this) ; une fois cette fenetre fermee, chaque filtre appelait onRechClick sur la fenetre. Ce que le test etablit
- * (par l'ecran, admin) :
- *  - liste des BL ouverte ; fenetre de mise a jour d'un BL ouverte puis fermee ;
- *  - choix d'un grossiste puis du type de date : aucune erreur JavaScript, la liste se recharge a chaque fois.
+ * (Me = this) ; une fois cette fenetre fermee, chaque filtre appelait onRechClick sur la fenetre.
+ *
+ * Parcours par les vues, avec un utilisateur qui a le droit P_BTN_UPDATEBL (sans lui, le bouton n'est pas affiche) :
+ * le droit est accorde au role de l'utilisateur d'essai avant la connexion, puis retire a la fin.
+ *  - menu GESTION DES COMMANDES > « Etat de contrôle Achats » ; periode saisie au clavier, bouton Rechercher ;
+ *  - bouton « Modifier les informations du bon de livraison » de la premiere ligne : la fenetre s'ouvre, fermee par
+ *    sa croix ;
+ *  - choix d'un grossiste puis du type de date dans leurs listes : aucune erreur JavaScript, la liste se recharge.
  */
 const { chromium } = require('playwright-core');
+const { execFileSync } = require('child_process');
+const { connexion, ouvrirMenu, cliquer, choisir, saisir } = require('../outils/vues');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
+const BASE = process.env.DB_TEST || 'capitale';
+const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const LOGIN = 'admin', DROIT = 'E2E-CA-UPDBL';
+const PRIVILEGE = q("SELECT lg_PRIVELEGE_ID FROM t_privilege WHERE str_NAME = 'P_BTN_UPDATEBL'");
+const ROLE = q("SELECT ru.lg_ROLE_ID FROM t_role_user ru JOIN t_user u ON u.lg_USER_ID = ru.lg_USER_ID WHERE u.str_LOGIN = '" + LOGIN + "' LIMIT 1");
+const DEJA = q("SELECT COUNT(*) FROM t_role_privelege WHERE lg_ROLE_ID = '" + ROLE + "' AND lg_PRIVILEGE_ID = '" + PRIVILEGE + "'") !== '0';
+const retirerDroit = () => q("DELETE FROM t_role_privelege WHERE lg_ROLE_PRIVILEGE = '" + DROIT + "'");
 
 (async () => {
+  retirerDroit();
+  if (!DEJA) {
+    q("INSERT INTO t_role_privelege (lg_ROLE_PRIVILEGE, lg_ROLE_ID, lg_PRIVILEGE_ID, dt_CREATED) VALUES ('" + DROIT + "', '" + ROLE + "', '" + PRIVILEGE + "', NOW())");
+  }
   const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
   const p = await b.newPage({ viewport: { width: 1600, height: 900 } });
   const erreurs = []; p.on('pageerror', (e) => erreurs.push(e.message));
+  const ecran = 'etatscontrolemanager';
+  const chargements = () => p.evaluate((e) => Ext.ComponentQuery.query(e)[0].e2eChargements || 0, ecran);
+  const attendreChargement = async (avant) => p.waitForFunction(([e, n]) => { const g = Ext.ComponentQuery.query(e)[0];
+    return (g.e2eChargements || 0) > n && !g.getStore().isLoading(); }, [ecran, avant], { timeout: 60000 }).then(() => true).catch(() => false);
   try {
-    await p.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
-    await p.waitForURL('**/general/**', { timeout: 60000 });
-    await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 120000 });
-    await p.evaluate(() => testextjs.app.getController('App').onLoadNewComponent('etatscontrolemanager', 'Contrôle des achats', ''));
-    await p.waitForFunction(() => Ext.getCmp('datedebut') && Ext.ComponentQuery.query('etatscontrolemanager')[0], null, { timeout: 60000 });
+    await connexion(p, LOGIN, 'e2etest');
+    await ouvrirMenu(p, 'GESTION DES COMMANDES', 'Etat de contrôle Achats');
+    await p.waitForFunction((e) => Ext.ComponentQuery.query(e).some((g) => g.isVisible(true)) && Ext.getCmp('datedebut'), ecran, { timeout: 60000 });
+    /* compteur des chargements de la liste (observation seulement) */
+    await p.evaluate((e) => { const g = Ext.ComponentQuery.query(e)[0]; g.getStore().on('load', () => { g.e2eChargements = (g.e2eChargements || 0) + 1; }); }, ecran);
+
     /* periode avec des bons sur le banc (l'ecran s'ouvre sur la date du jour) */
-    await p.evaluate(() => { Ext.getCmp('datedebut').setValue(new Date(2026, 8, 1)); Ext.getCmp('datefin').setValue(new Date(2026, 8, 30));
-      Ext.ComponentQuery.query('etatscontrolemanager')[0].onRechClick(); });
-    await p.waitForFunction(() => { const g = Ext.ComponentQuery.query('etatscontrolemanager')[0]; return g.getStore().getCount() > 0 && !g.getStore().isLoading(); }, null, { timeout: 60000 });
-    ok('Liste des BL ouverte avec des bons', true);
+    await saisir(p, '#datedebut', '01/09/2026');
+    await saisir(p, '#datefin', '30/09/2026');
+    let n = await chargements();
+    await cliquer(p, ecran + ' button[text=Rechercher]');
+    const charge = await attendreChargement(n);
+    const lignes = await p.evaluate((e) => Ext.ComponentQuery.query(e)[0].getStore().getCount(), ecran);
+    ok('Liste des BL de septembre affichée après « Rechercher »', charge && lignes > 0, lignes + ' bons');
 
-    /* fenetre « mise a jour des informations du BL » ouverte puis fermee, par le bouton de la ligne */
-    const fen = await p.evaluate(() => {
-      const g = Ext.ComponentQuery.query('etatscontrolemanager')[0];
-      if (window.btnUpdate) {
-        g.updateInfoBonlivraison(g, 0);
-      } else {
-        /* sans le droit P_BTN_UPDATEBL, le bouton ne fait rien : la meme fenetre, avec les memes parametres */
-        const rec = g.getStore().getAt(0);
-        new testextjs.view.commandemanagement.cmde_passees.action.edit({ gridToLoad: 'etatscontrolemanagerID', odatasource: rec.data,
-          parentview: g, mode: 'update', titre: 'Mise &agrave; jour des informations du Bon de livraison N&deg;' + rec.get('strREFLIVRAISON') });
-      }
-      const w = Ext.ComponentQuery.query('window').filter((x) => x.isVisible() && /Bon de livraison/i.test(x.title || ''))[0];
-      if (w) { w.close(); }
-      return !!w;
-    });
-    ok('Fenêtre de mise à jour du BL ouverte puis fermée', fen);
+    /* bouton de la premiere ligne, visible grace au droit */
+    const bouton = p.locator('#' + await p.evaluate((e) => Ext.ComponentQuery.query(e)[0].getView().getId(), ecran)
+      + ' .x-grid-row').first().locator('img[data-qtip="Modifier les informations du bon de livraison"]');
+    ok('Avec le droit P_BTN_UPDATEBL : bouton « Modifier les informations du BL » affiché sur la ligne', await bouton.isVisible());
+    await bouton.click();
+    const fen = p.locator('.x-window').filter({ visible: true, hasText: 'Bon de livraison' }).first();
+    const ouverte = await fen.waitFor({ timeout: 15000 }).then(() => true).catch(() => false);
+    if (ouverte) { await fen.locator('.x-tool-close').first().click(); }
+    const fermee = ouverte && await fen.waitFor({ state: 'hidden', timeout: 10000 }).then(() => true).catch(() => false);
+    ok('Fenêtre de mise à jour du BL ouverte par le bouton, fermée par sa croix', ouverte && fermee);
 
-    const recharge = async (action) => p.evaluate(async (action) => {
-      const g = Ext.ComponentQuery.query('etatscontrolemanager')[0], st = g.getStore();
-      let charges = 0; const f = () => { charges++; }; st.on('load', f);
-      try {
-        if (action === 'grossiste') {
-          const c = Ext.getCmp('lg_GROSSISTE_ID');
-          await new Promise((r) => { c.getStore().load({ callback: r }); });
-          const rec = c.getStore().getAt(0); c.setValue(rec.get('lg_GROSSISTE_ID')); c.fireEvent('select', c, [rec]);
-        } else {
-          const c = Ext.ComponentQuery.query('etatscontrolemanager combobox[displayField=label]')[0];
-          const rec = c.getStore().getAt(1); c.setValue(rec.get('value')); c.fireEvent('select', c, [rec]);
-        }
-      } catch (e) { return { erreur: String(e.message) }; }
-      await new Promise((r) => setTimeout(r, 4000)); st.un('load', f);
-      return { charges };
-    }, action);
-    const r1 = await recharge('grossiste');
-    ok('Après la fenêtre : choix d\'un grossiste → la liste se recharge, sans erreur', !r1.erreur && r1.charges >= 1, JSON.stringify(r1));
-    const r2 = await recharge('date');
-    ok('Après la fenêtre : choix du type de date → la liste se recharge, sans erreur', !r2.erreur && r2.charges >= 1, JSON.stringify(r2));
+    n = await chargements();
+    const grossiste = await choisir(p, '#lg_GROSSISTE_ID', 1);
+    ok('Après la fenêtre : choix d\'un grossiste → la liste se recharge, sans erreur', await attendreChargement(n) && erreurs.length === 0, grossiste + ' ' + erreurs.join(' | '));
+    n = await chargements();
+    const typeDate = await choisir(p, '#dateType', 1);
+    ok('Après la fenêtre : choix du type de date → la liste se recharge, sans erreur', await attendreChargement(n) && erreurs.length === 0, typeDate + ' ' + erreurs.join(' | '));
     ok('Aucune erreur JavaScript', erreurs.length === 0, erreurs.join(' | '));
   } catch (e) {
     ok('Parcours sans exception', false, e.stack);
   } finally {
     await b.close();
+    retirerDroit();
+    ok('Droit d\'essai retiré, droits du rôle inchangés', q("SELECT COUNT(*) FROM t_role_privelege WHERE lg_ROLE_ID = '" + ROLE + "' AND lg_PRIVILEGE_ID = '" + PRIVILEGE + "'") === (DEJA ? '1' : '0'));
   }
   const ko = res.filter((x) => !x.c).length;
   console.log('\n' + (res.length - ko) + '/' + res.length + (ko ? ' ECHEC' : ' OK'));
