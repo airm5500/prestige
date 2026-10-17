@@ -1370,8 +1370,15 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     public void removeOrder(String orderId) {
-        em.remove(em.find(TOrder.class, orderId));
-
+        /*
+         * journal du 16/10 : suppression envoyee deux fois (double clic). La ligne est verrouillee, le second appel
+         * attend le premier puis trouve la commande deja supprimee : rien a faire, sans erreur 500.
+         */
+        TOrder order = em.find(TOrder.class, orderId, javax.persistence.LockModeType.PESSIMISTIC_WRITE);
+        if (order == null) {
+            return;
+        }
+        em.remove(order);
     }
 
     private String buildQuery(String search, String sql) {
