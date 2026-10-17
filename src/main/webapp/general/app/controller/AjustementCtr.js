@@ -210,6 +210,10 @@ Ext.define('testextjs.controller.AjustementCtr', {
 
     },
     checkDouchette(field) {
+        /* journal du 16/10 : QR publicitaire (lien internet) refuse sans appel au serveur */
+        if (window.PrestigeScan && PrestigeScan.refuserSiLien(field, null)) {
+            return;
+        }
         var me = this;
         Ext.Ajax.request({
             method: 'GET',

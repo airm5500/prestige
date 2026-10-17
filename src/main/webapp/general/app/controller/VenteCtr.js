@@ -1354,6 +1354,10 @@ Ext.define('testextjs.controller.VenteCtr', {
      * - mode autoAdd: si résultat unique => ajoute directement qté=1 (sans passer par la saisie quantité)
      */
     checkDouchette(field, autoAdd, code) {
+        /* journal du 16/10 : QR publicitaire (lien internet) refuse sans appel au serveur */
+        if (window.PrestigeScan && PrestigeScan.refuserSiLien(field, code)) {
+            return;
+        }
         let me = this;
         autoAdd = (autoAdd === true);
         Ext.Ajax.request({

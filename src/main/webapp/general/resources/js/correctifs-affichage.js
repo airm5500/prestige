@@ -1893,6 +1893,44 @@ window.PrestigeRechercheClient = (function () {
  *
  * Le texte est echappe (aucun HTML). Au plus 4 notifications a la fois : la plus ancienne part.
  */
+/*
+ * Journal du 16/10 : QR code publicitaire scanne en caisse (lien internet imprime sur la boite). Ce n'est pas un code
+ * produit : il partait au serveur (erreur 404) et rien ne s'affichait. Utilise par les cinq ecrans de scan (vente, vente en
+ * depot, depot, devis, ajustement) avant toute recherche.
+ *   if (PrestigeScan.refuserSiLien(champ, code)) { return; }
+ */
+window.PrestigeScan = (function () {
+    function estLienInternet(valeur) {
+        var v = String(valeur == null ? '' : valeur).trim();
+        return /^(https?:\/\/|www\.)/i.test(v) || v.indexOf('://') > 0;
+    }
+    function refuserSiLien(champ, code) {
+        var v = code || (champ && (champ.getRawValue ? champ.getRawValue() : champ.getValue && champ.getValue()));
+        if (!estLienInternet(v)) {
+            return false;
+        }
+        if (champ) {
+            if (champ.collapse) {
+                champ.collapse();
+            }
+            if (champ.clearValue) {
+                champ.clearValue();
+            } else if (champ.setValue) {
+                champ.setValue('');
+            }
+            if (champ.focus) {
+                champ.focus(false, 50);
+            }
+        }
+        if (window.PrestigeToast) {
+            PrestigeToast.afficher('QR code publicitaire (lien internet) : ce n\'est pas un code produit. '
+                    + 'Scannez le code-barres de la boîte.', {niveau: 'alerte', titre: 'Scan'});
+        }
+        return true;
+    }
+    return {estLienInternet: estLienInternet, refuserSiLien: refuserSiLien};
+})();
+
 window.PrestigeToast = (function () {
     var COULEURS = {erreur: '#c62828', alerte: '#e67e22', ok: '#1b7f3b', info: '#1e3a5f'};
     var ICONES = {erreur: '⛔', alerte: '⚠', ok: '✔', info: 'ℹ'};
