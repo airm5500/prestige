@@ -4,7 +4,9 @@
 
 var url_services_pdf_bonlivraison = '../webservices/commandemanagement/bonlivraison/ws_generate_pdf.jsp';
 
-var Me;
+/* journal du 12/10 : nom propre a cet ecran. Il s'appelait « Me », comme dans 220 autres fichiers : la fenetre de mise
+   a jour d'un BL (cmde_passees/action/edit.js) le reprenait, et les filtres appelaient ensuite onRechClick sur elle. */
+var MeControleAchats;
 var val;
 var str_REF_ORDER = "";
 var str_REF_LIVRAISON = "";
@@ -84,7 +86,7 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
             }
 
         });
-        Me = this;
+        MeControleAchats = this;
         Ext.Ajax.request({
             method: 'GET',
             url: '../api/v1/common/is-authorized',
@@ -494,7 +496,7 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
                     }),
                     listeners: {
                         select: function () {
-                            Me.onRechClick();
+                            MeControleAchats.onRechClick();
                         }
                     }
                 },
@@ -514,7 +516,7 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
                     emptyText: 'Sélectionner grossiste...',
                     listeners: {
                         select: function (cmp) {
-                            Me.onRechClick();
+                            MeControleAchats.onRechClick();
                         }
                     }
 
@@ -542,8 +544,8 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
                     }),
                     listeners: {
                         select: function (cmp) {
-                            Me.appliquerGroupe(cmp.getValue());
-                            Me.onRechClick();
+                            MeControleAchats.appliquerGroupe(cmp.getValue());
+                            MeControleAchats.onRechClick();
                         }
                     }
                 },
@@ -587,7 +589,7 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
                         'render': function (cmp) {
                             cmp.getEl().on('keypress', function (e) {
                                 if (e.getKey() === e.ENTER) {
-                                    Me.onRechClick();
+                                    MeControleAchats.onRechClick();
                                 }
                             });
                         }
@@ -625,7 +627,7 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
                     }),
                     listeners: {
                         select: function () {
-                            Me.onRechClick();
+                            MeControleAchats.onRechClick();
                         }
                     }
                 },
@@ -648,7 +650,7 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
                     }),
                     listeners: {
                         select: function () {
-                            Me.onRechClick();
+                            MeControleAchats.onRechClick();
                         }
                     }
                 }, '-',
@@ -708,9 +710,9 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
                         {xtype: 'component', itemId: 'texteInventaire', flex: 1,
                             style: 'white-space:normal;word-wrap:break-word;font-size:12px;line-height:1.5;color:#1e3a5f'},
                         {xtype: 'button', itemId: 'creerInventaire', text: 'Créer l\'inventaire', margin: '0 6 0 10',
-                            handler: function () { Me.lancerInventaire(); }},
+                            handler: function () { MeControleAchats.lancerInventaire(); }},
                         {xtype: 'button', itemId: 'annulerInventaire', text: 'Annuler',
-                            handler: function () { Me.fermerBandeInventaire(); }}
+                            handler: function () { MeControleAchats.fermerBandeInventaire(); }}
                     ]
                 }],
             bbar: {
@@ -742,7 +744,7 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
 
     },
     loadStore: function () {
-        Me.onRechClick();
+        MeControleAchats.onRechClick();
 
     },
     onStoreLoad: function () {
@@ -973,7 +975,7 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
         if (!rec) {
             return;
         }
-        Me.proposerInventaire([rec.get('lgBONLIVRAISONID')],
+        MeControleAchats.proposerInventaire([rec.get('lgBONLIVRAISONID')],
                 'Créer un inventaire des produits du bon <b>' + Ext.util.Format.htmlEncode(rec.get('strREFLIVRAISON') || '')
                 + '</b> ? Il portera sur le <b>stock rayon</b>, celui où le bon est entré.');
     },
@@ -984,13 +986,13 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
      */
     onInventaireDeLaSelection: function () {
         if (selectedBLs.length === 0) {
-            Me.afficherBandeInventaire('Cochez d\'abord un ou plusieurs bons de livraison.', 'info');
+            MeControleAchats.afficherBandeInventaire('Cochez d\'abord un ou plusieurs bons de livraison.', 'info');
             return;
         }
         var ids = Ext.Array.map(selectedBLs, function (r) {
             return r.get('lgBONLIVRAISONID');
         });
-        Me.proposerInventaire(ids, 'Créer un inventaire des produits contenus dans les <b>' + ids.length
+        MeControleAchats.proposerInventaire(ids, 'Créer un inventaire des produits contenus dans les <b>' + ids.length
                 + '</b> bons sélectionnés ? Il portera sur le <b>stock rayon</b>, celui où les bons sont entrés.');
     },
 
@@ -1000,7 +1002,7 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
     },
 
     afficherBandeInventaire: function (html, etat) {
-        var b = Me.bandeInventaire(), couleurs = {question: '#eef4fb', ok: '#e8f6ee', erreur: '#fdecea', info: '#fff8e1'};
+        var b = MeControleAchats.bandeInventaire(), couleurs = {question: '#eef4fb', ok: '#e8f6ee', erreur: '#fdecea', info: '#fff8e1'};
         b.down('#texteInventaire').update(html);
         b.down('#creerInventaire').setVisible(etat === 'question');
         b.down('#creerInventaire').enable();
@@ -1013,13 +1015,13 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
     },
 
     fermerBandeInventaire: function () {
-        Me.bonsInventaire = null;
-        Me.bandeInventaire().hide();
+        MeControleAchats.bonsInventaire = null;
+        MeControleAchats.bandeInventaire().hide();
     },
 
     proposerInventaire: function (bonIds, question) {
-        Me.bonsInventaire = bonIds;
-        Me.afficherBandeInventaire(question, 'question');
+        MeControleAchats.bonsInventaire = bonIds;
+        MeControleAchats.afficherBandeInventaire(question, 'question');
     },
 
     /**
@@ -1029,7 +1031,7 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
      * d'en tirer la liste des produits, sans doublon entre deux bons.
      */
     lancerInventaire: function () {
-        var bonIds = Me.bonsInventaire, b = Me.bandeInventaire(), bouton = b.down('#creerInventaire');
+        var bonIds = MeControleAchats.bonsInventaire, b = MeControleAchats.bandeInventaire(), bouton = b.down('#creerInventaire');
         if (!bonIds || !bonIds.length) {
             return;
         }
@@ -1044,13 +1046,13 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
             params: Ext.JSON.encode(bonIds),
             success: function (response) {
                 var o = Ext.decode(response.responseText, true) || {};
-                Me.bonsInventaire = null;
-                Me.afficherBandeInventaire(Ext.util.Format.htmlEncode(o.msg || (o.success ? 'Inventaire créé.' : 'L\'opération n\'a pas abouti.')),
+                MeControleAchats.bonsInventaire = null;
+                MeControleAchats.afficherBandeInventaire(Ext.util.Format.htmlEncode(o.msg || (o.success ? 'Inventaire créé.' : 'L\'opération n\'a pas abouti.')),
                         o.success ? 'ok' : 'erreur');
             },
             failure: function (response) {
-                Me.bonsInventaire = null;
-                Me.afficherBandeInventaire('Erreur lors de la création de l\'inventaire (code ' + response.status + ').', 'erreur');
+                MeControleAchats.bonsInventaire = null;
+                MeControleAchats.afficherBandeInventaire('Erreur lors de la création de l\'inventaire (code ' + response.status + ').', 'erreur');
             }
         });
     },
@@ -1278,7 +1280,7 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
                                                             const result = Ext.JSON.decode(response.responseText, true);
                                                             if (result.success) {
                                                                 win.destroy();
-                                                                Me.onRechClick();
+                                                                MeControleAchats.onRechClick();
                                                             } else {
                                                                 Ext.MessageBox.show({
                                                                     title: 'Message d\'erreur',
