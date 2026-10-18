@@ -574,36 +574,27 @@ Ext.define('testextjs.view.commandemanagement.order.OrderManager', {
             }
         });
     },
-    onRemoveClick: function (grid, rowIndex) {
-        Ext.MessageBox.confirm('Message',
-                'Confirmer la suppresssion',
-                function (btn) {
-                    if (btn === 'yes') {
-                        const rec = grid.getStore().getAt(rowIndex);
-                        testextjs.app.getController('App').ShowWaitingProcess();
-                        Ext.Ajax.request({
-                            method: 'DELETE',
-                            timeout: 240000,
-                            url: '../api/v1/commande/order/' + rec.get('lg_ORDER_ID'),
-
-                            success: function (response) {
-
-                                testextjs.app.getController('App').StopWaitingProcess();
-
-                                Ext.MessageBox.alert('Confirmation', 'Opération terminée');
-                                grid.getStore().reload();
-
-                            },
-                            failure: function (response) {
-                                testextjs.app.getController('App').StopWaitingProcess();
-                                Ext.MessageBox.alert('Error Message', response.responseText);
-
-                            }
-                        });
-
-                    }
-                });
-
+    /* confirmation dans l'icone (« Confirmer ? »), plus de fenetre ; resultat affiche dans la page */
+    onRemoveClick: function (grid, rowIndex, colIndex, item, e) {
+        const rec = grid.getStore().getAt(rowIndex);
+        PrestigeConfirmation.icone(e.getTarget(), 'Confirmer ?', function () {
+            testextjs.app.getController('App').ShowWaitingProcess();
+            Ext.Ajax.request({
+                method: 'DELETE',
+                timeout: 240000,
+                url: '../api/v1/commande/order/' + rec.get('lg_ORDER_ID'),
+                success: function () {
+                    testextjs.app.getController('App').StopWaitingProcess();
+                    PrestigeToast.afficher('Commande supprimée : ' + rec.get('str_REF_ORDER'), {niveau: 'ok'});
+                    grid.getStore().reload();
+                },
+                failure: function (response) {
+                    testextjs.app.getController('App').StopWaitingProcess();
+                    const r = Ext.JSON.decode(response.responseText, true);
+                    PrestigeToast.afficher((r && r.msg) || 'La commande n\'a pas pu être supprimée.', {niveau: 'erreur', titre: 'Suppression'});
+                }
+            });
+        });
     },
     onRechClick: function () {
         this.getStore().load({

@@ -1931,6 +1931,69 @@ window.PrestigeScan = (function () {
     return {estLienInternet: estLienInternet, refuserSiLien: refuserSiLien};
 })();
 
+/*
+ * Confirmation dans l'icone de ligne (regle : aucune fenetre surgissante pour une modification). Premier clic :
+ * l'icone devient « Confirmer ? » (rouge, par-dessus les icones voisines, sans changer la largeur de la colonne) ;
+ * second clic : l'action. Sans second clic, l'icone revient au bout de 5 s. Les clics des 400 premieres ms sont
+ * ignores : un double-clic ne vaut pas confirmation (journal du 16/10 : deux suppressions dans la meme seconde).
+ *   handler: function (grid, rowIndex, colIndex, item, e) {
+ *       PrestigeConfirmation.icone(e.getTarget(), 'Confirmer ?', function () { ... });
+ *   }
+ */
+window.PrestigeConfirmation = (function () {
+    var DELAI = 5000, GARDE = 400;
+    function icone(img, texte, action) {
+        var cellule = img && img.parentNode;
+        if (!cellule || cellule.querySelector('.prestige-confirmer-icone')) {
+            return;
+        }
+        var bouton = document.createElement('span'), ouvert = Date.now(), fini = false;
+        bouton.className = 'prestige-confirmer-icone';
+        bouton.setAttribute('role', 'button');
+        bouton.tabIndex = 0;
+        bouton.textContent = texte || 'Confirmer ?';
+        if (getComputedStyle(cellule).position === 'static') {
+            cellule.style.position = 'relative';
+        }
+        bouton.style.cssText = 'position:absolute;z-index:2;top:' + img.offsetTop + 'px;height:' + img.offsetHeight + 'px;'
+                + 'line-height:' + img.offsetHeight + 'px;right:' + (cellule.clientWidth - img.offsetLeft - img.offsetWidth) + 'px;'
+                + 'padding:0 8px;border-radius:4px;background:#c0392b;color:#fff;font-weight:bold;font-size:11px;'
+                + 'white-space:nowrap;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.3)';
+        cellule.appendChild(bouton);
+        function rendre() {
+            if (!fini) {
+                fini = true;
+                if (bouton.parentNode) {
+                    bouton.parentNode.removeChild(bouton);
+                }
+            }
+        }
+        var minuterie = setTimeout(rendre, DELAI);
+        function valider(ev) {
+            /* le clic ne remonte pas a la grille (selection de ligne, autres icones) */
+            ev.stopPropagation();
+            ev.preventDefault();
+            if (fini || Date.now() - ouvert < GARDE) {
+                return;
+            }
+            clearTimeout(minuterie);
+            rendre();
+            action();
+        }
+        bouton.addEventListener('click', valider);
+        bouton.addEventListener('mousedown', function (ev) { ev.stopPropagation(); });
+        bouton.addEventListener('keydown', function (ev) {
+            if (ev.key === 'Enter' || ev.key === ' ') {
+                valider(ev);
+            } else if (ev.key === 'Escape') {
+                clearTimeout(minuterie);
+                rendre();
+            }
+        });
+    }
+    return {icone: icone};
+})();
+
 window.PrestigeToast = (function () {
     var COULEURS = {erreur: '#c62828', alerte: '#e67e22', ok: '#1b7f3b', info: '#1e3a5f'};
     var ICONES = {erreur: '⛔', alerte: '⚠', ok: '✔', info: 'ℹ'};
