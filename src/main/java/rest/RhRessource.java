@@ -36,6 +36,8 @@ public class RhRessource {
 
     static final String PRIVILEGE = "P_SM_RH";
     static final String VALIDER = "P_RH_VALIDER_CONGE";
+    /** demande 52 : terminal de pointage seulement (lecture des employes, pointage, photo, empreintes) */
+    static final String POINTER = "P_RH_POINTER";
 
     @EJB
     private RhService service;
@@ -61,7 +63,27 @@ public class RhRessource {
         if (utilisateur() == null) {
             return refus(Constant.DECONNECTED_MESSAGE);
         }
-        return autorise(PRIVILEGE) ? null : refus("Vous n'avez pas accès aux ressources humaines.");
+        if (autorise(PRIVILEGE)) {
+            return null;
+        }
+        /* demande 52 : un compte « terminal » (P_RH_POINTER seul) recoit un refus de droit explicite */
+        return autorise(POINTER) ? interdit("Ressources humaines")
+                : refus("Vous n'avez pas accès aux ressources humaines.");
+    }
+
+    /** Routes du terminal de pointage (demande 52) : P_SM_RH ou P_RH_POINTER. */
+    private Response controlePointer() {
+        if (utilisateur() == null) {
+            return refus(Constant.DECONNECTED_MESSAGE);
+        }
+        return autorise(PRIVILEGE) || autorise(POINTER) ? null
+                : refus("Vous n'avez pas accès aux ressources humaines.");
+    }
+
+    private static Response interdit(String libelle) {
+        String m = "Droit manquant : " + libelle;
+        return Response.status(Response.Status.FORBIDDEN)
+                .entity(new JSONObject().put("success", false).put("interdit", true).put("msg", m).toString()).build();
     }
 
     private static Response ok(JSONObject o) {
@@ -91,9 +113,10 @@ public class RhRessource {
     @GET
     @Path("droits")
     public Response droits() {
-        Response r = controle();
-        return r != null ? r : ok(new JSONObject().put("success", true).put("valider", autorise(VALIDER))
-                .put("photoRetentionJours", pointages.photoRetentionJours()));
+        Response r = controlePointer();
+        return r != null ? r
+                : ok(new JSONObject().put("success", true).put("pointer", true).put("gerer", autorise(PRIVILEGE))
+                        .put("valider", autorise(VALIDER)).put("photoRetentionJours", pointages.photoRetentionJours()));
     }
 
     /* ---------------------------------------------------------------- employes */
@@ -102,8 +125,26 @@ public class RhRessource {
     @Path("employes")
     public Response employes(@QueryParam("query") String query,
             @DefaultValue("false") @QueryParam("inactifs") boolean inactifs) {
-        Response r = controle();
-        return r != null ? r : ok(service.employes(query, inactifs));
+        Response r = controlePointer();
+        if (r != null) {
+            return r;
+        }
+        JSONObject o = service.employes(query, inactifs);
+        if (!autorise(PRIVILEGE)) {
+            /* demande 52 : le terminal ne lit que l'identite utile au pointage */
+            org.json.JSONArray lu = o.optJSONArray("data");
+            org.json.JSONArray reduit = new org.json.JSONArray();
+            for (int i = 0; lu != null && i < lu.length(); i++) {
+                JSONObject e = lu.getJSONObject(i);
+                JSONObject x = new JSONObject();
+                for (String k : new String[] { "id", "matricule", "nom", "prenoms", "badge", "statut" }) {
+                    x.put(k, e.opt(k));
+                }
+                reduit.put(x);
+            }
+            o.put("data", reduit);
+        }
+        return ok(o);
     }
 
     /** Cree et rattache les employes des utilisateurs actifs (retours du 07/10), appele a l'ouverture de l'ecran. */
@@ -392,7 +433,7 @@ public class RhRessource {
     @Path("pointages")
     @Consumes(MediaType.APPLICATION_JSON)
     public Response saisirPointage(String c) {
-        Response r = controle();
+        Response r = controlePointer();
         return r != null ? r : ok(pointages.saisirPointage(corps(c), utilisateur()));
     }
 
@@ -405,7 +446,7 @@ public class RhRessource {
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     @SuppressWarnings("unchecked")
     public Response envoyerPhoto(@PathParam("id") String id) {
-        Response r = controle();
+        Response r = controlePointer();
         if (r != null) {
             return r;
         }
@@ -598,6 +639,48 @@ public class RhRessource {
         return r != null ? r : ok(mobile.codePointage());
     }
 
+    /* ------------------------------------- demande 51 : pointer avec la session de l'application, sans P_SM_RH */
+
+    private Response sansSession() {
+        return utilisateur() == null ? Response.status(Response.Status.UNAUTHORIZED)
+                .entity(new JSONObject().put("success", false).put("msg", Constant.DECONNECTED_MESSAGE).toString())
+                .build() : null;
+    }
+
+    /** Le compte DE LA SESSION et son employe (meme corps que v1/mobile/moi) ; aucun identifiant n'est lu. */
+    @GET
+    @Path("moi")
+    public Response moi() {
+        Response r = sansSession();
+        return r != null ? r : ok(mobile.moi(utilisateur()));
+    }
+
+    /**
+     * {sens?, code?, latitude?, longitude?, precision?} : memes controles que v1/mobile/pointages (QR du moment,
+     * position, moins de 2 minutes, sens automatique). Le pointage va TOUJOURS a l'employe de la session : un employeId
+     * ou un login dans le corps est ignore. Meme X-Client-Ref = meme reponse, un seul pointage.
+     */
+    @POST
+    @Path("moi/pointages")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Response pointerMoi(String c, @javax.ws.rs.HeaderParam("X-Client-Ref") String ref) {
+        Response r = sansSession();
+        if (r != null) {
+            return r;
+        }
+        TUser u = utilisateur();
+        return Response.ok(clientRef.uneFois(ref, rest.service.mobile.MobileClientRefService.TYPE_POINTAGE_SESSION,
+                () -> mobile.pointer(u, null, corps(c)), o -> o.optString("heure", null))).build();
+    }
+
+    /** Mes pointages des 16 dernieres heures. */
+    @GET
+    @Path("moi/pointages")
+    public Response mesPointages() {
+        Response r = sansSession();
+        return r != null ? r : ok(mobile.mesPointages(utilisateur()));
+    }
+
     @GET
     @Path("mobile/terminaux")
     public Response terminaux() {
@@ -652,7 +735,7 @@ public class RhRessource {
     @GET
     @Path("empreintes")
     public Response lireEmpreintes(@QueryParam("depuis") String depuis, @QueryParam("format") String format) {
-        Response r = controle();
+        Response r = controlePointer();
         return r != null ? r : Response.ok(empreintes.lire(depuis, format, utilisateur()))
                 .header("Cache-Control", "no-store").build();
     }

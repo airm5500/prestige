@@ -18,6 +18,8 @@ const BASE = process.env.DB_TEST || 'capitale';
 const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const exec = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
 const droitRh = require('../support/privilege-essai')(q, exec, 'admin', 'P_SM_RH');
+/* demande 52 : P_RH_POINTER ouvre aussi l'envoi de la photo (terminal) ; « sans droit RH » = sans les deux */
+const droitPointer = require('../support/privilege-essai')(q, exec, 'admin', 'P_RH_POINTER');
 const ID1 = 'e2e-photo-0001-aaaa', ID2 = 'e2e-photo-0002-bbbb', ID3 = 'e2e-photo-0003-cccc';
 
 function retirer() {
@@ -25,7 +27,7 @@ function retirer() {
 }
 
 (async () => {
-  droitRh.remettre();
+  droitRh.remettre(); droitPointer.remettre();
   retirer();
   const EMP = q("SELECT id FROM t_employe ORDER BY id LIMIT 1");
   const jour = q("SELECT CURDATE() - INTERVAL 1 DAY");
@@ -87,14 +89,14 @@ function retirer() {
     const droits = await p.evaluate(async () => (await fetch('../api/v1/rh/droits')).json());
     ok('Droits RH : durée de conservation (30 jours)', droits.photoRetentionJours === 30, JSON.stringify(droits));
 
-    droitRh.retirer();
+    droitRh.retirer(); droitPointer.retirer();
     await p.context().close();
     await connecter();
     const refus = await lirePhoto(ID1);
     ok('Sans le droit P_SM_RH : lecture refusée (403), aucune image', refus.s === 403 && !/image/.test(refus.type || ''), JSON.stringify(refus));
     const refusEnvoi = await envoyer(ID1, { l: 320, h: 240 });
-    ok('Sans le droit P_SM_RH : envoi refusé, photo inchangée', refusEnvoi.j.success === false && q("SELECT largeur FROM t_pointage_photo WHERE pointage_id = '" + ID1 + "'") === '480', JSON.stringify(refusEnvoi.j));
-    droitRh.remettre();
+    ok('Sans P_SM_RH ni P_RH_POINTER : envoi refusé, photo inchangée', refusEnvoi.j.success === false && q("SELECT largeur FROM t_pointage_photo WHERE pointage_id = '" + ID1 + "'") === '480', JSON.stringify(refusEnvoi.j));
+    droitRh.remettre(); droitPointer.remettre();
     await p.context().close();
     await connecter();
     const sup = await p.evaluate(async (id) => (await fetch('../api/v1/rh/pointages/' + id, { method: 'DELETE' })).json(), ID1);
@@ -102,7 +104,7 @@ function retirer() {
   } catch (e) {
     ok('Parcours sans exception', false, e.message);
   } finally {
-    droitRh.remettre();
+    droitRh.remettre(); droitPointer.remettre();
     await b.close();
     retirer();
     ok('Pointages du test retirés', q("SELECT COUNT(*) FROM t_pointage WHERE id LIKE 'e2e-photo-%' OR motif LIKE 'E2E-PHOTO%'") === '0' && q("SELECT COUNT(*) FROM t_pointage_photo WHERE pointage_id LIKE 'e2e-photo-%'") === '0');

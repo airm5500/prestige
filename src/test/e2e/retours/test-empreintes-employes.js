@@ -25,6 +25,8 @@ const BASE = process.env.DB_TEST || 'capitale';
 const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const exec = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
 const rh = privilegeEssai(q, exec, 'admin', 'P_SM_RH');
+/* demande 52 : P_RH_POINTER ouvre aussi la lecture des gabarits (terminal) ; « sans droit RH » = sans les deux */
+const pointer = privilegeEssai(q, exec, 'admin', 'P_RH_POINTER');
 const LOG = '/opt/payara5/glassfish/domains/domain1/logs/server.log';
 const PARAM = q("SELECT IFNULL((SELECT str_VALUE FROM t_parameters WHERE str_KEY = 'KEY_EMPREINTES_PARTAGEES'), 'ABSENT')");
 const poser = (v) => exec("UPDATE t_parameters SET str_VALUE = '" + v + "' WHERE str_KEY = 'KEY_EMPREINTES_PARTAGEES'");
@@ -34,7 +36,7 @@ function nettoyer() {
 }
 
 (async () => {
-  rh.remettre();
+  rh.remettre(); pointer.remettre();
   nettoyer();
   ok('Paramètre présent après migration (désactivé par défaut)', PARAM !== 'ABSENT', PARAM);
   exec("INSERT INTO t_employe (id, matricule, nom, prenoms, statut, created_at) VALUES"
@@ -91,14 +93,14 @@ function nettoyer() {
     const ajoutLog = fs.existsSync(LOG) ? fs.readFileSync(LOG).slice(tailleLogAvant).toString('utf8') : '';
     ok('Journal du serveur : aucun gabarit', [g1, g2, g3].every((g) => ajoutLog.indexOf(g.toString('base64').slice(0, 40)) < 0));
 
-    rh.retirer();
+    rh.retirer(); pointer.retirer();
     const p2 = await session();
     const refus = await appel(p2, 'GET', '../api/v1/rh/empreintes?depuis=' + T0 + '&format=SUNMI_A400_RAW');
-    ok('Sans le droit RH : refus, aucun gabarit', refus.success === false && !refus.modeles, JSON.stringify(refus).slice(0, 160));
+    ok('Sans P_SM_RH ni P_RH_POINTER : refus, aucun gabarit', refus.success === false && !refus.modeles, JSON.stringify(refus).slice(0, 160));
   } catch (e) {
     ok('Parcours sans exception', false, e.stack);
   } finally {
-    rh.remettre();
+    rh.remettre(); pointer.remettre();
     await b.close();
     nettoyer();
     if (PARAM !== 'ABSENT') { poser(PARAM); }

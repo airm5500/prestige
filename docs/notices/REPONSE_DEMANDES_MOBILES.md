@@ -36,6 +36,60 @@ déconnecter) ; refus métier → 200 `{success:false, code, msg}` ou le code HT
 
 ---
 
+## 00. Décisions du § 1 (15/10) et demandes 51, 52 : ce qui est fait (19/10)
+
+Réponse à `TRANSMISSION_SERVEUR_2026-10-15.md` (§ 1, décisions du pharmacien, et § 2, demandes 51 et 52).
+
+| N° | Décision | Ce que fait le serveur | Commit |
+|---|---|---|---|
+| 12 | Refuser la validation tant que des lignes ne sont pas saisies, produits nommés | `PUT v1/commande/validerbl/{id}` : une ligne commencée dont les lots n'atteignent pas la quantité commandée est refusée (comme avant), maintenant avec `code:"PRODUITS_NON_SAISIS"`, `produits:[…]` et `msg:"Produits non saisis : CIP NOM (3/10), …"`. Avec `?avecEcart=true`, les lignes sans aucun lot sont aussi refusées. Sans `avecEcart`, une ligne sans lot reste entrée à la quantité commandée (poste inchangé). | `6553daf2` |
+| 12 | `P_BL_MOBILE_SCANNER` à tous les profils du menu BL | Droit créé (migration 7.2.3) et vérifié sur `add-lot` et `creerbl` (403 `interdit`). Donné à tous les rôles qui ont un des menus qui appellent ces routes (Gestion des entrées, Commande en cours, Fiche article, État stock, entrée en stock) et aux profils pharmacien et administrateur : rien n'est bloqué au poste. Lu par `GET v1/user/droits`. | `6553daf2` |
+| 17 D7 | Une ligne par produit, motif et lot, avec un message | `retourfournisseur/add-item` : même produit, même motif et même lot → la quantité s'ajoute ; autre motif → nouvelle ligne et `data.message` = « Vous avez ajouté ce produit avec un motif différent » (aussi en bandeau à l'écran du poste). Le total du produit, toutes lignes, ne dépasse jamais la quantité reçue ni le stock. | `a7e60ce7` |
+| 36 D18 | `SERIE_DEJA_CONSOMMEE` « Boîte déjà scannée » | Déjà fait le 15/10 (migration 7.1.3, `serie` et `gtin` sur `add-lot`). | `faa744b3` |
+| 24 | `GET pilotage/controler` : laisser tel quel | Rien de changé. | — |
+| 32 | Choix multiples : CA par emplacement | Déjà fait (« id1,id2 » sur le CA par emplacement / famille). | — |
+| 38 | Paginer le Suivi des ajustements | `GET v1/ajustement` pagine déjà côté serveur (`start`, `limit`, `total`) : l'application peut demander les pages suivantes. | — |
+| 38 | « Racheté » marqué à la main | `POST v1/rappels-habitude/marquer?statut=ACHETE` accepté (avant : « Statut inconnu »). | `8213f4af` |
+| 38 | Actualisation des rappels à la demande, avec un bouton | La route existe : `POST v1/rappels-habitude/actualiser` (un calcul à la fois). Rien de programmé. | — |
+| 39 | Garder quelques minutes le calcul d'une garde | `GET v1/gardes/{id}/rapport` garde le calcul 5 minutes pour les pages suivantes (0,8 s → 0,02 s, même contenu) ; une garde modifiée est recalculée aussitôt. | `8213f4af` |
+| 2 | Droit des commandes sur `POST pharma/reponses` | Vérifié : sans droit des commandes, 403 `interdit`. | `8213f4af` |
+| 10 | `droits.creerInventaire` décide | Déjà le cas (`user/auth` et `user/droits`). | — |
+| 34 | Accord pour les essais nominatifs | Noté ; la route agrégée n'est plus demandée. | — |
+
+### Demande 51 : pointer avec la session de l'application
+
+Routes sous la session habituelle (cookie), **sans `P_SM_RH`** :
+
+- `GET v1/rh/moi` → même corps que `GET v1/mobile/moi`, pour l'utilisateur **de la session** ; 401 sans session.
+- `POST v1/rh/moi/pointages` `{sens?, code?, latitude?, longitude?, precision?}` + `X-Client-Ref` → même réponse que
+  `POST v1/mobile/pointages`. Mêmes contrôles (code QR du moment si `KEY_RH_MOBILE_QR`, position si
+  `KEY_RH_MOBILE_GPS`, refus à moins de 2 minutes, sens automatique, heure du serveur, employé actif rattaché,
+  `KEY_RH_MOBILE_POINTAGE`). Source `MOBILE`, terminal vide. Un `employeId` ou un `login` dans le corps est
+  **ignoré** : le pointage va toujours à l'employé de la session. Même `X-Client-Ref` → même réponse, un seul
+  pointage ; un refus ne garde pas la clé.
+- `GET v1/rh/moi/pointages` → mes pointages des 16 dernières heures.
+
+Note : les paramètres de l'officine s'appellent `KEY_RH_MOBILE_*` (et non `KEY_MOBILE_*` comme écrit dans la demande).
+
+### Demande 52 : droit `P_RH_POINTER`
+
+Droit créé (migration 7.2.4, « Pointer au terminal de pointage »), donné aux profils pharmacien et administrateur, à
+attribuer au rôle du compte « terminal ».
+
+- Ouvert par `P_RH_POINTER` **ou** `P_SM_RH` : `GET v1/rh/droits`, `GET v1/rh/employes`, `POST v1/rh/pointages`,
+  `POST v1/rh/pointages/{id}/photo`, `GET v1/rh/empreintes`.
+- `GET v1/rh/droits` → `{success:true, pointer:true, gerer:<P_SM_RH>, valider, photoRetentionJours}` ; sans aucun des
+  deux droits : `{success:false, msg}` comme avant.
+- `GET v1/rh/employes` sans `P_SM_RH` : seulement `id`, `matricule`, `nom`, `prenoms`, `badge`, `statut`.
+- Toute autre route `v1/rh` avec `P_RH_POINTER` seul : 403 `{success:false, interdit:true, msg}`.
+- Un compte qui n'a que `P_RH_POINTER` n'ouvre aucun menu du poste : il se connecte par `POST v1/user/auth`, comme
+  l'application.
+
+Tests : `test-decision-12-reception-bl.js`, `test-decision-17-d7-retour-motif.js` (dont l'écran du poste),
+`test-decisions-2-38.js`, `test-decision-39-cache-garde.js`, `test-demandes-51-52-pointage.js`.
+
+---
+
 ## 0. Sécurité des ventes (19/10) : ce que l'application de vente doit faire
 
 Cas d'officine du 17/10 : un stagiaire au profil « Pre-vente » seule a terminé une vente, et l'application mobile
