@@ -296,12 +296,18 @@ public class PilotageAgregats {
                 base.put(t.get("mois", String.class),
                         new double[] { entier(t.get("nbVentes")), nombre(t.get("caTTC")) });
             }
+            Map<String, double[]> achats = new LinkedHashMap<>();
+            for (Tuple t : lire(PilotageSql.empreinteAchatsParMois(), debut, fin)) {
+                achats.put(t.get("mois", String.class),
+                        new double[] { entier(t.get("nbBons")), nombre(t.get("achatTTC")) });
+            }
             for (Map.Entry<String, Agregat> entree : connus.entrySet()) {
                 double[] reel = base.get(entree.getKey());
                 Agregat a = entree.getValue();
                 double ventes = reel == null ? 0 : reel[0];
                 double caTTC = reel == null ? 0 : reel[1];
-                if (a.nbVentes != (int) ventes || Math.abs(a.caTTC - caTTC) >= 1d) {
+                if (a.nbVentes != (int) ventes || Math.abs(a.caTTC - caTTC) >= 1d
+                        || achatsDivergents(a, achats.get(entree.getKey()))) {
                     divergents.add(entree.getKey());
                 }
             }
@@ -634,6 +640,13 @@ public class PilotageAgregats {
         cumul.sortiesStock += j.sortiesStock;
     }
 
+    /** Nombre de bons ou montant des achats d'un agregat qui ne correspondent plus a la base (sans bon : 0, 0). */
+    static boolean achatsDivergents(Agregat a, double[] reel) {
+        double bons = reel == null ? 0 : reel[0];
+        double achatTTC = reel == null ? 0 : reel[1];
+        return a.nbBons != (int) bons || Math.abs(a.achatTTC - achatTTC) >= 1d;
+    }
+
     /** Les journees dont l'agregat ne correspond plus a ce que dit la base - meme controle que pour les mois. */
     private java.util.Set<String> journeesDivergentes(LocalDate debut, LocalDate finExclue,
             Map<String, Agregat> journees) {
@@ -649,12 +662,20 @@ public class PilotageAgregats {
                         : String.valueOf(jour);
                 base.put(cle, new double[] { entier(t.get("nbVentes")), nombre(t.get("caTTC")) });
             }
+            Map<String, double[]> achats = new LinkedHashMap<>();
+            for (Tuple t : lire(PilotageSql.empreinteAchatsParJour(), debut, finExclue)) {
+                Object jour = t.get("jour");
+                String cle = jour instanceof java.sql.Date ? ((java.sql.Date) jour).toLocalDate().toString()
+                        : String.valueOf(jour);
+                achats.put(cle, new double[] { entier(t.get("nbBons")), nombre(t.get("achatTTC")) });
+            }
             for (Map.Entry<String, Agregat> entree : journees.entrySet()) {
                 double[] reel = base.get(entree.getKey());
                 Agregat a = entree.getValue();
                 double ventes = reel == null ? 0 : reel[0];
                 double caTTC = reel == null ? 0 : reel[1];
-                if (a.nbVentes != (int) ventes || Math.abs(a.caTTC - caTTC) >= 1d) {
+                if (a.nbVentes != (int) ventes || Math.abs(a.caTTC - caTTC) >= 1d
+                        || achatsDivergents(a, achats.get(entree.getKey()))) {
                     divergentes.add(entree.getKey());
                 }
             }

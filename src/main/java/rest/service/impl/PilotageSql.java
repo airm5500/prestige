@@ -480,6 +480,22 @@ public final class PilotageSql {
                 + " WHERE" + VENTES_OU + " GROUP BY jour ORDER BY jour ASC";
     }
 
+    /*
+     * Empreinte des ACHATS, par mois puis par journee (19/10). Le controle ne regardait que les ventes : un bon de
+     * livraison corrige apres coup sur une journee close du mois en cours n'etait jamais vu, et « Recalculer » ne le
+     * corrigeait pas non plus, puisque le mois en cours est refait a partir de ses journees. Memes conditions que
+     * {@link #totauxAchats()}, qui calcule les agregats.
+     */
+    public static String empreinteAchatsParMois() {
+        return "SELECT DATE_FORMAT(b.dt_UPDATED, '%Y-%m') AS mois, COUNT(*) AS nbBons, SUM(b.int_HTTC) AS achatTTC"
+                + " FROM t_bon_livraison b WHERE" + ACHATS_OU + "GROUP BY mois";
+    }
+
+    public static String empreinteAchatsParJour() {
+        return "SELECT DATE(b.dt_UPDATED) AS jour, COUNT(*) AS nbBons, SUM(b.int_HTTC) AS achatTTC"
+                + " FROM t_bon_livraison b WHERE" + ACHATS_OU + "GROUP BY jour";
+    }
+
     public static String totalAnnulations() {
         return "SELECT COUNT(*) AS nbAnnulees, COALESCE(SUM(p.int_PRICE), 0) AS montantAnnule"
                 + " FROM t_preenregistrement p" + " WHERE" + ANNULATIONS_OU;
