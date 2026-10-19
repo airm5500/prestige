@@ -99,6 +99,8 @@ public final class Constant {
     public static final String P_BL_MOBILE_SCANNER = "P_BL_MOBILE_SCANNER";
     public static final String LIBELLE_SCANNER_RECEPTION_BL = "Scanner la réception des BL";
     public static final String CODE_PRODUITS_NON_SAISIS = "PRODUITS_NON_SAISIS";
+    /** decision 17 D7 du pharmacien */
+    public static final String MSG_RETOUR_MOTIF_DIFFERENT = "Vous avez ajouté ce produit avec un motif différent";
     public static final String LIBELLE_ACTIVITE_EQUIPES = "Activité des équipes";
     /** Periode la plus longue acceptee par le journal et les analyses (en jours). */
     public static final int ACTIVITE_PERIODE_MAX_JOURS = 366;

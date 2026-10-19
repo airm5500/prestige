@@ -917,6 +917,10 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.action.add', {
                 } else {
                     let data = result.data;
                     Me.current = data.lgRETOURFRSID;
+                    /* decision 17 D7 : meme produit, autre motif -> nouvelle ligne, signalee sans bloquer */
+                    if (data.message && window.PrestigeToast) {
+                        PrestigeToast.afficher(data.message, {niveau: 'alerte'});
+                    }
 
                     Ext.getCmp('lg_BON_LIVRAISON_ID').disable();
                     Ext.getCmp('str_NAME').setValue("");

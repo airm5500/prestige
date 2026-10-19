@@ -98,14 +98,26 @@ public class RetourFournisseurServiceImpl implements RetourFournisseurService {
     @Override
     public RetourDetailsDTO addItem(RetourDetailsDTO params) {
         TRetourFournisseur fournisseur = getEntityManager().find(TRetourFournisseur.class, params.getLgRETOURFRSID());
-        TRetourFournisseurDetail item = getRetourFournisseurDetail(params.getLgRETOURFRSID(), params.getProduitId());
+        /*
+         * Decision 17 D7 du pharmacien : une ligne par produit, motif et lot. Meme motif et meme lot : la quantite
+         * s'ajoute a la ligne (comme avant) ; autre motif : nouvelle ligne, avec un message. Le total du produit sur le
+         * retour ne depasse jamais la quantite recue.
+         */
+        List<TRetourFournisseurDetail> lignes = lignesDuProduit(params.getLgRETOURFRSID(), params.getProduitId());
+        TRetourFournisseurDetail item = lignes.stream().filter(l -> memeMotifEtLot(l, params)).findFirst().orElse(null);
         if (item == null) {
+            int dejaRetourne = lignes.stream().mapToInt(l -> Objects.requireNonNullElse(l.getIntNUMBERRETURN(), 0))
+                    .sum();
             item = newItem(params, fournisseur.getLgBONLIVRAISONID().getStrREFLIVRAISON(),
-                    fournisseur.getLgUSERID().getLgEMPLACEMENTID().getLgEMPLACEMENTID());
+                    fournisseur.getLgUSERID().getLgEMPLACEMENTID().getLgEMPLACEMENTID(), dejaRetourne);
             if (item != null) {
                 item.setLgRETOURFRSID(fournisseur);
                 getEntityManager().persist(item);
-                return new RetourDetailsDTO(item);
+                RetourDetailsDTO dto = new RetourDetailsDTO(item);
+                if (lignes.stream().anyMatch(l -> !memeMotif(l, params))) {
+                    dto.setMessage(Constant.MSG_RETOUR_MOTIF_DIFFERENT);
+                }
+                return dto;
             }
             return null;
 
@@ -121,12 +133,15 @@ public class RetourFournisseurServiceImpl implements RetourFournisseurService {
 
     private boolean updateItem(TRetourFournisseurDetail item, RetourDetailsDTO params) {
         TBonLivraisonDetail bonLivraisonDetail = item.getBonLivraisonDetail();
-        if (item.getIntNUMBERRETURN() + params.getIntNUMBERRETURN() > bonLivraisonDetail.getIntQTERECUE()) {
+        /* toutes les lignes du produit sur ce retour (une par motif et lot depuis la decision 17 D7) */
+        int total = lignesDuProduit(item.getLgRETOURFRSID().getLgRETOURFRSID(), item.getLgFAMILLEID().getLgFAMILLEID())
+                .stream().mapToInt(l -> Objects.requireNonNullElse(l.getIntNUMBERRETURN(), 0)).sum()
+                + params.getIntNUMBERRETURN();
+        if (total > bonLivraisonDetail.getIntQTERECUE()) {
             return false;
         }
         controlerStock(item.getLgFAMILLEID().getLgFAMILLEID(),
-                item.getLgRETOURFRSID().getLgUSERID().getLgEMPLACEMENTID().getLgEMPLACEMENTID(),
-                item.getIntNUMBERRETURN() + params.getIntNUMBERRETURN());
+                item.getLgRETOURFRSID().getLgUSERID().getLgEMPLACEMENTID().getLgEMPLACEMENTID(), total);
         item.setIntNUMBERRETURN(item.getIntNUMBERRETURN() + params.getIntNUMBERRETURN());
         item.setDtUPDATED(new Date());
         getEntityManager().merge(item);
@@ -213,15 +228,24 @@ public class RetourFournisseurServiceImpl implements RetourFournisseurService {
     }
 
     private TRetourFournisseurDetail newItem(RetourDetailsDTO item, String bonId, String emplacementId) {
+        return newItem(item, bonId, emplacementId, 0);
+    }
+
+    /**
+     * @param dejaRetourne
+     *            boites du meme produit deja sur d'autres lignes de ce retour (autre motif ou lot)
+     */
+    private TRetourFournisseurDetail newItem(RetourDetailsDTO item, String bonId, String emplacementId,
+            int dejaRetourne) {
         TBonLivraisonDetail bonLivraisonDetail = getTBonLivraisonDetailLast(bonId, item.getProduitId());
         if (bonLivraisonDetail == null) {
             throw new RefusMetier("Ce produit n'est pas sur le BL n° " + bonId + ".");
         }
-        if (item.getIntNUMBERRETURN() > bonLivraisonDetail.getIntQTERECUE()) {
-            throw new RefusMetier("Quantité à retourner (" + item.getIntNUMBERRETURN()
+        if (dejaRetourne + item.getIntNUMBERRETURN() > bonLivraisonDetail.getIntQTERECUE()) {
+            throw new RefusMetier("Quantité à retourner (" + (dejaRetourne + item.getIntNUMBERRETURN())
                     + ") supérieure à la quantité reçue sur ce BL (" + bonLivraisonDetail.getIntQTERECUE() + ").");
         }
-        controlerStock(item.getProduitId(), emplacementId, item.getIntNUMBERRETURN());
+        controlerStock(item.getProduitId(), emplacementId, dejaRetourne + item.getIntNUMBERRETURN());
         TRetourFournisseurDetail oTRetourFournisseurDetail = new TRetourFournisseurDetail(UUID.randomUUID().toString());
         oTRetourFournisseurDetail.setIntNUMBERRETURN(item.getIntNUMBERRETURN());
         oTRetourFournisseurDetail.setIntNUMBERANSWER(0);
@@ -271,15 +295,28 @@ public class RetourFournisseurServiceImpl implements RetourFournisseurService {
         return new TMotifRetour(id);
     }
 
-    private TRetourFournisseurDetail getRetourFournisseurDetail(String lgRetourId, String lgFAMILLEID) {
-        try {
-            TypedQuery<TRetourFournisseurDetail> qry = getEntityManager().createQuery(
-                    "SELECT t FROM TRetourFournisseurDetail t WHERE t.lgRETOURFRSID.lgRETOURFRSID = ?1  AND t.lgFAMILLEID.lgFAMILLEID = ?2",
-                    TRetourFournisseurDetail.class).setParameter(1, lgRetourId).setParameter(2, lgFAMILLEID);
-            return qry.getSingleResult();
-        } catch (Exception e) {
-            return null;
+    private List<TRetourFournisseurDetail> lignesDuProduit(String lgRetourId, String lgFAMILLEID) {
+        return getEntityManager().createQuery(
+                "SELECT t FROM TRetourFournisseurDetail t WHERE t.lgRETOURFRSID.lgRETOURFRSID = ?1 AND t.lgFAMILLEID.lgFAMILLEID = ?2"
+                        + " ORDER BY t.dtCREATED",
+                TRetourFournisseurDetail.class).setParameter(1, lgRetourId).setParameter(2, lgFAMILLEID)
+                .getResultList();
+    }
+
+    private static boolean memeMotif(TRetourFournisseurDetail l, RetourDetailsDTO p) {
+        String motif = l.getLgMOTIFRETOUR() == null ? null : l.getLgMOTIFRETOUR().getLgMOTIFRETOUR();
+        return Objects.equals(StringUtils.trimToNull(motif), StringUtils.trimToNull(p.getLgMOTIFRETOUR()));
+    }
+
+    /** meme motif et meme lot (identifiant du lot, a defaut son numero ; sans lot des deux cotes : meme lot) */
+    private static boolean memeMotifEtLot(TRetourFournisseurDetail l, RetourDetailsDTO p) {
+        if (!memeMotif(l, p)) {
+            return false;
         }
+        if (StringUtils.isNotBlank(p.getLotId())) {
+            return p.getLotId().equals(l.getLgLOTID());
+        }
+        return Objects.equals(StringUtils.trimToNull(p.getNumLot()), StringUtils.trimToNull(l.getNumLot()));
     }
 
     @Override
