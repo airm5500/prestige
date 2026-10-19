@@ -405,14 +405,10 @@ Ext.define('testextjs.view.commandemanagement.order.OrderManager', {
 
         const rec = grid.getStore().getAt(rowIndex);
 
-        Ext.MessageBox.confirm('Message',
-                'Imprimer la commande en cours?',
-                function (btn) {
-                    if (btn === 'yes') {
+        PrestigeConfirmation.ligne('Message', 'Imprimer la commande en cours?', function () {
                         Me.onPdfClick(rec);
 
-                    }
-                });
+                    });
 
     },
     onPdfClick: function (rec) {
@@ -528,15 +524,11 @@ Ext.define('testextjs.view.commandemanagement.order.OrderManager', {
     },
 
     onbtnexport: function (grid, rowIndex) {
-        Ext.MessageBox.confirm('Message',
-                'Voulez-vous generer le fichier CSV de la commande?',
-                function (btn) {
-                    if (btn === 'yes') {
+        PrestigeConfirmation.ligne('Message', 'Voulez-vous generer le fichier CSV de la commande?', function () {
                         const rec = grid.getStore().getAt(rowIndex);
                         window.location = '../api/v1/commande/export-csv?id=' + rec.get('lg_ORDER_ID');
 
-                    }
-                });
+                    });
     },
     onReconcilierClick: function (grid, rowIndex) {
         const rec = grid.getStore().getAt(rowIndex);
@@ -684,17 +676,11 @@ Ext.define('testextjs.view.commandemanagement.order.OrderManager', {
     },
     
     onbtnExportExcel: function (grid, rowIndex) {
-    Ext.MessageBox.confirm(
-        'Export Excel',
-        'Voulez-vous générer le fichier Excel (détail des produits) de la commande ?',
-        function (btn) {
-            if (btn === 'yes') {
+    PrestigeConfirmation.ligne('Export Excel', 'Voulez-vous générer le fichier Excel (détail des produits) de la commande ?', function () {
                 const rec = grid.getStore().getAt(rowIndex);
                 window.location =
                     '../api/v1/commande/export-excel-details?id=' + rec.get('lg_ORDER_ID');
-            }
-        }
-    );
+            });
 },
 
 onCloneCommandeClick: function (grid, rowIndex) {

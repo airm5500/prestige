@@ -427,10 +427,7 @@ Ext.define('testextjs.view.configmanagement.zonegeographique.ZoneGeographiqueMan
     },
 
     onRemoveClick: function (grid, rowIndex) {
-        Ext.MessageBox.confirm('Message',
-                'confirmer la suppression',
-                function (btn) {
-                    if (btn === 'yes') {
+        PrestigeConfirmation.ligne('Message', 'confirmer la suppression', function () {
                         var rec = grid.getStore().getAt(rowIndex);
                         testextjs.app.getController('App').ShowWaitingProcess();
                         Ext.Ajax.request({
@@ -463,8 +460,7 @@ Ext.define('testextjs.view.configmanagement.zonegeographique.ZoneGeographiqueMan
                             }
                         });
                         return;
-                    }
-                });
+                    });
 
 
     },
@@ -480,11 +476,8 @@ Ext.define('testextjs.view.configmanagement.zonegeographique.ZoneGeographiqueMan
         var enDesactives = Ext.getCmp('BT_ZONE_GEO_VOIR_DESACTIVES')
                 && Ext.getCmp('BT_ZONE_GEO_VOIR_DESACTIVES').pressed;
         var actif = enDesactives ? true : false;
-        Ext.MessageBox.confirm('Message',
-                (actif ? 'R&eacute;activer cet emplacement ?'
-                        : 'D&eacute;sactiver cet emplacement ? Il n\'appara&icirc;tra plus dans les listes.'),
-                function (btn) {
-                    if (btn === 'yes') {
+        PrestigeConfirmation.ligne('Message', (actif ? 'R&eacute;activer cet emplacement ?'
+                        : 'D&eacute;sactiver cet emplacement ? Il n\'appara&icirc;tra plus dans les listes.'), function () {
                         var rec = grid.getStore().getAt(rowIndex);
                         testextjs.app.getController('App').ShowWaitingProcess();
                         Ext.Ajax.request({
@@ -510,8 +503,7 @@ Ext.define('testextjs.view.configmanagement.zonegeographique.ZoneGeographiqueMan
                                 Ext.MessageBox.alert('Error Message', response.responseText);
                             }
                         });
-                    }
-                });
+                    });
     },
     onToggleMasseClick: function () {
         var me = this;

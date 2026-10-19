@@ -234,10 +234,7 @@ Ext.define('testextjs.controller.VenteFinisCtr', {
     onSuggestion: function (view, rowIndex, colIndex, item, e, rec, row) {
         const me = this;
         if (rec.get('intPRICE') > 0 && !rec.get('cancel')) {
-            Ext.MessageBox.confirm('Message',
-                    'Voulez-vous envoyer la vente ' + rec.get('strREF') + ' en suggestion',
-                    function (btn) {
-                        if (btn === 'yes') {
+            PrestigeConfirmation.ligne('Message', 'Voulez-vous envoyer la vente ' + rec.get('strREF') + ' en suggestion', function () {
 
                             Ext.Ajax.request({
                                 timeout: 240000,
@@ -261,8 +258,7 @@ Ext.define('testextjs.controller.VenteFinisCtr', {
                                     Ext.MessageBox.alert('Error Message', response.responseText);
                                 }
                             });
-                        }
-                    });
+                        });
         }
 
     },

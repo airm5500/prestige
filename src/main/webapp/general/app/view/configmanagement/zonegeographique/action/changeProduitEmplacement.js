@@ -264,12 +264,7 @@ Ext.define('testextjs.view.configmanagement.zonegeographique.action.changeProdui
 
     },
     onRemoveClick: function(grid, rowIndex) {
-        Ext.MessageBox.confirm('Message',
-                'Confirmer la suppresssion',
-                function(btn) {
-
-
-                    if (btn == 'yes') {
+        PrestigeConfirmation.ligne('Message', 'Confirmer la suppresssion', function () {
                         var rec = grid.getStore().getAt(rowIndex);
                         Ext.Ajax.request({
                             url: url_services_transaction_userphone + 'delete',
@@ -297,8 +292,7 @@ Ext.define('testextjs.view.configmanagement.zonegeographique.action.changeProdui
                             }
                         });
                         return;
-                    }
-                });
+                    });
 
 
     },

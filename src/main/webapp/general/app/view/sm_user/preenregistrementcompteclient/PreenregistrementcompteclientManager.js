@@ -204,10 +204,7 @@ Ext.define('testextjs.view.sm_user.preenregistrementcompteclient.Preenregistreme
 
 
     onRemoveClick: function(grid, rowIndex){
-        Ext.MessageBox.confirm('Message',
-            'confirm la suppresssion',
-            function(btn) {
-                if (btn === 'yes') {
+        PrestigeConfirmation.ligne('Message', 'confirm la suppresssion', function () {
                     var rec = grid.getStore().getAt(rowIndex);
                     Ext.Ajax.request({
                         url: url_services_transaction_preenregistrementcompteclient+'delete',
@@ -235,8 +232,7 @@ Ext.define('testextjs.view.sm_user.preenregistrementcompteclient.Preenregistreme
                         }
                     });
                     return;
-                }
-            });
+                });
 
 
     },

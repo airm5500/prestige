@@ -296,24 +296,17 @@ Ext.define('testextjs.view.stockmanagement.etiquette.EtiquetteManager', {
 
     },
     /*onEditClick: function (grid, rowIndex) {
-     Ext.MessageBox.confirm('Message',
-     'Confirmer l\'edition de cette etiquette',
-     function (btn) {
-     if (btn === 'yes') {
+     PrestigeConfirmation.ligne('Message', 'Confirmer l\'edition de cette etiquette', function () {
      var rec = grid.getStore().getAt(rowIndex);
      var lg_ETIQUETTE_ID = rec.get('lg_ETIQUETTE_ID');
      onPdfClickEtiquette(lg_ETIQUETTE_ID);
      return;
-     }
      });
      
      
      },*/
     onDeleteClick: function(grid, rowIndex) {
-        Ext.MessageBox.confirm('Message',
-                'Confirmer la suppression de l\'etiquette',
-                function(btn) {
-                    if (btn === 'yes') {
+        PrestigeConfirmation.ligne('Message', 'Confirmer la suppression de l\'etiquette', function () {
                         var rec = grid.getStore().getAt(rowIndex);
                         Ext.Ajax.request({
                             /* L'adresse etait construite en collant 'delete' a un nom de fichier, sans le
@@ -343,8 +336,7 @@ Ext.define('testextjs.view.stockmanagement.etiquette.EtiquetteManager', {
                             }
                         });
                         return;
-                    }
-                });
+                    });
 
 
     },

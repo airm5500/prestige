@@ -299,10 +299,7 @@ Ext.define('testextjs.view.sm_user.caisse.CloturerventeManager', {
     },
 
     onRemoveClick: function (grid, rowIndex) {
-        Ext.MessageBox.confirm('Message',
-                'Confirmer la suppresssion',
-                function (btn) {
-                    if (btn === 'yes') {
+        PrestigeConfirmation.ligne('Message', 'Confirmer la suppresssion', function () {
                         var rec = grid.getStore().getAt(rowIndex);
                         Ext.Ajax.request({
                             url: url_services_transaction_preenregistrement_cloturer + 'deleteprevente',
@@ -330,18 +327,14 @@ Ext.define('testextjs.view.sm_user.caisse.CloturerventeManager', {
                             }
                         });
                         return;
-                    }
-                });
+                    });
 
 
     },
     onTrashClick: function (grid, rowIndex) {
         var rec = grid.getStore().getAt(rowIndex), str_STATUT = "is_Trash";
         testextjs.app.getController('App').ShowWaitingProcess();
-        Ext.MessageBox.confirm('Message',
-                'Confirmer l\'envoi de la pr&eacute;vente ' + rec.get('str_REF') + ' dans la corbeille',
-                function (btn) {
-                    if (btn === 'yes') {
+        PrestigeConfirmation.ligne('Message', 'Confirmer l\'envoi de la pr&eacute;vente ' + rec.get('str_REF') + ' dans la corbeille', function () {
 
                         Ext.Ajax.request({
                             url: url_services_transaction_preenregistrement_cloturer + 'trash',
@@ -371,8 +364,7 @@ Ext.define('testextjs.view.sm_user.caisse.CloturerventeManager', {
                             }
                         });
                         return;
-                    }
-                });
+                    });
 
 
     },

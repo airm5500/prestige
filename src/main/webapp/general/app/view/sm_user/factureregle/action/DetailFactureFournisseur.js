@@ -236,10 +236,7 @@ Ext.define('testextjs.view.sm_user.editfacture.action.DetailFactureFournisseur',
 
     },
     onRemoveClick: function (grid, rowIndex) {
-        Ext.MessageBox.confirm('Message',
-                'confirm la suppresssion',
-                function (btn) {
-                    if (btn == 'yes') {
+        PrestigeConfirmation.ligne('Message', 'confirm la suppresssion', function () {
                         var rec = grid.getStore().getAt(rowIndex);
                         Ext.Ajax.request({
                             url: url_services_data_detail_facture_fournisseur + 'delete',
@@ -267,8 +264,7 @@ Ext.define('testextjs.view.sm_user.editfacture.action.DetailFactureFournisseur',
                             }
                         });
                         return;
-                    }
-                });
+                    });
 
 
     },

@@ -465,10 +465,7 @@ Ext.define('testextjs.view.tierspayantmanagement.groupetierspayant.action.factur
         var rec = grid.getStore().getAt(rowIndex);
         if (rec.get('str_STATUT') !== "paid") {
 
-            Ext.MessageBox.confirm('Message',
-                    'confirmez la suppresssion',
-                    function (btn) {
-                        if (btn == 'yes') {
+            PrestigeConfirmation.ligne('Message', 'confirmez la suppresssion', function () {
 
                             myAppController.ShowWaitingProcess();
                             Ext.Ajax.request({
@@ -509,8 +506,7 @@ Ext.define('testextjs.view.tierspayantmanagement.groupetierspayant.action.factur
                                 }
                             });
                             return;
-                        }
-                    });
+                        });
 
         }
     },

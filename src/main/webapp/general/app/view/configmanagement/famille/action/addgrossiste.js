@@ -316,10 +316,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.addgrossiste', {
     },
     onRemoveClick: function(grid, rowIndex) {
 //        var lg_FAMILLE_ID = this.getOdatasource().lg_FAMILLE_ID;
-        Ext.MessageBox.confirm('Message',
-                'Confirmation de la suppresssion',
-                function(btn) {
-                    if (btn === 'yes') {
+        PrestigeConfirmation.ligne('Message', 'Confirmation de la suppresssion', function () {
                         var rec = grid.getStore().getAt(rowIndex);
                         Ext.Ajax.request({
                             // Suppression en API REST (meme methode metier que la JSP historique)
@@ -351,8 +348,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.addgrossiste', {
                             }
                         });
                         return;
-                    }
-                });
+                    });
 
 
     },

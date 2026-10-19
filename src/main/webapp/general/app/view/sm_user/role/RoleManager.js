@@ -304,11 +304,8 @@ Ext.define('testextjs.view.sm_user.role.RoleManager', {
         var enDesactives = Ext.getCmp('BT_ROLE_VOIR_DESACTIVES')
                 && Ext.getCmp('BT_ROLE_VOIR_DESACTIVES').pressed;
         var actif = enDesactives ? true : false;
-        Ext.MessageBox.confirm('Message',
-                (actif ? 'R&eacute;activer ce profil ?'
-                        : 'D&eacute;sactiver ce profil ? Il n\'appara&icirc;tra plus dans les listes.'),
-                function (btn) {
-                    if (btn == 'yes') {
+        PrestigeConfirmation.ligne('Message', (actif ? 'R&eacute;activer ce profil ?'
+                        : 'D&eacute;sactiver ce profil ? Il n\'appara&icirc;tra plus dans les listes.'), function () {
                         var rec = grid.getStore().getAt(rowIndex);
                         Ext.Ajax.request({
                             url: url_services_rest_role + 'toggle-statut',
@@ -339,8 +336,7 @@ Ext.define('testextjs.view.sm_user.role.RoleManager', {
                             }
                         });
                         return;
-                    }
-                });
+                    });
 
 
     },

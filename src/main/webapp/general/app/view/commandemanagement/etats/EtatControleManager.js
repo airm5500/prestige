@@ -847,14 +847,10 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
     },
     onbtnexport: function (grid, rowIndex) {
 
-        Ext.MessageBox.confirm('Message',
-                'Voulez-vous generer le fichier CSV pour les etiquettes de cette commande?',
-                function (btn) {
-                    if (btn === 'yes') {
+        PrestigeConfirmation.ligne('Message', 'Voulez-vous generer le fichier CSV pour les etiquettes de cette commande?', function () {
                         const rec = grid.getStore().getAt(rowIndex);
                         window.location = '../DownloadFileServlet?lg_ORDER_ID=' + rec.get('lgBONLIVRAISONID') + '&str_TYPE_ACTION=ETATCONTROLE';
-                    }
-                });
+                    });
     },
     onPdfDetailClick: function (grid, rowIndex) {
         const rec = grid.getStore().getAt(rowIndex);

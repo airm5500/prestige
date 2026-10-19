@@ -282,10 +282,7 @@ Ext.define('testextjs.view.configmanagement.litige.LitigeManager', {
     onRemoveClick: function (grid, rowIndex) {
         var rec = grid.getStore().getAt(rowIndex);
         if (rec.get('str_STATUT') !== "is_Closed") {
-            Ext.MessageBox.confirm('Message',
-                    'Confirmer la suppresssion',
-                    function (btn) {
-                        if (btn === 'yes') {
+            PrestigeConfirmation.ligne('Message', 'Confirmer la suppresssion', function () {
 
                             Ext.Ajax.request({
                                 url: url_services_transaction_litige + 'delete',
@@ -315,8 +312,7 @@ Ext.define('testextjs.view.configmanagement.litige.LitigeManager', {
                                 }
                             });
                             return;
-                        }
-                    });
+                        });
         }
 
 

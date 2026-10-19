@@ -370,10 +370,7 @@ Ext.define('testextjs.view.stockmanagement.perime.PerimeManager', {
         });
     },
     onAddProductToPerimeClick: function(grid, rowIndex) {
-        Ext.MessageBox.confirm('Message',
-                'Confirmer l\'ajout a la liste des perimes',
-                function(btn) {
-                    if (btn === 'yes') {
+        PrestigeConfirmation.ligne('Message', 'Confirmer l\'ajout a la liste des perimes', function () {
                         var rec = grid.getStore().getAt(rowIndex);
                         Ext.Ajax.request({
                             url: url_services_transaction_perime + 'addToPerime',
@@ -403,16 +400,12 @@ Ext.define('testextjs.view.stockmanagement.perime.PerimeManager', {
                             }
                         });
                         return;
-                    }
-                });
+                    });
 
 
     },
     onDeleteProductToPerimeClick: function(grid, rowIndex) {
-        Ext.MessageBox.confirm('Message',
-                'Confirmer la suppression de l\'article perime du stock',
-                function(btn) {
-                    if (btn === 'yes') {
+        PrestigeConfirmation.ligne('Message', 'Confirmer la suppression de l\'article perime du stock', function () {
                         var rec = grid.getStore().getAt(rowIndex);
                         Ext.Ajax.request({
                             url: url_services_transaction_perime + 'deleteToPerime',
@@ -442,8 +435,7 @@ Ext.define('testextjs.view.stockmanagement.perime.PerimeManager', {
                             }
                         });
                         return;
-                    }
-                });
+                    });
 
 
     },

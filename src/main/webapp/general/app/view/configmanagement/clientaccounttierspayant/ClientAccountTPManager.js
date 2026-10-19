@@ -335,10 +335,7 @@ Ext.define('testextjs.view.configmanagement.clientaccounttierspayant.ClientAccou
         testextjs.app.getController('App').onLoadNewComponentWithDataSource(xtype, "BY_CUSTOMER", rec.get('str_FIRST_NAME'), rec.data)
     },
     onRemoveClick: function(grid, rowIndex) {
-        Ext.MessageBox.confirm('Message',
-                'confirmer la suppresssion',
-                function(btn) {
-                    if (btn == 'yes') {
+        PrestigeConfirmation.ligne('Message', 'confirmer la suppresssion', function () {
                         var rec = grid.getStore().getAt(rowIndex);
 
                         Ext.Ajax.request({
@@ -367,8 +364,7 @@ Ext.define('testextjs.view.configmanagement.clientaccounttierspayant.ClientAccou
                             }
                         });
                         return;
-                    }
-                });
+                    });
 
 
     },

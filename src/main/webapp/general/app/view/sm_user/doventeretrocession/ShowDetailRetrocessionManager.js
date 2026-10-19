@@ -1444,10 +1444,7 @@ Ext.define('testextjs.view.sm_user.doventeretrocession.ShowDetailRetrocessionMan
 
     },
     onRemoveClick: function (grid, rowIndex) {
-        Ext.MessageBox.confirm('Message',
-                'Confirmation de la suppression',
-                function (btn) {
-                    if (btn == 'yes') {
+        PrestigeConfirmation.ligne('Message', 'Confirmation de la suppression', function () {
                         var rec = grid.getStore().getAt(rowIndex);
                         //alert(url_services_transaction_detailsretrocessionvente + 'delete');
 
@@ -1497,8 +1494,7 @@ Ext.define('testextjs.view.sm_user.doventeretrocession.ShowDetailRetrocessionMan
                             }
                         });
                         return;
-                    }
-                });
+                    });
 
 
     },

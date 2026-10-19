@@ -2241,10 +2241,7 @@ Ext.define('testextjs.controller.LaborexWorkFlow', {
         });
     },
     onRemoveClickNew: function (grid, rowIndex) {
-        Ext.MessageBox.confirm('Message',
-                'Confirmer la suppresssion',
-                function (btn) {
-                    if (btn === 'yes') {
+        PrestigeConfirmation.ligne('Message', 'Confirmer la suppresssion', function () {
                         var rec = grid.getStore().getAt(rowIndex);
                         Ext.Ajax.request({
                             url: '../webservices/sm_user/detailsvente/ws_transactionNew.jsp?mode=delete',
@@ -2301,14 +2298,10 @@ Ext.define('testextjs.controller.LaborexWorkFlow', {
                             }
                         });
                         return;
-                    }
-                });
+                    });
     },
     onRemoveClick: function (grid, rowIndex) {
-        Ext.MessageBox.confirm('Message',
-                'Confirmer la suppresssion',
-                function (btn) {
-                    if (btn === 'yes') {
+        PrestigeConfirmation.ligne('Message', 'Confirmer la suppresssion', function () {
                         var rec = grid.getStore().getAt(rowIndex);
                         Ext.Ajax.request({
                             url: '../webservices/sm_user/detailsvente/ws_transaction.jsp?mode=delete',
@@ -2365,8 +2358,7 @@ Ext.define('testextjs.controller.LaborexWorkFlow', {
                             }
                         });
                         return;
-                    }
-                });
+                    });
     },
     updateRemise: function (url, lg_PREENREGISTREMENT_ID, lg_REMISE_ID) {
         Ext.Ajax.request({

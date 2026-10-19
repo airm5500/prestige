@@ -250,14 +250,10 @@ Ext.define('testextjs.view.stockmanagement.ajustementmanagement.ajustementManage
     },
     onbtnprint: function(grid, rowIndex) {
         var rec = grid.getStore().getAt(rowIndex);
-        Ext.MessageBox.confirm('Message',
-                'Confirmation de l\'impression du detail de cet ajustement',
-                function(btn) {
-                    if (btn == 'yes') {
+        PrestigeConfirmation.ligne('Message', 'Confirmation de l\'impression du detail de cet ajustement', function () {
                         Me.onPdfClick(rec.get('lg_AJUSTEMENT_ID'));
                         return;
-                    }
-                });
+                    });
 
     },
     onPdfClick: function(lg_AJUSTEMENT_ID) {
@@ -274,10 +270,7 @@ Ext.define('testextjs.view.stockmanagement.ajustementmanagement.ajustementManage
       if(rec.get('BTNDELETE')===false){
           return;
       }
-        Ext.MessageBox.confirm('Message',
-                'Confirmer la suppresssion',
-                function(btn) {
-                    if (btn == 'yes') {
+        PrestigeConfirmation.ligne('Message', 'Confirmer la suppresssion', function () {
                         
                         Ext.Ajax.request({
                             url: url_services_transaction_ajustementmanagement_base + 'delete',
@@ -307,8 +300,7 @@ Ext.define('testextjs.view.stockmanagement.ajustementmanagement.ajustementManage
                             }
                         });
                         return;
-                    }
-                });
+                    });
 
     },
     onAddClick: function() {

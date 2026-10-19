@@ -223,10 +223,7 @@ Ext.define('testextjs.view.configmanagement.regimecaisse.RegimecaisseManager', {
 
     },
     onRemoveClick: function (grid, rowIndex) {
-        Ext.MessageBox.confirm('Message',
-                'confirmer la suppresssion',
-                function (btn) {
-                    if (btn === 'yes') {
+        PrestigeConfirmation.ligne('Message', 'confirmer la suppresssion', function () {
                         var rec = grid.getStore().getAt(rowIndex);
                         Ext.Ajax.request({
                             url: url_services_transaction_regimecaisse + 'delete',
@@ -257,8 +254,7 @@ Ext.define('testextjs.view.configmanagement.regimecaisse.RegimecaisseManager', {
                             }
                         });
                         return;
-                    }
-                });
+                    });
 
 
     },

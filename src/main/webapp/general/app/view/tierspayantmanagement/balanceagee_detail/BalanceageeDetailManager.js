@@ -521,10 +521,7 @@ Ext.define('testextjs.view.tierspayantmanagement.balanceagee_detail.BalanceageeD
 
     },
     onRemoveClick: function (grid, rowIndex) {
-        Ext.MessageBox.confirm('Message',
-                'confirmer la suppresssion',
-                function (btn) {
-                    if (btn === 'yes') {
+        PrestigeConfirmation.ligne('Message', 'confirmer la suppresssion', function () {
                         var rec = grid.getStore().getAt(rowIndex);
                         Ext.Ajax.request({
                             url: '../api/v1/tierspayant/gestion/delete', // meme metier et meme reponse que la JSP historique
@@ -552,8 +549,7 @@ Ext.define('testextjs.view.tierspayantmanagement.balanceagee_detail.BalanceageeD
                             }
                         });
                         return;
-                    }
-                });
+                    });
 
 
     },

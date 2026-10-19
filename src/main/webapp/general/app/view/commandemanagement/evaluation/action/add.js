@@ -578,10 +578,7 @@ Ext.define('testextjs.view.commandemanagement.evaluation.action.add', {
     },
     onRemoveClick: function(grid, rowIndex) {
 
-        Ext.MessageBox.confirm('Message',
-                "Confirmer la suppresssion",
-                function(btn) {
-                    if (btn == 'yes') {
+        PrestigeConfirmation.ligne('Message', "Confirmer la suppresssion", function () {
                         var rec = grid.getStore().getAt(rowIndex);
                         testextjs.app.getController('App').ShowWaitingProcess();
                         Ext.Ajax.request({
@@ -616,8 +613,7 @@ Ext.define('testextjs.view.commandemanagement.evaluation.action.add', {
                             }
                         });
                         return;
-                    }
-                });
+                    });
     },
     loadStore: function() {
         Ext.getCmp('gridpanelEvaluatePriceID').getStore().load({

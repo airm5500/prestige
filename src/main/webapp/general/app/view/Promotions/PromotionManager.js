@@ -247,11 +247,8 @@ Ext.define('testextjs.view.Promotions.PromotionManager', {
     },
     onCloturerClick: function (grid, rowIndex) {
         var rec = grid.getStore().getAt(rowIndex);
-        Ext.MessageBox.confirm('Message',
-                'Cl&ocirc;turer la promotion <b>' + rec.get('str_TYPE') + '</b> ?<br>'
-                + 'Ses ' + rec.get('int_NUMBER_PRODUCT') + ' produit(s) sortiront de promotion.',
-                function (btn) {
-                    if (btn === 'yes') {
+        PrestigeConfirmation.ligne('Message', 'Cl&ocirc;turer la promotion <b>' + rec.get('str_TYPE') + '</b> ?<br>'
+                + 'Ses ' + rec.get('int_NUMBER_PRODUCT') + ' produit(s) sortiront de promotion.', function () {
                         testextjs.app.getController('App').ShowWaitingProcess();
                         Ext.Ajax.request({
                             url: url_services_rest_promotions + 'cloturer',
@@ -269,8 +266,7 @@ Ext.define('testextjs.view.Promotions.PromotionManager', {
                                 Ext.MessageBox.alert('Error Message', response.responseText);
                             }
                         });
-                    }
-                });
+                    });
     },
     /* Fenetre de gestion des produits d'une promotion */
     onProduitsClick: function (grid, rowIndex) {

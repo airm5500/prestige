@@ -377,11 +377,8 @@ Ext.define('testextjs.view.sm_user.user.UserManager', {
         var enDesactives = Ext.getCmp('BT_USER_VOIR_DESACTIVES')
                 && Ext.getCmp('BT_USER_VOIR_DESACTIVES').pressed;
         var actif = enDesactives ? true : false;
-        Ext.MessageBox.confirm('Message',
-                (actif ? 'R&eacute;activer cet utilisateur ? Il pourra de nouveau se connecter.'
-                        : 'D&eacute;sactiver cet utilisateur ? Il ne pourra plus se connecter.'),
-                function(btn) {
-                    if (btn === 'yes') {
+        PrestigeConfirmation.ligne('Message', (actif ? 'R&eacute;activer cet utilisateur ? Il pourra de nouveau se connecter.'
+                        : 'D&eacute;sactiver cet utilisateur ? Il ne pourra plus se connecter.'), function () {
                         var rec = grid.getStore().getAt(rowIndex);
                         testextjs.app.getController('App').ShowWaitingProcess();
                         Ext.Ajax.request({
@@ -416,8 +413,7 @@ Ext.define('testextjs.view.sm_user.user.UserManager', {
                             }
                         });
                         return;
-                    }
-                });
+                    });
 
 
     },

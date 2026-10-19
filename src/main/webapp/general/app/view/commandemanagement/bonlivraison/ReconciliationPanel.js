@@ -412,17 +412,11 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.ReconciliationPanel',
         // Détermine le type du code pour orienter la question
         if (len >= 6 && len <= 7) {
             // Code CIP clair — demander confirmation de remplacement
-            Ext.MessageBox.confirm(
-                'Mise à jour du code CIP',
-                'Le code importé <b>' + codeImporte + '</b> (CIP, ' + len + ' car.) '
+            PrestigeConfirmation.ligne('Mise à jour du code CIP', 'Le code importé <b>' + codeImporte + '</b> (CIP, ' + len + ' car.) '
                 + 'va remplacer le code CIP actuel du produit <b>' + nomProduit + '</b>.<br><br>'
-                + 'Confirmer la mise à jour ?',
-                function (btn) {
-                    if (btn === 'yes') {
+                + 'Confirmer la mise à jour ?', function () {
                         me.appliquerAssociation(blRecord, rowIndex, produitRecord, dialog, 'CIP');
-                    }
-                }
-            );
+                    });
         } else {
             // Code EAN (13 car.) ou longueur inconnue — proposer le choix via
             // une fenêtre dédiée (Ext.Msg avec libellés longs masque les boutons).

@@ -340,10 +340,7 @@ Ext.define('testextjs.view.sm_user.alertevent.action.adduserphonealertevent', {
         });
     }, onRemoveClick: function (grid, rowIndex) {
         var str_Event = this.getOdatasource().str_Event;
-        Ext.MessageBox.confirm('Message',
-                'Confirmation de la suppresssion',
-                function (btn) {
-                    if (btn === 'yes') {
+        PrestigeConfirmation.ligne('Message', 'Confirmation de la suppresssion', function () {
                         var rec = grid.getStore().getAt(rowIndex);
                         
                          var url_services_userphonealertevent_transaction_delete = '../webservices/sm_user/userphonealertevent/ws_transaction.jsp?mode=';
@@ -382,8 +379,7 @@ Ext.define('testextjs.view.sm_user.alertevent.action.adduserphonealertevent', {
                             }
                         });
                         return;
-                    }
-                });
+                    });
 
 
     },

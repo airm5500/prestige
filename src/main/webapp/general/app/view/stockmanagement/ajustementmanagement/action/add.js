@@ -584,10 +584,7 @@ Ext.define('testextjs.view.stockmanagement.ajustementmanagement.action.add', {
         testextjs.app.getController('App').onLoadNewComponentWithDataSource(xtype, "", "", "");
     },
     onRemoveClick: function (grid, rowIndex) {
-        Ext.MessageBox.confirm('Message',
-                'Confirmer la suppresssion de la ligne',
-                function (btn) {
-                    if (btn == 'yes') {
+        PrestigeConfirmation.ligne('Message', 'Confirmer la suppresssion de la ligne', function () {
                         var rec = grid.getStore().getAt(rowIndex);
                         Ext.Ajax.request({
                             url: url_services_transaction_ajustementmanagement + 'delete',
@@ -618,8 +615,7 @@ Ext.define('testextjs.view.stockmanagement.ajustementmanagement.action.add', {
                             }
                         });
                         return;
-                    }
-                });
+                    });
     },
     onPdfAjustementClick: function () {
         var chaine = location.pathname;

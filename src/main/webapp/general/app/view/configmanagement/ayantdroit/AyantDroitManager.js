@@ -303,10 +303,7 @@ Ext.define('testextjs.view.configmanagement.ayantdroit.AyantDroitManager', {
         testextjs.app.getController('App').onGeneratePdfFile(linkUrl);
     },
     onRemoveClick: function(grid, rowIndex) {
-        Ext.MessageBox.confirm('Message',
-                'Confirmer la suppresssion',
-                function(btn) {
-                    if (btn === 'yes') {
+        PrestigeConfirmation.ligne('Message', 'Confirmer la suppresssion', function () {
                         var rec = grid.getStore().getAt(rowIndex);
                         testextjs.app.getController('App').ShowWaitingProcess();
                         Ext.Ajax.request({
@@ -339,8 +336,7 @@ testextjs.app.getController('App').StopWaitingProcess();
                             }
                         });
                         return;
-                    }
-                });
+                    });
 
 
     },
@@ -367,11 +363,8 @@ testextjs.app.getController('App').StopWaitingProcess();
                 && Ext.getCmp('BT_AYANTDROIT_VOIR_DESACTIVES').pressed;
         var actif = enDesactives ? true : false;
         var rec = grid.getStore().getAt(rowIndex);
-        Ext.MessageBox.confirm('Message',
-                (actif ? 'R&eacute;activer' : 'D&eacute;sactiver') + " l'ayant droit <br><b>"
-                + rec.get('str_FIRST_NAME') + ' ' + rec.get('str_LAST_NAME') + '</b> ?',
-                function (btn) {
-                    if (btn === 'yes') {
+        PrestigeConfirmation.ligne('Message', (actif ? 'R&eacute;activer' : 'D&eacute;sactiver') + " l'ayant droit <br><b>"
+                + rec.get('str_FIRST_NAME') + ' ' + rec.get('str_LAST_NAME') + '</b> ?', function () {
                         testextjs.app.getController('App').ShowWaitingProcess();
                         Ext.Ajax.request({
                             url: url_services_rest_ayantdroit + 'toggle-statut',
@@ -396,8 +389,7 @@ testextjs.app.getController('App').StopWaitingProcess();
                                 Ext.MessageBox.alert('Error Message', response.responseText);
                             }
                         });
-                    }
-                });
+                    });
     }
 
 });

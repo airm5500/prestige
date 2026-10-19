@@ -417,10 +417,7 @@ Ext.define('testextjs.view.configmanagement.client.action.showclttierspayant', {
         });
     }, onRemoveClick: function(grid, rowIndex) {
 
-        Ext.MessageBox.confirm('Message',
-                'Confirmation de la suppresssion',
-                function(btn) {
-                    if (btn == 'yes') {
+        PrestigeConfirmation.ligne('Message', 'Confirmation de la suppresssion', function () {
                         var rec = grid.getStore().getAt(rowIndex);
                         Ext.Ajax.request({
                             url: url_rest_transaction_client_tierspayants + 'delete',
@@ -458,8 +455,7 @@ Ext.define('testextjs.view.configmanagement.client.action.showclttierspayant', {
                             }
                         });
                         return;
-                    }
-                });
+                    });
 
 
     },

@@ -1943,31 +1943,34 @@ window.PrestigeScan = (function () {
 window.PrestigeConfirmation = (function () {
     var DELAI = 5000, GARDE = 400;
     function icone(img, texte, action) {
-        var cellule = img && img.parentNode;
-        if (!cellule || cellule.querySelector('.prestige-confirmer-icone')) {
+        if (!img || !img.parentNode || img.prestigeConfirmation) {
             return;
         }
-        var bouton = document.createElement('span'), ouvert = Date.now(), fini = false;
+        var bouton = document.createElement('span'), ouvert = Date.now(), fini = false, r = img.getBoundingClientRect();
         bouton.className = 'prestige-confirmer-icone';
         bouton.setAttribute('role', 'button');
         bouton.tabIndex = 0;
         bouton.textContent = texte || 'Confirmer ?';
-        if (getComputedStyle(cellule).position === 'static') {
-            cellule.style.position = 'relative';
-        }
-        bouton.style.cssText = 'position:absolute;z-index:2;top:' + img.offsetTop + 'px;height:' + img.offsetHeight + 'px;'
-                + 'line-height:' + img.offsetHeight + 'px;right:' + (cellule.clientWidth - img.offsetLeft - img.offsetWidth) + 'px;'
+        /* pose sur la page, au-dessus de l'icone, aligne sur son bord droit : une cellule etroite (colonne d'une
+           seule icone) le couperait */
+        bouton.style.cssText = 'position:fixed;z-index:30000;top:' + Math.round(r.top) + 'px;height:' + Math.round(r.height) + 'px;'
+                + 'line-height:' + Math.round(r.height) + 'px;right:' + Math.round(window.innerWidth - r.right) + 'px;'
                 + 'padding:0 8px;border-radius:4px;background:#c0392b;color:#fff;font-weight:bold;font-size:11px;'
                 + 'white-space:nowrap;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.3)';
-        cellule.appendChild(bouton);
+        img.prestigeConfirmation = bouton;
+        document.body.appendChild(bouton);
         function rendre() {
             if (!fini) {
                 fini = true;
+                img.prestigeConfirmation = null;
                 if (bouton.parentNode) {
                     bouton.parentNode.removeChild(bouton);
                 }
+                window.removeEventListener('wheel', rendre, true);
             }
         }
+        /* la liste defile : le bouton ne doit pas rester sur une autre ligne */
+        window.addEventListener('wheel', rendre, true);
         var minuterie = setTimeout(rendre, DELAI);
         function valider(ev) {
             /* le clic ne remonte pas a la grille (selection de ligne, autres icones) */
@@ -1991,7 +1994,34 @@ window.PrestigeConfirmation = (function () {
             }
         });
     }
-    return {icone: icone};
+    /*
+     * Icone de ligne qui vient d'etre cliquee (phase de capture : avant le traitement de la grille). Sert a
+     * PrestigeConfirmation.ligne : la confirmation se fait dans cette icone si l'appel suit directement le clic.
+     */
+    var dernierClic = {el: null, t: 0};
+    document.addEventListener('click', function (ev) {
+        var el = ev.target && ev.target.closest ? ev.target.closest('.x-action-col-icon') : null;
+        dernierClic = {el: el, t: Date.now()};
+    }, true);
+    /*
+     * Remplace Ext.MessageBox.confirm(titre, message, function (btn) { if (btn === 'yes') { ... } }) sur les icones
+     * de ligne. Appel issu directement d'un clic sur une icone de ligne : confirmation dans l'icone. Sinon (clavier,
+     * bouton de barre, reponse du serveur intercalee) : la meme fenetre qu'avant, rien ne change.
+     */
+    function ligne(titre, message, action) {
+        var el = dernierClic.el;
+        if (el && document.body.contains(el) && Date.now() - dernierClic.t < 1000 && el.offsetWidth > 0) {
+            dernierClic = {el: null, t: 0};
+            icone(el, 'Confirmer ?', action);
+            return;
+        }
+        Ext.MessageBox.confirm(titre, message, function (btn) {
+            if (btn === 'yes') {
+                action();
+            }
+        });
+    }
+    return {icone: icone, ligne: ligne};
 })();
 
 /*

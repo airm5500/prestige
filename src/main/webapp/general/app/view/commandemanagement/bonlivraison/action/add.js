@@ -439,8 +439,7 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.action.add', {
         const rec = grid.getStore().getAt(rowIndex);
 
         if (!me.getGestionLot()) {
-            Ext.MessageBox.confirm('Message', 'Voullez-vous supprimer la quantité ajoutée ?', function (btn) {
-                if (btn == 'yes') {
+            PrestigeConfirmation.ligne('Message', 'Voullez-vous supprimer la quantité ajoutée ?', function () {
                     Ext.Ajax.request({
                         method: 'PUT',
                         url: '../api/v1/commande/remove-lots',
@@ -459,8 +458,7 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.action.add', {
                             Ext.MessageBox.alert('Error Message', response.responseText);
                         }
                     });
-                }
-            });
+                });
         } else {
             new testextjs.view.stockmanagement.etatstock.action.removeLot({
                 odatasource: rec.data, parentview: this, mode: "remove",

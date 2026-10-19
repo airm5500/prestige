@@ -387,10 +387,7 @@ Ext.define('testextjs.view.sm_user.parameter.ParameterManager', {
         });
     },
     onDeleteClick: function (grid, rowIndex) {
-        Ext.MessageBox.confirm('Message',
-                'Confirmer la suppression de l\'parametre',
-                function (btn) {
-                    if (btn === 'yes') {
+        PrestigeConfirmation.ligne('Message', 'Confirmer la suppression de l\'parametre', function () {
                         var rec = grid.getStore().getAt(rowIndex);
                         Ext.Ajax.request({
                             url: url_services_data_parametre_transaction + 'delete',
@@ -420,8 +417,7 @@ Ext.define('testextjs.view.sm_user.parameter.ParameterManager', {
                             }
                         });
                         return;
-                    }
-                });
+                    });
 
 
     },

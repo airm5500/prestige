@@ -1145,8 +1145,7 @@ onRemoveClick: function (grid, rowIndex) {
 
     if (isLastItemOverall) {
         // Cas spécial : on supprime le tout dernier produit.
-        Ext.MessageBox.confirm('Confirmation', 'Voulez-vous upprimer le dernier article. Voulez-vous continuer ?', function (btn) {
-            if (btn === 'yes') {
+        PrestigeConfirmation.ligne('Confirmation', 'Voulez-vous upprimer le dernier article. Voulez-vous continuer ?', function () {
                 testextjs.app.getController('App').ShowWaitingProcess();
                 Ext.Ajax.request({
                     method: 'DELETE',
@@ -1173,8 +1172,7 @@ onRemoveClick: function (grid, rowIndex) {
                         Ext.MessageBox.alert('Error Message', response.responseText);
                     }
                 });
-            }
-        });
+            });
     } else {
         // Cas normal : il reste d'autres produits.
         // On prépare le contexte pour que le focus se mette sur l'item qui va remplacer celui-ci.

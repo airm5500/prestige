@@ -383,10 +383,7 @@ Ext.define('testextjs.view.configmanagement.client.ClientDesactiveManager', {
 
     },
     onRemoveClick: function(grid, rowIndex) {
-        Ext.MessageBox.confirm('Message',
-                'Confirmer la suppresssion',
-                function(btn) {
-                    if (btn == 'yes') {
+        PrestigeConfirmation.ligne('Message', 'Confirmer la suppresssion', function () {
                         var rec = grid.getStore().getAt(rowIndex);
                         testextjs.app.getController('App').ShowWaitingProcess();
                         Ext.Ajax.request({
@@ -420,8 +417,7 @@ Ext.define('testextjs.view.configmanagement.client.ClientDesactiveManager', {
                             }
                         });
                         return;
-                    }
-                });
+                    });
 
 
     },
@@ -512,10 +508,7 @@ Ext.define('testextjs.view.configmanagement.client.ClientDesactiveManager', {
     onDesableClick: function(grid, rowIndex) {
 
         var rec = grid.getStore().getAt(rowIndex);
-        Ext.MessageBox.confirm('Message',
-                "Voulez-vous d&eacute;sactiver le client " + "<br><b>" + rec.get('str_FIRST_LAST_NAME') + "</b>",
-                function(btn) {
-                    if (btn === 'yes') {
+        PrestigeConfirmation.ligne('Message', "Voulez-vous d&eacute;sactiver le client " + "<br><b>" + rec.get('str_FIRST_LAST_NAME') + "</b>", function () {
                         testextjs.app.getController('App').ShowWaitingProcess();
                         Ext.Ajax.request({
                             url: url_services_transaction_client + 'disable',
@@ -552,17 +545,13 @@ Ext.define('testextjs.view.configmanagement.client.ClientDesactiveManager', {
                             }
                         });
                         return;
-                    }
-                });
+                    });
 
 
     },
      onEnableClick: function(grid, rowIndex) {
         var rec = grid.getStore().getAt(rowIndex);
-        Ext.MessageBox.confirm('Message',
-                'Activer le client ' + "<br><b>" + rec.get('str_FIRST_LAST_NAME')+"</b>",
-                function(btn) {
-                    if (btn === 'yes') {
+        PrestigeConfirmation.ligne('Message', 'Activer le client ' + "<br><b>" + rec.get('str_FIRST_LAST_NAME')+"</b>", function () {
                         var rec = grid.getStore().getAt(rowIndex);
                         testextjs.app.getController('App').ShowWaitingProcess();
                         Ext.Ajax.request({
@@ -599,8 +588,7 @@ Ext.define('testextjs.view.configmanagement.client.ClientDesactiveManager', {
                             }
                         });
                         return;
-                    }
-                });
+                    });
 
 
     }

@@ -486,10 +486,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.addArticle', {
     },
     onAddClick: function (grid, rowIndex) {
         var lg_FAMILLE_ID = this.getOdatasource().lg_FAMILLE_ID;
-        Ext.MessageBox.confirm('Message',
-                'Confirmation l\'ajout de l\'article',
-                function (btn) {
-                    if (btn === 'yes') {
+        PrestigeConfirmation.ligne('Message', 'Confirmation l\'ajout de l\'article', function () {
                         var rec = grid.getStore().getAt(rowIndex);
                         Ext.Ajax.request({
                             // Ajouter un article a un inventaire unitaire revient a RETENIR sa
@@ -524,8 +521,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.addArticle', {
                             }
                         });
                         return;
-                    }
-                });
+                    });
 
 
     },

@@ -895,14 +895,10 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
         if (!rec.get('fneUrl') || rec.get('fneAvoirReference') || !rec.get('AUTORISATION_AVOIR_FNE')) {
             return;
         }
-        Ext.MessageBox.confirm('Avoir FNE',
-                'Émettre un avoir total à la FNE pour la facture ' + rec.get('str_CODE_FACTURE')
-                + ' ?<br/>Toutes les lignes certifiées seront retournées, la facture sera annulée sur Prestige et les ventes redeviendront facturables.<br/>Cette opération consomme un sticker et est irréversible.',
-                function (btn) {
-                    if (btn === 'yes') {
+        PrestigeConfirmation.ligne('Avoir FNE', 'Émettre un avoir total à la FNE pour la facture ' + rec.get('str_CODE_FACTURE')
+                + ' ?<br/>Toutes les lignes certifiées seront retournées, la facture sera annulée sur Prestige et les ventes redeviendront facturables.<br/>Cette opération consomme un sticker et est irréversible.', function () {
                         me.doAvoirFne(rec.get('lg_FACTURE_ID'), grid);
-                    }
-                });
+                    });
     },
     doAvoirFne: function (idFacture, grid) {
         const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'Avoir FNE en cours!');
@@ -1196,10 +1192,7 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
         }
         if (rec.get('str_STATUT') !== "paid" && rec.get('isALLOWED')) {
 
-            Ext.MessageBox.confirm('Message',
-                    'confirmez la suppresssion',
-                    function (btn) {
-                        if (btn == 'yes') {
+            PrestigeConfirmation.ligne('Message', 'confirmez la suppresssion', function () {
 
                             myAppController.ShowWaitingProcess();
                             Ext.Ajax.request({
@@ -1239,8 +1232,7 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
                                 }
                             });
 
-                        }
-                    });
+                        });
 
         }
     },

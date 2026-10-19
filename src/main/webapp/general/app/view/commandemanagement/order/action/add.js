@@ -1854,10 +1854,7 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
     },
     onRemoveClick: function (grid, rowIndex) {
         let message = "Confirmer la suppresssion";
-        Ext.MessageBox.confirm('Message',
-                message,
-                function (btn) {
-                    if (btn === 'yes') {
+        PrestigeConfirmation.ligne('Message', message, function () {
                         const rec = grid.getStore().getAt(rowIndex);
                         testextjs.app.getController('App').ShowWaitingProcess();
                         Ext.Ajax.request({
@@ -1879,8 +1876,7 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                         });
 
 
-                    }
-                });
+                    });
     },
 
     /** Retours du 10/10 : fenetre de prevision du produit ; sans acces aux previsions, le detail habituel. */

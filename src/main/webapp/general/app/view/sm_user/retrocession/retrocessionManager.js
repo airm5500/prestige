@@ -253,10 +253,7 @@ Ext.define('testextjs.view.sm_user.retrocession.retrocessionManager', {
         window.open(linkUrl);
     },
     onRemoveClick: function(grid, rowIndex) {
-        Ext.MessageBox.confirm('Message',
-                'Confirmer la suppresssion',
-                function(btn) {
-                    if (btn == 'yes') {
+        PrestigeConfirmation.ligne('Message', 'Confirmer la suppresssion', function () {
                         var rec = grid.getStore().getAt(rowIndex);
                         Ext.Ajax.request({
                             url: url_services_transaction_retrocession + 'delete',
@@ -287,8 +284,7 @@ Ext.define('testextjs.view.sm_user.retrocession.retrocessionManager', {
                             }
                         });
                         return;
-                    }
-                });
+                    });
 
 
     },

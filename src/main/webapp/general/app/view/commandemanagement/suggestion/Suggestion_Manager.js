@@ -327,14 +327,10 @@ Ext.define('testextjs.view.commandemanagement.suggestion.Suggestion_Manager', {
                             tooltip: 'Generer le fichier CSV',
                             scope: this,
                             handler: function (grid, rowIndex) {
-                                Ext.MessageBox.confirm('Message',
-                                        'Voulez-vous generer le fichier CSV ?',
-                                        function (btn) {
-                                            if (btn === 'yes') {
+                                PrestigeConfirmation.ligne('Message', 'Voulez-vous generer le fichier CSV ?', function () {
                                                 const rec = grid.getStore().getAt(rowIndex);
                                                 window.location = '../api/v1/suggestion/csv?id=' + rec.get('lg_SUGGESTION_ORDER_ID');
-                                            }
-                                        });
+                                            });
                             }
                         }]
                 },
@@ -692,15 +688,11 @@ Ext.define('testextjs.view.commandemanagement.suggestion.Suggestion_Manager', {
     },
 
     onbtnprint: function (grid, rowIndex) {
-        Ext.MessageBox.confirm('Message',
-                'Confirmation de l\'impression de cette suggestion',
-                function (btn) {
-                    if (btn == 'yes') {
+        PrestigeConfirmation.ligne('Message', 'Confirmation de l\'impression de cette suggestion', function () {
                         const rec = grid.getStore().getAt(rowIndex);
                         const lg_SUGGESTION_ORDER_ID = rec.get('lg_SUGGESTION_ORDER_ID');
                         Me.onPdfClick(lg_SUGGESTION_ORDER_ID);
-                    }
-                });
+                    });
 
     },
     onPdfClick: function (lg_SUGGESTION_ORDER_ID) {
@@ -1033,10 +1025,7 @@ Ext.define('testextjs.view.commandemanagement.suggestion.Suggestion_Manager', {
 
     onRemoveClick: function (grid, rowIndex) {
 
-        Ext.MessageBox.confirm('Message',
-                'confirm la suppresssion',
-                function (btn) {
-                    if (btn === 'yes') {
+        PrestigeConfirmation.ligne('Message', 'confirm la suppresssion', function () {
                         const rec = grid.getStore().getAt(rowIndex);
                         _myAppController.ShowWaitingProcess();
                         Ext.Ajax.request({
@@ -1060,8 +1049,7 @@ Ext.define('testextjs.view.commandemanagement.suggestion.Suggestion_Manager', {
                             }
                         });
 
-                    }
-                });
+                    });
 
 
     },

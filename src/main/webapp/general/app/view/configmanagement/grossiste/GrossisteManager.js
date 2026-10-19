@@ -409,10 +409,7 @@ Ext.define('testextjs.view.configmanagement.grossiste.GrossisteManager', {
 
     },
     onRemoveClick: function(grid, rowIndex) {
-        Ext.MessageBox.confirm('Message',
-                'Confirmer la suppresssion',
-                function(btn) {
-                    if (btn === 'yes') {
+        PrestigeConfirmation.ligne('Message', 'Confirmer la suppresssion', function () {
                         var rec = grid.getStore().getAt(rowIndex);
                         testextjs.app.getController('App').ShowWaitingProcess();
                         Ext.Ajax.request({
@@ -445,8 +442,7 @@ Ext.define('testextjs.view.configmanagement.grossiste.GrossisteManager', {
                             }
                         });
                         return;
-                    }
-                });
+                    });
 
 
     },
@@ -463,11 +459,8 @@ Ext.define('testextjs.view.configmanagement.grossiste.GrossisteManager', {
                 && Ext.getCmp('BT_GROSSISTE_VOIR_DESACTIVES').pressed;
         var actif = enDesactives ? true : false;
         var rec = grid.getStore().getAt(rowIndex);
-        Ext.MessageBox.confirm('Message',
-                (actif ? 'R&eacute;activer' : 'D&eacute;sactiver') + ' le grossiste <br><b>'
-                + rec.get('str_LIBELLE') + '</b> ?',
-                function (btn) {
-                    if (btn === 'yes') {
+        PrestigeConfirmation.ligne('Message', (actif ? 'R&eacute;activer' : 'D&eacute;sactiver') + ' le grossiste <br><b>'
+                + rec.get('str_LIBELLE') + '</b> ?', function () {
                         testextjs.app.getController('App').ShowWaitingProcess();
                         Ext.Ajax.request({
                             url: url_services_rest_grossiste + 'toggle-statut',
@@ -492,8 +485,7 @@ Ext.define('testextjs.view.configmanagement.grossiste.GrossisteManager', {
                                 Ext.MessageBox.alert('Error Message', response.responseText);
                             }
                         });
-                    }
-                });
+                    });
     }
 
 });

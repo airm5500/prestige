@@ -215,10 +215,7 @@ Ext.define('testextjs.view.configmanagement.remise.RemiseManager', {
         });
     },
     onRemoveClick: function(grid, rowIndex) {
-        Ext.MessageBox.confirm('Message',
-                'Confirmer la suppresssion',
-                function(btn) {
-                    if (btn === 'yes') {
+        PrestigeConfirmation.ligne('Message', 'Confirmer la suppresssion', function () {
                         var rec = grid.getStore().getAt(rowIndex);
                         testextjs.app.getController('App').ShowWaitingProcess();
                         Ext.Ajax.request({
@@ -250,8 +247,7 @@ Ext.define('testextjs.view.configmanagement.remise.RemiseManager', {
                             }
                         });
                         return;
-                    }
-                });
+                    });
 
 
     },

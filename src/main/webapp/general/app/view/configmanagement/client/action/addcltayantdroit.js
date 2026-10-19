@@ -376,10 +376,7 @@ Ext.define('testextjs.view.configmanagement.client.action.addcltayantdroit', {
         });
     }, onRemoveClick: function(grid, rowIndex) {
         var lg_CLIENT_ID = this.getOdatasource().lg_CLIENT_ID;
-        Ext.MessageBox.confirm('Message',
-                'Confirmation de la suppresssion',
-                function(btn) {
-                    if (btn === 'yes') {
+        PrestigeConfirmation.ligne('Message', 'Confirmation de la suppresssion', function () {
                         var rec = grid.getStore().getAt(rowIndex);
                         testextjs.app.getController('App').ShowWaitingProcess();
                         Ext.Ajax.request({
@@ -415,8 +412,7 @@ Ext.define('testextjs.view.configmanagement.client.action.addcltayantdroit', {
                             }
                         });
                         return;
-                    }
-                });
+                    });
 
 
     },

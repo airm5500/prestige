@@ -943,10 +943,7 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.action.add', {
         });
     },
     onRemoveClick: function (grid, rowIndex) {
-        Ext.MessageBox.confirm('Message',
-                'Confirmer la suppresssion',
-                function (btn) {
-                    if (btn == 'yes') {
+        PrestigeConfirmation.ligne('Message', 'Confirmer la suppresssion', function () {
                         const rec = grid.getStore().getAt(rowIndex);
                         Ext.Ajax.request({
                             method: 'DELETE',
@@ -973,8 +970,7 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.action.add', {
                             }
                         });
 
-                    }
-                });
+                    });
     }
 });
 

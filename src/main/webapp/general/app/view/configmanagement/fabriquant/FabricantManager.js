@@ -261,10 +261,7 @@ Ext.define('testextjs.view.configmanagement.fabriquant.FabricantManager', {
         testextjs.app.getController('App').onGeneratePdfFile(linkUrl);
     },
     onRemoveClick: function(grid, rowIndex) {
-        Ext.MessageBox.confirm('Message',
-                'Confirmer la suppresssion',
-                function(btn) {
-                    if (btn === 'yes') {
+        PrestigeConfirmation.ligne('Message', 'Confirmer la suppresssion', function () {
                         var rec = grid.getStore().getAt(rowIndex);
                         testextjs.app.getController('App').ShowWaitingProcess();
                         Ext.Ajax.request({
@@ -298,8 +295,7 @@ testextjs.app.getController('App').StopWaitingProcess();
                             }
                         });
                         return;
-                    }
-                });
+                    });
 
 
     },

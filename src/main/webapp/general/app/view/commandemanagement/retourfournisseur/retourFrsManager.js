@@ -454,10 +454,7 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.retourFrsManager
 //        testextjs.app.getController('App').onLunchPrinter(linkUrl);
     },
     onPasseRetourFournisseurClick: function (grid, rowIndex) {
-        Ext.MessageBox.confirm('Message',
-                'Confirmer la transformation en commande',
-                function (btn) {
-                    if (btn === 'yes') {
+        PrestigeConfirmation.ligne('Message', 'Confirmer la transformation en commande', function () {
                         var rec = grid.getStore().getAt(rowIndex);
                         Ext.Ajax.request({
                             url: url_services_transaction_retourfournisseur + 'passeretourfournisseur',
@@ -488,8 +485,7 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.retourFrsManager
 
                             }
                         });
-                    }
-                });
+                    });
 
 
         //alert('Commande passee avec succes');
@@ -502,10 +498,7 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.retourFrsManager
         if (rec.get('BTNDELETE') === false) {
             return;
         }
-        Ext.MessageBox.confirm('Message',
-                'confirm la suppresssion',
-                function (btn) {
-                    if (btn === 'yes') {
+        PrestigeConfirmation.ligne('Message', 'confirm la suppresssion', function () {
 
                         Ext.Ajax.request({
                             url: url_services_transaction_retourfournisseur + 'delete',
@@ -533,8 +526,7 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.retourFrsManager
                             }
                         });
                         return;
-                    }
-                });
+                    });
 
     },
     printLitToPDF: function () {

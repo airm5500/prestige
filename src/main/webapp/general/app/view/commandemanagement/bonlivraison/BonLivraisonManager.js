@@ -256,10 +256,7 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.BonLivraisonManager',
     },
 
     onRemoveClick: function (grid, rowIndex) {
-        Ext.MessageBox.confirm('Message',
-                'confirm la suppresssion',
-                function (btn) {
-                    if (btn === 'yes') {
+        PrestigeConfirmation.ligne('Message', 'confirm la suppresssion', function () {
                         var rec = grid.getStore().getAt(rowIndex);
                         myAppController.ShowWaitingProcess();
                         Ext.Ajax.request({
@@ -280,8 +277,7 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.BonLivraisonManager',
                             }
                         });
                         return;
-                    }
-                });
+                    });
 
     },
 

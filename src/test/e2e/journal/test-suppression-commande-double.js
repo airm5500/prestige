@@ -77,7 +77,7 @@ const iconesHorsVue = (p) => p.evaluate(() => {
 /* icone Supprimer de la ligne : elle devient « Confirmer ? », sans fenetre */
 async function demanderSuppression(p, ligne) {
   await ligne.locator('img[data-qtip="Supprimer"]').click();
-  const bouton = ligne.locator('.prestige-confirmer-icone');
+  const bouton = p.locator('.prestige-confirmer-icone');
   const vu = await bouton.waitFor({ timeout: 5000 }).then(() => true).catch(() => false);
   p.ligneEnCours = ligne;
   return vu && /Confirmer/.test(await bouton.textContent()) && !(await texteMessage(p));
@@ -91,7 +91,7 @@ const toasts = (p) => p.evaluate(() => Array.from(document.querySelectorAll('.pr
 async function confirmer(p, id) {
   const avant = (await toasts(p)).split(' | ').filter((x) => /^erreur:/.test(x)).length;
   await p.waitForTimeout(500);
-  await p.ligneEnCours.locator('.prestige-confirmer-icone').click();
+  await p.locator('.prestige-confirmer-icone').click();
   const fin = Date.now() + 30000;
   let t = '';
   while (Date.now() < fin) {
@@ -131,7 +131,7 @@ async function confirmer(p, id) {
     ok('Premier clic sur « Supprimer » : l\'icône devient « Confirmer ? », aucune fenêtre', await demanderSuppression(p1, l1));
     await p1.waitForTimeout(5600);
     ok('Sans second clic : l\'icône revient après 5 s, rien n\'est supprimé',
-      await l1.locator('.prestige-confirmer-icone').count() === 0 && await l1.locator('img[data-qtip="Supprimer"]').isVisible() && existe(IDS[0]));
+      await p1.locator('.prestige-confirmer-icone').count() === 0 && await l1.locator('img[data-qtip="Supprimer"]').isVisible() && existe(IDS[0]));
     await l1.locator('img[data-qtip="Supprimer"]').dblclick();
     await p1.waitForTimeout(1500);
     ok('Double-clic sur « Supprimer » : ne vaut pas confirmation, rien n\'est supprimé', existe(IDS[0]) && !(await texteMessage(p1)));

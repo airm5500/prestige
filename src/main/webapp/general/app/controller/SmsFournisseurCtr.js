@@ -255,23 +255,15 @@ Ext.define('testextjs.controller.SmsFournisseurCtr', {
             Ext.Msg.alert('Message', 'Ce fournisseur est déjà en vigueur.');
             return;
         }
-        Ext.MessageBox.confirm('Confirmation',
-                'Basculer tous les envois de SMS vers <b>' + record.get('libelle') + '</b> ?',
-                function (btn) {
-                    if (btn === 'yes') {
+        PrestigeConfirmation.ligne('Confirmation', 'Basculer tous les envois de SMS vers <b>' + record.get('libelle') + '</b> ?', function () {
                         me.postAction(record, 'en-vigueur', 'Les envois passent par ' + record.get('libelle') + '.');
-                    }
-                });
+                    });
     },
     reactiver: function (view, rowIndex, colIndex, item, e, record) {
         const me = this;
-        Ext.MessageBox.confirm('Confirmation',
-                'Réactiver le fournisseur <b>' + record.get('libelle') + '</b> ?',
-                function (btn) {
-                    if (btn === 'yes') {
+        PrestigeConfirmation.ligne('Confirmation', 'Réactiver le fournisseur <b>' + record.get('libelle') + '</b> ?', function () {
                         me.postAction(record, 'toggle', null);
-                    }
-                });
+                    });
     },
     /** POST générique sur une action de fournisseur (toggle, en-vigueur) puis rechargement de la grille. */
     postAction: function (record, action, successMsg) {

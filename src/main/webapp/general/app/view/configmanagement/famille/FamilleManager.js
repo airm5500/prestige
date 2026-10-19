@@ -1682,10 +1682,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
 },
 
     onRemoveClick: function (grid, rowIndex) {
-        Ext.MessageBox.confirm('Message',
-                'Confirmer la suppresssion',
-                function (btn) {
-                    if (btn === 'yes') {
+        PrestigeConfirmation.ligne('Message', 'Confirmer la suppresssion', function () {
                         var rec = grid.getStore().getAt(rowIndex);
                         var progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
                         Ext.Ajax.request({
@@ -1714,8 +1711,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
 
                         });
 
-                    }
-                });
+                    });
 
 
     },
@@ -2402,10 +2398,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
 
         var rec = grid.getStore().getAt(rowIndex);
 
-        Ext.MessageBox.confirm('Message',
-                "Desactiver ce produit?" + "<br>Stock actuel: " + rec.get('int_NUMBER_AVAILABLE'),
-                function (btn) {
-                    if (btn === 'yes') {
+        PrestigeConfirmation.ligne('Message', "Desactiver ce produit?" + "<br>Stock actuel: " + rec.get('int_NUMBER_AVAILABLE'), function () {
                         var progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
                         Ext.Ajax.request({
                             method: 'POST',
@@ -2437,8 +2430,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                         });
 
 
-                    }
-                });
+                    });
 
 
     },

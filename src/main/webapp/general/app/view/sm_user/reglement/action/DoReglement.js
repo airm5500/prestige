@@ -1532,10 +1532,7 @@ Ext.define('testextjs.view.sm_user.reglement.action.DoReglement', {
     onRemoveClick: function (grid, rowIndex) {
 
 
-        Ext.MessageBox.confirm('Message',
-                'confirm la suppresssion',
-                function (btn) {
-                    if (btn === 'yes') {
+        PrestigeConfirmation.ligne('Message', 'confirm la suppresssion', function () {
                         var rec = grid.getStore().getAt(rowIndex);
                         //lg_FACTURE_ID
 
@@ -1587,8 +1584,7 @@ Ext.define('testextjs.view.sm_user.reglement.action.DoReglement', {
                             }
                         });
                         return;
-                    }
-                });
+                    });
 
 
     },

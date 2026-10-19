@@ -201,10 +201,7 @@ Ext.define('testextjs.view.sm_user.tva.TvaManager', {
 
 
     onRemoveClick: function(grid, rowIndex){
-        Ext.MessageBox.confirm('Message',
-            'confirm la suppresssion',
-            function(btn) {
-                if (btn == 'yes') {
+        PrestigeConfirmation.ligne('Message', 'confirm la suppresssion', function () {
                     var rec = grid.getStore().getAt(rowIndex);
                     Ext.Ajax.request({
                         url: url_services_transaction_tva+'delete',
@@ -232,8 +229,7 @@ Ext.define('testextjs.view.sm_user.tva.TvaManager', {
                         }
                     });
                     return;
-                }
-            });
+                });
 
 
     },

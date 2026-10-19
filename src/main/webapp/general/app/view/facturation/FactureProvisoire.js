@@ -898,10 +898,7 @@ Ext.define('testextjs.view.facturation.FactureProvisoire', {
 
     onRemoveClick: function (grid, rowIndex) {
         var me = this;
-        Ext.MessageBox.confirm('Message',
-            'confirmer la suppresssion',
-            function (btn) {
-                if (btn === 'yes') {
+        PrestigeConfirmation.ligne('Message', 'confirmer la suppresssion', function () {
                     var rec = grid.getStore().getAt(rowIndex);
                     Ext.Ajax.request({
                         url: '../api/v1/facturation/'+rec.get('lgFACTUREID'),
@@ -916,8 +913,7 @@ Ext.define('testextjs.view.facturation.FactureProvisoire', {
 
                     });
 
-                }
-            });
+                });
     }
 });
 

@@ -194,14 +194,10 @@ Ext.define('testextjs.view.commandemanagement.evaluation.Evaluationoffreprix', {
 
         var rec = grid.getStore().getAt(rowIndex);
 
-        Ext.MessageBox.confirm('Message',
-                'Imprimer l\'evaluation des offres de prix en cours?',
-                function(btn) {
-                    if (btn === 'yes') {
+        PrestigeConfirmation.ligne('Message', 'Imprimer l\'evaluation des offres de prix en cours?', function () {
                         Me.onPdfClick(rec.get('lg_ORDER_ID'));
                         return;
-                    }
-                });
+                    });
 
     },
     onPdfClick: function(lg_ORDER_ID) {
@@ -215,10 +211,7 @@ Ext.define('testextjs.view.commandemanagement.evaluation.Evaluationoffreprix', {
         testextjs.app.getController('App').onLoadNewComponentWithDataSource(xtype, "Faire une nouvelle &eacute;valuation d'offre de prix", "0", "is_Process");
     },
     onRemoveClick: function(grid, rowIndex) {
-        Ext.MessageBox.confirm('Message',
-                'Confirmer la suppresssion',
-                function(btn) {
-                    if (btn === 'yes') {
+        PrestigeConfirmation.ligne('Message', 'Confirmer la suppresssion', function () {
                         var rec = grid.getStore().getAt(rowIndex);
                         testextjs.app.getController('App').ShowWaitingProcess();
                         Ext.Ajax.request({
@@ -251,8 +244,7 @@ Ext.define('testextjs.view.commandemanagement.evaluation.Evaluationoffreprix', {
                             }
                         });
                         return;
-                    }
-                });
+                    });
 
     },
     onRechClick: function() {
