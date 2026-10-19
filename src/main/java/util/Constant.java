@@ -12,6 +12,9 @@ public final class Constant {
     public static final String KEY_CONNEXION_BADGE = "KEY_CONNEXION_BADGE";
     /** Message unique de refus d'un badge : ne dit jamais pourquoi (secret, statut, employe, login). */
     public static final String MSG_BADGE_NON_RECONNU = "Badge non reconnu.";
+    /** impression des badges : planche A4 de dix cartes (defaut) ou une carte par page (imprimante a cartes PVC) */
+    public static final String BADGE_FORMAT_A4 = "A4";
+    public static final String BADGE_FORMAT_CARTE = "CARTE";
 
     public static final String UPDATE_PRICE = "UPDATE_PRICE";
     public static final String P_BT_ANNULER_VENTE = "P_BT_ANNULER_VENTE";

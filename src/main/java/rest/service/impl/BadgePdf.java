@@ -68,6 +68,18 @@ public final class BadgePdf {
     }
 
     public static byte[] ecrire(List<Carte> cartes, String officine) throws Exception {
+        return ecrire(cartes, officine, false);
+    }
+
+    /**
+     * @param unParPage
+     *            demande du 17/10 : une carte par page, page au format exact de la carte (85,6 x 54 mm), sans trait de
+     *            coupe, pour une imprimante a cartes PVC (Evolis, Zebra...). Sinon planche A4 de dix.
+     */
+    public static byte[] ecrire(List<Carte> cartes, String officine, boolean unParPage) throws Exception {
+        if (unParPage) {
+            return ecrireUneParPage(cartes, officine);
+        }
         ByteArrayOutputStream sortie = new ByteArrayOutputStream();
         Document doc = new Document(PageSize.A4, 0, 0, 0, 0);
         PdfWriter w = PdfWriter.getInstance(doc, sortie);
@@ -83,7 +95,7 @@ public final class BadgePdf {
             }
             int k = i % parPage, col = k % COLONNES, lig = k / COLONNES;
             float x = x0 + col * (LARGEUR + ecartX), y = y0 - (lig + 1) * HAUTEUR - lig * ecartY;
-            carte(w.getDirectContent(), cartes.get(i), StringUtils.defaultString(officine), x, y);
+            carte(w.getDirectContent(), cartes.get(i), StringUtils.defaultString(officine), x, y, true);
         }
         if (cartes.isEmpty()) {
             doc.add(new Phrase("Aucun badge actif à imprimer.", police(12, Font.NORMAL, BaseColor.BLACK)));
@@ -92,13 +104,34 @@ public final class BadgePdf {
         return sortie.toByteArray();
     }
 
-    private static void carte(PdfContentByte cb, Carte c, String officine, float x, float y) throws Exception {
-        /* trait de coupe (cadre fin, coins arrondis) */
+    private static byte[] ecrireUneParPage(List<Carte> cartes, String officine) throws Exception {
+        ByteArrayOutputStream sortie = new ByteArrayOutputStream();
+        Document doc = new Document(new com.itextpdf.text.Rectangle(LARGEUR, HAUTEUR), 0, 0, 0, 0);
+        PdfWriter w = PdfWriter.getInstance(doc, sortie);
+        doc.open();
+        for (int i = 0; i < cartes.size(); i++) {
+            if (i > 0) {
+                doc.newPage();
+            }
+            carte(w.getDirectContent(), cartes.get(i), StringUtils.defaultString(officine), 0, 0, false);
+        }
+        if (cartes.isEmpty()) {
+            doc.add(new Phrase("Aucun badge actif à imprimer.", police(9, Font.NORMAL, BaseColor.BLACK)));
+        }
+        doc.close();
+        return sortie.toByteArray();
+    }
+
+    private static void carte(PdfContentByte cb, Carte c, String officine, float x, float y, boolean traitDeCoupe)
+            throws Exception {
         cb.saveState();
-        cb.setColorStroke(new BaseColor(0xb0, 0xb8, 0xc0));
-        cb.setLineWidth(0.4f);
-        cb.roundRectangle(x, y, LARGEUR, HAUTEUR, 3 * MM);
-        cb.stroke();
+        if (traitDeCoupe) {
+            /* trait de coupe (cadre fin, coins arrondis) */
+            cb.setColorStroke(new BaseColor(0xb0, 0xb8, 0xc0));
+            cb.setLineWidth(0.4f);
+            cb.roundRectangle(x, y, LARGEUR, HAUTEUR, 3 * MM);
+            cb.stroke();
+        }
         /* bandeau de l'officine */
         float bandeau = 9 * MM;
         cb.setColorFill(BANDEAU);

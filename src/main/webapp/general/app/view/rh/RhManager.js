@@ -860,7 +860,18 @@ Ext.define('testextjs.view.rh.RhManager', {
                                                 + '<b>QR code</b> : numéro du badge, login et secret propre au badge (jamais le mot de passe). '
                                                 + 'Chaque impression en QR code rend l\'exemplaire précédent invalide.<br><b>Code-barres</b> : numéro seul.</div>'});
                                 }}},
-                        {text: 'Imprimer les badges cochés', itemId: 'btnImprimerBadges', iconCls: 'printable', tooltip: 'Cartes au format carte bancaire, dix par page (PDF)',
+                        /* demande du 17/10 : planche A4 a decouper, ou une carte par page pour une imprimante a cartes PVC */
+                        {xtype: 'combo', itemId: 'formatBadge', fieldLabel: 'Format', labelWidth: 45, width: 215,
+                            editable: false, queryMode: 'local', displayField: 'libelle', valueField: 'code', value: 'A4',
+                            store: Ext.create('Ext.data.Store', {fields: ['code', 'libelle'],
+                                data: [{code: 'A4', libelle: 'A4, 10 cartes à découper'}, {code: 'CARTE', libelle: 'Une carte par page'}]}),
+                            listeners: {afterrender: function (c) {
+                                    Ext.create('Ext.tip.ToolTip', {target: c.getEl(), html: '<div style="white-space:normal;width:280px;line-height:1.5">'
+                                                + '<b>A4, 10 cartes à découper</b> : imprimante ordinaire, papier épais, découpe le long des traits.<br>'
+                                                + '<b>Une carte par page</b> : imprimante à cartes PVC (Evolis, Zebra…), page au format exact '
+                                                + '85,6 × 54 mm, sans trait de coupe.<br>Dans les deux cas, imprimer à 100 % (taille réelle).</div>'});
+                                }}},
+                        {text: 'Imprimer les badges cochés', itemId: 'btnImprimerBadges', iconCls: 'printable', tooltip: 'Cartes au format carte bancaire (PDF), selon le format choisi',
                             handler: function () {
                                 me.imprimerBadges();
                             }}
@@ -1042,7 +1053,9 @@ Ext.define('testextjs.view.rh.RhManager', {
             return;
         }
         var code = me.down('#typeCodeBadge') ? me.down('#typeCodeBadge').getValue() : 'QR';
-        window.open('../api/v1/rh/badges/pdf?ids=' + encodeURIComponent(ids.join(',')) + '&code=' + encodeURIComponent(code || 'QR'), '_blank');
+        var format = me.down('#formatBadge') ? me.down('#formatBadge').getValue() : 'A4';
+        window.open('../api/v1/rh/badges/pdf?ids=' + encodeURIComponent(ids.join(',')) + '&code=' + encodeURIComponent(code || 'QR')
+                + '&format=' + encodeURIComponent(format || 'A4'), '_blank');
         me.messageBadge(ids.length + ' badge(s) envoyé(s) à l\'impression.', true);
         Ext.defer(function () {
             g.getStore().load();

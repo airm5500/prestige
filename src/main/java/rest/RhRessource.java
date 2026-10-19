@@ -155,7 +155,8 @@ public class RhRessource {
     @GET
     @Path("badges/pdf")
     @Produces("application/pdf")
-    public Response badgesPdf(@QueryParam("ids") String ids, @DefaultValue("QR") @QueryParam("code") String code) {
+    public Response badgesPdf(@QueryParam("ids") String ids, @DefaultValue("QR") @QueryParam("code") String code,
+            @DefaultValue(util.Constant.BADGE_FORMAT_A4) @QueryParam("format") String format) {
         if (controle() != null) {
             return Response.status(Response.Status.UNAUTHORIZED).build();
         }
@@ -167,8 +168,9 @@ public class RhRessource {
         }
         try {
             // demande du 16/10 : QR code par defaut, code-barres (CODE128) au choix
+            // demande du 17/10 : une carte par page pour une imprimante a cartes PVC, planche A4 sinon
             byte[] pdf = rest.service.impl.BadgePdf.ecrire(badges.pourImpression(liste, !"CODE128".equals(code)),
-                    badges.officine());
+                    badges.officine(), util.Constant.BADGE_FORMAT_CARTE.equals(format));
             return Response.ok(pdf, "application/pdf").header("Content-Disposition", "inline; filename=badges.pdf")
                     .build();
         } catch (Exception e) {
