@@ -91,7 +91,7 @@
         json.put("lg_USER_ID", lstTRoleUser.get(i).getLgUSERID().getLgUSERID());
         json.put("str_IDS", lstTRoleUser.get(i).getLgUSERID().getStrIDS());
         json.put("str_LOGIN", lstTRoleUser.get(i).getLgUSERID().getStrLOGIN());
-        json.put("str_PASSWORD", lstTRoleUser.get(i).getLgUSERID().getStrPASSWORD());
+        // str_PASSWORD (empreinte du mot de passe) n'est plus envoye au navigateur : aucun ecran ne le lit
         json.put("str_FIRST_NAME", lstTRoleUser.get(i).getLgUSERID().getStrFIRSTNAME());
         json.put("str_LAST_NAME", lstTRoleUser.get(i).getLgUSERID().getStrLASTNAME());
         if(lstTRoleUser.get(i).getLgUSERID().getStrLASTCONNECTIONDATE() != null) {

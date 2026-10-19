@@ -121,7 +121,6 @@ public class UtilisateurServiceImpl implements UtilisateurService {
                 TUser u = roleUser.getLgUSERID();
                 JSONObject row = new JSONObject().put("lg_USER_ID", u.getLgUSERID()).put("str_IDS", u.getStrIDS())
                         .put("str_LOGIN", StringUtils.defaultString(u.getStrLOGIN()))
-                        .put("str_PASSWORD", StringUtils.defaultString(u.getStrPASSWORD()))
                         .put("str_FIRST_NAME", StringUtils.defaultString(u.getStrFIRSTNAME()))
                         .put("str_LAST_NAME", StringUtils.defaultString(u.getStrLASTNAME()));
                 if (u.getStrLASTCONNECTIONDATE() != null) {

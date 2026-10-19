@@ -104,11 +104,6 @@ Ext.define('testextjs.view.sm_user.user.UserManager', {
                     dataIndex: 'str_LOGIN',
                     flex: 1
                 }, {
-                    header: 'str_PASSWORD',
-                    dataIndex: 'str_PASSWORD',
-                    hidden: true,
-                    flex: 1
-                }, {
                     header: 'STATUT',
                     dataIndex: 'str_STATUT',
                     hidden: true,

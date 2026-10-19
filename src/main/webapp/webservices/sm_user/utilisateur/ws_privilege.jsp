@@ -84,7 +84,7 @@
         // str_IDS
         json.put("str_IDS", lstTUser.get(i).getStrIDS());
         json.put("str_LOGIN", lstTUser.get(i).getStrLOGIN());
-        json.put("str_PASSWORD", lstTUser.get(i).getStrPASSWORD());
+        // str_PASSWORD (empreinte du mot de passe) n'est plus envoye au navigateur
         json.put("str_FIRST_NAME", lstTUser.get(i).getStrFIRSTNAME());
         json.put("str_LAST_NAME", lstTUser.get(i).getStrLASTNAME());
         json.put("str_LAST_CONNECTION_DATE", date.DateToString(lstTUser.get(i).getStrLASTCONNECTIONDATE(), new SimpleDateFormat("yyyy/MM/dd")));
