@@ -52,6 +52,8 @@
         %> 
         <script type="text/javascript">
             sessionStorage.setItem("connecteduser", '<%=roleId%>');
+            /* utilisateur de cette page : envoye a chaque requete, refuse (409) si la session a change de compte */
+            window.PRESTIGE_UTILISATEUR = '<%= String.valueOf(OTUser.getLgUSERID()).replaceAll("[^A-Za-z0-9_-]", "") %>';
 
         </script>
         <title><%= jdom.APP_NAME%> :: Ver <%= jdom.APP_VERSION%></title>

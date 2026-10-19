@@ -11,6 +11,16 @@
         <filter-name>PortPublicAvisFilter</filter-name>
         <url-pattern>/*</url-pattern>
     </filter-mapping>
+    <!-- Cas du 17/10 : un onglet charge au nom d'un autre utilisateur que celui de la session est refuse (409) -->
+    <filter>
+        <filter-name>UtilisateurOngletFilter</filter-name>
+        <filter-class>filter.UtilisateurOngletFilter</filter-class>
+    </filter>
+    <filter-mapping>
+        <filter-name>UtilisateurOngletFilter</filter-name>
+        <url-pattern>/api/*</url-pattern>
+        <url-pattern>/webservices/*</url-pattern>
+    </filter-mapping>
     <!-- Audit du 12/10 (I1) : anciennes JSP et servlets reservees aux utilisateurs connectes -->
     <filter>
         <filter-name>SessionObligatoireFilter</filter-name>

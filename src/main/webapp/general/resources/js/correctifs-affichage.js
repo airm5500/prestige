@@ -1994,6 +1994,73 @@ window.PrestigeConfirmation = (function () {
     return {icone: icone};
 })();
 
+/*
+ * Cas d'officine du 17/10 : un compte se connecte dans un autre onglet du meme navigateur (session partagee) ;
+ * l'onglet deja ouvert gardait ses boutons mais le serveur agissait au nom du nouveau compte. Chaque requete vers
+ * l'application porte l'utilisateur de la page ; le serveur refuse (409, sessionChangee) si la session a change de
+ * compte, sans rien executer. La page l'annonce, puis se recharge au nom du compte connecte.
+ */
+window.PrestigeSessionOnglet = (function () {
+    var ENTETE = 'X-Prestige-Utilisateur', annonce = false;
+    function interne(url) {
+        var u = String(url || '');
+        return !/^[a-z][a-z0-9+.-]*:/i.test(u) || u.indexOf(window.location.origin + '/') === 0;
+    }
+    function changee(msg) {
+        if (annonce) {
+            return;
+        }
+        annonce = true;
+        if (window.PrestigeToast) {
+            PrestigeToast.afficher(msg || 'Un autre compte s\'est connecté sur ce navigateur. Rien n\'a été enregistré : '
+                    + 'la page se recharge au nom de ce compte.', {niveau: 'alerte', titre: 'Changement de compte', duree: 4000});
+        }
+        setTimeout(function () {
+            window.location.reload();
+        }, 3500);
+    }
+    function installer() {
+        var id = window.PRESTIGE_UTILISATEUR;
+        if (!id || !window.Ext || !Ext.Ajax) {
+            return;
+        }
+        Ext.Ajax.on('beforerequest', function (conn, options) {
+            if (options && interne(options.url)) {
+                options.headers = Ext.apply({}, options.headers);
+                options.headers[ENTETE] = id;
+            }
+        });
+        Ext.Ajax.on('requestexception', function (conn, response) {
+            if (response && response.status === 409) {
+                var r = Ext.JSON.decode(response.responseText || '', true);
+                if (r && r.sessionChangee) {
+                    changee(r.msg);
+                }
+            }
+        });
+        if (window.fetch) {
+            var fetchInitial = window.fetch;
+            window.fetch = function (ressource, init) {
+                var url = typeof ressource === 'string' ? ressource : (ressource && ressource.url);
+                if (interne(url) && typeof ressource === 'string') {
+                    init = Object.assign({}, init);
+                    var h = new Headers(init.headers || {});
+                    h.set(ENTETE, id);
+                    init.headers = h;
+                }
+                return fetchInitial.call(this, ressource, init).then(function (rep) {
+                    if (rep.status === 409 && rep.headers.get('X-Prestige-Session-Changee')) {
+                        rep.clone().json().then(function (r) { changee(r && r.msg); }, function () { changee(); });
+                    }
+                    return rep;
+                });
+            };
+        }
+    }
+    installer();
+    return {changee: changee};
+})();
+
 window.PrestigeToast = (function () {
     var COULEURS = {erreur: '#c62828', alerte: '#e67e22', ok: '#1b7f3b', info: '#1e3a5f'};
     var ICONES = {erreur: '⛔', alerte: '⚠', ok: '✔', info: 'ℹ'};

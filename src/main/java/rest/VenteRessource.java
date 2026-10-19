@@ -133,6 +133,11 @@ public class VenteRessource {
     @POST
     @Path("cloturer/vno")
     public Response cloturerVno(ClotureVenteParams clotureVenteParams) {
+        Response refusDroit = Droits.refus(servletRequest, Constant.LIBELLE_CLOTURE_VENTE,
+                Constant.PRIVILEGES_CLOTURE_VENTE);
+        if (refusDroit != null) {
+            return refusDroit;
+        }
         HttpSession hs = servletRequest.getSession();
         TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
         clotureVenteParams.setUserId(tu);
@@ -158,6 +163,11 @@ public class VenteRessource {
     @POST
     @Path("cloturer/assurance")
     public Response cloturerAssurance(ClotureVenteParams clotureVenteParams) {
+        Response refusDroit = Droits.refus(servletRequest, Constant.LIBELLE_CLOTURE_VENTE,
+                Constant.PRIVILEGES_CLOTURE_VENTE);
+        if (refusDroit != null) {
+            return refusDroit;
+        }
         HttpSession hs = servletRequest.getSession();
         TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
         clotureVenteParams.setUserId(tu);

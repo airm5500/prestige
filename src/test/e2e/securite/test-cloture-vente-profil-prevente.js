@@ -13,7 +13,9 @@
  *  - onglet 1 : admin, SERVICE CLIENT > Ventes > Nouvelle vente, un article ;
  *  - onglet 2 : l'utilisateur « Vendeur » valide le formulaire ;
  *  - onglet 1 : montant recu, « Terminer la vente » : la vente ne doit PAS etre cloturee au nom du profil prevente ;
- *  - la requete de cloture rejouee depuis la session du profil prevente : refusee (403), rien d'ecrit.
+ *    l'onglet annonce le changement de compte dans la page et se recharge ;
+ *  - la requete de cloture rejouee depuis la session du profil prevente : refusee (403), rien d'ecrit ;
+ *  - non-regression : admin seul dans son navigateur termine sa vente normalement (caissier = admin).
  */
 const { chromium } = require('playwright-core');
 const { execFileSync } = require('child_process');
@@ -27,6 +29,22 @@ const ROLE = q("SELECT lg_ROLE_ID FROM t_role WHERE str_NAME = 'Vendeur'");
 const [PRODUIT, CIP, STOCK] = q("SELECT f.lg_FAMILLE_ID, f.int_CIP, s.int_NUMBER_AVAILABLE FROM t_famille f JOIN t_famille_stock s ON s.lg_FAMILLE_ID = f.lg_FAMILLE_ID"
   + " AND s.lg_EMPLACEMENT_ID = '1' WHERE f.str_STATUT = 'enable' AND s.int_NUMBER_AVAILABLE > 5 AND LENGTH(f.int_CIP) = 7 LIMIT 1").split('\t');
 const ventes = [];
+let produit;
+
+/* montant recu comme la caissiere : entree dans le champ (le net a payer se recalcule), puis la frappe */
+async function saisirMontant(p) {
+  const net = await p.evaluate(() => testextjs.app.getController('VenteCtr').current.intPRICE);
+  /* apres l'ajout d'un article, l'ecran rend le curseur a la recherche produit : on attend qu'il l'ait fait */
+  await p.waitForLoadState('networkidle').catch(() => {});
+  await p.waitForTimeout(1200);
+  await cliquer(p, 'doventemanager #contenu #montantRecu');
+  await p.waitForLoadState('networkidle').catch(() => {});
+  await p.waitForTimeout(800);
+  await p.waitForFunction(() => document.activeElement === Ext.ComponentQuery.query('doventemanager #contenu #montantRecu')[0].inputEl.dom, null, { timeout: 5000 });
+  await p.keyboard.press('Control+A');
+  await p.keyboard.type(String(net), { delay: 20 });
+  await p.waitForFunction((v) => String(Ext.ComponentQuery.query('doventemanager #contenu #montantRecu')[0].getValue()) === String(v), net, { timeout: 5000 });
+}
 
 function nettoyer() {
   for (const v of ventes) {
@@ -66,7 +84,7 @@ function nettoyer() {
     await ouvrirMenu(p1, 'SERVICE CLIENT', 'Ventes');
     await p1.waitForFunction(() => Ext.ComponentQuery.query('cloturerventemanager #addBtn').some((x) => x.isVisible(true)), null, { timeout: 60000 });
     await cliquer(p1, 'cloturerventemanager #addBtn');
-    const produit = 'doventemanager #contenu [xtype=fieldcontainer] #produit';
+    produit = 'doventemanager #contenu [xtype=fieldcontainer] #produit';
     await p1.waitForFunction((r) => Ext.ComponentQuery.query(r).some((x) => x.isVisible(true)), produit, { timeout: 60000 });
     await p1.waitForTimeout(1500);
     await cliquer(p1, produit);
@@ -86,17 +104,20 @@ function nettoyer() {
     const menu2 = await p2.evaluate(() => { const o = []; Ext.ComponentQuery.query('navigation')[0].getStore().getRootNode().cascadeBy((n) => { o.push(n.get('id')); }); return o; });
     ok('Onglet 2 : profil prévente connecté, sans le menu Ventes', menu2.indexOf('preenregistrementmanager') >= 0 && menu2.indexOf('cloturerventemanager') < 0);
 
-    /* onglet 1 : « Terminer la vente » */
-    const net = await p1.evaluate(() => testextjs.app.getController('VenteCtr').current.intPRICE);
-    await cliquer(p1, 'doventemanager #contenu #montantRecu');
-    await p1.keyboard.press('Control+A');
-    await p1.keyboard.type(String(net), { delay: 20 });
-    await cliquer(p1, 'doventemanager #contenu [xtype=toolbar] #btnCloture');
-    await p1.waitForTimeout(6000);
+    /* onglet 1 : la caissiere veut terminer la vente ; des sa premiere requete, l'onglet est refuse et se recharge */
+    const annonces = [];
+    await p1.exposeFunction('e2eToast', (t) => annonces.push(t));
+    await p1.evaluate(() => new MutationObserver(() => { document.querySelectorAll('.prestige-toast').forEach((t) => {
+      if (!t.e2eVu) { t.e2eVu = true; window.e2eToast(t.textContent); } }); }).observe(document.body, { childList: true, subtree: true }));
+    await saisirMontant(p1).then(() => cliquer(p1, 'doventemanager #contenu [xtype=toolbar] #btnCloture')).catch(() => {});
+    const finAnnonce = Date.now() + 10000;
+    while (!annonces.length && Date.now() < finAnnonce) { await p1.waitForTimeout(200); }
+    ok('Onglet admin : « Changement de compte » annoncé dans la page (la page se recharge au nom du compte connecté)', annonces.some((t) => /Changement de compte/.test(t)), annonces.join(' | '));
+    await p1.waitForTimeout(5000);
     const etat = q("SELECT CONCAT(p.str_STATUT, '|', IFNULL(c.str_LOGIN, ''), '|', IFNULL(v.str_LOGIN, '')) FROM t_preenregistrement p LEFT JOIN t_user c ON c.lg_USER_ID = p.lg_USER_CAISSIER_ID"
       + " LEFT JOIN t_user v ON v.lg_USER_ID = p.lg_USER_VENDEUR_ID WHERE p.lg_PREENREGISTREMENT_ID = '" + vente + "'");
     ok('Onglet admin après la connexion du profil prévente : la vente n\'est PAS terminée au nom de ce profil',
-      !/^is_Closed\|e2e-stagiaire/.test(etat) && !/\|e2e-stagiaire$/.test(etat.replace(/^is_Process.*/, '')), etat + ' | message : ' + (await texteMessage(p1)).slice(0, 150));
+      !/^is_Closed\|e2e-stagiaire/.test(etat) && !/\|e2e-stagiaire$/.test(etat.replace(/^is_Process.*/, '')), etat);
 
     /* la requete de cloture rejouee par le profil prevente seul */
     if (corpsCloture && /^is_Process/.test(q("SELECT str_STATUT FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID = '" + vente + "'"))) {
@@ -107,6 +128,31 @@ function nettoyer() {
     } else {
       ok('Clôture rejouée depuis la session du profil prévente : refusée (403), vente non terminée', false, corpsCloture ? 'vente déjà terminée' : 'requête de clôture non capturée');
     }
+
+    /* non-regression : un seul compte, vente terminee normalement */
+    const p3 = await (await b.newContext({ viewport: { width: 1600, height: 900 } })).newPage();
+    await connexion(p3, 'admin', 'e2etest');
+    await ouvrirMenu(p3, 'SERVICE CLIENT', 'Ventes');
+    await p3.waitForFunction(() => Ext.ComponentQuery.query('cloturerventemanager #addBtn').some((x) => x.isVisible(true)), null, { timeout: 60000 });
+    await cliquer(p3, 'cloturerventemanager #addBtn');
+    await p3.waitForFunction((r) => Ext.ComponentQuery.query(r).some((x) => x.isVisible(true)), produit, { timeout: 60000 });
+    await p3.waitForTimeout(1500);
+    await cliquer(p3, produit);
+    await p3.keyboard.type(CIP, { delay: 30 });
+    await p3.keyboard.press('Enter');
+    await p3.waitForFunction(() => { const c = testextjs.app.getController('VenteCtr').current; return c && parseInt(c.intPRICE, 10) > 0; }, null, { timeout: 20000 });
+    const v3 = await p3.evaluate(() => testextjs.app.getController('VenteCtr').current.lgPREENREGISTREMENTID);
+    ventes.push(v3);
+    await saisirMontant(p3);
+    await cliquer(p3, 'doventemanager #contenu [xtype=toolbar] #btnCloture');
+    const fin = Date.now() + 30000;
+    let etat3 = '';
+    while (Date.now() < fin) {
+      etat3 = q("SELECT CONCAT(p.str_STATUT, '|', IFNULL(c.str_LOGIN, '')) FROM t_preenregistrement p LEFT JOIN t_user c ON c.lg_USER_ID = p.lg_USER_CAISSIER_ID WHERE p.lg_PREENREGISTREMENT_ID = '" + v3 + "'");
+      if (/^is_Closed/.test(etat3)) { break; }
+      await p3.waitForTimeout(500);
+    }
+    ok('Non-régression : admin seul termine sa vente normalement (caissier = admin)', etat3 === 'is_Closed|admin', etat3);
   } catch (e) {
     ok('Parcours sans exception', false, e.stack);
   } finally {

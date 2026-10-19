@@ -82,6 +82,14 @@ public final class Constant {
     public static final String TOUT = "TOUT";
     public static final String ALL = "ALL";
     public static final String P_BT_MODIFICATION_DE_VENTE = "P_BT_MODIFICATION_DE_VENTE";
+    /**
+     * Terminer une vente (cloture comptant ou assurance), verifie par le serveur : menu « Ventes », menu « Gestion
+     * depots extensions » ou droit de modifier une vente. Un profil « Pre-vente » seul est refuse, meme avec une caisse
+     * ouverte (cas d'officine du 17/10).
+     */
+    public static final String[] PRIVILEGES_CLOTURE_VENTE = { "P_SM_CLOTURER_CAISSE", "P_SM_DEPOT_EXTENSION",
+            P_BT_MODIFICATION_DE_VENTE };
+    public static final String LIBELLE_CLOTURE_VENTE = "Terminer une vente (menu « Ventes »)";
     public static final String P_BTN_UPDATE_VENTE_CLIENT_TP = "P_BTN_UPDATE_VENTE_CLIENT_TP";
     public static final String P_BTN_UPDATE_VENTE_CLIENT_DATE = "P_BTN_UPDATE_VENTE_CLIENT_DATE";
     public static final String STATUT_IS_DEVIS = "devis";

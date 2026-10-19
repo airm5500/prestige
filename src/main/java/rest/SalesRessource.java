@@ -231,6 +231,11 @@ public class SalesRessource {
     @POST
     @Path("cloturer/vno")
     public Response cloturerVno(ClotureVenteParams clotureVenteParams) {
+        Response refusDroit = Droits.refus(servletRequest, Constant.LIBELLE_CLOTURE_VENTE,
+                Constant.PRIVILEGES_CLOTURE_VENTE);
+        if (refusDroit != null) {
+            return refusDroit;
+        }
 
         JSONObject json = cloturerEnMesurant("/api/v1/vente/cloturer/vno",
                 () -> salesService.updateVenteClotureComptant(clotureVenteParams));
@@ -279,6 +284,11 @@ public class SalesRessource {
     @POST
     @Path("cloturer/assurance")
     public Response cloturerAssurance(ClotureVenteParams clotureVenteParams) {
+        Response refusDroit = Droits.refus(servletRequest, Constant.LIBELLE_CLOTURE_VENTE,
+                Constant.PRIVILEGES_CLOTURE_VENTE);
+        if (refusDroit != null) {
+            return refusDroit;
+        }
 
         JSONObject json = cloturerEnMesurant("/api/v1/vente/cloturer/assurance",
                 () -> salesService.updateVenteClotureAssurance(clotureVenteParams));
