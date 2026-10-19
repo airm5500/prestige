@@ -297,3 +297,22 @@ La route lit les ventes et les BL de la période, puis ceux de la période préc
 tuiles). Elle n'est appelée qu'à l'ouverture de l'onglet Analyses ou sur « Actualiser », et la période est limitée à
 366 jours. L'écran affiche « Calcul des analyses… » pendant le calcul. Si douze mois s'avèrent trop lents en
 officine, la piste est d'agréger les ventes par jour en SQL plutôt que de les lire une par une.
+
+## Statistique famille (19/10)
+
+`GET v1/statfamillearticle` (ANALYSE DE GESTION > « Statistique famille », et son impression PDF), banc de 3 ans :
+
+| Cas | Avant | Après |
+|---|---:|---:|
+| Septembre 2026, sans filtre | 10,6 s | 2,8 s |
+| Septembre, filtre rayon | 7,2 s | 3,0 s |
+| Septembre, recherche par libellé | 16,6 s | 3,0 s |
+| Une semaine | 5,9 s | 2,5 s |
+
+**Cause** : écrites en critères JPA, les sommes laissaient MariaDB partir des 1 794 articles et relire toutes leurs
+lignes de vente depuis l'origine, au lieu de partir des ventes de la période (index sur la date). Le cumul de l'année
+était en plus relu famille par famille. Les requêtes sont maintenant en SQL natif, ventes lues d'abord
+(`STRAIGHT_JOIN`), cumul de l'année en une seule requête. Réponses comparées octet pour octet sur 8 cas (filtres,
+périodes, période vide) : identiques. Les routes par rayon et par grossiste (`statisticrayons`,
+`statisticprovider`), qui partagent le total HT, donnent aussi des réponses identiques (14 cas). Elles restent autour
+de 10 s par appel : leur temps se passe ailleurs, à traiter à part.

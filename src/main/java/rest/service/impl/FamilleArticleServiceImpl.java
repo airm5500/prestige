@@ -132,13 +132,15 @@ public class FamilleArticleServiceImpl implements FamilleArticleService {
 
                         });
             } else {
+                /* cumuls de l'annee de toutes les familles en une requete, plus une requete par famille (19/10) */
+                Map<String, FamilleArticleStatDTO> cumuls = cumulsAnnuelsParFamille(periode, u);
                 findPreenregistrementDetails(LocalDate.parse(dtStart), LocalDate.parse(dtEnd), query, codeFamile, u,
                         codeRayon, codeGrossiste).stream().sorted(comparator).forEach(x -> {
                             montantMarge.add(x.getMontantMarge());
                             montantTTC.add(x.getMontantTTC());
                             montantAchat.add(x.getMontantAchat());
                             montantHT.add(x.getMontantHT());
-                            cumulFamilleArticles(periode, x, u);
+                            appliquerCumul(x, cumuls.get(x.getFamilleId()));
                             Double p = pourcent(x.getMontantHT(), montanttotalHt);
                             x.setPourcentageTH(p.longValue());
                             list.add(x);
@@ -211,38 +213,108 @@ public class FamilleArticleServiceImpl implements FamilleArticleService {
         return predicates;
     }
 
+    /*
+     * Lenteur des statistiques par famille (10 a 17 s pour un mois sur le banc, 19/10) : ecrites en criteres JPA, ces
+     * sommes laissaient MariaDB partir des articles et relire TOUTES leurs lignes de vente depuis l'origine. Ici les
+     * ventes de la periode sont lues d'abord (index sur la date), puis leurs lignes : memes filtres, memes sommes.
+     */
+    private static final String SQL_SOMMES_FAMILLE = "SELECT STRAIGHT_JOIN fa.str_CODE_FAMILLE AS code, fa.str_LIBELLE AS libelle,"
+            + " COALESCE(SUM(d.int_PRICE), 0) AS ttc, COALESCE(SUM(d.prixAchat * d.int_QUANTITY), 0) AS achat,"
+            + " COALESCE(SUM(d.montantTva), 0) AS tva, COALESCE(SUM(d.int_PRICE_REMISE), 0) AS remise,"
+            + " fa.lg_FAMILLEARTICLE_ID AS famille FROM t_preenregistrement p"
+            + " JOIN t_user u ON u.lg_USER_ID = p.lg_USER_ID"
+            + " JOIN t_preenregistrement_detail d ON d.lg_PREENREGISTREMENT_ID = p.lg_PREENREGISTREMENT_ID"
+            + " JOIN t_famille f ON f.lg_FAMILLE_ID = d.lg_FAMILLE_ID"
+            + " JOIN t_famillearticle fa ON fa.lg_FAMILLEARTICLE_ID = f.lg_FAMILLEARTICLE_ID"
+            + " WHERE p.dt_UPDATED >= ?1 AND p.dt_UPDATED < ?2 AND u.lg_EMPLACEMENT_ID = ?3 AND p.str_STATUT = ?4"
+            + " AND p.b_IS_CANCEL = 0 AND p.int_PRICE > 0 AND p.lg_TYPE_VENTE_ID NOT LIKE ?5";
+
     private List<FamilleArticleStatDTO> findPreenregistrementDetails(LocalDate dtStart, LocalDate dtEnd, String query,
             String codeFamillle, TUser u, String codeRayon, String codeGrossiste) {
         try {
-
-            CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();
-            CriteriaQuery<FamilleArticleStatDTO> cq = cb.createQuery(FamilleArticleStatDTO.class);
-            Root<TPreenregistrementDetail> root = cq.from(TPreenregistrementDetail.class);
-            Join<TPreenregistrementDetail, TPreenregistrement> join = root
-                    .join(TPreenregistrementDetail_.lgPREENREGISTREMENTID, JoinType.INNER);
-            cq.select(
-                    cb.construct(FamilleArticleStatDTO.class,
-                            root.get(TPreenregistrementDetail_.lgFAMILLEID).get(TFamille_.lgFAMILLEARTICLEID)
-                                    .get(TFamillearticle_.strCODEFAMILLE),
-                            root.get(TPreenregistrementDetail_.lgFAMILLEID).get(TFamille_.lgFAMILLEARTICLEID)
-                                    .get(TFamillearticle_.strLIBELLE),
-                            cb.sum(root.get(TPreenregistrementDetail_.intPRICE)),
-                            cb.sum(cb.prod(root.get(TPreenregistrementDetail_.prixAchat),
-                                    root.get(TPreenregistrementDetail_.intQUANTITY))),
-                            cb.sum(root.get(TPreenregistrementDetail_.montantTva)),
-                            cb.sum(root.get(TPreenregistrementDetail_.intPRICEREMISE)),
-                            root.get(TPreenregistrementDetail_.lgFAMILLEID).get(TFamille_.lgFAMILLEARTICLEID)
-                                    .get(TFamillearticle_.lgFAMILLEARTICLEID)))
-                    .groupBy(root.get(TPreenregistrementDetail_.lgFAMILLEID).get(TFamille_.lgFAMILLEARTICLEID));
-            List<Predicate> predicates = famillePredicats(cb, root, join, dtStart, dtEnd, query, codeFamillle, u,
-                    codeRayon, codeGrossiste);
-            cq.where(cb.and(predicates.toArray(Predicate[]::new)));
-            TypedQuery<FamilleArticleStatDTO> q = getEntityManager().createQuery(cq);
-            return q.getResultList();
+            StringBuilder sql = new StringBuilder(SQL_SOMMES_FAMILLE);
+            List<Object> params = filtresFamille(sql, query, codeFamillle, codeRayon, codeGrossiste);
+            sql.append(" GROUP BY fa.lg_FAMILLEARTICLE_ID");
+            Query q = sommes(sql.toString(), dtStart.atStartOfDay(), dtEnd.plusDays(1).atStartOfDay(), u);
+            for (int i = 0; i < params.size(); i++) {
+                q.setParameter(6 + i, params.get(i));
+            }
+            List<FamilleArticleStatDTO> out = new ArrayList<>();
+            for (Object o : q.getResultList()) {
+                Object[] l = (Object[]) o;
+                out.add(new FamilleArticleStatDTO((String) l[0], (String) l[1], nombre(l[2]), nombre(l[3]),
+                        nombre(l[4]), nombre(l[5]), (String) l[6]));
+            }
+            return out;
         } catch (Exception e) {
             LOG.log(Level.SEVERE, null, e);
             return Collections.emptyList();
         }
+    }
+
+    /** Filtres de l'ecran (recherche, famille, rayon, grossiste) : parametres ?6 et suivants, dans l'ordre. */
+    private static List<Object> filtresFamille(StringBuilder sql, String query, String codeFamillle, String codeRayon,
+            String codeGrossiste) {
+        List<Object> params = new ArrayList<>();
+        if (!StringUtils.isEmpty(query)) {
+            params.add(query + "%");
+            sql.append(" AND (fa.str_CODE_FAMILLE LIKE ?6 OR fa.str_LIBELLE LIKE ?6)");
+        }
+        if (!StringUtils.isEmpty(codeFamillle) && !codeFamillle.equals("ALL")) {
+            params.add(codeFamillle);
+            sql.append(" AND fa.lg_FAMILLEARTICLE_ID = ?").append(5 + params.size());
+        }
+        if (!StringUtils.isEmpty(codeRayon) && !codeRayon.equals("ALL")) {
+            params.add(codeRayon);
+            sql.append(" AND f.lg_ZONE_GEO_ID = ?").append(5 + params.size());
+        }
+        if (!StringUtils.isEmpty(codeGrossiste) && !codeGrossiste.equals("ALL")) {
+            params.add(codeGrossiste);
+            sql.append(" AND f.lg_GROSSISTE_ID = ?").append(5 + params.size());
+        }
+        return params;
+    }
+
+    private Query sommes(String sql, java.time.LocalDateTime debut, java.time.LocalDateTime fin, TUser u) {
+        return getEntityManager().createNativeQuery(sql).setParameter(1, java.sql.Timestamp.valueOf(debut))
+                .setParameter(2, java.sql.Timestamp.valueOf(fin))
+                .setParameter(3, u.getLgEMPLACEMENTID().getLgEMPLACEMENTID())
+                .setParameter(4, DateConverter.STATUT_IS_CLOSED).setParameter(5, DateConverter.DEPOT_EXTENSION);
+    }
+
+    private static long nombre(Object o) {
+        return o == null ? 0 : ((Number) o).longValue();
+    }
+
+    /** Cumuls de l'annee de la periode, par famille : memes regles que {@link #cumulFamilleArticles}. */
+    private Map<String, FamilleArticleStatDTO> cumulsAnnuelsParFamille(LocalDate periode, TUser u) {
+        Map<String, FamilleArticleStatDTO> out = new HashMap<>();
+        try {
+            for (Object o : sommes(SQL_SOMMES_FAMILLE + " GROUP BY fa.lg_FAMILLEARTICLE_ID",
+                    periode.withDayOfYear(1).atStartOfDay(), periode.withDayOfYear(1).plusYears(1).atStartOfDay(), u)
+                            .getResultList()) {
+                Object[] l = (Object[]) o;
+                out.put((String) l[6],
+                        new FamilleArticleStatDTO(nombre(l[2]), nombre(l[3]), nombre(l[4]), nombre(l[5])));
+            }
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, null, e);
+        }
+        return out;
+    }
+
+    /** Recopie le cumul annuel dans la ligne de la famille, comme {@link #cumulFamilleArticles}. */
+    private void appliquerCumul(FamilleArticleStatDTO x, FamilleArticleStatDTO t) {
+        if (t == null) {
+            /* famille vendue dans la periode : toujours presente dans l'annee ; garde si l'annee change en cours */
+            return;
+        }
+        x.setMontantCumulAchat(t.getMontantCumulAchat());
+        x.setMontantCumulTTC(t.getMontantCumulTTC());
+        x.setMontantCumulTva(t.getMontantCumulTva());
+        x.setMontantCumulHT(t.getMontantCumulHT());
+        Double p = pourcent(x.getMontantHT(), x.getMontantCumulHT());
+        x.setValeurPeriode(p.intValue());
     }
 
     FamilleArticleStatDTO cumulFamilleArticles(LocalDate periode, FamilleArticleStatDTO familleArticleStatDTO,
@@ -293,24 +365,31 @@ public class FamilleArticleServiceImpl implements FamilleArticleService {
     private long totalMontantHT(LocalDate dtStart, LocalDate dtEnd, String query, String codeFamillle, TUser u,
             String codeRayon, String codeGrossiste) {
         try {
-            // List<Predicate> predicates = new ArrayList<>();
-            // TEmplacement emp = u.getLgEMPLACEMENTID();
-            CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();
-            CriteriaQuery<Number> cq = cb.createQuery(Number.class);
-            Root<TPreenregistrementDetail> root = cq.from(TPreenregistrementDetail.class);
-            Join<TPreenregistrementDetail, TPreenregistrement> join = root
-                    .join(TPreenregistrementDetail_.lgPREENREGISTREMENTID, JoinType.INNER);
-            cq.select(cb.diff(
-                    cb.diff(cb.sum(root.get(TPreenregistrementDetail_.intPRICE)),
-                            cb.sum(root.get(TPreenregistrementDetail_.intPRICEREMISE))),
-                    cb.sum(root.get(TPreenregistrementDetail_.montantTva))));
-
-            List<Predicate> predicates = famillePredicats(cb, root, join, dtStart, dtEnd, query, codeFamillle, u,
-                    codeRayon, codeGrossiste);
-            cq.where(cb.and(predicates.toArray(Predicate[]::new)));
-
-            Query q = getEntityManager().createQuery(cq);
-            q.setMaxResults(1);
+            /*
+             * Meme correction que findPreenregistrementDetails (19/10) : ventes de la periode lues d'abord. Les
+             * articles ne sont joints que si un filtre les vise, comme la requete d'origine (jointure implicite du
+             * filtre).
+             */
+            boolean article = !StringUtils.isEmpty(query)
+                    || (!StringUtils.isEmpty(codeFamillle) && !codeFamillle.equals("ALL"));
+            boolean produit = article || (!StringUtils.isEmpty(codeRayon) && !codeRayon.equals("ALL"))
+                    || (!StringUtils.isEmpty(codeGrossiste) && !codeGrossiste.equals("ALL"));
+            StringBuilder sql = new StringBuilder(
+                    "SELECT STRAIGHT_JOIN SUM(d.int_PRICE) - SUM(d.int_PRICE_REMISE) - SUM(d.montantTva)")
+                            .append(" FROM t_preenregistrement p JOIN t_user u ON u.lg_USER_ID = p.lg_USER_ID")
+                            .append(" JOIN t_preenregistrement_detail d ON d.lg_PREENREGISTREMENT_ID = p.lg_PREENREGISTREMENT_ID");
+            if (produit) {
+                sql.append(" JOIN t_famille f ON f.lg_FAMILLE_ID = d.lg_FAMILLE_ID");
+            }
+            if (article) {
+                sql.append(" JOIN t_famillearticle fa ON fa.lg_FAMILLEARTICLE_ID = f.lg_FAMILLEARTICLE_ID");
+            }
+            sql.append(SQL_SOMMES_FAMILLE.substring(SQL_SOMMES_FAMILLE.indexOf(" WHERE ")));
+            List<Object> params = filtresFamille(sql, query, codeFamillle, codeRayon, codeGrossiste);
+            Query q = sommes(sql.toString(), dtStart.atStartOfDay(), dtEnd.plusDays(1).atStartOfDay(), u);
+            for (int i = 0; i < params.size(); i++) {
+                q.setParameter(6 + i, params.get(i));
+            }
             /* periode sans vente : la somme revient vide (NullPointerException journalisee le 13/10) */
             Number total = (Number) q.getSingleResult();
             return total == null ? 0 : total.longValue();
