@@ -362,3 +362,13 @@ famille, ventes à perte), en partant des articles et de toutes leurs lignes dep
 
 Les réponses ont été comparées octet pour octet sur les 4 périodes : elles sont identiques. Test d'écran :
 `perf/test-pilotage-a-suivre.js` (4/4) ; il échoue sur l'ancien code (29 s).
+
+**Appel depuis l'application mobile.** Le journal de l'officine vient de l'application mobile. Le journal de blocage
+n'écrit pas les paramètres, et sans période le serveur prend le mois en cours. J'ai mesuré ce cas sur le banc, base
+froide (MariaDB redémarrée, caches du système vidés), au premier appel :
+- ancien code : 5,5 s ;
+- nouveau code : 6,0 s, l'écart restant dans le bruit de la mesure.
+
+Le gain du correctif porte sur l'année et les 12 mois glissants, pas sur le mois. Les 26 s de l'officine sur le mois
+ne se reproduisent pas sur le banc. Pour savoir quelle période le mobile a demandée, il faut lire la ligne « Query : »
+de l'événement de lenteur du support, à la même heure.
