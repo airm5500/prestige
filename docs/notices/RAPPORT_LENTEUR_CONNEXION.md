@@ -340,3 +340,25 @@ n'affiche que trois lignes au plus et qu'elles portent moins du quart des articl
 l'index de l'article (1,1 s au lieu de 2,5 s pour le cumul de tous). Les réponses ont été
 comparées octet pour octet sur 14 cas : elles sont identiques. Test d'écran : `perf/test-statistique-rayon-grossiste.js`
 (14/14). Sur l'ancien code, ses 12 premières vérifications donnaient 8/12 (de 7 à 13 s).
+
+## Pilotage, onglet « À suivre » (19/10)
+
+Journal de l'officine : « BLOCAGE DETECTE : requete en traitement depuis 26s : GET /prestige/api/v1/pilotage/onglet/asuivre ».
+Sur le banc de 3 ans, premier calcul (le résultat est ensuite gardé 5 minutes) :
+
+| Période | Avant | Après |
+|---|---:|---:|
+| Mois en cours | 3,7 s | 3,3 s |
+| Mois vs an dernier | 4,3 s | 4,2 s |
+| Cumul annuel | 28,4 s | 6,8 s |
+| Glissant 12 mois | 32,6 s | 6,3 s |
+
+**Cause** : les lignes de vente de la période étaient relues quatre fois (CA total, CA par emplacement, CA par
+famille, ventes à perte), en partant des articles et de toutes leurs lignes depuis l'origine. **Correction** :
+- emplacements et familles : les ventes de la période sont lues d'abord (`STRAIGHT_JOIN`) ;
+- CA total : c'est la somme des emplacements, ce qui économise une lecture ;
+- emplacements, familles et ventes à perte : chacune tourne sur son propre fil et sa propre connexion pendant le
+  reste du calcul, comme la balance des ventes. Si le lancement échoue, la lecture est refaite en direct.
+
+Les réponses ont été comparées octet pour octet sur les 4 périodes : elles sont identiques. Test d'écran :
+`perf/test-pilotage-a-suivre.js` (4/4) ; il échoue sur l'ancien code (29 s).

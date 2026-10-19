@@ -1220,12 +1220,71 @@ public class PilotageService {
             + " COALESCE(SUM((d.int_PRICE - COALESCE(d.int_PRICE_REMISE, 0)) / (1 + COALESCE(v.int_VALUE, 0) / 100)"
             + " - f.int_PAF * d.int_QUANTITY), 0) AS marge, COUNT(DISTINCT p.lg_PREENREGISTREMENT_ID) AS ventes";
 
-    /** CA, marge et part du CA par emplacement ou par famille, sur la periode regardee (20 premiers). */
-    private JSONArray repartition(Periode periode, String cle, String libelle, String jointure, double caTotal) {
+    /*
+     * Lenteur de l'onglet A suivre (journal du Pilotage, 19/10 : 26 s ; 28 a 33 s sur le banc pour l'annee) : partie
+     * des lignes, la requete laissait MariaDB parcourir les articles et toutes leurs lignes depuis l'origine. Les
+     * ventes de la periode sont lues d'abord (index sur la date) : memes conditions, memes sommes.
+     */
+    private static final String LIGNES_VENTES_PAR_DATE = " FROM t_preenregistrement p"
+            + " JOIN t_preenregistrement_detail d ON d.lg_PREENREGISTREMENT_ID = p.lg_PREENREGISTREMENT_ID"
+            + LIGNES_VENTES.substring(LIGNES_VENTES.indexOf(" JOIN t_famille"));
+
+    /** CA, marge et nombre de ventes par emplacement ou par famille, sur la periode regardee, du plus fort CA. */
+    private static String sqlRepartition(String cle, String libelle, String jointure) {
+        return "SELECT STRAIGHT_JOIN " + cle + " AS id, " + libelle + " AS libelle," + MESURES_LIGNES
+                + LIGNES_VENTES_PAR_DATE.replace(" WHERE ", jointure + " WHERE ")
+                + " GROUP BY id, libelle ORDER BY ca DESC";
+    }
+
+    private static final String SQL_REPARTITION_EMPLACEMENTS = sqlRepartition("f.lg_ZONE_GEO_ID", "z.str_LIBELLEE",
+            " LEFT JOIN t_zone_geographique z ON z.lg_ZONE_GEO_ID = f.lg_ZONE_GEO_ID");
+    private static final String SQL_REPARTITION_FAMILLES = sqlRepartition("f.lg_FAMILLEARTICLE_ID", "fa.str_LIBELLE",
+            " LEFT JOIN t_famillearticle fa ON fa.lg_FAMILLEARTICLE_ID = f.lg_FAMILLEARTICLE_ID");
+    private static final String SQL_MARGE_NEGATIVE = "SELECT f.int_CIP AS cip, f.str_NAME AS libelle, f.int_PAF AS paf,"
+            + " MIN(d.int_PRICE_UNITAIR) AS prix, SUM(d.int_QUANTITY) AS vendus" + LIGNES_VENTES
+            + " AND d.int_PRICE_UNITAIR > 0 AND d.int_PRICE_UNITAIR < f.int_PAF"
+            + " GROUP BY f.lg_FAMILLE_ID, f.int_CIP, f.str_NAME, f.int_PAF ORDER BY vendus DESC LIMIT 15";
+
+    /*
+     * Les trois lectures les plus lourdes de l'onglet (emplacements, familles, ventes a perte : 2 a 5 s chacune sur
+     * l'annee) tournent chacune sur son propre fil et sa propre connexion pendant que le reste se calcule, comme la
+     * balance des ventes. Si le lancement ou le calcul asynchrone echoue, la meme lecture est refaite en direct.
+     */
+    @javax.ejb.EJB
+    private PilotageService moiMeme;
+
+    /** Une lecture de l'onglet A suivre, sur son propre fil ; reservee a {@link #aSuivre}. */
+    @javax.ejb.Asynchronous
+    public java.util.concurrent.Future<List<Tuple>> listeAsync(String sql, Periode periode) {
+        return new javax.ejb.AsyncResult<>(liste(sql, periode));
+    }
+
+    private java.util.concurrent.Future<List<Tuple>> lancer(String sql, Periode periode) {
+        try {
+            return moiMeme.listeAsync(sql, periode);
+        } catch (RuntimeException e) {
+            LOG.log(Level.WARNING, "pilotage : lecture asynchrone impossible, lecture directe", e);
+            return null;
+        }
+    }
+
+    private List<Tuple> obtenir(java.util.concurrent.Future<List<Tuple>> attente, String sql, Periode periode) {
+        if (attente != null) {
+            try {
+                return attente.get(30, java.util.concurrent.TimeUnit.MINUTES);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            } catch (java.util.concurrent.ExecutionException | java.util.concurrent.TimeoutException e) {
+                LOG.log(Level.WARNING, "pilotage : lecture asynchrone en echec, reprise en direct", e);
+            }
+        }
+        return liste(sql, periode);
+    }
+
+    /** Les 20 premiers, avec leur part du CA. */
+    private JSONArray repartition(List<Tuple> lignes, double caTotal) {
         JSONArray r = new JSONArray();
-        for (Tuple t : liste("SELECT " + cle + " AS id, " + libelle + " AS libelle," + MESURES_LIGNES
-                + LIGNES_VENTES.replace(" WHERE ", jointure + " WHERE ")
-                + " GROUP BY id, libelle ORDER BY ca DESC LIMIT 20", periode)) {
+        for (Tuple t : lignes.subList(0, Math.min(20, lignes.size()))) {
             double ca = nombre(t.get("ca"));
             r.put(new JSONObject()
                     .put("libelle", StringUtils.defaultIfBlank(t.get("libelle", String.class), "(non renseigné)"))
@@ -1237,6 +1296,10 @@ public class PilotageService {
     }
 
     private JSONObject aSuivre(Axe axe) {
+        java.util.concurrent.Future<List<Tuple>> attenteEmplacements = lancer(SQL_REPARTITION_EMPLACEMENTS,
+                axe.courante);
+        java.util.concurrent.Future<List<Tuple>> attenteFamilles = lancer(SQL_REPARTITION_FAMILLES, axe.courante);
+        java.util.concurrent.Future<List<Tuple>> attenteMargeNegative = lancer(SQL_MARGE_NEGATIVE, axe.courante);
         Totaux courant = totaux(axe.courante);
         Totaux reference = axe.reference == null ? null : totaux(axe.reference);
         JSONArray mois = moisAgreges(axe);
@@ -1273,12 +1336,7 @@ public class PilotageService {
                 "demandes non servies, pas encore commandées"));
 
         JSONArray margeNegative = new JSONArray();
-        for (Tuple t : liste(
-                "SELECT f.int_CIP AS cip, f.str_NAME AS libelle, f.int_PAF AS paf,"
-                        + " MIN(d.int_PRICE_UNITAIR) AS prix, SUM(d.int_QUANTITY) AS vendus" + LIGNES_VENTES
-                        + " AND d.int_PRICE_UNITAIR > 0 AND d.int_PRICE_UNITAIR < f.int_PAF"
-                        + " GROUP BY f.lg_FAMILLE_ID, f.int_CIP, f.str_NAME, f.int_PAF ORDER BY vendus DESC LIMIT 15",
-                axe.courante)) {
+        for (Tuple t : obtenir(attenteMargeNegative, SQL_MARGE_NEGATIVE, axe.courante)) {
             margeNegative.put(new JSONObject().put("cip", t.get("cip", String.class))
                     .put("libelle", t.get("libelle", String.class)).put("paf", entier(t.get("paf")))
                     .put("prix", entier(t.get("prix"))).put("vendus", entier(t.get("vendus"))));
@@ -1324,17 +1382,16 @@ public class PilotageService {
         if (alertes.length() == 0) {
             alertes.put(new JSONObject().put("niveau", "ok").put("texte", "Rien à signaler sur la période."));
         }
+        /* chaque ligne a un et un seul emplacement (vide compris) : le CA total est la somme des emplacements */
+        List<Tuple> emplacements = obtenir(attenteEmplacements, SQL_REPARTITION_EMPLACEMENTS, axe.courante);
         double ca = 0;
-        for (Tuple t : liste("SELECT" + MESURES_LIGNES + LIGNES_VENTES, axe.courante)) {
-            ca = nombre(t.get("ca"));
+        for (Tuple t : emplacements) {
+            ca += nombre(t.get("ca"));
         }
         return new JSONObject().put("tuiles", tuiles).put("mois", mois).put("alertes", alertes)
                 .put("ruptures", ruptures).put("margeNegative", margeNegative)
-                .put("emplacements",
-                        repartition(axe.courante, "f.lg_ZONE_GEO_ID", "z.str_LIBELLEE",
-                                " LEFT JOIN t_zone_geographique z ON z.lg_ZONE_GEO_ID = f.lg_ZONE_GEO_ID", ca))
-                .put("familles", repartition(axe.courante, "f.lg_FAMILLEARTICLE_ID", "fa.str_LIBELLE",
-                        " LEFT JOIN t_famillearticle fa ON fa.lg_FAMILLEARTICLE_ID = f.lg_FAMILLEARTICLE_ID", ca))
+                .put("emplacements", repartition(emplacements, ca))
+                .put("familles", repartition(obtenir(attenteFamilles, SQL_REPARTITION_FAMILLES, axe.courante), ca))
                 .put("horaire", frequentation(axe.courante)).put("caLignes", arrondi(ca));
     }
 
