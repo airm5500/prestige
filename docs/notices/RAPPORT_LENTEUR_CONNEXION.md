@@ -282,3 +282,18 @@ routes à mesurer seules, pas une lenteur établie.
 **À faire** : mesurer chacune seule, serveur au repos, sur le banc puis sur la copie `laborex_v1_db`, avant toute
 optimisation. Les routes nouvelles du 15/10 ont été mesurées : état des rayons d'un inventaire < 300 ms, routes de
 comptage (`…/nombre`) quelques dizaines de millisecondes.
+
+## Activité des équipes : onglet Analyses (19/10)
+
+Mesure de `GET v1/activite-equipes/analyses` sur le banc (3 ans, environ 16 500 ventes par mois), serveur au repos,
+une requête à la fois :
+
+| Période | Durée |
+|---|---:|
+| un mois (septembre 2026) | 1,1 s |
+| douze mois | 8,8 s |
+
+La route lit les ventes et les BL de la période, puis ceux de la période précédente de même durée (comparaison des
+tuiles). Elle n'est appelée qu'à l'ouverture de l'onglet Analyses ou sur « Actualiser », et la période est limitée à
+366 jours. L'écran affiche « Calcul des analyses… » pendant le calcul. Si douze mois s'avèrent trop lents en
+officine, la piste est d'agréger les ventes par jour en SQL plutôt que de les lire une par une.

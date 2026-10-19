@@ -76,6 +76,24 @@ public class ActiviteEquipesRessource {
     }
 
     @GET
+    @Path("analyses")
+    public Response analyses(@QueryParam("debut") String debut, @QueryParam("fin") String fin,
+            @QueryParam("employeId") String employeId) {
+        Response r = refus();
+        if (r != null) {
+            return r;
+        }
+        ActiviteFiltreDTO f = filtre(debut, fin, employeId, null, null);
+        if (f == null) {
+            return dateInvalide();
+        }
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("success", true);
+        m.put("data", service.analyses(f));
+        return Response.ok(m).build();
+    }
+
+    @GET
     @Path("journal/csv")
     @Produces("text/csv")
     public Response journalCsv(@QueryParam("debut") String debut, @QueryParam("fin") String fin,

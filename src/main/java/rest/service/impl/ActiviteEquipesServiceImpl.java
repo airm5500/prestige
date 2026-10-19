@@ -3,10 +3,15 @@ package rest.service.impl;
 import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import javax.ejb.Stateless;
 import javax.ejb.TransactionAttribute;
 import javax.ejb.TransactionAttributeType;
@@ -14,11 +19,13 @@ import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 import javax.persistence.Query;
 import rest.service.ActiviteEquipesService;
+import rest.service.dto.ActiviteAnalysesDTO;
 import rest.service.dto.ActiviteCompteurDTO;
 import rest.service.dto.ActiviteEmployeDTO;
 import rest.service.dto.ActiviteFiltreDTO;
 import rest.service.dto.ActiviteJournalDTO;
 import rest.service.dto.ActiviteLigneDTO;
+import rest.service.impl.activite.AgregatsActivite;
 
 /**
  * Journal « Activité des équipes » : une branche SQL par type d'action, chacune filtree par la periode et l'employe
@@ -179,6 +186,140 @@ public class ActiviteEquipesServiceImpl implements ActiviteEquipesService {
 
         List<ActiviteLigneDTO> lignes = page(f, Math.max(1, Math.min(f.getLimit(), 500)));
         return ActiviteJournalDTO.builder().total(total).lignes(lignes).compteurs(compteurs).build();
+    }
+
+    @Override
+    public ActiviteAnalysesDTO analyses(ActiviteFiltreDTO f) {
+        long jours = ChronoUnit.DAYS.between(f.getDebut(), f.getFin()) + 1;
+        LocalDate finP = f.getDebut().minusDays(1), debutP = finP.minusDays(jours - 1);
+        Map<String, String> noms = noms();
+        List<AgregatsActivite.Vente> ventes = ventes(f.getDebut(), f.getFin(), f.getEmployeId());
+        List<AgregatsActivite.Bl> bls = bls(f.getDebut(), f.getFin(), f.getEmployeId());
+        Map<String, Long> annulations = parEmploye(SQL_ANNULATIONS, f.getDebut(), f.getFin(), f.getEmployeId());
+        AgregatsActivite.Totaux t = AgregatsActivite.totaux(ventes, bls, somme(annulations));
+        AgregatsActivite.Totaux p = AgregatsActivite.totaux(ventes(debutP, finP, f.getEmployeId()),
+                bls(debutP, finP, f.getEmployeId()),
+                somme(parEmploye(SQL_ANNULATIONS, debutP, finP, f.getEmployeId())));
+
+        Map<String, Long> ventesParEmploye = new HashMap<>();
+        ventes.forEach(v -> ventesParEmploye.merge(v.employeId(), 1L, Long::sum));
+        Set<String> actifs = new HashSet<>(ventesParEmploye.keySet());
+        bls.forEach(b -> actifs.add(b.employeId()));
+
+        List<ActiviteAnalysesDTO.Heure> heures = AgregatsActivite.heures(ventes);
+        List<ActiviteAnalysesDTO.Operateur> operateurs = AgregatsActivite.operateurs(ventes, noms);
+        List<ActiviteAnalysesDTO.Grossiste> grossistes = AgregatsActivite.grossistes(bls);
+        List<ActiviteAnalysesDTO.Tranche> retard = AgregatsActivite.retardBl(bls);
+        List<ActiviteAnalysesDTO.Sensible> sensibles = AgregatsActivite.sensibles(ventesParEmploye, annulations,
+                parEmploye(SQL_MODIFICATIONS, f.getDebut(), f.getFin(), f.getEmployeId()),
+                parEmploye(SQL_REMISES, f.getDebut(), f.getFin(), f.getEmployeId()), noms);
+
+        List<Object> pr = new ArrayList<>();
+        ActiviteFiltreDTO sansType = ActiviteFiltreDTO.builder().debut(f.getDebut()).fin(f.getFin())
+                .employeId(f.getEmployeId()).build();
+        List<Object[]> parType = liste(
+                "SELECT a.u AS emp, a.t AS typ, COUNT(*) AS n FROM (" + reunion(sansType, pr, true) + ") a"
+                        + " WHERE a.u IS NOT NULL AND a.t <> 'CONNEXION' GROUP BY a.u, a.t",
+                pr);
+
+        return ActiviteAnalysesDTO.builder().debut(f.getDebut().toString()).fin(f.getFin().toString())
+                .debutPrecedent(debutP.toString()).finPrecedent(finP.toString())
+                .indicateurs(AgregatsActivite.indicateurs(t, p, actifs.size()))
+                .constats(AgregatsActivite.constats(heures, operateurs, grossistes, retard, sensibles, t, p))
+                .heures(heures).carte(AgregatsActivite.carte(ventes)).jours(AgregatsActivite.jours(ventes, bls))
+                .operateurs(operateurs).grossistes(grossistes).retardBl(retard).sensibles(sensibles)
+                .repartition(AgregatsActivite.repartition(parType, noms)).build();
+    }
+
+    /** Ventes encaissees de la periode : une ligne par vente (operateur = lg_USER_ID, comme les requetes de mesure). */
+    static final String SQL_VENTES = "SELECT p.lg_USER_ID AS emp, p.dt_CREATED AS ouverture, MAX(d.dt_UPDATED) AS derniere,"
+            + " COALESCE(p.completion_date, p.dt_UPDATED) AS encaissement, COUNT(d.lg_PREENREGISTREMENT_DETAIL_ID) AS lignes, p.int_PRICE AS montant FROM t_preenregistrement p"
+            + " JOIN t_preenregistrement_detail d ON d.lg_PREENREGISTREMENT_ID = p.lg_PREENREGISTREMENT_ID"
+            + " WHERE p.str_STATUT = 'is_Closed' AND p.b_IS_CANCEL = 0 AND p.int_PRICE > 0 AND p.lg_TYPE_VENTE_ID <> '5'"
+            + " AND p.dt_UPDATED >= ?1 AND p.dt_UPDATED < ?2 %s GROUP BY p.lg_PREENREGISTREMENT_ID";
+    /** BL clotures entres sur la periode : une ligne par BL. */
+    static final String SQL_BL = "SELECT b.lg_USER_ID AS emp, g.str_LIBELLE AS grossiste, o.dt_CREATED AS commande, b.dt_CREATED AS creation,"
+            + " MAX(d.dt_UPDATED) AS fin_saisie, b.dt_DATE_LIVRAISON AS livraison, COUNT(*) AS lignes"
+            + " FROM t_bon_livraison b JOIN t_order o ON o.lg_ORDER_ID = b.lg_ORDER_ID LEFT JOIN t_grossiste g ON g.lg_GROSSISTE_ID = o.lg_GROSSISTE_ID"
+            + " JOIN t_bon_livraison_detail d ON d.lg_BON_LIVRAISON_ID = b.lg_BON_LIVRAISON_ID"
+            + " WHERE b.str_STATUT = 'is_Closed' AND b.dt_CREATED >= ?1 AND b.dt_CREATED < ?2 %s GROUP BY b.lg_BON_LIVRAISON_ID";
+    static final String SQL_ANNULATIONS = "SELECT p.lg_USER_ID AS emp, COUNT(*) AS n FROM t_preenregistrement p WHERE p.b_IS_CANCEL = 1 AND p.int_PRICE > 0"
+            + " AND p.dt_ANNULER >= ?1 AND p.dt_ANNULER < ?2 %s"
+            + " AND NOT EXISTS (SELECT 1 FROM vente_modifiee vm WHERE vm.vente_origine_id = p.lg_PREENREGISTREMENT_ID) GROUP BY p.lg_USER_ID";
+    static final String SQL_MODIFICATIONS = "SELECT v.user_id AS emp, COUNT(*) AS n FROM vente_modifiee v WHERE v.mvt_date >= ?1 AND v.mvt_date < ?2 %s"
+            + " GROUP BY v.user_id";
+    static final String SQL_REMISES = "SELECT p.lg_USER_CAISSIER_ID AS emp, SUM(p.int_PRICE_REMISE) AS n FROM t_preenregistrement p"
+            + " WHERE p.str_STATUT = 'is_Closed' AND p.b_IS_CANCEL = 0 AND p.int_PRICE_REMISE > 0 AND p.dt_UPDATED >= ?1 AND p.dt_UPDATED < ?2 %s"
+            + " GROUP BY p.lg_USER_CAISSIER_ID";
+
+    private List<Object[]> lire(String gabarit, String colonneEmploye, LocalDate debut, LocalDate fin,
+            String employeId) {
+        List<Object> params = new ArrayList<>();
+        params.add(Timestamp.valueOf(debut.atStartOfDay()));
+        params.add(Timestamp.valueOf(fin.plusDays(1).atStartOfDay()));
+        String filtre = "";
+        if (!vide(employeId)) {
+            filtre = "AND " + colonneEmploye + " = ?3";
+            params.add(employeId);
+        }
+        return liste(String.format(gabarit, filtre), params);
+    }
+
+    private List<AgregatsActivite.Vente> ventes(LocalDate debut, LocalDate fin, String employeId) {
+        List<AgregatsActivite.Vente> l = new ArrayList<>();
+        for (Object[] r : lire(SQL_VENTES, "p.lg_USER_ID", debut, fin, employeId)) {
+            if (r[1] == null || r[2] == null || r[3] == null) {
+                continue;
+            }
+            l.add(new AgregatsActivite.Vente(String.valueOf(r[0]), heure(r[1]), heure(r[2]), heure(r[3]),
+                    ((Number) r[4]).longValue(), r[5] == null ? 0 : ((Number) r[5]).longValue()));
+        }
+        return l;
+    }
+
+    private List<AgregatsActivite.Bl> bls(LocalDate debut, LocalDate fin, String employeId) {
+        List<AgregatsActivite.Bl> l = new ArrayList<>();
+        for (Object[] r : lire(SQL_BL, "b.lg_USER_ID", debut, fin, employeId)) {
+            l.add(new AgregatsActivite.Bl(String.valueOf(r[0]), r[1] == null ? null : String.valueOf(r[1]),
+                    r[2] == null ? null : heure(r[2]), heure(r[3]), r[4] == null ? null : heure(r[4]),
+                    r[5] == null ? null : heure(r[5]).toLocalDate(), ((Number) r[6]).longValue()));
+        }
+        return l;
+    }
+
+    private Map<String, Long> parEmploye(String gabarit, LocalDate debut, LocalDate fin, String employeId) {
+        String colonne = gabarit == SQL_MODIFICATIONS ? "v.user_id"
+                : gabarit == SQL_REMISES ? "p.lg_USER_CAISSIER_ID" : "p.lg_USER_ID";
+        Map<String, Long> m = new HashMap<>();
+        for (Object[] r : lire(gabarit, colonne, debut, fin, employeId)) {
+            if (r[0] != null && r[1] != null) {
+                m.put(String.valueOf(r[0]), ((Number) r[1]).longValue());
+            }
+        }
+        return m;
+    }
+
+    private Map<String, String> noms() {
+        Map<String, String> m = new HashMap<>();
+        employes().forEach(e -> m.put(e.getId(), e.getNom()));
+        return m;
+    }
+
+    static long somme(Map<String, Long> m) {
+        return m.values().stream().mapToLong(Long::longValue).sum();
+    }
+
+    static LocalDateTime heure(Object o) {
+        if (o instanceof Timestamp) {
+            return ((Timestamp) o).toLocalDateTime();
+        }
+        if (o instanceof java.sql.Date) {
+            return ((java.sql.Date) o).toLocalDate().atStartOfDay();
+        }
+        if (o instanceof LocalDateTime) {
+            return (LocalDateTime) o;
+        }
+        return new Timestamp(((java.util.Date) o).getTime()).toLocalDateTime();
     }
 
     @Override

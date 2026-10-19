@@ -30,6 +30,28 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
         COMMANDE: '#0891b2', AJUSTEMENT: '#b45309', INVENTAIRE: '#475569', RETOUR: '#be185d', CONNEXION: '#64748b'},
 
     statics: {
+        /* infobulle des graphiques : taille du contenu, reste affichee tant que le curseur est sur la serie
+           (meme reglage que le Pilotage, retour de l'officine du 19/09 sur les infobulles tronquees) */
+        infobulle: function (rendu) {
+            return {trackMouse: true, dismissDelay: 0, hideDelay: 400, minWidth: 200, maxWidth: 480, autoHeight: true,
+                width: undefined, height: undefined, bodyStyle: 'white-space:normal;line-height:16px;padding:6px 8px;',
+                renderer: function (record, item) {
+                    this.setTitle(rendu(record, item));
+                }};
+        },
+        duree: function (s) {
+            s = Math.round(s || 0);
+            if (s < 60) {
+                return s + ' s';
+            }
+            var h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), r = s % 60;
+            return h ? h + ' h ' + (m < 10 ? '0' : '') + m : m + ' min ' + (r < 10 ? '0' : '') + r + ' s';
+        },
+        /* 16 530 et 151,6 : ecrit a la main, les separateurs d'Ext dependent de la locale chargee */
+        nombre: function (v, dec) {
+            var x = (Number(v) || 0).toFixed(dec ? 1 : 0).split('.');
+            return x[0].replace(/\B(?=(\d{3})+(?!\d))/g, '\u00a0') + (x[1] && x[1] !== '0' ? ',' + x[1] : '');
+        },
         styles: function () {
             if (Ext.get('activite-equipes-styles')) {
                 return;
@@ -44,7 +66,25 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                     + '.ae-pastille.ae-active{color:#fff;border-color:transparent}'
                     + '.ae-pastille.ae-vide{opacity:.45}'
                     + '.ae-type{display:inline-block;padding:1px 8px;border-radius:10px;color:#fff;font-size:11px;white-space:nowrap}'
-                    + '@keyframes ae-entree{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}',
+                    + '@keyframes ae-entree{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}'
+                    + '.ae-tuiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(175px,1fr));gap:10px;margin-bottom:12px}'
+                    + '.ae-tuile{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:10px 12px;box-shadow:0 1px 2px rgba(15,23,42,.06);'
+                    + 'animation:ae-entree .4s ease both;transition:transform .15s,box-shadow .15s}'
+                    + '.ae-tuile:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(15,23,42,.12)}'
+                    + '.ae-tuile .l{font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.3px}'
+                    + '.ae-tuile .v{font-size:22px;font-weight:700;color:#0f172a;margin-top:2px;font-variant-numeric:tabular-nums}'
+                    + '.ae-tuile .e{font-size:12px;margin-top:2px}.ae-tuile .e.bon{color:#1b7f3b}.ae-tuile .e.mal{color:#c62828}.ae-tuile .e.neutre{color:#94a3b8}'
+                    + '.ae-constats{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:10px;margin-bottom:14px}'
+                    + '.ae-constat{border-radius:10px;padding:10px 12px 10px 14px;border-left:5px solid;background:#fff;box-shadow:0 1px 2px rgba(15,23,42,.06);'
+                    + 'animation:ae-entree .45s ease both}'
+                    + '.ae-constat b{display:block;margin-bottom:3px}.ae-constat.ALERTE{border-color:#c62828;background:#fef2f2}'
+                    + '.ae-constat.CONSEIL{border-color:#e67e22;background:#fff7ed}.ae-constat.INFO{border-color:#1e3a5f;background:#f1f5f9}'
+                    + '.ae-titre-bloc{font-weight:700;color:#1e3a5f;margin:4px 0 8px;font-size:13px}'
+                    + '.ae-carte{border-collapse:separate;border-spacing:2px;width:100%;font-size:11px}'
+                    + '.ae-carte td{height:22px;text-align:center;border-radius:3px;color:#0f172a;transition:transform .12s}'
+                    + '.ae-carte td.c:hover{transform:scale(1.15);box-shadow:0 0 0 2px #1e3a5f inset}'
+                    + '.ae-carte th{font-weight:600;color:#64748b;padding:0 2px}'
+                    + '.ae-vide{color:#94a3b8;padding:30px;text-align:center}',
                     'activite-equipes-styles');
         }
     },
@@ -65,8 +105,7 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
             }
         });
         me.donnees = me.creerDonnees();
-        me.analyses = Ext.create('Ext.panel.Panel', {itemId: 'aeAnalyses', autoScroll: true, bodyPadding: 12,
-            items: [{xtype: 'component', itemId: 'aeAnalysesContenu', html: ''}]});
+        me.analyses = me.creerAnalyses();
         Ext.apply(me, {
             items: [me.donnees, me.analyses],
             dockedItems: [{
@@ -246,7 +285,324 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
         return me.donnees;
     },
 
+    /* ------------------------------------------------------------------ ANALYSES */
+
+    TACHES: ['VENTE', 'VENDEUR', 'BL', 'COMMANDE', 'AJUSTEMENT', 'INVENTAIRE', 'RETOUR', 'ANNULATION', 'MODIFICATION'],
+    JOURS: ['', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'],
+
+    /* cadre d'un graphique : titre, aide au survol du « ? », hauteur fixe */
+    cadre: function (itemId, titre, aide, contenu, largeur) {
+        return {xtype: 'panel', itemId: itemId, title: titre, columnWidth: largeur || 0.5, height: 340, margin: '0 10 12 0', layout: 'fit',
+            cls: 'ae-graphe', frame: false, bodyStyle: 'background:#fff', animCollapse: false,
+            tools: [{type: 'help', tooltip: aide}], items: [contenu]};
+    },
+
+    creerAnalyses: function () {
+        var me = this, AE = testextjs.view.activiteequipes.ActiviteEquipes, N = AE.nombre, D = AE.duree;
+        me.st = {};
+        Ext.each(['heures', 'jours', 'operateurs', 'grossistes', 'retard', 'sensibles', 'repartition'], function (k) {
+            me.st[k] = Ext.create('Ext.data.Store', {fields: [{name: 'libelle'}, {name: 'id'}, {name: 'ventes', type: 'float'},
+                    {name: 'saisieMoyenne', type: 'float'}, {name: 'saisieVentes', type: 'float'}, {name: 'saisieBl', type: 'float'},
+                    {name: 'bl', type: 'float'}, {name: 'secondesParLigne', type: 'float'}, {name: 'ventesParJour', type: 'float'},
+                    {name: 'lignesParVente', type: 'float'}, {name: 'panierMoyen', type: 'float'}, {name: 'chiffreAffaires', type: 'float'},
+                    {name: 'ventesLongues', type: 'float'}, {name: 'jours', type: 'float'}, {name: 'lignesParBl', type: 'float'},
+                    {name: 'nombre', type: 'float'}, {name: 'annulations', type: 'float'}, {name: 'modifications', type: 'float'},
+                    {name: 'remises', type: 'float'}, {name: 'tauxAnnulation', type: 'float'}, {name: 'total', type: 'float'}]
+                        .concat(Ext.Array.map(me.TACHES, function (t) {
+                            return {name: t, type: 'float'};
+                        })), data: []});
+        });
+        var couleur = function (c) {
+            return function (sprite, record, attr) {
+                return Ext.apply(attr, {fill: c});
+            };
+        };
+        var axeCat = function (champ, pos, titre) {
+            return {type: 'Category', position: pos || 'bottom', fields: [champ || 'libelle'], title: titre || false,
+                label: {font: '11px Arial', rotate: pos === 'left' ? undefined : {degrees: 0}}};
+        };
+        var axeNum = function (champs, pos, titre) {
+            return {type: 'Numeric', position: pos || 'left', fields: champs, minimum: 0, grid: pos !== 'right', title: titre || false,
+                label: {font: '11px Arial', renderer: function (v) {
+                        return N(v);
+                    }}};
+        };
+
+        var heures = {xtype: 'chart', itemId: 'gHeures', animate: true, shadow: false, store: me.st.heures, legend: {position: 'bottom'},
+            axes: [axeNum(['ventes'], 'left', 'Ventes'), axeNum(['saisieMoyenne'], 'right', 'Saisie (s)'), axeCat()],
+            series: [{type: 'column', axis: 'left', xField: 'libelle', yField: 'ventes', title: 'Ventes', highlight: true, renderer: couleur('#2563eb'),
+                    tips: AE.infobulle(function (r) {
+                        return '<b>' + r.get('libelle') + '</b><br>' + N(r.get('ventes')) + ' ventes<br>Saisie moyenne : ' + D(r.get('saisieMoyenne'));
+                    })},
+                {type: 'line', axis: 'right', xField: 'libelle', yField: 'saisieMoyenne', title: 'Saisie moyenne (s)', smooth: true,
+                    style: {stroke: '#ef6c00', 'stroke-width': 3}, markerConfig: {type: 'circle', radius: 4, fill: '#ef6c00', stroke: '#ef6c00'},
+                    tips: AE.infobulle(function (r) {
+                        return '<b>' + r.get('libelle') + '</b><br>Saisie moyenne d\'une vente : ' + D(r.get('saisieMoyenne'));
+                    })}]};
+
+        var jours = {xtype: 'chart', itemId: 'gJours', animate: true, shadow: false, store: me.st.jours, legend: {position: 'bottom'},
+            theme: 'AeCharge', axes: [axeNum(['saisieVentes', 'saisieBl'], 'left', 'Minutes au clavier'), axeCat()],
+            series: [{type: 'column', axis: 'left', xField: 'libelle', yField: ['saisieVentes', 'saisieBl'], stacked: true,
+                    title: ['Saisie des ventes', 'Saisie des BL'], highlight: true,
+                    tips: AE.infobulle(function (r) {
+                        return '<b>' + r.get('libelle') + '</b><br>' + N(r.get('ventes')) + ' ventes : ' + D(r.get('saisieVentes') * 60)
+                                + ' au clavier<br>' + N(r.get('bl')) + ' BL : ' + D(r.get('saisieBl') * 60);
+                    })}]};
+
+        var operateurs = {xtype: 'chart', itemId: 'gOperateurs', animate: true, shadow: false, store: me.st.operateurs,
+            axes: [axeNum(['secondesParLigne'], 'bottom', 'Secondes par ligne'), axeCat('libelle', 'left')],
+            series: [{type: 'bar', axis: 'bottom', xField: 'libelle', yField: 'secondesParLigne', highlight: true, renderer: couleur('#0891b2'),
+                    label: {display: 'insideEnd', field: 'secondesParLigne', color: '#fff', font: '11px Arial', renderer: function (v) {
+                            return N(v, true) + ' s';
+                        }},
+                    tips: AE.infobulle(function (r) {
+                        return '<b>' + Ext.String.htmlEncode(r.get('libelle')) + '</b><br>' + N(r.get('secondesParLigne'), true) + ' s par ligne<br>'
+                                + N(r.get('ventes')) + ' ventes sur ' + N(r.get('jours')) + ' jours (' + N(r.get('ventesParJour'), true) + ' par jour)<br>'
+                                + N(r.get('lignesParVente'), true) + ' lignes par vente, panier ' + N(r.get('panierMoyen')) + '<br>'
+                                + N(r.get('ventesLongues')) + ' ventes de plus de 10 min<br><i>Cliquer pour ne voir que cet employé</i>';
+                    }),
+                    listeners: {
+                        itemmouseup: function (item) {
+                            me.filtrerEmploye(item.storeItem.get('id'));
+                        }
+                    }}]};
+
+        var grossistes = {xtype: 'chart', itemId: 'gGrossistes', animate: true, shadow: false, store: me.st.grossistes,
+            axes: [axeNum(['secondesParLigne'], 'bottom', 'Secondes par ligne de BL'), axeCat('libelle', 'left')],
+            series: [{type: 'bar', axis: 'bottom', xField: 'libelle', yField: 'secondesParLigne', highlight: true, renderer: couleur('#7c3aed'),
+                    tips: AE.infobulle(function (r) {
+                        return '<b>' + Ext.String.htmlEncode(r.get('libelle')) + '</b><br>' + D(r.get('secondesParLigne')) + ' par ligne<br>'
+                                + N(r.get('bl')) + ' BL, ' + N(r.get('lignesParBl'), true) + ' lignes par BL';
+                    })}]};
+
+        var retard = {xtype: 'chart', itemId: 'gRetard', animate: true, shadow: false, store: me.st.retard, legend: {position: 'right'},
+            theme: 'AeRetard', insetPadding: 20,
+            series: [{type: 'pie', angleField: 'nombre', showInLegend: true, donut: 35, highlight: {segment: {margin: 8}},
+                    label: {field: 'libelle', display: 'none'},
+                    tips: AE.infobulle(function (r) {
+                        var total = me.st.retard.sum('nombre') || 1;
+                        return '<b>' + r.get('libelle') + '</b><br>' + N(r.get('nombre')) + ' BL (' + Math.round(r.get('nombre') * 100 / total) + ' %)';
+                    })}]};
+
+        var longues = {xtype: 'chart', itemId: 'gLongues', animate: true, shadow: false, store: me.st.operateurs,
+            axes: [axeNum(['ventesLongues'], 'left', 'Ventes > 10 min'), axeCat('libelle', 'bottom')],
+            series: [{type: 'column', axis: 'left', xField: 'libelle', yField: 'ventesLongues', highlight: true, renderer: couleur('#e67e22'),
+                    tips: AE.infobulle(function (r) {
+                        var part = r.get('ventes') ? (r.get('ventesLongues') * 100 / r.get('ventes')) : 0;
+                        return '<b>' + Ext.String.htmlEncode(r.get('libelle')) + '</b><br>' + N(r.get('ventesLongues')) + ' ventes de plus de 10 min ('
+                                + N(part, true) + ' % de ses ventes)';
+                    })}]};
+
+        var sensibles = {xtype: 'chart', itemId: 'gSensibles', animate: true, shadow: false, store: me.st.sensibles, legend: {position: 'bottom'},
+            theme: 'AeSensibles', axes: [axeNum(['annulations', 'modifications'], 'left', 'Nombre'), axeCat('libelle', 'bottom')],
+            series: [{type: 'column', axis: 'left', xField: 'libelle', yField: ['annulations', 'modifications'], title: ['Annulations', 'Modifications'],
+                    highlight: true, tips: AE.infobulle(function (r) {
+                        return '<b>' + Ext.String.htmlEncode(r.get('libelle')) + '</b><br>' + N(r.get('annulations')) + ' annulations ('
+                                + N(r.get('tauxAnnulation'), true) + ' pour 1 000 ventes)<br>' + N(r.get('modifications')) + ' modifications<br>'
+                                + 'Remises accordées : ' + N(r.get('remises')) + ' F';
+                    })}]};
+
+        var repartition = {xtype: 'chart', itemId: 'gRepartition', animate: true, shadow: false, store: me.st.repartition, legend: {position: 'right'},
+            theme: 'AeTaches', axes: [axeNum(me.TACHES, 'bottom', 'Actions'), axeCat('libelle', 'left')],
+            series: [{type: 'bar', axis: 'bottom', xField: 'libelle', yField: me.TACHES, stacked: true, highlight: true,
+                    title: ['Ventes encaissées', 'Comme vendeur', 'BL', 'Commandes', 'Ajustements', 'Inventaires', 'Retours', 'Annulations', 'Modifications'],
+                    tips: AE.infobulle(function (r) {
+                        var lignes = [];
+                        Ext.each(me.TACHES, function (t, i) {
+                            if (r.get(t)) {
+                                lignes.push(['Ventes encaissées', 'Comme vendeur', 'BL', 'Commandes', 'Ajustements', 'Inventaires', 'Retours',
+                                    'Annulations', 'Modifications'][i] + ' : ' + N(r.get(t)));
+                            }
+                        });
+                        return '<b>' + Ext.String.htmlEncode(r.get('libelle')) + '</b><br>' + lignes.join('<br>');
+                    })}]};
+
+        return Ext.create('Ext.panel.Panel', {
+            itemId: 'aeAnalyses', autoScroll: true, bodyPadding: '12 2 12 12', bodyStyle: 'background:#f8fafc',
+            items: [
+                {xtype: 'component', itemId: 'aeTuiles', html: ''},
+                {xtype: 'component', itemId: 'aeConstats', html: ''},
+                {xtype: 'container', layout: 'column', items: [
+                        me.cadre('cHeures', 'Affluence et vitesse par heure', 'Barres : ventes ouvertes à chaque heure. Courbe : saisie moyenne d\'une vente. '
+                                + 'Une saisie qui s\'allonge aux heures chargées signale un poste qui manque.', heures),
+                        me.cadre('cCarte', 'Carte d\'affluence (jour × heure)', 'Plus la case est foncée, plus il y a de ventes : pour placer les présences '
+                                + 'et les pauses.', {xtype: 'component', itemId: 'aeCarte', autoScroll: true, html: ''}),
+                        me.cadre('cJours', 'Charge au clavier par jour', 'Temps cumulé passé à saisir les ventes et les BL, jour par jour : base du planning.', jours, 1),
+                        me.cadre('cOperateurs', 'Vitesse par opérateur', 'Secondes par ligne scannée ou cherchée. C\'est une aide pour accompagner '
+                                + '(douchette, formation), pas un classement. Cliquer une barre filtre sur l\'employé.', operateurs),
+                        me.cadre('cGrossistes', 'Saisie des BL par grossiste', 'Temps par ligne de BL, de la commande à la clôture du BL (BL de plus de 4 h écartés). '
+                                + 'Un grossiste lent justifie de demander des BL électroniques.', grossistes),
+                        me.cadre('cRetard', 'Délai de saisie des BL', 'Écart entre la date de livraison et l\'entrée du BL. Tant qu\'un BL n\'est pas saisi, '
+                                + 'le stock est faux.', retard),
+                        me.cadre('cLongues', 'Ventes de plus de 10 minutes', 'Vente laissée ouverte, poste mal utilisé ou client hésitant : à rapprocher '
+                                + 'des mises en attente.', longues),
+                        me.cadre('cSensibles', 'Actions sensibles', 'Annulations et modifications de ventes par employé ; remises dans l\'infobulle. '
+                                + 'À rapprocher de la caisse.', sensibles),
+                        me.cadre('cRepartition', 'Répartition des tâches', 'Ce que fait chaque employé sur la période, par type d\'action.', repartition)
+                    ]}
+            ]
+        });
+    },
+
+    filtrerEmploye: function (id) {
+        var me = this, c = me.down('#aeEmploye');
+        if (id && c) {
+            c.setValue(id);
+            me.actualiser();
+        }
+    },
+
     chargerAnalyses: function () {
-        /* etape suivante : graphiques de productivite */
+        var me = this, a = me.analyses, f = me.filtres();
+        if (!a.rendered) {
+            a.on('afterrender', me.chargerAnalyses, me, {single: true});
+            return;
+        }
+        a.setLoading('Calcul des analyses…');
+        Ext.Ajax.request({url: '../api/v1/activite-equipes/analyses', method: 'GET', params: f, timeout: 180000,
+            success: function (r) {
+                if (a.isDestroyed) {
+                    return;
+                }
+                a.setLoading(false);
+                var o = Ext.decode(r.responseText, true) || {};
+                if (!o.success) {
+                    a.down('#aeTuiles').update('<div class="ae-vide">' + Ext.String.htmlEncode(o.msg || 'Analyse indisponible') + '</div>');
+                    return;
+                }
+                me.donneesAnalyses = o.data;
+                me.dessinerAnalyses(o.data);
+            },
+            failure: function (r) {
+                if (!a.isDestroyed) {
+                    a.setLoading(false);
+                    a.down('#aeTuiles').update('<div class="ae-vide">Le serveur n\'a pas répondu (' + r.status + ').</div>');
+                }
+            }});
+    },
+
+    dessinerAnalyses: function (d) {
+        var me = this, AE = testextjs.view.activiteequipes.ActiviteEquipes, N = AE.nombre, D = AE.duree, a = me.analyses;
+        var periode = 'Comparé au ' + Ext.Date.format(Ext.Date.parse(d.debutPrecedent, 'Y-m-d'), 'd/m/Y') + ' – '
+                + Ext.Date.format(Ext.Date.parse(d.finPrecedent, 'Y-m-d'), 'd/m/Y');
+        var valeur = function (i, v) {
+            return i.format === 'DUREE' ? D(v) : i.format === 'POURCENT' ? N(v, true) + ' %' : i.format === 'MONTANT' ? N(v) + ' F' : N(v, v % 1 !== 0);
+        };
+        /* tuiles : valeurs qui montent jusqu'au chiffre (compteur anime), fleche coloree selon le sens favorable */
+        a.down('#aeTuiles').update('<div class="ae-titre-bloc">Indicateurs <span style="font-weight:400;color:#64748b">— ' + periode + '</span></div>'
+                + '<div class="ae-tuiles">' + Ext.Array.map(d.indicateurs, function (i, k) {
+                    var e = '', cls = 'neutre';
+                    if (i.evolution !== null && i.evolution !== undefined) {
+                        var hausse = i.evolution > 0;
+                        cls = i.evolution === 0 ? 'neutre' : (hausse === i.hausseFavorable ? 'bon' : 'mal');
+                        e = (hausse ? '▲ +' : i.evolution < 0 ? '▼ ' : '= ') + N(i.evolution, true) + ' %';
+                    }
+                    return '<div class="ae-tuile" data-code="' + i.code + '" style="animation-delay:' + (k * 40) + 'ms" data-qtip="'
+                            + Ext.String.htmlEncode(i.aide + (i.precedent !== null && i.precedent !== undefined ? ' — période précédente : ' + valeur(i, i.precedent) : ''))
+                            + '"><div class="l">' + Ext.String.htmlEncode(i.libelle) + '</div><div class="v" data-cible="' + i.valeur + '" data-format="' + i.format
+                            + '">' + valeur(i, i.valeur) + '</div><div class="e ' + cls + '">' + (e || '&nbsp;') + '</div></div>';
+                }).join('') + '</div>');
+        me.animerCompteurs(a.down('#aeTuiles').getEl(), d.indicateurs, valeur);
+        a.down('#aeConstats').update('<div class="ae-titre-bloc">Aide à la décision</div><div class="ae-constats">'
+                + Ext.Array.map(d.constats, function (c, k) {
+                    var icone = c.niveau === 'ALERTE' ? '⚠ ' : c.niveau === 'CONSEIL' ? '💡 ' : 'ℹ ';
+                    return '<div class="ae-constat ' + c.niveau + '" style="animation-delay:' + (k * 60) + 'ms"><b>' + icone + Ext.String.htmlEncode(c.titre)
+                            + '</b>' + Ext.String.htmlEncode(c.texte) + '</div>';
+                }).join('') + '</div>');
+
+        me.st.heures.loadData(Ext.Array.map(d.heures, function (h) {
+            return Ext.apply({libelle: h.heure + ' h'}, h);
+        }));
+        me.st.jours.loadData(Ext.Array.map(d.jours, function (j) {
+            return {libelle: Ext.Date.format(Ext.Date.parse(j.date, 'Y-m-d'), 'd/m'), ventes: j.ventes, bl: j.bl,
+                saisieVentes: Math.round(j.saisieVentes / 6) / 10, saisieBl: Math.round(j.saisieBl / 6) / 10};
+        }));
+        me.st.operateurs.loadData(Ext.Array.map(d.operateurs.slice(0, 15), function (o) {
+            return Ext.apply({libelle: o.nom}, o);
+        }));
+        me.st.grossistes.loadData(Ext.Array.map(d.grossistes, function (g) {
+            return Ext.apply({libelle: g.nom}, g);
+        }));
+        me.st.retard.loadData(d.retardBl);
+        me.st.sensibles.loadData(Ext.Array.map(d.sensibles.slice(0, 12), function (x) {
+            return Ext.apply({libelle: x.nom}, x);
+        }));
+        me.st.repartition.loadData(Ext.Array.map(d.repartition.slice(0, 15), function (x) {
+            var r = {libelle: x.nom, id: x.id};
+            Ext.each(me.TACHES, function (t) {
+                r[t] = x.actions[t] || 0;
+            });
+            return r;
+        }));
+        a.down('#aeCarte').update(me.htmlCarte(d.carte));
+        /* graphique sans donnees : un message plutot qu'un cadre vide */
+        Ext.each([['cHeures', 'heures'], ['cJours', 'jours'], ['cOperateurs', 'operateurs'], ['cGrossistes', 'grossistes'], ['cRetard', 'retard'],
+            ['cLongues', 'operateurs'], ['cSensibles', 'sensibles'], ['cRepartition', 'repartition']], function (x) {
+            var p = a.down('#' + x[0]), vide = me.st[x[1]].getCount() === 0;
+            p.setTitle(p.title.replace(/ — aucune donnée$/, '') + (vide ? ' — aucune donnée' : ''));
+        });
+    },
+
+    animerCompteurs: function (el, indicateurs, valeur) {
+        if (!el || !window.requestAnimationFrame) {
+            return;
+        }
+        var cibles = el.query('.v'), debut = null, DUREE = 700;
+        var pas = function (t) {
+            debut = debut || t;
+            var k = Math.min(1, (t - debut) / DUREE), lisse = 1 - Math.pow(1 - k, 3);
+            Ext.each(cibles, function (c, i) {
+                var ind = indicateurs[i], v = ind.valeur * lisse;
+                c.innerHTML = valeur(ind, k < 1 ? (ind.format === 'NOMBRE' && ind.valeur % 1 === 0 ? Math.round(v) : v) : ind.valeur);
+            });
+            if (k < 1) {
+                window.requestAnimationFrame(pas);
+            }
+        };
+        window.requestAnimationFrame(pas);
+    },
+
+    htmlCarte: function (carte) {
+        var me = this, N = testextjs.view.activiteequipes.ActiviteEquipes.nombre, max = 0, m = {}, hmin = 23, hmax = 0;
+        Ext.each(carte, function (c) {
+            m[c.jour * 100 + c.heure] = c.ventes;
+            max = Math.max(max, c.ventes);
+            hmin = Math.min(hmin, c.heure);
+            hmax = Math.max(hmax, c.heure);
+        });
+        if (!carte.length) {
+            return '<div class="ae-vide">Aucune vente sur la période</div>';
+        }
+        var html = '<table class="ae-carte"><tr><th></th>';
+        for (var h = hmin; h <= hmax; h++) {
+            html += '<th>' + h + '</th>';
+        }
+        html += '</tr>';
+        for (var j = 1; j <= 7; j++) {
+            html += '<tr><th>' + me.JOURS[j] + '</th>';
+            for (var h2 = hmin; h2 <= hmax; h2++) {
+                var v = m[j * 100 + h2] || 0, t = max ? v / max : 0;
+                /* du blanc au vert fonce ; texte blanc sur les cases foncees */
+                var fond = v ? 'rgba(27,127,59,' + (0.12 + 0.88 * t).toFixed(2) + ')' : '#f1f5f9';
+                html += '<td class="c" style="background:' + fond + ';color:' + (t > 0.55 ? '#fff' : '#0f172a') + '" data-qtip="' + me.JOURS[j] + ' '
+                        + h2 + ' h – ' + (h2 + 1) + ' h : ' + N(v) + ' ventes">' + (v ? N(v) : '') + '</td>';
+            }
+            html += '</tr>';
+        }
+        return html + '</table>';
     }
 });
+
+/* couleurs des series a plusieurs grandeurs (ExtJS 4.2 les prend dans le theme, dans l'ordre) */
+Ext.define('Ext.chart.theme.AeCharge', {extend: 'Ext.chart.theme.Base', constructor: function (c) {
+        this.callParent([Ext.apply({colors: ['#1b7f3b', '#7c3aed']}, c)]);
+    }});
+Ext.define('Ext.chart.theme.AeRetard', {extend: 'Ext.chart.theme.Base', constructor: function (c) {
+        this.callParent([Ext.apply({colors: ['#1b7f3b', '#e6a700', '#c62828', '#94a3b8']}, c)]);
+    }});
+Ext.define('Ext.chart.theme.AeSensibles', {extend: 'Ext.chart.theme.Base', constructor: function (c) {
+        this.callParent([Ext.apply({colors: ['#c62828', '#e67e22']}, c)]);
+    }});
+Ext.define('Ext.chart.theme.AeTaches', {extend: 'Ext.chart.theme.Base', constructor: function (c) {
+        this.callParent([Ext.apply({colors: ['#1b7f3b', '#2563eb', '#7c3aed', '#0891b2', '#b45309', '#475569', '#be185d', '#c62828', '#e67e22']}, c)]);
+    }});
