@@ -90,6 +90,11 @@ public final class Constant {
     public static final String[] PRIVILEGES_CLOTURE_VENTE = { "P_SM_CLOTURER_CAISSE", "P_SM_DEPOT_EXTENSION",
             P_BT_MODIFICATION_DE_VENTE };
     public static final String LIBELLE_CLOTURE_VENTE = "Terminer une vente (menu « Ventes »)";
+    /** Menu « Activité des équipes » (ANALYSE DE GESTION) : journal, recherches et analyses de productivite. */
+    public static final String P_SM_ACTIVITE_EQUIPES = "P_SM_ACTIVITE_EQUIPES";
+    public static final String LIBELLE_ACTIVITE_EQUIPES = "Activité des équipes";
+    /** Periode la plus longue acceptee par le journal et les analyses (en jours). */
+    public static final int ACTIVITE_PERIODE_MAX_JOURS = 366;
     /**
      * Terminer une vente en depot (ecran « Vente dépôt », application mobile) : menus de vente en depot ou « Ventes ».
      */
