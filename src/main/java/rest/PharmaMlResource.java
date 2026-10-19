@@ -355,6 +355,11 @@ public class PharmaMlResource {
     @POST
     @Path("reponses")
     public Response recupererReponses(@QueryParam("grossiste") String grossisteId) {
+        /* decision 2 du pharmacien : droit des commandes, comme l'envoi d'une suggestion (pas une lecture libre) */
+        Response refusDroit = Droits.refus(servletRequest, "Commandes et suggestions", Constant.PRIVILEGES_COMMANDES);
+        if (refusDroit != null) {
+            return refusDroit;
+        }
         return Response.ok(pharmaMlService.recupererReponses(grossisteId, false).toString()).build();
     }
 

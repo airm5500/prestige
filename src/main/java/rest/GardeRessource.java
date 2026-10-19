@@ -201,6 +201,7 @@ public class GardeRessource {
             return echec("Cochez au moins une garde.");
         }
         try {
+            liste.forEach(rest.service.impl.CalculGardeCache::oublier);
             int nombre = gardeService.supprimer(liste);
             if (nombre == 0) {
                 return echec("Ces gardes n'existent plus.");
@@ -232,6 +233,9 @@ public class GardeRessource {
             return echec("Renseignez la date et l'heure de début et de fin.");
         }
         try {
+            if (StringUtils.isNotBlank(id)) {
+                rest.service.impl.CalculGardeCache.oublier(id);
+            }
             Garde garde = gardeService.enregistrer(id, libelle, debut, fin);
             return Response.ok().entity(new JSONObject().put("success", true).put("data", json(garde))
                     .put("msg", "Garde enregistrée.").toString()).build();
@@ -257,6 +261,7 @@ public class GardeRessource {
         }
         try {
             // Supprimer une garde ne supprime aucune vente : seule la definition de la periode part.
+            rest.service.impl.CalculGardeCache.oublier(id);
             if (!gardeService.supprimer(id)) {
                 return echec("Cette garde n'existe plus.");
             }
@@ -308,13 +313,17 @@ public class GardeRessource {
         if (garde == null) {
             return echec("Cette garde n'existe plus.");
         }
+        /* decision 39 du pharmacien : le calcul d'une garde est garde quelques minutes pour les pages suivantes */
+        rest.service.impl.CalculGardeCache.Calcul calcul = rest.service.impl.CalculGardeCache.obtenir(garde, heures,
+                () -> new rest.service.impl.CalculGardeCache.Calcul(gardeService.tranches(garde, heures),
+                        gardeService.abc(garde), gardeService.indicateurs(garde), gardeService.kpi(garde)));
         JSONArray tranches = new JSONArray();
-        for (GardeTrancheDTO t : gardeService.tranches(garde, heures)) {
+        for (GardeTrancheDTO t : calcul.tranches) {
             tranches.put(trancheJson(t));
         }
         // Le classement est calcule une fois sur tous les produits ; le resume porte sur l'ensemble,
         // la liste rendue est la vue filtree et triee demandee par l'ecran.
-        List<GardeProduitDTO> classement = gardeService.abc(garde);
+        List<GardeProduitDTO> classement = calcul.classement;
         List<GardeProduitDTO> filtres = AnalyseGarde.filtrer(classement, classe, AnalyseGarde.TriProduits.depuis(tri),
                 limite, famille, rayon, grossiste, criteres(stockOp, stockVal, qteOp, qteVal, margeOp, margeVal));
         // La page demandee (start / limit) ; sans limite, toute la vue filtree.
@@ -326,8 +335,8 @@ public class GardeRessource {
         }
         return Response.ok()
                 .entity(new JSONObject().put("success", true).put("garde", json(garde))
-                        .put("indicateurs", indicateursJson(gardeService.indicateurs(garde))).put("tranches", tranches)
-                        .put("kpi", kpiJson(gardeService.kpi(garde))).put("abc", abc).put("totalAbc", classement.size())
+                        .put("indicateurs", indicateursJson(calcul.indicateurs)).put("tranches", tranches)
+                        .put("kpi", kpiJson(calcul.kpi)).put("abc", abc).put("totalAbc", classement.size())
                         .put("totalFiltre", filtres.size()).put("resumeAbc", resumeAbc(classement)).toString())
                 .build();
     }

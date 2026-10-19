@@ -63,8 +63,7 @@ public class SuggestionPharmaMlRessource {
     @GET
     @Path("{id}")
     public Response apercu(@PathParam("id") String id) {
-        Response refusDroit = Droits.refus(servletRequest, "Commandes et suggestions", "P_SM_SUGGERER_CDE",
-                "P_SM_SUGGESTION", "P_SM_SUGG_REAPPRO", "P_M_COMMANDE", "P_SM_COMMANDE_PROCESS");
+        Response refusDroit = Droits.refus(servletRequest, "Commandes et suggestions", Constant.PRIVILEGES_COMMANDES);
         if (refusDroit != null) {
             return refusDroit;
         }
@@ -90,8 +89,7 @@ public class SuggestionPharmaMlRessource {
             return json(new JSONObject().put("success", false).put("msg", Constant.DECONNECTED_MESSAGE));
         }
         // demandes des applications mobiles (2) : engagement financier -> droit des commandes verifie ici
-        Response refusDroit = Droits.refus(servletRequest, "Commandes et suggestions", "P_SM_SUGGERER_CDE",
-                "P_SM_SUGGESTION", "P_SM_SUGG_REAPPRO", "P_M_COMMANDE", "P_SM_COMMANDE_PROCESS");
+        Response refusDroit = Droits.refus(servletRequest, "Commandes et suggestions", Constant.PRIVILEGES_COMMANDES);
         if (refusDroit != null) {
             return refusDroit;
         }
@@ -109,8 +107,7 @@ public class SuggestionPharmaMlRessource {
     @POST
     @Path("{id}")
     public Response commander(@PathParam("id") String id) {
-        Response refusDroit = Droits.refus(servletRequest, "Commandes et suggestions", "P_SM_SUGGERER_CDE",
-                "P_SM_SUGGESTION", "P_SM_SUGG_REAPPRO", "P_M_COMMANDE", "P_SM_COMMANDE_PROCESS");
+        Response refusDroit = Droits.refus(servletRequest, "Commandes et suggestions", Constant.PRIVILEGES_COMMANDES);
         if (refusDroit != null) {
             return refusDroit;
         }

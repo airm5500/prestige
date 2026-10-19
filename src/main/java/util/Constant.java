@@ -99,6 +99,9 @@ public final class Constant {
     public static final String P_BL_MOBILE_SCANNER = "P_BL_MOBILE_SCANNER";
     public static final String LIBELLE_SCANNER_RECEPTION_BL = "Scanner la réception des BL";
     public static final String CODE_PRODUITS_NON_SAISIS = "PRODUITS_NON_SAISIS";
+    /** droit des commandes : envoi PharmaML d'une suggestion, releve des reponses des grossistes (decision 2) */
+    public static final String[] PRIVILEGES_COMMANDES = { "P_SM_SUGGERER_CDE", "P_SM_SUGGESTION", "P_SM_SUGG_REAPPRO",
+            "P_M_COMMANDE", "P_SM_COMMANDE_PROCESS" };
     /** decision 17 D7 du pharmacien */
     public static final String MSG_RETOUR_MOTIF_DIFFERENT = "Vous avez ajouté ce produit avec un motif différent";
     public static final String LIBELLE_ACTIVITE_EQUIPES = "Activité des équipes";

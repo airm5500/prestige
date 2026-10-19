@@ -199,7 +199,7 @@ public class RappelHabitudeServiceImpl implements RappelHabitudeService {
     @Override
     public JSONObject marquer(List<String> ids, String statut, TUser operateur) {
         String s = statut == null ? "" : statut.trim().toUpperCase();
-        if (!Arrays.asList(A_PREPARER, PREPARE, ECARTE).contains(s)) {
+        if (!Arrays.asList(A_PREPARER, PREPARE, ECARTE, ACHETE).contains(s)) {
             return refus("Statut inconnu.");
         }
         if (ids == null || ids.isEmpty()) {
