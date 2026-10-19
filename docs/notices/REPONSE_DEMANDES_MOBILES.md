@@ -36,6 +36,46 @@ déconnecter) ; refus métier → 200 `{success:false, code, msg}` ou le code HT
 
 ---
 
+## 0. Sécurité des ventes (19/10) : ce que l'application de vente doit faire
+
+Cas d'officine du 17/10 : un stagiaire au profil « Pre-vente » seule a terminé une vente, et l'application mobile
+le laissait tout faire. Le serveur contrôle désormais le droit (commits ce4c991 et 81ca16e) ; l'application doit
+suivre.
+
+**Refusé par le serveur sans le droit** (403 `{success:false, interdit:true, msg}`, rien n'est enregistré) :
+
+| Action | Routes | Droit (l'un des) |
+|---|---|---|
+| Terminer une vente comptant ou assurance | `v1/vente/cloturer/vno`, `v1/vente/cloturer/assurance` (et `v2`) | `P_SM_CLOTURER_CAISSE`, `P_SM_DEPOT_EXTENSION`, `P_BT_MODIFICATION_DE_VENTE` |
+| Paiement mobile money **avec clôture** | `POST v1/paiements-mobile` avec `cloturer:true` | les mêmes |
+| Terminer une vente en dépôt | `v1/vente/clotureVenteDepot`, `v1/vente/clotureVenteDepotAgree` (et `v2`) | `P_SM_VENTEDEPOT`, `P_SM_DEPOT_EXTENSION`, `P_SM_CLOTURER_CAISSE` |
+| Annuler une vente (inchangé) | `POST v1/vente/{id}/annuler` | `P_BT_ANNULER_VENTE` |
+
+« Terminer la prévente » (`v1/vente/terminerprevente/{id}`) reste ouvert aux profils prévente.
+
+**À faire dans l'application** :
+
+1. **Lire les droits** après chaque connexion (mot de passe ou badge) et à chaque retour au premier plan :
+   `GET v1/user/droits` → `droits:[noms]`. Masquer « Terminer la vente », la clôture automatique du paiement mobile
+   money, la vente en dépôt et l'annulation sans le droit correspondant. Un profil prévente ne voit que « Terminer la
+   prévente ».
+2. **Traiter le 403 `interdit`** : afficher `msg`, garder la vente en cours telle quelle, ne pas réessayer, **ne pas
+   déconnecter** (401 seul signifie « session absente »).
+3. **Un seul compte par session** : « Changer d'utilisateur » sur un téléphone partagé = `POST v1/user/logout`, vider
+   les cookies, effacer l'état local (panier en cours, vendeur choisi, droits en cache), puis nouvelle connexion. Ne
+   jamais garder le panier d'un compte sous la session d'un autre.
+4. **Envoyer `X-Prestige-Utilisateur`** (recommandé) : la valeur `str_USER_ID` reçue à la connexion, sur chaque
+   requête. Si la session du téléphone a changé de compte (autre connexion par le même cookie, vue web partagée), le
+   serveur répond **409** `{success:false, sessionChangee:true, msg}` **sans rien exécuter** : afficher `msg`,
+   relire `v1/user/account` et `v1/user/droits`, repartir de l'écran d'accueil. Sans l'en-tête, rien ne change.
+5. **Caisse** : la clôture exige aussi une caisse ouverte au nom du compte (inchangé). Un profil prévente ne devrait
+   pas en avoir ; si c'est le cas, c'est un réglage de l'officine, pas de l'application.
+
+Tests serveur : `src/test/e2e/securite/test-cloture-vente-profil-prevente.js` (13 points, dont les routes de
+l'application rejouées depuis la session d'un profil prévente) et `test-vente-depot-cloture.js` (non-régression).
+
+---
+
 ## 1. Ce qui est fait
 
 Chaque point est couvert par un test de bout en bout (`src/test/e2e/…`), passé seul, avec ses données retirées.
