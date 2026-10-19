@@ -168,6 +168,31 @@ public class CommandeServiceImpl implements CommandeService {
 
     @Override
     public JSONObject cloturerBonLivraison(String id) throws JSONException {
+        return cloturerBonLivraison(id, false);
+    }
+
+    /**
+     * Lignes non saisies d'un BL (decision 12 du pharmacien) : ligne commencee dont les lots n'atteignent pas la
+     * quantite commandee (refus deja en place, maintenant avec les produits nommes) ; avec « valider avec ecart »,
+     * aussi les lignes sans aucun lot. Sans avecEcart, une ligne sans lot reste entree a la quantite commandee
+     * (comportement du poste inchange).
+     */
+    private List<String> produitsNonSaisis(TBonLivraison bonLivraison, List<TBonLivraisonDetail> lignes,
+            boolean avecEcart) {
+        List<String> out = new ArrayList<>();
+        for (TBonLivraisonDetail bn : lignes) {
+            TFamille f = bn.getLgFAMILLEID();
+            List<TLot> lots = getLot(f.getLgFAMILLEID(), bonLivraison.getStrREFLIVRAISON());
+            int saisi = lots.stream().mapToInt(l -> Objects.requireNonNullElse(l.getIntNUMBER(), 0)).sum();
+            if ((!lots.isEmpty() && saisi < bn.getIntQTECMDE()) || (avecEcart && lots.isEmpty())) {
+                out.add(f.getIntCIP() + " " + f.getStrNAME() + " (" + saisi + "/" + bn.getIntQTECMDE() + ")");
+            }
+        }
+        return out;
+    }
+
+    @Override
+    public JSONObject cloturerBonLivraison(String id, boolean avecEcart) throws JSONException {
         JSONObject json = new JSONObject();
 
         try {
@@ -196,6 +221,12 @@ public class CommandeServiceImpl implements CommandeService {
                         "Impossible de trouver ce bon. Verifier s'il ce bon n'est pas deja cloturé");
             }
             List<TBonLivraisonDetail> lstTBonLivraisonDetail = bonLivraisonDetail(id);
+            List<String> nonSaisis = produitsNonSaisis(bonLivraison, lstTBonLivraisonDetail, avecEcart);
+            if (!nonSaisis.isEmpty()) {
+                return json.put("success", false).put("code", Constant.CODE_PRODUITS_NON_SAISIS)
+                        .put("produits", new JSONArray(nonSaisis))
+                        .put("msg", "Produits non saisis : " + String.join(", ", nonSaisis));
+            }
             userTransaction.begin();
             JSONArray ugArray = new JSONArray();
             // Produits dont le stock rayon augmente : ils seront evalues APRES le commit, pour voir

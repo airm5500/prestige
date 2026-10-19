@@ -95,6 +95,10 @@ public final class Constant {
     public static final String LIBELLE_CLOTURE_VENTE = "Terminer une vente (menu « Ventes »)";
     /** Menu « Activité des équipes » (ANALYSE DE GESTION) : journal, recherches et analyses de productivite. */
     public static final String P_SM_ACTIVITE_EQUIPES = "P_SM_ACTIVITE_EQUIPES";
+    /** decision 12 du pharmacien : saisie des lots et creation d'un BL (poste et mobile) */
+    public static final String P_BL_MOBILE_SCANNER = "P_BL_MOBILE_SCANNER";
+    public static final String LIBELLE_SCANNER_RECEPTION_BL = "Scanner la réception des BL";
+    public static final String CODE_PRODUITS_NON_SAISIS = "PRODUITS_NON_SAISIS";
     public static final String LIBELLE_ACTIVITE_EQUIPES = "Activité des équipes";
     /** Periode la plus longue acceptee par le journal et les analyses (en jours). */
     public static final int ACTIVITE_PERIODE_MAX_JOURS = 366;

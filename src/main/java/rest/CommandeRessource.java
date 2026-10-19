@@ -93,9 +93,9 @@ public class CommandeRessource {
 
     @PUT
     @Path("validerbl/{id}")
-    public Response cloturerBonLivration(@PathParam("id") String id) throws JSONException {
-
-        return Response.ok().entity(commandeService.cloturerBonLivraison(id).toString()).build();
+    public Response cloturerBonLivration(@PathParam("id") String id,
+            @javax.ws.rs.QueryParam("avecEcart") boolean avecEcart) throws JSONException {
+        return Response.ok().entity(commandeService.cloturerBonLivraison(id, avecEcart).toString()).build();
     }
 
     @GET
@@ -134,7 +134,11 @@ public class CommandeRessource {
     @POST
     @Path("creerbl")
     public Response creerBl(Params params) throws JSONException {
-
+        Response refus = Droits.refus(servletRequest, Constant.LIBELLE_SCANNER_RECEPTION_BL,
+                Constant.P_BL_MOBILE_SCANNER);
+        if (refus != null) {
+            return refus;
+        }
         JSONObject json = orderService.creerBonLivraison(params);
         return Response.ok().entity(json.toString()).build();
     }
@@ -389,6 +393,12 @@ public class CommandeRessource {
     @POST
     @Path("add-lot")
     public Response addLot(AddLot addLot, @javax.ws.rs.HeaderParam("X-Client-Ref") String clientRef) {
+        /* decision 12 du pharmacien : droit donne a tous les profils des menus de saisie des BL (migration 7.2.3) */
+        Response refus = Droits.refus(servletRequest, Constant.LIBELLE_SCANNER_RECEPTION_BL,
+                Constant.P_BL_MOBILE_SCANNER);
+        if (refus != null) {
+            return refus;
+        }
         /*
          * D17 (reception mobile hors connexion) : la meme cle d'evenement (en-tete X-Client-Ref ou clientEventId)
          * renvoie la reponse d'origine sans enregistrer le lot une seconde fois. Sans cle : comme avant.

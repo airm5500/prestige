@@ -26,6 +26,12 @@ public interface CommandeService {
 
     JSONObject cloturerBonLivraison(String id) throws JSONException;
 
+    /**
+     * Decision 12 du pharmacien : avecEcart = « valider avec ecart » demande par l'application ; la validation est
+     * refusee tant que des lignes ne sont pas saisies, produits manquants nommes.
+     */
+    JSONObject cloturerBonLivraison(String id, boolean avecEcart) throws JSONException;
+
     /** Vrai si l'utilisateur connecte detient le privilege 'Autorisation entrée en stock'. */
     boolean hasEntreeStockPrivilege();
 
