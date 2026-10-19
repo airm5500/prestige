@@ -165,7 +165,8 @@ const etatSugg = (id) => q("SELECT CONCAT(str_STATUT, '|', IFNULL(str_MODE_COMMA
     ok('Liste : « COMMANDÉE · PHARMAML », action masquée', lA && lA.statut === 'COMMANDÉE · PHARMAML' && !lA.icone, JSON.stringify(lA));
     await p.screenshot({ path: CAPT + '/commander-pharmaml-liste.png' });
     const reessai = await p.evaluate(async (id) => (await fetch('../api/v1/suggestion-pharmaml/' + id, { method: 'POST' })).json(), S.A);
-    ok('Déjà commandée : refus', reessai.success === false && /déjà commandée/.test(reessai.msg), JSON.stringify(reessai));
+    ok('Déjà commandée : refus, code ETAT (demande 2 des applications mobiles)', reessai.success === false && /déjà commandée/.test(reessai.msg)
+      && reessai.code === 'ETAT' && recus.length === 1, JSON.stringify(reessai));
 
     /* B : echec puis reprise sans doublon */
     url(G, 'http://127.0.0.1:' + (PORT + 50) + '/');

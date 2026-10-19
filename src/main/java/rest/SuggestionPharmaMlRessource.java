@@ -124,7 +124,9 @@ public class SuggestionPharmaMlRessource {
             return (a);
         }
         if (a.optBoolean("commandee")) {
-            return (new JSONObject().put("success", false).put("msg", "La suggestion est déjà commandée"));
+            /* demande 2 des applications mobiles : refus d'etat explicite, dans tous les cas */
+            return (new JSONObject().put("success", false).put("code", Constant.CODE_ETAT).put("msg",
+                    "La suggestion est déjà commandée"));
         }
         if (a.optInt("lignes") == 0) {
             return (new JSONObject().put("success", false).put("msg", "La suggestion n'a aucune ligne"));
@@ -141,6 +143,11 @@ public class SuggestionPharmaMlRessource {
                 suggestionService.lierCommande(id, orderId);
             }
             JSONObject envoi = pharmaMlService.envoiCommande(orderId, LocalDate.now().plusDays(1), 0, null, null);
+            if (envoi != null && envoi.optBoolean("dejaRepondue")) {
+                /* la commande liee a deja ete envoyee ET repondue : la renvoyer commanderait une seconde fois */
+                return (new JSONObject().put("success", false).put("code", Constant.CODE_ETAT)
+                        .put("commandeId", orderId).put("msg", envoi.optString("msg")));
+            }
             if (envoi == null || !envoi.optBoolean("success")) {
                 return (new JSONObject().put("success", false).put("commandeCreee", true).put("reprise", reprise).put(
                         "msg",
