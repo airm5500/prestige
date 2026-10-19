@@ -775,6 +775,7 @@ Ext.application({
         'testextjs.view.caisseManager.Importation',
         'testextjs.view.caisseManager.GestionCaisseOnglets',
         'testextjs.view.activiteequipes.ActiviteEquipes',
+        'testextjs.view.receptionmobile.PeremptionsCourtes',
         'testextjs.view.actions.action',
         'testextjs.view.configmanagement.famille.Products',
         'testextjs.view.configmanagement.famille.ProduitsOnglets',

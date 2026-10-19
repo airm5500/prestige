@@ -17,6 +17,7 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import org.json.JSONException;
 import org.json.JSONObject;
+import rest.service.impl.PeremptionsCourtesPdf;
 import rest.service.impl.ReceptionMobileService;
 
 /**
@@ -104,6 +105,58 @@ public class ReceptionMobileRessource {
         }
         LocalDate a = jour(au, LocalDate.now());
         return repondre(service.peremptionsCourtes(jour(du, a.withDayOfMonth(1)), a, grossiste, statut));
+    }
+
+    /** D12 : rapport des peremptions courtes en Excel (memes filtres que la liste). */
+    @GET
+    @Path("peremptions-courtes/excel")
+    @Produces("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    public Response peremptionsCourtesExcel(@QueryParam("du") String du, @QueryParam("au") String au,
+            @QueryParam("grossiste") String grossiste, @QueryParam("statut") String statut) throws java.io.IOException {
+        if (utilisateur() == null) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+        LocalDate a = jour(au, LocalDate.now()), d = jour(du, a.withDayOfMonth(1));
+        JSONObject r = service.peremptionsCourtes(d, a, grossiste, statut);
+        java.util.List<JSONObject> lignes = new java.util.ArrayList<>();
+        for (int i = 0; i < r.getJSONArray("data").length(); i++) {
+            lignes.add(r.getJSONArray("data").getJSONObject(i));
+        }
+        byte[] data = new rest.report.excel.ClasseurExcel<JSONObject>("Péremptions courtes")
+                .titre("PÉREMPTIONS COURTES À LA RÉCEPTION").critere("Période", periode(d, a))
+                .texte("Date", l -> PeremptionsCourtesPdf.jour(l.optString("le"))).texte("BL", l -> l.optString("bl"))
+                .texte("CIP", l -> l.optString("cip")).texte("Produit", l -> l.optString("produit"))
+                .texte("Grossiste", l -> l.optString("grossiste")).texte("Lot", l -> l.optString("numLot"))
+                .texte("Péremption", l -> PeremptionsCourtesPdf.jour(l.optString("datePeremption")))
+                .nombre("Jours restants", l -> l.optLong("joursRestants"))
+                .nombre("Quantité", l -> l.optLong("quantite")).nombre("Valeur", l -> l.optLong("valeur"))
+                .texte("Décision", l -> PeremptionsCourtesPdf.libelleDecision(l.optString("decision")))
+                .texte("Motif", l -> l.optString("motif"))
+                .texte("Statut", l -> PeremptionsCourtesPdf.libelleStatut(l.optString("statut")))
+                .texte("Saisi par", l -> l.optString("utilisateur")).construire(lignes);
+        return Response.ok(data, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                .header("content-disposition", "attachment; filename=peremptions_courtes.xlsx").build();
+    }
+
+    /** D12 : rapport des peremptions courtes en PDF (ecrit directement, sans modele d'edition). */
+    @GET
+    @Path("peremptions-courtes/pdf")
+    @Produces("application/pdf")
+    public Response peremptionsCourtesPdf(@QueryParam("du") String du, @QueryParam("au") String au,
+            @QueryParam("grossiste") String grossiste, @QueryParam("statut") String statut) throws Exception {
+        if (utilisateur() == null) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+        LocalDate a = jour(au, LocalDate.now()), d = jour(du, a.withDayOfMonth(1));
+        byte[] pdf = PeremptionsCourtesPdf.ecrire(service.peremptionsCourtes(d, a, grossiste, statut),
+                service.officine(), periode(d, a));
+        return Response.ok(pdf, "application/pdf")
+                .header("Content-Disposition", "inline; filename=peremptions_courtes.pdf").build();
+    }
+
+    private static String periode(LocalDate d, LocalDate a) {
+        java.time.format.DateTimeFormatter f = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy");
+        return "du " + d.format(f) + " au " + a.format(f);
     }
 
     /** D12 : statut de traitement (A_TRAITER, RECLAME, AVOIR_RECU). */

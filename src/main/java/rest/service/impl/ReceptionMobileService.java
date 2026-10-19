@@ -5,6 +5,7 @@ import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.logging.Level;
@@ -169,21 +170,22 @@ public class ReceptionMobileService {
                 + " JOIN t_famille f ON f.lg_FAMILLE_ID = p.lg_FAMILLE_ID"
                 + " LEFT JOIN t_grossiste g ON g.lg_GROSSISTE_ID = p.lg_GROSSISTE_ID"
                 + " LEFT JOIN t_user u ON u.lg_USER_ID = p.lg_USER_ID WHERE p.created_at >= ?1 AND p.created_at < ?2");
+        /* parametres numerotes dans l'ordre : un statut seul (sans grossiste) donnait ?4 sans ?3, erreur 500 */
+        List<Object> filtres = new ArrayList<>();
         if (StringUtils.isNotBlank(grossiste)) {
-            sql.append(" AND p.lg_GROSSISTE_ID = ?3");
+            filtres.add(grossiste.trim());
+            sql.append(" AND p.lg_GROSSISTE_ID = ?").append(2 + filtres.size());
         }
         if (StringUtils.isNotBlank(statut)) {
-            sql.append(" AND p.statut = ?4");
+            filtres.add(statut.trim());
+            sql.append(" AND p.statut = ?").append(2 + filtres.size());
         }
         sql.append(" ORDER BY p.created_at DESC");
         javax.persistence.Query q = em.createNativeQuery(sql.toString())
                 .setParameter(1, Timestamp.valueOf(du.atStartOfDay()))
                 .setParameter(2, Timestamp.valueOf(au.plusDays(1).atStartOfDay()));
-        if (StringUtils.isNotBlank(grossiste)) {
-            q.setParameter(3, grossiste.trim());
-        }
-        if (StringUtils.isNotBlank(statut)) {
-            q.setParameter(4, statut.trim());
+        for (int i = 0; i < filtres.size(); i++) {
+            q.setParameter(3 + i, filtres.get(i));
         }
         JSONArray data = new JSONArray();
         long valeur = 0;
@@ -197,6 +199,13 @@ public class ReceptionMobileService {
         }
         return new JSONObject().put("status", 200).put("success", true).put("total", data.length())
                 .put("valeur", valeur).put("data", data);
+    }
+
+    /** Nom de l'officine pour l'en-tete des editions. */
+    public String officine() {
+        List<?> l = em.createNativeQuery("SELECT COALESCE(NULLIF(str_NOM_ABREGE, ''), str_NOM_COMPLET) FROM t_officine"
+                + " ORDER BY lg_OFFICINE_ID = '1' DESC").setMaxResults(1).getResultList();
+        return l.isEmpty() || l.get(0) == null ? "" : l.get(0).toString();
     }
 
     public JSONObject statutPeremptionCourte(String id, String statut) {

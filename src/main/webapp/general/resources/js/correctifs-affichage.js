@@ -747,6 +747,8 @@ window.PrestigeAffichage.isolerEcouteursRedimensionnement = function () {
 window.PrestigeAffichage.ECRANS_COLLES = [
     // menu « Activité des équipes » (ANALYSE DE GESTION, demande du 13/10)
     'activiteequipes',
+    // menu « Péremptions courtes » (GESTION DES COMMANDES, demande mobile 36 D12)
+    'peremptionscourtes',
     // retours du 05/10 (lot A)
     'facturesubrogatoire', 'modelfacture', 'modelfacturedynamique', 'factureenattenteedition',
     // lot B
@@ -861,6 +863,8 @@ window.PrestigeAffichage.ECRANS_STYLE_VENTE = [
     'saisieperime', 'saisieperimeonglets', 'margeonglets', 'gestionsurstock', 'i_sugg_manager',
     // menu « Activité des équipes »
     'activiteequipes',
+    // menu « Péremptions courtes »
+    'peremptionscourtes',
     // lot D : statistiques, parametres, administration
     'info_officine', 'parametermanager', 'grossistemanager', 'smsfournisseur', 'dcimanager', 'cazonegeomanager', 'analyseFrequentationOffManager', 'gardemanager',
     'tvastat', 'margeproducts', 'abcmanager', 'feuilledematch', 'recap', 'usermanager', 'rolemanager', 'myaccountmanager',
