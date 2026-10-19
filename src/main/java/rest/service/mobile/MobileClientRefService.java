@@ -52,6 +52,9 @@ public class MobileClientRefService {
     public static final String TYPE_EMPREINTE = "EMPREINTE";
     /** demande 51 : pointage avec la session de l'application (v1/rh/moi/pointages) */
     public static final String TYPE_POINTAGE_SESSION = "POINTAGE_SESSION";
+    /** demande 19 : mesures et ordonnances de la fiche client */
+    public static final String TYPE_MESURES_CLIENT = "MESURES_CLIENT";
+    public static final String TYPE_ORDONNANCE_CLIENT = "ORDONNANCE_CLIENT";
     /** Envoi PharmaML d'une suggestion (demande 2). */
     public static final String TYPE_ENVOI_PHARMAML = "ENVOI_PHARMAML";
     /** Creation et cloture d'ajustement (demandes 1 et 13) : meme cle = meme reponse, rien de refait. */

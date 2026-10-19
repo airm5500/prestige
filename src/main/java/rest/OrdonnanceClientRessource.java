@@ -5,6 +5,7 @@ import dal.TUser;
 import java.time.LocalDate;
 import java.util.List;
 import javax.ejb.EJB;
+import rest.service.mobile.MobileClientRefService;
 import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.Consumes;
@@ -51,6 +52,8 @@ public class OrdonnanceClientRessource {
     @Inject
     private HttpServletRequest servletRequest;
 
+    @EJB
+    private MobileClientRefService clientRef;
     @EJB
     private OrdonnanceClientService ordonnanceService;
 
@@ -166,7 +169,7 @@ public class OrdonnanceClientRessource {
     /** Creation (sans {@code id}) ou modification (avec) d'une ordonnance. */
     @POST
     @Path("enregistrer")
-    public Response enregistrer(String corps) {
+    public Response enregistrer(String corps, @javax.ws.rs.HeaderParam("X-Client-Ref") String cle) {
         TUser operateur = utilisateur();
         if (operateur == null) {
             return deconnecte();
@@ -180,7 +183,9 @@ public class OrdonnanceClientRessource {
         } catch (RuntimeException e) {
             return refus("La saisie n'a pas pu être lue.");
         }
-        return Response.ok().entity(ordonnanceService.enregistrer(requete, operateur).toString()).build();
+        /* demande mobile 19 : meme X-Client-Ref = meme reponse, une seule ordonnance */
+        return Response.ok().entity(clientRef.uneFois(cle, MobileClientRefService.TYPE_ORDONNANCE_CLIENT,
+                () -> ordonnanceService.enregistrer(requete, operateur), o -> o.optString("id", null))).build();
     }
 
     /**
@@ -912,7 +917,8 @@ public class OrdonnanceClientRessource {
 
     @POST
     @Path("client/{clientId}/mesures")
-    public Response ajouterMesures(@PathParam("clientId") String clientId, String corps) {
+    public Response ajouterMesures(@PathParam("clientId") String clientId, String corps,
+            @javax.ws.rs.HeaderParam("X-Client-Ref") String cle) {
         TUser operateur = utilisateur();
         if (operateur == null) {
             return deconnecte();
@@ -922,7 +928,9 @@ public class OrdonnanceClientRessource {
         }
         JSONObject r = lireCorps(corps);
         return r == null ? refus("La saisie n'a pas pu être lue.")
-                : Response.ok().entity(dossierService.ajouterMesures(clientId, r, null, operateur).toString()).build();
+                /* demande mobile 19 : meme X-Client-Ref = meme reponse, une seule saisie */
+                : Response.ok().entity(clientRef.uneFois(cle, MobileClientRefService.TYPE_MESURES_CLIENT,
+                        () -> dossierService.ajouterMesures(clientId, r, null, operateur), null)).build();
     }
 
     @POST
