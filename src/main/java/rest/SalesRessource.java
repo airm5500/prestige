@@ -582,6 +582,11 @@ public class SalesRessource {
     @POST
     @Path("clotureVenteDepot")
     public Response clotureVenteDepot(ClotureVenteParams clotureVenteParams) throws JSONException {
+        Response refusDroit = Droits.refus(servletRequest, Constant.LIBELLE_CLOTURE_VENTE_DEPOT,
+                Constant.PRIVILEGES_CLOTURE_VENTE_DEPOT);
+        if (refusDroit != null) {
+            return refusDroit;
+        }
         HttpSession hs = servletRequest.getSession();
         TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
 
@@ -593,6 +598,11 @@ public class SalesRessource {
     @POST
     @Path("clotureVenteDepotAgree")
     public Response clotureVenteDepotAgree(ClotureVenteParams clotureVenteParams) throws JSONException {
+        Response refusDroit = Droits.refus(servletRequest, Constant.LIBELLE_CLOTURE_VENTE_DEPOT,
+                Constant.PRIVILEGES_CLOTURE_VENTE_DEPOT);
+        if (refusDroit != null) {
+            return refusDroit;
+        }
         HttpSession hs = servletRequest.getSession();
         TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
 

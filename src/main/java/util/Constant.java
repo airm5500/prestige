@@ -90,6 +90,12 @@ public final class Constant {
     public static final String[] PRIVILEGES_CLOTURE_VENTE = { "P_SM_CLOTURER_CAISSE", "P_SM_DEPOT_EXTENSION",
             P_BT_MODIFICATION_DE_VENTE };
     public static final String LIBELLE_CLOTURE_VENTE = "Terminer une vente (menu « Ventes »)";
+    /**
+     * Terminer une vente en depot (ecran « Vente dépôt », application mobile) : menus de vente en depot ou « Ventes ».
+     */
+    public static final String[] PRIVILEGES_CLOTURE_VENTE_DEPOT = { "P_SM_VENTEDEPOT", "P_SM_DEPOT_EXTENSION",
+            "P_SM_CLOTURER_CAISSE" };
+    public static final String LIBELLE_CLOTURE_VENTE_DEPOT = "Terminer une vente en dépôt (menu « Vente dépôt »)";
     public static final String P_BTN_UPDATE_VENTE_CLIENT_TP = "P_BTN_UPDATE_VENTE_CLIENT_TP";
     public static final String P_BTN_UPDATE_VENTE_CLIENT_DATE = "P_BTN_UPDATE_VENTE_CLIENT_DATE";
     public static final String STATUT_IS_DEVIS = "devis";

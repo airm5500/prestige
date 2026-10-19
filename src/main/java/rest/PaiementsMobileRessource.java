@@ -78,6 +78,14 @@ public class PaiementsMobileRessource {
         // Le montant éventuellement envoyé est IGNORÉ : seul « part » (paiement en deux modes) est accepté, contrôlé
         // par le serveur (inférieur ou égal au net de la vente).
         Integer part = b.has("part") && !b.isNull("part") ? b.optInt("part") : null;
+        // la cloture automatique termine la vente : meme droit que « Terminer la vente » (cas du 17/10)
+        if (b.optBoolean("cloturer", false)) {
+            Response refusDroit = Droits.refus(servletRequest, Constant.LIBELLE_CLOTURE_VENTE,
+                    Constant.PRIVILEGES_CLOTURE_VENTE);
+            if (refusDroit != null) {
+                return refusDroit;
+            }
+        }
         return ok(service.creer(u, b.optString("venteId", null), b.optString("operateur", null), part,
                 b.optBoolean("cloturer", false), h.getHeaderString("X-Client-Ref")));
     }

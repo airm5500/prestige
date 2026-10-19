@@ -15,6 +15,8 @@
  *  - onglet 1 : montant recu, « Terminer la vente » : la vente ne doit PAS etre cloturee au nom du profil prevente ;
  *    l'onglet annonce le changement de compte dans la page et se recharge ;
  *  - la requete de cloture rejouee depuis la session du profil prevente : refusee (403), rien d'ecrit ;
+ *  - application mobile de vente (meme API, session du profil prevente) : cloture par paiement mobile money
+ *    (cloturer:true) et clotures de vente en depot (v1 et v2) refusees (403), vente non terminee ;
  *  - non-regression : admin seul dans son navigateur termine sa vente normalement (caissier = admin).
  */
 const { chromium } = require('playwright-core');
@@ -119,7 +121,8 @@ function nettoyer() {
     ok('Onglet admin après la connexion du profil prévente : la vente n\'est PAS terminée au nom de ce profil',
       !/^is_Closed\|e2e-stagiaire/.test(etat) && !/\|e2e-stagiaire$/.test(etat.replace(/^is_Process.*/, '')), etat);
 
-    /* la requete de cloture rejouee par le profil prevente seul */
+    /* la requete de cloture rejouee par le profil prevente seul (corps de l'ecran s'il a ete capte, sinon le minimum) */
+    corpsCloture = corpsCloture || JSON.stringify({ venteId: vente, typeRegleId: '1', typeVenteId: '1', natureVenteId: '1', montantRecu: 300, montantPaye: 300, montantRemis: 0 });
     if (corpsCloture && /^is_Process/.test(q("SELECT str_STATUT FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID = '" + vente + "'"))) {
       const r = await p2.evaluate(async (corps) => { const x = await fetch('../api/v1/vente/cloturer/vno', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: corps });
         return { s: x.status, t: (await x.text()).slice(0, 200) }; }, corpsCloture);
@@ -129,10 +132,24 @@ function nettoyer() {
       ok('Clôture rejouée depuis la session du profil prévente : refusée (403), vente non terminée', false, corpsCloture ? 'vente déjà terminée' : 'requête de clôture non capturée');
     }
 
+    /* application mobile de vente : memes routes, session du profil prevente */
+    for (const [nom, url, corps] of [
+      ['paiement mobile money avec clôture', '../api/v1/paiements-mobile', { venteId: vente, operateur: 'WAVE', cloturer: true }],
+      ['clôture de vente en dépôt (v1)', '../api/v1/vente/clotureVenteDepot', JSON.parse(corpsCloture || '{}')],
+      ['clôture de vente en dépôt agréé (v1)', '../api/v1/vente/clotureVenteDepotAgree', JSON.parse(corpsCloture || '{}')],
+      ['clôture de vente en dépôt (v2)', '../api/v2/vente/clotureVenteDepot', JSON.parse(corpsCloture || '{}')],
+      ['clôture comptant (v2)', '../api/v2/vente/cloturer/vno', JSON.parse(corpsCloture || '{}')]]) {
+      const r = await p2.evaluate(async ([u, c]) => { const x = await fetch(u, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(c) });
+        return { s: x.status, t: (await x.text()).slice(0, 160) }; }, [url, Object.assign({}, corps, { venteId: vente })]);
+      const apres = q("SELECT str_STATUT FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID = '" + vente + "'");
+      ok('Application mobile, profil prévente — ' + nom + ' : refusée (403), vente non terminée', r.s === 403 && apres === 'is_Process', r.s + ' ' + r.t + ' → ' + apres);
+    }
+
     /* non-regression : un seul compte, vente terminee normalement */
     const p3 = await (await b.newContext({ viewport: { width: 1600, height: 900 } })).newPage();
     await connexion(p3, 'admin', 'e2etest');
     await ouvrirMenu(p3, 'SERVICE CLIENT', 'Ventes');
+    await p3.waitForLoadState('networkidle').catch(() => {});
     await p3.waitForFunction(() => Ext.ComponentQuery.query('cloturerventemanager #addBtn').some((x) => x.isVisible(true)), null, { timeout: 60000 });
     await cliquer(p3, 'cloturerventemanager #addBtn');
     await p3.waitForFunction((r) => Ext.ComponentQuery.query(r).some((x) => x.isVisible(true)), produit, { timeout: 60000 });
