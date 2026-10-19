@@ -147,12 +147,8 @@ public final class BadgePdf {
         texte(cb, "BADGE", police(7, Font.BOLD, new BaseColor(0xcf, 0xe0, 0xf1)), x + marge,
                 y + HAUTEUR - bandeau + 3 * MM, largeurTexte, Element.ALIGN_RIGHT);
         float ligne = y + HAUTEUR - bandeau - 6 * MM;
-        texte(cb, StringUtils.abbreviate(StringUtils.defaultString(c.nom).toUpperCase(), c.qr == null ? 30 : 17),
-                police(13, Font.BOLD, BaseColor.BLACK), x + marge, ligne, largeurNom, Element.ALIGN_LEFT);
-        ligne -= 4.8f * MM;
-        texte(cb, StringUtils.abbreviate(StringUtils.defaultString(c.prenoms), c.qr == null ? 40 : 24),
-                police(10, Font.NORMAL, BaseColor.BLACK), x + marge, ligne, largeurNom, Element.ALIGN_LEFT);
-        ligne -= 4.6f * MM;
+        nomPrenoms(cb, c, x + marge, ligne, largeurNom);
+        ligne -= 6.2f * MM;
         if (c.qr != null) {
             /* poste et matricule sur deux lignes, a gauche du QR */
             texte(cb, StringUtils.abbreviate(StringUtils.defaultString(c.poste), 28), police(8, Font.NORMAL, GRIS),
@@ -197,6 +193,37 @@ public final class BadgePdf {
             texte(cb, "Expire le " + c.expiration.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")),
                     police(7, Font.NORMAL, GRIS), x + marge, y + 2 * MM, largeurTexte, Element.ALIGN_RIGHT);
         }
+    }
+
+    /**
+     * Demande du 19/10 : nom (gras, majuscules) et prenoms sur une seule ligne. La police descend de 12 a 8 points tant
+     * que la ligne depasse ; au-dela, les prenoms sont abreges : le nom de famille reste toujours entier.
+     */
+    private static void nomPrenoms(PdfContentByte cb, Carte c, float x, float y, float largeur) {
+        String nom = StringUtils.defaultString(c.nom).toUpperCase().trim();
+        String prenoms = StringUtils.defaultString(c.prenoms).trim();
+        float taille = 12f;
+        while (taille > 8f && largeurLigne(nom, prenoms, taille) > largeur) {
+            taille -= 0.5f;
+        }
+        while (prenoms.length() > 1 && largeurLigne(nom, prenoms, taille) > largeur) {
+            prenoms = StringUtils.abbreviate(prenoms, Math.max(4, prenoms.length() - 1));
+            if (prenoms.length() <= 4) {
+                break;
+            }
+        }
+        Phrase p = new Phrase();
+        p.add(new com.itextpdf.text.Chunk(nom, police(taille, Font.BOLD, BaseColor.BLACK)));
+        if (!prenoms.isEmpty()) {
+            p.add(new com.itextpdf.text.Chunk(" " + prenoms, police(taille, Font.NORMAL, BaseColor.BLACK)));
+        }
+        ColumnText.showTextAligned(cb, Element.ALIGN_LEFT, p, x, y, 0);
+    }
+
+    private static float largeurLigne(String nom, String prenoms, float taille) {
+        return police(taille, Font.BOLD, BaseColor.BLACK).getCalculatedBaseFont(false).getWidthPoint(nom, taille)
+                + (prenoms.isEmpty() ? 0 : police(taille, Font.NORMAL, BaseColor.BLACK).getCalculatedBaseFont(false)
+                        .getWidthPoint(" " + prenoms, taille));
     }
 
     private static void texte(PdfContentByte cb, String s, Font f, float x, float y, float largeur, int align) {

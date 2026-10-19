@@ -1,9 +1,11 @@
 package rest.service.impl;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.itextpdf.text.Rectangle;
 import com.itextpdf.text.pdf.PdfReader;
+import com.itextpdf.text.pdf.parser.PdfTextExtractor;
 import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.List;
@@ -46,6 +48,30 @@ class BadgePdfTest {
             }
             r.close();
         }
+    }
+
+    /** demande du 19/10 : nom et prenoms sur une seule ligne, en QR code comme en code-barres, sur les deux formats */
+    @Test
+    void nom_et_prenoms_sur_une_ligne() throws Exception {
+        for (boolean qr : new boolean[] { true, false }) {
+            for (boolean unParPage : new boolean[] { true, false }) {
+                PdfReader r = new PdfReader(BadgePdf.ecrire(cartes(1, qr), "Pharmacie du test", unParPage));
+                String texte = PdfTextExtractor.getTextFromPage(r, 1);
+                r.close();
+                assertTrue(texte.contains("KONE Awa"), "qr=" + qr + " carte=" + unParPage + " :\n" + texte);
+            }
+        }
+    }
+
+    /** nom long : tout le nom de famille reste lisible sur la ligne (police reduite, prenoms abreges au besoin) */
+    @Test
+    void nom_long_garde_le_nom_de_famille_entier() throws Exception {
+        BadgePdf.Carte c = new BadgePdf.Carte("PGB-26-00009-K", "KOUADIO-ASSEMIAN", "Marie-Christelle Ahou Aya",
+                "Préparatrice", "M9", LocalDate.of(2027, 10, 1), "PRESTIGE-BADGE|1|PGB-26-00009-K|mca|secret");
+        PdfReader r = new PdfReader(BadgePdf.ecrire(Arrays.asList(c), "Pharmacie du test", true));
+        String texte = PdfTextExtractor.getTextFromPage(r, 1);
+        r.close();
+        assertTrue(texte.contains("KOUADIO-ASSEMIAN Marie"), texte);
     }
 
     @Test
