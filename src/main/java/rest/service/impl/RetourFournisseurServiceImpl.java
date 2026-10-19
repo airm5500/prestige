@@ -71,12 +71,13 @@ public class RetourFournisseurServiceImpl implements RetourFournisseurService {
 
     private TRetourFournisseur create(RetourFournisseurDTO params) {
         params.setUser(sessionHelperService.getCurrentUser());
-        TRetourFournisseurDetail item = newItem(params.getItems().get(0), params.getLgBONLIVRAISONID(),
-                params.getUser().getLgEMPLACEMENTID().getLgEMPLACEMENTID());
+        TBonLivraison bonLivraison = bonVise(params);
+        boolean ancienAppel = StringUtils.isBlank(params.getBlId()) && StringUtils.isBlank(params.getLgGROSSISTEID());
+        TRetourFournisseurDetail item = newItem(params.getItems().get(0), bonLivraison,
+                params.getUser().getLgEMPLACEMENTID().getLgEMPLACEMENTID(), 0, ancienAppel);
         if (item == null) {
             return null;
         }
-        TBonLivraison bonLivraison = getTBonLivraison(params.getLgBONLIVRAISONID());
         TRetourFournisseur fournisseur = createRetourFournisseur(params.getUser(), params.getStrCOMMENTAIRE(),
                 params.getStrREPONSEFRS(), bonLivraison);
         getEntityManager().persist(fournisseur);
@@ -108,8 +109,9 @@ public class RetourFournisseurServiceImpl implements RetourFournisseurService {
         if (item == null) {
             int dejaRetourne = lignes.stream().mapToInt(l -> Objects.requireNonNullElse(l.getIntNUMBERRETURN(), 0))
                     .sum();
-            item = newItem(params, fournisseur.getLgBONLIVRAISONID().getStrREFLIVRAISON(),
-                    fournisseur.getLgUSERID().getLgEMPLACEMENTID().getLgEMPLACEMENTID(), dejaRetourne);
+            /* D8 : la ligne vient du BL du retour, pas d'un BL homonyme d'un autre grossiste */
+            item = newItem(params, fournisseur.getLgBONLIVRAISONID(),
+                    fournisseur.getLgUSERID().getLgEMPLACEMENTID().getLgEMPLACEMENTID(), dejaRetourne, true);
             if (item != null) {
                 item.setLgRETOURFRSID(fournisseur);
                 getEntityManager().persist(item);
@@ -190,14 +192,6 @@ public class RetourFournisseurServiceImpl implements RetourFournisseurService {
 
     }
 
-    private TBonLivraison getTBonLivraison(String lgBONLIVRAISONID) {
-        TypedQuery<TBonLivraison> qry = getEntityManager()
-                .createQuery("SELECT t FROM TBonLivraison t WHERE t.strREFLIVRAISON = ?1 ORDER BY t.dtCREATED DESC",
-                        TBonLivraison.class)
-                .setParameter(1, lgBONLIVRAISONID).setMaxResults(1);
-        return qry.getSingleResult();
-    }
-
     private TFamille getFamille(String produitId) {
         return getEntityManager().find(TFamille.class, produitId);
     }
@@ -227,17 +221,65 @@ public class RetourFournisseurServiceImpl implements RetourFournisseurService {
         }
     }
 
-    private TRetourFournisseurDetail newItem(RetourDetailsDTO item, String bonId, String emplacementId) {
-        return newItem(item, bonId, emplacementId, 0);
+    /**
+     * Demande mobile 17 D8 : le BL vise par un nouveau retour. blId (identifiant) d'abord ; sinon le numero et le
+     * grossiste (deux grossistes peuvent avoir le meme numero) ; sinon le numero seul, le plus recent (comme avant).
+     */
+    private TBonLivraison bonVise(RetourFournisseurDTO params) {
+        if (StringUtils.isNotBlank(params.getBlId())) {
+            TBonLivraison b = getEntityManager().find(TBonLivraison.class, params.getBlId().trim());
+            if (b == null) {
+                throw new RefusMetier("BL introuvable.");
+            }
+            return b;
+        }
+        if (StringUtils.isNotBlank(params.getLgGROSSISTEID())) {
+            List<TBonLivraison> l = getEntityManager().createQuery(
+                    "SELECT t FROM TBonLivraison t WHERE t.strREFLIVRAISON = ?1 AND t.lgORDERID.lgGROSSISTEID.lgGROSSISTEID = ?2"
+                            + " ORDER BY t.dtCREATED DESC",
+                    TBonLivraison.class).setParameter(1, params.getLgBONLIVRAISONID())
+                    .setParameter(2, params.getLgGROSSISTEID().trim()).setMaxResults(1).getResultList();
+            if (l.isEmpty()) {
+                throw new RefusMetier("Aucun BL n° " + params.getLgBONLIVRAISONID() + " pour ce grossiste.");
+            }
+            return l.get(0);
+        }
+        List<TBonLivraison> l = getEntityManager()
+                .createQuery("SELECT t FROM TBonLivraison t WHERE t.strREFLIVRAISON = ?1 ORDER BY t.dtCREATED DESC",
+                        TBonLivraison.class)
+                .setParameter(1, params.getLgBONLIVRAISONID()).setMaxResults(1).getResultList();
+        if (l.isEmpty()) {
+            /* numero inconnu : meme refus qu'avant le 19/10 (le produit n'etait pas trouve sur ce BL) */
+            throw new RefusMetier("Ce produit n'est pas sur le BL n° " + params.getLgBONLIVRAISONID() + ".");
+        }
+        return l.get(0);
+    }
+
+    /** Ligne du produit sur ce BL precis (null s'il n'y est pas). */
+    private TBonLivraisonDetail ligneDuBl(TBonLivraison bl, String produitId) {
+        List<TBonLivraisonDetail> l = getEntityManager().createQuery(
+                "SELECT t FROM TBonLivraisonDetail t WHERE t.lgBONLIVRAISONID.lgBONLIVRAISONID = ?1 AND t.lgFAMILLEID.lgFAMILLEID = ?2",
+                TBonLivraisonDetail.class).setParameter(1, bl.getLgBONLIVRAISONID()).setParameter(2, produitId)
+                .setMaxResults(1).getResultList();
+        return l.isEmpty() ? null : l.get(0);
     }
 
     /**
      * @param dejaRetourne
      *            boites du meme produit deja sur d'autres lignes de ce retour (autre motif ou lot)
      */
-    private TRetourFournisseurDetail newItem(RetourDetailsDTO item, String bonId, String emplacementId,
-            int dejaRetourne) {
-        TBonLivraisonDetail bonLivraisonDetail = getTBonLivraisonDetailLast(bonId, item.getProduitId());
+    /**
+     * @param repliParNumero
+     *            produit absent de ce BL : chercher, comme avant le 19/10, sur le BL le plus recent portant ce numero
+     *            (anciens appels, sans blId ni grossiste)
+     */
+    private TRetourFournisseurDetail newItem(RetourDetailsDTO item, TBonLivraison bl, String emplacementId,
+            int dejaRetourne, boolean repliParNumero) {
+        String bonId = bl.getStrREFLIVRAISON();
+        TBonLivraisonDetail bonLivraisonDetail = ligneDuBl(bl, item.getProduitId());
+        if (bonLivraisonDetail == null && repliParNumero) {
+            bonLivraisonDetail = getTBonLivraisonDetailLast(bonId, item.getProduitId());
+        }
         if (bonLivraisonDetail == null) {
             throw new RefusMetier("Ce produit n'est pas sur le BL n° " + bonId + ".");
         }

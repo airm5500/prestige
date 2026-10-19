@@ -111,15 +111,29 @@ public class OrderServiceImpl implements OrderService {
         TGrossiste grossiste = order.getLgGROSSISTEID();
         // Retours du 10/10 : reference du BL enregistree en majuscules (espaces de bord retires).
         params.setRef(params.getRef() == null ? null : params.getRef().trim().toUpperCase(java.util.Locale.FRENCH));
+        /* demande mobile 17 D6 : reference obligatoire (20 caracteres, taille de la colonne), date lisible */
+        if (StringUtils.isEmpty(params.getRef())) {
+            return json.put("success", false).put("msg", "La référence du BL est obligatoire.");
+        }
+        if (params.getRef().length() > 20) {
+            return json.put("success", false).put("msg", "La référence du BL fait 20 caractères au plus.");
+        }
+        LocalDate dateBl;
+        try {
+            dateBl = LocalDate.parse(StringUtils.trimToEmpty(params.getDtStart()));
+        } catch (java.time.format.DateTimeParseException e) {
+            return json.put("success", false).put("msg", "Date du BL illisible (attendu AAAA-MM-JJ).");
+        }
         if (isRefBLExistForGrossiste(params.getRef(), grossiste.getLgGROSSISTEID())) {
             return json.put("success", false).put("msg", "Cette référence a déjà été utilisé pour ce grossiste");
         }
         TEmplacement emplacement = params.getOperateur().getLgEMPLACEMENTID();
         String emp = emplacement.getLgEMPLACEMENTID();
         List<TOrderDetail> listTOrderDetail = new ArrayList<>(order.getTOrderDetailCollection());
+        /* D6 : montant HT ou TVA absent -> 0 (avant : erreur) */
         TBonLivraison oBonLivraison = createBL(order, params.getOperateur(), params.getRef(),
-                DateCommonUtils.convertLocalDateToDate(LocalDate.parse(params.getDtStart())), params.getValue(),
-                params.getValueTwo());
+                DateCommonUtils.convertLocalDateToDate(dateBl), Objects.requireNonNullElse(params.getValue(), 0),
+                Objects.requireNonNullElse(params.getValueTwo(), 0));
 
         int montant = 0;
         int count = 0;

@@ -48,6 +48,17 @@ public class RetourFournisseurDTO implements Serializable {
     private String lgGROSSISTEID;
     private boolean BTNDELETE;
     private String lgBONLIVRAISONID, strREFLIVRAISON, strLIBELLE;
+    /** demande mobile 17 D8 : identifiant du BL vise (prioritaire sur le numero lgBONLIVRAISONID) */
+    private String blId;
+
+    public String getBlId() {
+        return blId;
+    }
+
+    public void setBlId(String blId) {
+        this.blId = blId;
+    }
+
     private List<RetourDetailsDTO> items = new ArrayList<>();
     private TUser user;
     private boolean closed;
