@@ -569,69 +569,109 @@ public class FamilleArticleServiceImpl implements FamilleArticleService {
         }
     }
 
-    List<FamilleArticleStatDTO> fetchDataForStatisticVenteRayons(LocalDate dtStart, LocalDate dtEnd, String query,
+    /*
+     * Lenteur des statistiques par rayon et par grossiste (13 a 19 s sur le banc, 19/10) : meme cause et meme
+     * correction que SQL_SOMMES_FAMILLE. Les ventes de la periode sont lues d'abord, puis leurs lignes, puis le rayon
+     * (ou le grossiste) de l'article. Les familles d'articles ne sont jointes que si un filtre les vise, comme la
+     * jointure implicite de la requete d'origine.
+     */
+    private static final String SQL_RAYON = " JOIN t_zone_geographique z ON z.lg_ZONE_GEO_ID = f.lg_ZONE_GEO_ID";
+    private static final String SQL_GROSSISTE = " JOIN t_grossiste g ON g.lg_GROSSISTE_ID = f.lg_GROSSISTE_ID";
+
+    private static String sqlSommesPar(boolean rayon, boolean article) {
+        StringBuilder sql = new StringBuilder("SELECT STRAIGHT_JOIN ")
+                .append(rayon ? "z.str_CODE, z.str_LIBELLEE," : "g.str_CODE, g.str_LIBELLE,")
+                .append(SQL_SOMMES_FAMILLE, SQL_SOMMES_FAMILLE.indexOf(" COALESCE"),
+                        SQL_SOMMES_FAMILLE.indexOf(" fa.lg_FAMILLEARTICLE_ID AS famille"))
+                .append(rayon ? " z.lg_ZONE_GEO_ID" : " g.lg_GROSSISTE_ID").append(SQL_SOMMES_FAMILLE,
+                        SQL_SOMMES_FAMILLE.indexOf(" FROM "), SQL_SOMMES_FAMILLE.indexOf(" JOIN t_famillearticle"));
+        if (article) {
+            sql.append(" JOIN t_famillearticle fa ON fa.lg_FAMILLEARTICLE_ID = f.lg_FAMILLEARTICLE_ID");
+        }
+        return sql.append(rayon ? SQL_RAYON : SQL_GROSSISTE)
+                .append(SQL_SOMMES_FAMILLE.substring(SQL_SOMMES_FAMILLE.indexOf(" WHERE "))).toString();
+    }
+
+    private static String groupePar(boolean rayon) {
+        return rayon ? " GROUP BY z.lg_ZONE_GEO_ID" : " GROUP BY g.lg_GROSSISTE_ID";
+    }
+
+    private List<FamilleArticleStatDTO> sommesPar(boolean rayon, LocalDate dtStart, LocalDate dtEnd, String query,
             String codeFamillle, TUser u, String codeRayon, String codeGrossiste) {
         try {
-            CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();
-            CriteriaQuery<FamilleArticleStatDTO> cq = cb.createQuery(FamilleArticleStatDTO.class);
-            Root<TPreenregistrementDetail> root = cq.from(TPreenregistrementDetail.class);
-            Join<TPreenregistrementDetail, TPreenregistrement> join = root
-                    .join(TPreenregistrementDetail_.lgPREENREGISTREMENTID, JoinType.INNER);
-            cq.select(
-                    cb.construct(FamilleArticleStatDTO.class,
-                            root.get(TPreenregistrementDetail_.lgFAMILLEID).get(TFamille_.lgZONEGEOID)
-                                    .get(TZoneGeographique_.strCODE),
-                            root.get(TPreenregistrementDetail_.lgFAMILLEID).get(TFamille_.lgZONEGEOID)
-                                    .get(TZoneGeographique_.strLIBELLEE),
-                            cb.sum(root.get(TPreenregistrementDetail_.intPRICE)),
-                            cb.sum(cb.prod(root.get(TPreenregistrementDetail_.prixAchat),
-                                    root.get(TPreenregistrementDetail_.intQUANTITY))),
-                            cb.sum(root.get(TPreenregistrementDetail_.montantTva)),
-                            cb.sum(root.get(TPreenregistrementDetail_.intPRICEREMISE)),
-                            root.get(TPreenregistrementDetail_.lgFAMILLEID).get(TFamille_.lgZONEGEOID)
-                                    .get(TZoneGeographique_.lgZONEGEOID)))
-                    .groupBy(root.get(TPreenregistrementDetail_.lgFAMILLEID).get(TFamille_.lgZONEGEOID));
-            List<Predicate> predicates = famillePredicats(cb, root, join, dtStart, dtEnd, query, codeFamillle, u,
-                    codeRayon, codeGrossiste);
-            cq.where(cb.and(predicates.toArray(Predicate[]::new)));
-            TypedQuery<FamilleArticleStatDTO> q = getEntityManager().createQuery(cq);
-            return q.getResultList();
+            boolean article = !StringUtils.isEmpty(query)
+                    || (!StringUtils.isEmpty(codeFamillle) && !codeFamillle.equals("ALL"));
+            StringBuilder sql = new StringBuilder(sqlSommesPar(rayon, article));
+            List<Object> params = filtresFamille(sql, query, codeFamillle, codeRayon, codeGrossiste);
+            sql.append(groupePar(rayon));
+            Query q = sommes(sql.toString(), dtStart.atStartOfDay(), dtEnd.plusDays(1).atStartOfDay(), u);
+            for (int i = 0; i < params.size(); i++) {
+                q.setParameter(6 + i, params.get(i));
+            }
+            List<FamilleArticleStatDTO> out = new ArrayList<>();
+            for (Object o : q.getResultList()) {
+                Object[] l = (Object[]) o;
+                out.add(new FamilleArticleStatDTO((String) l[0], (String) l[1], nombre(l[2]), nombre(l[3]),
+                        nombre(l[4]), nombre(l[5]), (String) l[6]));
+            }
+            return out;
         } catch (Exception e) {
             LOG.log(Level.SEVERE, null, e);
             return Collections.emptyList();
         }
     }
 
-    List<FamilleArticleStatDTO> fetchDataForStatisticVenteGrossistes(LocalDate dtStart, LocalDate dtEnd, String query,
-            String codeFamillle, TUser u, String codeRayon, String codeGrossiste) {
+    /** Cumuls de l'annee de la periode par rayon ou par grossiste, en une requete : sans les filtres de l'ecran. */
+    private Map<String, FamilleArticleStatDTO> cumulsAnnuelsPar(boolean rayon, LocalDate periode, TUser u) {
+        Map<String, FamilleArticleStatDTO> out = new HashMap<>();
         try {
-            CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();
-            CriteriaQuery<FamilleArticleStatDTO> cq = cb.createQuery(FamilleArticleStatDTO.class);
-            Root<TPreenregistrementDetail> root = cq.from(TPreenregistrementDetail.class);
-            Join<TPreenregistrementDetail, TPreenregistrement> join = root
-                    .join(TPreenregistrementDetail_.lgPREENREGISTREMENTID, JoinType.INNER);
-            cq.select(cb.construct(FamilleArticleStatDTO.class,
-                    root.get(TPreenregistrementDetail_.lgFAMILLEID).get(TFamille_.lgGROSSISTEID)
-                            .get(TGrossiste_.strCODE),
-                    root.get(TPreenregistrementDetail_.lgFAMILLEID).get(TFamille_.lgGROSSISTEID)
-                            .get(TGrossiste_.strLIBELLE),
-                    cb.sum(root.get(TPreenregistrementDetail_.intPRICE)),
-                    cb.sum(cb.prod(root.get(TPreenregistrementDetail_.prixAchat),
-                            root.get(TPreenregistrementDetail_.intQUANTITY))),
-                    cb.sum(root.get(TPreenregistrementDetail_.montantTva)),
-                    cb.sum(root.get(TPreenregistrementDetail_.intPRICEREMISE)),
-                    root.get(TPreenregistrementDetail_.lgFAMILLEID).get(TFamille_.lgGROSSISTEID)
-                            .get(TGrossiste_.lgGROSSISTEID)))
-                    .groupBy(root.get(TPreenregistrementDetail_.lgFAMILLEID).get(TFamille_.lgGROSSISTEID));
-            List<Predicate> predicates = famillePredicats(cb, root, join, dtStart, dtEnd, query, codeFamillle, u,
-                    codeRayon, codeGrossiste);
-            cq.where(cb.and(predicates.toArray(Predicate[]::new)));
-            TypedQuery<FamilleArticleStatDTO> q = getEntityManager().createQuery(cq);
-            return q.getResultList();
+            for (Object o : sommes(sqlSommesPar(rayon, false) + groupePar(rayon),
+                    periode.withDayOfYear(1).atStartOfDay(), periode.withDayOfYear(1).plusYears(1).atStartOfDay(), u)
+                            .getResultList()) {
+                Object[] l = (Object[]) o;
+                out.put((String) l[6],
+                        new FamilleArticleStatDTO(nombre(l[2]), nombre(l[3]), nombre(l[4]), nombre(l[5])));
+            }
         } catch (Exception e) {
             LOG.log(Level.SEVERE, null, e);
-            return Collections.emptyList();
         }
+        return out;
+    }
+
+    /*
+     * Ecran filtre sur quelques emplacements (ou grossistes) qui portent moins du quart des articles : leur cumul un
+     * par un, par l'index de l'article, est plus court que le cumul de tous (1,1 s contre 2,5 s sur le banc, 19/10).
+     */
+    private boolean peuDArticles(boolean rayon, List<FamilleArticleStatDTO> lignes) {
+        if (lignes.isEmpty() || lignes.size() > 3) {
+            return lignes.isEmpty();
+        }
+        try {
+            StringBuilder sql = new StringBuilder(
+                    "SELECT COUNT(*) * 4 < (SELECT COUNT(*) FROM t_famille) FROM t_famille WHERE ")
+                            .append(rayon ? "lg_ZONE_GEO_ID" : "lg_GROSSISTE_ID").append(" IN (");
+            for (int i = 0; i < lignes.size(); i++) {
+                sql.append(i > 0 ? ", ?" : "?").append(i + 1);
+            }
+            Query q = getEntityManager().createNativeQuery(sql.append(")").toString());
+            for (int i = 0; i < lignes.size(); i++) {
+                q.setParameter(i + 1, lignes.get(i).getFamilleId());
+            }
+            return nombre(q.getSingleResult()) == 1;
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, null, e);
+            return false;
+        }
+    }
+
+    List<FamilleArticleStatDTO> fetchDataForStatisticVenteRayons(LocalDate dtStart, LocalDate dtEnd, String query,
+            String codeFamillle, TUser u, String codeRayon, String codeGrossiste) {
+        return sommesPar(true, dtStart, dtEnd, query, codeFamillle, u, codeRayon, codeGrossiste);
+    }
+
+    List<FamilleArticleStatDTO> fetchDataForStatisticVenteGrossistes(LocalDate dtStart, LocalDate dtEnd, String query,
+            String codeFamillle, TUser u, String codeRayon, String codeGrossiste) {
+        return sommesPar(false, dtStart, dtEnd, query, codeFamillle, u, codeRayon, codeGrossiste);
     }
 
     @Override
@@ -647,18 +687,25 @@ public class FamilleArticleServiceImpl implements FamilleArticleService {
             final LocalDate periode = LocalDate.parse(dtStart);
             final long montanttotalHt = totalMontantHT(LocalDate.parse(dtStart), LocalDate.parse(dtEnd), query,
                     codeFamile, u, codeRayon, codeGrossiste);
-            fetchDataForStatisticVenteRayons(LocalDate.parse(dtStart), LocalDate.parse(dtEnd), query, codeFamile, u,
-                    codeRayon, codeGrossiste).stream().sorted(comparator).forEach(x -> {
-                        montantMarge.add(x.getMontantMarge());
-                        montantTTC.add(x.getMontantTTC());
-                        montantAchat.add(x.getMontantAchat());
-                        montantHT.add(x.getMontantHT());
-                        cumulStatisticRayons(periode, x, u);
-                        Double p = pourcent(x.getMontantHT(), montanttotalHt);
-                        x.setPourcentageTH(p.longValue());
-                        list.add(x);
+            List<FamilleArticleStatDTO> lignes = fetchDataForStatisticVenteRayons(LocalDate.parse(dtStart),
+                    LocalDate.parse(dtEnd), query, codeFamile, u, codeRayon, codeGrossiste);
+            Map<String, FamilleArticleStatDTO> cumuls = peuDArticles(true, lignes) ? null
+                    : cumulsAnnuelsPar(true, periode, u);
+            lignes.stream().sorted(comparator).forEach(x -> {
+                montantMarge.add(x.getMontantMarge());
+                montantTTC.add(x.getMontantTTC());
+                montantAchat.add(x.getMontantAchat());
+                montantHT.add(x.getMontantHT());
+                if (cumuls == null) {
+                    cumulStatisticRayons(periode, x, u);
+                } else {
+                    appliquerCumul(x, cumuls.get(x.getFamilleId()));
+                }
+                Double p = pourcent(x.getMontantHT(), montanttotalHt);
+                x.setPourcentageTH(p.longValue());
+                list.add(x);
 
-                    });
+            });
             summary.setMontantCumulAchat(montantAchat.longValue());
             summary.setMontantCumulHT(montantHT.longValue());
             summary.setMontantCumulMarge(montantMarge.longValue());
@@ -690,18 +737,25 @@ public class FamilleArticleServiceImpl implements FamilleArticleService {
             final LocalDate periode = LocalDate.parse(dtStart);
             final long montanttotalHt = totalMontantHT(LocalDate.parse(dtStart), LocalDate.parse(dtEnd), query,
                     codeFamile, u, codeRayon, codeGrossiste);
-            fetchDataForStatisticVenteGrossistes(LocalDate.parse(dtStart), LocalDate.parse(dtEnd), query, codeFamile, u,
-                    codeRayon, codeGrossiste).stream().sorted(comparator).forEach(x -> {
-                        montantMarge.add(x.getMontantMarge());
-                        montantTTC.add(x.getMontantTTC());
-                        montantAchat.add(x.getMontantAchat());
-                        montantHT.add(x.getMontantHT());
-                        cumulStatisticGrossistes(periode, x, u);
-                        Double p = pourcent(x.getMontantHT(), montanttotalHt);
-                        x.setPourcentageTH(p.longValue());
-                        list.add(x);
+            List<FamilleArticleStatDTO> lignes = fetchDataForStatisticVenteGrossistes(LocalDate.parse(dtStart),
+                    LocalDate.parse(dtEnd), query, codeFamile, u, codeRayon, codeGrossiste);
+            Map<String, FamilleArticleStatDTO> cumuls = peuDArticles(false, lignes) ? null
+                    : cumulsAnnuelsPar(false, periode, u);
+            lignes.stream().sorted(comparator).forEach(x -> {
+                montantMarge.add(x.getMontantMarge());
+                montantTTC.add(x.getMontantTTC());
+                montantAchat.add(x.getMontantAchat());
+                montantHT.add(x.getMontantHT());
+                if (cumuls == null) {
+                    cumulStatisticGrossistes(periode, x, u);
+                } else {
+                    appliquerCumul(x, cumuls.get(x.getFamilleId()));
+                }
+                Double p = pourcent(x.getMontantHT(), montanttotalHt);
+                x.setPourcentageTH(p.longValue());
+                list.add(x);
 
-                    });
+            });
             summary.setMontantCumulAchat(montantAchat.longValue());
             summary.setMontantCumulHT(montantHT.longValue());
             summary.setMontantCumulMarge(montantMarge.longValue());

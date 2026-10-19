@@ -316,3 +316,27 @@ lignes de vente depuis l'origine, au lieu de partir des ventes de la période (i
 périodes, période vide) : identiques. Les routes par rayon et par grossiste (`statisticrayons`,
 `statisticprovider`), qui partagent le total HT, donnent aussi des réponses identiques (14 cas). Elles restent autour
 de 10 s par appel : leur temps se passe ailleurs, à traiter à part.
+
+## CA par emplacement et CA par grossiste (19/10)
+
+`GET v1/statfamillearticle/statisticrayons` et `statisticprovider` (ANALYSE DE GESTION > « CA par emplacement » et
+« CA par grossiste », et leurs impressions PDF), banc de 3 ans :
+
+| Cas | Avant | Après |
+|---|---:|---:|
+| Emplacements, septembre 2026 | 15,9 s | 3,6 s |
+| Grossistes, septembre 2026 | 13,0 s | 2,9 s |
+| Emplacements, juillet à septembre | 19,1 s | 4,2 s |
+| Grossistes, juillet à septembre | 13,0 s | 4,3 s |
+| Septembre, filtre grossiste, famille ou recherche | 10,2 à 12,9 s | 2,9 à 3,5 s |
+| Septembre, emplacements filtrés sur un emplacement | 2,3 s | 1,4 s |
+| Septembre, grossistes filtrés sur un emplacement | 6,6 s | 3,1 s |
+| Une semaine | 5,8 à 6,4 s | 2,6 à 2,8 s |
+
+**Cause** : la même que pour « Statistique famille » : des sommes en critères JPA qui partaient des articles, puis une
+requête par emplacement (ou par grossiste) pour le cumul de l'année. **Correction** : la même, à savoir du SQL
+natif qui lit d'abord les ventes de la période, et le cumul de l'année en une seule requête. Exception : quand l'écran
+n'affiche que trois lignes au plus et qu'elles portent moins du quart des articles, chaque cumul est lu seul, par
+l'index de l'article (1,1 s au lieu de 2,5 s pour le cumul de tous). Les réponses ont été
+comparées octet pour octet sur 14 cas : elles sont identiques. Test d'écran : `perf/test-statistique-rayon-grossiste.js`
+(14/14). Sur l'ancien code, ses 12 premières vérifications donnaient 8/12 (de 7 à 13 s).
