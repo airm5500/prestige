@@ -372,3 +372,20 @@ froide (MariaDB redémarrée, caches du système vidés), au premier appel :
 Le gain du correctif porte sur l'année et les 12 mois glissants, pas sur le mois. Les 26 s de l'officine sur le mois
 ne se reproduisent pas sur le banc. Pour savoir quelle période le mobile a demandée, il faut lire la ligne « Query : »
 de l'événement de lenteur du support, à la même heure.
+
+## Lignes d'un BL demandées en une fois par l'application mobile (23/10)
+
+Journal du 21/10 : « Requete lente (5,5 s) : GET /prestige/api/v1/commande/bon/items/{id}?limit=9999 », appel de
+l'application mobile de réception, qui demande tout le bon d'un coup. Sur le banc, le plus gros BL (492 lignes) :
+
+| Appel | Avant | Après |
+|---|---:|---:|
+| Toutes les lignes (limit=9999) | 43 à 47 s | 1,8 à 3,2 s |
+| Page de 10 lignes (écran « Gestion des entrées ») | 0,3 s | 0,07 à 0,1 s |
+| Recherche, tri, BL de 43 lignes | 0,6 à 0,8 s | 0,17 à 0,24 s |
+
+**Cause** : pour chaque ligne, une petite requête (lots, code article du grossiste, stock) faisait d'abord revérifier
+par Hibernate toutes les lignes et tous les produits déjà chargés, ce qui donne un temps qui croît comme le carré du
+nombre de lignes. **Correction** : la lecture ne modifie rien, donc cette vérification est suspendue le temps de la
+lecture. Réponses comparées octet pour octet sur 6 cas : elles sont identiques. Test : `perf/test-lignes-bl-mobile.js`
+(5/5).

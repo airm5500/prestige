@@ -2015,11 +2015,23 @@ public class OrderServiceImpl implements OrderService {
     public JSONObject getListBonsDetails(String bonId, String search, int start, int limit,
             EntreeStockDetailFiltre filtre, Boolean checkDatePeremption, String sort, String dir) {
         JSONObject json = new JSONObject();
-        int count = getListBonsDetailsCount(bonId, search, filtre, checkDatePeremption, sort, dir);
+        /*
+         * Journal du 21/10 (5,5 s) ; 43 s sur le banc pour un BL de 492 lignes : chaque petite requete de la boucle
+         * (lots, code article du grossiste, stock) faisait d'abord reverifier par Hibernate toutes les lignes et tous
+         * les produits deja charges, d'ou un temps qui croit comme le carre du nombre de lignes. Lecture seule : rien a
+         * ecrire avant ces requetes, la verification est suspendue le temps de la lecture.
+         */
+        javax.persistence.FlushModeType mode = getEmg().getFlushMode();
+        getEmg().setFlushMode(javax.persistence.FlushModeType.COMMIT);
+        try {
+            int count = getListBonsDetailsCount(bonId, search, filtre, checkDatePeremption, sort, dir);
 
-        json.put("total", count);
-        return json.put("data", buildListBonsDetails(
-                fetchListBonsDetails(bonId, search, start, limit, filtre, checkDatePeremption, sort, dir)));
+            json.put("total", count);
+            return json.put("data", buildListBonsDetails(
+                    fetchListBonsDetails(bonId, search, start, limit, filtre, checkDatePeremption, sort, dir)));
+        } finally {
+            getEmg().setFlushMode(mode);
+        }
     }
 
     private int getListBonsDetailsCount(String bonId, String search, EntreeStockDetailFiltre filtre,
