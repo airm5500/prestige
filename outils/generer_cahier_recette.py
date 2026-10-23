@@ -127,110 +127,179 @@ s(SU,'Santé application','Fonctionnel','SMS non configuré signalé','Client ID
 s(SU,'Me contacter','Fonctionnel','Demande au support','Expéditeur e-mail configuré','1. Envoyer une demande avec pièce jointe','Demande envoyée ; sans expéditeur : « échec d\'envoi » avec le message de configuration','Moyenne')
 s(SU,'Diagnostic & bugs','Fonctionnel','Auto-diagnostic','—','1. Lancer les contrôles de cohérence','Résultats affichés ; migrations Flyway en échec signalées','Moyenne')
 
-# ---------------------------------------------------------------- classeur
-wb = Workbook(); ws = wb.active; ws.title = 'Cahier de recette'
-COLS = [('N°',5),('Module (menu)',16),('Écran',20),('Type de test',12),('Cas de test',30),('Prérequis',22),('Étapes',40),('Résultat attendu',40),
+# ---------------------------------------------------------------- classeur : une feuille par module + synthese
+import re
+from collections import OrderedDict
+
+COLS = [('N°',5),('Écran',22),('Type de test',12),('Cas de test',30),('Prérequis',22),('Étapes',42),('Résultat attendu',42),
         ('Priorité',9),('Testeur',11),('Date',10),('Statut',10),('Résultat obtenu / anomalie',30),('N° ticket',9)]
+NC = len(COLS); DERCOL = get_column_letter(NC)          # M
+COL_STATUT = get_column_letter(11); COL_PRIO = get_column_letter(8); COL_DATE = get_column_letter(10)
 bleu = PatternFill('solid', start_color='1F4E78'); clair = PatternFill('solid', start_color='DDEBF7'); jaune = PatternFill('solid', start_color='FFF2CC')
 fin = Side(style='thin', color='B4C6E7'); bord = Border(left=fin, right=fin, top=fin, bottom=fin)
+STATUTS = ['Non testé', 'OK', 'KO', 'Bloqué', 'N/A']
+PREM = 13
 
-ws['A1'] = 'PRESTIGE — Cahier de recette'; ws['A1'].font = f(bold=True, size=16, color='1F4E78')
-ws['A2'] = 'Version testée :'; ws['C2'] = ''; ws['E2'] = 'Base de test (jamais la production) :'; ws['G2'] = ''
-for c in ('A2','E2'): ws[c].font = f(bold=True)
-for c in ('C2','G2'): ws[c].fill = jaune; ws[c].font = f(color='0000FF'); ws[c].border = bord
-
-PREM = 13  # premiere ligne de donnees
-# lignes de donnees
-lignes = []
+# lignes par module : scenarios metier puis une ligne « ouverture et affichage » par ecran du menu
+modules = OrderedDict()
 for x in S:
-    lignes.append(x)
-seen = set()
+    modules.setdefault(x[0], []).append(x[1:])
+vus = set()
 with open(MENUS, encoding='utf-8') as fh:
     for m, e, comp in csv.reader(fh, delimiter='\t'):
-        cle = (m, e)
-        if cle in seen: continue
-        seen.add(cle)
-        lignes.append((m, e, 'Non-régression', 'Ouverture et affichage de l\'écran',
-                       'Profil ayant le droit du menu',
-                       '1. Ouvrir ' + m + ' > ' + e + '\n2. Utiliser la recherche / les filtres de l\'écran\n3. Imprimer ou exporter si l\'écran le propose',
-                       'L\'écran s\'ouvre sans message d\'erreur ; la liste se charge ; filtres et impression/export fonctionnent ; aucune erreur au Centre de support',
-                       'Moyenne' if m in ('SERVICE CLIENT','GESTION COURANTE','GESTION DES COMMANDES','GESTION DU STOCK','FACTURATION') else 'Basse'))
-DER = PREM + len(lignes) - 1
+        if (m, e) in vus:
+            continue
+        vus.add((m, e))
+        modules.setdefault(m, []).append((e, 'Non-régression', 'Ouverture et affichage de l\'écran', 'Profil ayant le droit du menu',
+            '1. Ouvrir ' + m + ' > ' + e + '\n2. Utiliser la recherche / les filtres de l\'écran\n3. Imprimer ou exporter si l\'écran le propose',
+            'L\'écran s\'ouvre sans message d\'erreur ; la liste se charge ; filtres et impression/export fonctionnent ; aucune erreur au Centre de support',
+            'Moyenne' if m in ('SERVICE CLIENT', 'GESTION COURANTE', 'GESTION DES COMMANDES', 'GESTION DU STOCK', 'FACTURATION') else 'Basse'))
 
-# synthese (formules)
-ws['A4'] = 'Synthèse'; ws['A4'].font = f(bold=True, size=12, color='1F4E78')
-statuts = ['Non testé','OK','KO','Bloqué','N/A']
-plage = '$L$%d:$L$%d' % (PREM, DER)
-ws['A5'] = 'Total des cas'; ws['C5'] = '=COUNTA($A$%d:$A$%d)' % (PREM, DER)
-for i, st in enumerate(statuts):
-    r = 6 + i
-    ws['A%d' % r] = st
-    ws['C%d' % r] = ('=C5-COUNTIF(%s,"OK")-COUNTIF(%s,"KO")-COUNTIF(%s,"Bloqué")-COUNTIF(%s,"N/A")' % (plage, plage, plage, plage)) if st == 'Non testé' else '=COUNTIF(%s,"%s")' % (plage, st)
-    ws['D%d' % r] = '=IF($C$5=0,0,C%d/$C$5)' % r; ws['D%d' % r].number_format = '0.0%'
-ws['E5'] = 'Avancement (testés hors N/A)'; ws['G5'] = '=IF(($C$5-$C$10)=0,0,($C$7+$C$8+$C$9)/($C$5-$C$10))'; ws['G5'].number_format = '0.0%'
-ws['E6'] = 'Taux de réussite (OK / testés)'; ws['G6'] = '=IF(($C$7+$C$8+$C$9)=0,0,$C$7/($C$7+$C$8+$C$9))'; ws['G6'].number_format = '0.0%'
-ws['E7'] = 'KO en priorité Haute'; ws['G7'] = '=COUNTIFS($L$%d:$L$%d,"KO",$I$%d:$I$%d,"Haute")' % (PREM, DER, PREM, DER)
-for r in range(5, 11):
-    for c in ('A','C','D'):
-        ws['%s%d' % (c, r)].font = f(bold=(c == 'A')); ws['%s%d' % (c, r)].border = bord
-for r in range(5, 8):
-    for c in ('E','G'):
-        ws['%s%d' % (c, r)].font = f(bold=(c == 'E')); ws['%s%d' % (c, r)].border = bord
-ws['I4'] = 'Mode d\'emploi'; ws['I4'].font = f(bold=True, size=12, color='1F4E78')
-ws['I5'] = 'Remplir uniquement les cellules jaunes : Testeur, Date (jj/mm/aaaa), Statut (liste), Résultat obtenu, N° ticket.'
-ws['I6'] = 'Statut : Non testé (vide) · OK · KO (anomalie : décrire et ouvrir un ticket) · Bloqué (impossible à dérouler) · N/A (sans objet chez vous).'
-ws['I7'] = 'Exemple : Testeur « A. KONÉ » · Date 24/10/2026 · Statut KO · Résultat « Ticket imprimé sans le nom du vendeur » · Ticket « SUP-0042 ».'
-ws['I8'] = 'Tests sur la copie de travail uniquement (jamais la base de production) ; sauvegarder la base avant chaque série.'
-ws['I9'] = 'Filtrer par Module, Type ou Priorité avec les flèches d\'en-tête. Chacun des 250 écrans du menu a au moins une ligne « Ouverture et affichage ».'
-for r in range(5, 10):
-    ws.merge_cells('I%d:N%d' % (r, r))
-    ws['I%d' % r].font = f(size=9); ws['I%d' % r].alignment = Alignment(wrap_text=True, vertical='top')
-    ws.row_dimensions[r].height = 24
-ws.merge_cells('A1:N1')
+# onglets dans l'ordre du menu de Prestige, les controles transversaux en premier
+ordre = ['Transversal']
+with open(MENUS, encoding='utf-8') as fh:
+    for m, e, comp in csv.reader(fh, delimiter='\t'):
+        if m not in ordre:
+            ordre.append(m)
+modules = OrderedDict(sorted(modules.items(), key=lambda kv: ordre.index(kv[0]) if kv[0] in ordre else len(ordre)))
 
-# en-tete
-H = PREM - 1
-for i, (nom, larg) in enumerate(COLS, 1):
-    c = ws.cell(row=H, column=i, value=nom)
-    c.font = f(bold=True, color='FFFFFF'); c.fill = bleu; c.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True); c.border = bord
-    ws.column_dimensions[get_column_letter(i)].width = larg
-ws.row_dimensions[H].height = 30
+def nom_feuille(m, pris):
+    n = re.sub(r'[\[\]\*\?/\\:]', '-', m).strip()[:31]
+    n = n[:1] + n[1:].lower() if n.isupper() else n
+    base, k = n, 2
+    while n in pris:
+        n = (base[:28] + ' ' + str(k)); k += 1
+    pris.add(n)
+    return n
 
-for n, x in enumerate(lignes):
-    r = PREM + n
-    vals = [n + 1] + list(x[:7]) + [x[7]]
-    # colonnes : N°, Module, Écran, Type, Cas, Prérequis, Étapes, Attendu, Priorité
-    for i, v in enumerate(vals, 1):
-        c = ws.cell(row=r, column=i, value=v)
-        c.font = f(size=9); c.alignment = Alignment(vertical='top', wrap_text=True); c.border = bord
-    for i in range(10, 15):
-        c = ws.cell(row=r, column=i); c.fill = jaune; c.font = f(size=9, color='0000FF'); c.border = bord
-        c.alignment = Alignment(vertical='top', wrap_text=True)
-    ws.cell(row=r, column=11).number_format = 'dd/mm/yyyy'
-    if n % 2: 
-        for i in range(1, 10): ws.cell(row=r, column=i).fill = clair
+def mise_en_page(ws, der, titre_rangee):
+    ws.print_area = 'A1:%s%d' % (DERCOL, der)
+    ws.print_title_rows = titre_rangee
+    ws.page_setup.paperSize = ws.PAPERSIZE_A4
+    ws.page_setup.orientation = 'landscape'; ws.page_setup.fitToWidth = 1; ws.page_setup.fitToHeight = 0
+    ws.sheet_properties.pageSetUpPr.fitToPage = True
+    ws.page_margins.left = ws.page_margins.right = 0.2
+    ws.page_margins.top = 0.35; ws.page_margins.bottom = 0.35
+    ws.page_margins.header = ws.page_margins.footer = 0.15
+    ws.print_options.horizontalCentered = True
+    ws.oddFooter.left.text = '&A'; ws.oddFooter.left.size = 8
+    ws.oddFooter.center.text = 'Page &P / &N'; ws.oddFooter.center.size = 8
+    ws.oddFooter.right.text = 'Cahier de recette Prestige'; ws.oddFooter.right.size = 8
 
-dv = DataValidation(type='list', formula1='"Non testé,OK,KO,Bloqué,N/A"', allow_blank=True)
-dv.error = 'Choisir un statut dans la liste'; dv.prompt = 'Non testé, OK, KO, Bloqué ou N/A'
-ws.add_data_validation(dv); dv.add('L%d:L%d' % (PREM, DER))
-dvd = DataValidation(type='date', operator='greaterThan', formula1='DATE(2020,1,1)', allow_blank=True)
-dvd.error = 'Date attendue (jj/mm/aaaa)'; ws.add_data_validation(dvd); dvd.add('K%d:K%d' % (PREM, DER))
-ws.conditional_formatting.add('L%d:L%d' % (PREM, DER), CellIsRule(operator='equal', formula=['"OK"'], fill=PatternFill('solid', start_color='C6EFCE'), font=Font(name=F, color='006100', bold=True)))
-ws.conditional_formatting.add('L%d:L%d' % (PREM, DER), CellIsRule(operator='equal', formula=['"KO"'], fill=PatternFill('solid', start_color='FFC7CE'), font=Font(name=F, color='9C0006', bold=True)))
-ws.conditional_formatting.add('L%d:L%d' % (PREM, DER), CellIsRule(operator='equal', formula=['"Bloqué"'], fill=PatternFill('solid', start_color='FFEB9C'), font=Font(name=F, color='9C5700', bold=True)))
-ws.freeze_panes = 'F%d' % PREM
-ws.auto_filter.ref = 'A%d:N%d' % (H, DER)
-ws.print_title_rows = '%d:%d' % (H, H)
-# impression : A4 paysage, toute la largeur sur une page (aucune colonne renvoyee sur une autre page), marges reduites
-ws.print_area = 'A1:N%d' % DER
-ws.page_setup.paperSize = ws.PAPERSIZE_A4
-ws.page_setup.orientation = 'landscape'; ws.page_setup.fitToWidth = 1; ws.page_setup.fitToHeight = 0
-ws.sheet_properties.pageSetUpPr.fitToPage = True
-ws.page_margins.left = ws.page_margins.right = 0.2
-ws.page_margins.top = 0.35; ws.page_margins.bottom = 0.35
-ws.page_margins.header = ws.page_margins.footer = 0.15
-ws.print_options.horizontalCentered = True
-ws.oddFooter.center.text = 'Page &P / &N'; ws.oddFooter.center.size = 8
-ws.oddFooter.right.text = 'Cahier de recette Prestige'; ws.oddFooter.right.size = 8
+def feuille_module(wb, nom, module, lignes):
+    ws = wb.create_sheet(nom)
+    der = PREM + len(lignes) - 1
+    plage = '$%s$%d:$%s$%d' % (COL_STATUT, PREM, COL_STATUT, der)
+    ws['A1'] = 'PRESTIGE — Cahier de recette — ' + module; ws['A1'].font = f(bold=True, size=15, color='1F4E78')
+    ws.merge_cells('A1:%s1' % DERCOL)
+    ws['A2'] = 'Version testée :'; ws['E2'] = 'Base de test (jamais la production) :'
+    for c in ('A2', 'E2'): ws[c].font = f(bold=True)
+    for c in ('C2', 'G2'): ws[c].fill = jaune; ws[c].font = f(color='0000FF'); ws[c].border = bord
+    ws['A4'] = 'Synthèse du module'; ws['A4'].font = f(bold=True, size=12, color='1F4E78')
+    ws['A5'] = 'Total des cas'; ws['C5'] = '=COUNTA($A$%d:$A$%d)' % (PREM, der)
+    for i, st in enumerate(STATUTS):
+        r = 6 + i
+        ws['A%d' % r] = st
+        ws['C%d' % r] = ('=C5-COUNTIF(%s,"OK")-COUNTIF(%s,"KO")-COUNTIF(%s,"Bloqué")-COUNTIF(%s,"N/A")' % (plage, plage, plage, plage)) if st == 'Non testé' else '=COUNTIF(%s,"%s")' % (plage, st)
+        ws['D%d' % r] = '=IF($C$5=0,0,C%d/$C$5)' % r; ws['D%d' % r].number_format = '0.0%'
+    ws['E5'] = 'Avancement (testés hors N/A)'; ws['G5'] = '=IF(($C$5-$C$10)=0,0,($C$7+$C$8+$C$9)/($C$5-$C$10))'; ws['G5'].number_format = '0.0%'
+    ws['E6'] = 'Taux de réussite (OK / testés)'; ws['G6'] = '=IF(($C$7+$C$8+$C$9)=0,0,$C$7/($C$7+$C$8+$C$9))'; ws['G6'].number_format = '0.0%'
+    ws['E7'] = 'KO en priorité Haute'; ws['G7'] = '=COUNTIFS(%s,"KO",$%s$%d:$%s$%d,"Haute")' % (plage, COL_PRIO, PREM, COL_PRIO, der)
+    for r in range(5, 11):
+        for c in ('A', 'C', 'D'):
+            ws['%s%d' % (c, r)].font = f(bold=(c == 'A')); ws['%s%d' % (c, r)].border = bord
+    for r in range(5, 8):
+        for c in ('E', 'G'):
+            ws['%s%d' % (c, r)].font = f(bold=(c == 'E')); ws['%s%d' % (c, r)].border = bord
+    ws['I4'] = 'Mode d\'emploi'; ws['I4'].font = f(bold=True, size=12, color='1F4E78')
+    aide = ['Remplir uniquement les cellules jaunes : Testeur, Date (jj/mm/aaaa), Statut (liste), Résultat obtenu, N° ticket.',
+            'Statut : Non testé (vide) · OK · KO (décrire et ouvrir un ticket) · Bloqué · N/A (sans objet).',
+            'Exemple : Testeur « A. KONÉ » · Date 24/10/2026 · Statut KO · Résultat « Ticket sans le nom du vendeur » · Ticket « SUP-0042 ».',
+            'Tests sur la copie de travail uniquement, jamais la base de production ; sauvegarder la base avant chaque série.',
+            'Ajouter un cas : insérer une ligne dans le tableau (la synthèse et la feuille Synthèse se mettent à jour).']
+    for k, t in enumerate(aide):
+        r = 5 + k
+        ws['I%d' % r] = t; ws.merge_cells('I%d:%s%d' % (r, DERCOL, r))
+        ws['I%d' % r].font = f(size=9); ws['I%d' % r].alignment = Alignment(wrap_text=True, vertical='top')
+        ws.row_dimensions[r].height = 24
+    h = PREM - 1
+    for i, (nomc, larg) in enumerate(COLS, 1):
+        c = ws.cell(row=h, column=i, value=nomc)
+        c.font = f(bold=True, color='FFFFFF'); c.fill = bleu; c.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True); c.border = bord
+        ws.column_dimensions[get_column_letter(i)].width = larg
+    ws.row_dimensions[h].height = 30
+    for n, x in enumerate(lignes):
+        r = PREM + n
+        for i, v in enumerate([n + 1] + list(x), 1):
+            c = ws.cell(row=r, column=i, value=v)
+            c.font = f(size=9); c.alignment = Alignment(vertical='top', wrap_text=True); c.border = bord
+            if n % 2: c.fill = clair
+        for i in range(9, NC + 1):
+            c = ws.cell(row=r, column=i); c.fill = jaune; c.font = f(size=9, color='0000FF'); c.border = bord
+            c.alignment = Alignment(vertical='top', wrap_text=True)
+        ws.cell(row=r, column=10).number_format = 'dd/mm/yyyy'
+    dv = DataValidation(type='list', formula1='"Non testé,OK,KO,Bloqué,N/A"', allow_blank=True)
+    dv.error = 'Choisir un statut dans la liste'; dv.prompt = 'Non testé, OK, KO, Bloqué ou N/A'
+    ws.add_data_validation(dv); dv.add('%s%d:%s%d' % (COL_STATUT, PREM, COL_STATUT, der + 200))
+    dvd = DataValidation(type='date', operator='greaterThan', formula1='DATE(2020,1,1)', allow_blank=True)
+    dvd.error = 'Date attendue (jj/mm/aaaa)'; ws.add_data_validation(dvd); dvd.add('%s%d:%s%d' % (COL_DATE, PREM, COL_DATE, der + 200))
+    zone = '%s%d:%s%d' % (COL_STATUT, PREM, COL_STATUT, der + 200)
+    ws.conditional_formatting.add(zone, CellIsRule(operator='equal', formula=['"OK"'], fill=PatternFill('solid', start_color='C6EFCE'), font=Font(name=F, color='006100', bold=True)))
+    ws.conditional_formatting.add(zone, CellIsRule(operator='equal', formula=['"KO"'], fill=PatternFill('solid', start_color='FFC7CE'), font=Font(name=F, color='9C0006', bold=True)))
+    ws.conditional_formatting.add(zone, CellIsRule(operator='equal', formula=['"Bloqué"'], fill=PatternFill('solid', start_color='FFEB9C'), font=Font(name=F, color='9C5700', bold=True)))
+    ws.freeze_panes = 'E%d' % PREM
+    ws.auto_filter.ref = 'A%d:%s%d' % (h, DERCOL, der)
+    mise_en_page(ws, der, '%d:%d' % (h, h))
+    return ws, der
+
+wb = Workbook()
+syn = wb.active; syn.title = 'Synthèse'
+pris = {'Synthèse'}
+feuilles = []
+for m, lignes in modules.items():
+    nom = nom_feuille(m, pris)
+    ws, der = feuille_module(wb, nom, m, lignes)
+    feuilles.append((m, nom, len(lignes)))
+
+# feuille Synthese : une ligne par module, totaux par formules
+syn['A1'] = 'PRESTIGE — Cahier de recette — Synthèse'; syn['A1'].font = f(bold=True, size=16, color='1F4E78')
+syn['A2'] = 'Une feuille par module (onglets en bas). Les chiffres ci-dessous se calculent depuis la colonne Statut de chaque feuille.'
+syn['A2'].font = f(size=9, italic=True)
+ent = ['Module', 'Feuille', 'Cas', 'OK', 'KO', 'Bloqué', 'N/A', 'Non testé', 'Avancement', 'Réussite', 'KO priorité Haute']
+larg = [30, 26, 8, 8, 8, 9, 8, 11, 14, 11, 14]
+for i, (t, l) in enumerate(zip(ent, larg), 1):
+    c = syn.cell(row=4, column=i, value=t); c.font = f(bold=True, color='FFFFFF'); c.fill = bleu; c.border = bord
+    c.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+    syn.column_dimensions[get_column_letter(i)].width = l
+for k, (m, nom, n) in enumerate(feuilles):
+    r = 5 + k; q = "'%s'!" % nom.replace("'", "''")
+    syn.cell(row=r, column=1, value=m)
+    c = syn.cell(row=r, column=2, value=nom); c.hyperlink = "#%s$A$1" % q; c.font = f(size=10, color='0563C1', underline='single')
+    syn.cell(row=r, column=3, value='=%s$C$5' % q)
+    for j, cel in enumerate(['$C$7', '$C$8', '$C$9', '$C$10', '$C$6'], 4):
+        syn.cell(row=r, column=j, value='=%s%s' % (q, cel))
+    syn.cell(row=r, column=9, value='=%s$G$5' % q).number_format = '0.0%'
+    syn.cell(row=r, column=10, value='=%s$G$6' % q).number_format = '0.0%'
+    syn.cell(row=r, column=11, value='=%s$G$7' % q)
+    for i in range(1, 12):
+        c = syn.cell(row=r, column=i); c.border = bord
+        if i != 2: c.font = f(size=10)
+        if k % 2: c.fill = clair
+der_s = 4 + len(feuilles); t = der_s + 1
+syn.cell(row=t, column=1, value='TOTAL').font = f(bold=True)
+for j in range(3, 9):
+    L = get_column_letter(j)
+    syn.cell(row=t, column=j, value='=SUM(%s5:%s%d)' % (L, L, der_s)).font = f(bold=True)
+syn.cell(row=t, column=9, value='=IF((C%d-G%d)=0,0,(D%d+E%d+F%d)/(C%d-G%d))' % (t, t, t, t, t, t, t)).number_format = '0.0%'
+syn.cell(row=t, column=10, value='=IF((D%d+E%d+F%d)=0,0,D%d/(D%d+E%d+F%d))' % (t, t, t, t, t, t, t)).number_format = '0.0%'
+syn.cell(row=t, column=11, value='=SUM(K5:K%d)' % der_s)
+for i in range(1, 12):
+    c = syn.cell(row=t, column=i); c.border = bord; c.fill = PatternFill('solid', start_color='BDD7EE'); c.font = f(bold=True)
+syn.freeze_panes = 'A5'
+syn.print_area = 'A1:K%d' % t
+syn.page_setup.paperSize = syn.PAPERSIZE_A4; syn.page_setup.orientation = 'landscape'
+syn.page_setup.fitToWidth = 1; syn.page_setup.fitToHeight = 1; syn.sheet_properties.pageSetUpPr.fitToPage = True
+syn.page_margins.left = syn.page_margins.right = 0.3
+syn.print_options.horizontalCentered = True
 wb.save(SORTIE)
-print(len(lignes), 'cas dont', len(S), 'scénarios métier ; lignes', PREM, 'à', DER)
+print(sum(n for _, _, n in feuilles), 'cas,', len(feuilles), 'feuilles de module,', len(S), 'scénarios métier')
