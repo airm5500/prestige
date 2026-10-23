@@ -1207,7 +1207,13 @@ Ext.define('testextjs.view.vente.user.UpdateVenteClientTpForm', {
                                     text: 'Valider',
                                     handler: function (_this) {
                                         let parentForm = _this.up('window').down('form');
-                                        let tpRecord = parentForm.down('#compteTp').findRecord("lgTIERSPAYANTID", parentForm.down('#compteTp').getValue());
+                                        let combo = parentForm.down('#compteTp');
+                                        let tpRecord = combo.findRecord("lgTIERSPAYANTID", combo.getValue());
+                                        /* journaux du 11/09 et du 19/10 : « Valider » sans tiers-payant choisi plantait */
+                                        if (!tpRecord || tpRecord.get('lgTIERSPAYANTID') === '0') {
+                                            combo.markInvalid('Choisir un tiers-payant');
+                                            return;
+                                        }
                                         let numBon = parentForm.down('#numBon').getValue();
 //                                        me.upadeTiersPayantContainer(me, tpRecord.data.strFULLNAME, tpRecord.data.lgTIERSPAYANTID, numBon, itemId, container, me.getSelectedData());
                                         me.upadeTiersPayantData(tpRecord.data.strFULLNAME, tpRecord.data.lgTIERSPAYANTID, rebonCt, displayfieldCmp, hiddenfield, numBon);
@@ -1268,7 +1274,12 @@ Ext.define('testextjs.view.vente.user.UpdateVenteClientTpForm', {
                                                     } else {
                                                         /*******************************************************************/
                                                         field.up('fieldset').down('#numBon').setValue(me.getSelectedData().numBon);
-                                                        me.buildNewTierspayantForm(me, field.up('fieldset').down('#numBon'), itemId);
+                                                        /* journal du 20/09 : « itemId is not defined » ; le tiers-payant cree remplit la ligne, comme « Valider » */
+                                                        let numBonField = field.up('fieldset').down('#numBon');
+                                                        me.buildNewTierspayantForm(me, numBonField, function (tierspayant) {
+                                                            me.upadeTiersPayantData(tierspayant.strFULLNAME, tierspayant.lgTIERSPAYANTID, rebonCt, displayfieldCmp, hiddenfield, numBonField.getValue());
+                                                            form.destroy();
+                                                        });
                                                         /*********************************** FIND *******************************************/
 
                                                     }
@@ -1452,7 +1463,7 @@ Ext.define('testextjs.view.vente.user.UpdateVenteClientTpForm', {
 
         });
     },
-    buildNewTierspayantForm: function (me, field, itemId) {
+    buildNewTierspayantForm: function (me, field, quandCree) {
         var groupesStore = new Ext.data.Store({
             model: 'testextjs.model.GroupeModel',
             pageSize: 20,
@@ -1496,7 +1507,7 @@ Ext.define('testextjs.view.vente.user.UpdateVenteClientTpForm', {
                                     xtype: 'button',
                                     text: 'Enregistrer',
                                     handler: function (btn) {
-                                        me.addNewTiersPayant(btn, me, field, formTp, itemId);
+                                        me.addNewTiersPayant(btn, me, formTp, quandCree);
 
                                     }
                                 },
@@ -1615,7 +1626,7 @@ Ext.define('testextjs.view.vente.user.UpdateVenteClientTpForm', {
                 });
 
     },
-    addNewTiersPayant: function (btn, me, field, formTp, itemId) {
+    addNewTiersPayant: function (btn, me, formTp, quandCree) {
         let typeTiersPayant = '2';
         if (me.getTypeVente() === '2') {
             typeTiersPayant = '1';
@@ -1633,10 +1644,7 @@ Ext.define('testextjs.view.vente.user.UpdateVenteClientTpForm', {
                     var result = Ext.JSON.decode(response.responseText, true);
                     if (result.success) {
                         formTp.destroy();
-                        var tierspayant = result.data;
-                        me.upadeTiersPayantContainer(me, tierspayant.strFULLNAME, tierspayant.lgTIERSPAYANTID, field.getValue(), itemId);
-                        _this.destroy();
-                        field.up('window').destroy();
+                        quandCree(result.data);
 
                     } else {
                         Ext.MessageBox.show({
