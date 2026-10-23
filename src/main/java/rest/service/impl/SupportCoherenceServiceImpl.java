@@ -282,7 +282,7 @@ public class SupportCoherenceServiceImpl implements SupportCoherenceService {
         case "VALORISATION_JOUR_MANQUANT":
             return "table stock_daily_value (colonne id au format AAAAMMJJ)";
         case "SNAPSHOT_JOUR_MANQUANT":
-            return "table t_stock_snapshot (colonne id = date du jour)";
+            return "table stock_snapshot_day (colonne stock_of_day = date du jour AAAAMMJJ)";
         case "CAISSE_JOUR_SANS_LIGNE":
             return "table t_resume_caisse (colonne ld_CAISSE_ID)";
         default:
