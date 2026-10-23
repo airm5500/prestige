@@ -5775,7 +5775,12 @@ public class SalesServiceImpl implements SalesService {
         TTypeVente oTTypeVente = fromId(salesParams.getTypeVenteId());
         TNatureVente oTNatureVente = newNatureVenteFromId(salesParams.getNatureVenteId());
         TRemise oTRemise = remiseFromId(salesParams.getRemiseId());
-        TUser vendeur = getUserFromId(salesParams.getUserVendeurId());
+        /*
+         * Journaux du poste caisse 3 (17/08, 19/08) : la liste « Vendeur » est editable, un nom tape sans etre choisi
+         * part tel quel et faisait echouer l'ajout du premier article (TransientPropertyValueException). Le vendeur est
+         * cherche en base, comme a la cloture : inconnu, c'est la caissiere.
+         */
+        TUser vendeur = userFromId(salesParams.getUserVendeurId());
         TPreenregistrement op = new TPreenregistrement(UUID.randomUUID().toString());
         op.setLgUSERVENDEURID(vendeur != null ? vendeur : salesParams.getUserId());
         op.setLgUSERCAISSIERID(salesParams.getUserId());
@@ -5860,13 +5865,6 @@ public class SalesServiceImpl implements SalesService {
             return null;
         }
         return new TNatureVente(id);
-    }
-
-    private TUser getUserFromId(String id) {
-        if (id == null || "".equals(id)) {
-            return null;
-        }
-        return new TUser(id);
     }
 
     private boolean updateCaution(TiersPayantParams params, TPreenregistrement op, TUser u) {
