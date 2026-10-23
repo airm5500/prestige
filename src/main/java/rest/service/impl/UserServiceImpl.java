@@ -100,11 +100,19 @@ public class UserServiceImpl implements UserService {
             }
             String[] c = BadgeQr.champs(contenu);
             if (c == null) {
+                /* retour du 23/10 : la raison du refus est notee (jamais le contenu lu, qui porte le secret) */
+                LOG.info("connexion par badge refusee : FORMAT (lecture incomplete ou deformee)");
                 return null;
             }
             String id = rhBadgeService.utilisateurDuBadge(c[0], c[1], c[2]);
             TUser user = id == null ? null : getEm().find(TUser.class, id);
-            return user == null ? null : ouvrir(user, request, " par badge " + c[0]);
+            if (user == null) {
+                LOG.info("connexion par badge refusee (badge "
+                        + StringUtils.abbreviate(c[0].replaceAll("[^A-Za-z0-9-]", "?"), 30) + ") : "
+                        + rhBadgeService.raisonDuRefus(c[0], c[1]));
+                return null;
+            }
+            return ouvrir(user, request, " par badge " + c[0]);
         } catch (Exception e) {
             /* jamais le contenu lu dans la trace : il porte le secret du badge */
             LOG.log(Level.SEVERE, "connexion par badge : " + e.getClass().getName());

@@ -282,11 +282,32 @@
       login.focus();
     }
     function numeroDe(c) { var p = c.split('|'); return p.length > 2 ? p[2] : ''; }
+    /* retour du 23/10 : lecture transmise telle qu'imprimee ? (prefixe, version, 5 parties, secret entier) */
+    function bienLu(c) { var p = c.split('|'); return c.indexOf(PREFIXE) === 0 && p.length === 5 && p[1] === '1' && p[4].length >= 40; }
+    /* ce qui a ete lu, sans le secret : une longue suite de lettres et chiffres (le secret, 43 caracteres) est masquee */
+    function sansSecret(c) {
+      return c.replace(/[A-Za-z0-9_-]{20,}/g, function (m) { return m.slice(0, Math.max(0, m.length - 43)) + '…'; });
+    }
+    /* retour du 23/10 : une douchette mal reglee deforme la lecture (« | » se tape avec AltGr en AZERTY, verrouillage
+       majuscules) ; on le dit au lieu de « Badge non reconnu », et on montre ce qui a ete lu, sans le secret */
+    function lectureDeformee(c) {
+      var inverse = c.replace(/[A-Za-z]/g, function (x) { return x === x.toUpperCase() ? x.toLowerCase() : x.toUpperCase(); });
+      if (bienLu(inverse)) {
+        etat('refus', 'Lecture du badge déformée', noeud(['Les majuscules et les minuscules sont inversées : désactivez le verrouillage des majuscules',
+          ' (touche Verr. Maj.) puis présentez de nouveau le badge.']));
+      } else {
+        etat('refus', 'Lecture du badge déformée', noeud(['La douchette n\'a pas transmis le badge tel qu\'il est imprimé. Lu : « ', { b: sansSecret(c) },
+          ' » (' + c.length + ' caractères).', '<br>', 'Réglez la douchette sur le clavier du poste (AZERTY) : le séparateur « | » doit être lu tel quel.',
+          ' En attendant, connectez-vous avec votre mot de passe.']));
+      }
+      saisie.focus();
+    }
     function envoyer() {
       clearTimeout(attente);
       var contenu = saisie.value.trim();
       saisie.value = '';
       if (!contenu || enCours) { return; }
+      if (!bienLu(contenu) && /^PRESTIGE-BADGE/i.test(contenu)) { lectureDeformee(contenu); return; }
       enCours = true;
       var numero = numeroDe(contenu);
       etat('lu', 'Badge lu', noeud(['Connexion en cours…']));
@@ -312,7 +333,7 @@
         });
     }
     /* lecture complete sans Entree (douchette reglee sans suffixe) : envoi apres un court silence */
-    function complet(v) { var p = v.split('|'); return v.indexOf(PREFIXE) === 0 && p.length === 5 && p[4].length >= 40; }
+    function complet(v) { var p = v.split('|'); return (v.indexOf(PREFIXE) === 0 && p.length === 5 && p[4].length >= 40) || (/^PRESTIGE-BADGE/i.test(v) && v.length >= 60); }
 
     document.getElementById('pl-badge').addEventListener('click', function () { ouvrir(''); });
     document.getElementById('pl-badge-retour').addEventListener('click', function (e) { e.preventDefault(); fermer(); });
@@ -330,7 +351,7 @@
     });
     /* badge lu dans « Identifiant » : repris par la lecture du badge, le champ est vide */
     login.addEventListener('input', function () {
-      if (login.value.indexOf(PREFIXE) === 0) {
+      if (/^PRESTIGE-BADGE/i.test(login.value)) {
         var lu = login.value;
         login.value = '';
         ouvrir(lu);

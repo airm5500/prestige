@@ -282,6 +282,41 @@ public class RhBadgeService {
         return java.security.MessageDigest.isEqual(attendu, lu) ? t(r.get(0)[0]) : null;
     }
 
+    /**
+     * Retour du 23/10 : raison d'un refus de connexion par badge, pour les traces du serveur seulement (jamais pour
+     * l'ecran) : INCONNU, DESACTIVE, EXPIRE, EMPLOYE_INACTIF, SANS_UTILISATEUR, AUTRE_LOGIN, JAMAIS_IMPRIME_EN_QR ou
+     * SECRET (secret d'un autre exemplaire : badge reimprime depuis).
+     */
+    @SuppressWarnings("unchecked")
+    public String raisonDuRefus(String numero, String login) {
+        List<Object[]> r = em.createNativeQuery(
+                "SELECT b.statut AS badge, b.dt_expiration < CURDATE() AS expire, e.statut AS employe, u.str_STATUT AS compte,"
+                        + " u.str_LOGIN AS login, b.secret_hash IS NULL AS sans_secret FROM t_rh_badge b JOIN t_employe e ON e.id = b.employe_id"
+                        + " LEFT JOIN t_user u ON u.lg_USER_ID = e.lg_USER_ID WHERE b.numero = ?1"
+                        + " ORDER BY b.statut = 'ACTIF' DESC, b.created_at DESC")
+                .setParameter(1, StringUtils.defaultString(numero)).setMaxResults(1).getResultList();
+        if (r.isEmpty()) {
+            return "INCONNU";
+        }
+        Object[] l = r.get(0);
+        if (!ACTIF.equals(t(l[0]))) {
+            return "DESACTIVE";
+        }
+        if (l[1] != null && ((Number) l[1]).intValue() == 1) {
+            return "EXPIRE";
+        }
+        if (!ACTIF.equals(t(l[2]))) {
+            return "EMPLOYE_INACTIF";
+        }
+        if (l[4] == null || !"enable".equals(t(l[3]))) {
+            return "SANS_UTILISATEUR";
+        }
+        if (!t(l[4]).equalsIgnoreCase(StringUtils.defaultString(login))) {
+            return "AUTRE_LOGIN";
+        }
+        return ((Number) l[5]).intValue() == 1 ? "JAMAIS_IMPRIME_EN_QR" : "SECRET";
+    }
+
     /** Nom abrege de l'officine (bandeau des cartes). */
     public String officine() {
         return StringUtils
