@@ -693,7 +693,8 @@ Ext.define('testextjs.controller.VenteCtr', {
                     'doventemanager': {
                         render: this.onReady
                     }, 'doventemanager #user': {
-                        select: this.onUserSelect
+                        select: this.onUserSelect,
+                        blur: this.verifierVendeur
                     },
                     'doventemanager #contenu [xtype=fieldcontainer] #qtyField': {
                         specialkey: this.onQtySpecialKey
@@ -1315,8 +1316,54 @@ Ext.define('testextjs.controller.VenteCtr', {
         }
 
     },
+    /**
+     * Retour du 23/10 : la saisie libre reste permise, mais un vendeur tape qui ne correspond a aucun utilisateur est
+     * signale des la sortie du champ (et non plus a la fin de la vente) : la vente sera enregistree au nom de
+     * l'utilisateur connecte. Ni fenetre ni prise du focus.
+     */
+    verifierVendeur: function (cmp) {
+        const me = this;
+        Ext.defer(function () {
+            if (cmp.isDestroyed) {
+                return;
+            }
+            const store = cmp.getStore();
+            if (store.isLoading()) {
+                store.on('load', function () {
+                    me.verifierVendeur(cmp);
+                }, me, {single: true});
+                return;
+            }
+            const saisi = Ext.String.trim(cmp.getRawValue() || '');
+            if (!saisi || store.findExact('lgUSERID', cmp.getValue()) >= 0 || (cmp.vendeurRepris && cmp.getValue() === cmp.vendeurRepris)) {
+                me.signalerVendeur(cmp, null);
+                return;
+            }
+            me.signalerVendeur(cmp, 'Vendeur non reconnu : « ' + saisi + ' ». La vente sera enregistrée au nom de l\'utilisateur connecté.'
+                    + ' Choisissez un nom dans la liste pour l\'attribuer à un vendeur.');
+            me.toastVente('Vendeur non reconnu : la vente sera enregistrée au nom de l\'utilisateur connecté.');
+        }, 50);
+    },
+    /* signal visuel seulement (bordure, infobulle) : pas markInvalid, que la validation de la liste efface et qui
+       rendrait le formulaire de vente invalide */
+    signalerVendeur: function (cmp, message) {
+        const el = cmp.inputEl;
+        if (!el) {
+            return;
+        }
+        if (message) {
+            el.addCls('vente-vendeur-inconnu');
+            el.setStyle({borderColor: '#C62828', backgroundColor: '#FFEBEE'});
+            el.dom.setAttribute('data-qtip', Ext.String.htmlEncode(message));
+        } else if (el.hasCls('vente-vendeur-inconnu')) {
+            el.removeCls('vente-vendeur-inconnu');
+            el.setStyle({borderColor: '', backgroundColor: ''});
+            el.dom.removeAttribute('data-qtip');
+        }
+    },
     onUserSelect: function (cmp) {
         const me = this;
+        me.signalerVendeur(cmp, null);
         let clientSearchBox = me.getClientSearchTextField(),
                 typeVente = me.getSafeComboValue('getTypeVenteCombo', '1');
         if (typeVente === '1') {
@@ -4044,6 +4091,8 @@ Ext.define('testextjs.controller.VenteCtr', {
                             return;
                         }
                         cmp.setValue(lgUSERVENDEURID);
+                        /* vendeur repris de la vente : connu meme s'il n'est pas dans la liste (admin exclu) */
+                        cmp.vendeurRepris = lgUSERVENDEURID;
                     }
                 });
             }
