@@ -101,7 +101,7 @@ public class UserServiceImpl implements UserService {
             String[] c = BadgeQr.champs(contenu);
             if (c == null) {
                 /* retour du 23/10 : la raison du refus est notee (jamais le contenu lu, qui porte le secret) */
-                LOG.info("connexion par badge refusee : FORMAT (lecture incomplete ou deformee)");
+                LOG.info("connexion par badge refusee : FORMAT (" + BadgeQr.defautFormat(contenu) + ")");
                 return null;
             }
             String id = rhBadgeService.utilisateurDuBadge(c[0], c[1], c[2]);

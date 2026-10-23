@@ -50,8 +50,9 @@ public class RhBadgeService {
     public JSONObject badges(String query, boolean inactifs) {
         StringBuilder sql = new StringBuilder(
                 "SELECT b.id, b.employe_id, b.numero, b.statut, b.dt_emission, b.dt_expiration,"
-                        + " b.motif, b.dt_desactivation, b.nb_impressions, b.dt_impression, e.matricule, e.nom, e.prenoms, e.poste"
-                        + " FROM t_rh_badge b JOIN t_employe e ON e.id = b.employe_id WHERE 1 = 1");
+                        + " b.motif, b.dt_desactivation, b.nb_impressions, b.dt_impression, e.matricule, e.nom, e.prenoms, e.poste,"
+                        + " u.str_LOGIN FROM t_rh_badge b JOIN t_employe e ON e.id = b.employe_id"
+                        + " LEFT JOIN t_user u ON u.lg_USER_ID = e.lg_USER_ID AND u.str_STATUT = 'enable' WHERE 1 = 1");
         if (!inactifs) {
             sql.append(" AND b.statut = 'ACTIF'");
         }
@@ -72,7 +73,7 @@ public class RhBadgeService {
                     .put("dtEmission", t(l[4])).put("dtExpiration", exp).put("motif", t(l[6]))
                     .put("dtDesactivation", t(l[7])).put("impressions", ((Number) l[8]).intValue())
                     .put("dtImpression", t(l[9])).put("matricule", t(l[10])).put("nom", t(l[11]))
-                    .put("prenoms", t(l[12])).put("poste", t(l[13]))
+                    .put("prenoms", t(l[12])).put("poste", t(l[13])).put("compte", t(l[14]))
                     .put("expire", ACTIF.equals(l[3]) && !exp.isEmpty() && LocalDate.parse(exp).isBefore(auj)));
         }
         return new JSONObject().put("success", true).put("data", a).put("total", a.length());

@@ -820,7 +820,7 @@ Ext.define('testextjs.view.rh.RhManager', {
         var me = this;
         var store = Ext.create('Ext.data.Store', {
             fields: ['id', 'employeId', 'numero', 'statut', 'dtEmission', 'dtExpiration', 'motif', 'dtDesactivation', 'impressions',
-                'dtImpression', 'matricule', 'nom', 'prenoms', 'poste', 'expire'],
+                'dtImpression', 'matricule', 'nom', 'prenoms', 'poste', 'expire', 'compte'],
             proxy: {type: 'ajax', url: '../api/v1/rh/badges', reader: {type: 'json', root: 'data', totalProperty: 'total'}}
         });
         store.on('beforeload', function (s) {
@@ -882,8 +882,11 @@ Ext.define('testextjs.view.rh.RhManager', {
                                 return '<b>' + me.esc(v) + '</b>';
                             }},
                         {text: 'Employé', dataIndex: 'nom', flex: 1, renderer: function (v, m, r) {
+                                /* retour du 23/10 : sans compte utilisateur, le QR porte un login vide et ne connecte pas */
                                 return '<b>' + me.esc(v) + '</b> ' + me.esc(r.get('prenoms')) + '<div style="color:#7f8c8d;font-size:11px">'
-                                        + me.esc(r.get('matricule')) + (r.get('poste') ? ' · ' + me.esc(r.get('poste')) : '') + '</div>';
+                                        + me.esc(r.get('matricule')) + (r.get('poste') ? ' · ' + me.esc(r.get('poste')) : '') + '</div>'
+                                        + (r.get('statut') === 'ACTIF' && !r.get('compte') ? '<div style="color:#c0392b;font-size:11px;font-weight:bold">'
+                                                + 'Sans compte utilisateur : le QR ne permet pas de se connecter</div>' : '');
                             }},
                         {text: 'Émis le', dataIndex: 'dtEmission', width: 90, renderer: function (v) {
                                 return me.fr(v);
@@ -1091,7 +1094,17 @@ Ext.define('testextjs.view.rh.RhManager', {
         var format = me.down('#formatBadge') ? me.down('#formatBadge').getValue() : 'A4';
         window.open('../api/v1/rh/badges/pdf?ids=' + encodeURIComponent(ids.join(',')) + '&code=' + encodeURIComponent(code || 'QR')
                 + '&format=' + encodeURIComponent(format || 'A4'), '_blank');
-        me.messageBadge(ids.length + ' badge(s) envoyé(s) à l\'impression.', true);
+        var sansCompte = (code || 'QR') === 'QR' ? Ext.Array.filter(g.getSelectionModel().getSelection(), function (r) {
+            return r.get('statut') === 'ACTIF' && !r.get('compte');
+        }) : [];
+        if (sansCompte.length) {
+            me.messageBadge(ids.length + ' badge(s) envoyé(s) à l\'impression. Attention : ' + Ext.Array.map(sansCompte, function (r) {
+                return r.get('numero');
+            }).join(', ') + ' sans compte utilisateur : leur QR ne permettra pas de se connecter. Rattachez l\'employé à un utilisateur'
+                    + ' (onglet Employés) puis réimprimez.', false);
+        } else {
+            me.messageBadge(ids.length + ' badge(s) envoyé(s) à l\'impression.', true);
+        }
         Ext.defer(function () {
             g.getStore().load();
         }, 1500);

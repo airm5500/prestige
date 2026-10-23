@@ -44,4 +44,18 @@ class BadgeQrTest {
         assertNull(BadgeQr.champs("PRESTIGE-BADGE|1|PGB-26-00017-K|jdupont|s3cr|x"));
         assertNull(BadgeQr.champs("AUTRE|1|PGB-26-00017-K|jdupont|s3cr"));
     }
+
+    @Test
+    void defautDuFormatSansLeContenu() {
+        String secret = BadgeQr.nouveauSecret();
+        assertEquals("login vide (employe sans compte utilisateur a l'impression)",
+                BadgeQr.defautFormat("PRESTIGE-BADGE|1|747474||" + secret));
+        assertTrue(
+                BadgeQr.defautFormat("PRESTIGE-BADGE*1*747474*admin*" + secret).startsWith("1 parties au lieu de 5"));
+        assertTrue(BadgeQr.defautFormat("PRESTIGE)BQDGE*1").startsWith("prefixe PRESTIGE-BADGE absent"));
+        assertEquals("prefixe en minuscules (verrouillage majuscules ?)",
+                BadgeQr.defautFormat("prestige-badge|1|747474|ADMIN|x"));
+        assertEquals("lecture vide", BadgeQr.defautFormat(" "));
+        assertTrue(!BadgeQr.defautFormat("PRESTIGE-BADGE|1|747474||" + secret).contains(secret));
+    }
 }

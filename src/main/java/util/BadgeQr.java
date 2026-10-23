@@ -68,6 +68,37 @@ public final class BadgeQr {
         return new String[] { p[2].trim(), p[3].trim(), p[4].trim() };
     }
 
+    /**
+     * Retour du 23/10 : ce qui ne va pas dans un contenu refuse par {@link #champs}, pour les traces du serveur (jamais
+     * le contenu lui-meme, qui porte le secret) : prefixe, nombre de parties, version, partie vide.
+     */
+    public static String defautFormat(String lu) {
+        if (lu == null || lu.trim().isEmpty()) {
+            return "lecture vide";
+        }
+        String v = lu.trim();
+        if (!v.toUpperCase().startsWith(PREFIXE)) {
+            return "prefixe PRESTIGE-BADGE absent, " + v.length() + " caracteres";
+        }
+        String[] p = v.split("\\|", -1);
+        if (p.length != 5) {
+            return p.length + " parties au lieu de 5 (separateur | absent ou deforme), " + v.length() + " caracteres";
+        }
+        if (!PREFIXE.equals(p[0])) {
+            return "prefixe en minuscules (verrouillage majuscules ?)";
+        }
+        if (!VERSION.equals(p[1])) {
+            return "version inconnue";
+        }
+        String[] noms = { "numero", "login", "secret" };
+        for (int i = 2; i < 5; i++) {
+            if (p[i].trim().isEmpty()) {
+                return noms[i - 2] + " vide" + (i == 3 ? " (employe sans compte utilisateur a l'impression)" : "");
+            }
+        }
+        return "format non reconnu";
+    }
+
     public static String empreinte(String secret) {
         try {
             byte[] h = MessageDigest.getInstance("SHA-256").digest(secret.getBytes(StandardCharsets.UTF_8));
