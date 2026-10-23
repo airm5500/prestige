@@ -12,6 +12,9 @@ public final class Constant {
     public static final String KEY_CONNEXION_BADGE = "KEY_CONNEXION_BADGE";
     /** Message unique de refus d'un badge : ne dit jamais pourquoi (secret, statut, employe, login). */
     public static final String MSG_BADGE_NON_RECONNU = "Badge non reconnu.";
+    /** Expediteur des mails absent : jamais de compte dans le code, seulement dans dicisms.properties. */
+    public static final String MSG_EXPEDITEUR_MAIL_NON_CONFIGURE = "Expéditeur des e-mails non configuré"
+            + " (clés email et password de dicisms.properties) : envoi ignoré.";
     /** impression des badges : planche A4 de dix cartes (defaut) ou une carte par page (imprimante a cartes PVC) */
     public static final String BADGE_FORMAT_A4 = "A4";
     public static final String BADGE_FORMAT_CARTE = "CARTE";

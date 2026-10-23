@@ -61,6 +61,10 @@ public class Mail implements Runnable {
 
     public void sendMail() {
         AppParameters sp = AppParameters.getInstance();
+        if (!sp.expediteurConfigure()) {
+            LOG.log(Level.WARNING, util.Constant.MSG_EXPEDITEUR_MAIL_NON_CONFIGURE);
+            return;
+        }
         Properties props = new Properties();
         props.put("mail.smtp.host", sp.smtpHost);
         props.put("mail.transport.protocol", sp.protocol);

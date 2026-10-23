@@ -296,6 +296,11 @@ public class NotificationImpl implements NotificationService {
         try {
             Session session = Session.getInstance(rest.service.notification.template.Mail.getEmailProperties());
             AppParameters sp = rest.service.notification.template.Mail.sp;
+            if (!sp.expediteurConfigure()) {
+                // notifications laissees en attente : elles partiront une fois l'expediteur configure
+                LOG.log(Level.WARNING, util.Constant.MSG_EXPEDITEUR_MAIL_NON_CONFIGURE);
+                return false;
+            }
 
             MimeMessage msg = new MimeMessage(session);
             List<Address> listadd = new ArrayList<>();

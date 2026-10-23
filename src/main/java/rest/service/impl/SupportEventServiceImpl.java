@@ -408,7 +408,7 @@ public class SupportEventServiceImpl implements SupportEventService {
         }
         AppParameters sp = AppParameters.getInstance();
         sante.put("emailSupportConfigure", StringUtils.isNotBlank(getParameterValue(KEY_SUPPORT_EMAIL)));
-        sante.put("emailExpediteurConfigure", StringUtils.isNotBlank(sp.email));
+        sante.put("emailExpediteurConfigure", sp.expediteurConfigure());
         sante.put("smtpHost", sp.smtpHost);
         File storage = getStorageBase().toFile();
         sante.put("dossierSupport", storage.getAbsolutePath());

@@ -95,6 +95,11 @@ public class SupportServiceImpl implements SupportService {
             demande.setErreurEnvoi("Adresse e-mail du support non configurée (paramètre SUPPORT_EMAIL)");
             return;
         }
+        if (!AppParameters.getInstance().expediteurConfigure()) {
+            demande.setStatutEnvoi(SupportDemande.STATUT_ENVOI_ECHOUEE);
+            demande.setErreurEnvoi(util.Constant.MSG_EXPEDITEUR_MAIL_NON_CONFIGURE);
+            return;
+        }
         try {
             AppParameters sp = AppParameters.getInstance();
             Session session = Session.getInstance(rest.service.notification.template.Mail.getEmailProperties());
@@ -156,6 +161,10 @@ public class SupportServiceImpl implements SupportService {
                 return;
             }
             AppParameters sp = AppParameters.getInstance();
+            if (!sp.expediteurConfigure()) {
+                LOG.log(Level.WARNING, util.Constant.MSG_EXPEDITEUR_MAIL_NON_CONFIGURE);
+                return;
+            }
             Session session = Session.getInstance(rest.service.notification.template.Mail.getEmailProperties());
             MimeMessage msg = new MimeMessage(session);
             msg.setFrom(new InternetAddress(sp.email));

@@ -30,8 +30,10 @@ public final class AppParameters {
     public String clientId = "fJaOlJgwU2ggcRWmIlbU9s7jY8tbsRy8";
     public String clientSecret = "UgTURjiCK1rZtsnA";
     public String header = "Basic ZkphT2xKZ3dVMmdnY1JXbUlsYlU5czdqWTh0YnNSeTg6VWdUVVJqaUNLMXJadHNuQQ==";
-    public String email = "dici.servtech@gmail.com";
-    public String password = "dici@2020";
+    // compte expediteur des mails : seulement dans le fichier de configuration (cles email et password), jamais
+    // dans le code ni dans Git
+    public String email = "";
+    public String password = "";
     public String pathsmsapitokenendpoint = "https://api.orange.com/oauth/v2/token";
     public String pathsmsapisendmessageurl = "https://api.orange.com/smsmessaging/v1/outbound/tel%3A%2B225000000/requests";
     public String senderAddress = "tel:+225000000";
@@ -166,6 +168,15 @@ public final class AppParameters {
             LOG.log(Level.SEVERE, "", e);
         }
 
+    }
+
+    /** Adresse et mot de passe de l'expediteur des mails tous deux renseignes. */
+    public static boolean expediteurConfigure(String email, String password) {
+        return StringUtils.isNoneBlank(email, password);
+    }
+
+    public boolean expediteurConfigure() {
+        return expediteurConfigure(email, password);
     }
 
     public static AppParameters getInstance() {
