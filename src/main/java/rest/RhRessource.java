@@ -185,6 +185,13 @@ public class RhRessource {
     }
 
     @POST
+    @Path("badges/{id}/regenerer")
+    public Response regenererBadge(@PathParam("id") String id) {
+        Response r = controle();
+        return r != null ? r : ok(badges.regenererQr(id));
+    }
+
+    @POST
     @Path("badges/{id}/desactiver")
     @Consumes(MediaType.APPLICATION_JSON)
     public Response desactiverBadge(@PathParam("id") String id, String c) {

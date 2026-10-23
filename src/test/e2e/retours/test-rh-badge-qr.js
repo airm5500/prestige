@@ -6,7 +6,9 @@
  *  - ecran : choix « QR code / Code-barres », QR code par defaut ;
  *  - impression par defaut : QR lisible (decode depuis le PDF rendu), au format PRESTIGE-BADGE|1|numero|login|secret ;
  *    numero = badge, login = celui de l'utilisateur, SHA-256(secret) = empreinte en base ; le mot de passe n'y est pas ;
- *  - reimpression : nouveau secret (l'ancien exemplaire n'est plus valable) ;
+ *  - reimpression : MEME QR (meme secret), le badge reste valable jusqu'a son expiration (retour du 23/10) ;
+ *  - « Regenerer le QR » (fiche du badge, confirmation dans le bouton) : nouveau secret ; l'exemplaire precedent est
+ *    refuse a la connexion, le nouveau est accepte ;
  *  - impression en code-barres : pas de QR, secret inchange ;
  *  - QR centre verticalement dans la carte, sous le bandeau de l'officine (demande du 16/10).
  * Prerequis : jsqr et pngjs (NODE_PATH), pdftoppm.
@@ -89,7 +91,33 @@ const HAUT_CARTE = (297 - 5 * 54 - 4 * 4) / 2, BANDEAU = 9, PX_MM = 300 / 25.4;
     const h1 = empreinte();
     const d2 = await pdf('../api/v1/rh/badges/pdf?ids=' + cree.id + '&code=QR');
     const c2 = lireQr(Buffer.from(d2.b64, 'base64'));
-    ok('Réimpression : nouveau secret, l\'ancien exemplaire n\'est plus valable', c2 && c2 !== c1 && empreinte() !== h1 && crypto.createHash('sha256').update(c2.split('|')[4]).digest('hex') === empreinte());
+    ok('Réimpression : même QR, empreinte inchangée (badge valable jusqu\'à son expiration)', c2 && c2 === c1 && empreinte() === h1, (c2 === c1) + ' / ' + (empreinte() === h1));
+
+    /* regeneration par la fiche du badge : premier clic arme, second confirme (aucune fenetre) */
+    await p.evaluate((id) => { const g = Ext.ComponentQuery.query('#grilleBadges')[0]; g.getStore().load({ callback: function () {
+      g.getSelectionModel().select([g.getStore().findRecord('id', id, 0, false, false, true)]); } }); }, cree.id);
+    await p.waitForFunction(() => { const b = Ext.ComponentQuery.query('#btnRegenererBadge')[0]; return b && b.isVisible(true) && !b.isDisabled(); }, null, { timeout: 15000 });
+    const clic = () => p.evaluate(() => { const b = Ext.ComponentQuery.query('#btnRegenererBadge')[0]; b.el.dom.click(); return b.getText(); });
+    await clic();
+    const arme = await p.evaluate(() => Ext.ComponentQuery.query('#btnRegenererBadge')[0].getText());
+    ok('« Régénérer le QR » : premier clic, confirmation dans le bouton, rien de changé', /Confirmer/i.test(arme) && empreinte() === h1, arme);
+    const reponse = p.waitForResponse((r) => /badges\/[^/]+\/regenerer/.test(r.url()), { timeout: 15000 });
+    await clic();
+    await reponse;
+    await p.waitForTimeout(800);
+    const message = await p.evaluate(() => Ext.ComponentQuery.query('#badgeMessage')[0].getEl().dom.textContent);
+    const h2r = empreinte();
+    ok('Second clic : nouveau secret, message qui dit de réimprimer', h2r !== h1 && /réimprim/i.test(message), message);
+    const d4 = await pdf('../api/v1/rh/badges/pdf?ids=' + cree.id + '&code=QR');
+    const c4 = lireQr(Buffer.from(d4.b64, 'base64'));
+    ok('Impression après régénération : nouveau QR, conforme à la nouvelle empreinte', c4 && c4 !== c1 && crypto.createHash('sha256').update(c4.split('|')[4]).digest('hex') === empreinte());
+    const p2 = await b.newPage();
+    await p2.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'domcontentloaded' });
+    const essai = (c) => p2.evaluate(async (c) => (await (await fetch('../api/v1/user/auth-badge', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contenu: c }) })).json()).success === true, c);
+    const ancien = await essai(c1);
+    const nouveau = await essai(c4);
+    ok('Connexion : l\'exemplaire d\'avant la régénération est refusé, le nouveau accepté', ancien === false && nouveau === true, ancien + ' / ' + nouveau);
+    await p2.close();
 
     const h2 = empreinte();
     const d3 = await pdf('../api/v1/rh/badges/pdf?ids=' + cree.id + '&code=CODE128');

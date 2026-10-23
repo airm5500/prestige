@@ -858,7 +858,8 @@ Ext.define('testextjs.view.rh.RhManager', {
                             listeners: {afterrender: function (c) {
                                     Ext.create('Ext.tip.ToolTip', {target: c.getEl(), html: '<div style="white-space:normal;width:260px;line-height:1.5">'
                                                 + '<b>QR code</b> : numéro du badge, login et secret propre au badge (jamais le mot de passe). '
-                                                + 'Chaque impression en QR code rend l\'exemplaire précédent invalide.<br><b>Code-barres</b> : numéro seul.</div>'});
+                                                + 'La réimpression redonne le même QR : le badge reste valable jusqu\'à son expiration. « Régénérer le QR » (fiche du badge) '
+                                                + 'rend les exemplaires déjà imprimés invalides.<br><b>Code-barres</b> : numéro seul.</div>'});
                                 }}},
                         /* demande du 17/10 : planche A4 a decouper, ou une carte par page pour une imprimante a cartes PVC */
                         {xtype: 'combo', itemId: 'formatBadge', fieldLabel: 'Format', labelWidth: 45, width: 215,
@@ -927,6 +928,12 @@ Ext.define('testextjs.view.rh.RhManager', {
                             handler: function (b) {
                                 me.desactiverBadge(b);
                             }},
+                        /* retour du 23/10 : la reimpression garde le QR ; la regeneration est une action a part */
+                        {text: 'Régénérer le QR', itemId: 'btnRegenererBadge', cls: 'fen-btn', disabled: true,
+                            tooltip: 'Nouveau QR pour ce badge (exemplaire perdu ou photographié) : les exemplaires déjà imprimés ne permettront plus de se connecter',
+                            handler: function (b) {
+                                me.regenererBadge(b);
+                            }},
                         {text: 'Enregistrer', itemId: 'btnEnregistrerBadge', cls: 'fen-btn fen-btn-principal', handler: function (b) {
                                 me.enregistrerBadge(b);
                             }}
@@ -949,10 +956,14 @@ Ext.define('testextjs.view.rh.RhManager', {
 
     editerBadge: function (rec) {
         var me = this, f = me.down('#ficheBadge'), d = rec ? rec.data : {}, actif = !rec || d.statut === 'ACTIF';
-        var b = f.down('#btnDesactiverBadge');
+        var b = f.down('#btnDesactiverBadge'), regen = f.down('#btnRegenererBadge');
         clearTimeout(b.minuteur);
         b.arme = false;
         b.setText('Désactiver');
+        clearTimeout(regen.minuteur);
+        regen.arme = false;
+        regen.setText('Régénérer le QR');
+        regen.setDisabled(!rec || !actif);
         f.getForm().reset();
         f.setTitle(rec ? 'Badge ' + me.esc(d.numero) : 'Nouveau badge');
         f.getForm().setValues({id: d.id || '', employeId: d.employeId || '', numero: d.numero || '',
@@ -1009,6 +1020,30 @@ Ext.define('testextjs.view.rh.RhManager', {
                     }
                 }});
             me.down('#badgeEmploye').getStore().load();
+        });
+    },
+
+    /* retour du 23/10 : premier clic arme (confirmation dans le bouton), second regenere le QR du badge */
+    regenererBadge: function (b) {
+        var me = this, f = me.down('#ficheBadge');
+        if (!b.arme) {
+            b.arme = true;
+            b.setText('Confirmer : nouveau QR');
+            me.messageBadge('Les exemplaires déjà imprimés de ce badge ne permettront plus de se connecter. Cliquez de nouveau pour confirmer.', false);
+            b.minuteur = setTimeout(function () {
+                if (!b.isDestroyed && b.arme) {
+                    b.arme = false;
+                    b.setText('Régénérer le QR');
+                    me.messageBadge('');
+                }
+            }, 8000);
+            return;
+        }
+        clearTimeout(b.minuteur);
+        b.arme = false;
+        b.setText('Régénérer le QR');
+        var id = f.getForm().findField('id').getValue();
+        me.appelBadge(b, 'Régénération', '../api/v1/rh/badges/' + encodeURIComponent(id) + '/regenerer', {}, function () {
         });
     },
 

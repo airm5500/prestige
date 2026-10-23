@@ -223,9 +223,10 @@ public class RhBadgeService {
     }
 
     /**
-     * Demande du 16/10 : avec qr, chaque carte porte un QR code (numero, login de l'employe, secret propre au badge) ;
-     * un nouveau secret est tire a chaque impression, seule son empreinte est gardee : l'exemplaire precedent n'est
-     * plus valable. Sans qr : code-barres du numero, secret inchange.
+     * Demande du 16/10 : avec qr, chaque carte porte un QR code (numero, login de l'employe, secret propre au badge).
+     * Retour du 23/10 : le badge reste valable jusqu'a son expiration ; la reimpression redonne le meme QR (secret
+     * garde chiffre). Un secret n'est tire qu'a la premiere impression en QR (ou si le secret garde est illisible) ;
+     * seule la regeneration ({@link #regenererQr}) le change ensuite. Sans qr : code-barres du numero, secret inchange.
      */
     @SuppressWarnings("unchecked")
     public List<BadgePdf.Carte> pourImpression(Collection<String> ids, boolean qr) {
@@ -242,9 +243,10 @@ public class RhBadgeService {
             Object[] l = r.get(0);
             String contenuQr = null;
             if (qr) {
-                String secret = util.BadgeQr.nouveauSecret();
-                em.createNativeQuery("UPDATE t_rh_badge SET secret_hash = ?1, dt_secret = NOW() WHERE id = ?2")
-                        .setParameter(1, util.BadgeQr.empreinte(secret)).setParameter(2, id).executeUpdate();
+                String secret = secretConserve(id);
+                if (secret == null) {
+                    secret = nouveauSecret(id);
+                }
                 contenuQr = util.BadgeQr.contenu(t(l[0]), t(l[6]), secret);
             }
             cartes.add(new BadgePdf.Carte(t(l[0]), t(l[1]), t(l[2]), t(l[3]), t(l[4]),
@@ -254,6 +256,68 @@ public class RhBadgeService {
                     .setParameter(1, id).executeUpdate();
         }
         return cartes;
+    }
+
+    /**
+     * Retour du 23/10 : regenerer le QR d'un badge actif (exemplaire perdu, photographie...). Nouveau secret : les
+     * exemplaires deja imprimes ne permettent plus de se connecter ; le badge (numero, expiration) ne change pas.
+     */
+    public JSONObject regenererQr(String id) {
+        String[] b = badge(id);
+        if (b == null) {
+            return refus("Badge introuvable.");
+        }
+        if (!ACTIF.equals(b[1])) {
+            return refus("Ce badge est désactivé : son QR ne peut pas être régénéré.");
+        }
+        nouveauSecret(id);
+        return new JSONObject().put("success", true).put("id", id).put("msg", "QR du badge " + b[2]
+                + " régénéré : les exemplaires déjà imprimés ne permettent plus de se connecter. Réimprimez le badge.");
+    }
+
+    /** Secret garde du badge, ou null (jamais imprime en QR, garde avant le 23/10, ou ne correspond plus). */
+    @SuppressWarnings("unchecked")
+    private String secretConserve(String id) {
+        List<Object[]> r = em
+                .createNativeQuery("SELECT secret_chiffre, secret_hash FROM t_rh_badge WHERE id = ?1"
+                        + " AND secret_chiffre IS NOT NULL AND secret_hash IS NOT NULL")
+                .setParameter(1, id).getResultList();
+        if (r.isEmpty()) {
+            return null;
+        }
+        try {
+            String secret = new String(EmpreinteServiceImpl.dechiffrer(cle(), (byte[]) r.get(0)[0]),
+                    java.nio.charset.StandardCharsets.UTF_8);
+            return util.BadgeQr.empreinte(secret).equals(t(r.get(0)[1])) ? secret : null;
+        } catch (java.security.GeneralSecurityException e) {
+            // secret garde illisible (cle changee) : un nouveau sera tire, sans jamais journaliser son contenu
+            return null;
+        }
+    }
+
+    private String nouveauSecret(String id) {
+        String secret = util.BadgeQr.nouveauSecret();
+        em.createNativeQuery(
+                "UPDATE t_rh_badge SET secret_hash = ?1, secret_chiffre = ?2, dt_secret = NOW() WHERE id = ?3")
+                .setParameter(1, util.BadgeQr.empreinte(secret))
+                .setParameter(2,
+                        EmpreinteServiceImpl.chiffrer(cle(), secret.getBytes(java.nio.charset.StandardCharsets.UTF_8)))
+                .setParameter(3, id).executeUpdate();
+        return secret;
+    }
+
+    /** Cle AES-256 des secrets de badge, conservee en base (une ligne), creee au premier usage. */
+    @SuppressWarnings("unchecked")
+    private byte[] cle() {
+        List<Object> l = em.createNativeQuery("SELECT cle FROM t_rh_badge_cle WHERE id = 1").getResultList();
+        if (!l.isEmpty()) {
+            return (byte[]) l.get(0);
+        }
+        byte[] k = new byte[32];
+        new java.security.SecureRandom().nextBytes(k);
+        em.createNativeQuery("INSERT IGNORE INTO t_rh_badge_cle (id, cle, dt_creation) VALUES (1, ?1, NOW())")
+                .setParameter(1, k).executeUpdate();
+        return (byte[]) em.createNativeQuery("SELECT cle FROM t_rh_badge_cle WHERE id = 1").getSingleResult();
     }
 
     /**
