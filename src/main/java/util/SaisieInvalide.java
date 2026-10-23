@@ -112,6 +112,49 @@ public final class SaisieInvalide {
         return null;
     }
 
+    private static final Pattern PROPRIETE = Pattern.compile("property '([^']+)'");
+
+    /**
+     * Donnee illisible dans le CORPS de la requete (journaux du poste caisse 3, 23/08 au 03/09) : quantite decimale,
+     * texte a la place d'un nombre. Seule une erreur levee en lisant le corps (JsonBindingProvider.readFrom) est une
+     * saisie invalide ; la meme erreur en ecrivant une reponse reste une erreur interne.
+     *
+     * @return le message pour l'ecran, ou null si l'erreur n'est pas une lecture du corps
+     */
+    public static String corpsIllisible(Throwable exception) {
+        boolean lectureDuCorps = false;
+        String propriete = null;
+        boolean entier = false;
+        for (Throwable t = exception; t != null; t = t.getCause() == t ? null : t.getCause()) {
+            for (StackTraceElement e : t.getStackTrace()) {
+                if ("readFrom".equals(e.getMethodName()) && e.getClassName().endsWith("JsonBindingProvider")) {
+                    lectureDuCorps = true;
+                    break;
+                }
+            }
+            if (t instanceof javax.json.bind.JsonbException && t.getMessage() != null) {
+                Matcher m = PROPRIETE.matcher(t.getMessage());
+                if (propriete == null && m.find()) {
+                    propriete = m.group(1);
+                }
+                entier = entier || t.getMessage().contains("java.lang.Integer")
+                        || t.getMessage().contains("java.lang.Long");
+            }
+        }
+        boolean json = false;
+        for (Throwable t = exception; t != null && !json; t = t.getCause() == t ? null : t.getCause()) {
+            json = t instanceof javax.json.bind.JsonbException;
+        }
+        if (!lectureDuCorps || !json) {
+            return null;
+        }
+        if (propriete == null) {
+            return "Données envoyées illisibles : actualisez l'écran et recommencez.";
+        }
+        return "Valeur saisie invalide pour « " + propriete + " »"
+                + (entier ? " : un nombre entier est attendu." : ".");
+    }
+
     static boolean horsJeuDeCaracteres(String v) {
         return v.codePoints().anyMatch(c -> c > 0xFFFF);
     }

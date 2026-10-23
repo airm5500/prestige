@@ -71,6 +71,12 @@ public class SupportExceptionMapper implements ExceptionMapper<Throwable> {
             if (request == null) {
                 return null;
             }
+            String corps = util.SaisieInvalide.corpsIllisible(exception);
+            if (corps != null) {
+                LOG.log(Level.FINE, "corps illisible refuse : {0}", request.getRequestURI());
+                return Response.status(Response.Status.BAD_REQUEST).entity(ResultFactory.getFailResult(corps))
+                        .type(MediaType.APPLICATION_JSON).build();
+            }
             Throwable racine = util.ErreurExplication.causeRacine(exception);
             java.util.Map<String, String[]> parametres = util.SaisieInvalide.parametresUtf8(request.getQueryString(),
                     request.getParameterMap());
