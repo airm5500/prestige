@@ -467,7 +467,7 @@ Ext.define('testextjs.controller.DepotCtr', {
         Ext.Ajax.request({
             method: 'GET',
             headers: {'Content-Type': 'application/json'},
-            url: '../api/v1/vente/findone/' + field.getValue(),
+            url: '../api/v1/vente/findone/' + encodeURIComponent(field.getValue()),
             success: function (response, options) {
                 var result = Ext.JSON.decode(response.responseText, true);
                 if (result.success) {

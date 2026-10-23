@@ -4999,13 +4999,19 @@ Ext.define('testextjs.controller.VenteCtr', {
         // poste). On recharge depuis la base avant d'alimenter le formulaire ; si la lecture
         // echoue, on garde le record en memoire plutot que d'empecher la modification.
         /* verrou du double clic (15/10) : une seule fenetre tant que le serveur n'a pas repondu */
+        /* client sans identifiant (pas encore enregistre) : rien a relire, la fiche s'ouvre sur le record (sans appel
+           « client-assurance//0 », refuse par le serveur) */
+        if (!client.get('lgCLIENTID')) {
+            me.ouvrirModificationClient(typeVenteCombo, client);
+            return;
+        }
         const fin = window.PrestigeChargement ? PrestigeChargement.verrou('modifier-client', btn && btn.up ? btn.up('panel') : null, 'Ouverture de la fiche du client') : Ext.emptyFn;
         if (!fin) {
             return;
         }
         Ext.Ajax.request({
             method: 'GET',
-            url: '../api/v1/client/client-assurance/' + client.get('lgCLIENTID') + '/0',
+            url: '../api/v1/client/client-assurance/' + encodeURIComponent(client.get('lgCLIENTID')) + '/0',
             callback: fin,
             success: function (response) {
                 const result = Ext.JSON.decode(response.responseText, true);

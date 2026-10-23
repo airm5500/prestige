@@ -4,7 +4,9 @@
  * 1. Caissier KGA3 (sans le droit) : le bouton « Modifier » n'apparait pas, le service refuse.
  * 2. admin (droit donne par la migration) : vente comptant, client standard de TEST (ZZVCS) associe par la fenetre de
  *    la caisse, « Modifier », saisie au clavier, Entree : fiche client, vente et caisse a jour. Numero deja pris refuse.
- * 3. admin : vente assurance, assure choisi, bouton suivi de consommation sur sa carte.
+ * 3. admin : vente assurance, assure choisi, bouton suivi de consommation sur sa carte ; crayon « Modifier » de la
+ *    carte : la fiche de l'assure relue (client-assurance/<id>/0) s'ouvre ; client sans identifiant (etat simule dans
+ *    le controleur) : la fiche s'ouvre sans appel « client-assurance//0 » (retour du 23/10).
  * Ventes et clients de test retires a la fin ; les clients reels ne sont que lus.
  */
 const { chromium } = require('playwright-core');
@@ -175,6 +177,20 @@ async function venteComptant(p) {
     const nomSuivi = await p.evaluate(() => Ext.ComponentQuery.query('suiviconsofenetre')[0].getEl().dom.querySelector('.vc-nom').textContent);
     ok('La fenêtre de suivi s\'ouvre au nom de l\'assuré', nomSuivi.indexOf(assure[1]) >= 0, nomSuivi);
     await p.keyboard.press('Escape'); await p.waitForTimeout(500);
+
+    const lectures = []; p.on('request', (r) => { if (/client\/client-assurance\//.test(r.url())) { lectures.push(r.url().replace(/\?.*/, '')); } });
+    const fiche = () => p.waitForFunction(() => Ext.ComponentQuery.query('addaddclientwindow{isVisible()}').length > 0, null, { timeout: 15000 }).then(() => true).catch(() => false);
+    const fermerFiche = () => p.evaluate(() => Ext.ComponentQuery.query('addaddclientwindow').forEach((w) => w.close()));
+    await p.click('#' + (await p.evaluate(() => Ext.ComponentQuery.query('doventemanager #contenu #assureCmp #btnModifierInfo')[0].getId())));
+    const ouverte = await fiche();
+    ok('Crayon de la carte : fiche de l\'assuré relue puis ouverte', ouverte && lectures.some((u) => u.endsWith('/client-assurance/' + encodeURIComponent(assure[0]) + '/0')), lectures.join(' '));
+    await fermerFiche(); await p.waitForTimeout(500);
+    lectures.length = 0;
+    await p.evaluate(() => { const c = testextjs.app.getController('VenteCtr'); c.client = c.getClient().copy(); c.client.set('lgCLIENTID', ''); });
+    await p.click('#' + (await p.evaluate(() => Ext.ComponentQuery.query('doventemanager #contenu #assureCmp #btnModifierInfo')[0].getId())));
+    const ouverteSansId = await fiche();
+    ok('Client sans identifiant : fiche ouverte, aucun appel « client-assurance//0 »', ouverteSansId && lectures.length === 0, lectures.join(' '));
+    await fermerFiche(); await p.waitForTimeout(500);
     const venteAssurance = await p.evaluate(() => { const c = testextjs.app.getController('VenteCtr').getCurrent(); return c ? c.lgPREENREGISTREMENTID : null; });
     if (venteAssurance && ventes.indexOf(venteAssurance) < 0) { ventes.push(venteAssurance); }
     ok('admin : aucune erreur JavaScript', p.err.length === 0, JSON.stringify(p.err));

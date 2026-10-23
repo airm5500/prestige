@@ -11,6 +11,8 @@
  *  - vente depot (SERVICE CLIENT > Vente dépôt > Nouvelle vente, depot choisi), proforma (SERVICE CLIENT > Proforma >
  *    Nouveau, client recherche), ajustement (GESTION DU STOCK > Ajustement du Stock > Ajustement rayon), vente en
  *    depot (GESTION DES TIERS-PAYANTS > Gestion depots extensions, depot choisi en haut de l'ecran) : meme refus ;
+ *  - code lu contenant « / » et « # » (retour du 23/10) : dans chaque ecran, il part encode a la recherche du produit
+ *    (findone/E2E%2F12%233), au lieu d'une adresse coupee ou mal routee ;
  *  - aucun ajustement ni vente cree par l'essai.
  */
 const { chromium } = require('playwright-core');
@@ -48,6 +50,8 @@ const ECRANS = [
   const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
   const p = await b.newPage({ viewport: { width: 1600, height: 900 } });
   const erreurs = []; p.on('pageerror', (e) => erreurs.push(e.message));
+  const CODE = 'E2E/12#3';
+  const bruts = []; p.on('request', (r) => { if (/vente\/findone\//.test(r.url())) { bruts.push(r.url()); } });
   const appels = []; p.on('request', (r) => { const u = decodeURIComponent(r.url()); if (/happymama/.test(u) || (CIP && u.indexOf(CIP) >= 0)) { appels.push(u); } });
   const scanner = async (champ, texte) => {
     await cliquer(p, champ);
@@ -74,6 +78,12 @@ const ECRANS = [
           fenetre: Ext.ComponentQuery.query('messagebox{isVisible()}').length > 0, texte: document.body.innerText.indexOf('QR code publicitaire') >= 0 }), e.produit);
         ok(e.nom + ' : lien scanné → aucun appel au serveur, « QR code publicitaire » sans fenêtre, champ vidé',
           appels.length === 0 && etat.texte && !etat.fenetre && etat.champ === '', JSON.stringify(etat) + ' appels : ' + appels.join(' '));
+        if (e.nom !== 'Vente') {
+          bruts.length = 0;
+          await p.waitForFunction(() => document.body.innerText.indexOf('QR code publicitaire') < 0, null, { timeout: 15000 }).catch(() => {});
+          await scanner(e.produit, CODE);
+          ok(e.nom + ' : code avec « / » et « # » envoyé encodé', bruts.some((u) => u.replace(/\?.*/, '').endsWith('/vente/findone/E2E%2F12%233')), bruts.join(' '));
+        }
         if (e.nom === 'Vente') {
           await p.waitForFunction(() => document.body.innerText.indexOf('QR code publicitaire') < 0, null, { timeout: 15000 }).catch(() => {});
           await scanner(e.produit, CIP);
