@@ -107,6 +107,7 @@ public class SupportPreflight {
         controles.add(verifierPrivilegeProcess());
         controles.add(evaluerMemoireMax(Runtime.getRuntime().maxMemory(), parametre("SUPPORT_HEAP_MIN_MO")));
         controles.add(evaluerAccesDepannage(parametre("ACCES_DEPANNAGE_ACTIF")));
+        controles.add(verifierMigrations());
 
         boolean anomalie = aAnomalie(controles);
         String synthese = synthese(controles);
@@ -349,6 +350,41 @@ public class SupportPreflight {
     }
 
     /** Libelle unique du controle, partage par la partie technique et par la regle. */
+    static final String LIBELLE_MIGRATIONS = "Mises a jour de la base (Flyway)";
+
+    /*
+     * Journaux de l'officine du 02/10 au 17/10 : « contains a failed repeatable migration (update system privilege) » a
+     * chaque demarrage. Une migration en echec reste notee dans flyway_schema_history et bloque TOUTES les suivantes :
+     * les nouveaux droits, menus et colonnes ne sont plus crees. Rien ne le disait hors du server.log.
+     */
+    private Controle verifierMigrations() {
+        try {
+            List<String> echecs = new ArrayList<>();
+            for (Object ligne : em
+                    .createNativeQuery("SELECT description, COALESCE(version, 'repetable')"
+                            + " FROM flyway_schema_history WHERE success = 0 ORDER BY installed_rank")
+                    .getResultList()) {
+                Object[] l = (Object[]) ligne;
+                echecs.add(l[0] + " (" + l[1] + ")");
+            }
+            return evaluerMigrations(echecs);
+        } catch (Exception e) {
+            return Controle.anomalie("MIGRATIONS", LIBELLE_MIGRATIONS,
+                    "lecture de flyway_schema_history impossible : " + messageDe(e));
+        }
+    }
+
+    static Controle evaluerMigrations(List<String> echecs) {
+        if (echecs == null || echecs.isEmpty()) {
+            return Controle.ok("MIGRATIONS", LIBELLE_MIGRATIONS, "aucune mise a jour en echec");
+        }
+        return Controle.anomalie("MIGRATIONS", LIBELLE_MIGRATIONS,
+                echecs.size() + " mise(s) a jour en echec : " + String.join(", ", echecs)
+                        + ". Les mises a jour suivantes ne s'appliquent plus (droits, menus,"
+                        + " colonnes des nouvelles versions). Corriger la cause, retirer la ligne en echec de"
+                        + " flyway_schema_history (success = 0), puis redemarrer le serveur.");
+    }
+
     static final String LIBELLE_PROCESS = "Privilege PROCESS (detection des requetes lentes)";
 
     /**
