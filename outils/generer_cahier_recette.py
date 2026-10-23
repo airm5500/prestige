@@ -132,18 +132,60 @@ import re
 from collections import OrderedDict
 
 COLS = [('N°',5),('Écran',22),('Type de test',12),('Cas de test',30),('Prérequis',22),('Étapes',42),('Résultat attendu',42),
-        ('Priorité',9),('Testeur',11),('Date',10),('Statut',10),('Résultat obtenu / anomalie',30),('N° ticket',9)]
+        ('Priorité',9),('Testeur',11),('Date',10),('Statut',10),('Résultat obtenu / anomalie',30),('N° ticket',9),
+        ('Résultat (exécution automatique)',13),('Détail / preuve de l\'exécution automatique',38)]
 NC = len(COLS); DERCOL = get_column_letter(NC)          # M
 COL_STATUT = get_column_letter(11); COL_PRIO = get_column_letter(8); COL_DATE = get_column_letter(10)
-bleu = PatternFill('solid', start_color='1F4E78'); clair = PatternFill('solid', start_color='DDEBF7'); jaune = PatternFill('solid', start_color='FFF2CC')
+bleu = PatternFill('solid', start_color='1F4E78'); clair = PatternFill('solid', start_color='DDEBF7'); jaune = PatternFill('solid', start_color='FFF2CC'); gris = PatternFill('solid', start_color='EDEDED')
 fin = Side(style='thin', color='B4C6E7'); bord = Border(left=fin, right=fin, top=fin, bottom=fin)
 STATUTS = ['Non testé', 'OK', 'KO', 'Bloqué', 'N/A']
 PREM = 13
 
+# resultats de l'execution automatique (facultatifs) : RESULTATS_TESTS (executer-recette.js), RESULTATS_ECRANS
+# (recette-ecrans.js), correspondance cas -> tests (docs/recette/correspondance-tests.json)
+import json, os
+def charger(var):
+    p = os.environ.get(var)
+    return json.load(open(p, encoding='utf-8')) if p and os.path.exists(p) else None
+R_TESTS = charger('RESULTATS_TESTS'); R_ECRANS = charger('RESULTATS_ECRANS')
+CORR = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'docs', 'recette', 'correspondance-tests.json'), encoding='utf-8'))
+DATE_EXEC = os.environ.get('DATE_EXECUTION', '')
+
+def resultat_scenario(i):
+    if R_TESTS is None:
+        return ('', '')
+    c = CORR.get(str(i), {})
+    if 'raison' in c:
+        return ('NON EXÉCUTÉ', c['raison'][:1].upper() + c['raison'][1:])
+    lignes, ko = [], False
+    for t in c.get('tests', []):
+        r = R_TESTS.get(t)
+        if not r:
+            return ('NON EXÉCUTÉ', 'Test ' + t + ' non lancé')
+        lignes.append(t + ' : ' + r['bilan'] + ('' if r['ok'] else ' — ' + ' | '.join(r['fails'])[:400]))
+        ko = ko or not r['ok']
+    if ko:
+        return ('KO', '\n'.join(lignes))
+    if c.get('couverture') == 'partielle':
+        return ('OK PARTIEL', '\n'.join(lignes) + '\nNon couvert : ' + c.get('manque', ''))
+    return ('OK', '\n'.join(lignes))
+
+E_PAR_CLE = {}
+for r in (R_ECRANS or []):
+    E_PAR_CLE.setdefault((r['menu'], r['ecran']), r)
+
+def resultat_ecran(m, e):
+    if R_ECRANS is None:
+        return ('', '')
+    r = E_PAR_CLE.get((m, e))
+    if not r:
+        return ('NON EXÉCUTÉ', 'Écran non parcouru')
+    return (r['resultat'].replace('NON EXECUTE', 'NON EXÉCUTÉ'), 'recette/recette-ecrans.js : ' + r['detail'] + (' — ' + DATE_EXEC if DATE_EXEC else ''))
+
 # lignes par module : scenarios metier puis une ligne « ouverture et affichage » par ecran du menu
 modules = OrderedDict()
-for x in S:
-    modules.setdefault(x[0], []).append(x[1:])
+for i, x in enumerate(S):
+    modules.setdefault(x[0], []).append(tuple(x[1:]) + ('', '', '', '', '') + resultat_scenario(i))
 vus = set()
 with open(MENUS, encoding='utf-8') as fh:
     for m, e, comp in csv.reader(fh, delimiter='\t'):
@@ -153,7 +195,8 @@ with open(MENUS, encoding='utf-8') as fh:
         modules.setdefault(m, []).append((e, 'Non-régression', 'Ouverture et affichage de l\'écran', 'Profil ayant le droit du menu',
             '1. Ouvrir ' + m + ' > ' + e + '\n2. Utiliser la recherche / les filtres de l\'écran\n3. Imprimer ou exporter si l\'écran le propose',
             'L\'écran s\'ouvre sans message d\'erreur ; la liste se charge ; filtres et impression/export fonctionnent ; aucune erreur au Centre de support',
-            'Moyenne' if m in ('SERVICE CLIENT', 'GESTION COURANTE', 'GESTION DES COMMANDES', 'GESTION DU STOCK', 'FACTURATION') else 'Basse'))
+            'Moyenne' if m in ('SERVICE CLIENT', 'GESTION COURANTE', 'GESTION DES COMMANDES', 'GESTION DU STOCK', 'FACTURATION') else 'Basse',
+            '', '', '', '', '') + resultat_ecran(m, e))
 
 # onglets dans l'ordre du menu de Prestige, les controles transversaux en premier
 ordre = ['Transversal']
@@ -216,7 +259,7 @@ def feuille_module(wb, nom, module, lignes):
             'Statut : Non testé (vide) · OK · KO (décrire et ouvrir un ticket) · Bloqué · N/A (sans objet).',
             'Exemple : Testeur « A. KONÉ » · Date 24/10/2026 · Statut KO · Résultat « Ticket sans le nom du vendeur » · Ticket « SUP-0042 ».',
             'Tests sur la copie de travail uniquement, jamais la base de production ; sauvegarder la base avant chaque série.',
-            'Ajouter un cas : insérer une ligne dans le tableau (la synthèse et la feuille Synthèse se mettent à jour).']
+            'Ajouter un cas : insérer une ligne dans le tableau. Colonnes grises : résultat de l\'exécution automatique sur le banc (ne pas modifier).']
     for k, t in enumerate(aide):
         r = 5 + k
         ws['I%d' % r] = t; ws.merge_cells('I%d:%s%d' % (r, DERCOL, r))
@@ -234,9 +277,12 @@ def feuille_module(wb, nom, module, lignes):
             c = ws.cell(row=r, column=i, value=v)
             c.font = f(size=9); c.alignment = Alignment(vertical='top', wrap_text=True); c.border = bord
             if n % 2: c.fill = clair
-        for i in range(9, NC + 1):
+        for i in range(9, 14):
             c = ws.cell(row=r, column=i); c.fill = jaune; c.font = f(size=9, color='0000FF'); c.border = bord
             c.alignment = Alignment(vertical='top', wrap_text=True)
+        for i in (14, 15):
+            c = ws.cell(row=r, column=i); c.fill = gris; c.border = bord
+            c.font = f(size=9, bold=(i == 14)); c.alignment = Alignment(vertical='top', wrap_text=True, horizontal='center' if i == 14 else None)
         ws.cell(row=r, column=10).number_format = 'dd/mm/yyyy'
     dv = DataValidation(type='list', formula1='"Non testé,OK,KO,Bloqué,N/A"', allow_blank=True)
     dv.error = 'Choisir un statut dans la liste'; dv.prompt = 'Non testé, OK, KO, Bloqué ou N/A'
@@ -247,6 +293,12 @@ def feuille_module(wb, nom, module, lignes):
     ws.conditional_formatting.add(zone, CellIsRule(operator='equal', formula=['"OK"'], fill=PatternFill('solid', start_color='C6EFCE'), font=Font(name=F, color='006100', bold=True)))
     ws.conditional_formatting.add(zone, CellIsRule(operator='equal', formula=['"KO"'], fill=PatternFill('solid', start_color='FFC7CE'), font=Font(name=F, color='9C0006', bold=True)))
     ws.conditional_formatting.add(zone, CellIsRule(operator='equal', formula=['"Bloqué"'], fill=PatternFill('solid', start_color='FFEB9C'), font=Font(name=F, color='9C5700', bold=True)))
+    zauto = 'N%d:N%d' % (PREM, der)
+    ws.conditional_formatting.add(zauto, FormulaRule(formula=['LEFT(N%d,2)="OK"' % PREM], fill=PatternFill('solid', start_color='C6EFCE'), font=Font(name=F, color='006100', bold=True)))
+    ws.conditional_formatting.add(zauto, CellIsRule(operator='equal', formula=['"KO"'], fill=PatternFill('solid', start_color='FFC7CE'), font=Font(name=F, color='9C0006', bold=True)))
+    ws['E8'] = 'Exécution automatique : OK / OK partiel / KO / non exécuté'
+    ws['G8'] = '=COUNTIF(N%d:N%d,"OK")&" / "&COUNTIF(N%d:N%d,"OK PARTIEL")&" / "&COUNTIF(N%d:N%d,"KO")&" / "&COUNTIF(N%d:N%d,"NON EXÉCUTÉ")' % ((PREM, der) * 4)
+    for c in ('E8', 'G8'): ws[c].font = f(bold=(c == 'E8')); ws[c].border = bord
     ws.freeze_panes = 'E%d' % PREM
     ws.auto_filter.ref = 'A%d:%s%d' % (h, DERCOL, der)
     mise_en_page(ws, der, '%d:%d' % (h, h))
@@ -265,8 +317,9 @@ for m, lignes in modules.items():
 syn['A1'] = 'PRESTIGE — Cahier de recette — Synthèse'; syn['A1'].font = f(bold=True, size=16, color='1F4E78')
 syn['A2'] = 'Une feuille par module (onglets en bas). Les chiffres ci-dessous se calculent depuis la colonne Statut de chaque feuille.'
 syn['A2'].font = f(size=9, italic=True)
-ent = ['Module', 'Feuille', 'Cas', 'OK', 'KO', 'Bloqué', 'N/A', 'Non testé', 'Avancement', 'Réussite', 'KO priorité Haute']
-larg = [30, 26, 8, 8, 8, 9, 8, 11, 14, 11, 14]
+ent = ['Module', 'Feuille', 'Cas', 'OK', 'KO', 'Bloqué', 'N/A', 'Non testé', 'Avancement', 'Réussite', 'KO priorité Haute',
+       'Auto : OK', 'Auto : OK partiel', 'Auto : KO', 'Auto : non exécuté']
+larg = [30, 26, 8, 8, 8, 9, 8, 11, 14, 11, 14, 10, 11, 10, 12]
 for i, (t, l) in enumerate(zip(ent, larg), 1):
     c = syn.cell(row=4, column=i, value=t); c.font = f(bold=True, color='FFFFFF'); c.fill = bleu; c.border = bord
     c.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
@@ -281,7 +334,10 @@ for k, (m, nom, n) in enumerate(feuilles):
     syn.cell(row=r, column=9, value='=%s$G$5' % q).number_format = '0.0%'
     syn.cell(row=r, column=10, value='=%s$G$6' % q).number_format = '0.0%'
     syn.cell(row=r, column=11, value='=%s$G$7' % q)
-    for i in range(1, 12):
+    zone = '%s$N$%d:$N$%d' % (q, PREM, PREM + n - 1)
+    for j, v in enumerate(['OK', 'OK PARTIEL', 'KO', 'NON EXÉCUTÉ'], 12):
+        syn.cell(row=r, column=j, value='=COUNTIF(%s,"%s")' % (zone, v))
+    for i in range(1, 16):
         c = syn.cell(row=r, column=i); c.border = bord
         if i != 2: c.font = f(size=10)
         if k % 2: c.fill = clair
@@ -293,10 +349,13 @@ for j in range(3, 9):
 syn.cell(row=t, column=9, value='=IF((C%d-G%d)=0,0,(D%d+E%d+F%d)/(C%d-G%d))' % (t, t, t, t, t, t, t)).number_format = '0.0%'
 syn.cell(row=t, column=10, value='=IF((D%d+E%d+F%d)=0,0,D%d/(D%d+E%d+F%d))' % (t, t, t, t, t, t, t)).number_format = '0.0%'
 syn.cell(row=t, column=11, value='=SUM(K5:K%d)' % der_s)
-for i in range(1, 12):
+for j in range(12, 16):
+    L = get_column_letter(j)
+    syn.cell(row=t, column=j, value='=SUM(%s5:%s%d)' % (L, L, der_s))
+for i in range(1, 16):
     c = syn.cell(row=t, column=i); c.border = bord; c.fill = PatternFill('solid', start_color='BDD7EE'); c.font = f(bold=True)
 syn.freeze_panes = 'A5'
-syn.print_area = 'A1:K%d' % t
+syn.print_area = 'A1:O%d' % t
 syn.page_setup.paperSize = syn.PAPERSIZE_A4; syn.page_setup.orientation = 'landscape'
 syn.page_setup.fitToWidth = 1; syn.page_setup.fitToHeight = 1; syn.sheet_properties.pageSetUpPr.fitToPage = True
 syn.page_margins.left = syn.page_margins.right = 0.3
