@@ -66,7 +66,10 @@ const ecriture = (req) => {
       envois.push({ ecran: ecranCourant, url: req.url().replace(/^.*\/prestige\//, ''), corps: req.postData() || '' }); if (process.env.TRACE) { console.log('  intercepte : ' + req.method() + ' ' + req.url()); }
       return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: false, msg: 'essai de saisie : rien n\'est enregistre', message: 'essai de saisie : rien n\'est enregistre' }) });
     });
-    const supportAvant = Number(q('SELECT COALESCE(SUM(occurrences), 0) FROM t_application_event'));
+    /* erreurs d'ecran seulement (Java, JavaScript, Ajax) : la supervision periodique et les requetes lentes du banc
+       ajoutent des occurrences pendant un long parcours sans rapport avec la saisie */
+    const ERREURS = "FROM t_application_event WHERE type IN ('JAVA', 'JS', 'AJAX')";
+    const supportAvant = q('SELECT CONCAT(COALESCE(SUM(occurrences), 0), "|", NOW()) ' + ERREURS).split('|');
 
     let ecrans = q("SELECT s.str_COMPOSANT, MIN(s.str_VALUE) FROM t_sous_menu s JOIN t_menu m ON m.lg_MENU_ID = s.lg_MENU_ID"
       + " WHERE s.str_Status = 'enable' AND m.str_Status = 'enable' AND COALESCE(s.str_COMPOSANT, '') <> '' GROUP BY s.str_COMPOSANT ORDER BY s.str_COMPOSANT")
@@ -185,7 +188,9 @@ const ecriture = (req) => {
     ok('aucune erreur interne du serveur (HTTP 500) sur les recherches', erreurs500.length === 0, [...new Set(erreurs500)].slice(0, 12).join(' | '));
     ok('date impossible ' + DATE_IMPOSSIBLE + ' refusée dans tous les champs date (' + bilan.dates + ')', bilan.dates > 0 && bilan.datesKo.length === 0, bilan.datesKo.slice(0, 8).join(' | '));
     ok('aucun champ numérique ne garde de lettres (' + bilan.nombres + ')', bilan.nombresKo.length === 0, bilan.nombresKo.slice(0, 8).join(' | '));
-    ok('aucune nouvelle erreur au Centre de support', Number(q('SELECT COALESCE(SUM(occurrences), 0) FROM t_application_event')) === supportAvant);
+    ok('aucune nouvelle erreur au Centre de support', q('SELECT COALESCE(SUM(occurrences), 0) ' + ERREURS) === supportAvant[0],
+      q("SELECT IFNULL(GROUP_CONCAT(CONCAT(type, ' ', LEFT(message_court, 80), ' (', IFNULL(url_ou_ecran, ''), ')') SEPARATOR ' | '), '') " + ERREURS
+        + " AND last_seen_at >= '" + supportAvant[1] + "'"));
     const rapport = ['# Rapport de saisie (non bloquant)', '', '## Fenêtres qui envoient au serveur malgré un champ invalide (' + bilan.sansControle.length + ')']
       .concat(bilan.sansControle.map((x) => '- ' + x), ['', '## Champs texte de fenêtre sans longueur maximale (' + bilan.sansLongueur.size + ')'], [...bilan.sansLongueur].map((x) => '- ' + x));
     fs.writeFileSync(path.join(process.env.SORTIE || '/tmp', 'saisie-ecrans-rapport.md'), rapport.join('\n') + '\n');
