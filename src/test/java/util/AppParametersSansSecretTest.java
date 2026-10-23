@@ -10,9 +10,9 @@ import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
 
 /**
- * Aucun compte de messagerie dans le code (regle : aucun secret dans Git). L'expediteur des mails vient seulement du
- * fichier de configuration du serveur (cles email et password de dicisms.properties) ; sans lui, aucun envoi n'est
- * tente.
+ * Aucun compte de messagerie ni identifiant de l'API SMS dans le code (regle : aucun secret dans Git). L'expediteur des
+ * mails vient seulement du fichier de configuration du serveur (cles email et password de dicisms.properties) ; sans
+ * lui, aucun envoi n'est tente.
  */
 class AppParametersSansSecretTest {
 
@@ -24,6 +24,10 @@ class AppParametersSansSecretTest {
                 "adresse de l'expediteur ecrite dans le code");
         assertFalse(Pattern.compile("\\bpassword\\s*=\\s*\"[^\"]+\"").matcher(source).find(),
                 "mot de passe ecrit dans le code");
+        for (String champ : new String[] { "applicationId", "clientId", "clientSecret", "header", "accesstoken" }) {
+            assertFalse(Pattern.compile("\\b" + champ + "\\s*=\\s*\"[^\"]+\"").matcher(source).find(),
+                    "identifiant SMS ecrit dans le code : " + champ);
+        }
     }
 
     @Test

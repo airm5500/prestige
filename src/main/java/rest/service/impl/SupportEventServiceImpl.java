@@ -66,6 +66,8 @@ public class SupportEventServiceImpl implements SupportEventService {
     private EntityManager em;
     @EJB
     private SupportTicketService supportTicketService;
+    @EJB
+    private rest.service.SmsFournisseurService smsFournisseurService;
 
     @Asynchronous
     @Override
@@ -410,6 +412,11 @@ public class SupportEventServiceImpl implements SupportEventService {
         sante.put("emailSupportConfigure", StringUtils.isNotBlank(getParameterValue(KEY_SUPPORT_EMAIL)));
         sante.put("emailExpediteurConfigure", sp.expediteurConfigure());
         sante.put("smtpHost", sp.smtpHost);
+        try {
+            sante.put("sms", smsFournisseurService.etatConfiguration().toMap());
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "sante: sms", e);
+        }
         File storage = getStorageBase().toFile();
         sante.put("dossierSupport", storage.getAbsolutePath());
         sante.put("espaceDisqueLibreMo", storage.exists() ? storage.getUsableSpace() / (1024 * 1024) : -1);

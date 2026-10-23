@@ -26,24 +26,26 @@ public final class AppParameters {
 
     private static final Logger LOG = Logger.getLogger(AppParameters.class.getName());
     private static AppParameters instance;
-    public String applicationId = "MT7XwvGX6qGAPdfQ";
-    public String clientId = "fJaOlJgwU2ggcRWmIlbU9s7jY8tbsRy8";
-    public String clientSecret = "UgTURjiCK1rZtsnA";
-    public String header = "Basic ZkphT2xKZ3dVMmdnY1JXbUlsYlU5czdqWTh0YnNSeTg6VWdUVVJqaUNLMXJadHNuQQ==";
+    // identifiants de l'API SMS Orange : seulement dans dicisms.properties ou la fiche du fournisseur SMS, jamais
+    // dans le code ni dans Git (retour du 23/10)
+    public String applicationId = "";
+    public String clientId = "";
+    public String clientSecret = "";
+    public String header = "";
     // compte expediteur des mails : seulement dans le fichier de configuration (cles email et password), jamais
     // dans le code ni dans Git
     public String email = "";
     public String password = "";
-    public String pathsmsapitokenendpoint = "https://api.orange.com/oauth/v2/token";
-    public String pathsmsapisendmessageurl = "https://api.orange.com/smsmessaging/v1/outbound/tel%3A%2B225000000/requests";
-    public String senderAddress = "tel:+225000000";
+    public String pathsmsapitokenendpoint = util.sms.SmsProviderCatalog.ORANGE_TOKEN_ENDPOINT_DEFAUT;
+    public String pathsmsapisendmessageurl = util.sms.SmsProviderCatalog.ORANGE_SEND_URL_DEFAUT;
+    public String senderAddress = util.sms.SmsProviderCatalog.ORANGE_SENDER_ADDRESS_DEFAUT;
     // Consultation solde / contrats / statistiques (API Orange SMS admin).
-    public String pathsmsapiadminbaseurl = "https://api.orange.com/sms/admin/v1";
+    public String pathsmsapiadminbaseurl = util.sms.SmsProviderCatalog.ORANGE_ADMIN_BASE_URL_DEFAUT;
     // Souscription aux Delivery Receipts (DR).
-    public String pathsmsapisubscriptionurl = "https://api.orange.com/smsmessaging/v1/outbound/tel%3A%2B225000000/subscriptions";
+    public String pathsmsapisubscriptionurl = util.sms.SmsProviderCatalog.ORANGE_SUBSCRIPTION_URL_DEFAUT;
     // URL publique du callback DR de Prestige (à renseigner pour activer les DR).
     public String smsdrcallbackurl = "";
-    public String accesstoken = "kqJ1LJkaFgeBCzsy2NCeiKPF95Mb", expiresin = "7776000";
+    public String accesstoken = "", expiresin = "7776000";
     public String mobile = "", smtpHost = "smtp.gmail.com", protocol = "smtps";
     public String mailOfficine = "";
 

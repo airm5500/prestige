@@ -136,7 +136,8 @@ Ext.define('testextjs.controller.SmsFournisseurCtr', {
                 allowBlank: !param.obligatoire,
                 inputType: param.secret ? 'password' : 'text',
                 value: param.secret ? (param.definie ? me.SECRET_MASK : '') : (param.valeur || ''),
-                emptyText: param.secret && !param.definie ? 'À renseigner' : ''
+                // retour du 23/10 : indication (valeur par defaut a reprendre, ou origine de l'identifiant)
+                emptyText: param.exemple || (param.secret && !param.definie ? 'À renseigner' : '')
             };
             if (!param.secret) {
                 fieldset.add(field);

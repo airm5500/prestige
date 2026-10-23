@@ -154,6 +154,14 @@ Ext.define('testextjs.controller.SupportSanteCtr', {
         html += row('E-mail support (destinataire)', ok(data.emailSupportConfigure, 'Configuré', 'Non configuré'));
         html += row('E-mail expéditeur', ok(data.emailExpediteurConfigure, 'Configuré', 'Non configuré')
                 + ' &nbsp; SMTP : ' + Ext.String.htmlEncode(data.smtpHost || ''));
+        /* retour du 23/10 : identifiants SMS hors du code ; dit s'ils sont renseignes, et lesquels manquent */
+        const sms = data.sms || null;
+        if (sms) {
+            html += row('SMS', ok(sms.configure, 'Configuré', 'Non configuré') + ' &nbsp; '
+                    + Ext.String.htmlEncode((sms.fournisseur || 'aucun fournisseur') + (sms.enVigueur ? '' : ' (repli, aucun fournisseur en vigueur)'))
+                    + (sms.manquants && sms.manquants.length ? ' &nbsp; À renseigner (Fournisseurs SMS) : '
+                            + Ext.String.htmlEncode(sms.manquants.join(', ')) : ''));
+        }
         html += row('Dossier support', Ext.String.htmlEncode(data.dossierSupport || '')
                 + (data.espaceDisqueLibreMo >= 0 ? ' (' + data.espaceDisqueLibreMo + ' Mo libres)' : ''));
         html += '</table>';

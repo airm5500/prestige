@@ -45,6 +45,12 @@ public interface SmsFournisseurService {
     /** Fournisseur en vigueur pour les envois, ou {@code null} si aucun. */
     SmsFournisseur getEnVigueur();
 
+    /**
+     * Retour du 23/10 (sante du support) : fournisseur utilise pour les SMS (en vigueur, sinon Orange en repli),
+     * parametres obligatoires manquants (libelles, jamais de valeur) et configure = rien ne manque.
+     */
+    JSONObject etatConfiguration();
+
     /** Fournisseur par code (ORANGE, LETEXTO...), ou {@code null}. */
     SmsFournisseur findByCode(String code);
 

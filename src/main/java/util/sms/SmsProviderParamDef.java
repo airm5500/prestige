@@ -13,12 +13,23 @@ public final class SmsProviderParamDef {
     private final String libelle;
     private final boolean secret;
     private final boolean obligatoire;
+    /** Indication affichee dans le champ vide : valeur par defaut a reprendre, ou origine d'un identifiant. */
+    private final String exemple;
 
     public SmsProviderParamDef(String cle, String libelle, boolean secret, boolean obligatoire) {
+        this(cle, libelle, secret, obligatoire, "");
+    }
+
+    public SmsProviderParamDef(String cle, String libelle, boolean secret, boolean obligatoire, String exemple) {
         this.cle = cle;
         this.libelle = libelle;
         this.secret = secret;
         this.obligatoire = obligatoire;
+        this.exemple = exemple == null ? "" : exemple;
+    }
+
+    public String getExemple() {
+        return exemple;
     }
 
     public String getCle() {

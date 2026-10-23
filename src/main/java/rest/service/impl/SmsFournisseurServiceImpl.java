@@ -97,13 +97,33 @@ public class SmsFournisseurServiceImpl implements SmsFournisseurService {
             String valeur = f.getParamValue(def.getCle());
             params.put(new JSONObject().put("cle", def.getCle()).put("libelle", def.getLibelle())
                     .put("secret", def.isSecret()).put("obligatoire", def.isObligatoire())
-                    .put("definie", StringUtils.isNotBlank(valeur))
+                    .put("definie", StringUtils.isNotBlank(valeur)).put("exemple", def.getExemple())
                     .put("valeur", def.isSecret() ? "" : StringUtils.defaultString(valeur)));
         }
         return new JSONObject().put("id", f.getId()).put("code", f.getCode()).put("libelle", f.getLibelle())
                 .put("actif", f.isActif()).put("enVigueur", f.isEnVigueur()).put("dlrMode", f.getDlrMode().name())
                 .put("dlrCallbackUrl", StringUtils.defaultString(f.getDlrCallbackUrl()))
                 .put("configComplete", isConfigComplete(f)).put("params", params);
+    }
+
+    @Override
+    public JSONObject etatConfiguration() {
+        SmsFournisseur f = getEnVigueur();
+        boolean repli = f == null;
+        if (repli) {
+            // meme repli que SmsProviderFactory.current() : Orange quand aucun fournisseur n'est en vigueur
+            f = findByCode(SmsProviderCatalog.CODE_ORANGE);
+        }
+        JSONArray manquants = new JSONArray();
+        if (f != null) {
+            for (SmsProviderParamDef def : SmsProviderCatalog.paramDefs(f.getCode())) {
+                if (def.isObligatoire() && StringUtils.isBlank(f.getParamValue(def.getCle()))) {
+                    manquants.put(def.getLibelle());
+                }
+            }
+        }
+        return new JSONObject().put("fournisseur", f == null ? "" : f.getLibelle()).put("enVigueur", !repli)
+                .put("configure", f != null && manquants.length() == 0).put("manquants", manquants);
     }
 
     /** Vrai si tous les paramètres obligatoires du fournisseur sont renseignés. */
