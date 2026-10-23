@@ -25,6 +25,9 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
     await p.waitForFunction(() => Ext.ComponentQuery.query('doRetourCarnet #produit').some((x) => x.isVisible(true)), null, { timeout: 60000 });
     await p.waitForTimeout(1500);
     await choisir(p, 'doRetourCarnet #tiersPayantsExclus', 0);
+    /* le choix du tiers-payant rend le focus au champ Produit (texte selectionne) apres un court delai : on lit le
+       produit ensuite, comme au comptoir */
+    await p.waitForTimeout(2000);
     const tp = await p.evaluate(() => Ext.ComponentQuery.query('doRetourCarnet #tiersPayantsExclus')[0].getValue());
     ok('Tiers-payant choisi dans la liste', !!tp, tp);
     await cliquer(p, 'doRetourCarnet #produit');

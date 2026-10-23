@@ -204,7 +204,7 @@ Ext.define('testextjs.controller.DoRetourCarnetCtr', {
         Ext.Ajax.request({
             method: 'GET',
             headers: {'Content-Type': 'application/json'},
-            url: '../api/v2/carnet-depot/produits-one/' + field.getValue() + '/' + me.getTiersPayantsExclus().getValue(),
+            url: '../api/v2/carnet-depot/produits-one/' + encodeURIComponent(field.getValue()) + '/' + encodeURIComponent(me.getTiersPayantsExclus().getValue()),
             success: function (response, options) {
                 var result = Ext.JSON.decode(response.responseText, true);
                 if (result.success) {
