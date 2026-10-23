@@ -129,8 +129,8 @@ s(SU,'Diagnostic & bugs','Fonctionnel','Auto-diagnostic','—','1. Lancer les co
 
 # ---------------------------------------------------------------- classeur
 wb = Workbook(); ws = wb.active; ws.title = 'Cahier de recette'
-COLS = [('N°',7),('Module (menu)',22),('Écran',26),('Type de test',14),('Cas de test',38),('Prérequis',28),('Étapes',48),('Résultat attendu',48),
-        ('Priorité',10),('Testeur',14),('Date',12),('Statut',13),('Résultat obtenu / anomalie',40),('N° ticket',11)]
+COLS = [('N°',5),('Module (menu)',16),('Écran',20),('Type de test',12),('Cas de test',30),('Prérequis',22),('Étapes',40),('Résultat attendu',40),
+        ('Priorité',9),('Testeur',11),('Date',10),('Statut',10),('Résultat obtenu / anomalie',30),('N° ticket',9)]
 bleu = PatternFill('solid', start_color='1F4E78'); clair = PatternFill('solid', start_color='DDEBF7'); jaune = PatternFill('solid', start_color='FFF2CC')
 fin = Side(style='thin', color='B4C6E7'); bord = Border(left=fin, right=fin, top=fin, bottom=fin)
 
@@ -182,7 +182,11 @@ ws['I6'] = 'Statut : Non testé (vide) · OK · KO (anomalie : décrire et ouvri
 ws['I7'] = 'Exemple : Testeur « A. KONÉ » · Date 24/10/2026 · Statut KO · Résultat « Ticket imprimé sans le nom du vendeur » · Ticket « SUP-0042 ».'
 ws['I8'] = 'Tests sur la copie de travail uniquement (jamais la base de production) ; sauvegarder la base avant chaque série.'
 ws['I9'] = 'Filtrer par Module, Type ou Priorité avec les flèches d\'en-tête. Chacun des 250 écrans du menu a au moins une ligne « Ouverture et affichage ».'
-for r in range(5, 10): ws['I%d' % r].font = f(size=9)
+for r in range(5, 10):
+    ws.merge_cells('I%d:N%d' % (r, r))
+    ws['I%d' % r].font = f(size=9); ws['I%d' % r].alignment = Alignment(wrap_text=True, vertical='top')
+    ws.row_dimensions[r].height = 24
+ws.merge_cells('A1:N1')
 
 # en-tete
 H = PREM - 1
@@ -217,7 +221,16 @@ ws.conditional_formatting.add('L%d:L%d' % (PREM, DER), CellIsRule(operator='equa
 ws.freeze_panes = 'F%d' % PREM
 ws.auto_filter.ref = 'A%d:N%d' % (H, DER)
 ws.print_title_rows = '%d:%d' % (H, H)
+# impression : A4 paysage, toute la largeur sur une page (aucune colonne renvoyee sur une autre page), marges reduites
+ws.print_area = 'A1:N%d' % DER
+ws.page_setup.paperSize = ws.PAPERSIZE_A4
 ws.page_setup.orientation = 'landscape'; ws.page_setup.fitToWidth = 1; ws.page_setup.fitToHeight = 0
 ws.sheet_properties.pageSetUpPr.fitToPage = True
+ws.page_margins.left = ws.page_margins.right = 0.2
+ws.page_margins.top = 0.35; ws.page_margins.bottom = 0.35
+ws.page_margins.header = ws.page_margins.footer = 0.15
+ws.print_options.horizontalCentered = True
+ws.oddFooter.center.text = 'Page &P / &N'; ws.oddFooter.center.size = 8
+ws.oddFooter.right.text = 'Cahier de recette Prestige'; ws.oddFooter.right.size = 8
 wb.save(SORTIE)
 print(len(lignes), 'cas dont', len(S), 'scénarios métier ; lignes', PREM, 'à', DER)
