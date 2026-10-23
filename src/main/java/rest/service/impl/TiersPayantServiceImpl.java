@@ -61,10 +61,10 @@ public class TiersPayantServiceImpl implements TiersPayantService {
      */
     @Override
     public JSONObject fetchList(int start, int limit, String search, String typeTierspayant, boolean btnDesactive,
-            boolean delete, boolean modifierPlafond) {
+            boolean delete, boolean modifierPlafond, String statut) {
         JSONObject data = new JSONObject();
-        List<TTiersPayant> list = showAllOrOneTierspayant(search, typeTierspayant, start, limit);
-        int count = showAllOrOneTierspayant(search, typeTierspayant);
+        List<TTiersPayant> list = showAllOrOneTierspayant(search, typeTierspayant, statut, start, limit);
+        int count = showAllOrOneTierspayant(search, typeTierspayant, statut);
         data.put("total", count);
         JSONArray jsonarray = new JSONArray();
 
@@ -265,8 +265,8 @@ public class TiersPayantServiceImpl implements TiersPayantService {
 
     }
 
-    private List<TTiersPayant> showAllOrOneTierspayant(String searchValue, String typeTierspayant, int start,
-            int limit) {
+    private List<TTiersPayant> showAllOrOneTierspayant(String searchValue, String typeTierspayant, String statut,
+            int start, int limit) {
         List<TTiersPayant> list = new ArrayList<>();
 
         try {
@@ -278,7 +278,7 @@ public class TiersPayantServiceImpl implements TiersPayantService {
 
             cq.select(root).orderBy(cb.asc(j.get(TTypeTiersPayant_.strLIBELLETYPETIERSPAYANT)),
                     cb.asc(root.get(TTiersPayant_.strNAME)));
-            List<Predicate> predicates = predicates(searchValue, typeTierspayant, cb, root, j);
+            List<Predicate> predicates = predicates(searchValue, typeTierspayant, statut, cb, root, j);
             cq.where(cb.and(predicates.toArray(Predicate[]::new)));
             TypedQuery<TTiersPayant> q = em.createQuery(cq);
 
@@ -293,14 +293,14 @@ public class TiersPayantServiceImpl implements TiersPayantService {
         return list;
     }
 
-    private int showAllOrOneTierspayant(String searchValue, String typeTierspayant) {
+    private int showAllOrOneTierspayant(String searchValue, String typeTierspayant, String statut) {
 
         CriteriaBuilder cb = em.getCriteriaBuilder();
         CriteriaQuery<Long> cq = cb.createQuery(Long.class);
         Root<TTiersPayant> root = cq.from(TTiersPayant.class);
         Join<TTiersPayant, TTypeTiersPayant> j = root.join("lgTYPETIERSPAYANTID", JoinType.INNER);
         cq.select(cb.count(root));
-        List<Predicate> predicates = predicates(searchValue, typeTierspayant, cb, root, j);
+        List<Predicate> predicates = predicates(searchValue, typeTierspayant, statut, cb, root, j);
         cq.where(cb.and(predicates.toArray(Predicate[]::new)));
 
         Query q = em.createQuery(cq);
@@ -445,11 +445,13 @@ public class TiersPayantServiceImpl implements TiersPayantService {
         return lstTCompteClientTiersPayant;
     }
 
-    private List<Predicate> predicates(String search, String typeTierspayant, CriteriaBuilder cb,
+    private List<Predicate> predicates(String search, String typeTierspayant, String statut, CriteriaBuilder cb,
             Root<TTiersPayant> root, Join<TTiersPayant, TTypeTiersPayant> j) {
         List<Predicate> predicates = new ArrayList<>();
 
-        predicates.add(cb.equal(root.get(TTiersPayant_.strSTATUT), Constant.STATUT_ENABLE));
+        /* actifs par defaut ; « Tiers payants desactives » demande les autres (journal du 18/10) */
+        predicates.add(cb.equal(root.get(TTiersPayant_.strSTATUT),
+                Constant.STATUT_DISABLE.equals(statut) ? Constant.STATUT_DISABLE : Constant.STATUT_ENABLE));
 
         if (StringUtils.isNotEmpty(search)) {
             search = search + "%";

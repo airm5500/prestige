@@ -46,7 +46,8 @@ Ext.define('testextjs.view.tierspayantmanagement.tierspayant.TiersPayantDesactiv
 
         Me_Workflow = this;
         lg_TYPE_TIERS_PAYANT_ID = "";
-        url_services_data_tierspayant = '../webservices/tierspayantmanagement/tierspayant/ws_data.jsp?str_STATUT=disable';
+        /* journal du 18/10 : la page ws_data.jsp n'existe pas, la liste restait vide ; liste REST des tiers payants */
+        url_services_data_tierspayant = '../api/v1/tierspayant/list?str_STATUT=disable';
  url_services_pdf_tierspayant = '../webservices/tierspayantmanagement/tierspayant/ws_generate_pdf.jsp?str_STATUT=disable';
         var itemsPerPage = 20;
         var store = new Ext.data.Store({

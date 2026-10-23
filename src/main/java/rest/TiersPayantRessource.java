@@ -55,7 +55,7 @@ public class TiersPayantRessource {
     public Response fetchList(@QueryParam(value = "start") int start, @QueryParam(value = "limit") int limit,
             @QueryParam(value = "query") String query, @QueryParam(value = "search_value") String search,
             @QueryParam(value = "lg_TYPE_TIERS_PAYANT_ID") String typeTierspayant,
-            @QueryParam(value = "cmb_TYPE_TIERS_PAYANT") String id) {
+            @QueryParam(value = "cmb_TYPE_TIERS_PAYANT") String id, @QueryParam(value = "str_STATUT") String statut) {
         HttpSession hs = servletRequest.getSession();
         List<TPrivilege> privileges = (List<TPrivilege>) hs.getAttribute(Constant.USER_LIST_PRIVILEGE);
         boolean delete = DateConverter.hasAuthorityById(privileges, Util.ACTIONDELETE);
@@ -72,8 +72,10 @@ public class TiersPayantRessource {
             typeTierspayant = id;
         }
 
-        return Response.ok().entity(tiersPayantService
-                .fetchList(start, limit, search, typeTierspayant, btnDesactive, delete, modifierPlafond).toString())
+        return Response.ok()
+                .entity(tiersPayantService
+                        .fetchList(start, limit, search, typeTierspayant, btnDesactive, delete, modifierPlafond, statut)
+                        .toString())
                 .build();
     }
 
