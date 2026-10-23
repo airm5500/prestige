@@ -10,7 +10,9 @@
  *  - casse inversee (verrouillage majuscules) : message qui le dit ; aucune session ;
  *  - lecture correcte mais badge non valable (secret d'un ancien exemplaire) : « Badge non reconnu » comme avant ;
  *  - traces du serveur : la raison du refus (secret) est notee, sans le secret ;
- *  - la bonne lecture connecte toujours.
+ *  - la bonne lecture connecte toujours ;
+ *  - douchette restee en clavier americain (QWERTY) sur un poste AZERTY (cas de la Sunmi Blink 2, retour du 23/10) :
+ *    « PRESTIGE)BQDGEµ&µ... » est remis dans l'ordre et connecte, par le bouton badge comme dans « Identifiant ».
  */
 const { chromium } = require('playwright-core');
 const { execFileSync } = require('child_process');
@@ -28,6 +30,9 @@ const ANCIEN = crypto.randomBytes(32).toString('base64url');
 const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = 'admin'");
 const LIEN = q("SELECT IFNULL((SELECT id FROM t_employe WHERE lg_USER_ID = '" + ADMIN + "'), '')");
 const contenu = (s, sep) => ['PRESTIGE-BADGE', '1', NUM, 'admin', s].join(sep || '|');
+/* frappe US lue par un poste AZERTY : touches des lettres, chiffres (non majuscules), '-', '_' et '|' */
+const US = '1234567890-_|aqzwmAQZWM', FR = '&é"\'(-è_çà)°µqawz,QAWZ?';
+const qwertySurAzerty = (t) => t.split('').map((c) => { const i = US.indexOf(c); return i < 0 ? c : FR[i]; }).join('');
 const inverse = (t) => t.split('').map((c) => (c === c.toUpperCase() ? c.toLowerCase() : c.toUpperCase())).join('');
 function nettoyer() {
   q("DELETE FROM t_rh_badge WHERE id = '" + B + "'; DELETE FROM t_employe WHERE id = '" + E + "'");
@@ -74,6 +79,18 @@ function nettoyer() {
     await scanner(p4, contenu(SECRET)).catch(() => null);
     await p4.waitForURL('**/general/**', { timeout: 30000 }).catch(() => null);
     ok('La bonne lecture connecte toujours', /general/.test(p4.url()), p4.url());
+
+    const lu = qwertySurAzerty(contenu(SECRET));
+    const p5 = await page();
+    await scanner(p5, lu).catch(() => null);
+    await p5.waitForURL('**/general/**', { timeout: 30000 }).catch(() => null);
+    ok('Douchette en QWERTY sur poste AZERTY (« ' + lu.slice(0, 22) + '… ») : connexion par le bouton badge', /general/.test(p5.url()), p5.url());
+    const p6 = await page();
+    await p6.click('#str_login');
+    await p6.keyboard.type(lu, { delay: 1 });
+    await p6.keyboard.press('Enter');
+    await p6.waitForURL('**/general/**', { timeout: 30000 }).catch(() => null);
+    ok('Même lecture dans « Identifiant » : connexion aussi', /general/.test(p6.url()), p6.url());
   } catch (e) {
     ok('Parcours sans exception', false, e.stack);
   } finally {

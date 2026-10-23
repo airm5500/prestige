@@ -52,10 +52,28 @@ class BadgeQrTest {
                 BadgeQr.defautFormat("PRESTIGE-BADGE|1|747474||" + secret));
         assertTrue(
                 BadgeQr.defautFormat("PRESTIGE-BADGE*1*747474*admin*" + secret).startsWith("1 parties au lieu de 5"));
-        assertTrue(BadgeQr.defautFormat("PRESTIGE)BQDGE*1").startsWith("prefixe PRESTIGE-BADGE absent"));
+        assertTrue(BadgeQr.defautFormat("PRESTIGE)BQDGE*1").startsWith("douchette en QWERTY, 1 parties au lieu de 5"));
+        assertTrue(BadgeQr.defautFormat("XRESTIGE*1").startsWith("prefixe PRESTIGE-BADGE absent"));
         assertEquals("prefixe en minuscules (verrouillage majuscules ?)",
                 BadgeQr.defautFormat("prestige-badge|1|747474|ADMIN|x"));
         assertEquals("lecture vide", BadgeQr.defautFormat(" "));
         assertTrue(!BadgeQr.defautFormat("PRESTIGE-BADGE|1|747474||" + secret).contains(secret));
+    }
+
+    @Test
+    void douchetteEnQwertySurPosteAzerty() {
+        String secret = "aZ-_09mMqQwW8x";
+        String imprime = BadgeQr.contenu("PGB-26-00017-K", "admin", secret);
+        StringBuilder lu = new StringBuilder();
+        for (char c : imprime.toCharArray()) {
+            int i = BadgeQr.TOUCHES_US.indexOf(c);
+            lu.append(i < 0 ? c : BadgeQr.TOUCHES_FR.charAt(i));
+        }
+        assertTrue(lu.toString().startsWith("PRESTIGE)BQDGE\u00b5&\u00b5PGB)\u00e9-)"), lu.toString());
+        assertEquals(imprime, BadgeQr.depuisQwerty(lu.toString()));
+        String[] c = BadgeQr.champs(lu.toString());
+        assertEquals("PGB-26-00017-K", c[0]);
+        assertEquals("admin", c[1]);
+        assertEquals(secret, c[2]);
     }
 }

@@ -18,6 +18,14 @@ public final class BadgeQr {
 
     public static final String PREFIXE = "PRESTIGE-BADGE";
     public static final String VERSION = "1";
+    /**
+     * Retour du 23/10 (Sunmi Blink 2) : douchette restee en clavier americain (QWERTY) sur un poste AZERTY. Chaque
+     * touche est remplacee par celle du clavier francais : « PRESTIGE-BADGE|1|... » arrive en « PRESTIGE)BQDGEµ&µ... ».
+     * US : caractere du QR ; FR : ce que le poste en recoit (lettres permutees, chiffres sans majuscule, - _ |).
+     */
+    static final String TOUCHES_US = "1234567890-_|aqzwmAQZWM";
+    static final String TOUCHES_FR = "&\u00e9\"'(-\u00e8_\u00e7\u00e0)\u00b0\u00b5qawz,QAWZ?";
+    public static final String PREFIXE_QWERTY = "PRESTIGE)BQDGE";
     private static final SecureRandom HASARD = new SecureRandom();
 
     private BadgeQr() {
@@ -56,7 +64,11 @@ public final class BadgeQr {
         if (lu == null) {
             return null;
         }
-        String[] p = lu.trim().split("\\|", -1);
+        String v = lu.trim();
+        if (v.startsWith(PREFIXE_QWERTY)) {
+            v = depuisQwerty(v);
+        }
+        String[] p = v.split("\\|", -1);
         if (p.length != 5 || !PREFIXE.equals(p[0]) || !VERSION.equals(p[1])) {
             return null;
         }
@@ -68,6 +80,16 @@ public final class BadgeQr {
         return new String[] { p[2].trim(), p[3].trim(), p[4].trim() };
     }
 
+    /** Contenu lu par une douchette en QWERTY sur un poste AZERTY, remis tel qu'il est imprime. */
+    public static String depuisQwerty(String lu) {
+        StringBuilder sb = new StringBuilder(lu.length());
+        for (char c : lu.toCharArray()) {
+            int i = TOUCHES_FR.indexOf(c);
+            sb.append(i < 0 ? c : TOUCHES_US.charAt(i));
+        }
+        return sb.toString();
+    }
+
     /**
      * Retour du 23/10 : ce qui ne va pas dans un contenu refuse par {@link #champs}, pour les traces du serveur (jamais
      * le contenu lui-meme, qui porte le secret) : prefixe, nombre de parties, version, partie vide.
@@ -77,12 +99,18 @@ public final class BadgeQr {
             return "lecture vide";
         }
         String v = lu.trim();
+        String qwerty = "";
+        if (v.startsWith(PREFIXE_QWERTY)) {
+            v = depuisQwerty(v);
+            qwerty = "douchette en QWERTY, ";
+        }
         if (!v.toUpperCase().startsWith(PREFIXE)) {
             return "prefixe PRESTIGE-BADGE absent, " + v.length() + " caracteres";
         }
         String[] p = v.split("\\|", -1);
         if (p.length != 5) {
-            return p.length + " parties au lieu de 5 (separateur | absent ou deforme), " + v.length() + " caracteres";
+            return qwerty + p.length + " parties au lieu de 5 (separateur | absent ou deforme), " + v.length()
+                    + " caracteres";
         }
         if (!PREFIXE.equals(p[0])) {
             return "prefixe en minuscules (verrouillage majuscules ?)";
@@ -93,7 +121,8 @@ public final class BadgeQr {
         String[] noms = { "numero", "login", "secret" };
         for (int i = 2; i < 5; i++) {
             if (p[i].trim().isEmpty()) {
-                return noms[i - 2] + " vide" + (i == 3 ? " (employe sans compte utilisateur a l'impression)" : "");
+                return qwerty + noms[i - 2] + " vide"
+                        + (i == 3 ? " (employe sans compte utilisateur a l'impression)" : "");
             }
         }
         return "format non reconnu";
