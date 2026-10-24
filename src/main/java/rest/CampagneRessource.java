@@ -215,8 +215,19 @@ public class CampagneRessource {
         }
         JSONObject o = corps(c);
         try {
-            JSONObject res = service.envoyer(Filtres.depuis(o), o.optString("modeleId", null),
-                    o.optString("message", null), utilisateur().getLgUSERID());
+            /* retour du 24/10 : piece jointe facultative (image ou PDF), par WhatsApp Web seulement */
+            util.whatsapp.PieceJointe.Lecture p = util.whatsapp.PieceJointe.lire(o.optJSONObject("pieceJointe"));
+            if (p.refus != null) {
+                return echec(p.refus);
+            }
+            Filtres f = Filtres.depuis(o);
+            String refusCanal = p.piece == null ? null
+                    : util.whatsapp.PieceJointe.refusCanal(f.canal, whatsAppService.modeDefaut());
+            if (refusCanal != null) {
+                return echec(refusCanal);
+            }
+            JSONObject res = service.envoyer(f, o.optString("modeleId", null), o.optString("message", null),
+                    utilisateur().getLgUSERID(), p.piece);
             expedier(res);
             return ok(res);
         } catch (Exception e) {

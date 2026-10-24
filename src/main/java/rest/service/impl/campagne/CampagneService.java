@@ -456,6 +456,16 @@ public class CampagneService {
      */
     @TransactionAttribute(TransactionAttributeType.REQUIRED)
     public JSONObject envoyer(Filtres f, String modeleId, String texteLibre, String userId) {
+        return envoyer(f, modeleId, texteLibre, userId, null);
+    }
+
+    /**
+     * Meme envoi, avec une piece jointe facultative (retour du 24/10) : gardee sur la campagne, elle part avec chaque
+     * message WhatsApp (le canal et le mode WhatsApp Web sont controles par l'appelant).
+     */
+    @TransactionAttribute(TransactionAttributeType.REQUIRED)
+    public JSONObject envoyer(Filtres f, String modeleId, String texteLibre, String userId,
+            util.whatsapp.PieceJointe piece) {
         if (f.categorie == null) {
             throw new IllegalArgumentException("Catégorie de campagne inconnue.");
         }
@@ -492,6 +502,13 @@ public class CampagneService {
         }
         String id = creerCampagne(f.categorie, "MANUEL", "ENVOYEE", f.jour, f.feteCode, f.canal,
                 StringUtils.isNotBlank(texteLibre) ? null : modeleId, f.accordExplicite, userId);
+        if (piece != null) {
+            em.createNativeQuery(
+                    "UPDATE t_campagne SET piece_jointe = ?1, piece_jointe_type = ?2, piece_jointe_mime = ?3,"
+                            + " piece_jointe_nom = ?4 WHERE id = ?5")
+                    .setParameter(1, piece.donnees).setParameter(2, piece.type).setParameter(3, piece.mimeType)
+                    .setParameter(4, piece.nomFichier).setParameter(5, id).executeUpdate();
+        }
         String[] officine = officine();
         JSONArray notifications = new JSONArray(), refus = new JSONArray();
         for (String clientId : demandes) {

@@ -235,6 +235,7 @@ Ext.define('testextjs.view.campagnes.Campagnes', {
                             displayField: 't', valueField: 'v', store: Ext.create('Ext.data.Store', {fields: ['v', 't'], data: me.CANAUX}),
                             listeners: {change: function (c, v) {
                                     me.chargerModeles(me.down('#onglet-' + code), v);
+                                    me.majPieceJointe(me.down('#onglet-' + code));
                                 }}},
                         {xtype: 'checkbox', itemId: 'accord', boxLabel: 'Accord explicite seulement', checked: false},
                         {xtype: 'button', itemId: 'voir', text: 'Voir les destinataires', iconCls: 'fa fa-search', handler: function () {
@@ -259,6 +260,18 @@ Ext.define('testextjs.view.campagnes.Campagnes', {
                                                 me.apercu(me.down('#onglet-' + code));
                                             }}}},
                                 {xtype: 'component', itemId: 'variables', html: '<div class="cmp-compte">Variables : {prenom} {nom} {client} {officine} {telephone_officine} {fete} {age}</div>'},
+                                /* retour du 24/10 (repris du CRM) : piece jointe facultative, par WhatsApp seulement */
+                                {xtype: 'container', itemId: 'zonePiece', hidden: true, margin: '6 0 0 0', layout: {type: 'hbox', align: 'middle'}, items: [
+                                        {xtype: 'filefield', itemId: 'piece', buttonOnly: true, buttonText: 'Joindre une image ou un PDF', hideLabel: true,
+                                            buttonConfig: {iconCls: 'fa fa-paperclip', tooltip: 'Image JPEG ou PNG, ou document PDF, 5 Mo au plus : envoyé avec le message en légende'},
+                                            listeners: {change: function (champ) {
+                                                    me.lirePieceJointe(me.down('#onglet-' + code), champ);
+                                                }}},
+                                        {xtype: 'component', itemId: 'nomPiece', flex: 1, margin: '0 0 0 8', html: ''},
+                                        {xtype: 'button', itemId: 'retirerPiece', hidden: true, text: 'Retirer', iconCls: 'fa fa-times', handler: function () {
+                                                me.retirerPieceJointe(me.down('#onglet-' + code));
+                                            }}
+                                    ]},
                                 {xtype: 'component', margin: '8 0 0 0', html: '<b>Aperçu</b>'},
                                 {xtype: 'component', itemId: 'apercu', html: '<div class="cmp-apercu"></div>'},
                                 {xtype: 'button', itemId: 'envoyer', margin: '10 0 0 0', scale: 'medium', text: 'Envoyer', disabled: true, iconCls: 'fa fa-paper-plane', handler: function (b) {
@@ -384,6 +397,60 @@ Ext.define('testextjs.view.campagnes.Campagnes', {
         });
     },
 
+    /* ============================================================================================ piece jointe */
+
+    PIECE_MAX: 5 * 1024 * 1024,
+
+    /** La piece jointe n'est proposee que pour un canal WhatsApp ; changer pour SMS la retire. */
+    majPieceJointe: function (o) {
+        var z = o && o.down('#zonePiece');
+        if (!z) {
+            return;
+        }
+        var wa = /WHATSAPP/.test(o.down('#canal').getValue() || '');
+        z.setVisible(wa);
+        if (!wa) {
+            this.retirerPieceJointe(o);
+        }
+    },
+
+    lirePieceJointe: function (o, champ) {
+        var me = this, fichier = champ.fileInputEl && champ.fileInputEl.dom.files && champ.fileInputEl.dom.files[0];
+        if (!fichier) {
+            return;
+        }
+        if (fichier.size > me.PIECE_MAX) {
+            me.etat(o, 'Pièce jointe trop lourde (5 Mo au plus).', 'cmp-erreur');
+            champ.reset();
+            return;
+        }
+        if (!/^(image\/(jpeg|png)|application\/pdf)$/.test(fichier.type)) {
+            me.etat(o, 'La pièce jointe doit être une image JPEG, PNG ou un document PDF.', 'cmp-erreur');
+            champ.reset();
+            return;
+        }
+        var lecteur = new FileReader();
+        lecteur.onload = function () {
+            var r = String(lecteur.result || '');
+            o.pieceJointe = {base64: r.substring(r.indexOf(',') + 1), nomFichier: fichier.name};
+            o.down('#nomPiece').update('<span class="cmp-compte"><i class="fa ' + (fichier.type === 'application/pdf' ? 'fa-file-pdf-o' : 'fa-file-image-o')
+                    + '"></i> ' + me.esc(fichier.name) + ' (' + Math.max(1, Math.round(fichier.size / 1024)) + ' Ko)</span>');
+            o.down('#retirerPiece').show();
+            me.etat(o, '', '');
+        };
+        lecteur.readAsDataURL(fichier);
+        champ.reset();
+    },
+
+    retirerPieceJointe: function (o) {
+        if (!o || !o.down('#nomPiece')) {
+            return;
+        }
+        o.pieceJointe = null;
+        o.down('#nomPiece').update('');
+        o.down('#retirerPiece').hide();
+    },
+
     envoyer: function (o, b) {
         var me = this, g = o.down('#destinataires'), ids = Ext.Array.map(g.getSelectionModel().getSelection(), function (r) {
             return r.get('clientId');
@@ -398,6 +465,9 @@ Ext.define('testextjs.view.campagnes.Campagnes', {
         }
         me.confirmer(b, 'Confirmer l\'envoi à ' + ids.length + ' client(s)', function () {
             f.clientIds = ids;
+            if (o.pieceJointe && /WHATSAPP/.test(f.canal || '')) {
+                f.pieceJointe = o.pieceJointe;
+            }
             b.disable();
             me.appel('POST', 'envoyer', f, function (r) {
                 if (!r.success) {
@@ -406,6 +476,7 @@ Ext.define('testextjs.view.campagnes.Campagnes', {
                     return;
                 }
                 me.etat(o, r.message, 'cmp-ok');
+                me.retirerPieceJointe(o);
                 g.getSelectionModel().deselectAll();
                 me.majBoutonEnvoi(o, 0);
             });

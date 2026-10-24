@@ -24,6 +24,7 @@ import rest.service.SmsService;
 import rest.service.WhatsAppService;
 import util.TelephoneCi;
 import util.whatsapp.WhatsAppCompte;
+import util.whatsapp.PieceJointe;
 import util.whatsapp.WhatsAppEnvoi;
 import util.whatsapp.WhatsAppWebhook;
 
@@ -73,7 +74,8 @@ public class WhatsAppServiceImpl implements WhatsAppService {
         return c;
     }
 
-    String modeDefaut() {
+    @Override
+    public String modeDefaut() {
         String v = parametre(MODE_DEFAUT, WhatsAppCompte.API);
         return WhatsAppCompte.WEB.equalsIgnoreCase(StringUtils.trimToEmpty(v)) ? WhatsAppCompte.WEB
                 : WhatsAppCompte.API;
@@ -205,6 +207,8 @@ public class WhatsAppServiceImpl implements WhatsAppService {
             return refus("Notification introuvable.");
         }
         WhatsAppCompte c = compte(modeDefaut());
+        /* retour du 24/10 : piece jointe de la campagne a laquelle appartient la notification */
+        PieceJointe piece = pieceDeLaCampagne(notificationId);
         int envoyes = 0;
         List<NotificationClient> nonServis = new ArrayList<>();
         for (NotificationClient nc : n.getNotificationClients()) {
@@ -220,7 +224,7 @@ public class WhatsAppServiceImpl implements WhatsAppService {
             } else if (!tel.isValide()) {
                 r = WhatsAppEnvoi.Resultat.refuse("Numéro invalide");
             } else {
-                r = WhatsAppEnvoi.envoyer(c, tel.getInternational(), n.getMessage());
+                r = WhatsAppEnvoi.envoyer(c, tel.getInternational(), n.getMessage(), piece);
             }
             boolean repli = !r.accepte && repliSms && !Boolean.FALSE.equals(tc.getBoolCONSENTSMS());
             journaliser(n.getId(), tc.getLgCLIENTID(), tel.isValide() ? tel.getLocal() : null,
@@ -249,6 +253,21 @@ public class WhatsAppServiceImpl implements WhatsAppService {
                 new Object[] { notificationId, envoyes, nonServis.size() });
         return new JSONObject().put("success", true).put("envoyes", envoyes).put("repli", nonServis.size())
                 .put("repliNotificationId", repliId == null ? JSONObject.NULL : repliId);
+    }
+
+    /** Piece jointe de la campagne d'une notification, ou null (pas de campagne, ou campagne sans piece). */
+    @SuppressWarnings("unchecked")
+    private PieceJointe pieceDeLaCampagne(String notificationId) {
+        List<Object[]> r = em
+                .createNativeQuery("SELECT c.piece_jointe_type, c.piece_jointe_mime, c.piece_jointe_nom,"
+                        + " c.piece_jointe FROM t_campagne_ligne l JOIN t_campagne c ON c.id = l.campagne_id"
+                        + " WHERE l.lg_NOTIFICATION_ID = ?1 AND c.piece_jointe IS NOT NULL")
+                .setParameter(1, notificationId).setMaxResults(1).getResultList();
+        if (r.isEmpty()) {
+            return null;
+        }
+        Object[] l = r.get(0);
+        return new PieceJointe((String) l[0], (String) l[1], (String) l[2], (byte[]) l[3]);
     }
 
     @Override

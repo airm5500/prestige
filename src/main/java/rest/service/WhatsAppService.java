@@ -50,6 +50,9 @@ public interface WhatsAppService {
     /** Notification du service compagnon WhatsApp Web (jeton partage). */
     boolean webhookWeb(String corpsBrut, String jeton);
 
+    /** Mode d'envoi par defaut : API (Meta) ou WEB (service WhatsApp Web). */
+    String modeDefaut();
+
     /** Derniers envois (sans le texte des messages). */
     JSONObject journal(int limite);
 }

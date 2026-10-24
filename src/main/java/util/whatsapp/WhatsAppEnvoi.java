@@ -13,7 +13,8 @@ import org.json.JSONObject;
 /**
  * Envoi d'UN message WhatsApp selon le compte : simulation (mode test, aucun appel), Cloud API de Meta, ou service
  * compagnon WhatsApp Web ({@code POST <url>/messages}, {@code Authorization: Bearer <jeton>}, corps {@code {"to":
- * "225...", "text": "..."}}, reponse {@code {"id": "..."}}). Ni le jeton ni le texte ne sont journalises.
+ * "225...", "text": "...", "media": {...}}} (piece jointe facultative), reponse {@code {"id": "..."}}). Ni le jeton ni
+ * le texte ne sont journalises.
  */
 public final class WhatsAppEnvoi {
 
@@ -44,6 +45,14 @@ public final class WhatsAppEnvoi {
     }
 
     public static Resultat envoyer(WhatsAppCompte c, String numeroInternational, String texte) {
+        return envoyer(c, numeroInternational, texte, null);
+    }
+
+    /**
+     * Envoi avec une piece jointe facultative (le texte en legende) : WhatsApp Web seulement ; l'API de Meta refuse
+     * proprement plutot que d'envoyer le texte sans la piece.
+     */
+    public static Resultat envoyer(WhatsAppCompte c, String numeroInternational, String texte, PieceJointe piece) {
         if (c == null) {
             return Resultat.refuse("Aucun compte WhatsApp");
         }
@@ -55,6 +64,9 @@ public final class WhatsAppEnvoi {
         }
         if (!c.pret()) {
             return Resultat.refuse("Compte WhatsApp " + c.mode + " incomplet");
+        }
+        if (piece != null && !WhatsAppCompte.WEB.equals(c.mode)) {
+            return Resultat.refuse("Pièce jointe : envoi par WhatsApp Web seulement");
         }
         Client client = ClientBuilder.newBuilder().connectTimeout(10, TimeUnit.SECONDS)
                 .readTimeout(30, TimeUnit.SECONDS).build();
@@ -70,6 +82,9 @@ public final class WhatsAppEnvoi {
                         : Resultat.refuse("HTTP " + r.getStatus() + " " + WhatsAppCloudApi.erreur(rep));
             }
             JSONObject corps = new JSONObject().put("to", numeroInternational).put("text", texte);
+            if (piece != null) {
+                corps.put("media", piece.media());
+            }
             Response r = client.target(StringUtils.removeEnd(c.webUrl.trim(), "/") + "/messages").request()
                     .header("Authorization", "Bearer " + c.webJeton.trim())
                     .post(Entity.entity(corps.toString(), MediaType.APPLICATION_JSON));
