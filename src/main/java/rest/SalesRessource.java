@@ -686,6 +686,15 @@ public class SalesRessource {
         if (!o.getBoolean("actif")) {
             return Response.ok().entity(o.put("msg", "Lecture des étiquettes GS1 désactivée.").toString()).build();
         }
+        rest.report.pdf.Gs1.Contenu partiel = rest.report.pdf.Gs1.sansProduit(code);
+        if (partiel != null) {
+            return Response.ok()
+                    .entity(o.put("gs1", false).put("sansProduit", true)
+                            .put("msg",
+                                    String.format(Constant.MSG_GS1_SANS_PRODUIT, rest.report.pdf.Gs1.decrire(partiel)))
+                            .toString())
+                    .build();
+        }
         if (!rest.report.pdf.Gs1.estGs1(code)) {
             return Response.ok()
                     .entity(o.put("gs1", false).put("msg", "Ce code n'est pas une étiquette GS1.").toString()).build();

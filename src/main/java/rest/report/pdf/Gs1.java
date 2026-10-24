@@ -139,6 +139,36 @@ public final class Gs1 {
     }
 
     /** Lit une etiquette GS1 (forme brute ou lisible) ; champs absents a null. */
+    /**
+     * Code GS1 qui ne porte que la peremption (17) et/ou le lot (10), sans le produit (ni 01 ni 240) : souvent le
+     * code-barres lineaire imprime a cote du code produit. Rend son contenu, ou null pour toute autre forme (une
+     * longueur d'EAN ou de GTIN - 8, 12, 13, 14 chiffres - reste un code produit). Retour du 24/10.
+     */
+    /** « la péremption 01/01/2027 et le lot 012402264447 » (texte des messages). */
+    public static String decrire(Contenu c) {
+        String p = c.peremption == null ? null
+                : "la péremption " + c.peremption.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+        String l = c.lot == null ? null : "le lot " + c.lot;
+        return p != null && l != null ? p + " et " + l : p != null ? p : l;
+    }
+
+    public static Contenu sansProduit(String saisie) {
+        if (saisie == null) {
+            return null;
+        }
+        String s = normaliser(saisie);
+        if (s.matches("\\d{8}|\\d{12,14}")) {
+            return null;
+        }
+        Contenu c = lire(saisie);
+        if (c.gtin != null || c.cip != null || c.peremption == null) {
+            return null;
+        }
+        /* tout le code est la date (17), suivie eventuellement du lot (10) */
+        String chiffres = s.startsWith("(") ? s.replaceAll("[()]", "") : s.replace(String.valueOf(GS), "");
+        return chiffres.matches("17\\d{6}(10.+)?") ? c : null;
+    }
+
     public static Contenu lire(String saisie) {
         Contenu c = new Contenu();
         if (saisie == null) {

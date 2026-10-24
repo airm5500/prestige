@@ -172,4 +172,23 @@ class Gs1Test {
         String sansGrossiste = LabelSheetPdf.ligneAvecMention(f, 6f, large, "", "10/10/26", "R2");
         assertEquals("10/10/26 - R2", sansGrossiste);
     }
+
+    /** Retour du 24/10 : code-barres « péremption + lot » seul (GS1-128 à côté de l'EAN), sans le produit. */
+    @Test
+    void peremptionEtLotSansProduit() {
+        Gs1.Contenu c = Gs1.sansProduit("1727010110012402264447");
+        org.junit.jupiter.api.Assertions.assertNotNull(c);
+        org.junit.jupiter.api.Assertions.assertEquals(java.time.LocalDate.of(2027, 1, 1), c.peremption);
+        org.junit.jupiter.api.Assertions.assertEquals("012402264447", c.lot);
+        org.junit.jupiter.api.Assertions.assertNotNull(Gs1.sansProduit("1726102910012403232018"));
+        org.junit.jupiter.api.Assertions.assertNotNull(Gs1.sansProduit("(17)270101(10)ABC12"));
+        org.junit.jupiter.api.Assertions.assertNull(Gs1.sansProduit("1727010110012"),
+                "EAN-13 qui commence par 17 : un vrai code produit");
+        org.junit.jupiter.api.Assertions.assertNull(Gs1.sansProduit("01034009312345671727010110LOT1"),
+                "avec le produit : etiquette complete");
+        org.junit.jupiter.api.Assertions.assertNull(Gs1.sansProduit("3400930000000"));
+        org.junit.jupiter.api.Assertions.assertNull(Gs1.sansProduit(null));
+        org.junit.jupiter.api.Assertions.assertFalse(Gs1.estGs1("1727010110012402264447"),
+                "toujours pas une etiquette GS1 complete");
+    }
 }

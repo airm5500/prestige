@@ -789,6 +789,18 @@ public class EtiquetageProRessource {
         }
         Map<String, String> infos = rest.report.pdf.ContenuEtendu.lire(code);
         String type;
+        /* retour du 24/10 : code « peremption + lot » seul, sans le produit */
+        rest.report.pdf.Gs1.Contenu partiel = infos == null ? rest.report.pdf.Gs1.sansProduit(code) : null;
+        if (partiel != null) {
+            infos = new LinkedHashMap<>();
+            putSi(infos, rest.report.pdf.ContenuEtendu.LOT, partiel.lot);
+            putSi(infos, rest.report.pdf.ContenuEtendu.PER, partiel.peremption == null ? null
+                    : partiel.peremption.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")));
+            JSONObject o = new JSONObject().put("success", true).put("type", "GS1").put("venteAutorisee", true)
+                    .put("infos", new JSONObject(infos)).put("produit", JSONObject.NULL).put("alertes", new JSONArray()
+                            .put(String.format(Constant.MSG_GS1_SANS_PRODUIT, rest.report.pdf.Gs1.decrire(partiel))));
+            return json(o);
+        }
         if (infos != null) {
             type = infos.remove("TYPE");
         } else if (rest.report.pdf.Gs1.estGs1(code)) {
