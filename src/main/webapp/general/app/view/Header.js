@@ -76,6 +76,38 @@ Ext.define('testextjs.view.Header', {
                             testextjs.app.getController('App').onLoadNewComponent("myaccountmanager", "Mon compte", "");
                         }
                     }, {
+                        /* themes du menu (demande du 24/10) : le menu actuel par defaut, A, C ou D au choix */
+                        text: mkOptionItem('fa-table-columns', 'Affichage du menu'),
+                        cls: 'pft-item',
+                        itemId: 'affichageMenu',
+                        menu: Ext.create('Ext.menu.Menu', {
+                            cls: 'prestige-flyout-menu',
+                            plain: true,
+                            itemId: 'choixThemeMenu',
+                            defaults: {xtype: 'menucheckitem', group: 'themeMenu', cls: 'pft-item', checked: false},
+                            /* liste declaree dans correctifs-affichage.js */
+                            items: ((window.PrestigeAffichage && window.PrestigeAffichage.THEMES_MENU) || [{code: 'actuel', libelle: 'Menu actuel'}]).map(function (t) {
+                                return {text: t.libelle, theme: t.code};
+                            }),
+                            listeners: {
+                                beforeshow: function (m) {
+                                    var actuel = window.PrestigeMenu ? window.PrestigeMenu.theme() : 'actuel';
+                                    m.items.each(function (i) {
+                                        i.setChecked(i.theme === actuel, true);
+                                    });
+                                },
+                                click: function (m, item) {
+                                    if (!item || !item.theme || !window.PrestigeMenu || item.theme === window.PrestigeMenu.theme()) {
+                                        return;
+                                    }
+                                    item.setText(item.text + ' — application…');
+                                    window.PrestigeMenu.choisir(item.theme, function () {
+                                        window.location.reload();
+                                    });
+                                }
+                            }
+                        })
+                    }, {
                         text: mkOptionItem('fa-power-off', 'Deconnexion'),
                         cls: 'pft-item',
                         handler: function () {

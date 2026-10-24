@@ -737,6 +737,18 @@ window.PrestigeAffichage.isolerEcouteursRedimensionnement = function () {
     return true;
 };
 
+/*
+ * Themes du menu de navigation (demande du 24/10) : le menu actuel reste le theme par defaut ; A, C et D se choisissent
+ * par Options > Affichage du menu. Le code et le style sont dans resources/js/menu-prestige.js et
+ * resources/css/menu-prestige.css ; ils lisent les memes entrees que le menu actuel (MENUS_MASQUES compris).
+ */
+window.PrestigeAffichage.THEMES_MENU = [
+    {code: 'actuel', libelle: 'Menu actuel'},
+    {code: 'A', libelle: 'A : rail d\'icônes et volet'},
+    {code: 'C', libelle: 'C : arbre filtrable'},
+    {code: 'D', libelle: 'D : rail et arbre'}
+];
+
 /**
  * Entrees de menu masquees (retour du 24/10, valide par l'utilisateur) : actives en base mais leur ecran n'existe plus
  * dans le code (« Impossible d'ouvrir ce menu (vue … introuvable) »). Masquees a l'affichage seulement : la base

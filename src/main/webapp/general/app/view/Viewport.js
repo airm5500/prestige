@@ -21,6 +21,16 @@ Ext.define('testextjs.view.Viewport', {
     layout: {
         type: 'border'
     },
+    listeners: {
+        /* themes du menu A, C, D (resources/js/menu-prestige.js) : sans choix, le menu actuel reste tel quel */
+        afterrender: function (vp) {
+            if (window.PrestigeMenu) {
+                Ext.defer(function () {
+                    window.PrestigeMenu.demarrer(vp);
+                }, 1);
+            }
+        }
+    },
     items: [
         {xtype: 'appHeader', region: 'north'},
         {

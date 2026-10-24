@@ -70,6 +70,8 @@
         <link rel="stylesheet" type="text/css" href="resources/font-awesome-6.5.1/css/all.min.css" />
         <!-- Navigation moderne -->
         <link rel="stylesheet" type="text/css" href="resources/css/navigation.css" />
+        <!-- Themes du menu A, C, D au choix de l'utilisateur (le menu actuel reste par defaut) -->
+        <link rel="stylesheet" type="text/css" href="resources/css/menu-prestige.css" />
         <link rel="stylesheet" href="bootstrap.css">
         <!-- Header moderne (theme navy aligne sur la navigation) :
              charge APRES bootstrap.css pour primer sur le theme KitchenSink -->
@@ -88,6 +90,7 @@
         <script src="resources/js/controle-saisie.js"></script>
         <script src="resources/js/selecteur-periodes.js"></script>
         <script src="resources/js/veille-geometrie.js"></script>
+        <script src="resources/js/menu-prestige.js"></script>
         <!-- Generateur de code CIP interne : bouton « + » des fiches de creation d'article -->
         <script src="resources/js/code-cip.js"></script>
 
