@@ -39,6 +39,10 @@ const fr = (d) => d.slice(8, 10) + '/' + d.slice(5, 7);
   const err = [], dialogues = [];
   p.on('pageerror', (e) => err.push(String(e.message)));
   p.on('dialog', (d) => { dialogues.push(d.message()); d.dismiss().catch(() => {}); });
+  /* diagnostic : chaque reponse de la carte (date demandee, semaine rendue, total) */
+  const reponses = [];
+  p.on('response', async (r) => { if (/tableau-bord\/affluence/.test(r.url())) { try { const o = await r.json(); const d = o.data || o;
+    reponses.push(new URL(r.url()).searchParams.get('date') + '>' + d.debut + ':' + (d.cases || []).reduce((x, c) => x + c.ventes, 0) + '@' + Date.now() % 100000); } catch (e) { /* ignoree */ } } });
   try {
     await p.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'domcontentloaded' });
     await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
@@ -67,7 +71,7 @@ const fr = (d) => d.slice(8, 10) + '/' + d.slice(5, 7);
     await p.waitForTimeout(500);
     const L1 = q(`SELECT DATE_SUB('${L0}', INTERVAL 7 DAY)`), B1 = enBase(L1);
     v = await lire();
-    ok('« ◀ » : semaine précédente, libellé et chiffres suivent', v.libelle === attendu(L1) && v.total === B1.total && v.max === B1.max, JSON.stringify({ v, B1 }));
+    ok('« ◀ » : semaine précédente, libellé et chiffres suivent', v.libelle === attendu(L1) && v.total === B1.total && v.max === B1.max, JSON.stringify({ v, B1, reponses }));
     await p.click('[data-outils="affluence"] [data-aff="suiv"]');
     await p.waitForTimeout(500);
     v = await lire();
