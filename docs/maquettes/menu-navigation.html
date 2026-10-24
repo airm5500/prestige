@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><title>Maquette menu de navigation</title>
+<link rel="stylesheet" href="../../src/main/webapp/general/resources/font-awesome-6.5.1/css/all.min.css">
+<style>
+:root{--nuit:#0f2440;--marine:#16325a;--marine2:#1e3a5f;--trait:#2a4a74;--texte:#e8eef6;--doux:#9fb3c8;--accent:#f6c26b;--cyan:#22b8cf;--fond:#eef2f7}
+*{box-sizing:border-box}body{margin:0;font-family:"Segoe UI",Roboto,Arial,sans-serif;background:var(--fond);color:#0f172a}
+.entete{height:60px;background:linear-gradient(90deg,#13294b,#1e3a5f);display:flex;align-items:center;padding:0 18px;color:#fff;gap:14px}
+.logo{width:34px;height:34px;border-radius:9px;background:#34c27a;display:grid;place-items:center;font-weight:900;font-size:20px}
+.entete b{letter-spacing:1px}.ent-esp{flex:1}.pill{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);border-radius:18px;padding:6px 14px;font-size:13px}
+.app{display:flex;height:calc(100vh - 60px)}
+/* rail */
+.rail{width:64px;background:var(--nuit);display:flex;flex-direction:column;align-items:center;padding:10px 0;gap:4px}
+.rail .r{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;color:var(--doux);font-size:17px;position:relative}
+.rail .r.on{background:var(--marine2);color:#fff;box-shadow:inset 3px 0 0 var(--accent)}
+.rail .sep{width:32px;height:1px;background:var(--trait);margin:6px 0}
+/* panneau */
+.panneau{width:300px;background:var(--marine);color:var(--texte);display:flex;flex-direction:column;border-right:1px solid var(--trait)}
+.chercher{margin:14px;display:flex;align-items:center;gap:8px;background:#0f2440;border:1px solid var(--trait);border-radius:10px;padding:9px 12px;color:var(--doux);font-size:13px}
+.chercher kbd{margin-left:auto;font-size:11px;background:#21416b;border-radius:5px;padding:1px 6px;color:#cbd5e1}
+.titre-s{font-size:10.5px;letter-spacing:1.2px;color:var(--doux);margin:10px 18px 6px;font-weight:700}
+.fav{display:flex;flex-wrap:wrap;gap:6px;margin:0 14px 6px}
+.fav span{background:#21416b;border-radius:14px;padding:5px 10px;font-size:12px;display:flex;gap:6px;align-items:center}
+.fav i{color:var(--accent);font-size:11px}
+.mod{display:flex;align-items:center;gap:12px;padding:9px 18px;font-size:13.5px;cursor:pointer;line-height:1.25}
+.mod .ic{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;font-size:14px;flex:0 0 30px}
+.mod .n{margin-left:auto;font-size:11px;color:var(--doux)}
+.mod.on{background:linear-gradient(90deg,rgba(246,194,107,.18),transparent);box-shadow:inset 3px 0 0 var(--accent);color:#fff;font-weight:600}
+.mod:not(.on):hover{background:rgba(255,255,255,.04)}
+.pied{margin-top:auto;border-top:1px solid var(--trait);padding:12px 18px;display:flex;align-items:center;gap:10px;font-size:13px}
+.av{width:34px;height:34px;border-radius:50%;background:#2c5282;display:grid;place-items:center}
+/* volet des entrees */
+.volet{width:560px;background:#fff;box-shadow:12px 0 30px rgba(15,23,42,.18);display:flex;flex-direction:column}
+.v-tete{padding:16px 22px 10px;border-bottom:1px solid #e5eaf1;display:flex;align-items:center;gap:10px}
+.v-tete h2{margin:0;font-size:17px;color:#1e3a5f}.v-tete .sous{font-size:12px;color:#64748b}
+.v-filtre{margin-left:auto;border:1px solid #d7dee8;border-radius:8px;padding:6px 10px;font-size:12px;color:#94a3b8;width:190px}
+.grille{display:grid;grid-template-columns:1fr 1fr;gap:6px 22px;padding:14px 22px;overflow:auto}
+.grp h3{font-size:11px;letter-spacing:1px;color:#0891b2;margin:10px 0 6px;text-transform:uppercase}
+.ent{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:8px;font-size:13.5px;color:#0f172a}
+.ent i.e{width:18px;text-align:center;color:#64748b}
+.ent .st{margin-left:auto;color:#cbd5e1;font-size:12px}.ent .st.on{color:var(--accent)}
+.ent.actif{background:#eaf6fa;color:#0e5f73;font-weight:600}.ent.actif i.e{color:#0891b2}
+.ent:hover{background:#f1f5f9}
+.badge{font-size:10px;background:#fee2e2;color:#b91c1c;border-radius:9px;padding:1px 7px;margin-left:6px;font-weight:700}
+.contenu{flex:1;padding:22px;opacity:.35}
+.bloc{background:#fff;border-radius:12px;height:120px;margin-bottom:14px}
+/* recherche */
+.voile{position:fixed;inset:60px 0 0 0;background:rgba(15,23,42,.45);display:none}
+.palette{position:fixed;top:120px;left:50%;transform:translateX(-50%);width:640px;background:#fff;border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.35);display:none;overflow:hidden}
+.p-ch{display:flex;align-items:center;gap:10px;padding:16px 18px;border-bottom:1px solid #e5eaf1;font-size:16px}
+.p-ch b{color:#0f172a}.p-ch .cur{width:2px;height:20px;background:#0891b2;animation:c 1s steps(1) infinite}@keyframes c{50%{opacity:0}}
+.p-r{padding:6px}.p-l{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:9px;font-size:14px}
+.p-l small{color:#64748b;font-size:12px;margin-left:auto}.p-l.on{background:#eaf6fa}.p-l mark{background:#fde68a;border-radius:3px;padding:0 1px}
+.p-g{font-size:10.5px;letter-spacing:1px;color:#94a3b8;margin:8px 12px 4px;font-weight:700}
+.p-bas{border-top:1px solid #e5eaf1;padding:9px 16px;font-size:11.5px;color:#64748b;display:flex;gap:16px}
+.p-bas kbd{background:#f1f5f9;border:1px solid #d7dee8;border-radius:4px;padding:0 5px}
+body.recherche .voile,body.recherche .palette{display:block}
+body.replie .panneau,body.replie .volet{display:none}
+.bulle{position:absolute;left:58px;top:7px;background:#0f172a;color:#fff;font-size:12px;padding:5px 10px;border-radius:6px;white-space:nowrap;display:none}
+body.replie .r.on .bulle{display:block}
+</style></head>
+<body>
+<div class="entete"><div class="logo">+</div><b>PRESTIGE 3</b><span class="pill"><i class="fa-regular fa-clock"></i> sam. 24 oct. 2026 09:42</span><div class="ent-esp"></div>
+<span class="pill"><i class="fa-solid fa-house-medical"></i> PHIE DE GBOGUHE SARL-U</span><div class="ent-esp"></div><span class="pill"><i class="fa-solid fa-bell"></i> 2</span><span class="pill"><i class="fa-solid fa-user"></i> Super Admin</span></div>
+<div class="app">
+ <div class="rail">
+  <div class="r"><i class="fa-solid fa-magnifying-glass"></i></div><div class="r"><i class="fa-solid fa-star"></i></div><div class="sep"></div>
+  <div class="r on"><i class="fa-solid fa-cash-register"></i><span class="bulle">Service client</span></div><div class="r"><i class="fa-solid fa-briefcase"></i></div><div class="r"><i class="fa-solid fa-file-invoice"></i></div>
+  <div class="r"><i class="fa-solid fa-handshake"></i></div><div class="r"><i class="fa-solid fa-truck"></i></div><div class="r"><i class="fa-solid fa-boxes-stacked"></i></div>
+  <div class="r"><i class="fa-solid fa-sliders"></i></div><div class="r"><i class="fa-solid fa-chart-line"></i></div><div class="r"><i class="fa-solid fa-bell"></i></div>
+  <div class="r"><i class="fa-solid fa-comments"></i></div><div class="r"><i class="fa-solid fa-id-badge"></i></div><div class="r" style="margin-top:auto"><i class="fa-solid fa-headset"></i></div>
+ </div>
+ <div class="panneau">
+  <div class="chercher"><i class="fa-solid fa-magnifying-glass"></i> Rechercher un menu… <kbd>Ctrl K</kbd></div>
+  <div class="titre-s">FAVORIS</div>
+  <div class="fav"><span><i class="fa-solid fa-star"></i>Ventes</span><span><i class="fa-solid fa-star"></i>Pointer BL</span><span><i class="fa-solid fa-star"></i>Pilotage</span><span><i class="fa-solid fa-star"></i>Inventaire</span></div>
+  <div class="titre-s">MODULES</div>
+  <div class="mod on"><span class="ic" style="background:#2563eb33;color:#93c5fd"><i class="fa-solid fa-cash-register"></i></span>Service client<span class="n">17</span></div>
+  <div class="mod"><span class="ic" style="background:#7c3aed33;color:#c4b5fd"><i class="fa-solid fa-briefcase"></i></span>Gestion courante<span class="n">9</span></div>
+  <div class="mod"><span class="ic" style="background:#db277733;color:#f9a8d4"><i class="fa-solid fa-file-invoice"></i></span>Facturation<span class="n">6</span></div>
+  <div class="mod"><span class="ic" style="background:#0891b233;color:#67e8f9"><i class="fa-solid fa-handshake"></i></span>Tiers payants<span class="n">8</span></div>
+  <div class="mod"><span class="ic" style="background:#ea580c33;color:#fdba74"><i class="fa-solid fa-truck"></i></span>Commandes<span class="n">11</span></div>
+  <div class="mod"><span class="ic" style="background:#16a34a33;color:#86efac"><i class="fa-solid fa-boxes-stacked"></i></span>Stock<span class="n">14</span></div>
+  <div class="mod"><span class="ic" style="background:#64748b44;color:#cbd5e1"><i class="fa-solid fa-sliders"></i></span>Paramétrages<span class="n">12</span></div>
+  <div class="mod"><span class="ic" style="background:#0d948833;color:#5eead4"><i class="fa-solid fa-right-left"></i></span>Rétrocession<span class="n">3</span></div>
+  <div class="mod"><span class="ic" style="background:#ca8a0433;color:#fde047"><i class="fa-solid fa-chart-line"></i></span>Analyse de gestion<span class="n">22</span></div>
+  <div class="mod"><span class="ic" style="background:#dc262633;color:#fca5a5"><i class="fa-solid fa-bell"></i></span>Notifications<span class="n">4</span></div>
+  <div class="mod"><span class="ic" style="background:#4f46e533;color:#a5b4fc"><i class="fa-solid fa-users-gear"></i></span>Utilisateurs<span class="n">5</span></div>
+  <div class="mod"><span class="ic" style="background:#16a34a33;color:#86efac"><i class="fa-brands fa-whatsapp"></i></span>Campagnes SMS / WhatsApp<span class="n">2</span></div>
+  <div class="mod"><span class="ic" style="background:#0891b233;color:#67e8f9"><i class="fa-solid fa-id-badge"></i></span>Ressources humaines<span class="n">4</span></div>
+  <div class="mod"><span class="ic" style="background:#2563eb33;color:#93c5fd"><i class="fa-solid fa-comment-dots"></i></span>Avis clients<span class="n">2</span></div>
+  <div class="pied"><span class="av"><i class="fa-solid fa-user"></i></span><div>Super Admin<br><span style="font-size:11px;color:var(--doux)">Profil · Centre de support</span></div><i class="fa-solid fa-angles-left" style="margin-left:auto;color:var(--doux)" title="Replier"></i></div>
+ </div>
+ <div class="volet">
+  <div class="v-tete"><div><h2>Service client</h2><div class="sous">17 écrans · regroupés par usage</div></div><div class="v-filtre"><i class="fa-solid fa-filter"></i> Filtrer…</div></div>
+  <div class="grille">
+   <div class="grp"><h3><i class="fa-solid fa-cart-shopping"></i> Vendre</h3>
+    <div class="ent actif"><i class="fa-solid fa-cart-plus e"></i>Ventes<span class="st on">★</span></div>
+    <div class="ent"><i class="fa-solid fa-hourglass-half e"></i>Pré-vente<span class="st">☆</span></div>
+    <div class="ent"><i class="fa-solid fa-warehouse e"></i>Vente dépôt<span class="st">☆</span></div>
+    <div class="ent"><i class="fa-solid fa-file-lines e"></i>Proforma<span class="st">☆</span></div>
+   </div>
+   <div class="grp"><h3><i class="fa-solid fa-cash-register"></i> Caisse</h3>
+    <div class="ent"><i class="fa-solid fa-lock-open e"></i>Ouverture de caisse<span class="st">☆</span></div>
+    <div class="ent"><i class="fa-solid fa-coins e"></i>Fonds de caisse<span class="st">☆</span></div>
+    <div class="ent"><i class="fa-solid fa-lock e"></i>Clôture de caisse<span class="st">☆</span></div>
+    <div class="ent"><i class="fa-solid fa-arrow-right-from-bracket e"></i>Retraits et abandons<span class="st">☆</span></div>
+   </div>
+   <div class="grp"><h3><i class="fa-solid fa-list-check"></i> Suivi des ventes</h3>
+    <div class="ent"><i class="fa-solid fa-circle-check e"></i>Ventes terminées<span class="st">☆</span></div>
+    <div class="ent"><i class="fa-solid fa-ban e"></i>Ventes annulées<span class="st">☆</span></div>
+    <div class="ent"><i class="fa-solid fa-warehouse e"></i>Ventes dépôts<span class="st">☆</span></div>
+    <div class="ent"><i class="fa-solid fa-receipt e"></i>Avoirs<span class="badge">3</span><span class="st">☆</span></div>
+    <div class="ent"><i class="fa-solid fa-trash-can e"></i>Corbeille des ventes<span class="st">☆</span></div>
+   </div>
+   <div class="grp"><h3><i class="fa-solid fa-user-group"></i> Clients</h3>
+    <div class="ent"><i class="fa-solid fa-folder-open e"></i>Suivi dossier client<span class="st">☆</span></div>
+    <div class="ent"><i class="fa-solid fa-gift e"></i>Points fidélité<span class="st">☆</span></div>
+    <div class="ent"><i class="fa-solid fa-pills e"></i>Rappels traitement<span class="badge">12</span><span class="st">☆</span></div>
+    <div class="ent"><i class="fa-solid fa-prescription e"></i>Analyse posologie<span class="st">☆</span></div>
+   </div>
+  </div>
+ </div>
+ <div class="contenu"><div class="bloc"></div><div class="bloc"></div><div class="bloc"></div></div>
+</div>
+<div class="voile"></div>
+<div class="palette">
+ <div class="p-ch"><i class="fa-solid fa-magnifying-glass" style="color:#94a3b8"></i><b>clôt</b><span class="cur"></span></div>
+ <div class="p-r">
+  <div class="p-g">ÉCRANS</div>
+  <div class="p-l on"><i class="fa-solid fa-lock" style="color:#0891b2"></i><span><mark>Clôt</mark>ure de caisse</span><small>Service client › Caisse</small></div>
+  <div class="p-l"><i class="fa-solid fa-boxes-stacked" style="color:#16a34a"></i><span><mark>Clôt</mark>ure d'inventaire</span><small>Stock › Inventaire</small></div>
+  <div class="p-l"><i class="fa-solid fa-truck" style="color:#ea580c"></i><span>BL <mark>clôt</mark>urés</span><small>Commandes › Bons de livraison</small></div>
+  <div class="p-g">RÉCENTS</div>
+  <div class="p-l"><i class="fa-solid fa-clock-rotate-left" style="color:#94a3b8"></i><span>Pilotage de l'officine</span><small>Analyse de gestion</small></div>
+ </div>
+ <div class="p-bas"><span><kbd>↑</kbd> <kbd>↓</kbd> choisir</span><span><kbd>Entrée</kbd> ouvrir</span><span><kbd>Échap</kbd> fermer</span><span style="margin-left:auto">Seuls vos menus autorisés apparaissent</span></div>
+</div>
+<script>document.body.className=(location.hash||'').slice(1);</script>
+</body></html>
