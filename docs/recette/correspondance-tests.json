@@ -1,91 +1,520 @@
 {
  "_lisezmoi": "Cas du cahier de recette (rang dans la liste des scenarios metier, 0 = premier) -> tests d'ecran qui le verifient. couverture : complete ou partielle (ce qui manque est dit). Sans test : raison de la non-execution.",
- "0":  {"tests": ["securite/test-connexion.js"], "couverture": "complete"},
- "1":  {"tests": ["securite/test-connexion.js", "securite/test-sessions.js"], "couverture": "complete"},
- "2":  {"tests": ["retours/test-connexion-badge.js"], "couverture": "complete"},
- "3":  {"tests": ["retours/test-connexion-badge.js"], "couverture": "complete"},
- "4":  {"tests": ["retours/test-connexion-badge-lecture.js"], "couverture": "partielle", "manque": "frappe simulee : la vraie douchette Sunmi a ete essayee par l'officine le 23/10"},
- "5":  {"tests": ["retours/test-connexion-badge-lecture.js"], "couverture": "complete"},
- "6":  {"tests": ["retours/test-rh-badge-qr.js"], "couverture": "complete"},
- "7":  {"tests": ["retours/test-connexion-badge.js"], "couverture": "complete"},
- "8":  {"tests": ["retours/test-badge-sans-compte.js"], "couverture": "complete"},
- "9":  {"tests": ["securite/test-sessions.js"], "couverture": "partielle", "manque": "clic sur l'entree « Deconnexion » du menu non joue"},
- "10": {"tests": ["securite/test-droits-serveur.js"], "couverture": "partielle", "manque": "refus du serveur verifie ; affichage des menus par profil non compare"},
- "11": {"tests": ["retours/test-connexion-badge.js", "support/test-sms-configuration-sans-secret.js"], "couverture": "partielle", "manque": "secret du badge et identifiants SMS verifies ; pas une revue complete des journaux"},
- "12": {"tests": ["ergonomie/test-confirmation-icones-ligne.js"], "couverture": "complete"},
- "13": {"tests": ["retours/test-double-clic-fenetres.js"], "couverture": "complete"},
- "14": {"tests": ["retours/test-vente-client-standard.js"], "couverture": "partielle", "manque": "Entree et Echap verifies sur l'ecran de vente seulement"},
- "15": {"tests": ["retours/test-saisie-ecrans.js"], "couverture": "partielle", "manque": "controle « aucune nouvelle erreur au Centre de support » du parcours de saisie"},
- "16": {"tests": ["perf/test-perf-pilotage.js", "perf/test-lignes-bl-mobile.js"], "couverture": "partielle", "manque": "temps d'ouverture de chaque ecran : voir les lignes Non-regression"},
- "17": {"raison": "pas de test automatique (ouverture de caisse avec fonds) : a faire a la main"},
- "18": {"tests": ["vente/test-historique-deconditionnement.js"], "couverture": "partielle", "manque": "vente cloturee et stock verifies ; impression du ticket (imprimante) non verifiable ici"},
- "19": {"tests": ["vente/test-deuxieme-assurance.js", "retours/test-vente-client-standard.js"], "couverture": "partielle", "manque": "assure choisi et parts d'assurance modifiees ; vente assurance complete jusqu'a la cloture non jouee"},
- "20": {"raison": "pas de test automatique de vente carnet complete : a faire a la main"},
- "21": {"tests": ["journal/test-vente-changer-tiers-payant.js"], "couverture": "complete"},
- "22": {"tests": ["journal/test-vente-vendeur-inconnu.js"], "couverture": "complete"},
- "23": {"tests": ["journal/test-vente-vendeur-inconnu.js"], "couverture": "complete"},
- "24": {"tests": ["journal/test-vente-quantite-decimale.js"], "couverture": "complete"},
- "25": {"tests": ["journal/test-scan-qr-publicitaire.js"], "couverture": "complete"},
- "26": {"tests": ["retours/test-etiquettes-gs1.js", "retours/test-gs1-controle-lot.js"], "couverture": "complete"},
- "27": {"tests": ["retours/test-paiement-points.js"], "couverture": "complete"},
- "28": {"tests": ["vente/test-historique-deconditionnement.js"], "couverture": "complete"},
- "29": {"tests": ["retours/test-vente-client-standard.js"], "couverture": "complete"},
- "30": {"tests": ["retours/test-prevente.js", "securite/test-cloture-vente-profil-prevente.js"], "couverture": "complete"},
- "31": {"tests": ["retours/test-vente-en-depot.js", "securite/test-vente-depot-cloture.js"], "couverture": "complete"},
- "32": {"tests": ["retours/test-annulation-vente-double.js"], "couverture": "complete"},
- "33": {"raison": "impression du ticket : imprimante absente ici, a faire a la main"},
- "34": {"tests": ["retours/test-proforma.js"], "couverture": "partielle", "manque": "ajout et retrait de lignes verifies ; impression non verifiee"},
- "35": {"raison": "pas de test automatique de cloture de caisse (billetage) : a faire a la main"},
- "36": {"tests": ["etape3/test-ordonnancier.js"], "couverture": "complete"},
- "37": {"tests": ["retours/test-fidelite.js"], "couverture": "complete"},
- "38": {"tests": ["retours/test-rappels-habitude.js"], "couverture": "complete"},
- "39": {"raison": "pas de test automatique du ticket Z : a faire a la main"},
- "40": {"raison": "pas de test automatique des totaux de la balance (ouverture : voir la ligne Non-regression) : a faire a la main"},
- "41": {"tests": ["caisse/test-mvt-caisse.js"], "couverture": "complete"},
- "42": {"tests": ["retours/test-differes-reglement.js"], "couverture": "complete"},
- "43": {"tests": ["facturation/test-cachet-facture.js"], "couverture": "partielle", "manque": "edition d'une facture existante verifiee ; generation des factures d'un organisme non jouee"},
- "44": {"tests": ["reglement/test-liste-reglements.js"], "couverture": "partielle", "manque": "liste et exports verifies ; saisie d'un reglement de facture non jouee"},
- "45": {"tests": ["etape2/test-tp-maj-selective.js"], "couverture": "partielle", "manque": "modification verifiee ; creation non jouee"},
- "46": {"tests": ["journal/test-tiers-payants-desactives.js"], "couverture": "complete"},
- "47": {"raison": "pas de test automatique de creation de client assure : a faire a la main"},
- "48": {"tests": ["journal/test-retour-carnet-code-encode.js"], "couverture": "complete"},
- "49": {"raison": "pas de test automatique des montants de la balance agee : a faire a la main"},
- "50": {"tests": ["retours/test-suggestion-reserve.js"], "couverture": "complete"},
- "51": {"tests": ["retours/test-commande-pharmaml-v3.js"], "couverture": "partielle", "manque": "envoi a un faux grossiste local ; vrai grossiste PharmaML non joignable ici"},
- "52": {"tests": ["retours/test-decision-12-reception-bl.js"], "couverture": "complete"},
- "53": {"tests": ["perf/test-lignes-bl-mobile.js"], "couverture": "complete"},
- "54": {"tests": ["retours/test-reception-etiquettes.js"], "couverture": "complete"},
- "55": {"tests": ["retours/test-pointage-bl.js", "retours/test-releve-modele.js"], "couverture": "complete"},
- "56": {"tests": ["retours/test-retour-fournisseur-stock.js", "retours/test-decision-17-d7-retour-motif.js"], "couverture": "complete"},
- "57": {"tests": ["achats/test-controle-achats.js"], "couverture": "complete"},
- "58": {"tests": ["retours/test-peremptions-courtes-ecran.js"], "couverture": "complete"},
- "59": {"tests": ["retours/test-fiche-article-sans-jsp.js"], "couverture": "partielle", "manque": "fiche par l'API REST verifiee ; trace du prix dans le mouchard non verifiee ici"},
- "60": {"tests": ["retours/test-inventaire-creation-produits.js", "retours/test-inventaire-saisie-cloture.js"], "couverture": "complete"},
- "61": {"tests": ["retours/test-ajustement-integrite.js"], "couverture": "complete"},
- "62": {"raison": "pas de test automatique de saisie des perimes : a faire a la main"},
- "63": {"tests": ["retours/test-reserve-ajout-ligne.js"], "couverture": "partielle", "manque": "ajout de ligne verifie ; reassort vers le rayon non joue"},
- "64": {"tests": ["retours/test-etiquetage-pro.js"], "couverture": "partielle", "manque": "PDF verifie ; impression sur l'imprimante d'etiquettes non verifiable ici"},
- "65": {"tests": ["retours/test-valorisation-archivee.js"], "couverture": "complete"},
- "66": {"tests": ["retours/test-pilotage.js"], "couverture": "complete"},
- "67": {"tests": ["perf/test-perf-pilotage.js"], "couverture": "partielle", "manque": "mesure sur le poste ; application mobile non jouee ici"},
- "68": {"tests": ["perf/test-statistique-rayon-grossiste.js"], "couverture": "complete"},
- "69": {"raison": "pas de test automatique de l'export ABC : a faire a la main"},
- "70": {"tests": ["etape5/test-gardes.js"], "couverture": "complete"},
- "71": {"tests": ["support/test-sms-configuration-sans-secret.js"], "couverture": "partielle", "manque": "fiche et indications verifiees ; test d'envoi et mise en vigueur demandent de vrais identifiants"},
- "72": {"raison": "pas de test automatique du masquage dans la fiche : a faire a la main"},
- "73": {"tests": ["retours/test-parametres-rubriques.js"], "couverture": "partielle", "manque": "affichage par rubrique verifie ; prise en compte d'une modification non jouee"},
- "74": {"raison": "pas de test automatique : a faire a la main"},
- "75": {"raison": "pas de test automatique (renvoi d'un SMS reel) : a faire a la main"},
- "76": {"tests": ["campagnes/test-campagnes.js"], "couverture": "complete"},
- "77": {"tests": ["retours/test-rh.js"], "couverture": "complete"},
- "78": {"tests": ["retours/test-rh-badge-qr.js"], "couverture": "partielle", "manque": "PDF et QR verifies ; impression sur carte PVC non verifiable ici"},
- "79": {"tests": ["retours/test-rh-badge-qr.js"], "couverture": "complete"},
- "80": {"tests": ["retours/test-rh-badge-qr.js"], "couverture": "complete"},
- "81": {"tests": ["retours/test-badge-sans-compte.js"], "couverture": "complete"},
- "82": {"tests": ["retours/test-rh-badges.js"], "couverture": "complete"},
- "83": {"tests": ["retours/test-rh-pointage.js", "retours/test-demandes-51-52-pointage.js"], "couverture": "complete"},
- "84": {"tests": ["support/test-sms-configuration-sans-secret.js"], "couverture": "partielle", "manque": "ligne SMS verifiee ; les autres lignes de la sante ne sont qu'affichees"},
- "85": {"tests": ["support/test-sms-configuration-sans-secret.js"], "couverture": "complete"},
- "86": {"raison": "envoi d'une demande par e-mail : expediteur reel non configure ici, a faire a la main"},
- "87": {"tests": ["support/test-preflight-migrations.js"], "couverture": "complete"}
+ "0": {
+  "tests": [
+   "securite/test-connexion.js"
+  ],
+  "couverture": "complete"
+ },
+ "1": {
+  "tests": [
+   "securite/test-connexion.js",
+   "securite/test-sessions.js"
+  ],
+  "couverture": "complete"
+ },
+ "2": {
+  "tests": [
+   "retours/test-connexion-badge.js"
+  ],
+  "couverture": "complete"
+ },
+ "3": {
+  "tests": [
+   "retours/test-connexion-badge.js"
+  ],
+  "couverture": "complete"
+ },
+ "4": {
+  "tests": [
+   "retours/test-connexion-badge-lecture.js"
+  ],
+  "couverture": "partielle",
+  "manque": "frappe simulee : la vraie douchette Sunmi a ete essayee par l'officine le 23/10"
+ },
+ "5": {
+  "tests": [
+   "retours/test-connexion-badge-lecture.js"
+  ],
+  "couverture": "complete"
+ },
+ "6": {
+  "tests": [
+   "retours/test-rh-badge-qr.js"
+  ],
+  "couverture": "complete"
+ },
+ "7": {
+  "tests": [
+   "retours/test-connexion-badge.js"
+  ],
+  "couverture": "complete"
+ },
+ "8": {
+  "tests": [
+   "retours/test-badge-sans-compte.js"
+  ],
+  "couverture": "complete"
+ },
+ "9": {
+  "tests": [
+   "securite/test-sessions.js"
+  ],
+  "couverture": "partielle",
+  "manque": "clic sur l'entree « Deconnexion » du menu non joue"
+ },
+ "10": {
+  "tests": [
+   "securite/test-droits-serveur.js"
+  ],
+  "couverture": "partielle",
+  "manque": "refus du serveur verifie ; affichage des menus par profil non compare"
+ },
+ "11": {
+  "tests": [
+   "retours/test-connexion-badge.js",
+   "support/test-sms-configuration-sans-secret.js"
+  ],
+  "couverture": "partielle",
+  "manque": "secret du badge et identifiants SMS verifies ; pas une revue complete des journaux"
+ },
+ "12": {
+  "tests": [
+   "ergonomie/test-confirmation-icones-ligne.js"
+  ],
+  "couverture": "complete"
+ },
+ "13": {
+  "tests": [
+   "retours/test-double-clic-fenetres.js"
+  ],
+  "couverture": "complete"
+ },
+ "14": {
+  "tests": [
+   "retours/test-vente-client-standard.js"
+  ],
+  "couverture": "partielle",
+  "manque": "Entree et Echap verifies sur l'ecran de vente seulement"
+ },
+ "15": {
+  "tests": [
+   "retours/test-saisie-ecrans.js"
+  ]
+ },
+ "16": {
+  "tests": [
+   "perf/test-perf-pilotage.js",
+   "perf/test-lignes-bl-mobile.js"
+  ],
+  "couverture": "partielle",
+  "manque": "temps d'ouverture de chaque ecran : voir les lignes Non-regression"
+ },
+ "17": {
+  "raison": "pas de test automatique (ouverture de caisse avec fonds) : a faire a la main"
+ },
+ "18": {
+  "tests": [
+   "vente/test-historique-deconditionnement.js"
+  ],
+  "couverture": "partielle",
+  "manque": "vente cloturee et stock verifies ; impression du ticket (imprimante) non verifiable ici"
+ },
+ "19": {
+  "tests": [
+   "vente/test-deuxieme-assurance.js",
+   "retours/test-vente-client-standard.js"
+  ],
+  "couverture": "partielle",
+  "manque": "assure choisi et parts d'assurance modifiees ; vente assurance complete jusqu'a la cloture non jouee"
+ },
+ "20": {
+  "raison": "pas de test automatique de vente carnet complete : a faire a la main"
+ },
+ "21": {
+  "tests": [
+   "journal/test-vente-changer-tiers-payant.js"
+  ],
+  "couverture": "complete"
+ },
+ "22": {
+  "tests": [
+   "journal/test-vente-vendeur-inconnu.js"
+  ],
+  "couverture": "complete"
+ },
+ "23": {
+  "tests": [
+   "journal/test-vente-vendeur-inconnu.js"
+  ],
+  "couverture": "complete"
+ },
+ "24": {
+  "tests": [
+   "journal/test-vente-quantite-decimale.js"
+  ],
+  "couverture": "complete"
+ },
+ "25": {
+  "tests": [
+   "journal/test-scan-qr-publicitaire.js"
+  ],
+  "couverture": "complete"
+ },
+ "26": {
+  "tests": [
+   "retours/test-etiquettes-gs1.js",
+   "retours/test-gs1-controle-lot.js"
+  ],
+  "couverture": "complete"
+ },
+ "27": {
+  "tests": [
+   "retours/test-paiement-points.js"
+  ],
+  "couverture": "complete"
+ },
+ "28": {
+  "tests": [
+   "vente/test-historique-deconditionnement.js"
+  ],
+  "couverture": "complete"
+ },
+ "29": {
+  "tests": [
+   "retours/test-vente-client-standard.js"
+  ],
+  "couverture": "complete"
+ },
+ "30": {
+  "tests": [
+   "retours/test-prevente.js",
+   "securite/test-cloture-vente-profil-prevente.js"
+  ],
+  "couverture": "complete"
+ },
+ "31": {
+  "tests": [
+   "retours/test-vente-en-depot.js",
+   "securite/test-vente-depot-cloture.js"
+  ],
+  "couverture": "complete"
+ },
+ "32": {
+  "tests": [
+   "retours/test-annulation-vente-double.js"
+  ],
+  "couverture": "complete"
+ },
+ "33": {
+  "raison": "impression du ticket : imprimante absente ici, a faire a la main"
+ },
+ "34": {
+  "tests": [
+   "retours/test-proforma.js"
+  ],
+  "couverture": "partielle",
+  "manque": "ajout et retrait de lignes verifies ; impression non verifiee"
+ },
+ "35": {
+  "raison": "pas de test automatique de cloture de caisse (billetage) : a faire a la main"
+ },
+ "36": {
+  "tests": [
+   "etape3/test-ordonnancier.js"
+  ],
+  "couverture": "complete"
+ },
+ "37": {
+  "tests": [
+   "retours/test-fidelite.js"
+  ],
+  "couverture": "complete"
+ },
+ "38": {
+  "tests": [
+   "retours/test-rappels-habitude.js"
+  ],
+  "couverture": "complete"
+ },
+ "39": {
+  "raison": "pas de test automatique du ticket Z : a faire a la main"
+ },
+ "40": {
+  "raison": "pas de test automatique des totaux de la balance (ouverture : voir la ligne Non-regression) : a faire a la main"
+ },
+ "41": {
+  "tests": [
+   "caisse/test-mvt-caisse.js"
+  ],
+  "couverture": "complete"
+ },
+ "42": {
+  "tests": [
+   "retours/test-differes-reglement.js"
+  ],
+  "couverture": "complete"
+ },
+ "43": {
+  "tests": [
+   "facturation/test-cachet-facture.js"
+  ],
+  "couverture": "partielle",
+  "manque": "edition d'une facture existante verifiee ; generation des factures d'un organisme non jouee"
+ },
+ "44": {
+  "tests": [
+   "reglement/test-liste-reglements.js"
+  ],
+  "couverture": "partielle",
+  "manque": "liste et exports verifies ; saisie d'un reglement de facture non jouee"
+ },
+ "45": {
+  "tests": [
+   "etape2/test-tp-maj-selective.js"
+  ],
+  "couverture": "partielle",
+  "manque": "modification verifiee ; creation non jouee"
+ },
+ "46": {
+  "tests": [
+   "journal/test-tiers-payants-desactives.js"
+  ],
+  "couverture": "complete"
+ },
+ "47": {
+  "raison": "pas de test automatique de creation de client assure : a faire a la main"
+ },
+ "48": {
+  "tests": [
+   "journal/test-retour-carnet-code-encode.js"
+  ],
+  "couverture": "complete"
+ },
+ "49": {
+  "raison": "pas de test automatique des montants de la balance agee : a faire a la main"
+ },
+ "50": {
+  "tests": [
+   "retours/test-suggestion-reserve.js"
+  ],
+  "couverture": "complete"
+ },
+ "51": {
+  "tests": [
+   "retours/test-commande-pharmaml-v3.js"
+  ],
+  "couverture": "partielle",
+  "manque": "envoi a un faux grossiste local ; vrai grossiste PharmaML non joignable ici"
+ },
+ "52": {
+  "tests": [
+   "retours/test-decision-12-reception-bl.js"
+  ],
+  "couverture": "complete"
+ },
+ "53": {
+  "tests": [
+   "perf/test-lignes-bl-mobile.js"
+  ],
+  "couverture": "complete"
+ },
+ "54": {
+  "tests": [
+   "retours/test-reception-etiquettes.js"
+  ],
+  "couverture": "complete"
+ },
+ "55": {
+  "tests": [
+   "retours/test-pointage-bl.js",
+   "retours/test-releve-modele.js"
+  ],
+  "couverture": "complete"
+ },
+ "56": {
+  "tests": [
+   "retours/test-retour-fournisseur-stock.js",
+   "retours/test-decision-17-d7-retour-motif.js"
+  ],
+  "couverture": "complete"
+ },
+ "57": {
+  "tests": [
+   "achats/test-controle-achats.js"
+  ],
+  "couverture": "complete"
+ },
+ "58": {
+  "tests": [
+   "retours/test-peremptions-courtes-ecran.js"
+  ],
+  "couverture": "complete"
+ },
+ "59": {
+  "tests": [
+   "retours/test-fiche-article-sans-jsp.js"
+  ],
+  "couverture": "partielle",
+  "manque": "fiche par l'API REST verifiee ; trace du prix dans le mouchard non verifiee ici"
+ },
+ "60": {
+  "tests": [
+   "retours/test-inventaire-creation-produits.js",
+   "retours/test-inventaire-saisie-cloture.js"
+  ],
+  "couverture": "complete"
+ },
+ "61": {
+  "tests": [
+   "retours/test-ajustement-integrite.js"
+  ],
+  "couverture": "complete"
+ },
+ "62": {
+  "raison": "pas de test automatique de saisie des perimes : a faire a la main"
+ },
+ "63": {
+  "tests": [
+   "retours/test-reserve-ajout-ligne.js"
+  ],
+  "couverture": "partielle",
+  "manque": "ajout de ligne verifie ; reassort vers le rayon non joue"
+ },
+ "64": {
+  "tests": [
+   "retours/test-etiquetage-pro.js"
+  ],
+  "couverture": "partielle",
+  "manque": "PDF verifie ; impression sur l'imprimante d'etiquettes non verifiable ici"
+ },
+ "65": {
+  "tests": [
+   "retours/test-valorisation-archivee.js"
+  ],
+  "couverture": "complete"
+ },
+ "66": {
+  "tests": [
+   "retours/test-pilotage.js"
+  ],
+  "couverture": "complete"
+ },
+ "67": {
+  "tests": [
+   "perf/test-perf-pilotage.js"
+  ],
+  "couverture": "partielle",
+  "manque": "mesure sur le poste ; application mobile non jouee ici"
+ },
+ "68": {
+  "tests": [
+   "perf/test-statistique-rayon-grossiste.js"
+  ],
+  "couverture": "complete"
+ },
+ "69": {
+  "raison": "pas de test automatique de l'export ABC : a faire a la main"
+ },
+ "70": {
+  "tests": [
+   "etape5/test-gardes.js"
+  ],
+  "couverture": "complete"
+ },
+ "71": {
+  "tests": [
+   "support/test-sms-configuration-sans-secret.js"
+  ],
+  "couverture": "partielle",
+  "manque": "fiche et indications verifiees ; test d'envoi et mise en vigueur demandent de vrais identifiants"
+ },
+ "72": {
+  "raison": "pas de test automatique du masquage dans la fiche : a faire a la main"
+ },
+ "73": {
+  "tests": [
+   "retours/test-parametres-rubriques.js"
+  ],
+  "couverture": "partielle",
+  "manque": "affichage par rubrique verifie ; prise en compte d'une modification non jouee"
+ },
+ "74": {
+  "raison": "pas de test automatique : a faire a la main"
+ },
+ "75": {
+  "raison": "pas de test automatique (renvoi d'un SMS reel) : a faire a la main"
+ },
+ "76": {
+  "tests": [
+   "campagnes/test-campagnes.js"
+  ],
+  "couverture": "complete"
+ },
+ "77": {
+  "tests": [
+   "retours/test-rh.js"
+  ],
+  "couverture": "complete"
+ },
+ "78": {
+  "tests": [
+   "retours/test-rh-badge-qr.js"
+  ],
+  "couverture": "partielle",
+  "manque": "PDF et QR verifies ; impression sur carte PVC non verifiable ici"
+ },
+ "79": {
+  "tests": [
+   "retours/test-rh-badge-qr.js"
+  ],
+  "couverture": "complete"
+ },
+ "80": {
+  "tests": [
+   "retours/test-rh-badge-qr.js"
+  ],
+  "couverture": "complete"
+ },
+ "81": {
+  "tests": [
+   "retours/test-badge-sans-compte.js"
+  ],
+  "couverture": "complete"
+ },
+ "82": {
+  "tests": [
+   "retours/test-rh-badges.js"
+  ],
+  "couverture": "complete"
+ },
+ "83": {
+  "tests": [
+   "retours/test-rh-pointage.js",
+   "retours/test-demandes-51-52-pointage.js"
+  ],
+  "couverture": "complete"
+ },
+ "84": {
+  "tests": [
+   "support/test-sms-configuration-sans-secret.js"
+  ],
+  "couverture": "partielle",
+  "manque": "ligne SMS verifiee ; les autres lignes de la sante ne sont qu'affichees"
+ },
+ "85": {
+  "tests": [
+   "support/test-sms-configuration-sans-secret.js"
+  ],
+  "couverture": "complete"
+ },
+ "86": {
+  "raison": "envoi d'une demande par e-mail : expediteur reel non configure ici, a faire a la main"
+ },
+ "87": {
+  "tests": [
+   "support/test-preflight-migrations.js"
+  ],
+  "couverture": "complete"
+ }
 }
