@@ -28,6 +28,10 @@ public class ActiviteAnalysesDTO {
     /** periode precedente de meme duree (comparaison) */
     private String debutPrecedent;
     private String finPrecedent;
+    /** critere de duree retenu (retour du 24/10) */
+    private String seuilOperateur;
+    private int seuilMinutes;
+    private String seuilLibelle;
     @Builder.Default
     private List<Indicateur> indicateurs = new ArrayList<>();
     @Builder.Default

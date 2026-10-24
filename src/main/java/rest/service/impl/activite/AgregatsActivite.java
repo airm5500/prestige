@@ -30,7 +30,7 @@ import rest.service.dto.ActiviteAnalysesDTO.Tranche;
  * <ul>
  * <li>saisie d'une vente : de son ouverture a sa derniere ligne ; duree : jusqu'a l'encaissement ;</li>
  * <li>vente ecartee des moyennes : duree negative ou de plus d'une heure (vente oubliee ouverte) ;</li>
- * <li>vente longue : plus de 10 minutes (ecartees comprises) ;</li>
+ * <li>vente longue : plus de 10 minutes par defaut, critere reglable (SeuilDuree) ; ecartees comprises ;</li>
  * <li>BL : de la creation de la commande a la derniere ligne du BL ; ecarte au-dela de 4 h (commande preparee a
  * l'avance, debut reel inconnu) ;</li>
  * <li>jour travaille : jour ou au moins une vente a ete encaissee.</li>
@@ -150,13 +150,18 @@ public final class AgregatsActivite {
     }
 
     public static Totaux totaux(List<Vente> ventes, List<Bl> bls, long annulations) {
+        return totaux(ventes, bls, annulations, SeuilDuree.defaut());
+    }
+
+    /** Totaux ; « longues » compte les ventes retenues par le critere de duree choisi (retour du 24/10). */
+    public static Totaux totaux(List<Vente> ventes, List<Bl> bls, long annulations, SeuilDuree seuil) {
         Totaux t = new Totaux();
         Set<LocalDate> jours = new HashSet<>();
         for (Vente v : ventes) {
             t.ventes++;
             t.montant += v.montant;
             jours.add(v.encaissement.toLocalDate());
-            if (v.duree() > VENTE_LONGUE_SECONDES) {
+            if (seuil.retient(v.duree())) {
                 t.longues++;
             }
             if (v.retenue()) {
@@ -229,11 +234,15 @@ public final class AgregatsActivite {
     }
 
     public static List<Operateur> operateurs(List<Vente> ventes, Map<String, String> noms) {
+        return operateurs(ventes, noms, SeuilDuree.defaut());
+    }
+
+    public static List<Operateur> operateurs(List<Vente> ventes, Map<String, String> noms, SeuilDuree seuil) {
         Map<String, List<Vente>> parEmploye = new LinkedHashMap<>();
         ventes.forEach(v -> parEmploye.computeIfAbsent(v.employeId, k -> new ArrayList<>()).add(v));
         List<Operateur> l = new ArrayList<>();
         parEmploye.forEach((id, vs) -> {
-            Totaux t = totaux(vs, List.of(), 0);
+            Totaux t = totaux(vs, List.of(), 0, seuil);
             long retenues = vs.stream().filter(Vente::retenue).count();
             l.add(Operateur.builder().id(id).nom(noms.getOrDefault(id, "?")).jours(t.jours).ventes(t.ventes)
                     .ventesParJour(arrondi(t.ventesParJour()))
@@ -285,6 +294,10 @@ public final class AgregatsActivite {
 
     /** Indicateurs de la periode compares a la precedente. */
     public static List<Indicateur> indicateurs(Totaux t, Totaux p, long employesActifs) {
+        return indicateurs(t, p, employesActifs, SeuilDuree.defaut());
+    }
+
+    public static List<Indicateur> indicateurs(Totaux t, Totaux p, long employesActifs, SeuilDuree seuil) {
         List<Indicateur> l = new ArrayList<>();
         l.add(indicateur("VENTES", "Ventes encaissées", t.ventes, p.ventes, "NOMBRE", true,
                 "Ventes terminées sur la période"));
@@ -302,8 +315,9 @@ public final class AgregatsActivite {
                 "Part des BL saisis deux jours ou plus après la livraison : le stock est faux pendant ce temps"));
         l.add(indicateur("ANNULATIONS", "Ventes annulées", t.annulations, p.annulations, "NOMBRE", false,
                 "Ventes annulées sur la période"));
-        l.add(indicateur("LONGUES", "Ventes de plus de 10 min", t.longues, p.longues, "NOMBRE", false,
-                "Vente laissée ouverte, poste mal utilisé ou client hésitant"));
+        l.add(indicateur("LONGUES", seuil.libelle(), t.longues, p.longues, "NOMBRE", !seuil.versLeHaut(),
+                seuil.versLeHaut() ? "Vente laissée ouverte, poste mal utilisé ou client hésitant"
+                        : "Ventes rapides : client habitué, ordonnance simple ou vente au comptoir"));
         l.add(Indicateur.builder().code("EMPLOYES").libelle("Employés actifs").valeur(employesActifs).format("NOMBRE")
                 .hausseFavorable(true).aide("Employés ayant encaissé une vente ou entré un BL").build());
         return l;
@@ -319,6 +333,11 @@ public final class AgregatsActivite {
     /** Constats d'aide a la decision : chacun cite un chiffre de la periode et une piste concrete. */
     public static List<Constat> constats(List<Heure> heures, List<Operateur> ops, List<Grossiste> gros,
             List<Tranche> retard, List<ActiviteAnalysesDTO.Sensible> sensibles, Totaux t, Totaux p) {
+        return constats(heures, ops, gros, retard, sensibles, t, p, SeuilDuree.defaut());
+    }
+
+    public static List<Constat> constats(List<Heure> heures, List<Operateur> ops, List<Grossiste> gros,
+            List<Tranche> retard, List<ActiviteAnalysesDTO.Sensible> sensibles, Totaux t, Totaux p, SeuilDuree seuil) {
         List<Constat> l = new ArrayList<>();
         /* pic d'affluence */
         Heure pic = heures.stream().max(Comparator.comparingLong(Heure::getVentes)).orElse(null);
@@ -382,8 +401,8 @@ public final class AgregatsActivite {
                     }
                 });
         /* ventes longues */
-        if (t.ventes > 0 && t.longues * 100.0 / t.ventes >= 5) {
-            l.add(constat("CONSEIL", "Ventes laissées ouvertes", t.longues + " ventes de plus de 10 minutes ("
+        if (seuil.versLeHaut() && t.ventes > 0 && t.longues * 100.0 / t.ventes >= 5) {
+            l.add(constat("CONSEIL", "Ventes laissées ouvertes", t.longues + " " + seuil.libelle().toLowerCase() + " ("
                     + pourcent(t.longues * 100.0 / t.ventes) + ") : vérifier les postes et la mise en attente."));
         }
         /* tendance */

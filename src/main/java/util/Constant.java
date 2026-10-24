@@ -112,6 +112,10 @@ public final class Constant {
     public static final String LIBELLE_ACTIVITE_EQUIPES = "Activité des équipes";
     /** Periode la plus longue acceptee par le journal et les analyses (en jours). */
     public static final int ACTIVITE_PERIODE_MAX_JOURS = 366;
+    /** Retour du 24/10 : critere de duree des ventes (Activite des equipes), plus de 10 min par defaut. */
+    public static final String ACTIVITE_SEUIL_OPERATEUR_DEFAUT = "GT";
+    public static final int ACTIVITE_SEUIL_MINUTES_DEFAUT = 10;
+    public static final int ACTIVITE_SEUIL_MINUTES_MAX = 240;
     /**
      * Terminer une vente en depot (ecran « Vente dépôt », application mobile) : menus de vente en depot ou « Ventes ».
      */

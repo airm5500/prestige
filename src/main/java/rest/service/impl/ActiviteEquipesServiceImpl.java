@@ -26,6 +26,7 @@ import rest.service.dto.ActiviteFiltreDTO;
 import rest.service.dto.ActiviteJournalDTO;
 import rest.service.dto.ActiviteLigneDTO;
 import rest.service.impl.activite.AgregatsActivite;
+import rest.service.impl.activite.SeuilDuree;
 
 /**
  * Journal « Activité des équipes » : une branche SQL par type d'action, chacune filtree par la periode et l'employe
@@ -96,12 +97,16 @@ public class ActiviteEquipesServiceImpl implements ActiviteEquipesService {
                             + " CONCAT('Commande ', IFNULL(g.str_LIBELLE, ''), ' (', IFNULL(o.int_LINE, 0), ' lignes)') AS x"
                             + " FROM t_order o LEFT JOIN t_grossiste g ON g.lg_GROSSISTE_ID = o.lg_GROSSISTE_ID WHERE 1 = 1",
                     "o.dt_CREATED", "o.lg_USER_ID"),
+            /*
+             * NULL type (CAST) : filtre sur ce seul type, un NULL nu n'a pas de type JDBC et la requete echouait
+             * (retour du 24/10)
+             */
             new Branche("AJUSTEMENT", "Ajustement de stock",
-                    "SELECT a.dt_CREATED AS d, 'AJUSTEMENT' AS t, a.lg_USER_ID AS u, a.str_NAME AS r, NULL AS m,"
+                    "SELECT a.dt_CREATED AS d, 'AJUSTEMENT' AS t, a.lg_USER_ID AS u, a.str_NAME AS r, CAST(NULL AS SIGNED) AS m,"
                             + " CONCAT('Ajustement ', IFNULL(a.str_ZONE, '')) AS x FROM t_ajustement a WHERE 1 = 1",
                     "a.dt_CREATED", "a.lg_USER_ID"),
             new Branche("INVENTAIRE", "Inventaire créé",
-                    "SELECT i.dt_CREATED AS d, 'INVENTAIRE' AS t, i.lg_USER_ID AS u, i.str_NAME AS r, NULL AS m,"
+                    "SELECT i.dt_CREATED AS d, 'INVENTAIRE' AS t, i.lg_USER_ID AS u, i.str_NAME AS r, CAST(NULL AS SIGNED) AS m,"
                             + " 'Inventaire créé' AS x FROM t_inventaire i WHERE 1 = 1",
                     "i.dt_CREATED", "i.lg_USER_ID"),
             new Branche("RETOUR", "Retour fournisseur",
@@ -110,7 +115,7 @@ public class ActiviteEquipesServiceImpl implements ActiviteEquipesService {
                             + " LEFT JOIN t_grossiste g ON g.lg_GROSSISTE_ID = f.lg_GROSSISTE_ID WHERE 1 = 1",
                     "f.dt_CREATED", "f.lg_USER_ID"),
             new Branche("CONNEXION", "Connexion",
-                    "SELECT e.dt_CREATED AS d, 'CONNEXION' AS t, e.lg_USER_ID AS u, NULL AS r, NULL AS m,"
+                    "SELECT e.dt_CREATED AS d, 'CONNEXION' AS t, e.lg_USER_ID AS u, CAST(NULL AS CHAR(50)) AS r, CAST(NULL AS SIGNED) AS m,"
                             + " e.str_DESCRIPTION AS x FROM t_event_log e WHERE e.str_DESCRIPTION LIKE 'Authentification%'",
                     "e.dt_CREATED", "e.lg_USER_ID"));
 
@@ -193,13 +198,14 @@ public class ActiviteEquipesServiceImpl implements ActiviteEquipesService {
         long jours = ChronoUnit.DAYS.between(f.getDebut(), f.getFin()) + 1;
         LocalDate finP = f.getDebut().minusDays(1), debutP = finP.minusDays(jours - 1);
         Map<String, String> noms = noms();
+        SeuilDuree seuil = SeuilDuree.de(f.getSeuilOperateur(), f.getSeuilMinutes());
         List<AgregatsActivite.Vente> ventes = ventes(f.getDebut(), f.getFin(), f.getEmployeId());
         List<AgregatsActivite.Bl> bls = bls(f.getDebut(), f.getFin(), f.getEmployeId());
         Map<String, Long> annulations = parEmploye(SQL_ANNULATIONS, f.getDebut(), f.getFin(), f.getEmployeId());
-        AgregatsActivite.Totaux t = AgregatsActivite.totaux(ventes, bls, somme(annulations));
+        AgregatsActivite.Totaux t = AgregatsActivite.totaux(ventes, bls, somme(annulations), seuil);
         AgregatsActivite.Totaux p = AgregatsActivite.totaux(ventes(debutP, finP, f.getEmployeId()),
-                bls(debutP, finP, f.getEmployeId()),
-                somme(parEmploye(SQL_ANNULATIONS, debutP, finP, f.getEmployeId())));
+                bls(debutP, finP, f.getEmployeId()), somme(parEmploye(SQL_ANNULATIONS, debutP, finP, f.getEmployeId())),
+                seuil);
 
         Map<String, Long> ventesParEmploye = new HashMap<>();
         ventes.forEach(v -> ventesParEmploye.merge(v.employeId(), 1L, Long::sum));
@@ -207,7 +213,7 @@ public class ActiviteEquipesServiceImpl implements ActiviteEquipesService {
         bls.forEach(b -> actifs.add(b.employeId()));
 
         List<ActiviteAnalysesDTO.Heure> heures = AgregatsActivite.heures(ventes);
-        List<ActiviteAnalysesDTO.Operateur> operateurs = AgregatsActivite.operateurs(ventes, noms);
+        List<ActiviteAnalysesDTO.Operateur> operateurs = AgregatsActivite.operateurs(ventes, noms, seuil);
         List<ActiviteAnalysesDTO.Grossiste> grossistes = AgregatsActivite.grossistes(bls);
         List<ActiviteAnalysesDTO.Tranche> retard = AgregatsActivite.retardBl(bls);
         List<ActiviteAnalysesDTO.Sensible> sensibles = AgregatsActivite.sensibles(ventesParEmploye, annulations,
@@ -224,8 +230,9 @@ public class ActiviteEquipesServiceImpl implements ActiviteEquipesService {
 
         return ActiviteAnalysesDTO.builder().debut(f.getDebut().toString()).fin(f.getFin().toString())
                 .debutPrecedent(debutP.toString()).finPrecedent(finP.toString())
-                .indicateurs(AgregatsActivite.indicateurs(t, p, actifs.size()))
-                .constats(AgregatsActivite.constats(heures, operateurs, grossistes, retard, sensibles, t, p))
+                .indicateurs(AgregatsActivite.indicateurs(t, p, actifs.size(), seuil))
+                .constats(AgregatsActivite.constats(heures, operateurs, grossistes, retard, sensibles, t, p, seuil))
+                .seuilOperateur(seuil.getOperateur()).seuilMinutes(seuil.getMinutes()).seuilLibelle(seuil.libelle())
                 .heures(heures).carte(AgregatsActivite.carte(ventes)).jours(AgregatsActivite.jours(ventes, bls))
                 .operateurs(operateurs).grossistes(grossistes).retardBl(retard).sensibles(sensibles)
                 .repartition(AgregatsActivite.repartition(parType, noms)).build();

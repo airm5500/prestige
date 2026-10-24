@@ -27,4 +27,8 @@ public class ActiviteFiltreDTO {
     private String recherche;
     private int start;
     private int limit;
+    /** critere de duree des ventes : GT, GE, LT, LE (vide : GT) */
+    private String seuilOperateur;
+    /** en minutes (vide : 10) */
+    private Integer seuilMinutes;
 }

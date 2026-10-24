@@ -78,7 +78,8 @@ public class ActiviteEquipesRessource {
     @GET
     @Path("analyses")
     public Response analyses(@QueryParam("debut") String debut, @QueryParam("fin") String fin,
-            @QueryParam("employeId") String employeId) {
+            @QueryParam("employeId") String employeId, @QueryParam("seuilOperateur") String seuilOperateur,
+            @QueryParam("seuilMinutes") Integer seuilMinutes) {
         Response r = refus();
         if (r != null) {
             return r;
@@ -87,6 +88,8 @@ public class ActiviteEquipesRessource {
         if (f == null) {
             return dateInvalide();
         }
+        f.setSeuilOperateur(seuilOperateur);
+        f.setSeuilMinutes(seuilMinutes);
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("success", true);
         m.put("data", service.analyses(f));

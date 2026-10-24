@@ -33,11 +33,27 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
         /* infobulle des graphiques : taille du contenu, reste affichee tant que le curseur est sur la serie
            (meme reglage que le Pilotage, retour de l'officine du 19/09 sur les infobulles tronquees) */
         infobulle: function (rendu) {
-            return {trackMouse: true, dismissDelay: 0, hideDelay: 400, minWidth: 200, maxWidth: 480, autoHeight: true,
-                width: undefined, height: undefined, bodyStyle: 'white-space:normal;line-height:16px;padding:6px 8px;',
+            var AE = this;
+            return {trackMouse: true, dismissDelay: 0, hideDelay: 400, minWidth: 200, maxWidth: 560, autoHeight: true,
+                width: undefined, height: undefined, cls: 'ae-infobulle', bodyStyle: 'white-space:normal;line-height:16px;padding:6px 8px;',
                 renderer: function (record, item) {
-                    this.setTitle(rendu(record, item));
+                    var html = rendu(record, item);
+                    this.setTitle(html);
+                    /* retour du 24/10 : la bulle restait a 200 px et coupait les lignes (« … ») ; elle prend la
+                       largeur de sa plus longue ligne */
+                    this.setWidth(AE.largeurTexte(html));
                 }};
+        },
+        /* largeur d'un texte HTML a plusieurs lignes (<br>), mesuree dans la police des infobulles */
+        largeurTexte: function (html) {
+            var d = document.createElement('div'), w;
+            d.style.cssText = 'position:absolute;left:-9999px;top:-9999px;visibility:hidden;white-space:nowrap;'
+                    + 'font:bold 13px helvetica,arial,verdana,sans-serif;';
+            d.innerHTML = String(html).replace(/<br\s*\/?>/gi, '<div></div>').replace(/<div><\/div>/g, '<br>');
+            document.body.appendChild(d);
+            w = d.offsetWidth;
+            document.body.removeChild(d);
+            return Math.min(560, Math.max(200, w + 34));
         },
         duree: function (s) {
             s = Math.round(s || 0);
@@ -84,7 +100,17 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                     + '.ae-carte td{height:22px;text-align:center;border-radius:3px;color:#0f172a;transition:transform .12s}'
                     + '.ae-carte td.c:hover{transform:scale(1.15);box-shadow:0 0 0 2px #1e3a5f inset}'
                     + '.ae-carte th{font-weight:600;color:#64748b;padding:0 2px}'
-                    + '.ae-vide{color:#94a3b8;padding:30px;text-align:center}',
+                    + '.ae-vide{color:#94a3b8;padding:30px;text-align:center}'
+                    /* retour du 24/10 : infobulles jamais coupees */
+                    + '.ae-infobulle .x-tip-header-text,.ae-infobulle .x-title-text,.ae-infobulle .x-header-text{white-space:normal!important;'
+                    + 'overflow:visible!important;text-overflow:clip!important}'
+                    /* retour du 24/10 : cartes des graphiques - un seul cadre arrondi, en-tete clair, aide a droite */
+                    + '.ae-graphe{border:1px solid #e2e8f0!important;border-radius:12px;box-shadow:0 1px 3px rgba(15,23,42,.08);overflow:hidden;background:#fff}'
+                    + '.ae-graphe>.x-panel-header{background:#fff!important;border:0!important;border-bottom:1px solid #eef2f7!important;padding:10px 14px!important;'
+                    + 'background-image:none!important;box-shadow:none!important}'
+                    + '.ae-graphe>.x-panel-header .x-header-text,.ae-graphe>.x-panel-header .x-title-text{color:#1e3a5f!important;font-size:13px!important;font-weight:700!important}'
+                    + '.ae-graphe>.x-panel-body{border:0!important;background:#fff!important}'
+                    + '.ae-graphe .x-toolbar.ae-seuil{background:#f8fafc;border:0;border-bottom:1px solid #eef2f7;padding:4px 12px}',
                     'activite-equipes-styles');
         }
     },
@@ -167,7 +193,17 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                 },
                 load: function (st, recs, ok) {
                     var o = st.getProxy().getReader().rawData || {};
-                    me.dessinerPastilles(ok ? (o.compteurs || []) : []);
+                    if (ok) {
+                        me.dessinerPastilles(o.compteurs || []);
+                        return;
+                    }
+                    /* retour du 24/10 : un echec ne doit pas effacer les pastilles (plus moyen de revenir sans quitter
+                       le menu) ; on garde les dernieres et on rend le filtre */
+                    me.typeActif = '';
+                    me.dessinerPastilles(me.derniersCompteurs || []);
+                    if (window.PrestigeToast) {
+                        PrestigeToast.afficher(o.msg || 'Le journal n\'a pas pu être lu. Réessayez.', {niveau: 'alerte'});
+                    }
                 }
             }
         });
@@ -230,6 +266,9 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
         var me = this, c = me.down('#aePastilles');
         if (!c || !c.rendered) {
             return;
+        }
+        if (compteurs.length) {
+            me.derniersCompteurs = compteurs;
         }
         var html = Ext.Array.map(compteurs, function (x, i) {
             var couleur = me.COULEURS[x.type] || '#64748b', actif = me.typeActif === x.type;
@@ -321,10 +360,11 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
             return {type: 'Category', position: pos || 'bottom', fields: [champ || 'libelle'], title: titre || false,
                 label: {font: '11px Arial', rotate: pos === 'left' ? undefined : {degrees: 0}}};
         };
-        var axeNum = function (champs, pos, titre) {
+        var axeNum = function (champs, pos, titre, decimales) {
             return {type: 'Numeric', position: pos || 'left', fields: champs, minimum: 0, grid: pos !== 'right', title: titre || false,
                 label: {font: '11px Arial', renderer: function (v) {
-                        return N(v);
+                        /* axe de comptage : pas de demi-unite arrondie (1, 1, 2, 2...) */
+                        return decimales || v % 1 === 0 ? N(v, decimales) : '';
                     }}};
         };
 
@@ -350,7 +390,7 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                     })}]};
 
         var operateurs = {xtype: 'chart', itemId: 'gOperateurs', animate: true, shadow: false, store: me.st.operateurs,
-            axes: [axeNum(['secondesParLigne'], 'bottom', 'Secondes par ligne'), axeCat('libelle', 'left')],
+            axes: [axeNum(['secondesParLigne'], 'bottom', 'Secondes par ligne', true), axeCat('libelle', 'left')],
             series: [{type: 'bar', axis: 'bottom', xField: 'libelle', yField: 'secondesParLigne', highlight: true, renderer: couleur('#0891b2'),
                     label: {display: 'insideEnd', field: 'secondesParLigne', color: '#fff', font: '11px Arial', renderer: function (v) {
                             return N(v, true) + ' s';
@@ -359,7 +399,8 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                         return '<b>' + Ext.String.htmlEncode(r.get('libelle')) + '</b><br>' + N(r.get('secondesParLigne'), true) + ' s par ligne<br>'
                                 + N(r.get('ventes')) + ' ventes sur ' + N(r.get('jours')) + ' jours (' + N(r.get('ventesParJour'), true) + ' par jour)<br>'
                                 + N(r.get('lignesParVente'), true) + ' lignes par vente, panier ' + N(r.get('panierMoyen')) + '<br>'
-                                + N(r.get('ventesLongues')) + ' ventes de plus de 10 min<br><i>Cliquer pour ne voir que cet employé</i>';
+                                + N(r.get('ventesLongues')) + ' ' + (me.seuilLibelle || 'Ventes de plus de 10 min').toLowerCase()
+                                + '<br><i>Cliquer pour ne voir que cet employé</i>';
                     }),
                     listeners: {
                         itemmouseup: function (item) {
@@ -385,12 +426,12 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                     })}]};
 
         var longues = {xtype: 'chart', itemId: 'gLongues', animate: true, shadow: false, store: me.st.operateurs,
-            axes: [axeNum(['ventesLongues'], 'left', 'Ventes > 10 min'), axeCat('libelle', 'bottom')],
+            axes: [axeNum(['ventesLongues'], 'left', 'de plus de 10 min'), axeCat('libelle', 'bottom')],
             series: [{type: 'column', axis: 'left', xField: 'libelle', yField: 'ventesLongues', highlight: true, renderer: couleur('#e67e22'),
                     tips: AE.infobulle(function (r) {
                         var part = r.get('ventes') ? (r.get('ventesLongues') * 100 / r.get('ventes')) : 0;
-                        return '<b>' + Ext.String.htmlEncode(r.get('libelle')) + '</b><br>' + N(r.get('ventesLongues')) + ' ventes de plus de 10 min ('
-                                + N(part, true) + ' % de ses ventes)';
+                        return '<b>' + Ext.String.htmlEncode(r.get('libelle')) + '</b><br>' + N(r.get('ventesLongues')) + ' '
+                                + (me.seuilLibelle || 'Ventes de plus de 10 min').toLowerCase() + ' (' + N(part, true) + ' % de ses ventes)';
                     })}]};
 
         var sensibles = {xtype: 'chart', itemId: 'gSensibles', animate: true, shadow: false, store: me.st.sensibles, legend: {position: 'bottom'},
@@ -434,14 +475,44 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                                 + 'Un grossiste lent justifie de demander des BL électroniques.', grossistes),
                         me.cadre('cRetard', 'Délai de saisie des BL', 'Écart entre la date de livraison et l\'entrée du BL. Tant qu\'un BL n\'est pas saisi, '
                                 + 'le stock est faux.', retard),
-                        me.cadre('cLongues', 'Ventes de plus de 10 minutes', 'Vente laissée ouverte, poste mal utilisé ou client hésitant : à rapprocher '
-                                + 'des mises en attente.', longues),
+                        Ext.apply(me.cadre('cLongues', 'Ventes de plus de 10 min', 'Vente laissée ouverte, poste mal utilisé ou client hésitant : à rapprocher '
+                                + 'des mises en attente. Le critère de durée se règle au-dessus du graphique.', longues), {dockedItems: [me.barreSeuil()]}),
                         me.cadre('cSensibles', 'Actions sensibles', 'Annulations et modifications de ventes par employé ; remises dans l\'infobulle. '
                                 + 'À rapprocher de la caisse.', sensibles),
                         me.cadre('cRepartition', 'Répartition des tâches', 'Ce que fait chaque employé sur la période, par type d\'action.', repartition)
                     ]}
             ]
         });
+    },
+
+    /* retour du 24/10 : critere de duree des ventes (operateur et minutes), 10 min par defaut */
+    barreSeuil: function () {
+        var me = this, relancer = function () {
+            var m = me.down('#aeSeuilMin');
+            if (m && m.isValid() && m.getValue()) {
+                me.chargerAnalyses();
+            }
+        };
+        return {xtype: 'toolbar', dock: 'top', cls: 'ae-seuil', items: [
+                {xtype: 'tbtext', text: 'Durée de la vente'},
+                {xtype: 'combo', itemId: 'aeSeuilOp', width: 105, editable: false, queryMode: 'local', forceSelection: true, value: 'GT',
+                    store: [['GT', 'plus de'], ['GE', 'au moins'], ['LT', 'moins de'], ['LE', 'au plus']],
+                    listeners: {select: relancer}},
+                {xtype: 'numberfield', itemId: 'aeSeuilMin', width: 70, value: 10, minValue: 1, maxValue: 240, allowDecimals: false,
+                    hideTrigger: true, enforceMaxLength: true, maxLength: 3, msgTarget: 'qtip',
+                    listeners: {
+                        specialkey: function (f, e) {
+                            if (e.getKey() === e.ENTER) {
+                                relancer();
+                            }
+                        },
+                        blur: function (f) {
+                            if (me.donneesAnalyses && f.getValue() !== me.donneesAnalyses.seuilMinutes) {
+                                relancer();
+                            }
+                        }
+                    }},
+                {xtype: 'tbtext', text: 'min'}]};
     },
 
     filtrerEmploye: function (id) {
@@ -459,6 +530,10 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
             return;
         }
         a.setLoading('Calcul des analyses…');
+        if (me.down('#aeSeuilOp')) {
+            f.seuilOperateur = me.down('#aeSeuilOp').getValue();
+            f.seuilMinutes = me.down('#aeSeuilMin').getValue();
+        }
         Ext.Ajax.request({url: '../api/v1/activite-equipes/analyses', method: 'GET', params: f, timeout: 180000,
             success: function (r) {
                 if (a.isDestroyed) {
@@ -535,6 +610,14 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
             return r;
         }));
         a.down('#aeCarte').update(me.htmlCarte(d.carte));
+        if (d.seuilLibelle) {
+            me.seuilLibelle = d.seuilLibelle;
+            a.down('#cLongues').setTitle(d.seuilLibelle);
+            var axe = a.down('#gLongues').axes.getAt(0);
+            if (axe && axe.setTitle) {
+                axe.setTitle(d.seuilLibelle.replace(/^Ventes /, ''));
+            }
+        }
         /* graphique sans donnees : un message plutot qu'un cadre vide */
         Ext.each([['cHeures', 'heures'], ['cJours', 'jours'], ['cOperateurs', 'operateurs'], ['cGrossistes', 'grossistes'], ['cRetard', 'retard'],
             ['cLongues', 'operateurs'], ['cSensibles', 'sensibles'], ['cRepartition', 'repartition']], function (x) {
