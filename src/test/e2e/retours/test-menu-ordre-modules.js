@@ -4,7 +4,10 @@
  * menu pouvait s'inverser d'un chargement a l'autre. Par les vues (admin), lecture seule :
  *  - aucun des modules affiches dans le menu de l'admin ne partage sa priorite avec un autre ;
  *  - « Campagnes SMS / WhatsApp » puis « Ressources humaines » (l'ordre affiche jusqu'ici sur le banc), sur trois connexions ;
- *  - l'ordre des autres modules ne change pas (meme suite qu'avant, ces deux-la mis a part).
+ *  - l'ordre des autres modules ne change pas (meme suite qu'avant, ces deux-la mis a part) ;
+ *  - meme correction pour « Gestion des tiers-payants », « Menu pharmacien » et « Gestion des promotions » (priorite 3
+ *    toutes les trois ; les deux derniers ne sont pas dans le menu de l'admin) : en base, plus aucun module actif ne
+ *    partage sa priorite, et l'ordre est tiers-payants, menu pharmacien, promotions, juste avant les commandes.
  */
 const { chromium } = require('playwright-core');
 const { execFileSync } = require('child_process');
@@ -38,6 +41,13 @@ const AUTRES = ['SERVICE CLIENT', 'GESTION COURANTE', 'FACTURATION', 'GESTION DE
       && ordres.every((o) => JSON.stringify(o) === JSON.stringify(ordres[0])), ordres.map((o) => rh(o) + '/' + ca(o)).join(' '));
     const reste = affiches.filter((n) => n !== 'RESSOURCES HUMAINES' && n !== 'CAMPAGNES SMS / WHATSAPP');
     ok('Ordre des autres modules inchangé', JSON.stringify(reste) === JSON.stringify(AUTRES), reste.join(' | '));
+    const actifs = q("SELECT UPPER(str_VALUE), int_PRIORITY FROM t_menu WHERE str_Status = 'enable' ORDER BY int_PRIORITY").split('\n').map((l) => l.split('\t'));
+    const egaux = actifs.filter((x) => actifs.filter((y) => y[1] === x[1]).length > 1).map((x) => x.join('='));
+    ok('En base : aucun module actif ne partage sa priorité avec un autre', egaux.length === 0, egaux.join(', '));
+    const rang = (n) => actifs.findIndex((x) => x[0] === n);
+    const suite = ['FACTURATION', 'GESTION DES TIERS-PAYANTS', 'MENU PHARMACIEN', 'GESTION DES PROMOTIONS', 'GESTION DES COMMANDES'].map(rang);
+    ok('Ordre : facturation, tiers-payants, menu pharmacien, promotions, commandes', suite.every((r, i) => r >= 0 && (i === 0 || r === suite[i - 1] + 1)),
+      actifs.map((x) => x.join('=')).join(' '));
   } catch (e) {
     ok('Parcours sans exception', false, e.stack);
   } finally {
