@@ -191,4 +191,30 @@ class Gs1Test {
         org.junit.jupiter.api.Assertions.assertFalse(Gs1.estGs1("1727010110012402264447"),
                 "toujours pas une etiquette GS1 complete");
     }
+
+    /**
+     * Retour du 24/10 : la douchette (clavier) perd le separateur GS. L'etiquette Prestige 17 261029 10 01 <GS> 240
+     * 3232018 arrive collee : le lot avale le CIP. Les decoupes possibles sont proposees ; le serveur garde celle dont
+     * le CIP est un produit.
+     */
+    @Test
+    void separateurPerduDecoupesPossibles() {
+        java.util.List<Gs1.Contenu> l = Gs1.sansSeparateur("1726102910012403232018");
+        org.junit.jupiter.api.Assertions.assertEquals(1, l.size());
+        org.junit.jupiter.api.Assertions.assertEquals("01", l.get(0).lot);
+        org.junit.jupiter.api.Assertions.assertEquals("3232018", l.get(0).cip);
+        org.junit.jupiter.api.Assertions.assertEquals(java.time.LocalDate.of(2026, 10, 29), l.get(0).peremption);
+        org.junit.jupiter.api.Assertions.assertEquals("2264447",
+                Gs1.sansSeparateur("1727010110012402264447").get(0).cip);
+        /* CIP a 13 chiffres et lot qui contient lui-meme « 240 » : deux decoupes, du lot le plus court au plus long */
+        java.util.List<Gs1.Contenu> d = Gs1.sansSeparateur("172610291024012403400930000001");
+        org.junit.jupiter.api.Assertions.assertEquals("3400930000001", d.get(d.size() - 1).cip);
+        org.junit.jupiter.api.Assertions.assertTrue(Gs1.sansSeparateur("01034009312345671727010110LOT1").isEmpty(),
+                "complet : rien a decouper");
+        org.junit.jupiter.api.Assertions.assertTrue(Gs1.sansSeparateur("172701011012345678").isEmpty(),
+                "pas de 240 dans le lot");
+        org.junit.jupiter.api.Assertions.assertTrue(Gs1.sansSeparateur("10LOTE2E|2403232018").isEmpty(),
+                "separateur present : lecture normale");
+        org.junit.jupiter.api.Assertions.assertTrue(Gs1.sansSeparateur(null).isEmpty());
+    }
 }

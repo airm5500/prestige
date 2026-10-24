@@ -1,7 +1,6 @@
 /* CODE « PEREMPTION + LOT » SANS LE PRODUIT (retour du 24/10).
  *
- * La douchette Sunmi lit 1727010110012402264447 : (17) 01/01/2027 et (10) lot 012402264447, sans le produit (ni 01 ni
- * 240). C'est le code-barres lineaire imprime a cote du code produit. La vente disait « Ce code n'est pas une
+ * Code-barres (17) 01/01/2027 et (10) lot 0102264447, sans le produit (ni 01 ni 240). C'est le code-barres lineaire imprime a cote du code produit. La vente disait « Ce code n'est pas une
  * etiquette GS1 » et Etiquetage Pro « Produit inconnu (CIP 1727...) » : l'utilisateur ne comprenait pas.
  * Par les vues (admin), lecture GS1 activee le temps du test :
  *  - vente (SERVICE CLIENT > Ventes > Nouvelle vente) : le code tape comme une douchette + Entree -> message qui dit
@@ -17,7 +16,9 @@ const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
 const BASE = process.env.DB_TEST || 'capitale';
 const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
-const CODE = '1727010110012402264447';
+/* code-barres « date + lot » seul : (17) 01/01/2027, (10) lot 012402264447 ; aucun « 240 » dans le lot. (Le code
+   1727010110012402264447 du 24/10 etait en fait une etiquette Prestige au separateur perdu : test-gs1-separateur-perdu.js) */
+const CODE = '1727010110012402264447'.replace('2402264447', '02264447');
 const LECTURE = q("SELECT str_VALUE FROM t_parameters WHERE str_KEY = 'KEY_VENTE_LECTURE_GS1'");
 const compte = () => q('SELECT COUNT(*) FROM t_preenregistrement_detail');
 
@@ -42,7 +43,7 @@ const compte = () => q('SELECT COUNT(*) FROM t_preenregistrement_detail');
     await p.waitForFunction(() => Ext.Msg.isVisible(), null, { timeout: 20000 }).catch(() => {});
     const boite = await p.evaluate(() => (Ext.Msg.isVisible() ? Ext.Msg.msg.getEl().dom.textContent : ''));
     ok('Vente : le message dit ce que contient le code (péremption 01/01/2027, lot) et qu\'il manque le produit',
-      /01\/01\/2027/.test(boite) && /012402264447/.test(boite) && /produit/i.test(boite) && !/n'est pas une étiquette GS1/.test(boite), boite);
+      /01\/01\/2027/.test(boite) && /0102264447/.test(boite) && /produit/i.test(boite) && !/n'est pas une étiquette GS1/.test(boite), boite);
     await p.evaluate(() => { if (Ext.Msg.isVisible()) { Ext.Msg.hide(); } });
     ok('Vente : aucune ligne ajoutée', compte() === avant, compte() + ' / ' + avant);
 
@@ -57,7 +58,7 @@ const compte = () => q('SELECT COUNT(*) FROM t_preenregistrement_detail');
     await p.waitForTimeout(2500);
     const lu = await p.evaluate(() => Ext.ComponentQuery.query('etqlecture #lectureResultat')[0].getEl().dom.textContent);
     ok('Étiquetage Pro : péremption et lot affichés, alerte « ne contient pas le produit », pas de « Produit inconnu (CIP …) »',
-      /01\/01\/2027/.test(lu) && /012402264447/.test(lu) && /ne contient pas le produit/.test(lu) && !/Produit inconnu dans Prestige \(CIP 1727/.test(lu), lu.slice(0, 300));
+      /01\/01\/2027/.test(lu) && /0102264447/.test(lu) && /ne contient pas le produit/.test(lu) && !/Produit inconnu dans Prestige \(CIP 1727/.test(lu), lu.slice(0, 300));
     ok('Aucune erreur JavaScript', erreurs.length === 0, erreurs.join(' | '));
   } catch (e) {
     ok('Parcours sans exception', false, e.stack);

@@ -686,6 +686,18 @@ public class SalesRessource {
         if (!o.getBoolean("actif")) {
             return Response.ok().entity(o.put("msg", "Lecture des étiquettes GS1 désactivée.").toString()).build();
         }
+        /*
+         * retour du 24/10 : separateur GS perdu par la douchette (« 10 lot 240 CIP » colle) : la decoupe dont le CIP
+         * est un produit est retenue, comme si le separateur etait la
+         */
+        if (!rest.report.pdf.Gs1.estGs1(code)) {
+            for (rest.report.pdf.Gs1.Contenu x : rest.report.pdf.Gs1.sansSeparateur(code)) {
+                JSONObject p = salesService.findOneproduit(x.cip, tu.getLgEMPLACEMENTID().getLgEMPLACEMENTID());
+                if (p.optBoolean("success")) {
+                    return Response.ok().entity(produitGs1(o, x, p.getJSONObject("data")).toString()).build();
+                }
+            }
+        }
         rest.report.pdf.Gs1.Contenu partiel = rest.report.pdf.Gs1.sansProduit(code);
         if (partiel != null) {
             return Response.ok()
@@ -704,14 +716,7 @@ public class SalesRessource {
         for (String cle : lectureGs1Service.codesProduit(c)) {
             JSONObject p = salesService.findOneproduit(cle, tu.getLgEMPLACEMENTID().getLgEMPLACEMENTID());
             if (p.optBoolean("success")) {
-                /* controle : lot de la boite scannee contre le lot que Prestige sort */
-                JSONObject produit = p.getJSONObject("data");
-                rest.service.impl.LectureGs1Service.controlerLot(o, c,
-                        searchProduitServcie.peremptionProche(produit.optString("lgFAMILLEID", null)));
-                /* que faire si le lot differe (parametre A / B / C) ; B : le lot scanne peut-il etre sorti ? */
-                o.put("modeControle", lectureGs1Service.modeControle()).put("lotEnStock",
-                        lectureGs1Service.lotEnStock(produit.optString("lgFAMILLEID", null), c.lot));
-                return Response.ok().entity(o.put("success", true).put("data", produit).toString()).build();
+                return Response.ok().entity(produitGs1(o, c, p.getJSONObject("data")).toString()).build();
             }
         }
         return Response.ok()
@@ -720,6 +725,19 @@ public class SalesRessource {
                                 + (c.gtin == null ? "-" : rest.report.pdf.Gs1.ean13(c.gtin)) + ").")
                         .toString())
                 .build();
+    }
+
+    /** Produit trouve pour une etiquette GS1 : lot compare au lot que Prestige sort, mode de controle A / B / C. */
+    private JSONObject produitGs1(JSONObject o, rest.report.pdf.Gs1.Contenu c, JSONObject produit)
+            throws JSONException {
+        rest.service.impl.LectureGs1Service.completer(o, c, java.time.LocalDate.now());
+        /* controle : lot de la boite scannee contre le lot que Prestige sort */
+        rest.service.impl.LectureGs1Service.controlerLot(o, c,
+                searchProduitServcie.peremptionProche(produit.optString("lgFAMILLEID", null)));
+        /* que faire si le lot differe (parametre A / B / C) ; B : le lot scanne peut-il etre sorti ? */
+        o.put("modeControle", lectureGs1Service.modeControle()).put("lotEnStock",
+                lectureGs1Service.lotEnStock(produit.optString("lgFAMILLEID", null), c.lot));
+        return o.put("success", true).put("data", produit);
     }
 
     @GET

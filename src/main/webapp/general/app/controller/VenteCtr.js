@@ -8024,6 +8024,12 @@ Ext.define('testextjs.controller.VenteCtr', {
         if (gtin && /^\d{14}$/.test(gtin)) {
             return gtin.charAt(0) === '0' ? gtin.substr(1) : gtin;
         }
+        /* retour du 24/10 : separateur GS perdu par la douchette, « 17 date 10 lot 240 CIP » colle : le CIP (7 ou 13
+           chiffres) est la fin du code apres le dernier « 240 » du lot */
+        const colle = /^17\d{6}10(\d*?)240(\d{13}|\d{7})$/.exec(v);
+        if (colle && colle[1].length > 0) {
+            return colle[2];
+        }
         return null;
     },
 

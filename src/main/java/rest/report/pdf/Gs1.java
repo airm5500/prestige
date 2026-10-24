@@ -152,6 +152,34 @@ public final class Gs1 {
         return p != null && l != null ? p + " et " + l : p != null ? p : l;
     }
 
+    /**
+     * Separateur GS perdu par la douchette (retour du 24/10) : « 10 lot 240 CIP » arrive colle et le lot avale le CIP.
+     * Rend les decoupes possibles du lot (CIP de 7 ou 13 chiffres en fin de code), du lot le plus court au plus long ;
+     * vide si le code a deja un produit, un separateur, ou aucun « 240 » dans son lot. A l'appelant de garder la
+     * decoupe dont le CIP est un produit.
+     */
+    public static java.util.List<Contenu> sansSeparateur(String saisie) {
+        java.util.List<Contenu> l = new java.util.ArrayList<>();
+        if (saisie == null || normaliser(saisie).indexOf(GS) >= 0 || normaliser(saisie).startsWith("(")) {
+            return l;
+        }
+        Contenu c = lire(saisie);
+        if (c.gtin != null || c.cip != null || c.lot == null) {
+            return l;
+        }
+        for (int i = c.lot.indexOf("240", 1); i > 0; i = c.lot.indexOf("240", i + 1)) {
+            String cip = c.lot.substring(i + 3);
+            if (cip.matches("\\d{7}|\\d{13}")) {
+                Contenu x = new Contenu();
+                x.peremption = c.peremption;
+                x.lot = c.lot.substring(0, i);
+                x.cip = cip;
+                l.add(x);
+            }
+        }
+        return l;
+    }
+
     public static Contenu sansProduit(String saisie) {
         if (saisie == null) {
             return null;

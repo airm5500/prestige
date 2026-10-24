@@ -790,7 +790,18 @@ public class EtiquetageProRessource {
         Map<String, String> infos = rest.report.pdf.ContenuEtendu.lire(code);
         String type;
         /* retour du 24/10 : code « peremption + lot » seul, sans le produit */
-        rest.report.pdf.Gs1.Contenu partiel = infos == null ? rest.report.pdf.Gs1.sansProduit(code) : null;
+        rest.report.pdf.Gs1.Contenu decoupe = null;
+        if (infos == null && !rest.report.pdf.Gs1.estGs1(code)) {
+            /* separateur GS perdu par la douchette : la decoupe dont le CIP est un produit */
+            for (rest.report.pdf.Gs1.Contenu x : rest.report.pdf.Gs1.sansSeparateur(code)) {
+                if (service.produitPourLecture(x.cip) != null) {
+                    decoupe = x;
+                    break;
+                }
+            }
+        }
+        rest.report.pdf.Gs1.Contenu partiel = infos == null && decoupe == null ? rest.report.pdf.Gs1.sansProduit(code)
+                : null;
         if (partiel != null) {
             infos = new LinkedHashMap<>();
             putSi(infos, rest.report.pdf.ContenuEtendu.LOT, partiel.lot);
@@ -803,8 +814,8 @@ public class EtiquetageProRessource {
         }
         if (infos != null) {
             type = infos.remove("TYPE");
-        } else if (rest.report.pdf.Gs1.estGs1(code)) {
-            rest.report.pdf.Gs1.Contenu c = rest.report.pdf.Gs1.lire(code);
+        } else if (decoupe != null || rest.report.pdf.Gs1.estGs1(code)) {
+            rest.report.pdf.Gs1.Contenu c = decoupe != null ? decoupe : rest.report.pdf.Gs1.lire(code);
             infos = new LinkedHashMap<>();
             putSi(infos, rest.report.pdf.ContenuEtendu.CIP, c.cip);
             putSi(infos, rest.report.pdf.ContenuEtendu.LOT, c.lot);
