@@ -389,3 +389,26 @@ par Hibernate toutes les lignes et tous les produits déjà chargés, ce qui don
 nombre de lignes. **Correction** : la lecture ne modifie rien, donc cette vérification est suspendue le temps de la
 lecture. Réponses comparées octet pour octet sur 6 cas : elles sont identiques. Test : `perf/test-lignes-bl-mobile.js`
 (5/5).
+
+## Anomalies par employé : coût mesuré (24/10)
+
+Question posée : l'enregistrement des anomalies alourdit-il Prestige ? Mesure faite sur le banc peuplé (3 ans de
+données), navigateur connecté en admin, avec 100 envois successifs et 3 à 5 lectures par cas. Les lignes de mesure ont
+été retirées.
+
+| Opération | Médiane | 95 % |
+|---|---:|---:|
+| Enregistrer une anomalie (POST, fil de 25 actions) | 7 ms | 11 ms |
+| Onglet Anomalies, un jour | 20 ms | 25 ms |
+| Onglet Anomalies, 30 jours | 0,30 s | 0,37 s |
+| Onglet Anomalies, un an | 5,1 s | 7,0 s |
+| Onglet Analyses (existant), un an, pour comparaison | 11,2 s | 13,6 s |
+| Détail d'une anomalie (« ce qu'il a fait avant ») | 9 ms | 17 ms |
+
+- **Pendant le travail normal**, rien n'est écrit : le fil d'actions reste en mémoire dans le navigateur. Une écriture
+  n'a lieu que lorsqu'une anomalie survient. Elle part sans attendre de réponse et ne bloque pas l'écran. Elle est
+  limitée à 60 par page et à 120 par heure et par employé.
+- **Table** `t_anomalie_employe` : indexée par (employé, date) et par date. Elle est purgée chaque jour au-delà de
+  180 jours.
+- **Sur un an**, le temps de l'onglet vient des comptes déjà existants (ventes, ventes longues, annulations,
+  modifications), pas de la nouvelle table. Il reste deux fois plus court que l'onglet Analyses sur la même période.
