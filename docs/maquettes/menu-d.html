@@ -63,19 +63,53 @@ kbd{font-family:var(--f-texte);font-size:11px;border:1px solid var(--trait);bord
 /* D : fusion de A et C. Rail d'icones (A) + arbre filtrable toujours visible (C) ; menu replie : le rail ouvre le
    volet par usage (A). Deux choix a faire dans « Réglages de la maquette » : pli-repli et barre horizontale. */
 .app{display:flex;height:calc(100% - 56px)}
-.rail{width:60px;background:var(--nuit);display:flex;flex-direction:column;align-items:center;padding-block:10px;gap:3px;flex:0 0 60px;overflow:auto;scrollbar-width:none}
-.rail::-webkit-scrollbar{display:none}
+.rail{width:60px;background:var(--nuit);display:flex;flex-direction:column;align-items:center;padding-block:10px;gap:3px;flex:0 0 60px;overflow:auto}
 .rail button{width:42px;height:42px;border-radius:11px;display:grid;place-items:center;color:var(--doux-nuit);flex:0 0 42px;position:relative}
 .rail button:hover{background:var(--nuit2);color:var(--texte-nuit)}
-.rail button.on{background:var(--nuit2);color:#fff;box-shadow:inset 3px 0 0 var(--or)}
+.rail button.ici::after{content:"";position:absolute;bottom:3px;left:50%;width:5px;height:5px;margin-left:-2.5px;border-radius:50%;background:var(--or)}
+/* repere du module choisi : 1 tuile or pleine ; 2 bordure or (actuel) ; 3 contour or */
+body.rp-1 .rail button.on{background:var(--or);color:var(--nuit)}
+body.rp-1 .rail button.on.ici::after{background:var(--nuit)}
+body.rp-2 .rail button.on{background:var(--nuit2);color:#fff;box-shadow:inset 3px 0 0 var(--or)}
+body.rp-3 .rail button.on{background:rgba(242,184,75,.14);color:var(--or);box-shadow:inset 0 0 0 2px var(--or)}
 .rail .sep{width:30px;height:1px;background:var(--trait-nuit);margin:6px 0;flex:0 0 1px}
 .arbre{width:290px;flex:0 0 290px;background:var(--surface);border-right:1px solid var(--trait);display:flex;flex-direction:column;min-height:0}
 body.replie .arbre{display:none}
 .a-tete{padding:12px;display:flex;gap:8px;align-items:center;border-bottom:1px solid var(--trait)}
 .a-tete .champ{flex:1;display:flex;align-items:center;gap:7px;border:1px solid var(--trait);border-radius:9px;padding:7px 10px;background:var(--fond);min-width:0}
 .a-tete input{border:0;background:none;font:inherit;font-size:13.5px;color:var(--texte);outline:none;width:100%;min-width:0}
+.corps-cadre{position:relative;flex:1;min-height:0;display:flex;flex-direction:column}
 .a-corps{overflow:auto;flex:1;padding-block:6px}
-.a-corps::-webkit-scrollbar{width:6px}.a-corps::-webkit-scrollbar-thumb{background:var(--trait);border-radius:3px}
+/* barre de defilement des menus (arbre, volet, rail) : 4 propositions */
+body.mb-1 .a-corps,body.mb-1 .grille{scrollbar-width:thin;scrollbar-color:transparent transparent}
+body.mb-1 .a-corps:hover,body.mb-1 .grille:hover{scrollbar-color:color-mix(in srgb,var(--texte2) 45%,transparent) transparent}
+body.mb-1 .a-corps::-webkit-scrollbar,body.mb-1 .grille::-webkit-scrollbar{width:8px}
+body.mb-1 .a-corps::-webkit-scrollbar-thumb,body.mb-1 .grille::-webkit-scrollbar-thumb{background:transparent;border-radius:6px;border:2px solid transparent;background-clip:padding-box}
+body.mb-1 .a-corps:hover::-webkit-scrollbar-thumb,body.mb-1 .grille:hover::-webkit-scrollbar-thumb{background:color-mix(in srgb,var(--texte2) 45%,transparent);background-clip:padding-box}
+body.mb-1 .rail{scrollbar-width:none}body.mb-1 .rail::-webkit-scrollbar{display:none}
+body.mb-2 .a-corps,body.mb-2 .grille{scrollbar-color:var(--or) transparent}
+body.mb-2 .a-corps::-webkit-scrollbar,body.mb-2 .grille::-webkit-scrollbar,body.mb-2 .rail::-webkit-scrollbar{width:6px}
+body.mb-2 .a-corps::-webkit-scrollbar-track,body.mb-2 .grille::-webkit-scrollbar-track{background:var(--survol)}
+body.mb-2 .a-corps::-webkit-scrollbar-thumb,body.mb-2 .grille::-webkit-scrollbar-thumb,body.mb-2 .rail::-webkit-scrollbar-thumb{background:var(--or);border-radius:3px}
+body.mb-2 .rail{scrollbar-width:thin;scrollbar-color:var(--or) transparent}
+body.mb-3 .a-corps,body.mb-3 .grille,body.mb-3 .rail{scrollbar-width:none}
+body.mb-3 .a-corps::-webkit-scrollbar,body.mb-3 .grille::-webkit-scrollbar,body.mb-3 .rail::-webkit-scrollbar{display:none}
+.fondu{display:none;position:absolute;left:0;right:0;height:34px;pointer-events:none;z-index:2;opacity:0;transition:opacity .2s}
+.fondu.h{top:0;background:linear-gradient(var(--surface),transparent)}
+.fondu.b{bottom:0;background:linear-gradient(transparent,var(--surface))}
+.plus-bas{display:none;position:absolute;bottom:8px;left:50%;transform:translateX(-50%);z-index:3;background:var(--nuit2);color:#fff;border-radius:14px;padding:4px 12px;font-size:12px;
+  box-shadow:0 4px 12px rgba(0,0,0,.25);align-items:center;gap:5px;opacity:0;pointer-events:none;transition:opacity .2s;white-space:nowrap}
+.plus-bas svg{width:14px;height:14px}
+body.mb-3 .fondu{display:block}body.mb-3 .plus-bas{display:flex}
+body.mb-3 .corps-cadre.peut-h .fondu.h,body.mb-3 .corps-cadre.peut-b .fondu.b{opacity:1}
+body.mb-3 .corps-cadre.peut-b .plus-bas{opacity:1;pointer-events:auto}
+body.mb-4 .a-corps,body.mb-4 .grille{scrollbar-color:var(--nuit2) var(--fond)}
+body.mb-4 .a-corps::-webkit-scrollbar,body.mb-4 .grille::-webkit-scrollbar{width:14px}
+body.mb-4 .a-corps::-webkit-scrollbar-track,body.mb-4 .grille::-webkit-scrollbar-track{background:var(--fond);border-left:1px solid var(--trait)}
+body.mb-4 .a-corps::-webkit-scrollbar-thumb,body.mb-4 .grille::-webkit-scrollbar-thumb{background:var(--nuit2);border-radius:7px;border:3px solid var(--fond)}
+body.mb-4 .a-corps::-webkit-scrollbar-thumb:hover,body.mb-4 .grille::-webkit-scrollbar-thumb:hover{background:var(--or)}
+body.mb-4 .rail{scrollbar-width:thin;scrollbar-color:var(--trait-nuit) transparent}
+body.mb-4 .rail::-webkit-scrollbar{width:6px}body.mb-4 .rail::-webkit-scrollbar-thumb{background:var(--trait-nuit);border-radius:3px}
 .sect{font-size:10.5px;letter-spacing:1.3px;color:var(--texte2);margin:12px 14px 4px;font-weight:700;text-transform:uppercase;display:flex;align-items:center;gap:6px}
 .sect svg{width:13px;height:13px}
 .mod{display:flex;align-items:center;gap:10px;padding:8px 12px;width:100%;text-align:left;font-weight:600;font-size:13.5px;transition:background .2s}
@@ -337,11 +371,14 @@ document.addEventListener('keydown', (ev) => {
 /* ---- D : fusion A + C ---- */
 let OUVERTS = store.lire('d-ouverts', ['sc']), FILTRE = '', MODV = null;
 let ACCORDEON = store.lire('d-accordeon', true), SB = store.lire('d-sb', 3), REG_FERME = store.lire('d-reg-ferme', false);
+let RP = store.lire('d-rp', 1), MB = store.lire('d-mb', 1);
+document.body.classList.add('rp-' + RP, 'mb-' + MB);
 if (ACCORDEON && OUVERTS.length > 1) OUVERTS = OUVERTS.slice(-1);
 document.body.classList.add('sb-' + SB);
 document.body.insertAdjacentHTML('afterbegin', enteteHtml('d') + '<div class="app"><nav class="rail" id="rail"></nav>'
   + '<aside class="arbre"><div class="a-tete"><label class="champ">' + ico('search') + '<input id="filtre" placeholder="Filtrer le menu… (ex. périmés, BL)" autocomplete="off"></label></div>'
-  + '<div class="a-corps" id="corps"></div></aside>'
+  + '<div class="corps-cadre" id="corps-cadre"><div class="fondu h"></div><div class="a-corps" id="corps"></div><div class="fondu b"></div>'
+  + '<button class="plus-bas" data-act="plus-bas">' + ico('chevrons-down') + ' Plus bas</button></div></aside>'
   + '<div class="contenu"><div id="volet-place"></div><main class="ecran" id="ecran"></main></div></div>'
   );
 
@@ -355,7 +392,7 @@ function dessinerRail() {
   $('#rail').innerHTML = '<button data-act="palette" data-bulle="Rechercher (Ctrl K)">' + ico('search') + '</button>'
     + '<button data-act="replier" data-bulle="' + (replie() ? 'Déplier le menu' : 'Replier le menu') + '">' + ico(replie() ? 'panel-left-open' : 'panel-left-close') + '</button><span class="sep"></span>'
     + MODULES.map(m => { const on = replie() ? (MODV && MODV.id === m.id) : OUVERTS.includes(m.id);
-      return '<button data-rail="' + m.id + '" class="' + (on ? 'on' : '') + '" data-bulle="' + echap(m.nom) + (modActif === m ? ' · écran ouvert' : '') + '"' + (modActif === m && !on ? ' style="color:var(--or)"' : '') + '>' + ico(m.ic) + '</button>'; }).join('');
+      return '<button data-rail="' + m.id + '" class="' + (on ? 'on' : '') + (modActif === m ? ' ici' : '') + '" data-bulle="' + echap(m.nom) + (modActif === m ? ' · écran ouvert (point or)' : '') + '">' + ico(m.ic) + '</button>'; }).join('');
 }
 function dessinerArbre() {
   const t = sansAccent(FILTRE); let h = '';
@@ -383,6 +420,15 @@ function dessinerVolet() {
     + '<button class="fermer" data-act="fermer" title="Fermer">' + ico('x') + '</button></div><div class="grille">'
     + MODV.groupes.map(([g, l]) => '<div class="grp"><h3>' + g + '</h3>' + l.map(ligne).join('') + '</div>').join('') + '</div></section>';
 }
+const CHOIX_RP = [
+  [1, 'Tuile or pleine', 'Toute l\'icône du module choisi est sur fond or.'],
+  [2, 'Bordure or', 'Trait or à gauche de l\'icône (version actuelle).'],
+  [3, 'Contour or', 'Un cadre or autour de l\'icône, fond léger.']];
+const CHOIX_MB = [
+  [1, 'Invisible au repos', 'Fine, elle n\'apparaît qu\'au survol du menu.'],
+  [2, 'Fil or', 'Mince trait or, toujours visible, discret.'],
+  [3, 'Fondus et « Plus bas »', 'Pas de barre : un fondu en haut et en bas, et un bouton « Plus bas » quand il reste des écrans.'],
+  [4, 'Épaisse et contrastée', 'Large, facile à attraper ; devient or au survol.']];
 const CHOIX_SB = [
   [1, 'Fine et discrète', 'Barre mince aux couleurs de Prestige, plus visible au survol.'],
   [2, 'Épaisse et contrastée', 'Facile à attraper à la souris ou au doigt ; devient or au survol.'],
@@ -396,9 +442,18 @@ function dessinerReglages() {
     + '<button data-acc="0" class="' + (!ACCORDEON ? 'on' : '') + '"><span class="num">B</span><span><b>Plusieurs modules ouverts</b><small>Chaque module reste ouvert jusqu\'à ce qu\'on le referme.</small></span></button></div></div>'
     + '<div class="r-g"><div class="r-q">2. Barre de défilement horizontale</div><div class="seg deux">'
     + CHOIX_SB.map(([n, t, d]) => '<button data-sb="' + n + '" class="' + (SB === n ? 'on' : '') + '"><span class="num">' + n + '</span><span><b>' + t + '</b><small>' + d + '</small></span></button>').join('')
-    + '</div></div></div><div class="ruban-d">Proposition D · fusion de A (rail, volet) et C (arbre filtrable)</div>';
+    + '</div></div>'
+    + '<div class="r-g"><div class="r-q">3. Repère du module choisi dans le rail</div><div class="seg">'
+    + CHOIX_RP.map(([n, t, d]) => '<button data-rp="' + n + '" class="' + (RP === n ? 'on' : '') + '"><span class="num">' + n + '</span><span><b>' + t + '</b><small>' + d + '</small></span></button>').join('') + '</div></div>'
+    + '<div class="r-g"><div class="r-q">4. Barre de défilement des menus (arbre, volet, rail)</div><div class="seg deux">'
+    + CHOIX_MB.map(([n, t, d]) => '<button data-mb="' + n + '" class="' + (MB === n ? 'on' : '') + '"><span class="num">' + n + '</span><span><b>' + t + '</b><small>' + d + '</small></span></button>').join('') + '</div></div>'
+    + '</div><div class="ruban-d">Proposition D · fusion de A (rail, volet) et C (arbre filtrable)</div>';
 }
-function redessiner() { dessinerRail(); dessinerArbre(); dessinerVolet(); dessinerReglages(); rafraichirIcones(); }
+function majFondus() {
+  const c = $('#corps'), k = $('#corps-cadre'); if (!c) return;
+  k.classList.toggle('peut-h', c.scrollTop > 4); k.classList.toggle('peut-b', c.scrollTop < c.scrollHeight - c.clientHeight - 4);
+}
+function redessiner() { dessinerRail(); dessinerArbre(); dessinerVolet(); dessinerReglages(); rafraichirIcones(); majFondus(); }
 
 /* ---- ecran d'exemple : grille large ---- */
 const COLS = [['Date', ''], ['Heure', ''], ['N° ticket', ''], ['Client', ''], ['Tiers payant', ''], ['Taux', 'num'], ['Montant brut', 'num'], ['Remise', 'num'], ['Net', 'num'],
@@ -459,7 +514,9 @@ function basculerModule(id) {
   else OUVERTS = OUVERTS.includes(id) ? OUVERTS.filter(x => x !== id) : OUVERTS.concat(id);
   store.ecrire('d-ouverts', OUVERTS);
 }
-$('#filtre').oninput = (ev) => { FILTRE = ev.target.value; dessinerArbre(); rafraichirIcones(); };
+$('#filtre').oninput = (ev) => { FILTRE = ev.target.value; dessinerArbre(); rafraichirIcones(); majFondus(); };
+$('#corps').addEventListener('scroll', majFondus, {passive: true});
+window.addEventListener('resize', majFondus);
 $('#filtre').onkeydown = (ev) => { if (ev.key === 'Escape') { ev.target.value = ''; FILTRE = ''; dessinerArbre(); rafraichirIcones(); } if (ev.key === 'Enter') { const p = $('#corps .ent'); if (p) ouvrir(p.getAttribute('data-ouvrir')); } };
 document.addEventListener('keydown', (ev) => {
   if (ev.key === '/' && !ev.target.matches('input')) { ev.preventDefault(); document.body.classList.remove('replie'); MODV = null; redessiner(); $('#filtre').focus(); }
@@ -479,12 +536,16 @@ document.addEventListener('click', (ev) => {
     const b = $('#mod-' + x.id); if (b) { b.scrollIntoView({block: 'start', behavior: 'smooth'}); b.classList.add('eclaire'); setTimeout(() => b.classList.remove('eclaire'), 900); }
     return; }
   if (acc) { ACCORDEON = acc.getAttribute('data-acc') === '1'; if (ACCORDEON && OUVERTS.length > 1) OUVERTS = [((trouver(ECRAN) || {}).m || {}).id || OUVERTS[0]]; store.ecrire('d-accordeon', ACCORDEON); store.ecrire('d-ouverts', OUVERTS); redessiner(); toast(ACCORDEON ? 'Un seul module ouvert à la fois' : 'Plusieurs modules peuvent rester ouverts'); return; }
+  const rp = ev.target.closest('[data-rp]'), mb = ev.target.closest('[data-mb]');
+  if (rp) { document.body.classList.remove('rp-' + RP); RP = Number(rp.getAttribute('data-rp')); document.body.classList.add('rp-' + RP); store.ecrire('d-rp', RP); dessinerReglages(); rafraichirIcones(); return; }
+  if (mb) { document.body.classList.remove('mb-' + MB); MB = Number(mb.getAttribute('data-mb')); document.body.classList.add('mb-' + MB); store.ecrire('d-mb', MB); dessinerReglages(); rafraichirIcones(); majFondus(); return; }
   if (sb) { document.body.classList.remove('sb-' + SB); SB = Number(sb.getAttribute('data-sb')); document.body.classList.add('sb-' + SB); store.ecrire('d-sb', SB); dessinerReglages(); rafraichirIcones(); majDefil(); return; }
   if (d) { const z = $('#zone'); z.scrollBy({left: Number(d.getAttribute('data-defil')) * (z.clientWidth - 160), behavior: 'smooth'}); return; }
   if (a) { const act = a.getAttribute('data-act');
     if (act === 'palette') ouvrirPalette();
     if (act === 'fermer') { MODV = null; redessiner(); }
     if (act === 'replier') { document.body.classList.toggle('replie'); MODV = null; redessiner(); setTimeout(majDefil, 30); }
+    if (act === 'plus-bas') { const c = $('#corps'); c.scrollBy({top: c.clientHeight * .7, behavior: 'smooth'}); }
     if (act === 'reglages') { REG_FERME = !REG_FERME; store.ecrire('d-reg-ferme', REG_FERME); $('#reglages').classList.toggle('ferme', REG_FERME); }
     return; }
   if (ev.target.closest('#burger')) { document.body.classList.toggle('tiroir'); return; }
