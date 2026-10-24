@@ -1,7 +1,15 @@
 'use strict';
 /* Connecteur FAUX (WHATSAPP_FAUX=1) : pour les essais de Prestige sans telephone. Un QR factice est affiche ; avec
    WHATSAPP_FAUX_CONNECTE=1, le « scan » est simule 3 s apres le premier affichage du QR ; les envois reussissent sans
-   rien envoyer. */
+   rien envoyer. Avec WHATSAPP_FAUX_TRACE=<fichier>, chaque envoi y est decrit en une ligne JSON (nature, type et
+   empreinte de la piece jointe) pour les tests : jamais le numero ni le texte. */
+const crypto = require('crypto');
+const fs = require('fs');
+
+function tracer(ligne) {
+  if (process.env.WHATSAPP_FAUX_TRACE) { fs.appendFileSync(process.env.WHATSAPP_FAUX_TRACE, JSON.stringify(ligne) + '\n'); }
+}
+
 function creerConnecteur({ journal }) {
   const etat = { etat: 'QR', numero: null, depuis: new Date().toISOString() };
   let qrVu = null;
@@ -13,8 +21,12 @@ function creerConnecteur({ journal }) {
     pret: () => { majEtat(); return etat.etat === 'CONNECTE'; },
     existe: async () => true,
     ecrire: async () => {},
-    envoyer: async () => 'faux-' + (++n),
-    envoyerMedia: async () => 'faux-' + (++n),
+    envoyer: async (numero, texte) => { tracer({ nature: 'texte', legende: !!String(texte || '').trim() }); return 'faux-' + (++n); },
+    envoyerMedia: async (numero, media, legende) => {
+      tracer({ nature: 'media', type: media.type, mimeType: media.mimeType, nomFichier: media.nomFichier, octets: media.donnees.length,
+        sha256: crypto.createHash('sha256').update(media.donnees).digest('hex'), legende: !!String(legende || '').trim() });
+      return 'faux-' + (++n);
+    },
     deconnecter: async () => { qrVu = null; Object.assign(etat, { etat: 'QR', numero: null }); journal('deconnexion (faux)'); }
   };
 }
