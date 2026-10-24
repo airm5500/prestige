@@ -149,6 +149,17 @@ function creerConnecteur({ dossierSession, journal, surMessage, surAccuse, surSa
       envoyes.retenir(r);
       return r && r.key ? r.key.id : null;
     },
+    /** Piece jointe : image (JPEG, PNG) ou document PDF, avec une legende facultative. */
+    envoyerMedia: async (numero, media, legende) => {
+      const jid = (await resoudre(numero)) || O.jidDe(numero);
+      const caption = legende && String(legende).trim() ? String(legende) : undefined;
+      const contenu = media.type === 'document'
+        ? { document: media.donnees, mimetype: media.mimeType || 'application/pdf', fileName: media.nomFichier || 'document.pdf', caption }
+        : { image: media.donnees, mimetype: media.mimeType, caption };
+      const r = await sock.sendMessage(jid, contenu);
+      envoyes.retenir(r);
+      return r && r.key ? r.key.id : null;
+    },
     /** Delie l'appareil (changement de telephone) : un nouveau QR est propose. */
     deconnecter: async () => {
       const s = sock;

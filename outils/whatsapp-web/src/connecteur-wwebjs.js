@@ -4,7 +4,7 @@
  * usage humain. La session (apres le scan du QR code) est gardee dans le dossier de session : pas de nouveau scan au
  * redemarrage.
  */
-const { Client, LocalAuth } = require('whatsapp-web.js');
+const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
 const QRCode = require('qrcode');
 
 function creerConnecteur({ dossierSession, journal, surMessage, surAccuse }) {
@@ -48,6 +48,11 @@ function creerConnecteur({ dossierSession, journal, surMessage, surAccuse }) {
     },
     envoyer: async (numero, texte) => {
       const m = await client.sendMessage(numero + '@c.us', texte);
+      return m && m.id ? m.id._serialized : null;
+    },
+    envoyerMedia: async (numero, media, legende) => {
+      const piece = new MessageMedia(media.mimeType, media.donnees.toString('base64'), media.nomFichier);
+      const m = await client.sendMessage(numero + '@c.us', piece, { caption: legende || undefined, sendMediaAsDocument: media.type === 'document' });
       return m && m.id ? m.id._serialized : null;
     },
     /** Deconnecte le numero (le prochain demarrage affiche un nouveau QR code). */

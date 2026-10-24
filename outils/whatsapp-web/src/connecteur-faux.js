@@ -14,6 +14,7 @@ function creerConnecteur({ journal }) {
     existe: async () => true,
     ecrire: async () => {},
     envoyer: async () => 'faux-' + (++n),
+    envoyerMedia: async () => 'faux-' + (++n),
     deconnecter: async () => { qrVu = null; Object.assign(etat, { etat: 'QR', numero: null }); journal('deconnexion (faux)'); }
   };
 }

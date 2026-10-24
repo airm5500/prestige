@@ -5,16 +5,40 @@
  * Le connecteur WhatsApp est injecte (le vrai : connecteur-wwebjs.js ; un faux dans les tests), ce qui permet de
  * verifier tout le deroule sans telephone.
  *
- * connecteur = { pret(): bool, existe(numero): Promise<bool>, ecrire(numero, ms): Promise, envoyer(numero, texte): Promise<id> }
+ * connecteur = { pret(): bool, existe(numero): Promise<bool>, ecrire(numero, ms): Promise, envoyer(numero, texte): Promise<id>,
+ *                envoyerMedia(numero, {type, mimeType, nomFichier, donnees: Buffer}, legende): Promise<id> }
+ * Pieces jointes (image, document PDF) : gardees sur disque (dossierMedias) le temps de l'envoi, jamais dans la file
+ * JSON ; effacees une fois le message envoye, en echec ou annule.
  * rapporter(statuts[]) : envoie a Prestige [{id, statut: sent|failed|delivered|read, erreur}]
  */
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const R = require('./regles');
 
+/** Poids maximal d'une piece jointe (WhatsApp accepte 16 Mo pour une image). */
+const MAX_MEDIA = 16 * 1024 * 1024;
+
+/** Piece jointe recue (base64) controlee : {donnees, type, mimeType, nomFichier, empreinte} ou {refuse}. */
+function lireMedia(m) {
+  const type = String(m.type || '').toLowerCase();
+  if (type !== 'image' && type !== 'document') { return { refuse: 'La pièce jointe doit être une image ou un document PDF.' }; }
+  const donnees = Buffer.from(String(m.base64 || ''), 'base64');
+  if (!donnees.length) { return { refuse: 'Pièce jointe vide.' }; }
+  if (donnees.length > MAX_MEDIA) { return { refuse: 'Pièce jointe trop lourde (16 Mo au plus).' }; }
+  const debut = donnees.subarray(0, 8).toString('hex');
+  const estPng = debut.startsWith('89504e47'), estJpeg = debut.startsWith('ffd8ff'), estPdf = donnees.subarray(0, 5).toString('latin1') === '%PDF-';
+  if (type === 'image' && !estPng && !estJpeg) { return { refuse: 'L\'image doit être un fichier JPEG ou PNG.' }; }
+  if (type === 'document' && !estPdf) { return { refuse: 'Le document doit être un fichier PDF.' }; }
+  const mimeType = type === 'document' ? 'application/pdf' : (estPng ? 'image/png' : 'image/jpeg');
+  const nom = String(m.nomFichier || '').replace(/[\\/:*?"<>|\x00-\x1f]/g, '_').slice(0, 120) || (type === 'document' ? 'document.pdf' : 'image');
+  return { donnees, type, mimeType, nomFichier: nom, empreinte: crypto.createHash('sha256').update(donnees).digest('hex') };
+}
+
 class FileEnvoi {
-  constructor({ connecteur, rapporter, fichier, regles, horloge, alea, attendre, journal }) {
+  constructor({ connecteur, rapporter, fichier, dossierMedias, regles, horloge, alea, attendre, journal }) {
     this.connecteur = connecteur;
+    this.dossierMedias = dossierMedias || (fichier ? path.join(path.dirname(fichier), 'medias') : null);
     this.rapporter = rapporter || (async () => {});
     this.fichier = fichier;
     this.r = R.regles(regles || {});
@@ -56,19 +80,36 @@ class FileEnvoi {
     };
   }
 
-  /** Ajoute un message ; refuse (sans le mettre en file) un numero invalide, arrete, ou un doublon du jour. */
-  ajouter({ id, to, text }) {
+  /**
+   * Ajoute un message (texte, ou piece jointe avec le texte en legende) ; refuse (sans le mettre en file) un numero
+   * invalide, arrete, une piece invalide, ou un doublon du jour (meme texte et meme piece).
+   */
+  ajouter({ id, to, text, media }) {
     const n = R.numero(to);
     const maintenant = this.horloge();
+    text = text === undefined || text === null ? '' : String(text);
     if (!n) { return { refuse: 'Numéro invalide.' }; }
-    if (!text || !String(text).trim()) { return { refuse: 'Message vide.' }; }
-    if (String(text).length > 4096) { return { refuse: 'Message trop long (4096 caractères au plus).' }; }
+    let piece = null;
+    if (media) {
+      piece = lireMedia(media);
+      if (piece.refuse) { return { refuse: piece.refuse }; }
+    } else if (!text.trim()) { return { refuse: 'Message vide.' }; }
+    if (text.length > 4096) { return { refuse: 'Message trop long (4096 caractères au plus).' }; }
     if (this.d.arrets.includes(n)) { return { refuse: 'Le destinataire a demandé à ne plus recevoir de messages.' }; }
     const jour = this.jour(maintenant);
-    if (this.d.messages.some((m) => m.to === n && m.text === text && m.jour === jour && m.statut !== 'failed')) {
+    const empreinte = piece ? piece.empreinte : undefined;
+    if (this.d.messages.some((m) => m.to === n && m.text === text && (m.media ? m.media.empreinte : undefined) === empreinte
+        && m.jour === jour && m.statut !== 'failed')) {
       return { refuse: 'Message identique déjà envoyé aujourd\'hui à ce numéro.' };
     }
-    const m = { id: id || 'wweb-' + maintenant.getTime() + '-' + Math.floor(this.alea() * 1e6), to: n, text: String(text), statut: 'queued', jour, cree: maintenant.toISOString() };
+    const m = { id: id || 'wweb-' + maintenant.getTime() + '-' + Math.floor(this.alea() * 1e6), to: n, text, statut: 'queued', jour, cree: maintenant.toISOString() };
+    if (piece) {
+      if (!this.dossierMedias) { return { refuse: 'Pièces jointes indisponibles (dossier non configuré).' }; }
+      fs.mkdirSync(this.dossierMedias, { recursive: true });
+      const fichier = crypto.randomBytes(12).toString('hex') + '.bin';
+      fs.writeFileSync(path.join(this.dossierMedias, fichier), piece.donnees);
+      m.media = { type: piece.type, mimeType: piece.mimeType, nomFichier: piece.nomFichier, empreinte, fichier, taille: piece.donnees.length };
+    }
     this.d.messages.push(m);
     this.purger(maintenant);
     this.sauver();
@@ -84,8 +125,15 @@ class FileEnvoi {
   arreter(numero) {
     const n = R.numero(numero);
     if (n && !this.d.arrets.includes(n)) { this.d.arrets.push(n); }
-    for (const m of this.d.messages) { if (m.to === n && m.statut === 'queued') { m.statut = 'failed'; m.erreur = 'Désinscrit (STOP)'; } }
+    for (const m of this.d.messages) { if (m.to === n && m.statut === 'queued') { m.statut = 'failed'; m.erreur = 'Désinscrit (STOP)'; this.effacerMedia(m); } }
     this.sauver();
+  }
+
+  /** La piece jointe d'un message n'est gardee que le temps de l'envoi. */
+  effacerMedia(m) {
+    if (!m.media || !m.media.fichier || !this.dossierMedias) { return; }
+    try { fs.rmSync(path.join(this.dossierMedias, m.media.fichier), { force: true }); } catch (e) { /* deja effacee */ }
+    m.media.fichier = null;
   }
 
   enAttente() { return this.d.messages.filter((m) => m.statut === 'queued'); }
@@ -107,8 +155,18 @@ class FileEnvoi {
         return this.fini(m, 'failed', 'Ce numéro n\'a pas de compte WhatsApp.', false);
       }
       const texte = R.variation(m.text, this.alea);
-      await this.connecteur.ecrire(m.to, R.dureeFrappeMs(this.r, texte, this.alea));
-      m.waId = await this.connecteur.envoyer(m.to, texte);
+      if (m.media) {
+        if (typeof this.connecteur.envoyerMedia !== 'function') {
+          return this.fini(m, 'failed', 'Ce moteur WhatsApp n\'envoie pas de pièces jointes.', false);
+        }
+        const donnees = m.media.fichier ? fs.readFileSync(path.join(this.dossierMedias, m.media.fichier)) : null;
+        if (!donnees) { return this.fini(m, 'failed', 'Pièce jointe introuvable sur le poste.', false); }
+        if (texte.trim()) { await this.connecteur.ecrire(m.to, R.dureeFrappeMs(this.r, texte, this.alea)); }
+        m.waId = await this.connecteur.envoyerMedia(m.to, { type: m.media.type, mimeType: m.media.mimeType, nomFichier: m.media.nomFichier, donnees }, texte);
+      } else {
+        await this.connecteur.ecrire(m.to, R.dureeFrappeMs(this.r, texte, this.alea));
+        m.waId = await this.connecteur.envoyer(m.to, texte);
+      }
       const res = this.fini(m, 'sent', null, true);
       await this.attendre(R.delaiSuivantMs(this.r, this.d.envoyesDepuisPause, this.alea));
       return res;
@@ -120,6 +178,7 @@ class FileEnvoi {
   fini(m, statut, erreur, compte, echecTechnique) {
     const maintenant = this.horloge();
     m.statut = statut; m.erreur = erreur || undefined; m.fin = maintenant.toISOString();
+    this.effacerMedia(m);
     if (compte) {
       const c = this.d.compteurs;
       c['j' + this.jour(maintenant)] = (c['j' + this.jour(maintenant)] || 0) + 1;
@@ -156,4 +215,4 @@ class FileEnvoi {
   }
 }
 
-module.exports = { FileEnvoi };
+module.exports = { FileEnvoi, lireMedia, MAX_MEDIA };

@@ -6,7 +6,7 @@
   "main": "src/serveur.js",
   "scripts": {
     "start": "node src/serveur.js",
-    "test": "node --test test/regles.test.js test/file.test.js test/baileys-outils.test.js test/connecteur-baileys.test.js"
+    "test": "node --test test/regles.test.js test/file.test.js test/baileys-outils.test.js test/connecteur-baileys.test.js test/media.test.js"
   },
   "engines": {
     "node": ">=18"

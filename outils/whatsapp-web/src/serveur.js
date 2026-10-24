@@ -7,7 +7,9 @@
  *   GET  /etat          etat de la connexion (INITIALISATION, QR, CONNECTE, DECONNECTE...), numero, file d'attente
  *   GET  /qr            QR code a scanner (image data:...) quand l'etat est QR
  *   POST /deconnecter   deconnecte le numero (changement de telephone)
- *   POST /messages      {to, text, id?} -> {id, position} : le message entre dans la file (regles anti-bannissement)
+ *   POST /messages      {to, text, id?, media?} -> {id, position} : le message entre dans la file (regles anti-bannissement) ;
+ *                       media = {type: image|document, base64, mimeType?, nomFichier?} (JPEG, PNG ou PDF, 16 Mo au plus),
+ *                       text sert alors de legende
  *   PUT  /regles        regles d'envoi (voir src/regles.js) ; GET /regles pour les lire
  *   POST /arret         arret propre (caches ecrits, appareil NON delie : aucun QR a rescanner) ; utilise par arreter.bat
  *   GET  /sante         {ok:true} sans jeton ni information : le service repond (scripts de demarrage)
@@ -57,7 +59,7 @@ const connecteur = require({ faux: './connecteur-faux', wwebjs: './connecteur-ww
 });
 journal('moteur WhatsApp : ' + moteur);
 const fichierRegles = path.join(config.DOSSIER, 'regles.json');
-file = new FileEnvoi({ connecteur, journal, fichier: path.join(config.DOSSIER, 'file.json'),
+file = new FileEnvoi({ connecteur, journal, fichier: path.join(config.DOSSIER, 'file.json'), dossierMedias: path.join(config.DOSSIER, 'medias'),
   regles: fs.existsSync(fichierRegles) ? JSON.parse(fs.readFileSync(fichierRegles, 'utf8')) : {},
   rapporter: (statuts) => rapporter({ statuts }) });
 
@@ -85,10 +87,11 @@ function repondre(res, code, o) {
   res.end(JSON.stringify(o));
 }
 
-function lireCorps(req) {
+/* 64 Ko pour les reglages ; 25 Mo pour un message avec piece jointe (16 Mo encodes en base64) */
+function lireCorps(req, max = 64 * 1024) {
   return new Promise((ok, ko) => {
     let t = '';
-    req.on('data', (c) => { t += c; if (t.length > 64 * 1024) { ko(new Error('trop gros')); req.destroy(); } });
+    req.on('data', (c) => { t += c; if (t.length > max) { ko(new Error('trop gros')); req.destroy(); } });
     req.on('end', () => { try { ok(t ? JSON.parse(t) : {}); } catch (e) { ko(e); } });
   });
 }
@@ -124,8 +127,8 @@ const serveur = http.createServer(async (req, res) => {
       return repondre(res, 200, file.r);
     }
     if (req.method === 'POST' && url.pathname === '/messages') {
-      const m = await lireCorps(req);
-      const r = file.ajouter({ id: m.id, to: m.to, text: m.text });
+      const m = await lireCorps(req, 25 * 1024 * 1024);
+      const r = file.ajouter({ id: m.id, to: m.to, text: m.text, media: m.media });
       return r.refuse ? repondre(res, 422, { erreur: r.refuse }) : repondre(res, 200, r);
     }
     return repondre(res, 404, { erreur: 'route inconnue' });

@@ -162,3 +162,15 @@ test('reseau coupe : les tentatives s\'espacent (pas de martelage), etat « Dema
   assert.ok(Date.now() - debut >= 150, 'delai qui double : ' + (Date.now() - debut) + ' ms');
   x.c.fermer();
 });
+
+test('pieces jointes : image avec legende, PDF en document avec son nom', async () => {
+  const x = connecteur();
+  const s = await connecte(x);
+  const png = Buffer.from('89504e47', 'hex');
+  assert.ok(await x.c.envoyerMedia('2250708091011', { type: 'image', mimeType: 'image/png', nomFichier: 'v.png', donnees: png }, 'Promo du mois'));
+  assert.deepStrictEqual(s.envois[0], ['2250708091011@s.whatsapp.net', { image: png, mimetype: 'image/png', caption: 'Promo du mois' }]);
+  const pdf = Buffer.from('%PDF-1.4');
+  await x.c.envoyerMedia('2250708091011', { type: 'document', mimeType: 'application/pdf', nomFichier: 'facture.pdf', donnees: pdf }, '');
+  assert.deepStrictEqual(s.envois[1][1], { document: pdf, mimetype: 'application/pdf', fileName: 'facture.pdf', caption: undefined });
+  x.c.fermer();
+});
