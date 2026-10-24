@@ -752,6 +752,27 @@ public class TableauBordServiceImpl implements TableauBordService {
         return o;
     }
 
+    @Override
+    public JSONObject affluence(LocalDate jour) {
+        JSONObject o = new JSONObject();
+        try {
+            LocalDate lundi = jour.minusDays(jour.getDayOfWeek().getValue() - 1L);
+            JSONArray cases = new JSONArray();
+            for (Object[] r : lignes("SELECT WEEKDAY(p.dt_UPDATED) + 1, HOUR(p.dt_UPDATED), COUNT(*),"
+                    + " SUM(p.int_PRICE - p.int_PRICE_REMISE) FROM t_preenregistrement p WHERE" + VENTE_OK
+                    + " AND p.dt_UPDATED >= ?1 AND p.dt_UPDATED < ?2 GROUP BY WEEKDAY(p.dt_UPDATED), HOUR(p.dt_UPDATED)",
+                    ts(lundi), ts(lundi.plusDays(7)))) {
+                cases.put(new JSONObject().put("jour", n(r[0])).put("heure", n(r[1])).put("ventes", n(r[2])).put("ca",
+                        n(r[3])));
+            }
+            o.put("debut", lundi.toString()).put("fin", lundi.plusDays(6).toString()).put("cases", cases);
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "tableau de bord : affluence", e);
+            o.put("erreur", true);
+        }
+        return o;
+    }
+
     private JSONObject semaine(LocalDate debut, LocalDate finExclue) {
         /* Par heure (24 cases) : l'ecran regroupe en tranches de 1 a 6 h ; les tranches de 2 h restent fournies. */
         long[] ventes = new long[12], ca = new long[12], ventesH = new long[24], caH = new long[24];

@@ -240,4 +240,16 @@ public class TableauBordRessource {
         LocalDate j = jour(date);
         return cache("frequentation|" + j, COURT * 3, frais == 1, () -> service.frequentation(j));
     }
+
+    /** Carte d'affluence (jour x heure) de la semaine contenant « date » (retour du 24/10). */
+    @GET
+    @Path("affluence")
+    public Response affluence(@QueryParam("date") String date, @DefaultValue("0") @QueryParam("frais") int frais) {
+        if (utilisateur() == null) {
+            return deconnecte();
+        }
+        LocalDate j = jour(date);
+        return cache("affluence|" + j.minusDays(j.getDayOfWeek().getValue() - 1L), COURT * 3, frais == 1,
+                () -> service.affluence(j));
+    }
 }

@@ -68,4 +68,7 @@ public interface TableauBordService {
 
     /** Ventes par tranche de 2 heures : semaine precedente et semaine en cours (retours du 06/10). */
     JSONObject frequentation(LocalDate jour);
+
+    /** Carte d'affluence : ventes par jour (1 = lundi) et par heure, semaine du lundi au dimanche (retour du 24/10). */
+    JSONObject affluence(LocalDate jour);
 }

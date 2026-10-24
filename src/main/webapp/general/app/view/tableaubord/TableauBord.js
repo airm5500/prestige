@@ -40,6 +40,8 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
             {id: 'alertes', titre: 'Alertes', ico: 'fa-bell', t: 't-ambre', l: 'l4'},
             /* Retours du 06/10 : frequentation par tranche de 2 h, semaine precedente et semaine en cours. */
             {id: 'frequentation', titre: 'Fréquentation par tranche horaire', ico: 'fa-clock', t: 't-cyan', l: 'l12'},
+            /* Retour du 24/10 : carte d'affluence jour x heure, semaine au choix */
+            {id: 'affluence', titre: 'Carte d\'affluence (jour × heure)', ico: 'fa-fire', t: 't-cyan', l: 'l12'},
             {id: 'topmois', titre: 'Top 5 des ventes du mois', ico: 'fa-trophy', t: 't-bleu', l: 'l6'},
             {id: 'grossistes', titre: 'Achats par grossiste (mois)', ico: 'fa-truck-fast', t: 't-violet', l: 'l6'},
             {id: 'topca', titre: 'Top 5 du chiffre d\'affaires (jour)', ico: 'fa-chart-column', t: 't-vert', l: 'l4'},
@@ -513,6 +515,12 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
                     me.dessinerFrequentation();
                 });
             },
+            affluence: function () {
+                lire('../api/v1/tableau-bord/affluence', {date: me.semaineAffluence || j, frais: fr}, function (o) {
+                    me.donneesAff = o;
+                    me.dessinerAffluence();
+                });
+            },
             topmois: function () {
                 lire('../api/v1/tableau-bord/top-mois', {date: j, limite: 5, frais: fr}, function (o) {
                     me.donneesTopMois = o;
@@ -893,6 +901,77 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
                 + ligne('data-liste="nonvendus"', 'Entrés non vendus', 'p-a', '<b>' + me.fmt((o.nonVendus || {}).produits || 0) + '</b> articles entrés depuis <b>'
                         + a.nv + '</b> j et pas vendus depuis') + '</table>'
                 + '<div class="tb-note" style="margin-top:6px">Ruptures, péremptions, rayon, stock négatif, entrés non vendus : clic → liste des produits. Autres lignes : ouvre le menu.</div>';
+    },
+
+    /* --- carte d'affluence (retour du 24/10) : ventes par jour et par heure, semaine choisie avec ◀ ▶ */
+
+    JOURS_AFF: ['', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'],
+
+    /* semaine affichee : decalage de « pas » semaines depuis la semaine regardee (null = semaine du jour) */
+    changerSemaineAffluence: function (pas) {
+        var me = this, base = Ext.Date.parse(me.semaineAffluence || me.jour(), 'Y-m-d');
+        if (pas === 0) {
+            me.semaineAffluence = null;
+        } else {
+            me.semaineAffluence = Ext.Date.format(Ext.Date.add(base, Ext.Date.DAY, 7 * pas), 'Y-m-d');
+        }
+        me.chargerCarte('affluence');
+    },
+
+    dessinerAffluence: function () {
+        var me = this, o = me.donneesAff, c = me.corps('affluence'), out = me.outils('affluence');
+        if (!c) {
+            return;
+        }
+        if (!o || !o.success) {
+            me.erreur('affluence');
+            return;
+        }
+        var d = Ext.Date.parse(o.debut, 'Y-m-d'), f = Ext.Date.parse(o.fin, 'Y-m-d'), jour = Ext.Date.parse(me.jour(), 'Y-m-d');
+        var courante = jour >= d && jour <= Ext.Date.add(f, Ext.Date.DAY, 1);
+        if (out) {
+            out.innerHTML = '<span class="tb-seg"><button data-aff="prec" title="Semaine précédente">◀</button>'
+                    + '<button data-aff="libelle" class="on" style="cursor:default">Semaine du ' + Ext.Date.format(d, 'd/m') + ' au ' + Ext.Date.format(f, 'd/m') + '</button>'
+                    + '<button data-aff="suiv" title="Semaine suivante"' + (courante ? ' disabled style="opacity:.4;cursor:default"' : '') + '>▶</button></span> '
+                    + (courante ? '' : '<span class="tb-lien" data-aff="courante">Cette semaine</span>');
+        }
+        var m = {}, max = 0, hmin = 24, hmax = -1, total = 0, pic = null;
+        (o.cases || []).forEach(function (x) {
+            m[x.jour * 100 + x.heure] = x;
+            total += x.ventes;
+            if (x.ventes > max) {
+                max = x.ventes;
+                pic = x;
+            }
+            hmin = Math.min(hmin, x.heure);
+            hmax = Math.max(hmax, x.heure);
+        });
+        if (!total) {
+            c.innerHTML = '<div class="tb-attente">Aucune vente cette semaine.</div>';
+            return;
+        }
+        var html = '<table class="tb-aff" style="border-collapse:separate;border-spacing:3px;width:100%;font-size:11px;table-layout:fixed">'
+                + '<tr><th style="width:74px"></th>';
+        for (var h = hmin; h <= hmax; h++) {
+            html += '<th style="font-weight:700;color:#1e3a5f">' + h + ' h</th>';
+        }
+        html += '</tr>';
+        for (var j = 1; j <= 7; j++) {
+            html += '<tr><th style="text-align:right;padding-right:6px;font-weight:700;color:#1e3a5f">' + me.JOURS_AFF[j] + '</th>';
+            for (var h2 = hmin; h2 <= hmax; h2++) {
+                var x = m[j * 100 + h2], v = x ? x.ventes : 0, t = max ? v / max : 0;
+                /* du clair au cyan fonce ; chiffre blanc sur les cases foncees */
+                var fond = v ? 'rgba(8,145,178,' + (0.10 + 0.90 * t).toFixed(2) + ')' : '#f1f5f9';
+                html += '<td data-n="' + v + '" title="' + me.JOURS_AFF[j] + ' ' + h2 + ' h – ' + (h2 + 1) + ' h : ' + me.fmt(v) + ' vente' + (v > 1 ? 's' : '')
+                        + (x && x.ca ? ' — ' + me.fmt(x.ca) + ' F' : '') + '" style="height:26px;text-align:center;border-radius:4px;background:' + fond
+                        + ';color:' + (t > 0.55 ? '#fff' : '#0f172a') + ';font-weight:' + (t > 0.8 ? '700' : '400') + '">' + (v ? me.fmt(v) : '') + '</td>';
+            }
+            html += '</tr>';
+        }
+        html += '</table><div class="tb-note" style="margin-top:6px">' + me.fmt(total) + ' ventes sur la semaine'
+                + (pic ? ' — plus forte affluence : ' + me.JOURS_AFF[pic.jour].toLowerCase() + ' ' + pic.heure + ' h – ' + (pic.heure + 1) + ' h (' + me.fmt(pic.ventes) + ' ventes)' : '')
+                + '. Plus la case est foncée, plus il y a de ventes : pour placer présences et pauses.</div>';
+        c.innerHTML = html;
     },
 
     /* --- frequentation (retours du 06/10) : ventes par tranche de 2 h, semaine precedente / semaine en cours */
@@ -1341,6 +1420,13 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
                 return;
             }
             if (me.edition) {
+                return;
+            }
+            if ((x = cible('[data-aff]'))) {
+                var aff = x.getAttribute('data-aff');
+                if (!x.disabled && aff !== 'libelle') {
+                    me.changerSemaineAffluence(aff === 'prec' ? -1 : aff === 'suiv' ? 1 : 0);
+                }
                 return;
             }
             if ((x = cible('[data-seg] button'))) {
