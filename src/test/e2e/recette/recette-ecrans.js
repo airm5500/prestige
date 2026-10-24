@@ -16,7 +16,8 @@ const { execFileSync } = require('child_process');
 const { ouvrirMenu } = require('../outils/vues');
 const q = (sql) => execFileSync('mariadb', ['--default-character-set=utf8mb4', process.env.DB_TEST || 'capitale', '-sN', '-e', sql], { encoding: 'utf8' }).trim();
 const SORTIE = process.env.SORTIE || '/tmp/recette-ecrans.json';
-const HAUTEUR_MINIMALE = 200;
+/* un formulaire court (point de caisse, import, envoi de recapitulatif) fait 150 a 190 px : seuil sous ces hauteurs */
+const HAUTEUR_MINIMALE = 120;
 const ecriture = (req) => {
   if (req.method() !== 'GET') { return true; }
   const u = req.url().replace(/^.*\/prestige\//, '');
@@ -72,13 +73,17 @@ const ECRANS = q("SELECT m.str_DESCRIPTION, s.str_DESCRIPTION, s.str_COMPOSANT F
       while (Date.now() - debut < 30000) { await p.waitForTimeout(300); if (enVol <= 0) { await p.waitForTimeout(500); if (enVol <= 0) { break; } } }
       courant.ms = Date.now() - t0;
       courant.hauteur = await p.evaluate((c) => { const x = Ext.ComponentQuery.query(c).filter((y) => y.isVisible(true))[0]; return x && x.getEl() ? x.getHeight() : 0; }, comp);
+      /* « vue introuvable » : l'entree de menu pointe vers un ecran que l'application ne connait pas */
+      courant.introuvable = await p.evaluate((c) => !Ext.ClassManager.getNameByAlias('widget.' + c), comp);
       /* fenetres et messages laisses ouverts : fermes pour l'ecran suivant */
       await p.evaluate(() => { Ext.ComponentQuery.query('messagebox{isVisible()}').forEach((m) => m.hide()); Ext.ComponentQuery.query('window{isVisible()}').forEach((w) => { if (w.xtype !== 'messagebox') { w.close(); } }); }).catch(() => {});
     } catch (e) {
       courant.js.push('parcours : ' + String(e.message).split('\n')[0].slice(0, 160));
     }
     const pb = [];
-    if (courant.hauteur < HAUTEUR_MINIMALE) { pb.push('écran non dessiné (' + courant.hauteur + ' px)'); }
+    if (courant.introuvable) {
+      pb.push('écran introuvable : l\'entrée de menu pointe vers la vue « ' + comp + ' », inconnue de l\'application');
+    } else if (courant.hauteur < HAUTEUR_MINIMALE) { pb.push('écran non dessiné (' + courant.hauteur + ' px)'); }
     if (courant.js.length) { pb.push('JS : ' + courant.js.join(' | ')); }
     if (courant.http.length) { pb.push('serveur : ' + courant.http.join(' | ')); }
     courant.resultat = pb.length ? 'KO' : 'OK';

@@ -401,22 +401,33 @@ public class WhatsAppServiceImpl implements WhatsAppService {
         }
     }
 
-    /** « STOP » : le consentement WhatsApp de chaque client portant ce numero passe a 0. */
+    /**
+     * « STOP » : le consentement WhatsApp de chaque client portant ce numero passe a 0. Un STOP envoye depuis l'ancien
+     * identifiant a 8 chiffres (225 + 8 chiffres) vaut pour le numero a 10 chiffres correspondant, s'il est seul
+     * (retour du 24/10, repris du CRM) ; sinon il etait ignore et le client continuait de recevoir les messages.
+     */
     @SuppressWarnings("unchecked")
     private int desinscrire(String numero) {
         TelephoneCi.Resultat tel = TelephoneCi.controler(numero);
-        if (!tel.isValide()) {
+        String huit = tel.isValide() ? null : TelephoneCi.ancienIdentifiant(numero);
+        if (!tel.isValide() && huit == null) {
             return 0;
         }
         /* les 8 derniers chiffres, separateurs de saisie ignores ; le controle complet tranche ensuite */
         List<Object[]> candidats = em
                 .createNativeQuery("SELECT lg_CLIENT_ID, str_ADRESSE FROM t_client"
                         + " WHERE REPLACE(REPLACE(REPLACE(str_ADRESSE,' ',''),'.',''),'-','') LIKE ?1")
-                .setParameter(1, "%" + tel.getLocal().substring(2)).getResultList();
+                .setParameter(1, "%" + (huit != null ? huit : tel.getLocal().substring(2))).getResultList();
+        String local = tel.isValide() ? tel.getLocal() : TelephoneCi.numeroActuel(huit,
+                candidats.stream().map(c -> (String) c[1]).collect(java.util.stream.Collectors.toList()));
+        if (local == null) {
+            LOG.log(Level.INFO, "Webhook WhatsApp : STOP depuis un ancien identifiant sans numero unique, ignore");
+            return 0;
+        }
         int n = 0;
         for (Object[] c : candidats) {
             TelephoneCi.Resultat t = TelephoneCi.controler((String) c[1]);
-            if (t.isValide() && t.getLocal().equals(tel.getLocal())) {
+            if (t.isValide() && t.getLocal().equals(local)) {
                 n += em.createNativeQuery("UPDATE t_client SET bool_CONSENT_WHATSAPP = 0, dt_UPDATED = NOW()"
                         + " WHERE lg_CLIENT_ID = ?1").setParameter(1, c[0]).executeUpdate();
             }

@@ -85,6 +85,37 @@ public final class TelephoneCi {
         return new Resultat(true, nettoye, INDICATIF + nettoye, "");
     }
 
+    /**
+     * Ancien identifiant WhatsApp a 8 chiffres : un compte ouvert avant le passage a 10 chiffres (2021) ecrit souvent
+     * depuis 225 + 8 chiffres (22508473750 pour le 07 08 47 37 50). Rend les 8 chiffres, ou null pour toute autre
+     * forme. Repris du CRM UBIPHARM.
+     */
+    public static String ancienIdentifiant(String numero) {
+        String n = numero == null ? "" : numero.replaceAll("[\\s.\\-()+]", "");
+        if (n.startsWith("00")) {
+            n = n.substring(2);
+        }
+        return n.matches(INDICATIF + "\\d{8}") ? n.substring(3) : null;
+    }
+
+    /**
+     * Le numero a 10 chiffres d'un ancien identifiant : celui des numeros connus (valides) dont les 8 derniers chiffres
+     * correspondent, s'il est seul ; null s'il n'y en a aucun ou plusieurs (on ne devine pas).
+     */
+    public static String numeroActuel(String huitChiffres, Iterable<String> numerosConnus) {
+        if (huitChiffres == null) {
+            return null;
+        }
+        java.util.Set<String> retenus = new java.util.TreeSet<>();
+        for (String s : numerosConnus) {
+            Resultat r = controler(s);
+            if (r.isValide() && r.getLocal().substring(2).equals(huitChiffres)) {
+                retenus.add(r.getLocal());
+            }
+        }
+        return retenus.size() == 1 ? retenus.iterator().next() : null;
+    }
+
     /** Numero local normalise si le controle passe, sinon la saisie telle quelle (le fournisseur tranchera). */
     public static String localOuSaisie(String saisie) {
         Resultat r = controler(saisie);

@@ -40,4 +40,28 @@ public class TelephoneCiTest {
         assertEquals("0708473750", TelephoneCi.localOuSaisie("+225 07 08 47 37 50"));
         assertEquals("08473750", TelephoneCi.localOuSaisie("08473750"));
     }
+
+    @Test
+    public void ancienIdentifiantWhatsAppAHuitChiffres() {
+        assertEquals("08473750", TelephoneCi.ancienIdentifiant("22508473750"));
+        assertEquals("08473750", TelephoneCi.ancienIdentifiant("+225 08 47 37 50"));
+        assertEquals("08473750", TelephoneCi.ancienIdentifiant("0022508473750"));
+        assertEquals(null, TelephoneCi.ancienIdentifiant("2250708473750"), "numero actuel : pas un ancien identifiant");
+        assertEquals(null, TelephoneCi.ancienIdentifiant("08473750"),
+                "sans indicatif : rien ne dit que c'est WhatsApp");
+        assertEquals(null, TelephoneCi.ancienIdentifiant(null));
+    }
+
+    @Test
+    public void numeroActuelSeulementSiUnSeulCorrespond() {
+        assertEquals("0708473750",
+                TelephoneCi.numeroActuel("08473750",
+                        java.util.Arrays.asList("07 08 47 37 50", "+2250708473750", "0102030405")),
+                "le meme numero ecrit deux fois : un seul candidat");
+        assertEquals(null, TelephoneCi.numeroActuel("08473750", java.util.Arrays.asList("0708473750", "0508473750")),
+                "deux numeros possibles : on ne devine pas");
+        assertEquals(null, TelephoneCi.numeroActuel("08473750", java.util.Arrays.asList("08473750", "2708473750")),
+                "ancien format et fixe ecartes : aucun candidat");
+        assertEquals(null, TelephoneCi.numeroActuel(null, java.util.Arrays.asList("0708473750")));
+    }
 }

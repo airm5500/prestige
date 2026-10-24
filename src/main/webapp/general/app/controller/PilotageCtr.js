@@ -513,18 +513,22 @@ Ext.define('testextjs.controller.PilotageCtr', {
         me.demandes = me.demandes || {};
         me.demandes[cle] = (me.demandes[cle] || 0) + 1;
         var numero = me.demandes[cle];
+        /* retour du 23/10 : ecran quitte (ou rouvert) avant la reponse -> la reponse ne s'applique plus a rien */
+        var quitte = function () {
+            return me.getEcran() !== ecran || ecran.isDestroyed;
+        };
         Ext.Ajax.request({
             url: '../api/v1/pilotage/onglet/' + encodeURIComponent(cle),
             method: 'GET',
             params: me.parametres(),
             timeout: 180000,
             callback: function () {
-                if (onglet && numero === me.demandes[cle]) {
+                if (onglet && !onglet.isDestroyed && numero === me.demandes[cle]) {
                     onglet.setLoading(false);
                 }
             },
             success: function (reponse) {
-                if (numero !== me.demandes[cle]) {
+                if (numero !== me.demandes[cle] || quitte()) {
                     /* Une demande plus récente est partie : cette réponse est périmée. */
                     return;
                 }
@@ -569,6 +573,9 @@ Ext.define('testextjs.controller.PilotageCtr', {
                 }
             },
             failure: function () {
+                if (quitte()) {
+                    return;
+                }
                 Ext.Msg.alert('Pilotage', 'Les chiffres n\'ont pas pu être rassemblés.');
             }
         });
