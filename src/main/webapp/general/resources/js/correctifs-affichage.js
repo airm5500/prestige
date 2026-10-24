@@ -738,6 +738,39 @@ window.PrestigeAffichage.isolerEcouteursRedimensionnement = function () {
 };
 
 /**
+ * Entrees de menu masquees (retour du 24/10, valide par l'utilisateur) : actives en base mais leur ecran n'existe plus
+ * dans le code (« Impossible d'ouvrir ce menu (vue … introuvable) »). Masquees a l'affichage seulement : la base
+ * (entrees, droits, roles) n'est pas modifiee ; retirer une ligne ici les fait revenir.
+ */
+window.PrestigeAffichage.MENUS_MASQUES = [
+    'ventemanagerbis',                  // SERVICE CLIENT > Ventes sans n° de bon
+    'vendeurcaissiermanager',           // SERVICE CLIENT > Vendeurs et caissiers
+    'corbeillevente',                   // SERVICE CLIENT > Corbeille des ventes
+    'statistiquefamillearticlemanager'  // ANALYSE DE GESTION > Stats famille article
+];
+
+/** Retire de l'arbre du menu charge les entrees masquees (et un module qui n'aurait plus aucune entree). */
+window.PrestigeAffichage.masquerMenus = function (racine) {
+    var masques = window.PrestigeAffichage.MENUS_MASQUES, aRetirer = [];
+    if (!racine || !racine.cascadeBy) {
+        return 0;
+    }
+    racine.cascadeBy(function (n) {
+        if (n !== racine && masques.indexOf(n.get('id')) >= 0) {
+            aRetirer.push(n);
+        }
+    });
+    Ext.each(aRetirer, function (n) {
+        var parent = n.parentNode;
+        n.remove();
+        if (parent && parent !== racine && !parent.hasChildNodes()) {
+            parent.remove();
+        }
+    });
+    return aRetirer.length;
+};
+
+/**
  * Ecrans concernes, par leur xtype.
  *
  * La liste est ici, en un seul endroit, plutot que dispersee dans chaque fichier de vue :

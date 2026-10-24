@@ -102,6 +102,10 @@ Ext.define('testextjs.view.Navigation', {
                             }
                         } else {
                             store._menuRetries = 0;
+                            /* retour du 24/10 : entrees dont l'ecran n'existe plus, declarees dans correctifs-affichage.js */
+                            if (window.PrestigeAffichage && window.PrestigeAffichage.masquerMenus) {
+                                window.PrestigeAffichage.masquerMenus(store.getRootNode());
+                            }
                             /* Drapeau consulte par le dashboard : le menu est disponible,
                              * le dashboard peut lancer ses propres requetes. */
                             store._menuCharge = true;
