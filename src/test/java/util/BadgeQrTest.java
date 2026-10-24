@@ -76,4 +76,19 @@ class BadgeQrTest {
         assertEquals("admin", c[1]);
         assertEquals(secret, c[2]);
     }
+
+    /**
+     * Retour du 24/10 : meme douchette, verrouillage majuscules actif sur le poste (active pour lire les chiffres des
+     * etiquettes GS1). Lu : « PRESTIGE°BQDGE*1*PEL°26°00001°D*qd,in*... » : chiffres justes, - en °, _ en ), | en *.
+     */
+    @Test
+    void douchetteEnQwertyVerrouillageMajusculesSurPosteAzerty() {
+        String lu = "PRESTIGE\u00b0BQDGE*1*PEL\u00b026\u00b000001\u00b0D*qd,in*qW\u00b0)09,?qQwW8x";
+        String[] c = BadgeQr.champs(lu);
+        assertTrue(c != null, "lecture non reconnue");
+        assertEquals("PEL-26-00001-D", c[0]);
+        assertEquals("admin", c[1]);
+        assertEquals("aZ-_09mMaAzZ8x", c[2]);
+        assertEquals(BadgeQr.contenu("PEL-26-00001-D", "admin", "aZ-_09mMaAzZ8x"), BadgeQr.depuisQwerty(lu));
+    }
 }

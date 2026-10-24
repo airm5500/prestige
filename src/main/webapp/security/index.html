@@ -283,9 +283,13 @@
     }
     /* retour du 23/10 (Sunmi Blink 2) : douchette en clavier americain sur un poste AZERTY ; meme table que BadgeQr */
     var QWERTY = 'PRESTIGE)BQDGE', US = '1234567890-_|aqzwmAQZWM', FR = '&é"\'(-è_çà)°µqawz,QAWZ?';
+    /* retour du 24/10 : meme douchette, verrouillage majuscules actif (chiffres justes, - en °, _ en ), | en *) */
+    var QWERTY_MAJ = 'PRESTIGE°BQDGE', US_MAJ = '-_|aqzwmAQZWM', FR_MAJ = '°)*qawz,QAWZ?';
+    function enQwerty(c) { return c.indexOf(QWERTY) === 0 || c.indexOf(QWERTY_MAJ) === 0; }
     function remettre(c) {
-      if (c.indexOf(QWERTY) !== 0) { return c; }
-      return c.split('').map(function (x) { var i = FR.indexOf(x); return i < 0 ? x : US.charAt(i); }).join('');
+      if (!enQwerty(c)) { return c; }
+      var maj = c.indexOf(QWERTY_MAJ) === 0, fr = maj ? FR_MAJ : FR, us = maj ? US_MAJ : US;
+      return c.split('').map(function (x) { var i = fr.indexOf(x); return i < 0 ? x : us.charAt(i); }).join('');
     }
     function numeroDe(c) { var p = c.split('|'); return p.length > 2 ? p[2] : ''; }
     /* retour du 23/10 : lecture transmise telle qu'imprimee ? (prefixe, version, 5 parties, secret entier) */
@@ -368,7 +372,7 @@
     });
     /* badge lu dans « Identifiant » : repris par la lecture du badge, le champ est vide */
     login.addEventListener('input', function () {
-      if (/^PRESTIGE-BADGE/i.test(login.value) || login.value.indexOf(QWERTY) === 0) {
+      if (/^PRESTIGE-BADGE/i.test(login.value) || enQwerty(login.value)) {
         var lu = login.value;
         login.value = '';
         ouvrir(lu);

@@ -12,7 +12,9 @@
  *  - traces du serveur : la raison du refus (secret) est notee, sans le secret ;
  *  - la bonne lecture connecte toujours ;
  *  - douchette restee en clavier americain (QWERTY) sur un poste AZERTY (cas de la Sunmi Blink 2, retour du 23/10) :
- *    « PRESTIGE)BQDGEµ&µ... » est remis dans l'ordre et connecte, par le bouton badge comme dans « Identifiant ».
+ *    « PRESTIGE)BQDGEµ&µ... » est remis dans l'ordre et connecte, par le bouton badge comme dans « Identifiant » ;
+ *  - retour du 24/10 : la meme douchette avec le verrouillage majuscules actif (active pour lire les chiffres GS1) :
+ *    « PRESTIGE°BQDGE*1*PEL°26°... » (chiffres justes, - en °, _ en ), | en *) connecte aussi, par les deux chemins.
  */
 const { chromium } = require('playwright-core');
 const { execFileSync } = require('child_process');
@@ -32,6 +34,9 @@ const LIEN = q("SELECT IFNULL((SELECT id FROM t_employe WHERE lg_USER_ID = '" + 
 const contenu = (s, sep) => ['PRESTIGE-BADGE', '1', NUM, 'admin', s].join(sep || '|');
 /* frappe US lue par un poste AZERTY : touches des lettres, chiffres (non majuscules), '-', '_' et '|' */
 const US = '1234567890-_|aqzwmAQZWM', FR = '&é"\'(-è_çà)°µqawz,QAWZ?';
+/* meme frappe, verrouillage majuscules actif : chiffres et touches ) ° * µ inverses, lettres inchangees */
+const US_MAJ = '-_|aqzwmAQZWM', FR_MAJ = '°)*qawz,QAWZ?';
+const qwertyMajSurAzerty = (t) => t.split('').map((c) => { const i = US_MAJ.indexOf(c); return i < 0 ? c : FR_MAJ[i]; }).join('');
 const qwertySurAzerty = (t) => t.split('').map((c) => { const i = US.indexOf(c); return i < 0 ? c : FR[i]; }).join('');
 const inverse = (t) => t.split('').map((c) => (c === c.toUpperCase() ? c.toLowerCase() : c.toUpperCase())).join('');
 function nettoyer() {
@@ -91,6 +96,17 @@ function nettoyer() {
     await p6.keyboard.press('Enter');
     await p6.waitForURL('**/general/**', { timeout: 30000 }).catch(() => null);
     ok('Même lecture dans « Identifiant » : connexion aussi', /general/.test(p6.url()), p6.url());
+    const luMaj = qwertyMajSurAzerty(contenu(SECRET));
+    const p7 = await page();
+    await scanner(p7, luMaj).catch(() => null);
+    await p7.waitForURL('**/general/**', { timeout: 30000 }).catch(() => null);
+    ok('QWERTY et verrouillage majuscules (« ' + luMaj.slice(0, 22) + '… ») : connexion par le bouton badge', /general/.test(p7.url()), p7.url());
+    const p8 = await page();
+    await p8.click('#str_login');
+    await p8.keyboard.type(luMaj, { delay: 1 });
+    await p8.keyboard.press('Enter');
+    await p8.waitForURL('**/general/**', { timeout: 30000 }).catch(() => null);
+    ok('Même lecture dans « Identifiant » : connexion aussi', /general/.test(p8.url()), p8.url());
   } catch (e) {
     ok('Parcours sans exception', false, e.stack);
   } finally {

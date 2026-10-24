@@ -26,6 +26,14 @@ public final class BadgeQr {
     static final String TOUCHES_US = "1234567890-_|aqzwmAQZWM";
     static final String TOUCHES_FR = "&\u00e9\"'(-\u00e8_\u00e7\u00e0)\u00b0\u00b5qawz,QAWZ?";
     public static final String PREFIXE_QWERTY = "PRESTIGE)BQDGE";
+    /**
+     * Retour du 24/10 : meme douchette, verrouillage majuscules actif sur le poste (active pour lire les chiffres des
+     * etiquettes GS1). En AZERTY il inverse la majuscule des chiffres et des touches ) ° et * µ : les chiffres arrivent
+     * justes, « - » en « ° », « _ » en « ) », « | » en « * » ; les lettres gardent leur casse.
+     */
+    static final String TOUCHES_US_MAJ = "-_|aqzwmAQZWM";
+    static final String TOUCHES_FR_MAJ = "\u00b0)*qawz,QAWZ?";
+    public static final String PREFIXE_QWERTY_MAJ = "PRESTIGE\u00b0BQDGE";
     private static final SecureRandom HASARD = new SecureRandom();
 
     private BadgeQr() {
@@ -65,7 +73,7 @@ public final class BadgeQr {
             return null;
         }
         String v = lu.trim();
-        if (v.startsWith(PREFIXE_QWERTY)) {
+        if (v.startsWith(PREFIXE_QWERTY) || v.startsWith(PREFIXE_QWERTY_MAJ)) {
             v = depuisQwerty(v);
         }
         String[] p = v.split("\\|", -1);
@@ -82,10 +90,13 @@ public final class BadgeQr {
 
     /** Contenu lu par une douchette en QWERTY sur un poste AZERTY, remis tel qu'il est imprime. */
     public static String depuisQwerty(String lu) {
+        boolean maj = lu.startsWith(PREFIXE_QWERTY_MAJ);
+        String fr = maj ? TOUCHES_FR_MAJ : TOUCHES_FR;
+        String us = maj ? TOUCHES_US_MAJ : TOUCHES_US;
         StringBuilder sb = new StringBuilder(lu.length());
         for (char c : lu.toCharArray()) {
-            int i = TOUCHES_FR.indexOf(c);
-            sb.append(i < 0 ? c : TOUCHES_US.charAt(i));
+            int i = fr.indexOf(c);
+            sb.append(i < 0 ? c : us.charAt(i));
         }
         return sb.toString();
     }
@@ -100,9 +111,10 @@ public final class BadgeQr {
         }
         String v = lu.trim();
         String qwerty = "";
-        if (v.startsWith(PREFIXE_QWERTY)) {
+        if (v.startsWith(PREFIXE_QWERTY) || v.startsWith(PREFIXE_QWERTY_MAJ)) {
+            qwerty = v.startsWith(PREFIXE_QWERTY_MAJ) ? "douchette en QWERTY et verrouillage majuscules, "
+                    : "douchette en QWERTY, ";
             v = depuisQwerty(v);
-            qwerty = "douchette en QWERTY, ";
         }
         if (!v.toUpperCase().startsWith(PREFIXE)) {
             return "prefixe PRESTIGE-BADGE absent, " + v.length() + " caracteres";
