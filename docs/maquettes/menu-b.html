@@ -1,0 +1,279 @@
+<title>Menu Prestige B</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@600;700&family=Figtree:wght@400;500;600;700&display=swap">
+<style>
+:root{
+  /* Prestige : bleu nuit de l'en-tete, cyan des donnees, or de la selection */
+  --nuit:#10264a; --nuit2:#173560; --trait-nuit:#2a4a76; --texte-nuit:#e7eef7; --doux-nuit:#9db2cb;
+  --or:#f2b84b; --cyan:#0891b2; --cyan-doux:#e3f4f8;
+  --fond:#eef2f7; --surface:#ffffff; --texte:#0f1d33; --texte2:#5b6b80; --trait:#dde4ee; --survol:#f2f6fa; --marque:#fde68a; --voile:rgba(10,20,40,.45);
+  --f-titre:"Barlow Semi Condensed","Arial Narrow",Arial,sans-serif; --f-texte:"Figtree","Segoe UI",Arial,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--nuit:#0a1a33;--nuit2:#11284a;--trait-nuit:#234068;--texte-nuit:#e2e9f3;--doux-nuit:#8ea4bf;
+  --fond:#0d1626;--surface:#142035;--texte:#e3eaf4;--texte2:#9aabc1;--trait:#24344d;--survol:#1a2a44;--cyan-doux:#11344a;--marque:#6b5313;--voile:rgba(0,0,0,.6);color-scheme:dark}}
+:root[data-theme="dark"]{--nuit:#0a1a33;--nuit2:#11284a;--trait-nuit:#234068;--texte-nuit:#e2e9f3;--doux-nuit:#8ea4bf;
+  --fond:#0d1626;--surface:#142035;--texte:#e3eaf4;--texte2:#9aabc1;--trait:#24344d;--survol:#1a2a44;--cyan-doux:#11344a;--marque:#6b5313;--voile:rgba(0,0,0,.6);color-scheme:dark}
+html,body{height:100%}
+body{background:var(--fond);color:var(--texte);font-family:var(--f-texte);font-size:14px;overflow:hidden}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+button:focus-visible,input:focus-visible{outline:2px solid var(--or);outline-offset:2px}
+.entete{height:56px;background:linear-gradient(90deg,var(--nuit),var(--nuit2));color:var(--texte-nuit);display:flex;align-items:center;gap:12px;
+  padding-left:max(14px,env(safe-area-inset-left,0px));padding-right:max(14px,env(safe-area-inset-right,0px));position:relative;z-index:30}
+.logo{width:32px;height:32px;border-radius:9px;background:#2fb872;color:#fff;display:grid;place-items:center;font-weight:800;font-size:20px;flex:0 0 32px}
+.marque{font-family:var(--f-titre);font-weight:700;letter-spacing:1.5px;font-size:18px;white-space:nowrap}
+.pastille{border:1px solid var(--trait-nuit);background:rgba(255,255,255,.06);border-radius:16px;padding:5px 12px;font-size:12.5px;white-space:nowrap;display:flex;align-items:center;gap:6px}
+.esp{flex:1}
+.entete kbd{background:transparent;border-color:var(--trait-nuit);color:var(--doux-nuit)}
+.cacher-etroit{}
+@media (max-width:760px){.cacher-etroit{display:none}}
+.burger{display:none;color:var(--texte-nuit)}
+@media (max-width:760px){.burger{display:grid;place-items:center;width:36px;height:36px}}
+svg.lucide{width:18px;height:18px;stroke-width:2}
+/* zone de l'ecran ouvert */
+.ecran{padding-block:18px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));overflow:auto;min-width:0}
+.fil{font-size:12.5px;color:var(--texte2);display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.ecran h1{font-family:var(--f-titre);font-weight:700;font-size:26px;margin:4px 0 14px;text-wrap:balance}
+.factice{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+.factice div{background:var(--surface);border:1px solid var(--trait);border-radius:10px;height:90px}
+.factice .large{grid-column:1/-1;height:220px}
+.note{margin-top:14px;font-size:12.5px;color:var(--texte2);max-width:70ch;line-height:1.5}
+/* palette Ctrl K */
+.voile{position:fixed;inset:0;background:var(--voile);z-index:60}
+.palette{position:fixed;top:12vh;left:50%;transform:translateX(-50%);width:min(640px,calc(100vw - 32px));background:var(--surface);color:var(--texte);
+  border-radius:14px;box-shadow:0 24px 70px rgba(0,0,0,.35);z-index:61;overflow:hidden;border:1px solid var(--trait)}
+.p-ch{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--trait)}
+.p-ch input{flex:1;border:0;background:none;font:inherit;font-size:16px;color:var(--texte);outline:none;min-width:0}
+.p-r{max-height:52vh;overflow:auto;padding:6px}
+.p-g{font-size:10.5px;letter-spacing:1.2px;color:var(--texte2);margin:8px 10px 4px;font-weight:700;text-transform:uppercase}
+.p-l{display:flex;align-items:center;gap:12px;padding:9px 10px;border-radius:9px;width:100%;text-align:left}
+.p-l small{margin-left:auto;color:var(--texte2);font-size:12px;text-align:right}
+.p-l.on{background:var(--cyan-doux)}
+mark{background:var(--marque);color:inherit;border-radius:3px;padding:0 1px}
+.p-bas{border-top:1px solid var(--trait);padding:8px 14px;font-size:11.5px;color:var(--texte2);display:flex;gap:14px;flex-wrap:wrap}
+kbd{font-family:var(--f-texte);font-size:11px;border:1px solid var(--trait);border-radius:4px;padding:0 5px;background:var(--survol)}
+.badge{font-size:10.5px;font-weight:700;background:#fde2e2;color:#a61b1b;border-radius:9px;padding:1px 7px;font-variant-numeric:tabular-nums}
+.etoile{color:var(--texte2);opacity:.55;display:grid;place-items:center;width:24px;height:24px;border-radius:6px}
+.etoile.on{color:var(--or);opacity:1}
+.etoile svg{width:15px;height:15px}
+.etoile.on svg{fill:currentColor}
+.toast{position:fixed;bottom:calc(18px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);background:var(--nuit);color:var(--texte-nuit);padding:9px 16px;border-radius:9px;font-size:13px;z-index:70;box-shadow:0 8px 24px rgba(0,0,0,.3)}
+@media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+
+/* B : bandeau des modules sous l'en-tete et mega-menu pleine largeur ; l'ecran garde toute la largeur */
+.bandeau{background:var(--surface);border-bottom:1px solid var(--trait);display:flex;align-items:stretch;gap:2px;overflow-x:auto;
+  padding-left:max(10px,env(safe-area-inset-left,0px));padding-right:max(10px,env(safe-area-inset-right,0px));scrollbar-width:thin;position:relative;z-index:25}
+.onglet{display:flex;align-items:center;gap:7px;padding:0 12px;height:46px;font-size:13.5px;white-space:nowrap;border-bottom:3px solid transparent;color:var(--texte2);font-weight:500}
+.onglet svg{width:16px;height:16px}
+.onglet:hover{color:var(--texte);background:var(--survol)}
+.onglet.on{color:var(--texte);border-bottom-color:var(--or);font-weight:700}
+.raccourcis{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding-block:8px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));font-size:12.5px;color:var(--texte2);background:var(--fond);border-bottom:1px solid var(--trait)}
+.raccourcis button{border:1px solid var(--trait);background:var(--surface);border-radius:14px;padding:4px 10px;display:flex;align-items:center;gap:5px;color:var(--texte)}
+.raccourcis svg{width:13px;height:13px}
+.raccourcis .fav svg{color:var(--or);fill:var(--or)}
+.mega{position:absolute;left:0;right:0;top:0;background:var(--surface);border-bottom:1px solid var(--trait);box-shadow:0 22px 40px rgba(10,20,40,.18);z-index:24;max-height:calc(100vh - 120px);overflow:auto}
+.mega-in{display:grid;grid-template-columns:240px 1fr;min-height:200px}
+.mega-g{background:linear-gradient(180deg,var(--nuit),var(--nuit2));color:var(--texte-nuit);padding:22px 20px;display:flex;flex-direction:column;gap:8px}
+.mega-g h2{font-family:var(--f-titre);font-size:26px;margin:0;font-weight:700}
+.mega-g p{margin:0;font-size:12.5px;color:var(--doux-nuit);line-height:1.5}
+.mega-g .ic{width:44px;height:44px;border-radius:12px;display:grid;place-items:center}
+.mega-g input{margin-top:auto;border:1px solid var(--trait-nuit);background:var(--nuit);color:var(--texte-nuit);border-radius:8px;padding:7px 10px;font:inherit;font-size:13px}
+.colonnes{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:4px 22px;padding:16px 22px 20px}
+.col h3{font-size:11px;letter-spacing:1.1px;color:var(--cyan);margin:6px 0 4px;text-transform:uppercase;font-weight:700}
+.ent{display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:7px;font-size:13.5px;width:100%;text-align:left}
+.ent:hover{background:var(--survol)}
+.ent.actif{background:var(--cyan-doux);font-weight:600}
+.ent .etoile{margin-left:auto;opacity:0}.ent:hover .etoile,.ent .etoile.on{opacity:1}
+.app{position:relative;height:100%;display:flex;flex-direction:column}
+.ecran{flex:1}
+@media (max-width:760px){.mega-in{grid-template-columns:1fr}.mega-g{padding:14px 16px}.mega-g p{display:none}}
+.ruban{position:fixed;left:calc(12px + env(safe-area-inset-left,0px));bottom:calc(10px + env(safe-area-inset-bottom,0px));background:var(--surface);border:1px solid var(--trait);border-radius:20px;padding:5px 12px;font-size:12px;color:var(--texte2);z-index:15}
+
+</style>
+<script src="https://unpkg.com/lucide@0.344.0/dist/umd/lucide.min.js"></script>
+<script>
+function demarrer() {
+/* Menu reel du banc (profil administrateur), regroupe par usage pour la maquette. Les 4 entrees masquees et les
+   entrees absentes du menu ne figurent pas. */
+const MODULES = [
+ {id:'sc', nom:'Service client', ic:'shopping-cart', c:'#3b82f6', groupes:[
+   ['Vendre', ['Ventes','Pré-vente','Vente dépôt','Proforma','Ventes ratées']],
+   ['Caisse', ['Ouverture de caisse','Fonds de caisse','Clôture de caisse','Retraits et abandons']],
+   ['Suivi des ventes', ['Ventes terminées','Ventes annulées','Ventes dépôts','Liste des avoirs','Ordonnancier']],
+   ['Clients', ['Suivi dossier client','Points fidélité','Rappels traitement','Analyse posologie','Modèles de messages']]]},
+ {id:'gc', nom:'Gestion courante', ic:'briefcase', c:'#8b5cf6', groupes:[
+   ['Caisse', ['Gestion caisse','Liste de caisse','Visualiser la caisse','Mouvements de caisse','Caisse / recette','Ticket Z']],
+   ['Balances', ['Balance vente / caisse','Balance dépôt','Point caisse dépôt','Balance para']],
+   ['Bons et articles', ['Liste des bons','Bons par organisme','Liste des articles vendus','Articles vendus récap','Mouchard prix de vente']]]},
+ {id:'fa', nom:'Facturation', ic:'file-text', c:'#ec4899', groupes:[
+   ['Facturer', ['Dossiers à facturer','Factures','Factures provisoires','Factures compagnies d\'assurance']],
+   ['Encaisser', ['Liste des règlements','Gestion des différés','Suivi des bons','Récap par organisme']],
+   ['Modèles', ['Modèle de facture','Modèles de facture']]]},
+ {id:'tp', nom:'Tiers payants', ic:'handshake', c:'#06b6d4', groupes:[
+   ['Organismes', ['Tiers-payants','Type tiers-payants','Groupe et compagnie d\'assurance','Taux de remboursement','Régimes caisse','Tiers payants désactivés']],
+   ['Clients', ['Clients','Sociétés','Catégorie client','Clients désactivés','Cautions']],
+   ['Encours', ['Balance âgée récap','Balance âgée détaillée','Dossiers tiers-payants','Gestion des litiges']],
+   ['Carnets et dépôts', ['Gestion carnet dépôt','Dépôt carnet','Retour carnet dépôt','Balance carnet','Emplacements / dépôt','Gestion dépôts extensions']],
+   ['Remises', ['Remises','Grille de remise','Gérer les TP à exclure','Tiers-payants exclus','Promotions','Historique des promotions']]]},
+ {id:'co', nom:'Commandes', ic:'truck', c:'#f97316', groupes:[
+   ['Préparer', ['Suggestion de réappro.','Prévisions','Proposition commande','Liste des ruptures','Péremptions courtes','Offres de prix']],
+   ['Commander', ['Commande en cours','Transaction commande','Achats mensuels grossiste']],
+   ['Recevoir', ['Gestion des entrées','Pointer BL et avoirs','Liste des lots','Unités gratuites','Retour fournisseur']],
+   ['Contrôler', ['État de contrôle achats','État de contrôle annuel']]]},
+ {id:'st', nom:'Stock', ic:'package', c:'#22c55e', groupes:[
+   ['Produits', ['Produits','Fiche article','Gestion des doublons','Gamme produits','Laboratoire produits','Mise à jour produits','Liste articles désactivés','Gérer code gestion']],
+   ['Mouvements', ['Suivi mouvement article','Suivi article complet','Entrées / sorties détail','Articles mouvementés','Retour dépôt','Ajustement du stock']],
+   ['Inventaire', ['Travaux d\'inventaire','Annulés en inventaire','Comparaison stock article','Détails','État de stock']],
+   ['Périmés', ['Gestion des périmés','Saisie des périmés','Recherche périmés','Périmés retirés du stock']],
+   ['Rayons et réserves', ['Emplacement','Produits par code géo','Gestion des réserves','Optimisation quantité']],
+   ['Valeur et ventes', ['Valorisation du stock','Set valorisation','Évolution stock','Évaluation des ventes','Ventes par produit','Articles invendus']],
+   ['Étiquettes', ['Gestion étiquette','Étiquettage Pro']]]},
+ {id:'pa', nom:'Paramétrages', ic:'sliders-horizontal', c:'#94a3b8', groupes:[
+   ['Officine', ['Identification pharmacie','Paramétrage général','Menu personnel','Gestion des devises','Fournisseurs SMS','Mode de règlements','Motifs règlement']],
+   ['Articles', ['Gérer famille','Groupe famille','Gérer forme article','Gérer état article','Gérer les DCI','Gérer contre-indication','Gérer fabricant','Gérer tranche']],
+   ['Partenaires', ['Gérer grossistes','Groupe grossistes','Gérer médecin','Gérer spécialité médecin','Gérer centre payeur','Gérer fiche société','Gérer type société','Gérer escompte société','Gérer ville']],
+   ['Remises et risques', ['Gérer type remise','Gérer workflow remise','Gérer risques','Gérer type risque','Gérer ayant droit','Catégories ayants droit','Gérer motif retour']]]},
+ {id:'re', nom:'Rétrocession', ic:'arrow-left-right', c:'#14b8a6', groupes:[
+   ['Rétrocession', ['Rétrocession','Gestion des confrères']]]},
+ {id:'ag', nom:'Analyse de gestion', ic:'line-chart', c:'#eab308', groupes:[
+   ['Pilotage', ['Pilotage de l\'officine','Tableau de bord','Tableau de bord carnet','Rapport activité','Récapitulatif activité','Compte d\'exploitation']],
+   ['Ventes', ['Statistiques des ventes','Statistique annuelle CA','Chiffre d\'affaires 20/80','Classification ABC','Unités vendues','Marge sur produits','Statistique sur TVA','Suivi remise']],
+   ['Familles et produits', ['Statistique famille','Comparaison CA familles','Vente / stock famille','Stats produits / gamme','Stats produits / labo','Analyse article','CA emplacement / famille','CA par emplacement']],
+   ['Achats', ['Statistique des achats','Achats annuels','Achats fournisseurs','Achats mensuels produits','CA par grossiste','Ruptures de stock']],
+   ['Clients et équipe', ['Ventes mensuelles client','Ventes mensuelles société','Analyse tiers payants','Rétrocessions','Fréquentation officine','Activité opérateurs','Activité des équipes','Gestion des gardes','Feuille de match']]]},
+ {id:'no', nom:'Notifications', ic:'bell', c:'#ef4444', groupes:[
+   ['Notifications', ['Menu notifications','Modèle notification','Catégorie notification','Gestion des SMS','Envoi de SMS récap']]]},
+ {id:'ut', nom:'Utilisateurs', ic:'users', c:'#6366f1', groupes:[
+   ['Comptes', ['Utilisateurs','Gestion de profils','Privilèges','Langues','Mon compte']]]},
+ {id:'cw', nom:'Campagnes SMS / WhatsApp', ic:'messages-square', c:'#22c55e', groupes:[
+   ['Campagnes', ['Campagnes','Comptes WhatsApp']]]},
+ {id:'rh', nom:'Ressources humaines', ic:'contact', c:'#0ea5e9', groupes:[
+   ['Équipe', ['Ressources humaines']]]},
+ {id:'av', nom:'Avis clients', ic:'star', c:'#f59e0b', groupes:[
+   ['Avis', ['Avis clients']]]},
+ {id:'su', nom:'Centre de support', ic:'headphones', c:'#64748b', groupes:[
+   ['Aide', ['Me contacter','Tickets support']],
+   ['Surveillance', ['Diagnostic & bugs','Santé application','Stabilité du serveur','Historique','Maintenance','Audit & rapprochements']]]}
+];
+/* compteurs a traiter (exemple) */
+const BADGES = {'Rappels traitement':12, 'Liste des avoirs':3, 'Pointer BL et avoirs':5, 'Suggestion de réappro.':28, 'Tickets support':2};
+const ENTREES = [];
+MODULES.forEach(m => m.groupes.forEach(([g, l]) => l.forEach(e => ENTREES.push({e, g, m}))));
+const sansAccent = s => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+const store = {
+  lire(k, d) { try { const v = localStorage.getItem('maq-nav-' + k); return v ? JSON.parse(v) : d; } catch (x) { return d; } },
+  ecrire(k, v) { try { localStorage.setItem('maq-nav-' + k, JSON.stringify(v)); } catch (x) { /* navigation privee */ } }
+};
+let FAVORIS = store.lire('fav', ['Ventes', 'Pointer BL et avoirs', 'Pilotage de l\'officine', 'Travaux d\'inventaire']);
+let RECENTS = store.lire('rec', ['Activité des équipes', 'Clôture de caisse', 'Gestion des entrées']);
+const estFavori = e => FAVORIS.includes(e);
+function basculerFavori(e) { FAVORIS = estFavori(e) ? FAVORIS.filter(x => x !== e) : FAVORIS.concat(e); store.ecrire('fav', FAVORIS); }
+function noterRecent(e) { RECENTS = [e].concat(RECENTS.filter(x => x !== e)).slice(0, 5); store.ecrire('rec', RECENTS); }
+function chercher(q) {
+  const t = sansAccent(q.trim()); if (!t) return [];
+  return ENTREES.map(x => ({x, i: sansAccent(x.e).indexOf(t), mots: sansAccent(x.e + ' ' + x.g + ' ' + x.m.nom).split(/\s+/).some(w => w.startsWith(t))}))
+    .filter(r => r.i >= 0 || r.mots).sort((a, b) => (a.i < 0) - (b.i < 0) || a.i - b.i || a.x.e.length - b.x.e.length).slice(0, 8).map(r => r.x);
+}
+function surligner(e, q) {
+  const t = sansAccent(q.trim()), i = sansAccent(e).indexOf(t);
+  const esc = s => s.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+  return i < 0 || !t ? esc(e) : esc(e.slice(0, i)) + '<mark>' + esc(e.slice(i, i + t.length)) + '</mark>' + esc(e.slice(i + t.length));
+}
+const trouver = e => ENTREES.find(x => x.e === e);
+
+/* commun aux trois maquettes : en-tete, ecran ouvert, palette Ctrl K, favoris, toast */
+const $ = (s, r) => (r || document).querySelector(s);
+const ico = (n, cls) => '<i data-lucide="' + n + '"' + (cls ? ' class="' + cls + '"' : '') + '></i>';
+const rafraichirIcones = () => { if (window.lucide) lucide.createIcons(); };
+let ECRAN = 'Ventes';
+function enteteHtml(variante) {
+  return '<header class="entete"><button class="burger" id="burger" aria-label="Menu">' + ico('menu') + '</button><span class="logo">+</span>'
+    + '<span class="marque">PRESTIGE 3</span><span class="pastille cacher-etroit">' + ico('clock') + ' sam. 24 oct. 2026 09:42</span><span class="esp"></span>'
+    + (variante === 'barre' ? '' : '<span class="pastille cacher-etroit">' + ico('building-2') + ' PHIE DE GBOGUHE SARL-U</span><span class="esp"></span>')
+    + '<button class="pastille" id="ouvrir-palette" title="Rechercher un écran (Ctrl K)">' + ico('search') + '<span class="cacher-etroit">Rechercher</span> <kbd class="cacher-etroit">Ctrl K</kbd></button>'
+    + '<span class="pastille cacher-etroit">' + ico('user') + ' Super Admin</span></header>';
+}
+function ouvrir(e) {
+  const x = trouver(e); if (!x) return;
+  ECRAN = e; noterRecent(e);
+  $('#ecran').innerHTML = '<div class="fil">' + ico(x.m.ic) + x.m.nom + ' › ' + x.g + '</div><h1>' + e + '</h1>'
+    + '<div class="factice"><div></div><div></div><div></div><div class="large"></div></div>'
+    + '<p class="note">Maquette : l\'écran « ' + e + ' » s\'ouvrirait ici. La recherche, les favoris (★) et les récents fonctionnent ; ils sont gardés dans ce navigateur seulement.</p>';
+  rafraichirIcones();
+  if (window.apresOuverture) apresOuverture(e);
+}
+function toast(t) { const d = document.createElement('div'); d.className = 'toast'; d.textContent = t; document.body.appendChild(d); setTimeout(() => d.remove(), 1800); }
+function etoile(e) { return '<button class="etoile' + (estFavori(e) ? ' on' : '') + '" data-fav="' + e.replace(/"/g, '&quot;') + '" title="' + (estFavori(e) ? 'Retirer des favoris' : 'Ajouter aux favoris') + '">' + ico('star') + '</button>'; }
+document.addEventListener('click', (ev) => {
+  const f = ev.target.closest('[data-fav]');
+  if (f) { ev.stopPropagation(); const e = f.getAttribute('data-fav'); basculerFavori(e); toast(estFavori(e) ? '« ' + e + ' » ajouté aux favoris' : '« ' + e + ' » retiré des favoris'); if (window.redessiner) redessiner(); return; }
+  const o = ev.target.closest('[data-ouvrir]');
+  if (o) { ouvrir(o.getAttribute('data-ouvrir')); fermerPalette(); }
+}, true);
+/* palette */
+let pSel = 0, pRes = [];
+function ouvrirPalette() {
+  if ($('.palette')) return;
+  document.body.insertAdjacentHTML('beforeend', '<div class="voile" id="voile"></div><div class="palette" role="dialog" aria-label="Rechercher un écran"><div class="p-ch">' + ico('search')
+    + '<input id="p-saisie" placeholder="Écran, module ou usage… ex. clôt, périmés, BL" autocomplete="off"></div><div class="p-r" id="p-r"></div>'
+    + '<div class="p-bas"><span><kbd>↑</kbd> <kbd>↓</kbd> choisir</span><span><kbd>Entrée</kbd> ouvrir</span><span><kbd>Échap</kbd> fermer</span><span style="margin-left:auto">Seuls vos menus autorisés apparaissent</span></div></div>');
+  $('#voile').onclick = fermerPalette;
+  const s = $('#p-saisie'); s.oninput = () => { pSel = 0; dessinerPalette(); }; s.focus(); dessinerPalette();
+}
+function fermerPalette() { ['.palette', '#voile'].forEach(x => { const e = $(x); if (e) e.remove(); }); }
+function dessinerPalette() {
+  const q = $('#p-saisie').value; let h = '';
+  if (q.trim()) { pRes = chercher(q); h = '<div class="p-g">Écrans</div>' + (pRes.length ? pRes.map((x, i) => '<button class="p-l' + (i === pSel ? ' on' : '') + '" data-ouvrir="' + x.e.replace(/"/g, '&quot;') + '">' + ico(x.m.ic) + '<span>' + surligner(x.e, q) + '</span><small>' + x.m.nom + ' › ' + x.g + '</small></button>').join('') : '<div class="p-l">Aucun écran ne correspond. Essayez un autre mot (ex. « caisse », « BL »).</div>'); }
+  else { pRes = RECENTS.map(trouver).filter(Boolean); h = '<div class="p-g">Récents</div>' + pRes.map((x, i) => '<button class="p-l' + (i === pSel ? ' on' : '') + '" data-ouvrir="' + x.e.replace(/"/g, '&quot;') + '">' + ico('history') + '<span>' + x.e + '</span><small>' + x.m.nom + '</small></button>').join(''); }
+  $('#p-r').innerHTML = h; rafraichirIcones();
+}
+document.addEventListener('keydown', (ev) => {
+  if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 'k') { ev.preventDefault(); ouvrirPalette(); return; }
+  if (!$('.palette')) return;
+  if (ev.key === 'Escape') fermerPalette();
+  else if (ev.key === 'ArrowDown') { pSel = Math.min(pRes.length - 1, pSel + 1); dessinerPalette(); ev.preventDefault(); }
+  else if (ev.key === 'ArrowUp') { pSel = Math.max(0, pSel - 1); dessinerPalette(); ev.preventDefault(); }
+  else if (ev.key === 'Enter' && pRes[pSel]) { ouvrir(pRes[pSel].e); fermerPalette(); }
+});
+
+let MOD = null, filtreM = '';
+const DESC = {sc:'Vendre, encaisser et suivre les clients au comptoir.', gc:'La caisse au quotidien : mouvements, balances, bons.', fa:'Facturer les organismes et suivre les règlements.',
+  tp:'Organismes, clients, encours et carnets.', co:'Préparer, passer et recevoir les commandes.', st:'Produits, mouvements, inventaires, périmés et étiquettes.',
+  pa:'Réglages de l\'officine et référentiels.', re:'Échanges avec les confrères.', ag:'Pilotage, ventes, achats et équipe.', no:'Messages et SMS automatiques.',
+  ut:'Comptes, profils et droits.', cw:'Campagnes et comptes WhatsApp.', rh:'Équipe et badges.', av:'Ce que disent les clients.', su:'Aide, santé et maintenance.'};
+document.body.insertAdjacentHTML('afterbegin', '<div class="app">' + enteteHtml('barre') + '<nav class="bandeau" id="bandeau"></nav><div id="mega-place" style="position:relative;z-index:24"></div><div class="raccourcis" id="raccourcis"></div><main class="ecran" id="ecran"></main></div>'
+  + '<div class="ruban">Proposition B · bandeau des modules et méga-menu</div>');
+function redessiner() {
+  $('#bandeau').innerHTML = MODULES.map(m => '<button class="onglet' + (MOD && MOD.id === m.id ? ' on' : '') + '" data-mod="' + m.id + '"><span style="color:' + m.c + '">' + ico(m.ic) + '</span>' + m.nom + '</button>').join('');
+  $('#raccourcis').innerHTML = '<span>' + ico('star') + ' Favoris</span>' + (FAVORIS.length ? FAVORIS.map(e => '<button class="fav" data-ouvrir="' + e.replace(/"/g, '&quot;') + '">' + ico('star') + e + '</button>').join('') : '<span>épinglez un écran avec ★</span>')
+    + '<span style="margin-left:12px">' + ico('history') + ' Récents</span>' + RECENTS.slice(0, 3).map(e => '<button data-ouvrir="' + e.replace(/"/g, '&quot;') + '">' + e + '</button>').join('');
+  if (!MOD) { $('#mega-place').innerHTML = ''; } else {
+    const t = sansAccent(filtreM), n = MOD.groupes.reduce((s, g) => s + g[1].length, 0);
+    const gs = MOD.groupes.map(([g, l]) => [g, l.filter(e => !t || sansAccent(e).includes(t))]).filter(g => g[1].length);
+    $('#mega-place').innerHTML = '<section class="mega"><div class="mega-in"><div class="mega-g"><span class="ic" style="background:' + MOD.c + '33;color:' + MOD.c + '">' + ico(MOD.ic) + '</span><h2>' + MOD.nom + '</h2><p>' + DESC[MOD.id] + '<br>' + n + ' écrans</p>'
+      + '<input id="filtre-mega" placeholder="Filtrer ce module…" value="' + filtreM.replace(/"/g, '&quot;') + '"></div><div class="colonnes">'
+      + (gs.length ? gs.map(([g, l]) => '<div class="col"><h3>' + g + '</h3>' + l.map(e => '<div class="ent' + (e === ECRAN ? ' actif' : '') + '" role="button" tabindex="0" data-ouvrir="' + e.replace(/"/g, '&quot;') + '">' + surligner(e, filtreM)
+        + (BADGES[e] ? ' <span class="badge">' + BADGES[e] + '</span>' : '') + etoile(e) + '</div>').join('') + '</div>').join('') : '<p style="color:var(--texte2)">Aucun écran ne contient « ' + filtreM + ' ».</p>') + '</div></div></section>';
+    const f = $('#filtre-mega'); f.oninput = () => { filtreM = f.value; const p = f.selectionStart; redessiner(); const g = $('#filtre-mega'); g.focus(); g.setSelectionRange(p, p); };
+  }
+  rafraichirIcones();
+}
+function apresOuverture() { MOD = null; filtreM = ''; redessiner(); }
+let survolMinuteur = null;
+document.addEventListener('mouseover', (ev) => { const m = ev.target.closest('.onglet'); if (!m || !matchMedia('(hover:hover)').matches) return;
+  clearTimeout(survolMinuteur); survolMinuteur = setTimeout(() => { const x = MODULES.find(z => z.id === m.getAttribute('data-mod')); if (MOD !== x) { MOD = x; filtreM = ''; redessiner(); } }, 220); });
+document.addEventListener('mouseout', (ev) => { if (ev.target.closest('.onglet')) clearTimeout(survolMinuteur); });
+document.addEventListener('click', (ev) => {
+  const m = ev.target.closest('[data-mod]');
+  if (m) { const x = MODULES.find(z => z.id === m.getAttribute('data-mod')); MOD = MOD === x ? null : x; filtreM = ''; redessiner(); return; }
+  if (ev.target.closest('#ouvrir-palette')) { ouvrirPalette(); return; }
+  if (MOD && !ev.target.closest('.mega') && !ev.target.closest('.palette') && !ev.target.closest('.toast')) { MOD = null; redessiner(); }
+});
+document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape' && MOD && !$('.palette')) { MOD = null; redessiner(); } if (ev.key === 'Enter' && ev.target.matches('.ent')) ouvrir(ev.target.getAttribute('data-ouvrir')); });
+redessiner(); ouvrir('Ventes'); MOD = MODULES.find(m => m.id === 'st'); redessiner();
+
+
+window.redessiner = redessiner; window.apresOuverture = apresOuverture;
+}
+if (document.body) demarrer(); else document.addEventListener("DOMContentLoaded", demarrer);
+</script>
