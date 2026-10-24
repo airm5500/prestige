@@ -23,7 +23,8 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
     },
 
     ONGLETS: [{cle: 'donnees', texte: 'Données & recherches', aide: 'Journal de tout ce que fait chaque employé, filtres et recherche'},
-        {cle: 'analyses', texte: 'Analyses', aide: 'Productivité, affluence, saisie des BL, actions sensibles et aide à la décision'}],
+        {cle: 'analyses', texte: 'Analyses', aide: 'Productivité, affluence, saisie des BL, actions sensibles et aide à la décision'},
+        {cle: 'anomalies', texte: 'Anomalies', aide: 'Par employé : refus affichés, opérations à risque, erreurs du logiciel ; et ce qu\'il a fait juste avant'}],
 
     /* couleur de chaque type d'action (pastilles, colonne Action, graphiques) */
     COULEURS: {VENTE: '#1b7f3b', VENDEUR: '#2563eb', ANNULATION: '#c62828', MODIFICATION: '#e67e22', BL: '#7c3aed',
@@ -132,8 +133,9 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
         });
         me.donnees = me.creerDonnees();
         me.analyses = me.creerAnalyses();
+        me.anomaliesPanel = me.creerAnomalies();
         Ext.apply(me, {
-            items: [me.donnees, me.analyses],
+            items: [me.donnees, me.analyses, me.anomaliesPanel],
             dockedItems: [{
                     xtype: 'toolbar', dock: 'top', itemId: 'ongletsAe', cls: 'cec-onglets', layout: {type: 'hbox', pack: 'start', align: 'middle'},
                     items: Ext.Array.map(me.ONGLETS, function (o) {
@@ -305,6 +307,9 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
         if (me.getLayout().getActiveItem() === me.analyses) {
             me.chargerAnalyses();
         }
+        if (me.getLayout().getActiveItem() === me.anomaliesPanel) {
+            me.chargerAnomalies();
+        }
     },
 
     afficher: function (cle) {
@@ -319,6 +324,11 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
             me.getLayout().setActiveItem(me.analyses);
             me.chargerAnalyses();
             return me.analyses;
+        }
+        if (cle === 'anomalies') {
+            me.getLayout().setActiveItem(me.anomaliesPanel);
+            me.chargerAnomalies();
+            return me.anomaliesPanel;
         }
         me.getLayout().setActiveItem(me.donnees);
         return me.donnees;
@@ -513,6 +523,189 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                         }
                     }},
                 {xtype: 'tbtext', text: 'min'}]};
+    },
+
+    /* ------------------------------------------------------------------ ANOMALIES (retour du 24/10) */
+
+    FAMILLES: {REFUS: ['Refus affiché', '#c2410c'], LOGICIEL: ['Erreur du logiciel', '#64748b']},
+
+    creerAnomalies: function () {
+        var me = this, N = testextjs.view.activiteequipes.ActiviteEquipes.nombre, enc = Ext.String.htmlEncode;
+        me.anoEmployes = Ext.create('Ext.data.Store', {fields: ['id', 'nom', {name: 'ventes', type: 'int'}, {name: 'refus', type: 'int'},
+                {name: 'annulations', type: 'int'}, {name: 'modifications', type: 'int'}, {name: 'remises', type: 'int'},
+                {name: 'ventesLongues', type: 'int'}, {name: 'logiciel', type: 'int'}, {name: 'pour100', type: 'float'}], data: []});
+        me.anoListe = Ext.create('Ext.data.Store', {fields: [{name: 'id', type: 'int'}, 'date', 'employeId', 'employe', 'famille', 'code', 'message', 'ecran', 'poste'], data: []});
+        var nb = function (v) {
+            return v ? '<b>' + N(v) + '</b>' : '<span style="color:#94a3b8">0</span>';
+        };
+        /* un nombre d'operations a risque mene au journal de l'employe, filtre sur ce type */
+        var lien = function (v) {
+            return v ? '<span class="ae-lien" style="color:#0e7490;text-decoration:underline;cursor:pointer;font-weight:700" data-qtip="Voir ces opérations dans le journal">'
+                    + N(v) + '</span>' : '<span style="color:#94a3b8">0</span>';
+        };
+        return Ext.create('Ext.panel.Panel', {
+            itemId: 'aeAnomalies', layout: {type: 'vbox', align: 'stretch'}, bodyPadding: '10 10 10 10', bodyStyle: 'background:#f8fafc',
+            items: [
+                {xtype: 'container', layout: {type: 'hbox', align: 'middle'}, margin: '0 0 8 0', items: [
+                        {xtype: 'component', flex: 1, html: '<div style="color:#475569;font-size:12px;line-height:1.5">'
+                                    + '<b>Refus affichés</b> : messages de refus vus par l\'employé (code non reconnu, lot périmé…). '
+                                    + '<b>Opérations à risque</b> : annulations, modifications, remises, ventes longues (cliquez un nombre pour le journal). '
+                                    + '<b>Erreurs du logiciel</b> : rangées à part, elles ne sont pas imputables à la personne.</div>'},
+                        {xtype: 'combobox', itemId: 'anoFamille', fieldLabel: 'Anomalies', labelWidth: 70, width: 260, editable: false,
+                            queryMode: 'local', value: '', store: [['', 'Toutes'], ['REFUS', 'Refus affichés'], ['LOGICIEL', 'Erreurs du logiciel']],
+                            listeners: {select: function () {
+                                    me.chargerAnomalies();
+                                }}}
+                    ]},
+                {xtype: 'gridpanel', itemId: 'anoEmployes', store: me.anoEmployes, flex: 2, minHeight: 160, title: 'Par employé',
+                    viewConfig: {emptyText: '<div style="padding:12px;color:#64748b">Aucune anomalie sur la période.</div>', deferEmptyText: false},
+                    columns: [
+                        {header: 'Employé', dataIndex: 'nom', flex: 1, minWidth: 170, renderer: Ext.util.Format.htmlEncode},
+                        {header: 'Ventes', dataIndex: 'ventes', width: 80, align: 'right', renderer: N},
+                        {header: 'Refus affichés', dataIndex: 'refus', width: 115, align: 'right', renderer: nb},
+                        {header: 'Annulations', dataIndex: 'annulations', width: 100, align: 'right', renderer: lien, cle: 'ANNULATION'},
+                        {header: 'Modifications', dataIndex: 'modifications', width: 110, align: 'right', renderer: lien, cle: 'MODIFICATION'},
+                        {header: 'Remises (F)', dataIndex: 'remises', width: 105, align: 'right', renderer: function (v) {
+                                return v ? N(v) : '<span style="color:#94a3b8">0</span>';
+                            }},
+                        {header: 'Ventes longues', dataIndex: 'ventesLongues', width: 115, align: 'right', renderer: nb},
+                        {header: 'Pour 100 ventes', dataIndex: 'pour100', width: 120, align: 'right', renderer: function (v) {
+                                return '<span data-qtip="(refus + annulations + modifications) pour 100 ventes">' + N(v, true) + '</span>';
+                            }},
+                        {header: 'Erreurs du logiciel', dataIndex: 'logiciel', width: 140, align: 'right', renderer: function (v) {
+                                return '<span style="color:#64748b">' + N(v) + '</span>';
+                            }}
+                    ],
+                    listeners: {
+                        cellclick: function (v, td, col, rec, tr, row, e) {
+                            var c = v.getGridColumns()[col];
+                            if (c && c.cle && e.getTarget('.ae-lien')) {
+                                me.down('#aeEmploye').setValue(rec.get('id'));
+                                me.typeActif = c.cle;
+                                me.afficher('donnees');
+                                me.journal.loadPage(1);
+                                return;
+                            }
+                            me.anoEmployeChoisi = rec.get('id');
+                            me.chargerListeAnomalies();
+                        }
+                    }},
+                {xtype: 'container', flex: 3, layout: {type: 'hbox', align: 'stretch'}, margin: '10 0 0 0', items: [
+                        {xtype: 'gridpanel', itemId: 'anoListe', store: me.anoListe, flex: 3, title: 'Anomalies enregistrées (les plus récentes d\'abord)',
+                            viewConfig: {emptyText: '<div style="padding:12px;color:#64748b">Cliquez un employé, ou aucune anomalie enregistrée.</div>', deferEmptyText: false},
+                            columns: [
+                                {header: 'Date', dataIndex: 'date', width: 140},
+                                {header: 'Employé', dataIndex: 'employe', width: 150, renderer: Ext.util.Format.htmlEncode},
+                                {header: 'Type', dataIndex: 'famille', width: 130, renderer: function (v) {
+                                        var f = me.FAMILLES[v] || [v, '#64748b'];
+                                        return '<span class="ae-type" style="background:' + f[1] + '">' + enc(f[0]) + '</span>';
+                                    }},
+                                {header: 'Écran', dataIndex: 'ecran', width: 140, renderer: Ext.util.Format.htmlEncode},
+                                {header: 'Message', dataIndex: 'message', flex: 1, minWidth: 200, renderer: function (v, m) {
+                                        m.tdAttr = 'data-qtip="' + enc(enc(v || '')) + '"';
+                                        return enc(v || '');
+                                    }}
+                            ],
+                            listeners: {
+                                itemclick: function (v, rec) {
+                                    me.afficherFil(rec.get('id'));
+                                }
+                            }},
+                        {xtype: 'panel', itemId: 'anoFil', flex: 2, margin: '0 0 0 10', title: 'Ce qu\'il a fait juste avant', autoScroll: true,
+                            bodyPadding: 10, html: '<div style="color:#64748b">Cliquez une anomalie pour voir les dernières actions de l\'employé.</div>'}
+                    ]}
+            ]
+        });
+    },
+
+    chargerAnomalies: function () {
+        var me = this, f = me.filtres(), a = me.anomaliesPanel;
+        if (!a.rendered) {
+            a.on('afterrender', me.chargerAnomalies, me, {single: true});
+            return;
+        }
+        f.famille = me.down('#anoFamille').getValue() || '';
+        me.anoEmployeChoisi = f.employeId || null;
+        a.setLoading('Lecture des anomalies…');
+        Ext.Ajax.request({url: '../api/v1/activite-equipes/anomalies', method: 'GET', params: f, timeout: 180000,
+            success: function (r) {
+                if (a.isDestroyed) {
+                    return;
+                }
+                a.setLoading(false);
+                var o = Ext.decode(r.responseText, true) || {};
+                var d = o.data || {};
+                me.anoEmployes.loadData(d.employes || []);
+                me.anoListe.loadData(d.anomalies || []);
+                me.down('#anoFil').update('<div style="color:#64748b">Cliquez une anomalie pour voir les dernières actions de l\'employé.</div>');
+            },
+            failure: function (r) {
+                if (!a.isDestroyed) {
+                    a.setLoading(false);
+                    if (window.PrestigeToast) {
+                        PrestigeToast.afficher('Les anomalies n\'ont pas pu être lues (' + r.status + ').', {niveau: 'alerte'});
+                    }
+                }
+            }});
+    },
+
+    /* anomalies d'un employe (clic sur sa ligne) */
+    chargerListeAnomalies: function () {
+        var me = this, f = me.filtres(), g = me.down('#anoListe');
+        f.employeId = me.anoEmployeChoisi || '';
+        f.famille = me.down('#anoFamille').getValue() || '';
+        g.setLoading(true);
+        Ext.Ajax.request({url: '../api/v1/activite-equipes/anomalies', method: 'GET', params: f, timeout: 180000,
+            success: function (r) {
+                if (g.isDestroyed) {
+                    return;
+                }
+                g.setLoading(false);
+                var o = Ext.decode(r.responseText, true) || {};
+                me.anoListe.loadData((o.data || {}).anomalies || []);
+                me.down('#anoFil').update('<div style="color:#64748b">Cliquez une anomalie pour voir les dernières actions de l\'employé.</div>');
+            },
+            failure: function () {
+                if (!g.isDestroyed) {
+                    g.setLoading(false);
+                }
+            }});
+    },
+
+    /* fil des dernieres actions avant l'anomalie, la plus recente en bas */
+    afficherFil: function (id) {
+        var me = this, p = me.down('#anoFil'), enc = Ext.String.htmlEncode;
+        p.setLoading(true);
+        Ext.Ajax.request({url: '../api/v1/activite-equipes/anomalies/' + encodeURIComponent(id), method: 'GET',
+            success: function (r) {
+                if (p.isDestroyed) {
+                    return;
+                }
+                p.setLoading(false);
+                var o = Ext.decode(r.responseText, true) || {}, a = o.data;
+                if (!a) {
+                    p.update('<div style="color:#b42318">Anomalie introuvable.</div>');
+                    return;
+                }
+                var f = me.FAMILLES[a.famille] || [a.famille, '#64748b'];
+                var lignes = (a.fil || []).map(function (x) {
+                    var m = /^(\S+)\s+(\S+)\s*(.*)$/.exec(x) || [x, '', x, ''];
+                    var nature = m[2], fond = {ECRAN: '#1e3a5f', SCAN: '#0e7490', BOUTON: '#7c3aed', MENU: '#7c3aed', ONGLET: '#7c3aed', API: '#94a3b8'}[nature] || '#94a3b8';
+                    return '<li style="margin:3px 0;' + (nature === 'API' ? 'color:#94a3b8' : '') + '"><span style="color:#64748b;font-variant-numeric:tabular-nums">' + enc(m[1]) + '</span> '
+                            + '<span class="ae-type" style="background:' + fond + '">' + enc(nature) + '</span> ' + enc(m[3]) + '</li>';
+                }).join('');
+                p.update('<div style="margin-bottom:8px"><span class="ae-type" style="background:' + f[1] + '">' + enc(f[0]) + '</span> <b>' + enc(a.employe) + '</b> — ' + enc(a.date)
+                        + '<br><span style="color:#475569">Écran : ' + enc(a.ecran || '-') + ' · Poste : ' + enc(a.poste || '-') + '</span>'
+                        + '<div style="margin-top:6px;padding:8px 10px;background:#fff7ed;border-left:4px solid ' + f[1] + ';border-radius:6px">' + enc(a.message) + '</div></div>'
+                        + '<div style="font-weight:700;color:#1e3a5f;margin:6px 0">Dernières actions (la plus récente en bas)</div>'
+                        + (lignes ? '<ol style="padding-left:18px;margin:0">' + lignes + '</ol>' : '<div style="color:#64748b">Aucune action enregistrée.</div>')
+                        + '<div style="margin-top:6px;color:#b45309;font-weight:700">↳ anomalie</div>');
+            },
+            failure: function () {
+                if (!p.isDestroyed) {
+                    p.setLoading(false);
+                }
+            }});
     },
 
     filtrerEmploye: function (id) {

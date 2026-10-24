@@ -96,6 +96,40 @@ public class ActiviteEquipesRessource {
         return Response.ok(m).build();
     }
 
+    /** Retour du 24/10 : anomalies par employe et liste des anomalies de la periode. */
+    @GET
+    @Path("anomalies")
+    public Response anomalies(@QueryParam("debut") String debut, @QueryParam("fin") String fin,
+            @QueryParam("employeId") String employeId, @QueryParam("famille") String famille) {
+        Response r = refus();
+        if (r != null) {
+            return r;
+        }
+        ActiviteFiltreDTO f = filtre(debut, fin, employeId, null, null);
+        if (f == null) {
+            return dateInvalide();
+        }
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("success", true);
+        m.put("data", service.anomalies(f, famille));
+        return Response.ok(m).build();
+    }
+
+    /** Une anomalie et le fil de ce que l'employe a fait juste avant. */
+    @GET
+    @Path("anomalies/{id}")
+    public Response anomalie(@javax.ws.rs.PathParam("id") long id) {
+        Response r = refus();
+        if (r != null) {
+            return r;
+        }
+        Map<String, Object> m = new LinkedHashMap<>();
+        rest.service.dto.ActiviteAnomaliesDTO.Element e = service.anomalie(id);
+        m.put("success", e != null);
+        m.put("data", e);
+        return Response.ok(m).build();
+    }
+
     @GET
     @Path("journal/csv")
     @Produces("text/csv")

@@ -27,6 +27,8 @@ import rest.service.dto.ActiviteJournalDTO;
 import rest.service.dto.ActiviteLigneDTO;
 import rest.service.impl.activite.AgregatsActivite;
 import rest.service.impl.activite.SeuilDuree;
+import rest.service.impl.activite.AnomalieRegles;
+import rest.service.dto.ActiviteAnomaliesDTO;
 
 /**
  * Journal « Activité des équipes » : une branche SQL par type d'action, chacune filtree par la periode et l'employe
@@ -304,6 +306,101 @@ public class ActiviteEquipesServiceImpl implements ActiviteEquipesService {
             }
         }
         return m;
+    }
+
+    /* ------------------------------------------------------------------ anomalies (retour du 24/10) */
+
+    @Override
+    public ActiviteAnomaliesDTO anomalies(ActiviteFiltreDTO f, String famille) {
+        Map<String, String> noms = noms();
+        Map<String, ActiviteAnomaliesDTO.Ligne> lignes = new LinkedHashMap<>();
+        java.util.function.Function<String, ActiviteAnomaliesDTO.Ligne> ligne = id -> lignes.computeIfAbsent(id,
+                k -> ActiviteAnomaliesDTO.Ligne.builder().id(k).nom(noms.getOrDefault(k, "?")).build());
+        for (Object[] r : lire(
+                "SELECT a.lg_USER_ID, a.famille, COUNT(*) FROM t_anomalie_employe a"
+                        + " WHERE a.created_at >= ?1 AND a.created_at < ?2 %s GROUP BY a.lg_USER_ID, a.famille",
+                "a.lg_USER_ID", f.getDebut(), f.getFin(), f.getEmployeId())) {
+            long n = ((Number) r[2]).longValue();
+            if (AnomalieRegles.LOGICIEL.equals(r[1])) {
+                ligne.apply(String.valueOf(r[0])).setLogiciel(n);
+            } else {
+                ligne.apply(String.valueOf(r[0])).setRefus(n);
+            }
+        }
+        parEmploye(SQL_ANNULATIONS, f.getDebut(), f.getFin(), f.getEmployeId())
+                .forEach((id, n) -> ligne.apply(id).setAnnulations(n));
+        parEmploye(SQL_MODIFICATIONS, f.getDebut(), f.getFin(), f.getEmployeId())
+                .forEach((id, n) -> ligne.apply(id).setModifications(n));
+        parEmploye(SQL_REMISES, f.getDebut(), f.getFin(), f.getEmployeId())
+                .forEach((id, n) -> ligne.apply(id).setRemises(n));
+        for (ActiviteAnalysesDTO.Operateur o : AgregatsActivite
+                .operateurs(ventes(f.getDebut(), f.getFin(), f.getEmployeId()), noms)) {
+            ActiviteAnomaliesDTO.Ligne l = ligne.apply(o.getId());
+            l.setVentes(o.getVentes());
+            l.setVentesLongues(o.getVentesLongues());
+        }
+        List<ActiviteAnomaliesDTO.Ligne> liste = new ArrayList<>(lignes.values());
+        liste.removeIf(l -> l.getRefus() + l.getLogiciel() + l.getAnnulations() + l.getModifications() + l.getRemises()
+                + l.getVentesLongues() == 0);
+        liste.forEach(l -> l.setPour100(l.getVentes() == 0 ? 0
+                : Math.round((l.getRefus() + l.getAnnulations() + l.getModifications()) * 1000.0 / l.getVentes())
+                        / 10.0));
+        liste.sort((a, b) -> Long.compare(b.getRefus() + b.getAnnulations() + b.getModifications() + b.getLogiciel(),
+                a.getRefus() + a.getAnnulations() + a.getModifications() + a.getLogiciel()));
+
+        List<Object> pp = new ArrayList<>();
+        pp.add(Timestamp.valueOf(f.getDebut().atStartOfDay()));
+        pp.add(Timestamp.valueOf(f.getFin().plusDays(1).atStartOfDay()));
+        StringBuilder sql = new StringBuilder(
+                "SELECT a.id, a.created_at, a.lg_USER_ID, a.famille, a.code, a.message, a.ecran,"
+                        + " a.poste FROM t_anomalie_employe a WHERE a.created_at >= ?1 AND a.created_at < ?2");
+        if (!vide(f.getEmployeId())) {
+            pp.add(f.getEmployeId());
+            sql.append(" AND a.lg_USER_ID = ?").append(pp.size());
+        }
+        if (!vide(famille)) {
+            pp.add(famille.trim().toUpperCase());
+            sql.append(" AND a.famille = ?").append(pp.size());
+        }
+        sql.append(" ORDER BY a.id DESC LIMIT ").append(util.Constant.ANOMALIE_LISTE_MAX);
+        List<ActiviteAnomaliesDTO.Element> elements = new ArrayList<>();
+        for (Object[] r : liste(sql.toString(), pp)) {
+            elements.add(element(r, noms, null));
+        }
+        return ActiviteAnomaliesDTO.builder().employes(liste).anomalies(elements).build();
+    }
+
+    @Override
+    public ActiviteAnomaliesDTO.Element anomalie(long id) {
+        List<Object> pp = new ArrayList<>();
+        pp.add(id);
+        List<Object[]> r = liste(
+                "SELECT a.id, a.created_at, a.lg_USER_ID, a.famille, a.code, a.message, a.ecran, a.poste,"
+                        + " a.fil FROM t_anomalie_employe a WHERE a.id = ?1",
+                pp);
+        if (r.isEmpty()) {
+            return null;
+        }
+        List<String> fil = new ArrayList<>();
+        try {
+            org.json.JSONArray a = new org.json.JSONArray(r.get(0)[8] == null ? "[]" : String.valueOf(r.get(0)[8]));
+            for (int i = 0; i < a.length(); i++) {
+                fil.add(a.optString(i));
+            }
+        } catch (org.json.JSONException e) {
+            /* fil illisible : l'anomalie reste affichee sans fil */
+        }
+        return element(r.get(0), noms(), fil);
+    }
+
+    private static ActiviteAnomaliesDTO.Element element(Object[] r, Map<String, String> noms, List<String> fil) {
+        String emp = String.valueOf(r[2]);
+        return ActiviteAnomaliesDTO.Element.builder().id(((Number) r[0]).longValue())
+                .date(r[1] == null ? "" : new SimpleDateFormat("dd/MM/yyyy HH:mm:ss").format((java.util.Date) r[1]))
+                .employeId(emp).employe(noms.getOrDefault(emp, "?")).famille(String.valueOf(r[3]))
+                .code(r[4] == null ? "" : String.valueOf(r[4])).message(r[5] == null ? "" : String.valueOf(r[5]))
+                .ecran(r[6] == null ? "" : String.valueOf(r[6])).poste(r[7] == null ? "" : String.valueOf(r[7]))
+                .fil(fil).build();
     }
 
     private Map<String, String> noms() {

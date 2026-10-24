@@ -120,6 +120,11 @@ public final class Constant {
     public static final String ACTIVITE_SEUIL_OPERATEUR_DEFAUT = "GT";
     public static final int ACTIVITE_SEUIL_MINUTES_DEFAUT = 10;
     public static final int ACTIVITE_SEUIL_MINUTES_MAX = 240;
+    /** Retour du 24/10 : anomalies par employe (actions gardees dans le fil, plafond par heure, conservation). */
+    public static final int ANOMALIE_FIL_MAX = 25;
+    public static final int ANOMALIE_MAX_PAR_HEURE = 120;
+    public static final int ANOMALIE_CONSERVATION_JOURS = 180;
+    public static final int ANOMALIE_LISTE_MAX = 300;
     /**
      * Terminer une vente en depot (ecran « Vente dépôt », application mobile) : menus de vente en depot ou « Ventes ».
      */

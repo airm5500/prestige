@@ -1277,7 +1277,9 @@ Ext.define('Prestige.override.GrilleLigneActive', {
     // (ecrans ouverts, appels API) pour reconstituer le contexte d'une erreur
     // que l'utilisateur n'arrive pas a reproduire ou a expliquer.
     var breadcrumb = [];
-    var MAX_BREADCRUMB = 15;
+    /* retour du 24/10 : 25 dernieres actions pour les anomalies par employe ; le support en garde 15, comme avant */
+    var MAX_BREADCRUMB = 25;
+    var ecranCourant = '';
 
     function heure() {
         try {
@@ -1293,6 +1295,9 @@ Ext.define('Prestige.override.GrilleLigneActive', {
                 return;
             }
             breadcrumb.push(heure() + '  ' + String(action).substring(0, 200));
+            if (String(action).indexOf('ECRAN ') === 0) {
+                ecranCourant = String(action).substring(6, 126);
+            }
             if (breadcrumb.length > MAX_BREADCRUMB) {
                 breadcrumb.shift();
             }
@@ -1303,7 +1308,7 @@ Ext.define('Prestige.override.GrilleLigneActive', {
 
     function breadcrumbJson() {
         try {
-            return Ext.JSON.encode({fil_ariane: breadcrumb.slice()});
+            return Ext.JSON.encode({fil_ariane: breadcrumb.slice(-15)});
         } catch (e) {
             return null;
         }
@@ -1313,7 +1318,72 @@ Ext.define('Prestige.override.GrilleLigneActive', {
     // signaler(payload) : remonte un evenement au journal du Centre de Support (memes regles que les
     // erreurs JS : plafond, deduplication par signature, fil d'Ariane joint) ; utilise par
     // correctifs-affichage.js quand le moteur de mise en page a du etre debloque.
-    window.__prestigeSupport = {push: pushBreadcrumb, signaler: function (payload) { reportError(payload); }};
+    window.__prestigeSupport = {push: pushBreadcrumb, signaler: function (payload) { reportError(payload); },
+        anomalie: function (famille, code, message) { signalerAnomalie(famille, code, message); }};
+
+    /*
+     * Retour du 24/10 : anomalies par employe. A CHAQUE refus affiche a l'employe (REFUS) ou erreur du logiciel
+     * (LOGICIEL), une ligne est envoyee au serveur avec l'ecran et le fil des dernieres actions (ecrans, boutons,
+     * codes scannes ; jamais le texte tape). Rien n'est envoye pendant le travail normal. Envoi en arriere-plan
+     * (fetch, sans attendre la reponse), plafonne et sans doublon immediat.
+     */
+    var anomaliesEnvoyees = 0, derniereAnomalie = '', derniereAnomalieA = 0;
+    var MAX_ANOMALIES_PAGE = 60;
+
+    function texteSimple(h) {
+        /* le texte affiche, entites decodees (&#39; -> ') : le serveur re-encode a l'affichage */
+        var src = String(h || '').replace(/<br\s*\/?>/gi, ' ').replace(/<(script|style)[\s\S]*?<\/\1>/gi, ''), t;
+        try {
+            /* DOMParser : document inerte, aucune image chargee ni script execute */
+            t = new DOMParser().parseFromString(src, 'text/html').body.textContent;
+        } catch (e) {
+            t = src.replace(/<[^>]+>/g, '');
+        }
+        return (t || '').replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim();
+    }
+
+    function signalerAnomalie(famille, code, message) {
+        try {
+            var m = texteSimple(message);
+            if (!m || anomaliesEnvoyees >= MAX_ANOMALIES_PAGE || !window.fetch) {
+                return;
+            }
+            var cle = famille + '|' + m, maintenant = new Date().getTime();
+            if (cle === derniereAnomalie && maintenant - derniereAnomalieA < 2000) {
+                return;
+            }
+            derniereAnomalie = cle;
+            derniereAnomalieA = maintenant;
+            anomaliesEnvoyees++;
+            window.fetch('/prestige/api/v1/anomalies', {method: 'POST', credentials: 'same-origin', keepalive: true,
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({famille: famille, code: texteSimple(code).substring(0, 80), message: m.substring(0, 300),
+                    ecran: ecranCourant, fil: breadcrumb.slice()})}).catch(function () {
+                /* envoi silencieux */
+            });
+        } catch (ignore) {
+            // capture silencieuse
+        }
+    }
+
+    /* un message affiche est un refus s'il en a l'icone, ou le vocabulaire ; jamais une question ni un succes */
+    var MOTS_REFUS = /impossible|refus|introuvable|inconnu|invalide|insuffisant|interdit|bloqu|p[ée]rim[ée]|erreur|[ée]chec|n['’]est pas|ne contient pas|aucun produit|pas de donn[ée]es|non reconnu|d[ée]j[aà] |obligatoire|manquant|d[ée]pass/i;
+    var MOTS_SUCCES = /succ[èe]s|r[ée]ussi|bien enregistr|effectu[ée]e? avec/i;
+
+    function estRefus(cfg) {
+        if (!cfg || cfg.prompt || cfg.progress || cfg.wait) {
+            return false;
+        }
+        var b = cfg.buttons;
+        if (window.Ext && Ext.Msg && (b === Ext.Msg.YESNO || b === Ext.Msg.YESNOCANCEL || b === Ext.Msg.OKCANCEL)) {
+            return false;
+        }
+        var t = texteSimple((cfg.title || '') + ' ' + (cfg.msg || cfg.message || ''));
+        if (!t || MOTS_SUCCES.test(t)) {
+            return false;
+        }
+        return (window.Ext && Ext.Msg && (cfg.icon === Ext.Msg.ERROR || cfg.icon === Ext.Msg.WARNING)) || MOTS_REFUS.test(t);
+    }
 
     function reportError(payload) {
         try {
@@ -1357,6 +1427,7 @@ Ext.define('Prestige.override.GrilleLigneActive', {
         if (estBenin(message)) {
             return false;
         }
+        signalerAnomalie('LOGICIEL', 'JavaScript', message);
         reportError({
             type: 'JS',
             niveau: 'ERROR',
@@ -1379,6 +1450,7 @@ Ext.define('Prestige.override.GrilleLigneActive', {
                 if (estBenin(message)) {
                     return;
                 }
+                signalerAnomalie('LOGICIEL', 'JavaScript', message);
                 reportError({
                     type: 'JS',
                     niveau: 'ERROR',
@@ -1433,6 +1505,74 @@ Ext.define('Prestige.override.GrilleLigneActive', {
     })();
 
     Ext.onReady(function () {
+        /* retour du 24/10 : refus affiches (boites de message et notifications d'alerte) -> anomalie REFUS */
+        try {
+            var showOrigine = Ext.Msg.show;
+            Ext.Msg.show = function (cfg) {
+                try {
+                    if (estRefus(cfg)) {
+                        signalerAnomalie('REFUS', cfg.title, cfg.msg || cfg.message);
+                    }
+                } catch (ignore) {
+                    // capture silencieuse
+                }
+                return showOrigine.apply(this, arguments);
+            };
+        } catch (ignore) {
+            // boite de message atypique : rien n'est capte
+        }
+        var brancherToast = function () {
+            if (!window.PrestigeToast || !PrestigeToast.afficher || PrestigeToast.afficher.anomalies) {
+                return !!(window.PrestigeToast && PrestigeToast.afficher && PrestigeToast.afficher.anomalies);
+            }
+            var afficherOrigine = PrestigeToast.afficher;
+            PrestigeToast.afficher = function (texte, options) {
+                try {
+                    var niveau = options && options.niveau;
+                    if ((niveau === 'erreur' || niveau === 'alerte') && !MOTS_SUCCES.test(texteSimple(texte))) {
+                        signalerAnomalie('REFUS', (options && options.titre) || 'Alerte', texte);
+                    }
+                } catch (ignore) {
+                    // capture silencieuse
+                }
+                return afficherOrigine.apply(this, arguments);
+            };
+            PrestigeToast.afficher.anomalies = true;
+            return true;
+        };
+        if (!brancherToast()) {
+            Ext.defer(brancherToast, 1500);
+        }
+        /* fil des actions : boutons, entrees de menu et onglets cliques ; codes scannes (au moins 6 chiffres, jamais un
+           nom ni un texte tape) */
+        document.addEventListener('click', function (ev) {
+            try {
+                var el = ev.target && ev.target.closest ? ev.target.closest('.x-btn, .x-menu-item, .x-tab, .prestige-flyout-menu .x-menu-item') : null;
+                if (!el) {
+                    return;
+                }
+                var t = texteSimple(el.textContent || el.getAttribute('data-qtip') || '').substring(0, 40);
+                if (t) {
+                    pushBreadcrumb((el.className.indexOf('x-tab') >= 0 ? 'ONGLET ' : el.className.indexOf('x-menu-item') >= 0 ? 'MENU ' : 'BOUTON ') + t);
+                }
+            } catch (ignore) {
+                // silencieux
+            }
+        }, true);
+        document.addEventListener('keydown', function (ev) {
+            try {
+                if (ev.key !== 'Enter' || !ev.target || ev.target.tagName !== 'INPUT' || ev.target.type === 'password') {
+                    return;
+                }
+                var v = String(ev.target.value || '').trim();
+                if (/^[0-9A-Za-z|\-\/#.()]{6,80}$/.test(v) && (v.match(/\d/g) || []).length >= 6) {
+                    pushBreadcrumb('SCAN ' + v);
+                }
+            } catch (ignore) {
+                // silencieux
+            }
+        }, true);
+
         // Alimente le fil d'Ariane a chaque appel API (hors envois du support lui-meme).
         Ext.Ajax.on('beforerequest', function (conn, options) {
             try {
@@ -1440,6 +1580,10 @@ Ext.define('Prestige.override.GrilleLigneActive', {
                 if (url.indexOf('/support/events') !== -1) {
                     return;
                 }
+                /* jamais le texte tape : parametres retires, segment encode (recherche) masque */
+                url = url.replace(/[?#].*$/, '').split('/').map(function (x) {
+                    return x.indexOf('%') !== -1 ? '…' : x;
+                }).join('/');
                 pushBreadcrumb('API ' + ((options && options.method) || 'GET') + ' ' + url);
             } catch (ignore) {
                 // silencieux
@@ -1489,6 +1633,9 @@ Ext.define('Prestige.override.GrilleLigneActive', {
                 // l'envoi de l'evenement lui-meme echouerait de toute facon).
                 if (status === 0) {
                     return;
+                }
+                if (status >= 500) {
+                    signalerAnomalie('LOGICIEL', 'Serveur HTTP ' + status, 'Le serveur a renvoyé une erreur ' + status + ' : ' + url.replace(/\?.*$/, ''));
                 }
                 reportError({
                     type: 'AJAX',
