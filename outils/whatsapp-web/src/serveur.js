@@ -9,11 +9,14 @@
  *   POST /deconnecter   deconnecte le numero (changement de telephone)
  *   POST /messages      {to, text, id?} -> {id, position} : le message entre dans la file (regles anti-bannissement)
  *   PUT  /regles        regles d'envoi (voir src/regles.js) ; GET /regles pour les lire
- * Les statuts (sent, delivered, read, failed) et les messages entrants (STOP...) sont rapportes a Prestige sur
- * PRESTIGE_WEBHOOK (POST v1/whatsapp/webhook-web) avec le meme jeton.
+ *   POST /arret         arret propre (caches ecrits, appareil NON delie : aucun QR a rescanner) ; utilise par arreter.bat
+ *   GET  /sante         {ok:true} sans jeton ni information : le service repond (scripts de demarrage)
+ * Les statuts (sent, delivered, read, failed), les messages entrants (STOP...) et la sante de la reception (OK,
+ * DEGRADE) sont rapportes a Prestige sur PRESTIGE_WEBHOOK (POST v1/whatsapp/webhook-web) avec le meme jeton.
  *
  * Configuration (variables d'environnement ou fichier config.json a cote de ce dossier) :
- *   PORT (3010), JETON (obligatoire), PRESTIGE_WEBHOOK, DOSSIER (dossier de la session et de la file).
+ *   PORT (3010), JETON (obligatoire), PRESTIGE_WEBHOOK, DOSSIER (dossier de la session et de la file),
+ *   MOTEUR : baileys (defaut, repris du CRM UBIPHARM, sans navigateur) ou wwebjs (whatsapp-web.js, ancien moteur).
  * Les journaux ne contiennent jamais le texte des messages ni le jeton.
  */
 const http = require('http');
@@ -39,14 +42,18 @@ async function rapporter(corps) {
 }
 
 let file;
-const connecteur = (process.env.WHATSAPP_FAUX === '1' ? require('./connecteur-faux') : require('./connecteur-wwebjs')).creerConnecteur({
-  dossierSession: path.join(config.DOSSIER, 'session'), journal,
+const moteur = process.env.WHATSAPP_FAUX === '1' ? 'faux' : (String(config.MOTEUR || 'baileys').toLowerCase() === 'wwebjs' ? 'wwebjs' : 'baileys');
+const connecteur = require({ faux: './connecteur-faux', wwebjs: './connecteur-wwebjs', baileys: './connecteur-baileys' }[moteur]).creerConnecteur({
+  /* le moteur baileys garde sa session dans son propre dossier : revenir a wwebjs ne melange pas les deux */
+  dossierSession: path.join(config.DOSSIER, moteur === 'baileys' ? 'session-baileys' : 'session'), journal,
   surMessage: (numero, texte) => {
     if (R.estArret(texte)) { file.arreter(numero); journal('desinscription recue'); }
     rapporter({ entrants: [{ numero, texte }] }).catch(() => {});
   },
-  surAccuse: (waId, ack) => file && file.accuse(waId, ack)
+  surAccuse: (waId, ack) => file && file.accuse(waId, ack),
+  surSante: (s) => rapporter({ sante: s }).catch(() => {})
 });
+journal('moteur WhatsApp : ' + moteur);
 const fichierRegles = path.join(config.DOSSIER, 'regles.json');
 file = new FileEnvoi({ connecteur, journal, fichier: path.join(config.DOSSIER, 'file.json'),
   regles: fs.existsSync(fichierRegles) ? JSON.parse(fs.readFileSync(fichierRegles, 'utf8')) : {},
@@ -84,10 +91,25 @@ function lireCorps(req) {
   });
 }
 
-http.createServer(async (req, res) => {
-  if (!jetonValide(req)) { return repondre(res, 401, { erreur: 'jeton invalide' }); }
+/* arret propre (Ctrl+C, arret du service Windows, POST /arret) : file et caches ecrits, connexion fermee sans delier */
+let arretEnCours = false;
+function arretPropre(origine) {
+  if (arretEnCours) { return; }
+  arretEnCours = true;
+  journal('arret demande (' + origine + ') : fermeture propre');
+  try { file.sauver(); } catch (e) { /* on continue */ }
+  try { if (connecteur.fermer) { connecteur.fermer(); } } catch (e) { /* idem */ }
+  setTimeout(() => process.exit(0), 900);
+}
+process.on('SIGINT', () => arretPropre('SIGINT'));
+process.on('SIGTERM', () => arretPropre('SIGTERM'));
+
+const serveur = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://local');
+  if (req.method === 'GET' && url.pathname === '/sante') { return repondre(res, 200, { ok: true }); }
+  if (!jetonValide(req)) { return repondre(res, 401, { erreur: 'jeton invalide' }); }
   try {
+    if (req.method === 'POST' && url.pathname === '/arret') { repondre(res, 200, { ok: true }); setTimeout(() => arretPropre('demande'), 100); return undefined; }
     if (req.method === 'GET' && url.pathname === '/etat') { return repondre(res, 200, Object.assign(connecteur.etat(), { file: file.resume() })); }
     if (req.method === 'GET' && url.pathname === '/qr') { return repondre(res, 200, { etat: connecteur.etat().etat, image: connecteur.qrImage() }); }
     if (req.method === 'POST' && url.pathname === '/deconnecter') { await connecteur.deconnecter(); return repondre(res, 200, { ok: true }); }
@@ -108,4 +130,14 @@ http.createServer(async (req, res) => {
   } catch (e) {
     return repondre(res, 400, { erreur: 'demande illisible' });
   }
-}).listen(Number(config.PORT), config.HOTE || '127.0.0.1', () => journal('service WhatsApp Web sur le port ' + config.PORT));
+});
+serveur.on('error', (e) => {
+  if (e && e.code === 'EADDRINUSE') {
+    console.error('LE PORT ' + config.PORT + ' EST DEJA UTILISE : une autre instance du service tourne probablement.'
+      + ' Verifier http://127.0.0.1:' + config.PORT + '/sante, ou lancer arreter.bat puis relancer, ou changer PORT dans config.json.');
+  } else {
+    console.error('Erreur du serveur HTTP : ' + (e && e.message ? e.message : e));
+  }
+  process.exit(1);
+});
+serveur.listen(Number(config.PORT), config.HOTE || '127.0.0.1', () => journal('service WhatsApp Web sur le port ' + config.PORT));

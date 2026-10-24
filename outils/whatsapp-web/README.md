@@ -3,14 +3,28 @@
 Envoi des messages WhatsApp **par WhatsApp Web** (numéro de l'officine connecté par QR code, comme ubisenderpro),
 avec des règles anti-bannissement. Prestige ne parle qu'à ce service ; il ne voit jamais la session WhatsApp.
 
-Bibliothèque : [whatsapp-web.js](https://github.com/pedroslopez/whatsapp-web.js) 1.34.7 (la plus utilisée et la plus
-suivie des bibliothèques Node pour WhatsApp Web), session gardée sur le disque (`LocalAuth`) : pas de nouveau scan
-après un redémarrage.
+Moteur : **Baileys** (`@whiskeysockets/baileys` **6.7.24**, version figée), repris du service WhatsApp Web du CRM
+UBIPHARM. Pas de navigateur : le protocole de WhatsApp Web est parlé directement (plus léger et plus stable que
+l'ancien moteur whatsapp-web.js, qui embarquait Chromium). Ce que le moteur reprend du CRM :
+
+- cache des clés de chiffrement et **réponse aux demandes de renvoi** (les 300 derniers messages envoyés sont gardés
+  sur disque) : moins de « En attente de ce message » chez le destinataire, même après un redémarrage ;
+- **adresses masquées `@lid`** : la correspondance avec le numéro est apprise et gardée, la réponse d'un client n'est
+  pas perdue ;
+- **santé de la réception** : si les réponses arrivent illisibles (chiffrement désynchronisé après une longue
+  coupure), l'état passe à `DEGRADE` et Prestige en est averti ;
+- reconnexion automatique, avec des tentatives qui s'espacent quand le réseau est coupé (2 s, 4 s… jusqu'à 1 min) ;
+- **arrêt propre** qui ferme sans délier l'appareil : aucun QR à rescanner après un redémarrage.
+
+La session est gardée dans `DOSSIER/session-baileys` : pas de nouveau scan au redémarrage. En passant de l'ancien
+moteur à Baileys, **un seul nouveau scan du QR** est nécessaire (les deux moteurs n'ont pas le même format de
+session). Retour à l'ancien moteur possible : `"MOTEUR": "wwebjs"` dans `config.json` et
+`npm install whatsapp-web.js@1.34.7`.
 
 ## Installation (poste serveur de l'officine)
 
-1. Node 18 ou plus récent ; Chrome / Chromium installé (sinon `npm install` télécharge le Chromium de Puppeteer).
-2. `npm install --omit=dev` dans ce dossier.
+1. Node 18 ou plus récent (aucun navigateur n'est nécessaire).
+2. `npm install --omit=dev --omit=optional` dans ce dossier.
 3. Créer `config.json` à côté de `package.json` (jamais dans Git, déjà ignoré) :
    ```json
    { "PORT": 3010, "JETON": "<au moins 16 caractères, le même que dans Prestige>",
@@ -61,12 +75,16 @@ garder des textes utiles et personnalisés. Pour les envois de masse ou marketin
 
 ## Routes
 
-`GET /etat`, `GET /qr` (image data-URL), `POST /deconnecter`, `GET|PUT /regles`, `POST /messages`
+`GET /etat` (état, numéro, santé de la réception, moteur, file), `GET /qr` (image data-URL), `POST /deconnecter`
+(délie l'appareil : changement de téléphone), `POST /arret` (arrêt propre, appareil **non** délié), `GET /sante`
+(`{"ok":true}`, seule route sans jeton, sans aucune information), `GET|PUT /regles`, `POST /messages`
 (corps `{"id", "to", "text"}` : identifiant Prestige du message, numéro du destinataire, texte ; réponse `200` avec
 l'identifiant mis en file, ou `422 {"erreur"}` si le message est refusé : doublon du jour, numéro invalide…).
-Toutes les routes demandent l'en-tête `Authorization: Bearer <JETON>`. Les statuts (envoyé, distribué, lu, échec) et les messages entrants sont renvoyés à
-`PRESTIGE_WEBHOOK`.
+Toutes les routes sauf `/sante` demandent l'en-tête `Authorization: Bearer <JETON>`. Les statuts (envoyé, distribué,
+lu, échec), les messages entrants et les changements de santé de la réception sont renvoyés à `PRESTIGE_WEBHOOK`.
 
 ## Tests
 
-`npm test` (règles et file, sans réseau). Essai sans téléphone : `WHATSAPP_FAUX=1 JETON=... node src/serveur.js`.
+`npm test` : règles, file, outils et connecteur Baileys (avec une fausse bibliothèque qui rejoue les événements de
+WhatsApp : QR, connexion, réponses `@lid`, réponses illisibles, accusés, coupure, appareil délié), sans réseau ni
+téléphone. Essai de Prestige sans téléphone : `WHATSAPP_FAUX=1 JETON=... node src/serveur.js`.
