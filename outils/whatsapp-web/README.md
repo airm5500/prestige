@@ -37,11 +37,21 @@ session). Retour à l'ancien moteur possible : `"MOTEUR": "wwebjs"` dans `config
 
 Notice pas à pas, avec les écrans de Prestige : `docs/notices/NOTICE_WHATSAPP_WEB.md`.
 
-## Lancer en service Windows
+## Lancer et arrêter (Windows)
 
-- avec **NSSM** : `nssm install PrestigeWhatsApp "C:\Program Files\nodejs\node.exe" "C:\prestige\whatsapp-web\src\serveur.js"`,
-  répertoire de démarrage = ce dossier, puis `nssm start PrestigeWhatsApp` ;
-- ou avec **pm2** : `pm2 start src/serveur.js --name prestige-whatsapp && pm2 save` (+ `pm2-installer` pour Windows).
+- **Dans une fenêtre** : double-cliquer `demarrer.bat`. Il vérifie Node, crée `config.json` depuis
+  `config.exemple.json` s'il manque et refuse un jeton laissé à sa valeur d'exemple. Il installe ou met à jour les
+  dépendances si la version de Baileys ne correspond pas. Si le service tourne déjà, il propose de l'arrêter
+  proprement et de le relancer.
+- **Arrêt** : `arreter.bat` ou Ctrl+C dans la fenêtre. Les deux font un arrêt propre : file et clés écrites, téléphone
+  **non** délié. Si le port reste tenu par un processus résiduel, `arreter.bat` vérifie que c'est bien `node.exe`
+  avant de proposer de le terminer.
+- **En service Windows** (démarrage avec le poste, redémarrage en cas d'arrêt anormal) : WinSW 2.12, comme le CRM.
+  Voir `service-windows/LISEZMOI.txt` ; scripts `installer-service.bat`, `arreter-service.bat`,
+  `desinstaller-service.bat`. La configuration et la session restent dans `C:\prestige\whatsapp-web` (variable
+  `WHATSAPP_CONFIG`), qu'une mise à jour du service ne remplace pas.
+- **Ne jamais** arrêter le service par « Fin de tâche » ni `taskkill /F` : les clés de chiffrement peuvent rester à
+  demi écrites, et les messages deviennent illisibles ensuite.
 
 Le service n'écoute que sur `127.0.0.1` : il n'est pas joignable depuis le réseau.
 

@@ -1,0 +1,7 @@
+{
+  "PORT": 3010,
+  "JETON": "A_REMPLACER_par_au_moins_16_caracteres_le_meme_que_dans_Prestige",
+  "PRESTIGE_WEBHOOK": "http://localhost:8080/prestige/api/v1/whatsapp/webhook-web",
+  "DOSSIER": "C:/prestige/whatsapp-web",
+  "MOTEUR": "baileys"
+}

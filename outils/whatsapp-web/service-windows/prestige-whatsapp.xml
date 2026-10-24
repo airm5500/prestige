@@ -1,0 +1,27 @@
+<!--
+  Service Windows du compagnon WhatsApp Web de Prestige (WinSW 2.12, comme le CRM UBIPHARM).
+  Installation : voir LISEZMOI.txt. La configuration et la session restent dans le dossier des donnees
+  (C:\prestige\whatsapp-web par defaut), qu'une mise a jour du service ne remplace pas.
+-->
+<service>
+  <id>prestige-whatsapp</id>
+  <name>Prestige - WhatsApp</name>
+  <description>Compagnon WhatsApp Web de Prestige (envoi des messages WhatsApp de l'officine).</description>
+  <executable>node</executable>
+  <arguments>"%BASE%\..\src\serveur.js"</arguments>
+  <workingdirectory>%BASE%\..</workingdirectory>
+  <env name="WHATSAPP_CONFIG" value="C:\prestige\whatsapp-web\config.json"/>
+  <env name="NODE_ENV" value="production"/>
+  <startmode>Automatic</startmode>
+  <onfailure action="restart" delay="10 sec"/>
+  <onfailure action="restart" delay="60 sec"/>
+  <resetfailure>1 hour</resetfailure>
+  <!-- Ctrl+C envoye a Node : file, caches et cles de chiffrement ecrits avant l'arret, telephone non delie -->
+  <stopparentprocessfirst>true</stopparentprocessfirst>
+  <stoptimeout>20 sec</stoptimeout>
+  <logpath>C:\prestige\whatsapp-web\journaux</logpath>
+  <log mode="roll-by-size">
+    <sizeThreshold>10240</sizeThreshold>
+    <keepFiles>8</keepFiles>
+  </log>
+</service>

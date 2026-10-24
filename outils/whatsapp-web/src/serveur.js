@@ -14,7 +14,7 @@
  * Les statuts (sent, delivered, read, failed), les messages entrants (STOP...) et la sante de la reception (OK,
  * DEGRADE) sont rapportes a Prestige sur PRESTIGE_WEBHOOK (POST v1/whatsapp/webhook-web) avec le meme jeton.
  *
- * Configuration (variables d'environnement ou fichier config.json a cote de ce dossier) :
+ * Configuration (variables d'environnement ou fichier config.json a cote de ce dossier, ou designe par WHATSAPP_CONFIG) :
  *   PORT (3010), JETON (obligatoire), PRESTIGE_WEBHOOK, DOSSIER (dossier de la session et de la file),
  *   MOTEUR : baileys (defaut, repris du CRM UBIPHARM, sans navigateur) ou wwebjs (whatsapp-web.js, ancien moteur).
  * Les journaux ne contiennent jamais le texte des messages ni le jeton.
@@ -26,11 +26,13 @@ const crypto = require('crypto');
 const { FileEnvoi } = require('./file');
 const R = require('./regles');
 
-const fichierConfig = path.join(__dirname, '..', 'config.json');
+/* WHATSAPP_CONFIG : config.json ailleurs (service Windows : dans le dossier des donnees, qu'une mise a jour ne remplace pas) */
+const fichierConfig = process.env.WHATSAPP_CONFIG || path.join(__dirname, '..', 'config.json');
 const config = Object.assign({ PORT: 3010, DOSSIER: path.join(__dirname, '..', 'donnees') },
   fs.existsSync(fichierConfig) ? JSON.parse(fs.readFileSync(fichierConfig, 'utf8')) : {}, process.env);
-if (!config.JETON || String(config.JETON).length < 16) {
-  console.error('JETON absent ou trop court (16 caracteres au moins) : le service refuse de demarrer.');
+if (!config.JETON || String(config.JETON).length < 16 || /^A_REMPLACER/.test(String(config.JETON))) {
+  console.error('JETON absent, trop court (16 caracteres au moins) ou laisse a sa valeur d\'exemple dans config.json :'
+    + ' le service refuse de demarrer. Mettre le meme jeton que dans Prestige (Parametrage WhatsApp > Comptes).');
   process.exit(1);
 }
 const journal = (m) => console.log(new Date().toISOString() + ' ' + m);

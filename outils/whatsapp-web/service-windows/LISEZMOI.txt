@@ -1,0 +1,32 @@
+SERVICE WINDOWS "Prestige - WhatsApp"
+=====================================
+
+Le compagnon WhatsApp Web de Prestige peut tourner :
+  - dans une fenetre : demarrer.bat / arreter.bat (dossier parent) ;
+  - ou comme service Windows : il demarre avec le poste et redemarre seul en cas d'arret anormal.
+Un seul des deux a la fois (meme port).
+
+Le service utilise WinSW 2.12, comme le CRM UBIPHARM (un service a part pour chaque application :
+une panne ou un bannissement d'un cote ne coupe pas l'autre).
+
+Installation (une fois, en administrateur) :
+  1. Node.js 18 ou plus installe (https://nodejs.org).
+  2. Telecharger WinSW-x64.exe version 2.12.0 :
+       https://github.com/winsw/winsw/releases/tag/v2.12.0
+     le copier dans CE dossier et le renommer prestige-whatsapp.exe
+     (il doit porter le meme nom que prestige-whatsapp.xml).
+  3. Creer le dossier C:\prestige\whatsapp-web, y copier ..\config.exemple.json sous le nom
+     config.json, et renseigner JETON (le meme que dans Prestige > Parametrage WhatsApp > Comptes).
+     DOSSIER peut rester C:/prestige/whatsapp-web : la session et la file y sont gardees.
+  4. Clic droit sur installer-service.bat > Executer en tant qu'administrateur.
+  5. Dans Prestige, onglet "WhatsApp Web : connexion et regles" : scanner le QR code.
+
+Ensuite :
+  - arreter-service.bat     : arret propre (le telephone reste connecte, aucun QR a rescanner) ;
+  - desinstaller-service.bat: retire le service (configuration et session conservees) ;
+  - journaux                : C:\prestige\whatsapp-web\journaux
+  - ne jamais arreter le service par le Gestionnaire des taches (fin de tache) : les cles de
+    chiffrement peuvent rester a demi ecrites (messages illisibles ensuite).
+
+Mise a jour du service : arreter-service.bat, remplacer les fichiers du dossier, puis
+"prestige-whatsapp.exe start" (ou redemarrer le service dans services.msc).
