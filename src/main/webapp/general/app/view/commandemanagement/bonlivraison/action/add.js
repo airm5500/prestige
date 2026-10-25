@@ -733,7 +733,8 @@ function doEntreeStock(lg_BON_LIVRAISON_ID) {
                                                     const linkUrl = url_services_pdf_fiche_etiquette + '?lg_BON_LIVRAISON_ID=' + lg_BON_LIVRAISON_ID + "&int_NUMBER=" + Ext.getCmp('int_NUMBER_ETIQUETTE').getValue() + "&modele_ETIQUETTE=" + encodeURIComponent(modeleEtiquette)
                                                             + "&code=" + encodeURIComponent(Ext.getCmp('code_ETIQUETTE_BL') ? (Ext.getCmp('code_ETIQUETTE_BL').getValue() || '') : '');
                                                     /* retours du 11/10 : apercu d'Etiquettage Pro pour ce bon, sinon impression historique */
-                                                    if (!testextjs.view.stockmanagement.etiquetagepro.Passerelle.imprimer({source: 'BL', id: lg_BON_LIVRAISON_ID,
+                                                    /* retours du 25/10 (point 6) : apresEntree -> ecran epure et « Retour à commande en cours » */
+                                                    if (!testextjs.view.stockmanagement.etiquetagepro.Passerelle.imprimer({source: 'BL', id: lg_BON_LIVRAISON_ID, apresEntree: true,
                                                         position: Ext.getCmp('int_NUMBER_ETIQUETTE').getValue(), modele: modeleEtiquette,
                                                         code: Ext.getCmp('code_ETIQUETTE_BL') ? (Ext.getCmp('code_ETIQUETTE_BL').getValue() || '') : ''}, function () {
                                                         onPdfBLClick(linkUrl);

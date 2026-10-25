@@ -101,14 +101,22 @@ Ext.define('testextjs.view.stockmanagement.etiquetagepro.EtiquetagePro', {
                     {text: 'Suivant »', itemId: 'suivant', cls: 'btn-primary', disabled: true, handler: function () {
                             me.suivant();
                         }}
-                ]}
+                ]},
+            /* retours du 25/10 (point 6) : ouvert apres une entree en stock seulement (modeApresEntree) */
+            {xtype: 'toolbar', itemId: 'barreRetour', dock: 'bottom', hidden: true, items: ['->',
+                    {text: 'Retour à commande en cours', itemId: 'retourCommande', cls: 'btn-primary', iconCls: 'retour',
+                        tooltip: 'Revenir aux commandes en cours', handler: function () {
+                            testextjs.app.getController('App').onLoadNewComponent('i_order_manager', 'Commande en cours', '');
+                        }}]}
         ];
         if (!Ext.get('etqp-styles')) {
             Ext.util.CSS.createStyleSheet('.etqp-ligne-erreur .x-grid-cell{background-color:#fdecea !important}'
                     + '.etqp-aide{color:#5b6b7b}.etqp-info{padding:6px 10px;background:#eef4fb;border-radius:4px}'
                     + '.etqp-etapes .x-btn-pressed{font-weight:bold}'
                     + '.etqp-col{border-collapse:collapse;width:100%;font-size:12px}.etqp-col th,.etqp-col td{border:1px solid #d5dde6;padding:3px 5px;text-align:left;vertical-align:top}'
-                    + '.etqp-col th{background:#eef4fb}.etqp-col-titre{margin:4px 0}', 'etqp-styles');
+                    + '.etqp-col th{background:#eef4fb}.etqp-col-titre{margin:4px 0}'
+                    + '.etqp-etapes .x-btn.etqp-btn-vert{background:#1e8449 !important;border-color:#1e8449 !important;background-image:none !important}'
+                    + '.etqp-etapes .x-btn.etqp-btn-vert .x-btn-inner{color:#fff !important}', 'etqp-styles');
         }
         me.callParent(arguments);
         me.etape = 0;
@@ -220,6 +228,20 @@ Ext.define('testextjs.view.stockmanagement.etiquetagepro.EtiquetagePro', {
         me.down('#precedent').setDisabled(i === 0);
         me.down('#suivant').setVisible(i < 3);
         me.majSuivant();
+    },
+
+    /**
+     * Retours du 25/10 (point 6) : ouvert apres une entree en stock (« imprimer les étiquettes »). Seuls les outils
+     * utiles restent : l'assistant (Source, Zones, Produits, Impression) et Types d'etiquette sont caches, « Impression
+     * Prestige » est en vert, et « Retour à commande en cours » apparait en bas a droite.
+     */
+    modeApresEntree: function () {
+        var me = this;
+        Ext.each(['#etape0', '#etape1', '#etape2', '#etape3', '#outilTypes'], function (s) {
+            me.down(s).hide();
+        });
+        me.down('#outilImpression').addCls('etqp-btn-vert');
+        me.down('#barreRetour').show();
     },
 
     /** Onglets Personnalisation (4) et Lire une etiquette (5) : hors de l'assistant, ils ne perdent rien de l'assistant. */

@@ -52,13 +52,16 @@ Ext.define('testextjs.view.stockmanagement.etiquetagepro.Passerelle', {
                 w.close();
             }
         });
-        testextjs.app.getController('App').onLoadNewComponent('etiquetagepro', 'Étiquetage Pro', '');
+        testextjs.app.getController('App').onLoadNewComponent('etiquetagepro', 'Étiquettage Pro', '');
         var ecran = Ext.ComponentQuery.query('etiquetagepro')[0];
         if (!ecran) {
-            throw new Error('Étiquetage Pro indisponible');
+            throw new Error('Étiquettage Pro indisponible');
         }
         var ouvrir = function () {
             ecran.ouvrirOutil(7, preset);
+            if (preset.apresEntree) {
+                ecran.modeApresEntree();
+            }
         };
         if (ecran.rendered) {
             Ext.defer(ouvrir, 1);
