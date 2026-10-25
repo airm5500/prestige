@@ -216,11 +216,13 @@ const decoder = (pdf) => {
       appelsGs1.length + ' appel(s), ' + lignes() + ' ligne(s)');
     const prevu = await p.evaluate(async (id) => (await fetch('../api/v1/vente/peremption-proche/' + id)).json(), FID);
     ok('Précondition : Prestige sort le lot le plus proche (E2ELOT8, demain)', prevu.lot === 'E2ELOT8' && prevu.date === jjProche, JSON.stringify(prevu));
-    const couleur = () => p.evaluate(() => { const f = testextjs.app.getController('VenteCtr').getPeremptionProcheField(); const e = f && f.getEl().dom.querySelector('.gs1-controle');
-      return e ? getComputedStyle(e).color : ''; });
-    ok('Boîte d\'un autre lot : « Lot différent », lot scanné et lot que Prestige sort, en rouge (la vente continue)',
-      per === '⚠ Lot différent : boîte scannée lot ' + NUMLOT + ' - pér. 31/03/2027 ; Prestige sort lot E2ELOT8 - pér. ' + jjProche
-      && await couleur() === 'rgb(198, 40, 40)' && await p.evaluate(() => testextjs.app.getController('VenteCtr').dernierControleGs1) === 'DIFFERENT', per);
+    /* retours du 25/10 : produit ajoute -> champ peremption vide aussitot ; le controle du lot part en notification
+       (orange : lot different, verte : conforme) */
+    const notif = () => p.evaluate(() => { const t = document.querySelector('#prestige-toasts .prestige-toast'); return t ? t.getAttribute('data-niveau') + '|' + t.textContent : ''; });
+    const n1 = await notif();
+    ok('Boîte d\'un autre lot : « Lot différent », lot scanné et lot que Prestige sort, en notification orange (la vente continue) ; champ péremption vidé',
+      per === '' && n1.startsWith('alerte|') && n1.includes('Lot différent : boîte scannée lot ' + NUMLOT + ' - pér. 31/03/2027 ; Prestige sort lot E2ELOT8 - pér. ' + jjProche)
+      && await p.evaluate(() => testextjs.app.getController('VenteCtr').dernierControleGs1) === 'DIFFERENT', per + ' / ' + n1);
     await scanner(`01${gtin}17230101` + `10PERIME|240${CIP}`);
     const msgPerime = await p.evaluate(() => (Ext.Msg.isVisible() ? Ext.Msg.msg.getEl().dom.textContent : ''));
     await p.evaluate(() => { if (Ext.Msg.isVisible()) { Ext.Msg.hide(); } });
@@ -230,7 +232,8 @@ const decoder = (pdf) => {
     await p.waitForFunction(() => !Ext.Ajax.isLoading(), null, { timeout: 15000 }).catch(() => {});
     await p.waitForTimeout(1000);
     const perOk = await p.evaluate(() => String(testextjs.app.getController('VenteCtr').getPeremptionProcheField().getValue()).replace(/<[^>]+>/g, ''));
-    ok('Bonne boîte : « Lot conforme » en vert', perOk === '✔ Lot conforme : lot E2ELOT8 - pér. ' + jjProche && await couleur() === 'rgb(27, 127, 59)', perOk);
+    const n2 = await notif();
+    ok('Bonne boîte : « Lot conforme » en notification verte ; champ péremption vidé', perOk === '' && n2.startsWith('ok|') && n2.includes('Lot conforme : lot E2ELOT8 - pér. ' + jjProche), perOk + ' / ' + n2);
     /* un CIP saisi a la main garde le chemin habituel */
     ok('Saisie ordinaire non prise pour du GS1', await p.evaluate((c) => !testextjs.app.getController('VenteCtr').ressembleGs1(c), CIP));
     ok('Aucune erreur JavaScript', err.length === 0, err.join(' | '));

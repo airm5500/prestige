@@ -113,7 +113,7 @@ function nettoyer() {
           champDeborde = zone.textContent !== '' && (rg.getClientRects().length > 0 && (rt.bottom > rc.bottom + 1 || rt.height > 26)); }
         const combo = Ext.ComponentQuery.query('doventemanager #produit')[0];
         const toasts = [...document.querySelectorAll('.prestige-toast')].map((t) => ({ texte: t.textContent, niveau: t.getAttribute('data-niveau'), droite: Math.round(window.innerWidth - t.getBoundingClientRect().right) }));
-        return { message: f ? String(f.getValue()).replace(/<[^>]+>/g, '') : '', boite: Ext.Msg.isVisible() ? Ext.Msg.msg.getEl().dom.textContent : '', controle: ctr.dernierControleGs1,
+        return { message: f ? String(f.getValue()).replace(/<[^>]+>/g, '') : '', notif: toasts.length ? toasts[0].texte : '', boite: Ext.Msg.isVisible() ? Ext.Msg.msg.getEl().dom.textContent : '', controle: ctr.dernierControleGs1,
           boiteCoupee, champDeborde, listeOuverte: !!(combo && combo.isExpanded), toasts }; });
       return etat;
     };
@@ -135,7 +135,8 @@ function nettoyer() {
     await nouvelleVente();
     let e = await scanner(B7);
     let v = await venteCourante();
-    ok('A : boîte d\'un autre lot → « Lot différent », produit ajouté, aucun lot noté sur la ligne', /^⚠ Lot différent : boîte scannée lot E2ELOT7 - pér\. 31\/03\/2027 ; Prestige sort lot E2ELOT8/.test(e.message)
+    /* retours du 25/10 : produit ajoute, le champ peremption est vide aussitot ; le controle du lot reste en notification */
+    ok('A : boîte d\'un autre lot → « Lot différent » (notification), produit ajouté, champ péremption vidé, aucun lot noté sur la ligne', /Lot différent : boîte scannée lot E2ELOT7 - pér\. 31\/03\/2027 ; Prestige sort lot E2ELOT8/.test(e.notif) && e.message === ''
       && !e.boite && v && ligne(v) === '1|', JSON.stringify(e) + ' ligne=' + (v && ligne(v)));
     ok('A : le message tient sur une ligne (sans déborder), détail complet en notification orange à droite', !e.champDeborde
       && e.toasts.some((t) => t.niveau === 'alerte' && /Lot différent.*E2ELOT7.*E2ELOT8/.test(t.texte) && t.droite < 60), JSON.stringify({ d: e.champDeborde, t: e.toasts }));
@@ -146,10 +147,10 @@ function nettoyer() {
     mode('B');
     await nouvelleVente();
     e = await scanner(B7);
-    ok('B : « Lot différent … la vente sortira ce lot »', /la vente sortira ce lot \(au lieu du lot E2ELOT8/.test(e.message) && e.controle === 'DIFFERENT', e.message);
+    ok('B : « Lot différent … la vente sortira ce lot » (notification), champ péremption vidé', /la vente sortira ce lot \(au lieu du lot E2ELOT8/.test(e.notif) && e.message === '' && e.controle === 'DIFFERENT', e.notif + ' / ' + e.message);
     await scanner(B7);
     e = await scanner(BX);
-    ok('B : lot absent du stock → averti « inconnu du stock ; Prestige sortira le lot E2ELOT8 »', /E2EINCONNU.*inconnu du stock ; Prestige sortira le lot E2ELOT8/.test(e.message), e.message);
+    ok('B : lot absent du stock → averti « inconnu du stock ; Prestige sortira le lot E2ELOT8 »', /E2EINCONNU.*inconnu du stock ; Prestige sortira le lot E2ELOT8/.test(e.notif) && e.message === '', e.notif + ' / ' + e.message);
     v = await venteCourante();
     ok('B : 3 boîtes sur la même ligne, les deux E2ELOT7 notées (pas le lot inconnu)', ligne(v) === '3|E2ELOT7|E2ELOT7', ligne(v));
     c = await cloturer(v);
@@ -158,7 +159,7 @@ function nettoyer() {
     await nouvelleVente();
     e = await scanner(B8);
     v = await venteCourante();
-    ok('B : bonne boîte → « Lot conforme », lot noté', /^✔ Lot conforme : lot E2ELOT8/.test(e.message) && ligne(v) === '1|E2ELOT8', e.message + ' ' + ligne(v));
+    ok('B : bonne boîte → « Lot conforme », lot noté', /Lot conforme : lot E2ELOT8/.test(e.notif) && e.message === '' && ligne(v) === '1|E2ELOT8', e.notif + ' / ' + e.message + ' ' + ligne(v));
     /* ajout au CIP sans scan, dans la meme vente : rien n'est note pour lui */
     await p.evaluate(() => { const c2 = Ext.ComponentQuery.query('doventemanager #produit')[0]; c2.clearValue(); });
     const ajout = await api('POST', '../api/v1/vente/add/item', { venteId: v, produitId: FID, itemPu: Number(q(`SELECT int_PRICE FROM t_famille WHERE lg_FAMILLE_ID = '${FID}'`)), qte: 1, qteServie: 1, typeVenteId: '1', natureVenteId: '1', remiseId: '', userVendeurId: ADMIN });
@@ -181,7 +182,7 @@ function nettoyer() {
     ok('C : après « OK », le message rouge disparaît du champ, la recherche produit est vide et reprend le curseur', apresOk.champ === '' && apresOk.produit === '' && apresOk.focus, JSON.stringify(apresOk));
     e = await scanner(B8);
     v = await venteCourante();
-    ok('C : la bonne boîte → « Lot conforme », ajoutée', /^✔ Lot conforme/.test(e.message) && !e.boite && v && ligne(v) === '1|', JSON.stringify(e) + ' ' + (v && ligne(v)));
+    ok('C : la bonne boîte → « Lot conforme », ajoutée', /Lot conforme/.test(e.notif) && e.message === '' && !e.boite && v && ligne(v) === '1|', JSON.stringify(e) + ' ' + (v && ligne(v)));
     c = await cloturer(v);
     ok('C : clôture → lot le plus proche (E2ELOT8 16→15)', c.success && lots() === '3/15', lots());
 
@@ -190,7 +191,7 @@ function nettoyer() {
     await nouvelleVente();
     e = await scanner(B7);
     v = await venteCourante();
-    ok('Valeur inconnue (« X ») : comme A, avertir sans bloquer ni noter', /^⚠ Lot différent : boîte scannée lot E2ELOT7.*; Prestige sort lot E2ELOT8/.test(e.message) && !e.boite && ligne(v) === '1|', e.message + ' ' + ligne(v));
+    ok('Valeur inconnue (« X ») : comme A, avertir sans bloquer ni noter', /Lot différent : boîte scannée lot E2ELOT7.*; Prestige sort lot E2ELOT8/.test(e.notif) && e.message === '' && !e.boite && ligne(v) === '1|', e.message + ' ' + ligne(v));
     c = await cloturer(v);
     ok('Valeur inconnue : clôture → lot le plus proche (E2ELOT8 15→14)', c.success && lots() === '3/14', lots());
 

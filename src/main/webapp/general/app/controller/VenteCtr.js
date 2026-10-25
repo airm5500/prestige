@@ -8170,12 +8170,14 @@ Ext.define('testextjs.controller.VenteCtr', {
                             + info + ' ; Prestige sort ' + prevu + '</span>';
                 }
                 me.dernierControleGs1 = r.controle || null;
-                me.infoGs1Garde = html ? {html: html, jusque: Date.now() + (r.controle === 'DIFFERENT' ? 30000 : 15000)} : null;
-                me.addProduitFromScan(Ext.create('testextjs.model.caisse.Produit', produit), 1);
-                if (champ && html) {
-                    me.peremptionDemandee = null;
-                    champ.setValue(html);
+                /* retours du 25/10 : produit ajoute, le champ peremption est vide aussitot (il gardait le lot 15 a
+                   30 s) ; le controle du lot reste dans la notification a droite */
+                me.infoGs1Garde = null;
+                me.peremptionDemandee = null;
+                if (champ) {
+                    champ.setValue('');
                 }
+                me.addProduitFromScan(Ext.create('testextjs.model.caisse.Produit', produit), 1);
                 if (html) {
                     notifier(html, r.controle === 'CONFORME' ? 'ok' : (r.controle === 'DIFFERENT' ? 'alerte' : 'info'));
                 }
