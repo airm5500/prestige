@@ -7,7 +7,10 @@
   <id>prestige-whatsapp</id>
   <name>Prestige - WhatsApp</name>
   <description>Compagnon WhatsApp Web de Prestige (envoi des messages WhatsApp de l'officine).</description>
-  <executable>node</executable>
+  <!-- Chemin complet (retour du 25/10) : un service lit le PATH charge au demarrage de Windows ; juste apres
+       l'installation de Node, « node » seul n'y est pas encore et le service ne demarrerait pas. Node installe
+       ailleurs : remplacer ce chemin. -->
+  <executable>%ProgramFiles%\nodejs\node.exe</executable>
   <arguments>"%BASE%\..\src\serveur.js"</arguments>
   <workingdirectory>%BASE%\..</workingdirectory>
   <env name="WHATSAPP_CONFIG" value="C:\prestige\whatsapp-web\config.json"/>
