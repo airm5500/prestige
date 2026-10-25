@@ -768,6 +768,8 @@ Ext.define('testextjs.controller.VenteEnDepotCtr', {
 
                     },
                     'doventeendepot #contenu [xtype=gridpanel]': {
+                        /* retour du 25/10 : quantite decimale refusee avant tout envoi */
+                        validateedit: this.controlerQuantiteEntiere,
                         edit: this.onGridEdit,
                         afterrender: this.onVenteGridAfterRender
                     },
@@ -3768,6 +3770,31 @@ Ext.define('testextjs.controller.VenteEnDepotCtr', {
 
 
     },
+    /**
+     * Retour du 25/10 : une quantite (demandee ou servie) decimale est refusee des la saisie, avec un message, et la
+     * valeur precedente reste en place (au lieu de « L'opération a échoué » renvoye par le serveur). Le texte tape est
+     * lu tel quel : « 1.5 » ne devient plus 15.
+     */
+    controlerQuantiteEntiere: function (editor, e) {
+        if (e.field !== 'intQUANTITY' && e.field !== 'intQUANTITYSERVED') {
+            return true;
+        }
+        var champ = e.column && e.column.getEditor ? e.column.getEditor(e.record) : null;
+        var brut = String(champ && champ.getRawValue ? champ.getRawValue() : e.value).trim();
+        if (brut === '' || /^\d+$/.test(brut)) {
+            return true;
+        }
+        Ext.MessageBox.show({
+            title: 'Quantité',
+            width: 480,
+            msg: 'La quantité doit être un nombre entier : les valeurs décimales (' + Ext.String.htmlEncode(brut)
+                    + ') ne sont pas possibles. La quantité précédente (' + e.originalValue + ') est conservée.',
+            buttons: Ext.MessageBox.OK,
+            icon: Ext.MessageBox.WARNING
+        });
+        return false;
+    },
+
     onGridEdit: function (editor, e) {
         const me = this;
         me.toRecalculate = true;

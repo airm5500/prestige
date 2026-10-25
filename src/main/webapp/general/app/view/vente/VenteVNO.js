@@ -27,6 +27,10 @@ Ext.define('testextjs.view.vente.VenteVNO', {
             model: 'testextjs.model.caisse.Reglement',
             pageSize: null,
             autoLoad: false,
+            /* retour du 25/10 : « Virement » n'est pas propose a la caisse (il reste ailleurs : differes, facturation) */
+            filters: [function (r) {
+                    return r.get('lgTYPEREGLEMENTID') !== '6';
+                }],
             proxy: {
                 type: 'ajax',
                 url: '../api/v1/common/reglement',
@@ -559,7 +563,11 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                                         xtype: 'numberfield',
                                                         allowBlank: true,
                                                         minValue: 1,
-                                                        maskRe: /[0-9.]/,
+                                                        /* virgule et point admis a la frappe : une decimale est refusee avec un message (retour du 25/10) */
+                                                        maskRe: /[0-9.,]/,
+                                                        /* sinon le champ refait son propre filtre (chiffres et virgule) : le point du pave numerique
+                                                           etait ignore et « 1.5 » devenait 15 */
+                                                        disableKeyFilter: true,
                                                         selectOnFocus: true,
                                                         hideTrigger: true
                                                     }
@@ -576,7 +584,11 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                                     editor: {
                                                         xtype: 'numberfield',
                                                         allowBlank: true,
-                                                        maskRe: /[0-9.]/,
+                                                        /* virgule et point admis a la frappe : une decimale est refusee avec un message (retour du 25/10) */
+                                                        maskRe: /[0-9.,]/,
+                                                        /* sinon le champ refait son propre filtre (chiffres et virgule) : le point du pave numerique
+                                                           etait ignore et « 1.5 » devenait 15 */
+                                                        disableKeyFilter: true,
                                                         selectOnFocus: true,
                                                         hideTrigger: true
                                                     },

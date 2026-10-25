@@ -500,7 +500,11 @@ Ext.define('testextjs.view.vente.depot.VenteDepot', {
 //                                         completeOnEnter: false,
                                                         allowBlank: true,
                                                         minValue: 1,
-                                                        maskRe: /[0-9.]/,
+                                                        /* virgule et point admis a la frappe : une decimale est refusee avec un message (retour du 25/10) */
+                                                        maskRe: /[0-9.,]/,
+                                                        /* sinon le champ refait son propre filtre (chiffres et virgule) : le point du pave numerique
+                                                           etait ignore et « 1.5 » devenait 15 */
+                                                        disableKeyFilter: true,
                                                         selectOnFocus: true,
                                                         hideTrigger: true
                                                     }
@@ -518,7 +522,11 @@ Ext.define('testextjs.view.vente.depot.VenteDepot', {
                                                         xtype: 'numberfield',
                                                         allowBlank: true,
 //                                        minValue: 1,
-                                                        maskRe: /[0-9.]/,
+                                                        /* virgule et point admis a la frappe : une decimale est refusee avec un message (retour du 25/10) */
+                                                        maskRe: /[0-9.,]/,
+                                                        /* sinon le champ refait son propre filtre (chiffres et virgule) : le point du pave numerique
+                                                           etait ignore et « 1.5 » devenait 15 */
+                                                        disableKeyFilter: true,
                                                         selectOnFocus: true,
                                                         hideTrigger: true
                                                     },
