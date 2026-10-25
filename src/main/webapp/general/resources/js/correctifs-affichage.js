@@ -738,6 +738,13 @@ window.PrestigeAffichage.isolerEcouteursRedimensionnement = function () {
 };
 
 /*
+ * Barre de defilement horizontale flottante (demande du 25/10, option 3) : posee sur toute grille qui deborde en
+ * largeur (resources/js/barre-horizontale.js). Une grille a laisser avec la barre native se declare ici, par son xtype
+ * ou celui d'un ecran qui la contient.
+ */
+window.PrestigeAffichage.DEFILEMENT_EXCLUS = [];
+
+/*
  * Themes du menu de navigation (demande du 24/10) : le menu actuel reste le theme par defaut ; A, C et D se choisissent
  * par Options > Affichage du menu. Le code et le style sont dans resources/js/menu-prestige.js et
  * resources/css/menu-prestige.css ; ils lisent les memes entrees que le menu actuel (MENUS_MASQUES compris).

@@ -1,0 +1,22 @@
+/* Barre de defilement horizontale flottante des grilles (resources/js/barre-horizontale.js, option 3 de la maquette D).
+   Seulement sur une grille qui deborde en largeur : sa barre native du bas est cachee (la barre verticale garde l'aspect
+   habituel) et une place est gardee sous la derniere ligne pour qu'elle ne passe pas sous la barre. */
+.pbh-vue::-webkit-scrollbar { height: 0; width: 14px; }
+.pbh-vue::-webkit-scrollbar-track { background: #f1f1f1; }
+.pbh-vue::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 7px; border: 3px solid #f1f1f1; }
+.pbh-vue::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
+.pbh-vue::after { content: ""; display: block; height: 36px; }
+
+.pbh-barre { position: fixed; display: none; align-items: center; gap: 10px; height: 34px; box-sizing: border-box; padding: 4px 10px;
+    background: rgba(243, 246, 250, .92); backdrop-filter: blur(6px); border-top: 1px solid #dde4ee; box-shadow: 0 -4px 12px rgba(10, 20, 40, .08);
+    font-family: "Segoe UI", Arial, sans-serif; font-size: 12px; color: #5b6b80; }
+.pbh-fl { width: 26px; height: 26px; flex: 0 0 26px; border-radius: 7px; display: grid; place-items: center; background: #fff; border: 1px solid #dde4ee;
+    color: #0f1d33; cursor: pointer; padding: 0; font-size: 11px; }
+.pbh-fl:hover { border-color: #0e7490; color: #0e7490; }
+.pbh-fl:disabled { opacity: .35; cursor: default; border-color: #dde4ee; color: #0f1d33; }
+.pbh-fl:focus-visible { outline: 2px solid #f2b84b; outline-offset: 1px; }
+.pbh-piste { flex: 1; height: 10px; min-width: 60px; border-radius: 6px; background: #dde4ee; position: relative; cursor: pointer; }
+.pbh-pouce { position: absolute; top: -3px; height: 16px; border-radius: 8px; background: #0e7490; cursor: grab; box-shadow: 0 1px 4px rgba(0, 0, 0, .2); touch-action: none; }
+.pbh-pouce:hover { background: #0b5f76; }
+.pbh-pouce:active { cursor: grabbing; }
+.pbh-pos { white-space: nowrap; font-variant-numeric: tabular-nums; }
