@@ -93,6 +93,8 @@ Ext.getCmp('str_TYPE').setValue(this.getOdatasource().str_TYPE);
 
         var win = new Ext.window.Window({
             autoShow: true,
+            /* retours du 25/10 (point 3) : l'ecran des profils ne recoit plus les clics tant que la fenetre est ouverte */
+            modal: true,
             title: this.getTitre(),
             width: 500,
             height: 250,

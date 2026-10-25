@@ -251,6 +251,8 @@ Ext.define('testextjs.view.sm_user.role.action.addPrivilegeBis', {
 
         var win = new Ext.window.Window({
             autoShow: true,
+            /* retours du 25/10 (point 3) : l'ecran des profils ne recoit plus les clics tant que la fenetre est ouverte */
+            modal: true,
             id: 'cltwinID',
             title: this.getTitre(),
             width: 1150,
