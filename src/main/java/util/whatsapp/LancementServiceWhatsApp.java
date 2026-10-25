@@ -101,8 +101,14 @@ public final class LancementServiceWhatsApp {
             if (refus != null) {
                 return refus;
             }
+            /*
+             * Retour du 25/10 : le script est designe par son chemin complet. Par son seul nom, cmd le cherche dans le
+             * dossier courant, ce que Windows refuse quand NoDefaultCurrentDirectoryInExePath est pose dans
+             * l'environnement de Payara : la fenetre s'ouvrait et se refermait sans rien lancer.
+             */
+            String chemin = new File(d, script).getAbsolutePath();
             pb = windows ? new ProcessBuilder("cmd.exe", "/c", "start", "Service WhatsApp Web - Prestige", "/min",
-                    "cmd.exe", "/c", script, "/auto") : new ProcessBuilder("sh", script, "--auto");
+                    "cmd.exe", "/c", chemin, "/auto") : new ProcessBuilder("sh", chemin, "--auto");
             pb.directory(d);
         }
         pb.redirectErrorStream(true).redirectOutput(ProcessBuilder.Redirect.DISCARD);

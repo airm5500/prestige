@@ -18,6 +18,8 @@
     var URL = '../api/v1/whatsapp/web/alerte';
     var CLE_MASQUEE = 'prestige.alerteWhatsApp.masquee';
     var PERIODE = 120000, MASQUAGE = 30 * 60000;
+    /* suivi du demarrage : 30 verifications, toutes les 3 s (reglable pour les tests d'ecran) */
+    var SUIVI = {essais: 30, pas: 3000};
     var minuteur = null, arrete = false, dernier = null;
 
     var esc = function (s) {
@@ -94,13 +96,28 @@
                     return;
                 }
                 raison(o.msg || 'Démarrage lancé.');
-                /* le service met quelques secondes a repondre : la banniere se met a jour seule */
+                /* le service met quelques secondes a repondre : la banniere se met a jour seule. Retour du 25/10 :
+                   s'il ne repond toujours pas a la fin du suivi, le bouton restait sur « Démarrage… » sans fin ; il
+                   redevient « Reconnecter » et la banniere dit ou regarder. */
                 var essais = 0;
                 (function suivre() {
                     verifier();
-                    if (++essais < 30 && document.getElementById('pwa-banniere')) {
-                        setTimeout(suivre, 3000);
+                    if (!document.getElementById('pwa-banniere')) {
+                        return;
                     }
+                    if (++essais < SUIVI.essais) {
+                        setTimeout(suivre, SUIVI.pas);
+                        return;
+                    }
+                    setTimeout(function () {
+                        if (document.getElementById('pwa-banniere') && bouton.disabled) {
+                            bouton.disabled = false;
+                            bouton.textContent = 'Reconnecter';
+                            raison('Le service n\'a pas répondu après ' + Math.round(SUIVI.essais * SUIVI.pas / 1000)
+                                    + ' s : il n\'a pas démarré. Voir la fenêtre « Service WhatsApp Web - Prestige »'
+                                    + ' (réduite dans la barre des tâches) ou le journal du service.');
+                        }
+                    }, SUIVI.pas);
                 })();
             },
             failure: function (r) {
@@ -212,7 +229,7 @@
             }});
     }
 
-    window.PrestigeAlerteWhatsApp = {verifier: verifier};
+    window.PrestigeAlerteWhatsApp = {verifier: verifier, suivi: SUIVI};
 
     /* au demarrage de l'application (apres le chargement du menu), puis regulierement */
     (function attendre() {

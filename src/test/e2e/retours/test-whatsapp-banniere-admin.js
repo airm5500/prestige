@@ -9,6 +9,7 @@
  *  - profil Vendeur : ni banniere ni alerte (la route repond « sans droit »), et il ne peut pas lancer le service (403) ;
  *  - dossier renseigne par la route de l'ecran Comptes WhatsApp : la banniere l'affiche ;
  *  - adresse du service sur une autre machine : le lancement est refuse (rien n'est lance) ;
+ *  - service qui ne demarre pas : a la fin du suivi, le bouton redevient « Reconnecter » et la banniere dit ou regarder ;
  *  - « Reconnecter » : le service demarre, la banniere disparait, le dossier annonce par le service est garde ;
  *  - aucune erreur JavaScript, aucune fenetre.
  * Le compte WhatsApp Web est remis comme avant ; dossier, service d'essai et compte d'essai retires a la fin.
@@ -21,7 +22,7 @@ const { connexion } = require('../outils/vues');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
 const BASE = ENV_E2E.BASE;
-const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sNr', '-e', s], { encoding: 'utf8' }).trim();
 const PORT = 18000 + Math.floor(Math.random() * 900);
 const DOSSIER = fs.mkdtempSync(path.join(os.tmpdir(), 'e2e-whatsapp-web-'));
 const ID = 'E2E-WA-VEND', LOGIN = 'e2e-wa-vendeur', MDP = 'E2e-Wa-Vend-7';
@@ -32,7 +33,10 @@ const aColonne = () => q("SELECT COUNT(*) FROM information_schema.COLUMNS WHERE 
 function preparerDossier() {
   fs.mkdirSync(path.join(DOSSIER, 'src'));
   fs.writeFileSync(path.join(DOSSIER, 'package.json'), JSON.stringify({ name: 'prestige-whatsapp-web', version: '0.0.0-e2e' }));
-  fs.writeFileSync(path.join(DOSSIER, 'src', 'serveur.js'), "require('http').createServer((q, r) => { r.setHeader('Content-Type', 'application/json');"
+  /* le service ecrit lui-meme son numero de processus : sous Windows, demarrer.bat ne le connait pas, et le service
+     d'essai restait lance (dossier verrouille) */
+  fs.writeFileSync(path.join(DOSSIER, 'src', 'serveur.js'), "require('fs').writeFileSync(require('path').join(__dirname, '..', 'service.pid'), String(process.pid));\n"
+    + "require('http').createServer((q, r) => { r.setHeader('Content-Type', 'application/json');"
     + " r.end(JSON.stringify(q.url.startsWith('/etat') ? { etat: 'CONNECTE', numero: '', repertoire: require('path').resolve(__dirname, '..'), file: {} } : { ok: true })); })"
     + ".listen(" + PORT + ", '127.0.0.1');\n");
   fs.writeFileSync(path.join(DOSSIER, 'demarrer.sh'), '#!/bin/sh\ncd "$(dirname "$0")"\nNODE=$(command -v node || echo /opt/node22/bin/node)\n'
@@ -40,8 +44,18 @@ function preparerDossier() {
   fs.writeFileSync(path.join(DOSSIER, 'demarrer.bat'), '@echo off\r\nnode src\\serveur.js\r\n');
 }
 function nettoyer() {
-  try { const pid = fs.readFileSync(path.join(DOSSIER, 'service.pid'), 'utf8').trim(); if (pid) { process.kill(Number(pid)); } } catch (e) { /* pas lance */ }
-  try { fs.rmSync(DOSSIER, { recursive: true, force: true }); } catch (e) { /* deja retire */ }
+  try {
+    const pid = Number(fs.readFileSync(path.join(DOSSIER, 'service.pid'), 'utf8').trim());
+    if (pid && process.platform === 'win32') {
+      /* sous Windows, la fenetre cmd qui a lance le service (son parent) garde le dossier ouvert : arretee aussi */
+      execFileSync('powershell', ['-NoProfile', '-Command', "$p = (Get-CimInstance Win32_Process -Filter 'ProcessId=" + pid + "').ParentProcessId;"
+        + ' Stop-Process -Id ' + pid + ' -Force -ErrorAction SilentlyContinue;'
+        + " if ($p -and (Get-Process -Id $p -ErrorAction SilentlyContinue).ProcessName -eq 'cmd') { Stop-Process -Id $p -Force }"]);
+    } else if (pid) {
+      process.kill(pid);
+    }
+  } catch (e) { /* pas lance */ }
+  try { fs.rmSync(DOSSIER, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 }); } catch (e) { /* deja retire */ }
   if (q("SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = '" + BASE + "' AND TABLE_NAME = 'e2e_wa_sauve'") === '1') {
     q("DELETE FROM whatsapp_compte WHERE mode = 'WEB'; INSERT INTO whatsapp_compte SELECT * FROM e2e_wa_sauve; DROP TABLE e2e_wa_sauve");
   }
@@ -105,6 +119,20 @@ const service = () => { try { execSync('curl -s -m 2 http://127.0.0.1:' + PORT +
     await p.evaluate(async (port) => fetch('../api/v1/whatsapp/comptes/WEB', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ webUrl: 'http://127.0.0.1:' + port }) }), PORT);
     await p.evaluate(() => window.PrestigeAlerteWhatsApp.verifier());
     await p.waitForTimeout(1500);
+
+    /* service qui ne demarre pas (retour du 25/10 : le bouton restait sur « Démarrage… » sans fin) : le serveur annonce
+       le lancement, rien ne repond ; suivi raccourci a 3 verifications */
+    await p.route('**/api/v1/whatsapp/web/demarrer', (r) => r.fulfill({ status: 200, contentType: 'application/json',
+      body: JSON.stringify({ success: true, msg: 'Démarrage du service WhatsApp Web lancé.' }) }));
+    await p.evaluate(() => { const s = window.PrestigeAlerteWhatsApp.suivi; if (s) { s.essais = 3; s.pas = 300; } });
+    await p.click('#pwa-banniere [data-pwa="reconnecter"]');
+    await p.waitForTimeout(3000);
+    const echec = await p.evaluate(() => { const x = document.querySelector('#pwa-banniere [data-pwa="reconnecter"]');
+      return { texte: x && x.textContent, actif: !!x && !x.disabled, raison: (document.querySelector('#pwa-banniere .pwa-raison') || {}).textContent || '' }; });
+    ok('Service qui ne démarre pas : le bouton redevient « Reconnecter » et la bannière dit où regarder',
+      echec.texte === 'Reconnecter' && echec.actif && /n'a pas répondu/.test(echec.raison) && !service(), JSON.stringify(echec));
+    await p.unroute('**/api/v1/whatsapp/web/demarrer');
+    await p.evaluate(() => { const s = window.PrestigeAlerteWhatsApp.suivi; if (s) { s.essais = 30; s.pas = 3000; } });
 
     /* « Reconnecter » : le service demarre */
     await p.click('#pwa-banniere [data-pwa="reconnecter"]');
