@@ -320,6 +320,41 @@ window.PrestigeEditions = {
  *        laquelle on prefere laisser la page defiler plutot qu'ecraser l'ecran) et
  *        garderEntete (defaut false : l'entete de l'ecran est masque)
  */
+/*
+ * Retour du 25/10 (videoprojecteur) : l'ecran colle se retractait dans le conteneur du milieu alors que l'en-tete
+ * gardait toute la largeur. L'en-tete est dimensionne par la mise en page d'ExtJS a chaque passage : une taille
+ * faussee y est corrigee au passage suivant. L'ecran colle l'etait par notre code (ajuster, ci-dessous), sur des
+ * evenements de redimensionnement : une mesure prise au mauvais moment, ou un evenement perdu, et il gardait la
+ * mauvaise taille jusqu'au suivant. Le panneau central passe donc en disposition « fit » tant qu'il montre un ecran
+ * colle : c'est ExtJS qui donne a l'ecran la taille du panneau, a chaque mise en page, comme pour l'en-tete. Les autres
+ * ecrans retrouvent la disposition habituelle (centres par App.centerContent).
+ */
+window.PrestigeAffichage.disposerConteneur = function (conteneur, ecran) {
+    'use strict';
+    function basculerConteneurInterne(disposition, visible) {
+        var element = disposition && disposition.outerCt;
+        if (element && element.dom) {
+            element.dom.style.display = visible ? '' : 'none';
+        }
+    }
+    try {
+        var colle = !!(ecran && ecran.collerEnHaut), actuelle = conteneur.getLayout();
+        if (colle && actuelle.type !== 'fit') {
+            // la disposition d'origine garde ses elements internes (poses au rendu) : on la reprendra telle quelle
+            conteneur.dispositionOrigine = actuelle;
+            conteneur.dispositionColle = conteneur.dispositionColle || Ext.layout.Layout.create('fit');
+            conteneur.setLayout(conteneur.dispositionColle);
+            // son conteneur interne resterait sous l'ecran, avec sa hauteur : defilement global en double
+            basculerConteneurInterne(actuelle, false);
+        } else if (!colle && actuelle.type === 'fit' && conteneur.dispositionOrigine) {
+            basculerConteneurInterne(conteneur.dispositionOrigine, true);
+            conteneur.setLayout(conteneur.dispositionOrigine);
+        }
+    } catch (e) {
+        // la presentation precedente reste en place : l'ajustement en pixels prend le relais
+    }
+};
+
 window.PrestigeAffichage.collerAuConteneur = function (panneau, options) {
     'use strict';
 
@@ -367,11 +402,15 @@ window.PrestigeAffichage.collerAuConteneur = function (panneau, options) {
             element.dom.style.left = '';
             element.dom.style.position = '';
         }
-        cible = placeDisponible();
-        actuelle = panneau.getSize();
         // la hauteur mini de l'ecran l'emporterait sur la taille demandee : on la ramene
         // a la notre, sinon le panneau resterait plus grand que la place disponible
         panneau.minHeight = Math.min(panneau.minHeight || hauteurMini, hauteurMini);
+        // panneau central en disposition « fit » (disposerConteneur) : la taille vient de la mise en page d'ExtJS
+        if (panneau.ownerCt && panneau.ownerCt.getLayout && panneau.ownerCt.getLayout().type === 'fit') {
+            return false;
+        }
+        cible = placeDisponible();
+        actuelle = panneau.getSize();
         if (Math.abs(actuelle.height - cible.height) < 2 && Math.abs(actuelle.width - cible.width) < 2) {
             return false;
         }

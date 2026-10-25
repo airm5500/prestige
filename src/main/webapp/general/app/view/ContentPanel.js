@@ -10,6 +10,15 @@ Ext.define('testextjs.view.ContentPanel', {
     requires:[
     'testextjs.view.dashboard'
     ],
+    /* retour du 25/10 : un ecran « colle » prend la taille du panneau par la mise en page d'ExtJS (disposition fit),
+       comme l'en-tete, au lieu d'un calcul en pixels sur des evenements (resources/js/correctifs-affichage.js) */
+    listeners: {
+        beforeadd: function (panneau, ecran) {
+            if (window.PrestigeAffichage && window.PrestigeAffichage.disposerConteneur) {
+                window.PrestigeAffichage.disposerConteneur(panneau, ecran);
+            }
+        }
+    },
     items: [
         {
 
