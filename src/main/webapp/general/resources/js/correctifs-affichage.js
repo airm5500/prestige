@@ -871,6 +871,8 @@ window.PrestigeAffichage.ECRANS_COLLES = [
     'avisclients', 'etiquetagepro', 'auditrapprochements', 'setvalorisation', 'campagnes', 'whatsappdiscussions',
     // retours du 25/10 (point 9) : ancien menu « Gestion étiquette »
     'etiquette',
+    // retours du 25/10 (point 3) : Ticket Z, ecran ExtJS sans iframe
+    'ticketzmanager',
     // stock
     'ajustementmanager', 'etatstock', 'inventaire', 'editinventaireManager',
     'monitoringproduct', 'suivientreevente', 'monitoringarticlecomplet',
