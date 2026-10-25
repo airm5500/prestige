@@ -733,11 +733,17 @@ public class ClientServiceImpl implements ClientService {
         return OTCompteClient;
     }
 
-    private void createComptClientTierspayant(ClientDTO cdto, TCompteClient oTCompteClient, TTiersPayant p) {
+    private TCompteClientTiersPayant createComptClientTierspayant(ClientDTO cdto, TCompteClient oTCompteClient,
+            TTiersPayant p) {
+        return createComptClientTierspayant(cdto, oTCompteClient, p, Boolean.TRUE, cdto.getIntPRIORITY());
+    }
+
+    private TCompteClientTiersPayant createComptClientTierspayant(ClientDTO cdto, TCompteClient oTCompteClient,
+            TTiersPayant p, boolean isRo, Integer priority) {
         TCompteClientTiersPayant oTCompteClientTiersPayant = new TCompteClientTiersPayant(UUID.randomUUID().toString());
         oTCompteClientTiersPayant.setStrSTATUT(Constant.STATUT_ENABLE);
         oTCompteClientTiersPayant.setStrNUMEROSECURITESOCIAL(cdto.getStrNUMEROSECURITESOCIAL());
-        oTCompteClientTiersPayant.setBISRO(Boolean.TRUE);
+        oTCompteClientTiersPayant.setBISRO(isRo);
         oTCompteClientTiersPayant.setBCANBEUSE(Boolean.TRUE);
         oTCompteClientTiersPayant.setBIsAbsolute(cdto.isbIsAbsolute());
         oTCompteClientTiersPayant.setDtCREATED(new Date());
@@ -745,7 +751,7 @@ public class ClientServiceImpl implements ClientService {
         oTCompteClientTiersPayant.setLgCOMPTECLIENTID(oTCompteClient);
         oTCompteClientTiersPayant.setLgTIERSPAYANTID(p);
         oTCompteClientTiersPayant.setIntPOURCENTAGE(cdto.getIntPOURCENTAGE());
-        oTCompteClientTiersPayant.setIntPRIORITY(cdto.getIntPRIORITY());
+        oTCompteClientTiersPayant.setIntPRIORITY(priority);
         oTCompteClientTiersPayant.setDbPLAFONDENCOURS(0);
         oTCompteClientTiersPayant.setDblQUOTACONSOMENSUELLE(0);
         oTCompteClientTiersPayant.setDblQUOTACONSOVENTE(0.0);
@@ -763,6 +769,7 @@ public class ClientServiceImpl implements ClientService {
             oTCompteClientTiersPayant.setIsCapped(Boolean.TRUE);
         }
         em.persist(oTCompteClientTiersPayant);
+        return oTCompteClientTiersPayant;
     }
 
     private void createComptClientTierspayant(List<TiersPayantParams> tiersPayants, TCompteClient oTCompteClient) {
@@ -1145,6 +1152,44 @@ public class ClientServiceImpl implements ClientService {
         getEmg().merge(oTCompteClientTiersPayant);
     }
 
+    static boolean isAssociateTiersPayantAction(String action) {
+        return action != null && "ASSOCIATE".equalsIgnoreCase(action.trim());
+    }
+
+    static int nextTiersPayantPriority(List<TCompteClientTiersPayant> links) {
+        return links.stream().filter(link -> Constant.STATUT_ENABLE.equals(link.getStrSTATUT()))
+                .map(TCompteClientTiersPayant::getIntPRIORITY).filter(Objects::nonNull).filter(priority -> priority > 0)
+                .max(Integer::compareTo).orElse(1) + 1;
+    }
+
+    private TCompteClientTiersPayant findActiveClientTiersPayant(String clientId, String tiersPayantId) {
+        try {
+            return getEmg().createQuery(
+                    "SELECT o FROM TCompteClientTiersPayant o "
+                            + "WHERE o.lgCOMPTECLIENTID.lgCLIENTID.lgCLIENTID=?1 "
+                            + "AND o.lgTIERSPAYANTID.lgTIERSPAYANTID=?2 AND o.strSTATUT=?3",
+                    TCompteClientTiersPayant.class).setParameter(1, clientId).setParameter(2, tiersPayantId)
+                    .setParameter(3, Constant.STATUT_ENABLE).setMaxResults(1).getSingleResult();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
+     * Ajoute le tiers payant comme couverture complementaire sans desactiver ni
+     * reprioriser le tiers payant principal existant.
+     */
+    private void associateClientTiersPayant(ClientDTO client, TCompteClient compteClient, TTiersPayant tiersPayant) {
+        TCompteClientTiersPayant existing = findActiveClientTiersPayant(client.getLgCLIENTID(),
+                tiersPayant.getLgTIERSPAYANTID());
+        if (existing != null) {
+            return;
+        }
+        int priority = nextTiersPayantPriority(findTCompteClientTiersPayanCompteClient(
+                compteClient.getLgCOMPTECLIENTID()));
+        createComptClientTierspayant(client, compteClient, tiersPayant, false, priority);
+    }
+
     @Override
     public JSONObject updateOrCreateClientAssurance(ClientDTO client) throws JSONException {
         JSONObject json = new JSONObject();
@@ -1198,8 +1243,14 @@ public class ClientServiceImpl implements ClientService {
                 tc = updateClient(client, tc);
                 TCompteClient oTCompteClient = updateCompteClient(client, tc);
                 if (!oldltp.equals(p)) {
-                    createComptClientTierspayant(client, oTCompteClient, p);
-                    desabledCompteClientTiersPayant(oltp);
+                    if (isAssociateTiersPayantAction(client.getTiersPayantAction())) {
+                        associateClientTiersPayant(client, oTCompteClient, p);
+                    } else {
+                        // Compatibilite avec les anciens clients mobiles/web : sans action
+                        // explicite, le comportement historique reste un remplacement.
+                        createComptClientTierspayant(client, oTCompteClient, p);
+                        desabledCompteClientTiersPayant(oltp);
+                    }
                 } else {
                     updateComptClientTierspayant(client, p);
                 }
