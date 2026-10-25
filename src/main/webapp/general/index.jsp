@@ -100,6 +100,8 @@
         <script src="resources/js/barre-horizontale.js"></script>
         <!-- Banniere « session WhatsApp a reconnecter » (droits verifies par le serveur) -->
         <script src="resources/js/alerte-whatsapp.js"></script>
+        <!-- Rappel « date et heure du systeme fausses » (tous les utilisateurs, toutes les 5 minutes) -->
+        <script src="resources/js/alerte-horloge.js"></script>
         <!-- Generateur de code CIP interne : bouton « + » des fiches de creation d'article -->
         <script src="resources/js/code-cip.js"></script>
 
