@@ -117,9 +117,9 @@ const envoyer = (entrants) => fetch(WEBHOOK, { method: 'POST', headers: { Author
 
     await p.click('.wad .wad-item[data-numero="0508773344"]');
     await p.waitForTimeout(1500);
-    const stop = await p.evaluate(() => ({ ferme: Ext.ComponentQuery.query('whatsappdiscussions #reponse')[0].isDisabled(), etat: document.querySelector('.wad .wad-etat').textContent }));
+    const stop = await p.evaluate(() => ({ ferme: Ext.ComponentQuery.query('whatsappdiscussions #reponse')[0].isDisabled(), etat: document.querySelector('.wad .wad-entete').textContent }));
     const api = await p.evaluate(() => fetch('../api/v1/whatsapp-discussions/0508773344', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ texte: 'essai' }) }).then((r) => r.json()));
-    ok('Client B (STOP) : zone de réponse fermée avec le motif ; l\'API refuse aussi, rien n\'est gardé', stop.ferme && /STOP/.test(stop.etat) && api.success === false && /STOP/.test(api.message)
+    ok('Client B (STOP) : zone de réponse fermée, le motif lisible dans l\'en-tête ; l\'API refuse aussi, rien n\'est gardé', stop.ferme && /STOP/.test(stop.etat) && api.success === false && /STOP/.test(api.message)
       && q("SELECT COUNT(*) FROM whatsapp_discussion WHERE numero = '0508773344' AND sens = 'S'") === '0', JSON.stringify({ stop, api }));
 
     await cliquer(p, 'whatsappdiscussions #nonLues');

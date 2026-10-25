@@ -250,7 +250,9 @@ Ext.define('testextjs.view.campagnes.DiscussionsWhatsApp', {
                 + '<div style="font-weight:700;color:#0f1d33">' + me.esc(me.nom(disc)) + (stop ? ' <span class="wad-stop">STOP</span>' : '') + '</div>'
                 + '<div style="font-size:12px;color:#5b6b80">' + me.esc(me.numeroLisible(disc.numero || me.numero))
                 + (disc.client && disc.nomProfil ? ' · profil WhatsApp : ' + me.esc(disc.nomProfil) : '')
-                + (!disc.clientId ? ' · aucun client de la base n\'est rattaché à ce numéro' : '') + '</div></div></div>');
+                + (!disc.clientId ? ' · aucun client de la base n\'est rattaché à ce numéro' : '') + '</div>'
+                + (stop ? '<div style="font-size:12.5px;color:#b42318;font-weight:600;margin-top:2px">Ce client a demandé l\'arrêt des messages WhatsApp (STOP) : on ne peut plus lui écrire.</div>' : '')
+                + '</div></div>');
         Ext.each(msgs, function (m) {
             var j = (m.date || '').substring(0, 10);
             if (j !== jour) {
@@ -273,7 +275,7 @@ Ext.define('testextjs.view.campagnes.DiscussionsWhatsApp', {
         var form = me.down('#reponse');
         form.setDisabled(stop);
         if (stop) {
-            me.etat('Ce client a demandé l\'arrêt des messages WhatsApp (STOP) : on ne peut plus lui écrire.', 'wad-erreur');
+            me.etat('', '');
         }
     },
 

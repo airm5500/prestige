@@ -52,9 +52,12 @@ const envoyer = (jeton, entrants) => fetch(URL, { method: 'POST', headers: { Aut
   } catch (e) {
     ok('Déroulé sans exception', false, e.stack);
   } finally {
+    /* 25/10 : les messages recus sont gardes dans les fils de discussion : ceux de l'essai sont retires aussi */
     exec('DELETE FROM t_client WHERE lg_CLIENT_ID IN ' + IDS + ';'
+      + "DELETE FROM whatsapp_discussion WHERE numero IN ('0708991122','0708994455','0508994455','0108997788');"
       + `UPDATE whatsapp_compte SET web_jeton = ${lit(sauve)} WHERE mode = 'WEB';`);
     ok('Jeu d\'essai retiré, jeton remis', q('SELECT COUNT(*) FROM t_client WHERE lg_CLIENT_ID IN ' + IDS) === '0'
+      && q("SELECT COUNT(*) FROM whatsapp_discussion WHERE numero IN ('0708991122','0708994455','0508994455','0108997788')") === '0'
       && q("SELECT IFNULL(web_jeton, 'NULL') FROM whatsapp_compte WHERE mode = 'WEB'") === sauve);
     const ko = res.filter((x) => !x.c).length;
     console.log('\n' + (res.length - ko) + '/' + res.length + ' OK');
