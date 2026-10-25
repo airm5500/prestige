@@ -94,6 +94,8 @@
         <script src="resources/js/veille-geometrie.js"></script>
         <script src="resources/js/menu-prestige.js"></script>
         <script src="resources/js/barre-horizontale.js"></script>
+        <!-- Banniere « session WhatsApp a reconnecter » (droits verifies par le serveur) -->
+        <script src="resources/js/alerte-whatsapp.js"></script>
         <!-- Generateur de code CIP interne : bouton « + » des fiches de creation d'article -->
         <script src="resources/js/code-cip.js"></script>
 

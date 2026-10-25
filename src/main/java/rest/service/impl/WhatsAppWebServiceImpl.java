@@ -104,6 +104,53 @@ public class WhatsAppWebServiceImpl implements WhatsAppWebService {
         }
     }
 
+    /* etat en direct du service, garde 20 s pour la banniere (tous les postes la verifient) */
+    private static volatile JSONObject etatGarde;
+    private static volatile long etatGardeA;
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public JSONObject alerte() {
+        JSONObject r = new JSONObject().put("success", true).put("alerte", false);
+        List<Object[]> l = em
+                .createNativeQuery("SELECT actif, sante, sante_raison FROM whatsapp_compte WHERE mode = 'WEB'")
+                .getResultList();
+        boolean actif = !l.isEmpty() && (l.get(0)[0] instanceof Boolean ? (Boolean) l.get(0)[0]
+                : l.get(0)[0] instanceof Number && ((Number) l.get(0)[0]).intValue() == 1);
+        if (!actif) {
+            return r;
+        }
+        String sante = (String) l.get(0)[1], raison = (String) l.get(0)[2];
+        if ("DEGRADE".equals(sante)) {
+            return r.put("alerte", true).put("type", "DEGRADE").put("raison", StringUtils.defaultString(raison)).put(
+                    "message", "WhatsApp : la session est à reconnecter, les réponses des clients ne sont plus lues.");
+        }
+        long maintenant = System.currentTimeMillis();
+        JSONObject e = etatGarde;
+        if (e == null || maintenant - etatGardeA > 20_000L) {
+            e = etat();
+            etatGarde = e;
+            etatGardeA = maintenant;
+        }
+        String et = e.optString("etat");
+        if ("DEGRADE".equals(e.optString("sante"))) {
+            return r.put("alerte", true).put("type", "DEGRADE").put("raison", e.optString("raisonSante")).put("message",
+                    "WhatsApp : la session est à reconnecter, les réponses des clients ne sont plus lues.");
+        }
+        if ("QR".equals(et) || "DECONNECTE".equals(et) || "ECHEC_AUTH".equals(et)) {
+            return r.put("alerte", true).put("type", "DECONNECTE").put("message",
+                    "WhatsApp : la session est déconnectée, scannez de nouveau le QR code pour la reconnecter.");
+        }
+        if ("INJOIGNABLE".equals(et)) {
+            return r.put("alerte", true).put("type", "INJOIGNABLE").put("message",
+                    "WhatsApp : le service WhatsApp Web ne répond pas. Démarrez-le sur le serveur (demarrer.bat).");
+        }
+        if ("JETON_REFUSE".equals(et) || "NON_CONFIGURE".equals(et)) {
+            return r.put("alerte", true).put("type", et).put("message", "WhatsApp : " + e.optString("message"));
+        }
+        return r;
+    }
+
     @Override
     public JSONObject etat() {
         return appeler((c, base, j) -> c.target(base + "/etat").request().header("Authorization", "Bearer " + j).get());

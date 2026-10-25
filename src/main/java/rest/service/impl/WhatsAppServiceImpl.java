@@ -410,6 +410,19 @@ public class WhatsAppServiceImpl implements WhatsAppService {
         try {
             JSONObject o = new JSONObject(corpsBrut);
             /*
+             * sante de la reception rapportee par le service (demande du 25/10) : OK ou DEGRADE, raison fixe du service
+             */
+            JSONObject sante = o.optJSONObject("sante");
+            if (sante != null) {
+                String et = "DEGRADE".equals(sante.optString("sante")) ? "DEGRADE" : "OK";
+                em.createNativeQuery("UPDATE whatsapp_compte SET sante = ?1, sante_raison = ?2, sante_maj = NOW()"
+                        + " WHERE mode = 'WEB'").setParameter(1, et)
+                        .setParameter(2,
+                                "DEGRADE".equals(et) ? StringUtils.left(sante.optString("raisonSante", ""), 255) : null)
+                        .executeUpdate();
+                LOG.log(Level.INFO, "Webhook WhatsApp Web : sante de la reception {0}", et);
+            }
+            /*
              * meme forme que Meta, plus simple : {statuts:[{id, statut, erreur}], entrants:[{numero, texte, type, nom,
              * id}]}
              */

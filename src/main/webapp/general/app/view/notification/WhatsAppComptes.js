@@ -251,6 +251,11 @@ Ext.define('testextjs.view.notification.WhatsAppComptes', {
             var f = e.file || {};
             var html = '<div class="wa-etat"><span class="wa-pastille" style="background:' + lib[1] + '"></span><b>' + lib[0] + '</b>'
                     + (e.numero ? ' · +' + me.esc(e.numero) : '') + (e.faux ? ' <i>(service d\'essai)</i>' : '') + '</div>';
+            /* demande du 25/10 : reception degradee (messages recus illisibles) -> reconnecter le telephone */
+            if (e.sante === 'DEGRADE') {
+                html += '<div class="wa-note" style="color:#c0392b"><b>Réception dégradée :</b> ' + me.esc(e.raisonSante || 'les réponses des clients ne sont plus lisibles.')
+                        + ' Déconnectez puis scannez de nouveau le QR code.</div>';
+            }
             if (e.success === false) {
                 html += '<div class="wa-note" style="color:#c0392b">' + me.esc(e.message) + '</div>';
             } else if (e.file) {

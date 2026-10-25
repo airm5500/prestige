@@ -110,6 +110,25 @@ public class WhatsAppRessource {
         return r != null ? r : Response.ok(web.etat().toString()).build();
     }
 
+    /** Banniere « session a reconnecter » : pour ceux qui gerent les comptes ou lisent les discussions WhatsApp. */
+    @GET
+    @Path("web/alerte")
+    @SuppressWarnings("unchecked")
+    public Response webAlerte() {
+        if (utilisateur() == null) {
+            return Response.status(Response.Status.UNAUTHORIZED).type(MediaType.APPLICATION_JSON)
+                    .entity(new JSONObject().put("success", false).put("msg", Constant.DECONNECTED_MESSAGE).toString())
+                    .build();
+        }
+        List<TPrivilege> droits = (List<TPrivilege>) servletRequest.getSession()
+                .getAttribute(commonparameter.USER_LIST_PRIVILEGE);
+        if (!CommonUtils.hasAuthorityByName(droits, PRIVILEGE)
+                && !CommonUtils.hasAuthorityByName(droits, Constant.P_SM_WHATSAPP_DISCUSSIONS)) {
+            return Response.ok(new JSONObject().put("success", false).put("sansDroit", true).toString()).build();
+        }
+        return Response.ok(web.alerte().toString()).build();
+    }
+
     @GET
     @Path("web/qr")
     public Response webQr() {

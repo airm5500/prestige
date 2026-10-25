@@ -36,4 +36,12 @@ public interface WhatsAppWebService {
 
     /** Met a jour les statuts des modeles soumis (approuve, rejete et son motif...). */
     JSONObject synchroniserModeles();
+
+    /**
+     * Banniere « session a reconnecter » (demande du 25/10) : alerte si le compte WhatsApp Web est actif et que la
+     * reception est degradee (rapport du service ou etat en direct), que la session est deconnectee, ou que le service
+     * ne repond pas. Rend {success, alerte, type, message, raison}. L'etat en direct est garde 20 s (un appel au
+     * service pour tous les postes).
+     */
+    JSONObject alerte();
 }
