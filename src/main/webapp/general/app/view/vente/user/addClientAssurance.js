@@ -231,7 +231,7 @@ Ext.define('testextjs.view.vente.user.addClientAssurance', {
                                                         specialkey: function(field, e) {
                                                             if (e.getKey() === e.ENTER) {
                                                                 e.stopEvent();
-                                                                me.down('#tiersvo').focus(false, 100);
+                                                                me.down('[name=strADRESSE]').focus(false, 100);
                                                             }
                                                         }
                                                     }
@@ -263,7 +263,16 @@ Ext.define('testextjs.view.vente.user.addClientAssurance', {
                                                     name: 'strADRESSE',
                                                     height: 30, 
                                                     flex: 1,
-                                                    enableKeyEvents: true
+                                                    enableKeyEvents: true,
+                                                    /* retours du 25/10 (point 5) : Nom -> Prenom -> Matricule -> Adresse -> Tiers payant -> Taux */
+                                                    listeners: {
+                                                        specialkey: function (field, e) {
+                                                            if (e.getKey() === e.ENTER) {
+                                                                e.stopEvent();
+                                                                me.down('#tiersvo').focus(false, 100);
+                                                            }
+                                                        }
+                                                    }
                                                 }, 
                                                 {xtype: 'splitter'},
                                                 {

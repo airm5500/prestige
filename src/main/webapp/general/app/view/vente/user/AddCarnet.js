@@ -225,7 +225,7 @@ Ext.define('testextjs.view.vente.user.AddCarnet', {
                                                         specialkey: function (field, e) {
                                                             if (e.getKey() === e.ENTER) {
                                                                 e.stopEvent();
-                                                                me.down('#carnetVo').focus(false, 100);
+                                                                me.down('[name=strADRESSE]').focus(false, 100);
                                                             }
                                                         }
                                                     }
@@ -258,8 +258,16 @@ Ext.define('testextjs.view.vente.user.AddCarnet', {
                                                     emptyText: 'Adresse',
                                                     name: 'strADRESSE',
                                                     height: 30, flex: 1,
-                                                    enableKeyEvents: true
-
+                                                    enableKeyEvents: true,
+                                                    /* retours du 25/10 (point 5) : Nom -> Prenom -> Matricule -> Adresse -> Tiers payant -> Taux */
+                                                    listeners: {
+                                                        specialkey: function (field, e) {
+                                                            if (e.getKey() === e.ENTER) {
+                                                                e.stopEvent();
+                                                                me.down('#carnetVo').focus(false, 100);
+                                                            }
+                                                        }
+                                                    }
                                                 }, {xtype: 'splitter'},
                                                 {
                                                     xtype: 'textfield',
