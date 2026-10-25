@@ -147,9 +147,6 @@ public class SalesStatsServiceImpl implements SalesStatsService {
     private static final String PREVENTE_SQL = "SELECT p.lg_PREENREGISTREMENT_ID AS id, p.str_REF AS ref,p.int_PRICE AS montant,DATE_FORMAT(p.dt_UPDATED, '%d/%m/%Y') AS dateVente,DATE_FORMAT(p.dt_UPDATED, '%H:%i:%s') AS heureVente, p.str_TYPE_VENTE AS typeVente,CONCAT(vendeur.str_FIRST_NAME,' ',vendeur.str_LAST_NAME) AS userVendeur,p.int_PRICE_REMISE AS  discount,p.remise AS remiseId,p.str_REF_TICKET AS transactionNumber,p.lg_TYPE_VENTE_ID AS typeVenteId,p.str_STATUT AS statut FROM  t_preenregistrement p JOIN t_user vendeur ON vendeur.lg_USER_ID=p.lg_USER_VENDEUR_ID {user_join} WHERE p.str_STATUT IN(?1)"
             + VENTE_ATTENTE_CONDITIONS
             + " AND p.dt_UPDATED >= CURDATE() AND p.dt_UPDATED < CURDATE() + INTERVAL 1 DAY ";
-    private static final String USER_CLOSE = " AND p.lg_USER_ID='%s' ";
-    private static final String SEARCH_CLOSE = " AND ((p.lg_PREENREGISTREMENT_ID  IN (SELECT d.lg_PREENREGISTREMENT_ID FROM  t_preenregistrement_detail d JOIN t_famille f ON d.lg_FAMILLE_ID=f.lg_FAMILLE_ID WHERE f.int_CIP LIKE '%s' OR f.str_NAME LIKE '%s' )) OR p.str_REF LIKE '%s' )";
-    private static final String NATURE_CLOSE = " AND p.str_TYPE_VENTE='%s' ";
     private static final String VENTE_SQL = "SELECT {distinct} p.lg_PREENREGISTREMENT_ID as lgPREENREGISTREMENTID,p.str_REF as strREF,p.str_REF_TICKET as strREFTICKET,p.int_PRICE as intPRICE,p.int_CUST_PART as intCUSTPART,p.int_PRICE_REMISE as intPRICEREMISE,p.str_STATUT as strSTATUT,p.dt_CREATED as dtCREATED, p.dt_UPDATED as dtUPDATED,p.str_TYPE_VENTE as strTYPEVENTE,p.b_IS_AVOIR as avoir,p.b_IS_CANCEL as cancel,p.b_WITHOUT_BON as sansbon, p.lg_TYPE_VENTE_ID as lgTYPEVENTEID,p.copy as copy,"
             /*
              * Montant differe encore du sur la vente. Il vit dans t_preenregistrement_compte_client, une ligne par
@@ -2771,6 +2768,20 @@ public class SalesStatsServiceImpl implements SalesStatsService {
             } else {
                 q.setParameter(1, Set.of(params.getStatut()));
             }
+            /*
+             * retour du 25/10 : utilisateur, nature et texte cherche passent en parametres (plus de texte saisi dans la
+             * requete), numerotes dans l'ordre ou buildPreVentesQuery les ajoute
+             */
+            int n = 2;
+            if (!this.sessionHelperService.getData().isShowAllVente()) {
+                q.setParameter(n++, this.sessionHelperService.getCurrentUser().getLgUSERID());
+            }
+            if (StringUtils.isNotEmpty(params.getTypeVenteId())) {
+                q.setParameter(n++, params.getTypeVenteId());
+            }
+            if (StringUtils.isNotEmpty(params.getQuery())) {
+                q.setParameter(n, params.getQuery() + "%");
+            }
 
             return q.getResultList();
         } catch (Exception e) {
@@ -2840,17 +2851,19 @@ public class SalesStatsServiceImpl implements SalesStatsService {
 
         String query = PREVENTE_SQL.replace("{user_join}", "");
 
+        /* parametres numerotes a la suite de ?1 (statuts), sans trou : Hibernate l'exige */
+        int n = 2;
         if (!this.sessionHelperService.getData().isShowAllVente()) {
-            query = query.concat(String.format(USER_CLOSE, this.sessionHelperService.getCurrentUser().getLgUSERID()));
+            query = query.concat(" AND p.lg_USER_ID = ?" + n++ + " ");
         }
         if (StringUtils.isNotEmpty(params.getTypeVenteId())) {
-            query = query.concat(String.format(NATURE_CLOSE, params.getTypeVenteId()));
-
+            query = query.concat(" AND p.str_TYPE_VENTE = ?" + n++ + " ");
         }
         if (StringUtils.isNotEmpty(params.getQuery())) {
-            String search = params.getQuery() + "%";
-            query = query.concat(String.format(SEARCH_CLOSE, search, search, search));
-
+            String r = "?" + n;
+            query = query.concat(" AND ((p.lg_PREENREGISTREMENT_ID IN (SELECT d.lg_PREENREGISTREMENT_ID"
+                    + " FROM t_preenregistrement_detail d JOIN t_famille f ON d.lg_FAMILLE_ID = f.lg_FAMILLE_ID"
+                    + " WHERE f.int_CIP LIKE " + r + " OR f.str_NAME LIKE " + r + ")) OR p.str_REF LIKE " + r + ") ");
         }
 
         return query;

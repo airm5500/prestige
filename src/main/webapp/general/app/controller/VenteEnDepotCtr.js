@@ -8333,6 +8333,11 @@ Ext.define('testextjs.controller.VenteEnDepotCtr', {
             return;
         }
 
+        /* retour du 25/10 : separateur mal lu par la douchette (« 261025)00145 ») remis a sa place, et montre */
+        value = window.PrestigeReferenceVente ? PrestigeReferenceVente.normaliser(value) : value;
+        if (me.getPreventeSearchField() && me.getPreventeSearchField().getValue() !== value) {
+            me.getPreventeSearchField().setValue(value);
+        }
         var isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
 
         if (isUuid) {

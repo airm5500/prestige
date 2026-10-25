@@ -1543,6 +1543,24 @@ window.PrestigeAffichage.choixLignes = function (store, valeurs) {
  * par le navigateur ; il part avec chaque requete (en-tete X-Poste) et figure dans le journal. Sans nom saisi, le
  * serveur reprend le nom reseau du poste.
  */
+/*
+ * Retour du 25/10 : reference de vente lue par une douchette dont la disposition du clavier ne correspond pas a celle
+ * du poste. Le ticket de prevente de l'application mobile porte « 261025_00145 » ; le « _ » arrive par exemple comme
+ * « ) » ou « ° ». Une reference AAMMJJ + separateur + 5 chiffres reprend son « _ » ; un identifiant de vente (UUID)
+ * reprend ses tirets. Toute autre saisie est rendue telle quelle.
+ */
+window.PrestigeReferenceVente = {
+    normaliser: function (valeur) {
+        'use strict';
+        var v = String(valeur || '').trim(), m = /^(\d{6})[^0-9A-Za-z](\d{5})$/.exec(v);
+        if (m) {
+            return m[1] + '_' + m[2];
+        }
+        m = /^([0-9a-f]{8})[^0-9a-f]([0-9a-f]{4})[^0-9a-f]([0-9a-f]{4})[^0-9a-f]([0-9a-f]{4})[^0-9a-f]([0-9a-f]{12})$/i.exec(v);
+        return m ? [m[1], m[2], m[3], m[4], m[5]].join('-') : v;
+    }
+};
+
 window.PrestigePoste = {
     CLE: 'prestige.poste',
     lire: function () {

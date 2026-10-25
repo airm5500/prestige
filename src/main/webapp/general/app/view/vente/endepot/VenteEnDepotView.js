@@ -55,9 +55,12 @@ Ext.define('testextjs.view.vente.endepot.VenteEnDepotView', {
                 afterrender: function (f) {
                     f.inputEl.on('mouseup', function () {
                         // différé : le mouseup natif replace le curseur et
-                        // annulerait une sélection immédiate
+                        // annulerait une sélection immédiate. Retour du 25/10 : seulement
+                        // si rien n'a été saisi entre-temps (une douchette déclenchée
+                        // juste après le clic perdait son premier caractère).
+                        var avant = f.getValue();
                         Ext.defer(function () {
-                            if (!f.destroyed) {
+                            if (!f.destroyed && f.getValue() === avant) {
                                 f.selectText();
                             }
                         }, 10);
