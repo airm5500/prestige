@@ -66,6 +66,7 @@ public class RoleServiceImpl implements RoleService {
         JSONArray results = new JSONArray();
         try {
             boolean admin = isAdminOrSuperAdmin(user);
+            boolean superAdmin = bll.userManagement.user.estSuperAdmin(user);
             if (!actifs && !admin) {
                 // La vue des profils desactives est reservee aux administrateurs
                 return json.put("total", 0).put("results", results);
@@ -78,6 +79,9 @@ public class RoleServiceImpl implements RoleService {
                 // Les autres profils ne voient ni administrateur ni super administrateur
                 where.append(" AND t.strNAME NOT LIKE ?2 AND t.strNAME NOT LIKE ?3")
                         .append(" AND t.strDESIGNATION NOT LIKE ?2 AND t.strDESIGNATION NOT LIKE ?3");
+            } else if (!superAdmin) {
+                // Retours du 25/10 : l'administrateur ne voit pas le profil super administrateur
+                where.append(" AND t.strNAME NOT LIKE ?2 AND t.strDESIGNATION NOT LIKE ?2");
             }
             TypedQuery<Long> qc = em.createQuery("SELECT COUNT(t)" + where, Long.class).setParameter(1, like);
             TypedQuery<TRole> q = em.createQuery("SELECT t" + where + " ORDER BY t.strDESIGNATION", TRole.class)
@@ -87,6 +91,9 @@ public class RoleServiceImpl implements RoleService {
                         commonparameter.ROLE_ADMIN + "%");
                 q.setParameter(2, commonparameter.ROLE_SUPERADMIN + "%").setParameter(3,
                         commonparameter.ROLE_ADMIN + "%");
+            } else if (!superAdmin) {
+                qc.setParameter(2, commonparameter.ROLE_SUPERADMIN + "%");
+                q.setParameter(2, commonparameter.ROLE_SUPERADMIN + "%");
             }
             long total = qc.getSingleResult();
             if (limit > 0) {
@@ -341,6 +348,31 @@ public class RoleServiceImpl implements RoleService {
         }
     }
 
+    /**
+     * Retours du 25/10 : un droit ne s'accorde (ni ne se retire) que s'il est au catalogue de l'utilisateur connecte
+     * (memes regles que catalogueWhere : SYSTEME pour le super administrateur seul, ADMIN pour administrateur et
+     * pharmacien) ; seul le super administrateur touche aux droits du profil super administrateur. L'ecran ne montrait
+     * deja que le catalogue ; l'appel direct de la route passait outre.
+     */
+    private String refusAttribution(TUser user, TRole role, TPrivilege privilege) {
+        if (bll.userManagement.user.estSuperAdmin(user)) {
+            return null;
+        }
+        if (bll.userManagement.user.estRoleSuperAdmin(role)) {
+            return "Réservé au super administrateur.";
+        }
+        String type = StringUtils.defaultString(privilege.getStrTYPE());
+        if (commonparameter.PARAMETER_CUSTOMER.equalsIgnoreCase(type)) {
+            return null;
+        }
+        String roleName = connectedRoleName(user);
+        if (commonparameter.PARAMETER_ADMIN.equalsIgnoreCase(type) && (bll.userManagement.user.isAdminRole(roleName)
+                || roleName.equalsIgnoreCase(commonparameter.ROLE_PHARMACIEN))) {
+            return null;
+        }
+        return "Ce droit ne peut être accordé que par le super administrateur.";
+    }
+
     @Override
     public JSONObject toggleRolePrivilege(TUser user, String roleId, String privilegeId, boolean checked) {
         JSONObject json = new JSONObject();
@@ -349,6 +381,10 @@ public class RoleServiceImpl implements RoleService {
             TPrivilege privilege = em.find(TPrivilege.class, privilegeId);
             if (role == null || privilege == null) {
                 return json.put("success", FAILED).put("errors", "Profil ou privilège introuvable");
+            }
+            String refus = refusAttribution(user, role, privilege);
+            if (refus != null) {
+                return json.put("success", FAILED).put("errors", refus);
             }
             List<TRolePrivelege> existants = em.createQuery(
                     "SELECT t FROM TRolePrivelege t WHERE t.lgROLEID.lgROLEID = ?1 AND t.lgPRIVILEGEID.lgPRIVELEGEID = ?2",
@@ -381,6 +417,9 @@ public class RoleServiceImpl implements RoleService {
             TRole role = em.find(TRole.class, roleId);
             if (role == null) {
                 return json.put("success", FAILED).put("errors", "Profil introuvable");
+            }
+            if (bll.userManagement.user.estRoleSuperAdmin(role) && !bll.userManagement.user.estSuperAdmin(user)) {
+                return json.put("success", FAILED).put("errors", "Réservé au super administrateur.");
             }
             // Meme recherche 'contient' que la liste affichee : le lot traite est
             // exactement celui que l'utilisateur a sous les yeux.

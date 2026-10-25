@@ -43,7 +43,7 @@ const retirer = () => q(`DELETE FROM flyway_schema_history WHERE description = '
     return l;
   };
   try {
-    await connexion(p, ENV_E2E.LOGIN, 'e2etest');
+    await connexion(p, ENV_E2E.LOGIN_SUPPORT, 'e2etest');
     await ouvrirMenu(p, 'CENTRE DE SUPPORT', 'Diagnostic & bugs');
     await p.waitForFunction(() => Ext.ComponentQuery.query('supportdiagnostic').some((c) => c.isVisible(true)), null, { timeout: 60000 });
 

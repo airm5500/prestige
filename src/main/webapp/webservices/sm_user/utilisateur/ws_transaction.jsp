@@ -97,7 +97,22 @@
     new logger().oCategory.info("le mode : " + request.getParameter("mode"));
     new logger().oCategory.info("ID " + request.getParameter("lg_USER_ID"));
     new logger().oCategory.info("ID connecté " + OTUser.getLgUSERID());
-    if (request.getParameter("mode") != null) {
+    /* Retours du 25/10 : comptes et profil super administrateur reserves au super administrateur (memes regles que
+       v1/utilisateurs, que l'ecran utilise ; cette page reste appelable directement). */
+    String modeSa = request.getParameter("mode");
+    boolean refusSuperAdmin = false;
+    if (modeSa != null && !bll.userManagement.user.estSuperAdmin(user) && ("create".equals(modeSa)
+            || "update".equals(modeSa) || "updatepassword".equals(modeSa) || "delete".equals(modeSa))) {
+        dal.TRole roleCible = lg_ROLE_ID == null || lg_ROLE_ID.isEmpty() ? null : OdataManager.getEm().find(dal.TRole.class, lg_ROLE_ID);
+        TUser compteCible = lg_USER_ID == null || lg_USER_ID.isEmpty() ? null : OdataManager.getEm().find(TUser.class, lg_USER_ID);
+        refusSuperAdmin = bll.userManagement.user.estRoleSuperAdmin(roleCible)
+                || (!"create".equals(modeSa) && bll.userManagement.user.estSuperAdmin(compteCible));
+        if (refusSuperAdmin) {
+            ObllBase.setMessage(commonparameter.PROCESS_FAILED);
+            ObllBase.setDetailmessage("R\u00e9serv\u00e9 au super administrateur.");
+        }
+    }
+    if (request.getParameter("mode") != null && !refusSuperAdmin) {
 
         if (request.getParameter("mode").toString().equals("create")) {
             new logger().oCategory.info("Dans create user   ");

@@ -20,7 +20,7 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
 const BASE = ENV_E2E.BASE;
 const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
-const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
+const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN_SUPPORT + "'");
 const DEBUT = q('SELECT NOW() - INTERVAL 1 SECOND');
 const M = 'E2E-REG', U = 'E2E-REG-U', CAISSE = 'E2E-REG-CAISSE';
 const SANS_MVT = "SELECT f.lg_FAMILLE_ID FROM t_famille f WHERE f.str_STATUT = 'enable' AND f.int_CIP <> ''"
@@ -41,7 +41,7 @@ if (!F1 || !F2) {
   [F1, F2] = CREES;
 }
 const DEP = q("SELECT lg_EMPLACEMENT_ID FROM t_emplacement WHERE lg_EMPLACEMENT_ID <> '1' ORDER BY lg_EMPLACEMENT_ID LIMIT 1");
-const droit = privilegeEssai(q, exec, ENV_E2E.LOGIN, 'P_AUDIT_REGULARISER');
+const droit = privilegeEssai(q, exec, ENV_E2E.LOGIN_SUPPORT, 'P_AUDIT_REGULARISER');
 const ligne = (id, quand, debut, fin, qte, type, f, e) => `('${M}-${id}', b'1', '2038-08-20 ${quand}', '2038-08-20', '${M}', 100, 200, ${debut}, ${fin}, ${qte}, 0, '${e}', '${f}', '${ADMIN}', '${type}', 0)`;
 const h = (id) => q(`SELECT CONCAT(qteDebut, '>', qteFinale) FROM hmvtproduit WHERE uuid = '${M}-${id}'`);
 
@@ -83,7 +83,7 @@ function poser() {
     const p = await ctx.newPage();
     p.on('dialog', (d) => { dialogues.push(d.message()); d.dismiss().catch(() => {}); });
     await p.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN_SUPPORT); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 90000 });
     await p.evaluate(() => testextjs.app.getController('App').onLoadNewComponent('auditrapprochements', 'Audit & rapprochements', ''));
@@ -163,7 +163,7 @@ function poser() {
     droit.retirer();
     const p2 = await (await b.newContext()).newPage();
     await p2.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'domcontentloaded' });
-    await p2.fill('#str_login', ENV_E2E.LOGIN); await p2.fill('#str_password', 'e2etest'); await p2.click('#login');
+    await p2.fill('#str_login', ENV_E2E.LOGIN_SUPPORT); await p2.fill('#str_password', 'e2etest'); await p2.click('#login');
     await p2.waitForURL('**/general/**', { timeout: 60000 });
     const sans = await p2.evaluate(async () => ({
       liste: await (await fetch('../api/v1/audit/regularisations')).json(),

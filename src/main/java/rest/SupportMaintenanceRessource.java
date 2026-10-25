@@ -5,7 +5,6 @@
  */
 package rest;
 
-import dal.TRoleUser;
 import dal.TUser;
 import java.util.Map;
 import javax.ejb.EJB;
@@ -159,25 +158,14 @@ public class SupportMaintenanceRessource {
     }
 
     /**
-     * Vrai pour le compte systeme '00' et les profils Administrateur / Super Administrateur (detection par prefixe,
-     * couvre les noms suffixes "... du systeme").
+     * Vrai pour le compte systeme '00' et le profil Super Administrateur. Retours du 25/10 : la maintenance fait partie
+     * du Centre de support reserve au super administrateur (l'administrateur y avait acces).
      */
     private boolean isAdmin(TUser user) {
-        if ("00".equals(user.getLgUSERID())) {
-            return true;
-        }
         try {
-            for (TRoleUser roleUser : user.getTRoleUserCollection()) {
-                if (roleUser.getLgROLEID() != null
-                        && Constant.STATUT_ENABLE.equalsIgnoreCase(roleUser.getLgROLEID().getStrSTATUT())) {
-                    String name = roleUser.getLgROLEID().getStrNAME();
-                    if (bll.userManagement.user.isAdminRole(name) || bll.userManagement.user.isSuperAdminRole(name)) {
-                        return true;
-                    }
-                }
-            }
+            return bll.userManagement.user.estSuperAdmin(user);
         } catch (Exception ignore) {
+            return false;
         }
-        return false;
     }
 }

@@ -42,6 +42,13 @@ public class UtilisateurRessource {
                 .put("errors", Constant.DECONNECTED_MESSAGE).put("total", 0).toString()).build();
     }
 
+    /** Retours du 25/10 : comptes et profil super administrateur reserves au super administrateur. */
+    private Response refus(String message) {
+        return Response.ok().entity(
+                new JSONObject().put("success", commonparameter.PROCESS_FAILED).put("errors", message).toString())
+                .build();
+    }
+
     @GET
     public Response list(@QueryParam("search_value") String searchValue, @QueryParam("query") String query,
             @DefaultValue("true") @QueryParam("etat") boolean etat,
@@ -64,6 +71,10 @@ public class UtilisateurRessource {
         if (user == null) {
             return deconnecte();
         }
+        String refus = utilisateurService.refusSuperAdmin(user, userId, null);
+        if (refus != null) {
+            return refus(refus);
+        }
         return Response.ok().entity(utilisateurService.toggleUserStatus(user, userId, actif).toString()).build();
     }
 
@@ -77,6 +88,10 @@ public class UtilisateurRessource {
             @FormParam("str_LIEU_TRAVAIL") String emplacementId) {
         if (currentUser() == null) {
             return deconnecte();
+        }
+        String refus = utilisateurService.refusSuperAdmin(currentUser(), null, roleId);
+        if (refus != null) {
+            return refus(refus);
         }
         return Response.ok().entity(utilisateurService
                 .createUser(login, password, ids, firstName, lastName, roleId, languageId, emplacementId).toString())
@@ -95,6 +110,10 @@ public class UtilisateurRessource {
         if (currentUser() == null) {
             return deconnecte();
         }
+        String refus = utilisateurService.refusSuperAdmin(currentUser(), userId, roleId);
+        if (refus != null) {
+            return refus(refus);
+        }
         return Response.ok().entity(utilisateurService
                 .updateUser(userId, login, ids, firstName, lastName, languageId, emplacementId, roleId).toString())
                 .build();
@@ -108,6 +127,10 @@ public class UtilisateurRessource {
         if (user == null) {
             return deconnecte();
         }
+        String refus = utilisateurService.refusSuperAdmin(user, userId, null);
+        if (refus != null) {
+            return refus(refus);
+        }
         return Response.ok().entity(utilisateurService.deleteUser(user, userId).toString()).build();
     }
 
@@ -117,6 +140,10 @@ public class UtilisateurRessource {
     public Response updatePassword(@FormParam("lg_USER_ID") String userId, @FormParam("str_PASSWORD") String password) {
         if (currentUser() == null) {
             return deconnecte();
+        }
+        String refus = utilisateurService.refusSuperAdmin(currentUser(), userId, null);
+        if (refus != null) {
+            return refus(refus);
         }
         return Response.ok().entity(utilisateurService.updatePassword(userId, password).toString()).build();
     }

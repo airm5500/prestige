@@ -26,7 +26,7 @@ const COLS = TABLE ? q("SELECT GROUP_CONCAT(column_name) FROM information_schema
   const erreurs = []; p.on('pageerror', (e) => erreurs.push(e.message));
   let sauvegarde = null;
   try {
-    await connexion(p, ENV_E2E.LOGIN, 'e2etest');
+    await connexion(p, ENV_E2E.LOGIN_SUPPORT, 'e2etest');
     await p.evaluate(() => testextjs.app.getController('App').onLoadNewComponent('smsfournisseur', 'Fournisseurs SMS', ''));
     await p.waitForFunction(() => Ext.ComponentQuery.query('smsfournisseur').some((x) => x.isVisible(true)), null, { timeout: 30000 });
     await p.waitForTimeout(1500);

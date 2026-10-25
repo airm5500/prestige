@@ -297,6 +297,15 @@ public class UserServiceImpl implements UserService {
                     }
                 }
             }
+            /*
+             * Retours du 25/10 : les droits de type SYSTEME (Centre de support sauf « Me contacter », audit) ne sont
+             * charges que pour un super administrateur, meme s'ils ont ete accordes a un autre profil : menus masques
+             * (l'arbre du menu lit cette liste) et routes refusees (elles la verifient).
+             */
+            if (!bll.userManagement.user.estSuperAdmin(oTUser)) {
+                lstTPrivilege.removeIf(
+                        p -> toolkits.parameters.commonparameter.PARAMETER_SYSTEM.equalsIgnoreCase(p.getStrTYPE()));
+            }
         } catch (Exception e) {
             LOG.log(Level.SEVERE, null, e);
         }

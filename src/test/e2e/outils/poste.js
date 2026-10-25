@@ -34,6 +34,10 @@ if (WINDOWS && BASE !== COPIE_DE_TRAVAIL && process.env.E2E_BASE_LIBRE !== '1') 
 
 /* la copie de travail garde le mot de passe d'origine d'admin : les tests y ont leur propre compte */
 const LOGIN = process.env.E2E_LOGIN || (WINDOWS ? 'e2e' : 'admin');
+/* compte Super Administrateur (retours du 25/10 : Centre de support, sauf « Me contacter », et audit reserves au super
+   administrateur) : e2e-sa sous Windows (outils/poste-local/compte-essai.sql) ; sur le banc, poser E2E_LOGIN_SUPPORT
+   avec un compte super administrateur (mot de passe e2etest) */
+const LOGIN_SUPPORT = process.env.E2E_LOGIN_SUPPORT || (WINDOWS ? 'e2e-sa' : 'admin');
 
 /* undefined : Playwright prend le Chromium installe par « playwright-core install chromium » */
 const CHROMIUM = process.env.CHROMIUM || (WINDOWS ? undefined : '/opt/pw-browsers/chromium');
@@ -102,7 +106,7 @@ async function lancer(chromium, options) {
 }
 
 module.exports = {
-  WINDOWS, BASE, LOGIN, CHROMIUM, TMP, VISIBLE, CAPTURES, lancer, capture,
+  WINDOWS, BASE, LOGIN, LOGIN_SUPPORT, CHROMIUM, TMP, VISIBLE, CAPTURES, lancer, capture,
   /* arguments a placer en tete de chaque appel au client mariadb ; verifie a l'appel, pour que les tests sans base
      n'aient pas besoin du fichier d'options */
   get MARIADB() {

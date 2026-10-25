@@ -96,6 +96,9 @@ public class UtilisateurServiceImpl implements UtilisateurService {
                 // Les autres profils ne voient ni l'administrateur ni le super administrateur
                 where.append(" AND t.lgROLEID.strNAME NOT LIKE ?4 AND t.lgROLEID.strNAME NOT LIKE ?5")
                         .append(" AND t.lgROLEID.strDESIGNATION NOT LIKE ?4 AND t.lgROLEID.strDESIGNATION NOT LIKE ?5");
+            } else if (!superAdmin) {
+                // Retours du 25/10 : l'administrateur ne voit pas les comptes super administrateur
+                where.append(" AND t.lgROLEID.strNAME NOT LIKE ?4 AND t.lgROLEID.strDESIGNATION NOT LIKE ?4");
             }
             TypedQuery<Long> qc = em.createQuery("SELECT COUNT(t)" + where, Long.class);
             TypedQuery<TRoleUser> q = em.createQuery("SELECT t" + where + " ORDER BY t.lgUSERID.strFIRSTNAME ASC",
@@ -107,6 +110,8 @@ public class UtilisateurServiceImpl implements UtilisateurService {
                 if (!superAdmin && !admin) {
                     tq.setParameter(4, commonparameter.ROLE_SUPERADMIN + "%").setParameter(5,
                             commonparameter.ROLE_ADMIN + "%");
+                } else if (!superAdmin) {
+                    tq.setParameter(4, commonparameter.ROLE_SUPERADMIN + "%");
                 }
             }
             long total = qc.getSingleResult();
@@ -283,6 +288,33 @@ public class UtilisateurServiceImpl implements UtilisateurService {
             LOG.log(Level.SEVERE, "updateUser", e);
             return json.put("success", FAILED).put("errors", "Impossible de modifier cet utilisateur");
         }
+    }
+
+    @Override
+    public String refusSuperAdmin(TUser connecte, String userId, String roleId) {
+        if (bll.userManagement.user.estSuperAdmin(connecte)) {
+            return null;
+        }
+        if (StringUtils.isNotBlank(roleId)) {
+            TRole role = em.find(TRole.class, roleId);
+            if (role == null) {
+                // l'ecran historique envoie parfois le libelle du profil au lieu de son identifiant
+                List<TRole> parLibelle = em
+                        .createQuery("SELECT t FROM TRole t WHERE t.strNAME = ?1 OR t.strDESIGNATION = ?1", TRole.class)
+                        .setParameter(1, roleId.trim()).setMaxResults(1).getResultList();
+                role = parLibelle.isEmpty() ? null : parLibelle.get(0);
+            }
+            if (bll.userManagement.user.estRoleSuperAdmin(role)) {
+                return "Seul le super administrateur peut attribuer ce profil.";
+            }
+        }
+        if (StringUtils.isNotBlank(userId)) {
+            TUser cible = em.find(TUser.class, userId);
+            if (cible != null && bll.userManagement.user.estSuperAdmin(cible)) {
+                return "Ce compte ne peut être géré que par le super administrateur.";
+            }
+        }
+        return null;
     }
 
     @Override

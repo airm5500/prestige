@@ -19,7 +19,7 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
 const BASE = ENV_E2E.BASE;
 const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
-const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
+const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN_SUPPORT + "'");
 const M = 'E2E-AUD';
 const DEBUT = q('SELECT NOW() - INTERVAL 1 SECOND');
 const CAISSE = q('SELECT lg_CAISSE_ID FROM t_caisse LIMIT 1');
@@ -71,7 +71,7 @@ const IL_Y_A_3_JOURS = q("SELECT CONCAT(CURDATE() - INTERVAL 3 DAY, ' 08:30:00')
 const tables = ['t_famille_stock', 'hmvtproduit', 't_tiers_payant', 't_resume_caisse', 't_billetage', 'mvttransaction',
   't_preenregistrement_compte_client', 't_support_ticket', 't_support_job_run', 't_event_log'];
 const sommes = () => tables.map((t) => q('CHECKSUM TABLE ' + t).split('\t')[1]).join(',');
-const droit = privilegeEssai(q, exec, ENV_E2E.LOGIN, 'P_SM_AUDIT');
+const droit = privilegeEssai(q, exec, ENV_E2E.LOGIN_SUPPORT, 'P_SM_AUDIT');
 
 /* charge (retour du 25/10 : ouverture bloquee 23 s en officine) : 300 clients ayant chacun une vente differee. Les
    reglements etaient sommes client par client sur mvttransaction, sans index sur organisme : une lecture de la table
@@ -169,7 +169,7 @@ function poser() {
     const p = await (await b.newContext({ viewport: { width: 1500, height: 950 } })).newPage();
     p.on('dialog', (d) => { dialogues.push(d.message()); d.dismiss().catch(() => {}); });
     await p.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN_SUPPORT); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 90000 });
     /* rapidite de l'analyse a l'ouverture, avec 40 clients en differe */
@@ -241,7 +241,7 @@ function poser() {
     droit.retirer();
     const p2 = await (await b.newContext()).newPage();
     await p2.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'domcontentloaded' });
-    await p2.fill('#str_login', ENV_E2E.LOGIN); await p2.fill('#str_password', 'e2etest'); await p2.click('#login');
+    await p2.fill('#str_login', ENV_E2E.LOGIN_SUPPORT); await p2.fill('#str_password', 'e2etest'); await p2.click('#login');
     await p2.waitForURL('**/general/**', { timeout: 60000 });
     const refus = await p2.evaluate(async () => (await (await fetch('../api/v1/audit/analyse')).json()));
     ok('Sans le droit P_SM_AUDIT : analyse refusée par le serveur', refus.success === false && /droit|connecter/.test(refus.msg || ''), JSON.stringify(refus));

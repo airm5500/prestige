@@ -36,6 +36,12 @@ public interface UtilisateurService {
     JSONObject updatePassword(String userId, String password);
 
     /**
+     * Retours du 25/10 : refus (message) si l'utilisateur connecte n'est pas super administrateur et que l'action vise
+     * un compte super administrateur (userId) ou donne le profil super administrateur (roleId) ; null sinon.
+     */
+    String refusSuperAdmin(TUser connecte, String userId, String roleId);
+
+    /**
      * Suppression d'un utilisateur sans activite. Refus explicite (message clair) si l'utilisateur est connecte ou s'il
      * est deja lie a des operations (caisse, ventes...), au lieu de l'erreur de cle etrangere du flux historique.
      */

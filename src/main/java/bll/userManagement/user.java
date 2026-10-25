@@ -302,6 +302,35 @@ public class user extends bllBase {
         return n.startsWith(commonparameter.ROLE_ADMIN.toLowerCase()) && !isSuperAdminRole(name);
     }
 
+    /** Profil Super Administrateur (par son libelle ou sa designation). */
+    public static boolean estRoleSuperAdmin(dal.TRole role) {
+        return role != null && (isSuperAdminRole(role.getStrNAME()) || isSuperAdminRole(role.getStrDESIGNATION()));
+    }
+
+    /**
+     * Retours du 25/10 : utilisateur super administrateur (un de ses profils actifs l'est ; l'utilisateur systeme « 00
+     * » aussi). Lui seul voit le Centre de support (sauf « Me contacter ») et l'audit, les profils et comptes super
+     * administrateur, et accorde les droits de type SYSTEME.
+     */
+    public static boolean estSuperAdmin(dal.TUser utilisateur) {
+        if (utilisateur == null) {
+            return false;
+        }
+        if ("00".equals(utilisateur.getLgUSERID())) {
+            return true;
+        }
+        if (utilisateur.getTRoleUserCollection() == null) {
+            return false;
+        }
+        for (TRoleUser lien : utilisateur.getTRoleUserCollection()) {
+            if (lien.getLgROLEID() != null && commonparameter.statut_enable.equals(lien.getLgROLEID().getStrSTATUT())
+                    && estRoleSuperAdmin(lien.getLgROLEID())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     // Prefixes utilises dans les clauses LIKE d'exclusion
     private static final String LIKE_SUPERADMIN = commonparameter.ROLE_SUPERADMIN + "%";
     private static final String LIKE_ADMIN = commonparameter.ROLE_ADMIN + "%";
@@ -323,15 +352,15 @@ public class user extends bllBase {
                         .setParameter(4, lg_EMPLACEMENT_ID).setParameter(3, commonparameter.statut_enable)
                         .setFirstResult(start).setMaxResults(limit).getResultList();
             } else if (isAdminRole(str_NAME_ROLE)) {
-                // L'administrateur voit tous les utilisateurs (y compris super admin)
+                // L'administrateur voit tous les utilisateurs, sauf les super administrateurs (retours du 25/10)
                 if (etat) {
                     lg_EMPLACEMENT_ID = "%%";
                 }
                 lstTRoleUser = this.getOdataManager().getEm().createQuery(
-                        "SELECT t FROM TRoleUser t WHERE (t.lgUSERID.strFIRSTNAME LIKE ?1 OR t.lgUSERID.strLASTNAME LIKE ?1 OR CONCAT(t.lgUSERID.strFIRSTNAME,' ',t.lgUSERID.strLASTNAME) LIKE ?1) AND t.lgUSERID.lgUSERID LIKE ?2 AND t.lgUSERID.lgEMPLACEMENTID.lgEMPLACEMENTID LIKE ?4 AND t.lgUSERID.strSTATUT LIKE ?3 ORDER BY t.lgUSERID.strFIRSTNAME ASC")
+                        "SELECT t FROM TRoleUser t WHERE (t.lgUSERID.strFIRSTNAME LIKE ?1 OR t.lgUSERID.strLASTNAME LIKE ?1 OR CONCAT(t.lgUSERID.strFIRSTNAME,' ',t.lgUSERID.strLASTNAME) LIKE ?1) AND t.lgUSERID.lgUSERID LIKE ?2 AND t.lgUSERID.lgEMPLACEMENTID.lgEMPLACEMENTID LIKE ?4 AND t.lgUSERID.strSTATUT LIKE ?3 AND t.lgROLEID.strNAME NOT LIKE ?5 AND t.lgROLEID.strDESIGNATION NOT LIKE ?5 ORDER BY t.lgUSERID.strFIRSTNAME ASC")
                         .setParameter(1, search_value + "%").setParameter(2, lg_USER_ID)
                         .setParameter(4, lg_EMPLACEMENT_ID).setParameter(3, commonparameter.statut_enable)
-                        .setFirstResult(start).setMaxResults(limit).getResultList();
+                        .setParameter(5, LIKE_SUPERADMIN).setFirstResult(start).setMaxResults(limit).getResultList();
             } else {
                 // Les autres profils ne voient ni l'administrateur ni le super administrateur
                 if (etat) {
@@ -369,15 +398,15 @@ public class user extends bllBase {
                         .setParameter(4, lg_EMPLACEMENT_ID).setParameter(3, commonparameter.statut_enable)
                         .getResultList();
             } else if (isAdminRole(str_NAME_ROLE)) {
-                // L'administrateur voit tous les utilisateurs (y compris super admin)
+                // L'administrateur voit tous les utilisateurs, sauf les super administrateurs (retours du 25/10)
                 if (etat) {
                     lg_EMPLACEMENT_ID = "%%";
                 }
                 lstTRoleUser = this.getOdataManager().getEm().createQuery(
-                        "SELECT t FROM TRoleUser t WHERE (t.lgUSERID.strFIRSTNAME LIKE ?1 OR t.lgUSERID.strLASTNAME LIKE ?1 OR CONCAT(t.lgUSERID.strFIRSTNAME,' ',t.lgUSERID.strLASTNAME) LIKE ?1) AND t.lgUSERID.lgUSERID LIKE ?2 AND t.lgUSERID.lgEMPLACEMENTID.lgEMPLACEMENTID LIKE ?4 AND t.lgUSERID.strSTATUT LIKE ?3 ORDER BY t.lgUSERID.strFIRSTNAME ASC")
+                        "SELECT t FROM TRoleUser t WHERE (t.lgUSERID.strFIRSTNAME LIKE ?1 OR t.lgUSERID.strLASTNAME LIKE ?1 OR CONCAT(t.lgUSERID.strFIRSTNAME,' ',t.lgUSERID.strLASTNAME) LIKE ?1) AND t.lgUSERID.lgUSERID LIKE ?2 AND t.lgUSERID.lgEMPLACEMENTID.lgEMPLACEMENTID LIKE ?4 AND t.lgUSERID.strSTATUT LIKE ?3 AND t.lgROLEID.strNAME NOT LIKE ?5 AND t.lgROLEID.strDESIGNATION NOT LIKE ?5 ORDER BY t.lgUSERID.strFIRSTNAME ASC")
                         .setParameter(1, search_value + "%").setParameter(2, lg_USER_ID)
                         .setParameter(4, lg_EMPLACEMENT_ID).setParameter(3, commonparameter.statut_enable)
-                        .getResultList();
+                        .setParameter(5, LIKE_SUPERADMIN).getResultList();
             } else {
                 // Les autres profils ne voient ni l'administrateur ni le super administrateur
                 if (etat) {
@@ -408,11 +437,17 @@ public class user extends bllBase {
                 search_value = "%%";
             }
 
-            if (isSuperAdminRole(str_NAME_ROLE) || isAdminRole(str_NAME_ROLE)) {
-                // Admin et super admin voient tous les profils
+            if (isSuperAdminRole(str_NAME_ROLE)) {
+                // Le super administrateur voit tous les profils
                 lstTRole = this.getOdataManager().getEm().createQuery(
                         "SELECT t FROM TRole t WHERE t.lgROLEID LIKE ?1 AND (t.strNAME LIKE ?2 OR t.strDESIGNATION LIKE ?2) AND t.strSTATUT='enable' ORDER BY t.strDESIGNATION")
                         .setParameter(1, lg_ROLE_ID).setParameter(2, search_value + "%").getResultList();
+            } else if (isAdminRole(str_NAME_ROLE)) {
+                // L'administrateur voit tous les profils sauf le super administrateur (retours du 25/10)
+                lstTRole = this.getOdataManager().getEm().createQuery(
+                        "SELECT t FROM TRole t WHERE t.lgROLEID LIKE ?1 AND (t.strNAME LIKE ?2 OR t.strDESIGNATION LIKE ?2) AND t.strNAME NOT LIKE ?3 AND t.strDESIGNATION NOT LIKE ?3 AND t.strSTATUT='enable' ORDER BY t.strDESIGNATION")
+                        .setParameter(1, lg_ROLE_ID).setParameter(2, search_value + "%")
+                        .setParameter(3, LIKE_SUPERADMIN).getResultList();
             } else {
                 // Les autres profils ne voient ni le profil administrateur ni le super administrateur
                 lstTRole = this.getOdataManager().getEm().createQuery(
