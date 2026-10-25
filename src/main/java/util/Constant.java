@@ -98,6 +98,7 @@ public final class Constant {
     public static final String LIBELLE_CLOTURE_VENTE = "Terminer une vente (menu « Ventes »)";
     /** Menu « Activité des équipes » (ANALYSE DE GESTION) : journal, recherches et analyses de productivite. */
     public static final String P_SM_ACTIVITE_EQUIPES = "P_SM_ACTIVITE_EQUIPES";
+    public static final String P_SM_WHATSAPP_DISCUSSIONS = "P_SM_WHATSAPP_DISCUSSIONS";
     /** decision 12 du pharmacien : saisie des lots et creation d'un BL (poste et mobile) */
     public static final String P_BL_MOBILE_SCANNER = "P_BL_MOBILE_SCANNER";
     public static final String LIBELLE_SCANNER_RECEPTION_BL = "Scanner la réception des BL";
@@ -110,6 +111,7 @@ public final class Constant {
     /** decision 17 D7 du pharmacien */
     public static final String MSG_RETOUR_MOTIF_DIFFERENT = "Vous avez ajouté ce produit avec un motif différent";
     public static final String LIBELLE_ACTIVITE_EQUIPES = "Activité des équipes";
+    public static final String LIBELLE_WHATSAPP_DISCUSSIONS = "Discussions WhatsApp";
     /** Periode la plus longue acceptee par le journal et les analyses (en jours). */
     public static final int ACTIVITE_PERIODE_MAX_JOURS = 366;
     /** Retour du 24/10 : code GS1 « peremption + lot » sans le produit (%s : ce que le code contient). */
@@ -125,6 +127,12 @@ public final class Constant {
     public static final int ANOMALIE_MAX_PAR_HEURE = 120;
     public static final int ANOMALIE_CONSERVATION_JOURS = 180;
     public static final int ANOMALIE_LISTE_MAX = 300;
+    /* fils de discussion WhatsApp (demande du 25/10) */
+    public static final int WHATSAPP_DISCUSSION_TEXTE_MAX = 4000;
+    public static final int WHATSAPP_DISCUSSION_EXTRAIT = 120;
+    public static final int WHATSAPP_DISCUSSION_CONSERVATION_JOURS = 365;
+    public static final int WHATSAPP_DISCUSSION_LISTE_MAX = 200;
+    public static final int WHATSAPP_DISCUSSION_FIL_MAX = 300;
     /**
      * Terminer une vente en depot (ecran « Vente dépôt », application mobile) : menus de vente en depot ou « Ventes ».
      */

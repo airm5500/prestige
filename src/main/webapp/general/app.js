@@ -692,6 +692,7 @@ Ext.application({
         'testextjs.view.audit.AuditRapprochements',
         'testextjs.view.stockmanagement.valorisation.SetValorisation',
         'testextjs.view.campagnes.Campagnes',
+        'testextjs.view.campagnes.DiscussionsWhatsApp',
         'testextjs.view.commandemanagement.analyse.AnalyseCommande',
         'testextjs.view.configmanagement.famille.action.add2',
         'testextjs.view.stockmanagement.suivistockvente.action.detailAjustement',

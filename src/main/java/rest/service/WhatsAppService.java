@@ -55,4 +55,11 @@ public interface WhatsAppService {
 
     /** Derniers envois (sans le texte des messages). */
     JSONObject journal(int limite);
+
+    /**
+     * Fils de discussion (demande du 25/10) : reponse a un client depuis l'ecran « Discussions WhatsApp », texte et/ou
+     * piece jointe, par le mode par defaut (simulee si le compte est en mode test). Refusee si le client a demande
+     * l'arret (STOP). Gardee dans le fil avec son statut et son auteur ; le texte n'est jamais journalise.
+     */
+    JSONObject repondreDiscussion(String numero, String texte, util.whatsapp.PieceJointe piece, String userId);
 }

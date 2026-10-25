@@ -296,6 +296,82 @@ public class WhatsAppServiceImpl implements WhatsAppService {
                 .setParameter(9, r.erreur).setParameter(10, repli ? 1 : 0).executeUpdate();
     }
 
+    /* ------------------------------------------------------------------ fils de discussion (demande du 25/10) */
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public JSONObject repondreDiscussion(String numero, String texte, PieceJointe piece, String userId) {
+        String refus = rest.service.impl.whatsapp.DiscussionRegles.refusReponse(texte, piece != null);
+        if (refus != null) {
+            return refus(refus);
+        }
+        rest.service.impl.whatsapp.DiscussionStockage.Rattachement r = rest.service.impl.whatsapp.DiscussionStockage
+                .rattacher(em, numero);
+        if (r == null) {
+            return refus("Numéro invalide.");
+        }
+        /* le client a demande l'arret : on ne lui ecrit plus, meme en reponse */
+        List<Object> stop = em
+                .createNativeQuery("SELECT lg_CLIENT_ID FROM t_client WHERE bool_CONSENT_WHATSAPP = 0"
+                        + " AND REPLACE(REPLACE(REPLACE(str_ADRESSE,' ',''),'.',''),'-','') LIKE ?1")
+                .setParameter(1, "%" + r.numero.substring(2)).getResultList();
+        for (Object id : stop) {
+            String adresse = (String) em.createNativeQuery("SELECT str_ADRESSE FROM t_client WHERE lg_CLIENT_ID = ?1")
+                    .setParameter(1, id).getSingleResult();
+            TelephoneCi.Resultat t = TelephoneCi.controler(adresse);
+            if (t.isValide() && t.getLocal().equals(r.numero)) {
+                return refus(
+                        "Ce client a demandé l'arrêt des messages WhatsApp (STOP) : la réponse n'est pas envoyée.");
+            }
+        }
+        if (piece != null) {
+            String r2 = PieceJointe.refusCanal("WHATSAPP", modeDefaut());
+            if (r2 != null) {
+                return refus(r2);
+            }
+        }
+        WhatsAppCompte c = compte(modeDefaut());
+        String t = rest.service.impl.whatsapp.DiscussionRegles.nettoyer(personnaliser(texte, r.clientId));
+        WhatsAppEnvoi.Resultat res = WhatsAppEnvoi.envoyer(c, TelephoneCi.controler(r.numero).getInternational(), t,
+                piece);
+        journaliser(null, r.clientId, r.numero, c == null ? modeDefaut() : c.mode, res, false);
+        rest.service.impl.whatsapp.DiscussionStockage.sortant(em, r, t, piece == null ? null : piece.nomFichier,
+                piece == null ? "TEXTE" : ("IMAGE".equalsIgnoreCase(piece.type) ? "IMAGE" : "DOCUMENT"), res, userId);
+        String statut = res.accepte ? (res.simule ? "SIMULE" : "ENVOYE") : "ECHEC";
+        return new JSONObject()
+                .put("success", res.accepte).put("simule",
+                        res.simule)
+                .put("statut", statut)
+                .put("message", res.accepte ? (res.simule ? "Réponse simulée (mode test) : aucun envoi réel."
+                        : "Réponse acceptée par WhatsApp.") : "Envoi refusé : " + res.erreur);
+    }
+
+    /** Variables d'un modele ({prenom}, {nom}, {client}, {officine}, {telephone_officine}) remplacees si presentes. */
+    @SuppressWarnings("unchecked")
+    private String personnaliser(String texte, String clientId) {
+        if (texte == null || !texte.contains("{")) {
+            return texte;
+        }
+        String nom = "", prenom = "", officine = "", telOfficine = "";
+        if (clientId != null) {
+            List<Object[]> c = em
+                    .createNativeQuery("SELECT str_LAST_NAME, str_FIRST_NAME FROM t_client WHERE lg_CLIENT_ID = ?1")
+                    .setParameter(1, clientId).getResultList();
+            if (!c.isEmpty()) {
+                nom = StringUtils.defaultString((String) c.get(0)[0]);
+                prenom = StringUtils.defaultString((String) c.get(0)[1]);
+            }
+        }
+        List<Object[]> o = em.createNativeQuery("SELECT str_NOM_COMPLET, str_PHONE FROM t_officine LIMIT 1")
+                .getResultList();
+        if (!o.isEmpty()) {
+            officine = StringUtils.defaultString((String) o.get(0)[0]);
+            telOfficine = StringUtils.defaultString((String) o.get(0)[1]);
+        }
+        return util.MessageModele.personnaliser(texte,
+                util.MessageModele.valeurs(nom, prenom, "", officine, telOfficine, ""));
+    }
+
     /* ------------------------------------------------------------------ webhooks */
 
     @Override
@@ -333,7 +409,10 @@ public class WhatsAppServiceImpl implements WhatsAppService {
         }
         try {
             JSONObject o = new JSONObject(corpsBrut);
-            /* meme forme que Meta, plus simple : {statuts:[{id, statut, erreur}], entrants:[{numero, texte}]} */
+            /*
+             * meme forme que Meta, plus simple : {statuts:[{id, statut, erreur}], entrants:[{numero, texte, type, nom,
+             * id}]}
+             */
             JSONObject meta = new JSONObject();
             JSONObject value = new JSONObject();
             JSONArray statuses = new JSONArray();
@@ -347,14 +426,24 @@ public class WhatsAppServiceImpl implements WhatsAppService {
                 }
                 statuses.put(x);
             }
-            JSONArray messages = new JSONArray();
+            JSONArray messages = new JSONArray(), contacts = new JSONArray();
             JSONArray en = o.optJSONArray("entrants");
             for (int i = 0; en != null && i < en.length(); i++) {
                 JSONObject e = en.getJSONObject(i);
-                messages.put(new JSONObject().put("from", e.optString("numero")).put("text",
-                        new JSONObject().put("body", e.optString("texte"))));
+                String type = StringUtils.defaultIfBlank(e.optString("type"), "TEXTE").toLowerCase();
+                JSONObject m = new JSONObject().put("from", e.optString("numero"))
+                        .put("type", "texte".equals(type) ? "text" : type)
+                        .put("text", new JSONObject().put("body", e.optString("texte")));
+                if (StringUtils.isNotBlank(e.optString("id"))) {
+                    m.put("id", e.optString("id"));
+                }
+                messages.put(m);
+                if (StringUtils.isNotBlank(e.optString("nom"))) {
+                    contacts.put(new JSONObject().put("wa_id", e.optString("numero")).put("profile",
+                            new JSONObject().put("name", e.optString("nom"))));
+                }
             }
-            value.put("statuses", statuses).put("messages", messages);
+            value.put("statuses", statuses).put("messages", messages).put("contacts", contacts);
             meta.put("entry", new JSONArray()
                     .put(new JSONObject().put("changes", new JSONArray().put(new JSONObject().put("value", value)))));
             appliquer(WhatsAppWebhook.analyser(meta));
@@ -375,15 +464,21 @@ public class WhatsAppServiceImpl implements WhatsAppService {
                     .createNativeQuery("UPDATE whatsapp_message SET statut = ?1, erreur = COALESCE(?2, erreur),"
                             + " updated_at = NOW() WHERE message_id = ?3")
                     .setParameter(1, statut).setParameter(2, s.erreur).setParameter(3, s.messageId).executeUpdate();
+            rest.service.impl.whatsapp.DiscussionStockage.statut(em, s.messageId, statut);
         }
-        int desinscrits = 0;
+        int desinscrits = 0, gardes = 0;
         for (WhatsAppWebhook.Entrant e : contenu.entrants) {
             if (e.stop) {
                 desinscrits += desinscrire(e.numero);
             }
+            /* fils de discussion (demande du 25/10) : chaque message recu est garde dans le fil du client */
+            if (rest.service.impl.whatsapp.DiscussionStockage.recevoir(em, e)) {
+                gardes++;
+            }
         }
-        LOG.log(Level.INFO, "Webhook WhatsApp : {0} statut(s), {1} desinscription(s)",
-                new Object[] { statuts, desinscrits });
+        /* ni texte ni numero dans le journal : seulement des nombres */
+        LOG.log(Level.INFO, "Webhook WhatsApp : {0} statut(s), {1} desinscription(s), {2} message(s) recu(s) garde(s)",
+                new Object[] { statuts, desinscrits, gardes });
     }
 
     static String statutJournal(String statutMeta) {

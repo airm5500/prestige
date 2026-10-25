@@ -46,10 +46,25 @@ public final class WhatsAppWebhook {
     public static final class Entrant {
         public final String numero;
         public final boolean stop;
+        /*
+         * fils de discussion (demande du 25/10) : texte lu, type (TEXTE, IMAGE...), nom du profil, identifiant WhatsApp
+         */
+        public final String texte;
+        public final String type;
+        public final String nom;
+        public final String messageId;
 
         Entrant(String numero, boolean stop) {
+            this(numero, stop, null, null, null, null);
+        }
+
+        Entrant(String numero, boolean stop, String texte, String type, String nom, String messageId) {
             this.numero = numero;
             this.stop = stop;
+            this.texte = texte;
+            this.type = type;
+            this.nom = nom;
+            this.messageId = messageId;
         }
     }
 
@@ -120,18 +135,59 @@ public final class WhatsAppWebhook {
                     c.statuts.add(
                             new Statut(s.optString("id"), s.optString("status"), s.optString("recipient_id"), erreur));
                 }
+                /* nom du profil WhatsApp de chaque expediteur (contacts[].profile.name) */
+                java.util.Map<String, String> noms = new java.util.HashMap<>();
+                JSONArray contacts = value.optJSONArray("contacts");
+                for (int k = 0; contacts != null && k < contacts.length(); k++) {
+                    JSONObject ct = contacts.getJSONObject(k);
+                    JSONObject profil = ct.optJSONObject("profile");
+                    if (profil != null && StringUtils.isNotBlank(profil.optString("name"))) {
+                        noms.put(ct.optString("wa_id"), profil.optString("name"));
+                    }
+                }
                 JSONArray messages = value.optJSONArray("messages");
                 for (int k = 0; messages != null && k < messages.length(); k++) {
                     JSONObject m = messages.getJSONObject(k);
+                    String type = m.optString("type", "text");
                     String texte = m.optJSONObject("text") == null ? "" : m.getJSONObject("text").optString("body");
                     if (m.optJSONObject("button") != null) {
                         texte = m.getJSONObject("button").optString("text", texte);
                     }
-                    c.entrants.add(new Entrant(m.optString("from"), estStop(texte)));
+                    /* image, document... : la legende ou le nom du fichier tient lieu de texte */
+                    JSONObject media = m.optJSONObject(type);
+                    if (StringUtils.isBlank(texte) && media != null && !"text".equals(type)) {
+                        texte = media.optString("caption", media.optString("filename", ""));
+                    }
+                    String from = m.optString("from");
+                    c.entrants.add(new Entrant(from, estStop(texte), texte, typeEntrant(type), noms.get(from),
+                            StringUtils.trimToNull(m.optString("id"))));
                 }
             }
         }
         return c;
+    }
+
+    /** Type d'un message recu, dans les termes de Prestige (TEXTE, IMAGE, VIDEO, DOCUMENT, AUDIO, AUTRE). */
+    static String typeEntrant(String typeWhatsApp) {
+        switch (StringUtils.defaultString(typeWhatsApp).toLowerCase(Locale.ROOT)) {
+        case "text":
+        case "button":
+        case "interactive":
+        case "":
+            return "TEXTE";
+        case "image":
+        case "sticker":
+            return "IMAGE";
+        case "video":
+            return "VIDEO";
+        case "document":
+            return "DOCUMENT";
+        case "audio":
+        case "voice":
+            return "AUDIO";
+        default:
+            return "AUTRE";
+        }
     }
 
     /** « stop », « Arrêt », « STOP. »... : le message ENTIER est une demande d'arret. */

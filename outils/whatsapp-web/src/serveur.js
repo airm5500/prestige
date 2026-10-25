@@ -50,9 +50,12 @@ const moteur = process.env.WHATSAPP_FAUX === '1' ? 'faux' : (String(config.MOTEU
 const connecteur = require({ faux: './connecteur-faux', wwebjs: './connecteur-wwebjs', baileys: './connecteur-baileys' }[moteur]).creerConnecteur({
   /* le moteur baileys garde sa session dans son propre dossier : revenir a wwebjs ne melange pas les deux */
   dossierSession: path.join(config.DOSSIER, moteur === 'baileys' ? 'session-baileys' : 'session'), journal,
-  surMessage: (numero, texte) => {
+  /* fils de discussion de Prestige (demande du 25/10) : type, nom du profil et identifiant du message en plus ;
+     le texte part seulement vers Prestige, jamais dans le journal */
+  surMessage: (numero, texte, info) => {
     if (R.estArret(texte)) { file.arreter(numero); journal('desinscription recue'); }
-    rapporter({ entrants: [{ numero, texte }] }).catch(() => {});
+    const i = info || {};
+    rapporter({ entrants: [{ numero, texte, type: i.type || 'TEXTE', nom: i.nom || null, id: i.id || null }] }).catch(() => {});
   },
   surAccuse: (waId, ack) => file && file.accuse(waId, ack),
   surSante: (s) => rapporter({ sante: s }).catch(() => {})
