@@ -1578,6 +1578,74 @@ Ext.onReady(function () {
     });
 });
 
+/*
+ * Retours du 25/10 (point 4) : un telephone ou un terminal (navigateur mobile) sans nom de poste apparait par son
+ * adresse IP dans « Ventes terminees ». Il est invite UNE fois a se nommer, par un bandeau en bas de l'ecran (pas de
+ * fenetre). « Plus tard » ne redemande plus : le nom reste reglable dans Fichier journal › Ce poste.
+ */
+Ext.onReady(function () {
+    'use strict';
+    var DEMANDE = 'prestige.poste.demande';
+    if (!/Android|iPhone|iPad|iPod|Mobile/i.test(window.navigator.userAgent || '') || window.PrestigePoste.lire()) {
+        return;
+    }
+    try {
+        if (window.localStorage.getItem(DEMANDE)) {
+            return;
+        }
+    } catch (e) {
+        return; // stockage indisponible : le nom ne pourrait pas etre garde
+    }
+    var fermer = function (b) {
+        try {
+            window.localStorage.setItem(DEMANDE, '1');
+        } catch (e) {
+            // rien
+        }
+        if (b.parentNode) {
+            b.parentNode.removeChild(b);
+        }
+    };
+    Ext.defer(function () {
+        if (document.getElementById('prestige-nom-appareil')) {
+            return;
+        }
+        var b = document.createElement('div');
+        b.id = 'prestige-nom-appareil';
+        b.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:30000;background:#1b4f72;color:#fff;padding:10px 16px;'
+                + 'font:14px/1.4 Arial,sans-serif;display:flex;flex-wrap:wrap;align-items:center;gap:8px;box-shadow:0 -2px 8px rgba(0,0,0,.3)';
+        b.innerHTML = '<span style="flex:1 1 260px">Nommez cet appareil pour le retrouver dans « Ventes terminées » et dans le journal :</span>'
+                + '<input id="prestige-nom-appareil-champ" type="text" maxlength="60" placeholder="Ex. : Sunmi caisse 2" '
+                + 'style="flex:0 1 220px;padding:6px;border:1px solid #aed6f1;border-radius:4px;font-size:14px">'
+                + '<button id="prestige-nom-appareil-ok" type="button" style="padding:6px 14px;border:0;border-radius:4px;background:#1e8449;color:#fff;font-weight:bold;cursor:pointer">Enregistrer</button>'
+                + '<button id="prestige-nom-appareil-plustard" type="button" style="padding:6px 14px;border:1px solid #aed6f1;border-radius:4px;background:transparent;color:#fff;cursor:pointer">Plus tard</button>'
+                + '<span id="prestige-nom-appareil-msg" style="flex-basis:100%;color:#f9e79f;display:none"></span>';
+        document.body.appendChild(b);
+        var champ = document.getElementById('prestige-nom-appareil-champ'), msg = document.getElementById('prestige-nom-appareil-msg');
+        var enregistrer = function () {
+            if (!window.PrestigePoste.ecrire(champ.value)) {
+                msg.textContent = 'Saisissez un nom (lettres, chiffres, espace, point, tiret).';
+                msg.style.display = 'block';
+                champ.focus();
+                return;
+            }
+            fermer(b);
+            if (window.PrestigeToast) {
+                window.PrestigeToast.afficher('Appareil nommé « ' + window.PrestigePoste.lire() + ' ».', {niveau: 'ok'});
+            }
+        };
+        document.getElementById('prestige-nom-appareil-ok').onclick = enregistrer;
+        champ.onkeydown = function (e) {
+            if (e.key === 'Enter') {
+                enregistrer();
+            }
+        };
+        document.getElementById('prestige-nom-appareil-plustard').onclick = function () {
+            fermer(b);
+        };
+    }, 1500);
+});
+
 /**
  * FILTRE MULTIPLE (maquette validee le 13/10) : dans ces ecrans, les listes a choix unique de rayon, famille et
  * grossiste sont remplacees par le filtre multiple (testextjs.view.commun.FiltresMulti.remplacer). Les listes restent
