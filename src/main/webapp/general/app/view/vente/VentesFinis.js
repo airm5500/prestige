@@ -262,7 +262,14 @@ Ext.define('testextjs.view.vente.VentesFinis', {
                             typeAhead: false,
                             autoSelect: false,
                             emptyText: 'Tous les postes',
-                            tooltip: 'Ventes saisies ou encaissées depuis ce poste'
+                            tooltip: 'Ventes saisies ou encaissées depuis ce poste',
+                            listeners: {
+                                /* retours du 25/10 (point 4) : liste relue a chaque ouverture (un poste apparu depuis
+                                   l'ouverture de l'ecran y figure aussitot) */
+                                expand: function (c) {
+                                    c.getStore().load();
+                                }
+                            }
                         }, '->',
                         {
                             text: 'Exporter en Excel',
