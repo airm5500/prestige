@@ -162,6 +162,11 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                             }},
                         {text: 'Actualiser', itemId: 'aeActualiser', iconCls: 'refresh', tooltip: 'Relire la période', handler: function () {
                                 me.actualiser();
+                            }},
+                        /* retour du 25/10 : remet la periode par defaut, tous les employes et une recherche vide */
+                        {text: 'Vider les champs', itemId: 'aeVider', iconCls: 'fa fa-eraser', tooltip: 'Période du mois en cours, tous les employés, sans recherche',
+                            handler: function () {
+                                me.viderChamps();
                             }}
                     ]
                 }]
@@ -173,6 +178,17 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
     },
 
     /* filtres communs, au format des routes */
+    viderChamps: function () {
+        var me = this, aujourdhui = Ext.Date.clearTime(new Date());
+        me.down('#aeDebut').setValue(Ext.Date.getFirstDateOfMonth(aujourdhui));
+        me.down('#aeFin').setValue(aujourdhui);
+        me.down('#aeEmploye').clearValue();
+        if (me.down('#aeRecherche')) {
+            me.down('#aeRecherche').setValue('');
+        }
+        me.actualiser();
+    },
+
     filtres: function () {
         var me = this, e = me.down('#aeEmploye').getValue();
         return {debut: me.down('#aeDebut').getSubmitValue(), fin: me.down('#aeFin').getSubmitValue(), employeId: e || ''};
