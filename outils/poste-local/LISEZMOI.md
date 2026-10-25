@@ -48,15 +48,40 @@ parler à MariaDB. Et chaque paquet téléchargé est du code tiers qui s'exécu
 - Le déploiement de la branche **applique les migrations Flyway** à la copie. C'est voulu (ce sont celles qui iront
   en production), mais on ne revient en arrière qu'en rechargeant la sauvegarde.
 
-## Ce qui reste à adapter lors de la première session locale
+## Lancer les tests d'écran sur le poste
 
-Les tests d'écran ont été écrits pour le banc Linux. Lors de la première session, Claude les rendra paramétrables :
+Les réglages du poste sont regroupés dans `src/test/e2e/outils/poste.js`. Sur le banc Linux, rien ne change.
 
-- adresse de Prestige (`localhost:8080/prestige`) ;
-- compte d'essai ;
-- nom de la base (`DB_TEST`) ;
-- identifiants MariaDB lus dans un fichier d'options local, jamais dans le dépôt ;
-- scripts `sh` à remplacer par du Node.
+Sous Windows :
+
+- **Base** : `laborex_v1_db` par défaut. Une autre base est refusée, sauf avec `E2E_BASE_LIBRE=1`, à réserver à une
+  autre copie de travail.
+- **Identifiants MariaDB** : copier `prestige-e2e.cnf.exemple` vers `%USERPROFILE%\.prestige-e2e.cnf`, puis y mettre
+  le mot de passe de `claude_banc`. Ce fichier reste hors du dépôt. Un autre emplacement se donne avec
+  `MARIADB_OPTIONS`.
+- **Chromium** : celui qui a été installé par Playwright.
+- **Sorties et captures** : dans le dossier temporaire de Windows.
+
+Installation, une seule fois et hors du dépôt :
+
+```
+mkdir D:\outils-e2e && cd D:\outils-e2e && npm init -y && npm install --save-exact playwright-core
+set PLAYWRIGHT_BROWSERS_PATH=D:\pw-browsers
+npx playwright-core install chromium
+```
+
+Lancement d'un test, en n'en lançant qu'un à la fois :
+
+```
+set NODE_PATH=D:\outils-e2e\node_modules
+set PLAYWRIGHT_BROWSERS_PATH=D:\pw-browsers
+node src\test\e2e\caisse\test-mvt-caisse.js
+```
+
+Restent propres au banc Linux :
+
+- les tests qui appellent `pdftotext`, `pdftoppm` ou `python3` ;
+- les scripts `sh`, à réécrire en Node.
 
 Aucun mot de passe n'est écrit dans le dépôt.
 

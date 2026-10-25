@@ -11,14 +11,15 @@
  *  - aucune erreur JavaScript ; tout est retire a la fin.
  */
 const { execFileSync } = require('child_process');
+const ENV_E2E = require('../outils/poste');
 const http = require('http');
 const archives = require('./archives-pharmaml');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 500) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const exec = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
-const SORTIE = process.env.SORTIE || '/tmp';
+const BASE = ENV_E2E.BASE;
+const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const SORTIE = process.env.SORTIE || ENV_E2E.TMP;
 const PORT = 18776, G = '51217123531215794892';
 const A = 'E2E-SUB-A', B = 'E2E-SUB-B', C = 'E2E-SUB-C', CMDS = [A, B, C];
 let P = [], cips = [], noms = [], sauve = null, fgAvant = {};
@@ -65,7 +66,7 @@ const url = (u) => exec("UPDATE t_grossiste SET str_URL_PHARMAML = " + (u === nu
   [2, 3].forEach((i) => { fgAvant[i] = q("SELECT IFNULL(GROUP_CONCAT(lg_FAMILLE_GROSSISTE_ID), '') FROM t_famille_grossiste WHERE lg_FAMILLE_ID = '" + P[i] + "' AND lg_GROSSISTE_ID = '" + G + "'"); });
   nettoyer();
   const { chromium } = require('playwright-core');
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await (await b.newContext({ viewport: { width: 1366, height: 768 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   const envoyer = (cmd) => p.evaluate(async (id) => JSON.parse(await (await fetch('../api/v1/pharma/' + id, { method: 'PUT' })).text()), cmd);

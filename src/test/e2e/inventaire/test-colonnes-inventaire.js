@@ -2,6 +2,7 @@
    du menu, dans les deux sens (colonne decochee qui restait masquee, colonne cochee qui
    restait affichee), et rester propre a l'utilisateur connecte. */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const res = [];
 
@@ -9,8 +10,8 @@ const res = [];
    passe de test sur un deuxieme compte, puis remet l'empreinte d'origine - a jouer sur une base
    de test, comme tout le reste du dossier. Le premier compte (KGA3) est celui de
    l'environnement de test decrit dans ENVIRONNEMENT_ET_TESTS.md. */
-const BASE = process.env.DB_TEST || 'capitale';
-const sql = (q) => execFileSync('mariadb', [BASE, '-sN', '-e', q], { encoding: 'utf8' });
+const BASE = ENV_E2E.BASE;
+const sql = (q) => execFileSync('mariadb', [...ENV_E2E.MARIADB, BASE, '-sN', '-e', q], { encoding: 'utf8' });
 /* second compte : SECOND_LOGIN, sinon WANE s'il existe, sinon le premier compte actif autre que le premier */
 const AUTRE = process.env.SECOND_LOGIN || sql("SELECT COALESCE((SELECT str_LOGIN FROM t_user WHERE str_LOGIN='WANE' AND str_STATUT='enable'),"
   + " (SELECT str_LOGIN FROM t_user WHERE str_STATUT='enable' AND str_LOGIN <> '" + (process.env.E2E_LOGIN || 'admin') + "' ORDER BY str_LOGIN LIMIT 1))").trim();
@@ -57,7 +58,7 @@ const cache = (e, di) => (e.find(c => c.di === di) || {}).h;
 
 (async () => {
   poserMotDePasse();
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
 
   // ---- utilisateur 1 ----
   const s1 = await session(b, process.env.E2E_LOGIN || 'admin');

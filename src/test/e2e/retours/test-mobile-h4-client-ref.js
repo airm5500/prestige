@@ -10,11 +10,12 @@
  * Donnees retirees a la fin (ventes, retours, cles E2E-H4-*, stock du produit remis).
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 400) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const BASE = ENV_E2E.BASE;
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = 'admin'");
 const [PID, PU] = q("SELECT CONCAT(f.lg_FAMILLE_ID, ':', f.int_PRICE) FROM t_famille f JOIN t_famille_stock s ON s.lg_FAMILLE_ID = f.lg_FAMILLE_ID AND s.lg_EMPLACEMENT_ID = '1'"
   + " WHERE f.str_STATUT = 'enable' AND f.int_PRICE BETWEEN 500 AND 20000 AND COALESCE(f.bool_DECONDITIONNE, 0) = 0 AND COALESCE(f.lg_FAMILLE_PARENT_ID, '') = ''"
@@ -34,7 +35,7 @@ const nettoyer = () => {
 
 (async () => {
   q("DELETE FROM mobile_client_ref WHERE ref LIKE 'E2E-H4-%'");
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await (await b.newContext()).newPage();
   const appel = (methode, url, corps, cle) => p.evaluate(async ([methode, url, corps, cle]) => {
     const h = { 'Content-Type': 'application/json' }; if (cle) { h['X-Client-Ref'] = cle; }

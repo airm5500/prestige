@@ -10,14 +10,15 @@
  *  - aucune erreur JavaScript.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 400) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
-const exec = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
-const CAPT = process.env.CAPTURES || '/tmp';
+const BASE = ENV_E2E.BASE;
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
+const CAPT = process.env.CAPTURES || ENV_E2E.TMP;
 const COLS = "CONCAT_WS('|', IFNULL(str_CODE_GEO_ARTICLE_RESERVE, 'NULL'), IFNULL(int_COLISAGE, 'NULL'))";
 const RESTE = "CONCAT_WS('|', str_NAME, int_CIP, int_PRICE, int_PAF, IFNULL(str_CODE_GEO_ARTICLE, ''), lg_ZONE_GEO_ID, IFNULL(int_SEUIL_MIN, ''), str_STATUT)";
 let P, cip, avant, resteAvant, origine;
@@ -27,7 +28,7 @@ let P, cip, avant, resteAvant, origine;
     + " WHERE f.str_STATUT = 'enable' AND COALESCE(f.bool_DECONDITIONNE, 0) = 0 AND f.int_CIP REGEXP '^[0-9]{7}$' AND s.int_NUMBER_AVAILABLE > 0 ORDER BY f.str_NAME LIMIT 1").split('|');
   origine = q("SELECT " + COLS + " FROM t_famille WHERE lg_FAMILLE_ID = '" + P + "'");
   resteAvant = q("SELECT " + RESTE + " FROM t_famille WHERE lg_FAMILLE_ID = '" + P + "'");
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const ctx = await b.newContext({ viewport: { width: 1600, height: 950 }, acceptDownloads: true });
   const p = await ctx.newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));

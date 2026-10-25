@@ -20,14 +20,15 @@
  *  - aucune erreur JavaScript.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 400) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const exec = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
-const CAPT = process.env.CAPTURES || '/tmp';
+const BASE = ENV_E2E.BASE;
+const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const CAPT = process.env.CAPTURES || ENV_E2E.TMP;
 
 const SUGG = 'E2E-EQD-SUGG', REF = 'E2E-EQD-REF', DCI = 'E2E-EQD-DCI', MARQUE = 'E2E-EQD-';
 const P = { S1: 'CIFRAN 500MG CPR B/10', S2: 'OSPAMOX 500MG CPR BT 12', A: 'APRAMOL 500MG CPR B/20', G: 'GRISEOPHARM 500MG CPR B/20', V: 'VILDAMET 50MG/500MG CPR PELL B/30' };
@@ -71,7 +72,7 @@ function poser() {
   try { nettoyer(); } catch (e) { /* rien a retirer */ }
   const erreur = poser();
   if (erreur) { console.log('FATAL : ' + erreur); nettoyer(); process.exit(1); }
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const ctx = await b.newContext({ viewport: { width: 1600, height: 950 } });
   const p = await ctx.newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));

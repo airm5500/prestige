@@ -2,11 +2,12 @@
  * conservee en base, propre a l'utilisateur connecte, cles et valeurs invalides refusees, hors session refuse. La cle
  * d'essai est retiree a la fin. */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 300) + ']' : '')); }
 const API = 'http://localhost:8080/prestige/api/v1/preferences/';
 (async () => {
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await b.newPage();
   try {
     const anonyme = await (await p.request.get(API + 'e2e_test')).text();
@@ -27,7 +28,7 @@ const API = 'http://localhost:8080/prestige/api/v1/preferences/';
   } catch (e) { ok('Parcours sans exception', false, e.message); }
   finally {
     await b.close();
-    require('child_process').execSync("mysql capitale -e \"DELETE FROM t_preference_utilisateur WHERE str_CLE='e2e_test'\"");
+    require('child_process').execFileSync('mariadb', [...ENV_E2E.MARIADB, ENV_E2E.BASE, '-e', "DELETE FROM t_preference_utilisateur WHERE str_CLE='e2e_test'"]);
     const ko = res.filter((r) => !r.c).length; console.log('\n' + (res.length - ko) + '/' + res.length + ' OK'); process.exit(ko ? 1 : 0);
   }
 })();

@@ -18,6 +18,7 @@
  * groupes ci-dessous pour etre relus d'un coup d'oeil.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 
 const BUDGET = {
@@ -41,8 +42,8 @@ function budget(nom, mesures, limite) {
   return { med: med, pire: pire };
 }
 
-const BASE = process.env.DB_TEST || 'capitale';
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const BASE = ENV_E2E.BASE;
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 
 const ONGLETS = ['ventes', 'marge', 'achats', 'caisse', 'stock', 'qualite', 'kpi', 'achatsventes'];
 /* Les ecrans que l'officine ouvre tous les jours. La liste vient de l'usage, pas du hasard. */
@@ -63,7 +64,7 @@ const ECRANS = [
   console.log('LIGNES DE VENTE : ' + lignes);
   console.log('');
 
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const ctx = await b.newContext({ viewport: { width: 1700, height: 1000 } });
   const p = await ctx.newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));

@@ -9,13 +9,14 @@
  * Jeu d'essai retire a la fin ; parametres, paliers et exclusions du banc remis en l'etat.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const fs = require('fs');
 
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 400) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN'], { input: s, encoding: 'utf8' }).trim();
+const BASE = ENV_E2E.BASE;
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN'], { input: s, encoding: 'utf8' }).trim();
 const C = 'E2E-PFID-C1', NOM = 'E2EPFID', ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = 'admin'");
 const [A, FA, ZA, B, FB, ZB] = q("SELECT a.lg_FAMILLE_ID, a.lg_FAMILLEARTICLE_ID, a.lg_ZONE_GEO_ID, b.lg_FAMILLE_ID, b.lg_FAMILLEARTICLE_ID, b.lg_ZONE_GEO_ID"
   + " FROM t_famille a JOIN t_famille b ON b.lg_FAMILLEARTICLE_ID <> a.lg_FAMILLEARTICLE_ID AND b.lg_ZONE_GEO_ID <> a.lg_ZONE_GEO_ID"
@@ -53,7 +54,7 @@ function restaurer() {
 const gains = () => q(`SELECT GROUP_CONCAT(CONCAT(lg_PREENREGISTREMENT_ID, ':', int_BASE, ':', int_POINTS) ORDER BY lg_PREENREGISTREMENT_ID) FROM t_fidelite_mouvement WHERE lg_CLIENT_ID = '${C}' AND str_TYPE = 'GAIN'`);
 
 (async () => {
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await (await b.newContext({ viewport: { width: 1500, height: 900 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   const cmp = (sel) => p.evaluate((s) => { const c = Ext.ComponentQuery.query('fideliteclients ' + s)[0]; (c.btnEl || c.getEl()).dom.setAttribute('data-e2e', 'x'); }, sel).then(() => p.click('[data-e2e=x]'))
@@ -136,20 +137,20 @@ const gains = () => q(`SELECT GROUP_CONCAT(CONCAT(lg_PREENREGISTREMENT_ID, ':', 
     await p.waitForFunction(() => Ext.ComponentQuery.query('fideliteclients')[0].historiqueStore.findExact('type', 'UTILISATION') >= 0, null, { timeout: 15000 });
 
     const uClients = await ouvrir('#clientsPdf');
-    await telecharger(uClients, '/tmp/e2e-pfid-clients.pdf');
-    const tc = pdfTexte('/tmp/e2e-pfid-clients.pdf');
+    await telecharger(uClients, ENV_E2E.TMP + '/e2e-pfid-clients.pdf');
+    const tc = pdfTexte(ENV_E2E.TMP + '/e2e-pfid-clients.pdf');
     ok('Clients : PDF (même recherche) avec le client et ses 6 points', /POINTS FIDÉLITÉ — CLIENTS/.test(tc) && new RegExp(NOM + ' Analyse\\s+0700000098\\s+6\\s+30').test(tc) && /1 client\(s\)/.test(tc), uClients);
     const uClientsX = await ouvrir('#clientsExcel');
-    await telecharger(uClientsX, '/tmp/e2e-pfid-clients.xls');
-    const xc = xls('/tmp/e2e-pfid-clients.xls');
+    await telecharger(uClientsX, ENV_E2E.TMP + '/e2e-pfid-clients.xls');
+    const xc = xls(ENV_E2E.TMP + '/e2e-pfid-clients.xls');
     ok('Clients : Excel avec le client, points en nombre', xc.some((l) => l[0] === NOM + ' Analyse' && l[2] === '6.0' && l[3] === '30.0'), JSON.stringify(xc.slice(0, 4)));
     const uHist = await ouvrir('#historiquePdf');
-    await telecharger(uHist, '/tmp/e2e-pfid-hist.pdf');
-    const th = pdfTexte('/tmp/e2e-pfid-hist.pdf');
+    await telecharger(uHist, ENV_E2E.TMP + '/e2e-pfid-hist.pdf');
+    const th = pdfTexte(ENV_E2E.TMP + '/e2e-pfid-hist.pdf');
     ok('Historique du client : PDF (gains et utilisation)', /HISTORIQUE DE E2EPFID ANALYSE/.test(th) && /Solde : 6 points · 3 opération/.test(th) && /Points utilisés\s+-2\s+BON-E2E/.test(th), th.slice(0, 300));
     const uHistX = await ouvrir('#historiqueExcel');
-    await telecharger(uHistX, '/tmp/e2e-pfid-hist.xls');
-    ok('Historique du client : Excel', xls('/tmp/e2e-pfid-hist.xls').filter((l) => /Points (gagnés|utilisés)/.test(l[1])).length === 3);
+    await telecharger(uHistX, ENV_E2E.TMP + '/e2e-pfid-hist.xls');
+    ok('Historique du client : Excel', xls(ENV_E2E.TMP + '/e2e-pfid-hist.xls').filter((l) => /Points (gagnés|utilisés)/.test(l[1])).length === 3);
 
     /* ------------------------------------------------ analyse */
     await p.evaluate(() => { const e = Ext.ComponentQuery.query('fideliteclients')[0]; e.down('#ongletAnalyse').tab.getEl().dom.setAttribute('data-e2e', 'onglet3'); });
@@ -167,12 +168,12 @@ const gains = () => q(`SELECT GROUP_CONCAT(CONCAT(lg_PREENREGISTREMENT_ID, ':', 
       JSON.stringify({ ecran: an.tuiles, attendu: att }));
     ok('Analyse : le client de l\'essai parmi les meilleurs clients (8 gagnés, 2 utilisés, solde 6)', an.meilleurs.some((t) => t.indexOf(NOM) >= 0 && /826$/.test(t.replace(/\s+/g, ''))), an.meilleurs.slice(0, 3).join(' | '));
     const uAn = await ouvrir('#analysePdf');
-    await telecharger(uAn, '/tmp/e2e-pfid-analyse.pdf');
-    const ta = pdfTexte('/tmp/e2e-pfid-analyse.pdf');
+    await telecharger(uAn, ENV_E2E.TMP + '/e2e-pfid-analyse.pdf');
+    const ta = pdfTexte(ENV_E2E.TMP + '/e2e-pfid-analyse.pdf');
     ok('Analyse : PDF (par mois, paliers, meilleurs clients)', /POINTS FIDÉLITÉ — ANALYSE/.test(ta) && /Par mois/.test(ta) && /Clients actifs par palier/.test(ta) && /Meilleurs clients/.test(ta) && ta.indexOf(NOM) >= 0);
     const uAnX = await ouvrir('#analyseExcel');
-    await telecharger(uAnX, '/tmp/e2e-pfid-analyse.xls');
-    const xa = xls('/tmp/e2e-pfid-analyse.xls');
+    await telecharger(uAnX, ENV_E2E.TMP + '/e2e-pfid-analyse.xls');
+    const xa = xls(ENV_E2E.TMP + '/e2e-pfid-analyse.xls');
     ok('Analyse : Excel (rubriques Mois, Palier, Meilleur client)', ['Mois', 'Palier', 'Meilleur client'].every((r) => xa.some((l) => l[0] === r)));
     ok('Infobulles sur les boutons d\'édition et de mode', await p.evaluate(() => ['clientsPdf', 'clientsExcel', 'historiquePdf', 'historiqueExcel', 'analysePdf', 'analyseExcel', 'modeFamilles', 'modeEmplacements', 'anActualiser']
       .every((i) => !!Ext.ComponentQuery.query('fideliteclients #' + i)[0].tooltip)));

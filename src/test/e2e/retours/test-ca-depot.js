@@ -15,6 +15,7 @@
  * Tout ce que le test pose est retire a la fin.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 
 // Texte affiche par un PDF : les flux sont deflates, on en extrait les chaines.
@@ -39,9 +40,9 @@ function texteDuPdf(octets) {
 
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 340) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const exec = (s) => execFileSync('mariadb', [BASE, '-e', s], { encoding: 'utf8' });
-const q = (s) => execFileSync('mariadb', [BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const BASE = ENV_E2E.BASE;
+const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, BASE, '-e', s], { encoding: 'utf8' });
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 
 const DEPOT = 'E2E-CAD-DEPOT';
 const NOM_DEPOT = 'DEPOT E2E CA';
@@ -119,7 +120,7 @@ function poser() {
 (async () => {
   const ctx0 = poser();
   const JOUR = q("SELECT DATE_FORMAT(CURDATE(), '%Y-%m-%d')");
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const ctx = await b.newContext({ viewport: { width: 1600, height: 950 } });
   const p = await ctx.newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));

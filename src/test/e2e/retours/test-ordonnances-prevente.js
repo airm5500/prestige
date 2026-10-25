@@ -13,14 +13,15 @@
  * pose est retire a la fin : clients, comptes, liens tiers payant, ordonnances, preventes.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 400) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
+const BASE = ENV_E2E.BASE;
 const MB4 = '--default-character-set=utf8mb4';
-const exec = (s) => execFileSync('mariadb', [MB4, BASE, '-e', s], { encoding: 'utf8' });
-const q = (s) => execFileSync('mariadb', [MB4, BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, MB4, BASE, '-e', s], { encoding: 'utf8' });
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, MB4, BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const M = 'E2E-PV';
 const STD = M + '-STD', ASS = M + '-ASS', CAR = M + '-CAR';
 
@@ -112,7 +113,7 @@ function poser() {
     exec("INSERT INTO t_resume_caisse (ld_CAISSE_ID, lg_USER_ID, int_SOLDE_MATIN, int_SOLDE_SOIR, dt_DAY, dt_CREATED, lg_CREATED_BY, dt_UPDATED, lg_UPDATED_BY, str_STATUT)"
       + " VALUES ('" + CAISSE + "', '" + admin + "', 0, 0, CURDATE(), NOW(), '" + admin + "', NOW(), '" + admin + "', 'is_Using');");
   }
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await (await b.newContext({ viewport: { width: 1600, height: 1000 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   try {

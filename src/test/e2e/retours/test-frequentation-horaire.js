@@ -5,18 +5,19 @@
  *  - ecran ajoute a correctifs-affichage.js ; refus clair d'une periode a l'envers.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 400) + ']' : '')); }
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', process.env.DB_TEST || 'capitale', '-sN'], { input: s, encoding: 'utf8' }).trim();
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', ENV_E2E.BASE, '-sN'], { input: s, encoding: 'utf8' }).trim();
 const LOGIN = process.env.E2E_LOGIN || 'admin';
 const DEBUT = '2026-09-01', FIN = '2026-09-30';
 const [CA, NB, MONTANT_10H] = q(`SELECT SUM(int_PRICE), COUNT(*), SUM(IF(HOUR(dt_CREATED) = 10, int_PRICE, 0)) FROM t_preenregistrement
   WHERE dt_CREATED >= '${DEBUT}' AND dt_CREATED < '2026-10-01' AND int_PRICE > 0 AND b_IS_CANCEL = 0 AND str_STATUT = 'is_Closed'`).split('\t').map(Number);
 
 (async () => {
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await (await b.newContext({ viewport: { width: 1500, height: 950 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   const api = (t, d = DEBUT, f = FIN) => p.evaluate(async ([t, d, f]) => (await fetch(`../api/v1/frequentation-horaire?debut=${d}&fin=${f}&tranche=${t}`)).json(), [t, d, f]);

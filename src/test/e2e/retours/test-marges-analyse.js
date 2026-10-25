@@ -9,10 +9,11 @@
  * Les objectifs d'origine sont remis.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', process.env.DB_TEST || 'capitale', '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', ENV_E2E.BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const EMPL = q("SELECT lg_EMPLACEMENT_ID FROM t_user WHERE str_LOGIN = 'admin'");
 const perimetre = (d, f) => `FROM t_preenregistrement_detail d JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = d.lg_PREENREGISTREMENT_ID JOIN t_user u ON u.lg_USER_ID = p.lg_USER_ID`
   + ` WHERE p.dt_UPDATED >= '${d}' AND p.dt_UPDATED < '${f}' AND u.lg_EMPLACEMENT_ID = '${EMPL}' AND p.str_STATUT = 'is_Closed' AND p.b_IS_CANCEL = 0 AND p.int_PRICE > 0 AND p.lg_TYPE_VENTE_ID <> '5'`;
@@ -21,7 +22,7 @@ const sql = (d, f) => { const [ttc, remise, tva, achat] = q(`SELECT CONCAT_WS('|
 const OBJ0 = ['KEY_OBJECTIF_TAUX_MARQUE', 'KEY_OBJECTIF_TAUX_MARGE'].map((k) => q(`SELECT IFNULL((SELECT str_VALUE FROM t_parameters WHERE str_KEY = '${k}'), 'ABSENT')`));
 
 (async () => {
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const err = [], dialogues = [];
   try {
     ok('Précondition : objectifs présents (25 % et 33,33 % par défaut)', OBJ0.every((x) => x !== 'ABSENT'), OBJ0.join(' / '));

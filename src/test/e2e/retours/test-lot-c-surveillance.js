@@ -10,13 +10,14 @@
  * Tout est retire a la fin (evenements, fichiers de detail, parametre remis).
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync, spawn } = require('child_process');
 const fs = require('fs');
 
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined && d !== '' ? '  [' + String(d).slice(0, 400) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN'], { input: s, encoding: 'utf8' }).trim();
+const BASE = ENV_E2E.BASE;
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN'], { input: s, encoding: 'utf8' }).trim();
 const JOURNAL = process.env.SERVER_LOG || '/opt/payara5/glassfish/domains/domain1/logs/server.log';
 const MARQUE = 'E2E-LOTC-' + Date.now();
 const CLE = 'KEY_TICKET_LENT_SEUIL_MS';
@@ -38,7 +39,7 @@ function nettoyer() {
 
 (async () => {
   nettoyer();
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const ctx = await b.newContext({ viewport: { width: 1500, height: 950 }, acceptDownloads: true });
   const p = await ctx.newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
@@ -106,7 +107,7 @@ function nettoyer() {
       if (attente > 0) { console.log('… attente de ' + Math.round(attente / 1000) + ' s (délai entre deux rapports de blocage)'); await p.waitForTimeout(attente); }
     }
     /* (e2) blocage reel : la ligne du parametre est verrouillee 45 s par une autre connexion, l'ecran l'enregistre */
-    verrou = spawn('mariadb', [BASE, '-e', `START TRANSACTION; SELECT str_VALUE FROM t_parameters WHERE str_KEY = '${CLE}' FOR UPDATE; SELECT SLEEP(45); ROLLBACK;`]);
+    verrou = spawn('mariadb', [...ENV_E2E.MARIADB, BASE, '-e', `START TRANSACTION; SELECT str_VALUE FROM t_parameters WHERE str_KEY = '${CLE}' FOR UPDATE; SELECT SLEEP(45); ROLLBACK;`]);
     await p.waitForTimeout(1500);
     const t0 = Date.now();
     const enregistrement = p.evaluate(async (c) => { const r = await fetch('../api/v1/app-params/update', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },

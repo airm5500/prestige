@@ -19,10 +19,11 @@
  * Variables : ECRANS=xtype1,xtype2 pour limiter ; RAPIDE=1 sans onglets ; SORTIE=dossier du rapport.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
-const q = (sql) => execFileSync('mariadb', ['--default-character-set=utf8mb4', process.env.DB_TEST || 'capitale', '-sN', '-e', sql], { encoding: 'utf8' }).trim();
+const q = (sql) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', ENV_E2E.BASE, '-sN', '-e', sql], { encoding: 'utf8' }).trim();
 
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 700) + ']' : '')); }
@@ -45,7 +46,7 @@ const ecriture = (req) => {
 };
 
 (async () => {
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await (await b.newContext({ viewport: { width: 1366, height: 768 } })).newPage();
   p.setDefaultTimeout(20000);
   const erreursJs = []; const erreurs500 = []; const envois = [];
@@ -193,7 +194,7 @@ const ecriture = (req) => {
         + " AND last_seen_at >= '" + supportAvant[1] + "'"));
     const rapport = ['# Rapport de saisie (non bloquant)', '', '## Fenêtres qui envoient au serveur malgré un champ invalide (' + bilan.sansControle.length + ')']
       .concat(bilan.sansControle.map((x) => '- ' + x), ['', '## Champs texte de fenêtre sans longueur maximale (' + bilan.sansLongueur.size + ')'], [...bilan.sansLongueur].map((x) => '- ' + x));
-    fs.writeFileSync(path.join(process.env.SORTIE || '/tmp', 'saisie-ecrans-rapport.md'), rapport.join('\n') + '\n');
+    fs.writeFileSync(path.join(process.env.SORTIE || ENV_E2E.TMP, 'saisie-ecrans-rapport.md'), rapport.join('\n') + '\n');
     console.log('Rapport : ' + bilan.sansControle.length + ' fenêtres sans contrôle, ' + bilan.sansLongueur.size + ' champs texte sans longueur maximale');
   } catch (e) {
     ok('déroulé sans exception', false, e.stack);

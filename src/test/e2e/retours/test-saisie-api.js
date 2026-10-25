@@ -16,10 +16,11 @@
  * Variables : FILTRE=morceau d'url pour limiter ; JEUX=vide,lettres pour limiter les jeux.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
-const q = (sql) => execFileSync('mariadb', ['--default-character-set=utf8mb4', process.env.DB_TEST || 'capitale', '-sN', '-e', sql], { encoding: 'utf8' }).trim();
+const q = (sql) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', ENV_E2E.BASE, '-sN', '-e', sql], { encoding: 'utf8' }).trim();
 
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 600) + ']' : '')); }
@@ -91,7 +92,7 @@ const JEUX = {
   console.log(total + ' lectures relevées, ' + toutes.length + ' appelées (' + ecartees + ' écartées car elles agissent), ' + jeux.length + ' jeux de valeurs');
   ok('le relevé trouve les lectures de l\'API', total > 500, total);
 
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const ctx = await b.newContext();
   const p = await ctx.newPage();
   try {
@@ -140,7 +141,7 @@ const JEUX = {
     ok('aucune table modifiée par les lectures (' + tablesDatees.length + ' colonnes de date surveillées)', ecrites.length === 0, ecrites.join(' | '));
     const supportApres = Number(q('SELECT COALESCE(SUM(occurrences), 0) FROM t_application_event'));
     ok('aucune nouvelle erreur au Centre de support', supportApres === supportAvant, (supportApres - supportAvant) + ' nouvelles');
-    if (erreurs.length) { fs.writeFileSync(path.join(process.env.SORTIE || '/tmp', 'saisie-api-erreurs.txt'), erreurs.join('\n') + '\n\n' + lents.join('\n')); }
+    if (erreurs.length) { fs.writeFileSync(path.join(process.env.SORTIE || ENV_E2E.TMP, 'saisie-api-erreurs.txt'), erreurs.join('\n') + '\n\n' + lents.join('\n')); }
   } catch (e) {
     ok('déroulé sans exception', false, e.stack);
   } finally {

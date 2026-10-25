@@ -6,15 +6,16 @@
  *    droite sur la ligne des onglets.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 400) + ']' : '')); }
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', process.env.DB_TEST || 'capitale', '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', ENV_E2E.BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const [CID, PRENOM, NOM] = q("SELECT lg_CLIENT_ID, str_FIRST_NAME, str_LAST_NAME FROM t_client WHERE str_STATUT = 'enable' AND str_FIRST_NAME <> '' ORDER BY str_FIRST_NAME LIMIT 1").split('\t');
 
 (async () => {
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await (await b.newContext({ viewport: { width: 1366, height: 768 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   const fiche = () => p.waitForFunction((n) => { const w = Ext.ComponentQuery.query('#fenFicheClient')[0]; if (!w) { return false; }

@@ -4,6 +4,7 @@
    - debit en rouge gras, credit en vert gras, solde colore selon son signe ;
    - export Excel du resultat complet. */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const fs = require('fs');
 const path = require('path');
 const zlib = require('zlib');
@@ -11,7 +12,7 @@ const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 240) + ']' : '')); }
 
 (async () => {
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await b.newPage({ viewport: { width: 1800, height: 950 } });
   const err = []; p.on('pageerror', e => err.push(String(e.message)));
   const requetes = []; p.on('request', r => { if (r.url().includes('recap-organisme/list')) requetes.push(r.url()); });

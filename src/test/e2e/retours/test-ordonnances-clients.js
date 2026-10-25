@@ -16,19 +16,20 @@
  * Tout ce que le test pose est retire a la fin.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 340) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
+const BASE = ENV_E2E.BASE;
 /*
  * --default-character-set=utf8mb4 : sans cela le client MariaDB rend les accents en latin1 et une valeur
  * pourtant correcte en base (« PRODUIT CORRIGE » avec son accent) ne correspond plus a ce que le test
  * attend. C'est le test qui lisait mal, pas l'application qui ecrivait mal.
  */
 const MB4 = '--default-character-set=utf8mb4';
-const exec = (s) => execFileSync('mariadb', [MB4, BASE, '-e', s], { encoding: 'utf8' });
-const q = (s) => execFileSync('mariadb', [MB4, BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, MB4, BASE, '-e', s], { encoding: 'utf8' });
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, MB4, BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 
 const MARQUE = 'E2E-ORDO';
 const CLIENT = MARQUE + '-CLIENT';
@@ -69,7 +70,7 @@ function poser() {
   const mvtsAvant = q("SELECT COUNT(*) FROM HMvtProduit");
   const stockAvant = q("SELECT COALESCE(SUM(int_NUMBER_AVAILABLE),0) FROM t_famille_stock");
 
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const ctx = await b.newContext({ viewport: { width: 1700, height: 1000 } });
   const p = await ctx.newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));

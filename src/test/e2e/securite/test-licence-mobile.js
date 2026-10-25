@@ -7,10 +7,11 @@
  * existante n'est jamais modifiee (relue avant et apres).
  */
 const { execFileSync } = require('child_process');
+const ENV_E2E = require('../outils/poste');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 300) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const BASE = ENV_E2E.BASE;
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const API = 'http://localhost:8080/prestige/api/';
 const LICENCE = () => q('SELECT CONCAT(id, \'|\', date_start, \'|\', date_end, \'|\', type_licence) FROM licence WHERE type_licence = 1 LIMIT 1');
 const brut = async (url, h) => { const r = await fetch(API + url, { headers: h || {} }); const t = await r.text(); return { s: r.status, t }; };

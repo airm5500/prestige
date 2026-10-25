@@ -7,11 +7,12 @@
  * Jeu d'essai pose puis retire (commande E2E-LB-ORD) ; les deux reglages produits touches sont remis a l'identique.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined && d !== '' ? '  [' + String(d).slice(0, 400) + ']' : '')); }
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', process.env.DB_TEST || 'capitale', '-sN'], { input: s, encoding: 'utf8' }).trim();
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', ENV_E2E.BASE, '-sN'], { input: s, encoding: 'utf8' }).trim();
 const ORD = 'E2E-LB-ORD';
 const [GROSSISTE, USER] = q("SELECT CONCAT_WS('|', o.lg_GROSSISTE_ID, o.lg_USER_ID) FROM t_order o WHERE o.lg_GROSSISTE_ID IS NOT NULL ORDER BY o.dt_CREATED DESC LIMIT 1").split('|');
 /* trois produits avec une ligne de stock active : A (stock desactive le temps du test), B (sans seuil), C (normal) */
@@ -38,7 +39,7 @@ function retirer() {
 }
 
 (async () => {
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await (await b.newContext({ viewport: { width: 1500, height: 950 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   try {

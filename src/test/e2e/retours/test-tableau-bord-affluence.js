@@ -10,12 +10,13 @@
  *  - aucune erreur JavaScript, aucune fenetre.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
-const exec = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
+const BASE = ENV_E2E.BASE;
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
 const PERIMETRE = "p.int_PRICE > 0 AND p.str_STATUT = 'is_Closed' AND p.b_IS_CANCEL = 0 AND p.lg_TYPE_VENTE_ID <> '5'";
 /* jour regarde : un mercredi passe qui a des ventes */
 const D = q(`SELECT DATE(MAX(p.dt_UPDATED)) FROM t_preenregistrement p WHERE ${PERIMETRE} AND DAYOFWEEK(p.dt_UPDATED) = 4 AND p.dt_UPDATED < CURDATE()`);
@@ -34,7 +35,7 @@ const fr = (d) => d.slice(8, 10) + '/' + d.slice(5, 7);
   const versionAvant = q("SELECT str_VALUE FROM t_parameters WHERE str_KEY = 'KEY_TABLEAU_BORD_VERSION'");
   exec(`DELETE FROM t_preference_utilisateur WHERE lg_USER_ID = '${U}' AND str_CLE = 'tableau-bord'`);
   exec("UPDATE t_parameters SET str_VALUE = 'NOUVEAU' WHERE str_KEY = 'KEY_TABLEAU_BORD_VERSION'");
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await (await b.newContext({ viewport: { width: 1600, height: 1000 } })).newPage();
   const err = [], dialogues = [];
   p.on('pageerror', (e) => err.push(String(e.message)));

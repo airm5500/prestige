@@ -5,13 +5,14 @@
    et deborde sur des colonnes qu'on ne lui a pas demandees ferait perdre le parametrage de
    dizaines d'organismes d'un coup. Chaque assertion le verifie explicitement. */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 300) + ']' : '')); }
 
-const BASE = process.env.DB_TEST || 'capitale';
-const q = (s) => execFileSync('mariadb', [BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
-const exec = (s) => execFileSync('mariadb', [BASE, '-e', s], { encoding: 'utf8' });
+const BASE = ENV_E2E.BASE;
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, BASE, '-e', s], { encoding: 'utf8' });
 
 const COLONNES = ['int_NBRE_EXEMPLAIRE_BORD', 'int_NBREBONS', 'int_MONTANTFAC', 'str_MODE_TRI_FACTURE',
   'dbl_PLAFOND_CREDIT', 'dbl_PLAFOND_VENTE', 'b_IsAbsolute', 'str_COMPTE_CONTRIBUABLE',
@@ -73,7 +74,7 @@ function restaurer() {
 (async () => {
   if (!semer()) { console.log('FATAL : pas assez de tiers payants'); process.exit(1); }
   if (!accorderPrivilege()) { console.log('FATAL : role du compte de test introuvable'); process.exit(1); }
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await b.newPage({ viewport: { width: 1700, height: 950 } });
   const err = []; p.on('pageerror', e => err.push(String(e.message)));
   await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });

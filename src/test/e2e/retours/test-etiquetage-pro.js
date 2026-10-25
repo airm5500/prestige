@@ -12,6 +12,7 @@
  * Tout est retire a la fin (codes d'etiquettes du test, fichiers, droit remis).
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const fs = require('fs');
 const os = require('os');
@@ -20,8 +21,8 @@ const privilegeEssai = require('../support/privilege-essai');
 
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined && d !== '' ? '  [' + String(d).slice(0, 400) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN'], { input: s, encoding: 'utf8' }).trim();
+const BASE = ENV_E2E.BASE;
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN'], { input: s, encoding: 'utf8' }).trim();
 const exec = q;
 const DEBUT = q('SELECT NOW() - INTERVAL 1 SECOND');
 const DOSSIER = fs.mkdtempSync(path.join(os.tmpdir(), 'e2e-etqp-'));
@@ -59,7 +60,7 @@ function nettoyer() {
     's["E2"].number_format = "dd/mm/yyyy"',
     'wb.save(sys.argv[1])'].join('\n'), path.join(DOSSIER, 'produits.xlsx')]);
 
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const ctx = await b.newContext({ viewport: { width: 1500, height: 950 }, acceptDownloads: true });
   const p = await ctx.newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));

@@ -8,12 +8,13 @@
  * poses puis retires.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const { connexion } = require('../outils/vues');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const BASE = ENV_E2E.BASE;
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const ID = 'E2E-D2-SANS', LOGIN = 'e2e-d2-sans', MDP = 'E2e-D2-Sans-4', RAPPEL = 'E2E-D38-R1';
 const ROLE_VENDEUR = q("SELECT lg_ROLE_ID FROM t_role WHERE str_NAME = 'Vendeur'");
 const retirer = () => q(`DELETE FROM t_rappel_habitude WHERE id = '${RAPPEL}'; DELETE FROM t_role_user WHERE lg_USER_ID = '${ID}';`
@@ -26,7 +27,7 @@ const retirer = () => q(`DELETE FROM t_rappel_habitude WHERE id = '${RAPPEL}'; D
   q(`INSERT INTO t_role_user (lg_USER_ROLE_ID, lg_ROLE_ID, lg_USER_ID, dt_CREATED) VALUES ('${ID}', '${ROLE_VENDEUR}', '${ID}', NOW())`);
   q(`INSERT INTO t_rappel_habitude (id, lg_CLIENT_ID, lg_FAMILLE_ID, dt_DERNIER_ACHAT, dt_PREVU, int_FREQUENCE, int_ACHATS, str_STATUT, dt_CREATED)`
     + ` SELECT '${RAPPEL}', (SELECT lg_CLIENT_ID FROM t_client LIMIT 1), (SELECT lg_FAMILLE_ID FROM t_famille LIMIT 1), CURDATE() - INTERVAL 30 DAY, CURDATE(), 30, 3, 'A_PREPARER', NOW()`);
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const post = (p, u, c) => p.evaluate(async ([u, c]) => { const r = await fetch(u, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: c });
     let j = null; try { j = await r.json(); } catch (e) { /* vide */ } return { status: r.status, j }; }, [u, c]);
   try {

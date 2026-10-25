@@ -11,14 +11,15 @@
  *  - traces du serveur : le refus FORMAT precise la partie en cause (login vide), sans le secret.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const crypto = require('crypto');
 const fs = require('fs');
 const { connexion, cliquer } = require('../outils/vues');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const BASE = ENV_E2E.BASE;
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const LOG = '/opt/payara5/glassfish/domains/domain1/logs/server.log';
 const E = 'E2E-BSC-1', B = 'E2E-BSC-B1', NUM = 'ZZS-26-' + String(Date.now()).slice(-5) + '-A';
 const SECRET = crypto.randomBytes(32).toString('base64url');
@@ -31,7 +32,7 @@ const qwertySurAzerty = (t) => t.replace(/[aqzwAQZW\-|]/g, (c) => ({ a: 'q', q: 
   q("INSERT INTO t_employe (id, matricule, nom, prenoms, poste, statut, lg_USER_ID, badge, created_at) VALUES ('" + E + "', 'E2E-BSC-M1', 'ESSAI', 'Sans compte', 'Test', 'ACTIF', NULL, '" + NUM + "', NOW())");
   q("INSERT INTO t_rh_badge (id, employe_id, numero, statut, dt_emission, created_at) VALUES ('" + B + "', '" + E + "', '" + NUM + "', 'ACTIF', CURDATE(), NOW())");
   const tailleLog = fs.existsSync(LOG) ? fs.statSync(LOG).size : 0;
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   try {
     const p = await (await b.newContext({ viewport: { width: 1600, height: 900 } })).newPage();
     await connexion(p, 'admin', 'e2etest');

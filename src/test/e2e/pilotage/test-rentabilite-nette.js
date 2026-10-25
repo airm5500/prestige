@@ -9,13 +9,14 @@
  *  - aucune fenetre. Les charges du mois d'essai sont sauvegardees avant et remises apres.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const privilegeEssai = require('../support/privilege-essai');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const exec = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const BASE = ENV_E2E.BASE;
+const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const MOIS = q("SELECT DATE_FORMAT(CURDATE() - INTERVAL 1 MONTH, '%Y-%m')");
 const [ANNEE, M] = MOIS.split('-');
 const CHAMP = 'm' + M;
@@ -25,7 +26,7 @@ const proche = (a, b) => Math.abs(Number(a) - Number(b)) <= 1;
 (async () => {
   droit.remettre();
   exec(`DROP TABLE IF EXISTS zz_e2e_charges; CREATE TABLE zz_e2e_charges AS SELECT * FROM t_charge_mensuelle WHERE mois = '${MOIS}'; DELETE FROM t_charge_mensuelle WHERE mois = '${MOIS}';`);
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const dialogues = [];
   const ouvrir = async (p) => {
     await p.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'domcontentloaded' });

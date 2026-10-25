@@ -14,6 +14,7 @@
  * Lancement : application sur ETIQUETTAGE_URL (defaut http://127.0.0.1:8095), base DB_TEST (bd_etiquette_test).
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../../../src/test/e2e/outils/poste');
 const { execFileSync } = require('child_process');
 const fs = require('fs');
 const os = require('os');
@@ -50,7 +51,7 @@ const CSV = ['Code CIP;Libellé;Prix public;Péremption;Lot;Famille;Remarque int
   '3400930000076;Vogalene lyoc;450;;;Antiemetique;'].join('\r\n');
 
 (async () => {
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const ctx = await b.newContext({ viewport: { width: 1440, height: 950 }, acceptDownloads: true, locale: 'fr-FR' });
   const p = await ctx.newPage();
   const err = [];

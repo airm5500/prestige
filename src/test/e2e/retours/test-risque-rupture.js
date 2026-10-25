@@ -9,12 +9,13 @@
  *  - mise en page : en-tetes entiers, pas de defilement horizontal ; aucune erreur JavaScript ; donnees retirees.
  */
 const { execFileSync } = require('child_process');
+const ENV_E2E = require('../outils/poste');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 500) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const exec = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
-const SORTIE = process.env.SORTIE || '/tmp';
+const BASE = ENV_E2E.BASE;
+const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const SORTIE = process.env.SORTIE || ENV_E2E.TMP;
 const EMP = q("SELECT lg_EMPLACEMENT_ID FROM t_user WHERE str_LOGIN = 'admin'");
 const ROLE = q("SELECT ru.lg_ROLE_ID FROM t_user u JOIN t_role_user ru ON ru.lg_USER_ID = u.lg_USER_ID WHERE u.str_LOGIN = 'admin' LIMIT 1");
 const CMD = 'E2E-RR-CMD', RUP = 'e2e-rr-rupture';
@@ -49,7 +50,7 @@ function attendu(id) {
 (async () => {
   nettoyer();
   const { chromium } = require('playwright-core');
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   let ctx = await b.newContext({ viewport: { width: 1366, height: 768 } });
   let p = await ctx.newPage();
   const err = [];

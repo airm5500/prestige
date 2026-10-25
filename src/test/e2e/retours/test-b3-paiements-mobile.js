@@ -12,12 +12,13 @@
  *  - sans session : les routes du comptoir repondent « deconnecte ».
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
-const exec = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
+const BASE = ENV_E2E.BASE;
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
 const V = 'E2E-B3-VENTE';
 const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = 'admin'");
 const nettoyer = () => exec(`DELETE FROM paiement_mobile WHERE vente_id = '${V}' OR client_ref LIKE 'e2e-b3-%'; DELETE FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID = '${V}';`);
@@ -26,7 +27,7 @@ const nettoyer = () => exec(`DELETE FROM paiement_mobile WHERE vente_id = '${V}'
   nettoyer();
   exec(`INSERT INTO t_preenregistrement (lg_PREENREGISTREMENT_ID, str_REF, str_REF_TICKET, lg_USER_ID, int_PRICE, int_PRICE_REMISE, int_CUST_PART, str_STATUT, dt_CREATED, dt_UPDATED, str_TYPE_VENTE, lg_TYPE_VENTE_ID, b_IS_CANCEL, imported)
     VALUES ('${V}', '${V}', 'E2E-B3', '${ADMIN}', 5000, 0, 1500, 'is_Process', NOW(), NOW(), 'VO', '2', 0, 0)`);
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await (await b.newContext()).newPage();
   const api = (m, u, c, h) => p.evaluate(async ([m, u, c, h]) => { const r = await fetch(u, { method: m, headers: Object.assign({ 'Content-Type': 'application/json' }, h || {}), body: c === undefined ? undefined : (typeof c === 'string' ? c : JSON.stringify(c)) });
     const t = await r.text(); let j; try { j = JSON.parse(t); } catch (e) { j = { brut: t.slice(0, 120) }; } j.http = r.status; return j; }, [m, u, c, h]);

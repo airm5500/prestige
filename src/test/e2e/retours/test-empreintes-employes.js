@@ -15,15 +15,16 @@
  *  - sans le droit RH : refus.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const crypto = require('crypto');
 const fs = require('fs');
 const privilegeEssai = require('../support/privilege-essai');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
-const exec = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
+const BASE = ENV_E2E.BASE;
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
 const rh = privilegeEssai(q, exec, 'admin', 'P_SM_RH');
 /* demande 52 : P_RH_POINTER ouvre aussi la lecture des gabarits (terminal) ; « sans droit RH » = sans les deux */
 const pointer = privilegeEssai(q, exec, 'admin', 'P_RH_POINTER');
@@ -43,7 +44,7 @@ function nettoyer() {
     + " ('E2E-EMP-1', 'E2E-EMP-M1', 'ESSAI', 'Un', 'ACTIF', NOW()), ('E2E-EMP-2', 'E2E-EMP-M2', 'ESSAI', 'Deux', 'ACTIF', NOW())");
   const g1 = crypto.randomBytes(400), g2 = crypto.randomBytes(500), g3 = crypto.randomBytes(300);
   const tailleLogAvant = fs.existsSync(LOG) ? fs.statSync(LOG).size : 0;
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const session = async () => { const p = await (await b.newContext()).newPage();
     await p.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'domcontentloaded' });
     await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');

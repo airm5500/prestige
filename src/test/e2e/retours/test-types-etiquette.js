@@ -12,14 +12,15 @@
  * Tout est remis a la fin (types des produits, types crees, journal, panier, parametres, droits).
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const fs = require('fs');
 const privilegeEssai = require('../support/privilege-essai');
 
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined && d !== '' ? '  [' + String(d).slice(0, 500) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN'], { input: s, encoding: 'utf8' }).trim();
+const BASE = ENV_E2E.BASE;
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN'], { input: s, encoding: 'utf8' }).trim();
 const DEBUT = q('SELECT NOW() - INTERVAL 1 SECOND');
 const MARQUE = 'E2E-TYPEET';
 const droitType = privilegeEssai(q, q, 'admin', 'P_SM_ETIQUETTE_TYPE');
@@ -51,20 +52,20 @@ function nettoyer() {
   PARAMS.forEach((k) => { const v = paramsAvant[k]; q(v === '<ABSENT>' ? `DELETE FROM t_parameters WHERE str_KEY = '${k}'` : `UPDATE t_parameters SET str_VALUE = '${v.replace(/'/g, "''")}' WHERE str_KEY = '${k}'`); });
 }
 const decoder = (binaire) => {
-  const f = '/tmp/e2e-types-et.pdf';
+  const f = ENV_E2E.TMP + '/e2e-types-et.pdf';
   fs.writeFileSync(f, Buffer.from(binaire, 'latin1'));
-  execFileSync('pdftoppm', ['-r', '600', '-png', '-f', '1', '-l', '1', f, '/tmp/e2e-types-et']);
-  const png = fs.readdirSync('/tmp').filter((x) => /^e2e-types-et-\d+\.png$/.test(x)).map((x) => '/tmp/' + x)[0];
+  execFileSync('pdftoppm', ['-r', '600', '-png', '-f', '1', '-l', '1', f, ENV_E2E.TMP + '/e2e-types-et']);
+  const png = fs.readdirSync(ENV_E2E.TMP).filter((x) => /^e2e-types-et-\d+\.png$/.test(x)).map((x) => ENV_E2E.TMP + '/' + x)[0];
   const sortie = execFileSync('python3', ['-I', '-c', 'import sys, json, zxingcpp\nfrom PIL import Image\nr = zxingcpp.read_barcodes(Image.open(sys.argv[1]))\n'
     + 'print(json.dumps([{"format": str(x.format), "texte": x.text} for x in r]))', png], { encoding: 'utf8' });
-  fs.readdirSync('/tmp').filter((x) => /^e2e-types-et-\d+\.png$/.test(x)).forEach((x) => fs.unlinkSync('/tmp/' + x));
+  fs.readdirSync(ENV_E2E.TMP).filter((x) => /^e2e-types-et-\d+\.png$/.test(x)).forEach((x) => fs.unlinkSync(ENV_E2E.TMP + '/' + x));
   const texte = execFileSync('pdftotext', ['-raw', '-f', '1', '-l', '1', f, '-'], { encoding: 'utf8' });
   return { codes: JSON.parse(sortie), texte };
 };
 
 (async () => {
   droitType.remettre(); droitPerso.remettre();
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const ctx = await b.newContext({ viewport: { width: 1600, height: 1000 } });
   const p = await ctx.newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));

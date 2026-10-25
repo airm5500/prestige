@@ -11,14 +11,15 @@
  * Joue a la souris et au clavier. Tout ce que le test pose est retire a la fin, notifications comprises.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 400) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
+const BASE = ENV_E2E.BASE;
 const MB4 = '--default-character-set=utf8mb4';
-const exec = (s) => execFileSync('mariadb', [MB4, BASE, '-e', s], { encoding: 'utf8' });
-const q = (s) => execFileSync('mariadb', [MB4, BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, MB4, BASE, '-e', s], { encoding: 'utf8' });
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, MB4, BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const CLIENT = 'E2E-RN-CLIENT';
 const REFUS = 'E2E-RN-REFUS';
 const NOM = 'ZZRENOUVELLE';
@@ -41,7 +42,7 @@ function nettoyer() {
     + "UPDATE t_client SET bool_CONSENT_SMS = 0 WHERE lg_CLIENT_ID = '" + REFUS + "';");
   const produit = q("SELECT f.str_NAME FROM t_famille f JOIN t_famille_stock s ON s.lg_FAMILLE_ID = f.lg_FAMILLE_ID"
     + " WHERE s.int_NUMBER_AVAILABLE > 5 AND f.str_STATUT = 'enable' AND f.str_NAME LIKE 'DOLIPRANE 1G%' LIMIT 1");
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await (await b.newContext({ viewport: { width: 1600, height: 1000 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   try {

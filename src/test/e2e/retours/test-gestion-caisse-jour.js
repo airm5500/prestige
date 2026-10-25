@@ -2,13 +2,14 @@
  * (Du = Au = aujourd'hui) et la premiere recherche porte sur le jour ; l'utilisateur peut toujours elargir.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 400) + ']' : '')); }
 const LOGIN = process.env.E2E_LOGIN || 'admin';
 
 (async () => {
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await (await b.newContext({ viewport: { width: 1500, height: 950 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   const requetes = [];

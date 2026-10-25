@@ -11,12 +11,13 @@
  *  - aucune erreur JavaScript, aucune fenetre du navigateur.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const { connexion, ouvrirMenu } = require('../outils/vues');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const BASE = ENV_E2E.BASE;
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const CAMP = 'E2E-CSUIVI', TEXTE = 'E2ETEXTESECRETREPONSE';
 const CLIENTS = [['LU', '22990000901'], ['DELIVRE', '22990000902'], ['ENVOYE', '22990000903'], ['ECHEC', '22990000904'], ['EXCLU', '22990000905']];
 
@@ -42,7 +43,7 @@ function nettoyer() {
   q(`INSERT INTO whatsapp_discussion (numero, sens, type, texte, created_at) VALUES ('22990000901', 'E', 'TEXTE', '${TEXTE}', NOW()),`
     + ` ('22990000902', 'E', 'TEXTE', '${TEXTE}', NOW() - INTERVAL 3 HOUR)`);
 
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await (await b.newContext({ viewport: { width: 1600, height: 1000 } })).newPage();
   const erreurs = [], dialogues = [];
   let reponseSuivi = '';

@@ -12,6 +12,7 @@
  *  - aucune fenetre, aucune erreur JavaScript ; le texte du message n'apparait pas dans les journaux.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync, spawn } = require('child_process');
 const crypto = require('crypto');
 const fs = require('fs');
@@ -20,15 +21,15 @@ const privilegeEssai = require('../support/privilege-essai');
 
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 400) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
-const exec = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
+const BASE = ENV_E2E.BASE;
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
 const URL = 'http://localhost:8080/prestige';
 const LOG = '/opt/payara5/glassfish/domains/domain1/logs/server.log';
 const droit = privilegeEssai(q, exec, 'admin', 'P_SM_CAMPAGNES');
 const JETON = 'jeton-essai-pj-' + Date.now();
 const PORT = 3012;
-const DOSSIER = fs.mkdtempSync('/tmp/wa-pj-');
+const DOSSIER = fs.mkdtempSync(ENV_E2E.TMP + '/wa-pj-');
 const TRACE = path.join(DOSSIER, 'trace.jsonl');
 const lit = (s) => (s === undefined || s === 'NULL' || s === '' ? 'NULL' : "'" + s.replace(/'/g, "''") + "'");
 
@@ -62,7 +63,7 @@ function nettoyer(debut) {
   const service = (methode, route, corps) => fetch('http://127.0.0.1:' + PORT + route, { method: methode,
     headers: { Authorization: 'Bearer ' + JETON, 'Content-Type': 'application/json' }, body: corps ? JSON.stringify(corps) : undefined }).then((r) => r.json());
 
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const dialogues = [], err = [];
   try {
     await new Promise((r) => setTimeout(r, 1500));

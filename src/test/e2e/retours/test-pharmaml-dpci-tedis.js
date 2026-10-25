@@ -11,12 +11,13 @@
  *  - commandes d'essai retirees, adresses des grossistes remises.
  */
 const { execFileSync } = require('child_process');
+const ENV_E2E = require('../outils/poste');
 const http = require('http');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 500) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const exec = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const BASE = ENV_E2E.BASE;
+const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const PORT = 18767, CMD = 'E2E-PM2-CMD';
 const GROSSISTES = { DPCI: '51217123242587374880', TEDIS: '51217123531215794892' };
 const recus = [], entetes = [];
@@ -60,7 +61,7 @@ const url = (G, u) => exec("UPDATE t_grossiste SET str_URL_PHARMAML = " + (u ===
   }
   P = q("SELECT GROUP_CONCAT(lg_FAMILLE_ID ORDER BY str_NAME SEPARATOR '|') FROM (SELECT lg_FAMILLE_ID, str_NAME FROM t_famille WHERE str_STATUT='enable' AND int_CIP REGEXP '^[0-9]{7}$' ORDER BY str_NAME LIMIT 2) x").split('|');
   const { chromium } = require('playwright-core');
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await b.newPage();
   const envoyer = () => p.evaluate(async (id) => { const t0 = Date.now(); const r = await (await fetch('../api/v1/pharma/' + id, { method: 'PUT' })).text(); return { r, ms: Date.now() - t0 }; }, CMD);
   try {
@@ -165,7 +166,7 @@ const url = (G, u) => exec("UPDATE t_grossiste SET str_URL_PHARMAML = " + (u ===
     ok('Fiche (écran) : la version réellement réglée est affichée (3.0.0.0 forcée pour l\'essai), plus de retour à la valeur par défaut', ecran.cmde === '3.0.0.0', JSON.stringify(ecran));
     ok('Fiche (écran) : « Contrôle PharmaML » de DPCI affiché (Spécification CSRP), libellé entier', ecran.controle === 'CSRP' && /Spécification CSRP/.test(ecran.controleTexte) && !ecran.controleTronque, JSON.stringify(ecran));
     ok('Fiche (écran) : champ « Lien PharmaML de secours » visible sans défiler, rempli, modifiable, adresse invalide signalée, libellé entier', ouvert === 'ok' && ecran.v === 'http://dpciml.dpci.ci/PharmaML/' && ecran.visible && ecran.actif && ecran.inval && ecran.valide && !ecran.tronque, ouvert + ' ' + JSON.stringify(ecran));
-    await p.screenshot({ path: (process.env.SORTIE || '/tmp') + '/grossiste-url-secours.png' });
+    await p.screenshot({ path: (process.env.SORTIE || ENV_E2E.TMP) + '/grossiste-url-secours.png' });
     /* 08/10 : case « Interroger la disponibilité » (cochée pour DPCI), decochee puis enregistree par le bouton de la fiche */
     const caseDispo = await p.evaluate(() => { const c = Ext.getCmp('int_PHARMAML_DISPO'); const box = c.getEl().dom.getBoundingClientRect(), corps = c.up('window').body.dom.getBoundingClientRect();
       const lab = c.getEl().dom.querySelector('.x-form-cb-label');

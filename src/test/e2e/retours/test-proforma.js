@@ -4,19 +4,20 @@
  * fois ; puis le retrait d'une ligne et la remise, qui passent par le meme controle. Les proformas posees sont
  * retirees a la fin. */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 320) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const exec = (s) => execFileSync('mariadb', [BASE, '-e', s], { encoding: 'utf8' });
-const q = (s) => execFileSync('mariadb', [BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const BASE = ENV_E2E.BASE;
+const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, BASE, '-e', s], { encoding: 'utf8' });
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const ventes = [];
 function retirer() {
   ventes.filter(Boolean).forEach(id => exec("DELETE FROM t_preenregistrement_detail WHERE lg_PREENREGISTREMENT_ID='" + id + "'; DELETE FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID='" + id + "';"));
 }
 
 (async () => {
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await b.newPage({ viewport: { width: 1600, height: 900 } });
   const err = []; p.on('pageerror', e => err.push(String(e.message)));
   try {
@@ -103,7 +104,7 @@ function retirer() {
     const apres2 = await etatEcran();
     if (apres2.venteId) { ventes.push(apres2.venteId); }
     ok('Ecran proforma : le deuxieme produit entre aussi, sans message de vente cloturee', apres2.lignes === 2 && !apres2.boite && !/clôturée/.test(apres2.texte), JSON.stringify(apres2));
-    await p.screenshot({ path: '/tmp/proforma.png' });
+    await p.screenshot({ path: ENV_E2E.TMP + '/proforma.png' });
     ok('Ecran proforma : les deux lignes sont en base', !apres2.venteId || q("SELECT COUNT(*) FROM t_preenregistrement_detail WHERE lg_PREENREGISTREMENT_ID='" + apres2.venteId + "'") === '2', String(apres2.venteId));
 
     /* ------------------------------------------------ une vente cloturee reste protegee */

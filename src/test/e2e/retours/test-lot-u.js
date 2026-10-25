@@ -9,14 +9,15 @@
  * Les donnees posees (vente cloturee, lots) sont retirees a la fin.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync, execSync } = require('child_process');
 const fs = require('fs');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 320) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const q = (s) => execFileSync('mariadb', [BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
-const exec = (s) => execFileSync('mariadb', [BASE, '-e', s], { encoding: 'utf8' });
-const TMP = '/tmp/lot-u';
+const BASE = ENV_E2E.BASE;
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, BASE, '-e', s], { encoding: 'utf8' });
+const TMP = ENV_E2E.TMP + '/lot-u';
 fs.mkdirSync(TMP, { recursive: true });
 const VENTE = 'E2ELU-VT', LOT = 'E2ELU-LOT';
 
@@ -64,7 +65,7 @@ function poserLots(ps) {
   const jour = q("SELECT DATE_SUB(LEAST(DATE_SUB(CURDATE(), INTERVAL 420 DAY), IFNULL((SELECT DATE(MIN(dt_CREATED)) FROM t_preenregistrement), CURDATE())), INTERVAL 30 DAY)");
   const ps = poserVente(jour);
   poserLots(ps);
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const ctx = await b.newContext({ viewport: { width: 1600, height: 900 }, acceptDownloads: true });
   const p = await ctx.newPage();
   const err = []; p.on('pageerror', e => err.push(String(e.message)));

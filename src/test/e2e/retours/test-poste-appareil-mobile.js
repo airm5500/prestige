@@ -9,6 +9,7 @@
  *  - aucune erreur JavaScript, aucune fenetre. Rien n'est ecrit en base.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { connexion } = require('../outils/vues');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
@@ -16,7 +17,7 @@ const ANDROID = 'Mozilla/5.0 (Linux; Android 11; V2s Build/RKQ1) AppleWebKit/537
 const BUREAU = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
 (async () => {
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const erreurs = [], dialogues = [];
   const page = async (ua, nom) => {
     const ctx = await b.newContext({ viewport: { width: 1280, height: 800 }, userAgent: ua });

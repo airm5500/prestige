@@ -9,12 +9,13 @@
  *  - mise en page : en-tetes entiers, pas de defilement horizontal ; aucune erreur JavaScript. Lecture seule.
  */
 const { execFileSync } = require('child_process');
+const ENV_E2E = require('../outils/poste');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 500) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
-const exec = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
-const SORTIE = process.env.SORTIE || '/tmp';
+const BASE = ENV_E2E.BASE;
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
+const SORTIE = process.env.SORTIE || ENV_E2E.TMP;
 
 const EMP = q("SELECT lg_EMPLACEMENT_ID FROM t_user WHERE str_LOGIN = 'admin'");
 const ENTREES = "(SELECT w.lg_FAMILLE_ID, MAX(w.dt_CREATED) derniere FROM t_warehouse w JOIN t_user wu ON wu.lg_USER_ID = w.lg_USER_ID"
@@ -43,7 +44,7 @@ const retirerEssai = () => exec("DELETE FROM t_warehouse WHERE lg_WAREHOUSE_ID L
   ESSAI.forEach((id, i) => exec("INSERT INTO t_warehouse (lg_WAREHOUSE_ID, lg_USER_ID, lg_FAMILLE_ID, int_NUMBER, dt_CREATED, dt_UPDATED, str_STATUT)"
     + " VALUES ('e2e-dormant-" + i + "', '" + ADMIN + "', '" + id + "', " + (i + 2) + ", CURDATE() - INTERVAL 200 DAY, CURDATE() - INTERVAL 200 DAY, 'enable')"));
   const { chromium } = require('playwright-core');
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await (await b.newContext({ viewport: { width: 1366, height: 768 }, acceptDownloads: true })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   const charge = () => p.waitForFunction(() => { const d = Ext.ComponentQuery.query('articlesdormants')[0]; return d && !d.store.isLoading() && d.down('#totaux').getEl().dom.textContent.length > 0; }, null, { timeout: 120000 });

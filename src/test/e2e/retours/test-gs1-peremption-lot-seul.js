@@ -10,12 +10,13 @@
  *  - non-regression : un vrai CIP est toujours trouve a la vente ; aucune vente creee. Parametre remis.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const { connexion, ouvrirMenu, cliquer } = require('../outils/vues');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const BASE = ENV_E2E.BASE;
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 /* code-barres « date + lot » seul : (17) 01/01/2027, (10) lot 012402264447 ; aucun « 240 » dans le lot. (Le code
    1727010110012402264447 du 24/10 etait en fait une etiquette Prestige au separateur perdu : test-gs1-separateur-perdu.js) */
 const CODE = '1727010110012402264447'.replace('2402264447', '02264447');
@@ -25,7 +26,7 @@ const compte = () => q('SELECT COUNT(*) FROM t_preenregistrement_detail');
 (async () => {
   q("UPDATE t_parameters SET str_VALUE = '1' WHERE str_KEY = 'KEY_VENTE_LECTURE_GS1'");
   const avant = compte();
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await (await b.newContext({ viewport: { width: 1600, height: 900 } })).newPage();
   const erreurs = []; p.on('pageerror', (e) => erreurs.push(e.message));
   try {

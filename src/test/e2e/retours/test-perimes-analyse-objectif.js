@@ -7,10 +7,11 @@
  * L'objectif d'origine est remis.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', process.env.DB_TEST || 'capitale', '-sN'], { input: s, encoding: 'utf8' }).trim();
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', ENV_E2E.BASE, '-sN'], { input: s, encoding: 'utf8' }).trim();
 const USER = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = 'admin'");
 const P = q(`SELECT lg_FAMILLE_ID, int_PRICE FROM t_famille WHERE str_STATUT = 'enable' AND int_PRICE > 1000 ORDER BY lg_FAMILLE_ID LIMIT 3`).split('\n').map((l) => l.split('\t'));
 /* P[0] 2 fois (1 + 1 unite), P[1] une fois 6 unites : P[1] pese plus en valeur si son prix le permet, P[0] est le plus frequent */
@@ -20,7 +21,7 @@ const OBJECTIF0 = q("SELECT IFNULL((SELECT str_VALUE FROM t_parameters WHERE str
 const nettoyer = () => q("DELETE FROM t_warehouse WHERE lg_WAREHOUSE_ID LIKE 'E2E-PEO-%'");
 
 (async () => {
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await (await b.newContext({ viewport: { width: 1600, height: 950 } })).newPage();
   const err = [], dialogues = [];
   p.on('pageerror', (e) => err.push(String(e.message)));

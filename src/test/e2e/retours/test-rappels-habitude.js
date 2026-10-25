@@ -13,13 +13,14 @@
  *  - jeu d'essai retire, lignes et statuts d'avant remis ; aucune erreur JavaScript.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 400) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
-const exec = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
+const BASE = ENV_E2E.BASE;
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
 
 const A = 'E2E-HAB-CLIENT-A', B = 'E2E-HAB-CLIENT-B';
 const clients = "('" + A + "','" + B + "')";
@@ -70,7 +71,7 @@ function nettoyer() {
     + vente('E2E-HAB-V7', B, P1, '2026-05-13') + vente('E2E-HAB-V8', B, P1, '2026-06-12') + vente('E2E-HAB-V9', B, P1, '2026-07-12'));
   ok('Fiche client : « médicaments dans les messages » coché par défaut (nouveau client)', q("SELECT bool_MSG_MEDICAMENTS FROM t_client WHERE lg_CLIENT_ID = '" + A + "'") === '1');
 
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await (await b.newContext({ viewport: { width: 1600, height: 1000 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   const post = (u, corps) => p.evaluate(async ([u, c]) => JSON.parse(await (await fetch(u, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(c || []) })).text()), [u, corps]);

@@ -9,6 +9,7 @@
  *  - aucune fenetre, aucune erreur JavaScript ; donnees du test retirees.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const fs = require('fs');
 const crypto = require('crypto');
@@ -16,9 +17,9 @@ const privilegeEssai = require('./privilege-essai');
 
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
-const exec = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
+const BASE = ENV_E2E.BASE;
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
 const DOMAIN = '/opt/payara5/glassfish/domains/domain1/config/domain.xml';
 const empreinte = (f) => crypto.createHash('sha256').update(fs.readFileSync(f)).digest('hex');
 const droit = privilegeEssai(q, exec, 'admin', 'P_SM_SUPPORT_SERVEUR');
@@ -33,7 +34,7 @@ const HOTE_ESSAI = 'E2E-SERVEUR';
   exec(`INSERT INTO t_serveur_vie (hote, pid, demarre_at, dernier_signe_at, arret, cause_code, cause_libelle, cause_explication, cause_conseil, indisponibilite_min, java_version, memoire_max_mo)
         VALUES ('${HOTE_ESSAI}', 1, NOW() - INTERVAL 3 DAY, NOW() - INTERVAL 3 DAY + INTERVAL 2 HOUR, 'BRUTAL', 'COUPURE_COURANT', 'Coupure de courant ou arrêt brutal de la machine',
         'Windows a redémarré sans arrêt propre (événement 41 Kernel-Power).', 'Un onduleur protège la base et les ventes en cours.', 12, '11', 2048)`);
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const dialogues = [], err = [];
   const ouvrir = async (p) => {
     p.on('dialog', (d) => { dialogues.push(d.message()); d.dismiss().catch(() => {}); });

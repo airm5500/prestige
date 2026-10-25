@@ -17,12 +17,13 @@
  * Tout le jeu d'essai est retire, le stock du produit remis.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
-const exec = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
+const BASE = ENV_E2E.BASE;
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
 const M = 'E2E-RM-', REF = 'E2E-RM-BL1', NOTE = 'E2E-RM-RETOUR';
 const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = 'admin'");
 const AUTRE_USER = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN <> 'admin' AND str_STATUT = 'enable' LIMIT 1");
@@ -69,7 +70,7 @@ function poser() {
   retirer();
   try { poser(); } catch (e) { retirer(); throw e; }
   const peremption = q("SELECT DATE_FORMAT(CURDATE() + INTERVAL 3 MONTH, '%Y-%m-%d')");
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   let p;
   const connecter = async () => {
     p = await (await b.newContext()).newPage();

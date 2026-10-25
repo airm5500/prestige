@@ -8,12 +8,13 @@
  * en PDF dans un onglet (inline), avec les memes ventes que la liste.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 400) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const q = (s) => execFileSync('mariadb', [BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const BASE = ENV_E2E.BASE;
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 
 /* periodes calculees depuis aujourd'hui (et non figees) : P = les deux mois precedents, M = le mois precedent */
 const [P_DEB, P_FIN, M_DEB, M_FIN, M_FIN_EXCL, J10] = q("SELECT CONCAT_WS('|',"
@@ -26,7 +27,7 @@ const date = (iso) => { const [a, m, j] = iso.split('-').map(Number); return [a,
   const tp = q("SELECT lg_TIERS_PAYANT_ID FROM v_facture_subrogatoire WHERE dt_UPDATED>='" + M_DEB + "' AND dt_UPDATED<'" + M_FIN_EXCL + "'"
     + " GROUP BY lg_TIERS_PAYANT_ID ORDER BY COUNT(*) DESC LIMIT 1");
   const ref = q("SELECT str_REF FROM v_facture_subrogatoire WHERE dt_UPDATED>='" + J10 + "' AND dt_UPDATED<'" + J10 + "' + INTERVAL 1 DAY AND int_PRICE>0 LIMIT 1");
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await b.newPage({ viewport: { width: 1600, height: 950 } });
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   try {

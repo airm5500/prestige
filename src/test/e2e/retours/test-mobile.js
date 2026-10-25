@@ -12,12 +12,13 @@
  * pointage par code saisi, liste du jour) ; aucune erreur JavaScript.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 400) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
-const exec = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
+const BASE = ENV_E2E.BASE;
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
 const URL = 'http://localhost:8080/prestige';
 const API = URL + '/api/v1/mobile/';
 const APPAREIL = 'e2e-mobile-appareil', APPAREIL2 = 'e2e-mobile-page';
@@ -50,7 +51,7 @@ async function appel(chemin, o) {
   const famille = q("SELECT lg_FAMILLE_ID FROM t_famille WHERE str_STATUT = 'enable' AND int_CIP REGEXP '^[0-9]{7}$' ORDER BY lg_FAMILLE_ID LIMIT 1");
   const cip = q("SELECT int_CIP FROM t_famille WHERE lg_FAMILLE_ID = '" + famille + "'");
   const imagesAvant = q("SELECT IFNULL(GROUP_CONCAT(lg_ID), '') FROM t_famille_image WHERE lg_FAMILLE_ID = '" + famille + "'");
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const err = [];
   try {
     PARAMS.forEach((k) => param(k, { KEY_MOBILE_ACTIF: '1', KEY_RH_MOBILE_POINTAGE: '1', KEY_RH_MOBILE_QR: '1', KEY_RH_MOBILE_GPS: '0', KEY_RH_MOBILE_LATITUDE: '', KEY_RH_MOBILE_LONGITUDE: '', KEY_RH_MOBILE_RAYON_M: '150' }[k]));
@@ -157,7 +158,7 @@ async function appel(chemin, o) {
       const g = r.down('#grilleTerminaux'); return { code: (z.querySelector('.rh-qr-code') || {}).textContent, svg: !!z.querySelector('svg rect, svg path'),
         tel: g.getStore().findBy((x) => x.get('appareil') === 'Téléphone essai') >= 0 }; });
     ok('Onglet « Pointage mobile » : QR code, code lisible, téléphone listé', ecran.svg && /^[A-Z2-9]{6}$/.test(ecran.code || '') && ecran.tel, JSON.stringify(ecran));
-    await p.screenshot({ path: (process.env.SORTIE || '/tmp') + '/mobile-rh.png' });
+    await p.screenshot({ path: (process.env.SORTIE || ENV_E2E.TMP) + '/mobile-rh.png' });
 
     /* retirer / reactiver le telephone depuis l'ecran */
     const tid = q("SELECT id FROM t_mobile_terminal WHERE appareil = '" + APPAREIL + "'");
@@ -201,7 +202,7 @@ async function appel(chemin, o) {
     await m.waitForTimeout(800);
     const apres = await m.evaluate(() => ({ msg: document.getElementById('message').textContent, n: document.querySelectorAll('#lPointages li:not(.vide)').length, accueil: !document.getElementById('vAccueil').hidden }));
     ok('Page mobile : code faux refusé, code du moment accepté, liste à jour', resteSurScan && /invalide/.test(msgFaux) && /Entrée enregistrée/.test(apres.msg) && apres.n === 3 && apres.accueil, msgFaux + ' / ' + JSON.stringify(apres));
-    await m.screenshot({ path: (process.env.SORTIE || '/tmp') + '/mobile-page.png' });
+    await m.screenshot({ path: (process.env.SORTIE || ENV_E2E.TMP) + '/mobile-page.png' });
     await m.fill('#rProduit', cip);
     await m.waitForSelector('#lProduits li.produit', { timeout: 10000 });
     await m.click('#lProduits li.produit');

@@ -24,6 +24,7 @@
  *   [VENTE_UI3=<reference de la vente>] node ui-caisse-deconditionnement.js
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('./outils/poste');
 const { connexion, ouvrirMenu, cliquer, attendreMessage, repondre, texteMessage } = require('./outils/vues');
 
 const LOGIN = process.env.LOGIN;
@@ -31,7 +32,7 @@ const PASSWORD = process.env.PASSWORD;
 const CIP = process.env.CIP;
 const QTE_VENDABLE = parseInt(process.env.QTE_VENDABLE || '100', 10);
 const VENTE_UI3 = process.env.VENTE_UI3;
-const CHROMIUM = process.env.CHROMIUM || '/opt/pw-browsers/chromium';
+const CHROMIUM = ENV_E2E.CHROMIUM;
 const results = [];
 const ventesCreees = [];
 

@@ -10,12 +10,13 @@
  * Lignes d'essai retirees.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const { connexion, ouvrirMenu, cliquer, choisir, saisir } = require('../outils/vues');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const BASE = ENV_E2E.BASE;
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const [BL, PRODUIT, G] = q("SELECT CONCAT_WS('|', b.lg_BON_LIVRAISON_ID, d.lg_FAMILLE_ID, o.lg_GROSSISTE_ID) FROM t_bon_livraison b JOIN t_order o ON o.lg_ORDER_ID = b.lg_ORDER_ID"
   + " JOIN t_bon_livraison_detail d ON d.lg_BON_LIVRAISON_ID = b.lg_BON_LIVRAISON_ID WHERE b.str_STATUT = 'is_Closed' ORDER BY b.dt_CREATED DESC LIMIT 1").split('|');
 const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = 'admin'");
@@ -26,7 +27,7 @@ const retirer = () => q("DELETE FROM t_reception_peremption_courte WHERE id LIKE
   q(`INSERT INTO t_reception_peremption_courte (id, lg_BON_LIVRAISON_ID, lg_FAMILLE_ID, lg_GROSSISTE_ID, num_lot, dt_peremption, jours_restants, quantite, valeur, decision, motif, statut, lg_USER_ID, created_at)`
     + ` VALUES ('E2E-PC-1', '${BL}', '${PRODUIT}', '${G}', 'E2EPC1', CURDATE() + INTERVAL 60 DAY, 60, 4, 12000, 'ACCEPTE', 'E2E accepté', 'A_TRAITER', '${ADMIN}', NOW()),`
     + ` ('E2E-PC-2', '${BL}', '${PRODUIT}', '${G}', 'E2EPC2', CURDATE() + INTERVAL 30 DAY, 30, 2, 5000, 'REFUSE', 'E2E refusé', 'RECLAME', '${ADMIN}', NOW())`);
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await (await b.newContext({ viewport: { width: 1600, height: 900 }, acceptDownloads: true })).newPage();
   const erreurs = []; p.on('pageerror', (e) => erreurs.push(e.message));
   const grille = () => p.evaluate(() => { const g = Ext.ComponentQuery.query('peremptionscourtes gridpanel')[0], s = g.getStore();

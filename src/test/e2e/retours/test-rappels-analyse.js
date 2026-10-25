@@ -7,11 +7,12 @@
  * Jeu d'essai : un client et cinq rappels (tous statuts, un envoi), un modele WhatsApp ; tout est retire a la fin.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 400) + ']' : '')); }
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', process.env.DB_TEST || 'capitale', '-sN'], { input: s, encoding: 'utf8' }).trim();
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', ENV_E2E.BASE, '-sN'], { input: s, encoding: 'utf8' }).trim();
 const T = String(Date.now()).slice(-7), C = 'E2E-RPA-' + T, NOM = 'ZZRAPPEL', PRENOM = 'ANALYSE' + T, MWA = 'E2E-RPA-WA-' + T;
 const [P1, P2] = q("SELECT f.lg_FAMILLE_ID FROM t_famille f WHERE f.str_STATUT = 'enable' AND f.int_CIP <> '' AND f.str_NAME REGEXP '^[A-Z]{3}' ORDER BY f.str_NAME LIMIT 2").split('\n');
 const R = (i) => C + '-' + i;
@@ -35,7 +36,7 @@ function nettoyer() {
 }
 
 (async () => {
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const ctx = await b.newContext({ viewport: { width: 1500, height: 900 }, acceptDownloads: true });
   const p = await ctx.newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
@@ -69,8 +70,8 @@ function nettoyer() {
       await pop.close().catch(() => {}); return p.evaluate(() => window.__ouverts[window.__ouverts.length - 1]); };
     const urlPdf = await ouvrir('btnPdf');
     const pdf = await p.evaluate(async (u) => { const r = await fetch(u); const a = new Uint8Array(await r.arrayBuffer()); return { type: r.headers.get('content-type'), b: Array.from(a) }; }, urlPdf);
-    require('fs').writeFileSync('/tmp/e2e-rappels.pdf', Buffer.from(pdf.b));
-    const texte = execFileSync('pdftotext', ['-layout', '/tmp/e2e-rappels.pdf', '-'], { encoding: 'utf8' });
+    require('fs').writeFileSync(ENV_E2E.TMP + '/e2e-rappels.pdf', Buffer.from(pdf.b));
+    const texte = execFileSync('pdftotext', ['-layout', ENV_E2E.TMP + '/e2e-rappels.pdf', '-'], { encoding: 'utf8' });
     ok('Imprimer : PDF de la liste affichée (titre, critères, 5 lignes de l\'essai)', /pdf/.test(pdf.type) && /RAPPELS DE TRAITEMENT/.test(texte) && /Tous les statuts/.test(texte)
       && texte.split('\n').filter((x) => /^\s*\d\d\/\d\d\/\d{4}/.test(x) && x.indexOf(PRENOM) >= 0).length === 5 && /5 ligne\(s\)/.test(texte), JSON.stringify({ type: pdf.type, n: (texte.match(new RegExp(PRENOM, 'g')) || []).length, lignes: /5 ligne\(s\)/.test(texte), tous: /Tous les statuts/.test(texte) }));
     const urlCsv = await ouvrir('btnCsv');

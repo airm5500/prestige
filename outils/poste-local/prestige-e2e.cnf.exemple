@@ -1,0 +1,10 @@
+# Options du client mariadb pour les tests d'ecran sur le poste local.
+# Copier ce fichier vers %USERPROFILE%\.prestige-e2e.cnf (hors du depot), puis remplacer le mot de passe.
+# Les tests le passent au client par --defaults-extra-file (voir src/test/e2e/outils/poste.js).
+# Autre emplacement : variable MARIADB_OPTIONS.
+[client]
+user=claude_banc
+password=MOT_DE_PASSE_DE_CLAUDE_BANC
+host=127.0.0.1
+port=3306
+default-character-set=utf8mb4

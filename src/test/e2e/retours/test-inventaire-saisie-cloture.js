@@ -8,12 +8,13 @@
  * La ligne et l'inventaire utilises sont remis exactement a l'identique.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
-const exec = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
+const BASE = ENV_E2E.BASE;
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
 const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = 'admin'");
 const [LIGNE, INV] = q("SELECT CONCAT_WS('|', f.lg_INVENTAIRE_FAMILLE_ID, f.lg_INVENTAIRE_ID) FROM t_inventaire_famille f JOIN t_inventaire i ON i.lg_INVENTAIRE_ID = f.lg_INVENTAIRE_ID"
   + " WHERE i.str_STATUT = 'enable' AND f.str_STATUT = 'enable' ORDER BY f.lg_INVENTAIRE_FAMILLE_ID LIMIT 1").split('|');
@@ -25,7 +26,7 @@ const remettre = () => exec(`UPDATE t_inventaire_famille SET int_NUMBER = ${AVAN
 const ligne = () => q(`SELECT CONCAT_WS('|', int_NUMBER, IFNULL(str_UPDATED_ID, '')) FROM t_inventaire_famille WHERE lg_INVENTAIRE_FAMILLE_ID = ${LIGNE}`);
 
 (async () => {
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await (await b.newContext()).newPage();
   const put = (corps) => p.evaluate(async (c) => { const r = await fetch('../api/v1/ws/inventaires/details', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(c) });
     const t = await r.text(); let j = null; try { j = JSON.parse(t); } catch (e) { /* vide */ } return { http: r.status, j }; }, corps);

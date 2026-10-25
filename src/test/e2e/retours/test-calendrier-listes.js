@@ -5,13 +5,14 @@
  * choix dans une liste a la souris et au clavier (fleche bas + Entree).
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 400) + ']' : '')); }
-const CAPT = process.env.CAPTURES || '/tmp';
+const CAPT = process.env.CAPTURES || ENV_E2E.TMP;
 
 (async () => {
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await b.newPage({ viewport: { width: 1400, height: 800 } });
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   try {

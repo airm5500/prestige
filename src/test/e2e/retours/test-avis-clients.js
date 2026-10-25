@@ -10,6 +10,7 @@
  * Avis, messages WhatsApp et reglages d'essai retires / remis a la fin.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const fs = require('fs');
 const os = require('os');
@@ -18,7 +19,7 @@ const privilegeEssai = require('../support/privilege-essai');
 
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 500) + ']' : '')); }
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', process.env.DB_TEST || 'capitale', '-sN'], { input: s, encoding: 'utf8' }).trim();
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', ENV_E2E.BASE, '-sN'], { input: s, encoding: 'utf8' }).trim();
 const DEBUT = q('SELECT NOW() - INTERVAL 1 SECOND');
 const PORT = 8090, PUBLIC = 'http://127.0.0.1:' + PORT;
 const CLES = ['KEY_AVIS_ADRESSE_PUBLIQUE', 'KEY_AVIS_PORT_PUBLIC', 'KEY_AVIS_JETON', 'KEY_AVIS_ACTIF', 'KEY_AVIS_MAX_HEURE', 'KEY_AVIS_ADRESSE_AFFICHEE'];
@@ -38,7 +39,7 @@ const decoder = (fichierPng) => execFileSync('python3', ['-I', '-c',
 const texteXls = (f) => execFileSync('python3', ['-I', '-c', "import sys,xlrd;s=xlrd.open_workbook(sys.argv[1]).sheet_by_index(0);print('\\n'.join('\\t'.join(str(c.value) for c in s.row(r)) for r in range(s.nrows)))", f], { encoding: 'utf8' });
 
 (async () => {
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const ctx = await b.newContext({ viewport: { width: 1500, height: 950 }, acceptDownloads: true });
   const p = await ctx.newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));

@@ -12,12 +12,13 @@
  *  - reponse en moins de 300 ms.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
-const exec = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
+const BASE = ENV_E2E.BASE;
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
 
 (async () => {
   const INV = q("SELECT i.lg_INVENTAIRE_ID FROM t_inventaire i JOIN t_inventaire_famille f ON f.lg_INVENTAIRE_ID = i.lg_INVENTAIRE_ID"
@@ -25,7 +26,7 @@ const exec = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', 
   const lignes = q("SELECT CONCAT_WS('|', lg_INVENTAIRE_FAMILLE_ID, int_NUMBER, IFNULL(dt_UPDATED, 'NULL'), IFNULL(str_UPDATED_ID, 'NULL'))"
     + " FROM t_inventaire_famille WHERE lg_INVENTAIRE_ID = '" + INV + "' AND bool_INVENTAIRE = 1 ORDER BY lg_INVENTAIRE_FAMILLE_ID LIMIT 3").split('\n').map((l) => l.split('|'));
   ok('Jeu d\'essai : un inventaire ouvert du banc, trois lignes à saisir', !!INV && lignes.length === 3, INV);
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await b.newPage({ viewport: { width: 1400, height: 900 } });
   const lire = (url, m, corps) => p.evaluate(async ([url, m, corps]) => { const t0 = performance.now(); const r = await fetch(url, { method: m || 'GET', headers: { 'Content-Type': 'application/json' }, body: corps ? JSON.stringify(corps) : undefined }); const t = await r.text(); let j = null; try { j = JSON.parse(t); } catch (e) { /* texte */ } return { s: r.status, j, ms: performance.now() - t0 }; }, [url, m, corps]);
   try {

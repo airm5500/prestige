@@ -9,11 +9,12 @@
  * Jeu d'essai (ventes, lignes de journal, caisse si besoin) retire a la fin ; stock remis.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 400) + ']' : '')); }
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', process.env.DB_TEST || 'capitale', '-sN'], { input: s, encoding: 'utf8' }).trim();
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', ENV_E2E.BASE, '-sN'], { input: s, encoding: 'utf8' }).trim();
 const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = 'admin'");
 const DEBUT = q('SELECT NOW() - INTERVAL 1 SECOND');
 const POSTE = 'E2E POSTE 7', CAISSE = 'e2e-jrn-caisse', MARQUE = 'E2E-JRN';
@@ -52,7 +53,7 @@ function nettoyer() {
 const ORD = {};
 
 (async () => {
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await (await b.newContext({ viewport: { width: 1600, height: 950 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   /* appels par Ext.Ajax, comme l'application : l'en-tete du poste y est ajoute */
@@ -187,8 +188,8 @@ const ORD = {};
     /* export Excel avec les nouvelles colonnes */
     const xlsx = await p.evaluate(async () => { const u = '../api/v1/common/logs/export-excel?' + Ext.Object.toQueryString({ dtStart: '2025-06-10', dtEnd: '2025-06-10', criteria: -1, query: '', userId: '', poste: 'E2E-POSTE-ALERTE' });
       return Array.from(new Uint8Array(await (await fetch(u)).arrayBuffer())); });
-    require('fs').writeFileSync('/tmp/e2e-journal.xlsx', Buffer.from(xlsx));
-    const lignes = JSON.parse(execFileSync('python3', ['-I', '-c', 'import sys, json, openpyxl\nw = openpyxl.load_workbook(sys.argv[1]).active\nprint(json.dumps([[("" if c is None else str(c)) for c in r] for r in w.iter_rows(values_only=True)]))', '/tmp/e2e-journal.xlsx'], { encoding: 'utf8' }));
+    require('fs').writeFileSync(ENV_E2E.TMP + '/e2e-journal.xlsx', Buffer.from(xlsx));
+    const lignes = JSON.parse(execFileSync('python3', ['-I', '-c', 'import sys, json, openpyxl\nw = openpyxl.load_workbook(sys.argv[1]).active\nprint(json.dumps([[("" if c is None else str(c)) for c in r] for r in w.iter_rows(values_only=True)]))', ENV_E2E.TMP + '/e2e-journal.xlsx'], { encoding: 'utf8' }));
     const entete = lignes.find((l) => l.indexOf('Poste') >= 0) || [];
     ok('Export Excel : colonnes Poste, Adresse IP, Application, Avant / après ; filtre de poste appliqué', ['Poste', 'Adresse IP', 'Application', 'Avant / après'].every((c) => entete.indexOf(c) >= 0)
       && lignes.filter((l) => l.indexOf('E2E-POSTE-ALERTE') >= 0).length === 4, JSON.stringify(entete));

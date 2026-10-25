@@ -1,8 +1,9 @@
 /* Appelle une API dans la session KGA3 : node support/appel-api.js <methode> <url relative a /prestige/general/> [corpsJson] */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 (async () => {
   const [methode, url, corps] = process.argv.slice(2);
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await b.newPage();
   await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
   await p.fill('#str_login', process.env.E2E_LOGIN || 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');

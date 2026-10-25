@@ -19,14 +19,15 @@
  *  - les editions des deux onglets repondent et portent leurs colonnes.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 330) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
+const BASE = ENV_E2E.BASE;
 const MB4 = '--default-character-set=utf8mb4';
-const exec = (s) => execFileSync('mariadb', [MB4, BASE, '-e', s], { encoding: 'utf8' });
-const q = (s) => execFileSync('mariadb', [MB4, BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, MB4, BASE, '-e', s], { encoding: 'utf8' });
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, MB4, BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 
 function texteDuPdf(octets) {
   const zlib = require('zlib');
@@ -50,7 +51,7 @@ function texteDuPdf(octets) {
 (async () => {
   /* On repart d'une table de photos vide : le test doit constater que l'ecran n'y ecrit PLUS rien. */
   exec("DELETE FROM pilotage_stock_mensuel;");
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const ctx = await b.newContext({ viewport: { width: 1700, height: 1000 } });
   const p = await ctx.newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));

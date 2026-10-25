@@ -7,12 +7,13 @@
  * Seuls des identifiants de client sont lus (aucune colonne nominative). Mesures et ordonnances d'essai retirees.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const { connexion } = require('../outils/vues');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const BASE = ENV_E2E.BASE;
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const CLIENT = q("SELECT lg_CLIENT_ID FROM t_client ORDER BY lg_CLIENT_ID LIMIT 1");
 const NOTE = 'E2E-D19', LIB = 'E2E D19 PREPARATION';
 const ordonnances = () => q(`SELECT IFNULL(GROUP_CONCAT(DISTINCT d.lg_ORDONNANCE_ID), '') FROM t_ordonnance_client_detail d WHERE d.str_LIBELLE = '${LIB}'`);
@@ -24,7 +25,7 @@ const retirer = () => {
 
 (async () => {
   retirer();
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await b.newPage();
   const post = (u, c, cle) => p.evaluate(async ([u, c, k]) => { const r = await fetch(u, { method: 'POST', headers: Object.assign({ 'Content-Type': 'application/json' }, k ? { 'X-Client-Ref': k } : {}), body: JSON.stringify(c) });
     return r.json(); }, [u, c, cle]);

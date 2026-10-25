@@ -8,10 +8,11 @@
  * Le parametre est remis a sa valeur d'origine a la fin (et la minute de cache attendue).
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 300) + ']' : '')); }
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', process.env.DB_TEST || 'capitale', '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', ENV_E2E.BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const URL = 'http://localhost:8080/prestige/';
 const API = URL + 'api/';
 const CLE = 'KEY_DUREE_SESSION_MINUTES';
@@ -21,7 +22,7 @@ const cookieSession = (r) => (r.headers.getSetCookie ? r.headers.getSetCookie() 
 (async () => {
   const origine = q(`SELECT COALESCE((SELECT str_VALUE FROM t_parameters WHERE str_KEY = '${CLE}'), '__absent__')`);
   ok('Paramètre de durée présent (720 min par défaut)', origine !== '__absent__', origine);
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const dialogues = [];
   try {
     /* 1. aucun appel public ne cree de session */

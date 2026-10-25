@@ -20,12 +20,13 @@
  *  - les deux postes confirment en meme temps : aucun message d'erreur, commande supprimee.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const { connexion, ouvrirMenu, cliquer, texteMessage } = require('../outils/vues');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const BASE = ENV_E2E.BASE;
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const IDS = ['E2E-CMD-DBL-1', 'E2E-CMD-DBL-2', 'E2E-CMD-DBL-3'];
 const REF = (id) => id.replace(/-/g, '');
 const liste = "('" + IDS.join("', '") + "')";
@@ -107,7 +108,7 @@ async function confirmer(p, id) {
 
 (async () => {
   nettoyer(); creer();
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   try {
     for (const largeur of [1366, 1600, 1920]) {
       const p = await poste(b, largeur);

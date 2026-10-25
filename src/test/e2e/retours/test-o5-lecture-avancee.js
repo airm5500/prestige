@@ -11,13 +11,14 @@
  * Les lignes de journal du test sont retirees.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const fs = require('fs');
 const http = require('http');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const BASE = ENV_E2E.BASE;
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const CONF = process.env.LECTURE_CONF || '/root/prestige/config/lecture-avancee.properties';
 const DEBUT = q('SELECT NOW() - INTERVAL 1 SECOND');
 const PORT = 18734;
@@ -43,7 +44,7 @@ const faux = http.createServer((req, rep) => {
 (async () => {
   const avant = fs.existsSync(CONF) ? fs.readFileSync(CONF) : null;
   await new Promise((r) => faux.listen(PORT, '127.0.0.1', r));
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await (await b.newContext()).newPage();
   const lire = (type, taille) => p.evaluate(async ([type, taille]) => {
     const c = document.createElement('canvas'); c.width = taille; c.height = taille; const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, taille, taille); x.fillStyle = '#000'; x.fillText('AMOXICILLINE 1g', 5, 20);
@@ -91,7 +92,7 @@ const faux = http.createServer((req, rep) => {
     if (avant !== null) { fs.writeFileSync(CONF, avant); } else if (fs.existsSync(CONF)) { fs.unlinkSync(CONF); }
     await b.close();
     faux.close();
-    execFileSync('mariadb', [BASE, '-e', `DELETE FROM mobile_lecture_avancee_journal WHERE horodatage >= '${DEBUT}'`]);
+    execFileSync('mariadb', [...ENV_E2E.MARIADB, BASE, '-e', `DELETE FROM mobile_lecture_avancee_journal WHERE horodatage >= '${DEBUT}'`]);
     ok('Configuration et journal du test retirés', !fs.existsSync(CONF) || avant !== null);
   }
   const ko = res.filter((x) => !x.c).length;

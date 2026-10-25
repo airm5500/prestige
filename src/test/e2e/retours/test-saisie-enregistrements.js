@@ -10,9 +10,10 @@
  * Tout ce qui est cree par l'essai est retire a la fin (marqueur ZZSAISIE).
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
-const BASE = process.env.DB_TEST || 'capitale';
-const q = (sql) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', sql], { encoding: 'utf8' }).trim();
+const BASE = ENV_E2E.BASE;
+const q = (sql) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', sql], { encoding: 'utf8' }).trim();
 
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 500) + ']' : '')); }
@@ -45,7 +46,7 @@ function nettoyer() {
 
 (async () => {
   nettoyer();
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await b.newPage();
   const supportAvant = Number(q('SELECT COALESCE(SUM(occurrences), 0) FROM t_application_event'));
   /* envoi comme l'ecran : rend {s: statut HTTP, o: reponse lue (ou texte)} */

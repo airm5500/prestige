@@ -10,18 +10,19 @@
  *  - aucune erreur JavaScript.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync, spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 400) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
-const exec = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
+const BASE = ENV_E2E.BASE;
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
 const URL = 'http://localhost:8080/prestige';
 const JETON = 'jeton-essai-e2e-' + Date.now();
 const PORT = 3011;
-const DOSSIER = fs.mkdtempSync('/tmp/wa-e2e-');
+const DOSSIER = fs.mkdtempSync(ENV_E2E.TMP + '/wa-e2e-');
 const lit = (s) => (s === undefined || s === 'NULL' || s === '' ? 'NULL' : "'" + s.replace(/'/g, "''") + "'");
 
 (async () => {
@@ -30,7 +31,7 @@ const lit = (s) => (s === undefined || s === 'NULL' || s === '' ? 'NULL' : "'" +
   const srv = spawn('/opt/node22/bin/node', [path.join(__dirname, '../../../../outils/whatsapp-web/src/serveur.js')],
     { env: Object.assign({}, process.env, { WHATSAPP_FAUX: '1', WHATSAPP_FAUX_CONNECTE: '1', JETON, PORT: String(PORT), DOSSIER }), stdio: ['ignore', 'pipe', 'pipe'] });
   let journal = ''; srv.stdout.on('data', (d) => { journal += d; }); srv.stderr.on('data', (d) => { journal += d; });
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await (await b.newContext({ viewport: { width: 1600, height: 1000 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   const reponses = []; p.on('response', async (r) => { if (/whatsapp/.test(r.url())) { try { reponses.push(await r.text()); } catch (e) { /* */ } } });
@@ -56,7 +57,7 @@ const lit = (s) => (s === undefined || s === 'NULL' || s === '' ? 'NULL' : "'" +
     const qr = await p.evaluate(() => ({ etat: Ext.ComponentQuery.query('whatsappcomptes #etatWeb')[0].getEl().dom.textContent,
       img: !!Ext.ComponentQuery.query('whatsappcomptes #qrWeb')[0].getEl().down('img.wa-qr') }));
     ok('Avant le scan : « En attente du scan » et QR code affiché', /En attente du scan/.test(qr.etat) && qr.img, JSON.stringify(qr));
-    await p.screenshot({ path: (process.env.SORTIE || '/tmp') + '/wa-qr.png' });
+    await p.screenshot({ path: (process.env.SORTIE || ENV_E2E.TMP) + '/wa-qr.png' });
     await p.waitForFunction(() => /Connecté/.test(Ext.ComponentQuery.query('whatsappcomptes #etatWeb')[0].getEl().dom.textContent), null, { timeout: 20000 }).catch(() => {});
     const co = await p.evaluate(() => ({ etat: Ext.ComponentQuery.query('whatsappcomptes #etatWeb')[0].getEl().dom.textContent,
       deco: !Ext.ComponentQuery.query('whatsappcomptes #btnDeconnecterWeb')[0].isDisabled() }));

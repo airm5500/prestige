@@ -12,12 +12,13 @@
  *    solde insuffisant ; ajustement avec motif ; desactivation : plus aucun gain ; aucune erreur JavaScript.
  */
 const { execFileSync } = require('child_process');
+const ENV_E2E = require('../outils/poste');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 400) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const exec = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
-const SORTIE = process.env.SORTIE || '/tmp';
+const BASE = ENV_E2E.BASE;
+const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const SORTIE = process.env.SORTIE || ENV_E2E.TMP;
 const C = 'E2E-FID-C1';
 const SPE = '10263736171005327', VETO = '16926123341024423633';
 const CAT_VETO = q("SELECT lg_FAMILLEARTICLE_ID FROM t_famille WHERE lg_FAMILLE_ID = '" + VETO + "'");
@@ -71,7 +72,7 @@ const empreinteVentes = () => q("SELECT GROUP_CONCAT(CONCAT_WS(':', lg_PREENREGI
   });
   const avantVentes = empreinteVentes();
   const { chromium } = require('playwright-core');
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const ctx = await b.newContext({ viewport: { width: 1366, height: 768 } });
   const p = await ctx.newPage();
   const err = [];

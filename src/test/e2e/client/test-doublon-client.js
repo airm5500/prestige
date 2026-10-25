@@ -2,18 +2,19 @@
    assurance ou carnet, et avertissement de doublon.
    Les appels sont faits depuis la page apres connexion, pour beneficier de la session. */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 220) + ']' : '')); }
 
-const CARNET = process.env.CARNET_ID || execFileSync('mariadb', ['-sN', process.env.DB_TEST || 'capitale', '-e',
+const CARNET = process.env.CARNET_ID || execFileSync('mariadb', [...ENV_E2E.MARIADB, '-sN', ENV_E2E.BASE, '-e',
   "SELECT lg_TIERS_PAYANT_ID FROM t_tiers_payant WHERE str_STATUT = 'enable' AND lg_TYPE_TIERS_PAYANT_ID = '2' ORDER BY str_NAME LIMIT 1"], { encoding: 'utf8' }).trim();
 const SUFFIXE = String(Date.now()).slice(-6);
 const NOM = 'KONANTEST' + SUFFIXE;
 const PRENOMS = 'ALIDATEST' + SUFFIXE;
 
 (async () => {
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await b.newPage({ viewport: { width: 1500, height: 900 } });
   await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
   await p.fill('#str_login', process.env.E2E_LOGIN || 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
@@ -65,9 +66,9 @@ const PRENOMS = 'ALIDATEST' + SUFFIXE;
   await b.close();
 
   // Les clients crees par le test sont retires : le test reste rejouable a l'identique.
-  const BASE = process.env.DB_TEST || 'capitale';
+  const BASE = ENV_E2E.BASE;
   const motif = "str_LAST_NAME LIKE '" + NOM + "%'";
-  execFileSync('mariadb', [BASE, '-e',
+  execFileSync('mariadb', [...ENV_E2E.MARIADB, BASE, '-e',
     "DELETE FROM t_compte_client_tiers_payant WHERE lg_COMPTE_CLIENT_ID IN "
     + "(SELECT lg_COMPTE_CLIENT_ID FROM t_compte_client WHERE lg_CLIENT_ID IN "
     + "(SELECT lg_CLIENT_ID FROM t_client WHERE " + motif + "));"

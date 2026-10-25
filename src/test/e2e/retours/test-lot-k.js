@@ -5,13 +5,14 @@
  *  - export Excel de la feuille simple ; nom des fichiers feuille_de_match_<officine>_<periode>.pdf / .xlsx.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync, execSync } = require('child_process');
 const fs = require('fs');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 300) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const q = (s) => execFileSync('mariadb', [BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
-const exec = (s) => execFileSync('mariadb', [BASE, '-e', s], { encoding: 'utf8' });
+const BASE = ENV_E2E.BASE;
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, BASE, '-e', s], { encoding: 'utf8' });
 const MARQUE = 'E2ELK';
 const JOUR = q('SELECT CURDATE()');
 const PRODUITS = [];
@@ -72,7 +73,7 @@ function semer() {
   const libelles = PRODUITS.map(p => q("SELECT str_NAME FROM t_famille WHERE lg_FAMILLE_ID='" + p + "'"));
   console.log('DEBUG fixture ' + JSON.stringify(PRODUITS) + ' | ' + q("SELECT lg_BON_LIVRAISON_DETAIL, lg_FAMILLE_ID, int_QTE_RECUE, int_QTE_UG FROM t_bon_livraison_detail WHERE lg_BON_LIVRAISON_ID LIKE '" + MARQUE + "-%'").replace(/\n/g, ' ;; ')
     + ' | parents=' + q("SELECT lg_FAMILLE_ID, lg_FAMILLE_PARENT_ID, bool_DECONDITIONNE FROM t_famille WHERE lg_FAMILLE_ID IN ('" + PRODUITS.join("','") + "')").replace(/\n/g, ' ;; '));
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await b.newPage({ viewport: { width: 1800, height: 1000 } });
   const err = []; p.on('pageerror', e => err.push(String(e.message)));
   await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });

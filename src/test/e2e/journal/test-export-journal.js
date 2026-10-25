@@ -1,17 +1,18 @@
 /* Point 14 : export Excel du fichier journal. Le bouton existe, l'export porte TOUTES les lignes
    des criteres et non la seule page affichee, et le fichier est un vrai classeur. */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 220) + ']' : '')); }
 
-const BASE = process.env.DB_TEST || 'capitale';
-const q = (s) => execFileSync('mariadb', [BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const BASE = ENV_E2E.BASE;
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 
 (async () => {
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await b.newPage({ viewport: { width: 1700, height: 950 } });
   const err = []; p.on('pageerror', e => err.push(String(e.message)));
   await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
@@ -38,7 +39,7 @@ const q = (s) => execFileSync('mariadb', [BASE, '-sN', '-e', s], { encoding: 'ut
   const compter = () => parseInt(q("SELECT COUNT(*) FROM t_event_log WHERE DATE(dt_CREATED) BETWEEN '"
     + debut + "' AND '" + fin + "'"), 10);
 
-  const dossier = process.env.TMPDIR || '/tmp';
+  const dossier = process.env.TMPDIR || ENV_E2E.TMP;
   const fichier = path.join(dossier, 'export-journal-e2e.xlsx');
   // Compte pris juste avant l'export : le parcours du test ecrit lui-meme dans le journal.
   const attendu = compter();

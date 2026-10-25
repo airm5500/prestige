@@ -13,13 +13,14 @@
  * La caisse n'est pas ouverte par le test (la fenetre est refermee sans valider).
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 400) + ']' : '')); }
-const CAPT = process.env.CAPTURES || '/tmp';
+const CAPT = process.env.CAPTURES || ENV_E2E.TMP;
 
 (async () => {
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await b.newPage({ viewport: { width: 1500, height: 900 } });
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   const etat = () => p.evaluate(() => { const m = Ext.MessageBox; const vis = Ext.Object.getKeys(m.msgButtons).filter((k) => m.msgButtons[k].isVisible());

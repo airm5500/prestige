@@ -12,20 +12,21 @@
  *  - « Retirer » : plus d'image, plus de fichier ; aucune erreur JavaScript.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 400) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
-const exec = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
-const CAPT = process.env.CAPTURES || '/tmp';
+const BASE = ENV_E2E.BASE;
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
+const CAPT = process.env.CAPTURES || ENV_E2E.TMP;
 /* dossier des images : images_produits a cote du dossier de configuration (D:\\CONF\\LABOREX\\images_produits en officine) */
 const DOSSIER = process.env.DOSSIER_IMAGES || '/opt/CONF/LABOREX/images_produits';
 const disque = (c) => path.join(DOSSIER, c.replace(/^images-produits\//, ''));
-const TMP = fs.mkdtempSync('/tmp/e2e-img-');
+const TMP = fs.mkdtempSync(ENV_E2E.TMP + '/e2e-img-');
 let P, cip;
 
 const fichiers = () => { const d = DOSSIER; const r = []; const parcourir = (x) => { if (!fs.existsSync(x)) { return; } for (const f of fs.readdirSync(x)) { const c = path.join(x, f); fs.statSync(c).isDirectory() ? parcourir(c) : r.push(c); } }; parcourir(d); return r; };
@@ -40,7 +41,7 @@ function nettoyer() {
   [P, cip] = q("SELECT CONCAT(f.lg_FAMILLE_ID, '|', f.int_CIP) FROM t_famille f JOIN t_famille_stock s ON s.lg_FAMILLE_ID = f.lg_FAMILLE_ID AND s.lg_EMPLACEMENT_ID = '1'"
     + " WHERE f.str_STATUT = 'enable' AND COALESCE(f.bool_DECONDITIONNE, 0) = 0 AND f.int_CIP REGEXP '^[0-9]{7}$' ORDER BY f.str_NAME LIMIT 1 OFFSET 3").split('|');
   nettoyer();
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const ctx = await b.newContext({ viewport: { width: 1600, height: 950 } });
   const p = await ctx.newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));

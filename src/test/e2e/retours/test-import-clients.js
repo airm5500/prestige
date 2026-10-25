@@ -10,18 +10,19 @@
  * Le parcours est joue a l'ecran : choix du fichier, lecture des colonnes, designation, controle, import.
  * Les clients crees et l'operateur d'essai (cree par le test, sans le privilege) sont retires a la fin. */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 320) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const exec = (s) => execFileSync('mariadb', [BASE, '-e', s], { encoding: 'utf8' });
-const q = (s) => execFileSync('mariadb', [BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const BASE = ENV_E2E.BASE;
+const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, BASE, '-e', s], { encoding: 'utf8' });
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 
 const NOM = 'E2EIMPORT';
-const TMP = '/tmp/e2e-import-clients';
+const TMP = ENV_E2E.TMP + '/e2e-import-clients';
 /* operateur sans le privilege P_IMPORT_CLIENTS : cree par le test (role Caisse/Commande/Stock), supprime a la fin */
 const VENDEUR_ID = 'E2E-IMPORT-VENDEUR', VENDEUR = 'e2e.import.vendeur';
 const ROLE_CAISSE = q("SELECT lg_ROLE_ID FROM t_role WHERE str_NAME = 'Caisse/Commande/Stock' LIMIT 1");
@@ -74,7 +75,7 @@ const connexion = async (p, login) => {
     + "INSERT INTO t_role_user (lg_USER_ROLE_ID, lg_ROLE_ID, lg_USER_ID, dt_CREATED) VALUES ('" + VENDEUR_ID + "', '"
     + ROLE_CAISSE + "', '" + VENDEUR_ID + "', NOW());");
   const fichier = ecrireFichier();
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const err = [];
   // Une session par operateur : revenir a la page de connexion avec une session ouverte
   // renvoie directement dans l'application, on ne pourrait pas changer d'operateur.

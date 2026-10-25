@@ -6,9 +6,10 @@
  *  - la copie tient dans la largeur d'une page A4 paysage ; PDF paysage ; retour a l'ecran normal ensuite.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 500) + ']' : '')); }
-const SORTIE = process.env.SORTIE || '/tmp';
+const SORTIE = process.env.SORTIE || ENV_E2E.TMP;
 
 /* positions relatives au cadre (racine .tb) */
 const mesurer = (sel) => {
@@ -25,7 +26,7 @@ const mesurer = (sel) => {
 };
 
 (async () => {
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await (await b.newContext({ viewport: { width: 1600, height: 1000 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   try {

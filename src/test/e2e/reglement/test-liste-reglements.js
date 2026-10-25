@@ -4,6 +4,7 @@
    - export Excel du resultat complet, criteres compris ;
    - edition PDF regroupee par groupe, avec sous-total par groupe et total general. */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const fs = require('fs');
 const path = require('path');
 const zlib = require('zlib');
@@ -13,9 +14,9 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
 const PERIODE = '&dt_debut=2020-01-01&dt_fin=' + new Date().toISOString().slice(0, 10);
 
 const { execFileSync } = require('child_process');
-const BASE = process.env.DB_TEST || 'capitale';
-const q = (s) => execFileSync('mariadb', [BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
-const exec = (s) => execFileSync('mariadb', [BASE, '-e', s], { encoding: 'utf8' });
+const BASE = ENV_E2E.BASE;
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, BASE, '-e', s], { encoding: 'utf8' });
 const MARQUE = 'E2E-R21';
 
 /* Aucun dossier de reglement de la base de test n'est rattache a un reglement : l'ecran y est donc
@@ -59,7 +60,7 @@ function nettoyer() {
 
 (async () => {
   const [organismeSeme, typeSeme] = semer();
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await b.newPage({ viewport: { width: 1800, height: 950 } });
   const err = []; p.on('pageerror', e => err.push(String(e.message)));
   const requetes = []; p.on('request', r => { if (r.url().includes('reglement-facture/list')) requetes.push(r.url()); });

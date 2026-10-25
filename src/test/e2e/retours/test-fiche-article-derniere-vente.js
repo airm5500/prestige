@@ -9,11 +9,12 @@
  * Lecture seule.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const BASE = ENV_E2E.BASE;
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const EMP = q("SELECT lg_EMPLACEMENT_ID FROM t_user WHERE str_LOGIN = 'admin'");
 const reference = (id) => q("SELECT IFNULL(DATE_FORMAT(MAX(p.dt_UPDATED), '%d/%m/%Y %H:%i'), '') FROM t_preenregistrement_detail d"
   + " JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = d.lg_PREENREGISTREMENT_ID JOIN t_user u ON u.lg_USER_ID = p.lg_USER_ID"
@@ -24,7 +25,7 @@ const reference = (id) => q("SELECT IFNULL(DATE_FORMAT(MAX(p.dt_UPDATED), '%d/%m
   const PEU = q("SELECT d.lg_FAMILLE_ID FROM t_preenregistrement_detail d GROUP BY d.lg_FAMILLE_ID HAVING COUNT(*) BETWEEN 2 AND 5 LIMIT 1");
   const JAMAIS = q("SELECT f.lg_FAMILLE_ID FROM t_famille f WHERE f.str_STATUT = 'enable' AND NOT EXISTS (SELECT 1 FROM t_preenregistrement_detail d WHERE d.lg_FAMILLE_ID = f.lg_FAMILLE_ID) LIMIT 1");
   ok('Jeu d\'essai : gros vendeur, peu vendu, jamais vendu', !!GROS && !!PEU && !!JAMAIS, [GROS, PEU, JAMAIS].join(' / '));
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await b.newPage();
   const lire = (id) => p.evaluate(async (id) => { const t0 = performance.now(); const r = await fetch('../api/v1/produit-search/produits/' + id); const j = await r.json(); return { ms: performance.now() - t0, d: (j.data || {}).dt_LAST_VENTE }; }, id);
   try {

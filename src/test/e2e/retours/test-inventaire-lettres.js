@@ -4,11 +4,12 @@
  * Champ masque pour un inventaire de reserve ; intervalle a l'envers refuse. Inventaires d'essai retires a la fin.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 400) + ']' : '')); }
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', process.env.DB_TEST || 'capitale', '-sN'], { input: s, encoding: 'utf8' }).trim();
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', ENV_E2E.BASE, '-sN'], { input: s, encoding: 'utf8' }).trim();
 const LOGIN = process.env.E2E_LOGIN || 'admin';
 const EMP = q(`SELECT lg_EMPLACEMENT_ID FROM t_user WHERE str_LOGIN = '${LOGIN}'`);
 const [ZONE, LIB] = q(`SELECT z.lg_ZONE_GEO_ID, z.str_LIBELLEE FROM t_famille f JOIN t_zone_geographique z ON z.lg_ZONE_GEO_ID = f.lg_ZONE_GEO_ID
@@ -22,7 +23,7 @@ const produits = (nom) => q(`SELECT f.str_NAME FROM t_inventaire_famille i JOIN 
   JOIN t_famille f ON f.lg_FAMILLE_ID = i.lg_FAMILLE_ID WHERE v.str_NAME = '${nom}' ORDER BY f.lg_FAMILLE_ID`).split('\n').filter(Boolean);
 
 (async () => {
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await (await b.newContext({ viewport: { width: 1500, height: 950 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   /* creation par l'ecran : type Emplacement, emplacement coche, lettres, bouton « Creer l'inventaire » */

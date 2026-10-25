@@ -9,12 +9,13 @@
  * Employes et badges d'essai retires.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
-const exec = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
+const BASE = ENV_E2E.BASE;
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
 const E1 = 'E2E-BDG-E1', E2 = 'E2E-BDG-E2';
 function retirer() {
   exec(`DELETE FROM t_rh_badge WHERE employe_id IN ('${E1}', '${E2}'); DELETE FROM t_employe WHERE id IN ('${E1}', '${E2}');`);
@@ -25,7 +26,7 @@ const fiche = (id) => q(`SELECT IFNULL(badge, 'AUCUN') FROM t_employe WHERE id =
   retirer();
   exec(`INSERT INTO t_employe (id, matricule, nom, prenoms, poste, statut, created_at) VALUES ('${E1}', 'E2E-BDG-1', 'ZZBADGE', 'Awa Marie', 'Caissière', 'ACTIF', NOW()),`
     + ` ('${E2}', 'E2E-BDG-2', 'ZZBADGE', 'Koffi', 'Préparateur', 'ACTIF', NOW());`);
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const err = [], dialogues = [];
   try {
     const ctx = await b.newContext({ viewport: { width: 1600, height: 950 } });

@@ -14,12 +14,13 @@
  *  - aucune erreur JavaScript, aucune fenetre du navigateur.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const { connexion } = require('../outils/vues');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const BASE = ENV_E2E.BASE;
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const ID = 'E2E-RHV', LOGIN = 'e2e-rh-valid', MDP = 'E2e-Rhv-7', ROLE = 'E2E-RHV-ROLE';
 const EMP_MOI = 'E2E-RHV-E1', EMP_AUTRE = 'E2E-RHV-E2';
 const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = 'admin'");
@@ -47,7 +48,7 @@ function nettoyer() {
     + " ('E2E-RHV-A1', '" + EMP_MOI + "', 'CONGE', '2026-12-07', '2026-12-08', 'Moi', 'DEMANDE', '" + ADMIN + "', NOW()),"
     + " ('E2E-RHV-A2', '" + EMP_AUTRE + "', 'CONGE', '2026-12-14', '2026-12-15', 'Autre', 'DEMANDE', '" + ADMIN + "', NOW()),"
     + " ('E2E-RHV-A3', '" + EMP_AUTRE + "', 'AUTRE', '2026-12-21', '2026-12-21', 'Saisie par moi', 'DEMANDE', '" + ID + "', NOW())");
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await (await b.newContext({ viewport: { width: 1600, height: 900 } })).newPage();
   const erreurs = [], dialogues = [];
   p.on('pageerror', (e) => erreurs.push(e.message));

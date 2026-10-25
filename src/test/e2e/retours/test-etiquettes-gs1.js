@@ -8,12 +8,13 @@
  * Jeu d'essai (etiquette, lot, vente en cours, caisse si besoin) retire a la fin ; parametre remis a sa valeur.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const fs = require('fs');
 
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 400) + ']' : '')); }
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', process.env.DB_TEST || 'capitale', '-sN'], { input: s, encoding: 'utf8' }).trim();
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', ENV_E2E.BASE, '-sN'], { input: s, encoding: 'utf8' }).trim();
 const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = 'admin'");
 const DEBUT = q('SELECT NOW() - INTERVAL 1 SECOND');
 const ET = 'E2E-GS1-ET', LOT = 'E2E-GS1-LOT', NUMLOT = 'E2ELOT7', CAISSE = 'e2e-gs1-caisse';
@@ -38,27 +39,27 @@ function nettoyer() {
     + (stockOrigine ? `UPDATE t_famille_stock SET int_NUMBER_AVAILABLE = ${stockOrigine[0]}, int_NUMBER = ${stockOrigine[1]} WHERE lg_FAMILLE_ID = '${FID}' AND lg_EMPLACEMENT_ID = '1';` : ''));
 }
 const decoder = (pdf) => {
-  fs.writeFileSync('/tmp/e2e-gs1.pdf', Buffer.from(pdf));
-  execFileSync('pdftoppm', ['-r', '600', '-png', '-f', '1', '-l', '1', '/tmp/e2e-gs1.pdf', '/tmp/e2e-gs1']);
-  const png = fs.readdirSync('/tmp').filter((f) => /^e2e-gs1-\d+\.png$/.test(f)).map((f) => '/tmp/' + f)[0];
+  fs.writeFileSync(ENV_E2E.TMP + '/e2e-gs1.pdf', Buffer.from(pdf));
+  execFileSync('pdftoppm', ['-r', '600', '-png', '-f', '1', '-l', '1', ENV_E2E.TMP + '/e2e-gs1.pdf', ENV_E2E.TMP + '/e2e-gs1']);
+  const png = fs.readdirSync(ENV_E2E.TMP).filter((f) => /^e2e-gs1-\d+\.png$/.test(f)).map((f) => ENV_E2E.TMP + '/' + f)[0];
   const sortie = execFileSync('python3', ['-I', '-c', 'import sys, json, zxingcpp\nfrom PIL import Image\nr = zxingcpp.read_barcodes(Image.open(sys.argv[1]))\n'
     + 'print(json.dumps([{"format": str(x.format), "type": str(x.content_type), "texte": x.text, "id": x.symbology_identifier,'
     + ' "xMin": min(x.position.top_left.x, x.position.bottom_left.x) * 72 / 600, "xMax": max(x.position.top_right.x, x.position.bottom_right.x) * 72 / 600, "yMin": min(x.position.top_left.y, x.position.top_right.y) * 72 / 600} for x in r]))', png], { encoding: 'utf8' });
-  fs.readdirSync('/tmp').filter((f) => /^e2e-gs1-\d+\.png$/.test(f)).forEach((f) => fs.unlinkSync('/tmp/' + f));
+  fs.readdirSync(ENV_E2E.TMP).filter((f) => /^e2e-gs1-\d+\.png$/.test(f)).forEach((f) => fs.unlinkSync(ENV_E2E.TMP + '/' + f));
   const codes = JSON.parse(sortie);
   if (process.env.E2E_APERCU) {
     /* apercu de la premiere etiquette (dossier donne par E2E_APERCU), pour validation visuelle */
-    execFileSync('pdftoppm', ['-r', '400', '-png', '-f', '1', '-l', '1', '-x', '0', '-y', '0', '-W', '1100', '-H', '650', '/tmp/e2e-gs1.pdf', process.env.E2E_APERCU + '/etiquette-' + (decoder.n = (decoder.n || 0) + 1)]);
+    execFileSync('pdftoppm', ['-r', '400', '-png', '-f', '1', '-l', '1', '-x', '0', '-y', '0', '-W', '1100', '-H', '650', ENV_E2E.TMP + '/e2e-gs1.pdf', process.env.E2E_APERCU + '/etiquette-' + (decoder.n = (decoder.n || 0) + 1)]);
   }
   /* mots de la page avec leur position (points), pour verifier la disposition */
-  const bbox = execFileSync('pdftotext', ['-bbox', '-f', '1', '-l', '1', '/tmp/e2e-gs1.pdf', '-'], { encoding: 'utf8' });
+  const bbox = execFileSync('pdftotext', ['-bbox', '-f', '1', '-l', '1', ENV_E2E.TMP + '/e2e-gs1.pdf', '-'], { encoding: 'utf8' });
   codes.mots = [...bbox.matchAll(/<word xMin="([\d.]+)" yMin="([\d.]+)" xMax="([\d.]+)" yMax="([\d.]+)">([^<]*)<\/word>/g)]
     .map((m) => ({ xMin: +m[1], yMin: +m[2], xMax: +m[3], yMax: +m[4], t: m[5].replace(/&apos;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, '&') }));
   return codes;
 };
 
 (async () => {
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const ctx = await b.newContext({ viewport: { width: 1500, height: 950 } });
   let p = await ctx.newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));

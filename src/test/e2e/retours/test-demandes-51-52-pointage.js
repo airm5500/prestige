@@ -13,12 +13,13 @@
  * Deux comptes, un role d'essai, un employe et ses pointages sont poses puis retires.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const { connexion } = require('../outils/vues');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const BASE = ENV_E2E.BASE;
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const U1 = 'E2E-P51-U', L1 = 'e2e-p51', M1 = 'E2e-P51-Mdp7', E1 = 'E2E-P51-EMP';
 const U2 = 'E2E-P52-U', L2 = 'e2e-p52', M2 = 'E2e-P52-Mdp7', ROLE2 = 'E2E-P52-ROLE';
 const AUTRE = q("SELECT id FROM t_employe WHERE statut = 'ACTIF' AND id NOT LIKE 'E2E%' LIMIT 1");
@@ -39,7 +40,7 @@ const retirer = () => q(`DELETE FROM mobile_client_ref WHERE ref LIKE 'e2e-p51-%
   q(`INSERT INTO t_role_privelege (lg_ROLE_PRIVILEGE, lg_ROLE_ID, lg_PRIVILEGE_ID, dt_CREATED, dt_UPDATED) SELECT '${ROLE2}', '${ROLE2}', lg_PRIVELEGE_ID, NOW(), NOW() FROM t_privilege WHERE str_NAME = 'P_RH_POINTER'`);
   q(`INSERT INTO t_role_user (lg_USER_ROLE_ID, lg_ROLE_ID, lg_USER_ID, dt_CREATED) VALUES ('${U2}', '${ROLE2}', '${U2}', NOW())`);
   q(`INSERT INTO t_employe (id, matricule, nom, prenoms, statut, lg_USER_ID, created_at) VALUES ('${E1}', 'E2E-P51', 'ZZPOINT', 'Session', 'ACTIF', '${U1}', NOW())`);
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const appel = (p, m, u, c, h) => p.evaluate(async ([m, u, c, h]) => { const r = await fetch(u, { method: m, headers: Object.assign({ 'Content-Type': 'application/json' }, h || {}), body: c === undefined ? undefined : JSON.stringify(c) });
     let j = null; try { j = await r.json(); } catch (e) { /* vide */ } return { status: r.status, j }; }, [m, u, c, h]);
   const nb = () => Number(q(`SELECT COUNT(*) FROM t_pointage WHERE employe_id = '${E1}'`));

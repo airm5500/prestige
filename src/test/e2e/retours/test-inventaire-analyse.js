@@ -7,15 +7,16 @@
  *    « Synthese & recommandations » avec ses quatre sections, edition PDF de la synthese.
  * L'inventaire pose est retire a la fin ; aucun stock n'est modifie (l'analyse ne fait que lire). */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync, execSync } = require('child_process');
 const fs = require('fs');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 320) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const exec = (s) => execFileSync('mariadb', [BASE, '-e', s], { encoding: 'utf8' });
-const q = (s) => execFileSync('mariadb', [BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const BASE = ENV_E2E.BASE;
+const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, BASE, '-e', s], { encoding: 'utf8' });
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const ID = 'E2E-INV-ANALYSE';
-const TMP = '/tmp/inv-analyse'; fs.mkdirSync(TMP, { recursive: true });
+const TMP = ENV_E2E.TMP + '/inv-analyse'; fs.mkdirSync(TMP, { recursive: true });
 
 /* Les 8 zones qui ont le plus de produits utilisables (au lieu de noms de zones d'un autre banc). */
 function zonesDuBanc() {
@@ -58,7 +59,7 @@ function section(texte, titre) {
 }
 
 (async () => {
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const ctx = await b.newContext({ viewport: { width: 1600, height: 900 } });
   const p = await ctx.newPage();
   const err = []; p.on('pageerror', e => err.push(String(e.message)));

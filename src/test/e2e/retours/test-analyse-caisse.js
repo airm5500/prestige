@@ -11,11 +11,12 @@
  *    tendance ; pistes (caissier recurrent, vendredi, 20 h) ; filtre par caissier ; tolerance.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 400) + ']' : '')); }
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', process.env.DB_TEST || 'capitale', '-sN'], { input: s, encoding: 'utf8' }).trim();
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', ENV_E2E.BASE, '-sN'], { input: s, encoding: 'utf8' }).trim();
 const LOGIN = process.env.E2E_LOGIN || 'admin';
 const [U1, NOM1, EMP] = q(`SELECT lg_USER_ID, CONCAT_WS(' ', str_FIRST_NAME, str_LAST_NAME), lg_EMPLACEMENT_ID FROM t_user WHERE str_LOGIN = '${LOGIN}'`).split('\t');
 const [U2, NOM2] = q(`SELECT lg_USER_ID, CONCAT_WS(' ', str_FIRST_NAME, str_LAST_NAME) FROM t_user WHERE str_STATUT = 'enable' AND lg_EMPLACEMENT_ID = '${EMP}' AND lg_USER_ID <> '${U1}' ORDER BY str_LOGIN LIMIT 1`).split('\t');
@@ -39,7 +40,7 @@ function nettoyer() {
 }
 
 (async () => {
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await (await b.newContext({ viewport: { width: 1500, height: 950 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   const clic = async (sel) => { await p.evaluate((s) => { const c = Ext.ComponentQuery.query(s)[0]; (c.btnEl || c.getEl()).dom.setAttribute('data-e2e', 'x'); }, sel);

@@ -8,14 +8,15 @@
  * Tout est retire a la fin (commande, ruptures, reglage du grossiste).
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const http = require('http');
 const archives = require('./archives-pharmaml');
 
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined && d !== '' ? '  [' + String(d).slice(0, 400) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN'], { input: s, encoding: 'utf8' }).trim();
+const BASE = ENV_E2E.BASE;
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN'], { input: s, encoding: 'utf8' }).trim();
 const PORT = 18779, G = '51217123531215794892', CMD = 'E2E-PAP-CMD';
 let recus = 0, sauve = null;
 
@@ -46,7 +47,7 @@ function nettoyer() {
 (async () => {
   await new Promise((r) => serveur.listen(PORT, '127.0.0.1', r));
   sauve = q(`SELECT CONCAT(IFNULL(str_URL_PHARMAML, 'NULL'), '|', IFNULL(str_PHARMAML_VERSION_CMDE, 'NULL')) FROM t_grossiste WHERE lg_GROSSISTE_ID = '${G}'`).split('|');
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await (await b.newContext({ viewport: { width: 1500, height: 950 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   const durees = [];

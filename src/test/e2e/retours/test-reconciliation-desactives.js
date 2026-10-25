@@ -4,11 +4,12 @@
  * Un produit du banc est desactive le temps du test, puis remis dans son etat.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 400) + ']' : '')); }
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', process.env.DB_TEST || 'capitale', '-sN'], { input: s, encoding: 'utf8' }).trim();
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', ENV_E2E.BASE, '-sN'], { input: s, encoding: 'utf8' }).trim();
 const LOGIN = process.env.E2E_LOGIN || 'admin';
 const EMP = q(`SELECT lg_EMPLACEMENT_ID FROM t_user WHERE str_LOGIN = '${LOGIN}'`);
 const [ID, CIP, NOM] = q(`SELECT f.lg_FAMILLE_ID, f.int_CIP, f.str_NAME FROM t_famille f JOIN t_famille_stock s ON s.lg_FAMILLE_ID = f.lg_FAMILLE_ID
@@ -19,7 +20,7 @@ const remettre = () => q(`UPDATE t_famille SET str_STATUT = 'enable' WHERE lg_FA
   UPDATE t_famille_stock SET str_STATUT = 'enable' WHERE lg_FAMILLE_ID = '${ID}';`);
 
 (async () => {
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await (await b.newContext({ viewport: { width: 1500, height: 950 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   const lignes = () => p.evaluate(() => { const g = Ext.ComponentQuery.query('#resultGrid')[0]; return g.getStore().getRange().map((r) => r.get('intCIP')); });

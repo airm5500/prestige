@@ -7,8 +7,9 @@
  * a des dates libres (aout 2038, aucun mouvement reel), puis retire a la fin. Base de TEST uniquement.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('./outils/poste');
 const { execFileSync } = require('child_process');
-const sql = (x) => execFileSync('mariadb', [process.env.DB_TEST || 'capitale', '-sN'], { input: x, encoding: 'utf8' }).trim();
+const sql = (x) => execFileSync('mariadb', [...ENV_E2E.MARIADB, ENV_E2E.BASE, '-sN'], { input: x, encoding: 'utf8' }).trim();
 const AN = 2038;
 const [FID, CIP] = sql("SELECT CONCAT(f.lg_FAMILLE_ID,'|',f.int_CIP) FROM t_famille f WHERE f.str_STATUT='enable' AND f.bool_DECONDITIONNE=1"
   + " AND f.lg_FAMILLE_PARENT_ID <> '' AND f.int_CIP <> '' AND (SELECT COUNT(*) FROM t_famille g WHERE g.int_CIP=f.int_CIP)=1"
@@ -33,7 +34,7 @@ function ok(name, cond, detail) {
 
 (async () => {
     poser();
-    const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+    const browser = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
     const page = await browser.newPage({ viewport: { width: 1700, height: 1000 } });
 
     await page.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });

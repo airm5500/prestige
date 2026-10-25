@@ -10,15 +10,16 @@
  * 5. Saisie absurde dans les parametres : refus propre, jamais d'erreur interne.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
-const q = (sql) => execFileSync('mariadb', ['--default-character-set=utf8mb4', process.env.DB_TEST || 'capitale', '-sN', '-e', sql], { encoding: 'utf8' }).trim();
+const q = (sql) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', ENV_E2E.BASE, '-sN', '-e', sql], { encoding: 'utf8' }).trim();
 
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 500) + ']' : '')); }
 const SUG = 'e2e-l12-' + Date.now();
 
 (async () => {
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await (await b.newContext({ viewport: { width: 1500, height: 900 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.stack || e.message).slice(0, 600)));
   const calculAvant = Number(q('SELECT COALESCE(MAX(id), 0) FROM t_prevision_calcul'));

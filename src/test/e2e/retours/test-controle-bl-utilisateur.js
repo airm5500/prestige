@@ -7,11 +7,12 @@
  *  - userId combine au groupe de grossistes : les deux filtres s'appliquent ;
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const BASE = ENV_E2E.BASE;
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const DU = '2026-01-01', AU = '2026-03-31';
 const BL = "FROM t_bon_livraison b JOIN t_order o ON o.lg_ORDER_ID = b.lg_ORDER_ID WHERE b.str_STATUT = 'is_Closed'"
   + " AND b.dt_DATE_LIVRAISON >= '" + DU + "' AND b.dt_DATE_LIVRAISON < DATE_ADD('" + AU + "', INTERVAL 1 DAY)";
@@ -20,7 +21,7 @@ const BL = "FROM t_bon_livraison b JOIN t_order o ON o.lg_ORDER_ID = b.lg_ORDER_
   const [U, nU] = q("SELECT b.lg_USER_ID, COUNT(*) " + BL + " GROUP BY b.lg_USER_ID ORDER BY COUNT(*) DESC LIMIT 1").split('\t');
   const tous = q("SELECT COUNT(*) " + BL);
   ok('Banc : des BL de plusieurs utilisateurs sur la période', Number(tous) > Number(nU) && Number(nU) > 0, U + ' ' + nU + '/' + tous);
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await b.newPage({ viewport: { width: 1600, height: 950 } });
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   const lire = (url) => p.evaluate(async (url) => (await fetch(url)).json(), url);

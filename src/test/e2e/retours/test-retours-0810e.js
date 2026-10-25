@@ -11,14 +11,15 @@
  *  - aucune erreur JavaScript ; tout est retire a la fin.
  */
 const { execFileSync } = require('child_process');
+const ENV_E2E = require('../outils/poste');
 const http = require('http');
 const fs = require('fs');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 500) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const exec = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
-const SORTIE = process.env.SORTIE || '/tmp';
+const BASE = ENV_E2E.BASE;
+const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const SORTIE = process.env.SORTIE || ENV_E2E.TMP;
 const PORT = 18774, G = '51217123531215794892', CLE = 'E2EK7';
 const CMD = 'E2E-0810E-DSP', RA = 'E2E-0810E-A', RB = 'E2E-0810E-B', CMDS = [CMD, RA, RB];
 const DOSSIER = '/root/prestige/pharmaml';
@@ -79,7 +80,7 @@ function poser(cmd) {
      plus de l'etat laisse par un autre), remise a la fin */
   exec("UPDATE t_grossiste SET str_URL_PHARMAML = 'http://127.0.0.1:" + PORT + "/tedis/' WHERE lg_GROSSISTE_ID = '" + G + "'");
   const { chromium } = require('playwright-core');
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await (await b.newContext({ viewport: { width: 1366, height: 768 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   /* tout ce que le serveur renvoie sur les grossistes : la cle ne doit jamais y figurer */

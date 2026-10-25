@@ -7,11 +7,12 @@
  * Le modele de l'officine n'est pas dans le depot : le test pose un modele qui imprime les donnees, et le retire.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const fs = require('fs'); const path = require('path');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', process.env.DB_TEST || 'capitale', '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', ENV_E2E.BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const DOSSIER = '/opt/CONF/LABOREX/REPORTS', M = 'rp_listecaisses1';
 const F = ['operateur:String', 'datas:java.util.List'];
 const posee = !fs.existsSync(path.join(DOSSIER, M + '.jrxml')) && !fs.existsSync(path.join(DOSSIER, M + '.jasper'));
@@ -23,7 +24,7 @@ if (posee) {
     + '$F{operateur} + "|" + $F{datas}.size() + "|" + org.apache.commons.codec.digest.DigestUtils.md5Hex(String.valueOf($F{datas}))' + ']]></textFieldExpression></textField></band></detail><summary><band height="400"><textField isStretchWithOverflow="true" isBlankWhenNull="true"><reportElement x="0" y="0" width="1360" height="12"/><textElement><font size="6"/></textElement><textFieldExpression><![CDATA["T|" + String.valueOf($P{totaux})]]></textFieldExpression></textField></band></summary></jasperReport>');
 }
 (async () => {
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true }); const p = await b.newPage();
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true }); const p = await b.newPage();
   try {
     await p.goto('http://localhost:8080/prestige/security/index.html'); await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });

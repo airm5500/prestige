@@ -10,20 +10,21 @@
  *  - les barres du bas (affichage historique) masquees sur les onglets d'analyse.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const fs = require('fs');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 360) + ']' : '')); }
 const { q, exec, MOIS_A, MOIS_B, FIN_B, jour, fr, poserJeuDEssai, retirerJeuDEssai } = require('../support/jeu-balance');
 /* compte de test sans le privilege de l'ancienne presentation (admin les a tous) : retire le temps du test, puis remis */
 const sansPrivilege = require('../support/privilege-essai')(q, exec, process.env.E2E_LOGIN || 'admin', 'P_BALANCE_ANCIENNE_PRESENTATION');
-const TMP = '/tmp/claude-0/lot-n';
+const TMP = ENV_E2E.TMP + '/claude-0/lot-n';
 
 (async () => {
   sansPrivilege.remettre();
   sansPrivilege.retirer();
   fs.mkdirSync(TMP, { recursive: true });
   poserJeuDEssai();
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const ctx = await b.newContext({ viewport: { width: 1800, height: 1000 } });
   const p = await ctx.newPage();
   const err = []; p.on('pageerror', e => err.push(String(e.message)));

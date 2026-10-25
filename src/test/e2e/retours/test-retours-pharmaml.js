@@ -10,19 +10,20 @@
  *  - aucune erreur JavaScript ; tout est retire (retour, attentes, notification, archives) et le grossiste restaure.
  */
 const { execFileSync } = require('child_process');
+const ENV_E2E = require('../outils/poste');
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const archives = require('./archives-pharmaml');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 600) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const exec = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
-const SORTIE = process.env.SORTIE || '/tmp';
+const BASE = ENV_E2E.BASE;
+const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const SORTIE = process.env.SORTIE || ENV_E2E.TMP;
 const PORT = 18783;
 /* bon de livraison du banc : numero unique, 2 a 5 produits recus et en stock */
-const BL = process.env.BL_RETOUR || execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', "SELECT b.str_REF_LIVRAISON FROM t_bon_livraison b"
+const BL = process.env.BL_RETOUR || execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', "SELECT b.str_REF_LIVRAISON FROM t_bon_livraison b"
   + " JOIN t_bon_livraison_detail d ON d.lg_BON_LIVRAISON_ID = b.lg_BON_LIVRAISON_ID JOIN t_famille_stock s ON s.lg_FAMILLE_ID = d.lg_FAMILLE_ID AND s.lg_EMPLACEMENT_ID = '1'"
   + " AND s.int_NUMBER_AVAILABLE > 2 WHERE d.int_QTE_RECUE >= 1 AND b.str_STATUT <> 'delete'"
   + " AND (SELECT COUNT(*) FROM t_bon_livraison x WHERE x.str_REF_LIVRAISON = b.str_REF_LIVRAISON) = 1"
@@ -65,7 +66,7 @@ function nettoyer() {
     + " JOIN t_famille_stock s ON s.lg_FAMILLE_ID = d.lg_FAMILLE_ID AND s.lg_EMPLACEMENT_ID = '1' WHERE b.str_REF_LIVRAISON = '" + BL + "'").split('|').map((x) => x.split(':'));
   const motif = (code) => q("SELECT lg_MOTIF_RETOUR FROM t_motif_retour WHERE str_CODE = '" + code + "'");
   const { chromium } = require('playwright-core');
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await (await b.newContext({ viewport: { width: 1366, height: 768 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   const fermer = async () => { await p.evaluate(() => { if (Ext.MessageBox.isVisible()) { Ext.MessageBox.hide(); } }); };

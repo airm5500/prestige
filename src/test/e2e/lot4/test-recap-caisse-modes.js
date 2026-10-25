@@ -4,13 +4,14 @@
    - onglet « Suivi des modes de reglement » : synthese, courbe, legende et valeurs exactes ;
    - mise en forme : solde rouge, billetage violet, nombre de clients orange et gras. */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 280) + ']' : '')); }
 
-const BASE = process.env.DB_TEST || 'capitale';
-const q = (s) => execFileSync('mariadb', [BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
-const exec = (s) => execFileSync('mariadb', [BASE, '-e', s], { encoding: 'utf8' });
+const BASE = ENV_E2E.BASE;
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, BASE, '-e', s], { encoding: 'utf8' });
 const MARQUE = 'E2EL4B';
 /* journees posees loin dans le passe (2000 jours) : la base d'essai peut contenir des annees de ventes reelles ou
    simulees, et le test ne doit compter que les siennes */
@@ -79,7 +80,7 @@ function semer() {
 
 (async () => {
   if (!semer()) { console.log('FATAL : impossible de semer les encaissements'); process.exit(1); }
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await b.newPage({ viewport: { width: 1700, height: 950 } });
   const err = []; p.on('pageerror', e => err.push(String(e.message)));
   await p.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'domcontentloaded' });

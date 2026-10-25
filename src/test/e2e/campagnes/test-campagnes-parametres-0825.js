@@ -8,12 +8,13 @@
  *  - aucune erreur JavaScript, aucune fenetre. Parametres remis a leur valeur et jeu d'essai retire a la fin.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const { connexion, ouvrirMenu, cliquer } = require('../outils/vues');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const BASE = ENV_E2E.BASE;
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const CAMP = 'E2E-CPARAM', CLES = "'KEY_CAMPAGNE_AUTO_CANAL', 'KEY_CAMPAGNE_DELAI_REPONSE'";
 
 function nettoyer() {
@@ -34,7 +35,7 @@ function nettoyer() {
     q(`INSERT INTO whatsapp_message (id, notification_id, client_id, telephone, mode, simule, statut, created_at) VALUES ('E2E-CPARAM-${i}', 'E2E-CPARAM-N${i}', '${id}', '${tel}', 'WEB', 0, 'LU', NOW() - INTERVAL 10 DAY)`);
     q(`INSERT INTO whatsapp_discussion (numero, sens, type, texte, created_at) VALUES ('${tel}', 'E', 'TEXTE', 'E2E', NOW() - INTERVAL ${10 - j} DAY)`);
   });
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await (await b.newContext({ viewport: { width: 1600, height: 1000 } })).newPage();
   const erreurs = [], dialogues = [];
   p.on('pageerror', (e) => erreurs.push(e.message));

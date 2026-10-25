@@ -7,11 +7,12 @@
  * Chemin de l'ecran (menu, grille, export). Ventes d'essai retirees a la fin, stock remis.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 400) + ']' : '')); }
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', process.env.DB_TEST || 'capitale', '-sN'], { input: s, encoding: 'utf8' }).trim();
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', ENV_E2E.BASE, '-sN'], { input: s, encoding: 'utf8' }).trim();
 const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = 'admin'");
 const DEBUT = q('SELECT NOW() - INTERVAL 1 SECOND');
 const POSTE = 'E2E POSTE ACCUEIL COMPTOIR NUMERO 3', CAISSE = 'e2e-vtc-caisse';
@@ -42,7 +43,7 @@ function nettoyer() {
 }
 
 (async () => {
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const ctx = await b.newContext({ viewport: { width: 1366, height: 768 }, acceptDownloads: true });
   const p = await ctx.newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
@@ -111,7 +112,7 @@ function nettoyer() {
       const inner = g.getView().getNode(i).querySelector('.x-grid-cell-colPoste .x-grid-cell-inner'); const s = getComputedStyle(inner);
       return { ellipse: s.textOverflow, overflow: s.overflow, plein: inner.scrollWidth > inner.clientWidth }; }, ref1);
     ok('Colonne « P » : nom long coupé proprement (points de suspension)', coupe.ellipse === 'ellipsis' && coupe.overflow === 'hidden', JSON.stringify(coupe));
-    await p.screenshot({ path: process.env.CAPTURE || '/tmp/ventes-terminees-colonnes.png' });
+    await p.screenshot({ path: process.env.CAPTURE || ENV_E2E.TMP + '/ventes-terminees-colonnes.png' });
 
     /* export Excel (bouton de l'ecran) */
     await p.evaluate(() => { Ext.ComponentQuery.query('ventemanager #exporterExcel')[0].btnEl.dom.setAttribute('data-e2e', 'xls'); });

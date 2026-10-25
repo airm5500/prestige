@@ -8,16 +8,17 @@
  *  - mediane de 3 appels.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const BASE = ENV_E2E.BASE;
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 
 (async () => {
   const DEBUT = q("SELECT DATE_SUB(DATE_FORMAT(CURDATE(), '%Y-%m-01'), INTERVAL 3 MONTH)");
   const CIP = q("SELECT int_CIP FROM t_famille WHERE str_STATUT = 'enable' AND str_NAME LIKE 'DOLI%' ORDER BY int_CIP LIMIT 1");
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await b.newPage();
   const lire = (s) => p.evaluate(async (s) => { const t0 = performance.now(); const r = await fetch('../api/v1/info?search=' + encodeURIComponent(s[0]) + '&dtStart=' + s[1].split('-').reverse().join('/')); const j = await r.json(); return { ms: performance.now() - t0, j }; }, [s, DEBUT]);
   const mediane = async (s) => { const t = []; let j; for (let i = 0; i < 3; i++) { const r = await lire(s); t.push(r.ms); j = r.j; } t.sort((a, b) => a - b); return { ms: t[1], j, t }; };

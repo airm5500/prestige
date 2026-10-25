@@ -3,14 +3,15 @@
    Depuis le 18/09 les modes historiques (Especes, Cheques, Carte, Virement, Differe) ont aussi leur logo.
    Utilisateur : E2E_LOGIN, sinon KGA3 s'il existe sur le banc, sinon admin (mot de passe e2etest). */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 320) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const q = (s) => execFileSync('mariadb', [BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
-const exec = (s) => execFileSync('mariadb', [BASE, '-e', s], { encoding: 'utf8' });
+const BASE = ENV_E2E.BASE;
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, BASE, '-e', s], { encoding: 'utf8' });
 const LOGIN = process.env.E2E_LOGIN || (q("SELECT COUNT(*) FROM t_user WHERE str_LOGIN='KGA3'") === '1' ? 'KGA3' : 'admin');
-const SORTIE = process.env.SORTIE || '/tmp';
+const SORTIE = process.env.SORTIE || ENV_E2E.TMP;
 
 // un client par defaut sur un mode de chaque operateur mobile, pour que les tuiles existent ; retabli a la fin
 const sauve = q("SELECT lg_MODE_REGLEMENT_ID, IFNULL(lg_CLIENT_DEFAUT_ID,'') FROM t_mode_reglement WHERE lg_TYPE_REGLEMENT_ID IN ('7','10','19','8','9') AND str_STATUT='enable'")
@@ -25,7 +26,7 @@ function retablir() { sauve.forEach(([id, c]) => exec("UPDATE t_mode_reglement S
 
 (async () => {
   poser();
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await b.newPage({ viewport: { width: 1600, height: 900 } });
   const err = []; p.on('pageerror', e => err.push(String(e.message)));
   try {

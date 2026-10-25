@@ -11,12 +11,13 @@
  *  - aucune erreur JavaScript, aucune fenetre du navigateur. Rien n'est ecrit en base.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const { connexion, ouvrirMenu } = require('../outils/vues');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const BASE = ENV_E2E.BASE;
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const COMPTE = "SELECT COUNT(*) FROM t_etiquette WHERE str_STATUT IN ('enable', 'Read') AND lg_EMPLACEMENT_ID LIKE '%'";
 const iso = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 
@@ -24,7 +25,7 @@ const iso = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, 
   const auj = new Date(), il7 = new Date(Date.now() - 7 * 86400000);
   const attendu7 = q(COMPTE + " AND dt_CREATED BETWEEN '" + iso(il7) + " 00:00:00' AND '" + iso(auj) + " 23:59:59'");
   const tout = q(COMPTE);
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await (await b.newContext({ viewport: { width: 1600, height: 900 } })).newPage();
   const erreurs = [], dialogues = [], appels = [];
   p.on('pageerror', (e) => erreurs.push(e.message));

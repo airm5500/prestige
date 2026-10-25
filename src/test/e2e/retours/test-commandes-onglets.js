@@ -8,12 +8,13 @@
  *  - rien de tronque, pas de defilement horizontal, aucune erreur JavaScript ; donnees du test retirees.
  */
 const { execFileSync } = require('child_process');
+const ENV_E2E = require('../outils/poste');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 500) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const exec = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
-const SORTIE = process.env.SORTIE || '/tmp';
+const BASE = ENV_E2E.BASE;
+const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const SORTIE = process.env.SORTIE || ENV_E2E.TMP;
 const ALR = 'E2E-CEC-ALR';
 const G = '51217123531215794892';
 const nettoyer = () => exec("DELETE FROM t_pharmaml_alerte_produit WHERE lg_ALERTE_ID = '" + ALR + "'; DELETE FROM t_pharmaml_alerte WHERE lg_ID = '" + ALR + "';");
@@ -23,7 +24,7 @@ const nettoyer = () => exec("DELETE FROM t_pharmaml_alerte_produit WHERE lg_ALER
   exec("INSERT INTO t_pharmaml_alerte (lg_ID, lg_GROSSISTE_ID, str_TYPE, str_NUMERO, str_MOTIF, str_DESIGNATION, b_ARRET_IMMEDIAT, b_RENVOI, dt_RECU)"
     + " VALUES ('" + ALR + "', '" + G + "', 'REGLEMENTAIRE', '" + ALR + "', 'Qualité', 'Alerte E2E onglets', 0, 0, NOW())");
   const { chromium } = require('playwright-core');
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await (await b.newContext({ viewport: { width: 1366, height: 768 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   const etat = () => p.evaluate(() => {

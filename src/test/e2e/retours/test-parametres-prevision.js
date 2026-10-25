@@ -7,13 +7,14 @@
  * Valeurs d'origine et droit remis a la fin.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 400) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const exec = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE], { encoding: 'utf8', input: s });
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const BASE = ENV_E2E.BASE;
+const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE], { encoding: 'utf8', input: s });
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const CLES = ['KEY_PREVISION_SEUIL_PEU_FIABLE', 'KEY_RISQUE_SECURITE_JOURS', 'KEY_PREVISION_MOIS_TEST'];
 const origine = {};
 CLES.forEach((c) => { origine[c] = q("SELECT IFNULL((SELECT str_VALUE FROM t_parameters WHERE str_KEY = '" + c + "'), 'ABSENT')"); });
@@ -22,7 +23,7 @@ let droit = null;
 const valeur = (c) => q("SELECT str_VALUE FROM t_parameters WHERE str_KEY = '" + c + "'");
 
 (async () => {
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   let ctx = await b.newContext({ viewport: { width: 1366, height: 768 } }), p = await ctx.newPage();
   const err = []; const suivre = (pg) => pg.on('pageerror', (e) => err.push(String(e.message)));
   suivre(p);

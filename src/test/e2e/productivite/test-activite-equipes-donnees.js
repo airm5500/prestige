@@ -10,13 +10,14 @@
  *  - droit : un profil sans le menu ne le voit pas, les routes repondent 403.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const fs = require('fs');
 const { connexion, ouvrirMenu, cliquer, choisir, saisir } = require('../outils/vues');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const BASE = ENV_E2E.BASE;
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const D = '2026-09-01', F = '2026-10-01';
 const N = {
   VENTE: q(`SELECT COUNT(*) FROM t_preenregistrement WHERE str_STATUT = 'is_Closed' AND b_IS_CANCEL = 0 AND int_PRICE > 0 AND dt_UPDATED >= '${D}' AND dt_UPDATED < '${F}'`),
@@ -37,7 +38,7 @@ const retirer = () => q(`DELETE FROM t_role_user WHERE lg_USER_ID = '${ID}'; DEL
   q(`INSERT INTO t_user (lg_USER_ID, str_LOGIN, str_PASSWORD, str_FIRST_NAME, str_LAST_NAME, str_FUNCTION, str_STATUT, lg_EMPLACEMENT_ID, dt_CREATED, int_CONNEXION)`
     + ` VALUES ('${ID}', '${LOGIN}', MD5('${MDP}'), 'E2E', 'SANS DROIT', 'Vendeur', 'enable', '1', NOW(), 0)`);
   q(`INSERT INTO t_role_user (lg_USER_ROLE_ID, lg_ROLE_ID, lg_USER_ID, dt_CREATED) VALUES ('${ID}', '${ROLE_VENDEUR}', '${ID}', NOW())`);
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await (await b.newContext({ viewport: { width: 1600, height: 900 }, acceptDownloads: true })).newPage();
   const erreurs = []; p.on('pageerror', (e) => erreurs.push(e.message));
   const reponses = []; p.on('response', async (r) => { if (/activite-equipes\/journal\?/.test(r.url())) { try { reponses.push(await r.json()); } catch (e) { /* ignore */ } } });

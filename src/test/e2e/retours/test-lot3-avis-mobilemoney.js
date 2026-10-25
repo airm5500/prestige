@@ -6,19 +6,20 @@
  * Avis d'essai retire a la fin ; le reste est en lecture seule.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
-const exec = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
+const BASE = ENV_E2E.BASE;
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
 const ID = 'E2E-AVIS-LU';
 let inventaireCree = null;
 const statut = () => q(`SELECT statut FROM t_avis_client WHERE id = '${ID}'`);
 
 (async () => {
   exec(`DELETE FROM t_avis_client WHERE id = '${ID}'; INSERT INTO t_avis_client (id, dt_CREATED, note, texte, anonyme, rappel, statut) VALUES ('${ID}', NOW(), 4, 'Essai', 1, 0, 'NOUVEAU')`);
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await (await b.newContext()).newPage();
   const get = (u) => p.evaluate(async (u) => (await fetch(u)).json(), u);
   try {

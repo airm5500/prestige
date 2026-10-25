@@ -7,12 +7,13 @@
  *  6. fiche article : classe A verte, B bleue, C rouge en gras ; prix d'achat et de vente agrandis en gras.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const fs = require('fs');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 360) + ']' : '')); }
 const { q, exec, MOIS_A, FIN_B, fr, poserJeuDEssai, retirerJeuDEssai } = require('../support/jeu-balance');
-const TMP = '/tmp/claude-0/lot-o';
+const TMP = ENV_E2E.TMP + '/claude-0/lot-o';
 /* tiers payant et jour du jeu d'essai : ceux d'origine s'ils existent, sinon ceux du banc (support/jeu-carnet) */
 const { TP, JOUR } = require('../support/jeu-carnet')(q);
 let compteAvant = '', typeAvant = '', depotAvant = '';
@@ -26,7 +27,7 @@ let compteAvant = '', typeAvant = '', depotAvant = '';
   exec("UPDATE t_tiers_payant SET is_depot=1, account=15400, lg_TYPE_TIERS_PAYANT_ID='2' WHERE lg_TIERS_PAYANT_ID='" + TP + "';");
   const libelleTp = q("SELECT str_FULLNAME FROM t_tiers_payant WHERE lg_TIERS_PAYANT_ID='" + TP + "'").split(' ')[0];
 
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const ctx = await b.newContext({ viewport: { width: 1800, height: 1000 } });
   const p = await ctx.newPage();
   const err = []; p.on('pageerror', e => err.push(String(e.message)));

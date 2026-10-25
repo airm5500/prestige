@@ -3,13 +3,14 @@
  * toucher au stock rayon ni aux inventaires deja complets. Le script est rejoue une seconde fois pour verifier
  * qu'il n'ecrit rien de plus. Tout ce que le test pose est retire et les valeurs d'origine sont retablies. */
 const { execFileSync } = require('child_process');
+const ENV_E2E = require('../outils/poste');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 320) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const exec = (s) => execFileSync('mariadb', [BASE, '-e', s], { encoding: 'utf8' });
-const q = (s) => execFileSync('mariadb', [BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
-const script = '/home/user/prestige/src/main/resources/db/migration/V6.9.36__rattrapage_cloture_inventaire_rest.sql';
-const jouerScript = () => execFileSync('bash', ['-c', 'mariadb ' + BASE + ' < ' + script], { encoding: 'utf8' });
+const BASE = ENV_E2E.BASE;
+const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, BASE, '-e', s], { encoding: 'utf8' });
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const script = require('path').join(__dirname, '../../../main/resources/db/migration/V6.9.36__rattrapage_cloture_inventaire_rest.sql');
+const jouerScript = () => execFileSync('mariadb', [...ENV_E2E.MARIADB, BASE], { input: require('fs').readFileSync(script), encoding: 'utf8' });
 
 const A = 'E2E-RATT-REST';      // cloture par l'ancienne version REST : a rattraper
 const B = 'E2E-RATT-COMPLET';   // cloture complete (mouvement du jour present) : a ignorer

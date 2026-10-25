@@ -9,13 +9,14 @@
  * Jeu d'essai retire a la fin.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 400) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const exec = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE], { encoding: 'utf8', input: s });
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const BASE = ENV_E2E.BASE;
+const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE], { encoding: 'utf8', input: s });
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const DEBUT = q('SELECT NOW() - INTERVAL 1 SECOND');
 const S = 'E2E-PA-SUGG', SC = 'E2E-PA-CMDEE', S0 = 'E2E-PA-ZERO';
 const G = q("SELECT lg_GROSSISTE_ID FROM t_grossiste WHERE str_STATUT = 'enable' ORDER BY str_LIBELLE LIMIT 1");
@@ -40,7 +41,7 @@ const sugg = (id, ref, statut, lignes) => "INSERT INTO t_suggestion_order (lg_SU
   nettoyer();
   const recB = Number(q("SELECT recommande FROM t_prevision_produit WHERE lg_FAMILLE_ID = '" + B + "' AND lg_EMPLACEMENT_ID = '1'"));
   exec(sugg(S, 'E2EPA1', 'is_Process', [[A, 99], [Z, 5], [B, recB]]) + sugg(SC, 'E2EPA2', 'commandee', [[A, 3]]) + sugg(S0, 'E2EPA3', 'is_Process', [[Z2, 4]]));
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const ctx = await b.newContext({ viewport: { width: 1500, height: 900 } });
   const p = await ctx.newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));

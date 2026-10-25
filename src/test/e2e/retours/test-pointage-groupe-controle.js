@@ -7,13 +7,14 @@
  * Jeu d'essai (2 BL de deux grossistes du groupe 1, un releve) retire a la fin.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 400) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const exec = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE], { encoding: 'utf8', input: s });
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const BASE = ENV_E2E.BASE;
+const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE], { encoding: 'utf8', input: s });
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const G1 = '51217123167082947316', G1B = '51217123725332335681';
 const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = 'admin'");
 const NOM = q("SELECT TRIM(CONCAT(str_FIRST_NAME, ' ', str_LAST_NAME)) FROM t_user WHERE str_LOGIN = 'admin'");
@@ -43,7 +44,7 @@ function bl(n, grossiste, recue) {
     + "INSERT INTO t_releve_grossiste_ligne (lg_LIGNE_ID, lg_RELEVE_ID, int_RANG, str_TYPE, str_NUMERO, dt_DATE, int_MONTANT_HT, str_STATUT, str_PIECE_TYPE, lg_PIECE_ID, str_PIECE_REF, int_PIECE_HT, int_ECART) VALUES"
     + " ('E2E-PG-RL1', 'E2E-PG-REL', 1, 'BL', 'E2EPG1', '2025-02-10', 1000, 'RAPPROCHE', 'BL', 'E2E-PG-1', 'E2EPG1', 1000, 0),"
     + " ('E2E-PG-RL2', 'E2E-PG-REL', 2, 'BL', 'E2EPG9', '2025-02-12', 500, 'ABSENT_PRESTIGE', NULL, NULL, NULL, NULL, NULL);");
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await (await b.newContext({ viewport: { width: 1366, height: 768 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   try {

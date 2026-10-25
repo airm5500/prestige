@@ -9,12 +9,13 @@
  *  - 401 sans session, 410 inventaire inconnu, 413 au-dela de 500 lignes, 400 corps invalide.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
-const exec = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
+const BASE = ENV_E2E.BASE;
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
 const CLE = 'e2e-versement-';
 
 (async () => {
@@ -29,7 +30,7 @@ const CLE = 'e2e-versement-';
   const [A, B, C] = L;
   const nombre = (l) => q("SELECT int_NUMBER FROM t_inventaire_famille WHERE lg_INVENTAIRE_FAMILLE_ID = '" + l[0] + "'");
   ok('Jeu d\'essai : inventaire ouvert, trois lignes à CIP unique', L.length === 3, INV);
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await b.newPage({ viewport: { width: 1400, height: 900 } });
   const verser = (corps, inv) => p.evaluate(async ([c, inv]) => { const r = await fetch('../api/v1/inventaire/' + inv + '/versement', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: typeof c === 'string' ? c : JSON.stringify(c) }); return { s: r.status, j: await r.json().catch(() => null) }; }, [corps, inv || INV]);
   try {

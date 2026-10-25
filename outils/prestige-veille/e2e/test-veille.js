@@ -8,12 +8,13 @@
  *  - sans session : 401 ; aucune fenetre, aucune erreur JavaScript ; parametre de Prestige remis.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../../../src/test/e2e/outils/poste');
 const { execFileSync } = require('child_process');
 const fs = require('fs');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', 'capitale', '-sN', '-e', s], { encoding: 'utf8' }).trim();
-const exec = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', 'capitale', '-e', s], { encoding: 'utf8' });
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', 'capitale', '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', 'capitale', '-e', s], { encoding: 'utf8' });
 const VEILLE = process.env.VEILLE_URL || 'http://127.0.0.1:8099';
 const DOMAIN = '/opt/payara5/glassfish/domains/domain1/config/domain.xml';
 const JETON = 'E2E-VEILLE-' + Date.now();
@@ -26,7 +27,7 @@ const BDD_USER = prop('user') || prop('User'), BDD_MDP = prop('password') || pro
 (async () => {
   const jetonAvant = q("SELECT str_VALUE FROM t_parameters WHERE str_KEY = 'SUPPORT_VEILLE_JETON'");
   exec(`UPDATE t_parameters SET str_VALUE = '${JETON}' WHERE str_KEY = 'SUPPORT_VEILLE_JETON'`);
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const dialogues = [], err = [];
   try {
     const p = await (await b.newContext({ viewport: { width: 1500, height: 950 } })).newPage();

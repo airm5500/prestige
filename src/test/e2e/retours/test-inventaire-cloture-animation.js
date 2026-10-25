@@ -3,15 +3,16 @@
  * d'avancement, recapitulatif, OK. L'inventaire pose (200 lignes, ecarts en plus et en moins) est retire et les
  * stocks remis a l'identique. */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const fs = require('fs');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 300) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const exec = (s) => execFileSync('mariadb', [BASE, '-e', s], { encoding: 'utf8' });
-const q = (s) => execFileSync('mariadb', [BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const BASE = ENV_E2E.BASE;
+const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, BASE, '-e', s], { encoding: 'utf8' });
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const ID = 'E2E-INV-ANIM';
-const TMP = '/tmp/inv-anim'; fs.mkdirSync(TMP, { recursive: true });
+const TMP = ENV_E2E.TMP + '/inv-anim'; fs.mkdirSync(TMP, { recursive: true });
 const T0 = q('SELECT NOW()');
 function poser() {
   exec("DROP TABLE IF EXISTS e2e_sauvegarde_anim; CREATE TABLE e2e_sauvegarde_anim AS SELECT s.lg_FAMILLE_STOCK_ID, s.lg_FAMILLE_ID, s.int_NUMBER, s.int_NUMBER_AVAILABLE, s.dt_UPDATED, f.dt_LAST_INVENTAIRE AS dt_last, t.int_NUMBER AS type_stock, t.dt_UPDATED AS type_dt FROM t_famille_stock s JOIN t_famille f ON f.lg_FAMILLE_ID=s.lg_FAMILLE_ID LEFT JOIN t_type_stock_famille t ON t.lg_FAMILLE_ID=f.lg_FAMILLE_ID AND t.lg_EMPLACEMENT_ID='1' AND t.lg_TYPE_STOCK_ID='1' AND t.str_STATUT='enable' WHERE s.lg_EMPLACEMENT_ID='1' AND f.str_STATUT='enable' AND s.int_NUMBER_AVAILABLE > 3 ORDER BY s.lg_FAMILLE_ID DESC LIMIT 200;"
@@ -30,7 +31,7 @@ function retablir() {
 }
 
 (async () => {
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await b.newPage({ viewport: { width: 1600, height: 900 } });
   const err = []; p.on('pageerror', e => err.push(String(e.message)));
   try {

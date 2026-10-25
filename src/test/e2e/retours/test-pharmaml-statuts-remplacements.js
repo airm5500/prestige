@@ -11,14 +11,15 @@
  *  - donnees d'essai retirees, grossiste remis.
  */
 const { execFileSync } = require('child_process');
+const ENV_E2E = require('../outils/poste');
 const http = require('http');
 const fs = require('fs');
 const archives = require('./archives-pharmaml');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 500) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const exec = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const BASE = ENV_E2E.BASE;
+const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const PORT = 18771, G = '51217123531215794892', CMDS = ['E2E-PM5-A', 'E2E-PM5-B', 'E2E-PM5-C', 'E2E-PM5-D'];
 const DOSSIER = '/root/prestige/pharmaml';
 let P = [], cipEquivalent = '', typeRempl = 'EP';
@@ -62,7 +63,7 @@ const url = (u) => exec("UPDATE t_grossiste SET str_URL_PHARMAML = " + (u === nu
   fgAvant = q("SELECT IFNULL(GROUP_CONCAT(lg_FAMILLE_GROSSISTE_ID), '') FROM t_famille_grossiste WHERE lg_FAMILLE_ID = '" + P[2] + "' AND lg_GROSSISTE_ID = '" + G + "'");
   nettoyer();
   const { chromium } = require('playwright-core');
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await (await b.newContext({ viewport: { width: 1366, height: 768 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   const envoyer = (cmd) => p.evaluate(async (id) => JSON.parse(await (await fetch('../api/v1/pharma/' + id, { method: 'PUT' })).text()), cmd);
@@ -108,7 +109,7 @@ const url = (u) => exec("UPDATE t_grossiste SET str_URL_PHARMAML = " + (u === nu
     ok('Liste : B « Refusée », motif HTTP 403 en info-bulle', B.code === 'REFUSEE' && /403/.test(B.tip), JSON.stringify(B));
     ok('Liste : C jamais envoyée → aucune pastille', C.code === '', JSON.stringify(C));
     ok('Liste : en-tête « PharmaML » entier', etats.entete === 'PharmaML' && !etats.tronque, JSON.stringify({ e: etats.entete, t: etats.tronque }));
-    await p.screenshot({ path: (process.env.SORTIE || '/tmp') + '/commandes-statut-pharmaml.png' });
+    await p.screenshot({ path: (process.env.SORTIE || ENV_E2E.TMP) + '/commandes-statut-pharmaml.png' });
 
     /* 3) Ecran des ruptures : accepter l'equivalent sur la ligne */
     await p.evaluate(() => testextjs.app.getController('App').onLoadNewComponent('rupturepharma', 'Liste des ruptures', ''));
@@ -121,7 +122,7 @@ const url = (u) => exec("UPDATE t_grossiste SET str_URL_PHARMAML = " + (u === nu
         ruptureVisible: rup && rup.isVisible() && rup.getHeight() > 200, fenetres: Ext.ComponentQuery.query('window[hidden=false]').length }; }, CMDS[0]);
     ok('Écran ruptures : proposition visible (produit commandé, équivalent, Accepter / Refuser), liste des ruptures toujours visible',
       ecran.i >= 0 && /EQUIVALENT E2E/.test(ecran.texte) && ecran.accepter && ecran.refuser && /Équivalents proposés par les grossistes \(\d+\)/.test(ecran.titre) && ecran.ruptureVisible, JSON.stringify(ecran));
-    await p.screenshot({ path: (process.env.SORTIE || '/tmp') + '/ruptures-equivalents.png' });
+    await p.screenshot({ path: (process.env.SORTIE || ENV_E2E.TMP) + '/ruptures-equivalents.png' });
     const idProp = q("SELECT lg_ID FROM t_pharmaml_remplacement WHERE lg_ORDER_ID = '" + CMDS[0] + "'");
     const sel = await p.evaluate((ref) => { const g = Ext.ComponentQuery.query('rupturepharma #grilleEquivalents')[0]; const r = g.getStore().getAt(g.getStore().findExact('reference', ref));
       const a = g.getView().getNode(r).querySelector('.eq-accepter'); a.id = 'e2e-accepter'; return '#e2e-accepter'; }, CMDS[0]);

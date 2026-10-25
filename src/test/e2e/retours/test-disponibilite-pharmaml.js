@@ -16,15 +16,16 @@
  *  - aucune erreur JavaScript. Tout est retire a la fin (URL, versions et codes article remis).
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const http = require('http');
 
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 400) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const exec = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
-const CAPT = process.env.CAPTURES || '/tmp';
+const BASE = ENV_E2E.BASE;
+const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const CAPT = process.env.CAPTURES || ENV_E2E.TMP;
 const PORT = 18765;
 const SUGG = 'E2E-DSP-SUGG', REF = 'E2E-DSP-REF', CMD = 'E2E-DSP-CMD', N = 55;
 let GA, GB, sauveA, sauveB, prods = [];
@@ -80,7 +81,7 @@ function poser() {
   let pair;
   try { pair = poser(); } catch (e) { console.log('FATAL ' + e.message); nettoyer(); serveur.close(); process.exit(1); }
   let nbPairs = 0;
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await (await b.newContext({ viewport: { width: 1600, height: 950 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   const attendreFin = async () => { await p.waitForFunction(() => Ext.MessageBox.isVisible() && /Information seulement|injoignable|erreur|illisible/.test(Ext.MessageBox.msg.getEl().dom.textContent), null, { timeout: 120000 });

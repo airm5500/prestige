@@ -7,12 +7,13 @@
  * Client d'essai cree puis retire ; le client aux ventes est lu sans etre modifie.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
-const exec = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
+const BASE = ENV_E2E.BASE;
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
 const C = 'E2E-FICHE-ID';
 const retirer = () => exec(`DELETE FROM t_client_dossier WHERE lg_CLIENT_ID = '${C}'; DELETE FROM t_compte_client WHERE lg_CLIENT_ID = '${C}'; DELETE FROM t_client WHERE lg_CLIENT_ID = '${C}';`);
 /* client aux ventes : celui qui a le plus de ventes cloturees sur 12 mois */
@@ -24,7 +25,7 @@ const [CV, NB_VENTES] = q("SELECT CONCAT_WS('|', p.lg_CLIENT_ID, COUNT(*)) FROM 
   retirer();
   exec(`INSERT INTO t_client (lg_CLIENT_ID, str_FIRST_NAME, str_LAST_NAME, str_STATUT, dt_CREATED, lg_TYPE_CLIENT_ID) VALUES ('${C}', 'ZZFICHE', 'Identite', 'enable', NOW(), '6');`
     + `INSERT INTO t_compte_client (lg_COMPTE_CLIENT_ID, lg_CLIENT_ID, str_STATUT, dt_CREATED) VALUES ('${C}-cpt', '${C}', 'enable', NOW())`);
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const err = [], dialogues = [];
   try {
     const p = await (await b.newContext({ viewport: { width: 1600, height: 950 } })).newPage();

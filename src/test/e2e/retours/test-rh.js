@@ -14,13 +14,14 @@
  *  - aucune erreur JavaScript.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 400) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
-const exec = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
+const BASE = ENV_E2E.BASE;
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
 const URL = 'http://localhost:8080/prestige';
 const SEM = '2026-11-02', PREC = '2026-10-26';
 
@@ -43,7 +44,7 @@ function nettoyer() {
   nettoyer();
   const debutEssai = q('SELECT NOW()');
   const employesAvant = q("SELECT COUNT(*) FROM t_employe");
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await (await b.newContext({ viewport: { width: 1600, height: 1000 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   const get = (u) => p.evaluate(async (u) => JSON.parse(await (await fetch(u)).text()), u);
@@ -313,8 +314,8 @@ function nettoyer() {
       await p.evaluate(() => document.querySelectorAll('[data-e2e=pdf]').forEach((n) => n.removeAttribute('data-e2e')));
       const url = await p.evaluate(() => window.__ouverts[window.__ouverts.length - 1]);
       const o = await p.evaluate(async (u) => { const r = await fetch(u); return { type: r.headers.get('content-type'), b: Array.from(new Uint8Array(await r.arrayBuffer())) }; }, url);
-      require('fs').writeFileSync('/tmp/e2e-rh.pdf', Buffer.from(o.b));
-      return { url, type: o.type, texte: /pdf/.test(o.type) ? require('child_process').execFileSync('pdftotext', ['-layout', '/tmp/e2e-rh.pdf', '-'], { encoding: 'utf8' }) : '' };
+      require('fs').writeFileSync(ENV_E2E.TMP + '/e2e-rh.pdf', Buffer.from(o.b));
+      return { url, type: o.type, texte: /pdf/.test(o.type) ? require('child_process').execFileSync('pdftotext', ['-layout', ENV_E2E.TMP + '/e2e-rh.pdf', '-'], { encoding: 'utf8' }) : '' };
     };
     await p.evaluate((d) => { const r = Ext.ComponentQuery.query('rhmanager')[0]; r.lundi = Ext.Date.parse(d, 'Y-m-d'); }, SEM);
     const ePlanning = await edition('ongletPlanning', '#pdfPlanning');

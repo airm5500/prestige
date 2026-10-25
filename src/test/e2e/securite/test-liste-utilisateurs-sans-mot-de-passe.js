@@ -8,12 +8,13 @@
  *  - aucune erreur JavaScript. Le test ne cree ni ne modifie rien.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { connexion, ouvrirMenu } = require('../outils/vues');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
 
 (async () => {
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await (await b.newContext({ viewport: { width: 1600, height: 900 } })).newPage();
   const erreurs = []; p.on('pageerror', (e) => erreurs.push(e.message));
   const corps = []; p.on('response', async (r) => { if (/utilisateurs|utilisateur\/ws_data/.test(r.url())) { try { corps.push(await r.text()); } catch (e) { /* ignore */ } } });

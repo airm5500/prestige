@@ -9,12 +9,13 @@
  * Ventes d'essai retirees (les lignes restent « is_Process » : les statistiques des produits ne sont pas touchees).
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
-const exec = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
+const BASE = ENV_E2E.BASE;
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
 const JOUR = '2026-09-17';
 const V = ['E2E-AVA-V1', 'E2E-AVA-V2', 'E2E-AVA-V3'];
 const retirer = () => exec(`DELETE FROM t_preenregistrement_detail WHERE lg_PREENREGISTREMENT_ID IN ('${V.join("','")}'); DELETE FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID IN ('${V.join("','")}');`);
@@ -43,7 +44,7 @@ function poser() {
     && q(`SELECT COUNT(*) FROM t_preenregistrement WHERE dt_UPDATED >= '${JOUR}' AND dt_UPDATED < '${JOUR}' + INTERVAL 1 DAY AND (b_IS_AVOIR = 1 OR b_HAS_AVOIR = 1) AND lg_PREENREGISTREMENT_ID NOT LIKE 'E2E-AVA-%'`) === '0', SOURCE);
   poser();
   const ventes = Number(q(`SELECT COUNT(*) FROM t_preenregistrement WHERE dt_UPDATED >= '${JOUR}' AND dt_UPDATED < '${JOUR}' + INTERVAL 1 DAY AND str_STATUT = 'is_Closed' AND b_IS_CANCEL = 0 AND int_PRICE > 0`));
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const err = [];
   try {
     const p = await (await b.newContext({ viewport: { width: 1600, height: 950 } })).newPage();

@@ -14,13 +14,14 @@
  * Le compte WhatsApp Web est remis comme avant ; dossier, service d'essai et compte d'essai retires a la fin.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync, execSync } = require('child_process');
 const fs = require('fs'), path = require('path'), os = require('os');
 const { connexion } = require('../outils/vues');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const BASE = ENV_E2E.BASE;
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const PORT = 18000 + Math.floor(Math.random() * 900);
 const DOSSIER = fs.mkdtempSync(path.join(os.tmpdir(), 'e2e-whatsapp-web-'));
 const ID = 'E2E-WA-VEND', LOGIN = 'e2e-wa-vendeur', MDP = 'E2e-Wa-Vend-7';
@@ -50,7 +51,7 @@ function nettoyer() {
 const service = () => { try { execSync('curl -s -m 2 http://127.0.0.1:' + PORT + '/etat', { encoding: 'utf8' }); return true; } catch (e) { return false; } };
 
 (async () => {
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const erreurs = [], dialogues = [];
   try {
     preparerDossier();

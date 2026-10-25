@@ -7,6 +7,7 @@
  * Lecture seule.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const fs = require('fs');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
@@ -16,7 +17,7 @@ const lireDepuis = (pos) => { const fd = fs.openSync(JOURNAL, 'r'); const n = ta
 const ECRANS = [['familles', 'v1/statfamillearticle'], ['rayons', 'v1/statfamillearticle/statisticrayons'], ['grossistes', 'v1/statfamillearticle/statisticprovider'], ['veto', 'v1/statfamillearticle/veto']];
 
 (async () => {
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   try {
     const p = await (await b.newContext()).newPage();
     await p.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'domcontentloaded' });

@@ -10,13 +10,14 @@
  * Les lignes d'historique du test sont retirees.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const fs = require('fs');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
-const exec = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
+const BASE = ENV_E2E.BASE;
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
 const CONF = process.env.POSOS_CONF || '/root/prestige/config/posos.properties';
 const produits = require('../support/produits-essai')(q, exec, 'E2E-PSH-');
 const droits = ['P_SM_POSOS', 'P_ORDONNANCE_CLIENT'].map((x) => require('../support/privilege-essai')(q, exec, 'admin', x));
@@ -30,7 +31,7 @@ const nettoyer = () => exec(`DELETE FROM t_posos_analyse WHERE lg_USER_ID = '${A
   const SINTROM = q("SELECT lg_FAMILLE_ID FROM t_famille WHERE str_NAME = 'SINTROM 4MG CPR SEC B/30' AND str_STATUT = 'enable' LIMIT 1");
   const BRUFEN_CIP = q("SELECT int_CIP FROM t_famille WHERE str_NAME = 'BRUFEN 400MG CPR DRG B/30' AND str_STATUT = 'enable' LIMIT 1");
   const avant = fs.existsSync(CONF) ? fs.readFileSync(CONF) : null;
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   let p;
   const connecter = async () => {
     p = await (await b.newContext()).newPage();

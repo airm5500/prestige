@@ -3,11 +3,12 @@
  * et la légende Sorties / Achats ; valeurs = total des ventes des 90 derniers jours (requête indépendante) ÷ 90, × 7 ÷ 90, ÷ 3.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 400) + ']' : '')); }
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', process.env.DB_TEST || 'capitale', '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', ENV_E2E.BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const PERIMETRE = " FROM t_preenregistrement p JOIN t_preenregistrement_detail d ON p.lg_PREENREGISTREMENT_ID = d.lg_PREENREGISTREMENT_ID"
   + " WHERE p.b_IS_CANCEL = 0 AND p.int_PRICE > 0 AND p.lg_TYPE_VENTE_ID <> '5' AND d.int_QUANTITY > 0 AND p.str_STATUT = 'is_Closed'"
   + " AND p.dt_UPDATED >= CURDATE() - INTERVAL 89 DAY";
@@ -16,7 +17,7 @@ const [P, CIP, TOTAL] = q("SELECT d.lg_FAMILLE_ID, f.int_CIP, SUM(d.int_QUANTITY
 const fr = (v) => String(v).replace('.', ',');
 
 (async () => {
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await (await b.newContext({ viewport: { width: 1600, height: 950 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   try {

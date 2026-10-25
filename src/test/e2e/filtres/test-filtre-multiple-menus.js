@@ -5,10 +5,11 @@
  *  - aucune erreur JavaScript. Lecture seule (la preference de presentation n'est pas touchee).
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 300) + ']' : '')); }
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', process.env.DB_TEST || 'capitale', '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', ENV_E2E.BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const RAYONS = q("SELECT f.lg_ZONE_GEO_ID FROM t_famille f JOIN t_famille_stock s ON s.lg_FAMILLE_ID = f.lg_FAMILLE_ID AND s.lg_EMPLACEMENT_ID = '1'"
   + " WHERE f.str_STATUT = 'enable' AND f.lg_ZONE_GEO_ID IS NOT NULL AND f.lg_ZONE_GEO_ID <> '' GROUP BY 1 ORDER BY COUNT(*) DESC LIMIT 2 OFFSET 1").split('\n');
 /* [menu xtype, titre, classe de l'ecran, morceau d'URL de la recherche, axes attendus, onglet a ouvrir (titre) ] */
@@ -31,7 +32,7 @@ const ECRANS = [
 ];
 
 (async () => {
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await b.newPage({ viewport: { width: 1600, height: 900 } });
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   const requetes = []; p.on('request', (r) => requetes.push({ url: r.url(), post: r.postData() || '' }));

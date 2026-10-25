@@ -2,8 +2,9 @@
    suppression effective, et refus propre si le lot n'existe plus. Le lot supprime est un lot d'essai pose par le
    test sur un produit qui n'en avait aucun. */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('./outils/poste');
 const { execFileSync } = require('child_process');
-const q = (x) => execFileSync('mariadb', [process.env.DB_TEST || 'capitale', '-sN', '-e', x], { encoding: 'utf8' }).trim();
+const q = (x) => execFileSync('mariadb', [...ENV_E2E.MARIADB, ENV_E2E.BASE, '-sN', '-e', x], { encoding: 'utf8' }).trim();
 /* Jeu d'essai : un produit sans lot recoit un lot d'essai ; c'est LUI que le test supprime
    (jamais un lot reel). Retire a la fin s'il reste. */
 const PRODUIT = q("SELECT CONCAT(f.lg_FAMILLE_ID, '|', f.int_CIP) FROM t_famille f JOIN t_famille_stock s ON s.lg_FAMILLE_ID=f.lg_FAMILLE_ID AND s.lg_EMPLACEMENT_ID='1'"
@@ -16,7 +17,7 @@ const res=[]; function ok(n,c,d){res.push({n,c:!!c});console.log((c?'PASS':'FAIL
   q("INSERT INTO t_lot (lg_LOT_ID, lg_USER_ID, lg_FAMILLE_ID, int_NUM_LOT, int_NUMBER, dt_CREATED, dt_UPDATED, dt_PEREMPTION, str_STATUT, current_stock)"
     + " SELECT 'E2E-LOTS-1', lg_USER_ID, '" + PRODUIT[0] + "', 'E2ELOTS', 2, NOW(), NOW(), DATE_ADD(CURDATE(), INTERVAL 3 MONTH), 'enable', 2 FROM t_user WHERE str_LOGIN='"
     + (process.env.E2E_LOGIN || 'admin') + "'");
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await b.newPage({ viewport: { width: 1600, height: 950 } });
   const err=[]; p.on('pageerror',e=>err.push(String(e.message)));
   await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr',{waitUntil:'domcontentloaded'});

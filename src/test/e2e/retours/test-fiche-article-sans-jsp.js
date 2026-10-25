@@ -11,13 +11,14 @@
  *  - aucune requete .jsp pendant ces parcours ; aucune erreur JavaScript nouvelle.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 400) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
-const exec = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
+const BASE = ENV_E2E.BASE;
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
 const suffixe = String(Date.now()).slice(-6);
 const CIP_JSP = '91' + suffixe, CIP_API = '92' + suffixe;
 const crees = [];
@@ -46,7 +47,7 @@ function nettoyer() {
   P = q("SELECT z.lg_FAMILLE_ID FROM t_famille_zonegeo z JOIN t_famille f ON f.lg_FAMILLE_ID = z.lg_FAMILLE_ID WHERE z.lg_EMPLACEMENT_ID = '1' AND f.str_STATUT = 'enable' ORDER BY f.str_NAME LIMIT 1");
   zoneOrigine = q("SELECT lg_ZONE_GEO_ID FROM t_famille_zonegeo WHERE lg_FAMILLE_ID = '" + P + "' AND lg_EMPLACEMENT_ID = '1' LIMIT 1");
   const zones = q("SELECT GROUP_CONCAT(lg_ZONE_GEO_ID) FROM (SELECT lg_ZONE_GEO_ID FROM t_zone_geographique WHERE str_STATUT = 'enable' AND lg_ZONE_GEO_ID <> '" + zoneOrigine + "' ORDER BY str_LIBELLEE LIMIT 2) z").split(',');
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await (await b.newContext({ viewport: { width: 1600, height: 950 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   if (process.env.TRACE) { p.on('framenavigated', (f) => { console.log('NAV', f === p.mainFrame(), f.url()); }); p.on('request', (r) => { if (!/_dc=|\.(png|gif|css|js)/.test(r.url())) console.log('REQ', r.method(), r.url().slice(0, 140)); }); p.on('console', (m) => console.log('CONSOLE', m.text().slice(0, 200))); }

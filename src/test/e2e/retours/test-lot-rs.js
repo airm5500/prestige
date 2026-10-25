@@ -8,12 +8,13 @@
  *     une seule garde cochee sur l'onglet Analyse (avertissement) ; indicateurs de chargement.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const fs = require('fs');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 360) + ']' : '')); }
 const { q, exec, MOIS_A, MOIS_B, FIN_B, fr, poserJeuDEssai, retirerJeuDEssai } = require('../support/jeu-balance');
-const TMP = '/tmp/claude-0/lot-rs';
+const TMP = ENV_E2E.TMP + '/claude-0/lot-rs';
 const MARQUE = 'E2E-RS';
 
 let PRODUITS = [], KGA3 = '', AUTRE = '', GROSSISTE = '';
@@ -69,7 +70,7 @@ function semer() {
   fs.mkdirSync(TMP, { recursive: true });
   poserJeuDEssai();
   if (!semer()) { console.log('FATAL : jeu d\'essai incomplet'); purger(); retirerJeuDEssai(); process.exit(1); }
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const ctx = await b.newContext({ viewport: { width: 1800, height: 1000 } });
   const p = await ctx.newPage();
   const err = []; p.on('pageerror', e => err.push(String(e.message)));

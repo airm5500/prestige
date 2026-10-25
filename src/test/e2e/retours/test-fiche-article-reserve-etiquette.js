@@ -10,13 +10,14 @@
  * Le produit d'essai est remis a l'identique (valeurs, type, stock de reserve, DCI, journal).
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const privilegeEssai = require('../support/privilege-essai');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
-const exec = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
+const BASE = ENV_E2E.BASE;
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
 const droitType = privilegeEssai(q, exec, 'admin', 'P_SM_ETIQUETTE_TYPE');
 
 /* produit actif, en stock au rayon, au type d'etiquette historique « CIP - PRIX » */
@@ -48,7 +49,7 @@ function remettre() {
     + `INSERT INTO t_type_stock_famille (lg_TYPE_STOCK_FAMILLE_ID, lg_FAMILLE_ID, lg_TYPE_STOCK_ID, lg_EMPLACEMENT_ID, str_NAME, str_DESCRIPTION, dt_CREATED, str_STATUT, int_NUMBER) VALUES ('${TSF}', '${P}', '2', '1', 'reserve', 'reserve', NOW(), 'enable', 37);`
     + `INSERT INTO t_famille_dci (lg_FAMILLE_DCI_ID, lg_DCI_ID, lg_FAMILLE_ID, str_STATUT) VALUES ('${TSF}', '${DCI}', '${P}', 'enable');`);
   const reserveAttendue = q(`SELECT IFNULL(SUM(int_NUMBER), 0) FROM t_type_stock_famille WHERE lg_FAMILLE_ID = '${P}' AND lg_TYPE_STOCK_ID = '2' AND lg_EMPLACEMENT_ID = '1'`);
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const err = [], dialogues = [];
   const connecter = async () => {
     const p = await (await b.newContext({ viewport: { width: 1600, height: 950 } })).newPage();

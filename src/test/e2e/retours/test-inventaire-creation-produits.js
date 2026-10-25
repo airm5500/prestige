@@ -14,12 +14,13 @@
  * Les inventaires du test (libelle E2E-46-*) sont retires.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8', maxBuffer: 64 << 20 }).trim();
-const exec = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
+const BASE = ENV_E2E.BASE;
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8', maxBuffer: 64 << 20 }).trim();
+const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
 const nettoyer = () => exec("DELETE f FROM t_inventaire_famille f JOIN t_inventaire i ON i.lg_INVENTAIRE_ID = f.lg_INVENTAIRE_ID WHERE i.str_NAME LIKE 'E2E-46-%';"
   + " DELETE FROM t_inventaire WHERE str_NAME LIKE 'E2E-46-%';");
 
@@ -36,7 +37,7 @@ const nettoyer = () => exec("DELETE f FROM t_inventaire_famille f JOIN t_inventa
     + "   AND (SELECT COUNT(*) FROM t_famille x2 WHERE x2.int_CIP = y.int_CIP OR x2.int_EAN13 = y.int_CIP) = 1)"
     + " ORDER BY f.lg_ZONE_GEO_ID LIMIT 4").split('\n').map((l) => { const [id, cip, zone, stock] = l.split('|'); return { id, cip, zone, stock }; });
   ok('Jeu d\'essai : 4 produits de 4 rayons, avec stock à l\'emplacement d\'admin', P.length === 4 && new Set(P.map((x) => x.zone)).size === 4, JSON.stringify(P.map((x) => x.cip)));
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await b.newPage();
   const api = (m, u, c) => p.evaluate(async ([m, u, c]) => { const t0 = performance.now(); const r = await fetch(u, { method: m, headers: { 'Content-Type': 'application/json' }, body: c === undefined ? undefined : JSON.stringify(c) });
     const t = await r.text(); let j; try { j = JSON.parse(t); } catch (e) { j = { brut: t.slice(0, 120) }; } j.http = r.status; j.ms = performance.now() - t0; return j; }, [m, u, c]);

@@ -4,20 +4,21 @@
  * puis remis tel quel. Le jeton n'apparait pas a l'ecran (jamais renvoye au navigateur).
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync, spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
-const BASE = process.env.DB_TEST || 'capitale';
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const BASE = ENV_E2E.BASE;
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const IMAGES = path.join(__dirname, '../../../../docs/notices/images');
-const JETON = 'jeton-capture-' + Date.now(), PORT = 3012, DOSSIER = fs.mkdtempSync('/tmp/wa-capture-');
+const JETON = 'jeton-capture-' + Date.now(), PORT = 3012, DOSSIER = fs.mkdtempSync(ENV_E2E.TMP + '/wa-capture-');
 const lit = (s) => (s === undefined || s === 'NULL' || s === '' ? 'NULL' : "'" + s.replace(/'/g, "''") + "'");
 
 (async () => {
   const sauve = q("SELECT CONCAT_WS('#~#', actif, mode_test, IFNULL(web_url, 'NULL'), IFNULL(web_jeton, 'NULL'), IFNULL(web_regles, 'NULL')) FROM whatsapp_compte WHERE mode = 'WEB'").split('#~#');
   const srv = spawn('/opt/node22/bin/node', [path.join(__dirname, '../../../../outils/whatsapp-web/src/serveur.js')],
     { env: Object.assign({}, process.env, { WHATSAPP_FAUX: '1', WHATSAPP_FAUX_CONNECTE: '1', JETON, PORT: String(PORT), DOSSIER }), stdio: 'ignore' });
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await (await b.newContext({ viewport: { width: 1440, height: 900 } })).newPage();
   try {
     await new Promise((r) => setTimeout(r, 1500));

@@ -12,13 +12,14 @@
  * Le modele PDF de l'officine n'est pas dans le depot : le test pose un modele qui imprime les donnees, et le retire.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const BASE = ENV_E2E.BASE;
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const MAX_MS = 20000;
 const FILTRES = 'seuil=0&stock=0&codeFamile=&codeRayon=&codeGrossiste=&query=&filtreStock=GREATER&filtreSeuil=ALL';
 
@@ -53,7 +54,7 @@ function retirerModele() {
 
 (async () => {
   poserModele();
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await b.newPage();
   const telecharger = (u) => p.evaluate(async ([u, max]) => {
     const ctl = new AbortController(); const minuterie = setTimeout(() => ctl.abort(), max * 3);

@@ -8,19 +8,20 @@
  * La garde d'essai est retiree.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const { connexion } = require('../outils/vues');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const BASE = ENV_E2E.BASE;
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const ID = 'E2E-GARDE-D39';
 const retirer = () => q(`DELETE FROM garde WHERE id = '${ID}'`);
 
 (async () => {
   retirer();
   q(`INSERT INTO garde (id, libelle, date_debut, date_fin, created_at, updated_at) VALUES ('${ID}', 'E2E décision 39', '2026-09-01 08:00:00', '2026-09-15 08:00:00', NOW(), NOW())`);
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await b.newPage();
   const page = (s, l) => p.evaluate(async ([id, s, l]) => { const t = performance.now(); const x = await (await fetch('../api/v1/gardes/' + id + '/rapport?start=' + s + '&limit=' + l)).json();
     return { ms: Math.round(performance.now() - t), abc: (x.abc || []).map((a) => JSON.stringify(a)), total: x.totalAbc, kpi: JSON.stringify(x.kpi) }; }, [ID, s, l]);

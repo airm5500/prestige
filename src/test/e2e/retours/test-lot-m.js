@@ -14,15 +14,16 @@
  * qui doivent etre IGNOREES (importee, d'un autre emplacement, exclue des etats), un stock, une commande.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const fs = require('fs');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 320) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const q = (s) => execFileSync('mariadb', [BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
-const exec = (s) => execFileSync('mariadb', [BASE, '-e', s], { encoding: 'utf8' });
+const BASE = ENV_E2E.BASE;
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, BASE, '-e', s], { encoding: 'utf8' });
 const MARQUE = 'E2E-LM';
-const TMP = '/tmp/claude-0/lot-m';
+const TMP = ENV_E2E.TMP + '/claude-0/lot-m';
 const EMPL2 = MARQUE + '-EMPL';
 const USER2 = MARQUE + '-USER';
 
@@ -120,7 +121,7 @@ function semer() {
   if (!semer()) { console.log('FATAL : jeu d\'essai incomplet'); purger(); process.exit(1); }
   const stockAttendu = parseInt(q("SELECT COALESCE(SUM(int_NUMBER_AVAILABLE),0) FROM t_famille_stock WHERE lg_FAMILLE_ID='" + PRODUITS[0] + "' AND lg_EMPLACEMENT_ID='1'"), 10);
   const libelleG2 = q("SELECT str_LIBELLE FROM t_grossiste WHERE lg_GROSSISTE_ID='" + GROSSISTES[1] + "'");
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const ctx = await b.newContext({ viewport: { width: 1800, height: 1000 } });
   const p = await ctx.newPage();
   const err = []; p.on('pageerror', e => err.push(String(e.message)));

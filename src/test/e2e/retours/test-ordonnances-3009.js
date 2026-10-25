@@ -15,6 +15,7 @@
  * Tout ce que le test pose est retire a la fin.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
@@ -22,10 +23,10 @@ const os = require('os');
 
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 400) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
+const BASE = ENV_E2E.BASE;
 const MB4 = '--default-character-set=utf8mb4';
-const exec = (s) => execFileSync('mariadb', [MB4, BASE, '-e', s], { encoding: 'utf8' });
-const q = (s) => execFileSync('mariadb', [MB4, BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, MB4, BASE, '-e', s], { encoding: 'utf8' });
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, MB4, BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const CLIENT = 'E2E-3009-CLIENT';
 const NOM = 'ZZTRENTESEPT';
 const RACINE = path.join(os.homedir(), 'prestige');
@@ -52,7 +53,7 @@ function nettoyer() {
     + " str_STATUT) VALUES ('" + CLIENT + "', '" + NOM + "', 'E2E', '" + type + "', NOW(), NOW(), 'enable');");
   const produitStock = q("SELECT f.str_NAME FROM t_famille f JOIN t_famille_stock s ON s.lg_FAMILLE_ID = f.lg_FAMILLE_ID"
     + " WHERE s.int_NUMBER_AVAILABLE > 5 AND f.str_STATUT = 'enable' AND f.str_NAME LIKE 'DOLIPRANE 1G%' LIMIT 1");
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await (await b.newContext({ viewport: { width: 1600, height: 1000 } })).newPage();
   let err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   try {

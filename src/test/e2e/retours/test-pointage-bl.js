@@ -12,13 +12,14 @@
  *  - mise en page : en-tetes et boutons entiers ; aucune erreur JavaScript.
  */
 const { execFileSync } = require('child_process');
+const ENV_E2E = require('../outils/poste');
 const path = require('path');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 400) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const exec = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
-const SORTIE = process.env.SORTIE || '/tmp';
+const BASE = ENV_E2E.BASE;
+const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const SORTIE = process.env.SORTIE || ENV_E2E.TMP;
 const G = '51217123531215794892', CMD = 'E2E-PBL-CMD';
 const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = 'admin'");
 const ROLE = q("SELECT ru.lg_ROLE_ID FROM t_user u JOIN t_role_user ru ON ru.lg_USER_ID = u.lg_USER_ID WHERE u.str_LOGIN = 'admin' LIMIT 1");
@@ -44,7 +45,7 @@ function nettoyer() {
   exec("INSERT INTO t_retour_fournisseur (lg_RETOUR_FRS_ID, str_REF_RETOUR_FRS, dt_DATE, str_STATUT, dt_CREATED, dt_UPDATED, dl_AMOUNT, lg_USER_ID, lg_GROSSISTE_ID, lg_BON_LIVRAISON_ID)"
     + " VALUES ('E2E-PBL-R3', 'E2E-RET-3', '2026-09-15', 'is_Closed', NOW(), NOW(), 20323, '" + ADMIN + "', '" + G + "', 'E2E-PBL-3')");
   const { chromium } = require('playwright-core');
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   let ctx = await b.newContext({ viewport: { width: 1366, height: 768 } });
   let p = await ctx.newPage();
   const err = [];

@@ -10,11 +10,12 @@
  * (dt_UPDATED reste a l'heure du test : t_famille_before_upd_tr l'impose a chaque modification.)
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 400) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const BASE = ENV_E2E.BASE;
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const PID = q("SELECT f.lg_FAMILLE_ID FROM t_famille f JOIN t_famille_stock s ON s.lg_FAMILLE_ID = f.lg_FAMILLE_ID AND s.lg_EMPLACEMENT_ID = '1'"
   + " JOIN t_famille_grossiste g ON g.lg_FAMILLE_ID = f.lg_FAMILLE_ID WHERE f.str_STATUT = 'enable' AND f.int_CIP IS NOT NULL AND f.int_CIP <> ''"
   + " ORDER BY f.str_NAME LIMIT 1");
@@ -25,7 +26,7 @@ const remettre = () => q("UPDATE t_famille SET str_STATUT = '" + ORIG[0] + "' WH
 const pause = (ms) => new Promise((r) => setTimeout(r, ms));
 
 (async () => {
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const ctx = await b.newContext();
   const p = await ctx.newPage();
   const appel = (url, page) => (page || p).evaluate(async (url) => {

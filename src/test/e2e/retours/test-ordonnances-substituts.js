@@ -10,13 +10,14 @@
  *  - levothyroxine : « substitution a eviter » ; produit sans DCI : on le dit, on ne devine pas.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 400) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
-const exec = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
+const BASE = ENV_E2E.BASE;
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
 const MARQUE = 'E2E-SUB-';
 const ORIGINE = 'DOLIPRANE 500MG CPR B/16';
 const PARA = ['DOLIPRANE 500MG CPR B/16', 'DOLIPRANE 500MG CPR EFFV T/16', 'DOLIPRANE 1G CPR B/8', 'DOLIPRANE 200MG SUPPO B/10',
@@ -26,7 +27,7 @@ const sqlTexte = (v) => "'" + v.replace(/'/g, "''") + "'";
 (async () => {
   const idOrigine = q('SELECT lg_FAMILLE_ID FROM t_famille WHERE str_NAME=' + sqlTexte(ORIGINE) + " AND str_STATUT='enable' LIMIT 1");
   const stockAvant = q("SELECT CONCAT_WS('|', lg_FAMILLE_STOCK_ID, int_NUMBER_AVAILABLE, int_NUMBER) FROM t_famille_stock WHERE lg_FAMILLE_ID='" + idOrigine + "' AND lg_EMPLACEMENT_ID='1' LIMIT 1").split('|');
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await (await b.newContext({ viewport: { width: 1700, height: 1100 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   try {

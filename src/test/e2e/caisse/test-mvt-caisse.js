@@ -5,13 +5,14 @@
    - le mode de reglement est masque mais garde sa valeur ;
    - le montant est aligne en face du champ portant « Especes ». */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const res = [];
 
 /* Le test pose ses propres mouvements — un par type du journal — puis les retire.
    Sans donnees, le filtre « Tous les types » ne peut pas etre reellement verifie. */
-const BASE = process.env.DB_TEST || 'capitale';
-const sql = (q) => execFileSync('mariadb', [BASE, '-e', q], { encoding: 'utf8' });
+const BASE = ENV_E2E.BASE;
+const sql = (q) => execFileSync('mariadb', [...ENV_E2E.MARIADB, BASE, '-e', q], { encoding: 'utf8' });
 const AUJ = new Date().toISOString().slice(0, 10);
 function semer() {
   nettoyer();
@@ -33,7 +34,7 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
 
 (async () => {
   semer();
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await b.newPage({ viewport: { width: 1700, height: 950 } });
   const err = []; p.on('pageerror', e => err.push(String(e.message)));
   // On observe le parametre typeMvtId reellement envoye par la recherche du journal.

@@ -10,14 +10,15 @@
  *  - une precaution d'espacement ne propose rien.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const fs = require('fs');
 
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 400) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
-const exec = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
+const BASE = ENV_E2E.BASE;
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
 const CONF = process.env.POSOS_CONF || '/root/prestige/config/posos.properties';
 const MARQUE = 'E2E-EQV-';
 const PARA = ['DOLIPRANE 500MG CPR B/16', 'DOLIPRANE 1G CPR B/8', 'EFFERALGAN 500MG GEL B/16 ANF', 'DOLIPRANE 500MG CPR EFFV T/16'];
@@ -29,7 +30,7 @@ const produits = require('../support/produits-essai')(q, exec, 'E2E-PSE-');
 (async () => {
   produits.assurer(['SINTROM 4MG CPR SEC B/30', 'BRUFEN 400MG CPR DRG B/30', 'EFFERALGAN 500MG GEL B/16 ANF']);
   const avant = fs.existsSync(CONF) ? fs.readFileSync(CONF) : null;
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await (await b.newContext({ viewport: { width: 1700, height: 1100 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   try {

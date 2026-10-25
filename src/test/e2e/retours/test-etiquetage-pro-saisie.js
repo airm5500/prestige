@@ -10,12 +10,13 @@
  *  - lots d'essai (2 lots actifs + 1 perime) retires a la fin ; aucune erreur JavaScript, aucune fenetre.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const { connexion, ouvrirMenu, cliquer } = require('../outils/vues');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const BASE = ENV_E2E.BASE;
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const [PID, CIP, NOM, PRIX] = q("SELECT f.lg_FAMILLE_ID, f.int_CIP, f.str_DESCRIPTION, f.int_PRICE FROM t_famille f WHERE f.str_STATUT = 'enable' AND f.int_CIP REGEXP '^[0-9]{7}$'"
   + " AND LENGTH(f.str_DESCRIPTION) >= 10 AND (SELECT COUNT(*) FROM t_famille g WHERE g.str_STATUT = 'enable' AND g.int_CIP LIKE CONCAT(LEFT(f.int_CIP, 5), '%')) <= 5"
   + " ORDER BY f.int_CIP LIMIT 1").split('\t');
@@ -30,7 +31,7 @@ const auj = new Date(), jj = (d) => String(d.getDate()).padStart(2, '0') + '/' +
     + ` ('E2E-EPS-2', '${ADMIN}', '${PID}', 'E2ELOTA', 3, NOW(), NOW(), CURDATE() + INTERVAL 90 DAY, 'enable', 3),`
     + ` ('E2E-EPS-3', '${ADMIN}', '${PID}', 'E2ELOTPERIME', 2, NOW(), NOW(), CURDATE() - INTERVAL 10 DAY, 'enable', 2)`);
   const perA = q("SELECT DATE_FORMAT(CURDATE() + INTERVAL 90 DAY, '%d/%m/%Y')");
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await (await b.newContext({ viewport: { width: 1600, height: 900 } })).newPage();
   const erreurs = [], dialogues = [];
   p.on('pageerror', (e) => erreurs.push(e.message));

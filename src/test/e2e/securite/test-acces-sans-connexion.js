@@ -9,11 +9,12 @@
  * Rien n'est ecrit en base, sauf le parametre d'essai, remis a la fin.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 300) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const BASE = ENV_E2E.BASE;
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = 'admin'");
 const PARAM_AVANT = q("SELECT COALESCE((SELECT str_VALUE FROM t_parameters WHERE str_KEY = 'KEY_ENTETES_X_USER_INFO'), '__absent__')");
 const API = 'http://localhost:8080/prestige/api/';
@@ -31,7 +32,7 @@ const brut = async (url, h) => { const r = await fetch(API + url, { headers: h |
 const ouvert = (r) => r.s === 200 && !/connecter/i.test(r.t) && !/^</.test(r.t);
 
 (async () => {
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   try {
     /* C1 */
     let r = await brut('v1/app-vente/capacites', FAUX);

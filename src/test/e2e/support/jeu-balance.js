@@ -2,9 +2,10 @@
    cinq ventes aux montants choisis (3 comptant, 2 a credit), leurs reglements par mode (especes,
    ORANGE, WAVE) et cinq mouvements de caisse. Tout se retire par retirerJeuDEssai(). */
 const { execFileSync } = require('child_process');
-const BASE = process.env.DB_TEST || 'capitale';
-const q = (s) => execFileSync('mariadb', [BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
-const exec = (s) => execFileSync('mariadb', [BASE, '-e', s], { encoding: 'utf8' });
+const ENV_E2E = require('../outils/poste');
+const BASE = ENV_E2E.BASE;
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, BASE, '-e', s], { encoding: 'utf8' });
 const MARQUE = 'E2E-LL';
 const ESP = '1', ORANGE = '7', WAVE = '10';
 

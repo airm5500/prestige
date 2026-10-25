@@ -10,16 +10,17 @@
  *  - aucune erreur JavaScript ; donnees, archives et lignes de journal de l'essai retirees.
  */
 const { execFileSync } = require('child_process');
+const ENV_E2E = require('../outils/poste');
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const archives = require('./archives-pharmaml');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 600) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const exec = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
-const SORTIE = process.env.SORTIE || '/tmp';
+const BASE = ENV_E2E.BASE;
+const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const SORTIE = process.env.SORTIE || ENV_E2E.TMP;
 const PORT = 18775, G = '51217123531215794892', CLE = 'E2EJ9';
 const CMD = 'E2E-PMJ-CMD', CMD2 = 'E2E-PMJ-KO', CMDS = [CMD, CMD2];
 const pad = (n) => String(n).padStart(2, '0');
@@ -74,7 +75,7 @@ const racine = () => fs.readdirSync(archives.DOSSIER).filter((f) => /E2E-PMJ|PRS
   exec("UPDATE t_grossiste SET str_URL_PHARMAML = 'http://127.0.0.1:" + PORT + "/pml/', int_PHARMAML_DISPO = 1, str_PHARMAML_VERSION_INFO = '1.0.0.0', str_PHARMAML_VERSION_CMDE = '1.0.0.0',"
     + " str_CLE_RECEPTEUR = '" + CLE + "', str_PHARMAML_CONTROLE = 'CSRP' WHERE lg_GROSSISTE_ID = '" + G + "'");
   const { chromium } = require('playwright-core');
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await (await b.newContext({ viewport: { width: 1366, height: 768 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   try {

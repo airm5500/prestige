@@ -15,14 +15,15 @@
  * La vente est remise en etat quoi qu'il arrive : ce test ne laisse pas la base modifiee derriere lui.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 330) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
+const BASE = ENV_E2E.BASE;
 const MB4 = '--default-character-set=utf8mb4';
-const exec = (s) => execFileSync('mariadb', [MB4, BASE, '-e', s], { encoding: 'utf8' });
-const q = (s) => execFileSync('mariadb', [MB4, BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, MB4, BASE, '-e', s], { encoding: 'utf8' });
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, MB4, BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 
 (async () => {
   /* Une vente d'un mois DEJA CLOS : c'est le cas qui pose question, celui qu'on ne recalcule plus. */
@@ -40,7 +41,7 @@ const q = (s) => execFileSync('mariadb', [MB4, BASE, '-sN', '-e', s], { encoding
   const montantVente = Number(q("SELECT int_PRICE - COALESCE(int_PRICE_REMISE,0) FROM t_preenregistrement"
     + " WHERE lg_PREENREGISTREMENT_ID='" + vente + "'"));
 
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await (await b.newContext({ viewport: { width: 1600, height: 950 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   let remise = false;

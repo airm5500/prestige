@@ -23,13 +23,14 @@
  *      mouvements 3 (= +2 500) ; reglements TP 1 (12 000) ; ventes a credit 2 (30 000)
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const fs = require('fs');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 360) + ']' : '')); }
 
 const { q, MARQUE, MOIS_A, MOIS_B, FIN_B, jour, fr, poserJeuDEssai, retirerJeuDEssai } = require('../support/jeu-balance');
-const TMP = '/tmp/claude-0/lot-l';
+const TMP = ENV_E2E.TMP + '/claude-0/lot-l';
 
 (async () => {
   fs.mkdirSync(TMP, { recursive: true });
@@ -37,7 +38,7 @@ const TMP = '/tmp/claude-0/lot-l';
   poserJeuDEssai();
   ok('jeu d essai pose sur une fenetre vierge (' + MOIS_A + ' .. ' + FIN_B + ')', avant === '0', 'mouvements preexistants=' + avant);
 
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const ctx = await b.newContext({ viewport: { width: 1700, height: 980 } });
   const p = await ctx.newPage();
   const err = []; p.on('pageerror', e => err.push(String(e.message)));

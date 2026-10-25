@@ -10,19 +10,20 @@
  * Donnees d'essai (ligne de t_appareil_nom, lignes de journal) retirees a la fin.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const crypto = require('crypto');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const BASE = ENV_E2E.BASE;
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const EMP = crypto.createHash('sha256').update('e2e-android-id:ci.prestige.vente').digest('hex');
 const DEBUT = q('SELECT NOW() - INTERVAL 1 SECOND');
 const nettoyer = () => q("DELETE FROM t_appareil_nom WHERE empreinte = '" + EMP + "'; DELETE FROM t_event_log WHERE dt_CREATED >= '" + DEBUT + "' AND str_DESCRIPTION LIKE 'Nom d''appareil « E2E%'");
 
 (async () => {
   nettoyer();
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   try {
     const api = (p, m, u, c) => p.evaluate(async ([m, u, c]) => {
       const r = await fetch(u, { method: m, headers: { 'Content-Type': 'application/json' }, body: c === undefined ? undefined : JSON.stringify(c) });

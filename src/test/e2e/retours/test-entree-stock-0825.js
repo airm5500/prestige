@@ -11,13 +11,14 @@
  *  - aucune erreur JavaScript. Tout est retire : bon, commande, lots, mouvements, suggestions ; produit remis ; droit remis.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const privilegeEssai = require('../support/privilege-essai');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
-const exec = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
+const BASE = ENV_E2E.BASE;
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
 const BL = 'E2E-EST-BL', DET = 'E2E-EST-BLD', ORD = 'E2E-EST-ORD', TSF = 'E2E-EST-TSF', SUG = 'E2E-EST-SUG';
 const REF = 'E2EEST' + String(Date.now()).slice(-6);
 const debut = q('SELECT NOW()');
@@ -73,7 +74,7 @@ function remettre() {
     + ` SELECT '${SUG}', 'SR-E2E-EST', 'RESERVE', 'AUTOMATIQUE', 'A_TRAITER', '1', NOW() + INTERVAL 1 MINUTE, NOW(), (SELECT motif_id FROM t_suggestion_reserve WHERE motif_id IS NOT NULL LIMIT 1);`
     + `INSERT INTO t_suggestion_reserve_detail (lg_SUGGESTION_RESERVE_DETAIL_ID, lg_SUGGESTION_RESERVE_ID, lg_FAMILLE_ID, int_QTE_PROPOSEE, int_QTE_RETENUE, int_QTE_DEPLACEE, str_ETAT, dt_CREATED, dt_UPDATED)`
     + ` VALUES ('${SUG}-1', '${SUG}', '${AUTRE}', 3, 3, 0, 'PROPOSEE', NOW(), NOW());`);
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const err = [];
   let pages = 0;
   const connexion = async (ctx) => {

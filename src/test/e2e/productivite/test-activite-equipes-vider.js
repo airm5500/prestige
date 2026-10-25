@@ -8,6 +8,7 @@
  *  - aucune erreur JavaScript, aucune fenetre. Rien n'est ecrit en base.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { connexion, ouvrirMenu, cliquer, saisir } = require('../outils/vues');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
@@ -16,7 +17,7 @@ const auj = new Date(), jj = (d) => deux(d.getDate()) + '/' + deux(d.getMonth() 
 const premier = new Date(auj.getFullYear(), auj.getMonth(), 1);
 
 (async () => {
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await (await b.newContext({ viewport: { width: 1600, height: 900 } })).newPage();
   const erreurs = [], dialogues = [], journal = [];
   p.on('pageerror', (e) => erreurs.push(e.message));

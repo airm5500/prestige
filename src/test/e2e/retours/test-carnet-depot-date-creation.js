@@ -5,13 +5,14 @@
  * Le reglement est joue a l'ecran : ouverture de la fenetre, saisie du montant, choix d'une date passee, clic
  * sur Enregistrer. Le depot, la caisse ouverte et le reglement poses par le test sont retires a la fin. */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 320) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const exec = (s) => execFileSync('mariadb', [BASE, '-e', s], { encoding: 'utf8' });
-const q = (s) => execFileSync('mariadb', [BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const BASE = ENV_E2E.BASE;
+const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, BASE, '-e', s], { encoding: 'utf8' });
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 
 const DEPOT = 'E2E-DEPOT-DC';
 const CAISSE = 'E2E-CAISSE-DC';
@@ -58,7 +59,7 @@ function poser() {
   poser();
   const JOUR = q("SELECT DATE_FORMAT(CURDATE(), '%Y-%m-%d')");
   const CHOISIE = q("SELECT DATE_FORMAT(CURDATE() - INTERVAL 21 DAY, '%Y-%m-%d')");
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const ctx = await b.newContext({ viewport: { width: 1600, height: 950 } });
   const p = await ctx.newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));

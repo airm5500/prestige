@@ -13,6 +13,7 @@
  * Execution : npm install playwright-core && node ui-clavier-caisse-detail.js
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('./outils/poste');
 const { execSync } = require('child_process');
 const results = [];
 function ok(name, cond, detail) {
@@ -21,7 +22,7 @@ function ok(name, cond, detail) {
 }
 /* Jeu d'essai (autonome) : un produit detail du banc avec sa boite parent ; stock detail 5 et boite 0 le temps du
    test, caisse ouverte si besoin ; la vente creee est retiree et les stocks remis a la fin. */
-const sql = (x) => execSync('mariadb -N capitale', { input: x }).toString().trim();
+const sql = (x) => require('child_process').execFileSync('mariadb', [...ENV_E2E.MARIADB, '-N', ENV_E2E.BASE], { input: x }).toString().trim();
 const ADMIN = sql("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='" + (process.env.E2E_LOGIN || 'admin') + "'");
 const [DETAIL, PARENT, CIP_DETAIL] = sql("SELECT CONCAT_WS('|', d.lg_FAMILLE_ID, p.lg_FAMILLE_ID, d.int_CIP) FROM t_famille d JOIN t_famille p ON p.lg_FAMILLE_ID = d.lg_FAMILLE_PARENT_ID"
   + " JOIN t_famille_stock sd ON sd.lg_FAMILLE_ID = d.lg_FAMILLE_ID AND sd.lg_EMPLACEMENT_ID = '1' JOIN t_famille_stock sp ON sp.lg_FAMILLE_ID = p.lg_FAMILLE_ID AND sp.lg_EMPLACEMENT_ID = '1'"
@@ -47,7 +48,7 @@ function retirer() {
         + " UPDATE t_famille_stock SET int_NUMBER_AVAILABLE = " + STOCKS.parent[0] + ", int_NUMBER = " + STOCKS.parent[1] + " WHERE lg_FAMILLE_ID='" + PARENT + "' AND lg_EMPLACEMENT_ID='1';"
         + (caisseCreee ? " DELETE FROM t_resume_caisse WHERE ld_CAISSE_ID='e2e-clavier-caisse';" : ''));
 }
-function baseQte(v) { return execSync("mariadb -N capitale -e \"SELECT int_QUANTITY FROM t_preenregistrement_detail WHERE lg_PREENREGISTREMENT_ID='" + v + "'\"").toString().trim(); }
+function baseQte(v) { return sql("SELECT int_QUANTITY FROM t_preenregistrement_detail WHERE lg_PREENREGISTREMENT_ID='" + v + "'"); }
 
 async function cellSelector(page, dataIndex) {
     // id DOM de la cellule (1re ligne) pour la colonne dataIndex : vrai element cliquable
@@ -77,7 +78,7 @@ async function okButtonSelector(page) {
 
 (async () => {
     poser();
-    const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+    const browser = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
     const page = await browser.newPage({ viewport: { width: 1700, height: 1000 } });
 
     // connexion au clavier
@@ -156,7 +157,7 @@ async function okButtonSelector(page) {
     okSel = await okButtonSelector(page); if (okSel) { await page.click(okSel); }
     ok('4) saisie 0 refusee : la quantite reste >= 1', grille0 >= 1 && baseQte(venteId) === '5', 'grille=' + grille0 + ' base=' + baseQte(venteId));
 
-    await page.screenshot({ path: '/tmp/e2e-clavier.png' });
+    await page.screenshot({ path: ENV_E2E.TMP + '/e2e-clavier.png' });
     await browser.close();
     retirer();
     ok('jeu d essai retire (vente, stocks remis)', sql("SELECT CONCAT(int_NUMBER_AVAILABLE, '|', int_NUMBER) FROM t_famille_stock WHERE lg_FAMILLE_ID='" + DETAIL + "' AND lg_EMPLACEMENT_ID='1'") === STOCKS.detail.join('|'));

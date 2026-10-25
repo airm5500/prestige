@@ -11,11 +11,12 @@
  * Resultat : un fichier JSON par ecran (SORTIE=chemin, defaut /tmp/recette-ecrans.json).
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const fs = require('fs');
 const { execFileSync } = require('child_process');
 const { ouvrirMenu } = require('../outils/vues');
-const q = (sql) => execFileSync('mariadb', ['--default-character-set=utf8mb4', process.env.DB_TEST || 'capitale', '-sN', '-e', sql], { encoding: 'utf8' }).trim();
-const SORTIE = process.env.SORTIE || '/tmp/recette-ecrans.json';
+const q = (sql) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', ENV_E2E.BASE, '-sN', '-e', sql], { encoding: 'utf8' }).trim();
+const SORTIE = process.env.SORTIE || ENV_E2E.TMP + '/recette-ecrans.json';
 /* un formulaire court (point de caisse, import, envoi de recapitulatif) fait 150 a 190 px : seuil sous ces hauteurs */
 const HAUTEUR_MINIMALE = 120;
 const ecriture = (req) => {
@@ -29,7 +30,7 @@ const ECRANS = q("SELECT m.str_DESCRIPTION, s.str_DESCRIPTION, s.str_COMPOSANT F
   + " WHERE s.str_Status = 'enable' AND m.str_Status = 'enable' ORDER BY m.int_PRIORITY, m.str_DESCRIPTION, s.int_PRIORITY").split('\n').map((l) => l.split('\t'));
 
 (async () => {
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await (await b.newContext({ viewport: { width: 1600, height: 900 } })).newPage();
   p.setDefaultTimeout(20000);
   let courant = null; const resultats = []; const vus = new Set();

@@ -14,9 +14,10 @@
  * affichent des donnees nominatives.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
-const BASE = process.env.DB_TEST || 'capitale';
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const BASE = ENV_E2E.BASE;
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const V = 'E2E-DBLCLIC';
 const nettoyer = () => q(`DELETE FROM t_preenregistrement_detail WHERE lg_PREENREGISTREMENT_ID = '${V}'; DELETE FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID = '${V}'`);
 const res = [];
@@ -40,7 +41,7 @@ const ECRANS = [
     CREATE TEMPORARY TABLE e2e_d AS SELECT * FROM t_preenregistrement_detail WHERE lg_PREENREGISTREMENT_ID = '${SRC}';
     UPDATE e2e_d SET lg_PREENREGISTREMENT_DETAIL_ID = CONCAT('E2EDBL-', SUBSTRING(lg_PREENREGISTREMENT_DETAIL_ID, 8)), lg_PREENREGISTREMENT_ID = '${V}';
     INSERT INTO t_preenregistrement_detail SELECT * FROM e2e_d;`);
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await b.newPage({ viewport: { width: 1600, height: 900 } });
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   let appels = 0, morceauSuivi = null;

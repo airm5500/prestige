@@ -9,12 +9,13 @@
  *     (stock, quantite vendue, % marge) ; part de chaque vendeur dans le chiffre ; axe « Gardes comparees ».
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const fs = require('fs');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 360) + ']' : '')); }
 const { q, exec, MOIS_A, FIN_B, fr, poserJeuDEssai, retirerJeuDEssai } = require('../support/jeu-balance');
-const TMP = '/tmp/claude-0/lot-pq';
+const TMP = ENV_E2E.TMP + '/claude-0/lot-pq';
 const MARQUE = 'E2E-PQ';
 const ROLE_KGA3 = q("SELECT ru.lg_ROLE_ID FROM t_role_user ru JOIN t_user u ON u.lg_USER_ID=ru.lg_USER_ID WHERE u.str_LOGIN='" + (process.env.E2E_LOGIN || 'admin') + "' LIMIT 1");
 const PRIVILEGE = q("SELECT lg_PRIVELEGE_ID FROM t_privilege WHERE str_NAME='P_BALANCE_ANCIENNE_PRESENTATION'");
@@ -65,7 +66,7 @@ function semerGarde() {
   poserJeuDEssai();
   purgerGarde();
   if (!semerGarde()) { console.log('FATAL : jeu d\'essai incomplet'); purgerGarde(); retirerJeuDEssai(); process.exit(1); }
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const ctx = await b.newContext({ viewport: { width: 1800, height: 1000 } });
   const p = await ctx.newPage();
   const err = []; p.on('pageerror', e => err.push(String(e.message)));

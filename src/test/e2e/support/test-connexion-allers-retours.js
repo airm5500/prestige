@@ -10,12 +10,13 @@
  *  - aucune fenetre, aucune erreur JavaScript ; utilisateur de test supprime, journal SQL du banc coupe.
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
-const BASE = process.env.DB_TEST || 'capitale';
-const q = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 }).trim();
-const exec = (s) => execFileSync('mariadb', ['--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
+const BASE = ENV_E2E.BASE;
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 }).trim();
+const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
 const URL = 'http://localhost:8080/prestige';
 const ID = 'E2E-CNX-CAISSE', LOGIN = 'e2e.cnx.caisse', MDP = 'E2e-Caisse-14';
 const ROLE_CAISSE = q("SELECT lg_ROLE_ID FROM t_role WHERE str_NAME = 'Caisse/Commande/Stock' LIMIT 1");
@@ -74,7 +75,7 @@ async function menuAffiche(p) {
     + ` VALUES ('${ID}', '${LOGIN}', MD5('${MDP}'), 'E2E', 'CONNEXION', 'Caissier', 'enable', '1', NOW(), 0);`
     + `INSERT INTO t_role_user (lg_USER_ROLE_ID, lg_ROLE_ID, lg_USER_ID, dt_CREATED) VALUES ('${ID}', '${ROLE_CAISSE}', '${ID}', NOW());`
     + "SET GLOBAL log_output = 'TABLE'; SET GLOBAL general_log = 1;");
-  const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const fenetres = [], erreurs = [];
   try {
     const nbDroitsAdmin = q("SELECT COUNT(*) FROM t_role_privelege rp JOIN t_role_user ru ON ru.lg_ROLE_ID = rp.lg_ROLE_ID JOIN t_user u ON u.lg_USER_ID = ru.lg_USER_ID WHERE u.str_LOGIN = 'admin'");

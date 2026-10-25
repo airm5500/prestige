@@ -14,8 +14,9 @@
  * Execution : node ui-fiche-article-refonte.js
  */
 const { chromium } = require('playwright-core');
+const ENV_E2E = require('./outils/poste');
 const { execFileSync } = require('child_process');
-const sql = (x) => execFileSync('mariadb', [process.env.DB_TEST || 'capitale', '-sN'], { input: x, encoding: 'utf8' }).trim();
+const sql = (x) => execFileSync('mariadb', [...ENV_E2E.MARIADB, ENV_E2E.BASE, '-sN'], { input: x, encoding: 'utf8' }).trim();
 /* Jeu d'essai (autonome) : un produit du banc vendu et entre par BL (recherche par son CIP), un lot d'essai date pour
    la peremption de l'apercu (les lots du banc n'ont pas de date) ; la presentation des actions par defaut (4 icones +
    menu « ... ») le temps du test, la configuration du banc remise a la fin. */
@@ -44,7 +45,7 @@ function ok(name, cond, detail) {
 
 (async () => {
     poser();
-    const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true });
+    const browser = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
     const page = await browser.newPage({ viewport: { width: 1700, height: 1000 } });
     const erreursJs = [];
     page.on('pageerror', e => erreursJs.push(String(e.message)));
