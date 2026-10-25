@@ -482,16 +482,18 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
                                     xtype: 'button',
                                     handler: this.onbtndetail,
                                     disabled: true
-                                }]
-                        },
-                        {
-                            /* retours du 11/10 : reception d'un grossiste equipe d'Etiquettage Pro */
-                            xtype: 'container', layout: 'hbox', margin: '0 0 4 105', items: [
-                                {xtype: 'radiogroup', id: 'scanMode', width: 330, columns: 2, items: [
+                                },
+                                /* retours du 11/10 : reception d'un grossiste equipe d'Etiquettage Pro ; retours du 25/10
+                                   (point 8) : sur la ligne de « Voir infos produit », a droite (une ligne de gagnee) */
+                                {xtype: 'radiogroup', id: 'scanMode', width: 330, columns: 2, margins: '0 0 0 14', items: [
                                         {boxLabel: 'Scan : 1 boîte par scan', name: 'scanMode', inputValue: 'UNITE', checked: true},
                                         {boxLabel: 'Scan puis quantité', name: 'scanMode', inputValue: 'QUANTITE'}
-                                    ]},
-                                {xtype: 'component', id: 'scanEtat', flex: 1, margin: '4 0 0 10', html: ''}
+                                    ]}]
+                        },
+                        {
+                            /* etat du dernier scan : la ligne n'apparait qu'avec un message */
+                            xtype: 'container', id: 'scanEtatLigne', layout: 'hbox', margin: '0 0 4 105', hidden: true, items: [
+                                {xtype: 'component', id: 'scanEtat', flex: 1, margin: '4 0 0 0', html: ''}
                             ]
                         },
                         {
@@ -2063,6 +2065,7 @@ Ext.define('testextjs.view.commandemanagement.order.action.add', {
 
     etatScan: function (html, couleur) {
         Ext.getCmp('scanEtat').update(html ? '<span style="color:' + (couleur || '#1e8449') + ';font-weight:600">' + html + '</span>' : '');
+        Ext.getCmp('scanEtatLigne').setVisible(!!html);
     },
 
     viderSaisieScan: function () {

@@ -306,9 +306,13 @@ Ext.define('testextjs.view.commandemanagement.cmde_passees.action.add', {
             success: function (response)
             {
                 testextjs.app.getController('App').StopWaitingProcess();
-                const result = Ext.JSON.decode(response.responseText, true);
-
-                Ext.MessageBox.alert('confirmation', result.msg);
+                const result = Ext.JSON.decode(response.responseText, true) || {};
+                /* retours du 25/10 (point 8) : plus de message quand le BL est cree ; en cas d'echec, le message
+                   reste et la fenetre aussi (la saisie n'est pas perdue) */
+                if (result.success === false) {
+                    Ext.MessageBox.alert('Création du bon de livraison', result.msg || 'Le bon de livraison n\'a pas été créé.');
+                    return;
+                }
                 button.up('window').close();
 
                 testextjs.app.getController('App').onLoadNewComponentWithDataSource("bonlivraisonmanager", "", "", "");

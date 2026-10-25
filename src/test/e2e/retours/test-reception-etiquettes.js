@@ -106,7 +106,7 @@ function nettoyer() {
     ok('DataMatrix+ : produit retrouvé par l\'EAN, lot et péremption (30/11/2027) repris', l2[0] === '1' && /"numeroLot":"E2EB7"/.test(l2[2]) && /"datePeremption":"30\/11\/2027"/.test(l2[2]), l2.join(' / ') + ' ' + await etat());
 
     /* scan puis quantite */
-    await p.evaluate(() => Ext.getCmp('scanMode').setValue({ scanMode: 'QUANTITE' }));
+    await p.evaluate(() => { Ext.getCmp('scanMode').setValue({ scanMode: 'QUANTITE' }); });
     await scanner(qrPlus({ CIP: P[0][1], NOM: 'E2E SCAN', PRIX: prixP1, LOT: 'E2EC3', PER: '30/06/2028' }));
     const attente = await p.evaluate(() => ({ e: Ext.getCmp('scanEtat').getEl().dom.textContent, focus: document.activeElement && document.activeElement.id, nom: Ext.getCmp('str_NAME').getRawValue() }));
     ok('Scan puis quantité : produit et lot annoncés, curseur sur la quantité, rien d\'ajouté encore', /saisissez la quantité/.test(attente.e) && /int_QUANTITE/.test(attente.focus) && ligne(P[0][0]).split('|')[0] === '2', JSON.stringify(attente));
@@ -116,7 +116,7 @@ function nettoyer() {
     const lotsP1 = JSON.parse(l1[2] || '[]'), lot = (n) => lotsP1.find((x) => x.numeroLot === n) || {};
     ok('… Entrée sur la quantité 12 : ligne à 14, lot E2EC3 (30/06/2028) à 12, lot E2EA1 toujours à 2', l1[0] === '14' && lot('E2EC3').quantity === 12 && lot('E2EC3').datePeremption === '30/06/2028'
       && lot('E2EA1').quantity === 2 && lotsP1.length === 2, l1.join(' / ') + ' ' + await etat());
-    await p.evaluate(() => Ext.getCmp('scanMode').setValue({ scanMode: 'UNITE' }));
+    await p.evaluate(() => { Ext.getCmp('scanMode').setValue({ scanMode: 'UNITE' }); });
 
     /* recherche habituelle intacte */
     await p.click('#str_NAME-inputEl'); await p.keyboard.press('Control+A'); await p.keyboard.type(P[0][1]);
