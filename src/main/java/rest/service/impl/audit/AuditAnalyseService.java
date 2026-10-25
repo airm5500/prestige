@@ -215,22 +215,31 @@ public class AuditAnalyseService {
 
     /* ------------------------------------------------------------------ differes */
 
-    /** Ventes differees closes et non annulees d'un client (meme base que le releve des differes). */
-    private static final String VENTES_DIFFEREES = " FROM t_preenregistrement_compte_client tp"
+    /** Ventes differees closes et non annulees, par client (meme base que le releve des differes). */
+    private static final String VENTES_DIFFEREES_PAR_CLIENT = " FROM t_preenregistrement_compte_client tp"
             + " JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = tp.lg_PREENREGISTREMENT_ID"
             + " JOIN t_compte_client cc ON cc.lg_COMPTE_CLIENT_ID = tp.lg_COMPTE_CLIENT_ID"
-            + " WHERE cc.lg_CLIENT_ID = c.lg_CLIENT_ID AND tp.str_STATUT = 'is_Closed' AND p.b_IS_CANCEL = 0";
+            + " WHERE tp.str_STATUT = 'is_Closed' AND p.b_IS_CANCEL = 0";
 
+    /**
+     * Retour du 25/10 (ouverture de l'audit bloquee : 23 s en officine, 1 min 45 sur une base de 1 million de
+     * mouvements) : les reglements etaient sommes client par client, et mvttransaction n'a pas d'index sur organisme :
+     * la table entiere etait relue pour chaque client ayant des differes. Les trois sommes sont maintenant calculees en
+     * un passage chacune, regroupees par client. Memes clients, memes montants : verifie sur deux bases reelles
+     * (empreinte identique des lignes rendues).
+     */
     private JSONObject differes() {
-        List<Object[]> r = lignes("SELECT x.id, x.nom, x.du, x.regle, x.reste FROM (SELECT c.lg_CLIENT_ID id,"
-                + " CONCAT_WS(' ', c.str_FIRST_NAME, c.str_LAST_NAME) nom," + " (SELECT COALESCE(SUM(tp.int_PRICE), 0)"
-                + VENTES_DIFFEREES + ") du,"
-                + " (SELECT COALESCE(SUM(m.montantRegle), 0) FROM mvttransaction m WHERE m.typeMvtCaisseId = ?1"
-                + "   AND m.checked = 1 AND m.organisme = c.lg_CLIENT_ID) regle,"
-                + " (SELECT COALESCE(SUM(tp.int_PRICE_RESTE), 0)" + VENTES_DIFFEREES + ") reste"
-                + " FROM t_client c WHERE EXISTS (SELECT 1 FROM t_compte_client cc JOIN t_preenregistrement_compte_client tp"
-                + "   ON tp.lg_COMPTE_CLIENT_ID = cc.lg_COMPTE_CLIENT_ID WHERE cc.lg_CLIENT_ID = c.lg_CLIENT_ID)) x"
-                + " WHERE x.du - x.regle <> x.reste ORDER BY ABS(x.du - x.regle - x.reste) DESC",
+        List<Object[]> r = lignes("SELECT b.id, CONCAT_WS(' ', c.str_FIRST_NAME, c.str_LAST_NAME) nom,"
+                + " COALESCE(v.du, 0) du, COALESCE(g.regle, 0) regle, COALESCE(v.reste, 0) reste"
+                + " FROM (SELECT DISTINCT cc.lg_CLIENT_ID id FROM t_compte_client cc JOIN t_preenregistrement_compte_client tp"
+                + "   ON tp.lg_COMPTE_CLIENT_ID = cc.lg_COMPTE_CLIENT_ID) b"
+                + " JOIN t_client c ON c.lg_CLIENT_ID = b.id"
+                + " LEFT JOIN (SELECT cc.lg_CLIENT_ID id, SUM(tp.int_PRICE) du, SUM(tp.int_PRICE_RESTE) reste"
+                + VENTES_DIFFEREES_PAR_CLIENT + " GROUP BY cc.lg_CLIENT_ID) v ON v.id = b.id"
+                + " LEFT JOIN (SELECT m.organisme id, SUM(m.montantRegle) regle FROM mvttransaction m"
+                + "   WHERE m.typeMvtCaisseId = ?1 AND m.checked = 1 GROUP BY m.organisme) g ON g.id = b.id"
+                + " WHERE COALESCE(v.du, 0) - COALESCE(g.regle, 0) <> COALESCE(v.reste, 0)"
+                + " ORDER BY ABS(COALESCE(v.du, 0) - COALESCE(g.regle, 0) - COALESCE(v.reste, 0)) DESC",
                 Constant.MVT_REGLE_DIFF);
         JSONArray l = new JSONArray();
         long montant = 0;

@@ -73,6 +73,41 @@ const tables = ['t_famille_stock', 'hmvtproduit', 't_tiers_payant', 't_resume_ca
 const sommes = () => tables.map((t) => q('CHECKSUM TABLE ' + t).split('\t')[1]).join(',');
 const droit = privilegeEssai(q, exec, ENV_E2E.LOGIN, 'P_SM_AUDIT');
 
+/* charge (retour du 25/10 : ouverture bloquee 23 s en officine) : 300 clients ayant chacun une vente differee. Les
+   reglements etaient sommes client par client sur mvttransaction, sans index sur organisme : une lecture de la table
+   entiere par client. */
+const NB_CHARGE = 300;
+const idCharge = (i) => M + '-D' + String(i).padStart(3, '0');
+/* SQL long (300 lignes) passe par l'entree du client : sous Windows, la ligne de commande est limitee a 32 000 caracteres */
+const execEntree = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE], { input: s, encoding: 'utf8' });
+function poserCharge() {
+  const lignes = (f) => Array.from({ length: NB_CHARGE }, (_, i) => f(idCharge(i))).join(', ');
+  execEntree(`INSERT INTO t_client (lg_CLIENT_ID, str_FIRST_NAME, str_LAST_NAME, str_STATUT, dt_CREATED) VALUES ${lignes((x) => `('${x}', 'ZZAUDIT', 'Charge', 'enable', NOW())`)};`
+    + `INSERT INTO t_compte_client (lg_COMPTE_CLIENT_ID, lg_CLIENT_ID, str_STATUT, dt_CREATED) VALUES ${lignes((x) => `('${x}-CC', '${x}', 'enable', NOW())`)};`
+    + 'INSERT INTO t_preenregistrement (lg_PREENREGISTREMENT_ID, str_REF, str_REF_TICKET, int_PRICE, int_PRICE_REMISE, str_STATUT, dt_CREATED, dt_UPDATED,'
+    + ' lg_TYPE_VENTE_ID, lg_USER_VENDEUR_ID, lg_USER_CAISSIER_ID, lg_USER_ID, b_IS_CANCEL, b_IS_AVOIR, b_WITHOUT_BON, int_PRICE_OTHER, int_ACCOUNT,'
+    + ' int_REMISE_PARA, montantTva, checked, copy, imported, margeug, montantttcug, montantnetug, int_SENDTOSUGGESTION)'
+    + ` VALUES ${lignes((x) => `('${x}-V', '${x}-V', '0', 1000, 0, 'is_Closed', NOW(), NOW(), '1', '${ADMIN}', '${ADMIN}', '${ADMIN}', 0, 0, 0, 0, 1000, 0, 0, 1, 0, 0, 0, 0, 0, 0)`)};`
+    + 'INSERT INTO t_preenregistrement_compte_client (lg_PREENREGISTREMENT_COMPTE_CLIENT_ID, lg_PREENREGISTREMENT_ID, lg_COMPTE_CLIENT_ID, lg_USER_ID, str_STATUT,'
+    + ` dt_CREATED, dt_UPDATED, int_PRICE, int_PRICE_RESTE) VALUES ${lignes((x) => `('${x}-PCC', '${x}-V', '${x}-CC', '${ADMIN}', 'is_Closed', NOW(), NOW(), 1000, 1000)`)};`);
+}
+/* reglements de differes (typeMvtCaisseId 2) : la copie de travail n'en a aucun ; une officine en a des milliers
+   (7 236 sur l'une des bases du poste). Ce sont eux que l'ancienne requete relisait pour chaque client. */
+const NB_REGLEMENTS = 7200;
+function poserReglementsCharge() {
+  exec('INSERT INTO mvttransaction (uuid, categorie, createdAt, mvtdate, pkey, reference, typeTransaction, caisse, lg_EMPLACEMENT_ID, lg_USER_ID,'
+    + ' montant, montantRegle, montantPaye, montantAcc, margeug, montantttcug, montantnetug, montanttvaug, typeMvtCaisseId, checked, organisme)'
+    + ` SELECT CONCAT('${M}-DM', seq), 1, NOW(), CURDATE(), CONCAT('${M}-DM', seq), '${M}', 0, '${CAISSE}', '1', '${ADMIN}', 100, 100, 100, 0, 0, 0, 0, 0,`
+    + ` '2', 1, CONCAT('${M}-D', LPAD(seq % ${NB_CHARGE}, 3, '0')) FROM seq_1_to_${NB_REGLEMENTS}`);
+}
+function retirerCharge() {
+  exec(`DELETE FROM mvttransaction WHERE uuid LIKE '${M}-DM%';`
+    + `DELETE FROM t_preenregistrement_compte_client WHERE lg_PREENREGISTREMENT_COMPTE_CLIENT_ID LIKE '${M}-D%';`
+    + `DELETE FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID LIKE '${M}-D%';`
+    + `DELETE FROM t_compte_client WHERE lg_COMPTE_CLIENT_ID LIKE '${M}-D%';`
+    + `DELETE FROM t_client WHERE lg_CLIENT_ID LIKE '${M}-D%';`);
+}
+
 function retirer() {
   exec(`DELETE FROM mvttransaction WHERE uuid = '${M}-RG';`
     + `DELETE FROM t_preenregistrement_compte_client WHERE lg_PREENREGISTREMENT_COMPTE_CLIENT_ID = '${M}-PCC';`
@@ -126,6 +161,7 @@ function poser() {
 (async () => {
   droit.remettre();
   retirer();
+  retirerCharge();
   const b = await ENV_E2E.lancer(chromium);
   const dialogues = [];
   try {
@@ -136,6 +172,13 @@ function poser() {
     await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 90000 });
+    /* rapidite de l'analyse a l'ouverture, avec 40 clients en differe */
+    poserCharge();
+    poserReglementsCharge();
+    const duree = await p.evaluate(async () => { const t0 = Date.now(); const r = await fetch('../api/v1/audit/analyse');
+      await r.json(); return { ms: Date.now() - t0 }; });
+    ok('Analyse à l\'ouverture en moins de 10 s avec ' + NB_CHARGE + ' clients en différé et ' + NB_REGLEMENTS + ' règlements', duree.ms < 10000, JSON.stringify(duree));
+    retirerCharge();
     const menu = q("SELECT str_DESCRIPTION FROM t_sous_menu WHERE str_COMPOSANT = 'auditrapprochements'");
     ok('Menu « Audit & rapprochements » (≤ 25 caractères) dans le Centre de support', menu === 'Audit & rapprochements'
       && q("SELECT m.str_DESCRIPTION FROM t_sous_menu s JOIN t_menu m ON m.lg_MENU_ID = s.lg_MENU_ID WHERE s.str_COMPOSANT = 'auditrapprochements'") !== '', menu);
@@ -205,6 +248,7 @@ function poser() {
   } finally {
     droit.remettre();
     retirer();
+    retirerCharge();
     retirerProduitCree();
     exec(`DELETE FROM t_audit_rapport WHERE created_at >= '${DEBUT}'`); /* rapports conserves par « Lancer l'analyse » */
     await b.close();
