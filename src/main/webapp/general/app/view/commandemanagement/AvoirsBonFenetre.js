@@ -123,7 +123,13 @@ Ext.define('testextjs.view.commandemanagement.AvoirsBonFenetre', {
                 return '<div class="vc-tuile"><div class="vc-tuile-valeur">' + valeur + '</div><div class="vc-tuile-libelle">'
                         + libelle + '</div></div>';
             };
-            corps = '<div class="vc-tuiles">' + tuile(r.total, 'ligne' + (r.total > 1 ? 's' : '') + ' en avoir')
+            /* retours du 25/10 (point 10) : consigne bien visible, en rouge clignotant */
+            if (!Ext.get('va-styles')) {
+                Ext.util.CSS.createStyleSheet('@keyframes vaClignote{0%,49%{opacity:1}50%,100%{opacity:.15}}'
+                        + '.va-cote{color:#c62828;font-weight:bold;font-size:15px;text-align:center;margin:0 0 10px;animation:vaClignote 1s step-end infinite}', 'va-styles');
+            }
+            corps = '<div class="va-cote" role="alert">Veuillez mettre ces produits de côté</div>'
+                    + '<div class="vc-tuiles">' + tuile(r.total, 'ligne' + (r.total > 1 ? 's' : '') + ' en avoir')
                     + tuile(Ext.Object.getKeys(clients).length, 'client(s) à prévenir') + '</div>'
                     + '<div class="vc-tableau"><table><thead><tr><th>Produit</th><th>Client</th><th>Téléphone</th>'
                     + '<th>Vente</th><th>Date</th><th class="vc-n">Due</th><th class="vc-n">Reçue (bon)</th></tr></thead><tbody>'

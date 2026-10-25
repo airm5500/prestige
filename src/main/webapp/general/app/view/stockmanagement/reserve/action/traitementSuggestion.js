@@ -15,7 +15,9 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.traitementSuggestion',
     requires: ['Ext.grid.*', 'Ext.data.*', 'Ext.window.Window'],
     config: {
         suggestionid: '',
-        parentview: null
+        parentview: null,
+        /** Retours du 25/10 (point 10) : identifiants des produits a montrer seuls (produits d'un bon), ou null. */
+        produits: null
     },
 
     // Repere visuel par etat de ligne (§5 : distinguer proposee, modifiee, supprimee, reussie, echouee)
@@ -56,6 +58,38 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.traitementSuggestion',
                 reader: {type: 'json', root: 'lignes'}
             }
         });
+
+        /* Retours du 25/10 (point 10) : apres une entree en stock, seuls les produits du bon s'affichent ; le
+           traitement porte sur toute la suggestion : avant toute action, tout est de nouveau affiche. */
+        var bandeauBon = Ext.create('Ext.Component', {dock: 'top', hidden: true, itemId: 'filtreBon', padding: '6 10',
+            style: 'background:#eef4fb;border-bottom:1px solid #c5d6ea;font-size:12px', html: '',
+            listeners: {afterrender: function (c) {
+                    c.getEl().on('click', function (e) {
+                        e.preventDefault();
+                        toutAfficher();
+                    }, null, {delegate: 'a'});
+                }}});
+        var filtreBonActif = !!(me.getProduits() && me.getProduits().length);
+        var appliquerFiltreBon = function () {
+            if (!filtreBonActif) {
+                return;
+            }
+            var ids = me.getProduits(), total = store.getCount();
+            store.filterBy(function (r) {
+                return Ext.Array.contains(ids, r.get('lg_FAMILLE_ID'));
+            });
+            var autres = total - store.getCount();
+            bandeauBon.update('Produits du bon de livraison seulement : <b>' + store.getCount() + '</b> sur ' + total
+                    + (autres > 0 ? ' (la suggestion contient ' + autres + ' autre(s) produit(s)) — <a href="#">Tout afficher</a>' : ''));
+            bandeauBon.show();
+        };
+        var toutAfficher = function () {
+            filtreBonActif = false;
+            if (store.isFiltered()) {
+                store.clearFilter();
+            }
+            bandeauBon.hide();
+        };
 
         var cellEditing = Ext.create('Ext.grid.plugin.CellEditing', {
             pluginId: 'cellplugin',
@@ -136,6 +170,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.traitementSuggestion',
 
         var grid = Ext.create('Ext.grid.Panel', {
             store: store,
+            dockedItems: [bandeauBon],
             flex: 1,
             border: false,
             selModel: {selType: 'cellmodel'},
@@ -311,6 +346,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.traitementSuggestion',
             text: 'Reessayer les lignes en echec',
             hidden: true,
             handler: function () {
+                toutAfficher();
                 lancerTraitement(baseUrl + encodeURIComponent(id) + '/reessayer', true);
             }
         });
@@ -498,6 +534,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.traitementSuggestion',
                     }
                     majEntete(res.entete);
                     store.loadData(res.lignes || []);
+                    appliquerFiltreBon();
                     appliquerVerrou(res);
 
                     // A l'ouverture, la main est donnee directement a la premiere quantite saisissable :
@@ -581,6 +618,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.traitementSuggestion',
             text: 'Annuler les mouvements',
             hidden: true,
             handler: function () {
+                toutAfficher();
                 var traitees = 0;
                 store.each(function (r) {
                     if (r.get('str_ETAT') === 'TRAITEE') {
@@ -667,6 +705,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.traitementSuggestion',
             text: 'Traiter la suggestion',
             cls: 'btn-suggestions-violet',
             handler: function () {
+                toutAfficher();
                 var aTraiter = 0;
                 store.each(function (r) {
                     if (r.get('str_ETAT') !== 'SUPPRIMEE' && r.get('str_ETAT') !== 'TRAITEE'

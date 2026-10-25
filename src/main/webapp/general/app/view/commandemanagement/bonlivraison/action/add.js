@@ -140,22 +140,23 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.action.add', {
                             ]
                         },
                         {
+                            /* retours du 25/10 (point 10) : libelles a gauche des champs, 3 lignes comme les deux autres
+                               colonnes (ils etaient au-dessus : 6 lignes, le cadre perdait de la hauteur) */
                             columnWidth: 1 / 3,
                             layout: {type: 'anchor'},
+                            defaults: {anchor: '100%', labelWidth: 150, labelCls: 'ig-label', margin: '0 0 2 0'},
                             items: [
-                                {html: '<span class="ig-label">Commencer l\'impression à partir de:</span>'},
                                 {
                                     xtype: 'numberfield',
-                                    anchor: '100%',
+                                    fieldLabel: 'Impression à partir de',
                                     cls: 'ig-number',
                                     name: 'int_NUMBER_ETIQUETTE',
                                     id: 'int_NUMBER_ETIQUETTE',
                                     minValue: 1, maxValue: 65, value: 1
                                 },
-                                {html: '<span class="ig-label">Modèle d\'étiquette:</span>'},
                                 {
                                     xtype: 'combobox',
-                                    anchor: '100%',
+                                    fieldLabel: 'Modèle d\'étiquette',
                                     name: 'modele_ETIQUETTE_BL',
                                     id: 'modele_ETIQUETTE_BL',
                                     store: [
@@ -171,9 +172,8 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.action.add', {
                                     value: ''
                                 },
                                 /* retours du 10/10 (point 5) : code de l'etiquette, code-barres ou 2D GS1 */
-                                {html: '<span class="ig-label">Code de l\'étiquette:</span>'},
                                 {
-                                    xtype: 'combobox', anchor: '100%', name: 'code_ETIQUETTE_BL', id: 'code_ETIQUETTE_BL',
+                                    xtype: 'combobox', fieldLabel: 'Code de l\'étiquette', name: 'code_ETIQUETTE_BL', id: 'code_ETIQUETTE_BL',
                                     store: [['', 'Défaut (configuration)'], ['CODE128', 'Code-barres du CIP'],
                                         ['QR', 'QR code GS1 (EAN, lot, péremption, CIP)'], ['DATAMATRIX', 'DataMatrix GS1 (EAN, lot, péremption, CIP)']],
                                     queryMode: 'local', editable: false, forceSelection: true, value: '',
@@ -364,8 +364,9 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.action.add', {
                     dock: 'bottom',
                     border: '0',
                     items: ['->',
-                        {text: 'Retour', id: 'btn_cancel', iconCls: 'icon-clear-group', style: 'background-color:#d9534f;border-color:#d9534f;', scope: this, handler: this.onbtncancel},
-                        {text: 'ENTREE EN STOCK', id: 'btn_enterstock', cls: 'btn-primary', iconCls: 'icon-clear-group', hidden: true, scope: this, handler: this.onbtnenterstock}
+                        /* retours du 25/10 (point 10) : boutons au style de « Suivi dossier client » */
+                        {text: 'Retour', id: 'btn_cancel', cls: 'ordo-btn', scale: 'medium', iconCls: 'icon-clear-group', margin: '0 8 0 0', scope: this, handler: this.onbtncancel},
+                        {text: 'ENTREE EN STOCK', id: 'btn_enterstock', cls: 'ordo-btn-primaire', scale: 'medium', iconCls: 'icon-clear-group', hidden: true, scope: this, handler: this.onbtnenterstock}
                     ]
                 }
             ]
