@@ -318,6 +318,109 @@ public class CampagneRessource {
         return ok(new JSONObject().put("data", a).put("total", a.length()));
     }
 
+    /** Retours du 25/10 (point 14) : suivi message par message d'une campagne envoyee. */
+    @GET
+    @Path("{id}/suivi")
+    public Response suivi(@PathParam("id") String id) {
+        Response r = controle();
+        return r != null ? r : ok(service.suivi(id));
+    }
+
+    /* ------------------------------------------------------------------------------------------------ listes */
+
+    /** Identifiants de clients d'un corps JSON ({clientIds: [...]}), 5 000 au plus. */
+    private static List<String> clientIds(JSONObject o) {
+        List<String> l = new ArrayList<>();
+        JSONArray a = o.optJSONArray("clientIds");
+        for (int i = 0; a != null && i < a.length() && l.size() < 5000; i++) {
+            String id = StringUtils.left(StringUtils.trimToNull(a.optString(i, null)), 40);
+            if (id != null) {
+                l.add(id);
+            }
+        }
+        return l;
+    }
+
+    /** Retours du 25/10 (point 14) : listes de diffusion nommees. */
+    @GET
+    @Path("listes")
+    public Response listes() {
+        Response r = controle();
+        return r != null ? r : ok(new JSONObject().put("data", service.listes()));
+    }
+
+    @POST
+    @Path("listes")
+    public Response creerListe(String c) {
+        Response r = controle();
+        if (r != null) {
+            return r;
+        }
+        try {
+            return ok(new JSONObject().put("id",
+                    service.creerListe(corps(c).optString("nom"), utilisateur().getLgUSERID())));
+        } catch (Exception e) {
+            return erreur("creation de liste", e);
+        }
+    }
+
+    @POST
+    @Path("listes/{id}/supprimer")
+    public Response supprimerListe(@PathParam("id") String id) {
+        Response r = controle();
+        if (r != null) {
+            return r;
+        }
+        try {
+            service.supprimerListe(id);
+            return ok(new JSONObject());
+        } catch (Exception e) {
+            return erreur("suppression de liste", e);
+        }
+    }
+
+    @GET
+    @Path("listes/{id}/clients")
+    public Response membres(@PathParam("id") String id) {
+        Response r = controle();
+        return r != null ? r : ok(new JSONObject().put("data", service.membres(id)));
+    }
+
+    @POST
+    @Path("listes/{id}/ajouter")
+    public Response ajouterMembres(@PathParam("id") String id, String c) {
+        Response r = controle();
+        if (r != null) {
+            return r;
+        }
+        try {
+            return ok(new JSONObject().put("ajoutes", service.ajouterMembres(id, clientIds(corps(c)))));
+        } catch (Exception e) {
+            return erreur("ajout a une liste", e);
+        }
+    }
+
+    @POST
+    @Path("listes/{id}/retirer")
+    public Response retirerMembres(@PathParam("id") String id, String c) {
+        Response r = controle();
+        if (r != null) {
+            return r;
+        }
+        try {
+            return ok(new JSONObject().put("retires", service.retirerMembres(id, clientIds(corps(c)))));
+        } catch (Exception e) {
+            return erreur("retrait d'une liste", e);
+        }
+    }
+
+    @GET
+    @Path("clients")
+    public Response chercherClients(@QueryParam("q") String q) {
+        Response r = controle();
+        return r != null ? r : ok(new JSONObject().put("data", service.chercherClients(q)));
+    }
+
     /* ------------------------------------------------------------------------------------------------ fetes */
 
     @GET

@@ -165,7 +165,8 @@ function nettoyer(debut) {
 
     /* --- infos clients : filtres, accord explicite, texte libre, envoi */
     await onglet(p, 'Infos clients');
-    await p.evaluate(() => { const o = Ext.ComponentQuery.query('campagnes #onglet-INFO_CLIENTS')[0]; o.down('#recherche').setValue('ZZCAMPAGNE'); o.down('#sexe').setValue('F'); });
+    await p.evaluate(() => { const o = Ext.ComponentQuery.query('campagnes #onglet-INFO_CLIENTS')[0]; o.down('#recherche').setValue('ZZCAMPAGNE'); o.down('#sexe').setValue('F'); o.down('#canal').setValue('SMS'); });
+    await p.waitForTimeout(1000);
     await cliquer(p, 'campagnes #onglet-INFO_CLIENTS #voir');
     await p.waitForTimeout(2500);
     let pop = await p.evaluate(() => { const g = Ext.ComponentQuery.query('campagnes #onglet-INFO_CLIENTS #destinataires')[0]; const l = []; g.getStore().each((r) => l.push(r.get('client') + '=' + (r.get('joignable') ? 'OK' : r.get('motif')))); return { l, titre: g.title, c: g.getSelectionModel().getCount() }; });

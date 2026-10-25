@@ -65,6 +65,8 @@ public class CampagneService {
         public Categorie categorie;
         public LocalDate jour = LocalDate.now();
         public String sexe, recherche, feteCode;
+        /** Retours du 25/10 (point 14) : liste de diffusion visee (null : tous les clients). */
+        public String liste;
         public Integer ageMin, ageMax, moisAchat;
         public List<String> clientIds;
         public String canal = "SMS";
@@ -85,6 +87,7 @@ public class CampagneService {
             f.sexe = "M".equals(s) || "F".equals(s) ? s : null;
             f.recherche = StringUtils.left(StringUtils.trimToNull(o.optString("recherche", null)), 60);
             f.feteCode = StringUtils.left(StringUtils.trimToNull(o.optString("fete", null)), 30);
+            f.liste = StringUtils.left(StringUtils.trimToNull(o.optString("liste", null)), 40);
             f.ageMin = entier(o, "ageMin", 0, 130);
             f.ageMax = entier(o, "ageMax", 0, 130);
             f.moisAchat = entier(o, "moisAchat", 1, 120);
@@ -212,6 +215,11 @@ public class CampagneService {
                     .append(" AND v.str_STATUT = 'is_Closed' AND v.b_IS_CANCEL = 0 AND v.int_PRICE > 0")
                     .append(" AND v.dt_UPDATED >= ?").append(p.size() + 1).append(")");
             p.add(Timestamp.valueOf(f.jour.minusMonths(f.moisAchat).atStartOfDay()));
+        }
+        if (f.liste != null) {
+            sql.append(" AND EXISTS (SELECT 1 FROM t_campagne_liste_client lc WHERE lc.lg_CLIENT_ID = c.lg_CLIENT_ID")
+                    .append(" AND lc.liste_id = ?").append(p.size() + 1).append(")");
+            p.add(f.liste);
         }
         if (f.clientIds != null) {
             if (f.clientIds.isEmpty()) {
@@ -752,6 +760,122 @@ public class CampagneService {
 
     /* ============================================================================================ journal */
 
+    /*
+     * ============================================================================================ listes de diffusion
+     */
+
+    /** Retours du 25/10 (point 14) : listes de diffusion nommees, avec leur nombre de clients actifs. */
+    @SuppressWarnings("unchecked")
+    public JSONArray listes() {
+        JSONArray a = new JSONArray();
+        for (Object[] r : (List<Object[]>) em.createNativeQuery("SELECT l.id AS id, l.nom AS nom,"
+                + " (SELECT COUNT(*) FROM t_campagne_liste_client lc JOIN t_client c ON c.lg_CLIENT_ID = lc.lg_CLIENT_ID"
+                + "   WHERE lc.liste_id = l.id AND c.str_STATUT = 'enable') AS nb FROM t_campagne_liste l ORDER BY l.nom")
+                .getResultList()) {
+            a.put(new JSONObject().put("id", texte(r[0])).put("nom", texte(r[1])).put("nombre",
+                    ((Number) r[2]).intValue()));
+        }
+        return a;
+    }
+
+    /** Cree une liste vide ; le nom est obligatoire et unique. */
+    @TransactionAttribute(TransactionAttributeType.REQUIRED)
+    public String creerListe(String nom, String userId) {
+        String n = StringUtils.left(StringUtils.normalizeSpace(StringUtils.defaultString(nom)), 80);
+        if (n.isEmpty()) {
+            throw new IllegalArgumentException("Donnez un nom à la liste.");
+        }
+        if (((Number) em.createNativeQuery("SELECT COUNT(*) FROM t_campagne_liste WHERE nom = ?1").setParameter(1, n)
+                .getSingleResult()).intValue() > 0) {
+            throw new IllegalArgumentException("Une liste porte déjà ce nom.");
+        }
+        String id = UUID.randomUUID().toString();
+        em.createNativeQuery(
+                "INSERT INTO t_campagne_liste (id, nom, created_at, lg_USER_ID) VALUES (?1, ?2, NOW(), ?3)")
+                .setParameter(1, id).setParameter(2, n).setParameter(3, userId).executeUpdate();
+        return id;
+    }
+
+    /** Supprime la liste et ses inscriptions (les clients ne sont pas touches). */
+    @TransactionAttribute(TransactionAttributeType.REQUIRED)
+    public void supprimerListe(String id) {
+        em.createNativeQuery("DELETE FROM t_campagne_liste_client WHERE liste_id = ?1").setParameter(1, id)
+                .executeUpdate();
+        if (em.createNativeQuery("DELETE FROM t_campagne_liste WHERE id = ?1").setParameter(1, id)
+                .executeUpdate() == 0) {
+            throw new IllegalArgumentException("Cette liste n'existe plus.");
+        }
+    }
+
+    /** Clients actifs de la liste (nom, telephone, date d'ajout). */
+    @SuppressWarnings("unchecked")
+    public JSONArray membres(String id) {
+        JSONArray a = new JSONArray();
+        for (Object[] r : (List<Object[]>) em
+                .createNativeQuery("SELECT c.lg_CLIENT_ID AS id, TRIM(CONCAT(COALESCE(c.str_FIRST_NAME, ''),"
+                        + " ' ', COALESCE(c.str_LAST_NAME, ''))) AS client, c.str_ADRESSE AS tel, lc.ajoute_at AS quand"
+                        + " FROM t_campagne_liste_client lc JOIN t_client c ON c.lg_CLIENT_ID = lc.lg_CLIENT_ID"
+                        + " WHERE lc.liste_id = ?1 AND c.str_STATUT = 'enable' ORDER BY client")
+                .setParameter(1, id).getResultList()) {
+            a.put(new JSONObject().put("clientId", texte(r[0])).put("client", texte(r[1])).put("telephone", texte(r[2]))
+                    .put("ajouteLe", r[3] instanceof Timestamp ? JJ.format(((Timestamp) r[3]).toLocalDateTime()) : ""));
+        }
+        return a;
+    }
+
+    /** Ajoute des clients actifs a la liste (ceux deja inscrits sont ignores) ; rend le nombre d'ajouts. */
+    @TransactionAttribute(TransactionAttributeType.REQUIRED)
+    public int ajouterMembres(String id, List<String> clientIds) {
+        existeListe(id);
+        int n = 0;
+        for (String c : clientIds) {
+            n += em.createNativeQuery("INSERT IGNORE INTO t_campagne_liste_client (liste_id, lg_CLIENT_ID, ajoute_at)"
+                    + " SELECT ?1, c.lg_CLIENT_ID, NOW() FROM t_client c WHERE c.lg_CLIENT_ID = ?2 AND c.str_STATUT = 'enable'")
+                    .setParameter(1, id).setParameter(2, c).executeUpdate();
+        }
+        return n;
+    }
+
+    /** Retire des clients de la liste ; rend le nombre de retraits. */
+    @TransactionAttribute(TransactionAttributeType.REQUIRED)
+    public int retirerMembres(String id, List<String> clientIds) {
+        existeListe(id);
+        int n = 0;
+        for (String c : clientIds) {
+            n += em.createNativeQuery("DELETE FROM t_campagne_liste_client WHERE liste_id = ?1 AND lg_CLIENT_ID = ?2")
+                    .setParameter(1, id).setParameter(2, c).executeUpdate();
+        }
+        return n;
+    }
+
+    private void existeListe(String id) {
+        if (((Number) em.createNativeQuery("SELECT COUNT(*) FROM t_campagne_liste WHERE id = ?1").setParameter(1, id)
+                .getSingleResult()).intValue() == 0) {
+            throw new IllegalArgumentException("Cette liste n'existe plus.");
+        }
+    }
+
+    /** Recherche de clients actifs a ajouter (nom ou telephone, 3 caracteres au moins, 50 au plus). */
+    @SuppressWarnings("unchecked")
+    public JSONArray chercherClients(String frappe) {
+        JSONArray a = new JSONArray();
+        String t = StringUtils.left(StringUtils.trimToEmpty(frappe), 60).replace("%", "").replace("_", "");
+        if (t.length() < 3) {
+            return a;
+        }
+        for (Object[] r : (List<Object[]>) em
+                .createNativeQuery("SELECT c.lg_CLIENT_ID AS id, TRIM(CONCAT(COALESCE(c.str_FIRST_NAME, ''),"
+                        + " ' ', COALESCE(c.str_LAST_NAME, ''))) AS client, c.str_ADRESSE AS tel FROM t_client c WHERE c.str_STATUT = 'enable'"
+                        + " AND (CONCAT(COALESCE(c.str_FIRST_NAME,''),' ',COALESCE(c.str_LAST_NAME,'')) LIKE ?1"
+                        + " OR CONCAT(COALESCE(c.str_LAST_NAME,''),' ',COALESCE(c.str_FIRST_NAME,'')) LIKE ?1 OR c.str_ADRESSE LIKE ?1)"
+                        + " ORDER BY client LIMIT 50")
+                .setParameter(1, "%" + t + "%").getResultList()) {
+            a.put(new JSONObject().put("clientId", texte(r[0])).put("client", texte(r[1])).put("telephone",
+                    texte(r[2])));
+        }
+        return a;
+    }
+
     /** Campagnes traitees (les plus recentes d'abord) : envoyes, distribues (fournisseur), ecartes. */
     @SuppressWarnings("unchecked")
     public JSONArray journal(int limite) {
@@ -763,7 +887,17 @@ public class CampagneService {
                 + " TRIM(CONCAT(COALESCE(u.str_FIRST_NAME,''),' ',COALESCE(u.str_LAST_NAME,''))) AS auteur,"
                 + " (SELECT COUNT(*) FROM t_campagne_ligne l JOIN notification_client nc"
                 + "   ON nc.notification_id = l.lg_NOTIFICATION_ID WHERE l.campagne_id = c.id AND nc.statut = 'SENT') AS partis,"
-                + " c.accord_explicite AS accord" + " FROM t_campagne c LEFT JOIN t_fete f ON f.code = c.fete_code"
+                + " c.accord_explicite AS accord,"
+                /* retours du 25/10 (point 14) : suivi des messages WhatsApp de la campagne */
+                + " (SELECT COUNT(*) FROM t_campagne_ligne l JOIN whatsapp_message w ON w.notification_id = l.lg_NOTIFICATION_ID"
+                + "   WHERE l.campagne_id = c.id AND w.statut IN ('DELIVRE', 'LU')) AS distribues,"
+                + " (SELECT COUNT(*) FROM t_campagne_ligne l JOIN whatsapp_message w ON w.notification_id = l.lg_NOTIFICATION_ID"
+                + "   WHERE l.campagne_id = c.id AND w.statut = 'LU') AS lus,"
+                + " (SELECT COUNT(*) FROM t_campagne_ligne l JOIN whatsapp_message w ON w.notification_id = l.lg_NOTIFICATION_ID"
+                + "   WHERE l.campagne_id = c.id AND w.statut = 'ECHEC') AS echecs,"
+                + " (SELECT COUNT(*) FROM t_campagne_ligne l JOIN whatsapp_message w ON w.notification_id = l.lg_NOTIFICATION_ID"
+                + "   WHERE l.campagne_id = c.id AND " + REPONDU + ") AS repondus"
+                + " FROM t_campagne c LEFT JOIN t_fete f ON f.code = c.fete_code"
                 + " LEFT JOIN modele_message m ON m.id = c.lg_MODELE"
                 + " LEFT JOIN t_user u ON u.lg_USER_ID = COALESCE(c.lg_USER_TRAITE, c.lg_USER_ID)"
                 + " WHERE c.statut <> 'PROPOSEE' ORDER BY quand DESC LIMIT " + Math.max(1, Math.min(500, limite)))
@@ -780,8 +914,77 @@ public class CampagneService {
                             q instanceof Timestamp
                                     ? ((Timestamp) q).toLocalDateTime().toString().replace('T', ' ').substring(0, 16)
                                     : texte(q))
-                    .put("auteur", texte(r[12])).put("accordExplicite", Boolean.TRUE.equals(bool(r[14]))));
+                    .put("auteur", texte(r[12])).put("accordExplicite", Boolean.TRUE.equals(bool(r[14])))
+                    .put("distribues", ((Number) r[15]).intValue()).put("lus", ((Number) r[16]).intValue())
+                    .put("echecs", ((Number) r[17]).intValue()).put("repondus", ((Number) r[18]).intValue()));
         }
         return a;
+    }
+
+    /**
+     * Retours du 25/10 (point 14) : un client a « repondu » s'il a ecrit au numero de l'officine dans les 7 jours qui
+     * suivent l'envoi du message de la campagne (fils de discussion WhatsApp).
+     */
+    static final String REPONDU = "EXISTS (SELECT 1 FROM whatsapp_discussion d WHERE d.sens = 'E' AND d.numero = w.telephone"
+            + " AND d.created_at >= w.created_at AND d.created_at < w.created_at + INTERVAL 7 DAY)";
+
+    /**
+     * Retours du 25/10 (point 14) : suivi message par message d'une campagne envoyee (client, telephone, etat du
+     * message, reponse). Aucun texte de message n'est lu ni rendu.
+     */
+    @SuppressWarnings("unchecked")
+    public JSONObject suivi(String campagneId) {
+        JSONArray lignes = new JSONArray();
+        int envoyes = 0, distribues = 0, lus = 0, repondus = 0, echecs = 0, attente = 0, exclus = 0;
+        for (Object[] r : (List<Object[]>) em
+                .createNativeQuery("SELECT TRIM(CONCAT(COALESCE(cl.str_FIRST_NAME, ''), ' ',"
+                        + " COALESCE(cl.str_LAST_NAME, ''))) AS client, COALESCE(w.telephone, cl.str_ADRESSE) AS tel,"
+                        + " l.retenu AS retenu, l.motif AS motif, w.statut AS wstatut, COALESCE(w.created_at, nc.sent_at) AS quand,"
+                        + " CASE WHEN w.id IS NULL THEN 0 WHEN " + REPONDU + " THEN 1 ELSE 0 END AS repondu,"
+                        + " nc.statut AS ncstatut, nc.delivery_status AS livraison"
+                        + " FROM t_campagne_ligne l LEFT JOIN t_client cl ON cl.lg_CLIENT_ID = l.lg_CLIENT_ID"
+                        + " LEFT JOIN whatsapp_message w ON w.notification_id = l.lg_NOTIFICATION_ID"
+                        + " LEFT JOIN notification_client nc ON nc.notification_id = l.lg_NOTIFICATION_ID AND nc.client_id = l.lg_CLIENT_ID"
+                        + " WHERE l.campagne_id = ?1 ORDER BY 1")
+                .setParameter(1, campagneId).getResultList()) {
+            boolean retenu = Boolean.TRUE.equals(bool(r[2]));
+            String statut = texte(r[4]), etat;
+            boolean repondu = r[6] != null && ((Number) r[6]).intValue() == 1;
+            if (!retenu) {
+                etat = "Exclu";
+                exclus++;
+            } else if ("ECHEC".equals(statut)) {
+                etat = "Échec";
+                echecs++;
+            } else if ("LU".equals(statut)) {
+                etat = "Lu";
+                lus++;
+                distribues++;
+                envoyes++;
+            } else if ("DELIVRE".equals(statut) || (statut.isEmpty() && "DELIVERED_TO_TERMINAL".equals(texte(r[8])))) {
+                etat = "Distribué";
+                distribues++;
+                envoyes++;
+            } else if ("ENVOYE".equals(statut) || "SIMULE".equals(statut) || "SENT".equals(texte(r[7]))) {
+                etat = "Envoyé";
+                envoyes++;
+            } else {
+                etat = "En attente";
+                attente++;
+            }
+            if (repondu) {
+                repondus++;
+            }
+            Object quand = r[5];
+            lignes.put(new JSONObject().put("client", texte(r[0]).trim()).put("telephone", texte(r[1]))
+                    .put("etat", etat).put("motif", retenu ? "" : texte(r[3])).put("repondu", repondu)
+                    .put("envoyeLe", quand instanceof Timestamp
+                            ? ((Timestamp) quand).toLocalDateTime().toString().replace('T', ' ').substring(0, 16)
+                            : ""));
+        }
+        return new JSONObject().put("success", true).put("data", lignes).put("total", lignes.length()).put("totaux",
+                new JSONObject().put("envoyes", envoyes).put("distribues", distribues).put("lus", lus)
+                        .put("repondus", repondus).put("echecs", echecs).put("enAttente", attente)
+                        .put("exclus", exclus));
     }
 }
