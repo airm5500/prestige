@@ -26,7 +26,7 @@ const fiche = (id) => q(`SELECT IFNULL(badge, 'AUCUN') FROM t_employe WHERE id =
   retirer();
   exec(`INSERT INTO t_employe (id, matricule, nom, prenoms, poste, statut, created_at) VALUES ('${E1}', 'E2E-BDG-1', 'ZZBADGE', 'Awa Marie', 'Caissière', 'ACTIF', NOW()),`
     + ` ('${E2}', 'E2E-BDG-2', 'ZZBADGE', 'Koffi', 'Préparateur', 'ACTIF', NOW());`);
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const err = [], dialogues = [];
   try {
     const ctx = await b.newContext({ viewport: { width: 1600, height: 950 } });

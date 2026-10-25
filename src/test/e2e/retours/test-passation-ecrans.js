@@ -64,7 +64,7 @@ const url = (u) => exec("UPDATE t_grossiste SET str_URL_PHARMAML = " + (u === nu
   nettoyer();
   debut = q('SELECT NOW()');
   const { chromium } = require('playwright-core');
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1366, height: 768 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   const oui = async () => { await p.waitForFunction(() => Ext.MessageBox.isVisible() && Ext.MessageBox.msgButtons.yes.isVisible(), null, { timeout: 20000 });

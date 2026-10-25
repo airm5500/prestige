@@ -88,7 +88,7 @@ function retirerJeuDEssai() {
   const bonsAvant = parseInt(bonsUnpaid(), 10);
   ok('Jeu d\'essai : un carnet depot avec des bons non factures', bonsAvant > 0, 'bons=' + bonsAvant);
 
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await b.newPage({ viewport: { width: 1700, height: 950 } });
   const err = []; p.on('pageerror', e => err.push(String(e.message)));
   const requetes = []; p.on('request', r => { if (/carnet-depot|facturation/.test(r.url())) requetes.push(r.url().replace(/^.*\/prestige\//, '')); });

@@ -41,7 +41,7 @@ function nettoyer() {
   [P, cip] = q("SELECT CONCAT(f.lg_FAMILLE_ID, '|', f.int_CIP) FROM t_famille f JOIN t_famille_stock s ON s.lg_FAMILLE_ID = f.lg_FAMILLE_ID AND s.lg_EMPLACEMENT_ID = '1'"
     + " WHERE f.str_STATUT = 'enable' AND COALESCE(f.bool_DECONDITIONNE, 0) = 0 AND f.int_CIP REGEXP '^[0-9]{7}$' ORDER BY f.str_NAME LIMIT 1 OFFSET 3").split('|');
   nettoyer();
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const ctx = await b.newContext({ viewport: { width: 1600, height: 950 } });
   const p = await ctx.newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));

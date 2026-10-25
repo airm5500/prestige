@@ -27,7 +27,7 @@ const retirer = () => q("DELETE FROM t_reception_peremption_courte WHERE id LIKE
   q(`INSERT INTO t_reception_peremption_courte (id, lg_BON_LIVRAISON_ID, lg_FAMILLE_ID, lg_GROSSISTE_ID, num_lot, dt_peremption, jours_restants, quantite, valeur, decision, motif, statut, lg_USER_ID, created_at)`
     + ` VALUES ('E2E-PC-1', '${BL}', '${PRODUIT}', '${G}', 'E2EPC1', CURDATE() + INTERVAL 60 DAY, 60, 4, 12000, 'ACCEPTE', 'E2E accepté', 'A_TRAITER', '${ADMIN}', NOW()),`
     + ` ('E2E-PC-2', '${BL}', '${PRODUIT}', '${G}', 'E2EPC2', CURDATE() + INTERVAL 30 DAY, 30, 2, 5000, 'REFUSE', 'E2E refusé', 'RECLAME', '${ADMIN}', NOW())`);
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1600, height: 900 }, acceptDownloads: true })).newPage();
   const erreurs = []; p.on('pageerror', (e) => erreurs.push(e.message));
   const grille = () => p.evaluate(() => { const g = Ext.ComponentQuery.query('peremptionscourtes gridpanel')[0], s = g.getStore();

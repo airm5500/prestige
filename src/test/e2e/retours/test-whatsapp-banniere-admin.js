@@ -51,7 +51,7 @@ function nettoyer() {
 const service = () => { try { execSync('curl -s -m 2 http://127.0.0.1:' + PORT + '/etat', { encoding: 'utf8' }); return true; } catch (e) { return false; } };
 
 (async () => {
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const erreurs = [], dialogues = [];
   try {
     preparerDossier();

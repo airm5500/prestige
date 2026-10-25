@@ -45,7 +45,7 @@ const retirerReserve = () => exec("DELETE FROM t_type_stock_famille WHERE lg_TYP
 
 (async () => {
   poser(20, 10);
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext()).newPage();
   const post = (u, c, ref) => p.evaluate(async ([u, c, ref]) => { const h = { 'Content-Type': 'application/json' }; if (ref) { h['X-Client-Ref'] = ref; }
     const r = await fetch(u, { method: 'POST', headers: h, body: JSON.stringify(c) }); return r.json(); }, [u, c, ref]);

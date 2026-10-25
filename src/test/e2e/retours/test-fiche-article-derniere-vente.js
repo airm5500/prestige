@@ -25,7 +25,7 @@ const reference = (id) => q("SELECT IFNULL(DATE_FORMAT(MAX(p.dt_UPDATED), '%d/%m
   const PEU = q("SELECT d.lg_FAMILLE_ID FROM t_preenregistrement_detail d GROUP BY d.lg_FAMILLE_ID HAVING COUNT(*) BETWEEN 2 AND 5 LIMIT 1");
   const JAMAIS = q("SELECT f.lg_FAMILLE_ID FROM t_famille f WHERE f.str_STATUT = 'enable' AND NOT EXISTS (SELECT 1 FROM t_preenregistrement_detail d WHERE d.lg_FAMILLE_ID = f.lg_FAMILLE_ID) LIMIT 1");
   ok('Jeu d\'essai : gros vendeur, peu vendu, jamais vendu', !!GROS && !!PEU && !!JAMAIS, [GROS, PEU, JAMAIS].join(' / '));
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await b.newPage();
   const lire = (id) => p.evaluate(async (id) => { const t0 = performance.now(); const r = await fetch('../api/v1/produit-search/produits/' + id); const j = await r.json(); return { ms: performance.now() - t0, d: (j.data || {}).dt_LAST_VENTE }; }, id);
   try {

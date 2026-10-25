@@ -32,7 +32,7 @@ function nettoyer() {
   nettoyer();
   exec("INSERT INTO t_client (lg_CLIENT_ID, str_FIRST_NAME, str_LAST_NAME, lg_TYPE_CLIENT_ID, dt_CREATED, dt_UPDATED, str_STATUT)"
     + " VALUES ('" + CLIENT + "', '" + NOM + "', 'E2E', '6', NOW(), NOW(), 'enable');");
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1600, height: 1000 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   try {

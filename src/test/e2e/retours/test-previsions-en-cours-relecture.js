@@ -38,7 +38,7 @@ function retirerCommande() {
   const origX = q(ETAT(X)), origY = q(ETAT(Y));
   const G = q("SELECT lg_GROSSISTE_ID FROM t_grossiste WHERE str_STATUT = 'enable' LIMIT 1");
   ok('Jeu d\'essai : deux produits prévus sans commande en cours', !!X && !!Y && !!G, X + ' ' + Y);
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await b.newPage({ viewport: { width: 1600, height: 950 } });
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   const lire = (url) => p.evaluate(async (url) => (await fetch(url)).json(), url);

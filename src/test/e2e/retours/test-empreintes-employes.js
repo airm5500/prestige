@@ -44,7 +44,7 @@ function nettoyer() {
     + " ('E2E-EMP-1', 'E2E-EMP-M1', 'ESSAI', 'Un', 'ACTIF', NOW()), ('E2E-EMP-2', 'E2E-EMP-M2', 'ESSAI', 'Deux', 'ACTIF', NOW())");
   const g1 = crypto.randomBytes(400), g2 = crypto.randomBytes(500), g3 = crypto.randomBytes(300);
   const tailleLogAvant = fs.existsSync(LOG) ? fs.statSync(LOG).size : 0;
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const session = async () => { const p = await (await b.newContext()).newPage();
     await p.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'domcontentloaded' });
     await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');

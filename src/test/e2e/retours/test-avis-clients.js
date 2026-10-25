@@ -39,7 +39,7 @@ const decoder = (fichierPng) => execFileSync('python3', ['-I', '-c',
 const texteXls = (f) => execFileSync('python3', ['-I', '-c', "import sys,xlrd;s=xlrd.open_workbook(sys.argv[1]).sheet_by_index(0);print('\\n'.join('\\t'.join(str(c.value) for c in s.row(r)) for r in range(s.nrows)))", f], { encoding: 'utf8' });
 
 (async () => {
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const ctx = await b.newContext({ viewport: { width: 1500, height: 950 }, acceptDownloads: true });
   const p = await ctx.newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));

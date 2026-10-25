@@ -21,7 +21,7 @@ const retirer = () => q(`DELETE FROM garde WHERE id = '${ID}'`);
 (async () => {
   retirer();
   q(`INSERT INTO garde (id, libelle, date_debut, date_fin, created_at, updated_at) VALUES ('${ID}', 'E2E décision 39', '2026-09-01 08:00:00', '2026-09-15 08:00:00', NOW(), NOW())`);
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await b.newPage();
   const page = (s, l) => p.evaluate(async ([id, s, l]) => { const t = performance.now(); const x = await (await fetch('../api/v1/gardes/' + id + '/rapport?start=' + s + '&limit=' + l)).json();
     return { ms: Math.round(performance.now() - t), abc: (x.abc || []).map((a) => JSON.stringify(a)), total: x.totalAbc, kpi: JSON.stringify(x.kpi) }; }, [ID, s, l]);

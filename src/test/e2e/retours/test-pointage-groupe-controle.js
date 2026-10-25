@@ -44,7 +44,7 @@ function bl(n, grossiste, recue) {
     + "INSERT INTO t_releve_grossiste_ligne (lg_LIGNE_ID, lg_RELEVE_ID, int_RANG, str_TYPE, str_NUMERO, dt_DATE, int_MONTANT_HT, str_STATUT, str_PIECE_TYPE, lg_PIECE_ID, str_PIECE_REF, int_PIECE_HT, int_ECART) VALUES"
     + " ('E2E-PG-RL1', 'E2E-PG-REL', 1, 'BL', 'E2EPG1', '2025-02-10', 1000, 'RAPPROCHE', 'BL', 'E2E-PG-1', 'E2EPG1', 1000, 0),"
     + " ('E2E-PG-RL2', 'E2E-PG-REL', 2, 'BL', 'E2EPG9', '2025-02-12', 500, 'ABSENT_PRESTIGE', NULL, NULL, NULL, NULL, NULL);");
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1366, height: 768 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   try {

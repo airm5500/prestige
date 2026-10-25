@@ -80,7 +80,7 @@ function poser() {
   const grossiste = poser();
   if (!grossiste) { console.log('FATAL : jeu d\'essai incomplet (grossiste ou articles absents)'); nettoyer(); process.exit(1); }
 
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const ctx = await b.newContext({ viewport: { width: 1700, height: 950 } });
   const p = await ctx.newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));

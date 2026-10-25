@@ -18,7 +18,7 @@ const nettoyer = () => { if (AVANT === '0') { q("DELETE FROM t_preference_utilis
 
 (async () => {
   nettoyer();
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1600, height: 1000 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   const api = (u) => p.evaluate(async (u) => JSON.parse(await (await fetch(u)).text()), u);

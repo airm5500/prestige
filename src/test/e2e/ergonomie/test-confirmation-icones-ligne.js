@@ -33,7 +33,7 @@ const statut = (e) => q('SELECT IFNULL(' + e.statut + ", '') FROM " + e.table + 
 (async () => {
   nettoyer();
   ECRANS.forEach((e) => q(e.creer));
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await b.newPage({ viewport: { width: 1600, height: 900 } });
   const erreurs = []; p.on('pageerror', (x) => erreurs.push(x.message));
   try {

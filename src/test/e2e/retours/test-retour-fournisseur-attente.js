@@ -45,7 +45,7 @@ function retirer() {
 (async () => {
   droit.remettre();
   retirer();
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const err = [], dialogues = [];
   let retourId = '';
   const connecter = async () => {

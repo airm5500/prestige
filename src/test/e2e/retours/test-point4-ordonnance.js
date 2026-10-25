@@ -31,7 +31,7 @@ function nettoyer() {
   exec("INSERT INTO t_client (lg_CLIENT_ID,str_FIRST_NAME,str_LAST_NAME,str_STATUT,dt_CREATED,dt_UPDATED,lg_TYPE_CLIENT_ID,str_ADRESSE)"
     + " VALUES ('" + MARQUE + "-CLT','" + MARQUE + " KOUASSI','AYA','enable',NOW(),NOW(),'6','0700000000');");
 
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await b.newPage({ viewport: { width: 1600, height: 950 } });
   const err = []; p.on('pageerror', e => err.push(String(e.message)));
   await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });

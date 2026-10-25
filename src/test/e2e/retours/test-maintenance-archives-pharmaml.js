@@ -44,7 +44,7 @@ function nettoyer() {
   poser();
   const autres = archives.fichiers().filter((f) => !/E2E-PURGE|pharmaml_e2e/.test(f));
   const { chromium } = require('playwright-core');
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1366, height: 768 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   try {

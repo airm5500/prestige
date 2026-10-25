@@ -66,7 +66,7 @@ function semerGarde() {
   poserJeuDEssai();
   purgerGarde();
   if (!semerGarde()) { console.log('FATAL : jeu d\'essai incomplet'); purgerGarde(); retirerJeuDEssai(); process.exit(1); }
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const ctx = await b.newContext({ viewport: { width: 1800, height: 1000 } });
   const p = await ctx.newPage();
   const err = []; p.on('pageerror', e => err.push(String(e.message)));

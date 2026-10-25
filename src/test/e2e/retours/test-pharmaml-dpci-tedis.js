@@ -61,7 +61,7 @@ const url = (G, u) => exec("UPDATE t_grossiste SET str_URL_PHARMAML = " + (u ===
   }
   P = q("SELECT GROUP_CONCAT(lg_FAMILLE_ID ORDER BY str_NAME SEPARATOR '|') FROM (SELECT lg_FAMILLE_ID, str_NAME FROM t_famille WHERE str_STATUT='enable' AND int_CIP REGEXP '^[0-9]{7}$' ORDER BY str_NAME LIMIT 2) x").split('|');
   const { chromium } = require('playwright-core');
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await b.newPage();
   const envoyer = () => p.evaluate(async (id) => { const t0 = Date.now(); const r = await (await fetch('../api/v1/pharma/' + id, { method: 'PUT' })).text(); return { r, ms: Date.now() - t0 }; }, CMD);
   try {

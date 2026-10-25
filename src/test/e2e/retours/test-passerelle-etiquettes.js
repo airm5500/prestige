@@ -29,7 +29,7 @@ function nettoyer() {
 }
 
 (async () => {
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const err = [];
   const session = async () => {
     const c = await b.newContext({ viewport: { width: 1500, height: 950 } });

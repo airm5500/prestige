@@ -41,7 +41,7 @@ const retirer = () => exec(`DELETE FROM t_role_privelege WHERE lg_ROLE_PRIVILEGE
   const debut = q('SELECT NOW()');
   const avant = empreinte();
   const dossier = fs.mkdtempSync(path.join(os.tmpdir(), 'setvalo-'));
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const dialogues = [];
   const connecter = async (p) => {
     p.on('dialog', (d) => { dialogues.push(d.message()); d.dismiss().catch(() => {}); });

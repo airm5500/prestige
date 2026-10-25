@@ -49,7 +49,7 @@ function remettre() {
     + `INSERT INTO t_type_stock_famille (lg_TYPE_STOCK_FAMILLE_ID, lg_FAMILLE_ID, lg_TYPE_STOCK_ID, lg_EMPLACEMENT_ID, str_NAME, str_DESCRIPTION, dt_CREATED, str_STATUT, int_NUMBER) VALUES ('${TSF}', '${P}', '2', '1', 'reserve', 'reserve', NOW(), 'enable', 37);`
     + `INSERT INTO t_famille_dci (lg_FAMILLE_DCI_ID, lg_DCI_ID, lg_FAMILLE_ID, str_STATUT) VALUES ('${TSF}', '${DCI}', '${P}', 'enable');`);
   const reserveAttendue = q(`SELECT IFNULL(SUM(int_NUMBER), 0) FROM t_type_stock_famille WHERE lg_FAMILLE_ID = '${P}' AND lg_TYPE_STOCK_ID = '2' AND lg_EMPLACEMENT_ID = '1'`);
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const err = [], dialogues = [];
   const connecter = async () => {
     const p = await (await b.newContext({ viewport: { width: 1600, height: 950 } })).newPage();

@@ -45,7 +45,7 @@ const menu = privilegeEssai(q, exec, ENV_E2E.LOGIN, 'P_SM_INVENTAIRE');
   ok('Jeu d\'essai : un inventaire ouvert et un clôturé, une ligne non retenue dans chacun', !!SRC && !!L_OUVERT && !!L_CLOS, L_OUVERT + ' / ' + L_CLOS);
   const remettreLignes = () => exec("UPDATE t_inventaire_famille SET bool_INVENTAIRE = 0 WHERE lg_INVENTAIRE_FAMILLE_ID IN (" + L_OUVERT + ", " + L_CLOS + ")");
 
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const session = async () => {
     const p = await (await b.newContext()).newPage();
     await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });

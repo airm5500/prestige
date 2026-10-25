@@ -21,7 +21,7 @@ const attendu = (filtre) => q("SELECT COUNT(DISTINCT p.lg_PREENREGISTREMENT_ID),
   + " ROUND(SUM((d.int_PRICE - IFNULL(d.int_PRICE_REMISE,0)) / (1 + IFNULL(v.int_VALUE,0)/100))) - SUM(f.int_PAF * d.int_QUANTITY) " + PERIM + (filtre || '')).split('\t').map(Number);
 
 (async () => {
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1600, height: 1000 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   const api = (u) => p.evaluate(async (u) => JSON.parse(await (await fetch(u)).text()), u);

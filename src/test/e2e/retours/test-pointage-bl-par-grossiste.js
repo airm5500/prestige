@@ -22,7 +22,7 @@ const DU = '2026-09-01', AU = '2026-10-15';
   const libelles = {};
   q("SELECT CONCAT(lg_GROSSISTE_ID, '|', str_LIBELLE) FROM t_grossiste WHERE groupeId = '" + GROUPE + "'").split('\n').forEach((l) => { const [i, n] = l.split('|'); libelles[i] = n; });
   ok('Jeu d\'essai : un groupe d\'au moins 2 grossistes', !!GROUPE && Object.keys(libelles).length >= 2, GROUPE + ' ' + Object.values(libelles).join(', '));
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await b.newPage();
   const lire = (u) => p.evaluate(async (u) => (await fetch(u)).json(), u);
   try {

@@ -32,7 +32,7 @@ const ECRANS = [
 ];
 
 (async () => {
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await b.newPage({ viewport: { width: 1600, height: 900 } });
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   const requetes = []; p.on('request', (r) => requetes.push({ url: r.url(), post: r.postData() || '' }));

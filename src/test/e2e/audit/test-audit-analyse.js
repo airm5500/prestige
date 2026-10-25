@@ -92,7 +92,7 @@ function poser() {
 (async () => {
   droit.remettre();
   retirer();
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const dialogues = [];
   try {
     poser();

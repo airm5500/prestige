@@ -19,7 +19,7 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
 const SUG = 'e2e-l12-' + Date.now();
 
 (async () => {
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1500, height: 900 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.stack || e.message).slice(0, 600)));
   const calculAvant = Number(q('SELECT COALESCE(MAX(id), 0) FROM t_prevision_calcul'));

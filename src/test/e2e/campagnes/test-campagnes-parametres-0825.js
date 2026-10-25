@@ -35,7 +35,7 @@ function nettoyer() {
     q(`INSERT INTO whatsapp_message (id, notification_id, client_id, telephone, mode, simule, statut, created_at) VALUES ('E2E-CPARAM-${i}', 'E2E-CPARAM-N${i}', '${id}', '${tel}', 'WEB', 0, 'LU', NOW() - INTERVAL 10 DAY)`);
     q(`INSERT INTO whatsapp_discussion (numero, sens, type, texte, created_at) VALUES ('${tel}', 'E', 'TEXTE', 'E2E', NOW() - INTERVAL ${10 - j} DAY)`);
   });
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1600, height: 1000 } })).newPage();
   const erreurs = [], dialogues = [];
   p.on('pageerror', (e) => erreurs.push(e.message));

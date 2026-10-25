@@ -70,7 +70,7 @@ function nettoyer() {
     + " VALUES ('" + ID + "', '" + LOGIN + "', MD5('" + MDP + "'), 'E2E', 'STAGIAIRE', 'Vendeur', 'enable', '1', NOW(), 0)");
   q("INSERT INTO t_role_user (lg_USER_ROLE_ID, lg_ROLE_ID, lg_USER_ID, dt_CREATED) VALUES ('" + ID + "', '" + ROLE + "', '" + ID + "', NOW())");
   q("INSERT INTO t_resume_caisse (ld_CAISSE_ID, lg_USER_ID, int_SOLDE_MATIN, int_SOLDE_SOIR, dt_CREATED, lg_CREATED_BY, str_STATUT) VALUES ('" + CAISSE + "', '" + ID + "', 0, 0, NOW(), '" + ID + "', 'is_Using')");
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const ctx = await b.newContext({ viewport: { width: 1600, height: 900 } });
   let corpsCloture = null;
   try {

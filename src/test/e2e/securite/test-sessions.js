@@ -22,7 +22,7 @@ const cookieSession = (r) => (r.headers.getSetCookie ? r.headers.getSetCookie() 
 (async () => {
   const origine = q(`SELECT COALESCE((SELECT str_VALUE FROM t_parameters WHERE str_KEY = '${CLE}'), '__absent__')`);
   ok('Paramètre de durée présent (720 min par défaut)', origine !== '__absent__', origine);
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const dialogues = [];
   try {
     /* 1. aucun appel public ne cree de session */

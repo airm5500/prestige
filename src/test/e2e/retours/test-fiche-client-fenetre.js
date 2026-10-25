@@ -15,7 +15,7 @@ const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-charact
 const [CID, PRENOM, NOM] = q("SELECT lg_CLIENT_ID, str_FIRST_NAME, str_LAST_NAME FROM t_client WHERE str_STATUT = 'enable' AND str_FIRST_NAME <> '' ORDER BY str_FIRST_NAME LIMIT 1").split('\t');
 
 (async () => {
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1366, height: 768 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   const fiche = () => p.waitForFunction((n) => { const w = Ext.ComponentQuery.query('#fenFicheClient')[0]; if (!w) { return false; }

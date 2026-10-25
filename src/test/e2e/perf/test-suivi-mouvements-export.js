@@ -17,7 +17,7 @@ const D = '2026-09-01', F = '2026-09-30', MAX_MS = 30000;
 const P = 'dtStart=' + D + '&dtEnd=' + F + '&search=&categorieId=&fabricantId=&rayonId=';
 
 (async () => {
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await b.newPage();
   const get = (u, json) => p.evaluate(async ([u, json, max]) => {
     const ctl = new AbortController(); const m = setTimeout(() => ctl.abort(), max * 2); const t = performance.now();

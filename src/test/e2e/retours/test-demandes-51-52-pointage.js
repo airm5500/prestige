@@ -40,7 +40,7 @@ const retirer = () => q(`DELETE FROM mobile_client_ref WHERE ref LIKE 'e2e-p51-%
   q(`INSERT INTO t_role_privelege (lg_ROLE_PRIVILEGE, lg_ROLE_ID, lg_PRIVILEGE_ID, dt_CREATED, dt_UPDATED) SELECT '${ROLE2}', '${ROLE2}', lg_PRIVELEGE_ID, NOW(), NOW() FROM t_privilege WHERE str_NAME = 'P_RH_POINTER'`);
   q(`INSERT INTO t_role_user (lg_USER_ROLE_ID, lg_ROLE_ID, lg_USER_ID, dt_CREATED) VALUES ('${U2}', '${ROLE2}', '${U2}', NOW())`);
   q(`INSERT INTO t_employe (id, matricule, nom, prenoms, statut, lg_USER_ID, created_at) VALUES ('${E1}', 'E2E-P51', 'ZZPOINT', 'Session', 'ACTIF', '${U1}', NOW())`);
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const appel = (p, m, u, c, h) => p.evaluate(async ([m, u, c, h]) => { const r = await fetch(u, { method: m, headers: Object.assign({ 'Content-Type': 'application/json' }, h || {}), body: c === undefined ? undefined : JSON.stringify(c) });
     let j = null; try { j = await r.json(); } catch (e) { /* vide */ } return { status: r.status, j }; }, [m, u, c, h]);
   const nb = () => Number(q(`SELECT COUNT(*) FROM t_pointage WHERE employe_id = '${E1}'`));

@@ -70,7 +70,7 @@ function poser() {
   retirer();
   try { poser(); } catch (e) { retirer(); throw e; }
   const peremption = q("SELECT DATE_FORMAT(CURDATE() + INTERVAL 3 MONTH, '%Y-%m-%d')");
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   let p;
   const connecter = async () => {
     p = await (await b.newContext()).newPage();

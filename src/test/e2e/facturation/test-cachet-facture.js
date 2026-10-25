@@ -54,7 +54,7 @@ const DROIT_AJOUTE = 'E2E-CACHET-DROIT';
     + `INSERT INTO t_role_privelege (lg_ROLE_PRIVILEGE, lg_ROLE_ID, lg_PRIVILEGE_ID, dt_CREATED, dt_UPDATED) SELECT '${DROIT_AJOUTE}', '${ROLE}', '${PRIV}', NOW(), NOW()`
     + ` FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM t_role_privelege WHERE lg_ROLE_ID = '${ROLE}' AND lg_PRIVILEGE_ID = '${PRIV}')`);
   exec("DROP TABLE IF EXISTS zz_e2e_cachet; CREATE TABLE zz_e2e_cachet AS SELECT * FROM t_cachet_facture WHERE cible = 'COMMUN'; DELETE FROM t_cachet_facture WHERE cible = 'COMMUN';");
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const dialogues = [];
   let modele = null;
   try {

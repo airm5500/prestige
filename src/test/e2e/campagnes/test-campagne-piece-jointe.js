@@ -63,7 +63,7 @@ function nettoyer(debut) {
   const service = (methode, route, corps) => fetch('http://127.0.0.1:' + PORT + route, { method: methode,
     headers: { Authorization: 'Bearer ' + JETON, 'Content-Type': 'application/json' }, body: corps ? JSON.stringify(corps) : undefined }).then((r) => r.json());
 
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const dialogues = [], err = [];
   try {
     await new Promise((r) => setTimeout(r, 1500));

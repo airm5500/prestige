@@ -25,7 +25,7 @@ const iso = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, 
   const auj = new Date(), il7 = new Date(Date.now() - 7 * 86400000);
   const attendu7 = q(COMPTE + " AND dt_CREATED BETWEEN '" + iso(il7) + " 00:00:00' AND '" + iso(auj) + " 23:59:59'");
   const tout = q(COMPTE);
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1600, height: 900 } })).newPage();
   const erreurs = [], dialogues = [], appels = [];
   p.on('pageerror', (e) => erreurs.push(e.message));

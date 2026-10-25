@@ -16,7 +16,7 @@ const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-charact
 const SORTIE = process.env.SORTIE || ENV_E2E.TMP;
 
 (async () => {
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1600, height: 1000 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   const api = (u, o) => p.evaluate(async ([u, o]) => JSON.parse(await (await fetch(u, o || {})).text()), [u, o]);

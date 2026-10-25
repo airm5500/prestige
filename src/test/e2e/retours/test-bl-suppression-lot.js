@@ -34,7 +34,7 @@ const ligne = () => q(`SELECT CONCAT(int_QTE_RECUE, '/', int_QTE_UG) FROM t_bon_
   nettoyer();
   exec(lot('E2E-LOTD-1', REF, 'E2ELOTX', 2) + lot('E2E-LOTD-2', AUTRE, 'E2ELOTX', 1) + lot('E2E-LOTD-3', REF, 'E2ELOTY', 0)
     + `UPDATE t_bon_livraison_detail SET int_QTE_RECUE = 20, int_QTE_UG = 3 WHERE lg_BON_LIVRAISON_DETAIL = '${DET}'`);
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext()).newPage();
   const api = (corps) => p.evaluate(async (c) => { const r = await fetch('../api/v1/commande/remove-lots', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(c) });
     return r.status; }, corps);

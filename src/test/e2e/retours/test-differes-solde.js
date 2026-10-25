@@ -50,7 +50,7 @@ function reglement(id, quand, montant) {
   vente('C', '2026-10-04 11:00:00', 2000, 0);       // reglee le jour meme
   reglement('R1', '2026-09-20 16:00:00', 6000);
   reglement('R2', '2026-10-04 11:30:00', 2000);
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1600, height: 1000 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   const api = (u) => p.evaluate(async (u) => JSON.parse(await (await fetch(u)).text()), u);

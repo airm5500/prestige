@@ -43,7 +43,7 @@ function lire(pdf) {
   nettoyer();
   const U = q("SELECT u.lg_USER_ID FROM t_user u WHERE u.str_STATUT = 'enable' AND NOT EXISTS (SELECT 1 FROM t_employe e WHERE e.lg_USER_ID = u.lg_USER_ID) LIMIT 1");
   q("INSERT INTO t_employe (id, matricule, nom, prenoms, statut, lg_USER_ID, created_at) VALUES ('" + E + "', 'E2E-BCP-M1', 'ZZCARTE', 'Badge PVC', 'ACTIF', '" + U + "', NOW())");
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const ctx = await b.newContext({ viewport: { width: 1600, height: 900 } });
   const p = await ctx.newPage();
   const erreurs = []; p.on('pageerror', (e) => erreurs.push(e.message));

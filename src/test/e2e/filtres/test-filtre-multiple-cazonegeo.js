@@ -20,7 +20,7 @@ const PREF = q("SELECT COALESCE((SELECT txt_VALEUR FROM t_preference_utilisateur
 
 (async () => {
   q("DELETE FROM t_preference_utilisateur WHERE lg_USER_ID = '" + ADMIN + "' AND str_CLE = 'filtres.presentation'");
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await b.newPage({ viewport: { width: 1366, height: 768 } });
   const err = [], dialogues = [];
   p.on('pageerror', (e) => err.push(String(e.message))); p.on('dialog', (d) => { dialogues.push(d.message()); d.dismiss().catch(() => {}); });

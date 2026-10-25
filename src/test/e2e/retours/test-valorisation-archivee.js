@@ -68,7 +68,7 @@ const appeler = (p, url, methode) => p.evaluate(async ([u, m]) => {
 
 (async () => {
   const avant = fichiers();
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const ctx = await b.newContext({ viewport: { width: 1400, height: 900 } });
   const p = await ctx.newPage();
   try {

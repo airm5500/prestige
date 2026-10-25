@@ -92,7 +92,7 @@ const JEUX = {
   console.log(total + ' lectures relevées, ' + toutes.length + ' appelées (' + ecartees + ' écartées car elles agissent), ' + jeux.length + ' jeux de valeurs');
   ok('le relevé trouve les lectures de l\'API', total > 500, total);
 
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const ctx = await b.newContext();
   const p = await ctx.newPage();
   try {

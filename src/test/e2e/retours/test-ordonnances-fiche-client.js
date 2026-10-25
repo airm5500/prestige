@@ -21,7 +21,7 @@ const NOM = 'ZZFICHE';
     + " AND s.int_NUMBER_AVAILABLE > 5 AND f.str_NAME REGEXP '^[A-Z]{5,} ' ORDER BY s.int_NUMBER_AVAILABLE DESC LIMIT 1");
   const diabete = q("SELECT lg_TERRAIN_ID FROM t_terrain_clinique WHERE str_CODE='DIABETE'");
   const penicilline = q("SELECT lg_TERRAIN_ID FROM t_terrain_clinique WHERE str_CODE='ALLERGIE_PENICILLINE'");
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await b.newPage({ viewport: { width: 1600, height: 1000 } });
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   let clientId = null;

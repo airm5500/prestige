@@ -27,7 +27,7 @@ const retirer = () => q(`DELETE FROM t_rappel_habitude WHERE id = '${RAPPEL}'; D
   q(`INSERT INTO t_role_user (lg_USER_ROLE_ID, lg_ROLE_ID, lg_USER_ID, dt_CREATED) VALUES ('${ID}', '${ROLE_VENDEUR}', '${ID}', NOW())`);
   q(`INSERT INTO t_rappel_habitude (id, lg_CLIENT_ID, lg_FAMILLE_ID, dt_DERNIER_ACHAT, dt_PREVU, int_FREQUENCE, int_ACHATS, str_STATUT, dt_CREATED)`
     + ` SELECT '${RAPPEL}', (SELECT lg_CLIENT_ID FROM t_client LIMIT 1), (SELECT lg_FAMILLE_ID FROM t_famille LIMIT 1), CURDATE() - INTERVAL 30 DAY, CURDATE(), 30, 3, 'A_PREPARER', NOW()`);
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const post = (p, u, c) => p.evaluate(async ([u, c]) => { const r = await fetch(u, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: c });
     let j = null; try { j = await r.json(); } catch (e) { /* vide */ } return { status: r.status, j }; }, [u, c]);
   try {

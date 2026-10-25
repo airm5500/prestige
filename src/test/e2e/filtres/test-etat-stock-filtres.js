@@ -12,7 +12,7 @@ const RAYONS = q("SELECT f.lg_ZONE_GEO_ID FROM t_famille f WHERE f.str_STATUT = 
 const NOMS = RAYONS.map((r) => q("SELECT str_LIBELLEE FROM t_zone_geographique WHERE lg_ZONE_GEO_ID = '" + r + "'"));
 
 (async () => {
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await b.newPage({ viewport: { width: 1366, height: 768 } });
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   try {

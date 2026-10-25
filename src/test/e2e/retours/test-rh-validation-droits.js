@@ -48,7 +48,7 @@ function nettoyer() {
     + " ('E2E-RHV-A1', '" + EMP_MOI + "', 'CONGE', '2026-12-07', '2026-12-08', 'Moi', 'DEMANDE', '" + ADMIN + "', NOW()),"
     + " ('E2E-RHV-A2', '" + EMP_AUTRE + "', 'CONGE', '2026-12-14', '2026-12-15', 'Autre', 'DEMANDE', '" + ADMIN + "', NOW()),"
     + " ('E2E-RHV-A3', '" + EMP_AUTRE + "', 'AUTRE', '2026-12-21', '2026-12-21', 'Saisie par moi', 'DEMANDE', '" + ID + "', NOW())");
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1600, height: 900 } })).newPage();
   const erreurs = [], dialogues = [];
   p.on('pageerror', (e) => erreurs.push(e.message));

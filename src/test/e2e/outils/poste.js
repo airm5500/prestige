@@ -11,7 +11,13 @@
  *   E2E_BASE_LIBRE   1 pour autoriser, sous Windows, une autre base que laborex_v1_db ;
  *   CHROMIUM         executable de Chromium (defaut sous Windows : celui de PLAYWRIGHT_BROWSERS_PATH) ;
  *   MARIADB_OPTIONS  fichier d'options du client mariadb : utilisateur et mot de passe, hors du depot
- *                    (defaut sous Windows : %USERPROFILE%\.prestige-e2e.cnf).
+ *                    (defaut sous Windows : %USERPROFILE%\.prestige-e2e.cnf) ;
+ *   E2E_VISIBLE      1 pour suivre le test a l'ecran (fenetre de Chromium, actions ralenties de 300 ms) ;
+ *   E2E_CAPTURES     dossier des videos et captures (defaut sous Windows : captures\ a la racine du depot, exclu de
+ *                    Git ; aucun sous Linux) ; 0 pour ne rien enregistrer. Un sous-dossier par test et par lancement.
+ *
+ * Les videos et captures restent sur le poste. Sur laborex_v1_db, elles peuvent montrer des donnees de patients :
+ * ne pas les diffuser.
  */
 const fs = require('fs');
 const os = require('os');
@@ -37,8 +43,66 @@ const OPTIONS = process.env.MARIADB_OPTIONS || (WINDOWS ? path.join(os.homedir()
 /* dossier des sorties et captures : /tmp n'existe pas sous Windows */
 const TMP = WINDOWS ? os.tmpdir() : '/tmp';
 
+const VISIBLE = process.env.E2E_VISIBLE === '1';
+const CAPTURES = process.env.E2E_CAPTURES === '0' ? null
+  : process.env.E2E_CAPTURES || (WINDOWS ? path.resolve(__dirname, '../../../../captures') : null);
+
+/* captures/<test>/<date-heure>/, cree au premier besoin */
+let dossierDuTest = null, numero = 0;
+function dossier() {
+  if (!dossierDuTest) {
+    const d = new Date(), z = (n) => String(n).padStart(2, '0');
+    const quand = d.getFullYear() + '-' + z(d.getMonth() + 1) + '-' + z(d.getDate()) + '_' + z(d.getHours()) + 'h'
+      + z(d.getMinutes()) + 'm' + z(d.getSeconds()) + 's';
+    const test = require.main ? path.basename(require.main.filename, '.js') : 'test';
+    dossierDuTest = path.join(CAPTURES, test, quand);
+    fs.mkdirSync(dossierDuTest, { recursive: true });
+  }
+  return dossierDuTest;
+}
+
+/* capture d'une page, numerotee dans l'ordre du test ; sans effet si rien n'est enregistre */
+async function capture(page, nom) {
+  if (!CAPTURES) { return null; }
+  const f = path.join(dossier(), String(++numero).padStart(3, '0') + '-'
+    + String(nom).replace(/[^\w.-]+/g, '_').slice(0, 80) + '.png');
+  return page.screenshot({ path: f }).then(() => f).catch(() => null);
+}
+
+/*
+ * Lance Chromium pour un test. E2E_VISIBLE : fenetre et actions ralenties. Avec un dossier de captures : une video
+ * par page (contexte), une capture des pages ouvertes a chaque ligne « FAIL » ecrite par le test, et une capture de
+ * fin a la fermeture du navigateur.
+ */
+async function lancer(chromium, options) {
+  const b = await chromium.launch(Object.assign({ executablePath: CHROMIUM, headless: !VISIBLE },
+    VISIBLE ? { slowMo: 300 } : {}, options));
+  if (!CAPTURES) { return b; }
+  const pages = () => [].concat(...b.contexts().map((c) => c.pages()));
+  const video = (o) => Object.assign({ recordVideo: { dir: dossier() } }, o);
+  const newPage = b.newPage.bind(b), newContext = b.newContext.bind(b), close = b.close.bind(b);
+  b.newPage = (o) => newPage(video(o));
+  b.newContext = (o) => newContext(video(o));
+  const enCours = [], log = console.log;
+  console.log = function () {
+    log.apply(console, arguments);
+    const ligne = String(arguments[0] || '');
+    if (/^FAIL\b/.test(ligne)) {
+      pages().forEach((p, i) => enCours.push(capture(p, 'echec-' + ligne.slice(4).trim() + (i ? '-' + i : ''))));
+    }
+  };
+  b.close = async () => {
+    await Promise.all(enCours);
+    for (const [i, p] of pages().entries()) { await capture(p, 'fin' + (i ? '-' + i : '')); }
+    console.log = log;
+    await close();
+    if (dossierDuTest) { log('Videos et captures : ' + dossierDuTest); }
+  };
+  return b;
+}
+
 module.exports = {
-  WINDOWS, BASE, LOGIN, CHROMIUM, TMP,
+  WINDOWS, BASE, LOGIN, CHROMIUM, TMP, VISIBLE, CAPTURES, lancer, capture,
   /* arguments a placer en tete de chaque appel au client mariadb ; verifie a l'appel, pour que les tests sans base
      n'aient pas besoin du fichier d'options */
   get MARIADB() {

@@ -51,7 +51,7 @@ async function appel(chemin, o) {
   const famille = q("SELECT lg_FAMILLE_ID FROM t_famille WHERE str_STATUT = 'enable' AND int_CIP REGEXP '^[0-9]{7}$' ORDER BY lg_FAMILLE_ID LIMIT 1");
   const cip = q("SELECT int_CIP FROM t_famille WHERE lg_FAMILLE_ID = '" + famille + "'");
   const imagesAvant = q("SELECT IFNULL(GROUP_CONCAT(lg_ID), '') FROM t_famille_image WHERE lg_FAMILLE_ID = '" + famille + "'");
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const err = [];
   try {
     PARAMS.forEach((k) => param(k, { KEY_MOBILE_ACTIF: '1', KEY_RH_MOBILE_POINTAGE: '1', KEY_RH_MOBILE_QR: '1', KEY_RH_MOBILE_GPS: '0', KEY_RH_MOBILE_LATITUDE: '', KEY_RH_MOBILE_LONGITUDE: '', KEY_RH_MOBILE_RAYON_M: '150' }[k]));

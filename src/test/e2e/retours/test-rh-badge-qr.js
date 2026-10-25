@@ -53,7 +53,7 @@ const HAUT_CARTE = (297 - 5 * 54 - 4 * 4) / 2, BANDEAU = 9, PX_MM = 300 / 25.4;
   exec("INSERT INTO t_employe (id, matricule, nom, prenoms, statut, lg_USER_ID, created_at) VALUES ('" + E + "', 'E2E-BQ-M1', 'ESSAI', 'Badge QR', 'ACTIF', '" + U[0] + "', NOW())");
   const MDP = q("SELECT str_PASSWORD FROM t_user WHERE lg_USER_ID = '" + U[0] + "'");
   ok('Jeu d\'essai : employé lié à un utilisateur', !!U[1], U[1]);
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await b.newPage({ viewport: { width: 1600, height: 900 } });
   const api = (m, u, c) => p.evaluate(async ([m, u, c]) => { const r = await fetch(u, { method: m, headers: { 'Content-Type': 'application/json' }, body: c === undefined ? undefined : JSON.stringify(c) }); return r.json(); }, [m, u, c]);
   const pdf = (u) => p.evaluate(async (u) => { const r = await fetch(u); const a = new Uint8Array(await r.arrayBuffer()); let s = ''; a.forEach((x) => { s += String.fromCharCode(x); }); return { type: r.headers.get('content-type'), b64: btoa(s) }; }, u);

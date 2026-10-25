@@ -27,7 +27,7 @@ const sqlTexte = (v) => "'" + v.replace(/'/g, "''") + "'";
 (async () => {
   const idOrigine = q('SELECT lg_FAMILLE_ID FROM t_famille WHERE str_NAME=' + sqlTexte(ORIGINE) + " AND str_STATUT='enable' LIMIT 1");
   const stockAvant = q("SELECT CONCAT_WS('|', lg_FAMILLE_STOCK_ID, int_NUMBER_AVAILABLE, int_NUMBER) FROM t_famille_stock WHERE lg_FAMILLE_ID='" + idOrigine + "' AND lg_EMPLACEMENT_ID='1' LIMIT 1").split('|');
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1700, height: 1100 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   try {

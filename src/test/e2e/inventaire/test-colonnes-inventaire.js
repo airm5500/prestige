@@ -58,7 +58,7 @@ const cache = (e, di) => (e.find(c => c.di === di) || {}).h;
 
 (async () => {
   poserMotDePasse();
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
 
   // ---- utilisateur 1 ----
   const s1 = await session(b, ENV_E2E.LOGIN);

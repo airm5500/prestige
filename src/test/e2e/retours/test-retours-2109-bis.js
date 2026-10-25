@@ -26,7 +26,7 @@ let KGA3 = '';
 (async () => {
   KGA3 = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='" + (ENV_E2E.LOGIN) + "'");
   exec("DELETE FROM garde WHERE libelle LIKE '" + MARQUE + " %'");
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const ctx = await b.newContext({ viewport: { width: 1800, height: 1000 } });
   const p = await ctx.newPage();
   const err = []; p.on('pageerror', e => err.push(String(e.message)));

@@ -34,7 +34,7 @@ const HOTE_ESSAI = 'E2E-SERVEUR';
   exec(`INSERT INTO t_serveur_vie (hote, pid, demarre_at, dernier_signe_at, arret, cause_code, cause_libelle, cause_explication, cause_conseil, indisponibilite_min, java_version, memoire_max_mo)
         VALUES ('${HOTE_ESSAI}', 1, NOW() - INTERVAL 3 DAY, NOW() - INTERVAL 3 DAY + INTERVAL 2 HOUR, 'BRUTAL', 'COUPURE_COURANT', 'Coupure de courant ou arrêt brutal de la machine',
         'Windows a redémarré sans arrêt propre (événement 41 Kernel-Power).', 'Un onduleur protège la base et les ventes en cours.', 12, '11', 2048)`);
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const dialogues = [], err = [];
   const ouvrir = async (p) => {
     p.on('dialog', (d) => { dialogues.push(d.message()); d.dismiss().catch(() => {}); });

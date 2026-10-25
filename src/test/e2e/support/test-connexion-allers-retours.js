@@ -75,7 +75,7 @@ async function menuAffiche(p) {
     + ` VALUES ('${ID}', '${LOGIN}', MD5('${MDP}'), 'E2E', 'CONNEXION', 'Caissier', 'enable', '1', NOW(), 0);`
     + `INSERT INTO t_role_user (lg_USER_ROLE_ID, lg_ROLE_ID, lg_USER_ID, dt_CREATED) VALUES ('${ID}', '${ROLE_CAISSE}', '${ID}', NOW());`
     + "SET GLOBAL log_output = 'TABLE'; SET GLOBAL general_log = 1;");
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const fenetres = [], erreurs = [];
   try {
     const nbDroitsAdmin = q("SELECT COUNT(*) FROM t_role_privelege rp JOIN t_role_user ru ON ru.lg_ROLE_ID = rp.lg_ROLE_ID JOIN t_user u ON u.lg_USER_ID = ru.lg_USER_ID WHERE u.str_LOGIN = '" + ENV_E2E.LOGIN + "'");

@@ -70,7 +70,7 @@ async function venteComptant(p) {
 }
 
 (async () => {
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   let clientId = null;
   try {
     /* ---------------------------------------------------------------- 1. caissier sans le droit */

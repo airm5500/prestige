@@ -19,7 +19,7 @@ const statut = () => q(`SELECT statut FROM t_avis_client WHERE id = '${ID}'`);
 
 (async () => {
   exec(`DELETE FROM t_avis_client WHERE id = '${ID}'; INSERT INTO t_avis_client (id, dt_CREATED, note, texte, anonyme, rappel, statut) VALUES ('${ID}', NOW(), 4, 'Essai', 1, 0, 'NOUVEAU')`);
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext()).newPage();
   const get = (u) => p.evaluate(async (u) => (await fetch(u)).json(), u);
   try {

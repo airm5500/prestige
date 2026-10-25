@@ -38,7 +38,7 @@ function nettoyer() {
     + "INSERT INTO t_suggestion_order_details (lg_SUGGESTION_ORDER_DETAILS_ID, lg_SUGGESTION_ORDER_ID, lg_GROSSISTE_ID, lg_FAMILLE_ID, int_NUMBER, int_PRICE, int_PRICE_DETAIL, int_PAF_DETAIL, dt_CREATED, dt_UPDATED, str_STATUT, b_falg)"
     + " VALUES ('" + SUGG + "-L1', '" + SUGG + "', '" + G + "', '" + P[0] + "', 2, 200, 1500, 1000, NOW(), NOW(), 'is_Process', 0)");
   const debutLog = fs.statSync(LOG).size;
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1366, height: 768 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   try {

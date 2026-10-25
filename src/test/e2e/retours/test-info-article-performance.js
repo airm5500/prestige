@@ -18,7 +18,7 @@ const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-charact
 (async () => {
   const DEBUT = q("SELECT DATE_SUB(DATE_FORMAT(CURDATE(), '%Y-%m-01'), INTERVAL 3 MONTH)");
   const CIP = q("SELECT int_CIP FROM t_famille WHERE str_STATUT = 'enable' AND str_NAME LIKE 'DOLI%' ORDER BY int_CIP LIMIT 1");
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await b.newPage();
   const lire = (s) => p.evaluate(async (s) => { const t0 = performance.now(); const r = await fetch('../api/v1/info?search=' + encodeURIComponent(s[0]) + '&dtStart=' + s[1].split('-').reverse().join('/')); const j = await r.json(); return { ms: performance.now() - t0, j }; }, [s, DEBUT]);
   const mediane = async (s) => { const t = []; let j; for (let i = 0; i < 3; i++) { const r = await lire(s); t.push(r.ms); j = r.j; } t.sort((a, b) => a - b); return { ms: t[1], j, t }; };

@@ -47,7 +47,7 @@ function nettoyer() {
 (async () => {
   await new Promise((r) => serveur.listen(PORT, '127.0.0.1', r));
   sauve = q(`SELECT CONCAT(IFNULL(str_URL_PHARMAML, 'NULL'), '|', IFNULL(str_PHARMAML_VERSION_CMDE, 'NULL')) FROM t_grossiste WHERE lg_GROSSISTE_ID = '${G}'`).split('|');
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1500, height: 950 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   const durees = [];

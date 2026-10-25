@@ -17,7 +17,7 @@ const ANDROID = 'Mozilla/5.0 (Linux; Android 11; V2s Build/RKQ1) AppleWebKit/537
 const BUREAU = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
 (async () => {
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const erreurs = [], dialogues = [];
   const page = async (ua, nom) => {
     const ctx = await b.newContext({ viewport: { width: 1280, height: 800 }, userAgent: ua });

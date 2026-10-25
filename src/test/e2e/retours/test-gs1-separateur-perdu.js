@@ -27,7 +27,7 @@ const LECTURE = q("SELECT str_VALUE FROM t_parameters WHERE str_KEY = 'KEY_VENTE
 const ventes = [];
 
 (async () => {
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   let p = null;
   const erreurs = [];
   const nouvellePage = async () => { if (p) { await p.context().close(); } p = await (await b.newContext({ viewport: { width: 1600, height: 900 } })).newPage(); p.on('pageerror', (e) => erreurs.push(e.message)); };

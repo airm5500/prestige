@@ -35,7 +35,7 @@ const fr = (d) => d.slice(8, 10) + '/' + d.slice(5, 7);
   const versionAvant = q("SELECT str_VALUE FROM t_parameters WHERE str_KEY = 'KEY_TABLEAU_BORD_VERSION'");
   exec(`DELETE FROM t_preference_utilisateur WHERE lg_USER_ID = '${U}' AND str_CLE = 'tableau-bord'`);
   exec("UPDATE t_parameters SET str_VALUE = 'NOUVEAU' WHERE str_KEY = 'KEY_TABLEAU_BORD_VERSION'");
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1600, height: 1000 } })).newPage();
   const err = [], dialogues = [];
   p.on('pageerror', (e) => err.push(String(e.message)));

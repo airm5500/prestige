@@ -23,7 +23,7 @@ const CASSES = ['ventemanagerbis', 'vendeurcaissiermanager', 'corbeillevente', '
 (async () => {
   const enBase = () => q("SELECT COUNT(*) FROM t_sous_menu WHERE str_Status = 'enable' AND str_COMPOSANT IN ('" + CASSES.join("','") + "')");
   const avant = enBase();
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1600, height: 900 } })).newPage();
   const erreurs = []; p.on('pageerror', (e) => erreurs.push(e.message));
   try {

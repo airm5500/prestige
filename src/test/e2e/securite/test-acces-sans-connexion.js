@@ -32,7 +32,7 @@ const brut = async (url, h) => { const r = await fetch(API + url, { headers: h |
 const ouvert = (r) => r.s === 200 && !/connecter/i.test(r.t) && !/^</.test(r.t);
 
 (async () => {
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   try {
     /* C1 */
     let r = await brut('v1/app-vente/capacites', FAUX);

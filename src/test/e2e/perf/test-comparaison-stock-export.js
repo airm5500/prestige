@@ -54,7 +54,7 @@ function retirerModele() {
 
 (async () => {
   poserModele();
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await b.newPage();
   const telecharger = (u) => p.evaluate(async ([u, max]) => {
     const ctl = new AbortController(); const minuterie = setTimeout(() => ctl.abort(), max * 3);

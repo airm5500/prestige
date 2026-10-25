@@ -66,7 +66,7 @@ function nettoyer() {
     + " JOIN t_famille_stock s ON s.lg_FAMILLE_ID = d.lg_FAMILLE_ID AND s.lg_EMPLACEMENT_ID = '1' WHERE b.str_REF_LIVRAISON = '" + BL + "'").split('|').map((x) => x.split(':'));
   const motif = (code) => q("SELECT lg_MOTIF_RETOUR FROM t_motif_retour WHERE str_CODE = '" + code + "'");
   const { chromium } = require('playwright-core');
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1366, height: 768 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   const fermer = async () => { await p.evaluate(() => { if (Ext.MessageBox.isVisible()) { Ext.MessageBox.hide(); } }); };

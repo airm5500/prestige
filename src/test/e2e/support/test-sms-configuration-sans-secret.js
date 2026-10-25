@@ -21,7 +21,7 @@ const TABLE = q("SELECT table_name FROM information_schema.tables WHERE table_sc
 const COLS = TABLE ? q("SELECT GROUP_CONCAT(column_name) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = '" + TABLE + "'") : '';
 
 (async () => {
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1600, height: 900 } })).newPage();
   const erreurs = []; p.on('pageerror', (e) => erreurs.push(e.message));
   let sauvegarde = null;

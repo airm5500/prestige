@@ -47,7 +47,7 @@ function restaurer() {
 const gains = () => q(`SELECT IFNULL(GROUP_CONCAT(lg_PREENREGISTREMENT_ID ORDER BY lg_PREENREGISTREMENT_ID), '') FROM t_fidelite_mouvement WHERE lg_CLIENT_ID = '${C}' AND str_TYPE = 'GAIN'`);
 
 (async () => {
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1600, height: 1000 } })).newPage();
   const erreurs = [], dialogues = [];
   p.on('pageerror', (e) => erreurs.push(e.message));

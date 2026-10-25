@@ -35,7 +35,7 @@ const nettoyer = () => {
 
 (async () => {
   q("DELETE FROM mobile_client_ref WHERE ref LIKE 'E2E-H4-%'");
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext()).newPage();
   const appel = (methode, url, corps, cle) => p.evaluate(async ([methode, url, corps, cle]) => {
     const h = { 'Content-Type': 'application/json' }; if (cle) { h['X-Client-Ref'] = cle; }

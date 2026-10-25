@@ -21,7 +21,7 @@ const BL = "FROM t_bon_livraison b JOIN t_order o ON o.lg_ORDER_ID = b.lg_ORDER_
   const [U, nU] = q("SELECT b.lg_USER_ID, COUNT(*) " + BL + " GROUP BY b.lg_USER_ID ORDER BY COUNT(*) DESC LIMIT 1").split('\t');
   const tous = q("SELECT COUNT(*) " + BL);
   ok('Banc : des BL de plusieurs utilisateurs sur la période', Number(tous) > Number(nU) && Number(nU) > 0, U + ' ' + nU + '/' + tous);
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await b.newPage({ viewport: { width: 1600, height: 950 } });
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   const lire = (url) => p.evaluate(async (url) => (await fetch(url)).json(), url);

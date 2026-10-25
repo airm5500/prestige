@@ -26,7 +26,7 @@ const proche = (a, b) => Math.abs(Number(a) - Number(b)) <= 1;
 (async () => {
   droit.remettre();
   exec(`DROP TABLE IF EXISTS zz_e2e_charges; CREATE TABLE zz_e2e_charges AS SELECT * FROM t_charge_mensuelle WHERE mois = '${MOIS}'; DELETE FROM t_charge_mensuelle WHERE mois = '${MOIS}';`);
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const dialogues = [];
   const ouvrir = async (p) => {
     await p.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'domcontentloaded' });

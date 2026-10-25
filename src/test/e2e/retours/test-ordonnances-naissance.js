@@ -24,7 +24,7 @@ const TEL = '07 31 ' + Date.now().toString().slice(-6, -4) + ' ' + Date.now().to
     + " AND dt_NAISSANCE < DATE_SUB(NOW(), INTERVAL 2 YEAR) LIMIT 1").split('|');
   const produitStock = q("SELECT f.str_NAME FROM t_famille f JOIN t_famille_stock s ON s.lg_FAMILLE_ID=f.lg_FAMILLE_ID WHERE f.str_STATUT='enable'"
     + " AND s.int_NUMBER_AVAILABLE > 5 AND f.str_NAME REGEXP '^[A-Z]{4}' ORDER BY s.int_NUMBER_AVAILABLE DESC LIMIT 1");
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1700, height: 1000 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   try {

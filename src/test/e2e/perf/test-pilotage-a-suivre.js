@@ -33,7 +33,7 @@ const [FAMILLE, CA_FAMILLE] = q(`SELECT COALESCE(fa.str_LIBELLE, '(non renseignÃ
   + ' GROUP BY f.lg_FAMILLEARTICLE_ID ORDER BY 2 DESC LIMIT 1').split('\t');
 
 (async () => {
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1600, height: 1000 } })).newPage();
   const erreurs = []; p.on('pageerror', (e) => erreurs.push(e.message));
   try {

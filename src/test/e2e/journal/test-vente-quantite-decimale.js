@@ -33,7 +33,7 @@ function nettoyer() {
 }
 
 (async () => {
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1600, height: 900 } })).newPage();
   const erreurs = []; p.on('pageerror', (e) => erreurs.push(e.message));
   const modifs = []; p.on('request', (r) => { if (/vente\/update\/item\/vno/.test(r.url())) { modifs.push(r.postData()); } });

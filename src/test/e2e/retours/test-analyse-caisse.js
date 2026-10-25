@@ -40,7 +40,7 @@ function nettoyer() {
 }
 
 (async () => {
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1500, height: 950 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   const clic = async (sel) => { await p.evaluate((s) => { const c = Ext.ComponentQuery.query(s)[0]; (c.btnEl || c.getEl()).dom.setAttribute('data-e2e', 'x'); }, sel);

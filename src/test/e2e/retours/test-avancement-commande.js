@@ -81,7 +81,7 @@ const url = (u) => exec("UPDATE t_grossiste SET str_URL_PHARMAML = " + (u === nu
   P = lus.map((x) => x.split(':')[0]); cips = lus.map((x) => x.split(':')[1]);
   nettoyer();
   const { chromium } = require('playwright-core');
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1366, height: 768 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   const liste2 = async () => {

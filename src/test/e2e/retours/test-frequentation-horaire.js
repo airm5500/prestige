@@ -17,7 +17,7 @@ const [CA, NB, MONTANT_10H] = q(`SELECT SUM(int_PRICE), COUNT(*), SUM(IF(HOUR(dt
   WHERE dt_CREATED >= '${DEBUT}' AND dt_CREATED < '2026-10-01' AND int_PRICE > 0 AND b_IS_CANCEL = 0 AND str_STATUT = 'is_Closed'`).split('\t').map(Number);
 
 (async () => {
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1500, height: 950 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   const api = (t, d = DEBUT, f = FIN) => p.evaluate(async ([t, d, f]) => (await fetch(`../api/v1/frequentation-horaire?debut=${d}&fin=${f}&tranche=${t}`)).json(), [t, d, f]);

@@ -43,7 +43,7 @@ const stock = (f, v) => exec(`UPDATE t_famille_stock SET int_NUMBER_AVAILABLE = 
 const rapportsDuTest = () => q(`SELECT COUNT(*) FROM t_audit_rapport WHERE created_at >= '${DEBUT}'`);
 
 (async () => {
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const dialogues = [];
   try {
     const ctx = await b.newContext({ viewport: { width: 1500, height: 950 }, acceptDownloads: true });

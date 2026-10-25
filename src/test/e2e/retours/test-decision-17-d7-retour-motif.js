@@ -51,7 +51,7 @@ function poser() {
 (async () => {
   retirer();
   try { poser(); } catch (e) { retirer(); throw e; }
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext()).newPage();
   const api = (m, u, c) => p.evaluate(async ([m, u, c]) => { const r = await fetch(u, { method: m, headers: { 'Content-Type': 'application/json' }, body: c === undefined ? undefined : JSON.stringify(c) });
     return r.json(); }, [m, u, c]);

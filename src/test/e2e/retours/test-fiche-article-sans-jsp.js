@@ -47,7 +47,7 @@ function nettoyer() {
   P = q("SELECT z.lg_FAMILLE_ID FROM t_famille_zonegeo z JOIN t_famille f ON f.lg_FAMILLE_ID = z.lg_FAMILLE_ID WHERE z.lg_EMPLACEMENT_ID = '1' AND f.str_STATUT = 'enable' ORDER BY f.str_NAME LIMIT 1");
   zoneOrigine = q("SELECT lg_ZONE_GEO_ID FROM t_famille_zonegeo WHERE lg_FAMILLE_ID = '" + P + "' AND lg_EMPLACEMENT_ID = '1' LIMIT 1");
   const zones = q("SELECT GROUP_CONCAT(lg_ZONE_GEO_ID) FROM (SELECT lg_ZONE_GEO_ID FROM t_zone_geographique WHERE str_STATUT = 'enable' AND lg_ZONE_GEO_ID <> '" + zoneOrigine + "' ORDER BY str_LIBELLEE LIMIT 2) z").split(',');
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1600, height: 950 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   if (process.env.TRACE) { p.on('framenavigated', (f) => { console.log('NAV', f === p.mainFrame(), f.url()); }); p.on('request', (r) => { if (!/_dc=|\.(png|gif|css|js)/.test(r.url())) console.log('REQ', r.method(), r.url().slice(0, 140)); }); p.on('console', (m) => console.log('CONSOLE', m.text().slice(0, 200))); }

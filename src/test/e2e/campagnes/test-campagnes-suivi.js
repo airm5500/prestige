@@ -43,7 +43,7 @@ function nettoyer() {
   q(`INSERT INTO whatsapp_discussion (numero, sens, type, texte, created_at) VALUES ('22990000901', 'E', 'TEXTE', '${TEXTE}', NOW()),`
     + ` ('22990000902', 'E', 'TEXTE', '${TEXTE}', NOW() - INTERVAL 3 HOUR)`);
 
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1600, height: 1000 } })).newPage();
   const erreurs = [], dialogues = [];
   let reponseSuivi = '';

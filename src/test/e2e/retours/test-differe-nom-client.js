@@ -43,7 +43,7 @@ function vente(id, quand, du, nom, prenoms, differe) {
   vente('A', '2026-10-05 10:00:00', 5000, 'MOUSSA', 'ALI', true);
   vente('B', '2026-10-06 10:00:00', 1500, 'MOUSSA', 'ALI', false);
   vente('C', '2026-10-07 10:00:00', 1000, 'AUTRE', 'PORTEUR', false);   // nom d'un autre porteur : non touche
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1600, height: 1000 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   const api = (u, corps) => p.evaluate(async ([u, corps]) => JSON.parse(await (await fetch(u, corps ? { method: 'POST',

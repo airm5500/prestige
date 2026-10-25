@@ -20,7 +20,7 @@ const remettre = () => q(`UPDATE t_tiers_payant SET str_STATUT = '${STATUT}', dt
 
 (async () => {
   q(`UPDATE t_tiers_payant SET str_STATUT = 'disable' WHERE lg_TIERS_PAYANT_ID = '${TP}'`);
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1600, height: 900 } })).newPage();
   const erreurs = []; p.on('pageerror', (e) => erreurs.push(e.message));
   const echecs = []; p.on('response', (r) => { if (r.status() >= 400 && /tierspayant/i.test(r.url())) { echecs.push(r.status() + ' ' + r.url()); } });

@@ -26,7 +26,7 @@ const remettre = () => exec(`UPDATE t_inventaire_famille SET int_NUMBER = ${AVAN
 const ligne = () => q(`SELECT CONCAT_WS('|', int_NUMBER, IFNULL(str_UPDATED_ID, '')) FROM t_inventaire_famille WHERE lg_INVENTAIRE_FAMILLE_ID = ${LIGNE}`);
 
 (async () => {
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext()).newPage();
   const put = (corps) => p.evaluate(async (c) => { const r = await fetch('../api/v1/ws/inventaires/details', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(c) });
     const t = await r.text(); let j = null; try { j = JSON.parse(t); } catch (e) { /* vide */ } return { http: r.status, j }; }, corps);

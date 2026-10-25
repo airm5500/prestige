@@ -72,7 +72,7 @@ const empreinteVentes = () => q("SELECT GROUP_CONCAT(CONCAT_WS(':', lg_PREENREGI
   });
   const avantVentes = empreinteVentes();
   const { chromium } = require('playwright-core');
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const ctx = await b.newContext({ viewport: { width: 1366, height: 768 } });
   const p = await ctx.newPage();
   const err = [];

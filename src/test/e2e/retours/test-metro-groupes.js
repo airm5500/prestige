@@ -46,7 +46,7 @@ const stylesPrestige = (p) => p.evaluate(() => {
 
 (async () => {
   nettoyer();
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const erreurs = [], dialogues = [];
   try {
     const anonyme = await (await b.newContext()).newPage();

@@ -44,7 +44,7 @@ const faux = http.createServer((req, rep) => {
 (async () => {
   const avant = fs.existsSync(CONF) ? fs.readFileSync(CONF) : null;
   await new Promise((r) => faux.listen(PORT, '127.0.0.1', r));
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext()).newPage();
   const lire = (type, taille) => p.evaluate(async ([type, taille]) => {
     const c = document.createElement('canvas'); c.width = taille; c.height = taille; const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, taille, taille); x.fillStyle = '#000'; x.fillText('AMOXICILLINE 1g', 5, 20);

@@ -32,7 +32,7 @@ const qwertySurAzerty = (t) => t.replace(/[aqzwAQZW\-|]/g, (c) => ({ a: 'q', q: 
   q("INSERT INTO t_employe (id, matricule, nom, prenoms, poste, statut, lg_USER_ID, badge, created_at) VALUES ('" + E + "', 'E2E-BSC-M1', 'ESSAI', 'Sans compte', 'Test', 'ACTIF', NULL, '" + NUM + "', NOW())");
   q("INSERT INTO t_rh_badge (id, employe_id, numero, statut, dt_emission, created_at) VALUES ('" + B + "', '" + E + "', '" + NUM + "', 'ACTIF', CURDATE(), NOW())");
   const tailleLog = fs.existsSync(LOG) ? fs.statSync(LOG).size : 0;
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   try {
     const p = await (await b.newContext({ viewport: { width: 1600, height: 900 } })).newPage();
     await connexion(p, ENV_E2E.LOGIN, 'e2etest');

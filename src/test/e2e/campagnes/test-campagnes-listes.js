@@ -28,7 +28,7 @@ function nettoyer() {
   nettoyer();
   ['AMANI', 'BAKARY', 'CYRILLE'].forEach((n, i) => q("INSERT INTO t_client (lg_CLIENT_ID, str_FIRST_NAME, str_LAST_NAME, str_ADRESSE, lg_TYPE_CLIENT_ID, str_STATUT, dt_CREATED, bool_CONSENT_WHATSAPP)"
     + ` VALUES ('E2E-LISTE-${i}', 'ZZLISTE', '${n}', '070707080${i}', '6', 'enable', NOW(), 1)`));
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1600, height: 1000 } })).newPage();
   const erreurs = [], dialogues = [];
   p.on('pageerror', (e) => erreurs.push(e.message));

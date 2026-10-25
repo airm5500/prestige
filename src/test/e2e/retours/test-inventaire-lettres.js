@@ -23,7 +23,7 @@ const produits = (nom) => q(`SELECT f.str_NAME FROM t_inventaire_famille i JOIN 
   JOIN t_famille f ON f.lg_FAMILLE_ID = i.lg_FAMILLE_ID WHERE v.str_NAME = '${nom}' ORDER BY f.lg_FAMILLE_ID`).split('\n').filter(Boolean);
 
 (async () => {
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1500, height: 950 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   /* creation par l'ecran : type Emplacement, emplacement coche, lettres, bouton « Creer l'inventaire » */

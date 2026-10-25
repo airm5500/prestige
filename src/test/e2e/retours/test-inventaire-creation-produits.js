@@ -37,7 +37,7 @@ const nettoyer = () => exec("DELETE f FROM t_inventaire_famille f JOIN t_inventa
     + "   AND (SELECT COUNT(*) FROM t_famille x2 WHERE x2.int_CIP = y.int_CIP OR x2.int_EAN13 = y.int_CIP) = 1)"
     + " ORDER BY f.lg_ZONE_GEO_ID LIMIT 4").split('\n').map((l) => { const [id, cip, zone, stock] = l.split('|'); return { id, cip, zone, stock }; });
   ok('Jeu d\'essai : 4 produits de 4 rayons, avec stock à l\'emplacement d\'admin', P.length === 4 && new Set(P.map((x) => x.zone)).size === 4, JSON.stringify(P.map((x) => x.cip)));
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await b.newPage();
   const api = (m, u, c) => p.evaluate(async ([m, u, c]) => { const t0 = performance.now(); const r = await fetch(u, { method: m, headers: { 'Content-Type': 'application/json' }, body: c === undefined ? undefined : JSON.stringify(c) });
     const t = await r.text(); let j; try { j = JSON.parse(t); } catch (e) { j = { brut: t.slice(0, 120) }; } j.http = r.status; j.ms = performance.now() - t0; return j; }, [m, u, c]);

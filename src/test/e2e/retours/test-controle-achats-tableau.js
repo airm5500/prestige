@@ -41,7 +41,7 @@ function bl(n, grossiste, saisie, controle) {
   nettoyer();
   exec(bl(1, G1, '2019-01-10 09:00:00', true) + bl(2, G1B, '2019-01-13 09:00:00', false) + bl(3, G2, '2019-01-11 09:00:00', true)
     + "UPDATE t_parameters SET str_VALUE = '1' WHERE str_KEY = 'KEY_CONTROLE_ACHAT_DELAI_SAISIE_JOURS'");
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1366, height: 768 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   try {

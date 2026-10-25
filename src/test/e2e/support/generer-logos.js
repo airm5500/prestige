@@ -25,7 +25,7 @@ const LOGOS = {
     <text x="64" y="112" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="700" font-size="12" fill="#0A4E7A">from MTN</text></svg>`
 };
 (async () => {
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await b.newPage({ viewport: { width: 128, height: 128 }, deviceScaleFactor: 1 });
   for (const [code, svg] of Object.entries(LOGOS)) {
     await p.setContent('<html><body style="margin:0;background:transparent">' + svg.replace('<svg ', '<svg width="128" height="128" ') + '</body></html>');

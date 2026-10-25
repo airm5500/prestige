@@ -37,7 +37,7 @@ function nettoyer() {
   param('KEY_MONOGRAPHIE_URL', 'http://127.0.0.1:' + site.port + '/diivision/');
   param('KEY_MONOGRAPHIE_ACTIF', '1');
   param('KEY_INTERACTIONS_VENTE', '1');
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1600, height: 1000 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   try {

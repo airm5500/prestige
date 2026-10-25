@@ -36,7 +36,7 @@ function nettoyer() {
     + " VALUES ('" + CMD + "', '" + CMD + "', 1, '" + G + "', (SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "' LIMIT 1), 'passed', NOW(), NOW(), 2000, 0, 0);"
     + "INSERT INTO t_order_detail (lg_ORDERDETAIL_ID, lg_ORDER_ID, lg_FAMILLE_ID, lg_GROSSISTE_ID, int_NUMBER, int_PRICE, int_PAF_DETAIL, int_PRICE_DETAIL, prixUnitaire, prixAchat, str_STATUT, dt_CREATED, dt_UPDATED)"
     + " VALUES ('" + CMD + "-0', '" + CMD + "', '" + P + "', '" + G + "', 2, 2000, 1000, 2000, 2000, 1000, 'passed', NOW(), NOW())");
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1366, height: 768 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   const poster = (url, corps) => p.evaluate(async (a) => { const r = await fetch(a.url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(a.corps) }); return r.json(); }, { url, corps });

@@ -20,7 +20,7 @@ const remettre = () => q(`UPDATE t_famille SET str_STATUT = 'enable' WHERE lg_FA
   UPDATE t_famille_stock SET str_STATUT = 'enable' WHERE lg_FAMILLE_ID = '${ID}';`);
 
 (async () => {
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1500, height: 950 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   const lignes = () => p.evaluate(() => { const g = Ext.ComponentQuery.query('#resultGrid')[0]; return g.getStore().getRange().map((r) => r.get('intCIP')); });

@@ -38,7 +38,7 @@ const TMP = ENV_E2E.TMP + '/claude-0/lot-l';
   poserJeuDEssai();
   ok('jeu d essai pose sur une fenetre vierge (' + MOIS_A + ' .. ' + FIN_B + ')', avant === '0', 'mouvements preexistants=' + avant);
 
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const ctx = await b.newContext({ viewport: { width: 1700, height: 980 } });
   const p = await ctx.newPage();
   const err = []; p.on('pageerror', e => err.push(String(e.message)));

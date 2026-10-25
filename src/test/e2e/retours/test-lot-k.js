@@ -73,7 +73,7 @@ function semer() {
   const libelles = PRODUITS.map(p => q("SELECT str_NAME FROM t_famille WHERE lg_FAMILLE_ID='" + p + "'"));
   console.log('DEBUG fixture ' + JSON.stringify(PRODUITS) + ' | ' + q("SELECT lg_BON_LIVRAISON_DETAIL, lg_FAMILLE_ID, int_QTE_RECUE, int_QTE_UG FROM t_bon_livraison_detail WHERE lg_BON_LIVRAISON_ID LIKE '" + MARQUE + "-%'").replace(/\n/g, ' ;; ')
     + ' | parents=' + q("SELECT lg_FAMILLE_ID, lg_FAMILLE_PARENT_ID, bool_DECONDITIONNE FROM t_famille WHERE lg_FAMILLE_ID IN ('" + PRODUITS.join("','") + "')").replace(/\n/g, ' ;; '));
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await b.newPage({ viewport: { width: 1800, height: 1000 } });
   const err = []; p.on('pageerror', e => err.push(String(e.message)));
   await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });

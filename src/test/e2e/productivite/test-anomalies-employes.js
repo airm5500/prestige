@@ -30,7 +30,7 @@ const ERREUR = 'E2E anomalie logicielle ' + Date.now();
   const table = q("SHOW TABLES LIKE 't_anomalie_employe'");
   const debut = q('SELECT NOW()');
   q("UPDATE t_parameters SET str_VALUE = '1' WHERE str_KEY = 'KEY_VENTE_LECTURE_GS1'");
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1600, height: 900 } })).newPage();
   const erreurs = [], dialogues = [], envois = [];
   p.on('pageerror', (e) => erreurs.push(e.message));

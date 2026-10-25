@@ -44,7 +44,7 @@ const retirerDroit = () => q(`DELETE FROM t_role_privelege WHERE lg_ROLE_PRIVILE
     + ` SELECT '${DROIT}', ru.lg_ROLE_ID, pr.lg_PRIVELEGE_ID, NOW(), NOW() FROM t_user u JOIN t_role_user ru ON ru.lg_USER_ID = u.lg_USER_ID`
     + ` JOIN t_privilege pr ON pr.str_NAME = 'P_SM_FAMI_STAT' WHERE u.str_LOGIN = '${ENV_E2E.LOGIN}'`
     + ` AND NOT EXISTS (SELECT 1 FROM t_role_privelege x WHERE x.lg_ROLE_ID = ru.lg_ROLE_ID AND x.lg_PRIVILEGE_ID = pr.lg_PRIVELEGE_ID)`);
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1600, height: 900 } })).newPage();
   const erreurs = []; p.on('pageerror', (e) => erreurs.push(e.message));
   const grille = () => p.evaluate(() => { const g = Ext.ComponentQuery.query('statfamilleartcl #familleStatGrid')[0], s = g.getStore();

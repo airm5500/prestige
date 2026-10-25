@@ -44,7 +44,7 @@ const retirerEssai = () => exec("DELETE FROM t_warehouse WHERE lg_WAREHOUSE_ID L
   ESSAI.forEach((id, i) => exec("INSERT INTO t_warehouse (lg_WAREHOUSE_ID, lg_USER_ID, lg_FAMILLE_ID, int_NUMBER, dt_CREATED, dt_UPDATED, str_STATUT)"
     + " VALUES ('e2e-dormant-" + i + "', '" + ADMIN + "', '" + id + "', " + (i + 2) + ", CURDATE() - INTERVAL 200 DAY, CURDATE() - INTERVAL 200 DAY, 'enable')"));
   const { chromium } = require('playwright-core');
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1366, height: 768 }, acceptDownloads: true })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   const charge = () => p.waitForFunction(() => { const d = Ext.ComponentQuery.query('articlesdormants')[0]; return d && !d.store.isLoading() && d.down('#totaux').getEl().dom.textContent.length > 0; }, null, { timeout: 120000 });

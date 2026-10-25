@@ -44,7 +44,7 @@ function poser() {
     && q(`SELECT COUNT(*) FROM t_preenregistrement WHERE dt_UPDATED >= '${JOUR}' AND dt_UPDATED < '${JOUR}' + INTERVAL 1 DAY AND (b_IS_AVOIR = 1 OR b_HAS_AVOIR = 1) AND lg_PREENREGISTREMENT_ID NOT LIKE 'E2E-AVA-%'`) === '0', SOURCE);
   poser();
   const ventes = Number(q(`SELECT COUNT(*) FROM t_preenregistrement WHERE dt_UPDATED >= '${JOUR}' AND dt_UPDATED < '${JOUR}' + INTERVAL 1 DAY AND str_STATUT = 'is_Closed' AND b_IS_CANCEL = 0 AND int_PRICE > 0`));
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const err = [];
   try {
     const p = await (await b.newContext({ viewport: { width: 1600, height: 950 } })).newPage();

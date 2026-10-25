@@ -19,7 +19,7 @@ const URL = 'http://localhost:8080/prestige/';
 const FAUX = 'e2e_inconnu_' + Date.now();
 
 (async () => {
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const dialogues = [];
   try {
     const ctx = await b.newContext();

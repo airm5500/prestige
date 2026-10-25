@@ -46,7 +46,7 @@ function nettoyer() {
 
 (async () => {
   nettoyer();
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await b.newPage();
   const supportAvant = Number(q('SELECT COALESCE(SUM(occurrences), 0) FROM t_application_event'));
   /* envoi comme l'ecran : rend {s: statut HTTP, o: reponse lue (ou texte)} */

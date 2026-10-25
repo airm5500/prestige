@@ -65,7 +65,7 @@ function nettoyer() {
       + " VALUES ('" + CAISSE + "', '" + ADMIN + "', 0, 0, CURDATE(), NOW(), '" + ADMIN + "', NOW(), '" + ADMIN + "', 'is_Using')");
     caisseCreee = true;
   }
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1600, height: 950 } })).newPage();
   const erreurs = [], dialogues = [];
   p.on('pageerror', (e) => erreurs.push(e.message));

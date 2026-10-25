@@ -45,7 +45,7 @@ function nettoyer() {
 
 (async () => {
   nettoyer();
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const ctx = await b.newContext({ viewport: { width: 1600, height: 900 } });
   try {
     /* ---------- 54 ---------- */

@@ -25,7 +25,7 @@ const [CV, NB_VENTES] = q("SELECT CONCAT_WS('|', p.lg_CLIENT_ID, COUNT(*)) FROM 
   retirer();
   exec(`INSERT INTO t_client (lg_CLIENT_ID, str_FIRST_NAME, str_LAST_NAME, str_STATUT, dt_CREATED, lg_TYPE_CLIENT_ID) VALUES ('${C}', 'ZZFICHE', 'Identite', 'enable', NOW(), '6');`
     + `INSERT INTO t_compte_client (lg_COMPTE_CLIENT_ID, lg_CLIENT_ID, str_STATUT, dt_CREATED) VALUES ('${C}-cpt', '${C}', 'enable', NOW())`);
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const err = [], dialogues = [];
   try {
     const p = await (await b.newContext({ viewport: { width: 1600, height: 950 } })).newPage();

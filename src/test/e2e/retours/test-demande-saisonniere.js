@@ -33,7 +33,7 @@ const vente = (id, quand, qte) => q("INSERT INTO t_preenregistrement (lg_PREENRE
   vente('D25', '2025-12-12 10:00:00', 40);
   vente('J25', '2025-07-05 10:00:00', 8);
   vente('X', new Date().toISOString().slice(0, 8) + '02 10:00:00', 500);   // mois en cours : exclu
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1600, height: 1000 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   const api = (u) => p.evaluate(async (u) => JSON.parse(await (await fetch(u)).text()), u);

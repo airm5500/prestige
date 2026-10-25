@@ -17,7 +17,7 @@ const lireDepuis = (pos) => { const fd = fs.openSync(JOURNAL, 'r'); const n = ta
 const ECRANS = [['familles', 'v1/statfamillearticle'], ['rayons', 'v1/statfamillearticle/statisticrayons'], ['grossistes', 'v1/statfamillearticle/statisticprovider'], ['veto', 'v1/statfamillearticle/veto']];
 
 (async () => {
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   try {
     const p = await (await b.newContext()).newPage();
     await p.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'domcontentloaded' });

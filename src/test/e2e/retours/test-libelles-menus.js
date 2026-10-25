@@ -21,7 +21,7 @@ const LOGIN = ENV_E2E.LOGIN;
   ok('Étiquettes de produits importés → « Étiquettage Pro »', ep === 'Étiquettage Pro' && /produits importes/.test(epAide), ep + ' / ' + epAide);
   ok('Prévisions : infobulle descriptive conservée', /quantit.+recommand/.test(q("SELECT str_VALUE FROM t_sous_menu WHERE str_COMPOSANT = 'analysecommande'")));
 
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1500, height: 950 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   try {

@@ -58,7 +58,7 @@ function retirerModeles() {
 
 (async () => {
   poserModeles();
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await b.newPage();
   try {
     ok('Précondition : 2 rayons nommés', NOMS.length === 2 && NOMS.every((n) => n), NOMS.join(' / '));

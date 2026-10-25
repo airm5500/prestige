@@ -24,7 +24,7 @@ const nettoyer = () => exec("DELETE FROM t_pharmaml_alerte_produit WHERE lg_ALER
   exec("INSERT INTO t_pharmaml_alerte (lg_ID, lg_GROSSISTE_ID, str_TYPE, str_NUMERO, str_MOTIF, str_DESIGNATION, b_ARRET_IMMEDIAT, b_RENVOI, dt_RECU)"
     + " VALUES ('" + ALR + "', '" + G + "', 'REGLEMENTAIRE', '" + ALR + "', 'Qualité', 'Alerte E2E onglets', 0, 0, NOW())");
   const { chromium } = require('playwright-core');
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1366, height: 768 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   const etat = () => p.evaluate(() => {

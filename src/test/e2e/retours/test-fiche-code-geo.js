@@ -28,7 +28,7 @@ let P, cip, avant, resteAvant, origine;
     + " WHERE f.str_STATUT = 'enable' AND COALESCE(f.bool_DECONDITIONNE, 0) = 0 AND f.int_CIP REGEXP '^[0-9]{7}$' AND s.int_NUMBER_AVAILABLE > 0 ORDER BY f.str_NAME LIMIT 1").split('|');
   origine = q("SELECT " + COLS + " FROM t_famille WHERE lg_FAMILLE_ID = '" + P + "'");
   resteAvant = q("SELECT " + RESTE + " FROM t_famille WHERE lg_FAMILLE_ID = '" + P + "'");
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const ctx = await b.newContext({ viewport: { width: 1600, height: 950 }, acceptDownloads: true });
   const p = await ctx.newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));

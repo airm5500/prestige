@@ -121,7 +121,7 @@ function semer() {
   if (!semer()) { console.log('FATAL : jeu d\'essai incomplet'); purger(); process.exit(1); }
   const stockAttendu = parseInt(q("SELECT COALESCE(SUM(int_NUMBER_AVAILABLE),0) FROM t_famille_stock WHERE lg_FAMILLE_ID='" + PRODUITS[0] + "' AND lg_EMPLACEMENT_ID='1'"), 10);
   const libelleG2 = q("SELECT str_LIBELLE FROM t_grossiste WHERE lg_GROSSISTE_ID='" + GROSSISTES[1] + "'");
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const ctx = await b.newContext({ viewport: { width: 1800, height: 1000 } });
   const p = await ctx.newPage();
   const err = []; p.on('pageerror', e => err.push(String(e.message)));

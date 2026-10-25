@@ -24,7 +24,7 @@ if (posee) {
     + '$F{operateur} + "|" + $F{datas}.size() + "|" + org.apache.commons.codec.digest.DigestUtils.md5Hex(String.valueOf($F{datas}))' + ']]></textFieldExpression></textField></band></detail><summary><band height="400"><textField isStretchWithOverflow="true" isBlankWhenNull="true"><reportElement x="0" y="0" width="1360" height="12"/><textElement><font size="6"/></textElement><textFieldExpression><![CDATA["T|" + String.valueOf($P{totaux})]]></textFieldExpression></textField></band></summary></jasperReport>');
 }
 (async () => {
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true }); const p = await b.newPage();
+  const b = await ENV_E2E.lancer(chromium); const p = await b.newPage();
   try {
     await p.goto('http://localhost:8080/prestige/security/index.html'); await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });

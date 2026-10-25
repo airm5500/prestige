@@ -3,7 +3,7 @@
 const { chromium } = require('playwright-core');
 const ENV_E2E = require('../outils/poste');
 (async () => {
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await b.newPage({ viewport: { width: 1600, height: 950 } });
   const err = []; p.on('pageerror', e => err.push(String(e.message)));
   const requetes = []; p.on('request', r => { if (/dashboard\.html|count|en-attente|perimes|avoirs-ouverts|app-params/.test(r.url())) requetes.push(r.method() + ' ' + r.url().replace(/^.*\/prestige\//, '')); });

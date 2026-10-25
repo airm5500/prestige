@@ -34,7 +34,7 @@ function ok(name, cond, detail) {
 
 (async () => {
     poser();
-    const browser = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+    const browser = await ENV_E2E.lancer(chromium);
     const page = await browser.newPage({ viewport: { width: 1700, height: 1000 } });
 
     await page.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });

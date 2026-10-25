@@ -65,7 +65,7 @@ function poserLots(ps) {
   const jour = q("SELECT DATE_SUB(LEAST(DATE_SUB(CURDATE(), INTERVAL 420 DAY), IFNULL((SELECT DATE(MIN(dt_CREATED)) FROM t_preenregistrement), CURDATE())), INTERVAL 30 DAY)");
   const ps = poserVente(jour);
   poserLots(ps);
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const ctx = await b.newContext({ viewport: { width: 1600, height: 900 }, acceptDownloads: true });
   const p = await ctx.newPage();
   const err = []; p.on('pageerror', e => err.push(String(e.message)));

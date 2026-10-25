@@ -91,7 +91,7 @@ function poser() {
   const attendus = arts.filter((a) => a.stock > 0);
   const totalAchat = attendus.reduce((s, a) => s + a.stock * a.pa, 0);
   const totalVente = attendus.reduce((s, a) => s + a.stock * a.pv, 0);
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const ctx = await b.newContext({ viewport: { width: 1700, height: 1000 } });
   const p = await ctx.newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));

@@ -60,7 +60,7 @@ function nettoyer() {
     's["E2"].number_format = "dd/mm/yyyy"',
     'wb.save(sys.argv[1])'].join('\n'), path.join(DOSSIER, 'produits.xlsx')]);
 
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const ctx = await b.newContext({ viewport: { width: 1500, height: 950 }, acceptDownloads: true });
   const p = await ctx.newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));

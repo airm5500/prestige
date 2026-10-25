@@ -100,7 +100,7 @@ const versionG = (v) => exec("UPDATE t_grossiste SET str_PHARMAML_VERSION_CMDE =
   intervalle = q("SELECT IFNULL((SELECT str_VALUE FROM t_parameters WHERE str_KEY = 'KEY_PHARMAML_VIDAGE_MESSAGES_MIN'), '30')");
   exec("UPDATE t_parameters SET str_VALUE = '0' WHERE str_KEY = 'KEY_PHARMAML_VIDAGE_MESSAGES_MIN'");
   const { chromium } = require('playwright-core');
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1366, height: 768 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   const attendreListe = async () => {

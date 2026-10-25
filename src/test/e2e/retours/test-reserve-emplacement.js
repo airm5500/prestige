@@ -41,7 +41,7 @@ const verrou = (id) => q("SELECT IFNULL(lg_USER_VERROU_ID, 'NULL') FROM t_sugges
   poser('B', AUTRE, 'A_TRAITER');
   poser('C', EMPL, 'ANNULEE');
   ok('Jeu d\'essai : 3 suggestions, dont une d\'un autre emplacement', !!AUTRE && q("SELECT COUNT(*) FROM t_suggestion_reserve WHERE lg_SUGGESTION_RESERVE_ID LIKE '" + M + "%'") === '3', AUTRE);
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await b.newPage({ viewport: { width: 1600, height: 950 } });
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   const appel = (m, url) => p.evaluate(async ([m, url]) => { const r = await fetch(url, { method: m, headers: { 'Content-Type': 'application/json' } }); return { s: r.status, j: await r.json().catch(() => null) }; }, [m, url]);

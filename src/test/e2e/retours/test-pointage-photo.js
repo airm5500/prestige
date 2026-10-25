@@ -33,7 +33,7 @@ function retirer() {
   const EMP = q("SELECT id FROM t_employe ORDER BY id LIMIT 1");
   const jour = q("SELECT CURDATE() - INTERVAL 1 DAY");
   ok('Jeu d\'essai : un employé', !!EMP, EMP);
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   let p;
   const connecter = async () => {
     p = await (await b.newContext({ viewport: { width: 1400, height: 900 } })).newPage();

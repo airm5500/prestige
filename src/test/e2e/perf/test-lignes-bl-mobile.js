@@ -22,7 +22,7 @@ const QTES = new Map(q(`SELECT lg_BON_LIVRAISON_DETAIL, int_QTE_CMDE FROM t_bon_
   .split('\n').map((l) => l.split('\t')));
 
 (async () => {
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await b.newPage();
   const appel = (u) => p.evaluate(async (u) => { const t = performance.now(); const r = await fetch(u); const j = await r.json(); return { ms: Math.round(performance.now() - t), j }; }, u);
   try {

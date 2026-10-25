@@ -13,7 +13,7 @@ const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-charact
 const INV = q("SELECT lg_INVENTAIRE_ID FROM t_inventaire WHERE str_STATUT = 'enable' ORDER BY dt_CREATED DESC LIMIT 1");
 
 (async () => {
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext()).newPage();
   const get = (u) => p.evaluate(async (u) => { const r = await fetch(u); const t = await r.text(); return { http: r.status, corps: t.slice(0, 200) }; }, u);
   try {

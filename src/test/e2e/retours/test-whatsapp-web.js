@@ -31,7 +31,7 @@ const lit = (s) => (s === undefined || s === 'NULL' || s === '' ? 'NULL' : "'" +
   const srv = spawn('/opt/node22/bin/node', [path.join(__dirname, '../../../../outils/whatsapp-web/src/serveur.js')],
     { env: Object.assign({}, process.env, { WHATSAPP_FAUX: '1', WHATSAPP_FAUX_CONNECTE: '1', JETON, PORT: String(PORT), DOSSIER }), stdio: ['ignore', 'pipe', 'pipe'] });
   let journal = ''; srv.stdout.on('data', (d) => { journal += d; }); srv.stderr.on('data', (d) => { journal += d; });
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1600, height: 1000 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   const reponses = []; p.on('response', async (r) => { if (/whatsapp/.test(r.url())) { try { reponses.push(await r.text()); } catch (e) { /* */ } } });

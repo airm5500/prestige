@@ -74,7 +74,7 @@ function remettre() {
     + ` SELECT '${SUG}', 'SR-E2E-EST', 'RESERVE', 'AUTOMATIQUE', 'A_TRAITER', '1', NOW() + INTERVAL 1 MINUTE, NOW(), (SELECT motif_id FROM t_suggestion_reserve WHERE motif_id IS NOT NULL LIMIT 1);`
     + `INSERT INTO t_suggestion_reserve_detail (lg_SUGGESTION_RESERVE_DETAIL_ID, lg_SUGGESTION_RESERVE_ID, lg_FAMILLE_ID, int_QTE_PROPOSEE, int_QTE_RETENUE, int_QTE_DEPLACEE, str_ETAT, dt_CREATED, dt_UPDATED)`
     + ` VALUES ('${SUG}-1', '${SUG}', '${AUTRE}', 3, 3, 0, 'PROPOSEE', NOW(), NOW());`);
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const err = [];
   let pages = 0;
   const connexion = async (ctx) => {

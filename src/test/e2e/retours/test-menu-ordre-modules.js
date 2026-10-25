@@ -22,7 +22,7 @@ const AUTRES = ['SERVICE CLIENT', 'GESTION COURANTE', 'FACTURATION', 'GESTION DE
   'PARAMETRAGES', 'RETROCESSION', 'ANALYSE DE GESTION', 'NOTIFICATIONS', 'GESTION DES UTILISATEURS', 'AVIS CLIENTS', 'CENTRE DE SUPPORT'];
 
 (async () => {
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const ordres = [];
   try {
     for (let i = 0; i < 3; i++) {

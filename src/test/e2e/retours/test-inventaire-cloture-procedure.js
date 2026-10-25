@@ -32,7 +32,7 @@ function retablir() {
 }
 
 (async () => {
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await b.newPage();
   try {
     // sauvegarde des 1 500 produits touches (stock rayon, stock type 1, date du dernier inventaire)

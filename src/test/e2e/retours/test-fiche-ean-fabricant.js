@@ -33,7 +33,7 @@ let P, cip, origine, resteAvant;
   origine = q("SELECT " + EAN + " FROM t_famille WHERE lg_FAMILLE_ID = '" + P + "'");
   resteAvant = q("SELECT " + RESTE + " FROM t_famille WHERE lg_FAMILLE_ID = '" + P + "'");
   const ean = () => q("SELECT " + EAN + " FROM t_famille WHERE lg_FAMILLE_ID = '" + P + "'");
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   let p, err = [];
   const connecter = async () => {
     const ctx = await b.newContext({ viewport: { width: 1600, height: 950 } });

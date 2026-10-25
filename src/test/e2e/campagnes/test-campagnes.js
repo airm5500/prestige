@@ -70,7 +70,7 @@ function nettoyer(debut) {
     + `UPDATE t_client SET bool_CONSENT_SMS = 0 WHERE lg_CLIENT_ID = '${B}';`
     + `UPDATE t_client SET bool_CONSENT_WHATSAPP = 1 WHERE lg_CLIENT_ID = '${D}';`);
 
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const dialogues = [], err = [];
   const ouvrir = async (p) => {
     p.on('dialog', (d) => { dialogues.push(d.message()); d.dismiss().catch(() => {}); });

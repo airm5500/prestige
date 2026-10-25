@@ -27,7 +27,7 @@ const date = (iso) => { const [a, m, j] = iso.split('-').map(Number); return [a,
   const tp = q("SELECT lg_TIERS_PAYANT_ID FROM v_facture_subrogatoire WHERE dt_UPDATED>='" + M_DEB + "' AND dt_UPDATED<'" + M_FIN_EXCL + "'"
     + " GROUP BY lg_TIERS_PAYANT_ID ORDER BY COUNT(*) DESC LIMIT 1");
   const ref = q("SELECT str_REF FROM v_facture_subrogatoire WHERE dt_UPDATED>='" + J10 + "' AND dt_UPDATED<'" + J10 + "' + INTERVAL 1 DAY AND int_PRICE>0 LIMIT 1");
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await b.newPage({ viewport: { width: 1600, height: 950 } });
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   try {

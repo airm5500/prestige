@@ -108,7 +108,7 @@ async function confirmer(p, id) {
 
 (async () => {
   nettoyer(); creer();
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   try {
     for (const largeur of [1366, 1600, 1920]) {
       const p = await poste(b, largeur);

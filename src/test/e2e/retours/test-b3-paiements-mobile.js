@@ -27,7 +27,7 @@ const nettoyer = () => exec(`DELETE FROM paiement_mobile WHERE vente_id = '${V}'
   nettoyer();
   exec(`INSERT INTO t_preenregistrement (lg_PREENREGISTREMENT_ID, str_REF, str_REF_TICKET, lg_USER_ID, int_PRICE, int_PRICE_REMISE, int_CUST_PART, str_STATUT, dt_CREATED, dt_UPDATED, str_TYPE_VENTE, lg_TYPE_VENTE_ID, b_IS_CANCEL, imported)
     VALUES ('${V}', '${V}', 'E2E-B3', '${ADMIN}', 5000, 0, 1500, 'is_Process', NOW(), NOW(), 'VO', '2', 0, 0)`);
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext()).newPage();
   const api = (m, u, c, h) => p.evaluate(async ([m, u, c, h]) => { const r = await fetch(u, { method: m, headers: Object.assign({ 'Content-Type': 'application/json' }, h || {}), body: c === undefined ? undefined : (typeof c === 'string' ? c : JSON.stringify(c)) });
     const t = await r.text(); let j; try { j = JSON.parse(t); } catch (e) { j = { brut: t.slice(0, 120) }; } j.http = r.status; return j; }, [m, u, c, h]);

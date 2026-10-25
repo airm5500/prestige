@@ -59,7 +59,7 @@ function poser() {
   poser();
   const JOUR = q("SELECT DATE_FORMAT(CURDATE(), '%Y-%m-%d')");
   const CHOISIE = q("SELECT DATE_FORMAT(CURDATE() - INTERVAL 21 DAY, '%Y-%m-%d')");
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const ctx = await b.newContext({ viewport: { width: 1600, height: 950 } });
   const p = await ctx.newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));

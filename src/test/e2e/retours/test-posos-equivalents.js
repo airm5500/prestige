@@ -30,7 +30,7 @@ const produits = require('../support/produits-essai')(q, exec, 'E2E-PSE-');
 (async () => {
   produits.assurer(['SINTROM 4MG CPR SEC B/30', 'BRUFEN 400MG CPR DRG B/30', 'EFFERALGAN 500MG GEL B/16 ANF']);
   const avant = fs.existsSync(CONF) ? fs.readFileSync(CONF) : null;
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1700, height: 1100 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   try {

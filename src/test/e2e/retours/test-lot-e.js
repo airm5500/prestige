@@ -118,7 +118,7 @@ function retirerJeuDEssai() {
   const poses = poserJeuDEssai([j1, j2]);
   ok('jeu d essai en place (2 journees aux montants choisis)', poses === 2, j1 + ' / ' + j2);
 
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await b.newPage({ viewport: { width: 1700, height: 950 } });
   const err = []; p.on('pageerror', e => err.push(String(e.message)));
   await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });

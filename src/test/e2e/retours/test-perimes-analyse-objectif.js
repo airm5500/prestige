@@ -21,7 +21,7 @@ const OBJECTIF0 = q("SELECT IFNULL((SELECT str_VALUE FROM t_parameters WHERE str
 const nettoyer = () => q("DELETE FROM t_warehouse WHERE lg_WAREHOUSE_ID LIKE 'E2E-PEO-%'");
 
 (async () => {
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1600, height: 950 } })).newPage();
   const err = [], dialogues = [];
   p.on('pageerror', (e) => err.push(String(e.message)));

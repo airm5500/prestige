@@ -24,7 +24,7 @@ let venteId = null;
   const client = q("SELECT CONCAT_WS('|', c.lg_CLIENT_ID, c.str_FIRST_NAME, c.str_LAST_NAME) FROM t_preenregistrement p JOIN t_client c ON c.lg_CLIENT_ID = p.lg_CLIENT_ID"
     + " WHERE p.str_STATUT = 'is_Closed' AND c.lg_TYPE_CLIENT_ID = '6' AND c.str_STATUT = 'enable' AND p.dt_UPDATED > DATE_SUB(NOW(), INTERVAL 12 MONTH)"
     + " GROUP BY c.lg_CLIENT_ID HAVING COUNT(*) BETWEEN 5 AND 200 ORDER BY COUNT(*) DESC LIMIT 1").split('|');
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await b.newPage({ viewport: { width: 1600, height: 950 } });
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   try {

@@ -21,7 +21,7 @@ const G = q(`SELECT lg_GROSSISTE_ID FROM t_famille WHERE str_STATUT = 'enable' A
 const compte = (w) => q("SELECT COUNT(*) FROM t_famille f WHERE f.str_STATUT = 'enable'" + w);
 
 (async () => {
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1600, height: 900 } })).newPage();
   const erreurs = [], dialogues = [];
   p.on('pageerror', (e) => erreurs.push(e.message));

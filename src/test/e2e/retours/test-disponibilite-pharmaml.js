@@ -81,7 +81,7 @@ function poser() {
   let pair;
   try { pair = poser(); } catch (e) { console.log('FATAL ' + e.message); nettoyer(); serveur.close(); process.exit(1); }
   let nbPairs = 0;
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1600, height: 950 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   const attendreFin = async () => { await p.waitForFunction(() => Ext.MessageBox.isVisible() && /Information seulement|injoignable|erreur|illisible/.test(Ext.MessageBox.msg.getEl().dom.textContent), null, { timeout: 120000 });

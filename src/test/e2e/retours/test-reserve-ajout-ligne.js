@@ -41,7 +41,7 @@ function nettoyer() {
     + " INSERT INTO t_type_stock_famille (lg_TYPE_STOCK_FAMILLE_ID, lg_FAMILLE_ID, lg_TYPE_STOCK_ID, lg_EMPLACEMENT_ID, str_NAME, str_DESCRIPTION, dt_CREATED, dt_UPDATED, str_STATUT, int_NUMBER)"
     + " VALUES ('E2E-RES-LIGNE-" + i + "', '" + p + "', '2', '1', 'E2E', 'E2E', NOW(), NOW(), 'enable', 0)"));
   ok('Jeu d\'essai : deux produits', PS.length === 2 && PS.every((x) => x), PS.join(' / '));
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const session = async () => { const p = await (await b.newContext()).newPage();
     await p.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'domcontentloaded' });
     await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');

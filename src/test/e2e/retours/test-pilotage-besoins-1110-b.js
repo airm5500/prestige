@@ -26,7 +26,7 @@ const nettoyer = () => { q("DELETE FROM t_vente_ratee WHERE lg_VENTE_RATEE_ID LI
   nettoyer();
   q("INSERT INTO t_vente_ratee (lg_VENTE_RATEE_ID, str_DESIGNATION, str_DESIGNATION_NORM, int_QUANTITE, bool_COMMANDE, dt_CREATED, dt_UPDATED, str_STATUT)"
     + " VALUES ('e2e-p1110b-1', 'ZZ ESSAI RATE B', 'ZZ ESSAI RATE B', 2, 0, NOW(), NOW(), 'enable')");
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1600, height: 1000 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   const api = (u) => p.evaluate(async (u) => JSON.parse(await (await fetch(u)).text()), u);

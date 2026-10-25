@@ -71,7 +71,7 @@ function nettoyer() {
     + vente('E2E-HAB-V7', B, P1, '2026-05-13') + vente('E2E-HAB-V8', B, P1, '2026-06-12') + vente('E2E-HAB-V9', B, P1, '2026-07-12'));
   ok('Fiche client : « médicaments dans les messages » coché par défaut (nouveau client)', q("SELECT bool_MSG_MEDICAMENTS FROM t_client WHERE lg_CLIENT_ID = '" + A + "'") === '1');
 
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1600, height: 1000 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   const post = (u, corps) => p.evaluate(async ([u, c]) => JSON.parse(await (await fetch(u, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(c || []) })).text()), [u, corps]);

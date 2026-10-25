@@ -12,7 +12,7 @@ const ECRANS = [['rappelstraitement', 'ongletsRp', 'Rappels traitement'], ['sais
   ['commandesencours', 'ongletsCec', 'Commandes en cours']];
 
 (async () => {
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await b.newPage({ viewport: { width: 1366, height: 768 } });
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   try {

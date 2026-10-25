@@ -27,7 +27,7 @@ const JETON = 'E2E-VEILLE-' + Date.now();
   const rumAvant = q("SELECT str_VALUE FROM t_parameters WHERE str_KEY = 'SUPPORT_RUM_ACTIF'");
   const jetonAvant = q("SELECT str_VALUE FROM t_parameters WHERE str_KEY = 'SUPPORT_VEILLE_JETON'");
   exec("UPDATE t_parameters SET str_VALUE = '1' WHERE str_KEY = 'SUPPORT_RUM_ACTIF'; UPDATE t_parameters SET str_VALUE = '' WHERE str_KEY = 'SUPPORT_VEILLE_JETON'");
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const dialogues = [], err = [];
   try {
     const p = await (await b.newContext({ viewport: { width: 1600, height: 950 } })).newPage();

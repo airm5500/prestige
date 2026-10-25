@@ -30,7 +30,7 @@ const CLE = 'e2e-versement-';
   const [A, B, C] = L;
   const nombre = (l) => q("SELECT int_NUMBER FROM t_inventaire_famille WHERE lg_INVENTAIRE_FAMILLE_ID = '" + l[0] + "'");
   ok('Jeu d\'essai : inventaire ouvert, trois lignes à CIP unique', L.length === 3, INV);
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await b.newPage({ viewport: { width: 1400, height: 900 } });
   const verser = (corps, inv) => p.evaluate(async ([c, inv]) => { const r = await fetch('../api/v1/inventaire/' + inv + '/versement', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: typeof c === 'string' ? c : JSON.stringify(c) }); return { s: r.status, j: await r.json().catch(() => null) }; }, [corps, inv || INV]);
   try {

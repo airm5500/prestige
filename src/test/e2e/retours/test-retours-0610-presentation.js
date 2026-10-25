@@ -28,7 +28,7 @@ const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-charact
     + " GROUP BY o.lg_SUGGESTION_ORDER_ID ORDER BY o.dt_CREATED DESC LIMIT 1");
   const etatSugg = () => q("SELECT CONCAT_WS('|', str_STATUT, IFNULL(dt_UPDATED, ''), (SELECT COUNT(*) FROM t_suggestion_order_details WHERE lg_SUGGESTION_ORDER_ID = '" + S + "')) FROM t_suggestion_order WHERE lg_SUGGESTION_ORDER_ID = '" + S + "'");
   const avantSugg = S ? etatSugg() : '';
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1600, height: 950 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   // suivi des reponses apres la connexion (la page de connexion interroge l'officine avant d'etre authentifiee : 401 attendu)

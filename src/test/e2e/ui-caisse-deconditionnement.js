@@ -91,7 +91,7 @@ const venteCourante = (page) => page.evaluate(() => {
         console.error('Variables requises : LOGIN, PASSWORD, CIP (et BASE, QTE_VENDABLE, VENTE_UI3 optionnelles)');
         process.exit(2);
     }
-    const browser = await chromium.launch({ executablePath: CHROMIUM, headless: true });
+    const browser = await ENV_E2E.lancer(chromium);
     const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
     try {
         await connexion(page, LOGIN, PASSWORD);

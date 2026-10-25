@@ -48,7 +48,7 @@ const ECRANS = [
   retirerClient();
   const avant = compte();
   q("INSERT INTO t_client (lg_CLIENT_ID, str_FIRST_NAME, str_LAST_NAME, lg_TYPE_CLIENT_ID, str_STATUT, dt_CREATED) VALUES ('" + CLIENT + "', 'E2ESCANQR', 'ESSAI', '6', 'enable', NOW())");
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await b.newPage({ viewport: { width: 1600, height: 900 } });
   const erreurs = []; p.on('pageerror', (e) => erreurs.push(e.message));
   const CODE = 'E2E/12#3';

@@ -65,7 +65,7 @@ function nettoyer() {
     + [A, B, C].map((c, i) => "INSERT INTO t_rappel_habitude (id, lg_CLIENT_ID, lg_FAMILLE_ID, dt_DERNIER_ACHAT, dt_PREVU, int_FREQUENCE, int_ACHATS, str_STATUT, dt_CREATED)"
       + " VALUES ('E2E-WA-R" + i + "', '" + c + "', '" + P1 + "', '2026-09-06', '2026-10-06', 30, 4, 'A_PREPARER', NOW());").join(''));
 
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1600, height: 1000 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   const reponses = [];

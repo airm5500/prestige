@@ -41,7 +41,7 @@ const ECRANS = [
     CREATE TEMPORARY TABLE e2e_d AS SELECT * FROM t_preenregistrement_detail WHERE lg_PREENREGISTREMENT_ID = '${SRC}';
     UPDATE e2e_d SET lg_PREENREGISTREMENT_DETAIL_ID = CONCAT('E2EDBL-', SUBSTRING(lg_PREENREGISTREMENT_DETAIL_ID, 8)), lg_PREENREGISTREMENT_ID = '${V}';
     INSERT INTO t_preenregistrement_detail SELECT * FROM e2e_d;`);
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await b.newPage({ viewport: { width: 1600, height: 900 } });
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   let appels = 0, morceauSuivi = null;

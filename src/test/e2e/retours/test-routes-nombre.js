@@ -16,7 +16,7 @@ const BASE = ENV_E2E.BASE;
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 
 (async () => {
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await b.newPage({ viewport: { width: 1400, height: 900 } });
   const lire = (url) => p.evaluate(async (url) => { const r = await fetch(url); return { s: r.status, j: await r.json().catch(() => null) }; }, url);
   try {

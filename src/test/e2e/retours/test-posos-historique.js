@@ -31,7 +31,7 @@ const nettoyer = () => exec(`DELETE FROM t_posos_analyse WHERE lg_USER_ID = '${A
   const SINTROM = q("SELECT lg_FAMILLE_ID FROM t_famille WHERE str_NAME = 'SINTROM 4MG CPR SEC B/30' AND str_STATUT = 'enable' LIMIT 1");
   const BRUFEN_CIP = q("SELECT int_CIP FROM t_famille WHERE str_NAME = 'BRUFEN 400MG CPR DRG B/30' AND str_STATUT = 'enable' LIMIT 1");
   const avant = fs.existsSync(CONF) ? fs.readFileSync(CONF) : null;
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   let p;
   const connecter = async () => {
     p = await (await b.newContext()).newPage();

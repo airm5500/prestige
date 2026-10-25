@@ -30,7 +30,7 @@ const retirerDroit = () => q("DELETE FROM t_role_privelege WHERE lg_ROLE_PRIVILE
   if (!DEJA) {
     q("INSERT INTO t_role_privelege (lg_ROLE_PRIVILEGE, lg_ROLE_ID, lg_PRIVILEGE_ID, dt_CREATED) VALUES ('" + DROIT + "', '" + ROLE + "', '" + PRIVILEGE + "', NOW())");
   }
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await b.newPage({ viewport: { width: 1600, height: 900 } });
   const erreurs = []; p.on('pageerror', (e) => erreurs.push(e.message));
   const ecran = 'etatscontrolemanager';

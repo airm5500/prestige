@@ -23,7 +23,7 @@ const [FID, PU] = q("SELECT f.lg_FAMILLE_ID, f.int_PRICE FROM t_famille f JOIN t
   + " ORDER BY f.int_CIP LIMIT 1").split('\t');
 
 (async () => {
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1600, height: 900 } })).newPage();
   const erreurs = [], dialogues = [];
   p.on('pageerror', (e) => erreurs.push(e.message));

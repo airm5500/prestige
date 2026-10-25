@@ -26,7 +26,7 @@ const remettre = () => q("UPDATE t_famille SET str_STATUT = '" + ORIG[0] + "' WH
 const pause = (ms) => new Promise((r) => setTimeout(r, ms));
 
 (async () => {
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const ctx = await b.newContext();
   const p = await ctx.newPage();
   const appel = (url, page) => (page || p).evaluate(async (url) => {

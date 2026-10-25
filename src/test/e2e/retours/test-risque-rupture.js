@@ -50,7 +50,7 @@ function attendu(id) {
 (async () => {
   nettoyer();
   const { chromium } = require('playwright-core');
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   let ctx = await b.newContext({ viewport: { width: 1366, height: 768 } });
   let p = await ctx.newPage();
   const err = [];

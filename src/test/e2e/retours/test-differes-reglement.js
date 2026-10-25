@@ -75,7 +75,7 @@ const nbCaisse = () => Number(q("SELECT COUNT(*) FROM t_mvt_caisse WHERE str_NUM
     caisseCreee = true;
   }
   const { chromium } = require('playwright-core');
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1600, height: 1000 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   const aujourdhui = q("SELECT CURDATE()");

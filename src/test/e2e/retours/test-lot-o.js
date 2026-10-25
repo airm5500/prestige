@@ -27,7 +27,7 @@ let compteAvant = '', typeAvant = '', depotAvant = '';
   exec("UPDATE t_tiers_payant SET is_depot=1, account=15400, lg_TYPE_TIERS_PAYANT_ID='2' WHERE lg_TIERS_PAYANT_ID='" + TP + "';");
   const libelleTp = q("SELECT str_FULLNAME FROM t_tiers_payant WHERE lg_TIERS_PAYANT_ID='" + TP + "'").split(' ')[0];
 
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const ctx = await b.newContext({ viewport: { width: 1800, height: 1000 } });
   const p = await ctx.newPage();
   const err = []; p.on('pageerror', e => err.push(String(e.message)));

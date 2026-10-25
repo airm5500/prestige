@@ -48,7 +48,7 @@ function nettoyer() {
     'E2EB1;28/09/2026;18:30;OUT', 'E2EB1;28/09/2026;18:31;OUT', 'E2EB2;28/09/2026;20:00;IN', 'E2EB2;29/09/2026;08:05;OUT',
     'E2EB9;28/09/2026;08:00;IN', 'E2EB1;31/02/2026;08:00;IN', 'E2EB1;28/09/2026;08:12;IN', 'E2EB1;30/09/2026;09:00;IN'].join('\r\n'));
 
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1600, height: 1000 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   const post = (u, c) => p.evaluate(async ([u, c]) => JSON.parse(await (await fetch(u, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(c) })).text()), [u, c]);

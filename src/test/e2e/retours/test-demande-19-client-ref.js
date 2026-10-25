@@ -25,7 +25,7 @@ const retirer = () => {
 
 (async () => {
   retirer();
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await b.newPage();
   const post = (u, c, cle) => p.evaluate(async ([u, c, k]) => { const r = await fetch(u, { method: 'POST', headers: Object.assign({ 'Content-Type': 'application/json' }, k ? { 'X-Client-Ref': k } : {}), body: JSON.stringify(c) });
     return r.json(); }, [u, c, cle]);

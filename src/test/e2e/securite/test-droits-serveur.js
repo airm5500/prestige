@@ -75,7 +75,7 @@ function nettoyer() {
 (async () => {
   const droits = {};
   CAS.forEach((c) => c.privileges.forEach((p) => { droits[p] = privilegeEssai(q, exec, ENV_E2E.LOGIN, p); droits[p].remettre(); }));
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const session = async () => {
     const p = await (await b.newContext()).newPage();
     await p.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'domcontentloaded' });

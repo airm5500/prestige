@@ -45,7 +45,7 @@ function ok(name, cond, detail) {
 
 (async () => {
     poser();
-    const browser = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+    const browser = await ENV_E2E.lancer(chromium);
     const page = await browser.newPage({ viewport: { width: 1700, height: 1000 } });
     const erreursJs = [];
     page.on('pageerror', e => erreursJs.push(String(e.message)));

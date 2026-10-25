@@ -23,7 +23,7 @@ let droit = null;
 const valeur = (c) => q("SELECT str_VALUE FROM t_parameters WHERE str_KEY = '" + c + "'");
 
 (async () => {
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   let ctx = await b.newContext({ viewport: { width: 1366, height: 768 } }), p = await ctx.newPage();
   const err = []; const suivre = (pg) => pg.on('pageerror', (e) => err.push(String(e.message)));
   suivre(p);

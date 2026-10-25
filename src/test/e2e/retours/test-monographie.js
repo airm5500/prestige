@@ -36,7 +36,7 @@ function nettoyer() {
   param('KEY_MONOGRAPHIE_URL', 'http://127.0.0.1:' + site.port + '/diivision/');
   param('KEY_MONOGRAPHIE_ACTIF', '1');
   param('KEY_MONOGRAPHIE_DELAI_SEC', '3');
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1600, height: 1000 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   const api = (u, corps) => p.evaluate(async (a) => JSON.parse(await (await fetch(a.u, a.c ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(a.c) } : {})).text()), { u, c: corps });

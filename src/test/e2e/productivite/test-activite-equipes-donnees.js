@@ -38,7 +38,7 @@ const retirer = () => q(`DELETE FROM t_role_user WHERE lg_USER_ID = '${ID}'; DEL
   q(`INSERT INTO t_user (lg_USER_ID, str_LOGIN, str_PASSWORD, str_FIRST_NAME, str_LAST_NAME, str_FUNCTION, str_STATUT, lg_EMPLACEMENT_ID, dt_CREATED, int_CONNEXION)`
     + ` VALUES ('${ID}', '${LOGIN}', MD5('${MDP}'), 'E2E', 'SANS DROIT', 'Vendeur', 'enable', '1', NOW(), 0)`);
   q(`INSERT INTO t_role_user (lg_USER_ROLE_ID, lg_ROLE_ID, lg_USER_ID, dt_CREATED) VALUES ('${ID}', '${ROLE_VENDEUR}', '${ID}', NOW())`);
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1600, height: 900 }, acceptDownloads: true })).newPage();
   const erreurs = []; p.on('pageerror', (e) => erreurs.push(e.message));
   const reponses = []; p.on('response', async (r) => { if (/activite-equipes\/journal\?/.test(r.url())) { try { reponses.push(await r.json()); } catch (e) { /* ignore */ } } });

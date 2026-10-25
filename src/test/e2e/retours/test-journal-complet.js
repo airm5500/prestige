@@ -53,7 +53,7 @@ function nettoyer() {
 const ORD = {};
 
 (async () => {
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1600, height: 950 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   /* appels par Ext.Ajax, comme l'application : l'en-tete du poste y est ajoute */

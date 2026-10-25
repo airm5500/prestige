@@ -3,7 +3,7 @@ const { chromium } = require('playwright-core');
 const ENV_E2E = require('../outils/poste');
 (async () => {
   const [xtype, sortie, largeur, hauteur] = process.argv.slice(2);
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await b.newPage({ viewport: { width: parseInt(largeur || '1600', 10), height: parseInt(hauteur || '900', 10) } });
   await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
   await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');

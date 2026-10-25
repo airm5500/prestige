@@ -31,7 +31,7 @@ const auj = new Date(), jj = (d) => String(d.getDate()).padStart(2, '0') + '/' +
     + ` ('E2E-EPS-2', '${ADMIN}', '${PID}', 'E2ELOTA', 3, NOW(), NOW(), CURDATE() + INTERVAL 90 DAY, 'enable', 3),`
     + ` ('E2E-EPS-3', '${ADMIN}', '${PID}', 'E2ELOTPERIME', 2, NOW(), NOW(), CURDATE() - INTERVAL 10 DAY, 'enable', 2)`);
   const perA = q("SELECT DATE_FORMAT(CURDATE() + INTERVAL 90 DAY, '%d/%m/%Y')");
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1600, height: 900 } })).newPage();
   const erreurs = [], dialogues = [];
   p.on('pageerror', (e) => erreurs.push(e.message));

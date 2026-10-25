@@ -30,7 +30,7 @@ const ECRANS = q("SELECT m.str_DESCRIPTION, s.str_DESCRIPTION, s.str_COMPOSANT F
   + " WHERE s.str_Status = 'enable' AND m.str_Status = 'enable' ORDER BY m.int_PRIORITY, m.str_DESCRIPTION, s.int_PRIORITY").split('\n').map((l) => l.split('\t'));
 
 (async () => {
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1600, height: 900 } })).newPage();
   p.setDefaultTimeout(20000);
   let courant = null; const resultats = []; const vus = new Set();

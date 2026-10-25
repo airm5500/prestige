@@ -18,7 +18,7 @@ const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-char
   /* standard (type 6) et assure (type 1), noms avec espaces parasites en tete et en fin */
   exec("INSERT INTO t_client (lg_CLIENT_ID, str_FIRST_NAME, str_LAST_NAME, str_STATUT, lg_TYPE_CLIENT_ID, dt_CREATED) VALUES"
     + " ('e2e-esp-std', '  ZZESPSTD', ' QWYXPREN ', 'enable', '6', NOW()), ('e2e-esp-ass', ' ZZESPASS', 'QWYXASS  ', 'enable', '1', NOW())");
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await b.newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   try {

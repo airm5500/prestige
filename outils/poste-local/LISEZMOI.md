@@ -63,7 +63,13 @@ Sous Windows :
   celui d'origine. On le crée, ou on le remet en état, avec
   `mariadb -u root -p < outils\poste-local\compte-essai.sql`. Un autre compte se donne avec `E2E_LOGIN`.
 - **Chromium** : celui qui a été installé par Playwright.
-- **Sorties et captures** : dans le dossier temporaire de Windows.
+- **Sorties des tests** : dans le dossier temporaire de Windows.
+- **Vidéos et captures** : une vidéo par page, une capture à chaque ligne `FAIL` et une capture de fin, rangées dans
+  `captures\<test>\<date-heure>\` à la racine du dépôt. Ce dossier est exclu de Git et rien n'est envoyé ailleurs.
+  `E2E_CAPTURES` choisit un autre dossier ; `E2E_CAPTURES=0` désactive l'enregistrement. Sur `laborex_v1_db`, ces
+  fichiers peuvent montrer des patients : ils ne doivent pas sortir du poste.
+- **Suivre un test à l'écran** : `set E2E_VISIBLE=1` ouvre la fenêtre de Chromium et ralentit chaque action de
+  300 ms.
 
 Installation, une seule fois et hors du dépôt :
 

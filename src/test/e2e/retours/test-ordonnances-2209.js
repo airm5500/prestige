@@ -22,7 +22,7 @@ const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-char
 const MARQUE = 'E2E-2209';
 
 (async () => {
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1700, height: 1000 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   const envoisPosos = []; p.on('request', (r) => { if (/posos\/analyse/.test(r.url())) { envoisPosos.push(r.postData() || ''); } });

@@ -37,7 +37,7 @@ const [VENTE, REF, JOUR] = q("SELECT p.lg_PREENREGISTREMENT_ID, p.str_REF, DATE_
   if (!DEJA) {
     q("INSERT INTO t_role_privelege (lg_ROLE_PRIVILEGE, lg_ROLE_ID, lg_PRIVILEGE_ID, dt_CREATED) VALUES ('" + DROIT + "', '" + ROLE + "', '" + PRIVILEGE + "', NOW())");
   }
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await b.newPage({ viewport: { width: 1600, height: 900 } });
   const erreurs = []; p.on('pageerror', (e) => erreurs.push(e.message));
   const fenetres = () => p.evaluate(() => Ext.ComponentQuery.query('window').filter((x) => x.isVisible()).length);

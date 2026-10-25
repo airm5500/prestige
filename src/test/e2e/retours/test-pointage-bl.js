@@ -45,7 +45,7 @@ function nettoyer() {
   exec("INSERT INTO t_retour_fournisseur (lg_RETOUR_FRS_ID, str_REF_RETOUR_FRS, dt_DATE, str_STATUT, dt_CREATED, dt_UPDATED, dl_AMOUNT, lg_USER_ID, lg_GROSSISTE_ID, lg_BON_LIVRAISON_ID)"
     + " VALUES ('E2E-PBL-R3', 'E2E-RET-3', '2026-09-15', 'is_Closed', NOW(), NOW(), 20323, '" + ADMIN + "', '" + G + "', 'E2E-PBL-3')");
   const { chromium } = require('playwright-core');
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   let ctx = await b.newContext({ viewport: { width: 1366, height: 768 } });
   let p = await ctx.newPage();
   const err = [];

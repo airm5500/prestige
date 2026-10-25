@@ -75,7 +75,7 @@ const connexion = async (p, login) => {
     + "INSERT INTO t_role_user (lg_USER_ROLE_ID, lg_ROLE_ID, lg_USER_ID, dt_CREATED) VALUES ('" + VENDEUR_ID + "', '"
     + ROLE_CAISSE + "', '" + VENDEUR_ID + "', NOW());");
   const fichier = ecrireFichier();
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const err = [];
   // Une session par operateur : revenir a la page de connexion avec une session ouverte
   // renvoie directement dans l'application, on ne pourrait pas changer d'operateur.

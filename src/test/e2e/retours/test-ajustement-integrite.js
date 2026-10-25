@@ -36,7 +36,7 @@ function nettoyer() {
     + " WHERE f.str_STATUT = 'enable' AND COALESCE(f.bool_DECONDITIONNE, 0) = 0 ORDER BY f.str_NAME LIMIT 1 OFFSET 11");
   stockOrigine = q("SELECT CONCAT(int_NUMBER_AVAILABLE, '|', int_NUMBER) FROM t_famille_stock WHERE lg_FAMILLE_ID = '" + produit + "' AND lg_EMPLACEMENT_ID = '1'").split('|');
   exec("UPDATE t_famille_stock SET int_NUMBER_AVAILABLE = 50, int_NUMBER = 50 WHERE lg_FAMILLE_ID = '" + produit + "' AND lg_EMPLACEMENT_ID = '1'");
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1366, height: 768 } })).newPage();
   const api = (methode, url, corps, entetes) => p.evaluate(async ([m, u, c, h]) => {
     const r = await fetch(u, { method: m, headers: Object.assign({ 'Content-Type': 'application/json' }, h || {}), body: c ? JSON.stringify(c) : undefined });

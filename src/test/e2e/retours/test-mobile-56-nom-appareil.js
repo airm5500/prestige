@@ -23,7 +23,7 @@ const nettoyer = () => q("DELETE FROM t_appareil_nom WHERE empreinte = '" + EMP 
 
 (async () => {
   nettoyer();
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   try {
     const api = (p, m, u, c) => p.evaluate(async ([m, u, c]) => {
       const r = await fetch(u, { method: m, headers: { 'Content-Type': 'application/json' }, body: c === undefined ? undefined : JSON.stringify(c) });

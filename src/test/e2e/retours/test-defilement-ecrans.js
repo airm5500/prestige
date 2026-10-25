@@ -27,7 +27,7 @@ const EXCLUS = ['doventemanager', 'ventemanager_new', 'ouverturecaissemanger', '
   'kobysky'];
 
 (async () => {
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1366, height: 768 } })).newPage();
   p.setDefaultTimeout(20000);
   try {

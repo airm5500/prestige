@@ -33,7 +33,7 @@ function nettoyer() {
 }
 
 (async () => {
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1500, height: 950 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   const mouvements = () => q(`SELECT IFNULL(GROUP_CONCAT(CONCAT_WS('#', int_PRICE_OLD, int_PRICE_NEW, IFNULL(DATE_FORMAT(dt_CREATED, '%Y-%m-%d %H:%i'), 'VIDE'), IFNULL(DATE_FORMAT(dt_UPDATED, '%Y-%m-%d %H:%i'), 'VIDE')) ORDER BY dt_UPDATED SEPARATOR ' ; '), '')`

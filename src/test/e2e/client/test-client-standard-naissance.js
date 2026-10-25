@@ -22,7 +22,7 @@ function retirer() {
 
 (async () => {
   retirer();
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const err = [];
   try {
     const p = await (await b.newContext({ viewport: { width: 1600, height: 950 } })).newPage();

@@ -22,7 +22,7 @@ const sql = (d, f) => { const [ttc, remise, tva, achat] = q(`SELECT CONCAT_WS('|
 const OBJ0 = ['KEY_OBJECTIF_TAUX_MARQUE', 'KEY_OBJECTIF_TAUX_MARGE'].map((k) => q(`SELECT IFNULL((SELECT str_VALUE FROM t_parameters WHERE str_KEY = '${k}'), 'ABSENT')`));
 
 (async () => {
-  const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
+  const b = await ENV_E2E.lancer(chromium);
   const err = [], dialogues = [];
   try {
     ok('Précondition : objectifs présents (25 % et 33,33 % par défaut)', OBJ0.every((x) => x !== 'ABSENT'), OBJ0.join(' / '));
