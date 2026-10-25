@@ -3,10 +3,11 @@
 /* Tout est confine sous .prestige-metro : rien ne touche le reste de Prestige (et Bootstrap, charge par Prestige,
    est neutralise sur les elements du Metro). */
 .prestige-metro {
-  --fond: #11161d;
-  --fond-haut: #161d26;
-  --texte: #f3f6fa;
-  --texte-doux: #a9b6c6;
+  /* fond clair, celui du panneau central de Prestige (retour du 25/10 : pas de fond noir) */
+  --fond: #ecf1f6;
+  --fond-haut: #ffffff;
+  --texte: #1e293b;
+  --texte-doux: #556479;
   --trait: #263140;
   --ecart: 10px;
 }
@@ -38,11 +39,11 @@
   align-items: center; justify-content: center; flex-shrink: 0;
 }
 .prestige-metro .mt-retour.mt-visible { display: flex; }
-.prestige-metro .mt-retour:hover { background: rgba(255,255,255,.12); }
+.prestige-metro .mt-retour:hover { background: rgba(30,41,59,.08); }
 .prestige-metro .mt-recherche {
   margin-left: auto; display: flex; align-items: center; gap: 8px;
   width: min(380px, 40vw); height: 42px; padding: 0 14px;
-  background: #1f2833; border: 2px solid transparent;
+  background: #ffffff; border: 2px solid #c9d4e2;
 }
 .prestige-metro .mt-recherche:focus-within { border-color: #4aa3ff; background: #fff; }
 .prestige-metro .mt-recherche:focus-within svg { stroke: #1e293b; }
@@ -51,7 +52,7 @@
   color: var(--texte); font-size: 15px;
 }
 .prestige-metro .mt-recherche:focus-within input { color: #1e293b; }
-.prestige-metro .mt-recherche input::placeholder { color: #8a97a8; }
+.prestige-metro .mt-recherche input::placeholder { color: #7a889b; }
 /* ---------- zone des tuiles ---------- */
 .prestige-metro .mt-zone { flex: 1; min-height: 0; overflow: auto; padding: 8px 28px 22px; }
 .prestige-metro .mt-grille {
@@ -59,6 +60,7 @@
   justify-content: center; align-content: center; min-height: 100%;
 }
 .prestige-metro .mt-tuile {
+  box-shadow: 0 1px 3px rgba(15,23,42,.12);
   position: relative; overflow: hidden; border: 0; padding: 0; margin: 0;
   color: #fff; text-align: left; cursor: pointer;
   background: var(--c);
@@ -71,7 +73,7 @@
 @keyframes prestige-metro-arrivee { to { opacity: 1; transform: none; } }
 .prestige-metro .mt-tuile.mt-posee { opacity: 1; transform: none; animation: none; }
 .prestige-metro .mt-tuile:hover { filter: brightness(1.08); box-shadow: inset 0 0 0 3px rgba(255,255,255,.55); }
-.prestige-metro .mt-tuile:focus-visible { box-shadow: inset 0 0 0 4px #fff; }
+.prestige-metro .mt-tuile:focus-visible { box-shadow: inset 0 0 0 3px #fff, 0 0 0 3px #1e293b; }
 .prestige-metro .mt-tuile:active, .prestige-metro .mt-tuile.mt-appui { transform: scale(.965) !important; filter: brightness(.95); }
 .prestige-metro .mt-perspective { perspective: 1400px; }
 
@@ -108,7 +110,7 @@
 .prestige-metro .mt-vide { color: var(--texte-doux); font-size: 16px; text-align: center; padding: 40px; }
 .prestige-metro .mt-message {
   position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%) translateY(20px);
-  background: #fff; color: #1e293b; padding: 12px 20px; font-size: 14px;
+  background: #1e293b; color: #fff; padding: 12px 20px; font-size: 14px;
   box-shadow: 0 8px 24px rgba(0,0,0,.35); opacity: 0; transition: all .25s ease; pointer-events: none;
 }
 .prestige-metro .mt-message.mt-visible { opacity: 1; transform: translateX(-50%); }

@@ -118,6 +118,11 @@ public final class ContexteRequete {
         }
     }
 
+    /** Demande mobile 56 : nom d'appareil enregistre au serveur, memes regles que X-Poste ; null si rien ne reste. */
+    public static String nomPoste(String v) {
+        return nettoyer(v);
+    }
+
     /** Nom de poste saisi : lettres, chiffres, espace, tiret, point, souligne ; 60 caracteres au plus. */
     static String nettoyer(String v) {
         if (v == null) {

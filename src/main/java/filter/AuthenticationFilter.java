@@ -72,7 +72,11 @@ public class AuthenticationFilter implements ContainerRequestFilter, ContainerRe
             "v1/avis-public/contexte", "v1/avis-public/envoyer",
             // QR de pointage mobile sur la page de connexion (demande du 16/10) : postes de l'officine seulement
             // (adresse locale verifiee par le service), code et delai seulement - voir rest.PointageAffichageRessource
-            "v1/pointage-affichage");
+            "v1/pointage-affichage",
+            // Demande mobile 56 : nom de l'appareil retrouve par son empreinte avant la connexion (premier lancement
+            // apres une reinstallation). Lecture seule, debit limite, empreinte de 64 caracteres hexadecimaux ;
+            // l'enregistrement (PUT) exige la session - voir rest.AppareilRessource.
+            "v1/appareil/nom");
 
     private static final String CHEMIN_MOBILE = "v1/mobile/";
     private static final String CONNEXION_MOBILE = "v1/mobile/connexion";

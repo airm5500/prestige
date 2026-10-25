@@ -10,6 +10,7 @@
  *    tuile a l'autre, Entree ouvre un menu puis un ecran (« Retour fournisseur », avec son titre) ;
  *  - « Gestion du stock » : les sous-menus de la navigation, en groupes titres ; chaque sous-menu a SON icone ; badge
  *    des articles a reassortir sur « Gestion des reserves » ;
+ *  - retours du 25/10 : fond clair ; les menus les plus fournis tiennent sans defiler, sur toute la largeur ;
  *  - non-regression : une fenetre ouverte par-dessus garde ses touches ; l'ecran ouvert ensuite garde les siennes
  *    et aucun Metro ne reste monte ; les styles du Metro ne touchent pas le reste de Prestige ;
  *  - profil restreint (role Vendeur, compte d'essai) : seulement ses menus ;
@@ -122,6 +123,30 @@ const stylesPrestige = (p) => p.evaluate(() => {
     ok('« Gestion des réserves » : badge des articles à réassortir (' + reserve.total + ')', reserve.tuile && (reserve.total > 0 ? reserve.badge === String(reserve.total) : reserve.badge === ''), JSON.stringify(reserve));
     const toutes = await p.evaluate(() => window.PrestigeMetro.sansIcone());
     ok('Tous les menus : aucun sous-menu sans icône dédiée', toutes.length === 0, toutes.join(', '));
+
+    /* retours du 25/10 : fond clair ; sous-menus sans defilement, sur toute la largeur (ils descendaient alors
+       qu'il restait de la place sur les cotes) */
+    const fond = await p.evaluate(() => { const c = getComputedStyle(document.querySelector('.prestige-metro')).backgroundColor.match(/\d+/g).map(Number);
+      return { couleur: getComputedStyle(document.querySelector('.prestige-metro')).backgroundColor, lum: (0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]) / 255 }; });
+    ok('Fond clair (pas de fond noir)', fond.lum > 0.85, JSON.stringify(fond));
+    for (const menu of ['Service client', 'Gestion du stock', 'Analyse de gestion']) {
+      await p.click('.prestige-metro .mt-retour');
+      await p.waitForFunction(() => document.querySelector('.prestige-metro .mt-titre-texte').textContent === 'Accueil', null, { timeout: 5000 });
+      await p.click('.prestige-metro .mt-tuile[aria-label^="' + menu + '"]');
+      await p.waitForSelector('.prestige-metro .mt-groupe .mt-tuile', { timeout: 10000 });
+      await p.waitForTimeout(1200);
+      const m = await p.evaluate(() => { const z = document.querySelector('.prestige-metro .mt-zone'), c = document.querySelector('.prestige-metro .mt-groupes');
+        const blocs = [...c.querySelectorAll('.mt-groupe')].map((x) => x.getBoundingClientRect());
+        const gauche = Math.min(...blocs.map((r) => r.left)), droite = Math.max(...blocs.map((r) => r.right)), zr = z.getBoundingClientRect();
+        const t = c.querySelector('.mt-tuile').getBoundingClientRect();
+        return { defile: z.scrollHeight - z.clientHeight, largeur: Math.round((droite - gauche) / (zr.width - 56) * 100), tuile: Math.round(t.width) + 'x' + Math.round(t.height), n: c.querySelectorAll('.mt-tuile').length }; });
+      ok('« ' + menu + ' » (' + m.n + ' écrans) : tient à l\'écran sans défiler, en occupant la largeur', m.defile <= 2 && (m.largeur >= 70 || m.n <= 6), JSON.stringify(m));
+    }
+    await p.click('.prestige-metro .mt-retour');
+    await p.waitForTimeout(800);
+    await p.click('.prestige-metro .mt-tuile[aria-label^="Gestion du stock"]');
+    await p.waitForSelector('.prestige-metro .mt-groupe .mt-tuile', { timeout: 10000 });
+    await p.waitForTimeout(1000);
 
     /* une fenetre par-dessus le Metro garde ses touches */
     await p.evaluate(() => { Ext.Msg.prompt('Essai', 'Saisie'); });

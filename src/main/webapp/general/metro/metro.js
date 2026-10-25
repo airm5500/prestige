@@ -175,6 +175,7 @@
         }
 
         function afficher(tuiles, opts, fabrique, focus) {
+            groupesAffiches = null;
             grille.classList.remove('mt-entree');
             grille.style.gridAutoRows = '';
             grille.innerHTML = '';
@@ -199,35 +200,52 @@
             });
             return Object.keys(g).map(function (k) { return g[k]; }).sort(function (a, b) { return a.ordre - b.ordre; });
         }
-        function mesurerGroupes(groupes, W, H, g) {
-            function essai(w, f) {
-                var h = Math.round(w * 0.8), x = 0, ligneH = 0, total = 0, ks = [];
-                groupes.forEach(function (gr) {
-                    var n = gr.ecrans.length, k = Math.min(n, Math.max(1, Math.round(Math.sqrt(n * f))));
-                    var bw = k * w + (k - 1) * g;
-                    if (bw > W) { k = Math.max(1, Math.floor((W + g) / (w + g))); bw = k * w + (k - 1) * g; }
-                    var r = Math.ceil(n / k), bh = 34 + r * h + (r - 1) * g;
-                    ks.push(k);
-                    if (x > 0 && x + bw > W) { total += ligneH + 26; x = 0; ligneH = 0; }
-                    x += bw + 34; ligneH = Math.max(ligneH, bh);
+        /* Disposition MESUREE (retour du 25/10 : groupes centres avec de la place sur les cotes, et pourtant le bas
+           debordait) : on essaie des tailles de tuile (de la plus grande a la plus petite) et, pour chacune, des largeurs
+           de bloc (peu de colonnes -> blocs hauts ; beaucoup -> blocs larges) ; on mesure le rendu reel et on garde la
+           plus grande tuile qui tient dans la zone, avec les blocs les plus larges (les moins hauts). Si rien ne tient,
+           taille plancher et la zone defile. */
+        var groupesAffiches = null;
+        function ajusterGroupes() {
+            var ga = groupesAffiches;
+            if (!ga || !ga.cont.isConnected) { return; }
+            var cs = getComputedStyle(zone);
+            var W = zone.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+            var H = zone.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+            var g = W < 640 ? 8 : 10, FACTEURS = [0.6, 1, 1.6, 2.5, 4, 6, 10, 40];
+            function appliquer(w, f) {
+                var h = Math.round(w * 0.8), base = Math.min(w, h * 1.25);
+                ga.blocs.forEach(function (b) {
+                    var n = b.n, k = Math.min(n, Math.max(1, Math.round(Math.sqrt(n * f))));
+                    k = Math.max(1, Math.min(k, Math.floor((W + g) / (w + g))));
+                    b.sg.style.gridTemplateColumns = 'repeat(' + k + ', ' + w + 'px)';
+                    b.sg.style.gridAutoRows = h + 'px';
+                    b.sg.style.setProperty('--ecart', g + 'px');
+                    echelle(b.sg, base, 20, 64);
                 });
-                return {w: w, h: h, ks: ks, total: total + ligneH};
+                return {haut: ga.cont.offsetHeight, large: ga.cont.scrollWidth};
             }
-            var r = null;
-            for (var w = 230; w >= 110 && !r; w -= 4) {
-                [0.8, 1.2, 1.6, 2.4, 3.5, 5].forEach(function (f) { var e = essai(w, f); if (e.total <= H && (!r || e.w > r.w)) { r = e; } });
+            ga.cont.style.minHeight = '0';
+            var choix = null;
+            for (var w = 240; w >= 96 && !choix; w -= 6) {
+                FACTEURS.forEach(function (f) {
+                    var m = appliquer(w, f);
+                    if (m.haut <= H && m.large <= W + 1 && (!choix || m.haut < choix.haut)) { choix = {w: w, f: f, haut: m.haut}; }
+                });
             }
-            r = r || essai(110, 2.4);
-            groupes.forEach(function (gr, i) { gr.k = r.ks[i]; });
-            return r;
+            if (!choix) {   /* trop d'ecrans pour la zone : taille plancher, blocs les plus bas, la zone defile */
+                FACTEURS.forEach(function (f) { var m = appliquer(96, f); if (m.large <= W + 1 && (!choix || m.haut < choix.haut)) { choix = {w: 96, f: f, haut: m.haut}; } });
+                choix = choix || {w: 96, f: 1};
+            }
+            appliquer(choix.w, choix.f);
+            ga.cont.style.minHeight = '';
         }
         function afficherGroupes(groupes, focus) {
             grille.classList.remove('mt-entree');
             grille.innerHTML = '';
             grille.style.gridTemplateColumns = '1fr';
             grille.style.gridAutoRows = 'auto';
-            var W = zone.clientWidth - parseFloat(getComputedStyle(zone).paddingLeft) * 2, H = zone.clientHeight - 30, g = W < 640 ? 8 : 10;
-            var cont = document.createElement('div'), n = 0, t = mesurerGroupes(groupes, W, H, g);
+            var cont = document.createElement('div'), n = 0, blocs = [];
             cont.className = 'mt-groupes';
             groupes.forEach(function (gr) {
                 var bloc = document.createElement('div'), sg = document.createElement('div');
@@ -235,15 +253,14 @@
                 bloc.style.setProperty('--c', gr.c);
                 bloc.innerHTML = '<h2>' + esc(gr.nom) + '</h2>';
                 sg.className = 'mt-grille mt-entree';
-                sg.style.gridTemplateColumns = 'repeat(' + gr.k + ', ' + t.w + 'px)';
-                sg.style.gridAutoRows = t.h + 'px';
-                sg.style.setProperty('--ecart', g + 'px');
-                echelle(sg, Math.min(t.w, t.h * 1.25), 20, 64);
                 gr.ecrans.forEach(function (e) { e.c = gr.c; sg.appendChild(tuileEcran(e, n++)); });
                 bloc.appendChild(sg);
                 cont.appendChild(bloc);
+                blocs.push({sg: sg, n: gr.ecrans.length});
             });
             grille.appendChild(cont);
+            groupesAffiches = {cont: cont, blocs: blocs};
+            ajusterGroupes();
             poser(cont, n, focus);
         }
 
@@ -367,7 +384,7 @@
             clearTimeout(attente);
             attente = setTimeout(function () {
                 if (detruit || !etat.menus.length || !visible()) { return; }
-                if (!courant) { rendre(false); } else if (courant.tuiles.length) { disposer(courant.tuiles, courant.opts); }
+                if (!courant) { ajusterGroupes(); } else if (courant.tuiles.length) { disposer(courant.tuiles, courant.opts); }
             }, 80);
         }
         var suivi = window.ResizeObserver ? new ResizeObserver(redimensionner) : null;

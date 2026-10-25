@@ -37,7 +37,9 @@ public enum TypeLog {
     // La colonne typeLog est persistee en ORDINAL : toute nouvelle valeur
     // s'ajoute OBLIGATOIREMENT en fin de liste.
     DESACTIVATION_UTILISATEUR("Désactivation d'utilisateur", true),
-    ACTIVATION_UTILISATEUR("Activation d'utilisateur", true);
+    ACTIVATION_UTILISATEUR("Activation d'utilisateur", true),
+    // demande mobile 56 : nom d'un appareil enregistre (ajoute a la fin : le type est enregistre par son rang)
+    NOM_APPAREIL("Nom d'appareil", true);
 
     private final String value;
     private final boolean checked;
