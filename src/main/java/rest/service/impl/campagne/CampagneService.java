@@ -47,8 +47,10 @@ import util.TelephoneCi;
 public class CampagneService {
 
     public static final String PARAM_AUTO = "KEY_CAMPAGNE_AUTO_ACTIF";
+    /** Retours du 25/10 (point 14) : jours apres l'envoi pendant lesquels une reponse du client est comptee. */
+    public static final String PARAM_DELAI_REPONSE = "KEY_CAMPAGNE_DELAI_REPONSE";
     public static final String[] PARAMETRES = { PARAM_AUTO, "KEY_CAMPAGNE_AUTO_ANNIV", "KEY_CAMPAGNE_AUTO_FETE",
-            "KEY_CAMPAGNE_AUTO_CANAL", "KEY_CAMPAGNE_MODELE_ANNIV", "KEY_CAMPAGNE_MODELE_FETE" };
+            "KEY_CAMPAGNE_AUTO_CANAL", "KEY_CAMPAGNE_MODELE_ANNIV", "KEY_CAMPAGNE_MODELE_FETE", PARAM_DELAI_REPONSE };
     static final int MAX_CIBLES = 5000;
     static final int JOURS_VALIDITE_PROPOSITION = 7;
     private static final DateTimeFormatter JJ = DateTimeFormatter.ofPattern("dd/MM/yyyy");
@@ -372,9 +374,10 @@ public class CampagneService {
         o.put("auto", "1".equals(parametre(PARAM_AUTO, "0")));
         o.put("anniversaires", "1".equals(parametre("KEY_CAMPAGNE_AUTO_ANNIV", "1")));
         o.put("fetes", "1".equals(parametre("KEY_CAMPAGNE_AUTO_FETE", "1")));
-        o.put("canal", Campagnes.canal(parametre("KEY_CAMPAGNE_AUTO_CANAL", "SMS")));
+        o.put("canal", Campagnes.canal(parametre("KEY_CAMPAGNE_AUTO_CANAL", "WHATSAPP")));
         o.put("modeleAnniversaire", parametre("KEY_CAMPAGNE_MODELE_ANNIV", "MODELE_ANNIVERSAIRE"));
         o.put("modeleFete", parametre("KEY_CAMPAGNE_MODELE_FETE", "MODELE_FETE"));
+        o.put("delaiReponse", delaiReponse());
         return o;
     }
 
@@ -392,6 +395,13 @@ public class CampagneService {
         }
         if (o.has("canal")) {
             v.put("KEY_CAMPAGNE_AUTO_CANAL", Campagnes.canal(o.optString("canal")));
+        }
+        if (o.has("delaiReponse")) {
+            int d = o.optInt("delaiReponse", 0);
+            if (d < 1 || d > 90) {
+                throw new IllegalArgumentException("Le délai de réponse doit être compris entre 1 et 90 jours.");
+            }
+            v.put(PARAM_DELAI_REPONSE, String.valueOf(d));
         }
         for (String[] k : new String[][] { { "modeleAnniversaire", "KEY_CAMPAGNE_MODELE_ANNIV" },
                 { "modeleFete", "KEY_CAMPAGNE_MODELE_FETE" } }) {
@@ -592,7 +602,7 @@ public class CampagneService {
         if (!force && !"1".equals(parametre(PARAM_AUTO, "0"))) {
             return o.put("actif", false).put("proposes", 0);
         }
-        String canal = Campagnes.canal(parametre("KEY_CAMPAGNE_AUTO_CANAL", "SMS"));
+        String canal = Campagnes.canal(parametre("KEY_CAMPAGNE_AUTO_CANAL", "WHATSAPP"));
         int n = 0;
         if ("1".equals(parametre("KEY_CAMPAGNE_AUTO_ANNIV", "1"))) {
             n += proposer(Categorie.ANNIVERSAIRE, jour, null, canal,
@@ -896,7 +906,7 @@ public class CampagneService {
                 + " (SELECT COUNT(*) FROM t_campagne_ligne l JOIN whatsapp_message w ON w.notification_id = l.lg_NOTIFICATION_ID"
                 + "   WHERE l.campagne_id = c.id AND w.statut = 'ECHEC') AS echecs,"
                 + " (SELECT COUNT(*) FROM t_campagne_ligne l JOIN whatsapp_message w ON w.notification_id = l.lg_NOTIFICATION_ID"
-                + "   WHERE l.campagne_id = c.id AND " + REPONDU + ") AS repondus"
+                + "   WHERE l.campagne_id = c.id AND " + repondu(delaiReponse()) + ") AS repondus"
                 + " FROM t_campagne c LEFT JOIN t_fete f ON f.code = c.fete_code"
                 + " LEFT JOIN modele_message m ON m.id = c.lg_MODELE"
                 + " LEFT JOIN t_user u ON u.lg_USER_ID = COALESCE(c.lg_USER_TRAITE, c.lg_USER_ID)"
@@ -922,11 +932,24 @@ public class CampagneService {
     }
 
     /**
-     * Retours du 25/10 (point 14) : un client a « repondu » s'il a ecrit au numero de l'officine dans les 7 jours qui
-     * suivent l'envoi du message de la campagne (fils de discussion WhatsApp).
+     * Retours du 25/10 (point 14) : un client a « repondu » s'il a ecrit au numero de l'officine dans les jours qui
+     * suivent l'envoi (KEY_CAMPAGNE_DELAI_REPONSE, 7 par defaut ; fils de discussion WhatsApp).
      */
-    static final String REPONDU = "EXISTS (SELECT 1 FROM whatsapp_discussion d WHERE d.sens = 'E' AND d.numero = w.telephone"
-            + " AND d.created_at >= w.created_at AND d.created_at < w.created_at + INTERVAL 7 DAY)";
+    static String repondu(int jours) {
+        return "EXISTS (SELECT 1 FROM whatsapp_discussion d WHERE d.sens = 'E' AND d.numero = w.telephone"
+                + " AND d.created_at >= w.created_at AND d.created_at < w.created_at + INTERVAL " + jours + " DAY)";
+    }
+
+    /** Delai de reponse parametre (7 jours par defaut, borne a 1..90). */
+    int delaiReponse() {
+        int d;
+        try {
+            d = Integer.parseInt(StringUtils.trimToEmpty(parametre(PARAM_DELAI_REPONSE, "7")));
+        } catch (NumberFormatException e) {
+            d = 7;
+        }
+        return Math.max(1, Math.min(90, d));
+    }
 
     /**
      * Retours du 25/10 (point 14) : suivi message par message d'une campagne envoyee (client, telephone, etat du
@@ -940,8 +963,8 @@ public class CampagneService {
                 .createNativeQuery("SELECT TRIM(CONCAT(COALESCE(cl.str_FIRST_NAME, ''), ' ',"
                         + " COALESCE(cl.str_LAST_NAME, ''))) AS client, COALESCE(w.telephone, cl.str_ADRESSE) AS tel,"
                         + " l.retenu AS retenu, l.motif AS motif, w.statut AS wstatut, COALESCE(w.created_at, nc.sent_at) AS quand,"
-                        + " CASE WHEN w.id IS NULL THEN 0 WHEN " + REPONDU + " THEN 1 ELSE 0 END AS repondu,"
-                        + " nc.statut AS ncstatut, nc.delivery_status AS livraison"
+                        + " CASE WHEN w.id IS NULL THEN 0 WHEN " + repondu(delaiReponse())
+                        + " THEN 1 ELSE 0 END AS repondu," + " nc.statut AS ncstatut, nc.delivery_status AS livraison"
                         + " FROM t_campagne_ligne l LEFT JOIN t_client cl ON cl.lg_CLIENT_ID = l.lg_CLIENT_ID"
                         + " LEFT JOIN whatsapp_message w ON w.notification_id = l.lg_NOTIFICATION_ID"
                         + " LEFT JOIN notification_client nc ON nc.notification_id = l.lg_NOTIFICATION_ID AND nc.client_id = l.lg_CLIENT_ID"

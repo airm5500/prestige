@@ -1054,6 +1054,9 @@ Ext.define('testextjs.view.campagnes.Campagnes', {
                     store: Ext.create('Ext.data.Store', {fields: ['v', 't'], data: me.CANAUX})},
                 {xtype: 'combobox', itemId: 'modeleAnniversaire', fieldLabel: 'Modèle des anniversaires', editable: false, queryMode: 'local', displayField: 'libelle', valueField: 'id', store: modeles},
                 {xtype: 'combobox', itemId: 'modeleFete', fieldLabel: 'Modèle des fêtes', editable: false, queryMode: 'local', displayField: 'libelle', valueField: 'id', store: modeles},
+                /* retours du 25/10 (point 14) : delai pendant lequel une reponse du client est comptee dans le suivi */
+                {xtype: 'numberfield', itemId: 'delaiReponse', fieldLabel: 'Réponse comptée dans les (jours après l\'envoi)', width: 340,
+                    minValue: 1, maxValue: 90, allowDecimals: false, value: 7},
                 {xtype: 'button', itemId: 'enregistrer', text: 'Enregistrer', iconCls: 'fa fa-save', width: 160, margin: '10 0 0 265', handler: function () {
                         me.enregistrerParametres();
                     }},
@@ -1082,7 +1085,7 @@ Ext.define('testextjs.view.campagnes.Campagnes', {
 
     enregistrerParametres: function () {
         var me = this, o = me.down('#ongletParametres'), d = {};
-        Ext.each(['auto', 'anniversaires', 'fetes', 'canal', 'modeleAnniversaire', 'modeleFete'], function (k) {
+        Ext.each(['auto', 'anniversaires', 'fetes', 'canal', 'modeleAnniversaire', 'modeleFete', 'delaiReponse'], function (k) {
             d[k] = o.down('#' + k).getValue();
         });
         me.appel('POST', 'parametres', d, function (r) {
