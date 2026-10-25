@@ -58,6 +58,8 @@ function nettoyer(debut) {
   ok('Précondition : aucun vrai client actif né un ' + AUJ.slice(5), q("SELECT COUNT(*) FROM t_client WHERE str_STATUT = 'enable' AND DATE_FORMAT(dt_NAISSANCE, '%m-%d') = DATE_FORMAT(CURDATE(), '%m-%d')") === '0');
   exec("UPDATE whatsapp_compte SET actif = 1, mode_test = 1, phone_number_id = COALESCE(phone_number_id, '1234567890'), access_token = COALESCE(access_token, 'E2E-CMP-JETON') WHERE mode = 'API';"
     + "UPDATE t_parameters SET str_VALUE = 'API' WHERE str_KEY = 'KEY_WHATSAPP_MODE_DEFAUT';"
+    /* propositions automatiques en SMS pour ce parcours (WhatsApp par defaut depuis le 25/10) : remis a la fin */
+    + "UPDATE t_parameters SET str_VALUE = 'SMS' WHERE str_KEY = 'KEY_CAMPAGNE_AUTO_CANAL';"
     + "INSERT INTO t_client (lg_CLIENT_ID, str_FIRST_NAME, str_LAST_NAME, lg_TYPE_CLIENT_ID, str_ADRESSE, str_SEXE, dt_NAISSANCE, dt_CREATED, dt_UPDATED, str_STATUT) VALUES"
     + ` ('${A}', 'ZZCAMPAGNE', 'AWA', '1', '07 07 07 07 11', 'F', '${NAISS(1990)}', NOW(), NOW(), 'enable'),`
     + ` ('${B}', 'ZZCAMPAGNE', 'BINTOU', '1', '0707070712', 'F', '${NAISS(1985)}', NOW(), NOW(), 'enable'),`
