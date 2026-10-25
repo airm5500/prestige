@@ -19,7 +19,7 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
   const erreurs = []; p.on('pageerror', (e) => erreurs.push(e.message));
   const corps = []; p.on('response', async (r) => { if (/utilisateurs|utilisateur\/ws_data/.test(r.url())) { try { corps.push(await r.text()); } catch (e) { /* ignore */ } } });
   try {
-    await connexion(p, 'admin', 'e2etest');
+    await connexion(p, ENV_E2E.LOGIN, 'e2etest');
     await ouvrirMenu(p, 'GESTION DES UTILISATEURS', 'Utilisateurs');
     await p.waitForFunction(() => { const g = Ext.ComponentQuery.query('usermanager gridpanel, usermanager grid')[0] || Ext.ComponentQuery.query('usermanager')[0];
       const s = g && g.getStore && g.getStore(); return s && !s.isLoading() && s.getCount() > 0; }, null, { timeout: 60000 });

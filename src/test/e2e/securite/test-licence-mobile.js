@@ -35,7 +35,7 @@ const brut = async (url, h) => { const r = await fetch(API + url, { headers: h |
     ok('Sans session : clé masquée (4 derniers caractères seulement)', j && j.id !== cle && String(j.id).endsWith(cle.slice(-4)) && !String(j.id).includes(cle.slice(0, 8)),
       j && String(j.id).length);
 
-    r = await brut('v1/licence/find', { 'X-User-Info': JSON.stringify({ id: q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = 'admin'") }),
+    r = await brut('v1/licence/find', { 'X-User-Info': JSON.stringify({ id: q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'") }),
       'X-Token-Exp': '2099-01-01T00:00:00Z', 'X-client': 'x' });
     ok('En-têtes forgés : clé toujours masquée', r.s === 200 && !r.t.includes(cle), r.s);
 
@@ -45,7 +45,7 @@ const brut = async (url, h) => { const r = await fetch(API + url, { headers: h |
     }
 
     const login = await fetch(API + 'v1/user/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ login: 'admin', password: 'e2etest' }) });
+      body: JSON.stringify({ login: ENV_E2E.LOGIN, password: 'e2etest' }) });
     const cookie = (login.headers.get('set-cookie') || '').split(';')[0];
     r = await brut('v1/licence/find', { Cookie: cookie });
     try { j = JSON.parse(r.t); } catch (e) { j = null; }

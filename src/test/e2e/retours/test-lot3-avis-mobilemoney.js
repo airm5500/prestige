@@ -24,7 +24,7 @@ const statut = () => q(`SELECT statut FROM t_avis_client WHERE id = '${ID}'`);
   const get = (u) => p.evaluate(async (u) => (await fetch(u)).json(), u);
   try {
     await p.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     const a1 = await get('../api/v1/avis-clients/avis/' + ID + '?marquerLu=false');
     ok('Avis lu avec marquerLu=false : rendu, reste NOUVEAU', a1.success && statut() === 'NOUVEAU', JSON.stringify(a1).slice(0, 120) + ' ' + statut());

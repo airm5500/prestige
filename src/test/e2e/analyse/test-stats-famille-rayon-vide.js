@@ -21,7 +21,7 @@ const ECRANS = [['familles', 'v1/statfamillearticle'], ['rayons', 'v1/statfamill
   try {
     const p = await (await b.newContext()).newPage();
     await p.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     const lire = (chemin, du, au) => p.evaluate(async ([c, d, a]) => {
       const r = await fetch('../api/' + c + '?dtStart=' + d + '&dtEnd=' + a + '&codeFamillle=&query=&codeRayon=&codeGrossiste=');

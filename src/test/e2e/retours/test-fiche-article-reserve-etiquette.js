@@ -18,7 +18,7 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
 const BASE = ENV_E2E.BASE;
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
-const droitType = privilegeEssai(q, exec, 'admin', 'P_SM_ETIQUETTE_TYPE');
+const droitType = privilegeEssai(q, exec, ENV_E2E.LOGIN, 'P_SM_ETIQUETTE_TYPE');
 
 /* produit actif, en stock au rayon, au type d'etiquette historique « CIP - PRIX » */
 const [P, CIP] = q("SELECT CONCAT_WS('|', f.lg_FAMILLE_ID, f.int_CIP) FROM t_famille f JOIN t_famille_stock s ON s.lg_FAMILLE_ID = f.lg_FAMILLE_ID AND s.lg_EMPLACEMENT_ID = '1'"
@@ -56,7 +56,7 @@ function remettre() {
     p.on('pageerror', (e) => err.push(e.message));
     p.on('dialog', (d) => { dialogues.push(d.message()); d.dismiss().catch(() => {}); });
     await p.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 90000 });
     await p.waitForTimeout(1500);

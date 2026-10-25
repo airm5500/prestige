@@ -39,7 +39,7 @@ const lit = (s) => (s === undefined || s === 'NULL' || s === '' ? 'NULL' : "'" +
     await new Promise((r) => setTimeout(r, 1500));
     exec("UPDATE whatsapp_compte SET actif = 1, mode_test = 1, web_url = 'http://127.0.0.1:" + PORT + "', web_jeton = '" + JETON + "', web_regles = NULL WHERE mode = 'WEB'");
     await p.goto(URL + '/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app && Ext.ComponentQuery.query('navigation').length
       && Ext.ComponentQuery.query('navigation')[0].getStore()._menuCharge, null, { timeout: 120000 });

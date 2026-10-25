@@ -18,7 +18,7 @@ const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
 const BASE = ENV_E2E.BASE;
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
-const U = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = 'admin'");
+const U = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
 const PREF = () => q(`SELECT IFNULL((SELECT txt_VALEUR FROM t_preference_utilisateur WHERE lg_USER_ID = '${U}' AND str_CLE = 'menu-navigation'), '')`);
 
 (async () => {
@@ -57,7 +57,7 @@ const PREF = () => q(`SELECT IFNULL((SELECT txt_VALEUR FROM t_preference_utilisa
     await p.waitForTimeout(1500);
   };
   try {
-    await connexion(p, 'admin', 'e2etest');
+    await connexion(p, ENV_E2E.LOGIN, 'e2etest');
     /* reference : menu de l'admin (store du menu actuel, menus masques retires) */
     const ref = await p.evaluate(() => { const r = Ext.ComponentQuery.query('navigation')[0].getStore().getRootNode(), mods = [];
       r.eachChild((m) => { const e = []; m.eachChild((n) => { if (n.isLeaf()) { e.push(n.get('id')); } }); if (e.length) { mods.push({ nom: m.get('text'), n: e.length, ids: e }); } }); return mods; });

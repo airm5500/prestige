@@ -17,7 +17,7 @@ const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
 const BASE = ENV_E2E.BASE;
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
-const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = 'admin'");
+const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
 const [FID, PU] = q("SELECT f.lg_FAMILLE_ID, f.int_PRICE FROM t_famille f JOIN t_famille_stock s ON s.lg_FAMILLE_ID = f.lg_FAMILLE_ID AND s.lg_EMPLACEMENT_ID = '1'"
   + " WHERE f.str_STATUT = 'enable' AND s.int_NUMBER_AVAILABLE > 20 AND f.int_PRICE > 0 AND COALESCE(f.bool_DECONDITIONNE, 0) = 0 AND COALESCE(f.lg_FAMILLE_PARENT_ID, '') = ''"
   + " ORDER BY f.int_CIP LIMIT 1").split('\t');
@@ -52,7 +52,7 @@ const [FID, PU] = q("SELECT f.lg_FAMILLE_ID, f.int_PRICE FROM t_famille f JOIN t
     return { chargee, msg };
   };
   try {
-    await connexion(p, 'admin', 'e2etest');
+    await connexion(p, ENV_E2E.LOGIN, 'e2etest');
     /* une prevente neuve par cas : une prevente chargee a la caisse n'est plus en attente */
     const creer = async () => {
       const add = await api('POST', '../api/v1/vente/add/vno', { typeVenteId: '1', natureVenteId: '1', produitId: FID, itemPu: parseInt(PU, 10), qte: 1, qteServie: 1,

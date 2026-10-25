@@ -33,7 +33,7 @@ function retablir() {
   const err = []; p.on('pageerror', e => err.push(String(e.message)));
   try {
     await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', process.env.E2E_LOGIN || 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 30000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 60000 });
     await p.waitForTimeout(1500);
@@ -43,7 +43,7 @@ function retablir() {
 
     /* ------------------------------------------------ point 1 : lignes et produits */
     const produits = q("SELECT f.lg_FAMILLE_ID, f.int_PRICE FROM t_famille f JOIN t_famille_stock s ON s.lg_FAMILLE_ID=f.lg_FAMILLE_ID AND s.lg_EMPLACEMENT_ID='1' WHERE s.int_NUMBER_AVAILABLE>10 AND f.int_PRICE>0 AND f.str_STATUT='enable' LIMIT 2").split('\n').map(l => l.split('\t'));
-    const user = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='" + (process.env.E2E_LOGIN || 'admin') + "'");
+    const user = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='" + (ENV_E2E.LOGIN) + "'");
     const params = (pr, qte, venteId) => ({ typeVenteId: '1', natureVenteId: '1', produitId: pr[0], itemPu: Number(pr[1]), qte: qte, qteServie: qte, devis: false, remiseId: '', venteId: venteId, userVendeurId: user, prevente: false });
     let r = JSON.parse((await poster('../api/v1/vente/add/vno', params(produits[0], 3, null))).corps);
     const venteId = r.data && r.data.lgPREENREGISTREMENTID; if (venteId) { ventesCreees.push(venteId); }

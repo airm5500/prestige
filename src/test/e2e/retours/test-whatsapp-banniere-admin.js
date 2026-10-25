@@ -63,7 +63,7 @@ const service = () => { try { execSync('curl -s -m 2 http://127.0.0.1:' + PORT +
     const p = await (await b.newContext({ viewport: { width: 1600, height: 900 } })).newPage();
     p.on('pageerror', (e) => erreurs.push(e.message));
     p.on('dialog', (d) => { dialogues.push(d.message()); d.dismiss().catch(() => {}); });
-    await connexion(p, 'admin', 'e2etest');
+    await connexion(p, ENV_E2E.LOGIN, 'e2etest');
     const banniere = () => p.evaluate(() => { const e = document.getElementById('pwa-banniere'); return e && e.getBoundingClientRect().height > 0 ? e.textContent.replace(/\s+/g, ' ').trim() : ''; });
     await p.waitForFunction(() => !!document.getElementById('pwa-banniere'), null, { timeout: 30000 }).catch(() => {});
     const t1 = await banniere();

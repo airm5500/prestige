@@ -26,7 +26,7 @@ const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-charact
 const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
 const URL = 'http://localhost:8080/prestige';
 const LOG = '/opt/payara5/glassfish/domains/domain1/logs/server.log';
-const droit = privilegeEssai(q, exec, 'admin', 'P_SM_CAMPAGNES');
+const droit = privilegeEssai(q, exec, ENV_E2E.LOGIN, 'P_SM_CAMPAGNES');
 const JETON = 'jeton-essai-pj-' + Date.now();
 const PORT = 3012;
 const DOSSIER = fs.mkdtempSync(ENV_E2E.TMP + '/wa-pj-');
@@ -80,7 +80,7 @@ function nettoyer(debut) {
     p.on('dialog', (d) => { dialogues.push(d.message()); d.dismiss().catch(() => {}); });
     p.on('pageerror', (e) => err.push(String(e.message)));
     await p.goto(URL + '/security/index.html', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 120000 });
     await p.waitForTimeout(2000);

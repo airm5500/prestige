@@ -10,7 +10,7 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
 const BASE = ENV_E2E.BASE;
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, BASE, '-e', s], { encoding: 'utf8' });
-const LOGIN = process.env.E2E_LOGIN || (q("SELECT COUNT(*) FROM t_user WHERE str_LOGIN='KGA3'") === '1' ? 'KGA3' : 'admin');
+const LOGIN = process.env.E2E_LOGIN || (q("SELECT COUNT(*) FROM t_user WHERE str_LOGIN='KGA3'") === '1' ? 'KGA3' : ENV_E2E.LOGIN);
 const SORTIE = process.env.SORTIE || ENV_E2E.TMP;
 
 // un client par defaut sur un mode de chaque operateur mobile, pour que les tuiles existent ; retabli a la fin

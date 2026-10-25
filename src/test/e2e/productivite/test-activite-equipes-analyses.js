@@ -44,7 +44,7 @@ const retirer = () => q(`DELETE FROM t_role_user WHERE lg_USER_ID = '${ID}'; DEL
   const tuiles = () => p.evaluate(() => Array.from(document.querySelectorAll('.ae-tuile')).reduce((o, e) => {
     o[e.getAttribute('data-code')] = { v: e.querySelector('.v').textContent.replace(/[^\d,]/g, ''), e: e.querySelector('.e').className }; return o; }, {}));
   try {
-    await connexion(p, 'admin', 'e2etest');
+    await connexion(p, ENV_E2E.LOGIN, 'e2etest');
     await ouvrirMenu(p, 'ANALYSE DE GESTION', 'Activité des équipes');
     await p.waitForFunction(() => Ext.ComponentQuery.query('activiteequipes').some((c) => c.isVisible(true)), null, { timeout: 60000 });
     await saisir(p, 'activiteequipes #aeDebut', '01/09/2026');

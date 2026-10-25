@@ -15,7 +15,7 @@ const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
 const BASE = ENV_E2E.BASE;
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
-const EMP = q("SELECT lg_EMPLACEMENT_ID FROM t_user WHERE str_LOGIN = 'admin'");
+const EMP = q("SELECT lg_EMPLACEMENT_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
 const reference = (id) => q("SELECT IFNULL(DATE_FORMAT(MAX(p.dt_UPDATED), '%d/%m/%Y %H:%i'), '') FROM t_preenregistrement_detail d"
   + " JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = d.lg_PREENREGISTREMENT_ID JOIN t_user u ON u.lg_USER_ID = p.lg_USER_ID"
   + " WHERE d.lg_FAMILLE_ID = '" + id + "' AND u.lg_EMPLACEMENT_ID = '" + EMP + "' AND p.b_IS_CANCEL = 0 AND p.str_STATUT = 'is_Closed' AND p.int_PRICE > 0");
@@ -30,7 +30,7 @@ const reference = (id) => q("SELECT IFNULL(DATE_FORMAT(MAX(p.dt_UPDATED), '%d/%m
   const lire = (id) => p.evaluate(async (id) => { const t0 = performance.now(); const r = await fetch('../api/v1/produit-search/produits/' + id); const j = await r.json(); return { ms: performance.now() - t0, d: (j.data || {}).dt_LAST_VENTE }; }, id);
   try {
     await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     for (const [nom, id] of [['gros vendeur', GROS], ['peu vendu', PEU], ['jamais vendu', JAMAIS]]) {
       const r = await lire(id), attendu = reference(id);

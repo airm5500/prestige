@@ -33,7 +33,7 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
       texte: barres[0] ? barres[0].querySelector('.pbh-pos').textContent : '', prec: barres[0] && barres[0].querySelectorAll('.pbh-fl')[0].disabled, suiv: barres[0] && barres[0].querySelectorAll('.pbh-fl')[1].disabled };
   });
   try {
-    await connexion(p, 'admin', 'e2etest');
+    await connexion(p, ENV_E2E.LOGIN, 'e2etest');
     await ouvrirMenu(p, 'GESTION DES COMMANDES', 'Commande en cours');
     await p.waitForFunction(() => Array.from(document.querySelectorAll('.x-grid-view')).some((x) => x.offsetParent && x.scrollWidth > x.clientWidth + 2), null, { timeout: 60000 });
     await p.waitForTimeout(1500);

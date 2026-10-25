@@ -54,7 +54,7 @@ function nettoyer() {
     return p.evaluate((s) => Ext.ComponentQuery.query(s + ' #etat')[0].getEl().dom.innerText, P);
   };
   try {
-    await connexion(p, 'admin', 'e2etest');
+    await connexion(p, ENV_E2E.LOGIN, 'e2etest');
     await ouvrirMenu(p, 'Campagnes SMS / WhatsApp', 'Campagnes');
     await p.waitForFunction(() => { const v = Ext.ComponentQuery.query('campagnes')[0]; return v && v.contexte; }, null, { timeout: 60000 });
     ok('Journal, délai par défaut (7 jours) : 2 réponses comptées', await repondus() === 2);

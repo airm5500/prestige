@@ -30,7 +30,7 @@ const compte = () => q('SELECT COUNT(*) FROM t_preenregistrement_detail');
   const p = await (await b.newContext({ viewport: { width: 1600, height: 900 } })).newPage();
   const erreurs = []; p.on('pageerror', (e) => erreurs.push(e.message));
   try {
-    await connexion(p, 'admin', 'e2etest');
+    await connexion(p, ENV_E2E.LOGIN, 'e2etest');
     /* --- vente */
     await ouvrirMenu(p, 'SERVICE CLIENT', 'Ventes');
     await p.waitForFunction(() => Ext.ComponentQuery.query('cloturerventemanager #addBtn').some((x) => x.isVisible(true)), null, { timeout: 60000 });

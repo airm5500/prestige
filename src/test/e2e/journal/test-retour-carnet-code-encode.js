@@ -19,7 +19,7 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
   const erreurs = []; p.on('pageerror', (e) => erreurs.push(e.message));
   const appels = []; p.on('response', (r) => { if (/carnet-depot\/produits-one\//.test(r.url())) { appels.push(r.status() + ' ' + r.url().replace(/\?.*/, '')); } });
   try {
-    await connexion(p, 'admin', 'e2etest');
+    await connexion(p, ENV_E2E.LOGIN, 'e2etest');
     await ouvrirMenu(p, 'GESTION DES TIERS-PAYANTS', 'Retour carnet dépôt');
     await p.waitForFunction(() => Ext.ComponentQuery.query('retourcarnetdepot #btnRetour').some((x) => x.isVisible(true)), null, { timeout: 60000 });
     await cliquer(p, 'retourcarnetdepot #btnRetour');

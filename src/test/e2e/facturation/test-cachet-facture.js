@@ -24,7 +24,7 @@ const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-charact
 const NOM = 'ZZ E2E CACHET';
 const [FACTURE, TP] = q('SELECT CONCAT_WS(\'|\', f.lg_FACTURE_ID, f.str_CUSTOMER) FROM t_facture f JOIN t_tiers_payant t ON t.lg_TIERS_PAYANT_ID = f.str_CUSTOMER LIMIT 1').split('|');
 const MODELE_TP = q(`SELECT lg_MODEL_FACTURE_ID FROM t_tiers_payant WHERE lg_TIERS_PAYANT_ID = '${TP}'`);
-const droit = privilegeEssai(q, exec, 'admin', 'P_SM_MODEL_FACTURE_DYNAMIQUE');
+const droit = privilegeEssai(q, exec, ENV_E2E.LOGIN, 'P_SM_MODEL_FACTURE_DYNAMIQUE');
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cachet-'));
 
 /* PNG RVB uni de l x h (sans dependance) */
@@ -44,7 +44,7 @@ fs.writeFileSync(PROPRE, png(90, 90, [20, 60, 200]));
 fs.writeFileSync(FAUX, 'ceci est un texte, pas une image');
 
 /* le droit du createur de modeles est donne a admin le temps du test s'il ne l'a pas (banc) */
-const ROLE = q("SELECT ru.lg_ROLE_ID FROM t_role_user ru JOIN t_user u ON u.lg_USER_ID = ru.lg_USER_ID WHERE u.str_LOGIN = 'admin' LIMIT 1");
+const ROLE = q("SELECT ru.lg_ROLE_ID FROM t_role_user ru JOIN t_user u ON u.lg_USER_ID = ru.lg_USER_ID WHERE u.str_LOGIN = '" + ENV_E2E.LOGIN + "' LIMIT 1");
 const PRIV = q("SELECT lg_PRIVELEGE_ID FROM t_privilege WHERE str_NAME = 'P_SM_MODEL_FACTURE_DYNAMIQUE'");
 const DROIT_AJOUTE = 'E2E-CACHET-DROIT';
 
@@ -61,7 +61,7 @@ const DROIT_AJOUTE = 'E2E-CACHET-DROIT';
     const p = await (await b.newContext({ viewport: { width: 1500, height: 950 } })).newPage();
     p.on('dialog', (d) => { dialogues.push(d.message()); d.dismiss().catch(() => {}); });
     await p.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 90000 });
     const form = (url, o) => p.evaluate(async ([u, d]) => (await (await fetch(u, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -132,7 +132,7 @@ const DROIT_AJOUTE = 'E2E-CACHET-DROIT';
     droit.retirer();
     const p2 = await (await b.newContext()).newPage();
     await p2.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'domcontentloaded' });
-    await p2.fill('#str_login', 'admin'); await p2.fill('#str_password', 'e2etest'); await p2.click('#login');
+    await p2.fill('#str_login', ENV_E2E.LOGIN); await p2.fill('#str_password', 'e2etest'); await p2.click('#login');
     await p2.waitForURL('**/general/**', { timeout: 60000 });
     const refus = await p2.evaluate(async (d) => (await (await fetch('../api/v1/model-facture-dynamique/cachet', { method: 'POST',
       headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cible: 'commun', donnees: d }) })).json()), fs.readFileSync(COMMUN).toString('base64'));

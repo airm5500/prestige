@@ -48,7 +48,7 @@ function lire(pdf) {
   const p = await ctx.newPage();
   const erreurs = []; p.on('pageerror', (e) => erreurs.push(e.message));
   try {
-    await connexion(p, 'admin', 'e2etest');
+    await connexion(p, ENV_E2E.LOGIN, 'e2etest');
     const cree = await p.evaluate(async (e) => (await fetch('../api/v1/rh/badges', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ employeId: e }) })).json(), E);
     await ouvrirMenu(p, 'RESSOURCES HUMAINES', 'Ressources humaines');
     await p.waitForFunction(() => Ext.ComponentQuery.query('rhmanager').some((c) => c.isVisible(true)), null, { timeout: 60000 });

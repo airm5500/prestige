@@ -42,7 +42,7 @@ function retirerProduit() {
 }
 const [G, GNOM] = q("SELECT lg_GROSSISTE_ID, str_LIBELLE FROM t_grossiste ORDER BY str_LIBELLE LIMIT 1").split('\t');
 const ORDER = q("SELECT lg_ORDER_ID FROM t_order LIMIT 1");
-const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = 'admin'");
+const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
 
 function nettoyer() {
   exec("SET FOREIGN_KEY_CHECKS = 0; DELETE FROM hmvtproduit WHERE uuid LIKE 'E2E-DE-%'; DELETE FROM t_bon_livraison_detail WHERE lg_BON_LIVRAISON_DETAIL LIKE 'E2E-DE-%';"
@@ -64,7 +64,7 @@ function bl(id, statut, dateBl, cloture, qte) {
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   try {
     await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 40000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 90000 });
     await p.evaluate(() => testextjs.app.getController('App').onLoadNewComponent('famillemanager', 'Fiche Article', ''));

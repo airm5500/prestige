@@ -26,7 +26,7 @@ const nettoyer = () => exec("DELETE f FROM t_inventaire_famille f JOIN t_inventa
 
 (async () => {
   nettoyer();
-  const EMP = q("SELECT u.lg_EMPLACEMENT_ID FROM t_user u WHERE u.str_LOGIN = 'admin'");
+  const EMP = q("SELECT u.lg_EMPLACEMENT_ID FROM t_user u WHERE u.str_LOGIN = '" + ENV_E2E.LOGIN + "'");
   /* 4 produits actifs, de 4 rayons differents, avec une ligne de stock a l'emplacement d'admin et un CIP7 */
   const P = q("SELECT CONCAT_WS('|', f.lg_FAMILLE_ID, f.int_CIP, f.lg_ZONE_GEO_ID, s.int_NUMBER_AVAILABLE) FROM t_famille f"
     + " JOIN t_famille_stock s ON s.lg_FAMILLE_ID = f.lg_FAMILLE_ID AND s.lg_EMPLACEMENT_ID = '" + EMP + "'"
@@ -44,7 +44,7 @@ const nettoyer = () => exec("DELETE f FROM t_inventaire_famille f JOIN t_inventa
   const lignesDe = (id) => q("SELECT CONCAT_WS('|', lg_FAMILLE_ID, bool_INVENTAIRE, int_NUMBER_INIT, int_NUMBER) FROM t_inventaire_famille WHERE lg_INVENTAIRE_ID = '" + id + "' ORDER BY lg_FAMILLE_ID");
   try {
     await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
 
     const ean = '34009' + P[2].cip + '7';

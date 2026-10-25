@@ -70,7 +70,7 @@ function poser() {
   const pair = prods.find((p) => Number(p.cip.slice(-1)) % 2 === 0);
   exec("INSERT INTO t_famille_grossiste (lg_FAMILLE_GROSSISTE_ID, lg_FAMILLE_ID, lg_GROSSISTE_ID, str_CODE_ARTICLE, str_STATUT, dt_CREATED, dt_UPDATED) VALUES ('E2E-DSP-FG', '" + pair.id + "', '" + GB + "', 'ART-B-777', 'enable', NOW(), NOW())");
   exec("INSERT INTO t_order (lg_ORDER_ID, str_REF_ORDER, int_LINE, lg_GROSSISTE_ID, lg_USER_ID, str_STATUT, dt_CREATED, dt_UPDATED, int_PRICE, recu, direct_import)"
-    + " VALUES ('" + CMD + "', '" + CMD + "', 2, '" + GA + "', (SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = 'admin' LIMIT 1), 'is_Process', NOW(), NOW(), 0, 0, 0)");
+    + " VALUES ('" + CMD + "', '" + CMD + "', 2, '" + GA + "', (SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "' LIMIT 1), 'is_Process', NOW(), NOW(), 0, 0, 0)");
   prods.slice(0, 2).forEach((p, i) => exec("INSERT INTO t_order_detail (lg_ORDERDETAIL_ID, lg_ORDER_ID, lg_FAMILLE_ID, lg_GROSSISTE_ID, int_NUMBER, int_PRICE, str_STATUT, dt_CREATED, dt_UPDATED)"
     + " VALUES ('" + CMD + "-" + i + "', '" + CMD + "', '" + p.id + "', '" + GA + "', 1, 0, 'is_Process', NOW(), NOW())"));
   return pair;
@@ -88,7 +88,7 @@ function poser() {
     const t = await p.evaluate(() => Ext.MessageBox.msg.getEl().dom.textContent); await p.evaluate(() => Ext.MessageBox.hide()); return t; };
   try {
     await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 40000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 90000 });
     await p.waitForTimeout(1500);

@@ -12,7 +12,7 @@ const { execFileSync } = require('child_process');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', ENV_E2E.BASE, '-sN'], { input: s, encoding: 'utf8' }).trim();
-const USER = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = 'admin'");
+const USER = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
 const P = q(`SELECT lg_FAMILLE_ID, int_PRICE FROM t_famille WHERE str_STATUT = 'enable' AND int_PRICE > 1000 ORDER BY lg_FAMILLE_ID LIMIT 3`).split('\n').map((l) => l.split('\t'));
 /* P[0] 2 fois (1 + 1 unite), P[1] une fois 6 unites : P[1] pese plus en valeur si son prix le permet, P[0] est le plus frequent */
 const SAISIES = [[P[0], 1, '2026-09-05'], [P[0], 1, '2026-09-22'], [P[1], 6, '2026-09-10'], [P[2], 1, '2026-09-15']];
@@ -32,7 +32,7 @@ const nettoyer = () => q("DELETE FROM t_warehouse WHERE lg_WAREHOUSE_ID LIKE 'E2
     q(SAISIES.map((s, i) => `INSERT INTO t_warehouse (lg_WAREHOUSE_ID, lg_USER_ID, lg_FAMILLE_ID, int_NUM_LOT, int_NUMBER, dt_CREATED, dt_UPDATED, dt_PEREMPTION, str_STATUT, stock_initial, stock_final)
       VALUES ('E2E-PEO-${i}', '${USER}', '${s[0][0]}', 'LOT${i}', ${s[1]}, '${s[2]} 10:00:00', '${s[2]} 10:00:00', '${s[2]}', 'delete', 10, ${10 - s[1]});`).join(''));
     await p.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 120000 });
     await p.waitForTimeout(2000);

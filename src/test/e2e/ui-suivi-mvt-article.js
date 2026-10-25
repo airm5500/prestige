@@ -17,7 +17,7 @@ const [FID, CIP] = sql("SELECT CONCAT(f.lg_FAMILLE_ID,'|',f.int_CIP) FROM t_fami
 function retirer() { sql("DELETE FROM hmvtproduit WHERE uuid LIKE 'E2E-204-%';"); }
 function poser() {
     retirer();
-    const usr = "(SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='" + (process.env.E2E_LOGIN || 'admin') + "')";
+    const usr = "(SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='" + (ENV_E2E.LOGIN) + "')";
     const ligne = (id, quand, jour, debut, fin, qte, type) => "('E2E-204-" + id + "', b'1', '" + AN + "-08-" + quand + "', '" + AN + "-08-" + jour
         + "', 'E2E204', 100, 200, " + debut + ", " + fin + ", " + qte + ", 0, '1', '" + FID + "', " + usr + ", '" + type + "', 0)";
     sql("INSERT INTO hmvtproduit (uuid, checked, createdAt, mvtdate, pkey, prixAchat, prixUn, qteDebut, qteFinale, qteMvt, valeurTva,"
@@ -38,7 +38,7 @@ function ok(name, cond, detail) {
     const page = await browser.newPage({ viewport: { width: 1700, height: 1000 } });
 
     await page.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-    await page.fill('#str_login', process.env.E2E_LOGIN || 'admin');
+    await page.fill('#str_login', ENV_E2E.LOGIN);
     await page.fill('#str_password', 'e2etest');
     await page.click('#login');
     await page.waitForURL('**/general/**', { timeout: 30000 });

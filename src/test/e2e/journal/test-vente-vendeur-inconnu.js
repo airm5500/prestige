@@ -17,7 +17,7 @@ const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
 const BASE = ENV_E2E.BASE;
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
-const [VID, VNOM] = q("SELECT lg_USER_ID, TRIM(CONCAT(str_FIRST_NAME, ' ', str_LAST_NAME)) FROM t_user WHERE str_STATUT = 'enable' AND str_LOGIN <> 'admin'"
+const [VID, VNOM] = q("SELECT lg_USER_ID, TRIM(CONCAT(str_FIRST_NAME, ' ', str_LAST_NAME)) FROM t_user WHERE str_STATUT = 'enable' AND str_LOGIN <> '" + ENV_E2E.LOGIN + "'"
   + " AND IFNULL(str_FIRST_NAME, '') <> '' ORDER BY str_LOGIN LIMIT 1").split('\t');
 
 (async () => {
@@ -31,7 +31,7 @@ const [VID, VNOM] = q("SELECT lg_USER_ID, TRIM(CONCAT(str_FIRST_NAME, ' ', str_L
       toast: t ? t.textContent : '', focus: document.activeElement ? (document.activeElement.id || document.activeElement.name || '') : '', userAFocus: c.hasFocus }; });
   try {
     ok('Jeu d\'essai : un vendeur avec un nom', !!VNOM, VNOM);
-    await connexion(p, 'admin', 'e2etest');
+    await connexion(p, ENV_E2E.LOGIN, 'e2etest');
     await ouvrirMenu(p, 'SERVICE CLIENT', 'Ventes');
     await p.waitForFunction(() => Ext.ComponentQuery.query('cloturerventemanager #addBtn').some((x) => x.isVisible(true)), null, { timeout: 60000 });
     await cliquer(p, 'cloturerventemanager #addBtn');

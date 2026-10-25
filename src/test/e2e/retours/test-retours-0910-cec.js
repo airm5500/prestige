@@ -20,7 +20,7 @@ const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-charact
 const SORTIE = process.env.SORTIE || ENV_E2E.TMP;
 const G = '51217123531215794892';
 const SUGG = 'E2E-0910-SUGG', SUGG2 = 'E2E-0910-SUGG2', CMD = 'E2E-0910-CMD';
-const ROLE = q("SELECT ru.lg_ROLE_ID FROM t_user u JOIN t_role_user ru ON ru.lg_USER_ID = u.lg_USER_ID WHERE u.str_LOGIN = 'admin' LIMIT 1");
+const ROLE = q("SELECT ru.lg_ROLE_ID FROM t_user u JOIN t_role_user ru ON ru.lg_USER_ID = u.lg_USER_ID WHERE u.str_LOGIN = '" + ENV_E2E.LOGIN + "' LIMIT 1");
 const RETIRES = ['P_CEC_ALERTES', 'P_CEC_TABLEAU_BORD'];
 let sauve = null, P = [], droitsRetires = [];
 
@@ -49,7 +49,7 @@ const url = (u) => exec("UPDATE t_grossiste SET str_URL_PHARMAML = " + (u === nu
   const connexion = async () => {
     p.on('pageerror', (e) => err.push(String(e.message)));
     await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 40000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 90000 });
     await p.waitForTimeout(1500);
@@ -120,7 +120,7 @@ const url = (u) => exec("UPDATE t_grossiste SET str_URL_PHARMAML = " + (u === nu
 
     /* 3) ecran de traitement d'une commande : bouton dans la barre du bas */
     exec("INSERT INTO t_order (lg_ORDER_ID, str_REF_ORDER, int_LINE, lg_GROSSISTE_ID, lg_USER_ID, str_STATUT, dt_CREATED, dt_UPDATED, int_PRICE, recu, direct_import)"
-      + " VALUES ('" + CMD + "', '" + CMD + "', 2, '" + G + "', (SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = 'admin' LIMIT 1), 'is_Process', NOW(), NOW(), 0, 0, 0)");
+      + " VALUES ('" + CMD + "', '" + CMD + "', 2, '" + G + "', (SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "' LIMIT 1), 'is_Process', NOW(), NOW(), 0, 0, 0)");
     P.forEach((f, i) => exec("INSERT INTO t_order_detail (lg_ORDERDETAIL_ID, lg_ORDER_ID, lg_FAMILLE_ID, lg_GROSSISTE_ID, int_NUMBER, int_PRICE, int_PAF_DETAIL, int_PRICE_DETAIL, str_STATUT, dt_CREATED, dt_UPDATED)"
       + " VALUES ('" + CMD + "-" + i + "', '" + CMD + "', '" + f + "', '" + G + "', " + (i + 2) + ", 0, 1000, 2000, 'is_Process', NOW(), NOW())"));
     const ouvrirCommande = async () => {

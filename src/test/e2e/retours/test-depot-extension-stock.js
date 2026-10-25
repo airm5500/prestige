@@ -115,7 +115,7 @@ const recupererPdf = (p, url) => p.evaluate(async (u) => {
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   try {
     await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 40000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 90000 });
     await p.waitForTimeout(1500);
@@ -133,7 +133,7 @@ const recupererPdf = (p, url) => p.evaluate(async (u) => {
     ok('Le libellé et la description tiennent dans la navigation (25 et 30 au plus)',
       longueurs[0] <= 25 && longueurs[1] <= 30, 'libelle=' + longueurs[0] + ' description=' + longueurs[1]);
     const visible = q("SELECT COUNT(*) FROM v_getallsousmenubyconnecteduser v JOIN t_user u ON u.lg_USER_ID=v.lg_USER_ID"
-      + " WHERE u.str_LOGIN='admin' AND v.str_COMPOSANT='depotextension'");
+      + " WHERE u.str_LOGIN='" + ENV_E2E.LOGIN + "' AND v.str_COMPOSANT='depotextension'");
     ok('Il est visible pour un profil administrateur', visible === '1', visible);
 
     await p.evaluate(() => { testextjs.app.getController('App').onRedirectTo('depotextension', {}); });

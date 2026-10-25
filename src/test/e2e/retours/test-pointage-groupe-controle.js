@@ -16,10 +16,10 @@ const BASE = ENV_E2E.BASE;
 const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE], { encoding: 'utf8', input: s });
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const G1 = '51217123167082947316', G1B = '51217123725332335681';
-const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = 'admin'");
-const NOM = q("SELECT TRIM(CONCAT(str_FIRST_NAME, ' ', str_LAST_NAME)) FROM t_user WHERE str_LOGIN = 'admin'");
+const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
+const NOM = q("SELECT TRIM(CONCAT(str_FIRST_NAME, ' ', str_LAST_NAME)) FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
 const P = q("SELECT lg_FAMILLE_ID FROM t_famille WHERE str_STATUT = 'enable' ORDER BY str_NAME LIMIT 1");
-const EMPL = q("SELECT lg_EMPLACEMENT_ID FROM t_user WHERE str_LOGIN = 'admin'");
+const EMPL = q("SELECT lg_EMPLACEMENT_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
 
 function nettoyer() {
   exec("SET FOREIGN_KEY_CHECKS = 0; DELETE FROM t_bon_livraison_detail WHERE lg_BON_LIVRAISON_ID LIKE 'E2E-PG-%'; DELETE FROM t_bon_livraison WHERE lg_BON_LIVRAISON_ID LIKE 'E2E-PG-%';"
@@ -49,7 +49,7 @@ function bl(n, grossiste, recue) {
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   try {
     await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 120000 });
     // libelle affiche = str_DESCRIPTION, raccourci a 25 caracteres au plus (migration 6.9.134, besoins du 11/10)

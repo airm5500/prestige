@@ -23,7 +23,7 @@ const BASE = ENV_E2E.BASE;
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const ID = 'E2E-RHV', LOGIN = 'e2e-rh-valid', MDP = 'E2e-Rhv-7', ROLE = 'E2E-RHV-ROLE';
 const EMP_MOI = 'E2E-RHV-E1', EMP_AUTRE = 'E2E-RHV-E2';
-const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = 'admin'");
+const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
 const priv = (n) => q("SELECT lg_PRIVELEGE_ID FROM t_privilege WHERE str_NAME = '" + n + "'");
 const VALIDER = priv('P_RH_VALIDER_CONGE');
 

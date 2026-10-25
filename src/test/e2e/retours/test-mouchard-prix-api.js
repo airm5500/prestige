@@ -30,7 +30,7 @@ const auj = new Date(); const iso = (x) => x.getFullYear() + '-' + String(x.getM
       { nom: 'action COMMANDE', q: { dt_Date_Debut: '2020-01-01', dt_Date_Fin: iso(auj), str_ACTION: 'COMMANDE' } },
       { nom: 'action FICHEARTICLE, un mois', q: { dt_Date_Debut: iso(new Date(auj.getFullYear(), auj.getMonth() - 1, 1)), dt_Date_Fin: iso(auj), str_ACTION: 'FICHEARTICLE' } }
     ];
-    for (const login of ['admin', 'KGA3']) {
+    for (const login of [ENV_E2E.LOGIN, 'KGA3']) {
       const p = await connecter(login);
       for (const j of JEUX) {
         const qs = new URLSearchParams(Object.assign({ start: 0, limit: 20, page: 1 }, j.q)).toString();
@@ -55,7 +55,7 @@ const auj = new Date(); const iso = (x) => x.getFullYear() + '-' + String(x.getM
         ok(login + ' / ' + j.nom + ' : même total et mêmes lignes que l\'ancienne page (' + j2.total + ' ; ' + j2.results.length + ' sur la page)', memeTotal && memesLignes,
           memeTotal && memesLignes ? '' : 'total ' + a.total + ' / ' + j2.total + ' ; lignes jsp ' + a.results.length + ' api ' + j2.results.length + ' ; jsp ' + a.results.map((x) => x.str_DESCRIPTION_PLUS).slice(0, 4).join(',') + ' api ' + j2.results.map((x) => x.str_DESCRIPTION_PLUS).slice(0, 4).join(','));
       }
-      if (login === 'admin') {
+      if (login === ENV_E2E.LOGIN) {
         /* ------------------------------------------------ a l'ecran */
         const appels = []; p.on('request', (q) => { if (/prixmodifies|mouchard-prix/.test(q.url())) { appels.push(q.url()); } });
         await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 120000 });

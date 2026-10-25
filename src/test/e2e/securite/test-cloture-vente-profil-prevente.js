@@ -83,7 +83,7 @@ function nettoyer() {
     /* onglet 1 : admin commence une vente */
     const p1 = await ctx.newPage();
     p1.on('request', (r) => { if (/vente\/cloturer\/vno/.test(r.url())) { corpsCloture = r.postData(); } });
-    await connexion(p1, 'admin', 'e2etest');
+    await connexion(p1, ENV_E2E.LOGIN, 'e2etest');
     await ouvrirMenu(p1, 'SERVICE CLIENT', 'Ventes');
     await p1.waitForFunction(() => Ext.ComponentQuery.query('cloturerventemanager #addBtn').some((x) => x.isVisible(true)), null, { timeout: 60000 });
     await cliquer(p1, 'cloturerventemanager #addBtn');
@@ -148,7 +148,7 @@ function nettoyer() {
 
     /* non-regression : un seul compte, vente terminee normalement */
     const p3 = await (await b.newContext({ viewport: { width: 1600, height: 900 } })).newPage();
-    await connexion(p3, 'admin', 'e2etest');
+    await connexion(p3, ENV_E2E.LOGIN, 'e2etest');
     await ouvrirMenu(p3, 'SERVICE CLIENT', 'Ventes');
     await p3.waitForLoadState('networkidle').catch(() => {});
     await p3.waitForFunction(() => Ext.ComponentQuery.query('cloturerventemanager #addBtn').some((x) => x.isVisible(true)), null, { timeout: 60000 });

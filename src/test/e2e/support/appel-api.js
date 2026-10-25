@@ -6,7 +6,7 @@ const ENV_E2E = require('../outils/poste');
   const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await b.newPage();
   await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-  await p.fill('#str_login', process.env.E2E_LOGIN || 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+  await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
   await p.waitForURL('**/general/**', { timeout: 30000 });
   const t0 = Date.now();
   const r = await p.evaluate(async (a) => { const x = await fetch(a.url, { method: a.methode, headers: { 'Content-Type': 'application/json' }, body: a.corps || undefined }); return { statut: x.status, corps: await x.text() }; }, { methode, url, corps });

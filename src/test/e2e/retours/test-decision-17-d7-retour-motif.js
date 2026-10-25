@@ -20,7 +20,7 @@ const BASE = ENV_E2E.BASE;
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
 const M = 'E2E-D7-', REF = 'E2E-D7-BL1', NOTE = 'E2E-D7-RETOUR';
-const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = 'admin'");
+const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
 const PRODUIT = q("SELECT f.lg_FAMILLE_ID FROM t_famille f JOIN t_famille_stock s ON s.lg_FAMILLE_ID = f.lg_FAMILLE_ID AND s.lg_EMPLACEMENT_ID = '1'"
   + " WHERE f.str_STATUT = 'enable' AND COALESCE(f.bool_DECONDITIONNE, 0) = 0 ORDER BY f.lg_FAMILLE_ID LIMIT 1 OFFSET 17");
 const G = q("SELECT lg_GROSSISTE_ID FROM t_grossiste WHERE str_STATUT = 'enable' ORDER BY lg_GROSSISTE_ID LIMIT 1");
@@ -58,7 +58,7 @@ function poser() {
   const lignes = (id) => q(`SELECT IFNULL(GROUP_CONCAT(CONCAT(lg_MOTIF_RETOUR, ':', int_NUMBER_RETURN) ORDER BY lg_MOTIF_RETOUR SEPARATOR ' '), '') FROM t_retour_fournisseur_detail WHERE lg_RETOUR_FRS_ID = '${id}'`);
   try {
     await p.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     const r = await api('POST', '../api/v1/retourfournisseur/new', { lgBONLIVRAISONID: REF, strCOMMENTAIRE: NOTE, items: [{ produitId: PRODUIT, lgMOTIFRETOUR: MA, intNUMBERRETURN: 2 }] });
     const id = r.data && r.data.lgRETOURFRSID;
@@ -80,7 +80,7 @@ function poser() {
       const item = u.locator('.x-boundlist:visible .x-boundlist-item').filter({ hasText: choix || texte }).first();
       await item.waitFor({ timeout: 20000 }); await item.click(); await u.waitForTimeout(500);
     };
-    await connexion(u, 'admin', 'e2etest');
+    await connexion(u, ENV_E2E.LOGIN, 'e2etest');
     await ouvrirMenu(u, 'GESTION DES COMMANDES', 'Retour fournisseur');
     await u.waitForFunction(() => Ext.ComponentQuery.query('retourfrsmanager').some((c) => c.isVisible(true)), null, { timeout: 60000 });
     const nouveau = u.locator('.x-btn').filter({ visible: true }).filter({ hasText: 'NOUVEAU RETOUR' }).first();

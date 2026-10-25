@@ -10,7 +10,7 @@ const { execFileSync } = require('child_process');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 400) + ']' : '')); }
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', ENV_E2E.BASE, '-sN'], { input: s, encoding: 'utf8' }).trim();
-const LOGIN = process.env.E2E_LOGIN || 'admin';
+const LOGIN = ENV_E2E.LOGIN;
 const EMP = q(`SELECT lg_EMPLACEMENT_ID FROM t_user WHERE str_LOGIN = '${LOGIN}'`);
 const [ZONE, LIB] = q(`SELECT z.lg_ZONE_GEO_ID, z.str_LIBELLEE FROM t_famille f JOIN t_zone_geographique z ON z.lg_ZONE_GEO_ID = f.lg_ZONE_GEO_ID
   JOIN t_famille_stock s ON s.lg_FAMILLE_ID = f.lg_FAMILLE_ID AND s.lg_EMPLACEMENT_ID = '${EMP}' WHERE f.str_STATUT = 'enable'

@@ -20,7 +20,7 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
 const BASE = ENV_E2E.BASE;
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const MAX_MS = 6000;
-const EMP = q("SELECT lg_EMPLACEMENT_ID FROM t_user WHERE str_LOGIN = 'admin'");
+const EMP = q("SELECT lg_EMPLACEMENT_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
 const ventes = (debut, fin, plus) => `FROM t_preenregistrement p JOIN t_user u ON u.lg_USER_ID = p.lg_USER_ID`
   + ` JOIN t_preenregistrement_detail d ON d.lg_PREENREGISTREMENT_ID = p.lg_PREENREGISTREMENT_ID JOIN t_famille f ON f.lg_FAMILLE_ID = d.lg_FAMILLE_ID`
   + ` JOIN t_famillearticle fa ON fa.lg_FAMILLEARTICLE_ID = f.lg_FAMILLEARTICLE_ID WHERE p.dt_UPDATED >= '${debut}' AND p.dt_UPDATED < '${fin}'`
@@ -42,7 +42,7 @@ const retirerDroit = () => q(`DELETE FROM t_role_privelege WHERE lg_ROLE_PRIVILE
   retirerDroit();
   q(`INSERT INTO t_role_privelege (lg_ROLE_PRIVILEGE, lg_ROLE_ID, lg_PRIVILEGE_ID, dt_CREATED, dt_UPDATED)`
     + ` SELECT '${DROIT}', ru.lg_ROLE_ID, pr.lg_PRIVELEGE_ID, NOW(), NOW() FROM t_user u JOIN t_role_user ru ON ru.lg_USER_ID = u.lg_USER_ID`
-    + ` JOIN t_privilege pr ON pr.str_NAME = 'P_SM_FAMI_STAT' WHERE u.str_LOGIN = 'admin'`
+    + ` JOIN t_privilege pr ON pr.str_NAME = 'P_SM_FAMI_STAT' WHERE u.str_LOGIN = '${ENV_E2E.LOGIN}'`
     + ` AND NOT EXISTS (SELECT 1 FROM t_role_privelege x WHERE x.lg_ROLE_ID = ru.lg_ROLE_ID AND x.lg_PRIVILEGE_ID = pr.lg_PRIVELEGE_ID)`);
   const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await (await b.newContext({ viewport: { width: 1600, height: 900 } })).newPage();
@@ -63,7 +63,7 @@ const retirerDroit = () => q(`DELETE FROM t_role_privelege WHERE lg_ROLE_PRIVILE
     return ms;
   };
   try {
-    await connexion(p, 'admin', 'e2etest');
+    await connexion(p, ENV_E2E.LOGIN, 'e2etest');
     await ouvrirMenu(p, 'ANALYSE DE GESTION', 'Statistique famille');
     const ouverture = p.waitForResponse((r) => /statfamillearticle\?/.test(r.url()), { timeout: 120000 });
     await p.waitForFunction(() => Ext.ComponentQuery.query('statfamilleartcl').some((c) => c.isVisible(true)), null, { timeout: 60000 });

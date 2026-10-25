@@ -51,14 +51,14 @@ const retirer = () => q(`DELETE FROM mobile_client_ref WHERE ref LIKE 'e2e-p51-%
     const a0 = await appel(anonyme, 'GET', '../api/v1/rh/moi');
     ok('51 : sans session, rh/moi → 401', a0.status === 401, a0.status);
     const adm = await (await b.newContext()).newPage();
-    await connexion(adm, 'admin', 'e2etest');
+    await connexion(adm, ENV_E2E.LOGIN, 'e2etest');
     const code = (await appel(adm, 'GET', '../api/v1/rh/mobile/code')).j;
     const p1 = await (await b.newContext()).newPage();
     await connexion(p1, L1, M1);
     const moi = await appel(p1, 'GET', '../api/v1/rh/moi');
     ok('51 : rh/moi = l\'utilisateur de la session et son employé (sans P_SM_RH)', moi.status === 200 && moi.j && moi.j.success === true
       && moi.j.utilisateur && moi.j.utilisateur.login === L1 && moi.j.employe && moi.j.employe.id === E1, JSON.stringify(moi).slice(0, 200));
-    const corps = { code: code && code.code, employeId: AUTRE, login: 'admin' };
+    const corps = { code: code && code.code, employeId: AUTRE, login: ENV_E2E.LOGIN };
     const r1 = await appel(p1, 'POST', '../api/v1/rh/moi/pointages', corps, { 'X-Client-Ref': 'e2e-p51-1' });
     const r1b = await appel(p1, 'POST', '../api/v1/rh/moi/pointages', corps, { 'X-Client-Ref': 'e2e-p51-1' });
     ok('51 : pointage enregistré au nom de la session (employeId et login du corps ignorés)', r1.j && r1.j.success === true && nb() === 1

@@ -27,7 +27,7 @@ const AUTRES = ['SERVICE CLIENT', 'GESTION COURANTE', 'FACTURATION', 'GESTION DE
   try {
     for (let i = 0; i < 3; i++) {
       const p = await (await b.newContext({ viewport: { width: 1400, height: 900 } })).newPage();
-      await connexion(p, 'admin', 'e2etest');
+      await connexion(p, ENV_E2E.LOGIN, 'e2etest');
       ordres.push(await p.evaluate(() => { const l = []; Ext.ComponentQuery.query('navigation')[0].getStore().getRootNode().eachChild((m) => { if (m.childNodes.length) { l.push(m.get('text')); } }); return l; }));
       await p.context().close();
     }

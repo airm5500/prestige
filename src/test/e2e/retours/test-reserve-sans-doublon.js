@@ -51,7 +51,7 @@ const retirerReserve = () => exec("DELETE FROM t_type_stock_famille WHERE lg_TYP
     const r = await fetch(u, { method: 'POST', headers: h, body: JSON.stringify(c) }); return r.json(); }, [u, c, ref]);
   try {
     await p.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     const MOTIF = Number(q('SELECT id FROM motif_suggestion_reserve ORDER BY id LIMIT 1'));
     const corps = { categorie: 'RAYON', motifId: MOTIF, commentaire: 'E2E-RES-DOUBLON', items: [{ lg_FAMILLE_ID: P, int_QTE: 2 }] };

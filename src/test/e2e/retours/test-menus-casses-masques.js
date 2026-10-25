@@ -27,7 +27,7 @@ const CASSES = ['ventemanagerbis', 'vendeurcaissiermanager', 'corbeillevente', '
   const p = await (await b.newContext({ viewport: { width: 1600, height: 900 } })).newPage();
   const erreurs = []; p.on('pageerror', (e) => erreurs.push(e.message));
   try {
-    await connexion(p, 'admin', 'e2etest');
+    await connexion(p, ENV_E2E.LOGIN, 'e2etest');
     const arbre = await p.evaluate(() => { const ids = [], parents = {};
       Ext.ComponentQuery.query('navigation')[0].getStore().getRootNode().cascadeBy((n) => { if (n.isLeaf()) { ids.push(n.get('id'));
         const t = n.parentNode.get('text'); parents[t] = (parents[t] || 0) + 1; } }); return { ids, parents }; });

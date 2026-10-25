@@ -59,7 +59,7 @@ const ventes = [];
     for (const lect of ['1', '0']) {
       q(`UPDATE t_parameters SET str_VALUE = '${lect}' WHERE str_KEY = 'KEY_VENTE_LECTURE_GS1'`);
       await nouvellePage();
-      await connexion(p, 'admin', 'e2etest');
+      await connexion(p, ENV_E2E.LOGIN, 'e2etest');
       await nouvelleVente();
       const r = await scanner(COLLE);
       ok('Vente (lecture GS1 = ' + lect + ') : étiquette Prestige sans séparateur -> produit ajouté', r.n >= 1, JSON.stringify(r));

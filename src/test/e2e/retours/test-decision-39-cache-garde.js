@@ -26,7 +26,7 @@ const retirer = () => q(`DELETE FROM garde WHERE id = '${ID}'`);
   const page = (s, l) => p.evaluate(async ([id, s, l]) => { const t = performance.now(); const x = await (await fetch('../api/v1/gardes/' + id + '/rapport?start=' + s + '&limit=' + l)).json();
     return { ms: Math.round(performance.now() - t), abc: (x.abc || []).map((a) => JSON.stringify(a)), total: x.totalAbc, kpi: JSON.stringify(x.kpi) }; }, [ID, s, l]);
   try {
-    await connexion(p, 'admin', 'e2etest');
+    await connexion(p, ENV_E2E.LOGIN, 'e2etest');
     const tout = await page(0, 200);
     const p2 = await page(100, 100), p3 = await page(200, 100);
     ok('Pages suivantes servies depuis le calcul gardé (< 300 ms chacune)', p2.ms < 300 && p3.ms < 300, 'tout ' + tout.ms + ' ms, page 2 ' + p2.ms + ' ms, page 3 ' + p3.ms + ' ms');

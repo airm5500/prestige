@@ -18,9 +18,9 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
 const BASE = ENV_E2E.BASE;
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
-const droitRh = require('../support/privilege-essai')(q, exec, 'admin', 'P_SM_RH');
+const droitRh = require('../support/privilege-essai')(q, exec, ENV_E2E.LOGIN, 'P_SM_RH');
 /* demande 52 : P_RH_POINTER ouvre aussi l'envoi de la photo (terminal) ; « sans droit RH » = sans les deux */
-const droitPointer = require('../support/privilege-essai')(q, exec, 'admin', 'P_RH_POINTER');
+const droitPointer = require('../support/privilege-essai')(q, exec, ENV_E2E.LOGIN, 'P_RH_POINTER');
 const ID1 = 'e2e-photo-0001-aaaa', ID2 = 'e2e-photo-0002-bbbb', ID3 = 'e2e-photo-0003-cccc';
 
 function retirer() {
@@ -38,7 +38,7 @@ function retirer() {
   const connecter = async () => {
     p = await (await b.newContext({ viewport: { width: 1400, height: 900 } })).newPage();
     await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 40000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 90000 });
   };

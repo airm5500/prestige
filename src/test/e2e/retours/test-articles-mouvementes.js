@@ -32,7 +32,7 @@ function nettoyer() {
    c'est lui qui prouve la ligne unique et la concatenation des modes. */
 function poser() {
   nettoyer();
-  const user = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='admin'");
+  const user = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='" + ENV_E2E.LOGIN + "'");
   const zones = q("SELECT GROUP_CONCAT(z ORDER BY n DESC SEPARATOR '|') FROM (SELECT f.lg_ZONE_GEO_ID z, COUNT(*) n"
     + " FROM t_famille f WHERE f.str_STATUT='enable' AND f.lg_ZONE_GEO_ID IS NOT NULL GROUP BY 1 HAVING n>=4"
     + " ORDER BY n DESC LIMIT 2) x").split('|');
@@ -59,7 +59,7 @@ function poser() {
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   try {
     await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 40000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 90000 });
     await p.waitForTimeout(1500);

@@ -17,10 +17,10 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
 const { q, exec, MOIS_A, FIN_B, fr, poserJeuDEssai, retirerJeuDEssai } = require('../support/jeu-balance');
 const TMP = ENV_E2E.TMP + '/claude-0/lot-pq';
 const MARQUE = 'E2E-PQ';
-const ROLE_KGA3 = q("SELECT ru.lg_ROLE_ID FROM t_role_user ru JOIN t_user u ON u.lg_USER_ID=ru.lg_USER_ID WHERE u.str_LOGIN='" + (process.env.E2E_LOGIN || 'admin') + "' LIMIT 1");
+const ROLE_KGA3 = q("SELECT ru.lg_ROLE_ID FROM t_role_user ru JOIN t_user u ON u.lg_USER_ID=ru.lg_USER_ID WHERE u.str_LOGIN='" + (ENV_E2E.LOGIN) + "' LIMIT 1");
 const PRIVILEGE = q("SELECT lg_PRIVELEGE_ID FROM t_privilege WHERE str_NAME='P_BALANCE_ANCIENNE_PRESENTATION'");
 /* compte de test sans le privilege (admin les a tous) : retire de son role le temps du test, puis remis */
-const sansPrivilege = require('../support/privilege-essai')(q, exec, process.env.E2E_LOGIN || 'admin', 'P_BALANCE_ANCIENNE_PRESENTATION');
+const sansPrivilege = require('../support/privilege-essai')(q, exec, ENV_E2E.LOGIN, 'P_BALANCE_ANCIENNE_PRESENTATION');
 
 let PRODUITS = [], USER = '', STOCK_AVANT = null;
 const DEBUT = '2037-02-05 20:00', FIN = '2037-02-06 08:00';
@@ -41,7 +41,7 @@ function purgerGarde() {
   exec("DELETE FROM t_role_privelege WHERE lg_ROLE_PRIVILEGE='" + MARQUE + "-PRIV'");
 }
 function semerGarde() {
-  USER = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='" + (process.env.E2E_LOGIN || 'admin') + "'");
+  USER = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='" + (ENV_E2E.LOGIN) + "'");
   PRODUITS = q("SELECT f.lg_FAMILLE_ID FROM t_famille f JOIN t_famille_stock s ON s.lg_FAMILLE_ID=f.lg_FAMILLE_ID AND s.lg_EMPLACEMENT_ID='1'"
     + " WHERE f.str_STATUT='enable' AND f.bool_DECONDITIONNE=0 ORDER BY f.str_NAME LIMIT 3").split('\n').filter(Boolean).map(x => x.trim());
   if (!USER || PRODUITS.length !== 3) { return false; }
@@ -73,7 +73,7 @@ function semerGarde() {
   const popups = []; ctx.on('page', pg => popups.push(pg));
   const connexion = async () => {
     await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', process.env.E2E_LOGIN || 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 30000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 60000 });
     await p.waitForTimeout(2500);

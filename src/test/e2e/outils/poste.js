@@ -6,6 +6,8 @@
  *
  * Variables d'environnement :
  *   DB_TEST          base des tests (defaut : laborex_v1_db sous Windows, capitale sous Linux) ;
+ *   E2E_LOGIN        compte de connexion des tests, mot de passe e2etest (defaut : e2e sous Windows, cree par
+ *                    outils/poste-local/compte-essai.sql avec les droits d'admin ; admin sous Linux) ;
  *   E2E_BASE_LIBRE   1 pour autoriser, sous Windows, une autre base que laborex_v1_db ;
  *   CHROMIUM         executable de Chromium (defaut sous Windows : celui de PLAYWRIGHT_BROWSERS_PATH) ;
  *   MARIADB_OPTIONS  fichier d'options du client mariadb : utilisateur et mot de passe, hors du depot
@@ -24,6 +26,9 @@ if (WINDOWS && BASE !== COPIE_DE_TRAVAIL && process.env.E2E_BASE_LIBRE !== '1') 
     + '). Pour une autre copie de travail, poser E2E_BASE_LIBRE=1.');
 }
 
+/* la copie de travail garde le mot de passe d'origine d'admin : les tests y ont leur propre compte */
+const LOGIN = process.env.E2E_LOGIN || (WINDOWS ? 'e2e' : 'admin');
+
 /* undefined : Playwright prend le Chromium installe par « playwright-core install chromium » */
 const CHROMIUM = process.env.CHROMIUM || (WINDOWS ? undefined : '/opt/pw-browsers/chromium');
 
@@ -33,7 +38,7 @@ const OPTIONS = process.env.MARIADB_OPTIONS || (WINDOWS ? path.join(os.homedir()
 const TMP = WINDOWS ? os.tmpdir() : '/tmp';
 
 module.exports = {
-  WINDOWS, BASE, CHROMIUM, TMP,
+  WINDOWS, BASE, LOGIN, CHROMIUM, TMP,
   /* arguments a placer en tete de chaque appel au client mariadb ; verifie a l'appel, pour que les tests sans base
      n'aient pas besoin du fichier d'options */
   get MARIADB() {

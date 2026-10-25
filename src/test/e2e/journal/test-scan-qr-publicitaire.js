@@ -62,7 +62,7 @@ const ECRANS = [
     await p.waitForTimeout(2000);
   };
   try {
-    await connexion(p, 'admin', 'e2etest');
+    await connexion(p, ENV_E2E.LOGIN, 'e2etest');
     for (const e of ECRANS) {
       try {
         appels.length = 0;

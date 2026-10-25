@@ -24,7 +24,7 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
 const BASE = ENV_E2E.BASE;
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const MAX_MS = 6000;
-const EMP = q("SELECT lg_EMPLACEMENT_ID FROM t_user WHERE str_LOGIN = 'admin'");
+const EMP = q("SELECT lg_EMPLACEMENT_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
 const ventes = (debut, fin, plus) => `FROM t_preenregistrement p JOIN t_user u ON u.lg_USER_ID = p.lg_USER_ID`
   + ` JOIN t_preenregistrement_detail d ON d.lg_PREENREGISTREMENT_ID = p.lg_PREENREGISTREMENT_ID JOIN t_famille f ON f.lg_FAMILLE_ID = d.lg_FAMILLE_ID`
   + ` JOIN t_zone_geographique z ON z.lg_ZONE_GEO_ID = f.lg_ZONE_GEO_ID JOIN t_grossiste g ON g.lg_GROSSISTE_ID = f.lg_GROSSISTE_ID`
@@ -60,14 +60,14 @@ const retirerDroits = () => q(`DELETE FROM t_role_privelege WHERE lg_ROLE_PRIVIL
   for (const [ligne, droit] of Object.entries(DROITS)) {
     q(`INSERT INTO t_role_privelege (lg_ROLE_PRIVILEGE, lg_ROLE_ID, lg_PRIVILEGE_ID, dt_CREATED, dt_UPDATED)`
       + ` SELECT '${ligne}', ru.lg_ROLE_ID, pr.lg_PRIVELEGE_ID, NOW(), NOW() FROM t_user u JOIN t_role_user ru ON ru.lg_USER_ID = u.lg_USER_ID`
-      + ` JOIN t_privilege pr ON pr.str_NAME = '${droit}' WHERE u.str_LOGIN = 'admin'`
+      + ` JOIN t_privilege pr ON pr.str_NAME = '${droit}' WHERE u.str_LOGIN = '${ENV_E2E.LOGIN}'`
       + ` AND NOT EXISTS (SELECT 1 FROM t_role_privelege x WHERE x.lg_ROLE_ID = ru.lg_ROLE_ID AND x.lg_PRIVILEGE_ID = pr.lg_PRIVELEGE_ID)`);
   }
   const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const p = await (await b.newContext({ viewport: { width: 1600, height: 900 } })).newPage();
   const erreurs = []; p.on('pageerror', (e) => erreurs.push(e.message));
   try {
-    await connexion(p, 'admin', 'e2etest');
+    await connexion(p, ENV_E2E.LOGIN, 'e2etest');
     for (const e of ECRANS) {
       const X = e.xtype;
       const grille = () => p.evaluate((X) => { const g = Ext.ComponentQuery.query(X + ' gridpanel')[0], s = g.getStore();

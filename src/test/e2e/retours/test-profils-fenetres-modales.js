@@ -35,7 +35,7 @@ const empreinte = () => q("SELECT CONCAT(COUNT(*), '|', IFNULL(MAX(dt_UPDATED), 
     const n = g.getView().getCell(g.getStore().getAt(0), cols[c]); n.dom.querySelector('img, .x-action-col-icon').click(); }, col);
   const fermer = (texte) => p.evaluate((t) => { const w = Ext.WindowManager.getActive(); const btn = w.query('button').find((x) => x.getText && x.getText() === t); btn.btnEl.dom.click(); }, texte);
   try {
-    await connexion(p, 'admin', 'e2etest');
+    await connexion(p, ENV_E2E.LOGIN, 'e2etest');
     await ouvrirMenu(p, 'GESTION DES UTILISATEURS', 'Gestion de profils');
     await p.waitForFunction(() => Ext.ComponentQuery.query('rolemanager').some((g) => g.isVisible(true) && g.getStore().getCount() > 0), null, { timeout: 60000 });
     await p.waitForTimeout(800);

@@ -49,7 +49,7 @@ function nettoyer() {
 
 function semer() {
   nettoyer();
-  const utilisateur = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='" + (process.env.E2E_LOGIN || 'admin') + "'");
+  const utilisateur = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='" + (ENV_E2E.LOGIN) + "'");
   /* Trois produits d'une meme zone : la ligne « zone » de l'analyse les regroupe tous les trois. Le banc a des ventes
      reelles dans toutes ses zones : une zone d'essai est creee et trois produits sans vente recente y sont ranges le
      temps du test (zone d'origine sauvegardee, puis remise). */
@@ -98,7 +98,7 @@ function semer() {
 
 /* l'ecran « CA emplacement / famille » demande son menu (P_SM_CA_ZONE_GEO), que le role du compte de test n'a pas
    sur le banc : il le recoit le temps du test (le serveur verifie ce droit sur la creation d'inventaire) */
-const droitMenu = require('../support/privilege-essai')(q, exec, 'admin', 'P_SM_CA_ZONE_GEO');
+const droitMenu = require('../support/privilege-essai')(q, exec, ENV_E2E.LOGIN, 'P_SM_CA_ZONE_GEO');
 
 (async () => {
   droitMenu.accorder();
@@ -107,7 +107,7 @@ const droitMenu = require('../support/privilege-essai')(q, exec, 'admin', 'P_SM_
   const p = await b.newPage({ viewport: { width: 1700, height: 950 } });
   const err = []; p.on('pageerror', e => err.push(String(e.message)));
   await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-  await p.fill('#str_login', process.env.E2E_LOGIN || 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+  await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
   await p.waitForURL('**/general/**', { timeout: 30000 });
   await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 60000 });
   await p.waitForTimeout(3000);

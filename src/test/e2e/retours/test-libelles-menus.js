@@ -9,7 +9,7 @@ const { execFileSync } = require('child_process');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 600) + ']' : '')); }
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', ENV_E2E.BASE, '-sN'], { input: s, encoding: 'utf8' }).trim();
-const LOGIN = process.env.E2E_LOGIN || 'admin';
+const LOGIN = ENV_E2E.LOGIN;
 
 (async () => {
   const longs = q("SELECT CONCAT('M:', lg_MENU_ID, '=', str_DESCRIPTION) FROM t_menu WHERE str_Status = 'enable' AND CHAR_LENGTH(str_DESCRIPTION) > 25"

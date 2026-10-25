@@ -24,7 +24,7 @@ const MARQUE = 'E2E-G21B';
 let KGA3 = '';
 
 (async () => {
-  KGA3 = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='" + (process.env.E2E_LOGIN || 'admin') + "'");
+  KGA3 = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='" + (ENV_E2E.LOGIN) + "'");
   exec("DELETE FROM garde WHERE libelle LIKE '" + MARQUE + " %'");
   const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const ctx = await b.newContext({ viewport: { width: 1800, height: 1000 } });
@@ -32,7 +32,7 @@ let KGA3 = '';
   const err = []; p.on('pageerror', e => err.push(String(e.message)));
   try {
     await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 120000 });
     await p.waitForTimeout(1500);

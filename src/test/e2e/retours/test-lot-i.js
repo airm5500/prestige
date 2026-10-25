@@ -34,7 +34,7 @@ function purgerVentes() {
 }
 function semerVentes() {
   purgerVentes();
-  const USER = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='" + (process.env.E2E_LOGIN || 'admin') + "'");
+  const USER = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='" + (ENV_E2E.LOGIN) + "'");
   /* la cloche a besoin d'au moins une notification : un lot qui perime dans deux mois (retire a la fin) */
   exec("INSERT INTO t_lot (lg_LOT_ID, lg_USER_ID, lg_FAMILLE_ID, int_NUM_LOT, int_NUMBER, dt_CREATED, dt_UPDATED, dt_PEREMPTION, str_STATUT, current_stock)"
     + " SELECT 'E2ELI-LOT', '" + USER + "', s.lg_FAMILLE_ID, 'E2ELI', 5, NOW(), NOW(), DATE_ADD(CURDATE(), INTERVAL 2 MONTH), 'enable', 5"
@@ -73,7 +73,7 @@ semerVentes();
   const p = await b.newPage({ viewport: { width: 1600, height: 950 } });
   const err = []; p.on('pageerror', e => err.push(String(e.message)));
   await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-  await p.fill('#str_login', process.env.E2E_LOGIN || 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+  await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
   await p.waitForURL('**/general/**', { timeout: 30000 });
   /* tableau de bord : ancien (iframe) ou nouveau (composant tableaubord, lot L8 du 06/10) */
   await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app && (document.querySelector('iframe') || Ext.ComponentQuery.query('tableaubord').length), null, { timeout: 60000 });

@@ -23,7 +23,7 @@ const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-charact
 const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
 
 (async () => {
-  const U = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = 'admin'");
+  const U = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
   const avant = q("SELECT COUNT(*) FROM t_preference_utilisateur WHERE lg_USER_ID = '" + U + "' AND str_CLE = 'cloche'") === '1'
     ? q("SELECT txt_VALEUR FROM t_preference_utilisateur WHERE lg_USER_ID = '" + U + "' AND str_CLE = 'cloche'") : null;
   exec("DELETE FROM t_preference_utilisateur WHERE lg_USER_ID = '" + U + "' AND str_CLE = 'cloche'");
@@ -43,7 +43,7 @@ const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-char
   };
   try {
     await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 40000 });
     await p.waitForFunction(() => window.Ext && window.PrestigeNotif && Ext.ComponentQuery.query('navigation').length && Ext.ComponentQuery.query('navigation')[0].getStore()._menuCharge, null, { timeout: 90000 });
     await p.waitForTimeout(2000);

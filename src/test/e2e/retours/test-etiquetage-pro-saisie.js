@@ -25,7 +25,7 @@ const auj = new Date(), jj = (d) => String(d.getDate()).padStart(2, '0') + '/' +
 
 (async () => {
   q("DELETE FROM t_lot WHERE lg_LOT_ID LIKE 'E2E-EPS-%'");
-  const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = 'admin'");
+  const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
   q("INSERT INTO t_lot (lg_LOT_ID, lg_USER_ID, lg_FAMILLE_ID, int_NUM_LOT, int_NUMBER, dt_CREATED, dt_UPDATED, dt_PEREMPTION, str_STATUT, current_stock) VALUES"
     + ` ('E2E-EPS-1', '${ADMIN}', '${PID}', 'E2ELOTB', 5, NOW(), NOW(), CURDATE() + INTERVAL 400 DAY, 'enable', 5),`
     + ` ('E2E-EPS-2', '${ADMIN}', '${PID}', 'E2ELOTA', 3, NOW(), NOW(), CURDATE() + INTERVAL 90 DAY, 'enable', 3),`
@@ -41,7 +41,7 @@ const auj = new Date(), jj = (d) => String(d.getDate()).padStart(2, '0') + '/' +
   const ligne = (i) => p.evaluate((k) => Ext.ComponentQuery.query('etiquetagepro')[0].produitsStore.getAt(k).data, i);
   const liste = () => p.evaluate(() => Array.from(document.querySelectorAll('.x-boundlist')).filter((x) => x.offsetParent).map((x) => x.innerText).join(' | '));
   try {
-    await connexion(p, 'admin', 'e2etest');
+    await connexion(p, ENV_E2E.LOGIN, 'e2etest');
     await ouvrirMenu(p, 'GESTION DU STOCK', 'Étiquettage Pro');
     await p.waitForFunction(() => { const e = Ext.ComponentQuery.query('etiquetagepro #saisie')[0]; return e && e.isVisible(true); }, null, { timeout: 60000 });
     await p.waitForTimeout(800);

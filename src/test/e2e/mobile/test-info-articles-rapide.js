@@ -74,7 +74,7 @@ const norm = (v) => (v === undefined || v === '' ? null : v);
       dt_CREATED, dt_UPDATED, str_STATUT, int_NUMBER) VALUES ('E2E-RESERVE-INFO', '${A}', '2', '${empA}', 'E2E', 'E2E', NOW(), NOW(), 'enable', 7)`);
 
     const login = await fetch(API + 'v1/user/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ login: 'admin', password: 'e2etest' }) });
+      body: JSON.stringify({ login: ENV_E2E.LOGIN, password: 'e2etest' }) });
     const cookie = (login.headers.get('set-cookie') || '').split(';')[0];
     const get = async (u) => { const t0 = Date.now(); const r = await fetch(API + u, { headers: { Cookie: cookie } }); const t = await r.text(); return { s: r.status, ms: Date.now() - t0, j: r.status === 200 ? JSON.parse(t) : null }; };
 

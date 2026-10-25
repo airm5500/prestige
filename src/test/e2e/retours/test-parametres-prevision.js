@@ -18,7 +18,7 @@ const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-charact
 const CLES = ['KEY_PREVISION_SEUIL_PEU_FIABLE', 'KEY_RISQUE_SECURITE_JOURS', 'KEY_PREVISION_MOIS_TEST'];
 const origine = {};
 CLES.forEach((c) => { origine[c] = q("SELECT IFNULL((SELECT str_VALUE FROM t_parameters WHERE str_KEY = '" + c + "'), 'ABSENT')"); });
-const ROLE = q("SELECT ru.lg_ROLE_ID FROM t_role_user ru JOIN t_user u ON u.lg_USER_ID = ru.lg_USER_ID WHERE u.str_LOGIN = 'admin' LIMIT 1");
+const ROLE = q("SELECT ru.lg_ROLE_ID FROM t_role_user ru JOIN t_user u ON u.lg_USER_ID = ru.lg_USER_ID WHERE u.str_LOGIN = '" + ENV_E2E.LOGIN + "' LIMIT 1");
 let droit = null;
 const valeur = (c) => q("SELECT str_VALUE FROM t_parameters WHERE str_KEY = '" + c + "'");
 
@@ -29,7 +29,7 @@ const valeur = (c) => q("SELECT str_VALUE FROM t_parameters WHERE str_KEY = '" +
   suivre(p);
   const connexion = async () => {
     await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 120000 });
     await p.waitForTimeout(1000);

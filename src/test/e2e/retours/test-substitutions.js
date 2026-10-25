@@ -51,7 +51,7 @@ function nettoyer() {
 }
 function poser(cmd) {
   exec("INSERT INTO t_order (lg_ORDER_ID, str_REF_ORDER, int_LINE, lg_GROSSISTE_ID, lg_USER_ID, str_STATUT, dt_CREATED, dt_UPDATED, int_PRICE, recu, direct_import)"
-    + " VALUES ('" + cmd + "', '" + cmd + "', 2, '" + G + "', (SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = 'admin' LIMIT 1), 'is_Process', NOW(), NOW(), 0, 0, 0)");
+    + " VALUES ('" + cmd + "', '" + cmd + "', 2, '" + G + "', (SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "' LIMIT 1), 'is_Process', NOW(), NOW(), 0, 0, 0)");
   P.slice(0, 2).forEach((p, i) => exec("INSERT INTO t_order_detail (lg_ORDERDETAIL_ID, lg_ORDER_ID, lg_FAMILLE_ID, lg_GROSSISTE_ID, int_NUMBER, int_PRICE, int_PAF_DETAIL, int_PRICE_DETAIL, str_STATUT, dt_CREATED, dt_UPDATED)"
     + " VALUES ('" + cmd + "-" + i + "', '" + cmd + "', '" + p + "', '" + G + "', " + (i + 2) + ", 0, 1000, 2000, 'is_Process', NOW(), NOW())"));
 }
@@ -100,7 +100,7 @@ const url = (u) => exec("UPDATE t_grossiste SET str_URL_PHARMAML = " + (u === nu
   };
   try {
     await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 40000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 90000 });
     await p.waitForTimeout(1500);
@@ -145,7 +145,7 @@ const url = (u) => exec("UPDATE t_grossiste SET str_URL_PHARMAML = " + (u === nu
     await p.waitForFunction(() => { const g = Ext.ComponentQuery.query('rupturepharma #grilleSubstitutions')[0]; return g && g.isVisible() && !g.getStore().isLoading() && g.getStore().findExact('reference', 'E2E-SUB-B') >= 0; }, null, { timeout: 20000 });
     await p.waitForTimeout(500);
     let l = await lignesSubst();
-    const qui = q("SELECT TRIM(CONCAT(IFNULL(str_FIRST_NAME,''), ' ', IFNULL(str_LAST_NAME,''))) FROM t_user WHERE str_LOGIN = 'admin'");
+    const qui = q("SELECT TRIM(CONCAT(IFNULL(str_FIRST_NAME,''), ' ', IFNULL(str_LAST_NAME,''))) FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
     ok('Onglet « Substitutions » : A livrée (Retirer), B acceptée (Annuler), qui a décidé, historique en info-bulle',
       l[A] && l[A].statut === 'AJOUTE' && l[A].retirer && l[B] && l[B].statut === 'ACCEPTE' && l[B].annuler && l[B].qui === qui && /Acceptée par/.test(l[B].tip), JSON.stringify(l));
     const miseEnPage = await p.evaluate(() => { const g = Ext.ComponentQuery.query('rupturepharma #grilleSubstitutions')[0];

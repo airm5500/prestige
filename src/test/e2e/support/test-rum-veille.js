@@ -34,7 +34,7 @@ const JETON = 'E2E-VEILLE-' + Date.now();
     p.on('dialog', (d) => { dialogues.push(d.message()); d.dismiss().catch(() => {}); });
     p.on('pageerror', (e) => err.push(String(e.message)));
     await p.goto(URL + '/security/index.html', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app && window.PrestigeRum, null, { timeout: 120000 });
     await p.waitForTimeout(2000);
@@ -47,12 +47,12 @@ const JETON = 'E2E-VEILLE-' + Date.now();
     await p.waitForTimeout(1500);
     await p.evaluate(() => window.PrestigeRum.envoyer(false));
     await p.waitForTimeout(2500);
-    const ecrans = q(`SELECT GROUP_CONCAT(DISTINCT cle ORDER BY cle) FROM t_rum WHERE utilisateur = 'admin' AND type = 'ECRAN' AND minute >= '${debut}'`);
+    const ecrans = q(`SELECT GROUP_CONCAT(DISTINCT cle ORDER BY cle) FROM t_rum WHERE utilisateur = '${ENV_E2E.LOGIN}' AND type = 'ECRAN' AND minute >= '${debut}'`);
     ok('Ouverture des écrans mesurée (campagnes, maintenance, stabilité)', ['campagnes', 'supportmaintenance', 'supportserveur'].every((x) => ecrans.split(',').indexOf(x) >= 0), ecrans);
-    const apis = q(`SELECT GROUP_CONCAT(DISTINCT cle ORDER BY cle SEPARATOR ' ; ') FROM t_rum WHERE utilisateur = 'admin' AND type = 'API' AND minute >= '${debut}'`);
+    const apis = q(`SELECT GROUP_CONCAT(DISTINCT cle ORDER BY cle SEPARATOR ' ; ') FROM t_rum WHERE utilisateur = '${ENV_E2E.LOGIN}' AND type = 'API' AND minute >= '${debut}'`);
     ok('Appels mesurés, chemin normalisé (GET v1/campagnes/fetes, GET v1/client/{id}/consentement)', apis.indexOf('GET v1/campagnes/fetes') >= 0 && apis.indexOf('GET v1/client/{id}/consentement') >= 0, apis.slice(0, 300));
     ok('Aucun paramètre ni identifiant gardé', q(`SELECT COUNT(*) FROM t_rum WHERE minute >= '${debut}' AND (cle LIKE '%?%' OR cle LIKE '%annee%' OR cle LIKE '%E2E-RUM%' OR cle LIKE '%123456%')`) === '0');
-    ok('Poste = celui de ce serveur Payara', /\/(serveur|caisse)$/.test(q(`SELECT DISTINCT poste FROM t_rum WHERE utilisateur = 'admin' AND minute >= '${debut}' LIMIT 1`)));
+    ok('Poste = celui de ce serveur Payara', /\/(serveur|caisse)$/.test(q(`SELECT DISTINCT poste FROM t_rum WHERE utilisateur = '${ENV_E2E.LOGIN}' AND minute >= '${debut}' LIMIT 1`)));
 
     /* onglet Experience utilisateur */
     await p.click('.supportserveur .x-tab:has-text("Expérience utilisateur")');
@@ -82,7 +82,7 @@ const JETON = 'E2E-VEILLE-' + Date.now();
     const allers = Number(q("SELECT COUNT(*) FROM mysql.general_log WHERE command_type IN ('Query', 'Execute') AND argument NOT LIKE '%general_log%'"));
     exec(`SET GLOBAL general_log = ${journalAvant}; SET GLOBAL log_output = '${sortieAvant}'; TRUNCATE mysql.general_log`);
     ok('Envoi de 20 mesures : 20 retenues, une seule connexion empruntée (au plus 11 allers-retours, 116 avant)', envoi.retenus === 20 && allers <= 11, allers + ' allers-retours');
-    const lignes = q("SELECT COUNT(*), COALESCE(SUM(nombre), 0), COUNT(DISTINCT minute) FROM t_rum WHERE utilisateur = 'admin' AND cle LIKE 'e2e-cout-%'").split('\t');
+    const lignes = q("SELECT COUNT(*), COALESCE(SUM(nombre), 0), COUNT(DISTINCT minute) FROM t_rum WHERE utilisateur = '" + ENV_E2E.LOGIN + "' AND cle LIKE 'e2e-cout-%'").split('\t');
     ok('Regroupement par 5 minutes : 4 lignes pour 20 mesures (4 écrans), rien de perdu', lignes[0] === '4' && lignes[1] === '20' && lignes[2] === '1', lignes.join(' '));
 
     /* point de veille */
@@ -122,7 +122,7 @@ const JETON = 'E2E-VEILLE-' + Date.now();
   } finally {
     await b.close();
     exec(`UPDATE t_parameters SET str_VALUE = '${rumAvant}' WHERE str_KEY = 'SUPPORT_RUM_ACTIF'; UPDATE t_parameters SET str_VALUE = '${jetonAvant}' WHERE str_KEY = 'SUPPORT_VEILLE_JETON';`
-      + `DELETE FROM t_rum WHERE utilisateur = 'admin' AND (minute >= '${debut}' OR cle LIKE 'e2e-cout-%')`);
+      + `DELETE FROM t_rum WHERE utilisateur = '${ENV_E2E.LOGIN}' AND (minute >= '${debut}' OR cle LIKE 'e2e-cout-%')`);
     ok('Paramètres et mesures du test remis', q("SELECT str_VALUE FROM t_parameters WHERE str_KEY = 'SUPPORT_VEILLE_JETON'") === jetonAvant);
     const ko = res.filter((x) => !x.c).length;
     console.log('\n' + (res.length - ko) + '/' + res.length + ' OK');

@@ -23,8 +23,8 @@ const BASE = ENV_E2E.BASE;
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN'], { input: s, encoding: 'utf8' }).trim();
 const DEBUT = q('SELECT NOW() - INTERVAL 1 SECOND');
 const MARQUE = 'E2E-TYPEET';
-const droitType = privilegeEssai(q, q, 'admin', 'P_SM_ETIQUETTE_TYPE');
-const droitPerso = privilegeEssai(q, q, 'admin', 'P_SM_ETIQUETTE_PERSO');
+const droitType = privilegeEssai(q, q, ENV_E2E.LOGIN, 'P_SM_ETIQUETTE_TYPE');
+const droitPerso = privilegeEssai(q, q, ENV_E2E.LOGIN, 'P_SM_ETIQUETTE_PERSO');
 const PARAMS = ['KEY_ETIQUETTE_CODE', 'KEY_ETIQUETTE_CODE_PAR_PRODUIT', 'KEY_ETIQUETTE_MODELE', 'KEY_ETIQUETTE_DECALAGE_X_MM', 'KEY_ETIQUETTE_ECHELLE_POURCENT',
   'KEY_ETIQUETTE_NB_COLONNES', 'KEY_ETIQUETTE_NB_LIGNES', 'KEY_ETIQUETTE_LARGEUR_MM', 'KEY_ETIQUETTE_HAUTEUR_MM', 'KEY_ETIQUETTE_ESPACE_H_MM',
   'KEY_ETIQUETTE_ESPACE_V_MM', 'KEY_ETIQUETTE_MARGE_GAUCHE_MM', 'KEY_ETIQUETTE_MARGE_HAUT_MM', 'KEY_ETIQUETTE_DECALAGE_Y_MM', 'KEY_ETIQUETTE_TELECHARGEMENT'];
@@ -73,7 +73,7 @@ const decoder = (binaire) => {
   const connexion = async () => {
     await ctx.clearCookies();
     await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 120000 });
     await p.evaluate(() => { window.__ouverts = []; window.open = function (u) { window.__ouverts.push(u); return null; }; });

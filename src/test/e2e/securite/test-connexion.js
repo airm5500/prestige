@@ -38,7 +38,7 @@ const FAUX = 'e2e_inconnu_' + Date.now();
     ok('Nom de la pharmacie affiché', (await p.textContent('#pl-pharma-name')).indexOf(officine) >= 0, await p.textContent('#pl-pharma-name'));
 
     /* mauvais mot de passe */
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'mauvais-mot-de-passe'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'mauvais-mot-de-passe'); await p.click('#login');
     await p.waitForFunction(() => { const m = document.getElementById('pl-message'); return m && !m.hidden && /\S/.test(m.textContent); }, null, { timeout: 10000 }).catch(() => {});
     const msg1 = await p.evaluate(() => { const m = document.getElementById('pl-message'); return m ? (m.hidden ? '' : m.textContent) : null; });
     ok('Mauvais mot de passe : message dans la page', /incorrect/i.test(msg1 || ''), msg1);
@@ -64,10 +64,10 @@ const FAUX = 'e2e_inconnu_' + Date.now();
     const essaiMdp = (l, m) => p.evaluate(async ([l2, m2]) => (await fetch('../api/v1/user/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ login: l2, password: m2 }) })).json(), [l, m]);
     const ra = [];
-    for (let i = 0; i < 10; i++) { ra.push(await essaiMdp('admin', 'faux-' + i)); }
+    for (let i = 0; i < 10; i++) { ra.push(await essaiMdp(ENV_E2E.LOGIN, 'faux-' + i)); }
     ok('Compte réel : bloqué au 10e échec', ra[9].attente === 30 && /Trop d'essais/.test(ra[9].message), JSON.stringify(ra[9]));
     await p.waitForTimeout(31000);
-    const apresAttente = await essaiMdp('admin', 'encore-faux');
+    const apresAttente = await essaiMdp(ENV_E2E.LOGIN, 'encore-faux');
     ok('Attente écoulée : une faute de frappe ne rebloque pas (message « incorrect »)', apresAttente.success === false && !apresAttente.attente && /incorrect/i.test(apresAttente.message), JSON.stringify(apresAttente));
 
     /* un autre compte passe ; la session change */
@@ -75,7 +75,7 @@ const FAUX = 'e2e_inconnu_' + Date.now();
     /* fixation de session : un identifiant impose avant la connexion n'est pas repris */
     await ctx.addCookies([{ name: 'JSESSIONID', value: 'identifiant-impose-e2e', domain: 'localhost', path: '/prestige' }]);
     const avant = (await ctx.cookies()).find((c) => c.name === 'JSESSIONID');
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     const apres = (await ctx.cookies()).find((c) => c.name === 'JSESSIONID');
     ok('Autre compte : connexion normale malgré le blocage du premier', /general/.test(p.url()));

@@ -16,12 +16,12 @@ const BASE = ENV_E2E.BASE;
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
 const M = 'E2E-D12-', REF = 'E2E-D12-BL1';
-const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = 'admin'");
+const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
 const PRODUITS = q("SELECT GROUP_CONCAT(x.id SEPARATOR '|') FROM (SELECT f.lg_FAMILLE_ID id FROM t_famille f JOIN t_famille_stock s ON s.lg_FAMILLE_ID = f.lg_FAMILLE_ID"
   + " AND s.lg_EMPLACEMENT_ID = '1' WHERE f.str_STATUT = 'enable' AND COALESCE(f.bool_DECONDITIONNE, 0) = 0 ORDER BY f.lg_FAMILLE_ID LIMIT 2 OFFSET 11) x").split('|');
 const NOMS = PRODUITS.map((id) => q(`SELECT str_NAME FROM t_famille WHERE lg_FAMILLE_ID = '${id}'`));
 const G = q("SELECT lg_GROSSISTE_ID FROM t_grossiste WHERE str_STATUT = 'enable' ORDER BY lg_GROSSISTE_ID LIMIT 1");
-const scanner = require('../support/privilege-essai')(q, exec, 'admin', 'P_BL_MOBILE_SCANNER');
+const scanner = require('../support/privilege-essai')(q, exec, ENV_E2E.LOGIN, 'P_BL_MOBILE_SCANNER');
 
 function retirer() {
   exec(`DELETE FROM mobile_client_ref WHERE ref LIKE 'e2e-d12-%';`
@@ -50,7 +50,7 @@ function poser() {
   const connecter = async () => {
     p = await (await b.newContext()).newPage();
     await p.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
   };
   const api = (m, u, c) => p.evaluate(async ([m, u, c]) => { const r = await fetch(u, { method: m, headers: { 'Content-Type': 'application/json' }, body: c === undefined ? undefined : JSON.stringify(c) });

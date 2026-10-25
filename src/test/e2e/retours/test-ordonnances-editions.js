@@ -93,7 +93,7 @@ function poser() {
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   try {
     await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 40000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 90000 });
     await p.waitForTimeout(1500);
@@ -317,7 +317,7 @@ function poser() {
 
     /* --------------------------------------------------------------- sans le privilège */
     const roleAdmin = q("SELECT ru.lg_ROLE_ID FROM t_role_user ru JOIN t_user u ON u.lg_USER_ID=ru.lg_USER_ID"
-      + " WHERE u.str_LOGIN='admin' LIMIT 1");
+      + " WHERE u.str_LOGIN='" + ENV_E2E.LOGIN + "' LIMIT 1");
     const priv = q("SELECT lg_PRIVELEGE_ID FROM t_privilege WHERE str_NAME='P_ORDONNANCE_CLIENT'");
     const ligne = q("SELECT lg_ROLE_PRIVILEGE FROM t_role_privelege WHERE lg_ROLE_ID='" + roleAdmin + "'"
       + " AND lg_PRIVILEGE_ID='" + priv + "' LIMIT 1");
@@ -327,7 +327,7 @@ function poser() {
       const ctx2 = await b.newContext({ viewport: { width: 1400, height: 900 } });
       const p2 = await ctx2.newPage();
       await p2.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-      await p2.fill('#str_login', 'admin'); await p2.fill('#str_password', 'e2etest'); await p2.click('#login');
+      await p2.fill('#str_login', ENV_E2E.LOGIN); await p2.fill('#str_password', 'e2etest'); await p2.click('#login');
       await p2.waitForURL('**/general/**', { timeout: 40000 });
       await p2.waitForFunction(() => window.Ext && window.testextjs, null, { timeout: 90000 });
       const refus = await p2.evaluate(async (id) => {

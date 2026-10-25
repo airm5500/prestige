@@ -22,7 +22,7 @@ const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-char
 const URL = 'http://localhost:8080/prestige';
 const API = URL + '/api/v1/mobile/';
 const APPAREIL = 'e2e-mobile-appareil', APPAREIL2 = 'e2e-mobile-page';
-const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = 'admin'");
+const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
 const PARAMS = ['KEY_MOBILE_ACTIF', 'KEY_RH_MOBILE_POINTAGE', 'KEY_RH_MOBILE_QR', 'KEY_RH_MOBILE_GPS', 'KEY_RH_MOBILE_LATITUDE', 'KEY_RH_MOBILE_LONGITUDE', 'KEY_RH_MOBILE_RAYON_M'];
 const avant = {};
 PARAMS.forEach((k) => { avant[k] = q("SELECT str_VALUE FROM t_parameters WHERE str_KEY = '" + k + "'"); });
@@ -57,11 +57,11 @@ async function appel(chemin, o) {
     PARAMS.forEach((k) => param(k, { KEY_MOBILE_ACTIF: '1', KEY_RH_MOBILE_POINTAGE: '1', KEY_RH_MOBILE_QR: '1', KEY_RH_MOBILE_GPS: '0', KEY_RH_MOBILE_LATITUDE: '', KEY_RH_MOBILE_LONGITUDE: '', KEY_RH_MOBILE_RAYON_M: '150' }[k]));
 
     /* ------------------------------------------------ connexion et jeton */
-    let r = await appel('connexion', { method: 'POST', json: { login: 'admin', motDePasse: 'faux', appareil: APPAREIL } });
+    let r = await appel('connexion', { method: 'POST', json: { login: ENV_E2E.LOGIN, motDePasse: 'faux', appareil: APPAREIL } });
     ok('Connexion : mauvais mot de passe refusé', r.j.success === false && !r.j.jeton, r.t);
-    r = await appel('connexion', { method: 'POST', json: { login: 'admin', motDePasse: 'e2etest' } });
+    r = await appel('connexion', { method: 'POST', json: { login: ENV_E2E.LOGIN, motDePasse: 'e2etest' } });
     ok('Connexion : appareil obligatoire', r.j.success === false, r.t);
-    r = await appel('connexion', { method: 'POST', json: { login: 'admin', motDePasse: 'e2etest', appareil: APPAREIL, nomAppareil: 'Téléphone essai' } });
+    r = await appel('connexion', { method: 'POST', json: { login: ENV_E2E.LOGIN, motDePasse: 'e2etest', appareil: APPAREIL, nomAppareil: 'Téléphone essai' } });
     const jeton = r.j.jeton;
     ok('Connexion : jeton signé délivré, téléphone enregistré', r.j.success === true && /^[\w-]+\.[\w-]+$/.test(jeton || '')
       && q("SELECT CONCAT(statut, '|', nom) FROM t_mobile_terminal WHERE appareil = '" + APPAREIL + "' AND lg_USER_ID = '" + ADMIN + "'") === 'ACTIF|Téléphone essai', r.t.replace(jeton, '<jeton>'));
@@ -100,7 +100,7 @@ async function appel(chemin, o) {
     const p = await ctx.newPage();
     p.on('pageerror', (e) => err.push('RH: ' + e.message));
     await p.goto(URL + '/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app && Ext.ComponentQuery.query('navigation').length
       && Ext.ComponentQuery.query('navigation')[0].getStore()._menuCharge, null, { timeout: 120000 });
@@ -168,7 +168,7 @@ async function appel(chemin, o) {
       && await p.evaluate(() => Ext.ComponentQuery.query('rhmanager #grilleTerminaux')[0].getEl().dom.textContent.includes('retiré')));
     r = await appel('moi', { jeton });
     ok('Téléphone retiré : jeton refusé', r.statut === 401, r.statut);
-    r = await appel('connexion', { method: 'POST', json: { login: 'admin', motDePasse: 'e2etest', appareil: APPAREIL } });
+    r = await appel('connexion', { method: 'POST', json: { login: ENV_E2E.LOGIN, motDePasse: 'e2etest', appareil: APPAREIL } });
     ok('Téléphone retiré : reconnexion refusée', r.j.success === false && /retiré/.test(r.j.message), r.t);
     await bouton('rh-bouton-reactiver');
     r = await appel('moi', { jeton });
@@ -181,7 +181,7 @@ async function appel(chemin, o) {
     await m.addInitScript((a) => { try { localStorage.setItem('prestigeMobileAppareil', a); } catch (e) { /* */ } }, APPAREIL2);
     await m.goto(URL + '/mobile/index.html', { waitUntil: 'domcontentloaded' });
     await m.waitForSelector('#vConnexion:not([hidden])');
-    await m.fill('[name=login]', 'admin'); await m.fill('[name=motDePasse]', 'e2etest'); await m.click('#fConnexion button');
+    await m.fill('[name=login]', ENV_E2E.LOGIN); await m.fill('[name=motDePasse]', 'e2etest'); await m.click('#fConnexion button');
     await m.waitForSelector('#vAccueil:not([hidden])', { timeout: 15000 });
     await m.waitForFunction(() => document.querySelectorAll('#lPointages li:not(.vide)').length > 0, null, { timeout: 10000 }).catch(() => {});
     const accueil = await m.evaluate(() => ({ qui: document.getElementById('qui').textContent, pointage: !document.getElementById('cPointage').hidden,

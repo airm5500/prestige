@@ -18,7 +18,7 @@ const INV = q("SELECT lg_INVENTAIRE_ID FROM t_inventaire WHERE str_STATUT = 'ena
   const get = (u) => p.evaluate(async (u) => { const r = await fetch(u); const t = await r.text(); return { http: r.status, corps: t.slice(0, 200) }; }, u);
   try {
     await p.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     const normale = await get('../api/v1/ws/inventaires?maxResult=5');
     ok('Lecture normale : 200 et une liste', normale.http === 200 && normale.corps.startsWith('['), JSON.stringify(normale));

@@ -16,8 +16,8 @@ const BASE = ENV_E2E.BASE;
 const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const SORTIE = process.env.SORTIE || ENV_E2E.TMP;
-const EMP = q("SELECT lg_EMPLACEMENT_ID FROM t_user WHERE str_LOGIN = 'admin'");
-const ROLE = q("SELECT ru.lg_ROLE_ID FROM t_user u JOIN t_role_user ru ON ru.lg_USER_ID = u.lg_USER_ID WHERE u.str_LOGIN = 'admin' LIMIT 1");
+const EMP = q("SELECT lg_EMPLACEMENT_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
+const ROLE = q("SELECT ru.lg_ROLE_ID FROM t_user u JOIN t_role_user ru ON ru.lg_USER_ID = u.lg_USER_ID WHERE u.str_LOGIN = '" + ENV_E2E.LOGIN + "' LIMIT 1");
 const CMD = 'E2E-RR-CMD', RUP = 'e2e-rr-rupture';
 let droit = null;
 const param = (k, d) => { const v = q("SELECT str_VALUE FROM t_parameters WHERE str_KEY = '" + k + "'"); return v === '' ? d : Number(v); };
@@ -57,7 +57,7 @@ function attendu(id) {
   const connexion = async () => {
     p.on('pageerror', (e) => err.push(String(e.message)));
     await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 40000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 90000 });
     await p.waitForTimeout(1500);
@@ -95,7 +95,7 @@ function attendu(id) {
     const critique = l.find((x) => ['RUPTURE', 'CRITIQUE', 'RISQUE'].includes(x.statut) && x.aCommander > 0 && x.parJour > 0 && x.enCours === 0);
     if (critique) {
       exec("INSERT INTO t_order (lg_ORDER_ID, str_REF_ORDER, int_LINE, lg_GROSSISTE_ID, lg_USER_ID, str_STATUT, dt_CREATED, dt_UPDATED, int_PRICE, recu, direct_import)"
-        + " VALUES ('" + CMD + "', '" + CMD + "', 1, '51217123531215794892', (SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = 'admin' LIMIT 1), 'passed', NOW(), NOW(), 0, 0, 0);"
+        + " VALUES ('" + CMD + "', '" + CMD + "', 1, '51217123531215794892', (SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "' LIMIT 1), 'passed', NOW(), NOW(), 0, 0, 0);"
         + "INSERT INTO t_order_detail (lg_ORDERDETAIL_ID, lg_ORDER_ID, lg_FAMILLE_ID, lg_GROSSISTE_ID, int_NUMBER, int_PRICE, int_PAF_DETAIL, int_PRICE_DETAIL, str_STATUT, dt_CREATED, dt_UPDATED)"
         + " VALUES ('" + CMD + "-1', '" + CMD + "', '" + critique.id + "', '51217123531215794892', " + (critique.aCommander + 5) + ", 0, 0, 0, 'is_Process', NOW(), NOW())");
       await recharger("r.down('#recherche').setValue(a); r.choisis = ['RUPTURE','CRITIQUE','RISQUE','COUVERT','A_SURVEILLER','CORRECT','SURSTOCK','DORMANT']; r.charger();", critique.cip);

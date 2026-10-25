@@ -26,7 +26,7 @@ if (posee) {
 (async () => {
   const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true }); const p = await b.newPage();
   try {
-    await p.goto('http://localhost:8080/prestige/security/index.html'); await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.goto('http://localhost:8080/prestige/security/index.html'); await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     const d = '2026-09-01', f = '2026-09-30';
     const t = Date.now();

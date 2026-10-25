@@ -14,7 +14,7 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
 const BASE = ENV_E2E.BASE;
 const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
-const LOGIN = process.env.E2E_LOGIN || 'admin';
+const LOGIN = ENV_E2E.LOGIN;
 const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + LOGIN + "'");
 const DEBUT = q("SELECT NOW() - INTERVAL 1 SECOND");
 const CAISSE = 'e2e-l1-caisse', CMD = 'E2E-L1-CMD';

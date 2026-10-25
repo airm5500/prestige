@@ -10,7 +10,7 @@ const { execFileSync } = require('child_process');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 400) + ']' : '')); }
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', ENV_E2E.BASE, '-sN'], { input: s, encoding: 'utf8' }).trim();
-const LOGIN = process.env.E2E_LOGIN || 'admin';
+const LOGIN = ENV_E2E.LOGIN;
 const VENTE = q("SELECT lg_PREENREGISTREMENT_ID FROM t_preenregistrement WHERE str_STATUT = 'is_Closed' AND str_TYPE_VENTE = 'VNO' AND lg_CLIENT_ID IS NULL ORDER BY dt_CREATED DESC LIMIT 1");
 const AVANT = q(`SELECT CONCAT_WS('|', IFNULL(lg_CLIENT_ID, '~'), IFNULL(str_FIRST_NAME_CUSTOMER, '~'), IFNULL(str_LAST_NAME_CUSTOMER, '~'), IFNULL(str_PHONE_CUSTOME, '~')) FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID = '${VENTE}'`);
 const CLIENT = 'E2E-CLIENT-TEL';

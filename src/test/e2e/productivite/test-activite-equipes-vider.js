@@ -24,7 +24,7 @@ const premier = new Date(auj.getFullYear(), auj.getMonth(), 1);
   p.on('dialog', (d) => { dialogues.push(d.message()); d.dismiss().catch(() => {}); });
   p.on('request', (r) => { if (/activite-equipes\/journal/.test(r.url())) { journal.push(new URL(r.url()).searchParams); } });
   try {
-    await connexion(p, 'admin', 'e2etest');
+    await connexion(p, ENV_E2E.LOGIN, 'e2etest');
     await ouvrirMenu(p, 'ANALYSE DE GESTION', 'Activité des équipes');
     await p.waitForFunction(() => Ext.ComponentQuery.query('activiteequipes').some((c) => c.isVisible(true)), null, { timeout: 60000 });
     await p.waitForFunction(() => Ext.ComponentQuery.query('activiteequipes')[0].employes.getCount() > 0, null, { timeout: 60000 });

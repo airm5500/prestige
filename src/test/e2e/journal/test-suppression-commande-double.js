@@ -35,7 +35,7 @@ const existe = (id) => q("SELECT (SELECT COUNT(*) FROM t_order WHERE lg_ORDER_ID
 
 function creer() {
   const g = q("SELECT lg_GROSSISTE_ID FROM t_grossiste WHERE str_STATUT = 'enable' LIMIT 1");
-  const u = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = 'admin'");
+  const u = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
   for (const id of IDS) {
     q("INSERT INTO t_order (lg_ORDER_ID, str_REF_ORDER, int_LINE, str_STATUT, dt_CREATED, dt_UPDATED, int_PRICE, lg_GROSSISTE_ID, lg_USER_ID) VALUES ('"
       + id + "', '" + REF(id) + "', 1, 'is_Process', NOW(), NOW(), 0, '" + g + "', '" + u + "')");
@@ -48,7 +48,7 @@ function creer() {
 async function poste(b, largeur) {
   const p = await (await b.newContext({ viewport: { width: largeur || 1600, height: 900 } })).newPage();
   p.erreurs = []; p.on('pageerror', (e) => p.erreurs.push(e.message));
-  await connexion(p, 'admin', 'e2etest');
+  await connexion(p, ENV_E2E.LOGIN, 'e2etest');
   await ouvrirMenu(p, 'GESTION DES COMMANDES', 'Commande en cours');
   await p.waitForFunction(() => Ext.getCmp('OderGrid') && Ext.getCmp('rechecher') && Ext.getCmp('rechecher').isVisible(true), null, { timeout: 60000 });
   return p;

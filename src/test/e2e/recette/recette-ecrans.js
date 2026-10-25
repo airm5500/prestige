@@ -40,7 +40,7 @@ const ECRANS = q("SELECT m.str_DESCRIPTION, s.str_DESCRIPTION, s.str_COMPOSANT F
   p.on('requestfinished', () => { enVol--; }); p.on('requestfailed', () => { enVol--; });
   p.on('response', (r) => { if (courant && r.status() >= 500) { courant.http.push(r.status() + ' ' + r.url().replace(/^.*\/prestige\//, '').replace(/[?].*$/, '').slice(0, 120)); } });
   await p.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'domcontentloaded' });
-  await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+  await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
   await p.waitForURL('**/general/**', { timeout: 60000 });
   await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app && Ext.ComponentQuery.query('navigation').length
     && Ext.ComponentQuery.query('navigation')[0].getStore()._menuCharge, null, { timeout: 120000 });

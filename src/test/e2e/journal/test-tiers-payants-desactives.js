@@ -27,7 +27,7 @@ const remettre = () => q(`UPDATE t_tiers_payant SET str_STATUT = '${STATUT}', dt
   const lignes = () => p.evaluate(() => Ext.getCmp('OGrid').getStore().getRange().map((r) => ({ id: r.get('lg_TIERS_PAYANT_ID'), statut: r.get('str_STATUT') })));
   const charge = () => p.waitForFunction(() => { const g = Ext.getCmp('OGrid'); return g && g.isVisible(true) && !g.getStore().isLoading(); }, null, { timeout: 60000, polling: 100 });
   try {
-    await connexion(p, 'admin', 'e2etest');
+    await connexion(p, ENV_E2E.LOGIN, 'e2etest');
     await ouvrirMenu(p, 'GESTION DES TIERS-PAYANTS', 'Tiers payants désactivés');
     await p.waitForFunction(() => Ext.ComponentQuery.query('tierspayantdesactive').some((c) => c.isVisible(true)), null, { timeout: 60000 });
     await p.waitForLoadState('networkidle');

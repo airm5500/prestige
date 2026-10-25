@@ -25,7 +25,7 @@ const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-char
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const SORTIE = process.env.SORTIE || ENV_E2E.TMP;
 const G = '51217123531215794892', CMD = 'E2E-PRM-CMD';
-const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = 'admin'");
+const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
 const BLS = [['E2E-PRM-1', 'R11398400', '2026-09-14', 21028], ['E2E-PRM-2', 'R20262786', '2026-09-14', 36000]];
 /* reglage deja present pour ce grossiste (banc) : garde et remis a la fin */
 const AVANT = q("SELECT COALESCE((SELECT str_MODELE FROM t_releve_modele WHERE lg_GROSSISTE_ID = '" + G + "'), '')");
@@ -75,7 +75,7 @@ function nettoyer() {
     .map((x) => x.replace(/(\d)[\u00a0\u202f .](?=\d{3}\b)/g, '$1 '));
   try {
     await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 40000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 90000 });
     await p.waitForTimeout(1500);

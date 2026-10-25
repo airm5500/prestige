@@ -12,7 +12,7 @@ const { execFileSync } = require('child_process');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 400) + ']' : '')); }
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', ENV_E2E.BASE, '-sN'], { input: s, encoding: 'utf8' }).trim();
-const LOGIN = process.env.E2E_LOGIN || 'admin';
+const LOGIN = ENV_E2E.LOGIN;
 const USER = q(`SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '${LOGIN}'`);
 /* 2 produits d'un meme emplacement + 1 d'un autre, prix connus */
 const Z = q(`SELECT f.lg_ZONE_GEO_ID FROM t_famille f WHERE f.str_STATUT = 'enable' AND f.int_PRICE > 0 AND f.lg_ZONE_GEO_ID IS NOT NULL

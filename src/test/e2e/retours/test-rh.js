@@ -51,7 +51,7 @@ function nettoyer() {
   const post = (u, c) => p.evaluate(async ([u, c]) => JSON.parse(await (await fetch(u, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(c) })).text()), [u, c]);
   try {
     await p.goto(URL + '/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app && Ext.ComponentQuery.query('navigation').length
       && Ext.ComponentQuery.query('navigation')[0].getStore()._menuCharge, null, { timeout: 120000 });
@@ -63,7 +63,7 @@ function nettoyer() {
     const remplir = (sel, valeurs) => p.evaluate(([s, v]) => { const w = Ext.ComponentQuery.query(s)[0]; Object.keys(v).forEach((k) => { w.down('[name=' + k + ']').setValue(v[k]); }); }, [sel, valeurs]);
 
     /* ------------------------------------------------ connexion journalisee */
-    const ses = q("SELECT CONCAT(COUNT(*), '|', MAX(ip IS NOT NULL), '|', MAX(fin IS NULL)) FROM t_session_utilisateur s JOIN t_user u ON u.lg_USER_ID = s.lg_USER_ID WHERE u.str_LOGIN = 'admin' AND s.debut >= '" + debutEssai + "'");
+    const ses = q("SELECT CONCAT(COUNT(*), '|', MAX(ip IS NOT NULL), '|', MAX(fin IS NULL)) FROM t_session_utilisateur s JOIN t_user u ON u.lg_USER_ID = s.lg_USER_ID WHERE u.str_LOGIN = '" + ENV_E2E.LOGIN + "' AND s.debut >= '" + debutEssai + "'");
     ok('Connexion journalisée (adresse, session ouverte)', ses === '1|1|1', ses);
 
     /* ------------------------------------------------ menu et ecran */
@@ -75,9 +75,9 @@ function nettoyer() {
 
     /* ------------------------------------------------ employes */
     /* retours du 07/10 : a l'ouverture, chaque utilisateur actif (hors « admin ») est un employe rattache */
-    const sansEmploye = q("SELECT COUNT(*) FROM t_user u WHERE u.str_STATUT = 'enable' AND u.str_LOGIN <> 'admin' AND NOT EXISTS (SELECT 1 FROM t_employe e WHERE e.lg_USER_ID = u.lg_USER_ID)");
+    const sansEmploye = q("SELECT COUNT(*) FROM t_user u WHERE u.str_STATUT = 'enable' AND u.str_LOGIN <> '" + ENV_E2E.LOGIN + "' AND NOT EXISTS (SELECT 1 FROM t_employe e WHERE e.lg_USER_ID = u.lg_USER_ID)");
     ok('Utilisateurs actifs créés et rattachés comme employés à l\'ouverture (hors admin)', sansEmploye === '0'
-      && q("SELECT COUNT(*) FROM t_employe e JOIN t_user u ON u.lg_USER_ID = e.lg_USER_ID WHERE u.str_LOGIN = 'admin'") === '0', sansEmploye);
+      && q("SELECT COUNT(*) FROM t_employe e JOIN t_user u ON u.lg_USER_ID = e.lg_USER_ID WHERE u.str_LOGIN = '" + ENV_E2E.LOGIN + "'") === '0', sansEmploye);
     const resync = await post('../api/v1/rh/employes/synchroniser', {});
     ok('Rattachement relancé : aucun doublon', resync.success === true && resync.crees === 0, JSON.stringify(resync));
     /* les utilisateurs d'essai arrivent apres le rattachement automatique : ils restent sans employe */
@@ -122,7 +122,7 @@ function nettoyer() {
     await creer(UE[1], { matricule: 'E2E-RH-2' });
     ok('Deux employés créés à partir de leur utilisateur, fiche refermée', q("SELECT GROUP_CONCAT(CONCAT(matricule, ':', lg_USER_ID, ':', nom, ' ', prenoms) ORDER BY matricule) FROM t_employe WHERE matricule LIKE 'E2E-RH%'")
       === 'E2E-RH-1:E2E-RH-U1:ZZRH Awa,E2E-RH-2:E2E-RH-U2:ZZRH Koffi' && !(await p.evaluate(() => Ext.ComponentQuery.query('#fenetreEmploye')[0].isVisible())));
-    const U = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = 'admin'");
+    const U = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
     const e1 = q("SELECT id FROM t_employe WHERE matricule = 'E2E-RH-1'"), e2 = q("SELECT id FROM t_employe WHERE matricule = 'E2E-RH-2'");
     /* modification dans la fiche : matricule deja porte */
     await p.evaluate(() => { const g = Ext.ComponentQuery.query('rhmanager #ongletEmployes')[0]; g.down('#rechercheEmploye').setValue('ZZRH'); g.getStore().load(); });
@@ -300,7 +300,7 @@ function nettoyer() {
       await clic('rhmanager #sesRechercher', 1500);
       return p.evaluate(() => Ext.ComponentQuery.query('rhmanager #ongletConnexions')[0].getStore().getRange().map((r) => r.get('login'))); };
     const sesU1 = await filtre(UE[0]), sesAdmin = await filtre(U);
-    ok('Connexions : filtre par utilisateur (aucune pour l\'utilisateur d\'essai, seulement admin pour admin)', sesU1.length === 0 && sesAdmin.length > 0 && sesAdmin.every((l) => l === 'admin'),
+    ok('Connexions : filtre par utilisateur (aucune pour l\'utilisateur d\'essai, seulement admin pour admin)', sesU1.length === 0 && sesAdmin.length > 0 && sesAdmin.every((l) => l === ENV_E2E.LOGIN),
       sesU1.length + ' / ' + JSON.stringify(sesAdmin.slice(0, 3)));
     await filtre('');
 
@@ -339,14 +339,14 @@ function nettoyer() {
     const sesHttp = (await p.context().cookies()).find((c) => c.name === 'JSESSIONID').value.split('.')[0];
     await p.evaluate(async () => { await fetch('../api/v1/user/logout', { method: 'POST' }); });
     await p.waitForTimeout(1000);
-    ok('Déconnexion : la session est close (fin par « déconnexion »)', q("SELECT CONCAT(fin IS NOT NULL, '|', fin_par) FROM t_session_utilisateur s JOIN t_user u ON u.lg_USER_ID = s.lg_USER_ID WHERE u.str_LOGIN = 'admin' AND s.session_http = '" + sesHttp + "' ORDER BY s.debut DESC LIMIT 1") === '1|DECONNEXION');
+    ok('Déconnexion : la session est close (fin par « déconnexion »)', q("SELECT CONCAT(fin IS NOT NULL, '|', fin_par) FROM t_session_utilisateur s JOIN t_user u ON u.lg_USER_ID = s.lg_USER_ID WHERE u.str_LOGIN = '" + ENV_E2E.LOGIN + "' AND s.session_http = '" + sesHttp + "' ORDER BY s.debut DESC LIMIT 1") === '1|DECONNEXION');
     ok('Aucune erreur JavaScript', err.length === 0, err.join(' | '));
   } catch (e) {
     ok('Exécution sans exception', false, e.stack);
   } finally {
     await b.close();
     nettoyer();
-    exec("DELETE s FROM t_session_utilisateur s JOIN t_user u ON u.lg_USER_ID = s.lg_USER_ID WHERE u.str_LOGIN = 'admin' AND s.debut >= '" + debutEssai + "'");
+    exec("DELETE s FROM t_session_utilisateur s JOIN t_user u ON u.lg_USER_ID = s.lg_USER_ID WHERE u.str_LOGIN = '" + ENV_E2E.LOGIN + "' AND s.debut >= '" + debutEssai + "'");
     ok('Jeu d\'essai retiré (employés, planning, absences, équipes, connexions de l\'essai)', q("SELECT COUNT(*) FROM t_employe") === employesAvant
       && q("SELECT COUNT(*) FROM t_equipe WHERE nom LIKE 'ZZ Équipe E2E%'") === '0');
     const ko = res.filter((r) => !r.c).length;

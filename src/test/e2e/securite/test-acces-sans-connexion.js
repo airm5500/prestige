@@ -15,7 +15,7 @@ const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 300) + ']' : '')); }
 const BASE = ENV_E2E.BASE;
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
-const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = 'admin'");
+const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
 const PARAM_AVANT = q("SELECT COALESCE((SELECT str_VALUE FROM t_parameters WHERE str_KEY = 'KEY_ENTETES_X_USER_INFO'), '__absent__')");
 const API = 'http://localhost:8080/prestige/api/';
 const FAUX = { 'X-User-Info': JSON.stringify({ id: ADMIN }), 'X-Token-Exp': '2099-01-01T00:00:00Z', 'X-client': 'x' };
@@ -69,7 +69,7 @@ const ouvert = (r) => r.s === 200 && !/connecter/i.test(r.t) && !/^</.test(r.t);
     /* connecte : les ecrans recoivent toujours leurs donnees */
     const p = await (await b.newContext()).newPage();
     await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 }); await p.waitForLoadState('networkidle'); await p.waitForTimeout(2000);
     const connecte = await p.evaluate(async ([urls]) => {
       const out = {};

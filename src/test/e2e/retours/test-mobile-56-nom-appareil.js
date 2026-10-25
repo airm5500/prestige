@@ -39,7 +39,7 @@ const nettoyer = () => q("DELETE FROM t_appareil_nom WHERE empreinte = '" + EMP 
 
     const p = await (await b.newContext()).newPage();
     await p.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'domcontentloaded' });
-    await p.evaluate(async () => fetch('../api/v1/user/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ login: 'admin', password: 'e2etest' }) }));
+    await p.evaluate(async () => fetch('../api/v1/user/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ login: ENV_E2E.LOGIN, password: 'e2etest' }) }));
     const vide = await api(p, 'PUT', '../api/v1/appareil/nom', { empreinte: EMP, nom: ' !!! ' });
     ok('Connecté, nom vide (après nettoyage) : 400', vide.http === 400, JSON.stringify(vide));
     const enr = await api(p, 'PUT', '../api/v1/appareil/nom', { empreinte: EMP.toUpperCase(), nom: 'E2E Caisse mobile 56 <b>!' });

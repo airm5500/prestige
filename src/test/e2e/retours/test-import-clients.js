@@ -138,7 +138,7 @@ const connexion = async (p, login) => {
 
     /* ---------- 2. le profil autorise : lecture des colonnes ---------- */
     p = await nouvelOnglet();
-    await connexion(p, 'admin');
+    await connexion(p, ENV_E2E.LOGIN);
     autorise = await p.evaluate(async () => {
       const r = await fetch('../api/v1/client/import/autorise');
       return JSON.parse(await r.text());

@@ -20,7 +20,7 @@ const BASE = ENV_E2E.BASE;
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
 const V = 'E2E-B3-VENTE';
-const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = 'admin'");
+const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
 const nettoyer = () => exec(`DELETE FROM paiement_mobile WHERE vente_id = '${V}' OR client_ref LIKE 'e2e-b3-%'; DELETE FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID = '${V}';`);
 
 (async () => {
@@ -35,7 +35,7 @@ const nettoyer = () => exec(`DELETE FROM paiement_mobile WHERE vente_id = '${V}'
     await p.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'domcontentloaded' });
     const sans = await api('POST', '../api/v1/paiements-mobile', { venteId: V, operateur: 'WAVE' });
     ok('Sans session : création refusée', sans.success === false || sans.http === 401, JSON.stringify(sans).slice(0, 120));
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     const cap = await api('GET', '../api/v1/paiements-mobile/capacites');
     const actif = cap.fournisseur === 'simulateur' && (cap.paiementsMobile || []).indexOf('wave') >= 0 && cap.typesReglement.wave === '10';

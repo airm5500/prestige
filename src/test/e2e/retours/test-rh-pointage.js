@@ -55,7 +55,7 @@ function nettoyer() {
   const get = (u) => p.evaluate(async (u) => JSON.parse(await (await fetch(u)).text()), u);
   try {
     await p.goto(URL + '/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app && Ext.ComponentQuery.query('navigation').length
       && Ext.ComponentQuery.query('navigation')[0].getStore()._menuCharge, null, { timeout: 120000 });
@@ -138,7 +138,7 @@ function nettoyer() {
       && await p.evaluate(() => !!Ext.ComponentQuery.query('#fenetrePointage')[0]));
     await p.evaluate(() => { Ext.ComponentQuery.query('#fenetrePointage')[0].down('[name=motif]').setValue('Oubli de badge'); });
     await clic('#fenetrePointage #btnEnregistrerPointage', 2000);
-    const U = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = 'admin'");
+    const U = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
     ok('Pointage manuel enregistré (motif, saisi par, source MANUEL)', q("SELECT CONCAT(DATE_FORMAT(horodatage, '%Y-%m-%d %H:%i'), '|', sens, '|', motif, '|', saisi_par) FROM t_pointage WHERE employe_id = 'E2E-PT-A' AND source = 'MANUEL'")
       === '2026-09-30 12:00|SORTIE|Oubli de badge|' + U);
     const futur = await post('../api/v1/rh/pointages', { employeId: 'E2E-PT-A', jour: '2027-01-01', heure: '08:00', sens: 'ENTREE', motif: 'x' });

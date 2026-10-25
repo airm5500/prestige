@@ -6,7 +6,7 @@ const ENV_E2E = require('../outils/poste');
 
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 400) + ']' : '')); }
-const LOGIN = process.env.E2E_LOGIN || 'admin';
+const LOGIN = ENV_E2E.LOGIN;
 
 (async () => {
   const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });

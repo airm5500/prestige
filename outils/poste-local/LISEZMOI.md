@@ -59,6 +59,9 @@ Sous Windows :
 - **Identifiants MariaDB** : copier `prestige-e2e.cnf.exemple` vers `%USERPROFILE%\.prestige-e2e.cnf`, puis y mettre
   le mot de passe de `claude_banc`. Ce fichier reste hors du dépôt. Un autre emplacement se donne avec
   `MARIADB_OPTIONS`.
+- **Compte de connexion** : `e2e`, mot de passe `e2etest`. Il a le même rôle qu'admin, et le mot de passe d'admin reste
+  celui d'origine. On le crée, ou on le remet en état, avec
+  `mariadb -u root -p < outils\poste-local\compte-essai.sql`. Un autre compte se donne avec `E2E_LOGIN`.
 - **Chromium** : celui qui a été installé par Playwright.
 - **Sorties et captures** : dans le dossier temporaire de Windows.
 

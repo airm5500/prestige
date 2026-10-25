@@ -39,7 +39,7 @@ const ERREUR = 'E2E anomalie logicielle ' + Date.now();
   let vente = null;
   try {
     ok('Table des anomalies créée par la migration', table === 't_anomalie_employe', table);
-    await connexion(p, 'admin', 'e2etest');
+    await connexion(p, ENV_E2E.LOGIN, 'e2etest');
     await ouvrirMenu(p, 'SERVICE CLIENT', 'Ventes');
     await p.waitForFunction(() => Ext.ComponentQuery.query('cloturerventemanager #addBtn').some((x) => x.isVisible(true)), null, { timeout: 60000 });
     await cliquer(p, 'cloturerventemanager #addBtn');

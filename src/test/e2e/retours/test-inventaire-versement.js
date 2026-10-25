@@ -37,10 +37,10 @@ const CLE = 'e2e-versement-';
     await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
     const sans = await verser({ cle: CLE + '0', mode: 'ajouter', lignes: [] });
     ok('Sans session : 401', sans.s === 401, sans.s);
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 40000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 90000 });
-    const admin = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = 'admin'");
+    const admin = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
 
     /* remise a zero de comptage sur A et B pour partir d'un etat connu (jamais comptees) */
     exec("UPDATE t_inventaire_famille SET dt_UPDATED = NULL WHERE lg_INVENTAIRE_FAMILLE_ID IN ('" + A[0] + "', '" + B[0] + "')");

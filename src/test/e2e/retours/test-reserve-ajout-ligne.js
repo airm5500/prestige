@@ -20,7 +20,7 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
 const BASE = ENV_E2E.BASE;
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
-const droits = [privilegeEssai(q, exec, 'admin', 'P_TRAITER_RESERVE'), privilegeEssai(q, exec, 'admin', 'P_SM_RESERVE')];
+const droits = [privilegeEssai(q, exec, ENV_E2E.LOGIN, 'P_TRAITER_RESERVE'), privilegeEssai(q, exec, ENV_E2E.LOGIN, 'P_SM_RESERVE')];
 /* deux produits avec stock rayon et sans ligne de stock reserve ; le test leur en pose une, puis la retire */
 const PS = q("SELECT s.lg_FAMILLE_ID FROM t_famille_stock s JOIN t_type_stock_famille r ON r.lg_FAMILLE_ID = s.lg_FAMILLE_ID AND r.lg_EMPLACEMENT_ID = '1' AND r.lg_TYPE_STOCK_ID = '1'"
   + " JOIN t_famille f ON f.lg_FAMILLE_ID = s.lg_FAMILLE_ID"
@@ -44,7 +44,7 @@ function nettoyer() {
   const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const session = async () => { const p = await (await b.newContext()).newPage();
     await p.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 }); return p; };
   const appel = (p, m, u, c, ref) => p.evaluate(async ([m, u, c, ref]) => { const h = { 'Content-Type': 'application/json' }; if (ref) { h['X-Client-Ref'] = ref; }
     const r = await fetch(u, { method: m, headers: h, body: c === undefined ? undefined : JSON.stringify(c) }); const t = await r.text(); let j; try { j = JSON.parse(t); } catch (e) { j = { brut: t.slice(0, 100) }; } j.http = r.status; return j; }, [m, u, c, ref]);
@@ -71,7 +71,7 @@ function nettoyer() {
     const sansProduit = await appel(p, 'POST', '../api/v1/suggestion-reserve/' + ID + '/lignes', { quantite: 2 });
     ok('Quantité nulle ou produit absent : refus', zero.success === false && sansProduit.success === false, JSON.stringify([zero.msg || zero.message, sansProduit.msg || sansProduit.message]));
 
-    const autre = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN <> 'admin' AND str_STATUT = 'enable' LIMIT 1");
+    const autre = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN <> '" + ENV_E2E.LOGIN + "' AND str_STATUT = 'enable' LIMIT 1");
     exec("UPDATE t_suggestion_reserve SET lg_USER_VERROU_ID = '" + autre + "', dt_VERROU = NOW() WHERE lg_SUGGESTION_RESERVE_ID = '" + ID + "'");
     exec("DELETE FROM t_suggestion_reserve_detail WHERE lg_SUGGESTION_RESERVE_ID = '" + ID + "' AND lg_FAMILLE_ID = '" + PS[1] + "'");
     const occ = await appel(p, 'POST', '../api/v1/suggestion-reserve/' + ID + '/lignes', { produitId: PS[1], quantite: 3 });

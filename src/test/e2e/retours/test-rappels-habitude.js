@@ -78,7 +78,7 @@ function nettoyer() {
   const get = (u) => p.evaluate(async (u) => JSON.parse(await (await fetch(u)).text()), u);
   try {
     await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app && Ext.ComponentQuery.query('navigation').length
       && Ext.ComponentQuery.query('navigation')[0].getStore()._menuCharge, null, { timeout: 120000 });
@@ -123,7 +123,7 @@ function nettoyer() {
     await choisir(idA);
     ok('Boutons actifs quand une ligne est choisie', await p.evaluate(() => !Ext.ComponentQuery.query('rappelshabitude #btnPrepare')[0].isDisabled()));
     await clic('rappelshabitude #btnPrepare', 2500);
-    const U = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = 'admin'");
+    const U = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
     ok('« Marquer préparé » : statut PREPARE, auteur enregistré', q("SELECT CONCAT(str_STATUT, '|', lg_USER_ID, '|', dt_TRAITE IS NOT NULL) FROM t_rappel_habitude WHERE id = '" + idA + "'") === 'PREPARE|' + U + '|1');
     await choisir(idA);
     await clic('rappelshabitude #btnRemettre', 2500);

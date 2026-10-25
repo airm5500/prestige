@@ -17,7 +17,7 @@ const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 400) + ']' : '')); }
 const BASE = ENV_E2E.BASE;
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN'], { input: s, encoding: 'utf8' }).trim();
-const C = 'E2E-PFID-C1', NOM = 'E2EPFID', ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = 'admin'");
+const C = 'E2E-PFID-C1', NOM = 'E2EPFID', ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
 const [A, FA, ZA, B, FB, ZB] = q("SELECT a.lg_FAMILLE_ID, a.lg_FAMILLEARTICLE_ID, a.lg_ZONE_GEO_ID, b.lg_FAMILLE_ID, b.lg_FAMILLEARTICLE_ID, b.lg_ZONE_GEO_ID"
   + " FROM t_famille a JOIN t_famille b ON b.lg_FAMILLEARTICLE_ID <> a.lg_FAMILLEARTICLE_ID AND b.lg_ZONE_GEO_ID <> a.lg_ZONE_GEO_ID"
   + " JOIN t_zone_geographique za ON za.lg_ZONE_GEO_ID = a.lg_ZONE_GEO_ID AND za.str_STATUT = 'enable' JOIN t_zone_geographique zb ON zb.lg_ZONE_GEO_ID = b.lg_ZONE_GEO_ID AND zb.str_STATUT = 'enable'"
@@ -84,7 +84,7 @@ const gains = () => q(`SELECT GROUP_CONCAT(CONCAT(lg_PREENREGISTREMENT_ID, ':', 
       + "DELETE FROM t_fidelite_palier; INSERT INTO t_fidelite_palier VALUES ('FID-PALIER-1', 'Standard', 0, 1.00, NOW()), ('FID-PALIER-2', 'Argent', 300, 1.25, NOW()), ('FID-PALIER-3', 'Or', 1000, 1.50, NOW());"
       + `INSERT INTO t_client (lg_CLIENT_ID, str_FIRST_NAME, str_LAST_NAME, str_TELEPHONE, str_STATUT, dt_CREATED, dt_UPDATED) VALUES ('${C}', '${NOM}', 'Analyse', '0700000098', 'enable', NOW(), NOW());`);
     await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', process.env.E2E_LOGIN || 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 120000 });
     await p.evaluate(() => { window.__ouverts = []; const o = window.open; window.open = function (u) { window.__ouverts.push(u); return o.apply(this, arguments); }; });

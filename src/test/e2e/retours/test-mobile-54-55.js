@@ -50,7 +50,7 @@ function nettoyer() {
   try {
     /* ---------- 54 ---------- */
     const p = await ctx.newPage();
-    await connexion(p, 'admin', 'e2etest');
+    await connexion(p, ENV_E2E.LOGIN, 'e2etest');
     await p.evaluate((n) => window.PrestigePoste.ecrire(n), POSTE);
     const api = (m, u, c, poste) => p.evaluate(async ([m, u, c, poste]) => { const r = await fetch(u, { method: m, headers: { 'Content-Type': 'application/json', 'X-Poste': encodeURIComponent(poste) },
       body: c === undefined ? undefined : JSON.stringify(c) }); const t = await r.text(); let j; try { j = JSON.parse(t); } catch (e) { j = { brut: t.slice(0, 120) }; } j.http = r.status; return j; }, [m, u, c, poste]);

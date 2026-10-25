@@ -32,7 +32,7 @@ const ECRANS = [
 
 (async () => {
   nettoyer();
-  const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = 'admin'");
+  const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
   const SRC = q("SELECT p.lg_PREENREGISTREMENT_ID FROM t_preenregistrement p WHERE p.str_STATUT = 'is_Process' AND p.lg_NATURE_VENTE_ID <> '3' AND p.lg_USER_VENDEUR_ID IS NOT NULL"
     + " AND EXISTS (SELECT 1 FROM t_preenregistrement_detail d WHERE d.lg_PREENREGISTREMENT_ID = p.lg_PREENREGISTREMENT_ID) LIMIT 1");
   q(`CREATE TEMPORARY TABLE e2e_p AS SELECT * FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID = '${SRC}';
@@ -54,7 +54,7 @@ const ECRANS = [
   });
   try {
     await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 120000 });
     await p.waitForTimeout(1500);

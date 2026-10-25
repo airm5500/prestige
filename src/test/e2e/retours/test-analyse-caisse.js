@@ -17,7 +17,7 @@ const { execFileSync } = require('child_process');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 400) + ']' : '')); }
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', ENV_E2E.BASE, '-sN'], { input: s, encoding: 'utf8' }).trim();
-const LOGIN = process.env.E2E_LOGIN || 'admin';
+const LOGIN = ENV_E2E.LOGIN;
 const [U1, NOM1, EMP] = q(`SELECT lg_USER_ID, CONCAT_WS(' ', str_FIRST_NAME, str_LAST_NAME), lg_EMPLACEMENT_ID FROM t_user WHERE str_LOGIN = '${LOGIN}'`).split('\t');
 const [U2, NOM2] = q(`SELECT lg_USER_ID, CONCAT_WS(' ', str_FIRST_NAME, str_LAST_NAME) FROM t_user WHERE str_STATUT = 'enable' AND lg_EMPLACEMENT_ID = '${EMP}' AND lg_USER_ID <> '${U1}' ORDER BY str_LOGIN LIMIT 1`).split('\t');
 const CAISSES = [ // id, user, ouverture, fermeture, attendu, billetage, statut

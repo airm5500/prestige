@@ -22,7 +22,7 @@ const SORTIE = process.env.SORTIE || ENV_E2E.TMP;
 const C = 'E2E-FID-C1';
 const SPE = '10263736171005327', VETO = '16926123341024423633';
 const CAT_VETO = q("SELECT lg_FAMILLEARTICLE_ID FROM t_famille WHERE lg_FAMILLE_ID = '" + VETO + "'");
-const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = 'admin'");
+const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
 /* ventes : id, type, net, details [famille, montant], tiers payant, heures avant maintenant */
 const VENTES = [['E2E-FID-V1', 'VNO', [[SPE, 12500]], 0, 4], ['E2E-FID-V2', 'VNO', [[SPE, 6000], [VETO, 4000]], 0, 3],
   ['E2E-FID-V3', 'VO', [[SPE, 10000]], 7000, 2], ['E2E-FID-V4', 'VNO', [[SPE, 5000]], 0, 1], ['E2E-FID-V5', 'VNO', [[SPE, 8000]], 0, 24 * 5]];
@@ -108,7 +108,7 @@ const empreinteVentes = () => q("SELECT GROUP_CONCAT(CONCAT_WS(':', lg_PREENREGI
   const historique = () => ev(E + '.historiqueStore.getRange().map(function(r){return r.get("type")+":"+r.get("points");})');
   try {
     await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 40000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 90000 });
     await p.waitForTimeout(1500);

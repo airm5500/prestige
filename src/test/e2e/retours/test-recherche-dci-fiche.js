@@ -22,7 +22,7 @@ const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-charact
 const liste = (s) => { const r = q(s); return r ? r.split('\n') : []; };
 
 const DCI = q("SELECT lg_DCI_ID FROM t_dci WHERE str_STATUT = 'enable' ORDER BY str_NAME LIMIT 1");
-const EMPL = q("SELECT lg_EMPLACEMENT_ID FROM t_user WHERE str_LOGIN = 'admin'");
+const EMPL = q("SELECT lg_EMPLACEMENT_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
 function nettoyer() {
   exec("DELETE FROM t_famille_dci WHERE lg_FAMILLE_DCI_ID LIKE 'E2E-DCI-%'; DELETE FROM t_famille_grossiste WHERE lg_FAMILLE_GROSSISTE_ID LIKE 'E2E-DCI-%'");
 }
@@ -52,7 +52,7 @@ function reference(condition) {
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   try {
     await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 40000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 90000 });
     await p.evaluate(() => testextjs.app.getController('App').onLoadNewComponent('famillemanager', 'Fiche Article', ''));

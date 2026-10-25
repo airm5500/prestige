@@ -26,7 +26,7 @@ const n = (v) => Number(v || 0);
 
 (async () => {
   const D = q("SELECT DATE(MAX(dt_UPDATED)) FROM t_preenregistrement WHERE str_STATUT = 'is_Closed' AND int_PRICE > 0 AND DATE(dt_UPDATED) < (SELECT DATE(MAX(dt_UPDATED)) FROM t_preenregistrement WHERE str_STATUT = 'is_Closed')");
-  const U = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = 'admin'");
+  const U = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
   const prefAvant = q("SELECT COUNT(*) FROM t_preference_utilisateur WHERE lg_USER_ID = '" + U + "' AND str_CLE = 'tableau-bord'") === '1'
     ? q("SELECT txt_VALEUR FROM t_preference_utilisateur WHERE lg_USER_ID = '" + U + "' AND str_CLE = 'tableau-bord'") : null;
   const versionAvant = q("SELECT str_VALUE FROM t_parameters WHERE str_KEY = 'KEY_TABLEAU_BORD_VERSION'");
@@ -46,7 +46,7 @@ const n = (v) => Number(v || 0);
   const api = (u) => p.evaluate(async (u) => (await fetch(u)).json(), u);
   const ouvrir = async (forcer) => {
     await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 40000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app && Ext.ComponentQuery.query('dashboard').length, null, { timeout: 90000 });
     connecte = true;

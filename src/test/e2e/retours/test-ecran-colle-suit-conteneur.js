@@ -29,7 +29,7 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
       defile: cp.body.dom.scrollHeight - cp.body.dom.clientHeight }; });
   try {
     /* le tableau de bord (ecran non colle) : presentation de reference avant l'ecran colle */
-    await connexion(p, 'admin', 'e2etest');
+    await connexion(p, ENV_E2E.LOGIN, 'e2etest');
     await p.waitForTimeout(3000);
     await ouvrirMenu(p, 'ANALYSE DE GESTION', 'Activité des équipes');
     await p.waitForFunction(() => Ext.ComponentQuery.query('activiteequipes').some((c) => c.isVisible(true)), null, { timeout: 60000 });

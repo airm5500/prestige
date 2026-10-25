@@ -19,7 +19,7 @@ const BASE = ENV_E2E.BASE;
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
 const NOTE = 'E2E-RETOUR-ATTENTE';
-const droit = privilegeEssai(q, exec, 'admin', 'P_VALIDER_RETOUR_FRS');
+const droit = privilegeEssai(q, exec, ENV_E2E.LOGIN, 'P_VALIDER_RETOUR_FRS');
 
 /* une ligne de bon de livraison du banc : bon a numero unique, produit recu et en stock au rayon */
 const [BL, PRODUIT] = q("SELECT CONCAT_WS('|', b.str_REF_LIVRAISON, d.lg_FAMILLE_ID) FROM t_bon_livraison b"
@@ -53,7 +53,7 @@ function retirer() {
     p.on('pageerror', (e) => err.push(e.message));
     p.on('dialog', (d) => { dialogues.push(d.message()); d.dismiss().catch(() => {}); });
     await p.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 90000 });
     await p.waitForTimeout(1500);
@@ -144,7 +144,7 @@ function retirer() {
       exec(`UPDATE t_famille_stock SET int_NUMBER_AVAILABLE = int_NUMBER_AVAILABLE + ${sorti}, int_NUMBER = int_NUMBER_AVAILABLE WHERE lg_FAMILLE_ID = '${PRODUIT}' AND lg_EMPLACEMENT_ID = '1'`);
     }
     ok('Données d\'essai retirées, stock remis, privilège remis', q(`SELECT COUNT(*) FROM t_retour_fournisseur WHERE str_COMMENTAIRE = '${NOTE}'`) === '0' && stock() === STOCK0
-      && q("SELECT COUNT(*) FROM t_role_privelege rp JOIN t_privilege p ON p.lg_PRIVELEGE_ID = rp.lg_PRIVILEGE_ID JOIN t_role_user ru ON ru.lg_ROLE_ID = rp.lg_ROLE_ID JOIN t_user u ON u.lg_USER_ID = ru.lg_USER_ID WHERE u.str_LOGIN = 'admin' AND p.str_NAME = 'P_VALIDER_RETOUR_FRS'") !== '0',
+      && q("SELECT COUNT(*) FROM t_role_privelege rp JOIN t_privilege p ON p.lg_PRIVELEGE_ID = rp.lg_PRIVILEGE_ID JOIN t_role_user ru ON ru.lg_ROLE_ID = rp.lg_ROLE_ID JOIN t_user u ON u.lg_USER_ID = ru.lg_USER_ID WHERE u.str_LOGIN = '" + ENV_E2E.LOGIN + "' AND p.str_NAME = 'P_VALIDER_RETOUR_FRS'") !== '0',
       'stock ' + STOCK0 + ' -> ' + stock());
   }
   const ko = res.filter((x) => !x.c).length;

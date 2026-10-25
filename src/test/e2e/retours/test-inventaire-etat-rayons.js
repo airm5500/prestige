@@ -33,7 +33,7 @@ const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-char
     await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
     const sans = await lire('../api/v1/ws/inventaires/' + INV + '/rayons/etat');
     ok('Sans session : 401', sans.s === 401, sans.s);
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 40000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 90000 });
 
@@ -61,10 +61,10 @@ const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-char
     ok('Chaque rayon : comptes = detailsTouchedRayon, restants = detailsUntouchedRayon', (etat.j || []).length > 0 && ecarts.length === 0, ecarts.join(' ; '));
     const avec = await lire('../api/v1/ws/inventaires/' + INV + '/rayons/etat?avecAuteurs=1');
     const r1 = (avec.j || []).find((r) => r.rayonId === rayonSaisi) || {};
-    ok('Rayon saisi : dernière saisie datée et auteur « admin »', r1.comptes >= 1 && /^\d{4}-\d\d-\d\dT/.test(r1.derniereSaisie || '') && (r1.auteurs || []).indexOf('admin') >= 0, JSON.stringify(r1));
+    ok('Rayon saisi : dernière saisie datée et auteur « admin »', r1.comptes >= 1 && /^\d{4}-\d\d-\d\dT/.test(r1.derniereSaisie || '') && (r1.auteurs || []).indexOf(ENV_E2E.LOGIN) >= 0, JSON.stringify(r1));
     ok('Sans avecAuteurs : pas de champ auteurs', (etat.j || []).every((r) => !('auteurs' in r)));
     /* 50 : auteur de la saisie dans les routes details* */
-    const ADM = q("SELECT CONCAT_WS('|', lg_USER_ID, str_LOGIN, CONCAT(str_FIRST_NAME, ' ', str_LAST_NAME)) FROM t_user WHERE str_LOGIN = 'admin'").split('|');
+    const ADM = q("SELECT CONCAT_WS('|', lg_USER_ID, str_LOGIN, CONCAT(str_FIRST_NAME, ' ', str_LAST_NAME)) FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'").split('|');
     const routes = ['detailsTouchedRayon?idInventaire=' + INV + '&idRayon=' + rayonSaisi, 'details?idInventaire=' + INV + '&idRayon=' + rayonSaisi, 'detailsAll?idInventaire=' + INV,
       'detailsAllTouched?idInventaire=' + INV, 'detailsAllEcarts?idInventaire=' + INV];
     const manquants = [];

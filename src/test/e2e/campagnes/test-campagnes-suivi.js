@@ -51,7 +51,7 @@ function nettoyer() {
   p.on('dialog', (d) => { dialogues.push(d.message()); d.dismiss().catch(() => {}); });
   p.on('response', async (r) => { if (/campagnes\/E2E-CSUIVI\/suivi/.test(r.url())) { reponseSuivi = await r.text().catch(() => ''); } });
   try {
-    await connexion(p, 'admin', 'e2etest');
+    await connexion(p, ENV_E2E.LOGIN, 'e2etest');
     await ouvrirMenu(p, 'Campagnes SMS / WhatsApp', 'Campagnes');
     await p.waitForFunction(() => { const v = Ext.ComponentQuery.query('campagnes')[0]; return v && v.contexte; }, null, { timeout: 60000 });
     await p.click('#' + await p.evaluate(() => Ext.ComponentQuery.query('campagnes')[0].down('#ongletJournal').tab.getEl().dom.id));

@@ -25,9 +25,9 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
 const BASE = ENV_E2E.BASE;
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
-const rh = privilegeEssai(q, exec, 'admin', 'P_SM_RH');
+const rh = privilegeEssai(q, exec, ENV_E2E.LOGIN, 'P_SM_RH');
 /* demande 52 : P_RH_POINTER ouvre aussi la lecture des gabarits (terminal) ; « sans droit RH » = sans les deux */
-const pointer = privilegeEssai(q, exec, 'admin', 'P_RH_POINTER');
+const pointer = privilegeEssai(q, exec, ENV_E2E.LOGIN, 'P_RH_POINTER');
 const LOG = '/opt/payara5/glassfish/domains/domain1/logs/server.log';
 const PARAM = q("SELECT IFNULL((SELECT str_VALUE FROM t_parameters WHERE str_KEY = 'KEY_EMPREINTES_PARTAGEES'), 'ABSENT')");
 const poser = (v) => exec("UPDATE t_parameters SET str_VALUE = '" + v + "' WHERE str_KEY = 'KEY_EMPREINTES_PARTAGEES'");
@@ -47,7 +47,7 @@ function nettoyer() {
   const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const session = async () => { const p = await (await b.newContext()).newPage();
     await p.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 }); return p; };
   const appel = (p, m, u, c, ref) => p.evaluate(async ([m, u, c, ref]) => { const h = { 'Content-Type': 'application/json' }; if (ref) { h['X-Client-Ref'] = ref; }
     const r = await fetch(u, { method: m, headers: h, body: c === undefined ? undefined : JSON.stringify(c) }); const t = await r.text(); let j; try { j = JSON.parse(t); } catch (e) { j = { brut: t.slice(0, 100) }; } j.http = r.status; return j; }, [m, u, c, ref]);

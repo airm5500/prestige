@@ -22,9 +22,9 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
 const BASE = ENV_E2E.BASE;
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN'], { input: s, encoding: 'utf8' }).trim();
 const DEBUT = q('SELECT NOW() - INTERVAL 1 SECOND');
-const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = 'admin'");
+const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
 const DOSSIER = fs.mkdtempSync(path.join(os.tmpdir(), 'e2e-etqperso-'));
-const droit = privilegeEssai(q, q, 'admin', 'P_SM_ETIQUETTE_PERSO');
+const droit = privilegeEssai(q, q, ENV_E2E.LOGIN, 'P_SM_ETIQUETTE_PERSO');
 const CAISSE = 'e2e-perso-caisse';
 let caisseCreee = false;
 const P_LECTURE = q("SELECT str_VALUE FROM t_parameters WHERE str_KEY = 'KEY_VENTE_LECTURE_GS1'");
@@ -81,7 +81,7 @@ function nettoyer() {
   const connexion = async () => {
     await ctx.clearCookies();
     await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 120000 });
     await p.waitForTimeout(1200);

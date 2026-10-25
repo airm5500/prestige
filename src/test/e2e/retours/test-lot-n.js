@@ -16,7 +16,7 @@ const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 360) + ']' : '')); }
 const { q, exec, MOIS_A, MOIS_B, FIN_B, jour, fr, poserJeuDEssai, retirerJeuDEssai } = require('../support/jeu-balance');
 /* compte de test sans le privilege de l'ancienne presentation (admin les a tous) : retire le temps du test, puis remis */
-const sansPrivilege = require('../support/privilege-essai')(q, exec, process.env.E2E_LOGIN || 'admin', 'P_BALANCE_ANCIENNE_PRESENTATION');
+const sansPrivilege = require('../support/privilege-essai')(q, exec, ENV_E2E.LOGIN, 'P_BALANCE_ANCIENNE_PRESENTATION');
 const TMP = ENV_E2E.TMP + '/claude-0/lot-n';
 
 (async () => {
@@ -29,7 +29,7 @@ const TMP = ENV_E2E.TMP + '/claude-0/lot-n';
   const p = await ctx.newPage();
   const err = []; p.on('pageerror', e => err.push(String(e.message)));
   await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-  await p.fill('#str_login', process.env.E2E_LOGIN || 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+  await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
   await p.waitForURL('**/general/**', { timeout: 30000 });
   await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 60000 });
   await p.waitForTimeout(2500);

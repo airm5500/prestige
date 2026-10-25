@@ -30,7 +30,7 @@ function nettoyer() {
   nettoyer();
   [C1, C2].forEach((c) => {
     q("INSERT INTO t_order (lg_ORDER_ID, str_REF_ORDER, int_LINE, lg_GROSSISTE_ID, lg_USER_ID, str_STATUT, dt_CREATED, dt_UPDATED, int_PRICE, recu, direct_import)"
-      + ` VALUES ('${c}', '${c}', 2, '${G}', (SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = 'admin' LIMIT 1), 'is_Process', NOW(), NOW(), 0, 0, 0)`);
+      + ` VALUES ('${c}', '${c}', 2, '${G}', (SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '${ENV_E2E.LOGIN}' LIMIT 1), 'is_Process', NOW(), NOW(), 0, 0, 0)`);
     P.forEach((f, i) => q("INSERT INTO t_order_detail (lg_ORDERDETAIL_ID, lg_ORDER_ID, lg_FAMILLE_ID, lg_GROSSISTE_ID, int_NUMBER, int_PRICE, int_PAF_DETAIL, int_PRICE_DETAIL, prixAchat, prixUnitaire, str_STATUT, dt_CREATED, dt_UPDATED)"
       + ` VALUES ('${c}-${i}', '${c}', '${f}', '${G}', ${i + 2}, 0, 1000, 2000, 1000, 2000, 'is_Process', NOW(), NOW())`));
   });
@@ -63,7 +63,7 @@ function nettoyer() {
       liste: Ext.ComponentQuery.query('bonlivraisonmanager').some((x) => x.isVisible(true)) }));
   };
   try {
-    await connexion(p, 'admin', 'e2etest');
+    await connexion(p, ENV_E2E.LOGIN, 'e2etest');
     await ouvrirCommande(C1);
     const l = await p.evaluate(() => {
       const d = Ext.getCmp('btn_detail').getEl().dom.getBoundingClientRect(), s = Ext.getCmp('scanMode').getEl().dom.getBoundingClientRect();

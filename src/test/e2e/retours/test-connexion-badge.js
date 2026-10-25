@@ -28,9 +28,9 @@ const nouveauNum = () => 'ZZE-26-' + String(Date.now() + rang++).slice(-5) + '-A
 let NUM = nouveauNum();
 const SECRET = crypto.randomBytes(32).toString('base64url');
 const PARAM = q("SELECT IFNULL((SELECT str_VALUE FROM t_parameters WHERE str_KEY = 'KEY_CONNEXION_BADGE'), 'ABSENT')");
-const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = 'admin'");
+const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
 const LIEN = q("SELECT IFNULL((SELECT id FROM t_employe WHERE lg_USER_ID = '" + ADMIN + "'), '')");
-const contenu = (s, login) => 'PRESTIGE-BADGE|1|' + NUM + '|' + (login || 'admin') + '|' + s;
+const contenu = (s, login) => 'PRESTIGE-BADGE|1|' + NUM + '|' + (login || ENV_E2E.LOGIN) + '|' + s;
 /* chaque refus sur un numero neuf : les essais sont limites par numero de badge (verifie a part, en dernier) */
 const renumeroter = () => { NUM = nouveauNum(); q("UPDATE t_rh_badge SET numero = '" + NUM + "' WHERE id = '" + B + "'; UPDATE t_employe SET badge = '" + NUM + "' WHERE id = '" + E + "'"); };
 function nettoyer() {
@@ -98,7 +98,7 @@ function nettoyer() {
 
     /* 5. mot de passe toujours valable */
     const p5 = await page();
-    await p5.fill('#str_login', 'admin'); await p5.fill('#str_password', 'e2etest'); await p5.click('#login');
+    await p5.fill('#str_login', ENV_E2E.LOGIN); await p5.fill('#str_password', 'e2etest'); await p5.click('#login');
     await p5.waitForURL('**/general/**', { timeout: 60000 }).catch(() => null);
     ok('La connexion par mot de passe fonctionne toujours', /general/.test(p5.url()));
 

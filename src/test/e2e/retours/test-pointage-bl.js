@@ -21,8 +21,8 @@ const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-char
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const SORTIE = process.env.SORTIE || ENV_E2E.TMP;
 const G = '51217123531215794892', CMD = 'E2E-PBL-CMD';
-const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = 'admin'");
-const ROLE = q("SELECT ru.lg_ROLE_ID FROM t_user u JOIN t_role_user ru ON ru.lg_USER_ID = u.lg_USER_ID WHERE u.str_LOGIN = 'admin' LIMIT 1");
+const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
+const ROLE = q("SELECT ru.lg_ROLE_ID FROM t_user u JOIN t_role_user ru ON ru.lg_USER_ID = u.lg_USER_ID WHERE u.str_LOGIN = '" + ENV_E2E.LOGIN + "' LIMIT 1");
 const BLS = [['E2E-PBL-1', 'TST900101', '2026-09-25', 12491, null], ['E2E-PBL-2', '900102', '2026-09-28', 65000, '49'],
   ['E2E-PBL-3', '900103', '2026-09-16', 150000, null], ['E2E-PBL-5', '900105', '2026-09-20', 5000, null]];
 let droit = null;
@@ -52,7 +52,7 @@ function nettoyer() {
   const connexion = async () => {
     p.on('pageerror', (e) => err.push(String(e.message)));
     await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 40000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 90000 });
     await p.waitForTimeout(1500);
@@ -73,7 +73,7 @@ function nettoyer() {
       && nos.find((x) => x.id === 'E2E-PBL-2' && x.sequence === '49'), JSON.stringify(nos.map((x) => x.type + ' ' + x.reference + ' ' + x.montantHt)));
     const totaux = await p.evaluate(() => Ext.ComponentQuery.query('pointagebl')[0].pieces.getProxy().getReader().rawData);
     const attenduBl = Number(q("SELECT COALESCE(SUM(b.int_MHT), 0) FROM t_bon_livraison b JOIN t_order o ON o.lg_ORDER_ID = b.lg_ORDER_ID JOIN t_user u ON u.lg_USER_ID = b.lg_USER_ID"
-      + " WHERE o.lg_GROSSISTE_ID = '" + G + "' AND u.lg_EMPLACEMENT_ID = (SELECT lg_EMPLACEMENT_ID FROM t_user WHERE str_LOGIN = 'admin') AND b.str_STATUT IN ('enable', 'is_Closed')"
+      + " WHERE o.lg_GROSSISTE_ID = '" + G + "' AND u.lg_EMPLACEMENT_ID = (SELECT lg_EMPLACEMENT_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "') AND b.str_STATUT IN ('enable', 'is_Closed')"
       + " AND b.dt_DATE_LIVRAISON >= '2026-09-01' AND b.dt_DATE_LIVRAISON < '2026-10-01'"));
     ok('Total BL du bandeau = base', totaux.totalBl === attenduBl, totaux.totalBl + ' / ' + attenduBl);
     await p.screenshot({ path: SORTIE + '/pointage-bl.png' });

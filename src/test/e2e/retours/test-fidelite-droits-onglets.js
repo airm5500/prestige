@@ -72,7 +72,7 @@ function nettoyer() {
     ok('L\'onglet Analyse se charge', analyse.length > 20 && !/Chargement…$/.test(analyse) && !/droit/i.test(analyse), analyse.slice(0, 80));
     await p.context().close();
 
-    p = await ouvrir('admin', 'e2etest');
+    p = await ouvrir(ENV_E2E.LOGIN, 'e2etest');
     ok('Admin : les trois onglets, comme avant', await onglets(p) === 'Clients,Paramètres,Analyse', await onglets(p));
     await p.context().close();
     ok('Aucune erreur JavaScript, aucune fenêtre du navigateur', erreurs.length === 0 && dialogues.length === 0, erreurs.concat(dialogues).join(' | '));

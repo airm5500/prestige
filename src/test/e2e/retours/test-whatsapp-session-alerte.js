@@ -62,7 +62,7 @@ const sante = (etat) => fetch('http://localhost:8080/prestige/api/v1/whatsapp/we
     await new Promise((r) => setTimeout(r, 4000));
     await fetch(`http://127.0.0.1:${PORT}/etat`, { headers: { Authorization: 'Bearer ' + JETON } }).catch(() => {});
 
-    await connexion(p, 'admin', 'e2etest');
+    await connexion(p, ENV_E2E.LOGIN, 'e2etest');
     ok('Service connecté, réception saine : aucune bannière', await banniere() === '');
 
     ok('Le service signale une réception dégradée (webhook) : accepté', await sante('DEGRADE') === 200);

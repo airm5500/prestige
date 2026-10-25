@@ -13,7 +13,7 @@ const API = 'http://localhost:8080/prestige/api/v1/preferences/';
     const anonyme = await (await p.request.get(API + 'e2e_test')).text();
     ok('Hors session : refusé (filtre d\'authentification)', !/"valeur"/.test(anonyme), anonyme.slice(0, 80));
     await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     const f = (m, c, corps) => p.evaluate(async (a) => { const r = await fetch(a.u, { method: a.m, headers: { 'Content-Type': 'application/json' }, body: a.corps }); return r.json(); }, { u: API + c, m, corps });
     ok('Clé absente : valeur nulle', (await f('GET', 'e2e_test')).valeur === null);

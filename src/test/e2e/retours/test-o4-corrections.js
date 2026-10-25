@@ -30,7 +30,7 @@ const [PID, CIP, NOM] = q("SELECT CONCAT_WS('|', lg_FAMILLE_ID, int_CIP, str_NAM
     await p.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'domcontentloaded' });
     const sans = await api('POST', '../api/v1/app-vente/ordonnances/corrections', { corrections: [] });
     ok('Sans session : 401', sans.http === 401, sans.http);
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
 
     const cap = await api('GET', '../api/v1/app-vente/capacites');

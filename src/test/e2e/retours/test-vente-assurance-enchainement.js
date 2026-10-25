@@ -65,7 +65,7 @@ const INCONNU = 'ZZE2EINCONNU';
     await p.waitForTimeout(800);
   };
   try {
-    await connexion(p, 'admin', 'e2etest');
+    await connexion(p, ENV_E2E.LOGIN, 'e2etest');
     await ouvrirMenu(p, 'SERVICE CLIENT', 'Ventes');
     await p.waitForFunction(() => Ext.ComponentQuery.query('cloturerventemanager #addBtn').some((x) => x.isVisible(true)), null, { timeout: 60000 });
     await cliquer(p, 'cloturerventemanager #addBtn');

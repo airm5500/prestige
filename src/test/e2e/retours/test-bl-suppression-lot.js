@@ -15,7 +15,7 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
 const BASE = ENV_E2E.BASE;
 const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
-const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = 'admin'");
+const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
 const [DET, REF, PROD, RECUE, UG] = q("SELECT CONCAT_WS('|', d.lg_BON_LIVRAISON_DETAIL, b.str_REF_LIVRAISON, d.lg_FAMILLE_ID, d.int_QTE_RECUE, d.int_QTE_UG) FROM t_bon_livraison_detail d"
   + " JOIN t_bon_livraison b ON b.lg_BON_LIVRAISON_ID = d.lg_BON_LIVRAISON_ID WHERE b.str_REF_LIVRAISON NOT LIKE 'E2E%' ORDER BY d.dt_CREATED DESC LIMIT 1").split('|');
 const AUTRE = 'E2E-BL-AUTRE';
@@ -40,7 +40,7 @@ const ligne = () => q(`SELECT CONCAT(int_QTE_RECUE, '/', int_QTE_UG) FROM t_bon_
     return r.status; }, corps);
   try {
     await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 40000 });
     const r1 = await api({ idBonDetail: DET, idProduit: PROD, refBon: REF, numLot: 'E2ELOTX', removeLot: true });
     ok('Lot E2ELOTX retiré de CE BL, avec sa ligne d\'entrepôt', r1 === 200 && present('E2E-LOTD-1') === '0/0', r1 + ' ' + present('E2E-LOTD-1'));

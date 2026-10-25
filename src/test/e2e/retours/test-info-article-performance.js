@@ -24,7 +24,7 @@ const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-charact
   const mediane = async (s) => { const t = []; let j; for (let i = 0; i < 3; i++) { const r = await lire(s); t.push(r.ms); j = r.j; } t.sort((a, b) => a - b); return { ms: t[1], j, t }; };
   try {
     await p.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     await lire('doli');
     const doli = await mediane('doli');

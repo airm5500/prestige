@@ -36,7 +36,7 @@ const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-charact
       + " WHERE f.str_STATUT='enable' AND NOT EXISTS (SELECT 1 FROM t_famille_dci fd WHERE fd.lg_FAMILLE_ID=f.lg_FAMILLE_ID) ORDER BY f.str_NAME LIMIT 5").split('\n').filter(Boolean);
     const admin = await (await b.newContext()).newPage();
     await admin.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-    await admin.fill('#str_login', 'admin'); await admin.fill('#str_password', 'e2etest'); await admin.click('#login');
+    await admin.fill('#str_login', ENV_E2E.LOGIN); await admin.fill('#str_password', 'e2etest'); await admin.click('#login');
     await admin.waitForURL('**/general/**', { timeout: 60000 });
     const avant = q("SELECT COALESCE(GROUP_CONCAT(lg_FAMILLE_DCI_ID), '') FROM t_famille_dci");
     const liens = [[dcis[0], produits[0]], [dcis[0], produits[1]], [dcis[0], produits[2]], [dcis[1], produits[3]], [dcis[1], produits[4]]];

@@ -24,7 +24,7 @@ const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-charact
     const sansSession = await lire('../api/v1/etat-control-bon/nombre?dtStart=2026-01-01&dtEnd=2026-01-31');
     const listeSansSession = await lire('../api/v1/etat-control-bon/list?dtStart=2026-01-01&dtEnd=2026-01-31&limit=1');
     ok('Sans session : même réponse que la liste', sansSession.s === listeSansSession.s, sansSession.s + ' / ' + listeSansSession.s);
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 40000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 90000 });
 

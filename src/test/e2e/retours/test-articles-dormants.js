@@ -17,7 +17,7 @@ const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-charact
 const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
 const SORTIE = process.env.SORTIE || ENV_E2E.TMP;
 
-const EMP = q("SELECT lg_EMPLACEMENT_ID FROM t_user WHERE str_LOGIN = 'admin'");
+const EMP = q("SELECT lg_EMPLACEMENT_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
 const ENTREES = "(SELECT w.lg_FAMILLE_ID, MAX(w.dt_CREATED) derniere FROM t_warehouse w JOIN t_user wu ON wu.lg_USER_ID = w.lg_USER_ID"
   + " WHERE wu.lg_EMPLACEMENT_ID = '" + EMP + "' GROUP BY w.lg_FAMILLE_ID) e";
 const VENDU_APRES = "EXISTS (SELECT 1 FROM t_preenregistrement_detail d JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = d.lg_PREENREGISTREMENT_ID"
@@ -29,7 +29,7 @@ const BASE_SQL = (jours) => " FROM t_famille f JOIN t_famille_stock s ON s.lg_FA
 /* Jeu d'essai (retire a la fin) : une entree ancienne (200 jours) pour trois produits en stock sans autre entree :
  * deux sans vente depuis (dormants), un vendu depuis (pas dormant). La liste ne depend pas de l'anciennete des
  * donnees de la base d'essai. */
-const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = 'admin'");
+const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
 const SANS_ENTREE = " FROM t_famille f JOIN t_famille_stock s ON s.lg_FAMILLE_ID = f.lg_FAMILLE_ID AND s.lg_EMPLACEMENT_ID = '" + EMP + "' AND s.str_STATUT = 'enable'"
   + " WHERE f.str_STATUT = 'enable' AND s.int_NUMBER_AVAILABLE > 0 AND f.int_PAF > 0 AND (SELECT COUNT(*) FROM t_famille x WHERE x.int_CIP = f.int_CIP) = 1"
   + " AND NOT EXISTS (SELECT 1 FROM t_warehouse w WHERE w.lg_FAMILLE_ID = f.lg_FAMILLE_ID)";
@@ -54,7 +54,7 @@ const retirerEssai = () => exec("DELETE FROM t_warehouse WHERE lg_WAREHOUSE_ID L
   const n = (x) => Number(String(x).replace(/[^\d]/g, ''));
   try {
     await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 40000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 90000 });
     await p.waitForTimeout(1500);

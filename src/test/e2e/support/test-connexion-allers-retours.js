@@ -78,8 +78,8 @@ async function menuAffiche(p) {
   const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const fenetres = [], erreurs = [];
   try {
-    const nbDroitsAdmin = q("SELECT COUNT(*) FROM t_role_privelege rp JOIN t_role_user ru ON ru.lg_ROLE_ID = rp.lg_ROLE_ID JOIN t_user u ON u.lg_USER_ID = ru.lg_USER_ID WHERE u.str_LOGIN = 'admin'");
-    for (const [nom, login, mdp] of [['Administrateur', 'admin', 'e2etest'], ['Caissier', LOGIN, MDP]]) {
+    const nbDroitsAdmin = q("SELECT COUNT(*) FROM t_role_privelege rp JOIN t_role_user ru ON ru.lg_ROLE_ID = rp.lg_ROLE_ID JOIN t_user u ON u.lg_USER_ID = ru.lg_USER_ID WHERE u.str_LOGIN = '" + ENV_E2E.LOGIN + "'");
+    for (const [nom, login, mdp] of [['Administrateur', ENV_E2E.LOGIN, 'e2etest'], ['Caissier', LOGIN, MDP]]) {
       const c = await connexion(b, login, mdp);
       fenetres.push(...c.dialogues); erreurs.push(...c.err);
       ok(`${nom} : connexion acceptée`, c.corps.success === true, JSON.stringify(c.corps).slice(0, 120));
@@ -91,7 +91,7 @@ async function menuAffiche(p) {
         'manquants ' + manquants.join(',') + ' | en trop ' + enTrop.join(','));
       await c.ctx.close();
     }
-    const mauvais = await connexion(b, 'admin', 'mauvais-mot-de-passe');
+    const mauvais = await connexion(b, ENV_E2E.LOGIN, 'mauvais-mot-de-passe');
     ok('Mauvais mot de passe toujours refusé', mauvais.corps.success === false && /incorrect/i.test(mauvais.corps.message || ''), mauvais.corps.message);
     await mauvais.ctx.close();
     ok('Aucune fenêtre, aucune erreur JavaScript', fenetres.length === 0 && erreurs.length === 0, fenetres.concat(erreurs).join(' | '));

@@ -36,7 +36,7 @@ const retirer = () => q(`DELETE FROM t_rappel_habitude WHERE id = '${RAPPEL}'; D
     const r1 = await post(sans, '../api/v1/pharma/reponses?grossiste=E2E-INCONNU', '');
     ok('2 : sans le droit des commandes, pharma/reponses → 403 interdit', r1.status === 403 && r1.j && r1.j.interdit === true, JSON.stringify(r1));
     const adm = await (await b.newContext()).newPage();
-    await connexion(adm, 'admin', 'e2etest');
+    await connexion(adm, ENV_E2E.LOGIN, 'e2etest');
     const r2 = await post(adm, '../api/v1/pharma/reponses?grossiste=E2E-INCONNU', '');
     ok('2 : avec le droit, la route répond (pas de 403)', r2.status !== 403 && r2.status !== 401, r2.status + ' ' + JSON.stringify(r2.j).slice(0, 120));
 

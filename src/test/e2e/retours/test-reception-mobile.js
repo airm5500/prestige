@@ -25,15 +25,15 @@ const BASE = ENV_E2E.BASE;
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
 const M = 'E2E-RM-', REF = 'E2E-RM-BL1', NOTE = 'E2E-RM-RETOUR';
-const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = 'admin'");
-const AUTRE_USER = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN <> 'admin' AND str_STATUT = 'enable' LIMIT 1");
+const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
+const AUTRE_USER = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN <> '" + ENV_E2E.LOGIN + "' AND str_STATUT = 'enable' LIMIT 1");
 const PRODUIT = q("SELECT f.lg_FAMILLE_ID FROM t_famille f JOIN t_famille_stock s ON s.lg_FAMILLE_ID = f.lg_FAMILLE_ID AND s.lg_EMPLACEMENT_ID = '1'"
   + " WHERE f.str_STATUT = 'enable' AND COALESCE(f.bool_DECONDITIONNE, 0) = 0 ORDER BY f.lg_FAMILLE_ID LIMIT 1 OFFSET 7");
 const G = q("SELECT lg_GROSSISTE_ID FROM t_grossiste WHERE str_STATUT = 'enable' ORDER BY lg_GROSSISTE_ID LIMIT 1");
 const MOTIF = q("SELECT lg_MOTIF_RETOUR FROM t_motif_retour ORDER BY lg_MOTIF_RETOUR LIMIT 1");
 const STOCK0 = q(`SELECT CONCAT(int_NUMBER_AVAILABLE, '|', int_NUMBER) FROM t_famille_stock WHERE lg_FAMILLE_ID = '${PRODUIT}' AND lg_EMPLACEMENT_ID = '1'`).split('|');
-const corriger = require('../support/privilege-essai')(q, exec, 'admin', 'P_BL_MOBILE_CORRIGER');
-const accepter = require('../support/privilege-essai')(q, exec, 'admin', 'P_BL_MOBILE_ACCEPTER_PEREMPTION_COURTE');
+const corriger = require('../support/privilege-essai')(q, exec, ENV_E2E.LOGIN, 'P_BL_MOBILE_CORRIGER');
+const accepter = require('../support/privilege-essai')(q, exec, ENV_E2E.LOGIN, 'P_BL_MOBILE_ACCEPTER_PEREMPTION_COURTE');
 
 function retirer() {
   const ids = q(`SELECT IFNULL(GROUP_CONCAT(CONCAT("'", lg_RETOUR_FRS_ID, "'")), "''") FROM t_retour_fournisseur WHERE str_COMMENTAIRE = '${NOTE}' OR lg_RETOUR_FRS_ID LIKE '${M}%'`);
@@ -75,7 +75,7 @@ function poser() {
   const connecter = async () => {
     p = await (await b.newContext()).newPage();
     await p.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
   };
   const api = (m, u, c) => p.evaluate(async ([m, u, c]) => { const r = await fetch(u, { method: m, headers: { 'Content-Type': 'application/json' }, body: c === undefined ? undefined : JSON.stringify(c) });
@@ -108,7 +108,7 @@ function poser() {
     /* D11 */
     const lots = await api('GET', '../api/v1/commande/bon/items/' + M + 'D1/lots');
     const a = (lots.data || []).find((x) => x.numLot === 'E2ERMA') || {}, c = (lots.data || []).find((x) => x.numLot === 'E2ERMC') || {};
-    ok('D11 : lots de la ligne avec auteur et heure', lots.http === 200 && lots.data.length === 3 && a.quantite === 3 && a.login === 'admin' && /^\d{4}-\d\d-\d\dT/.test(a.creeLe || '') && a.datePeremption === peremption, JSON.stringify(lots.data));
+    ok('D11 : lots de la ligne avec auteur et heure', lots.http === 200 && lots.data.length === 3 && a.quantite === 3 && a.login === ENV_E2E.LOGIN && /^\d{4}-\d\d-\d\dT/.test(a.creeLe || '') && a.datePeremption === peremption, JSON.stringify(lots.data));
     corriger.retirer();
     await p.context().close(); await connecter();
     const refus = await api('DELETE', '../api/v1/commande/bon/lots/' + c.lotId);

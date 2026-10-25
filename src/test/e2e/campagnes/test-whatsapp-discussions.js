@@ -65,7 +65,7 @@ const envoyer = (entrants) => fetch(WEBHOOK, { method: 'POST', headers: { Author
     const enBase = table ? q("SELECT CONCAT_WS('|', COUNT(*), SUM(client_id = 'E2E-DISC-A'), SUM(lu)) FROM whatsapp_discussion WHERE numero = '0708771122'") : '';
     ok('Webhook : 2 messages gardés pour A (doublon ignoré, ancien numéro à 8 chiffres rattaché), non lus', s1 === 200 && enBase === '2|2|0', s1 + ' ' + enBase);
 
-    await connexion(p, 'admin', 'e2etest');
+    await connexion(p, ENV_E2E.LOGIN, 'e2etest');
     await ouvrirMenu(p, 'Campagnes SMS / WhatsApp', 'Discussions WhatsApp');
     await p.waitForFunction(() => Ext.ComponentQuery.query('whatsappdiscussions').some((x) => x.isVisible(true)), null, { timeout: 60000 });
     await p.waitForFunction(() => document.querySelectorAll('.wad .wad-item[data-numero="0708771122"]').length === 1, null, { timeout: 30000 });
@@ -100,7 +100,7 @@ const envoyer = (entrants) => fetch(WEBHOOK, { method: 'POST', headers: { Author
     await p.waitForFunction(() => document.querySelectorAll('.wad .wad-fil .wad-msg.wad-S').length === 1, null, { timeout: 20000 });
     const bulle = await p.evaluate(() => { const m = document.querySelector('.wad .wad-fil .wad-msg.wad-S'); return { texte: m.childNodes[0].textContent, meta: m.querySelector('.wad-meta').textContent,
       etat: document.querySelector('.wad .wad-etat').textContent, saisie: Ext.ComponentQuery.query('whatsappdiscussions #texte')[0].getValue() }; });
-    const sortant = q("SELECT CONCAT_WS('|', d.statut, d.lg_USER_ID = u.lg_USER_ID, d.texte) FROM whatsapp_discussion d JOIN t_user u ON u.str_LOGIN = 'admin' WHERE d.numero = '0708771122' AND d.sens = 'S'");
+    const sortant = q("SELECT CONCAT_WS('|', d.statut, d.lg_USER_ID = u.lg_USER_ID, d.texte) FROM whatsapp_discussion d JOIN t_user u ON u.str_LOGIN = '" + ENV_E2E.LOGIN + "' WHERE d.numero = '0708771122' AND d.sens = 'S'");
     ok('Second clic : réponse simulée (mode test), {prenom} remplacé, auteur et « simulé » dans la bulle, zone vidée', bulle.texte === 'Oui Awa, nous l\'avons en stock.'
       && /simulé/.test(bulle.meta) && /simulée/i.test(bulle.etat) && bulle.saisie === '' && /^SIMULE\|1\|Oui Awa/.test(sortant), JSON.stringify({ bulle, sortant }));
     ok('La réponse figure aussi au journal des envois WhatsApp (sans le texte)', q(`SELECT COUNT(*) FROM whatsapp_message WHERE telephone = '0708771122' AND created_at >= '${debut}'`) === '1');

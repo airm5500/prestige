@@ -29,7 +29,7 @@ let PRODUITS = [], SCHED_AVANT = {}, CLIENTS = [], USER = '';
 function semer() {
   // Un passage precedent interrompu peut avoir laisse des traces : on repart d'une base propre.
   purger();
-  USER = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='" + (process.env.E2E_LOGIN || 'admin') + "'");
+  USER = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='" + (ENV_E2E.LOGIN) + "'");
   // Trois produits porteurs d'un code tableau : ce sont eux que le registre doit retenir.
   q("SELECT CONCAT_WS('~',lg_FAMILLE_ID,IFNULL(is_scheduled,0),int_T) FROM t_famille"
     + " WHERE int_T IN ('A','C','II') AND str_STATUT='enable' ORDER BY str_NAME LIMIT 3")
@@ -107,7 +107,7 @@ function nettoyer() {
   const p = await b.newPage({ viewport: { width: 1700, height: 950 } });
   const err = []; p.on('pageerror', e => err.push(String(e.message)));
   await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-  await p.fill('#str_login', process.env.E2E_LOGIN || 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+  await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
   await p.waitForURL('**/general/**', { timeout: 30000 });
   await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 60000 });
   await p.waitForTimeout(3000);

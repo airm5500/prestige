@@ -37,7 +37,7 @@ const statut = (e) => q('SELECT IFNULL(' + e.statut + ", '') FROM " + e.table + 
   const p = await b.newPage({ viewport: { width: 1600, height: 900 } });
   const erreurs = []; p.on('pageerror', (x) => erreurs.push(x.message));
   try {
-    await connexion(p, 'admin', 'e2etest');
+    await connexion(p, ENV_E2E.LOGIN, 'e2etest');
     for (const e of ECRANS) {
       try {
         await ouvrirMenu(p, e.menu[0], e.menu[1]);

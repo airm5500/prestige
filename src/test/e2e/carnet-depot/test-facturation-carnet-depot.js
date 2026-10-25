@@ -56,7 +56,7 @@ function clonerBon(suffixe, tiersPayant) {
   const compte = MARQUE + '-CC-' + suffixe;
   const vente = MARQUE + '-V-' + suffixe;
   const bon = MARQUE + '-B-' + suffixe;
-  const utilisateur = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='" + (process.env.E2E_LOGIN || 'admin') + "'");
+  const utilisateur = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='" + (ENV_E2E.LOGIN) + "'");
   /* Les comptes clients de cette base sont tous orphelins : aucun des 6 051 ne pointe vers un
      t_compte_client existant. On rattache donc la copie au seul compte client valide, sans quoi
      la contrainte de cle etrangere refuse l'insertion. */
@@ -127,7 +127,7 @@ function semer() {
   const p = await b.newPage({ viewport: { width: 1700, height: 950 } });
   const err = []; p.on('pageerror', e => err.push(String(e.message)));
   await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-  await p.fill('#str_login', process.env.E2E_LOGIN || 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+  await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
   await p.waitForURL('**/general/**', { timeout: 30000 });
   await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 60000 });
   await p.waitForTimeout(3000);

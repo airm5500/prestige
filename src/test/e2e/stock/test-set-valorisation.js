@@ -19,10 +19,10 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
 const BASE = ENV_E2E.BASE;
 const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
-const ROLE = q("SELECT ru.lg_ROLE_ID FROM t_role_user ru JOIN t_user u ON u.lg_USER_ID = ru.lg_USER_ID WHERE u.str_LOGIN = 'admin' LIMIT 1");
+const ROLE = q("SELECT ru.lg_ROLE_ID FROM t_role_user ru JOIN t_user u ON u.lg_USER_ID = ru.lg_USER_ID WHERE u.str_LOGIN = '" + ENV_E2E.LOGIN + "' LIMIT 1");
 const PRIV = q("SELECT lg_PRIVELEGE_ID FROM t_privilege WHERE str_NAME = 'P_SET_VALORISATION'");
 const DROIT_AJOUTE = 'E2E-SETVALO-DROIT';
-const USER = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = 'admin'");
+const USER = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
 const empreinte = () => q("SELECT CONCAT((SELECT COALESCE(SUM(CRC32(CONCAT_WS('|', lg_FAMILLE_STOCK_ID, int_NUMBER_AVAILABLE, int_NUMBER, int_UG))), 0) FROM t_famille_stock),"
   + " '/', (SELECT COALESCE(SUM(CRC32(CONCAT_WS('|', lg_FAMILLE_ID, int_PAF, int_PRICE, str_STATUT))), 0) FROM t_famille),"
   + " '/', (SELECT COUNT(*) FROM hmvtproduit), '/', (SELECT COUNT(*) FROM t_famille_stock))");
@@ -46,7 +46,7 @@ const retirer = () => exec(`DELETE FROM t_role_privelege WHERE lg_ROLE_PRIVILEGE
   const connecter = async (p) => {
     p.on('dialog', (d) => { dialogues.push(d.message()); d.dismiss().catch(() => {}); });
     await p.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 120000 });
     await p.waitForTimeout(1500);

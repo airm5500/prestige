@@ -22,7 +22,7 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
   p.on('pageerror', (e) => erreurs.push(e.message));
   p.on('dialog', (d) => { dialogues.push(d.message()); d.dismiss().catch(() => {}); });
   try {
-    await connexion(p, 'admin', 'e2etest');
+    await connexion(p, ENV_E2E.LOGIN, 'e2etest');
     await ouvrirMenu(p, 'ANALYSE DE GESTION', 'Activité des équipes');
     await p.waitForFunction(() => document.querySelectorAll('.ae-pastille').length > 0, null, { timeout: 120000 });
     await cliquer(p, 'activiteequipes #ae-analyses');

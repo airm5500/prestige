@@ -16,7 +16,7 @@ const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
 const BASE = ENV_E2E.BASE;
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN'], { input: s, encoding: 'utf8' }).trim();
-const C = 'E2E-FINS-C1', ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = 'admin'");
+const C = 'E2E-FINS-C1', ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
 const PRODUIT = q("SELECT lg_FAMILLE_ID FROM t_famille WHERE str_STATUT = 'enable' LIMIT 1");
 
 function vente(id, minutes) {
@@ -85,7 +85,7 @@ const gains = () => q(`SELECT IFNULL(GROUP_CONCAT(lg_PREENREGISTREMENT_ID ORDER 
       + ` VALUES ('${C}', '${C}', 'ZZFIDINSCRIT', 'TEST', 'E2EFINS01', 'F', NOW(), NOW(), 'enable');`);
     ok('Nouveau client : inscrit par défaut', q(`SELECT bool_FIDELITE FROM t_client WHERE lg_CLIENT_ID = '${C}'`) === '1');
 
-    await connexion(p, 'admin', 'e2etest');
+    await connexion(p, ENV_E2E.LOGIN, 'e2etest');
     await ouvrirMenu(p, 'GESTION DES TIERS-PAYANTS', 'Clients');
     await p.waitForFunction(() => Ext.getCmp('rechecher') && Ext.ComponentQuery.query('clientgestion').length, null, { timeout: 30000 });
     await p.waitForTimeout(1500);

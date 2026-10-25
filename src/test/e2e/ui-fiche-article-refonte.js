@@ -28,7 +28,7 @@ const CONFIG = sql("SELECT CONCAT(IFNULL((SELECT str_VALUE FROM t_parameters WHE
 function poser() {
     sql("DELETE FROM t_lot WHERE lg_LOT_ID='E2E-FA-LOT';"
         + " INSERT INTO t_lot (lg_LOT_ID, lg_USER_ID, lg_FAMILLE_ID, int_NUM_LOT, int_NUMBER, dt_CREATED, dt_UPDATED, dt_PEREMPTION, str_STATUT, current_stock)"
-        + " SELECT 'E2E-FA-LOT', lg_USER_ID, '" + FID + "', 'E2EFA', 3, NOW(), NOW(), DATE_ADD(CURDATE(), INTERVAL 4 MONTH), 'enable', 3 FROM t_user WHERE str_LOGIN='" + (process.env.E2E_LOGIN || 'admin') + "';"
+        + " SELECT 'E2E-FA-LOT', lg_USER_ID, '" + FID + "', 'E2EFA', 3, NOW(), NOW(), DATE_ADD(CURDATE(), INTERVAL 4 MONTH), 'enable', 3 FROM t_user WHERE str_LOGIN='" + (ENV_E2E.LOGIN) + "';"
         + " UPDATE t_parameters SET str_VALUE='4' WHERE str_KEY='FICHE_ARTICLE_NB_ICONES';"
         + " UPDATE t_parameters SET str_VALUE='' WHERE str_KEY='FICHE_ARTICLE_ORDRE_ACTIONS';");
 }
@@ -51,7 +51,7 @@ function ok(name, cond, detail) {
     page.on('pageerror', e => erreursJs.push(String(e.message)));
 
     await page.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-    await page.fill('#str_login', process.env.E2E_LOGIN || 'admin');
+    await page.fill('#str_login', ENV_E2E.LOGIN);
     await page.fill('#str_password', 'e2etest');
     await page.click('#login');
     await page.waitForURL('**/general/**', { timeout: 30000 });

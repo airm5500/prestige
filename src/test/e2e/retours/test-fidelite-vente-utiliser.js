@@ -20,7 +20,7 @@ const BASE = ENV_E2E.BASE;
 const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const C = 'E2E-FIDV-C1', C2 = 'E2E-FIDV-C2', NOM = 'ZZFIDVENTE', CAISSE = 'e2e-fidv-caisse';
-const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = 'admin'");
+const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
 const DEBUT = q('SELECT NOW() - INTERVAL 1 SECOND');
 const [PID, CIP, PU] = q("SELECT f.lg_FAMILLE_ID, f.int_CIP, f.int_PRICE FROM t_famille f JOIN t_famille_stock s ON s.lg_FAMILLE_ID = f.lg_FAMILLE_ID AND s.lg_EMPLACEMENT_ID = '1'"
   + " WHERE f.str_STATUT = 'enable' AND f.int_PRICE BETWEEN 1500 AND 3000 AND f.int_CIP REGEXP '^[0-9]{7}$' AND COALESCE(f.bool_DECONDITIONNE, 0) = 0"
@@ -89,7 +89,7 @@ function nettoyer() {
   const clicCase = async () => { await p.evaluate(() => { const c = Ext.ComponentQuery.query('doventemanager #contenu #utiliserPoints')[0]; c.getEl().dom.setAttribute('data-e2e', 'utiliser'); });
     await p.click('[data-e2e=utiliser] input'); await p.waitForTimeout(800); };
   try {
-    await connexion(p, 'admin', 'e2etest');
+    await connexion(p, ENV_E2E.LOGIN, 'e2etest');
     let r = await api('PUT', '../api/v1/fidelite/parametres', { actif: true, montantPoint: 1000, valeurPoint: 5, seuil: 0, expirationMois: 12, assurance: true, debut: q('SELECT CURDATE()') });
     r = await api('POST', '../api/v1/fidelite/client/' + C + '/ajuster', { points: 200, motif: 'Essai case Utiliser' });
     ok('Précondition : fidélité active, client inscrit avec 200 points (1 000 FCFA), article de ' + PU + ' FCFA', r.success && solde() === 200 && !!CIP, JSON.stringify(r));

@@ -27,7 +27,7 @@ const QTES = new Map(q(`SELECT lg_BON_LIVRAISON_DETAIL, int_QTE_CMDE FROM t_bon_
   const appel = (u) => p.evaluate(async (u) => { const t = performance.now(); const r = await fetch(u); const j = await r.json(); return { ms: Math.round(performance.now() - t), j }; }, u);
   try {
     ok('Jeu d\'essai : un gros BL', Number(NB) >= 300, NB + ' lignes');
-    await connexion(p, 'admin', 'e2etest');
+    await connexion(p, ENV_E2E.LOGIN, 'e2etest');
     const tout = await appel('../api/v1/commande/bon/items/' + BL + '?page=1&start=0&limit=9999');
     ok('Toutes les lignes (limit=9999) en moins de 8 s', tout.ms < 8000, tout.ms + ' ms');
     const lignes = tout.j.data || [];

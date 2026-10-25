@@ -25,8 +25,8 @@ const PORT = 8090, PUBLIC = 'http://127.0.0.1:' + PORT;
 const CLES = ['KEY_AVIS_ADRESSE_PUBLIQUE', 'KEY_AVIS_PORT_PUBLIC', 'KEY_AVIS_JETON', 'KEY_AVIS_ACTIF', 'KEY_AVIS_MAX_HEURE', 'KEY_AVIS_ADRESSE_AFFICHEE'];
 const origine = {};
 CLES.forEach((k) => { origine[k] = q("SELECT IFNULL(str_VALUE, '') FROM t_parameters WHERE str_KEY = '" + k + "'"); });
-const repondre = privilegeEssai(q, q, 'admin', 'P_AVIS_REPONDRE');
-const reglages = privilegeEssai(q, q, 'admin', 'P_AVIS_REGLAGES');
+const repondre = privilegeEssai(q, q, ENV_E2E.LOGIN, 'P_AVIS_REPONDRE');
+const reglages = privilegeEssai(q, q, ENV_E2E.LOGIN, 'P_AVIS_REGLAGES');
 const TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'e2e-avis-'));
 
 function nettoyer() {
@@ -60,7 +60,7 @@ const texteXls = (f) => execFileSync('python3', ['-I', '-c', "import sys,xlrd;s=
     repondre.remettre(); reglages.remettre();
     nettoyer();
     await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 120000 });
 
@@ -330,7 +330,7 @@ const texteXls = (f) => execFileSync('python3', ['-I', '-c', "import sys,xlrd;s=
       const c = await b.newContext({ viewport: { width: 1500, height: 950 } });
       const x = await c.newPage(); x.on('pageerror', (e) => err.push('session : ' + e.message));
       await x.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-      await x.fill('#str_login', 'admin'); await x.fill('#str_password', 'e2etest'); await x.click('#login');
+      await x.fill('#str_login', ENV_E2E.LOGIN); await x.fill('#str_password', 'e2etest'); await x.click('#login');
       await x.waitForURL('**/general/**', { timeout: 60000 });
       await x.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 120000 });
       await x.evaluate(() => testextjs.app.getController('App').onLoadNewComponent('avisclients', 'Avis clients', ''));

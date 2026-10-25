@@ -34,7 +34,7 @@ const iso = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, 
   const total = () => p.waitForFunction(() => { const g = Ext.ComponentQuery.query('etiquette')[0]; return g && !g.getStore().isLoading() && g.getStore().lastOptions; }, null, { timeout: 60000 })
     .then(() => p.evaluate(() => String(Ext.ComponentQuery.query('etiquette')[0].getStore().getTotalCount())));
   try {
-    await connexion(p, 'admin', 'e2etest');
+    await connexion(p, ENV_E2E.LOGIN, 'e2etest');
     const t0 = Date.now();
     await ouvrirMenu(p, 'GESTION DU STOCK', 'Gestion étiquette');
     let n = await total();

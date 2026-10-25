@@ -14,7 +14,7 @@ const { execFileSync } = require('child_process');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', ENV_E2E.BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
-const EMPL = q("SELECT lg_EMPLACEMENT_ID FROM t_user WHERE str_LOGIN = 'admin'");
+const EMPL = q("SELECT lg_EMPLACEMENT_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
 const perimetre = (d, f) => `FROM t_preenregistrement_detail d JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = d.lg_PREENREGISTREMENT_ID JOIN t_user u ON u.lg_USER_ID = p.lg_USER_ID`
   + ` WHERE p.dt_UPDATED >= '${d}' AND p.dt_UPDATED < '${f}' AND u.lg_EMPLACEMENT_ID = '${EMPL}' AND p.str_STATUT = 'is_Closed' AND p.b_IS_CANCEL = 0 AND p.int_PRICE > 0 AND p.lg_TYPE_VENTE_ID <> '5'`;
 const sql = (d, f) => { const [ttc, remise, tva, achat] = q(`SELECT CONCAT_WS('|', SUM(d.int_PRICE), SUM(IFNULL(d.int_PRICE_REMISE, 0)), SUM(IFNULL(d.montantTva, 0)), SUM(IFNULL(d.prixAchat, 0) * d.int_QUANTITY)) ${perimetre(d, f)}`).split('|').map(Number);
@@ -30,7 +30,7 @@ const OBJ0 = ['KEY_OBJECTIF_TAUX_MARQUE', 'KEY_OBJECTIF_TAUX_MARGE'].map((k) => 
     p.on('pageerror', (e) => err.push(e.message));
     p.on('dialog', (d) => { dialogues.push(d.message()); d.dismiss().catch(() => {}); });
     await p.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 90000 });
     await p.waitForTimeout(1500);

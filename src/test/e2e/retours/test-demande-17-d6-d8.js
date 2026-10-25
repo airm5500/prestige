@@ -16,7 +16,7 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
 const BASE = ENV_E2E.BASE;
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const M = 'E2E-D68-', REF = 'E2E-D8-HOMONYME', NOTE = 'E2E-D8-RETOUR';
-const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = 'admin'");
+const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
 const [G1, G2] = q("SELECT GROUP_CONCAT(x.id SEPARATOR '|') FROM (SELECT lg_GROSSISTE_ID id FROM t_grossiste WHERE str_STATUT = 'enable' ORDER BY lg_GROSSISTE_ID LIMIT 2) x").split('|');
 const PRODUIT = q("SELECT f.lg_FAMILLE_ID FROM t_famille f JOIN t_famille_stock s ON s.lg_FAMILLE_ID = f.lg_FAMILLE_ID AND s.lg_EMPLACEMENT_ID = '1'"
   + " WHERE f.str_STATUT = 'enable' AND COALESCE(f.bool_DECONDITIONNE, 0) = 0 ORDER BY f.lg_FAMILLE_ID LIMIT 1 OFFSET 23");
@@ -52,7 +52,7 @@ const bl = (n, g, age) => {
     let j = null; try { j = await r.json(); } catch (e) { /* vide */ } return { status: r.status, j }; }, [m, u, c]);
   const blsC3 = () => q(`SELECT COUNT(*) FROM t_bon_livraison WHERE lg_ORDER_ID = '${M}C3'`);
   try {
-    await connexion(p, 'admin', 'e2etest');
+    await connexion(p, ENV_E2E.LOGIN, 'e2etest');
     /* D6 */
     const sansRef = await api('POST', '../api/v1/commande/creerbl', { refParent: M + 'C3', ref: '  ', dtStart: '2026-10-19' });
     ok('D6 : référence absente : refus lisible, aucun BL', sansRef.j && sansRef.j.success === false && /référence/i.test(sansRef.j.msg || '') && blsC3() === '0', JSON.stringify(sansRef));

@@ -14,7 +14,7 @@ const BASE = ENV_E2E.BASE;
 const sql = (q) => execFileSync('mariadb', [...ENV_E2E.MARIADB, BASE, '-sN', '-e', q], { encoding: 'utf8' });
 /* second compte : SECOND_LOGIN, sinon WANE s'il existe, sinon le premier compte actif autre que le premier */
 const AUTRE = process.env.SECOND_LOGIN || sql("SELECT COALESCE((SELECT str_LOGIN FROM t_user WHERE str_LOGIN='WANE' AND str_STATUT='enable'),"
-  + " (SELECT str_LOGIN FROM t_user WHERE str_STATUT='enable' AND str_LOGIN <> '" + (process.env.E2E_LOGIN || 'admin') + "' ORDER BY str_LOGIN LIMIT 1))").trim();
+  + " (SELECT str_LOGIN FROM t_user WHERE str_STATUT='enable' AND str_LOGIN <> '" + (ENV_E2E.LOGIN) + "' ORDER BY str_LOGIN LIMIT 1))").trim();
 let empreinteOrigine = null;
 function poserMotDePasse() {
   empreinteOrigine = sql("SELECT str_PASSWORD FROM t_user WHERE str_LOGIN='" + AUTRE + "'").trim();
@@ -61,7 +61,7 @@ const cache = (e, di) => (e.find(c => c.di === di) || {}).h;
   const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
 
   // ---- utilisateur 1 ----
-  const s1 = await session(b, process.env.E2E_LOGIN || 'admin');
+  const s1 = await session(b, ENV_E2E.LOGIN);
   const p = s1.p;
   await p.ouvrir('inventaire', 'Inventaire');
   const depart = await p.etat();

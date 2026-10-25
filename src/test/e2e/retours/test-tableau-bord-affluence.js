@@ -29,7 +29,7 @@ const enBase = (l) => {
 const fr = (d) => d.slice(8, 10) + '/' + d.slice(5, 7);
 
 (async () => {
-  const U = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = 'admin'");
+  const U = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
   const prefAvant = q(`SELECT COUNT(*) FROM t_preference_utilisateur WHERE lg_USER_ID = '${U}' AND str_CLE = 'tableau-bord'`) === '1'
     ? q(`SELECT txt_VALEUR FROM t_preference_utilisateur WHERE lg_USER_ID = '${U}' AND str_CLE = 'tableau-bord'`) : null;
   const versionAvant = q("SELECT str_VALUE FROM t_parameters WHERE str_KEY = 'KEY_TABLEAU_BORD_VERSION'");
@@ -46,7 +46,7 @@ const fr = (d) => d.slice(8, 10) + '/' + d.slice(5, 7);
     reponses.push(new URL(r.url()).searchParams.get('date') + '>' + d.debut + ':' + (d.cases || []).reduce((x, c) => x + c.ventes, 0) + '@' + Date.now() % 100000); } catch (e) { /* ignoree */ } } });
   try {
     await p.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app && Ext.ComponentQuery.query('tableaubord').length, null, { timeout: 120000 });
     await p.evaluate((d) => { testextjs.view.tableaubord.TableauBord.dateForcee = d; const t = Ext.ComponentQuery.query('tableaubord')[0]; t.chargerPreferences(() => t.construire()); }, D);

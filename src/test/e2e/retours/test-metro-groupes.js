@@ -57,7 +57,7 @@ const stylesPrestige = (p) => p.evaluate(() => {
     const p = await (await b.newContext({ viewport: { width: 1366, height: 768 } })).newPage();
     p.on('pageerror', (e) => erreurs.push(e.message));
     p.on('dialog', (d) => { dialogues.push(d.message()); d.dismiss().catch(() => {}); });
-    await connexion(p, 'admin', 'e2etest');
+    await connexion(p, ENV_E2E.LOGIN, 'e2etest');
     await p.waitForTimeout(2500);
     const avant = await stylesPrestige(p);
     await metro(p);

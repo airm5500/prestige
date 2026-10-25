@@ -23,7 +23,7 @@ function ok(name, cond, detail) {
 /* Jeu d'essai (autonome) : un produit detail du banc avec sa boite parent ; stock detail 5 et boite 0 le temps du
    test, caisse ouverte si besoin ; la vente creee est retiree et les stocks remis a la fin. */
 const sql = (x) => require('child_process').execFileSync('mariadb', [...ENV_E2E.MARIADB, '-N', ENV_E2E.BASE], { input: x }).toString().trim();
-const ADMIN = sql("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='" + (process.env.E2E_LOGIN || 'admin') + "'");
+const ADMIN = sql("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='" + (ENV_E2E.LOGIN) + "'");
 const [DETAIL, PARENT, CIP_DETAIL] = sql("SELECT CONCAT_WS('|', d.lg_FAMILLE_ID, p.lg_FAMILLE_ID, d.int_CIP) FROM t_famille d JOIN t_famille p ON p.lg_FAMILLE_ID = d.lg_FAMILLE_PARENT_ID"
   + " JOIN t_famille_stock sd ON sd.lg_FAMILLE_ID = d.lg_FAMILLE_ID AND sd.lg_EMPLACEMENT_ID = '1' JOIN t_famille_stock sp ON sp.lg_FAMILLE_ID = p.lg_FAMILLE_ID AND sp.lg_EMPLACEMENT_ID = '1'"
   + " WHERE d.bool_DECONDITIONNE = 1 AND d.str_STATUT = 'enable' AND p.str_STATUT = 'enable' AND IFNULL(p.int_NUMBERDETAIL, 0) > 1 AND d.int_CIP <> ''"
@@ -83,7 +83,7 @@ async function okButtonSelector(page) {
 
     // connexion au clavier
     await page.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-    await page.click('#str_login'); await page.keyboard.type(process.env.E2E_LOGIN || 'admin', { delay: 30 });
+    await page.click('#str_login'); await page.keyboard.type(ENV_E2E.LOGIN, { delay: 30 });
     await page.click('#str_password'); await page.keyboard.type('e2etest', { delay: 30 });
     await page.click('#login');
     await page.waitForURL('**/general/**', { timeout: 30000 });

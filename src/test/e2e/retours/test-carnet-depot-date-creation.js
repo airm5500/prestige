@@ -39,7 +39,7 @@ function nettoyer() {
 /* Preconditions (pas l'objet du test) : un depot avec du solde, et une caisse ouverte pour l'operateur. */
 function poser() {
   nettoyer();
-  const user = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='admin'");
+  const user = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='" + ENV_E2E.LOGIN + "'");
   const modele = q("SELECT lg_MODEL_FACTURE_ID FROM t_tiers_payant WHERE lg_MODEL_FACTURE_ID IS NOT NULL LIMIT 1");
   const gabarit = q("SELECT lg_TIERS_PAYANT_ID FROM t_tiers_payant WHERE str_STATUT='enable' LIMIT 1");
   exec("INSERT INTO t_tiers_payant (lg_TIERS_PAYANT_ID, lg_MODEL_FACTURE_ID, str_CODE_ORGANISME, str_NAME,"
@@ -65,7 +65,7 @@ function poser() {
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   try {
     await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 40000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 90000 });
     await p.waitForTimeout(1500);

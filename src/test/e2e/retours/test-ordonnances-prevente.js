@@ -93,7 +93,7 @@ function poser() {
 (async () => {
   poser();
   /* Deux articles vendables (actifs, en stock, avec un prix) et un article sans stock, a l'emplacement de l'admin. */
-  const emplacement = q("SELECT lg_EMPLACEMENT_ID FROM t_user WHERE str_LOGIN='admin'");
+  const emplacement = q("SELECT lg_EMPLACEMENT_ID FROM t_user WHERE str_LOGIN='" + ENV_E2E.LOGIN + "'");
   const articles = q("SELECT f.lg_FAMILLE_ID, f.str_NAME, f.int_PRICE FROM t_famille f JOIN t_famille_stock s ON s.lg_FAMILLE_ID=f.lg_FAMILLE_ID"
     + " WHERE s.lg_EMPLACEMENT_ID='" + emplacement + "' AND s.int_NUMBER_AVAILABLE >= 20 AND f.int_PRICE > 0 AND f.str_STATUT='enable'"
     + " AND COALESCE(f.bool_DECONDITIONNE, 0) = 0 ORDER BY f.str_NAME LIMIT 2").split('\n').map((l) => l.split('\t'));
@@ -108,7 +108,7 @@ function poser() {
   /* La cloture bouge le stock : il est remis a l'identique a la fin. */
   stocksOrigine = articles.concat([faible]).map((a) => { const r = q("SELECT CONCAT_WS('|', lg_FAMILLE_STOCK_ID, int_NUMBER_AVAILABLE, int_NUMBER) FROM t_famille_stock WHERE lg_FAMILLE_ID='" + a[0] + "' AND lg_EMPLACEMENT_ID='" + emplacement + "'").split('|'); return { id: r[0], dispo: r[1], total: r[2] }; });
   /* La cloture exige une caisse ouverte pour l'operateur (precondition, pas l'objet du test). */
-  const admin = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='admin'");
+  const admin = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='" + ENV_E2E.LOGIN + "'");
   if (q("SELECT COUNT(*) FROM t_resume_caisse WHERE lg_USER_ID='" + admin + "' AND str_STATUT='is_Using'") === '0') {
     exec("INSERT INTO t_resume_caisse (ld_CAISSE_ID, lg_USER_ID, int_SOLDE_MATIN, int_SOLDE_SOIR, dt_DAY, dt_CREATED, lg_CREATED_BY, dt_UPDATED, lg_UPDATED_BY, str_STATUT)"
       + " VALUES ('" + CAISSE + "', '" + admin + "', 0, 0, CURDATE(), NOW(), '" + admin + "', NOW(), '" + admin + "', 'is_Using');");
@@ -118,7 +118,7 @@ function poser() {
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   try {
     await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 120000 });
     await p.waitForTimeout(1500);

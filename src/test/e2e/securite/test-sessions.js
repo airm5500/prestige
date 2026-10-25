@@ -34,7 +34,7 @@ const cookieSession = (r) => (r.headers.getSetCookie ? r.headers.getSetCookie() 
     ok('Routes publiques et pages d\'entrée : aucune session créée (' + publics.length + ' adresses)', avecSession.length === 0, avecSession.join(', '));
     let r = await fetch(API + 'v1/user/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ login: 'e2e_inconnu_' + Date.now(), password: 'x' }) });
     ok('Connexion ratée : aucune session créée', !cookieSession(r));
-    r = await fetch(API + 'v1/user/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ login: 'admin', password: 'e2etest' }) });
+    r = await fetch(API + 'v1/user/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ login: ENV_E2E.LOGIN, password: 'e2etest' }) });
     ok('Connexion réussie : session créée', cookieSession(r) && (await r.json()).success !== false);
 
     /* 2. expiration reelle : duree ramenee a 1 minute (cache d'une minute) */
@@ -44,7 +44,7 @@ const cookieSession = (r) => (r.headers.getSetCookie ? r.headers.getSetCookie() 
     const p = await ctx.newPage();
     p.on('dialog', (d) => { dialogues.push(d.message()); d.dismiss().catch(() => {}); });
     await p.goto(URL + 'security/index.html', { waitUntil: 'networkidle' });
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     await p.waitForFunction(() => window.Ext && Ext.Ajax, null, { timeout: 60000 });
     const cookie = (await ctx.cookies()).find((c) => c.name === 'JSESSIONID');
@@ -68,7 +68,7 @@ const cookieSession = (r) => (r.headers.getSetCookie ? r.headers.getSetCookie() 
        page de connexion avec un message dans la page */
     await ctx.clearCookies();
     await p.goto(URL + 'security/index.html', { waitUntil: 'networkidle' });
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     await p.waitForFunction(() => window.Ext && Ext.Ajax, null, { timeout: 60000 });
     const c2 = (await ctx.cookies()).find((c) => c.name === 'JSESSIONID');

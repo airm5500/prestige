@@ -20,8 +20,8 @@ const BASE = ENV_E2E.BASE;
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
 const M = 'E2E-SRE-';
-const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = 'admin'");
-const EMPL = q("SELECT lg_EMPLACEMENT_ID FROM t_user WHERE str_LOGIN = 'admin'");
+const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
+const EMPL = q("SELECT lg_EMPLACEMENT_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
 const AUTRE = q("SELECT lg_EMPLACEMENT_ID FROM t_emplacement WHERE lg_EMPLACEMENT_ID <> '" + EMPL + "' ORDER BY lg_EMPLACEMENT_ID LIMIT 1");
 
 function retirer() {
@@ -47,7 +47,7 @@ const verrou = (id) => q("SELECT IFNULL(lg_USER_VERROU_ID, 'NULL') FROM t_sugges
   const appel = (m, url) => p.evaluate(async ([m, url]) => { const r = await fetch(url, { method: m, headers: { 'Content-Type': 'application/json' } }); return { s: r.status, j: await r.json().catch(() => null) }; }, [m, url]);
   try {
     await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 40000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 90000 });
     await p.waitForTimeout(1500);

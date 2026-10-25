@@ -23,7 +23,7 @@ const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-char
 const CAPT = process.env.CAPTURES || ENV_E2E.TMP;
 const EAN = "IFNULL(code_ean_fabriquant, 'NULL')";
 const RESTE = "CONCAT_WS('|', str_NAME, int_CIP, int_PRICE, int_PAF, IFNULL(int_EAN13, ''), IFNULL(str_CODE_GEO_ARTICLE, ''), lg_ZONE_GEO_ID, str_STATUT)";
-const droitModifier = require('../support/privilege-essai')(q, exec, 'admin', 'P_BT_UPDATE');
+const droitModifier = require('../support/privilege-essai')(q, exec, ENV_E2E.LOGIN, 'P_BT_UPDATE');
 let P, cip, origine, resteAvant;
 
 (async () => {
@@ -40,7 +40,7 @@ let P, cip, origine, resteAvant;
     p = await ctx.newPage();
     err = []; p.on('pageerror', (e) => err.push(String(e.message)));
     await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 40000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 90000 });
     await p.waitForTimeout(1500);

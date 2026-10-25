@@ -37,7 +37,7 @@ const [FAMILLE, CA_FAMILLE] = q(`SELECT COALESCE(fa.str_LIBELLE, '(non renseignÃ
   const p = await (await b.newContext({ viewport: { width: 1600, height: 1000 } })).newPage();
   const erreurs = []; p.on('pageerror', (e) => erreurs.push(e.message));
   try {
-    await connexion(p, 'admin', 'e2etest');
+    await connexion(p, ENV_E2E.LOGIN, 'e2etest');
     await ouvrirMenu(p, 'ANALYSE DE GESTION', "Pilotage de l'officine");
     await p.waitForFunction(() => { const e = Ext.ComponentQuery.query('pilotage')[0]; return e && e.isVisible(true) && e.down('#onglet-asuivre'); }, null, { timeout: 120000 });
     /* l'onglet ouvert a l'arrivee charge le mois en cours : on attend qu'il ait fini */

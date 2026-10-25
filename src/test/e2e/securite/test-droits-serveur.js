@@ -12,7 +12,7 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
 const BASE = ENV_E2E.BASE;
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
-const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = 'admin'");
+const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
 const DEBUT = q('SELECT NOW() - INTERVAL 1 SECOND');
 const PRODUIT = q("SELECT f.lg_FAMILLE_ID FROM t_famille f JOIN t_famille_stock s ON s.lg_FAMILLE_ID = f.lg_FAMILLE_ID AND s.lg_EMPLACEMENT_ID = '1' WHERE f.str_STATUT = 'enable' ORDER BY f.lg_FAMILLE_ID LIMIT 1");
 
@@ -74,12 +74,12 @@ function nettoyer() {
 
 (async () => {
   const droits = {};
-  CAS.forEach((c) => c.privileges.forEach((p) => { droits[p] = privilegeEssai(q, exec, 'admin', p); droits[p].remettre(); }));
+  CAS.forEach((c) => c.privileges.forEach((p) => { droits[p] = privilegeEssai(q, exec, ENV_E2E.LOGIN, p); droits[p].remettre(); }));
   const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   const session = async () => {
     const p = await (await b.newContext()).newPage();
     await p.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     return p;
   };
@@ -110,7 +110,7 @@ function nettoyer() {
       && mes.droits.includes('P_TRAITER_RESERVE') && mes.droits.includes('P_CREER_INVENTAIRE') && mes.role && mes.role.code && mes.profil, JSON.stringify({ n: (mes.droits || []).length, role: mes.role, profil: mes.profil }));
     const res2 = await lire('../api/v1/reserve/droits'), pos = await lire('../api/v1/posos/droits');
     ok('GET reserve/droits et posos/droits : traiter et analyser', res2.traiter === true && pos.analyser === true, JSON.stringify([res2, pos]));
-    const auth = await p3.evaluate(async () => (await fetch('../api/v1/user/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ login: 'admin', password: 'e2etest' }) })).json());
+    const auth = await p3.evaluate(async () => (await fetch('../api/v1/user/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ login: ENV_E2E.LOGIN, password: 'e2etest' }) })).json());
     ok('Connexion : rôle explicite et droits.creerInventaire, xtypeuser inchangé', auth.success && auth.role && /ADMINISTRATEUR|SYSTEME|PHARMACIEN/.test(auth.role.code)
       && auth.droits && auth.droits.creerInventaire === true && !!auth.xtypeuser, JSON.stringify({ role: auth.role, droits: auth.droits, x: auth.xtypeuser }));
     await p3.context().close();

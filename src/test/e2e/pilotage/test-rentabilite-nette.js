@@ -20,7 +20,7 @@ const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-charact
 const MOIS = q("SELECT DATE_FORMAT(CURDATE() - INTERVAL 1 MONTH, '%Y-%m')");
 const [ANNEE, M] = MOIS.split('-');
 const CHAMP = 'm' + M;
-const droit = privilegeEssai(q, exec, 'admin', 'P_PILOTAGE_CHARGES');
+const droit = privilegeEssai(q, exec, ENV_E2E.LOGIN, 'P_PILOTAGE_CHARGES');
 const proche = (a, b) => Math.abs(Number(a) - Number(b)) <= 1;
 
 (async () => {
@@ -30,7 +30,7 @@ const proche = (a, b) => Math.abs(Number(a) - Number(b)) <= 1;
   const dialogues = [];
   const ouvrir = async (p) => {
     await p.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 120000 });
     await p.waitForTimeout(1500);

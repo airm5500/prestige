@@ -46,7 +46,7 @@ function nettoyer() {
   const erreurs = []; p.on('pageerror', (x) => erreurs.push(x.message));
   const refus = []; p.on('response', (r) => { if (/clotureVenteDepot/.test(r.url())) { refus.push(r.status()); } });
   try {
-    await connexion(p, 'admin', 'e2etest');
+    await connexion(p, ENV_E2E.LOGIN, 'e2etest');
     await ouvrirMenu(p, 'SERVICE CLIENT', 'Vente dépôt');
     await p.waitForFunction(() => Ext.ComponentQuery.query('ventedepot #addBtn').some((x) => x.isVisible(true)), null, { timeout: 60000 });
     await p.waitForLoadState('networkidle').catch(() => {});

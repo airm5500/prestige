@@ -16,7 +16,7 @@ const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 400) + ']' : '')); }
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', ENV_E2E.BASE, '-sN'], { input: s, encoding: 'utf8' }).trim();
 const MARQUE = 'E2E-PASS';
-const droitPro = privilegeEssai(q, q, 'admin', 'P_SM_ETIQUETAGE_PRO');
+const droitPro = privilegeEssai(q, q, ENV_E2E.LOGIN, 'P_SM_ETIQUETAGE_PRO');
 const PANIER_AVANT = q("SELECT IFNULL(GROUP_CONCAT(CONCAT('''', lg_ETIQUETTE_ID, '''')), '''-''') FROM t_etiquette WHERE str_STATUT = 'is_Process'");
 const PROD = q("SELECT f.lg_FAMILLE_ID FROM t_famille f WHERE f.str_STATUT = 'enable' AND f.int_CIP REGEXP '^[0-9]{7}$' ORDER BY f.str_NAME LIMIT 2").split('\n');
 const BL = q("SELECT b.lg_BON_LIVRAISON_ID FROM t_bon_livraison b JOIN t_bon_livraison_detail d ON d.lg_BON_LIVRAISON_ID = b.lg_BON_LIVRAISON_ID"
@@ -35,7 +35,7 @@ function nettoyer() {
     const c = await b.newContext({ viewport: { width: 1500, height: 950 } });
     const p = await c.newPage(); p.on('pageerror', (e) => err.push(String(e.stack || e.message).slice(0, 600)));
     await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 120000 });
     /* les PDF s'ouvrent dans un onglet : on garde l'adresse demandee */

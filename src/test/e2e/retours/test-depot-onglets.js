@@ -99,7 +99,7 @@ function poser() {
     ok('Précondition : des articles dans plusieurs rayons', attendus.length >= 2, JSON.stringify(arts));
 
     await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 40000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 90000 });
     await p.waitForTimeout(1500);
@@ -487,7 +487,7 @@ function poser() {
     const rolesCa = q("SELECT GROUP_CONCAT(rp.lg_ROLE_PRIVILEGE) FROM t_role_privelege rp"
       + " JOIN t_privilege p ON p.lg_PRIVELEGE_ID = rp.lg_PRIVILEGE_ID AND p.str_NAME = 'P_DEPOT_EXT_CA'"
       + " JOIN t_role_user ru ON ru.lg_ROLE_ID = rp.lg_ROLE_ID"
-      + " JOIN t_user u ON u.lg_USER_ID = ru.lg_USER_ID AND u.str_LOGIN = 'admin'");
+      + " JOIN t_user u ON u.lg_USER_ID = ru.lg_USER_ID AND u.str_LOGIN = '" + ENV_E2E.LOGIN + "'");
     if (rolesCa) {
       /* Les lignes a rendre sont relues et gardees EN MEMOIRE, et non dans une table temporaire :
        * chaque appel au client mariadb ouvre sa propre connexion, et une table temporaire meurt avec
@@ -513,7 +513,7 @@ function poser() {
       try {
         await p2.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr',
           { waitUntil: 'domcontentloaded' });
-        await p2.fill('#str_login', 'admin'); await p2.fill('#str_password', 'e2etest');
+        await p2.fill('#str_login', ENV_E2E.LOGIN); await p2.fill('#str_password', 'e2etest');
         await p2.click('#login');
         await p2.waitForURL('**/general/**', { timeout: 40000 });
         await p2.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 90000 });

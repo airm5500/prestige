@@ -20,7 +20,7 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
   p.on('pageerror', (e) => erreurs.push(e.message));
   p.on('dialog', (d) => { dialogues.push(d.message()); d.dismiss().catch(() => {}); });
   try {
-    await connexion(p, 'admin', 'e2etest');
+    await connexion(p, ENV_E2E.LOGIN, 'e2etest');
     await ouvrirMenu(p, 'Campagnes SMS / WhatsApp', 'Campagnes');
     await p.waitForFunction(() => { const v = Ext.ComponentQuery.query('campagnes')[0]; return v && v.contexte; }, null, { timeout: 60000 });
     await p.waitForTimeout(1000);

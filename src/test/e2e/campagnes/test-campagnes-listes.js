@@ -39,7 +39,7 @@ function nettoyer() {
   const fenetres = () => p.evaluate(() => Ext.ComponentQuery.query('window').filter((w) => w.isVisible()).length);
   const idListe = () => q(`SELECT id FROM t_campagne_liste WHERE nom = '${NOM}'`);
   try {
-    await connexion(p, 'admin', 'e2etest');
+    await connexion(p, ENV_E2E.LOGIN, 'e2etest');
     await ouvrirMenu(p, 'Campagnes SMS / WhatsApp', 'Campagnes');
     await p.waitForFunction(() => { const v = Ext.ComponentQuery.query('campagnes')[0]; return v && v.contexte; }, null, { timeout: 60000 });
     await p.click('#' + await p.evaluate((s) => Ext.ComponentQuery.query(s)[0].tab.getEl().dom.id, L));

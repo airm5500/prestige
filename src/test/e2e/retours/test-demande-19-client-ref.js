@@ -32,7 +32,7 @@ const retirer = () => {
   const mesures = () => Number(q(`SELECT COUNT(*) FROM t_client_mesure WHERE str_COMMENTAIRE = '${NOTE}'`));
   const nbOrd = () => ordonnances().split(',').filter(Boolean).length;
   try {
-    await connexion(p, 'admin', 'e2etest');
+    await connexion(p, ENV_E2E.LOGIN, 'e2etest');
     const m = { parametreId: 'PARAM_POIDS', valeur: 70, commentaire: NOTE };
     const u = '../api/v1/ordonnance-client/client/' + encodeURIComponent(CLIENT) + '/mesures';
     const a1 = await post(u, m, 'e2e-d19-m1'), a2 = await post(u, m, 'e2e-d19-m1');

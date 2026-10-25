@@ -46,7 +46,7 @@ const retirer = () => q(`DELETE FROM t_role_user WHERE lg_USER_ID = '${ID}'; DEL
   const attendre = () => p.waitForFunction(() => { const s = Ext.ComponentQuery.query('activiteequipes')[0].journal; return !s.isLoading(); }, null, { timeout: 60000 }).then(() => p.waitForTimeout(300));
   const pastilles = () => p.evaluate(() => Array.from(document.querySelectorAll('.ae-pastille')).reduce((o, e) => { o[e.getAttribute('data-type')] = e.querySelector('b').textContent.replace(/\D/g, ''); return o; }, {}));
   try {
-    await connexion(p, 'admin', 'e2etest');
+    await connexion(p, ENV_E2E.LOGIN, 'e2etest');
     await ouvrirMenu(p, 'ANALYSE DE GESTION', 'Activité des équipes');
     await p.waitForFunction(() => Ext.ComponentQuery.query('activiteequipes').some((c) => c.isVisible(true)), null, { timeout: 60000 });
     await attendre();

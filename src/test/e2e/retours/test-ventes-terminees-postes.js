@@ -16,7 +16,7 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
 const BASE = ENV_E2E.BASE;
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const V = 'E2E-POSTES-V1', POSTE = 'E2E-SUNMI-' + Date.now().toString().slice(-6);
-const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = 'admin'");
+const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
 
 (async () => {
   q(`DELETE FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID = '${V}'`);
@@ -33,7 +33,7 @@ const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = 'admin'");
     return p.evaluate(() => { const c = Ext.ComponentQuery.query('ventemanager #posteVente')[0]; const l = c.getStore().collect('poste'); c.collapse(); return l; });
   };
   try {
-    await connexion(p, 'admin', 'e2etest');
+    await connexion(p, ENV_E2E.LOGIN, 'e2etest');
     await ouvrirMenu(p, 'SERVICE CLIENT', 'Vente terminées');
     await p.waitForFunction(() => { const v = Ext.ComponentQuery.query('ventemanager')[0]; return v && v.down('#posteVente') && v.down('#posteVente').isVisible(true); }, null, { timeout: 60000 });
     await p.waitForTimeout(1500);

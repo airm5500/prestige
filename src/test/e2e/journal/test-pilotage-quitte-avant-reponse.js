@@ -21,7 +21,7 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
   const p = await (await b.newContext({ viewport: { width: 1600, height: 900 } })).newPage();
   const erreurs = []; p.on('pageerror', (e) => erreurs.push(e.message));
   try {
-    await connexion(p, 'admin', 'e2etest');
+    await connexion(p, ENV_E2E.LOGIN, 'e2etest');
     /* la reponse du pilotage est retenue 10 s : l'utilisateur a le temps de changer d'ecran, comme sur une grosse base */
     let rendue = null;
     const reponse = new Promise((fin) => { rendue = fin; });

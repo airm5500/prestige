@@ -31,7 +31,7 @@ function purger() {
 }
 function semer() {
   purger();
-  USER = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='" + (process.env.E2E_LOGIN || 'admin') + "'");
+  USER = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='" + (ENV_E2E.LOGIN) + "'");
   /* Des produits entiers : un deconditionne est replie sur son parent par le classement. */
   q("SELECT lg_FAMILLE_ID FROM t_famille WHERE str_STATUT='enable' AND int_EAN13 IS NOT NULL AND int_EAN13<>''"
     + " AND bool_DECONDITIONNE=0 AND (lg_FAMILLE_PARENT_ID IS NULL OR lg_FAMILLE_PARENT_ID='') ORDER BY str_NAME LIMIT 3")
@@ -77,7 +77,7 @@ function semer() {
   const p = await b.newPage({ viewport: { width: 1800, height: 1000 } });
   const err = []; p.on('pageerror', e => err.push(String(e.message)));
   await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-  await p.fill('#str_login', process.env.E2E_LOGIN || 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+  await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
   await p.waitForURL('**/general/**', { timeout: 30000 });
   await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 60000 });
   await p.waitForTimeout(2500);

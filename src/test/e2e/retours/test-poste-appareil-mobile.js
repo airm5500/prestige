@@ -27,7 +27,7 @@ const BUREAU = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KH
     const p = await ctx.newPage();
     p.on('pageerror', (e) => erreurs.push(e.message));
     p.on('dialog', (d) => { dialogues.push(d.message()); d.dismiss().catch(() => {}); });
-    await connexion(p, 'admin', 'e2etest');
+    await connexion(p, ENV_E2E.LOGIN, 'e2etest');
     await p.waitForTimeout(3000);
     return p;
   };

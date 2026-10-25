@@ -14,7 +14,7 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
 const BASE = ENV_E2E.BASE;
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const SORTIE = process.env.SORTIE || ENV_E2E.TMP;
-const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = 'admin'");
+const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
 const [FAM, CIP] = q("SELECT f.lg_FAMILLE_ID, f.int_CIP FROM t_famille f WHERE f.str_STATUT='enable' AND f.int_CIP REGEXP '^[0-9]{7}$'"
   + " AND NOT EXISTS (SELECT 1 FROM t_preenregistrement_detail d WHERE d.lg_FAMILLE_ID=f.lg_FAMILLE_ID)"
   + " AND (SELECT COUNT(*) FROM t_famille g WHERE g.int_CIP LIKE CONCAT(f.int_CIP,'%'))=1 ORDER BY f.lg_FAMILLE_ID LIMIT 1").split('\t');
@@ -39,7 +39,7 @@ const vente = (id, quand, qte) => q("INSERT INTO t_preenregistrement (lg_PREENRE
   const api = (u) => p.evaluate(async (u) => JSON.parse(await (await fetch(u)).text()), u);
   try {
     await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     await p.waitForLoadState('networkidle'); await p.waitForTimeout(3000);
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app && Ext.ComponentQuery.query('navigation').length, null, { timeout: 120000 });

@@ -30,9 +30,9 @@ const E = 'E2E-BL-1', B = 'E2E-BL-B1';
 const NUM = 'ZZL-26-' + String(Date.now()).slice(-5) + '-A';
 const SECRET = crypto.randomBytes(32).toString('base64url');
 const ANCIEN = crypto.randomBytes(32).toString('base64url');
-const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = 'admin'");
+const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
 const LIEN = q("SELECT IFNULL((SELECT id FROM t_employe WHERE lg_USER_ID = '" + ADMIN + "'), '')");
-const contenu = (s, sep) => ['PRESTIGE-BADGE', '1', NUM, 'admin', s].join(sep || '|');
+const contenu = (s, sep) => ['PRESTIGE-BADGE', '1', NUM, ENV_E2E.LOGIN, s].join(sep || '|');
 /* frappe US lue par un poste AZERTY : touches des lettres, chiffres (non majuscules), '-', '_' et '|' */
 const US = '1234567890-_|aqzwmAQZWM', FR = '&é"\'(-è_çà)°µqawz,QAWZ?';
 /* meme frappe, verrouillage majuscules actif : chiffres et touches ) ° * µ inverses, lettres inchangees */

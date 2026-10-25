@@ -26,7 +26,7 @@ const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-charact
 const exec = q;
 const DEBUT = q('SELECT NOW() - INTERVAL 1 SECOND');
 const DOSSIER = fs.mkdtempSync(path.join(os.tmpdir(), 'e2e-etqp-'));
-const droit = privilegeEssai(q, exec, 'admin', 'P_SM_ETIQUETAGE_PRO');
+const droit = privilegeEssai(q, exec, ENV_E2E.LOGIN, 'P_SM_ETIQUETAGE_PRO');
 
 /* un produit reel de Prestige (CIP unique, designation, prix) pour « Completer depuis Prestige » */
 const [PCIP, PNOM, PPRIX] = q("SELECT CONCAT_WS('|', f.int_CIP, f.str_DESCRIPTION, f.int_PRICE) FROM t_famille f WHERE f.str_STATUT='enable' AND f.int_CIP REGEXP '^[0-9]{7}$'"
@@ -67,7 +67,7 @@ function nettoyer() {
   const connexion = async () => {
     await ctx.clearCookies();
     await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 120000 });
     await p.waitForTimeout(1500);
@@ -120,7 +120,7 @@ function nettoyer() {
     ok('Précondition : un produit de Prestige à compléter (' + PCIP + ')', !!PCIP && !!PNOM);
     ok('Migration : menu « Étiquettage Pro » dans GESTION DU STOCK, droit donné à l\'administrateur',
       q("SELECT CONCAT(s.str_DESCRIPTION, '|', m.str_VALUE, '|', s.P_KEY) FROM t_sous_menu s JOIN t_menu m ON m.lg_MENU_ID=s.lg_MENU_ID WHERE s.str_COMPOSANT='etiquetagepro'") === 'Étiquettage Pro|GESTION DU STOCK|P_SM_ETIQUETAGE_PRO'
-      && q("SELECT COUNT(*) FROM t_role_privelege rp JOIN t_privilege p ON p.lg_PRIVELEGE_ID=rp.lg_PRIVILEGE_ID JOIN t_role_user ru ON ru.lg_ROLE_ID=rp.lg_ROLE_ID JOIN t_user u ON u.lg_USER_ID=ru.lg_USER_ID WHERE u.str_LOGIN='admin' AND p.str_NAME='P_SM_ETIQUETAGE_PRO'") !== '0');
+      && q("SELECT COUNT(*) FROM t_role_privelege rp JOIN t_privilege p ON p.lg_PRIVELEGE_ID=rp.lg_PRIVILEGE_ID JOIN t_role_user ru ON ru.lg_ROLE_ID=rp.lg_ROLE_ID JOIN t_user u ON u.lg_USER_ID=ru.lg_USER_ID WHERE u.str_LOGIN='" + ENV_E2E.LOGIN + "' AND p.str_NAME='P_SM_ETIQUETAGE_PRO'") !== '0');
 
     /* ---------------------------------------------------------------- droit */
     droit.retirer();
@@ -308,7 +308,7 @@ function nettoyer() {
     try { droit.remettre(); } catch (e) { console.log('droit : ' + e.message); }
     nettoyer();
     ok('Remise en état : codes du test retirés, droit remis', codesDuTest() === 0
-      && q("SELECT COUNT(*) FROM t_role_privelege rp JOIN t_privilege p ON p.lg_PRIVELEGE_ID=rp.lg_PRIVILEGE_ID JOIN t_role_user ru ON ru.lg_ROLE_ID=rp.lg_ROLE_ID JOIN t_user u ON u.lg_USER_ID=ru.lg_USER_ID WHERE u.str_LOGIN='admin' AND p.str_NAME='P_SM_ETIQUETAGE_PRO'") !== '0');
+      && q("SELECT COUNT(*) FROM t_role_privelege rp JOIN t_privilege p ON p.lg_PRIVELEGE_ID=rp.lg_PRIVILEGE_ID JOIN t_role_user ru ON ru.lg_ROLE_ID=rp.lg_ROLE_ID JOIN t_user u ON u.lg_USER_ID=ru.lg_USER_ID WHERE u.str_LOGIN='" + ENV_E2E.LOGIN + "' AND p.str_NAME='P_SM_ETIQUETAGE_PRO'") !== '0');
     const n = res.filter((x) => x.c).length;
     console.log('\n' + n + '/' + res.length + (n === res.length ? ' OK' : ' ECHEC'));
     process.exit(n === res.length ? 0 : 1);

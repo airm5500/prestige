@@ -32,7 +32,7 @@ const compte = (w) => q("SELECT COUNT(*) FROM t_famille f WHERE f.str_STATUT = '
     return String(await p.evaluate(() => Ext.ComponentQuery.query('etqtypes')[0].produitsStore.getTotalCount()));
   };
   try {
-    await connexion(p, 'admin', 'e2etest');
+    await connexion(p, ENV_E2E.LOGIN, 'e2etest');
     await ouvrirMenu(p, 'GESTION DU STOCK', 'Étiquettage Pro');
     await p.waitForFunction(() => { const e = Ext.ComponentQuery.query('etiquetagepro')[0]; return e && e.isVisible(true); }, null, { timeout: 60000 });
     await p.waitForTimeout(1000);

@@ -18,8 +18,8 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
 const BASE = ENV_E2E.BASE;
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
-const creer = privilegeEssai(q, exec, 'admin', 'P_CREER_INVENTAIRE');
-const menu = privilegeEssai(q, exec, 'admin', 'P_SM_INVENTAIRE');
+const creer = privilegeEssai(q, exec, ENV_E2E.LOGIN, 'P_CREER_INVENTAIRE');
+const menu = privilegeEssai(q, exec, ENV_E2E.LOGIN, 'P_SM_INVENTAIRE');
 
 (async () => {
   creer.remettre(); menu.remettre();
@@ -52,7 +52,7 @@ const menu = privilegeEssai(q, exec, 'admin', 'P_SM_INVENTAIRE');
     return p;
   };
   const connecter = async (p) => {
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
   };
   const retenirUne = (p, corps) => p.evaluate(async (corps) => { const r = await fetch('../api/v1/inventaire/ligne/retenue', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corps) });
@@ -102,7 +102,7 @@ const menu = privilegeEssai(q, exec, 'admin', 'P_SM_INVENTAIRE');
     await b.close();
     nettoyer();
     ok('Jeu d\'essai retiré, droits remis', q("SELECT COUNT(*) FROM t_inventaire WHERE lg_INVENTAIRE_ID LIKE 'E2E-RET-%'") === '0'
-      && q("SELECT COUNT(*) FROM t_role_privelege rp JOIN t_privilege p ON p.lg_PRIVELEGE_ID = rp.lg_PRIVILEGE_ID JOIN t_role_user ru ON ru.lg_ROLE_ID = rp.lg_ROLE_ID JOIN t_user u ON u.lg_USER_ID = ru.lg_USER_ID WHERE u.str_LOGIN = 'admin' AND p.str_NAME IN ('P_CREER_INVENTAIRE', 'P_SM_INVENTAIRE')") === '2');
+      && q("SELECT COUNT(*) FROM t_role_privelege rp JOIN t_privilege p ON p.lg_PRIVELEGE_ID = rp.lg_PRIVILEGE_ID JOIN t_role_user ru ON ru.lg_ROLE_ID = rp.lg_ROLE_ID JOIN t_user u ON u.lg_USER_ID = ru.lg_USER_ID WHERE u.str_LOGIN = '" + ENV_E2E.LOGIN + "' AND p.str_NAME IN ('P_CREER_INVENTAIRE', 'P_SM_INVENTAIRE')") === '2');
   }
   const ko = res.filter((x) => !x.c).length;
   console.log('\n' + (res.length - ko) + '/' + res.length + (ko ? ' ECHEC' : ' OK'));

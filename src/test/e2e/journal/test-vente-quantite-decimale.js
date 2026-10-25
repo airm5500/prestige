@@ -40,7 +40,7 @@ function nettoyer() {
   const echecs = []; p.on('response', (r) => { if (/vente\/update\/item\/vno/.test(r.url()) && r.status() >= 400) { echecs.push(r.status()); } });
   try {
     ok('Jeu d\'essai : un article en stock', !!CIP, CIP);
-    await connexion(p, 'admin', 'e2etest');
+    await connexion(p, ENV_E2E.LOGIN, 'e2etest');
     await ouvrirMenu(p, 'SERVICE CLIENT', 'Ventes');
     await p.waitForFunction(() => Ext.ComponentQuery.query('cloturerventemanager #addBtn').some((x) => x.isVisible(true)), null, { timeout: 60000 });
     await cliquer(p, 'cloturerventemanager #addBtn');

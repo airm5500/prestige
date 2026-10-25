@@ -15,7 +15,7 @@ const { execFileSync } = require('child_process');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 400) + ']' : '')); }
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', ENV_E2E.BASE, '-sN'], { input: s, encoding: 'utf8' }).trim();
-const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = 'admin'");
+const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
 const DEBUT = q('SELECT NOW() - INTERVAL 1 SECOND');
 const POSTE = 'E2E POSTE 7', CAISSE = 'e2e-jrn-caisse', MARQUE = 'E2E-JRN';
 let caisseCreee = false, stockOrigine = null;
@@ -61,7 +61,7 @@ const ORD = {};
     success: (r) => { try { ok2(JSON.parse(r.responseText)); } catch (e) { ok2({ brut: r.responseText }); } }, failure: (r) => ok2({ success: false, status: r.status }) })), [m, u, c]);
   try {
     await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 120000 });
     const filtres = await api('GET', '../api/v1/common/log-filtres');
@@ -77,7 +77,7 @@ const ORD = {};
       caisseCreee = true;
     }
     /* lignes d'essai pour les alertes et le filtre de poste (10/06/2025) */
-    const ligne = (id, quand, type, desc) => `('${MARQUE}-${id}', '${quand}', '${quand}', '${desc}', 'admin', 'enable', '${ADMIN}', ${type}, '${MARQUE}', 'E2E-POSTE-ALERTE', '10.9.9.9', 'Chrome 120 · Windows')`;
+    const ligne = (id, quand, type, desc) => `('${MARQUE}-${id}', '${quand}', '${quand}', '${desc}', '${ENV_E2E.LOGIN}', 'enable', '${ADMIN}', ${type}, '${MARQUE}', 'E2E-POSTE-ALERTE', '10.9.9.9', 'Chrome 120 · Windows')`;
     q("INSERT INTO t_event_log (lg_EVENT_LOG_ID, dt_CREATED, dt_UPDATED, str_DESCRIPTION, str_CREATED_BY, str_STATUT, lg_USER_ID, typeLog, str_TYPE_LOG, remote_host, remote_addr, str_APPLICATION) VALUES "
       + [ligne(1, '2025-06-10 10:00:00', ORD.ANNULATION_DE_VENTE, 'Annulation essai 1'), ligne(2, '2025-06-10 10:05:00', ORD.ANNULATION_DE_VENTE, 'Annulation essai 2'),
         ligne(3, '2025-06-10 10:12:00', ORD.ANNULATION_DE_VENTE, 'Annulation essai 3'), ligne(4, '2025-06-10 05:30:00', ORD.AJUSTEMENT_DE_PRODUIT, 'Ajustement de nuit')].join(','));

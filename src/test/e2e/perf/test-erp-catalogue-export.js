@@ -19,7 +19,7 @@ const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-charact
   const p = await b.newPage();
   try {
     await p.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     const r = await p.evaluate(async () => { const t = performance.now(); const x = await fetch('../api/v1/stock'); return { s: x.status, ms: Math.round(performance.now() - t), j: await x.json() }; });
     const attendu = Number(q("SELECT COUNT(*) FROM t_famille WHERE str_STATUT <> 'delete' AND lg_FAMILLE_PARENT_ID = ''"));

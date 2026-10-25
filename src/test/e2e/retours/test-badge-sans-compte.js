@@ -35,7 +35,7 @@ const qwertySurAzerty = (t) => t.replace(/[aqzwAQZW\-|]/g, (c) => ({ a: 'q', q: 
   const b = await chromium.launch({ executablePath: ENV_E2E.CHROMIUM, headless: true });
   try {
     const p = await (await b.newContext({ viewport: { width: 1600, height: 900 } })).newPage();
-    await connexion(p, 'admin', 'e2etest');
+    await connexion(p, ENV_E2E.LOGIN, 'e2etest');
     await p.evaluate(() => testextjs.app.getController('App').onLoadNewComponent('rhmanager', 'Ressources humaines', ''));
     await p.waitForTimeout(3000);
     await p.evaluate(() => Ext.ComponentQuery.query('tab').filter((x) => /badge/i.test(x.text || ''))[0].el.dom.click());

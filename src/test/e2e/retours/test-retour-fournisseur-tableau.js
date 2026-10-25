@@ -16,7 +16,7 @@ const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 400) + ']' : '')); }
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', ENV_E2E.BASE, '-sN'], { input: s, encoding: 'utf8' }).trim();
 const ID = 'e2e-rf-' + Date.now(), REF = 'E2ERF' + String(Date.now()).slice(-8);
-const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = 'admin'");
+const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
 const lignesBl = q("SELECT d.lg_BON_LIVRAISON_DETAIL, d.lg_BON_LIVRAISON_ID, d.lg_GROSSISTE_ID, d.lg_FAMILLE_ID, IFNULL(d.int_QTE_RETURN, 'NULL'), f.str_NAME"
   + " FROM t_bon_livraison_detail d JOIN t_bon_livraison b ON b.lg_BON_LIVRAISON_ID = d.lg_BON_LIVRAISON_ID JOIN t_famille f ON f.lg_FAMILLE_ID = d.lg_FAMILLE_ID"
   + " WHERE b.str_STATUT = 'is_Closed' AND b.dt_DATE_LIVRAISON IS NOT NULL AND d.lg_GROSSISTE_ID IS NOT NULL AND f.str_NAME <> ''"
@@ -47,7 +47,7 @@ function nettoyer() {
     ok('Précondition : un BL clôturé à deux lignes et deux motifs', L1 && L2 && MOTIFS.length === 2, JSON.stringify(L1));
     semer();
     await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', process.env.E2E_LOGIN || 'admin'); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 120000 });
 

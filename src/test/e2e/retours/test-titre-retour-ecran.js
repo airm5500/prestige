@@ -26,7 +26,7 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
     await p.click('#' + id);
   };
   try {
-    await connexion(p, 'admin', 'e2etest');
+    await connexion(p, ENV_E2E.LOGIN, 'e2etest');
     await ouvrirMenu(p, 'GESTION DES COMMANDES', 'Retour fournisseur');
     await p.waitForFunction(() => Ext.ComponentQuery.query('retourfrsmanager').some((x) => x.isVisible(true)), null, { timeout: 60000 });
     await p.waitForTimeout(1200);

@@ -19,7 +19,7 @@ const BASE = ENV_E2E.BASE;
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const [BL, PRODUIT, G] = q("SELECT CONCAT_WS('|', b.lg_BON_LIVRAISON_ID, d.lg_FAMILLE_ID, o.lg_GROSSISTE_ID) FROM t_bon_livraison b JOIN t_order o ON o.lg_ORDER_ID = b.lg_ORDER_ID"
   + " JOIN t_bon_livraison_detail d ON d.lg_BON_LIVRAISON_ID = b.lg_BON_LIVRAISON_ID WHERE b.str_STATUT = 'is_Closed' ORDER BY b.dt_CREATED DESC LIMIT 1").split('|');
-const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = 'admin'");
+const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
 const retirer = () => q("DELETE FROM t_reception_peremption_courte WHERE id LIKE 'E2E-PC-%'");
 
 (async () => {
@@ -35,7 +35,7 @@ const retirer = () => q("DELETE FROM t_reception_peremption_courte WHERE id LIKE
   const attendre = () => p.waitForFunction(() => { const g = Ext.ComponentQuery.query('peremptionscourtes gridpanel')[0]; return g && !g.getStore().isLoading(); }, null, { timeout: 60000 })
     .then(() => p.waitForTimeout(500));
   try {
-    await connexion(p, 'admin', 'e2etest');
+    await connexion(p, ENV_E2E.LOGIN, 'e2etest');
     await ouvrirMenu(p, 'GESTION DES COMMANDES', 'Péremptions courtes');
     await p.waitForFunction(() => Ext.ComponentQuery.query('peremptionscourtes').some((c) => c.isVisible(true)), null, { timeout: 60000 });
     await attendre();
