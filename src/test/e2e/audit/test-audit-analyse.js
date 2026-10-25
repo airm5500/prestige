@@ -1,7 +1,10 @@
 /* AUDIT & RAPPROCHEMENTS, onglet Analyse (besoins du 11/10, point 6). Par l'ecran (menu Centre de support) :
  *  - un ecart connu est pose dans chaque controle, puis l'analyse est lancee depuis l'ecran ;
+ *  - un reassort reserve -> rayon posterieur au dernier mouvement n'est pas un ecart de stock ; un ecart apres
+ *    reassort se compte depuis le stock rayon apres reassort ;
  *  - chaque tuile passe au rouge et son detail montre la ligne posee, avec l'ecart attendu :
- *    stock reel / historique (+7), stock negatif (-3), caisse ouverte depuis 3 jours, billetage (-1 000),
+ *    stock reel / historique (+7), stock negatif (-3), caisse ouverte depuis 3 jours, billetage (-10 000 000, pour
+ *    rester parmi les plus gros ecarts rendus sur une base reelle),
  *    differe (reste du 4 000 / releve 5 000), carnet depot (+1 000) ; controles de coherence listes ;
  *  - l'analyse n'ecrit rien (sommes de controle des tables lues identiques avant et apres) ;
  *  - aucune fenetre ; sans le droit P_SM_AUDIT, l'API refuse.
@@ -21,10 +24,21 @@ const M = 'E2E-AUD';
 const DEBUT = q('SELECT NOW() - INTERVAL 1 SECOND');
 const CAISSE = q('SELECT lg_CAISSE_ID FROM t_caisse LIMIT 1');
 
-/* produit a l'officine dont le stock concorde avec son dernier mouvement */
-const [PS, CIP_S, STOCK_S] = q("SELECT CONCAT_WS('|', s.lg_FAMILLE_ID, f.int_CIP, s.int_NUMBER_AVAILABLE) FROM t_famille_stock s JOIN t_famille f ON f.lg_FAMILLE_ID = s.lg_FAMILLE_ID"
+/* produit a l'officine dont le stock concorde avec son dernier mouvement, sans mouvement de reserve plus recent */
+const concordant = (sauf) => q("SELECT CONCAT_WS('|', s.lg_FAMILLE_ID, f.int_CIP, s.int_NUMBER_AVAILABLE) FROM t_famille_stock s JOIN t_famille f ON f.lg_FAMILLE_ID = s.lg_FAMILLE_ID"
   + " WHERE s.lg_EMPLACEMENT_ID = '1' AND f.str_STATUT = 'enable' AND f.int_CIP <> '' AND s.int_NUMBER_AVAILABLE = (SELECT h.qteFinale FROM hmvtproduit h WHERE h.lg_FAMILLE_ID = s.lg_FAMILLE_ID"
-  + " AND h.lg_EMPLACEMENT_ID = '1' ORDER BY h.createdAt DESC, h.typeMvt = '05' LIMIT 1) ORDER BY f.str_NAME LIMIT 1").split('|');
+  + " AND h.lg_EMPLACEMENT_ID = '1' ORDER BY h.createdAt DESC, h.typeMvt = '05' LIMIT 1)"
+  + " AND NOT EXISTS (SELECT 1 FROM t_mouvement_reserve r WHERE r.lg_FAMILLE_ID = s.lg_FAMILLE_ID AND r.lg_EMPLACEMENT_ID = '1'"
+  + "   AND r.dt_CREATED >= (SELECT MAX(h.createdAt) FROM hmvtproduit h WHERE h.lg_FAMILLE_ID = s.lg_FAMILLE_ID AND h.lg_EMPLACEMENT_ID = '1'))"
+  + " AND f.int_CIP NOT IN ('" + sauf.join("','") + "') ORDER BY f.str_NAME LIMIT 1").split('|');
+const [PS, CIP_S, STOCK_S] = concordant([]);
+/* reassort reserve -> rayon (t_mouvement_reserve, sans ligne dans hmvtproduit) apres le dernier mouvement : PR le
+   reassort seul (stock juste), PX le reassort puis 2 unites de plus hors des ecrans (ecart compte depuis le reassort) */
+const [PR, CIP_R, STOCK_R] = concordant([CIP_S]);
+const [PX, CIP_X, STOCK_X] = concordant([CIP_S, CIP_R]);
+const reassort = (id, f, avant) => `INSERT INTO t_mouvement_reserve (lg_MOUVEMENT_ID, lg_FAMILLE_ID, lg_USER_ID, lg_EMPLACEMENT_ID, str_TYPE, int_QTE,`
+  + ' int_STOCK_RAYON_AVANT, int_STOCK_RESERVE_AVANT, int_STOCK_RAYON_APRES, int_STOCK_RESERVE_APRES, dt_CREATED)'
+  + ` VALUES ('${id}', '${f}', '${ADMIN}', '1', 'REASSORT', 5, ${avant}, 100, ${+avant + 5}, 95, NOW());`;
 /* produit a l'officine sans aucun mouvement, stock positif. Sur une base ou tous les produits ont deja vendu (banc
    peuple sur 3 ans), le test en cree un, copie d'un produit existant, qu'il retire a la fin. */
 let [PN, CIP_N, STOCK_N] = q("SELECT CONCAT_WS('|', s.lg_FAMILLE_ID, f.int_CIP, s.int_NUMBER_AVAILABLE) FROM t_famille_stock s JOIN t_famille f ON f.lg_FAMILLE_ID = s.lg_FAMILLE_ID"
@@ -41,7 +55,17 @@ if (PN_CREE) {
     + `UPDATE tmp_s SET lg_FAMILLE_STOCK_ID = '${PN}', lg_FAMILLE_ID = '${PN}', int_NUMBER_AVAILABLE = 0, int_NUMBER = 0;`
     + 'INSERT INTO t_famille_stock SELECT * FROM tmp_s; DROP TEMPORARY TABLE tmp_s;');
 }
-const [TP, TP_NOM, TP_SOLDE] = q("SELECT CONCAT_WS('|', lg_TIERS_PAYANT_ID, str_NAME, COALESCE(account, 0)) FROM t_tiers_payant WHERE is_depot = 1 ORDER BY str_NAME LIMIT 1").split('|');
+let [TP, TP_NOM, TP_SOLDE] = q("SELECT CONCAT_WS('|', lg_TIERS_PAYANT_ID, str_NAME, COALESCE(account, 0)) FROM t_tiers_payant WHERE is_depot = 1 ORDER BY str_NAME LIMIT 1").split('|');
+/* base sans carnet depot (copie de travail d'une officine qui n'en a pas) : le test en cree un, copie d'un tiers-payant
+   existant, qu'il retire a la fin */
+const TP_CREE = !TP;
+if (TP_CREE) {
+  TP = M + '-TP'; TP_NOM = 'ZZ E2E AUDIT DEPOT'; TP_SOLDE = '0';
+  exec(`DELETE FROM t_tiers_payant WHERE lg_TIERS_PAYANT_ID = '${TP}';`
+    + 'CREATE TEMPORARY TABLE tmp_tp SELECT * FROM t_tiers_payant LIMIT 1;'
+    + `UPDATE tmp_tp SET lg_TIERS_PAYANT_ID = '${TP}', str_NAME = '${TP_NOM}', str_FULLNAME = '${TP_NOM}', is_depot = 1, account = 0;`
+    + 'INSERT INTO t_tiers_payant SELECT * FROM tmp_tp; DROP TEMPORARY TABLE tmp_tp;');
+}
 const HIER = q('SELECT CURDATE() - INTERVAL 1 DAY');
 const IL_Y_A_3_JOURS = q("SELECT CONCAT(CURDATE() - INTERVAL 3 DAY, ' 08:30:00')");
 const tables = ['t_famille_stock', 'hmvtproduit', 't_tiers_payant', 't_resume_caisse', 't_billetage', 'mvttransaction',
@@ -58,11 +82,17 @@ function retirer() {
     + `DELETE FROM t_billetage WHERE lg_BILLETAGE_ID = '${M}-B';`
     + `DELETE FROM t_resume_caisse WHERE ld_CAISSE_ID IN ('${M}-OUV', '${M}-FER');`
     + `UPDATE t_famille_stock SET int_NUMBER_AVAILABLE = ${STOCK_S}, int_NUMBER = ${STOCK_S} WHERE lg_FAMILLE_ID = '${PS}' AND lg_EMPLACEMENT_ID = '1';`
+    + `UPDATE t_famille_stock SET int_NUMBER_AVAILABLE = ${STOCK_R}, int_NUMBER = ${STOCK_R} WHERE lg_FAMILLE_ID = '${PR}' AND lg_EMPLACEMENT_ID = '1';`
+    + `UPDATE t_famille_stock SET int_NUMBER_AVAILABLE = ${STOCK_X}, int_NUMBER = ${STOCK_X} WHERE lg_FAMILLE_ID = '${PX}' AND lg_EMPLACEMENT_ID = '1';`
+    + `DELETE FROM t_mouvement_reserve WHERE lg_MOUVEMENT_ID LIKE '${M}-R%';`
     + `UPDATE t_famille_stock SET int_NUMBER_AVAILABLE = ${STOCK_N}, int_NUMBER = ${STOCK_N} WHERE lg_FAMILLE_ID = '${PN}' AND lg_EMPLACEMENT_ID = '1';`
     + `UPDATE t_tiers_payant SET account = ${TP_SOLDE} WHERE lg_TIERS_PAYANT_ID = '${TP}';`);
 }
 
 function retirerProduitCree() {
+  if (TP_CREE) {
+    exec(`DELETE FROM t_tiers_payant WHERE lg_TIERS_PAYANT_ID = '${TP}';`);
+  }
   if (PN_CREE) {
     exec(`DELETE FROM t_famille_stock WHERE lg_FAMILLE_ID = '${PN}'; DELETE FROM t_famille WHERE lg_FAMILLE_ID = '${PN}';`);
   }
@@ -70,12 +100,16 @@ function retirerProduitCree() {
 
 function poser() {
   exec(`UPDATE t_famille_stock SET int_NUMBER_AVAILABLE = ${+STOCK_S + 7}, int_NUMBER = ${+STOCK_S + 7} WHERE lg_FAMILLE_ID = '${PS}' AND lg_EMPLACEMENT_ID = '1';`
+    + `UPDATE t_famille_stock SET int_NUMBER_AVAILABLE = ${+STOCK_R + 5}, int_NUMBER = ${+STOCK_R + 5} WHERE lg_FAMILLE_ID = '${PR}' AND lg_EMPLACEMENT_ID = '1';`
+    + reassort(M + '-R1', PR, STOCK_R)
+    + `UPDATE t_famille_stock SET int_NUMBER_AVAILABLE = ${+STOCK_X + 7}, int_NUMBER = ${+STOCK_X + 7} WHERE lg_FAMILLE_ID = '${PX}' AND lg_EMPLACEMENT_ID = '1';`
+    + reassort(M + '-R2', PX, STOCK_X)
     + `UPDATE t_famille_stock SET int_NUMBER_AVAILABLE = -3, int_NUMBER = -3 WHERE lg_FAMILLE_ID = '${PN}' AND lg_EMPLACEMENT_ID = '1';`
     + `UPDATE t_tiers_payant SET account = ${+TP_SOLDE + 1000} WHERE lg_TIERS_PAYANT_ID = '${TP}';`
     + "INSERT INTO t_resume_caisse (ld_CAISSE_ID, lg_USER_ID, int_SOLDE_MATIN, int_SOLDE_SOIR, dt_DAY, dt_CREATED, lg_CREATED_BY, dt_UPDATED, lg_UPDATED_BY, str_STATUT) VALUES"
     + ` ('${M}-OUV', '${ADMIN}', 0, 0, '${IL_Y_A_3_JOURS.slice(0, 10)}', '${IL_Y_A_3_JOURS}', '${ADMIN}', '${IL_Y_A_3_JOURS}', '${ADMIN}', 'is_Using'),`
-    + ` ('${M}-FER', '${ADMIN}', 0, 10000, '${HIER}', '${HIER} 08:00:00', '${ADMIN}', '${HIER} 18:00:00', '${ADMIN}', 'is_Closed');`
-    + `INSERT INTO t_billetage (lg_BILLETAGE_ID, ld_CAISSE_ID, int_AMOUNT, lg_USER_ID, dt_CREATED, dt_UPDATED) VALUES ('${M}-B', '${M}-FER', 9000, '${ADMIN}', '${HIER} 18:00:00', '${HIER} 18:00:00');`
+    + ` ('${M}-FER', '${ADMIN}', 0, 100000000, '${HIER}', '${HIER} 08:00:00', '${ADMIN}', '${HIER} 18:00:00', '${ADMIN}', 'is_Closed');`
+    + `INSERT INTO t_billetage (lg_BILLETAGE_ID, ld_CAISSE_ID, int_AMOUNT, lg_USER_ID, dt_CREATED, dt_UPDATED) VALUES ('${M}-B', '${M}-FER', 90000000, '${ADMIN}', '${HIER} 18:00:00', '${HIER} 18:00:00');`
     + `INSERT INTO t_client (lg_CLIENT_ID, str_FIRST_NAME, str_LAST_NAME, str_STATUT, dt_CREATED) VALUES ('${M}-C', 'ZZAUDIT', 'Differe', 'enable', NOW());`
     + `INSERT INTO t_compte_client (lg_COMPTE_CLIENT_ID, lg_CLIENT_ID, str_STATUT, dt_CREATED) VALUES ('${M}-CC', '${M}-C', 'enable', NOW());`
     + "INSERT INTO t_preenregistrement (lg_PREENREGISTREMENT_ID, str_REF, str_REF_TICKET, int_PRICE, int_PRICE_REMISE, str_STATUT, dt_CREATED, dt_UPDATED,"
@@ -126,6 +160,11 @@ function poser() {
     let t = await tuile('STOCK'); let d = await detail('STOCK');
     let l = d.find((x) => x.cip === CIP_S);
     ok('Stock / historique : tuile rouge, produit modifié présent avec un écart de +7', t && t.rouge && l && l.ecart === 7 && l.stockReel === +STOCK_S + 7, JSON.stringify(l));
+    l = d.find((x) => x.cip === CIP_R);
+    ok('Stock / historique : un réassort réserve → rayon après le dernier mouvement n\'est pas un écart', !l, JSON.stringify(l));
+    l = d.find((x) => x.cip === CIP_X);
+    ok('Stock / historique : écart compté depuis le réassort (stock historique = rayon après réassort, +2)',
+      l && l.stockHistorique === +STOCK_X + 5 && l.ecart === 2 && l.stockReel === +STOCK_X + 7, JSON.stringify(l));
     t = await tuile('STOCK_NEGATIF'); d = await detail('STOCK_NEGATIF');
     l = d.find((x) => x.cip === CIP_N);
     ok('Stocks négatifs : produit à −3 présent', t && t.rouge && l && l.stockReel === -3, JSON.stringify(l));
@@ -134,7 +173,7 @@ function poser() {
     ok('Caisses ouvertes : caisse ouverte il y a 3 jours présente (3 jours)', t && t.rouge && l && l.jours === 3, JSON.stringify(l));
     t = await tuile('BILLETAGE'); d = await detail('BILLETAGE');
     l = d.find((x) => x.caisse === M + '-FER');
-    ok('Billetage : manquant de 1 000 sur la caisse de la veille', t && t.rouge && l && l.ecart === -1000 && l.attendu === 10000, JSON.stringify(l));
+    ok('Billetage : manquant de 10 000 000 sur la caisse de la veille', t && t.rouge && l && l.ecart === -10000000 && l.attendu === 100000000, JSON.stringify(l));
     t = await tuile('DIFFERES'); d = await detail('DIFFERES');
     l = d.find((x) => x.clientId === M + '-C');
     ok('Différés : reste dû 4 000 / relevé 5 000 (écart −1 000)', t && t.rouge && l && l.resteDu === 4000 && l.soldeReleve === 5000 && l.ecart === -1000, JSON.stringify(l));
@@ -172,7 +211,11 @@ function poser() {
     ok('Données d\'essai retirées', q(`SELECT COUNT(*) FROM t_resume_caisse WHERE ld_CAISSE_ID LIKE '${M}-%'`) === '0'
       && q(`SELECT COUNT(*) FROM t_client WHERE lg_CLIENT_ID = '${M}-C'`) === '0'
       && q(`SELECT int_NUMBER_AVAILABLE FROM t_famille_stock WHERE lg_FAMILLE_ID = '${PS}' AND lg_EMPLACEMENT_ID = '1'`) === STOCK_S
-      && q(`SELECT COALESCE(account, 0) FROM t_tiers_payant WHERE lg_TIERS_PAYANT_ID = '${TP}'`) === TP_SOLDE);
+      && q(`SELECT int_NUMBER_AVAILABLE FROM t_famille_stock WHERE lg_FAMILLE_ID = '${PR}' AND lg_EMPLACEMENT_ID = '1'`) === STOCK_R
+      && q(`SELECT int_NUMBER_AVAILABLE FROM t_famille_stock WHERE lg_FAMILLE_ID = '${PX}' AND lg_EMPLACEMENT_ID = '1'`) === STOCK_X
+      && q(`SELECT COUNT(*) FROM t_mouvement_reserve WHERE lg_MOUVEMENT_ID LIKE '${M}-R%'`) === '0'
+      && (TP_CREE ? q(`SELECT COUNT(*) FROM t_tiers_payant WHERE lg_TIERS_PAYANT_ID = '${TP}'`) === '0'
+        : q(`SELECT COALESCE(account, 0) FROM t_tiers_payant WHERE lg_TIERS_PAYANT_ID = '${TP}'`) === TP_SOLDE));
   }
   const ko = res.filter((x) => !x.c).length;
   console.log('\n' + (res.length - ko) + '/' + res.length + ' OK');

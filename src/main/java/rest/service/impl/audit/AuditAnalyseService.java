@@ -111,21 +111,38 @@ public class AuditAnalyseService {
     /* ------------------------------------------------------------------ stock */
 
     /**
-     * Stock reel different du stock apres la derniere ligne d'historique du produit dans l'emplacement. Plusieurs
-     * lignes peuvent partager la derniere seconde (vente et deconditionnement automatique) : le stock est juste s'il
-     * vaut le stock apres de l'une d'elles.
+     * Stock reel different du stock apres le dernier mouvement du produit dans l'emplacement. Plusieurs lignes peuvent
+     * partager la derniere seconde (vente et deconditionnement automatique) : le stock est juste s'il vaut le stock
+     * apres de l'une d'elles.
+     *
+     * <p>
+     * Les reassorts reserve -> rayon (et l'inverse) changent le stock rayon sans ligne dans hmvtproduit : ils sont dans
+     * t_mouvement_reserve, avec le stock rayon apres. Le dernier mouvement est donc le plus recent des deux journaux ;
+     * a la meme seconde, l'un ou l'autre stock apres suffit.
      */
     private JSONObject stock() {
+        String reserveDernier = "SELECT 1 FROM t_mouvement_reserve r WHERE r.lg_FAMILLE_ID = m.f AND r.lg_EMPLACEMENT_ID = m.e"
+                + "   AND r.dt_CREATED = m.rmax";
+        String historiqueDernier = "SELECT 1 FROM hmvtproduit h WHERE h.lg_FAMILLE_ID = m.f AND h.lg_EMPLACEMENT_ID = m.e"
+                + "   AND h.createdAt = m.dmax";
         List<Object[]> r = lignes(
                 "SELECT f.lg_FAMILLE_ID id, f.int_CIP cip, f.str_NAME produit, e.str_NAME emplacement,"
-                        + " s.int_NUMBER_AVAILABLE reel, (SELECT h.qteFinale FROM hmvtproduit h WHERE h.lg_FAMILLE_ID = m.f AND h.lg_EMPLACEMENT_ID = m.e"
-                        + "   AND h.createdAt = m.dmax ORDER BY h.typeMvt = '05' LIMIT 1) historique, m.dmax dernier"
-                        + " FROM (SELECT lg_FAMILLE_ID f, lg_EMPLACEMENT_ID e, MAX(createdAt) dmax FROM hmvtproduit"
-                        + "       GROUP BY lg_FAMILLE_ID, lg_EMPLACEMENT_ID) m"
+                        + " s.int_NUMBER_AVAILABLE reel, CASE WHEN m.rmax > m.dmax"
+                        + "   THEN (SELECT r.int_STOCK_RAYON_APRES FROM t_mouvement_reserve r WHERE r.lg_FAMILLE_ID = m.f"
+                        + "     AND r.lg_EMPLACEMENT_ID = m.e AND r.dt_CREATED = m.rmax ORDER BY r.lg_MOUVEMENT_ID DESC LIMIT 1)"
+                        + "   ELSE (SELECT h.qteFinale FROM hmvtproduit h WHERE h.lg_FAMILLE_ID = m.f AND h.lg_EMPLACEMENT_ID = m.e"
+                        + "     AND h.createdAt = m.dmax ORDER BY h.typeMvt = '05' LIMIT 1) END historique,"
+                        + " GREATEST(m.dmax, COALESCE(m.rmax, m.dmax)) dernier"
+                        + " FROM (SELECT d.f, d.e, d.dmax, (SELECT MAX(r.dt_CREATED) FROM t_mouvement_reserve r"
+                        + "         WHERE r.lg_FAMILLE_ID = d.f AND r.lg_EMPLACEMENT_ID = d.e) rmax"
+                        + "       FROM (SELECT lg_FAMILLE_ID f, lg_EMPLACEMENT_ID e, MAX(createdAt) dmax FROM hmvtproduit"
+                        + "             GROUP BY lg_FAMILLE_ID, lg_EMPLACEMENT_ID) d) m"
                         + " JOIN t_famille_stock s ON s.lg_FAMILLE_ID = m.f AND s.lg_EMPLACEMENT_ID = m.e"
                         + " JOIN t_famille f ON f.lg_FAMILLE_ID = m.f JOIN t_emplacement e ON e.lg_EMPLACEMENT_ID = m.e"
-                        + " WHERE f.str_STATUT = 'enable' AND NOT EXISTS (SELECT 1 FROM hmvtproduit h WHERE h.lg_FAMILLE_ID = m.f"
-                        + "   AND h.lg_EMPLACEMENT_ID = m.e AND h.createdAt = m.dmax AND h.qteFinale = s.int_NUMBER_AVAILABLE)"
+                        + " WHERE f.str_STATUT = 'enable' AND NOT ((m.rmax IS NULL OR m.rmax <= m.dmax)"
+                        + "     AND EXISTS (" + historiqueDernier + " AND h.qteFinale = s.int_NUMBER_AVAILABLE))"
+                        + "   AND NOT (m.rmax >= m.dmax AND EXISTS (" + reserveDernier
+                        + " AND r.int_STOCK_RAYON_APRES = s.int_NUMBER_AVAILABLE))"
                         + " ORDER BY m.e <> '1', e.str_NAME, f.str_NAME");
         JSONArray l = new JSONArray();
         long totalEcart = 0;
@@ -139,8 +156,9 @@ public class AuditAnalyseService {
             }
         }
         return new JSONObject().put("nb", r.size()).put("quantite", totalEcart).put("lignes", l).put("explication",
-                "Le stock réel du produit ne correspond pas au stock après son dernier mouvement enregistré : "
-                        + "un mouvement n'a pas été historisé, ou le stock a été modifié hors des écrans prévus.");
+                "Le stock réel du produit ne correspond pas au stock après son dernier mouvement enregistré "
+                        + "(réassorts de la réserve compris) : un mouvement n'a pas été historisé, ou le stock a été "
+                        + "modifié hors des écrans prévus.");
     }
 
     private JSONObject stocksNegatifs() {
