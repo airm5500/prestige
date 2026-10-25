@@ -29,20 +29,30 @@ Ext.define('testextjs.view.sm_user.mainmenu.MainMenuManager', {
     initComponent: function () {
 
         var me = this;
-        // Metro choisi le 25/10 : page statique + route v1/metro (l'ancien home/index.jsp reste en place)
-        var url_order_component = "../general/metro/index.html";
-
+        /* Metro choisi le 25/10, monte directement dans Prestige (plus d'iframe : le clavier va au Metro sans clic
+           prealable). Donnees : route v1/metro ; dessin et clavier : general/metro/metro.js et metro.css (charges par
+           index.jsp). L'ancien home/index.jsp reste en place. */
         this.items = [{
                 xtype: "component",
+                itemId: "metro",
                 border: false,
-                autoEl: {
-                    tag: "iframe",
-                    src: url_order_component,
-                    frameBorder: 0,
-                    style: "border:none;"
+                cls: "prestige-metro-hote",
+                style: "height:100%;",
+                listeners: {
+                    afterrender: function (c) {
+                        if (window.PrestigeMetro) {
+                            me.metro = window.PrestigeMetro.monter(c.getEl().dom);
+                        }
+                    }
                 }
-            }],
-                this.callParent();
+            }];
+        this.callParent();
+        this.on('destroy', function () {
+            if (me.metro) {
+                me.metro.detruire();
+                me.metro = null;
+            }
+        });
 
         /* Le metro occupe TOUT l'espace du content panel : on se cale sur
          * la taille de son corps et on suit ses redimensionnements.

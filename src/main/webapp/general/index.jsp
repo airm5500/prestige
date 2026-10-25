@@ -88,6 +88,10 @@
              message (on lisait "Avoir deja" au lieu de "Avoir deja certifie"). A charger
              apres ext-all.js. -->
         <script src="resources/js/correctifs-affichage.js"></script>
+        <!-- Metro (choix du 25/10) : monte dans Prestige par mainmenumanager, sans iframe -->
+        <link rel="stylesheet" type="text/css" href="metro/metro.css" />
+        <script src="metro/metro-icones.js"></script>
+        <script src="metro/metro.js"></script>
         <!-- Controle de saisie commun (dates impossibles refusees au lieu d'etre decalees) -->
         <script src="resources/js/controle-saisie.js"></script>
         <script src="resources/js/selecteur-periodes.js"></script>
