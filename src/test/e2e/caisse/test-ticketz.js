@@ -6,6 +6,7 @@
  *  - « Envoyer SMS » et « Imprimer » : l'etat s'affiche dans le bouton, sans fenetre (appels interceptes : aucun SMS
  *    envoye, rien d'imprime) ; « Aperçu » ouvre la page imprimable avec la periode et le recapitulatif ;
  *  - tableau de bord a l'accueil : le composant ExtJS, aucun iframe, meme avec KEY_TABLEAU_BORD_VERSION = ANCIEN.
+ *  - retour au tableau de bord depuis le Ticket Z (ecran colle) : toute la largeur, pas un tiers.
  * Le test ne pose aucune donnee ; le parametre du tableau de bord est remis a sa valeur.
  */
 const { chromium } = require('playwright-core');
@@ -120,6 +121,14 @@ const cartes = (p) => p.evaluate(() => Array.from(document.querySelectorAll('.ti
     ok('Aperçu : période, filtre et récapitulatif', texte.indexOf('Période : du ' + veille + ' 00:00 au ' + veille + ' 23:59') >= 0
       && /Ventes uniquement/.test(texte) && /Total général/i.test(texte), texte.slice(0, 160));
     await apercu.close();
+
+    /* retour au tableau de bord par l'icone de l'en-tete (video du 25/10 : il restait sur un tiers de la largeur) */
+    await p.evaluate(() => prestigeShowMetro());
+    await p.waitForFunction(() => Ext.ComponentQuery.query('dashboard tableaubord').length > 0, null, { timeout: 60000 });
+    await p.waitForTimeout(1500);
+    const retour = await p.evaluate(() => { const cp = Ext.getCmp('content-panel'), d = Ext.ComponentQuery.query('dashboard')[0];
+      return { corps: cp.body.getViewSize().width, tableau: d.down('tableaubord').getWidth() }; });
+    ok('Retour au tableau de bord après le Ticket Z : toute la largeur', retour.tableau >= retour.corps - 40, JSON.stringify(retour));
     ok('Aucune boîte de dialogue', dialogues.length === 0, dialogues.join(' | '));
   } catch (e) { ok('Parcours sans exception', false, e.message); } finally {
     q(`UPDATE t_parameters SET str_VALUE = '${VERSION}' WHERE str_KEY = 'KEY_TABLEAU_BORD_VERSION'`);

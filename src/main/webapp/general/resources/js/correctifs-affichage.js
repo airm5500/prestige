@@ -331,10 +331,23 @@ window.PrestigeEditions = {
  */
 window.PrestigeAffichage.disposerConteneur = function (conteneur, ecran) {
     'use strict';
+    /*
+     * Retour du 25/10 (video) : le conteneur interne etait rendu avec display = '' au lieu de sa valeur d'origine.
+     * ExtJS le pose en « table » sur une balise span ; sans valeur, la span repasse en « inline » et retrecit a la
+     * largeur de son contenu : l'ecran non colle ouvert ensuite (tableau de bord) restait sur un tiers de la
+     * largeur. La valeur d'origine est donc retenue avant de le masquer, et remise telle quelle.
+     */
     function basculerConteneurInterne(disposition, visible) {
         var element = disposition && disposition.outerCt;
         if (element && element.dom) {
-            element.dom.style.display = visible ? '' : 'none';
+            if (!visible) {
+                if (element.dom.style.display !== 'none') {
+                    disposition.affichageOrigine = element.dom.style.display;
+                }
+                element.dom.style.display = 'none';
+            } else {
+                element.dom.style.display = disposition.affichageOrigine || 'table';
+            }
         }
     }
     try {

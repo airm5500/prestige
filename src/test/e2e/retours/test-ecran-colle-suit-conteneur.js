@@ -65,6 +65,12 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
     await p.waitForTimeout(4000);
     const nc = await p.evaluate(() => { const cp = Ext.getCmp('content-panel'), it = cp.items.getAt(0); return { xtype: it.getXType(), colle: !!it.collerEnHaut, disposition: cp.getLayout().type }; });
     ok('Écran non collé ensuite (tableau de bord) : conteneur revenu à sa disposition habituelle', !nc.colle && nc.disposition !== 'fit', JSON.stringify(nc));
+    /* retour du 25/10 (video) : le conteneur interne rendu avec display='' (inline) au lieu de « table » retrecissait
+       l'ecran suivant a la largeur de son contenu (tableau de bord sur un tiers de la largeur) */
+    const larg = await p.evaluate(() => { const cp = Ext.getCmp('content-panel'), it = cp.items.getAt(0), o = cp.getLayout().outerCt;
+      return { corps: cp.body.getViewSize().width, ecran: it.getWidth(), interne: o ? getComputedStyle(o.dom).display : '?' }; });
+    ok('Écran non collé ensuite : il reprend toute la largeur du conteneur (conteneur interne en « table »)',
+      larg.interne === 'table' && larg.ecran >= larg.corps - 40, JSON.stringify(larg));
     ok('Aucune erreur JavaScript, aucune fenêtre', erreurs.length === 0 && dialogues.length === 0, erreurs.concat(dialogues).join(' | '));
   } catch (x) {
     ok('Parcours sans exception', false, x.stack);
