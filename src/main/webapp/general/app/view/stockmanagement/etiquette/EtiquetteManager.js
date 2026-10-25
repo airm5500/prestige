@@ -41,8 +41,11 @@ Ext.define('testextjs.view.stockmanagement.etiquette.EtiquetteManager', {
 
         var itemsPerPage = 20;
         Me_Workflow = this;
-        valdatedebut = "";
-        valdatefin = "";
+        /* retours du 25/10 (point 9) : sans dates, l'ouverture lisait toutes les etiquettes depuis l'origine ; la
+           periode par defaut est celle des 7 derniers jours (dates videes : toute la liste, comme avant) */
+        var aujourdhui = new Date(), ilYa7Jours = Ext.Date.add(aujourdhui, Ext.Date.DAY, -7);
+        valdatedebut = Ext.Date.format(ilYa7Jours, 'Y-m-d');
+        valdatefin = Ext.Date.format(aujourdhui, 'Y-m-d');
         lg_TYPEETIQUETTE_ID = "";
         store_ = new Ext.data.Store({
             model: 'testextjs.model.Etiquette',
@@ -183,6 +186,7 @@ Ext.define('testextjs.view.stockmanagement.etiquette.EtiquetteManager', {
                     name: 'datedebut',
                     emptyText: 'Date debut',
                     submitFormat: 'Y-m-d',
+                    value: ilYa7Jours,
                     maxValue: new Date(),
                     format: 'd/m/Y',
                     listeners: {
@@ -199,6 +203,8 @@ Ext.define('testextjs.view.stockmanagement.etiquette.EtiquetteManager', {
                     id: 'datefin',
                     name: 'datefin',
                     emptyText: 'Date fin',
+                    value: aujourdhui,
+                    minValue: ilYa7Jours,
                     maxValue: new Date(),
                     submitFormat: 'Y-m-d',
                     format: 'd/m/Y',
@@ -266,9 +272,8 @@ Ext.define('testextjs.view.stockmanagement.etiquette.EtiquetteManager', {
 
     },
     loadStore: function() {
-        this.getStore().load({
-            callback: this.onStoreLoad
-        });
+        /* meme chargement que « rechercher » : la periode par defaut part avec la premiere page */
+        this.onRechClick();
     },
    /* onAddClick: function() {
 

@@ -102,11 +102,18 @@ public class EtiquetteListeServiceImpl implements EtiquetteListeService {
             String type = StringUtils.trimToEmpty(typeEtiquetteId);
             String emplacement = emplacementDe(user, touteActivite);
 
-            StringBuilder filtre = new StringBuilder(" FROM TEtiquette t"
-                    + " WHERE (t.strNAME LIKE :motif OR t.strCODE LIKE :motif OR t.lgFAMILLEID.intCIP LIKE :motif"
-                    + " OR t.lgFAMILLEID.strDESCRIPTION LIKE :motif OR t.lgFAMILLEID.intEAN13 LIKE :motif)"
-                    + " AND t.strSTATUT IN :statuts" + " AND t.dtCREATED BETWEEN :debut AND :fin"
-                    + " AND t.lgEMPLACEMENTID.lgEMPLACEMENTID LIKE :emplacement");
+            /* retours du 25/10 (point 9) : recherche vide, aucun filtre texte (il etait applique sur 5 colonnes) */
+            boolean texte = StringUtils.isNotBlank(recherche);
+            StringBuilder filtre = new StringBuilder(
+                    " FROM TEtiquette t WHERE t.strSTATUT IN :statuts" + " AND t.dtCREATED BETWEEN :debut AND :fin"
+                            + " AND t.lgEMPLACEMENTID.lgEMPLACEMENTID LIKE :emplacement");
+            if (!texte) {
+                /* la recherche joignait le produit : une etiquette sans produit restait hors de la liste */
+                filtre.append(" AND t.lgFAMILLEID IS NOT NULL");
+            } else {
+                filtre.append(" AND (t.strNAME LIKE :motif OR t.strCODE LIKE :motif OR t.lgFAMILLEID.intCIP LIKE :motif"
+                        + " OR t.lgFAMILLEID.strDESCRIPTION LIKE :motif OR t.lgFAMILLEID.intEAN13 LIKE :motif)");
+            }
             if (!type.isEmpty()) {
                 filtre.append(" AND t.lgTYPEETIQUETTEID.lgTYPEETIQUETTEID = :type");
             }
@@ -123,9 +130,11 @@ public class EtiquetteListeServiceImpl implements EtiquetteListeService {
             TypedQuery<TEtiquette> page = em.createQuery("SELECT t" + filtre + " ORDER BY t.dtCREATED DESC",
                     TEtiquette.class);
             for (javax.persistence.TypedQuery<?> q : new javax.persistence.TypedQuery<?>[] { compte, page }) {
-                q.setParameter("motif", motif).setParameter("statuts", statuts)
-                        .setParameter("debut", debutDePeriode(dateDebut)).setParameter("fin", finDePeriode(dateFin))
-                        .setParameter("emplacement", emplacement);
+                if (texte) {
+                    q.setParameter("motif", motif);
+                }
+                q.setParameter("statuts", statuts).setParameter("debut", debutDePeriode(dateDebut))
+                        .setParameter("fin", finDePeriode(dateFin)).setParameter("emplacement", emplacement);
                 if (!type.isEmpty()) {
                     q.setParameter("type", type);
                 }

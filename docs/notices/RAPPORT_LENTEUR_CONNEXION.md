@@ -412,3 +412,25 @@ données), navigateur connecté en admin, avec 100 envois successifs et 3 à 5 l
   180 jours.
 - **Sur un an**, le temps de l'onglet vient des comptes déjà existants (ventes, ventes longues, annulations,
   modifications), pas de la nouvelle table. Il reste deux fois plus court que l'onglet Analyses sur la même période.
+
+## Ancien menu « Gestion étiquette » : ouverture (25/10, point 9)
+
+**Cause trouvée** : sans date saisie, la première page de la liste lisait toutes les étiquettes depuis 1970. Elle les
+comptait toutes, avec un filtre texte vide appliqué sur 5 colonnes, dont 3 du produit.
+
+**Correction** :
+- la période par défaut est celle des 7 derniers jours (dates affichées dans les champs) ;
+- le filtre texte n'est appliqué que si une recherche est tapée ;
+- dates vidées : toute la liste, comme avant.
+
+**Mesure sur le banc**, admin, ouverture du menu jusqu'à la liste affichée :
+
+| | Étiquettes lues | Requête de la liste | Ouverture complète |
+|---|---:|---:|---:|
+| Avant | 3 273 (toutes) | 46 ms | 1,0 s |
+| Après | 31 (7 jours) | 50 ms | 1,0 s |
+
+Le banc n'a que 3 273 étiquettes : à ce volume, la lenteur ne se voit pas, et la mesure ne montre pas de gain. Le gain
+dépend du nombre d'étiquettes de l'officine. Avec la correction, la liste ne lit que les étiquettes de la semaine,
+quel que soit l'historique. À confirmer par une mesure sur le poste où la lenteur a été vue.
+Test : `retours/test-etiquette-ancien-menu.js` (7/7).
