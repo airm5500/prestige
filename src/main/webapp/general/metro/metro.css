@@ -1,0 +1,119 @@
+/* Metro de Prestige (choix du 25/10) : accueil en tuiles proportionnees, une couleur par menu ; sous-menus en
+   groupes par famille ; icones Lucide (licence ISC, voir LICENCE-lucide.txt). */
+:root {
+  --fond: #11161d;
+  --fond-haut: #161d26;
+  --texte: #f3f6fa;
+  --texte-doux: #a9b6c6;
+  --trait: #263140;
+  --ecart: 10px;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  background: var(--fond); color: var(--texte);
+  font-family: "Segoe UI", "Segoe UI Web", Tahoma, Arial, sans-serif;
+  display: flex; flex-direction: column; overflow: hidden;
+}
+button { font-family: inherit; }
+
+/* ---------- en-tete ---------- */
+.entete {
+  display: flex; align-items: center; gap: 18px;
+  padding: 18px 28px 10px; background: var(--fond);
+}
+.titre { display: flex; flex-direction: column; }
+.titre h1 { margin: 0; font-size: 34px; font-weight: 300; letter-spacing: .5px; line-height: 1.1; }
+.titre span { font-size: 13px; color: var(--texte-doux); margin-top: 2px; }
+.retour {
+  width: 44px; height: 44px; border-radius: 50%; border: 2px solid var(--texte);
+  background: transparent; color: var(--texte); cursor: pointer; display: none;
+  align-items: center; justify-content: center; flex-shrink: 0;
+}
+.retour.visible { display: flex; }
+.retour:hover { background: rgba(255,255,255,.12); }
+.recherche {
+  margin-left: auto; display: flex; align-items: center; gap: 8px;
+  width: min(380px, 40vw); height: 42px; padding: 0 14px;
+  background: #1f2833; border: 2px solid transparent;
+}
+.recherche:focus-within { border-color: #4aa3ff; background: #fff; }
+.recherche:focus-within svg { stroke: #1e293b; }
+.recherche input {
+  flex: 1; min-width: 0; border: 0; background: transparent; outline: none;
+  color: var(--texte); font-size: 15px;
+}
+.recherche:focus-within input { color: #1e293b; }
+.recherche input::placeholder { color: #8a97a8; }
+/* ---------- zone des tuiles ---------- */
+.zone { flex: 1; min-height: 0; overflow: auto; padding: 8px 28px 22px; }
+.grille {
+  display: grid; gap: var(--ecart); grid-auto-flow: row dense;
+  justify-content: center; align-content: center; min-height: 100%;
+}
+.tuile {
+  position: relative; overflow: hidden; border: 0; padding: 0; margin: 0;
+  color: #fff; text-align: left; cursor: pointer;
+  background: var(--c);
+  transition: transform .12s ease, filter .12s ease, box-shadow .12s ease;
+  outline: none;
+  opacity: 0; transform: translateX(46px) rotateY(-28deg);
+  transform-origin: left center;
+}
+.grille.entree .tuile { animation: arrivee .5s cubic-bezier(.1,.9,.2,1) forwards; animation-delay: calc(var(--i) * 35ms); }
+@keyframes arrivee { to { opacity: 1; transform: none; } }
+.tuile.posee { opacity: 1; transform: none; animation: none; }
+.tuile:hover { filter: brightness(1.08); box-shadow: inset 0 0 0 3px rgba(255,255,255,.55); }
+.tuile:focus-visible { box-shadow: inset 0 0 0 4px #fff; }
+.tuile:active, .tuile.appui { transform: scale(.965) !important; filter: brightness(.95); }
+.perspective { perspective: 1400px; }
+
+/* faces : la face principale et la face « vivante » glissent verticalement */
+.faces { position: absolute; inset: 0; transition: transform .7s cubic-bezier(.1,.9,.2,1); }
+.tuile.vivante .faces { transform: translateY(-100%); }
+.face { position: absolute; left: 0; right: 0; height: 100%; padding: var(--pad); display: flex; flex-direction: column; }
+.face.dos { top: 100%; background: rgba(0,0,0,.14); justify-content: flex-end; gap: 4px; }
+.face.dos .ligne { font-size: var(--petit); line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: .95; }
+.face.dos .ligne:first-child { font-weight: 600; }
+.icone { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 0; }
+.icone svg { width: var(--ico); height: var(--ico); stroke: #fff; stroke-width: 1.5; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.tuile.large .icone { justify-content: flex-start; padding-left: 6%; }
+.pied { display: flex; align-items: flex-end; justify-content: space-between; gap: 8px; }
+.nom { font-size: var(--nom); font-weight: 400; line-height: 1.15; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.compte { font-size: var(--nom); font-weight: 300; opacity: .9; flex-shrink: 0; }
+.tuile.ecran .nom { font-size: var(--nom); -webkit-line-clamp: 3; overflow-wrap: anywhere; }
+.tuile.ecran .module { font-size: var(--petit); opacity: .85; margin-top: 2px; }
+/* badge (ex. articles a reassortir sur « Gestion des réserves ») */
+.badge { position: absolute; top: 6px; right: 6px; min-width: 22px; height: 22px; padding: 0 7px; border-radius: 11px;
+  background: #e74c3c; color: #fff; font-size: 12px; font-weight: 700; line-height: 22px; text-align: center;
+  box-shadow: 0 1px 4px rgba(0,0,0,.3); }
+
+/* ---------- sous-menus : bandeau de couleur du menu ---------- */
+.entete { position: relative; }
+.entete .bande { position: absolute; left: 28px; right: 28px; bottom: 2px; height: 4px; background: var(--cm, transparent); transition: background .3s; }
+
+/* groupes par famille (sous-menus) */
+.groupes { display: flex; flex-wrap: wrap; gap: 26px 34px; align-content: center; justify-content: center; min-height: 100%; }
+.groupe h2 { margin: 0 0 8px; font-size: 18px; font-weight: 300; color: var(--texte); display: flex; align-items: center; gap: 8px; }
+.groupe h2::before { content: ""; width: 12px; height: 12px; background: var(--c); }
+.groupe .grille { min-height: 0; justify-content: start; align-content: start; }
+
+.vide { color: var(--texte-doux); font-size: 16px; text-align: center; padding: 40px; }
+.message {
+  position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%) translateY(20px);
+  background: #fff; color: #1e293b; padding: 12px 20px; font-size: 14px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.35); opacity: 0; transition: all .25s ease; pointer-events: none;
+}
+.message.visible { opacity: 1; transform: translateX(-50%); }
+.etat { margin: auto; color: var(--texte-doux); font-size: 16px; text-align: center; padding: 40px; }
+.etat button { margin-top: 14px; padding: 10px 18px; border: 0; background: #2B5797; color: #fff; font-size: 14px; cursor: pointer; }
+
+@media (prefers-reduced-motion: reduce) {
+  .tuile, .faces { transition: none; }
+  .grille.entree .tuile { animation-duration: 1ms; animation-delay: 0ms; }
+}
+@media (max-width: 640px) {
+  .entete { flex-wrap: wrap; padding: 14px 16px 8px; }
+  .zone { padding: 8px 16px 16px; }
+  .recherche { width: 100%; order: 5; }
+}

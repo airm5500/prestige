@@ -29,7 +29,8 @@ Ext.define('testextjs.view.sm_user.mainmenu.MainMenuManager', {
     initComponent: function () {
 
         var me = this;
-        var url_order_component = "../general/home/index.jsp?mode=SIMPLE";
+        // Metro choisi le 25/10 : page statique + route v1/metro (l'ancien home/index.jsp reste en place)
+        var url_order_component = "../general/metro/index.html";
 
         this.items = [{
                 xtype: "component",
