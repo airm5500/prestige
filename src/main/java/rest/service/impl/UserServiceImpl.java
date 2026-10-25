@@ -349,7 +349,8 @@ public class UserServiceImpl implements UserService {
     private String getHostName(HttpServletRequest request) {
         // Resolution bornee et memoisee : getRemoteHost() faisait une resolution DNS inverse
         // bloquante a chaque connexion/deconnexion (voir util.NomDePoste).
-        return NomDePoste.depuis(request);
+        // Demande mobile 53 : le nom de l'appareil (X-Poste) d'abord, comme le reste du journal.
+        return util.ContexteRequete.poste(request);
     }
 
     @Override

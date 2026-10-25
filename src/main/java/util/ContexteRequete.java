@@ -69,6 +69,39 @@ public final class ContexteRequete {
         return c.poste;
     }
 
+    private static final ThreadLocal<Boolean> SANS_APPAREIL = new ThreadLocal<>();
+
+    /**
+     * Demande mobile 54 : action menee pour le compte d'une vente sans l'appareil qui l'a saisie (notification du
+     * fournisseur de paiement) ; l'encaissement garde alors le poste de saisie, pas le nom reseau du fournisseur.
+     */
+    public static <T> T encaissementSansAppareil(java.util.function.Supplier<T> action) {
+        Boolean avant = SANS_APPAREIL.get();
+        SANS_APPAREIL.set(Boolean.TRUE);
+        try {
+            return action.get();
+        } finally {
+            if (avant == null) {
+                SANS_APPAREIL.remove();
+            } else {
+                SANS_APPAREIL.set(avant);
+            }
+        }
+    }
+
+    public static boolean encaissementSansAppareil() {
+        return Boolean.TRUE.equals(SANS_APPAREIL.get());
+    }
+
+    /**
+     * Demande mobile 53 : poste d'une requete donnee (connexion, deconnexion), meme regle que {@link #poste()} :
+     * X-Poste s'il est envoye, sinon nom reseau.
+     */
+    public static String poste(HttpServletRequest requete) {
+        String declare = nettoyer(decoder(requete.getHeader("X-Poste")));
+        return declare != null ? declare : NomDePoste.depuis(requete);
+    }
+
     public static String application() {
         Contexte c = COURANT.get();
         return c == null ? null : application(c.agent);

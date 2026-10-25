@@ -663,6 +663,13 @@ public class TPreenregistrement implements Serializable {
 
     /** Poste et adresse de la requete en cours (encaissement). Sans requete (traitement de fond) : rien ne change. */
     public void marquerPosteEncaissement() {
+        if (util.ContexteRequete.encaissementSansAppareil()) {
+            // demande mobile 54 : cloture par la notification du fournisseur, le poste reste celui de la vente
+            if (strPOSTESAISIE != null) {
+                strPOSTE = strPOSTESAISIE;
+            }
+            return;
+        }
         String poste = util.ContexteRequete.poste(), ip = util.ContexteRequete.ip();
         if (poste != null) {
             strPOSTE = poste.length() > 100 ? poste.substring(0, 100) : poste;

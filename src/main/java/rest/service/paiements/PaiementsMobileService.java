@@ -426,7 +426,8 @@ public class PaiementsMobileService {
         if (lire(id, false) == null) {
             return 200; // transaction inconnue : rien à faire, pas de nouvel envoi
         }
-        confirmer(id);
+        // demande mobile 54 : une clôture ici garde le poste de la vente, pas le nom réseau du fournisseur
+        util.ContexteRequete.encaissementSansAppareil(() -> confirmer(id));
         return 200;
     }
 

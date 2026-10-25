@@ -104,7 +104,12 @@ public class ReceptionMobileRessource {
             return sansSession();
         }
         LocalDate a = jour(au, LocalDate.now());
-        return repondre(service.peremptionsCourtes(jour(du, a.withDayOfMonth(1)), a, grossiste, statut));
+        JSONObject r = service.peremptionsCourtes(jour(du, a.withDayOfMonth(1)), a, grossiste, statut);
+        // demande mobile 55 : l'application masque d'emblee le changement de statut si le compte n'a pas le droit
+        if (r.has("total")) {
+            r.put("peutChangerStatut", Droits.a(servletRequest, "P_BL_MOBILE_ACCEPTER_PEREMPTION_COURTE"));
+        }
+        return repondre(r);
     }
 
     /** D12 : rapport des peremptions courtes en Excel (memes filtres que la liste). */
