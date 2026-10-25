@@ -213,6 +213,32 @@ Ext.define('testextjs.controller.App', {
      * Retours du 08/10 (12) : « Commandes en cours » s'ouvre en onglets avec le suivi PharmaML (ruptures,
      * substitutions, alertes, tableau de bord), d'ou qu'on l'ouvre (menu, tableau de bord, retour d'une commande).
      */
+    /*
+     * Retour du 25/10 : un ecran ouvert sans titre (bouton « Retour » d'une saisie, par exemple) vidait la barre du
+     * panneau central : on ne savait plus ou l'on etait. Sans titre fourni, l'ecran reprend le libelle de son menu
+     * (arbre de navigation) ; s'il n'est pas un menu (le Metro, par exemple), rien ne change.
+     */
+    titreEcran: function (xtypes, libelle) {
+        var nav, store, i, noeud;
+        if (libelle && String(libelle).replace(/&nbsp;/g, '').trim()) {
+            return libelle;
+        }
+        try {
+            nav = this.getNavigation();
+            store = nav && nav.getStore ? nav.getStore() : null;
+            for (i = 0; store && i < xtypes.length; i++) {
+                noeud = xtypes[i] ? store.getNodeById(xtypes[i]) : null;
+                if (noeud && noeud.get('text')) {
+                    return noeud.get('text');
+                }
+            }
+        } catch (e) {
+            // arbre pas encore charge : le titre affiche reste
+        }
+        // hors menu (Metro, ecrans de saisie) : comme avant
+        return libelle;
+    },
+
     ecranReel: function (xtype) {
         /* retours du 10/10 : l'etat de controle des achats s'ouvre dans son conteneur a onglets (liste + tableau de bord) */
         if (xtype === 'etatscontrolemanager' && Ext.ClassManager.getNameByAlias('widget.controleachats')) {
@@ -246,6 +272,7 @@ Ext.define('testextjs.controller.App', {
     },
 
     onLoadNewComponent: function (ComponentXtype, ComponentLabel, name_ressource) {
+        ComponentLabel = this.titreEcran([ComponentXtype, this.ecranReel(ComponentXtype)], ComponentLabel);
         ComponentXtype = this.ecranReel(ComponentXtype);
         // alert(ComponentXtype);
 
@@ -346,6 +373,7 @@ Ext.define('testextjs.controller.App', {
     },
 
     onLoadNewComponentWithDataSource: function (ComponentXtype, ComponentLabel, name_ressource, ODatatasource) {
+        ComponentLabel = this.titreEcran([ComponentXtype, this.ecranReel(ComponentXtype)], ComponentLabel);
         ComponentXtype = this.ecranReel(ComponentXtype);
         // Experience utilisateur (RUM) : debut de l'ouverture de l'ecran.
         if (window.PrestigeRum) {
@@ -440,6 +468,7 @@ Ext.define('testextjs.controller.App', {
 
     },
     onLoadNewComponentWith2DataSource: function (ComponentXtype, ComponentLabel, name_ressource, ODatatasource, ODatatasourceparent) {
+        ComponentLabel = this.titreEcran([ComponentXtype], ComponentLabel);
         // alert(ComponentXtype);
 
         var text = ComponentLabel,
@@ -516,6 +545,7 @@ Ext.define('testextjs.controller.App', {
 
     },
     onLoadNewComponentWith4DataSource: function (ComponentXtype, ComponentLabel, name_ressource, ODatatasource, ODatatasourceparent, ODatatasource1, ODatatasource2) {
+        ComponentLabel = this.titreEcran([ComponentXtype], ComponentLabel);
         // alert(ComponentXtype);
 
         var text = ComponentLabel,
