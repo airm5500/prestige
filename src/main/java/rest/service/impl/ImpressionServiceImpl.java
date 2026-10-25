@@ -404,6 +404,9 @@ public class ImpressionServiceImpl implements Printable {
 
     }
 
+    /** Largeur imprimable d'un rouleau de 80 mm : 72 mm, soit 204 points. */
+    static final double LARGEUR_ROULEAU_80 = 72 / 25.4 * 72;
+
     /** Largeur imprimable de la page en cours (points), pour centrer le QR code du ticket de prevente. */
     private double largeurImprimable = 0;
 
@@ -668,9 +671,16 @@ public class ImpressionServiceImpl implements Printable {
                  * qui rappelle la vente a la caisse.
                  */
                 int cote = scaleImage * 60;
-                // juste sous les montants, centre sur la largeur imprimable du papier
+                /*
+                 * Juste sous les montants, centre sur le rouleau. Retours du 25/10 (point 13) : la page d'impression
+                 * est le format par defaut (Letter, 612 points de large) ; centre sur cette largeur, le QR tombait hors
+                 * d'un rouleau de 80 mm et n'apparaissait pas. On centre sur la largeur imprimable d'un rouleau de 80
+                 * mm (72 mm), ou sur la page si elle est plus etroite.
+                 */
                 int haut = start + 6;
-                int gauche = Math.max(0, (int) ((largeurImprimable > 0 ? largeurImprimable : 230) - cote) / 2);
+                double largeur = largeurImprimable > 0 ? Math.min(largeurImprimable, LARGEUR_ROULEAU_80)
+                        : LARGEUR_ROULEAU_80;
+                int gauche = Math.max(0, (int) (largeur - cote) / 2);
                 graphics.drawImage(imgCodeBar, gauche, haut, cote, cote, null);
                 limit = haut + cote;
             } else if (intBegin == 0) {

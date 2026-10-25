@@ -34,6 +34,16 @@ class TicketPreventeRenduTest {
     private static final int HAUTEUR = 520;
 
     private static BufferedImage dessiner(TicketPrevente ticket, File qr) throws Exception {
+        PageFormat format = new PageFormat();
+        Paper papier = new Paper();
+        papier.setImageableArea(0, 0, LARGEUR, HAUTEUR);
+        format.setPaper(papier);
+        return dessiner(ticket, qr, format, LARGEUR);
+    }
+
+    /** Dessine le ticket avec le format de page donne, sur une bande de la largeur donnee (le rouleau). */
+    private static BufferedImage dessiner(TicketPrevente ticket, File qr, PageFormat format, int largeurRouleau)
+            throws Exception {
         File logo = File.createTempFile("logo", ".png");
         logo.deleteOnExit();
         BufferedImage l = new BufferedImage(20, 20, BufferedImage.TYPE_INT_RGB);
@@ -68,15 +78,11 @@ class TicketPreventeRenduTest {
         imp.buildTicket(ticket.lignes(), ticket.enTete(), Collections.emptyList(), Collections.emptyList(),
                 Collections.emptyList(), qr.getAbsolutePath());
 
-        BufferedImage page = new BufferedImage(LARGEUR, HAUTEUR, BufferedImage.TYPE_INT_RGB);
+        BufferedImage page = new BufferedImage(largeurRouleau, HAUTEUR, BufferedImage.TYPE_INT_RGB);
         Graphics2D g = page.createGraphics();
         g.setColor(Color.WHITE);
-        g.fillRect(0, 0, LARGEUR, HAUTEUR);
+        g.fillRect(0, 0, largeurRouleau, HAUTEUR);
         g.setColor(Color.BLACK);
-        PageFormat format = new PageFormat();
-        Paper papier = new Paper();
-        papier.setImageableArea(0, 0, LARGEUR, HAUTEUR);
-        format.setPaper(papier);
         int resultat = imp.print(g, format, 0);
         g.dispose();
         assertEquals(Printable.PAGE_EXISTS, resultat);
@@ -121,6 +127,37 @@ class TicketPreventeRenduTest {
         assertTrue(meilleur > 2500, "un carre 120x120 avec un QR code doit contenir bien plus de 2500 pixels sombres,"
                 + " au mieux trouve : " + meilleur + " (image : " + sortie + ")");
         assertTrue(meilleur < 12000, "et ne doit pas etre un pave noir : " + meilleur);
+    }
+
+    /**
+     * Retours du 25/10 (point 13) : QR absent du ticket imprime. A l'impression, la page est le format par defaut
+     * (Letter, 612 points de large) avec la zone imprimable posee par printTicketVente ; le rouleau thermique de 80 mm
+     * n'imprime que sur 72 mm (204 points). Le QR doit tomber dans ces 204 points.
+     */
+    @Test
+    @DisplayName("Format de page reel de l'impression : le QR est dans la largeur d'un rouleau de 80 mm")
+    void qrDansLaLargeurDuRouleau() throws Exception {
+        File qr = File.createTempFile("qr-prevente", ".png");
+        qr.deleteOnExit();
+        QrCodeImage.ecrire("4cc645b0-6309-427d-83f0-1633b08ea17e", qr);
+        TicketPrevente ticket = new TicketPrevente("1", "260902_00005", "02/09/2026 07:01", "S.ADMIN", 2_640, 0, 0,
+                null);
+        PageFormat format = new PageFormat();
+        Paper papier = new Paper();
+        papier.setImageableArea(9, -70, papier.getWidth(), papier.getHeight()); // comme printTicketVente
+        format.setPaper(papier);
+        int rouleau = 204;
+        BufferedImage page = dessiner(ticket, qr, format, rouleau);
+        File sortie = new File(System.getProperty("java.io.tmpdir"), "ticket-prevente-rouleau-80.png");
+        ImageIO.write(page, "png", sortie);
+        int meilleur = 0;
+        for (int x = 0; x + 120 <= rouleau; x += 2) {
+            for (int y = 0; y + 120 < HAUTEUR; y += 4) {
+                meilleur = Math.max(meilleur, pixelsSombres(page, x, y, x + 120, y + 120));
+            }
+        }
+        assertTrue(meilleur > 2500, "le QR code entier doit etre dans la largeur du rouleau (204 points), au mieux : "
+                + meilleur + " pixels sombres (image : " + sortie + ")");
     }
 
     @Test
