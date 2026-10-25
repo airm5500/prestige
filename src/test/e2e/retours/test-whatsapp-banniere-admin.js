@@ -4,7 +4,8 @@
  * Compte WhatsApp Web d'essai (mode test : aucun envoi reel) dont le service ne repond pas ; le service compagnon est
  * remplace par une imitation (dossier d'essai : package.json du compagnon, src/serveur.js, demarrer.sh ; sous Windows,
  * demarrer.bat). Par les vues :
- *  - admin : la banniere dit que le service ne repond pas et que son dossier est inconnu ;
+ *  - admin : la banniere dit que le service ne repond pas et que son dossier est inconnu ; c'est un toast qui flotte
+ *    par-dessus l'ecran (retour du 25/10, 2) : le panneau central ne bouge pas ;
  *  - profil Vendeur : ni banniere ni alerte (la route repond « sans droit »), et il ne peut pas lancer le service (403) ;
  *  - dossier renseigne par la route de l'ecran Comptes WhatsApp : la banniere l'affiche ;
  *  - adresse du service sur une autre machine : le lancement est refuse (rien n'est lance) ;
@@ -62,9 +63,15 @@ const service = () => { try { execSync('curl -s -m 2 http://127.0.0.1:' + PORT +
     p.on('pageerror', (e) => erreurs.push(e.message));
     p.on('dialog', (d) => { dialogues.push(d.message()); d.dismiss().catch(() => {}); });
     await connexion(p, 'admin', 'e2etest');
-    const banniere = () => p.evaluate(() => { const e = document.getElementById('pwa-banniere'); return e && e.offsetParent ? e.textContent.replace(/\s+/g, ' ').trim() : ''; });
+    const banniere = () => p.evaluate(() => { const e = document.getElementById('pwa-banniere'); return e && e.getBoundingClientRect().height > 0 ? e.textContent.replace(/\s+/g, ' ').trim() : ''; });
     await p.waitForFunction(() => !!document.getElementById('pwa-banniere'), null, { timeout: 30000 }).catch(() => {});
     const t1 = await banniere();
+    /* retour du 25/10 (2) : un toast, sans prendre de place (la banniere faisait descendre la page et laissait un vide) */
+    const toast = await p.evaluate(() => { const e = document.getElementById('pwa-banniere'), cp = Ext.getCmp('content-panel');
+      if (!e) { return null; }
+      const r = e.getBoundingClientRect(), corps = cp.body.dom.getBoundingClientRect(), tete = cp.header && cp.header.isVisible() ? cp.header.el.dom.getBoundingClientRect().bottom : cp.el.dom.getBoundingClientRect().top;
+      return { position: getComputedStyle(e).position, dansLePanneau: cp.el.dom.contains(e), corpsColle: Math.abs(corps.top - tete) <= 2, bas: Math.round(innerHeight - r.bottom), droite: Math.round(innerWidth - r.right) }; });
+    ok('Toast : flotte par-dessus l\'écran, hors du panneau central, qui ne bouge pas', toast && toast.position === 'fixed' && !toast.dansLePanneau && toast.corpsColle && toast.bas >= 0 && toast.droite >= 0, JSON.stringify(toast));
     ok('Admin : bannière « le service ne répond pas », dossier inconnu signalé', /ne répond pas/.test(t1) && /dossier/i.test(t1) && /inconnu/i.test(t1), t1);
 
     /* profil Vendeur : rien */

@@ -40,6 +40,13 @@ Ext.define('testextjs.view.sm_user.mainmenu.MainMenuManager', {
                 style: "height:100%;",
                 listeners: {
                     afterrender: function (c) {
+                        /* retour du 25/10 (2) : la barre de titre du panneau central, vide sur le Metro, faisait un
+                           cadre sombre au-dessus de lui : masquee tant que le Metro est affiche, rendue en le quittant */
+                        var cp = Ext.getCmp('content-panel');
+                        if (cp && cp.header && cp.header.isVisible && cp.header.isVisible()) {
+                            cp.header.hide();
+                            me.barreMasquee = cp;
+                        }
                         if (window.PrestigeMetro) {
                             me.metro = window.PrestigeMetro.monter(c.getEl().dom);
                         }
@@ -51,6 +58,11 @@ Ext.define('testextjs.view.sm_user.mainmenu.MainMenuManager', {
             if (me.metro) {
                 me.metro.detruire();
                 me.metro = null;
+            }
+            var cp = me.barreMasquee;
+            me.barreMasquee = null;
+            if (cp && !cp.isDestroyed && cp.header && !cp.header.isDestroyed) {
+                cp.header.show();
             }
         });
 

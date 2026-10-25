@@ -40,11 +40,16 @@
         }
         var st = document.createElement('style');
         st.id = 'pwa-styles';
-        st.textContent = '#pwa-banniere .pwa-cadre{display:flex;align-items:center;gap:12px;margin:6px 8px 2px;padding:7px 12px 7px 14px;border-radius:9px;'
+        /* retour du 25/10 (2) : un toast qui flotte en bas a droite, par-dessus l'ecran ; il ne prend aucune place */
+        st.textContent = '#pwa-banniere{position:fixed;right:16px;bottom:16px;z-index:30000;width:460px;max-width:calc(100vw - 32px);animation:pwa-arrivee .25s ease-out}'
+                + '@keyframes pwa-arrivee{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}'
+                + '#pwa-banniere .pwa-cadre{display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px;padding:10px 12px 10px 14px;border-radius:10px;'
+                + 'box-shadow:0 10px 28px rgba(15,23,42,.22),0 2px 6px rgba(15,23,42,.12);'
                 + 'background:#fff4e5;border:1px solid #f0b46a;font:13px "Segoe UI",Arial,sans-serif;color:#7a3b00}'
                 + '#pwa-banniere.pwa-grave .pwa-cadre{background:#fdecec;border-color:#e8a1a1;color:#8a1c1c}'
                 + '#pwa-banniere .pwa-ic{width:30px;height:30px;flex:0 0 30px;border-radius:50%;display:grid;place-items:center;background:#25d366;color:#fff;font-size:16px}'
-                + '#pwa-banniere .pwa-txt{flex:1;min-width:0;line-height:1.35}'
+                + '#pwa-banniere .pwa-txt{flex:1 1 300px;min-width:0;line-height:1.35}'
+                + '#pwa-banniere .pwa-actions{display:flex;gap:8px;margin-left:auto}'
                 + '#pwa-banniere .pwa-raison{display:block;font-size:12px;opacity:.85}'
                 + '#pwa-banniere button{font:inherit;border-radius:7px;padding:5px 11px;cursor:pointer;white-space:nowrap}'
                 + '#pwa-banniere [data-pwa="reconnecter"]{background:#1e3a5f;color:#fff;border:1px solid #1e3a5f;font-weight:600}'
@@ -58,9 +63,9 @@
     }
 
     function retirer() {
-        var c = centre(), b = Ext.getCmp('pwa-banniere');
-        if (c && b) {
-            c.removeDocked(b, true);
+        var b = document.getElementById('pwa-banniere');
+        if (b) {
+            b.parentNode.removeChild(b);
         }
     }
 
@@ -140,24 +145,26 @@
         }
         var html = '<div class="pwa-cadre" role="alert"><span class="pwa-ic"><i class="fa fa-whatsapp"></i></span><span class="pwa-txt"><b>' + esc(o.message) + '</b>'
                 + (o.raison ? '<span class="pwa-raison">' + esc(o.raison) + '</span>' : '') + '</span>'
-                + '<button type="button" data-pwa="reconnecter">Reconnecter</button><button type="button" data-pwa="masquer">Masquer</button></div>';
-        var cmp = Ext.getCmp('pwa-banniere');
+                + '<span class="pwa-actions"><button type="button" data-pwa="reconnecter">Reconnecter</button><button type="button" data-pwa="masquer">Masquer</button></span></div>';
+        var el = document.getElementById('pwa-banniere');
         /* demarrage en cours : on garde le bouton et le message de suivi tant que le service ne repond pas */
-        var enCours = cmp && cmp.getEl() && cmp.getEl().dom.querySelector('[data-pwa="reconnecter"][disabled]');
-        if (cmp && enCours && o.type === 'INJOIGNABLE') {
+        var enCours = el && el.querySelector('[data-pwa="reconnecter"][disabled]');
+        if (el && enCours && o.type === 'INJOIGNABLE') {
             return;
         }
-        if (cmp) {
-            cmp.removeCls('pwa-grave');
-            if (o.type !== 'DEGRADE') {
-                cmp.addCls('pwa-grave');
-            }
-            cmp.update(html);
+        if (el) {
+            el.className = o.type === 'DEGRADE' ? '' : 'pwa-grave';
+            el.innerHTML = html;
             return;
         }
-        cmp = c.addDocked({xtype: 'component', id: 'pwa-banniere', dock: 'top', cls: o.type === 'DEGRADE' ? '' : 'pwa-grave', html: html})[0];
-        cmp.getEl().on('click', function (ev) {
-            var t = ev.browserEvent.target, a = t.closest ? t.closest('[data-pwa]') : null;
+        /* toast pose sur la page, hors du panneau central : rien ne bouge quand il apparait ou disparait */
+        el = document.createElement('div');
+        el.id = 'pwa-banniere';
+        el.className = o.type === 'DEGRADE' ? '' : 'pwa-grave';
+        el.innerHTML = html;
+        document.body.appendChild(el);
+        el.addEventListener('click', function (ev) {
+            var t = ev.target, a = t.closest ? t.closest('[data-pwa]') : null;
             if (!a) {
                 return;
             }

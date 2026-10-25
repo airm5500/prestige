@@ -10,7 +10,7 @@
  *    tuile a l'autre, Entree ouvre un menu puis un ecran (« Retour fournisseur », avec son titre) ;
  *  - « Gestion du stock » : les sous-menus de la navigation, en groupes titres ; chaque sous-menu a SON icone ; badge
  *    des articles a reassortir sur « Gestion des reserves » ;
- *  - retours du 25/10 : fond clair ; les menus les plus fournis tiennent sans defiler, sur toute la largeur ;
+ *  - retours du 25/10 : pas de barre de titre vide au-dessus du Metro (elle revient sur les autres ecrans) ; fond clair ; les menus les plus fournis tiennent sans defiler, sur toute la largeur ;
  *  - non-regression : une fenetre ouverte par-dessus garde ses touches ; l'ecran ouvert ensuite garde les siennes
  *    et aucun Metro ne reste monte ; les styles du Metro ne touchent pas le reste de Prestige ;
  *  - profil restreint (role Vendeur, compte d'essai) : seulement ses menus ;
@@ -60,6 +60,11 @@ const stylesPrestige = (p) => p.evaluate(() => {
     await p.waitForTimeout(2500);
     const avant = await stylesPrestige(p);
     await metro(p);
+    const barreTitre = () => p.evaluate(() => { const cp = Ext.getCmp('content-panel'); return !!(cp.header && cp.header.isVisible()); });
+    const barreMetro = await barreTitre();
+    const remplit = await p.evaluate(() => { const cp = Ext.getCmp('content-panel').el.dom.getBoundingClientRect(), m = document.querySelector('.prestige-metro').getBoundingClientRect();
+      return Math.abs(cp.top - m.top) <= 2 && Math.abs(cp.bottom - m.bottom) <= 3; });
+    ok('Métro : pas de barre de titre vide au-dessus, il occupe tout le panneau central', !barreMetro && remplit, 'barre ' + barreMetro + ' / remplit ' + remplit);
     ok('Le Métro est monté dans la page, sans iframe', await p.evaluate(() => !document.querySelector('#mainmenumanager iframe') && !!document.querySelector('#mainmenumanager .prestige-metro')));
     const apres = await stylesPrestige(p);
     ok('Les styles du Métro ne touchent pas le reste de Prestige (page, en-tête, navigation, titre)', JSON.stringify(avant) === JSON.stringify(apres), JSON.stringify(avant) + ' / ' + JSON.stringify(apres));
@@ -167,7 +172,7 @@ const stylesPrestige = (p) => p.evaluate(() => {
     await p.waitForFunction(() => Ext.ComponentQuery.query('retourfrsmanager').some((x) => x.isVisible(true)), null, { timeout: 60000 });
     await p.waitForTimeout(800);
     const titreEcran = await p.evaluate(() => String(Ext.getCmp('content-panel').title || '').replace(/&nbsp;/g, '').trim());
-    ok('Clavier : recherche, flèche bas, Entrée ouvrent l\'écran dans Prestige, avec son titre', titreEcran === 'Retour fournisseur', titreEcran);
+    ok('Clavier : recherche, flèche bas, Entrée ouvrent l\'écran dans Prestige, avec son titre (barre de titre revenue)', titreEcran === 'Retour fournisseur' && await barreTitre(), titreEcran);
     const reste = await p.evaluate(() => ({ montes: window.PrestigeMetro.montes().length, dom: document.querySelectorAll('.prestige-metro').length }));
     ok('Métro quitté : rien ne reste monté (clavier, minuteries, éléments)', reste.montes === 0 && reste.dom === 0, JSON.stringify(reste));
     const champEcran = await p.evaluate(() => { const c = Ext.ComponentQuery.query('retourfrsmanager textfield').find((x) => x.isVisible(true) && x.inputEl); if (!c) { return null; } c.focus(); return c.inputEl.dom.id; });
