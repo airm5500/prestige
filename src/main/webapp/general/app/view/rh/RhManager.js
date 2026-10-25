@@ -842,7 +842,9 @@ Ext.define('testextjs.view.rh.RhManager', {
                     xtype: 'grid', itemId: 'grilleBadges', flex: 1, margin: '0 10 0 0', store: store,
                     selModel: Ext.create('Ext.selection.CheckboxModel', {mode: 'MULTI'}),
                     viewConfig: {emptyText: 'Aucun badge.', deferEmptyText: false},
-                    tbar: [
+                    /* retours du 25/10 (test d'ergonomie) : sur une seule ligne, « Imprimer les badges cochés » sortait de
+                       l'ecran ; recherche sur la premiere ligne, impression et ses reglages sur la seconde */
+                    dockedItems: [{xtype: 'toolbar', dock: 'top', items: [
                         {xtype: 'textfield', itemId: 'rechercheBadge', emptyText: 'Numéro, nom, matricule…', width: 220, listeners: {specialkey: function (f, e) {
                                     if (e.getKey() === e.ENTER) {
                                         store.load();
@@ -853,8 +855,8 @@ Ext.define('testextjs.view.rh.RhManager', {
                                 }}},
                         {text: 'Rechercher', handler: function () {
                                 store.load();
-                            }},
-                        '->',
+                            }}
+                        ]}, {xtype: 'toolbar', dock: 'top', items: [
                         /* demande du 16/10 : QR code (numero, login, secret du badge) par defaut, ou code-barres du numero */
                         {xtype: 'combo', itemId: 'typeCodeBadge', fieldLabel: 'Code', labelWidth: 35, width: 165,
                             editable: false, queryMode: 'local', displayField: 'libelle', valueField: 'code', value: 'QR',
@@ -881,6 +883,7 @@ Ext.define('testextjs.view.rh.RhManager', {
                             handler: function () {
                                 me.imprimerBadges();
                             }}
+                        ]}
                     ],
                     columns: [
                         {text: 'Badge', dataIndex: 'numero', width: 110, renderer: function (v) {

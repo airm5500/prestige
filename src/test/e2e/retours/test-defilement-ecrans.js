@@ -74,44 +74,53 @@ const EXCLUS = ['doventemanager', 'ventemanager_new', 'ouverturecaissemanger', '
             for (const g of grilles) {
               const st = g.getStore();
               if (!st || g.getHeight() < 30) { continue; }
-              const avant = st.getCount();
-              const ajout = [];
+              /* panneau replie (ex. calendrier des fetes, « cliquez pour l'afficher ») : l'utilisateur le deplie avant d'y
+                 lire des lignes ; on fait de meme, puis on le replie (retours du 25/10 : replie, son corps hors ecran etait
+                 compte comme une grille qui ne defile pas) */
+              const replie = !!g.collapsed;
+              if (replie) { g.expand(false); await new Promise((ok) => setTimeout(ok, 600)); }
               try {
-                for (let k = 0; k < 80; k++) { ajout.push({}); }
-                st.add(ajout);
-              } catch (er) { sortie.push({ g: g.getId(), ok: true, info: 'non testable : ' + er.message }); continue; }
-              await new Promise((ok) => setTimeout(ok, 250));
-              const v = g.getView(), el = v.getEl().dom;
-              const noeuds = v.getNodes ? v.getNodes() : [];
-              const dernier = noeuds[noeuds.length - 1];
-              if (!dernier) { st.remove(st.getRange(avant)); sortie.push({ g: g.getId(), ok: true, info: 'aucune ligne rendue' }); continue; }
-              /* le chargement en cours (masque « Chargement... ») doit etre fini, comme pour l'utilisateur (jusqu'a 60 s :
-                 certaines anciennes listes sont lentes sur la base d'essai) */
-              for (let t = 0; t < 240 && Array.from(document.querySelectorAll('.x-mask')).some((m) => m.offsetWidth > 0 && m.offsetHeight > 0 && getComputedStyle(m).visibility !== 'hidden'); t++) {
+                const avant = st.getCount();
+                const ajout = [];
+                try {
+                  for (let k = 0; k < 80; k++) { ajout.push({}); }
+                  st.add(ajout);
+                } catch (er) { sortie.push({ g: g.getId(), ok: true, info: 'non testable : ' + er.message }); continue; }
                 await new Promise((ok) => setTimeout(ok, 250));
-              }
-              el.scrollTop = el.scrollHeight;
-              await new Promise((ok) => setTimeout(ok, 250));
-              /* ce que l'utilisateur peut faire ensuite : faire defiler les conteneurs qui ont une barre de defilement
-                 (overflow auto ou scroll). Un conteneur en overflow hidden ne defile pas pour lui : on n'y touche pas. */
-              for (let a = dernier.parentElement; a && a !== document.body; a = a.parentElement) {
-                const oy = getComputedStyle(a).overflowY;
-                if ((oy === 'auto' || oy === 'scroll') && a.scrollHeight > a.clientHeight + 1) {
-                  const ra = a.getBoundingClientRect(), rr = dernier.getBoundingClientRect();
-                  if (rr.bottom > ra.bottom) { a.scrollTop += rr.bottom - ra.bottom + 2; }
+                const v = g.getView(), el = v.getEl().dom;
+                const noeuds = v.getNodes ? v.getNodes() : [];
+                const dernier = noeuds[noeuds.length - 1];
+                if (!dernier) { st.remove(st.getRange(avant)); sortie.push({ g: g.getId(), ok: true, info: 'aucune ligne rendue' }); continue; }
+                /* le chargement en cours (masque « Chargement... ») doit etre fini, comme pour l'utilisateur (jusqu'a 60 s :
+                   certaines anciennes listes sont lentes sur la base d'essai) */
+                for (let t = 0; t < 240 && Array.from(document.querySelectorAll('.x-mask')).some((m) => m.offsetWidth > 0 && m.offsetHeight > 0 && getComputedStyle(m).visibility !== 'hidden'); t++) {
+                  await new Promise((ok) => setTimeout(ok, 250));
                 }
+                el.scrollTop = el.scrollHeight;
+                await new Promise((ok) => setTimeout(ok, 250));
+                /* ce que l'utilisateur peut faire ensuite : faire defiler les conteneurs qui ont une barre de defilement
+                   (overflow auto ou scroll). Un conteneur en overflow hidden ne defile pas pour lui : on n'y touche pas. */
+                for (let a = dernier.parentElement; a && a !== document.body; a = a.parentElement) {
+                  const oy = getComputedStyle(a).overflowY;
+                  if ((oy === 'auto' || oy === 'scroll') && a.scrollHeight > a.clientHeight + 1) {
+                    const ra = a.getBoundingClientRect(), rr = dernier.getBoundingClientRect();
+                    if (rr.bottom > ra.bottom) { a.scrollTop += rr.bottom - ra.bottom + 2; }
+                  }
+                }
+                await new Promise((ok) => setTimeout(ok, 150));
+                if (dernier.getBoundingClientRect().height === 0) { st.remove(st.getRange(avant)); sortie.push({ g: g.getId(), ok: true, info: 'grille non affichée' }); continue; }
+                const rg = el.getBoundingClientRect(), rl = dernier.getBoundingClientRect();
+                const cx = Math.min(rl.left + 20, window.innerWidth - 2), cy = rl.top + Math.min(rl.height / 2, 6);
+                const dessous = document.elementFromPoint(cx, cy);
+                const visible = rl.bottom <= window.innerHeight + 1 && rl.top >= 0 && rl.bottom <= rg.bottom + 1 && rl.top >= rg.top - 1
+                  && dessous && (dessous === dernier || dernier.contains(dessous));
+                sortie.push({ g: (g.title || g.itemId || g.getId()), ok: !!visible,
+                  info: 'ligne ' + Math.round(rl.top) + '-' + Math.round(rl.bottom) + ', grille ' + Math.round(rg.top) + '-' + Math.round(rg.bottom) + ', fenêtre ' + window.innerHeight
+                    + (dessous && !(dessous === dernier || dernier.contains(dessous)) ? ', recouverte par ' + (dessous.className || dessous.tagName).toString().slice(0, 60) : '') });
+                try { st.remove(st.getRange(avant)); } catch (er) { /* */ }
+              } finally {
+                if (replie) { try { g.collapse(null, false); } catch (er) { /* */ } }
               }
-              await new Promise((ok) => setTimeout(ok, 150));
-              if (dernier.getBoundingClientRect().height === 0) { st.remove(st.getRange(avant)); sortie.push({ g: g.getId(), ok: true, info: 'grille non affichée' }); continue; }
-              const rg = el.getBoundingClientRect(), rl = dernier.getBoundingClientRect();
-              const cx = Math.min(rl.left + 20, window.innerWidth - 2), cy = rl.top + Math.min(rl.height / 2, 6);
-              const dessous = document.elementFromPoint(cx, cy);
-              const visible = rl.bottom <= window.innerHeight + 1 && rl.top >= 0 && rl.bottom <= rg.bottom + 1 && rl.top >= rg.top - 1
-                && dessous && (dessous === dernier || dernier.contains(dessous));
-              sortie.push({ g: (g.title || g.itemId || g.getId()), ok: !!visible,
-                info: 'ligne ' + Math.round(rl.top) + '-' + Math.round(rl.bottom) + ', grille ' + Math.round(rg.top) + '-' + Math.round(rg.bottom) + ', fenêtre ' + window.innerHeight
-                  + (dessous && !(dessous === dernier || dernier.contains(dessous)) ? ', recouverte par ' + (dessous.className || dessous.tagName).toString().slice(0, 60) : '') });
-              try { st.remove(st.getRange(avant)); } catch (er) { /* */ }
             }
             return sortie;
           }, xtype);
