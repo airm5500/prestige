@@ -156,18 +156,10 @@ public class EtiquetteTypeService {
     /** Clause des filtres (produits actifs) ; les parametres sont ajoutes a la liste dans l'ordre. */
     static String clause(JSONObject f, List<Object> params) {
         StringBuilder w = new StringBuilder(" WHERE f.str_STATUT = 'enable'");
-        if (StringUtils.isNotBlank(f.optString("zone"))) {
-            params.add(f.optString("zone"));
-            w.append(" AND f.lg_ZONE_GEO_ID = ?").append(params.size());
-        }
-        if (StringUtils.isNotBlank(f.optString("famille"))) {
-            params.add(f.optString("famille"));
-            w.append(" AND f.lg_FAMILLEARTICLE_ID = ?").append(params.size());
-        }
-        if (StringUtils.isNotBlank(f.optString("grossiste"))) {
-            params.add(f.optString("grossiste"));
-            w.append(" AND f.lg_GROSSISTE_ID = ?").append(params.size());
-        }
+        /* retours du 25/10 (point 7) : filtre a cases a cocher, plusieurs valeurs separees par des virgules */
+        dansLaListe(w, "f.lg_ZONE_GEO_ID", f.optString("zone"), params);
+        dansLaListe(w, "f.lg_FAMILLEARTICLE_ID", f.optString("famille"), params);
+        dansLaListe(w, "f.lg_GROSSISTE_ID", f.optString("grossiste"), params);
         String type = f.optString("type");
         if ("AUCUN".equals(type)) {
             w.append(" AND (f.lg_TYPEETIQUETTE_ID IS NULL OR f.lg_TYPEETIQUETTE_ID = '')");
@@ -184,6 +176,26 @@ public class EtiquetteTypeService {
                     .append(" OR f.str_DESCRIPTION LIKE ?").append(i + 1).append(')');
         }
         return w.toString();
+    }
+
+    /** « colonne = ? » pour une valeur, « colonne IN (?, ?) » pour plusieurs ; rien si vide (ou « ALL »). */
+    static void dansLaListe(StringBuilder w, String colonne, String valeurs, List<Object> params) {
+        List<String> ids = new ArrayList<>();
+        for (String v : StringUtils.defaultString(valeurs).split(",")) {
+            String x = v.trim();
+            if (!x.isEmpty() && !"ALL".equals(x) && !ids.contains(x)) {
+                ids.add(x);
+            }
+        }
+        if (ids.isEmpty()) {
+            return;
+        }
+        w.append(" AND ").append(colonne).append(ids.size() == 1 ? " = " : " IN (");
+        for (int i = 0; i < ids.size(); i++) {
+            params.add(ids.get(i));
+            w.append(i > 0 ? ", ?" : "?").append(params.size());
+        }
+        w.append(ids.size() == 1 ? "" : ")");
     }
 
     private static Query parametres(Query q, List<Object> params) {

@@ -12,6 +12,7 @@
 Ext.define('testextjs.view.stockmanagement.etiquetagepro.TypesEtiquette', {
     extend: 'Ext.panel.Panel',
     xtype: 'etqtypes',
+    requires: ['testextjs.view.commun.FiltresMulti'],
     border: false,
     layout: {type: 'hbox', align: 'stretch'},
 
@@ -109,12 +110,12 @@ Ext.define('testextjs.view.stockmanagement.etiquetagepro.TypesEtiquette', {
                             me.majBoutons();
                         }}}),
                 dockedItems: [
-                    {xtype: 'toolbar', dock: 'top', enableOverflow: true, items: [
+                    /* retours du 25/10 (point 7) : une seule ligne ; zone geo, famille et grossiste passent au filtre a
+                       cases a cocher (celui des ecrans d'analyse), qui prend la place de ces trois listes */
+                    {xtype: 'toolbar', dock: 'top', itemId: 'barreFiltres', items: [
                             combo('filtreZone', 'Zone géo.', me.zonesStore, 230),
                             combo('filtreFamille', 'Famille', me.famillesStore, 220),
-                            combo('filtreGrossiste', 'Grossiste', me.grossistesStore, 230)
-                        ]},
-                    {xtype: 'toolbar', dock: 'top', items: [
+                            combo('filtreGrossiste', 'Grossiste', me.grossistesStore, 230),
                             {xtype: 'combobox', itemId: 'filtreType', fieldLabel: 'Type actuel', labelWidth: 75, width: 260, store: me.typesFiltreStore,
                                 valueField: 'id', displayField: 'nom', queryMode: 'local', editable: false, emptyText: 'Tous', margin: '0 8 0 0'},
                             {xtype: 'textfield', itemId: 'filtreRecherche', emptyText: 'CIP ou désignation', width: 200, enableKeyEvents: true,
@@ -176,6 +177,16 @@ Ext.define('testextjs.view.stockmanagement.etiquetagepro.TypesEtiquette', {
         me.produitsStore.on('load', function () {
             me.majBoutons();
         });
+        me.on('afterrender', function () {
+            var filtre = testextjs.view.commun.FiltresMulti.remplacer(me, {rayon: '#filtreZone', famille: '#filtreFamille', grossiste: '#filtreGrossiste'});
+            if (filtre) {
+                Ext.each(['#filtreZone', '#filtreFamille', '#filtreGrossiste'], function (s) {
+                    me.down(s).on('select', function () {
+                        me.rechercher();
+                    });
+                });
+            }
+        }, me, {single: true});
     },
 
     libelleCode: function (code) {
