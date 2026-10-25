@@ -2,11 +2,13 @@
 /*
  * Banniere « session WhatsApp a reconnecter » (demande du 25/10, reprise du CRM UBIPHARM).
  *
- * Pour ceux qui gerent les comptes WhatsApp ou lisent les discussions (le serveur verifie le droit) : verification au
+ * Pour l'administrateur seulement (retour du 25/10 ; le serveur verifie le role) : verification au
  * demarrage puis toutes les 2 minutes (GET v1/whatsapp/web/alerte). Si la reception est degradee, la session
  * deconnectee ou le service arrete, une banniere s'affiche en haut de la zone de travail, sur tous les ecrans (ancree
  * dans le panneau central : l'ecran se decale, rien n'est cache) :
- *  - « Reconnecter » ouvre Comptes WhatsApp sur l'onglet de connexion (QR code) ;
+ *  - « Reconnecter » : service arrete -> le serveur le relance (service Windows, sinon demarrer.bat de son dossier,
+ *    affiche dans la banniere) ; le bouton annonce le demarrage, la banniere se met a jour seule ; session deconnectee
+ *    ou reception degradee -> ouvre Comptes WhatsApp sur l'onglet de connexion (QR code) ;
  *  - « Masquer » la cache 30 minutes sur ce poste.
  * Sans le droit, ou deconnecte : plus aucune verification. Aucune fenetre.
  */
@@ -16,7 +18,7 @@
     var URL = '../api/v1/whatsapp/web/alerte';
     var CLE_MASQUEE = 'prestige.alerteWhatsApp.masquee';
     var PERIODE = 120000, MASQUAGE = 30 * 60000;
-    var minuteur = null, arrete = false;
+    var minuteur = null, arrete = false, dernier = null;
 
     var esc = function (s) {
         return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
@@ -62,6 +64,47 @@
         }
     }
 
+    /* service arrete : le serveur le relance ; le bouton dit ce qui se passe (aucune fenetre) */
+    function demarrerService(bouton) {
+        bouton.disabled = true;
+        bouton.textContent = 'Démarrage…';
+        var raison = function (t) {
+            var r = document.querySelector('#pwa-banniere .pwa-raison'), x = document.querySelector('#pwa-banniere .pwa-txt');
+            if (!r && x) {
+                r = document.createElement('span');
+                r.className = 'pwa-raison';
+                x.appendChild(r);
+            }
+            if (r) {
+                r.textContent = t;
+            }
+        };
+        Ext.Ajax.request({url: '../api/v1/whatsapp/web/demarrer', method: 'POST', timeout: 30000,
+            success: function (r) {
+                var o = Ext.decode(r.responseText, true) || {};
+                if (!o.success) {
+                    bouton.disabled = false;
+                    bouton.textContent = 'Reconnecter';
+                    raison(o.msg || 'Démarrage impossible.');
+                    return;
+                }
+                raison(o.msg || 'Démarrage lancé.');
+                /* le service met quelques secondes a repondre : la banniere se met a jour seule */
+                var essais = 0;
+                (function suivre() {
+                    verifier();
+                    if (++essais < 30 && document.getElementById('pwa-banniere')) {
+                        setTimeout(suivre, 3000);
+                    }
+                })();
+            },
+            failure: function (r) {
+                bouton.disabled = false;
+                bouton.textContent = 'Reconnecter';
+                raison(r.status === 403 ? 'Réservé à l\'administrateur.' : 'Démarrage impossible (serveur).');
+            }});
+    }
+
     /* Comptes WhatsApp, onglet de connexion, s'il est dans le menu de l'utilisateur (memes droits) */
     function reconnecter() {
         var nav = Ext.ComponentQuery.query('navigation')[0], store = nav && nav.getStore ? nav.getStore() : null, titre = null;
@@ -89,6 +132,7 @@
     }
 
     function afficher(o) {
+        dernier = o;
         styles();
         var c = centre();
         if (!c) {
@@ -98,6 +142,11 @@
                 + (o.raison ? '<span class="pwa-raison">' + esc(o.raison) + '</span>' : '') + '</span>'
                 + '<button type="button" data-pwa="reconnecter">Reconnecter</button><button type="button" data-pwa="masquer">Masquer</button></div>';
         var cmp = Ext.getCmp('pwa-banniere');
+        /* demarrage en cours : on garde le bouton et le message de suivi tant que le service ne repond pas */
+        var enCours = cmp && cmp.getEl() && cmp.getEl().dom.querySelector('[data-pwa="reconnecter"][disabled]');
+        if (cmp && enCours && o.type === 'INJOIGNABLE') {
+            return;
+        }
         if (cmp) {
             cmp.removeCls('pwa-grave');
             if (o.type !== 'DEGRADE') {
@@ -119,6 +168,10 @@
                     /* navigation privee : masquee jusqu'au rechargement seulement */
                 }
                 retirer();
+            } else if (dernier && dernier.type === 'INJOIGNABLE') {
+                if (!a.disabled) {
+                    demarrerService(a);
+                }
             } else {
                 reconnecter();
             }

@@ -18,6 +18,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import rest.service.WhatsAppWebService;
+import util.whatsapp.LancementServiceWhatsApp;
 import util.whatsapp.ModeleWhatsApp;
 import util.whatsapp.WhatsAppCloudApi;
 import util.whatsapp.WhatsAppCompte;
@@ -45,8 +46,10 @@ public class WhatsAppWebServiceImpl implements WhatsAppWebService {
     /** Le compte du mode (API ou WEB), avec ses secrets : jamais renvoye tel quel a l'ecran. */
     @SuppressWarnings("unchecked")
     private WhatsAppCompte compte(String mode) {
-        List<Object[]> r = em.createNativeQuery("SELECT mode, mode_test, api_version, waba_id, access_token, web_url,"
-                + " web_jeton FROM whatsapp_compte WHERE mode = ?1").setParameter(1, mode).getResultList();
+        List<Object[]> r = em
+                .createNativeQuery("SELECT mode, mode_test, api_version, waba_id, access_token, web_url,"
+                        + " web_jeton, web_repertoire FROM whatsapp_compte WHERE mode = ?1")
+                .setParameter(1, mode).getResultList();
         if (r.isEmpty()) {
             return null;
         }
@@ -60,6 +63,7 @@ public class WhatsAppWebServiceImpl implements WhatsAppWebService {
         c.accessToken = (String) l[4];
         c.webUrl = (String) l[5];
         c.webJeton = (String) l[6];
+        c.webRepertoire = (String) l[7];
         return c;
     }
 
@@ -107,6 +111,13 @@ public class WhatsAppWebServiceImpl implements WhatsAppWebService {
     /* etat en direct du service, garde 20 s pour la banniere (tous les postes la verifient) */
     private static volatile JSONObject etatGarde;
     private static volatile long etatGardeA;
+    /* dernier lancement du service (« Reconnecter ») : un seul toutes les 30 s, meme si plusieurs administrateurs */
+    private static volatile long lanceA;
+
+    /** Compte change ou service lance : la banniere se recalcule au prochain appel. */
+    static void oublierEtat() {
+        etatGarde = null;
+    }
 
     @Override
     @SuppressWarnings("unchecked")
@@ -133,6 +144,7 @@ public class WhatsAppWebServiceImpl implements WhatsAppWebService {
             etatGardeA = maintenant;
         }
         String et = e.optString("etat");
+        apprendreRepertoire(e.optString("repertoire", null));
         if ("DEGRADE".equals(e.optString("sante"))) {
             return r.put("alerte", true).put("type", "DEGRADE").put("raison", e.optString("raisonSante")).put("message",
                     "WhatsApp : la session est à reconnecter, les réponses des clients ne sont plus lues.");
@@ -142,13 +154,79 @@ public class WhatsAppWebServiceImpl implements WhatsAppWebService {
                     "WhatsApp : la session est déconnectée, scannez de nouveau le QR code pour la reconnecter.");
         }
         if ("INJOIGNABLE".equals(et)) {
-            return r.put("alerte", true).put("type", "INJOIGNABLE").put("message",
-                    "WhatsApp : le service WhatsApp Web ne répond pas. Démarrez-le sur le serveur (demarrer.bat).");
+            /* retour du 25/10 : le dossier du service, connu de l'administrateur ; « Reconnecter » l'y lance */
+            WhatsAppCompte c = compte(WhatsAppCompte.WEB);
+            String dossier = c == null ? null : StringUtils.trimToNull(c.webRepertoire);
+            return r.put("alerte", true).put("type", "INJOIGNABLE")
+                    .put("repertoire", StringUtils.defaultString(dossier))
+                    .put("message", dossier != null
+                            ? "WhatsApp : le service WhatsApp Web ne répond pas. Dossier du service : " + dossier
+                                    + " (demarrer.bat). « Reconnecter » le démarre."
+                            : "WhatsApp : le service WhatsApp Web ne répond pas. Dossier du service inconnu :"
+                                    + " indiquez-le dans Comptes WhatsApp (onglet WhatsApp Web), ou démarrez demarrer.bat"
+                                    + " sur le serveur.");
         }
         if ("JETON_REFUSE".equals(et) || "NON_CONFIGURE".equals(et)) {
             return r.put("alerte", true).put("type", et).put("message", "WhatsApp : " + e.optString("message"));
         }
         return r;
+    }
+
+    /** Dossier annonce par le service (GET /etat) : garde s'il a change, pour le relancer quand il ne repond plus. */
+    private void apprendreRepertoire(String annonce) {
+        String d = StringUtils.left(StringUtils.trimToNull(annonce), 300);
+        if (d == null) {
+            return;
+        }
+        em.createNativeQuery("UPDATE whatsapp_compte SET web_repertoire = ?1 WHERE mode = 'WEB'"
+                + " AND (web_repertoire IS NULL OR web_repertoire <> ?1)").setParameter(1, d).executeUpdate();
+    }
+
+    @Override
+    public JSONObject demarrer(TUser operateur) {
+        WhatsAppCompte c = compte(WhatsAppCompte.WEB);
+        if (c == null || StringUtils.isBlank(c.webUrl)) {
+            return echec("Adresse du service WhatsApp Web non renseignée (Comptes WhatsApp, onglet WhatsApp Web).");
+        }
+        String hote;
+        try {
+            hote = java.net.URI.create(c.webUrl.trim()).getHost();
+        } catch (IllegalArgumentException e) {
+            hote = null;
+        }
+        if (!LancementServiceWhatsApp.estLocal(hote)) {
+            return echec("Le service WhatsApp Web est sur une autre machine (" + StringUtils.defaultString(hote)
+                    + ") : démarrez-le sur cette machine, il ne peut être lancé que sur ce serveur.");
+        }
+        if (!"INJOIGNABLE".equals(etat().optString("etat"))) {
+            oublierEtat();
+            return new JSONObject().put("success", true).put("deja", true).put("msg",
+                    "Le service WhatsApp Web répond déjà.");
+        }
+        long maintenant = System.currentTimeMillis();
+        synchronized (WhatsAppWebServiceImpl.class) {
+            if (maintenant - lanceA < 30_000L) {
+                return new JSONObject().put("success", true).put("msg", "Démarrage déjà lancé : patientez.");
+            }
+            String erreur = LancementServiceWhatsApp.lancer(c.webRepertoire);
+            if (erreur != null) {
+                return echec(erreur);
+            }
+            lanceA = maintenant;
+        }
+        oublierEtat();
+        LOG.log(Level.INFO, "Service WhatsApp Web lance par {0}", operateur == null ? "?" : operateur.getStrLOGIN());
+        return new JSONObject().put("success", true).put("msg", "Démarrage du service WhatsApp Web lancé.");
+    }
+
+    @Override
+    public boolean administrateur(String roleId) {
+        if (StringUtils.isBlank(roleId)) {
+            return false;
+        }
+        dal.TRole r = em.find(dal.TRole.class, roleId);
+        return r != null && (bll.userManagement.user.isAdminRole(r.getStrNAME())
+                || bll.userManagement.user.isSuperAdminRole(r.getStrNAME()));
     }
 
     @Override

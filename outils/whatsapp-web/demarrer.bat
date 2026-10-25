@@ -3,9 +3,13 @@ REM ---------------------------------------------------------------------------
 REM  Demarrage du service compagnon WhatsApp Web de Prestige (sans service Windows).
 REM  Double-cliquez sur ce fichier. Configuration : config.json dans ce dossier.
 REM  Pour un demarrage automatique avec Windows : voir service-windows\LISEZMOI.txt
+REM  demarrer.bat /auto : lance par Prestige ("Reconnecter" de la banniere) : ni pause ni question ; si le
+REM  service tourne deja, il est garde.
 REM ---------------------------------------------------------------------------
 setlocal
 cd /d "%~dp0"
+set "AUTO="
+if /i "%~1"=="/auto" set "AUTO=1"
 title Service WhatsApp Web - Prestige
 
 echo ============================================================
@@ -57,6 +61,7 @@ goto FIN
 :DEJA_LANCE
 echo.
 echo  ** Le service tourne DEJA sur le port %PORT%. **
+if defined AUTO goto GARDER
 echo  Apres une mise a jour, il faut le relancer pour qu'elle soit prise en compte.
 echo.
 choice /c ON /n /m " L'arreter proprement et relancer maintenant ? (O/N) "
@@ -116,5 +121,5 @@ goto FIN
 
 :FIN
 echo.
-pause
+if not defined AUTO pause
 endlocal

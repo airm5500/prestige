@@ -44,4 +44,15 @@ public interface WhatsAppWebService {
      * service pour tous les postes).
      */
     JSONObject alerte();
+
+    /**
+     * Retour du 25/10 : « Reconnecter » quand le service ne repond pas. Sur CE serveur seulement (adresse du service
+     * locale) : le service Windows « prestige-whatsapp » s'il est installe, sinon demarrer.bat (demarrer.sh hors
+     * Windows) du dossier du service, en mode automatique (ni pause ni question). Rien d'autre n'est lance. Rend
+     * {success, msg}.
+     */
+    JSONObject demarrer(TUser operateur);
+
+    /** Vrai si le role (identifiant) est un role administrateur (Administrateur ou Super administrateur). */
+    boolean administrateur(String roleId);
 }

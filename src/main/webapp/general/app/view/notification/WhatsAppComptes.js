@@ -62,6 +62,10 @@ Ext.define('testextjs.view.notification.WhatsAppComptes', {
                                     {xtype: 'checkbox', name: 'actif', boxLabel: 'Compte actif', fieldLabel: 'État'},
                                     {xtype: 'checkbox', name: 'modeTest', boxLabel: 'Mode test : aucun envoi réel', fieldLabel: 'Mode test'},
                                     {xtype: 'textfield', name: 'webUrl', fieldLabel: 'Adresse du service', emptyText: 'https://…', anchor: '100%'},
+                                    /* retour du 25/10 : dossier du service sur le serveur (rempli seul quand le service repond),
+                                       affiche par la banniere ; « Reconnecter » y lance demarrer.bat */
+                                    {xtype: 'textfield', name: 'webRepertoire', fieldLabel: 'Dossier du service', anchor: '100%',
+                                        emptyText: 'C:\\prestige\\whatsapp-web (rempli seul quand le service répond)'},
                                     me.secret('webJeton', 'Jeton partagé'),
                                     {xtype: 'displayfield', fieldLabel: 'Avertissement',
                                         value: '<span style="color:#b9770e">Débit lent conseillé : un numéro qui envoie trop vite peut être bloqué par WhatsApp. Pour les tests et les faibles volumes.</span>'},

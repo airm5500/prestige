@@ -120,13 +120,31 @@ public class WhatsAppRessource {
                     .entity(new JSONObject().put("success", false).put("msg", Constant.DECONNECTED_MESSAGE).toString())
                     .build();
         }
-        List<TPrivilege> droits = (List<TPrivilege>) servletRequest.getSession()
-                .getAttribute(commonparameter.USER_LIST_PRIVILEGE);
-        if (!CommonUtils.hasAuthorityByName(droits, PRIVILEGE)
-                && !CommonUtils.hasAuthorityByName(droits, Constant.P_SM_WHATSAPP_DISCUSSIONS)) {
+        /* retour du 25/10 : la banniere est pour l'administrateur seulement (c'est lui qui relance le service) */
+        if (!administrateur()) {
             return Response.ok(new JSONObject().put("success", false).put("sansDroit", true).toString()).build();
         }
         return Response.ok(web.alerte().toString()).build();
+    }
+
+    /** Retour du 25/10 : « Reconnecter » lance le service compagnon sur ce serveur (administrateur seulement). */
+    @POST
+    @Path("web/demarrer")
+    public Response webDemarrer() {
+        if (utilisateur() == null) {
+            return Response.status(Response.Status.UNAUTHORIZED).type(MediaType.APPLICATION_JSON)
+                    .entity(new JSONObject().put("success", false).put("msg", Constant.DECONNECTED_MESSAGE).toString())
+                    .build();
+        }
+        if (!administrateur()) {
+            return Droits.interdit("Démarrer le service WhatsApp Web (administrateur)");
+        }
+        return Response.ok(web.demarrer(utilisateur()).toString()).build();
+    }
+
+    private boolean administrateur() {
+        Object role = servletRequest.getSession().getAttribute(Constant.USER_ROLE_ID);
+        return role != null && web.administrateur(role.toString());
     }
 
     @GET

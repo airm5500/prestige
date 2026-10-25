@@ -51,7 +51,7 @@ public class WhatsAppServiceImpl implements WhatsAppService {
     @SuppressWarnings("unchecked")
     WhatsAppCompte compte(String mode) {
         List<Object[]> r = em.createNativeQuery("SELECT mode, actif, mode_test, api_version, phone_number_id, waba_id,"
-                + " access_token, verify_token, app_secret, modele_nom, modele_langue, web_url, web_jeton"
+                + " access_token, verify_token, app_secret, modele_nom, modele_langue, web_url, web_jeton, web_repertoire"
                 + " FROM whatsapp_compte WHERE mode = ?1").setParameter(1, mode).getResultList();
         if (r.isEmpty()) {
             return null;
@@ -71,6 +71,7 @@ public class WhatsAppServiceImpl implements WhatsAppService {
         c.modeleLangue = (String) l[10];
         c.webUrl = (String) l[11];
         c.webJeton = (String) l[12];
+        c.webRepertoire = (String) l[13];
         return c;
     }
 
@@ -109,6 +110,7 @@ public class WhatsAppServiceImpl implements WhatsAppService {
         c.modeleNom = texte(in, "modeleNom", c.modeleNom, 100);
         c.modeleLangue = texte(in, "modeleLangue", c.modeleLangue, 10);
         c.webUrl = texte(in, "webUrl", c.webUrl, 300);
+        c.webRepertoire = texte(in, "webRepertoire", c.webRepertoire, 300);
         if (StringUtils.isNotBlank(c.webUrl) && !c.webUrl.matches("(?i)https?://.+")) {
             return refus("L'adresse du service WhatsApp Web doit commencer par http:// ou https://.");
         }
@@ -143,18 +145,19 @@ public class WhatsAppServiceImpl implements WhatsAppService {
         }
         em.createNativeQuery("UPDATE whatsapp_compte SET actif = ?1, mode_test = ?2, api_version = ?3,"
                 + " phone_number_id = ?4, waba_id = ?5, access_token = ?6, verify_token = ?7, app_secret = ?8,"
-                + " modele_nom = ?9, modele_langue = ?10, web_url = ?11, web_jeton = ?12, updated_at = NOW(),"
-                + " updated_by = ?13 WHERE mode = ?14").setParameter(1, c.actif ? 1 : 0)
+                + " modele_nom = ?9, modele_langue = ?10, web_url = ?11, web_jeton = ?12, web_repertoire = ?15,"
+                + " updated_at = NOW()," + " updated_by = ?13 WHERE mode = ?14").setParameter(1, c.actif ? 1 : 0)
                 .setParameter(2, c.modeTest ? 1 : 0).setParameter(3, c.apiVersion).setParameter(4, c.phoneNumberId)
                 .setParameter(5, c.wabaId).setParameter(6, c.accessToken).setParameter(7, c.verifyToken)
                 .setParameter(8, c.appSecret).setParameter(9, c.modeleNom).setParameter(10, c.modeleLangue)
                 .setParameter(11, c.webUrl).setParameter(12, c.webJeton)
                 .setParameter(13, operateur == null ? null : operateur.getLgUSERID()).setParameter(14, m)
-                .executeUpdate();
+                .setParameter(15, c.webRepertoire).executeUpdate();
         if (in.optBoolean("defaut", false)) {
             em.createNativeQuery("UPDATE t_parameters SET str_VALUE = ?1 WHERE str_KEY = ?2").setParameter(1, m)
                     .setParameter(2, MODE_DEFAUT).executeUpdate();
         }
+        WhatsAppWebServiceImpl.oublierEtat(); // adresse ou dossier changes : la banniere se recalcule tout de suite
         LOG.log(Level.INFO, "Compte WhatsApp {0} enregistre (actif={1}, test={2})",
                 new Object[] { m, c.actif, c.modeTest });
         return comptes().put("message", "Compte WhatsApp " + m + " enregistré.");

@@ -22,6 +22,8 @@ public class WhatsAppCompte {
     public String modeleLangue;
     public String webUrl;
     public String webJeton;
+    /** Dossier du service compagnon sur le serveur (appris du service ou saisi), pour le relancer. */
+    public String webRepertoire;
 
     /** Ce que l'ecran peut afficher : les secrets sont remplaces par « défini / non défini ». */
     public JSONObject publique() {
@@ -31,6 +33,7 @@ public class WhatsAppCompte {
                 .put("wabaId", StringUtils.defaultString(wabaId)).put("modeleNom", StringUtils.defaultString(modeleNom))
                 .put("modeleLangue", StringUtils.defaultString(modeleLangue))
                 .put("webUrl", StringUtils.defaultString(webUrl))
+                .put("webRepertoire", StringUtils.defaultString(webRepertoire))
                 .put("accessTokenDefini", StringUtils.isNotBlank(accessToken))
                 .put("verifyTokenDefini", StringUtils.isNotBlank(verifyToken))
                 .put("appSecretDefini", StringUtils.isNotBlank(appSecret))

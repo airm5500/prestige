@@ -4,7 +4,8 @@
  *
  * Prestige (serveur Java) l'appelle avec un jeton partage (Authorization: Bearer <jeton>) ; le navigateur de
  * l'officine ne le joint jamais directement. Routes :
- *   GET  /etat          etat de la connexion (INITIALISATION, QR, CONNECTE, DECONNECTE...), numero, file d'attente
+ *   GET  /etat          etat de la connexion (INITIALISATION, QR, CONNECTE, DECONNECTE...), numero, file d'attente,
+ *                       dossier du service (repertoire)
  *   GET  /qr            QR code a scanner (image data:...) quand l'etat est QR
  *   POST /deconnecter   deconnecte le numero (changement de telephone)
  *   POST /messages      {to, text, id?, media?} -> {id, position} : le message entre dans la file (regles anti-bannissement) ;
@@ -118,7 +119,8 @@ const serveur = http.createServer(async (req, res) => {
   if (!jetonValide(req)) { return repondre(res, 401, { erreur: 'jeton invalide' }); }
   try {
     if (req.method === 'POST' && url.pathname === '/arret') { repondre(res, 200, { ok: true }); setTimeout(() => arretPropre('demande'), 100); return undefined; }
-    if (req.method === 'GET' && url.pathname === '/etat') { return repondre(res, 200, Object.assign(connecteur.etat(), { file: file.resume() })); }
+    /* retour du 25/10 : le dossier du service, garde par Prestige pour le relancer (« Reconnecter ») */
+    if (req.method === 'GET' && url.pathname === '/etat') { return repondre(res, 200, Object.assign(connecteur.etat(), { file: file.resume(), repertoire: path.resolve(__dirname, '..') })); }
     if (req.method === 'GET' && url.pathname === '/qr') { return repondre(res, 200, { etat: connecteur.etat().etat, image: connecteur.qrImage() }); }
     if (req.method === 'POST' && url.pathname === '/deconnecter') { await connecteur.deconnecter(); return repondre(res, 200, { ok: true }); }
     if (req.method === 'GET' && url.pathname === '/regles') { return repondre(res, 200, file.r); }
