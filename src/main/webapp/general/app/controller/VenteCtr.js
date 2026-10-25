@@ -669,6 +669,7 @@ Ext.define('testextjs.controller.VenteCtr', {
             set: function (v) {
                 clientVente = v;
                 me.majBoutonFicheClient();
+                me.majFideliteVente();
             }
         });
         // Recalcul de la hauteur de la grille au redimensionnement de la
@@ -725,6 +726,9 @@ Ext.define('testextjs.controller.VenteCtr', {
                     },
                     'doventemanager #contenu #btnExtraMode': {
                         click: this.onBtnExtraModeClick
+                    },
+                    'doventemanager #contenu #utiliserPoints': {
+                        change: this.onUtiliserPointsChange
                     },
                     'doventemanager #contenu #montantExtra': {
                         change: this.montantExtraChangeListener,
@@ -3516,6 +3520,102 @@ Ext.define('testextjs.controller.VenteCtr', {
             }
         });
     },
+    /*
+     * Retours du 25/10 (point 2) : client inscrit a la fidelite associe a la vente -> « X points = Y FCFA » et la case
+     * « Utiliser ». Lecture seule ; rien n'est debite avant la cloture (le serveur controle le paiement en points).
+     */
+    majFideliteVente: function () {
+        const me = this, zone = Ext.ComponentQuery.query('doventemanager #contenu #fideliteVente')[0];
+        if (!zone || zone.isDestroyed) {
+            return;
+        }
+        const caseUtiliser = zone.down('#utiliserPoints'), client = me.client;
+        const clientId = client && client.get ? (client.get('lgCLIENTID') || client.get('id')) : null;
+        me.fideliteVente = null;
+        if (caseUtiliser.getValue()) {
+            caseUtiliser.setValue(false); /* retire la part en points engagee pour l'ancien client */
+        }
+        if (!clientId) {
+            zone.hide();
+            return;
+        }
+        Ext.Ajax.request({
+            url: '../api/v1/fidelite/paiement', method: 'GET', params: {client: clientId},
+            success: function (r) {
+                const o = Ext.decode(r.responseText, true) || {};
+                const actuel = me.client && me.client.get ? (me.client.get('lgCLIENTID') || me.client.get('id')) : null;
+                if (zone.isDestroyed || actuel !== clientId) {
+                    return; /* un autre client a ete choisi entre-temps */
+                }
+                if (!o.success || !o.actif || !o.inscrit || !(o.solde > 0)) {
+                    zone.hide();
+                    return;
+                }
+                me.fideliteVente = o;
+                const fmt = function (v) {
+                    return Ext.util.Format.number(v || 0, '0,000');
+                };
+                zone.down('#fideliteSolde').update('<span style="color:#17795f">&#9733;</span> <b>' + fmt(o.solde) + '</b> point(s) = <b>'
+                        + fmt(o.montantMax || (o.solde * (o.valeurPoint || 0))) + '</b> FCFA');
+                caseUtiliser.setDisabled(!o.utilisable);
+                zone.getEl() && zone.getEl().set({'data-qtip': o.utilisable ? 'Retirer la valeur des points du net à payer' : Ext.String.htmlEncode(o.msg || '')});
+                zone.show();
+            }
+        });
+    },
+
+    /** « Utiliser » : la valeur des points (au plus le net) devient le second mode « Points fidelite ». */
+    onUtiliserPointsChange: function (cb, coche) {
+        const me = this;
+        if (me._fideliteAuto) {
+            return;
+        }
+        if (!coche) {
+            if (me.getExtraModeReglementId() === me.MODE_POINTS_FIDELITE) {
+                me.resetExtraModeCmp();
+            }
+            return;
+        }
+        const o = me.fideliteVente, data = me.getNetAmountToPay();
+        const net = data ? (parseInt(data.montantNet, 10) || 0) : 0;
+        const refus = function (texte) {
+            me._fideliteAuto = true;
+            cb.setValue(false);
+            me._fideliteAuto = false;
+            if (window.PrestigeToast) {
+                PrestigeToast.afficher(texte, {niveau: 'alerte', titre: 'Points fidélité'});
+            }
+        };
+        if (!o || !o.utilisable) {
+            refus((o && o.msg) || 'Le client ne peut pas payer avec ses points.');
+            return;
+        }
+        if (me.getVnotypeReglement().getValue() !== '1') {
+            refus('Choisissez « Espèces » : les points complètent un paiement en espèces.');
+            return;
+        }
+        if (!(net > 0)) {
+            refus('Ajoutez d\'abord les articles : le net à payer est nul.');
+            return;
+        }
+        if (me.getExtraModeReglementId() && me.getExtraModeReglementId() !== me.MODE_POINTS_FIDELITE) {
+            refus('Un second mode de règlement est déjà utilisé.');
+            return;
+        }
+        const montant = Math.min(parseInt(o.montantMax, 10) || 0, net);
+        me.onModeReglementSelect({id: me.MODE_POINTS_FIDELITE, libelle: 'Points fidélité'});
+        const extra = me.getMontantExtra();
+        me._extraAutoSetting = true;
+        extra.show();
+        extra.setValue(montant);
+        me._extraAutoSetting = false;
+        extra.setReadOnly(true);
+        me.extraModeManualAmount = true;
+        me.updateExtraModeLockIndicator(true);
+        const recu = parseInt(me.getMontantRecu().getValue(), 10) || 0;
+        me.montantRecuHandler(me, '1', recu + montant, data);
+    },
+
     /** Retours du 10/10 (14) : le bouton suit le client de la vente. */
     majBoutonFicheClient: function () {
         const b = Ext.ComponentQuery.query('doventemanager #btnFicheClient')[0], c = this.client;
@@ -8405,6 +8505,12 @@ Ext.define('testextjs.controller.VenteCtr', {
 
     resetExtraModeCmp: function () {
         const me = this;
+        const caseUtiliser = Ext.ComponentQuery.query('doventemanager #contenu #utiliserPoints')[0];
+        if (caseUtiliser && !caseUtiliser.isDestroyed && caseUtiliser.getValue()) {
+            me._fideliteAuto = true;
+            caseUtiliser.setValue(false);
+            me._fideliteAuto = false;
+        }
         const montantExtra = me.getMontantExtra();
         montantExtra.setFieldLabel('');
         me._extraModeBaseLabel = null;

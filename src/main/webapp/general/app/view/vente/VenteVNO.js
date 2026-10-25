@@ -1137,6 +1137,21 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                             margin: '0 0 2 0',
                                             items: [
                                                 {
+                                                    /* Retours du 25/10 (point 2) : points du client inscrit a la fidelite ;
+                                                     * « Utiliser » retire leur valeur du net (second mode « Points fidelite »). */
+                                                    xtype: 'container',
+                                                    itemId: 'fideliteVente',
+                                                    hidden: true,
+                                                    layout: {type: 'hbox', align: 'middle'},
+                                                    cls: 'vp-fidelite',
+                                                    style: 'background:#eef7f2;border:1px solid #9fd3b8;border-radius:8px;padding:4px 10px;',
+                                                    margin: '0 0 8 0',
+                                                    items: [
+                                                        {xtype: 'component', itemId: 'fideliteSolde', flex: 1, html: ''},
+                                                        {xtype: 'checkbox', itemId: 'utiliserPoints', boxLabel: 'Utiliser', disabled: true, margin: '0 0 0 8'}
+                                                    ]
+                                                },
+                                                {
                                                     xtype: 'numberfield',
                                                     hideTrigger: true,
                                                     itemId: 'montantRecu',
