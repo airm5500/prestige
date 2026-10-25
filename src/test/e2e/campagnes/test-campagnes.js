@@ -2,7 +2,7 @@
  *
  * Jeu d'essai isole (clients fictifs ZZCAMPAGNE, numeros fictifs) et compte WhatsApp en MODE TEST : aucun message
  * reel ne part (les envois du test passent par WhatsApp simule, jamais par SMS).
- *  - menu : 9 onglets dont « Rappels traitement » (l'ecran existant) ; volet automatique desactive par defaut ;
+ *  - menu : 10 onglets dont « Rappels traitement » (l'ecran existant) et « Listes de diffusion » ; volet automatique desactive par defaut ;
  *  - propositions : « Préparer les propositions du jour » -> anniversaires du jour (refus SMS et numero invalide
  *    ecartes avec leur motif) ; la cloche compte les messages proposes ; on decoche un client, on envoie en WhatsApp
  *    (confirmation dans le bouton, sans fenetre) ; le decoche ne recoit rien ; pas de seconde proposition le meme jour ;
@@ -97,7 +97,7 @@ function nettoyer(debut) {
     await p.waitForFunction(() => { const v = Ext.ComponentQuery.query('campagnes')[0]; return v && v.contexte; }, null, { timeout: 60000 });
     await p.waitForTimeout(1000);
     const tabs = await p.evaluate(() => Ext.ComponentQuery.query('campagnes')[0].items.items.filter((t) => t.tab && !t.tab.hidden).map((t) => t.title.replace(/ \(\d+\)$/, '')));
-    ok('9 onglets, dont Rappels traitement', tabs.join('|') === 'Propositions|Anniversaires|Fêtes|Infos clients|Infos pharmacie|Personnalisé|Rappels traitement|Journal|Paramètres', tabs.join('|'));
+    ok('10 onglets, dont Rappels traitement et Listes de diffusion', tabs.join('|') === 'Propositions|Anniversaires|Fêtes|Infos clients|Infos pharmacie|Personnalisé|Rappels traitement|Listes de diffusion|Journal|Paramètres', tabs.join('|'));
     const bandeau = await p.evaluate(() => Ext.ComponentQuery.query('campagnes #ongletPropositions #bandeau')[0].getEl().dom.textContent);
     ok('Volet automatique désactivé par défaut (bandeau)', /préparation automatique est désactivée/.test(bandeau) && q("SELECT str_VALUE FROM t_parameters WHERE str_KEY = 'KEY_CAMPAGNE_AUTO_ACTIF'") === '0', bandeau);
 
