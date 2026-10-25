@@ -1911,7 +1911,7 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
         return title;
     }
 
-    private void updateParameters(TypedQuery<MvtTransaction> q, Params params) {
+    private void updateParameters(TypedQuery<?> q, Params params) {
 
         LocalDateTime dtStart = LocalDate.parse(params.getDtStart(), DateTimeFormatter.ISO_DATE)
                 .atTime(LocalTime.parse(params.getHrStart()));
@@ -1931,15 +1931,50 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
         }
     }
 
+    /**
+     * Champs des mouvements lus par le ticket Z, sans la vente.
+     *
+     * <p>
+     * Retour du 25/10 (ticket Z lent : 30 s pour 24 jours sur une base reelle). Les requetes chargeaient chaque
+     * mouvement ENTIER, avec sa vente (JOIN FETCH) et, derriere elle, toutes les associations EAGER de la vente
+     * (reglement, client, ayant droit, medecin...) : 17 500 ventes reconstruites pour un mois, dont le ticket Z ne lit
+     * rien. Il ne se sert que des montants, du mode de reglement, du type de mouvement de caisse, du caissier et de
+     * l'identifiant de la vente : ce sont les seules colonnes lues. Le mode de reglement, le type de mouvement et le
+     * caissier restent des entites (tables de reference, lues une fois par identifiant). Les memes conditions, les
+     * memes lignes : seul le chargement change.
+     */
+    private static final String MOUVEMENTS_TICKET_Z = "SELECT o.uuid, o.pkey, o.montant, o.montantRegle,"
+            + " o.montantRestant, o.montantCredit, o.typeTransaction, r, t, c FROM MvtTransaction o"
+            + " LEFT JOIN o.reglement r LEFT JOIN o.tTypeMvtCaisse t JOIN o.caisse c";
+
+    private static List<MvtTransaction> mouvementsTicketZ(List<Object[]> lignes) {
+        List<MvtTransaction> mouvements = new ArrayList<>(lignes.size());
+        for (Object[] l : lignes) {
+            MvtTransaction m = new MvtTransaction();
+            m.setUuid((String) l[0]);
+            m.setPkey((String) l[1]);
+            m.setMontant((Integer) l[2]);
+            m.setMontantRegle((Integer) l[3]);
+            m.setMontantRestant((Integer) l[4]);
+            m.setMontantCredit((Integer) l[5]);
+            m.setTypeTransaction((TypeTransaction) l[6]);
+            m.setReglement((TTypeReglement) l[7]);
+            m.settTypeMvtCaisse((TTypeMvtCaisse) l[8]);
+            m.setCaisse((TUser) l[9]);
+            mouvements.add(m);
+        }
+        return mouvements;
+    }
+
     List<MvtTransaction> ticketZVenteData(Params params) {
-        String sql = "SELECT o FROM MvtTransaction o LEFT JOIN FETCH o.preenregistrement WHERE o.createdAt BETWEEN :dtStart AND :dtEnd AND o.checked=TRUE AND o.magasin.lgEMPLACEMENTID=:empl AND  o.typeTransaction IN :typetransac {userId} AND EXISTS (SELECT p.lgPREENREGISTREMENTDETAILID FROM TPreenregistrementDetail p WHERE p.lgPREENREGISTREMENTID.lgPREENREGISTREMENTID = o.pkey) ";
+        String sql = MOUVEMENTS_TICKET_Z
+                + " WHERE o.createdAt BETWEEN :dtStart AND :dtEnd AND o.checked=TRUE AND o.magasin.lgEMPLACEMENTID=:empl AND  o.typeTransaction IN :typetransac {userId} AND EXISTS (SELECT p.lgPREENREGISTREMENTDETAILID FROM TPreenregistrementDetail p WHERE p.lgPREENREGISTREMENTID.lgPREENREGISTREMENTID = o.pkey) ";
 
         try {
-            TypedQuery<MvtTransaction> q = getEntityManager().createQuery(replaceSql(params, sql),
-                    MvtTransaction.class);
+            TypedQuery<Object[]> q = getEntityManager().createQuery(replaceSql(params, sql), Object[].class);
             q.setParameter("typetransac", EnumSet.of(TypeTransaction.VENTE_COMPTANT, TypeTransaction.VENTE_CREDIT));
             updateParameters(q, params);
-            return q.getResultList();
+            return mouvementsTicketZ(q.getResultList());
         } catch (Exception e) {
             LOG.log(Level.SEVERE, null, e);
             return Collections.emptyList();
@@ -1947,14 +1982,14 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
     }
 
     List<MvtTransaction> ticketZSortieData(Params params) {
-        String sql = "SELECT o FROM MvtTransaction o LEFT JOIN FETCH o.preenregistrement WHERE o.createdAt BETWEEN :dtStart AND :dtEnd AND o.checked=TRUE AND o.magasin.lgEMPLACEMENTID=:empl AND  o.typeTransaction=:typetransac {userId}";
+        String sql = MOUVEMENTS_TICKET_Z
+                + " WHERE o.createdAt BETWEEN :dtStart AND :dtEnd AND o.checked=TRUE AND o.magasin.lgEMPLACEMENTID=:empl AND  o.typeTransaction=:typetransac {userId}";
 
         try {
-            TypedQuery<MvtTransaction> q = getEntityManager().createQuery(replaceSql(params, sql),
-                    MvtTransaction.class);
+            TypedQuery<Object[]> q = getEntityManager().createQuery(replaceSql(params, sql), Object[].class);
             q.setParameter("typetransac", TypeTransaction.SORTIE);
             updateParameters(q, params);
-            return q.getResultList();
+            return mouvementsTicketZ(q.getResultList());
         } catch (Exception e) {
             LOG.log(Level.SEVERE, null, e);
             return Collections.emptyList();
@@ -1971,14 +2006,14 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
     }
 
     List<MvtTransaction> ticketZEntreesData(Params params) {
-        String sql = "SELECT o FROM MvtTransaction o LEFT JOIN FETCH o.preenregistrement WHERE o.createdAt BETWEEN :dtStart AND :dtEnd AND o.checked=TRUE AND o.magasin.lgEMPLACEMENTID=:empl AND  o.typeTransaction=:typetransac {userId}";
+        String sql = MOUVEMENTS_TICKET_Z
+                + " WHERE o.createdAt BETWEEN :dtStart AND :dtEnd AND o.checked=TRUE AND o.magasin.lgEMPLACEMENTID=:empl AND  o.typeTransaction=:typetransac {userId}";
 
         try {
-            TypedQuery<MvtTransaction> q = getEntityManager().createQuery(replaceSql(params, sql),
-                    MvtTransaction.class);
+            TypedQuery<Object[]> q = getEntityManager().createQuery(replaceSql(params, sql), Object[].class);
             q.setParameter("typetransac", TypeTransaction.ENTREE);
             updateParameters(q, params);
-            return q.getResultList();
+            return mouvementsTicketZ(q.getResultList());
         } catch (Exception e) {
             LOG.log(Level.SEVERE, null, e);
             return Collections.emptyList();
@@ -2224,13 +2259,20 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
         try {
             for (int debut = 0; debut < ids.size(); debut += paquet) {
                 List<String> lot = ids.subList(debut, Math.min(debut + paquet, ids.size()));
-                List<VenteReglement> reglements = getEntityManager().createQuery(
-                        "SELECT o FROM VenteReglement o WHERE o.preenregistrement.lgPREENREGISTREMENTID" + " IN :ids",
-                        VenteReglement.class).setParameter("ids", lot).getResultList();
-                for (VenteReglement r : reglements) {
-                    String venteId = r.getPreenregistrement() == null ? null
-                            : r.getPreenregistrement().getLgPREENREGISTREMENTID();
+                /*
+                 * Montant et mode seulement (25/10) : charger le reglement entier rechargeait aussi sa vente, et toutes
+                 * les associations de la vente, une a une ; le ticket Z ne lit que ces deux champs.
+                 */
+                List<Object[]> reglements = getEntityManager().createQuery(
+                        "SELECT o.preenregistrement.lgPREENREGISTREMENTID, o.montant, tr FROM VenteReglement o"
+                                + " LEFT JOIN o.typeReglement tr WHERE o.preenregistrement.lgPREENREGISTREMENTID IN :ids",
+                        Object[].class).setParameter("ids", lot).getResultList();
+                for (Object[] l : reglements) {
+                    String venteId = (String) l[0];
                     if (venteId != null) {
+                        VenteReglement r = new VenteReglement();
+                        r.setMontant((Integer) l[1]);
+                        r.setTypeReglement((TTypeReglement) l[2]);
                         parVente.computeIfAbsent(venteId, k -> new ArrayList<>()).add(r);
                     }
                 }
