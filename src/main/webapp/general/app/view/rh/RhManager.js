@@ -563,11 +563,16 @@ Ext.define('testextjs.view.rh.RhManager', {
         var me = this, p = me.down('#ongletAbsences'), du = me.mois, au = Ext.Date.getLastDateOfMonth(me.mois);
         p.down('#titreMois').setText(Ext.Date.format(me.mois, 'F Y'));
         var statut = p.down('#filtreStatut').getValue() || '';
-        me.appel('GET', '../api/v1/rh/employes', null, function (e) {
-            me.employes = e.data;
-            me.appel('GET', '../api/v1/rh/absences?du=' + me.iso(du) + '&au=' + me.iso(au) + '&statut=' + statut, null, function (r) {
-                p.down('#grilleAbsences').getStore().loadData(r.data);
-                me.dessinerCalendrier(e.data, r.data, du, au);
+        /* retours du 25/10 (point 12) : droit de valider relu a chaque chargement (accorde ou retire en cours de
+           session, sans se deconnecter) */
+        me.appel('GET', '../api/v1/rh/droits', null, function (dr) {
+            me.peutValider = !!dr.valider;
+            me.appel('GET', '../api/v1/rh/employes', null, function (e) {
+                me.employes = e.data;
+                me.appel('GET', '../api/v1/rh/absences?du=' + me.iso(du) + '&au=' + me.iso(au) + '&statut=' + statut, null, function (r) {
+                    p.down('#grilleAbsences').getStore().loadData(r.data);
+                    me.dessinerCalendrier(e.data, r.data, du, au);
+                });
             });
         });
     },

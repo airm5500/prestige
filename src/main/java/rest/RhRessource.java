@@ -59,6 +59,17 @@ public class RhRessource {
                 privilege);
     }
 
+    /** Retours du 25/10 (point 12) : droit de valider lu en base, un droit accorde en cours de session compte. */
+    private boolean peutValider() {
+        TUser u = utilisateur();
+        return u != null && service.aLeDroit(u.getLgUSERID(), VALIDER);
+    }
+
+    /** Sans droit de validation : seulement ses demandes (son employe, ou saisies par lui). */
+    private String limiteAbsences() {
+        return peutValider() ? null : utilisateur().getLgUSERID();
+    }
+
     private Response controle() {
         if (utilisateur() == null) {
             return refus(Constant.DECONNECTED_MESSAGE);
@@ -116,7 +127,7 @@ public class RhRessource {
         Response r = controlePointer();
         return r != null ? r
                 : ok(new JSONObject().put("success", true).put("pointer", true).put("gerer", autorise(PRIVILEGE))
-                        .put("valider", autorise(VALIDER)).put("photoRetentionJours", pointages.photoRetentionJours()));
+                        .put("valider", peutValider()).put("photoRetentionJours", pointages.photoRetentionJours()));
     }
 
     /* ---------------------------------------------------------------- employes */
@@ -321,7 +332,7 @@ public class RhRessource {
         }
         LocalDate d = date(du, LocalDate.now().withDayOfMonth(1));
         LocalDate a = date(au, d.plusMonths(1).minusDays(1));
-        return ok(service.absences(d, a, employeId, statut));
+        return ok(service.absences(d, a, employeId, statut, limiteAbsences()));
     }
 
     @POST
@@ -339,7 +350,7 @@ public class RhRessource {
         if (r != null) {
             return r;
         }
-        if (!autorise(VALIDER)) {
+        if (!peutValider()) {
             return refus("Vous n'avez pas le droit de valider les congés et absences.");
         }
         return ok(service.deciderAbsence(id, statut, utilisateur()));
@@ -349,7 +360,7 @@ public class RhRessource {
     @Path("absences/{id}")
     public Response supprimer(@PathParam("id") String id) {
         Response r = controle();
-        return r != null ? r : ok(service.supprimerAbsence(id, utilisateur(), autorise(VALIDER)));
+        return r != null ? r : ok(service.supprimerAbsence(id, utilisateur(), peutValider()));
     }
 
     /* ---------------------------------------------------------------- connexions */
@@ -829,7 +840,8 @@ public class RhRessource {
         }
         case "absences": {
             LocalDate[] p = periode(du, au);
-            JSONArray d = service.absences(p[0], p[1], null, StringUtils.trimToNull(statut)).getJSONArray("data");
+            JSONArray d = service.absences(p[0], p[1], null, StringUtils.trimToNull(statut), limiteAbsences())
+                    .getJSONArray("data");
             titre = "CONGÉS ET ABSENCES";
             sousTitre = "Du " + p[0].format(FR) + " au " + p[1].format(FR)
                     + (StringUtils.isBlank(statut) ? "" : " · " + l(statut.trim().toUpperCase()));

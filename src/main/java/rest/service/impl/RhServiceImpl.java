@@ -330,7 +330,7 @@ public class RhServiceImpl implements RhService {
 
     @Override
     @SuppressWarnings("unchecked")
-    public JSONObject absences(LocalDate du, LocalDate au, String employeId, String statut) {
+    public JSONObject absences(LocalDate du, LocalDate au, String employeId, String statut, String limiteA) {
         StringBuilder sql = new StringBuilder(
                 "SELECT a.id, a.employe_id, CONCAT(e.nom, ' ', COALESCE(e.prenoms,'')), a.type,"
                         + " a.debut, a.fin, a.demi_journee, a.motif, a.statut, a.created_at,"
@@ -348,6 +348,11 @@ public class RhServiceImpl implements RhService {
         if (StringUtils.isNotBlank(statut)) {
             params.add(statut.trim().toUpperCase());
             sql.append(" AND a.statut = ?").append(params.size());
+        }
+        if (limiteA != null) {
+            params.add(limiteA);
+            sql.append(" AND (e.lg_USER_ID = ?").append(params.size()).append(" OR a.demande_par = ?")
+                    .append(params.size()).append(')');
         }
         Query q = em.createNativeQuery(sql.append(" ORDER BY a.debut, e.nom").toString());
         for (int i = 0; i < params.size(); i++) {
@@ -436,6 +441,16 @@ public class RhServiceImpl implements RhService {
                 .setParameter(1, id).executeUpdate();
         return n == 0 ? refus(valideur ? "Absence introuvable." : "Seule une demande non décidée peut être supprimée.")
                 : ok().put("message", "Absence supprimée.");
+    }
+
+    @Override
+    public boolean aLeDroit(String userId, String privilege) {
+        return userId != null && ((Number) em
+                .createNativeQuery("SELECT COUNT(*) FROM t_role_user ru"
+                        + " JOIN t_role_privelege rp ON rp.lg_ROLE_ID = ru.lg_ROLE_ID"
+                        + " JOIN t_privilege p ON p.lg_PRIVELEGE_ID = rp.lg_PRIVILEGE_ID"
+                        + " WHERE ru.lg_USER_ID = ?1 AND p.str_NAME = ?2 AND p.str_STATUT = 'enable'")
+                .setParameter(1, userId).setParameter(2, privilege).getSingleResult()).intValue() > 0;
     }
 
     @Override

@@ -54,7 +54,18 @@ public interface RhService {
     JSONObject appliquerEquipe(String id, LocalDate semaine, boolean remplacer, TUser operateur);
 
     /* absences */
-    JSONObject absences(LocalDate du, LocalDate au, String employeId, String statut);
+    /**
+     * @param limiteA
+     *            utilisateur sans droit de validation : seulement les demandes de son employe ou saisies par lui ; null
+     *            = toutes
+     */
+    JSONObject absences(LocalDate du, LocalDate au, String employeId, String statut, String limiteA);
+
+    /**
+     * Retours du 25/10 (point 12) : droit lu en base (roles de l'utilisateur), pas dans la liste gardee en session a la
+     * connexion. Un droit accorde ou retire pendant la session compte tout de suite.
+     */
+    boolean aLeDroit(String userId, String privilege);
 
     JSONObject enregistrerAbsence(JSONObject saisie, TUser operateur);
 
