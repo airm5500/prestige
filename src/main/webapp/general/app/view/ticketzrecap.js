@@ -71,14 +71,22 @@ Ext.define('testextjs.view.ticketzrecap', {
         }
         Ext.util.CSS.createStyleSheet(
                 '.ticketz-recap{display:flex;flex-wrap:wrap;gap:10px;padding:10px;align-items:flex-start}'
-                + '.ticketz-carte{flex:0 1 270px;border:1px solid #d5dbe1;border-radius:8px;background:#fff;padding:8px 10px}'
-                + '.ticketz-carte.total{flex-basis:420px;border-color:#1f3a5f}'
-                + '.ticketz-carte h6{margin:0 0 6px;font-size:12px;font-weight:bold;color:#1f3a5f;text-transform:uppercase}'
-                + '.ticketz-carte table{width:100%;border-collapse:collapse}'
+                + '.ticketz-carte{flex:0 1 270px;border:1px solid #d5dbe1;border-top:0;border-radius:8px;background:#fff;overflow:hidden}'
+                /* retours du 25/10 (point 1) : en-tete de chaque recapitulatif en couleur (une par caissier, en boucle),
+                   lignes de total et total general en couleur */
+                + '.ticketz-carte h6{margin:0;padding:7px 10px;font-size:12px;font-weight:bold;color:#fff;text-transform:uppercase;background:#1f6fb2}'
+                + '.ticketz-carte.c1 h6{background:#16856b}.ticketz-carte.c2 h6{background:#8e44ad}.ticketz-carte.c3 h6{background:#c0612b}'
+                + '.ticketz-carte.c4 h6{background:#2c7a9b}.ticketz-carte.c5 h6{background:#b03a5b}'
+                + '.ticketz-carte table{width:calc(100% - 20px);margin:6px 10px 8px;border-collapse:collapse}'
                 + '.ticketz-carte td,.ticketz-carte th{padding:3px 4px;border-top:1px solid #eef1f4;text-align:left;font-weight:normal}'
-                + '.ticketz-carte tr:nth-child(odd) td,.ticketz-carte tr:nth-child(odd) th{background:#f7f9fb}'
-                + '.ticketz-carte th{font-weight:bold}'
+                + '.ticketz-carte tr:nth-child(odd) td{background:#f7f9fb}'
+                + '.ticketz-carte tr.t th,.ticketz-carte tr.t td{font-weight:bold;background:#e8f5ee;color:#14633f}'
+                + '.ticketz-carte.total{flex-basis:420px;border:1px solid #1f3a5f;border-top:0}'
+                + '.ticketz-carte.total h6{background:#1f3a5f}'
+                + '.ticketz-carte.total td{font-weight:bold;color:#1f3a5f}.ticketz-carte.total tr:nth-child(odd) td{background:#eaf1fa}'
                 + '.ticketz-carte .m{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;color:#000}'
+                + '.ticketz-carte tr.t .m{color:#14633f}.ticketz-carte.total .m{color:#1f3a5f}'
+                + '@media print{.ticketz-carte h6,.ticketz-carte tr.t th,.ticketz-carte tr.t td,.ticketz-carte.total td{-webkit-print-color-adjust:exact;print-color-adjust:exact}}'
                 + '.ticketz-vide{padding:16px;color:#555}',
                 'ticketz-styles');
     },
@@ -144,15 +152,15 @@ Ext.define('testextjs.view.ticketzrecap', {
         var lignes = function (liste, gras) {
             return Ext.Array.map(liste || [], function (l) {
                 var c = gras ? 'th' : 'td';
-                return '<tr><' + c + '>' + me.esc(l.modeLibelle) + '</' + c + '><td class="m">' + me.esc(l.montant) + '</td></tr>';
+                return '<tr' + (gras ? ' class="t"' : '') + '><' + c + '>' + me.esc(l.modeLibelle) + '</' + c + '><td class="m">' + me.esc(l.montant) + '</td></tr>';
             }).join('');
         };
         if (!t || (!Ext.isArray(t.datas) || !t.datas.length) && !t.totaux) {
             return '<div class="ticketz-vide">Aucun mouvement sur la période.</div>';
         }
         var html = '<div class="ticketz-recap">';
-        Ext.each(t.datas || [], function (u) {
-            html += '<div class="ticketz-carte"><h6>Récapitulatif de ' + me.esc(u.user) + '</h6><table>'
+        Ext.each(t.datas || [], function (u, i) {
+            html += '<div class="ticketz-carte c' + (i % 6) + '"><h6>Récapitulatif de ' + me.esc(u.user) + '</h6><table>'
                     + lignes(u.modePaymentAmounts) + lignes(u.totaux, true) + '</table></div>';
         });
         if (t.totaux) {

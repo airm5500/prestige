@@ -92,6 +92,18 @@ const cartes = (p) => p.evaluate(() => Array.from(document.querySelectorAll('.ti
     ok('Ticket Z de la veille : une carte par caissier + le total général, montants de l\'API',
       JSON.stringify(c) === JSON.stringify(attendu), c.length + ' cartes / ' + attendu.length);
 
+    /* retours du 25/10 (point 1) : en-tetes des recapitulatifs et total en couleur */
+    const couleurs = await p.evaluate(() => {
+      const fond = (e) => e ? getComputedStyle(e).backgroundColor : '';
+      const cartesU = Array.from(document.querySelectorAll('.ticketz-carte:not(.total)'));
+      return { entetes: cartesU.map((c) => fond(c.querySelector('h6'))), total: fond(document.querySelector('.ticketz-carte.total h6')),
+        ligneTotal: fond(document.querySelector('.ticketz-carte tr.t th')), totalTexte: getComputedStyle(document.querySelector('.ticketz-carte.total td')).color };
+    });
+    const blanc = (c) => !c || c === 'rgba(0, 0, 0, 0)' || c === 'rgb(255, 255, 255)';
+    ok('Couleurs : en-têtes des récapitulatifs colorés, deux caissiers voisins de couleurs différentes, total général coloré',
+      couleurs.entetes.length > 0 && couleurs.entetes.every((c) => !blanc(c)) && (couleurs.entetes.length < 2 || couleurs.entetes[0] !== couleurs.entetes[1])
+      && !blanc(couleurs.total) && !blanc(couleurs.ligneTotal) && couleurs.totalTexte !== 'rgb(0, 0, 0)', JSON.stringify(couleurs));
+
     await p.evaluate(() => Ext.ComponentQuery.query('ticketzmanager #description')[0].setValue('VENTE'));
     const avant = lus.length;
     await p.click('.ticketz .x-btn:has-text("Afficher")');
