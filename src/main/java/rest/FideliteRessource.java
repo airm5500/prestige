@@ -77,6 +77,44 @@ public class FideliteRessource {
         return null;
     }
 
+    /**
+     * Retours du 25/10 (point 6) : onglets Parametres et Analyse reserves aux profils Pharmacien et Administrateur (et
+     * au super administrateur), quels que soient les droits accordes aux autres profils.
+     */
+    private boolean profilGestion() {
+        TUser u = utilisateur();
+        if (u == null) {
+            return false;
+        }
+        if (bll.userManagement.user.estSuperAdmin(u)) {
+            return true;
+        }
+        try {
+            for (dal.TRoleUser lien : u.getTRoleUserCollection()) {
+                if (lien.getLgROLEID() == null
+                        || !commonparameter.statut_enable.equals(lien.getLgROLEID().getStrSTATUT())) {
+                    continue;
+                }
+                String nom = lien.getLgROLEID().getStrNAME();
+                if (bll.userManagement.user.isAdminRole(nom) || commonparameter.ROLE_PHARMACIEN.equalsIgnoreCase(nom)) {
+                    return true;
+                }
+            }
+        } catch (RuntimeException e) {
+            return false;
+        }
+        return false;
+    }
+
+    /** refus() pour les routes des onglets Parametres et Analyse : droits demandes et profil de gestion. */
+    private JSONObject refusGestion(String... droits) {
+        JSONObject r = refus(droits);
+        if (r == null && !profilGestion()) {
+            r = echec("Réservé aux profils Pharmacien et Administrateur (fidélité).").put("interdit", true);
+        }
+        return r;
+    }
+
     private static JSONObject corps(String body) {
         try {
             return new JSONObject(StringUtils.defaultIfBlank(body, "{}"));
@@ -92,14 +130,18 @@ public class FideliteRessource {
         if (r != null) {
             return json(r);
         }
+        boolean gestion = profilGestion();
         return json(new JSONObject().put("success", true).put("utiliser", droit(P_FIDELITE_UTILISER))
-                .put("parametrer", droit(P_FIDELITE_PARAMETRER)).put("ongletParametres", ongletParametres())
-                .put("ongletAnalyse", droit(Constant.P_FIDELITE_ONGLET_ANALYSE)));
+                .put("parametrer", gestion && droit(P_FIDELITE_PARAMETRER)).put("ongletParametres", ongletParametres())
+                .put("ongletAnalyse", gestion && droit(Constant.P_FIDELITE_ONGLET_ANALYSE)));
     }
 
-    /** Retours du 25/10 (point 2) : qui peut modifier le parametrage le voit aussi. */
+    /**
+     * Retours du 25/10 (point 2) : qui peut modifier le parametrage le voit aussi. Point 6 : seulement pour les profils
+     * Pharmacien et Administrateur.
+     */
     private boolean ongletParametres() {
-        return droit(Constant.P_FIDELITE_ONGLET_PARAMETRES) || droit(P_FIDELITE_PARAMETRER);
+        return profilGestion() && (droit(Constant.P_FIDELITE_ONGLET_PARAMETRES) || droit(P_FIDELITE_PARAMETRER));
     }
 
     /**
@@ -123,7 +165,9 @@ public class FideliteRessource {
     public Response parametres() {
         JSONObject r = refus(P_SM_FIDELITE);
         if (r == null && !ongletParametres()) {
-            r = refus(Constant.P_FIDELITE_ONGLET_PARAMETRES);
+            /* sans l'onglet (droit manquant, ou profil autre que Pharmacien et Administrateur) : refus */
+            r = profilGestion() ? refus(Constant.P_FIDELITE_ONGLET_PARAMETRES)
+                    : refusGestion(Constant.P_FIDELITE_ONGLET_PARAMETRES);
         }
         return json(r != null ? r : service.lireParametres());
     }
@@ -132,7 +176,7 @@ public class FideliteRessource {
     @Path("parametres")
     @Consumes(MediaType.APPLICATION_JSON)
     public Response enregistrerParametres(String body) {
-        JSONObject r = refus(P_SM_FIDELITE, P_FIDELITE_PARAMETRER);
+        JSONObject r = refusGestion(P_SM_FIDELITE, P_FIDELITE_PARAMETRER);
         return json(r != null ? r : service.enregistrerParametres(corps(body), utilisateur().getLgUSERID()));
     }
 
@@ -140,21 +184,21 @@ public class FideliteRessource {
     @Path("palier")
     @Consumes(MediaType.APPLICATION_JSON)
     public Response palier(String body) {
-        JSONObject r = refus(P_SM_FIDELITE, P_FIDELITE_PARAMETRER);
+        JSONObject r = refusGestion(P_SM_FIDELITE, P_FIDELITE_PARAMETRER);
         return json(r != null ? r : service.enregistrerPalier(corps(body)));
     }
 
     @DELETE
     @Path("palier/{id}")
     public Response supprimerPalier(@PathParam("id") String id) {
-        JSONObject r = refus(P_SM_FIDELITE, P_FIDELITE_PARAMETRER);
+        JSONObject r = refusGestion(P_SM_FIDELITE, P_FIDELITE_PARAMETRER);
         return json(r != null ? r : service.supprimerPalier(id));
     }
 
     @PUT
     @Path("exclusion/{categorie}")
     public Response exclusion(@PathParam("categorie") String categorie, @QueryParam("exclue") boolean exclue) {
-        JSONObject r = refus(P_SM_FIDELITE, P_FIDELITE_PARAMETRER);
+        JSONObject r = refusGestion(P_SM_FIDELITE, P_FIDELITE_PARAMETRER);
         return json(r != null ? r : service.exclure(categorie, exclue));
     }
 
@@ -245,14 +289,14 @@ public class FideliteRessource {
     @PUT
     @Path("mode-exclusion")
     public Response modeExclusion(@QueryParam("mode") String mode) {
-        JSONObject r = refus(P_SM_FIDELITE, P_FIDELITE_PARAMETRER);
+        JSONObject r = refusGestion(P_SM_FIDELITE, P_FIDELITE_PARAMETRER);
         return json(r != null ? r : service.changerModeExclusion(mode, utilisateur().getLgUSERID()));
     }
 
     @PUT
     @Path("exclusion-emplacement/{zone}")
     public Response exclusionEmplacement(@PathParam("zone") String zone, @QueryParam("exclue") boolean exclue) {
-        JSONObject r = refus(P_SM_FIDELITE, P_FIDELITE_PARAMETRER);
+        JSONObject r = refusGestion(P_SM_FIDELITE, P_FIDELITE_PARAMETRER);
         return json(r != null ? r : service.exclureEmplacement(zone, exclue));
     }
 
@@ -278,7 +322,7 @@ public class FideliteRessource {
     @Path("analyse")
     public Response analyse(@QueryParam("dtStart") String du, @QueryParam("dtEnd") String au,
             @QueryParam("meilleurs") Integer meilleurs) {
-        JSONObject r = refus(P_SM_FIDELITE, Constant.P_FIDELITE_ONGLET_ANALYSE);
+        JSONObject r = refusGestion(P_SM_FIDELITE, Constant.P_FIDELITE_ONGLET_ANALYSE);
         if (r != null) {
             return json(r);
         }
@@ -406,7 +450,7 @@ public class FideliteRessource {
     @Produces({ "application/pdf", "application/vnd.ms-excel", "application/json" })
     public Response editionAnalyse(@PathParam("format") String format, @QueryParam("dtStart") String du,
             @QueryParam("dtEnd") String au) throws java.io.IOException {
-        JSONObject r = refus(P_SM_FIDELITE, Constant.P_FIDELITE_ONGLET_ANALYSE);
+        JSONObject r = refusGestion(P_SM_FIDELITE, Constant.P_FIDELITE_ONGLET_ANALYSE);
         if (r != null || !formatValide(format)) {
             return refusEdition(r != null ? r : echec("Format inconnu."));
         }

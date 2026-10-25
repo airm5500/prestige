@@ -2,8 +2,9 @@
  *
  * Par les vues, SERVICE CLIENT > Points fidélité, avec un utilisateur d'essai (role cree pour le test, retire a la fin) :
  *  - role avec le menu seul : onglet Clients visible, onglets Parametres et Analyse absents ; leurs routes refusent ;
- *  - droit « onglet Parametres » ajoute : l'onglet Parametres apparait (lecture seule, sans « Enregistrer ») ;
- *  - droit « onglet Analyse » ajoute : l'onglet Analyse apparait et se charge ;
+ *  - droits « onglet Parametres » et « onglet Analyse » ajoutes a ce role : onglets toujours absents, routes refusees
+ *    (retours du 25/10, point 6 : reserves aux profils Pharmacien et Administrateur) ;
+ *  - meme utilisateur avec le profil Pharmacien : les trois onglets, Parametres en lecture seule, Analyse se charge ;
  *  - admin : les trois onglets, comme avant (migration : droits donnes aux roles qui avaient le menu) ;
  *  - aucune erreur JavaScript, aucune fenetre du navigateur.
  */
@@ -54,18 +55,23 @@ function nettoyer() {
     ok('Menu seul : les routes Paramètres et Analyse refusent', !(await route(p, 'parametres')) && !(await route(p, 'analyse')));
     await p.context().close();
 
+    /* retours du 25/10 (point 6) : onglets Parametres et Analyse reserves aux profils Pharmacien et Administrateur,
+       meme avec les droits */
     donner('P_FIDELITE_ONGLET_PARAMETRES');
+    donner('P_FIDELITE_ONGLET_ANALYSE');
     p = await ouvrir(LOGIN, MDP);
-    ok('Droit « onglet Paramètres » : l\'onglet apparaît', await onglets(p) === 'Clients,Paramètres', await onglets(p));
+    ok('Autre profil, avec les droits des onglets : toujours ni Paramètres ni Analyse', await onglets(p) === 'Clients', await onglets(p));
+    ok('Autre profil, avec les droits : les routes Paramètres et Analyse refusent', !(await route(p, 'parametres')) && !(await route(p, 'analyse')));
+    await p.context().close();
+
+    /* meme utilisateur, profil Pharmacien */
+    q("UPDATE t_role_user SET lg_ROLE_ID = (SELECT lg_ROLE_ID FROM t_role WHERE str_NAME = 'Pharmacien' LIMIT 1) WHERE lg_USER_ID = '" + ID + "'");
+    p = await ouvrir(LOGIN, MDP);
+    ok('Profil Pharmacien : les trois onglets', await onglets(p) === 'Clients,Paramètres,Analyse', await onglets(p));
     await p.evaluate(() => { const t = Ext.ComponentQuery.query('fideliteclients #onglets')[0]; t.setActiveTab(t.down('#ongletParametres')); });
     await p.waitForTimeout(1000);
     const lecture = await p.evaluate(() => { const f = Ext.ComponentQuery.query('fideliteclients')[0]; return f.down('#montantPoint').readOnly && !f.down('#enregistrerParametres').isVisible(); });
-    ok('Sans le droit de paramétrer : Paramètres en lecture seule, sans « Enregistrer »', lecture && await route(p, 'parametres'));
-    await p.context().close();
-
-    donner('P_FIDELITE_ONGLET_ANALYSE');
-    p = await ouvrir(LOGIN, MDP);
-    ok('Droit « onglet Analyse » ajouté : les trois onglets', await onglets(p) === 'Clients,Paramètres,Analyse', await onglets(p));
+    ok('Pharmacien sans le droit de paramétrer : Paramètres en lecture seule, sans « Enregistrer »', lecture && await route(p, 'parametres'));
     await p.evaluate(() => { const t = Ext.ComponentQuery.query('fideliteclients #onglets')[0]; t.setActiveTab(t.down('#ongletAnalyse')); });
     await p.waitForTimeout(4000);
     const analyse = await p.evaluate(() => Ext.ComponentQuery.query('fideliteclients #anContenu')[0].getEl().dom.textContent);
