@@ -99,6 +99,9 @@ public final class Constant {
     /** Menu « Activité des équipes » (ANALYSE DE GESTION) : journal, recherches et analyses de productivite. */
     public static final String P_SM_ACTIVITE_EQUIPES = "P_SM_ACTIVITE_EQUIPES";
     public static final String P_SM_WHATSAPP_DISCUSSIONS = "P_SM_WHATSAPP_DISCUSSIONS";
+    /** Retours du 25/10 (point 2) : onglets « Parametres » et « Analyse » de Fidelite clients. */
+    public static final String P_FIDELITE_ONGLET_PARAMETRES = "P_FIDELITE_ONGLET_PARAMETRES";
+    public static final String P_FIDELITE_ONGLET_ANALYSE = "P_FIDELITE_ONGLET_ANALYSE";
     /** decision 12 du pharmacien : saisie des lots et creation d'un BL (poste et mobile) */
     public static final String P_BL_MOBILE_SCANNER = "P_BL_MOBILE_SCANNER";
     public static final String LIBELLE_SCANNER_RECEPTION_BL = "Scanner la réception des BL";

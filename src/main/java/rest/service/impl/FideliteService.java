@@ -385,7 +385,11 @@ public class FideliteService {
                 + " (SELECT COALESCE(SUM(u.int_VALEUR), 0) FROM t_fidelite_mouvement u"
                 + "   WHERE u.lg_PREENREGISTREMENT_ID = p.lg_PREENREGISTREMENT_ID AND u.str_TYPE = 'UTILISATION')"
                 + " FROM t_preenregistrement p JOIN t_client c ON c.lg_CLIENT_ID = p.lg_CLIENT_ID"
-                + " WHERE p.str_STATUT = 'is_Closed' AND COALESCE(p.b_IS_CANCEL, 0) = 0 AND p.int_PRICE > 0"
+                /*
+                 * retours du 25/10 (point 2) : seuls les clients inscrits gagnent des points, depuis leur inscription
+                 */
+                + " WHERE c.bool_FIDELITE = 1 AND (c.dt_FIDELITE_INSCRIPTION IS NULL OR p.dt_UPDATED >= c.dt_FIDELITE_INSCRIPTION)"
+                + " AND p.str_STATUT = 'is_Closed' AND COALESCE(p.b_IS_CANCEL, 0) = 0 AND p.int_PRICE > 0"
                 + " AND p.str_TYPE_VENTE IN ('VNO'" + (p.assurance ? ", 'VO'" : "") + ") AND p.dt_UPDATED >= ?1"
                 + " AND NOT EXISTS (SELECT 1 FROM t_fidelite_mouvement m"
                 + "   WHERE m.lg_PREENREGISTREMENT_ID = p.lg_PREENREGISTREMENT_ID AND m.str_TYPE = 'GAIN')"
@@ -639,6 +643,27 @@ public class FideliteService {
         return valeurPoint <= 0 ? 0 : (int) ((montant + valeurPoint - 1) / valeurPoint);
     }
 
+    /** Retours du 25/10 (point 2) : case « Client fidelite » de la fiche client (inscrit par defaut). */
+    public boolean inscrit(String client) {
+        List<?> l = em.createNativeQuery("SELECT bool_FIDELITE FROM t_client WHERE lg_CLIENT_ID = ?1")
+                .setParameter(1, client).getResultList();
+        return !l.isEmpty() && l.get(0) != null
+                && (l.get(0) instanceof Boolean ? (Boolean) l.get(0) : ((Number) l.get(0)).intValue() == 1);
+    }
+
+    /** Inscrit ou retire le client ; une reinscription ne rapporte des points que sur les ventes qui suivent. */
+    public JSONObject inscrire(String client, boolean inscrit) {
+        if (client == null || !clientExiste(client)) {
+            return echec("Client introuvable.");
+        }
+        if (inscrit != inscrit(client)) {
+            em.createNativeQuery("UPDATE t_client SET bool_FIDELITE = ?1"
+                    + (inscrit ? ", dt_FIDELITE_INSCRIPTION = NOW()" : "") + " WHERE lg_CLIENT_ID = ?2")
+                    .setParameter(1, inscrit ? 1 : 0).setParameter(2, client).executeUpdate();
+        }
+        return new JSONObject().put("success", true).put("inscrit", inscrit);
+    }
+
     /**
      * Ce que le client peut payer avec ses points a la caisse (ecran de vente) : apres mise a jour du registre.
      */
@@ -646,12 +671,17 @@ public class FideliteService {
         synchroniser();
         Parametres p = parametres(false);
         long s = client == null ? 0 : solde(client);
-        boolean utilisable = p.actif && p.valeurPoint > 0 && s > 0 && s >= p.seuil;
-        return new JSONObject().put("success", true).put("actif", p.actif).put("solde", s)
+        boolean inscrit = client != null && inscrit(client);
+        boolean utilisable = inscrit && p.actif && p.valeurPoint > 0 && s > 0 && s >= p.seuil;
+        return new JSONObject().put("success", true).put("actif", p.actif).put("inscrit", inscrit).put("solde", s)
                 .put("valeurPoint", p.valeurPoint).put("seuil", p.seuil).put("utilisable", utilisable)
-                .put("montantMax", utilisable ? FideliteCalcul.valeur(s, p.valeurPoint) : 0)
-                .put("msg", !p.actif ? "La fidélité n'est pas activée." : s < Math.max(1, p.seuil) ? "Le client a " + s
-                        + " point(s) : il en faut " + Math.max(1, p.seuil) + " pour payer avec ses points." : "");
+                .put("montantMax",
+                        utilisable ? FideliteCalcul.valeur(s, p.valeurPoint) : 0)
+                .put("msg",
+                        !p.actif ? "La fidélité n'est pas activée."
+                                : !inscrit ? "Le client n'est pas inscrit à la fidélité (fiche client)."
+                                        : s < Math.max(1, p.seuil) ? "Le client a " + s + " point(s) : il en faut "
+                                                + Math.max(1, p.seuil) + " pour payer avec ses points." : "");
     }
 
     /**
@@ -668,6 +698,9 @@ public class FideliteService {
         }
         if (client == null || !clientExiste(client)) {
             throw new PaiementPointsRefuse("Paiement en points : choisissez d'abord le client de la vente.");
+        }
+        if (!inscrit(client)) {
+            throw new PaiementPointsRefuse("Paiement en points refusé : le client n'est pas inscrit à la fidélité.");
         }
         long s = solde(client);
         int points = pointsPour(montant, p.valeurPoint);

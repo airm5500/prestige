@@ -315,7 +315,17 @@ Ext.define('testextjs.view.configmanagement.client.fidelite.FideliteClients', {
             });
             me.down('#enregistrerParametres').setVisible(!!me.droits.parametrer);
             me.down('#ajouterPalier').setVisible(!!me.droits.parametrer);
-            me.chargerParametres();
+            /* retours du 25/10 (point 2) : un droit pour chacun des onglets Parametres et Analyse */
+            Ext.Array.each([['#ongletParametres', me.droits.ongletParametres], ['#ongletAnalyse', me.droits.ongletAnalyse]], function (o) {
+                var onglet = me.down(o[0]);
+                if (onglet && !o[1]) {
+                    onglet.tab.hide();
+                    onglet.disable();
+                }
+            });
+            if (me.droits.ongletParametres) {
+                me.chargerParametres();
+            }
             me.synchroniser(false);
         });
     },

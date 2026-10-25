@@ -311,6 +311,16 @@ Ext.define('testextjs.view.configmanagement.client.action.addClientLast', {
                                     hidden: true
                                 },
                                 {
+                                    /* Retours du 25/10 (point 2) : inscription a la fidelite, cochee pour tous les clients ;
+                                     * decochee, le client ne gagne plus de points et ne paie plus avec. Montre en modification. */
+                                    xtype: 'checkbox',
+                                    fieldLabel: 'Fidélité',
+                                    boxLabel: 'Client fidélité (gagne et utilise des points)',
+                                    id: 'client_FIDELITE',
+                                    checked: true,
+                                    hidden: true
+                                },
+                                {
                                     fieldLabel: 'Code Postal',
                                     emptyText: 'CODE POSTAL',
                                     name: 'str_CODE_POSTAL',
@@ -661,6 +671,19 @@ Ext.define('testextjs.view.configmanagement.client.action.addClientLast', {
                     }
                 }
             });
+            Ext.Ajax.request({
+                method: 'GET',
+                url: '../api/v1/fidelite/client/' + encodeURIComponent(ref) + '/inscription',
+                success: function (response) {
+                    var r = Ext.JSON.decode(response.responseText, true) || {};
+                    var cbFid = Ext.getCmp('client_FIDELITE');
+                    if (cbFid && r.success) {
+                        cbFid.setValue(r.inscrit === true);
+                        cbFid.valeurInitiale = cbFid.getValue();
+                        cbFid.show();
+                    }
+                }
+            });
             Ext.getCmp('str_CODE_POSTAL').setValue(this.getOdatasource().str_CODE_POSTAL);
             Ext.getCmp('lg_VILLE_ID').setValue(this.getOdatasource().lg_VILLE_ID);
             //  Ext.getCmp('lg_MEDECIN_ID').setValue(this.getOdatasource().lg_MEDECIN_ID);
@@ -850,6 +873,11 @@ Ext.define('testextjs.view.configmanagement.client.action.addClientLast', {
                             if (cbMed && cbMed.isVisible()) {
                                 Ext.Ajax.request({method: 'POST',
                                     url: '../api/v1/client/' + ref + '/medicaments-messages?valeur=' + (cbMed.getValue() ? 'true' : 'false')});
+                            }
+                            var cbFid = Ext.getCmp('client_FIDELITE');
+                            if (cbFid && cbFid.isVisible() && cbFid.getValue() !== cbFid.valeurInitiale) {
+                                Ext.Ajax.request({method: 'POST',
+                                    url: '../api/v1/fidelite/client/' + encodeURIComponent(ref) + '/inscription?valeur=' + (cbFid.getValue() ? 'true' : 'false')});
                             }
                             var cbWa = Ext.getCmp('consent_WHATSAPP');
                             if (cbWa && cbWa.isVisible() && cbWa.getValue() !== cbWa.valeurInitiale) {

@@ -92,8 +92,14 @@ public class FideliteRessource {
         if (r != null) {
             return json(r);
         }
-        return json(new JSONObject().put("success", true).put("utiliser", droit(P_FIDELITE_UTILISER)).put("parametrer",
-                droit(P_FIDELITE_PARAMETRER)));
+        return json(new JSONObject().put("success", true).put("utiliser", droit(P_FIDELITE_UTILISER))
+                .put("parametrer", droit(P_FIDELITE_PARAMETRER)).put("ongletParametres", ongletParametres())
+                .put("ongletAnalyse", droit(Constant.P_FIDELITE_ONGLET_ANALYSE)));
+    }
+
+    /** Retours du 25/10 (point 2) : qui peut modifier le parametrage le voit aussi. */
+    private boolean ongletParametres() {
+        return droit(Constant.P_FIDELITE_ONGLET_PARAMETRES) || droit(P_FIDELITE_PARAMETRER);
     }
 
     /**
@@ -116,6 +122,9 @@ public class FideliteRessource {
     @Path("parametres")
     public Response parametres() {
         JSONObject r = refus(P_SM_FIDELITE);
+        if (r == null && !ongletParametres()) {
+            r = refus(Constant.P_FIDELITE_ONGLET_PARAMETRES);
+        }
         return json(r != null ? r : service.lireParametres());
     }
 
@@ -170,6 +179,24 @@ public class FideliteRessource {
             @QueryParam("limit") int limit) {
         JSONObject r = refus(P_SM_FIDELITE);
         return json(r != null ? r : service.clients(query, start, limit <= 0 ? 50 : limit));
+    }
+
+    /**
+     * Retours du 25/10 (point 2) : case « Client fidelite » de la fiche client (ouverte a qui modifie les clients,
+     * comme le consentement).
+     */
+    @GET
+    @Path("client/{id}/inscription")
+    public Response inscription(@PathParam("id") String id) {
+        JSONObject r = refus();
+        return json(r != null ? r : new JSONObject().put("success", true).put("inscrit", service.inscrit(id)));
+    }
+
+    @POST
+    @Path("client/{id}/inscription")
+    public Response inscrire(@PathParam("id") String id, @QueryParam("valeur") String valeur) {
+        JSONObject r = refus();
+        return json(r != null ? r : service.inscrire(id, "true".equalsIgnoreCase(StringUtils.trimToEmpty(valeur))));
     }
 
     @GET
@@ -251,7 +278,7 @@ public class FideliteRessource {
     @Path("analyse")
     public Response analyse(@QueryParam("dtStart") String du, @QueryParam("dtEnd") String au,
             @QueryParam("meilleurs") Integer meilleurs) {
-        JSONObject r = refus(P_SM_FIDELITE);
+        JSONObject r = refus(P_SM_FIDELITE, Constant.P_FIDELITE_ONGLET_ANALYSE);
         if (r != null) {
             return json(r);
         }
@@ -379,7 +406,7 @@ public class FideliteRessource {
     @Produces({ "application/pdf", "application/vnd.ms-excel", "application/json" })
     public Response editionAnalyse(@PathParam("format") String format, @QueryParam("dtStart") String du,
             @QueryParam("dtEnd") String au) throws java.io.IOException {
-        JSONObject r = refus(P_SM_FIDELITE);
+        JSONObject r = refus(P_SM_FIDELITE, Constant.P_FIDELITE_ONGLET_ANALYSE);
         if (r != null || !formatValide(format)) {
             return refusEdition(r != null ? r : echec("Format inconnu."));
         }
