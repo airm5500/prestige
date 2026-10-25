@@ -6,15 +6,16 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.LongSupplier;
 
 /**
- * Limite des essais de mot de passe (audit du 12/10, constat E2). Deux compteurs : par identifiant (5 echecs) et par
- * adresse du poste (20 echecs, plusieurs comptes peuvent s'y tromper). Au-dela, attente de 30 s, doublee a chaque
- * nouvel echec, 15 min au plus. Une connexion reussie remet les deux compteurs a zero ; un compteur sans echec depuis
- * 15 min est oublie. En memoire seulement : un redemarrage du serveur remet tout a zero.
+ * Limite des essais de mot de passe (audit du 12/10, constat E2 ; retour du 25/10). Deux compteurs : par identifiant
+ * (10 echecs) et par adresse du poste (50 echecs, plusieurs employes partagent un poste). Au seuil, attente de 30 s.
+ * L'attente ecoulee, une nouvelle serie complete d'essais est permise (une faute de frappe ne rebloque plus aussitot) ;
+ * chaque nouveau blocage double l'attente, 15 min au plus. Une connexion reussie remet tout a zero ; un compteur sans
+ * echec depuis 15 min est oublie. En memoire seulement : un redemarrage du serveur remet tout a zero.
  */
 public final class LimiteConnexion {
 
-    static final int SEUIL_IDENTIFIANT = 5;
-    static final int SEUIL_ADRESSE = 20;
+    static final int SEUIL_IDENTIFIANT = 10;
+    static final int SEUIL_ADRESSE = 50;
     static final long ATTENTE_INITIALE_MS = 30_000L;
     static final long ATTENTE_MAX_MS = 15 * 60_000L;
     static final long OUBLI_MS = 15 * 60_000L;
@@ -23,6 +24,8 @@ public final class LimiteConnexion {
 
     static final class Compteur {
         int echecs;
+        /* blocages deja subis : chacun double l'attente du suivant */
+        int blocages;
         long dernierEchec;
         long bloqueJusqua;
     }
@@ -72,10 +75,15 @@ public final class LimiteConnexion {
             if (c == null || maintenant - c.dernierEchec > OUBLI_MS) {
                 c = new Compteur();
             }
+            /* blocage termine : nouvelle serie d'essais (le nombre de blocages, lui, est garde) */
+            if (c.bloqueJusqua > 0 && c.bloqueJusqua <= maintenant) {
+                c.echecs = 0;
+                c.bloqueJusqua = 0;
+            }
             c.echecs++;
             c.dernierEchec = maintenant;
             if (c.echecs >= seuil) {
-                int rang = c.echecs - seuil;
+                int rang = c.blocages++;
                 long attente = rang >= 15 ? ATTENTE_MAX_MS : Math.min(ATTENTE_MAX_MS, ATTENTE_INITIALE_MS << rang);
                 c.bloqueJusqua = maintenant + attente;
             }

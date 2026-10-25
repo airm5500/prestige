@@ -9,7 +9,7 @@
  *  - refus « Badge non reconnu » sans session : secret faux, badge desactive, expire, employe inactif, login d'un autre,
  *    contenu illisible, connexion par badge coupee (KEY_CONNEXION_BADGE = 0) ;
  *  - journal de connexion : « par badge » ; le secret n'apparait ni dans le journal ni dans les traces du serveur ;
- *  - 5 echecs sur un badge : le suivant est refuse avec un delai d'attente, meme avec le bon secret ;
+ *  - 10 echecs sur un badge (retour du 25/10, 5 avant) : le suivant est refuse avec un delai d'attente, meme avec le bon secret ;
  *  - la connexion par mot de passe fonctionne toujours.
  */
 const { chromium } = require('playwright-core');
@@ -103,9 +103,9 @@ function nettoyer() {
 
     /* 6. limite d'essais (en dernier : le badge d'essai reste bloque) */
     const p6 = await page();
-    for (let i = 0; i < 5; i++) { await essai(p6, contenu('mauvais' + i + SECRET.slice(8))); }
+    for (let i = 0; i < 10; i++) { await essai(p6, contenu('mauvais' + i + SECRET.slice(8))); }
     const bloque = await essai(p6, contenu(SECRET));
-    ok('5 échecs sur un badge : le suivant est refusé avec délai, même avec le bon secret', bloque.j.success === false && bloque.j.attente > 0 && !bloque.connecte, JSON.stringify(bloque.j).slice(0, 160));
+    ok('10 échecs sur un badge : le suivant est refusé avec délai, même avec le bon secret', bloque.j.success === false && bloque.j.attente > 0 && !bloque.connecte, JSON.stringify(bloque.j).slice(0, 160));
   } catch (e) {
     ok('Parcours sans exception', false, e.stack);
   } finally {

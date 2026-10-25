@@ -3,7 +3,9 @@
  *  - nom de l'application, version et nom de la pharmacie viennent de l'API (v1/app/info) ;
  *  - deja connecte : la page renvoie directement vers l'accueil ;
  *  - mauvais mot de passe : message dans la page, aucune fenetre ;
- *  - 5 echecs sur un meme identifiant : attente imposee (ecran ET telephone), message clair ; un autre compte passe ;
+ *  - 10 echecs sur un meme identifiant (retour du 25/10, 5 avant) : attente imposee (ecran ET telephone), message
+ *    clair ; un autre compte passe ;
+ *  - retour du 25/10 : l'attente ecoulee, une faute de frappe ne rebloque pas aussitot et le bon mot de passe passe ;
  *  - l'identifiant de session change a la connexion (fixation de session).
  * Aucune donnee ecrite : l'identifiant d'essai n'existe pas ; le blocage est en memoire et expire seul.
  */
@@ -45,9 +47,9 @@ const FAUX = 'e2e_inconnu_' + Date.now();
     const essai = (login) => p.evaluate(async ([l]) => (await fetch('../api/v1/user/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ login: l, password: 'x' }) })).json(), [login]);
     const r = [];
-    for (let i = 0; i < 5; i++) { r.push(await essai(FAUX)); }
-    ok('4 premiers échecs : message habituel', r.slice(0, 4).every((x) => x.success === false && !x.attente && /incorrect/i.test(x.message)), JSON.stringify(r[3]));
-    ok('5e échec : attente de 30 s annoncée', r[4].attente === 30 && /Trop d'essais/.test(r[4].message), JSON.stringify(r[4]));
+    for (let i = 0; i < 10; i++) { r.push(await essai(FAUX)); }
+    ok('9 premiers échecs : message habituel', r.slice(0, 9).every((x) => x.success === false && !x.attente && /incorrect/i.test(x.message)), JSON.stringify(r[8]));
+    ok('10e échec : attente de 30 s annoncée', r[9].attente === 30 && /Trop d'essais/.test(r[9].message), JSON.stringify(r[9]));
     const r6 = await essai(FAUX);
     ok('Pendant l\'attente : refus immédiat avec le temps restant', r6.success === false && r6.attente > 0 && /Réessayez dans/.test(r6.message), JSON.stringify(r6));
     const mob = await (await fetch(URL + 'api/v1/mobile/connexion', { method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -56,6 +58,16 @@ const FAUX = 'e2e_inconnu_' + Date.now();
     await p.fill('#str_login', FAUX); await p.fill('#str_password', 'x'); await p.click('#login');
     await p.waitForFunction(() => /Trop d'essais/.test((document.getElementById('pl-message') || {}).textContent || ''), null, { timeout: 10000 }).catch(() => {});
     ok('Écran : message de blocage affiché', /Trop d'essais/.test(await p.textContent('#pl-message')), await p.textContent('#pl-message'));
+
+    /* retour du 25/10 : un compte reel bloque, l'attente ecoulee, une faute de frappe puis le bon mot de passe */
+    const essaiMdp = (l, m) => p.evaluate(async ([l2, m2]) => (await fetch('../api/v1/user/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ login: l2, password: m2 }) })).json(), [l, m]);
+    const ra = [];
+    for (let i = 0; i < 10; i++) { ra.push(await essaiMdp('admin', 'faux-' + i)); }
+    ok('Compte réel : bloqué au 10e échec', ra[9].attente === 30 && /Trop d'essais/.test(ra[9].message), JSON.stringify(ra[9]));
+    await p.waitForTimeout(31000);
+    const apresAttente = await essaiMdp('admin', 'encore-faux');
+    ok('Attente écoulée : une faute de frappe ne rebloque pas (message « incorrect »)', apresAttente.success === false && !apresAttente.attente && /incorrect/i.test(apresAttente.message), JSON.stringify(apresAttente));
 
     /* un autre compte passe ; la session change */
     ok('Page de connexion : aucune session créée avant la connexion (13/10)', !(await ctx.cookies()).some((c) => c.name === 'JSESSIONID'));
