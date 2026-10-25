@@ -1,0 +1,668 @@
+%PDF-1.4
+%
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [7 0 R 9 0 R 11 0 R 13 0 R 15 0 R 17 0 R 19 0 R 21 0 R] /Count 8 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Courier /Encoding /WinAnsiEncoding >>
+endobj
+6 0 obj
+<< /Length 6294 >>
+stream
+0.08 0.25 0.43 RG 48 804 m 547 804 l S
+BT /F2 8 Tf 0.38 0.42 0.46 rg 48 24 Td (PRESTIGE - RAPPORT STRATEGIQUE) Tj ET
+BT /F1 8 Tf 0.38 0.42 0.46 rg 513 24 Td (1) Tj ET
+0.08 0.25 0.43 rg 0 728 595 76 re f
+BT /F2 21 Tf 1 1 1 rg 48 776 Td (Rapport de comparaison  Prestige et Phnix) Tj ET
+BT /F2 21 Tf 1 1 1 rg 48 751 Td (\(AS PHARM\)) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 700.0 Td (Date de l'analyse : 8 octobre 2026 Primtre : couverture fonctionnelle, exprience produit,) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 687.8 Td (architecture, exploitation et axes d'amlioration.) Tj ET
+BT /F2 15 Tf 0.08 0.25 0.43 rg 48 662.5999999999999 Td (1. Objet et mthode) Tj ET
+0.08 0.25 0.43 RG 0.8 w 48 644.5999999999999 m 547 644.5999999999999 l S
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 633.6 Td (Ce rapport positionne Prestige face  Phnix, le logiciel de gestion d'officine prsent par AS PHARM.) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 614.4 Td (Les niveaux de preuve ne sont pas identiques :) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 597.1999999999998 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 597.1999999999998 Td (Prestige est valu  partir de son code source, de son modle de donnes, de ses API et de ses) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 585.3999999999999 Td (crans ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 571.5999999999999 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 571.5999999999999 Td (Phnix est valu  partir des informations publiques de l'diteur, sans accs  son code,  ses) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 559.8 Td (donnes ni  une instance de recette.) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 544.0 Td (Les affirmations concernant Phnix sont donc des fonctionnalits annonces par AS PHARM, et non) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 531.8 Td (les conclusions d'un audit indpendant. Une comparaison dfinitive des performances, de l'ergonomie et) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 519.6 Td (de la disponibilit ncessiterait une dmonstration sur des scnarios et jeux de donnes identiques.) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 500.4 Td (Sources publiques consultes :) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 483.19999999999993 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 483.19999999999993 Td (Prsentation gnrale de Phnix \(https://www.as-pharm.com/\)) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 469.3999999999999 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 469.3999999999999 Td (Prsentation des modules \(https://www.as-pharm.com/produit/\)) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 455.5999999999999 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 455.5999999999999 Td ([Annonce de lancement de) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 443.7999999999999 Td (Phnix]\(https://www.as-pharm.com/2026/07/09/as-pharm-lance-phenix-son-lgo-nouvelle-generation/\)) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 429.9999999999999 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 429.9999999999999 Td ([Prsentation publique de la gestion du stock]\(https://www.as-pharm.com/2026/07/09/5-signes-que-votr) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 418.1999999999999 Td (e-officine-perd-de-largent-sur-son-stock/\)) Tj ET
+BT /F2 15 Tf 0.08 0.25 0.43 rg 48 396.39999999999986 Td (2. Rsum excutif) Tj ET
+0.08 0.25 0.43 RG 0.8 w 48 378.39999999999986 m 547 378.39999999999986 l S
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 367.4 Td (Prestige dispose d'une profondeur mtier importante, particulirement sur :) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 350.1999999999999 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 350.1999999999999 Td (le stock et les mouvements ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 336.39999999999986 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 336.39999999999986 Td (les inventaires et leurs carts ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 322.59999999999985 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 322.59999999999985 Td (les tiers payants et leur facturation ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 308.79999999999984 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 308.79999999999984 Td (les dpts et rserves ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 294.99999999999983 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 294.99999999999983 Td (les ditions et analyses ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 281.1999999999998 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 281.1999999999998 Td (la personnalisation des rgles d'officine.) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 265.4 Td (Phnix possde un positionnement produit plus moderne et plus lisible, centr sur :) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 248.19999999999982 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 248.19999999999982 Td (une exprience utilisateur fluide ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 234.3999999999998 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 234.3999999999998 Td (un dploiement SaaS sans serveur  maintenir dans l'officine ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 220.5999999999998 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 220.5999999999998 Td (l'accs distant ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 206.79999999999978 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 206.79999999999978 Td (le mobile et le fonctionnement hors connexion annoncs ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 192.99999999999977 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 192.99999999999977 Td (la consolidation multi-officines ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 179.19999999999976 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 179.19999999999976 Td (les intgrations grossistes ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 165.39999999999975 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 165.39999999999975 Td (une offre et une tarification simples  comprendre.) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 149.6 Td (L'cart principal ne semble donc pas tre l'absence de mtier dans Prestige. Il rside plutt dans la) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 137.4 Td (prsentation, l'unification des parcours, le cloud, le mobile, l'exploitation industrielle et la) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 125.2 Td (mesure de la qualit de service.) Tj ET
+BT /F2 11.5 Tf 0.05 0.55 0.65 rg 48 99.99999999999974 Td (Positionnement recommand) Tj ET
+endstream
+endobj
+7 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 6 0 R >>
+endobj
+8 0 obj
+<< /Length 7638 >>
+stream
+0.08 0.25 0.43 RG 48 804 m 547 804 l S
+BT /F2 8 Tf 0.38 0.42 0.46 rg 48 24 Td (PRESTIGE - RAPPORT STRATEGIQUE) Tj ET
+BT /F1 8 Tf 0.38 0.42 0.46 rg 513 24 Td (2) Tj ET
+BT /F2 10.5 Tf 0.08 0.25 0.43 rg 60 780.0 Td (Prestige : la plateforme de gestion d'officine la plus profonde pour le stock, le tiers) Tj ET
+BT /F2 10.5 Tf 0.08 0.25 0.43 rg 60 766.0 Td (payant et le pilotage, modernise pour le cloud, le mobile et le multi-sites.) Tj ET
+BT /F2 15 Tf 0.08 0.25 0.43 rg 48 736 Td (3. Tableau comparatif) Tj ET
+0.08 0.25 0.43 RG 0.8 w 48 718 m 547 718 l S
+0.08 0.25 0.43 rg 48 691 499 22 re f
+BT /F2 8.2 Tf 1 1 1 rg 48 705.0 Td (Domaine  |  Prestige  constat dans le dpt  |  Phnix  annonce publique  |  Position apparente) Tj ET
+BT /F1 8.2 Tf 0.12 0.15 0.18 rg 48 688.0 Td (Domaine : Vente et caisse  Prestige  constat dans le dpt : Couverture mtier tendue, ventes ordinaires et dpt,) Tj ET
+BT /F1 8.2 Tf 0.12 0.15 0.18 rg 48 677.6 Td (rglements, tickets, vendeurs et contrles  Phnix  annonce publique : Comptoir rapide, recherche instantane,) Tj ET
+BT /F1 8.2 Tf 0.12 0.15 0.18 rg 48 667.2 Td (raccourcis, carte et Mobile Money  Position apparente : Prestige profond ; Phnix mieux prsent) Tj ET
+BT /F1 8.2 Tf 0.38 0.42 0.46 rg 48 652.8 Td (Domaine : Stock  Prestige  constat dans le dpt : Ruptures, seuils, ngatifs, dormants, valorisation, lots,) Tj ET
+BT /F1 8.2 Tf 0.38 0.42 0.46 rg 48 642.4 Td (mouvements et surstocks  Phnix  annonce publique : Suivi temps rel, alertes, commandes prpares automatiquement) Tj ET
+BT /F1 8.2 Tf 0.38 0.42 0.46 rg 48 632.0 Td ( Position apparente : Prestige plus analytique) Tj ET
+BT /F1 8.2 Tf 0.12 0.15 0.18 rg 48 617.6 Td (Domaine : Inventaire  Prestige  constat dans le dpt : Inventaires par rayon, lignes touches/non touches,) Tj ET
+BT /F1 8.2 Tf 0.12 0.15 0.18 rg 48 607.2 Td (carts, exports et inventaires cibls  Phnix  annonce publique : Inventaire assist au lecteur code-barres ) Tj ET
+BT /F1 8.2 Tf 0.12 0.15 0.18 rg 48 596.8 Td (Position apparente : Prestige plus profond ; Phnix probablement plus simple) Tj ET
+BT /F1 8.2 Tf 0.38 0.42 0.46 rg 48 582.4 Td (Domaine : Premption  Prestige  constat dans le dpt : Suivi par lot, alertes, valorisation des lots proches de) Tj ET
+BT /F1 8.2 Tf 0.38 0.42 0.46 rg 48 572.0 Td (l'chance  Phnix  annonce publique : Alertes et suivi par lot/date annoncs  Position apparente : quilibre sur) Tj ET
+BT /F1 8.2 Tf 0.38 0.42 0.46 rg 48 561.6 Td (la promesse, avantage Prestige sur la preuve) Tj ET
+BT /F1 8.2 Tf 0.12 0.15 0.18 rg 48 547.2 Td (Domaine : Commandes grossistes  Prestige  constat dans le dpt : Commandes, bons, suggestions, ruptures et) Tj ET
+BT /F1 8.2 Tf 0.12 0.15 0.18 rg 48 536.8 Td (intgration PharmaML  Phnix  annonce publique : Connexion aux extranets et commandes sans ressaisie annonces ) Tj ET
+BT /F1 8.2 Tf 0.12 0.15 0.18 rg 48 526.4 Td (Position apparente : Phnix sur l'intgration annonce) Tj ET
+BT /F1 8.2 Tf 0.38 0.42 0.46 rg 48 512.0 Td (Domaine : Tiers payant  Prestige  constat dans le dpt : Dossiers, ayants droit, plafonds, factures, bordereaux,) Tj ET
+BT /F1 8.2 Tf 0.38 0.42 0.46 rg 48 501.6 Td (rglements, modles et analyses  Phnix  annonce publique : Contrle intgr au point de vente  Position apparente) Tj ET
+BT /F1 8.2 Tf 0.38 0.42 0.46 rg 48 491.2 Td (: Avantage fonctionnel probable Prestige) Tj ET
+BT /F1 8.2 Tf 0.12 0.15 0.18 rg 48 476.8 Td (Domaine : Reporting  Prestige  constat dans le dpt : Grand nombre d'tats, pilotage, ABC, ventes, caisse, achats,) Tj ET
+BT /F1 8.2 Tf 0.12 0.15 0.18 rg 48 466.4 Td (stock et tiers payant  Phnix  annonce publique : Tableaux en temps rel, rapports email et vue consolide ) Tj ET
+BT /F1 8.2 Tf 0.12 0.15 0.18 rg 48 456.0 Td (Position apparente : Prestige profond ; Phnix plus accessible) Tj ET
+BT /F1 8.2 Tf 0.38 0.42 0.46 rg 48 441.6 Td (Domaine : Dpts  Prestige  constat dans le dpt : Stocks, ventes, carnets et mouvements ddis  Phnix  annonce) Tj ET
+BT /F1 8.2 Tf 0.38 0.42 0.46 rg 48 431.2 Td (publique : Gestion des dpts annonce sur mobile  Position apparente : Prestige mtier ; Phnix mobilit) Tj ET
+BT /F1 8.2 Tf 0.12 0.15 0.18 rg 48 416.8 Td (Domaine : Multi-officines  Prestige  constat dans le dpt : Emplacements et dpts ; consolidation globale ) Tj ET
+BT /F1 8.2 Tf 0.12 0.15 0.18 rg 48 406.4 Td (renforcer  Phnix  annonce publique : Vue par site et consolide annonce  Position apparente : Avantage Phnix) Tj ET
+BT /F1 8.2 Tf 0.38 0.42 0.46 rg 48 392.0 Td (Domaine : Mobile/hors ligne  Prestige  constat dans le dpt : APIs existantes, mais pas d'exprience homogne) Tj ET
+BT /F1 8.2 Tf 0.38 0.42 0.46 rg 48 381.6 Td (dmontre  Phnix  annonce publique : Application Android et synchronisation hors ligne annonces  Position) Tj ET
+BT /F1 8.2 Tf 0.38 0.42 0.46 rg 48 371.2 Td (apparente : Avantage Phnix) Tj ET
+BT /F1 8.2 Tf 0.12 0.15 0.18 rg 48 356.8 Td (Domaine : RH et pointage  Prestige  constat dans le dpt : Socle backend rcent pour employs, absences, pointages) Tj ET
+BT /F1 8.2 Tf 0.12 0.15 0.18 rg 48 346.4 Td (et imports CSV  Phnix  annonce publique : Non mis en avant publiquement  Position apparente : Opportunit de) Tj ET
+BT /F1 8.2 Tf 0.12 0.15 0.18 rg 48 336.0 Td (diffrenciation Prestige) Tj ET
+BT /F1 8.2 Tf 0.38 0.42 0.46 rg 48 321.6 Td (Domaine : Dploiement  Prestige  constat dans le dpt : WAR Java EE, GlassFish, MySQL, fichiers et configuration) Tj ET
+BT /F1 8.2 Tf 0.38 0.42 0.46 rg 48 311.2 Td (locale  Phnix  annonce publique : SaaS accessible au navigateur, sans serveur officinal annonc  Position) Tj ET
+BT /F1 8.2 Tf 0.38 0.42 0.46 rg 48 300.8 Td (apparente : Avantage Phnix) Tj ET
+BT /F1 8.2 Tf 0.12 0.15 0.18 rg 48 286.4 Td (Domaine : Personnalisation  Prestige  constat dans le dpt : Forte richesse de rgles et d'crans spcialiss ) Tj ET
+BT /F1 8.2 Tf 0.12 0.15 0.18 rg 48 276.0 Td (Phnix  annonce publique : Adaptation aux pays et besoins annonce  Position apparente : Avantage probable Prestige) Tj ET
+BT /F1 8.2 Tf 0.38 0.42 0.46 rg 48 261.6 Td (Domaine : Scurit  Prestige  constat dans le dpt : Rles, privilges et sessions prsents ; homognit ) Tj ET
+BT /F1 8.2 Tf 0.38 0.42 0.46 rg 48 251.2 Td (auditer  Phnix  annonce publique : Rles et sauvegardes annoncs ; dtails techniques non publis  Position) Tj ET
+BT /F1 8.2 Tf 0.38 0.42 0.46 rg 48 240.8 Td (apparente : Audit ncessaire des deux cts) Tj ET
+BT /F1 8.2 Tf 0.12 0.15 0.18 rg 48 226.4 Td (Domaine : Offre commerciale  Prestige  constat dans le dpt : Non documente dans le dpt  Phnix  annonce) Tj ET
+BT /F1 8.2 Tf 0.12 0.15 0.18 rg 48 216.0 Td (publique : Prix par session, migration, formation et assistance annoncs  Position apparente : Avantage Phnix) Tj ET
+BT /F2 15 Tf 0.08 0.25 0.43 rg 48 191.6000000000008 Td (4. Analyse par domaine) Tj ET
+0.08 0.25 0.43 RG 0.8 w 48 173.6000000000008 m 547 173.6000000000008 l S
+BT /F2 11.5 Tf 0.05 0.55 0.65 rg 48 156.6000000000008 Td (4.1 Vente et caisse) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 137.1 Td (Prestige possde de nombreux parcours de vente et de rglement. Cette richesse constitue un actif,) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 124.9 Td (mais elle augmente le risque de fragmentation entre crans historiques et crans rcents.) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 105.7 Td (Phnix met davantage en avant le rsultat utilisateur : rapidit, recherche immdiate, encaissement) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 93.5 Td (sans quitter le comptoir et prise en charge des paiements locaux.) Tj ET
+endstream
+endobj
+9 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 8 0 R >>
+endobj
+10 0 obj
+<< /Length 6180 >>
+stream
+0.08 0.25 0.43 RG 48 804 m 547 804 l S
+BT /F2 8 Tf 0.38 0.42 0.46 rg 48 24 Td (PRESTIGE - RAPPORT STRATEGIQUE) Tj ET
+BT /F1 8 Tf 0.38 0.42 0.46 rg 513 24 Td (3) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 784.0 Td (Enjeu pour Prestige : mesurer et rduire le temps rel d'une vente plutt que multiplier les) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 771.8 Td (fonctions visibles.) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 752.6 Td (Indicateurs  suivre :) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 735.3999999999999 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 735.3999999999999 Td (temps mdian de cration d'un ticket ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 721.5999999999999 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 721.5999999999999 Td (temps de recherche d'un produit ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 707.8 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 707.8 Td (nombre de clics ou touches par vente ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 694.0 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 694.0 Td (taux d'abandon et de vente rate ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 680.2 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 680.2 Td (erreurs de rglement et carts de caisse ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 666.4000000000001 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 666.4000000000001 Td (temps de rponse au 95e percentile pendant les heures de pointe.) Tj ET
+BT /F2 11.5 Tf 0.05 0.55 0.65 rg 48 644.6000000000001 Td (4.2 Stock, seuils et couverture) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 625.1 Td (Prestige possde dj les seuils minimum/maximum, la consommation, le dlai de rapprovisionnement, la) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 612.9 Td (moyenne de vente et un coefficient de scurit. Il sait aussi dtecter les ruptures, les stocks) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 600.7 Td (ngatifs, les produits sous seuil et les produits sans seuil.) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 581.5 Td (La prochaine volution ne doit pas se limiter  une alerte stock < seuil. Elle doit expliquer le) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 569.3 Td (risque par la couverture :) Tj ET
+0.95 0.97 0.98 rg 48 466.5999999999999 499 89.5 re f
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 544.0999999999999 Td (VMJ = quantit vendue / nombre de jours o le produit tait disponible) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 533.5999999999999 Td () Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 523.0999999999999 Td (Couverture = stock vendable / VMJ) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 512.5999999999999 Td () Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 502.0999999999999 Td (Horizon de protection = dlai fournisseur + jours de scurit) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 491.5999999999999 Td () Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 481.0999999999999 Td (Risque de rupture officine si couverture <= horizon de protection) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 456.6 Td (Le diagnostic doit distinguer :) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 439.3999999999999 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 439.3999999999999 Td (rupture interne vitable ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 425.5999999999999 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 425.5999999999999 Td (rupture fournisseur ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 411.7999999999999 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 411.7999999999999 Td (erreur de stock ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 397.9999999999999 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 397.9999999999999 Td (demande exceptionnelle ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 384.1999999999999 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 384.1999999999999 Td (commande dj en cours ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 370.39999999999986 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 370.39999999999986 Td (produit dormant ou non suggrable.) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 354.6 Td (Promesse recommande :  Prestige anticipe les risques de rupture et propose l'action adapte ,) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 342.4 Td (plutt que  Prestige empche toutes les ruptures .) Tj ET
+BT /F2 11.5 Tf 0.05 0.55 0.65 rg 48 317.1999999999999 Td (4.3 Premptions) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 297.7 Td (Prestige suit dj les lots et les chances. Le prochain niveau consiste  calculer non seulement) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 285.5 Td (qu'un lot expire bientt, mais la quantit qui risque rellement de ne pas tre vendue :) Tj ET
+0.95 0.97 0.98 rg 48 203.7999999999999 499 68.5 re f
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 260.2999999999999 Td (Quantit vendable avant premption = VMJ  jours restants) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 249.7999999999999 Td () Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 239.2999999999999 Td (Quantit  risque = max\(0, stock du lot - quantit vendable\)) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 228.7999999999999 Td () Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 218.2999999999999 Td (Valeur  risque = quantit  risque  prix d'achat) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 193.8 Td (Les actions associes doivent tre explicites : retour fournisseur, transfert, mise en avant, commande) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 181.6 Td (suspendue, inventaire ou destruction rglementaire.) Tj ET
+BT /F2 11.5 Tf 0.05 0.55 0.65 rg 48 156.39999999999992 Td (4.4 Commandes et fournisseurs) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 136.9 Td (Prestige possde le socle commande et PharmaML. Pour rivaliser sur l'automatisation, il faut) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 124.7 Td (enregistrer la qualit relle de chaque fournisseur :) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 107.49999999999991 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 107.49999999999991 Td (quantit demande, confirme et livre ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 93.69999999999992 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 93.69999999999992 Td (indisponibilits ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 79.89999999999992 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 79.89999999999992 Td (dlais annoncs et observs ;) Tj ET
+endstream
+endobj
+11 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 10 0 R >>
+endobj
+12 0 obj
+<< /Length 6599 >>
+stream
+0.08 0.25 0.43 RG 48 804 m 547 804 l S
+BT /F2 8 Tf 0.38 0.42 0.46 rg 48 24 Td (PRESTIGE - RAPPORT STRATEGIQUE) Tj ET
+BT /F1 8 Tf 0.38 0.42 0.46 rg 513 24 Td (4) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 786 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 786 Td (livraisons partielles ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 772.2 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 772.2 Td (prix et conditions ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 758.4000000000001 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 758.4000000000001 Td (taux de service.) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 742.6 Td (La suggestion de commande doit intgrer :) Tj ET
+0.95 0.97 0.98 rg 48 660.9000000000001 499 68.5 re f
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 717.4000000000001 Td (stock disponible) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 706.9000000000001 Td (+ commandes confirmes) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 696.4000000000001 Td (- rservations) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 685.9000000000001 Td (- demande prvue pendant le dlai) Tj ET
+BT /F3 8.2 Tf 0.17 0.22 0.27 rg 58 675.4000000000001 Td (+ stock de scurit) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 650.9 Td (Chaque proposition doit afficher sa formule afin de rester contrlable par le pharmacien.) Tj ET
+BT /F2 11.5 Tf 0.05 0.55 0.65 rg 48 625.7 Td (4.5 Tiers payant) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 606.2 Td (Prestige parat disposer d'un avantage mtier significatif grce  ses dossiers, factures, bordereaux,) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 594.0 Td (rglements et modles dynamiques. Cet avantage doit tre rendu plus visible dans le parcours de vente) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 581.8 Td (: contrle des droits, plafonds, exclusions, part patient et accord sans changer d'cran.) Tj ET
+BT /F2 11.5 Tf 0.05 0.55 0.65 rg 48 556.5999999999999 Td (4.6 Reporting et dcision) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 537.1 Td (Prestige possde de nombreux tats, mais une collection de rapports ne constitue pas automatiquement) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 524.9 Td (un pilotage efficace. Chaque indicateur prioritaire doit ouvrir une action :) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 507.6999999999998 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 507.6999999999998 Td (rupture ? commander, transfrer ou inventorier ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 493.8999999999998 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 493.8999999999998 Td (premption ? retourner ou transfrer ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 480.0999999999998 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 480.0999999999998 Td (surstock ? suspendre la commande ou crer un inventaire cibl ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 466.2999999999998 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 466.2999999999998 Td (impay ? relancer ou ouvrir le dossier ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 452.4999999999998 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 452.4999999999998 Td (anomalie de caisse ? consulter les oprations responsables.) Tj ET
+BT /F2 11.5 Tf 0.05 0.55 0.65 rg 48 430.69999999999976 Td (4.7 SaaS et multi-sites) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 411.2 Td (Prestige est dj une application web Java empaquete en WAR et connecte  MySQL par une source de) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 399.0 Td (donnes serveur. Il peut tre hberg, mais un vritable SaaS demande davantage qu'une mise en ligne.) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 379.8 Td (La trajectoire la moins risque est :) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 362.5999999999998 Td (1.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 362.5999999999998 Td (une instance et une base isoles par pharmacie ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 348.7999999999998 Td (2.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 348.7999999999998 Td (une plateforme centrale de dploiement, supervision et sauvegarde ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 334.9999999999998 Td (3.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 334.9999999999998 Td (des services mutualiss pour l'identit, les notifications et connecteurs ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 321.19999999999976 Td (4.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 321.19999999999976 Td (une consolidation multi-officines ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 307.39999999999975 Td (5.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 307.39999999999975 Td (ventuellement, aprs audit complet, un modle multi-tenant plus pouss.) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 291.6 Td (Passer directement  une base partage serait risqu  cause du volume de SQL natif, des hypothses) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 279.4 Td (d'emplacement et du besoin d'isolation stricte des donnes.) Tj ET
+BT /F2 11.5 Tf 0.05 0.55 0.65 rg 48 254.19999999999976 Td (4.8 Mobile et hors connexion) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 234.7 Td (Le hors-ligne ne doit pas se limiter  mettre les pages en cache. Il faut :) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 217.49999999999977 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 217.49999999999977 Td (un journal local des oprations ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 203.69999999999976 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 203.69999999999976 Td (des identifiants d'vnement uniques ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 189.89999999999975 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 189.89999999999975 Td (une synchronisation idempotente ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 176.09999999999974 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 176.09999999999974 Td (une gestion de l'ordre des oprations ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 162.29999999999973 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 162.29999999999973 Td (des rgles de rsolution des conflits ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 148.49999999999972 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 148.49999999999972 Td (un tat visible de synchronisation ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 134.6999999999997 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 134.6999999999997 Td (une stratgie pour les prix, stocks, plafonds et numros de ticket pendant la coupure.) Tj ET
+BT /F2 11.5 Tf 0.05 0.55 0.65 rg 48 112.89999999999971 Td (4.9 RH et pointage) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 93.4 Td (Le socle rcemment ajout doit tre considr comme une fondation, pas comme un module termin. Pour) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 81.2 Td (devenir une diffrenciation commerciale, il manque notamment :) Tj ET
+endstream
+endobj
+13 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 12 0 R >>
+endobj
+14 0 obj
+<< /Length 6459 >>
+stream
+0.08 0.25 0.43 RG 48 804 m 547 804 l S
+BT /F2 8 Tf 0.38 0.42 0.46 rg 48 24 Td (PRESTIGE - RAPPORT STRATEGIQUE) Tj ET
+BT /F1 8 Tf 0.38 0.42 0.46 rg 513 24 Td (5) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 786 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 786 Td (les crans employs ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 772.2 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 772.2 Td (les plannings ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 758.4000000000001 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 758.4000000000001 Td (les soldes et demandes de congs ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 744.6000000000001 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 744.6000000000001 Td (la validation hirarchique ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 730.8000000000002 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 730.8000000000002 Td (les rgles d'horaires, pauses, retards et heures supplmentaires ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 717.0000000000002 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 717.0000000000002 Td (le rapprochement des pointages ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 703.2000000000003 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 703.2000000000003 Td (la correction avec traabilit ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 689.4000000000003 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 689.4000000000003 Td (les rapports RH ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 675.6000000000004 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 675.6000000000004 Td (l'authentification des appareils mobiles et pointeuses.) Tj ET
+BT /F2 15 Tf 0.08 0.25 0.43 rg 48 653.8000000000004 Td (5. Principaux axes d'amlioration) Tj ET
+0.08 0.25 0.43 RG 0.8 w 48 635.8000000000004 m 547 635.8000000000004 l S
+BT /F2 11.5 Tf 0.05 0.55 0.65 rg 48 618.8000000000004 Td (Axe 1  Unifier l'exprience du comptoir) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 599.3 Td (Objectif : rendre les oprations frquentes plus rapides que chez les concurrents.) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 580.1 Td (Actions :) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 562.9000000000003 Td (1.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 562.9000000000003 Td (redessiner le parcours venteencaissement ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 549.1000000000004 Td (2.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 549.1000000000004 Td (rendre toutes les oprations utilisables au clavier et au code-barres ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 535.3000000000004 Td (3.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 535.3000000000004 Td (intgrer tiers payant et rglements sans changement d'cran ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 521.5000000000005 Td (4.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 521.5000000000005 Td (instrumenter les temps de rponse et le nombre d'actions ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 507.70000000000044 Td (5.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 507.70000000000044 Td (tester avec des vendeurs en conditions de pointe.) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 491.9 Td (Priorit : critique.) Tj ET
+BT /F2 11.5 Tf 0.05 0.55 0.65 rg 48 466.70000000000044 Td (Axe 2  Crer un centre de dcision stock) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 447.2 Td (Objectif : runir les nombreux moteurs existants dans une seule liste d'actions.) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 428.0 Td (Le centre doit prsenter :) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 410.80000000000047 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 410.80000000000047 Td (couverture et date prvisionnelle de rupture ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 397.00000000000045 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 397.00000000000045 Td (commande en cours ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 383.20000000000044 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 383.20000000000044 Td (suggestion explique ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 369.40000000000043 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 369.40000000000043 Td (disponibilit par grossiste ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 355.6000000000004 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 355.6000000000004 Td (surstock et dormant ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 341.8000000000004 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 341.8000000000004 Td (premption et valeur  risque ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 328.0000000000004 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 328.0000000000004 Td (transfert possible entre sites ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 314.2000000000004 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 314.2000000000004 Td (anomalie ncessitant un inventaire.) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 298.4 Td (Priorit : critique.) Tj ET
+BT /F2 11.5 Tf 0.05 0.55 0.65 rg 48 273.2000000000004 Td (Axe 3  Fiabiliser et automatiser le rapprovisionnement) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 253.7 Td (Objectif : passer du seuil manuel  une recommandation dynamique contrlable.) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 234.5 Td (Actions :) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 217.3000000000004 Td (1.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 217.3000000000004 Td (calculer la VMJ corrige des jours de rupture ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 203.5000000000004 Td (2.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 203.5000000000004 Td (mesurer le dlai rel par fournisseur ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 189.7000000000004 Td (3.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 189.7000000000004 Td (intgrer commandes en cours et rservations ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 175.90000000000038 Td (4.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 175.90000000000038 Td (calculer stock de scurit et couverture ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 162.10000000000036 Td (5.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 162.10000000000036 Td (arrondir aux conditionnements ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 148.30000000000035 Td (6.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 148.30000000000035 Td (mesurer l'efficacit des alertes et suggestions.) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 132.5 Td (Priorit : leve.) Tj ET
+BT /F2 11.5 Tf 0.05 0.55 0.65 rg 48 107.30000000000034 Td (Axe 4  Construire une offre SaaS industrialise) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 87.8 Td (Objectif : dployer, mettre  jour et superviser les officines sans intervention manuelle.) Tj ET
+endstream
+endobj
+15 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 14 0 R >>
+endobj
+16 0 obj
+<< /Length 6263 >>
+stream
+0.08 0.25 0.43 RG 48 804 m 547 804 l S
+BT /F2 8 Tf 0.38 0.42 0.46 rg 48 24 Td (PRESTIGE - RAPPORT STRATEGIQUE) Tj ET
+BT /F1 8 Tf 0.38 0.42 0.46 rg 513 24 Td (6) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 784.0 Td (Actions :) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 766.8 Td (1.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 766.8 Td (conteneuriser Prestige ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 753.0 Td (2.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 753.0 Td (externaliser configuration et secrets ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 739.2 Td (3.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 739.2 Td (supprimer les dpendances au disque local ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 725.4000000000001 Td (4.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 725.4000000000001 Td (automatiser Flyway, sauvegardes et restaurations ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 711.6000000000001 Td (5.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 711.6000000000001 Td (centraliser journaux, mtriques et alertes ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 697.8000000000002 Td (6.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 697.8000000000002 Td (commencer par une base isole par pharmacie ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 684.0000000000002 Td (7.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 684.0000000000002 Td (auditer toutes les requtes avant toute mutualisation de donnes.) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 668.2 Td (Priorit : critique pour la stratgie produit.) Tj ET
+BT /F2 11.5 Tf 0.05 0.55 0.65 rg 48 643.0000000000002 Td (Axe 5  Ajouter un fonctionnement hors connexion fiable) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 623.5 Td (Objectif : maintenir les oprations essentielles pendant les coupures.) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 604.3 Td (Commencer par un primtre rduit :) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 587.1000000000001 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 587.1000000000001 Td (recherche produit ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 573.3000000000002 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 573.3000000000002 Td (vente comptant ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 559.5000000000002 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 559.5000000000002 Td (rglement ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 545.7000000000003 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 545.7000000000003 Td (ticket ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 531.9000000000003 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 531.9000000000003 Td (inventaire ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 518.1000000000004 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 518.1000000000004 Td (synchronisation.) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 502.3 Td (Ne pas commencer par les oprations les plus conflictuelles, comme la facturation complexe des tiers) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 490.1 Td (payants.) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 470.9 Td (Priorit : leve selon les pays et la qualit de connexion.) Tj ET
+BT /F2 11.5 Tf 0.05 0.55 0.65 rg 48 445.7000000000004 Td (Axe 6  Consolider les officines et organiser les transferts) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 426.2 Td (Objectif : offrir une vraie vue groupe, distincte des dpts d'une seule officine.) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 407.0 Td (Actions :) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 389.8000000000004 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 389.8000000000004 Td (identit groupe/officine/site/emplacement ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 376.0000000000004 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 376.0000000000004 Td (droits par site ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 362.2000000000004 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 362.2000000000004 Td (consolidation du CA, stock et trsorerie ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 348.4000000000004 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 348.4000000000004 Td (transferts tracs ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 334.60000000000036 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 334.60000000000036 Td (proposition d'un transfert avant une nouvelle commande ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 320.80000000000035 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 320.80000000000035 Td (indicateurs comparables entre sites.) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 305.0 Td (Priorit : leve.) Tj ET
+BT /F2 11.5 Tf 0.05 0.55 0.65 rg 48 279.80000000000035 Td (Axe 7  Renforcer scurit et traabilit) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 260.3 Td (Objectif : rendre le produit exploitable en SaaS sans augmenter le risque mtier.) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 241.1 Td (Actions :) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 223.90000000000038 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 223.90000000000038 Td (audit des routes et privilges ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 210.10000000000036 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 210.10000000000036 Td (authentification renforce des administrateurs ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 196.30000000000035 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 196.30000000000035 Td (journal d'audit homogne ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 182.50000000000034 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 182.50000000000034 Td (chiffrement des secrets ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 168.70000000000033 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 168.70000000000033 Td (isolation stricte des clients ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 154.90000000000032 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 154.90000000000032 Td (sauvegardes testes par restauration ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 141.1000000000003 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 141.1000000000003 Td (gestion des appareils et rvocation ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 127.3000000000003 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 127.3000000000003 Td (tests automatiques empchant les accs inter-clients.) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 111.5 Td (Priorit : critique.) Tj ET
+BT /F2 11.5 Tf 0.05 0.55 0.65 rg 48 86.3000000000003 Td (Axe 8  Moderniser progressivement, sans rcriture totale) Tj ET
+endstream
+endobj
+17 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 16 0 R >>
+endobj
+18 0 obj
+<< /Length 6628 >>
+stream
+0.08 0.25 0.43 RG 48 804 m 547 804 l S
+BT /F2 8 Tf 0.38 0.42 0.46 rg 48 24 Td (PRESTIGE - RAPPORT STRATEGIQUE) Tj ET
+BT /F1 8 Tf 0.38 0.42 0.46 rg 513 24 Td (7) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 784.0 Td (Objectif : conserver la connaissance mtier accumule tout en rduisant la dette technique.) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 764.8 Td (Approche :) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 747.5999999999999 Td (1.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 747.5999999999999 Td (stabiliser les rgles critiques par des tests ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 733.8 Td (2.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 733.8 Td (documenter les API ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 720.0 Td (3.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 720.0 Td (crer une faade cohrente devant le mtier historique ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 706.2 Td (4.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 706.2 Td (remplacer les parcours un  un ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 692.4000000000001 Td (5.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 692.4000000000001 Td (extraire uniquement les services qui doivent voluer indpendamment ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 678.6000000000001 Td (6.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 678.6000000000001 Td (supprimer ensuite les anciennes routes devenues inutiles.) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 662.8 Td (Priorit : continue.) Tj ET
+BT /F2 11.5 Tf 0.05 0.55 0.65 rg 48 637.6000000000001 Td (Axe 9  Terminer le module RH) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 618.1 Td (Objectif : transformer le socle technique en produit utilisable.) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 598.9 Td (Actions :) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 581.7 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 581.7 Td (workflow employs et contrats ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 567.9000000000001 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 567.9000000000001 Td (congs/repos avec validation ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 554.1000000000001 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 554.1000000000001 Td (planning ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 540.3000000000002 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 540.3000000000002 Td (import de pointeuse assist  l'cran ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 526.5000000000002 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 526.5000000000002 Td (rapprochement entre/sortie ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 512.7000000000003 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 512.7000000000003 Td (anomalies et corrections traces ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 498.90000000000026 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 498.90000000000026 Td (calcul des heures ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 485.10000000000025 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 485.10000000000025 Td (exports de prparation de paie ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 471.30000000000024 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 471.30000000000024 Td (rgles de confidentialit et conservation.) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 455.5 Td (Priorit : moyenne, aprs scurisation du cur officinal.) Tj ET
+BT /F2 11.5 Tf 0.05 0.55 0.65 rg 48 430.30000000000024 Td (Axe 10  Clarifier l'offre commerciale) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 410.8 Td (Objectif : vendre des rsultats, pas une liste de menus.) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 391.6 Td (Proposition :) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 374.40000000000026 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 374.40000000000026 Td (Prestige Officine : vente, stock, caisse et commandes ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 360.60000000000025 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 360.60000000000025 Td (Prestige Plus : tiers payant, pilotage et automatisations ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 346.80000000000024 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 346.80000000000024 Td (Prestige Groupe : multi-sites, mobile, consolidation et transferts.) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 331.0 Td (Messages recommands :) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 313.80000000000024 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 313.80000000000024 Td (vendre plus vite ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 300.0000000000002 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 300.0000000000002 Td (anticiper les risques de rupture ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 286.2000000000002 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 286.2000000000002 Td (rduire surstocks et premptions ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 272.4000000000002 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 272.4000000000002 Td (rcuprer les impays ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 258.6000000000002 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 258.6000000000002 Td (piloter l'officine  distance.) Tj ET
+BT /F2 15 Tf 0.08 0.25 0.43 rg 48 236.80000000000018 Td (6. Feuille de route propose) Tj ET
+0.08 0.25 0.43 RG 0.8 w 48 218.80000000000018 m 547 218.80000000000018 l S
+BT /F2 11.5 Tf 0.05 0.55 0.65 rg 48 201.80000000000018 Td (Horizon 03 mois : mesurer et scuriser) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 184.30000000000018 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 184.30000000000018 Td (dfinir les cinq parcours prioritaires ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 170.50000000000017 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 170.50000000000017 Td (instrumenter les performances ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 156.70000000000016 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 156.70000000000016 Td (auditer droits, sauvegardes et restauration ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 142.90000000000015 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 142.90000000000015 Td (inventorier fichiers locaux et SQL natif ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 129.10000000000014 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 129.10000000000014 Td (tablir les KPI de rupture, couverture, premption et qualit du stock ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 115.30000000000014 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 115.30000000000014 Td (ajouter des tests sur vente, stock, caisse et tiers payant.) Tj ET
+BT /F2 11.5 Tf 0.05 0.55 0.65 rg 48 93.50000000000014 Td (Horizon 36 mois : valeur utilisateur visible) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 76.00000000000014 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 76.00000000000014 Td (livrer le centre de dcision stock ;) Tj ET
+endstream
+endobj
+19 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 18 0 R >>
+endobj
+20 0 obj
+<< /Length 6742 >>
+stream
+0.08 0.25 0.43 RG 48 804 m 547 804 l S
+BT /F2 8 Tf 0.38 0.42 0.46 rg 48 24 Td (PRESTIGE - RAPPORT STRATEGIQUE) Tj ET
+BT /F1 8 Tf 0.38 0.42 0.46 rg 513 24 Td (8) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 786 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 786 Td (afficher couverture, horizon de protection et suggestion explique ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 772.2 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 772.2 Td (moderniser le comptoir sur les oprations frquentes ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 758.4000000000001 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 758.4000000000001 Td (produire une premire instance hberge reproductible ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 744.6000000000001 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 744.6000000000001 Td (centraliser logs, mtriques et sauvegardes.) Tj ET
+BT /F2 11.5 Tf 0.05 0.55 0.65 rg 48 722.8000000000002 Td (Horizon 612 mois : SaaS et rseau) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 705.3000000000002 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 705.3000000000002 Td (automatiser la cration d'une officine ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 691.5000000000002 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 691.5000000000002 Td (dployer le portail d'administration ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 677.7000000000003 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 677.7000000000003 Td (mettre en place le stockage de documents externalis ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 663.9000000000003 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 663.9000000000003 Td (consolider plusieurs sites ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 650.1000000000004 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 650.1000000000004 Td (proposer les transferts inter-officines ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 636.3000000000004 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 636.3000000000004 Td (lancer un premier mode hors ligne limit et contrl.) Tj ET
+BT /F2 11.5 Tf 0.05 0.55 0.65 rg 48 614.5000000000005 Td (Horizon 1218 mois : diffrenciation) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 597.0000000000005 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 597.0000000000005 Td (prvision saisonnire ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 583.2000000000005 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 583.2000000000005 Td (notation des fournisseurs ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 569.4000000000005 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 569.4000000000005 Td (optimisation commande/transfert ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 555.6000000000006 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 555.6000000000006 Td (premption prdictive ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 541.8000000000006 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 541.8000000000006 Td (mobile tendu ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 528.0000000000007 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 528.0000000000007 Td (module RH complet ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 514.2000000000007 Td () Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 514.2000000000007 Td (API partenaires documente.) Tj ET
+BT /F2 15 Tf 0.08 0.25 0.43 rg 48 492.4000000000007 Td (7. Indicateurs de russite) Tj ET
+0.08 0.25 0.43 RG 0.8 w 48 474.4000000000007 m 547 474.4000000000007 l S
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 463.4 Td (Le programme doit tre valu par des rsultats mesurables :) Tj ET
+0.08 0.25 0.43 rg 48 428.2000000000007 499 22 re f
+BT /F2 8.2 Tf 1 1 1 rg 48 442.2 Td (Objectif  |  Indicateur) Tj ET
+BT /F1 8.2 Tf 0.12 0.15 0.18 rg 48 425.2 Td (Objectif : Rduire les ruptures  Indicateur : Taux de rupture et nombre de jours de rupture) Tj ET
+BT /F1 8.2 Tf 0.38 0.42 0.46 rg 48 410.8 Td (Objectif : Amliorer l'anticipation  Indicateur : Part des alertes traites avant stock zro) Tj ET
+BT /F1 8.2 Tf 0.12 0.15 0.18 rg 48 396.4 Td (Objectif : Rduire l'immobilisation  Indicateur : Valeur du surstock et couverture mdiane) Tj ET
+BT /F1 8.2 Tf 0.38 0.42 0.46 rg 48 382.0 Td (Objectif : Rduire les pertes  Indicateur : Valeur prime et valeur  risque) Tj ET
+BT /F1 8.2 Tf 0.12 0.15 0.18 rg 48 367.6 Td (Objectif : Fiabiliser le stock  Indicateur : Taux de concordance inventaire/informatique) Tj ET
+BT /F1 8.2 Tf 0.38 0.42 0.46 rg 48 353.2 Td (Objectif : Acclrer le comptoir  Indicateur : Temps mdian et P95 d'une vente) Tj ET
+BT /F1 8.2 Tf 0.12 0.15 0.18 rg 48 338.8 Td (Objectif : Amliorer les fournisseurs  Indicateur : Taux de service et dlai rel) Tj ET
+BT /F1 8.2 Tf 0.38 0.42 0.46 rg 48 324.4 Td (Objectif : Fiabiliser le SaaS  Indicateur : Disponibilit, erreurs, RTO et RPO tests) Tj ET
+BT /F1 8.2 Tf 0.12 0.15 0.18 rg 48 310.0 Td (Objectif : Russir l'adoption  Indicateur : Utilisateurs actifs, tches termines et tickets support) Tj ET
+BT /F2 15 Tf 0.08 0.25 0.43 rg 48 285.60000000000093 Td (8. Dcision recommande) Tj ET
+0.08 0.25 0.43 RG 0.8 w 48 267.60000000000093 m 547 267.60000000000093 l S
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 256.6 Td (Prestige ne doit pas tre remplac uniquement parce que Phnix prsente une exprience plus moderne.) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 244.4 Td (Le dpt rvle une richesse mtier difficile et coteuse  reconstruire.) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 225.2 Td (La stratgie recommande consiste  :) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 208.00000000000097 Td (1.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 208.00000000000097 Td (conserver le moteur mtier de Prestige ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 194.20000000000095 Td (2.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 194.20000000000095 Td (simplifier les parcours critiques ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 180.40000000000094 Td (3.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 180.40000000000094 Td (unifier le pilotage du stock autour d'actions ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 166.60000000000093 Td (4.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 166.60000000000093 Td (industrialiser progressivement l'hbergement SaaS ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 152.80000000000092 Td (5.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 152.80000000000092 Td (ajouter le mobile et le hors-ligne sur un primtre matris ;) Tj ET
+BT /F2 9.2 Tf 0.05 0.55 0.65 rg 50 139.0000000000009 Td (6.) Tj ET
+BT /F1 9.2 Tf 0.12 0.15 0.18 rg 66 139.0000000000009 Td (mesurer la valeur obtenue avec des indicateurs oprationnels.) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 123.2 Td (La priorit n'est pas d'ajouter davantage d'crans. Elle est de rendre les capacits existantes plus) Tj ET
+BT /F1 9.4 Tf 0.12 0.15 0.18 rg 48 111.0 Td (simples, plus explicables, plus accessibles et plus fiables.) Tj ET
+endstream
+endobj
+21 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents 20 0 R >>
+endobj
+xref
+0 22
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000169 00000 n 
+0000000266 00000 n 
+0000000368 00000 n 
+0000000463 00000 n 
+0000006809 00000 n 
+0000006955 00000 n 
+0000014645 00000 n 
+0000014791 00000 n 
+0000021024 00000 n 
+0000021172 00000 n 
+0000027824 00000 n 
+0000027972 00000 n 
+0000034484 00000 n 
+0000034632 00000 n 
+0000040948 00000 n 
+0000041096 00000 n 
+0000047777 00000 n 
+0000047925 00000 n 
+0000054720 00000 n 
+trailer
+<< /Size 22 /Root 1 0 R /Info << /Title (Rapport Prestige - Phenix) /Author (Equipe Prestige) >> >>
+startxref
+54868
+%%EOF

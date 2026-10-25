@@ -275,7 +275,9 @@ public class DashBoardRessource {
         if (tu == null) {
             return okDashboard(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE));
         }
-        return okDashboard(cachedPayload("ca-graphe", 180_000, this::buildCaGraphePayload));
+        // Le Net TTC doit refleter immediatement une annulation. Un cache de trois minutes conservait encore le
+        // montant annule apres l'operation et donnait temporairement un graphe different des autres etats de vente.
+        return okDashboard(buildCaGraphePayload());
     }
 
     private String buildCaGraphePayload() {
