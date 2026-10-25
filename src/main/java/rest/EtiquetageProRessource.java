@@ -31,6 +31,7 @@ import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import org.apache.commons.fileupload.FileItem;
@@ -414,6 +415,23 @@ public class EtiquetageProRessource {
             cips.add(c.optString(i));
         }
         return json(new JSONObject().put("success", true).put("produits", service.produitsParCip(cips)));
+    }
+
+    /** Retours du 25/10 (point 7) : saisie a la main, recherche par CIP (debut) ou par nom (contient). */
+    @GET
+    @Path("recherche")
+    public Response recherche(@QueryParam("q") String frappe) {
+        JSONObject r = refus();
+        return json(
+                r != null ? r : new JSONObject().put("success", true).put("data", service.rechercherProduits(frappe)));
+    }
+
+    /** Retours du 25/10 (point 7) : lots encore actifs du produit (saisie a la main). */
+    @GET
+    @Path("lots")
+    public Response lots(@QueryParam("cip") String cip) {
+        JSONObject r = refus();
+        return json(r != null ? r : new JSONObject().put("success", true).put("data", service.lotsActifs(cip)));
     }
 
     /* ---------------------------------------------------------- impression */

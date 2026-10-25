@@ -58,6 +58,11 @@ Ext.define('testextjs.view.stockmanagement.etiquetagepro.EtiquetagePro', {
         me.modelesStore = Ext.create('Ext.data.Store', {fields: ['id', 'libelle', 'parPage'], proxy: {type: 'memory'}});
         me.produitsStore = Ext.create('Ext.data.Store', {fields: me.champsProduits([]), proxy: {type: 'memory', reader: {type: 'json'}}});
         me.apercuStore = Ext.create('Ext.data.Store', {fields: [], proxy: {type: 'memory'}});
+        /* retours du 25/10 (point 7) : saisie a la main, recherche de produits et lots actifs */
+        me.rechercheStore = Ext.create('Ext.data.Store', {fields: ['cip', 'designation', 'prix', 'ean', 'grossiste', 'codeGeo'],
+            proxy: {type: 'ajax', url: me.URL + 'recherche', reader: {type: 'json', root: 'data'}}});
+        me.lotsStore = Ext.create('Ext.data.Store', {fields: ['lot', 'peremption', 'stock'],
+            proxy: {type: 'ajax', url: me.URL + 'lots', reader: {type: 'json', root: 'data'}}});
 
         me.items = [
             {xtype: 'toolbar', itemId: 'etapes', cls: 'etqp-etapes', items: me.ETAPES.map(function (t, i) {
@@ -491,9 +496,10 @@ Ext.define('testextjs.view.stockmanagement.etiquetagepro.EtiquetagePro', {
     saisieDirecte: function () {
         var me = this;
         me.tableau = null;
+        me.saisieManuelle = true;
         me.produitsStore.removeAll();
         me.reconfigurerProduits();
-        me.produitsStore.add({numero: 1, NOMBRE: '1'});
+        me.produitsStore.add(me.nouvelleLigne(1));
         me.debloquer(3);
         me.down('#etape1').setDisabled(true);
         me.etape = 2;
@@ -503,7 +509,7 @@ Ext.define('testextjs.view.stockmanagement.etiquetagepro.EtiquetagePro', {
         me.down('#suivant').setVisible(true);
         me.majSuivant();
         me.majCompteurs();
-        me.message('Saisie directe : tapez le CIP puis « Compléter depuis Prestige » pour reprendre désignation, prix et EAN.');
+        me.message('Saisie directe : tapez 3 chiffres du CIP ou 3 lettres du nom, choisissez le produit, puis Entrée : prix, lot, péremption, nombre d\'étiquettes ; la ligne suivante s\'ouvre.');
         me.editer(me.down('#grilleProduits'), 'editionProduits', me.produitsStore.getAt(0), 1);
     },
 
@@ -675,7 +681,7 @@ Ext.define('testextjs.view.stockmanagement.etiquetagepro.EtiquetagePro', {
         };
         me.produitsStore.model.setFields(me.champsProduits(me.ajoutees));
         var col = function (id, texte, w, x) {
-            return Ext.apply({text: texte, dataIndex: id, width: w, editor: ed(), renderer: 'htmlEncode'}, x || {});
+            return Ext.apply({text: texte, dataIndex: id, width: w, editor: me.saisieManuelle ? me.editeurSaisie(id) : ed(), renderer: 'htmlEncode'}, x || {});
         };
         var colonnes = [
             {text: 'N°', dataIndex: 'numero', width: 50},
@@ -715,9 +721,29 @@ Ext.define('testextjs.view.stockmanagement.etiquetagepro.EtiquetagePro', {
                     return (r.get('erreurs') || []).length ? 'etqp-ligne-erreur' : '';
                 }, markDirty: false},
             plugins: [Ext.create('Ext.grid.plugin.CellEditing', {clicksToEdit: 1, pluginId: 'editionProduits', listeners: {
+                        beforeedit: function (ed, e) {
+                            if (me.saisieManuelle && e.field === 'LOT') {
+                                me.lotsStore.removeAll();
+                                if (e.record.get('CIP')) {
+                                    me.lotsStore.load({params: {cip: String(e.record.get('CIP')).trim()}, callback: function () {
+                                            var c = ed.getActiveEditor && ed.getActiveEditor();
+                                            if (c && c.field && me.lotsStore.getCount() && c.field.expand) {
+                                                c.field.expand();
+                                            }
+                                        }});
+                                }
+                            }
+                        },
                         edit: function (ed, e) {
                             if (e.value !== e.originalValue) {
                                 me.controler([e.record]);
+                            }
+                            if (me.saisieManuelle && e.field === 'CIP' && e.value && !e.record.get('DESIGNATION')) {
+                                me.remplirParCip(e.record);
+                            }
+                            if (me.saisieManuelle && me.entreeSur === e.field) {
+                                me.entreeSur = null;
+                                me.champSuivant(e.record, e.field);
                             }
                         }
                     }})],
@@ -727,7 +753,7 @@ Ext.define('testextjs.view.stockmanagement.etiquetagepro.EtiquetagePro', {
                                 me.produitsStore.each(function (r) {
                                     n = Math.max(n, r.get('numero') || 0);
                                 });
-                                var r = me.produitsStore.add({numero: n + 1, NOMBRE: '1'})[0];
+                                var r = me.produitsStore.add(me.saisieManuelle ? me.nouvelleLigne(n + 1) : {numero: n + 1, NOMBRE: '1'})[0];
                                 me.majCompteurs();
                                 me.majSuivant();
                                 me.editer(me.down('#grilleProduits'), 'editionProduits', r, 1);
@@ -761,6 +787,113 @@ Ext.define('testextjs.view.stockmanagement.etiquetagepro.EtiquetagePro', {
                     ]}]};
     },
 
+    /* ----------------------------------------- saisie a la main (retours du 25/10, point 7) */
+
+    ORDRE_SAISIE: ['CIP', 'PRIX', 'LOT', 'PEREMPTION', 'NOMBRE'],
+
+    /** Date de la ligne : la « Date d'édition » de l'impression (date du jour par défaut), au même format. */
+    nouvelleLigne: function (numero) {
+        var d = this.down('#date'), v = d && d.getValue();
+        return {numero: numero, NOMBRE: '1', DATE: v || Ext.Date.format(new Date(), 'd/m/y')};
+    },
+
+    /** Entree dans une case de la saisie : la case suivante s'ouvre (fin de ligne : ligne suivante, nouvelle au besoin). */
+    editeurSaisie: function (id) {
+        var me = this, entree = {specialkey: function (f, e) {
+                if (e.getKey() === e.ENTER) {
+                    me.entreeSur = id;
+                }
+            }};
+        if (id === 'CIP') {
+            return {xtype: 'combobox', store: me.rechercheStore, queryMode: 'remote', queryParam: 'q', minChars: 3, queryDelay: 250,
+                displayField: 'cip', valueField: 'cip', hideTrigger: true, typeAhead: false, autoSelect: false, forceSelection: false,
+                emptyText: 'CIP ou nom', listConfig: {minWidth: 460, emptyText: '<div style="padding:4px;color:#5b6b7b">Aucun produit</div>',
+                    getInnerTpl: function () {
+                        return '<b>{cip}</b> — {designation:htmlEncode} <span style="color:#5b6b7b">({prix} F)</span>';
+                    }},
+                listeners: {specialkey: entree.specialkey, select: function (c, recs) {
+                        me.choisirProduit(recs && recs[0]);
+                    }}};
+        }
+        if (id === 'LOT') {
+            return {xtype: 'combobox', store: me.lotsStore, queryMode: 'local', displayField: 'lot', valueField: 'lot', editable: true,
+                forceSelection: false, autoSelect: false, triggerAction: 'all', emptyText: 'Lot',
+                listConfig: {minWidth: 260, emptyText: '<div style="padding:4px;color:#5b6b7b">Aucun lot actif</div>', getInnerTpl: function () {
+                        return '<b>{lot:htmlEncode}</b> — pér. {peremption} <span style="color:#5b6b7b">(stock {stock})</span>';
+                    }},
+                listeners: {specialkey: entree.specialkey, select: function (c, recs) {
+                        var r = me.ligneEnSaisie();
+                        if (r && recs && recs[0]) {
+                            r.set('PEREMPTION', recs[0].get('peremption'));
+                            me.entreeSur = 'LOT';
+                            me.down('#grilleProduits').getPlugin('editionProduits').completeEdit();
+                        }
+                    }}};
+        }
+        return {xtype: 'textfield', selectOnFocus: true, listeners: entree};
+    },
+
+    ligneEnSaisie: function () {
+        var p = this.down('#grilleProduits').getPlugin('editionProduits');
+        return p && p.context ? p.context.record : null;
+    },
+
+    /** Produit choisi dans la liste : designation, prix, EAN, grossiste et code geo repris ; puis le prix. */
+    choisirProduit: function (p) {
+        var me = this, r = me.ligneEnSaisie();
+        if (!p || !r) {
+            return;
+        }
+        r.set({CIP: p.get('cip'), DESIGNATION: p.get('designation'), PRIX: p.get('prix'), EAN: p.get('ean'), GROSSISTE: p.get('grossiste'),
+            CODE_GEO: p.get('codeGeo'), DATE: r.get('DATE') || me.nouvelleLigne(0).DATE});
+        me.entreeSur = 'CIP';
+        me.down('#grilleProduits').getPlugin('editionProduits').completeEdit();
+    },
+
+    /** CIP tape en entier sans choisir dans la liste : la ligne est completee comme par « Compléter depuis Prestige ». */
+    remplirParCip: function (r) {
+        var me = this, cip = String(r.get('CIP')).trim();
+        me.appel('produits', {cips: [cip]}, function (o) {
+            var p = o.produits[cip];
+            if (p && !r.get('DESIGNATION')) {
+                r.set({DESIGNATION: p.designation, PRIX: r.get('PRIX') || p.prix, EAN: r.get('EAN') || p.ean, GROSSISTE: r.get('GROSSISTE') || p.grossiste,
+                    CODE_GEO: r.get('CODE_GEO') || p.codeGeo});
+                me.controler([r]);
+            }
+        });
+    },
+
+    champSuivant: function (r, champ) {
+        var me = this, g = me.down('#grilleProduits'), ordre = me.ORDRE_SAISIE, i = Ext.Array.indexOf(ordre, champ);
+        var colonne = function (id) {
+            var cols = g.headerCt.getGridColumns(), k;
+            for (k = 0; k < cols.length; k++) {
+                if (cols[k].dataIndex === id) {
+                    return k;
+                }
+            }
+            return -1;
+        };
+        if (i < 0) {
+            return;
+        }
+        if (i < ordre.length - 1) {
+            me.editer(g, 'editionProduits', r, colonne(ordre[i + 1]));
+            return;
+        }
+        var pos = me.produitsStore.indexOf(r), suivante = me.produitsStore.getAt(pos + 1);
+        if (!suivante) {
+            var n = 0;
+            me.produitsStore.each(function (x) {
+                n = Math.max(n, x.get('numero') || 0);
+            });
+            suivante = me.produitsStore.add(me.nouvelleLigne(n + 1))[0];
+            me.majCompteurs();
+            me.majSuivant();
+        }
+        me.editer(g, 'editionProduits', suivante, colonne('CIP'));
+    },
+
     preparerProduits: function () {
         var me = this;
         if (!me.down('#grilleProduits').headerCt.getGridColumns().length) {
@@ -785,6 +918,7 @@ Ext.define('testextjs.view.stockmanagement.etiquetagepro.EtiquetagePro', {
 
     chargerProduits: function (o, ajoutees) {
         var me = this;
+        me.saisieManuelle = false;
         me.ajoutees = ajoutees || [];
         me.produitsStore.clearFilter(true);
         me.down('#filtre').setValue('TOUTES');

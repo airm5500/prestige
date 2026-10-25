@@ -214,6 +214,58 @@ public class EtiquetteEditionService {
     }
 
     /**
+     * Retours du 25/10 (point 7) : saisie a la main. Produits actifs dont le CIP commence par la frappe (3 chiffres au
+     * moins), ou dont le nom contient la frappe (3 caracteres au moins) ; 20 au plus, memes informations que
+     * {@link #produitsParCip}.
+     */
+    public org.json.JSONArray rechercherProduits(String frappe) {
+        org.json.JSONArray a = new org.json.JSONArray();
+        String t = StringUtils.trimToEmpty(frappe);
+        if (t.length() < 3) {
+            return a;
+        }
+        boolean cip = t.matches("\\d+");
+        List<TFamille> familles = em
+                .createQuery("SELECT f FROM TFamille f WHERE f.strSTATUT = 'enable' AND "
+                        + (cip ? "f.intCIP LIKE :t" : "(f.strNAME LIKE :t OR f.strDESCRIPTION LIKE :t)")
+                        + " ORDER BY f.strDESCRIPTION", TFamille.class)
+                .setParameter("t", cip ? t + "%" : "%" + t + "%").setMaxResults(20).getResultList();
+        for (TFamille f : familles) {
+            a.put(new org.json.JSONObject().put("cip", StringUtils.defaultString(f.getIntCIP()))
+                    .put("designation", StringUtils.defaultString(f.getStrDESCRIPTION()))
+                    .put("prix", f.getIntPRICE() == null ? "" : String.valueOf(f.getIntPRICE()))
+                    .put("ean", StringUtils.defaultString(ean(f)))
+                    .put("grossiste",
+                            f.getLgGROSSISTEID() == null ? ""
+                                    : StringUtils.defaultString(f.getLgGROSSISTEID().getStrLIBELLE()))
+                    .put("codeGeo", StringUtils.defaultString(codeGeo(f))));
+        }
+        return a;
+    }
+
+    /** Retours du 25/10 (point 7) : lots encore actifs du produit (en stock, non perimes), le plus proche d'abord. */
+    public org.json.JSONArray lotsActifs(String cip) {
+        org.json.JSONArray a = new org.json.JSONArray();
+        if (StringUtils.isBlank(cip)) {
+            return a;
+        }
+        List<TFamille> familles = em
+                .createQuery("SELECT f FROM TFamille f WHERE f.intCIP = :c AND f.strSTATUT = 'enable'", TFamille.class)
+                .setParameter("c", cip.trim()).setMaxResults(1).getResultList();
+        if (familles.isEmpty()) {
+            return a;
+        }
+        java.text.SimpleDateFormat jj = new java.text.SimpleDateFormat("dd/MM/yyyy");
+        for (dal.TLot l : em.createNamedQuery("TLot.findOnlyAvaillableStockByProduitId", dal.TLot.class)
+                .setParameter("lgFAMILLEID", familles.get(0).getLgFAMILLEID()).setParameter("datePeremtion", new Date())
+                .getResultList()) {
+            a.put(new org.json.JSONObject().put("lot", l.getIntNUMLOT())
+                    .put("peremption", jj.format(l.getDtPEREMPTION())).put("stock", l.getCurrentStock()));
+        }
+        return a;
+    }
+
+    /**
      * Retours du 13/10 (point 2) : donnees de l'etiquette d'un produit pour son apercu dans la fiche article (type
      * d'etiquette, CIP, designation, prix, EAN, grossiste, code geo). Lecture seule ; null si le produit n'existe pas.
      */
