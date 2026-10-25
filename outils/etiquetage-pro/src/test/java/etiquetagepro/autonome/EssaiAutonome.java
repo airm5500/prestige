@@ -80,6 +80,28 @@ public final class EssaiAutonome {
         return null;
     }
 
+    /**
+     * Touche Entree sur le composant, resolue comme Swing le fait au clavier (raccourcis du composant, puis ceux de ses
+     * parents) : sous ecran virtuel la fenetre n'a pas le focus, un evenement clavier envoye serait perdu.
+     */
+    private static void entree(java.awt.Component c) {
+        javax.swing.KeyStroke k = javax.swing.KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_ENTER, 0);
+        java.awt.event.KeyEvent ev = new java.awt.event.KeyEvent(c, java.awt.event.KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0,
+                java.awt.event.KeyEvent.VK_ENTER, '\n');
+        int condition = javax.swing.JComponent.WHEN_FOCUSED;
+        for (java.awt.Component x = c; x != null; x = x.getParent()) {
+            if (x instanceof javax.swing.JComponent) {
+                javax.swing.JComponent j = (javax.swing.JComponent) x;
+                Object cle = j.getInputMap(condition).get(k);
+                javax.swing.Action a = cle == null ? null : j.getActionMap().get(cle);
+                if (a != null && javax.swing.SwingUtilities.notifyAction(a, k, ev, j, 0)) {
+                    return;
+                }
+            }
+            condition = javax.swing.JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT;
+        }
+    }
+
     private static int pages(File f) throws Exception {
         PdfReader r = new PdfReader(f.getPath());
         try {
@@ -302,6 +324,44 @@ public final class EssaiAutonome {
                 refus = e.getMessage();
             }
             ok("Rien d'imprimable : refusé avec explication", refus != null && refus.contains("Aucune étiquette"), refus);
+
+            /* un fichier importe garde le comportement habituel d'Entree (ligne du dessous) */
+            String apresImport = edt(() -> {
+                a.tableProduits.changeSelection(0, 2, false, false);
+                a.tableProduits.editCellAt(0, 2);
+                entree(a.tableProduits.getEditorComponent());
+                return a.tableProduits.isEditing() + " " + a.tableProduits.getSelectedRow() + " " + a.produits.size();
+            });
+            ok("Fichier importé : Entrée garde son comportement (fin de saisie, ligne du dessous, aucune ligne ajoutée)", "false 1 4".equals(apresImport), apresImport);
+            /* retours du 25/10 (point 7) : saisie a la main enchainee au clavier, comme dans Prestige : CIP, designation,
+               prix, lot, peremption, nombre ; Entree sur le nombre ouvre la ligne suivante (plus de clic sur « Ajouter ») */
+            edt(() -> {
+                bouton(b, "saisie").doClick();
+                return null;
+            });
+            ok("Saisie à la main : le curseur est dans le CIP de la 1re ligne", edt(() -> b.tableProduits.isEditing()
+                    && b.tableProduits.getEditingRow() == 0 && b.tableProduits.getEditingColumn() == 1), edt(() -> b.tableProduits.getEditingRow() + "," + b.tableProduits.getEditingColumn()));
+            String[][] frappe = { { "1234567", "2" }, { "PRODUIT CLAVIER", "3" }, { "1500", "5" }, { "L77", "6" }, { "12/2027", "8" }, { "2", "1" } };
+            StringBuilder parcours = new StringBuilder();
+            for (String[] f : frappe) {
+                parcours.append(edt(() -> {
+                    javax.swing.JTextField champ = (javax.swing.JTextField) b.tableProduits.getEditorComponent();
+                    champ.setText(f[0]);
+                    entree(champ);
+                    return b.tableProduits.getEditingColumn() + " ";
+                }));
+            }
+            ok("Entrée enchaîne CIP → désignation → prix → lot → péremption → nombre", "2 3 5 6 8 1 ".equals(parcours.toString()), parcours);
+            ok("Entrée sur le nombre : ligne 2 ouverte sur son CIP, ligne 1 complète (2 étiquettes)", edt(() -> b.produits.size() == 2
+                    && b.tableProduits.getEditingRow() == 1 && "1234567".equals(b.produits.get(0).valeur(Zone.CIP))
+                    && "L77".equals(b.produits.get(0).valeur(Zone.LOT)) && "12/2027".equals(b.produits.get(0).valeur(Zone.PEREMPTION))
+                    && b.produits.get(0).imprimable() && b.produits.get(0).getNombre() == 2), edt(() -> b.produits.size() + " / " + b.produits.get(0).valeur(Zone.LOT)));
+            ok("Date imprimée : la date du jour par défaut", edt(() -> java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yy")).equals(b.date.getText())),
+                    edt(() -> b.date.getText()));
+            edt(() -> {
+                b.tableProduits.getCellEditor().cancelCellEditing();
+                return null;
+            });
             edt(() -> {
                 b.dispose();
                 return null;

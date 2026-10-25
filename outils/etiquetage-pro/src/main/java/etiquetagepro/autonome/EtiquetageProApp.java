@@ -19,6 +19,8 @@ import java.awt.Font;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
+import java.awt.event.ActionEvent;
+import java.awt.event.KeyEvent;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -48,6 +50,10 @@ import javax.swing.JScrollPane;
 import javax.swing.JSpinner;
 import javax.swing.JTable;
 import javax.swing.JTextField;
+import javax.swing.KeyStroke;
+import javax.swing.InputMap;
+import javax.swing.Action;
+import javax.swing.AbstractAction;
 import javax.swing.SpinnerNumberModel;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
@@ -373,7 +379,9 @@ public final class EtiquetageProApp extends JFrame {
         produitsModele.fireTableStructureChanged();
         majCompteurs();
         allerA(2);
-        message("Saisie directe : tapez les produits (CIP obligatoire), une ligne par produit.", false);
+        message("Saisie directe : tapez les produits (CIP obligatoire), une ligne par produit. Entrée passe au champ suivant, "
+                + "puis à la ligne suivante.", false);
+        SwingUtilities.invokeLater(() -> editer(0, 1));
     }
 
     /* ------------------------------------------------------------- 2. Zones */
@@ -706,20 +714,124 @@ public final class EtiquetageProApp extends JFrame {
         }
     }
 
+    /*
+     * Retours du 25/10 (point 7), comme dans Prestige : en saisie a la main, Entree enchaine CIP, designation, prix, lot,
+     * peremption et nombre d'etiquettes, puis ouvre la ligne suivante (creee si besoin). Les autres colonnes restent a la
+     * souris ou a la tabulation. Un fichier importe garde le comportement habituel d'Entree.
+     */
+    static final Zone[] ENCHAINEMENT = { Zone.CIP, Zone.DESIGNATION, Zone.PRIX, Zone.LOT, Zone.PEREMPTION, Zone.NOMBRE };
+
+    void ajouterLigne() {
+        int n = 0;
+        for (LigneEtiquette l : produits) {
+            n = Math.max(n, l.getNumero());
+        }
+        produits.add(new LigneEtiquette(n + 1).valeur(Zone.NOMBRE, "1").valider(obligatoires()));
+        produitsModele.fireTableDataChanged();
+        majCompteurs();
+        majSuivant();
+    }
+
+    void editer(int ligne, int colonne) {
+        if (ligne < 0 || ligne >= tableProduits.getRowCount()) {
+            return;
+        }
+        int vue = tableProduits.convertColumnIndexToView(colonne);
+        tableProduits.changeSelection(ligne, vue, false, false);
+        if (tableProduits.editCellAt(ligne, vue)) {
+            Component c = tableProduits.getEditorComponent();
+            if (c instanceof JTextField) {
+                ((JTextField) c).selectAll();
+            }
+            if (c != null) {
+                c.requestFocusInWindow();
+            }
+        }
+    }
+
+    /** Colonne (du modele) qui suit dans l'enchainement, ou -1 apres le nombre d'etiquettes (ligne suivante). */
+    static int colonneSuivante(int colonne) {
+        Zone z = colonne >= 1 && colonne <= COLONNES.length ? COLONNES[colonne - 1] : null;
+        int k = -1;
+        for (int i = 0; i < ENCHAINEMENT.length; i++) {
+            if (ENCHAINEMENT[i] == z) {
+                k = i;
+            }
+        }
+        if (k >= 0) {
+            return k + 1 < ENCHAINEMENT.length ? colonne(ENCHAINEMENT[k + 1]) : -1;
+        }
+        /* colonne hors enchainement : la prochaine de l'enchainement a sa droite */
+        for (Zone e : ENCHAINEMENT) {
+            if (colonne(e) > colonne) {
+                return colonne(e);
+            }
+        }
+        return -1;
+    }
+
+    private static int colonne(Zone z) {
+        for (int i = 0; i < COLONNES.length; i++) {
+            if (COLONNES[i] == z) {
+                return i + 1;
+            }
+        }
+        return -1;
+    }
+
+    private void enchainementClavier() {
+        final JTextField champ = new JTextField();
+        champ.setBorder(BorderFactory.createLineBorder(new Color(0x1E, 0x3A, 0x5F)));
+        tableProduits.setDefaultEditor(Object.class, new DefaultCellEditor(champ));
+        final KeyStroke entree = KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0);
+        InputMap carte = tableProduits.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
+        final Object habituelle = carte.get(entree);
+        final Action deplacement = habituelle == null ? null : tableProduits.getActionMap().get(habituelle);
+        Action suivant = new AbstractAction() {
+            private static final long serialVersionUID = 1L;
+
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                int ligne = tableProduits.isEditing() ? tableProduits.getEditingRow() : tableProduits.getSelectedRow();
+                int colonne = tableProduits.convertColumnIndexToModel(tableProduits.isEditing() ? tableProduits.getEditingColumn()
+                        : tableProduits.getSelectedColumn());
+                if (tableau != null || ligne < 0 || colonne < 0) {
+                    if (tableProduits.isEditing()) {
+                        tableProduits.getCellEditor().stopCellEditing();
+                    }
+                    if (deplacement != null) {
+                        deplacement.actionPerformed(new ActionEvent(tableProduits, ActionEvent.ACTION_PERFORMED, null));
+                    }
+                    return;
+                }
+                if (tableProduits.isEditing() && !tableProduits.getCellEditor().stopCellEditing()) {
+                    return;
+                }
+                int c = colonneSuivante(colonne);
+                if (c > 0) {
+                    editer(ligne, c);
+                    return;
+                }
+                if (ligne == produits.size() - 1) {
+                    ajouterLigne();
+                }
+                editer(ligne + 1, 1);
+            }
+        };
+        tableProduits.getActionMap().put("etiquettageSuivant", suivant);
+        carte.put(entree, "etiquettageSuivant");
+        champ.getInputMap(JComponent.WHEN_FOCUSED).put(entree, "etiquettageSuivant");
+        champ.getActionMap().put("etiquettageSuivant", suivant);
+    }
+
     private JComponent carteProduits() {
         JPanel p = new JPanel(new BorderLayout());
         JButton ajouter = bouton("Ajouter une ligne", "ajouterLigne"), supprimer = bouton("Supprimer les lignes choisies", "supprimerLignes");
         ajouter.addActionListener(e -> {
-            int n = 0;
-            for (LigneEtiquette l : produits) {
-                n = Math.max(n, l.getNumero());
-            }
-            produits.add(new LigneEtiquette(n + 1).valeur(Zone.NOMBRE, "1").valider(obligatoires()));
-            produitsModele.fireTableDataChanged();
-            majCompteurs();
-            majSuivant();
+            ajouterLigne();
             tableProduits.editCellAt(produits.size() - 1, 1);
         });
+        enchainementClavier();
         supprimer.addActionListener(e -> {
             int[] choisies = tableProduits.getSelectedRows();
             for (int i = choisies.length - 1; i >= 0; i--) {
