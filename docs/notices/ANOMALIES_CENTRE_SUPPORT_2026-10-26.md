@@ -318,6 +318,24 @@ Le veilleur passe chaque nuit à 04 h 15 et compte au plus 500 cas par contrôle
 - Les dernières lignes de `t_application_event_occurrence` de ces deux événements sont à retirer de la même façon.
 - Le test d'écran a intercepté son propre signalement : il n'a rien écrit.
 
+**Second passage, vers 02 h 05, sur `laborex_v1_db`** (domaine 8080, version 31622a33, données de l'officine)
+
+- **Mêmes verdicts** pour tous les cas, sauf F1.
+- **M1** : 15 280 ms. Le défaut est donc reproduit aussi sur les données de l'officine.
+- **M2** : 116 ms. L1 reste non reproduit sur un appel seul.
+- **F1** : 404 au lieu de 500, ce qui ne vaut rien. L'application déployée sur le domaine 8080 à ce moment n'avait pas
+  de dossier `webservices`, si bien que toutes les anciennes JSP répondaient 404, y compris `ws_tree_menu.jsp` à la
+  connexion. Défaut d'environnement signalé aux sessions qui déploient. F1 reste reproduit sur le domaine 9080.
+
+Événements touchés sur `laborex_v1_db` :
+
+- `7c2429b5…` : +1 ;
+- `50900833…` : +1 ;
+- `7e885b9c-3f5c-4f7c-acdd-fe95b3871ffb` (404 de `ws_tree_menu.jsp`, produit par mes connexions pendant ce
+  déploiement) : de 1 à 10.
+
+Même remise en état que ci-dessus, avec ces identifiants et ces écarts.
+
 ## Annexe A. Rejouer les reproductions
 
 Variables (Node 22) :
