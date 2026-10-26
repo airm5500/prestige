@@ -220,7 +220,8 @@ public class GenererFactureServiceImpl implements GenererFactureService {
             datas.forEach(s -> {
                 TPreenregistrementCompteClientTiersPayent payent = getEntityManager()
                         .find(TPreenregistrementCompteClientTiersPayent.class, s);
-                if (payent != null) {
+                /* audit F2 : memes filtres que la selection par periode (bon non facture, vente close non annulee) */
+                if (bll.configManagement.GroupeTierspayantController.bonFacturable(payent)) {
                     list.add(payent);
                 }
             });

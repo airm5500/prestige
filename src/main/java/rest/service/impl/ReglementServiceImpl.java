@@ -434,6 +434,10 @@ public class ReglementServiceImpl implements ReglementService {
         if (!this.checkCaisse(user)) {
             return json.put("success", false).put("msg", "Votre caisse est fermée");
         }
+        /* audit CA-06 (reproduit le 25/10) : un montant negatif AUGMENTAIT le solde du carnet depot */
+        if (reglementCarnetDTO.getMontantPaye() == null || reglementCarnetDTO.getMontantPaye() <= 0) {
+            return json.put("success", false).put("msg", "Le montant du règlement doit être supérieur à zéro.");
+        }
         TTypeMvtCaisse oTTypeMvtCaisse = getEmg().find(TTypeMvtCaisse.class, Constant.MVT_REGLE_TP);
         TTypeReglement typeReglement = getEmg().find(TTypeReglement.class, reglementCarnetDTO.getTypeReglement());
         TModeReglement modeReglement = findModeReglement(typeReglement.getLgTYPEREGLEMENTID());
@@ -1089,7 +1093,18 @@ public class ReglementServiceImpl implements ReglementService {
             List<DelayedDTO> delayeds = new ArrayList<>();
             Map<String, Solde> soldes = getSoldeByClient(ids);
             for (DelayedDTO delayedDTO : delayedDTOs) {
+                /*
+                 * Audit D3 (reproduit le 25/10) : un client qui a un reglement mais plus aucun differe en cours (vente
+                 * annulee, modifiee) n'a pas de ligne de solde ; l'erreur qui suivait vidait la liste pour TOUS les
+                 * clients. Son solde vaut 0 et son nom est lu sur sa fiche.
+                 */
                 Solde solde = soldes.get(delayedDTO.getClientId());
+                if (solde == null) {
+                    TClient client = delayedDTO.getClientId() == null ? null
+                            : getEmg().find(TClient.class, delayedDTO.getClientId());
+                    solde = new Solde(client == null ? "" : StringUtils.defaultString(client.getStrFIRSTNAME()) + " "
+                            + StringUtils.defaultString(client.getStrLASTNAME()), 0);
+                }
                 delayedDTO.setClientFullName(solde.getClientFullName());
                 delayedDTO.setSolde(solde.getMontantRestant());
                 delayedDTO.setSoldeFormated(NumberUtils.formatIntToString(solde.getMontantRestant()));

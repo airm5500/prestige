@@ -629,11 +629,23 @@ public class FacturationServiceImpl implements FacturationService {
     }
 
     @Override
-    public void removeFacture(String idFacture) {
-        TFacture facture = getEntityManager().find(TFacture.class, idFacture);
+    public String removeFacture(String idFacture) {
+        TFacture facture = idFacture == null ? null : getEntityManager().find(TFacture.class, idFacture);
+        if (facture == null) {
+            return "Facture introuvable : actualisez la liste.";
+        }
+        /*
+         * Audit F1 (reproduit le 25/10) : la suppression ligne a ligne effacait aussi une facture DEFINITIVE (ecran
+         * reste ouvert pendant que la provisoire etait transformee ailleurs) ; ses bons restaient « charged » et ne
+         * pouvaient plus etre factures. Meme garde-fou que la suppression de masse : seules les provisoires.
+         */
+        if (!Boolean.TRUE.equals(facture.getTemplate())) {
+            return "Cette facture n'est plus provisoire : elle a été transformée en définitive et ne se supprime pas ici.";
+        }
         deleteFactureDetails(facture);
         journaliserSuppression(facture, "de la facture");
         getEntityManager().remove(facture);
+        return null;
     }
 
     /**

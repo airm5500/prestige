@@ -446,7 +446,10 @@ public class FacturationRessouce {
         if (tu == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
-        facturationService.removeFacture(id);
+        String refus = facturationService.removeFacture(id);
+        if (refus != null) {
+            return Response.ok().entity(ResultFactory.getFailResult(refus)).build();
+        }
         return Response.ok().build();
     }
 

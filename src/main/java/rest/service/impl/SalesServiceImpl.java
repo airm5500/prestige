@@ -198,15 +198,6 @@ public class SalesServiceImpl implements SalesService {
         }
         return false;
     };
-    private TTiersPayant tiersPayant;
-
-    public TTiersPayant getTiersPayant() {
-        return tiersPayant;
-    }
-
-    public void setTiersPayant(TTiersPayant tiersPayant) {
-        this.tiersPayant = tiersPayant;
-    }
 
     public EntityManager getEm() {
         return em;
@@ -614,6 +605,20 @@ public class SalesServiceImpl implements SalesService {
 
             Optional<TRecettes> oprectte = findRecette(tp.getLgPREENREGISTREMENTID());
             List<TPreenregistrementDetail> preenregistrementDetails = getItems(tp);
+            /*
+             * Audit N1 (reproduit le 25/10) : un produit sans ligne de stock dans l'emplacement de la vente faisait
+             * echouer l'annulation EN COURS de route ; la vente restait annulee et la caisse contre-passee, le stock a
+             * moitie rendu. Controle avant toute ecriture.
+             */
+            TEmplacement emplacementAnnulation = ContexteVenteDepot.emplacementDeVente(tp, ooTUser);
+            for (TPreenregistrementDetail d : preenregistrementDetails) {
+                if (findStock(d.getLgFAMILLEID().getLgFAMILLEID(), emplacementAnnulation) == null) {
+                    json.put("success", false);
+                    json.put("msg", "Annulation impossible : le produit " + d.getLgFAMILLEID().getStrNAME()
+                            + " n'a pas de ligne de stock dans l'emplacement de la vente.");
+                    return json;
+                }
+            }
             String idVente = tp.getLgPREENREGISTREMENTID();
             TPreenregistrement newItem = clonePrevente(ooTUser, tp);
             ref = newItem.getLgPREENREGISTREMENTID();
@@ -708,6 +713,8 @@ public class SalesServiceImpl implements SalesService {
 
         } catch (Exception e) {
             LOG.log(Level.SEVERE, null, e);
+            // audit N1 : une annulation qui echoue ne laisse aucune ecriture (vente annulee, caisse contre-passee...)
+            annulerClotureIncomplete();
             json.put("success", false);
             json.put("msg", "Erreur annulation de la vente ");
             json.put("ref", ref);
@@ -1620,7 +1627,21 @@ public class SalesServiceImpl implements SalesService {
             if (refuserQuantiteNonPositive(json, params.getQte())) {
                 return json;
             }
-            TPreenregistrementDetail detail = emg.find(TPreenregistrementDetail.class, params.getItemId());
+            TPreenregistrementDetail detail = StringUtils.isBlank(params.getItemId()) ? null
+                    : emg.find(TPreenregistrementDetail.class, params.getItemId());
+            if (detail == null || detail.getLgPREENREGISTREMENTID() == null) {
+                return json.put("success", false).put("msg",
+                        "Ce produit n'est plus dans la vente : actualisez l'écran avant de continuer.");
+            }
+            /*
+             * Audit VC-01 (reproduit le 25/10) : la quantite et le prix d'une ligne restaient modifiables apres
+             * l'encaissement (ecran reste ouvert sur un poste pendant qu'un autre encaissait) ; la vente changeait de
+             * montant sans que le stock ni la caisse suivent. Meme controle qu'a l'ajout et au retrait d'une ligne.
+             */
+            String motifEtat = controleVenteModifiable(detail.getLgPREENREGISTREMENTID().getLgPREENREGISTREMENTID());
+            if (motifEtat != null) {
+                return json.put("success", false).put("msg", motifEtat);
+            }
             int intQUANTITYSERVEDOLD = detail.getIntQUANTITYSERVED();
             int oldPrice = detail.getIntPRICE();
             int montantTva = detail.getMontantTva();
@@ -2642,14 +2663,19 @@ public class SalesServiceImpl implements SalesService {
                 }
 
             }
+            /* tiers payant exclu ou depot de CETTE vente (audit CA-03 : il etait garde dans un champ de l'EJB) */
+            java.util.concurrent.atomic.AtomicReference<TTiersPayant> payantExcluOuDepot = new java.util.concurrent.atomic.AtomicReference<>();
+            /* audit CR-03 et N4 : tout refus annule les ecritures deja faites (lignes tiers payant, encours) */
             if (Objects.nonNull(tp.getCaution())) {
                 if (!updateCaution(clotureVenteParams.getTierspayants().get(0), tp, tUser)) {
+                    annulerClotureIncomplete();
                     return json.put("success", false).put("msg", "Désolé la vente a été facturée");
                 }
             } else {
                 JSONObject result = createPreenregistrementCompteClientTierspayant(clotureVenteParams.getTierspayants(),
-                        tp, clotureVenteParams.isSansBon(), tUser);
+                        tp, clotureVenteParams.isSansBon(), tUser, payantExcluOuDepot);
                 if (result.has("success")) {
+                    annulerClotureIncomplete();
                     return result;
                 }
             }
@@ -2730,7 +2756,7 @@ public class SalesServiceImpl implements SalesService {
             addReglement(tp, mvtTransaction, clotureVenteParams);
             payerEnPoints(tp, clotureVenteParams, tUser);
 
-            carnetAsDepotService.create(tp, mvtTransaction, this.getTiersPayant());
+            carnetAsDepotService.create(tp, mvtTransaction, payantExcluOuDepot.get());
 
             mvtProduitService.updateVenteStock(tp, lstTPreenregistrementDetail);
             tp.setCompletionDate(new Date());
@@ -3130,6 +3156,53 @@ public class SalesServiceImpl implements SalesService {
 
     public JSONObject createPreenregistrementCompteClientTierspayant(List<TiersPayantParams> tierspayants,
             TPreenregistrement op, final boolean sansBon, TUser u) {
+        return createPreenregistrementCompteClientTierspayant(tierspayants, op, sansBon, u,
+                new java.util.concurrent.atomic.AtomicReference<>());
+    }
+
+    /**
+     * Motif de refus de la cloture pour ses tiers payants, null si tous sont valides : lien client / tiers payant
+     * introuvable, taux hors de 0 a 100, bon deja utilise chez le meme organisme (hors copie de modification). Le
+     * message nomme le bon et l'organisme fautifs, pour que la caissiere corrige en un geste.
+     */
+    private String refusTiersPayantsCloture(List<TiersPayantParams> tierspayants, TPreenregistrement op) {
+        for (TiersPayantParams params : tierspayants) {
+            TCompteClientTiersPayant cmptClient = StringUtils.isBlank(params.getCompteTp()) ? null
+                    : this.getEm().find(TCompteClientTiersPayant.class, params.getCompteTp());
+            if (cmptClient == null) {
+                return "Un des tiers payants de la vente n'est plus rattaché au client : actualisez l'écran de vente.";
+            }
+            TTiersPayant payant = cmptClient.getLgTIERSPAYANTID();
+            if (params.getTaux() < 0 || params.getTaux() > 100) {
+                return "Le taux de " + payant.getStrFULLNAME() + " doit être compris entre 0 et 100 %.";
+            }
+            if (!Boolean.TRUE.equals(op.getCopy())
+                    && boonDejaUtilise(params.getNumBon(), payant.getLgTIERSPAYANTID())) {
+                return "Le numéro de  <span style='color:red;font-weight:800;'> " + params.getNumBon()
+                        + " </span> est déjà utilisé par l'assureur :: " + payant.getStrFULLNAME();
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Lignes tiers payant de la cloture d'une vente assurance ou carnet.
+     *
+     * <p>
+     * Audit CR-03 (reproduit le 25/10) : un bon deja utilise sur le second tiers payant etait refuse APRES que le
+     * premier avait ete traite (ligne close, encours augmente), sans retour arriere ; chaque nouvel essai recomptait
+     * l'encours. Tous les tiers payants sont donc controles AVANT la premiere ecriture, et l'appelant annule la
+     * transaction sur tout refus.
+     * </p>
+     * <p>
+     * Audit CA-03 (reproduit) : le tiers payant exclu ou depot etait garde dans un CHAMP de cet EJB sans etat, que
+     * l'instance reutilisait pour les ventes suivantes (ventes ordinaires enregistrees comme exclues). Il est rendu par
+     * {@code payantExcluOuDepot}, propre a l'appel.
+     * </p>
+     */
+    private JSONObject createPreenregistrementCompteClientTierspayant(List<TiersPayantParams> tierspayants,
+            TPreenregistrement op, final boolean sansBon, TUser u,
+            java.util.concurrent.atomic.AtomicReference<TTiersPayant> payantExcluOuDepot) {
         JSONObject json = new JSONObject();
         List<TCompteClientTiersPayant> cmparray = new ArrayList<>();
         List<TiersPayantParams> tierspayantsData = tierspayants;
@@ -3144,17 +3217,15 @@ public class SalesServiceImpl implements SalesService {
             };
             boolean canContinue = tierspayants.stream().anyMatch(p);
             if (canContinue) {
+                String refus = refusTiersPayantsCloture(tierspayants, op);
+                if (refus != null) {
+                    return json.put("success", false).put("msg", refus);
+                }
                 tierspayants.forEach(params -> {
                     TCompteClientTiersPayant cmptClient = this.getEm().find(TCompteClientTiersPayant.class,
                             params.getCompteTp());
                     TTiersPayant payant = cmptClient.getLgTIERSPAYANTID();
-                    if (boonDejaUtilise(params.getNumBon(), payant.getLgTIERSPAYANTID()) && !op.getCopy()) {
-
-                        json.putOnce("success", false).putOnce("msg",
-                                "Le numéro de  <span style='color:red;font-weight:800;'> " + params.getNumBon()
-                                        + " </span> est déjà utilisé par l'assureur :: " + payant.getStrFULLNAME());
-
-                    } else {
+                    {
                         TPreenregistrementCompteClientTiersPayent item = getPreenregistrementCompteClientTiersPayent(
                                 op.getLgPREENREGISTREMENTID(), cmptClient.getLgCOMPTECLIENTTIERSPAYANTID());
                         item.setDtUPDATED(op.getDtUPDATED());
@@ -3174,7 +3245,7 @@ public class SalesServiceImpl implements SalesService {
                         this.getEm().merge(item);
                         cmparray.add(cmptClient);
                         if (payant.getToBeExclude() || payant.getIsDepot()) {
-                            this.setTiersPayant(payant);
+                            payantExcluOuDepot.set(payant);
                             payantExclusService.updateTiersPayantAccount(payant, item.getIntPRICE());
                         } else {
                             updateClientAccount(item);
@@ -3295,6 +3366,15 @@ public class SalesServiceImpl implements SalesService {
         JSONObject json = new JSONObject();
         EntityManager emg = this.getEm();
         try {
+            /* audit CR-09 et CR-10 (reproduits le 25/10) : taux hors 0-100 accepte, vente terminee modifiable */
+            String motif = controleVenteModifiable(venteId);
+            if (motif != null) {
+                return json.put("success", false).put("msg", motif);
+            }
+            if (params == null || params.getQte() < 0 || params.getQte() > 100) {
+                return json.put("success", false).put("msg",
+                        "Le taux du tiers payant doit être compris entre 0 et 100 %.");
+            }
             TPreenregistrement preenregistrement = emg.find(TPreenregistrement.class, venteId);
             TCompteClientTiersPayant clientTiersPayant = emg.find(TCompteClientTiersPayant.class,
                     params.getTypeVenteId());
@@ -3330,6 +3410,14 @@ public class SalesServiceImpl implements SalesService {
         JSONObject json = new JSONObject();
         EntityManager emg = this.getEm();
         try {
+            /*
+             * audit CR-10 (reproduit le 25/10) : retirer le tiers payant d'une vente encaissee la sortait de la
+             * facturation
+             */
+            String motif = controleVenteModifiable(venteId);
+            if (motif != null) {
+                return json.put("success", false).put("msg", motif);
+            }
             TPreenregistrementCompteClientTiersPayent op = (TPreenregistrementCompteClientTiersPayent) emg.createQuery(
                     "SELECT t FROM TPreenregistrementCompteClientTiersPayent t WHERE t.lgCOMPTECLIENTTIERSPAYANTID.lgCOMPTECLIENTTIERSPAYANTID = ?1 AND t.lgPREENREGISTREMENTID.lgPREENREGISTREMENTID = ?2")
                     .setParameter(1, comptClientTpId).setParameter(2, venteId).getSingleResult();
@@ -3352,6 +3440,10 @@ public class SalesServiceImpl implements SalesService {
         JSONObject json = new JSONObject();
         EntityManager emg = this.getEm();
         try {
+            String motif = controleVenteModifiable(params.getVenteId());
+            if (motif != null) {
+                return json.put("success", false).put("msg", motif);
+            }
             TPreenregistrementCompteClientTiersPayent op = (TPreenregistrementCompteClientTiersPayent) emg.createQuery(
                     "SELECT t FROM TPreenregistrementCompteClientTiersPayent t WHERE t.lgCOMPTECLIENTTIERSPAYANTID.lgCOMPTECLIENTTIERSPAYANTID = ?1 AND t.lgPREENREGISTREMENTID.lgPREENREGISTREMENTID = ?2")
                     .setParameter(1, params.getTierspayants().get(0).getCompteTp()).setParameter(2, params.getVenteId())
@@ -4060,8 +4152,26 @@ public class SalesServiceImpl implements SalesService {
         JSONObject json = new JSONObject();
         EntityManager emg = this.getEm();
         try {
-            TPreenregistrement tp = emg.find(TPreenregistrement.class, params.getVenteId());
+            /*
+             * Audit VC-08 (reproduit le 25/10) : le client d'une vente deja encaissee etait remplace, et un identifiant
+             * inconnu effacait le client (null). Une vente terminee est refusee. Un identifiant inconnu laisse le
+             * client en place : l'application mobile envoie ici le nom du mode de reglement avant chaque encaissement,
+             * le refuser bloquerait l'encaissement.
+             */
+            TPreenregistrement tp = StringUtils.isBlank(params.getVenteId()) ? null
+                    : emg.find(TPreenregistrement.class, params.getVenteId());
+            if (tp == null) {
+                return json.put("success", false).put("msg",
+                        "Cette vente n'existe plus : actualisez l'écran de vente.");
+            }
+            if (!venteEnCours(tp)) {
+                return json.put("success", false).put("msg",
+                        messageVenteNonModifiable(tp.getStrREF(), tp.getDtUPDATED(), tp.getStrSTATUT()));
+            }
             TClient client = findClient(params.getClientId(), emg);
+            if (client == null && StringUtils.isNotBlank(params.getClientId())) {
+                return json.put("success", true).put("msg", "Client inconnu : le client de la vente est inchangé.");
+            }
             tp.setClient(client);
             json.put("success", true).put("msg", "Opération effectuée avec success");
         } catch (Exception e) {
@@ -4072,6 +4182,14 @@ public class SalesServiceImpl implements SalesService {
     }
 
     private TClient findClient(String clientId, EntityManager emg) {
+        /*
+         * Identifiant absent : pas d'appel a find. find(null) leve IllegalArgumentException ; meme rattrapee,
+         * l'exception marque la transaction JTA pour annulation, et tout ce que la requete ecrit ensuite est perdu sans
+         * message.
+         */
+        if (StringUtils.isBlank(clientId)) {
+            return null;
+        }
         try {
 
             return emg.find(TClient.class, clientId);
@@ -4281,11 +4399,19 @@ public class SalesServiceImpl implements SalesService {
         return newTP;
     }
 
+    /**
+     * Copie de modification EN COURS de la vente, null s'il n'y en a pas. Audit N2 (reproduit le 25/10) : la recherche
+     * portait sur lg_PARENT_ID seul, que portent aussi l'annulation de la vente et la contre-passation d'une
+     * modification deja cloturee ; elle renvoyait alors l'annulation comme « copie », ou echouait (plusieurs lignes).
+     */
     private TPreenregistrement findByParent(String idVente) {
         try {
-            TypedQuery<TPreenregistrement> tq = getEm()
-                    .createQuery("SELECT o FROM TPreenregistrement o WHERE o.lgPARENTID=?1 ", TPreenregistrement.class);
+            TypedQuery<TPreenregistrement> tq = getEm().createQuery(
+                    "SELECT o FROM TPreenregistrement o WHERE o.lgPARENTID=?1 AND o.copy = TRUE AND o.strSTATUT = ?2 ORDER BY o.dtCREATED DESC",
+                    TPreenregistrement.class);
             tq.setParameter(1, idVente);
+            tq.setParameter(2, STATUT_IS_PROGRESS);
+            tq.setMaxResults(1);
             return tq.getSingleResult();
         } catch (Exception e) {
             return null;
@@ -4307,7 +4433,14 @@ public class SalesServiceImpl implements SalesService {
         TUser u = sessionHelperService.getCurrentUser();
         try {
             JSONObject data = new JSONObject();
-            TPreenregistrement tp = getEm().find(TPreenregistrement.class, venteId);
+            TPreenregistrement tp = StringUtils.isBlank(venteId) ? null
+                    : getEm().find(TPreenregistrement.class, venteId);
+            /* audit N2 : seule une vente terminee, non annulee, et qui n'est pas elle-meme une annulation se modifie */
+            if (tp == null || Boolean.TRUE.equals(tp.getBISCANCEL()) || !STATUT_IS_CLOSED.equals(tp.getStrSTATUT())
+                    || StringUtils.isNotBlank(tp.getLgPREENGISTREMENTANNULEID())) {
+                return json.put("success", false).put("msg",
+                        "Seule une vente terminée et non annulée peut être modifiée : actualisez la liste des ventes.");
+            }
             TPreenregistrement i = findByParent(venteId);
             if (i != null) {
                 data.put("lgPREENREGISTREMENTID", i.getLgPREENREGISTREMENTID());
@@ -5272,7 +5405,21 @@ public class SalesServiceImpl implements SalesService {
 
     @Override
     public JSONObject closePreventeVente(TUser ooTUser, String id) {
-        TPreenregistrement p = getEm().find(TPreenregistrement.class, id);
+        /*
+         * Audit VC-02 (reproduit le 25/10) : « Terminer la prevente » ecrivait is_Process sans lire le statut ; sur une
+         * vente deja encaissee par un autre poste, la vente sortait de la caisse du jour. Une vente terminee (cloturee,
+         * annulee, supprimee) est refusee ; la vente est verrouillee pour que l'encaissement simultane attende.
+         */
+        TPreenregistrement p = StringUtils.isBlank(id) ? null
+                : getEm().find(TPreenregistrement.class, id, javax.persistence.LockModeType.PESSIMISTIC_WRITE);
+        if (p == null) {
+            return new JSONObject().put("success", false).put("msg",
+                    "Cette prévente n'existe plus : actualisez l'écran de vente.");
+        }
+        if (!venteEnCours(p)) {
+            return new JSONObject().put("success", false).put("msg",
+                    messageVenteNonModifiable(p.getStrREF(), p.getDtUPDATED(), p.getStrSTATUT()));
+        }
         p.setStrSTATUT(Constant.STATUT_IS_PROGRESS);
         p.setLgUSERID(ooTUser);
         p.setCompletionDate(new Date());

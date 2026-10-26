@@ -1235,6 +1235,17 @@ public class GroupeTierspayantController implements Serializable {
         return list;
     }
 
+    /** Bon encore facturable : non facture, ligne et vente closes, vente non annulee, vente de montant positif. */
+    public static boolean bonFacturable(TPreenregistrementCompteClientTiersPayent pr) {
+        if (pr == null || pr.getLgPREENREGISTREMENTID() == null) {
+            return false;
+        }
+        dal.TPreenregistrement vente = pr.getLgPREENREGISTREMENTID();
+        return "unpaid".equals(pr.getStrSTATUTFACTURE()) && "is_Closed".equals(pr.getStrSTATUT())
+                && "is_Closed".equals(vente.getStrSTATUT()) && !Boolean.TRUE.equals(vente.getBISCANCEL())
+                && vente.getIntPRICE() != null && vente.getIntPRICE() > 0;
+    }
+
     public List<TPreenregistrementCompteClientTiersPayent> getGroupeSelectedBons(JSONArray selectedBons) {
         EntityManager em = null;
         List<TPreenregistrementCompteClientTiersPayent> list = new ArrayList<>();
@@ -1248,7 +1259,15 @@ public class GroupeTierspayantController implements Serializable {
 
                     TPreenregistrementCompteClientTiersPayent pr = em
                             .find(TPreenregistrementCompteClientTiersPayent.class, selectedBons.getString(i));
-                    list.add(pr);
+                    /*
+                     * Audit F2 (reproduit le 25/10) : les bons coches etaient factures sans etre relus ; depuis un
+                     * ecran reste ouvert, un bon deja facture l'etait une seconde fois (factures 6220 et 6221). Memes
+                     * filtres que la selection par periode : bon non facture, ligne et vente closes, vente non annulee,
+                     * montant positif.
+                     */
+                    if (bonFacturable(pr)) {
+                        list.add(pr);
+                    }
                 } catch (JSONException ex) {
 
                 }

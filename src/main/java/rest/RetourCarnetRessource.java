@@ -76,6 +76,10 @@ public class RetourCarnetRessource {
     @PUT
     @Path("item/{id}")
     public Response modifierProduitRetour(@PathParam("id") Integer id, Params params) throws Exception {
+        Response refus = refusRetour(params, false);
+        if (refus != null) {
+            return refus;
+        }
         Integer idRetour = retourCarnetService.updateDetailRetour(params.getValue(), id);
         JSONObject json = new JSONObject().put("success", true).put("data", new JSONObject().put("id", idRetour));
         return Response.ok().entity(json.toString()).build();
@@ -84,6 +88,10 @@ public class RetourCarnetRessource {
     @POST
     @Path("add/item")
     public Response ajusterProduit(Params params) throws Exception {
+        Response refus = refusRetour(params, true);
+        if (refus != null) {
+            return refus;
+        }
 
         Integer id = retourCarnetService.addDetailRetour(params.getValue(), params.getRefTwo(), params.getValueFour(),
                 Integer.valueOf(params.getRefParent()));
@@ -98,6 +106,10 @@ public class RetourCarnetRessource {
         TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
         if (tu == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        Response refus = refusRetour(params, true);
+        if (refus != null) {
+            return refus;
         }
         RetourCarnetDTO retourCarnetDTO = new RetourCarnetDTO();
         retourCarnetDTO.setOperateur(tu);
@@ -116,5 +128,20 @@ public class RetourCarnetRessource {
         retourCarnetService.updateRetourCarnet(id, params.getDescription());
         JSONObject json = new JSONObject().put("success", true);
         return Response.ok().entity(json.toString()).build();
+    }
+
+    /**
+     * Audit CA-08 et CA-15 (reproduits le 25/10) : une quantite negative ou nulle etait acceptee (le retour retirait du
+     * stock et creditait le carnet a l'envers), et un motif absent finissait en erreur 500. Refus avec un message.
+     */
+    private Response refusRetour(Params params, boolean motifRequis) throws JSONException {
+        String motif = null;
+        if (params == null || params.getValue() == null || params.getValue() <= 0) {
+            motif = "La quantité retournée doit être supérieure à zéro.";
+        } else if (motifRequis && params.getValueFour() == null) {
+            motif = "Choisissez le motif du retour.";
+        }
+        return motif == null ? null
+                : Response.ok().entity(new JSONObject().put("success", false).put("msg", motif).toString()).build();
     }
 }
