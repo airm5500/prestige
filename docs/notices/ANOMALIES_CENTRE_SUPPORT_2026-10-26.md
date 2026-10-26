@@ -7,6 +7,48 @@ chaque anomalie son statut, sa cause, une reproduction et un correctif proposé.
   `PRES-/audits-code-dffa0a`.
 - **Scripts joints** : `src/test/e2e/support/anomalies-centre/` (procédures en annexe A).
 
+## Synthèse
+
+Les 41 tickets et les 144 familles d'événements se ramènent à **92 anomalies**, classées de § 4 à § 13.
+
+| Statut | Nombre | Remarque |
+|---|---|---|
+| Traité (en tout ou en partie), avec le commit | 34 | Dont 12 confirmés par un essai sur la version 31622a33 |
+| Reproduit sur la version actuelle | 7 | Dont R1, reproduit par l'essai de la branche d'audit |
+| Prouvé par le code ou par les données, essai non joué | 32 | Essai impossible sans écrire de données, ou sans lecture SQL |
+| Peut-être traité | 2 | J6, P2 |
+| Hypothèse | 14 | |
+| Non reproduit | 3 | SC6 (normal), J16, L1 isolé |
+
+Le chemin supposé pour **V3** (`IllegalArgumentException` au message vide en vente) est **réfuté** par l'essai : ce cas
+est déjà traité par `974976e0`.
+
+**À traiter en premier (P1)** :
+
+1. **V2** : l'adresse du client est copiée dans le téléphone de la vente (20 caractères). Une adresse longue fait échouer
+   l'ajout en vente assurance, et aussi la **clôture comptant**. Il y a 7 endroits à corriger.
+2. **M1** : le forfait SMS Orange est épuisé. C'est une question métier, pas de code.
+3. **S1** : faux « redémarrages inattendus » (149 événements), dus à l'extinction des postes le soir. Ce bruit cache
+   les vraies coupures.
+4. **L1** : la cloche « Ventes en avoir » relit la liste complète toutes les 60 s sur chaque poste (733 lenteurs).
+
+**Défauts reproduits, à corriger ensuite (P2-P3)** :
+
+- P1 : `monitoringproduct` sans dates, 500 ;
+- L5 : `details-vente` sans vente, 18 s ;
+- J3 : « Annuler » de l'import de commande ;
+- C5 : prix de BL avec un champ vide, 500 ;
+- A4 : texte dans un filtre entier, 404 ;
+- A1 : code « .. », 404 ;
+- R1 : clé de mouvement des retours carnet.
+
+**Centre de support lui-même** :
+
+- **Tickets en double** (SC1) : le doublon est prouvé par les données.
+- **Moniteurs exécutés sur chaque caisse** (SC3).
+- **Version des postes inconnue** (SC8) : 25 tickets portent sur des défauts corrigés et restent ouverts.
+- **Données de test laissées** par deux tests (SC5).
+
 ## 1. Ce qui a été lu
 
 Les signalements ont été lus le 26/10 à 01 h 11, par les API de l'écran, avec le compte super administrateur `e2e-sa`.
@@ -94,8 +136,8 @@ Limites de l'étude :
 |---|---|---|---|---|---|---|---|
 | V1 | `TransientPropertyValueException … TPreenreg` sur `vente/add/assurance` et `add/vno` (70 occ., 17/08 → 22/10 ; 4 tickets ; + Ajax 500) | VENTE | **Traité** : `d0c4092c` (23/10) | Le vendeur tapé sans être choisi partait comme `new TUser(id)`, absent de la base ; refus au commit | Test existant `src/test/e2e/journal/test-vente-vendeur-saisi.js` | En place : le vendeur est lu en base ; inconnu, la caissière est retenue | — |
 | V2 | **`Data too long for column 'str_PHONE_CUSTOME'`** sur `add/assurance` et `PUT vente/client/{id}` (19 occ., 17/10 ; 2 tickets) | VENTE | Prouvé par le code (essai non joué : il faut un client de test à longue adresse) | L'**adresse** du client (50 car.) est copiée dans le **téléphone** de la vente (20 car.) : `SalesServiceImpl.java:1082`, `:4210`. Même défaut à `:2665`, `:2675` (clôture assurance), `:2937` (**clôture comptant**), `:4710`, `:5528` et `ClientServiceImpl.java:123`. `351ef6bc` n'en a corrigé qu'un | Écran : client assuré de test avec une adresse de 30 caractères, vente assurance, ajout d'un produit → 500. Comptage `t_client` soumis à ton accord (nominatif, B.3) | Remplacer `getStrADRESSE()` par `getStrTELEPHONE()` aux 7 endroits, en coupant à 20 car. (faible : aucun écran ni état ne lit cette colonne) | **P1** |
-| V3 | `IllegalArgumentException` au message vide sur `vente/add/item` et `net/assurance` (16 occ., 23/08 → 17/10 ; ticket `20260901-693D2EAA` ; + Ajax 500) | VENTE | ESSAI V2a, V2b | Un `null` JSON envoyé à un champ `int` (`TiersPayantParams.taux`, `SalesParams.qte`) fait échouer la lecture du corps. `974976e0` ne couvre que `JsonbException`. Déclencheur probable à l'écran : taux vide, `parseInt` donne `NaN`, envoyé `null` (`VenteCtr.js:7120`) (hypothèse forte) | `reproduire-api.js`, cas V2a et V2b | Serveur : 400 « données illisibles » pour une `IllegalArgumentException` levée à la lecture du corps. Écran : refuser un taux vide, sans le remplacer par 0 (faible) | **P1** |
-| V4 | `JsonbException … Integer` sur `update/item/vno` (1 occ., 03/09) | VENTE | **Traité** : `974976e0` (23/10), `c6469deb` (25/10) — ESSAI V3 | Quantité décimale dans un champ entier | Cas V3 ; test existant `journal/test-vente-quantite-decimale.js` | En place | — |
+| V3 | `IllegalArgumentException` au message vide sur `vente/add/item` et `net/assurance` (16 occ., 23/08 → 17/10 ; ticket `20260901-693D2EAA` ; + Ajax 500) | VENTE | **Traité** : `974976e0` (23/10). Prouvé par les essais V2a à V2g : 400 « Données envoyées illisibles » ou « Valeur saisie invalide », sans événement | Un `null` ou un texte vide dans un champ primitif (`taux`, `qte`, `devis`, `cmu`) fait échouer la lecture du corps. Yasson lève une `JsonbException` dont la cause est une `IllegalArgumentException` sans message ; l'événement affichait cette cause, d'où le message vide. Déclencheur probable à l'écran : taux vide, `parseInt` donne `NaN`, envoyé `null` (`VenteCtr.js:7120`) (hypothèse). Dernière apparition le 17/10, avant le correctif | `reproduire-api.js`, cas V2a à V2g (V2g : contre-épreuve, la méthode est atteinte) | En place côté serveur. Écran : refuser un taux vide plutôt que d'envoyer `null` (nul) | — |
+| V4 | `JsonbException … Integer` sur `update/item/vno` (1 occ., 03/09) | VENTE | **Traité** : `974976e0` (23/10), `c6469deb` (25/10). Essai V3 : 400 « Valeur saisie invalide pour « qte » » | Quantité décimale dans un champ entier | Cas V3 ; test existant `journal/test-vente-quantite-decimale.js` | En place | — |
 | V5 | Clé étrangère `hmvtproduit` sur `remove/vno/item` (18 occ., 18/08 → 03/09 ; 2 tickets) | VENTE | **Traité** : `3254e207` (05/09) | Retrait d'une ligne d'une vente déjà clôturée | Lecture B.4, puis `POST vente/remove/vno/item/<id>` → `success:false` | En place : `controleRetraitLigne` refuse | — |
 | V6 | `NullPointerException` sur `vente/ticket/vno/{id}` (12 occ., 31/08 → 09/09 ; 2 tickets) | VENTE | **Traité** : `c9ad2f0d` (03/09). **5 ventes restent à régulariser** (données) | La clôture en erreur était validée sans mouvement de caisse ; le ticket lisait ce mouvement absent. Les 4 ventes en cause figurent dans le contrôle « vente terminée sans mouvement de caisse » (H4) | Requête B.5, puis `POST vente/ticket/vno/<id>` → `success:false` | En place pour le code ; régulariser les 5 ventes après accord (données) | P2 |
 | V7 | `Duplicate entry … 'pkey_unq'` sur `cloturer/vno` (1 occ., 24/08) | VENTE | **Traité** : `913f6aa5` (23/08), `4bbea8c4` (01/09) | Double clôture simultanée de la même vente | Deux `cloturer/vno` simultanés sur une vente de test, puis `COUNT(*)` de `mvttransaction` = 1 | En place : verrou `FOR UPDATE` et réponse idempotente | — |
@@ -106,20 +148,20 @@ Limites de l'étude :
 | N° | Résumé | Module | Statut | Cause | Reproduction | Correctif proposé (risque) | Prio. |
 |---|---|---|---|---|---|---|---|
 | K1 | `CaisseUsingExeception` sur `ouvrir-caisse` (25 occ., 14/08 → 10/09 ; 2 tickets ; + Ajax 500, ticket `20260818-59A63EA1`) | CAISSE | **Traité** : `3254e207` (05/09) | Exception métier non déclarée `@ApplicationException` : erreur 500 au lieu d'un message | `POST caisse/ouvrir-caisse` sur une caisse déjà ouverte → 200, `success:false`. Non joué : l'appel ouvrirait la caisse si elle était fermée | En place | — |
-| K2 | `CaisseNotFoundExeception` sur `billetage/cloture-data` (9 occ., 24/08 → 22/10 ; ticket Ajax `20260921-35CC1438`) | BILLETAGE | **Traité** : `2575c3a0` (07/10), `38ba4d65` (09/10) — ESSAI B1 | Écran de clôture ouvert sans caisse ouverte ; l'exception traversait l'EJB enveloppée | Cas B1 ; test unitaire `CaisseNotFoundExeceptionTest` | En place (voir aussi SC7) | — |
+| K2 | `CaisseNotFoundExeception` sur `billetage/cloture-data` (9 occ., 24/08 → 22/10 ; ticket Ajax `20260921-35CC1438`) | BILLETAGE | **Traité** : `2575c3a0` (07/10), `38ba4d65` (09/10). Essai B1 : 200 « Aucune caisse ouverte à votre nom » | Écran de clôture ouvert sans caisse ouverte ; l'exception traversait l'EJB enveloppée | Cas B1 ; test unitaire `CaisseNotFoundExeceptionTest` | En place (voir aussi SC7) | — |
 | K3 | `UnknownHostException : serveur` et `XAException` sur `ventes-ratees/compteur-jour` (5 occ., 29/09 → 20/10) | VENTES-RATÉES | Prouvé par les piles : réglage, pas défaut de code | Le pool désigne la base par le nom « serveur », non résolu, et ne valide pas ses connexions. Le compteur, appelé à intervalle régulier, est simplement le premier à échouer | Écran « Stabilité du serveur » du poste | Réglages du pool (IP fixe, `is-connection-validation-required`, `fail-all-connections`) ; en option, compteur silencieux en cas d'échec (nul) | P2 |
 
 ## 7. Commandes, produits, retours carnet
 
 | N° | Résumé | Module | Statut | Cause | Reproduction | Correctif proposé (risque) | Prio. |
 |---|---|---|---|---|---|---|---|
-| C1 | `JsonbException … Integer` sur `commande/bon/items/checked-quantities` (5 occ., 03/09 → 16/09 ; ticket `20260916-7D31A090`) | COMMANDE | **Traité** côté serveur : `974976e0` (23/10) — ESSAI C1 | L'application mobile envoie une quantité non entière (décimale, vide ou code-barres) | Cas C1 | En place (400). Côté mobile : clavier numérique entier et contrôle avant envoi | P3 |
+| C1 | `JsonbException … Integer` sur `commande/bon/items/checked-quantities` (5 occ., 03/09 → 16/09 ; ticket `20260916-7D31A090`) | COMMANDE | **Traité** côté serveur : `974976e0` (23/10). Essai C1 : 400 « … un nombre entier est attendu » | L'application mobile envoie une quantité non entière (décimale, vide ou code-barres) | Cas C1 | En place (400). Côté mobile : clavier numérique entier et contrôle avant envoi | P3 |
 | C2 | `TimeoutException`, et **blocage de 28 s**, sur la même URL (05/10 ; ticket `20261005-5CEFB272`) | COMMANDE | Prouvé par la pile | Le serveur attendait un corps que le client mobile n'a jamais fini d'envoyer (Wi-Fi). Ni verrou ni pool | Socket brute : annoncer `Content-Length: 200`, envoyer 15 octets, attendre 60 s. Non joué : l'essai crée un blocage et un ticket | 408 sans événement ERROR quand la lecture du corps expire ; détecteur de blocage qui ignore ces fils (faible) | P3 |
 | C3 | `NullPointerException` au message vide sur `commande/item/add` (4 occ., 27/08 ; + Ajax 500) | COMMANDE | Prouvé par le code : deux chemins possibles (celui du 27/08 = hypothèse) | (a) répartiteur tapé sans être choisi : grossiste introuvable, NPE à `OrderServiceImpl.java:1181` ; (b) `t_famille_grossiste.int_PAF` NULL : déballage à `:1208` et `:1224` | (a) `POST commande/item/add` avec un `grossisteId` inconnu (transaction annulée) ; (b) requête B.6 | Refus lisible si le grossiste est introuvable ; PAF de repli ; `forceSelection` sur la liste (faible) | P2 |
-| C4 | `IllegalArgumentException … delete event with null entity` sur `DELETE commande/order/{id}` (16/10) | COMMANDE | **Traité** : `f23f4e26` (17/10) — ESSAI C4 | Double envoi de la suppression | Cas C4 ; test existant `journal/test-suppression-commande-double.js` | En place | — |
-| C5 | Ajax 500 sur `ws_transaction.jsp?mode=modifproductprice` (25/08), suivi de l'erreur JS `Ext.JSON.decode` (J19) | COMMANDE (BL) | ESSAI F1 | `Integer.parseInt` hors `try` sur les 4 prix (JSP, l. 47-56). Les champs PAF et PA tarif de `editprice.js` peuvent rester vides | Cas F1 | Champs numériques obligatoires à l'écran ; à terme, route REST (pas de nouvelle JSP) (faible) | P3 |
-| P1 | **`NullPointerException : text`** sur `produit/monitoringproduct` et `-complet` (18 occ., 24/08 → 26/09 ; ticket `20260824-BF981EA1` ; + Ajax 500 `20260824-566C65F4`) | PRODUIT | ESSAI P1 | `LocalDate.parse(null)` (`ProduitRessource.java:351`, `:268`). Les dates manquent parce que « Actualiser » ou un changement de page recharge le magasin sans paramètres : `beforechange` est déclaré comme propriété et non dans `listeners` (`MvtArticleCtr.js:631`, `MvtArticleCompletCtr.js:881`, `FamilleManager.js:3411`) | Cas P1. Écran : « Suivi mouvement article », détail d'une ligne, puis « Actualiser » | Paramètres en `extraParams` du proxy ; côté serveur, 400 « période manquante » (faible) | P2 |
-| P2 | `TransactionRolledbackLocalException` sur `produit-search/fiche` (29/09) | PRODUIT-SEARCH | Peut-être traité : `45d9a610` (06/10), si le déclencheur était un émoji — ESSAI S1 | Une lecture précédente de la même transaction a échoué et l'a marquée pour annulation ; ces lectures avalent leurs exceptions (`SearchProduitServcieImpl:491-524`) | Cas S1 (déclencheur émoji seulement) | Ne plus avaler les exceptions de requête, ou faire ces lectures hors transaction (**moyen** : fiche très utilisée) | P3 |
+| C4 | `IllegalArgumentException … delete event with null entity` sur `DELETE commande/order/{id}` (16/10) | COMMANDE | **Traité** : `f23f4e26` (17/10). Essai C4 : 200, aucun événement | Double envoi de la suppression | Cas C4 ; test existant `journal/test-suppression-commande-double.js` | En place | — |
+| C5 | Ajax 500 sur `ws_transaction.jsp?mode=modifproductprice` (25/08), suivi de l'erreur JS `Ext.JSON.decode` (J19) | COMMANDE (BL) | **Reproduit** (essai F1 : 500, page d'erreur HTML de Payara) | `Integer.parseInt` hors `try` sur les 4 prix (JSP, l. 47-56). Les champs PAF et PA tarif de `editprice.js` peuvent rester vides | Cas F1 | Champs numériques obligatoires à l'écran ; à terme, route REST (pas de nouvelle JSP) (faible) | P3 |
+| P1 | **`NullPointerException : text`** sur `produit/monitoringproduct` et `-complet` (18 occ., 24/08 → 26/09 ; ticket `20260824-BF981EA1` ; + Ajax 500 `20260824-566C65F4`) | PRODUIT | **Reproduit** (essai P1 : 500, l'événement « NullPointerException : text » passe de 14 à 15 occurrences) | `LocalDate.parse(null)` (`ProduitRessource.java:351`, `:268`). Les dates manquent parce que « Actualiser » ou un changement de page recharge le magasin sans paramètres : `beforechange` est déclaré comme propriété et non dans `listeners` (`MvtArticleCtr.js:631`, `MvtArticleCompletCtr.js:881`, `FamilleManager.js:3411`) | Cas P1. Écran : « Suivi mouvement article », détail d'une ligne, puis « Actualiser » | Paramètres en `extraParams` du proxy ; côté serveur, 400 « période manquante » (faible) | P2 |
+| P2 | `TransactionRolledbackLocalException` sur `produit-search/fiche` (29/09) | PRODUIT-SEARCH | Peut-être traité : `45d9a610` (06/10), si le déclencheur était un émoji. Essai S1 : 400 « Les émojis … ne sont pas acceptés » ; les autres causes SQL restent possibles | Une lecture précédente de la même transaction a échoué et l'a marquée pour annulation ; ces lectures avalent leurs exceptions (`SearchProduitServcieImpl:491-524`) | Cas S1 (déclencheur émoji seulement) | Ne plus avaler les exceptions de requête, ou faire ces lectures hors transaction (**moyen** : fiche très utilisée) | P3 |
 | R1 | `Duplicate entry … 'pkey_unq'` sur `PUT v2/retour-carnet-depot/{id}` (8 occ., 25/10 ; ticket `20261025-62667DE5`) | RETOUR CARNET | Reproduit **par l'essai de la branche d'audit** (`audits/repro-carnet.js`, sur ce poste) ; non corrigé (constat N9) | La clôture écrit un mouvement `hmvtproduit` dont la clé est l'identifiant numérique de la ligne de retour, déjà utilisé (`RetourCarnetServiceImpl.java:93`). À vérifier : les migrations suppriment l'index `pkey_unq` de `hmvtproduit` (V5.3.7), la copie l'a encore (B.7) | `repro-carnet.js` (branche d'audit) | Clé `"RC-"+id` ; refus d'une seconde clôture (CA-07) (faible) | P2 |
 | R2 | `IllegalArgumentException : id to load is required` sur `POST v2/retour-carnet-depot/creeation` (4 occ., 25/10, essai E2E) | RETOUR CARNET | **Traité sur la branche d'audit seulement** : `fe7b075b` (CA-15), pas encore dans `claude/new-session-xm8ptu` | Motif absent : `em.find(…, null)` (`RetourCarnetServiceImpl.java:198`) | Fichier de détail `event-RETOURCARNETDEPOT-b454d799…` ; même appel que R1 avec `valueFour:null` | Reprendre `fe7b075b` à la fusion ; refuser aussi un motif inexistant (nul) | P3 |
 
@@ -136,7 +178,7 @@ Le collecteur d'erreurs (`app.js:1272-1656`) ne provoque ni n'amplifie aucune de
 |---|---|---|---|---|---|---|---|
 | J1 | `too much recursion` et `Maximum call stack size exceeded` dans `ext-all.js` (10 évén., 120 occ., 14/08 → 10/09 ; 4 tickets) | FRONTEND | **Traité** : `4e890c1b` (22/08), `3254e207` (05/09), pour 8 événements sur 10. Les 2 autres (14/08 et 01/09, sans fil « ouvrir-caisse ») : hypothèse | `OuverturecaisseManager.retourNavigation` s'appelait elle-même après « Ouvrir caisse », puis Oui ou Non à l'impression | « Ouverture de Caisse », « Ouvrir caisse », Oui ou Non : aucune erreur. Non joué : l'essai ouvre une caisse | En place | — |
 | J2 | `getVentemanagerGrid() is undefined` (`StatVenteDepotCtr.js:175`), 3 libellés selon le navigateur (7 évén., 76 occ. ; 3 tickets) | FRONTEND | **Traité** : `913f6aa5` (23/08) | Le contrôleur du dépôt écoutait la touche Entrée de l'écran « Vente terminées ». Après le correctif, la ligne 175 est `},` : les signalements jusqu'au 10/09 viennent de l'ancien fichier | « Vente terminées », saisir « a » dans Rechercher, Entrée : aucune erreur | En place | — |
-| J3 | `Ext.getCmp(...) is undefined` sur `close` (`ImportXLS.js:191`) (6 occ., 20/08 → 17/10 ; ticket `20260929-E81DF44E`) | FRONTEND (commandes) | ESSAI ÉCRAN `test-import-commande-annuler.js` | « Annuler » détruit la fenêtre puis appelle `close()` sur le composant détruit (`ImportXLS.js:190-191`) | « Commande en cours », « IMPORTER UNE COMMANDE », « Annuler » | `button.up('window').close()` (nul) | P3 |
+| J3 | `Ext.getCmp(...) is undefined` sur `close` (`ImportXLS.js:191`) (6 occ., 20/08 → 17/10 ; ticket `20260929-E81DF44E`) | FRONTEND (commandes) | **Reproduit** (test d'écran `test-import-commande-annuler.js` : « Cannot read properties of undefined (reading 'close') », code 1) | « Annuler » détruit la fenêtre puis appelle `close()` sur le composant détruit (`ImportXLS.js:190-191`) | « Commande en cours », « IMPORTER UNE COMMANDE », « Annuler » | `button.up('window').close()` (nul) | P3 |
 | J4 | `client is null` (`VenteCtr.js:3879`) (3 occ., 02 → 09/09) | FRONTEND (vente) | **Traité** : `4bbea8c4` (01/09) | Client lu avant d'être testé dans `onbtnModifierInfo` | Vente, type Assurance sans client, icône « modifier » : aucune erreur | En place | — |
 | J5 | `record is undefined` sur `order` et `numBon` (`VenteCtr.js`, `addTpCmp`) (7 occ.) | FRONTEND (vente) | Prouvé par le code (cause d'une liste vide côté serveur = hypothèse) | `onNewClientAssurance` (`VenteCtr.js:5024`) appelle `addTpCmp(tierspayants[0])` sans tester la liste ; le serveur peut la renvoyer vide | `page.route` sur `client/add/assurance` qui renvoie `tiersPayants:[]` → erreur « numBon » | Tester la liste ; `if (!record) return` dans `addTpCmp` (faible) | P2 |
 | J6 | `result is null` sur `success` (`VenteCtr.js:1061`, actuellement `:1422`) (23/08) | FRONTEND (vente) | Peut-être traité : `d4531230` (23/10) encode le code saisi ; le défaut de fond reste | Réponse 200 non JSON (code contenant `%`) : `Ext.JSON.decode(…, true)` rend `null` | `page.route` sur `vente/findone/**` qui renvoie du HTML | `if (result && result.success)` (nul) | P3 |
@@ -161,11 +203,11 @@ Le collecteur d'erreurs (`app.js:1272-1656`) ne provoque ni n'amplifie aucune de
 
 | N° | Résumé | Module | Statut | Cause | Reproduction | Correctif proposé (risque) | Prio. |
 |---|---|---|---|---|---|---|---|
-| A1 | 404 sur `vente/findone/<valeur>` (environ 55 évén.) : liens de QR publicitaires, libellés avec `/`, `.`, `..`, `?` | FRONTEND (vente) | **Traité en partie** : `e5fc8dee` (17/10, liens refusés) et `d4531230` (23/10, encodage). Reste `.` et `..` — ESSAI A2 | La valeur passe dans le chemin. `encodeURIComponent` laisse `.` et `..`, que le navigateur réécrit | Cas A2 | Refuser en JS les codes vides, `.` et `..`, ou passer le code en paramètre de requête (faible) | P3 |
+| A1 | 404 sur `vente/findone/<valeur>` (environ 55 évén.) : liens de QR publicitaires, libellés avec `/`, `.`, `..`, `?` | FRONTEND (vente) | **Traité en partie** : `e5fc8dee` (17/10, liens refusés) et `d4531230` (23/10, encodage). Reste `..` : **reproduit** (essai A2 : le navigateur envoie `vente/`, puis 404) | La valeur passe dans le chemin. `encodeURIComponent` laisse `.` et `..`, que le navigateur réécrit | Cas A2 | Refuser en JS les codes vides, `.` et `..`, ou passer le code en paramètre de requête (faible) | P3 |
 | A2 | 404 sur `commande/produit/commande/{id}` (19 occ., 01-02/09) | FRONTEND (fiche article) | **Traité** : route renommée par `9af460fd` (12/08), plus aucun appelant | Ancien `detailArticle.js` resté en cache | — | En place | — |
-| A3 | 404 sur `client/client-assurance//0` (11/09, 22/10) | FRONTEND | **Traité** pour la vente et la vente en dépôt : `d4531230` ; reste `DevisCtr.js:1227` — ESSAI A3 | Identifiant client vide | Cas A3 (montre que le chemin vide donne 404) | Même garde dans `DevisCtr.js` (nul) | P4 |
-| A4 | 404 sur `ventestats/article-vendus` et `-recap` (24/09, 22/10) | FRONTEND (statistiques) | ESSAI A1 | Texte saisi dans un filtre entier (`stock`, `int_NUMBER`, `qteVendu`) : JAX-RS ne sait pas le convertir et répond 404, renvoyé tel quel par `SupportExceptionMapper.java:47` | Cas A1 | Champs numériques à l'écran ; ou paramètres texte et refus 400 en JSON (faible) | P3 |
-| A5 | 404 sur `tierspayant/ws_data.jsp?str_STATUT=disable` (18-21/10) | FRONTEND (tiers payants) | **Traité** pour l'écran concerné : `2028bf9f` (23/10). Mais 19 autres fichiers citent encore cette JSP supprimée le 04/12/2024 (`9d1066e5`) | Ancienne URL | Recherche `ws_data.jsp` dans `webapp/general/app` | Passer les 19 fichiers à l'API REST, écran par écran (moyen) | P2 |
+| A3 | 404 sur `client/client-assurance//0` (11/09, 22/10) | FRONTEND | **Traité** pour la vente et la vente en dépôt : `d4531230` ; reste `DevisCtr.js:1227` (prouvé par le code ; essai A3 : un identifiant vide donne bien 404) | Identifiant client vide | Cas A3 (montre que le chemin vide donne 404) | Même garde dans `DevisCtr.js` (nul) | P4 |
+| A4 | 404 sur `ventestats/article-vendus` et `-recap` (24/09, 22/10) | FRONTEND (statistiques) | **Reproduit** (essai A1 : `stock=abc` donne 404 en page HTML) | Texte saisi dans un filtre entier (`stock`, `int_NUMBER`, `qteVendu`) : JAX-RS ne sait pas le convertir et répond 404, renvoyé tel quel par `SupportExceptionMapper.java:47` | Cas A1 | Champs numériques à l'écran ; ou paramètres texte et refus 400 en JSON (faible) | P3 |
+| A5 | 404 sur `tierspayant/ws_data.jsp?str_STATUT=disable` (18-21/10) | FRONTEND (tiers payants) | **Traité** pour l'écran concerné : `2028bf9f` (23/10). Mais 29 fichiers de `webapp/general/app` citent encore cette JSP supprimée le 04/12/2024 (`9d1066e5`), en ligne non commentée ; qu'ils l'appellent vraiment reste à vérifier écran par écran | Ancienne URL | Recherche `tierspayant/ws_data.jsp` dans `webapp/general/app` | Passer ces fichiers à l'API REST, écran par écran (moyen) | P2 |
 | A6 | 404 sur `mobile/catalogue-essai` (26/10, poste local) | Tests | Voir SC5 | Ressource inexistante appelée par `test-sessions.js` | — | Voir SC5 | P3 |
 | A7 | 400 sur `vente/search` (21/10, 4 occ.) | FRONTEND (vente) | Hypothèse | Probablement `CaracteresSaisieFilter` : émoji ou caractère sur 4 octets envoyé par la douchette | Cas S1 (même filtre) | Message clair à l'écran (nul) | P4 |
 
@@ -183,11 +225,11 @@ Constats transverses :
 
 | N° | Résumé | Module | Statut | Cause | Reproduction / mesure | Correctif proposé (risque) | Prio. |
 |---|---|---|---|---|---|---|---|
-| L1 | **`GET ventestats` lent** (733 occ., 14/08 → 23/10) | PERFORMANCE | ESSAI M2 (mesure) | La cloche « Ventes en avoir » (`Header.js:1091-1103`) appelle la liste complète sur un mois **toutes les 60 s et sur chaque poste**. `b_IS_AVOIR` n'a pas d'index. Le compteur léger `avoirs-ouverts/count` existe mais n'est pas branché (`AVOIRS_SANS_PERIODE = false`). Traité en partie par `3254e207` et `bf7c8b2f` | Cas M2 ; `EXPLAIN` B.8 | Badge sur le compteur, liste lue à l'ouverture ; index `(b_IS_AVOIR, str_STATUT, dt_UPDATED)` (faible : le badge comptera aussi les avoirs de plus d'un mois) | **P1** |
+| L1 | **`GET ventestats` lent** (733 occ., 14/08 → 23/10) | PERFORMANCE | Constaté en officine (733 mesures au-delà de 5 s). Non reproduit isolément (essai M2 : 122 ms pour un appel seul sur capitale, aucun avoir dans la période). Cause = hypothèse, à mesurer en officine avec 6 postes en parallèle | La cloche « Ventes en avoir » (`Header.js:1091-1103`) appelle la liste complète sur un mois **toutes les 60 s et sur chaque poste**. `b_IS_AVOIR` n'a pas d'index. Le compteur léger `avoirs-ouverts/count` existe mais n'est pas branché (`AVOIRS_SANS_PERIODE = false`). Traité en partie par `3254e207` et `bf7c8b2f` | Cas M2 ; `EXPLAIN` B.8 | Badge sur le compteur, liste lue à l'ouverture ; index `(b_IS_AVOIR, str_STATUT, dt_UPDATED)` (faible : le badge comptera aussi les avoirs de plus d'un mois) | **P1** |
 | L2 | `commande/list-bons` lent et 17 blocages, jusqu'à 27 s (14/08 → 10/09 ; ticket `20260817-CD2C6EC5`) | PERFORMANCE / BLOCAGE | **Traité** : `3254e207` (05/09). Plus rien après le 10/09 ; aucune mesure avant/après consignée | `DATE(dt_UPDATED)` empêchait l'index ; 3 requêtes par bon | `GET commande/list-bons?statut=enable&start=0&limit=100&dtStart=2026-07-01&dtEnd=2026-10-26` < 1 s | En place ; consigner la mesure | — |
 | L3 | `caisse/fetch-tickez` et `tickez` lents, 18 blocages jusqu'à 36 s (jusqu'au 25/10 ; 3 tickets) | PERFORMANCE / BLOCAGE | **Traité** : `9ee6cc84` (25/10, 20 h 55). **24 jours : 30 s → 0,9 s** (`caisse/test-ticketz.js`) | Chaque mouvement de caisse était rechargé avec toute sa vente | `POST caisse/fetch-tickez` sur 24 jours < 5 s | En place ; vérifier en officine après déploiement | — |
 | L4 | `audit/analyse` : blocage de 29 s et 18 lenteurs (25/10, ce poste ; ticket `20261025-23BB836A`) | PERFORMANCE / BLOCAGE | **Traité en partie** : `fe047863` (25/10). Officine : 1 min 45 → 0,18 s ; copie : 292 s → 6,1 s, encore au-dessus de 5 s | Sommes recalculées client par client (`AuditAnalyseService.differes()`) ; la section stock reste à environ 3 s | `GET audit/analyse?dtStart=2026-10-01&dtEnd=2026-10-25` < 5 s | Sections en `@Asynchronous` ou calculées à l'ouverture (faible) | P2 |
-| L5 | `facture-tiers-payant/details-vente` : blocage de 37 s (20/10 ; ticket `20261020-7C0519F6`) | BLOCAGE | ESSAI M1 (mesure) | Une requête par ligne et trois totaux de l'ancien code. **Sans identifiant de vente, les totaux parcourent toutes les ventes en cours** (`FactureTiersPayantRessource.java:421`). Déclencheur probable : la barre de pages recharge sans paramètres (`detailTransactionTiersPayant.js:430`) | Cas M1 | Refus sans identifiant ; totaux en SQL ; `extraParams` sur le magasin (moyen : comparer les montants de remise sur 20 ventes) | P2 |
+| L5 | `facture-tiers-payant/details-vente` : blocage de 37 s (20/10 ; ticket `20261020-7C0519F6`) | BLOCAGE | **Reproduit** (essai M1 : **18,1 s** sans identifiant de vente, totaux calculés sur toutes les ventes en cours, liste vide) ; déclencheur à l'écran = hypothèse forte | Une requête par ligne et trois totaux de l'ancien code. **Sans identifiant de vente, les totaux parcourent toutes les ventes en cours** (`FactureTiersPayantRessource.java:421`). Déclencheur probable : la barre de pages recharge sans paramètres (`detailTransactionTiersPayant.js:430`) | Cas M1 | Refus sans identifiant ; totaux en SQL ; `extraParams` sur le magasin (moyen : comparer les montants de remise sur 20 ventes) | P2 |
 | L6 | `statfamillearticle/vingtQuatreVingt` (analyse 20/80) lent (23 occ., jusqu'au 15/10) | PERFORMANCE | Hypothèse forte | Procédures de V6.0.4 sans `STRAIGHT_JOIN`, même défaut que « Statistique famille », corrigé le 19/10 | `GET statfamillearticle/vingtQuatreVingt?dtStart=2026-09-01&dtEnd=2026-09-30&vingtType=CA` < 3 s | Recréer les 3 procédures selon la méthode de V7.0.1 (faible : comparer 6 jeux de paramètres) | P2 |
 | L7 | `commande/bon/items/{id}` lent (40 occ. sur 6 bons, jusqu'au 21/10) | PERFORMANCE | **Traité** : `e7fd59cf` (23/10). 492 lignes : 43-47 s → 1,8-3,2 s | Vérification Hibernate avant chaque requête de la boucle | `perf/test-lignes-bl-mobile.js` | En place | — |
 | L8 | `articles/abc` lent (15 occ., jusqu'au 19/09) | PERFORMANCE | **Traité** : `49be4b83` (14/10). 9 mois : 8,4 → 2,4 s | Sommes par ligne au lieu de par produit | `GET articles/abc` sur 9 mois < 3 s | En place | — |
@@ -237,7 +279,44 @@ Le veilleur passe chaque nuit à 04 h 15 et compte au plus 500 cas par contrôle
 | H4 | « Vente terminée sans mouvement de caisse » (5) | VENTE | **Vraie anomalie de données** (au moins 4 ventes sur 5 sont celles de V6) | Clôtures interrompues d'avant `c9ad2f0d` | Requête B.5 | Régulariser les 5 ventes après accord ; aligner le contrôle sur sctrl-06 (annulées exclues, lien par `vente_id`) (nul) | P2 |
 | H5 | « Snapshot de stock absent pour la veille » (1) | VALORISATION | **Traité** : `bc1995ab` (V7.2.6), appliqué à la copie le 25/10 à 19 h 11 | L'ancien contrôle lisait une table que plus rien n'alimente | Requête B.16 | En place. Risque restant : une caisse allumée avant le serveur signalera un relevé absent (SC3) | P4 |
 
-<!-- RESULTATS -->
+## 14. Résultats des essais (26/10, de 01 h 55 à 02 h 00)
+
+**Environnement**
+
+- Second domaine Payara `http://localhost:9080/prestige`, version **31622a33** (tête de `claude/new-session-xm8ptu`).
+- Base `capitale` (copie du 25/10, migrée en 7.2.23), comptes `e2e-sa` et `e2e`.
+- Le domaine 8080 (base `laborex_v1_db`) faisait tourner la version de la branche d'audit : il n'a pas servi aux essais.
+
+| Essai | Anomalie | Appel | Attendu si le défaut est présent | Obtenu | Verdict |
+|---|---|---|---|---|---|
+| P1 | P1 | `GET produit/monitoringproduct` sans dates | 500 | 500 (30 ms) ; « NullPointerException : text » passe de 14 à 15 occurrences | **Reproduit** |
+| V2a | V3 | `POST vente/net/assurance`, `taux:null` | 500 | 400 « Données envoyées illisibles » | Traité |
+| V2b | V3 | `POST vente/add/item`, `qte:null` | 500 | 400 « Données envoyées illisibles » | Traité |
+| V2c à V2f | V3 | `devis:null`, `cmu:null`, `taux:""`, `qte:""` | 500 | 400 dans les 4 cas | Traité |
+| V2g | (contre-épreuve) | `net/assurance` avec un taux valide | — | 200 « Cette vente n'existe plus » : la méthode est atteinte | — |
+| V3 | V4 | `POST vente/update/item/vno`, `qte:1.5` | 500 | 400 « Valeur saisie invalide pour « qte » » | Traité |
+| C1 | C1 | `POST commande/bon/items/checked-quantities`, `2.5` | 500 | 400 « … un nombre entier est attendu » | Traité |
+| A1 | A4 | `GET ventestats/article-vendus?…&stock=abc` | 404 | 404 (page HTML de Payara) | **Reproduit** |
+| A2 | A1 | `GET vente/findone/..` | 404 | le navigateur envoie `vente/`, puis 404 | **Reproduit** |
+| A3 | A3 | `GET client/client-assurance//0` | 404 | 404 | Reproduit (chemin vide) |
+| B1 | K2 | `GET billetage/cloture-data` sans caisse | 500 | 200 « Aucune caisse ouverte à votre nom » | Traité |
+| C4 | C4 | `DELETE commande/order/E2E-INEXISTANT` | 500 | 200 | Traité |
+| S1 | P2 | `GET produit-search/fiche` avec un émoji | 500 | 400 « Les émojis … ne sont pas acceptés » | Traité (ce déclencheur) |
+| F1 | C5 | `POST ws_transaction.jsp?mode=modifproductprice`, PAF vide | 500 | 500 (page HTML de Payara) | **Reproduit** |
+| M1 | L5 | `GET facture-tiers-payant/details-vente` sans identifiant | plus de 1 s | **18 083 ms**, liste vide, totaux sur toutes les ventes en cours | **Reproduit** |
+| M2 | L1 | `GET ventestats?onlyAvoir=true…` sur un mois | plus de 200 ms | 122 ms (appel seul, aucun avoir) | Non reproduit |
+| écran | J3 | « Commande en cours », « IMPORTER UNE COMMANDE », « Annuler » | erreur JS « close » | « Cannot read properties of undefined (reading 'close') », code 1 | **Reproduit** |
+
+**Traces laissées par les essais**
+
+- Aucune donnée métier n'a été écrite.
+- Deux événements existants de `capitale` ont pris une occurrence chacun :
+  - `7c2429b5-ec1a-4dfa-88bb-49c934117652` (« NullPointerException : text ») ;
+  - `50900833-b797-4e5c-92fe-0e961f4385d5` (lenteur `details-vente`).
+- Pour les remettre en l'état, sur `capitale` uniquement :
+  `UPDATE t_application_event SET occurrences = occurrences - 1 WHERE id IN ('7c2429b5-ec1a-4dfa-88bb-49c934117652','50900833-b797-4e5c-92fe-0e961f4385d5');`
+- Les dernières lignes de `t_application_event_occurrence` de ces deux événements sont à retirer de la même façon.
+- Le test d'écran a intercepté son propre signalement : il n'a rien écrit.
 
 ## Annexe A. Rejouer les reproductions
 

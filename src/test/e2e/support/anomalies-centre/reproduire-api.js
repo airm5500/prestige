@@ -28,6 +28,23 @@ const CAS = [
   { id: 'V2b', titre: 'add/item, quantite vide (null) : IllegalArgumentException sans message', methode: 'POST',
     url: V1 + 'vente/add/item', corps: { venteId: 'E2E-INEXISTANT', produitId: 'E2E-INEXISTANT', qte: null, qteServie: 1 },
     defaut: (r) => r.statut === 500, corrige: (r) => r.statut === 400 },
+  /* variantes de V2 : autres valeurs que l'ecran peut envoyer dans un champ primitif */
+  { id: 'V2c', titre: 'add/item, booleen « devis » a null', methode: 'POST', url: V1 + 'vente/add/item',
+    corps: { venteId: 'E2E-INEXISTANT', produitId: 'E2E-INEXISTANT', qte: 1, qteServie: 1, devis: null },
+    defaut: (r) => r.statut === 500, corrige: (r) => r.statut === 400 || r.statut === 200 },
+  { id: 'V2d', titre: 'net/assurance, booleen « cmu » a null', methode: 'POST', url: V1 + 'vente/net/assurance',
+    corps: { venteId: 'E2E-INEXISTANT', tierspayants: [{ compteTp: 'E2E-INEXISTANT', numBon: 'T1', taux: 80, cmu: null }] },
+    defaut: (r) => r.statut === 500, corrige: (r) => r.statut === 400 || r.statut === 200 },
+  { id: 'V2e', titre: 'net/assurance, taux en texte vide', methode: 'POST', url: V1 + 'vente/net/assurance',
+    corps: { venteId: 'E2E-INEXISTANT', tierspayants: [{ compteTp: 'E2E-INEXISTANT', numBon: 'T1', taux: '', cmu: 'false' }] },
+    defaut: (r) => r.statut === 500, corrige: (r) => r.statut === 400 || r.statut === 200 },
+  { id: 'V2f', titre: 'add/item, quantite en texte vide', methode: 'POST', url: V1 + 'vente/add/item',
+    corps: { venteId: 'E2E-INEXISTANT', produitId: 'E2E-INEXISTANT', qte: '', qteServie: 1 },
+    defaut: (r) => r.statut === 500, corrige: (r) => r.statut === 400 || r.statut === 200 },
+  { id: 'V2g', titre: 'net/assurance, taux valide (contre-epreuve : la methode est atteinte)', methode: 'POST',
+    url: V1 + 'vente/net/assurance',
+    corps: { venteId: 'E2E-INEXISTANT', tierspayants: [{ compteTp: 'E2E-INEXISTANT', numBon: 'T1', taux: 80, cmu: 'false' }] },
+    defaut: (r) => r.statut === 500, corrige: (r) => r.statut === 400 || r.statut === 200 },
   { id: 'V3', titre: 'update/item/vno, quantite decimale : JsonbException (corrige par 974976e0 : 400 attendu)', methode: 'POST',
     url: V1 + 'vente/update/item/vno', corps: { itemId: 'E2E-INEXISTANT', itemPu: 1000, qte: 1.5, qteServie: 1, produitId: 'E2E-INEXISTANT' },
     defaut: (r) => r.statut === 500, corrige: (r) => r.statut === 400 },
@@ -74,14 +91,16 @@ const CAS = [
     const x = await fetch(a.url, { method: a.methode, headers: { 'Content-Type': 'application/json' },
       body: a.corps ? JSON.stringify(a.corps) : undefined });
     return { statut: x.status, url: x.url, ms: Date.now() - t0, corps: (await x.text()).slice(0, 300) };
-  }, a);
+  }, { methode: a.methode, url: a.url, corps: a.corps });
   const evenements = async () => {
     const j = JSON.parse((await p.evaluate(async (u) => (await fetch(u)).text(), V1 + 'support/events?start=0&limit=5000')));
     return new Map((j.data || []).map((e) => [e.id, e]));
   };
   const avant = await evenements();
   const resultats = [];
-  for (const c of CAS) {
+  /* CAS=V2c,V2d : ne jouer que ces cas */
+  const choisis = process.env.CAS ? process.env.CAS.split(',') : null;
+  for (const c of CAS.filter((x) => !choisis || choisis.includes(x.id))) {
     const r = await appel(c);
     const verdict = c.defaut(r) ? 'DEFAUT_REPRODUIT' : c.corrige(r) ? 'CORRIGE' : 'AUTRE';
     resultats.push({ id: c.id, titre: c.titre, methode: c.methode, url: c.url, corps: c.corps, statut: r.statut,
