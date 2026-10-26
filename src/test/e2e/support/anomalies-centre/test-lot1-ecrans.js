@@ -19,6 +19,8 @@ const { chromium } = require('playwright-core');
 const ENV_E2E = require('../../outils/poste');
 const { connexion, ouvrirMenu, cliquer, texteMessage, repondre } = require('../../outils/vues');
 
+/* VOLETS=C5 : ne jouer que ces volets (P1, A1, C5) */
+const joue = (v) => !process.env.VOLETS || process.env.VOLETS.split(',').includes(v);
 const res = [];
 function ok(n, c, d) { res.push(!!c); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
 const visible = (p, r) => p.waitForFunction((q) => Ext.ComponentQuery.query(q).some((x) => x.isVisible(true)), r, { timeout: 60000 });
@@ -45,7 +47,7 @@ async function fermerMessages(p) {
     await connexion(p, ENV_E2E.LOGIN, 'e2etest');
 
     /* ---- P1 ---- */
-    try {
+    if (joue('P1')) try {
       await ouvrirMenu(p, 'GESTION DU STOCK', 'Suivi mouvement article2');
       await visible(p, 'monitoringproduct gridpanel');
       /* periode d'un mois (celle du jour peut etre vide sur une copie), puis « Rechercher » */
@@ -74,7 +76,7 @@ async function fermerMessages(p) {
     } catch (x) { ok('P1 parcours sans exception', false, x.message); }
 
     /* ---- A1 ---- */
-    try {
+    if (joue('A1')) try {
       await ouvrirMenu(p, 'SERVICE CLIENT', 'Ventes');
       await visible(p, 'cloturerventemanager #addBtn');
       await cliquer(p, 'cloturerventemanager #addBtn');
@@ -109,7 +111,7 @@ async function fermerMessages(p) {
     await fermerMessages(p);
 
     /* ---- C5 / J19 ---- */
-    try {
+    if (joue('C5')) try {
       await ouvrirMenu(p, 'GESTION DES COMMANDES', 'Gestion des entrées');
       await visible(p, 'bonlivraisonmanager');
       /* l'ecran ne liste que les bons en cours : sur une copie qui n'en a aucun, ce volet ne peut pas se jouer */
