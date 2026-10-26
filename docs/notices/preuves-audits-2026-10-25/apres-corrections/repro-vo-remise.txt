@@ -1,0 +1,8 @@
+PASS  CR-05 précondition : remise appliquée sur la vente assurance  [{"statut":"is_Closed","annulee":false,"prix":2010,"remise":201,"partClient":201,"tva":0,"client":"ZZAUDIT-CL-VR80"} ; net affiché 200]
+PASS  CR-05 attendu : en espèces, le montant réglé de la transaction = montant payé par le client (net arrondi de la part client 201)  [prix 2010 ; remise 201 ; parts TP 1608 ; part client 201 ; transaction payé|réglé|remise 200|200|201]
+PASS  N3 attendu : en différé sans acompte, la dette du client = part client (201)  [part client 201 ; remise 201 ; dette prix|reste 201|201]
+PASS  CR-06 attendu : avec une remise (10 %) supérieure à la part client (5 %), parts TP + part client = prix − remise  [prix 2010 ; remise 101 ; parts TP 1909 ; part client 0 ; total 1909 (attendu 1909)]
+PASS  Aucune erreur JavaScript  []
+PASS  Jeu d'essai retiré (ventes, clients, tiers payants, factures), stocks et paramètres remis  [ventes restantes 0]
+
+6/6 OK

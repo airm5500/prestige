@@ -1,0 +1,13 @@
+PASS  ecran mvtcaissemanager ouvert
+PASS  le filtre Type ne propose que les trois types du journal  [["Entrees de caisse","Reglements 1/3 pay.","Sorties de caisse"]]
+PASS  Tous les types envoie bien les trois types  [typeMvtId=5,3,4   (2 requetes observees)]
+PASS  le formulaire ne propose que les trois types du journal  [["Entrees de caisse","Reglements 1/3 pay.","Sorties de caisse"]]
+PASS  la date du mouvement est initialisee au jour  [true]
+PASS  le mode de reglement est masque  [true]
+PASS  le mode de reglement conserve sa valeur en arriere-plan  ["1"]
+PASS  le montant est sur la meme ligne que le champ Especes  [{"memeLigne":true,"typeRegl":"Especes"}]
+PASS  Tous les types ramene bien les trois natures de mouvement  [["Entrees de caisse","Reglements 1/3 pay.","Sorties de caisse"]]
+PASS  un type choisi ne ramene que ce type  [["Entrees de caisse"]]
+PASS  aucune erreur JavaScript
+
+===== 11/11 PASS =====

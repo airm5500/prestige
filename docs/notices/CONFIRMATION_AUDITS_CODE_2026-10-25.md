@@ -17,7 +17,8 @@ Pour chaque constat, le document donne :
 - le test qui le reproduit ;
 - la preuve.
 
-**Aucun code de l'application n'est corrigé ici.**
+Les §0 à §8 décrivent l'état **avant correction** (25/10). Les corrections, faites ensuite à la demande de
+l'utilisateur, lot par lot, et leurs résultats après correction sont au **§9** (26/10).
 
 **Règle de verdict, appliquée sans exception.**
 - **Reproduit** : le défaut a été provoqué en passant par les routes de l'écran, et la mesure est citée.
@@ -657,3 +658,73 @@ SELECT COUNT(DISTINCT o.lg_PREENREGISTREMENT_ID) FROM t_preenregistrement_compte
 -- N9 : premiere cle numerique de mouvement de stock (seuil de collision des retours carnet)
 SELECT MIN(CAST(pkey AS UNSIGNED)) FROM hmvtproduit WHERE pkey REGEXP '^[0-9]{1,9}$';
 ```
+
+## 9. Corrections (26/10) et résultats après correction
+
+Corrections faites lot par lot dans l'ordre du §6, un commit par lot, sur la branche `PRES-/audits-code-dffa0a`. Chaque
+lot a été testé sur le Payara local (`laborex_v1_db`, sauvegardée avant chaque série), tests d'écran lancés un par un.
+Rien n'est fusionné. La branche part de `c42b174c` : elle ne contient pas les commits plus récents de la session
+principale (droits, horloge, bornes).
+
+### 9.1 Ce qui a été corrigé, par lot
+
+| Lot | Commit | Constats | Correction retenue |
+|---|---|---|---|
+| 1 | `fe7b075b` | VC-01, VC-02, VC-08, CR-03, N4, CR-09, CR-10, CA-03, N1, N2, D3, CA-06, CA-08, CA-15, F1, F2 | Gardes : vente non modifiable une fois clôturée ou annulée ; contrôle du lien, du taux (0 à 100) et du bon avant toute écriture ; client inconnu = client inchangé (compatibilité mobile) ; annulation qui vérifie le stock de chaque ligne avant d'écrire ; refus d'une copie de modification sur une vente annulée ou non clôturée ; facture définitive non supprimable ; bon déjà facturé exclu ; règlement carnet ≤ 0 refusé ; retour carnet ≤ 0 ou sans motif refusé avec un message |
+| 2 | `caa92cf1` | VC-05, CR-05, N3, CR-06 | TVA comptée une seule fois ; part du client calculée par une seule fonction (comptant : prix − remise ; assurance : part client ≥ 0) ; remise plafonnée à la part du client (hors carnet), **décision 6 prise par défaut** |
+| 3 | `03a42d86` | CR-01, CR-02, CA-09, N5, F5 | Encours retiré à l'annulation et à la modification, déplacé quand on change de client ou d'organisme ; ce changement est refusé sur une vente déjà facturée ; à la facturation, l'encours est **recalculé depuis les bons non facturés** (décision 5 prise dans le sens le plus sûr). CR-04 non corrigé (non reproduit) |
+| 4 | `d0bff34c` | N8, M1, M2, M3, M4, N6 | Cause de N8 : `find(null)` mettait la transaction en échec silencieux. Un seul RO actif par client, jamais un carnet ; priorités ≥ 1 ; lien existant réutilisé ou réactivé ; un lien supprimé ne transmet ni son RO ni sa priorité |
+| 5 | `744b9ee5` | VC-04, D2, DIF-01, DIF-02, DIF-03, D5 | Annulation refusée si une modification est ouverte ou si la vente a déjà été réglée en différé (**décisions 1 et 2 : refus, pas d'avoir**) ; copie refusée à la clôture si l'origine est annulée ou si des règlements existent et que le mode ou le client change ; « déjà réglé » suivi le long de la chaîne des copies |
+| 6 | `930bea3c` | F3, F2 en concurrence | Compteur de factures lu sous verrou après le début de la transaction (écran et service) |
+| 7 | `94fc2150` | VC-06, VC-07, VC-14, CR-07 | Remise remise à 0 si le net est demandé sans remise ; remise enregistrée = celle encaissée (net arrondi) ; clôture refusée si les règlements ne couvrent pas le net ; prix des lignes calculés par le serveur conservés |
+| 8 | `c9e2010c` | VC-09, VC-11, N9, CA-07, CA-12 | Stock vérifié à chaque clôture, quantités cumulées par produit ; retour aux lots d'origine ; clé de mouvement « RC-id » ; retour carnet clos une seule fois ; historique de stock du retour cohérent |
+| 9-10 | `0aca4f26`, `31844138` | VC-16 (partiel), DIF-08, DIF-07, DIF-09, D4, DIF-10 | Mouvement de caisse daté du futur refusé ; règlement de différé sans changement de la date de la vente ; règlement partiel refusé si le reçu est insuffisant ; ventilation par date de la vente ; dette différée du relevé = prix − montants payés ; message « Saisissez le montant reçu. » |
+| — | `fd72a661` | — | Tests de reproduction : assertions alignées sur le comportement corrigé, nettoyage limité aux données du test |
+
+### 9.2 Résultats des reproductions après correction
+
+Sorties complètes : `docs/notices/preuves-audits-2026-10-25/apres-corrections/`.
+
+| Test | Avant | Après | Reste |
+|---|---|---|---|
+| `repro-vente-comptant.js` | défauts reproduits | 16/17 | VC-12 : dates des écritures d'une modification d'une vente d'hier, **décision 3 en attente** |
+| `repro-remise-caisse.js` | défauts reproduits | 7/8 | VC-16 : mouvement saisi à la date d'hier, règlement et transaction datés du jour, **décision 3 en attente** (le futur est refusé) |
+| `repro-vente-assurance.js` | défauts reproduits | 17/17 | — |
+| `repro-vo-remise.js` | défauts reproduits | 6/6 | — |
+| `repro-assurances-liens.js` | défauts reproduits | 10/10 | — |
+| `repro-facturation.js` | défauts reproduits | 10/10 | — |
+| `repro-differes.js` | défauts reproduits | 13/13 | — |
+| `repro-carnet.js` | défauts reproduits | 10/10 | — |
+
+### 9.3 Non-régression : tests existants des chemins touchés
+
+Rejoués après le dernier lot, un par un, sur le même Payara.
+
+| Test | Résultat | Lecture |
+|---|---|---|
+| `retours/test-annulation-vente-double` | 11/11 | — |
+| `retours/test-differes-modification` | 12/12 | — |
+| `retours/test-differes-reglement` | 14/14 | — |
+| `retours/test-differe-nom-client` | 14/14 | — |
+| `caisse/test-mvt-caisse` | 11/11 | — |
+| `vente/test-mode-reglement-client` | 17/17 | — |
+| `vente/test-client-credit-course` | 16/16 | — |
+| `journal/test-vente-changer-tiers-payant` | 7/7 | — |
+| `carnet-depot/test-facturation-carnet-depot` | 33/33 | — |
+| `vente/test-deuxieme-assurance` | 14/14 | Premier passage 0/1 : défaut **du test**, corrigé dans le commit de ce document. Sous Windows, `mariadb` rend des fins de ligne `\r\n` et le test découpait sur `\n` seul ; l'identifiant de l'organisme gardait un `\r` et le serveur ne le trouvait pas. Le découpage accepte maintenant `\r\n` |
+| `retours/test-differes-solde` | 14/16 | Écran, export Excel et dates inversées passent. Au premier passage, le PDF échouait parce que le dossier de sortie `applications/prestige/data/reports/pdf` n'existait pas sur le Payara local (journal : `FileNotFoundException`). Une fois le dossier créé, le PDF est produit, et son texte (lu par `pdftotext`) porte le titre, le client, les lignes E2E-B, E2E-C, REG-R2, la fin de mois et les totaux de l'écran (4 000 / 8 000 / 2 000 / 10 000). Les 2 échecs restants portent sur l'adresse de la fenêtre ouverte : quand le serveur rend un vrai PDF, le Chromium sans écran le télécharge et n'expose plus l'adresse. Le même code passait ce point quand le serveur rendait une page d'erreur : l'écart vient du poste, pas du code (ni `ReglementRessource` ni `Differe.js` ne sont modifiés) |
+| `reglement/test-liste-reglements` | 14/15 | L'édition aboutit et le fichier est écrit dans `data/reports/pdf` ; le test le cherche dans `\opt\CONF\LABOREX\REPORTS\pdf`, chemin d'une autre configuration de poste |
+| `vente/test-historique-deconditionnement` | 9/15 | Toute la partie A (vente au comptant, déconditionnement, historique, fiche) passe. La partie B demande un dépôt de type 2 : la copie locale n'en contient aucun (`SELECT COUNT(*) … lg_TYPEDEPOT_ID = '2'` → 0), le jeu d'essai n'est pas trouvé |
+
+Sorties complètes : `docs/notices/preuves-audits-2026-10-25/apres-corrections/regression/`. **Aucun échec n'est
+attribuable aux corrections.** Les trois tests marqués ci-dessus sont à rejouer sur un poste qui a des dépôts et le
+dossier d'éditions de la configuration standard.
+
+### 9.4 Ce qui reste à décider
+
+- **Décision 3 (VC-12, VC-16)** : date de l'opération ou date de la saisie. Rien n'a été changé dans les dates des
+  écritures, à part le refus des dates futures.
+- **Décisions 1, 2, 5, 6** : prises par défaut dans le sens le plus sûr (refus, recalcul, plafond). Elles se changent
+  dans les fonctions citées au §9.1 si le métier en décide autrement.
+- **Décision 7** : l'appli mobile reçoit désormais des refus serveur (VC-06, VC-14, CR-07) ; à vérifier avec elle.
+- **CR-04** non corrigé : non reproduit, et un verrou supplémentaire ajouterait du risque.

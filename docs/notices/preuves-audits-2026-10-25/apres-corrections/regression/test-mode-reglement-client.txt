@@ -1,0 +1,19 @@
+PASS  mode de reglement cree  [{"msg":"Mode de règlement « WYZALLTEST » créé","success":true,"id":"81"}]
+PASS  le mode est enregistre comme exigeant un client  [id=81]
+PASS  le mode reste de categorie standard
+PASS  le nouveau mode figure dans les types exigeant un client  [["10","19","2","3","4","6","7","8","81","9"]]
+PASS  type historique 2 toujours present
+PASS  type historique 3 toujours present
+PASS  type historique 4 toujours present
+PASS  type historique 6 toujours present
+PASS  les especes ne demandent toujours pas de client
+PASS  l ecran de vente exige un client pour le nouveau mode  [{"liste":["10","19","2","3","4","6","7","8","81","9"],"nouveau":true,"cheque":true,"especes":false,"mobile":true}]
+PASS  le cheque continue d exiger un client
+PASS  le mobile money continue d exiger un client
+PASS  les especes n en exigent toujours pas
+PASS  le reglage peut etre retire  [{"success":true}]
+PASS  la base suit le reglage
+PASS  le mode ne figure plus dans la liste  [["10","19","2","3","4","6","7","8","9"]]
+PASS  aucune erreur JavaScript
+
+===== 17/17 PASS =====

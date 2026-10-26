@@ -1,0 +1,18 @@
+PASS  Solde au début d'octobre = ventes − règlements d'avant (10 000 − 6 000)  [4000]
+PASS  Une ligne par opération, solde après chacune, dans l'ordre (vente avant son règlement)  [VENTE:6000/0=10000 | VENTE:2000/0=12000 | REGLEMENT:0/2000=10000 | MOIS:8000/2000=10000]
+PASS  Ligne « Solde fin Octobre 2026 » (totaux du mois)  [{"date":"","reference":"","libelle":"Solde fin Octobre 2026","client":"","solde":10000,"type":"MOIS","debit":8000,"credit":2000}]
+PASS  Date et heure sur chaque opération  [03/10/2026 09:00]
+PASS  Cohérence : solde final = somme des restes dus des ventes différées  [10000 / 10000]
+PASS  Sur deux mois : une ligne de solde par mois, septembre puis octobre  [[{"date":"","reference":"","libelle":"Solde fin Septembre 2026","client":"","solde":4000,"type":"MOIS","debit":10000,"credit":6000},{"date":"","reference":"","libelle":"Solde fin Octobre 2026","client":"","solde":10000,"type":"MOIS","debit":8000,"credit":2000}]]
+PASS  Dates inversées : refus expliqué  [{"msg":"La date de début est après la date de fin.","success":false}]
+PASS  Dates illisibles : pas d'erreur serveur  [200]
+PASS  Filtre État : non réglée (B), partielle (A), réglée (C), non soldés (A, B), tous (A, B, C)  [{"NR":"E2E-B:NON_REGLE","P":"E2E-A:PARTIEL","R":"E2E-C:REGLE","NS":"E2E-A:PARTIEL,E2E-B:NON_REGLE","T":"E2E-A:PARTIEL,E2E-B:NON_REGLE,E2E-C:REGLE"}]
+PASS  Écran : onglet SOLDE, colonnes date et heure / débit / crédit / solde, ligne de fin de mois, résumé  [{"resume":"Solde au début : 4 000 · Débit (ventes) : 8 000 · Crédit (règlements) : 2 000 · Solde à la fin : 10 000","mois":1,"entetes":"Date et heure|Opération|Client|Débit|Crédit|Solde"}]
+FAIL  Bouton « Imprimer (PDF) » : ouvre le relevé avec la période et le client de l'écran
+FAIL  PDF : titre et période, client, lignes (ventes, règlement, fin de mois), totaux = écran
+PASS  Export Excel : fichier .xls avec les opérations du relevé  [{"s":200,"d":"attachment; filename=releve_differes_2026-10-01_2026-10-31.xls","n":5632}]
+PASS  Impression avec dates inversées : message, pas de fichier ni d'erreur serveur  [200]
+PASS  Aucune erreur JavaScript
+PASS  Jeu d'essai retiré
+
+14/16 OK
