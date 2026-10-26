@@ -337,6 +337,27 @@ Le veilleur passe chaque nuit à 04 h 15 et compte au plus 500 cas par contrôle
 
 Même remise en état que ci-dessus, avec ces identifiants et ces écarts.
 
+## 15. Lot 1 corrigé (26/10, commit 2419ba39)
+
+Les corrections sont faites sur `PRES-/anomalies-support-954194`. Les tests ont été écrits d'abord et ont échoué
+sur 31622a33 (commit 6571cc90 de la même branche). Ils ont été rejoués sur le domaine 9080 redéployé avec la
+correction (base `capitale`).
+
+| N° | Correction | Fichiers | Preuve |
+|---|---|---|---|
+| J3 | « Annuler » ferme la fenêtre par `button.up('window').close()` | `bonlivraison/ImportXLS.js` | `test-import-commande-annuler.js` : échouait (« close »), passe |
+| P1 | Écran : produit et période posés en paramètres du proxy, conservés par « Actualiser » et le changement de page. Serveur : sans période, refus « Période manquante… » (200, `success:false`), sans erreur ni événement | `MvtArticleCtr.js`, `MvtArticleCompletCtr.js`, `FamilleManager.js`, `ProduitRessource.java` | `test-lot1-api.js` (4 cas P1) et `test-lot1-ecrans.js` (« Actualiser » : 500 sans dates avant, 200 avec produit et période après) |
+| A4 | Paramètre de filtre illisible (`QueryParamException`, `FormParamException` de Jersey) : 400 en JSON « Valeur saisie invalide pour « stock » », au lieu de la page 404 de Payara. Filtres Quantité, Stock et Qté vendue limités aux chiffres à la frappe | `SaisieInvalide.java`, `SupportExceptionMapper.java`, `ArticleVendu.js`, `ArticleVenduBis.js` | `test-lot1-api.js` (3 cas A4, dont `stock=5` inchangé) ; test unitaire `ParametreIllisibleTest` (3/3) |
+| A1 | Un code fait seulement de points est refusé sans appel au serveur, message « Code illisible » dans la page | `correctifs-affichage.js` (`PrestigeScan`) | `test-lot1-ecrans.js` : « .. » (404 avant, aucun appel après) ; non-régression : un lien reste refusé, un code ordinaire est toujours cherché |
+| C5, J19 | Les 4 prix sont vérifiés avant l'envoi (entier attendu, champ signalé, fenêtre ouverte). Une erreur du serveur donne un message lisible au lieu d'une erreur `Ext.JSON.decode` et de la page HTML | `bonlivraison/action/editprice.js` | **Non vérifié à l'écran** : `capitale` n'a aucun bon de livraison en cours, et c'est le seul chemin vers cette fenêtre. Volet prêt dans `test-lot1-ecrans.js`, à jouer sur une base qui a un bon en cours |
+
+Ce qui n'a pas été rejoué :
+
+- Les tests existants qui lisent la base par le client `mariadb`, dont `journal/test-scan-qr-publicitaire.js` pour
+  les 5 écrans qui partagent `PrestigeScan`. Il n'y a pas d'accès SQL dans cette session.
+- La JSP `ws_transaction.jsp` elle-même n'est pas modifiée (règle : pas de travail neuf en JSP). Appelée hors de
+  l'écran avec un prix vide, elle répond encore 500.
+
 ## Annexe A. Rejouer les reproductions
 
 Variables (Node 22) :
