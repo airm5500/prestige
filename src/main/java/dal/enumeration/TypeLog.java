@@ -39,7 +39,9 @@ public enum TypeLog {
     DESACTIVATION_UTILISATEUR("Désactivation d'utilisateur", true),
     ACTIVATION_UTILISATEUR("Activation d'utilisateur", true),
     // demande mobile 56 : nom d'un appareil enregistre (ajoute a la fin : le type est enregistre par son rang)
-    NOM_APPAREIL("Nom d'appareil", true);
+    NOM_APPAREIL("Nom d'appareil", true),
+    // demande mobile 57 : borne de pointage enrolee, retiree, pointage par une borne (ajoute a la fin : rang)
+    BORNE_POINTAGE("Borne de pointage", true);
 
     private final String value;
     private final boolean checked;

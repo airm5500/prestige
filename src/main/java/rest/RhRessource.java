@@ -726,6 +726,57 @@ public class RhRessource {
         return r != null ? r : ok(mobile.revoquerTousLesJetons());
     }
 
+    /* ---------------------------------------------------------------- bornes de pointage (demande mobile 57) */
+
+    @EJB
+    private rest.service.impl.BornePointageService bornes;
+
+    /** Enrolement et retrait d'une borne : P_SM_RH ou profil administrateur ; sinon 403 {interdit, msg}. */
+    private Response controleBornes() {
+        TUser u = utilisateur();
+        if (u == null) {
+            return refus(Constant.DECONNECTED_MESSAGE);
+        }
+        if (autorise(PRIVILEGE) || bll.userManagement.user.estSuperAdmin(u)) {
+            return null;
+        }
+        for (dal.TRoleUser lien : u.getTRoleUserCollection()) {
+            if (lien.getLgROLEID() != null && bll.userManagement.user.isAdminRole(lien.getLgROLEID().getStrNAME())) {
+                return null;
+            }
+        }
+        return interdit("Ressources humaines (bornes de pointage)");
+    }
+
+    /** {empreinte, nom} : secret rendu une seule fois ; meme empreinte = ancienne borne retiree. */
+    @POST
+    @Path("bornes")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Response enrolerBorne(String c) {
+        Response r = controleBornes();
+        if (r != null) {
+            return r;
+        }
+        JSONObject o = bornes.enroler(corps(c), utilisateur());
+        return Response.status(o.optBoolean("success") ? 200 : 400).entity(o.toString())
+                .header("Cache-Control", "no-store").build();
+    }
+
+    @GET
+    @Path("bornes")
+    public Response listerBornes() {
+        Response r = controleBornes();
+        return r != null ? r : ok(bornes.lister());
+    }
+
+    /** Retrait immediat (les appels suivants recoivent 401 REVOQUEE) ; une borne retiree ne se reactive pas. */
+    @POST
+    @Path("bornes/{id}/retirer")
+    public Response retirerBorne(@PathParam("id") String id) {
+        Response r = controleBornes();
+        return r != null ? r : ok(bornes.retirer(id, utilisateur()));
+    }
+
     /* ---------------------------------------------------------------- empreintes partagees (demandes serveur, 43) */
 
     @EJB

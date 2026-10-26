@@ -339,6 +339,65 @@ public class RhPointageServiceImpl implements RhPointageService {
                 : ok().put("id", nouvelId).put("message", "Pointage manuel enregistré.");
     }
 
+    @Override
+    public JSONObject saisirPointageBorne(JSONObject s, String borneId, String borneNom) {
+        String employe = StringUtils.trimToNull(s.optString("employeId", null));
+        if (employe == null || premier("SELECT id FROM t_employe WHERE id = ?1", employe) == null) {
+            return refus("Employé introuvable.");
+        }
+        String id = StringUtils.trimToNull(s.optString("id", null));
+        if (id == null || !id.matches("[A-Za-z0-9-]{8,40}")) {
+            return refus("Identifiant de pointage obligatoire (8 à 40 caractères : lettres, chiffres, tiret).");
+        }
+        /* idempotent par id : la file hors ligne de la borne renvoie le meme pointage sans rien creer de plus */
+        if (premier("SELECT id FROM t_pointage WHERE id = ?1", id) != null) {
+            return ok().put("id", id).put("deja", true).put("message", "Pointage déjà existant.");
+        }
+        LocalDateTime maintenant = LocalDateTime.now(), t = maintenant.withNano(0);
+        String jour = StringUtils.trimToNull(s.optString("jour", null)),
+                heure = StringUtils.trimToNull(s.optString("heure", null));
+        if (jour != null || heure != null) {
+            LocalTime h = RegleRh.heure(heure);
+            LocalDate j;
+            try {
+                j = LocalDate.parse(jour.substring(0, 10));
+            } catch (RuntimeException e) {
+                j = null;
+            }
+            if (j == null || h == null) {
+                return refus("Date et heure invalides.");
+            }
+            t = j.atTime(h);
+        }
+        if (t.isAfter(maintenant.plusMinutes(2))) {
+            return refus("Un pointage ne peut pas être dans le futur (2 minutes au plus).");
+        }
+        if (t.isBefore(maintenant.minusHours(72))) {
+            return refus("Pointage trop ancien : 72 heures au plus (file hors ligne).");
+        }
+        String sens = StringUtils.upperCase(StringUtils.defaultIfBlank(s.optString("sens"), AnalysePresence.INCONNU));
+        if (!AnalysePresence.ENTREE.equals(sens) && !AnalysePresence.SORTIE.equals(sens)) {
+            sens = AnalysePresence.INCONNU;
+        }
+        String motif = StringUtils.defaultIfBlank(StringUtils.trimToNull(s.optString("motif", null)),
+                "Borne " + borneNom);
+        String photoStatut = null, photoMotif = null;
+        JSONObject controle = s.optJSONObject("controle");
+        if (controle != null) {
+            photoStatut = controle.optBoolean("photo", false) ? PHOTO_ATTENDUE : PHOTO_SANS;
+            photoMotif = PHOTO_SANS.equals(photoStatut)
+                    ? StringUtils.left(StringUtils.trimToNull(controle.optString("motif", null)), 60) : null;
+        }
+        int n = em.createNativeQuery(
+                "INSERT IGNORE INTO t_pointage (id, employe_id, horodatage, sens, source, saisi_par, motif,"
+                        + " created_at, photo_statut, photo_motif, borne_id) VALUES (?1, ?2, ?3, ?4, 'BORNE', NULL, ?5, NOW(), ?6, ?7, ?8)")
+                .setParameter(1, id).setParameter(2, employe).setParameter(3, Timestamp.valueOf(t))
+                .setParameter(4, sens).setParameter(5, StringUtils.left(motif, 250)).setParameter(6, photoStatut)
+                .setParameter(7, photoMotif).setParameter(8, borneId).executeUpdate();
+        return n == 0 ? refus("Un pointage existe déjà à cette heure pour cet employé.")
+                : ok().put("id", id).put("message", "Pointage enregistré.");
+    }
+
     /* ----------------------------------------------------- photo de controle (point 31) */
 
     static final String PHOTO_AVEC = "AVEC";
@@ -362,6 +421,21 @@ public class RhPointageServiceImpl implements RhPointageService {
         if (!"MANUEL".equals(p[0]) || !StringUtils.startsWith(t(p[1]), "Badge terminal")) {
             return refus("Seul un pointage par badge du terminal reçoit une photo.");
         }
+        return stockerPhoto(pointageId, jpeg, prise, operateur == null ? null : operateur.getLgUSERID());
+    }
+
+    @Override
+    public JSONObject enregistrerPhotoBorne(String pointageId, byte[] jpeg, String prise, String borneId) {
+        String borne = premier("SELECT borne_id FROM t_pointage WHERE id = ?1 AND source = 'BORNE'", pointageId);
+        if (borne == null || !borne.equals(borneId)) {
+            /* pointage inconnu, ou fait ailleurs que sur cette borne : meme reponse */
+            return refus("Pointage introuvable pour cette borne.");
+        }
+        return stockerPhoto(pointageId, jpeg, prise, null);
+    }
+
+    /** Controles et enregistrement de la photo (JPEG, 150 Ko et 1024 px au plus), communs au terminal et aux bornes. */
+    private JSONObject stockerPhoto(String pointageId, byte[] jpeg, String prise, String recuePar) {
         if (jpeg == null || jpeg.length == 0) {
             return refus("Aucune photo reçue.");
         }
@@ -389,8 +463,7 @@ public class RhPointageServiceImpl implements RhPointageService {
         em.createNativeQuery("REPLACE INTO t_pointage_photo (pointage_id, photo, taille, largeur, hauteur, prise_le,"
                 + " recue_le, recue_par) VALUES (?1, ?2, ?3, ?4, ?5, ?6, NOW(), ?7)").setParameter(1, pointageId)
                 .setParameter(2, jpeg).setParameter(3, jpeg.length).setParameter(4, dim[0]).setParameter(5, dim[1])
-                .setParameter(6, priseLe).setParameter(7, operateur == null ? null : operateur.getLgUSERID())
-                .executeUpdate();
+                .setParameter(6, priseLe).setParameter(7, recuePar).executeUpdate();
         em.createNativeQuery("UPDATE t_pointage SET photo_statut = ?2, photo_motif = NULL WHERE id = ?1")
                 .setParameter(1, pointageId).setParameter(2, PHOTO_AVEC).executeUpdate();
         return ok().put("id", pointageId).put("message", "Photo de contrôle enregistrée.");
@@ -464,8 +537,13 @@ public class RhPointageServiceImpl implements RhPointageService {
         for (Object[] l : (List<Object[]>) em
                 .createNativeQuery("SELECT p.id, p.employe_id, p.horodatage, p.sens, p.source, p.motif,"
                         + " p.photo_statut, p.photo_motif, (SELECT COUNT(*) FROM t_pointage_photo f"
-                        + " WHERE f.pointage_id = p.id)"
-                        + " FROM t_pointage p WHERE p.horodatage >= ?1 AND p.horodatage < ?2 ORDER BY p.horodatage")
+                        + " WHERE f.pointage_id = p.id),"
+                        /* demande mobile 57 : « Saisi par » = « Borne <nom> » pour un pointage de borne */
+                        + " CASE WHEN p.source = 'BORNE' THEN CONCAT('Borne ', COALESCE(b.nom, '?'))"
+                        + " ELSE CONCAT_WS(' ', u.str_FIRST_NAME, u.str_LAST_NAME) END"
+                        + " FROM t_pointage p LEFT JOIN t_borne_pointage b ON b.id = p.borne_id"
+                        + " LEFT JOIN t_user u ON u.lg_USER_ID = p.saisi_par"
+                        + " WHERE p.horodatage >= ?1 AND p.horodatage < ?2 ORDER BY p.horodatage")
                 .setParameter(1, Timestamp.valueOf(jour.atStartOfDay()))
                 .setParameter(2, Timestamp.valueOf(jour.plusDays(1).atTime(12, 0))).getResultList()) {
             a.put(new JSONObject().put("id", l[0]).put("employeId", l[1]).put("horodatage", t(l[2]).substring(0, 16))
@@ -473,7 +551,7 @@ public class RhPointageServiceImpl implements RhPointageService {
                     // point 31 : statut de la photo de controle ; « photo » vrai seulement si elle est consultable
                     .put("photoStatut", l[6] == null ? JSONObject.NULL : l[6])
                     .put("photo", ((Number) l[8]).intValue() > 0)
-                    .put("photoMotif", l[7] == null ? JSONObject.NULL : l[7]));
+                    .put("photoMotif", l[7] == null ? JSONObject.NULL : l[7]).put("saisiPar", t(l[9])));
         }
         return ok().put("data", a);
     }

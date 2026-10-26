@@ -33,6 +33,15 @@ public interface RhPointageService {
     /** Photo de controle d'un pointage par badge (JPEG, 150 Ko et 1024 px au plus) : remplace la precedente. */
     JSONObject enregistrerPhoto(String pointageId, byte[] jpeg, String prise, TUser operateur);
 
+    /**
+     * Demande mobile 57 : pointage par une borne (source BORNE, saisi_par vide, borne_id) ; memes regles que
+     * saisirPointage, heure par defaut maintenant, refus a plus de 2 minutes dans le futur ou 72 heures dans le passe.
+     */
+    JSONObject saisirPointageBorne(JSONObject saisie, String borneId, String borneNom);
+
+    /** Demande mobile 57 : photo de controle, seulement pour un pointage cree par cette borne. */
+    JSONObject enregistrerPhotoBorne(String pointageId, byte[] jpeg, String prise, String borneId);
+
     /** Photo de controle, ou null (absente ou purgee). */
     byte[] photo(String pointageId);
 

@@ -120,6 +120,21 @@ public class EmpreinteServiceImpl implements EmpreinteService {
 
     @Override
     public EmpreintesLectureDTO lire(String depuis, String format, TUser lecteur) {
+        return lire(depuis, format, lecteur, null);
+    }
+
+    /** Demande mobile 57 : meme lecture pour une borne de pointage, tracee « LIRE_BORNE » avec son identifiant. */
+    @Override
+    public EmpreintesLectureDTO lireBorne(String depuis, String format, String borneId) {
+        return lire(depuis, format, null, borneId);
+    }
+
+    @Override
+    public boolean partageActif() {
+        return active();
+    }
+
+    private EmpreintesLectureDTO lire(String depuis, String format, TUser lecteur, String borneId) {
         if (!active()) {
             return EmpreintesLectureDTO.builder().success(false).code("DESACTIVE")
                     .msg("Empreintes partagées désactivées (paramètre KEY_EMPREINTES_PARTAGEES).").build();
@@ -158,7 +173,14 @@ public class EmpreinteServiceImpl implements EmpreinteService {
                 + " DATE_FORMAT(dt_suppression, '%Y-%m-%dT%H:%i:%s') AS dt_suppression FROM t_employe_empreinte"
                 + " WHERE dt_suppression IS NOT NULL AND dt_suppression >= ?1 AND format = ?2 ORDER BY dt_suppression",
                 Tuple.class).setParameter(1, t).setParameter(2, format).getResultList();
-        journal("LIRE", null, lecteur, modeles.size(), format);
+        if (borneId == null) {
+            journal("LIRE", null, lecteur, modeles.size(), format);
+        } else {
+            em.createNativeQuery(
+                    "INSERT INTO t_empreinte_journal (horodatage, action, employe_id, utilisateur, nombre, format)"
+                            + " VALUES (NOW(), 'LIRE_BORNE', NULL, ?1, ?2, ?3)")
+                    .setParameter(1, borneId).setParameter(2, modeles.size()).setParameter(3, format).executeUpdate();
+        }
         return EmpreintesLectureDTO.builder().success(true).horodatage(horodatage).modeles(modeles)
                 .suppressions(retires.stream()
                         .map(r -> EmpreinteSuppressionDTO.builder().id((String) r.get("id"))

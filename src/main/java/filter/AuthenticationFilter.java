@@ -80,6 +80,11 @@ public class AuthenticationFilter implements ContainerRequestFilter, ContainerRe
 
     private static final String CHEMIN_MOBILE = "v1/mobile/";
     private static final String CONNEXION_MOBILE = "v1/mobile/connexion";
+    /** Demande mobile 57 : bornes de pointage, sans session, chaque appel signe (voir BornePointageService). */
+    private static final String CHEMIN_BORNE = "v1/borne-pointage/";
+    public static final String ATTRIBUT_BORNE = "PRESTIGE_BORNE";
+    @EJB
+    private rest.service.impl.BornePointageService bornes;
 
     @Inject
     private HttpServletRequest servletRequest;
@@ -104,6 +109,18 @@ public class AuthenticationFilter implements ContainerRequestFilter, ContainerRe
         /* retours du 10/10 : poste, adresse et application de la requete, pour le fichier journal */
         util.ContexteRequete.poser(servletRequest);
         String path = requestContext.getUriInfo().getPath();
+        /*
+         * Demande mobile 57 : une borne de pointage n'a pas de session ; son appel est signe et verifie ici. Ses
+         * en-tetes ne valent que sur ses routes : toute autre route qui les porte recoit 401.
+         */
+        if (path.startsWith(CHEMIN_BORNE)) {
+            borne(requestContext);
+            return;
+        }
+        if (requestContext.getHeaderString("X-Borne") != null) {
+            refuserBorne(requestContext, 401, "BORNE", "Route non accessible à une borne de pointage.", 0);
+            return;
+        }
         /*
          * L13 : les nouveaux chemins des telephones exigent le jeton signe, et rien d'autre (ni session, ni
          * X-User-Info). Les chemins mobiles existants ne passent pas ici : leur fonctionnement est inchange.
@@ -192,6 +209,40 @@ public class AuthenticationFilter implements ContainerRequestFilter, ContainerRe
         sessionHelperService.setCurrentUser(null);
         sessionHelperService.setData(null);
         util.ContexteRequete.effacer();
+    }
+
+    /**
+     * Verifie l'appel d'une borne : le corps est lu (octets bruts, multipart compris) pour son empreinte SHA-256, puis
+     * rendu intact a la route.
+     */
+    private void borne(ContainerRequestContext rc) throws IOException {
+        byte[] corps;
+        try (java.io.InputStream in = rc.getEntityStream()) {
+            corps = in == null ? new byte[0] : in.readAllBytes();
+        }
+        rc.setEntityStream(new java.io.ByteArrayInputStream(corps));
+        String chemin = servletRequest.getRequestURI()
+                + (servletRequest.getQueryString() != null ? "?" + servletRequest.getQueryString() : "");
+        rest.service.impl.BornePointageService.Verdict v = bornes.authentifier(rc.getMethod(), chemin,
+                rc.getHeaderString("X-Borne"), rc.getHeaderString("X-Borne-Date"),
+                rc.getHeaderString("X-Borne-Empreinte"), rc.getHeaderString("X-Borne-Signature"), corps,
+                servletRequest.getRemoteAddr());
+        if (v.borne == null) {
+            refuserBorne(rc, v.statut, v.code, v.message, v.attente);
+            return;
+        }
+        servletRequest.setAttribute(ATTRIBUT_BORNE, v.borne);
+        servletRequest.setAttribute(ATTRIBUT_BORNE + "_CORPS", corps);
+    }
+
+    private static void refuserBorne(ContainerRequestContext rc, int statut, String code, String message,
+            long attente) {
+        Response.ResponseBuilder r = Response.status(statut).type(javax.ws.rs.core.MediaType.APPLICATION_JSON)
+                .entity(new JSONObject().put("success", false).put("code", code).put("message", message).toString());
+        if (attente > 0) {
+            r.header("Retry-After", attente);
+        }
+        rc.abortWith(r.build());
     }
 
     private static boolean dansLAvenir(String date) {

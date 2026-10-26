@@ -18,6 +18,12 @@ public interface EmpreinteService {
     /** Gabarits des employes actifs crees depuis « depuis » (ISO, facultatif) pour ce format, et suppressions. */
     EmpreintesLectureDTO lire(String depuis, String format, TUser lecteur);
 
+    /** Demande mobile 57 : lecture par une borne de pointage (journal « LIRE_BORNE »). */
+    EmpreintesLectureDTO lireBorne(String depuis, String format, String borneId);
+
+    /** Partage des empreintes actif (KEY_EMPREINTES_PARTAGEES = 1). */
+    boolean partageActif();
+
     /** Efface les gabarits d'un employe (droit d'effacement) ; possible meme fonction desactivee. */
     JSONObject supprimer(String employeId, TUser auteur);
 }

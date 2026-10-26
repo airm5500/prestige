@@ -34,7 +34,7 @@ Ext.define('testextjs.view.rh.RhManager', {
         me.lundi = me.lundiDe(new Date());
         me.mois = Ext.Date.getFirstDateOfMonth(new Date());
         me.items = [me.ongletPlanning(), me.ongletPresence(), me.ongletAbsences(), me.ongletPointages(), me.ongletTableau(),
-            me.ongletEmployes(), me.ongletBadges(), me.ongletConnexions(), me.ongletMobile()];
+            me.ongletEmployes(), me.ongletBadges(), me.ongletConnexions(), me.ongletMobile(), me.ongletBornes()];
         me.callParent(arguments);
         me.on('afterrender', function () {
             me.appel('GET', '../api/v1/rh/droits', null, function (r) {
@@ -64,6 +64,8 @@ Ext.define('testextjs.view.rh.RhManager', {
                 me.down('#grilleLots').getStore().load();
             } else if (t.itemId === 'ongletTableau') {
                 me.chargerTableau();
+            } else if (t.itemId === 'ongletBornes') {
+                me.down('#ongletBornes').getStore().load();
             }
             /* QR du pointage mobile : rafraichi seulement quand l'onglet est visible */
             if (t.itemId === 'ongletMobile') {
@@ -1180,6 +1182,85 @@ Ext.define('testextjs.view.rh.RhManager', {
         };
     },
     /* ------------------------------------------------------------------ pointage mobile et telephones (L13) */
+
+    /**
+     * Demande mobile 57 : bornes de pointage (application Prestige Pointage) enrolees par un administrateur, depuis la
+     * borne. Liste et retrait (effet immediat ; une borne retiree ne se reactive pas : elle doit etre enrolee a
+     * nouveau). Confirmation du retrait dans le bouton lui-meme, sans fenetre.
+     */
+    ongletBornes: function () {
+        var me = this;
+        var store = Ext.create('Ext.data.Store', {
+            fields: ['id', 'nom', 'statut', 'enroleePar', 'enroleeLe', 'derniereActivite', 'derniereAdresse', 'retireeLe', 'empreinte'],
+            proxy: {type: 'ajax', url: '../api/v1/rh/bornes', reader: {type: 'json', root: 'data'}}
+        });
+        /* apres un rechargement (retrait), la selection garderait l'ancienne ligne (meme identifiant, ancien statut) :
+           elle est videe, et « Retirer » attend un nouveau choix */
+        store.on('load', function () {
+            var g = me.down('#ongletBornes'), bouton = me.down('#retirerBorne');
+            if (g && bouton) {
+                g.getSelectionModel().deselectAll();
+                bouton.setDisabled(true);
+            }
+        });
+        var retirer = function (b) {
+            var rec = me.down('#ongletBornes').getSelectionModel().getSelection()[0];
+            if (!rec || rec.get('statut') !== 'ACTIVE') {
+                return;
+            }
+            if (!b.confirmer) {
+                b.confirmer = true;
+                b.setText('Confirmer le retrait de « ' + Ext.String.htmlEncode(rec.get('nom')) + ' »');
+                Ext.defer(function () {
+                    if (!b.isDestroyed && b.confirmer) {
+                        b.confirmer = false;
+                        b.setText('Retirer');
+                    }
+                }, 5000);
+                return;
+            }
+            b.confirmer = false;
+            b.setText('Retirer');
+            me.appel('POST', '../api/v1/rh/bornes/' + encodeURIComponent(rec.get('id')) + '/retirer', null, function () {
+                store.load();
+            });
+        };
+        return {
+            xtype: 'grid', itemId: 'ongletBornes', title: 'Bornes de pointage', store: store,
+            viewConfig: {emptyText: 'Aucune borne enrôlée. L\'administrateur enrôle une borne depuis l\'application Prestige Pointage.', deferEmptyText: false},
+            tbar: [{xtype: 'component', flex: 1, html: '<span class="rh-aide">Bornes partagées, sans compte : un administrateur les enrôle une seule fois'
+                            + ' depuis l\'application Prestige Pointage. Une borne retirée ne pointe plus et doit être enrôlée à nouveau.</span>'},
+                {text: 'Actualiser', handler: function () {
+                        store.load();
+                    }},
+                {text: 'Retirer', itemId: 'retirerBorne', disabled: true, tooltip: 'Effet immédiat : la borne ne peut plus pointer', handler: retirer}],
+            listeners: {
+                selectionchange: function (sm, sel) {
+                    var b = me.down('#retirerBorne');
+                    b.confirmer = false;
+                    b.setText('Retirer');
+                    b.setDisabled(!sel.length || sel[0].get('statut') !== 'ACTIVE');
+                }
+            },
+            columns: [
+                {text: 'Borne', dataIndex: 'nom', flex: 1, renderer: function (v, m, r) {
+                        return '<b>' + me.esc(v) + '</b> <span style="color:#7f8c8d">' + me.esc(r.get('empreinte')) + '…</span>';
+                    }},
+                {text: 'Enrôlée par', dataIndex: 'enroleePar', width: 160, renderer: function (v) {
+                        return me.esc(v);
+                    }},
+                {text: 'Le', dataIndex: 'enroleeLe', width: 120},
+                {text: 'Dernière activité', dataIndex: 'derniereActivite', width: 130},
+                {text: 'Adresse', dataIndex: 'derniereAdresse', width: 130, renderer: function (v) {
+                        return me.esc(v);
+                    }},
+                {text: 'Statut', dataIndex: 'statut', width: 130, renderer: function (v, m, r) {
+                        return v === 'ACTIVE' ? '<b style="color:#1e8449">Active</b>'
+                                : '<span style="color:#c0392b">Retirée</span>' + (r.get('retireeLe') ? ' <span style="color:#7f8c8d;font-size:11px">le ' + me.esc(r.get('retireeLe')) + '</span>' : '');
+                    }}
+            ]
+        };
+    },
 
     ongletMobile: function () {
         var me = this;
