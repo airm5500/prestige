@@ -349,7 +349,18 @@ correction (base `capitale`).
 | P1 | Écran : produit et période posés en paramètres du proxy, conservés par « Actualiser » et le changement de page. Serveur : sans période, refus « Période manquante… » (200, `success:false`), sans erreur ni événement | `MvtArticleCtr.js`, `MvtArticleCompletCtr.js`, `FamilleManager.js`, `ProduitRessource.java` | `test-lot1-api.js` (4 cas P1) et `test-lot1-ecrans.js` (« Actualiser » : 500 sans dates avant, 200 avec produit et période après) |
 | A4 | Paramètre de filtre illisible (`QueryParamException`, `FormParamException` de Jersey) : 400 en JSON « Valeur saisie invalide pour « stock » », au lieu de la page 404 de Payara. Filtres Quantité, Stock et Qté vendue limités aux chiffres à la frappe | `SaisieInvalide.java`, `SupportExceptionMapper.java`, `ArticleVendu.js`, `ArticleVenduBis.js` | `test-lot1-api.js` (3 cas A4, dont `stock=5` inchangé) ; test unitaire `ParametreIllisibleTest` (3/3) |
 | A1 | Un code fait seulement de points est refusé sans appel au serveur, message « Code illisible » dans la page | `correctifs-affichage.js` (`PrestigeScan`) | `test-lot1-ecrans.js` : « .. » (404 avant, aucun appel après) ; non-régression : un lien reste refusé, un code ordinaire est toujours cherché |
-| C5, J19 | Les 4 prix sont vérifiés avant l'envoi (entier attendu, champ signalé, fenêtre ouverte). Une erreur du serveur donne un message lisible au lieu d'une erreur `Ext.JSON.decode` et de la page HTML | `bonlivraison/action/editprice.js` | **Non vérifié à l'écran** : ni `capitale` ni `laborex_v1_db` n'ont de bon de livraison en cours (vérifié le 26/10 à 06 h 20), et c'est le seul chemin vers cette fenêtre. Volet prêt (`VOLETS=C5 node support/anomalies-centre/test-lot1-ecrans.js`), à jouer sur une base qui a un bon en cours |
+| C5, J19 | Les 4 prix sont vérifiés avant l'envoi (entier attendu, champ signalé, fenêtre ouverte). Une erreur du serveur donne un message lisible au lieu d'une erreur `Ext.JSON.decode` et de la page HTML | `bonlivraison/action/editprice.js` | `test-prix-bl.js` (9080, `capitale`) : le test crée un bon d'essai par l'écran (« Cloner la commande », puis « Créer le bon de livraison »), joue les deux cas et retire ses données par l'écran. **Avec l'ancien `editprice.js`** (`AVANT=1`) : C5 et J19 échouent (prix vide envoyé et fenêtre fermée ; erreur JavaScript sur la page 500). **Avec le correctif** : 7/7 |
+
+Données de `test-prix-bl.js` (trois passages le 26/10, de 06 h 27 à 06 h 29) :
+
+- bon et copie de commande retirés par l'écran à chaque passage ;
+- après coup, on retrouve 1 commande en cours (l'originale, intacte), 0 bon en cours et 17 240 bons clos, comme
+  avant ;
+- seule trace : le numéro de commande du jour (`KEY_LAST_ORDER_COMMAND_NUMBER`) est passé à 00003. La prochaine
+  commande de `capitale` du 26/10 portera donc le n° 00004.
+
+Ni `capitale` ni `laborex_v1_db` n'avaient de bon en cours au départ (vérifié à 06 h 20) : sans ce montage, le volet
+C5 de `test-lot1-ecrans.js` ne peut pas se jouer.
 
 Ce qui n'a pas été rejoué :
 
