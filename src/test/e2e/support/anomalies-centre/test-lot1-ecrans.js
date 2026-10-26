@@ -69,6 +69,8 @@ async function fermerMessages(p) {
       ok('P1 « Actualiser » du détail : produit et période envoyés, réponse 200',
         mp.length > 0 && mp.every((a) => /dtStart=\d/.test(a.url) && /produitId=[^&]/.test(a.url) && a.statut === 200), JSON.stringify(mp));
       for (const croix of await p.locator('.x-window .x-tool-close').filter({ visible: true }).all()) { await croix.click().catch(() => {}); await p.waitForTimeout(300); }
+      /* la fenetre de detail doit etre fermee avant l'ecran suivant : elle recouvrait le bouton « nouvelle vente » */
+      await p.waitForFunction(() => Ext.ComponentQuery.query('window{isVisible()}').length === 0, null, { timeout: 10000 }).catch(() => {});
     } catch (x) { ok('P1 parcours sans exception', false, x.message); }
 
     /* ---- A1 ---- */
@@ -89,6 +91,20 @@ async function fermerMessages(p) {
       const vers = appels.filter((a) => /\/api\/v1\/vente\/(findone\/?)?(\?|$)/.test(a.url) || a.statut === 404);
       ok('A1 « .. » scanné : aucun appel au serveur, champ vidé, sans fenêtre', vers.length === 0 && etat.champ === '' && !etat.fenetre,
         JSON.stringify(etat) + ' ' + JSON.stringify(vers));
+      /* non-regression : un lien reste refuse, un code ordinaire (qui ne designe aucun produit : rien n'est ajoute a
+         la vente) part toujours a la recherche */
+      const scanner = async (texte) => {
+        await cliquer(p, champ); await p.keyboard.press('Control+A'); await p.keyboard.press('Backspace');
+        await p.keyboard.type(texte, { delay: 10 }); await p.keyboard.press('Enter'); await p.waitForTimeout(2000);
+      };
+      await p.waitForFunction(() => document.body.innerText.indexOf('Code illisible') < 0, null, { timeout: 15000 }).catch(() => {});
+      appels.length = 0;
+      await scanner('https://exemple.test/promo');
+      const lien = await p.evaluate(() => document.body.innerText.indexOf('QR code publicitaire') >= 0);
+      ok('A1 non-régression : un lien scanné reste refusé (« QR code publicitaire »), sans appel', lien && appels.length === 0, JSON.stringify(appels));
+      appels.length = 0;
+      await scanner('E2EINCONNU42');
+      ok('A1 non-régression : un code ordinaire est toujours cherché (findone)', appels.some((a) => /\/vente\/findone\/E2EINCONNU42/.test(a.url)), JSON.stringify(appels));
     } catch (x) { ok('A1 parcours sans exception', false, x.message); }
     await fermerMessages(p);
 
@@ -116,7 +132,7 @@ async function fermerMessages(p) {
       prix.length = 0;
       await enregistrer();
       await p.waitForTimeout(1500);
-      const c5 = await p.evaluate(() => { const c = Ext.getCmp('int_PAF'); return { ouvert: !!(c && c.isVisible(true)), invalide: !!(c && !c.isValid()) }; });
+      const c5 = await p.evaluate(() => { const c = Ext.getCmp('int_PAF'); return { ouvert: !!(c && c.isVisible(true)), invalide: !!(c && c.getActiveError()) }; });
       ok('C5 PAF vide puis Enregistrer : rien n\'est envoyé, le champ est signalé, la fenêtre reste ouverte',
         prix.length === 0 && c5.ouvert && c5.invalide, JSON.stringify(c5) + ' envois : ' + prix.length);
       await fermerMessages(p);

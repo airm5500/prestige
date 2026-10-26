@@ -24,6 +24,34 @@ public final class SaisieInvalide {
     private SaisieInvalide() {
     }
 
+    /**
+     * Parametre de l'adresse (filtre de l'ecran) que JAX-RS n'a pas pu convertir, par exemple « abc » dans un filtre
+     * entier : Jersey leve une ParamException.QueryParamException, de statut 404, rendue par la page d'erreur de Payara
+     * (rapport du 26/10, A4). C'est une saisie invalide : le message nomme le parametre. Le nom de classe est teste,
+     * Jersey n'etant pas une dependance de compilation.
+     *
+     * @return le message pour l'ecran, ou null pour toute autre exception
+     */
+    public static String parametreIllisible(Throwable exception) {
+        if (exception == null) {
+            return null;
+        }
+        for (Class<?> c = exception.getClass(); c != null; c = c.getSuperclass()) {
+            if ("QueryParamException".equals(c.getSimpleName()) || "FormParamException".equals(c.getSimpleName())) {
+                String parametre = null;
+                try {
+                    Object nom = exception.getClass().getMethod("getParameterName").invoke(exception);
+                    parametre = nom == null ? null : nom.toString();
+                } catch (ReflectiveOperationException | RuntimeException e) {
+                    parametre = null;
+                }
+                return parametre == null || parametre.isEmpty() ? "Valeur saisie invalide dans un filtre."
+                        : "Valeur saisie invalide pour « " + parametre + " ».";
+            }
+        }
+        return null;
+    }
+
     /** Texte qui n'a pas pu etre lu (date ou nombre), ou null si l'erreur n'est pas une erreur de lecture. */
     public static String valeurIllisible(Throwable racine) {
         if (racine instanceof DateTimeParseException) {

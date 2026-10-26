@@ -2108,9 +2108,14 @@ window.PrestigeScan = (function () {
         var v = String(valeur == null ? '' : valeur).trim();
         return /^(https?:\/\/|www\.)/i.test(v) || v.indexOf('://') > 0;
     }
+    /* « . » ou « .. » : le navigateur reecrit l'adresse findone/.. en vente/, d'ou une erreur 404 (rapport du 26/10, A1) */
+    function estPointsSeuls(valeur) {
+        return /^\s*\.+\s*$/.test(String(valeur == null ? '' : valeur));
+    }
     function refuserSiLien(champ, code) {
         var v = code || (champ && (champ.getRawValue ? champ.getRawValue() : champ.getValue && champ.getValue()));
-        if (!estLienInternet(v)) {
+        var points = estPointsSeuls(v);
+        if (!points && !estLienInternet(v)) {
             return false;
         }
         if (champ) {
@@ -2127,12 +2132,13 @@ window.PrestigeScan = (function () {
             }
         }
         if (window.PrestigeToast) {
-            PrestigeToast.afficher('QR code publicitaire (lien internet) : ce n\'est pas un code produit. '
+            PrestigeToast.afficher(points ? 'Code illisible : ce n\'est pas un code produit. Scannez de nouveau le code-barres.'
+                    : 'QR code publicitaire (lien internet) : ce n\'est pas un code produit. '
                     + 'Scannez le code-barres de la boîte.', {niveau: 'alerte', titre: 'Scan'});
         }
         return true;
     }
-    return {estLienInternet: estLienInternet, refuserSiLien: refuserSiLien};
+    return {estLienInternet: estLienInternet, estPointsSeuls: estPointsSeuls, refuserSiLien: refuserSiLien};
 })();
 
 /*

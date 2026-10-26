@@ -187,8 +187,9 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.ImportXLS', {
                         listeners: {
                             click: function (button, e, options) {
 //                            Ext.getCmp('formImport').reset();
-                                Ext.getCmp('xlsxdialog').destroy();
-                                Ext.getCmp('xlsxdialog').close();
+                                /* ticket TCK-20260929-E81DF44E : close() sur la fenetre deja detruite levait une erreur ;
+                                   la fermeture la detruit (closeAction: 'destroy') */
+                                button.up('window').close();
                             }
                         }
                     }

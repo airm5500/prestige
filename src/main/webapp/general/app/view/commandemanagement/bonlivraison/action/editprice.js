@@ -289,6 +289,19 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.action.editprice', {
 
     },
     onbtneditprice: function () {
+        /* le serveur lit les quatre prix en nombres entiers : un champ vide ou decimal y levait une erreur 500
+           (rapport du 26/10, C5). Le champ fautif est signale, la fenetre reste ouverte, rien n'est envoye. */
+        var invalide = false;
+        Ext.each(['int_PRIX_VENTE', 'int_PRIX_REFERENCE', 'int_PA_REEL', 'int_PAF'], function (id) {
+            var champ = Ext.getCmp(id);
+            if (!/^\d+$/.test(Ext.String.trim(String(champ.getValue() == null ? '' : champ.getValue())))) {
+                champ.markInvalid('Nombre entier attendu');
+                invalide = true;
+            }
+        });
+        if (invalide) {
+            return;
+        }
         Me_Workflow = Oview;
         Ext.Ajax.request({
             url: url_services_transaction_bl_editprice + 'modifproductprice',
@@ -305,7 +318,7 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.action.editprice', {
             },
             success: function (response)
             {
-                var object = Ext.JSON.decode(response.responseText, false);
+                var object = Ext.JSON.decode(response.responseText, true) || {};
                 if (object.success === 0) {
 
                     Ext.MessageBox.alert('Error Message', object.errors);
@@ -323,9 +336,11 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.action.editprice', {
             },
             failure: function (response)
             {
-                var object = Ext.JSON.decode(response.responseText, false);
-                console.log("Bug " + response.responseText);
-                Ext.MessageBox.alert('Error Message', response.responseText);
+                /* la page d'erreur HTML du serveur n'est pas du JSON : la decoder en mode strict levait une erreur
+                   (rapport du 26/10, J19), et l'afficher brute ne disait rien a l'utilisateur */
+                var object = Ext.JSON.decode(response.responseText, true) || {};
+                Ext.MessageBox.alert('MODIFICATION DE PRIX', object.msg || object.errors
+                        || ('Le prix n\'a pas été modifié : erreur du serveur (HTTP ' + response.status + ').'));
 
             }
         });
