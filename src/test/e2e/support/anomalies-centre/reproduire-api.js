@@ -42,6 +42,21 @@ const CAS = [
     url: V1 + 'client/client-assurance//0', defaut: (r) => r.statut === 404, corrige: (r) => r.statut !== 404 },
   { id: 'B1', titre: 'billetage/cloture-data sans caisse ouverte (corrige par 2575c3a0/38ba4d65 : pas de 500)', methode: 'GET',
     url: V1 + 'billetage/cloture-data', defaut: (r) => r.statut === 500, corrige: (r) => r.statut === 200 },
+  { id: 'C4', titre: 'suppression d\'une commande absente (double envoi) (corrige par f23f4e26 : 200 attendu)', methode: 'DELETE',
+    url: V1 + 'commande/order/E2E-INEXISTANT', defaut: (r) => r.statut === 500, corrige: (r) => r.statut < 300 },
+  { id: 'S1', titre: 'produit-search/fiche avec un emoji (corrige pour ce declencheur par 45d9a610 : 400 attendu)', methode: 'GET',
+    url: V1 + 'produit-search/fiche?start=0&limit=5&search_value=' + encodeURIComponent('\u{1F600}'),
+    defaut: (r) => r.statut === 500, corrige: (r) => r.statut === 400 },
+  { id: 'F1', titre: 'modification du prix d\'une ligne de BL, PAF vide (JSP) : NumberFormatException, 500', methode: 'POST',
+    url: '/prestige/webservices/commandemanagement/bonlivraison/ws_transaction.jsp?mode=modifproductprice'
+      + '&lg_BON_LIVRAISON_DETAIL=E2E-INEXISTANT&int_PRIX_REFERENCE=100&int_PRIX_VENTE=100&int_PAF=&int_PA_REEL=50',
+    defaut: (r) => r.statut === 500, corrige: (r) => r.statut === 200 },
+  /* mesures : le verdict compare la duree au seuil du rapport */
+  { id: 'M1', titre: 'details-vente sans identifiant de vente : totaux sur toutes les ventes en cours (mesure, seuil 1 s)',
+    methode: 'GET', url: V1 + 'facture-tiers-payant/details-vente', defaut: (r) => r.ms > 1000, corrige: (r) => r.ms <= 1000 },
+  { id: 'M2', titre: 'cloche « Ventes en avoir » : ventestats sur un mois (mesure, seuil 200 ms)', methode: 'GET',
+    url: V1 + 'ventestats?onlyAvoir=true&sansBon=false&typeVenteId=&avoirStatut=EN_COURS&dtStart=2026-09-26&dtEnd=2026-10-26&start=0&limit=50',
+    defaut: (r) => r.ms > 200, corrige: (r) => r.ms <= 200 },
 ];
 
 (async () => {
