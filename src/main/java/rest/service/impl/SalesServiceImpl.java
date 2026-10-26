@@ -1485,6 +1485,23 @@ public class SalesServiceImpl implements SalesService {
             json.put("codeError", 0);
             return true;
         }
+        /*
+         * Audit VC-09 (reproduit le 25/10) : FORCER_STOCK_VENTE = 0 n'etait controle qu'a la saisie ; deux ventes
+         * ouvertes sur la derniere boite se validaient l'une apres l'autre (stock -1). A la validation, la quantite de
+         * chaque produit (lignes cumulees) est recontrolee avec la meme regle qu'a la saisie.
+         */
+        TEmplacement emplacement = ContexteVenteDepot.emplacementDeVente(tp);
+        Map<TFamille, Integer> parProduit = new java.util.LinkedHashMap<>();
+        items.forEach(it -> parProduit.merge(it.getLgFAMILLEID(), valeur(it.getIntQUANTITY()), Integer::sum));
+        for (Map.Entry<TFamille, Integer> e : parProduit.entrySet()) {
+            if (e.getValue() > 0 && !forcerStock(e.getValue(), e.getKey().getLgFAMILLEID(), emplacement)) {
+                json.put("success", false);
+                json.put("msg", "Impossible de valider la vente : stock insuffisant pour " + e.getKey().getStrNAME()
+                        + " (une autre vente l'a peut-être pris entre-temps). Veuillez modifier la vente.");
+                json.put("codeError", 0);
+                return true;
+            }
+        }
         return false;
     }
 

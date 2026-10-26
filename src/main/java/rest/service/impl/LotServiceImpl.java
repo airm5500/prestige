@@ -240,6 +240,10 @@ public class LotServiceImpl implements LotService {
         if (quantiteVendue == 0) {
             return;
         }
+        if (quantiteVendue < 0) {
+            rendreAuxLots(produitId, -quantiteVendue);
+            return;
+        }
         int remaining = decrementerLots(findOnlyAvaillableStockByProduitId(produitId, quantiteVendue < 0),
                 quantiteVendue);
         // Les unites encore non imputees proviennent physiquement de lots deja
@@ -274,6 +278,43 @@ public class LotServiceImpl implements LotService {
         }
         if (reste > 0) {
             pickLot(produitId, reste);
+        }
+    }
+
+    /**
+     * Annulation d'une vente : les boites reviennent dans les lots.
+     *
+     * <p>
+     * Audit VC-11 (reproduit le 25/10) : tout etait credite au premier lot non perime par date de peremption, sans
+     * regarder d'ou les boites etaient sorties (vente sortie du lot B, annulation creditee au lot A : A = 2, B = 3 au
+     * lieu de A = 0, B = 5). Les boites reviennent d'abord aux lots entames le plus recemment (ceux que la vente vient
+     * de debiter), sans depasser leur quantite recue ; le reste eventuel suit la regle historique.
+     * </p>
+     */
+    private void rendreAuxLots(String produitId, int quantite) {
+        List<TLot> entames = em.createQuery(
+                "SELECT t FROM TLot t WHERE t.lgFAMILLEID.lgFAMILLEID = ?1"
+                        + " AND COALESCE(t.currentStock, 0) < COALESCE(t.intNUMBER, 0) ORDER BY t.dtUPDATED DESC",
+                TLot.class).setParameter(1, produitId).getResultList();
+        int reste = quantite;
+        for (TLot lot : entames) {
+            if (reste == 0) {
+                break;
+            }
+            int courant = lot.getCurrentStock() == null ? 0 : lot.getCurrentStock();
+            int recu = lot.getIntNUMBER() == null ? 0 : lot.getIntNUMBER();
+            int rendu = Math.min(reste, recu - courant);
+            if (rendu <= 0) {
+                continue;
+            }
+            lot.setCurrentStock(courant + rendu);
+            lot.setDtUPDATED(new Date());
+            lot.setLgUSERID(sessionHelperService.getCurrentUser());
+            em.merge(lot);
+            reste -= rendu;
+        }
+        if (reste > 0) {
+            decrementerLots(findOnlyAvaillableStockByProduitId(produitId, true), -reste);
         }
     }
 
