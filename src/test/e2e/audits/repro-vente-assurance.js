@@ -12,7 +12,7 @@ const { ok, q, exec, MARQUE } = C;
   const sess = await C.connecter();
   const { api } = sess;
   const VO = C.venteAssurance(api);
-  const cas = async (id, f) => { try { await f(); } catch (e) { ok(id + ' : déroulé sans exception', false, e.stack); } };
+  const cas = async (id, f) => { try { await f(); } catch (e) { ok(id + ' : déroulé sans exception', false, (String(e.message).match(/ERROR.*/) || [])[0] || e.stack); } };
   /* un tiers payant et un client a un seul tiers payant, a 80 % */
   const simple = async (suffixe, taux) => {
     const tp = C.tiersPayant(suffixe, '1');
@@ -88,8 +88,9 @@ const { ok, q, exec, MARQUE } = C;
       const s = await simple('CR07');
       const v = await VO.ajouter(s.cl, s.tps(), P, 1);
       const c = await VO.cloturer(s.cl, v, s.tps(), { falsifier: (d) => { d.tierspayants.forEach((t) => { t.tpnet = 1; t.taux = 1; }); } });
-      ok('CR-07 attendu : une clôture qui renvoie une part tiers payant de 1 F et un taux de 1 % (calcul serveur : 80 %) est refusée',
-        c.success === false, 'clôture ' + c.success + ' ; part calculée ' + JSON.stringify((c.net.montantTierspayants || []).map((m) => m.montant)) + ' ; ligne enregistrée '
+      const ligne07 = C.lignesTp(v).split('/');
+      ok('CR-07 attendu : une part de 1 F et un taux de 1 % renvoyés par le poste (calcul serveur : 80 %) sont refusés, ou ignorés au profit du calcul serveur',
+        c.success === false || (ligne07[1] === '80' && Number(ligne07[2]) > 1), 'clôture ' + c.success + ' ; part calculée ' + JSON.stringify((c.net.montantTierspayants || []).map((m) => m.montant)) + ' ; ligne enregistrée '
         + C.lignesTp(v) + ' ; encours organisme ' + C.encoursTp(s.tp));
     });
 

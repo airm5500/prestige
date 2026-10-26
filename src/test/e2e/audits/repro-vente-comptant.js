@@ -12,7 +12,7 @@ const { ok, q, exec, ADMIN, MARQUE } = C;
   const sess = await C.connecter();
   const { api } = sess;
   const V = C.venteComptant(api);
-  const cas = async (id, f) => { try { await f(); } catch (e) { ok(id + ' : déroulé sans exception', false, e.stack); } };
+  const cas = async (id, f) => { try { await f(); } catch (e) { ok(id + ' : déroulé sans exception', false, (String(e.message).match(/ERROR.*/) || [])[0] || e.stack); } };
   try {
     /* VC-01 */
     await cas('VC-01', async () => {
@@ -45,12 +45,13 @@ const { ok, q, exec, ADMIN, MARQUE } = C;
       ok('VC-04 précondition : modification ouverte (copie en cours)', !!copie, JSON.stringify(m).slice(0, 160));
       const a = await api('GET', '../api/v1/vente/annulation/' + v);
       const c = await V.cloturer(copie);
-      const annulations = Number(q("SELECT COUNT(*) FROM t_preenregistrement WHERE lg_PREENGISTREMENT_ANNULE_ID = '" + v + "'"));
+      /* une modification normale laisse DEUX enregistrements pointant l'origine : la copie et UNE contre-passation (prix negatif) */
+      const annulations = Number(q("SELECT COUNT(*) FROM t_preenregistrement WHERE lg_PREENGISTREMENT_ANNULE_ID = '" + v + "' AND int_PRICE < 0"));
       const caisse = q("SELECT COALESCE(SUM(montant), 0) FROM mvttransaction WHERE pkey IN (SELECT lg_PREENREGISTREMENT_ID FROM t_preenregistrement"
         + " WHERE lg_PREENREGISTREMENT_ID IN ('" + v + "', '" + copie + "') OR lg_PREENGISTREMENT_ANNULE_ID = '" + v + "')");
       ok('VC-04 attendu : annuler la vente pendant sa modification est refusé, ou la clôture de la copie ne la réannule pas'
         + ' (une seule annulation ; stock = stock de départ − 1 car la copie est vendue)',
-        (a.success === false || c.success === false) && annulations <= 1 && C.stock(P) === s0 - 1,
+        (a.success === false || c.success === false) && annulations <= 1 && C.stock(P) === s0 - 1 && Number(caisse) === (c.success ? P.pu : 0),
         'annulation ' + JSON.stringify(a).slice(0, 80) + ' ; clôture copie ' + JSON.stringify({ s: c.success, m: c.msg }) + ' ; annulations de l\'origine '
         + annulations + ' ; stock départ ' + s0 + ' → fin ' + C.stock(P) + ' ; somme caisse origine+copie+annulations ' + caisse + ' (attendu ' + P.pu + ')');
     });
@@ -91,6 +92,8 @@ const { ok, q, exec, ADMIN, MARQUE } = C;
       lot(MARQUE + '-LOT-A', 200, 0);
       lot(MARQUE + '-LOT-B', 400, 5);
       const lots = () => q("SELECT GROUP_CONCAT(CONCAT(int_NUM_LOT, '=', current_stock) ORDER BY int_NUM_LOT) FROM t_lot WHERE lg_LOT_ID LIKE '" + MARQUE + "-LOT-%'");
+      /* une vente ne suit pas la reception du lot dans la meme seconde (dates de lot egales : ordre arbitraire) */
+      await new Promise((r) => setTimeout(r, 2500));
       const v = await V.vendre(L, 2);
       const apresVente = lots();
       ok('VC-11 précondition : lot A (péremption proche) épuisé, lot B à 5 ; la vente de 2 boîtes sort du lot B', apresVente.endsWith('LOT-B=3'), apresVente);

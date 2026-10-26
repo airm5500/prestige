@@ -18,7 +18,7 @@ const FORM = { 'Content-Type': 'application/x-www-form-urlencoded' };
   const { api } = sess;
   const VO = C.venteAssurance(api);
   const jour = q('SELECT CURDATE()');
-  const cas = async (id, f) => { try { await f(); } catch (e) { ok(id + ' : déroulé sans exception', false, e.stack); } };
+  const cas = async (id, f) => { try { await f(); } catch (e) { ok(id + ' : déroulé sans exception', false, (String(e.message).match(/ERROR.*/) || [])[0] || e.stack); } };
   const assure = async (code) => {
     const tp = C.tiersPayant(code, '1');
     const cl = await C.clientAssure(api, code, [{ tp, taux: 80 }]);

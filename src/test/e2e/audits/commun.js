@@ -153,7 +153,9 @@ function nettoyer() {
     /* mouvements de retour (type 13) du test SEULEMENT : leur pkey est l'identifiant numerique de la ligne de retour, que
        d'anciens mouvements (inventaires...) peuvent aussi porter ; on filtre donc aussi sur type, produit et date */
     "DELETE FROM hmvtproduit WHERE typeMvt = '13' AND createdAt >= '" + DEBUT + "' AND lg_FAMILLE_ID IN (" + liste(etat.produits.map((p) => p.id)) + ")"
-      + ' AND pkey IN (SELECT CAST(d.id AS CHAR) FROM retour_carnet_detail d JOIN retour_carnet r ON r.id = d.retour_carnet_id WHERE r.tierspayant_id IN ' + tps + ')',
+      + ' AND (pkey IN (SELECT CAST(d.id AS CHAR) FROM retour_carnet_detail d JOIN retour_carnet r ON r.id = d.retour_carnet_id WHERE r.tierspayant_id IN ' + tps + ')'
+      + " OR pkey IN (SELECT CONCAT('RC-', d.id) FROM retour_carnet_detail d"
+      + ' JOIN retour_carnet r ON r.id = d.retour_carnet_id WHERE r.tierspayant_id IN ' + tps + '))',
     'DELETE FROM retour_carnet_detail WHERE retour_carnet_id IN (SELECT id FROM retour_carnet WHERE tierspayant_id IN ' + tps + ')',
     'DELETE FROM retour_carnet WHERE tierspayant_id IN ' + tps,
     'DELETE FROM reglement_carnet WHERE tierspayant_id IN ' + tps,

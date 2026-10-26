@@ -23,7 +23,7 @@ const { ok, q, exec, MARQUE } = C;
   const sess = await C.connecter();
   const { api } = sess;
   const V = C.venteComptant(api);
-  const cas = async (id, f) => { try { await f(); } catch (e) { ok(id + ' : déroulé sans exception', false, e.stack); } };
+  const cas = async (id, f) => { try { await f(); } catch (e) { ok(id + ' : déroulé sans exception', false, (String(e.message).match(/ERROR.*/) || [])[0] || e.stack); } };
   const tvaLignes = (v) => Number(q("SELECT COALESCE(SUM(montantTva), 0) FROM t_preenregistrement_detail WHERE lg_PREENREGISTREMENT_ID = '" + v + "'"));
   const remiseLignes = (v) => Number(q("SELECT COALESCE(SUM(int_PRICE_REMISE), 0) FROM t_preenregistrement_detail WHERE lg_PREENREGISTREMENT_ID = '" + v + "'"));
   try {

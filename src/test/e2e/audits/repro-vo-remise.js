@@ -22,7 +22,7 @@ const { ok, q, exec, MARQUE } = C;
   const sess = await C.connecter();
   const { api } = sess;
   const VO = C.venteAssurance(api);
-  const cas = async (id, f) => { try { await f(); } catch (e) { ok(id + ' : déroulé sans exception', false, e.stack); } };
+  const cas = async (id, f) => { try { await f(); } catch (e) { ok(id + ' : déroulé sans exception', false, (String(e.message).match(/ERROR.*/) || [])[0] || e.stack); } };
   const partsTp = (v) => Number(q("SELECT COALESCE(SUM(int_PRICE), 0) FROM t_preenregistrement_compte_client_tiers_payent WHERE lg_PREENREGISTREMENT_ID = '" + v + "'"));
   try {
     /* CR-05 (especes) et N3 (differe) */
@@ -34,7 +34,9 @@ const { ok, q, exec, MARQUE } = C;
       const e = C.vente(v);
       const t = q("SELECT CONCAT_WS('|', montantPaye, montantRegle, montantRemise) FROM mvttransaction WHERE pkey = '" + v + "'");
       ok('CR-05 précondition : remise appliquée sur la vente assurance', e.remise > 0, JSON.stringify(e) + ' ; net affiché ' + c.net.montantNet);
-      ok('CR-05 attendu : en espèces, le montant réglé de la transaction = part client (' + e.partClient + ')', Number(t.split('|')[1]) === e.partClient,
+      /* le client paie le net arrondi a 5 F (200 pour une part de 201) : le montant regle doit etre ce montant paye, pas 0 */
+      ok('CR-05 attendu : en espèces, le montant réglé de la transaction = montant payé par le client (net arrondi de la part client ' + e.partClient + ')',
+        Number(t.split('|')[1]) === Number(t.split('|')[0]) && Number(t.split('|')[1]) >= e.partClient - 5,
         'prix ' + e.prix + ' ; remise ' + e.remise + ' ; parts TP ' + partsTp(v) + ' ; part client ' + e.partClient + ' ; transaction payé|réglé|remise ' + t);
       const { v: v2 } = await VO.vendre(cl, tps('VR2'), P, 1, { remiseId: REMISE, mode: '4', recu: 0 });
       const e2 = C.vente(v2);

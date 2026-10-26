@@ -19,7 +19,7 @@ const nbRoActifs = (clientId) => Number(q("SELECT COUNT(*) FROM t_compte_client_
   const sess = await C.connecter();
   const { api } = sess;
   const VO = C.venteAssurance(api);
-  const cas = async (id, f) => { try { await f(); } catch (e) { ok(id + ' : déroulé sans exception', false, e.stack); } };
+  const cas = async (id, f) => { try { await f(); } catch (e) { ok(id + ' : déroulé sans exception', false, (String(e.message).match(/ERROR.*/) || [])[0] || e.stack); } };
   try {
     /* N8 : creation d'un client assure par l'ecran */
     await cas('N8', async () => {

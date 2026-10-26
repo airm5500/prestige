@@ -20,7 +20,7 @@ const { ok, q, exec, MARQUE } = C;
   const sess = await C.connecter();
   const { api } = sess;
   const V = C.venteComptant(api);
-  const cas = async (id, f) => { try { await f(); } catch (e) { ok(id + ' : déroulé sans exception', false, e.stack); } };
+  const cas = async (id, f) => { try { await f(); } catch (e) { ok(id + ' : déroulé sans exception', false, (String(e.message).match(/ERROR.*/) || [])[0] || e.stack); } };
   /* ligne de dette d'une vente : id | client | prix | reste | statut */
   const dette = (v) => q("SELECT CONCAT_WS('|', tp.lg_PREENREGISTREMENT_COMPTE_CLIENT_ID, cc.lg_CLIENT_ID, tp.int_PRICE, tp.int_PRICE_RESTE, tp.str_STATUT)"
     + " FROM t_preenregistrement_compte_client tp JOIN t_compte_client cc ON cc.lg_COMPTE_CLIENT_ID = tp.lg_COMPTE_CLIENT_ID WHERE tp.lg_PREENREGISTREMENT_ID = '" + v + "' LIMIT 1").split('|');

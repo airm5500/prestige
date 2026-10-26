@@ -20,7 +20,7 @@ const { ok, q } = C;
   const solde = () => Number(q("SELECT account FROM t_tiers_payant WHERE lg_TIERS_PAYANT_ID = '" + TP + "'"));
   const sess = await C.connecter();
   const { api } = sess;
-  const cas = async (id, f) => { try { await f(); } catch (e) { ok(id + ' : déroulé sans exception', false, e.stack); } };
+  const cas = async (id, f) => { try { await f(); } catch (e) { ok(id + ' : déroulé sans exception', false, (String(e.message).match(/ERROR.*/) || [])[0] || e.stack); } };
   const creerRetour = (qte, motifId) => api('POST', '../api/v2/retour-carnet-depot/creeation',
     { refParent: null, value: qte, description: C.MARQUE, refTwo: P.id, valueFour: motifId, ref: TP });
   try {
@@ -49,7 +49,7 @@ const { ok, q } = C;
       ok('CA-07 attendu : clôturer deux fois le même retour ne recompte ni le stock ni le solde',
         apres2[0] === apres1[0] && apres2[1] === apres1[1],
         'clôtures ' + c1.success + '/' + c2.success + ' ; stock ' + s0 + ' → ' + apres1[0] + ' → ' + apres2[0] + ' ; solde ' + solde0 + ' → ' + apres1[1] + ' → ' + apres2[1]);
-      const h = q("SELECT IFNULL(GROUP_CONCAT(CONCAT(qteDebut, '+', qteMvt, '=', qteFinale) SEPARATOR ' ; '), 'aucun') FROM hmvtproduit WHERE typeMvt = '13' AND lg_FAMILLE_ID = '" + P.id + "' AND pkey IN (SELECT CAST(id AS CHAR) FROM retour_carnet_detail WHERE retour_carnet_id = " + id + ")");
+      const h = q("SELECT IFNULL(GROUP_CONCAT(CONCAT(qteDebut, '+', qteMvt, '=', qteFinale) SEPARATOR ' ; '), 'aucun') FROM hmvtproduit WHERE typeMvt = '13' AND lg_FAMILLE_ID = '" + P.id + "' AND pkey IN (SELECT CONCAT('RC-', id) FROM retour_carnet_detail WHERE retour_carnet_id = " + id + ")");
       ok('CA-12 attendu : l\'historique de stock du retour enchaîne (début + quantité = fin) et n\'est écrit qu\'une fois', /^\d+\+\d+=\d+$/.test(h) && h.split('+').length === 2
         && Number(h.split('+')[0]) + Number(h.split('+')[1].split('=')[0]) === Number(h.split('=')[1]), 'mouvements : ' + h);
     });
