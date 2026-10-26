@@ -765,8 +765,17 @@ public class ReglementServiceImpl implements ReglementService {
              * Audit DIF-09 (reproduit le 25/10) : un reglement partiel etait ventile dans l'ordre des clics (la vente
              * recente soldee, l'ancienne laissee due). Ventilation de la plus ancienne a la plus recente.
              */
-            ordonnees.sort(Comparator.nullsLast(Comparator.comparing(TPreenregistrementCompteClient::getDtCREATED,
-                    Comparator.nullsLast(Comparator.naturalOrder()))));
+            ordonnees
+                    .sort(Comparator
+                            .nullsLast(
+                                    Comparator
+                                            .comparing(
+                                                    (TPreenregistrementCompteClient t) -> t
+                                                            .getLgPREENREGISTREMENTID() == null ? null
+                                                                    : t.getLgPREENREGISTREMENTID().getDtUPDATED(),
+                                                    Comparator.nullsLast(Comparator.naturalOrder()))
+                                            .thenComparing(TPreenregistrementCompteClient::getDtCREATED,
+                                                    Comparator.nullsLast(Comparator.naturalOrder()))));
             /*
              * Audit DIF-07 (reproduit le 25/10, appel direct) : « 1 F recu » pour 2 755 F payes etait accepte, et le
              * montant regle de la transaction devenait faux. Le montant recu doit couvrir le montant paye.
