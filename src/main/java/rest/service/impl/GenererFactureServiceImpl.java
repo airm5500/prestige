@@ -679,6 +679,22 @@ public class GenererFactureServiceImpl implements GenererFactureService {
             Double dblMONTANTCMDE = 0.0;
             int count = 0;
             userTransaction.begin();
+            /*
+             * Audit F3 : le compteur, lu avant la transaction, est relu SOUS VERROU ; une generation simultanee attend
+             * la fin de celle-ci au lieu de reprendre les memes numeros.
+             */
+            TParameters compteurVerrouille = getEntityManager().find(TParameters.class, KEY_CODE_FACTURE,
+                    javax.persistence.LockModeType.PESSIMISTIC_WRITE);
+            if (compteurVerrouille != null) {
+                int lu = Integer.parseInt(compteurVerrouille.getStrVALUE());
+                if (lu != codeFacture) {
+                    codeFactureLst += lu - codeFacture;
+                    if (groupeFacture != null) {
+                        groupeFacture.setStrCODEFACTURE(String.valueOf(lu));
+                    }
+                }
+                paramsCodeFacture = compteurVerrouille;
+            }
             for (Map.Entry<TTiersPayant, List<TPreenregistrementCompteClientTiersPayent>> entry : data.entrySet()) {
                 lastCodeFacture = String.valueOf(codeFactureLst);
                 /*

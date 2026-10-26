@@ -136,6 +136,34 @@ public class GroupeTierspayantController implements Serializable {
 
     private EntityManagerFactory emf;
 
+    /**
+     * Compteur des numeros de facture, relu SOUS VERROU dans la transaction en cours.
+     *
+     * <p>
+     * Audit F3 (reproduit le 25/10 : 5 paires de generations simultanees sur 5 avec le meme numero) : le compteur etait
+     * lu sans verrou, parfois avant l'ouverture de la transaction, et reecrit en valeur absolue ; deux generations
+     * reprenaient le meme numero. Les increments deja faits par cette transaction sont d'abord ecrits, puis la ligne
+     * est relue et verrouillee jusqu'a la fin de la transaction : une generation simultanee attend.
+     * </p>
+     */
+    private TParameters compteurFacture(EntityManager em) {
+        if (!em.getTransaction().isActive()) {
+            return em.find(TParameters.class, Parameter.KEY_CODE_FACTURE);
+        }
+        /*
+         * Lecture d'emblee verrouillante : sous REPEATABLE READ, une lecture ordinaire faite avant l'attente du verrou
+         * figerait l'instantane, et les bons relus ensuite paraitraient encore non factures (audit F2 en concurrence).
+         */
+        TParameters compteur = em.find(TParameters.class, Parameter.KEY_CODE_FACTURE,
+                javax.persistence.LockModeType.PESSIMISTIC_WRITE);
+        if (compteur != null) {
+            // deja charge par cette transaction : la valeur en memoire peut dater d'avant le verrou
+            em.flush();
+            em.refresh(compteur, javax.persistence.LockModeType.PESSIMISTIC_WRITE);
+        }
+        return compteur;
+    }
+
     public EntityManager getEntityManager() {
         return emf.createEntityManager();
     }
@@ -739,7 +767,7 @@ public class GroupeTierspayantController implements Serializable {
             em.getTransaction().begin();
             mapList.entrySet().forEach((t) -> {
                 TGroupeTierspayant g = t.getKey();
-                TParameters OParameters = em.find(TParameters.class, Parameter.KEY_CODE_FACTURE);
+                TParameters OParameters = compteurFacture(em);
                 String CODEFACTURE = OParameters.getStrVALUE();
 
                 OParameters.setStrVALUE((Integer.parseInt(CODEFACTURE) + 1) + "");
@@ -882,7 +910,7 @@ public class GroupeTierspayantController implements Serializable {
             if (OTTypeFacture == null) {
                 return null;
             }
-            TParameters OParameters = em.find(TParameters.class, Parameter.KEY_CODE_FACTURE);
+            TParameters OParameters = compteurFacture(em);
 
             String CODEFACTURE = OParameters.getStrVALUE();
 
@@ -1394,8 +1422,8 @@ public class GroupeTierspayantController implements Serializable {
     // facture selection
     public LinkedHashSet<TFacture> generateFacture(String dt_start, String dt_end, JSONArray selectedList, TUser u) {
         EntityManager em = getEntityManager();
-        TParameters OParameters = em.find(TParameters.class, Parameter.KEY_CODE_FACTURE);
         em.getTransaction().begin();
+        TParameters OParameters = compteurFacture(em);
 
         LinkedHashSet<TFacture> factures = new LinkedHashSet<>();
         List<TPreenregistrementCompteClientTiersPayent> oblist = this.getGroupeSelectedBons(selectedList);
@@ -2241,8 +2269,8 @@ public class GroupeTierspayantController implements Serializable {
     public Map<String, LinkedHashSet<TFacture>> generateInvoices(List<TTiersPayant> payants, String dt_start,
             String dt_end, Integer lgGRP, TUser us) {
         EntityManager em = getEntityManager();
-        TParameters OParameters = em.find(TParameters.class, Parameter.KEY_CODE_FACTURE);
         em.getTransaction().begin();
+        TParameters OParameters = compteurFacture(em);
         Map<String, LinkedHashSet<TFacture>> grfact = new HashMap<>();
         LinkedHashSet<TFacture> factures = new LinkedHashSet<>();
 
@@ -5109,7 +5137,7 @@ public class GroupeTierspayantController implements Serializable {
                 em.getTransaction().begin();
             }
             LinkedHashSet<TFacture> factures = new LinkedHashSet<>();
-            TParameters OParameters = em.find(TParameters.class, Parameter.KEY_CODE_FACTURE);
+            TParameters OParameters = compteurFacture(em);
             String CODEFACTURE = OParameters.getStrVALUE();
             OParameters.setStrVALUE((Integer.valueOf(CODEFACTURE) + 1) + "");
             boolean numerationFacture = getParametreFacturation();
