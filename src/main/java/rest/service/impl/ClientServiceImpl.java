@@ -120,7 +120,7 @@ public class ClientServiceImpl implements ClientService {
             tp.setClient(tc);
             tp.setStrFIRSTNAMECUSTOMER(tc.getStrFIRSTNAME());
             tp.setStrLASTNAMECUSTOMER(tc.getStrLASTNAME());
-            tp.setStrPHONECUSTOME(clientLambda.getStrADRESSE());
+            tp.setStrPHONECUSTOME(SalesServiceImpl.telephoneVente(tc));
             getEmg().merge(tp);
             return new JSONObject().put("success", true);
         } catch (Exception e) {

@@ -1042,6 +1042,23 @@ public class SalesServiceImpl implements SalesService {
         }
     }
 
+    /**
+     * Centre de support, V2 : telephone recopie sur la vente (str_PHONE_CUSTOME, 20 caracteres dans plusieurs
+     * officines). Le telephone du client ; a defaut, l'ancien champ « adresse » s'il porte un numero (la caisse y range
+     * le numero des clients standards) ; jamais une adresse postale, qui faisait echouer la vente (« Data too long »).
+     */
+    static String telephoneVente(TClient c) {
+        if (c == null) {
+            return null;
+        }
+        String t = StringUtils.trimToNull(c.getStrTELEPHONE());
+        if (t == null) {
+            String a = StringUtils.trimToNull(c.getStrADRESSE());
+            t = a != null && a.matches("[0-9+ ().-]+") && a.replaceAll("\\D", "").length() >= 6 ? a : null;
+        }
+        return StringUtils.trimToNull(StringUtils.left(t, 20));
+    }
+
     private Optional<TClient> findClientById(String id) {
         if (StringUtils.isEmpty(id)) {
             return Optional.empty();
@@ -1079,7 +1096,7 @@ public class SalesServiceImpl implements SalesService {
             findClientById(salesParams.getClientId()).ifPresent(c -> {
                 preenregistrement.setStrFIRSTNAMECUSTOMER(c.getStrFIRSTNAME());
                 preenregistrement.setStrLASTNAMECUSTOMER(c.getStrLASTNAME());
-                preenregistrement.setStrPHONECUSTOME(c.getStrADRESSE());
+                preenregistrement.setStrPHONECUSTOME(telephoneVente(c));
                 preenregistrement.setClient(c);
             });
             if (!salesParams.isDepot()) {
@@ -2662,7 +2679,7 @@ public class SalesServiceImpl implements SalesService {
                     tp.setStrLASTNAMECUSTOMER(ayantDroit.getStrLASTNAME());
                     tp.setStrNUMEROSECURITESOCIAL(ayantDroit.getStrNUMEROSECURITESOCIAL());
                     tp.setAyantDroit(ayantDroit);
-                    tp.setStrPHONECUSTOME(client.getStrADRESSE());
+                    tp.setStrPHONECUSTOME(telephoneVente(client));
                 }
 
                 amount = montant - tp.getIntPRICEREMISE();
@@ -2672,7 +2689,7 @@ public class SalesServiceImpl implements SalesService {
                     tp.setStrFIRSTNAMECUSTOMER(client.getStrFIRSTNAME());
                     tp.setStrLASTNAMECUSTOMER(client.getStrLASTNAME());
                     tp.setStrNUMEROSECURITESOCIAL(client.getStrNUMEROSECURITESOCIAL());
-                    tp.setStrPHONECUSTOME(client.getStrADRESSE());
+                    tp.setStrPHONECUSTOME(telephoneVente(client));
                     tp.setClient(client);
                 }
 
@@ -2934,7 +2951,7 @@ public class SalesServiceImpl implements SalesService {
             if (client != null) {
                 tp.setStrFIRSTNAMECUSTOMER(client.getStrFIRSTNAME());
                 tp.setStrLASTNAMECUSTOMER(client.getStrLASTNAME());
-                tp.setStrPHONECUSTOME(client.getStrADRESSE());
+                tp.setStrPHONECUSTOME(telephoneVente(client));
                 tp.setClient(client);
             }
 
@@ -4207,7 +4224,7 @@ public class SalesServiceImpl implements SalesService {
             findClientById(params.getClientId()).ifPresent(c -> {
                 op.setStrFIRSTNAMECUSTOMER(c.getStrFIRSTNAME());
                 op.setStrLASTNAMECUSTOMER(c.getStrLASTNAME());
-                op.setStrPHONECUSTOME(c.getStrADRESSE());
+                op.setStrPHONECUSTOME(telephoneVente(c));
                 op.setClient(c);
             });
             if (!op.getLgTYPEVENTEID().getLgTYPEVENTEID().equals(VENTE_AVEC_CARNET)) {
@@ -4707,7 +4724,7 @@ public class SalesServiceImpl implements SalesService {
         preen.setStrFIRSTNAMECUSTOMER(client.getStrFIRSTNAME());
         preen.setStrLASTNAMECUSTOMER(client.getStrLASTNAME());
         preen.setStrNUMEROSECURITESOCIAL(client.getStrNUMEROSECURITESOCIAL());
-        preen.setStrPHONECUSTOME(client.getStrADRESSE());
+        preen.setStrPHONECUSTOME(telephoneVente(client));
         preen.setStrINFOSCLT("");
         findAyantDroit(salesParams.getAyantDroitId()).ifPresent(a -> {
             preen.setAyantDroit(a);
@@ -5525,7 +5542,7 @@ public class SalesServiceImpl implements SalesService {
         prenn.setStrFIRSTNAMECUSTOMER(client.getStrFIRSTNAME());
         prenn.setStrLASTNAMECUSTOMER(client.getStrLASTNAME());
         prenn.setStrNUMEROSECURITESOCIAL(client.getStrNUMEROSECURITESOCIAL());
-        prenn.setStrPHONECUSTOME(client.getStrADRESSE());
+        prenn.setStrPHONECUSTOME(telephoneVente(client));
         prenn.setStrINFOSCLT("");
         prenn.setStrREFBON(salesParams.getTierspayants().get(0).getNumBon());
         getEm().merge(prenn);
