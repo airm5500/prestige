@@ -455,20 +455,8 @@ public class GenererFactureServiceImpl implements GenererFactureService {
     }
 
     private void updateInvoicePlafond(TTiersPayant OTTiersPayant) {
-        boolean isAbsolute = OTTiersPayant.getBCANBEUSE();
-        if (!isAbsolute) {
-            OTTiersPayant.setDbCONSOMMATIONMENSUELLE(0);
-            OTTiersPayant.setBCANBEUSE(true);
-            getEntityManager().merge(OTTiersPayant);
-        }
-        List<TCompteClientTiersPayant> list = (List<TCompteClientTiersPayant>) OTTiersPayant
-                .getTCompteClientTiersPayantCollection();
-        list.stream().filter(o -> o.getBIsAbsolute() != null && !o.getBIsAbsolute()).forEach(b -> {
-            b.setBCANBEUSE(true);
-            b.setDbCONSOMMATIONMENSUELLE(0);
-            getEntityManager().merge(b);
-        });
-
+        // audit F5 : encours recalcule depuis les bons restant a facturer, au lieu d'une remise a zero globale
+        EncoursTiersPayant.apresFacturation(getEntityManager(), OTTiersPayant);
     }
 
     @Override

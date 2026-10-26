@@ -665,7 +665,9 @@ public class SalesServiceImpl implements SalesService {
                 if (p.getToBeExclude() || p.getIsDepot()) {
                     payantExclusService.updateTiersPayantAccount(p, (-1) * cpClient.getIntPRICE());
                 } else {
-                    updateClientAccount(cpClient);
+                    // audit CR-01 (reproduit le 25/10) : l'annulation AJOUTAIT la part a l'encours (564 -> 1 128)
+                    EncoursTiersPayant.retirer(getEm(), cpClient.getLgCOMPTECLIENTTIERSPAYANTID(),
+                            valeur(cpClient.getIntPRICE()));
                 }
 
             });
@@ -3077,6 +3079,19 @@ public class SalesServiceImpl implements SalesService {
         }
     }
 
+    /** Ajoute (montant positif) ou retire (negatif) une part tiers payant : encours, ou solde si exclu / depot. */
+    private void deplacerPart(TCompteClientTiersPayant lien, int montant) {
+        if (lien == null || montant == 0) {
+            return;
+        }
+        TTiersPayant payant = lien.getLgTIERSPAYANTID();
+        if (EncoursTiersPayant.suiviParEncours(payant)) {
+            EncoursTiersPayant.ajouter(getEm(), lien, montant);
+        } else {
+            payantExclusService.updateTiersPayantAccount(payant, montant);
+        }
+    }
+
     /**
      * Ce que le client doit sur la vente, remise deduite.
      *
@@ -4762,7 +4777,33 @@ public class SalesServiceImpl implements SalesService {
 
             }
 
+            /*
+             * Audit N5 (reproduit le 25/10) : sur une vente deja facturee, la ligne « charged » etait supprimee et
+             * remplacee par une ligne « unpaid », facturable une seconde fois. La vente facturee est refusee.
+             */
+            List<TPreenregistrementCompteClientTiersPayent> lignesAvant = getTPreenregistrementCompteClientTiersPayent(
+                    salesParams.getVenteId());
+            TPreenregistrement venteAvant = getEm().find(TPreenregistrement.class, salesParams.getVenteId());
+            // vente sous caution : sa ligne est « paid » des la vente (updateCaution), ce n'est pas une facturation
+            boolean sousCaution = venteAvant != null && venteAvant.getCaution() != null;
+            if (!sousCaution && lignesAvant.stream()
+                    .anyMatch(l -> !DateConverter.STATUT_FACTURE_UNPAID.equals(l.getStrSTATUTFACTURE()))) {
+                return new JSONObject().put("success", false).put("msg",
+                        "Cette vente a déjà été facturée à l'organisme : son client ou ses tiers payants ne se modifient plus.");
+            }
+            /* parts AVANT la modification (les lignes sont modifiees sur place : on garde lien et montant) */
+            List<Object[]> partsAvant = lignesAvant.stream()
+                    .map(l -> new Object[] { l.getLgCOMPTECLIENTTIERSPAYANTID(), valeur(l.getIntPRICE()) })
+                    .collect(Collectors.toList());
             TPreenregistrement tp = updateVenteInfosClientOrtierspayant(salesParams);
+            /*
+             * Audit CA-09 (reproduit le 25/10) : la part restait dans l'encours de l'ancien organisme et n'entrait pas
+             * dans celui du nouveau. Elle sort de l'ancien et entre dans le nouveau (encours, ou solde du carnet depot
+             * ou de l'organisme exclu).
+             */
+            partsAvant.forEach(p -> deplacerPart((TCompteClientTiersPayant) p[0], -((Integer) p[1])));
+            getTPreenregistrementCompteClientTiersPayent(tp.getLgPREENREGISTREMENTID())
+                    .forEach(l -> deplacerPart(l.getLgCOMPTECLIENTTIERSPAYANTID(), valeur(l.getIntPRICE())));
             return new JSONObject().put("success", true).put("msg", "Opération effectuée avec succèss").put("refId",
                     tp.getLgPREENREGISTREMENTID());
 
@@ -5034,7 +5075,9 @@ public class SalesServiceImpl implements SalesService {
             newItem.setStrSTATUTFACTURE(a.getStrSTATUTFACTURE());
             newItem.setStrLASTTRANSACTION(a.getStrLASTTRANSACTION());
             getEm().persist(newItem);
-            updateCompteClientTiersPayantEncourAndPlafond(a);
+            // audit CR-02 (reproduit le 25/10) : la part de la vente d'origine etait AJOUTEE une seconde fois a
+            // l'encours (1 692 pour une part de 564) ; elle en sort, la copie y apporte la sienne a sa cloture
+            EncoursTiersPayant.retirer(getEm(), compte, valeur(a.getIntPRICE()));
 
         }
 

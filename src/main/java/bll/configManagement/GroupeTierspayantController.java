@@ -947,18 +947,13 @@ public class GroupeTierspayantController implements Serializable {
     }
 
     private void updateInvoicePlafond(TFacture facture, TTiersPayant OTTiersPayant, EntityManager em) {
-        boolean isAbsolute = OTTiersPayant.getBCANBEUSE();
-        if (!isAbsolute) {
-            OTTiersPayant.setDbCONSOMMATIONMENSUELLE(0);
-            OTTiersPayant.setBCANBEUSE(true);
-            em.merge(OTTiersPayant);
-        }
-        // Mise a jour groupee des comptes clients du tiers payant : meme effet que la boucle
-        // historique, en UNE requete au lieu de charger toute la collection puis de faire un
-        // merge par compte (identique a la generation individuelle).
-        em.createQuery("UPDATE TCompteClientTiersPayant c SET c.bCANBEUSE = TRUE, c.dbCONSOMMATIONMENSUELLE = 0 "
-                + "WHERE c.lgTIERSPAYANTID = ?1 AND c.bIsAbsolute = FALSE").setParameter(1, OTTiersPayant)
-                .executeUpdate();
+        /*
+         * Audit F5 (reproduit le 25/10) : la facture remettait a zero l'encours de TOUS les clients de l'organisme, y
+         * compris les ventes non facturees (4 584 -> 0 en facturant un bon sur deux), et celui de l'organisme seulement
+         * s'il etait bloque. L'encours est recalcule depuis les bons restant a facturer (liens ordinaires et organisme)
+         * ; les liens absolus ne bougent pas, comme avant.
+         */
+        rest.service.impl.EncoursTiersPayant.apresFacturation(em, OTTiersPayant);
     }
 
     private List<TPreenregistrementDetail> findItems(String OTPreenregistrement, EntityManager em) {
