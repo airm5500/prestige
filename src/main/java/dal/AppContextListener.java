@@ -1,7 +1,11 @@
 package dal;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.logging.Filter;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.servlet.ServletContextEvent;
 import javax.servlet.ServletContextListener;
@@ -56,6 +60,7 @@ public class AppContextListener implements ServletContextListener {
         } catch (RuntimeException e) {
             // la configuration du log ne doit jamais empecher le demarrage
         }
+        creerDossierPdf(sce);
         // Prechauffage de la factory JPA partagee, en arriere-plan pour ne pas retarder le
         // deploiement : sa construction (20-30 s sur un poste d'officine, EclipseLink relit
         // toutes les classes du war) se paie ainsi PENDANT le demarrage du serveur, et non a
@@ -65,6 +70,33 @@ public class AppContextListener implements ServletContextListener {
                 "prechauffage-factory-jpa");
         prechauffage.setDaemon(true);
         prechauffage.start();
+    }
+
+    /**
+     * Le dossier des editions PDF (data/reports/pdf) n'est pas dans le war : il manquait apres chaque deploiement, et
+     * toutes les editions PDF echouaient (FileNotFoundException). Il est cree ici, dans l'application deployee. Un
+     * echec est journalise sans bloquer le demarrage.
+     */
+    private static void creerDossierPdf(ServletContextEvent sce) {
+        /* getRealPath d'un dossier absent rend null sous Payara : on part de la racine de l'application */
+        String racine = sce.getServletContext().getRealPath("/");
+        creerDossier(racine == null ? null : Paths.get(racine, "data", "reports", "pdf").toString());
+    }
+
+    private static void creerDossier(String chemin) {
+        if (chemin == null || chemin.trim().isEmpty()) {
+            Logger.getLogger(AppContextListener.class.getName()).log(Level.WARNING,
+                    "Dossier des editions PDF : emplacement inconnu, rien n'est cree");
+            return;
+        }
+        try {
+            Path dossier = Files.createDirectories(Paths.get(chemin.trim()));
+            Logger.getLogger(AppContextListener.class.getName()).log(Level.INFO, "Dossier des editions PDF : {0}",
+                    dossier.toAbsolutePath());
+        } catch (IOException | RuntimeException e) {
+            Logger.getLogger(AppContextListener.class.getName()).log(Level.WARNING,
+                    "Dossier des editions PDF impossible a creer : {0} ({1})", new Object[] { chemin, e.toString() });
+        }
     }
 
     @Override
