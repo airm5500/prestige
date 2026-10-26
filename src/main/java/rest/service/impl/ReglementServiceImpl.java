@@ -761,6 +761,21 @@ public class ReglementServiceImpl implements ReglementService {
                     .forEach(t -> parId.put(t.getLgPREENREGISTREMENTCOMPTECLIENTID(), t));
             List<TPreenregistrementCompteClient> ordonnees = new ArrayList<>();
             ids.forEach(id -> ordonnees.add(parId.get(id)));
+            /*
+             * Audit DIF-09 (reproduit le 25/10) : un reglement partiel etait ventile dans l'ordre des clics (la vente
+             * recente soldee, l'ancienne laissee due). Ventilation de la plus ancienne a la plus recente.
+             */
+            ordonnees.sort(Comparator.nullsLast(Comparator.comparing(TPreenregistrementCompteClient::getDtCREATED,
+                    Comparator.nullsLast(Comparator.naturalOrder()))));
+            /*
+             * Audit DIF-07 (reproduit le 25/10, appel direct) : « 1 F recu » pour 2 755 F payes etait accepte, et le
+             * montant regle de la transaction devenait faux. Le montant recu doit couvrir le montant paye.
+             */
+            if (p.getMontantRecu() != null && p.getMontantPaye() != null && p.getMontantRecu() < p.getMontantPaye()) {
+                sessionContext.setRollbackOnly();
+                return json.put("success", false).put("msg", "Le montant reçu (" + p.getMontantRecu()
+                        + " F) est inférieur au montant réglé (" + p.getMontantPaye() + " F).");
+            }
             ReglementDiffereControle.Resultat controle = ReglementDiffereControle.partiel(lignesControle(ordonnees),
                     p.getClientId(), restesAttendus(p.getRestesAttendus()),
                     p.getMontantPaye() == null ? 0 : p.getMontantPaye());
@@ -877,7 +892,9 @@ public class ReglementServiceImpl implements ReglementService {
             TPreenregistrementCompteClient tp = parId.get(a.id);
             createDossierReglementDetail(a.id, dossierReglement, a.montant);
             tp.setIntPRICERESTE(a.nouveauReste);
-            tp.setDtUPDATED(now);
+            // audit DIF-08 (reproduit le 25/10) : la date de la ligne sert de « date de la vente » (liste, tri, filtre)
+            // ;
+            // le reglement ne la reecrit plus (le dossier de reglement porte sa propre date)
             getEmg().merge(tp);
         }
     }
@@ -901,7 +918,7 @@ public class ReglementServiceImpl implements ReglementService {
                 tp.setIntPRICERESTE(dette - remaining);
                 remaining = 0;
             }
-            tp.setDtUPDATED(now);
+            // audit DIF-08 : la date de la vente n'est plus reecrite par le reglement
             getEmg().merge(tp);
         }
     }
@@ -1177,6 +1194,14 @@ public class ReglementServiceImpl implements ReglementService {
 
     /* ------------------------------------------------------------------ releve des differes (retours du 07/10) */
 
+    /**
+     * Montant mis en differe par une vente : sa part (int_PRICE) moins ce qui a ete paye a la cloture (acompte, montant
+     * paye de la transaction de la vente). Audit D4 (reproduit le 25/10) : le releve debitait le prix entier et ne
+     * creditait jamais l'acompte (solde 5 510 pour un reste du de 2 755).
+     */
+    private static final String DETTE_DIFFEREE = "GREATEST(0, tp.int_PRICE - COALESCE((SELECT SUM(m.montantPaye)"
+            + " FROM mvttransaction m WHERE m.pkey = tp.lg_PREENREGISTREMENT_ID), 0))";
+
     /** Ventes mises en differe : montant du (int_PRICE de la part differee), date de la vente. */
     private static final String VENTES_DIFFEREES = " FROM t_preenregistrement_compte_client tp"
             + " JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = tp.lg_PREENREGISTREMENT_ID"
@@ -1200,8 +1225,8 @@ public class ReglementServiceImpl implements ReglementService {
             java.sql.Timestamp fin = java.sql.Timestamp.valueOf(au.plusDays(1).atStartOfDay());
             EntityManager em = getEmg();
             Number ventesAvant = (Number) em
-                    .createNativeQuery(
-                            "SELECT COALESCE(SUM(tp.int_PRICE), 0)" + VENTES_DIFFEREES + " AND p.dt_UPDATED < ?3")
+                    .createNativeQuery("SELECT COALESCE(SUM(" + DETTE_DIFFEREE + "), 0)" + VENTES_DIFFEREES
+                            + " AND p.dt_UPDATED < ?3")
                     .setParameter(1, emplacement).setParameter(2, client).setParameter(3, debut).getSingleResult();
             Number reglesAvant = (Number) em
                     .createNativeQuery("SELECT COALESCE(SUM(m.montantRegle), 0)" + REGLEMENTS + " AND m.createdAt < ?3")
@@ -1209,7 +1234,7 @@ public class ReglementServiceImpl implements ReglementService {
             List<ReleveDifferes.Operation> ops = new ArrayList<>();
             for (Object[] r : (List<Object[]>) em
                     .createNativeQuery("SELECT p.dt_UPDATED, p.str_REF,"
-                            + " CONCAT_WS(' ', c.str_FIRST_NAME, c.str_LAST_NAME), tp.int_PRICE" + VENTES_DIFFEREES
+                            + " CONCAT_WS(' ', c.str_FIRST_NAME, c.str_LAST_NAME), " + DETTE_DIFFEREE + VENTES_DIFFEREES
                             + " AND p.dt_UPDATED >= ?3 AND p.dt_UPDATED < ?4")
                     .setParameter(1, emplacement).setParameter(2, client).setParameter(3, debut).setParameter(4, fin)
                     .setMaxResults(20000).getResultList()) {

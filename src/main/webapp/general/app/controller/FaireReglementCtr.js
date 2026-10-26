@@ -571,6 +571,18 @@ Ext.define('testextjs.controller.FaireReglementCtr', {
 
                 });
 
+            } else {
+                /* audit DIF-10 : valider a 0 F ne faisait rien, sans message */
+                Ext.MessageBox.show({
+                    title: 'Message d\'erreur',
+                    width: 320,
+                    msg: 'Saisissez le montant reçu.',
+                    buttons: Ext.MessageBox.OK,
+                    icon: Ext.MessageBox.ERROR,
+                    fn: function () {
+                        me.getMontantRecu().focus(true, 100);
+                    }
+                });
             }
         }
     }
