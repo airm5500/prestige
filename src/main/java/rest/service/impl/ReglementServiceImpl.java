@@ -821,7 +821,7 @@ public class ReglementServiceImpl implements ReglementService {
         return new ArrayList<>(lignes);
     }
 
-    private static List<ReglementDiffereControle.Ligne> lignesControle(List<TPreenregistrementCompteClient> lignes) {
+    private List<ReglementDiffereControle.Ligne> lignesControle(List<TPreenregistrementCompteClient> lignes) {
         List<ReglementDiffereControle.Ligne> l = new ArrayList<>();
         for (TPreenregistrementCompteClient t : lignes) {
             if (t == null) {
@@ -831,11 +831,25 @@ public class ReglementServiceImpl implements ReglementService {
             String client = t.getLgCOMPTECLIENTID() == null || t.getLgCOMPTECLIENTID().getLgCLIENTID() == null ? null
                     : t.getLgCOMPTECLIENTID().getLgCLIENTID().getLgCLIENTID();
             TPreenregistrement v = t.getLgPREENREGISTREMENTID();
+            /*
+             * Audit DIF-01 (reproduit le 25/10) : une vente en cours de modification restait reglable ; le reglement,
+             * fait sur la ligne d'origine, etait ignore a la cloture de la copie (le client devait encore tout). Une
+             * copie de modification ouverte compte comme une vente « modifiee » : le controle refuse le reglement.
+             */
             l.add(new ReglementDiffereControle.Ligne(t.getLgPREENREGISTREMENTCOMPTECLIENTID(), client, t.getStrSTATUT(),
-                    v == null || Boolean.TRUE.equals(v.getBISCANCEL()),
+                    v == null || Boolean.TRUE.equals(v.getBISCANCEL()) || modificationEnCours(v),
                     t.getIntPRICERESTE() == null ? 0 : t.getIntPRICERESTE()));
         }
         return l;
+    }
+
+    /** Une copie de modification de cette vente est-elle ouverte (copy = 1, en cours) ? */
+    private boolean modificationEnCours(TPreenregistrement vente) {
+        Long n = getEmg().createQuery(
+                "SELECT COUNT(o) FROM TPreenregistrement o WHERE o.lgPARENTID = ?1 AND o.copy = TRUE AND o.strSTATUT = ?2",
+                Long.class).setParameter(1, vente.getLgPREENREGISTREMENTID())
+                .setParameter(2, Constant.STATUT_IS_PROGRESS).getSingleResult();
+        return n != null && n > 0;
     }
 
     /** {"id": reste vu a l'ecran, ...} ; null si l'ecran ne l'envoie pas (pas de controle de fraicheur). */

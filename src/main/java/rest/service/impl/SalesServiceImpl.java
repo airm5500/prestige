@@ -408,6 +408,19 @@ public class SalesServiceImpl implements SalesService {
 
         }
         String refus = refusAnnulation(preenregistrement);
+        if (refus == null && findByParent(preenregistrement.getLgPREENREGISTREMENTID()) != null) {
+            // audit VC-04 (reproduit le 25/10) : annulee pendant sa modification, la vente l'etait encore a la cloture
+            refus = "Cette vente est en cours de modification : terminez ou abandonnez la modification avant de l'annuler.";
+        }
+        if (refus == null) {
+            // audit D2 (reproduit le 25/10) : une vente differee deja reglee s'annulait, les reglements restaient en
+            // caisse sans contrepartie pour le client
+            int regle = montantRegleDiffere(preenregistrement);
+            if (regle > 0) {
+                refus = "Cette vente a déjà été réglée en partie (" + regle
+                        + " F) : remboursez le client ou faites-lui un avoir avant de l'annuler.";
+            }
+        }
         if (refus != null) {
             json = new JSONObject();
             json.put("success", false);
@@ -437,10 +450,81 @@ public class SalesServiceImpl implements SalesService {
         return null;
     }
 
+    /**
+     * Toutes les lignes de dette encore actives de la vente. Audit D5 (reproduit le 25/10) : les donnees reelles
+     * contiennent des ventes a deux lignes de dette ; l'annulation n'en neutralisait qu'une, prise au hasard.
+     */
+    private List<TPreenregistrementCompteClient> findCmtsActives(TPreenregistrement preenregistrement) {
+        return em.createQuery(
+                "SELECT o FROM TPreenregistrementCompteClient o WHERE o.lgPREENREGISTREMENTID.lgPREENREGISTREMENTID =?1 AND o.strSTATUT <> ?2 ORDER BY o.dtCREATED",
+                TPreenregistrementCompteClient.class).setParameter(1, preenregistrement.getLgPREENREGISTREMENTID())
+                .setParameter(2, STATUT_DELETE).getResultList();
+    }
+
+    /**
+     * Montant reellement regle par le client sur les lignes de dette de la vente (reglements de differe, acompte non
+     * compris : l'acompte est dans la transaction de la vente).
+     */
+    private int montantRegleDiffere(TPreenregistrement vente) {
+        /*
+         * Une vente deja modifiee porte ses reglements anterieurs sur la dette de la vente d'origine : la chaine des
+         * modifications (copie -> vente d'origine) est remontee.
+         */
+        int total = 0;
+        TPreenregistrement v = vente;
+        for (int niveau = 0; v != null && niveau < 20; niveau++) {
+            Object somme = em
+                    .createQuery("SELECT COALESCE(SUM(d.dblAMOUNT), 0) FROM TDossierReglementDetail d WHERE d.strREF IN"
+                            + " (SELECT c.lgPREENREGISTREMENTCOMPTECLIENTID FROM TPreenregistrementCompteClient c"
+                            + " WHERE c.lgPREENREGISTREMENTID.lgPREENREGISTREMENTID = ?1)")
+                    .setParameter(1, v.getLgPREENREGISTREMENTID()).getSingleResult();
+            total += somme instanceof Number ? (int) Math.round(((Number) somme).doubleValue()) : 0;
+            v = Boolean.TRUE.equals(v.getCopy()) && StringUtils.isNotBlank(v.getLgPARENTID())
+                    ? em.find(TPreenregistrement.class, v.getLgPARENTID()) : null;
+        }
+        return total;
+    }
+
+    /**
+     * Motif de refus de la cloture d'une copie de modification, null si elle peut se faire. La vente d'origine est
+     * verrouillee.
+     *
+     * <p>
+     * Audit VC-04 (reproduit le 25/10) : l'origine annulee pendant la modification etait reannulee a la cloture de la
+     * copie (trois annulations, stock et caisse faux). Audit DIF-03 (reproduit) : une vente deja reglee en partie,
+     * modifiee pour un autre client ou payee autrement qu'en differe, perdait ses reglements (ni reportes, ni rendus).
+     * Regle retenue : refus, le plus sur ; le report par avoir reste une decision metier a prendre.
+     * </p>
+     */
+    private String refusClotureCopie(TPreenregistrement copie, ClotureVenteParams params, TCompteClient compteClient) {
+        TPreenregistrement origine = StringUtils.isBlank(copie.getLgPARENTID()) ? null : getEm().find(
+                TPreenregistrement.class, copie.getLgPARENTID(), javax.persistence.LockModeType.PESSIMISTIC_WRITE);
+        if (origine == null) {
+            return "La vente d'origine de cette modification n'existe plus : abandonnez la modification.";
+        }
+        if (Boolean.TRUE.equals(origine.getBISCANCEL())) {
+            return "La vente d'origine a été annulée pendant la modification : abandonnez la modification.";
+        }
+        int regle = montantRegleDiffere(origine);
+        if (regle > 0) {
+            boolean differe = REGL_DIFF.equals(params.getTypeRegleId());
+            boolean memeClient = compteClient != null && findOptionalCmt(origine)
+                    .map(d -> d.getLgCOMPTECLIENTID() != null
+                            && compteClient.getLgCOMPTECLIENTID().equals(d.getLgCOMPTECLIENTID().getLgCOMPTECLIENTID()))
+                    .orElse(false);
+            if (!differe || !memeClient) {
+                return "Cette vente a déjà été réglée en partie (" + regle + " F) : elle reste en différé, pour le même"
+                        + " client. Pour changer de client ou de mode de paiement, remboursez d'abord le client.";
+            }
+        }
+        return null;
+    }
+
     public Optional<TPreenregistrementCompteClient> findOptionalCmt(TPreenregistrement preenregistrement) {
         try {
+            // ordre explicite (audit D5) : la premiere ligne creee, et non une ligne au hasard
             TypedQuery<TPreenregistrementCompteClient> query = em.createQuery(
-                    "SELECT o FROM TPreenregistrementCompteClient o WHERE o.lgPREENREGISTREMENTID.lgPREENREGISTREMENTID =?1 ",
+                    "SELECT o FROM TPreenregistrementCompteClient o WHERE o.lgPREENREGISTREMENTID.lgPREENREGISTREMENTID =?1 ORDER BY o.dtCREATED",
                     TPreenregistrementCompteClient.class);
             query.setMaxResults(1);
             query.setParameter(1, preenregistrement.getLgPREENREGISTREMENTID());
@@ -624,8 +708,9 @@ public class SalesServiceImpl implements SalesService {
             ref = newItem.getLgPREENREGISTREMENTID();
 
             LongAdder montantRestant = new LongAdder();
-            findOptionalCmt(tp).ifPresent(cp -> {
-                montantRestant.add(cp.getIntPRICERESTE());
+            // audit D5 : toutes les lignes de dette actives de la vente (des doublons existent dans les donnees)
+            findCmtsActives(tp).forEach(cp -> {
+                montantRestant.add(valeur(cp.getIntPRICERESTE()));
                 cp.setIntPRICE(0);
                 cp.setIntPRICERESTE(0);
                 cp.setStrSTATUT(STATUT_DELETE);
@@ -2712,6 +2797,11 @@ public class SalesServiceImpl implements SalesService {
 
             /* retours du 09/10 (1) : origine annulee seulement apres les controles (voir la vente au comptant) */
             if (tp.getCopy()) {
+                String refusCopie = refusClotureCopie(tp, clotureVenteParams, compteClient);
+                if (refusCopie != null) {
+                    annulerClotureIncomplete();
+                    return json.put("success", false).put("msg", refusCopie).put("codeError", 0);
+                }
                 TPreenregistrement venteAsupprimer = getEm().find(TPreenregistrement.class, tp.getLgPARENTID());
                 annulerVenteAnterieur(tp.getLgUSERID(), venteAsupprimer);
                 venteModifieeService.enregistrerModificationProduits(tp.getLgUSERID(), venteAsupprimer, tp);
@@ -2975,6 +3065,11 @@ public class SalesServiceImpl implements SalesService {
              * cloture refusee laissait l'origine annulee et la copie en cours).
              */
             if (tp.getCopy()) {
+                String refusCopie = refusClotureCopie(tp, clotureVenteParams, compteClient);
+                if (refusCopie != null) {
+                    annulerClotureIncomplete();
+                    return json.put("success", false).put("msg", refusCopie).put("codeError", 0);
+                }
                 TPreenregistrement venteAsupprimer = getEm().find(TPreenregistrement.class, tp.getLgPARENTID());
                 // l'annulation automatique de la vente originale est attribuée à l'utilisateur
                 // qui a lancé la modification (porté par la copie), pas au caissier qui clôture
@@ -3132,8 +3227,16 @@ public class SalesServiceImpl implements SalesService {
                  */
                 boolean memeClient = compteClient == null || ctp.getLgCOMPTECLIENTID() == null || Objects
                         .equals(ctp.getLgCOMPTECLIENTID().getLgCOMPTECLIENTID(), compteClient.getLgCOMPTECLIENTID());
-                int dejaRegle = !memeClient || STATUT_IS_CLOSED.equals(ctp.getStrSTATUT()) ? 0
-                        : Math.max(0, valeur(ctp.getIntPRICE()) - valeur(ctp.getIntPRICERESTE()));
+                /*
+                 * Audit DIF-02 (reproduit le 25/10) : le « deja regle » etait lu sur la photo prise a l'ouverture de la
+                 * modification (prix - reste), qui comprend l'ACOMPTE ; or l'acompte est contre-passe avec la
+                 * transaction d'origine : il etait retire deux fois (caisse 0 + dette 2 755 pour une vente de 5 510).
+                 * Seuls les reglements reellement faits sur la dette d'origine restent acquis au client.
+                 */
+                TPreenregistrement origine = tp.getCopy() && StringUtils.isNotBlank(tp.getLgPARENTID())
+                        ? getEm().find(TPreenregistrement.class, tp.getLgPARENTID()) : null;
+                int dejaRegle = !memeClient || STATUT_IS_CLOSED.equals(ctp.getStrSTATUT()) || origine == null ? 0
+                        : montantRegleDiffere(origine);
                 int paye = clotureVenteParams.getMontantPaye() == null ? 0 : clotureVenteParams.getMontantPaye();
                 ctp.setIntPRICE(prix);
                 ctp.setIntPRICERESTE(Math.max(0, prix - paye - dejaRegle));
@@ -4939,8 +5042,9 @@ public class SalesServiceImpl implements SalesService {
         String idVente = tp.getLgPREENREGISTREMENTID();
         TPreenregistrement clonedPreen = cloneVente(ooTUser, tp);
         LongAdder montantRestant = new LongAdder();
-        findOptionalCmt(tp).ifPresent(cp -> {
-            montantRestant.add(cp.getIntPRICERESTE());
+        // audit D5 : toutes les lignes de dette actives de la vente d'origine
+        findCmtsActives(tp).forEach(cp -> {
+            montantRestant.add(valeur(cp.getIntPRICERESTE()));
             cp.setIntPRICE(0);
             cp.setIntPRICERESTE(0);
             cp.setStrSTATUT(STATUT_DELETE);
