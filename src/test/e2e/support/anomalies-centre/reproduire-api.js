@@ -13,6 +13,8 @@ const fs = require('fs');
 const path = require('path');
 const { chromium } = require('playwright-core');
 const ENV_E2E = require('../../outils/poste');
+/* adresse de Prestige : BASE=http://localhost:9080/prestige pour le second domaine */
+const RACINE = process.env.BASE || 'http://localhost:8080/prestige';
 
 const V1 = '/prestige/api/v1/';
 const CAS = [
@@ -64,7 +66,7 @@ const CAS = [
   fs.mkdirSync(sortie, { recursive: true });
   const b = await ENV_E2E.lancer(chromium);
   const p = await b.newPage();
-  await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
+  await p.goto(RACINE + '/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
   await p.fill('#str_login', ENV_E2E.LOGIN_SUPPORT); await p.fill('#str_password', 'e2etest'); await p.click('#login');
   await p.waitForURL('**/general/**', { timeout: 60000 });
   const appel = (a) => p.evaluate(async (a) => {
