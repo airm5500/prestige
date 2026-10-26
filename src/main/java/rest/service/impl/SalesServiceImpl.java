@@ -1043,6 +1043,10 @@ public class SalesServiceImpl implements SalesService {
     }
 
     private Optional<TAyantDroit> findAyantDroit(String id) {
+        if (StringUtils.isBlank(id)) {
+            // find(null) marquerait la transaction pour annulation : la cloture serait perdue sans message (audit N8)
+            return Optional.empty();
+        }
         try {
             TAyantDroit ayantDroit = this.getEm().find(TAyantDroit.class, id);
 

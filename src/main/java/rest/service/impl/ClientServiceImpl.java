@@ -418,6 +418,9 @@ public class ClientServiceImpl implements ClientService {
 
     private TClient findById(String id) {
         try {
+            if (StringUtils.isBlank(id)) {
+                return null; // find(null) marquerait la transaction pour annulation (audit N8)
+            }
             return em.find(TClient.class, id);
 
         } catch (Exception e) {
@@ -596,6 +599,9 @@ public class ClientServiceImpl implements ClientService {
 
     private TRemise findRemiseById(String idRemise) {
         try {
+            if (StringUtils.isBlank(idRemise)) {
+                return null; // find(null) marquerait la transaction pour annulation (audit N8)
+            }
             if (idRemise == null) {
                 return null;
             }
@@ -681,6 +687,9 @@ public class ClientServiceImpl implements ClientService {
 
     private TVille findVilleById(String id) {
         try {
+            if (StringUtils.isBlank(id)) {
+                return null; // find(null) marquerait la transaction pour annulation (audit N8)
+            }
             return em.find(TVille.class, id);
         } catch (Exception e) {
             return null;
@@ -689,6 +698,9 @@ public class ClientServiceImpl implements ClientService {
 
     private TTypeClient findTypeClientById(String id) {
         try {
+            if (StringUtils.isBlank(id)) {
+                return null; // find(null) marquerait la transaction pour annulation (audit N8)
+            }
             return em.find(TTypeClient.class, id);
         } catch (Exception e) {
             return null;
@@ -697,6 +709,9 @@ public class ClientServiceImpl implements ClientService {
 
     private TTiersPayant findTiersPayantById(String id) {
         try {
+            if (StringUtils.isBlank(id)) {
+                return null; // find(null) marquerait la transaction pour annulation (audit N8)
+            }
             return em.find(TTiersPayant.class, id);
         } catch (Exception e) {
             return null;
@@ -705,6 +720,9 @@ public class ClientServiceImpl implements ClientService {
 
     private TCategorieAyantdroit findCateAyantById(String id) {
         try {
+            if (StringUtils.isBlank(id)) {
+                return null; // find(null) marquerait la transaction pour annulation (audit N8)
+            }
             return em.find(TCategorieAyantdroit.class, id);
         } catch (Exception e) {
             return null;
@@ -713,6 +731,9 @@ public class ClientServiceImpl implements ClientService {
 
     private TRisque findRisqueById(String id) {
         try {
+            if (StringUtils.isBlank(id)) {
+                return null; // find(null) marquerait la transaction pour annulation (audit N8)
+            }
             return em.find(TRisque.class, id);
         } catch (Exception e) {
             return null;
@@ -804,7 +825,8 @@ public class ClientServiceImpl implements ClientService {
         TCompteClientTiersPayant oTCompteClientTiersPayant = new TCompteClientTiersPayant(UUID.randomUUID().toString());
         oTCompteClientTiersPayant.setStrSTATUT(Constant.STATUT_ENABLE);
         oTCompteClientTiersPayant.setStrNUMEROSECURITESOCIAL(cdto.getStrNUMEROSECURITESOCIAL());
-        oTCompteClientTiersPayant.setBISRO(Boolean.TRUE);
+        // audit M1 : un carnet n'est jamais le regime obligatoire du client
+        oTCompteClientTiersPayant.setBISRO(!estCarnet(p));
         oTCompteClientTiersPayant.setBCANBEUSE(Boolean.TRUE);
         oTCompteClientTiersPayant.setBIsAbsolute(cdto.isbIsAbsolute());
         oTCompteClientTiersPayant.setDtCREATED(new Date());
@@ -922,6 +944,9 @@ public class ClientServiceImpl implements ClientService {
 
     private TCompteClientTiersPayant findTCompteClientTiersPayantById(String id) {
         try {
+            if (StringUtils.isBlank(id)) {
+                return null; // find(null) marquerait la transaction pour annulation (audit N8)
+            }
             return em.find(TCompteClientTiersPayant.class, id);
         } catch (Exception e) {
             return null;
@@ -1196,8 +1221,22 @@ public class ClientServiceImpl implements ClientService {
         try {
             tc = updateClient(client, tc);
             TCompteClient oTCompteClient = updateCompteClient(client, tc);
-            createComptClientTierspayant(client, oTCompteClient, p);
-            desabledCompteClientTiersPayant(old);
+            if (estCarnet(old.getLgTIERSPAYANTID())) {
+                // changement de carnet : l'ancien carnet est remplace (comportement historique)
+                createComptClientTierspayant(client, oTCompteClient, p);
+                desabledCompteClientTiersPayant(old);
+                return tc;
+            }
+            /*
+             * Audit M1 (reproduit le 25/10) : associer un carnet a un client ASSURE desactivait son assurance et
+             * faisait du carnet son RO. L'assurance reste telle quelle ; le carnet est ajoute, non RO, en priorite
+             * libre suivante (ou le lien existant vers ce carnet est reactive).
+             */
+            List<TCompteClientTiersPayant> liens = findTCompteClientTiersPayanCompteClient(
+                    oTCompteClient.getLgCOMPTECLIENTID());
+            createComptClientTierspayant(tc, oTCompteClient,
+                    client.getIntPOURCENTAGE() == null ? 100 : client.getIntPOURCENTAGE(), p, false,
+                    prochainePriorite(liens));
             return tc;
         } catch (Exception e) {
             LOG.log(Level.SEVERE, null, e);
@@ -1401,19 +1440,53 @@ public class ClientServiceImpl implements ClientService {
     }
 
     private void updateComptClientTierspayantPriority(String oTCompteClient) {
-        findTCompteClientTiersPayanCompteClient(oTCompteClient).forEach(c -> {
+        findTCompteClientTiersPayanCompteClient(oTCompteClient).stream().filter(ClientServiceImpl::actif).forEach(c -> {
             c.setIntPRIORITY(c.getIntPRIORITY() + 1);
             c.setDtUPDATED(new Date());
             getEmg().merge(c);
         });
     }
 
+    /**
+     * Lien client / tiers payant cree (ou retrouve) par la vente et sa modification.
+     *
+     * <p>
+     * Audits M2, M3 et N6 (M2 et M3 reproduits le 25/10) : chaque lien cree ici etait RO en priorite 1 sans que
+     * l'ancien RO soit touche (client a deux RO), un carnet pouvait etre RO, un lien clone d'un lien supprime reprenait
+     * sa priorite -1 (lien actif invisible des ecrans), et un meme organisme pouvait etre rattache deux fois. Regles :
+     * </p>
+     * <ul>
+     * <li>un carnet n'est jamais RO ; un lien n'est RO que si le compte n'a pas deja un RO actif (il est sinon
+     * complementaire : rien n'est desactive, le choix du RO reste a l'ecran client ou a la case « principal ») ;</li>
+     * <li>jamais de priorite inferieure a 1 : la priorite libre suivante est prise ;</li>
+     * <li>un seul lien par compte et organisme : un lien existant (actif ou supprime) est reutilise et reactive.</li>
+     * </ul>
+     */
     private TCompteClientTiersPayant createComptClientTierspayant(TClient cdto, TCompteClient oTCompteClient, int taux,
             TTiersPayant p, boolean isRO, int order) {
+        List<TCompteClientTiersPayant> liens = findTCompteClientTiersPayanCompteClient(
+                oTCompteClient.getLgCOMPTECLIENTID());
+        boolean ro = isRO && !estCarnet(p) && !aUnRoActif(liens);
+        int priorite = order >= 1 ? order : prochainePriorite(liens);
+        java.util.Optional<TCompteClientTiersPayant> existant = liens.stream()
+                .filter(l -> l.getLgTIERSPAYANTID() != null && l.getLgTIERSPAYANTID().equals(p))
+                .sorted(Comparator.comparing((TCompteClientTiersPayant l) -> !actif(l))).findFirst();
+        if (existant.isPresent()) {
+            TCompteClientTiersPayant lien = existant.get();
+            if (!actif(lien)) {
+                lien.setStrSTATUT(Constant.STATUT_ENABLE);
+                lien.setIntPRIORITY(prochainePriorite(liens));
+                lien.setBISRO(ro);
+            }
+            lien.setIntPOURCENTAGE(taux);
+            lien.setDtUPDATED(new Date());
+            getEmg().merge(lien);
+            return lien;
+        }
         TCompteClientTiersPayant oCompteClientTiersPayant = new TCompteClientTiersPayant(UUID.randomUUID().toString());
         oCompteClientTiersPayant.setStrSTATUT(Constant.STATUT_ENABLE);
         oCompteClientTiersPayant.setStrNUMEROSECURITESOCIAL(cdto.getStrNUMEROSECURITESOCIAL());
-        oCompteClientTiersPayant.setBISRO(isRO);
+        oCompteClientTiersPayant.setBISRO(ro);
         oCompteClientTiersPayant.setBCANBEUSE(true);
         oCompteClientTiersPayant.setBIsAbsolute(false);
         oCompteClientTiersPayant.setDtCREATED(new Date());
@@ -1421,7 +1494,7 @@ public class ClientServiceImpl implements ClientService {
         oCompteClientTiersPayant.setLgCOMPTECLIENTID(oTCompteClient);
         oCompteClientTiersPayant.setLgTIERSPAYANTID(p);
         oCompteClientTiersPayant.setIntPOURCENTAGE(taux);
-        oCompteClientTiersPayant.setIntPRIORITY(order);
+        oCompteClientTiersPayant.setIntPRIORITY(priorite);
         oCompteClientTiersPayant.setDbPLAFONDENCOURS(0);
         oCompteClientTiersPayant.setDblQUOTACONSOMENSUELLE(0);
         oCompteClientTiersPayant.setDblPLAFOND(0.0);
@@ -1435,8 +1508,16 @@ public class ClientServiceImpl implements ClientService {
     public TCompteClientTiersPayant updateOrCreateClientAssurance(TClient client, TTiersPayant p, int taux)
             throws Exception {
         TCompteClient compteClient = findByClientId(client.getLgCLIENTID());
-        updateComptClientTierspayantPriority(compteClient.getLgCOMPTECLIENTID());
-        return createComptClientTierspayant(client, compteClient, taux, p, true, 1);
+        List<TCompteClientTiersPayant> liens = findTCompteClientTiersPayanCompteClient(
+                compteClient.getLgCOMPTECLIENTID());
+        boolean dejaRattache = liens.stream().anyMatch(l -> p.equals(l.getLgTIERSPAYANTID()));
+        if (!dejaRattache && !estCarnet(p) && !aUnRoActif(liens)) {
+            // nouveau RO en priorite 1 : seuls les liens ACTIFS sont decales (audit M4 : les supprimes l'etaient aussi)
+            updateComptClientTierspayantPriority(compteClient.getLgCOMPTECLIENTID());
+            return createComptClientTierspayant(client, compteClient, taux, p, true, 1);
+        }
+        // audits M2 et N6 : le client a deja un RO (ou c'est un carnet) : complementaire, priorite suivante
+        return createComptClientTierspayant(client, compteClient, taux, p, false, 0);
 
     }
 
@@ -1444,7 +1525,11 @@ public class ClientServiceImpl implements ClientService {
     public TCompteClientTiersPayant updateOrCreateClientAssurance(TClient client, TTiersPayant p, int taux,
             TCompteClientTiersPayant old) throws Exception {
         TCompteClient compteClient = old.getLgCOMPTECLIENTID();
-        return createComptClientTierspayant(client, compteClient, taux, p, old.getBISRO(), old.getIntPRIORITY());
+        // audit M3 : un lien supprime ne transmet ni son RO ni sa priorite (-1)
+        boolean ancienActif = actif(old);
+        return createComptClientTierspayant(client, compteClient, taux, p,
+                ancienActif && Boolean.TRUE.equals(old.getBISRO()),
+                ancienActif && old.getIntPRIORITY() != null ? old.getIntPRIORITY() : 0);
     }
 
     @Override
@@ -1860,7 +1945,14 @@ public class ClientServiceImpl implements ClientService {
         if (!hasPrincipal) {
             return;
         }
-        List<TCompteClientTiersPayant> compteClientTiersPayants = getClientTiersPayants(tc.getLgCLIENTID());
+        /*
+         * Audit M4 (reproduit le 25/10) : la case « principal » est pre-cochee d'apres la priorite ; un carnet arrive
+         * en priorite 1 devenait RO sans action de la caissiere, les liens supprimes etaient reclasses avec les actifs,
+         * et si aucun lien ne correspondait, TOUS perdaient le RO. Regles : liens actifs seulement ; aucun lien
+         * designe, ou lien designe qui est un carnet : rien ne change.
+         */
+        List<TCompteClientTiersPayant> compteClientTiersPayants = getClientTiersPayants(tc.getLgCLIENTID()).stream()
+                .filter(ClientServiceImpl::actif).collect(Collectors.toList());
 
         int priority = 1;
         TCompteClientTiersPayant ro = null;
@@ -1871,19 +1963,21 @@ public class ClientServiceImpl implements ClientService {
             for (TiersPayantParams payantParams : tierspayants) {
                 if ((idCmp.equals(payantParams.getCompteTp()) || tiersPayntId.equals(payantParams.getCompteTp()))
                         && payantParams.isPrincipal()) {
-                    compteClientTiersPayant.setIntPRIORITY(priority);
-                    compteClientTiersPayant.setBISRO(Boolean.TRUE);
-                    em.merge(compteClientTiersPayant);
-                    priority++;
                     ro = compteClientTiersPayant;
                     break;
-
                 }
             }
             if (Objects.nonNull(ro)) {
                 break;
             }
         }
+        if (ro == null || estCarnet(ro.getLgTIERSPAYANTID())) {
+            return;
+        }
+        ro.setIntPRIORITY(priority);
+        ro.setBISRO(Boolean.TRUE);
+        em.merge(ro);
+        priority++;
 
         for (TCompteClientTiersPayant compteClientTiersPayant : compteClientTiersPayants) {
             if (Objects.nonNull(ro) && compteClientTiersPayant.getLgCOMPTECLIENTTIERSPAYANTID()
@@ -1895,6 +1989,29 @@ public class ClientServiceImpl implements ClientService {
             priority++;
             em.merge(compteClientTiersPayant);
         }
+    }
+
+    /** Lien client / tiers payant actif (ni supprime ni desactive). */
+    static boolean actif(TCompteClientTiersPayant lien) {
+        return lien != null && Constant.STATUT_ENABLE.equals(lien.getStrSTATUT());
+    }
+
+    /** Un carnet n'est jamais le regime obligatoire du client (regle metier confirmee). */
+    static boolean estCarnet(TTiersPayant payant) {
+        return payant != null && payant.getLgTYPETIERSPAYANTID() != null && Constant.TYPE_TIERS_PAYANT_CARNET_ID
+                .equals(payant.getLgTYPETIERSPAYANTID().getLgTYPETIERSPAYANTID());
+    }
+
+    /** Priorite libre suivante parmi les liens actifs du compte (jamais inferieure a 1). */
+    private int prochainePriorite(List<TCompteClientTiersPayant> liens) {
+        return liens.stream().filter(ClientServiceImpl::actif).map(TCompteClientTiersPayant::getIntPRIORITY)
+                .filter(Objects::nonNull).mapToInt(Integer::intValue).max().orElse(0) + 1;
+    }
+
+    /** Le compte a-t-il deja un regime obligatoire actif (hors carnet) ? */
+    private boolean aUnRoActif(List<TCompteClientTiersPayant> liens) {
+        return liens.stream()
+                .anyMatch(l -> actif(l) && Boolean.TRUE.equals(l.getBISRO()) && !estCarnet(l.getLgTIERSPAYANTID()));
     }
 
     private List<TCompteClientTiersPayant> getClientTiersPayants(String clientId) {
