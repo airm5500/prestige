@@ -10,6 +10,11 @@ const { ok, q, exec, MARQUE } = C;
   const P = C.produit(9, 500, "AND f.lg_CODE_TVA_ID IN (SELECT lg_CODE_TVA_ID FROM t_code_tva WHERE int_VALUE = 0) AND f.int_PRICE >= 2000");
   const codeAvant = q("SELECT IFNULL(str_CODE_REMISE, 'NULL') FROM t_famille WHERE lg_FAMILLE_ID = '" + P.id + "'");
   C.etat.restaurations.push("UPDATE t_famille SET str_CODE_REMISE = " + (codeAvant === 'NULL' ? 'NULL' : "'" + codeAvant + "'") + " WHERE lg_FAMILLE_ID = '" + P.id + "'");
+  /* produit non remisable (code remise vide), meme filtre que P */
+  const Q = C.produit(10, 500, "AND f.lg_CODE_TVA_ID IN (SELECT lg_CODE_TVA_ID FROM t_code_tva WHERE int_VALUE = 0) AND f.int_PRICE >= 2000");
+  const codeQ = q("SELECT IFNULL(str_CODE_REMISE, 'NULL') FROM t_famille WHERE lg_FAMILLE_ID = '" + Q.id + "'");
+  C.etat.restaurations.push("UPDATE t_famille SET str_CODE_REMISE = " + (codeQ === 'NULL' ? 'NULL' : "'" + codeQ + "'") + " WHERE lg_FAMILLE_ID = '" + Q.id + "'");
+  exec("UPDATE t_famille SET str_CODE_REMISE = NULL WHERE lg_FAMILLE_ID = '" + Q.id + "'");
   const REMISE = MARQUE + '-R10';
   const type = q('SELECT lg_TYPE_REMISE_ID FROM t_type_remise ORDER BY lg_TYPE_REMISE_ID LIMIT 1');
   exec("INSERT INTO t_remise (lg_REMISE_ID, str_NAME, str_CODE, dbl_TAUX, str_STATUT, dt_CREATED, dt_UPDATED, lg_TYPE_REMISE_ID)"
@@ -54,6 +59,56 @@ const { ok, q, exec, MARQUE } = C;
       ok('CR-06 attendu : avec une remise (10 %) supérieure à la part client (5 %), parts TP + part client = prix − remise',
         partsTp(v) + e.partClient === e.prix - e.remise, 'prix ' + e.prix + ' ; remise ' + e.remise + ' ; parts TP ' + partsTp(v) + ' ; part client ' + e.partClient
         + ' ; total ' + (partsTp(v) + e.partClient) + ' (attendu ' + (e.prix - e.remise) + ')');
+    });
+    /* Regle du 26/10 : la remise d'un produit porte sur SA part client (prix de la ligne - part des organismes sur la
+       ligne) ; un produit non remisable ne recoit rien mais sa part client reste due ; un plafond d'organisme est
+       reparti sur ses lignes au prorata de sa part. */
+    const remiseLignes = (v) => q("SELECT GROUP_CONCAT(CONCAT(lg_FAMILLE_ID, ':', int_PRICE, ':', int_PRICE_REMISE) SEPARATOR ';') FROM t_preenregistrement_detail WHERE lg_PREENREGISTREMENT_ID = '" + v + "'")
+      .split(';').reduce((m, l) => { const [f, prix, r] = l.split(':'); m[f] = { prix: Number(prix), remise: Number(r) }; return m; }, {});
+    const remiseDe = (partClient) => Math.floor(Math.round(partClient) * 10 / 100);
+
+    await cas('RÈGLE-1', async () => {
+      const tp = C.tiersPayant('VRL1', '1');
+      const cl = await C.clientAssure(api, 'VRL1', [{ tp, taux: 80 }]);
+      const { v } = await VO.vendre(cl, [{ lien: cl.lien(tp), taux: 80, bon: MARQUE + '-L1' }], P, 1, { remiseId: REMISE });
+      const e = C.vente(v), parts = partsTp(v), pc = e.prix - parts, attendue = remiseDe(pc);
+      ok('Règle 1 attendu : produit remisable seul à 80 % : remise = part client (' + pc + ') × 10 % = ' + attendue + ', part client = ' + (pc - attendue),
+        e.remise === attendue && remiseLignes(v)[P.id].remise === attendue && e.partClient === pc - attendue,
+        'prix ' + e.prix + ' ; parts TP ' + parts + ' ; remise ' + e.remise + ' (ligne ' + remiseLignes(v)[P.id].remise + ') ; part client ' + e.partClient);
+    });
+
+    await cas('RÈGLE-2', async () => {
+      const tp = C.tiersPayant('VRL2', '1');
+      const cl = await C.clientAssure(api, 'VRL2', [{ tp, taux: 80 }]);
+      const tps = [{ lien: cl.lien(tp), taux: 80, bon: MARQUE + '-L2' }];
+      const v = await VO.ajouter(cl, tps, P, 1);
+      await VO.ajouter(cl, tps, Q, 1, v);
+      await api('POST', '../api/v1/vente/remise', { remiseId: REMISE, venteId: v });
+      const c = await VO.cloturer(cl, v, tps, { remiseId: REMISE });
+      const e = C.vente(v), l = remiseLignes(v), parts = partsTp(v);
+      const partsLigne = (p) => parts * l[p.id].prix / (l[P.id].prix + l[Q.id].prix);
+      const pcP = Math.round(l[P.id].prix - partsLigne(P)), attendue = remiseDe(pcP);
+      ok('Règle 2 attendu : remisable + non remisable : remise sur la seule part client du remisable (' + pcP + ' → ' + attendue + '), 0 sur l\'autre, part client = total des parts client − remise',
+        c.success === true && l[P.id].remise === attendue && l[Q.id].remise === 0 && e.remise === attendue && e.partClient === e.prix - parts - attendue,
+        'clôture ' + c.success + ' ; prix ' + l[P.id].prix + ' + ' + l[Q.id].prix + ' ; parts TP ' + parts + ' ; remises lignes ' + l[P.id].remise + ' / ' + l[Q.id].remise
+        + ' ; remise vente ' + e.remise + ' ; part client ' + e.partClient + ' (attendu ' + (e.prix - parts - attendue) + ')');
+    });
+
+    await cas('RÈGLE-3', async () => {
+      const tp = C.tiersPayant('VRL3', '1');
+      const cl = await C.clientAssure(api, 'VRL3', [{ tp, taux: 80 }]);
+      exec("UPDATE t_compte_client_tiers_payant SET dbl_PLAFOND = 1000 WHERE lg_COMPTE_CLIENT_TIERS_PAYANT_ID = '" + cl.lien(tp) + "'");
+      const tps = [{ lien: cl.lien(tp), taux: 80, bon: MARQUE + '-L3' }];
+      const v = await VO.ajouter(cl, tps, P, 1);
+      await VO.ajouter(cl, tps, Q, 1, v);
+      await api('POST', '../api/v1/vente/remise', { remiseId: REMISE, venteId: v });
+      const c = await VO.cloturer(cl, v, tps, { remiseId: REMISE });
+      const e = C.vente(v), l = remiseLignes(v), parts = partsTp(v);
+      const pcP = Math.round(l[P.id].prix - parts * l[P.id].prix / (l[P.id].prix + l[Q.id].prix)), attendue = remiseDe(pcP);
+      ok('Règle 3 attendu : plafond par vente de 1 000 : part de l\'organisme = 1 000, répartie au prorata ; remise sur la part client augmentée du remisable (' + pcP + ' → ' + attendue + ')',
+        c.success === true && parts === 1000 && l[P.id].remise === attendue && l[Q.id].remise === 0 && e.remise === attendue && e.partClient === e.prix - parts - attendue,
+        'clôture ' + c.success + ' ; prix ' + l[P.id].prix + ' + ' + l[Q.id].prix + ' ; parts TP ' + parts + ' ; remises lignes ' + l[P.id].remise + ' / ' + l[Q.id].remise
+        + ' ; remise vente ' + e.remise + ' ; part client ' + e.partClient + ' (attendu ' + (e.prix - parts - attendue) + ')');
     });
     ok('Aucune erreur JavaScript', sess.erreurs.length === 0, sess.erreurs.join(' | '));
   } finally {

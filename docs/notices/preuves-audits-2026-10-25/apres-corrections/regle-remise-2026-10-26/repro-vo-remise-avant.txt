@@ -1,0 +1,11 @@
+PASS  CR-05 précondition : remise appliquée sur la vente assurance  [{"statut":"is_Closed","annulee":false,"prix":2010,"remise":201,"partClient":201,"tva":0,"client":"ZZAUDIT-CL-VR80"} ; net affiché 200]
+FAIL  CR-05 attendu : en espèces, le montant réglé de la transaction = montant payé par le client (net arrondi de la part client 201)  [prix 2010 ; remise 201 ; parts TP 1608 ; part client 201 ; transaction payé|réglé|remise 200|0|201]
+FAIL  N3 attendu : en différé sans acompte, la dette du client = part client (201)  [part client 201 ; remise 201 ; dette prix|reste 0|0]
+FAIL  CR-06 attendu : avec une remise (10 %) supérieure à la part client (5 %), parts TP + part client = prix − remise  [prix 2010 ; remise 201 ; parts TP 1909 ; part client 0 ; total 1909 (attendu 1809)]
+FAIL  Règle 1 attendu : produit remisable seul à 80 % : remise = part client (402) × 10 % = 40, part client = 362  [prix 2010 ; parts TP 1608 ; remise 201 (ligne 201) ; part client 201]
+FAIL  Règle 2 attendu : remisable + non remisable : remise sur la seule part client du remisable (402 → 40), 0 sur l'autre, part client = total des parts client − remise  [clôture true ; prix 2010 + 2755 ; parts TP 3812 ; remises lignes 0 / 0 ; remise vente 0 ; part client 953 (attendu 913)]
+FAIL  Règle 3 attendu : plafond par vente de 1 000 : part de l'organisme = 1 000, répartie au prorata ; remise sur la part client augmentée du remisable (1588 → 158)  [clôture true ; prix 2010 + 2755 ; parts TP 1000 ; remises lignes 0 / 0 ; remise vente 0 ; part client 3765 (attendu 3607)]
+PASS  Aucune erreur JavaScript  []
+PASS  Jeu d'essai retiré (ventes, clients, tiers payants, factures), stocks et paramètres remis  [ventes restantes 0]
+
+3/9 — 6 constat(s) reproduit(s) ou precondition(s) en echec

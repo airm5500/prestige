@@ -1,0 +1,17 @@
+PASS  client de test cree avec deux assurances  [{"data":{"strLASTNAME":"E2E-P11","lgTIERSPAYANTID":"14101114831773262679","fullName":"CLIENT E2E-P11","preenregistrementstp":[],"lgCLIENTID":"af2efe70-2d7a-44c6-ba62-78a06f0af3e9","dblPLAFOND":0,"forcerCreation":false,"lgCATEGORIEAYANTDROITID":"55514]
+PASS  deux liens client / assurance en base  [[["c4052cf5-a8ab-45d4-aaa3-05fc79af57f9","14101114831773262679","1"],["020fc6e1-c31e-46ad-9db4-122ab51aa2c5","14101173521589189935","2"]]]
+PASS  ayant droit du client de test present  [af2efe70-2d7a-44c6-ba62-78a06f0af3e9]
+PASS  vente assurance de test posee avec deux lignes tiers payant
+PASS  la modification est acceptee  [{"msg":"Opération effectuée avec succèss","success":true,"refId":"E2E-P11-V"}]
+  lignes apres modification : [["c4052cf5-a8ab-45d4-aaa3-05fc79af57f9","14101114831773262679","70","BON-PRINCIPAL"],["34c0a889-8988-4a19-b9fc-c7569174c1f1","14101418243994597144","20","BON-SECOND"]]
+PASS  la vente porte toujours deux tiers payants  [[["c4052cf5-a8ab-45d4-aaa3-05fc79af57f9","14101114831773262679","70","BON-PRINCIPAL"],["34c0a889-8988-4a19-b9fc-c7569174c1f1","14101418243994597144","20","BON-SECOND"]]]
+PASS  la premiere assurance est intacte  [attendu 14101114831773262679 a 70%]
+PASS  la deuxieme assurance est bien la nouvelle  [attendu 14101418243994597144 a 20%]
+PASS  l ancienne deuxieme assurance ne figure plus sur la vente  [TP2=14101173521589189935]
+FAIL  la reference de bon de la vente n est pas ecrasee par celle de la seconde assurance  [avant= apres=BON-PRINCIPAL]
+PASS  une vente sans ayant droit peut etre modifiee  [{"msg":"Opération effectuée avec succèss","success":true,"refId":"E2E-P11-V"}]
+PASS  une modification impossible est refusee  [{"msg":"l'opération a échoué","success":false}]
+PASS  un echec ne laisse pas la vente a moitie modifiee  [avant=c4052cf5-a8ab-45d4-aaa3-05fc79af57f9:70:1,020fc6e1-c31e-46ad-9db4-122ab51aa2c5:20:2 apres=c4052cf5-a8ab-45d4-aaa3-05fc79af57f9:70:1,020fc6e1-c31e-46ad-9db4-122ab51aa2c5:20:2]
+PASS  aucune erreur JavaScript
+
+===== 13/14 FAIL =====

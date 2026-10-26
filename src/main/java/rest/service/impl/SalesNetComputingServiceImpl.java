@@ -16,9 +16,11 @@ import dal.TTiersPayant;
 import dal.TTypeVente;
 import dal.TWorkflowRemiseArticle;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -63,6 +65,16 @@ public class SalesNetComputingServiceImpl implements SalesNetComputingService {
 
     private MontantAPaye computeRemise(TPreenregistrement op, TRemise oTRemise,
             List<TPreenregistrementDetail> lstTPreenregistrementDetail) {
+        return computeRemise(op, oTRemise, lstTPreenregistrementDetail, null);
+    }
+
+    /**
+     * @param partsClient
+     *            vente assurance : part client de chaque ligne (prix de la ligne - part des organismes sur la ligne),
+     *            base de la remise du produit ; null : la remise porte sur le prix de la ligne (carnet).
+     */
+    private MontantAPaye computeRemise(TPreenregistrement op, TRemise oTRemise,
+            List<TPreenregistrementDetail> lstTPreenregistrementDetail, Map<String, Integer> partsClient) {
 
         int montantNet;
         int totalRemise = 0;
@@ -83,7 +95,9 @@ public class SalesNetComputingServiceImpl implements SalesNetComputingService {
                 TGrilleRemise grilleRemise = grilleRemiseRemiseFromWorkflow(x.getLgPREENREGISTREMENTID(), famille,
                         oTRemise.getLgREMISEID());
                 if (grilleRemise != null) {
-                    remise = (int) ((x.getIntPRICE() * grilleRemise.getDblTAUX()) / 100);
+                    int base = partsClient == null ? x.getIntPRICE()
+                            : partsClient.getOrDefault(x.getLgPREENREGISTREMENTDETAILID(), x.getIntPRICE());
+                    remise = (int) ((base * grilleRemise.getDblTAUX()) / 100);
                     if (!x.getBoolACCOUNT()) {
                         totalRemisePara += remise;
                     }
@@ -91,6 +105,10 @@ public class SalesNetComputingServiceImpl implements SalesNetComputingService {
                     x.setLgGRILLEREMISEID(grilleRemise.getLgGRILLEREMISEID());
                 }
                 x.setIntPRICEREMISE(remise);
+                em.merge(x);
+            } else if (partsClient != null && Objects.nonNull(oTRemise)) {
+                // produit non remisable : aucune remise, meme si la ligne en portait une
+                x.setIntPRICEREMISE(0);
                 em.merge(x);
             }
 
@@ -236,30 +254,32 @@ public class SalesNetComputingServiceImpl implements SalesNetComputingService {
             return new MontantAPaye();
         }
         List<TPreenregistrementDetail> items = new ArrayList<>(tPreenregistrementDetailCollection);
-        MontantAPaye montantAPaye = computeRemise(op, remise, items);
         List<TPreenregistrementCompteClientTiersPayent> compteClientTiersPayents = new ArrayList<>(
                 op.getTPreenregistrementCompteClientTiersPayentCollection());
-
+        Map<String, List<TiersPayantParams>> tpsBons = params.getTierspayants().stream()
+                .collect(Collectors.groupingBy(TiersPayantParams::getCompteTp));
+        MontantAPaye montantAPaye;
+        CalculationResult output;
         if (isCarnet) {
+            montantAPaye = computeRemise(op, remise, items);
             TCompteClientTiersPayant tc = compteClientTiersPayents.get(0).getLgCOMPTECLIENTTIERSPAYANTID();
             TTiersPayant tTiersPayant = tc.getLgTIERSPAYANTID();
             if (tTiersPayant.hasCaution()) {
                 return calculNetAvecCaution(montantAPaye, op, params, tTiersPayant);
             }
-
+            CalculationInput input = buildCalculationInput(op, items, compteClientTiersPayents, tpsBons);
+            input.setDiscountAmount(
+                    BigDecimal.valueOf(Objects.requireNonNullElse(montantAPaye.getMontantAccount(), 0)));
+            output = tiersPayantCalculationService.calculate(input);
+            op.setIntCUSTPART(output.getTotalPatientShare().intValue());
+        } else {
+            output = tiersPayantCalculationService
+                    .calculate(buildCalculationInput(op, items, compteClientTiersPayents, tpsBons));
+            montantAPaye = remiseSurPartClient(op, remise, items, output);
         }
-        Map<String, List<TiersPayantParams>> tpsBons = params.getTierspayants().stream()
-                .collect(Collectors.groupingBy(TiersPayantParams::getCompteTp));
-        CalculationInput input = buildCalculationInput(op, items, compteClientTiersPayents, tpsBons);
-        input.setDiscountAmount(BigDecimal.valueOf(Objects.requireNonNullElse(montantAPaye.getMontantAccount(), 0)));
-        CalculationResult output = tiersPayantCalculationService.calculate(input);
 
         Map<String, List<TPreenregistrementCompteClientTiersPayent>> maps = compteClientTiersPayents.stream().collect(
                 Collectors.groupingBy(e -> e.getLgCOMPTECLIENTTIERSPAYANTID().getLgCOMPTECLIENTTIERSPAYANTID()));
-
-        int totalPatientShare = output.getTotalPatientShare().intValue();
-        op.setIntCUSTPART(totalPatientShare);
-        plafonnerRemiseALaPartClient(op, output, montantAPaye);
 
         for (TiersPayantLineOutput lineResult : output.getTiersPayantLines()) {
             TPreenregistrementCompteClientTiersPayent venteTiersPayantItem = maps
@@ -416,23 +436,47 @@ public class SalesNetComputingServiceImpl implements SalesNetComputingService {
     }
 
     /**
-     * Audit CR-06 (reproduit le 25/10) : une remise superieure a ce qui reste au client apres les organismes (remise de
-     * 10 %, organisme a 95 %) laissait la part client a 0 mais la remise entiere sur la vente : parts des organismes et
-     * part client depassaient le net (1 909 pour 1 809), l'ecart etant facture a l'organisme. La remise porte sur la
-     * part du client : elle est ramenee a cette part, pour que parts + part client = prix - remise. Le carnet, dont la
-     * remise s'impute sur la part de l'organisme, n'est pas concerne.
+     * Vente assurance (regle du 26/10, remplace le plafonnement global de CR-06) : la remise d'un produit porte sur SA
+     * part client, prix de la ligne - part des organismes sur la ligne ; un produit non remisable ne recoit rien mais
+     * sa part client reste due. Part client de la vente = prix - parts des organismes - remise, arrondie a 5 F au net.
+     * Les parts des organismes sont calculees sans la remise.
      */
-    private void plafonnerRemiseALaPartClient(TPreenregistrement op, CalculationResult output,
-            MontantAPaye montantAPaye) {
-        if (Constant.VENTE_AVEC_CARNET.equals(op.getLgTYPEVENTEID().getLgTYPEVENTEID())
-                || op.getIntPRICEREMISE() == null || op.getIntPRICE() == null || output.getTotalTiersPayant() == null) {
-            return;
+    private MontantAPaye remiseSurPartClient(TPreenregistrement op, TRemise remise,
+            List<TPreenregistrementDetail> items, CalculationResult output) {
+        MontantAPaye montantAPaye = computeRemise(op, remise, items, partsClientParLigne(items, output));
+        int totalTiersPayant = output.getTotalTiersPayant() == null ? 0 : output.getTotalTiersPayant().intValue();
+        op.setIntCUSTPART(Math.max(0, op.getIntPRICE() - totalTiersPayant - op.getIntPRICEREMISE()));
+        return montantAPaye;
+    }
+
+    /**
+     * Part client de chaque ligne. Un plafond s'applique au total d'un organisme : la reduction est repartie sur ses
+     * lignes au prorata de sa part sur chacune. Sans plafond, rien n'est reparti.
+     */
+    static Map<String, Integer> partsClientParLigne(List<TPreenregistrementDetail> items, CalculationResult output) {
+        Map<String, BigDecimal> demande = new HashMap<>();
+        output.getItemShares()
+                .forEach(s -> s.getTiersPayants().forEach((tp, m) -> demande.merge(tp, m, BigDecimal::add)));
+        Map<String, BigDecimal> coefficient = new HashMap<>();
+        for (TiersPayantLineOutput l : output.getTiersPayantLines()) {
+            BigDecimal d = demande.getOrDefault(l.getClientTiersPayantId(), BigDecimal.ZERO);
+            BigDecimal accorde = l.getMontant() == null ? BigDecimal.ZERO : l.getMontant();
+            if (d.signum() > 0 && accorde.compareTo(d.setScale(0, RoundingMode.HALF_UP)) < 0) {
+                coefficient.put(l.getClientTiersPayantId(), accorde.divide(d, 10, RoundingMode.HALF_UP));
+            }
         }
-        int partAvantRemise = Math.max(0, op.getIntPRICE() - output.getTotalTiersPayant().intValue());
-        if (op.getIntPRICEREMISE() > partAvantRemise) {
-            op.setIntPRICEREMISE(partAvantRemise);
-            montantAPaye.setRemise(partAvantRemise);
+        Map<String, Integer> parts = new HashMap<>();
+        for (TPreenregistrementDetail x : items) {
+            BigDecimal partTp = output.getItemShares().stream()
+                    .filter(s -> x.getLgPREENREGISTREMENTDETAILID().equals(s.getSaleLineId())).findFirst()
+                    .map(s -> s.getTiersPayants().entrySet().stream()
+                            .map(e -> e.getValue().multiply(coefficient.getOrDefault(e.getKey(), BigDecimal.ONE)))
+                            .reduce(BigDecimal.ZERO, BigDecimal::add))
+                    .orElse(BigDecimal.ZERO);
+            parts.put(x.getLgPREENREGISTREMENTDETAILID(), BigDecimal.valueOf(x.getIntPRICE()).subtract(partTp)
+                    .setScale(0, RoundingMode.HALF_UP).max(BigDecimal.ZERO).intValue());
         }
+        return parts;
     }
 
     @Override
@@ -443,18 +487,23 @@ public class SalesNetComputingServiceImpl implements SalesNetComputingService {
         TRemise remise = null;
 
         List<TPreenregistrementDetail> items = new ArrayList<>(op.getTPreenregistrementDetailCollection());
-        MontantAPaye montantAPaye = computeRemise(op, remise, items);
-
-        CalculationInput input = buildCalculationInput(op, items, compteClientTiersPayents, tpsBons);
-        input.setDiscountAmount(BigDecimal.valueOf(Objects.requireNonNullElse(montantAPaye.getMontantAccount(), 0)));
-        CalculationResult output = tiersPayantCalculationService.calculate(input);
+        MontantAPaye montantAPaye;
+        CalculationResult output;
+        if (Constant.VENTE_AVEC_CARNET.equals(op.getLgTYPEVENTEID().getLgTYPEVENTEID())) {
+            montantAPaye = computeRemise(op, remise, items);
+            CalculationInput input = buildCalculationInput(op, items, compteClientTiersPayents, tpsBons);
+            input.setDiscountAmount(
+                    BigDecimal.valueOf(Objects.requireNonNullElse(montantAPaye.getMontantAccount(), 0)));
+            output = tiersPayantCalculationService.calculate(input);
+            op.setIntCUSTPART(output.getTotalPatientShare().intValue());
+        } else {
+            output = tiersPayantCalculationService
+                    .calculate(buildCalculationInput(op, items, compteClientTiersPayents, tpsBons));
+            montantAPaye = remiseSurPartClient(op, remise, items, output);
+        }
 
         Map<String, List<TPreenregistrementCompteClientTiersPayent>> maps = compteClientTiersPayents.stream().collect(
                 Collectors.groupingBy(e -> e.getLgCOMPTECLIENTTIERSPAYANTID().getLgCOMPTECLIENTTIERSPAYANTID()));
-
-        int totalPatientShare = output.getTotalPatientShare().intValue();
-        op.setIntCUSTPART(totalPatientShare);
-        plafonnerRemiseALaPartClient(op, output, montantAPaye);
 
         for (TiersPayantLineOutput lineResult : output.getTiersPayantLines()) {
             TPreenregistrementCompteClientTiersPayent saleLine = maps.get(lineResult.getClientTiersPayantId()).get(0);

@@ -1,0 +1,12 @@
+PASS  N8 attendu : un client assuré créé avec succès par l'écran existe en base (client / compte / ayant droit = 1 / 1 / 1)  [réponse succès, identifiant 19fecbb5-819c-4885-92bf-6f28acf445ef ; en base client / compte / ayant droit : 1 / 1 / 1]
+PASS  M1 attendu : associer un carnet à un client assuré garde son assurance active et RO, le carnet n'est pas RO  [réponse {"data":{"strLASTNAME":"ZZAUDIT M1","lgTIERSPAYANTID":"ZZAUDIT-TP-M1A","fullName ; liens avant M1A/enable/RO=1/prio=1 ; après M1A/enable/RO=1/prio=1 ; M1K/enable/RO=0/prio=2]
+PASS  M2 attendu : après « Modifier client / tiers payant » vers un organisme non rattaché, le client n'a qu'un seul RO actif  [réponse {"msg":"Opération effectuée avec succèss","success":true,"refId":"2d7dfd1f-968e- ; RO actifs 1 ; liens M2A/enable/RO=0/prio=2 ; M2B/enable/RO=1/prio=1]
+PASS  M3 attendu : la complémentaire C remplaçant un lien supprimé est créée active avec une priorité ≥ 1, sans hériter du lien supprimé  [réponse {"msg":"Opération effectuée avec succèss","success":true,"refId":"5e7fe006-2a7c- ; liens M3A/enable/RO=1/prio=1 ; M3B/delete/RO=0/prio=-1 ; M3C/enable/RO=0/prio=2]
+PASS  M2 attendu (case « principal » non cochée) : un seul RO actif après le changement d'organisme  [réponse {"msg":"Opération effectuée avec succèss","success":true,"refId":"c6890419-9fa5- ; RO actifs 1 ; liens M2bA/enable/RO=1/prio=1 ; M2bB/enable/RO=0/prio=2]
+PASS  M3 attendu (case « principal » non cochée) : la complémentaire C est créée active avec une priorité ≥ 1  [réponse {"msg":"Opération effectuée avec succèss","success":true,"refId":"fa4231f7-2c9d- ; liens M3bA/enable/RO=1/prio=1 ; M3bB/delete/RO=0/prio=-1 ; M3bC/enable/RO=0/prio=2]
+PASS  M4 attendu : enregistrer la modification sans rien changer laisse l'assurance RO et le carnet non RO  [réponse {"msg":"Opération effectuée avec succèss","success":true,"refId":"d0b90a8f-179e- ; liens avant M4A/enable/RO=1/prio=2 ; M4K/enable/RO=0/prio=1 ; M4D/delete/RO=0/prio=-1 ; après M4A/enable/RO=1/prio=2 ; M4K/enable/RO=0/prio=1 ; M4D/delete/RO=0/prio=-1]
+PASS  M4 attendu : le lien supprimé garde sa priorité -1 (il n'est pas reclassé avec les liens actifs)  [M4A/enable/RO=1/prio=2 ; M4K/enable/RO=0/prio=1 ; M4D/delete/RO=0/prio=-1]
+PASS  Aucune erreur JavaScript  []
+PASS  Jeu d'essai retiré (ventes, clients, tiers payants, factures), stocks et paramètres remis  [ventes restantes 0]
+
+10/10 OK

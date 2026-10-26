@@ -671,7 +671,7 @@ principale (droits, horloge, bornes).
 | Lot | Commit | Constats | Correction retenue |
 |---|---|---|---|
 | 1 | `fe7b075b` | VC-01, VC-02, VC-08, CR-03, N4, CR-09, CR-10, CA-03, N1, N2, D3, CA-06, CA-08, CA-15, F1, F2 | Gardes : vente non modifiable une fois clôturée ou annulée ; contrôle du lien, du taux (0 à 100) et du bon avant toute écriture ; client inconnu = client inchangé (compatibilité mobile) ; annulation qui vérifie le stock de chaque ligne avant d'écrire ; refus d'une copie de modification sur une vente annulée ou non clôturée ; facture définitive non supprimable ; bon déjà facturé exclu ; règlement carnet ≤ 0 refusé ; retour carnet ≤ 0 ou sans motif refusé avec un message |
-| 2 | `caa92cf1` | VC-05, CR-05, N3, CR-06 | TVA comptée une seule fois ; part du client calculée par une seule fonction (comptant : prix − remise ; assurance : part client ≥ 0) ; remise plafonnée à la part du client (hors carnet), **décision 6 prise par défaut** |
+| 2 | `caa92cf1` | VC-05, CR-05, N3, CR-06 | TVA comptée une seule fois ; part du client calculée par une seule fonction (comptant : prix − remise ; assurance : part client ≥ 0) ; remise plafonnée à la part du client (hors carnet), remplacé ensuite par la règle du §9.5 |
 | 3 | `03a42d86` | CR-01, CR-02, CA-09, N5, F5 | Encours retiré à l'annulation et à la modification, déplacé quand on change de client ou d'organisme ; ce changement est refusé sur une vente déjà facturée ; à la facturation, l'encours est **recalculé depuis les bons non facturés** (décision 5 prise dans le sens le plus sûr). CR-04 non corrigé (non reproduit) |
 | 4 | `d0bff34c` | N8, M1, M2, M3, M4, N6 | Cause de N8 : `find(null)` mettait la transaction en échec silencieux. Un seul RO actif par client, jamais un carnet ; priorités ≥ 1 ; lien existant réutilisé ou réactivé ; un lien supprimé ne transmet ni son RO ni sa priorité |
 | 5 | `744b9ee5` | VC-04, D2, DIF-01, DIF-02, DIF-03, D5 | Annulation refusée si une modification est ouverte ou si la vente a déjà été réglée en différé (**décisions 1 et 2 : refus, pas d'avoir**) ; copie refusée à la clôture si l'origine est annulée ou si des règlements existent et que le mode ou le client change ; « déjà réglé » suivi le long de la chaîne des copies |
@@ -690,7 +690,7 @@ Sorties complètes : `docs/notices/preuves-audits-2026-10-25/apres-corrections/`
 | `repro-vente-comptant.js` | défauts reproduits | 16/17 | VC-12 : dates des écritures d'une modification d'une vente d'hier, **décision 3 en attente** |
 | `repro-remise-caisse.js` | défauts reproduits | 7/8 | VC-16 : mouvement saisi à la date d'hier, règlement et transaction datés du jour, **décision 3 en attente** (le futur est refusé) |
 | `repro-vente-assurance.js` | défauts reproduits | 17/17 | — |
-| `repro-vo-remise.js` | défauts reproduits | 6/6 | — |
+| `repro-vo-remise.js` | défauts reproduits | 9/9 | 6 cas d'origine et 3 cas de la règle du §9.5 |
 | `repro-assurances-liens.js` | défauts reproduits | 10/10 | — |
 | `repro-facturation.js` | défauts reproduits | 10/10 | — |
 | `repro-differes.js` | défauts reproduits | 13/13 | — |
@@ -724,7 +724,48 @@ dossier d'éditions de la configuration standard.
 
 - **Décision 3 (VC-12, VC-16)** : date de l'opération ou date de la saisie. Rien n'a été changé dans les dates des
   écritures, à part le refus des dates futures.
-- **Décisions 1, 2, 5, 6** : prises par défaut dans le sens le plus sûr (refus, recalcul, plafond). Elles se changent
+- **Décision 6** : tranchée par l'utilisateur le 26/10, voir §9.5.
+- **Décisions 1, 2, 5** : prises par défaut dans le sens le plus sûr (refus, recalcul). Elles se changent
   dans les fonctions citées au §9.1 si le métier en décide autrement.
 - **Décision 7** : l'appli mobile reçoit désormais des refus serveur (VC-06, VC-14, CR-07) ; à vérifier avec elle.
 - **CR-04** non corrigé : non reproduit, et un verrou supplémentaire ajouterait du risque.
+
+### 9.5 Remise de la vente assurance : règle du 26/10 (décision 6)
+
+Règle donnée par l'utilisateur, pour chaque ligne de la vente assurance :
+
+```
+part_client_ligne = prix_ligne − part_organismes_ligne
+remise_ligne      = part_client_ligne × taux_remise_du_produit / 100   (0 si le produit n'est pas remisable)
+remise_vente      = somme des remise_ligne
+part_client       = prix − parts des organismes − remise_vente          (net arrondi à 5 F)
+```
+
+- Produit non remisable (code remise vide, 2 ou 3, ou absent de la grille) : aucune remise, sa part client reste due.
+- Plafond d'un organisme (encours, par vente, crédit) : il s'applique au total de l'organisme ; la réduction est
+  répartie sur ses lignes au prorata de sa part sur chacune. Sans plafond, rien n'est réparti.
+- Code : `SalesNetComputingServiceImpl`, chemins `calcule` et `calculeRepair` : parts des organismes calculées
+  d'abord, sans remise (`partsClientParLigne`), puis remise par produit sur la part client (`remiseSurPartClient`).
+  `int_PRICE_REMISE` est écrit par ligne et en total, puis `int_CUST_PART`. `plafonnerRemiseALaPartClient` (lot 2)
+  est retiré. Carnet et comptant inchangés.
+- `calculeRepair` (outil de maintenance) ne porte pas de remise (`remise = null`, comme avant) : la remise de la
+  vente y vaut 0 et la part client = prix − parts des organismes. Avant, l'en-tête passait déjà à 0, mais la part
+  client retranchait encore les anciennes remises des lignes.
+
+Cas concrets (`repro-vo-remise.js`, produits à TVA 0, remise d'essai de 10 %, organisme à 80 %) :
+
+| Cas | Avant (version déployée de la branche principale) | Après |
+|---|---|---|
+| Remisable seul, 2 010 F | remise 201 (sur le prix), part client 201 | part client 402 → remise 40, part client 362, net 360 |
+| Remisable 2 010 F + non remisable 2 755 F | — | parts organisme 3 812 ; remise 40 sur la ligne remisable, 0 sur l'autre ; part client 913 |
+| Même vente, plafond par vente de 1 000 F | — | organisme 1 000 réparti au prorata ; part client du remisable 1 588 → remise 158 ; part client 3 607 |
+| Organisme à 95 % (ancien CR-06) | remise 201, parts + part client = 1 909 ≠ 1 809 | part client 100 → remise 10, part client 91, total = prix − remise |
+
+Avant correction, les cas 2 et 3 du tableau n'ont pas été rejoués avec la remise posée (le premier passage du test
+oubliait l'appel de pose de la remise) ; le cas 1 et l'ancien CR-06 suffisent à montrer l'écart de l'ancienne règle.
+
+Non-régression, rejouée sur cette version (sorties : `docs/notices/preuves-audits-2026-10-25/apres-corrections/regle-remise-2026-10-26/`) :
+`repro-vente-assurance` 17/17, `repro-carnet` 10/10, `repro-assurances-liens` 10/10, `repro-facturation` 10/10,
+`test-vente-changer-tiers-payant` 7/7, `test-facturation-carnet-depot` 33/33, `test-client-credit-course` 16/16,
+`test-deuxieme-assurance` 14/14. Au premier passage, ce dernier a donné 13/14 : la référence de bon de la vente
+d'essai était lue vide juste après sa pose en SQL, avant tout appel au serveur. Au second passage, il a donné 14/14.
