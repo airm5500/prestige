@@ -325,7 +325,8 @@ Le veilleur passe chaque nuit à 04 h 15 et compte au plus 500 cas par contrôle
 - **M2** : 116 ms. L1 reste non reproduit sur un appel seul.
 - **F1** : 404 au lieu de 500, ce qui ne vaut rien. L'application déployée sur le domaine 8080 à ce moment n'avait pas
   de dossier `webservices`, si bien que toutes les anciennes JSP répondaient 404, y compris `ws_tree_menu.jsp` à la
-  connexion. Défaut d'environnement signalé aux sessions qui déploient. F1 reste reproduit sur le domaine 9080.
+  connexion. Défaut d'environnement signalé aux sessions qui déploient. Le domaine a été redéployé avec le même WAR ; **F1, rejoué
+  ensuite, est reproduit** : 500, aucun événement ajouté.
 
 Événements touchés sur `laborex_v1_db` :
 
