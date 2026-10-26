@@ -786,8 +786,8 @@ public class CaisseServiceImpl implements CaisseService {
             return json.put("success", false).put("msg", "Echec d'encaissement. Mode de règlement inexistant.");
         }
         /*
-         * Audit VC-16 (reproduit le 25/10) : un mouvement date de demain etait accepte. Une date future est refusee (le
-         * choix de la date portee par la transaction de caisse reste une decision metier a prendre).
+         * Audit VC-16 (reproduit le 25/10) : un mouvement date de demain etait accepte. Une date future est refusee ;
+         * la transaction de caisse porte la date saisie du mouvement (decision du 26/10 : date de l'operation reelle).
          */
         if (dateFuture(caisseDTO.getDateMvt())) {
             return json.put("success", false).put("msg", "La date du mouvement ne peut pas être dans le futur.");
@@ -806,6 +806,14 @@ public class CaisseServiceImpl implements CaisseService {
                 caisseDTO.getAmount() > 0 ? TypeTransaction.ENTREE : TypeTransaction.SORTIE, tTypeReglement,
                 typeMvtCaisse, 0, emg, caisseDTO.getAmount() > 0 ? caisseDTO.getAmount() : 0, 0, 0,
                 mvtCaisse.getStrREFTICKET());
+        if (mvtCaisse.getDtDATEMVT() != null) {
+            java.time.LocalDate jour = new java.sql.Date(mvtCaisse.getDtDATEMVT().getTime()).toLocalDate();
+            if (!jour.equals(java.time.LocalDate.now())) {
+                emg.flush();
+                emg.createQuery("UPDATE MvtTransaction m SET m.mvtDate = :jour WHERE m.pkey = :pkey")
+                        .setParameter("jour", jour).setParameter("pkey", mvtCaisse.getLgMVTCAISSEID()).executeUpdate();
+            }
+        }
 
         logService.updateItem(user, mvtCaisse.getStrREFTICKET(), description, TypeLog.MVT_DE_CAISSE, mvtCaisse);
         Map<String, Object> donneesMap = new HashMap<>();

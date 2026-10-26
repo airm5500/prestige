@@ -679,6 +679,7 @@ principale (droits, horloge, bornes).
 | 7 | `94fc2150` | VC-06, VC-07, VC-14, CR-07 | Remise remise à 0 si le net est demandé sans remise ; remise enregistrée = celle encaissée (net arrondi) ; clôture refusée si les règlements ne couvrent pas le net ; prix des lignes calculés par le serveur conservés |
 | 8 | `c9e2010c` | VC-09, VC-11, N9, CA-07, CA-12 | Stock vérifié à chaque clôture, quantités cumulées par produit ; retour aux lots d'origine ; clé de mouvement « RC-id » ; retour carnet clos une seule fois ; historique de stock du retour cohérent |
 | 9-10 | `0aca4f26`, `31844138` | VC-16 (partiel), DIF-08, DIF-07, DIF-09, D4, DIF-10 | Mouvement de caisse daté du futur refusé ; règlement de différé sans changement de la date de la vente ; règlement partiel refusé si le reçu est insuffisant ; ventilation par date de la vente ; dette différée du relevé = prix − montants payés ; message « Saisissez le montant reçu. » |
+| Dates | (ce commit) | VC-12, VC-16 | Décision 3 du 26/10 : date de l'opération réelle. Modification d'une vente d'un autre jour : recette et mouvements de stock (copie et annulation) à la date de la vente d'origine, comme la transaction et la contre-passation (`daterModificationALaVenteDOrigine`). Mouvement de caisse : transaction à la date saisie. Une modification du jour même ne change pas |
 | — | `fd72a661` | — | Tests de reproduction : assertions alignées sur le comportement corrigé, nettoyage limité aux données du test |
 
 ### 9.2 Résultats des reproductions après correction
@@ -687,8 +688,8 @@ Sorties complètes : `docs/notices/preuves-audits-2026-10-25/apres-corrections/`
 
 | Test | Avant | Après | Reste |
 |---|---|---|---|
-| `repro-vente-comptant.js` | défauts reproduits | 16/17 | VC-12 : dates des écritures d'une modification d'une vente d'hier, **décision 3 en attente** |
-| `repro-remise-caisse.js` | défauts reproduits | 7/8 | VC-16 : mouvement saisi à la date d'hier, règlement et transaction datés du jour, **décision 3 en attente** (le futur est refusé) |
+| `repro-vente-comptant.js` | défauts reproduits | 17/17 | VC-12 corrigé le 26/10 au soir (décision 3) |
+| `repro-remise-caisse.js` | défauts reproduits | 8/8 | VC-16 corrigé le 26/10 au soir (décision 3) |
 | `repro-vente-assurance.js` | défauts reproduits | 17/17 | — |
 | `repro-vo-remise.js` | défauts reproduits | 9/9 | 6 cas d'origine et 3 cas de la règle du §9.5 |
 | `repro-assurances-liens.js` | défauts reproduits | 10/10 | — |
@@ -722,8 +723,8 @@ dossier d'éditions de la configuration standard.
 
 ### 9.4 Ce qui reste à décider
 
-- **Décision 3 (VC-12, VC-16)** : date de l'opération ou date de la saisie. Rien n'a été changé dans les dates des
-  écritures, à part le refus des dates futures.
+- **Décision 3 (VC-12, VC-16)** : tranchée par l'utilisateur le 26/10 : date de l'opération réelle. Corrigé, voir §9.1
+  et §9.6.
 - **Décision 6** : tranchée par l'utilisateur le 26/10, voir §9.5.
 - **Décisions 1, 2, 5** : prises par défaut dans le sens le plus sûr (refus, recalcul). Elles se changent
   dans les fonctions citées au §9.1 si le métier en décide autrement.
@@ -769,3 +770,19 @@ Non-régression, rejouée sur cette version (sorties : `docs/notices/preuves-aud
 `test-vente-changer-tiers-payant` 7/7, `test-facturation-carnet-depot` 33/33, `test-client-credit-course` 16/16,
 `test-deuxieme-assurance` 14/14. Au premier passage, ce dernier a donné 13/14 : la référence de bon de la vente
 d'essai était lue vide juste après sa pose en SQL, avant tout appel au serveur. Au second passage, il a donné 14/14.
+
+### 9.6 Recette du 26/10 et dates des écritures (décision 3)
+
+- **Cahier de recette** : `docs/notices/CAHIER_RECETTE_AUDITS_2026-10-26.xlsx` (vierge) et
+  `CAHIER_RECETTE_AUDITS_2026-10-26_resultats_Claude.xlsx` (joué par les tests automatiques, sorties dans
+  `preuves-audits-2026-10-25/recette-2026-10-26/`) : 59 OK, 0 KO, 2 bloqués (poste : PDF du navigateur de test, aucun
+  dépôt), 1 non joué (DIF-10, à l'écran).
+- **VC-12** : la modification d'une vente de la veille écrit transaction, contre-passation, recette et mouvements de
+  stock (vente de la copie et retour de l'annulation) à la date de la vente d'origine. Le test contrôle maintenant
+  toutes ces dates (il n'en comparait que quatre et oubliait le stock).
+- **VC-16** : un mouvement de caisse daté d'hier écrit mouvement, règlement et transaction à hier ; demain est refusé.
+- **Effet à connaître** : une modification ou un mouvement saisi après coup change la caisse et la fiche de stock du
+  jour de l'opération, même si cette journée est déjà arrêtée. C'est le sens de la décision.
+- **Non-régression rejouée** : `repro-vente-comptant` 17/17, `repro-remise-caisse` 8/8, `test-mvt-caisse` 11/11,
+  `test-differes-modification` 12/12, `test-annulation-vente-double` 11/11, `repro-vente-assurance` 17/17,
+  `test-historique-deconditionnement` partie officine 9/9 (partie dépôt : aucun dépôt sur le poste).

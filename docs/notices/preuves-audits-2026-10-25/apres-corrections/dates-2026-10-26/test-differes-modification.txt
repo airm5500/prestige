@@ -1,0 +1,14 @@
+PASS  Précondition : vente de 2 produits clôturée en différé pour le client 1  [{"msg":"Opération effectuée avec success","ref":"6026347a-30ae-4132-9d36-3ece14d1c67a","success":true,"copy":false} e2e-dmod-c1|3580|3580|is_Closed]
+PASS  Précondition : 1 produit réglé (reste = 1 produit)  [{"msg":"Opération effectuée","ref":"265d384e-aca5-4c4e-bcc1-afdd41877792","success":true} e2e-dmod-c1|3580|1790|is_Closed]
+PASS  Précondition : modification de la vente clôturée (copie en cours)  [{"msg":"Opération effectuée avec success","data":{"lgPREENREGISTREMENTID":"1acf73d0-ea50-4cca-9ef8-cc3932af99a0","intPRICE":3580,"intPRICEREMISE":0,"strREF":"261026_00667"},"success":true}]
+PASS  B. Vente modifiée recloturée en différé : reste dû = prix − déjà réglé (1 produit), pas tout le prix  [{"msg":"Opération effectuée avec success","ref":"1acf73d0-ea50-4cca-9ef8-cc3932af99a0","success":true,"copy":true} copie e2e-dmod-c1|3580|1790|is_Closed]
+PASS  A. Vente différée modifiée puis payée au comptant : plus de dette pour cette vente sur le compte du client  [{"msg":"Opération effectuée avec success","ref":"059ba885-660b-40ce-b80b-b337b58fe6fa","success":true,"copy":true} restes 3580 -> 1790 copie e2e-dmod-c1|0|0|delete]
+PASS  C. Vente modifiée recloturée en différé pour un autre client : la dette passe sur ce client  [{"msg":"Opération effectuée avec success","ref":"773aeab9-77c8-4799-a4f1-f450d4dea099","success":true,"copy":true} copie e2e-dmod-c2|1790|1790|is_Closed]
+PASS  D. Clôture de la copie refusée (type de vente changé) : la vente d'origine n'est pas annulée  [{"msg":"Désolé impossible de transformer une vente au comptant","success":false,"codeError":0} origine 0|is_Closed ligne e2e-dmod-c1|1790|1790|is_Closed]
+PASS  D. Puis clôture correcte : l'origine est annulée, une seule dette  [{"msg":"Opération effectuée avec success","ref":"ad20605f-12ad-4d32-aafd-b8e999efb969","success":true,"copy":true}]
+PASS  Cohérence e2e-dmod-c1 : solde du relevé = somme des restes dus  [relevé 3580, restes 3580]
+PASS  Cohérence e2e-dmod-c2 : solde du relevé = somme des restes dus  [relevé 1790, restes 1790]
+PASS  Aucune erreur JavaScript  [[]]
+PASS  Jeu d'essai retiré, stock remis
+
+12/12 OK

@@ -117,8 +117,13 @@ const { ok, q, exec, ADMIN, MARQUE } = C;
         + "   WHERE a.lg_PREENGISTREMENT_ANNULE_ID = '" + v + "')),"
         + " CONCAT('recette de la copie ', (SELECT GROUP_CONCAT(DATE(dt_CREATED)) FROM t_recettes WHERE str_REF_FACTURE = '" + copie + "')),"
         + " CONCAT('mouvement de stock de la copie ', (SELECT GROUP_CONCAT(h.mvtdate) FROM hmvtproduit h JOIN t_preenregistrement_detail d"
-        + "   ON d.lg_PREENREGISTREMENT_DETAIL_ID = h.lg_PREENREGISTREMENT_DETAIL_ID WHERE d.lg_PREENREGISTREMENT_ID = '" + copie + "')), CONCAT('aujourd\\'hui ', CURDATE()))");
-      const jours = new Set((dates.match(/\d{4}-\d{2}-\d{2}/g) || []).slice(0, 4));
+        + "   ON d.lg_PREENREGISTREMENT_DETAIL_ID = h.lg_PREENREGISTREMENT_DETAIL_ID WHERE d.lg_PREENREGISTREMENT_ID = '" + copie + "')),"
+        + " CONCAT('mouvement de stock de l\\'annulation ', (SELECT GROUP_CONCAT(h.mvtdate) FROM hmvtproduit h JOIN t_preenregistrement_detail d"
+        + "   ON d.lg_PREENREGISTREMENT_DETAIL_ID = h.lg_PREENREGISTREMENT_DETAIL_ID JOIN t_preenregistrement a ON a.lg_PREENREGISTREMENT_ID = d.lg_PREENREGISTREMENT_ID"
+        + "   WHERE a.lg_PREENGISTREMENT_ANNULE_ID = '" + v + "')), CONCAT('aujourd\\'hui ', CURDATE()))");
+      /* toutes les dates des ecritures (la derniere est celle du jour, pour lecture) */
+      const toutes = dates.match(/\d{4}-\d{2}-\d{2}/g) || [];
+      const jours = new Set(toutes.slice(0, -1));
       ok('VC-12 attendu : toutes les écritures de la modification d\'une vente d\'hier portent la même date',
         c.success === true && jours.size === 1, 'clôture copie ' + c.success + ' ; ' + dates);
     });

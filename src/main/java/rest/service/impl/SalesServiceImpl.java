@@ -496,6 +496,34 @@ public class SalesServiceImpl implements SalesService {
      * Regle retenue : refus, le plus sur ; le report par avoir reste une decision metier a prendre.
      * </p>
      */
+    /**
+     * Audit VC-12 (decision du 26/10 : date de l'operation reelle). La modification d'une vente d'un autre jour gardait
+     * la transaction et la contre-passation a la date de la vente, mais datait la recette et les mouvements de stock
+     * (vente de la copie, retour de l'annulation) du jour : une caisse deja arretee changeait apres coup. Toutes ces
+     * ecritures portent la date de la vente d'origine. Une modification du jour meme ne change rien.
+     */
+    private void daterModificationALaVenteDOrigine(TPreenregistrement copie) {
+        if (!Boolean.TRUE.equals(copie.getCopy()) || copie.getDtUPDATED() == null
+                || StringUtils.isBlank(copie.getLgPARENTID())) {
+            return;
+        }
+        LocalDate jour = DateConverter.convertDateToLocalDate(copie.getDtUPDATED());
+        if (jour.equals(LocalDate.now())) {
+            return;
+        }
+        EntityManager emg = getEm();
+        emg.flush();
+        emg.createNativeQuery("UPDATE t_recettes SET dt_CREATED = ?1, dt_UPDATED = ?1 WHERE str_REF_FACTURE = ?2")
+                .setParameter(1, copie.getDtUPDATED()).setParameter(2, copie.getLgPREENREGISTREMENTID())
+                .executeUpdate();
+        emg.createNativeQuery("UPDATE hmvtproduit h JOIN t_preenregistrement_detail d"
+                + " ON d.lg_PREENREGISTREMENT_DETAIL_ID = h.lg_PREENREGISTREMENT_DETAIL_ID"
+                + " JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = d.lg_PREENREGISTREMENT_ID"
+                + " SET h.mvtdate = ?1 WHERE p.lg_PREENREGISTREMENT_ID = ?2 OR p.lg_PREENGISTREMENT_ANNULE_ID = ?3")
+                .setParameter(1, java.sql.Date.valueOf(jour)).setParameter(2, copie.getLgPREENREGISTREMENTID())
+                .setParameter(3, copie.getLgPARENTID()).executeUpdate();
+    }
+
     private String refusClotureCopie(TPreenregistrement copie, ClotureVenteParams params, TCompteClient compteClient) {
         TPreenregistrement origine = StringUtils.isBlank(copie.getLgPARENTID()) ? null : getEm().find(
                 TPreenregistrement.class, copie.getLgPARENTID(), javax.persistence.LockModeType.PESSIMISTIC_WRITE);
@@ -2874,6 +2902,7 @@ public class SalesServiceImpl implements SalesService {
             mvtProduitService.updateVenteStock(tp, lstTPreenregistrementDetail);
             tp.setCompletionDate(new Date());
             emg.merge(tp);
+            daterModificationALaVenteDOrigine(tp);
 
             if (clotureVenteParams.getMontantRemis() > 0) {
                 afficheurMontantAPayer(clotureVenteParams.getMontantRemis(), " MONNAIE:");
@@ -3146,6 +3175,7 @@ public class SalesServiceImpl implements SalesService {
             this.mvtProduitService.updateVenteStock(tp, lstTPreenregistrementDetail);
             tp.setCompletionDate(new Date());
             emg.merge(tp);
+            daterModificationALaVenteDOrigine(tp);
             afficheurMontantAPayer(clotureVenteParams.getMontantRemis(), " MONNAIE:");
 
             marquerPoste(tp);

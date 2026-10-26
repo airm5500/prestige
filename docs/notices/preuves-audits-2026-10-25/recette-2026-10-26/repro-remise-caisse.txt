@@ -2,9 +2,9 @@ PASS  VC-05/07 précondition : remise de 10 % posée et appliquée (prix 3270 F,
 PASS  VC-05 attendu : TVA de la vente = somme des TVA des lignes  [clôture true ; TVA en-tête 499 ; somme des lignes 499 ; TVA du mouvement de caisse 499]
 PASS  VC-07 attendu : la remise enregistrée est celle affichée et encaissée (prix − remise = net payé)  [remise affichée 325 ; net affiché 2945 ; remise enregistrée (vente) 325 ; prix − remise enregistrée 2945 ; transaction remise|net|payé 325|2945|2945]
 PASS  VC-06 attendu : une vente encaissée au net sans remise n'enregistre pas de remise (remise de la vente = 0)  [net demandé sans remiseId 3270 (plein tarif 3270) ; clôture true ; remise enregistrée sur la vente 0 ; transaction montant|remise|payé 3270|0|3270]
-FAIL  VC-16 attendu : un mouvement de caisse saisi à la date d'hier porte la même date dans le mouvement, le règlement et la transaction  [{"msg":"Opération effectuée .","mvtId":"c9e4721a-3d9c-40ba-ad98-915246f36bb7","success":true,"http": ; mouvement 2026-10-25 | r�glement 2026-10-25 | transaction 2026-10-26]
+PASS  VC-16 attendu : un mouvement de caisse saisi à la date d'hier porte la même date dans le mouvement, le règlement et la transaction  [{"msg":"Opération effectuée .","mvtId":"32375fa3-024e-4e34-a341-805d92350258","success":true,"http": ; mouvement 2026-10-25 | r�glement 2026-10-25 | transaction 2026-10-25]
 PASS  VC-16 attendu : un mouvement de caisse daté de demain est refusé  [{"msg":"La date du mouvement ne peut pas être dans le futur.","success":false,"http":200}]
 PASS  Aucune erreur JavaScript  []
 PASS  Jeu d'essai retiré (ventes, clients, tiers payants, factures), stocks et paramètres remis  [ventes restantes 0]
 
-7/8 — 1 constat(s) reproduit(s) ou precondition(s) en echec
+8/8 OK
