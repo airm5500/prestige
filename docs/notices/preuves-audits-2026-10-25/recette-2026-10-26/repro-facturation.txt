@@ -1,0 +1,12 @@
+PASS  F2 précondition : facture définitive générée, bon marqué « charged »  [{"status":1,"http":200} ; statut charged ; factures 6220]
+PASS  F2 attendu (définitive, écran resté ouvert) : un bon déjà facturé n'est pas facturé une seconde fois  [seconde génération {"status":0,"http":200} ; factures définitives portant le bon : 6220]
+PASS  F2 attendu (provisoire) : un bon déjà facturé n'entre pas dans une facture provisoire  [génération provisoire {"success":true,"http":200} ; provisoires portant le bon : ]
+PASS  F1 attendu : supprimer une facture définitive par DELETE facturation/{id} est refusé (ou ses bons redeviennent facturables)  [HTTP 200 ; facture encore en base ? 1 ; statut du bon charged ; factures définitives restantes portant le bon : 6220]
+PASS  F3 attendu : 5 paires de générations simultanées produisent toujours deux numéros différents  [0 paire(s) sur 5 avec le même numéro : 6221,6222 ; 6223,6224 ; 6225,6226 ; 6227,6228 ; 6229,6230]
+PASS  F4 (chemin de l'écran) attendu : montants du groupe = somme des factures membres (4584), brut des membres = net (sans remise)  [rattachement 2 ; génération {"status":1,"http":200} ; membres code/brut/net/père : 6232/2292.000/2292.000/16102619393056162779,6233/2292.000/2292.000/16102619393057727695 ; t_groupe_factures code/montant : 6231/2292,6231/2292 ; facture de groupe agrégée dans t_facture : 6232/2292.000/2292.000,6233/2292.000/2292.000]
+PASS  F5 attendu : facturer un seul des deux bons laisse l'encours de l'autre (2292)  [encours organisme 4584 → 2292 ; encours client 4584 → 2292]
+PASS  F6 attendu : un règlement de facture de −5 000 F est refusé, facture inchangée  [réponse {"success":"Echec de reglement ","str_ref":"16102619393198513979","lg_DOSSIER_REGLEMENT_ID":"","errors":"0","http":200} ; facture payé|restant|statut 0.000|2292.000|enable → 0.000|2292.000|enable]
+PASS  Aucune erreur JavaScript  []
+PASS  Jeu d'essai retiré (ventes, clients, tiers payants, factures), stocks et paramètres remis  [ventes restantes 0]
+
+10/10 OK

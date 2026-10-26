@@ -1,0 +1,16 @@
+PASS  Lecture de la fiche : nom et prénoms séparés, droit de modifier  [{"success":true,"modifier":true,"client":{"id":"e2e-dnom-client","nom":"MOUSSA","prenoms":"ALI"}}]
+PASS  Nom vide : refus expliqué  [{"success":false,"message":"Le nom est obligatoire."}]
+PASS  Nom trop long (51) : refus expliqué  [{"success":false,"message":"Nom : 51 caractères, 50 au plus."}]
+PASS  Client inconnu : refus  [{"success":false,"message":"Client introuvable."}]
+PASS  Client sans différé : refus (le correctif ne vaut que pour les différés)  [{"success":false,"message":"Ce client n'a pas de vente en différé."}]
+PASS  Aucun refus n'a rien changé
+PASS  Bandeau « Corriger le client » sous la liste, inactif tant qu'aucune ligne n'est choisie  [{"vu":true,"dis":true}]
+PASS  Ligne choisie : nom et prénoms du client repris dans le bandeau, sans fenêtre  [{"nom":"MOUSSA","pre":"ALI","actif":true,"fenetres":0}]
+PASS  Entrée enregistre : message dans le bandeau, liste rechargée avec « INOUSSA ALI »  [Client corrigé : INOUSSA ALI.]
+PASS  Fiche client corrigée (majuscules)
+PASS  Nom recopié corrigé sur ses ventes (différée et comptant) portant l'ancien nom
+PASS  Vente portant le nom d'un autre porteur : inchangée
+PASS  Aucune erreur JavaScript
+PASS  Jeu d'essai retiré
+
+14/14 OK
