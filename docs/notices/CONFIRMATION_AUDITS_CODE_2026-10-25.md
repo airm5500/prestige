@@ -67,6 +67,11 @@ de `claude/new-session-xm8ptu` : `fe047863`). Aucun fichier audité n'a changé 
 fichiers. Payara a été redéployé par la session principale à 23:09, 23:20 et 23:38. Les passages coupés par ces
 redéploiements ont été rejoués ; les résultats cités viennent des passages complets.
 
+**Rejeu sur la tête de branche (26/10, 00:03).** La session principale a redéployé la tête de
+`claude/new-session-xm8ptu` (`c0d4acd6`, migrations jusqu'à V7.2.22). Entre `fe047863` et `c0d4acd6`, aucun
+fichier audité ne change : seuls les droits, la fidélité et l'horloge sont touchés. `repro-assurances-liens.js`,
+rejoué sur cette version, donne les mêmes résultats, N8 compris (preuve : `repro-assurances-liens-tete.txt`).
+
 **Bases.**
 - **Essais** : uniquement sur la copie de travail `laborex_v1_db`.
   - Sauvegardée avant le premier essai : `D:\sauvegardes_banc\laborex_v1_db_avant_repro_audits_2026-10-25.sql.gz`
