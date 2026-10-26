@@ -3050,6 +3050,11 @@ public class SalesServiceImpl implements SalesService {
             String statut = statutDiff(clotureVenteParams.getTypeRegleId());
             TUser vendeur = userFromId(clotureVenteParams.getUserVendeurId());
             Integer amount = montant - tp.getIntPRICEREMISE();
+            String refusMontant = refusMontantRegle(clotureVenteParams, amount);
+            if (refusMontant != null) {
+                annulerClotureIncomplete();
+                return json.put("success", false).put("msg", refusMontant).put("codeError", 0);
+            }
             TCompteClient compteClient = findByClientId(clotureVenteParams.getClientId());
             Optional<TParameters> toInAccount = findParamettre("KEY_TAKE_INTO_ACCOUNT");
             TClient client = findClientById(clotureVenteParams.getClientId()).orElse(null);
@@ -3369,9 +3374,22 @@ public class SalesServiceImpl implements SalesService {
                         TPreenregistrementCompteClientTiersPayent item = getPreenregistrementCompteClientTiersPayent(
                                 op.getLgPREENREGISTREMENTID(), cmptClient.getLgCOMPTECLIENTTIERSPAYANTID());
                         item.setDtUPDATED(op.getDtUPDATED());
-                        item.setIntPERCENT(params.getTaux());
-                        item.setIntPRICE(params.getTpnet());
-                        item.setIntPRICERESTE(params.getTpnet());
+                        /*
+                         * Audit CR-07 (reproduit le 25/10) : la part et le taux envoyes par le poste etaient
+                         * enregistres tels quels (part 1 F et taux 1 % acceptes au lieu de 80 %). Le calcul du « net a
+                         * payer » les a deja ecrits sur la ligne : ils font foi. Ceux du poste ne servent qu'a defaut
+                         * de calcul.
+                         */
+                        boolean calculeParLeServeur = item.getIntPRICE() != null && item.getIntPRICE() > 0;
+                        if (!calculeParLeServeur) {
+                            item.setIntPERCENT(params.getTaux());
+                            item.setIntPRICE(params.getTpnet());
+                        } else if (!Objects.equals(params.getTpnet(), item.getIntPRICE())) {
+                            LOG.log(Level.WARNING,
+                                    "Cloture {0} : part tiers payant du poste {1} ignoree, calcul serveur {2}",
+                                    new Object[] { op.getStrREF(), params.getTpnet(), item.getIntPRICE() });
+                        }
+                        item.setIntPRICERESTE(item.getIntPRICE());
                         item.setStrREFBON(params.getNumBon());
                         item.setDblQUOTACONSOVENTE(item.getLgCOMPTECLIENTTIERSPAYANTID().getDblQUOTACONSOVENTE() != null
                                 ? item.getLgCOMPTECLIENTTIERSPAYANTID().getDblQUOTACONSOVENTE() + item.getIntPRICE()
@@ -3653,6 +3671,18 @@ public class SalesServiceImpl implements SalesService {
                     p.setIntPRICE(montantAPaye.getMontant());
                     p.setIntACCOUNT(montantAPaye.getMontantAccount());
                     p.setIntPRICEOTHER(montantAPaye.getMontant());
+                    /*
+                     * Audit VC-06 (reproduit le 25/10) : le net etait recalcule SANS remise (plein tarif encaisse) mais
+                     * la remise posee plus tot restait sur la vente et etait deduite a la cloture : la base
+                     * enregistrait une remise que le client n'avait pas eue. Net sans remise = vente sans remise.
+                     */
+                    p.setIntPRICEREMISE(0);
+                    p.setIntREMISEPARA(0);
+                    items.stream().filter(it -> it.getIntPRICEREMISE() != null && it.getIntPRICEREMISE() != 0)
+                            .forEach(it -> {
+                                it.setIntPRICEREMISE(0);
+                                emg.merge(it);
+                            });
 
                 } else {
                     TRemise remise = p.getRemise();
@@ -3742,6 +3772,13 @@ public class SalesServiceImpl implements SalesService {
         intTOTALREMISE = totalRemise.intValue();
         int tva = montantTva.intValue();
         montantNet = montantTotal - intTOTALREMISE;
+        /*
+         * Audit VC-07 (reproduit le 25/10) : la remise enregistree (327) n'etait pas celle affichee (325), alors que le
+         * net encaisse est arrondi a 5 F : prix - remise enregistree (2 943) differait du net paye (2 945). La remise
+         * enregistree et affichee est celle qui donne exactement le net arrondi.
+         */
+        int netArrondi = DateConverter.arrondiModuloOfNumber(montantNet, 5);
+        intTOTALREMISE = intTOTALREMISE > 0 ? Math.max(0, montantTotal - netArrondi) : 0;
         op.setIntPRICE(montantTotal);
         op.setIntACCOUNT(montantAccount.intValue());
         op.setIntPRICEREMISE(intTOTALREMISE);
@@ -3750,8 +3787,7 @@ public class SalesServiceImpl implements SalesService {
         if (intTOTALREMISE > 0 && oTRemise == null) {
             op.setRemise(oTRemise);
         }
-        return new MontantAPaye(DateConverter.arrondiModuloOfNumber(montantNet, 5), montantTotal, 0,
-                DateConverter.arrondiModuloOfNumber(intTOTALREMISE, 5), marge.intValue(), tva).cmuAmount(0);
+        return new MontantAPaye(netArrondi, montantTotal, 0, intTOTALREMISE, marge.intValue(), tva).cmuAmount(0);
     }
 
     @Override
@@ -4102,6 +4138,33 @@ public class SalesServiceImpl implements SalesService {
      *
      * @return message d'erreur, ou {@code null} si les montants sont exploitables
      */
+    /**
+     * Motif de refus d'une cloture au comptant dont les reglements ne couvrent pas le net, null sinon.
+     *
+     * <p>
+     * Audit VC-14 (reproduit le 25/10) : une cloture declarant 1 F paye pour une vente de 6 950 F etait acceptee
+     * (recette de 1 F) ; l'ecran l'empeche, pas le serveur. Hors differe (ou un acompte partiel est normal), le total
+     * des reglements (especes, mobile, points...) ou, a defaut, le montant paye doit couvrir le net, a 5 F pres
+     * (arrondi).
+     * </p>
+     */
+    static String refusMontantRegle(ClotureVenteParams p, int net) {
+        if (p == null || REGL_DIFF.equals(p.getTypeRegleId()) || net <= 0) {
+            return null;
+        }
+        long regle;
+        if (p.getReglements() != null && !p.getReglements().isEmpty()) {
+            regle = p.getReglements().stream().mapToLong(VenteReglementDTO::getMontant).sum();
+        } else {
+            regle = p.getMontantPaye() == null ? 0 : p.getMontantPaye();
+        }
+        if (regle < net - 5) {
+            return "Le montant réglé (" + regle + " F) est inférieur au net de la vente (" + net
+                    + " F) : vérifiez les montants saisis, ou choisissez le règlement en différé.";
+        }
+        return null;
+    }
+
     static String controleMontantsCloture(ClotureVenteParams p) {
         if (p == null || p.getMontantRecu() == null || p.getMontantPaye() == null) {
             return "Montant reçu ou montant payé absent : vérifiez le montant en espèces et le montant du mode "
@@ -5518,6 +5581,13 @@ public class SalesServiceImpl implements SalesService {
         intTOTALREMISE = totalRemise.intValue();
         int tva = montantTva.intValue();
         montantNet = montantTotal - intTOTALREMISE;
+        /*
+         * Audit VC-07 (reproduit le 25/10) : la remise enregistree (327) n'etait pas celle affichee (325), alors que le
+         * net encaisse est arrondi a 5 F : prix - remise enregistree (2 943) differait du net paye (2 945). La remise
+         * enregistree et affichee est celle qui donne exactement le net arrondi.
+         */
+        int netArrondi = DateConverter.arrondiModuloOfNumber(montantNet, 5);
+        intTOTALREMISE = intTOTALREMISE > 0 ? Math.max(0, montantTotal - netArrondi) : 0;
         oPreenregistrement.setIntPRICE(montantTotal);
         oPreenregistrement.setIntACCOUNT(montantAccount.intValue());
         oPreenregistrement.setIntPRICEREMISE(intTOTALREMISE);
@@ -5526,10 +5596,9 @@ public class SalesServiceImpl implements SalesService {
         if (intTOTALREMISE > 0 && oTRemise == null) {
             oPreenregistrement.setRemise(oTRemise);
         }
-        return new MontantAPaye(DateConverter.arrondiModuloOfNumber(montantNet, 5), montantTotal, 0,
-                DateConverter.arrondiModuloOfNumber(intTOTALREMISE, 5), marge.intValue(), tva)
-                        .margeUg(margeUg.intValue()).montantTtcUg(montantTtcUg.intValue())
-                        .montantTvaUg(tvaUg.intValue()).montantNetUg(montantTtcUg.intValue());
+        return new MontantAPaye(netArrondi, montantTotal, 0, intTOTALREMISE, marge.intValue(), tva)
+                .margeUg(margeUg.intValue()).montantTtcUg(montantTtcUg.intValue()).montantTvaUg(tvaUg.intValue())
+                .montantNetUg(montantTtcUg.intValue());
     }
 
     private MontantAPaye sumVenteSansRemise(List<TPreenregistrementDetail> list, TPreenregistrement p) {
