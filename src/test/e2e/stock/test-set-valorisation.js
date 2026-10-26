@@ -1,6 +1,7 @@
 /* SET VALORISATION (besoins du 11/10, lot 4) : valorisation SIMULEE, par l'ecran.
- *  - droit P_SET_VALORISATION donne a aucun role : sans lui, l'API refuse ;
- *  - avec lui (donne le temps du test) : bandeau SIMULATION, valeur de depart = stock de l'officine en base ;
+ *  - droit P_SET_VALORISATION reserve au super administrateur (type SYSTEME, V7.2.24) : l'administrateur est refuse
+ *    par l'API ;
+ *  - super administrateur (compte e2e-sa ; droit redonne le temps du test s'il manquait) : bandeau SIMULATION, valeur de depart = stock de l'officine en base ;
  *  - cible = depart x 1,3 : quantites ajustees, valeur simulee <= cible, ecart < plus grand prix, grille = API ;
  *  - changer de base (PV) efface le resultat ; recherche dans la grille ;
  *  - import d'un fichier CSV (titres francais, une ligne illisible ignoree), calcul sur le fichier ;
@@ -19,10 +20,10 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
 const BASE = ENV_E2E.BASE;
 const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
-const ROLE = q("SELECT ru.lg_ROLE_ID FROM t_role_user ru JOIN t_user u ON u.lg_USER_ID = ru.lg_USER_ID WHERE u.str_LOGIN = '" + ENV_E2E.LOGIN + "' LIMIT 1");
+const ROLE = q("SELECT ru.lg_ROLE_ID FROM t_role_user ru JOIN t_user u ON u.lg_USER_ID = ru.lg_USER_ID WHERE u.str_LOGIN = '" + ENV_E2E.LOGIN_SUPPORT + "' LIMIT 1");
 const PRIV = q("SELECT lg_PRIVELEGE_ID FROM t_privilege WHERE str_NAME = 'P_SET_VALORISATION'");
 const DROIT_AJOUTE = 'E2E-SETVALO-DROIT';
-const USER = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
+const USER = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN_SUPPORT + "'");
 const empreinte = () => q("SELECT CONCAT((SELECT COALESCE(SUM(CRC32(CONCAT_WS('|', lg_FAMILLE_STOCK_ID, int_NUMBER_AVAILABLE, int_NUMBER, int_UG))), 0) FROM t_famille_stock),"
   + " '/', (SELECT COALESCE(SUM(CRC32(CONCAT_WS('|', lg_FAMILLE_ID, int_PAF, int_PRICE, str_STATUT))), 0) FROM t_famille),"
   + " '/', (SELECT COUNT(*) FROM hmvtproduit), '/', (SELECT COUNT(*) FROM t_famille_stock))");
@@ -43,28 +44,28 @@ const retirer = () => exec(`DELETE FROM t_role_privelege WHERE lg_ROLE_PRIVILEGE
   const dossier = fs.mkdtempSync(path.join(os.tmpdir(), 'setvalo-'));
   const b = await ENV_E2E.lancer(chromium);
   const dialogues = [];
-  const connecter = async (p) => {
+  const connecter = async (p, login) => {
     p.on('dialog', (d) => { dialogues.push(d.message()); d.dismiss().catch(() => {}); });
     await p.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'domcontentloaded' });
-    await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
+    await p.fill('#str_login', login); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 120000 });
     await p.waitForTimeout(1500);
   };
   try {
-    ok('Droit P_SET_VALORISATION donné à aucun rôle par défaut', q(`SELECT COUNT(*) FROM t_role_privelege WHERE lg_PRIVILEGE_ID = '${PRIV}'`) === '0');
-    /* sans le droit */
+    ok('Droit P_SET_VALORISATION de type SYSTEME (super administrateur seulement)', q(`SELECT str_TYPE FROM t_privilege WHERE lg_PRIVELEGE_ID = '${PRIV}'`) === 'SYSTEME');
+    /* administrateur : sans le droit */
     const p0 = await (await b.newContext()).newPage();
-    await connecter(p0);
+    await connecter(p0, ENV_E2E.LOGIN);
     const refus = await p0.evaluate(async () => (await (await fetch('../api/v1/set-valorisation/depart')).json()));
     const refusCalc = await p0.evaluate(async () => (await (await fetch('../api/v1/set-valorisation/calculer', { method: 'POST',
       headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ source: 'STOCK', base: 'PA', cible: 1000 }) })).json()));
-    ok('Sans le droit : départ et calcul refusés', refus.success === false && refusCalc.success === false && /accès/.test(refus.message), refus.message);
+    ok('Administrateur : départ et calcul refusés', refus.success === false && refusCalc.success === false && /accès/.test(refus.message), refus.message);
 
-    /* avec le droit */
+    /* super administrateur */
     donner();
     const p = await (await b.newContext({ viewport: { width: 1600, height: 950 }, acceptDownloads: true })).newPage();
-    await connecter(p);
+    await connecter(p, ENV_E2E.LOGIN_SUPPORT);
     await p.evaluate(() => testextjs.app.getController('App').onRedirectTo('setvalorisation', {}));
     await p.waitForFunction(() => { const v = Ext.ComponentQuery.query('setvalorisation')[0]; return v && v.departStock; }, null, { timeout: 60000 });
     await p.waitForTimeout(800);
@@ -101,7 +102,7 @@ const retirer = () => exec(`DELETE FROM t_role_privelege WHERE lg_ROLE_PRIVILEGE
     const pdf = await p.evaluate(async (c) => { const x = await fetch('../api/v1/set-valorisation/pdf', { method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ source: 'STOCK', base: 'PA', cible: c }) }); const a = new Uint8Array(await x.arrayBuffer()); return { type: x.headers.get('Content-Type'), b: Array.from(a) }; }, CIBLE);
     fs.writeFileSync(path.join(dossier, 's.pdf'), Buffer.from(pdf.b));
-    const textePdf = pdf.type.indexOf('pdf') >= 0 ? execFileSync('pdftotext', ['-layout', path.join(dossier, 's.pdf'), '-'], { encoding: 'utf8' }) : '';
+    const textePdf = pdf.type.indexOf('pdf') >= 0 ? execFileSync('pdftotext', ['-layout', '-enc', 'UTF-8', path.join(dossier, 's.pdf'), '-'], { encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 }) : '';
     ok('PDF : mention SIMULATION en titre, en pied et en filigrane', /SIMULATION — NE REFLÈTE PAS LE STOCK RÉEL/.test(textePdf)
       && (textePdf.match(/SIMULATION/g) || []).length >= 3, textePdf.slice(0, 200));
     const [download] = await Promise.all([p.waitForEvent('download', { timeout: 30000 }), p.click('.setvalorisation .x-btn:has-text("Excel")')]);
@@ -144,7 +145,8 @@ const retirer = () => exec(`DELETE FROM t_role_privelege WHERE lg_ROLE_PRIVILEGE
     exec(`DELETE FROM t_set_valorisation_journal WHERE lg_USER_ID = '${USER}' AND created_at >= '${debut}'`);
     fs.rmSync(dossier, { recursive: true, force: true });
     await b.close();
-    ok('Droit et journal du test retirés', q(`SELECT COUNT(*) FROM t_role_privelege WHERE lg_PRIVILEGE_ID = '${PRIV}'`) === '0');
+    ok('Droit et journal du test retirés', q(`SELECT COUNT(*) FROM t_role_privelege WHERE lg_ROLE_PRIVILEGE = '${DROIT_AJOUTE}'`) === '0'
+      && q(`SELECT COUNT(*) FROM t_set_valorisation_journal WHERE lg_USER_ID = '${USER}' AND created_at >= '${debut}'`) === '0');
   }
   const ko = res.filter((x) => !x.c).length;
   console.log('\n' + (res.length - ko) + '/' + res.length + ' OK');
