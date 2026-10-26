@@ -259,6 +259,7 @@ public class SalesNetComputingServiceImpl implements SalesNetComputingService {
 
         int totalPatientShare = output.getTotalPatientShare().intValue();
         op.setIntCUSTPART(totalPatientShare);
+        plafonnerRemiseALaPartClient(op, output, montantAPaye);
 
         for (TiersPayantLineOutput lineResult : output.getTiersPayantLines()) {
             TPreenregistrementCompteClientTiersPayent venteTiersPayantItem = maps
@@ -414,6 +415,26 @@ public class SalesNetComputingServiceImpl implements SalesNetComputingService {
 
     }
 
+    /**
+     * Audit CR-06 (reproduit le 25/10) : une remise superieure a ce qui reste au client apres les organismes (remise de
+     * 10 %, organisme a 95 %) laissait la part client a 0 mais la remise entiere sur la vente : parts des organismes et
+     * part client depassaient le net (1 909 pour 1 809), l'ecart etant facture a l'organisme. La remise porte sur la
+     * part du client : elle est ramenee a cette part, pour que parts + part client = prix - remise. Le carnet, dont la
+     * remise s'impute sur la part de l'organisme, n'est pas concerne.
+     */
+    private void plafonnerRemiseALaPartClient(TPreenregistrement op, CalculationResult output,
+            MontantAPaye montantAPaye) {
+        if (Constant.VENTE_AVEC_CARNET.equals(op.getLgTYPEVENTEID().getLgTYPEVENTEID())
+                || op.getIntPRICEREMISE() == null || op.getIntPRICE() == null || output.getTotalTiersPayant() == null) {
+            return;
+        }
+        int partAvantRemise = Math.max(0, op.getIntPRICE() - output.getTotalTiersPayant().intValue());
+        if (op.getIntPRICEREMISE() > partAvantRemise) {
+            op.setIntPRICEREMISE(partAvantRemise);
+            montantAPaye.setRemise(partAvantRemise);
+        }
+    }
+
     @Override
     public MontantAPaye calculeRepair(TPreenregistrement op,
             List<TPreenregistrementCompteClientTiersPayent> compteClientTiersPayents,
@@ -433,6 +454,7 @@ public class SalesNetComputingServiceImpl implements SalesNetComputingService {
 
         int totalPatientShare = output.getTotalPatientShare().intValue();
         op.setIntCUSTPART(totalPatientShare);
+        plafonnerRemiseALaPartClient(op, output, montantAPaye);
 
         for (TiersPayantLineOutput lineResult : output.getTiersPayantLines()) {
             TPreenregistrementCompteClientTiersPayent saleLine = maps.get(lineResult.getClientTiersPayantId()).get(0);

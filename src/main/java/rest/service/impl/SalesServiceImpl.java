@@ -261,7 +261,7 @@ public class SalesServiceImpl implements SalesService {
             Integer montantVerse, Boolean checked, TTypeReglement reglement, TTypeMvtCaisse tTypeMvtCaisse,
             Integer montantCredit, Integer montantPaye, Integer marge, boolean diff, String typeReglement)
             throws Exception {
-        Integer montantClient = tp.getIntCUSTPART() - tp.getIntPRICEREMISE();
+        Integer montantClient = partDueParLeClient(tp);
         MvtTransaction transactionNew = new MvtTransaction();
         Integer montantPaid = 0;
         int montantRestant = montantClient;
@@ -956,8 +956,9 @@ public class SalesServiceImpl implements SalesService {
         as.setMontantRestant(montantRestant);
         as.setCaissier(preenregistrement.getLgUSERCAISSIERID());
         if (preenregistrement.getStrTYPEVENTE().equals(VENTE_ASSURANCE)) {
-            as.setMontantTP(preenregistrement.getIntPRICE()
-                    - (preenregistrement.getIntCUSTPART() - preenregistrement.getIntPRICEREMISE()));
+            // part des organismes = prix - remise - part du client (audit CR-05 : la remise etait comptee a l'envers)
+            as.setMontantTP(valeur(preenregistrement.getIntPRICE()) - valeur(preenregistrement.getIntPRICEREMISE())
+                    - partDueParLeClient(preenregistrement));
         }
         getEm().persist(as);
     }
@@ -2256,8 +2257,7 @@ public class SalesServiceImpl implements SalesService {
         oTPreenregistrementCompteClient.setLgCOMPTECLIENTID(oTCompteClient);
         oTPreenregistrementCompteClient.setLgPREENREGISTREMENTID(p);
         oTPreenregistrementCompteClient.setLgUSERID(user);
-        oTPreenregistrementCompteClient.setIntPRICE(p.getIntCUSTPART() == 0 ? p.getIntPRICE() - p.getIntPRICEREMISE()
-                : p.getIntCUSTPART() - p.getIntPRICEREMISE());
+        oTPreenregistrementCompteClient.setIntPRICE(partDueParLeClient(p));
         oTPreenregistrementCompteClient.setIntPRICERESTE(oTPreenregistrementCompteClient.getIntPRICE() - montantPaye);
         oTPreenregistrementCompteClient.setStrSTATUT(STATUT_IS_CLOSED);
         this.getEm().persist(oTPreenregistrementCompteClient);
@@ -3077,6 +3077,25 @@ public class SalesServiceImpl implements SalesService {
         }
     }
 
+    /**
+     * Ce que le client doit sur la vente, remise deduite.
+     *
+     * <p>
+     * Vente au comptant : prix - remise. Vente assurance ou carnet : la part client, qui est DEJA nette de la remise
+     * (SalesNetComputingServiceImpl). Audit CR-05 et N3 (reproduits le 25/10) : la remise etait retiree une seconde
+     * fois de la part client (transaction « reglee » a 0 pour 200 encaisses, dette de differe a 0 pour 201 dus), et une
+     * vente assurance couverte a 100 % (part client 0) mettait le prix entier a la charge du client.
+     * </p>
+     */
+    static int partDueParLeClient(TPreenregistrement p) {
+        boolean comptant = p.getLgTYPEVENTEID() == null
+                || Constant.VENTE_COMPTANT_ID.equals(p.getLgTYPEVENTEID().getLgTYPEVENTEID());
+        if (comptant) {
+            return valeur(p.getIntPRICE()) - valeur(p.getIntPRICEREMISE());
+        }
+        return Math.max(0, valeur(p.getIntCUSTPART()));
+    }
+
     private static int valeur(Integer v) {
         return v == null ? 0 : v;
     }
@@ -3086,8 +3105,7 @@ public class SalesServiceImpl implements SalesService {
         Optional<TPreenregistrementCompteClient> copie = findOptionalCmt(tp);
         if (clotureVenteParams.getTypeRegleId().equals(REGL_DIFF)) {
             copie.ifPresentOrElse(ctp -> {
-                int prix = tp.getIntCUSTPART() == 0 ? tp.getIntPRICE() - tp.getIntPRICEREMISE()
-                        : tp.getIntCUSTPART() - tp.getIntPRICEREMISE();
+                int prix = partDueParLeClient(tp);
                 /*
                  * Retours du 09/10 (1), vente differee modifiee : ce qui avait deja ete regle sur la vente d'origine
                  * (prix - reste de la ligne copiee) reste acquis au client qui l'a paye ; le client choisi a la cloture
@@ -3592,7 +3610,8 @@ public class SalesServiceImpl implements SalesService {
                         - (x.getIntQUANTITY() * famille.getIntPAF());
                 marge.add(thatMarge);
                 montantAccount.add(x.getIntPRICE());
-                montantTva.add(x.getMontantTva());
+                // audit VC-05 (reproduit le 25/10) : la TVA de la ligne, deja ajoutee plus haut, l'etait une seconde
+                // fois pour les produits comptes (TVA de la vente 998 pour 499 sur les lignes)
 
             }
 
@@ -5323,7 +5342,8 @@ public class SalesServiceImpl implements SalesService {
                         - (x.getIntQUANTITY() * famille.getIntPAF());
                 marge.add(magre0);
                 montantAccount.add(x.getIntPRICE());
-                montantTva.add(x.getMontantTva());
+                // audit VC-05 (reproduit le 25/10) : la TVA de la ligne, deja ajoutee plus haut, l'etait une seconde
+                // fois pour les produits comptes (TVA de la vente 998 pour 499 sur les lignes)
                 if (isVno) {
                     int margeUg0 = ((x.getIntPRICE() - x.getMontantTva()) - (x.getIntQUANTITY() * famille.getIntPAF()));
 
