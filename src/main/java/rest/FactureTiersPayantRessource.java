@@ -414,6 +414,16 @@ public class FactureTiersPayantRessource {
         if (sessionUser == null) {
             return reponseDeconnecte();
         }
+        /*
+         * sans vente, l'identifiant devenait « %% » : aucune ligne, mais des totaux relus sur toutes les ventes en
+         * cours (blocage de 37 s, ticket TCK-20261020-7C0519F6). Reponse vide, de meme forme.
+         */
+        if (StringUtils.isBlank(preenregistrementIdParam)) {
+            return Response.ok()
+                    .entity("{\"total\":\"0\",\"results\":[],\"str_MEDECIN\":\"\",\"lg_TYPE_VENTE_ID\":\"\","
+                            + "\"dbl_total_remise\":\"0.0\",\"total_vente\":\"0\",\"int_total_product\": \"0\"}")
+                    .build();
+        }
         dataManager odm = new dataManager();
         try {
             String strSTATUT = StringUtils.isNotEmpty(statutParam) ? statutParam : commonparameter.statut_is_Process;

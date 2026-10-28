@@ -501,11 +501,13 @@ Ext.define('testextjs.view.sm_user.editfacture.action.detailTransactionTiersPaya
         Ext.getCmp('str_MEDECIN').setValue(str_REF);
         Ext.getCmp('int_total_vente').setValue(Number(int_PRICE) + '  CFA');
         var OGrid = Ext.getCmp('gridpanelFacureID');
-        OGrid.getStore().load({
-            params: {
-                lg_PREENREGISTREMENT_ID: lg_PREENREGISTREMENT_ID,
-                str_STATUT: str_STATUT
-            },
+        /* parametres du proxy et non du seul premier chargement : « Actualiser » et le changement de page gardent la
+           vente (avant : appel sans vente, totaux sur toutes les ventes en cours, ticket TCK-20261020-7C0519F6) */
+        OGrid.getStore().getProxy().extraParams = {
+            lg_PREENREGISTREMENT_ID: lg_PREENREGISTREMENT_ID,
+            str_STATUT: str_STATUT
+        };
+        OGrid.getStore().loadPage(1, {
             callback: function () {
                 var raw = OGrid.getStore().getProxy().getReader().rawData || {};
                 Ext.getCmp('int_total_product').setValue(Number(raw.int_total_product || 0) + '  Produit(s)');
