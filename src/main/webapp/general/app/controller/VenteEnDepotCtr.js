@@ -688,7 +688,8 @@ Ext.define('testextjs.controller.VenteEnDepotCtr', {
                         click: this.onPreventeSearchClick
                     },
                     'doventeendepot #preventeSearchField': {
-                        specialkey: this.onPreventeFieldSpecialKey
+                        specialkey: this.onPreventeFieldSpecialKey,
+                        scanvente: this.onScanVente
                     },
 
                     'doventeendepot': {
@@ -2490,7 +2491,9 @@ Ext.define('testextjs.controller.VenteEnDepotCtr', {
                 } else {
                     let codeError = result.codeError;
                     //il faut ajouter un medecin à la vente 
-                    if (codeError === 1) {
+                    if (codeError === 'SANS_CHANGEMENT') {
+                        me.retourSansChangement(result.msg);
+                    } else if (codeError === 1) {
                         // Vente ordonnanciere : client puis medecin, sur un seul ecran (retour du 08/09).
                         me.ouvrirParcoursOrdonnance();
                     } else if (codeError === 2) {
@@ -3992,6 +3995,32 @@ Ext.define('testextjs.controller.VenteEnDepotCtr', {
         me.getTotalField().setValue(total);
     },
 
+    /* demande du 28/10 (point 7) : vente modifiee validee sans aucun changement -> rien n'est enregistre ; on le
+     * dit, la copie est retiree et « Ventes terminées » se rouvre avec les criteres de recherche d'avant */
+    retourSansChangement: function (msg) {
+        const me = this;
+        Ext.MessageBox.show({
+            title: 'Vente non modifiée',
+            width: 420,
+            msg: msg || 'Aucun changement détecté, retour à la liste des ventes',
+            buttons: Ext.MessageBox.OK,
+            icon: Ext.MessageBox.INFO,
+            fn: function () {
+                const copieId = me.current && me.current.lgPREENREGISTREMENTID;
+                const ouvrirListe = function () {
+                    me.resetAll();
+                    testextjs.app.getController('App').onRedirectTo('ventemanager', {retourModification: true});
+                };
+                me.libererRappelVente();
+                if (!copieId) {
+                    ouvrirListe();
+                    return;
+                }
+                Ext.Ajax.request({method: 'DELETE', url: '../api/v1/vente/copie/' + copieId, callback: ouvrirListe});
+            }
+        });
+    },
+
     goBack: function () {
         const me = this;
         // Sortie d'ecran : la vente rappelee redevient disponible pour les autres caisses
@@ -4040,7 +4069,13 @@ Ext.define('testextjs.controller.VenteEnDepotCtr', {
         }
 
     },
-    getTypeReglementToDisplay: function (reglements) {
+    getTypeReglementToDisplay: function (reglements, differe) {
+        /* demande du 28/10 (point 17) : une vente differee se rouvre en « Différé » (avec une part payee en especes a la
+         * vente, elle a deux reglements, et les especes passaient avant ; sans reglement enregistre, especes par defaut) */
+        /* un differe n'enregistre que la part payee en especes a la vente (0 compris) : c'est la dette qui le signale */
+        if (differe || (reglements || []).some((e) => String(e.typeReglement) === '4')) {
+            return '4';
+        }
         if (reglements && reglements.length > 0) {
             if (reglements.length === 1) {
                 return reglements[0].typeReglement;
@@ -4082,7 +4117,7 @@ Ext.define('testextjs.controller.VenteEnDepotCtr', {
                     // Vente en attente : pas encore de règlements en base, on
                     // restaure le mode mémorisé à la mise en attente : d'abord
                     // celui persisté côté serveur, sinon celui du poste (localStorage)
-                    let typeReglementARestaurer = me.getTypeReglementToDisplay(reglements);
+                    let typeReglementARestaurer = me.getTypeReglementToDisplay(reglements, record.differe);
                     if ((!reglements || reglements.length === 0) && typeReglementARestaurer === '1') {
                         typeReglementARestaurer = record.typeReglementAttente
                                 || me.getRememberedPreventeMode(record.lgPREENREGISTREMENTID)
@@ -4229,6 +4264,16 @@ Ext.define('testextjs.controller.VenteEnDepotCtr', {
                 if (result.success) {
                     const record = result.data;
                     me.loadExistantSale(record.lgPREENREGISTREMENTID);
+                } else {
+                    /* demande du 28/10 (point 18) : modification refusee (differe deja regle...) : on le dit et on
+                     * revient a « Ventes terminées » avec les criteres de recherche d'avant */
+                    Ext.MessageBox.show({title: 'Modification impossible', width: 440,
+                        msg: (result && result.msg) || 'La vente ne peut pas être modifiée.',
+                        buttons: Ext.MessageBox.OK, icon: Ext.MessageBox.WARNING,
+                        fn: function () {
+                            me.resetAll();
+                            testextjs.app.getController('App').onRedirectTo('ventemanager', {retourModification: true});
+                        }});
                 }
 
             }
@@ -4914,10 +4959,43 @@ Ext.define('testextjs.controller.VenteEnDepotCtr', {
         me.toRecalculate = true;
 
     },
+    /* demande du 28/10 (point 9) : aucun pourcentage de tiers payant au-dela de 100 % (ni en dessous de 0) */
+    tauxTiersPayantInvalide: function (form, grid) {
+        const hors = function (v) {
+            const n = Number(v);
+            return v !== null && v !== undefined && v !== '' && (isNaN(n) || n > 100 || n < 0);
+        };
+        const champ = form.down('#intPOURCENTAGE');
+        if (champ && hors(champ.getValue())) {
+            return {champ: champ, msg: 'Le pourcentage du tiers payant principal (<b>' + Ext.String.htmlEncode(String(champ.getValue()))
+                        + ' %</b>) ne peut pas dépasser 100 %.'};
+        }
+        let msg = null;
+        if (grid) {
+            grid.getStore().each(function (r) {
+                if (!msg && hors(r.get('taux'))) {
+                    msg = 'Le pourcentage du tiers payant <b>' + Ext.String.htmlEncode(r.get('tpFullName') || '') + '</b> ('
+                            + Ext.String.htmlEncode(String(r.get('taux'))) + ' %) ne peut pas dépasser 100 %.';
+                }
+            });
+        }
+        return msg ? {champ: null, msg: msg} : null;
+    },
     onBtnAddClientAssuranceClick: function () {
         const me = this;
         let form = me.getClientAssuranceForm(), grid = me.getTpComplementaireGrid();
         me.toRecalculate = true;
+        const tauxInvalide = me.tauxTiersPayantInvalide(form, grid);
+        if (tauxInvalide) {
+            Ext.MessageBox.show({title: 'Pourcentage du tiers payant', width: 420, msg: tauxInvalide.msg,
+                buttons: Ext.MessageBox.OK, icon: Ext.MessageBox.WARNING,
+                fn: function () {
+                    if (tauxInvalide.champ) {
+                        tauxInvalide.champ.focus(true, 50);
+                    }
+                }});
+            return;
+        }
         if (form.isValid()) {
             let client = form.getValues();
             let record = new testextjs.model.caisse.ClientAssurance(client);
@@ -6062,6 +6140,39 @@ Ext.define('testextjs.controller.VenteEnDepotCtr', {
                                 }
                             }
                         },
+                        /* demande du 28/10 (point 8) : numero de bon genere par le serveur */
+                        {
+                            xtype: 'button',
+                            text: 'Générer',
+                            itemId: 'genererBon' + record.order,
+                            tooltip: 'Générer un numéro de bon',
+                            margin: '0 10 0 0',
+                            handler: function (btn) {
+                                const champ = btn.up('fieldcontainer').down('#refBon' + record.order);
+                                btn.disable();
+                                Ext.Ajax.request({
+                                    method: 'GET',
+                                    url: '../api/v1/vente/numero-bon/' + encodeURIComponent(record.lgTIERSPAYANTID || ''),
+                                    callback: function () {
+                                        if (!btn.destroyed) {
+                                            btn.enable();
+                                        }
+                                    },
+                                    success: function (response) {
+                                        const r = Ext.JSON.decode(response.responseText, true) || {};
+                                        if (r.success && r.numBon) {
+                                            champ.setValue(r.numBon);
+                                            champ.focus(true, 50);
+                                        } else {
+                                            Ext.MessageBox.alert('Numéro de bon', r.msg || 'Aucun numéro de bon n\'a pu être généré.');
+                                        }
+                                    },
+                                    failure: function (response) {
+                                        Ext.MessageBox.alert('Numéro de bon', 'Le serveur n\'a pas répondu (' + response.status + ').');
+                                    }
+                                });
+                            }
+                        },
                         // Retirer : pas en carnet (retour d'officine) — le compte unique du carnet
                         // se remplace en rappelant un autre client, il ne se « retire » pas.
                         ...(carnet ? [] : [{
@@ -6118,11 +6229,13 @@ Ext.define('testextjs.controller.VenteEnDepotCtr', {
      * la liste des preventes (meme route). L'ecran a deja ete remis a zero quand la question se pose :
      * l'identifiant est donc capture avant.
      */
-    proposerTicketPrevente: function (venteId) {
+    proposerTicketPrevente: function (venteId, numero) {
         if (!venteId) {
             return;
         }
-        Ext.MessageBox.confirm('Ticket de prévente', 'Voulez-vous imprimer le ticket de la prévente ?', function (choix) {
+        /* demande du 28/10 (point 4) : le numero de la prevente figure dans la question */
+        Ext.MessageBox.confirm('Ticket de prévente', 'Voulez-vous imprimer le ticket de la prévente'
+                + (numero ? ' n° <b>' + Ext.String.htmlEncode(numero) + '</b>' : '') + ' ?', function (choix) {
             if (choix !== 'yes') {
                 return;
             }
@@ -6166,7 +6279,7 @@ Ext.define('testextjs.controller.VenteEnDepotCtr', {
                     me.resetAll();
                     me.getVnoproduitCombo().focus(false, 100, function () {
                     });
-                    me.proposerTicketPrevente(venteId);
+                    me.proposerTicketPrevente(venteId, result.ref);
                 } else {
                     Ext.MessageBox.show({
                         title: 'Message d\'erreur',
@@ -6732,7 +6845,9 @@ Ext.define('testextjs.controller.VenteEnDepotCtr', {
                     } else {
                         let codeError = result.codeError;
                         //il faut ajouter un medecin à la vente 
-                        if (codeError === 1) {
+                        if (codeError === 'SANS_CHANGEMENT') {
+                            me.retourSansChangement(result.msg);
+                        } else if (codeError === 1) {
                             me.ouvrirParcoursOrdonnance();
                         } else {
                             Ext.MessageBox.show({
@@ -8335,6 +8450,9 @@ Ext.define('testextjs.controller.VenteEnDepotCtr', {
 
         /* retour du 25/10 : separateur mal lu par la douchette (« 261025)00145 ») remis a sa place, et montre */
         value = window.PrestigeReferenceVente ? PrestigeReferenceVente.normaliser(value) : value;
+        /* demande du 28/10 : « 5 » = prevente du jour n° 5 */
+        value = window.PrestigeReferenceVente ? PrestigeReferenceVente.completerNumeroDuJour(value) : value;
+        me.afficherStatutRecherche(null);
         if (me.getPreventeSearchField() && me.getPreventeSearchField().getValue() !== value) {
             me.getPreventeSearchField().setValue(value);
         }
@@ -8348,13 +8466,14 @@ Ext.define('testextjs.controller.VenteEnDepotCtr', {
                 success: function (response) {
                     var result = Ext.decode(response.responseText, true);
                     if (result && result.data && result.data.lgPREENREGISTREMENTID) {
+                        me.viderRecherchePrevente();
                         me.loadExistantSale(result.data.lgPREENREGISTREMENTID);
                     } else {
-                        Ext.Msg.alert('Info', 'Aucune prévente trouvée pour cet identifiant.');
+                        me.introuvable('Aucune vente en attente pour ce ticket');
                     }
                 },
                 failure: function () {
-                    Ext.Msg.alert('Erreur', 'Impossible de récupérer la prévente demandée.');
+                    Ext.Msg.alert('Erreur', 'Impossible de récupérer la prévente demandée.', me.reprendreRecherchePrevente, me);
                 }
             });
             return;
@@ -8377,12 +8496,13 @@ Ext.define('testextjs.controller.VenteEnDepotCtr', {
                         data = result.data || [];
 
                 if (!data.length) {
-                    Ext.Msg.alert('Info', 'Aucune prévente correspondante.');
+                    me.introuvable('Aucune vente en attente avec ce numéro');
                     return;
                 }
 
                 if (data.length === 1) {
                     // Si un seul résultat, charger directement
+                    me.viderRecherchePrevente();
                     me.loadExistantSale(data[0].lgPREENREGISTREMENTID);
                 } else {
                     // Si plusieurs résultats, la fenêtre des ventes en attente s'ouvre sur ce filtre.
@@ -8390,9 +8510,75 @@ Ext.define('testextjs.controller.VenteEnDepotCtr', {
                 }
             },
             failure: function () {
-                Ext.Msg.alert('Erreur', 'La recherche a échoué.');
+                Ext.Msg.alert('Erreur', 'La recherche a échoué.', me.reprendreRecherchePrevente, me);
             }
         });
+    },
+
+    /* demande du 28/10 (point 3) : vente retrouvee et chargee -> zone de recherche videe, prete pour le scan suivant ;
+     * le numero charge est rappele en vert sur la meme ligne */
+    viderRecherchePrevente: function () {
+        var field = this.getPreventeSearchField();
+        if (field && !field.destroyed) {
+            this.afficherStatutRecherche('ok', field.getValue() + ' chargée');
+            field.setValue('');
+        }
+        this.majNombreAttente();
+    },
+
+    /* demande du 28/10 : ticket scanne hors de la zone de recherche (PrestigeScanVente) */
+    onScanVente: function (field, valeur) {
+        if (!field || field.destroyed) {
+            return;
+        }
+        field.setValue(valeur);
+        this.searchAndLoadPrevente(valeur);
+    },
+
+    /* demande du 28/10 (point 3) : vente introuvable -> message sur la meme ligne (pas de fenetre), saisie
+     * preselectionnee pour le scan suivant */
+    introuvable: function (texte) {
+        this.afficherStatutRecherche('erreur', texte);
+        this.reprendreRecherchePrevente();
+        this.majNombreAttente();
+    },
+
+    afficherStatutRecherche: function (type, texte) {
+        const me = this, field = me.getPreventeSearchField(), vue = field ? field.up('doventeendepot') : null;
+        const statut = vue ? vue.down('#preventeStatut') : null;
+        if (me.statutRechercheMinuteur) {
+            clearTimeout(me.statutRechercheMinuteur);
+            me.statutRechercheMinuteur = null;
+        }
+        if (field && !field.destroyed && field.rendered) {
+            field.removeCls(['vp-recherche-ok', 'vp-recherche-erreur']);
+            if (type) {
+                field.addCls(type === 'ok' ? 'vp-recherche-ok' : 'vp-recherche-erreur');
+            }
+        }
+        if (statut && !statut.destroyed) {
+            statut.update(type ? '<span class="vp-recherche-' + type + '-texte">' + Ext.String.htmlEncode(texte || '') + '</span>' : '');
+        }
+        if (type === 'ok') {
+            me.statutRechercheMinuteur = setTimeout(function () {
+                me.afficherStatutRecherche(null);
+            }, 5000);
+        }
+    },
+
+    majNombreAttente: function () {
+        const field = this.getPreventeSearchField(), vue = field ? field.up('doventeendepot') : null;
+        if (vue && !vue.destroyed && vue.majNombreAttente) {
+            vue.majNombreAttente();
+        }
+    },
+
+    /* demande du 28/10 (point 3) : vente non retrouvee -> saisie preselectionnee, le scan suivant la remplace */
+    reprendreRecherchePrevente: function () {
+        var field = this.getPreventeSearchField();
+        if (field && !field.destroyed && field.rendered) {
+            field.focus(true, 50);
+        }
     },
 
     openPreventePicker: function (rows) {

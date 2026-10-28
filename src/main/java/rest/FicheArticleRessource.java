@@ -600,7 +600,8 @@ public class FicheArticleRessource {
 
         // MEMES valeurs par defaut que la JSP historique
         String familleId = texte(familleIdQuery, texte(familleIdForm, ""));
-        String description = texte(strDescription, "");
+        // demande du 28/10 (point 20) : designation sans espace de bord ni espaces consecutifs
+        String description = util.NomSaisi.normaliser(texte(strDescription, ""));
         /*
          * Controle de saisie (07/10) : un prix en lettres devenait 0, un prix negatif ou demesure etait enregistre, un
          * libelle trop long faisait echouer l'ecriture sans message clair. Refus explicite, rien n'est ecrit.

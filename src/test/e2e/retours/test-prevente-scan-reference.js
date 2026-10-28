@@ -5,7 +5,7 @@
  * Par les vues (admin), SERVICE CLIENT > Ventes > Nouvelle vente, champ « N° ticket / scan » :
  *  - reference tapee avec « ) » a la place de « _ » : la prevente est chargee ;
  *  - meme chose avec un autre separateur mal lu (« ° ») ; identifiant du QR Prestige avec « ) » au lieu de « - » ;
- *  - le champ montre la valeur corrigee ; une saisie avec apostrophe ne charge rien (recherche en parametres) ;
+ *  - vente chargee : le champ est vide (demande du 28/10) ; une saisie avec apostrophe ne charge rien (recherche en parametres) ;
  *  - reference exacte : toujours chargee ;
  *  - aucune erreur JavaScript, aucune fenetre du navigateur. Prevente d'essai retiree par la route de l'ecran Ventes.
  */
@@ -67,7 +67,8 @@ const [FID, PU] = q("SELECT f.lg_FAMILLE_ID, f.int_PRICE FROM t_famille f JOIN t
     let r = await scanner(v.ref.replace('_', ')'));
     ok('« ' + v.ref.replace('_', ')') + ' » (« ) » au lieu de « _ ») : prévente chargée', r.chargee === v.id, JSON.stringify(r));
     let affiche = await p.evaluate(() => Ext.ComponentQuery.query('doventemanager #preventeSearchField')[0].getValue());
-    ok('Le champ montre la référence corrigée', affiche === v.ref, affiche);
+    /* demande du 28/10 (point 3) : vente chargee -> zone videe (avant : elle montrait la reference corrigee) */
+    ok('Vente chargée : le champ est vidé', affiche === '', affiche);
     v = await creer();
     r = await scanner(v.ref.replace('_', '°'));
     ok('« ' + v.ref.replace('_', '°') + ' » : prévente chargée', r.chargee === v.id, JSON.stringify(r));
@@ -78,7 +79,9 @@ const [FID, PU] = q("SELECT f.lg_FAMILLE_ID, f.int_PRICE FROM t_famille f JOIN t
     r = await scanner(v.id.replace(/-/g, ')'));
     ok('Identifiant (QR du ticket Prestige) avec « ) » au lieu de « - » : prévente chargée', r.chargee === v.id, JSON.stringify(r));
     r = await scanner("261025' OR '1'='1");
-    ok('Saisie avec apostrophe : aucune vente chargée, message « aucune prévente »', !r.chargee && /Aucune prévente/.test(r.msg || ''), JSON.stringify(r));
+    /* demande du 28/10 (point 3) : le message est sur la ligne de recherche, plus dans une fenetre */
+    const statutLigne = await p.evaluate(() => { const x = Ext.ComponentQuery.query('doventemanager #preventeStatut')[0]; return x && x.getEl() ? x.getEl().dom.innerText : ''; });
+    ok('Saisie avec apostrophe : aucune vente chargée, message « aucune vente en attente » sur la ligne', !r.chargee && !r.msg && /Aucune vente en attente/.test(statutLigne), JSON.stringify(r) + ' ' + statutLigne);
     ok('Aucune erreur JavaScript, aucune fenêtre du navigateur', erreurs.length === 0 && dialogues.length === 0, erreurs.concat(dialogues).join(' | '));
   } catch (x) {
     ok('Parcours sans exception', false, x.stack);

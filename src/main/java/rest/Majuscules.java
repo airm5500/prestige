@@ -15,9 +15,12 @@ public final class Majuscules {
     private Majuscules() {
     }
 
-    /** Texte en majuscules (francais : accents conserves), espaces de bord retires ; null reste null. */
+    /**
+     * Texte en majuscules (francais : accents conserves), espaces de bord retires et espaces consecutifs reduits a un
+     * seul (demande du 28/10, point 20) ; null reste null.
+     */
     public static String texte(String s) {
-        return s == null ? null : s.trim().toUpperCase(Locale.FRENCH);
+        return s == null ? null : util.NomSaisi.normaliser(s).toUpperCase(Locale.FRENCH);
     }
 
     public static ClientLambdaDTO appliquer(ClientLambdaDTO c) {

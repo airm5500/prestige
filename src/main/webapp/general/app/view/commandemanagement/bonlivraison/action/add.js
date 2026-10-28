@@ -712,6 +712,39 @@ function doEntreeStock(lg_BON_LIVRAISON_ID) {
                             var finEntree = function (versListe) {
                                 testextjs.view.commandemanagement.ReserveApresEntreeFenetre.afficherPuis(reserve, versListe);
                             };
+                            /* demande du 28/10 (point 2) : les etiquettes sont proposees que l'etat de reappro soit imprime ou
+                               non ; retourSansEtiquettes : retour a la liste des bons si l'on refuse aussi les etiquettes */
+                            var proposerEtiquettes = function (retourSansEtiquettes) {
+                                Ext.Msg.show({
+                                    title: 'Message',
+                                    msg: "Voulez-vous aussi imprimer les étiquettes ?",
+                                    buttons: Ext.Msg.YESNO,
+                                    icon: Ext.Msg.QUESTION,
+                                    cls: 'custom-messagebox',
+                                    fn: function (btn) {
+                                        if (btn === 'yes') {
+                                            var modeleEtiquette = Ext.getCmp('modele_ETIQUETTE_BL') ? (Ext.getCmp('modele_ETIQUETTE_BL').getValue() || '') : '';
+                                            const linkUrl = url_services_pdf_fiche_etiquette + '?lg_BON_LIVRAISON_ID=' + lg_BON_LIVRAISON_ID + "&int_NUMBER=" + Ext.getCmp('int_NUMBER_ETIQUETTE').getValue() + "&modele_ETIQUETTE=" + encodeURIComponent(modeleEtiquette)
+                                                    + "&code=" + encodeURIComponent(Ext.getCmp('code_ETIQUETTE_BL') ? (Ext.getCmp('code_ETIQUETTE_BL').getValue() || '') : '');
+                                            /* retours du 11/10 : apercu d'Etiquettage Pro pour ce bon, sinon impression historique */
+                                            /* retours du 25/10 (point 6) : apresEntree -> ecran epure et « Retour à commande en cours » */
+                                            if (!testextjs.view.stockmanagement.etiquetagepro.Passerelle.imprimer({source: 'BL', id: lg_BON_LIVRAISON_ID, apresEntree: true,
+                                                position: Ext.getCmp('int_NUMBER_ETIQUETTE').getValue(), modele: modeleEtiquette,
+                                                code: Ext.getCmp('code_ETIQUETTE_BL') ? (Ext.getCmp('code_ETIQUETTE_BL').getValue() || '') : ''}, function () {
+                                                onPdfBLClick(linkUrl);
+                                            })) {
+                                                finEntree(function () {
+                                                    testextjs.app.getController('App').onLoadNewComponentWithDataSource("bonlivraisonmanager", "", "", "");
+                                                });
+                                            } else {
+                                                finEntree(null);
+                                            }
+                                        } else {
+                                            finEntree(retourSansEtiquettes);
+                                        }
+                                    }
+                                });
+                            };
                             testextjs.view.commandemanagement.AvoirsBonFenetre.afficherPuis(lg_BON_LIVRAISON_ID, function () {
                             Ext.Msg.show({
                                 title: 'Message',
@@ -722,39 +755,11 @@ function doEntreeStock(lg_BON_LIVRAISON_ID) {
                                 fn: function (btn) {
                                     if (btn === 'yes') {
                                         onPdfBLClick(url_services_pdf_bonlivraison + '?lg_BON_LIVRAISON_ID=' + lg_BON_LIVRAISON_ID);
-                                        Ext.Msg.show({
-                                            title: 'Message',
-                                            msg: "Voulez-vous aussi imprimer les étiquettes ?",
-                                            buttons: Ext.Msg.YESNO,
-                                            icon: Ext.Msg.QUESTION,
-                                            cls: 'custom-messagebox',
-                                            fn: function (btn) {
-                                                if (btn === 'yes') {
-                                                    var modeleEtiquette = Ext.getCmp('modele_ETIQUETTE_BL') ? (Ext.getCmp('modele_ETIQUETTE_BL').getValue() || '') : '';
-                                                    const linkUrl = url_services_pdf_fiche_etiquette + '?lg_BON_LIVRAISON_ID=' + lg_BON_LIVRAISON_ID + "&int_NUMBER=" + Ext.getCmp('int_NUMBER_ETIQUETTE').getValue() + "&modele_ETIQUETTE=" + encodeURIComponent(modeleEtiquette)
-                                                            + "&code=" + encodeURIComponent(Ext.getCmp('code_ETIQUETTE_BL') ? (Ext.getCmp('code_ETIQUETTE_BL').getValue() || '') : '');
-                                                    /* retours du 11/10 : apercu d'Etiquettage Pro pour ce bon, sinon impression historique */
-                                                    /* retours du 25/10 (point 6) : apresEntree -> ecran epure et « Retour à commande en cours » */
-                                                    if (!testextjs.view.stockmanagement.etiquetagepro.Passerelle.imprimer({source: 'BL', id: lg_BON_LIVRAISON_ID, apresEntree: true,
-                                                        position: Ext.getCmp('int_NUMBER_ETIQUETTE').getValue(), modele: modeleEtiquette,
-                                                        code: Ext.getCmp('code_ETIQUETTE_BL') ? (Ext.getCmp('code_ETIQUETTE_BL').getValue() || '') : ''}, function () {
-                                                        onPdfBLClick(linkUrl);
-                                                    })) {
-                                                        finEntree(function () {
-                                                            testextjs.app.getController('App').onLoadNewComponentWithDataSource("bonlivraisonmanager", "", "", "");
-                                                        });
-                                                    } else {
-                                                        finEntree(null);
-                                                    }
-                                                } else {
-                                                    finEntree(function () {
-                                                        testextjs.app.getController('App').onLoadNewComponentWithDataSource("bonlivraisonmanager", "", "", "");
-                                                    });
-                                                }
-                                            }
+                                        proposerEtiquettes(function () {
+                                            testextjs.app.getController('App').onLoadNewComponentWithDataSource("bonlivraisonmanager", "", "", "");
                                         });
                                     } else {
-                                        finEntree(function () {
+                                        proposerEtiquettes(function () {
                                             testextjs.app.getController('App').onLoadNewComponent("bonlivraisonmanager", "Bon de livraison", "");
                                         });
                                     }

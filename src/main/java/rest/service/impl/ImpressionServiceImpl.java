@@ -649,6 +649,15 @@ public class ImpressionServiceImpl implements Printable {
         limit = start + (scaleTexte * (commentairess.size()));
     }
 
+    /**
+     * Cote du QR code du ticket de prevente, en points. Demande du 28/10 (point 5) : reduit de 120 points (42 mm) a 80
+     * points (28 mm) ; l'identifiant de la vente (36 caracteres, 29 modules) garde des modules de pres d'un millimetre,
+     * lus sans peine par les douchettes.
+     */
+    static int coteQrPrevente(int scaleImage) {
+        return scaleImage * 40;
+    }
+
     public void buildFooter(Graphics2D graphics, int scaleImage, int scaleTexte, int start) {
         int codeBarWidth = 50;
         int codeBarHeight = 15;
@@ -670,7 +679,7 @@ public class ImpressionServiceImpl implements Printable {
                  * de caisse, centre sur le ticket. Dessine quel que soit le reglage de debut d'impression : c'est lui
                  * qui rappelle la vente a la caisse.
                  */
-                int cote = scaleImage * 60;
+                int cote = coteQrPrevente(scaleImage);
                 /*
                  * Juste sous les montants, centre sur le rouleau. Retours du 25/10 (point 13) : la page d'impression
                  * est le format par defaut (Letter, 612 points de large) ; centre sur cette largeur, le QR tombait hors

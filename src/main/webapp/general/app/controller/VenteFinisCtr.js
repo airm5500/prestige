@@ -158,6 +158,8 @@ Ext.define('testextjs.controller.VenteFinisCtr', {
     },
     onEdite: function (view, rowIndex, colIndex, item, e, rec, row) {
         if (rec.get('intPRICE') > 0 && !rec.get('cancel') && rec.get('modification')) {
+            /* demande du 28/10 (point 7) : la liste est rouverte avec ces criteres si la modification est refusee */
+            this.filtresRetour = this.etatFiltres();
             const data = {'isEdit': true, 'record': rec.data, 'isDevis': false, 'categorie': 'COPY'};
             const xtype = "doventemanager";
             testextjs.app.getController('App').onRedirectTo(xtype, data);
@@ -400,8 +402,42 @@ Ext.define('testextjs.controller.VenteFinisCtr', {
             myProxy.setExtraParam(cle, valeur);
         });
     },
+    /* Valeurs affichees des filtres et page courante, pour rouvrir la liste a l'identique (demande du 28/10, point 7). */
+    etatFiltres: function () {
+        const me = this, etat = {champs: {}, page: me.getVentemanagerGrid().getStore().currentPage || 1};
+        ['dtStart', 'dtEnd', 'hStart', 'hEnd', 'queryField', 'nature', 'lgTypeVenteId', 'modeReglementId', 'caissierId',
+            'posteVente'].forEach(function (ref) {
+            const champ = me['get' + Ext.String.capitalize(ref)]();
+            if (champ) {
+                etat.champs[ref] = champ.getValue();
+            }
+        });
+        return etat;
+    },
+    restaurerFiltres: function (etat) {
+        const me = this;
+        Ext.Object.each(etat.champs, function (ref, valeur) {
+            const champ = me['get' + Ext.String.capitalize(ref)]();
+            if (champ) {
+                champ.suspendEvents(false);
+                champ.setValue(valeur);
+                champ.resumeEvents();
+            }
+        });
+        me.getVentemanagerGrid().getStore().currentPage = etat.page;
+    },
     doInitStore: function () {
         const me = this;
+        const vue = me.getVentemanager();
+        /* retour d'une modification refusee (aucun changement) : memes criteres, meme page */
+        if (me.filtresRetour && vue && vue.data && vue.data.retourModification) {
+            me.restaurerFiltres(me.filtresRetour);
+            me.filtresRetour = null;
+            me.doBeforechange();
+            me.getVentemanagerGrid().getStore().loadPage(me.getVentemanagerGrid().getStore().currentPage, {params: me.criteres()});
+            me.checkIfODVersion();
+            return;
+        }
         me.doSearch();
         me.checkIfODVersion();
     },

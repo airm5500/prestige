@@ -1610,10 +1610,174 @@ window.PrestigeReferenceVente = {
         if (m) {
             return m[1] + '_' + m[2];
         }
+        /* demande du 28/10 (point 4) : separateur perdu par la douchette (« 26102800005 ») : 6 chiffres d'une date
+           valide puis 5 chiffres -> reference AAMMJJ_NNNNN ; tout autre nombre est rendu tel quel */
+        m = /^(\d{6})(\d{5})$/.exec(v);
+        if (m && this.dateValide(m[1])) {
+            return m[1] + '_' + m[2];
+        }
         m = /^([0-9a-f]{8})[^0-9a-f]([0-9a-f]{4})[^0-9a-f]([0-9a-f]{4})[^0-9a-f]([0-9a-f]{4})[^0-9a-f]([0-9a-f]{12})$/i.exec(v);
         return m ? [m[1], m[2], m[3], m[4], m[5]].join('-') : v;
+    },
+    /* AAMMJJ : vraie date */
+    dateValide: function (aammjj) {
+        'use strict';
+        var a = 2000 + parseInt(aammjj.substr(0, 2), 10), mo = parseInt(aammjj.substr(2, 2), 10), j = parseInt(aammjj.substr(4, 2), 10);
+        var d = new Date(a, mo - 1, j);
+        return d.getFullYear() === a && d.getMonth() === mo - 1 && d.getDate() === j;
+    },
+    /* demande du 28/10 : a la caisse, « 5 » cherche la prevente du jour n° 5 (AAMMJJ_00005) ; 1 a 5 chiffres seulement */
+    completerNumeroDuJour: function (valeur, maintenant) {
+        'use strict';
+        var v = String(valeur || '').trim();
+        if (!/^\d{1,5}$/.test(v)) {
+            return v;
+        }
+        var d = maintenant || new Date(), z = function (n) {
+            return (n < 10 ? '0' : '') + n;
+        };
+        return z(d.getFullYear() % 100) + z(d.getMonth() + 1) + z(d.getDate()) + '_' + ('00000' + v).slice(-5);
+    },
+    /* demande du 28/10 : ce texte est-il un ticket de vente scanne (reference, avec ou sans separateur, ou identifiant
+       du QR de prevente) ? */
+    estScan: function (valeur) {
+        'use strict';
+        var v = this.normaliser(valeur);
+        return /^\d{6}_\d{5}$/.test(v) && this.dateValide(v.substr(0, 6))
+                || /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
     }
 };
+
+/*
+ * Demande du 28/10 : sur l'ecran de vente, le scan d'un ticket de vente (reference ou QR de prevente) lance la
+ * recherche de la prevente meme si le curseur n'est pas dans la zone « N° ticket / scan ». Une douchette tape tres vite
+ * (moins de 50 ms entre deux caracteres) et finit par Entree ; une saisie a la main n'est jamais prise pour un scan. Si
+ * le scan est tombe dans un autre champ (produit...), ce champ retrouve sa valeur d'avant et son Entree est absorbee.
+ * Un code produit (CIP, EAN) n'a pas la forme d'un ticket : il suit son chemin habituel.
+ */
+window.PrestigeScanVente = {
+    DELAI: 50,
+    installer: function (vue) {
+        'use strict';
+        var rafale = '', dernier = 0, cible = null, valeurAvant = null;
+        var handler = function (e) {
+            if (!vue || vue.destroyed || !vue.isVisible(true)) {
+                return;
+            }
+            var champ = vue.down('#preventeSearchField'), saisie = champ && champ.inputEl ? champ.inputEl.dom : null;
+            var maintenant = Date.now();
+            if (e.key === 'Enter') {
+                var texte = rafale, rapide = texte.length >= 11 && maintenant - dernier < 200;
+                rafale = '';
+                if (!rapide || !window.PrestigeReferenceVente.estScan(texte) || document.activeElement === saisie) {
+                    return;
+                }
+                e.preventDefault();
+                e.stopPropagation();
+                if (cible && cible !== saisie && valeurAvant !== null && 'value' in cible) {
+                    cible.value = valeurAvant;
+                }
+                champ.fireEvent('scanvente', champ, texte);
+                return;
+            }
+            if (e.key && e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
+                if (!rafale || maintenant - dernier > this.DELAI) {
+                    rafale = '';
+                    cible = document.activeElement;
+                    valeurAvant = cible && 'value' in cible ? cible.value : null;
+                }
+                rafale += e.key;
+                dernier = maintenant;
+            }
+        }.bind(this);
+        document.addEventListener('keydown', handler, true);
+        return function () {
+            document.removeEventListener('keydown', handler, true);
+        };
+    }
+};
+
+/*
+ * Demande du 28/10 (point 10) : a l'affichage, « VNO » devient « Comptant » et « VO » devient « Assurance » (Ventes
+ * terminees, Liste de caisse, Visualisation de caisse). Les valeurs elles-memes (filtres, tests) ne changent pas.
+ */
+window.PrestigeLibelleVente = {
+    TYPES: {'VNO': 'COMPTANT', 'VO': 'ASSURANCE', 'ventes N.O.': 'Ventes comptant', 'ventes ordonnancees': 'Ventes assurance'},
+    libelle: function (valeur) {
+        'use strict';
+        if (valeur === null || valeur === undefined) {
+            return valeur;
+        }
+        var v = String(valeur).trim();
+        if (Object.prototype.hasOwnProperty.call(this.TYPES, v)) {
+            return this.TYPES[v];
+        }
+        return v.replace(/\bVNO\b/g, 'COMPTANT').replace(/\bVO\b/g, 'ASSURANCE');
+    },
+    /* renderer de colonne : texte echappe */
+    renderer: function (valeur) {
+        'use strict';
+        return Ext.String.htmlEncode(window.PrestigeLibelleVente.libelle(valeur) || '');
+    }
+};
+
+/*
+ * Demande du 28/10 (point 20) : nom et prenoms d'un client (vente, gestion des clients), designation d'un produit. Un
+ * espace en debut de saisie ou juste apres un autre espace n'est pas pris ; un collage est nettoye ; les espaces de fin
+ * sont retires en quittant le champ. Le serveur applique la meme regle (util.NomSaisi).
+ */
+window.PrestigeSaisieNom = {
+    CHAMPS: {strFIRSTNAME: 1, strLASTNAME: 1, str_FIRST_NAME: 1, str_LAST_NAME: 1, str_DESCRIPTION: 1},
+    concerne: function (el) {
+        'use strict';
+        return !!el && el.tagName === 'INPUT' && Object.prototype.hasOwnProperty.call(this.CHAMPS, el.name || '');
+    },
+    nettoyer: function (v, fin) {
+        'use strict';
+        var t = String(v || '').replace(/\s+/g, ' ').replace(/^ /, '');
+        return fin ? t.replace(/ $/, '') : t;
+    },
+    installer: function () {
+        'use strict';
+        var me = this;
+        document.addEventListener('keydown', function (e) {
+            var el = e.target;
+            if (e.key !== ' ' || !me.concerne(el)) {
+                return;
+            }
+            var debut = el.selectionStart, fin = el.selectionEnd, v = el.value || '';
+            if (debut === null) {
+                return;
+            }
+            var avant = v.substring(0, debut), apres = v.substring(fin);
+            if (avant.replace(/\s+$/, '') === '' || /\s$/.test(avant) || /^\s/.test(apres)) {
+                e.preventDefault();
+            }
+        }, true);
+        var remettre = function (el, fin) {
+            var propre = me.nettoyer(el.value, fin);
+            if (propre !== el.value) {
+                var pos = el.selectionStart, retire = el.value.length - propre.length;
+                el.value = propre;
+                if (pos !== null && document.activeElement === el) {
+                    pos = Math.max(0, Math.min(propre.length, pos - retire));
+                    el.setSelectionRange(pos, pos);
+                }
+            }
+        };
+        document.addEventListener('input', function (e) {
+            if (me.concerne(e.target)) {
+                remettre(e.target, false);
+            }
+        }, true);
+        document.addEventListener('blur', function (e) {
+            if (me.concerne(e.target)) {
+                remettre(e.target, true);
+            }
+        }, true);
+    }
+};
+window.PrestigeSaisieNom.installer();
 
 window.PrestigePoste = {
     CLE: 'prestige.poste',

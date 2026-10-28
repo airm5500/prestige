@@ -120,8 +120,8 @@ public class clientManagement extends bllBase {
             new logger().OCategory.info("Type client " + OTTypeClient.getStrNAME());
             OTClient.setLgCLIENTID(this.getKey().getComplexId());
             OTClient.setStrCODEINTERNE(this.getKey().getShortId(6));
-            OTClient.setStrFIRSTNAME(str_FIRST_NAME);
-            OTClient.setStrLASTNAME(str_LAST_NAME);
+            OTClient.setStrFIRSTNAME(util.NomSaisi.normaliser(str_FIRST_NAME)); // point 20 du 28/10
+            OTClient.setStrLASTNAME(util.NomSaisi.normaliser(str_LAST_NAME));
             OTClient.setLgTYPECLIENTID(OTTypeClient);
             OTClient.setStrNUMEROSECURITESOCIAL(str_NUMERO_SECURITE_SOCIAL);
             OTClient.setDtNAISSANCE(dt_NAISSANCE);
@@ -184,8 +184,8 @@ public class clientManagement extends bllBase {
                 OTClient.setLgCATEGORYCLIENTID(categoryClient);
             }
             OTClient.setStrCODEINTERNE(str_CODE_INTERNE);
-            OTClient.setStrFIRSTNAME(str_FIRST_NAME);
-            OTClient.setStrLASTNAME(str_LAST_NAME);
+            OTClient.setStrFIRSTNAME(util.NomSaisi.normaliser(str_FIRST_NAME)); // point 20 du 28/10
+            OTClient.setStrLASTNAME(util.NomSaisi.normaliser(str_LAST_NAME));
             OTClient.setStrNUMEROSECURITESOCIAL(str_NUMERO_SECURITE_SOCIAL);
             OTClient.setDtNAISSANCE(dt_NAISSANCE);
             OTClient.setStrSEXE(str_SEXE);
@@ -795,8 +795,8 @@ public class clientManagement extends bllBase {
                 str_CODE_INTERNE = this.getKey().getShortId(6);
             }
             OTClient.setStrCODEINTERNE(str_CODE_INTERNE);
-            OTClient.setStrFIRSTNAME(str_FIRST_NAME);
-            OTClient.setStrLASTNAME(str_LAST_NAME);
+            OTClient.setStrFIRSTNAME(util.NomSaisi.normaliser(str_FIRST_NAME)); // point 20 du 28/10
+            OTClient.setStrLASTNAME(util.NomSaisi.normaliser(str_LAST_NAME));
             OTClient.setLgTYPECLIENTID(OTTypeClient);
             OTClient.setStrNUMEROSECURITESOCIAL(str_NUMERO_SECURITE_SOCIAL);
             OTClient.setDtNAISSANCE(dt_NAISSANCE);
@@ -956,8 +956,8 @@ public class clientManagement extends bllBase {
             new logger().OCategory.info("Type client " + OTTypeClient.getStrNAME());
             OTClient.setLgCLIENTID(this.getKey().getComplexId());
             OTClient.setStrCODEINTERNE(this.getKey().getShortId(6));
-            OTClient.setStrFIRSTNAME(str_FIRST_NAME);
-            OTClient.setStrLASTNAME(str_LAST_NAME);
+            OTClient.setStrFIRSTNAME(util.NomSaisi.normaliser(str_FIRST_NAME)); // point 20 du 28/10
+            OTClient.setStrLASTNAME(util.NomSaisi.normaliser(str_LAST_NAME));
             OTClient.setLgTYPECLIENTID(OTTypeClient);
             OTClient.setStrSEXE(str_SEXE);
             OTClient.setStrADRESSE(str_ADRESSE);
@@ -1007,8 +1007,8 @@ public class clientManagement extends bllBase {
             TClient OTClient = this.getOdataManager().getEm().find(TClient.class, lg_CLIENT_ID);
 
             OTClient.setStrCODEINTERNE(str_CODE_INTERNE);
-            OTClient.setStrFIRSTNAME(str_FIRST_NAME);
-            OTClient.setStrLASTNAME(str_LAST_NAME);
+            OTClient.setStrFIRSTNAME(util.NomSaisi.normaliser(str_FIRST_NAME)); // point 20 du 28/10
+            OTClient.setStrLASTNAME(util.NomSaisi.normaliser(str_LAST_NAME));
             try {
                 TTypeClient OTTypeClient = this.getOdataManager().getEm().find(TTypeClient.class, lg_TYPE_CLIENT_ID);
                 new logger().OCategory.info("Type client " + OTTypeClient.getStrNAME());
@@ -1343,8 +1343,8 @@ public class clientManagement extends bllBase {
                 mode = true;
             }
             System.out.println("str_NUMERO_SECURITE_SOCIAL  " + str_NUMERO_SECURITE_SOCIAL);
-            OTClient.setStrFIRSTNAME(str_FIRST_NAME);
-            OTClient.setStrLASTNAME(str_LAST_NAME);
+            OTClient.setStrFIRSTNAME(util.NomSaisi.normaliser(str_FIRST_NAME)); // point 20 du 28/10
+            OTClient.setStrLASTNAME(util.NomSaisi.normaliser(str_LAST_NAME));
             OTClient.setStrNUMEROSECURITESOCIAL(str_NUMERO_SECURITE_SOCIAL);
             OTClient.setDtNAISSANCE(dt_NAISSANCE);
             OTClient.setStrSEXE(str_SEXE);

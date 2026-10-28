@@ -135,9 +135,28 @@ Ext.define('testextjs.controller.DiffereCtr', {
     },
 
     doReglement: function () {
-        var xtype = "fairereglement";
-        var data = {'isEdit': false, 'source': 'delayed', 'record': {}};
-        testextjs.app.getController('App').onRedirectTo(xtype, data);
+        /* demande du 28/10 (point 18) : « Faire un règlement » s'ouvre dans une fenetre modale au-dessus de la liste des
+           differes (la vue en cours n'est plus remplacee) ; la liste est actualisee a la fermeture */
+        var me = this;
+        var data = {'isEdit': false, 'source': 'delayed', 'record': {}, 'fenetre': true};
+        Ext.create('Ext.window.Window', {
+            title: 'Régler un différé',
+            itemId: 'fenetreReglerDiffere',
+            modal: true,
+            width: '95%',
+            height: Math.max(520, Ext.getBody().getViewSize().height - 60),
+            maximizable: true,
+            autoScroll: true,
+            layout: 'fit',
+            items: [{xtype: 'fairereglement', data: data, header: false}],
+            listeners: {
+                close: function () {
+                    if (me.getDelayed() && !me.getDelayed().destroyed) {
+                        me.doSearch();
+                    }
+                }
+            }
+        }).show();
     },
     onUserSelect: function (cmp) {
         var me = this;

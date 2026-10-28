@@ -760,8 +760,33 @@ public class SalesStatsServiceImpl implements SalesStatsService {
 
         }
 
-        json.put("success", true).put("data", new JSONObject(data));
+        JSONObject donnees = new JSONObject(data);
+        /*
+         * Demande du 28/10 (point 17) : vente reglee en differe (ligne de dette active, sur la vente ou sur la vente
+         * qu'elle copie) ; l'ecran de vente rouvre alors la vente en « Différé », meme sans reglement enregistre.
+         */
+        donnees.put("differe", estDiffere(p));
+        json.put("success", true).put("data", donnees);
         return json;
+    }
+
+    private boolean estDiffere(TPreenregistrement p) {
+        try {
+            List<String> ventes = new ArrayList<>();
+            ventes.add(p.getLgPREENREGISTREMENTID());
+            if (StringUtils.isNotEmpty(p.getLgPARENTID())) {
+                ventes.add(p.getLgPARENTID());
+            }
+            Long n = getEntityManager()
+                    .createQuery("SELECT COUNT(c) FROM TPreenregistrementCompteClient c"
+                            + " WHERE c.lgPREENREGISTREMENTID.lgPREENREGISTREMENTID IN :ventes AND c.intPRICE > 0"
+                            + " AND (c.strSTATUT IS NULL OR c.strSTATUT <> 'delete')", Long.class)
+                    .setParameter("ventes", ventes).getSingleResult();
+            return n != null && n > 0;
+        } catch (RuntimeException e) {
+            LOG.log(Level.WARNING, "estDiffere", e);
+            return false;
+        }
     }
 
     private TPreenregistrementCompteClient findPreenregistrementCompteClient(String id) {

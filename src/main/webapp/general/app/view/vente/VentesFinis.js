@@ -305,8 +305,13 @@ Ext.define('testextjs.view.vente.VentesFinis', {
                             menuDisabled: true,
                             header: 'Type.Vente',
                             dataIndex: 'strTYPEVENTE',
+                            itemId: 'colTypeVente',
                             align: 'center',
-                            flex: 0.4
+                            flex: 0.4,
+                            /* demande du 28/10 (point 10) : Comptant / Assurance au lieu de VNO / VO */
+                            renderer: function (v) {
+                                return window.PrestigeLibelleVente ? PrestigeLibelleVente.renderer(v) : Ext.String.htmlEncode(v || '');
+                            }
                         }
                         , {
                             sortable: false,

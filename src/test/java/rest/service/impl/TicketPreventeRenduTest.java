@@ -32,6 +32,8 @@ class TicketPreventeRenduTest {
 
     private static final int LARGEUR = 230;
     private static final int HAUTEUR = 520;
+    /** cote du QR imprime, en points (scaleImage = 2) */
+    private static final int COTE = ImpressionServiceImpl.coteQrPrevente(2);
 
     private static BufferedImage dessiner(TicketPrevente ticket, File qr) throws Exception {
         PageFormat format = new PageFormat();
@@ -119,14 +121,17 @@ class TicketPreventeRenduTest {
         // Le ticket commence a 85 points du haut (marge de la routine d'impression) : l'en-tete est entre 85 et 150.
         int hautDeTicket = pixelsSombres(page, 0, 80, LARGEUR, 150);
         assertTrue(hautDeTicket > 50, "l'en-tete de l'officine doit etre dessine, pixels sombres : " + hautDeTicket);
-        // Le QR est pose a x=55, cote 120 : on doit y trouver beaucoup de noir, et du blanc aussi (les modules).
+        // Le QR est centre sur le rouleau, cote COTE : on doit y trouver beaucoup de noir, et du blanc aussi (les
+        // modules). Seuils proportionnels a la surface du carre (2500 et 12000 pour l'ancien cote de 120).
+        int gauche = (204 - COTE) / 2;
         int meilleur = 0;
-        for (int y = 150; y < HAUTEUR - 120; y += 4) {
-            meilleur = Math.max(meilleur, pixelsSombres(page, 55, y, 175, y + 120));
+        for (int y = 150; y < HAUTEUR - COTE; y += 4) {
+            meilleur = Math.max(meilleur, pixelsSombres(page, gauche, y, gauche + COTE, y + COTE));
         }
-        assertTrue(meilleur > 2500, "un carre 120x120 avec un QR code doit contenir bien plus de 2500 pixels sombres,"
-                + " au mieux trouve : " + meilleur + " (image : " + sortie + ")");
-        assertTrue(meilleur < 12000, "et ne doit pas etre un pave noir : " + meilleur);
+        assertTrue(meilleur > 2500 * COTE * COTE / 14400,
+                "un carre " + COTE + "x" + COTE + " avec un QR code doit contenir"
+                        + " beaucoup de pixels sombres, au mieux trouve : " + meilleur + " (image : " + sortie + ")");
+        assertTrue(meilleur < 12000 * COTE * COTE / 14400, "et ne doit pas etre un pave noir : " + meilleur);
     }
 
     /**
@@ -151,13 +156,60 @@ class TicketPreventeRenduTest {
         File sortie = new File(System.getProperty("java.io.tmpdir"), "ticket-prevente-rouleau-80.png");
         ImageIO.write(page, "png", sortie);
         int meilleur = 0;
-        for (int x = 0; x + 120 <= rouleau; x += 2) {
-            for (int y = 0; y + 120 < HAUTEUR; y += 4) {
-                meilleur = Math.max(meilleur, pixelsSombres(page, x, y, x + 120, y + 120));
+        for (int x = 0; x + COTE <= rouleau; x += 2) {
+            for (int y = 0; y + COTE < HAUTEUR; y += 4) {
+                meilleur = Math.max(meilleur, pixelsSombres(page, x, y, x + COTE, y + COTE));
             }
         }
-        assertTrue(meilleur > 2500, "le QR code entier doit etre dans la largeur du rouleau (204 points), au mieux : "
-                + meilleur + " pixels sombres (image : " + sortie + ")");
+        assertTrue(meilleur > 2500 * COTE * COTE / 14400,
+                "le QR code entier doit etre dans la largeur du rouleau (204 points), au mieux : " + meilleur
+                        + " pixels sombres (image : " + sortie + ")");
+    }
+
+    /**
+     * Demande du 28/10 (point 5) : QR plus petit. On mesure le QR reellement dessine : largeur des pixels sombres sur
+     * ses dernieres lignes (il est le dernier element du ticket). Au plus 30 mm (85 points), au moins 20 mm (57 points)
+     * pour rester lisible. Avant : environ 42 mm.
+     */
+    @Test
+    @DisplayName("Ticket de prevente : QR code de 20 a 30 mm de cote")
+    void qrReduit() throws Exception {
+        File qr = File.createTempFile("qr-prevente", ".png");
+        qr.deleteOnExit();
+        QrCodeImage.ecrire("4cc645b0-6309-427d-83f0-1633b08ea17e", qr);
+        TicketPrevente ticket = new TicketPrevente("1", "260902_00005", "02/09/2026 07:01", "S.ADMIN", 2_640, 0, 0,
+                null);
+        BufferedImage page = dessiner(ticket, qr);
+        File sortie = new File(System.getProperty("java.io.tmpdir"), "ticket-prevente-qr-reduit.png");
+        ImageIO.write(page, "png", sortie);
+        int bas = -1;
+        for (int y = page.getHeight() - 1; y >= 0 && bas < 0; y--) {
+            if (pixelsSombres(page, 0, y, page.getWidth(), y + 1) > 0) {
+                bas = y;
+            }
+        }
+        int gauche = Integer.MAX_VALUE, droite = -1, haut = bas;
+        for (int y = bas; y >= 0 && bas - y < 200; y--) {
+            int g = Integer.MAX_VALUE, d = -1;
+            for (int x = 0; x < page.getWidth(); x++) {
+                if (pixelsSombres(page, x, y, x + 1, y + 1) > 0) {
+                    g = Math.min(g, x);
+                    d = Math.max(d, x);
+                }
+            }
+            if (d < 0 && bas - y > 4) {
+                break; // ligne blanche au-dessus du QR : fin du QR
+            }
+            if (d >= 0) {
+                gauche = Math.min(gauche, g);
+                droite = Math.max(droite, d);
+                haut = y;
+            }
+        }
+        int largeur = droite - gauche + 1, hauteur = bas - haut + 1;
+        double mm = Math.max(largeur, hauteur) / 72.0 * 25.4;
+        assertTrue(mm <= 30 && mm >= 20, "QR de " + largeur + " x " + hauteur + " points, soit " + Math.round(mm)
+                + " mm : attendu entre 20 et 30 mm (image : " + sortie + ")");
     }
 
     @Test

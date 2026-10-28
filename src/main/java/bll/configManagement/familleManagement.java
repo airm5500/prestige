@@ -247,8 +247,8 @@ public class familleManagement extends bllBase implements Famillemanagerinterfac
             }
 
             OTFamille.setStrCODETAUXREMBOURSEMENT(str_CODE_TAUX_REMBOURSEMENT);
-            OTFamille.setStrDESCRIPTION(str_DESCRIPTION.toUpperCase());
-            OTFamille.setStrNAME(str_NAME.toUpperCase());
+            OTFamille.setStrDESCRIPTION(util.NomSaisi.normaliser(str_DESCRIPTION).toUpperCase()); // point 20 du 28/10
+            OTFamille.setStrNAME(util.NomSaisi.normaliser(str_NAME).toUpperCase());
             OTFamille.setIntSTOCKREAPROVISONEMENT(int_STOCK_REAPROVISONEMENT);
             OTFamille.setIntSEUILMIN(OTFamille.getIntSTOCKREAPROVISONEMENT());
             OTFamille.setIntQTEREAPPROVISIONNEMENT(int_QTE_REAPPROVISIONNEMENT);
@@ -427,8 +427,8 @@ public class familleManagement extends bllBase implements Famillemanagerinterfac
 
             OTFamille = new TFamille();
             OTFamille.setLgFAMILLEID(this.getKey().getComplexId());
-            OTFamille.setStrNAME(str_NAME);
-            OTFamille.setStrDESCRIPTION(str_DESCRIPTION);
+            OTFamille.setStrNAME(util.NomSaisi.normaliser(str_NAME)); // point 20 du 28/10
+            OTFamille.setStrDESCRIPTION(util.NomSaisi.normaliser(str_DESCRIPTION));
             OTFamille.setIntPRICE(int_PRICE);
             OTFamille.setIntCIP(int_CIP);
             OTFamille.setIntEAN13(int_EAN13);
@@ -2850,7 +2850,7 @@ public class familleManagement extends bllBase implements Famillemanagerinterfac
             if (OParameters != null) {
                 int_TAUX = Integer.parseInt(OParameters.getStrVALUE());
             }
-            OTFamille.setStrDESCRIPTION(str_DESCRIPTION);
+            OTFamille.setStrDESCRIPTION(util.NomSaisi.normaliser(str_DESCRIPTION));
             // OTFamille.setIntPRICE((!int_T.equalsIgnoreCase("") ? int_PRICE + int_TAUX : int_PRICE));
 
             if (!int_T.equalsIgnoreCase("")) {
@@ -4017,8 +4017,8 @@ public class familleManagement extends bllBase implements Famillemanagerinterfac
             OTFamille.setIntTAUXMARQUE(int_TAUX_MARQUE);
             OTFamille.setStrCODEREMISE(str_CODE_REMISE);
             OTFamille.setStrCODETAUXREMBOURSEMENT(str_CODE_TAUX_REMBOURSEMENT);
-            OTFamille.setStrDESCRIPTION(str_DESCRIPTION.toUpperCase());
-            OTFamille.setStrNAME(str_NAME.toUpperCase());
+            OTFamille.setStrDESCRIPTION(util.NomSaisi.normaliser(str_DESCRIPTION).toUpperCase()); // point 20 du 28/10
+            OTFamille.setStrNAME(util.NomSaisi.normaliser(str_NAME).toUpperCase());
             OTFamille.setIntNUMBERDETAIL(int_QTEDETAIL);
             OTFamille.setIntSTOCKREAPROVISONEMENT(int_STOCK_REAPROVISONEMENT);
             OTFamille.setIntSEUILMIN(OTFamille.getIntSTOCKREAPROVISONEMENT());
@@ -6634,8 +6634,8 @@ public class familleManagement extends bllBase implements Famillemanagerinterfac
             }
 
             OTFamille.setStrCODETAUXREMBOURSEMENT(str_CODE_TAUX_REMBOURSEMENT);
-            OTFamille.setStrDESCRIPTION(str_DESCRIPTION.toUpperCase());
-            OTFamille.setStrNAME(str_NAME.toUpperCase());
+            OTFamille.setStrDESCRIPTION(util.NomSaisi.normaliser(str_DESCRIPTION).toUpperCase()); // point 20 du 28/10
+            OTFamille.setStrNAME(util.NomSaisi.normaliser(str_NAME).toUpperCase());
             OTFamille.setIntSTOCKREAPROVISONEMENT(int_STOCK_REAPROVISONEMENT);
             OTFamille.setIntSEUILMIN(OTFamille.getIntSTOCKREAPROVISONEMENT());
             OTFamille.setIntQTEREAPPROVISIONNEMENT(int_QTE_REAPPROVISIONNEMENT);

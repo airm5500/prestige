@@ -834,6 +834,20 @@ Ext.define('testextjs.controller.GestionCarnetDepotCtr', {
             }
         });
     },
+    /* demande du 28/10 (point 19) : saisie du reglement d'un carnet depot ; rend {champ, msg} ou null */
+    controlerReglementDepot: function (form) {
+        const montant = form.down('#montantPaye'), motif = form.down('[name=motif]');
+        const valeur = String(montant ? montant.getValue() : '').replace(/\s/g, '').replace(',', '.');
+        if (valeur === '' || isNaN(Number(valeur)) || Number(valeur) <= 0) {
+            return {champ: montant, msg: Number(valeur) < 0 ? 'Le montant saisi est négatif : saisissez un montant positif.'
+                        : 'Saisissez un montant de règlement supérieur à zéro.'};
+        }
+        /* motif exige seulement si l'officine a des motifs configures (liste non vide) */
+        if (motif && motif.getStore().getCount() > 0 && Ext.isEmpty(motif.getValue())) {
+            return {champ: motif, msg: 'Veuillez renseigner le motif du règlement.'};
+        }
+        return null;
+    },
     reglementForm: function () {
         let me = this;
         let tiersPayantId = me.getTiersPayantsExclus().getValue();
@@ -876,6 +890,18 @@ Ext.define('testextjs.controller.GestionCarnetDepotCtr', {
                                         text: 'Enregistrer',
                                         handler: function (btn) {
                                             const _this = btn.up('window'), _form = _this.down('form');
+                                            /* demande du 28/10 (point 19) : montant negatif ou nul, motif absent -> alerte */
+                                            const alerte = me.controlerReglementDepot(_form);
+                                            if (alerte) {
+                                                Ext.MessageBox.show({title: 'Règlement du carnet', width: 400, msg: alerte.msg,
+                                                    buttons: Ext.MessageBox.OK, icon: Ext.MessageBox.WARNING,
+                                                    fn: function () {
+                                                        if (alerte.champ) {
+                                                            alerte.champ.focus(true, 50);
+                                                        }
+                                                    }});
+                                                return;
+                                            }
                                             if (_form.isValid()) {
                                                 const progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
                                                 Ext.Ajax.request({

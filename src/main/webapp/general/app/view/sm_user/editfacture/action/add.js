@@ -38,6 +38,19 @@ function amountformat(val) {
  * ne doit dependre d'aucune portee (un bouton declare sans "scope" recevrait le bouton comme
  * "this" et l'appel echouerait).
  */
+/*
+ * Demande du 28/10 (point 11) : « Créer » ouvre la generation de facture dans une fenetre au-dessus de la liste. Le
+ * retour ferme la fenetre (la liste se recharge a sa fermeture) ; ouvert autrement (sans fenetre), retour historique.
+ */
+function retourListeFactures(titre) {
+    var vue = Ext.getCmp('addeditfactureID'), fenetre = vue ? vue.up('window') : null;
+    if (fenetre) {
+        fenetre.close();
+        return;
+    }
+    testextjs.app.getController('App').onLoadNewComponent('facturemanager', titre, '');
+}
+
 function verifierSelectionDossiersAvantGeneration(grille, caseToutSelectionner) {
     if (caseToutSelectionner && caseToutSelectionner.getValue()) {
         return true;
@@ -1280,7 +1293,7 @@ Ext.define('testextjs.view.sm_user.editfacture.action.add', {
     onbtncancel: function () {
 
         var xtype = "facturemanager";
-        testextjs.app.getController('App').onLoadNewComponent(xtype, "", "");
+        retourListeFactures("");
     },
     onbtnadd: function () {
         var activeIndex = Ext.getCmp('detailfacturevente').getLayout().getActiveItem().id;
@@ -1389,12 +1402,12 @@ Ext.define('testextjs.view.sm_user.editfacture.action.add', {
                                     Me.lunchPrinter(url);
                                     var xtype = "facturemanager";
                                     var alias = 'widget.' + xtype;
-                                    testextjs.app.getController('App').onLoadNewComponent(xtype, "Gestion Facturation", "");
+                                    retourListeFactures("Gestion Facturation");
                                 } else {
 
                                     var xtype = "facturemanager";
                                     var alias = 'widget.' + xtype;
-                                    testextjs.app.getController('App').onLoadNewComponent(xtype, "Gestion Facturation", "");
+                                    retourListeFactures("Gestion Facturation");
                                 }
 
 
@@ -1476,12 +1489,12 @@ Ext.define('testextjs.view.sm_user.editfacture.action.add', {
                                     Me.lunchPrinter(url);
                                     var xtype = "facturemanager";
                                     var alias = 'widget.' + xtype;
-                                    testextjs.app.getController('App').onLoadNewComponent(xtype, "Gestion Facturation", "");
+                                    retourListeFactures("Gestion Facturation");
                                 } else {
 
                                     var xtype = "facturemanager";
                                     var alias = 'widget.' + xtype;
-                                    testextjs.app.getController('App').onLoadNewComponent(xtype, "Gestion Facturation", "");
+                                    retourListeFactures("Gestion Facturation");
                                 }
 
 
@@ -1639,12 +1652,12 @@ Ext.define('testextjs.view.sm_user.editfacture.action.add', {
                                         Me.lunchPrinter(url);
                                         var xtype = "facturemanager";
                                         var alias = 'widget.' + xtype;
-                                        testextjs.app.getController('App').onLoadNewComponent(xtype, "Gestion Facturation", "");
+                                        retourListeFactures("Gestion Facturation");
                                     } else {
 
                                         var xtype = "facturemanager";
                                         var alias = 'widget.' + xtype;
-                                        testextjs.app.getController('App').onLoadNewComponent(xtype, "Gestion Facturation", "");
+                                        retourListeFactures("Gestion Facturation");
                                     }
 
 
@@ -1692,13 +1705,13 @@ Ext.define('testextjs.view.sm_user.editfacture.action.add', {
                                         Me.lunchPrinter(url);
                                         var xtype = "facturemanager";
                                         var alias = 'widget.' + xtype;
-                                        testextjs.app.getController('App').onLoadNewComponent(xtype, "Gestion Facturation", "");
+                                        retourListeFactures("Gestion Facturation");
 
                                     } else {
 
                                         var xtype = "facturemanager";
                                         var alias = 'widget.' + xtype;
-                                        testextjs.app.getController('App').onLoadNewComponent(xtype, "Gestion Facturation", "");
+                                        retourListeFactures("Gestion Facturation");
                                     }
                                 });
 

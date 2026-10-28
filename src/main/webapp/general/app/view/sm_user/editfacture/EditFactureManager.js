@@ -1106,10 +1106,41 @@ Ext.define('testextjs.view.sm_user.editfacture.EditFactureManager', {
 
     },
     onAddCreate: function () {
-
-        testextjs.app.getController('App').onLoadNewComponent('addeditfacture', "Cr&eacute;er une facture", "0");
-
-
+        /* demande du 28/10 (point 11) : la generation de facture s'ouvre dans une fenetre modale au-dessus de la liste,
+           comme le reglement ; la liste est rechargee a la fermeture */
+        var moi = this;
+        var dejaOuvert = Ext.getCmp('addeditfactureID');
+        if (dejaOuvert) {
+            if (dejaOuvert.up('window')) {
+                dejaOuvert.up('window').destroy();
+            } else {
+                dejaOuvert.destroy();
+            }
+        }
+        Ext.create('Ext.window.Window', {
+            title: 'Cr&eacute;er une facture',
+            itemId: 'fenetreCreerFacture',
+            modal: true,
+            width: '95%',
+            height: Math.max(500, Ext.getBody().getViewSize().height - 60),
+            maximizable: true,
+            autoScroll: true,
+            layout: 'fit',
+            items: [{
+                    xtype: 'addeditfacture',
+                    // la fenetre porte deja le titre
+                    header: false,
+                    nameintern: '0',
+                    titre: 'Cr&eacute;er une facture'
+                }],
+            listeners: {
+                close: function () {
+                    if (!moi.destroyed && moi.onRechClick) {
+                        moi.onRechClick();
+                    }
+                }
+            }
+        }).show();
     },
     onPaidFactureClick: function (grid, rowIndex) {
         var rec = grid.getStore().getAt(rowIndex);

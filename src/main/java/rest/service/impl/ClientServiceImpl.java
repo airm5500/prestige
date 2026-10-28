@@ -401,11 +401,19 @@ public class ClientServiceImpl implements ClientService {
                         cb.or(cb.isNull(root.get(TTiersPayant_.isDepot)), cb.isFalse(root.get(TTiersPayant_.isDepot))));
             }
 
-            if (query != null && !query.equals("")) {
-                query = query + "%";
-                predicates.add(cb.or(cb.like(root.get(TTiersPayant_.strCODEORGANISME), query),
-                        cb.like(root.get(TTiersPayant_.strNAME), query),
-                        cb.like(root.get(TTiersPayant_.strFULLNAME), query)));
+            if (query != null && !query.trim().isEmpty()) {
+                /*
+                 * Demande du 28/10 (point 14) : recherche par « contient » (avant : « commence par »). Les noms qui
+                 * commencent par la saisie restent en tete de liste.
+                 */
+                // « % » et « _ » saisis sont cherches tels quels (caractere d'echappement : « ! »)
+                String saisie = query.trim().replace("!", "!!").replace("%", "!%").replace("_", "!_");
+                String contient = "%" + saisie + "%";
+                predicates.add(cb.or(cb.like(root.get(TTiersPayant_.strCODEORGANISME), contient, '!'),
+                        cb.like(root.get(TTiersPayant_.strNAME), contient, '!'),
+                        cb.like(root.get(TTiersPayant_.strFULLNAME), contient, '!')));
+                cq.orderBy(cb.asc(cb.selectCase().when(cb.like(root.get(TTiersPayant_.strNAME), saisie + "%", '!'), 0)
+                        .otherwise(1)), cb.asc(root.get(TTiersPayant_.strNAME)));
             }
             cq.where(cb.and(predicates.toArray(Predicate[]::new)));
             Query q = emg.createQuery(cq);
@@ -441,7 +449,8 @@ public class ClientServiceImpl implements ClientService {
         if (valeur == null) {
             return null;
         }
-        return valeur.trim().toUpperCase();
+        // demande du 28/10 (point 20) : les espaces consecutifs internes sont maintenant reduits a un seul
+        return util.NomSaisi.normaliser(valeur).toUpperCase();
     }
 
     /**
@@ -1217,6 +1226,10 @@ public class ClientServiceImpl implements ClientService {
         JSONObject json = new JSONObject();
 
         try {
+            String tauxInvalide = controleTauxTiersPayants(client);
+            if (tauxInvalide != null) {
+                return json.put("success", false).put("msg", tauxInvalide);
+            }
             // Espaces de fin retires cote serveur, avant tout controle : sans cela « KONAN »
             // et « KONAN » restaient deux clients distincts pour le controle d'unicite.
             normaliserIdentite(client);
@@ -1286,6 +1299,26 @@ public class ClientServiceImpl implements ClientService {
             return json;
 
         }
+    }
+
+    /**
+     * Demande du 28/10 (point 9) : le pourcentage d'un tiers payant (principal ou complementaire) est compris entre 0
+     * et 100 %. Rend le message a afficher, ou null si tout est correct. Un pourcentage absent n'est pas controle ici.
+     */
+    static String controleTauxTiersPayants(ClientDTO client) {
+        Integer principal = client.getIntPOURCENTAGE();
+        if (principal != null && (principal > 100 || principal < 0)) {
+            return "Le pourcentage du tiers payant principal (" + principal + " %) ne peut pas dépasser 100 %.";
+        }
+        if (client.getTiersPayants() != null) {
+            for (TiersPayantParams t : client.getTiersPayants()) {
+                if (t != null && (t.getTaux() > 100 || t.getTaux() < 0)) {
+                    return "Le pourcentage du tiers payant " + StringUtils.defaultString(t.getTpFullName()) + " ("
+                            + t.getTaux() + " %) ne peut pas dépasser 100 %.";
+                }
+            }
+        }
+        return null;
     }
 
     @Override

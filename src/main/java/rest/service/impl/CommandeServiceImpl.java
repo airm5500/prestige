@@ -250,10 +250,14 @@ public class CommandeServiceImpl implements CommandeService {
                 boolean isTableau = StringUtils.isNotEmpty(oFamille.getIntT())
                         || (diff == FunctionUtils.VALEUR_TABLEAU);
 
+                /* demande du 28/10 (point 22) : quantite reellement entree et stock qui en resulte */
+                int quantiteEntree;
+                int stockApres;
                 if (lots.isEmpty()) {
                     createTLot(bn, user, oFamille, bn.getIntQTECMDE(), bonLivraison.getStrREFLIVRAISON(), grossiste,
                             order.getStrREFORDER(), 0);
-                    addToStock(bn.getIntPRIXVENTE(), bn.getIntPAF(), bn.getLgBONLIVRAISONDETAIL(), user,
+                    quantiteEntree = Objects.requireNonNullElse(bn.getIntQTECMDE(), 0);
+                    stockApres = addToStock(bn.getIntPRIXVENTE(), bn.getIntPAF(), bn.getLgBONLIVRAISONDETAIL(), user,
                             bn.getIntQTECMDE(), 0, oFamille);
                     bn.setIntQTERECUE(bn.getIntQTECMDE());
                     bn.setIntQTEMANQUANT(0);
@@ -280,8 +284,9 @@ public class CommandeServiceImpl implements CommandeService {
                     }
                     cmde = (cmde > (bn.getIntQTECMDE() + bn.getIntQTEUG()) ? (bn.getIntQTECMDE() + bn.getIntQTEUG())
                             : cmde);
-                    addToStock(bn.getIntPRIXVENTE(), bn.getIntPAF(), bn.getLgBONLIVRAISONDETAIL(), user, cmde, qu,
-                            oFamille);
+                    quantiteEntree = cmde;
+                    stockApres = addToStock(bn.getIntPRIXVENTE(), bn.getIntPAF(), bn.getLgBONLIVRAISONDETAIL(), user,
+                            cmde, qu, oFamille);
 
                     if (qu > 0) {
 
@@ -348,7 +353,15 @@ public class CommandeServiceImpl implements CommandeService {
                     this.getEm().merge(familleGrossiste);
                 }
 
-                avoirs.stream().filter(e -> e.getLgFAMILLEID().equals(oFamille)).forEach(s -> avoirs0.add(s));
+                /*
+                 * Demande du 28/10 (point 22) : le client n'est prevenu de son avoir que si le produit est vraiment
+                 * arrive : rien n'est annonce pour un produit facture non livre (aucune quantite entree, ou retour «
+                 * facturé non livré » sur ce bon) ni pour un produit dont le stock reste a zero.
+                 */
+                if (AvoirNotifiable.produitDisponible(quantiteEntree, stockApres,
+                        retourFactureNonLivre(bonLivraison, oFamille))) {
+                    avoirs.stream().filter(e -> e.getLgFAMILLEID().equals(oFamille)).forEach(s -> avoirs0.add(s));
+                }
 
             }
 
@@ -504,7 +517,26 @@ public class CommandeServiceImpl implements CommandeService {
         }
     }
 
-    private void addToStock(Integer prixU, Integer prixA, String key, TUser u, int qty, int ug, TFamille oFamille) {
+    /** Retour fournisseur au motif « facturé non livré » (code FNL) pour ce produit sur ce bon (point 22 du 28/10). */
+    private boolean retourFactureNonLivre(TBonLivraison bon, TFamille produit) {
+        try {
+            Long n = getEm()
+                    .createQuery(
+                            "SELECT COUNT(d) FROM TRetourFournisseurDetail d"
+                                    + " WHERE d.lgRETOURFRSID.lgBONLIVRAISONID.lgBONLIVRAISONID = ?1"
+                                    + " AND d.lgFAMILLEID.lgFAMILLEID = ?2 AND d.lgMOTIFRETOUR.strCODE = 'FNL'",
+                            Long.class)
+                    .setParameter(1, bon.getLgBONLIVRAISONID()).setParameter(2, produit.getLgFAMILLEID())
+                    .getSingleResult();
+            return n != null && n > 0;
+        } catch (RuntimeException e) {
+            LOG.log(Level.WARNING, "retourFactureNonLivre", e);
+            return false;
+        }
+    }
+
+    /** Ajoute au stock ; rend le stock du produit apres l'entree (point 22 du 28/10). */
+    private int addToStock(Integer prixU, Integer prixA, String key, TUser u, int qty, int ug, TFamille oFamille) {
         int initStock = mvtProduitService.updateStockReturnInitStock(oFamille, u.getLgEMPLACEMENTID(), qty, ug);
         int finalQty = initStock + qty;
         if (finalQty > 0) {
@@ -514,7 +546,7 @@ public class CommandeServiceImpl implements CommandeService {
 
         mouvementProduitService.saveMvtProduit(prixU, prixA, key, DateConverter.ENTREE_EN_STOCK, oFamille, u,
                 u.getLgEMPLACEMENTID(), qty, initStock, finalQty, 0);
-
+        return finalQty;
     }
 
     private TEtiquette createEtiquette(TBonLivraisonDetail bn, TUser u, TTypeetiquette oTypeetiquette,

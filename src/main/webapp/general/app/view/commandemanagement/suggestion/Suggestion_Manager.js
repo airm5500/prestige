@@ -257,7 +257,12 @@ Ext.define('testextjs.view.commandemanagement.suggestion.Suggestion_Manager', {
                     }
                 },
                 {
+                    /* demande du 28/10 : le bouton « Commander » de la ligne est cache par defaut ; il reste
+                       affichable par le menu des colonnes */
                     xtype: 'actioncolumn',
+                    itemId: 'colCommanderLigne',
+                    text: 'Commander',
+                    hidden: true,
                     width: 30,
                     sortable: false,
                     menuDisabled: true,

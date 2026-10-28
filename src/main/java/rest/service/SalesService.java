@@ -167,6 +167,9 @@ public interface SalesService {
 
     JSONObject closePreventeVente(TUser ooTUser, String id);
 
+    /** Demande du 28/10 (point 8) : numero de bon libre pour ce tiers payant (AAMMJJ + 4 chiffres). */
+    String genererNumeroBon(String tiersPayantId);
+
     JSONObject clonerDevis(TUser ooTUser, String devisId) throws JSONException;
 
     void updateVenteDate(UpdateVenteParamDTO param);

@@ -125,6 +125,7 @@ import static util.Constant.*;
 import util.DateCommonUtils;
 import util.NotificationUtils;
 import util.NumberUtils;
+import util.VenteSansChangement;
 
 /**
  * @author Kobena
@@ -417,6 +418,9 @@ public class SalesServiceImpl implements SalesService {
 
         }
         String refus = refusAnnulation(preenregistrement);
+        if (refus == null && differeDejaRegle(preenregistrement)) {
+            refus = MSG_DIFFERE_REGLE_ANNULATION;
+        }
         if (refus != null) {
             json = new JSONObject();
             json.put("success", false);
@@ -427,6 +431,38 @@ public class SalesServiceImpl implements SalesService {
 
         return annulerVente(ooTUser, preenregistrement);
 
+    }
+
+    static final String MSG_DIFFERE_REGLE_ANNULATION = "Ce différé a déjà reçu un règlement (partiel ou total) :"
+            + " il ne peut plus être annulé.";
+    static final String MSG_DIFFERE_REGLE_MODIFICATION = "Ce différé a déjà reçu un règlement (partiel ou total) :"
+            + " il ne peut plus être modifié.";
+
+    /**
+     * Demande du 28/10 (point 18) : un differe qui a recu un reglement (partiel ou total, par « Faire un règlement »)
+     * ne s'annule plus et ne se modifie plus. Le reglement est lu sur la ligne de dette de la vente et sur celles des
+     * ventes dont elle est la copie (un reglement reste attache a la ligne de la vente d'origine). Ce qui a ete paye en
+     * especes au moment de la vente n'est pas un reglement de differe : il ne bloque rien.
+     */
+    boolean differeDejaRegle(TPreenregistrement vente) {
+        try {
+            List<String> ventes = new ArrayList<>();
+            TPreenregistrement v = vente;
+            while (v != null && ventes.size() < 20 && !ventes.contains(v.getLgPREENREGISTREMENTID())) {
+                ventes.add(v.getLgPREENREGISTREMENTID());
+                v = StringUtils.isBlank(v.getLgPARENTID()) ? null
+                        : getEm().find(TPreenregistrement.class, v.getLgPARENTID());
+            }
+            Long n = getEm().createQuery("SELECT COUNT(d) FROM TDossierReglementDetail d WHERE d.strREF IN"
+                    + " (SELECT c.lgPREENREGISTREMENTCOMPTECLIENTID FROM TPreenregistrementCompteClient c"
+                    + " WHERE c.lgPREENREGISTREMENTID.lgPREENREGISTREMENTID IN :ventes)"
+                    + " AND d.dblAMOUNT > 0 AND (d.strSTATUT IS NULL OR d.strSTATUT NOT IN ('delete', 'disable'))",
+                    Long.class).setParameter("ventes", ventes).getSingleResult();
+            return n != null && n > 0;
+        } catch (RuntimeException e) {
+            LOG.log(Level.WARNING, "differeDejaRegle", e);
+            return false;
+        }
     }
 
     /** Motif du refus d'annuler cette vente en l'etat (null : annulable). */
@@ -2616,6 +2652,9 @@ public class SalesServiceImpl implements SalesService {
                     json.put("msg", "Désolé la vente a été facturée");
                     return json;
                 }
+                if (venteSansChangement(tp, venteAsupprimer, clotureVenteParams)) {
+                    return refusSansChangement(json);
+                }
             }
             tp.setChecked(Boolean.TRUE);
             TModeReglement modeReglement = findModeReglement(clotureVenteParams.getTypeRegleId());
@@ -2852,6 +2891,93 @@ public class SalesServiceImpl implements SalesService {
         reglements.forEach(v -> this.venteReglementService.createCopyVenteReglement(copy, v));
     }
 
+    /** Code rendu a l'ecran quand une vente modifiee est validee sans aucun changement (demande du 28/10, point 7). */
+    static final String CODE_SANS_CHANGEMENT = "SANS_CHANGEMENT";
+
+    private static JSONObject refusSansChangement(JSONObject json) {
+        return json.put("success", false).put("codeError", CODE_SANS_CHANGEMENT).put("msg",
+                "Aucun changement détecté, retour à la liste des ventes");
+    }
+
+    /**
+     * Demande du 28/10 (point 7) : la copie d'une vente terminee est-elle identique a sa vente d'origine ? Compare ce
+     * que la validation enregistrerait (lignes de la copie, choix envoyes par l'ecran) a la vente d'origine. En cas
+     * d'erreur de lecture, la vente est consideree comme modifiee : la validation suit son cours habituel.
+     */
+    boolean venteSansChangement(TPreenregistrement copie, TPreenregistrement origine, ClotureVenteParams params) {
+        try {
+            if (copie == null || origine == null || !Boolean.TRUE.equals(copie.getCopy())) {
+                return false;
+            }
+            VenteSansChangement.Etat avant = etatVente(origine);
+            for (VenteReglement r : getEm()
+                    .createQuery("SELECT o FROM VenteReglement o WHERE o.preenregistrement.lgPREENREGISTREMENTID = ?1",
+                            VenteReglement.class)
+                    .setParameter(1, origine.getLgPREENREGISTREMENTID()).getResultList()) {
+                avant.reglement(r.getTypeReglement() == null ? null : r.getTypeReglement().getLgTYPEREGLEMENTID(),
+                        r.getMontant());
+            }
+            for (TPreenregistrementCompteClientTiersPayent t : getEm().createQuery(
+                    "SELECT o FROM TPreenregistrementCompteClientTiersPayent o WHERE o.lgPREENREGISTREMENTID.lgPREENREGISTREMENTID = ?1",
+                    TPreenregistrementCompteClientTiersPayent.class).setParameter(1, origine.getLgPREENREGISTREMENTID())
+                    .getResultList()) {
+                avant.tiersPayant(
+                        t.getLgCOMPTECLIENTTIERSPAYANTID() == null ? null
+                                : t.getLgCOMPTECLIENTTIERSPAYANTID().getLgCOMPTECLIENTTIERSPAYANTID(),
+                        t.getIntPERCENT(), params.isSansBon() ? null : t.getStrREFBON());
+            }
+            avant.differe = findOptionalCmt(origine)
+                    .filter(c -> valeur(c.getIntPRICE()) > 0 && !STATUT_DELETE.equals(c.getStrSTATUT())).isPresent();
+            avant.payeVente = avant.reglements.values().stream().mapToInt(Integer::intValue).sum();
+            VenteSansChangement.Etat apres = etatVente(copie);
+            apres.differe = REGL_DIFF.equals(StringUtils.trim(params.getTypeRegleId()));
+            apres.payeVente = params.getMontantPaye() == null ? 0 : params.getMontantPaye();
+            if (StringUtils.isNotBlank(params.getTypeVenteId())) {
+                apres.typeVente = params.getTypeVenteId();
+            }
+            if (StringUtils.isNotBlank(params.getClientId())) {
+                apres.client = params.getClientId();
+            }
+            if (StringUtils.isNotBlank(params.getAyantDroitId())) {
+                apres.ayantDroit = params.getAyantDroitId();
+            }
+            if (StringUtils.isNotBlank(params.getUserVendeurId())) {
+                apres.vendeur = params.getUserVendeurId();
+            }
+            if (CollectionUtils.isNotEmpty(params.getReglements())) {
+                params.getReglements().forEach(r -> apres.reglement(r.getTypeReglement(), r.getMontant()));
+            } else {
+                apres.reglement(params.getTypeRegleId(), null);
+            }
+            if (params.getTierspayants() != null) {
+                params.getTierspayants().forEach(t -> apres.tiersPayant(t.getCompteTp(), t.getTaux(),
+                        params.isSansBon() ? null : t.getNumBon()));
+            }
+            return VenteSansChangement.identiques(avant, apres);
+        } catch (RuntimeException e) {
+            LOG.log(Level.WARNING, "venteSansChangement", e);
+            return false;
+        }
+    }
+
+    private VenteSansChangement.Etat etatVente(TPreenregistrement v) {
+        VenteSansChangement.Etat e = new VenteSansChangement.Etat();
+        for (TPreenregistrementDetail d : getItems(v)) {
+            TFamille f = d.getLgFAMILLEID();
+            e.lignes.add(new util.ComparaisonLignesVente.Ligne(f == null ? null : f.getLgFAMILLEID(), "", "",
+                    d.getIntQUANTITY() == null ? 0 : d.getIntQUANTITY(),
+                    d.getIntPRICEUNITAIR() == null ? 0 : d.getIntPRICEUNITAIR(),
+                    d.getIntPRICE() == null ? 0 : d.getIntPRICE()));
+        }
+        e.typeVente = v.getLgTYPEVENTEID() == null ? null : v.getLgTYPEVENTEID().getLgTYPEVENTEID();
+        e.client = v.getClient() == null ? null : v.getClient().getLgCLIENTID();
+        e.ayantDroit = v.getAyantDroit() == null ? null : v.getAyantDroit().getLgAYANTSDROITSID();
+        e.medecin = v.getMedecin() == null ? null : v.getMedecin().getId();
+        e.remise = Objects.toString(v.getLgREMISEID(), "") + "|" + Objects.toString(v.getIntPRICEREMISE(), "0");
+        e.vendeur = v.getLgUSERVENDEURID() == null ? null : v.getLgUSERVENDEURID().getLgUSERID();
+        return e;
+    }
+
     @Override
     public JSONObject updateVenteClotureComptant(ClotureVenteParams clotureVenteParams) {
         JSONObject json = new JSONObject();
@@ -2895,6 +3021,10 @@ public class SalesServiceImpl implements SalesService {
                 json.put("msg", "Désolé impossible de transformer une vente au comptant");
                 json.put("codeError", 0);
                 return json;
+            }
+            if (tp.getCopy() && venteSansChangement(tp, getEm().find(TPreenregistrement.class, tp.getLgPARENTID()),
+                    clotureVenteParams)) {
+                return refusSansChangement(json);
             }
             List<TPreenregistrementDetail> lstTPreenregistrementDetail = getItems(tp);
             if (CollectionUtils.isEmpty(lstTPreenregistrementDetail)) {
@@ -4325,6 +4455,10 @@ public class SalesServiceImpl implements SalesService {
         try {
             JSONObject data = new JSONObject();
             TPreenregistrement tp = getEm().find(TPreenregistrement.class, venteId);
+            if (tp != null && differeDejaRegle(tp)) {
+                return json.put("success", false).put("code", "DIFFERE_REGLE").put("msg",
+                        MSG_DIFFERE_REGLE_MODIFICATION);
+            }
             TPreenregistrement i = findByParent(venteId);
             if (i != null) {
                 data.put("lgPREENREGISTREMENTID", i.getLgPREENREGISTREMENTID());
@@ -5287,6 +5421,35 @@ public class SalesServiceImpl implements SalesService {
                 .montantAccount(montantAccount).margeUg(margeUg).montantNetUg(montantNetUg).montantTtcUg(montantTtcUg);
     }
 
+    /**
+     * Demande du 28/10 (point 8) : numero de bon genere, AAMMJJ suivi d'un compteur sur 4 chiffres, le premier qui
+     * n'est pas deja utilise par ce tiers payant sur une vente cloturee (meme regle que le controle de la cloture).
+     * Chiffres seulement : une douchette ne peut pas les deformer.
+     */
+    @Override
+    public String genererNumeroBon(String tiersPayantId) {
+        if (StringUtils.isBlank(tiersPayantId)) {
+            return null;
+        }
+        String jour = java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("yyMMdd"));
+        List<String> pris = getEm().createQuery(
+                "SELECT o.strREFBON FROM TPreenregistrementCompteClientTiersPayent o WHERE o.strREFBON LIKE ?1 AND o.lgCOMPTECLIENTTIERSPAYANTID.lgTIERSPAYANTID.lgTIERSPAYANTID = ?2",
+                String.class).setParameter(1, jour + "%").setParameter(2, tiersPayantId).getResultList();
+        int suivant = 1;
+        for (String n : pris) {
+            if (n != null && n.length() == jour.length() + 4 && n.substring(jour.length()).matches("\\d{4}")) {
+                suivant = Math.max(suivant, Integer.parseInt(n.substring(jour.length())) + 1);
+            }
+        }
+        for (; suivant <= 9999; suivant++) {
+            String numero = jour + StringUtils.leftPad(String.valueOf(suivant), 4, '0');
+            if (!boonDejaUtilise(numero, tiersPayantId)) {
+                return numero;
+            }
+        }
+        return null;
+    }
+
     @Override
     public JSONObject closePreventeVente(TUser ooTUser, String id) {
         TPreenregistrement p = getEm().find(TPreenregistrement.class, id);
@@ -5294,7 +5457,8 @@ public class SalesServiceImpl implements SalesService {
         p.setLgUSERID(ooTUser);
         p.setCompletionDate(new Date());
         getEm().merge(p);
-        return new JSONObject().put("success", true);
+        /* demande du 28/10 (point 4) : le numero est rendu pour la proposition d'impression du ticket */
+        return new JSONObject().put("success", true).put("ref", p.getStrREF());
     }
 
     /**

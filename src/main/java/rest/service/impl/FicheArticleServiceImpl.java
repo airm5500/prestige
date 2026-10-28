@@ -187,7 +187,7 @@ public class FicheArticleServiceImpl implements FicheArticleService {
                     joinLot.get(TFamille_.strNAME), root.get(TLot_.intNUMLOT), root.get(TLot_.dtPEREMPTION),
                     joinFaG.get(TGrossiste_.strLIBELLE), root.get(TLot_.intNUMBER),
                     cb.prod(root.get(TLot_.intNUMBER), joinLot.get(TFamille_.intPAF)),
-                    cb.prod(root.get(TLot_.intNUMBER), joinLot.get(TFamille_.intPRICE))))
+                    cb.prod(root.get(TLot_.intNUMBER), joinLot.get(TFamille_.intPRICE)), root.get(TLot_.currentStock)))
 
                     .orderBy(cb.asc(joinFaz.get(TZoneGeographique_.strLIBELLEE)), cb.asc(root.get(TLot_.dtPEREMPTION)));
 
@@ -224,8 +224,10 @@ public class FicheArticleServiceImpl implements FicheArticleService {
         return titre.toString();
     }
 
+    /* demande du 28/10 (point 6) : quantite saisie a l'entree du lot, puis stock restant du lot */
     private static final String[] PERIMES_HEADERS = { "Numéro lot", "Code CIP", "Libellé", "Famille", "Emplacement",
-            "Grossiste", "Quantité", "Valeur achat", "Valeur vente", "Date péremption", "Statut" };
+            "Grossiste", "Quantité saisie", "Quantité restante", "Valeur achat", "Valeur vente", "Date péremption",
+            "Statut" };
 
     private String nvl(String value) {
         return value == null ? "" : value;
@@ -240,6 +242,7 @@ public class FicheArticleServiceImpl implements FicheArticleService {
                 dto -> new String[] { nvl(dto.getNumLot()), nvl(dto.getCodeCip()), nvl(dto.getLibelle()),
                         nvl(dto.getLibelleFamille()), nvl(dto.getLibelleRayon()), nvl(dto.getLibelleGrossiste()),
                         String.valueOf(dto.getQuantiteLot() == null ? 0 : dto.getQuantiteLot()),
+                        String.valueOf(dto.getQuantiteRestante() == null ? 0 : dto.getQuantiteRestante()),
                         String.valueOf(dto.getValeurAchat() == null ? 0 : dto.getValeurAchat()),
                         String.valueOf(dto.getValeurVente() == null ? 0 : dto.getValeurVente()),
                         nvl(dto.getDatePerement()), nvl(dto.getStatut()) });
@@ -261,6 +264,8 @@ public class FicheArticleServiceImpl implements FicheArticleService {
                     row.createCell(col++).setCellValue(nvl(dto.getLibelleRayon()));
                     row.createCell(col++).setCellValue(nvl(dto.getLibelleGrossiste()));
                     row.createCell(col++).setCellValue(dto.getQuantiteLot() == null ? 0 : dto.getQuantiteLot());
+                    row.createCell(col++)
+                            .setCellValue(dto.getQuantiteRestante() == null ? 0 : dto.getQuantiteRestante());
                     row.createCell(col++).setCellValue(dto.getValeurAchat() == null ? 0 : dto.getValeurAchat());
                     row.createCell(col++).setCellValue(dto.getValeurVente() == null ? 0 : dto.getValeurVente());
                     row.createCell(col++).setCellValue(nvl(dto.getDatePerement()));

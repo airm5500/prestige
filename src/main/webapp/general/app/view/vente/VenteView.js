@@ -33,10 +33,19 @@ Ext.define('testextjs.view.vente.VenteView', {
                 btn.up('doventemanager').showPointMobileMoney();
             }
         }, {
+            /* demande du 28/10 (point 3) : resultat de la recherche sur la meme ligne (vente chargee / introuvable) */
+            xtype: 'component',
+            itemId: 'preventeStatut',
+            cls: 'vp-recherche-statut',
+            html: '',
+            margin: '0 8 0 0'
+        }, {
             xtype: 'textfield',
             itemId: 'preventeSearchField',
-            emptyText: 'N° ticket / scan',
-            width: 220,
+            /* demande du 28/10 (point 3) : zone de scan mise en avant (icone code-barres, consigne explicite) */
+            emptyText: 'Scanner le ticket ou saisir le n°',
+            cls: 'vp-recherche-vente',
+            width: 300,
             enableKeyEvents: true,
             /* contenu présélectionné quand on revient dans le champ
              * (clic ou F3) : la nouvelle saisie écrase l'ancienne */
@@ -69,10 +78,11 @@ Ext.define('testextjs.view.vente.VenteView', {
         },*/
         {
          xtype: 'button',
-         text: 'VENTES EN ATTENTE',
+         /* demande du 28/10 (point 3) : sur une seule ligne, avec le nombre de ventes en attente */
+         text: 'Ventes en attente <span class="vp-attente-nombre"></span>',
          scope: this,
          itemId: 'preventeSearchBtn',
-         cls: 'btn-primarya',
+         cls: 'btn-primarya vp-attente-bouton',
          iconCls: 'searchicon'
         }
     ]
@@ -87,6 +97,7 @@ Ext.define('testextjs.view.vente.VenteView', {
     listeners: {
         afterrender: function() {
             this.initKeyboardShortcut();
+            this.majNombreAttente();
             this.loadPointMobileMoneyPrivilege();
         },
         destroy: function() {
@@ -203,6 +214,10 @@ Ext.define('testextjs.view.vente.VenteView', {
         
         // Ajouter l'écouteur d'événements au document
         Ext.getDoc().on('keydown', me.keyHandler);
+        // demande du 28/10 : scan d'un ticket de vente hors de la zone de recherche
+        if (window.PrestigeScanVente) {
+            me.retirerScanVente = window.PrestigeScanVente.installer(me);
+        }
     },
     
     cleanupKeyboardShortcut: function() {
@@ -211,6 +226,31 @@ Ext.define('testextjs.view.vente.VenteView', {
             Ext.getDoc().un('keydown', me.keyHandler);
             me.keyHandler = null;
         }
+        if (me.retirerScanVente) {
+            me.retirerScanVente();
+            me.retirerScanVente = null;
+        }
+    },
+
+    /* demande du 28/10 (point 3) : nombre de ventes en attente, sur le bouton */
+    majNombreAttente: function () {
+        var me = this;
+        Ext.Ajax.request({
+            method: 'GET',
+            url: '../api/v1/ventestats/preventes',
+            params: {statut: 'is_Process', page: 1, start: 0, limit: 1},
+            success: function (response) {
+                var r = Ext.JSON.decode(response.responseText, true) || {}, b = me.down('#preventeSearchBtn');
+                var n = parseInt(r.total, 10);
+                if (b && !b.destroyed && b.rendered) {
+                    var span = b.getEl().dom.querySelector('.vp-attente-nombre');
+                    if (span) {
+                        span.textContent = n > 0 ? String(n) : '';
+                        span.style.display = n > 0 ? '' : 'none';
+                    }
+                }
+            }
+        });
     },
     
     focusSearchField: function() {

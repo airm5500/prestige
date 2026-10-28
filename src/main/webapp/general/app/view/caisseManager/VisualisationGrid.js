@@ -46,7 +46,12 @@ Ext.define('testextjs.view.caisseManager.VisualisationGrid', {
                 {
                     header: 'Type Mouvement',
                     dataIndex: 'typeMouvement',
-                    flex: 1
+                    itemId: 'colTypeMouvement',
+                    flex: 1,
+                    /* demande du 28/10 (point 10) : Comptant / Assurance au lieu de VNO / VO */
+                    renderer: function (v) {
+                        return window.PrestigeLibelleVente ? PrestigeLibelleVente.renderer(v) : Ext.String.htmlEncode(v || '');
+                    }
                 }, {
                     header: 'Reference',
                     dataIndex: 'reference',

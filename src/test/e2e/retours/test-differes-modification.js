@@ -1,7 +1,7 @@
 /* VENTE DIFFEREE MODIFIEE (retours du 09/10 (1), cas 1). Parcours de l'ecran de vente par son API (ajout, net a
  * payer, cloture en differe, modification d'une vente cloturee, cloture de la copie). Comportement ATTENDU :
- *  B. vente differee de 2 produits, 1 produit deja regle, modifiee puis recloturee en differe (meme client) :
- *     le reste du = nouveau prix - ce qui etait deja regle (avant : tout le prix etait de nouveau du) ;
+ *  B. vente differee de 2 produits, 1 produit deja regle : ni modification ni annulation (demande du 28/10, point 18),
+ *     message explicite, vente et dette intactes ;
  *  A. vente differee modifiee puis cloturee au comptant : plus aucune dette pour cette vente sur le compte du
  *     client (avant : la ligne copiee restait « en cours » avec l'ancien montant, comptee dans le solde) ;
  *  C. vente differee modifiee, cloturee en differe pour un AUTRE client : la dette passe sur le nouveau client
@@ -21,6 +21,8 @@ const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, BASE, '-e', s],
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const C1 = 'e2e-dmod-c1', C2 = 'e2e-dmod-c2', CAISSE = 'e2e-dmod-caisse';
 const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
+/* demande du 28/10 (point 7) : une copie validee sans aucun changement est refusee ; B et D changent de vendeur */
+const AUTRE_VENDEUR = q("SELECT lg_USER_ID FROM t_user WHERE str_STATUT = 'enable' AND lg_USER_ID <> '" + ADMIN + "' ORDER BY lg_USER_ID LIMIT 1");
 const DEBUT = q("SELECT NOW() - INTERVAL 1 SECOND");
 let produit = null, stockOrigine = null, caisseCreee = false;
 
@@ -89,11 +91,11 @@ function nettoyer() {
       devis: false, prevente: false, remiseId: '', userVendeurId: ADMIN });
     return r.data ? r.data.lgPREENREGISTREMENTID : null;
   };
-  const cloturer = async (venteId, mode, clientId, recu, typeVente) => {
+  const cloturer = async (venteId, mode, clientId, recu, typeVente, vendeur) => {
     const net = await api('POST', '../api/v1/vente/net/vno', { venteId, remiseId: '', checkUg: false });
     const data = net.data || {};
     const montant = data.montantNet || produit.pu;
-    return api('POST', '../api/v1/vente/cloturer/vno', { venteId, typeVenteId: typeVente || '1', natureVenteId: '1', devis: false, remiseId: '', userVendeurId: ADMIN,
+    return api('POST', '../api/v1/vente/cloturer/vno', { venteId, typeVenteId: typeVente || '1', natureVenteId: '1', devis: false, remiseId: '', userVendeurId: vendeur || ADMIN,
       montantRecu: recu, montantRemis: 0, montantPaye: recu, totalRecap: montant, partTP: 0, typeRegleId: mode, clientId, nom: '', commentaire: '', banque: '', lieux: '',
       marge: data.marge || 0, data, reglements: [{ typeReglement: mode, montant: mode === '1' ? recu : montant, montantAttentu: mode === '1' ? recu : montant }] });
   };
@@ -118,11 +120,16 @@ function nettoyer() {
     const rg = await api('POST', '../api/v1/reglement/reglementdiffere', { montantRecu: produit.pu, montantRemis: 0, montantPaye: produit.pu, clientId: C1, typeRegleId: '1',
       nom: '', banque: '', lieux: '', totalRecap: prix2, natureVenteId: q('SELECT CURDATE()'), commentaire: JSON.stringify([idLigne]), restesAttendus: JSON.stringify({ [idLigne]: prix2 }) });
     ok('Précondition : 1 produit réglé (reste = 1 produit)', rg.success === true && ligne(vB).split('|')[2] === String(produit.pu), JSON.stringify(rg) + ' ' + ligne(vB));
+    /* demande du 28/10 (point 18) : un differe deja regle (meme en partie) ne se modifie plus (avant : modification
+       permise, le deja-regle etait reporte) */
     const mB = await modifier(vB);
-    ok('Précondition : modification de la vente clôturée (copie en cours)', !!mB.copie, JSON.stringify(mB.r).slice(0, 200));
-    const cB2 = await cloturer(mB.copie, '4', C1, 0);
-    ok('B. Vente modifiée recloturée en différé : reste dû = prix − déjà réglé (1 produit), pas tout le prix',
-      cB2.success === true && ligne(mB.copie) === C1 + '|' + prix2 + '|' + produit.pu + '|is_Closed', JSON.stringify(cB2).slice(0, 160) + ' copie ' + ligne(mB.copie));
+    ok('B. Différé partiellement réglé : modification refusée, message explicite, aucune copie',
+      mB.r.success === false && /déjà reçu un règlement/.test(mB.r.msg || '') && !mB.copie, JSON.stringify(mB.r).slice(0, 200));
+    ok('B. La vente et sa dette restent intactes', q("SELECT CONCAT(b_IS_CANCEL, '|', str_STATUT) FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID = '" + vB + "'") === '0|is_Closed'
+      && ligne(vB) === C1 + '|' + prix2 + '|' + produit.pu + '|is_Closed', ligne(vB));
+    const annB = await api('GET', '../api/v1/vente/annulation/' + vB);
+    ok('B. Différé partiellement réglé : annulation refusée, message explicite', annB.success === false && /déjà reçu un règlement/.test(annB.msg || '')
+      && q("SELECT b_IS_CANCEL FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID = '" + vB + "'") === '0', JSON.stringify(annB).slice(0, 200));
 
     /* A : recloturee au comptant */
     const vA = await nouvelleVente(1);
@@ -149,7 +156,7 @@ function nettoyer() {
     ok('D. Clôture de la copie refusée (type de vente changé) : la vente d\'origine n\'est pas annulée',
       cD.success === false && q("SELECT CONCAT(b_IS_CANCEL, '|', str_STATUT) FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID = '" + vD + "'") === '0|is_Closed'
       && ligne(vD) === C1 + '|' + produit.pu + '|' + produit.pu + '|is_Closed', JSON.stringify(cD).slice(0, 160) + ' origine ' + q("SELECT CONCAT(b_IS_CANCEL, '|', str_STATUT) FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID = '" + vD + "'") + ' ligne ' + ligne(vD));
-    const cD2 = await cloturer(mD.copie, '4', C1, 0);
+    const cD2 = await cloturer(mD.copie, '4', C1, 0, undefined, AUTRE_VENDEUR);
     ok('D. Puis clôture correcte : l\'origine est annulée, une seule dette', cD2.success === true
       && q("SELECT b_IS_CANCEL FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID = '" + vD + "'") === '1' && ligne(mD.copie) === C1 + '|' + produit.pu + '|' + produit.pu + '|is_Closed', JSON.stringify(cD2).slice(0, 160));
 

@@ -887,6 +887,20 @@ public class SalesRessource {
         return Response.ok().entity(jsono.toString()).build();
     }
 
+    /** Demande du 28/10 (point 8) : bouton « Générer » du numero de bon (vente carnet et assurance). */
+    @GET
+    @Path("numero-bon/{tiersPayantId}")
+    public Response genererNumeroBon(@PathParam("tiersPayantId") String tiersPayantId) throws JSONException {
+        String numero = salesService.genererNumeroBon(tiersPayantId);
+        JSONObject json = new JSONObject().put("success", numero != null);
+        if (numero != null) {
+            json.put("numBon", numero);
+        } else {
+            json.put("msg", "Aucun numéro de bon n'a pu être généré pour ce tiers payant");
+        }
+        return Response.ok().entity(json.toString()).build();
+    }
+
     @PUT
     @Path("terminerprevente/{id}")
     public Response terminerprevente(@PathParam("id") String id) throws JSONException {

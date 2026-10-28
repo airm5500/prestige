@@ -117,6 +117,9 @@ function poser() {
       f.findField('montantPaye').setValue(montant);
       f.findField('dateReglement').setValue(new Date(date + 'T00:00:00'));
       f.findField('description').setValue('E2E date de creation');
+      /* demande du 28/10 (point 19) : le motif est desormais obligatoire ; on prend le premier de la liste */
+      const motif = f.findField('motif'), st = motif.getStore();
+      if (st.getCount()) { motif.setValue(st.getAt(0).get(motif.valueField)); }
     }, [VERSE, CHOISIE]);
     await p.waitForTimeout(500);
 

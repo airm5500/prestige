@@ -719,6 +719,12 @@ Ext.define('testextjs.view.reglement.Differe', {
                 {name: 'solde', type: 'int'}],
             proxy: {type: 'ajax', url: '../api/v1/reglement/releve', reader: {type: 'json', root: 'data'}}
         });
+        /* demande du 28/10 (point 16) : solde par client, a droite du releve */
+        var parClient = Ext.create('Ext.data.Store', {
+            fields: ['client', {name: 'soldeDebut', type: 'int'}, {name: 'debit', type: 'int'}, {name: 'credit', type: 'int'},
+                {name: 'solde', type: 'int'}],
+            data: []
+        });
         var clients = Ext.create('Ext.data.Store', {
             model: 'testextjs.model.caisse.ClientLambda', pageSize: 100,
             proxy: {type: 'ajax', url: '../api/v1/client/differes', reader: {type: 'json', root: 'data', totalProperty: 'total'}}
@@ -732,10 +738,12 @@ Ext.define('testextjs.view.reglement.Differe', {
             var o = s.getProxy().getReader().rawData || {}, g = me.down('#grilleSolde');
             if (o.success === false) {
                 Ext.MessageBox.alert('Solde des différés', Ext.String.htmlEncode(o.msg || 'Relevé indisponible.'));
+                parClient.removeAll();
                 return;
             }
+            parClient.loadData(o.parClient || []);
             g.down('#soldeResume').update('Solde au début : <b>' + f(o.soldeInitial) + '</b> · Débit (ventes) : <b>' + f(o.totalDebit)
-                    + '</b> · Crédit (règlements) : <b>' + f(o.totalCredit) + '</b> · Solde à la fin : <b style="color:#c0392b">'
+                    + '</b> · Crédit (règlements et annulations) : <b>' + f(o.totalCredit) + '</b> · Solde à la fin : <b style="color:#c0392b">'
                     + f(o.soldeFinal) + '</b>');
         });
         var montant = function (v, m, r) {
@@ -771,7 +779,20 @@ Ext.define('testextjs.view.reglement.Differe', {
                         {text: 'Imprimer (PDF)', itemId: 'soldePdf', cls: 'btn-primary', iconCls: 'printable', handler: function () {
                                 me.editerSolde('pdf');
                             }}]},
-                {xtype: 'toolbar', dock: 'top', items: [{xtype: 'component', itemId: 'soldeResume', html: ''}]}],
+                {xtype: 'toolbar', dock: 'top', items: [{xtype: 'component', itemId: 'soldeResume', html: ''}]},
+                {xtype: 'gridpanel', dock: 'right', itemId: 'soldeParClient', title: 'Solde par client', width: 430,
+                    store: parClient, viewConfig: {emptyText: 'Aucun client sur la période.', deferEmptyText: false},
+                    columns: [
+                        {text: 'Client', dataIndex: 'client', flex: 1, renderer: function (v) {
+                                return Ext.String.htmlEncode(v || '');
+                            }},
+                        {text: 'Début', dataIndex: 'soldeDebut', width: 80, align: 'right', renderer: f},
+                        {text: 'Débit', dataIndex: 'debit', width: 80, align: 'right', renderer: f},
+                        {text: 'Crédit', dataIndex: 'credit', width: 80, align: 'right', renderer: f},
+                        {text: 'Solde', dataIndex: 'solde', width: 90, align: 'right', renderer: function (v) {
+                                return '<b>' + f(v) + '</b>';
+                            }}
+                    ]}],
             columns: [
                 {text: 'Date et heure', dataIndex: 'date', width: 130},
                 {text: 'Opération', dataIndex: 'libelle', flex: 1, minWidth: 170, renderer: function (v, m, r) {
@@ -784,7 +805,7 @@ Ext.define('testextjs.view.reglement.Differe', {
                 {text: 'Débit', dataIndex: 'debit', width: 110, align: 'right', renderer: montant,
                     tooltip: 'Vente mise en différé : le client doit ce montant'},
                 {text: 'Crédit', dataIndex: 'credit', width: 110, align: 'right', renderer: montant,
-                    tooltip: 'Règlement du client : diminue ce qu\'il doit'},
+                    tooltip: 'Règlement du client, ou annulation de la vente : diminue ce qu\'il doit'},
                 {text: 'Solde', dataIndex: 'solde', width: 120, align: 'right', tooltip: 'Reste dû après l\'opération (solde précédent + débit − crédit)',
                     renderer: function (v, m, r) {
                         return '<b>' + f(v) + '</b>';

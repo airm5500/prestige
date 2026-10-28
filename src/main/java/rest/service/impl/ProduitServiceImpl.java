@@ -3523,8 +3523,8 @@ public class ProduitServiceImpl implements ProduitService {
         int unitPrice = StringUtils.isNoneBlank(creationProduit.getIntT())
                 && StringUtils.isEmpty(creationProduit.getLgFamilleParentId())
                         ? creationProduit.getIntPrice() + intTauxTableau : creationProduit.getIntPrice();
-        famille.setStrNAME(creationProduit.getStrName());
-        famille.setStrDESCRIPTION(creationProduit.getStrDescription());
+        famille.setStrNAME(util.NomSaisi.normaliser(creationProduit.getStrName())); // point 20 du 28/10
+        famille.setStrDESCRIPTION(util.NomSaisi.normaliser(creationProduit.getStrDescription()));
         famille.setIntPRICE(unitPrice);
         famille.setIntPRICETIPS(creationProduit.getIntPriceTips());
         famille.setIntTAUXMARQUE(creationProduit.getIntTauxMarque());
@@ -3839,7 +3839,7 @@ public class ProduitServiceImpl implements ProduitService {
         famille.setDtCREATED(new Date());
         famille.setDtUPDATED(famille.getDtCREATED());
         familleParent.setIntNUMBERDETAIL(creationProduit.getIntQteDetail());
-        famille.setStrNAME(creationProduit.getStrDescription() + " DET");
+        famille.setStrNAME(util.NomSaisi.normaliser(creationProduit.getStrDescription()) + " DET"); // point 20 du 28/10
         famille.setIntCIP(creationProduit.getIntCip() + "D");
         famille.setIntNUMBERDETAIL(1);
         intProduitDetailCommon(creationProduit, famille, familleParent);
@@ -3862,7 +3862,7 @@ public class ProduitServiceImpl implements ProduitService {
         TFamille famille = em.find(TFamille.class, idProduit);
         TFamille familleParent = em.find(TFamille.class, famille.getLgFAMILLEPARENTID());
         JSONObject json = new JSONObject();
-        famille.setStrNAME(creationProduit.getStrDescription());
+        famille.setStrNAME(util.NomSaisi.normaliser(creationProduit.getStrDescription())); // point 20 du 28/10
         famille.setDtUPDATED(new Date());
         intProduitDetailCommon(creationProduit, famille, familleParent);
 

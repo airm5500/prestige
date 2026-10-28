@@ -113,6 +113,8 @@ function remettre() {
     await repondre('UNITÉS GRATUITES', 'yes');
     await repondre("Confirmer l'entrée en stock", 'yes');
     await repondre('impression des entrées', 'no');
+    /* demande du 28/10 (point 2) : apres « Non », la question des étiquettes est posée ; « Non » aussi */
+    await repondre('imprimer les étiquettes', 'no');
     await p.waitForFunction(() => Ext.ComponentQuery.query('reserveapresentree').some((w) => w.isVisible()), null, { timeout: 30000 });
     const f = await p.evaluate(() => { const w = Ext.ComponentQuery.query('reserveapresentree')[0];
       return { imprimer: !!w.down('#btnImprimer') && w.down('#btnImprimer').isVisible(), ouvrir: w.down('#btnOuvrirSuggestion').isVisible(), sansDroit: !!w.getEl().dom.querySelector('.rae-sans-droit') }; });

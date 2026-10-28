@@ -1115,7 +1115,7 @@ Ext.define('testextjs.view.sm_user.reglement.action.DoReglement', {
             });
             return true;
         }
-        Ext.MessageBox.alert('Error Message', messageErreur);
+        Ext.MessageBox.alert('Règlement non enregistré', messageErreur);
         return false;
     },
 
@@ -1263,7 +1263,8 @@ Ext.define('testextjs.view.sm_user.reglement.action.DoReglement', {
 
                 } else {
                     var vueReglement = Ext.getCmp('doreglementmanagerID');
-                    if (vueReglement.afficherErreurReglement(object.success, function () {
+                    /* demande du 28/10 (point 12) : le message explicite du serveur (errors) passe avant le code retour */
+                    if (vueReglement.afficherErreurReglement(object.errors || object.success, function () {
                         vueReglement.Doreglement();
                     })) {
                         // Caisse fermee : on garde la selection pour que le reglement puisse etre rejoue.

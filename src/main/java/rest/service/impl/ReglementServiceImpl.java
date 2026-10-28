@@ -428,11 +428,41 @@ public class ReglementServiceImpl implements ReglementService {
         return null;
     }
 
+    /**
+     * Demande du 28/10 (point 19) : reglement d'un carnet depot. Un montant negatif ou nul etait accepte (et augmentait
+     * le solde du carnet) et le motif etait facultatif. Rend le message a afficher, ou null si la saisie est correcte.
+     */
+    static String controleReglementCarnetDepot(ReglementCarnetDTO r, boolean motifsConfigures) {
+        if (r.getMontantPaye() == null || r.getMontantPaye() <= 0) {
+            return "Le montant du règlement doit être supérieur à zéro (montant négatif ou nul refusé).";
+        }
+        // le motif n'est exige que si l'officine a des motifs configures (sinon aucun reglement ne serait possible)
+        if (motifsConfigures && (r.getMotifId() == null || r.getMotifId() == 0)) {
+            return "Veuillez renseigner le motif du règlement.";
+        }
+        return null;
+    }
+
+    /** Point 19 : au moins un motif de reglement configure (table motif_reglement). */
+    private boolean motifsConfigures() {
+        try {
+            Long n = getEmg().createQuery("SELECT COUNT(m) FROM MotifReglement m", Long.class).getSingleResult();
+            return n != null && n > 0;
+        } catch (RuntimeException e) {
+            LOG.log(Level.WARNING, "motifsConfigures", e);
+            return false;
+        }
+    }
+
     @Override
     public JSONObject faireReglementCarnetDepot(ReglementCarnetDTO reglementCarnetDTO, TUser user) {
         JSONObject json = new JSONObject();
         if (!this.checkCaisse(user)) {
             return json.put("success", false).put("msg", "Votre caisse est fermée");
+        }
+        String saisieInvalide = controleReglementCarnetDepot(reglementCarnetDTO, motifsConfigures());
+        if (saisieInvalide != null) {
+            return json.put("success", false).put("msg", saisieInvalide);
         }
         TTypeMvtCaisse oTTypeMvtCaisse = getEmg().find(TTypeMvtCaisse.class, Constant.MVT_REGLE_TP);
         TTypeReglement typeReglement = getEmg().find(TTypeReglement.class, reglementCarnetDTO.getTypeReglement());
@@ -1156,10 +1186,52 @@ public class ReglementServiceImpl implements ReglementService {
             + " WHERE tp.str_STATUT = 'is_Closed' AND p.b_IS_CANCEL = 0 AND u.lg_EMPLACEMENT_ID = ?1"
             + " AND (?2 = '' OR c.lg_CLIENT_ID = ?2)";
 
+    /**
+     * Part differee d'une vente, comme a sa creation (SalesServiceImpl.addDiffere) : l'annulation remet la ligne a 0.
+     */
+    private static final String PART_DIFFEREE = "(CASE WHEN p.int_CUST_PART = 0 THEN p.int_PRICE - p.int_PRICE_REMISE"
+            + " ELSE p.int_CUST_PART - p.int_PRICE_REMISE END)";
+
+    /**
+     * Demande du 28/10 (point 16) : ventes differees ANNULEES (annulation ou modification de la vente). Elles etaient
+     * absentes du releve ; elles y figurent maintenant deux fois : la vente (debit, a sa date) et son annulation
+     * (credit, a la date d'annulation).
+     */
+    private static final String VENTES_ANNULEES = " FROM t_preenregistrement_compte_client tp"
+            + " JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = tp.lg_PREENREGISTREMENT_ID"
+            + " JOIN t_compte_client cc ON cc.lg_COMPTE_CLIENT_ID = tp.lg_COMPTE_CLIENT_ID"
+            + " JOIN t_client c ON c.lg_CLIENT_ID = cc.lg_CLIENT_ID JOIN t_user u ON u.lg_USER_ID = tp.lg_USER_ID"
+            + " WHERE tp.str_STATUT IN ('delete', 'is_Closed') AND p.b_IS_CANCEL = 1 AND p.int_PRICE > 0"
+            + " AND p.str_STATUT = 'is_Closed' AND p.dt_ANNULER IS NOT NULL AND " + PART_DIFFEREE + " > 0"
+            + " AND u.lg_EMPLACEMENT_ID = ?1 AND (?2 = '' OR c.lg_CLIENT_ID = ?2)";
+
     /** Reglements de differes : mouvements de type « Reglements differes », client = organisme. */
     private static final String REGLEMENTS = " FROM mvttransaction m LEFT JOIN t_client c ON c.lg_CLIENT_ID = m.organisme"
             + " WHERE m.typeMvtCaisseId = '" + Constant.MVT_REGLE_DIFF + "' AND m.checked = 1"
             + " AND m.lg_EMPLACEMENT_ID = ?1 AND (?2 = '' OR m.organisme = ?2)";
+
+    /** Point 16 : solde de chaque client au debut de la periode (ventes, annulations, reglements anterieurs). */
+    @SuppressWarnings("unchecked")
+    private static java.util.Map<String, Long> soldesDebutParClient(EntityManager em, String emplacement, String client,
+            java.sql.Timestamp debut) {
+        java.util.Map<String, Long> soldes = new java.util.HashMap<>();
+        String nom = "CONCAT_WS(' ', c.str_FIRST_NAME, c.str_LAST_NAME)";
+        java.util.function.BiConsumer<String, Integer> cumuler = (sql, signe) -> {
+            for (Object[] r : (List<Object[]>) em.createNativeQuery(sql).setParameter(1, emplacement)
+                    .setParameter(2, client).setParameter(3, debut).getResultList()) {
+                soldes.merge(r[0] == null ? "" : (String) r[0], signe * ((Number) r[1]).longValue(), Long::sum);
+            }
+        };
+        cumuler.accept("SELECT " + nom + ", COALESCE(SUM(tp.int_PRICE), 0)" + VENTES_DIFFEREES
+                + " AND p.dt_UPDATED < ?3 GROUP BY c.lg_CLIENT_ID", 1);
+        cumuler.accept("SELECT " + nom + ", COALESCE(SUM(" + PART_DIFFEREE + "), 0)" + VENTES_ANNULEES
+                + " AND p.dt_UPDATED < ?3 GROUP BY c.lg_CLIENT_ID", 1);
+        cumuler.accept("SELECT " + nom + ", COALESCE(SUM(" + PART_DIFFEREE + "), 0)" + VENTES_ANNULEES
+                + " AND p.dt_ANNULER < ?3 GROUP BY c.lg_CLIENT_ID", -1);
+        cumuler.accept("SELECT " + nom + ", COALESCE(SUM(m.montantRegle), 0)" + REGLEMENTS
+                + " AND m.createdAt < ?3 GROUP BY m.organisme", -1);
+        return soldes;
+    }
 
     @Override
     @SuppressWarnings("unchecked")
@@ -1196,7 +1268,38 @@ public class ReglementServiceImpl implements ReglementService {
                 ops.add(new ReleveDifferes.Operation(((java.sql.Timestamp) r[0]).toLocalDateTime(), "Règlement",
                         (String) r[1], (String) r[2], 0, r[3] == null ? 0 : ((Number) r[3]).longValue()));
             }
-            return ReleveDifferes.releve(ventesAvant.longValue() - reglesAvant.longValue(), ops);
+            /* point 16 : ventes annulees, vente puis annulation */
+            Number annuleesAvant = (Number) em
+                    .createNativeQuery("SELECT COALESCE(SUM(" + PART_DIFFEREE + "), 0)" + VENTES_ANNULEES
+                            + " AND p.dt_UPDATED < ?3")
+                    .setParameter(1, emplacement).setParameter(2, client).setParameter(3, debut).getSingleResult();
+            Number annulationsAvant = (Number) em
+                    .createNativeQuery("SELECT COALESCE(SUM(" + PART_DIFFEREE + "), 0)" + VENTES_ANNULEES
+                            + " AND p.dt_ANNULER < ?3")
+                    .setParameter(1, emplacement).setParameter(2, client).setParameter(3, debut).getSingleResult();
+            for (Object[] r : (List<Object[]>) em.createNativeQuery("SELECT p.dt_UPDATED, p.dt_ANNULER, p.str_REF,"
+                    + " CONCAT_WS(' ', c.str_FIRST_NAME, c.str_LAST_NAME), " + PART_DIFFEREE + VENTES_ANNULEES
+                    + " AND ((p.dt_UPDATED >= ?3 AND p.dt_UPDATED < ?4) OR (p.dt_ANNULER >= ?3 AND p.dt_ANNULER < ?4))")
+                    .setParameter(1, emplacement).setParameter(2, client).setParameter(3, debut).setParameter(4, fin)
+                    .setMaxResults(20000).getResultList()) {
+                LocalDateTime vente = ((java.sql.Timestamp) r[0]).toLocalDateTime();
+                LocalDateTime annulation = ((java.sql.Timestamp) r[1]).toLocalDateTime();
+                long montant = ((Number) r[4]).longValue();
+                if (!vente.isBefore(debut.toLocalDateTime()) && vente.isBefore(fin.toLocalDateTime())) {
+                    ops.add(new ReleveDifferes.Operation(vente, "Vente différée (annulée ensuite)", (String) r[2],
+                            (String) r[3], montant, 0, "VENTE"));
+                }
+                if (!annulation.isBefore(debut.toLocalDateTime()) && annulation.isBefore(fin.toLocalDateTime())) {
+                    ops.add(new ReleveDifferes.Operation(annulation, "Annulation de la vente", (String) r[2],
+                            (String) r[3], 0, montant, "ANNULATION"));
+                }
+            }
+            long soldeInitial = ventesAvant.longValue() + annuleesAvant.longValue() - annulationsAvant.longValue()
+                    - reglesAvant.longValue();
+            JSONObject releve = ReleveDifferes.releve(soldeInitial, ops);
+            releve.put("parClient",
+                    ReleveDifferes.soldesParClient(soldesDebutParClient(em, emplacement, client, debut), ops));
+            return releve;
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "releve des differes", e);
             return new JSONObject().put("success", false).put("msg", "Le relevé n'a pas pu être calculé.");

@@ -12,6 +12,7 @@ import bll.tierspayantManagement.tierspayantManagement;
 import bll.userManagement.privilege;
 import dal.TClient;
 import dal.TDossierReglement;
+import dal.TFacture;
 import dal.TFactureDetail;
 import dal.TGrossiste;
 import dal.TModeReglement;
@@ -265,6 +266,38 @@ public class ReglementFactureRessource {
         }
     }
 
+    /**
+     * Demande du 28/10 (point 12) : une facture ouverte sur deux onglets ou deux postes, deja reglee sur l'un, echouait
+     * sur l'autre avec « Echec de reglement ». Le reglement est refuse d'emblee, avec un message qui dit pourquoi et
+     * quoi faire, quand la facture n'a plus rien a regler, ou quand tous les dossiers coches sont deja regles.
+     */
+    static String reglementDejaFait(dataManager odm, String factureId, JSONArray dossiers) {
+        TFacture facture = StringUtils.isBlank(factureId) ? null : odm.getEm().find(TFacture.class, factureId);
+        if (facture == null) {
+            return null; // cas historique, traite par le reglement lui-meme
+        }
+        String rafraichir = " Elle a sans doute été réglée depuis un autre onglet ou un autre poste. Rechargez la liste"
+                + " des factures pour voir son état.";
+        if (facture.getDblMONTANTRESTANT() != null && facture.getDblMONTANTRESTANT() <= 0) {
+            return "Règlement non enregistré : la facture " + StringUtils.defaultString(facture.getStrCODEFACTURE())
+                    + " est déjà entièrement réglée." + rafraichir;
+        }
+        if (dossiers != null && dossiers.length() > 0) {
+            int regles = 0;
+            for (int i = 0; i < dossiers.length(); i++) {
+                TFactureDetail d = odm.getEm().find(TFactureDetail.class, dossiers.optString(i));
+                if (d != null && d.getDblMONTANTRESTANT() != null && d.getDblMONTANTRESTANT() <= 0) {
+                    regles++;
+                }
+            }
+            if (regles == dossiers.length()) {
+                return "Règlement non enregistré : les dossiers sélectionnés de la facture "
+                        + StringUtils.defaultString(facture.getStrCODEFACTURE()) + " sont déjà réglés." + rafraichir;
+            }
+        }
+        return null;
+    }
+
     /** Reglement d'une facture tiers payant : MEME logique que ws_transaction.jsp mode doReglement. */
     @POST
     @Path("do-reglement")
@@ -310,6 +343,14 @@ public class ReglementFactureRessource {
             JSONArray uncheckedlist = new JSONArray();
             if (StringUtils.isNotEmpty(checkedListParam)) {
                 uncheckedlist = new JSONArray(checkedListParam);
+            }
+            String dejaRegle = reglementDejaFait(odm, lgFactureId, listFactureDetails);
+            if (dejaRegle != null) {
+                return Response.ok()
+                        .entity(new JSONObject().put("success", commonparameter.PROCESS_FAILED)
+                                .put("str_ref", lgFactureId).put("lg_DOSSIER_REGLEMENT_ID", "").put("dejaRegle", true)
+                                .put("errors", dejaRegle).toString())
+                        .build();
             }
             reglementManager orm = new reglementManager(odm, sessionUser);
             double finalamout = netAPayer <= amountRecu ? netAPayer : amountRecu;

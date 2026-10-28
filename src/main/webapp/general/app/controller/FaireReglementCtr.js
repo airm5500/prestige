@@ -167,7 +167,16 @@ Ext.define('testextjs.controller.FaireReglementCtr', {
 
     natureSelectEvent: function (field) {
         let me = this;
+        me.selectionParDefaut();
         me.monnaiRendue(parseInt(me.getMontantRecu().getValue()));
+    },
+    /* demande du 28/10 (point 15) : en reglement partiel, tous les dossiers du client sont coches par defaut (la
+     * caissiere decoche ceux qu'elle ne regle pas) ; en total, la selection n'est pas utilisee */
+    selectionParDefaut: function () {
+        const me = this, grille = me.getGridReglement(), nature = me.getNature();
+        if (grille && nature && String(nature.getValue()) === '1' && grille.getStore().getCount() > 0) {
+            grille.getSelectionModel().selectAll();
+        }
     },
     onSelect: function (_this, record, index) {
         var me = this;
@@ -330,6 +339,7 @@ Ext.define('testextjs.controller.FaireReglementCtr', {
                     me.getMontantNet().setValue(total);
                     me.getMontantPayer().setValue(total);
                     me.getNb().setValue(nb);
+                    me.selectionParDefaut();
                 }
             });
         }
@@ -366,6 +376,12 @@ Ext.define('testextjs.controller.FaireReglementCtr', {
     },
 
     goBack: function () {
+        /* demande du 28/10 (point 18) : ouvert en fenetre depuis la liste des differes -> la fenetre se ferme */
+        var vue = Ext.ComponentQuery.query('fairereglement')[0], fenetre = vue ? vue.up('window') : null;
+        if (fenetre) {
+            fenetre.close();
+            return;
+        }
         var xtype = 'delayed';
         testextjs.app.getController('App').onLoadNewComponentWithDataSource(xtype, "", "", "");
     },
