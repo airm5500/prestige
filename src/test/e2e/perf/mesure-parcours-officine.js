@@ -212,6 +212,23 @@ function retirerSuggestions(avant) {
     return c;
   }
   const veut = (n) => !CHOIX || CHOIX.indexOf(n) >= 0;
+  /* ouverture d'un ecran en deux temps, comme vues.ouvrirMenu : le trajet dans le menu (volet, menu parent) se fait
+     avant le chrono, qui ne part qu'au clic sur l'entree */
+  let entreeMenu = null;
+  async function versLeMenu(parent, entree) {
+    await fermerEcrans();
+    const visible = (sel) => p.locator(sel).filter({ visible: true });
+    if (await visible('.prestige-nav .x-grid-row').count() === 0) {
+      const id = await p.evaluate(() => { const n = Ext.ComponentQuery.query('navigation')[0]; return n.placeholder ? n.placeholder.getId() : null; });
+      await p.click('#' + id);
+      await visible('.prestige-nav .x-grid-row').first().waitFor({ timeout: 10000 });
+    }
+    const exact = (t) => new RegExp('^\\s*' + t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*$');
+    await visible('.prestige-nav .x-grid-row').filter({ has: p.getByText(exact(parent)) }).first().click();
+    entreeMenu = visible('.prestige-flyout-menu .x-menu-item').filter({ has: p.getByText(exact(entree)) }).first();
+    await entreeMenu.waitFor({ timeout: 10000 });
+  }
+  const clicMenu = () => entreeMenu.click();
   const fermerEcrans = () => p.evaluate(() => { try { prestigeShowMetro(); } catch (e) { /* ancien en-tete */ } }).then(() => p.waitForTimeout(800));
   const poser = (requete, iso) => p.evaluate(([r, d]) => { const c = r.charAt(0) === '#' && r.indexOf(' ') < 0 ? Ext.getCmp(r.slice(1)) : Ext.ComponentQuery.query(r)[0];
     c.setValue(Ext.Date.parse(d, 'Y-m-d')); }, [requete, iso]);
@@ -261,8 +278,8 @@ function retirerSuggestions(avant) {
     /* ---- 2 et 3. Clients et tiers payants (GESTION DES TIERS-PAYANTS) */
     for (const [num, entree, xtype] of [[2, 'Clients', 'clientmanager'], [3, 'Tiers-payants', 'tierspayantmanager']]) {
       if (!veut(num)) { continue; }
-      await cas(num, 'Liste des ' + entree.toLowerCase() + ' : ouverture par le menu', () => fermerEcrans(),
-        () => vues.ouvrirMenu(p, 'GESTION DES TIERS-PAYANTS', entree), total(xtype));
+      await cas(num, 'Liste des ' + entree.toLowerCase() + ' : ouverture par le menu', () => versLeMenu('GESTION DES TIERS-PAYANTS', entree),
+        clicMenu, total(xtype));
       await cas(num, 'Liste des ' + entree.toLowerCase() + ' : bouton rechercher', null,
         () => bouton(xtype, 'rechercher'), total(xtype));
     }
@@ -334,7 +351,7 @@ function retirerSuggestions(avant) {
     /* ---- 10. Fiche article : ouverture, recherche, affichage d'une fiche */
     if (veut(10)) {
       const grille = 'famillemanager';
-      await cas(10, 'Fiche article : ouverture par le menu', () => fermerEcrans(), () => vues.ouvrirMenu(p, 'GESTION DU STOCK', 'Fiche Article'), total(grille));
+      await cas(10, 'Fiche article : ouverture par le menu', () => versLeMenu('GESTION DU STOCK', 'Fiche Article'), clicMenu, total(grille));
       await cas(10, 'Fiche article : recherche « PARA »', async () => {
         await p.evaluate(() => { Ext.getCmp('rechecher').setValue(''); });
       }, async () => { await vues.saisir(p, '#rechecher', 'PARA'); await p.keyboard.press('Enter'); }, total(grille));
@@ -353,8 +370,8 @@ function retirerSuggestions(avant) {
 
     /* ---- 11. Pilotage (ANALYSE DE GESTION) : ouverture, puis chaque onglet par un clic sur son titre */
     if (veut(11)) {
-      await cas(11, 'Pilotage : ouverture par le menu', () => fermerEcrans(), async () => {
-        await vues.ouvrirMenu(p, 'ANALYSE DE GESTION', "Pilotage de l'officine");
+      await cas(11, 'Pilotage : ouverture par le menu', () => versLeMenu('ANALYSE DE GESTION', "Pilotage de l'officine"), async () => {
+        await clicMenu();
         await p.waitForFunction(() => Array.prototype.some.call(document.querySelectorAll('.pilotage-tuile'), (e) => /[0-9]/.test(e.textContent || '')), null, { timeout: 300000 });
       }, null);
       const onglets = await p.evaluate(() => Ext.ComponentQuery.query('pilotage #onglets')[0].items.items.map((o) => ({ cle: o.cleOnglet || o.itemId, titre: o.title })));
