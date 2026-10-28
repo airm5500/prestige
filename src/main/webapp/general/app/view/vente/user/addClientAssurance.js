@@ -471,6 +471,7 @@ Ext.define('testextjs.view.vente.user.addClientAssurance', {
                                                 selType: 'cellmodel',
                                                 mode: 'SINGLE'
                                             },
+                                            plugins: [{ptype: 'cellediting', clicksToEdit: 1}],
                                             dockedItems: [
                                                 {
                                                     xtype: 'toolbar',
@@ -505,20 +506,30 @@ Ext.define('testextjs.view.vente.user.addClientAssurance', {
                                                     flex: 1,
                                                     dataIndex: 'tpFullName'
                                                 },
+                                                /* retours de recette du 28/10 : taux, matricule et priorite se
+                                                   modifient d'un clic dans la cellule ; « Enregistrer » les valide */
                                                 {
                                                     text: 'Taux.Couverture',
                                                     flex: 0.5,
-                                                    dataIndex: 'taux'
+                                                    dataIndex: 'taux',
+                                                    tooltip: 'Cliquer pour modifier',
+                                                    editor: {xtype: 'numberfield', allowDecimals: false, hideTrigger: true,
+                                                        allowBlank: false, minValue: 1, maxValue: 100}
                                                 },
                                                 {
                                                     text: 'Numéro/SS',
                                                     flex: 0.8,
-                                                    dataIndex: 'numSecurity'
+                                                    dataIndex: 'numSecurity',
+                                                    tooltip: 'Cliquer pour modifier',
+                                                    editor: {xtype: 'textfield'}
                                                 },
                                                 {
                                                     text: 'RC',
                                                     flex: 0.5,
-                                                    dataIndex: 'order'
+                                                    dataIndex: 'order',
+                                                    tooltip: 'Priorité : cliquer pour modifier (2 à 4)',
+                                                    editor: {xtype: 'numberfield', allowDecimals: false, hideTrigger: true,
+                                                        allowBlank: false, minValue: 2, maxValue: 4}
                                                 },
                                                 {
                                                     xtype: 'actioncolumn',

@@ -113,6 +113,27 @@ const doublons = (l) => { const p = l.map((x) => x.split('/')[1]); return p.filt
     ok('D associée : enregistrement accepté, D active', r2 && r2.success && l2.some((x) => x.startsWith(D + '/')), JSON.stringify(r2).slice(0, 200) + ' / ' + l2.join(' ; '));
     ok('Aucune priorité portée par deux assurances (après l\'association)', doublons(l2).length === 0, l2.join(' ; '));
     ok('Une seule principale (RO)', l2.filter((x) => x.endsWith('/1')).length === 1, l2.join(' ; '));
+
+    /* 3. grille des complementaires : taux et matricule de C modifies d'un clic dans la cellule, au clavier */
+    await ouvrirFiche();
+    const ligneC = p.locator('.x-window .x-grid-row').filter({ visible: true, hasText: TC }).first();
+    const cellule = async (index, texte) => {
+      await ligneC.locator('td').nth(index).click();
+      await p.waitForTimeout(400);
+      await p.keyboard.press('Control+A');
+      await p.keyboard.type(texte, { delay: 25 });
+      await p.keyboard.press('Enter');
+      await p.waitForTimeout(300);
+    };
+    /* colonnes visibles : Assurance, Taux.Couverture, Numéro/SS, RC, Retirer */
+    await cellule(1, '15');
+    await cellule(2, MARQUE + '-MAT2');
+    const r3 = await enregistrerFiche();
+    const lienC = q("SELECT CONCAT_WS('/', l.int_POURCENTAGE, l.str_NUMERO_SECURITE_SOCIAL) FROM t_compte_client_tiers_payant l JOIN t_compte_client c"
+      + " ON c.lg_COMPTE_CLIENT_ID = l.lg_COMPTE_CLIENT_ID WHERE c.lg_CLIENT_ID = '" + cl.clientId + "' AND l.lg_TIERS_PAYANT_ID = '" + TC + "' AND l.str_STATUT = 'enable'");
+    ok('Grille : taux et matricule de C modifiés à l\'écran puis enregistrés', r3 && r3.success && lienC === '15/' + MARQUE + '-MAT2', lienC);
+    const l3 = liens(cl.clientId);
+    ok('Aucune priorité portée par deux assurances (après la modification dans la grille)', doublons(l3).length === 0, l3.join(' ; '));
     ok('Aucune erreur JavaScript, aucun message d\'erreur', erreurs.length === 0 && !/erreur/i.test(await texteMessage(p)), erreurs.join(' | '));
   } catch (e) {
     ok('Parcours sans exception', false, e.stack + ' ' + erreurs.join(' | '));

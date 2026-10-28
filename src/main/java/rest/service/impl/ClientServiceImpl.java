@@ -984,6 +984,24 @@ public class ClientServiceImpl implements ClientService {
                     oTCompteClientTiersPayant.setIsCapped(Boolean.TRUE);
                 }
                 em.persist(oTCompteClientTiersPayant);
+            } else if (actif(oTCompteClientTiersPayant)
+                    && oCompteClient.equals(oTCompteClientTiersPayant.getLgCOMPTECLIENTID())) {
+                /*
+                 * Retours de recette du 28/10 : taux, matricule et priorite d'une assurance complementaire deja
+                 * rattachee se modifient dans la fiche (ils etaient ignores). La priorite 1 reste a la principale ; les
+                 * doublons eventuels sont departages ensuite (prioritesUniques).
+                 */
+                if (p.getTaux() > 0 && p.getTaux() <= 100) {
+                    oTCompteClientTiersPayant.setIntPOURCENTAGE(p.getTaux());
+                }
+                if (StringUtils.isNotBlank(p.getNumSecurity())) {
+                    oTCompteClientTiersPayant.setStrNUMEROSECURITESOCIAL(p.getNumSecurity());
+                }
+                if (p.getOrder() >= 2 && !Boolean.TRUE.equals(oTCompteClientTiersPayant.getBISRO())) {
+                    oTCompteClientTiersPayant.setIntPRIORITY(p.getOrder());
+                }
+                oTCompteClientTiersPayant.setDtUPDATED(new Date());
+                em.merge(oTCompteClientTiersPayant);
             }
 
         });
