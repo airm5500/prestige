@@ -406,7 +406,8 @@ L'écran calcule lui-même le montant reçu : ce cas n'arrive que par une requê
 
 | Point | État | Suite proposée |
 |---|---|---|
-| VC-11 : colonnes « Qté lot » / « Qté restante » dans « Recherche périmés » | **fait** (grille, exports CSV et Excel ; le PDF garde son modèle, absent du dépôt) | test-perimes-qte-restante.js : 5/5 |
+| VC-11 : stock restant dans « Recherche périmés » | **version de la branche claude/new-session-xm8ptu retenue** le 28/10 (« Quantité saisie » / « Quantité restante ») ; ma version retirée | — |
+| VC-11 : « Quantité restante lot » dans la fiche article (« Voir les lots / péremptions ») | **fait** (lit le champ quantiteRestante de la version retenue) | test-fiche-article-qte-restante-lot.js |
 | M3 et point 21 : priorité en double, ancien RO supprimé | **corrigé** : l'ancien RO reste actif en priorité libre, un seul lien par organisme, une priorité par lien actif | repro-assurances-liens.js P21-a à P21-e : 4 échecs avant correction, 15/15 après ; non-régression vente assurance 17/17, deuxième assurance 14/14, changement de tiers payant 7/7 |
 | CA-09 : encours de B lu à 0 | données justes pour la vente 261028_00001 | j'attends l'écran consulté ; j'ajoute au test l'encours du client |
 | DIF : bouton « Modifier » absent | conditions du code remplies pour 261028_00002 | j'attends le numéro de vente ; les tests DIF passeront par le bouton |

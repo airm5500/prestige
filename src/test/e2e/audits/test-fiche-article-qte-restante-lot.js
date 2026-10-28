@@ -2,7 +2,9 @@
  * Un lot d'essai de 10 boites dont 4 restent. Parcours de l'utilisateur, a la souris et au clavier :
  *  - menu GESTION DU STOCK > « Fiche Article » ; CIP tape dans la recherche, touche Entree ;
  *  - sur la ligne du produit, icone « Voir les lots / péremptions », ou menu « Autres actions » puis cette entree ;
- *  - la fenetre des lots montre « Qté lot » 10 et « Qté restante lot » 4 sur la ligne du lot.
+ *  - la fenetre des lots montre « Quantité saisie » 10 et « Quantité restante lot » 4 sur la ligne du lot.
+ * Le stock restant vient du champ quantiteRestante de api/v1/fichearticle/perimes (version de « Recherche perimes »
+ * retenue le 28/10, branche claude/new-session-xm8ptu) : sans lui la colonne reste vide.
  * Lot et stock d'essai retires a la fin.
  * Lancement seul : node src/test/e2e/audits/test-fiche-article-qte-restante-lot.js
  */
@@ -48,11 +50,11 @@ const { ok, q, exec, ADMIN, MARQUE } = C;
     const ligneLot = fenetre.locator('.x-grid-row').filter({ hasText: lot }).first();
     await ligneLot.waitFor({ timeout: 30000 });
     const entetes = (await fenetre.locator('.x-column-header-text').allTextContents()).map((t) => t.trim()).filter(Boolean);
-    ok('Fenêtre des lots : colonnes « Qté lot » puis « Qté restante lot »',
-      entetes.indexOf('Qté lot') >= 0 && entetes.indexOf('Qté restante lot') === entetes.indexOf('Qté lot') + 1, entetes.join(' | '));
+    ok('Fenêtre des lots : colonnes « Quantité saisie » puis « Quantité restante lot »',
+      entetes.indexOf('Quantité saisie') >= 0 && entetes.indexOf('Quantité restante lot') === entetes.indexOf('Quantité saisie') + 1, entetes.join(' | '));
     const cellules = (await ligneLot.locator('td').allTextContents()).map((t) => t.trim());
-    const i = entetes.indexOf('Qté lot');
-    ok('Ligne du lot d\'essai : Qté lot 10, Qté restante lot 4', i >= 0 && cellules[i] === '10' && cellules[i + 1] === '4', cellules.join(' | '));
+    const i = entetes.indexOf('Quantité saisie');
+    ok('Ligne du lot d\'essai : Quantité saisie 10, Quantité restante lot 4', i >= 0 && cellules[i] === '10' && cellules[i + 1] === '4', cellules.join(' | '));
     ok('Aucune erreur JavaScript', erreurs.length === 0, erreurs.join(' | '));
   } catch (e) {
     ok('Parcours sans exception', false, e.stack + ' ' + erreurs.join(' | '));

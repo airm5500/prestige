@@ -2675,14 +2675,14 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                             flex: 1
                         },
                         {
-                            text: 'Qté lot',
+                            text: 'Quantité saisie',
                             dataIndex: 'quantiteLot',
                             align: 'center',
                             flex: 0.7
                         },
                         {
-                            // retours de recette du 28/10 : stock restant du lot (meme donnee que « Recherche perimes »)
-                            text: 'Qté restante lot',
+                            // retours de recette du 28/10 : stock restant du lot (champ quantiteRestante de « Recherche perimes »)
+                            text: 'Quantité restante lot',
                             dataIndex: 'quantiteRestante',
                             align: 'center',
                             flex: 0.8
