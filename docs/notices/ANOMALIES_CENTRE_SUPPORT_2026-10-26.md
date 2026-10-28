@@ -369,6 +369,20 @@ Ce qui n'a pas été rejoué :
 - La JSP `ws_transaction.jsp` elle-même n'est pas modifiée (règle : pas de travail neuf en JSP). Appelée hors de
   l'écran avec un prix vide, elle répond encore 500.
 
+## 16. Lot 2 : lenteurs (28/10, commit c379cb38)
+
+| N° | Résultat | Fichiers | Preuve |
+|---|---|---|---|
+| L5 | **Corrigé.** Côté serveur : sans identifiant de vente, réponse vide de même forme (**14 s → 7 ms**). Côté écran : vente et statut posés en paramètres du proxy, conservés par « Actualiser » et le changement de page | `FactureTiersPayantRessource.java`, `detailTransactionTiersPayant.js` | `test-details-vente.js` (FACTURATION > Factures > « Detail Bordereau » > « Afficher le detail de la vente », puis « Actualiser »). Avant : appel sans vente, 11,6 s, grille vidée (0 ligne sur 7). Après : 65 ms, 7 lignes sur 7. 4/4 |
+| L1 | **Non reproduit, non modifié.** `laborex_v1_db` (8080, en lecture) : appel actuel de la cloche 9-12 ms (médiane 10) ; 6 appels simultanés 55 ms au total. Compteur prévu : 5 ms. La copie n'a aucun avoir en cours sur le mois. Les 733 lenteurs de l'officine précèdent pour la plupart `bf7c8b2f` (14/10) et tombent souvent dans des épisodes de congestion générale (§ 10) | — | `mesure-cloche-avoirs.js` |
+
+Pour L1, passer la cloche sur le compteur (`AVOIRS_SANS_PERIODE = true`, prévu dans `Header.js`) changerait ce
+qu'elle affiche : les avoirs ouverts de plus d'un mois seraient comptés. C'est une décision métier, et la mesure ne
+la justifie pas pour l'instant. À remesurer en officine si les lenteurs reviennent après le déploiement.
+
+Non-régression : `test-lot1-api.js` 8/8, `test-import-commande-annuler.js` OK, `test-lot1-ecrans.js` (P1, A1) 5/5,
+sur la même version déployée.
+
 ## Annexe A. Rejouer les reproductions
 
 Variables (Node 22) :
