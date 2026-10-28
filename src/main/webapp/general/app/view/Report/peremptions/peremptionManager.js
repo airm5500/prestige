@@ -20,6 +20,7 @@ Ext.define('testextjs.view.Report.peremptions.peremptionManager', {
                 {name: 'libelleRayon', type: 'string'},
                 {name: 'statut', type: 'string'},
                 {name: 'quantiteLot', type: 'number'},
+                {name: 'quantiteRestante', type: 'number'},
                 {name: 'intAVOIR', type: 'number'},
                 {name: 'datePerement', type: 'string'},
                 {name: 'libelleFamille', type: 'string'},
@@ -380,7 +381,7 @@ Ext.define('testextjs.view.Report.peremptions.peremptionManager', {
 
                         },
                         {
-                            header: 'Qunatité',
+                            header: 'Qté lot',
                             dataIndex: 'quantiteLot',
                             flex: 0.4,
                             align: 'right',
@@ -389,6 +390,15 @@ Ext.define('testextjs.view.Report.peremptions.peremptionManager', {
                             }
 
 
+                        },
+                        {
+                            header: 'Qté restante',
+                            dataIndex: 'quantiteRestante',
+                            flex: 0.4,
+                            align: 'right',
+                            renderer: function (v) {
+                                return Ext.util.Format.number(v, '0,000.');
+                            }
                         }
                         , {
                             header: 'Valeur.Achat',

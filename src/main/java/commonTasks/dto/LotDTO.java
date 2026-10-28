@@ -25,6 +25,7 @@ public class LotDTO {
     private String numLot;
     private String libelleGrossiste;
     private Integer quantiteLot;
+    private Integer quantiteRestante;
     private Integer valeurAchat;
     private Integer valeurVente;
     private String datePerement;
@@ -215,6 +216,23 @@ public class LotDTO {
         }
         this.periode = days < 0 || months < 0 || years < 0 ? -1 : days;
 
+    }
+
+    /** Recherche perimes : quantite recue du lot et stock restant du lot (retours de recette du 28/10). */
+    public LotDTO(String lgLOTID, String codeCip, String libelleFamille, String libelleRayon, String libelle,
+            String numLot, Date datePerement, String libelleGrossiste, Integer quantiteLot, Integer valeurAchat,
+            Integer valeurVente, Integer quantiteRestante) {
+        this(lgLOTID, codeCip, libelleFamille, libelleRayon, libelle, numLot, datePerement, libelleGrossiste,
+                quantiteLot, valeurAchat, valeurVente);
+        this.quantiteRestante = quantiteRestante;
+    }
+
+    public Integer getQuantiteRestante() {
+        return quantiteRestante;
+    }
+
+    public void setQuantiteRestante(Integer quantiteRestante) {
+        this.quantiteRestante = quantiteRestante;
     }
 
 }

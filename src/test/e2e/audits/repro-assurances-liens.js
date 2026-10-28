@@ -128,6 +128,90 @@ const nbRoActifs = (clientId) => Number(q("SELECT COUNT(*) FROM t_compte_client_
         'réponse ' + JSON.stringify(r).slice(0, 80) + ' ; liens avant ' + avant + ' ; après ' + apres);
       ok('M4 attendu : le lien supprimé garde sa priorité -1 (il n\'est pas reclassé avec les liens actifs)', /M4D\/delete\/RO=0\/prio=-1/.test(apres), apres);
     });
+    /* Point 21 (28/10) : vente assurance → « Modifier infos client » (VenteCtr.onBtnAddClientAssuranceClick → client/add/assurance).
+       Regles : l'ancien RO reste actif en priorite libre ; une priorite n'est portee que par un seul lien actif ; un seul lien
+       par organisme. */
+    const modifierInfos = (cl, nom, tpRo, lienRo, complementaires) => api('POST', '../api/v1/client/add/assurance', { bIsAbsolute: false, dbPLAFONDENCOURS: 0,
+      dblQUOTACONSOMENSUELLE: 0, dtNAISSANCE: '', intPOURCENTAGE: 80, intPRIORITY: 1, lgCATEGORIEAYANTDROITID: '', lgCLIENTID: cl.clientId, lgCOMPANYID: '',
+      lgRISQUEID: '', lgTIERSPAYANTID: tpRo, lgTYPECLIENTID: '1', lgVILLEID: '', strADRESSE: '', strCODEPOSTAL: '', strFIRSTNAME: 'ESSAI',
+      strLASTNAME: MARQUE + ' ' + nom, compteTp: lienRo, strNUMEROSECURITESOCIAL: MARQUE + '-' + nom, strSEXE: 'M',
+      tiersPayants: complementaires.map((t) => ({ compteTp: t.lien || '', lgTIERSPAYANTID: t.tp, numSecurity: MARQUE + '-' + nom + '-' + t.order, order: t.order,
+        taux: t.taux, bIsAbsolute: false, dbPLAFONDENCOURS: 0, tpFullName: '' })) });
+    /* priorites des liens actifs portees par plus d'un lien, et organismes rattaches par plus d'un lien */
+    const doublons = (clientId) => q("SELECT CONCAT_WS(' / ', IFNULL((SELECT GROUP_CONCAT(x.p) FROM (SELECT l.int_PRIORITY p FROM t_compte_client_tiers_payant l JOIN t_compte_client c"
+      + " ON c.lg_COMPTE_CLIENT_ID = l.lg_COMPTE_CLIENT_ID WHERE c.lg_CLIENT_ID = '" + clientId + "' AND l.str_STATUT = 'enable' GROUP BY l.int_PRIORITY HAVING COUNT(*) > 1) x), '-'),"
+      + " IFNULL((SELECT GROUP_CONCAT(REPLACE(y.t, '" + MARQUE + "-TP-', '')) FROM (SELECT l.lg_TIERS_PAYANT_ID t FROM t_compte_client_tiers_payant l JOIN t_compte_client c"
+      + " ON c.lg_COMPTE_CLIENT_ID = l.lg_COMPTE_CLIENT_ID WHERE c.lg_CLIENT_ID = '" + clientId + "' GROUP BY l.lg_TIERS_PAYANT_ID HAVING COUNT(*) > 1) y), '-'))");
+    const prioritesValides = (clientId) => q("SELECT COUNT(*) FROM t_compte_client_tiers_payant l JOIN t_compte_client c ON c.lg_COMPTE_CLIENT_ID = l.lg_COMPTE_CLIENT_ID"
+      + " WHERE c.lg_CLIENT_ID = '" + clientId + "' AND l.str_STATUT = 'enable' AND (l.int_PRIORITY IS NULL OR l.int_PRIORITY < 1)") === '0';
+
+    await cas('P21-a', async () => {
+      const tpA = C.tiersPayant('P21aA', '1'), tpB = C.tiersPayant('P21aB', '1'), tpC = C.tiersPayant('P21aC', '1');
+      const cl = await C.clientAssure(api, 'P21a', [{ tp: tpA, taux: 80 }, { tp: tpC, taux: 20 }]);
+      const avant = liens(cl.clientId);
+      const r = await modifierInfos(cl, 'P21a', tpB, cl.lien(tpA), [{ tp: tpC, lien: cl.lien(tpC), order: 2, taux: 20 }]);
+      const apres = liens(cl.clientId);
+      ok('P21-a attendu : RO changé de A en B par « Modifier infos client » : B RO en priorité 1, A reste actif (non RO) en priorité libre, aucune priorité en double',
+        r.success === true && /P21aB\/enable\/RO=1\/prio=1/.test(apres) && /P21aA\/enable\/RO=0\/prio=[3-9]/.test(apres) && /P21aC\/enable\/RO=0\/prio=2/.test(apres)
+        && nbRoActifs(cl.clientId) === 1 && doublons(cl.clientId) === '- / -' && prioritesValides(cl.clientId),
+        'réponse ' + JSON.stringify(r).slice(0, 80) + ' ; liens avant ' + avant + ' ; après ' + apres + ' ; doublons priorité / organisme ' + doublons(cl.clientId));
+    });
+
+    await cas('P21-b', async () => {
+      const tpA = C.tiersPayant('P21bA', '1'), tpC = C.tiersPayant('P21bC', '1'), tpD = C.tiersPayant('P21bD', '1');
+      const cl = await C.clientAssure(api, 'P21b', [{ tp: tpA, taux: 70 }, { tp: tpC, taux: 20 }]);
+      const avant = liens(cl.clientId);
+      /* la grille propose l'ordre 2 pour le complementaire ajoute, deja porte par C */
+      const r = await modifierInfos(cl, 'P21b', tpA, cl.lien(tpA), [{ tp: tpC, lien: cl.lien(tpC), order: 2, taux: 20 }, { tp: tpD, order: 2, taux: 10 }]);
+      const apres = liens(cl.clientId);
+      ok('P21-b attendu : un complémentaire ajouté avec une priorité déjà occupée prend la priorité libre suivante',
+        r.success === true && /P21bA\/enable\/RO=1\/prio=1/.test(apres) && /P21bC\/enable\/RO=0\/prio=2/.test(apres) && /P21bD\/enable\/RO=0\/prio=3/.test(apres)
+        && doublons(cl.clientId) === '- / -' && prioritesValides(cl.clientId),
+        'réponse ' + JSON.stringify(r).slice(0, 80) + ' ; liens avant ' + avant + ' ; après ' + apres + ' ; doublons priorité / organisme ' + doublons(cl.clientId));
+    });
+
+    await cas('P21-c', async () => {
+      const tpA = C.tiersPayant('P21cA', '1'), tpC = C.tiersPayant('P21cC', '1');
+      const cl = await C.clientAssure(api, 'P21c', [{ tp: tpA, taux: 80 }, { tp: tpC, taux: 20 }]);
+      const avant = liens(cl.clientId);
+      /* le complementaire C devient RO : la grille ne le liste plus */
+      const r = await modifierInfos(cl, 'P21c', tpC, cl.lien(tpA), []);
+      const apres = liens(cl.clientId);
+      ok('P21-c attendu : RO changé vers un organisme déjà rattaché : son lien est repris (pas de second lien), RO en priorité 1 ; A reste actif en priorité libre',
+        r.success === true && /P21cC\/enable\/RO=1\/prio=1/.test(apres) && /P21cA\/enable\/RO=0\/prio=[2-9]/.test(apres)
+        && nbRoActifs(cl.clientId) === 1 && doublons(cl.clientId) === '- / -' && prioritesValides(cl.clientId),
+        'réponse ' + JSON.stringify(r).slice(0, 80) + ' ; liens avant ' + avant + ' ; après ' + apres + ' ; doublons priorité / organisme ' + doublons(cl.clientId));
+    });
+
+    await cas('P21-d', async () => {
+      const tpA = C.tiersPayant('P21dA', '1'), tpC = C.tiersPayant('P21dC', '1');
+      const cl = await C.clientAssure(api, 'P21d', [{ tp: tpA, taux: 80 }, { tp: tpC, taux: 20 }]);
+      const avant = liens(cl.clientId);
+      /* non-regression : enregistrer sans rien changer ne touche ni aux priorites ni au RO */
+      const r = await modifierInfos(cl, 'P21d', tpA, cl.lien(tpA), [{ tp: tpC, lien: cl.lien(tpC), order: 2, taux: 20 }]);
+      const apres = liens(cl.clientId);
+      ok('P21-d attendu (non-régression) : enregistrer la fiche sans changement garde A RO en priorité 1 et C en priorité 2',
+        r.success === true && apres === avant, 'réponse ' + JSON.stringify(r).slice(0, 80) + ' ; liens avant ' + avant + ' ; après ' + apres);
+    });
+
+    await cas('P21-e', async () => {
+      const tpA = C.tiersPayant('P21eA', '1'), tpC = C.tiersPayant('P21eC', '1'), tpD = C.tiersPayant('P21eD', '1');
+      const cl = await C.clientAssure(api, 'P21e', [{ tp: tpA, taux: 80 }, { tp: tpC, taux: 20 }]);
+      const lA = cl.lien(tpA), lC = cl.lien(tpC);
+      const { v } = await VO.vendre(cl, [{ lien: lA, taux: 80, bon: MARQUE + '-P21eA' }, { lien: lC, taux: 20, bon: MARQUE + '-P21eC' }], P, 1);
+      const items = q("SELECT GROUP_CONCAT(CONCAT(lg_COMPTE_CLIENT_TIERS_PAYANT_ID, '=', lg_PREENREGISTREMENT_COMPTE_CLIENT_PAYENT_ID)) FROM t_preenregistrement_compte_client_tiers_payent WHERE lg_PREENREGISTREMENT_ID = '" + v + "'")
+        .split(',').reduce((m, x) => { const [k, i] = x.split('='); m[k] = i; return m; }, {});
+      const avant = liens(cl.clientId);
+      /* « Modifier info client » de Ventes terminees : le complementaire C remplace par D (non rattache), case « principal » non cochee */
+      const r = await api('POST', '../api/v1/vente/updateclientortierpayant', { clientId: cl.clientId, ayantDroitId: cl.ayantDroitId, venteId: v,
+        tierspayants: [{ compteTp: lA, numBon: MARQUE + '-P21eA', taux: 80, itemId: items[lA], principal: false },
+          { compteTp: tpD, numBon: MARQUE + '-P21eD', taux: 20, itemId: items[lC], principal: false }] });
+      const apres = liens(cl.clientId);
+      ok('P21-e attendu : le lien créé par la modification de vente ne reprend pas une priorité déjà occupée',
+        r.success === true && /P21eD\/enable\/RO=0\/prio=3/.test(apres) && doublons(cl.clientId) === '- / -' && prioritesValides(cl.clientId),
+        'réponse ' + JSON.stringify(r).slice(0, 80) + ' ; liens avant ' + avant + ' ; après ' + apres + ' ; doublons priorité / organisme ' + doublons(cl.clientId));
+    });
+
     ok('Aucune erreur JavaScript', sess.erreurs.length === 0, sess.erreurs.join(' | '));
   } finally {
     await sess.b.close();

@@ -1245,6 +1245,66 @@ public class ClientServiceImpl implements ClientService {
 
     }
 
+    /**
+     * Changement du regime obligatoire depuis la fiche client (vente assurance, « Modifier infos client »).
+     *
+     * <p>
+     * Point 21 (28/10) : l'ancien RO etait supprime (statut delete, priorite -1) et le nouveau organisme recevait un
+     * second lien s'il etait deja rattache en complementaire. L'ancien RO reste actif, non RO, en priorite libre
+     * suivante ; le lien existant vers le nouvel organisme (actif ou supprime) est repris et devient RO.
+     * </p>
+     */
+    private void changerRo(ClientDTO client, TCompteClient compte, TTiersPayant p, TCompteClientTiersPayant ancienRo) {
+        List<TCompteClientTiersPayant> liens = findTCompteClientTiersPayanCompteClient(compte.getLgCOMPTECLIENTID());
+        java.util.Optional<TCompteClientTiersPayant> existant = liens.stream()
+                .filter(l -> p.equals(l.getLgTIERSPAYANTID()))
+                .sorted(Comparator.comparing((TCompteClientTiersPayant l) -> !actif(l))).findFirst();
+        ancienRo.setBISRO(Boolean.FALSE);
+        ancienRo.setIntPRIORITY(prochainePriorite(liens));
+        ancienRo.setDtUPDATED(new Date());
+        getEmg().merge(ancienRo);
+        if (existant.isPresent()) {
+            client.setCompteTp(existant.get().getLgCOMPTECLIENTTIERSPAYANTID());
+            updateComptClientTierspayant(client, p);
+            existant.get().setBISRO(!estCarnet(p));
+        } else {
+            createComptClientTierspayant(client, compte, p);
+        }
+    }
+
+    /**
+     * Point 21 (28/10) : une priorite n'est portee que par un seul lien actif du compte, et jamais inferieure a 1. Le
+     * RO garde la sienne, puis les liens qui existaient avant l'enregistrement, puis les plus anciens ; les autres
+     * prennent la priorite libre suivante.
+     */
+    private void prioritesUniques(TCompteClient compte, Set<String> liensExistants) {
+        List<TCompteClientTiersPayant> actifs = findTCompteClientTiersPayanCompteClient(compte.getLgCOMPTECLIENTID())
+                .stream().filter(ClientServiceImpl::actif)
+                .sorted(Comparator.comparing((TCompteClientTiersPayant l) -> !Boolean.TRUE.equals(l.getBISRO()))
+                        .thenComparing(l -> !liensExistants.contains(l.getLgCOMPTECLIENTTIERSPAYANTID()))
+                        .thenComparing(TCompteClientTiersPayant::getDtCREATED,
+                                Comparator.nullsLast(Comparator.naturalOrder())))
+                .collect(Collectors.toList());
+        Set<Integer> prises = new java.util.HashSet<>();
+        List<TCompteClientTiersPayant> aReclasser = new ArrayList<>();
+        for (TCompteClientTiersPayant lien : actifs) {
+            Integer priorite = lien.getIntPRIORITY();
+            if (priorite == null || priorite < 1 || !prises.add(priorite)) {
+                aReclasser.add(lien);
+            }
+        }
+        int suivante = 1;
+        for (TCompteClientTiersPayant lien : aReclasser) {
+            while (prises.contains(suivante)) {
+                suivante++;
+            }
+            lien.setIntPRIORITY(suivante);
+            lien.setDtUPDATED(new Date());
+            prises.add(suivante);
+            getEmg().merge(lien);
+        }
+    }
+
     private void desabledCompteClientTiersPayant(TCompteClientTiersPayant oTCompteClientTiersPayant) {
         oTCompteClientTiersPayant.setStrSTATUT(Constant.STATUT_DELETE);
         oTCompteClientTiersPayant.setIntPRIORITY(-1);
@@ -1285,6 +1345,7 @@ public class ClientServiceImpl implements ClientService {
                 createAyantDroit(client, tc);
                 createComptClientTierspayant(client, compteClient, p);
                 createComptClientTierspayant(client.getTiersPayants(), compteClient);
+                prioritesUniques(compteClient, Collections.emptySet());
             } else {
                 if (!StringUtils.isEmpty(client.getStrNUMEROSECURITESOCIAL())) {
                     if (!client.getStrNUMEROSECURITESOCIAL().trim().equals(tc.getStrNUMEROSECURITESOCIAL().trim())) {
@@ -1303,9 +1364,12 @@ public class ClientServiceImpl implements ClientService {
                 TTiersPayant oldltp = oltp.getLgTIERSPAYANTID();
                 tc = updateClient(client, tc);
                 TCompteClient oTCompteClient = updateCompteClient(client, tc);
+                Set<String> liensExistants = findTCompteClientTiersPayanCompteClient(
+                        oTCompteClient.getLgCOMPTECLIENTID()).stream()
+                                .map(TCompteClientTiersPayant::getLgCOMPTECLIENTTIERSPAYANTID)
+                                .collect(Collectors.toSet());
                 if (!oldltp.equals(p)) {
-                    createComptClientTierspayant(client, oTCompteClient, p);
-                    desabledCompteClientTiersPayant(oltp);
+                    changerRo(client, oTCompteClient, p, oltp);
                 } else {
                     updateComptClientTierspayant(client, p);
                 }
@@ -1313,6 +1377,7 @@ public class ClientServiceImpl implements ClientService {
                 updateAyantDroit(client, tc, oldNum);
 
                 updateComptClientTierspayant(client.getTiersPayants(), oTCompteClient);
+                prioritesUniques(oTCompteClient, liensExistants);
             }
             ClientDTO data = new ClientDTO(findById(tc.getLgCLIENTID()), findTiersPayantByClientId(tc.getLgCLIENTID()),
                     findAyantDroitByClientId(tc.getLgCLIENTID()));
@@ -1467,7 +1532,10 @@ public class ClientServiceImpl implements ClientService {
         List<TCompteClientTiersPayant> liens = findTCompteClientTiersPayanCompteClient(
                 oTCompteClient.getLgCOMPTECLIENTID());
         boolean ro = isRO && !estCarnet(p) && !aUnRoActif(liens);
-        int priorite = order >= 1 ? order : prochainePriorite(liens);
+        // point 21 (28/10) : une priorite deja portee par un autre lien actif n'est pas reprise
+        boolean occupee = liens.stream().anyMatch(
+                l -> actif(l) && !p.equals(l.getLgTIERSPAYANTID()) && Objects.equals(l.getIntPRIORITY(), order));
+        int priorite = order >= 1 && !occupee ? order : prochainePriorite(liens);
         java.util.Optional<TCompteClientTiersPayant> existant = liens.stream()
                 .filter(l -> l.getLgTIERSPAYANTID() != null && l.getLgTIERSPAYANTID().equals(p))
                 .sorted(Comparator.comparing((TCompteClientTiersPayant l) -> !actif(l))).findFirst();

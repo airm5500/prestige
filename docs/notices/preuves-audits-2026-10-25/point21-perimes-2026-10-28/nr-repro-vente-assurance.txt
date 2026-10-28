@@ -1,0 +1,19 @@
+PASS  CR-01 précondition : vente assurance encaissée, encours organisme et client = part tiers payant (564)  [encours organisme|client 564|564 ; net 140]
+PASS  CR-01 attendu : après annulation, l'encours revient à 0  [annulation true ; encours organisme 564 → 0 ; encours client 564 → 0]
+PASS  CR-02 précondition : modification ouverte  [c40ce502-ea4a-41b5-b1c5-67fc63e9b7da]
+PASS  CR-02 attendu : modification sans changement → encours = une seule part (564)  [clôture copie {"s":true,"m":"Opération effectuée avec success"} ; encours organisme 564 ; encours client 564]
+PASS  CR-03 attendu : clôture refusée (bon déjà utilisé) → aucun encours modifié, aucune ligne tiers payant close  [clôture {"s":false,"m":"Le numéro de   ZZAUDIT-DOUBLON  est déjà utilisé par l'assureur :: ZZAUDIT-TP-CR03B"} ; encours A 353 → 353 ; encours B 212 → 212 ; vente is_Process ; lignes ZZAUDIT-TP-CR03A/50/353/is_Process/unpaid ; ZZAUDIT-TP-CR03B/30/212/is_Process/unpaid]
+PASS  CR-03 attendu : un second essai identique ne recompte rien  [second essai false ; encours A 353 → 353]
+PASS  CR-04 attendu : 3 paires de clôtures simultanées sur le même organisme → encours = somme des parts  [clôtures réussies 6/6 ; somme des parts 1692 ; encours organisme 1692 ; encours client 1692]
+PASS  CR-07 attendu : une part de 1 F et un taux de 1 % renvoyés par le poste (calcul serveur : 80 %) sont refusés, ou ignorés au profit du calcul serveur  [clôture true ; part calculée [] ; ligne enregistrée ZZAUDIT-TP-CR07/80/564/is_Closed/unpaid ; encours organisme 564]
+PASS  CR-09 attendu : ajouter un tiers payant à 250 % est refusé  [réponse {"msg":"Le taux du tiers payant doit être compris entre 0 et 100 %.","success":false,"http":200} ; lignes ZZAUDIT-TP-CR09A/70/0/is_Process/unpaid]
+PASS  CR-10 attendu : retirer le tiers payant d'une vente assurance encaissée est refusé, la ligne reste facturable  [réponse {"msg":"Cette vente (N° 261028_00032) a été clôturée le 28/10/2026 20:02 : elle ne peut plus être mo ; lignes avant ZZAUDIT-TP-CR10/80/564/is_Closed/unpaid ; après ZZAUDIT-TP-CR10/80/564/is_Closed/unpaid]
+PASS  CA-03 précondition : la vente du tiers payant exclu a sa ligne vente_exclu
+PASS  CA-03 attendu : aucune des 8 ventes ordinaires suivantes n'a de ligne « vente exclue »  [0 vente(s) ordinaire(s) enregistrée(s) comme exclues, au nom de -]
+PASS  CA-03 remise en état : une vente ordinaire après une vente « dépôt » n'est plus enregistrée comme exclue
+PASS  CA-09 attendu : la part passe de l'organisme A à l'organisme B (encours A 564 → 0, B 0 → 564)  [réponse {"msg":"Opération effectuée avec succèss","success":true,"refId":"891276da-306b-4d30-b333-ddb4372d15 ; encours A 0 ; encours B 564 ; lignes ZZAUDIT-TP-CA09B/80/564/is_Closed/unpaid]
+PASS  N5 attendu : changer le tiers payant d'une vente déjà facturée (ligne « charged ») est refusé, la ligne facturée reste  [réponse {"msg":"Cette vente a déjà été facturée à l'organisme : son client ou ses tiers payants ne se modifi ; ligne facturée encore présente ? 1 ; lignes de la vente ZZAUDIT-TP-CA09A/80/564/is_Closed/charged]
+PASS  Aucune erreur JavaScript  []
+PASS  Jeu d'essai retiré (ventes, clients, tiers payants, factures), stocks et paramètres remis  [ventes restantes 0]
+
+17/17 OK
