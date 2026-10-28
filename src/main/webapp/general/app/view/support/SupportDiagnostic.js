@@ -36,7 +36,8 @@ Ext.define('testextjs.view.support.SupportDiagnostic', {
                 {name: 'urlOuEcran', type: 'string'},
                 {name: 'payloadJson', type: 'string'},
                 {name: 'logRef', type: 'string'},
-                {name: 'ticketId', type: 'string'}
+                {name: 'ticketId', type: 'string'},
+                {name: 'versionApp', type: 'string'}
             ],
             autoLoad: false,
             pageSize: 20,
@@ -198,6 +199,14 @@ Ext.define('testextjs.view.support.SupportDiagnostic', {
                             header: 'Utilisateur',
                             dataIndex: 'utilisateur',
                             flex: 0.8,
+                            sortable: false,
+                            menuDisabled: true
+                        },
+                        {
+                            /* rapport du 26/10 (SC8) : version (build) du poste a la derniere occurrence */
+                            header: 'Version',
+                            dataIndex: 'versionApp',
+                            width: 115,
                             sortable: false,
                             menuDisabled: true
                         },

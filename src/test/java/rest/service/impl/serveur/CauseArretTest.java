@@ -66,6 +66,52 @@ class CauseArretTest {
         x.windows.add(ev(1074, "User32", 35, "TrustedInstaller.exe"));
         x.windows.add(ev(6005, "EventLog", 38, ""));
         assertEquals(Code.REDEMARRAGE_WINDOWS, CauseArret.diagnostiquer(x).code);
+        /* rapport du 26/10 (S1) : Windows s'est arrete proprement, ce n'est pas une panne du serveur */
+        assertEquals("INFO", CauseArret.diagnostiquer(x).code.niveau);
+    }
+
+    /**
+     * Rapport du 26/10 (S1) : 149 « redemarrages inattendus », dont 61 des 80 arrets de plus de 2 h avec un dernier
+     * signe entre 20 h et 22 h. C'est l'extinction du poste le soir : Windows s'arrete proprement (1074 demande par
+     * l'utilisateur, 6006 fin du journal), sans 41 ni 6008, et tue Payara au passage. Information, pas incident.
+     */
+    @Test
+    void extinctionNormaleDuPosteLeSoir() {
+        Indices x = new Indices();
+        x.dernierSigne = LocalDateTime.of(2026, 10, 14, 20, 58);
+        x.redemarrage = LocalDateTime.of(2026, 10, 15, 7, 32);
+        x.windows.add(new EvenementWindows(1074, "User32", LocalDateTime.of(2026, 10, 14, 20, 59),
+                "C:\\Windows\\explorer.exe"));
+        x.windows.add(new EvenementWindows(6006, "EventLog", LocalDateTime.of(2026, 10, 14, 21, 0), ""));
+        x.windows.add(new EvenementWindows(6005, "EventLog", LocalDateTime.of(2026, 10, 15, 7, 30), ""));
+        CauseArret.Diagnostic d = CauseArret.diagnostiquer(x);
+        assertEquals(Code.EXTINCTION_MACHINE, d.code);
+        assertEquals("INFO", d.code.niveau);
+    }
+
+    @Test
+    void extinctionSansDemandeEnregistree() {
+        Indices x = indices();
+        x.windows.add(ev(6006, "EventLog", 33, ""));
+        x.windows.add(ev(6005, "EventLog", 38, ""));
+        assertEquals(Code.EXTINCTION_MACHINE, CauseArret.diagnostiquer(x).code);
+    }
+
+    @Test
+    void arretPropreSuiviDUneCoupureResteUneCoupure() {
+        Indices x = indices();
+        x.windows.add(ev(6006, "EventLog", 33, ""));
+        x.windows.add(ev(41, "Microsoft-Windows-Kernel-Power", 37, ""));
+        x.windows.add(ev(6005, "EventLog", 38, ""));
+        assertEquals(Code.COUPURE_COURANT, CauseArret.diagnostiquer(x).code);
+    }
+
+    @Test
+    void redemarrageSansTraceDArretResteUnAvertissement() {
+        Indices x = indices();
+        x.windows.add(ev(6005, "EventLog", 38, ""));
+        assertEquals(Code.REDEMARRAGE_MACHINE, CauseArret.diagnostiquer(x).code);
+        assertEquals("WARN", CauseArret.diagnostiquer(x).code.niveau);
     }
 
     @Test

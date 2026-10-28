@@ -5,11 +5,13 @@
  */
 package job;
 
+import config.AppConfig;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.ejb.EJB;
 import javax.ejb.Schedule;
 import javax.ejb.Singleton;
+import javax.inject.Inject;
 import rest.service.SupportEventService;
 
 /**
@@ -25,9 +27,18 @@ public class SupportPurgeScheduler {
 
     @EJB
     private SupportEventService supportEventService;
+    @Inject
+    private AppConfig appConfig;
 
     @Schedule(hour = "3", minute = "45", second = "0", persistent = false)
     public void purge() {
+        /*
+         * rapport du 26/10 (SC3) : chaque caisse fait tourner son propre serveur sur la base commune ; ce travail sur
+         * toute la base ne se fait qu'une fois, sur le poste serveur, comme les taches metier (JobLot, releve de stock)
+         */
+        if (!appConfig.isServerMode()) {
+            return;
+        }
         try {
             supportEventService.purgeOldEvents();
             supportEventService.recordJobRun("PURGE_SUPPORT");

@@ -69,7 +69,9 @@ public class SupportResourceMonitor {
                         + "Risque : un depassement continu mene a un OutOfMemoryError (crash du serveur).\n"
                         + "Pistes : augmenter la memoire max de la JVM (-Xmx), ou rechercher une fuite memoire "
                         + "(ecran/traitement recemment utilise).";
-                supportEventService.recordServerIncident("memoire-" + LocalDate.now(), "WARN", message, detail);
+                /* chaque poste a son serveur : le poste fait partie de la cle (rapport du 26/10, SC3) */
+                supportEventService.recordServerIncident("memoire-" + PosteLocal.nomMachine() + "-" + LocalDate.now(),
+                        "WARN", message + " (" + PosteLocal.nomMachine() + ")", detail);
                 LOG.log(Level.WARNING, "Alerte memoire : {0}", message);
                 depassementsMemoire = 0;
             }
@@ -106,8 +108,9 @@ public class SupportResourceMonitor {
                         + "Risque : un disque plein bloque les ecritures (base de donnees, logs) et peut faire "
                         + "tomber le serveur.\n"
                         + "Action : liberer de l'espace (anciennes sauvegardes, logs, fichiers temporaires).";
-                supportEventService.recordServerIncident("disque-" + libelle.replace(' ', '_') + "-" + LocalDate.now(),
-                        "ERROR", message, detail);
+                supportEventService.recordServerIncident(
+                        "disque-" + PosteLocal.nomMachine() + "-" + libelle.replace(' ', '_') + "-" + LocalDate.now(),
+                        "ERROR", message + " (" + PosteLocal.nomMachine() + ")", detail);
                 LOG.log(Level.WARNING, "Alerte disque : {0}", message);
             }
         } catch (Exception e) {
