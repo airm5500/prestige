@@ -49,26 +49,36 @@ const PERIODES_AV = [['1 jour', 1], ['3 jours', 3], ['1 semaine', 7], ['15 jours
 const resultats = { base: BASE_DB, url: vues.BASE, dateRef: DATE_REF, passages: PASSAGES, debut: new Date().toISOString(), cas: [] };
 const med = (t) => { const s = t.slice().sort((a, b) => a - b); return s.length ? s[Math.floor(s.length / 2)] : null; };
 
-/* ---------- journal SQL (passage de diagnostic) ---------- */
+/* ---------- journal SQL (passage de diagnostic) ----------
+ * long_query_time est copie dans chaque connexion a son ouverture : les connexions deja ouvertes du pool de Payara
+ * garderaient l'ancien seuil. Le pool est donc vide (asadmin flush-connection-pool) apres chaque changement, sur le
+ * Payara mesure seulement : ASADMIN (chemin d'asadmin) et ASADMIN_PORT (port d'administration, 4848 ou 9048). */
 let journalOrigine = null;
+function viderPool() {
+  if (!process.env.ASADMIN) { return; }
+  execFileSync(process.env.ASADMIN, ['--port', process.env.ASADMIN_PORT || '4848', 'flush-connection-pool', process.env.POOL || 'laborex_pool'],
+    { encoding: 'utf8', shell: process.platform === 'win32' });
+}
 function journalActiver() {
   journalOrigine = q("SELECT CONCAT_WS('|', @@global.slow_query_log, @@global.long_query_time, @@global.log_output, @@global.log_slow_admin_statements)", '');
   q("SET GLOBAL log_output='TABLE'; SET GLOBAL long_query_time=0; TRUNCATE TABLE mysql.slow_log; SET GLOBAL slow_query_log=1", '');
+  viderPool();
 }
 function journalRemettre() {
   if (!journalOrigine) { return; }
   const [on, lqt, out] = journalOrigine.split('|');
-  q(`SET GLOBAL slow_query_log=${on === '1' || on === 'ON' ? 1 : 0}; SET GLOBAL long_query_time=${Number(lqt)}; SET GLOBAL log_output='${out}'; TRUNCATE TABLE mysql.slow_log`, '');
+  q(`SET GLOBAL slow_query_log=${on === '1' || on === 'ON' ? 1 : 0}; SET GLOBAL long_query_time=${Number(lqt)}; SET GLOBAL log_output='${out}'`, '');
   journalOrigine = null;
+  viderPool();
 }
 /* requetes de la base mesuree entre deux instants (heure du serveur MariaDB) */
 function journalLire(t0, t1) {
-  const lignes = q(`SELECT ROUND(TIME_TO_SEC(query_time)*1000), rows_examined, rows_sent, REPLACE(REPLACE(LEFT(sql_text, 600), '\\n', ' '), '\\t', ' ')
+  const lignes = q(`SELECT ROUND(TIME_TO_SEC(query_time)*1000), rows_examined, rows_sent, REPLACE(REPLACE(LEFT(sql_text, 20000), '\\n', ' '), '\\t', ' ')
     FROM mysql.slow_log WHERE db='${BASE_DB}' AND start_time BETWEEN '${t0}' AND '${t1}'`, '');
   const r = lignes ? lignes.split('\n').map((l) => { const c = l.split('\t'); return { ms: Number(c[0]), examinees: Number(c[1]), envoyees: Number(c[2]), sql: c[3] }; }) : [];
   const total = r.reduce((a, x) => a + x.ms, 0);
   return { requetes: r.length, msTotal: total, lignesExaminees: r.reduce((a, x) => a + x.examinees, 0),
-    pires: r.sort((a, b) => b.ms - a.ms).slice(0, 5) };
+    pires: r.slice().sort((a, b) => b.ms - a.ms).slice(0, 5).map((x) => Object.assign({}, x, { sql: x.sql.slice(0, 600) })), toutes: r };
 }
 const heureServeur = () => q('SELECT NOW(6)', '');
 
@@ -178,10 +188,10 @@ function retirerSuggestions(avant) {
     for (let i = 0; i < PASSAGES + (SQL_LOG ? 1 : 0); i++) {
       const diag = i === PASSAGES;
       if (preparer) { await preparer(i); }
-      if (diag) { journalActiver(); }
+      if (diag && !journalOrigine) { journalActiver(); }
       let r;
       try { r = await geste(action, lignes, diag); } catch (e) { r = { ms: null, erreur: String(e.message).slice(0, 300), appels: appels || [] }; appels = null; }
-      finally { if (diag) { journalRemettre(); } }
+      finally { if (diag && PASSAGES > 0) { journalRemettre(); } }
       if (apres) { r.retrait = await apres(i); }
       r.diagnostic = diag;
       passages.push(r);
@@ -365,6 +375,7 @@ function retirerSuggestions(avant) {
     resultats.erreur = String(e.message);
   } finally {
     journalRemettre();
+    if (SQL_LOG) { q('TRUNCATE TABLE mysql.slow_log', ''); }
     resultats.fin = new Date().toISOString();
     fs.writeFileSync(SORTIE, JSON.stringify(resultats, null, 1));
     console.log('Resultats : ' + SORTIE);
