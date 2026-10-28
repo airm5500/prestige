@@ -5464,6 +5464,15 @@ Ext.define('testextjs.controller.VenteCtr', {
     createForm: function () {
         const me = this;
         let grid = me.getTpComplementaireGrid();
+        /* retours de recette du 28/10 (M3) : la priorite proposee etait toujours 2, deja prise par une assurance du
+           client ; on propose la premiere libre (1 est celle de l'assurance principale) */
+        const prises = Ext.Array.map(grid.getStore().getRange(), function (r) {
+            return parseInt(r.get('order'), 10);
+        });
+        let prioriteLibre = 2;
+        while (prioriteLibre < 4 && prises.indexOf(prioriteLibre) >= 0) {
+            prioriteLibre++;
+        }
         let tierspayantss = new Ext.data.Store({
             idProperty: 'lgTIERSPAYANTID',
             fields: [
@@ -5666,7 +5675,7 @@ Ext.define('testextjs.controller.VenteCtr', {
                                                     maxValue: 4,
                                                     maskRe: /[2-4.]/,
                                                     fieldLabel: 'Priorité',
-                                                    value: 2
+                                                    value: prioriteLibre
                                                 }
                                             ]
                                         }

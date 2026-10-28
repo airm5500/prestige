@@ -2450,6 +2450,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                 {name: 'lgLOTID', type: 'string'},
                 {name: 'datePerement', type: 'string'},
                 {name: 'quantiteLot', type: 'int'},
+                {name: 'quantiteRestante', type: 'int'},
                 {name: 'numLot', type: 'string'},
                 {name: 'statut', type: 'string'},
                 {name: 'codeCip', type: 'string'}
@@ -2661,7 +2662,7 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
         const win = Ext.create('Ext.window.Window', {
             title: cip + ' - ' + designation,
             modal: true,
-            width: 850,
+            width: 930,
             height: 360,
             layout: 'fit',
             items: [{
@@ -2674,10 +2675,17 @@ Ext.define('testextjs.view.configmanagement.famille.FamilleManager', {
                             flex: 1
                         },
                         {
-                            text: 'Quantité',
+                            text: 'Qté lot',
                             dataIndex: 'quantiteLot',
                             align: 'center',
                             flex: 0.7
+                        },
+                        {
+                            // retours de recette du 28/10 : stock restant du lot (meme donnee que « Recherche perimes »)
+                            text: 'Qté restante lot',
+                            dataIndex: 'quantiteRestante',
+                            align: 'center',
+                            flex: 0.8
                         },
                         {
                             text: 'N° Lot',

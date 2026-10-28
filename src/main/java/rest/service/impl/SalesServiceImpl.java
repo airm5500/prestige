@@ -5397,7 +5397,11 @@ public class SalesServiceImpl implements SalesService {
         newItem.setStrREFBON(numBon);
         newItem.setDblQUOTACONSOVENTE(0.0);
         newItem.setIntPERCENT(json.getInt("taux"));
-        newItem.setIntPRICERESTE(newItem.getIntPRICERESTE());
+        /*
+         * Retour de recette CA-09 (28/10) : le reste du bon etait recopie de lui-meme, donc vide. Ce bon sortait de
+         * l'encours de l'ecran « Tiers-payants » (somme des restes) et du reglement. Un bon neuf reste du en entier.
+         */
+        newItem.setIntPRICERESTE(newItem.getIntPRICE());
         newItem.setStrSTATUTFACTURE("unpaid");
         getEm().persist(newItem);
         TCompteClient oCompteClient = payant.getLgCOMPTECLIENTID();
