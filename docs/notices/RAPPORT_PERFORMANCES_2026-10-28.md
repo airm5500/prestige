@@ -374,7 +374,9 @@ requête.
   - envoyer seulement le nombre de clients, et charger leur liste au clic ;
   - regrouper les cautions et les séquenciers en une requête `IN (...)`.
 
-  **Risque** : faible. Il faut vérifier quel écran affiche `str_FAMILLE_ITEM`.
+  **Risque** : faible. `str_FAMILLE_ITEM` est affiché dans le détail dépliable des lignes, à trois endroits : la liste
+  des tiers payants, `TiersPayantDesactiveManager.js` et l'ajout d'un tiers payant à une vente (`dovente/action/addtp.js`,
+  ligne 64). Ces trois écrans devront charger le détail au dépliage.
 - **Test** : parcours 3 ; comparer la taille de la réponse et les colonnes affichées.
 
 ### 4.7 Cause 7 — Pilotage, onglet « À suivre » *(prouvé sur capitale)*
