@@ -62,8 +62,18 @@ public class SupportPoolMonitor {
      * Connexions ouvertes mais inactives depuis longtemps. Une connexion rendue au pool ne compte pas : elle est fermee
      * ou reutilisee. Celles qui dorment des heures ont ete empruntees et jamais rendues.
      */
-    private static final String DORMANTES_WHERE = " FROM information_schema.PROCESSLIST"
-            + " WHERE COMMAND = 'Sleep' AND ID <> CONNECTION_ID() AND TIME >= ?1";
+    /** Machine cliente d'une connexion : HOST vaut « adresse:port », ou « localhost » sans port. */
+    static final String HOTE_SANS_PORT = "LEFT(HOST, LENGTH(HOST) - LOCATE(':', REVERSE(HOST)))";
+
+    /*
+     * Rapport du 26/10 (S3) : chaque caisse a son propre pool sur la base commune. Compter toutes les connexions de la
+     * base depassait le seuil des que plusieurs postes etaient ouverts, sans aucune fuite. On ne garde que celles du
+     * meme compte et de la meme machine que la connexion courante, c'est-a-dire du pool de ce poste.
+     */
+    static final String DORMANTES_WHERE = " FROM information_schema.PROCESSLIST"
+            + " WHERE COMMAND = 'Sleep' AND ID <> CONNECTION_ID() AND TIME >= ?1" + " AND (USER, " + HOTE_SANS_PORT
+            + ") = (SELECT USER, " + HOTE_SANS_PORT
+            + " FROM information_schema.PROCESSLIST WHERE ID = CONNECTION_ID())";
 
     @PersistenceContext(unitName = "JTA_UNIT")
     private EntityManager em;

@@ -1222,9 +1222,19 @@ Ext.define('testextjs.controller.DevisCtr', {
     },
     loadClient: function (clientId, lgTYPEVENTEID, venteId, intPRICE) {
         var me = this;
+        /* rapport du 26/10 (A3) : proforma sans client, rien a relire. L'appel « client-assurance//<vente> » finissait en
+           404 et en « Probleme avec le server » ; une proforma comptant avec des produits se cloture sans client, comme
+           apres l'ajout d'un produit (addVenteDevis) */
+        if (!clientId) {
+            me.updateAmountFields(intPRICE);
+            if (lgTYPEVENTEID === '1') {
+                me.getVnobtnCloture().enable();
+            }
+            return;
+        }
         Ext.Ajax.request({
             method: 'GET',
-            url: '../api/v1/client/client-assurance/' + clientId + '/' + venteId,
+            url: '../api/v1/client/client-assurance/' + encodeURIComponent(clientId) + '/' + encodeURIComponent(venteId),
             success: function (response, options) {
                 var result = Ext.JSON.decode(response.responseText, true);
                 me.updateAmountFields(intPRICE);
@@ -1268,7 +1278,7 @@ Ext.define('testextjs.controller.DevisCtr', {
         // On garde le champ de recherche client visible afin de pouvoir
         // modifier le client d'une proforma existante.
         clientSearchBox.show();
-        me.loadClient(client.lgCLIENTID, lgTYPEVENTEID, record.lgPREENREGISTREMENTID, intPRICE);
+        me.loadClient(client ? client.lgCLIENTID : null, lgTYPEVENTEID, record.lgPREENREGISTREMENTID, intPRICE);
 
 
     },

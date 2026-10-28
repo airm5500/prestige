@@ -392,6 +392,21 @@ sur la même version déployée.
 | SC8 | **Corrigé.** Horodatage du build écrit par Maven dans `prestige-build.properties`, le seul fichier filtré (les 552 autres ressources restent identiques octet pour octet, vérifié). La version de la dernière occurrence est gardée avec l'événement (colonne `version_app`, migration **V7.2.25**), affichée dans le journal du support (colonne « Version ») et dans la description des tickets | `pom.xml`, `VersionBuild.java`, `ApplicationEvent.java`, `SupportEventServiceImpl.java`, `SupportDiagnostic.js`, `V7.2.25__support_evenement_version.sql` | `VersionBuildTest` 3/3. **Vérification sur Payara en attente** (migration, colonne remplie) |
 | SC1 | **Traité par `4943d90d` (10/10), prouvé par le code, sans modification.** `record` (une transaction par appel, le ticket créé dans la même transaction) compte par `UPDATE … occurrences + 1` ou `INSERT … ON DUPLICATE KEY UPDATE`. Ces deux écritures prennent le verrou de la ligne : la seconde occurrence simultanée attend la validation de la première, puis relit `ticket_id` déjà posé et ne crée pas de second ticket. Le doublon du 17/10 vient sans doute d'un poste resté sur une version antérieure, ce que SC8 permettra désormais de vérifier | — | Lecture du code. Pas d'essai : il créerait des événements et des tickets que l'écran ne permet pas de supprimer. Une contrainte unique en base serait plus sûre, mais elle échouerait sur les 6 doublons existants : il faudrait d'abord les nettoyer dans la base de l'officine |
 
+## 18. Lot 4 : derniers points ouverts (28/10)
+
+Avant ce lot, les autres branches ont été relues : **V2** (P1) est corrigé sur `claude/new-session-xm8ptu` par
+`f662d980` (26/10, test `vente/test-telephone-client-vente.js`, 7/7) ; **R1** est corrigé sur la branche d'audit
+par `c9e2010c` (lot 8 : N9, CA-07). Ils ne sont pas repris ici.
+
+| N° | Résultat | Fichiers | Preuve |
+|---|---|---|---|
+| S3 | **Corrigé.** Le moniteur ne compte plus que les connexions dormantes du même compte et de la même machine (adresse sans le port) que sa propre connexion, c'est-à-dire du pool de ce poste. Les caisses voisines ne font plus dépasser le seuil de 20 | `job/SupportPoolMonitor.java` | `SupportPoolMonitorTest.dormantesDeCePosteSeulement` : échoue avant, passe après. Requête à confirmer sur MariaDB au déploiement |
+| A3 | **Corrigé.** Proforma sans client : plus d'appel `client-assurance//<vente>` (404, « Problème avec le server ») ; les montants sont mis à jour et, en comptant, la clôture est permise comme après l'ajout d'un produit. Identifiants encodés | `controller/DevisCtr.js` | `test-lot4-ecrans.js`, volet A3 : à jouer au déploiement |
+| J6 | **Corrigé.** Une réponse 200 qui n'est pas du JSON à la recherche par douchette (`findone`) ne lève plus « result is null » : on reste sur le champ | `controller/VenteCtr.js` | `test-lot4-ecrans.js`, volet J6 (avec non-régression) : à jouer au déploiement |
+
+Tests unitaires : tous passent. Les volets d'écran J6 et A3 seront joués (avant puis après) sur le 9080 dès qu'il sera
+rendu, avec la vérification du lot 3.
+
 ## Annexe A. Rejouer les reproductions
 
 Variables (Node 22) :
