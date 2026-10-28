@@ -411,3 +411,27 @@ L'écran calcule lui-même le montant reçu : ce cas n'arrive que par une requê
 | M3 et point 21 : priorité en double, ancien RO supprimé | **corrigé** : l'ancien RO reste actif en priorité libre, un seul lien par organisme, une priorité par lien actif | repro-assurances-liens.js P21-a à P21-e : 4 échecs avant correction, 15/15 après ; non-régression vente assurance 17/17, deuxième assurance 14/14, changement de tiers payant 7/7 |
 | CA-09 : encours de B lu à 0 | données justes pour la vente 261028_00001 | j'attends l'écran consulté ; j'ajoute au test l'encours du client |
 | DIF : bouton « Modifier » absent | conditions du code remplies pour 261028_00002 | j'attends le numéro de vente ; les tests DIF passeront par le bouton |
+
+---
+
+## Suite du 28/10 au soir : tests rejoués par l'écran, sur domain3
+
+À ta demande, les tests font maintenant ce que fait l'utilisateur : menus, frappe au clavier, clics sur les boutons
+visibles. Seule la préparation (client d'essai, vente encaissée) passe hors de l'écran. Ils ont tourné sur un serveur
+Payara à part, **domain3** (`http://localhost:10090/prestige`), branché sur **`laborex_audit`**, une copie de
+`laborex_v1_db` dont les envois (SMS, e-mail, WhatsApp, PharmaML) sont coupés. domain1 et `laborex_v1_db` n'ont pas été
+touchés. Sorties : `preuves-audits-2026-10-25/retours-ecran-2026-10-28/`.
+
+| Test (par l'écran) | Ancienne version (6724b004) | Version corrigée |
+|---|---|---|
+| CA-09 : « Ventes terminées » → « Modifier info client » → A remplacé par B ; encours lu dans « Tiers-payants » | 7/9 : **B : 0 → 0** reproduit, bon de B sans reste dû | **9/9** : A 2 551 → 0, B 0 → 2 552 |
+| Ton scénario M3 : écran de vente → fiche client → principale A remplacée par B, puis « Associer une assurance » | 8/13 : A supprimée ; priorité 2 proposée alors qu'elle est prise ; **C et D en priorité 2** ; grille non modifiable | **13/13** : A gardée en priorité 3, D proposée et enregistrée en 4, taux et matricule modifiés dans la grille |
+| Fiche article → « Voir les lots / péremptions » | 2/4 : pas de colonne | 3/4 : colonnes « Quantité saisie » et « Quantité restante lot » ; la valeur restante vient de la version de « Recherche périmés » de `claude/new-session-xm8ptu`, absente de cette branche (0 affiché) |
+
+Non-régression sur domain3 : repro-assurances-liens 15/15, repro-vente-assurance 17/17, changement de tiers payant
+7/7, deuxième assurance 14/14.
+
+Constat en passant, non corrigé : à la modification de l'organisme, la part est recalculée et peut différer d'1 F de
+celle de la vente (2 551 à la vente, 2 552 après).
+
+Reprise des anciens bons sans reste dû : `outils/sql/corriger-reste-bons-modifies.sql`, à exécuter à la main.

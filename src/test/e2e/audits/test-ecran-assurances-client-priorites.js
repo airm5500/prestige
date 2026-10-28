@@ -72,13 +72,15 @@ const doublons = (l) => { const p = l.map((x) => x.split('/')[1]); return p.filt
     await p.waitForTimeout(1500);
     await p.locator('text=/^\\s*Assurance\\s*$/').filter({ visible: true }).first().click();
     await p.waitForTimeout(1500);
-    /* client : nom tape, Entree, clic sur sa ligne (reperee par son matricule) */
+    /* client : nom tape, Entree */
     await cliquer(p, 'doventemanager #contenu #clientSearchTextField');
     await p.keyboard.type(MARQUE + ' ' + NOM, { delay: 20 });
     await p.keyboard.press('Enter');
+    /* un seul client trouve : l'ecran le prend directement ; plusieurs : clic sur sa ligne dans la liste */
     const ligne = p.locator('.x-window .x-grid-row').filter({ visible: true, hasText: MATRICULE }).first();
-    await ligne.waitFor({ timeout: 30000 });
-    await ligne.click();
+    const assure = p.locator('text=(' + MATRICULE + ')').filter({ visible: true }).first();
+    await Promise.race([ligne.waitFor({ timeout: 30000 }), assure.waitFor({ timeout: 30000 })]);
+    if (await ligne.isVisible().catch(() => false)) { await ligne.click(); }
     await p.waitForTimeout(2500);
     await fermerMessages();
 

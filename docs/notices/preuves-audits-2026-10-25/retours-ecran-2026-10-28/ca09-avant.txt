@@ -1,0 +1,11 @@
+PASS  Préparation : vente assurance encaissée sur A  [261028_00007, part A 2551]
+PASS  « Tiers-payants » avant : A porte la part, B à 0  [{"A":2551,"B":0}]
+PASS  « Enregistrer » : modification acceptée  [{"msg":"Opération effectuée avec succèss","success":true,"refId":"96067b97-7d97-43a3-837a-0054cd705086"}]
+FAIL  Bon de la vente : porté par B, reste dû égal à la part  [ZZAUDIT-TP-EB|2552|vide]
+PASS  « Tiers-payants » après : la part sort de A  [{"A":2551,"B":0} → {"A":0,"B":0}]
+FAIL  « Tiers-payants » après : la part entre dans B (constat « B : 0 → 0 »)  [{"A":2551,"B":0} → {"A":0,"B":0}]
+PASS  Client : aucune priorité portée par deux tiers payants  [ZZAUDIT-TP-EB/1/1 ; ZZAUDIT-TP-EA/2/0 ; ZZAUDIT-TP-EC/3/0]
+PASS  Aucune erreur JavaScript  []
+PASS  Jeu d'essai retiré (ventes, clients, tiers payants, factures), stocks et paramètres remis  [ventes restantes 0]
+
+7/9 — 2 constat(s) reproduit(s) ou precondition(s) en echec

@@ -1,0 +1,6 @@
+PASS  Fenêtre des lots : colonnes « Quantité saisie » puis « Quantité restante lot »  [Date péremption | Quantité saisie | Quantité restante lot | N° Lot | Statut | Modifier | Supprimer]
+FAIL  Ligne du lot d'essai : Quantité saisie 10, Quantité restante lot 4  [07/12/2026 | 10 | 0 | ZZAUDIT-LOT-FA | Périme dans 1 mois 9 jour(s) |  | ]
+PASS  Aucune erreur JavaScript  []
+PASS  Jeu d'essai retiré (ventes, clients, tiers payants, factures), stocks et paramètres remis  [ventes restantes 0]
+
+3/4 — 1 constat(s) reproduit(s) ou precondition(s) en echec
