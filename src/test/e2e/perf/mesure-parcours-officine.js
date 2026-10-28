@@ -38,7 +38,7 @@ const SORTIE = process.env.SORTIE || path.join(ENV_E2E.TMP, 'mesure-parcours-' +
 const jourIso = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 const DATE_REF = process.env.DATE_REF || jourIso(new Date(Date.now() - 86400000));
 const q = (s, db) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', db === undefined ? BASE_DB : db,
-  '-sN', '-e', s], { encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 }).trim();
+  '-sN', '-e', s], { encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 }).replace(/\r/g, '').trim(); /* client Windows : fins de ligne CR LF */
 
 /* debut d'une periode de n jours finissant a DATE_REF */
 function debut(n) { const d = new Date(DATE_REF + 'T12:00:00'); d.setDate(d.getDate() - (n - 1)); return jourIso(d); }
@@ -215,8 +215,14 @@ function retirerSuggestions(avant) {
   /* ouverture d'un ecran en deux temps, comme vues.ouvrirMenu : le trajet dans le menu (volet, menu parent) se fait
      avant le chrono, qui ne part qu'au clic sur l'entree */
   let entreeMenu = null;
-  async function versLeMenu(parent, entree) {
+  async function versLeMenu(xtype) {
     await fermerEcrans();
+    /* libelles propres a chaque officine (« Ticket Z » s'appelle « Recapitulatif de caisse » chez l'une) : on les lit
+       dans l'arbre du menu de l'utilisateur, par l'ecran vise */
+    const lib = await p.evaluate((x) => { let r = null; Ext.ComponentQuery.query('navigation')[0].getStore().getRootNode()
+      .cascadeBy((n) => { if (!r && n.get('id') === x && n.parentNode) { r = [n.parentNode.get('text'), n.get('text')]; } }); return r; }, xtype);
+    if (!lib) { throw new Error('Ecran ' + xtype + ' absent du menu de ' + ENV_E2E.LOGIN); }
+    const [parent, entree] = lib;
     const visible = (sel) => p.locator(sel).filter({ visible: true });
     if (await visible('.prestige-nav .x-grid-row').count() === 0) {
       const id = await p.evaluate(() => { const n = Ext.ComponentQuery.query('navigation')[0]; return n.placeholder ? n.placeholder.getId() : null; });
@@ -225,10 +231,14 @@ function retirerSuggestions(avant) {
     }
     const exact = (t) => new RegExp('^\\s*' + t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*$');
     await visible('.prestige-nav .x-grid-row').filter({ has: p.getByText(exact(parent)) }).first().click();
-    entreeMenu = visible('.prestige-flyout-menu .x-menu-item').filter({ has: p.getByText(exact(entree)) }).first();
-    await entreeMenu.waitFor({ timeout: 10000 });
+    /* un menu long deborde du volet flottant : l'entree peut etre sous le bord, on la fait defiler jusqu'a la vue */
+    await visible('.prestige-flyout-menu').first().waitFor({ timeout: 10000 });
+    entreeMenu = visible('.prestige-flyout-menu').first().locator('.x-menu-item').filter({ has: p.getByText(exact(entree)) }).first();
+    await entreeMenu.waitFor({ state: 'attached', timeout: 10000 });
+    await entreeMenu.scrollIntoViewIfNeeded();
   }
   const clicMenu = () => entreeMenu.click();
+  const ouvrir = async (xtype) => { await versLeMenu(xtype); await clicMenu(); };
   const fermerEcrans = () => p.evaluate(() => { try { prestigeShowMetro(); } catch (e) { /* ancien en-tete */ } }).then(() => p.waitForTimeout(800));
   const poser = (requete, iso) => p.evaluate(([r, d]) => { const c = r.charAt(0) === '#' && r.indexOf(' ') < 0 ? Ext.getCmp(r.slice(1)) : Ext.ComponentQuery.query(r)[0];
     c.setValue(Ext.Date.parse(d, 'Y-m-d')); }, [requete, iso]);
@@ -266,7 +276,7 @@ function retirerSuggestions(avant) {
     /* ---- 1. Ticket Z */
     if (veut(1)) {
       await fermerEcrans();
-      await vues.ouvrirMenu(p, 'GESTION COURANTE', 'Ticket Z');
+      await ouvrir('ticketzmanager');
       await p.waitForSelector('.ticketz-carte, .ticketz-vide', { timeout: 120000 });
       await repos();
       for (const [lib, n] of PERIODES_Z) {
@@ -278,7 +288,7 @@ function retirerSuggestions(avant) {
     /* ---- 2 et 3. Clients et tiers payants (GESTION DES TIERS-PAYANTS) */
     for (const [num, entree, xtype] of [[2, 'Clients', 'clientmanager'], [3, 'Tiers-payants', 'tierspayantmanager']]) {
       if (!veut(num)) { continue; }
-      await cas(num, 'Liste des ' + entree.toLowerCase() + ' : ouverture par le menu', () => versLeMenu('GESTION DES TIERS-PAYANTS', entree),
+      await cas(num, 'Liste des ' + entree.toLowerCase() + ' : ouverture par le menu', () => versLeMenu(xtype),
         clicMenu, total(xtype));
       await cas(num, 'Liste des ' + entree.toLowerCase() + ' : bouton rechercher', null,
         () => bouton(xtype, 'rechercher'), total(xtype));
@@ -287,7 +297,7 @@ function retirerSuggestions(avant) {
     /* ---- 4. Ventes terminees */
     if (veut(4)) {
       await fermerEcrans();
-      await vues.ouvrirMenu(p, 'SERVICE CLIENT', 'Vente terminées');
+      await ouvrir('ventemanager');
       await repos();
       for (const [lib, n] of PERIODES_VT) {
         await cas(4, 'Ventes terminees, ' + lib, async () => { await poser('ventemanager #dtStart', debut(n)); await poser('ventemanager #dtEnd', DATE_REF); },
@@ -298,7 +308,7 @@ function retirerSuggestions(avant) {
     /* ---- 5, 7 et 8. Articles vendus recap, puis suggestions depuis cet ecran */
     if (veut(5) || veut(7) || veut(8)) {
       await fermerEcrans();
-      await vues.ouvrirMenu(p, 'GESTION COURANTE', 'Articles vendus récap');
+      await ouvrir('articlevendurecapitulatif');
       await repos();
       const periode = (n) => async () => { await poser('#dt_debut', debut(n)); await poser('#dt_fin', DATE_REF); };
       if (veut(5)) {
@@ -340,7 +350,7 @@ function retirerSuggestions(avant) {
     /* ---- 6. Liste des articles vendus (memes identifiants que le recap : l'autre ecran est ferme d'abord) */
     if (veut(6)) {
       await fermerEcrans();
-      await vues.ouvrirMenu(p, 'GESTION COURANTE', 'Liste des articles vendus');
+      await ouvrir('articlevendumanager');
       await repos();
       for (const [lib, n] of PERIODES_AV) {
         await cas(6, 'Articles vendus, ' + lib, async () => { await poser('#dt_Date_Debut', debut(n)); await poser('#dt_Date_Fin', DATE_REF); },
@@ -351,7 +361,7 @@ function retirerSuggestions(avant) {
     /* ---- 10. Fiche article : ouverture, recherche, affichage d'une fiche */
     if (veut(10)) {
       const grille = 'famillemanager';
-      await cas(10, 'Fiche article : ouverture par le menu', () => versLeMenu('GESTION DU STOCK', 'Fiche Article'), clicMenu, total(grille));
+      await cas(10, 'Fiche article : ouverture par le menu', () => versLeMenu('famillemanager'), clicMenu, total(grille));
       await cas(10, 'Fiche article : recherche « PARA »', async () => {
         await p.evaluate(() => { Ext.getCmp('rechecher').setValue(''); });
       }, async () => { await vues.saisir(p, '#rechecher', 'PARA'); await p.keyboard.press('Enter'); }, total(grille));
@@ -370,7 +380,7 @@ function retirerSuggestions(avant) {
 
     /* ---- 11. Pilotage (ANALYSE DE GESTION) : ouverture, puis chaque onglet par un clic sur son titre */
     if (veut(11)) {
-      await cas(11, 'Pilotage : ouverture par le menu', () => versLeMenu('ANALYSE DE GESTION', "Pilotage de l'officine"), async () => {
+      await cas(11, 'Pilotage : ouverture par le menu', () => versLeMenu('pilotage'), async () => {
         await clicMenu();
         await p.waitForFunction(() => Array.prototype.some.call(document.querySelectorAll('.pilotage-tuile'), (e) => /[0-9]/.test(e.textContent || '')), null, { timeout: 300000 });
       }, null);
