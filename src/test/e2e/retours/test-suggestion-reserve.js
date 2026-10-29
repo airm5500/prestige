@@ -105,7 +105,7 @@ function produit(id, cip, reserve) {
     ok('Vente de 2 unités du produit en réserve (rayon 21 → 19)', await vendre(R)
       && q(`SELECT int_NUMBER_AVAILABLE FROM t_famille_stock WHERE lg_FAMILLE_ID = '${R}' AND lg_EMPLACEMENT_ID = '1'`) === '19');
     ok('Rayon 19 + réserve 272 = 291 au-dessus du seuil 126 : pas de suggestion de commande', suggere(R) === 'AUCUNE', suggere(R));
-    const reassort = await api('GET', '../api/v1/reserve/suggestions?search=ZZ%20E2E%20SUGGESTION&start=0&limit=20');
+    const reassort = await api('GET', '../api/v1/reserve/suggestions?search_value=ZZ%20E2E%20SUGGESTION&start=0&limit=20');
     const ligne = (reassort.results || []).find((x) => x.lg_FAMILLE_ID === R);
     ok('Réassort réserve → rayon proposé, plafonné à la capacité du rayon : 20 − 19 = 1', ligne && ligne.int_QTE_SUGGEREE === 1, JSON.stringify(ligne || reassort).slice(0, 200));
     const manques = await api('GET', '../api/v1/suggestion/diagnostic?manques=1&start=0&limit=5000');
