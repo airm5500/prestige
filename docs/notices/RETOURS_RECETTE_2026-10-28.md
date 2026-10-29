@@ -545,5 +545,6 @@ extensions », vente ASSURANCE_MUTUELLE) : échec avant (grille non enregistrée
 
 **Non-régression sur domain3** : test-ecran-nouveau-tp-principal 10/10, test-ecran-assurances-client-priorites 18/18,
 repro-vente-assurance 17/17, repro-assurances-liens 15/15, test-ecran-modifier-vente-deja-modifiee 6/6.
-`retours/test-vente-en-depot.js` : 10/11, échec identique avec la version d'avant ces changements. La liste des dépôts
-d'extension reste vide pour ce test sur `laborex_audit`. Ce défaut du banc d'essai est sans lien avec ces corrections.
+`retours/test-vente-en-depot.js` : **31/31**. Il échouait d'abord (10/11) parce qu'il écrivait le dépôt d'essai dans
+`laborex_audit` mais ouvrait l'écran sur domain1 (adresse 8080 écrite en dur), qui ne le voyait pas. Il prend maintenant
+l'adresse réglable `BASE`, comme les autres tests ; sans `BASE`, il garde l'adresse 8080.
