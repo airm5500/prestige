@@ -95,7 +95,9 @@ function nettoyer() {
     ok('Code interne : trouvé', ids(await lambda('E2ERCH42')).includes(CS));
     const tous = (query, mode) => api('GET', '../api/v1/client/all?typeClientId=1&query=' + encodeURIComponent(query) + (mode ? '&mode=' + mode : ''));
     ok('Assuré : par matricule et par prénoms', ids(await tous('E2ENSS77')).includes(CA) && ids(await tous('Marius')).includes(CA));
-    ok('Assuré : « APO » seulement en « Contient »', !ids(await tous('APO')).includes(CA) && ids(await tous('APO', 'contient')).includes(CA));
+    /* « RCHYAPO » (milieu du nom ZZRCHYAPO) plutot que « APO » : sur la copie de l'officine, des centaines d'assures
+       contiennent « APO » et la page de resultats ne montre pas forcement celui de l'essai */
+    ok('Assuré : « RCHYAPO » seulement en « Contient »', !ids(await tous('RCHYAPO')).includes(CA) && ids(await tous('RCHYAPO', 'contient')).includes(CA));
     ok('Assuré : téléphone sans séparateurs', ids(await tous('0544332211')).includes(CA));
 
     /* gestion des clients : selecteur, memorise, la recherche le suit */
