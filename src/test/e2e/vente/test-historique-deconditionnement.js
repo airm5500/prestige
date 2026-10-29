@@ -32,7 +32,18 @@ const [D, P, N, CIP] = q("SELECT CONCAT_WS('|', f.lg_FAMILLE_ID, p.lg_FAMILLE_ID
   + " WHERE f.str_STATUT = 'enable' AND f.bool_DECONDITIONNE = 1 AND p.int_NUMBERDETAIL BETWEEN 3 AND 50 AND f.int_PRICE > 0"
   + " AND (SELECT COUNT(*) FROM t_famille g WHERE g.int_CIP = f.int_CIP) = 1 ORDER BY f.str_NAME LIMIT 1").split('|');
 const n = parseInt(N, 10);
-/* depot d'essai : un depot existant du banc (type 2) et son client */
+/* depot d'essai : un depot existant du banc (type 2) et son client ; sans depot (copie de l'officine), un depot
+   d'essai rattache au compte d'un client actif, retire a la fin */
+const DEPOT_ESSAI = 'E2E-HDEC-DEPOT';
+const retirerDepot = () => exec(`DELETE FROM t_famille_stock WHERE lg_EMPLACEMENT_ID = '${DEPOT_ESSAI}';`
+  + `DELETE FROM hmvtproduit WHERE lg_EMPLACEMENT_ID = '${DEPOT_ESSAI}'; DELETE FROM t_emplacement WHERE lg_EMPLACEMENT_ID = '${DEPOT_ESSAI}'`);
+retirerDepot();
+if (q("SELECT COUNT(*) FROM t_emplacement WHERE lg_EMPLACEMENT_ID <> '1' AND str_STATUT = 'enable' AND lg_TYPEDEPOT_ID = '2'") === '0') {
+  exec("INSERT INTO t_emplacement (lg_EMPLACEMENT_ID, lg_COMPTE_CLIENT_ID, str_NAME, str_DESCRIPTION, str_LOCALITE, str_FIRST_NAME, str_LAST_NAME,"
+    + " str_PHONE, dt_CREATED, dt_UPDATED, str_STATUT, lg_TYPEDEPOT_ID, bool_SAME_LOCATION) SELECT '" + DEPOT_ESSAI + "', lg_COMPTE_CLIENT_ID, 'DEPOT E2E DECOND',"
+    + " 'E2E', 'ABOBO', 'ESSAI', 'Depot', '0700000000', NOW(), NOW(), 'enable', '2', 0 FROM t_compte_client cc"
+    + " WHERE EXISTS (SELECT 1 FROM t_client c WHERE c.lg_CLIENT_ID = cc.lg_CLIENT_ID AND c.str_STATUT = 'enable') LIMIT 1");
+}
 const [DEP, DEP_CLIENT] = q("SELECT CONCAT_WS('|', e.lg_EMPLACEMENT_ID, cc.lg_CLIENT_ID) FROM t_emplacement e"
   + " JOIN t_compte_client cc ON cc.lg_COMPTE_CLIENT_ID = e.lg_COMPTE_CLIENT_ID WHERE e.lg_EMPLACEMENT_ID <> '1'"
   + " AND e.str_STATUT = 'enable' AND e.lg_TYPEDEPOT_ID = '2' ORDER BY e.lg_EMPLACEMENT_ID LIMIT 1").split('|');
@@ -155,7 +166,9 @@ function nettoyer() {
   } finally {
     await b.close();
     nettoyer();
-    ok('Données remises (stocks, compteurs, ventes, mouvements)', stockLigne(D, '1') === ORIGINE.d && stockLigne(P, '1') === ORIGINE.p
+    retirerDepot();
+    ok('Données remises (stocks, compteurs, ventes, mouvements, dépôt d\'essai)', q(`SELECT COUNT(*) FROM t_emplacement WHERE lg_EMPLACEMENT_ID = '${DEPOT_ESSAI}'`) === '0'
+      && stockLigne(D, '1') === ORIGINE.d && stockLigne(P, '1') === ORIGINE.p
       && stockLigne(D, DEP) === ORIGINE.dDep && q(`SELECT COUNT(*) FROM hmvtproduit WHERE lg_FAMILLE_ID IN ('${D}', '${P}') AND createdAt >= '${DEBUT}'`) === '0'
       && q(`SELECT COUNT(*) FROM t_preenregistrement WHERE dt_CREATED >= '${DEBUT}' AND lg_USER_ID = '${ADMIN}'`) === '0');
   }
