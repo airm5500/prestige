@@ -23,7 +23,9 @@ Ext.define('testextjs.view.stockmanagement.etiquetagepro.LectureEtiquette', {
         me.items = [
             {xtype: 'container', layout: {type: 'hbox', align: 'middle'}, items: [
                     {xtype: 'textfield', itemId: 'lectureCode', fieldLabel: 'Scannez une étiquette', labelWidth: 150, flex: 1, maxWidth: 720,
-                        emptyText: 'DataMatrix+, QR+, étiquette GS1 ou CIP, puis Entrée', enableKeyEvents: true, selectOnFocus: true,
+                        /* pas de selectOnFocus : sous Chrome, ExtJS selectionne le texte apres coup et les premiers
+                           caracteres de la douchette etaient remplaces (« Produit inconnu (CIP 727…) ») */
+                        emptyText: 'DataMatrix+, QR+, étiquette GS1 ou CIP, puis Entrée', enableKeyEvents: true,
                         listeners: {specialkey: function (f, e) {
                                 if (e.getKey() === e.ENTER) {
                                     e.stopEvent();
@@ -43,16 +45,18 @@ Ext.define('testextjs.view.stockmanagement.etiquetagepro.LectureEtiquette', {
     ouvrir: function () {
         var c = this.down('#lectureCode');
         Ext.defer(function () {
-            c.focus(true);
+            c.focus();
         }, 50);
     },
 
     lire: function () {
         var me = this, champ = me.down('#lectureCode'), code = champ.getValue();
         if (!code || !Ext.String.trim(code)) {
-            champ.focus(true);
+            champ.focus();
             return;
         }
+        /* champ vide des l'envoi : le scan suivant, commence avant la reponse, n'est plus efface ni ecrase */
+        champ.setValue('');
         Ext.Ajax.request({
             url: me.ecran.URL + 'lire-etiquette', method: 'GET', params: {code: code},
             success: function (r) {
@@ -63,11 +67,13 @@ Ext.define('testextjs.view.stockmanagement.etiquetagepro.LectureEtiquette', {
                 } else {
                     me.afficher(o);
                 }
-                champ.setValue('');
-                champ.focus(true);
+                champ.focus();
             },
             failure: function () {
                 me.down('#lectureResultat').update('<div style="color:#b42318">Le serveur ne répond pas.</div>');
+                if (!champ.getValue()) {
+                    champ.setValue(code);
+                }
             }
         });
     },

@@ -60,6 +60,17 @@ const compte = () => q('SELECT COUNT(*) FROM t_preenregistrement_detail');
     const lu = await p.evaluate(() => Ext.ComponentQuery.query('etqlecture #lectureResultat')[0].getEl().dom.textContent);
     ok('Étiquetage Pro : péremption et lot affichés, alerte « ne contient pas le produit », pas de « Produit inconnu (CIP …) »',
       /01\/01\/2027/.test(lu) && /0102264447/.test(lu) && /ne contient pas le produit/.test(lu) && !/Produit inconnu dans Prestige \(CIP 1727/.test(lu), lu.slice(0, 300));
+    /* scans enchaines a la douchette : le second commence avant la reponse du premier (retour du 29/10, premiers
+       chiffres perdus) */
+    await p.keyboard.type(CODE, { delay: 5 });
+    await p.keyboard.press('Enter');
+    await p.keyboard.type(CODE, { delay: 5 });
+    await p.keyboard.press('Enter');
+    await p.waitForTimeout(3000);
+    const lu2 = await p.evaluate(() => Ext.ComponentQuery.query('etqlecture #lectureResultat')[0].getEl().dom.textContent);
+    const reste = await p.evaluate(() => Ext.ComponentQuery.query('etqlecture #lectureCode')[0].getRawValue());
+    ok('Étiquetage Pro : deux scans enchaînés lus en entier, champ vide ensuite',
+      /01\/01\/2027/.test(lu2) && /ne contient pas le produit/.test(lu2) && !/Produit inconnu/.test(lu2) && reste === '', lu2.slice(0, 200) + ' | champ=' + reste);
     ok('Aucune erreur JavaScript', erreurs.length === 0, erreurs.join(' | '));
   } catch (e) {
     ok('Parcours sans exception', false, e.stack);
