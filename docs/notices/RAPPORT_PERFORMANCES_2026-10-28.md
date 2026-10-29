@@ -4,7 +4,7 @@
 > ce rapport sert à choisir les corrections. Chaque cause est marquée **prouvé** (mesure, plan d'exécution, ou essai sur
 > une copie) ou **hypothèse** (piste plausible, non démontrée).
 
-*Premier jet : `appaul` et `capitale` sont mesurées ; `zanzan` et `laborex_v1_db` sont en cours (sections marquées
+*État : `appaul`, `zanzan` et `capitale` sont mesurées ; `laborex_v1_db` est en cours (sections marquées
 « à venir »).*
 
 ## 1. En bref
@@ -30,11 +30,13 @@ lecture du moteur, et les résultats sont identiques (sommes de contrôle compar
 |---|---|---|---|---|
 | `capitale` | base de référence du poste (lecture seule) | MariaDB principal, port 3306 | 7.2.x | 2026-10-23 |
 | `appaul_perf` | copie d'`appaul`, migrée de 5.9.7 en 7.2.24 par Flyway (307 versions, sans échec) | 2ᵉ MariaDB, port 3307 | 7.2.24 | 2026-10-27 |
-| `zanzan_perf` | copie de `zanzan`, migrée depuis 6.8.6 | 2ᵉ MariaDB, port 3307 | 7.2.24 | 2026-07-22 *(à venir)* |
+| `zanzan_perf` | copie de `zanzan`, migrée depuis 6.8.6 | 2ᵉ MariaDB, port 3307 | 7.2.24 | 2026-07-22 |
 | `laborex_v1_db` | copie de travail du poste | MariaDB principal, port 3306 | 7.2.x | 2026-10-23 *(à venir)* |
 
 Volumes d'`appaul` : 1 965 665 ventes, 3 964 716 lignes de vente, 106 516 clients, 1 251 tiers payants, 18 259
-produits. Lignes de vente sur 3 mois : capitale 121 706, laborex 114 436, appaul 114 686, zanzan 60 136.
+produits. Volumes de `zanzan` : 1 049 738 ventes, 2 158 170 lignes de vente, 8 376 clients, 158 tiers payants,
+9 183 produits ; ses ventes s'arrêtent le 23 juillet 2026, d'où la fin de période au 22. Lignes de vente sur 3 mois :
+capitale 121 706, laborex 114 436, appaul 114 686, zanzan 75 980.
 
 - Les originaux `appaul` et `zanzan` n'ont jamais été modifiés : toutes les écritures (migration, suggestions) ont
   eu lieu dans les copies `_perf`.
@@ -73,11 +75,14 @@ temps SQL cumulé / lignes examinées pendant le geste (passage de diagnostic).
 | appaul | 1 jour | 616 | 76 | 10 | `POST caisse/fetch-tickez` 61 | 22 / 29 ms / 10 505 |
 | appaul | 3 jours | 628 | 140 | 11 | `fetch-tickez` 93 | 25 / 61 ms / 22 415 |
 | appaul | **1 semaine** | **8 282** | **2 962** | 14 | `fetch-tickez` 2 934 | 33 / **2 909 ms / 2 062 001** |
-| zanzan | *à venir* | | | | | |
+| zanzan | 1 jour | 159 | 159 | 5 | `fetch-tickez` 32 | 26 / 10 ms / 3 569 |
+| zanzan | 3 jours | 241 | 90 | 5 | `fetch-tickez` 49 | 17 / 28 ms / 11 286 |
+| zanzan | 1 semaine | 243 | 243 | 5 | `fetch-tickez` 63 | 18 / 42 ms / 18 750 |
 | laborex | *à venir* | | | | | |
 
 Le saut à 1 semaine vient d'**une seule requête** : la lecture de `mvttransaction` du Ticket Z examine 2 038 547 lignes,
-contre 12 000 à 3 jours (cause 2).
+contre 12 000 à 3 jours (cause 2). Sur `zanzan`, où la cardinalité estimée des caissiers est de 20 (contre 6 997 sur `appaul` avant la correction des statistiques), la même
+semaine examine 18 750 lignes et répond en 63 ms : c'est la contre-épreuve de la cause 2.
 
 ### 3.2 Liste des clients (parcours 2)
 
@@ -85,6 +90,8 @@ contre 12 000 à 3 jours (cause 2).
 |---|---|---|---|---|---|---|
 | appaul | ouverture | 681 | 459 | 105 467 | `GET client/gestion` 517 | 30 / 310 ms / 318 852 |
 | appaul | rechercher | 373 | 357 | 105 467 | `client/gestion` 318 | 27 / 266 ms / 318 848 |
+| zanzan | ouverture | 804 | 161 | 8 309 | `client/gestion` 35 | 23 / 20 ms / 25 284 |
+| zanzan | rechercher | 93 | 93 | 8 309 | `client/gestion` 34 | 20 / 22 ms / 25 280 |
 | capitale | ouverture | — | — | — | `ws_data.jsp` 1 500 (1ʳᵉ compilation de la JSP) | |
 
 Écran correct. Le compte total parcourt la table client (`t_type_client` en `ALL`, puis tri sur disque).
@@ -95,6 +102,8 @@ contre 12 000 à 3 jours (cause 2).
 |---|---|---|---|---|---|---|
 | appaul | ouverture | 1 414 | 293 | 1 116 | `GET tierspayant/list` 1 306 | 59 / 149 ms / 164 795 |
 | appaul | rechercher | 237 | 233 | 1 116 | | 4 / 1 ms |
+| zanzan | ouverture | 432 | 175 | 158 | `tierspayant/list` 69 | 55 / 35 ms / 31 644 |
+| zanzan | rechercher | 140 | 122 | 158 | `tierspayant/list` 75 | 55 / 30 ms / 31 644 |
 | capitale | ouverture | | | | réponse de **540 Ko pour 20 lignes** | N+1 : 20 cautions + 20 séquenciers |
 
 ### 3.4 Ventes terminées (parcours 4)
@@ -105,7 +114,10 @@ contre 12 000 à 3 jours (cause 2).
 | appaul | 3 jours | 80 | 85 | 2 017 | `ventestats` 35 | 6 / 9 ms / 6 160 |
 | appaul | 1 semaine | 98 | 96 | 4 526 | `ventestats` 46 | 6 / 19 ms / 13 685 |
 | appaul | **1 mois** | 3 213 | **3 202** | 23 001 | `ventestats` 3 158 | 10 / 3 075 ms / **2 124 664** |
-| zanzan | *à venir* | | | | | |
+| zanzan | 1 jour | 107 | 94 | 289 | `ventestats` 45 | 6 / 2 ms / 943 |
+| zanzan | 3 jours | 231 | 82 | 884 | `ventestats` 37 | 6 / 4 ms / 2 727 |
+| zanzan | 1 semaine | 99 | 99 | 1 470 | `ventestats` 41 | 6 / 6 ms / 4 487 |
+| zanzan | 1 mois | 121 | 121 | 11 114 | `ventestats` 70 | 6 / 37 ms / 33 419 |
 | laborex | *à venir* | | | | | |
 
 À noter : **1 jour est dix fois plus lent que 3 jours**. Pour 1 jour, le moteur part des caissiers ; pour 3 jours, il
@@ -122,7 +134,12 @@ part de la date (cause 2).
 | appaul | **1 mois** | 6 089 | **3 906** | 4 183 | 6 007 | 14 / 3 788 ms / **2 476 041** |
 | appaul | **3 mois** | 10 402 | **8 209** | 5 371 | 10 328 | 39 / 8 482 ms / **5 071 850** |
 | capitale | 3 mois | | ≈ 2 600 | | liste ≈ 1 600 (684 000 lignes) + résumé ≈ 950 | |
-| zanzan | *à venir* | | | | | |
+| zanzan | 1 jour | 170 | 113 | 325 | 49 | 10 / 12 ms / 5 456 |
+| zanzan | 3 jours | 404 | 372 | 755 | 248 | 9 / 219 ms / 19 778 |
+| zanzan | 1 semaine | 394 | 411 | 972 | 325 | 9 / 201 ms / 32 596 |
+| zanzan | 15 jours | 805 | 572 | 1 548 | 474 | 9 / 296 ms / 93 953 |
+| zanzan | 1 mois | 2 333 | 750 | 2 027 | 640 | 9 / 591 ms / 225 715 |
+| zanzan | 3 mois | 2 710 | **1 515** | 2 672 | 1 385 | 15 / 1 280 ms / 711 334 |
 | laborex | *à venir* | | | | | |
 
 ### 3.6 Liste des articles vendus (parcours 6)
@@ -136,7 +153,12 @@ part de la date (cause 2).
 | appaul | **1 mois** | 6 914 | **4 446** | 43 157 | 4 359 | 15 / 4 272 ms / **2 689 982** |
 | appaul | **3 mois** | 15 060 | **12 588** | 114 686 | 12 512 | 18 / 12 427 ms / **7 626 660** |
 | capitale | 3 mois | | ≈ 1 700 | | somme et comptage : 492 000 lignes chacun | |
-| zanzan | *à venir* | | | | | |
+| zanzan | 1 jour | 441 | 342 | 524 | 110 | 10 / 14 ms / 4 420 |
+| zanzan | 3 jours | 1 674 | 385 | 2 089 | 253 | 9 / 176 ms / 16 162 |
+| zanzan | 1 semaine | 759 | 431 | 3 477 | 275 | 9 / 178 ms / 26 795 |
+| zanzan | 15 jours | 1 849 | 450 | 9 977 | 324 | 9 / 223 ms / 77 970 |
+| zanzan | 1 mois | 3 589 | 813 | 24 093 | 550 | 10 / 422 ms / 188 760 |
+| zanzan | 3 mois | 3 871 | **1 281** | 75 980 | 1 136 | 9 / 811 ms / 597 588 |
 | laborex | *à venir* | | | | | |
 
 Chaque page fait **trois** passes sur les ventes de la période : la page de 20 lignes, la somme et le comptage. À
@@ -158,7 +180,18 @@ Chaque page fait **trois** passes sur les ventes de la période : la page de 20 
 | appaul | seuil | 15 jours | 94 522 | **59 083** | 1 815 | 7 332 / 2 307 ms | 4 % |
 | appaul | seuil | 1 mois | 90 672 | **93 096** | 2 199 (3 ignorés) | 8 882 / 3 353 ms | 3,6 % |
 | appaul | seuil | 3 mois | 139 060 | **137 745** | 2 716 (5 ignorés) | 11 008 / 8 314 ms | 6 % |
-| zanzan | *à venir* | | | | | | |
+| zanzan | quantités vendues | 1 jour | 5 400 | **5 268** | 323 | 1 314 / 418 ms | 8 % |
+| zanzan | quantités vendues | 3 jours | 22 040 | **14 469** | 746 | 3 172 / 2 902 ms | 20 % |
+| zanzan | quantités vendues | 1 semaine | 35 646 | **35 404** | 959 | 3 861 / 983 ms | 3 % |
+| zanzan | quantités vendues | 15 jours | 41 084 | **41 084** | 1 526 | 6 196 / 2 866 ms | 7 % |
+| zanzan | quantités vendues | 1 mois | 103 761 | **103 761** | 1 991 | 8 110 / 3 289 ms | 3 % |
+| zanzan | quantités vendues | 3 mois | 121 538 | **121 538** | 2 617 (1 ignoré) | 10 566 / 3 059 ms | 2,5 % |
+| zanzan | seuil | 1 jour | 789 | **1 053** | 124 | 511 / 158 ms | 15 % |
+| zanzan | seuil | 3 jours | 3 093 | **3 247** | 244 | 990 / 303 ms | 9 % |
+| zanzan | seuil | 1 semaine | 5 496 | **5 433** | 321 | 1 300 / 422 ms | 8 % |
+| zanzan | seuil | 15 jours | 11 498 | **6 380** | 548 | 2 220 / 508 ms | 8 % |
+| zanzan | seuil | 1 mois | 12 024 | **12 039** | 779 | 3 140 / 918 ms | 8 % |
+| zanzan | seuil | 3 mois | 20 076 | **32 374** | 1 050 (1 ignoré) | 4 247 / 2 202 ms | 7 % |
 | laborex | *à venir* | | | | | | |
 
 Le geste attend une seule réponse, `GET ventestats/suggerer`, pendant toute la durée. **95 à 98 % du temps se passe
@@ -172,7 +205,8 @@ dans le code Java, hors SQL** (cause 1).
 | appaul | médiane des 3 | **2 346** | `notifications-centre/compteurs` 1 330 |
 | appaul | passages chauds | 1 303 – 1 328 | `compteurs` 394 – 407 (dont 387 ms pour le compteur des avoirs) |
 | capitale | | | requête « rupture d'alerte » exécutée **deux fois** (372 + 369 ms) ; ≈ 10 s à froid après un déploiement |
-| zanzan | *à venir* | | |
+| zanzan | froid (1ʳᵉ connexion après le déploiement) | **6 894** | `tableau-bord/evolution` 1 978, page `/general/` 1 637, `valorisation` 1 184, `ws_tree_menu.jsp` 802 ; **935 scripts, 15 Mo** |
+| zanzan | médiane des 3 | 1 150 | `ws_tree_menu.jsp` 45 ; `compteurs` 16 |
 | laborex | *à venir* | | |
 
 ### 3.10 Fiche article (parcours 10)
@@ -183,6 +217,10 @@ dans le code Java, hors SQL** (cause 1).
 | appaul | recherche « PARA » | 1 018 | 375 | `produit-search/fiche` 141 | 52 / 219 ms / 225 468 |
 | appaul | aperçu (double-clic) | 101 | 76 | `produit-search/fiche` 132 | |
 | appaul | fiche complète (Modifier) | 288 | 288 | `typeetiquettes` 38 | |
+| zanzan | ouverture | 161 | 147 | `actions-config` 7 | 9 / 0 ms |
+| zanzan | recherche « PARA » | 1 035 | 380 | `produit-search/fiche` 90 | 36 / 101 ms / 152 582 |
+| zanzan | aperçu (double-clic) | 250 | 181 | `produit-search/fiche` 104 | 12 / 12 ms |
+| zanzan | fiche complète (Modifier) | 314 | 314 | `typeetiquettes` 31 | 38 / 12 ms |
 
 Écran correct.
 
@@ -205,7 +243,9 @@ dans le code Java, hors SQL** (cause 1).
 | appaul | rentabilité | 101 | 252 | 2 |
 | capitale | à suivre | 11 000 à froid | | `PilotageSuiviService.evolution` |
 | capitale | ouverture | | | `controler` ≈ 700 |
-| zanzan | *à venir* | | | |
+| zanzan | ouverture | 1 194 | 616 | `controler` 455 (921 à froid) |
+| zanzan | autres onglets | 89 – 973 | 84 – 385 | 3 à 8 |
+| zanzan | **à suivre** | **18 704** | 116 | 6 appels `suivi/evolution` en parallèle : 17 422, 17 053, 5 772, 1 599, 1 594 |
 | laborex | *à venir* | | | |
 
 Les onglets sont rapides une fois les données chargées : leurs appels prennent 2 à 5 ms. Le temps « froid » d'un
@@ -400,7 +440,7 @@ requête.
 
 ## 5. Mesures manquantes et limites
 
-- `zanzan` et `laborex_v1_db` : *à venir* dans ce rapport.
+- `laborex_v1_db` : *à venir* dans ce rapport.
 - Onglet « comparateur » du pilotage : il ne lance aucun chargement à l'ouverture, il n'y a donc rien à mesurer.
 - Le pilotage n'existe pas dans le schéma d'origine de `zanzan` (6.8.6). Il n'apparaît qu'après la migration de la copie.
 - Sur le serveur MariaDB principal, le pool InnoDB de 3,5 Go est partagé par 4 bases. Les temps froids sur `capitale`
