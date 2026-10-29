@@ -21,6 +21,9 @@
     <packaging>war</packaging>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <!-- horodatage du build, joint aux evenements du Centre de support (rapport du 26/10, SC8) -->
+        <maven.build.timestamp.format>yyyy-MM-dd HH:mm</maven.build.timestamp.format>
+        <prestige.build>${maven.build.timestamp}</prestige.build>
         <flyway.schemas>schema1,schema2,schema3</flyway.schemas>
         <version.arquillian_core>1.5.0.Final</version.arquillian_core>
         <pdf2dom.version>1.6</pdf2dom.version>
@@ -231,6 +234,23 @@
   
     <build>
         <finalName>prestige</finalName>
+        <!-- seul prestige-build.properties est filtre : les autres ressources (migrations SQL...) restent telles quelles -->
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>false</filtering>
+                <excludes>
+                    <exclude>prestige-build.properties</exclude>
+                </excludes>
+            </resource>
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>true</filtering>
+                <includes>
+                    <include>prestige-build.properties</include>
+                </includes>
+            </resource>
+        </resources>
         <plugins>
          
             <plugin>

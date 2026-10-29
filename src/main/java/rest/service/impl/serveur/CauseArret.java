@@ -30,7 +30,12 @@ public final class CauseArret {
         PLANTAGE_JVM("Plantage de Java (rapport hs_err)", "FATAL"), MEMOIRE("Mémoire du serveur Java épuisée", "FATAL"),
         DISQUE_PLEIN("Disque plein", "FATAL"),
         COUPURE_COURANT("Coupure de courant ou arrêt brutal de la machine", "WARN"),
-        REDEMARRAGE_WINDOWS("Redémarrage de Windows (mises à jour ou demande)", "WARN"),
+        /*
+         * rapport du 26/10 (S1) : Windows arrete proprement (mises a jour, extinction du soir) n'est pas une panne du
+         * serveur : information, tracee dans l'historique, sans incident au Centre de support
+         */
+        REDEMARRAGE_WINDOWS("Redémarrage de Windows (mises à jour ou demande)", "INFO"),
+        EXTINCTION_MACHINE("Extinction normale de la machine", "INFO"),
         REDEMARRAGE_MACHINE("Redémarrage de la machine", "WARN"),
         ARRET_SERVICE("Service du serveur arrêté de façon inattendue", "FATAL"),
         MEMOIRE_PROBABLE("Mémoire presque saturée avant l'arrêt", "ERROR"),
@@ -148,6 +153,13 @@ public final class CauseArret {
         return d.contains("payara") || d.contains("glassfish") || d.contains("domain1") || d.contains("prestige");
     }
 
+    /** Redemarrage demande par les mises a jour de Windows (et non par un utilisateur). */
+    private static boolean miseAJourWindows(String donnees) {
+        String d = donnees.toLowerCase(Locale.ROOT);
+        return d.contains("trustedinstaller") || d.contains("musnotification") || d.contains("mousocoreworker")
+                || d.contains("wuauclt") || d.contains("update") || d.contains("mise à jour");
+    }
+
     private static boolean serviceMariadb(String donnees) {
         String d = donnees.toLowerCase(Locale.ROOT);
         return d.contains("mariadb") || d.contains("mysql");
@@ -158,8 +170,8 @@ public final class CauseArret {
         Diagnostic r = new Diagnostic();
         String log = x.extraitLog == null ? "" : x.extraitLog;
         LocalDateTime avant = x.dernierSigne == null ? null : x.dernierSigne.minusMinutes(5);
-        boolean kernelPower = false, arretInattendu = false, redemarrageDemande = false, serviceServeur = false,
-                serviceBase = false;
+        boolean kernelPower = false, arretInattendu = false, redemarrageDemande = false, miseAJour = false,
+                arretPropre = false, serviceServeur = false, serviceBase = false;
         for (EvenementWindows e : x.windows) {
             if (!dans(e.quand, avant, x.redemarrage)) {
                 continue;
@@ -172,6 +184,8 @@ public final class CauseArret {
             kernelPower |= e.id == 41;
             arretInattendu |= e.id == 6008;
             redemarrageDemande |= e.id == 1074;
+            miseAJour |= e.id == 1074 && miseAJourWindows(e.donnees);
+            arretPropre |= e.id == 6006;
             serviceServeur |= (e.id == 7031 || e.id == 7034) && serviceDuServeur(e.donnees);
             serviceBase |= (e.id == 7031 || e.id == 7034) && serviceMariadb(e.donnees);
         }
@@ -192,10 +206,15 @@ public final class CauseArret {
                     "Windows a redémarré sans arrêt propre (événement " + (kernelPower ? "41 Kernel-Power" : "6008")
                             + ").",
                     "Coupure de courant ou bouton maintenu : un onduleur protège la base et les ventes en cours.");
-        } else if (machineRedemarree && redemarrageDemande) {
+        } else if (machineRedemarree && miseAJour) {
             fixer(r, Code.REDEMARRAGE_WINDOWS,
                     "Windows a redémarré à la demande d'un utilisateur ou des mises à jour (événement 1074).",
                     "Programmer les mises à jour de Windows en dehors des heures d'ouverture.");
+        } else if (machineRedemarree && (redemarrageDemande || arretPropre)) {
+            fixer(r, Code.EXTINCTION_MACHINE,
+                    "Windows s'est arrêté normalement (événement " + (redemarrageDemande ? "1074" : "6006")
+                            + ") : la machine a été éteinte ou redémarrée, le serveur s'est arrêté avec elle.",
+                    "Aucune action : arrêt normal de la machine (extinction du poste en fin de journée, par exemple).");
         } else if (machineRedemarree) {
             fixer(r, Code.REDEMARRAGE_MACHINE, "La machine a redémarré pendant que le serveur tournait.",
                     "Arrêter le serveur avant d'éteindre la machine ; vérifier l'alimentation.");

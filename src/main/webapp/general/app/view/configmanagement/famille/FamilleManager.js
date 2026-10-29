@@ -3065,13 +3065,14 @@ addPeremptiondate: function (grid, rowIndex) {
             form.query('#qtyPerime')[0].setValue(rec.qtyPerime);
 
         }, this);
-        storeProduits.load({
-            params: {
-                produitId: id,
-                dtStart: dtStart,
-                dtEnd: dtEnd
-            }
-        });
+        /* parametres du proxy et non du seul premier chargement : « Actualiser » et le changement de page les gardent
+           (ticket TCK-20260824-BF981EA1 : rechargement sans dates, NullPointerException « text ») */
+        storeProduits.getProxy().extraParams = {
+            produitId: id,
+            dtStart: dtStart,
+            dtEnd: dtEnd
+        };
+        storeProduits.load();
         var form = Ext.create('Ext.window.Window',
                 {
                     xtype: 'mvtdetail',

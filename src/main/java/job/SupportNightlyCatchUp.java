@@ -5,6 +5,7 @@
  */
 package job;
 
+import config.AppConfig;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -21,6 +22,7 @@ import javax.ejb.Startup;
 import javax.ejb.Timeout;
 import javax.ejb.TimerConfig;
 import javax.ejb.TimerService;
+import javax.inject.Inject;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 import rest.service.SupportCoherenceService;
@@ -64,6 +66,8 @@ public class SupportNightlyCatchUp {
     private SupportCoherenceService supportCoherenceService;
     @EJB
     private SupportEventService supportEventService;
+    @Inject
+    private AppConfig appConfig;
     @EJB
     private VenteAttenteExpiration venteAttenteExpiration;
     @EJB
@@ -85,7 +89,11 @@ public class SupportNightlyCatchUp {
     @Timeout
     public void rattraper() {
         try {
-            if (aBesoinDeRattrapage("PURGE_SUPPORT")) {
+            /*
+             * purge et veilleur du Centre de support : poste serveur seulement, comme leurs taches de nuit (rapport du
+             * 26/10, SC3)
+             */
+            if (appConfig.isServerMode() && aBesoinDeRattrapage("PURGE_SUPPORT")) {
                 LOG.info("Rattrapage au demarrage : purge du Centre de Support (le job de 03:45 n'a pas tourne)");
                 supportEventService.purgeOldEvents();
                 supportEventService.recordJobRun("PURGE_SUPPORT");
@@ -94,7 +102,7 @@ public class SupportNightlyCatchUp {
             LOG.log(Level.SEVERE, "rattrapage purge", e);
         }
         try {
-            if (aBesoinDeRattrapage("COHERENCE_SUPPORT")) {
+            if (appConfig.isServerMode() && aBesoinDeRattrapage("COHERENCE_SUPPORT")) {
                 LOG.info("Rattrapage au demarrage : veilleur de coherence (le job de 04:15 n'a pas tourne)");
                 supportCoherenceService.runActiveChecks();
                 supportEventService.recordJobRun("COHERENCE_SUPPORT");

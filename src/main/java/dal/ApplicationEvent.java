@@ -70,6 +70,17 @@ public class ApplicationEvent extends AbstractEntity {
     private String logRef;
     @Column(name = "ticket_id", length = 50)
     private String ticketId;
+    /** Version du build de la derniere occurrence (rapport du 26/10, SC8 ; voir util.VersionBuild). */
+    @Column(name = "version_app", length = 40)
+    private String versionApp;
+
+    public String getVersionApp() {
+        return versionApp;
+    }
+
+    public void setVersionApp(String versionApp) {
+        this.versionApp = versionApp;
+    }
 
     public LocalDateTime getLastSeenAt() {
         return lastSeenAt;

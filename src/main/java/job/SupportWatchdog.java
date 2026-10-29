@@ -99,8 +99,14 @@ public class SupportWatchdog {
                 derniereCause = d;
                 String message = "Arret brutal du serveur : " + d.code.libelle + " - indisponibilite ~" + downMin
                         + " min";
-                supportEventService.recordServerIncident("crash-" + dernier.horodatage.format(STAMP), d.code.niveau,
-                        message, buildDetail(dernier, now, downMin));
+                /*
+                 * rapport du 26/10 (S1) : un arret normal de Windows (extinction du soir, mises a jour) n'est pas un
+                 * incident ; il reste dans l'historique du serveur (t_serveur_vie)
+                 */
+                if (!"INFO".equals(d.code.niveau)) {
+                    supportEventService.recordServerIncident(cleCrash(hote, dernier.horodatage), d.code.niveau,
+                            message + " (" + hote + ")", buildDetail(dernier, now, downMin));
+                }
                 if (precedente != null) {
                     vie.cloturerBrutal((Long) precedente[0], d, downMin);
                 }
@@ -164,6 +170,15 @@ public class SupportWatchdog {
         } catch (Exception e) {
             LOG.log(Level.FINE, "watchdog arret (historique)", e);
         }
+    }
+
+    /**
+     * Cle de l'incident « arret brutal » : le poste en fait partie. Chaque caisse a son propre serveur ; sans le poste,
+     * deux caisses arretees dans la meme fenetre de 2 min (battement a la seconde :00) se fondaient en un seul
+     * evenement (rapport du 26/10, S1).
+     */
+    static String cleCrash(String poste, LocalDateTime dernierBattement) {
+        return "crash-" + StringUtils.defaultIfBlank(poste, "?") + "-" + dernierBattement.format(STAMP);
     }
 
     /** Derniere cause diagnostiquee au demarrage (null s'il n'y a pas eu d'arret brutal). */

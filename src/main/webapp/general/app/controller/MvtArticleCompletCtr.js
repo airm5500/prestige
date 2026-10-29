@@ -309,13 +309,14 @@ Ext.define('testextjs.controller.MvtArticleCompletCtr', {
             form.query('#qtyAjustReserve')[0].setValue(rec.qtyAjustReserve);
 
         }, this);
-        storeProduits.load({
-            params: {
-                produitId: rec.get('produitId'),
-                dtStart: me.getDtStart().getSubmitValue(),
-                dtEnd: me.getDtEnd().getSubmitValue()
-            }
-        });
+        /* parametres du proxy et non du seul premier chargement : « Actualiser » et le changement de page les gardent
+           (ticket TCK-20260824-BF981EA1 : rechargement sans dates, NullPointerException « text ») */
+        storeProduits.getProxy().extraParams = {
+            produitId: rec.get('produitId'),
+            dtStart: me.getDtStart().getSubmitValue(),
+            dtEnd: me.getDtEnd().getSubmitValue()
+        };
+        storeProduits.load();
         var form = Ext.create('Ext.window.Window',
                 {
                     xtype: 'mvtdetail',

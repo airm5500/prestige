@@ -643,15 +643,17 @@ public class SupportEventServiceImpl implements SupportEventService {
         em.createNativeQuery(
                 "INSERT INTO t_application_event (id, created_at, modified_at, status, last_seen_at, module,"
                         + " type, niveau, signature, message_court, occurrences, utilisateur, url_ou_ecran, payload_json,"
-                        + " stack_extrait, log_ref, ticket_id) VALUES (?1, ?2, ?2, 'ENABLE', ?2, ?3, ?4, ?5, ?6, ?7, 1, ?8, ?9, ?10,"
-                        + " ?11, ?12, NULL) ON DUPLICATE KEY UPDATE occurrences = occurrences + 1, last_seen_at = VALUES(last_seen_at),"
-                        + " modified_at = VALUES(modified_at), utilisateur = IFNULL(NULLIF(VALUES(utilisateur), ''), utilisateur)")
+                        + " stack_extrait, log_ref, ticket_id, version_app) VALUES (?1, ?2, ?2, 'ENABLE', ?2, ?3, ?4, ?5, ?6, ?7, 1, ?8, ?9,"
+                        + " ?10, ?11, ?12, NULL, ?13) ON DUPLICATE KEY UPDATE occurrences = occurrences + 1,"
+                        + " last_seen_at = VALUES(last_seen_at), modified_at = VALUES(modified_at),"
+                        + " utilisateur = IFNULL(NULLIF(VALUES(utilisateur), ''), utilisateur),"
+                        + " version_app = IFNULL(NULLIF(VALUES(version_app), ''), version_app)")
                 .setParameter(1, ev.getId()).setParameter(2, Timestamp.valueOf(maintenant))
                 .setParameter(3, ev.getModule()).setParameter(4, ev.getType()).setParameter(5, ev.getNiveau())
                 .setParameter(6, ev.getSignature()).setParameter(7, ev.getMessageCourt())
                 .setParameter(8, ev.getUtilisateur()).setParameter(9, ev.getUrlOuEcran())
                 .setParameter(10, ev.getPayloadJson()).setParameter(11, ev.getStackExtrait())
-                .setParameter(12, ev.getLogRef()).executeUpdate();
+                .setParameter(12, ev.getLogRef()).setParameter(13, util.VersionBuild.libelle()).executeUpdate();
         ApplicationEvent enBase = findBySignature(ev.getSignature());
         if (enBase != null) {
             em.refresh(enBase);
@@ -665,10 +667,11 @@ public class SupportEventServiceImpl implements SupportEventService {
      */
     private ApplicationEvent compter(ApplicationEvent event, String utilisateur) {
         em.createNativeQuery("UPDATE t_application_event SET occurrences = occurrences + 1, last_seen_at = ?1,"
-                + " modified_at = ?1, utilisateur = IFNULL(NULLIF(?2, ''), utilisateur) WHERE id = ?3")
+                + " modified_at = ?1, utilisateur = IFNULL(NULLIF(?2, ''), utilisateur),"
+                + " version_app = IFNULL(NULLIF(?4, ''), version_app) WHERE id = ?3")
                 .setParameter(1, Timestamp.valueOf(LocalDateTime.now()))
                 .setParameter(2, StringUtils.abbreviate(StringUtils.defaultString(utilisateur), 255))
-                .setParameter(3, event.getId()).executeUpdate();
+                .setParameter(3, event.getId()).setParameter(4, util.VersionBuild.libelle()).executeUpdate();
         em.refresh(event);
         return event;
     }
@@ -746,6 +749,7 @@ public class SupportEventServiceImpl implements SupportEventService {
         sb.append("Constaté par : ").append(StringUtils.defaultString(event.getUtilisateur())).append("\n");
         sb.append("Écran/URL : ").append(StringUtils.defaultString(event.getUrlOuEcran())).append("\n");
         sb.append("Occurrences : ").append(event.getOccurrences()).append("\n");
+        sb.append("Version : ").append(StringUtils.defaultIfBlank(event.getVersionApp(), "inconnue")).append("\n");
         sb.append("Première apparition : ")
                 .append(event.getCreatedAt() != null ? event.getCreatedAt().format(DATE_FORMAT) : "").append("\n");
         sb.append("Signature : ").append(event.getSignature()).append("\n");
@@ -908,6 +912,11 @@ public class SupportEventServiceImpl implements SupportEventService {
         event.setOccurrences(nbCas);
         event.setLastSeenAt(LocalDateTime.now());
         event.setUtilisateur("VEILLE_COHERENCE");
+        // Rapport du 26/10 (SC8) : version du build qui a fait le controle, comme pour les autres evenements
+        String version = util.VersionBuild.libelle();
+        if (!version.isEmpty()) {
+            event.setVersionApp(version);
+        }
         event.setPayloadJson(StringUtils.abbreviate(payloadSample, 4000));
         event.setLogRef(writeCoherenceLog(event.getModule(), code, requeteSql, event.getId(), event.getLogRef(),
                 listeComplete));

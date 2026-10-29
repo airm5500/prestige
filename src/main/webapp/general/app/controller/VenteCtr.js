@@ -1420,7 +1420,8 @@ Ext.define('testextjs.controller.VenteCtr', {
             url: '../api/v1/vente/findone/' + encodeURIComponent(code || field.getValue()),
             success: function (response, options) {
                 const result = Ext.JSON.decode(response.responseText, true);
-                if (result.success) {
+                /* rapport du 26/10 (J6) : une reponse 200 qui n est pas du JSON donne null ; on reste sur le champ */
+                if (result && result.success) {
                     let produit = result.data;
                     let vnoemplacementId = me.getVnoemplacementField();
                     me.updateStockField(produit.intNUMBERAVAILABLE);

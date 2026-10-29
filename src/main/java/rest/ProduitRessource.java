@@ -254,6 +254,12 @@ public class ProduitRessource {
                 .build();
     }
 
+    /**
+     * Detail du suivi d'un article sans periode (ticket TCK-20260824-BF981EA1) : refus lisible au lieu d'une
+     * NullPointerException « text », et d'un evenement au centre de support.
+     */
+    private static final String PERIODE_MANQUANTE = "Période manquante : choisissez les dates puis relancez la recherche.";
+
     /** Detail jour par jour du suivi complet : mouvements generaux + mouvements internes reserve. */
     @GET
     @Path("monitoringproduct-complet")
@@ -264,6 +270,9 @@ public class ProduitRessource {
         TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
         if (tu == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        if (StringUtils.isBlank(dtStart) || StringUtils.isBlank(dtEnd)) {
+            return Response.ok().entity(ResultFactory.getFailResult(PERIODE_MANQUANTE)).build();
         }
         JSONObject jsono = produitService.suivitEclateCompletViewDatas(LocalDate.parse(dtStart), LocalDate.parse(dtEnd),
                 produitId, tu.getLgEMPLACEMENTID().getLgEMPLACEMENTID());
@@ -347,6 +356,9 @@ public class ProduitRessource {
         TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
         if (tu == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        if (StringUtils.isBlank(dtStart) || StringUtils.isBlank(dtEnd)) {
+            return Response.ok().entity(ResultFactory.getFailResult(PERIODE_MANQUANTE)).build();
         }
         JSONObject jsono = produitService.suivitEclateViewDatas(LocalDate.parse(dtStart), LocalDate.parse(dtEnd),
                 produitId, tu.getLgEMPLACEMENTID().getLgEMPLACEMENTID());

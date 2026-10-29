@@ -45,6 +45,11 @@ public class SupportExceptionMapper implements ExceptionMapper<Throwable> {
     @Override
     public Response toResponse(Throwable exception) {
         if (exception instanceof WebApplicationException) {
+            String parametre = util.SaisieInvalide.parametreIllisible(exception);
+            if (parametre != null) {
+                return Response.status(Response.Status.BAD_REQUEST).entity(ResultFactory.getFailResult(parametre))
+                        .type(MediaType.APPLICATION_JSON).build();
+            }
             return ((WebApplicationException) exception).getResponse();
         }
         Response refus = saisieInvalide(exception);

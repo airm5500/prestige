@@ -133,8 +133,13 @@ public class SupportPreflight {
                     codes.append(codes.length() == 0 ? "" : "-").append(controle.code);
                 }
             }
-            supportEventService.recordServerIncident("preflight-" + codes, "WARN",
-                    "Configuration de la supervision : " + synthese, detail(controles));
+            /*
+             * reglages propres a chaque poste (memoire du serveur...) : le poste fait partie de la cle (rapport du
+             * 26/10, SC3)
+             */
+            supportEventService.recordServerIncident("preflight-" + PosteLocal.nomMachine() + "-" + codes, "WARN",
+                    "Configuration de la supervision (" + PosteLocal.nomMachine() + ") : " + synthese,
+                    detail(controles));
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "preflight tracerAnomalies", e);
         }

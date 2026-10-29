@@ -103,4 +103,15 @@ class SupportPoolMonitorTest {
         assertTrue(total >= 0);
         assertTrue(occupes >= 0 && occupes <= total);
     }
+
+    @Test
+    @DisplayName("Rapport du 26/10 (S3) : seules les connexions de ce poste comptent, pas celles des autres caisses")
+    void dormantesDeCePosteSeulement() {
+        String where = SupportPoolMonitor.DORMANTES_WHERE;
+        /* meme compte et meme machine (sans le port) que la connexion courante : chaque caisse a son pool */
+        assertTrue(where.contains(
+                "(USER, " + SupportPoolMonitor.HOTE_SANS_PORT + ") = (SELECT USER, " + SupportPoolMonitor.HOTE_SANS_PORT
+                        + " FROM information_schema.PROCESSLIST WHERE ID = CONNECTION_ID())"),
+                where);
+    }
 }

@@ -510,6 +510,8 @@ Ext.define('testextjs.view.configmanagement.famille.ArticleVendu', {
                             name: 'int_NUMBER',
                             flex: 0.5,
                             emptyText: 'Quantite',
+                            /* entier seulement : du texte donnait une erreur 404 (rapport du 26/10, A4) */
+                            maskRe: /[-0-9]/,
                             listeners: {
                                 'render': function (cmp) {
                                     cmp.getEl().on('keypress', function (e) {
@@ -542,6 +544,8 @@ Ext.define('testextjs.view.configmanagement.famille.ArticleVendu', {
                             id: 'stock',
                             flex: 0.5,
                             emptyText: 'Stock',
+                            /* entier seulement : du texte donnait une erreur 404 (rapport du 26/10, A4) */
+                            maskRe: /[-0-9]/,
                             listeners: {
                                 'render': function (cmp) {
                                     cmp.getEl().on('keypress', function (e) {
