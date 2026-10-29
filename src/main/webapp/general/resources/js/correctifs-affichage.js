@@ -1085,6 +1085,11 @@ window.PrestigeAffichage.ICONES_TRAIT = [
     [/book\.png|valid|accept|tick|check|coches/i, 'act-valider'],
     // retours du 09/10 : factures (verrouillee, certification FNE)
     [/lock|verrou/i, 'act-verrou'],
+    // retours du 29/10 : etats de reglement des factures, rendus par getClass (meme dessin que leur ancienne image :
+    // delete.png, folder_go.png ; reglee ou payee : coche)
+    [/\bunpaid\b/, 'act-supprimer'],
+    [/\bnonregle\b/, 'act-transformer'],
+    [/\b(paid|regle)\b/, 'act-valider'],
     [/certi/i, 'act-certifier'],
     [/download|telecharg/i, 'act-telecharger'],
     [/table_refresh|calendar/i, 'act-date'],
