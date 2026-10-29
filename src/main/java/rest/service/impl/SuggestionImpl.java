@@ -31,6 +31,7 @@ import javax.ejb.Stateless;
 import javax.ejb.TransactionAttribute;
 import javax.ejb.TransactionAttributeType;
 import javax.persistence.EntityManager;
+import javax.persistence.FlushModeType;
 import javax.persistence.NoResultException;
 import javax.persistence.PersistenceContext;
 import javax.persistence.Query;
@@ -302,9 +303,15 @@ public class SuggestionImpl implements SuggestionService {
                     "SELECT t FROM TFamilleStock t WHERE  t.lgFAMILLEID.lgFAMILLEID = ?1 AND t.strSTATUT='enable' AND t.lgEMPLACEMENTID.lgEMPLACEMENTID = ?2");
             query.setParameter(1, oTFamille);
             query.setParameter(2, emplacement.getLgEMPLACEMENTID());
-            TFamilleStock familleStock = (TFamilleStock) query.getSingleResult();
-            LOG.log(Level.INFO, "familleStock {0} ", new Object[] { familleStock });
-            return familleStock;
+            /*
+             * un produit sans stock a cet emplacement n'est pas une erreur : null, sans trace GRAVE ; plusieurs stocks
+             * actifs restent signales et donnent null, comme avant
+             */
+            List<?> stocks = query.setMaxResults(2).getResultList();
+            if (stocks.size() > 1) {
+                LOG.log(Level.WARNING, "Plusieurs stocks actifs pour le produit {0}", oTFamille);
+            }
+            return stocks.size() == 1 ? (TFamilleStock) stocks.get(0) : null;
         } catch (Exception e) {
             LOG.log(Level.SEVERE, null, e);
             return null;
@@ -724,6 +731,19 @@ public class SuggestionImpl implements SuggestionService {
      */
     private JSONObject creerSuggestionArticlesVendus(Collection<VenteDetailsDTO> datas, boolean reappro)
             throws JSONException {
+        /* meme cout quadratique que makeSuggestionFromArticleInvendus (rapport des performances du 28/10, § 4.1) :
+           ecriture en fin de transaction ; chaque produit n'y figure qu'une fois par grossiste (eligibles) */
+        FlushModeType modeAvant = getEmg().getFlushMode();
+        getEmg().setFlushMode(FlushModeType.COMMIT);
+        try {
+            return creerLignesArticlesVendus(datas, reappro);
+        } finally {
+            getEmg().setFlushMode(modeAvant);
+        }
+    }
+
+    private JSONObject creerLignesArticlesVendus(Collection<VenteDetailsDTO> datas, boolean reappro)
+            throws JSONException {
         LongAdder count = new LongAdder();
         LongAdder ignores = new LongAdder();
         JSONArray detailIgnores = new JSONArray();
@@ -837,6 +857,14 @@ public class SuggestionImpl implements SuggestionService {
 
     @Override
     public JSONObject makeSuggestionFromArticleInvendus(List<ArticleDTO> datas, TUser u) throws JSONException {
+        /*
+         * Retours du 29/10 : 4 364 produits prenaient 14 min. Chaque requete de la boucle videait d'abord le contexte
+         * (FlushMode AUTO), qui grossit d'une ligne par produit : cout quadratique. Les lectures de la boucle ne
+         * portent pas sur les lignes ajoutees (stock, produit-grossiste d'un produit vu une seule fois) : l'ecriture se
+         * fait a la fin de la transaction.
+         */
+        FlushModeType modeAvant = getEmg().getFlushMode();
+        getEmg().setFlushMode(FlushModeType.COMMIT);
         try {
             LongAdder count = new LongAdder();
             Map<String, List<ArticleDTO>> groupingByGrossisteId = datas.stream()
@@ -844,7 +872,9 @@ public class SuggestionImpl implements SuggestionService {
             groupingByGrossisteId.forEach((k, v) -> {
                 TGrossiste grossiste = getEmg().find(TGrossiste.class, k);
                 TSuggestionOrder suggestionOrder = createSuggestionOrder(grossiste, STATUT_IS_PROGRESS);
-                v.forEach(o -> {
+                /* un produit une seule fois par suggestion : sans vidage, un doublon creerait deux produit-grossiste */
+                java.util.Set<String> vus = new java.util.HashSet<>();
+                v.stream().filter(o -> vus.add(o.getId())).forEach(o -> {
                     TFamille otfamille = getEmg().find(TFamille.class, o.getId());
                     TFamilleStock familleStock = findStock(otfamille.getLgFAMILLEID(), u.getLgEMPLACEMENTID());
                     if (otfamille.getBoolDECONDITIONNE().compareTo(Short.valueOf("0")) == 0 && familleStock != null) {
@@ -861,6 +891,8 @@ public class SuggestionImpl implements SuggestionService {
         } catch (Exception e) {
             LOG.log(Level.SEVERE, null, e);
             return new JSONObject().put("success", false);
+        } finally {
+            getEmg().setFlushMode(modeAvant);
         }
     }
 

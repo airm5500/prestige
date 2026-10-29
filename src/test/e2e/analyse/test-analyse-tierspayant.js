@@ -147,9 +147,14 @@ function nettoyerSuggestions(avant) {
   });
   await p.waitForTimeout(6000);
 
+  const debutSuggestion = Date.now();
   const suggestion = await appel('../api/v1/analyse-tierspayant/suggestion?dtStart=2020-01-01&dtEnd='
       + new Date().toISOString().slice(0, 10) + '&tiersPayantId=&query=&tri=MARGE&groupeId=');
+  const dureeSuggestion = Math.round((Date.now() - debutSuggestion) / 1000);
   ok('la suggestion est creee', suggestion.json && suggestion.json.success === true, JSON.stringify(suggestion.json));
+  // 29/10 : sur la copie de l'officine (4 364 produits), la creation prenait 14 min et occupait un fil et une connexion
+  ok('la suggestion de tout le resultat est creee en moins de 60 s',
+     dureeSuggestion < 60, dureeSuggestion + ' s pour ' + (suggestion.json && suggestion.json.count) + ' produits');
   ok('le nombre de produits integres est annonce',
      suggestion.json && typeof suggestion.json.count === 'number' && suggestion.json.count > 0,
      JSON.stringify(suggestion.json));
