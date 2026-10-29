@@ -31,7 +31,8 @@ const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-charact
 const CAPT = process.env.CAPTURES || ENV_E2E.TMP;
 
 const SUGG = 'E2E-EQD-SUGG', REF = 'E2E-EQD-REF', DCI = 'E2E-EQD-DCI', MARQUE = 'E2E-EQD-';
-const P = { S1: 'CIFRAN 500MG CPR B/10', S2: 'OSPAMOX 500MG CPR BT 12', A: 'APRAMOL 500MG CPR B/20', G: 'GRISEOPHARM 500MG CPR B/20', V: 'VILDAMET 50MG/500MG CPR PELL B/30' };
+/* noms du banc ; « | » : autre nom du meme produit (OSPAMOX en boite de 12 pelliculee sur la copie de l'officine) */
+const P = { S1: 'CIFRAN 500MG CPR B/10', S2: 'OSPAMOX 500MG CPR BT 12|OSPAMOX 500MG CPR PELL B/12', A: 'APRAMOL 500MG CPR B/20', G: 'GRISEOPHARM 500MG CPR B/20', V: 'VILDAMET 50MG/500MG CPR PELL B/30' };
 const STOCK = { S1: 0, S2: 0, A: 4, G: 5, V: 50 };
 let ids = {}, sauvegarde = [];
 
@@ -47,7 +48,7 @@ function nettoyer() {
 
 function poser() {
   for (const k of Object.keys(P)) {
-    ids[k] = q("SELECT lg_FAMILLE_ID FROM t_famille WHERE TRIM(str_NAME) = '" + P[k] + "' AND str_STATUT = 'enable' LIMIT 1");
+    ids[k] = q("SELECT lg_FAMILLE_ID FROM t_famille WHERE TRIM(str_NAME) IN ('" + P[k].split('|').join("', '") + "') AND str_STATUT = 'enable' LIMIT 1");
     if (!ids[k]) { return 'produit absent : ' + P[k]; }
     if (q("SELECT COUNT(*) FROM t_famille_dci WHERE lg_FAMILLE_ID = '" + ids[k] + "'") !== '0') { return 'produit deja lie a une DCI : ' + P[k]; }
     const st = q("SELECT CONCAT(lg_FAMILLE_STOCK_ID, '|', int_NUMBER_AVAILABLE) FROM t_famille_stock WHERE lg_FAMILLE_ID = '" + ids[k] + "' AND lg_EMPLACEMENT_ID = '1' LIMIT 1");
