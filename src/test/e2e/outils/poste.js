@@ -45,6 +45,20 @@ if (WINDOWS) {
     return execFileSyncOrigine.apply(this, arguments);
   };
 }
+/* Sous Windows, Python ecrit dans la page de codes du systeme quand sa sortie est lue par le test : les accents des
+   classeurs lus par python3 arriveraient faux. Il est lance en mode UTF-8 (« -X utf8 », que « -I » n'ignore pas,
+   contrairement a PYTHONUTF8 ; la variable sert aux appels par execSync). */
+if (WINDOWS) {
+  if (!process.env.PYTHONUTF8) { process.env.PYTHONUTF8 = '1'; }
+  const cp = require('child_process');
+  const execFileSyncPrecedent = cp.execFileSync;
+  cp.execFileSync = function (fichier, args, options) {
+    if (/(^|[\\/])python3?(\.exe)?$/i.test(String(fichier)) && Array.isArray(args) && args[0] !== '-X') {
+      return execFileSyncPrecedent.call(this, fichier, ['-X', 'utf8'].concat(args), options);
+    }
+    return execFileSyncPrecedent.apply(this, arguments);
+  };
+}
 const COPIE_DE_TRAVAIL = 'laborex_v1_db';
 
 const BASE = process.env.DB_TEST || (WINDOWS ? COPIE_DE_TRAVAIL : 'capitale');

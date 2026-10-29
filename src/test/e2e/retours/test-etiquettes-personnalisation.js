@@ -25,6 +25,9 @@ const DEBUT = q('SELECT NOW() - INTERVAL 1 SECOND');
 const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
 const DOSSIER = fs.mkdtempSync(path.join(os.tmpdir(), 'e2e-etqperso-'));
 const droit = privilegeEssai(q, q, ENV_E2E.LOGIN, 'P_SM_ETIQUETTE_PERSO');
+/* roles qui ont le droit, hors role systeme desactive */
+const DROIT_ROLES = "SELECT COUNT(DISTINCT rp.lg_ROLE_ID) FROM t_role_privelege rp JOIN t_privilege p ON p.lg_PRIVELEGE_ID = rp.lg_PRIVILEGE_ID"
+  + " JOIN t_role r ON r.lg_ROLE_ID = rp.lg_ROLE_ID WHERE p.str_NAME = 'P_SM_ETIQUETTE_PERSO' AND r.str_NAME <> 'SYSTEM_USER'";
 const CAISSE = 'e2e-perso-caisse';
 let caisseCreee = false;
 const P_LECTURE = q("SELECT str_VALUE FROM t_parameters WHERE str_KEY = 'KEY_VENTE_LECTURE_GS1'");
@@ -123,7 +126,8 @@ function nettoyer() {
     ok('Précondition : produit avec un code géo d\'article (' + PCIP + ', ' + PGEO + ')', !!FID);
     ok('Migration : table des dispositions, droit P_SM_ETIQUETTE_PERSO donné à l\'administrateur seulement',
       q("SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 't_etiquette_disposition'") === '1'
-      && q("SELECT COUNT(DISTINCT rp.lg_ROLE_ID) FROM t_role_privelege rp JOIN t_privilege p ON p.lg_PRIVELEGE_ID = rp.lg_PRIVILEGE_ID WHERE p.str_NAME = 'P_SM_ETIQUETTE_PERSO'") === '1');
+      /* role systeme « 00 » (SYSTEM_USER, desactive) mis a part : sur la copie de l'officine il porte aussi le droit */
+      && q(DROIT_ROLES) === '1');
 
     await connexion();
     await ouvrir();
@@ -386,7 +390,7 @@ function nettoyer() {
       && q(`SELECT IFNULL(str_CODE_GEO_ARTICLE, '<NULL>') FROM t_famille WHERE lg_FAMILLE_ID = '${FID}'`) === GEO_AVANT
       && q(`SELECT COUNT(*) FROM t_etiquette_code WHERE dt_CREATED >= '${DEBUT}'`) === '0' && q("SELECT str_VALUE FROM t_parameters WHERE str_KEY = 'KEY_VENTE_LECTURE_GS1'") === P_LECTURE
       && q("SELECT IFNULL(GROUP_CONCAT(CONCAT(str_KEY, '=', str_VALUE) SEPARATOR ';'), '') FROM t_parameters WHERE str_KEY LIKE 'KEY_ETIQUETTE_%'") === REGLAGES_AVANT
-      && q("SELECT COUNT(*) FROM t_role_privelege rp JOIN t_privilege p ON p.lg_PRIVELEGE_ID = rp.lg_PRIVILEGE_ID WHERE p.str_NAME = 'P_SM_ETIQUETTE_PERSO'") === '1');
+      && q(DROIT_ROLES) === '1');
     const n = res.filter((x) => x.c).length;
     console.log('\n' + n + '/' + res.length + (n === res.length ? ' OK' : ' ECHEC'));
     process.exit(n === res.length ? 0 : 1);

@@ -32,6 +32,8 @@ let compteAvant = '', typeAvant = '', depotAvant = '';
   const p = await ctx.newPage();
   const err = []; p.on('pageerror', e => err.push(String(e.message)));
   const popups = []; ctx.on('page', pg => popups.push(pg));
+  /* Chromium sans fenetre telecharge le PDF ouvert dans un onglet, dont l'adresse reste vide : on garde l'adresse demandee */
+  const demandesPdf = []; ctx.on('request', r => { if (//pdf?/.test(r.url())) { demandesPdf.push(r.url()); } });
   await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
   await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
   await p.waitForURL('**/general/**', { timeout: 30000 });
@@ -108,13 +110,13 @@ let compteAvant = '', typeAvant = '', depotAvant = '';
     ok('carnet : « Nouveau reglement » ouvre le formulaire avec le solde relu (7 777)', /7[\s .,]?777/.test(rappel || ''), rappel);
     // onglet Factures : Imprimer donne le recapitulatif des factures affichees, en flux
     await cliquerOnglet('facturesPanel');
-    const nbPopups = popups.length;
+    const nbPopups = popups.length, nbDemandes = demandesPdf.length;
     const idImprimer = await p.evaluate(() => Ext.ComponentQuery.query('reglementdepot #imprimer')[0].getId());
     await p.click('#' + idImprimer);
     await p.waitForTimeout(3000);
-    const popup = popups[popups.length - 1];
+    const urlPdf = demandesPdf.slice(nbDemandes).filter(u => /carnet-depot\/recap\/pdf\?/.test(u));
     ok('carnet : Imprimer sur l onglet Factures ouvre UNE fois le recapitulatif PDF, en flux',
-      popups.length === nbPopups + 1 && /carnet-depot\/recap\/pdf\?/.test(popup ? popup.url() : '') && /tpid=/.test(popup ? popup.url() : ''), popup ? popup.url() : '');
+      popups.length === nbPopups + 1 && urlPdf.length === 1 && /tpid=/.test(urlPdf[0]), urlPdf.join(' '));
     const recapFactures = await pdfTexte('../api/v1/facturation/carnet-depot/recap/pdf?tpid=' + TP + '&dtStart=' + MOIS_A + '&dtEnd=' + FIN_B + '&query=', 'recap-factures.pdf');
     ok('carnet : le PDF est le recapitulatif des factures (modele facture_carnet_depot_recap, total general)',
       /pdf/.test(recapFactures.type || '') && /RÉCAPITULATIF DES FACTURES DE CARNET DÉPÔT/.test(recapFactures.texte) && /TOTAL GÉNÉRAL/.test(recapFactures.texte),

@@ -183,7 +183,9 @@ const ORD = {};
     await p.waitForFunction(() => /Annulations en série/.test(Ext.getCmp('logfileGrid').down('#alertesJournal').getEl().dom.textContent), null, { timeout: 30000 });
     const al = await p.evaluate(() => { const d = Ext.getCmp('logfileGrid').down('#alertesJournal').getEl().dom;
       return { series: [...d.querySelectorAll('.journal-series li')].map((x) => x.textContent), hors: [...d.querySelectorAll('.journal-hors-horaires li')].map((x) => x.textContent) }; });
-    ok('Alertes : 3 annulations en 12 minutes signalées (série)', al.series.length === 1 && /3 annulations du 10\/06\/2025 10:00 au 10\/06\/2025 10:12/.test(al.series[0]) && /E2E-POSTE-ALERTE/.test(al.series[0]), JSON.stringify(al.series));
+    /* les alertes portent sur la periode, tous postes : sur la copie de l'officine, d'autres series du meme jour s'y ajoutent */
+    const serieEssai = al.series.filter((x) => /E2E-POSTE-ALERTE/.test(x));
+    ok('Alertes : 3 annulations en 12 minutes signalées (série)', serieEssai.length === 1 && /3 annulations du 10\/06\/2025 10:00 au 10\/06\/2025 10:12/.test(serieEssai[0]), JSON.stringify(serieEssai));
     ok('Alertes : l\'ajustement de 05:30 est hors horaires', al.hors.some((x) => /10\/06\/2025 05:30/.test(x) && /Ajustement/.test(x)), JSON.stringify(al.hors));
     /* export Excel avec les nouvelles colonnes */
     const xlsx = await p.evaluate(async () => { const u = '../api/v1/common/logs/export-excel?' + Ext.Object.toQueryString({ dtStart: '2025-06-10', dtEnd: '2025-06-10', criteria: -1, query: '', userId: '', poste: 'E2E-POSTE-ALERTE' });
