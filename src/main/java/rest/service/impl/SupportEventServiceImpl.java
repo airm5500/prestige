@@ -912,6 +912,11 @@ public class SupportEventServiceImpl implements SupportEventService {
         event.setOccurrences(nbCas);
         event.setLastSeenAt(LocalDateTime.now());
         event.setUtilisateur("VEILLE_COHERENCE");
+        // Rapport du 26/10 (SC8) : version du build qui a fait le controle, comme pour les autres evenements
+        String version = util.VersionBuild.libelle();
+        if (!version.isEmpty()) {
+            event.setVersionApp(version);
+        }
         event.setPayloadJson(StringUtils.abbreviate(payloadSample, 4000));
         event.setLogRef(writeCoherenceLog(event.getModule(), code, requeteSql, event.getId(), event.getLogRef(),
                 listeComplete));

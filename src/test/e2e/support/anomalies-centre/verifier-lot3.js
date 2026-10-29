@@ -8,7 +8,7 @@
  */
 const { chromium } = require('playwright-core');
 const ENV_E2E = require('../../outils/poste');
-const { connexion } = require('../../outils/vues');
+const { connexion, ouvrirMenu, cliquer, repondre } = require('../../outils/vues');
 
 const res = [];
 function ok(n, c, d) { res.push(!!c); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 400) + ']' : '')); }
@@ -19,6 +19,17 @@ function ok(n, c, d) { res.push(!!c); console.log((c ? 'PASS' : 'FAIL') + '  ' +
   try {
     await connexion(p, ENV_E2E.LOGIN_SUPPORT, 'e2etest');
     const lire = (u) => p.evaluate(async (x) => { const r = await fetch(x); return { statut: r.status, corps: await r.text() }; }, u);
+    /* COHERENCE=1 : relance des controles par l ecran (CENTRE DE SUPPORT > Sante application), comme le fait l equipe
+       du support ; les evenements de coherence doivent aussi porter la version */
+    if (process.env.COHERENCE) {
+      await ouvrirMenu(p, 'CENTRE DE SUPPORT', 'Santé application');
+      await p.waitForFunction(() => Ext.ComponentQuery.query('#btnCoherence').some((c) => c.isVisible(true)), null, { timeout: 60000 });
+      await cliquer(p, '#btnCoherence');
+      await repondre(p, 'yes');
+      await p.waitForFunction(() => !Ext.ComponentQuery.query('messagebox{isVisible()}').some((m) => /Analyse en cours/.test(m.msg && m.msg.getEl() ? m.msg.getEl().dom.innerText : '')), null, { timeout: 300000, polling: 1000 });
+      await p.waitForTimeout(1500);
+      for (const croix of await p.locator('.x-window .x-tool-close').filter({ visible: true }).all()) { await croix.click().catch(() => {}); }
+    }
     const ev = await lire('../api/v1/support/events?start=0&limit=300');
     const data = (JSON.parse(ev.corps).data || []);
     ok('SC8 : le journal rend le champ versionApp', ev.statut === 200 && data.length > 0 && data.some((e) => 'versionApp' in e), ev.statut + ' ' + Object.keys(data[0] || {}).join(','));
@@ -29,6 +40,15 @@ function ok(n, c, d) { res.push(!!c); console.log((c ? 'PASS' : 'FAIL') + '  ' +
     recents.slice(0, 8).forEach((e) => console.log('   ' + [e.code || e.type, quand(e).toISOString(), JSON.stringify(e.versionApp)].join(' | ')));
     ok('SC8 : les événements récents portent la version du build', recents.length > 0 && recents.every((e) => /^\d{4}-\d{2}-\d{2} \d{2}:\d{2} UTC$/.test(e.versionApp || '')),
       recents.map((e) => e.versionApp).join(','));
+    /* l ecran : CENTRE DE SUPPORT > Diagnostic & bugs, colonne « Version » remplie pour les evenements recents */
+    await ouvrirMenu(p, 'CENTRE DE SUPPORT', 'Diagnostic & bugs');
+    await p.waitForFunction(() => Ext.ComponentQuery.query('supportdiagnostic').some((c) => c.isVisible(true)), null, { timeout: 60000 });
+    await p.waitForFunction(() => Ext.ComponentQuery.query('supportdiagnostic gridpanel').some((g) => g.isVisible(true) && !g.getStore().isLoading() && g.getStore().getCount() > 0), null, { timeout: 60000 });
+    const ecran = await p.evaluate(() => { const g = Ext.ComponentQuery.query('supportdiagnostic gridpanel').filter((x) => x.isVisible(true)).find((x) => x.columns.some((c) => c.dataIndex === 'versionApp'));
+      if (!g) { return null; } const col = g.columns.find((c) => c.dataIndex === 'versionApp');
+      const cellules = Array.from(g.getEl().dom.querySelectorAll('.x-grid-cell-' + col.getId())).map((td) => td.innerText.trim());
+      return { entete: col.text, visible: col.isVisible(), cellules: cellules.slice(0, 10) }; });
+    ok('SC8 écran : colonne « Version » affichée, version visible dans les lignes', ecran && ecran.entete === 'Version' && ecran.visible && ecran.cellules.some((c) => / UTC$/.test(c)), JSON.stringify(ecran));
     const pool = await lire('../api/v1/support/diagnostic/pool');
     const m = (JSON.parse(pool.corps).data) || {};
     console.log('pool : ' + JSON.stringify(m).slice(0, 400));

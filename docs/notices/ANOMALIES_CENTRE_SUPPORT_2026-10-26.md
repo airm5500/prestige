@@ -410,15 +410,15 @@ Tests unitaires : tous passent.
 
 | Point | Avant (version de la branche tests-performance) | Après (cette branche) | Script |
 |---|---|---|---|
-| SC8 | — | Le journal rend `versionApp` (migration V7.2.25 appliquée). Les 2 événements survenus après le déploiement portent « 2026-10-28 22:43 UTC » ; ceux d'avant n'en ont pas, comme attendu | `verifier-lot3.js` (`DEPUIS=` heure du déploiement), 3/3 |
+| SC8 | — | Le journal rend `versionApp` (migration V7.2.25 appliquée) et l'écran « Diagnostic & bugs » affiche la colonne « Version ». Les événements écrits après le déploiement portent la version. **Défaut trouvé à cette vérification** : les 4 événements du contrôle de cohérence de 04 h 15 n'en avaient pas (`recordCoherence` écrit par l'entité, sans passer par `insererOuCompter`). Corrigé, redéployé (build 2026-10-29 04:34), contrôles relancés par l'écran « Santé application » : les 4 portent la version | `verifier-lot3.js` : échec avant, 4/4 après (`COHERENCE=1`) |
 | S3 | — | La nouvelle requête passe sur MariaDB : `diagnostic/pool` rend 1 connexion dormante (seuil 20), celle du compte et de la machine du poste | `verifier-lot3.js` |
 | J6 | **FAIL** : « Cannot read properties of null (reading 'success') » | PASS : aucune erreur, on reste sur le champ ; un code ordinaire est toujours cherché | `test-lot4-ecrans.js` |
 | A3 | **FAIL** : `client-assurance//<vente>` en 404 et « Problème avec le server » | PASS : aucun appel, aucune fenêtre ; une proforma avec client relit toujours son client (200) | `test-lot4-ecrans.js`, 6/6 |
 | Lot 1 (API) | — | P1 et A4 inchangés | `test-lot1-api.js`, 8/8 |
 
-Non-régression encore à jouer : `test-lot1-ecrans.js`, `test-import-commande-annuler.js`, `test-details-vente.js`.
-La série a été arrêtée à la demande de la session principale (tests d'écran sur le 8080, à ne pas mélanger) ; elle
-reprendra à son « créneau libre ».
+| Lots 1 et 2 (écrans) | — | P1 et A1 (avec non-régression) : 5 PASS ; C5/J19 non joué faute de bon de livraison en cours sur `capitale` (couvert par `test-prix-bl.js`, joué le 26/10 ; `editprice.js` inchangé depuis) ; J3 : fenêtre fermée sans erreur ; L5 : 4/4 | `test-lot1-ecrans.js`, `test-import-commande-annuler.js`, `test-details-vente.js` |
+
+Les tests d'écran ont été joués seuls, après le « créneau libre » de la session principale.
 
 ## Annexe A. Rejouer les reproductions
 
