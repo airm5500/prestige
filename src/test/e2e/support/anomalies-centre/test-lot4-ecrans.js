@@ -64,23 +64,25 @@ const fenetres = (p) => p.evaluate(() => Ext.ComponentQuery.query('messagebox{is
     /* ---- A3 ---- */
     if (joue('A3')) try {
       /* proforma sans client : on retire le client de la reponse de la liste (lecture seule) */
-      await p.route('**/api/v1/ventestats/devis*', async (r) => {
+      /* le retour a la liste la recharge pendant la fermeture du navigateur : erreurs de fin ignorees */
+      const sansClient = async (r) => { try {
         const rep = await r.fetch(); let corps = await rep.text();
         try { const j = JSON.parse(corps); (j.data || []).forEach((v) => { v.client = { lgCLIENTID: '' }; v.clientFullName = ''; }); corps = JSON.stringify(j); } catch (e) { /* tel quel */ }
-        r.fulfill({ response: rep, body: corps });
-      });
+        await r.fulfill({ response: rep, body: corps });
+      } catch (e) { /* page fermee */ } };
+      await p.route('**/api/v1/ventestats/devis*', sansClient);
       await ouvrirMenu(p, 'SERVICE CLIENT', 'Proforma');
       await visible(p, 'devismanager gridpanel');
       /* un mois de proformas, puis « rechercher » */
       await p.evaluate(() => { const fin = new Date(); Ext.ComponentQuery.query('devismanager #dtStart')[0].setValue(new Date(fin.getTime() - 30 * 86400000)); Ext.ComponentQuery.query('devismanager #dtEnd')[0].setValue(fin); });
       await cliquer(p, 'devismanager #rechercher');
-      await p.waitForFunction(() => { const g = Ext.ComponentQuery.query('devismanager gridpanel')[0]; return g && !g.getStore().isLoading(); }, null, { timeout: 60000 });
-      const n = await p.evaluate(() => Ext.ComponentQuery.query('devismanager gridpanel')[0].getStore().getCount());
+      await p.waitForFunction(() => { const g = Ext.ComponentQuery.query('devismanager gridpanel').filter((x) => x.isVisible(true))[0]; return g && !g.getStore().isLoading(); }, null, { timeout: 60000 });
+      const n = await p.evaluate(() => Ext.ComponentQuery.query('devismanager gridpanel').filter((x) => x.isVisible(true))[0].getStore().getCount());
       if (n === 0) {
         console.log('SKIP  A3 : aucune proforma sur le dernier mois');
       } else {
         appels.length = 0; erreurs.length = 0;
-        const id = await p.evaluate(() => Ext.ComponentQuery.query('devismanager gridpanel')[0].getId());
+        const id = await p.evaluate(() => Ext.ComponentQuery.query('devismanager gridpanel').filter((x) => x.isVisible(true))[0].getId());
         await p.locator('#' + id + ' .x-grid-row').first().locator('img[data-qtip="Modifier"]').first().click();
         await visible(p, 'doDevis #contenu');
         await p.waitForTimeout(3000);
@@ -91,7 +93,30 @@ const fenetres = (p) => p.evaluate(() => Ext.ComponentQuery.query('messagebox{is
         /* retour a la liste sans rien modifier */
         await cliquer(p, 'doDevis #contenu [xtype=toolbar] #btnGoBack').catch(() => {});
       }
-      await p.unroute('**/api/v1/ventestats/devis*');
+      await p.waitForTimeout(1500);
+      await p.unroute('**/api/v1/ventestats/devis*', sansClient);
+      /* non-regression : une proforma qui a un client le relit toujours (reponse de la liste non modifiee) */
+      if (n > 0) {
+        /* le retour recree la liste sur la periode du jour : on remet le mois */
+        await visible(p, 'devismanager gridpanel');
+        await p.evaluate(() => { const v = Ext.ComponentQuery.query('devismanager').filter((x) => x.isVisible(true))[0]; const fin = new Date();
+          v.down('#dtStart').setValue(new Date(fin.getTime() - 30 * 86400000)); v.down('#dtEnd').setValue(fin); });
+        await cliquer(p, 'devismanager #rechercher');
+        await p.waitForFunction(() => { const g = Ext.ComponentQuery.query('devismanager gridpanel').filter((x) => x.isVisible(true))[0]; return g && !g.getStore().isLoading(); }, null, { timeout: 60000 });
+        const rang = await p.evaluate(() => Ext.ComponentQuery.query('devismanager gridpanel').filter((x) => x.isVisible(true))[0].getStore().findBy((r) => !!(r.get('client') && r.get('client').lgCLIENTID)));
+        if (rang < 0) {
+          console.log('SKIP  A3 non-régression : aucune proforma avec client', await p.evaluate(() => { const st = Ext.ComponentQuery.query('devismanager gridpanel').filter((x) => x.isVisible(true))[0].getStore(); return st.getCount() + ' ' + JSON.stringify(st.getCount() ? st.getAt(0).data.client : null); }));
+        } else {
+          appels.length = 0;
+          const id = await p.evaluate(() => Ext.ComponentQuery.query('devismanager gridpanel').filter((x) => x.isVisible(true))[0].getId());
+          await p.locator('#' + id + ' .x-grid-row').nth(rang).locator('img[data-qtip="Modifier"]').first().click();
+          await visible(p, 'doDevis #contenu');
+          await p.waitForTimeout(3000);
+          ok('A3 non-régression : une proforma avec client relit son client (200)', appels.some((a) => /client-assurance\/[^/]+\/[^/?]+/.test(a.url) && a.statut === 200), JSON.stringify(appels));
+          await cliquer(p, 'doDevis #contenu [xtype=toolbar] #btnGoBack').catch(() => {});
+          await p.waitForTimeout(1500);
+        }
+      }
     } catch (x) { ok('A3 parcours sans exception', false, x.message); }
   } finally {
     await b.close();
