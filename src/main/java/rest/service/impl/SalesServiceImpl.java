@@ -33,6 +33,8 @@ import dal.TCompteClient;
 import dal.TCompteClientTiersPayant;
 import dal.TEmplacement;
 import dal.TEventLog;
+import dal.TFacture;
+import dal.TFactureDetail;
 import dal.TFamille;
 import dal.TFamilleGrossiste;
 import dal.TFamilleStock;
@@ -463,6 +465,56 @@ public class SalesServiceImpl implements SalesService {
             LOG.log(Level.WARNING, "differeDejaRegle", e);
             return false;
         }
+    }
+
+    /**
+     * Motif du refus de modifier cette vente terminee (null : modifiable). Demande du 29/10 (point 5) : une vente a
+     * credit ou carnet deja facturee ne s'ouvre plus en modification (avant, le refus ne venait qu'a la validation) ;
+     * demande du 28/10 (point 18) : un differe deja regle non plus.
+     */
+    @Override
+    public String refusModificationVente(String venteId) {
+        return refusModification(StringUtils.isBlank(venteId) ? null : getEm().find(TPreenregistrement.class, venteId));
+    }
+
+    String refusModification(TPreenregistrement tp) {
+        if (tp == null) {
+            return "Vente introuvable.";
+        }
+        if (Objects.isNull(tp.getCaution())) {
+            Optional<TPreenregistrementCompteClientTiersPayent> facturee = checkChargedCompteClientPreenregistrement(
+                    tp.getLgPREENREGISTREMENTID());
+            if (facturee.isPresent()) {
+                return venteFacturee(tp, facturee.get());
+            }
+        }
+        if (differeDejaRegle(tp)) {
+            return MSG_DIFFERE_REGLE_MODIFICATION;
+        }
+        return null;
+    }
+
+    /** « La vente 261029_00003 a été facturée le 29/10/2026 (facture n° 5957) : elle ne peut plus être modifiée. » */
+    private String venteFacturee(TPreenregistrement tp, TPreenregistrementCompteClientTiersPayent ligne) {
+        String facture = "";
+        try {
+            List<TFactureDetail> details = getEm()
+                    .createQuery("SELECT d FROM TFactureDetail d WHERE d.strREF = ?1 ORDER BY d.dtCREATED DESC",
+                            TFactureDetail.class)
+                    .setParameter(1, ligne.getLgPREENREGISTREMENTCOMPTECLIENTPAYENTID()).setMaxResults(1)
+                    .getResultList();
+            if (!details.isEmpty() && details.get(0).getLgFACTUREID() != null) {
+                TFacture f = details.get(0).getLgFACTUREID();
+                facture = (f.getDtCREATED() == null ? ""
+                        : " le " + new java.text.SimpleDateFormat("dd/MM/yyyy").format(f.getDtCREATED()))
+                        + (StringUtils.isBlank(f.getStrCODEFACTURE()) ? ""
+                                : " (facture n° " + f.getStrCODEFACTURE() + ")");
+            }
+        } catch (RuntimeException e) {
+            LOG.log(Level.WARNING, "venteFacturee", e);
+        }
+        return "La vente " + StringUtils.defaultString(tp.getStrREF()) + " a été facturée" + facture
+                + " : elle ne peut plus être modifiée.";
     }
 
     /** Motif du refus d'annuler cette vente en l'etat (null : annulable). */
@@ -4455,9 +4507,9 @@ public class SalesServiceImpl implements SalesService {
         try {
             JSONObject data = new JSONObject();
             TPreenregistrement tp = getEm().find(TPreenregistrement.class, venteId);
-            if (tp != null && differeDejaRegle(tp)) {
-                return json.put("success", false).put("code", "DIFFERE_REGLE").put("msg",
-                        MSG_DIFFERE_REGLE_MODIFICATION);
+            String refus = refusModification(tp);
+            if (refus != null) {
+                return json.put("success", false).put("code", "REFUS_MODIFICATION").put("msg", refus);
             }
             TPreenregistrement i = findByParent(venteId);
             if (i != null) {

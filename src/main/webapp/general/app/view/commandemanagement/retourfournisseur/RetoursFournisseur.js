@@ -103,8 +103,27 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.RetoursFournisse
                             listeners: {select: function () {
                                     me.chargerTableau();
                                 }}},
+                        /* demande du 29/10 (point 1) : filtre utilisateur, impression et export Excel du tableau */
+                        {xtype: 'combobox', itemId: 'tbUtilisateur', width: 200, queryMode: 'remote', minChars: 2, typeAhead: true,
+                            valueField: 'lgUSERID', displayField: 'fullName', emptyText: 'Tous les utilisateurs', tooltip: 'Retours d\'un utilisateur',
+                            store: Ext.create('Ext.data.Store', {model: 'testextjs.model.caisse.User', pageSize: 999, autoLoad: false,
+                                proxy: {type: 'ajax', url: '../api/v1/common/users', reader: {type: 'json', root: 'data', totalProperty: 'total'}}}),
+                            listeners: {select: function () {
+                                    me.chargerTableau();
+                                }, change: function (c, v) {
+                                    if (!v) {
+                                        me.chargerTableau();
+                                    }
+                                }}},
                         {text: 'Actualiser', itemId: 'tbActualiser', iconCls: 'refresh', tooltip: 'Recalculer le tableau sur la période choisie', handler: function () {
                                 me.chargerTableau();
+                            }},
+                        '->',
+                        {text: 'Imprimer', itemId: 'tbImprimer', iconCls: 'printable', tooltip: 'Imprimer le tableau affiché', handler: function () {
+                                me.imprimerTableau();
+                            }},
+                        {text: 'Export Excel', itemId: 'tbExcel', iconCls: 'export_excel_icon', tooltip: 'Exporter le tableau affiché (une feuille par rubrique)', handler: function () {
+                                window.open('../api/v1/retourfournisseur/tableau-bord/excel?' + Ext.Object.toQueryString(me.criteresTableau()));
                             }}]}],
             items: [{xtype: 'component', itemId: 'tbContenu', html: '<div style="color:#7f8c8d">Chargement…</div>'}]
         });
@@ -113,7 +132,35 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.RetoursFournisse
     criteresTableau: function () {
         var t = this.tableau;
         return {dtStart: t.down('#tbDebut').getSubmitValue(), dtEnd: t.down('#tbFin').getSubmitValue(),
-            fourId: t.down('#tbGrossiste').getValue() || '', limite: t.down('#tbLimite').getValue()};
+            fourId: t.down('#tbGrossiste').getValue() || '', limite: t.down('#tbLimite').getValue(),
+            userId: t.down('#tbUtilisateur').getValue() || ''};
+    },
+
+    /* demande du 29/10 (point 1) : impression du tableau affiche (periode et filtres en tete) */
+    imprimerTableau: function () {
+        var me = this, t = me.tableau, o = me.donnees, enc = Ext.String.htmlEncode;
+        if (!o) {
+            return;
+        }
+        var filtres = 'Du ' + enc(t.down('#tbDebut').getRawValue()) + ' au ' + enc(t.down('#tbFin').getRawValue())
+                + (t.down('#tbGrossiste').getValue() ? ' · Grossiste : ' + enc(t.down('#tbGrossiste').getRawValue()) : '')
+                + (t.down('#tbUtilisateur').getValue() ? ' · Utilisateur : ' + enc(t.down('#tbUtilisateur').getRawValue()) : '');
+        var css = Ext.Array.map(Ext.query('link[rel=stylesheet]'), function (l) {
+            return '<link rel="stylesheet" href="' + enc(l.href) + '">';
+        }).join('');
+        var w = window.open('', '_blank');
+        if (!w) {
+            return;
+        }
+        w.document.write('<html><head><meta charset="utf-8"><title>Tableau de bord des retours fournisseurs</title>' + css
+                + '<style>body{background:#fff;padding:16px;font-family:Arial,sans-serif}.rf-tableau-impression h2{margin:0 0 4px}</style></head>'
+                + '<body class="rf-tableau-impression"><h2>Tableau de bord des retours fournisseurs</h2><div style="margin-bottom:12px;color:#444">'
+                + filtres + '</div><div class="rf-tableau">' + me.htmlTableau(o) + '</div></body></html>');
+        w.document.close();
+        w.focus();
+        setTimeout(function () {
+            w.print();
+        }, 400);
     },
 
     chargerTableau: function () {
@@ -205,6 +252,17 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.RetoursFournisse
         html += '<div class="rf-col"><div class="ac-bloc-t" style="margin-top:14px">Motifs les plus utilisés</div>'
                 + '<table class="ac-table rf-motifs"><tr><th>Motif</th><th class="n">Lignes</th><th class="n">Qté</th><th class="n">Part</th><th style="width:30%"></th></tr>'
                 + (lignes || '<tr><td colspan="5" style="color:#7f8c8d">Aucun motif.</td></tr>') + '</table></div></div>';
+        /* demande du 29/10 (point 1) : retours par utilisateur, nombre et pourcentage des retours */
+        lignes = '';
+        Ext.each(o.utilisateurs || [], function (u) {
+            lignes += '<tr class="rf-utilisateur"><td>' + enc(u.libelle || '') + '</td><td class="n">' + u.retours + '</td><td class="n">'
+                    + String(u.part).replace('.', ',') + ' %</td><td class="n">' + u.lignes + '</td><td class="n">' + nb(u.quantite)
+                    + '</td><td class="n">' + nb(u.montant) + '</td><td class="rf-barre"><div style="width:' + Math.max(2, Math.round(u.part)) + '%"></div></td></tr>';
+        });
+        html += '<div class="ac-bloc-t" style="margin-top:14px">Retours par utilisateur</div>'
+                + '<table class="ac-table rf-utilisateurs"><tr><th>Utilisateur</th><th class="n">Retours</th><th class="n">Part des retours</th><th class="n">Lignes</th>'
+                + '<th class="n">Qté retournée</th><th class="n">Montant</th><th style="width:25%"></th></tr>'
+                + (lignes || '<tr><td colspan="7" style="color:#7f8c8d">Aucun retour sur la période.</td></tr>') + '</table>';
         return html;
     }
 });

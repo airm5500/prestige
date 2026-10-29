@@ -58,6 +58,8 @@ public final class TableauRetourFournisseur {
     private final Map<String, Cumul> mois = new TreeMap<>();
     private final Map<String, Cumul> produits = new LinkedHashMap<>();
     private final Map<String, Cumul> motifs = new LinkedHashMap<>();
+    /** demande du 29/10 (point 1) : retours par utilisateur (celui enregistre sur le retour) */
+    private final Map<String, Cumul> utilisateurs = new LinkedHashMap<>();
 
     /**
      * Une ligne de retour : mois « aaaa-mm », retour, produit, motif, quantite retournee, quantite acceptee par le
@@ -73,6 +75,16 @@ public final class TableauRetourFournisseur {
         String cle = motifId == null || motifId.isEmpty() ? "" : motifId;
         motifs.computeIfAbsent(cle,
                 m -> new Cumul(m, null, m.isEmpty() || motif == null || motif.isEmpty() ? SANS_MOTIF : motif))
+                .ajouter(retourId, quantite, acceptee, montant);
+    }
+
+    /**
+     * Demande du 29/10 (point 1) : la ligne de retour compte pour l'utilisateur enregistre sur le retour. Le nombre de
+     * retours d'un utilisateur et sa part du total des retours de la periode sont rendus dans « utilisateurs ».
+     */
+    public void utilisateur(String retourId, String userId, String nom, int quantite, int acceptee, long montant) {
+        String cle = userId == null ? "" : userId;
+        utilisateurs.computeIfAbsent(cle, u -> new Cumul(u, null, nom == null || nom.isEmpty() ? "Inconnu" : nom))
                 .ajouter(retourId, quantite, acceptee, montant);
     }
 
@@ -92,7 +104,15 @@ public final class TableauRetourFournisseur {
         JSONArray parMotif = new JSONArray();
         m.forEach(c -> parMotif.put(
                 c.json().put("part", total.lignes == 0 ? 0 : Math.round(c.lignes * 1000.0 / total.lignes) / 10.0)));
+        List<Cumul> u = new ArrayList<>(utilisateurs.values());
+        u.sort(Comparator.<Cumul> comparingInt(c -> c.retours.size()).reversed()
+                .thenComparing(Comparator.<Cumul> comparingInt(c -> c.quantite).reversed())
+                .thenComparing(c -> c.libelle));
+        int nbRetours = total.retours.size();
+        JSONArray parUtilisateur = new JSONArray();
+        u.forEach(c -> parUtilisateur.put(c.json().put("id", c.id).put("part",
+                nbRetours == 0 ? 0 : Math.round(c.retours.size() * 1000.0 / nbRetours) / 10.0)));
         return new JSONObject().put("total", total.json().put("produits", produits.size())).put("mois", parMois)
-                .put("produits", top).put("motifs", parMotif);
+                .put("produits", top).put("motifs", parMotif).put("utilisateurs", parUtilisateur);
     }
 }

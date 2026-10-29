@@ -4302,8 +4302,9 @@ Ext.define('testextjs.controller.VenteCtr', {
                 url: '../api/v1/vente/copie/' + copieId,
                 callback: function () {
                     me.resetAll();
-                    testextjs.app.getController('App')
-                            .onLoadNewComponentWithDataSource('cloturerventemanager', "", "", "");
+                    /* demande du 29/10 : retour a « Ventes terminées » avec les criteres de recherche d'avant (et non
+                     * aux ventes en attente) */
+                    testextjs.app.getController('App').onRedirectTo('ventemanager', {retourModification: true});
                 }
             });
             return;

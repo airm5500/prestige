@@ -489,23 +489,37 @@ public class RetourFournisseurServiceImpl implements RetourFournisseurService {
     @Override
     @SuppressWarnings("unchecked")
     public org.json.JSONObject tableauBord(String dtStart, String dtEnd, String fourId, int nbProduits) {
+        return tableauBord(dtStart, dtEnd, fourId, nbProduits, null);
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public org.json.JSONObject tableauBord(String dtStart, String dtEnd, String fourId, int nbProduits, String userId) {
         boolean parGrossiste = fourId != null && !fourId.isEmpty();
+        boolean parUtilisateur = userId != null && !userId.trim().isEmpty();
         javax.persistence.Query q = em
                 .createNativeQuery("SELECT DATE_FORMAT(r.dt_UPDATED, '%Y-%m'), r.lg_RETOUR_FRS_ID,"
                         + " d.lg_FAMILLE_ID, f.int_CIP, f.str_NAME, d.lg_MOTIF_RETOUR, m.str_LIBELLE, COALESCE(d.int_NUMBER_RETURN, 0),"
-                        + " COALESCE(d.int_NUMBER_ANSWER, 0), COALESCE(d.int_PAF, 0)"
+                        + " COALESCE(d.int_NUMBER_ANSWER, 0), COALESCE(d.int_PAF, 0),"
+                        + " r.lg_USER_ID, TRIM(CONCAT_WS(' ', u.str_FIRST_NAME, u.str_LAST_NAME))"
                         + " FROM t_retour_fournisseur r JOIN t_retour_fournisseur_detail d ON d.lg_RETOUR_FRS_ID = r.lg_RETOUR_FRS_ID"
                         + " JOIN t_famille f ON f.lg_FAMILLE_ID = d.lg_FAMILLE_ID"
                         + " LEFT JOIN t_motif_retour m ON m.lg_MOTIF_RETOUR = d.lg_MOTIF_RETOUR"
+                        + " LEFT JOIN t_user u ON u.lg_USER_ID = r.lg_USER_ID"
                         + " WHERE r.str_STATUT = 'enable' AND DATE(r.dt_UPDATED) BETWEEN ?1 AND ?2"
-                        + (parGrossiste ? " AND r.lg_GROSSISTE_ID = ?3" : ""))
+                        + (parGrossiste ? " AND r.lg_GROSSISTE_ID = ?3" : "")
+                        + (parUtilisateur ? " AND r.lg_USER_ID = ?" + (parGrossiste ? 4 : 3) : ""))
                 .setParameter(1, java.sql.Date.valueOf(dtStart)).setParameter(2, java.sql.Date.valueOf(dtEnd));
         if (parGrossiste) {
             q.setParameter(3, fourId);
         }
+        if (parUtilisateur) {
+            q.setParameter(parGrossiste ? 4 : 3, userId.trim());
+        }
         rest.service.impl.retour.TableauRetourFournisseur t = new rest.service.impl.retour.TableauRetourFournisseur();
         for (Object[] r : (List<Object[]>) q.getResultList()) {
             t.ajouter(s(r[0]), s(r[1]), s(r[2]), s(r[3]), s(r[4]), s(r[5]), s(r[6]), n(r[7]), n(r[8]), n(r[9]));
+            t.utilisateur(s(r[1]), s(r[10]), s(r[11]), n(r[7]), n(r[8]), (long) n(r[7]) * n(r[9]));
         }
         return t.json(nbProduits).put("debut", dtStart).put("fin", dtEnd);
     }

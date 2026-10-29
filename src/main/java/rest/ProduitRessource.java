@@ -620,8 +620,8 @@ public class ProduitRessource {
     public Response loadRetouFournisseurs(@QueryParam(value = "dtStart") String dtStart,
             @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "start") int start,
             @QueryParam(value = "limit") int limit, @QueryParam(value = "fourId") String fourId,
-            @QueryParam(value = "query") String query, @QueryParam(value = "filtre") String filtre)
-            throws JSONException {
+            @QueryParam(value = "query") String query, @QueryParam(value = "filtre") String filtre,
+            @QueryParam(value = "userId") String userId) throws JSONException {
         HttpSession hs = servletRequest.getSession();
         TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
         if (tu == null) {
@@ -635,8 +635,9 @@ public class ProduitRessource {
         }
         List<TPrivilege> lstTPrivilege = (List<TPrivilege>) hs.getAttribute(Constant.USER_LIST_PRIVILEGE);
         boolean asAuthority = DateConverter.hasAuthorityByName(lstTPrivilege, DateConverter.ACTION_DELETE_RETOUR);
+        // demande du 29/10 (point 1) : filtre utilisateur
         JSONObject json = mvtProduitService.loadetourFournisseur(dtStart, dtEnd, start, limit, fourId, query,
-                asAuthority, filtre);
+                asAuthority, filtre, userId);
         return Response.ok().entity(json.toString()).build();
     }
 

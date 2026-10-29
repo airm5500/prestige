@@ -390,7 +390,11 @@ Ext.define('testextjs.view.vente.VentesFinis', {
                                icones, memes conditions d'affichage, memes evenements vers le controleur. */
                             xtype: 'actioncolumn',
                             itemId: 'actionsVente',
-                            width: 300,
+                            /* demande du 29/10 (point 6) : les 11 emplacements d'icone (les icones masquees gardent leur place
+                               pour l'alignement des lignes) tiennent dans la colonne : a 300 px, les dernieres (« Voir détail »,
+                               « Exporter ») etaient coupees selon l'ecran ; 11 x 32 px (icone hors theme) + marge */
+                            width: 360,
+                            minWidth: 360,
                             align: 'right',
                             sortable: false,
                             menuDisabled: true,

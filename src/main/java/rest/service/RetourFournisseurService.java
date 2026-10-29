@@ -42,4 +42,10 @@ public interface RetourFournisseurService {
 
     /** Retours du 10/10 (point 7) : tableau de bord des retours clotures de la periode (grossiste facultatif). */
     org.json.JSONObject tableauBord(String dtStart, String dtEnd, String fourId, int nbProduits);
+
+    /**
+     * Demande du 29/10 (point 1) : filtre utilisateur (vide : tous) ; le tableau donne aussi les retours par
+     * utilisateur.
+     */
+    org.json.JSONObject tableauBord(String dtStart, String dtEnd, String fourId, int nbProduits, String userId);
 }

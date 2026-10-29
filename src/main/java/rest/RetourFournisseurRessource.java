@@ -148,8 +148,10 @@ public class RetourFournisseurRessource {
     @Produces("application/vnd.ms-excel")
     public Response exportExcel(@QueryParam(value = "dtStart") String dtStart,
             @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "fourId") String fourId,
-            @QueryParam(value = "query") String query, @QueryParam(value = "filtre") String filtre) throws Exception {
-        List<RetourDetailsDTO> details = loadDetails(dtStart, dtEnd, fourId, query, filtre);
+            @QueryParam(value = "query") String query, @QueryParam(value = "filtre") String filtre,
+            @QueryParam(value = "userId") String userId) throws Exception {
+        List<RetourDetailsDTO> details = mvtProduitService.loadretoursFournisseur(defaultDate(dtStart),
+                defaultDate(dtEnd), fourId, query, filtre, userId);
         String[] headers = new String[] { "N° BL", "Date retour", "Heure", "Fournisseur", "Code produit", "Libelle",
                 "Quantite retournee", "Utilisateur" };
         String title = "Produits des retours fournisseur du " + defaultDate(dtStart) + " au " + defaultDate(dtEnd);
@@ -172,7 +174,7 @@ public class RetourFournisseurRessource {
     @Path("tableau-bord")
     public Response tableauBord(@QueryParam(value = "dtStart") String dtStart,
             @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "fourId") String fourId,
-            @QueryParam(value = "limite") Integer limite) {
+            @QueryParam(value = "limite") Integer limite, @QueryParam(value = "userId") String userId) {
         String debut = defaultDate(dtStart), fin = defaultDate(dtEnd);
         try {
             java.time.LocalDate.parse(debut);
@@ -186,9 +188,35 @@ public class RetourFournisseurRessource {
                     .put("msg", "La date de début doit précéder la date de fin").toString()).build();
         }
         int n = limite == null || limite <= 0 ? 20 : Math.min(limite, 200);
-        return Response.ok()
-                .entity(retourFournisseurService.tableauBord(debut, fin, fourId, n).put("success", true).toString())
+        return Response.ok().entity(
+                retourFournisseurService.tableauBord(debut, fin, fourId, n, userId).put("success", true).toString())
                 .build();
+    }
+
+    /**
+     * Demande du 29/10 (point 1) : export Excel du tableau de bord affiche (memes filtres), une feuille par rubrique :
+     * synthese, par mois, produits, motifs, utilisateurs.
+     */
+    @GET
+    @Path("tableau-bord/excel")
+    @Produces("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    public Response tableauBordExcel(@QueryParam(value = "dtStart") String dtStart,
+            @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "fourId") String fourId,
+            @QueryParam(value = "limite") Integer limite, @QueryParam(value = "userId") String userId)
+            throws java.io.IOException {
+        String debut = defaultDate(dtStart), fin = defaultDate(dtEnd);
+        try {
+            java.time.LocalDate.parse(debut);
+            java.time.LocalDate.parse(fin);
+        } catch (java.time.format.DateTimeParseException e) {
+            return Response.status(Response.Status.BAD_REQUEST).entity("Date invalide (attendu AAAA-MM-JJ)").build();
+        }
+        int n = limite == null || limite <= 0 ? 20 : Math.min(limite, 200);
+        org.json.JSONObject t = retourFournisseurService.tableauBord(debut, fin, fourId, n, userId);
+        byte[] data = rest.service.impl.retour.TableauRetourFournisseurExcel.classeur(t,
+                "Retours fournisseurs du " + debut + " au " + fin);
+        return Response.ok(data).header("Content-Disposition",
+                "attachment; filename=\"tableau_retours_fournisseur_" + debut + "_" + fin + ".xlsx\"").build();
     }
 
     @GET

@@ -742,7 +742,8 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                                             xtype: 'pagingtoolbar',
                                                             displayInfo: true,
                                                             flex: 2,
-                                                            displayMsg: 'nombre(s) de ligne(s): {2}',
+                                                            /* demande du 29/10 (point 3) : nombre de lignes en gras */
+                                                            displayMsg: '<b class="vp-nombre-lignes">nombre(s) de ligne(s) : {2}</b>',
                                                             pageSize: 10,
                                                             store: venteDetails,
                                                             /* Date et heure de creation de la vente en cours, juste

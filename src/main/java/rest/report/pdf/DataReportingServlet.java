@@ -205,7 +205,7 @@ public class DataReportingServlet extends HttpServlet {
         case RETOUR_FOURNISSEUR:
 
             file = dataReporting.loadretoursFournisseur(dtStart, dtEnd, fourId, query, oTUser,
-                    request.getParameter("filtre"));
+                    request.getParameter("filtre"), request.getParameter("userId"));
             break;
 
         }

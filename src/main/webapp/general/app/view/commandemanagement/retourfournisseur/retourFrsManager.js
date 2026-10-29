@@ -292,6 +292,33 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.retourFrsManager
                     }
 
                 },
+                /* demande du 29/10 (point 1) : filtre utilisateur (celui enregistre sur le retour) */
+                {
+                    xtype: 'combobox',
+                    id: 'retourFrsUtilisateur',
+                    itemId: 'filtreUtilisateur',
+                    flex: 1,
+                    margins: '0 0 0 5',
+                    store: Ext.create('Ext.data.Store', {model: 'testextjs.model.caisse.User', pageSize: 999, autoLoad: false,
+                        proxy: {type: 'ajax', url: '../api/v1/common/users', reader: {type: 'json', root: 'data', totalProperty: 'total'}}}),
+                    valueField: 'lgUSERID',
+                    displayField: 'fullName',
+                    queryMode: 'remote',
+                    minChars: 2,
+                    typeAhead: true,
+                    emptyText: 'Tous les utilisateurs',
+                    tooltip: 'Retours d\'un utilisateur',
+                    listeners: {
+                        select: function () {
+                            Me.onRechClick();
+                        },
+                        change: function (c, v) {
+                            if (!v) {
+                                Me.onRechClick();
+                            }
+                        }
+                    }
+                },
                       {
                             xtype: 'combo',
                             emptyText: 'Filtre',
@@ -415,6 +442,7 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.retourFrsManager
                         var fourId = Ext.getCmp('lg_GROSSISTE_ID').getValue();
                         myProxy.setExtraParam('dtStart', dtStart);
                         myProxy.setExtraParam('dtEnd', dtEnd);
+                        myProxy.setExtraParam('userId', Ext.getCmp('retourFrsUtilisateur') ? (Ext.getCmp('retourFrsUtilisateur').getValue() || '') : '');
                         myProxy.setExtraParam('fourId', fourId);
                         myProxy.setExtraParam('query', query);
                          myProxy.setExtraParam('filtre', filtre);
@@ -542,7 +570,8 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.retourFrsManager
         if(filtre===null || filtre===undefined ){
             filtre='';
         }
-        var linkUrl = '../DataReportingServlet?dtStart=' + dtStart + "&dtEnd=" + dtEnd + "&query=" + query + "&mode=RETOUR_FOURNISSEUR" + "&fourId=" + fourId+ "&filtre=" + filtre;
+        var linkUrl = '../DataReportingServlet?dtStart=' + dtStart + "&dtEnd=" + dtEnd + "&query=" + query + "&mode=RETOUR_FOURNISSEUR" + "&fourId=" + fourId+ "&filtre=" + filtre
+                + "&userId=" + encodeURIComponent(Ext.getCmp('retourFrsUtilisateur').getValue() || '');
 
         window.open(linkUrl);
     },
@@ -553,7 +582,8 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.retourFrsManager
             dtEnd: Ext.getCmp('datefin').getSubmitValue() || '',
             fourId: Ext.getCmp('lg_GROSSISTE_ID').getValue() || '',
             filtre: Ext.getCmp('filtre').getValue() || '',
-            query: Ext.getCmp('rechecher').getValue() || ''
+            query: Ext.getCmp('rechecher').getValue() || '',
+            userId: Ext.getCmp('retourFrsUtilisateur') ? (Ext.getCmp('retourFrsUtilisateur').getValue() || '') : ''
         };
     },
     exportToExcel: function () {
@@ -633,7 +663,8 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.retourFrsManager
                 fourId: lg_GROSSISTE_ID,
                 filtre:Ext.getCmp('filtre').getValue(),
                 dtEnd: Ext.getCmp('datefin').getSubmitValue(),
-                dtStart: Ext.getCmp('datedebut').getSubmitValue()
+                dtStart: Ext.getCmp('datedebut').getSubmitValue(),
+                userId: Ext.getCmp('retourFrsUtilisateur') ? (Ext.getCmp('retourFrsUtilisateur').getValue() || '') : ''
             }
         });
 

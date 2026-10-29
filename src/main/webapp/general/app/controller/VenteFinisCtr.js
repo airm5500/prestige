@@ -162,7 +162,24 @@ Ext.define('testextjs.controller.VenteFinisCtr', {
             this.filtresRetour = this.etatFiltres();
             const data = {'isEdit': true, 'record': rec.data, 'isDevis': false, 'categorie': 'COPY'};
             const xtype = "doventemanager";
-            testextjs.app.getController('App').onRedirectTo(xtype, data);
+            /* demande du 29/10 (point 5) : vente facturee (ou differe regle) : le motif s'affiche, l'ecran de vente ne
+               s'ouvre pas */
+            Ext.Ajax.request({
+                method: 'GET',
+                url: '../api/v1/vente/modifiable/' + rec.get('lgPREENREGISTREMENTID'),
+                success: function (response) {
+                    const r = Ext.JSON.decode(response.responseText, true) || {};
+                    if (r.success === false) {
+                        Ext.MessageBox.show({title: 'Modification impossible', width: 460, msg: Ext.String.htmlEncode(r.msg || ''),
+                            buttons: Ext.MessageBox.OK, icon: Ext.MessageBox.WARNING});
+                        return;
+                    }
+                    testextjs.app.getController('App').onRedirectTo(xtype, data);
+                },
+                failure: function () {
+                    testextjs.app.getController('App').onRedirectTo(xtype, data);
+                }
+            });
         }
 
     },

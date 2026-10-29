@@ -1396,14 +1396,25 @@ public class MvtProduitServiceImpl implements MvtProduitService {
     @Override
     public JSONObject loadetourFournisseur(String dtStart, String dtEnd, int start, int limit, String fourId,
             String query, boolean cunRemove, String filtre) throws JSONException {
+        return loadetourFournisseur(dtStart, dtEnd, start, limit, fourId, query, cunRemove, filtre, null);
+    }
+
+    @Override
+    public JSONObject loadetourFournisseur(String dtStart, String dtEnd, int start, int limit, String fourId,
+            String query, boolean cunRemove, String filtre, String userId) throws JSONException {
         List<RetourFournisseurDTO> data = loadretoursFournisseur(dtStart, dtEnd, start, limit, fourId, query, cunRemove,
-                filtre);
+                filtre, userId);
         return new JSONObject().put("total", data.size()).put("results", new JSONArray(data));
     }
 
     @Override
     public List<RetourFournisseurDTO> loadretoursFournisseur(String dtStart, String dtEnd, int start, int limit,
             String fourId, String query, boolean cunRemove, String filtre) {
+        return loadretoursFournisseur(dtStart, dtEnd, start, limit, fourId, query, cunRemove, filtre, null);
+    }
+
+    private List<RetourFournisseurDTO> loadretoursFournisseur(String dtStart, String dtEnd, int start, int limit,
+            String fourId, String query, boolean cunRemove, String filtre, String userId) {
         try {
             List<Predicate> predicates = new ArrayList<>();
             CriteriaBuilder cb = getEmg().getCriteriaBuilder();
@@ -1418,6 +1429,9 @@ public class MvtProduitServiceImpl implements MvtProduitService {
                     java.sql.Date.valueOf(dtStart), java.sql.Date.valueOf(dtEnd));
             predicates.add(cb.or(cb.and(cb.equal(root.get(TRetourFournisseur_.strSTATUT), STATUT_ENABLE), btw),
                     cb.equal(root.get(TRetourFournisseur_.strSTATUT), RETOUR_EN_ATTENTE)));
+            if (StringUtils.isNotBlank(userId)) {
+                predicates.add(cb.equal(root.get(TRetourFournisseur_.lgUSERID).get(TUser_.lgUSERID), userId));
+            }
             if (!StringUtils.isEmpty(fourId)) {
                 predicates.add(
                         cb.equal(root.get(TRetourFournisseur_.lgGROSSISTEID).get(TGrossiste_.lgGROSSISTEID), fourId));
@@ -1465,6 +1479,12 @@ public class MvtProduitServiceImpl implements MvtProduitService {
     @Override
     public List<RetourDetailsDTO> loadretoursFournisseur(String dtStart, String dtEnd, String fourId, String query,
             String filtre) {
+        return loadretoursFournisseur(dtStart, dtEnd, fourId, query, filtre, null);
+    }
+
+    @Override
+    public List<RetourDetailsDTO> loadretoursFournisseur(String dtStart, String dtEnd, String fourId, String query,
+            String filtre, String userId) {
         try {
             List<Predicate> predicates = new ArrayList<>();
             CriteriaBuilder cb = getEmg().getCriteriaBuilder();
@@ -1476,6 +1496,9 @@ public class MvtProduitServiceImpl implements MvtProduitService {
             Predicate btw = cb.between(cb.function("DATE", Date.class, root.get(TRetourFournisseur_.dtUPDATED)),
                     java.sql.Date.valueOf(dtStart), java.sql.Date.valueOf(dtEnd));
             predicates.add(btw);
+            if (StringUtils.isNotBlank(userId)) {
+                predicates.add(cb.equal(root.get(TRetourFournisseur_.lgUSERID).get(TUser_.lgUSERID), userId));
+            }
             if (!StringUtils.isEmpty(fourId)) {
                 predicates.add(
                         cb.equal(root.get(TRetourFournisseur_.lgGROSSISTEID).get(TGrossiste_.lgGROSSISTEID), fourId));

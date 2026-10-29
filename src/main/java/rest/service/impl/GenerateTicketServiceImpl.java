@@ -251,7 +251,7 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             imp.setOperation(oTPreenregistrement.getDtUPDATED());
             imp.setIntBegin(0);
             if (oTPreenregistrement.getStrSTATUTVENTE().equalsIgnoreCase(Constant.DIFFERE)
-                    || oTPreenregistrement.getBISAVOIR()) {
+                    || oTPreenregistrement.getBISAVOIR() || clientComptantAImprimer(oTPreenregistrement)) {
                 infoClientAvoir = generateDataTiersPayant(oTPreenregistrement);
             }
             if (datas.size() <= counter) {
@@ -562,6 +562,16 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
         return datas;
     }
 
+    /**
+     * Demande du 29/10 (point 2) : vente au comptant a laquelle un client a ete associe : son nom est imprime sur le
+     * ticket (avant, seulement pour un differe ou un avoir). Une vente en depot garde sa ligne « Client(e) » propre.
+     */
+    static boolean clientComptantAImprimer(TPreenregistrement op) {
+        return op != null && op.getClient() != null && "VNO".equals(op.getStrTYPEVENTE())
+                && (op.getLgNATUREVENTEID() == null || !Constant.KEY_NATURE_VENTE_DEPOT
+                        .equalsIgnoreCase(op.getLgNATUREVENTEID().getLgNATUREVENTEID()));
+    }
+
     @Override
     public List<String> generateDataTiersPayant(TPreenregistrement op) {
         List<String> datas = new ArrayList<>();
@@ -863,7 +873,7 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             List<String> generateDataSummaryVno = generateDataSummaryVno(oTPreenregistrement, mvtTransaction);
             List<String> generateCommentaire = generateCommentaire(oTPreenregistrement, mvtTransaction);
             if (oTPreenregistrement.getStrSTATUTVENTE().equalsIgnoreCase(Constant.DIFFERE)
-                    || oTPreenregistrement.getBISAVOIR()) {
+                    || oTPreenregistrement.getBISAVOIR() || clientComptantAImprimer(oTPreenregistrement)) {
                 infoClientAvoir = generateDataTiersPayant(oTPreenregistrement);
             }
             if (datas.size() <= counter) {

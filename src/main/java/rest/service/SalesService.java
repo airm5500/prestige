@@ -167,6 +167,9 @@ public interface SalesService {
 
     JSONObject closePreventeVente(TUser ooTUser, String id);
 
+    /** Motif du refus de modifier cette vente terminee (vente facturee, differe regle...) ; null : modifiable. */
+    String refusModificationVente(String venteId);
+
     /** Demande du 28/10 (point 8) : numero de bon libre pour ce tiers payant (AAMMJJ + 4 chiffres). */
     String genererNumeroBon(String tiersPayantId);
 

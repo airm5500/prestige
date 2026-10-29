@@ -1904,7 +1904,9 @@ window.PrestigeAffichage.FILTRES_MULTIPLES = {
     'testextjs.view.Report.abc.AbcManager': {rayon: '#rayons', famille: '#codeFamile', grossiste: '#grossiste'},
     'testextjs.view.Report.abc.FeuilleDeMatchManager': {rayon: '#rayons', famille: '#codeFamile', grossiste: '#grossiste'},
     'testextjs.view.analyseArticle.AnalyseArticleManager': {rayon: '#filtreRayon', famille: '#filtreFamille', grossiste: '#filtreGrossiste'},
-    'testextjs.view.stat.ArticleMvtGrid': {rayon: '#filtreEmplacement', famille: '#filtreFamille'}
+    'testextjs.view.stat.ArticleMvtGrid': {rayon: '#filtreEmplacement', famille: '#filtreFamille'},
+    /* demande du 29/10 (point 4) : produits perimes, filtres regroupes comme sur la fiche article */
+    'testextjs.view.Report.peremptions.peremptionManager': {rayon: '#rayons', famille: '#codeFamile', grossiste: '#grossiste'}
 };
 
 (function () {

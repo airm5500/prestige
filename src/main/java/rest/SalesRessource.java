@@ -887,6 +887,21 @@ public class SalesRessource {
         return Response.ok().entity(jsono.toString()).build();
     }
 
+    /**
+     * Demande du 29/10 (point 5) : « Modifier » une vente terminee demande d'abord si elle est modifiable ; sinon le
+     * motif est affiche sans ouvrir l'ecran de vente.
+     */
+    @GET
+    @Path("modifiable/{id}")
+    public Response modifiable(@PathParam("id") String id) throws JSONException {
+        String refus = salesService.refusModificationVente(id);
+        JSONObject json = new JSONObject().put("success", refus == null);
+        if (refus != null) {
+            json.put("msg", refus);
+        }
+        return Response.ok().entity(json.toString()).build();
+    }
+
     /** Demande du 28/10 (point 8) : bouton « Générer » du numero de bon (vente carnet et assurance). */
     @GET
     @Path("numero-bon/{tiersPayantId}")
