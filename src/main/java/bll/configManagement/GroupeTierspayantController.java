@@ -136,6 +136,34 @@ public class GroupeTierspayantController implements Serializable {
 
     private EntityManagerFactory emf;
 
+    /**
+     * Compteur des numeros de facture, relu SOUS VERROU dans la transaction en cours.
+     *
+     * <p>
+     * Audit F3 (reproduit le 25/10 : 5 paires de generations simultanees sur 5 avec le meme numero) : le compteur etait
+     * lu sans verrou, parfois avant l'ouverture de la transaction, et reecrit en valeur absolue ; deux generations
+     * reprenaient le meme numero. Les increments deja faits par cette transaction sont d'abord ecrits, puis la ligne
+     * est relue et verrouillee jusqu'a la fin de la transaction : une generation simultanee attend.
+     * </p>
+     */
+    private TParameters compteurFacture(EntityManager em) {
+        if (!em.getTransaction().isActive()) {
+            return em.find(TParameters.class, Parameter.KEY_CODE_FACTURE);
+        }
+        /*
+         * Lecture d'emblee verrouillante : sous REPEATABLE READ, une lecture ordinaire faite avant l'attente du verrou
+         * figerait l'instantane, et les bons relus ensuite paraitraient encore non factures (audit F2 en concurrence).
+         */
+        TParameters compteur = em.find(TParameters.class, Parameter.KEY_CODE_FACTURE,
+                javax.persistence.LockModeType.PESSIMISTIC_WRITE);
+        if (compteur != null) {
+            // deja charge par cette transaction : la valeur en memoire peut dater d'avant le verrou
+            em.flush();
+            em.refresh(compteur, javax.persistence.LockModeType.PESSIMISTIC_WRITE);
+        }
+        return compteur;
+    }
+
     public EntityManager getEntityManager() {
         return emf.createEntityManager();
     }
@@ -739,7 +767,7 @@ public class GroupeTierspayantController implements Serializable {
             em.getTransaction().begin();
             mapList.entrySet().forEach((t) -> {
                 TGroupeTierspayant g = t.getKey();
-                TParameters OParameters = em.find(TParameters.class, Parameter.KEY_CODE_FACTURE);
+                TParameters OParameters = compteurFacture(em);
                 String CODEFACTURE = OParameters.getStrVALUE();
 
                 OParameters.setStrVALUE((Integer.parseInt(CODEFACTURE) + 1) + "");
@@ -882,7 +910,7 @@ public class GroupeTierspayantController implements Serializable {
             if (OTTypeFacture == null) {
                 return null;
             }
-            TParameters OParameters = em.find(TParameters.class, Parameter.KEY_CODE_FACTURE);
+            TParameters OParameters = compteurFacture(em);
 
             String CODEFACTURE = OParameters.getStrVALUE();
 
@@ -947,18 +975,13 @@ public class GroupeTierspayantController implements Serializable {
     }
 
     private void updateInvoicePlafond(TFacture facture, TTiersPayant OTTiersPayant, EntityManager em) {
-        boolean isAbsolute = OTTiersPayant.getBCANBEUSE();
-        if (!isAbsolute) {
-            OTTiersPayant.setDbCONSOMMATIONMENSUELLE(0);
-            OTTiersPayant.setBCANBEUSE(true);
-            em.merge(OTTiersPayant);
-        }
-        // Mise a jour groupee des comptes clients du tiers payant : meme effet que la boucle
-        // historique, en UNE requete au lieu de charger toute la collection puis de faire un
-        // merge par compte (identique a la generation individuelle).
-        em.createQuery("UPDATE TCompteClientTiersPayant c SET c.bCANBEUSE = TRUE, c.dbCONSOMMATIONMENSUELLE = 0 "
-                + "WHERE c.lgTIERSPAYANTID = ?1 AND c.bIsAbsolute = FALSE").setParameter(1, OTTiersPayant)
-                .executeUpdate();
+        /*
+         * Audit F5 (reproduit le 25/10) : la facture remettait a zero l'encours de TOUS les clients de l'organisme, y
+         * compris les ventes non facturees (4 584 -> 0 en facturant un bon sur deux), et celui de l'organisme seulement
+         * s'il etait bloque. L'encours est recalcule depuis les bons restant a facturer (liens ordinaires et organisme)
+         * ; les liens absolus ne bougent pas, comme avant.
+         */
+        rest.service.impl.EncoursTiersPayant.apresFacturation(em, OTTiersPayant);
     }
 
     private List<TPreenregistrementDetail> findItems(String OTPreenregistrement, EntityManager em) {
@@ -1235,6 +1258,17 @@ public class GroupeTierspayantController implements Serializable {
         return list;
     }
 
+    /** Bon encore facturable : non facture, ligne et vente closes, vente non annulee, vente de montant positif. */
+    public static boolean bonFacturable(TPreenregistrementCompteClientTiersPayent pr) {
+        if (pr == null || pr.getLgPREENREGISTREMENTID() == null) {
+            return false;
+        }
+        dal.TPreenregistrement vente = pr.getLgPREENREGISTREMENTID();
+        return "unpaid".equals(pr.getStrSTATUTFACTURE()) && "is_Closed".equals(pr.getStrSTATUT())
+                && "is_Closed".equals(vente.getStrSTATUT()) && !Boolean.TRUE.equals(vente.getBISCANCEL())
+                && vente.getIntPRICE() != null && vente.getIntPRICE() > 0;
+    }
+
     public List<TPreenregistrementCompteClientTiersPayent> getGroupeSelectedBons(JSONArray selectedBons) {
         EntityManager em = null;
         List<TPreenregistrementCompteClientTiersPayent> list = new ArrayList<>();
@@ -1248,7 +1282,15 @@ public class GroupeTierspayantController implements Serializable {
 
                     TPreenregistrementCompteClientTiersPayent pr = em
                             .find(TPreenregistrementCompteClientTiersPayent.class, selectedBons.getString(i));
-                    list.add(pr);
+                    /*
+                     * Audit F2 (reproduit le 25/10) : les bons coches etaient factures sans etre relus ; depuis un
+                     * ecran reste ouvert, un bon deja facture l'etait une seconde fois (factures 6220 et 6221). Memes
+                     * filtres que la selection par periode : bon non facture, ligne et vente closes, vente non annulee,
+                     * montant positif.
+                     */
+                    if (bonFacturable(pr)) {
+                        list.add(pr);
+                    }
                 } catch (JSONException ex) {
 
                 }
@@ -1380,8 +1422,8 @@ public class GroupeTierspayantController implements Serializable {
     // facture selection
     public LinkedHashSet<TFacture> generateFacture(String dt_start, String dt_end, JSONArray selectedList, TUser u) {
         EntityManager em = getEntityManager();
-        TParameters OParameters = em.find(TParameters.class, Parameter.KEY_CODE_FACTURE);
         em.getTransaction().begin();
+        TParameters OParameters = compteurFacture(em);
 
         LinkedHashSet<TFacture> factures = new LinkedHashSet<>();
         List<TPreenregistrementCompteClientTiersPayent> oblist = this.getGroupeSelectedBons(selectedList);
@@ -2227,8 +2269,8 @@ public class GroupeTierspayantController implements Serializable {
     public Map<String, LinkedHashSet<TFacture>> generateInvoices(List<TTiersPayant> payants, String dt_start,
             String dt_end, Integer lgGRP, TUser us) {
         EntityManager em = getEntityManager();
-        TParameters OParameters = em.find(TParameters.class, Parameter.KEY_CODE_FACTURE);
         em.getTransaction().begin();
+        TParameters OParameters = compteurFacture(em);
         Map<String, LinkedHashSet<TFacture>> grfact = new HashMap<>();
         LinkedHashSet<TFacture> factures = new LinkedHashSet<>();
 
@@ -5095,7 +5137,7 @@ public class GroupeTierspayantController implements Serializable {
                 em.getTransaction().begin();
             }
             LinkedHashSet<TFacture> factures = new LinkedHashSet<>();
-            TParameters OParameters = em.find(TParameters.class, Parameter.KEY_CODE_FACTURE);
+            TParameters OParameters = compteurFacture(em);
             String CODEFACTURE = OParameters.getStrVALUE();
             OParameters.setStrVALUE((Integer.valueOf(CODEFACTURE) + 1) + "");
             boolean numerationFacture = getParametreFacturation();

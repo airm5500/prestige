@@ -5544,6 +5544,15 @@ Ext.define('testextjs.controller.VenteCtr', {
     createForm: function () {
         const me = this;
         let grid = me.getTpComplementaireGrid();
+        /* retours de recette du 28/10 (M3) : la priorite proposee etait toujours 2, deja prise par une assurance du
+           client ; on propose la premiere libre (1 est celle de l'assurance principale) */
+        const prises = Ext.Array.map(grid.getStore().getRange(), function (r) {
+            return parseInt(r.get('order'), 10);
+        });
+        let prioriteLibre = 2;
+        while (prioriteLibre < 4 && prises.indexOf(prioriteLibre) >= 0) {
+            prioriteLibre++;
+        }
         let tierspayantss = new Ext.data.Store({
             idProperty: 'lgTIERSPAYANTID',
             fields: [
@@ -5692,10 +5701,14 @@ Ext.define('testextjs.controller.VenteCtr', {
                                                     allowDecimals: false,
                                                     hideTrigger: true,
                                                     allowBlank: false,
-                                                    name: 'taux', minValue: 0,
-                                                    maxValue: 100,
-                                                    maskRe: /[0-100.]/,
-                                                    emptyText: 'Pourcentage'
+                                                    name: 'taux',
+                                                    maskRe: /[0-9]/,
+                                                    emptyText: 'Pourcentage',
+                                                    /* retour du cahier de recette (cas 5) : 0 % etait accepte */
+                                                    validator: function (v) {
+                                                        const n = Number(v);
+                                                        return (n >= 1 && n <= 100) || 'Taux de 1 à 100 % seulement';
+                                                    }
                                                 }
                                                 , {xtype: 'splitter'},
                                                 {
@@ -5742,11 +5755,18 @@ Ext.define('testextjs.controller.VenteCtr', {
                                                 {
                                                     xtype: 'numberfield',
                                                     name: 'order',
-                                                    minValue: 2,
-                                                    maxValue: 4,
-                                                    maskRe: /[2-4.]/,
+                                                    maskRe: /[2-4]/,
                                                     fieldLabel: 'Priorité',
-                                                    value: 2
+                                                    value: prioriteLibre,
+                                                    /* retour du cahier de recette (cas 5) : une priorite deja portee
+                                                       par une autre assurance du client est refusee ici */
+                                                    validator: function (v) {
+                                                        const n = Number(v);
+                                                        if (!(n >= 2 && n <= 4)) {
+                                                            return 'Priorité de 2 à 4 seulement';
+                                                        }
+                                                        return prises.indexOf(n) < 0 || 'Priorité ' + n + ' déjà portée par une autre assurance';
+                                                    }
                                                 }
                                             ]
                                         }

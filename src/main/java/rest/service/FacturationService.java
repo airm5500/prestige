@@ -62,7 +62,10 @@ public interface FacturationService {
     JSONObject provisoires10(String groupTp, String typetp, String tpid, String codegroup, boolean isTemplate,
             int start, int limit, boolean carnetDepot) throws JSONException;
 
-    void removeFacture(String idFacture);
+    /**
+     * Supprime une facture PROVISOIRE ; renvoie le motif du refus (facture definitive, introuvable), null si supprimee.
+     */
+    String removeFacture(String idFacture);
 
     /**
      * Supprime plusieurs factures provisoires, comme le fait le bouton ligne a ligne. Une facture devenue definitive

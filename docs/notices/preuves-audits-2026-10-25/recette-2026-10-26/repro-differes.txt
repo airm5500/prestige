@@ -1,0 +1,15 @@
+PASS  DIF-01 attendu : un règlement fait pendant la modification est refusé, ou déduit de la dette de la copie (caisse + dette = prix)  [règlement pendant modification {"s":false,"m":"Une des ventes choisies a été annulée ou modifiée : rechargez la liste."} ; clôture copie true ; dette restante 5510 + réglé 0 = 5510 (prix 5510)]
+PASS  DIF-02 précondition : vente différée de 5510 avec 2755 d'acompte ; caisse + dette = prix  [caisse 2755 ; dette 2755]
+PASS  DIF-02 attendu : après modification sans changement (copie en différé, 0 reçu), caisse + dette = prix  [clôture copie true ; caisse nette 0 + dette 5510 = 5510 (prix 5510)]
+PASS  DIF-03 attendu : vente déjà réglée de 2755 puis passée à un autre client : refus, ou règlement reporté (dettes + réglé = prix)  [clôture copie false ; dette client 1 2755 ; dette client 2 0 ; réglé par le client 1 2755 ; total 5510 (prix 5510)]
+PASS  D2 attendu : annuler une vente différée déjà réglée en partie est refusé (ou un avoir est créé)  [annulation {"s":false,"m":"Cette vente a déjà été réglée en partie (2755 F) : remboursez le client ou faites-lu ; dette 2755 ; réglé resté en caisse 2755]
+PASS  D3 attendu : la liste des règlements de différés du jour montre les règlements de tous les clients (dont celui dont la vente a été annulée)  [lignes renvoyées 3 (règlements du jour faits par le test : 2 clients)]
+PASS  D4 attendu : le solde du relevé = reste dû (prix 5510 − acompte 2755 = 2755)  [solde du relevé 2755 ; reste dû 2755]
+PASS  D5 attendu : une vente portant deux lignes de dette (doublon, données réelles) est annulée sans laisser de dette  [annulation true ; lignes de dette encore actives 0 ; dette du client 0]
+PASS  DIF-07 attendu : un règlement partiel qui déclare 1 F reçu pour 2755 F payés est refusé  [règlement {"s":false,"m":"Le montant reçu (1 F) est inférieur au montant réglé (2755 F)."} ; dette 5510]
+PASS  DIF-08 attendu : la date de la ligne de dette reste celle de la vente (il y a 30 jours) après un règlement  [date de la vente | date de la ligne de dette après règlement : 2026-09-26 | 2026-09-26 (la liste « Différés » affiche, trie et filtre sur cette date : ReglementServiceImpl.java:213-215, :242)]
+PASS  DIF-09 attendu : un règlement partiel solde d'abord la vente la plus ancienne  [reste de l'ancienne 0 ; reste de la récente 2755]
+PASS  Aucune erreur JavaScript  []
+PASS  Jeu d'essai retiré (ventes, clients, tiers payants, factures), stocks et paramètres remis  [ventes restantes 0]
+
+13/13 OK

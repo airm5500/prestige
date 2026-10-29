@@ -759,6 +759,18 @@ public class CaisseServiceImpl implements CaisseService {
         return json;
     }
 
+    /** Date « AAAA-MM-JJ » posterieure a aujourd'hui ; une date absente ou illisible n'est pas jugee ici. */
+    static boolean dateFuture(String dateMvt) {
+        if (StringUtils.isBlank(dateMvt) || dateMvt.trim().length() < 10) {
+            return false;
+        }
+        try {
+            return java.time.LocalDate.parse(dateMvt.trim().substring(0, 10)).isAfter(java.time.LocalDate.now());
+        } catch (java.time.format.DateTimeParseException e) {
+            return false;
+        }
+    }
+
     @Override
     public JSONObject createMvt(MvtCaisseDTO caisseDTO, TUser user) throws Exception {
         JSONObject json = new JSONObject();
@@ -772,6 +784,13 @@ public class CaisseServiceImpl implements CaisseService {
         TTypeReglement tTypeReglement = findTypeRegByIdOrName(caisseDTO.getIdTypeRegl());
         if (modeReglement == null) {
             return json.put("success", false).put("msg", "Echec d'encaissement. Mode de règlement inexistant.");
+        }
+        /*
+         * Audit VC-16 (reproduit le 25/10) : un mouvement date de demain etait accepte. Une date future est refusee ;
+         * la transaction de caisse porte la date saisie du mouvement (decision du 26/10 : date de l'operation reelle).
+         */
+        if (dateFuture(caisseDTO.getDateMvt())) {
+            return json.put("success", false).put("msg", "La date du mouvement ne peut pas être dans le futur.");
         }
         if (typeMvtCaisse.getLgTYPEMVTCAISSEID().equals(Constant.MVT_SORTIE_CAISSE)) {
             caisseDTO.setAmount(caisseDTO.getAmount() * (-1));
@@ -787,6 +806,14 @@ public class CaisseServiceImpl implements CaisseService {
                 caisseDTO.getAmount() > 0 ? TypeTransaction.ENTREE : TypeTransaction.SORTIE, tTypeReglement,
                 typeMvtCaisse, 0, emg, caisseDTO.getAmount() > 0 ? caisseDTO.getAmount() : 0, 0, 0,
                 mvtCaisse.getStrREFTICKET());
+        if (mvtCaisse.getDtDATEMVT() != null) {
+            java.time.LocalDate jour = new java.sql.Date(mvtCaisse.getDtDATEMVT().getTime()).toLocalDate();
+            if (!jour.equals(java.time.LocalDate.now())) {
+                emg.flush();
+                emg.createQuery("UPDATE MvtTransaction m SET m.mvtDate = :jour WHERE m.pkey = :pkey")
+                        .setParameter("jour", jour).setParameter("pkey", mvtCaisse.getLgMVTCAISSEID()).executeUpdate();
+            }
+        }
 
         logService.updateItem(user, mvtCaisse.getStrREFTICKET(), description, TypeLog.MVT_DE_CAISSE, mvtCaisse);
         Map<String, Object> donneesMap = new HashMap<>();

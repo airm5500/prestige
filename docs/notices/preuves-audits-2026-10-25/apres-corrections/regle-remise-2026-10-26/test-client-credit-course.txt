@@ -1,0 +1,18 @@
+PASS  Précondition : un produit (8050457) et des clients carnet  [40]
+PASS  Précondition : un client carnet trouvé seul par la recherche  [ZZE2E COURSE]
+PASS  Vente au comptant commencée (un produit)  [SANS CLIENT|1|0]
+PASS  Bascule en Carnet enregistrée  [SANS CLIENT|3|0]
+PASS  Client choisi par la recherche + Entrée : il RESTE sur la vente (serveur lent)  [E2E-COURSE-CLI|3|1 ; détachements envoyés : 0]
+PASS  Bloc tiers payant complet à l'écran (jamais « undefined »)  [TP1:IRCTaux:100%Encours : 0 FPlafond : aucunNuméro de bon:]
+PASS  Nouvelle recherche du même client : toujours rattaché, une seule ligne de tiers payant  [E2E-COURSE-CLI|3|1]
+PASS  Net à payer calculé (pas de « Cette vente n'a plus de client »)  [ / net 0]
+PASS  Vente Carnet rappelée sans client : aucun bloc « TPundefined / undefined% »  [⚠ Client absent de cette vente : recherchez le client (nom puis Entrée) avant de continuer.]
+PASS  … et la caissière est prévenue que le client manque  [⚠ Client absent de cette vente : recherchez le client (nom puis Entrée) avant de continuer. / ]
+PASS  Vente ordonnancière à crédit sans client : renvoi à la recherche du client assuré (pas de client comptant)  [{"fenetre":false,"boite":"Cette vente à crédit n'a pas de client : recherchez le client assuré (nom puis Entrée), puis terminez la vente."}]
+PASS  Vente rappelée sans client : la recherche le rattache (base et écran)  [E2E-COURSE-CLI|3|1 / TP1:IRCTaux:100%Encours : 0 FPlafond : aucunNuméro de bon:]
+PASS  Ordres simultanés sur le serveur : jamais de ligne orpheline ni en double (client ET 1 ligne, ou ni l'un ni l'autre)  [{"SANS CLIENT|3|0":3,"E2E-COURSE-CLI|3|1":17}]
+PASS  Rattachement sans compte tiers payant refusé avec explication, la vente garde son client  [{"msg":"Ce client n'a pas de compte tiers payant actif : il n'est pas rattaché.","success":false} E2E-COURSE-CLI|3|1]
+PASS  Aucune erreur JavaScript
+PASS  Remise en état : ventes et client du test retirés
+
+16/16 OK

@@ -44,6 +44,31 @@ Ext.define('testextjs.view.vente.endepot.addClientAssurance', {
         bouton.focus(false, 100);
     },
 
+    /**
+     * Retour du cahier de recette (cas 5) : controle d'une cellule modifiee dans la grille des complementaires.
+     * Une priorite (2 a 4) n'est portee que par une assurance ; un taux est un entier de 1 a 100.
+     * Rend le motif du refus, ou null si la valeur est acceptee.
+     */
+    controlerCellule: function (record, champ, valeur) {
+        var v = Number(valeur), motif = null;
+        if (champ === 'order') {
+            if (!(v >= 2 && v <= 4) || Math.floor(v) !== v) {
+                return 'Priorité de 2 à 4 seulement';
+            }
+            Ext.each(this.down('grid').getStore().getRange(), function (r) {
+                if (r !== record && Number(r.get('order')) === v) {
+                    motif = 'Priorité ' + v + ' déjà portée par ' + (r.get('tpFullName') || r.get('lgTIERSPAYANTID'));
+                    return false;
+                }
+            });
+            return motif;
+        }
+        if (champ === 'taux' && (!(v >= 1 && v <= 100) || Math.floor(v) !== v)) {
+            return 'Taux de 1 à 100 % seulement';
+        }
+        return null;
+    },
+
     initComponent: function () {
         var me = this;
         var villeStore = new Ext.data.Store({
@@ -481,6 +506,22 @@ Ext.define('testextjs.view.vente.endepot.addClientAssurance', {
                                                 selType: 'cellmodel',
                                                 mode: 'SINGLE'
                                             },
+                                            plugins: [{ptype: 'cellediting', clicksToEdit: 1}],
+                                            listeners: {
+                                                /* valeur refusee : la cellule garde l'ancienne, le motif s'affiche
+                                                   dans la barre de la grille */
+                                                validateedit: function (editor, e) {
+                                                    var motif = me.controlerCellule(e.record, e.field, e.value),
+                                                            message = me.down('#messageAssurances');
+                                                    if (motif) {
+                                                        e.cancel = true;
+                                                        message.setText(motif);
+                                                        message.show();
+                                                    } else {
+                                                        message.hide();
+                                                    }
+                                                }
+                                            },
                                             dockedItems: [
                                                 {
                                                     xtype: 'toolbar',
@@ -494,6 +535,12 @@ Ext.define('testextjs.view.vente.endepot.addClientAssurance', {
                                                             xtype: 'button',
                                                             itemId: 'associertps',
                                                             text: 'Associer une assurance'
+                                                        },
+                                                        {
+                                                            xtype: 'tbtext',
+                                                            itemId: 'messageAssurances',
+                                                            hidden: true,
+                                                            style: 'color:#c62828;font-weight:bold'
                                                         }
                                                     ]
                                                 }
@@ -515,20 +562,30 @@ Ext.define('testextjs.view.vente.endepot.addClientAssurance', {
                                                     flex: 1,
                                                     dataIndex: 'tpFullName'
                                                 },
+                                                /* retours de recette du 28/10 : taux, matricule et priorite se
+                                                   modifient d'un clic dans la cellule ; « Enregistrer » les valide */
                                                 {
                                                     text: 'Taux.Couverture',
                                                     flex: 0.5,
-                                                    dataIndex: 'taux'
+                                                    dataIndex: 'taux',
+                                                    tooltip: 'Cliquer pour modifier',
+                                                    editor: {xtype: 'numberfield', allowDecimals: false, hideTrigger: true,
+                                                        allowBlank: false}
                                                 },
                                                 {
                                                     text: 'Numéro/SS',
                                                     flex: 0.8,
-                                                    dataIndex: 'numSecurity'
+                                                    dataIndex: 'numSecurity',
+                                                    tooltip: 'Cliquer pour modifier',
+                                                    editor: {xtype: 'textfield'}
                                                 },
                                                 {
                                                     text: 'RC',
                                                     flex: 0.5,
-                                                    dataIndex: 'order'
+                                                    dataIndex: 'order',
+                                                    tooltip: 'Priorité : cliquer pour modifier (2 à 4)',
+                                                    editor: {xtype: 'numberfield', allowDecimals: false, hideTrigger: true,
+                                                        allowBlank: false}
                                                 },
                                                 {
                                                     xtype: 'actioncolumn',

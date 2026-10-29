@@ -460,6 +460,9 @@ public class ReglementServiceImpl implements ReglementService {
         if (!this.checkCaisse(user)) {
             return json.put("success", false).put("msg", "Votre caisse est fermée");
         }
+        /*
+         * montant negatif ou nul refuse (audit CA-06 : il AUGMENTAIT le solde du carnet depot), motif exige (point 19)
+         */
         String saisieInvalide = controleReglementCarnetDepot(reglementCarnetDTO, motifsConfigures());
         if (saisieInvalide != null) {
             return json.put("success", false).put("msg", saisieInvalide);
@@ -787,6 +790,30 @@ public class ReglementServiceImpl implements ReglementService {
                     .forEach(t -> parId.put(t.getLgPREENREGISTREMENTCOMPTECLIENTID(), t));
             List<TPreenregistrementCompteClient> ordonnees = new ArrayList<>();
             ids.forEach(id -> ordonnees.add(parId.get(id)));
+            /*
+             * Audit DIF-09 (reproduit le 25/10) : un reglement partiel etait ventile dans l'ordre des clics (la vente
+             * recente soldee, l'ancienne laissee due). Ventilation de la plus ancienne a la plus recente.
+             */
+            ordonnees
+                    .sort(Comparator
+                            .nullsLast(
+                                    Comparator
+                                            .comparing(
+                                                    (TPreenregistrementCompteClient t) -> t
+                                                            .getLgPREENREGISTREMENTID() == null ? null
+                                                                    : t.getLgPREENREGISTREMENTID().getDtUPDATED(),
+                                                    Comparator.nullsLast(Comparator.naturalOrder()))
+                                            .thenComparing(TPreenregistrementCompteClient::getDtCREATED,
+                                                    Comparator.nullsLast(Comparator.naturalOrder()))));
+            /*
+             * Audit DIF-07 (reproduit le 25/10, appel direct) : « 1 F recu » pour 2 755 F payes etait accepte, et le
+             * montant regle de la transaction devenait faux. Le montant recu doit couvrir le montant paye.
+             */
+            if (p.getMontantRecu() != null && p.getMontantPaye() != null && p.getMontantRecu() < p.getMontantPaye()) {
+                sessionContext.setRollbackOnly();
+                return json.put("success", false).put("msg", "Le montant reçu (" + p.getMontantRecu()
+                        + " F) est inférieur au montant réglé (" + p.getMontantPaye() + " F).");
+            }
             ReglementDiffereControle.Resultat controle = ReglementDiffereControle.partiel(lignesControle(ordonnees),
                     p.getClientId(), restesAttendus(p.getRestesAttendus()),
                     p.getMontantPaye() == null ? 0 : p.getMontantPaye());
@@ -847,7 +874,7 @@ public class ReglementServiceImpl implements ReglementService {
         return new ArrayList<>(lignes);
     }
 
-    private static List<ReglementDiffereControle.Ligne> lignesControle(List<TPreenregistrementCompteClient> lignes) {
+    private List<ReglementDiffereControle.Ligne> lignesControle(List<TPreenregistrementCompteClient> lignes) {
         List<ReglementDiffereControle.Ligne> l = new ArrayList<>();
         for (TPreenregistrementCompteClient t : lignes) {
             if (t == null) {
@@ -857,11 +884,25 @@ public class ReglementServiceImpl implements ReglementService {
             String client = t.getLgCOMPTECLIENTID() == null || t.getLgCOMPTECLIENTID().getLgCLIENTID() == null ? null
                     : t.getLgCOMPTECLIENTID().getLgCLIENTID().getLgCLIENTID();
             TPreenregistrement v = t.getLgPREENREGISTREMENTID();
+            /*
+             * Audit DIF-01 (reproduit le 25/10) : une vente en cours de modification restait reglable ; le reglement,
+             * fait sur la ligne d'origine, etait ignore a la cloture de la copie (le client devait encore tout). Une
+             * copie de modification ouverte compte comme une vente « modifiee » : le controle refuse le reglement.
+             */
             l.add(new ReglementDiffereControle.Ligne(t.getLgPREENREGISTREMENTCOMPTECLIENTID(), client, t.getStrSTATUT(),
-                    v == null || Boolean.TRUE.equals(v.getBISCANCEL()),
+                    v == null || Boolean.TRUE.equals(v.getBISCANCEL()) || modificationEnCours(v),
                     t.getIntPRICERESTE() == null ? 0 : t.getIntPRICERESTE()));
         }
         return l;
+    }
+
+    /** Une copie de modification de cette vente est-elle ouverte (copy = 1, en cours) ? */
+    private boolean modificationEnCours(TPreenregistrement vente) {
+        Long n = getEmg().createQuery(
+                "SELECT COUNT(o) FROM TPreenregistrement o WHERE o.lgPARENTID = ?1 AND o.copy = TRUE AND o.strSTATUT = ?2",
+                Long.class).setParameter(1, vente.getLgPREENREGISTREMENTID())
+                .setParameter(2, Constant.STATUT_IS_PROGRESS).getSingleResult();
+        return n != null && n > 0;
     }
 
     /** {"id": reste vu a l'ecran, ...} ; null si l'ecran ne l'envoie pas (pas de controle de fraicheur). */
@@ -889,7 +930,9 @@ public class ReglementServiceImpl implements ReglementService {
             TPreenregistrementCompteClient tp = parId.get(a.id);
             createDossierReglementDetail(a.id, dossierReglement, a.montant);
             tp.setIntPRICERESTE(a.nouveauReste);
-            tp.setDtUPDATED(now);
+            // audit DIF-08 (reproduit le 25/10) : la date de la ligne sert de « date de la vente » (liste, tri, filtre)
+            // ;
+            // le reglement ne la reecrit plus (le dossier de reglement porte sa propre date)
             getEmg().merge(tp);
         }
     }
@@ -913,7 +956,7 @@ public class ReglementServiceImpl implements ReglementService {
                 tp.setIntPRICERESTE(dette - remaining);
                 remaining = 0;
             }
-            tp.setDtUPDATED(now);
+            // audit DIF-08 : la date de la vente n'est plus reecrite par le reglement
             getEmg().merge(tp);
         }
     }
@@ -1119,7 +1162,18 @@ public class ReglementServiceImpl implements ReglementService {
             List<DelayedDTO> delayeds = new ArrayList<>();
             Map<String, Solde> soldes = getSoldeByClient(ids);
             for (DelayedDTO delayedDTO : delayedDTOs) {
+                /*
+                 * Audit D3 (reproduit le 25/10) : un client qui a un reglement mais plus aucun differe en cours (vente
+                 * annulee, modifiee) n'a pas de ligne de solde ; l'erreur qui suivait vidait la liste pour TOUS les
+                 * clients. Son solde vaut 0 et son nom est lu sur sa fiche.
+                 */
                 Solde solde = soldes.get(delayedDTO.getClientId());
+                if (solde == null) {
+                    TClient client = delayedDTO.getClientId() == null ? null
+                            : getEmg().find(TClient.class, delayedDTO.getClientId());
+                    solde = new Solde(client == null ? "" : StringUtils.defaultString(client.getStrFIRSTNAME()) + " "
+                            + StringUtils.defaultString(client.getStrLASTNAME()), 0);
+                }
                 delayedDTO.setClientFullName(solde.getClientFullName());
                 delayedDTO.setSolde(solde.getMontantRestant());
                 delayedDTO.setSoldeFormated(NumberUtils.formatIntToString(solde.getMontantRestant()));
@@ -1177,6 +1231,14 @@ public class ReglementServiceImpl implements ReglementService {
     }
 
     /* ------------------------------------------------------------------ releve des differes (retours du 07/10) */
+
+    /**
+     * Montant mis en differe par une vente : sa part (int_PRICE) moins ce qui a ete paye a la cloture (acompte, montant
+     * paye de la transaction de la vente). Audit D4 (reproduit le 25/10) : le releve debitait le prix entier et ne
+     * creditait jamais l'acompte (solde 5 510 pour un reste du de 2 755).
+     */
+    private static final String DETTE_DIFFEREE = "GREATEST(0, tp.int_PRICE - COALESCE((SELECT SUM(m.montantPaye)"
+            + " FROM mvttransaction m WHERE m.pkey = tp.lg_PREENREGISTREMENT_ID), 0))";
 
     /** Ventes mises en differe : montant du (int_PRICE de la part differee), date de la vente. */
     private static final String VENTES_DIFFEREES = " FROM t_preenregistrement_compte_client tp"
@@ -1243,8 +1305,8 @@ public class ReglementServiceImpl implements ReglementService {
             java.sql.Timestamp fin = java.sql.Timestamp.valueOf(au.plusDays(1).atStartOfDay());
             EntityManager em = getEmg();
             Number ventesAvant = (Number) em
-                    .createNativeQuery(
-                            "SELECT COALESCE(SUM(tp.int_PRICE), 0)" + VENTES_DIFFEREES + " AND p.dt_UPDATED < ?3")
+                    .createNativeQuery("SELECT COALESCE(SUM(" + DETTE_DIFFEREE + "), 0)" + VENTES_DIFFEREES
+                            + " AND p.dt_UPDATED < ?3")
                     .setParameter(1, emplacement).setParameter(2, client).setParameter(3, debut).getSingleResult();
             Number reglesAvant = (Number) em
                     .createNativeQuery("SELECT COALESCE(SUM(m.montantRegle), 0)" + REGLEMENTS + " AND m.createdAt < ?3")
@@ -1252,7 +1314,7 @@ public class ReglementServiceImpl implements ReglementService {
             List<ReleveDifferes.Operation> ops = new ArrayList<>();
             for (Object[] r : (List<Object[]>) em
                     .createNativeQuery("SELECT p.dt_UPDATED, p.str_REF,"
-                            + " CONCAT_WS(' ', c.str_FIRST_NAME, c.str_LAST_NAME), tp.int_PRICE" + VENTES_DIFFEREES
+                            + " CONCAT_WS(' ', c.str_FIRST_NAME, c.str_LAST_NAME), " + DETTE_DIFFEREE + VENTES_DIFFEREES
                             + " AND p.dt_UPDATED >= ?3 AND p.dt_UPDATED < ?4")
                     .setParameter(1, emplacement).setParameter(2, client).setParameter(3, debut).setParameter(4, fin)
                     .setMaxResults(20000).getResultList()) {

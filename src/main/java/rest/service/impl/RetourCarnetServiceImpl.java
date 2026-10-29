@@ -84,26 +84,49 @@ public class RetourCarnetServiceImpl implements RetourCarnetService {
 
     @Override
     public void updateRetourCarnet(Integer id, String libelle) {
-        RetourCarnet retourCarnet = getEntityManager().find(RetourCarnet.class, id);
+        /*
+         * Audit CA-07 : la cloture ne lisait pas l'etat du retour ; rejouee (double clic, rechargement), elle
+         * recreditait le stock et redebitait le solde du carnet. Le retour est lu sous verrou ; deja clos, rien n'est
+         * refait.
+         */
+        RetourCarnet retourCarnet = getEntityManager().find(RetourCarnet.class, id,
+                javax.persistence.LockModeType.PESSIMISTIC_WRITE);
+        if (retourCarnet == null || "completed".equals(retourCarnet.getStatus())) {
+            return;
+        }
         retourCarnet.setStatus("completed");
         retourCarnet.setLibelle(libelle);
         LongAdder montantRetour = new LongAdder();
         listItemByRetourCarnet(retourCarnet.getId()).forEach(e -> {
             montantRetour.add(e.getQtyRetour() * e.getPrixUni());
-            updateStock(e.getQtyRetour(), e.getStockInit(), e.getProduit().getLgFAMILLEID(), e.getId().toString(),
-                    retourCarnet.getUser());
+            /*
+             * Audit N9 (reproduit le 25/10) : la cle du mouvement de stock etait l'identifiant numerique de la ligne de
+             * retour, que d'anciens mouvements (inventaires) portent deja : la cle est unique, la cloture echouait
+             * (Duplicate entry '7499' for key 'pkey_unq'). Cle prefixee.
+             */
+            updateStock(e, "RC-" + e.getId(), retourCarnet.getUser());
         });
         tiersPayantExclusService.updateTiersPayantAccount(retourCarnet.getTierspayant(),
                 montantRetour.intValue() * (-1));
         getEntityManager().merge(retourCarnet);
     }
 
-    private void updateStock(int qtyMvt, int qtyDebut, String produitId, String pkey, TUser user) {
-        getOptionalFamilleStock(produitId).ifPresent(e -> {
-            e.setIntNUMBERAVAILABLE(e.getIntNUMBERAVAILABLE() + qtyMvt);
+    private void updateStock(RetourCarnetDetail detail, String pkey, TUser user) {
+        int qtyMvt = detail.getQtyRetour();
+        getOptionalFamilleStock(detail.getProduit().getLgFAMILLEID()).ifPresent(e -> {
+            /*
+             * Audit CA-12 : le stock de debut etait celui lu a la CREATION de la ligne (le stock a pu bouger depuis),
+             * et le detail notait « stock final = stock - quantite » pour une ENTREE. Debut et fin sont lus a la
+             * cloture.
+             */
+            int qtyDebut = e.getIntNUMBERAVAILABLE();
+            e.setIntNUMBERAVAILABLE(qtyDebut + qtyMvt);
             e.setIntNUMBER(e.getIntNUMBERAVAILABLE());
             e.setDtUPDATED(new Date());
             getEntityManager().merge(e);
+            detail.setStockInit(qtyDebut);
+            detail.setStockFinal(e.getIntNUMBERAVAILABLE());
+            getEntityManager().merge(detail);
             mouvementProduitService.saveMvtProduit(pkey, DateConverter.TMVTP_RETOUR_DEPOT, e.getLgFAMILLEID(), user,
                     getEmplacement("1"), qtyMvt, qtyDebut, e.getIntNUMBERAVAILABLE(), 0);
         });
@@ -124,7 +147,8 @@ public class RetourCarnetServiceImpl implements RetourCarnetService {
         retourCarnetDetail.setProduit(famille);
         TFamilleStock familleStock = getFamilleStock(produitId);
         retourCarnetDetail.setStockInit(familleStock.getIntNUMBERAVAILABLE());
-        retourCarnetDetail.setStockFinal(familleStock.getIntNUMBERAVAILABLE() - qty);
+        // audit CA-12 (reproduit le 25/10) : un retour est une ENTREE en stock (98 note au lieu de 102)
+        retourCarnetDetail.setStockFinal(familleStock.getIntNUMBERAVAILABLE() + qty);
         retourCarnetDetail.setMotifRetourCarnet(getMotifRetourCarnet(motifId));
         getEntityManager().persist(retourCarnetDetail);
 

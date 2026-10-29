@@ -220,7 +220,8 @@ public class GenererFactureServiceImpl implements GenererFactureService {
             datas.forEach(s -> {
                 TPreenregistrementCompteClientTiersPayent payent = getEntityManager()
                         .find(TPreenregistrementCompteClientTiersPayent.class, s);
-                if (payent != null) {
+                /* audit F2 : memes filtres que la selection par periode (bon non facture, vente close non annulee) */
+                if (bll.configManagement.GroupeTierspayantController.bonFacturable(payent)) {
                     list.add(payent);
                 }
             });
@@ -454,20 +455,8 @@ public class GenererFactureServiceImpl implements GenererFactureService {
     }
 
     private void updateInvoicePlafond(TTiersPayant OTTiersPayant) {
-        boolean isAbsolute = OTTiersPayant.getBCANBEUSE();
-        if (!isAbsolute) {
-            OTTiersPayant.setDbCONSOMMATIONMENSUELLE(0);
-            OTTiersPayant.setBCANBEUSE(true);
-            getEntityManager().merge(OTTiersPayant);
-        }
-        List<TCompteClientTiersPayant> list = (List<TCompteClientTiersPayant>) OTTiersPayant
-                .getTCompteClientTiersPayantCollection();
-        list.stream().filter(o -> o.getBIsAbsolute() != null && !o.getBIsAbsolute()).forEach(b -> {
-            b.setBCANBEUSE(true);
-            b.setDbCONSOMMATIONMENSUELLE(0);
-            getEntityManager().merge(b);
-        });
-
+        // audit F5 : encours recalcule depuis les bons restant a facturer, au lieu d'une remise a zero globale
+        EncoursTiersPayant.apresFacturation(getEntityManager(), OTTiersPayant);
     }
 
     @Override
@@ -690,6 +679,22 @@ public class GenererFactureServiceImpl implements GenererFactureService {
             Double dblMONTANTCMDE = 0.0;
             int count = 0;
             userTransaction.begin();
+            /*
+             * Audit F3 : le compteur, lu avant la transaction, est relu SOUS VERROU ; une generation simultanee attend
+             * la fin de celle-ci au lieu de reprendre les memes numeros.
+             */
+            TParameters compteurVerrouille = getEntityManager().find(TParameters.class, KEY_CODE_FACTURE,
+                    javax.persistence.LockModeType.PESSIMISTIC_WRITE);
+            if (compteurVerrouille != null) {
+                int lu = Integer.parseInt(compteurVerrouille.getStrVALUE());
+                if (lu != codeFacture) {
+                    codeFactureLst += lu - codeFacture;
+                    if (groupeFacture != null) {
+                        groupeFacture.setStrCODEFACTURE(String.valueOf(lu));
+                    }
+                }
+                paramsCodeFacture = compteurVerrouille;
+            }
             for (Map.Entry<TTiersPayant, List<TPreenregistrementCompteClientTiersPayent>> entry : data.entrySet()) {
                 lastCodeFacture = String.valueOf(codeFactureLst);
                 /*

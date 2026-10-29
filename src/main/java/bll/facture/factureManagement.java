@@ -1666,21 +1666,8 @@ public class factureManagement extends bll.bllBase {
 
     // autoriser les ventes avec ce tierspayant en fonction du plafond de credit
     private void updateInvoicePlafond(TFacture facture, TTiersPayant OTTiersPayant) {
-        boolean isAbsolute = OTTiersPayant.getBCANBEUSE();
-        if (!isAbsolute) {
-            OTTiersPayant.setDbCONSOMMATIONMENSUELLE(0);
-            OTTiersPayant.setBCANBEUSE(true);
-            this.getOdataManager().getEm().merge(OTTiersPayant);
-        }
-        // Mise a jour groupee des comptes clients du tiers payant : meme effet que la boucle
-        // historique (remise a zero de la consommation et reouverture des comptes non
-        // plafonnes), en UNE requete au lieu de charger toute la collection puis de faire un
-        // merge par compte - c'est ce qui rendait la generation lente pour les tiers payants
-        // comptant beaucoup d'assures.
-        this.getOdataManager().getEm()
-                .createQuery("UPDATE TCompteClientTiersPayant c SET c.bCANBEUSE = TRUE, c.dbCONSOMMATIONMENSUELLE = 0 "
-                        + "WHERE c.lgTIERSPAYANTID = ?1 AND c.bIsAbsolute = FALSE")
-                .setParameter(1, OTTiersPayant).executeUpdate();
+        // audit F5 : encours recalcule depuis les bons restant a facturer, au lieu d'une remise a zero globale
+        rest.service.impl.EncoursTiersPayant.apresFacturation(this.getOdataManager().getEm(), OTTiersPayant);
     }
 
     private int getCase(TTiersPayant p) {

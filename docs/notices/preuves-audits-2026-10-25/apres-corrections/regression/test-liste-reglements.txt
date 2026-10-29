@@ -1,0 +1,17 @@
+PASS  ecran Liste des reglements ouvert
+PASS  les filtres type et groupe sont presents  [{"type":true,"groupe":true,"colonnes":["lg_DOSSIER_REGLEMENT_ID","Organisme","Groupe","Code Facture","Mode R&eacute;glement","Montant.Regl","Montant.ATT","Date r&eacute;glement","Heure r&eacute;glement","Op&eacute;rateur","&#160;","&#160;"]]
+PASS  la colonne Groupe est affichee  [["lg_DOSSIER_REGLEMENT_ID","Organisme","Groupe","Code Facture","Mode R&eacute;glement","Montant.Regl","Montant.ATT","Date r&eacute;glement","Heure r&eacute;glement","Op&eacute;rateur","&#160;","&#160;"]]
+PASS  le montant regle est en vert et gras  [<span style="color:#1e7e34;font-weight:bold;">1.500</span>]
+PASS  le montant en attente est en rouge et gras  [<span style="color:#c0392b;font-weight:bold;">1.500</span>]
+PASS  les filtres sont transmis au serveur  [roupeTiersPayant=&page=1&start=0&limit=20&group=[{"property":"str_ORGANISME","direction":"ASC"}]&sort=[{"property":"str_ORGANISME","direction":"ASC"}]]
+PASS  la liste ramene le reglement rattache  [total=1347 organisme seme=BANQUE BOA]
+PASS  la ligne porte son type et son groupe  [{"str_ORGANISME":"DR KAMENAN ","CODE_FACTURE":"5484","OPERATEUR":"Dr KRA MICHEL","HEURE_REGLEMENT":"12:08","GROUPE":"","lg_DOSSIER_REGLEMENT_ID":"16101912810544585952","MONTANT_ATT":"28060.0","str_MON]
+PASS  le filtre de type retient la ligne attendue  [type=Carnet total=216]
+PASS  un type inconnu ne ramene aucune ligne  ["0"]
+PASS  un groupe inconnu ne ramene aucune ligne  ["0"]
+PASS  l export Excel produit un classeur valide  [{"status":200,"taille":66246,"signature":"PK"}]
+PASS  l edition PDF aboutit  [{"msg":"/data/reports/pdf/liste_reglements_2026_10_26_01_58_37.pdf","success":true}]
+FAIL  le PDF a bien ete ecrit  [\opt\CONF\LABOREX\REPORTS\pdf\liste_reglements_2026_10_26_01_58_37.pdf]
+PASS  aucune erreur JavaScript
+
+===== 14/15 FAIL =====

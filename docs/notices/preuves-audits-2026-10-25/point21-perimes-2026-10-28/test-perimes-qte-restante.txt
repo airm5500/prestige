@@ -1,0 +1,7 @@
+PASS  En-têtes : « Qté lot » puis « Qté restante » (plus de « Qunatité »)  [Numéro lot | Code CIP | Libellé | Famille | Emplacement | Grossiste | Qté lot | Qté restante | Valeur.Achat | Valeur.Vente | Date.Péremption | Statut]
+PASS  Ligne du lot d'essai : Qté lot 10, Qté restante 4, affichées dans la grille  [{"lot":10,"restante":4,"cellules":["ZZAUDIT-LOT-PER","3118908","ANGISPRAY COLLUTOIRE FL 40ML","SPECIALITES PUBLIQUES","GOUTTES BUVABLES - COLLUTOIRES","LABOREX-CI YOP","10","4","24.900","37.600","07/11/2026","Périme dans 10 jour(s)"]}]
+PASS  Export CSV : colonnes « Qté lot » et « Qté restante », valeurs 10 et 4  [Numéro lot;Code CIP;Libellé;Famille;Emplacement;Grossiste;Qté lot;Qté restante;Valeur achat;Valeur vente;Date péremption;Statut / ZZAUDIT-LOT-PER;3118908;ANGISPRAY COLLUTOIRE FL 40ML;SPECIALITES PUBLIQUES;GOUTTES BUVABLES - COLLUTOIRES;LABOREX-CI YOP;10;4;24900;37600;07/11/2026;Périme dans]
+PASS  Aucune erreur JavaScript  []
+PASS  Jeu d'essai retiré (ventes, clients, tiers payants, factures), stocks et paramètres remis  [ventes restantes 0]
+
+5/5 OK

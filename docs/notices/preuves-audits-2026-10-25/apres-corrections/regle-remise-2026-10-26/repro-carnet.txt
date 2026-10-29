@@ -1,0 +1,12 @@
+PASS  CA-06 précondition : solde du carnet dépôt d'essai = 5 000  [5000]
+PASS  CA-06 attendu : un règlement de carnet dépôt de −1 000 F est refusé, solde inchangé  [réponse {"msg":"Le montant du règlement doit être supérieur à zéro.","success":false,"http":200} ; solde 5000 → 5000]
+PASS  CA-07 précondition : retour carnet de 2 boîtes créé (stock 100)  [{"data":{"id":7513},"success":true,"http":200}]
+PASS  CA-12 attendu : le détail du retour (une entrée en stock) note stock final = stock initial + 2  [stock initial 100 ; stock final noté 102 ; quantité 2]
+PASS  CA-07 attendu : clôturer deux fois le même retour ne recompte ni le stock ni le solde  [clôtures true/true ; stock 100 → 102 → 102 ; solde 5000 → 3290 → 3290]
+PASS  CA-12 attendu : l'historique de stock du retour enchaîne (début + quantité = fin) et n'est écrit qu'une fois  [mouvements : 100+2=102]
+PASS  CA-08 attendu : un retour de −3 boîtes est refusé  [réponse {"msg":"La quantité retournée doit être supérieure à zéro.","success":false,"http":200} ; stock 102 → 102]
+PASS  CA-15 attendu : un retour sans motif est refusé avec un message (pas une erreur 500)  [HTTP 200 ; {"msg":"Choisissez le motif du retour.","success":false,"http":200}]
+PASS  Aucune erreur JavaScript  []
+PASS  Jeu d'essai retiré (ventes, clients, tiers payants, factures), stocks et paramètres remis  [ventes restantes 0]
+
+10/10 OK

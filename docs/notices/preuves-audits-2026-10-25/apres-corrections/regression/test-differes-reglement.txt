@@ -1,0 +1,16 @@
+PASS  1. Écran : A coché puis client B, partiel 2 000 → la dette de B baisse, celle de A ne bouge pas (cas 3)  [lignes A 2, lignes B [4000], message « Veuillez sélectionner au moins un dossier », après {"A1":5000,"A2":3000,"B1":4000,"organisme":""}]
+PASS  2. Serveur : un règlement du client B qui désigne une vente du client A est refusé  [{"msg":"Une des ventes choisies n'appartient pas à ce client : règlement refusé.","success":false} reste A1 5000]
+PASS  3. Double envoi simultané du même règlement : un seul mouvement de caisse, dette de B diminuée une seule fois  [réponses [true,false], caisses 1, reste B1 0, encaissé 1000]
+PASS  4. Deux fenêtres : la 2e (données périmées) ne peut pas encaisser une vente déjà soldée  [fenêtre 1 true, fenêtre 2 false, encaissé 5000 pour 5 000 dus]
+PASS  5. Trop-perçu : 10 000 pour une dette de 4 000 refusé (ou ramené à 4 000)  [{"msg":"Le montant (10000) dépasse ce qui reste dû sur les ventes choisies (4000) : rendez la monnaie ou choisissez d'autres ventes.","success":false}, encaissé 0, reste B1 4000]
+PASS  6. Règlement total : la caisse encaisse exactement ce qui est retiré des dettes  [{"msg":"La situation de ce client a changé depuis l'ouverture de l'écran (règlement fait dans une autre fenêtre ou envoi en double). Rechargez la liste avant de régler.","success":false}, encaissé 0, retiré des dettes 0]
+PASS  6b. Règlement total avec le total affiché exact (8 000) et 10 000 reçus : 8 000 encaissés, dettes soldées  [{"msg":"Opération effectuée","ref":"d1c9a505-9c8c-4b2e-a995-b5a9b586c6f4","success":true}, encaissé 8000, restes 0/0]
+PASS  7. Mobile money ORANGE : mode conservé (règlement, caisse, mouvement), pas espèces  [{"msg":"Opération effectuée","ref":"21cecee4-4deb-494d-8534-039e408fa1f2","success":true} modes 10|10|7]
+PASS  7. Mobile money MOOV : mode conservé (règlement, caisse, mouvement), pas espèces  [{"msg":"Opération effectuée","ref":"f0d2f2c5-7ae5-47bd-821e-2df5a667ea5d","success":true} modes 8|8|8]
+PASS  7. Mobile money MTN : mode conservé (règlement, caisse, mouvement), pas espèces  [{"msg":"Opération effectuée","ref":"a71d53b3-a682-4996-a715-a4fd9c455cc9","success":true} modes 9|9|9]
+PASS  7. Mobile money WAVE : mode conservé (règlement, caisse, mouvement), pas espèces  [{"msg":"Opération effectuée","ref":"de7f75ba-f31d-414d-8039-a24e566cea1c","success":true} modes 11|11|10]
+PASS  8. Cohérence : solde du relevé = somme des restes dus (client A après un règlement partiel)  [relevé 6000, restes 6000]
+PASS  Aucune erreur JavaScript  [[]]
+PASS  Jeu d'essai retiré
+
+14/14 OK

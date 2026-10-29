@@ -1,0 +1,13 @@
+PASS  Précondition : vente de 2 boîtes clôturée, stock 100 → 98  [98]
+PASS  Première annulation : acceptée, stock rendu (98 → 100), une copie d'annulation  [{"msg":"L'opération effectuée avec success","ref":"a0c53529-5a87-4b5b-827f-62db278bc028","success":true,"http":200} stock 100]
+PASS  Seconde annulation : refusée (code ETAT, « déjà annulée »), stock et copies inchangés  [{"msg":"Vente déjà annulée le 25/10/2026 23:56 : rien n'a été refait.","code":"ETAT","success":false,"http":200} stock 100 copies 1]
+PASS  La copie d'annulation (montants négatifs) ne s'annule pas  [{"msg":"Cette vente est l'annulation d'une autre vente : elle ne s'annule pas.","code":"ETAT","success":false,"http":200}]
+PASS  Deux annulations simultanées : une seule passe, stock rendu une fois (97 → 100)  [[true,null,false,"ETAT"] stock 100 copies 1]
+PASS  POST vente/{id}/annuler : annulée (annulee:true, date), stock rendu  [{"msg":"L'opération effectuée avec success","ref":"7c2e6ae9-bb89-4bd8-a023-b9a12059f4ea","success":true,"venteId":"b321dd44-0086-4d8f-89e3-ee077c1fc06c","dtAnnu]
+PASS  Même X-Client-Ref rejoué : même réponse, rien refait  [{"msg":"L'opération effectuée avec success","ref":"7c2e6ae9-bb89-4bd8-a023-b9a12059f4ea","success":true,"venteId":"b321dd44-0086-4d8f-89e3-ee077c1fc06c","dtAnnu]
+PASS  Autre X-Client-Ref sur une vente annulée : code ETAT  [{"msg":"Vente déjà annulée le 25/10/2026 23:56 : rien n'a été refait.","code":"ETAT","success":false,"http":200}]
+PASS  GET sur la route POST : refusée (405), rien annulé  [405]
+PASS  Aucune erreur JavaScript
+PASS  Jeu d'essai retiré, stock remis
+
+11/11 OK

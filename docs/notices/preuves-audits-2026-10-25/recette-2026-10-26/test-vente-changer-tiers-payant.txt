@@ -1,0 +1,9 @@
+PASS  Jeu d'essai : une vente VO avec tiers-payant  [261024_00302 du 24/10/2026, 2 compte(s)]
+PASS  « Valider » sans tiers-payant choisi : liste marquée en erreur, fenêtre ouverte, aucune erreur JavaScript  []
+PASS  « AJOUTER UN NOUVEAU TIERS-PAYANT » : la saisie du tiers-payant s'ouvre, sans erreur  []
+PASS  « Enregistrer » : les deux fenêtres se ferment, la ligne de la vente affiche le nouveau tiers-payant  [NOVELIA WAFA ASSURANCE → E2E TP CHANGE]
+PASS  Tiers-payant créé et rattaché au client
+PASS  Aucune erreur JavaScript  []
+PASS  Données d'essai retirées, comptes du client inchangés
+
+7/7 OK

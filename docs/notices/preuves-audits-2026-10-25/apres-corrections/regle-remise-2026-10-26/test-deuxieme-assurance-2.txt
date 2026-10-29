@@ -1,0 +1,17 @@
+PASS  client de test cree avec deux assurances  [{"data":{"strLASTNAME":"E2E-P11","lgTIERSPAYANTID":"14101114831773262679","fullName":"CLIENT E2E-P11","preenregistrementstp":[],"lgCLIENTID":"f83901dd-2294-4140-9a99-36fa9b5a3ff0","dblPLAFOND":0,"forcerCreation":false,"lgCATEGORIEAYANTDROITID":"55514]
+PASS  deux liens client / assurance en base  [[["570e660c-a36a-41da-a0dd-f61fdeda8dff","14101114831773262679","1"],["d2726a30-4948-4385-9678-9997a154c6ec","14101173521589189935","2"]]]
+PASS  ayant droit du client de test present  [f83901dd-2294-4140-9a99-36fa9b5a3ff0]
+PASS  vente assurance de test posee avec deux lignes tiers payant
+PASS  la modification est acceptee  [{"msg":"Opération effectuée avec succèss","success":true,"refId":"E2E-P11-V"}]
+  lignes apres modification : [["570e660c-a36a-41da-a0dd-f61fdeda8dff","14101114831773262679","70","BON-PRINCIPAL"],["f24ea75b-134e-4682-89a6-7cb36e2e4c20","14101418243994597144","20","BON-SECOND"]]
+PASS  la vente porte toujours deux tiers payants  [[["570e660c-a36a-41da-a0dd-f61fdeda8dff","14101114831773262679","70","BON-PRINCIPAL"],["f24ea75b-134e-4682-89a6-7cb36e2e4c20","14101418243994597144","20","BON-SECOND"]]]
+PASS  la premiere assurance est intacte  [attendu 14101114831773262679 a 70%]
+PASS  la deuxieme assurance est bien la nouvelle  [attendu 14101418243994597144 a 20%]
+PASS  l ancienne deuxieme assurance ne figure plus sur la vente  [TP2=14101173521589189935]
+PASS  la reference de bon de la vente n est pas ecrasee par celle de la seconde assurance  [avant=BON-PRINCIPAL apres=BON-PRINCIPAL]
+PASS  une vente sans ayant droit peut etre modifiee  [{"msg":"Opération effectuée avec succèss","success":true,"refId":"E2E-P11-V"}]
+PASS  une modification impossible est refusee  [{"msg":"l'opération a échoué","success":false}]
+PASS  un echec ne laisse pas la vente a moitie modifiee  [avant=570e660c-a36a-41da-a0dd-f61fdeda8dff:70:1,d2726a30-4948-4385-9678-9997a154c6ec:20:3 apres=570e660c-a36a-41da-a0dd-f61fdeda8dff:70:1,d2726a30-4948-4385-9678-9997a154c6ec:20:3]
+PASS  aucune erreur JavaScript
+
+===== 14/14 PASS =====

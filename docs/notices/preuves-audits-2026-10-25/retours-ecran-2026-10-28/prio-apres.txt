@@ -1,0 +1,15 @@
+PASS  Jeu d'essai : A priorité 1 (RO), C priorité 2  [ZZAUDIT-TP-SA/1/1 ; ZZAUDIT-TP-SC/2/0]
+PASS  Principale remplacée par B : enregistrement accepté  [{"data":{"strLASTNAME":"ZZAUDIT SCENP","lgTIERSPAYANTID":"ZZAUDIT-TP-SB","fullName":"ESSAI ZZAUDIT SCENP","preenregistrementstp":[],"lgCLIENTID":"ZZAUDIT-CL-SCENP","lgCATEGORIEAYANTDROITID":"555146116]
+PASS  B devient la principale (priorité 1, RO)  [ZZAUDIT-TP-SB/1/1 ; ZZAUDIT-TP-SC/2/0 ; ZZAUDIT-TP-SA/3/0]
+PASS  L'ancienne principale A reste rattachée et active, à une priorité libre (point 21)  [ZZAUDIT-TP-SB/1/1 ; ZZAUDIT-TP-SC/2/0 ; ZZAUDIT-TP-SA/3/0]
+PASS  Aucune priorité portée par deux assurances (après le changement de principale)  [ZZAUDIT-TP-SB/1/1 ; ZZAUDIT-TP-SC/2/0 ; ZZAUDIT-TP-SA/3/0]
+PASS  « Associer une assurance » propose une priorité libre  [proposée 4, déjà prises 2,3]
+PASS  D associée : enregistrement accepté, D active  [{"data":{"strLASTNAME":"ZZAUDIT SCENP","lgTIERSPAYANTID":"ZZAUDIT-TP-SB","fullName":"ESSAI ZZAUDIT SCENP","preenregistrementstp":[],"lgCLIENTID":"ZZAUDIT-CL-SCENP","lgCATEGORIEAYANTDROITID":"555146116 / ZZAUDIT-TP-SB/1/1 ; ZZAUDIT-TP-SC/2/0 ; ZZAUDIT-TP-SA/3/0 ; ZZAUDIT-TP-SD/4/0]
+PASS  Aucune priorité portée par deux assurances (après l'association)  [ZZAUDIT-TP-SB/1/1 ; ZZAUDIT-TP-SC/2/0 ; ZZAUDIT-TP-SA/3/0 ; ZZAUDIT-TP-SD/4/0]
+PASS  Une seule principale (RO)  [ZZAUDIT-TP-SB/1/1 ; ZZAUDIT-TP-SC/2/0 ; ZZAUDIT-TP-SA/3/0 ; ZZAUDIT-TP-SD/4/0]
+PASS  Grille : taux et matricule de C modifiés à l'écran puis enregistrés  [15/ZZAUDIT-MAT2]
+PASS  Aucune priorité portée par deux assurances (après la modification dans la grille)  [ZZAUDIT-TP-SB/1/1 ; ZZAUDIT-TP-SC/2/0 ; ZZAUDIT-TP-SA/3/0 ; ZZAUDIT-TP-SD/4/0]
+PASS  Aucune erreur JavaScript, aucun message d'erreur  []
+PASS  Jeu d'essai retiré (ventes, clients, tiers payants, factures), stocks et paramètres remis  [ventes restantes 0]
+
+13/13 OK

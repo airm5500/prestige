@@ -1,0 +1,17 @@
+FAIL  Jeu d'essai : produit au détail (boîte de 14) et dépôt trouvés  [8452598D ]
+PASS  A. Vente au comptant de 3 (2 en rayon) validée  [{"msg":"Opération effectuée avec success","ref":"62fc38aa-e190-4a8a-892a-ee5e507cba56","success":true,"copy":false}]
+PASS  A. Boîte ouverte : déconditionnement 2 → 16  [{"t":"05","a":2,"m":14,"z":16}]
+PASS  A. Ligne de vente : part du stock après ouverture (16 → 13)  [{"t":"02","a":16,"m":3,"z":13}]
+PASS  A. Chaque ligne cohérente (avant − quantité = après, + pour le déconditionnement)  [[{"t":"02","a":16,"m":3,"z":13},{"t":"05","a":2,"m":14,"z":16}]]
+PASS  A. Dernière ligne = stock réel du produit  [13 / 13]
+PASS  A. Fiche des mouvements : stock d'ouverture du jour = 2 (avant ouverture de la boîte)  [{"qtyAjust":0,"produits":[],"qtyRetour":0,"qtyVente":3,"qtyDecondSortant":0,"ecartInventaire":0,"qtyPerime":0,"stockFinal":13,"qtyEntree":0,"qtyDeconEntrant":14,"qtyInv":0,"stockInit":2,"qtyRetourDepot":0,"currentStock":0,"qtyAjustSortie":0,"qtyMvt":0,"dateOperation":"2026-10-26","qtyAnnulation":0,"]
+PASS  A. Fiche des mouvements : stock de fin du jour = 13  [13]
+PASS  A. Boîte : 3 → 2  [[{"t":"06","a":3,"m":1,"z":2}]]
+FAIL  B. Vente au dépôt de 3 (2 en rayon) validée  [{"msg":"Erreur: Echec de validation de la vente","success":false}]
+FAIL  B. Officine : ligne de vente au dépôt part du stock après ouverture (16 → 13)  [[]]
+FAIL  B. Officine : dernière ligne = stock réel  [undefined / 2]
+FAIL  B. Dépôt : entrée en stock en hausse (0 → 3)  [[]]
+FAIL  B. Dépôt : dernière ligne = stock réel du dépôt  [undefined / 0]
+PASS  Données remises (stocks, compteurs, ventes, mouvements)
+
+9/15 OK
