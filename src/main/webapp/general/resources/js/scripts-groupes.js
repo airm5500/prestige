@@ -13,7 +13,8 @@
  *  - un fichier absent de la table (table non recue, fichier ajoute depuis) part par le reseau comme avant ;
  *  - le fichier s'execute dans la portee globale, comme une balise <script> (ses « var » restent globales), et une
  *    erreur dans un fichier est signalee sans bloquer la suite, comme pour une balise ;
- *  - le chargement reste asynchrone (tache differee), et le chargement synchrone d'Ext (syncRequire) aussi.
+ *  - le chargement reste asynchrone (tache differee, jamais avant que la page soit construite), et le chargement
+ *    synchrone d'Ext (syncRequire) reste synchrone.
  * Les outils de developpement affichent chaque fichier sous son chemin (sourceURL).
  */
 (function () {
@@ -25,9 +26,29 @@
         origine = Loader.loadScriptFile,
         attente = {},
         lien = document.createElement('a'),
-        plusTard = typeof Promise !== 'undefined'
+        differer = typeof Promise !== 'undefined'
             ? function (f) { Promise.resolve().then(f); }
-            : function (f) { setTimeout(f, 0); };
+            : function (f) { setTimeout(f, 0); },
+        avantPage = [];
+
+    /* Par le reseau, un fichier arrivait toujours apres la construction de la page ; certains la mesurent des leur
+       execution (Ext.getBody()). Tant que la page se construit, les fichiers attendent donc qu'elle soit prete. */
+    function plusTard(f) {
+        if (document.readyState !== 'loading') {
+            differer(f);
+            return;
+        }
+        if (!avantPage.length) {
+            document.addEventListener('DOMContentLoaded', function () {
+                var l = avantPage;
+                avantPage = [];
+                for (var i = 0; i < l.length; i++) {
+                    differer(l[i]);
+                }
+            });
+        }
+        avantPage.push(f);
+    }
 
     /* chemin absolu sans parametre, comme les cles de la table */
     function cle(url) {

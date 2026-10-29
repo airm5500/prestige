@@ -252,6 +252,35 @@ peut pas trancher sans image de la mémoire au moment de l'erreur (§ 6).
     16 s.
   - **Piste** : servir l'écran en un seul fichier construit, comme le prévoit la cause 5 du rapport du 28/10. Il
     faut ensuite mesurer avec des postes vraiment séparés.
+  - **Correction retenue (29/10, soir)** *(prouvé)* :
+    - `index.jsp` charge, juste après `ext-all.js`, l'appel `api/v1/ecrans/scripts.js`
+      ([EcransScriptsRessource.java](../../src/main/java/rest/EcransScriptsRessource.java)). Il renvoie le texte des
+      1 093 fichiers de `general/app` : 15 Mo, 2,15 Mo compressés. La réponse porte une empreinte (304 si rien n'a
+      changé), et l'appel est réservé à un poste connecté.
+    - [scripts-groupes.js](../../src/main/webapp/general/resources/js/scripts-groupes.js) branche `Ext.Loader` sur
+      cette table. ExtJS demande toujours chaque fichier, dans le même ordre, mais le prend en mémoire.
+    - Un fichier absent de la table, ou une table non reçue, part par le réseau comme avant. Le fichier s'exécute en
+      portée globale, comme une balise `<script>`, et jamais avant que la page soit construite.
+    - Le premier essai l'a montré : certains fichiers mesurent la page dès leur exécution, d'où l'erreur
+      « getViewSize » sur un écran vide.
+  - **Mesures** (domain1, 32 fils, laborex_v1_db). Chaque poste est un navigateur séparé, sans cache commun ; les
+    postes cliquent « Connexion » au même instant :
+
+    | Postes | Avant (requêtes `general/app` par poste) | Après (requêtes) |
+    |---|---|---|
+    | 1 | 1,3 s (911) | 2,2 s à froid, lot construit au premier appel (0) |
+    | 6 | 6,5 à 9,4 s | **1,3 s** (0) |
+    | 15 | **0 connecté sur 15 en 120 s** | **15 sur 15, médiane 2,9 s, max 3,5 s** (0) |
+
+    L'écran de vente s'ouvre ensuite en 1,8 à 2,0 s dans les deux cas. Aucune erreur JavaScript.
+  - **Tests** :
+    - [connexions-simultanees.js](../../src/test/e2e/perf/connexions-simultanees.js) : `SANS_TABLE=1` rejoue l'ancien
+      chargement, et le test échoue alors sur les 911 requêtes ;
+    - [test-scripts-groupes.js](../../src/test/e2e/perf/test-scripts-groupes.js) : relais d'`Ext.Loader`, sans
+      serveur, 8 cas ;
+    - [EcransScriptsRessourceTest.java](../../src/test/java/rest/EcransScriptsRessourceTest.java) : contenu rendu à
+      l'identique, version compressée, reconstruction quand un fichier change.
+  - **Reste à voir** : l'interblocage `t_session_utilisateur` (premier point ci-dessus) n'est pas traité ici.
 
 ## 5. Sauvegardes
 

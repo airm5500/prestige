@@ -7,6 +7,7 @@
  *  - deux demandes du meme fichier en attente : un seul passage, deux rappels ;
  *  - chargement synchrone (syncRequire) : execute tout de suite, l'attente asynchrone est annulee ;
  *  - erreur dans un fichier : signalee, le rappel part quand meme ;
+ *  - page en construction : rien ne s'execute avant DOMContentLoaded (certains fichiers mesurent la page) ;
  *  - pas de table : Ext.Loader reste intact.
  *
  *   node src/test/e2e/perf/test-scripts-groupes.js
@@ -18,7 +19,7 @@ const assert = require('assert');
 
 const SOURCE = fs.readFileSync(path.join(__dirname, '../../../main/webapp/general/resources/js/scripts-groupes.js'), 'utf8');
 
-function contexte(table) {
+function contexte(table, etat) {
   const reseau = [];
   const erreurs = [];
   const Loader = {
@@ -30,7 +31,7 @@ function contexte(table) {
     setTimeout: (f) => { try { f(); } catch (e) { erreurs.push(e.message); } },
     Promise,
     decodeURIComponent,
-    document: { createElement: () => ({ set href(u) { this.pathname = new URL(u, 'http://poste/prestige/general/index.jsp').pathname; } }) },
+    document: { readyState: etat || 'complete', ecouteurs: [], addEventListener(n, f) { this.ecouteurs.push([n, f]); }, createElement: () => ({ set href(u) { this.pathname = new URL(u, 'http://poste/prestige/general/index.jsp').pathname; } }) },
   };
   c.window = c;
   if (table) { c.PRESTIGE_SCRIPTS = table; }
@@ -108,6 +109,21 @@ async function cas(nom, f) {
     await attendre();
     assert.ok(ok);
     assert.deepStrictEqual(t.erreurs, ['casse']);
+  });
+
+  await cas('page en construction : execution apres DOMContentLoaded', async () => {
+    const t = contexte({ '/prestige/general/app/view/G.js': 'vuG = true;', '/prestige/general/app/view/H.js': 'vuH = true;' }, 'loading');
+    let r = 0;
+    t.Loader.loadScriptFile('/prestige/general/app/view/G.js', () => { r++; }, null, null, false);
+    t.Loader.loadScriptFile('/prestige/general/app/view/H.js', () => { r++; }, null, null, false);
+    await attendre();
+    assert.strictEqual(r, 0, 'rien avant la fin de la construction');
+    assert.ok(!t.c.vuG);
+    assert.strictEqual(t.c.document.ecouteurs.length, 1, 'un seul ecouteur');
+    t.c.document.readyState = 'interactive';
+    t.c.document.ecouteurs[0][1]();
+    await attendre();
+    assert.ok(t.c.vuG && t.c.vuH && r === 2);
   });
 
   await cas('pas de table : Ext.Loader intact', async () => {
