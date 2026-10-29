@@ -78,7 +78,10 @@ function journalLire(t0, t1) {
   const r = lignes ? lignes.split('\n').map((l) => { const c = l.split('\t'); return { ms: Number(c[0]), examinees: Number(c[1]), envoyees: Number(c[2]), sql: c[3] }; }) : [];
   const total = r.reduce((a, x) => a + x.ms, 0);
   return { requetes: r.length, msTotal: total, lignesExaminees: r.reduce((a, x) => a + x.examinees, 0),
-    pires: r.slice().sort((a, b) => b.ms - a.ms).slice(0, 5).map((x) => Object.assign({}, x, { sql: x.sql.slice(0, 600) })), toutes: r };
+    pires: r.slice().sort((a, b) => b.ms - a.ms).slice(0, 5).map((x) => Object.assign({}, x, { sql: x.sql.slice(0, 600) })),
+    /* une suggestion passe 26 000 requetes de 0 a 3 ms : les garder toutes depasse la taille d'une chaine JSON. Le rejeu
+       (rejouer-sql-ecrans.js) ne reprend que les requetes d'au moins 20 ms. */
+    toutes: r.filter((x) => x.ms >= 5).sort((a, b) => b.ms - a.ms).slice(0, 1000) };
 }
 const heureServeur = () => q('SELECT NOW(6)', '');
 
