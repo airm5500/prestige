@@ -232,8 +232,12 @@ function poserLesLots() {
     ok('La tuile « Péremptions < 6 mois » compte EXACTEMENT les produits de la base',
       !!tuilePeremption && tuilePeremption.valeur === Number(attenduPeremption),
       (tuilePeremption ? tuilePeremption.valeur : 'absente') + ' contre ' + attenduPeremption);
+    /* parmi les 4 lots poses par l'essai (la copie de l'officine a ses propres lots, comptes par la tuile) */
+    const retenusEssai = q("SELECT COUNT(DISTINCT l.lg_FAMILLE_ID) FROM t_lot l WHERE l.lg_LOT_ID IN (" + LOTS + ")"
+      + " AND l.str_STATUT='enable' AND l.dt_PEREMPTION IS NOT NULL AND IFNULL(l.current_stock,l.int_NUMBER)>0"
+      + " AND DATE(l.dt_PEREMPTION)>=CURDATE() AND DATE(l.dt_PEREMPTION)<DATE_ADD(CURDATE(), INTERVAL 6 MONTH)");
     ok('Elle ne compte ni les lots déjà périmés ni ceux qui expirent au-delà de six mois',
-      Number(attenduPeremption) === 2, attenduPeremption + ' produits sur 4 lots posés');
+      Number(retenusEssai) === 2, retenusEssai + ' produits retenus sur 4 lots posés');
     ok('Elle est en ALERTE : rouge et clignotante, parce qu il y a un geste à faire',
       !!tuilePeremption && tuilePeremption.alerte === true && stock.alerteVisible > 0,
       'alerte=' + (tuilePeremption || {}).alerte + ' elements=' + stock.alerteVisible);
