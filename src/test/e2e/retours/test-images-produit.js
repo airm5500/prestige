@@ -32,7 +32,7 @@ let P, cip;
 const fichiers = () => { const d = DOSSIER; const r = []; const parcourir = (x) => { if (!fs.existsSync(x)) { return; } for (const f of fs.readdirSync(x)) { const c = path.join(x, f); fs.statSync(c).isDirectory() ? parcourir(c) : r.push(c); } }; parcourir(d); return r; };
 function nettoyer() {
   if (!P) { return; }
-  q("SELECT CONCAT_WS('|', str_CHEMIN, IFNULL(str_CHEMIN_VIGNETTE, '')) FROM t_famille_image WHERE lg_FAMILLE_ID = '" + P + "'").split('\n').filter(Boolean)
+  q("SELECT CONCAT_WS('|', str_CHEMIN, IFNULL(str_CHEMIN_VIGNETTE, '')) FROM t_famille_image WHERE lg_FAMILLE_ID = '" + P + "'").split(/\r?\n/).filter(Boolean)
     .forEach((l) => l.split('|').filter(Boolean).forEach((c) => { try { fs.unlinkSync(disque(c)); } catch (e) { /* deja absent */ } }));
   exec("DELETE FROM t_famille_image WHERE lg_FAMILLE_ID = '" + P + "'");
 }

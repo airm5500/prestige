@@ -74,7 +74,7 @@ const gains = () => q(`SELECT GROUP_CONCAT(CONCAT(lg_PREENREGISTREMENT_ID, ':', 
     return p.evaluate(() => window.__ouverts[window.__ouverts.length - 1]); };
   const telecharger = async (url, fichier) => { const o = await p.evaluate(async (u) => { const r = await fetch(u); return { type: r.headers.get('content-type'), b: Array.from(new Uint8Array(await r.arrayBuffer())) }; }, url);
     fs.writeFileSync(fichier, Buffer.from(o.b)); return o.type; };
-  const pdfTexte = (f) => execFileSync('pdftotext', ['-layout', f, '-'], { encoding: 'utf8' });
+  const pdfTexte = (f) => execFileSync('pdftotext', ['-enc', 'UTF-8', '-layout', f, '-'], { encoding: 'utf8' });
   const xls = (f) => JSON.parse(execFileSync('python3', ['-I', '-c', 'import sys, json, xlrd; s = xlrd.open_workbook(sys.argv[1]).sheet_by_index(0); print(json.dumps([[str(c.value) for c in s.row(i)] for i in range(s.nrows)]))', f], { encoding: 'utf8' }));
   try {
     ok('Précondition : deux produits de familles et d\'emplacements différents', A && B && FA !== FB && ZA !== ZB, [A, ZA, B, ZB].join(' / '));

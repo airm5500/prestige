@@ -30,7 +30,7 @@ function bonsUnpaid() {
 }
 function facturesDuJeu() {
   return q("SELECT lg_FACTURE_ID FROM t_facture WHERE tiersPayant='" + TP + "' AND dt_DEBUT_FACTURE='" + JOUR + " 00:00:00'"
-    + " AND dt_FIN_FACTURE='" + JOUR + " 00:00:00'").split('\n').filter(Boolean);
+    + " AND dt_FIN_FACTURE='" + JOUR + " 00:00:00'").split(/\r?\n/).filter(Boolean);
 }
 /* Le banc n'a plus les comptes clients de ce tiers payant (export anonymise) : la generation les
    traverse (client, plafond) et tomberait sur EntityNotFoundException. On pose les comptes
@@ -58,7 +58,7 @@ function poserUtilisateursManquants() {
     + " JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID=cp.lg_PREENREGISTREMENT_ID"
     + " LEFT JOIN t_user u ON u.lg_USER_ID=p.lg_USER_ID"
     + " WHERE cl.lg_TIERS_PAYANT_ID='" + TP + "' AND DATE(p.dt_UPDATED)='" + JOUR + "' AND u.lg_USER_ID IS NULL")
-    .split('\n').filter(Boolean);
+    .split(/\r?\n/).filter(Boolean);
   manquants.forEach(function (id, i) {
     exec("INSERT IGNORE INTO t_user SELECT * FROM t_user WHERE str_LOGIN='" + (ENV_E2E.LOGIN) + "';"); // sans effet : cle identique
     exec("CREATE TEMPORARY TABLE IF NOT EXISTS tmp_u AS SELECT * FROM t_user WHERE str_LOGIN='" + (ENV_E2E.LOGIN) + "';"

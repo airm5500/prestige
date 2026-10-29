@@ -129,7 +129,7 @@ const retirerEssai = () => exec("DELETE FROM t_warehouse WHERE lg_WAREHOUSE_ID L
     });
     ok('Export Excel : fichier .xls téléchargé', exp.xs === 200 && /ms-excel/.test(exp.xt) && /articles-dormants_.*\.xls/.test(exp.xd) && exp.xl > 5000, JSON.stringify(exp));
     require('fs').writeFileSync(SORTIE + '/articles-dormants.pdf', Buffer.from(exp.octets || []));
-    const textePdf = exp.pdf === '%PDF' ? execFileSync('pdftotext', ['-layout', SORTIE + '/articles-dormants.pdf', '-'], { encoding: 'utf8' }) : '';
+    const textePdf = exp.pdf === '%PDF' ? execFileSync('pdftotext', ['-enc', 'UTF-8', '-layout', SORTIE + '/articles-dormants.pdf', '-'], { encoding: 'utf8' }) : '';
     delete exp.octets;
     ok('Édition PDF : titre et produit dormant de l\'essai', exp.ps === 200 && /pdf/.test(exp.pt) && /ARTICLES DORMANTS/.test(textePdf) && textePdf.includes(dormant[0]), textePdf.slice(0, 300) + ' ' + JSON.stringify(exp));
 

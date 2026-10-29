@@ -45,7 +45,7 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
     ok('Pagination du résultat filtré : 20 par page, pages distinctes', p1.data.length === Math.min(20, p1.total) && p2.data.every((x) => p1.data.every((y) => y.lgFAMILLEID !== x.lgFAMILLEID)), p1.total + ' ; page 2 ' + p2.data.length);
     /* export CSV avec l'operateur */
     const csv = await p.evaluate(async (q) => (await (await fetch('../api/v1/ventestats/article-vendus-recap/csv?' + q)).text()), base + '&stock=0&stockFiltre=EQUAL&start=0&limit=100000&qteVendu=2&qteVenduFiltre=EQUAL');
-    const lignesCsv = csv.trim().split('\n').length - 1;
+    const lignesCsv = csv.trim().split(/\r?\n/).length - 1;
     const tous = await lire(base + '&stock=0&stockFiltre=EQUAL&start=0&limit=100000&qteVendu=2&qteVenduFiltre=EQUAL');
     ok('Export CSV : les mêmes produits que la liste (' + tous.data.length + ')', lignesCsv === tous.data.length, lignesCsv + ' lignes');
     /* a l'ecran */

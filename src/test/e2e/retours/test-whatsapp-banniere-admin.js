@@ -15,6 +15,8 @@
  * Le compte WhatsApp Web est remis comme avant ; dossier, service d'essai et compte d'essai retires a la fin.
  */
 const { chromium } = require('playwright-core');
+/* ce test verifie la banniere WhatsApp : elle n'est pas masquee au lancement (outils/poste.js) */
+process.env.E2E_BANNIERE_WHATSAPP = '1';
 const ENV_E2E = require('../outils/poste');
 const { execFileSync, execSync } = require('child_process');
 const fs = require('fs'), path = require('path'), os = require('os');

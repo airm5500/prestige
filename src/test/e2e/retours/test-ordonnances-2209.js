@@ -132,9 +132,9 @@ const MARQUE = 'E2E-2209';
     const telecharger = (u) => p.evaluate(async (u) => { const r = await fetch(u); const b = new Uint8Array(await r.arrayBuffer()); let t = ''; for (let i = 0; i < b.length; i += 0x8000) { t += String.fromCharCode.apply(null, b.subarray(i, i + 0x8000)); } return btoa(t); }, u);
     const fs = require('fs'); const os = require('os'); const path = require('path');
     const fichier = (b64, ext) => { const f = path.join(os.tmpdir(), 'e2e-2209-' + Date.now() + ext); fs.writeFileSync(f, Buffer.from(b64, 'base64')); return f; };
-    const pdfTexte = (b64) => execFileSync('pdftotext', ['-layout', fichier(b64, '.pdf'), '-'], { encoding: 'utf8' });
+    const pdfTexte = (b64) => execFileSync('pdftotext', ['-enc', 'UTF-8', '-layout', fichier(b64, '.pdf'), '-'], { encoding: 'utf8' });
     const fichePdf = pdfTexte(await telecharger('../api/v1/ordonnance-client/' + ordId + '/pdf'));
-    const ligneFiche = fichePdf.split('\n').find((l) => l.indexOf(produit.slice(0, 20)) >= 0) || '';
+    const ligneFiche = fichePdf.split(/\r?\n/).find((l) => l.indexOf(produit.slice(0, 20)) >= 0) || '';
     ok('Fiche PDF : colonne « Servie », et la ligne porte 2 prescrits, 1 servi', /Servie/.test(fichePdf) && /\b2\s+1\s+1 cp matin/.test(ligneFiche), ligneFiche.replace(/\s+/g, ' '));
     const xls = fichier(await telecharger('../api/v1/ordonnance-client/historique/excel?query=' + numero + '&annulees=false'), '.xls');
     const lu = execFileSync('python3', ['-c', "import xlrd,sys,json\nw=xlrd.open_workbook(sys.argv[1]).sheet_by_index(0)\nrows=[w.row_values(i) for i in range(w.nrows)]\nh=[r for r in rows if 'QTÉ SERVIE' in r][0]\nd=[r for r in rows if r and r[0]==sys.argv[2]][0]\nprint(json.dumps({'servie':d[h.index('QTÉ SERVIE')],'qte':d[h.index('QUANTITÉ')],'suivante':h[h.index('QTÉ SERVIE')+1]}))", xls, numero], { encoding: 'utf8' });
@@ -220,7 +220,7 @@ const MARQUE = 'E2E-2209';
     ok('Onglet Analyse : ventilation par prescripteur et produits prescrits remplis', ana.prescripteurs > 0 && ana.produits > 0, JSON.stringify(ana).slice(0, 200));
     ok('Aucune erreur JavaScript sur tout le parcours', err.length === 0, JSON.stringify(err));
   } catch (e) {
-    ok('Le parcours va au bout', false, e.message + ' ' + (e.stack || '').split('\n')[1]);
+    ok('Le parcours va au bout', false, e.message + ' ' + (e.stack || '').split(/\r?\n/)[1]);
   } finally {
     await b.close();
     exec("DELETE d FROM t_ordonnance_client_detail d JOIN t_ordonnance_client o ON o.lg_ORDONNANCE_ID=d.lg_ORDONNANCE_ID WHERE o.str_OBSERVATIONS='" + MARQUE + "'; DELETE FROM t_ordonnance_client WHERE str_OBSERVATIONS='" + MARQUE + "'");

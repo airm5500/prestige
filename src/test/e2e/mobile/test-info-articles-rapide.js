@@ -64,9 +64,9 @@ const norm = (v) => (v === undefined || v === '' ? null : v);
 (async () => {
   /* deux produits mis en reserve le temps du test */
   const debut = q('SELECT NOW()');
-  const [A, B] = q("SELECT lg_FAMILLE_ID FROM t_famille WHERE str_STATUT = 'enable' AND bool_RESERVE = 0 ORDER BY str_NAME LIMIT 2").split('\n');
+  const [A, B] = q("SELECT lg_FAMILLE_ID FROM t_famille WHERE str_STATUT = 'enable' AND bool_RESERVE = 0 ORDER BY str_NAME LIMIT 2").split(/\r?\n/);
   const origine = q(`SELECT lg_FAMILLE_ID, bool_RESERVE, COALESCE(int_SEUIL_RESERVE,'NULL'), COALESCE(int_SEUIL_MINI_RAYON,'NULL')
-    FROM t_famille WHERE lg_FAMILLE_ID IN ('${A}','${B}')`).split('\n').map((l) => l.split('\t'));
+    FROM t_famille WHERE lg_FAMILLE_ID IN ('${A}','${B}')`).split(/\r?\n/).map((l) => l.split('\t'));
   const empA = q(`SELECT lg_EMPLACEMENT_ID FROM t_famille_stock WHERE lg_FAMILLE_ID = '${A}' LIMIT 1`);
   try {
     q(`UPDATE t_famille SET bool_RESERVE = 1, int_SEUIL_RESERVE = 12, int_SEUIL_MINI_RAYON = 3 WHERE lg_FAMILLE_ID IN ('${A}','${B}')`);
@@ -86,7 +86,7 @@ const norm = (v) => (v === undefined || v === '' ? null : v);
     /* echantillon : produits avec vente, avec achat, avec inventaire, les deux en reserve, et des produits quelconques */
     const parId = new Map(tout.j.map((p) => [p.produitId, p]));
     const ech = new Set([A, B]);
-    const ajouter = (sql) => q(sql).split('\n').filter(Boolean).forEach((id) => ech.add(id));
+    const ajouter = (sql) => q(sql).split(/\r?\n/).filter(Boolean).forEach((id) => ech.add(id));
     ajouter("SELECT DISTINCT d.lg_FAMILLE_ID FROM t_preenregistrement_detail d JOIN t_preenregistrement v ON v.lg_PREENREGISTREMENT_ID = d.lg_PREENREGISTREMENT_ID WHERE v.str_STATUT = 'is_Closed' ORDER BY v.dt_UPDATED DESC LIMIT 15");
     ajouter('SELECT DISTINCT lg_FAMILLE_ID FROM t_bon_livraison_detail ORDER BY dt_UPDATED DESC LIMIT 10');
     ajouter("SELECT DISTINCT o.lg_FAMILLE_ID FROM t_inventaire_famille o JOIN t_inventaire i ON i.lg_INVENTAIRE_ID = o.lg_INVENTAIRE_ID WHERE o.bool_INVENTAIRE = 1 AND i.str_STATUT = 'is_Closed' LIMIT 10");
@@ -98,7 +98,7 @@ const norm = (v) => (v === undefined || v === '' ? null : v);
       if (!p) { continue; }
       compares++;
       /* la requete principale retient un emplacement de stock par produit : on compare a l'un d'eux */
-      const emps = q(`SELECT DISTINCT lg_EMPLACEMENT_ID FROM t_famille_stock WHERE lg_FAMILLE_ID = '${esc(id)}'`).split('\n').filter(Boolean);
+      const emps = q(`SELECT DISTINCT lg_EMPLACEMENT_ID FROM t_famille_stock WHERE lg_FAMILLE_ID = '${esc(id)}'`).split(/\r?\n/).filter(Boolean);
       const diffs = emps.map((e) => { const x = attendu(id, e); return CHAMPS.filter((c) => norm(p[c]) !== norm(x[c])).map((c) => p.codeCip + ' ' + c + ' : ' + p[c] + ' / attendu ' + x[c]); });
       if (!diffs.some((d) => d.length === 0)) { ecarts.push(...diffs[0]); }
     }

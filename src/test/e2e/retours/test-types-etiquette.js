@@ -37,7 +37,7 @@ const ZG = q("SELECT CONCAT(f.lg_ZONE_GEO_ID, '|', f.lg_GROSSISTE_ID) FROM t_fam
   + " AND f.int_CIP REGEXP '^[0-9]{7}$' GROUP BY f.lg_ZONE_GEO_ID, f.lg_GROSSISTE_ID HAVING COUNT(*) BETWEEN 3 AND 40 ORDER BY COUNT(*) LIMIT 1").split('|');
 const [ZONE, GROSSISTE] = ZG;
 const PRODUITS = q(`SELECT CONCAT_WS('|', lg_FAMILLE_ID, int_CIP, IFNULL(lg_TYPEETIQUETTE_ID, ''), str_DESCRIPTION) FROM t_famille WHERE str_STATUT = 'enable' AND lg_ZONE_GEO_ID = '${ZONE}' AND lg_GROSSISTE_ID = '${GROSSISTE}' ORDER BY str_DESCRIPTION, int_CIP`)
-  .split('\n').map((l) => l.split('|'));
+  .split(/\r?\n/).map((l) => l.split('|'));
 const TYPES_AVANT = q(`SELECT GROUP_CONCAT(CONCAT(lg_FAMILLE_ID, '=', IFNULL(lg_TYPEETIQUETTE_ID, '')) ORDER BY lg_FAMILLE_ID) FROM t_famille WHERE lg_ZONE_GEO_ID = '${ZONE}'`);
 const TYPE2_AVANT = q("SELECT COUNT(*) FROM t_famille WHERE lg_TYPEETIQUETTE_ID = '2'");
 const PANIER_AVANT = q("SELECT IFNULL(GROUP_CONCAT(CONCAT('''', lg_ETIQUETTE_ID, '''')), '''-''') FROM t_etiquette WHERE str_STATUT = 'is_Process'");
@@ -59,7 +59,7 @@ const decoder = (binaire) => {
   const sortie = execFileSync('python3', ['-I', '-c', 'import sys, json, zxingcpp\nfrom PIL import Image\nr = zxingcpp.read_barcodes(Image.open(sys.argv[1]))\n'
     + 'print(json.dumps([{"format": str(x.format), "texte": x.text} for x in r]))', png], { encoding: 'utf8' });
   fs.readdirSync(ENV_E2E.TMP).filter((x) => /^e2e-types-et-\d+\.png$/.test(x)).forEach((x) => fs.unlinkSync(ENV_E2E.TMP + '/' + x));
-  const texte = execFileSync('pdftotext', ['-raw', '-f', '1', '-l', '1', f, '-'], { encoding: 'utf8' });
+  const texte = execFileSync('pdftotext', ['-enc', 'UTF-8', '-raw', '-f', '1', '-l', '1', f, '-'], { encoding: 'utf8' });
   return { codes: JSON.parse(sortie), texte };
 };
 

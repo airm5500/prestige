@@ -48,7 +48,7 @@ function poserJeuDEssai(jour) {
   const ids = q("SELECT p.lg_PREENREGISTREMENT_ID FROM t_preenregistrement p"
     + " JOIN t_preenregistrement_compte_client_tiers_payent cp ON cp.lg_PREENREGISTREMENT_ID=p.lg_PREENREGISTREMENT_ID"
     + " WHERE DATE(p.dt_UPDATED)='" + jour + "' AND p.str_STATUT='is_Closed' AND p.b_IS_CANCEL=0"
-    + " AND p.imported=0 AND p.int_PRICE>0 LIMIT 5").split('\n').filter(Boolean);
+    + " AND p.imported=0 AND p.int_PRICE>0 LIMIT 5").split(/\r?\n/).filter(Boolean);
   ids.forEach(function (id, i) {
     /* le mouvement peut deja exister (banc complet) : seul le manquant est pose */
     exec("INSERT IGNORE INTO mvttransaction (uuid,categorie,createdAt,mvtdate,pkey,reference,typeTransaction,caisse,"
@@ -129,7 +129,7 @@ function retirerJeuDEssai() {
     const entete = fs.readFileSync(f).slice(0, 5).toString('latin1');
     ok(cas.nom + ' : le contenu recu est bien un PDF', entete === '%PDF-', entete);
 
-    const texte = execSync('pdftotext -layout ' + f + ' -', { encoding: 'latin1' });
+    const texte = execSync('pdftotext -enc UTF-8 -layout ' + f + ' -', { encoding: 'latin1' });
     fs.writeFileSync(f + '.txt', texte);
 
     ok(cas.nom + ' : le montant attendu est une colonne', /Montant attendu/.test(texte));
@@ -151,7 +151,7 @@ function retirerJeuDEssai() {
 
     // polices : seules Helvetica et Helvetica-Bold, equivalents PDF d'Arial
     const polices = execSync('pdffonts ' + f, { encoding: 'utf8' });
-    const noms = polices.split('\n').slice(2).map(l => l.trim().split(/\s+/)[0]).filter(Boolean);
+    const noms = polices.split(/\r?\n/).slice(2).map(l => l.trim().split(/\s+/)[0]).filter(Boolean);
     ok(cas.nom + ' : uniquement Helvetica et Helvetica-Bold (equivalents Arial)',
        noms.length > 0 && noms.every(n => /Helvetica(-Bold)?$/.test(n)), noms.join(','));
     ok(cas.nom + ' : le gras est present (titre, colonnes, montant)',

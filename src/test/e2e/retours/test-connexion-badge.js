@@ -21,7 +21,7 @@ const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
 const BASE = ENV_E2E.BASE;
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
-const LOG = '/opt/payara5/glassfish/domains/domain1/logs/server.log';
+const LOG = ENV_E2E.JOURNAL_SERVEUR;
 const E = 'E2E-BC-1', B = 'E2E-BC-B1';
 let rang = 0;
 const nouveauNum = () => 'ZZE-26-' + String(Date.now() + rang++).slice(-5) + '-A';

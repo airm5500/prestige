@@ -32,7 +32,7 @@ const AUTRES = ['SERVICE CLIENT', 'GESTION COURANTE', 'FACTURATION', 'GESTION DE
       await p.context().close();
     }
     const affiches = ordres[0].map((t) => t.toUpperCase());
-    const prios = q("SELECT UPPER(str_VALUE), int_PRIORITY FROM t_menu WHERE str_Status = 'enable'").split('\n').map((l) => l.split('\t'));
+    const prios = q("SELECT UPPER(str_VALUE), int_PRIORITY FROM t_menu WHERE str_Status = 'enable'").split(/\r?\n/).map((l) => l.split('\t'));
     const prio = (nom) => (prios.find((x) => x[0] === nom) || [])[1];
     const vues = affiches.map((n) => n + '=' + prio(n));
     const doublons = affiches.filter((n, i) => affiches.some((m, j) => j !== i && prio(m) === prio(n)));
@@ -40,9 +40,10 @@ const AUTRES = ['SERVICE CLIENT', 'GESTION COURANTE', 'FACTURATION', 'GESTION DE
     const rh = (o) => o.map((t) => t.toUpperCase()).indexOf('RESSOURCES HUMAINES'), ca = (o) => o.map((t) => t.toUpperCase()).indexOf('CAMPAGNES SMS / WHATSAPP');
     ok('« Campagnes SMS / WhatsApp » puis « Ressources humaines » sur trois connexions', ordres.every((o) => ca(o) >= 0 && rh(o) === ca(o) + 1)
       && ordres.every((o) => JSON.stringify(o) === JSON.stringify(ordres[0])), ordres.map((o) => rh(o) + '/' + ca(o)).join(' '));
-    const reste = affiches.filter((n) => n !== 'RESSOURCES HUMAINES' && n !== 'CAMPAGNES SMS / WHATSAPP');
+    /* ordre relatif des modules connus : une officine peut en avoir d'autres actifs (Menu pharmacien, Promotions...) */
+    const reste = affiches.filter((n) => AUTRES.includes(n));
     ok('Ordre des autres modules inchangé', JSON.stringify(reste) === JSON.stringify(AUTRES), reste.join(' | '));
-    const actifs = q("SELECT UPPER(str_VALUE), int_PRIORITY FROM t_menu WHERE str_Status = 'enable' ORDER BY int_PRIORITY").split('\n').map((l) => l.split('\t'));
+    const actifs = q("SELECT UPPER(str_VALUE), int_PRIORITY FROM t_menu WHERE str_Status = 'enable' ORDER BY int_PRIORITY").split(/\r?\n/).map((l) => l.split('\t'));
     const egaux = actifs.filter((x) => actifs.filter((y) => y[1] === x[1]).length > 1).map((x) => x.join('='));
     ok('En base : aucun module actif ne partage sa priorité avec un autre', egaux.length === 0, egaux.join(', '));
     const rang = (n) => actifs.findIndex((x) => x[0] === n);

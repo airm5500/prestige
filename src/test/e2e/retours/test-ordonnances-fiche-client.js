@@ -187,7 +187,7 @@ const NOM = 'ZZFICHE';
     ok('« Ajouter un paramètre » : créé aussitôt, actif', q("SELECT bool_ACTIF FROM t_parametre_clinique WHERE str_LIBELLE='ZZFICHE Cholestérol total'") === '1');
     ok('Aucune erreur JavaScript', err.length === 0, JSON.stringify(err));
   } catch (e) {
-    ok('Le parcours va au bout', false, e.message + ' ' + (e.stack || '').split('\n')[1]);
+    ok('Le parcours va au bout', false, e.message + ' ' + (e.stack || '').split(/\r?\n/)[1]);
   } finally {
     await b.close();
     exec("DELETE FROM t_parametre_clinique WHERE str_LIBELLE LIKE 'ZZFICHE%'");

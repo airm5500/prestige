@@ -31,7 +31,7 @@ function bonsUnpaid() {
 }
 function facturesDuJeu() {
   return q("SELECT lg_FACTURE_ID FROM t_facture WHERE tiersPayant='" + TP + "' AND dt_DEBUT_FACTURE='" + JOUR + " 00:00:00'"
-    + " AND dt_FIN_FACTURE='" + JOUR + " 00:00:00'").split('\n').filter(Boolean);
+    + " AND dt_FIN_FACTURE='" + JOUR + " 00:00:00'").split(/\r?\n/).filter(Boolean);
 }
 function poserComptesManquants() {
   exec("INSERT IGNORE INTO t_client (lg_CLIENT_ID,str_FIRST_NAME,str_LAST_NAME,str_STATUT,dt_CREATED,dt_UPDATED,lg_TYPE_CLIENT_ID)"
@@ -51,7 +51,7 @@ function poserUtilisateursManquants() {
     + " JOIN t_compte_client_tiers_payant cl ON cl.lg_COMPTE_CLIENT_TIERS_PAYANT_ID=cp.lg_COMPTE_CLIENT_TIERS_PAYANT_ID"
     + " JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID=cp.lg_PREENREGISTREMENT_ID"
     + " LEFT JOIN t_user u ON u.lg_USER_ID=p.lg_USER_ID"
-    + " WHERE cl.lg_TIERS_PAYANT_ID='" + TP + "' AND DATE(p.dt_UPDATED)='" + JOUR + "' AND u.lg_USER_ID IS NULL").split('\n').filter(Boolean);
+    + " WHERE cl.lg_TIERS_PAYANT_ID='" + TP + "' AND DATE(p.dt_UPDATED)='" + JOUR + "' AND u.lg_USER_ID IS NULL").split(/\r?\n/).filter(Boolean);
   manquants.forEach(function (id, i) {
     exec("CREATE TEMPORARY TABLE tmp_u AS SELECT * FROM t_user WHERE str_LOGIN='" + (ENV_E2E.LOGIN) + "';"
       + " UPDATE tmp_u SET lg_USER_ID='" + id + "', str_LOGIN='" + MARQUE + "-U" + i + "';"
@@ -266,8 +266,8 @@ function retirerJeuDEssai() {
     ok('L\'edition simple n\'ouvre qu\'UNE seule fois, dans le clic', ouvertures.length === 1 && /carnet-depot\/pdf$/.test(ouvertures[0]), JSON.stringify(ouvertures));
     // Le PDF simple : meme modele que le detail, reference de vente, pas d'identifiant technique
     const pdfSimple = await p.evaluate(async (u) => { const r = await fetch(u); const b = await r.arrayBuffer(); return { statut: r.status, type: r.headers.get('content-type'), octets: Array.from(new Uint8Array(b)) }; }, ouvertures[0]);
-    require('fs').writeFileSync('/tmp/claude-0/facture_simple.pdf', Buffer.from(pdfSimple.octets));
-    const texte = execSync('pdftotext -layout /tmp/claude-0/facture_simple.pdf -', { encoding: 'utf8' });
+    require('fs').writeFileSync(require('path').join(ENV_E2E.TMP, 'facture_simple.pdf'), Buffer.from(pdfSimple.octets));
+    const texte = execSync('pdftotext -enc UTF-8 -layout "' + require('path').join(ENV_E2E.TMP, 'facture_simple.pdf') + '" -', { encoding: 'utf8' });
     ok('L\'edition simple est un PDF', pdfSimple.statut === 200 && /pdf/.test(pdfSimple.type || ''), pdfSimple.statut + ' ' + pdfSimple.type);
     ok('Elle suit le modele du detail : FACTURE N°, colonnes Vente n° / N° bon / Beneficiaire / Matricule / Montant, TOTAL GENERAL',
       /FACTURE N°/.test(texte) && /Vente n°/.test(texte) && /N° bon/.test(texte) && /Bénéficiaire/.test(texte) && /TOTAL GÉNÉRAL/.test(texte), texte.slice(0, 400));

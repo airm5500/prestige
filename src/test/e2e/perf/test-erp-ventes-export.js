@@ -37,7 +37,7 @@ const DEBUT = '2026-10-01', FIN = '2026-10-07', MAX_MS = 30000;
     for (const v of ventes.filter((x, i) => i % Math.max(1, Math.floor(ventes.length / 30)) === 0)) {
       const ref = String(v.numberTransaction).replace(/'/g, '');
       const id = q("SELECT lg_PREENREGISTREMENT_ID FROM t_preenregistrement WHERE str_REF = '" + ref + "' AND str_TYPE_VENTE = 'VNO' AND str_STATUT = 'is_Closed' AND b_IS_CANCEL = 0 AND int_PRICE > 0"
-        + " AND DATE(dt_UPDATED) BETWEEN '" + DEBUT + "' AND '" + FIN + "'").split('\n').filter(Boolean);
+        + " AND DATE(dt_UPDATED) BETWEEN '" + DEBUT + "' AND '" + FIN + "'").split(/\r?\n/).filter(Boolean);
       if (id.length !== 1) { continue; }
       const lignes = Number(q("SELECT COUNT(*) FROM t_preenregistrement_detail WHERE lg_PREENREGISTREMENT_ID = '" + id[0] + "'"));
       const mvts = Number(q("SELECT COUNT(*) FROM t_preenregistrement_detail d JOIN hmvtproduit h ON h.pkey = d.lg_PREENREGISTREMENT_DETAIL_ID WHERE d.lg_PREENREGISTREMENT_ID = '" + id[0] + "'"));

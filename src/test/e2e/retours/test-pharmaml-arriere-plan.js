@@ -34,7 +34,7 @@ const serveur = http.createServer((req, rep) => { let b = ''; req.on('data', (c)
 }); });
 
 const P = q("SELECT f.lg_FAMILLE_ID FROM t_famille f JOIN t_famille_stock s ON s.lg_FAMILLE_ID = f.lg_FAMILLE_ID AND s.lg_EMPLACEMENT_ID = '1'"
-  + " WHERE f.str_STATUT = 'enable' AND f.int_CIP REGEXP '^[0-9]{7}$' ORDER BY f.str_NAME LIMIT 2").split('\n');
+  + " WHERE f.str_STATUT = 'enable' AND f.int_CIP REGEXP '^[0-9]{7}$' ORDER BY f.str_NAME LIMIT 2").split(/\r?\n/);
 function nettoyer() {
   archives.retirer(/E2E-PAP/);
   q(`DELETE FROM rupture_detail WHERE ruptureId IN (SELECT id FROM rupture WHERE reference IN ('${CMD}'));

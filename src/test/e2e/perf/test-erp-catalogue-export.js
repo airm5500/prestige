@@ -33,7 +33,7 @@ const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-charact
     ok('Articles déconditionnables : article détail joint', decond.length === attenduDecond && attenduDecond > 0, decond.length + ' / ' + attenduDecond);
     let vus = 0; const faux = [];
     for (const x of produits.filter((v, i) => i % Math.max(1, Math.floor(produits.length / 30)) === 0)) {
-      const ids = q("SELECT lg_FAMILLE_ID FROM t_famille WHERE str_STATUT <> 'delete' AND lg_FAMILLE_PARENT_ID = '' AND str_NAME = '" + String(x.libelle).replace(/'/g, "''") + "'").split('\n').filter(Boolean);
+      const ids = q("SELECT lg_FAMILLE_ID FROM t_famille WHERE str_STATUT <> 'delete' AND lg_FAMILLE_PARENT_ID = '' AND str_NAME = '" + String(x.libelle).replace(/'/g, "''") + "'").split(/\r?\n/).filter(Boolean);
       if (ids.length !== 1) { continue; }
       const stock = q("SELECT IFNULL((SELECT int_NUMBER_AVAILABLE FROM t_famille_stock WHERE lg_FAMILLE_ID = '" + ids[0] + "' AND lg_EMPLACEMENT_ID = '1' LIMIT 1), 'null')");
       const four = Number(q("SELECT COUNT(*) FROM t_famille_grossiste WHERE lg_FAMILLE_ID = '" + ids[0] + "'"));

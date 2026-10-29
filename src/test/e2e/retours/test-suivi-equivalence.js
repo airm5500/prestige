@@ -27,10 +27,10 @@ const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-char
 let seme = false;
 function semerDci() {
   if (q('SELECT COUNT(*) FROM t_famille_dci') !== '0') { return; }
-  const dcis = q("SELECT lg_DCI_ID FROM t_dci WHERE str_STATUT = 'enable' ORDER BY str_NAME LIMIT 2").split('\n');
+  const dcis = q("SELECT lg_DCI_ID FROM t_dci WHERE str_STATUT = 'enable' ORDER BY str_NAME LIMIT 2").split(/\r?\n/);
   const vendus = q("SELECT d.lg_FAMILLE_ID FROM t_preenregistrement_detail d JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = d.lg_PREENREGISTREMENT_ID"
     + " JOIN t_famille f ON f.lg_FAMILLE_ID = d.lg_FAMILLE_ID AND f.str_STATUT = 'enable' AND f.bool_DECONDITIONNE = 0"
-    + " WHERE p.str_STATUT = 'is_Closed' AND p.b_IS_CANCEL = 0 AND p.dt_UPDATED >= NOW() - INTERVAL 80 DAY GROUP BY d.lg_FAMILLE_ID ORDER BY SUM(d.int_QUANTITY) DESC LIMIT 5").split('\n');
+    + " WHERE p.str_STATUT = 'is_Closed' AND p.b_IS_CANCEL = 0 AND p.dt_UPDATED >= NOW() - INTERVAL 80 DAY GROUP BY d.lg_FAMILLE_ID ORDER BY SUM(d.int_QUANTITY) DESC LIMIT 5").split(/\r?\n/);
   if (dcis.length < 2 || vendus.length < 5) { return; }
   let sql = '';
   vendus.forEach((f, i) => { sql += "INSERT INTO t_famille_dci (lg_FAMILLE_DCI_ID, lg_FAMILLE_ID, lg_DCI_ID, str_STATUT, dt_CREATED) VALUES ('E2E-SEQ-" + i + "', '" + f + "', '" + dcis[i < 3 ? 0 : 1] + "', 'enable', NOW());"; });
@@ -163,7 +163,7 @@ function retirerDci() {
     ok('Aucune réponse en erreur (4xx/5xx)', http.length === 0, JSON.stringify(http));
     ok('Aucune erreur JavaScript', err.length === 0, JSON.stringify(err));
   } catch (e) {
-    ok('Déroulé sans exception', false, (e.stack || '').split('\n').filter((l) => /test-suivi|Error/.test(l)).join(' | '));
+    ok('Déroulé sans exception', false, (e.stack || '').split(/\r?\n/).filter((l) => /test-suivi|Error/.test(l)).join(' | '));
   } finally {
     await b.close();
     retirerDci();

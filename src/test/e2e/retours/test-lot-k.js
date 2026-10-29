@@ -35,7 +35,7 @@ function semer() {
   /* Des produits entiers : un deconditionne est replie sur son parent par le classement. */
   q("SELECT lg_FAMILLE_ID FROM t_famille WHERE str_STATUT='enable' AND int_EAN13 IS NOT NULL AND int_EAN13<>''"
     + " AND bool_DECONDITIONNE=0 AND (lg_FAMILLE_PARENT_ID IS NULL OR lg_FAMILLE_PARENT_ID='') ORDER BY str_NAME LIMIT 3")
-    .split('\n').filter(Boolean).forEach(id => PRODUITS.push(id.trim()));
+    .split(/\r?\n/).filter(Boolean).forEach(id => PRODUITS.push(id.trim()));
   if (!USER || PRODUITS.length !== 3) { return false; }
   PRODUITS.forEach((prod, i) => {
     const id = MARQUE + '-V' + i, quand = JOUR + ' 09:0' + i + ':00', montant = 1000 * (i + 1);
@@ -140,12 +140,12 @@ function semer() {
     ok('L\'impression simple ouvre une seule fois, dans le clic', ouvertures.length === 1 && /feuille-match\/simple\/pdf\?/.test(ouvertures[0]), JSON.stringify(ouvertures));
     const pdf = await telecharger(ouvertures[0]);
     fs.writeFileSync('/tmp/claude-0/feuille_simple.pdf', Buffer.from(pdf.octets));
-    const texte = execSync('pdftotext -layout /tmp/claude-0/feuille_simple.pdf -', { encoding: 'utf8' });
+    const texte = execSync('pdftotext -enc UTF-8 -layout /tmp/claude-0/feuille_simple.pdf -', { encoding: 'utf8' });
     const attenduPdf = new RegExp('feuille_de_match_[A-Za-z0-9_]+_' + JOUR.replace(/-/g, '_') + '_' + JOUR.replace(/-/g, '_') + '\\.pdf');
     ok('Le PDF simple repond, sous le nom feuille_de_match_<officine>_<periode>.pdf', pdf.statut === 200 && /pdf/.test(pdf.type) && attenduPdf.test(pdf.disposition), pdf.disposition);
     // Retour des tests du 09/09 (lot O) : une septieme colonne, les quantites vendues, entre les achats et la frequence.
-    ok('Il porte les colonnes du modele fourni, plus les quantites vendues', /Rang\s+Produit\s+CIP13\s+UG\s+Quantités\s+Quantités\s+Fréquence/.test(texte) && /achetées\s+vendues\s+d'achat/.test(texte), texte.split('\n').find(l => /Rang/.test(l)));
-    const lignesPdf = texte.split('\n').filter(l => /^\s*\d+(-\d+)?\s/.test(l)).map(l => l.trim());
+    ok('Il porte les colonnes du modele fourni, plus les quantites vendues', /Rang\s+Produit\s+CIP13\s+UG\s+Quantités\s+Quantités\s+Fréquence/.test(texte) && /achetées\s+vendues\s+d'achat/.test(texte), texte.split(/\r?\n/).find(l => /Rang/.test(l)));
+    const lignesPdf = texte.split(/\r?\n/).filter(l => /^\s*\d+(-\d+)?\s/.test(l)).map(l => l.trim());
     ok('Les deux produits a 100 unites partagent le rang « 1-2 », le troisieme est « 3 »',
       lignesPdf.length >= 3 && /^1-2\s/.test(lignesPdf[0]) && /^1-2\s/.test(lignesPdf[1]) && /^3\s/.test(lignesPdf[2]), lignesPdf.slice(0, 3).join(' || '));
     ok('Le produit a 5 UG et 2 receptions est en tete, avec ses valeurs',

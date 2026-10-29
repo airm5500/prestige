@@ -29,7 +29,7 @@ const ventes = () => q(`SELECT IFNULL(GROUP_CONCAT(CONCAT('''', lg_PREENREGISTRE
 /* tables qui pointent vers le produit (declencheurs : historique, instantanes de vente...) */
 const enfants = () => q("SELECT DISTINCT TABLE_NAME FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA = DATABASE()"
   + " AND REFERENCED_TABLE_NAME = 't_famille' AND COLUMN_NAME = 'lg_FAMILLE_ID' AND TABLE_NAME NOT IN ('t_famille_stock', 't_type_stock_famille', 't_famille_grossiste',"
-  + " 't_suggestion_order_details', 't_preenregistrement_detail', 'hmvtproduit')").split('\n').filter(Boolean);
+  + " 't_suggestion_order_details', 't_preenregistrement_detail', 'hmvtproduit')").split(/\r?\n/).filter(Boolean);
 
 function retirer() {
   const v = ventes();

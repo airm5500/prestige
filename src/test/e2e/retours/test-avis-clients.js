@@ -116,7 +116,7 @@ const texteXls = (f) => execFileSync('python3', ['-I', '-c', "import sys,xlrd;s=
     fs.writeFileSync(path.join(TMP, 'affiche.pdf'), Buffer.from(aff.b));
     execFileSync('pdftoppm', ['-r', '200', '-png', '-singlefile', path.join(TMP, 'affiche.pdf'), path.join(TMP, 'affiche')]);
     const lu = decoder(path.join(TMP, 'affiche.png'));
-    const txtAffiche = execFileSync('pdftotext', [path.join(TMP, 'affiche.pdf'), '-'], { encoding: 'utf8' });
+    const txtAffiche = execFileSync('pdftotext', ['-enc', 'UTF-8', path.join(TMP, 'affiche.pdf'), '-'], { encoding: 'utf8' });
     ok('Affiche A4 : PDF, le QR imprimé redonne exactement le lien', aff.t === 'application/pdf' && lu === lien, lu);
     ok('Affiche : nom de la pharmacie et invitation', /Votre avis nous intéresse/.test(txtAffiche) && txtAffiche.indexOf(q('SELECT str_NOM_COMPLET FROM t_officine LIMIT 1').toUpperCase()) >= 0, txtAffiche.slice(0, 200));
     fs.copyFileSync(path.join(TMP, 'affiche.png'), process.env.CAPTURE_AFFICHE || path.join(TMP, 'affiche-copie.png'));
@@ -288,12 +288,12 @@ const texteXls = (f) => execFileSync('python3', ['-I', '-c', "import sys,xlrd;s=
     const pdfListe = await p.evaluate(async () => { const v = Ext.ComponentQuery.query('avisclients')[0]; const r = await fetch('../api/v1/avis-clients/liste/pdf?' + Ext.Object.toQueryString(v.parametresFiltres()));
       return { t: r.headers.get('content-type'), b: Array.from(new Uint8Array(await r.arrayBuffer())) }; });
     fs.writeFileSync(path.join(TMP, 'liste.pdf'), Buffer.from(pdfListe.b));
-    const txtListe = execFileSync('pdftotext', ['-layout', path.join(TMP, 'liste.pdf'), '-'], { encoding: 'utf8' });
+    const txtListe = execFileSync('pdftotext', ['-enc', 'UTF-8', '-layout', path.join(TMP, 'liste.pdf'), '-'], { encoding: 'utf8' });
     ok('Impression : PDF de la liste filtrée (avis, réponse, employé)', pdfListe.t === 'application/pdf' && /Avis clients/.test(txtListe) && /Caissière très impolie/.test(txtListe) && /Réponse/.test(txtListe), txtListe.slice(0, 300));
     await vue(() => Ext.ComponentQuery.query('avisclients #excelAvis')[0].btnEl.dom.setAttribute('data-e2e', 'xls'));
     const [dl] = await Promise.all([p.waitForEvent('download', { timeout: 60000 }), p.click('[data-e2e=xls]')]);
     const xls = texteXls(await dl.path());
-    const lignePiege = xls.split('\n').find((x) => x.indexOf('0102030405') >= 0) || '';
+    const lignePiege = xls.split(/\r?\n/).find((x) => x.indexOf('0102030405') >= 0) || '';
     ok('Excel : avis exportés avec en-têtes', /Date\tNote\tApprécié\tÀ améliorer\tRessenti\tEmployé cité/.test(xls) && /Caissière très impolie/.test(xls));
     ok('Excel : cellule commençant par « = » neutralisée (pas de formule)', lignePiege.indexOf("\t'=cmd") >= 0, lignePiege.slice(0, 200));
 
@@ -322,7 +322,7 @@ const texteXls = (f) => execFileSync('python3', ['-I', '-c', "import sys,xlrd;s=
     ok('Analyse → clic sur un mot clé : liste filtrée', apresMot === 2, apresMot);
     const pdfAn = await p.evaluate(async () => { const r = await fetch('../api/v1/avis-clients/analyse/pdf'); return { t: r.headers.get('content-type'), b: Array.from(new Uint8Array(await r.arrayBuffer())) }; });
     fs.writeFileSync(path.join(TMP, 'analyse.pdf'), Buffer.from(pdfAn.b));
-    const txtAn = execFileSync('pdftotext', ['-layout', path.join(TMP, 'analyse.pdf'), '-'], { encoding: 'utf8' });
+    const txtAn = execFileSync('pdftotext', ['-enc', 'UTF-8', '-layout', path.join(TMP, 'analyse.pdf'), '-'], { encoding: 'utf8' });
     ok('Impression de l\'analyse : PDF avec alertes, critères, employés', pdfAn.t === 'application/pdf' && /Analyse des avis clients/.test(txtAn) && /Employés cités/.test(txtAn) && /Awa/.test(txtAn), txtAn.slice(0, 200));
 
     /* ---------------------------------------------------------------- droits (lus a la connexion : nouvelle session) */

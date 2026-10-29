@@ -39,7 +39,7 @@ const [VENTE, REF, JOUR, CLIENT] = q("SELECT p.lg_PREENREGISTREMENT_ID, p.str_RE
 /* priorites des comptes tiers-payant du client avant le test (la creation les decale de 1) */
 const PRIORITES = q("SELECT ct.lg_COMPTE_CLIENT_TIERS_PAYANT_ID, ct.int_PRIORITY, ct.dt_UPDATED FROM t_compte_client_tiers_payant ct"
   + " JOIN t_compte_client cc ON cc.lg_COMPTE_CLIENT_ID = ct.lg_COMPTE_CLIENT_ID WHERE cc.lg_CLIENT_ID = '" + CLIENT + "'")
-  .split('\n').filter(Boolean).map((l) => l.split('\t'));
+  .split(/\r?\n/).filter(Boolean).map((l) => l.split('\t'));
 const nettoyer = () => {
   q("DELETE ct FROM t_compte_client_tiers_payant ct JOIN t_tiers_payant t ON t.lg_TIERS_PAYANT_ID = ct.lg_TIERS_PAYANT_ID WHERE t.str_NAME = '" + NOM + "'");
   q("DELETE FROM t_tiers_payant WHERE str_NAME = '" + NOM + "'");

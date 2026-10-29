@@ -43,7 +43,7 @@ function purgerGarde() {
 function semerGarde() {
   USER = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='" + (ENV_E2E.LOGIN) + "'");
   PRODUITS = q("SELECT f.lg_FAMILLE_ID FROM t_famille f JOIN t_famille_stock s ON s.lg_FAMILLE_ID=f.lg_FAMILLE_ID AND s.lg_EMPLACEMENT_ID='1'"
-    + " WHERE f.str_STATUT='enable' AND f.bool_DECONDITIONNE=0 ORDER BY f.str_NAME LIMIT 3").split('\n').filter(Boolean).map(x => x.trim());
+    + " WHERE f.str_STATUT='enable' AND f.bool_DECONDITIONNE=0 ORDER BY f.str_NAME LIMIT 3").split(/\r?\n/).filter(Boolean).map(x => x.trim());
   if (!USER || PRODUITS.length !== 3) { return false; }
   STOCK_AVANT = PRODUITS.map((id) => q("SELECT int_NUMBER_AVAILABLE FROM t_famille_stock WHERE lg_FAMILLE_ID='" + id + "' AND lg_EMPLACEMENT_ID='1' LIMIT 1"));
   exec("UPDATE t_famille_stock SET int_NUMBER_AVAILABLE=3 WHERE lg_FAMILLE_ID IN ('" + PRODUITS[1] + "','" + PRODUITS[2] + "') AND lg_EMPLACEMENT_ID='1'");
@@ -138,7 +138,7 @@ function semerGarde() {
       popups.length === nbPopups + 1 && /balancesalecash\/pdf\?/.test(popup ? popup.url() : ''), popup ? popup.url() : '');
     const pdf = await octets('../api/v1/balance/balancesalecash/pdf?dtStart=' + MOIS_A + '&dtEnd=' + FIN_B);
     fs.writeFileSync(TMP + '/balance.pdf', Buffer.from(pdf.octets));
-    const texte = execFileSync('pdftotext', ['-layout', TMP + '/balance.pdf', '-'], { encoding: 'utf8' });
+    const texte = execFileSync('pdftotext', ['-enc', 'UTF-8', '-layout', TMP + '/balance.pdf', '-'], { encoding: 'utf8' });
     ok('P : le PDF suit la nouvelle presentation (balance, resume, clients et ventes, part dans le CA, caisse, TVA)',
       /pdf/.test(pdf.type || '') && /BALANCE VENTE \/ CAISSE/.test(texte) && /CLIENTS ET VENTES/.test(texte) && /PART DANS LE CHIFFRE D'AFFAIRES/.test(texte)
       && /RÉPARTITION PAR TAUX DE TVA/.test(texte) && /COMPTANT\s+3\s+23 000/.test(texte) && /WAVE/.test(texte) && /Sorties\s+1\s+500/.test(texte),

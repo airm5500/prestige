@@ -129,7 +129,7 @@ const racine = () => fs.readdirSync(archives.DOSSIER).filter((f) => /E2E-PMJ|PRS
 
     /* journal */
     const j = journalAjoute();
-    const lignes = j.split('\n').filter(Boolean);
+    const lignes = j.split(/\r?\n/).filter(Boolean);
     fs.writeFileSync(SORTIE + '/journal-pharmaml-extrait.log', j);
     const format = lignes.every((l) => /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3} \| [A-Z]+ \| [^|]* \| [^|]+ \| .*$/.test(l));
     ok('Journal log/' + MOIS + '/pharmaml_' + JOUR + '.log : une ligne par événement, 5 champs', lignes.length >= 15 && format, lignes.length + ' lignes');

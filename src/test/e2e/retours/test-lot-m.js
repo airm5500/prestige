@@ -62,7 +62,7 @@ function semer() {
   // deux produits du meme grossiste, un troisieme d'un autre
   const l = q("SELECT f.lg_FAMILLE_ID, f.lg_GROSSISTE_ID FROM t_famille f JOIN t_grossiste g ON g.lg_GROSSISTE_ID=f.lg_GROSSISTE_ID"
     + " WHERE f.str_STATUT='enable' AND f.lg_FAMILLEARTICLE_ID IS NOT NULL AND f.bool_DECONDITIONNE=0"
-    + " GROUP BY f.lg_GROSSISTE_ID ORDER BY g.str_LIBELLE LIMIT 2").split('\n').filter(Boolean).map(x => x.split('\t'));
+    + " GROUP BY f.lg_GROSSISTE_ID ORDER BY g.str_LIBELLE LIMIT 2").split(/\r?\n/).filter(Boolean).map(x => x.split('\t'));
   if (l.length < 2) { return false; }
   const p2 = q("SELECT lg_FAMILLE_ID FROM t_famille WHERE str_STATUT='enable' AND lg_GROSSISTE_ID='" + l[0][1]
     + "' AND lg_FAMILLE_ID<>'" + l[0][0] + "' AND bool_DECONDITIONNE=0 LIMIT 1");
@@ -283,7 +283,7 @@ function semer() {
       popups.length === nbPopups + 1 && /commandes\/pdf/.test(popup ? popup.url() : ''), popup ? popup.url() : '');
     const pdf = await octets('../api/v1/gardes/' + gardeId + '/commandes/pdf');
     fs.writeFileSync(TMP + '/commandes.pdf', Buffer.from(pdf.octets));
-    const texte = execFileSync('pdftotext', ['-layout', TMP + '/commandes.pdf', '-'], { encoding: 'utf8' });
+    const texte = execFileSync('pdftotext', ['-enc', 'UTF-8', '-layout', TMP + '/commandes.pdf', '-'], { encoding: 'utf8' });
     ok('PDF des commandes : titre, garde, la ligne P0 commandee 3 / vendue 2, statut',
       /* titre et colonnes du 22/09 : stock, preparation, % prep. / % cmd, frequence */
       /pdf/.test(pdf.type || '') && /PRODUITS COMMANDÉS POUR LA GARDE/.test(texte) && /nuit test/.test(texte) && /\b3\s+2\s+[\d.,]+\s+[\d.,]+\s+[\d.,]+\s+Vendu/.test(texte),

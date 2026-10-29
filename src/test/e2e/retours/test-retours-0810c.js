@@ -16,7 +16,7 @@ const BASE = ENV_E2E.BASE;
 const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const SORTIE = process.env.SORTIE || ENV_E2E.TMP;
-const LOG = '/opt/payara5/glassfish/domains/domain1/logs/server.log';
+const LOG = ENV_E2E.JOURNAL_SERVEUR;
 const CMD = 'E2E-0810C-CMD', SUGG = 'E2E-0810C-SUG';
 let G, P;
 function nettoyer() {
@@ -97,13 +97,16 @@ function nettoyer() {
     ok('Statut de la suggestion en pastille à bords arrondis (« MANUELLE »), cellule non colorée', pastille && pastille.texte === 'MANUELLE' && pastille.rayon >= 8 && pastille.fond !== 'rgba(0, 0, 0, 0)', JSON.stringify(pastille));
     await p.evaluate((ref) => { const g = Ext.ComponentQuery.query('i_sugg_manager')[0]; g.onManageDetailsClick(g, g.getStore().findExact('str_REF', ref)); }, SUGG + '-REF');
     await p.waitForFunction(() => { const g = Ext.getCmp('gridpanelSuggestionID'); return g && g.isVisible() && !g.getStore().isLoading() && g.getStore().getCount() > 0; }, null, { timeout: 30000 });
-    await p.evaluate(() => { const g = Ext.getCmp('gridpanelSuggestionID'); g.getSelectionModel().select(0); });
-    await p.waitForFunction(() => /Date dern\. entrée/.test(Ext.getCmp('suggInfoBar').getEl().dom.textContent), null, { timeout: 20000 });
+    /* les infos s'affichent au clic sur une cellule de la ligne (cellclick), comme l'utilisateur */
+    const cellule = await p.evaluate(() => { const g = Ext.getCmp('gridpanelSuggestionID'); const col = g.columns.filter((c) => c.dataIndex === 'str_FAMILLE_NAME' && c.isVisible())[0] || g.columns.filter((c) => c.isVisible() && c.dataIndex)[0];
+      const td = g.getView().getCell(g.getStore().getAt(0), col); td.dom.id = td.dom.id || 'e2e-cellule-sugg'; return td.dom.id; });
+    await p.click('#' + cellule);
+    await p.waitForFunction(() => /Dern\.Entrée/.test(Ext.getCmp('suggInfoBar').getEl().dom.textContent), null, { timeout: 20000 });
     const barre = await p.evaluate(() => { const d = Ext.getCmp('suggInfoBar').getEl().dom; return { t: d.textContent, bulles: [...d.querySelectorAll('[data-qtip]')].map((x) => x.getAttribute('data-qtip')) }; });
-    ok('Barre d\'infos produit : libellés abrégés (Date dern. entrée, Fréq.achat, Qté entrée, Stock Res, VMH (MOY/4), Moy d\'achat 3mois)',
-      /Date dern\. entrée/.test(barre.t) && /Fréq\.achat \(\w+\)/.test(barre.t) && /Qté entrée \(\w+\)/.test(barre.t) && /Stock Res :/.test(barre.t) && /VMH \(MOY\/4\)/.test(barre.t)
+    ok('Barre d\'infos produit : libellés abrégés (Dern.Entrée depuis le 10/10, Fréq.achat, Qté entrée, Stock Res, VMH (MOY/4), Moy d\'achat 3mois)',
+      /Dern\.Entrée/.test(barre.t) && /Fréq\.achat \(\w+\)/.test(barre.t) && /Qté entrée \(\w+\)/.test(barre.t) && /Stock Res :/.test(barre.t) && /VMH \(MOY\/4\)/.test(barre.t)
       && /Moy d'achat 3mois/.test(barre.t) && !/Fréquence achat|Vente hebdo|Stock Reserve/.test(barre.t), barre.t);
-    ok('Libellés complets en info-bulle', barre.bulles.some((x) => /Date de la dernière entrée/.test(x)) && barre.bulles.some((x) => /Vente moyenne hebdomadaire/.test(x)), JSON.stringify(barre.bulles));
+    ok('Libellés complets en info-bulle', barre.bulles.some((x) => /Date de la dernière mise en stock/.test(x)) && barre.bulles.some((x) => /Vente moyenne hebdomadaire/.test(x)), JSON.stringify(barre.bulles));
     await p.screenshot({ path: SORTIE + '/suggestion-infos-abregees.png' });
     ok('Aucune erreur JavaScript', err.length === 0, err.join(' | '));
   } catch (e) {

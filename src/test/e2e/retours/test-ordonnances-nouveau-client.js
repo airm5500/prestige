@@ -89,7 +89,7 @@ const PRENOM = 'ESSAI' + Date.now().toString().slice(-5);
     ok('L ordonnance s enregistre sur le nouveau client, avec le prescripteur et l établissement créés', q("SELECT CONCAT_WS('|', COUNT(*), MAX(lg_MEDECIN_ID), MAX(str_ETABLISSEMENT)) FROM t_ordonnance_client WHERE lg_CLIENT_ID='" + enBase[0] + "'") === '1|' + med[0] + '|CLINIQUE ZZ ESSAI');
     ok('Aucune erreur JavaScript', err.length === 0, JSON.stringify(err));
   } catch (e) {
-    ok('Le parcours va au bout', false, e.message + ' ' + (e.stack || '').split('\n')[1]);
+    ok('Le parcours va au bout', false, e.message + ' ' + (e.stack || '').split(/\r?\n/)[1]);
   } finally {
     await b.close();
     const ids = q("SELECT GROUP_CONCAT(CONCAT(\"'\", lg_CLIENT_ID, \"'\")) FROM t_client WHERE str_FIRST_NAME='" + NOM + "'");

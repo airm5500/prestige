@@ -18,7 +18,7 @@ const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-charact
 const MARQUE = 'E2E-PASS';
 const droitPro = privilegeEssai(q, q, ENV_E2E.LOGIN, 'P_SM_ETIQUETAGE_PRO');
 const PANIER_AVANT = q("SELECT IFNULL(GROUP_CONCAT(CONCAT('''', lg_ETIQUETTE_ID, '''')), '''-''') FROM t_etiquette WHERE str_STATUT = 'is_Process'");
-const PROD = q("SELECT f.lg_FAMILLE_ID FROM t_famille f WHERE f.str_STATUT = 'enable' AND f.int_CIP REGEXP '^[0-9]{7}$' ORDER BY f.str_NAME LIMIT 2").split('\n');
+const PROD = q("SELECT f.lg_FAMILLE_ID FROM t_famille f WHERE f.str_STATUT = 'enable' AND f.int_CIP REGEXP '^[0-9]{7}$' ORDER BY f.str_NAME LIMIT 2").split(/\r?\n/);
 const BL = q("SELECT b.lg_BON_LIVRAISON_ID FROM t_bon_livraison b JOIN t_bon_livraison_detail d ON d.lg_BON_LIVRAISON_ID = b.lg_BON_LIVRAISON_ID"
   + " WHERE b.str_STATUT <> 'delete' GROUP BY b.lg_BON_LIVRAISON_ID HAVING SUM(d.int_QTE_RECUE) > 0 ORDER BY b.dt_DATE_LIVRAISON DESC LIMIT 1");
 const QTE_BL = q(`SELECT SUM(int_QTE_RECUE) FROM t_bon_livraison_detail WHERE lg_BON_LIVRAISON_ID = '${BL}'`);

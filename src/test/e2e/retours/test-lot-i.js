@@ -150,12 +150,12 @@ semerVentes();
     ok('L\'edition CA par famille aboutit', pdf.success === true && !!pdf.url, JSON.stringify(pdf).slice(0, 200));
     if (pdf.url) {
       const fichier = require('../support/editions').fichierEdition(pdf.url);
-      const texte = execSync('pdftotext -layout "' + fichier + '" -', { encoding: 'utf8' });
+      const texte = execSync('pdftotext -enc UTF-8 -layout "' + fichier + '" -', { encoding: 'utf8' });
       const evolutions = (texte.match(/[+-]\d+,\d %/g) || []);
       ok('Le PDF porte des evolutions « +x,x % » sous les montants', evolutions.length > 0, evolutions.join(' '));
       ok('L\'evolution de 2 000 a 3 000 y figure : +50,0 %', evolutions.includes('+50,0 %'), evolutions.join(' '));
       ok('Les tranches sans base de comparaison portent un tiret, et le tableau son TOTAL', /TOTAL/.test(texte) && / - /.test(texte),
-        texte.split('\n').filter(l => /E2E|TOTAL|%/.test(l)).join(' | ').slice(0, 300));
+        texte.split(/\r?\n/).filter(l => /E2E|TOTAL|%/.test(l)).join(' | ').slice(0, 300));
     }
 
     ok('Aucune erreur JavaScript', err.length === 0, err.join(' | '));

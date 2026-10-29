@@ -45,7 +45,7 @@ let compteAvant = '', typeAvant = '', depotAvant = '';
   const pdfTexte = async (url, nom) => {
     const r = await octets(url);
     fs.writeFileSync(TMP + '/' + nom, Buffer.from(r.octets));
-    return { type: r.type, texte: execFileSync('pdftotext', ['-layout', TMP + '/' + nom, '-'], { encoding: 'utf8' }) };
+    return { type: r.type, texte: execFileSync('pdftotext', ['-enc', 'UTF-8', '-layout', TMP + '/' + nom, '-'], { encoding: 'utf8' }) };
   };
   const cliquerOnglet = async (itemId) => {
     const id = await p.evaluate((i) => Ext.ComponentQuery.query('reglementdepot #' + i)[0].tab.getId(), itemId);

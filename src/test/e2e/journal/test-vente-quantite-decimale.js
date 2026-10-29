@@ -4,8 +4,8 @@
  * la grille acceptait le point, une quantite 1.5 partait au serveur, qui repondait « erreur interne » et ouvrait un
  * incident au Centre de support.
  * Parcours par les vues (admin, SERVICE CLIENT > Ventes > nouvelle vente, un article) :
- *  - clic sur la cellule QD de la ligne, « 1.5 » tape au clavier, Entree : la modification part en nombre entier, sans
- *    erreur serveur ni message d'echec ;
+ *  - clic sur la cellule QD de la ligne, « 1.5 » tape au clavier, Entree : refus avec un message clair (retours du
+ *    25/10, point 11), la quantite precedente est gardee, rien de decimal ne part au serveur, aucune erreur serveur ;
  *  - une quantite decimale envoyee malgre tout (autre poste, application) est refusee proprement (HTTP 400) avec le
  *    nom du champ, sans « erreur interne ».
  * La vente d'essai et le stock de l'article sont remis a la fin.
@@ -13,7 +13,7 @@
 const { chromium } = require('playwright-core');
 const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
-const { connexion, ouvrirMenu, cliquer, texteMessage } = require('../outils/vues');
+const { connexion, ouvrirMenu, cliquer, texteMessage, repondre } = require('../outils/vues');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
 const BASE = ENV_E2E.BASE;
@@ -69,8 +69,11 @@ function nettoyer() {
     await p.waitForTimeout(1500);
     const corps = modifs.map((m) => { try { return JSON.parse(m).qte; } catch (e) { return m; } });
     const message = await texteMessage(p);
-    ok('QD « 1.5 » tapé dans la grille : la modification part en nombre entier, sans erreur serveur ni message d\'échec',
-      corps.length > 0 && corps.every((x) => Number.isInteger(x)) && echecs.length === 0 && !/échoué|erreur/i.test(message), JSON.stringify(corps) + ' ' + echecs.join(',') + ' ' + message);
+    const qd = q("SELECT int_QUANTITY FROM t_preenregistrement_detail WHERE lg_PREENREGISTREMENT_ID = '" + vente + "' LIMIT 1");
+    ok('QD « 1.5 » tapé dans la grille : refus avec un message clair (25/10), quantité précédente gardée, rien de décimal envoyé',
+      corps.every((x) => Number.isInteger(x)) && echecs.length === 0 && /nombre entier/.test(message) && /conservée/.test(message) && qd === '1',
+      JSON.stringify(corps) + ' ' + echecs.join(',') + ' qd=' + qd + ' ' + message);
+    await repondre(p, 'ok').catch(() => {});
 
     const ligne = q("SELECT lg_PREENREGISTREMENT_DETAIL_ID FROM t_preenregistrement_detail WHERE lg_PREENREGISTREMENT_ID = '" + vente + "' LIMIT 1");
     const r = await p.evaluate(async (l) => { const x = await fetch('../api/v1/vente/update/item/vno', { method: 'POST', headers: { 'Content-Type': 'application/json' },

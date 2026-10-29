@@ -55,7 +55,7 @@ function semer() {
   GROSSISTE = q("SELECT lg_GROSSISTE_ID FROM t_grossiste WHERE str_STATUT='enable' LIMIT 1");
   q("SELECT f.lg_FAMILLE_ID FROM t_famille f WHERE f.str_STATUT='enable' AND f.lg_GROSSISTE_ID IS NOT NULL"
     + " AND f.bool_DECONDITIONNE=0 AND EXISTS (SELECT 1 FROM t_famille_stock s WHERE s.lg_FAMILLE_ID=f.lg_FAMILLE_ID AND s.str_STATUT='enable' AND s.lg_EMPLACEMENT_ID='1' AND s.int_NUMBER_AVAILABLE>0)"
-    + " ORDER BY f.str_NAME LIMIT 3").split('\n').filter(Boolean).forEach(id => PRODUITS.push(id.trim()));
+    + " ORDER BY f.str_NAME LIMIT 3").split(/\r?\n/).filter(Boolean).forEach(id => PRODUITS.push(id.trim()));
   purger();
   if (!KGA3 || !GROSSISTE || PRODUITS.length !== 3) { return false; }
   VENTES.forEach(v => {
@@ -170,7 +170,7 @@ function semer() {
     await p.waitForFunction(() => Ext.MessageBox.isVisible() && !/patienter/i.test(Ext.MessageBox.msg.el.dom.innerText), null, { timeout: 20000 });
     const reponse = await p.evaluate(() => Ext.MessageBox.msg.el.dom.innerText);
     await p.click('#' + await p.evaluate(() => Ext.MessageBox.msgButtons.ok.getId()));
-    const sugg = q("SELECT CONCAT(o.str_COMMENTAIRE, '|', d.lg_FAMILLE_ID, '|', d.int_NUMBER) FROM t_suggestion_order o JOIN t_suggestion_order_details d ON d.lg_SUGGESTION_ORDER_ID=o.lg_SUGGESTION_ORDER_ID WHERE o.str_COMMENTAIRE LIKE 'Suggestion de garde - " + MARQUE + "%' AND o.dt_CREATED >= '" + DEBUT_TEST + "'").split('\n').filter(Boolean);
+    const sugg = q("SELECT CONCAT(o.str_COMMENTAIRE, '|', d.lg_FAMILLE_ID, '|', d.int_NUMBER) FROM t_suggestion_order o JOIN t_suggestion_order_details d ON d.lg_SUGGESTION_ORDER_ID=o.lg_SUGGESTION_ORDER_ID WHERE o.str_COMMENTAIRE LIKE 'Suggestion de garde - " + MARQUE + "%' AND o.dt_CREATED >= '" + DEBUT_TEST + "'").split(/\r?\n/).filter(Boolean);
     ok('« Suggérer » sur le filtre « non vendus » demande confirmation pour 1 produit puis crée la suggestion', /1 produit\(s\) affich/.test(question) && /suggestion/.test(reponse), question.slice(0, 80) + ' / ' + reponse.slice(0, 80));
     ok('La suggestion porte P2 avec 7 unités (préparé 3 + commandé 4, faute de vente) et le commentaire « Suggestion de garde - ... (du ... au ...) »',
       sugg.length === 1 && sugg[0].indexOf('|' + PRODUITS[2] + '|7') > 0 && /^Suggestion de garde - E2E-G21 nuit \(du 05\/09\/2031 20h00 au 06\/09\/2031 08h00\)\|/.test(sugg[0]), JSON.stringify(sugg));
@@ -197,7 +197,7 @@ function semer() {
     const fs = require('fs'); const os = require('os');
     const octets = await p.evaluate(async (id) => { const r = await fetch('../api/v1/gardes/' + id + '/commandes/pdf?joursPrep=3', { credentials: 'same-origin' }); return Array.from(new Uint8Array(await r.arrayBuffer())); }, idGarde);
     const tmp = os.tmpdir() + '/garde_cmd_' + Date.now() + '.pdf'; fs.writeFileSync(tmp, Buffer.from(octets));
-    const texte = execFileSync('pdftotext', ['-layout', tmp, '-'], { encoding: 'utf8' });
+    const texte = execFileSync('pdftotext', ['-enc', 'UTF-8', '-layout', tmp, '-'], { encoding: 'utf8' });
     ok('Le PDF porte les colonnes de préparation, de stock et de fréquence', /Qté prép\./.test(texte) && /Stock/.test(texte) && /Fréq\.\/jour/.test(texte) && /% prép\./.test(texte), texte.replace(/\s+/g, ' ').slice(0, 300));
 
     /* ------------------------------------------------------------ comparaison en barres */
@@ -240,7 +240,7 @@ function semer() {
     ok('Aucune erreur JavaScript', err.length === 0, JSON.stringify(err));
   } catch (e) {
     let url = ''; try { url = p.url(); } catch (x) { url = '?'; }
-    ok('Le parcours va au bout', false, e.message + ' ' + (e.stack || '').split('\n')[1] + ' | page : ' + url);
+    ok('Le parcours va au bout', false, e.message + ' ' + (e.stack || '').split(/\r?\n/)[1] + ' | page : ' + url);
   } finally {
     await b.close();
     purger();

@@ -119,7 +119,7 @@ function nettoyer() {
     const [dl] = await Promise.all([p.waitForEvent('download', { timeout: 60000 }), p.click('[data-e2e=xls]')]);
     const chemin = await dl.path();
     const xls = execFileSync('python3', ['-c', "import sys,xlrd;s=xlrd.open_workbook(sys.argv[1]).sheet_by_index(0);print('\\n'.join('\\t'.join(str(c.value) for c in s.row(r)) for r in range(s.nrows)))", chemin], { encoding: 'utf8' });
-    const lignesXls = xls.split('\n');
+    const lignesXls = xls.split(/\r?\n/);
     const entXls = lignesXls.find((l) => l.indexOf('Reference') === 0) || '';
     ok('Export Excel : « Différé » et « Poste de saisie » en en-tête', /\tDifféré\t/.test(entXls) && /\tPoste de saisie$/.test(entXls), entXls);
     const l1 = lignesXls.find((l) => l.indexOf(ref1 + '\t') === 0) || '';

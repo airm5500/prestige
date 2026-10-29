@@ -46,7 +46,7 @@ function purger() {
 function semer() {
   KGA3 = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='" + (ENV_E2E.LOGIN) + "'");
   PRODUITS = q("SELECT f.lg_FAMILLE_ID FROM t_famille f JOIN t_famille_stock s ON s.lg_FAMILLE_ID=f.lg_FAMILLE_ID AND s.lg_EMPLACEMENT_ID='1'"
-    + " WHERE f.str_STATUT='enable' AND f.bool_DECONDITIONNE=0 ORDER BY f.str_NAME LIMIT 5").split('\n').filter(Boolean).map(x => x.trim());
+    + " WHERE f.str_STATUT='enable' AND f.bool_DECONDITIONNE=0 ORDER BY f.str_NAME LIMIT 5").split(/\r?\n/).filter(Boolean).map(x => x.trim());
   if (!KGA3 || PRODUITS.length !== 5) { return false; }
   STOCKS_AVANT = PRODUITS.map(id => q("SELECT int_NUMBER_AVAILABLE FROM t_famille_stock WHERE lg_FAMILLE_ID='" + id + "' AND lg_EMPLACEMENT_ID='1' LIMIT 1"));
   purger();
@@ -161,7 +161,7 @@ function semer() {
     ok('Excel paires : les deux produits, les tickets ensemble et les parts', xlsP.statut === 200 && /ACHETÉS ENSEMBLE/.test(cellulesP) && /Tickets ensemble/.test(cellulesP) && /\|3\.0\|/.test(cellulesP), cellulesP.slice(0, 300));
     const pdf = await octets('../api/v1/analyse-article/matrice/pdf?' + PERIODE);
     fs.writeFileSync(TMP + '/matrice.pdf', Buffer.from(pdf.octets));
-    const texte = execFileSync('pdftotext', ['-layout', TMP + '/matrice.pdf', '-'], { encoding: 'utf8' });
+    const texte = execFileSync('pdftotext', ['-enc', 'UTF-8', '-layout', TMP + '/matrice.pdf', '-'], { encoding: 'utf8' });
     ok('PDF matrice : rendu en flux, resume des quadrants avec decisions, liste avec quadrant, ABC et total',
       pdf.statut === 200 && /application\/pdf/.test(pdf.type || '') && /MARGE × ROTATION/.test(texte) && /Champions : 2 produit/.test(texte)
       && /conseil actif/.test(texte) && /TOTAL : 5 produit/.test(texte), texte.replace(/\n/g, ' | ').slice(0, 400));

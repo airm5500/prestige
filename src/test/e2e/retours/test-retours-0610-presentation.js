@@ -75,13 +75,13 @@ const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-charact
       ok('Articles vendus : aucune vente sur 120 jours dans cette base (fenêtre non vérifiée)', true);
     }
 
-    // 3. Fenetre ouverte hors des ecrans concernes : dessin d'origine
+    // 3. Fenetre ouverte depuis un autre ecran : nouveau dessin aussi (retour du 07/10, THEME_PARTOUT : « tous les pop-up »)
     await p.evaluate(() => testextjs.app.getController('App').onLoadNewComponent('grossistemanager', 'Grossistes', ''));
     await p.waitForTimeout(3000);
     await p.evaluate(() => { Ext.create('Ext.window.Window', { title: 'E2E hors liste', width: 300, height: 150, items: [{ xtype: 'fieldset', title: 'x' }] }).show(); });
     await p.waitForTimeout(800);
     const hors = (await fenetres()).filter((x) => x.t === 'E2E hors liste');
-    ok('Fenêtre ouverte depuis un autre écran : dessin d\'origine conservé', hors.length === 1 && !hors[0].fen, JSON.stringify(hors));
+    ok('Fenêtre ouverte depuis un autre écran : nouveau dessin aussi (retour du 07/10)', hors.length === 1 && hors[0].fen, JSON.stringify(hors));
     await fermer();
 
     // 4. Suggestion
@@ -130,7 +130,7 @@ const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-charact
     ok('Aucune réponse en erreur (4xx/5xx)', http.length === 0, JSON.stringify(http));
     ok('Aucune erreur JavaScript', err.length === 0, JSON.stringify(err));
   } catch (e) {
-    ok('Déroulé sans exception', false, (e.stack || '').split('\n').filter((l) => /test-retours|Error/.test(l)).join(' | '));
+    ok('Déroulé sans exception', false, (e.stack || '').split(/\r?\n/).filter((l) => /test-retours|Error/.test(l)).join(' | '));
   } finally {
     await b.close();
     if (S) ok('Suggestion utilisée inchangée en base', etatSugg() === avantSugg, avantSugg + ' / ' + etatSugg());

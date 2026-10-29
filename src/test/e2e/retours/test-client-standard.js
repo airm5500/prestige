@@ -38,7 +38,7 @@ function nettoyer() {
   const b = await ENV_E2E.lancer(chromium);
   const ctx = await b.newContext({ viewport: { width: 1600, height: 950 } });
   const p = await ctx.newPage();
-  const err = []; p.on('pageerror', (e) => { err.push(String(e.message)); if (process.env.TRACE) { console.log('>>> PAGEERROR', e.message, '\n', (e.stack||'').split('\n').slice(0,8).join('\n')); } });
+  const err = []; p.on('pageerror', (e) => { err.push(String(e.message)); if (process.env.TRACE) { console.log('>>> PAGEERROR', e.message, '\n', (e.stack||'').split(/\r?\n/).slice(0,8).join('\n')); } });
   try {
     await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
     await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');

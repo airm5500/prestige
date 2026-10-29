@@ -187,11 +187,11 @@ let serveur = null;
     const oui = await p.evaluate(() => { const box = Ext.ComponentQuery.query('messagebox{isVisible()}')[0]; const btn = box && box.query('button{isVisible()}').find((x) => /oui|yes/i.test(x.text || x.itemId || '')); return btn ? '#' + btn.el.dom.id : null; });
     await p.click(oui); await p.waitForTimeout(1500);
     ok('« Écarter ce scan » : le scan quitte la file (il reste tracé)', q("SELECT str_STATUT FROM t_ordonnance_scan WHERE lg_SCAN_ID='" + scans[1] + "'") === 'ecarte');
-    const logs = execFileSync('bash', ['-c', 'tail -n 400 /opt/payara5/glassfish/domains/domain1/logs/server.log']).toString();
+    const logs = execFileSync('bash', ['-c', 'tail -n 400 "' + ENV_E2E.JOURNAL_SERVEUR + '"']).toString();
     ok('Journaux : ni le jeton, ni le document, ni le nom du patient', logs.indexOf('jeton-test') < 0 && logs.indexOf('Koffi') < 0 && logs.indexOf(NOM + ' Koffi') < 0);
     ok('Aucune erreur JavaScript', err.length === 0, JSON.stringify(err));
   } catch (e) {
-    ok('Le parcours va au bout', false, e.message + ' ' + (e.stack || '').split('\n')[1]);
+    ok('Le parcours va au bout', false, e.message + ' ' + (e.stack || '').split(/\r?\n/)[1]);
   } finally {
     if (confOrigine !== null) { fs.writeFileSync(CONF, confOrigine); }
     if (serveur) { serveur.close(); }

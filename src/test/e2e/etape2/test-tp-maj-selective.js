@@ -59,7 +59,7 @@ function etat(id) {
 
 function semer() {
   q("SELECT lg_TIERS_PAYANT_ID FROM t_tiers_payant WHERE str_STATUT='enable' ORDER BY str_FULLNAME LIMIT 3")
-    .split('\n').filter(Boolean).forEach(id => { TP.push(id.trim()); AVANT[id.trim()] = etat(id.trim()); });
+    .split(/\r?\n/).filter(Boolean).forEach(id => { TP.push(id.trim()); AVANT[id.trim()] = etat(id.trim()); });
   return TP.length === 3;
 }
 function restaurer() {

@@ -14,7 +14,8 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
 const BASE = ENV_E2E.BASE;
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 /* banc : E2E_LOGIN, sinon KGA3 s'il existe, sinon admin (mot de passe e2etest) */
-const LOGIN = process.env.E2E_LOGIN || (q("SELECT COUNT(*) FROM t_user WHERE str_LOGIN='KGA3'") === '1' ? 'KGA3' : ENV_E2E.LOGIN);
+/* poste local : KGA3 y est un vrai compte de l'officine, le test prend son compte d'essai */
+const LOGIN = process.env.E2E_LOGIN || (!ENV_E2E.WINDOWS && q("SELECT COUNT(*) FROM t_user WHERE str_LOGIN='KGA3'") === '1' ? 'KGA3' : ENV_E2E.LOGIN);
 const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, BASE, '-e', s], { encoding: 'utf8' });
 const MARQUE = 'E2E-LOT-G';
 let tpDepot = null;

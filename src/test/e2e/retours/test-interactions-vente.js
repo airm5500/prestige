@@ -21,7 +21,7 @@ CLES.forEach((k) => { avant[k] = q("SELECT IFNULL(MAX(str_VALUE), '') FROM t_par
 const param = (k, v) => exec("UPDATE t_parameters SET str_VALUE = '" + v + "' WHERE str_KEY = '" + k + "'");
 const [A, B] = q("SELECT CONCAT(f.lg_FAMILLE_ID, '|', f.int_CIP, '|', TRIM(f.str_NAME)) FROM t_famille f JOIN t_famille_stock s ON s.lg_FAMILLE_ID = f.lg_FAMILLE_ID AND s.lg_EMPLACEMENT_ID = '1'"
   + " WHERE f.str_STATUT = 'enable' AND s.int_NUMBER_AVAILABLE > 5 AND COALESCE(f.bool_DECONDITIONNE, 0) = 0 AND f.int_CIP REGEXP '^[0-9]{7}$'"
-  + " AND (SELECT COUNT(*) FROM t_famille x WHERE x.int_CIP = f.int_CIP) = 1 ORDER BY f.str_NAME LIMIT 2 OFFSET 20").split('\n').map((l) => l.split('|'));
+  + " AND (SELECT COUNT(*) FROM t_famille x WHERE x.int_CIP = f.int_CIP) = 1 ORDER BY f.str_NAME LIMIT 2 OFFSET 20").split(/\r?\n/).map((l) => l.split('|'));
 let venteId = null;
 function nettoyer() {
   if (venteId) {

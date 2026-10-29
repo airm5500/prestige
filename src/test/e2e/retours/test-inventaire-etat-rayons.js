@@ -24,7 +24,7 @@ const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-char
   const INV = q("SELECT i.lg_INVENTAIRE_ID FROM t_inventaire i JOIN t_inventaire_famille f ON f.lg_INVENTAIRE_ID = i.lg_INVENTAIRE_ID"
     + " WHERE i.str_STATUT <> 'is_Closed' GROUP BY i.lg_INVENTAIRE_ID ORDER BY COUNT(*) DESC LIMIT 1");
   const lignes = q("SELECT CONCAT_WS('|', lg_INVENTAIRE_FAMILLE_ID, int_NUMBER, IFNULL(dt_UPDATED, 'NULL'), IFNULL(str_UPDATED_ID, 'NULL'))"
-    + " FROM t_inventaire_famille WHERE lg_INVENTAIRE_ID = '" + INV + "' AND bool_INVENTAIRE = 1 ORDER BY lg_INVENTAIRE_FAMILLE_ID LIMIT 3").split('\n').map((l) => l.split('|'));
+    + " FROM t_inventaire_famille WHERE lg_INVENTAIRE_ID = '" + INV + "' AND bool_INVENTAIRE = 1 ORDER BY lg_INVENTAIRE_FAMILLE_ID LIMIT 3").split(/\r?\n/).map((l) => l.split('|'));
   ok('Jeu d\'essai : un inventaire ouvert du banc, trois lignes à saisir', !!INV && lignes.length === 3, INV);
   const b = await ENV_E2E.lancer(chromium);
   const p = await b.newPage({ viewport: { width: 1400, height: 900 } });

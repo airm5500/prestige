@@ -27,7 +27,7 @@ const ecriture = (req) => {
     .test(u.replace(/[?].*$/, '') + (u.includes('mode=') ? u.replace(/^[^?]*/, '') : ''));
 };
 const ECRANS = q("SELECT m.str_DESCRIPTION, s.str_DESCRIPTION, s.str_COMPOSANT FROM t_sous_menu s JOIN t_menu m ON m.lg_MENU_ID = s.lg_MENU_ID"
-  + " WHERE s.str_Status = 'enable' AND m.str_Status = 'enable' ORDER BY m.int_PRIORITY, m.str_DESCRIPTION, s.int_PRIORITY").split('\n').map((l) => l.split('\t'));
+  + " WHERE s.str_Status = 'enable' AND m.str_Status = 'enable' ORDER BY m.int_PRIORITY, m.str_DESCRIPTION, s.int_PRIORITY").split(/\r?\n/).map((l) => l.split('\t'));
 
 (async () => {
   const b = await ENV_E2E.lancer(chromium);
@@ -79,7 +79,7 @@ const ECRANS = q("SELECT m.str_DESCRIPTION, s.str_DESCRIPTION, s.str_COMPOSANT F
       /* fenetres et messages laisses ouverts : fermes pour l'ecran suivant */
       await p.evaluate(() => { Ext.ComponentQuery.query('messagebox{isVisible()}').forEach((m) => m.hide()); Ext.ComponentQuery.query('window{isVisible()}').forEach((w) => { if (w.xtype !== 'messagebox') { w.close(); } }); }).catch(() => {});
     } catch (e) {
-      courant.js.push('parcours : ' + String(e.message).split('\n')[0].slice(0, 160));
+      courant.js.push('parcours : ' + String(e.message).split(/\r?\n/)[0].slice(0, 160));
     }
     const pb = [];
     if (courant.introuvable) {

@@ -114,7 +114,7 @@ const JETON = 'E2E-VEILLE-' + Date.now();
     ok('Jeton affiché une fois, aléatoire (43 caractères), avec la marche à suivre', /^[A-Za-z0-9_-]{43}$/.test(nouveau) && /Prestige Veille > Réglages > « Jeton de veille »/.test(await p.evaluate(() => document.getElementById('srvJetonVeille').parentNode.textContent)), nouveau.length);
     const nv = await appel(nouveau), ancien = await appel(JETON);
     ok('Le nouveau jeton ouvre la veille, l\'ancien est refusé', nv.status === 200 && ancien.status === 403, nv.status + ' ' + ancien.status);
-    const log = execFileSync('sh', ['-c', 'tail -c 2000000 /opt/payara5/glassfish/domains/domain1/logs/server.log'], { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 });
+    const log = execFileSync('sh', ['-c', 'tail -c 2000000 "' + ENV_E2E.JOURNAL_SERVEUR + '"'], { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 });
     ok('Jeton absent du journal du serveur (seul l\'auteur est noté)', log.indexOf(nouveau) < 0 && /Jeton de Prestige Veille renouvele par admin/.test(log));
     ok('Aucune fenêtre, aucune erreur JavaScript', dialogues.length === 0 && err.length === 0, dialogues.concat(err).join(' | '));
   } catch (e) {

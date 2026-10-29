@@ -51,7 +51,7 @@ function nettoyer() {
 (async () => {
   nettoyer();
   /* lignes d'avant (statuts) : remises a la fin, les nouvelles lignes des vrais clients retirees */
-  const avant = q("SELECT CONCAT(id, '|', str_STATUT, '|', COALESCE(dt_TRAITE,'')) FROM t_rappel_habitude").split('\n').filter(Boolean);
+  const avant = q("SELECT CONCAT(id, '|', str_STATUT, '|', COALESCE(dt_TRAITE,'')) FROM t_rappel_habitude").split(/\r?\n/).filter(Boolean);
   const notifAvant = q("SELECT COALESCE(MAX(created_at), '2000-01-01') FROM notification");
   exec("INSERT INTO t_client (lg_CLIENT_ID, str_FIRST_NAME, str_LAST_NAME, lg_TYPE_CLIENT_ID, str_ADRESSE, dt_CREATED, dt_UPDATED, str_STATUT)"
     + " VALUES ('" + A + "', 'ZZHABITUDE', 'AWA', '1', '0707070707', NOW(), NOW(), 'enable'),"
@@ -98,7 +98,7 @@ function nettoyer() {
     await p.evaluate((j) => { Ext.ComponentQuery.query('rappelshabitude')[0].jourForce = j; }, JOUR);
     await clic('rappelshabitude #btnActualiser', 1000);
     await p.waitForFunction(() => /liste actualisée/.test(Ext.ComponentQuery.query('rappelshabitude #resume')[0].el.dom.textContent), null, { timeout: 120000 });
-    const lignesA = q("SELECT CONCAT(lg_FAMILLE_ID, '|', dt_DERNIER_ACHAT, '|', dt_PREVU, '|', int_FREQUENCE, '|', int_ACHATS, '|', str_STATUT) FROM t_rappel_habitude WHERE lg_CLIENT_ID = '" + A + "'").split('\n').filter(Boolean);
+    const lignesA = q("SELECT CONCAT(lg_FAMILLE_ID, '|', dt_DERNIER_ACHAT, '|', dt_PREVU, '|', int_FREQUENCE, '|', int_ACHATS, '|', str_STATUT) FROM t_rappel_habitude WHERE lg_CLIENT_ID = '" + A + "'").split(/\r?\n/).filter(Boolean);
     ok('Achat tous les 30 jours (3 achats) : inscrit, prévu le 11/08 (dernier achat + 30), à préparer', lignesA.length === 1
       && lignesA[0] === P1 + '|2026-07-12|2026-08-11|30|3|A_PREPARER', JSON.stringify(lignesA));
     ok('Achats irréguliers : non retenus', !lignesA.some((l) => l.startsWith(P2 + '|')));

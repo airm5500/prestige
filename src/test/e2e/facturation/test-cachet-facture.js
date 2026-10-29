@@ -81,8 +81,8 @@ const DROIT_AJOUTE = 'E2E-CACHET-DROIT';
     const facture = async () => {
       const b64 = await p.evaluate(async (u) => { const r = await fetch(u); return btoa(String.fromCharCode(...new Uint8Array(await r.arrayBuffer()))); }, API + 'pdf/' + FACTURE);
       const f = path.join(dir, 'f.pdf'); fs.writeFileSync(f, Buffer.from(b64, 'base64'));
-      const texte = execFileSync('pdftotext', [f, '-'], { encoding: 'utf8' });
-      const images = execFileSync('pdfimages', ['-list', f], { encoding: 'utf8' }).split('\n').slice(2).filter(Boolean).map((l) => l.trim().split(/\s+/).slice(3, 5).join('x'));
+      const texte = execFileSync('pdftotext', ['-enc', 'UTF-8', f, '-'], { encoding: 'utf8' });
+      const images = execFileSync('pdfimages', ['-list', f], { encoding: 'utf8' }).split(/\r?\n/).slice(2).filter(Boolean).map((l) => l.trim().split(/\s+/).slice(3, 5).join('x'));
       return { texte, images };
     };
     let f = await facture();

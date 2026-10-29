@@ -47,7 +47,7 @@ function retirer() {
 }
 /* Le texte d'une section du PDF, jusqu'a la section suivante. */
 function section(texte, titre) {
-  const lignes = texte.split('\n');
+  const lignes = texte.split(/\r?\n/);
   const debut = lignes.findIndex(l => l.includes(titre));
   if (debut < 0) { return []; }
   const suite = [];
@@ -109,7 +109,7 @@ function section(texte, titre) {
     const pdfSimple = await p.evaluate(async (id) => { const r = await fetch('../api/v1/analyse-inventaire-pdf?inventaireId=' + id + '&inventaireName=E2E&filterType=all'); const b = await r.arrayBuffer(); return { statut: r.status, type: r.headers.get('content-type'), dispo: r.headers.get('content-disposition'), octets: Array.from(new Uint8Array(b)) }; }, ID);
     fs.writeFileSync(TMP + '/analyse-simple.pdf', Buffer.from(pdfSimple.octets));
     ok('Edition simple : PDF servi en flux dans l onglet (inline)', pdfSimple.statut === 200 && /application\/pdf/.test(pdfSimple.type || '') && /inline/.test(pdfSimple.dispo || ''), pdfSimple.statut + ' ' + pdfSimple.type + ' ' + pdfSimple.dispo);
-    const texte = execSync('pdftotext -layout ' + TMP + '/analyse-simple.pdf -', { encoding: 'utf8' });
+    const texte = execSync('pdftotext -enc UTF-8 -layout ' + TMP + '/analyse-simple.pdf -', { encoding: 'utf8' });
     const officine = q("SELECT str_NOM_ABREGE FROM t_officine LIMIT 1");
     ok('Edition simple : en-tete de la pharmacie', texte.includes(officine) && /Imprimé le .* par /.test(texte), officine);
     ok('Edition simple : nombre de produits, produits touches et taux', /Nombre total d'articles\s+\d/.test(texte) && /Articles en écart\s+[\d ]+/.test(texte) && /Taux d'articles en écart\s+[\d,]+ %/.test(texte), (texte.match(/Nombre total d'articles.*/) || [''])[0]);
@@ -191,7 +191,7 @@ function section(texte, titre) {
     const pdfSynth = await p.evaluate(async (u) => { const r = await fetch(u); const b = await r.arrayBuffer(); return { statut: r.status, type: r.headers.get('content-type'), dispo: r.headers.get('content-disposition'), octets: Array.from(new Uint8Array(b)) }; }, urlPdf);
     fs.writeFileSync(TMP + '/analyse-synthese.pdf', Buffer.from(pdfSynth.octets));
     ok('Edition de la synthese : un clic ouvre le PDF en flux', /analyse-inventaire-avancee-pdf\?inventaireId=/.test(urlPdf) && pdfSynth.statut === 200 && /application\/pdf/.test(pdfSynth.type || '') && /inline/.test(pdfSynth.dispo || ''), urlPdf + ' ' + pdfSynth.type);
-    const texteSynth = execSync('pdftotext -layout ' + TMP + '/analyse-synthese.pdf -', { encoding: 'utf8' });
+    const texteSynth = execSync('pdftotext -enc UTF-8 -layout ' + TMP + '/analyse-synthese.pdf -', { encoding: 'utf8' });
     ok('Edition de la synthese : les memes sections que l onglet', /SYNTHÈSE ET RECOMMANDATIONS/.test(texteSynth) && /RÉCAPITULATIF GLOBAL/.test(texteSynth) && /POINTS DE VIGILANCE PAR EMPLACEMENT/.test(texteSynth) && /ÉCARTS POSITIFS À VÉRIFIER/.test(texteSynth) && /ARTICLES LES PLUS CRITIQUES/.test(texteSynth) && /RECOMMANDATIONS/.test(texteSynth), texteSynth.slice(0, 120).replace(/\n/g, ' | '));
     ok('Edition de la synthese : chiffres achat et vente, et recommandations numerotees', /Valeur machine \/ théorique\s+[\d ]+CFA\s+[\d ]+CFA/.test(texteSynth) && /1\. Audit ciblé sur /.test(texteSynth) && texteSynth.includes(officine), (texteSynth.match(/1\. Audit ciblé sur .{0,40}/) || [''])[0]);
     ok('Aucune erreur JavaScript', err.length === 0, err.join(' | '));

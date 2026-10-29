@@ -8,7 +8,7 @@ const fs = require('fs'), os = require('os'), path = require('path');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 300) + ']' : '')); }
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', ENV_E2E.BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
-const RAYONS = q("SELECT f.lg_ZONE_GEO_ID FROM t_famille f WHERE f.str_STATUT = 'enable' AND f.lg_ZONE_GEO_ID IS NOT NULL AND f.lg_ZONE_GEO_ID <> '1' GROUP BY 1 ORDER BY COUNT(*) DESC LIMIT 2").split('\n');
+const RAYONS = q("SELECT f.lg_ZONE_GEO_ID FROM t_famille f WHERE f.str_STATUT = 'enable' AND f.lg_ZONE_GEO_ID IS NOT NULL AND f.lg_ZONE_GEO_ID <> '1' GROUP BY 1 ORDER BY COUNT(*) DESC LIMIT 2").split(/\r?\n/);
 const NOMS = RAYONS.map((r) => q("SELECT str_LIBELLEE FROM t_zone_geographique WHERE lg_ZONE_GEO_ID = '" + r + "'"));
 
 (async () => {
@@ -37,7 +37,7 @@ const NOMS = RAYONS.map((r) => q("SELECT str_LIBELLEE FROM t_zone_geographique W
       new URLSearchParams({ lg_ZONE_GEO_ID: RAYONS.join(',') }).toString());
     let texte = '';
     if (/pdf/.test(pdf.ct || '')) { const f = path.join(os.tmpdir(), 'etat-' + Date.now() + '.pdf'); fs.writeFileSync(f, Buffer.from(pdf.b));
-      texte = execFileSync('pdftotext', ['-layout', f, '-'], { encoding: 'utf8' }).replace(/\s+/g, ' '); fs.unlinkSync(f); }
+      texte = execFileSync('pdftotext', ['-enc', 'UTF-8', '-layout', f, '-'], { encoding: 'utf8' }).replace(/\s+/g, ' '); fs.unlinkSync(f); }
     ok('Impression avec réserve : les noms des 2 rayons cochés', NOMS.every((n) => texte.indexOf(n.replace(/\s+/g, ' ')) >= 0) && RAYONS.every((r) => texte.indexOf(r) < 0),
       NOMS.join(' / ') + ' :: ' + texte.slice(0, 260));
     ok('Aucune erreur JavaScript', err.length === 0, err.join(' | '));

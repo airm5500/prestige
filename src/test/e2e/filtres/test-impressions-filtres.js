@@ -9,7 +9,7 @@ const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 300) + ']' : '')); }
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', ENV_E2E.BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const R = q("SELECT f.lg_ZONE_GEO_ID FROM t_famille f JOIN t_famille_stock s ON s.lg_FAMILLE_ID = f.lg_FAMILLE_ID AND s.lg_EMPLACEMENT_ID = '1'"
-  + " WHERE f.str_STATUT = 'enable' AND f.lg_ZONE_GEO_ID IS NOT NULL AND f.lg_ZONE_GEO_ID NOT IN ('', '1') GROUP BY 1 ORDER BY COUNT(*) DESC LIMIT 2").split('\n');
+  + " WHERE f.str_STATUT = 'enable' AND f.lg_ZONE_GEO_ID IS NOT NULL AND f.lg_ZONE_GEO_ID NOT IN ('', '1') GROUP BY 1 ORDER BY COUNT(*) DESC LIMIT 2").split(/\r?\n/);
 const NOMS = R.map((r) => q("SELECT str_LIBELLEE FROM t_zone_geographique WHERE lg_ZONE_GEO_ID = '" + r + "'").replace(/\s+/g, ' '));
 const L = encodeURIComponent(R.join(','));
 const D = 'dtStart=2026-08-01&dtEnd=2026-10-06';
@@ -73,7 +73,7 @@ function retirerModeles() {
         if (r.pdf) { fichier = path.join(os.tmpdir(), 'imp-' + Date.now() + '.pdf'); fs.writeFileSync(fichier, Buffer.from(r.pdf)); }
         else { let j = null; try { j = JSON.parse(r.texte); } catch (e) {} const lien = (j && (j.msg || j.url)) || (/\/data\/reports\//.test(r.url) ? r.url : null);
           if (lien && /\.pdf/.test(lien)) { fichier = fichierEdition(lien); } }
-        const texte = fichier && fs.existsSync(fichier) ? execFileSync('pdftotext', ['-layout', fichier, '-'], { encoding: 'utf8' }).replace(/\s+/g, ' ') : '';
+        const texte = fichier && fs.existsSync(fichier) ? execFileSync('pdftotext', ['-enc', 'UTF-8', '-layout', fichier, '-'], { encoding: 'utf8' }).replace(/\s+/g, ' ') : '';
         ok(nom + ' : noms des 2 rayons dans l\'impression, sans identifiant', texte && NOMS.every((n) => texte.indexOf(n) >= 0) && R.every((id) => texte.indexOf(id) < 0),
           texte ? texte.slice(0, 220) : (r.s + ' ' + r.ct + ' ' + r.url + ' ' + r.texte.slice(0, 160)));
       } catch (e) {

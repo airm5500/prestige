@@ -33,7 +33,7 @@ function purger() {
   const produits = q("SELECT f.lg_FAMILLE_ID, f.int_PRICE FROM t_famille f JOIN t_famille_stock s"
     + " ON s.lg_FAMILLE_ID=f.lg_FAMILLE_ID AND s.lg_EMPLACEMENT_ID='1'"
     + " WHERE s.int_NUMBER_AVAILABLE>10 AND f.int_PRICE>0 AND f.str_STATUT='enable' LIMIT 2")
-    .split('\n').map(l => l.split('\t'));
+    .split(/\r?\n/).map(l => l.split('\t'));
   const user = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='" + (ENV_E2E.LOGIN) + "'");
   ok('deux produits en stock', produits.length === 2, JSON.stringify(produits));
 

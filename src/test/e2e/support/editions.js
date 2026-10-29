@@ -6,7 +6,10 @@ const path = require('path');
 
 /* Linux (banc), puis Windows (postes des officines : C:, D: ou F:\CONF\LABOREX\REPORTS, sous-dossier pdf ou non) */
 const DOSSIERS = ['/opt/CONF/LABOREX/REPORTS/pdf', '/opt/CONF/LABOREX/REPORTS', '/opt/CONF/reports/pdf']
-  .concat(...['C', 'D', 'F'].map((l) => [l + ':\\CONF\\LABOREX\\REPORTS\\pdf', l + ':\\CONF\\LABOREX\\REPORTS']));
+  .concat(...['C', 'D', 'F'].map((l) => [l + ':\\CONF\\LABOREX\\REPORTS\\pdf', l + ':\\CONF\\LABOREX\\REPORTS']))
+  /* poste local : Prestige ecrit dans data/reports/pdf de l'application deployee (cree au demarrage) */
+  .concat(...['C', 'D'].map((l) => [l + ':\\payara5\\payara5\\glassfish\\domains\\domain1\\applications\\prestige\\data\\reports\\pdf',
+    l + ':\\payara5\\glassfish\\domains\\domain1\\applications\\prestige\\data\\reports\\pdf']));
 
 /** Chemin du fichier designe par l'URL (ou le nom) d'une edition ; le premier candidat s'il n'existe nulle part. */
 function fichierEdition(url) {

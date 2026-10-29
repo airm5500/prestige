@@ -83,7 +83,7 @@ const url = (u) => exec("UPDATE t_grossiste SET str_URL_PHARMAML = " + (u === nu
     /* retours du 08/10 (5) : reponses de commande rangees dans commandes/AAAA-MM */
     const nouveauxR = archives.fichiers().filter((f) => /^commandes\/\d{4}-\d{2}\/R_E2E-PM5-A/.test(f));
     const contenuR = nouveauxR.length ? fs.readFileSync(DOSSIER + '/' + nouveauxR[0], 'utf8') : '';
-    ok('Archive R_ réindentée balise par balise (une balise par ligne)', /\n    <MESSAGE_REPARTITEUR/.test(contenuR) && /\n            <LIGNE_N /.test(contenuR) && contenuR.split('\n').length > 10, nouveauxR.join(',') + ' / ' + contenuR.slice(0, 200));
+    ok('Archive R_ réindentée balise par balise (une balise par ligne)', /\n    <MESSAGE_REPARTITEUR/.test(contenuR) && /\n            <LIGNE_N /.test(contenuR) && contenuR.split(/\r?\n/).length > 10, nouveauxR.join(',') + ' / ' + contenuR.slice(0, 200));
 
     /* 2) commande B : refus HTTP 403 ; commande C : jamais envoyee */
     url('http://127.0.0.1:' + PORT + '/refus/');

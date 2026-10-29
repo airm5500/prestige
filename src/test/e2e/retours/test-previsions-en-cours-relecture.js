@@ -34,7 +34,7 @@ function retirerCommande() {
 
 (async () => {
   retirerCommande();
-  const [X, Y] = q(LIBRES).split('\n');
+  const [X, Y] = q(LIBRES).split(/\r?\n/);
   const origX = q(ETAT(X)), origY = q(ETAT(Y));
   const G = q("SELECT lg_GROSSISTE_ID FROM t_grossiste WHERE str_STATUT = 'enable' LIMIT 1");
   ok('Jeu d\'essai : deux produits prévus sans commande en cours', !!X && !!Y && !!G, X + ' ' + Y);

@@ -25,7 +25,7 @@ const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
 const BASE = ENV_E2E.BASE;
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
-const LOG = '/opt/payara5/glassfish/domains/domain1/logs/server.log';
+const LOG = ENV_E2E.JOURNAL_SERVEUR;
 const E = 'E2E-BL-1', B = 'E2E-BL-B1';
 const NUM = 'ZZL-26-' + String(Date.now()).slice(-5) + '-A';
 const SECRET = crypto.randomBytes(32).toString('base64url');

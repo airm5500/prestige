@@ -20,7 +20,7 @@ const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
 const BASE = ENV_E2E.BASE;
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
-const LOG = '/opt/payara5/glassfish/domains/domain1/logs/server.log';
+const LOG = ENV_E2E.JOURNAL_SERVEUR;
 const E = 'E2E-BSC-1', B = 'E2E-BSC-B1', NUM = 'ZZS-26-' + String(Date.now()).slice(-5) + '-A';
 const SECRET = crypto.randomBytes(32).toString('base64url');
 const nettoyer = () => q("DELETE FROM t_rh_badge WHERE employe_id = '" + E + "'; DELETE FROM t_employe WHERE id = '" + E + "'");

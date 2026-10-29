@@ -24,6 +24,27 @@ const os = require('os');
 const path = require('path');
 
 const WINDOWS = process.platform === 'win32';
+
+/* Sous Windows, le client mariadb lit ses arguments dans la page de codes du systeme : une requete « -e » avec des
+   accents arrive fausse (« Incorrect string value: '\xE9' », melange de collations). La requete passe alors par
+   l'entree standard, en UTF-8. Les requetes en ASCII ne changent pas. */
+if (WINDOWS) {
+  const cp = require('child_process');
+  const execFileSyncOrigine = cp.execFileSync;
+  cp.execFileSync = function (fichier, args, options) {
+    if (/(^|[\\/])mariadb(\.exe)?$/i.test(String(fichier)) && Array.isArray(args)) {
+      const i = args.indexOf('-e');
+      if (i >= 0 && /[^\x00-\x7f]/.test(String(args[i + 1])) && !(options && options.input !== undefined)) {
+        const reste = args.slice(0, i).concat(args.slice(i + 2));
+        if (!reste.some((a) => /^--default-character-set=/.test(a))) {
+          reste.splice(/^--defaults-extra-file=/.test(reste[0] || '') ? 1 : 0, 0, '--default-character-set=utf8mb4');
+        }
+        return execFileSyncOrigine.call(this, fichier, reste, Object.assign({}, options, { input: String(args[i + 1]) }));
+      }
+    }
+    return execFileSyncOrigine.apply(this, arguments);
+  };
+}
 const COPIE_DE_TRAVAIL = 'laborex_v1_db';
 
 const BASE = process.env.DB_TEST || (WINDOWS ? COPIE_DE_TRAVAIL : 'capitale');
@@ -46,6 +67,11 @@ const OPTIONS = process.env.MARIADB_OPTIONS || (WINDOWS ? path.join(os.homedir()
 
 /* dossier des sorties et captures : /tmp n'existe pas sous Windows */
 const TMP = WINDOWS ? os.tmpdir() : '/tmp';
+
+/* domaine Payara de Prestige (journal server.log, domain.xml) : SERVER_LOG / PAYARA_DOMAINE pour un autre poste */
+const PAYARA_DOMAINE = process.env.PAYARA_DOMAINE
+  || (WINDOWS ? 'D:/payara5/payara5/glassfish/domains/domain1' : '/opt/payara5/glassfish/domains/domain1');
+const JOURNAL_SERVEUR = process.env.SERVER_LOG || PAYARA_DOMAINE + '/logs/server.log';
 
 const VISIBLE = process.env.E2E_VISIBLE === '1';
 const CAPTURES = process.env.E2E_CAPTURES === '0' ? null
@@ -81,12 +107,23 @@ async function capture(page, nom) {
 async function lancer(chromium, options) {
   const b = await chromium.launch(Object.assign({ executablePath: CHROMIUM, headless: !VISIBLE },
     VISIBLE ? { slowMo: 300 } : {}, options));
+  /* Banniere WhatsApp (toast en bas a droite) : sur un poste sans service WhatsApp, elle apparait au hasard des
+     verifications et couvre les boutons du bas. Comme l'utilisateur, on la « Masque » (30 min, renouvele a chaque
+     page). Les tests de la banniere elle-meme posent E2E_BANNIERE_WHATSAPP=1 pour la garder. */
+  const sansBanniere = process.env.E2E_BANNIERE_WHATSAPP !== '1';
+  const masquer = async (c) => {
+    if (sansBanniere) {
+      await c.addInitScript(() => { try { localStorage.setItem('prestige.alerteWhatsApp.masquee', String(Date.now() + 1800000)); } catch (e) { /* */ } });
+    }
+    return c;
+  };
+  const avecVideo = (o) => (CAPTURES ? Object.assign({ recordVideo: { dir: dossier() } }, o) : o);
+  const newContext0 = b.newContext.bind(b);
+  b.newContext = async (o) => masquer(await newContext0(avecVideo(o)));
+  b.newPage = async (o) => { const c = await b.newContext(o); const p = await c.newPage(); p.close = ((f) => async (x) => { await f(x); await c.close(); })(p.close.bind(p)); return p; };
   if (!CAPTURES) { return b; }
   const pages = () => [].concat(...b.contexts().map((c) => c.pages()));
-  const video = (o) => Object.assign({ recordVideo: { dir: dossier() } }, o);
-  const newPage = b.newPage.bind(b), newContext = b.newContext.bind(b), close = b.close.bind(b);
-  b.newPage = (o) => newPage(video(o));
-  b.newContext = (o) => newContext(video(o));
+  const close = b.close.bind(b);
   const enCours = [], log = console.log;
   console.log = function () {
     log.apply(console, arguments);
@@ -106,7 +143,7 @@ async function lancer(chromium, options) {
 }
 
 module.exports = {
-  WINDOWS, BASE, LOGIN, LOGIN_SUPPORT, CHROMIUM, TMP, VISIBLE, CAPTURES, lancer, capture,
+  WINDOWS, BASE, LOGIN, LOGIN_SUPPORT, CHROMIUM, TMP, PAYARA_DOMAINE, JOURNAL_SERVEUR, VISIBLE, CAPTURES, lancer, capture,
   /* arguments a placer en tete de chaque appel au client mariadb ; verifie a l'appel, pour que les tests sans base
      n'aient pas besoin du fichier d'options */
   get MARIADB() {

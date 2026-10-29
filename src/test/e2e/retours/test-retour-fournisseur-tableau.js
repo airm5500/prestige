@@ -22,9 +22,9 @@ const lignesBl = q("SELECT d.lg_BON_LIVRAISON_DETAIL, d.lg_BON_LIVRAISON_ID, d.l
   + " WHERE b.str_STATUT = 'is_Closed' AND b.dt_DATE_LIVRAISON IS NOT NULL AND d.lg_GROSSISTE_ID IS NOT NULL AND f.str_NAME <> ''"
   + " AND d.lg_BON_LIVRAISON_ID = (SELECT x.lg_BON_LIVRAISON_ID FROM t_bon_livraison_detail x JOIN t_bon_livraison y ON y.lg_BON_LIVRAISON_ID = x.lg_BON_LIVRAISON_ID"
   + "   WHERE y.str_STATUT = 'is_Closed' AND y.dt_DATE_LIVRAISON IS NOT NULL AND x.lg_GROSSISTE_ID IS NOT NULL GROUP BY x.lg_BON_LIVRAISON_ID HAVING COUNT(*) >= 2 LIMIT 1)"
-  + " ORDER BY d.lg_BON_LIVRAISON_DETAIL LIMIT 2").split('\n').map((l) => l.split('\t'));
+  + " ORDER BY d.lg_BON_LIVRAISON_DETAIL LIMIT 2").split(/\r?\n/).map((l) => l.split('\t'));
 const [L1, L2] = lignesBl;
-const MOTIFS = q("SELECT lg_MOTIF_RETOUR, str_LIBELLE FROM t_motif_retour ORDER BY lg_MOTIF_RETOUR LIMIT 2").split('\n').map((l) => l.split('\t'));
+const MOTIFS = q("SELECT lg_MOTIF_RETOUR, str_LIBELLE FROM t_motif_retour ORDER BY lg_MOTIF_RETOUR LIMIT 2").split(/\r?\n/).map((l) => l.split('\t'));
 
 function semer() {
   q("INSERT INTO t_retour_fournisseur (lg_RETOUR_FRS_ID, str_REF_RETOUR_FRS, lg_BON_LIVRAISON_ID, lg_GROSSISTE_ID, lg_USER_ID, dt_DATE, str_STATUT, dt_UPDATED, dt_CREATED, dl_AMOUNT)"

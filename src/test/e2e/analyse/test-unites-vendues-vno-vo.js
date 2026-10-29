@@ -33,7 +33,7 @@ const U = '../api/v1/datareporting/unitesvendues?dtStart=' + D + '&dtEnd=' + F +
       + " FROM t_preenregistrement_detail d JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = d.lg_PREENREGISTREMENT_ID JOIN t_user u ON u.lg_USER_ID = p.lg_USER_ID"
       + " WHERE p.dt_UPDATED >= '" + D + "' AND p.dt_UPDATED < DATE_ADD('" + F + "', INTERVAL 1 DAY) AND u.lg_EMPLACEMENT_ID = '1' AND p.str_STATUT = 'is_Closed'"
       + " AND p.b_IS_CANCEL = 0 AND p.int_PRICE > 0 AND p.lg_TYPE_VENTE_ID NOT LIKE '5' GROUP BY d.lg_FAMILLE_ID")
-      .split('\n').filter(Boolean).forEach((l) => { const [id, vno, vo] = l.split('\t'); attendu[id] = [Number(vno), Number(vo)]; });
+      .split(/\r?\n/).filter(Boolean).forEach((l) => { const [id, vno, vo] = l.split('\t'); attendu[id] = [Number(vno), Number(vo)]; });
     const faux = a.filter((x) => !attendu[x.id] || attendu[x.id][0] !== x.montantCumulTTC || attendu[x.id][1] !== x.montantCumulHT);
     ok('Chaque article : Nbre.VNO et Nbre.VO = quantités vendues au comptant et en VO (SQL)', faux.length === 0,
       faux.length + ' écarts sur ' + a.length + ' ; ' + faux.slice(0, 3).map((x) => x.code + ' ' + x.montantCumulTTC + '/' + x.montantCumulHT + ' ≠ ' + (attendu[x.id] || []).join('/')).join(' | '));

@@ -29,7 +29,7 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
       try {
         const r = await route.fetch(); await new Promise((x) => setTimeout(x, 10000));
         await route.fulfill({ response: r });
-      } catch (e) { console.log('reponse non rendue : ' + e.message.split('\n')[0]); }
+      } catch (e) { console.log('reponse non rendue : ' + e.message.split(/\r?\n/)[0]); }
       rendue();
     });
     const demande = p.waitForRequest((r) => /pilotage\/onglet\//.test(r.url()), { timeout: 60000 });

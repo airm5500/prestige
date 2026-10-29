@@ -23,7 +23,7 @@ const D = q(`SELECT DATE(MAX(p.dt_UPDATED)) FROM t_preenregistrement p WHERE ${P
 const lundi = (d) => q(`SELECT DATE_SUB('${d}', INTERVAL WEEKDAY('${d}') DAY)`);
 const enBase = (l) => {
   const lignes = q(`SELECT WEEKDAY(p.dt_UPDATED) + 1, HOUR(p.dt_UPDATED), COUNT(*) FROM t_preenregistrement p WHERE ${PERIMETRE}`
-    + ` AND p.dt_UPDATED >= '${l}' AND p.dt_UPDATED < DATE_ADD('${l}', INTERVAL 7 DAY) GROUP BY 1, 2`).split('\n').filter(Boolean).map((x) => x.split('\t').map(Number));
+    + ` AND p.dt_UPDATED >= '${l}' AND p.dt_UPDATED < DATE_ADD('${l}', INTERVAL 7 DAY) GROUP BY 1, 2`).split(/\r?\n/).filter(Boolean).map((x) => x.split('\t').map(Number));
   return { total: lignes.reduce((s, x) => s + x[2], 0), max: lignes.reduce((m, x) => Math.max(m, x[2]), 0) };
 };
 const fr = (d) => d.slice(8, 10) + '/' + d.slice(5, 7);

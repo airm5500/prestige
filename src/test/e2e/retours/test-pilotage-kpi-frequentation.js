@@ -109,7 +109,7 @@ const VENTES = "p.int_PRICE>0 AND p.str_STATUT='is_Closed' AND p.b_IS_CANCEL=0 A
 
     ok('Aucune erreur JavaScript pendant tout le parcours', err.length === 0, JSON.stringify(err));
   } catch (e) {
-    ok('Le parcours va au bout', false, e.message + ' ' + (e.stack || '').split('\n')[1]);
+    ok('Le parcours va au bout', false, e.message + ' ' + (e.stack || '').split(/\r?\n/)[1]);
   } finally {
     await b.close();
     const kos = res.filter((r) => !r.c);

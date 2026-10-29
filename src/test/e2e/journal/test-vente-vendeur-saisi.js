@@ -67,7 +67,7 @@ function nettoyer() {
     ok('L\'article est sur la vente', lignes === '1', lignes);
     const qui = vente ? q("SELECT CONCAT(IFNULL(v.str_LOGIN, '?'), '|', IFNULL(c.str_LOGIN, '?')) FROM t_preenregistrement p LEFT JOIN t_user v ON v.lg_USER_ID = p.lg_USER_VENDEUR_ID"
       + " LEFT JOIN t_user c ON c.lg_USER_ID = p.lg_USER_CAISSIER_ID WHERE p.lg_PREENREGISTREMENT_ID = '" + vente + "'") : '';
-    ok('Vendeur enregistré = la caissière (comme à la clôture)', qui === 'admin|admin', qui);
+    ok('Vendeur enregistré = la caissière (comme à la clôture)', qui === ENV_E2E.LOGIN + '|' + ENV_E2E.LOGIN, qui);
     ok('Aucune erreur JavaScript', erreurs.length === 0, erreurs.join(' | '));
   } catch (e) {
     ok('Parcours sans exception', false, e.stack + ' ' + echecs.join(' | '));

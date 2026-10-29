@@ -116,7 +116,7 @@ const sqlTexte = (v) => "'" + v.replace(/'/g, "''") + "'";
     ok('Produit sans DCI : aucune proposition devinée, et on dit pourquoi', fer.n === 0 && /Aucune DCI/.test(fer.m), JSON.stringify(fer));
     ok('Aucune erreur JavaScript', err.length === 0, JSON.stringify(err));
   } catch (e) {
-    ok('Le parcours va au bout', false, e.message + ' ' + (e.stack || '').split('\n')[1]);
+    ok('Le parcours va au bout', false, e.message + ' ' + (e.stack || '').split(/\r?\n/)[1]);
   } finally {
     await b.close();
     exec("DELETE FROM t_famille_dci WHERE lg_FAMILLE_DCI_ID LIKE '" + MARQUE + "%'");

@@ -16,10 +16,10 @@ const LOGIN = ENV_E2E.LOGIN;
 const USER = q(`SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '${LOGIN}'`);
 /* 2 produits d'un meme emplacement + 1 d'un autre, prix connus */
 const Z = q(`SELECT f.lg_ZONE_GEO_ID FROM t_famille f WHERE f.str_STATUT = 'enable' AND f.int_PRICE > 0 AND f.lg_ZONE_GEO_ID IS NOT NULL
-  GROUP BY f.lg_ZONE_GEO_ID HAVING COUNT(*) > 3 ORDER BY f.lg_ZONE_GEO_ID LIMIT 2`).split('\n');
+  GROUP BY f.lg_ZONE_GEO_ID HAVING COUNT(*) > 3 ORDER BY f.lg_ZONE_GEO_ID LIMIT 2`).split(/\r?\n/);
 const P = q(`(SELECT lg_FAMILLE_ID, int_PRICE, lg_ZONE_GEO_ID FROM t_famille WHERE lg_ZONE_GEO_ID = '${Z[0]}' AND str_STATUT = 'enable' AND int_PRICE > 0 ORDER BY lg_FAMILLE_ID LIMIT 2)
   UNION ALL (SELECT lg_FAMILLE_ID, int_PRICE, lg_ZONE_GEO_ID FROM t_famille WHERE lg_ZONE_GEO_ID = '${Z[1]}' AND str_STATUT = 'enable' AND int_PRICE > 0 ORDER BY lg_FAMILLE_ID LIMIT 1)`)
-  .split('\n').map((l) => l.split('\t'));
+  .split(/\r?\n/).map((l) => l.split('\t'));
 const SAISIES = [[P[0], 3, '2026-09-05'], [P[0], 2, '2026-09-20'], [P[1], 1, '2026-09-10'], [P[2], 4, '2026-09-15']];
 const CA = Number(q(`SELECT SUM(int_PRICE) FROM t_preenregistrement WHERE dt_CREATED >= '2026-09-01' AND dt_CREATED < '2026-10-01'
   AND int_PRICE > 0 AND b_IS_CANCEL = 0 AND str_STATUT = 'is_Closed'`));

@@ -68,7 +68,9 @@ const rapportsDuTest = () => q(`SELECT COUNT(*) FROM t_audit_rapport WHERE creat
     stock(PS, +STOCK_S + 7);
     ok('« Lancer l\'analyse » conserve le rapport 1', await lancer());
     const r1 = q(`SELECT CONCAT_WS('|', id, auteur, debut, fin) FROM t_audit_rapport WHERE created_at >= '${DEBUT}' ORDER BY created_at LIMIT 1`).split('|');
-    ok('Rapport 1 : auteur et période du billetage enregistrés', /Admin/i.test(r1[1]) && /^\d{4}-\d{2}-01$/.test(r1[2]), r1.slice(1).join(' '));
+    /* auteur = le compte connecte (« Super Admin » sur le banc, compte d'essai e2e-sa sur le poste local) */
+    const auteur = q(`SELECT str_FIRST_NAME FROM t_user WHERE str_LOGIN = '${ENV_E2E.LOGIN_SUPPORT}'`);
+    ok('Rapport 1 : auteur et période du billetage enregistrés', !!auteur && String(r1[1]).includes(auteur) &&/^\d{4}-\d{2}-01$/.test(r1[2]), r1.slice(1).join(' '));
     await p.waitForTimeout(1100);
     stock(PS, STOCK_S);
     stock(PN, -3);
@@ -78,7 +80,7 @@ const rapportsDuTest = () => q(`SELECT COUNT(*) FROM t_audit_rapport WHERE creat
     await p.click('.x-tab:has-text("Rapports")');
     await p.waitForFunction(() => Ext.ComponentQuery.query('auditrapprochements #grilleRapports')[0].getStore().getCount() >= 2, null, { timeout: 20000 });
     const lignes = await p.evaluate(() => Ext.ComponentQuery.query('auditrapprochements #grilleRapports')[0].getStore().getRange().map((r) => r.data));
-    const ids = q(`SELECT id FROM t_audit_rapport WHERE created_at >= '${DEBUT}' ORDER BY created_at DESC`).split('\n');
+    const ids = q(`SELECT id FROM t_audit_rapport WHERE created_at >= '${DEBUT}' ORDER BY created_at DESC`).split(/\r?\n/);
     ok('Liste : les deux rapports, le plus récent en tête', lignes[0].id === ids[0] && lignes[1].id === ids[1], lignes.slice(0, 2).map((l) => l.date).join(' / '));
     ok('Liste : nombre d\'écarts par contrôle (stocks négatifs : 1 de plus dans le rapport 2)', lignes[0].resume.STOCK_NEGATIF === lignes[1].resume.STOCK_NEGATIF + 1,
       JSON.stringify([lignes[1].resume, lignes[0].resume]));
@@ -122,7 +124,7 @@ const rapportsDuTest = () => q(`SELECT COUNT(*) FROM t_audit_rapport WHERE creat
       return { type: r.headers.get('content-type'), b64: btoa(String.fromCharCode(...new Uint8Array(await r.arrayBuffer()))) }; }, ids[1]);
     const f = path.join(os.tmpdir(), 'audit-e2e.pdf');
     fs.writeFileSync(f, Buffer.from(pdf.b64, 'base64'));
-    const texte = execFileSync('pdftotext', ['-layout', f, '-'], { encoding: 'utf8' });
+    const texte = execFileSync('pdftotext', ['-enc', 'UTF-8', '-layout', f, '-'], { encoding: 'utf8' });
     fs.unlinkSync(f);
     ok('PDF : titre, synthèse des contrôles et ligne du produit modifié', /application\/pdf/.test(pdf.type) && /Audit & rapprochements/.test(texte)
       && /Stocks négatifs/.test(texte) && texte.indexOf(CIP_S) >= 0, texte.slice(0, 120));

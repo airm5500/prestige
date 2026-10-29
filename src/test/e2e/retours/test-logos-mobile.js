@@ -1,6 +1,6 @@
 /* Logos des operateurs sur les tuiles de « SELECTION RAPIDE MOBILE MONEY » (fenetre client de la caisse).
    Chaque tuile porte l'image resources/images/modes/<LIBELLE>.png, chargee ; sans fichier, la tuile garde son texte.
-   Depuis le 18/09 les modes historiques (Especes, Cheques, Carte, Virement, Differe) ont aussi leur logo.
+   Depuis le 18/09 les modes historiques (Especes, Cheques, Carte, Differe) ont aussi leur logo ; Virement n'est plus propose a la caisse (25/10, point 11).
    Utilisateur : E2E_LOGIN, sinon KGA3 s'il existe sur le banc, sinon admin (mot de passe e2etest). */
 const { chromium } = require('playwright-core');
 const ENV_E2E = require('../outils/poste');
@@ -10,17 +10,18 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
 const BASE = ENV_E2E.BASE;
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, BASE, '-e', s], { encoding: 'utf8' });
-const LOGIN = process.env.E2E_LOGIN || (q("SELECT COUNT(*) FROM t_user WHERE str_LOGIN='KGA3'") === '1' ? 'KGA3' : ENV_E2E.LOGIN);
+/* poste local : KGA3 y est un vrai compte de l'officine, le test prend son compte d'essai */
+const LOGIN = process.env.E2E_LOGIN || (!ENV_E2E.WINDOWS && q("SELECT COUNT(*) FROM t_user WHERE str_LOGIN='KGA3'") === '1' ? 'KGA3' : ENV_E2E.LOGIN);
 const SORTIE = process.env.SORTIE || ENV_E2E.TMP;
 
 // un client par defaut sur un mode de chaque operateur mobile, pour que les tuiles existent ; retabli a la fin
 const sauve = q("SELECT lg_MODE_REGLEMENT_ID, IFNULL(lg_CLIENT_DEFAUT_ID,'') FROM t_mode_reglement WHERE lg_TYPE_REGLEMENT_ID IN ('7','10','19','8','9') AND str_STATUT='enable'")
-  .split('\n').filter(Boolean).map(l => l.split('\t'));
+  .split(/\r?\n/).filter(Boolean).map(l => l.split('\t'));
 function poser() {
   const client = q("SELECT lg_CLIENT_ID FROM t_client WHERE str_STATUT='enable' LIMIT 1");
   const vus = {};
   q("SELECT lg_MODE_REGLEMENT_ID, lg_TYPE_REGLEMENT_ID FROM t_mode_reglement WHERE lg_TYPE_REGLEMENT_ID IN ('7','10','19','8','9') AND str_STATUT='enable'")
-    .split('\n').filter(Boolean).forEach(l => { const [id, type] = l.split('\t'); if (!vus[type]) { vus[type] = id; exec("UPDATE t_mode_reglement SET lg_CLIENT_DEFAUT_ID='" + client + "' WHERE lg_MODE_REGLEMENT_ID='" + id + "'"); } });
+    .split(/\r?\n/).filter(Boolean).forEach(l => { const [id, type] = l.split('\t'); if (!vus[type]) { vus[type] = id; exec("UPDATE t_mode_reglement SET lg_CLIENT_DEFAUT_ID='" + client + "' WHERE lg_MODE_REGLEMENT_ID='" + id + "'"); } });
 }
 function retablir() { sauve.forEach(([id, c]) => exec("UPDATE t_mode_reglement SET lg_CLIENT_DEFAUT_ID=" + (c ? "'" + c + "'" : "NULL") + " WHERE lg_MODE_REGLEMENT_ID='" + id + "'")); }
 
@@ -57,7 +58,7 @@ function retablir() { sauve.forEach(([id, c]) => exec("UPDATE t_mode_reglement S
     const liste = await p.evaluate(() => Array.from(document.querySelectorAll('.x-boundlist-item img[src*="images/modes/"]')).map(i => ({ src: i.getAttribute('src').split('/').pop(), chargee: i.complete && i.naturalWidth > 0, visible: i.style.visibility !== 'hidden' })));
     ok('la liste deroulante des modes porte le logo devant chaque operateur', ['ORANGE.png', 'WAVE.png', 'DJAMO.png', 'MOOV.png', 'MTN.png'].every(n => liste.some(i => i.src === n && i.chargee && i.visible)), JSON.stringify(liste).slice(0, 300));
     ok('aucune image cassee dans la liste : chaque logo est charge, ou masque s il n existe pas', liste.every(i => (i.chargee && i.visible) || !i.visible), JSON.stringify(liste.filter(i => !i.chargee)));
-    ok('les modes historiques portent leur logo (Especes, Cheques, Carte, Virement, Differe)', ['ESPECES.png', 'CHEQUES.png', 'CARTEBANCAIRE.png', 'VIREMENT.png', 'DIFFERE.png'].every(n => liste.some(i => i.src === n && i.chargee && i.visible)), JSON.stringify(liste.map(i => i.src)));
+    ok('les modes historiques portent leur logo (Especes, Cheques, Carte, Differe ; Virement retire de la caisse le 25/10)', ['ESPECES.png', 'CHEQUES.png', 'CARTEBANCAIRE.png', 'DIFFERE.png'].every(n => liste.some(i => i.src === n && i.chargee && i.visible)), JSON.stringify(liste.map(i => i.src)));
     await p.evaluate(() => { const c = testextjs.app.getController('VenteCtr').getVnotypeReglement(); c.collapse(); c.setValue('10'); });
     await p.waitForFunction(() => /WAVE\.png/.test(testextjs.app.getController('VenteCtr').getVnotypeReglement().inputEl.getStyle('background-image') || ''), null, { timeout: 10000 });
     ok('le champ du mode choisi (WAVE) affiche son logo', true);

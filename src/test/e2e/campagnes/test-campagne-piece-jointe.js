@@ -25,7 +25,7 @@ const BASE = ENV_E2E.BASE;
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
 const URL = 'http://localhost:8080/prestige';
-const LOG = '/opt/payara5/glassfish/domains/domain1/logs/server.log';
+const LOG = ENV_E2E.JOURNAL_SERVEUR;
 const droit = privilegeEssai(q, exec, ENV_E2E.LOGIN, 'P_SM_CAMPAGNES');
 const JETON = 'jeton-essai-pj-' + Date.now();
 const PORT = 3012;
@@ -149,7 +149,7 @@ function nettoyer(debut) {
     const fin = Date.now() + 40000;
     let trace = [];
     while (Date.now() < fin) {
-      trace = fs.existsSync(TRACE) ? fs.readFileSync(TRACE, 'utf8').trim().split('\n').filter(Boolean).map((x) => JSON.parse(x)) : [];
+      trace = fs.existsSync(TRACE) ? fs.readFileSync(TRACE, 'utf8').trim().split(/\r?\n/).filter(Boolean).map((x) => JSON.parse(x)) : [];
       if (trace.length) { break; }
       await new Promise((r) => setTimeout(r, 1000));
     }

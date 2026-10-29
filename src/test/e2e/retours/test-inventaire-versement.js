@@ -26,7 +26,7 @@ const CLE = 'e2e-versement-';
   const L = q("SELECT CONCAT_WS('|', i.lg_INVENTAIRE_FAMILLE_ID, f.int_CIP, i.int_NUMBER, IFNULL(i.dt_UPDATED, 'NULL'), IFNULL(i.str_UPDATED_ID, 'NULL'), IFNULL(f.int_EAN13, ''))"
     + " FROM t_inventaire_famille i JOIN t_famille f ON f.lg_FAMILLE_ID = i.lg_FAMILLE_ID WHERE i.lg_INVENTAIRE_ID = '" + INV + "' AND i.bool_INVENTAIRE = 1"
     + " AND f.int_CIP REGEXP '^[0-9]{6,8}$' AND (SELECT COUNT(*) FROM t_inventaire_famille x JOIN t_famille y ON y.lg_FAMILLE_ID = x.lg_FAMILLE_ID"
-    + "   WHERE x.lg_INVENTAIRE_ID = i.lg_INVENTAIRE_ID AND y.int_CIP = f.int_CIP) = 1 ORDER BY i.lg_INVENTAIRE_FAMILLE_ID LIMIT 3").split('\n').map((l) => l.split('|'));
+    + "   WHERE x.lg_INVENTAIRE_ID = i.lg_INVENTAIRE_ID AND y.int_CIP = f.int_CIP) = 1 ORDER BY i.lg_INVENTAIRE_FAMILLE_ID LIMIT 3").split(/\r?\n/).map((l) => l.split('|'));
   const [A, B, C] = L;
   const nombre = (l) => q("SELECT int_NUMBER FROM t_inventaire_famille WHERE lg_INVENTAIRE_FAMILLE_ID = '" + l[0] + "'");
   ok('Jeu d\'essai : inventaire ouvert, trois lignes à CIP unique', L.length === 3, INV);

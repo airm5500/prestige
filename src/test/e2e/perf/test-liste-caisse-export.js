@@ -35,12 +35,12 @@ if (posee) {
     const ms = Date.now() - t;
     let lien = null; try { const j = JSON.parse(r.t); lien = j.msg || j.url; } catch (e) { if (/\/data\/reports\//.test(r.url)) { lien = r.url; } }
     const fichier = lien ? path.join(DOSSIER, 'pdf', path.basename(lien.split('?')[0])) : null;
-    const lignes = fichier && fs.existsSync(fichier) ? execFileSync('pdftotext', ['-layout', fichier, '-'], { encoding: 'utf8', maxBuffer: 1 << 28 }).split('\n').map((l) => l.trim()).filter((l) => l.startsWith('L|') || l.startsWith('T|') || /SumCaisseDTO/.test(l)) : [];
+    const lignes = fichier && fs.existsSync(fichier) ? execFileSync('pdftotext', ['-enc', 'UTF-8', '-layout', fichier, '-'], { encoding: 'utf8', maxBuffer: 1 << 28 }).split(/\r?\n/).map((l) => l.trim()).filter((l) => l.startsWith('L|') || l.startsWith('T|') || /SumCaisseDTO/.test(l)) : [];
     if (fichier && fs.existsSync(fichier)) { fs.unlinkSync(fichier); }
     ok('Un mois en moins de 10 s', ms < 10000 && lignes.length > 0, ms + ' ms ' + (lignes.length ? '' : r.t.slice(0, 120)));
     const base = {};
     q("SELECT CONCAT(u.str_FIRST_NAME, ' ', u.str_LAST_NAME), COUNT(*) FROM mvttransaction m JOIN t_user u ON u.lg_USER_ID = m.caisse WHERE m.lg_EMPLACEMENT_ID = '1'"
-      + " AND m.typeTransaction <> 2 AND m.createdAt BETWEEN '" + d + " 00:00:00' AND '" + f + " 23:59:00' GROUP BY 1").split('\n').filter(Boolean)
+      + " AND m.typeTransaction <> 2 AND m.createdAt BETWEEN '" + d + " 00:00:00' AND '" + f + " 23:59:00' GROUP BY 1").split(/\r?\n/).filter(Boolean)
       .forEach((l) => { const [n, c] = l.split('\t'); base[n] = Number(c); });
     const imp = {}; lignes.filter((l) => l.startsWith('L|')).forEach((l) => { const p2 = l.split('|'); imp[p2[1]] = Number(p2[2]); });
     ok('Par caissier : autant de mouvements imprimés que dans la base', Object.keys(base).length > 0 && JSON.stringify(Object.entries(imp).sort()) === JSON.stringify(Object.entries(base).sort()),

@@ -20,7 +20,7 @@ const TMP = ENV_E2E.TMP + '/lot-t';
 fs.mkdirSync(TMP, { recursive: true });
 
 function purgerInventaires() {
-  const ids = q("SELECT lg_INVENTAIRE_ID FROM t_inventaire WHERE str_NAME LIKE 'INVENTAIRE AVOIRS %' OR str_NAME LIKE 'INVENTAIRE MARGE PRODUITS VENDUS %'").split('\n').filter(Boolean);
+  const ids = q("SELECT lg_INVENTAIRE_ID FROM t_inventaire WHERE str_NAME LIKE 'INVENTAIRE AVOIRS %' OR str_NAME LIKE 'INVENTAIRE MARGE PRODUITS VENDUS %'").split(/\r?\n/).filter(Boolean);
   ids.forEach(function (id) {
     exec("DELETE FROM t_inventaire_famille WHERE lg_INVENTAIRE_ID='" + id + "'; DELETE FROM t_inventaire WHERE lg_INVENTAIRE_ID='" + id + "';");
   });
@@ -35,7 +35,7 @@ function purgerAvoir() {
 /* Une vente cloturee au nom de KGA3 avec deux produits ; avoir en cours d'aujourd'hui, ou vente ordinaire d'un jour donne. */
 function poserVente(id, avoir, jour) {
   const user = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='" + (ENV_E2E.LOGIN) + "'");
-  const produits = q("SELECT lg_FAMILLE_ID FROM t_famille WHERE str_STATUT='enable' ORDER BY str_NAME LIMIT 2").split('\n').filter(Boolean);
+  const produits = q("SELECT lg_FAMILLE_ID FROM t_famille WHERE str_STATUT='enable' ORDER BY str_NAME LIMIT 2").split(/\r?\n/).filter(Boolean);
   const quand = jour + ' 10:00:00';
   const AVOIR = id, isAvoir = avoir ? 1 : 0;
   exec("INSERT INTO t_preenregistrement (lg_PREENREGISTREMENT_ID, str_REF, str_REF_TICKET, int_PRICE,"
@@ -129,7 +129,7 @@ function xlsxTexte(fichier) {
 
       const xls = await telecharger(() => cliquer('venteavoirmanager #exporterExcel'));
       const entete = fs.readFileSync(xls).slice(0, 4).toString('hex');
-      const chaines = execSync('strings -a ' + xls + '; strings -a -el ' + xls, { encoding: 'utf8' });
+      const chaines = require('../outils/chaines').chaines(xls);
       ok('Point 6 : l export Excel est un vrai classeur (.xls) titre AVOIRS EN COURS', /\.xls$/.test(xls) && entete === 'd0cf11e0' && /AVOIRS EN COURS DU/.test(chaines), xls + ' ' + entete);
       ok('Point 6 : l export porte la reference de l avoir', chaines.indexOf(AVOIR) >= 0, AVOIR);
 
@@ -163,7 +163,7 @@ function xlsxTexte(fichier) {
     const xlsxM = await telecharger(() => cliquer('margeproducts #exporterExcel'));
     const texteM = xlsxTexte(xlsxM);
     ok('Point 8 : l export Excel porte le titre, la periode et les colonnes de la liste', /MARGE SUR PRODUITS VENDUS/.test(texteM) && /Code CIP\|Libell/.test(texteM) && /%Marge/.test(texteM), texteM.slice(0, 200));
-    ok('Point 8 : l export porte toutes les lignes (pas seulement la page)', texteM.split('\n').filter(l => /^\d/.test(l)).length >= Math.min(totalMarge, 1) && texteM.indexOf(premier) >= 0, premier);
+    ok('Point 8 : l export porte toutes les lignes (pas seulement la page)', texteM.split(/\r?\n/).filter(l => /^\d/.test(l)).length >= Math.min(totalMarge, 1) && texteM.indexOf(premier) >= 0, premier);
 
     await cliquer('margeproducts #creerInventaire');
     await p.waitForFunction(() => Ext.MessageBox.isVisible() && Ext.MessageBox.title === 'Confirmation', null, { timeout: 60000 });
@@ -192,7 +192,7 @@ function xlsxTexte(fichier) {
       }, '../CaisseServlet?dtStart=' + jourMvt + '&dtEnd=' + jourMvt + '&userId=' + userId + '&checked=true&typeMvtId=');
       ok('Point 3 : l edition des mouvements de caisse rend un PDF', pdfMvt.statut === 200 && /pdf/.test(pdfMvt.type || ''), pdfMvt.statut + ' ' + pdfMvt.type);
       fs.writeFileSync(TMP + '/mouvements.pdf', Buffer.from(pdfMvt.octets));
-      const texteMvt = execSync('pdftotext -layout ' + TMP + '/mouvements.pdf -', { encoding: 'utf8' });
+      const texteMvt = execSync('pdftotext -enc UTF-8 -layout ' + TMP + '/mouvements.pdf -', { encoding: 'utf8' });
       ok('Point 3 : titre, periode et filtres', /LISTE DES MOUVEMENTS DE CAISSE/.test(texteMvt) && /Mouvements contr/.test(texteMvt), texteMvt.slice(0, 300));
       ok('Point 3 : les mouvements sont groupes par type avec sous-total', /ENTREES DE CAISSE/.test(texteMvt) && /SORTIES DE CAISSE/.test(texteMvt)
         && /Sous-total Entrees de caisse : 2 mouvement/.test(texteMvt) && /Sous-total Sorties de caisse : 1 mouvement/.test(texteMvt), texteMvt.slice(0, 900));

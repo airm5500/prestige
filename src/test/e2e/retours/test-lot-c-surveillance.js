@@ -18,7 +18,7 @@ const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined && d !== '' ? '  [' + String(d).slice(0, 400) + ']' : '')); }
 const BASE = ENV_E2E.BASE;
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN'], { input: s, encoding: 'utf8' }).trim();
-const JOURNAL = process.env.SERVER_LOG || '/opt/payara5/glassfish/domains/domain1/logs/server.log';
+const JOURNAL = ENV_E2E.JOURNAL_SERVEUR;
 const MARQUE = 'E2E-LOTC-' + Date.now();
 const CLE = 'KEY_TICKET_LENT_SEUIL_MS';
 const seuilAvant = q(`SELECT IFNULL(MAX(str_VALUE), 'ABSENT') FROM t_parameters WHERE str_KEY = '${CLE}'`);
@@ -32,7 +32,7 @@ function nettoyer() {
     OR (module = 'TICKET' AND created_at >= NOW() - INTERVAL 2 HOUR AND message_court LIKE 'Impression du ticket lente%')
     OR (module = 'BLOCAGE' AND url_ou_ecran LIKE '%app-params/update%' AND created_at >= NOW() - INTERVAL 2 HOUR)`);
   if (ids && ids !== 'NULL') {
-    q(`SELECT log_ref FROM t_application_event WHERE id IN (${ids})`).split('\n').filter(Boolean).forEach((f) => { try { fs.unlinkSync(f); } catch (e) { /* deja parti */ } });
+    q(`SELECT log_ref FROM t_application_event WHERE id IN (${ids})`).split(/\r?\n/).filter(Boolean).forEach((f) => { try { fs.unlinkSync(f); } catch (e) { /* deja parti */ } });
     q(`DELETE FROM t_application_event_occurrence WHERE event_id IN (${ids}); DELETE FROM t_application_event WHERE id IN (${ids});`);
   }
 }

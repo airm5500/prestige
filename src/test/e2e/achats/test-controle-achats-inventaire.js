@@ -17,7 +17,7 @@ const DEBUT = q('SELECT NOW() - INTERVAL 1 SECOND');
 const inventairesDuTest = () => `SELECT lg_INVENTAIRE_ID FROM t_inventaire WHERE dt_CREATED >= '${DEBUT}' AND str_NAME LIKE 'Inventaire%'`;
 
 function retirer() {
-  const ids = q(inventairesDuTest()).split('\n').filter(Boolean);
+  const ids = q(inventairesDuTest()).split(/\r?\n/).filter(Boolean);
   if (ids.length) {
     const l = ids.map((x) => `'${x}'`).join(',');
     exec(`DELETE FROM t_inventaire_famille WHERE lg_INVENTAIRE_ID IN (${l}); DELETE FROM t_inventaire WHERE lg_INVENTAIRE_ID IN (${l});`);
@@ -69,7 +69,7 @@ function retirer() {
     await p.evaluate(() => Ext.ComponentQuery.query('etatscontrolemanager #bandeInventaire #creerInventaire')[0].btnEl.dom.click());
     await p.waitForFunction(() => { const c = Ext.ComponentQuery.query('etatscontrolemanager #bandeInventaire')[0]; return c && /créé|Aucun/.test(c.getEl().dom.innerText); }, null, { timeout: 60000 });
     e = await bande();
-    const inv = q(inventairesDuTest()).split('\n').filter(Boolean);
+    const inv = q(inventairesDuTest()).split(/\r?\n/).filter(Boolean);
     ok('Un inventaire créé', inv.length === 1, inv.length);
     const [type, empl] = q(`SELECT CONCAT_WS('|', str_TYPE, lg_EMPLACEMENT_ID) FROM t_inventaire WHERE lg_INVENTAIRE_ID = '${inv[0]}'`).split('|');
     ok('Inventaire de l\'emplacement (stock rayon), pas un inventaire réserve', type === 'emplacement' && empl === '1', type + ' / ' + empl);

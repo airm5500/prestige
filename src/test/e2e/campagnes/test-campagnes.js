@@ -25,7 +25,7 @@ const BASE = ENV_E2E.BASE;
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
 const URL = 'http://localhost:8080/prestige';
-const LOG = '/opt/payara5/glassfish/domains/domain1/logs/server.log';
+const LOG = ENV_E2E.JOURNAL_SERVEUR;
 const droit = privilegeEssai(q, exec, ENV_E2E.LOGIN, 'P_SM_CAMPAGNES');
 
 const A = 'E2E-CMP-A', B = 'E2E-CMP-B', C = 'E2E-CMP-C', D = 'E2E-CMP-D', E = 'E2E-CMP-E';

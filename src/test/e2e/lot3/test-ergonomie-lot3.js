@@ -29,7 +29,7 @@ const PRODUITS = [];
 function semer() {
   nettoyer();
   const lignes = q("SELECT lg_FAMILLE_ID FROM t_famille WHERE str_STATUT='enable' ORDER BY str_NAME LIMIT 3");
-  lignes.split('\n').filter(Boolean).forEach(id => PRODUITS.push(id.trim()));
+  lignes.split(/\r?\n/).filter(Boolean).forEach(id => PRODUITS.push(id.trim()));
   if (PRODUITS.length < 3) { return false; }
   const emplacement = q("SELECT lg_EMPLACEMENT_ID FROM t_user WHERE str_LOGIN='" + (ENV_E2E.LOGIN) + "'");
   const utilisateur = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='" + (ENV_E2E.LOGIN) + "'");
@@ -107,7 +107,7 @@ function semer() {
 
     const apres = q("SELECT libelle FROM modele_message WHERE libelle LIKE '" + MARQUE + "%' ORDER BY libelle");
     ok('point 15 : le modele source est preserve',
-       apres.split('\n').map(s => s.trim()).indexOf(MARQUE + ' source') !== -1, apres.replace(/\n/g, ' | '));
+       apres.split(/\r?\n/).map(s => s.trim()).indexOf(MARQUE + ' source') !== -1, apres.replace(/\n/g, ' | '));
     const source = q("SELECT contenu FROM modele_message WHERE libelle = '" + MARQUE + " source'");
     const clone = q("SELECT contenu FROM modele_message WHERE libelle = '" + MARQUE + " source (Copie)'");
     ok('point 15 : la copie reprend le contenu et le canal du source', source === clone && source.length > 0,

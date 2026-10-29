@@ -57,7 +57,7 @@ function semer() {
     + " VALUES ('" + MARQUE + "-Z', 'ZZ ZONE E2E L4', 'E2EL4', NOW(), NOW(), 'enable', '1', 1)");
   const familles = q("SELECT f.lg_FAMILLE_ID FROM t_famille f WHERE f.str_STATUT='enable' AND f.lg_ZONE_GEO_ID IS NOT NULL AND f.lg_ZONE_GEO_ID <> ''"
     + " AND NOT EXISTS (SELECT 1 FROM t_preenregistrement_detail d JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = d.lg_PREENREGISTREMENT_ID"
-    + " WHERE d.lg_FAMILLE_ID = f.lg_FAMILLE_ID AND p.dt_UPDATED >= DATE_SUB(CURDATE(), INTERVAL 4 MONTH)) ORDER BY f.str_NAME LIMIT 3").split('\n').filter(Boolean);
+    + " WHERE d.lg_FAMILLE_ID = f.lg_FAMILLE_ID AND p.dt_UPDATED >= DATE_SUB(CURDATE(), INTERVAL 4 MONTH)) ORDER BY f.str_NAME LIMIT 3").split(/\r?\n/).filter(Boolean);
   exec("CREATE TABLE e2e_l4_zones (lg_FAMILLE_ID VARCHAR(40) PRIMARY KEY, lg_ZONE_GEO_ID VARCHAR(40));"
     + " INSERT INTO e2e_l4_zones SELECT lg_FAMILLE_ID, lg_ZONE_GEO_ID FROM t_famille WHERE lg_FAMILLE_ID IN ('" + familles.join("','") + "');"
     + " UPDATE t_famille SET lg_ZONE_GEO_ID = '" + MARQUE + "-Z' WHERE lg_FAMILLE_ID IN ('" + familles.join("','") + "');");
@@ -218,8 +218,7 @@ const droitMenu = require('../support/privilege-essai')(q, exec, ENV_E2E.LOGIN, 
       /* Le PDF est lu SUR LE DISQUE : le repertoire des editions est configure hors de
          l'application, et l'URL rendue n'est servie par le serveur que si l'exploitant l'a montee.
          Ce qui doit etre verifie ici, c'est le CONTENU de l'etat. */
-      const dossier = require('../support/editions').dossierEditions();
-      const fichier = path.join(dossier, pdf.json.msg.split('/').pop());
+      const fichier = require('../support/editions').fichierEdition(pdf.json.msg);
       ok('point 19 : le PDF a bien ete ecrit', fs.existsSync(fichier), fichier);
       if (fs.existsSync(fichier)) {
         const octets = fs.readFileSync(fichier);

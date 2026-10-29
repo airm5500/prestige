@@ -77,7 +77,7 @@ const proche = (a, b) => Math.abs(Number(a) - Number(b)) <= 1;
     let s = await lire();
     ok('« Croiser » propose cinq grandeurs et quatre axes, et renomme les champs « Grandeur » / « Par »',
       s.a.join(',') === 'caTTC,nbVentes,panier,marge,unites' && s.bb.join(',') === 'HEURE,JOUR,MODE,VENDEUR' && s.libelles.join('|') === 'Grandeur|Par', JSON.stringify([s.a, s.bb, s.libelles]));
-    const heures = q("SELECT CONCAT(LPAD(HOUR(p.dt_UPDATED),2,'0'),'h|',ROUND(SUM(p.int_PRICE-IFNULL(p.int_PRICE_REMISE,0)))) FROM t_preenregistrement p WHERE " + OU + " GROUP BY HOUR(p.dt_UPDATED) ORDER BY HOUR(p.dt_UPDATED)").split('\n').filter(Boolean).map((l) => l.split('|'));
+    const heures = q("SELECT CONCAT(LPAD(HOUR(p.dt_UPDATED),2,'0'),'h|',ROUND(SUM(p.int_PRICE-IFNULL(p.int_PRICE_REMISE,0)))) FROM t_preenregistrement p WHERE " + OU + " GROUP BY HOUR(p.dt_UPDATED) ORDER BY HOUR(p.dt_UPDATED)").split(/\r?\n/).filter(Boolean).map((l) => l.split('|'));
     const exact = heures.length === s.lignes.length && heures.every((h, i) => s.lignes[i].libelle === h[0] && proche(s.lignes[i].a, h[1]));
     const parts = s.lignes.reduce((t, l) => t + Number(l.b), 0);
     ok('Chiffre × heure : une ligne par heure de vente, dans l ordre, chaque valeur EXACTEMENT celle de la base', exact, s.lignes.length + ' heures contre ' + heures.length + ' | ' + JSON.stringify(s.lignes.slice(0, 3)));
@@ -89,7 +89,7 @@ const proche = (a, b) => Math.abs(Number(a) - Number(b)) <= 1;
     /* ---- clients x jour de la semaine */
     await choisir('CROISER', 'nbVentes', 'JOUR');
     s = await lire();
-    const jours = q("SELECT CONCAT(WEEKDAY(p.dt_UPDATED),'|',COUNT(*)) FROM t_preenregistrement p WHERE " + OU + " GROUP BY WEEKDAY(p.dt_UPDATED) ORDER BY WEEKDAY(p.dt_UPDATED)").split('\n').filter(Boolean).map((l) => l.split('|'));
+    const jours = q("SELECT CONCAT(WEEKDAY(p.dt_UPDATED),'|',COUNT(*)) FROM t_preenregistrement p WHERE " + OU + " GROUP BY WEEKDAY(p.dt_UPDATED) ORDER BY WEEKDAY(p.dt_UPDATED)").split(/\r?\n/).filter(Boolean).map((l) => l.split('|'));
     const NOMS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
     ok('Clients × jour de la semaine : lundi -> dimanche, chaque nombre de ventes EXACTEMENT celui de la base',
       jours.length === s.lignes.length && jours.every((j, i) => s.lignes[i].libelle === NOMS[Number(j[0])] && Number(s.lignes[i].a) === Number(j[1])), JSON.stringify(s.lignes));
@@ -97,7 +97,7 @@ const proche = (a, b) => Math.abs(Number(a) - Number(b)) <= 1;
     /* ---- x mode de reglement */
     await choisir('CROISER', 'caTTC', 'MODE');
     s = await lire();
-    const modes = q("SELECT CONCAT(r.str_NAME,'|',ROUND(SUM(vr.montant))) FROM vente_reglement vr JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID=vr.vente_id JOIN t_type_reglement r ON r.lg_TYPE_REGLEMENT_ID=vr.type_regelement WHERE " + OU + " GROUP BY r.lg_TYPE_REGLEMENT_ID, r.str_NAME ORDER BY SUM(vr.montant) DESC").split('\n').filter(Boolean).map((l) => l.split('|'));
+    const modes = q("SELECT CONCAT(r.str_NAME,'|',ROUND(SUM(vr.montant))) FROM vente_reglement vr JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID=vr.vente_id JOIN t_type_reglement r ON r.lg_TYPE_REGLEMENT_ID=vr.type_regelement WHERE " + OU + " GROUP BY r.lg_TYPE_REGLEMENT_ID, r.str_NAME ORDER BY SUM(vr.montant) DESC").split(/\r?\n/).filter(Boolean).map((l) => l.split('|'));
     ok('× mode de règlement : la grandeur devient le montant réglé (source vente_reglement), du plus fort au plus faible, valeurs exactes, et la note le dit',
       modes.length === s.lignes.length && modes.every((m, i) => s.lignes[i].libelle === m[0] && proche(s.lignes[i].a, m[1])) && /montant réglé/.test(s.note) && /RÉGLÉ/.test(s.cols[1].t), JSON.stringify(s.lignes.slice(0, 3)) + ' ' + s.cols[1].t);
 
@@ -119,7 +119,7 @@ const proche = (a, b) => Math.abs(Number(a) - Number(b)) <= 1;
       s.type === 'line,line' && s.cols.slice(3).every((c) => c.v) && s.libelles.join('|') === 'A|B' && s.cols[0].t === 'MOIS', s.type + ' ' + JSON.stringify(s.libelles));
     ok('Aucune erreur JavaScript', err.length === 0, JSON.stringify(err));
   } catch (e) {
-    ok('Le parcours va au bout', false, e.message + ' ' + (e.stack || '').split('\n')[1]);
+    ok('Le parcours va au bout', false, e.message + ' ' + (e.stack || '').split(/\r?\n/)[1]);
   } finally {
     await b.close();
     const kos = res.filter((r) => !r.c);

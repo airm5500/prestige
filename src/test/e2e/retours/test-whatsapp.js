@@ -25,7 +25,7 @@ const BASE = ENV_E2E.BASE;
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
 const URL = 'http://localhost:8080/prestige';
-const LOG = '/opt/payara5/glassfish/domains/domain1/logs/server.log';
+const LOG = ENV_E2E.JOURNAL_SERVEUR;
 
 const A = 'E2E-WA-A', B = 'E2E-WA-B', C = 'E2E-WA-C';
 const clients = "('" + A + "','" + B + "','" + C + "')";
@@ -45,7 +45,7 @@ function nettoyer() {
 
 (async () => {
   nettoyer();
-  const comptesAvant = q("SELECT CONCAT_WS('|', mode, actif, mode_test, COALESCE(api_version,'~'), COALESCE(phone_number_id,'~'), COALESCE(waba_id,'~'), COALESCE(access_token,'~'), COALESCE(verify_token,'~'), COALESCE(app_secret,'~'), COALESCE(modele_nom,'~'), COALESCE(modele_langue,'~'), COALESCE(web_url,'~'), COALESCE(web_jeton,'~')) FROM whatsapp_compte").split('\n');
+  const comptesAvant = q("SELECT CONCAT_WS('|', mode, actif, mode_test, COALESCE(api_version,'~'), COALESCE(phone_number_id,'~'), COALESCE(waba_id,'~'), COALESCE(access_token,'~'), COALESCE(verify_token,'~'), COALESCE(app_secret,'~'), COALESCE(modele_nom,'~'), COALESCE(modele_langue,'~'), COALESCE(web_url,'~'), COALESCE(web_jeton,'~')) FROM whatsapp_compte").split(/\r?\n/);
   const modeAvant = q("SELECT str_VALUE FROM t_parameters WHERE str_KEY = 'KEY_WHATSAPP_MODE_DEFAUT'");
   const journalAvant = q("SELECT COUNT(*) FROM whatsapp_message");
   const tailleLog = fs.statSync(LOG).size;
@@ -130,7 +130,7 @@ function nettoyer() {
     await p.evaluate(() => { if (Ext.MessageBox.isVisible()) { Ext.MessageBox.hide(); } });
     ok('Envoi « WhatsApp, SMS si WhatsApp échoue » : 2 messages préparés, C refusé (WhatsApp et SMS refusés)', /2 message\(s\) WhatsApp préparé\(s\)/.test(msg) && /CHANTAL : Le client a refusé WhatsApp et les SMS/.test(msg), msg);
     for (let i = 0; i < 30 && q("SELECT COUNT(*) FROM whatsapp_message WHERE client_id IN ('" + A + "','" + B + "')") !== '2'; i++) { await p.waitForTimeout(500); }
-    const wa = q("SELECT CONCAT(client_id, '|', statut, '|', repli_sms, '|', simule) FROM whatsapp_message WHERE client_id IN " + clients + " ORDER BY client_id").split('\n');
+    const wa = q("SELECT CONCAT(client_id, '|', statut, '|', repli_sms, '|', simule) FROM whatsapp_message WHERE client_id IN " + clients + " ORDER BY client_id").split(/\r?\n/);
     ok('Client A : WhatsApp simulé (mode test)', wa[0] === A + '|SIMULE|0|1', JSON.stringify(wa));
     ok('Client B (refus WhatsApp) : échec WhatsApp, repris par SMS', wa[1] && wa[1].startsWith(B + '|ECHEC|1|'), JSON.stringify(wa));
     const notifsB = q("SELECT COUNT(DISTINCT n.id) FROM notification n JOIN notification_client nc ON nc.notification_id = n.id WHERE nc.client_id = '" + B + "' AND n.type_notification = 24");

@@ -18,7 +18,7 @@ const BASE = ENV_E2E.BASE;
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
 const URL = 'http://localhost:8080/prestige/api/v1/whatsapp/webhook-web';
-const LOG = '/opt/payara5/glassfish/domains/domain1/logs/server.log';
+const LOG = ENV_E2E.JOURNAL_SERVEUR;
 const JETON = 'jeton-essai-stop-' + Date.now();
 const lit = (s) => (s === undefined || s === 'NULL' || s === '' ? 'NULL' : "'" + s.replace(/'/g, "''") + "'");
 const IDS = "('E2E-STOP-A','E2E-STOP-B','E2E-STOP-C','E2E-STOP-D')";

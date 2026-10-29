@@ -31,9 +31,9 @@ const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-charact
   try {
     /* preparation : 2 DCI rattachees a 3 et 2 produits, par la route de la fiche article */
     const dcis = q("SELECT d.lg_DCI_ID FROM t_dci d WHERE d.str_STATUT='enable' AND LENGTH(d.str_NAME) BETWEEN 8 AND 20"
-      + " AND NOT EXISTS (SELECT 1 FROM t_famille_dci fd WHERE fd.lg_DCI_ID=d.lg_DCI_ID) ORDER BY d.str_NAME LIMIT 2").split('\n').filter(Boolean);
+      + " AND NOT EXISTS (SELECT 1 FROM t_famille_dci fd WHERE fd.lg_DCI_ID=d.lg_DCI_ID) ORDER BY d.str_NAME LIMIT 2").split(/\r?\n/).filter(Boolean);
     const produits = q("SELECT f.lg_FAMILLE_ID FROM t_famille f JOIN t_famille_stock s ON s.lg_FAMILLE_ID=f.lg_FAMILLE_ID AND s.str_STATUT='enable' AND s.lg_EMPLACEMENT_ID='1'"
-      + " WHERE f.str_STATUT='enable' AND NOT EXISTS (SELECT 1 FROM t_famille_dci fd WHERE fd.lg_FAMILLE_ID=f.lg_FAMILLE_ID) ORDER BY f.str_NAME LIMIT 5").split('\n').filter(Boolean);
+      + " WHERE f.str_STATUT='enable' AND NOT EXISTS (SELECT 1 FROM t_famille_dci fd WHERE fd.lg_FAMILLE_ID=f.lg_FAMILLE_ID) ORDER BY f.str_NAME LIMIT 5").split(/\r?\n/).filter(Boolean);
     const admin = await (await b.newContext()).newPage();
     await admin.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
     await admin.fill('#str_login', ENV_E2E.LOGIN); await admin.fill('#str_password', 'e2etest'); await admin.click('#login');
@@ -45,14 +45,14 @@ const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-charact
       reponses.push(await admin.evaluate(async ([d, f]) => (await fetch('../api/v1/referentiel-article/dci-famille/associer', { method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'lg_DCI_ID=' + encodeURIComponent(d) + '&lg_FAMILLE_ID=' + encodeURIComponent(f) })).json(), [d, f]));
     }
-    q("SELECT lg_FAMILLE_DCI_ID FROM t_famille_dci").split('\n').filter((x) => x && avant.split(',').indexOf(x) < 0).forEach((x) => crees.push(x));
+    q("SELECT lg_FAMILLE_DCI_ID FROM t_famille_dci").split(/\r?\n/).filter((x) => x && avant.split(',').indexOf(x) < 0).forEach((x) => crees.push(x));
     await admin.close();
     ok('Préparation : 5 rattachements DCI–produit créés par la route de la fiche article', crees.length === 5, JSON.stringify(reponses[0]));
 
     const attendues = q("SELECT CONCAT(d.lg_DCI_ID,'|',d.str_NAME,'|',COUNT(DISTINCT f.lg_FAMILLE_ID)) FROM t_dci d"
       + " JOIN t_famille_dci fd ON fd.lg_DCI_ID=d.lg_DCI_ID AND fd.str_STATUT='enable'"
       + " JOIN t_famille f ON f.lg_FAMILLE_ID=fd.lg_FAMILLE_ID AND f.str_STATUT='enable'"
-      + " WHERE d.str_STATUT='enable' GROUP BY d.lg_DCI_ID, d.str_NAME ORDER BY d.str_NAME").split('\n').filter(Boolean).map((l) => l.split('|'));
+      + " WHERE d.str_STATUT='enable' GROUP BY d.lg_DCI_ID, d.str_NAME ORDER BY d.str_NAME").split(/\r?\n/).filter(Boolean).map((l) => l.split('|'));
     ok('Précondition : le banc porte des DCI rattachées à des produits', attendues.length >= 2, attendues.length + ' DCI');
 
     await p.goto('http://localhost:8080/prestige/security/espace-produit.html', { waitUntil: 'domcontentloaded' });
@@ -74,7 +74,7 @@ const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-charact
     /* On choisit la DCI qui a des produits : ils s'affichent, sans rien taper dans la recherche. */
     const produitsAttendus = q("SELECT f.str_NAME FROM t_famille f JOIN t_famille_dci fd ON fd.lg_FAMILLE_ID=f.lg_FAMILLE_ID AND fd.str_STATUT='enable'"
       + " JOIN t_famille_stock s ON s.lg_FAMILLE_ID=f.lg_FAMILLE_ID AND s.str_STATUT='enable'"
-      + " WHERE fd.lg_DCI_ID='" + idDci + "' AND f.str_STATUT='enable' ORDER BY f.str_NAME").split('\n').filter(Boolean);
+      + " WHERE fd.lg_DCI_ID='" + idDci + "' AND f.str_STATUT='enable' ORDER BY f.str_NAME").split(/\r?\n/).filter(Boolean);
     await p.click('#ep-dci-liste div[data-id="' + idDci + '"]');
     await p.waitForFunction((n) => document.querySelectorAll('#ep-corps tr').length === n && !document.querySelector('#ep-corps .ep-vide'), produitsAttendus.length, { timeout: 15000 });
     const lignes = await p.evaluate(() => Array.prototype.slice.call(document.querySelectorAll('#ep-corps tr')).map((tr) => tr.children[1].textContent));
@@ -119,7 +119,7 @@ const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-charact
     ok('La liste des DCI exige un texte : sans rien, elle ne rend rien (pas d export du référentiel)', listeVide.total === 0);
     ok('Aucune erreur JavaScript', err.length === 0, JSON.stringify(err));
   } catch (e) {
-    ok('Le parcours va au bout', false, e.message + ' ' + (e.stack || '').split('\n')[1]);
+    ok('Le parcours va au bout', false, e.message + ' ' + (e.stack || '').split(/\r?\n/)[1]);
   } finally {
     if (crees.length) {
       q("DELETE FROM t_famille_dci WHERE lg_FAMILLE_DCI_ID IN ('" + crees.join("','") + "')");

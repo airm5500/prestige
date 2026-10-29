@@ -26,7 +26,7 @@ const [FID, CIP] = q("SELECT CONCAT_WS('|', f.lg_FAMILLE_ID, f.int_CIP) FROM t_f
 const CANDIDATS = q("SELECT DISTINCT CONCAT_WS('|', c.lg_CLIENT_ID, c.str_FIRST_NAME, c.str_LAST_NAME) FROM t_client c JOIN t_compte_client cc ON cc.lg_CLIENT_ID = c.lg_CLIENT_ID"
   + " JOIN t_compte_client_tiers_payant cctp ON cctp.lg_COMPTE_CLIENT_ID = cc.lg_COMPTE_CLIENT_ID AND cctp.str_STATUT = 'enable'"
   + " JOIN t_tiers_payant tp ON tp.lg_TIERS_PAYANT_ID = cctp.lg_TIERS_PAYANT_ID AND tp.lg_TYPE_TIERS_PAYANT_ID = '2' AND tp.str_STATUT = 'enable'"
-  + " WHERE c.str_STATUT = 'enable' AND c.lg_TYPE_CLIENT_ID = '2' LIMIT 40").split('\n').filter(Boolean).map((l) => l.split('|'));
+  + " WHERE c.str_STATUT = 'enable' AND c.lg_TYPE_CLIENT_ID = '2' LIMIT 40").split(/\r?\n/).filter(Boolean).map((l) => l.split('|'));
 
 /* client carnet d'essai au nom unique : copie d'un client carnet du banc (client, compte, compte tiers payant, ayants droit) */
 const MODELE = CANDIDATS.length ? CANDIDATS[0][0] : '';

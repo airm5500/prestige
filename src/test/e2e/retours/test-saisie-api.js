@@ -107,7 +107,7 @@ const JEUX = {
     const JOURNAUX = /^(t_application_event|t_application_event_occurrence|t_event_log|t_session_utilisateur|t_user_session|t_support_|t_mouchard|t_log|t_preference_utilisateur|flyway)/;
     const tablesDatees = q("SELECT CONCAT(c.TABLE_NAME, ':', c.COLUMN_NAME) FROM information_schema.COLUMNS c JOIN information_schema.TABLES t ON t.TABLE_SCHEMA = c.TABLE_SCHEMA AND t.TABLE_NAME = c.TABLE_NAME"
       + " WHERE c.TABLE_SCHEMA = DATABASE() AND t.TABLE_TYPE = 'BASE TABLE' AND c.DATA_TYPE IN ('datetime', 'timestamp') AND c.COLUMN_NAME IN ('dt_CREATED', 'dt_UPDATED', 'created_at', 'updated_at', 'modified_at')")
-      .split('\n').filter(Boolean).map((l) => l.split(':')).filter((x) => !JOURNAUX.test(x[0]));
+      .split(/\r?\n/).filter(Boolean).map((l) => l.split(':')).filter((x) => !JOURNAUX.test(x[0]));
     const erreurs = []; const lents = []; let appels = 0;
     const appeler = async (e, jeu) => {
       let chemin = e.chemin.replace(/\{(\w+)(?::[^}]*)?\}/g, (_, n) => encodeURIComponent(JEUX[jeu]({ nom: n, type: 'String' }) || 'zz'));
@@ -120,7 +120,7 @@ const JEUX = {
         const r = await lire().catch((x) => { if (/hang up|ECONNRESET/.test(x.message) && Date.now() - t0 < 1000) { return lire(); } throw x; });
         if (r.status() >= 500) { erreurs.push(e.fichier + ' GET ' + e.chemin + ' [' + jeu + '] -> ' + r.status()); }
       } catch (x) {
-        lents.push(e.fichier + ' GET ' + e.chemin + ' [' + jeu + '] ' + (Date.now() - t0) + ' ms : ' + String(x.message).split('\n')[0].slice(0, 80));
+        lents.push(e.fichier + ' GET ' + e.chemin + ' [' + jeu + '] ' + (Date.now() - t0) + ' ms : ' + String(x.message).split(/\r?\n/)[0].slice(0, 80));
       }
     };
         /* une lecture sans parametre n'est appelee qu'une fois (rien a saisir) */

@@ -21,7 +21,7 @@ const ET = 'E2E-GS1-ET', LOT = 'E2E-GS1-LOT', NUMLOT = 'E2ELOT7', CAISSE = 'e2e-
 const cle = (d) => { let s = 0; for (let i = d.length - 1, w = 3; i >= 0; i--, w = 4 - w) { s += Number(d[i]) * w; } return (10 - s % 10) % 10; };
 const F = q("SELECT CONCAT_WS('|', f.lg_FAMILLE_ID, f.int_CIP, f.int_EAN13) FROM t_famille f JOIN t_famille_stock s ON s.lg_FAMILLE_ID = f.lg_FAMILLE_ID AND s.lg_EMPLACEMENT_ID = '1'"
   + " WHERE f.str_STATUT = 'enable' AND f.int_EAN13 REGEXP '^[0-9]{13}$' AND f.int_CIP REGEXP '^[0-9]{6,8}$' AND COALESCE(f.bool_DECONDITIONNE, 0) = 0"
-  + " AND COALESCE(f.lg_FAMILLE_PARENT_ID, '') = '' AND f.int_PRICE > 0 AND f.bool_ACCOUNT = 1 ORDER BY f.str_NAME LIMIT 200").split('\n').map((l) => l.split('|'))
+  + " AND COALESCE(f.lg_FAMILLE_PARENT_ID, '') = '' AND f.int_PRICE > 0 AND f.bool_ACCOUNT = 1 ORDER BY f.str_NAME LIMIT 200").split(/\r?\n/).map((l) => l.split('|'))
   .filter((x) => cle(x[2].slice(0, 12)) === Number(x[2][12]))[0] || [];
 const [FID, CIP, EAN] = F;
 const PARAM = q("SELECT str_VALUE FROM t_parameters WHERE str_KEY = 'KEY_VENTE_LECTURE_GS1'");
@@ -52,7 +52,7 @@ const decoder = (pdf) => {
     execFileSync('pdftoppm', ['-r', '400', '-png', '-f', '1', '-l', '1', '-x', '0', '-y', '0', '-W', '1100', '-H', '650', ENV_E2E.TMP + '/e2e-gs1.pdf', process.env.E2E_APERCU + '/etiquette-' + (decoder.n = (decoder.n || 0) + 1)]);
   }
   /* mots de la page avec leur position (points), pour verifier la disposition */
-  const bbox = execFileSync('pdftotext', ['-bbox', '-f', '1', '-l', '1', ENV_E2E.TMP + '/e2e-gs1.pdf', '-'], { encoding: 'utf8' });
+  const bbox = execFileSync('pdftotext', ['-enc', 'UTF-8', '-bbox', '-f', '1', '-l', '1', ENV_E2E.TMP + '/e2e-gs1.pdf', '-'], { encoding: 'utf8' });
   codes.mots = [...bbox.matchAll(/<word xMin="([\d.]+)" yMin="([\d.]+)" xMax="([\d.]+)" yMax="([\d.]+)">([^<]*)<\/word>/g)]
     .map((m) => ({ xMin: +m[1], yMin: +m[2], xMax: +m[3], yMax: +m[4], t: m[5].replace(/&apos;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, '&') }));
   return codes;

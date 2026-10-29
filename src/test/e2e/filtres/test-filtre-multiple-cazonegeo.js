@@ -128,7 +128,7 @@ const PREF = q("SELECT COALESCE((SELECT txt_VALEUR FROM t_preference_utilisateur
     const nomGros = q("SELECT str_LIBELLE FROM t_grossiste WHERE lg_GROSSISTE_ID = '" + gros + "'");
     const pdf = await p.evaluate(async (u) => (await fetch('../api/v1/ca-zone-geo/pdf?' + u)).json(),
       new URLSearchParams({ typePeriode: 'TROIS_MOIS', regroupement: 'ZONE', zoneId: rayons.slice(0, 2).join(','), grossisteId: gros }).toString());
-    const texte = pdf.msg ? execFileSync('pdftotext', ['-layout', fichierEdition(pdf.msg), '-'], { encoding: 'utf8' }).replace(/\s+/g, ' ') : '';
+    const texte = pdf.msg ? execFileSync('pdftotext', ['-enc', 'UTF-8', '-layout', fichierEdition(pdf.msg), '-'], { encoding: 'utf8' }).replace(/\s+/g, ' ') : '';
     ok('Impression : les noms des rayons et du grossiste cochés', noms.every((n) => texte.indexOf(n.replace(/\s+/g, ' ')) >= 0) && texte.indexOf(nomGros) >= 0 && /Rayons :/.test(texte),
       noms.join(' / ') + ' + ' + nomGros + ' :: ' + texte.slice(0, 300) + (pdf.msg ? '' : JSON.stringify(pdf)));
 

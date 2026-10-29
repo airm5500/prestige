@@ -16,7 +16,7 @@ const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
 const BASE = ENV_E2E.BASE;
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
-const [Z1, Z2] = q("SELECT lg_ZONE_GEO_ID FROM t_famille WHERE str_STATUT = 'enable' AND lg_ZONE_GEO_ID IS NOT NULL GROUP BY lg_ZONE_GEO_ID ORDER BY COUNT(*) DESC LIMIT 2").split('\n');
+const [Z1, Z2] = q("SELECT lg_ZONE_GEO_ID FROM t_famille WHERE str_STATUT = 'enable' AND lg_ZONE_GEO_ID IS NOT NULL GROUP BY lg_ZONE_GEO_ID ORDER BY COUNT(*) DESC LIMIT 2").split(/\r?\n/);
 const G = q(`SELECT lg_GROSSISTE_ID FROM t_famille WHERE str_STATUT = 'enable' AND lg_ZONE_GEO_ID = '${Z1}' AND lg_GROSSISTE_ID IS NOT NULL GROUP BY lg_GROSSISTE_ID ORDER BY COUNT(*) DESC LIMIT 1`);
 const compte = (w) => q("SELECT COUNT(*) FROM t_famille f WHERE f.str_STATUT = 'enable'" + w);
 

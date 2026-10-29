@@ -35,7 +35,7 @@ const EXCLUS = ['doventemanager', 'ventemanager_new', 'ouverturecaissemanger', '
     await p.waitForTimeout(2000);
     let ecrans = q("SELECT s.str_COMPOSANT, MIN(s.str_VALUE) FROM t_sous_menu s JOIN t_menu m ON m.lg_MENU_ID = s.lg_MENU_ID"
       + " WHERE s.str_Status = 'enable' AND m.str_Status = 'enable' AND COALESCE(s.str_COMPOSANT, '') <> '' GROUP BY s.str_COMPOSANT ORDER BY s.str_COMPOSANT")
-      .split('\n').filter(Boolean).map((l) => l.split('\t'));
+      .split(/\r?\n/).filter(Boolean).map((l) => l.split('\t'));
     const connus = await p.evaluate((l) => l.filter((x) => !!Ext.ClassManager.getByAlias('widget.' + x)), ecrans.map((e) => e[0]));
     ecrans = ecrans.filter((e) => connus.includes(e[0]) && !EXCLUS.includes(e[0]));
     if (process.env.ECRANS) { const v = process.env.ECRANS.split(','); ecrans = ecrans.filter((e) => v.includes(e[0])); }
@@ -93,7 +93,7 @@ const EXCLUS = ['doventemanager', 'ventemanager_new', 'ouverturecaissemanger', '
           r.boutons.forEach((x) => defauts.boutons.push(lieu + ' : ' + x));
         }
       } catch (e) {
-        console.log('  (écran ' + xtype + ' : ' + String(e.message).split('\n')[0].slice(0, 100) + ')');
+        console.log('  (écran ' + xtype + ' : ' + String(e.message).split(/\r?\n/)[0].slice(0, 100) + ')');
       }
     }
     for (const [k, l] of Object.entries(defauts)) { [...new Set(l)].forEach((x) => console.log('  ✗ [' + k + '] ' + x)); }

@@ -11,7 +11,7 @@ const ENV_E2E = require('../outils/poste');
 const fs = require('fs');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
-const JOURNAL = '/opt/payara5/glassfish/domains/domain1/logs/server.log';
+const JOURNAL = ENV_E2E.JOURNAL_SERVEUR;
 const taille = () => fs.statSync(JOURNAL).size;
 const lireDepuis = (pos) => { const fd = fs.openSync(JOURNAL, 'r'); const n = taille() - pos; const buf = Buffer.alloc(Math.max(0, n)); fs.readSync(fd, buf, 0, buf.length, pos); fs.closeSync(fd); return buf.toString('utf8'); };
 const ECRANS = [['familles', 'v1/statfamillearticle'], ['rayons', 'v1/statfamillearticle/statisticrayons'], ['grossistes', 'v1/statfamillearticle/statisticprovider'], ['veto', 'v1/statfamillearticle/veto']];

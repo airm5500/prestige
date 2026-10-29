@@ -31,7 +31,7 @@ for (const t of tests) {
   /* bilan « 12/12 OK », « 9/10 ECHEC » ou « ===== 12/12 PASS ===== » ; le dernier de la sortie fait foi */
   const bilans = sortie.match(/^[\s=]*\d+\/\d+\b.*$/gm) || [];
   const bilan = bilans.length ? bilans[bilans.length - 1].replace(/=+/g, '').trim() : null;
-  const fails = sortie.split('\n').filter((l) => /^FAIL/.test(l)).map((l) => l.slice(0, 300));
+  const fails = sortie.split(/\r?\n/).filter((l) => /^FAIL/.test(l)).map((l) => l.slice(0, 300));
   const n = bilan ? bilan.match(/(\d+)\/(\d+)/) : null;
   res[t] = { fini: true, bilan: bilan ? bilan.trim() : (r.error ? 'interrompu : ' + r.error.code : 'pas de bilan (code ' + r.status + ')'),
     ok: (n ? n[1] === n[2] : r.status === 0) && r.status === 0 && fails.length === 0, fails, code: r.status, secondes: Math.round((Date.now() - t0) / 1000), date: new Date().toISOString() };

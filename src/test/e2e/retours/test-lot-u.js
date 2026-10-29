@@ -26,7 +26,7 @@ function purger() {
     + " DELETE FROM t_lot WHERE lg_LOT_ID LIKE '" + LOT + "%';");
 }
 function produits() {
-  return q("SELECT lg_FAMILLE_ID FROM t_famille WHERE str_STATUT='enable' ORDER BY str_NAME LIMIT 2").split('\n').filter(Boolean);
+  return q("SELECT lg_FAMILLE_ID FROM t_famille WHERE str_STATUT='enable' ORDER BY str_NAME LIMIT 2").split(/\r?\n/).filter(Boolean);
 }
 function poserVente(jour) {
   const user = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='" + (ENV_E2E.LOGIN) + "'");
@@ -145,13 +145,13 @@ function poserLots(ps) {
     ok('Point 9 : une gamme inconnue ne rend aucun produit', (detailVide.data || []).length === 0, JSON.stringify(detailVide).slice(0, 150));
     const xl = await octets('../api/v1/ca-zone-geo/excel?typePeriode=LIBRE&dtStart=' + jour + '&dtEnd=' + jour + '&regroupement=GAMME&zoneId=&familleId=');
     fs.writeFileSync(TMP + '/gammes.xls', Buffer.from(xl.octets));
-    const chaines = execSync('strings -a ' + TMP + '/gammes.xls; strings -a -el ' + TMP + '/gammes.xls', { encoding: 'utf8' });
+    const chaines = require('../outils/chaines').chaines(TMP + '/gammes.xls');
     ok('Point 9 : l export Excel par gamme est titre PAR GAMME avec la colonne Gamme', xl.statut === 200 && /PAR GAMME/.test(chaines) && /Gamme/.test(chaines) && /Sans gamme/.test(chaines), chaines.slice(0, 200));
     // l'edition rend l'URL du fichier genere (comme les autres editions de cet ecran) : on lit le fichier lui-meme
     const pdf = await octets('../api/v1/ca-zone-geo/pdf?typePeriode=LIBRE&dtStart=' + jour + '&dtEnd=' + jour + '&regroupement=LABORATOIRE&zoneId=&familleId=');
     let reponsePdf = {}; try { reponsePdf = JSON.parse(Buffer.from(pdf.octets).toString('utf8')); } catch (e) { }
     const fichierPdf = reponsePdf.url ? require('../support/editions').fichierEdition(reponsePdf.url) : '';
-    const textePdf = fichierPdf && fs.existsSync(fichierPdf) ? execSync('pdftotext -layout ' + fichierPdf + ' -', { encoding: 'utf8' }) : '';
+    const textePdf = fichierPdf && fs.existsSync(fichierPdf) ? execSync('pdftotext -enc UTF-8 -layout ' + fichierPdf + ' -', { encoding: 'utf8' }) : '';
     ok('Point 9 : le PDF par laboratoire s edite avec son titre', reponsePdf.success === true && /PAR LABORATOIRE/.test(textePdf) && /Sans laboratoire/.test(textePdf),
       JSON.stringify(reponsePdf).slice(0, 150) + ' ' + textePdf.slice(0, 200));
 

@@ -14,7 +14,7 @@ const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 400) + ']' : '')); }
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', ENV_E2E.BASE, '-sN'], { input: s, encoding: 'utf8' }).trim();
 const T = String(Date.now()).slice(-7), C = 'E2E-RPA-' + T, NOM = 'ZZRAPPEL', PRENOM = 'ANALYSE' + T, MWA = 'E2E-RPA-WA-' + T;
-const [P1, P2] = q("SELECT f.lg_FAMILLE_ID FROM t_famille f WHERE f.str_STATUT = 'enable' AND f.int_CIP <> '' AND f.str_NAME REGEXP '^[A-Z]{3}' ORDER BY f.str_NAME LIMIT 2").split('\n');
+const [P1, P2] = q("SELECT f.lg_FAMILLE_ID FROM t_famille f WHERE f.str_STATUT = 'enable' AND f.int_CIP <> '' AND f.str_NAME REGEXP '^[A-Z]{3}' ORDER BY f.str_NAME LIMIT 2").split(/\r?\n/);
 const R = (i) => C + '-' + i;
 
 function semer() {
@@ -71,9 +71,9 @@ function nettoyer() {
     const urlPdf = await ouvrir('btnPdf');
     const pdf = await p.evaluate(async (u) => { const r = await fetch(u); const a = new Uint8Array(await r.arrayBuffer()); return { type: r.headers.get('content-type'), b: Array.from(a) }; }, urlPdf);
     require('fs').writeFileSync(ENV_E2E.TMP + '/e2e-rappels.pdf', Buffer.from(pdf.b));
-    const texte = execFileSync('pdftotext', ['-layout', ENV_E2E.TMP + '/e2e-rappels.pdf', '-'], { encoding: 'utf8' });
+    const texte = execFileSync('pdftotext', ['-enc', 'UTF-8', '-layout', ENV_E2E.TMP + '/e2e-rappels.pdf', '-'], { encoding: 'utf8' });
     ok('Imprimer : PDF de la liste affichée (titre, critères, 5 lignes de l\'essai)', /pdf/.test(pdf.type) && /RAPPELS DE TRAITEMENT/.test(texte) && /Tous les statuts/.test(texte)
-      && texte.split('\n').filter((x) => /^\s*\d\d\/\d\d\/\d{4}/.test(x) && x.indexOf(PRENOM) >= 0).length === 5 && /5 ligne\(s\)/.test(texte), JSON.stringify({ type: pdf.type, n: (texte.match(new RegExp(PRENOM, 'g')) || []).length, lignes: /5 ligne\(s\)/.test(texte), tous: /Tous les statuts/.test(texte) }));
+      && texte.split(/\r?\n/).filter((x) => /^\s*\d\d\/\d\d\/\d{4}/.test(x) && x.indexOf(PRENOM) >= 0).length === 5 && /5 ligne\(s\)/.test(texte), JSON.stringify({ type: pdf.type, n: (texte.match(new RegExp(PRENOM, 'g')) || []).length, lignes: /5 ligne\(s\)/.test(texte), tous: /Tous les statuts/.test(texte) }));
     const urlCsv = await ouvrir('btnCsv');
     const csv = await p.evaluate(async (u) => { const r = await fetch(u); return { type: r.headers.get('content-type'), t: await r.text() }; }, urlCsv);
     const l = csv.t.replace(/^﻿/, '').trim().split(/\r\n/);

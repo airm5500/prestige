@@ -11,7 +11,7 @@ const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 300) + ']' : '')); }
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', ENV_E2E.BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const RAYONS = q("SELECT f.lg_ZONE_GEO_ID FROM t_famille f JOIN t_famille_stock s ON s.lg_FAMILLE_ID = f.lg_FAMILLE_ID AND s.lg_EMPLACEMENT_ID = '1'"
-  + " WHERE f.str_STATUT = 'enable' AND f.lg_ZONE_GEO_ID IS NOT NULL AND f.lg_ZONE_GEO_ID <> '' GROUP BY 1 ORDER BY COUNT(*) DESC LIMIT 2 OFFSET 1").split('\n');
+  + " WHERE f.str_STATUT = 'enable' AND f.lg_ZONE_GEO_ID IS NOT NULL AND f.lg_ZONE_GEO_ID <> '' GROUP BY 1 ORDER BY COUNT(*) DESC LIMIT 2 OFFSET 1").split(/\r?\n/);
 /* [menu xtype, titre, classe de l'ecran, morceau d'URL de la recherche, axes attendus, onglet a ouvrir (titre) ] */
 const ECRANS = [
   ['stockmort', 'Articles invendus', 'testextjs.view.produits.ArticlesInvendus', 'articleInvendus', 3],

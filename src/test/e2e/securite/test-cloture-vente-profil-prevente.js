@@ -170,7 +170,7 @@ function nettoyer() {
       if (/^is_Closed/.test(etat3)) { break; }
       await p3.waitForTimeout(500);
     }
-    ok('Non-régression : admin seul termine sa vente normalement (caissier = admin)', etat3 === 'is_Closed|admin', etat3);
+    ok('Non-régression : admin seul termine sa vente normalement (caissier = admin)', etat3 === 'is_Closed|' + ENV_E2E.LOGIN, etat3);
   } catch (e) {
     ok('Parcours sans exception', false, e.stack);
   } finally {

@@ -27,7 +27,7 @@ const SANS_MVT = "SELECT f.lg_FAMILLE_ID FROM t_famille f WHERE f.str_STATUT = '
   + " AND NOT EXISTS (SELECT 1 FROM hmvtproduit h WHERE h.lg_FAMILLE_ID = f.lg_FAMILLE_ID) ORDER BY f.str_NAME LIMIT 2";
 /* deux produits sans aucun mouvement. Sur une base ou tous les produits ont deja bouge (banc peuple sur 3 ans),
    le test les cree, copies d'un produit existant, et les retire a la fin. */
-let [F1, F2] = q(SANS_MVT).split('\n');
+let [F1, F2] = q(SANS_MVT).split(/\r?\n/);
 const CREES = [];
 if (!F1 || !F2) {
   const MODELE = q("SELECT lg_FAMILLE_ID FROM t_famille WHERE str_STATUT = 'enable' AND int_CIP <> '' ORDER BY str_NAME LIMIT 1");
@@ -42,7 +42,7 @@ if (!F1 || !F2) {
 }
 const DEP = q("SELECT lg_EMPLACEMENT_ID FROM t_emplacement WHERE lg_EMPLACEMENT_ID <> '1' ORDER BY lg_EMPLACEMENT_ID LIMIT 1");
 const droit = privilegeEssai(q, exec, ENV_E2E.LOGIN_SUPPORT, 'P_AUDIT_REGULARISER');
-const ligne = (id, quand, debut, fin, qte, type, f, e) => `('${M}-${id}', b'1', '2038-08-20 ${quand}', '2038-08-20', '${M}', 100, 200, ${debut}, ${fin}, ${qte}, 0, '${e}', '${f}', '${ADMIN}', '${type}', 0)`;
+const ligne = (id, quand, debut, fin, qte, type, f, e) => `('${M}-${id}', b'1', '2038-08-20 ${quand}', '2038-08-20', '${M}-${id}', 100, 200, ${debut}, ${fin}, ${qte}, 0, '${e}', '${f}', '${ADMIN}', '${type}', 0)`;
 const h = (id) => q(`SELECT CONCAT(qteDebut, '>', qteFinale) FROM hmvtproduit WHERE uuid = '${M}-${id}'`);
 
 function retirer() {

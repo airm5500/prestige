@@ -189,7 +189,7 @@ const TMP = ENV_E2E.TMP + '/claude-0/lot-l';
       return { statut: r.status, type: r.headers.get('content-type'), octets: Array.from(new Uint8Array(buf)) };
     }, '../api/v1/balance/balancesalecash/analyse/pdf?typePeriode=LIBRE&dtStart=' + MOIS_A + '&dtEnd=' + FIN_B);
     fs.writeFileSync(TMP + '/analyse.pdf', Buffer.from(pdf.octets));
-    const texte = execFileSync('pdftotext', ['-layout', TMP + '/analyse.pdf', '-'], { encoding: 'utf8' });
+    const texte = execFileSync('pdftotext', ['-enc', 'UTF-8', '-layout', TMP + '/analyse.pdf', '-'], { encoding: 'utf8' });
     ok('PDF : rendu en flux (application/pdf) sur le modele balance_analyse_comparative',
       pdf.statut === 200 && /pdf/.test(pdf.type || '') && /ANALYSE COMPARATIVE BALANCE VENTE \/ CAISSE/.test(texte), (pdf.type || '') + ' ' + texte.slice(0, 200));
     ok('PDF : les deux periodes, puis l evolution par mode avec les colonnes Especes / ORANGE / WAVE et le TOTAL',

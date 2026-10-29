@@ -39,7 +39,8 @@ const JOURS = [
 ];
 
 /* Banc : E2E_LOGIN, sinon KGA3 s'il existe, sinon admin (mot de passe e2etest). */
-const LOGIN = process.env.E2E_LOGIN || (q("SELECT COUNT(*) FROM t_user WHERE str_LOGIN='KGA3'") === '1' ? 'KGA3' : ENV_E2E.LOGIN);
+/* poste local : KGA3 y est un vrai compte de l'officine, le test prend son compte d'essai */
+const LOGIN = process.env.E2E_LOGIN || (!ENV_E2E.WINDOWS && q("SELECT COUNT(*) FROM t_user WHERE str_LOGIN='KGA3'") === '1' ? 'KGA3' : ENV_E2E.LOGIN);
 
 /* Les ventes du jeu d'essai sont creees par le test (et non prises parmi les ventes reelles, dont la date etait
    modifiee et qui portent deja leur mouvement de caisse sur un autre banc). */
@@ -194,8 +195,8 @@ function retirerJeuDEssai() {
   fs.writeFileSync(fpdf, Buffer.from(pdf.b64, 'base64'));
   ok('PDF : le serveur repond 200 (et non un 404 d edition manquante)', pdf.statut === 200, pdf.statut);
   ok('PDF : le contenu recu est bien un PDF', fs.readFileSync(fpdf).slice(0, 5).toString('latin1') === '%PDF-');
-  const texte = execSync('pdftotext -layout ' + fpdf + ' -', { encoding: 'latin1' });
-  ok('PDF : la colonne Ecart est presente', /\bcart\b/.test(texte), texte.split('\n').slice(0, 8).join(' | '));
+  const texte = execSync('pdftotext -enc UTF-8 -layout ' + fpdf + ' -', { encoding: 'latin1' });
+  ok('PDF : la colonne Ecart est presente', /\bcart\b/.test(texte), texte.split(/\r?\n/).slice(0, 8).join(' | '));
   ok('PDF : les lignes mobile money sont au pied de chaque journee',
      (texte.match(/Mobile money :/g) || []).length === 2, (texte.match(/Mobile money :/g) || []).length);
   ok('PDF : le detail mobile tient sur une ligne, operateurs et montants',
@@ -206,7 +207,7 @@ function retirerJeuDEssai() {
      (texte.match(/Mouvements de caisse :.*/g) || []).join(' // '));
   ok('PDF (12/09) : colonne « Mouv. caisse » entre « Clients » et « Regl TP », J1 a 2 500',
      /Clients\s+Mouv\. caisse\s+Regl TP\s+Regl DIFF/.test(texte) && /2\s?500/.test(texte), (texte.match(/Clients.*/) || [''])[0]);
-  ok('PDF : le solde de J1 edite vaut 17 500', /17\s?500/.test(texte), texte.split('\n').filter(l => /17\s?500/.test(l)).join(' | ').slice(0, 200));
+  ok('PDF : le solde de J1 edite vaut 17 500', /17\s?500/.test(texte), texte.split(/\r?\n/).filter(l => /17\s?500/.test(l)).join(' | ').slice(0, 200));
   ok('PDF : le total general est edite', /TOTAL/.test(texte));
 
   /* ------------------------------------------------- Excel */

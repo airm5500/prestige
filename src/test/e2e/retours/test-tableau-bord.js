@@ -381,7 +381,7 @@ const n = (v) => Number(v || 0);
     ok('Aucune réponse en erreur (4xx/5xx) après connexion', http.length === 0, JSON.stringify(http));
     ok('Aucune erreur JavaScript', err.length === 0, JSON.stringify(err));
   } catch (e) {
-    ok('Déroulé sans exception', false, (e.stack || '').split('\n').filter((l) => /test-tableau|Error/.test(l)).join(' | '));
+    ok('Déroulé sans exception', false, (e.stack || '').split(/\r?\n/).filter((l) => /test-tableau|Error/.test(l)).join(' | '));
   } finally {
     await b.close();
     exec("UPDATE t_parameters SET str_VALUE = '" + versionAvant + "' WHERE str_KEY = 'KEY_TABLEAU_BORD_VERSION'");

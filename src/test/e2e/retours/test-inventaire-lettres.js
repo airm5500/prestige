@@ -20,7 +20,7 @@ const NOMS = ['E2E-LETTRES-TOUT', 'E2E-LETTRES-F-M', 'E2E-LETTRES-A-E'];
 const nettoyer = () => q(`DELETE i FROM t_inventaire_famille i JOIN t_inventaire v ON v.lg_INVENTAIRE_ID = i.lg_INVENTAIRE_ID WHERE v.str_NAME LIKE 'E2E-LETTRES-%';
   DELETE FROM t_inventaire WHERE str_NAME LIKE 'E2E-LETTRES-%';`);
 const produits = (nom) => q(`SELECT f.str_NAME FROM t_inventaire_famille i JOIN t_inventaire v ON v.lg_INVENTAIRE_ID = i.lg_INVENTAIRE_ID
-  JOIN t_famille f ON f.lg_FAMILLE_ID = i.lg_FAMILLE_ID WHERE v.str_NAME = '${nom}' ORDER BY f.lg_FAMILLE_ID`).split('\n').filter(Boolean);
+  JOIN t_famille f ON f.lg_FAMILLE_ID = i.lg_FAMILLE_ID WHERE v.str_NAME = '${nom}' ORDER BY f.lg_FAMILLE_ID`).split(/\r?\n/).filter(Boolean);
 
 (async () => {
   const b = await ENV_E2E.lancer(chromium);

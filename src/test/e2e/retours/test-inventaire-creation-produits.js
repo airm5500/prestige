@@ -35,7 +35,7 @@ const nettoyer = () => exec("DELETE f FROM t_inventaire_famille f JOIN t_inventa
     + " AND f.lg_FAMILLE_ID = (SELECT MIN(y.lg_FAMILLE_ID) FROM t_famille y JOIN t_famille_stock ys ON ys.lg_FAMILLE_ID = y.lg_FAMILLE_ID AND ys.lg_EMPLACEMENT_ID = '" + EMP + "'"
     + "   WHERE y.lg_ZONE_GEO_ID = f.lg_ZONE_GEO_ID AND y.str_STATUT = 'enable' AND y.int_CIP REGEXP '^[0-9]{7}$'"
     + "   AND (SELECT COUNT(*) FROM t_famille x2 WHERE x2.int_CIP = y.int_CIP OR x2.int_EAN13 = y.int_CIP) = 1)"
-    + " ORDER BY f.lg_ZONE_GEO_ID LIMIT 4").split('\n').map((l) => { const [id, cip, zone, stock] = l.split('|'); return { id, cip, zone, stock }; });
+    + " ORDER BY f.lg_ZONE_GEO_ID LIMIT 4").split(/\r?\n/).map((l) => { const [id, cip, zone, stock] = l.split('|'); return { id, cip, zone, stock }; });
   ok('Jeu d\'essai : 4 produits de 4 rayons, avec stock à l\'emplacement d\'admin', P.length === 4 && new Set(P.map((x) => x.zone)).size === 4, JSON.stringify(P.map((x) => x.cip)));
   const b = await ENV_E2E.lancer(chromium);
   const p = await b.newPage();
@@ -75,7 +75,7 @@ const nettoyer = () => exec("DELETE f FROM t_inventaire_famille f JOIN t_inventa
 
     const c2 = await api('POST', '../api/v1/inventaire/creation', { str_NAME: 'E2E-46-B', str_TYPE_TRANSACTION: 'Emplacement',
       valeurs: [P[0].zone], produits: [P[0].id, P[1].id] });
-    ok('Avec « valeurs » : intersection (seul le produit du rayon choisi)', c2.success === 1 && c2.lignes === 1 && lignesDe(c2.lgInventaireId).split('\n').length === 1 && lignesDe(c2.lgInventaireId).startsWith(P[0].id + '|'), JSON.stringify(c2).slice(0, 200));
+    ok('Avec « valeurs » : intersection (seul le produit du rayon choisi)', c2.success === 1 && c2.lignes === 1 && lignesDe(c2.lgInventaireId).split(/\r?\n/).length === 1 && lignesDe(c2.lgInventaireId).startsWith(P[0].id + '|'), JSON.stringify(c2).slice(0, 200));
 
     const avant = q("SELECT COUNT(*) FROM t_inventaire");
     const c3 = await api('POST', '../api/v1/inventaire/creation', { str_NAME: 'E2E-46-C', str_TYPE_TRANSACTION: 'Emplacement', produits: ['ZZ-1', 'ZZ-2'] });
@@ -84,7 +84,7 @@ const nettoyer = () => exec("DELETE f FROM t_inventaire_famille f JOIN t_inventa
     const trop = await api('POST', '../api/v1/inventaire/creation', { str_NAME: 'E2E-46-D', str_TYPE_TRANSACTION: 'Emplacement', produits: Array.from({ length: 501 }, (x, i) => 'ZZ' + i) });
     ok('501 éléments : 413, aucun inventaire', trop.http === 413 && q("SELECT COUNT(*) FROM t_inventaire") === avant, trop.http + ' ' + JSON.stringify(trop).slice(0, 120));
 
-    const cinqCents = q("SELECT s.lg_FAMILLE_ID FROM t_famille_stock s JOIN t_famille f ON f.lg_FAMILLE_ID = s.lg_FAMILLE_ID WHERE s.lg_EMPLACEMENT_ID = '" + EMP + "' AND f.str_STATUT = 'enable' GROUP BY s.lg_FAMILLE_ID LIMIT 500").split('\n');
+    const cinqCents = q("SELECT s.lg_FAMILLE_ID FROM t_famille_stock s JOIN t_famille f ON f.lg_FAMILLE_ID = s.lg_FAMILLE_ID WHERE s.lg_EMPLACEMENT_ID = '" + EMP + "' AND f.str_STATUT = 'enable' GROUP BY s.lg_FAMILLE_ID LIMIT 500").split(/\r?\n/);
     const c4 = await api('POST', '../api/v1/inventaire/creation', { str_NAME: 'E2E-46-E', str_TYPE_TRANSACTION: 'Emplacement', produits: cinqCents });
     ok('500 éléments : accepté, 500 lignes retenues', c4.success === 1 && c4.lignes === 500 && q("SELECT COUNT(*) FROM t_inventaire_famille WHERE bool_INVENTAIRE = 1 AND lg_INVENTAIRE_ID = '" + c4.lgInventaireId + "'") === '500', JSON.stringify(c4).slice(0, 160) + ' ' + Math.round(c4.ms) + ' ms');
     ok('500 éléments : en moins de 5 s', c4.ms < 5000, Math.round(c4.ms) + ' ms');

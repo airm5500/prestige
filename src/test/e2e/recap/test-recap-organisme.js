@@ -6,7 +6,6 @@
 const { chromium } = require('playwright-core');
 const ENV_E2E = require('../outils/poste');
 const fs = require('fs');
-const path = require('path');
 const zlib = require('zlib');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 240) + ']' : '')); }
@@ -129,8 +128,7 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
     /* Le PDF est lu SUR LE DISQUE : le repertoire des editions est configure hors de
        l'application (jdom.scr_report_pdf), et l'URL rendue n'est servie par le serveur que si
        l'exploitant l'a montee. Ce qui doit etre verifie ici, c'est le contenu de l'etat. */
-    const dossier = require('../support/editions').dossierEditions();
-    const fichier = path.join(dossier, pdf.json.msg.split('/').pop());
+    const fichier = require('../support/editions').fichierEdition(pdf.json.msg);
     ok('le PDF a bien ete ecrit', fs.existsSync(fichier), fichier);
     if (fs.existsSync(fichier)) {
       const brut = fs.readFileSync(fichier);

@@ -43,7 +43,7 @@ function semer() {
   GROSSISTE = q("SELECT lg_GROSSISTE_ID FROM t_grossiste WHERE str_STATUT='enable' LIMIT 1");
   PRODUITS = q("SELECT f.lg_FAMILLE_ID FROM t_famille f WHERE f.str_STATUT='enable' AND f.lg_GROSSISTE_ID IS NOT NULL"
     + " AND f.bool_DECONDITIONNE=0 AND EXISTS (SELECT 1 FROM t_famille_stock s WHERE s.lg_FAMILLE_ID=f.lg_FAMILLE_ID AND s.str_STATUT='enable')"
-    + " ORDER BY f.str_NAME LIMIT 3").split('\n').filter(Boolean).map(x => x.trim());
+    + " ORDER BY f.str_NAME LIMIT 3").split(/\r?\n/).filter(Boolean).map(x => x.trim());
   purger();
   if (!KGA3 || !AUTRE || !GROSSISTE || PRODUITS.length !== 3) { return false; }
   VENTES.forEach(v => {
@@ -236,7 +236,7 @@ function semer() {
     ok('S : deux gardes de jeu d essai enregistrees', g1.success && gardeId && g2.success && gardeId2, JSON.stringify([g1, g2]).slice(0, 200));
     const pdfV = await octets('../api/v1/gardes/' + gardeId + '/vendeurs/pdf');
     fs.writeFileSync(TMP + '/vendeurs.pdf', Buffer.from(pdfV.octets));
-    const texteV = execFileSync('pdftotext', ['-layout', TMP + '/vendeurs.pdf', '-'], { encoding: 'utf8' });
+    const texteV = execFileSync('pdftotext', ['-enc', 'UTF-8', '-layout', TMP + '/vendeurs.pdf', '-'], { encoding: 'utf8' });
     ok('S : API : le PDF des vendeurs est rendu en flux (application/pdf) avec le nom de la garde et les deux vendeurs',
       pdfV.statut === 200 && /application\/pdf/.test(pdfV.type || '') && /E2E-RS nuit/.test(texteV) && /VENDEUR/i.test(texteV) && /4[\s,.]?000/.test(texteV) && /2[\s,.]?500/.test(texteV),
       texteV.replace(/\n/g, ' | ').slice(0, 300));
@@ -246,7 +246,7 @@ function semer() {
     ok('S : API : l export Excel des vendeurs porte les colonnes attendues et la part du chiffre', xlsV.statut === 200 && /Vendeur\|Ventes\|Clients\|% du chiffre\|Chiffre/.test(celles) && /61\.5/.test(celles), celles.slice(0, 300));
     const cumul = await octets('../api/v1/gardes/' + gardeId + '/vendeurs/pdf?ids=' + gardeId + ',' + gardeId2);
     fs.writeFileSync(TMP + '/vendeurs-cumul.pdf', Buffer.from(cumul.octets));
-    const texteCumul = execFileSync('pdftotext', ['-layout', TMP + '/vendeurs-cumul.pdf', '-'], { encoding: 'utf8' });
+    const texteCumul = execFileSync('pdftotext', ['-enc', 'UTF-8', '-layout', TMP + '/vendeurs-cumul.pdf', '-'], { encoding: 'utf8' });
     ok('S : API : sur les gardes cochees, le PDF dit « gardes cumulées » et cumule (autre vendeur 6 000)', /gardes cumul/.test(texteCumul) && /6[\s,.]?000/.test(texteCumul), texteCumul.replace(/\n/g, ' | ').slice(0, 300));
 
     await p.evaluate(() => testextjs.app.getController('App').onRedirectTo('gardemanager', {}));

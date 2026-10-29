@@ -121,7 +121,7 @@ let KGA3 = '';
     /* Deux gardes sur des nuits qui ont de vraies ventes au banc (les plus actives), pour que les barres aient de quoi
        vivre ; choisies dans les donnees plutot qu'a dates fixes, qui dependaient du banc. */
     const nuits = q("SELECT DATE(DATE_SUB(dt_UPDATED, INTERVAL 20 HOUR)) nuit FROM t_preenregistrement WHERE str_STATUT='is_Closed' AND b_IS_CANCEL=0"
-      + " AND (HOUR(dt_UPDATED) >= 20 OR HOUR(dt_UPDATED) < 8) GROUP BY nuit HAVING COUNT(*) >= 3 ORDER BY COUNT(*) DESC, nuit LIMIT 2").split('\n').sort();
+      + " AND (HOUR(dt_UPDATED) >= 20 OR HOUR(dt_UPDATED) < 8) GROUP BY nuit HAVING COUNT(*) >= 3 ORDER BY COUNT(*) DESC, nuit LIMIT 2").split(/\r?\n/).sort();
     const lendemain = (j) => q("SELECT DATE_ADD('" + j + "', INTERVAL 1 DAY)");
     await poster({ libelle: MARQUE + ' A', dateDebut: nuits[0] + ' 20:00', dateFin: lendemain(nuits[0]) + ' 08:00' });
     await poster({ libelle: MARQUE + ' B', dateDebut: nuits[1] + ' 20:00', dateFin: lendemain(nuits[1]) + ' 08:00' });
@@ -152,7 +152,7 @@ let KGA3 = '';
 
     ok('Aucune erreur JavaScript', err.length === 0, JSON.stringify(err));
   } catch (e) {
-    ok('Le parcours va au bout', false, e.message + ' ' + (e.stack || '').split('\n')[1]);
+    ok('Le parcours va au bout', false, e.message + ' ' + (e.stack || '').split(/\r?\n/)[1]);
   } finally {
     await b.close();
     exec("DELETE FROM garde WHERE libelle LIKE '" + MARQUE + " %'");

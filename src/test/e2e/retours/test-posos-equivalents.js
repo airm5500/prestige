@@ -94,7 +94,7 @@ const produits = require('../support/produits-essai')(q, exec, 'E2E-PSE-');
     ok('« Remplacer » : le Brufen devient le produit choisi, sa posologie est VIDÉE et le curseur y est', lignes.l[1] === premier + ' / ' && lignes.l[0] === 'SINTROM 4MG CPR SEC B/30 / 1 cp le soir' && lignes.col === 'colPosologie', JSON.stringify(lignes));
     ok('Aucune erreur JavaScript', err.length === 0, JSON.stringify(err));
   } catch (e) {
-    ok('Le parcours va au bout', false, e.message + ' ' + (e.stack || '').split('\n')[1]);
+    ok('Le parcours va au bout', false, e.message + ' ' + (e.stack || '').split(/\r?\n/)[1]);
   } finally {
     if (avant !== null) { fs.writeFileSync(CONF, avant); } else if (fs.existsSync(CONF)) { fs.unlinkSync(CONF); }
     await b.close();

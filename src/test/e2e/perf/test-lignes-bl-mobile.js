@@ -19,7 +19,7 @@ const BASE = ENV_E2E.BASE;
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const [BL, NB] = q('SELECT lg_BON_LIVRAISON_ID, COUNT(*) FROM t_bon_livraison_detail GROUP BY lg_BON_LIVRAISON_ID ORDER BY COUNT(*) DESC LIMIT 1').split('\t');
 const QTES = new Map(q(`SELECT lg_BON_LIVRAISON_DETAIL, int_QTE_CMDE FROM t_bon_livraison_detail WHERE lg_BON_LIVRAISON_ID = '${BL}'`)
-  .split('\n').map((l) => l.split('\t')));
+  .split(/\r?\n/).map((l) => l.split('\t')));
 
 (async () => {
   const b = await ENV_E2E.lancer(chromium);

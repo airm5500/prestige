@@ -17,7 +17,7 @@ const ORD = 'E2E-LB-ORD';
 const [GROSSISTE, USER] = q("SELECT CONCAT_WS('|', o.lg_GROSSISTE_ID, o.lg_USER_ID) FROM t_order o WHERE o.lg_GROSSISTE_ID IS NOT NULL ORDER BY o.dt_CREATED DESC LIMIT 1").split('|');
 /* trois produits avec une ligne de stock active : A (stock desactive le temps du test), B (sans seuil), C (normal) */
 const P = q("SELECT f.lg_FAMILLE_ID FROM t_famille f JOIN t_famille_stock s ON s.lg_FAMILLE_ID = f.lg_FAMILLE_ID AND s.lg_EMPLACEMENT_ID = '1' AND s.str_STATUT = 'enable'"
-  + " WHERE f.str_STATUT = 'enable' AND f.int_SEUIL_MIN IS NOT NULL GROUP BY f.lg_FAMILLE_ID HAVING COUNT(*) = 1 ORDER BY f.str_NAME LIMIT 3").split('\n');
+  + " WHERE f.str_STATUT = 'enable' AND f.int_SEUIL_MIN IS NOT NULL GROUP BY f.lg_FAMILLE_ID HAVING COUNT(*) = 1 ORDER BY f.str_NAME LIMIT 3").split(/\r?\n/);
 const STOCK_A = q(`SELECT lg_FAMILLE_STOCK_ID FROM t_famille_stock WHERE lg_FAMILLE_ID = '${P[0]}' AND lg_EMPLACEMENT_ID = '1' AND str_STATUT = 'enable'`);
 const SEUIL_B = q(`SELECT int_SEUIL_MIN FROM t_famille WHERE lg_FAMILLE_ID = '${P[1]}'`);
 

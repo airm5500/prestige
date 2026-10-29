@@ -42,7 +42,7 @@ function retablir() {
     const ouvrir = async (xtype, attendu) => { await p.evaluate((x) => testextjs.app.getController('App').onRedirectTo(x, {}), xtype); await p.waitForFunction((s) => Ext.ComponentQuery.query(s).length > 0, attendu, { timeout: 20000 }); await p.waitForTimeout(1500); };
 
     /* ------------------------------------------------ point 1 : lignes et produits */
-    const produits = q("SELECT f.lg_FAMILLE_ID, f.int_PRICE FROM t_famille f JOIN t_famille_stock s ON s.lg_FAMILLE_ID=f.lg_FAMILLE_ID AND s.lg_EMPLACEMENT_ID='1' WHERE s.int_NUMBER_AVAILABLE>10 AND f.int_PRICE>0 AND f.str_STATUT='enable' LIMIT 2").split('\n').map(l => l.split('\t'));
+    const produits = q("SELECT f.lg_FAMILLE_ID, f.int_PRICE FROM t_famille f JOIN t_famille_stock s ON s.lg_FAMILLE_ID=f.lg_FAMILLE_ID AND s.lg_EMPLACEMENT_ID='1' WHERE s.int_NUMBER_AVAILABLE>10 AND f.int_PRICE>0 AND f.str_STATUT='enable' LIMIT 2").split(/\r?\n/).map(l => l.split('\t'));
     const user = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='" + (ENV_E2E.LOGIN) + "'");
     const params = (pr, qte, venteId) => ({ typeVenteId: '1', natureVenteId: '1', produitId: pr[0], itemPu: Number(pr[1]), qte: qte, qteServie: qte, devis: false, remiseId: '', venteId: venteId, userVendeurId: user, prevente: false });
     let r = JSON.parse((await poster('../api/v1/vente/add/vno', params(produits[0], 3, null))).corps);
@@ -106,8 +106,8 @@ function retablir() {
     const j = q("SELECT CURDATE()");
     const pdf = await p.evaluate(async (u) => { const x = await fetch(u); return { type: x.headers.get('content-type'), octets: Array.from(new Uint8Array(await x.arrayBuffer())) }; }, '../api/v1/balance/balancesalecash/pdf?dtStart=' + j + '&dtEnd=' + j);
     fs.writeFileSync(TMP + '/balance.pdf', Buffer.from(pdf.octets));
-    const texte = execSync('pdftotext -layout ' + TMP + '/balance.pdf -', { encoding: 'utf8' });
-    const lignes = texte.split('\n');
+    const texte = execSync('pdftotext -enc UTF-8 -layout ' + TMP + '/balance.pdf -', { encoding: 'utf8' });
+    const lignes = texte.split(/\r?\n/);
     const officine = q("SELECT str_NOM_ABREGE FROM t_officine LIMIT 1");
     ok('Point 6 : le nom de l officine est en premiere ligne, centre', lignes[0].trim() === officine && lignes[0].indexOf(officine) > 20, JSON.stringify(lignes[0]));
     ok('Point 6 : imprime le / par en bas a droite, plus de numero de page', /Imprimé le .* par /.test(lignes.slice(-6).join('\n')) && !/Page 1/.test(texte) && !/Imprimé le/.test(lignes.slice(0, 5).join('\n')), lignes.slice(-6).join(' | '));

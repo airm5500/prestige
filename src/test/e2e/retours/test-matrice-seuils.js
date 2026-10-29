@@ -47,7 +47,7 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
     const s0 = await lire();
     ok('L en-tête énonce les trois règles en clair : marge, rotation en jours de couverture, ruptures',
       /Marge élevée : taux ≥ [\d,]+ % \(médiane/.test(s0.entete) && /Rotation élevée : couverture ≤ [\d,]+ j \(médiane\)/.test(s0.entete)
-      && /En rupture \(stock 0\) : rotation élevée si quantité vendue ≥ [\d,]+/.test(s0.entete), s0.entete.split('\n')[1]);
+      && /En rupture \(stock 0\) : rotation élevée si quantité vendue ≥ [\d,]+/.test(s0.entete), s0.entete.split(/\r?\n/)[1]);
     ok('Par défaut la rotation se lit en jours : le champ de seuil le dit, avec son unité', s0.seuils.modeRotation === 'JOURS' && /couv\. ≤/.test(s0.libelleSeuil) && s0.unite === 'j', s0.libelleSeuil + ' ' + s0.unite);
     const medQ = Number(s0.seuils.medianeQuantite);
 
@@ -75,14 +75,14 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
     await attendre();
     const s1 = await lire();
     ok('« En ratio vendu/stock » : l en-tête et le seuil changent de lecture', s1.seuils.modeRotation === 'RATIO' && /vendu \/ stock ≥ [\d,]+ \(médiane\)/.test(s1.entete) && /ratio ≥/.test(s1.libelleSeuil) && s1.unite === '',
-      s1.entete.split('\n')[1]);
+      s1.entete.split(/\r?\n/)[1]);
     ok('La médiane des rotations ne compte plus les ruptures : elle est calculée sur les produits en stock', Math.abs(s1.seuils.rotation - s1.seuils.medianeRotation) < 0.001 && s1.seuils.medianeRotation > 0, s1.seuils.medianeRotation);
 
     /* Un seuil saisi. */
     await p.evaluate(() => { const e = Ext.ComponentQuery.query('analysearticle')[0]; e.down('#seuilRotation').setValue(1.5); });
     await p.waitForTimeout(1000); await attendre();
     const s2 = await lire();
-    ok('Un seuil saisi remplace la médiane et l en-tête le dit', s2.seuils.rotation === 1.5 && /vendu \/ stock ≥ 1,50 \(saisi ; médiane/.test(s2.entete), s2.entete.split('\n')[1]);
+    ok('Un seuil saisi remplace la médiane et l en-tête le dit', s2.seuils.rotation === 1.5 && /vendu \/ stock ≥ 1,50 \(saisi ; médiane/.test(s2.entete), s2.entete.split(/\r?\n/)[1]);
 
     /* Retour en jours, puis les filtres. */
     await p.evaluate(() => { const e = Ext.ComponentQuery.query('analysearticle')[0]; const c = e.down('#modeRotation'); c.setValue('JOURS'); c.fireEvent('select', c, [c.findRecordByValue('JOURS')]); });
@@ -110,7 +110,7 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
     ok('L export Excel répond avec les filtres', xls.code === 200 && /spreadsheet/.test(xls.type) && xls.taille > 5000, JSON.stringify(xls));
     ok('Aucune erreur JavaScript', err.length === 0, JSON.stringify(err));
   } catch (e) {
-    ok('Le parcours va au bout', false, e.message + ' ' + (e.stack || '').split('\n')[1]);
+    ok('Le parcours va au bout', false, e.message + ' ' + (e.stack || '').split(/\r?\n/)[1]);
   } finally {
     await b.close();
     const kos = res.filter((r) => !r.c);

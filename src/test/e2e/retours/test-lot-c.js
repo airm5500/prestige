@@ -21,7 +21,8 @@ const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, BASE, '-e', s],
 const NOM = 'WYZALLC';
 /* banc : utilisateur et produit d'essai (E2E_LOGIN ; KGA3 s'il existe, sinon admin ; produit 0000498 s'il existe,
    sinon un produit actif en stock) */
-const LOGIN = process.env.E2E_LOGIN || (q("SELECT COUNT(*) FROM t_user WHERE str_LOGIN='KGA3'") === '1' ? 'KGA3' : ENV_E2E.LOGIN);
+/* poste local : KGA3 y est un vrai compte de l'officine, le test prend son compte d'essai */
+const LOGIN = process.env.E2E_LOGIN || (!ENV_E2E.WINDOWS && q("SELECT COUNT(*) FROM t_user WHERE str_LOGIN='KGA3'") === '1' ? 'KGA3' : ENV_E2E.LOGIN);
 const CODE_PRODUIT = q("SELECT COALESCE((SELECT int_CIP FROM t_famille WHERE int_CIP = '0000498' AND str_STATUT = 'enable' LIMIT 1),"
   + " (SELECT f.int_CIP FROM t_famille f JOIN t_famille_stock s ON s.lg_FAMILLE_ID = f.lg_FAMILLE_ID AND s.lg_EMPLACEMENT_ID = '1'"
   + " WHERE f.str_STATUT = 'enable' AND s.int_NUMBER_AVAILABLE > 5 AND f.int_CIP REGEXP '^[0-9]{7}$' AND COALESCE(f.bool_DECONDITIONNE, 0) = 0"

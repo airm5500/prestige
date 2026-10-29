@@ -48,7 +48,7 @@ function semer() {
   purger();
   USER = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='" + (ENV_E2E.LOGIN) + "'");
   PRODUIT = q("SELECT lg_FAMILLE_ID FROM t_famille WHERE str_STATUT='enable' ORDER BY str_NAME LIMIT 1");
-  CLIENTS = q("SELECT lg_CLIENT_ID FROM t_client ORDER BY lg_CLIENT_ID LIMIT 2").split('\n').filter(Boolean);
+  CLIENTS = q("SELECT lg_CLIENT_ID FROM t_client ORDER BY lg_CLIENT_ID LIMIT 2").split(/\r?\n/).filter(Boolean);
   if (!USER || !PRODUIT || CLIENTS.length !== 2) { return false; }
   VENTES.forEach(v => {
     const client = v.client === null ? 'NULL' : "'" + CLIENTS[v.client] + "'";

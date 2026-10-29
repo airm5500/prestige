@@ -96,7 +96,7 @@ function poser() {
   const emplacement = q("SELECT lg_EMPLACEMENT_ID FROM t_user WHERE str_LOGIN='" + ENV_E2E.LOGIN + "'");
   const articles = q("SELECT f.lg_FAMILLE_ID, f.str_NAME, f.int_PRICE FROM t_famille f JOIN t_famille_stock s ON s.lg_FAMILLE_ID=f.lg_FAMILLE_ID"
     + " WHERE s.lg_EMPLACEMENT_ID='" + emplacement + "' AND s.int_NUMBER_AVAILABLE >= 20 AND f.int_PRICE > 0 AND f.str_STATUT='enable'"
-    + " AND COALESCE(f.bool_DECONDITIONNE, 0) = 0 ORDER BY f.str_NAME LIMIT 2").split('\n').map((l) => l.split('\t'));
+    + " AND COALESCE(f.bool_DECONDITIONNE, 0) = 0 ORDER BY f.str_NAME LIMIT 2").split(/\r?\n/).map((l) => l.split('\t'));
   const sansStock = q("SELECT f.lg_FAMILLE_ID, f.str_NAME FROM t_famille f JOIN t_famille_stock s ON s.lg_FAMILLE_ID=f.lg_FAMILLE_ID"
     + " WHERE s.lg_EMPLACEMENT_ID='" + emplacement + "' AND s.int_NUMBER_AVAILABLE = 0 AND f.int_PRICE > 0 AND f.str_STATUT='enable'"
     + " AND COALESCE(f.bool_DECONDITIONNE, 0) = 0 LIMIT 1").split('\t');

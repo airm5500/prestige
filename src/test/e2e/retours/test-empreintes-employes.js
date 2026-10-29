@@ -28,7 +28,7 @@ const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-char
 const rh = privilegeEssai(q, exec, ENV_E2E.LOGIN, 'P_SM_RH');
 /* demande 52 : P_RH_POINTER ouvre aussi la lecture des gabarits (terminal) ; « sans droit RH » = sans les deux */
 const pointer = privilegeEssai(q, exec, ENV_E2E.LOGIN, 'P_RH_POINTER');
-const LOG = '/opt/payara5/glassfish/domains/domain1/logs/server.log';
+const LOG = ENV_E2E.JOURNAL_SERVEUR;
 const PARAM = q("SELECT IFNULL((SELECT str_VALUE FROM t_parameters WHERE str_KEY = 'KEY_EMPREINTES_PARTAGEES'), 'ABSENT')");
 const poser = (v) => exec("UPDATE t_parameters SET str_VALUE = '" + v + "' WHERE str_KEY = 'KEY_EMPREINTES_PARTAGEES'");
 function nettoyer() {

@@ -88,7 +88,7 @@ const MARQUE = 'E2E-BOUTONS';
     ok('NOUVELLE une seconde fois : toujours vide, toujours sans erreur', f.titre === 'Nouvelle ordonnance' && f.client === '' && f.produits <= 1 && f.premierLibelle === '', JSON.stringify(f));
     ok('Aucune erreur JavaScript sur tout l enchaînement', err.length === 0, JSON.stringify(err));
   } catch (e) {
-    ok('Le parcours va au bout', false, e.message + ' ' + (e.stack || '').split('\n')[1]);
+    ok('Le parcours va au bout', false, e.message + ' ' + (e.stack || '').split(/\r?\n/)[1]);
   } finally {
     await b.close();
     for (const id of ids) { exec("DELETE FROM t_ordonnance_client_detail WHERE lg_ORDONNANCE_ID='" + id + "'; DELETE FROM t_ordonnance_client WHERE lg_ORDONNANCE_ID='" + id + "'"); }

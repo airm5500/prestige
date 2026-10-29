@@ -88,7 +88,7 @@ const SORTIE = process.env.SORTIE || ENV_E2E.TMP;
     /* « oui, passe les autres menus en libelle court » : libelle court, explication en info-bulle */
     const COURTS = { rhmanager: 'Ressources humaines', gardemanager: 'Gestion des gardes', analysearticle: 'Analyse article',
       whatsappcomptes: 'Comptes WhatsApp', modelemessagemanager: 'Modèles de messages', detailsmanager: 'Détails',
-      ventesmodifieesmanager: 'Ventes modifiées', RetrocessionsManager: 'Évolution des rétrocessions',
+      ventesmodifieesmanager: 'Ventes modifiées', RetrocessionsManager: 'Rétrocessions' /* V6.9.134 */,
       analyseFrequentationOffManager: 'Fréquentation officine', statActiviteOperateurManager: 'Activité opérateurs' };
     const lus = await p.evaluate((ids) => { const s = Ext.ComponentQuery.query('navigation')[0].getStore(); return ids.map((id) => { const n = s.getNodeById(id); return n ? [id, n.get('text'), n.raw.aide || ''] : [id, null, '']; }); }, Object.keys(COURTS));
     const fautes = lus.filter((l) => l[1] !== null && (l[1] !== COURTS[l[0]] || l[2].length <= l[1].length));

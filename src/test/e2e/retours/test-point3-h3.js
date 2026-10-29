@@ -58,7 +58,7 @@ function semer() {
   GROSSISTE = q("SELECT lg_GROSSISTE_ID FROM t_grossiste WHERE str_STATUT='enable' LIMIT 1");
   q("SELECT f.lg_FAMILLE_ID FROM t_famille f WHERE f.str_STATUT='enable' AND f.lg_GROSSISTE_ID IS NOT NULL"
     + " AND f.bool_DECONDITIONNE=0 AND EXISTS (SELECT 1 FROM t_famille_stock s WHERE s.lg_FAMILLE_ID=f.lg_FAMILLE_ID AND s.str_STATUT='enable')"
-    + " ORDER BY f.str_NAME LIMIT 3").split('\n').filter(Boolean).forEach(id => PRODUITS.push(id.trim()));
+    + " ORDER BY f.str_NAME LIMIT 3").split(/\r?\n/).filter(Boolean).forEach(id => PRODUITS.push(id.trim()));
   purger();
   if (!KGA3 || !AUTRE || !GROSSISTE || PRODUITS.length !== 3) { return false; }
   VENTES.forEach(v => {
@@ -307,7 +307,7 @@ function semer() {
     await p.click('#' + m.ok);
     const suggestion = q("SELECT d.lg_FAMILLE_ID, d.int_NUMBER, o.str_STATUT FROM t_suggestion_order_details d JOIN t_suggestion_order o ON o.lg_SUGGESTION_ORDER_ID=d.lg_SUGGESTION_ORDER_ID"
       + " WHERE d.lg_FAMILLE_ID IN ('" + PRODUITS[0] + "','" + PRODUITS[1] + "') AND d.dt_CREATED >= '" + DEBUT_TEST + "' ORDER BY d.int_NUMBER DESC");
-    const lignesSugg = suggestion.split('\n').filter(Boolean).map(l => l.split('\t'));
+    const lignesSugg = suggestion.split(/\r?\n/).filter(Boolean).map(l => l.split('\t'));
     ok('En base : P0 avec 5 unites (2 + 3 vendues) et P1 avec 1, sur des suggestions en cours',
       lignesSugg.length === 2 && lignesSugg[0][0] === PRODUITS[0] && lignesSugg[0][1] === '5' && lignesSugg[1][1] === '1'
       && lignesSugg.every(l => l[2] === 'is_Process'), suggestion);

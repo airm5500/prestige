@@ -152,7 +152,7 @@ const TEL = '07 31 ' + Date.now().toString().slice(-6, -4) + ' ' + Date.now().to
     ok('Client assurance choisi : sa date de naissance est reprise dans le contexte', f.naissance === attendu && f.ageFige, JSON.stringify(f) + ' attendu ' + attendu);
     ok('Aucune erreur JavaScript', err.length === 0, JSON.stringify(err));
   } catch (x) {
-    ok('Le parcours va au bout', false, x.message + ' ' + (x.stack || '').split('\n')[1]);
+    ok('Le parcours va au bout', false, x.message + ' ' + (x.stack || '').split(/\r?\n/)[1]);
   } finally {
     await b.close();
     const ids = q("SELECT GROUP_CONCAT(CONCAT(\"'\", lg_CLIENT_ID, \"'\")) FROM t_client WHERE str_FIRST_NAME='" + NOM + "'");

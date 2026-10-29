@@ -23,7 +23,7 @@ function semer() {
   const cctp = q("SELECT lg_COMPTE_CLIENT_TIERS_PAYANT_ID FROM t_compte_client_tiers_payant LIMIT 1");
   const produits = q("SELECT f.lg_FAMILLE_ID FROM t_famille f"
     + " JOIN t_famille_stock fs ON fs.lg_FAMILLE_ID=f.lg_FAMILLE_ID AND fs.lg_EMPLACEMENT_ID='1'"
-    + " WHERE f.lg_GROSSISTE_ID IS NOT NULL AND f.bool_DECONDITIONNE=0 LIMIT 3").split('\n');
+    + " WHERE f.lg_GROSSISTE_ID IS NOT NULL AND f.bool_DECONDITIONNE=0 LIMIT 3").split(/\r?\n/);
   const modele = q("SELECT lg_PREENREGISTREMENT_ID FROM t_preenregistrement WHERE lg_TYPE_VENTE_ID='2' LIMIT 1");
   exec("CREATE TEMPORARY TABLE tmp_a AS SELECT * FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID='" + modele + "';"
      + "UPDATE tmp_a SET lg_PREENREGISTREMENT_ID='" + MARQUE + "-V', str_REF='" + MARQUE + "-REF',"
@@ -138,7 +138,7 @@ function nettoyerSuggestions(avant) {
      'groupe=' + groupeChoisi + ' appels avant=' + avantGroupe + ' apres=' + appelsTp);
 
   // --- suggestion a partir du resultat courant ---
-  const suggestionsAvant = q("SELECT lg_SUGGESTION_ORDER_ID FROM t_suggestion_order").split('\n').filter(Boolean);
+  const suggestionsAvant = q("SELECT lg_SUGGESTION_ORDER_ID FROM t_suggestion_order").split(/\r?\n/).filter(Boolean);
   const nbProduits = await p.evaluate(() => {
     const e = Ext.ComponentQuery.query('analysetierspayant')[0];
     e.down('#groupeTiersPayant').setValue('');

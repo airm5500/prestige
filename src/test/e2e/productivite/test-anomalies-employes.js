@@ -25,6 +25,8 @@ const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-charact
 const CODE = '172701011012345678';
 const LECTURE = q("SELECT str_VALUE FROM t_parameters WHERE str_KEY = 'KEY_VENTE_LECTURE_GS1'");
 const ERREUR = 'E2E anomalie logicielle ' + Date.now();
+/* la ligne du compte de connexion du test (e2e sous Windows, admin « Super Admin » sur le banc) */
+const UID = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
 
 (async () => {
   const table = q("SHOW TABLES LIKE 't_anomalie_employe'");
@@ -75,12 +77,12 @@ const ERREUR = 'E2E anomalie logicielle ' + Date.now();
     if (onglet) {
       await cliquer(p, 'activiteequipes #ae-anomalies');
       await p.waitForFunction(() => { const g = Ext.ComponentQuery.query('activiteequipes #anoEmployes')[0]; return g && !g.getStore().isLoading() && g.getStore().getCount() > 0; }, null, { timeout: 120000 });
-      const ligne = await p.evaluate(() => { const g = Ext.ComponentQuery.query('activiteequipes #anoEmployes')[0];
-        const r = g.getStore().findRecord('nom', 'Super Admin') || g.getStore().getAt(0); return r ? r.getData() : null; });
+      const ligne = await p.evaluate((uid) => { const g = Ext.ComponentQuery.query('activiteequipes #anoEmployes')[0];
+        const r = g.getStore().findRecord('id', uid, 0, false, true, true); return r ? r.getData() : null; }, UID);
       ok('Ligne de l\'employé : refus ≥ 1, erreurs du logiciel ≥ 1, opérations à risque et ventes présentes', ligne && ligne.refus >= 1 && ligne.logiciel >= 1
         && ligne.annulations !== undefined && ligne.ventes !== undefined, JSON.stringify(ligne));
-      const idLigne = await p.evaluate(() => { const g = Ext.ComponentQuery.query('activiteequipes #anoEmployes')[0]; const r = g.getStore().findRecord('nom', 'Super Admin');
-        const n = g.getView().getNode(r); n.setAttribute('data-e2e', 'ligne-admin'); return true; });
+      const idLigne = await p.evaluate((uid) => { const g = Ext.ComponentQuery.query('activiteequipes #anoEmployes')[0]; const r = g.getStore().findRecord('id', uid, 0, false, true, true);
+        const n = g.getView().getNode(r); n.setAttribute('data-e2e', 'ligne-admin'); return true; }, UID);
       await p.click('[data-e2e=ligne-admin]');
       await p.waitForTimeout(2500);
       const liste = await p.evaluate(() => { const g = Ext.ComponentQuery.query('activiteequipes #anoListe')[0]; const l = []; g.getStore().each((r) => l.push(r.get('famille') + '|' + r.get('message'))); return l; });

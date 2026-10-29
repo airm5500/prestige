@@ -116,9 +116,9 @@ function retirerJeuDEssai() {
   ok('edition sans detail : le contenu est un PDF', fs.readFileSync(f).slice(0, 5).toString('latin1') === '%PDF-');
 
   /* Retour du 09/09 : l'edition simple suit le modele du detail (JasperReports, UTF-8). */
-  const texte = execSync('pdftotext -layout ' + f + ' -', { encoding: 'utf8' });
+  const texte = execSync('pdftotext -enc UTF-8 -layout ' + f + ' -', { encoding: 'utf8' });
   fs.writeFileSync(f + '.txt', texte);
-  const lignesTexte = texte.split('\n').map(l => l.trim()).filter(Boolean);
+  const lignesTexte = texte.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
 
   ok('edition sans detail : le numero de facture est en tete',
      lignesTexte.slice(0, 5).some(l => /FACTURE N/.test(l)), lignesTexte.slice(0, 6).join(' | '));

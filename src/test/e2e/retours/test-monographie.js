@@ -23,7 +23,7 @@ const avant = {};
 CLES.forEach((k) => { avant[k] = q("SELECT IFNULL(MAX(str_VALUE), '') FROM t_parameters WHERE str_KEY = '" + k + "'"); });
 const param = (k, v) => exec("UPDATE t_parameters SET str_VALUE = '" + v + "' WHERE str_KEY = '" + k + "'");
 const arts = q("SELECT CONCAT(lg_FAMILLE_ID, '|', int_CIP, '|', str_NAME) FROM t_famille WHERE str_STATUT = 'enable' AND int_CIP REGEXP '^[0-9]{7}$'"
-  + " ORDER BY str_NAME LIMIT 3 OFFSET 10").split('\n').map((l) => l.split('|'));
+  + " ORDER BY str_NAME LIMIT 3 OFFSET 10").split(/\r?\n/).map((l) => l.split('|'));
 const [A, B, C] = arts;
 function nettoyer() {
   exec("DELETE FROM t_monographie WHERE str_PRODUIT IN ('506504', '900001');"

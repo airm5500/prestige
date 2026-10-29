@@ -33,7 +33,7 @@ function semer() {
   // Trois produits porteurs d'un code tableau : ce sont eux que le registre doit retenir.
   q("SELECT CONCAT_WS('~',lg_FAMILLE_ID,IFNULL(is_scheduled,0),int_T) FROM t_famille"
     + " WHERE int_T IN ('A','C','II') AND str_STATUT='enable' ORDER BY str_NAME LIMIT 3")
-    .split('\n').filter(Boolean).forEach(l => {
+    .split(/\r?\n/).filter(Boolean).forEach(l => {
       const [id, sched, tableau] = l.trim().split('~');
       PRODUITS.push({ id: id, tableau: tableau });
       SCHED_AVANT[id] = sched;
@@ -41,7 +41,7 @@ function semer() {
     });
   CLIENTS = q("SELECT CONCAT_WS('~',lg_CLIENT_ID,str_FIRST_NAME,str_LAST_NAME) FROM t_client"
     + " WHERE str_FIRST_NAME IS NOT NULL AND str_FIRST_NAME<>'' ORDER BY lg_CLIENT_ID LIMIT 2")
-    .split('\n').filter(Boolean).map(l => {
+    .split(/\r?\n/).filter(Boolean).map(l => {
       const [id, prenom, nom] = l.trim().split('~');
       return { id: id, prenom: prenom, nom: nom };
     });

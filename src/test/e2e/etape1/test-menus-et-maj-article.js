@@ -17,7 +17,7 @@ function semer() {
   // Trois produits reels, dont on note l'etat AVANT pour le retablir a la fin.
   const lignes = q("SELECT CONCAT(lg_FAMILLE_ID,'~',IFNULL(is_scheduled,0),'~',IFNULL(bool_REMISE,0))"
     + " FROM t_famille WHERE str_STATUT='enable' ORDER BY str_NAME LIMIT 3");
-  lignes.split('\n').filter(Boolean).forEach(l => {
+  lignes.split(/\r?\n/).filter(Boolean).forEach(l => {
     const [id, sched, remise] = l.trim().split('~');
     PRODUITS.push(id);
     AVANT[id] = { sched: sched, remise: remise };

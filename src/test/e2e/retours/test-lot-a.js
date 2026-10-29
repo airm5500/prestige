@@ -34,7 +34,7 @@ function semer() {
   purger();
   USER = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='" + (ENV_E2E.LOGIN) + "'");
   q("SELECT lg_FAMILLE_ID FROM t_famille WHERE str_STATUT='enable' ORDER BY str_NAME LIMIT 2")
-    .split('\n').filter(Boolean).forEach(id => PRODUITS.push(id.trim()));
+    .split(/\r?\n/).filter(Boolean).forEach(id => PRODUITS.push(id.trim()));
   if (!USER || PRODUITS.length !== 2) { return false; }
   ['E2ELA-1', 'E2ELA-2'].forEach((id, i) => {
     exec("INSERT INTO t_preenregistrement (lg_PREENREGISTREMENT_ID, str_REF, str_REF_TICKET, int_PRICE,"

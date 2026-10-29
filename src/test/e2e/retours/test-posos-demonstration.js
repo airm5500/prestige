@@ -87,7 +87,7 @@ const produits = require('../support/produits-essai')(q, exec, 'E2E-PSD-');
     ok('POSOS_MODE=aucun : la démonstration se désactive, la passerelle se dit non configurée', statut.mode === 'posos' && statut.configuree === false, JSON.stringify({ mode: statut.mode, configuree: statut.configuree }));
     ok('Aucune erreur JavaScript', err.length === 0, JSON.stringify(err));
   } catch (e) {
-    ok('Le parcours va au bout', false, e.message + ' ' + (e.stack || '').split('\n')[1]);
+    ok('Le parcours va au bout', false, e.message + ' ' + (e.stack || '').split(/\r?\n/)[1]);
   } finally {
     if (avant !== null) { fs.writeFileSync(CONF, avant); } else if (fs.existsSync(CONF)) { fs.unlinkSync(CONF); }
     await b.close();

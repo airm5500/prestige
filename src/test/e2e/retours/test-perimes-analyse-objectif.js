@@ -13,7 +13,7 @@ const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', ENV_E2E.BASE, '-sN'], { input: s, encoding: 'utf8' }).trim();
 const USER = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
-const P = q(`SELECT lg_FAMILLE_ID, int_PRICE FROM t_famille WHERE str_STATUT = 'enable' AND int_PRICE > 1000 ORDER BY lg_FAMILLE_ID LIMIT 3`).split('\n').map((l) => l.split('\t'));
+const P = q(`SELECT lg_FAMILLE_ID, int_PRICE FROM t_famille WHERE str_STATUT = 'enable' AND int_PRICE > 1000 ORDER BY lg_FAMILLE_ID LIMIT 3`).split(/\r?\n/).map((l) => l.split('\t'));
 /* P[0] 2 fois (1 + 1 unite), P[1] une fois 6 unites : P[1] pese plus en valeur si son prix le permet, P[0] est le plus frequent */
 const SAISIES = [[P[0], 1, '2026-09-05'], [P[0], 1, '2026-09-22'], [P[1], 6, '2026-09-10'], [P[2], 1, '2026-09-15']];
 const VALEUR = SAISIES.reduce((s, x) => s + x[1] * Number(x[0][1]), 0);

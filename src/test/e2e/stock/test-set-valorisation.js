@@ -102,7 +102,7 @@ const retirer = () => exec(`DELETE FROM t_role_privelege WHERE lg_ROLE_PRIVILEGE
     const pdf = await p.evaluate(async (c) => { const x = await fetch('../api/v1/set-valorisation/pdf', { method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ source: 'STOCK', base: 'PA', cible: c }) }); const a = new Uint8Array(await x.arrayBuffer()); return { type: x.headers.get('Content-Type'), b: Array.from(a) }; }, CIBLE);
     fs.writeFileSync(path.join(dossier, 's.pdf'), Buffer.from(pdf.b));
-    const textePdf = pdf.type.indexOf('pdf') >= 0 ? execFileSync('pdftotext', ['-layout', '-enc', 'UTF-8', path.join(dossier, 's.pdf'), '-'], { encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 }) : '';
+    const textePdf = pdf.type.indexOf('pdf') >= 0 ? execFileSync('pdftotext', ['-enc', 'UTF-8', '-layout', '-enc', 'UTF-8', path.join(dossier, 's.pdf'), '-'], { encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 }) : '';
     ok('PDF : mention SIMULATION en titre, en pied et en filigrane', /SIMULATION — NE REFLÈTE PAS LE STOCK RÉEL/.test(textePdf)
       && (textePdf.match(/SIMULATION/g) || []).length >= 3, textePdf.slice(0, 200));
     const [download] = await Promise.all([p.waitForEvent('download', { timeout: 30000 }), p.click('.setvalorisation .x-btn:has-text("Excel")')]);

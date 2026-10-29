@@ -315,7 +315,7 @@ function nettoyer() {
       const url = await p.evaluate(() => window.__ouverts[window.__ouverts.length - 1]);
       const o = await p.evaluate(async (u) => { const r = await fetch(u); return { type: r.headers.get('content-type'), b: Array.from(new Uint8Array(await r.arrayBuffer())) }; }, url);
       require('fs').writeFileSync(ENV_E2E.TMP + '/e2e-rh.pdf', Buffer.from(o.b));
-      return { url, type: o.type, texte: /pdf/.test(o.type) ? require('child_process').execFileSync('pdftotext', ['-layout', ENV_E2E.TMP + '/e2e-rh.pdf', '-'], { encoding: 'utf8' }) : '' };
+      return { url, type: o.type, texte: /pdf/.test(o.type) ? require('child_process').execFileSync('pdftotext', ['-enc', 'UTF-8', '-layout', ENV_E2E.TMP + '/e2e-rh.pdf', '-'], { encoding: 'utf8' }) : '' };
     };
     await p.evaluate((d) => { const r = Ext.ComponentQuery.query('rhmanager')[0]; r.lundi = Ext.Date.parse(d, 'Y-m-d'); }, SEM);
     const ePlanning = await edition('ongletPlanning', '#pdfPlanning');

@@ -51,7 +51,7 @@ const ecriture = (req) => {
   p.setDefaultTimeout(20000);
   const erreursJs = []; const erreurs500 = []; const envois = [];
   let ecranCourant = '';
-  p.on('pageerror', (e) => { erreursJs.push(ecranCourant + ' : ' + String(e.message).slice(0, 160)); if (process.env.PILE) { console.log('PILE ' + ecranCourant + ' : ' + String(e.stack).split('\n').slice(0, 6).join(' <- ')); } });
+  p.on('pageerror', (e) => { erreursJs.push(ecranCourant + ' : ' + String(e.message).slice(0, 160)); if (process.env.PILE) { console.log('PILE ' + ecranCourant + ' : ' + String(e.stack).split(/\r?\n/).slice(0, 6).join(' <- ')); } });
   p.on('response', (r) => { if (r.status() >= 500) { erreurs500.push(ecranCourant + ' : ' + r.request().method() + ' ' + r.url().replace(/^.*\/prestige\//, '').slice(0, 140) + ' -> ' + r.status()); } });
   try {
     await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
@@ -74,7 +74,7 @@ const ecriture = (req) => {
 
     let ecrans = q("SELECT s.str_COMPOSANT, MIN(s.str_VALUE) FROM t_sous_menu s JOIN t_menu m ON m.lg_MENU_ID = s.lg_MENU_ID"
       + " WHERE s.str_Status = 'enable' AND m.str_Status = 'enable' AND COALESCE(s.str_COMPOSANT, '') <> '' GROUP BY s.str_COMPOSANT ORDER BY s.str_COMPOSANT")
-      .split('\n').filter(Boolean).map((l) => l.split('\t'));
+      .split(/\r?\n/).filter(Boolean).map((l) => l.split('\t'));
     const connus = await p.evaluate((l) => l.filter((x) => !!Ext.ClassManager.getByAlias('widget.' + x)), ecrans.map((e) => e[0]));
     ecrans = ecrans.filter((e) => connus.includes(e[0]) && !EXCLUS.includes(e[0]));
     if (process.env.ECRANS) { const v = process.env.ECRANS.split(','); ecrans = ecrans.filter((e) => v.includes(e[0])); }
@@ -180,7 +180,7 @@ const ecriture = (req) => {
           await fermerFenetres();
         }
       } catch (e) {
-        console.log('  (écran ' + xtype + ' : ' + String(e.message).split('\n')[0].slice(0, 120) + ')');
+        console.log('  (écran ' + xtype + ' : ' + String(e.message).split(/\r?\n/)[0].slice(0, 120) + ')');
       }
     }
     ecranCourant = '';

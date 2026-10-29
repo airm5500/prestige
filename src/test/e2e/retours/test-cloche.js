@@ -128,7 +128,7 @@ const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-char
 
     ok('Aucune erreur JavaScript', err.length === 0, JSON.stringify(err));
   } catch (e) {
-    ok('Déroulé sans exception', false, (e.stack || '').split('\n').filter((l) => /test-cloche|Error/.test(l)).join(' | '));
+    ok('Déroulé sans exception', false, (e.stack || '').split(/\r?\n/).filter((l) => /test-cloche|Error/.test(l)).join(' | '));
   } finally {
     await b.close();
     exec("DELETE FROM t_preference_utilisateur WHERE lg_USER_ID = '" + U + "' AND str_CLE = 'cloche'");

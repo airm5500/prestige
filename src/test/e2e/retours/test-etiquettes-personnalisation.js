@@ -44,7 +44,7 @@ const STOCK = q(`SELECT CONCAT(int_NUMBER_AVAILABLE, '|', int_NUMBER) FROM t_fam
 function texteDuPdf(binaire) {
   const f = path.join(DOSSIER, 'e' + Date.now() + '.pdf');
   fs.writeFileSync(f, Buffer.from(binaire, 'latin1'));
-  return execFileSync('pdftotext', ['-raw', f, '-'], { encoding: 'utf8' });
+  return execFileSync('pdftotext', ['-enc', 'UTF-8', '-raw', f, '-'], { encoding: 'utf8' });
 }
 
 /* decodeur independant (zxing) des codes imprimes : contenu brut (octets) de chaque code de la premiere page */
@@ -223,7 +223,7 @@ function nettoyer() {
 
     /* essai : une etiquette d'exemple comme a l'impression */
     let pdf = await pdfDe('**/etiquetage-pro/disposition/pdf', () => bouton('#persoEssai'));
-    const lignesPdf = pdf.texte.split('\n').map((x) => x.trim()).filter(Boolean);
+    const lignesPdf = pdf.texte.split(/\r?\n/).map((x) => x.trim()).filter(Boolean);
     const iPh = lignesPdf.findIndex((x) => /PHARMACIE|PHCIE|PHIE/i.test(x) || x === (s.disp && ''));
     ok('Essai (PDF) : nom du produit sous le nom de la pharmacie, code géo, prix', pdf.pdf && lignesPdf.some((x) => x.includes(PNOM.split(' ')[0])) && pdf.texte.includes(PGEO),
       lignesPdf.slice(0, 8).join(' | '));

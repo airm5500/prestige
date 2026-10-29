@@ -20,7 +20,7 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
 const BASE = ENV_E2E.BASE;
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
-const DOMAIN = '/opt/payara5/glassfish/domains/domain1/config/domain.xml';
+const DOMAIN = ENV_E2E.PAYARA_DOMAINE + '/config/domain.xml';
 const empreinte = (f) => crypto.createHash('sha256').update(fs.readFileSync(f)).digest('hex');
 const droit = privilegeEssai(q, exec, ENV_E2E.LOGIN_SUPPORT, 'P_SM_SUPPORT_SERVEUR');
 const HOTE_ESSAI = 'E2E-SERVEUR';

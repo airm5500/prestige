@@ -174,7 +174,7 @@ function nettoyer() {
     const nouvelles = err.filter((e) => e.trim() !== 'h');
     ok('Aucune erreur JavaScript', nouvelles.length === 0, JSON.stringify(nouvelles));
   } catch (e) {
-    ok('Déroulé sans exception', false, (e.stack || '').split('\n').filter((l) => /test-fiche|Error/.test(l)).join(' | '));
+    ok('Déroulé sans exception', false, (e.stack || '').split(/\r?\n/).filter((l) => /test-fiche|Error/.test(l)).join(' | '));
   } finally {
     await b.close();
     nettoyer();

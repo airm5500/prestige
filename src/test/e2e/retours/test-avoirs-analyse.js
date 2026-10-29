@@ -21,7 +21,7 @@ const V = ['E2E-AVA-V1', 'E2E-AVA-V2', 'E2E-AVA-V3'];
 const retirer = () => exec(`DELETE FROM t_preenregistrement_detail WHERE lg_PREENREGISTREMENT_ID IN ('${V.join("','")}'); DELETE FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID IN ('${V.join("','")}');`);
 const SOURCE = q(`SELECT lg_PREENREGISTREMENT_ID FROM t_preenregistrement WHERE dt_UPDATED >= '${JOUR}' AND dt_UPDATED < '${JOUR}' + INTERVAL 1 DAY AND str_STATUT = 'is_Closed' AND b_IS_CANCEL = 0 AND int_PRICE > 0 ORDER BY dt_UPDATED LIMIT 1`);
 const DETAIL = q(`SELECT lg_PREENREGISTREMENT_DETAIL_ID FROM t_preenregistrement_detail WHERE lg_PREENREGISTREMENT_ID = '${SOURCE}' LIMIT 1`);
-const [A, B] = q("SELECT lg_FAMILLE_ID FROM t_famille WHERE str_STATUT = 'enable' AND lg_GROSSISTE_ID IS NOT NULL ORDER BY lg_FAMILLE_ID LIMIT 2").split('\n');
+const [A, B] = q("SELECT lg_FAMILLE_ID FROM t_famille WHERE str_STATUT = 'enable' AND lg_GROSSISTE_ID IS NOT NULL ORDER BY lg_FAMILLE_ID LIMIT 2").split(/\r?\n/);
 
 function poser() {
   retirer();

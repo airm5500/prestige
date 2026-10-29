@@ -20,7 +20,7 @@ const SQL = q("SELECT requete_sql FROM t_support_controle WHERE code = 'SNAPSHOT
 const PRODUIT = q("SELECT lg_FAMILLE_ID FROM t_famille WHERE str_STATUT = 'enable' LIMIT 1");
 const JOUR = q("SELECT DATE_FORMAT(CURDATE(), '%Y%m%d')");
 const DEJA = q(`SELECT COUNT(*) FROM stock_snapshot_day WHERE stock_of_day = ${JOUR}`);
-const cas = () => q(SQL).split('\n').filter(Boolean).length;
+const cas = () => q(SQL).split(/\r?\n/).filter(Boolean).length;
 const parametre = (v) => q(`UPDATE t_parameters SET str_VALUE = '${v}' WHERE str_KEY = 'KEY_VALORISATION_JOURNALIERE'`);
 try {
   ok('Jeu d\'essai : paramètre présent, pas de relevé du jour sur le banc', PARAM !== 'ABSENT' && DEJA === '0', PARAM + ' / ' + DEJA);

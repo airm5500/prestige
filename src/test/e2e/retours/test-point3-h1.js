@@ -40,7 +40,7 @@ function semer() {
   purger();
   USER = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='" + (ENV_E2E.LOGIN) + "'");
   q("SELECT lg_FAMILLE_ID FROM t_famille WHERE str_STATUT='enable' ORDER BY str_NAME LIMIT 3")
-    .split('\n').filter(Boolean).forEach(id => PRODUITS.push(id.trim()));
+    .split(/\r?\n/).filter(Boolean).forEach(id => PRODUITS.push(id.trim()));
   if (!USER || PRODUITS.length !== 3) { return false; }
   VENTES.forEach(v => {
     exec("INSERT INTO t_preenregistrement (lg_PREENREGISTREMENT_ID, str_REF, str_REF_TICKET, int_PRICE,"

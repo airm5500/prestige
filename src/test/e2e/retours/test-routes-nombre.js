@@ -43,7 +43,7 @@ const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-charact
       ok('Avis clients ' + (statut || 'tous') + ' : nombre = total de la liste', n.j && n.j.success === true && n.j.nombre === l.j.total, JSON.stringify(n.j) + ' / ' + (l.j && l.j.total));
     }
 
-    const actifs = q("SELECT lg_GROSSISTE_ID FROM t_grossiste WHERE str_STATUT = 'enable' ORDER BY str_LIBELLE").split('\n');
+    const actifs = q("SELECT lg_GROSSISTE_ID FROM t_grossiste WHERE str_STATUT = 'enable' ORDER BY str_LIBELLE").split(/\r?\n/);
     for (const etat of ['NON_POINTES', 'TOUS']) {
       const crit = '&du=2026-09-01&au=2026-09-30&etat=' + etat;
       const n = await lire('../api/v1/pointage-bl/nombre?grossiste=' + actifs[0] + crit);

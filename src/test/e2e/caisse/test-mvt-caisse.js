@@ -16,7 +16,7 @@ const sql = (q) => execFileSync('mariadb', [...ENV_E2E.MARIADB, BASE, '-e', q], 
 const AUJ = new Date().toISOString().slice(0, 10);
 function semer() {
   nettoyer();
-  const user = sql("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='" + (ENV_E2E.LOGIN) + "'").trim().split('\n')[1];
+  const user = sql("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='" + (ENV_E2E.LOGIN) + "'").trim().split(/\r?\n/)[1];
   // Le journal lit t_mvt_caisse, avec bool_CHECKED=1 et la date de creation dans la periode.
   [{t: '5'}, {t: '3'}, {t: '4'}].forEach(function (m, i) {
     sql("INSERT INTO t_mvt_caisse (lg_MVT_CAISSE_ID, lg_TYPE_MVT_CAISSE_ID, lg_USER_ID,"

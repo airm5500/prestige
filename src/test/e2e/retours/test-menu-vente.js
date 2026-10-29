@@ -17,7 +17,7 @@ const crees = [];
 
 (async () => {
   const produits = q("SELECT f.lg_FAMILLE_ID, f.int_PRICE FROM t_famille f JOIN t_famille_stock s ON s.lg_FAMILLE_ID=f.lg_FAMILLE_ID AND s.lg_EMPLACEMENT_ID='1'"
-    + " WHERE s.int_NUMBER_AVAILABLE>10 AND f.int_PRICE>0 AND f.str_STATUT='enable' ORDER BY f.str_NAME LIMIT 2").split('\n').map((l) => l.split('\t'));
+    + " WHERE s.int_NUMBER_AVAILABLE>10 AND f.int_PRICE>0 AND f.str_STATUT='enable' ORDER BY f.str_NAME LIMIT 2").split(/\r?\n/).map((l) => l.split('\t'));
   const user = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN='" + (ENV_E2E.LOGIN) + "'");
   const b = await ENV_E2E.lancer(chromium);
   const p = await b.newPage({ viewport: { width: 1600, height: 950 } });

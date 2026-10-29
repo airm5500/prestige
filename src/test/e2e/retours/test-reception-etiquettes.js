@@ -19,7 +19,7 @@ const DEBUT = q('SELECT NOW() - INTERVAL 1 SECOND');
 const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
 const GROSSISTE = q("SELECT lg_GROSSISTE_ID FROM t_grossiste WHERE str_STATUT = 'enable' ORDER BY str_LIBELLE LIMIT 1");
 const P = q("SELECT CONCAT_WS('|', lg_FAMILLE_ID, int_CIP, int_PRICE, IFNULL(int_EAN13, '')) FROM t_famille WHERE str_STATUT = 'enable' AND int_CIP REGEXP '^[0-9]{7}$'"
-  + " AND int_PRICE BETWEEN 500 AND 5000 AND (SELECT COUNT(*) FROM t_famille x WHERE x.int_CIP = t_famille.int_CIP) = 1 ORDER BY str_NAME LIMIT 2").split('\n').map((l) => l.split('|'));
+  + " AND int_PRICE BETWEEN 500 AND 5000 AND (SELECT COUNT(*) FROM t_famille x WHERE x.int_CIP = t_famille.int_CIP) = 1 ORDER BY str_NAME LIMIT 2").split(/\r?\n/).map((l) => l.split('|'));
 const EAN_P2 = '3400' + '9' + String(Date.now()).slice(-7) + '1';
 const CIP_NEUF = '99' + String(Date.now()).slice(-5);
 let eanOrigine = null;

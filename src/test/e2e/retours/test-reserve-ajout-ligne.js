@@ -25,7 +25,7 @@ const droits = [privilegeEssai(q, exec, ENV_E2E.LOGIN, 'P_TRAITER_RESERVE'), pri
 const PS = q("SELECT s.lg_FAMILLE_ID FROM t_famille_stock s JOIN t_type_stock_famille r ON r.lg_FAMILLE_ID = s.lg_FAMILLE_ID AND r.lg_EMPLACEMENT_ID = '1' AND r.lg_TYPE_STOCK_ID = '1'"
   + " JOIN t_famille f ON f.lg_FAMILLE_ID = s.lg_FAMILLE_ID"
   + " WHERE s.lg_EMPLACEMENT_ID = '1' AND f.str_STATUT = 'enable' AND COALESCE(f.bool_DECONDITIONNE, 0) = 0 AND s.int_NUMBER_AVAILABLE > 0"
-  + " AND NOT EXISTS (SELECT 1 FROM t_type_stock_famille v WHERE v.lg_FAMILLE_ID = s.lg_FAMILLE_ID AND v.lg_TYPE_STOCK_ID = '2') ORDER BY s.lg_FAMILLE_ID LIMIT 2 OFFSET 11").split('\n');
+  + " AND NOT EXISTS (SELECT 1 FROM t_type_stock_famille v WHERE v.lg_FAMILLE_ID = s.lg_FAMILLE_ID AND v.lg_TYPE_STOCK_ID = '2') ORDER BY s.lg_FAMILLE_ID LIMIT 2 OFFSET 11").split(/\r?\n/);
 const RESERVE_AVANT = PS.map((p) => q("SELECT IFNULL(bool_RESERVE, 'NULL') FROM t_famille WHERE lg_FAMILLE_ID = '" + p + "'"));
 function nettoyer() {
   exec("DELETE d FROM t_suggestion_reserve_detail d JOIN t_suggestion_reserve s ON s.lg_SUGGESTION_RESERVE_ID = d.lg_SUGGESTION_RESERVE_ID WHERE s.str_COMMENTAIRE = 'E2E-RES-LIGNE';"

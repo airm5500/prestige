@@ -12,6 +12,8 @@
  *  - aucune erreur JavaScript, aucune fenetre ; ni le jeton ni la raison complete dans le journal du serveur.
  */
 const { chromium } = require('playwright-core');
+/* ce test verifie la banniere WhatsApp : elle n'est pas masquee au lancement (outils/poste.js) */
+process.env.E2E_BANNIERE_WHATSAPP = '1';
 const ENV_E2E = require('../outils/poste');
 const { execFileSync, spawn } = require('child_process');
 const fs = require('fs');
@@ -22,7 +24,7 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
 const BASE = ENV_E2E.BASE;
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
-const LOG = '/opt/payara5/glassfish/domains/domain1/logs/server.log';
+const LOG = ENV_E2E.JOURNAL_SERVEUR;
 const JETON = 'jeton-essai-alerte-' + Date.now();
 const PORT = 3012;
 const DOSSIER = fs.mkdtempSync(ENV_E2E.TMP + '/wa-alerte-');

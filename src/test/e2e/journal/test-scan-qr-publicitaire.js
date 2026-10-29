@@ -30,6 +30,17 @@ const CLIENT = 'E2E-SCAN-CL';
 const ventesCreees = [];
 const compte = () => q("SELECT CONCAT((SELECT COUNT(*) FROM t_ajustement), '/', (SELECT COUNT(*) FROM t_preenregistrement))");
 const retirerClient = () => q("DELETE FROM t_client WHERE lg_CLIENT_ID = '" + CLIENT + "'");
+/* la base de travail n'a pas toujours de depot : un depot d'extension d'essai est pose s'il n'y en a aucun, et retire */
+const DEPOT = 'E2E-SCAN-DEPOT';
+const retirerDepot = () => q("DELETE FROM t_emplacement WHERE lg_EMPLACEMENT_ID = '" + DEPOT + "'");
+function poserDepot() {
+  retirerDepot();
+  if (q("SELECT COUNT(*) FROM t_emplacement WHERE lg_EMPLACEMENT_ID <> '1' AND str_STATUT = 'enable' AND lg_TYPEDEPOT_ID = '2'") !== '0') { return; }
+  q("INSERT INTO t_emplacement (lg_EMPLACEMENT_ID, lg_COMPTE_CLIENT_ID, str_NAME, str_DESCRIPTION, str_LOCALITE, str_FIRST_NAME, str_LAST_NAME,"
+    + " str_PHONE, dt_CREATED, dt_UPDATED, str_STATUT, lg_TYPEDEPOT_ID, bool_SAME_LOCATION) SELECT '" + DEPOT + "', lg_COMPTE_CLIENT_ID, 'DEPOT E2E SCAN',"
+    + " 'E2E', 'ABOBO', 'ESSAI', 'Depot', '0700000000', NOW(), NOW(), 'enable', '2', 0 FROM t_compte_client cc"
+    + " WHERE EXISTS (SELECT 1 FROM t_client c WHERE c.lg_CLIENT_ID = cc.lg_CLIENT_ID AND c.str_STATUT = 'enable') LIMIT 1");
+}
 
 /* ecran : menu, bouton d'ajout eventuel, champ produit */
 const ECRANS = [
@@ -45,6 +56,7 @@ const ECRANS = [
 ];
 
 (async () => {
+  poserDepot();
   retirerClient();
   const avant = compte();
   q("INSERT INTO t_client (lg_CLIENT_ID, str_FIRST_NAME, str_LAST_NAME, lg_TYPE_CLIENT_ID, str_STATUT, dt_CREATED) VALUES ('" + CLIENT + "', 'E2ESCANQR', 'ESSAI', '6', 'enable', NOW())");
@@ -109,8 +121,10 @@ const ECRANS = [
     }
     await b.close();
     retirerClient();
+    retirerDepot();
     ok('Aucun ajustement ni vente créé par l\'essai', compte() === avant, avant + ' → ' + compte());
-    ok('Client d\'essai retiré', q("SELECT COUNT(*) FROM t_client WHERE lg_CLIENT_ID = '" + CLIENT + "'") === '0');
+    ok('Client et dépôt d\'essai retirés', q("SELECT COUNT(*) FROM t_client WHERE lg_CLIENT_ID = '" + CLIENT + "'") === '0'
+      && q("SELECT COUNT(*) FROM t_emplacement WHERE lg_EMPLACEMENT_ID = '" + DEPOT + "'") === '0');
   }
   const ko = res.filter((x) => !x.c).length;
   console.log('\n' + (res.length - ko) + '/' + res.length + (ko ? ' ECHEC' : ' OK'));

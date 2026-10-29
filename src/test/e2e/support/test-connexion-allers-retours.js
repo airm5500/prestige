@@ -30,7 +30,7 @@ function menuAttendu(login) {
   return q("SELECT CONCAT(m.lg_MENU_ID, '>', COALESCE(s.str_COMPOSANT, '')) FROM t_menu m "
     + "LEFT JOIN t_sous_menu s ON s.lg_MENU_ID = m.lg_MENU_ID AND s.str_Status = 'enable' AND LOWER(s.P_KEY) IN (" + droits + ") "
     + "WHERE m.str_Status = 'enable' AND m.lg_MODULE_ID = '1' AND LOWER(m.P_KEY) IN (" + droits + ")")
-    .split('\n').filter(Boolean).map((x) => x.replace(/^[^>]*>/, '')).filter(Boolean).sort();
+    .split(/\r?\n/).filter(Boolean).map((x) => x.replace(/^[^>]*>/, '')).filter(Boolean).sort();
 }
 
 async function connexion(b, login, mdp) {

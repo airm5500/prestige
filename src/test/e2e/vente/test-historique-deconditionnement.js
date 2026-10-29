@@ -47,7 +47,7 @@ const poserStocks = () => exec(`UPDATE t_famille_stock SET int_NUMBER_AVAILABLE 
   + `UPDATE t_famille_stock SET int_NUMBER_AVAILABLE = 3, int_NUMBER = 3 WHERE lg_FAMILLE_ID = '${P}' AND lg_EMPLACEMENT_ID = '1';`);
 /* lignes d'historique du test, dans l'ordre d'ecriture */
 const lignes = (f, e) => q(`SELECT CONCAT_WS('|', typeMvt, qteDebut, qteMvt, qteFinale) FROM hmvtproduit WHERE lg_FAMILLE_ID = '${f}'`
-  + ` AND lg_EMPLACEMENT_ID = '${e}' AND createdAt >= '${DEBUT}' ORDER BY createdAt, typeMvt`).split('\n').filter(Boolean)
+  + ` AND lg_EMPLACEMENT_ID = '${e}' AND createdAt >= '${DEBUT}' ORDER BY createdAt, typeMvt`).split(/\r?\n/).filter(Boolean)
   .map((l) => { const [t, a, m, z] = l.split('|'); return { t, a: +a, m: +m, z: +z }; });
 
 function nettoyer() {

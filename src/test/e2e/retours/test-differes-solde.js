@@ -107,7 +107,7 @@ function reglement(id, quand, montant) {
     ok('Bouton « Imprimer (PDF) » : ouvre le relevé avec la période et le client de l\'écran', /releve\/pdf\?/.test(urlPdf) && /dtStart=2026-10-01/.test(urlPdf) && /dtEnd=2026-10-31/.test(urlPdf) && urlPdf.includes('clientId=' + CLIENT), urlPdf);
     const pdf = await p.evaluate(async (u) => { const r = await fetch(u); return { s: r.status, t: r.headers.get('content-type'), b: Array.from(new Uint8Array(await r.arrayBuffer())) }; }, urlPdf);
     require('fs').writeFileSync(SORTIE + '/releve-differes.pdf', Buffer.from(pdf.b));
-    const texte = pdf.s === 200 && /pdf/.test(pdf.t) ? execFileSync('pdftotext', ['-layout', SORTIE + '/releve-differes.pdf', '-'], { encoding: 'utf8' }) : '';
+    const texte = pdf.s === 200 && /pdf/.test(pdf.t) ? execFileSync('pdftotext', ['-enc', 'UTF-8', '-layout', SORTIE + '/releve-differes.pdf', '-'], { encoding: 'utf8' }) : '';
     ok('PDF : titre et période, client, lignes (ventes, règlement, fin de mois), totaux = écran',
       /RELEVÉ DES DIFFÉRÉS DU 01\/10\/2026 AU 31\/10\/2026/.test(texte) && /ZZDIFFERE Essai/.test(texte) && /E2E-B/.test(texte) && /REG-R2/.test(texte)
       && /Solde fin Octobre 2026/.test(texte) && /Solde au début : 4 000/.test(texte) && /Solde à la fin : 10 000/.test(texte), texte.slice(0, 600));

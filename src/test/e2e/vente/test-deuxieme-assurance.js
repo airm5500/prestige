@@ -30,7 +30,7 @@ function nettoyer() {
   // Trois assurances distinctes : la principale, la seconde, et celle vers laquelle on bascule.
   // Le banc peut n'en compter que deux : une assurance d'essai (copie de la premiere) complete alors, retiree a la fin.
   const lister = () => q("SELECT lg_TIERS_PAYANT_ID FROM t_tiers_payant WHERE lg_TYPE_TIERS_PAYANT_ID='1' AND str_STATUT='enable'"
-    + " ORDER BY lg_TIERS_PAYANT_ID LIKE '" + MARQUE + "%', lg_TIERS_PAYANT_ID LIMIT 3").split('\n').filter(Boolean);
+    + " ORDER BY lg_TIERS_PAYANT_ID LIKE '" + MARQUE + "%', lg_TIERS_PAYANT_ID LIMIT 3").split(/\r?\n/).filter(Boolean);
   let assurances = lister();
   for (let i = assurances.length; i > 0 && i < 3; i++) {
     const id = MARQUE + '-TP' + i;
@@ -68,7 +68,7 @@ function nettoyer() {
 
   const liens = q("SELECT lg_COMPTE_CLIENT_TIERS_PAYANT_ID, lg_TIERS_PAYANT_ID, int_PRIORITY FROM t_compte_client_tiers_payant"
     + " WHERE lg_COMPTE_CLIENT_ID IN (SELECT lg_COMPTE_CLIENT_ID FROM t_compte_client WHERE lg_CLIENT_ID='" + clientId + "')"
-    + " ORDER BY int_PRIORITY").split('\n').map(l => l.split('\t'));
+    + " ORDER BY int_PRIORITY").split(/\r?\n/).map(l => l.split('\t'));
   ok('deux liens client / assurance en base', liens.length === 2, JSON.stringify(liens));
   const [lien1, lien2] = liens;
 
@@ -127,7 +127,7 @@ function nettoyer() {
     + " FROM t_preenregistrement_compte_client_tiers_payent c"
     + " JOIN t_compte_client_tiers_payant t ON t.lg_COMPTE_CLIENT_TIERS_PAYANT_ID=c.lg_COMPTE_CLIENT_TIERS_PAYANT_ID"
     + " WHERE c.lg_PREENREGISTREMENT_ID='" + MARQUE + "-V' ORDER BY c.int_PERCENT DESC")
-    .split('\n').filter(Boolean).map(l => l.split('\t'));
+    .split(/\r?\n/).filter(Boolean).map(l => l.split('\t'));
   console.log('  lignes apres modification :', JSON.stringify(lignes));
 
   ok('la vente porte toujours deux tiers payants', lignes.length === 2, JSON.stringify(lignes));
