@@ -11,7 +11,7 @@
 
 | Rang | Cause | Parcours touchés | Gain prouvé | Effort | Risque |
 |---|---|---|---|---|---|
-| 1 | **Suggestion : coût quadratique dans le code Java** (le SQL ne fait que 1 à 5 % du temps) | 7, 8 | à mesurer après la correction ; 18 s → 476 s aujourd'hui | moyen | moyen |
+| 1 | **Suggestion : coût quadratique dans le code Java** : Hibernate revérifie toute la transaction avant chaque requête (91 % des piles Java ; le SQL fait 2 à 8 % du temps) | 7, 8 | à mesurer après la correction ; aujourd’hui 18 s → 476 s (appaul), 5 s → 122 s (zanzan) | moyen | moyen |
 | 2 | **Statistiques MariaDB fausses** sur les colonnes caissier et utilisateur : le moteur lit les ventes caissier par caissier au lieu de les lire par date | 1, 4, 5, 6, 7, 8, 9 | 3,2 s → 36 ms (Ticket Z, 1 semaine) ; 3,2 s → 0,27 s (Ventes, 1 mois) ; 3,9 s → 0,6 s (Récap, 1 mois) | très faible | très faible |
 | 3 | Compteur « Ventes en avoir » de la cloche : mauvais index, appel répété toutes les quelques secondes | tous les écrans (9 surtout) | 450 ms → < 1 ms par appel | très faible | très faible |
 | 4 | Récap et liste des articles vendus : agrégat complet recalculé à chaque page, jointures inutiles | 5, 6 | à mesurer | moyen | faible |
@@ -253,7 +253,7 @@ onglet correspond au premier rendu ExtJS.
 
 ## 4. Causes, classées par gain attendu
 
-### 4.1 Cause 1 — Suggestion : coût quadratique dans le code Java *(prouvé pour le coût hors SQL ; mécanisme exact à confirmer)*
+### 4.1 Cause 1 — Suggestion : coût quadratique dans le code Java *(prouvé, mécanisme compris)*
 
 **Ce qui est prouvé :**
 
@@ -270,11 +270,35 @@ onglet correspond au premier rendu ExtJS.
   - les `find` sont aux lignes 737 et 746, `coupleFamilleGrossisteDesactive` à la ligne 805 ;
   - `findOrCreateFamilleGrossiste` puis `persist` sont dans `initTSuggestionOrderDetail`, ligne 488.
 
-**Hypothèse sur le mécanisme** (à confirmer par une capture des fils Java pendant l'appel, prévue à la prochaine série) :
+**Mécanisme, prouvé par capture des fils Java** (`jstack` toutes les 4 s pendant le parcours 7 sur `zanzan_perf`, de
+1 jour à 3 mois ; 65 piles du fil qui exécute la suggestion) :
 
-- Avant chaque requête JPQL, Hibernate vide la transaction en cours (`FlushMode.AUTO`).
-- À chaque vidage, il compare toutes les entités déjà chargées pour trouver celles qui ont changé.
-- Au n-ième produit, il compare donc environ 2n entités. Sur la série, cela fait de l'ordre de n² comparaisons.
+| Où se trouve le fil | Piles | Part |
+|---|---|---|
+| Vidage automatique d'Hibernate avant une requête : `SessionImpl.list` → `autoFlushIfRequired` → `DefaultAutoFlushEventListener.onAutoFlush` | **59** | **91 %** |
+| Chargement d'un produit (`SessionImpl.find`) | 3 | 5 % |
+| Requête qui suit le vidage | 3 | 5 % |
+| Attente d'une réponse de MariaDB (lecture sur la connexion) | 5 | 8 % |
+
+*Une même pile peut compter dans deux lignes.*
+
+Les deux requêtes qui déclenchent ces vidages sont les lectures du couple produit-grossiste, faites une fois par
+produit :
+
+- `findOrCreateFamilleGrossiste` ([SuggestionImpl.java:462](src/main/java/rest/service/impl/SuggestionImpl.java:462)) :
+  39 piles ;
+- `coupleFamilleGrossisteDesactive` ([SuggestionImpl.java:807](src/main/java/rest/service/impl/SuggestionImpl.java:807)) :
+  23 piles.
+
+Au sommet des piles, on trouve la comparaison champ par champ des entités chargées : `Field.get`,
+`TypeHelper.findDirty`, `AbstractVisitor.processValue` et le parcours de leurs collections
+(`Collections.processReachableCollection`). Le déroulé est donc le suivant :
+
+1. Avant chaque requête JPQL, Hibernate vide la transaction en cours (`FlushMode.AUTO`).
+2. À chaque vidage, il compare toutes les entités déjà chargées dans la transaction (produits, couples, lignes de
+   suggestion), avec leurs collections, pour trouver celles qui ont changé.
+3. Au n-ième produit, il compare donc de l'ordre de 3n entités, deux fois. Sur la série, cela fait de l'ordre de n²
+   comparaisons : c'est la courbe mesurée.
 
 **Solutions possibles :**
 
@@ -282,6 +306,9 @@ onglet correspond au premier rendu ExtJS.
    - persister les lignes par lots, avec `flush()` puis `clear()` tous les 200 à 500 produits ;
    - ou passer la requête de lecture en `FlushModeType.COMMIT`.
 2. Variante plus légère : garder la boucle, mais poser `setFlushMode(COMMIT)` sur les deux requêtes de lecture du couple.
+   Elle supprime le vidage, qui représente 91 % des piles. Point à vérifier : sans vidage, la requête ne voit pas un
+   couple créé plus tôt dans la même transaction. Il faut donc s'assurer qu'un même couple produit-grossiste ne peut
+   pas apparaître deux fois dans une même suggestion, ou garder en mémoire les couples créés pendant la boucle.
 
 - **Risque de régression** : moyen. Le résultat doit rester identique : mêmes lignes, mêmes produits ignorés, même
   indicateur `int_ORERSTATUS`, posé par le déclencheur `t_sugesstion_indicateur`.
