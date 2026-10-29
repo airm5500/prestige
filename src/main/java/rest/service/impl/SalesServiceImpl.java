@@ -433,6 +433,16 @@ public class SalesServiceImpl implements SalesService {
 
     }
 
+    /**
+     * Vrai si la vente est la contre-passation (annulation) d'une autre vente. Signale le 29/10 (vente 261029_00003) :
+     * la copie d'une modification porte aussi lg_PREENGISTREMENT_ANNULE_ID (sa vente d'origine) ; prise pour une
+     * annulation, une vente deja modifiee ne se modifiait ni ne s'annulait plus. Une contre-passation n'est jamais une
+     * copie.
+     */
+    static boolean estContrePassation(TPreenregistrement tp) {
+        return StringUtils.isNotBlank(tp.getLgPREENGISTREMENTANNULEID()) && !Boolean.TRUE.equals(tp.getCopy());
+    }
+
     /** Motif du refus d'annuler cette vente en l'etat (null : annulable). */
     static String refusAnnulation(TPreenregistrement tp) {
         if (Boolean.TRUE.equals(tp.getBISCANCEL())) {
@@ -441,7 +451,7 @@ public class SalesServiceImpl implements SalesService {
                             : " le " + new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm").format(tp.getDtANNULER()))
                     + " : rien n'a été refait.";
         }
-        if (StringUtils.isNotBlank(tp.getLgPREENGISTREMENTANNULEID())) {
+        if (estContrePassation(tp)) {
             return "Cette vente est l'annulation d'une autre vente : elle ne s'annule pas.";
         }
         if (!STATUT_IS_CLOSED.equals(tp.getStrSTATUT())) {
@@ -4688,7 +4698,7 @@ public class SalesServiceImpl implements SalesService {
                     : getEm().find(TPreenregistrement.class, venteId);
             /* audit N2 : seule une vente terminee, non annulee, et qui n'est pas elle-meme une annulation se modifie */
             if (tp == null || Boolean.TRUE.equals(tp.getBISCANCEL()) || !STATUT_IS_CLOSED.equals(tp.getStrSTATUT())
-                    || StringUtils.isNotBlank(tp.getLgPREENGISTREMENTANNULEID())) {
+                    || estContrePassation(tp)) {
                 return json.put("success", false).put("msg",
                         "Seule une vente terminée et non annulée peut être modifiée : actualisez la liste des ventes.");
             }
