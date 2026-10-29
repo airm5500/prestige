@@ -56,11 +56,23 @@ const date = (iso) => { const [a, m, j] = iso.split('-').map(Number); return [a,
     for (const [nom, params] of cas) {
       const jsp = await lire('../webservices/sm_user/journalvente/ws_facture_subrogatoire.jsp?' + params + '&limit=' + taille);
       const api = await lire('../api/v1/facture-subrogatoire/liste?' + params + '&limit=' + taille);
-      const egal = JSON.stringify(jsp.results) === JSON.stringify(api.results) && parseInt(jsp.total, 10) === api.total;
+      /* une vente a plusieurs bons (plusieurs tiers payants) : la JSP comme l'API regroupent par vente (GROUP BY
+         str_REF) sans dire quel bon garder, MariaDB en prend un. Pour ce seul champ, tout bon de la meme vente vaut. */
+      const bons = (id) => q("SELECT IFNULL(GROUP_CONCAT(DISTINCT str_REF_BON SEPARATOR '|'), '') FROM v_facture_subrogatoire WHERE lg_PREENREGISTREMENT_ID = '" + id + "'").split('|');
+      const memeLigne = (a, b) => {
+        if (JSON.stringify(a) === JSON.stringify(b)) { return true; }
+        if (!a || !b || a.lg_PREENREGISTREMENT_ID !== b.lg_PREENREGISTREMENT_ID) { return false; }
+        const sansBon = (x) => JSON.stringify(Object.assign({}, x, { str_REF_BON: '' }));
+        const l = bons(a.lg_PREENREGISTREMENT_ID);
+        return sansBon(a) === sansBon(b) && l.includes(a.str_REF_BON) && l.includes(b.str_REF_BON);
+      };
+      const egal = jsp.results.length === api.results.length && jsp.results.every((r, k) => memeLigne(r, api.results[k])) && parseInt(jsp.total, 10) === api.total;
       let ecart = '';
       if (!egal) {
-        const i = jsp.results.findIndex((r, k) => JSON.stringify(r) !== JSON.stringify(api.results[k]));
-        ecart = 'total ' + jsp.total + '/' + api.total + ' ; 1er écart #' + i + ' JSP ' + JSON.stringify(jsp.results[i]) + ' API ' + JSON.stringify(api.results[i]);
+        const i = jsp.results.findIndex((r, k) => !memeLigne(r, api.results[k]));
+        const a = jsp.results[i] || {}, b = api.results[i] || {};
+        const champs = [...new Set(Object.keys(a).concat(Object.keys(b)))].filter((c) => JSON.stringify(a[c]) !== JSON.stringify(b[c]));
+        ecart = 'total ' + jsp.total + '/' + api.total + ' ; 1er écart #' + i + ' champs ' + champs.map((c) => c + ' JSP=' + JSON.stringify(a[c]).slice(0, 60) + ' API=' + JSON.stringify(b[c]).slice(0, 60)).join(' ; ');
       }
       ok('JSP = API : ' + nom + ' (' + api.results.length + ' lignes / ' + api.total + ')', egal, ecart);
     }
