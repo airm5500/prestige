@@ -80,12 +80,20 @@ const nettoyer = () => q("DELETE FROM t_warehouse WHERE lg_WAREHOUSE_ID LIKE 'E2
       await p.waitForFunction(() => !!Ext.ComponentQuery.query('saisieperimeonglets')[0].donnees, null, { timeout: 30000 });
       e = await etat();
       const somme = e.donnees.periodes.reduce((s, x) => s + x.valeur, 0);
-      ok('Par ' + pas + ' : intervalles affichés et valeur totale retrouvée', e.donnees.pas === pas && e.periodes.length >= 1 && e.periodes.every((x) => motif.test(x)) && somme === VALEUR,
-        JSON.stringify(e.periodes) + ' somme ' + somme + ' / ' + VALEUR);
+      /* les intervalles couvrent toute la valeur de la periode : celle de l'essai, plus les saisies reelles du mois sur
+         la copie de l'officine */
+      const totalPeriode = e.donnees.total && e.donnees.total.valeur;
+      ok('Par ' + pas + ' : intervalles affichés et valeur totale retrouvée', e.donnees.pas === pas && e.periodes.length >= 1 && e.periodes.every((x) => motif.test(x))
+        && somme === totalPeriode && totalPeriode >= VALEUR, JSON.stringify(e.periodes) + ' somme ' + somme + ' / total ' + totalPeriode + ' (essai ' + VALEUR + ')');
     }
 
     /* plus frequents */
-    ok('API : les plus fréquents classés par nombre de saisies', api.frequents.length === 3 && api.frequents[0].fois === 2 && api.frequents[0].quantite === 2, JSON.stringify(api.frequents[0]));
+    /* classes par nombre de saisies (decroissant) ; le produit saisi deux fois par l'essai y figure avec 2 saisies, 2 unites
+       (sur la copie de l'officine, les saisies reelles du mois s'ajoutent a la liste) */
+    const cip0 = q("SELECT int_CIP FROM t_famille WHERE lg_FAMILLE_ID = '" + P[0][0] + "'");
+    const f0 = api.frequents.find((x) => x.cip === cip0);
+    ok('API : les plus fréquents classés par nombre de saisies', api.frequents.length >= 3 && api.frequents.every((x, i) => i === 0 || api.frequents[i - 1].fois >= x.fois)
+      && f0 && f0.fois === 2 && f0.quantite === 2, JSON.stringify(f0 || api.frequents[0]));
     await p.evaluate(() => Ext.ComponentQuery.query('saisieperimeonglets #spTriFrequence')[0].btnEl.dom.click());
     e = await etat();
     ok('Écran : « Les plus fréquents » en tête le produit périmé 2 fois', /plus souvent/.test(e.titreProduits) && e.premier[3] === '2', JSON.stringify(e.premier) + ' ' + e.titreProduits);
