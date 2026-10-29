@@ -12,7 +12,7 @@
 | Rang | Cause | Parcours touchés | Gain prouvé | Effort | Risque |
 |---|---|---|---|---|---|
 | 1 | **Suggestion : coût quadratique dans le code Java** : Hibernate revérifie toute la transaction avant chaque requête (91 % des piles Java ; le SQL fait 2 à 8 % du temps) | 7, 8 | à mesurer après la correction ; aujourd’hui 18 s → 476 s (appaul), 5 s → 122 s (zanzan) | moyen | moyen |
-| 2 | **Statistiques MariaDB fausses** sur les colonnes caissier et utilisateur : le moteur lit les ventes caissier par caissier au lieu de les lire par date | 1, 4, 5, 6, 7, 8, 9 | 3,2 s → 36 ms (Ticket Z, 1 semaine) ; 3,2 s → 0,27 s (Ventes, 1 mois) ; 3,9 s → 0,6 s (Récap, 1 mois) | très faible | très faible |
+| 2 | **Statistiques MariaDB fausses** sur les colonnes caissier et utilisateur : le moteur lit les ventes caissier par caissier au lieu de les lire par date | 1, 4, 5, 6, 7, 8, 9 | à l’écran : Ticket Z 1 semaine 3,0 s → 0,4 s ; Ventes 1 mois 3,2 s → 0,5 s ; Récap 1 mois 3,9 s → 1,1 s ; Articles vendus 3 mois 12,6 s → 2,0 s | très faible | très faible |
 | 3 | Compteur « Ventes en avoir » de la cloche : mauvais index, appel répété toutes les quelques secondes | tous les écrans (9 surtout) | 450 ms → < 1 ms par appel | très faible | très faible |
 | 4 | Récap et liste des articles vendus : agrégat complet recalculé à chaque page, jointures inutiles | 5, 6 | à mesurer | moyen | faible |
 | 5 | Tableau de bord à froid : 935 fichiers JavaScript (15 Mo) chargés un par un, cinq API lourdes en parallèle | 9 | à mesurer | moyen | faible |
@@ -372,6 +372,28 @@ agrégats : MariaDB y renvoie une valeur quelconque du groupe (cause 4).
 
 Le moteur bascule alors sur la jointure du caissier. Le mauvais plan vient bien des estimations, pas de la forme de la
 requête.
+
+**Gain à l'écran, mesuré.** Les parcours 1, 4, 5 et 6 ont été rejoués sur `appaul_perf` après l'`ANALYZE TABLE ...
+PERSISTENT`, par le même script et avec le même WAR. Les lignes affichées sont identiques. Le tableau donne les
+médianes en ms.
+
+| Parcours | Avant | Après | SQL avant → après (lignes examinées) |
+|---|---|---|---|
+| Ticket Z, 1 semaine | 2 962 | **406** | 2 062 001 → 50 090 |
+| Ventes terminées, 1 jour | 1 122 | **194** | 9 074 → 2 935 |
+| Ventes terminées, 1 mois | 3 202 | **545** | 2 124 664 → 69 111 |
+| Articles vendus récap, 1 jour | 654 | **187** | 17 506 → 18 340 |
+| Articles vendus récap, 1 mois | 3 906 | **1 111** | 2 476 041 → 419 823 |
+| Articles vendus récap, 3 mois | 8 209 | **3 004** | 5 071 850 → 1 110 810 |
+| Articles vendus, 1 jour | 783 | **323** | 25 584 → 14 691 |
+| Articles vendus, 1 mois | 4 446 | **784** | 2 689 982 → 350 062 |
+| Articles vendus, 3 mois | 12 588 | **1 991** | 7 626 660 → 930 896 |
+
+Les périodes de 3 jours à 15 jours, qui prenaient déjà le bon plan, ne changent pas. Après la correction, le récap à
+3 mois reste à 3 s : c'est la part de la cause 4.
+
+**Contre-épreuve sur `zanzan`.** Les statistiques de cette base sont justes : la cardinalité estimée des caissiers y est
+de 20. Les mêmes parcours y sont rapides sans aucune intervention : Ticket Z 1 semaine 243 ms, Ventes 1 mois 121 ms.
 
 - **Solution proposée** : une migration Flyway qui passe ces `ANALYZE TABLE ... PERSISTENT`. Pour que les statistiques
   ne vieillissent pas, l'une ou l'autre des mesures suivantes :
