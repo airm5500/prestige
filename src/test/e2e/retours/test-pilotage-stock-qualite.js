@@ -59,8 +59,10 @@ function texteDuPdf(octets) {
     /* Le constat qui fonde la conception de l'onglet. */
     const historiques = ['HMvtProduit', 't_mouvement', 't_mouvement_snapshot', 'stock_snapshot']
       .map((t) => t + '=' + q('SELECT COUNT(*) FROM ' + t));
-    ok('Constat : les tables d historique de mouvements sont vides, rien n est reconstituable depuis elles',
-      historiques.every((h) => h.endsWith('=0')), historiques.join(' '));
+    /* constat du banc, qui a fonde la conception de l'onglet ; sur la copie de l'officine ces tables sont remplies : le
+       constat est alors sans objet (l'onglet n'en depend pas) */
+    const vides = historiques.every((h) => h.endsWith('=0'));
+    console.log('INFO  Tables d historique de mouvements ' + (vides ? 'vides (banc)' : 'remplies : constat du banc sans objet') + '  [' + historiques.join(' ') + ']');
 
     await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
     await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
@@ -258,8 +260,9 @@ function texteDuPdf(octets) {
 
     const moisAnnule = qualite.lignes.filter((l) => l.annulees > 0)[0];
     if (moisAnnule) {
-      const annuleesBase = q("SELECT COUNT(*) FROM t_preenregistrement WHERE b_IS_CANCEL=1"
-        + " AND DATE_FORMAT(dt_UPDATED,'%Y-%m')='" + moisAnnule.mois + "'");
+      /* meme definition que l'application (PilotageSql : ventes cloturees, par date d'annulation) */
+      const annuleesBase = q("SELECT COUNT(*) FROM t_preenregistrement WHERE b_IS_CANCEL=1 AND str_STATUT='is_Closed'"
+        + " AND DATE_FORMAT(dt_ANNULER,'%Y-%m')='" + moisAnnule.mois + "'");
       ok('Les ventes annulées du mois sont celles de la base',
         moisAnnule.annulees === Number(annuleesBase), moisAnnule.annulees + ' contre ' + annuleesBase);
       ok('Et le taux d annulation est le nombre d annulées sur le nombre de ventes',
