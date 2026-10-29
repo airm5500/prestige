@@ -134,7 +134,8 @@ peut pas trancher sans image de la mémoire au moment de l'erreur (§ 6).
 - **Constat** : `configs.config.server-config.thread-pools.thread-pool.http-thread-pool` a `max-thread-pool-size=5`
   et `min-thread-pool-size=5`. Ce sont les valeurs par défaut, car `domain.xml` ne les fixe pas. Le réglage est le même
   sur domain1 et domain2. Toute requête au-delà de 5 attend dans une file de 4 096 places.
-- **Solution** (script `outils/payara/regler-fils.sh`, puis redémarrage du domaine) : porter le pool à 32 fils, au
+- **Solution** (script `outils/payara/regler-fils.sh`, ou `outils/officine/1-configurer-payara.ps1` sur le serveur
+  Windows de l'officine, puis redémarrage du domaine) : porter le pool à 32 fils, au
   même niveau que le pool de connexions à la base (`max-pool-size=32`) :
   `asadmin set configs.config.server-config.thread-pools.thread-pool.http-thread-pool.max-thread-pool-size=32`
   (et `min-thread-pool-size=8`). Une seconde mesure isole les états lourds : borner leur durée (§ 4.2) ou les
@@ -344,6 +345,20 @@ Tables de journal qui pèsent sans servir à la caisse :
    sauvegardé.
 7. **Essai de restauration mensuel** sur une copie, avec mesure de la durée.
 
+**Scripts** : [outils/officine](../../outils/officine/LISEZMOI.md). Ils couvrent :
+- le journal binaire et le compte de sauvegarde (`2-configurer-mariadb.ps1`), points 1 et 5 ;
+- la sauvegarde complète avec rotation et copie hors de la machine (`3-sauvegarde-complete.ps1`), points 2 à 4 ;
+- la copie horaire du journal (`4-copier-journal.ps1`), point 1 ;
+- les tâches planifiées à midi, le soir et toutes les heures (`5-planifier.ps1`) ;
+- l'essai de restauration (`6-essai-restauration.ps1`), point 7.
+
+Essai du 29/10 sur deux instances jetables :
+- une sauvegarde est faite, puis une vente est ajoutée et le journal copié ;
+- après restauration sur l'autre instance, on retrouve les mêmes ventes et le même total ;
+- la vente ajoutée après la sauvegarde complète est comprise : elle a été rejouée depuis le journal.
+
+Le point 6 (purge des journaux) attend l'accord sur ce qu'il faut garder.
+
 Pour aller plus loin : `mariabackup` (sauvegarde physique, avec index) en complète le dimanche et en différentielle
 chaque nuit. La restauration est plus rapide (pas de reconstruction des index), mais le volume est triple. Ce n'est
 utile que si la restauration par `mysqldump` dépasse le temps d'arrêt accepté.
@@ -377,6 +392,15 @@ Réglages proposés, à appliquer sur le serveur de l'officine :
 **Attention** à l'ordre pour les deux délais du pool JDBC. Tant que la suggestion dure 10 minutes (rapport du 28/10,
 cause 1), un délai de requête de 300 s ou une reprise des connexions à 120 s l'interromprait. Il faut donc corriger la
 suggestion d'abord, ou poser des délais plus longs que l'état le plus lent.
+
+**Scripts** :
+- Payara : `1-configurer-payara.ps1` ([outils/officine](../../outils/officine/LISEZMOI.md)). Il règle les fils, la
+  mémoire, l'image mémoire, le journal du ramasse-miettes et la vérification des connexions. Les deux délais du pool
+  n'y sont posés que sur demande (`-DelaisJdbc`), pour la raison ci-dessus. L'arrêt de Payara si la mémoire sature
+  (`-ArretSurSaturation`) est refusé tant que Payara ne tourne pas en service Windows.
+- MariaDB : `2-configurer-mariadb.ps1` règle `innodb_buffer_pool_size`.
+
+Le 29/10, le script Payara a été appliqué sur domain2, redémarré, vérifié puis annulé.
 
 Et dans le code : les défauts 2 à 4 ci-dessus, puis les causes 1 et 2 du rapport du 28/10 (suggestion, statistiques).
 
