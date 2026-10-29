@@ -58,7 +58,9 @@ const HOTE_ESSAI = 'E2E-SERVEUR';
     ok('État : tuiles mémoire, machine, processeur, requêtes, base', ['En marche depuis', 'Mémoire du serveur Java', 'Mémoire de la machine', 'Processeur', 'Requêtes en traitement', 'Connexions à la base'].every((x) => etat.tuiles.indexOf(x) >= 0), etat.tuiles.slice(0, 200));
     ok('État : tuile du pool de connexions (temps de réponse) et actualisation automatique cochée', /Pool de connexions\d+ ms/.test(etat.tuiles)
       && await p.evaluate(() => Ext.ComponentQuery.query('supportserveur #auto')[0].getValue() === true), etat.tuiles.slice(etat.tuiles.indexOf('Pool'), etat.tuiles.indexOf('Pool') + 60));
-    ok('État : courbes alimentées par les relevés', etat.mesures === Number(q("SELECT COUNT(*) FROM t_serveur_mesure WHERE mesure_at >= NOW() - INTERVAL 24 HOUR")) && etat.mesures > 0, etat.mesures);
+    /* fenetre glissante de 24 h : entre l'ecran et la requete, un releve peut entrer ou sortir (669 contre 668 vu le 29/10) */
+    const mesuresBase = Number(q("SELECT COUNT(*) FROM t_serveur_mesure WHERE mesure_at >= NOW() - INTERVAL 24 HOUR"));
+    ok('État : courbes alimentées par les relevés', Math.abs(etat.mesures - mesuresBase) <= 2 && etat.mesures > 0, etat.mesures + ' / ' + mesuresBase);
 
     await p.click('.supportserveur .x-tab:has-text("Arrêts")');
     await p.waitForTimeout(2500);
