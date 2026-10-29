@@ -1483,6 +1483,9 @@ public class SalesServiceImpl implements SalesService {
 
     private boolean refuserVenteDetailInvendable(JSONObject json, TPreenregistrement tp,
             List<TPreenregistrementDetail> items) throws JSONException {
+        // ventes simultanees du meme article : le controle porte sur le stock a jour, verrouille jusqu'a la fin de la
+        // cloture (RAPPORT_CHARGE_2026-10-29.md, § 4.3)
+        mvtProduitService.verrouillerArticles(items, ContexteVenteDepot.emplacementDeVente(tp));
         Optional<String> produit = produitDetailInvendable(items, ContexteVenteDepot.emplacementDeVente(tp));
         if (produit.isPresent()) {
             json.put("success", false);

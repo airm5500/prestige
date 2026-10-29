@@ -84,6 +84,10 @@
         <!-- Experience utilisateur (RUM) : temps d'ecran et d'appel, avant tout autre script qui appelle le serveur -->
         <script src="resources/js/mesures-rum.js"></script>
         <script src="ext/ext-all.js"></script>
+        <!-- Connexion simultanee (RAPPORT_CHARGE_2026-10-29, § 4.6) : les scripts des ecrans en un seul appel, puis
+             Ext.Loader les prend dans cette table au lieu de ~1 000 requetes. Sans la table, rien ne change. -->
+        <script src="../api/v1/ecrans/scripts.js"></script>
+        <script src="resources/js/scripts-groupes.js"></script>
         <!-- Empeche ExtJS de couper la fin du texte des info-bulles et des boites de
              message (on lisait "Avoir deja" au lieu de "Avoir deja certifie"). A charger
              apres ext-all.js. -->
