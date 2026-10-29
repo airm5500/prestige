@@ -156,7 +156,10 @@ function poserLots(ps) {
       JSON.stringify(reponsePdf).slice(0, 150) + ' ' + textePdf.slice(0, 200));
 
     /* ------------------------------------------------------------ point 7 : basculement d'emplacement */
-    const zone = q("SELECT z.lg_ZONE_GEO_ID FROM t_zone_geographique z JOIN t_famille f ON f.lg_ZONE_GEO_ID=z.lg_ZONE_GEO_ID GROUP BY z.lg_ZONE_GEO_ID ORDER BY COUNT(*) DESC LIMIT 1");
+    /* emplacement qui a le plus de produits ACTIFS (la fenetre ne liste qu'eux ; sur la copie de l'officine,
+       « Default » porte 10 676 produits, tous desactives) */
+    const zone = q("SELECT z.lg_ZONE_GEO_ID FROM t_zone_geographique z JOIN t_famille f ON f.lg_ZONE_GEO_ID=z.lg_ZONE_GEO_ID AND f.str_STATUT='enable'"
+      + " WHERE z.str_STATUT='enable' GROUP BY z.lg_ZONE_GEO_ID ORDER BY COUNT(*) DESC LIMIT 1");
     const zoneLib = q("SELECT str_LIBELLEE FROM t_zone_geographique WHERE lg_ZONE_GEO_ID='" + zone + "'");
     await ouvrir('zonegeographiquemanager', 'zonegeographiquemanager');
     await p.evaluate((a) => {
