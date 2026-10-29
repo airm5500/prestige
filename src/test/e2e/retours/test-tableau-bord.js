@@ -51,7 +51,9 @@ const n = (v) => Number(v || 0);
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app && Ext.ComponentQuery.query('dashboard').length, null, { timeout: 90000 });
     connecte = true;
     if (forcer) {
-      await p.waitForFunction(() => testextjs.view.tableaubord && Ext.ComponentQuery.query('dashboard')[0].versionTableauBord, null, { timeout: 30000 });
+      /* depuis le 25/10 (Ticket Z et tableau de bord sans iframe), le tableau de bord est toujours le composant
+         TableauBord : plus de bascule versionTableauBord */
+      await p.waitForFunction(() => testextjs.view.tableaubord && Ext.ComponentQuery.query('tableaubord').length, null, { timeout: 30000 });
     }
   };
   const tb = () => p.evaluate(() => !!Ext.ComponentQuery.query('tableaubord')[0]);
@@ -104,8 +106,12 @@ const n = (v) => Number(v || 0);
     const valoVieux = ((await api('../api/v1/produit/valorisation?mode=0&dtStart=' + new Date().toISOString().slice(0, 10))) || {}).data || {};
     const valoNeuf = await api('../api/v1/tableau-bord/valorisation?frais=1');
     ok('Valorisation du stock (rayon) = ancien tableau de bord (stocks négatifs compris, lignes actives)',
-      n(valoVieux.totalValue) === valoNeuf.rayon.achat && n(valoVieux.totalValueTwo) === valoNeuf.rayon.vente,
-      valoVieux.totalValue + '/' + valoNeuf.rayon.achat + ' ; ' + valoVieux.totalValueTwo + '/' + valoNeuf.rayon.vente);
+      /* l'ancienne route : value / valueTwo = rayon, totalValue / totalValueTwo = rayon + reserve (egaux sur le banc,
+         sans reserve ; differents sur la copie de l'officine) */
+      n(valoVieux.value) === valoNeuf.rayon.achat && n(valoVieux.valueTwo) === valoNeuf.rayon.vente
+        && n(valoVieux.totalValue) === valoNeuf.total.achat && n(valoVieux.totalValueTwo) === valoNeuf.total.vente,
+      valoVieux.value + '/' + valoNeuf.rayon.achat + ' ; ' + valoVieux.valueTwo + '/' + valoNeuf.rayon.vente
+        + ' ; total ' + valoVieux.totalValue + '/' + valoNeuf.total.achat + ' ; ' + valoVieux.totalValueTwo + '/' + valoNeuf.total.vente);
     const auj = new Date().toISOString().slice(0, 10);
     const groVieux = await api('../api/v1/recap/dashboard/achat-grossiste');
     const groNeuf = await api('../api/v1/tableau-bord/grossistes?limite=5&frais=1&date=' + auj);
@@ -306,8 +312,12 @@ const n = (v) => Number(v || 0);
     await p.waitForTimeout(400);
     const entete = await texte('[data-corps="topmois"] th:nth-child(3)');
     ok('Top du mois : interrupteur CA / quantité, marge et taux par produit', /Qté/.test(entete) && /Marge/.test(await texte('[data-corps="topmois"] tr')), entete);
-    const unes = await p.evaluate(() => Array.from(document.querySelectorAll('.tb-nom1')).slice(0, 8).map((e) => e.getBoundingClientRect().height));
-    ok('Libellés produits sur une seule ligne', unes.every((h) => h < 30), JSON.stringify(unes));
+    /* nombre de lignes du texte (et non hauteur de la cellule, qui suit celle de la ligne du tableau) */
+    const unes = await p.evaluate(() => Array.from(document.querySelectorAll('.tb-nom1')).slice(0, 8).map((e) => {
+      const r = document.createRange(); r.selectNodeContents(e);
+      return new Set(Array.from(r.getClientRects()).filter((x) => x.width > 0).map((x) => Math.round(x.top))).size;
+    }));
+    ok('Libellés produits sur une seule ligne', unes.length > 0 && unes.every((l) => l === 1), JSON.stringify(unes));
 
     // Personnalisation
     await cliquer('[data-tb="perso"]');
@@ -368,15 +378,16 @@ const n = (v) => Number(v || 0);
     const retour = await p.evaluate(() => ({ drapeau: window.PRESTIGE_RETOUR_TB, tb: Ext.ComponentQuery.query('tableaubord').some((c) => c.isVisible(true)) }));
     ok('En-tête : profil administrateur → le bouton après la date ramène au tableau de bord', retour.drapeau === true && retour.tb, JSON.stringify(retour));
 
-    // Bascule ANCIEN
+    /* Parametre sur ANCIEN : depuis le 25/10 (Ticket Z et tableau de bord sans iframe), l'ancien dashboard.html ne
+       s'affiche plus ; le nouveau tableau de bord reste, sans iframe */
     exec("UPDATE t_parameters SET str_VALUE = 'ANCIEN' WHERE str_KEY = 'KEY_TABLEAU_BORD_VERSION'");
     connecte = false;
     await p.goto('http://localhost:8080/prestige/general/', { waitUntil: 'domcontentloaded' });
-    await p.waitForFunction(() => window.Ext && Ext.ComponentQuery && Ext.ComponentQuery.query('dashboard').length && Ext.ComponentQuery.query('dashboard')[0].versionTableauBord, null, { timeout: 90000 });
+    await p.waitForFunction(() => window.Ext && Ext.ComponentQuery && Ext.ComponentQuery.query('dashboard').length && Ext.ComponentQuery.query('tableaubord').length, null, { timeout: 90000 });
     connecte = true;
     await p.waitForTimeout(7000);
-    const ancien = await p.evaluate(() => { const f = Ext.ComponentQuery.query('dashboard')[0].getEl().dom.querySelector('iframe'); return { iframe: !!f, src: f ? f.getAttribute('src') : '', tb: Ext.ComponentQuery.query('tableaubord').length }; });
-    ok('KEY_TABLEAU_BORD_VERSION = ANCIEN : dashboard.html dans son iframe, comme avant', ancien.iframe && /dashboard\.html/.test(ancien.src) && ancien.tb === 0, JSON.stringify(ancien));
+    const ancien = await p.evaluate(() => { const f = Ext.ComponentQuery.query('dashboard')[0].getEl().dom.querySelector('iframe'); return { iframe: !!f, tb: Ext.ComponentQuery.query('tableaubord').length }; });
+    ok('KEY_TABLEAU_BORD_VERSION = ANCIEN : le nouveau tableau de bord reste, sans iframe (depuis le 25/10)', !ancien.iframe && ancien.tb === 1, JSON.stringify(ancien));
 
     ok('Aucune réponse en erreur (4xx/5xx) après connexion', http.length === 0, JSON.stringify(http));
     ok('Aucune erreur JavaScript', err.length === 0, JSON.stringify(err));
