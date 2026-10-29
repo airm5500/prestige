@@ -141,6 +141,22 @@ peut pas trancher sans image de la mémoire au moment de l'erreur (§ 6).
   passer dans un pool de fils séparé.
 - **Risque** : faible. Plus de requêtes en parallèle veut dire plus de mémoire au même moment ; à surveiller avec
   `jstat` pendant un essai à 15 postes et 5 états lourds.
+- **Résultats (29/10, domain2 sur laborex_perf, 15 postes + 5 suggestions, 10 min, mêmes conditions)** : les
+  connexions simultanées ont bloqué une partie des postes dans les deux essais (voir § 4.6), donc on ne compare que les
+  postes qui ont travaillé.
+
+  | | 5 fils | 32 fils |
+  |---|---|---|
+  | ventes terminées | 21 (19 réussies) | 49 (49 réussies) |
+  | vente terminée, médiane / max | 2,2 s / 17,5 s | 2,6 s / 12,1 s |
+  | Ticket Z du jour | 4 essais, 4 échecs (122 s) | 19 essais, 17 réussis, médiane 2,2 s |
+  | ventes terminées du jour | 4 essais, 4 échecs (122 s) | 19 essais, 17 réussis, médiane 2,6 s |
+  | récap des articles vendus | 4 essais, 4 échecs (122 s) | 19 essais, 17 réussis, médiane 2,7 s |
+  | tas Java max | 941 Mo | 725 Mo |
+
+  À 5 fils, les 5 suggestions prennent tous les fils et les états attendent jusqu'à l'échec. À 32 fils, ils restent
+  autour de 2 s et la mémoire ne monte pas. **Réglage appliqué** le 29/10 sur domain1 (32 fils, 8 au minimum, domaine
+  redémarré). domain2 a été remis à 5 fils.
 - **Test** : `charge-officine.js` avec `PALIERS=15 LOURDS=5`, avant et après. Critère : la médiane de « vente
   terminée » reste sous 3 s et aucune caisse ne dépasse 10 s.
 
@@ -183,7 +199,16 @@ peut pas trancher sans image de la mémoire au moment de l'erreur (§ 6).
   La seconde caisse attend la fin de la première (quelques centaines de millisecondes), puis contrôle et décrémente le
   stock à jour. Le cas de la « dernière boîte » reste refusé proprement : la seconde vente voit le stock à jour et reçoit
   « stock insuffisant ». Test : `src/test/e2e/perf/concurrence-stock-caisses.js` (5 tours, 3 articles communs tapés en
-  ordre inverse). **À lancer** avant et après la correction, au prochain créneau libre.
+  ordre inverse).
+- **Résultats (29/10, domain2 sur laborex_perf)** :
+  - **avant** la correction : 8 tours sur 8 en échec ; une des deux ventes est refusée (« Erreur: Echec de validation
+    de la vente ») et le stock ne baisse que d'une vente ;
+  - **après** : 8 tours sur 8 réussis ; les deux ventes passent et le stock baisse de 2 par article. Le premier
+    lancement après le redéploiement a buté sur un clic de menu, le suivant est passé sans incident ;
+  - **non-régression « dernière boîte »** (`concurrence-derniere-boite.sh`, détail à 10 par boîte, 6 vendus par
+    chaque caisse, 1 boîte en stock) : 7 tours sur 7, une seule vente passe, le stock ne devient jamais négatif. La
+    vente refusée reçoit désormais le message métier « stock insuffisant ... plus aucune boîte à déconditionner »,
+    au lieu de l'erreur technique.
 
 ### 4.4 Première vente du jour sur deux caisses *(prouvé)*
 
@@ -212,6 +237,21 @@ peut pas trancher sans image de la mémoire au moment de l'erreur (§ 6).
   (`ix_session_user`). MariaDB annule l'un des deux. Sans effet visible ici, mais à rejouer automatiquement.
 - **Connexion à 15 postes en même temps** : jusqu'à 16 s, pour 935 fichiers JavaScript chargés par poste (rapport du
   28/10, cause 5).
+- **Mise à jour du 29/10 (soir)** : dans les deux essais du § 4.1, les connexions se sont bloquées dès le 3ᵉ poste
+  (17 sur 20 au-delà de 60 s, page blanche). Le blocage est le même à 5 et à 32 fils, donc il ne vient pas du pool de
+  fils.
+  - **Mesures** :
+    - une connexion charge environ 1 000 fichiers et dure 2,3 s seule ;
+    - 3 connexions simultanées durent 7,2 s chacune, 6 durent 11 s (un navigateur sans vidéo) à 22 s (six
+      navigateurs avec vidéo) ;
+    - le temps total croît avec le nombre de postes, comme si les connexions passaient l'une après l'autre ;
+    - pendant ce temps, Payara n'a qu'un ou deux fils actifs, occupés à vérifier les fichiers sur le disque
+      (`FileDirContext.validate`, `FindFirstFile`), et consomme environ 1 cœur sur 16.
+  - **Hypothèse** (non prouvée) : chaque poste charge ses fichiers en chaîne, et chaque fichier coûte une
+    vérification sur le disque. Le matin, avec domain1 et domain3 arrêtés, la connexion simultanée ne dépassait pas
+    16 s.
+  - **Piste** : servir l'écran en un seul fichier construit, comme le prévoit la cause 5 du rapport du 28/10. Il
+    faut ensuite mesurer avec des postes vraiment séparés.
 
 ## 5. Sauvegardes
 
