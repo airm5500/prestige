@@ -731,8 +731,10 @@ public class SuggestionImpl implements SuggestionService {
      */
     private JSONObject creerSuggestionArticlesVendus(Collection<VenteDetailsDTO> datas, boolean reappro)
             throws JSONException {
-        /* meme cout quadratique que makeSuggestionFromArticleInvendus (rapport des performances du 28/10, § 4.1) :
-           ecriture en fin de transaction ; chaque produit n'y figure qu'une fois par grossiste (eligibles) */
+        /*
+         * meme cout quadratique que makeSuggestionFromArticleInvendus (rapport des performances du 28/10, § 4.1) :
+         * ecriture en fin de transaction ; chaque produit n'y figure qu'une fois par grossiste (eligibles)
+         */
         FlushModeType modeAvant = getEmg().getFlushMode();
         getEmg().setFlushMode(FlushModeType.COMMIT);
         try {

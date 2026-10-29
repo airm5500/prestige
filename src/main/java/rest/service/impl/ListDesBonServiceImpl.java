@@ -389,7 +389,7 @@ public class ListDesBonServiceImpl implements ListDesBonService {
     }
 
     private static String formatMontant(long montant) {
-        return String.format("%,d", montant).replace(',', ' ') + " F";
+        return String.format(java.util.Locale.ROOT, "%,d", montant).replace(',', ' ') + " F";
     }
 
     /** Produits (cip, libelle, quantite, montant) de chaque vente, en une seule requete par lot d'identifiants. */

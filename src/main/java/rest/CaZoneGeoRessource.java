@@ -265,7 +265,8 @@ public class CaZoneGeoRessource {
                         + libelleGranularite(json.optString("granularite")) + ")" + filtresTexte(json, filtres));
         Object evolution = json.opt("evolutionGenerale");
         parametres.put("P_INDICATEURS",
-                "CA total : " + String.format("%,d", json.optLong("totalGeneral")).replace(',', ' ')
+                "CA total : "
+                        + String.format(java.util.Locale.ROOT, "%,d", json.optLong("totalGeneral")).replace(',', ' ')
                         + "   |   Évolution entre la première et la dernière tranche : " + (evolution instanceof Number
                                 ? String.format("%+.1f %%", ((Number) evolution).doubleValue()) : "-")
                         + "   |   " + data.length() + " ligne" + (data.length() > 1 ? "s" : ""));

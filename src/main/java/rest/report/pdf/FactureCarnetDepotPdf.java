@@ -150,7 +150,7 @@ public final class FactureCarnetDepotPdf {
     }
 
     public static String montant(long valeur) {
-        return String.format("%,d", valeur).replace(',', ' ');
+        return String.format(java.util.Locale.ROOT, "%,d", valeur).replace(',', ' ');
     }
 
     private static String nz(String valeur) {

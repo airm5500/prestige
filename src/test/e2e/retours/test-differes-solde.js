@@ -101,9 +101,12 @@ function reglement(id, quand, montant) {
     await p.screenshot({ path: SORTIE + '/differes-solde.png' });
 
     /* ------------------------------------------------ impression et export (retours du 09/10 (1)) */
+    /* Chromium sans fenetre telecharge le PDF ouvert dans l'onglet, dont l'adresse reste vide : on lit l'adresse
+       demandee par l'onglet */
+    const demande = p.context().waitForEvent('request', { predicate: (r) => /releve\/pdf\?/.test(r.url()), timeout: 20000 });
     const [popup] = await Promise.all([p.waitForEvent('popup', { timeout: 20000 }),
       p.evaluate(() => Ext.ComponentQuery.query('delayed #grilleSolde #soldePdf')[0].btnEl.dom.click())]);
-    const urlPdf = popup.url(); await popup.close();
+    const urlPdf = (await demande).url(); await popup.close();
     ok('Bouton « Imprimer (PDF) » : ouvre le relevé avec la période et le client de l\'écran', /releve\/pdf\?/.test(urlPdf) && /dtStart=2026-10-01/.test(urlPdf) && /dtEnd=2026-10-31/.test(urlPdf) && urlPdf.includes('clientId=' + CLIENT), urlPdf);
     const pdf = await p.evaluate(async (u) => { const r = await fetch(u); return { s: r.status, t: r.headers.get('content-type'), b: Array.from(new Uint8Array(await r.arrayBuffer())) }; }, urlPdf);
     require('fs').writeFileSync(SORTIE + '/releve-differes.pdf', Buffer.from(pdf.b));

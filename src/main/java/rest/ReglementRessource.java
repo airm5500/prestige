@@ -159,7 +159,7 @@ public class ReglementRessource {
             .ofPattern("dd/MM/yyyy");
 
     private static String milliers(long v) {
-        return String.format("%,d", v).replace(',', ' ');
+        return String.format(java.util.Locale.ROOT, "%,d", v).replace(',', ' ');
     }
 
     /** Releve calcule comme a l'ecran, puis ses lignes ; null si la periode est invalide ou le calcul a echoue. */

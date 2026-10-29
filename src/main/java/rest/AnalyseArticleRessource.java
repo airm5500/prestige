@@ -326,10 +326,12 @@ public class AnalyseArticleRessource {
                 sb.append('\n');
             }
             sb.append(q.optString("libelle")).append(" : ").append(q.optLong("produits")).append(" produit(s), CA ")
-                    .append(String.format("%,d", q.optLong("montant")).replace(',', ' ')).append(", marge ")
-                    .append(String.format("%,d", q.optLong("marge")).replace(',', ' ')).append(", stock ")
-                    .append(String.format("%,d", q.optLong("valeurStock")).replace(',', ' ')).append(" - ")
-                    .append(q.optString("decision"));
+                    .append(String.format(java.util.Locale.ROOT, "%,d", q.optLong("montant")).replace(',', ' '))
+                    .append(", marge ")
+                    .append(String.format(java.util.Locale.ROOT, "%,d", q.optLong("marge")).replace(',', ' '))
+                    .append(", stock ")
+                    .append(String.format(java.util.Locale.ROOT, "%,d", q.optLong("valeurStock")).replace(',', ' '))
+                    .append(" - ").append(q.optString("decision"));
         }
         return sb.toString();
     }

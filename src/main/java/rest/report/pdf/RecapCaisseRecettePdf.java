@@ -198,7 +198,7 @@ public final class RecapCaisseRecettePdf {
     }
 
     public static String montant(long valeur) {
-        return String.format("%,d", valeur).replace(',', ' ');
+        return String.format(java.util.Locale.ROOT, "%,d", valeur).replace(',', ' ');
     }
 
     private static PdfPCell cellule(String texte, Font police, boolean aDroite) {

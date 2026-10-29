@@ -143,8 +143,10 @@ public class ArticlesDormantsRessource {
         parametres.put(net.sf.jasperreports.engine.JRParameter.REPORT_LOCALE, java.util.Locale.GERMANY);
         parametres.put("P_H_CLT_INFOS",
                 "ARTICLES DORMANTS : NON VENDUS DEPUIS LEUR DERNIÈRE ENTRÉE (PLUS DE " + c.getJours() + " JOURS)");
-        parametres.put("P_TOTAUX", t[0] + " article(s), stock " + String.format("%,d", t[1]).replace(',', '.')
-                + ", valeur immobilisée " + String.format("%,d", t[2]).replace(',', '.') + " (prix d'achat)");
+        parametres.put("P_TOTAUX",
+                t[0] + " article(s), stock " + String.format(java.util.Locale.ROOT, "%,d", t[1]).replace(',', '.')
+                        + ", valeur immobilisée " + String.format(java.util.Locale.ROOT, "%,d", t[2]).replace(',', '.')
+                        + " (prix d'achat)");
         /* 13/10 : noms des rayons, familles et grossistes filtres */
         parametres.put("P_FILTRES", libellesFiltres.ligne(rayon, famille, grossiste));
         String url = reportUtil.buildReport(parametres, "articles_dormants", lignes);
