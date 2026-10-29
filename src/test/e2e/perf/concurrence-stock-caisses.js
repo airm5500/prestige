@@ -30,7 +30,7 @@ if (q(`SELECT COUNT(*) FROM t_user WHERE str_LOGIN IN ('${login(0)}', '${login(1
 }
 /* articles simples (ni detail ni boite deconditionnable), CIP unique, stock large */
 const ARTICLES = q("SELECT CONCAT_WS('|', f.lg_FAMILLE_ID, f.int_CIP) FROM t_famille f JOIN t_famille_stock s ON s.lg_FAMILLE_ID = f.lg_FAMILLE_ID AND s.lg_EMPLACEMENT_ID = '1'"
-  + " WHERE f.str_STATUT = 'enable' AND s.str_STATUT = 'enable' AND f.int_CIP REGEXP '^[0-9]{7}$' AND f.int_PRICE BETWEEN 300 AND 3000 AND s.int_NUMBER_AVAILABLE > 100"
+  + " WHERE f.str_STATUT = 'enable' AND s.str_STATUT = 'enable' AND f.int_CIP REGEXP '^[0-9]{7}$' AND f.int_PRICE BETWEEN 300 AND 3000 AND s.int_NUMBER_AVAILABLE > 20"
   + " AND f.bool_DECONDITIONNE = 0 AND (SELECT COUNT(*) FROM t_famille x WHERE x.int_CIP = f.int_CIP) = 1"
   + " AND NOT EXISTS (SELECT 1 FROM t_famille e WHERE e.lg_FAMILLE_PARENT_ID = f.lg_FAMILLE_ID) ORDER BY RAND(11) LIMIT " + (NB_ARTICLES * TOURS))
   .split('\n').filter(Boolean).map((l) => l.split('|'));
