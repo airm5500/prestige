@@ -94,12 +94,16 @@ const liens = (clientId) => q("SELECT CONCAT_WS('/', l.lg_TIERS_PAYANT_ID, l.int
 
     const bon = q("SELECT CONCAT_WS('|', l.lg_TIERS_PAYANT_ID, t.int_PRICE, IFNULL(t.int_PRICE_RESTE, 'vide')) FROM t_preenregistrement_compte_client_tiers_payent t"
       + " JOIN t_compte_client_tiers_payant l ON l.lg_COMPTE_CLIENT_TIERS_PAYANT_ID = t.lg_COMPTE_CLIENT_TIERS_PAYANT_ID WHERE t.lg_PREENREGISTREMENT_ID = '" + v + "'");
-    /* la part est recalculee a la modification (elle peut differer d'1 F de celle de la vente) */
     const [tpBon, partB, resteB] = bon.split('|');
     ok('Bon de la vente : porté par B, reste dû égal à sa part', tpBon === B && Number(partB) > 0 && resteB === partB, bon);
+    /* decision du 29/10 : meme taux, seul l'organisme change, la part de la vente est gardee (elle etait recalculee,
+       a 1 F pres : 2 551 a la vente, 2 552 apres) */
+    ok('Bon de B : même part que celle de A à la vente', partB === part, 'A ' + part + ' → B ' + partB);
     const apres = await lireEncours();
     ok('« Tiers-payants » après : la part sort de A', apres.A === avant.A - Number(part), JSON.stringify(avant) + ' → ' + JSON.stringify(apres));
     ok('« Tiers-payants » après : la part entre dans B (constat « B : 0 → 0 »)', apres.B === avant.B + Number(partB), JSON.stringify(avant) + ' → ' + JSON.stringify(apres));
+    const [prix, partClient] = q("SELECT CONCAT_WS('|', int_PRICE, int_CUST_PART) FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID = '" + v + "'").split('|').map(Number);
+    ok('Vente : part du client + part de B = prix de la vente', partClient + Number(partB) === prix, 'client ' + partClient + ' + B ' + partB + ' / prix ' + prix);
     const l = liens(cl.clientId), prio = l.map((x) => x.split('/')[1]);
     ok('Client : aucune priorité portée par deux tiers payants', prio.every((x, i) => prio.indexOf(x) === i), l.join(' ; '));
     ok('Aucune erreur JavaScript', sess.erreurs.length === 0, sess.erreurs.join(' | '));

@@ -4900,11 +4900,11 @@ Ext.define('testextjs.controller.VenteEnDepotCtr', {
         }
     },
     onBtnCancelAssClient: function () {
-        const me = this, addaddclientwindow = me.getAddaddclientwindow();
+        const me = this, addaddclientwindow = me.getAddaddclientwindowdepot();
         addaddclientwindow.destroy();
     },
     onBtnCancelCarnet: function () {
-        const me = this, addCarnetwindow = me.getAddCarnetwindow();
+        const me = this, addCarnetwindow = me.getAddCarnetwindowdepot();
         addCarnetwindow.destroy();
     },
     onRemoveTierspayantCompl: function (grid, rowIndex, colIndex) {
@@ -5176,6 +5176,15 @@ Ext.define('testextjs.controller.VenteEnDepotCtr', {
     createForm: function () {
         const me = this;
         let grid = me.getTpComplementaireGrid();
+        /* retours de recette du 28/10 (M3) : la priorite proposee etait toujours 2, deja prise par une assurance du
+           client ; on propose la premiere libre (1 est celle de l'assurance principale) */
+        const prises = Ext.Array.map(grid.getStore().getRange(), function (r) {
+            return parseInt(r.get('order'), 10);
+        });
+        let prioriteLibre = 2;
+        while (prioriteLibre < 4 && prises.indexOf(prioriteLibre) >= 0) {
+            prioriteLibre++;
+        }
         let tierspayantss = new Ext.data.Store({
             idProperty: 'lgTIERSPAYANTID',
             fields: [
@@ -5324,10 +5333,14 @@ Ext.define('testextjs.controller.VenteEnDepotCtr', {
                                                     allowDecimals: false,
                                                     hideTrigger: true,
                                                     allowBlank: false,
-                                                    name: 'taux', minValue: 0,
-                                                    maxValue: 100,
-                                                    maskRe: /[0-100.]/,
-                                                    emptyText: 'Pourcentage'
+                                                    name: 'taux',
+                                                    maskRe: /[0-9]/,
+                                                    emptyText: 'Pourcentage',
+                                                    /* retour du cahier de recette (cas 5) : 0 % etait accepte */
+                                                    validator: function (v) {
+                                                        const n = Number(v);
+                                                        return (n >= 1 && n <= 100) || 'Taux de 1 à 100 % seulement';
+                                                    }
                                                 }
                                                 , {xtype: 'splitter'},
                                                 {
@@ -5374,11 +5387,18 @@ Ext.define('testextjs.controller.VenteEnDepotCtr', {
                                                 {
                                                     xtype: 'numberfield',
                                                     name: 'order',
-                                                    minValue: 2,
-                                                    maxValue: 4,
-                                                    maskRe: /[2-4.]/,
+                                                    maskRe: /[2-4]/,
                                                     fieldLabel: 'Priorité',
-                                                    value: 2
+                                                    value: prioriteLibre,
+                                                    /* retour du cahier de recette (cas 5) : une priorite deja portee
+                                                       par une autre assurance du client est refusee ici */
+                                                    validator: function (v) {
+                                                        const n = Number(v);
+                                                        if (!(n >= 2 && n <= 4)) {
+                                                            return 'Priorité de 2 à 4 seulement';
+                                                        }
+                                                        return prises.indexOf(n) < 0 || 'Priorité ' + n + ' déjà portée par une autre assurance';
+                                                    }
                                                 }
                                             ]
                                         }
@@ -7909,7 +7929,7 @@ Ext.define('testextjs.controller.VenteEnDepotCtr', {
             success: function (response, options) {
                 const result = Ext.JSON.decode(response.responseText, true);
                 const ayantDroitWin = Ext.create('testextjs.view.vente.endepot.AyantDroitGrid');
-                me.getAyantdroiGrid().getStore().loadData(result.data);
+                me.getAyantdroiGriddepot().getStore().loadData(result.data);
                 ayantDroitWin.show();
             }
 
@@ -8214,7 +8234,7 @@ Ext.define('testextjs.controller.VenteEnDepotCtr', {
     },
     onBtnCancelModeReglement: function () {
         const me = this;
-        const win = me.getReglementGrid();
+        const win = me.getReglementGriddepot();
         // La grille des modes peut ne pas etre ouverte : bascule d'operateur par
         // une tuile de la selection rapide (retour lot 3, point 2)
         if (win && !win.destroyed) {

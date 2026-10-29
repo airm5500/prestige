@@ -5933,7 +5933,9 @@ public class SalesServiceImpl implements SalesService {
                     opc.setStrREFBON(b.getNumBon());
                     getEm().merge(opc);
                 } else {
-                    JSONObject json = calculVoNetAvecPlafondVente(old, montantVariable, b.getTaux(), list);
+                    JSONObject json = garderPartDeLaVente(
+                            calculVoNetAvecPlafondVente(old, montantVariable, b.getTaux(), list),
+                            ligneRemplacee(oldDataList, b, payantParamses.size()), b.getTaux());
                     montantVariable = json.getInt("reste");
                     opc = createNewPreenregistrementCompteClientTiersPayant(venteModification, payant, json, old,
                             salesParams.getUserId(), statut, b.getNumBon());
@@ -5955,7 +5957,9 @@ public class SalesServiceImpl implements SalesService {
                 if (payant.getBISRO() || (payant.getIntPRIORITY() == 1)) {
                     old.setStrREFBON(b.getNumBon());
                 }
-                JSONObject json = calculVoNetAvecPlafondVente(old, montantVariable, b.getTaux(), list);
+                JSONObject json = garderPartDeLaVente(
+                        calculVoNetAvecPlafondVente(old, montantVariable, b.getTaux(), list),
+                        ligneRemplacee(oldDataList, b, payantParamses.size()), b.getTaux());
                 montantVariable = json.getInt("reste");
                 createNewPreenregistrementCompteClientTiersPayant(venteModification, payant, json, old,
                         salesParams.getUserId(), statut, b.getNumBon());
@@ -5964,6 +5968,30 @@ public class SalesServiceImpl implements SalesService {
         }
         ListUtils.removeAll(oldDataList, clonedDatas).forEach(a -> getEm().remove(a));
         return venteModification;
+    }
+
+    /** Ligne tiers payant de la vente que remplace le tiers payant saisi (par son identifiant, ou la seule ligne). */
+    static Optional<TPreenregistrementCompteClientTiersPayent> ligneRemplacee(
+            List<TPreenregistrementCompteClientTiersPayent> lignes, TiersPayantParams saisi, int nbSaisis) {
+        if (StringUtils.isNotBlank(saisi.getItemId())) {
+            return lignes.stream().filter(l -> saisi.getItemId().equals(l.getLgPREENREGISTREMENTCOMPTECLIENTPAYENTID()))
+                    .findFirst();
+        }
+        return nbSaisis == 1 && lignes.size() == 1 ? Optional.of(lignes.get(0)) : Optional.empty();
+    }
+
+    /**
+     * Decision du 29/10 (ecart d'1 F) : quand seul l'organisme change, au meme taux, le nouveau bon garde la part de la
+     * vente. Elle etait recalculee sur le total, sans prix de reference et arrondie au franc superieur (2 551 a la
+     * vente, 2 552 apres) : l'organisme etait facture de plus que la part du client ne le laissait.
+     */
+    static JSONObject garderPartDeLaVente(JSONObject calcul,
+            Optional<TPreenregistrementCompteClientTiersPayent> ancienne, int taux) throws JSONException {
+        if (ancienne.isPresent() && ancienne.get().getIntPRICE() != null
+                && Objects.equals(ancienne.get().getIntPERCENT(), taux)) {
+            calcul.put("montanttp", ancienne.get().getIntPRICE());
+        }
+        return calcul;
     }
 
     private TPreenregistrement updateVenteCarnet(SalesParams salesParams, TPreenregistrement prenn) throws Exception {

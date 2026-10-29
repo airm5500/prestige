@@ -506,3 +506,44 @@ Il existe deux fiches client avec une grille « Infos Assurance Complémentaire 
   leur taux, leur matricule ou leur priorité.
 
 La question : faut-il rendre aussi modifiable celle de la vente en dépôt, avec les mêmes contrôles ?
+
+## Suite du 29/10 (3) : tes deux décisions
+
+### Écart d'1 F : la part de la vente est gardée (choix 1)
+
+**Correction.** Dans « Ventes terminées » → « Modifier info client », quand un organisme est remplacé par un autre au
+même taux, le nouveau bon reprend la part de l'ancien. Si le taux change, la part est recalculée comme avant
+(`SalesServiceImpl.garderPartDeLaVente`).
+
+**Test par l'écran** (`test-ecran-modifier-tp-vente-encours.js`, deux contrôles ajoutés) : **9/11 avant, 11/11 après**.
+
+| Contrôle | Avant | Après |
+|---|---|---|
+| Part de B = part de A à la vente | 2 551 → **2 552** | 2 551 → 2 551 |
+| Part du client + part de B = prix | 284 + 2 552 = **2 836** pour 2 835 | 284 + 2 551 = 2 835 |
+
+Test unitaire `PartGardeeModificationTest` : 3/3.
+
+### Vente en dépôt : grille des complémentaires modifiable, mêmes contrôles
+
+**Correction.** La fiche client de la vente en dépôt reprend celle de l'écran de vente :
+
+- taux, matricule et priorité modifiables d'un clic dans la grille ;
+- priorité déjà portée et taux hors de 1 à 100 refusés, avec le motif en rouge ;
+- dans « Associer une assurance », taux 0 et priorité prise refusés, et la priorité proposée est la première libre.
+
+**Défaut trouvé en passant, corrigé.** Dans le contrôleur de la vente en dépôt, quatre appels visaient des éléments de
+l'écran de l'officine, renommés lors de la copie. Effets avant correction :
+
+- la fiche client ne se fermait pas après « Enregistrer », et « Annuler » ne la fermait pas non plus ;
+- la fenêtre du carnet ne se fermait pas non plus ;
+- la fenêtre de choix de l'ayant droit ne s'ouvrait pas ;
+- la fenêtre des modes de règlement ne se fermait pas après le choix d'un mode ou « Annuler ».
+
+**Test par l'écran** (`test-ecran-assurances-client-depot.js`, menu GESTION DES TIERS-PAYANTS > « Gestion depots
+extensions », vente ASSURANCE_MUTUELLE) : échec avant (grille non enregistrée, fiche restée ouverte), **8/8 après**.
+
+**Non-régression sur domain3** : test-ecran-nouveau-tp-principal 10/10, test-ecran-assurances-client-priorites 18/18,
+repro-vente-assurance 17/17, repro-assurances-liens 15/15, test-ecran-modifier-vente-deja-modifiee 6/6.
+`retours/test-vente-en-depot.js` : 10/11, échec identique avec la version d'avant ces changements. La liste des dépôts
+d'extension reste vide pour ce test sur `laborex_audit`. Ce défaut du banc d'essai est sans lien avec ces corrections.
