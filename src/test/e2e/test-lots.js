@@ -8,6 +8,8 @@ const q = (x) => execFileSync('mariadb', [...ENV_E2E.MARIADB, ENV_E2E.BASE, '-sN
 /* Jeu d'essai : un produit sans lot recoit un lot d'essai ; c'est LUI que le test supprime
    (jamais un lot reel). Retire a la fin s'il reste. */
 const PRODUIT = q("SELECT CONCAT(f.lg_FAMILLE_ID, '|', f.int_CIP) FROM t_famille f JOIN t_famille_stock s ON s.lg_FAMILLE_ID=f.lg_FAMILLE_ID AND s.lg_EMPLACEMENT_ID='1'"
+  /* l'ecran ne montre que les lots des produits en stock (stock actif et disponible) */
+  + " AND s.str_STATUT='enable' AND s.int_NUMBER_AVAILABLE > 0"
   + " WHERE f.str_STATUT='enable' AND f.int_CIP IS NOT NULL AND f.int_CIP <> ''"
   + " AND NOT EXISTS (SELECT 1 FROM t_lot l WHERE l.lg_FAMILLE_ID=f.lg_FAMILLE_ID) ORDER BY f.str_NAME LIMIT 1").split('|');
 const retirerLot = () => q("DELETE FROM t_lot WHERE lg_LOT_ID='E2E-LOTS-1'");
