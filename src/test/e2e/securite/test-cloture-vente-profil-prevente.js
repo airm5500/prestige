@@ -28,6 +28,8 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
 const BASE = ENV_E2E.BASE;
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const ID = 'E2E-STAG', LOGIN = 'e2e-stagiaire', MDP = 'E2e-Stag-7', CAISSE = 'E2E-STAG-RC';
+/* caisse ouverte pour le compte de connexion s'il n'en a pas (copie de travail du poste local), retiree a la fin */
+const CAISSE_ADMIN = 'E2E-STAG-RC-ADM';
 const ROLE = q("SELECT lg_ROLE_ID FROM t_role WHERE str_NAME = 'Vendeur'");
 const [PRODUIT, CIP, STOCK] = q("SELECT f.lg_FAMILLE_ID, f.int_CIP, s.int_NUMBER_AVAILABLE FROM t_famille f JOIN t_famille_stock s ON s.lg_FAMILLE_ID = f.lg_FAMILLE_ID"
   + " AND s.lg_EMPLACEMENT_ID = '1' WHERE f.str_STATUT = 'enable' AND s.int_NUMBER_AVAILABLE > 5 AND LENGTH(f.int_CIP) = 7 LIMIT 1").split('\t');
@@ -60,7 +62,7 @@ function nettoyer() {
       + " DELETE FROM t_reglement WHERE lg_REGLEMENT_ID = '" + regl + "'");
   }
   q("UPDATE t_famille_stock SET int_NUMBER_AVAILABLE = " + STOCK + ", int_NUMBER = " + STOCK + " WHERE lg_EMPLACEMENT_ID = '1' AND lg_FAMILLE_ID = '" + PRODUIT + "'");
-  q("DELETE FROM t_resume_caisse WHERE ld_CAISSE_ID = '" + CAISSE + "'; DELETE FROM t_role_user WHERE lg_USER_ID = '" + ID + "';"
+  q("DELETE FROM t_resume_caisse WHERE ld_CAISSE_ID IN ('" + CAISSE + "', '" + CAISSE_ADMIN + "'); DELETE FROM t_role_user WHERE lg_USER_ID = '" + ID + "';"
     + " DELETE FROM t_event_log WHERE lg_USER_ID = '" + ID + "'; DELETE FROM t_recettes WHERE lg_USER_ID = '" + ID + "'; DELETE FROM t_user WHERE lg_USER_ID = '" + ID + "'");
 }
 
@@ -70,6 +72,10 @@ function nettoyer() {
     + " VALUES ('" + ID + "', '" + LOGIN + "', MD5('" + MDP + "'), 'E2E', 'STAGIAIRE', 'Vendeur', 'enable', '1', NOW(), 0)");
   q("INSERT INTO t_role_user (lg_USER_ROLE_ID, lg_ROLE_ID, lg_USER_ID, dt_CREATED) VALUES ('" + ID + "', '" + ROLE + "', '" + ID + "', NOW())");
   q("INSERT INTO t_resume_caisse (ld_CAISSE_ID, lg_USER_ID, int_SOLDE_MATIN, int_SOLDE_SOIR, dt_CREATED, lg_CREATED_BY, str_STATUT) VALUES ('" + CAISSE + "', '" + ID + "', 0, 0, NOW(), '" + ID + "', 'is_Using')");
+  const admin = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
+  if (q("SELECT COUNT(*) FROM t_resume_caisse WHERE lg_USER_ID = '" + admin + "' AND str_STATUT = 'is_Using'") === '0') {
+    q("INSERT INTO t_resume_caisse (ld_CAISSE_ID, lg_USER_ID, int_SOLDE_MATIN, int_SOLDE_SOIR, dt_CREATED, lg_CREATED_BY, str_STATUT) VALUES ('" + CAISSE_ADMIN + "', '" + admin + "', 0, 0, NOW(), '" + admin + "', 'is_Using')");
+  }
   const b = await ENV_E2E.lancer(chromium);
   const ctx = await b.newContext({ viewport: { width: 1600, height: 900 } });
   let corpsCloture = null;

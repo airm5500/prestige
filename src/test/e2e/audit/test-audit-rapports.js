@@ -117,9 +117,10 @@ const rapportsDuTest = () => q(`SELECT COUNT(*) FROM t_audit_rapport WHERE creat
     await p.click('.x-tab:has-text("Rapports")');
     await p.evaluate(() => { const g = Ext.ComponentQuery.query('auditrapprochements #grilleRapports')[0]; g.getSelectionModel().select(g.getStore().getAt(1)); });
     const idPdf = await p.evaluate(() => Ext.ComponentQuery.query('auditrapprochements #pdf')[0].getId());
-    const [onglet] = await Promise.all([ctx.waitForEvent('page', { timeout: 20000 }), p.click('#' + idPdf)]);
-    await onglet.waitForLoadState('domcontentloaded').catch(() => {});
-    ok('PDF : ouvert dans un onglet du navigateur', !!onglet && /rapports\/.+\/pdf/.test(onglet.url()), onglet && onglet.url());
+    /* Chromium sans fenetre telecharge le PDF et l'onglet reste vide : on lit l'adresse demandee par l'onglet */
+    const [onglet, demandePdf] = await Promise.all([ctx.waitForEvent('page', { timeout: 20000 }),
+      ctx.waitForEvent('request', { predicate: (r) => /rapports\/.+\/pdf/.test(r.url()), timeout: 20000 }).catch(() => null), p.click('#' + idPdf)]);
+    ok('PDF : ouvert dans un onglet du navigateur', !!onglet && !!demandePdf && demandePdf.frame().page() === onglet, demandePdf && demandePdf.url());
     const pdf = await p.evaluate(async (id) => { const r = await fetch('../api/v1/audit/rapports/' + id + '/pdf');
       return { type: r.headers.get('content-type'), b64: btoa(String.fromCharCode(...new Uint8Array(await r.arrayBuffer()))) }; }, ids[1]);
     const f = path.join(os.tmpdir(), 'audit-e2e.pdf');

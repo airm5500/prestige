@@ -68,11 +68,15 @@ const retirer = () => q("DELETE FROM t_reception_peremption_courte WHERE id LIKE
 
     const [xls] = await Promise.all([p.waitForEvent('download', { timeout: 60000 }), cliquer(p, 'peremptionscourtes #pcExcel')]);
     ok('Export Excel (bouton) : un fichier .xlsx', /\.xlsx$/.test(xls.suggestedFilename()), xls.suggestedFilename());
+    /* le PDF s'ouvre dans un onglet ; Chromium sans fenetre le telecharge et l'onglet reste vide : on lit l'adresse
+       demandee par l'onglet */
+    const demande = p.context().waitForEvent('request', { predicate: (r) => /\/pdf\?/.test(r.url()), timeout: 30000 });
     const onglet = p.context().waitForEvent('page', { timeout: 30000 });
     await cliquer(p, 'peremptionscourtes #pcPdf');
     const pdf = await onglet;
-    const entete = await p.evaluate(async (u) => { const r = await fetch(u); const a = new Uint8Array(await r.arrayBuffer()); return { type: r.headers.get('content-type'), debut: String.fromCharCode(...a.slice(0, 5)) }; }, pdf.url());
-    ok('Export PDF (bouton) : un PDF', /application\/pdf/.test(entete.type) && entete.debut === '%PDF-', JSON.stringify(entete));
+    const urlPdf = (await demande).url();
+    const entete = await p.evaluate(async (u) => { const r = await fetch(u); const a = new Uint8Array(await r.arrayBuffer()); return { type: r.headers.get('content-type'), debut: String.fromCharCode(...a.slice(0, 5)) }; }, urlPdf);
+    ok('Export PDF (bouton) : un PDF', /application\/pdf/.test(entete.type) && entete.debut === '%PDF-', JSON.stringify(entete) + ' ' + urlPdf);
     await pdf.close();
     ok('Aucune erreur JavaScript', erreurs.length === 0, erreurs.join(' | '));
   } catch (e) {
