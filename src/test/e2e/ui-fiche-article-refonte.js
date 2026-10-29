@@ -21,7 +21,8 @@ const sql = (x) => execFileSync('mariadb', [...ENV_E2E.MARIADB, ENV_E2E.BASE, '-
    la peremption de l'apercu (les lots du banc n'ont pas de date) ; la presentation des actions par defaut (4 icones +
    menu « ... ») le temps du test, la configuration du banc remise a la fin. */
 const [FID, CIP] = sql("SELECT CONCAT(f.lg_FAMILLE_ID,'|',f.int_CIP) FROM t_famille f WHERE f.str_STATUT='enable' AND f.int_CIP <> ''"
-  + " AND EXISTS (SELECT 1 FROM t_preenregistrement_detail d JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID=d.lg_PREENREGISTREMENT_ID WHERE d.lg_FAMILLE_ID=f.lg_FAMILLE_ID AND p.str_STATUT='is_Closed')"
+  /* vendu sur deux annees au moins : la comparaison des courbes n'est proposee qu'a partir de deux annees */
+  + " AND (SELECT COUNT(DISTINCT YEAR(p.dt_CREATED)) FROM t_preenregistrement_detail d JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID=d.lg_PREENREGISTREMENT_ID WHERE d.lg_FAMILLE_ID=f.lg_FAMILLE_ID AND p.str_STATUT='is_Closed') >= 2"
   + " AND EXISTS (SELECT 1 FROM t_bon_livraison_detail bd JOIN t_bon_livraison bl ON bl.lg_BON_LIVRAISON_ID=bd.lg_BON_LIVRAISON_ID WHERE bd.lg_FAMILLE_ID=f.lg_FAMILLE_ID AND bl.str_STATUT='is_Closed')"
   + " AND (SELECT COUNT(*) FROM t_famille g WHERE g.int_CIP = f.int_CIP) = 1 ORDER BY f.str_NAME LIMIT 1").split('|');
 const CONFIG = sql("SELECT CONCAT(IFNULL((SELECT str_VALUE FROM t_parameters WHERE str_KEY='FICHE_ARTICLE_NB_ICONES'), ''), '|', IFNULL((SELECT str_VALUE FROM t_parameters WHERE str_KEY='FICHE_ARTICLE_ORDRE_ACTIONS'), ''))").split('|');
