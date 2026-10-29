@@ -40,6 +40,14 @@ if (!F1 || !F2) {
   });
   [F1, F2] = CREES;
 }
+/* un depot (emplacement autre que l'officine) ; sans depot (copie de l'officine), un depot d'essai retire a la fin */
+const DEPOT_ESSAI = 'E2E-REG-DEPOT';
+if (q("SELECT COUNT(*) FROM t_emplacement WHERE lg_EMPLACEMENT_ID <> '1'") === '0') {
+  exec("INSERT INTO t_emplacement (lg_EMPLACEMENT_ID, lg_COMPTE_CLIENT_ID, str_NAME, str_DESCRIPTION, str_LOCALITE, str_FIRST_NAME, str_LAST_NAME,"
+    + " str_PHONE, dt_CREATED, dt_UPDATED, str_STATUT, lg_TYPEDEPOT_ID, bool_SAME_LOCATION) SELECT '" + DEPOT_ESSAI + "', lg_COMPTE_CLIENT_ID, 'DEPOT E2E AUDIT',"
+    + " 'E2E', 'ABOBO', 'ESSAI', 'Depot', '0700000000', NOW(), NOW(), 'enable', '2', 0 FROM t_compte_client cc"
+    + " WHERE EXISTS (SELECT 1 FROM t_client c WHERE c.lg_CLIENT_ID = cc.lg_CLIENT_ID AND c.str_STATUT = 'enable') LIMIT 1");
+}
 const DEP = q("SELECT lg_EMPLACEMENT_ID FROM t_emplacement WHERE lg_EMPLACEMENT_ID <> '1' ORDER BY lg_EMPLACEMENT_ID LIMIT 1");
 const droit = privilegeEssai(q, exec, ENV_E2E.LOGIN_SUPPORT, 'P_AUDIT_REGULARISER');
 const ligne = (id, quand, debut, fin, qte, type, f, e) => `('${M}-${id}', b'1', '2038-08-20 ${quand}', '2038-08-20', '${M}-${id}', 100, 200, ${debut}, ${fin}, ${qte}, 0, '${e}', '${f}', '${ADMIN}', '${type}', 0)`;
@@ -175,10 +183,11 @@ function poser() {
     droit.remettre();
     retirer();
     if (CREES.length) exec(`DELETE FROM t_famille WHERE lg_FAMILLE_ID IN ('${CREES.join("','")}')`);
+    exec("DELETE FROM t_emplacement WHERE lg_EMPLACEMENT_ID = '" + DEPOT_ESSAI + "'");
     await b.close();
     ok('Données du test retirées', q(`SELECT COUNT(*) FROM hmvtproduit WHERE uuid LIKE '${M}-%'`) === '0'
       && q(`SELECT COUNT(*) FROM t_user WHERE lg_USER_ID = '${U}'`) === '0' && q(`SELECT COUNT(*) FROM t_audit_regularisation WHERE created_at >= '${DEBUT}'`) === '0'
-      && q("SELECT COUNT(*) FROM t_famille WHERE lg_FAMILLE_ID LIKE 'E2E-REG-F%'") === '0');
+      && q("SELECT COUNT(*) FROM t_famille WHERE lg_FAMILLE_ID LIKE 'E2E-REG-F%'") === '0' && q("SELECT COUNT(*) FROM t_emplacement WHERE lg_EMPLACEMENT_ID = '" + DEPOT_ESSAI + "'") === '0');
   }
   const ko = res.filter((x) => !x.c).length;
   console.log('\n' + (res.length - ko) + '/' + res.length + ' OK');
