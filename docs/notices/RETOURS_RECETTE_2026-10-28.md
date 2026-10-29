@@ -454,3 +454,55 @@ colonne, est refaite sur la colonne Statut ; « NOK » y est compté.
 
 Non-régression sur domain3 après déploiement : repro-assurances-liens 15/15, repro-vente-assurance 17/17,
 test-ecran-modifier-tp-vente-encours 9/9.
+
+---
+
+## Suite du 29/10 (2) : tes réponses aux questions
+
+| Question | Ta réponse | Suite |
+|---|---|---|
+| Bouton « Modifier » absent sur une différée | il est visible | Rien à corriger. |
+| Montant déjà reçu repris dans la copie (DIF-02) | la caissière le ressaisit | Comportement actuel gardé. |
+| Script SQL des bons sans reste dû (CA-09) | donner les scripts et leurs notices | Notice écrite : `docs/notices/NOTICE_REPRISE_RESTE_BONS_MODIFIES.md`, avec le script `outils/sql/corriger-reste-bons-modifies.sql`. |
+| Priorité d'une nouvelle assurance (M3) | cochée « Tiers payant principal » dans « Modifier info TP » : priorité 1, les autres décalées ; dans la fiche client, l'ancienne garde sa priorité | **Déjà le cas.** Nouveau test par l'écran `test-ecran-nouveau-tp-principal.js` : **10/10**, sans changer le code. Il joue A → B avec la case laissée cochée, puis C → B avec la case cochée sur B. Résultat dans les deux cas : B en 1, A en 2, C en 3. La fiche client était déjà couverte par `test-ecran-assurances-client-priorites.js`. |
+| Grille des complémentaires de la vente en dépôt | de quelle grille ? | Voir plus bas. |
+| Garder domain3 et `laborex_audit` | garder | Gardés. |
+| Écart d'1 F | besoin d'explications | Voir plus bas. |
+
+### L'écart d'1 F à la modification de l'organisme
+
+**Ce que tu vois.** Une vente assurance donne une part de 2 551 F à l'organisme A. Dans « Ventes terminées » →
+« Modifier info client », tu remplaces A par B au même taux de 90 %. Le bon de B porte 2 552 F, soit 1 F de plus.
+
+**Pourquoi.** La part est calculée deux fois, de deux façons différentes :
+
+- **à la vente** : produit par produit, avec le prix de référence de l'organisme s'il en a un, puis arrondie au franc
+  **le plus proche** ;
+- **à la modification** : sur le total de la vente, sans prix de référence, puis arrondie au franc **supérieur**.
+
+Avec 90 % d'un montant qui tombe sur un demi-franc ou une fraction, les deux calculs peuvent différer d'1 F. Avec un
+prix de référence, l'écart peut dépasser 1 F.
+
+**Conséquence.** La part du client ne change pas à la modification. L'organisme B est donc facturé 1 F de plus que ce
+que A devait, et le total client + organisme dépasse le prix de la vente d'1 F.
+
+**Deux choix possibles** :
+
+1. **Garder la part de la vente** (ma recommandation). Quand on change seulement d'organisme et que le taux est le même
+   (le serveur refuse déjà un total de taux différent), le nouveau bon reprend la part de l'ancien. Le total reste égal
+   au prix et la facture de B est juste.
+2. **Accepter le recalcul.** Rien ne change ; l'écart d'1 F (ou plus avec un prix de référence) reste possible.
+
+Dis-moi 1 ou 2. Pour le choix 1, j'écris d'abord le test qui montre l'écart, puis je corrige.
+
+### La grille des complémentaires de la vente en dépôt
+
+Il existe deux fiches client avec une grille « Infos Assurance Complémentaire » :
+
+- celle de l'**écran de vente** (vente assurance → icône de modification du client) : grille rendue modifiable le 28/10
+  (taux, matricule, priorité), avec les contrôles du 29/10 ;
+- celle de l'**écran de vente en dépôt** (`view/vente/endepot/addClientAssurance.js`), ouverte de la même façon depuis
+  une vente en dépôt. Sa grille est restée **en lecture seule** : on y voit les complémentaires, sans pouvoir changer
+  leur taux, leur matricule ou leur priorité.
+
+La question : faut-il rendre aussi modifiable celle de la vente en dépôt, avec les mêmes contrôles ?
