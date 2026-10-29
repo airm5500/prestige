@@ -9,7 +9,10 @@ const res=[]; function ok(n,c,d){res.push({n,c:!!c});console.log((c?'PASS':'FAIL
    marquee depot. Sans l'assurance, le filtrage du point 1.3 ne serait pas reellement verifie. */
 const BASE = ENV_E2E.BASE;
 const sql = (q) => execFileSync('mariadb', [...ENV_E2E.MARIADB, BASE, '-e', q], { encoding: 'utf8' });
-const MODELE = process.env.TP_MODELE || '16131133926037859341';
+/* modele : celui du banc, sinon un tiers payant actif de la base (copie de l'officine) */
+const MODELE = process.env.TP_MODELE || execFileSync('mariadb', [...ENV_E2E.MARIADB, BASE, '-sN', '-e',
+  "SELECT lg_TIERS_PAYANT_ID FROM t_tiers_payant WHERE lg_TIERS_PAYANT_ID = '16131133926037859341'"
+  + " UNION ALL (SELECT lg_TIERS_PAYANT_ID FROM t_tiers_payant WHERE str_STATUT = 'enable' ORDER BY lg_TIERS_PAYANT_ID LIMIT 1) LIMIT 1"], { encoding: 'utf8' }).trim();
 function semer() {
   nettoyer();
   sql(`CREATE TEMPORARY TABLE tmp_tp AS SELECT * FROM t_tiers_payant WHERE lg_TIERS_PAYANT_ID='${MODELE}';
@@ -45,18 +48,21 @@ function nettoyer() {
     const c = Ext.ComponentQuery.query('reglementdepot #tiersPayantsExclus')[0];
     if(!c) return {present:false};
     return {present:true, nb:c.getStore().getCount(),
-            noms:c.getStore().getRange().slice(0,5).map(r=>r.get('nom')||r.get('nomComplet'))};
+            noms:c.getStore().getRange().map(r=>r.get('nom')||r.get('nomComplet')||'')};
   });
   ok('combo des carnets present', combo.present, JSON.stringify(combo));
   ok('seuls les carnets sont proposes (assurance depot ecartee)',
-     combo.nb===1 && /CARNET/.test((combo.noms||[]).join(',')) && !/ASSURANCE/.test((combo.noms||[]).join(',')),
-     JSON.stringify(combo));
+     (combo.noms||[]).indexOf('ZZ CARNET TEST')>=0 && (combo.noms||[]).indexOf('ZZ ASSURANCE TEST')<0,
+     JSON.stringify({nb:combo.nb, essai:(combo.noms||[]).filter(n=>/^ZZ /.test(n))}));
+  /* les carnets en depot de la base (carnet, depot, actif), et eux seuls, en plus de l'entree « Tout » */
+  const carnets = sql("SELECT COUNT(*) FROM t_tiers_payant WHERE lg_TYPE_TIERS_PAYANT_ID='2' AND is_depot=1 AND str_STATUT='enable'").trim().split(/\s+/).pop();
+  ok('le combo liste les carnets en dépôt actifs (plus « Tout »)', combo.nb === Number(carnets) + ((combo.noms||[]).indexOf('Tout')>=0 ? 1 : 0), combo.nb+' / '+carnets);
 
   // 1.4 : choisir un carnet doit declencher la recherche de l'onglet actif
   const avant = appels;
   await p.evaluate(()=>{
     const c = Ext.ComponentQuery.query('reglementdepot #tiersPayantsExclus')[0];
-    const rec = c.getStore().getAt(0);
+    const rec = c.getStore().findRecord('id', 'V13-CARNET');
     c.setValue(rec.get('id'));
     c.fireEvent('select', c, [rec]);
   });
