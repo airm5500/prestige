@@ -134,7 +134,8 @@ peut pas trancher sans image de la mémoire au moment de l'erreur (§ 6).
 - **Constat** : `configs.config.server-config.thread-pools.thread-pool.http-thread-pool` a `max-thread-pool-size=5`
   et `min-thread-pool-size=5`. Ce sont les valeurs par défaut, car `domain.xml` ne les fixe pas. Le réglage est le même
   sur domain1 et domain2. Toute requête au-delà de 5 attend dans une file de 4 096 places.
-- **Solution** : porter le pool à 32 fils, au même niveau que le pool de connexions à la base (`max-pool-size=32`) :
+- **Solution** (script `outils/payara/regler-fils.sh`, puis redémarrage du domaine) : porter le pool à 32 fils, au
+  même niveau que le pool de connexions à la base (`max-pool-size=32`) :
   `asadmin set configs.config.server-config.thread-pools.thread-pool.http-thread-pool.max-thread-pool-size=32`
   (et `min-thread-pool-size=8`). Une seconde mesure isole les états lourds : borner leur durée (§ 4.2) ou les
   passer dans un pool de fils séparé.
@@ -172,6 +173,17 @@ peut pas trancher sans image de la mémoire au moment de l'erreur (§ 6).
   disponible.
 - **Test** : un test d'écran à deux postes qui terminent au même instant deux ventes du même article. Aujourd'hui,
   l'un des deux échoue ; après la correction, les deux ventes passent et le stock baisse de la somme des deux.
+- **Correction retenue (29/10)** : verrou de ligne plutôt que mise à jour atomique, pour garder tels quels les
+  mouvements, le déconditionnement et les contrôles. Au contrôle du stock de la clôture
+  (`SalesServiceImpl.refuserVenteDetailInvendable`, appelé par les 4 clôtures),
+  `MvtProduitServiceImpl.verrouillerArticles` verrouille (`SELECT ... FOR UPDATE`) :
+  - le produit, son stock et le stock de sa boîte s'il s'agit d'un détail ;
+  - dans l'ordre des identifiants, pour que deux ventes tapées dans un ordre différent ne s'interbloquent pas.
+
+  La seconde caisse attend la fin de la première (quelques centaines de millisecondes), puis contrôle et décrémente le
+  stock à jour. Le cas de la « dernière boîte » reste refusé proprement : la seconde vente voit le stock à jour et reçoit
+  « stock insuffisant ». Test : `src/test/e2e/perf/concurrence-stock-caisses.js` (5 tours, 3 articles communs tapés en
+  ordre inverse). **À lancer** avant et après la correction, au prochain créneau libre.
 
 ### 4.4 Première vente du jour sur deux caisses *(prouvé)*
 
@@ -292,6 +304,10 @@ Réglages proposés, à appliquer sur le serveur de l'officine :
 | pool JDBC : `connection-leak-timeout-in-seconds` + `reclaim` | 0 / false | 120 / true | rendre les connexions oubliées |
 | pool JDBC : `is-connection-validation-required` | false | true | après une coupure de MariaDB, ne pas distribuer de connexions mortes |
 | MariaDB `innodb_buffer_pool_size` | 3,5 Go pour 4 bases (39 Go) | 6 à 8 Go sur un serveur dédié de 16 Go | les lectures disque dominent les mesures à froid |
+
+**Attention** à l'ordre pour les deux délais du pool JDBC. Tant que la suggestion dure 10 minutes (rapport du 28/10,
+cause 1), un délai de requête de 300 s ou une reprise des connexions à 120 s l'interromprait. Il faut donc corriger la
+suggestion d'abord, ou poser des délais plus longs que l'état le plus lent.
 
 Et dans le code : les défauts 2 à 4 ci-dessus, puis les causes 1 et 2 du rapport du 28/10 (suggestion, statistiques).
 

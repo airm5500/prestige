@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.UUID;
 import java.util.concurrent.atomic.DoubleAdder;
 import java.util.logging.Level;
@@ -38,6 +39,7 @@ import javax.ejb.EJB;
 import javax.ejb.Stateless;
 import javax.enterprise.concurrent.ManagedExecutorService;
 import javax.persistence.EntityManager;
+import javax.persistence.LockModeType;
 import javax.persistence.PersistenceContext;
 import javax.persistence.Query;
 import javax.persistence.TypedQuery;
@@ -153,6 +155,49 @@ public class MvtProduitServiceImpl implements MvtProduitService {
 
     }
 
+    /**
+     * Essai de charge du 29/10 (RAPPORT_CHARGE_2026-10-29.md, § 4.3) : deux caisses qui vendaient le meme article au
+     * meme moment se heurtaient sur la version (@Version) du produit et de son stock, et la seconde vente etait
+     * refusee. La ligne est desormais verrouillee (SELECT ... FOR UPDATE) avant d'etre modifiee : la seconde caisse
+     * attend la fin de la premiere, puis repart du stock a jour. Les modifications deja faites dans la transaction sont
+     * ecrites avant la relecture, pour ne pas etre perdues.
+     */
+    private <T> T verrouiller(T entite) {
+        EntityManager emg = getEmg();
+        if (entite != null && emg.contains(entite) && emg.getLockMode(entite) != LockModeType.PESSIMISTIC_WRITE) {
+            emg.flush();
+            emg.refresh(entite, LockModeType.PESSIMISTIC_WRITE);
+        }
+        return entite;
+    }
+
+    /**
+     * Verrouille, dans l'ordre de leur identifiant, les produits vendus et leur stock a l'emplacement de la vente,
+     * ainsi que le stock de la boite d'un produit detail (deconditionnement) : deux ventes des memes articles, tapes
+     * dans un ordre different, ne s'interbloquent pas, et les controles de stock qui suivent lisent le stock a jour.
+     */
+    @Override
+    public void verrouillerArticles(List<TPreenregistrementDetail> list, TEmplacement emplacement) {
+        Set<String> produits = new TreeSet<>();
+        Set<String> boites = new TreeSet<>();
+        for (TPreenregistrementDetail it : list) {
+            TFamille famille = it.getLgFAMILLEID();
+            produits.add(famille.getLgFAMILLEID());
+            if (Objects.equals(famille.getBoolDECONDITIONNE(), (short) 1)
+                    && StringUtils.isNotEmpty(famille.getLgFAMILLEPARENTID())) {
+                boites.add(famille.getLgFAMILLEPARENTID());
+            }
+        }
+        Set<String> tous = new TreeSet<>(produits);
+        tous.addAll(boites);
+        for (String id : tous) {
+            if (produits.contains(id)) {
+                verrouiller(getEmg().find(TFamille.class, id));
+            }
+            verrouiller(findStock(id, emplacement));
+        }
+    }
+
     @Override
     public void updateStockDepot(TUser user, TPreenregistrement tp, TEmplacement emplacement) throws Exception {
         List<TPreenregistrementDetail> list = getTPreenregistrementDetail(tp);
@@ -187,6 +232,7 @@ public class MvtProduitServiceImpl implements MvtProduitService {
         final Typemvtproduit typemvtproduit = tp.getChecked() ? getTypemvtproduitByID(VENTE)
                 : getTypemvtproduitByID(TMVTP_VENTE_DEPOT_EXTENSION);
         final Typemvtproduit typeMvtProduit = getTypemvtproduitByID(ENTREE_EN_STOCK);
+        verrouillerArticles(list, emplacement);
         for (TPreenregistrementDetail it : list) {
             it.setStrSTATUT(STATUT_IS_CLOSED);
             TFamille tFamille = it.getLgFAMILLEID();
@@ -215,8 +261,8 @@ public class MvtProduitServiceImpl implements MvtProduitService {
             int initStock = familleStock.getIntNUMBERAVAILABLE();
             if (tFamille.getBoolDECONDITIONNE() == 1 && !checkIsVentePossible(familleStock, it.getIntQUANTITY())) {
                 TFamille oTFamilleParent = findProduitById(tFamille.getLgFAMILLEPARENTID());
-                TFamilleStock stockParent = findStockByProduitId(oTFamilleParent.getLgFAMILLEID(),
-                        emplacement.getLgEMPLACEMENTID());
+                TFamilleStock stockParent = verrouiller(
+                        findStockByProduitId(oTFamilleParent.getLgFAMILLEID(), emplacement.getLgEMPLACEMENTID()));
                 deconditionner(tu, tFamille, oTFamilleParent, stockParent, familleStock, it.getIntQUANTITY());
 
             }
@@ -295,6 +341,7 @@ public class MvtProduitServiceImpl implements MvtProduitService {
         final Typemvtproduit typemvtproduit = getTypemvtproduitByID(VENTE);
         final String statut = STATUT_IS_CLOSED;
         JSONArray items = new JSONArray();
+        verrouillerArticles(list, emplacement);
         list.stream().forEach(it -> {
 
             it.setStrSTATUT(statut);
@@ -326,7 +373,8 @@ public class MvtProduitServiceImpl implements MvtProduitService {
 
             if (isDetail && !checkIsVentePossible(familleStock, it.getIntQUANTITY())) {
                 otFamilleParent = findProduitById(tFamille.getLgFAMILLEPARENTID());
-                stockParent = findStockByProduitId(otFamilleParent.getLgFAMILLEID(), emplacement.getLgEMPLACEMENTID());
+                stockParent = verrouiller(
+                        findStockByProduitId(otFamilleParent.getLgFAMILLEID(), emplacement.getLgEMPLACEMENTID()));
                 deconditionner(tu, stockParent, familleStock, it.getIntQUANTITY());
 
             }

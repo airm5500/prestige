@@ -34,6 +34,9 @@ public interface MvtProduitService {
 
     void updateVenteStock(TPreenregistrement tp, List<TPreenregistrementDetail> list);
 
+    /** Verrouille les produits de la vente et leur stock avant la cloture (ventes simultanees du meme article). */
+    void verrouillerArticles(List<TPreenregistrementDetail> list, TEmplacement emplacement);
+
     void updateVenteStockDepot(TPreenregistrement tp, List<TPreenregistrementDetail> list, TEmplacement depot)
             throws Exception;
 
