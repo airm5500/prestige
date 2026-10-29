@@ -149,7 +149,7 @@ async function poste(b, i, fin, palier) {
   /* boite de message d'erreur visible : relevee, puis fermee */
   async function messageErreur(nom) {
     const t = await vues.texteMessage(p).catch(() => '');
-    if (t && /erreur|error|exception|impossible|échec|echec/i.test(t)) {
+    if (t && /erreur|error|exception|impossible|échec|echec|failure|500/i.test(t)) {
       erreurs.push({ t: Date.now(), palier, poste: i, role, type: 'message', detail: nom + ' : ' + t.slice(0, 300) });
       await p.evaluate(() => Ext.ComponentQuery.query('messagebox{isVisible()}').forEach((m) => m.close())).catch(() => {});
     }
@@ -229,6 +229,7 @@ async function poste(b, i, fin, palier) {
           const [cip] = hasard(ARTICLES);
           await geste('caisse : article ajouté', async () => {
             await vues.cliquer(p, CHAMP);
+            await p.keyboard.press('Control+A');
             await p.keyboard.type(cip, { delay: 15 });
             const rep = p.waitForResponse((r) => /\/vente\/add\/(vno|item)/.test(r.url()), { timeout: GESTE_MAX });
             await p.keyboard.press('Enter');
