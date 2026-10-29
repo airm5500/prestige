@@ -25,6 +25,8 @@ public class LotDTO {
     private String numLot;
     private String libelleGrossiste;
     private Integer quantiteLot;
+    /** demande du 28/10 (point 6) : stock restant du lot (quantiteLot est la quantite saisie a l'entree) */
+    private Integer quantiteRestante;
     private Integer valeurAchat;
     private Integer valeurVente;
     private String datePerement;
@@ -102,6 +104,14 @@ public class LotDTO {
         this.quantiteLot = quantiteLot;
     }
 
+    public Integer getQuantiteRestante() {
+        return quantiteRestante;
+    }
+
+    public void setQuantiteRestante(Integer quantiteRestante) {
+        this.quantiteRestante = quantiteRestante;
+    }
+
     public Integer getValeurAchat() {
         return valeurAchat;
     }
@@ -170,6 +180,15 @@ public class LotDTO {
         this.totalQuantiteLot = totalQuantiteLot;
         this.totalValeurAchat = totalValeurAchat;
         this.totalValeurVente = totalValeurVente;
+    }
+
+    /** liste des perimes : avec le stock restant du lot (demande du 28/10, point 6) */
+    public LotDTO(String lgLOTID, String codeCip, String libelleFamille, String libelleRayon, String libelle,
+            String numLot, Date datePerement, String libelleGrossiste, Integer quantiteLot, Integer valeurAchat,
+            Integer valeurVente, Integer quantiteRestante) {
+        this(lgLOTID, codeCip, libelleFamille, libelleRayon, libelle, numLot, datePerement, libelleGrossiste,
+                quantiteLot, valeurAchat, valeurVente);
+        this.quantiteRestante = quantiteRestante;
     }
 
     public LotDTO(String lgLOTID, String codeCip, String libelleFamille, String libelleRayon, String libelle,

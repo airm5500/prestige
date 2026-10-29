@@ -136,6 +136,53 @@ const doublons = (l) => { const p = l.map((x) => x.split('/')[1]); return p.filt
     ok('Grille : taux et matricule de C modifiés à l\'écran puis enregistrés', r3 && r3.success && lienC === '15/' + MARQUE + '-MAT2', lienC);
     const l3 = liens(cl.clientId);
     ok('Aucune priorité portée par deux assurances (après la modification dans la grille)', doublons(l3).length === 0, l3.join(' ; '));
+
+    /* 4. controles demandes au retour du cahier (cas 5) : priorite deja prise, taux hors de 1 a 100 */
+    await ouvrirFiche();
+    const grille = () => p.evaluate(() => Ext.ComponentQuery.query('addaddclientwindow{isVisible()}')[0].down('grid').getStore()
+      .getRange().map((r) => ({ tp: r.get('lgTIERSPAYANTID'), order: String(r.get('order')), taux: Number(r.get('taux')) })));
+    const message = () => p.evaluate(() => { const m = Ext.ComponentQuery.query('addaddclientwindow{isVisible()} #messageAssurances')[0];
+      return m && m.isVisible() ? m.el.dom.textContent : ''; });
+    const g0 = await grille();
+    const prioAutre = g0.find((x) => x.tp !== TC).order, prioC = g0.find((x) => x.tp === TC).order;
+    await cellule(3, prioAutre);
+    const g1 = await grille(), m1 = await message();
+    ok('Grille : priorité déjà portée par une autre assurance refusée, avec un message', g1.find((x) => x.tp === TC).order === prioC && /déjà/.test(m1),
+      'saisi ' + prioAutre + ', C garde ' + g1.find((x) => x.tp === TC).order + ', message « ' + m1 + ' »');
+    const tauxC = g1.find((x) => x.tp === TC).taux;
+    await cellule(1, '150');
+    const g2 = await grille(), m2 = await message();
+    ok('Grille : taux de 150 % refusé, avec un message', g2.find((x) => x.tp === TC).taux === tauxC && /1 à 100/.test(m2),
+      'C garde ' + g2.find((x) => x.tp === TC).taux + ' %, message « ' + m2 + ' »');
+    /* « Associer une assurance » : E a 0 %, refus dans la fenetre elle-meme */
+    const E = C.tiersPayant('SE', '1');
+    await cliquer(p, 'addaddclientwindow #associertps');
+    await p.waitForFunction((s) => Ext.ComponentQuery.query(s + '{isVisible()}').length > 0, ASSOC, { timeout: 15000 });
+    await choisirParFrappe(ASSOC + ' combobox[name=lgTIERSPAYANTID]', E);
+    await cliquer(p, ASSOC + ' numberfield[name=taux]');
+    await p.keyboard.type('0', { delay: 25 });
+    await p.locator('.x-window').filter({ visible: true, hasText: 'Associer tiers-payant' }).getByText('Enregistrer', { exact: true }).click();
+    await p.waitForTimeout(800);
+    const assocOuverte = await p.evaluate((s) => Ext.ComponentQuery.query(s + '{isVisible()}').length > 0, ASSOC);
+    const tauxRouge = assocOuverte && await p.locator('.x-window').filter({ visible: true, hasText: 'Associer tiers-payant' }).locator('input[name=taux].x-form-invalid-field').isVisible();
+    ok('« Associer une assurance » : taux de 0 % refusé, la fenêtre reste ouverte, le champ marqué', assocOuverte && tauxRouge,
+      assocOuverte ? 'fenêtre ouverte' : 'fenêtre fermée, ligne ajoutée');
+    /* priorite deja prise saisie dans la fenetre : refus aussi */
+    await cliquer(p, ASSOC + ' numberfield[name=taux]');
+    await p.keyboard.press('Control+A');
+    await p.keyboard.type('1', { delay: 25 });
+    await cliquer(p, ASSOC + ' numberfield[name=order]');
+    await p.keyboard.press('Control+A');
+    await p.keyboard.type(prioC, { delay: 25 });
+    await p.locator('.x-window').filter({ visible: true, hasText: 'Associer tiers-payant' }).getByText('Enregistrer', { exact: true }).click();
+    await p.waitForTimeout(800);
+    const encore = await p.evaluate((s) => Ext.ComponentQuery.query(s + '{isVisible()}').length > 0, ASSOC);
+    ok('« Associer une assurance » : priorité déjà prise refusée, la fenêtre reste ouverte', encore, encore ? '' : 'ligne ajoutée en priorité ' + prioC);
+    if (encore) { await p.locator('.x-window').filter({ visible: true, hasText: 'Associer tiers-payant' }).getByText('Annuler', { exact: true }).click(); }
+    await p.waitForTimeout(500);
+    const r4 = await enregistrerFiche();
+    const l4 = liens(cl.clientId);
+    ok('Après « Enregistrer » : aucune priorité en double, E non rattachée', r4 && r4.success && doublons(l4).length === 0 && !l4.some((x) => x.startsWith(E + '/')), l4.join(' ; '));
     ok('Aucune erreur JavaScript, aucun message d\'erreur', erreurs.length === 0 && !/erreur/i.test(await texteMessage(p)), erreurs.join(' | '));
   } catch (e) {
     ok('Parcours sans exception', false, e.stack + ' ' + erreurs.join(' | '));

@@ -435,3 +435,22 @@ Constat en passant, non corrigé : à la modification de l'organisme, la part es
 celle de la vente (2 551 à la vente, 2 552 après).
 
 Reprise des anciens bons sans reste dû : `outils/sql/corriger-reste-bons-modifies.sql`, à exécuter à la main.
+
+---
+
+## Suite du 29/10 : tes réponses au cahier de recette
+
+Cahier mis à jour : `CAHIER_RECETTE_POINTS_A_REVOIR_2026-10-29.xlsx`. Il garde tes statuts et tes remarques, et ajoute
+une colonne « Réponse du 29/10 », les cas 20 à 23 et deux questions. La synthèse, cassée par la suppression d'une
+colonne, est refaite sur la colonne Statut ; « NOK » y est compté.
+
+| Cas | Ta remarque | Suite |
+|---|---|---|
+| 5 | contrôle de la priorité déjà utilisée, contrôle du pourcentage | **Fait.** La grille et « Associer une assurance » refusent une priorité déjà portée et un taux hors de 1 à 100 (0 compris). Le motif s'affiche en rouge. Test par l'écran : 12/16 → **18/18**. Le total des taux au-delà de 100 % n'est pas bloqué (question posée). |
+| 10 | quantité restante 0 sur 3232018 | **Corrigé.** La version retenue de « Recherche périmés » (`claude/new-session-xm8ptu`) est reprise à l'identique : `LotDTO`, `FicheArticleServiceImpl`, `peremptionManager.js`. Lot 01 de 3232018 : 2 restants affichés. Test : 3/4 → **4/4**. |
+| 11 | pas vu sur cette branche | Même reprise : colonnes et exports maintenant présents sur cette branche. |
+| 14, 16 | comment changer le client à l'écran ? | Il n'y a pas de chemin à l'écran : le « Modifier » de la zone client corrige la fiche du même client. Ces deux protections ne jouent que côté serveur. Le cas 22 remplace le 14 par un parcours jouable (passage en espèces). |
+| 19 | non compris | Réécrit en cas 23, avec les deux menus « Gerer les tp a exclure » et « Tiers-payants exclus ». |
+
+Non-régression sur domain3 après déploiement : repro-assurances-liens 15/15, repro-vente-assurance 17/17,
+test-ecran-modifier-tp-vente-encours 9/9.
