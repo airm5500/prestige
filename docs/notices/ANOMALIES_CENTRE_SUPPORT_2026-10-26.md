@@ -481,6 +481,18 @@ nouveau à corriger) :
   il faudra regarder l'écran.
 - Correctif proposé : ajouter la colonne en fin de feuille (P3).
 
+### K4 et colonne Version de l'export : corrigés (30/10), vérifiés sur le 9080 (`capitale`)
+
+| N° | Correction | Fichiers | Preuve |
+|---|---|---|---|
+| K4 | Le champ « Montant » est obligatoire et n'accepte qu'un entier, avec la raison sous le champ. Rien ne part au serveur tant qu'il est invalide. Le montant est envoyé comme un nombre. Un refus du serveur affiche son motif, et non plus « Le serveur n'a pas répondu ». `allowDecimals: false` est volontairement écarté : ExtJS arrondissait alors 1500,5 en 1501 sans rien dire | `ouverturecaisse/OuverturecaisseManager.js` | `test-k4-ouverture-caisse.js` : **1/4 avant** (décimal et vide envoyés, le serveur répond 400, l'écran dit « n'a pas répondu ») ; **4/4 après** |
+| SC8 (export) | Colonne « Version » en dernière position de l'export Excel du journal ; les 11 autres colonnes gardent leur place | `rest/SupportEventRessource.java` | `SupportEventExportTest` : échoue avant (ne compile pas), passe après ; `test-export-version.js` (bouton « Excel » de l'écran, fichier lu) : 2/2 |
+
+- Aucune caisse n'est ouverte par le test K4 :
+  - l'état de la caisse est simulé en lecture ;
+  - seul le montant décimal atteint le serveur, qui le refuse avant toute écriture.
+- Tests unitaires : 1 553, aucun échec.
+
 ## Annexe A. Rejouer les reproductions
 
 Variables (Node 22) :

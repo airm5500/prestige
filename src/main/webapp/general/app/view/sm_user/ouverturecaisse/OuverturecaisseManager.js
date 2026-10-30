@@ -71,6 +71,15 @@ Ext.define('testextjs.view.sm_user.ouverturecaisse.OuverturecaisseManager', {
                         name: 'amount',
                         id: 'coffreCaisseAmount',
                         minValue: 0,
+                        /* Rapport du 26/10, K4 : un montant vide ou decimal partait au serveur, qui attend un entier
+                         * (erreur 500 a l'officine le 29/10). Il est refuse ici, avec la raison sous le champ.
+                         * Pas d'allowDecimals: false : ExtJS arrondirait alors 1500.5 en 1501 sans le dire. */
+                        allowBlank: false,
+                        blankText: 'Saisissez le montant du fond de caisse (0 s\'il n\'y en a pas)',
+                        validator: function (valeur) {
+                            /* le vide est laisse a allowBlank, pour un seul message a la fois */
+                            return /^\s*\d*\s*$/.test(String(valeur)) ||'Montant en francs entiers, sans virgule ni décimale';
+                        },
                         listeners: {
                             afterrender: function (field) {
                                 field.focus(false, 100);
@@ -96,8 +105,14 @@ Ext.define('testextjs.view.sm_user.ouverturecaisse.OuverturecaisseManager', {
             id: 'btnValidate',
             tooltip: 'Ouverture de caisse',
             handler: function (btn) {
+                const champMontant = Ext.getCmp('coffreCaisseAmount');
+                if (!champMontant.isValid()) {
+                    champMontant.focus(true);
+                    return;
+                }
                 testextjs.app.getController('App').ShowWaitingProcess();
                 let formData = btn.up('form').getValues();
+                formData.amount = parseInt(String(champMontant.getRawValue()).trim(), 10);
 
                 Ext.Ajax.request({
                     method: 'POST',
@@ -128,8 +143,10 @@ Ext.define('testextjs.view.sm_user.ouverturecaisse.OuverturecaisseManager', {
                     {
                         // « response » est l'objet de la requete : l'afficher tel quel ne donnait rien de lisible.
                         testextjs.app.getController('App').StopWaitingProcess();
-                        Ext.MessageBox.alert('Ouverture de caisse',
-                                'Le serveur n\'a pas répondu (erreur ' + (response ? response.status : '?')
+                        /* Un refus du serveur (400) porte son motif : il est affiche tel quel */
+                        const refus = response && response.responseText ? Ext.JSON.decode(response.responseText, true) : null;
+                        Ext.MessageBox.alert('Ouverture de caisse', refus && refus.msg ? refus.msg
+                                : 'Le serveur n\'a pas répondu (erreur ' + (response ? response.status : '?')
                                 + '). Réessayez, puis signalez-le si cela persiste.');
                     }
                 });
