@@ -65,6 +65,24 @@ class FichierMyIniTest {
         assertEquals("innodb_flush_log_at_trx_commit", r.changements.get(0).cle);
     }
 
+    /** Fichier de l'installateur complete a la main par une seconde section [mysqld] (cas rencontre sur le poste). */
+    @Test
+    void deuxSectionsMysqldCompletees() {
+        String t = "[mysqld]\r\ndatadir=C:/data\r\nport=3307\r\n[client]\r\nport=3307\r\n[mysqld]\r\n"
+                + "innodb_buffer_pool_size=2G\r\ninnodb_flush_log_at_trx_commit=2\r\nmax_connections=251\r\n"
+                + "tmpdir=C:/tmp\r\n";
+        Resultat r = FichierMyIni.appliquer(t, valeurs());
+        assertNull(r.refus, r.refus);
+        assertEquals("[mysqld]\r\ndatadir=C:/data\r\nport=3307\r\n[client]\r\nport=3307\r\n[mysqld]\r\n"
+                + "innodb_buffer_pool_size=5632M\r\ninnodb_flush_log_at_trx_commit=1\r\nmax_connections=196\r\n"
+                + "tmpdir=C:/tmp\r\n", r.texte, "remplace en place, dans la section ou la cle se trouve");
+        Map<String, String> ajout = new LinkedHashMap<>();
+        ajout.put("thread_cache_size", "64");
+        String t2 = FichierMyIni.appliquer(t, ajout).texte;
+        assertTrue(t2.endsWith("tmpdir=C:/tmp\r\n# Reglages conseilles par Prestige (Centre de support)\r\n"
+                + "thread_cache_size=64\r\n"), "ajout a la fin de la derniere section [mysqld] : " + t2);
+    }
+
     @Test
     void commentaireEnFinDeLigneGarde() {
         Resultat r = FichierMyIni.appliquer("[mysqld]\nmax_connections=500 ; ancien\n", valeurs());
@@ -74,8 +92,9 @@ class FichierMyIniTest {
     @Test
     void structureNonCompriseRefusee() {
         assertNotNull(FichierMyIni.appliquer("port=3306\n", valeurs()).refus, "aucune section [mysqld]");
-        assertNotNull(FichierMyIni.appliquer("[mysqld]\nport=1\n[mysqld]\nport=2\n", valeurs()).refus,
-                "deux sections [mysqld]");
+        assertNotNull(
+                FichierMyIni.appliquer("[mysqld]\nmax_connections=1\n[mysqld]\nmax_connections=2\n", valeurs()).refus,
+                "meme reglage dans deux sections [mysqld] : la seconde l'emporte, ambigu");
         assertNotNull(FichierMyIni.appliquer("[mysqld]\n!includedir C:/conf.d\n", valeurs()).refus,
                 "reglages possiblement dans d'autres fichiers");
         assertNotNull(FichierMyIni.appliquer("[mysqld]\n<<< conflit\n", valeurs()).refus, "ligne illisible");

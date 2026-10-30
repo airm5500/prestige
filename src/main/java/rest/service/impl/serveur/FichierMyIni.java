@@ -26,8 +26,8 @@ import rest.service.impl.serveur.ReglagesServeur.Reglage;
  * toujours a 1 ;</li>
  * <li>une cle presente est remplacee en place (orthographe, espaces et commentaire gardes), une cle absente est ajoutee
  * en fin de section [mysqld] ; toutes les autres lignes restent identiques, octet pour octet ;</li>
- * <li>refus si la structure n'est pas comprise : pas ou plusieurs sections [mysqld], !include, ligne illisible, cle en
- * double, ou cle aussi presente dans une autre section lue par le serveur ;</li>
+ * <li>refus si la structure n'est pas comprise : aucune section [mysqld], !include, ligne illisible, cle en double, ou
+ * cle aussi presente dans une autre section lue par le serveur ;</li>
  * <li>sauvegarde du fichier avant toute modification ; MariaDB n'est jamais redemarre.</li>
  * </ul>
  * Le fichier est lu et ecrit en ISO-8859-1 : chaque octet est rendu tel quel, quel que soit l'encodage d'origine.
@@ -119,8 +119,10 @@ public final class FichierMyIni {
                 }
                 section = m.group(1).trim().toLowerCase(Locale.ROOT);
                 if (section.equals("mysqld")) {
+                    /* plusieurs sections [mysqld] se cumulent : les ajouts vont dans la derniere */
                     mysqld++;
                     a.debutMysqld = i;
+                    a.finMysqld = -1;
                 }
                 continue;
             }
@@ -146,8 +148,6 @@ public final class FichierMyIni {
         }
         if (mysqld == 0) {
             a.refus = "Aucune section [mysqld] dans le fichier : écriture refusée.";
-        } else if (mysqld > 1) {
-            a.refus = "Plusieurs sections [mysqld] dans le fichier : écriture refusée.";
         } else if (a.finMysqld < 0) {
             a.finMysqld = a.lignes.size();
         }
