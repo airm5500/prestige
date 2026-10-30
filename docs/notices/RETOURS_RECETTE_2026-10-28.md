@@ -548,3 +548,7 @@ repro-vente-assurance 17/17, repro-assurances-liens 15/15, test-ecran-modifier-v
 `retours/test-vente-en-depot.js` : **31/31**. Il échouait d'abord (10/11) parce qu'il écrivait le dépôt d'essai dans
 `laborex_audit` mais ouvrait l'écran sur domain1 (adresse 8080 écrite en dur), qui ne le voyait pas. Il prend maintenant
 l'adresse réglable `BASE`, comme les autres tests ; sans `BASE`, il garde l'adresse 8080.
+
+### Suite du 30/10 : fiches client de la vente en dépôt
+
+Nouveau test par l'écran `test-ecran-fenetres-client-depot.js`, joué sur domain1 : **6/6**. Fiche du client assuré : « Annuler » la ferme. Fiche du client carnet : « Annuler » la ferme, « Enregistrer » enregistre puis la ferme, sans erreur JavaScript. Non couverts : la fenêtre des ayants droit (aucun bouton ne l'ouvre sur l'écran du dépôt) et celle des modes de règlement (couverte par `test-vente-en-depot.js`).
