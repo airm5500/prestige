@@ -31,9 +31,16 @@ const fr = (v) => String(v).replace('.', ',');
     await p.evaluate((cip) => { const g = Ext.ComponentQuery.query('famillemanager')[0]; g.fmField('rechecher').setValue(cip); g.onRechClick(); }, CIP);
     await p.waitForFunction((P) => { const g = Ext.ComponentQuery.query('famillemanager')[0]; return !g.getStore().isLoading() && g.getStore().findExact('lg_FAMILLE_ID', P) >= 0; }, P, { timeout: 30000 });
     await p.waitForTimeout(500);
-    /* la ligne est retrouvee a chaque essai : un marquage du DOM disparait quand la grille se redessine */
-    await p.waitForFunction((P) => { const g = Ext.ComponentQuery.query('famillemanager')[0], n = g.getView().getNode(g.getStore().findExact('lg_FAMILLE_ID', P));
-      return n && n.offsetParent !== null; }, P, { timeout: 60000 });
+    /* la ligne est retrouvee a chaque essai : un marquage du DOM disparait quand la grille se redessine. Comme
+       l'utilisateur, on attend que le masque « Chargement » ne couvre plus la liste (une seconde lecture peut suivre
+       la recherche : le double clic tombait sur le masque) */
+    const pret = (P) => { const g = Ext.ComponentQuery.query('famillemanager')[0], n = g.getView().getNode(g.getStore().findExact('lg_FAMILLE_ID', P));
+      if (!n || n.offsetParent === null || g.getStore().isLoading()) { return false; }
+      const r = n.getBoundingClientRect(), dessus = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      return !!dessus && n.contains(dessus); };
+    await p.waitForFunction(pret, P, { timeout: 60000 });
+    await p.waitForTimeout(1000);
+    await p.waitForFunction(pret, P, { timeout: 60000 });
     const centre = await p.evaluate((P) => { const g = Ext.ComponentQuery.query('famillemanager')[0], n = g.getView().getNode(g.getStore().findExact('lg_FAMILLE_ID', P));
       const td = Array.from(n.querySelectorAll('td')).filter((c) => c.offsetWidth > 0)[2], r = td.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; }, P);
     await p.mouse.dblclick(centre.x, centre.y);

@@ -55,7 +55,10 @@ const auj = new Date(); const iso = (x) => x.getFullYear() + '-' + String(x.getM
         let a, j2;
         try { a = JSON.parse(r.jsp); j2 = JSON.parse(r.api); } catch (e) { ok(login + ' / ' + j.nom + ' : réponses lisibles', false, e.message); continue; }
         const memeTotal = Number(String(a.total).trim()) === Number(j2.total);
-        const canon = (l) => JSON.stringify(l.map((x) => Object.keys(x).sort().reduce((o, k) => { o[k] = x[k]; return o; }, {})));
+        /* l'ancienne page rend mal les caracteres hors ASCII (« ALCOOL 60� » au lieu de « 60° ») ; l'API les rend
+           justes : on les compare sans ces caracteres */
+        const ascii = (v) => (typeof v === 'string' ? v.replace(/[^\x00-\x7f]/g, '?') : v);
+        const canon = (l) => JSON.stringify(l.map((x) => Object.keys(x).sort().reduce((o, k) => { o[k] = ascii(x[k]); return o; }, {})));
         /* lignes a egalite de tri (meme article, meme action, meme seconde) : l'ordre entre elles n'est fixe ni par
            l'ancienne page ni par l'API ; la page doit porter les memes lignes */
         const trie = (l) => JSON.stringify(JSON.parse(canon(l)).map((x) => JSON.stringify(x)).sort());
