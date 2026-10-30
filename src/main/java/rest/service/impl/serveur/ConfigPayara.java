@@ -275,6 +275,11 @@ public final class ConfigPayara {
 
     /** Commandes asadmin des reglages a appliquer (domaine arrete puis redemarre pour la memoire et les options). */
     public static String script(List<Reglage> reglages) {
+        return script(reglages, "domain1");
+    }
+
+    /** Idem, pour le domaine en cours (nom du dossier de com.sun.aas.instanceRoot). */
+    public static String script(List<Reglage> reglages, String domaine) {
         StringBuilder sb = new StringBuilder(
                 "REM Reglages conseilles par Prestige (a lancer dans le dossier bin de Payara)\n");
         for (Reglage r : reglages) {
@@ -283,6 +288,6 @@ public final class ConfigPayara {
                         .append('\n');
             }
         }
-        return sb.append("call asadmin restart-domain domain1\n").toString();
+        return sb.append("call asadmin restart-domain ").append(domaine).append('\n').toString();
     }
 }

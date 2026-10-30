@@ -8,7 +8,8 @@
  *  - Reglages : reglages en place et conseilles pour la machine (memoire, processeurs, nombre de postes), bloc my.ini et
  *    commandes asadmin a copier. Super administrateur : « Appliquer à chaud » (SET GLOBAL des reglages de MariaDB
  *    modifiables sans redemarrage) et « Écrire dans my.ini » (fichier sauvegarde avant, MariaDB jamais redemarre),
- *    confirmes dans le bouton lui-meme.
+ *    confirmes dans le bouton lui-meme ; « Appliquer et redémarrer Payara » (script asadmin detache, verifie au retour ;
+ *    sans mot de passe d'administration ni droit de lancer asadmin, le script reste a copier).
  * Aucune fenetre.
  */
 Ext.define('testextjs.view.support.SupportServeur', {
@@ -412,6 +413,14 @@ Ext.define('testextjs.view.support.SupportServeur', {
                                 {xtype: 'tbtext', itemId: 'etatMyIni', text: ''}],
                             items: [{xtype: 'textarea', itemId: 'myIni', readOnly: true, cls: 'srv-code'}]},
                         {xtype: 'panel', flex: 1, margin: '0 0 0 8', title: 'Payara : commandes asadmin (dossier bin de Payara)', layout: 'fit', tools: [copier('asadmin')],
+                            tbar: [{itemId: 'appliquerPayara', text: 'Appliquer et redémarrer Payara', iconCls: 'fa fa-bolt', hidden: true,
+                                    tooltip: 'Lance les commandes ci-dessous puis redémarre Payara (environ une minute d\'interruption pour tous les postes).',
+                                    handler: function (b) {
+                                        me.appliquerPayara(b);
+                                    }},
+                                {xtype: 'checkbox', itemId: 'avecMemoireJava', boxLabel: 'avec la mémoire du serveur Java', hidden: true, checked: true,
+                                    tooltip: '-Xms et -Xmx : à décocher si la machine manque de mémoire en ce moment.'},
+                                {xtype: 'tbtext', itemId: 'etatPayara', text: ''}],
                             items: [{xtype: 'textarea', itemId: 'asadmin', readOnly: true, cls: 'srv-code'}]}
                     ]},
                 {xtype: 'component', itemId: 'etatReglages', cls: 'srv-etat'}
@@ -479,6 +488,87 @@ Ext.define('testextjs.view.support.SupportServeur', {
         ti.update(!f ? '' : f.refus ? '<span class="srv-critique" title="' + me.esc(f.refus) + '">my.ini non modifiable</span>'
                 : f.changements ? f.changements + ' ligne(s) à écrire' : '<span class="srv-ok">my.ini à jour</span>');
         me.fichierMyIni = f;
+        /* Payara : bouton si asadmin peut etre lance ; etat de la derniere application (verifiee au retour) */
+        var py = r.payara, bp = me.down('#appliquerPayara'), tp = me.down('#etatPayara'), aFairePayara = me.payaraAFaire();
+        bp.setVisible(!!(r.superAdmin && py && py.lancement));
+        bp.setDisabled(!aFairePayara.length || !!(py && py.enCours && !py.enCours.perime));
+        me.down('#avecMemoireJava').setVisible(bp.isVisible() && Ext.Array.some(aFairePayara, function (x) {
+            return x.cle === 'Xms';
+        }));
+        var html = '';
+        if (py && py.enCours) {
+            html = py.enCours.perime ? '<span class="srv-critique">Lancé le ' + me.esc(py.enCours.lance) + ' : Payara n\'a pas redémarré</span>'
+                    : '<span class="srv-ajuster">Lancé le ' + me.esc(py.enCours.lance) + ' : redémarrage attendu</span>';
+            if (py.enCours.perime && py.enCours.journal) {
+                me.down('#etatReglages').update('<b>Journal du script Payara :</b><pre>' + me.esc(py.enCours.journal) + '</pre>');
+            }
+        } else if (py && py.dernier) {
+            var d = py.dernier;
+            html = '<span class="' + (d.pris === d.total ? 'srv-ok' : 'srv-critique') + '">Vérifié le ' + me.esc(d.verifie) + ' : '
+                    + d.pris + ' / ' + d.total + ' réglage(s) pris</span>';
+            me.dernierPayara = d;
+        } else if (r.superAdmin && py && !py.lancement) {
+            html = 'asadmin introuvable : script à copier';
+        }
+        tp.update(html);
+    },
+
+    payaraAFaire: function () {
+        return Ext.Array.filter(Ext.Object.getValues(this.reglages || {}), function (x) {
+            return x.domaine === 'PAYARA' && x.niveau !== 'OK' && /^asadmin /.test(x.ligne || '');
+        });
+    },
+
+    appliquerPayara: function (b) {
+        var me = this, avecMemoire = me.down('#avecMemoireJava').getValue();
+        var l = Ext.Array.filter(me.payaraAFaire(), function (x) {
+            return avecMemoire || x.cle !== 'Xms';
+        });
+        if (!l.length) {
+            me.down('#etatReglages').update('<span class="srv-ajuster">Seule la mémoire du serveur Java reste à ajuster : cocher « avec la mémoire du serveur Java ».</span>');
+            return;
+        }
+        me.confirmerDansBouton(b, 'Confirmer : ' + l.length + ' réglage(s), Payara redémarre', function () {
+            var o = me.down('#ongletReglages');
+            o.setLoading('Vérification d\'asadmin puis lancement...');
+            me.appel('POST', 'reglages/payara', {cles: Ext.Array.pluck(l, 'cle')}, function (r) {
+                o.setLoading(false);
+                var e = me.down('#etatReglages');
+                if (!r.success) {
+                    e.update('<span class="srv-critique">' + me.esc(r.message) + '</span>');
+                    if (r.aCopier && r.script) {
+                        me.down('#asadmin').setValue(r.script);
+                    }
+                    return;
+                }
+                b.setDisabled(true);
+                me.down('#etatPayara').update('<span class="srv-ajuster">Redémarrage en cours...</span>');
+                e.update('<span class="srv-ajuster">' + me.esc(r.message) + '</span>');
+                me.attendreRedemarrage(0, false);
+            });
+        });
+    },
+
+    /* suit le redemarrage : le serveur cesse de repondre puis repond de nouveau (la session est alors perdue) */
+    attendreRedemarrage: function (n, tombe) {
+        var me = this;
+        if (me.isDestroyed || n > 72) {
+            return;
+        }
+        setTimeout(function () {
+            Ext.Ajax.request({url: me.URL + 'etat', method: 'GET', timeout: 4000,
+                success: function () {
+                    if (tombe) {
+                        me.down('#etatPayara').update('<span class="srv-ok">Payara a redémarré</span>');
+                        me.down('#etatReglages').update('Payara a redémarré : reconnectez-vous puis rouvrez « Réglages conseillés » pour voir la vérification.');
+                        return;
+                    }
+                    me.attendreRedemarrage(n + 1, false);
+                },
+                failure: function () {
+                    me.attendreRedemarrage(n + 1, true);
+                }});
+        }, 5000);
     },
 
     ecrireMyIni: function (b) {
