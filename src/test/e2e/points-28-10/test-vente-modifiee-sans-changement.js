@@ -11,6 +11,7 @@
 const { chromium } = require('playwright-core');
 const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
+const privilegeEssai = require('../support/privilege-essai');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 360) + ']' : '')); }
 const BASE = ENV_E2E.BASE;
@@ -20,6 +21,7 @@ const CAISSE = 'e2e-p7-caisse';
 const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
 const DEBUT = q('SELECT NOW() - INTERVAL 1 SECOND');
 let produit = null, stockOrigine = null, caisseCreee = false;
+const droitModif = privilegeEssai(q, exec, ENV_E2E.LOGIN, 'P_BT_MODIFICATION_DE_VENTE');
 
 const ventesDuTest = () => q("SELECT IFNULL(GROUP_CONCAT(CONCAT('''', lg_PREENREGISTREMENT_ID, '''')), '''-''') FROM t_preenregistrement"
   + " WHERE dt_CREATED >= '" + DEBUT + "' AND lg_USER_ID = '" + ADMIN + "'");
@@ -57,6 +59,9 @@ function nettoyer() {
       + " VALUES ('" + CAISSE + "', '" + ADMIN + "', 0, 0, CURDATE(), NOW(), '" + ADMIN + "', NOW(), '" + ADMIN + "', 'is_Using')");
     caisseCreee = true;
   }
+  /* « Modifier » n'apparait qu'avec ce privilege ; le role d'administrateur de l'officine ne l'a pas forcement :
+     il est accorde le temps du test (seul l'ajout du test est retire a la fin) */
+  droitModif.accorder();
   const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1600, height: 950 } })).newPage();
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
@@ -71,13 +76,22 @@ function nettoyer() {
   /* « Ventes terminées », critere = reference, « Modifier » sur la ligne de la vente, copie chargee a l'ecran */
   const ouvrirModification = async (venteId, ref) => {
     await p.evaluate(() => testextjs.app.getController('App').onLoadNewComponent('ventemanager', 'Ventes terminées', ''));
-    await p.waitForFunction(() => { const g = Ext.ComponentQuery.query('ventemanager gridpanel')[0]; return g && g.isVisible(true) && !g.getStore().isLoading(); }, null, { timeout: 60000 });
+    /* comme l'utilisateur, on attend que la liste du jour soit affichee avant de chercher : sa premiere lecture,
+       arrivee apres la recherche, remplacait le resultat (au moins la vente d'essai du jour y figure) */
+    await p.waitForFunction(() => { const g = Ext.ComponentQuery.query('ventemanager gridpanel')[0]; return g && g.isVisible(true) && !g.getStore().isLoading() && g.getStore().getCount() > 0; }, null, { timeout: 60000 });
+    await p.waitForTimeout(1500);
+    await p.waitForFunction(() => !Ext.ComponentQuery.query('ventemanager gridpanel')[0].getStore().isLoading(), null, { timeout: 60000 });
     await p.evaluate((r) => { const c = Ext.ComponentQuery.query('ventemanager #query')[0]; c.setValue(r); testextjs.app.getController('VenteFinisCtr').doSearch(); }, ref);
-    await p.waitForFunction((id) => { const g = Ext.ComponentQuery.query('ventemanager gridpanel')[0]; return !g.getStore().isLoading() && g.getStore().findExact('lgPREENREGISTREMENTID', id) >= 0; }, venteId, { timeout: 60000 });
-    await p.evaluate((id) => {
-      const g = Ext.ComponentQuery.query('ventemanager gridpanel')[0], i = g.getStore().findExact('lgPREENREGISTREMENTID', id), r = g.getStore().getAt(i);
-      testextjs.app.getController('VenteFinisCtr').onEdite(g.getView(), i, 0, null, null, r, null);
-    }, venteId);
+    /* la liste peut etre relue une seconde fois apres la recherche : la ligne est cherchee et « Modifier » est
+       actionne dans le meme pas, sinon la ligne trouvee n'existe plus au moment du clic */
+    await p.waitForFunction((id) => {
+      const g = Ext.ComponentQuery.query('ventemanager gridpanel')[0], s = g.getStore();
+      if (s.isLoading()) { return false; }
+      const i = s.findExact('lgPREENREGISTREMENTID', id);
+      if (i < 0) { return false; }
+      testextjs.app.getController('VenteFinisCtr').onEdite(g.getView(), i, 0, null, null, s.getAt(i), null);
+      return true;
+    }, venteId, { timeout: 60000 });
     await p.waitForFunction(() => { const c = testextjs.app.getController('VenteCtr'); return c.current && c.current.lgPREENREGISTREMENTID && Ext.ComponentQuery.query('doventemanager #btnCloture').some((x) => x.isVisible(true)); }, null, { timeout: 60000 });
     await p.waitForTimeout(1500);
     return p.evaluate(() => testextjs.app.getController('VenteCtr').current.lgPREENREGISTREMENTID);
@@ -150,6 +164,7 @@ function nettoyer() {
     await b.close();
     nettoyer();
     if (caisseCreee) { exec("DELETE FROM t_resume_caisse WHERE ld_CAISSE_ID = '" + CAISSE + "'"); }
+    droitModif.reprendre();
     ok('Jeu d\'essai retiré, stock remis', q("SELECT COUNT(*) FROM t_preenregistrement WHERE dt_CREATED >= '" + DEBUT + "' AND lg_USER_ID = '" + ADMIN + "'") === '0'
       && q("SELECT CONCAT(int_NUMBER_AVAILABLE, '|', int_NUMBER) FROM t_famille_stock WHERE lg_FAMILLE_ID = '" + produit.id + "' AND lg_EMPLACEMENT_ID = '1'") === stockOrigine.join('|'));
   }
