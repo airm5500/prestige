@@ -77,8 +77,8 @@ const cartes = (p) => p.evaluate(() => Array.from(document.querySelectorAll('.ti
     ok('Ticket Z : chargé à l\'ouverture sur la journée (00:00 - 23:59, tous)', lus.length === 1 && lus[0].dtStart === auj && lus[0].dtEnd === auj
       && lus[0].hrStart === '00:00' && lus[0].hrEnd === '23:59' && lus[0].userId === 'ALL' && lus[0].description === 'ALL', JSON.stringify(lus[0]));
 
-    /* dernier jour de ventes de la base (la veille sur le banc ; une copie figée peut ne rien avoir la veille) */
-    const DERNIER = q("SELECT DATE(MAX(dt_UPDATED)) FROM t_preenregistrement WHERE str_STATUT = 'is_Closed' AND b_IS_CANCEL = 0 AND int_PRICE > 0 AND dt_UPDATED < CURDATE()");
+    /* dernier jour de mouvements de caisse (la veille sur le banc ; une copie figée peut ne rien avoir la veille) */
+    const DERNIER = q("SELECT MAX(mvtdate) FROM mvttransaction WHERE mvtdate < CURDATE()");
     const veille = DERNIER.split('-').reverse().join('/');
     await p.evaluate((d) => { const t = Ext.ComponentQuery.query('ticketzmanager')[0];
       t.down('#dtStart').setValue(Ext.Date.parse(d, 'd/m/Y')); t.down('#dtEnd').setValue(Ext.Date.parse(d, 'd/m/Y')); }, veille);

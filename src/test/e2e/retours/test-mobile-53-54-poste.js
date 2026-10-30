@@ -26,8 +26,8 @@ function nettoyer() {
   try {
     const p = await (await b.newContext()).newPage();
     await p.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'domcontentloaded' });
-    const auth = await p.evaluate(async (poste) => (await fetch('../api/v1/user/auth', { method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Poste': encodeURIComponent(poste) }, body: JSON.stringify({ login: ENV_E2E.LOGIN, password: 'e2etest' }) })).json(), POSTE);
+    const auth = await p.evaluate(async ([poste, login]) => (await fetch('../api/v1/user/auth', { method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Poste': encodeURIComponent(poste) }, body: JSON.stringify({ login, password: 'e2etest' }) })).json(), [POSTE, ENV_E2E.LOGIN]);
     ok('Précondition : connexion acceptée', auth.success === true, JSON.stringify(auth).slice(0, 120));
     await p.waitForTimeout(1500);
     const ligne = q(`SELECT CONCAT_WS('|', remote_host, str_DESCRIPTION LIKE '%nom poste ${POSTE}%') FROM t_event_log WHERE dt_CREATED >= '${DEBUT}'`
