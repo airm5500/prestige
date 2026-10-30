@@ -64,15 +64,17 @@ function poser() {
     + " VALUES ('" + DEPOT + "', '" + compte + "', '" + NOM + "', 'E2E', 'ABOBO', 'KOFFI', 'Jean',"
     + " '0708473750', NOW(), NOW(), 'enable', '2', 0);");
   // Deux rayons distincts, et des articles qui les portent.
-  const zones = q("SELECT GROUP_CONCAT(lg_ZONE_GEO_ID) FROM (SELECT lg_ZONE_GEO_ID FROM t_zone_geographique"
-    + " LIMIT 2) z").split(',');
+  // deux rayons qui portent des articles vendables : les deux premiers rayons de la base peuvent etre vides
+  const zones = q("SELECT GROUP_CONCAT(lg_ZONE_GEO_ID) FROM (SELECT z.lg_ZONE_GEO_ID FROM t_zone_geographique z"
+    + " WHERE EXISTS (SELECT 1 FROM t_famille f WHERE f.lg_ZONE_GEO_ID = z.lg_ZONE_GEO_ID AND f.str_STATUT='enable'"
+    + " AND f.int_PAF>0 AND f.int_PRICE>0) LIMIT 2) z").split(',');
   const arts = [];
   zones.forEach((zone, i) => {
     const liste = q("SELECT GROUP_CONCAT(CONCAT(lg_FAMILLE_ID,':',COALESCE(int_PAF,0),':',COALESCE(int_PRICE,0))"
       + " SEPARATOR '|') FROM (SELECT lg_FAMILLE_ID, int_PAF, int_PRICE FROM t_famille"
       + " WHERE str_STATUT='enable' AND int_PAF>0 AND int_PRICE>0 AND lg_ZONE_GEO_ID='" + zone + "'"
       + " ORDER BY str_NAME LIMIT " + (i === 0 ? 2 : 1) + ") x");
-    if (!liste) { return; }
+    if (!liste || liste === 'NULL') { return; }
     liste.split('|').forEach((x, j) => {
       const pr = x.split(':');
       const stock = 10 * (i + 1) + j;
@@ -87,7 +89,9 @@ function poser() {
 }
 
 (async () => {
-  const arts = poser();
+  let arts;
+  // un echec de la pose ne doit pas laisser le depot d'essai : les autres ecrans le choisiraient
+  try { arts = poser(); } catch (e) { nettoyer(); throw e; }
   const attendus = arts.filter((a) => a.stock > 0);
   const totalAchat = attendus.reduce((s, a) => s + a.stock * a.pa, 0);
   const totalVente = attendus.reduce((s, a) => s + a.stock * a.pv, 0);
