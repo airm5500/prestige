@@ -6,7 +6,8 @@
  *    des dernieres 24 h (releves toutes les 2 minutes) ; derniere cause d'arret brutal ;
  *  - Arrets : demarrages et arrets du serveur, propre ou brutal, avec la cause probable et le conseil ;
  *  - Reglages : reglages en place et conseilles pour la machine (memoire, processeurs, nombre de postes), bloc my.ini et
- *    commandes asadmin a copier. Lecture seule : l'ecran ne modifie ni Payara ni MariaDB.
+ *    commandes asadmin a copier. Super administrateur : « Appliquer à chaud » (SET GLOBAL des reglages de MariaDB
+ *    modifiables sans redemarrage), confirme dans le bouton lui-meme.
  * Aucune fenetre.
  */
 Ext.define('testextjs.view.support.SupportServeur', {
@@ -78,6 +79,7 @@ Ext.define('testextjs.view.support.SupportServeur', {
                 + '.srv-lex>div{margin-top:3px}.srv-lex-terme{font-weight:bold;font-size:14px;color:#1b2631}'
                 + '.srv-lex-ici{background:#f4f6f8;border-radius:4px;padding:1px 6px;margin-left:6px}'
                 + '.srv-confirmer,.srv-confirmer .x-btn-inner{background:#c0392b !important;color:#fff !important}'
+                + '.srv-compte-rendu{margin:4px 0 4px 18px;padding:0}.srv-compte-rendu li{margin:2px 0}'
                 + '.srv-jeton{font-family:Consolas,monospace;background:#f4f6f8;padding:2px 6px;border-radius:4px;user-select:all}', 'srv-styles');
     },
 
@@ -393,6 +395,12 @@ Ext.define('testextjs.view.support.SupportServeur', {
                     ]},
                 {xtype: 'container', flex: 2, layout: {type: 'hbox', align: 'stretch'}, padding: '8 0 0 0', items: [
                         {xtype: 'panel', flex: 1, title: 'MariaDB : bloc à reporter dans my.ini (puis redémarrer MariaDB)', layout: 'fit', tools: [copier('myIni')],
+                            tbar: [{itemId: 'appliquerMariadb', text: 'Appliquer à chaud', iconCls: 'fa fa-bolt', hidden: true,
+                                    tooltip: 'Change tout de suite, sans redémarrer MariaDB, les réglages à ajuster qui le permettent.',
+                                    handler: function (b) {
+                                        me.appliquerMariadb(b);
+                                    }},
+                                {xtype: 'tbtext', itemId: 'droitsMariadb', text: ''}],
                             items: [{xtype: 'textarea', itemId: 'myIni', readOnly: true, cls: 'srv-code'}]},
                         {xtype: 'panel', flex: 1, margin: '0 0 0 8', title: 'Payara : commandes asadmin (dossier bin de Payara)', layout: 'fit', tools: [copier('asadmin')],
                             items: [{xtype: 'textarea', itemId: 'asadmin', readOnly: true, cls: 'srv-code'}]}
@@ -402,7 +410,7 @@ Ext.define('testextjs.view.support.SupportServeur', {
         };
     },
 
-    chargerReglages: function () {
+    chargerReglages: function (ensuite) {
         var me = this, o = me.down('#ongletReglages');
         o.setLoading('Lecture des réglages...');
         me.appel('GET', 'reglages', null, function (r) {
@@ -428,8 +436,90 @@ Ext.define('testextjs.view.support.SupportServeur', {
             });
             me.down('#etatReglages').update((n.CRITIQUE ? '<span class="srv-critique">' + n.CRITIQUE + ' réglage(s) critique(s)</span> · ' : '')
                     + (n.A_AJUSTER ? '<span class="srv-ajuster">' + n.A_AJUSTER + ' à ajuster</span> · ' : '')
-                    + 'Calcul pour ' + r.postes + ' poste(s). L\'écran ne modifie rien : les réglages s\'appliquent avec les blocs ci-dessus.');
+                    + 'Calcul pour ' + r.postes + ' poste(s). ' + (r.superAdmin ? 'Les boutons « Appliquer » changent les réglages à ajuster ; le reste s\'applique avec les blocs ci-dessus.'
+                            : 'L\'écran ne modifie rien : les réglages s\'appliquent avec les blocs ci-dessus.'));
+            me.afficherBoutonsReglages(r);
+            if (ensuite) {
+                ensuite();
+            }
         });
+    },
+
+    /* MariaDB a chaud : super administrateur, MariaDB sur cette machine ; droit SUPER manquant signale */
+    afficherBoutonsReglages: function (r) {
+        var me = this, b = me.down('#appliquerMariadb'), t = me.down('#droitsMariadb'), d = r.droitsMariadb;
+        var aFaire = me.mariadbAFaire();
+        b.setVisible(!!(r.superAdmin && r.mariadbLocale));
+        b.setDisabled(!d || !d.ok || !aFaire.length);
+        t.update(!r.superAdmin || !r.mariadbLocale ? '' : d && !d.ok ? '<span class="srv-critique">Droit SUPER manquant</span>'
+                : aFaire.length ? aFaire.length + ' réglage(s) à ajuster' : '<span class="srv-ok">Rien à ajuster</span>');
+        if (d && !d.ok) {
+            me.down('#etatReglages').update('<span class="srv-critique">' + me.esc(d.message) + '</span>');
+        }
+    },
+
+    mariadbAFaire: function () {
+        return Ext.Array.filter(Ext.Object.getValues(this.reglages || {}), function (x) {
+            return x.domaine === 'MARIADB' && x.niveau !== 'OK';
+        });
+    },
+
+    /* confirmation dans le bouton : 1er clic arme (texte et couleur), 2e clic dans les 6 s execute */
+    confirmerDansBouton: function (b, texteConfirmation, action) {
+        if (!b.arme) {
+            b.arme = true;
+            b.texteNormal = b.texteNormal || b.getText();
+            b.setText(texteConfirmation);
+            b.addCls('srv-confirmer');
+            b.minuteur = setTimeout(function () {
+                if (!b.isDestroyed) {
+                    b.arme = false;
+                    b.setText(b.texteNormal);
+                    b.removeCls('srv-confirmer');
+                }
+            }, 6000);
+            return;
+        }
+        clearTimeout(b.minuteur);
+        b.arme = false;
+        b.setText(b.texteNormal);
+        b.removeCls('srv-confirmer');
+        action();
+    },
+
+    ETATS_APPLICATION: {APPLIQUE: ['srv-ok', 'appliqué'], MY_INI: ['srv-ajuster', 'au prochain redémarrage (my.ini)'],
+        REFUSE: ['srv-critique', 'refusé'], ECHEC: ['srv-critique', 'échec'], A_FAIRE: ['', 'non appliqué']},
+
+    appliquerMariadb: function (b) {
+        var me = this, l = me.mariadbAFaire(), long = Ext.Array.some(l, function (x) {
+            return x.cle === 'innodb_buffer_pool_size';
+        });
+        me.confirmerDansBouton(b, 'Confirmer : ' + l.length + ' réglage(s)' + (long ? ' (tampon InnoDB : plusieurs minutes)' : ''), function () {
+            var o = me.down('#ongletReglages');
+            o.setLoading('Application des réglages de MariaDB...');
+            me.appel('POST', 'reglages/mariadb', {}, function (r) {
+                o.setLoading(false);
+                if (!r.success) {
+                    me.down('#etatReglages').update('<span class="srv-critique">' + me.esc(r.message) + '</span>');
+                    return;
+                }
+                me.chargerReglages(function () {
+                    me.down('#etatReglages').update(me.compteRendu('MariaDB, à chaud', r.data, r.redimensionnement));
+                });
+            });
+        });
+    },
+
+    compteRendu: function (titre, l, redimensionnement) {
+        var me = this, html = '<b>' + me.esc(titre) + ' :</b><ul class="srv-compte-rendu">';
+        Ext.each(l || [], function (x) {
+            var e = me.ETATS_APPLICATION[x.etat] || ['', x.etat];
+            html += '<li><b>' + me.esc(x.libelle || x.cle) + '</b> : ' + me.esc(x.avant) + ' → '
+                    + me.esc(x.etat === 'APPLIQUE' ? x.apres : x.conseille) + ' <span class="' + e[0] + '">' + e[1] + '</span>'
+                    + (x.refus ? ' : ' + me.esc(x.refus) : '') + (x.message && x.etat !== 'MY_INI' ? ' : ' + me.esc(x.message) : '')
+                    + (x.avertissement && x.etat === 'APPLIQUE' ? '<br><i>' + me.esc(x.avertissement) + '</i>' : '') + '</li>';
+        });
+        return html + '</ul>' + (redimensionnement ? '<i>Tampon InnoDB : ' + me.esc(redimensionnement) + '</i>' : '');
     },
 
     /* ============================================================================================ lexique */
