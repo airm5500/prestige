@@ -493,11 +493,19 @@ public class RhServiceImpl implements RhService {
             String http = request == null ? null : request.getSession(true).getId();
             /*
              * le navigateur ferme sans deconnexion laisse une session ouverte : la nouvelle connexion du meme
-             * utilisateur depuis la meme adresse la clot
+             * utilisateur depuis la meme adresse la clot. Lecture simple puis mise a jour par cle primaire : un UPDATE
+             * filtre sur lg_USER_ID verrouillait l'intervalle de ix_session_user ou s'insere la nouvelle ligne ; deux
+             * connexions au meme instant s'y interbloquaient et MariaDB en annulait une (rapport de charge du 29/10,
+             * par. 4.6 ; src/test/e2e/perf/interblocage-sessions.sh).
              */
-            em.createNativeQuery("UPDATE t_session_utilisateur SET fin = NOW(), fin_par = 'NOUVELLE_CONNEXION'"
-                    + " WHERE lg_USER_ID = ?1 AND fin IS NULL AND COALESCE(ip, '') = COALESCE(?2, '')")
-                    .setParameter(1, user.getLgUSERID()).setParameter(2, ip).executeUpdate();
+            List<?> ouvertes = em
+                    .createNativeQuery("SELECT id FROM t_session_utilisateur"
+                            + " WHERE lg_USER_ID = ?1 AND fin IS NULL AND COALESCE(ip, '') = COALESCE(?2, '')")
+                    .setParameter(1, user.getLgUSERID()).setParameter(2, ip).getResultList();
+            for (Object id : ouvertes) {
+                em.createNativeQuery("UPDATE t_session_utilisateur SET fin = NOW(), fin_par = 'NOUVELLE_CONNEXION'"
+                        + " WHERE id = ?1 AND fin IS NULL").setParameter(1, id).executeUpdate();
+            }
             em.createNativeQuery("INSERT INTO t_session_utilisateur (id, lg_USER_ID, session_http, debut, poste, ip)"
                     + " VALUES (?1, ?2, ?3, NOW(), ?4, ?5)").setParameter(1, UUID.randomUUID().toString())
                     .setParameter(2, user.getLgUSERID()).setParameter(3, http)

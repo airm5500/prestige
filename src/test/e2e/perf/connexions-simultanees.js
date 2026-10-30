@@ -13,7 +13,9 @@
  * poste. SANS_TABLE=1 bloque l'appel de la table : on mesure l'ancien chargement (le test doit alors echouer sur le
  * nombre de requetes, et l'application doit quand meme fonctionner).
  *
- * N'ecrit rien d'autre que les traces de connexion habituelles. Lancer seul (pas d'autre test d'ecran en meme temps).
+ * N'ecrit rien d'autre que les traces de connexion habituelles.
+ * Controle du journal des connexions RH (api/v1/rh/sessions, lu par un compte observateur, celui des tests) : chaque
+ * poste connecte doit y avoir sa ligne. Lancer seul (pas d'autre test d'ecran en meme temps).
  * Variables : BASE, POSTES (6), LOGINS (liste separee par des virgules ; defaut : le compte des tests pour tous les
  * postes), SANS_TABLE, MAX_FICHIERS (20), DELAI_MS (120000).
  */
@@ -77,10 +79,28 @@ async function ouvrirVente(p) {
 
 (async () => {
   const b = await ENV_E2E.lancer(chromium);
+  /* observateur : journal des connexions RH avant et apres, depuis un compte qui ne se connecte pas avec les postes */
+  const obs = await (await b.newContext()).newPage();
+  await vues.connexion(obs, ENV_E2E.LOGIN, 'e2etest');
+  const journal = () => obs.evaluate(async () => { const r = await fetch('../api/v1/rh/sessions', { credentials: 'same-origin' });
+    const j = await r.json(); const n = {}; (j.data || []).forEach((s) => { n[s.login] = (n[s.login] || 0) + 1; }); return j.success === false ? null : n; });
+  const avant = await journal().catch(() => null);
   const postes = [];
   for (let i = 0; i < POSTES; i++) { postes.push(await preparer(b, i)); }
   await Promise.all(postes.map((x) => connecter(x)));
   const problemes = [];
+  /* rapport de charge du 29/10, par. 4.6 : deux premieres connexions au meme instant s'interbloquaient dans
+     t_session_utilisateur et MariaDB en annulait une ; la connexion aboutissait, mais sans trace au journal */
+  const apres = avant ? await journal().catch(() => null) : null;
+  if (!avant || !apres) {
+    console.log(`journal des connexions RH : illisible pour ${ENV_E2E.LOGIN} (droit RH absent ?), controle saute`);
+  } else {
+    const attendu = {};
+    postes.filter((x) => !x.echec).forEach((x) => { attendu[login(x.i)] = (attendu[login(x.i)] || 0) + 1; });
+    const manquants = Object.keys(attendu).filter((l) => (apres[l] || 0) - (avant[l] || 0) < attendu[l]);
+    console.log(`journal des connexions RH : ${Object.keys(attendu).length - manquants.length} compte(s) sur ${Object.keys(attendu).length} journalise(s)`);
+    manquants.forEach((l) => problemes.push(`connexion de ${l} absente du journal RH (${(apres[l] || 0) - (avant[l] || 0)} sur ${attendu[l]})`));
+  }
   for (const x of postes) {
     const restants = x.echec ? '?' : await x.p.evaluate(() => (window.PRESTIGE_SCRIPTS ? Object.keys(window.PRESTIGE_SCRIPTS).length : -1)).catch(() => '?');
     console.log(`poste ${x.i + 1} (${login(x.i)}) : ${x.echec ? 'ECHEC ' + x.echec : 'menu en ' + x.duree + ' ms'}, ${x.fichiers} requetes general/app, table ${x.table ? 'recue (' + restants + ' fichiers non utilises)' : 'absente'}, ${x.erreurs.length} erreur(s) JavaScript`);
