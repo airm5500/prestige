@@ -129,6 +129,25 @@ async function lancer(chromium, options) {
     if (sansBanniere) {
       await c.addInitScript(() => { try { localStorage.setItem('prestige.alerteWhatsApp.masquee', String(Date.now() + 1800000)); } catch (e) { /* */ } });
     }
+    /* Chromium sans fenetre telecharge le PDF ouvert dans un onglet au lieu de l'afficher : la navigation ne
+       s'acheve pas et page.url() reste vide. L'onglet rend alors l'adresse qu'il a demandee, celle qu'un
+       utilisateur verrait dans la barre d'adresse. */
+    const sansCadre = []; // demandes d'onglets emises avant que Playwright ne connaisse leur cadre
+    c.on('request', (r) => {
+      if (!r.isNavigationRequest()) { return; }
+      let f = null;
+      try { f = r.frame(); } catch (e) { sansCadre.push(r.url()); return; }
+      if (f === f.page().mainFrame()) { f.page().adresseDemandee = r.url(); }
+    });
+    c.on('page', (pg) => {
+      const url0 = pg.url.bind(pg);
+      pg.url = () => {
+        const u = url0();
+        if (u) { return u; }
+        if (!pg.adresseDemandee && sansCadre.length) { pg.adresseDemandee = sansCadre.shift(); }
+        return pg.adresseDemandee || '';
+      };
+    });
     return c;
   };
   const avecVideo = (o) => (CAPTURES ? Object.assign({ recordVideo: { dir: dossier() } }, o) : o);
