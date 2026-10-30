@@ -218,9 +218,11 @@ function semer() {
     await cliquerGarde(MARQUE + ' nuit');
     await ouvrirOnglet('ongletActivite');
     await p.waitForTimeout(800);
+    /* type lu sur la reponse du serveur : Chromium sans fenetre telecharge le PDF, l'onglet reste une page vide */
+    const reponsePdf = ctx.waitForEvent('response', { predicate: (r) => /activite\/pdf/.test(r.url()), timeout: 30000 }).catch(() => null);
     const [nouvelle] = await Promise.all([ctx.waitForEvent('page', { timeout: 20000 }), cliquer('gardemanager #activiteImprimer')]);
-    await nouvelle.waitForLoadState('load', { timeout: 30000 }).catch(() => null);
-    const typePdf = await nouvelle.evaluate(() => document.contentType).catch(() => '');
+    const rep = await reponsePdf;
+    const typePdf = rep ? (rep.headers()['content-type'] || '') : '';
     ok('« Imprimer » l activité ouvre le PDF EN FLUX dans un onglet (courbe et tranches sur une page)', /pdf/.test(typePdf) && /activite\/pdf/.test(nouvelle.url()), typePdf + ' ' + nouvelle.url());
     await nouvelle.close();
     const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';

@@ -7,6 +7,14 @@
  */
 window.PrestigeMetroIcones = {
   ECRANS: {
+    // ecrans propres a certaines officines (menus anciens restes actifs dans leur base)
+    "diffmanager": "hourglass", // Liste des Différés Client
+    "managementreport": "chart-bar-stacked", // Rapport de Gestion 2
+    "RapportGestions": "chart-column-big", // Rapport de Gestion
+    "statistiqueTVA": "receipt-euro", // Statistiques sur TVA
+    "ventecaissemanager": "scale-3d", // Balance Vente/Caisse
+    "journalventemanager": "book-text", // Journal Vente
+    "venteugs": "gift", // Ventes unités gratuites
     "ouverturecaisseempmanager": "coins", // Fonds de caisse
     "ventehistoriquedepotmanager": "package-open", // Liste des ventes dépots
     "ouverturecaissemanger": "lock-open", // Ouverture de Caisse

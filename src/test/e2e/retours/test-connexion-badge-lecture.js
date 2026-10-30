@@ -68,7 +68,7 @@ function nettoyer() {
     const r1 = await scanner(await page(), contenu(SECRET, 'µ'));
     ok('« | » remplacé par la douchette : « Lecture du badge déformée », consigne sur la douchette, aucune session',
       /déformée/i.test(r1.titre) && /douchette/i.test(r1.texte) && /AZERTY|clavier/i.test(r1.texte) && !r1.connecte, r1.titre + ' — ' + r1.texte);
-    ok('Ce qui a été lu est montré, sans le secret', r1.texte.indexOf('PRESTIGE-BADGEµ1µ' + NUM + 'µadminµ') >= 0 && r1.page.indexOf(SECRET) < 0 && r1.page.indexOf(SECRET.slice(0, 12)) < 0, r1.texte);
+    ok('Ce qui a été lu est montré, sans le secret', r1.texte.indexOf('PRESTIGE-BADGEµ1µ' + NUM + 'µ' + ENV_E2E.LOGIN + 'µ') >= 0 && r1.page.indexOf(SECRET) < 0 && r1.page.indexOf(SECRET.slice(0, 12)) < 0, r1.texte);
 
     const r2 = await scanner(await page(), inverse(contenu(SECRET)));
     ok('Casse inversée (verrouillage majuscules) : message qui le dit, aucune session', /majuscule/i.test(r2.texte) && !r2.connecte && r2.page.indexOf(inverse(SECRET).slice(0, 12)) < 0, r2.titre + ' — ' + r2.texte);

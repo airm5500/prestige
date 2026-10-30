@@ -71,7 +71,7 @@ function poserMouvements(jour) {
   });
 }
 function xlsxTexte(fichier) {
-  return execSync("python3 -c \"import openpyxl,sys; wb=openpyxl.load_workbook(sys.argv[1]); ws=wb.active; print('\\\\n'.join('|'.join('' if c is None else str(c) for c in r) for r in ws.iter_rows(values_only=True)))\" " + fichier, { encoding: 'utf8' });
+  return execSync("python3 -c \"import openpyxl,sys; wb=openpyxl.load_workbook(sys.argv[1]); ws=wb.active; print(chr(10).join('|'.join('' if c is None else str(c) for c in r) for r in ws.iter_rows(values_only=True)))\" " + fichier, { encoding: 'utf8' });
 }
 
 (async () => {
