@@ -188,6 +188,29 @@ public final class ApplicationPayara {
         return sb.toString();
     }
 
+    /** Precede la valeur de retour de Win32_Process.Create dans la sortie de PowerShell. */
+    public static final String MARQUE_LANCEMENT = "PRESTIGE-LANCEMENT=";
+
+    /** Commande PowerShell qui lance le script hors de l'arbre de Payara (WMI) et ecrit la marque puis le retour. */
+    public static String commandeLancement(String bat) {
+        return "$ProgressPreference = 'SilentlyContinue'; "
+                + "$r = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{CommandLine = "
+                + "'cmd.exe /c \"" + bat.replace("'", "''") + "\"'}; '" + MARQUE_LANCEMENT + "' + $r.ReturnValue";
+    }
+
+    /**
+     * Le script a-t-il ete lance ? PowerShell peut meler a sa sortie un flux de progression (CLIXML) : seule la ligne
+     * marquee compte, et Win32_Process.Create renvoie 0 en cas de succes.
+     */
+    public static boolean lance(int code, String sortie) {
+        if (code != 0 || sortie == null) {
+            return false;
+        }
+        java.util.regex.Matcher m = java.util.regex.Pattern
+                .compile("(?m)^\\s*" + java.util.regex.Pattern.quote(MARQUE_LANCEMENT) + "(\\d+)\\s*$").matcher(sortie);
+        return m.find() && "0".equals(m.group(1));
+    }
+
     /** asadmin attend un mot de passe (ou l'a refuse) ? */
     public static boolean motDePasseDemande(String sortie) {
         String s = sortie == null ? "" : sortie.toLowerCase(Locale.ROOT);

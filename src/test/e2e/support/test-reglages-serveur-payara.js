@@ -72,19 +72,20 @@ async function connecter(b) {
     console.log('FAIL  domain1 refusé : ce test redémarre le domaine deux fois (voir l\'en-tête)');
     process.exit(1);
   }
+  /* navigateur lance avant toute modification : un echec de lancement ne laisse pas le domaine deregle */
+  const b = await ENV_E2E.lancer(chromium);
   const debut = q('SELECT NOW()');
   const xmlAvant = fs.readFileSync(XML);
   const copieTest = path.join(ENV_E2E.TMP, 'domain.xml.e2e-' + Date.now());
   fs.writeFileSync(copieTest, xmlAvant);
   const sauvegardesAvant = new Set(fs.readdirSync(DOMAINE + '/config').filter((f) => /^domain\.xml\.avant-prestige-/.test(f)));
-  const scripts = path.join(ENV_E2E.STOCKAGE, 'reglages-payara', NOM);
+  const scripts = path.join(ENV_E2E.STOCKAGE, 'support', 'reglages-payara', NOM);
   const scriptsAvant = new Set(fs.existsSync(scripts) ? fs.readdirSync(scripts) : []);
   /* reglage volontairement mal place, a corriger par l'ecran (pris a chaud par asadmin set) */
   asadmin('--port', PORT_ADMIN, 'set', NIVEAUX + 'jdbc-connection-pool=OFF');
   asadmin('--port', PORT_ADMIN, 'set', NIVEAUX + 'thread-pool=OFF');
   const xmlPrepare = fs.readFileSync(XML);
 
-  const b = await ENV_E2E.lancer(chromium);
   let redemarre = false;
   try {
     let p = await connecter(b);
@@ -96,7 +97,13 @@ async function connecter(b) {
     const surveillance = await p.evaluate(() => (Ext.ComponentQuery.query('supportserveur #reglages')[0].getStore().findRecord('cle', 'surveillance') || { get: () => '' }).get('niveau'));
     ok('Compteurs du pool et des fils « à ajuster » avant', surveillance === 'A_AJUSTER', surveillance);
     /* la machine d'essai manque de memoire : pas de -Xms/-Xmx */
-    await p.evaluate(() => Ext.ComponentQuery.query('supportserveur #avecMemoireJava')[0].setValue(false));
+    const caseMemoire = await p.evaluate(() => { const c = Ext.ComponentQuery.query('supportserveur #avecMemoireJava')[0];
+      return { visible: c.isVisible(), coche: c.getValue(), id: c.inputEl && c.inputEl.id }; });
+    if (caseMemoire.visible && caseMemoire.coche) {
+      await p.click('#' + caseMemoire.id);
+    }
+    ok('Case « avec la mémoire du serveur Java » décochée par un clic', !(await p.evaluate(() => Ext.ComponentQuery.query('supportserveur #avecMemoireJava')[0].getValue())),
+      JSON.stringify(caseMemoire));
 
     await p.click('#' + bp.id);
     const arme = await bouton();
@@ -118,7 +125,10 @@ async function connecter(b) {
     redemarre = tombe;
     ok('Le domaine en cours a redémarré (arrêt puis reprise)', tombe && await sonde() === 200, 'en ' + Math.round((Date.now() - t0) / 1000) + ' s');
     const ecran = await p.evaluate(() => Ext.ComponentQuery.query('supportserveur #etatPayara')[0].getEl().dom.textContent).catch(() => '');
-    ok('L\'écran suit le redémarrage', /Payara a redémarré|Redémarrage en cours/.test(ecran), ecran);
+    /* la session meurt avec le domaine : soit l'ecran suit encore, soit Prestige a renvoye a la connexion (session
+       expiree), comme l'annonce le message de lancement (« Reconnectez-vous ensuite ») */
+    ok('L\'écran suit le redémarrage, ou renvoie à la connexion', /Payara a redémarré|Redémarrage en cours/.test(ecran)
+      || /\/security\/index\.html\?expiree=1/.test(p.url()), ecran + ' (page : ' + p.url() + ')');
     const journalScript = fs.readdirSync(scripts).filter((f) => /^appliquer-.*\.log$/.test(f) && !scriptsAvant.has(f));
     const contenu = journalScript.length ? fs.readFileSync(path.join(scripts, journalScript[0]), 'latin1') : '';
     ok('Journal du script : commandes passées, « FIN 0 »', /FIN 0/.test(contenu) && /executed successfully/i.test(contenu), contenu.slice(-300));
@@ -131,9 +141,11 @@ async function connecter(b) {
     await p.close();
     p = await connecter(b);
     const verif = await texte('etatPayara');
-    ok('Au retour : « Vérifié le ... : N / N réglage(s) pris »', /Vérifié le .* : (\d+) \/ \1 réglage\(s\) pris/.test(verif), verif);
-    const lignes = q("SELECT CONCAT(str_CREATEDBY, ' | ', REPLACE(str_DETAIL, '\\n', ' ; ')) FROM t_event_log WHERE str_TABLECONCERN = 'payara'"
-      + " AND dt_CREATED >= '" + debut + "' ORDER BY dt_CREATED").split('\n').filter(Boolean);
+    const lignes = q("SELECT CONCAT(str_CREATED_BY, ' | ', REPLACE(str_DETAIL, '\\n', ' ; ')) FROM t_event_log WHERE str_TABLE_CONCERN = 'payara'"
+      + " AND dt_CREATED >= '" + debut + "' ORDER BY dt_CREATED").split(/\r?\n/).filter(Boolean);
+    ok('Au retour : « Vérifié le ... : N / N réglage(s) pris »', /Vérifié le .* : (\d+) \/ \1 réglage\(s\) pris/.test(verif),
+      verif);
+    if (!/Vérifié le .* : (\d+) \/ \1 réglage\(s\) pris/.test(verif)) { console.log('      vérification : ' + (lignes[1] || '(aucune ligne)')); }
     ok('Journal : lancement (qui, avant -> attendu, sauvegarde) puis vérification (avant -> après)', lignes.length === 2
       && lignes[0].startsWith(ENV_E2E.LOGIN_SUPPORT + ' |') && /Sauvegarde : .*domain\.xml\.avant-prestige-/.test(lignes[0])
       && /surveillance : pool OFF, fils OFF -> HIGH/.test(lignes[0]) && /surveillance : pool OFF, fils OFF -> pool HIGH, fils HIGH/.test(lignes[1]), lignes.join(' || '));
@@ -153,7 +165,7 @@ async function connecter(b) {
     if (fs.existsSync(scripts)) {
       fs.readdirSync(scripts).filter((f) => !scriptsAvant.has(f)).forEach((f) => fs.unlinkSync(path.join(scripts, f)));
     }
-    q("DELETE FROM t_event_log WHERE str_TABLECONCERN = 'payara' AND dt_CREATED >= '" + debut + "'");
+    q("DELETE FROM t_event_log WHERE str_TABLE_CONCERN = 'payara' AND dt_CREATED >= '" + debut + "'");
     ok('Remise en état : domain.xml d\'origine, journal et fichiers du test retirés', empreinte(fs.readFileSync(XML)) === empreinte(xmlAvant)
       && await sonde() === 200, NOM + (redemarre ? '' : ' (pas de redémarrage constaté)'));
     const n = res.filter((x) => x.c).length;

@@ -137,4 +137,18 @@ class ApplicationPayaraTest {
         assertNull(ApplicationPayara.verifier(attendu, Collections.emptyList()).stream().filter(x -> x.pris).findFirst()
                 .orElse(null), "Payara illisible : rien de pris");
     }
+
+    @Test
+    void retourDuLancementParPowershell() {
+        /* sortie reelle (poste local, 30/10) : flux de progression CLIXML mele a la valeur de retour */
+        String clixml = "#< CLIXML\r\n" + ApplicationPayara.MARQUE_LANCEMENT + "0\r\n"
+                + "<Objs Version=\"1.1.0.1\" xmlns=\"http://schemas.microsoft.com/powershell/2004/04\"><Obj S=\"progress\" RefId=\"0\">"
+                + "<TN RefId=\"0\"><T>System.Management.Automation.PSCustomObject</T></TN></Obj></Objs>\r\n";
+        assertTrue(ApplicationPayara.lance(0, clixml));
+        assertTrue(ApplicationPayara.lance(0, ApplicationPayara.MARQUE_LANCEMENT + "0\r\n"));
+        assertFalse(ApplicationPayara.lance(0, ApplicationPayara.MARQUE_LANCEMENT + "2\r\n"), "acces refuse (WMI)");
+        assertFalse(ApplicationPayara.lance(1, ApplicationPayara.MARQUE_LANCEMENT + "0\r\n"));
+        assertFalse(ApplicationPayara.lance(0, "0\r\n"), "sans la marque : rien de sur");
+        assertFalse(ApplicationPayara.lance(0, null));
+    }
 }

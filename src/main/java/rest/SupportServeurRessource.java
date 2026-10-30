@@ -689,13 +689,12 @@ public class SupportServeurRessource {
                             .put("login", u.getStrLOGIN()).put("attendu", at).put("avant", avant)
                             .put("journal", journal.toString()).put("sauvegarde", sauvegarde.toString()));
             /* processus cree par WMI : hors de l'arbre de Payara, il survit a son arret */
-            String ps = "$r = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{CommandLine = "
-                    + "'cmd.exe /c \"" + bat.toAbsolutePath().toString().replace("'", "''") + "\"'}; $r.ReturnValue";
+            String ps = ApplicationPayara.commandeLancement(bat.toAbsolutePath().toString());
             Object[] lancement = executer(
                     java.util.Arrays.asList("powershell.exe", "-NoProfile", "-NonInteractive", "-EncodedCommand",
                             java.util.Base64.getEncoder().encodeToString(ps.getBytes(StandardCharsets.UTF_16LE))),
                     60);
-            if ((Integer) lancement[0] != 0 || !"0".equals(((String) lancement[1]).trim())) {
+            if (!ApplicationPayara.lance((Integer) lancement[0], (String) lancement[1])) {
                 Files.deleteIfExists(att);
                 return aCopier(
                         "Le script n'a pas pu être lancé en arrière-plan ("
