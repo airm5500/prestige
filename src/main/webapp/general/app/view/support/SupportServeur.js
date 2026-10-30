@@ -482,11 +482,19 @@ Ext.define('testextjs.view.support.SupportServeur', {
     },
 
     ecrireMyIni: function (b) {
-        var me = this, f = me.fichierMyIni || {};
-        me.confirmerDansBouton(b, 'Confirmer : ' + (f.changements || 0) + ' ligne(s) dans my.ini (sauvegardé avant)', function () {
+        var me = this, f = me.fichierMyIni || {}, tampon = me.down('#avecTampon');
+        /* case « avec le tampon InnoDB » decochee : le tampon n'est pas ecrit non plus dans my.ini */
+        var cles = Ext.Array.filter(f.cles || [], function (c) {
+            return c !== 'innodb_buffer_pool_size' || !tampon.isVisible() || tampon.getValue();
+        });
+        if (!cles.length) {
+            me.down('#etatReglages').update('<span class="srv-ajuster">Seul le tampon InnoDB reste à écrire : cocher « avec le tampon InnoDB ».</span>');
+            return;
+        }
+        me.confirmerDansBouton(b, 'Confirmer : ' + cles.length + ' ligne(s) dans my.ini (sauvegardé avant)', function () {
             var o = me.down('#ongletReglages');
             o.setLoading('Écriture de my.ini...');
-            me.appel('POST', 'reglages/myini', {}, function (r) {
+            me.appel('POST', 'reglages/myini', {cles: cles}, function (r) {
                 o.setLoading(false);
                 if (!r.success) {
                     me.down('#etatReglages').update('<span class="srv-critique">' + me.esc(r.message) + '</span>');

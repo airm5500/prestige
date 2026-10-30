@@ -384,7 +384,7 @@ public class SupportServeurRessource {
     }
 
     /** my.ini : chemin, structure comprise ou non, lignes a changer (lecture seule). */
-    private static JSONObject etatMyIni(Calcul c) {
+    private JSONObject etatMyIni(Calcul c) {
         JSONObject o = new JSONObject();
         java.nio.file.Path p = cheminMyIni(c);
         if (p == null || !Files.isRegularFile(p)) {
@@ -394,9 +394,14 @@ public class SupportServeurRessource {
         }
         try {
             String t = new String(Files.readAllBytes(p), StandardCharsets.ISO_8859_1);
-            FichierMyIni.Resultat r = FichierMyIni.appliquer(t, FichierMyIni.valeurs(c.tous, c.variables, t));
-            return o.put("chemin", p.toString()).put("refus", StringUtils.defaultString(r.refus)).put("changements",
-                    r.refus == null ? r.changements.size() : 0);
+            FichierMyIni.Resultat r = FichierMyIni.appliquer(t,
+                    FichierMyIni.valeurs(c.tous, c.variables, t, vie.variablesPoseesAChaud(), null));
+            JSONArray cles = new JSONArray();
+            if (r.refus == null) {
+                r.changements.forEach(x -> cles.put(x.cle));
+            }
+            return o.put("chemin", p.toString()).put("refus", StringUtils.defaultString(r.refus))
+                    .put("changements", cles.length()).put("cles", cles);
         } catch (java.io.IOException e) {
             return o.put("chemin", p.toString()).put("refus", "my.ini illisible : " + e.getMessage());
         }
@@ -409,7 +414,7 @@ public class SupportServeurRessource {
      */
     @POST
     @Path("reglages/myini")
-    public Response ecrireMyIni() {
+    public Response ecrireMyIni(String corps) {
         Response r = controleApplication();
         if (r != null) {
             return r;
@@ -423,11 +428,23 @@ public class SupportServeurRessource {
             if (p == null) {
                 return echec("Dossier des données de MariaDB inconnu : bloc à reporter à la main.");
             }
+            /* cles retenues a l'ecran (sans le tampon InnoDB si sa case est decochee) ; absentes : toutes */
+            JSONObject in = new JSONObject(StringUtils.defaultIfBlank(corps, "{}"));
+            java.util.Set<String> choix = null;
+            if (in.has("cles")) {
+                choix = new java.util.HashSet<>();
+                JSONArray cles = in.getJSONArray("cles");
+                for (int i = 0; i < cles.length(); i++) {
+                    choix.add(cles.optString(i));
+                }
+            }
             FichierMyIni.Ecriture e;
             synchronized (VERROU_MY_INI) {
                 String t = Files.isRegularFile(p) ? new String(Files.readAllBytes(p), StandardCharsets.ISO_8859_1) : "";
-                e = FichierMyIni.ecrire(p, FichierMyIni.valeurs(c.tous, c.variables, t), java.time.LocalDateTime.now()
-                        .format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")));
+                e = FichierMyIni.ecrire(p,
+                        FichierMyIni.valeurs(c.tous, c.variables, t, vie.variablesPoseesAChaud(), choix),
+                        java.time.LocalDateTime.now()
+                                .format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")));
             }
             TUser u = utilisateur();
             boolean ecrit = e.refus == null && e.sauvegarde != null;

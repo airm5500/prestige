@@ -228,10 +228,25 @@ public final class FichierMyIni {
      *            my.ini actuel (vide : seuls les reglages a ajuster)
      */
     public static Map<String, String> valeurs(List<Reglage> reglages, Map<String, String> enMarche, String contenu) {
+        return valeurs(reglages, enMarche, contenu, java.util.Collections.emptySet(), null);
+    }
+
+    /**
+     * @param aChaud
+     *            variables posees par SET GLOBAL depuis le demarrage (GLOBAL_VALUE_ORIGIN = SQL) : absentes du fichier,
+     *            elles reviendraient a leur valeur par defaut au redemarrage
+     * @param choix
+     *            cles retenues a l'ecran (null : toutes), par exemple sans le tampon InnoDB
+     */
+    public static Map<String, String> valeurs(List<Reglage> reglages, Map<String, String> enMarche, String contenu,
+            java.util.Set<String> aChaud, java.util.Set<String> choix) {
         Analyse a = analyser(contenu);
         Map<String, String> m = new LinkedHashMap<>();
         for (Reglage r : reglages) {
             if (!"MARIADB".equals(r.domaine) || !ApplicationMariadb.connu(r.cle) || r.ligne == null) {
+                continue;
+            }
+            if (choix != null && !choix.contains(r.cle)) {
                 continue;
             }
             String ligne = ApplicationMariadb.ligneSure(r.ligne);
@@ -242,7 +257,9 @@ public final class FichierMyIni {
             String v = ligne.substring(egal + 1).trim();
             Integer i = a.refus == null ? a.cles.get(r.cle) : null;
             boolean perime = i != null && !equivalent(r.cle, valeurLigne(a.lignes.get(i)), enMarche.get(r.cle));
-            if (r.niveau != Niveau.OK || perime) {
+            boolean perdu = i == null && a.refus == null && aChaud.contains(r.cle)
+                    && equivalent(r.cle, v, enMarche.get(r.cle));
+            if (r.niveau != Niveau.OK || perime || perdu) {
                 m.put(r.cle, v);
             }
         }

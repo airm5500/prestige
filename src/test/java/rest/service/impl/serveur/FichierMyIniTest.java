@@ -144,6 +144,30 @@ class FichierMyIniTest {
     }
 
     @Test
+    void reglageAppliqueAChaudEtAbsentDuFichier() {
+        Map<String, String> v = new HashMap<>();
+        v.put("max_connections", "196");
+        List<Reglage> l = ReglagesServeur.comparer(16 * ReglagesServeur.GO, 8, 3 * ReglagesServeur.GO, v, 4, 50);
+        assertEquals("196",
+                FichierMyIni.valeurs(l, v, "[mysqld]\nport=3306\n", java.util.Collections.singleton("max_connections"),
+                        null).get("max_connections"),
+                "pose par SET GLOBAL et absent du fichier : la valeur par defaut reviendrait au redemarrage");
+    }
+
+    @Test
+    void seulsLesReglagesChoisisSontEcrits() {
+        Map<String, String> v = new HashMap<>();
+        v.put("max_connections", "100");
+        v.put("innodb_buffer_pool_size", String.valueOf(128L * 1024 * 1024));
+        List<Reglage> l = ReglagesServeur.comparer(16 * ReglagesServeur.GO, 8, 3 * ReglagesServeur.GO, v, 4, 50);
+        Map<String, String> m = FichierMyIni.valeurs(l, v, "", java.util.Collections.emptySet(),
+                java.util.Collections.singleton("max_connections"));
+        assertEquals("196", m.get("max_connections"));
+        assertFalse(m.containsKey("innodb_buffer_pool_size"), "tampon InnoDB non choisi (case decochee)");
+        assertFalse(m.containsKey("innodb_flush_log_at_trx_commit"));
+    }
+
+    @Test
     void sauvegardePuisEcriture(@TempDir Path d) throws Exception {
         Path ini = d.resolve("my.ini");
         Files.write(ini, INSTALLATEUR.getBytes(StandardCharsets.ISO_8859_1));
