@@ -36,7 +36,8 @@ const BL = "FROM t_bon_livraison b JOIN t_order o ON o.lg_ORDER_ID = b.lg_ORDER_
     ok('userId : total = BL de cet utilisateur', String(filtre.total) === nU, filtre.total + ' / ' + nU);
     const ids = (filtre.data || []).map((x) => x.lgBONLIVRAISONID);
     const siens = ids.length ? q("SELECT COUNT(*) FROM t_bon_livraison WHERE lg_USER_ID = '" + U + "' AND lg_BON_LIVRAISON_ID IN ('" + ids.join("','") + "')") : '0';
-    ok('userId : chaque ligne rendue est un BL de cet utilisateur', ids.length === Number(nU) && siens === nU, ids.length + ' lignes, ' + siens + ' siennes');
+    /* la page s'arrete a 500 lignes : sur une copie reelle, un utilisateur en a souvent davantage */
+    ok('userId : chaque ligne rendue est un BL de cet utilisateur', ids.length === Math.min(500, Number(nU)) && siens === String(ids.length),ids.length + ' lignes, ' + siens + ' siennes');
     const page2 = await lire(base + '&start=10&limit=10&userId=' + U);
     ok('userId : pagination juste (page de 10, même total)', (page2.data || []).length === Math.min(10, Number(nU) - 10) && String(page2.total) === nU, (page2.data || []).length + ' / ' + page2.total);
     const sans = await lire(base + '&start=0&limit=5');

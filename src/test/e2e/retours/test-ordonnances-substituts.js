@@ -20,7 +20,9 @@ const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-charact
 const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
 const MARQUE = 'E2E-SUB-';
 const ORIGINE = 'DOLIPRANE 500MG CPR B/16';
-const PARA = ['DOLIPRANE 500MG CPR B/16', 'DOLIPRANE 500MG CPR EFFV T/16', 'DOLIPRANE 1G CPR B/8', 'DOLIPRANE 200MG SUPPO B/10',
+/* l'effervescent s'appelle « T/16 » sur le banc, « B/16 » dans la copie de l'officine */
+const EFFV = q("SELECT str_NAME FROM t_famille WHERE str_NAME LIKE 'DOLIPRANE 500MG CPR EFFV%' AND str_STATUT='enable' ORDER BY str_NAME DESC LIMIT 1") || 'DOLIPRANE 500MG CPR EFFV T/16';
+const PARA = ['DOLIPRANE 500MG CPR B/16', EFFV, 'DOLIPRANE 1G CPR B/8', 'DOLIPRANE 200MG SUPPO B/10',
   'EFFERALGAN 500MG GEL B/16 ANF', 'EFFERALGAN 500MG CPR SEC B/16'];
 const sqlTexte = (v) => "'" + v.replace(/'/g, "''") + "'";
 
@@ -32,8 +34,11 @@ const sqlTexte = (v) => "'" + v.replace(/'/g, "''") + "'";
   const err = []; p.on('pageerror', (e) => err.push(String(e.message)));
   try {
     /* --------------------------------------------------------------- jeu d essai : liens DCI marques */
-    const dciPara = q("SELECT lg_DCI_ID FROM t_dci WHERE str_NAME='PARACETAMOL' LIMIT 1");
-    const dciLevo = q("SELECT lg_DCI_ID FROM t_dci WHERE str_NAME LIKE 'LEVOTHYROX%' LIMIT 1") || dciPara;
+    /* une copie sans DCI recoit la DCI PARACETAMOL, retiree a la fin */
+    const dciPara = q("SELECT lg_DCI_ID FROM t_dci WHERE str_NAME='PARACETAMOL' LIMIT 1") || (exec("INSERT INTO t_dci (lg_DCI_ID, str_CODE, str_NAME, str_STATUT, dt_CREATED)"
+      + " VALUES ('" + MARQUE + "DCI', '" + MARQUE + "', 'PARACETAMOL', 'enable', NOW())"), MARQUE + 'DCI');
+    const dciLevo = q("SELECT lg_DCI_ID FROM t_dci WHERE str_NAME LIKE 'LEVOTHYROX%' LIMIT 1") || (exec("INSERT INTO t_dci (lg_DCI_ID, str_CODE, str_NAME, str_STATUT, dt_CREATED)"
+      + " VALUES ('" + MARQUE + "DCI2', '" + MARQUE + "2', 'LEVOTHYROXINE', 'enable', NOW())"), MARQUE + 'DCI2');
     let n = 0;
     const lier = (nom, dci) => exec("INSERT INTO t_famille_dci (lg_FAMILLE_DCI_ID, lg_FAMILLE_ID, lg_DCI_ID, str_STATUT, dt_CREATED, dt_UPDATED)"
       + " SELECT CONCAT('" + MARQUE + "', " + (n++) + "), f.lg_FAMILLE_ID, '" + dci + "', 'enable', NOW(), NOW() FROM t_famille f"
@@ -79,7 +84,7 @@ const sqlTexte = (v) => "'" + v.replace(/'/g, "''") + "'";
     ok('Équivalents directs d abord, puis « à adapter »', niveaux.indexOf('adapter') < 0 || niveaux.lastIndexOf('direct') < niveaux.indexOf('adapter'), niveaux.join(','));
     const nomNiveau = (nom) => (sub.lignes.find((l) => l.nom === nom) || {}).niveau;
     ok('Efferalgan 500 gélule et comprimé sécable : équivalents directs', nomNiveau('EFFERALGAN 500MG GEL B/16 ANF') === 'direct' && nomNiveau('EFFERALGAN 500MG CPR SEC B/16') === 'direct', JSON.stringify(sub.lignes.map((l) => l.nom + ':' + l.niveau)));
-    const effv = sub.lignes.find((l) => l.nom === 'DOLIPRANE 500MG CPR EFFV T/16') || {};
+    const effv = sub.lignes.find((l) => l.nom === EFFV) || {};
     const ungramme = sub.lignes.find((l) => l.nom === 'DOLIPRANE 1G CPR B/8') || {};
     ok('Effervescent et 1 g : « à adapter », avec la raison (sodium ; 1000 mg au lieu de 500 mg)', effv.niveau === 'adapter' && /sodium/.test(effv.raison) && ungramme.niveau === 'adapter' && /1000 mg au lieu de 500 mg/.test(ungramme.raison), JSON.stringify([effv, ungramme]));
     const directs = sub.lignes.filter((l) => l.niveau === 'direct');
@@ -120,6 +125,7 @@ const sqlTexte = (v) => "'" + v.replace(/'/g, "''") + "'";
   } finally {
     await b.close();
     exec("DELETE FROM t_famille_dci WHERE lg_FAMILLE_DCI_ID LIKE '" + MARQUE + "%'");
+    exec("DELETE FROM t_dci WHERE lg_DCI_ID IN ('" + MARQUE + "DCI', '" + MARQUE + "DCI2')");
     if (stockAvant[0]) { exec("UPDATE t_famille_stock SET int_NUMBER_AVAILABLE=" + Number(stockAvant[1]) + " WHERE lg_FAMILLE_STOCK_ID='" + stockAvant[0] + "'"); }
     const reste = q("SELECT COUNT(*) FROM t_famille_dci WHERE lg_FAMILLE_DCI_ID LIKE '" + MARQUE + "%'");
     ok('Remise en état : liens de test retirés, stock remis', reste === '0' && q("SELECT int_NUMBER_AVAILABLE FROM t_famille_stock WHERE lg_FAMILLE_STOCK_ID='" + stockAvant[0] + "'") === String(Number(stockAvant[1])));

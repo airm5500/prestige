@@ -41,7 +41,7 @@ const nettoyer = () => exec("DELETE f FROM t_inventaire_famille f JOIN t_inventa
   const p = await b.newPage();
   const api = (m, u, c) => p.evaluate(async ([m, u, c]) => { const t0 = performance.now(); const r = await fetch(u, { method: m, headers: { 'Content-Type': 'application/json' }, body: c === undefined ? undefined : JSON.stringify(c) });
     const t = await r.text(); let j; try { j = JSON.parse(t); } catch (e) { j = { brut: t.slice(0, 120) }; } j.http = r.status; j.ms = performance.now() - t0; return j; }, [m, u, c]);
-  const lignesDe = (id) => q("SELECT CONCAT_WS('|', lg_FAMILLE_ID, bool_INVENTAIRE, int_NUMBER_INIT, int_NUMBER) FROM t_inventaire_famille WHERE lg_INVENTAIRE_ID = '" + id + "' ORDER BY lg_FAMILLE_ID");
+  const lignesDe = (id) => q("SELECT CONCAT_WS('|', lg_FAMILLE_ID, bool_INVENTAIRE, int_NUMBER_INIT, int_NUMBER) FROM t_inventaire_famille WHERE lg_INVENTAIRE_ID = '" + id + "' ORDER BY lg_FAMILLE_ID").replace(/\r/g, '');  /* fins de ligne Windows */
   try {
     await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
     await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');

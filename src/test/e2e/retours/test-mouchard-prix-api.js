@@ -7,6 +7,8 @@
  */
 const { chromium } = require('playwright-core');
 const ENV_E2E = require('../outils/poste');
+const { execFileSync } = require('child_process');
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', ENV_E2E.BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 400) + ']' : '')); }
@@ -30,7 +32,10 @@ const auj = new Date(); const iso = (x) => x.getFullYear() + '-' + String(x.getM
       { nom: 'action COMMANDE', q: { dt_Date_Debut: '2020-01-01', dt_Date_Fin: iso(auj), str_ACTION: 'COMMANDE' } },
       { nom: 'action FICHEARTICLE, un mois', q: { dt_Date_Debut: iso(new Date(auj.getFullYear(), auj.getMonth() - 1, 1)), dt_Date_Fin: iso(auj), str_ACTION: 'FICHEARTICLE' } }
     ];
-    for (const login of [ENV_E2E.LOGIN, 'KGA3']) {
+    /* KGA3 (non administrateur) a le mot de passe d'essai sur le banc ; sur un poste ou il ne l'a pas, il n'est pas joue */
+    const nonAdmin = q("SELECT COUNT(*) FROM t_user WHERE str_LOGIN = 'KGA3' AND str_STATUT = 'enable' AND str_PASSWORD = MD5('e2etest')") === '1';
+    if (!nonAdmin) { console.log('KGA3 sans le mot de passe de test sur ce poste : parcours non administrateur non joue'); }
+    for (const login of [ENV_E2E.LOGIN].concat(nonAdmin ? ['KGA3'] : [])) {
       const p = await connecter(login);
       for (const j of JEUX) {
         const qs = new URLSearchParams(Object.assign({ start: 0, limit: 20, page: 1 }, j.q)).toString();
@@ -51,7 +56,10 @@ const auj = new Date(); const iso = (x) => x.getFullYear() + '-' + String(x.getM
         try { a = JSON.parse(r.jsp); j2 = JSON.parse(r.api); } catch (e) { ok(login + ' / ' + j.nom + ' : réponses lisibles', false, e.message); continue; }
         const memeTotal = Number(String(a.total).trim()) === Number(j2.total);
         const canon = (l) => JSON.stringify(l.map((x) => Object.keys(x).sort().reduce((o, k) => { o[k] = x[k]; return o; }, {})));
-        const memesLignes = canon(a.results) === canon(j2.results);
+        /* lignes a egalite de tri (meme article, meme action, meme seconde) : l'ordre entre elles n'est fixe ni par
+           l'ancienne page ni par l'API ; la page doit porter les memes lignes */
+        const trie = (l) => JSON.stringify(JSON.parse(canon(l)).map((x) => JSON.stringify(x)).sort());
+        const memesLignes = canon(a.results) === canon(j2.results) || trie(a.results) === trie(j2.results);
         ok(login + ' / ' + j.nom + ' : même total et mêmes lignes que l\'ancienne page (' + j2.total + ' ; ' + j2.results.length + ' sur la page)', memeTotal && memesLignes,
           memeTotal && memesLignes ? '' : 'total ' + a.total + ' / ' + j2.total + ' ; lignes jsp ' + a.results.length + ' api ' + j2.results.length + ' ; jsp ' + a.results.map((x) => x.str_DESCRIPTION_PLUS).slice(0, 4).join(',') + ' api ' + j2.results.map((x) => x.str_DESCRIPTION_PLUS).slice(0, 4).join(','));
       }

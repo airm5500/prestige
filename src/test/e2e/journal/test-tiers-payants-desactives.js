@@ -33,7 +33,12 @@ const remettre = () => q(`UPDATE t_tiers_payant SET str_STATUT = '${STATUT}', dt
     await p.waitForLoadState('networkidle');
     await charge();
     let l = await lignes();
-    ok('La liste montre le tiers-payant désactivé', l.some((x) => x.id === TP), l.length + ' ligne(s) ; ' + echecs.join(' | '));
+    /* une copie reelle a plus de tiers-payants desactives qu'une page : il peut etre sur une page suivante (la
+       recherche ci-dessous le retrouve) ; le compteur de la liste l'inclut alors */
+    const total = await p.evaluate(() => Ext.getCmp('OGrid').getStore().getTotalCount());
+    const nDesactives = Number(q("SELECT COUNT(*) FROM t_tiers_payant WHERE str_STATUT = 'disable'"));
+    ok('La liste montre le tiers-payant désactivé', l.some((x) => x.id === TP) || (l.length < total && total === nDesactives),
+      l.length + ' ligne(s) sur ' + total + ' (' + nDesactives + ' en base) ; ' + echecs.join(' | '));
     ok('Et aucun tiers-payant actif', l.every((x) => x.statut === 'disable'), JSON.stringify(l.slice(0, 3)));
 
     const recherche = p.waitForResponse((r) => /tierspayant/i.test(r.url()) && r.url().includes('search_value='), { timeout: 30000 });

@@ -31,8 +31,12 @@ const fr = (v) => String(v).replace('.', ',');
     await p.evaluate((cip) => { const g = Ext.ComponentQuery.query('famillemanager')[0]; g.fmField('rechecher').setValue(cip); g.onRechClick(); }, CIP);
     await p.waitForFunction((P) => { const g = Ext.ComponentQuery.query('famillemanager')[0]; return !g.getStore().isLoading() && g.getStore().findExact('lg_FAMILLE_ID', P) >= 0; }, P, { timeout: 30000 });
     await p.waitForTimeout(500);
-    await p.evaluate((P) => { const g = Ext.ComponentQuery.query('famillemanager')[0]; g.getView().getNode(g.getStore().findExact('lg_FAMILLE_ID', P)).setAttribute('data-e2e', 'ligne'); }, P);
-    await p.locator('[data-e2e=ligne] td').filter({ visible: true }).nth(2).dblclick({ timeout: 60000 });
+    /* la ligne est retrouvee a chaque essai : un marquage du DOM disparait quand la grille se redessine */
+    await p.waitForFunction((P) => { const g = Ext.ComponentQuery.query('famillemanager')[0], n = g.getView().getNode(g.getStore().findExact('lg_FAMILLE_ID', P));
+      return n && n.offsetParent !== null; }, P, { timeout: 60000 });
+    const centre = await p.evaluate((P) => { const g = Ext.ComponentQuery.query('famillemanager')[0], n = g.getView().getNode(g.getStore().findExact('lg_FAMILLE_ID', P));
+      const td = Array.from(n.querySelectorAll('td')).filter((c) => c.offsetWidth > 0)[2], r = td.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; }, P);
+    await p.mouse.dblclick(centre.x, centre.y);
     await p.waitForFunction(() => { const b = Ext.getCmp('apercu_fiche_article'); return b.isVisible() && b.getEl().dom.querySelector('.vp-ap-moyennes'); }, null, { timeout: 30000 });
     const a = await p.evaluate(() => { const d = Ext.getCmp('apercu_fiche_article').getEl().dom, t = d.querySelector('.vp-ap-tete');
       const enfants = [...t.children].map((x) => x.className);

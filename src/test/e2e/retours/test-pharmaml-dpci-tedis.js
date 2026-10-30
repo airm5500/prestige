@@ -55,10 +55,15 @@ const url = (G, u) => exec("UPDATE t_grossiste SET str_URL_PHARMAML = " + (u ===
 
 (async () => {
   await new Promise((r) => serveur.listen(PORT, '127.0.0.1', r));
+  /* CONCAT_WS saute les NULL : chaque champ est garde, sinon les suivants se decalent et la remise en etat ecrit n'importe ou */
   for (const [n, G] of Object.entries(GROSSISTES)) {
-    const v = q("SELECT CONCAT_WS('|', IFNULL(str_URL_PHARMAML, 'NULL'), str_CODE_RECEPTEUR_PHARMA, str_ID_RECEPTEUR_PHARMA, idrepartiteur, str_PHARMAML_VERSION_CMDE, IFNULL(str_URL_PHARMAML_SECOURS, 'NULL'), IFNULL(str_PHARMAML_CONTROLE, 'NULL'), int_PHARMAML_DISPO, str_PHARMAML_VERSION_INFO) FROM t_grossiste WHERE lg_GROSSISTE_ID = '" + G + "'").split('|');
+    const v = q("SELECT CONCAT_WS('|', IFNULL(str_URL_PHARMAML, 'NULL'), IFNULL(str_CODE_RECEPTEUR_PHARMA, ''), IFNULL(str_ID_RECEPTEUR_PHARMA, ''), IFNULL(idrepartiteur, ''), IFNULL(str_PHARMAML_VERSION_CMDE, ''), IFNULL(str_URL_PHARMAML_SECOURS, 'NULL'), IFNULL(str_PHARMAML_CONTROLE, 'NULL'), IFNULL(int_PHARMAML_DISPO, 1), IFNULL(str_PHARMAML_VERSION_INFO, '')) FROM t_grossiste WHERE lg_GROSSISTE_ID = '" + G + "'").split('|');
     sauves[n] = { url: v[0] === 'NULL' ? null : v[0], code: v[1], id: v[2], rep: v[3], version: v[4], secours: v[5] === 'NULL' ? null : v[5], controle: v[6] === 'NULL' ? null : v[6], dispo: v[7], versionInfo: v[8] };
   }
+  /* la cle de DPCI vaut 4083 sur le banc ; une copie sans cle la recoit le temps du test (remise a la fin) */
+  const cleDpci = q("SELECT IFNULL(str_CLE_RECEPTEUR, 'NULL') FROM t_grossiste WHERE lg_GROSSISTE_ID = '" + GROSSISTES.DPCI + "'");
+  if (cleDpci === 'NULL' || cleDpci === '') { exec("UPDATE t_grossiste SET str_CLE_RECEPTEUR = '4083' WHERE lg_GROSSISTE_ID = '" + GROSSISTES.DPCI + "'"); }
+  const remettreCle = () => { if (cleDpci === 'NULL' || cleDpci === '') { exec("UPDATE t_grossiste SET str_CLE_RECEPTEUR = " + (cleDpci === 'NULL' ? 'NULL' : "''") + " WHERE lg_GROSSISTE_ID = '" + GROSSISTES.DPCI + "'"); } };
   P = q("SELECT GROUP_CONCAT(lg_FAMILLE_ID ORDER BY str_NAME SEPARATOR '|') FROM (SELECT lg_FAMILLE_ID, str_NAME FROM t_famille WHERE str_STATUT='enable' AND int_CIP REGEXP '^[0-9]{7}$' ORDER BY str_NAME LIMIT 2) x").split('|');
   const { chromium } = require('playwright-core');
   const b = await ENV_E2E.lancer(chromium);
@@ -217,6 +222,7 @@ const url = (G, u) => exec("UPDATE t_grossiste SET str_URL_PHARMAML = " + (u ===
     await b.close();
     serveur.close();
     nettoyer();
+    remettreCle();
     for (const [n, G] of Object.entries(GROSSISTES)) {
       url(G, sauves[n].url); secours(G, sauves[n].secours);
       exec("UPDATE t_grossiste SET str_PHARMAML_CONTROLE = " + (sauves[n].controle ? "'" + sauves[n].controle + "'" : 'NULL') + " WHERE lg_GROSSISTE_ID = '" + G + "'");

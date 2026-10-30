@@ -77,8 +77,12 @@ function bl(id, statut, dateBl, cloture, qte) {
     const apercu = async () => {
       await p.evaluate(() => { const b = Ext.getCmp('apercu_fiche_article'); b.hide(); b.produitAffiche = null; b.update(''); });
       await p.waitForTimeout(400);
-      await p.evaluate((P) => { const g = Ext.ComponentQuery.query('famillemanager')[0]; g.getView().getNode(g.getStore().findExact('lg_FAMILLE_ID', P)).setAttribute('data-e2e', 'ligne'); }, P);
-      await p.locator('[data-e2e=ligne] td').filter({ visible: true }).nth(2).dblclick({ timeout: 90000 });
+      /* la ligne est retrouvee a chaque essai : un marquage du DOM disparait quand la grille se redessine */
+      await p.waitForFunction((P) => { const g = Ext.ComponentQuery.query('famillemanager')[0], n = g.getView().getNode(g.getStore().findExact('lg_FAMILLE_ID', P));
+        return n && n.offsetParent !== null; }, P, { timeout: 90000 });
+      const centre = await p.evaluate((P) => { const g = Ext.ComponentQuery.query('famillemanager')[0], n = g.getView().getNode(g.getStore().findExact('lg_FAMILLE_ID', P));
+        const td = Array.from(n.querySelectorAll('td')).filter((c) => c.offsetWidth > 0)[2], r = td.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; }, P);
+      await p.mouse.dblclick(centre.x, centre.y);
       await p.waitForFunction(() => { const b = Ext.getCmp('apercu_fiche_article'); return b.isVisible() && /entr/i.test(b.getEl().dom.textContent); }, null, { timeout: 20000 });
       return p.evaluate(() => Ext.getCmp('apercu_fiche_article').getEl().dom.textContent.replace(/\s+/g, ' '));
     };

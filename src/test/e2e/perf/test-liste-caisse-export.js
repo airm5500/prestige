@@ -8,12 +8,13 @@
  */
 const { chromium } = require('playwright-core');
 const ENV_E2E = require('../outils/poste');
+const { fichierEdition } = require('../support/editions');
 const { execFileSync } = require('child_process');
 const fs = require('fs'); const path = require('path');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', ENV_E2E.BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
-const DOSSIER = '/opt/CONF/LABOREX/REPORTS', M = 'rp_listecaisses1';
+const DOSSIER = ENV_E2E.REPORTS, M = 'rp_listecaisses1';
 const F = ['operateur:String', 'datas:java.util.List'];
 const posee = !fs.existsSync(path.join(DOSSIER, M + '.jrxml')) && !fs.existsSync(path.join(DOSSIER, M + '.jasper'));
 if (posee) {
@@ -34,7 +35,7 @@ if (posee) {
       '../BalancePdfServlet?mode=LISTECAISSE&startDate=' + d + '&endDate=' + f + '&startH=' + (process.env.H1 || '00:00') + '&endH=' + (process.env.H2 || '23:59') + '&user=&reglement=');
     const ms = Date.now() - t;
     let lien = null; try { const j = JSON.parse(r.t); lien = j.msg || j.url; } catch (e) { if (/\/data\/reports\//.test(r.url)) { lien = r.url; } }
-    const fichier = lien ? path.join(DOSSIER, 'pdf', path.basename(lien.split('?')[0])) : null;
+    const fichier = lien ? fichierEdition(lien.split('?')[0]) : null;  /* dossier des editions du poste (support/editions.js) */
     const lignes = fichier && fs.existsSync(fichier) ? execFileSync('pdftotext', ['-enc', 'UTF-8', '-layout', fichier, '-'], { encoding: 'utf8', maxBuffer: 1 << 28 }).split(/\r?\n/).map((l) => l.trim()).filter((l) => l.startsWith('L|') || l.startsWith('T|') || /SumCaisseDTO/.test(l)) : [];
     if (fichier && fs.existsSync(fichier)) { fs.unlinkSync(fichier); }
     ok('Un mois en moins de 10 s', ms < 10000 && lignes.length > 0, ms + ' ms ' + (lignes.length ? '' : r.t.slice(0, 120)));

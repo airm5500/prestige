@@ -37,7 +37,7 @@ const IMPRESSIONS = [
 
 /* Modeles minimaux POSES PAR LE TEST quand le modele de l'officine est absent du banc (ils ne sont pas dans le
    depot) : ils n'impriment que le titre P_H_CLT_INFOS, ce qui suffit a verifier le rappel des filtres. Retires a la fin. */
-const DOSSIER_MODELES = process.env.REPORTS_FILE || '/opt/CONF/LABOREX/REPORTS';
+const DOSSIER_MODELES = ENV_E2E.REPORTS;
 const MODELES = ['rp_margeproduits', 'rp_articles_invendus', 'rp_comparaison_surstock', 'rp_perimev2', 'rp_perimegroup', 'rp_gestion_surstock',
   'rp_etatdestock', 'rp_articlesvendus', 'rp_articlesvendusgroup', 'rp_articlesvendus_rayon', 'rp_articlesvendusgroup_rayon', 'rp_evaluation_vente', 'rp_feuille_de_match', 'rp_fiche_article'];
 const poses = [];
@@ -73,7 +73,7 @@ function retirerModeles() {
         if (r.pdf) { fichier = path.join(os.tmpdir(), 'imp-' + Date.now() + '.pdf'); fs.writeFileSync(fichier, Buffer.from(r.pdf)); }
         else { let j = null; try { j = JSON.parse(r.texte); } catch (e) {} const lien = (j && (j.msg || j.url)) || (/\/data\/reports\//.test(r.url) ? r.url : null);
           if (lien && /\.pdf/.test(lien)) { fichier = fichierEdition(lien); } }
-        const texte = fichier && fs.existsSync(fichier) ? execFileSync('pdftotext', ['-enc', 'UTF-8', '-layout', fichier, '-'], { encoding: 'utf8' }).replace(/\s+/g, ' ') : '';
+        const texte = fichier && fs.existsSync(fichier) ? execFileSync('pdftotext', ['-enc', 'UTF-8', '-layout', fichier, '-'], { encoding: 'utf8', maxBuffer: 1 << 28 }).replace(/\s+/g, ' ') : '';
         ok(nom + ' : noms des 2 rayons dans l\'impression, sans identifiant', texte && NOMS.every((n) => texte.indexOf(n) >= 0) && R.every((id) => texte.indexOf(id) < 0),
           texte ? texte.slice(0, 220) : (r.s + ' ' + r.ct + ' ' + r.url + ' ' + r.texte.slice(0, 160)));
       } catch (e) {
