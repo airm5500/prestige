@@ -753,7 +753,9 @@ Ext.define('testextjs.controller.VenteEnDepotCtr', {
                         click: this.addClientForm
                     },
 
-                    "clientLambda form textfield": {
+                    /* Rapport du 26/10, J23 : « clientLambda » visait la fenetre de la vente ordinaire, dont l'Entree
+                     * lisait ici un formulaire de depot absent (« form is undefined »). */
+                    'clientLambdadepot form textfield': {
                         specialkey: this.onClientLambdaSpecialKey
                     },
                     'clientLambdadepot #btnNewLambda': {

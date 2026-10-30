@@ -112,9 +112,8 @@ Ext.define('testextjs.controller.StatVenteDepotCtr', {
     },
     onPrintTicket: function (id, lgTYPEVENTEID, copy) {
         let url = (lgTYPEVENTEID === '1') ? '../api/v1/vente/ticket/vno/' + id : '../api/v1/vente/ticket/vo/' + id;
-        if (copy) {
-            url = '../api/v1/vente/copy/' + id;
-        }
+        /* Rapport du 26/10, A8 : la route vente/copy a ete retiree du serveur (juin 2024) ; une vente marquee copie
+         * repondait 404 et le ticket ne sortait pas. Elle passe par la route d'impression de son type. */
         if (lgTYPEVENTEID === '5') {
             url = '../api/v1/vente/ticket/depot/' + id;
         }

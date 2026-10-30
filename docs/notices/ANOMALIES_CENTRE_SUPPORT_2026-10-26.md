@@ -557,6 +557,25 @@ téléphone qu'il contient ne sont pas repris ici. Le code est comparé à `clau
   - lenteurs isolées : `custom/ponctionner`, `recap/dashboard`, `balance/balancesalecash`, `flag`,
     `ws/inventaires/details`.
 
+### Points P2 de leana : corrigés (30/10), vérifiés sur le 9080 (base `laborex_perf`)
+
+Chaque point a d'abord été reproduit par un test qui échoue sur la version déployée, puis rejoué après correction.
+
+| Point | Correction | Test | Avant → après |
+|---|---|---|---|
+| J23 | `VenteEnDepotCtr` écoute `clientLambdadepot form textfield`, sa propre fenêtre : Entrée dans la fenêtre « client » de la vente ordinaire ne le déclenche plus | `test-leana-vente.js`, volet J23 : SERVICE CLIENT > Ventes, vente simulée, « ASSOCIER UN CLIENT », « nouveau client », Entrée dans un champ vide | `Cannot read properties of undefined (reading 'isValid')` → aucune erreur (2/2) |
+| J24 | `doClotureCore` : un net absent est traité comme un net à recalculer (message existant de recalcul du net à payer, puis `net/vno`) ; `onbtncloturerVnoComptant` redemande le net au lieu de le lire, `handleExtraAmountInputValue` s'arrête | `test-leana-vente.js`, volet J24 : net vidé comme le fait `loadVenteData` (reprise d'une vente), Entrée sur « Montant reçu » | `Cannot read properties of null (reading 'montantNet')`, aucun message, net jamais redemandé (1/5) → message, `net/vno` demandé, net affiché (5/5) |
+| A8 | `VenteFinisCtr` et `StatVenteDepotCtr` impriment une vente marquée copie par la route de son type (`ticket/vno`, `ticket/vo`, `ticket/depot`) ; `vente/copy` n'est plus appelée | `test-a8-copie-ticket.js` : « Vente terminées », liste simulée (une VNO, une VO marquées copie), icône « Réimprimer le ticket » | `vente/copy/…` (404) → `ticket/vno/…` et `ticket/vo/…` (3/3) |
+| M4 | `SmsImpl.sendSMS` refuse avant envoi un numéro qui n'est pas un mobile ivoirien (`NUMERO_INVALIDE`, motif du contrôle, aucun appel au fournisseur ni événement du support) ; il ne compte pas dans le total de la notification. Le numéro est masqué (`TelephoneCi.masquer`, deux derniers chiffres) dans le journal du serveur et dans l'événement de refus | `TelephoneCiTest` (masquage), `SmsNumeroInvalideTest` (refus local : étranger, fixe, ancien format, trop court) | ne compilait pas → 8/8 |
+
+- Les quatre corrections sont locales : `VenteCtr.js` diffère de la branche de travail, les ajouts y restent limités à trois
+  conditions.
+- `onPrintTicketCopy` (`VenteCtr`, `VenteEnDepotCtr`) appelle encore `vente/copy`, mais aucun écran ne l'appelle : laissé
+  tel quel.
+- Ce qui n'a pas été rejoué : les tests d'écran existants de la vente et du dépôt (`retours/test-vente-*.js`,
+  `test-depot-onglets.js`) lisent et écrivent `laborex_v1_db` en direct, alors que le 9080 vise `laborex_perf`. Ils
+  sont à rejouer sur le 8080 avant fusion.
+
 ## Annexe A. Rejouer les reproductions
 
 Variables (Node 22) :

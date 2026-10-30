@@ -275,16 +275,27 @@ public class SmsImpl implements SmsService {
                 if (tc == null || StringUtils.isEmpty(tc.getStrADRESSE())) {
                     continue;
                 }
+                // Rapport du 26/10, M4 : un numero qui n'est pas un mobile ivoirien partait tel quel et le fournisseur
+                // le refusait (« No valid addresses »). Il est refuse ici, sans appel ni evenement du support, et
+                // n'est pas compte : il ne bloque pas la notification des autres destinataires.
+                SmsSendResult refus = refusAvantEnvoi(tc.getStrADRESSE());
+                if (refus != null) {
+                    applyResultToClient(toClient, refus, provider.getCode());
+                    LOG.log(Level.INFO, "sendSMS >>> notification={0}, client={1}, numero={2} ecarte : {3}",
+                            new Object[] { notification.getId(), toClient.getId(),
+                                    util.TelephoneCi.masquer(tc.getStrADRESSE()), refus.getErrorMessage() });
+                    continue;
+                }
                 total++;
                 // Derniere normalisation avant le fournisseur (point 2) : un numero saisi avec espaces, « + » ou
-                // indicatif est ramene au format local a 10 chiffres ; un numero non reconnu part tel quel.
+                // indicatif est ramene au format local a 10 chiffres.
                 String numero = util.TelephoneCi.localOuSaisie(tc.getStrADRESSE());
                 // customData = id du destinataire : corrélation exacte des accusés de réception.
                 SmsSendResult result = provider.send(numero, message, toClient.getId());
                 applyResultToClient(toClient, result, provider.getCode());
                 LOG.log(Level.INFO, "sendSMS >>> notification={0}, client={1}, numero={2}, fournisseur={3}, {4}",
-                        new Object[] { notification.getId(), toClient.getId(), tc.getStrADRESSE(), provider.getCode(),
-                                result.toLog() });
+                        new Object[] { notification.getId(), toClient.getId(), util.TelephoneCi.masquer(numero),
+                                provider.getCode(), result.toLog() });
                 if (result.isAccepted()) {
                     sent++;
                     coupeCircuit.enregistrerSucces();
@@ -300,7 +311,7 @@ public class SmsImpl implements SmsService {
                     signalerRefus(result, provider.getCode(),
                             "Envoi SMS refuse par " + provider.getCode() + " (code " + result.getErrorCode() + ")",
                             "Notification " + notification.getId() + ", destinataire " + toClient.getId() + ", numero "
-                                    + tc.getStrADRESSE() + ". Erreur : " + result.getErrorMessage());
+                                    + util.TelephoneCi.masquer(numero) + ". Erreur : " + result.getErrorMessage());
                     if (envoisSuspendus()) {
                         // Inutile de derouler la liste des destinataires : chacun recevrait le meme refus.
                         break;
@@ -324,6 +335,13 @@ public class SmsImpl implements SmsService {
     }
 
     /** Reporte le résultat du fournisseur sur le destinataire (statut, id de suivi, erreur). */
+    /** Refus local d'un numero qui n'est pas un mobile ivoirien (aucun appel HTTP), ou null s'il peut partir. */
+    static SmsSendResult refusAvantEnvoi(String adresse) {
+        util.TelephoneCi.Resultat controle = util.TelephoneCi.controler(adresse);
+        return controle.isValide() ? null
+                : SmsSendResult.rejected(0, "NUMERO_INVALIDE", "Numéro non mobile ivoirien : " + controle.getMotif());
+    }
+
     private void applyResultToClient(NotificationClient toClient, SmsSendResult result, String providerCode) {
         toClient.setLastHttpStatus(result.getHttpStatus());
         toClient.setFournisseurCode(providerCode);

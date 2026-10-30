@@ -122,6 +122,19 @@ public final class TelephoneCi {
         return r.isValide() ? r.getLocal() : saisie;
     }
 
+    /**
+     * Le numero tel qu'on peut l'ecrire dans un journal : separateurs retires, tout masque sauf les deux derniers
+     * chiffres (« ********50 »). Rapport du 26/10, M4 : le numero du destinataire figurait en clair dans le journal du
+     * support et dans ses exports.
+     */
+    public static String masquer(String numero) {
+        String n = numero == null ? "" : numero.replaceAll("[\\s.\\-()]", "");
+        if (n.length() <= 2) {
+            return n.replaceAll(".", "*");
+        }
+        return n.substring(0, n.length() - 2).replaceAll(".", "*") + n.substring(n.length() - 2);
+    }
+
     private static Resultat rejet(String motif) {
         return new Resultat(false, "", "", motif);
     }
