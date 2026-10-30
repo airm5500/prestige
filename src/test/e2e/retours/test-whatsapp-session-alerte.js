@@ -38,7 +38,7 @@ const sante = (etat) => fetch('http://localhost:8080/prestige/api/v1/whatsapp/we
   const sauve = q("SELECT CONCAT_WS('#~#', actif, mode_test, IFNULL(web_url, 'NULL'), IFNULL(web_jeton, 'NULL')) FROM whatsapp_compte WHERE mode = 'WEB'").split('#~#');
   const colonnes = q("SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'whatsapp_compte' AND COLUMN_NAME = 'sante'");
   const tailleLog = fs.statSync(LOG).size;
-  let srv = spawn('/opt/node22/bin/node', [path.join(__dirname, '../../../../outils/whatsapp-web/src/serveur.js')],
+  let srv = spawn(process.execPath, [path.join(__dirname, '../../../../outils/whatsapp-web/src/serveur.js')],
     { env: Object.assign({}, process.env, { WHATSAPP_FAUX: '1', WHATSAPP_FAUX_CONNECTE: '1', JETON, PORT: String(PORT), DOSSIER }), stdio: ['ignore', 'ignore', 'ignore'] });
   const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1500, height: 900 } })).newPage();

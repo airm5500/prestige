@@ -28,7 +28,7 @@ const lit = (s) => (s === undefined || s === 'NULL' || s === '' ? 'NULL' : "'" +
 (async () => {
   const sauve = q("SELECT CONCAT_WS('#~#', actif, mode_test, IFNULL(web_url, 'NULL'), IFNULL(web_jeton, 'NULL'), IFNULL(web_regles, 'NULL')) FROM whatsapp_compte WHERE mode = 'WEB'").split('#~#');
   exec("DELETE FROM whatsapp_modele WHERE nom LIKE 'e2e_%'");
-  const srv = spawn('/opt/node22/bin/node', [path.join(__dirname, '../../../../outils/whatsapp-web/src/serveur.js')],
+  const srv = spawn(process.execPath, [path.join(__dirname, '../../../../outils/whatsapp-web/src/serveur.js')],
     { env: Object.assign({}, process.env, { WHATSAPP_FAUX: '1', WHATSAPP_FAUX_CONNECTE: '1', JETON, PORT: String(PORT), DOSSIER }), stdio: ['ignore', 'pipe', 'pipe'] });
   let journal = ''; srv.stdout.on('data', (d) => { journal += d; }); srv.stderr.on('data', (d) => { journal += d; });
   const b = await ENV_E2E.lancer(chromium);

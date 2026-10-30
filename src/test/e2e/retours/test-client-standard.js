@@ -19,8 +19,10 @@ const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, BASE, '-e', s],
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 
 const NOM = 'E2ESTANDARD';
-const TEL = '0708473750';
-const TEL2 = '0508473751';
+/* numeros tires au hasard parmi ceux qu'aucun client n'a deja (sur une copie reelle, un numero fixe peut etre pris) */
+const libre = (prefixe) => { for (;;) { const n = prefixe + String(Math.floor(Math.random() * 1e8)).padStart(8, '0'); if (q("SELECT COUNT(*) FROM t_client WHERE str_TELEPHONE = '" + n + "'") === '0') { return n; } } };
+const TEL = libre('07');
+const TEL2 = libre('05');
 
 function nettoyer() {
   // Le client saisi entierement au clavier est retire lui aussi. Son compte client d'abord : la cle
@@ -121,7 +123,7 @@ function nettoyer() {
       && obligatoires.indexOf('str_TELEPHONE') >= 0 && champs.indexOf('dt_NAISSANCE') >= 0 && champs.indexOf('str_SEXE') >= 0,
       JSON.stringify({ champs, obligatoires }));
 
-    await saisir(NOM + '-A', 'Jean Marc', '07 08 47 37 50');
+    await saisir(NOM + '-A', 'Jean Marc', TEL.replace(/(\d\d)(?=\d)/g, '$1 '));
     await enregistrer();
     let apres = await etatFenetre();
     ok('Le client standard est créé et la fenêtre se referme', apres.ouverte === false, JSON.stringify(apres));

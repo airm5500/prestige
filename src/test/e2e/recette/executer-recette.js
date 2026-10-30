@@ -24,7 +24,7 @@ for (const t of tests) {
   /* SORTIE est la variable de cet executeur : plusieurs tests l'utilisent pour leur dossier de captures, on ne la leur passe pas */
   const env = Object.assign({}, process.env, { NODE_PATH });
   delete env.SORTIE; delete env.SAUTER;
-  const r = spawnSync('/opt/node22/bin/node', [path.join(E2E, t)], { cwd: RACINE, env, encoding: 'utf8', timeout: 1200000, maxBuffer: 64 * 1024 * 1024 });
+  const r = spawnSync(process.execPath, [path.join(E2E, t)], { cwd: RACINE, env, encoding: 'utf8', timeout: 1200000, maxBuffer: 64 * 1024 * 1024 });
   const sortie = (r.stdout || '') + (r.stderr || '');
   /* sortie complete de chaque test, pour diagnostiquer un echec */
   fs.writeFileSync(SORTIE.replace(/\.json$/, '') + '-' + t.replace(/[\/]/g, '_') + '.log', sortie);

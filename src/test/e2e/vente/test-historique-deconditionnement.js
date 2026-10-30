@@ -38,15 +38,18 @@ const DEPOT_ESSAI = 'E2E-HDEC-DEPOT';
 const retirerDepot = () => exec(`DELETE FROM t_famille_stock WHERE lg_EMPLACEMENT_ID = '${DEPOT_ESSAI}';`
   + `DELETE FROM hmvtproduit WHERE lg_EMPLACEMENT_ID = '${DEPOT_ESSAI}'; DELETE FROM t_emplacement WHERE lg_EMPLACEMENT_ID = '${DEPOT_ESSAI}'`);
 retirerDepot();
-if (q("SELECT COUNT(*) FROM t_emplacement WHERE lg_EMPLACEMENT_ID <> '1' AND str_STATUT = 'enable' AND lg_TYPEDEPOT_ID = '2'") === '0') {
+/* depot client : un emplacement de type 2 dont le compte client a bien un client (le depot d'un autre test peut
+   n'en avoir aucun) */
+const DEPOT_CLIENT = "SELECT CONCAT_WS('|', e.lg_EMPLACEMENT_ID, cc.lg_CLIENT_ID) FROM t_emplacement e"
+  + " JOIN t_compte_client cc ON cc.lg_COMPTE_CLIENT_ID = e.lg_COMPTE_CLIENT_ID WHERE e.lg_EMPLACEMENT_ID <> '1'"
+  + " AND e.str_STATUT = 'enable' AND e.lg_TYPEDEPOT_ID = '2' AND cc.lg_CLIENT_ID IS NOT NULL ORDER BY e.lg_EMPLACEMENT_ID LIMIT 1";
+if (!q(DEPOT_CLIENT)) {
   exec("INSERT INTO t_emplacement (lg_EMPLACEMENT_ID, lg_COMPTE_CLIENT_ID, str_NAME, str_DESCRIPTION, str_LOCALITE, str_FIRST_NAME, str_LAST_NAME,"
     + " str_PHONE, dt_CREATED, dt_UPDATED, str_STATUT, lg_TYPEDEPOT_ID, bool_SAME_LOCATION) SELECT '" + DEPOT_ESSAI + "', lg_COMPTE_CLIENT_ID, 'DEPOT E2E DECOND',"
     + " 'E2E', 'ABOBO', 'ESSAI', 'Depot', '0700000000', NOW(), NOW(), 'enable', '2', 0 FROM t_compte_client cc"
     + " WHERE EXISTS (SELECT 1 FROM t_client c WHERE c.lg_CLIENT_ID = cc.lg_CLIENT_ID AND c.str_STATUT = 'enable') LIMIT 1");
 }
-const [DEP, DEP_CLIENT] = q("SELECT CONCAT_WS('|', e.lg_EMPLACEMENT_ID, cc.lg_CLIENT_ID) FROM t_emplacement e"
-  + " JOIN t_compte_client cc ON cc.lg_COMPTE_CLIENT_ID = e.lg_COMPTE_CLIENT_ID WHERE e.lg_EMPLACEMENT_ID <> '1'"
-  + " AND e.str_STATUT = 'enable' AND e.lg_TYPEDEPOT_ID = '2' ORDER BY e.lg_EMPLACEMENT_ID LIMIT 1").split('|');
+const [DEP, DEP_CLIENT] = q(DEPOT_CLIENT).split('|');
 
 const stockLigne = (f, e) => q(`SELECT COALESCE((SELECT CONCAT(int_NUMBER_AVAILABLE, '|', int_NUMBER) FROM t_famille_stock WHERE lg_FAMILLE_ID = '${f}' AND lg_EMPLACEMENT_ID = '${e}' LIMIT 1), '')`);
 const stock = (f, e) => Number(q(`SELECT int_NUMBER_AVAILABLE FROM t_famille_stock WHERE lg_FAMILLE_ID = '${f}' AND lg_EMPLACEMENT_ID = '${e}' LIMIT 1`));

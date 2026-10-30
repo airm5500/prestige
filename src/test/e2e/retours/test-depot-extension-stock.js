@@ -54,7 +54,9 @@ function poser() {
   const arts = q("SELECT GROUP_CONCAT(CONCAT(lg_FAMILLE_ID, ':', COALESCE(int_PAF,0), ':', COALESCE(int_PRICE,0),"
     + " ':', COALESCE(int_CIP,''), ':', COALESCE(lg_ZONE_GEO_ID,''), ':', COALESCE(str_NAME,'')) SEPARATOR '|')"
     + " FROM (SELECT lg_FAMILLE_ID, int_PAF, int_PRICE, int_CIP, lg_ZONE_GEO_ID, str_NAME"
-    + " FROM t_famille WHERE str_STATUT='enable' AND int_PAF>0 AND int_PRICE>0 AND int_CIP IS NOT NULL"
+    + " FROM t_famille f WHERE str_STATUT='enable' AND int_PAF>0 AND int_PRICE>0 AND int_CIP IS NOT NULL"
+    /* pas d'article dont le CIP prolonge le sien (detail « 8452598D ») : la recherche par CIP les garderait tous les deux */
+    + " AND NOT EXISTS (SELECT 1 FROM t_famille f2 WHERE f2.lg_FAMILLE_ID <> f.lg_FAMILLE_ID AND f2.int_CIP LIKE CONCAT(f.int_CIP, '%'))"
     + " ORDER BY str_NAME LIMIT 5) x").split('|')
     .map((x) => { const p = x.split(':'); return { id: p[0], pa: parseInt(p[1], 10), pv: parseInt(p[2], 10),
       cip: p[3], zone: p[4], nom: p[5] }; });
