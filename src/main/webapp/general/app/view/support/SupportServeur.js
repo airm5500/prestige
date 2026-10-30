@@ -401,6 +401,8 @@ Ext.define('testextjs.view.support.SupportServeur', {
                                     handler: function (b) {
                                         me.appliquerMariadb(b);
                                     }},
+                                {xtype: 'checkbox', itemId: 'avecTampon', boxLabel: 'avec le tampon InnoDB (long)', hidden: true,
+                                    tooltip: 'Le tampon InnoDB se redimensionne par morceaux pendant plusieurs minutes : à faire hors des heures de vente.'},
                                 {xtype: 'tbtext', itemId: 'droitsMariadb', text: ''},
                                 {itemId: 'ecrireMyIni', text: 'Écrire dans my.ini', iconCls: 'fa fa-save', hidden: true,
                                     tooltip: 'Écrit les réglages conseillés dans my.ini (copie de sauvegarde avant) ; MariaDB les prendra à son prochain démarrage.',
@@ -458,6 +460,12 @@ Ext.define('testextjs.view.support.SupportServeur', {
         var aFaire = me.mariadbAFaire();
         b.setVisible(!!(r.superAdmin && r.mariadbLocale));
         b.setDisabled(!d || !d.ok || !aFaire.length);
+        /* le tampon InnoDB se redimensionne pendant plusieurs minutes : seulement si on le demande */
+        var tampon = me.down('#avecTampon');
+        tampon.setVisible(b.isVisible() && Ext.Array.some(aFaire, function (x) {
+            return x.cle === 'innodb_buffer_pool_size';
+        }));
+        tampon.setValue(false);
         t.update(!r.superAdmin || !r.mariadbLocale ? '' : d && !d.ok ? '<span class="srv-critique">Droit SUPER manquant</span>'
                 : aFaire.length ? aFaire.length + ' réglage(s) à ajuster' : '<span class="srv-ok">Rien à ajuster</span>');
         if (d && !d.ok) {
@@ -525,13 +533,18 @@ Ext.define('testextjs.view.support.SupportServeur', {
         REFUSE: ['srv-critique', 'refusé'], ECHEC: ['srv-critique', 'échec'], A_FAIRE: ['', 'non appliqué']},
 
     appliquerMariadb: function (b) {
-        var me = this, l = me.mariadbAFaire(), long = Ext.Array.some(l, function (x) {
-            return x.cle === 'innodb_buffer_pool_size';
+        var me = this, avecTampon = me.down('#avecTampon').getValue();
+        var l = Ext.Array.filter(me.mariadbAFaire(), function (x) {
+            return avecTampon || x.cle !== 'innodb_buffer_pool_size';
         });
-        me.confirmerDansBouton(b, 'Confirmer : ' + l.length + ' réglage(s)' + (long ? ' (tampon InnoDB : plusieurs minutes)' : ''), function () {
+        if (!l.length) {
+            me.down('#etatReglages').update('<span class="srv-ajuster">Seul le tampon InnoDB reste à ajuster : cocher « avec le tampon InnoDB » pour l\'appliquer.</span>');
+            return;
+        }
+        me.confirmerDansBouton(b, 'Confirmer : ' + l.length + ' réglage(s)' + (avecTampon ? ' (tampon InnoDB : plusieurs minutes)' : ''), function () {
             var o = me.down('#ongletReglages');
             o.setLoading('Application des réglages de MariaDB...');
-            me.appel('POST', 'reglages/mariadb', {}, function (r) {
+            me.appel('POST', 'reglages/mariadb', {cles: Ext.Array.pluck(l, 'cle')}, function (r) {
                 o.setLoading(false);
                 if (!r.success) {
                     me.down('#etatReglages').update('<span class="srv-critique">' + me.esc(r.message) + '</span>');
