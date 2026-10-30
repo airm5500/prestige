@@ -202,6 +202,24 @@ public class ServeurVieService {
         return m;
     }
 
+    /**
+     * Variables posees par SET GLOBAL depuis le demarrage de MariaDB (GLOBAL_VALUE_ORIGIN = SQL), noms en minuscules :
+     * absentes de my.ini, elles reviendraient a leur valeur par defaut au redemarrage. Vide si la table manque.
+     */
+    @SuppressWarnings("unchecked")
+    public java.util.Set<String> variablesPoseesAChaud() {
+        java.util.Set<String> s = new java.util.HashSet<>();
+        try {
+            for (Object o : em.createNativeQuery("SELECT LOWER(VARIABLE_NAME) FROM information_schema.SYSTEM_VARIABLES"
+                    + " WHERE GLOBAL_VALUE_ORIGIN = 'SQL'").getResultList()) {
+                s.add(String.valueOf(o));
+            }
+        } catch (RuntimeException e) {
+            return s;
+        }
+        return s;
+    }
+
     /** Compte de l'application vu par MariaDB (CURRENT_USER(), « nom@hote »). */
     public String compteBase() {
         return String.valueOf(em.createNativeQuery("SELECT CURRENT_USER()").getSingleResult());

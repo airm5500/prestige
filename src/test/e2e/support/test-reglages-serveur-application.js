@@ -36,7 +36,7 @@ const CLES = ['innodb_buffer_pool_size', 'innodb_log_buffer_size', 'max_allowed_
 const variables = () => {
   const m = {};
   q("SELECT CONCAT(LOWER(VARIABLE_NAME), '=', VARIABLE_VALUE) FROM information_schema.GLOBAL_VARIABLES WHERE LOWER(VARIABLE_NAME) IN ('"
-    + CLES.join("','") + "')").split('\n').filter(Boolean).forEach((l) => { const i = l.indexOf('='); m[l.slice(0, i)] = l.slice(i + 1); });
+    + CLES.join("','") + "')").split(/\r?\n/).filter(Boolean).forEach((l) => { const i = l.indexOf('='); m[l.slice(0, i)] = l.slice(i + 1); });
   return m;
 };
 /* valeurs SET GLOBAL : ON/OFF en 1/0 */
@@ -60,6 +60,8 @@ function appel(methode, chemin, cookie, corps) {
     console.log('FAIL  instance MariaDB du port 3306 refusée : ce test change ses réglages globaux et son my.ini (voir l\'en-tête)');
     process.exit(1);
   }
+  /* navigateur lance avant toute modification : un echec de lancement ne laisse pas l'instance dereglee */
+  const b = await ENV_E2E.lancer(chromium);
   const datadir = q('SELECT @@datadir').replace(/\\/g, '/').replace(/\/+$/, '');
   const MY_INI = datadir + '/my.ini';
   const debut = q('SELECT NOW()');
@@ -76,7 +78,6 @@ function appel(methode, chemin, cookie, corps) {
   const uptimeAvant = Number(q("SELECT VARIABLE_VALUE FROM information_schema.GLOBAL_STATUS WHERE VARIABLE_NAME = 'UPTIME'"));
   const tamponAvant = varsAvant.innodb_buffer_pool_size;
 
-  const b = await ENV_E2E.lancer(chromium);
   const dialogues = [], err = [];
   try {
     const p = await (await b.newContext({ viewport: { width: 1600, height: 950 } })).newPage();
@@ -123,7 +124,7 @@ function appel(methode, chemin, cookie, corps) {
       && v.thread_cache_size === '64' && v.innodb_print_all_deadlocks === 'ON', JSON.stringify(v));
     ok('innodb_flush_log_at_trx_commit remis à 1', v.innodb_flush_log_at_trx_commit === '1', v.innodb_flush_log_at_trx_commit);
     ok('Tampon InnoDB non touché (case décochée)', v.innodb_buffer_pool_size === tamponAvant, tamponAvant + ' -> ' + v.innodb_buffer_pool_size);
-    const journal = q("SELECT CONCAT(str_CREATEDBY, ' | ', REPLACE(str_DETAIL, '\\n', ' ; ')) FROM t_event_log WHERE str_TABLECONCERN = 'mariadb'"
+    const journal = q("SELECT CONCAT(str_CREATED_BY, ' | ', REPLACE(str_DETAIL, '\\n', ' ; ')) FROM t_event_log WHERE str_TABLE_CONCERN = 'mariadb'"
       + " AND dt_CREATED >= '" + debut + "' ORDER BY dt_CREATED DESC LIMIT 1");
     ok('Journal : qui, et chaque réglage avant puis après', journal.startsWith(ENV_E2E.LOGIN_SUPPORT + ' |') && /slow_query_log : désactivé -> activé/.test(journal)
       && /innodb_flush_log_at_trx_commit : 2 -> 1/.test(journal), journal.slice(0, 300));
@@ -143,13 +144,18 @@ function appel(methode, chemin, cookie, corps) {
     const apres = fs.readFileSync(MY_INI, 'latin1');
     ok('my.ini : innodb_flush_log_at_trx_commit=1, requêtes lentes, 64 fils', /^innodb_flush_log_at_trx_commit=1\r?$/m.test(apres)
       && /^slow_query_log=1\r?$/m.test(apres) && /^thread_cache_size=64\r?$/m.test(apres), apres.slice(-400));
+    const tamponIni = (t) => (t.match(/^innodb_buffer_pool_size\s*=.*$/m) || [''])[0].trim();
+    ok('my.ini : tampon InnoDB non écrit (case décochée)', tamponIni(apres) === tamponIni(iniAvant.toString('latin1')),
+      tamponIni(iniAvant.toString('latin1')) + ' -> ' + tamponIni(apres));
     const autres = (t) => t.split(/\r?\n/).filter((l) => !CLES.some((c) => l.replace(/-/g, '_').startsWith(c)) && !/^# Reglages conseilles par Prestige/.test(l) && l.trim());
     ok('my.ini : toutes les autres lignes inchangées', JSON.stringify(autres(apres)) === JSON.stringify(autres(iniAvant.toString('latin1'))));
     ok('MariaDB non redémarré', Number(q("SELECT VARIABLE_VALUE FROM information_schema.GLOBAL_STATUS WHERE VARIABLE_NAME = 'UPTIME'")) >= uptimeAvant);
-    ok('Journal : my.ini avant / après et sauvegarde', /Sauvegarde : /.test(q("SELECT str_DETAIL FROM t_event_log WHERE str_TABLECONCERN = 'my.ini' AND dt_CREATED >= '"
+    ok('Journal : my.ini avant / après et sauvegarde', /Sauvegarde : /.test(q("SELECT str_DETAIL FROM t_event_log WHERE str_TABLE_CONCERN = 'my.ini' AND dt_CREATED >= '"
       + debut + "' ORDER BY dt_CREATED DESC LIMIT 1")));
     await pret();
-    ok('Après écriture : « my.ini à jour », bouton grisé', /my\.ini à jour/.test(await texte('etatMyIni')) && !(await bouton('ecrireMyIni')).actif, await texte('etatMyIni'));
+    const reste = await p.evaluate(() => Ext.ComponentQuery.query('supportserveur')[0].fichierMyIni.cles);
+    ok('Après écriture : il ne reste au plus que le tampon InnoDB (non choisi)', reste.every((x) => x === 'innodb_buffer_pool_size'),
+      JSON.stringify(reste) + ' ' + await texte('etatMyIni'));
 
     ok('Aucune fenêtre surgissante', dialogues.length === 0 && !(await p.evaluate(() => Ext.ComponentQuery.query('window[hidden=false]').some((w) => !/tip/i.test(w.xtype)))), dialogues.join(' | '));
     ok('Aucune erreur JavaScript', err.length === 0, err.join(' | '));
@@ -160,8 +166,9 @@ function appel(methode, chemin, cookie, corps) {
     const lecture = JSON.parse((await appel('GET', 'api/v1/support/serveur/reglages', c)).corps);
     const refus = JSON.parse((await appel('POST', 'api/v1/support/serveur/reglages/mariadb', c, {})).corps);
     const refusIni = JSON.parse((await appel('POST', 'api/v1/support/serveur/reglages/myini', c, {})).corps);
-    ok('Non super administrateur : lecture permise, application et my.ini refusées', lecture.success && lecture.superAdmin === false
-      && !refus.success && /super administrateur/i.test(refus.message) && !refusIni.success, refus.message + ' / ' + refusIni.message);
+    /* droits SYSTEME reserves au super administrateur (retours du 25/10) : meme accorde, l'ecran lui reste ferme */
+    ok('Non super administrateur : lecture, application et my.ini refusées', !lecture.success && !refus.success && !refusIni.success,
+      lecture.message + ' / ' + refus.message + ' / ' + refusIni.message);
   } catch (e) {
     ok('Déroulement sans exception', false, e.stack);
   } finally {
@@ -177,7 +184,7 @@ function appel(methode, chemin, cookie, corps) {
     fs.writeFileSync(MY_INI, fs.readFileSync(copieTest));
     fs.unlinkSync(copieTest);
     fs.readdirSync(datadir).filter((f) => /^my\.ini\.(avant-prestige-|prestige-tmp)/.test(f) && !sauvegardesAvant.has(f)).forEach((f) => fs.unlinkSync(path.join(datadir, f)));
-    exec("DELETE FROM t_event_log WHERE str_TABLECONCERN IN ('mariadb', 'my.ini') AND dt_CREATED >= '" + debut + "'");
+    exec("DELETE FROM t_event_log WHERE str_TABLE_CONCERN IN ('mariadb', 'my.ini') AND dt_CREATED >= '" + debut + "'");
     const v = variables();
     ok('Remise en état : variables, my.ini, sauvegardes, journal', remise.length === 0 && CLES.every((k) => v[k] === varsAvant[k])
       && fs.readFileSync(MY_INI).equals(iniAvant), remise.join(' | ') + JSON.stringify(CLES.filter((k) => v[k] !== varsAvant[k])));
