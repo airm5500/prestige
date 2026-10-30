@@ -235,7 +235,30 @@ peut pas trancher sans image de la mémoire au moment de l'erreur (§ 6).
 ### 4.6 Petits points
 
 - **Interblocage à la connexion simultanée** : deux `INSERT INTO t_session_utilisateur` au même instant
-  (`ix_session_user`). MariaDB annule l'un des deux. Sans effet visible ici, mais à rejouer automatiquement.
+  (`ix_session_user`). MariaDB annule l'un des deux. La connexion aboutit, mais elle manque au journal des connexions
+  RH.
+  - **Mécanisme** *(prouvé)* : `RhServiceImpl.ouvrirSession` ferme d'abord les sessions restées ouvertes, avec
+    `UPDATE ... WHERE lg_USER_ID = ? AND fin IS NULL`, puis insère la nouvelle. En lecture répétable, cet `UPDATE`
+    verrouille aussi l'intervalle de `ix_session_user` où ira la nouvelle ligne. Deux connexions au même instant
+    prennent chacune ce verrou, qui ne s'exclut pas. Chacune attend ensuite l'autre pour insérer, et MariaDB en annule
+    une. Cela arrive à la première connexion d'un compte, ou de deux comptes voisins, quand ils n'ont encore aucune
+    ligne. C'était le cas des comptes `e2e-c01` à `e2e-c15`, créés pour l'essai.
+  - **Correction** (30/10) : une lecture simple, sans verrou, des sessions ouvertes, puis un `UPDATE` par clé
+    primaire. Aucun verrou d'intervalle n'est plus posé.
+    - Effet de bord : quand le même compte se connecte deux fois depuis la même adresse, à la même seconde, les deux
+      sessions restent ouvertes, comme deux onglets. Avant, la seconde fermait la première.
+  - **Tests** :
+    - [interblocage-sessions.sh](../../src/test/e2e/perf/interblocage-sessions.sh) rejoue les ordres d'avant et
+      d'après dans deux transactions entrelacées, sur une instance MariaDB jetable, en 4 cas :
+      - avant : 2 interblocages, sur la première connexion d'un compte et sur deux comptes voisins sans ligne ;
+      - après : aucun ;
+      - les deux cas qui ne s'interbloquaient pas avant ne s'interbloquent pas non plus après.
+    - [connexions-simultanees.js](../../src/test/e2e/perf/connexions-simultanees.js) vérifie maintenant que chaque
+      poste connecté a sa ligne au journal RH. Il est passé après correction, sur domain2 et `laborex_perf` :
+      - 15 postes connectés, sans aucun avertissement au journal du serveur ;
+      - 8 postes connectés, 8 comptes sur 8 au journal.
+    - Le même essai ne peut plus échouer avant correction : les comptes `e2e-c*` ont déjà des lignes. Recréer des
+      comptes neufs demande un accès direct à la base.
 - **Connexion à 15 postes en même temps** : jusqu'à 16 s, pour 935 fichiers JavaScript chargés par poste (rapport du
   28/10, cause 5).
 - **Mise à jour du 29/10 (soir)** : dans les deux essais du § 4.1, les connexions se sont bloquées dès le 3ᵉ poste
@@ -281,7 +304,7 @@ peut pas trancher sans image de la mémoire au moment de l'erreur (§ 6).
       serveur, 8 cas ;
     - [EcransScriptsRessourceTest.java](../../src/test/java/rest/EcransScriptsRessourceTest.java) : contenu rendu à
       l'identique, version compressée, reconstruction quand un fichier change.
-  - **Reste à voir** : l'interblocage `t_session_utilisateur` (premier point ci-dessus) n'est pas traité ici.
+  - L'interblocage `t_session_utilisateur` est traité au premier point ci-dessus.
 
 ## 5. Sauvegardes
 

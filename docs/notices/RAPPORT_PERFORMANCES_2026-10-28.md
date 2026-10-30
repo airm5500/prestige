@@ -377,6 +377,30 @@ Au sommet des piles, on trouve la comparaison champ par champ des entités charg
 
   Le script de mesure fait déjà le retrait des suggestions.
 
+**Correction mesurée (30/10)** *(prouvé)* :
+- Correction : commit `024c792f`, branche d'intégration. Pendant la création des lignes, l'écriture se fait en fin de
+  transaction (`FlushMode COMMIT`, rétabli ensuite).
+- Mesure :
+  - par l'écran, sur domain2 et `laborex_perf`, périodes finissant le 28/10, un passage par cas ;
+  - une même branche, avec puis sans ce commit ;
+  - chaque suggestion créée est retirée après le passage (135 suggestions avant comme après la série).
+- Empreinte : chaque ligne créée est relevée (produit, grossiste, quantité, prix, statut, indicateur
+  `int_ORERSTATUS` du produit). Les **12 empreintes sont identiques** avant et après : même résultat, mêmes produits
+  ignorés.
+
+| Période | Parcours 7, avant | Parcours 7, après | Parcours 8, avant | Parcours 8, après |
+|---|---|---|---|---|
+| 1 semaine | 64,4 s (1 755 produits) | **4,1 s** | 17,1 s (914) | **2,0 s** |
+| 15 jours | 218,4 s (3 513) | **7,8 s** | 42,5 s (1 549) | **3,4 s** |
+| 1 mois | 356,1 s (4 566) | **10,0 s** | 72,2 s (2 004) | **4,1 s** |
+| 3 mois | 689,2 s (6 316) | **13,5 s** | 151,6 s (2 881) | **6,1 s** |
+
+À 1 et 3 jours, la période ne contient que 2 produits : moins de 0,2 s avant comme après. L'objectif fixé plus haut,
+moins de 15 s à 3 mois, est atteint. La durée suit maintenant le nombre de produits, et non plus son carré.
+
+Le script [mesure-parcours-officine.js](../../src/test/e2e/perf/mesure-parcours-officine.js) affiche maintenant
+l'empreinte de chaque cas de suggestion.
+
 ### 4.2 Cause 2 — Statistiques fausses sur les colonnes caissier et utilisateur *(prouvé)*
 
 **Constat** :
