@@ -18,7 +18,7 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
 const BASE = ENV_E2E.BASE;
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
-const CONF = process.env.POSOS_CONF || '/root/prestige/config/posos.properties';
+const CONF = process.env.POSOS_CONF || ENV_E2E.CONFIG_POSTE + '/posos.properties';
 const produits = require('../support/produits-essai')(q, exec, 'E2E-PSH-');
 const droits = ['P_SM_POSOS', 'P_ORDONNANCE_CLIENT'].map((x) => require('../support/privilege-essai')(q, exec, ENV_E2E.LOGIN, x));
 const DEBUT = q('SELECT NOW() - INTERVAL 1 SECOND');

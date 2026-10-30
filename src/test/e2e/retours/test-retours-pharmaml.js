@@ -176,7 +176,7 @@ function nettoyer() {
     ok('Réponse à la réclamation (information libre) reprise', /Avoir de 1 boîte/.test(q("SELECT str_DETAIL FROM t_pharmaml_attente WHERE lg_SOURCE_ID = '" + retourId + "' AND str_SOURCE = 'RECLAM'")), repReclam);
     ok('Vidage : bon de retour et réponse à la réclamation rattachés', statuts.filter((s) => /^TRAITEE/.test(s)).length === 2
       && q("SELECT COUNT(*) FROM t_pharmaml_attente WHERE lg_SOURCE_ID = '" + retourId + "' AND str_STATUT = 'TRAITEE'") === '2', JSON.stringify(statuts));
-    await p.evaluate(() => Ext.getCmp('gridpanelID').getStore().load({ params: { retourId: Ext.ComponentQuery.query('retourfournisseurmanagerlist')[0].idRetour() } }));
+    await p.evaluate(() => { Ext.getCmp('gridpanelID').getStore().load({ params: { retourId: Ext.ComponentQuery.query('retourfournisseurmanagerlist')[0].idRetour() } }); });
     await p.waitForFunction(() => /Réponse du grossiste reçue/.test(Ext.getCmp('retourPmlEtat').getEl().dom.textContent), null, { timeout: 20000 });
     e = await etatEcran();
     ok('Écran : « Réponse du grossiste reçue », ligne « Accepté 0 / 1 », bouton bloqué',
@@ -190,7 +190,7 @@ function nettoyer() {
     const sup = await p.evaluate(async (id) => (await fetch('../api/v1/retourfournisseur/remove-item/' + id, { method: 'DELETE' })).status, idReclam);
     const stockAvant = q("SELECT int_NUMBER_AVAILABLE FROM t_famille_stock WHERE lg_FAMILLE_ID = '" + produits[0][0] + "' AND lg_EMPLACEMENT_ID = '1'");
     const mvtAvant = q("SELECT COUNT(*) FROM HMvtProduit WHERE lg_FAMILLE_ID = '" + produits[0][0] + "'");
-    await p.evaluate(() => Ext.getCmp('gridpanelID').getStore().load({ params: { retourId: Ext.ComponentQuery.query('retourfournisseurmanagerlist')[0].idRetour() } }));
+    await p.evaluate(() => { Ext.getCmp('gridpanelID').getStore().load({ params: { retourId: Ext.ComponentQuery.query('retourfournisseurmanagerlist')[0].idRetour() } }); });
     await p.waitForTimeout(800);
     /* retours du 13/10 (point 1) : la confirmation se fait dans le bouton (deux clics), plus de fenetre */
     await p.evaluate(() => { Ext.getCmp('btn_save').getEl().dom.id = 'e2e-valider'; });

@@ -66,7 +66,7 @@ const envoyer = (entrants) => fetch(WEBHOOK, { method: 'POST', headers: { Author
     ok('Webhook : 2 messages gardés pour A (doublon ignoré, ancien numéro à 8 chiffres rattaché), non lus', s1 === 200 && enBase === '2|2|0', s1 + ' ' + enBase);
 
     await connexion(p, ENV_E2E.LOGIN, 'e2etest');
-    await ouvrirMenu(p, 'Campagnes SMS / WhatsApp', 'Discussions WhatsApp');
+    await ouvrirMenu(p, 'CAMPAGNES SMS / WHATSAPP', 'Discussions WhatsApp');
     await p.waitForFunction(() => Ext.ComponentQuery.query('whatsappdiscussions').some((x) => x.isVisible(true)), null, { timeout: 60000 });
     await p.waitForFunction(() => document.querySelectorAll('.wad .wad-item[data-numero="0708771122"]').length === 1, null, { timeout: 30000 });
     const liste = await p.evaluate(() => { const l = (n) => { const e = document.querySelector('.wad .wad-item[data-numero="' + n + '"]'); return e ? { nom: e.querySelector('.wad-nom').textContent,

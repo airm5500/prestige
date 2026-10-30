@@ -35,7 +35,7 @@ const MARQUE = 'E2E-PIECE';
 const CLIENT = MARQUE + '-CLIENT';
 const NOM_CLIENT = 'ZZPIECETEST';
 /* La racine de stockage du logiciel, hors Windows : <user.home>/prestige (cf. util.StockageDisque). */
-const RACINE = path.join(os.homedir(), 'prestige');
+const RACINE = ENV_E2E.STOCKAGE;
 const ATELIER = fs.mkdtempSync(path.join(os.tmpdir(), 'pieces-'));
 
 function nettoyer() {

@@ -166,7 +166,7 @@ const statut = (id) => q("SELECT IFNULL(GROUP_CONCAT(str_STATUT ORDER BY dt_ENVO
     ok('Refus de la demande de vidage : arrêt, motif affiché, aucun acquittement', /refus : .*controle/.test(r6.grossistes[0].msg) && recus.every((r) => r.action !== 'ACQUITTEMENT') && depot.length === 1, JSON.stringify(r6));
     mode = 'normal'; depot.length = 0;
     /* 7. reponse deja archivee « non rattachee » (cas reel du 08/10, avant correction) : reprise depuis l'archive */
-    const fs = require('fs'), DOSSIER = '/root/prestige/pharmaml', ARCH = 'RV_E2E-PMD-ORPH_DPCI';
+    const fs = require('fs'), DOSSIER = ENV_E2E.PHARMAML, ARCH = 'RV_E2E-PMD-ORPH_DPCI';
     fs.mkdirSync(DOSSIER, { recursive: true });
     fs.writeFileSync(DOSSIER + '/' + ARCH + '.xml', env('REP_RECEPTION', '261008091521007', repCommande(codes.map((c, i) => ({ code: c, q: i + 2 })), CMD2)));
     exec("INSERT INTO t_pharmaml_attente (lg_ID, lg_GROSSISTE_ID, str_SOURCE, lg_SOURCE_ID, str_REF_MESSAGE, str_REF_CDE, str_STATUT, dt_ENVOI) VALUES ('e2e-pmd-3', '" + G + "', 'COMMANDE', '" + CMD2 + "', '20261008091358', '" + CMD2 + "', 'EN_ATTENTE', NOW());"

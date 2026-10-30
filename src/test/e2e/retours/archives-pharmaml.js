@@ -2,7 +2,7 @@
  * infoproduit/AAAA-MM) et journal (log/AAAA-MM). Aide commune des tests : liste recursive et nettoyage. */
 const fs = require('fs');
 const path = require('path');
-const DOSSIER = '/root/prestige/pharmaml';
+const DOSSIER = require('../outils/poste').PHARMAML;
 
 /** Chemins relatifs de tous les fichiers sous le dossier PharmaML (ex. commandes/2026-10/C_x.xml). */
 function fichiers(dossier = DOSSIER, base = '') {

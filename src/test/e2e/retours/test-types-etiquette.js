@@ -102,7 +102,7 @@ const decoder = (binaire) => {
       q("SELECT GROUP_CONCAT(str_CODE ORDER BY str_CODE) FROM t_typeetiquette WHERE lg_TYPEETIQUETTE_ID LIKE 'TE\\_%' AND str_NAME NOT LIKE 'E2E %'") === 'CODE128,DATAMATRIX,DATAMATRIX_PLUS,QR,QR_PLUS'
       && q("SELECT COUNT(*) FROM t_typeetiquette WHERE lg_TYPEETIQUETTE_ID IN ('1','2','3','4','5') AND str_CODE IS NULL") === '5' && Number(TYPE2_AVANT) > 0);
     ok('Migration : « selon le type de chaque produit » à 1, droit P_SM_ETIQUETTE_TYPE à l\'administrateur seulement', paramsAvant.KEY_ETIQUETTE_CODE_PAR_PRODUIT === '1'
-      && q("SELECT COUNT(DISTINCT rp.lg_ROLE_ID) FROM t_role_privelege rp JOIN t_privilege p ON p.lg_PRIVELEGE_ID = rp.lg_PRIVILEGE_ID WHERE p.str_NAME = 'P_SM_ETIQUETTE_TYPE'") === '1');
+      && q("SELECT COUNT(DISTINCT rp.lg_ROLE_ID) FROM t_role_privelege rp JOIN t_privilege p ON p.lg_PRIVELEGE_ID = rp.lg_PRIVILEGE_ID JOIN t_role r ON r.lg_ROLE_ID = rp.lg_ROLE_ID WHERE p.str_NAME = 'P_SM_ETIQUETTE_TYPE' AND r.str_NAME <> 'SYSTEM_USER'") === '1');
 
     await connexion();
     await ouvrir();
@@ -145,7 +145,7 @@ const decoder = (binaire) => {
     await bouton('#confirmer');
     ok('Confirmé : les 2 produits passent à DataMatrix, le 3e ne change pas', q(`SELECT COUNT(*) FROM t_famille WHERE lg_FAMILLE_ID IN ('${PRODUITS[0][0]}','${PRODUITS[1][0]}') AND lg_TYPEETIQUETTE_ID = 'TE_DATAMATRIX'`) === '2'
       && q(`SELECT IFNULL(lg_TYPEETIQUETTE_ID, '') FROM t_famille WHERE lg_FAMILLE_ID = '${PRODUITS[2][0]}'`) === PRODUITS[2][2], await etat());
-    ok('… noté au journal (qui, ancien et nouveau type)', q(`SELECT CONCAT(COUNT(*), '|', MIN(utilisateur), '|', MIN(IFNULL(ancien_type, '-'))) FROM t_etiquette_type_journal WHERE dt_CREATED >= '${DEBUT}'`) === '2|admin|' + [PRODUITS[0][2], PRODUITS[1][2]].map((x) => x || '-').sort()[0]);
+    ok('… noté au journal (qui, ancien et nouveau type)', q(`SELECT CONCAT(COUNT(*), '|', MIN(utilisateur), '|', MIN(IFNULL(ancien_type, '-'))) FROM t_etiquette_type_journal WHERE dt_CREATED >= '${DEBUT}'`) === '2|' + ENV_E2E.LOGIN + '|' + [PRODUITS[0][2], PRODUITS[1][2]].map((x) => x || '-').sort()[0]);
     g = await p.evaluate(() => Ext.ComponentQuery.query('etqtypes')[0].produitsStore.getRange().slice(0, 3).map((r) => r.get('type')));
     ok('La liste montre le nouveau type', g[0] === 'DataMatrix' && g[1] === 'DataMatrix', g.join(','));
     /* tout le filtre, puis annulation */

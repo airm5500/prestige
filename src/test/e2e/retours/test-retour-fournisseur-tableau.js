@@ -72,10 +72,10 @@ function nettoyer() {
     const avecDroit = await p.evaluate((id) => { const g = Ext.getCmp('retourfrsmanagerID'); return g.getStore().getAt(g.getStore().findExact('lg_RETOUR_FRS_ID', id)).get('BTNDELETE'); }, ID);
     await droit(true);
     const a1 = await icone();
-    ok('Avec le droit : icône de suppression affichée', /unpaid/.test(a1) && !/x-hide-display/.test(a1), a1);
+    ok('Avec le droit : icône de suppression affichée', /unpaid|act-supprimer/.test(a1) && !/x-hide-display/.test(a1), a1);
     await droit(false);
     const a2 = await icone();
-    ok('Sans le droit : icône de suppression masquée (plus de cadenas)', /x-hide-display/.test(a2) && !/unpaid|\block\b/.test(a2), a2);
+    ok('Sans le droit : icône de suppression masquée (plus de cadenas)', /x-hide-display/.test(a2) && !/unpaid|act-supprimer|\block\b/.test(a2), a2);
     await p.evaluate((a) => { const g = Ext.getCmp('retourfrsmanagerID'), r = g.getStore().getAt(g.getStore().findExact('lg_RETOUR_FRS_ID', a[0])); r.set('BTNDELETE', a[1]); r.commit(); }, [ID, avecDroit]);
 
     /* ----------------------------------------------------------- reponse en fenetre */
@@ -132,7 +132,13 @@ function nettoyer() {
     ok('Tuiles = requête indépendante (retours, quantité, acceptée, montant)', tb.tuiles[0] === String(nR) && tb.tuiles[1] === String(qte) && tb.tuiles[2] === String(acc)
       && tb.tuiles[3] === mt + 'F', JSON.stringify({ tuiles: tb.tuiles, attendu: [nR, qte, acc, mt] }));
     ok('Une ligne par mois de la période (' + nMois + ')', tb.mois === nMois, tb.mois);
-    ok('Produits les plus retournés : le produit du jeu d\'essai y figure', tb.produits.some((t) => t.indexOf(L1[5]) >= 0), tb.produits.slice(0, 3).join(' | '));
+    /* sur une base reelle, d'autres produits peuvent passer devant celui du jeu d'essai : il doit alors en avoir
+       au moins autant devant lui que de lignes affichees */
+    const devant = Number(q('SELECT COUNT(*) FROM (SELECT d.lg_FAMILLE_ID' + where + ' GROUP BY d.lg_FAMILLE_ID HAVING SUM(d.int_NUMBER_RETURN) >'
+      + ' (SELECT IFNULL(SUM(d.int_NUMBER_RETURN), 0)' + where + ` AND d.lg_FAMILLE_ID = '${L1[3]}')) x`));
+    ok('Produits les plus retournés : le produit du jeu d\'essai y figure (ou plus de produits le devancent que de lignes)',
+      tb.produits.length > 0 && (tb.produits.some((t) => t.indexOf(L1[5]) >= 0) || devant >= tb.produits.length),
+      tb.produits.length + ' lignes, ' + devant + ' devant ; ' + tb.produits.slice(0, 3).join(' | '));
     ok('Motifs les plus utilisés : les deux motifs du jeu d\'essai', [MOTIFS[0][1], MOTIFS[1][1]].every((m) => tb.motifs.indexOf(m) >= 0), JSON.stringify(tb.motifs));
     ok('Infobulles sur les critères et boutons du tableau', tb.tips === 0, tb.tips);
 
@@ -143,7 +149,7 @@ function nettoyer() {
     const tg = await p.evaluate(() => Ext.ComponentQuery.query('retoursfournisseur')[0].donnees.total.quantite);
     ok('Filtre grossiste : quantité de ce grossiste seulement', tg === qg, tg + ' / ' + qg);
 
-    await p.evaluate(() => Ext.ComponentQuery.query('retoursfournisseur')[0].afficher('liste'));
+    await p.evaluate(() => { Ext.ComponentQuery.query('retoursfournisseur')[0].afficher('liste'); });
     ok('Retour à la liste', await p.evaluate(() => Ext.getCmp('retourfrsmanagerID').isVisible()));
     ok('Aucune erreur JavaScript', err.length === 0, err.join(' | '));
   } catch (e) {

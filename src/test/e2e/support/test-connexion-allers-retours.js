@@ -22,11 +22,16 @@ const ID = 'E2E-CNX-CAISSE', LOGIN = 'e2e.cnx.caisse', MDP = 'E2e-Caisse-14';
 const ROLE_CAISSE = q("SELECT lg_ROLE_ID FROM t_role WHERE str_NAME = 'Caisse/Commande/Stock' LIMIT 1");
 const MAX = 70;
 
-/* menu attendu d'apres la base : meme regle que ws_tree_menu.jsp (droit actif du role, comparaison sans casse) */
+/* menu attendu d'apres la base : meme regle que ws_tree_menu.jsp (droit actif du role, comparaison sans casse) ;
+   retours du 25/10 : les droits de type SYSTEME ne comptent que pour un super administrateur (UserServiceImpl) */
 function menuAttendu(login) {
+  const superAdmin = q("SELECT COUNT(*) FROM t_role r JOIN t_role_user ru ON ru.lg_ROLE_ID = r.lg_ROLE_ID "
+    + "JOIN t_user u ON u.lg_USER_ID = ru.lg_USER_ID WHERE u.str_LOGIN = '" + login + "' AND r.str_STATUT = 'enable' "
+    + "AND (TRIM(r.str_NAME) LIKE 'Super Administrateur%' OR TRIM(r.str_DESIGNATION) LIKE 'Super Administrateur%')") !== '0';
   const droits = "SELECT LOWER(p.str_NAME) FROM t_privilege p JOIN t_role_privelege rp ON rp.lg_PRIVILEGE_ID = p.lg_PRIVELEGE_ID "
     + "JOIN t_role_user ru ON ru.lg_ROLE_ID = rp.lg_ROLE_ID JOIN t_user u ON u.lg_USER_ID = ru.lg_USER_ID "
-    + `WHERE u.str_LOGIN = '${login}' AND p.str_STATUT = 'enable'`;
+    + `WHERE u.str_LOGIN = '${login}' AND p.str_STATUT = 'enable'`
+    + (superAdmin ? '' : " AND UPPER(COALESCE(p.str_TYPE, '')) <> 'SYSTEME'");
   return q("SELECT CONCAT(m.lg_MENU_ID, '>', COALESCE(s.str_COMPOSANT, '')) FROM t_menu m "
     + "LEFT JOIN t_sous_menu s ON s.lg_MENU_ID = m.lg_MENU_ID AND s.str_Status = 'enable' AND LOWER(s.P_KEY) IN (" + droits + ") "
     + "WHERE m.str_Status = 'enable' AND m.lg_MODULE_ID = '1' AND LOWER(m.P_KEY) IN (" + droits + ")")

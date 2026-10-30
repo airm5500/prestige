@@ -87,6 +87,27 @@ const PAYARA_DOMAINE = process.env.PAYARA_DOMAINE
   || (WINDOWS ? 'D:/payara5/payara5/glassfish/domains/domain1' : '/opt/payara5/glassfish/domains/domain1');
 const JOURNAL_SERVEUR = process.env.SERVER_LOG || PAYARA_DOMAINE + '/logs/server.log';
 
+/* dossiers ou le serveur ecrit ses fichiers, calcules comme lui (util.StockageDisque, ArchivePharmaMl) :
+ *   STOCKAGE      racine des donnees : sous Windows D:\prestige (ou F:, E:), sinon <profil>\prestige ;
+ *   CONFIG_POSTE  dossier de dicisms.properties s'il est a sa place historique (Documents), sinon STOCKAGE\config ;
+ *   PHARMAML      archives des echanges : cle pharmaMlDir de dicisms.properties (seule cle lue).
+ * E2E_STOCKAGE, E2E_CONFIG et E2E_PHARMAML les imposent. Sur le banc Linux : /root/prestige, comme avant. */
+const STOCKAGE = process.env.E2E_STOCKAGE || (WINDOWS
+  ? (['D:', 'F:', 'E:'].map((d) => d + '\\prestige').find((d) => fs.existsSync(d)) || path.join(os.homedir(), 'prestige'))
+  : '/root/prestige');
+const DICISMS = path.join(os.homedir(), 'Documents', 'dicisms.properties');
+const CONFIG_POSTE = process.env.E2E_CONFIG || (WINDOWS && fs.existsSync(DICISMS) ? path.dirname(DICISMS)
+  : path.join(STOCKAGE, 'config'));
+function dossierPharmaMl() {
+  if (process.env.E2E_PHARMAML) { return process.env.E2E_PHARMAML; }
+  if (!WINDOWS) { return '/root/prestige/pharmaml'; }
+  const f = path.join(CONFIG_POSTE, 'dicisms.properties');
+  const ligne = fs.existsSync(f) ? fs.readFileSync(f, 'latin1').split(/\r?\n/).find((l) => /^\s*pharmaMlDir\s*[=:]/.test(l)) : null;
+  /* format des fichiers .properties : « \: » pour « : », « \\ » pour « \ » */
+  return ligne ? ligne.replace(/^\s*pharmaMlDir\s*[=:]\s*/, '').replace(/\\(.)/g, '$1').trim() : path.join(STOCKAGE, 'pharmaml');
+}
+const PHARMAML = dossierPharmaMl();
+
 const VISIBLE = process.env.E2E_VISIBLE === '1';
 const CAPTURES = process.env.E2E_CAPTURES === '0' ? null
   : process.env.E2E_CAPTURES || (WINDOWS ? path.resolve(__dirname, '../../../../captures') : null);
@@ -177,6 +198,7 @@ async function lancer(chromium, options) {
 
 module.exports = {
   WINDOWS, BASE, LOGIN, LOGIN_SUPPORT, CHROMIUM, TMP, PAYARA_DOMAINE, JOURNAL_SERVEUR, VISIBLE, CAPTURES, lancer, capture,
+  STOCKAGE, CONFIG_POSTE, PHARMAML,
   /* arguments a placer en tete de chaque appel au client mariadb ; verifie a l'appel, pour que les tests sans base
      n'aient pas besoin du fichier d'options */
   get MARIADB() {

@@ -21,7 +21,7 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
 const BASE = ENV_E2E.BASE;
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
-const CONF = process.env.POSOS_CONF || '/root/prestige/config/posos.properties';
+const CONF = process.env.POSOS_CONF || ENV_E2E.CONFIG_POSTE + '/posos.properties';
 const NOM = 'ZZSCAN';
 const TMP = require('os').tmpdir();
 const scans = [];
@@ -197,10 +197,16 @@ let serveur = null;
     if (serveur) { serveur.close(); }
     await b.close();
     ok('Configuration Posos du banc remise telle quelle', confOrigine === null || fs.readFileSync(CONF, 'utf8') === confOrigine);
+    /* fichiers des scans et des pieces du test, retires du disque avec leurs lignes */
+    const fichiers = [];
+    const noter = (liste) => { if (liste && liste !== 'NULL') { fichiers.push(...liste.split(',')); } };
+    scans.filter(Boolean).forEach((s) => noter(q("SELECT GROUP_CONCAT(str_CHEMIN) FROM t_ordonnance_scan WHERE lg_SCAN_ID='" + s + "'")));
     const ids = q("SELECT GROUP_CONCAT(CONCAT(\"'\", lg_CLIENT_ID, \"'\")) FROM t_client WHERE str_FIRST_NAME='" + NOM + "'");
     if (ids && ids !== 'NULL') {
       const ords = "(SELECT lg_ORDONNANCE_ID FROM t_ordonnance_client WHERE lg_CLIENT_ID IN (" + ids + "))";
       const chemins = q("SELECT GROUP_CONCAT(str_CHEMIN) FROM t_ordonnance_client_piece WHERE lg_ORDONNANCE_ID IN " + ords);
+      noter(chemins);
+      noter(q('SELECT GROUP_CONCAT(str_CHEMIN) FROM t_ordonnance_scan WHERE lg_ORDONNANCE_ID IN ' + ords));
       exec('DELETE FROM t_ordonnance_scan WHERE lg_ORDONNANCE_ID IN ' + ords);
       exec('DELETE FROM t_ordonnance_client_piece WHERE lg_ORDONNANCE_ID IN ' + ords);
       exec('DELETE FROM t_ordonnance_client_detail WHERE lg_ORDONNANCE_ID IN ' + ords);
@@ -213,6 +219,7 @@ let serveur = null;
     for (const s of scans) {
       if (s) { exec("DELETE FROM t_ordonnance_scan WHERE lg_SCAN_ID='" + s + "'"); }
     }
+    fichiers.forEach((c) => { try { fs.unlinkSync(ENV_E2E.STOCKAGE + '/' + c.replace(/^[\\/]+/, '')); } catch (e) { /* deja retire */ } });
     ok('Remise en état : clients, ordonnances et scans de test retirés', q("SELECT COUNT(*) FROM t_client WHERE str_FIRST_NAME='" + NOM + "'") === '0'
       && scans.every((s) => q("SELECT COUNT(*) FROM t_ordonnance_scan WHERE lg_SCAN_ID='" + s + "'") === '0'));
     const kos = res.filter((r) => !r.c);

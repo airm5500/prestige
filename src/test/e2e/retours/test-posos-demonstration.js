@@ -17,7 +17,7 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
 const BASE = ENV_E2E.BASE;
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
-const CONF = process.env.POSOS_CONF || '/root/prestige/config/posos.properties';
+const CONF = process.env.POSOS_CONF || ENV_E2E.CONFIG_POSTE + '/posos.properties';
 const MARQUE = 'E2E-DEMO';
 
 /* produits de la demonstration absents du catalogue du banc : crees le temps du test */

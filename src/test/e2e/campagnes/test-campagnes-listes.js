@@ -40,7 +40,7 @@ function nettoyer() {
   const idListe = () => q(`SELECT id FROM t_campagne_liste WHERE nom = '${NOM}'`);
   try {
     await connexion(p, ENV_E2E.LOGIN, 'e2etest');
-    await ouvrirMenu(p, 'Campagnes SMS / WhatsApp', 'Campagnes');
+    await ouvrirMenu(p, 'CAMPAGNES SMS / WHATSAPP', 'Campagnes');
     await p.waitForFunction(() => { const v = Ext.ComponentQuery.query('campagnes')[0]; return v && v.contexte; }, null, { timeout: 60000 });
     await p.click('#' + await p.evaluate((s) => Ext.ComponentQuery.query(s)[0].tab.getEl().dom.id, L));
     await p.waitForTimeout(1500);

@@ -29,7 +29,7 @@ const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, MB4, BASE, '-e'
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, MB4, BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const CLIENT = 'E2E-3009-CLIENT';
 const NOM = 'ZZTRENTESEPT';
-const RACINE = path.join(os.homedir(), 'prestige');
+const RACINE = ENV_E2E.STOCKAGE;
 
 function nettoyer() {
   const chemins = q("SELECT GROUP_CONCAT(p.str_CHEMIN SEPARATOR '|') FROM t_ordonnance_client_piece p"

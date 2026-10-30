@@ -21,7 +21,7 @@ const BASE = ENV_E2E.BASE;
 const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const PORT = 18771, G = '51217123531215794892', CMDS = ['E2E-PM5-A', 'E2E-PM5-B', 'E2E-PM5-C', 'E2E-PM5-D'];
-const DOSSIER = '/root/prestige/pharmaml';
+const DOSSIER = ENV_E2E.PHARMAML;
 let P = [], cipEquivalent = '', typeRempl = 'EP';
 const serveur = http.createServer((req, rep) => { let b = ''; req.on('data', (c) => { b += c; }); req.on('end', () => {
   if (/refus/.test(req.url)) { rep.writeHead(403, { 'Content-Type': 'text/html' }); rep.end('<html>Forbidden</html>'); return; }
