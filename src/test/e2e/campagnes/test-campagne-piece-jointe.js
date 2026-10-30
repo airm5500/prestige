@@ -57,7 +57,7 @@ function nettoyer(debut) {
   const sauve = q("SELECT CONCAT_WS('#~#', actif, mode_test, IFNULL(web_url, 'NULL'), IFNULL(web_jeton, 'NULL'), IFNULL(web_regles, 'NULL')) FROM whatsapp_compte WHERE mode = 'WEB'").split('#~#');
   const modeAvant = q("SELECT str_VALUE FROM t_parameters WHERE str_KEY = 'KEY_WHATSAPP_MODE_DEFAUT'");
   const tailleLog = fs.statSync(LOG).size;
-  const srv = spawn('/opt/node22/bin/node', [path.join(__dirname, '../../../../outils/whatsapp-web/src/serveur.js')],
+  const srv = spawn(process.execPath, [path.join(__dirname, '../../../../outils/whatsapp-web/src/serveur.js')],
     { env: Object.assign({}, process.env, { WHATSAPP_FAUX: '1', WHATSAPP_FAUX_CONNECTE: '1', WHATSAPP_FAUX_TRACE: TRACE, JETON, PORT: String(PORT), DOSSIER }), stdio: ['ignore', 'pipe', 'pipe'] });
   let journalService = ''; srv.stdout.on('data', (d) => { journalService += d; }); srv.stderr.on('data', (d) => { journalService += d; });
   const service = (methode, route, corps) => fetch('http://127.0.0.1:' + PORT + route, { method: methode,

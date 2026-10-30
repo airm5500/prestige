@@ -29,11 +29,14 @@ const P = 'dtStart=' + D + '&dtEnd=' + F + '&search=&categorieId=&fabricantId=&r
     await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
     const articles = Number(q("SELECT COUNT(DISTINCT lg_FAMILLE_ID) FROM hmvtproduit WHERE mvtdate BETWEEN '" + D + "' AND '" + F + "' AND lg_EMPLACEMENT_ID = '1'"));
+    /* le suivi complet ajoute les articles qui n'ont bougé qu'en réserve (mouvements internes, t_mouvement_reserve) */
+    const articlesComplet = Number(q("SELECT COUNT(*) FROM (SELECT lg_FAMILLE_ID FROM hmvtproduit WHERE mvtdate BETWEEN '" + D + "' AND '" + F + "' AND lg_EMPLACEMENT_ID = '1'"
+      + " UNION SELECT lg_FAMILLE_ID FROM t_mouvement_reserve WHERE dt_CREATED >= '" + D + "' AND dt_CREATED < DATE_ADD('" + F + "', INTERVAL 1 DAY) AND lg_EMPLACEMENT_ID = '1') x"));
     const complet = await get('../api/v1/produit/monitoring-complet?start=0&limit=100000&' + P, true);
     const suivi = await get('../api/v1/produit/monitoring?start=0&limit=100000&' + P, true);
     const excel = await get('../api/v1/produit/monitoring-complet/excel?' + P, false);
     const n = (r) => (r.r && r.r.data ? r.r.data.length : -1);
-    ok('Suivi complet d\'un mois en moins de 30 s, un article par article mouvementé', complet.s === 200 && complet.ms < MAX_MS && n(complet) === articles && articles > 0, complet.ms + ' ms, ' + n(complet) + ' / ' + articles + (complet.e || ''));
+    ok('Suivi complet d\'un mois en moins de 30 s, un article par article mouvementé', complet.s === 200 && complet.ms < MAX_MS && n(complet) === articlesComplet && articles > 0, complet.ms + ' ms, ' + n(complet) + ' / ' + articlesComplet + (complet.e || ''));
     ok('Suivi d\'un mois en moins de 30 s, un article par article mouvementé', suivi.s === 200 && suivi.ms < MAX_MS && n(suivi) === articles, suivi.ms + ' ms, ' + n(suivi) + ' / ' + articles + (suivi.e || ''));
     ok('Export Excel du suivi complet en moins de 30 s', excel.s === 200 && excel.ms < MAX_MS && excel.r > 10000, excel.ms + ' ms, ' + excel.r + ' octets');
     let vus = 0; const faux = [];
