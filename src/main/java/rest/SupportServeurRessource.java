@@ -30,6 +30,7 @@ import rest.service.SupportEventService;
 import rest.service.impl.serveur.ApplicationMariadb;
 import rest.service.impl.serveur.CauseArret;
 import rest.service.impl.serveur.ConfigPayara;
+import rest.service.impl.serveur.FichierMyIni;
 import rest.service.impl.serveur.MesureServeur;
 import rest.service.impl.serveur.ReglagesServeur;
 import rest.service.impl.serveur.ReglagesServeur.Reglage;
@@ -47,7 +48,8 @@ import util.Constant;
  * <li>GET reglages : reglages en place et conseilles pour la machine (MariaDB, Payara), bloc my.ini et script asadmin
  * ;</li>
  * <li>POST postes : nombre de postes qui dimensionne les reglages ;</li>
- * <li>POST reglages/mariadb : application a chaud (SET GLOBAL) des reglages de MariaDB, super administrateur.</li>
+ * <li>POST reglages/mariadb : application a chaud (SET GLOBAL) des reglages de MariaDB, super administrateur ;</li>
+ * <li>POST reglages/myini : ecriture des memes reglages dans my.ini (sauvegarde avant), super administrateur.</li>
  * </ul>
  * Seules les routes d'application modifient la configuration : liste fermee de reglages, trace au journal des
  * evenements.
@@ -264,6 +266,7 @@ public class SupportServeurRessource {
             if (c.mariadbLocale && superAdmin()) {
                 ApplicationMariadb.Droits d = droitsMariadb(c);
                 o.put("droitsMariadb", new JSONObject().put("ok", d.ok).put("message", d.message));
+                o.put("fichierMyIni", etatMyIni(c));
             }
             return ok(o);
         } catch (Exception e) {
@@ -369,6 +372,87 @@ public class SupportServeurRessource {
         } catch (Exception e) {
             LOG.log(Level.WARNING, "application des reglages de MariaDB", e);
             return echec("Application impossible : " + e.getClass().getSimpleName());
+        }
+    }
+
+    /** Une seule ecriture de my.ini a la fois. */
+    private static final Object VERROU_MY_INI = new Object();
+
+    private static java.nio.file.Path cheminMyIni(Calcul c) {
+        String d = c.variables.get("datadir");
+        return StringUtils.isBlank(d) ? null : FichierMyIni.chemin(d);
+    }
+
+    /** my.ini : chemin, structure comprise ou non, lignes a changer (lecture seule). */
+    private static JSONObject etatMyIni(Calcul c) {
+        JSONObject o = new JSONObject();
+        java.nio.file.Path p = cheminMyIni(c);
+        if (p == null || !Files.isRegularFile(p)) {
+            return o.put("chemin", p == null ? "" : p.toString()).put("refus",
+                    "my.ini introuvable dans le dossier des données de MariaDB" + (p == null ? "" : " (" + p + ")")
+                            + " : bloc à reporter à la main.");
+        }
+        try {
+            String t = new String(Files.readAllBytes(p), StandardCharsets.ISO_8859_1);
+            FichierMyIni.Resultat r = FichierMyIni.appliquer(t, FichierMyIni.valeurs(c.tous, c.variables, t));
+            return o.put("chemin", p.toString()).put("refus", StringUtils.defaultString(r.refus)).put("changements",
+                    r.refus == null ? r.changements.size() : 0);
+        } catch (java.io.IOException e) {
+            return o.put("chemin", p.toString()).put("refus", "my.ini illisible : " + e.getMessage());
+        }
+    }
+
+    /**
+     * Ecriture DURABLE des reglages conseilles de MariaDB dans my.ini (dossier des donnees, MariaDB sur cette machine
+     * seulement) : cles de la liste fermee, fichier sauvegarde avant, refus si sa structure n'est pas comprise. MariaDB
+     * n'est jamais redemarre : les valeurs prennent effet a son prochain demarrage.
+     */
+    @POST
+    @Path("reglages/myini")
+    public Response ecrireMyIni() {
+        Response r = controleApplication();
+        if (r != null) {
+            return r;
+        }
+        try {
+            Calcul c = calcul();
+            if (!c.mariadbLocale) {
+                return echec("MariaDB n'est pas sur cette machine : son my.ini se modifie sur le serveur de base.");
+            }
+            java.nio.file.Path p = cheminMyIni(c);
+            if (p == null) {
+                return echec("Dossier des données de MariaDB inconnu : bloc à reporter à la main.");
+            }
+            FichierMyIni.Ecriture e;
+            synchronized (VERROU_MY_INI) {
+                String t = Files.isRegularFile(p) ? new String(Files.readAllBytes(p), StandardCharsets.ISO_8859_1) : "";
+                e = FichierMyIni.ecrire(p, FichierMyIni.valeurs(c.tous, c.variables, t), java.time.LocalDateTime.now()
+                        .format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")));
+            }
+            TUser u = utilisateur();
+            boolean ecrit = e.refus == null && e.sauvegarde != null;
+            if (ecrit || e.refus != null) {
+                logService.journaliserSansRisque(u, "MY_INI",
+                        (ecrit ? "my.ini modifié" : "my.ini non modifié (refus)") + " depuis le Centre de support par "
+                                + u.getStrLOGIN(),
+                        dal.enumeration.TypeLog.REGLAGE_SERVEUR, "my.ini", FichierMyIni.journal(e));
+            }
+            if (e.refus != null) {
+                return ok(new JSONObject().put("success", false).put("message", e.refus).put("chemin", p.toString()));
+            }
+            JSONArray a = new JSONArray();
+            for (FichierMyIni.Changement x : e.resultat.changements) {
+                a.put(new JSONObject().put("cle", x.cle).put("libelle", x.cle)
+                        .put("avant", x.avant == null ? "absent" : x.avant).put("apres", x.apres)
+                        .put("conseille", x.apres).put("etat", "APPLIQUE"));
+            }
+            return ok(new JSONObject().put("data", a).put("chemin", p.toString())
+                    .put("sauvegarde", e.sauvegarde == null ? "" : e.sauvegarde.toString()).put("message",
+                            ecrit ? "Pris en compte au prochain redémarrage de MariaDB (Prestige ne le redémarre pas)."
+                                    : "my.ini contient déjà les réglages conseillés."));
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "ecriture de my.ini", e);
+            return echec("Écriture impossible : " + e.getClass().getSimpleName());
         }
     }
 

@@ -7,7 +7,8 @@
  *  - Arrets : demarrages et arrets du serveur, propre ou brutal, avec la cause probable et le conseil ;
  *  - Reglages : reglages en place et conseilles pour la machine (memoire, processeurs, nombre de postes), bloc my.ini et
  *    commandes asadmin a copier. Super administrateur : « Appliquer à chaud » (SET GLOBAL des reglages de MariaDB
- *    modifiables sans redemarrage), confirme dans le bouton lui-meme.
+ *    modifiables sans redemarrage) et « Écrire dans my.ini » (fichier sauvegarde avant, MariaDB jamais redemarre),
+ *    confirmes dans le bouton lui-meme.
  * Aucune fenetre.
  */
 Ext.define('testextjs.view.support.SupportServeur', {
@@ -400,7 +401,13 @@ Ext.define('testextjs.view.support.SupportServeur', {
                                     handler: function (b) {
                                         me.appliquerMariadb(b);
                                     }},
-                                {xtype: 'tbtext', itemId: 'droitsMariadb', text: ''}],
+                                {xtype: 'tbtext', itemId: 'droitsMariadb', text: ''},
+                                {itemId: 'ecrireMyIni', text: 'Écrire dans my.ini', iconCls: 'fa fa-save', hidden: true,
+                                    tooltip: 'Écrit les réglages conseillés dans my.ini (copie de sauvegarde avant) ; MariaDB les prendra à son prochain démarrage.',
+                                    handler: function (b) {
+                                        me.ecrireMyIni(b);
+                                    }},
+                                {xtype: 'tbtext', itemId: 'etatMyIni', text: ''}],
                             items: [{xtype: 'textarea', itemId: 'myIni', readOnly: true, cls: 'srv-code'}]},
                         {xtype: 'panel', flex: 1, margin: '0 0 0 8', title: 'Payara : commandes asadmin (dossier bin de Payara)', layout: 'fit', tools: [copier('asadmin')],
                             items: [{xtype: 'textarea', itemId: 'asadmin', readOnly: true, cls: 'srv-code'}]}
@@ -456,6 +463,33 @@ Ext.define('testextjs.view.support.SupportServeur', {
         if (d && !d.ok) {
             me.down('#etatReglages').update('<span class="srv-critique">' + me.esc(d.message) + '</span>');
         }
+        /* my.ini : refuse si sa structure n'est pas comprise (le bloc reste a copier) */
+        var f = r.fichierMyIni, bi = me.down('#ecrireMyIni'), ti = me.down('#etatMyIni');
+        bi.setVisible(!!(r.superAdmin && r.mariadbLocale && f));
+        bi.setDisabled(!f || !!f.refus || !f.changements);
+        bi.setTooltip(f && f.chemin ? me.esc(f.chemin) : '');
+        ti.update(!f ? '' : f.refus ? '<span class="srv-critique" title="' + me.esc(f.refus) + '">my.ini non modifiable</span>'
+                : f.changements ? f.changements + ' ligne(s) à écrire' : '<span class="srv-ok">my.ini à jour</span>');
+        me.fichierMyIni = f;
+    },
+
+    ecrireMyIni: function (b) {
+        var me = this, f = me.fichierMyIni || {};
+        me.confirmerDansBouton(b, 'Confirmer : ' + (f.changements || 0) + ' ligne(s) dans my.ini (sauvegardé avant)', function () {
+            var o = me.down('#ongletReglages');
+            o.setLoading('Écriture de my.ini...');
+            me.appel('POST', 'reglages/myini', {}, function (r) {
+                o.setLoading(false);
+                if (!r.success) {
+                    me.down('#etatReglages').update('<span class="srv-critique">' + me.esc(r.message) + '</span>');
+                    return;
+                }
+                me.chargerReglages(function () {
+                    me.down('#etatReglages').update(me.compteRendu('my.ini (' + r.chemin + ')', r.data)
+                            + (r.sauvegarde ? 'Copie de sauvegarde : ' + me.esc(r.sauvegarde) + '<br>' : '') + '<i>' + me.esc(r.message) + '</i>');
+                });
+            });
+        });
     },
 
     mariadbAFaire: function () {
