@@ -481,7 +481,14 @@ nouveau à corriger) :
   il faudra regarder l'écran.
 - Correctif proposé : ajouter la colonne en fin de feuille (P3).
 
-### K4 et colonne Version de l'export : corrigés (30/10), vérifiés sur le 9080 (`capitale`)
+### K4 et colonne Version de l'export : corrigés (30/10), vérifiés sur le 9080 (base `laborex_perf`)
+
+- **Base réellement visée** : le pool `laborex_pool` du domain2 pointait sur `localhost:3307/laborex_perf`, la copie
+  de mesure de la session tests-performance, et non sur `capitale`. Vérifié après coup (`asadmin get`).
+- Conséquences :
+  - les essais ci-dessous n'ont rien écrit en données métier ;
+  - le redéploiement a pu appliquer la migration V7.2.25 (colonne `version_app`) à `laborex_perf` ;
+  - la version « avant » lue sur le 9080 était celle de la session des réglages du serveur.
 
 | N° | Correction | Fichiers | Preuve |
 |---|---|---|---|
