@@ -107,8 +107,8 @@ public class AnalyseInvExportServiceImpl implements AnalyseInvExportService {
         parametres.put("P_ENTETES", AnalyseInventaireSynthese.entetes());
         try {
             JasperReport jasperReport = reportUtil.getReport(modele, toolkits.utils.jdom.scr_report_file);
-            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parametres,
-                    new JRBeanCollectionDataSource(lignes));
+            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport,
+                    rest.report.FormatsEditions.avec(parametres), new JRBeanCollectionDataSource(lignes));
             try (ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
                 JRPdfExporter exporter = new JRPdfExporter();
                 exporter.setExporterInput(new SimpleExporterInput(jasperPrint));

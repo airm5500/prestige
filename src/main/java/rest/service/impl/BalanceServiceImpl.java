@@ -1864,8 +1864,8 @@ public class BalanceServiceImpl implements BalanceService {
             String reportPath = reportDirectory + reportFileName;
             InputStream reportStream = new FileInputStream(reportPath);
             JasperReport jasperReport = JasperCompileManager.compileReport(reportStream);
-            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters,
-                    new JRBeanCollectionDataSource(reportData));
+            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport,
+                    rest.report.FormatsEditions.avec(parameters), new JRBeanCollectionDataSource(reportData));
             return JasperExportManager.exportReportToPdf(jasperPrint);
 
         } catch (Exception e) {

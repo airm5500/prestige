@@ -543,9 +543,9 @@ public class InvoiceServlet extends HttpServlet {
             params.put(JsonQueryExecuterFactory.JSON_INPUT_STREAM, iostream);
             JasperReport jasperReport = JasperCompileManager.compileReport(scr_report_file);
             // pathName = jdom.scr_report_pdf + fileName;
-            jasperPrint = JasperFillManager.fillReport(jasperReport, params);
+            jasperPrint = JasperFillManager.fillReport(jasperReport, rest.report.FormatsEditions.avec(params));
             // JasperExportManager.exportReportToPdfFile(jasperPrint, pathName);
-            // JasperFillManager.fillReportToFile(scr_report_file, params);
+            // JasperFillManager.fillReportToFile(scr_report_file, rest.report.FormatsEditions.avec(params));
 
             System.err.println("Filling time : " + (System.currentTimeMillis() - start));
         } catch (JRException ex) {
@@ -835,9 +835,10 @@ public class InvoiceServlet extends HttpServlet {
             params.put(JRParameter.REPORT_LOCALE, Locale.FRANCE);
             JasperReport jasperReport = JasperCompileManager.compileReport(scr_report_file);
             // pathName = jdom.scr_report_pdf + fileName;
-            jasperPrint = JasperFillManager.fillReport(jasperReport, params, Ojconnexion);
+            jasperPrint = JasperFillManager.fillReport(jasperReport, rest.report.FormatsEditions.avec(params),
+                    Ojconnexion);
             // JasperExportManager.exportReportToPdfFile(jasperPrint, pathName);
-            // JasperFillManager.fillReportToFile(scr_report_file, params);
+            // JasperFillManager.fillReportToFile(scr_report_file, rest.report.FormatsEditions.avec(params));
 
             System.err.println("Filling time : " + (System.currentTimeMillis() - start));
         } catch (JRException ex) {
@@ -866,7 +867,7 @@ public class InvoiceServlet extends HttpServlet {
 
             // jdom.scr_report_file + "rp_complementaire.jrxml"
             JasperReport jasperReport = JasperCompileManager.compileReport(scr_report_file);
-            jasperPrint = JasperFillManager.fillReport(jasperReport, params);
+            jasperPrint = JasperFillManager.fillReport(jasperReport, rest.report.FormatsEditions.avec(params));
         } catch (JSONException ex) {
             Logger.getLogger(InvoiceServlet.class.getName()).log(Level.SEVERE, null, ex);
         }

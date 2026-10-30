@@ -130,8 +130,8 @@ public class PointDepotServiceImpl implements PointDepotService {
         String reportPath = reportDirectory + reportName;
         InputStream reportStream = new FileInputStream(reportPath);
         JasperReport jasperReport = JasperCompileManager.compileReport(reportStream);
-        JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters,
-                new JRBeanCollectionDataSource(data));
+        JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport,
+                rest.report.FormatsEditions.avec(parameters), new JRBeanCollectionDataSource(data));
 
         return JasperExportManager.exportReportToPdf(jasperPrint);
     }

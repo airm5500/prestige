@@ -54,7 +54,7 @@ public final class ReserveReportBuilder {
         JasperDesign design = JRXmlLoader.load(jrxmlPath);
         JasperReport report = JasperCompileManager.compileReport(design);
         try (Connection cx = ds.getConnection()) {
-            JasperPrint print = JasperFillManager.fillReport(report, parameters, cx);
+            JasperPrint print = JasperFillManager.fillReport(report, rest.report.FormatsEditions.avec(parameters), cx);
             JasperExportManager.exportReportToPdfFile(print, pdfPath);
         }
         LOG.log(Level.INFO, "PDF reserve genere : {0}", pdfPath);
@@ -77,7 +77,8 @@ public final class ReserveReportBuilder {
             net.sf.jasperreports.engine.JRDataSource dataSource) throws Exception {
         JasperDesign design = JRXmlLoader.load(modele);
         JasperReport report = JasperCompileManager.compileReport(design);
-        JasperPrint print = JasperFillManager.fillReport(report, parameters, dataSource);
+        JasperPrint print = JasperFillManager.fillReport(report, rest.report.FormatsEditions.avec(parameters),
+                dataSource);
         byte[] pdf = JasperExportManager.exportReportToPdf(print);
         LOG.log(Level.INFO, "PDF memoire genere : {0} octets", pdf.length);
         return pdf;

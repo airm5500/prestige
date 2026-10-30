@@ -56,8 +56,8 @@ public class reportManager {
             //
 
             // - Execution du rapport
-            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters,
-                    getOjconnexion().get_StringConnexion());
+            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport,
+                    rest.report.FormatsEditions.avec(parameters), getOjconnexion().get_StringConnexion());
             //
             JasperExportManager.exportReportToPdfFile(jasperPrint, this.getPath_report_pdf());
 
@@ -77,8 +77,8 @@ public class reportManager {
             // - Paramètres à envoyer au rapport
 
             // - Execution du rapport
-            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters,
-                    Ojconnexion.get_StringConnexion());
+            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport,
+                    rest.report.FormatsEditions.avec(parameters), Ojconnexion.get_StringConnexion());
             // - Création du rapport au format PDF
             JasperExportManager.exportReportToPdfFile(jasperPrint, this.getPath_report_pdf());
 
@@ -98,8 +98,8 @@ public class reportManager {
             // - Paramètres à envoyer au rapport
 
             // - Execution du rapport
-            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters,
-                    Ojconnexion.get_StringConnexion());
+            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport,
+                    rest.report.FormatsEditions.avec(parameters), Ojconnexion.get_StringConnexion());
             // - Création du rapport au format PDF
             // JasperExportManager.exportReportToPdfFile(jasperPrint, this.getPath_report_pdf());
 
@@ -122,8 +122,8 @@ public class reportManager {
             // - Paramètres à envoyer au rapport
 
             // - Execution du rapport
-            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters,
-                    getOjconnexion().get_StringConnexion());
+            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport,
+                    rest.report.FormatsEditions.avec(parameters), getOjconnexion().get_StringConnexion());
             // - Création du rapport au format PDF
             JasperExportManager.exportReportToPdfFile(jasperPrint, this.getPath_report_pdf());
 
@@ -143,8 +143,8 @@ public class reportManager {
             // - Paramètres à envoyer au rapport
 
             // - Execution du rapport
-            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters,
-                    Ojconnexion.get_StringConnexion());
+            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport,
+                    rest.report.FormatsEditions.avec(parameters), Ojconnexion.get_StringConnexion());
             // - Création du rapport au format PDF
             JasperExportManager.exportReportToPdfFile(jasperPrint, this.getPath_report_pdf());
 
@@ -165,10 +165,10 @@ public class reportManager {
             File reportFile = new File(this.getPath_report_src());
             String path = reportFile.getAbsolutePath();
 
-            JasperPrint jasperPrint = JasperFillManager.fillReport(path, parameters,
+            JasperPrint jasperPrint = JasperFillManager.fillReport(path, rest.report.FormatsEditions.avec(parameters),
                     getOjconnexion().get_StringConnexion());
-            String result = JasperRunManager.runReportToHtmlFile(this.getPath_report_src(), parameters,
-                    getOjconnexion().get_StringConnexion());
+            String result = JasperRunManager.runReportToHtmlFile(this.getPath_report_src(),
+                    rest.report.FormatsEditions.avec(parameters), getOjconnexion().get_StringConnexion());
             File destFile = new File(this.getPath_report_XLS());
             JRXlsExporter exporter = new JRXlsExporter();
             exporter.setParameter(JRExporterParameter.JASPER_PRINT, jasperPrint);
@@ -198,9 +198,10 @@ public class reportManager {
             File reportFile = new File(this.getPath_report_src());
             String path = reportFile.getAbsolutePath();
 
-            JasperPrint jasperPrint = JasperFillManager.fillReport(path, parameters, Ojconnexion.get_StringConnexion());
-            String result = JasperRunManager.runReportToHtmlFile(this.getPath_report_src(), parameters,
+            JasperPrint jasperPrint = JasperFillManager.fillReport(path, rest.report.FormatsEditions.avec(parameters),
                     Ojconnexion.get_StringConnexion());
+            String result = JasperRunManager.runReportToHtmlFile(this.getPath_report_src(),
+                    rest.report.FormatsEditions.avec(parameters), Ojconnexion.get_StringConnexion());
             File destFile = new File(this.getPath_report_XLS());
             JRXlsExporter exporter = new JRXlsExporter();
             exporter.setParameter(JRExporterParameter.JASPER_PRINT, jasperPrint);
@@ -291,9 +292,11 @@ public class reportManager {
             JasperReport jasperReport = JasperCompileManager.compileReport(this.getPath_report_src());
             // - Paramètres à envoyer au rapport
             // JasperReport jasperReport = (JasperReport) JRLoader.loadObject(sourceFile);
-            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters, new JREmptyDataSource());
+            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport,
+                    rest.report.FormatsEditions.avec(parameters), new JREmptyDataSource());
             // - Execution du rapport
-            // JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters, new
+            // JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport,
+            // rest.report.FormatsEditions.avec(parameters), new
             // JREmptyDataSource());
             // - Création du rapport au format PDF
             JasperExportManager.exportReportToPdfFile(jasperPrint, this.getPath_report_pdf());

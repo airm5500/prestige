@@ -104,7 +104,8 @@ public class JsonDataSourceApp extends AbstractSampleApp {
             params.put(JsonQueryExecuterFactory.JSON_INPUT_STREAM, iostream);
             params.put("TPSHORTNAME", TPSHORTNAME);
             params.put("seconLabel", seconLabel);
-            JasperFillManager.fillReportToFile(jdom.scr_report_file + "rp_vieillemere.jasper", params);
+            JasperFillManager.fillReportToFile(jdom.scr_report_file + "rp_vieillemere.jasper",
+                    rest.report.FormatsEditions.avec(params));
             System.err.println("Filling time : " + (System.currentTimeMillis() - start));
         } catch (JSONException ex) {
             Logger.getLogger(JsonDataSourceApp.class.getName()).log(Level.SEVERE, null, ex);
@@ -141,7 +142,8 @@ public class JsonDataSourceApp extends AbstractSampleApp {
             params.put(JRParameter.REPORT_LOCALE, Locale.FRANCE);
             params.put(JsonQueryExecuterFactory.JSON_INPUT_STREAM, new FileInputStream(new File("D:\\invoice.json")));
             // params.put(JSon, Locale.FRANCE);
-            JasperFillManager.fillReportToFile(jdom.scr_report_file + "rp_vieillemere.jasper", params);
+            JasperFillManager.fillReportToFile(jdom.scr_report_file + "rp_vieillemere.jasper",
+                    rest.report.FormatsEditions.avec(params));
             System.err.println("Filling time : " + (System.currentTimeMillis() - start));
         } catch (FileNotFoundException ex) {
             Logger.getLogger(JsonDataSourceApp.class.getName()).log(Level.SEVERE, null, ex);
@@ -418,11 +420,14 @@ public class JsonDataSourceApp extends AbstractSampleApp {
             params.put("seconLabel", seconLabel);
 
             pathName = jdom.scr_report_pdf + fileName;
-            // JasperFillManager.fillReportToFile(jdom.scr_report_file + "rp_complementaire.jasper", params);
+            // JasperFillManager.fillReportToFile(jdom.scr_report_file + "rp_complementaire.jasper",
+            // rest.report.FormatsEditions.avec(params));
             JasperReport jasperReport = JasperCompileManager
                     .compileReport(jdom.scr_report_file + "rp_complementaire.jrxml");
-            // JasperFillManager.fillReportToFile( jdom.scr_report_file+ "rp_vieillemere.jasper", params);
-            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, params);
+            // JasperFillManager.fillReportToFile( jdom.scr_report_file+ "rp_vieillemere.jasper",
+            // rest.report.FormatsEditions.avec(params));
+            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport,
+                    rest.report.FormatsEditions.avec(params));
             JasperExportManager.exportReportToPdfFile(jasperPrint, pathName);
 
         } catch (JSONException ex) {
@@ -450,8 +455,10 @@ public class JsonDataSourceApp extends AbstractSampleApp {
             params.put("TPSHORTNAME", TPSHORTNAME);
             params.put("seconLabel", seconLabel);
 
-            JasperFillManager.fillReportToFile(jdom.scr_report_file + "rp_complementaire.jasper", params);
-            // JasperFillManager.fillReportToFile( jdom.scr_report_file+ "rp_vieillemere.jasper", params);
+            JasperFillManager.fillReportToFile(jdom.scr_report_file + "rp_complementaire.jasper",
+                    rest.report.FormatsEditions.avec(params));
+            // JasperFillManager.fillReportToFile( jdom.scr_report_file+ "rp_vieillemere.jasper",
+            // rest.report.FormatsEditions.avec(params));
 
             System.err.println("Filling time : " + (System.currentTimeMillis() - start));
         } catch (JSONException ex) {
@@ -472,9 +479,10 @@ public class JsonDataSourceApp extends AbstractSampleApp {
             params.put(JsonQueryExecuterFactory.JSON_INPUT_STREAM, iostream);
             JasperReport jasperReport = JasperCompileManager.compileReport(scr_report_file);
             pathName = jdom.scr_report_pdf + fileName;
-            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, params);
+            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport,
+                    rest.report.FormatsEditions.avec(params));
             JasperExportManager.exportReportToPdfFile(jasperPrint, pathName);
-            // JasperFillManager.fillReportToFile(scr_report_file, params);
+            // JasperFillManager.fillReportToFile(scr_report_file, rest.report.FormatsEditions.avec(params));
 
             System.err.println("Filling time : " + (System.currentTimeMillis() - start));
         } catch (Exception ex) {
