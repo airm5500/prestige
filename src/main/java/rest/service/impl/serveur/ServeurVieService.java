@@ -202,6 +202,72 @@ public class ServeurVieService {
         return m;
     }
 
+    /**
+     * Variables posees par SET GLOBAL depuis le demarrage de MariaDB (GLOBAL_VALUE_ORIGIN = SQL), noms en minuscules :
+     * absentes de my.ini, elles reviendraient a leur valeur par defaut au redemarrage. Vide si la table manque.
+     */
+    @SuppressWarnings("unchecked")
+    public java.util.Set<String> variablesPoseesAChaud() {
+        java.util.Set<String> s = new java.util.HashSet<>();
+        try {
+            for (Object o : em.createNativeQuery("SELECT LOWER(VARIABLE_NAME) FROM information_schema.SYSTEM_VARIABLES"
+                    + " WHERE GLOBAL_VALUE_ORIGIN = 'SQL'").getResultList()) {
+                s.add(String.valueOf(o));
+            }
+        } catch (RuntimeException e) {
+            return s;
+        }
+        return s;
+    }
+
+    /** Compte de l'application vu par MariaDB (CURRENT_USER(), « nom@hote »). */
+    public String compteBase() {
+        return String.valueOf(em.createNativeQuery("SELECT CURRENT_USER()").getSingleResult());
+    }
+
+    /** Droits du compte de l'application (SHOW GRANTS FOR CURRENT_USER()). */
+    @SuppressWarnings("unchecked")
+    public List<String> droitsCompte() {
+        List<String> l = new ArrayList<>();
+        for (Object o : em.createNativeQuery("SHOW GRANTS FOR CURRENT_USER()").getResultList()) {
+            l.add(String.valueOf(o instanceof Object[] ? ((Object[]) o)[0] : o));
+        }
+        return l;
+    }
+
+    /** Une variable de MariaDB (SHOW GLOBAL VARIABLES), ou null. */
+    @SuppressWarnings("unchecked")
+    public String variableMariadb(String nom) {
+        List<Object[]> r = em.createNativeQuery("SHOW GLOBAL VARIABLES LIKE '" + nom.replaceAll("[^A-Za-z_]", "") + "'")
+                .getResultList();
+        return r.isEmpty() ? null : String.valueOf(r.get(0)[1]);
+    }
+
+    /** Variable d'etat textuelle de MariaDB (SHOW GLOBAL STATUS), ou null. */
+    @SuppressWarnings("unchecked")
+    public String statutTexteMariadb(String nom) {
+        try {
+            List<Object[]> r = em
+                    .createNativeQuery("SHOW GLOBAL STATUS LIKE '" + nom.replaceAll("[^A-Za-z_]", "") + "'")
+                    .getResultList();
+            return r.isEmpty() ? null : String.valueOf(r.get(0)[1]);
+        } catch (RuntimeException e) {
+            return null;
+        }
+    }
+
+    /**
+     * SET GLOBAL d'un reglage de la liste fermee ({@link ApplicationMariadb}), valeur numerique : aucun texte libre
+     * n'atteint la requete.
+     */
+    @TransactionAttribute(TransactionAttributeType.REQUIRES_NEW)
+    public void appliquerVariable(String cle, long valeur) {
+        if (!ApplicationMariadb.dynamique(cle) || ("innodb_flush_log_at_trx_commit".equals(cle) && valeur != 1)) {
+            throw new IllegalArgumentException("Réglage hors de la liste : " + cle);
+        }
+        em.createNativeQuery("SET GLOBAL " + cle + " = " + valeur).executeUpdate();
+    }
+
     /** Releves d'une machine avant un instant (les plus recents d'abord). */
     @SuppressWarnings("unchecked")
     public List<Object[]> mesuresAvant(String hote, LocalDateTime avant, int nombre) {

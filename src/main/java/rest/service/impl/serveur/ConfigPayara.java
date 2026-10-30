@@ -189,11 +189,12 @@ public final class ConfigPayara {
         reglage(l, "pool-validation", "Contrôle des connexions à la base", poolValidation ? "activé" : "désactivé",
                 "activé", poolValidation ? Niveau.OK : Niveau.A_AJUSTER,
                 "Après un redémarrage de MariaDB ou une coupure réseau, les connexions mortes sont remplacées au lieu de faire échouer les ventes.",
-                "asadmin set resources.jdbc-connection-pool." + pool + ".is-connection-validation-required=true"
+                /* activation en dernier : Payara la refuse tant que la methode est « table » sans table */
+                "asadmin set resources.jdbc-connection-pool." + pool + ".connection-validation-method=custom-validation"
                         + "\nasadmin set resources.jdbc-connection-pool." + pool
-                        + ".connection-validation-method=custom-validation"
+                        + ".validation-classname=org.glassfish.api.jdbc.validation.MySQLConnectionValidation"
                         + "\nasadmin set resources.jdbc-connection-pool." + pool
-                        + ".validation-classname=org.glassfish.api.jdbc.validation.MySQLConnectionValidation");
+                        + ".is-connection-validation-required=true");
         reglage(l, "pool-fuite", "Détection des connexions non rendues",
                 poolFuiteSecondes > 0 ? poolFuiteSecondes + " s" : "désactivée", "300 s",
                 poolFuiteSecondes > 0 ? Niveau.OK : Niveau.A_AJUSTER,
@@ -275,6 +276,11 @@ public final class ConfigPayara {
 
     /** Commandes asadmin des reglages a appliquer (domaine arrete puis redemarre pour la memoire et les options). */
     public static String script(List<Reglage> reglages) {
+        return script(reglages, "domain1");
+    }
+
+    /** Idem, pour le domaine en cours (nom du dossier de com.sun.aas.instanceRoot). */
+    public static String script(List<Reglage> reglages, String domaine) {
         StringBuilder sb = new StringBuilder(
                 "REM Reglages conseilles par Prestige (a lancer dans le dossier bin de Payara)\n");
         for (Reglage r : reglages) {
@@ -283,6 +289,6 @@ public final class ConfigPayara {
                         .append('\n');
             }
         }
-        return sb.append("call asadmin restart-domain domain1\n").toString();
+        return sb.append("call asadmin restart-domain ").append(domaine).append('\n').toString();
     }
 }

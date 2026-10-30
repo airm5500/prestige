@@ -104,4 +104,18 @@ class ConfigPayaraTest {
             assertEquals(Niveau.OK, r(l, k).niveau, k);
         }
     }
+
+    @Test
+    void validationActiveeApresSaMethode() {
+        /*
+         * Payara refuse is-connection-validation-required=true tant que la methode est « table » sans table (essai sur
+         * domain2 le 30/10) : la methode et la classe d'abord, l'activation en dernier
+         */
+        List<Reglage> l = ConfigPayara.lire(DOMAIN).comparer(Arrays.asList("-Xmx2g"), 3 * ReglagesServeur.GO, 20,
+                "D:/d", "D:/l");
+        String[] lignes = r(l, "pool-validation").ligne.split("\n");
+        assertTrue(lignes[0].endsWith(".connection-validation-method=custom-validation"), lignes[0]);
+        assertTrue(lignes[lignes.length - 1].endsWith(".is-connection-validation-required=true"),
+                lignes[lignes.length - 1]);
+    }
 }

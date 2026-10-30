@@ -6,7 +6,10 @@
  *    des dernieres 24 h (releves toutes les 2 minutes) ; derniere cause d'arret brutal ;
  *  - Arrets : demarrages et arrets du serveur, propre ou brutal, avec la cause probable et le conseil ;
  *  - Reglages : reglages en place et conseilles pour la machine (memoire, processeurs, nombre de postes), bloc my.ini et
- *    commandes asadmin a copier. Lecture seule : l'ecran ne modifie ni Payara ni MariaDB.
+ *    commandes asadmin a copier. Super administrateur : « Appliquer à chaud » (SET GLOBAL des reglages de MariaDB
+ *    modifiables sans redemarrage) et « Écrire dans my.ini » (fichier sauvegarde avant, MariaDB jamais redemarre),
+ *    confirmes dans le bouton lui-meme ; « Appliquer et redémarrer Payara » (script asadmin detache, verifie au retour ;
+ *    sans mot de passe d'administration ni droit de lancer asadmin, le script reste a copier).
  * Aucune fenetre.
  */
 Ext.define('testextjs.view.support.SupportServeur', {
@@ -78,6 +81,7 @@ Ext.define('testextjs.view.support.SupportServeur', {
                 + '.srv-lex>div{margin-top:3px}.srv-lex-terme{font-weight:bold;font-size:14px;color:#1b2631}'
                 + '.srv-lex-ici{background:#f4f6f8;border-radius:4px;padding:1px 6px;margin-left:6px}'
                 + '.srv-confirmer,.srv-confirmer .x-btn-inner{background:#c0392b !important;color:#fff !important}'
+                + '.srv-compte-rendu{margin:4px 0 4px 18px;padding:0}.srv-compte-rendu li{margin:2px 0}'
                 + '.srv-jeton{font-family:Consolas,monospace;background:#f4f6f8;padding:2px 6px;border-radius:4px;user-select:all}', 'srv-styles');
     },
 
@@ -393,8 +397,30 @@ Ext.define('testextjs.view.support.SupportServeur', {
                     ]},
                 {xtype: 'container', flex: 2, layout: {type: 'hbox', align: 'stretch'}, padding: '8 0 0 0', items: [
                         {xtype: 'panel', flex: 1, title: 'MariaDB : bloc à reporter dans my.ini (puis redémarrer MariaDB)', layout: 'fit', tools: [copier('myIni')],
+                            tbar: [{itemId: 'appliquerMariadb', text: 'Appliquer à chaud', iconCls: 'fa fa-bolt', hidden: true,
+                                    tooltip: 'Change tout de suite, sans redémarrer MariaDB, les réglages à ajuster qui le permettent.',
+                                    handler: function (b) {
+                                        me.appliquerMariadb(b);
+                                    }},
+                                {xtype: 'checkbox', itemId: 'avecTampon', boxLabel: 'avec le tampon InnoDB (long)', hidden: true,
+                                    tooltip: 'Le tampon InnoDB se redimensionne par morceaux pendant plusieurs minutes : à faire hors des heures de vente.'},
+                                {xtype: 'tbtext', itemId: 'droitsMariadb', text: ''},
+                                {itemId: 'ecrireMyIni', text: 'Écrire dans my.ini', iconCls: 'fa fa-save', hidden: true,
+                                    tooltip: 'Écrit les réglages conseillés dans my.ini (copie de sauvegarde avant) ; MariaDB les prendra à son prochain démarrage.',
+                                    handler: function (b) {
+                                        me.ecrireMyIni(b);
+                                    }},
+                                {xtype: 'tbtext', itemId: 'etatMyIni', text: ''}],
                             items: [{xtype: 'textarea', itemId: 'myIni', readOnly: true, cls: 'srv-code'}]},
                         {xtype: 'panel', flex: 1, margin: '0 0 0 8', title: 'Payara : commandes asadmin (dossier bin de Payara)', layout: 'fit', tools: [copier('asadmin')],
+                            tbar: [{itemId: 'appliquerPayara', text: 'Appliquer et redémarrer Payara', iconCls: 'fa fa-bolt', hidden: true,
+                                    tooltip: 'Lance les commandes ci-dessous puis redémarre Payara (environ une minute d\'interruption pour tous les postes).',
+                                    handler: function (b) {
+                                        me.appliquerPayara(b);
+                                    }},
+                                {xtype: 'checkbox', itemId: 'avecMemoireJava', boxLabel: 'avec la mémoire du serveur Java', hidden: true, checked: true,
+                                    tooltip: '-Xms et -Xmx : à décocher si la machine manque de mémoire en ce moment.'},
+                                {xtype: 'tbtext', itemId: 'etatPayara', text: ''}],
                             items: [{xtype: 'textarea', itemId: 'asadmin', readOnly: true, cls: 'srv-code'}]}
                     ]},
                 {xtype: 'component', itemId: 'etatReglages', cls: 'srv-etat'}
@@ -402,7 +428,7 @@ Ext.define('testextjs.view.support.SupportServeur', {
         };
     },
 
-    chargerReglages: function () {
+    chargerReglages: function (ensuite) {
         var me = this, o = me.down('#ongletReglages');
         o.setLoading('Lecture des réglages...');
         me.appel('GET', 'reglages', null, function (r) {
@@ -428,8 +454,217 @@ Ext.define('testextjs.view.support.SupportServeur', {
             });
             me.down('#etatReglages').update((n.CRITIQUE ? '<span class="srv-critique">' + n.CRITIQUE + ' réglage(s) critique(s)</span> · ' : '')
                     + (n.A_AJUSTER ? '<span class="srv-ajuster">' + n.A_AJUSTER + ' à ajuster</span> · ' : '')
-                    + 'Calcul pour ' + r.postes + ' poste(s). L\'écran ne modifie rien : les réglages s\'appliquent avec les blocs ci-dessus.');
+                    + 'Calcul pour ' + r.postes + ' poste(s). ' + (r.superAdmin ? 'Les boutons « Appliquer » changent les réglages à ajuster ; le reste s\'applique avec les blocs ci-dessus.'
+                            : 'L\'écran ne modifie rien : les réglages s\'appliquent avec les blocs ci-dessus.'));
+            me.afficherBoutonsReglages(r);
+            if (ensuite) {
+                ensuite();
+            }
         });
+    },
+
+    /* MariaDB a chaud : super administrateur, MariaDB sur cette machine ; droit SUPER manquant signale */
+    afficherBoutonsReglages: function (r) {
+        var me = this, b = me.down('#appliquerMariadb'), t = me.down('#droitsMariadb'), d = r.droitsMariadb;
+        var aFaire = me.mariadbAFaire();
+        b.setVisible(!!(r.superAdmin && r.mariadbLocale));
+        b.setDisabled(!d || !d.ok || !aFaire.length);
+        /* le tampon InnoDB se redimensionne pendant plusieurs minutes : seulement si on le demande */
+        var tampon = me.down('#avecTampon');
+        tampon.setVisible(b.isVisible() && Ext.Array.some(aFaire, function (x) {
+            return x.cle === 'innodb_buffer_pool_size';
+        }));
+        tampon.setValue(false);
+        t.update(!r.superAdmin || !r.mariadbLocale ? '' : d && !d.ok ? '<span class="srv-critique">Droit SUPER manquant</span>'
+                : aFaire.length ? aFaire.length + ' réglage(s) à ajuster' : '<span class="srv-ok">Rien à ajuster</span>');
+        if (d && !d.ok) {
+            me.down('#etatReglages').update('<span class="srv-critique">' + me.esc(d.message) + '</span>');
+        }
+        /* my.ini : refuse si sa structure n'est pas comprise (le bloc reste a copier) */
+        var f = r.fichierMyIni, bi = me.down('#ecrireMyIni'), ti = me.down('#etatMyIni');
+        bi.setVisible(!!(r.superAdmin && r.mariadbLocale && f));
+        bi.setDisabled(!f || !!f.refus || !f.changements);
+        bi.setTooltip(f && f.chemin ? me.esc(f.chemin) : '');
+        ti.update(!f ? '' : f.refus ? '<span class="srv-critique" title="' + me.esc(f.refus) + '">my.ini non modifiable</span>'
+                : f.changements ? f.changements + ' ligne(s) à écrire' : '<span class="srv-ok">my.ini à jour</span>');
+        me.fichierMyIni = f;
+        /* Payara : bouton si asadmin peut etre lance ; etat de la derniere application (verifiee au retour) */
+        var py = r.payara, bp = me.down('#appliquerPayara'), tp = me.down('#etatPayara'), aFairePayara = me.payaraAFaire();
+        bp.setVisible(!!(r.superAdmin && py && py.lancement));
+        bp.setDisabled(!aFairePayara.length || !!(py && py.enCours && !py.enCours.perime));
+        me.down('#avecMemoireJava').setVisible(bp.isVisible() && Ext.Array.some(aFairePayara, function (x) {
+            return x.cle === 'Xms';
+        }));
+        var html = '';
+        if (py && py.enCours) {
+            html = py.enCours.perime ? '<span class="srv-critique">Lancé le ' + me.esc(py.enCours.lance) + ' : Payara n\'a pas redémarré</span>'
+                    : '<span class="srv-ajuster">Lancé le ' + me.esc(py.enCours.lance) + ' : redémarrage attendu</span>';
+            if (py.enCours.perime && py.enCours.journal) {
+                me.down('#etatReglages').update('<b>Journal du script Payara :</b><pre>' + me.esc(py.enCours.journal) + '</pre>');
+            }
+        } else if (py && py.dernier) {
+            var d = py.dernier;
+            html = '<span class="' + (d.pris === d.total ? 'srv-ok' : 'srv-critique') + '">Vérifié le ' + me.esc(d.verifie) + ' : '
+                    + d.pris + ' / ' + d.total + ' réglage(s) pris</span>';
+            me.dernierPayara = d;
+        } else if (r.superAdmin && py && !py.lancement) {
+            html = 'asadmin introuvable : script à copier';
+        }
+        tp.update(html);
+    },
+
+    payaraAFaire: function () {
+        return Ext.Array.filter(Ext.Object.getValues(this.reglages || {}), function (x) {
+            return x.domaine === 'PAYARA' && x.niveau !== 'OK' && /^asadmin /.test(x.ligne || '');
+        });
+    },
+
+    appliquerPayara: function (b) {
+        var me = this, avecMemoire = me.down('#avecMemoireJava').getValue();
+        var l = Ext.Array.filter(me.payaraAFaire(), function (x) {
+            return avecMemoire || x.cle !== 'Xms';
+        });
+        if (!l.length) {
+            me.down('#etatReglages').update('<span class="srv-ajuster">Seule la mémoire du serveur Java reste à ajuster : cocher « avec la mémoire du serveur Java ».</span>');
+            return;
+        }
+        me.confirmerDansBouton(b, 'Confirmer : ' + l.length + ' réglage(s), Payara redémarre', function () {
+            var o = me.down('#ongletReglages');
+            o.setLoading('Vérification d\'asadmin puis lancement...');
+            me.appel('POST', 'reglages/payara', {cles: Ext.Array.pluck(l, 'cle')}, function (r) {
+                o.setLoading(false);
+                var e = me.down('#etatReglages');
+                if (!r.success) {
+                    e.update('<span class="srv-critique">' + me.esc(r.message) + '</span>');
+                    if (r.aCopier && r.script) {
+                        me.down('#asadmin').setValue(r.script);
+                    }
+                    return;
+                }
+                b.setDisabled(true);
+                me.down('#etatPayara').update('<span class="srv-ajuster">Redémarrage en cours...</span>');
+                e.update('<span class="srv-ajuster">' + me.esc(r.message) + '</span>');
+                me.attendreRedemarrage(0, false);
+            });
+        });
+    },
+
+    /* suit le redemarrage : le serveur cesse de repondre puis repond de nouveau (la session est alors perdue) */
+    attendreRedemarrage: function (n, tombe) {
+        var me = this;
+        if (me.isDestroyed || n > 72) {
+            return;
+        }
+        setTimeout(function () {
+            Ext.Ajax.request({url: me.URL + 'etat', method: 'GET', timeout: 4000,
+                success: function () {
+                    if (tombe) {
+                        me.down('#etatPayara').update('<span class="srv-ok">Payara a redémarré</span>');
+                        me.down('#etatReglages').update('Payara a redémarré : reconnectez-vous puis rouvrez « Réglages conseillés » pour voir la vérification.');
+                        return;
+                    }
+                    me.attendreRedemarrage(n + 1, false);
+                },
+                failure: function () {
+                    me.attendreRedemarrage(n + 1, true);
+                }});
+        }, 5000);
+    },
+
+    ecrireMyIni: function (b) {
+        var me = this, f = me.fichierMyIni || {}, tampon = me.down('#avecTampon');
+        /* case « avec le tampon InnoDB » decochee : le tampon n'est pas ecrit non plus dans my.ini */
+        var cles = Ext.Array.filter(f.cles || [], function (c) {
+            return c !== 'innodb_buffer_pool_size' || !tampon.isVisible() || tampon.getValue();
+        });
+        if (!cles.length) {
+            me.down('#etatReglages').update('<span class="srv-ajuster">Seul le tampon InnoDB reste à écrire : cocher « avec le tampon InnoDB ».</span>');
+            return;
+        }
+        me.confirmerDansBouton(b, 'Confirmer : ' + cles.length + ' ligne(s) dans my.ini (sauvegardé avant)', function () {
+            var o = me.down('#ongletReglages');
+            o.setLoading('Écriture de my.ini...');
+            me.appel('POST', 'reglages/myini', {cles: cles}, function (r) {
+                o.setLoading(false);
+                if (!r.success) {
+                    me.down('#etatReglages').update('<span class="srv-critique">' + me.esc(r.message) + '</span>');
+                    return;
+                }
+                me.chargerReglages(function () {
+                    me.down('#etatReglages').update(me.compteRendu('my.ini (' + r.chemin + ')', r.data)
+                            + (r.sauvegarde ? 'Copie de sauvegarde : ' + me.esc(r.sauvegarde) + '<br>' : '') + '<i>' + me.esc(r.message) + '</i>');
+                });
+            });
+        });
+    },
+
+    mariadbAFaire: function () {
+        return Ext.Array.filter(Ext.Object.getValues(this.reglages || {}), function (x) {
+            return x.domaine === 'MARIADB' && x.niveau !== 'OK';
+        });
+    },
+
+    /* confirmation dans le bouton : 1er clic arme (texte et couleur), 2e clic dans les 6 s execute */
+    confirmerDansBouton: function (b, texteConfirmation, action) {
+        if (!b.arme) {
+            b.arme = true;
+            b.texteNormal = b.texteNormal || b.getText();
+            b.setText(texteConfirmation);
+            b.addCls('srv-confirmer');
+            b.minuteur = setTimeout(function () {
+                if (!b.isDestroyed) {
+                    b.arme = false;
+                    b.setText(b.texteNormal);
+                    b.removeCls('srv-confirmer');
+                }
+            }, 6000);
+            return;
+        }
+        clearTimeout(b.minuteur);
+        b.arme = false;
+        b.setText(b.texteNormal);
+        b.removeCls('srv-confirmer');
+        action();
+    },
+
+    ETATS_APPLICATION: {APPLIQUE: ['srv-ok', 'appliqué'], MY_INI: ['srv-ajuster', 'au prochain redémarrage (my.ini)'],
+        REFUSE: ['srv-critique', 'refusé'], ECHEC: ['srv-critique', 'échec'], A_FAIRE: ['', 'non appliqué']},
+
+    appliquerMariadb: function (b) {
+        var me = this, avecTampon = me.down('#avecTampon').getValue();
+        var l = Ext.Array.filter(me.mariadbAFaire(), function (x) {
+            return avecTampon || x.cle !== 'innodb_buffer_pool_size';
+        });
+        if (!l.length) {
+            me.down('#etatReglages').update('<span class="srv-ajuster">Seul le tampon InnoDB reste à ajuster : cocher « avec le tampon InnoDB » pour l\'appliquer.</span>');
+            return;
+        }
+        me.confirmerDansBouton(b, 'Confirmer : ' + l.length + ' réglage(s)' + (avecTampon ? ' (tampon InnoDB : plusieurs minutes)' : ''), function () {
+            var o = me.down('#ongletReglages');
+            o.setLoading('Application des réglages de MariaDB...');
+            me.appel('POST', 'reglages/mariadb', {cles: Ext.Array.pluck(l, 'cle')}, function (r) {
+                o.setLoading(false);
+                if (!r.success) {
+                    me.down('#etatReglages').update('<span class="srv-critique">' + me.esc(r.message) + '</span>');
+                    return;
+                }
+                me.chargerReglages(function () {
+                    me.down('#etatReglages').update(me.compteRendu('MariaDB, à chaud', r.data, r.redimensionnement));
+                });
+            });
+        });
+    },
+
+    compteRendu: function (titre, l, redimensionnement) {
+        var me = this, html = '<b>' + me.esc(titre) + ' :</b><ul class="srv-compte-rendu">';
+        Ext.each(l || [], function (x) {
+            var e = me.ETATS_APPLICATION[x.etat] || ['', x.etat];
+            html += '<li><b>' + me.esc(x.libelle || x.cle) + '</b> : ' + me.esc(x.avant) + ' → '
+                    + me.esc(x.etat === 'APPLIQUE' ? x.apres : x.conseille) + ' <span class="' + e[0] + '">' + e[1] + '</span>'
+                    + (x.refus ? ' : ' + me.esc(x.refus) : '') + (x.message && x.etat !== 'MY_INI' ? ' : ' + me.esc(x.message) : '')
+                    + (x.avertissement && x.etat === 'APPLIQUE' ? '<br><i>' + me.esc(x.avertissement) + '</i>' : '') + '</li>';
+        });
+        return html + '</ul>' + (redimensionnement ? '<i>Tampon InnoDB : ' + me.esc(redimensionnement) + '</i>' : '');
     },
 
     /* ============================================================================================ lexique */
