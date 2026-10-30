@@ -139,8 +139,8 @@ function semer() {
     let ouvertures = await p.evaluate(() => window.__ouvertures.splice(0));
     ok('L\'impression simple ouvre une seule fois, dans le clic', ouvertures.length === 1 && /feuille-match\/simple\/pdf\?/.test(ouvertures[0]), JSON.stringify(ouvertures));
     const pdf = await telecharger(ouvertures[0]);
-    fs.writeFileSync('/tmp/claude-0/feuille_simple.pdf', Buffer.from(pdf.octets));
-    const texte = execSync('pdftotext -enc UTF-8 -layout /tmp/claude-0/feuille_simple.pdf -', { encoding: 'utf8' });
+    fs.writeFileSync(ENV_E2E.TMP + '/feuille_simple.pdf', Buffer.from(pdf.octets));
+    const texte = execSync('pdftotext -enc UTF-8 -layout "' + ENV_E2E.TMP + '/feuille_simple.pdf" -', { encoding: 'utf8' });
     const attenduPdf = new RegExp('feuille_de_match_[A-Za-z0-9_]+_' + JOUR.replace(/-/g, '_') + '_' + JOUR.replace(/-/g, '_') + '\\.pdf');
     ok('Le PDF simple repond, sous le nom feuille_de_match_<officine>_<periode>.pdf', pdf.statut === 200 && /pdf/.test(pdf.type) && attenduPdf.test(pdf.disposition), pdf.disposition);
     // Retour des tests du 09/09 (lot O) : une septieme colonne, les quantites vendues, entre les achats et la frequence.
@@ -164,10 +164,10 @@ function semer() {
     ouvertures = await p.evaluate(() => window.__ouvertures.splice(0));
     ok('L\'export Excel de la feuille simple part dans le clic', ouvertures.length === 1 && /simple\/xlsx\?/.test(ouvertures[0]), JSON.stringify(ouvertures));
     const xlsx = await telecharger(ouvertures[0]);
-    fs.writeFileSync('/tmp/claude-0/feuille_simple.xlsx', Buffer.from(xlsx.octets));
+    fs.writeFileSync(ENV_E2E.TMP + '/feuille_simple.xlsx', Buffer.from(xlsx.octets));
     const attenduXlsx = new RegExp('feuille_de_match_[A-Za-z0-9_]+_' + JOUR.replace(/-/g, '_') + '_' + JOUR.replace(/-/g, '_') + '\\.xlsx');
     ok('Le classeur repond sous le nom feuille_de_match_<officine>_<periode>.xlsx', xlsx.statut === 200 && attenduXlsx.test(xlsx.disposition), xlsx.disposition);
-    const contenu = execSync("python3 -c \"import openpyxl,json;wb=openpyxl.load_workbook('/tmp/claude-0/feuille_simple.xlsx');ws=wb.active;print(json.dumps([[str(c) if c is not None else '' for c in r] for r in ws.iter_rows(values_only=True)][:8]))\"", { encoding: 'utf8' });
+    const contenu = execSync("python3 -c \"import openpyxl,json;wb=openpyxl.load_workbook(r'" + ENV_E2E.TMP + "/feuille_simple.xlsx');ws=wb.active;print(json.dumps([[str(c) if c is not None else '' for c in r] for r in ws.iter_rows(values_only=True)][:8]))\"", { encoding: 'utf8' });
     const feuilles = JSON.parse(contenu);
     const enTete = feuilles.find(r => r[0] === 'Rang') || [];
     const premiere = feuilles[feuilles.indexOf(enTete) + 1] || [];
