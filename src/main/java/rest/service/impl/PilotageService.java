@@ -2128,7 +2128,8 @@ public class PilotageService {
             throw new net.sf.jasperreports.engine.JRException("Modele embarque " + MODELE + ".jrxml introuvable");
         }
         net.sf.jasperreports.engine.JasperPrint print = net.sf.jasperreports.engine.JasperFillManager.fillReport(modele,
-                parametres, new net.sf.jasperreports.engine.data.JRBeanCollectionDataSource(lignes));
+                rest.report.FormatsEditions.avec(parametres),
+                new net.sf.jasperreports.engine.data.JRBeanCollectionDataSource(lignes));
         try (java.io.ByteArrayOutputStream sortie = new java.io.ByteArrayOutputStream()) {
             net.sf.jasperreports.engine.export.JRPdfExporter exporteur = new net.sf.jasperreports.engine.export.JRPdfExporter();
             exporteur.setExporterInput(new net.sf.jasperreports.export.SimpleExporterInput(print));

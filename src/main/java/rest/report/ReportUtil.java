@@ -233,7 +233,8 @@ public class ReportUtil {
     public void buildReportEmptyDs(Map<String, Object> parameters, String reportName, String path, String pdfPath) {
         try {
             JasperReport jasperReport = getReport(reportName, path);
-            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters, new JREmptyDataSource());
+            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport,
+                    rest.report.FormatsEditions.avec(parameters), new JREmptyDataSource());
             JasperExportManager.exportReportToPdfFile(jasperPrint, pdfPath);
 
         } catch (JRException e) {
@@ -247,7 +248,8 @@ public class ReportUtil {
     public void buildReportEmptyDs(Map<String, Object> parameters, String path, String pdfPath) {
         try {
             JasperReport jasperReport = JasperCompileManager.compileReport(path);
-            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters, new JREmptyDataSource());
+            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport,
+                    rest.report.FormatsEditions.avec(parameters), new JREmptyDataSource());
             JasperExportManager.exportReportToPdfFile(jasperPrint, pdfPath);
 
         } catch (JRException e) {
@@ -317,7 +319,8 @@ public class ReportUtil {
         try {
             JasperReport jasperReport = getReport(reportName, path);
             JRBeanCollectionDataSource dataSource = new JRBeanCollectionDataSource(datas);
-            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters, dataSource);
+            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport,
+                    rest.report.FormatsEditions.avec(parameters), dataSource);
             JasperExportManager.exportReportToPdfFile(jasperPrint, pdfPath);
         } catch (JRException e) {
             LOG.log(Level.SEVERE, null, e);
@@ -405,7 +408,8 @@ public class ReportUtil {
             printRequestAttributeSet.add(MediaSizeName.ISO_A4);
             JasperReport jasperReport = getReport(reportName, path);
             JRBeanCollectionDataSource dataSource = new JRBeanCollectionDataSource(datas);
-            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters, dataSource);
+            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport,
+                    rest.report.FormatsEditions.avec(parameters), dataSource);
             JRPrintServiceExporter exporter = new JRPrintServiceExporter();
 
             exporter.setExporterInput(new SimpleExporterInput(jasperPrint));
@@ -430,7 +434,8 @@ public class ReportUtil {
         try {
             JasperReport jasperReport = getReport(reportName, path);
             JRBeanCollectionDataSource dataSource = new JRBeanCollectionDataSource(datas);
-            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters, dataSource);
+            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport,
+                    rest.report.FormatsEditions.avec(parameters), dataSource);
             JRDocxExporter exporter = new JRDocxExporter();
             exporter.setExporterInput(SimpleExporterInput.getInstance(List.of(jasperPrint)));
             exporter.setExporterOutput(new SimpleOutputStreamExporterOutput(pdfPath));
@@ -448,7 +453,8 @@ public class ReportUtil {
         try {
             JasperReport jasperReport = getReport(reportName, path);
             JRBeanCollectionDataSource dataSource = new JRBeanCollectionDataSource(datas);
-            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters, dataSource);
+            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport,
+                    rest.report.FormatsEditions.avec(parameters), dataSource);
 
             JRXlsxExporter exporter = new JRXlsxExporter();
             exporter.setExporterInput(SimpleExporterInput.getInstance(List.of(jasperPrint)));
@@ -470,7 +476,8 @@ public class ReportUtil {
         try {
             JasperReport jasperReport = getReport(reportName, path);
             JRBeanCollectionDataSource dataSource = new JRBeanCollectionDataSource(datas);
-            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters, dataSource);
+            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport,
+                    rest.report.FormatsEditions.avec(parameters), dataSource);
 
             JRXlsxExporter exporter = new JRXlsxExporter();
             exporter.setExporterInput(SimpleExporterInput.getInstance(List.of(jasperPrint)));
@@ -523,7 +530,8 @@ public class ReportUtil {
         try {
             JasperReport jasperReport = getReport(reportName, jdom.scr_report_file);
             JRBeanCollectionDataSource dataSource = new JRBeanCollectionDataSource(datas);
-            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport, parameters, dataSource);
+            JasperPrint jasperPrint = JasperFillManager.fillReport(jasperReport,
+                    rest.report.FormatsEditions.avec(parameters), dataSource);
             JasperExportManager.exportReportToPdfFile(jasperPrint, this.getReportDirectory(fileName));
         } catch (JRException | RuntimeException e) {
             // Le message etait litteralement "null" : le journal ne disait meme pas QUEL etat avait
@@ -575,7 +583,8 @@ public class ReportUtil {
             for (String reportName : reportNames) {
                 JasperReport jasperReport = getReport(reportName, jdom.scr_report_file);
                 JRBeanCollectionDataSource dataSource = new JRBeanCollectionDataSource(datas);
-                prints.add(JasperFillManager.fillReport(jasperReport, parameters, dataSource));
+                prints.add(JasperFillManager.fillReport(jasperReport, rest.report.FormatsEditions.avec(parameters),
+                        dataSource));
             }
             net.sf.jasperreports.engine.export.JRPdfExporter exporter = new net.sf.jasperreports.engine.export.JRPdfExporter();
             exporter.setExporterInput(SimpleExporterInput.getInstance(prints));

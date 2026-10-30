@@ -1557,7 +1557,8 @@ public class AbcAnalysisServiceImpl implements AbcAnalysisService {
             net.sf.jasperreports.engine.JasperReport report = reportUtil.getReport("rp_feuille_de_match",
                     toolkits.utils.jdom.scr_report_file);
             net.sf.jasperreports.engine.JasperPrint print = net.sf.jasperreports.engine.JasperFillManager.fillReport(
-                    report, parameters, new net.sf.jasperreports.engine.data.JRBeanCollectionDataSource(lignes));
+                    report, rest.report.FormatsEditions.avec(parameters),
+                    new net.sf.jasperreports.engine.data.JRBeanCollectionDataSource(lignes));
             byte[] pdf = net.sf.jasperreports.engine.JasperExportManager.exportReportToPdf(print);
             // Copie dans le repertoire commun des PDF generes (data/reports/pdf),
             // comme les autres impressions de l'application.

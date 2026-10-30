@@ -471,7 +471,8 @@ public class DepotExtensionService {
         if (modele == null) {
             throw new JRException("Modele embarque " + modeleNom + ".jrxml introuvable dans l'application");
         }
-        JasperPrint print = JasperFillManager.fillReport(modele, parametres, new JRBeanCollectionDataSource(lignes));
+        JasperPrint print = JasperFillManager.fillReport(modele, rest.report.FormatsEditions.avec(parametres),
+                new JRBeanCollectionDataSource(lignes));
         try (ByteArrayOutputStream sortie = new ByteArrayOutputStream()) {
             JRPdfExporter exporteur = new JRPdfExporter();
             exporteur.setExporterInput(new SimpleExporterInput(print));
