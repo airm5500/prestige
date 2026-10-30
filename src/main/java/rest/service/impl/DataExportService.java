@@ -41,6 +41,7 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import javax.ejb.Stateless;
 import javax.persistence.EntityManager;
+import javax.persistence.FlushModeType;
 import javax.persistence.PersistenceContext;
 import javax.persistence.TypedQuery;
 import util.DateConverter;
@@ -66,6 +67,7 @@ public class DataExportService {
                     "SELECT o FROM TFamille o WHERE o.strSTATUT <> 'delete' AND o.lgFAMILLEPARENTID=?1",
                     TFamille.class);
             q.setMaxResults(1);
+            q.setFlushMode(FlushModeType.COMMIT);
             q.setParameter(1, idParent);
             return q.getSingleResult();
         } catch (Exception e) {
@@ -78,7 +80,7 @@ public class DataExportService {
         return getEntityManager()
                 .createQuery("SELECT o FROM TFamille o WHERE o.strSTATUT <> 'delete' AND o.lgFAMILLEPARENTID=''",
                         TFamille.class)
-                .getResultList();
+                .setFlushMode(FlushModeType.COMMIT).getResultList();
     }
 
     private ProduitDTO build(TFamille f, Map<String, TFamille> details,
@@ -172,6 +174,11 @@ public class DataExportService {
     }
 
     public List<ProduitDTO> listProduits() {
+        /*
+         * Lecture seule : sans FlushModeType.COMMIT, Hibernate repassait avant chacune des ~90 requetes par lots sur
+         * toutes les entites deja chargees (22 000 articles, leurs stocks et fournisseurs) : 123 s sur la copie de
+         * l'officine. Rien n'est modifie ici, il n'y a donc rien a ecrire avant de lire.
+         */
         List<ProduitDTO> datas = new ArrayList<>();
         List<TFamille> familles = familles();
         /*
@@ -186,7 +193,7 @@ public class DataExportService {
                     .createQuery(
                             "SELECT o FROM TFamille o WHERE o.strSTATUT <> 'delete' AND o.lgFAMILLEPARENTID IN :ids",
                             TFamille.class)
-                    .setParameter("ids", lot).getResultList()
+                    .setFlushMode(FlushModeType.COMMIT).setParameter("ids", lot).getResultList()
                     .forEach(d -> details.putIfAbsent(d.getLgFAMILLEPARENTID(), d));
         }
         List<String> tous = new ArrayList<>(ids);
@@ -197,12 +204,12 @@ public class DataExportService {
             getEntityManager()
                     .createQuery("SELECT o FROM TFamilleGrossiste o WHERE o.lgFAMILLEID.lgFAMILLEID IN :ids",
                             TFamilleGrossiste.class)
-                    .setParameter("ids", lot).getResultList().forEach(g -> fournisseurs
+                    .setFlushMode(FlushModeType.COMMIT).setParameter("ids", lot).getResultList().forEach(g -> fournisseurs
                             .computeIfAbsent(g.getLgFAMILLEID().getLgFAMILLEID(), k -> new ArrayList<>()).add(g));
             getEntityManager()
                     .createQuery("SELECT o FROM TFamilleStock o WHERE o.lgFAMILLEID.lgFAMILLEID IN :ids",
                             TFamilleStock.class)
-                    .setParameter("ids", lot).getResultList().forEach(t -> stocks
+                    .setFlushMode(FlushModeType.COMMIT).setParameter("ids", lot).getResultList().forEach(t -> stocks
                             .computeIfAbsent(t.getLgFAMILLEID().getLgFAMILLEID(), k -> new ArrayList<>()).add(t));
         }
         /* un article absent des lots (detail d'un detail) garde la lecture d'origine */

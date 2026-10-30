@@ -50,7 +50,7 @@ if (depotEssai) {
   q("INSERT INTO t_emplacement (lg_EMPLACEMENT_ID, lg_COMPTE_CLIENT_ID, str_NAME, str_DESCRIPTION, str_LOCALITE, str_FIRST_NAME, str_LAST_NAME,"
     + " str_PHONE, dt_CREATED, dt_UPDATED, str_STATUT, lg_TYPEDEPOT_ID, bool_SAME_LOCATION)"
     + " SELECT '" + DEPOT + "', lg_COMPTE_CLIENT_ID, 'DEPOT E2E CLOTURE', 'E2E', 'ABOBO', 'KOFFI', 'Jean', '0708473750', NOW(), NOW(), 'enable', '2', 0"
-    + " FROM t_compte_client LIMIT 1");
+    + " FROM t_compte_client WHERE lg_CLIENT_ID IS NOT NULL AND str_STATUT = 'enable' ORDER BY lg_COMPTE_CLIENT_ID LIMIT 1");  /* l ecran exige le client du compte */
 }
 
 (async () => {
@@ -104,7 +104,7 @@ if (depotEssai) {
       if (/^is_Closed/.test(etat)) { break; }
       await p.waitForTimeout(500);
     }
-    ok('« Terminer la vente » : vente en dépôt terminée par admin, aucun refus du serveur', etat === 'is_Closed|admin' && refus.every((s) => s === 200),
+    ok('« Terminer la vente » : vente en dépôt terminée par l\'utilisateur connecté, aucun refus du serveur', etat === 'is_Closed|' + ENV_E2E.LOGIN && refus.every((s) => s === 200),
       etat + ' | réponses ' + refus.join(',') + ' | ' + (await texteMessage(p)).slice(0, 150));
     ok('Aucune erreur JavaScript', erreurs.length === 0, erreurs.join(' | '));
   } catch (x) {
