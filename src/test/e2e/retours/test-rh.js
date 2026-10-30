@@ -75,9 +75,9 @@ function nettoyer() {
 
     /* ------------------------------------------------ employes */
     /* retours du 07/10 : a l'ouverture, chaque utilisateur actif (hors « admin ») est un employe rattache */
-    const sansEmploye = q("SELECT COUNT(*) FROM t_user u WHERE u.str_STATUT = 'enable' AND u.str_LOGIN <> '" + ENV_E2E.LOGIN + "' AND NOT EXISTS (SELECT 1 FROM t_employe e WHERE e.lg_USER_ID = u.lg_USER_ID)");
+    const sansEmploye = q("SELECT COUNT(*) FROM t_user u WHERE u.str_STATUT = 'enable' AND u.str_LOGIN <> 'admin' AND NOT EXISTS (SELECT 1 FROM t_employe e WHERE e.lg_USER_ID = u.lg_USER_ID)");
     ok('Utilisateurs actifs créés et rattachés comme employés à l\'ouverture (hors admin)', sansEmploye === '0'
-      && q("SELECT COUNT(*) FROM t_employe e JOIN t_user u ON u.lg_USER_ID = e.lg_USER_ID WHERE u.str_LOGIN = '" + ENV_E2E.LOGIN + "'") === '0', sansEmploye);
+      && q("SELECT COUNT(*) FROM t_employe e JOIN t_user u ON u.lg_USER_ID = e.lg_USER_ID WHERE u.str_LOGIN = 'admin'") === '0', sansEmploye);
     const resync = await post('../api/v1/rh/employes/synchroniser', {});
     ok('Rattachement relancé : aucun doublon', resync.success === true && resync.crees === 0, JSON.stringify(resync));
     /* les utilisateurs d'essai arrivent apres le rattachement automatique : ils restent sans employe */
