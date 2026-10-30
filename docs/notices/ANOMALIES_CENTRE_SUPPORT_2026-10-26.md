@@ -420,6 +420,162 @@ Tests unitaires : tous passent.
 
 Les tests d'écran ont été joués seuls, après le « créneau libre » de la session principale.
 
+## 19. Journal exporté le 30/10 : tout est-il pris en compte ?
+
+Source : export « Journal du support » de l'écran Diagnostic & bugs, le 30/10 à 22 h 06
+(`journal_support_20261030_capitale.xls`, 489 événements). Lecture du fichier seulement, rien n'est écrit en base.
+Les noms d'employés du fichier ne sont pas repris ici.
+
+**Réponse courte.**
+
+- Les 489 événements se rangent tous sous un point du rapport, sauf **un défaut nouveau (K4)** et quatre lenteurs
+  isolées, rangées sous L17.
+- Les écarts avec le 26/10 :
+  - 35 événements sont apparus depuis la lecture du 26/10 à 01 h 11 ;
+  - environ 19 anciens ont été retirés par la purge (473 + 35 − 489) ;
+  - 65 événements ont été vus au moins une fois depuis.
+- Les reprises de points déjà traités s'expliquent par la version des postes, plus ancienne que les correctifs (voir
+  ci-dessous). Elles ne montrent pas qu'un correctif a échoué.
+
+**Version des postes de l'officine.**
+
+- La pile du `numBon` du 27/10 (J5, sur `localhost` et `caisse31`) place `addTpCmp` à la ligne 4699 de `VenteCtr.js`.
+- Cette ligne correspond aux versions du 05/10 (`fb7ad3ac`) au 14/10 (`9e8ef839`). À partir du 17/10, la fonction
+  est plus bas (4920, puis 5146 aujourd'hui).
+- Le serveur de l'officine tournait donc encore, le 27/10, sur une version du 05 au 14/10.
+- Cela explique les reprises après les correctifs du 17 au 25/10 :
+  - V1 (`d0c4092c`, 23/10) : 28/10 ;
+  - J8 (`9cf301d4`, 23/10) : 29/10 ;
+  - A1, liens de QR (`e5fc8dee`, 17/10) : chaque jour ;
+  - L3 (`9ee6cc84`, 25/10) : blocage le 27/10, lenteurs jusqu'au 29/10.
+- Les lots 1 à 4 de cette branche n'y sont pas non plus.
+
+**Les 35 événements apparus depuis le 26/10.**
+
+| Événements | Point | Remarque |
+|---|---|---|
+| 19 « Redémarrage inattendu » (dont 12 avec une indisponibilité de 640 à 2 580 min, après une extinction le soir) | S1 | Corrigé au lot 3, non déployé. Ceux de 2 à 4 min (27/10 21 h 02, 28/10 12 h 12 et 20 h 19, 29/10 07 h 30 et 20 h 27) sont de vrais redémarrages courts |
+| 5 « requête(s) en cours depuis plus de 10 s », le matin (07 h 20 – 07 h 35) et le 28/10 à 08 h 40 | L21, SC3 | Rattrapage du veilleur de cohérence au démarrage de chaque poste : corrigé au lot 3. Le cas du 28/10 à 08 h 40 (90 s) reste sans explication faute de détail |
+| 9 « 404 `vente/findone/<lien>` » (QR publicitaires : `https://…`, `orangemoneyafrique://…`) | A1 | Traité par `e5fc8dee` (17/10), absent des postes |
+| 1 `numBon`, `record is undefined` (27/10) | J5 | Ouvert (prouvé par le code). Version du poste : 05-14/10 |
+| 1 **`JsonbException … Integer` sur `caisse/ouvrir-caisse`** (29/10 08 h 07, + Ajax 500) | **K4, nouveau** | Voir ci-dessous |
+| 4 lenteurs isolées : `vente/net/assurance`, `produit-search/fiche`, `produit-search/produits` (29/10, 10 h 53 – 11 h 51), `commande/validerbl` (30/10) | L17, L11 | Une seule occurrence chacune, dans la même heure que `client/tiers-payants/assurance` : congestion, comme L14 et L17 |
+
+**Point nouveau.**
+
+| N° | Anomalie | Module | Statut | Cause | Reproduction | Correctif proposé | Priorité |
+|---|---|---|---|---|---|---|---|
+| K4 | `JsonbException : Error deserialize JSON value into type: class java.lang.Integer` sur `POST caisse/ouvrir-caisse` (1 occ., 29/10) | CAISSE | Prouvé par le code. Le serveur est déjà traité par `974976e0` (23/10), mais l'écran n'est pas corrigé | Le champ « Montant » d'« Ouverture de caisse » est un `numberfield` qui accepte les décimales et le vide ; `getValues()` envoie le texte tel quel, alors que `CoffreCaisseDTO.amount` est un `int`. Montant vide ou décimal → l'officine (version d'avant le 23/10) répond 500 et crée un événement. Sur la version actuelle, `SupportExceptionMapper` répond 400 « Valeur saisie invalide pour « amount » : un nombre entier est attendu », mais l'écran (`OuverturecaisseManager.js:127`) affiche « Le serveur n'a pas répondu (erreur 400) » | Ouverture de caisse, Montant vide ou « 1500,5 », puis « Ouvrir caisse » | Champ entier et obligatoire (`allowDecimals: false`, `allowBlank: false`), et message du serveur lu dans `failure` | P3 |
+
+**Familles anciennes absentes du rapport du 26/10** (une seule occurrence chacune, sans fichier de détail ; rien de
+nouveau à corriger) :
+
+- Ajax 500 sur `tierspayant/ws_transaction.jsp` (11/09) : ancienne JSP, sans détail ;
+- lenteurs isolées : `produit/monitoringproduct` (13/09, cas de P1 sans dates), `vente/peremption-proche` et
+  `vente/add/assurance` (17/09, même minute : congestion, L17).
+
+**Lacune de SC8 trouvée à cette lecture.**
+
+- L'export Excel du journal (`SupportEventRessource.exportExcel`) n'a pas de colonne « Version ».
+- Après le déploiement des lots 3 et 4, l'export ne dira donc toujours pas sur quelle version un défaut est revenu :
+  il faudra regarder l'écran.
+- Correctif proposé : ajouter la colonne en fin de feuille (P3).
+
+### K4 et colonne Version de l'export : corrigés (30/10), vérifiés sur le 9080 (base `laborex_perf`)
+
+- **Base réellement visée** : le pool `laborex_pool` du domain2 pointait sur `localhost:3307/laborex_perf`, la copie
+  de mesure de la session tests-performance, et non sur `capitale`. Vérifié après coup (`asadmin get`).
+- Conséquences :
+  - les essais ci-dessous n'ont rien écrit en données métier ;
+  - le redéploiement a pu appliquer la migration V7.2.25 (colonne `version_app`) à `laborex_perf` ;
+  - la version « avant » lue sur le 9080 était celle de la session des réglages du serveur.
+
+| N° | Correction | Fichiers | Preuve |
+|---|---|---|---|
+| K4 | Le champ « Montant » est obligatoire et n'accepte qu'un entier, avec la raison sous le champ. Rien ne part au serveur tant qu'il est invalide. Le montant est envoyé comme un nombre. Un refus du serveur affiche son motif, et non plus « Le serveur n'a pas répondu ». `allowDecimals: false` est volontairement écarté : ExtJS arrondissait alors 1500,5 en 1501 sans rien dire | `ouverturecaisse/OuverturecaisseManager.js` | `test-k4-ouverture-caisse.js` : **1/4 avant** (décimal et vide envoyés, le serveur répond 400, l'écran dit « n'a pas répondu ») ; **4/4 après** |
+| SC8 (export) | Colonne « Version » en dernière position de l'export Excel du journal ; les 11 autres colonnes gardent leur place | `rest/SupportEventRessource.java` | `SupportEventExportTest` : échoue avant (ne compile pas), passe après ; `test-export-version.js` (bouton « Excel » de l'écran, fichier lu) : 2/2 |
+
+- Aucune caisse n'est ouverte par le test K4 :
+  - l'état de la caisse est simulé en lecture ;
+  - seul le montant décimal atteint le serveur, qui le refuse avant toute écriture.
+- Tests unitaires : 1 553, aucun échec.
+
+## 20. Journal d'une autre officine (leana, export du 30/10)
+
+Source : export « Journal du support » de leana, le 30/10 à 22 h 24 (`journal_support_20261030_leana.xls`). Il contient
+200 événements en 87 familles, du 29/09 au 30/10. Lecture du fichier seulement. Les noms d'employés et les numéros de
+téléphone qu'il contient ne sont pas repris ici. Le code est comparé à `claude/new-session-xm8ptu` (30/10).
+
+**Version de leana.**
+
+- Les piles placent `onbtncloturerVnoComptant` (`VenteCtr.js:2223`) et `registerNewClient` (`VenteEnDepotCtr.js:3418`)
+  dans les versions du 13/09 au 05-09/10.
+- Leana tourne donc sur une version de mi-septembre à mi-octobre, plus ancienne que la plupart des correctifs du
+  rapport.
+
+**Déjà au rapport** (même cause ; traité après la version de leana, ou encore ouvert) :
+
+| Famille chez leana | Point |
+|---|---|
+| 70 « Redémarrage inattendu » | S1 (lot 3) |
+| Connexions dormantes par poste (60 occ., jusqu'au 30/10) | S3 (lot 4) |
+| Supervision : 1 anomalie (73) | S5 |
+| SMS POL0001 et suspensions (68) | M1, M2 |
+| Commandes, règlements, ventes sans détail ; snapshot absent | H1, H3, H4, H5 |
+| `ventestats` lent (25) et **85 blocages** du 01 au 15/10 | L1 (plus rien après le 15/10) |
+| Compteurs de la cloche lents ; `XAException` et `UnknownHost` sur `ventes-ratees` | L15, K3 |
+| `JsonbException` sur `update/item/vno` (7, jusqu'au 30/10) ; `IllegalArgumentException` sur `add/item` (30/10) | V4, V3 (`974976e0`, 23/10) |
+| `NullPointerException` sur `commande/item/add` (30/10) | C3 |
+| `NullPointerException : text` sur `monitoringproduct` (30/10) | P1 (lot 1) |
+| `result is null` (`VenteCtr.js:1336` = `checkDouchette`) | J6 (lot 4) |
+| `Ext.getCmp(...).close` ; `Me.onRechClick` ; `valheight` ; `this.store is null` | J3, J12, J15, J20 |
+| `Me.creerInventaire is not a function` (`EtatControleManager.js:878`, 16/10) | J12 : même cause, traitée par `1e023556` (17/10 : `Me` renommé) |
+| 404 `vente/findone/<code>` (29) : QR, libellés avec `/`, « . », GS1 avec une date en `/` | A1 |
+| 400 `vente/search` | A7 |
+| « Mise en page bloquée puis rétablie » (`parentNode`, tableau de bord, 21/10) | J21/J22 : la garde de `correctifs-affichage.js` a fonctionné |
+| Blocages de `fichearticle/comparaison/excel` (**64**, jusqu'au 29/10) | Traité par `df35081e` (16/10 : 327 s → 7 s), absent chez leana |
+| « Double demande de clôture » (WARN) | V7 : refus voulu |
+| `validerbl`, `tableau-board`, `client/all`, lenteurs isolées du 17/10 à 12 h 02 | L11, L12, L13, L17 |
+
+**Points nouveaux.**
+
+| N° | Anomalie | Module | Statut | Cause | Reproduction | Correctif proposé | Priorité |
+|---|---|---|---|---|---|---|---|
+| J23 | `form is undefined` / `isValid` dans `VenteEnDepotCtr.registerNewClient` (**48 occ.**, 30/09 → 29/10) | FRONTEND (vente) | Prouvé par le code (non corrigé au 30/10) | `VenteEnDepotCtr` écoute `"clientLambda form textfield"`, c'est-à-dire la fenêtre « client » de la **vente ordinaire**. Entrée dans cette fenêtre déclenche aussi le dépôt, qui cherche son propre formulaire (`clientLambdadepot form#clientLambdaform`), absent. L'erreur suit chaque `add/vno` du fil d'Ariane | Vente comptant, « Nouveau client », Entrée dans un champ | Sélecteur `clientLambdadepot form textfield` | P2 |
+| J24 | `data is null` sur `montantNet` (`onbtncloturerVnoComptant`, `handleExtraAmountInputValue`) (5 occ., 03/10 → 30/10) | FRONTEND (vente) | Prouvé par le code (scénario = hypothèse) | `getNetAmountToPay()` vaut `null` tant que `net/vno` n'a pas répondu, ou après une remise à zéro ; la clôture par Entrée sur « Montant reçu » le lit sans contrôle. La clôture ne part pas | Ajouter un produit puis Entrée sur « Montant reçu » avant la réponse de `net/vno` | Attendre ou relancer le calcul du net avant de clôturer | P2 |
+| A8 | 404 sur `POST vente/copy/<vente>` (20/10) | FRONTEND (tickets) | Prouvé par le code | La route `copy/{id}` a été retirée du serveur en juin 2024 (`0b7e3683`), mais `VenteFinisCtr.js:307` (réimpression d'une vente copiée), `VenteCtr.onPrintTicketCopy`, `VenteEnDepotCtr` et `StatVenteDepotCtr` l'appellent encore. Le ticket ne sort pas, sans message | « Ventes terminées », réimprimer une vente marquée copie | Imprimer par la route normale (`ticket/vno`, `ticket/vo`) | P2 |
+| M4 | SMS refusé par Orange, `SVC0004` « No valid addresses » (6 occ., jusqu'au 30/10) | SMS | Prouvé par le message et le code | `Sms.java:61` préfixe toujours `tel:+225` au numéro brut : un numéro étranger (`00…`) ou écrit avec des espaces est invalide. **De plus, l'événement écrit le numéro du destinataire en clair** (`SmsImpl.java:302`), donnée personnelle dans le journal du support et dans ses exports | — (lecture) | Normaliser le numéro (comme `LeTextoSmsProvider`) ; refuser proprement un numéro étranger ; masquer le numéro dans l'événement | P2 (journal) / P3 |
+| L22 | `NullPointerException` sur `GET ventestats` (`CommonUtils.hasAuthorityByName`, 22/10) et 401 sur `ventes-ratees/compteur-jour` (26/10) | VENTESTATS | Prouvé par le code | Session expirée : `buildParams` lit la liste des droits de la session sans tester l'utilisateur ; la cloche interroge `ventestats` toutes les 60 s | Laisser expirer la session, écran ouvert | Réponse « déconnecté » quand l'utilisateur de la session est absent | P3 |
+| C6 | Clé étrangère `t_bon_livraison` sur `DELETE commande/order/{id}` (02/10) | COMMANDE | Prouvé par le code | `OrderServiceImpl.removeOrder` supprime la commande sans vérifier qu'un bon de livraison la référence | Supprimer une commande déjà reçue en bon de livraison | Refus clair « commande liée au bon … » | P3 |
+| J25 | `this.majCompteCoches is not a function` (`zonegeographique/action/basculement.js:673`, 27/10) | FRONTEND | Prouvé par le code (non corrigé au 30/10) | Écouteur `checkChange: this.onCheckChange` sans `scope` : `this` est la colonne. Le compteur de produits cochés ne se met pas à jour au clic sur une ligne | Zones géographiques, « Basculement », cocher un produit | `scope: this` | P3 |
+| J26 | `printWindow is null` (`saisieperimes/action/add.js:451`, 28/10) | FRONTEND (périmés) | Prouvé par le code | `window.open` renvoie `null` quand le navigateur bloque la fenêtre surgissante ; l'impression échoue sans message | Bloquer les fenêtres surgissantes, imprimer une saisie de périmés | Tester `null` et dire d'autoriser les fenêtres, ou imprimer dans un cadre caché | P3 |
+| V9 | `Duplicate entry … 'un_vente_tp'` sur `POST vente/updateclientortierpayant` (2 occ., 30/09) | VENTE | Hypothèse | Même tiers payant (vente, compte client) enregistré deux fois lors de la modification des tiers payants d'une vente | Choisir deux fois le même tiers payant dans la modification | Dédoublonner les tiers payants reçus, refus clair | P3 |
+
+- Autres familles, sans suite à donner :
+  - `SUGGESTION_SANS_DETAIL` : un cas, données ;
+  - blocages de `fichearticle/comparaison/suggestion` : 9 cas, du 30/09 au 01/10 seulement ;
+  - lenteurs isolées : `custom/ponctionner`, `recap/dashboard`, `balance/balancesalecash`, `flag`,
+    `ws/inventaires/details`.
+
+### Points P2 de leana : corrigés (30/10), vérifiés sur le 9080 (base `laborex_perf`)
+
+Chaque point a d'abord été reproduit par un test qui échoue sur la version déployée, puis rejoué après correction.
+
+| Point | Correction | Test | Avant → après |
+|---|---|---|---|
+| J23 | `VenteEnDepotCtr` écoute `clientLambdadepot form textfield`, sa propre fenêtre : Entrée dans la fenêtre « client » de la vente ordinaire ne le déclenche plus | `test-leana-vente.js`, volet J23 : SERVICE CLIENT > Ventes, vente simulée, « ASSOCIER UN CLIENT », « nouveau client », Entrée dans un champ vide | `Cannot read properties of undefined (reading 'isValid')` → aucune erreur (2/2) |
+| J24 | `doClotureCore` : un net absent est traité comme un net à recalculer (message existant de recalcul du net à payer, puis `net/vno`) ; `onbtncloturerVnoComptant` redemande le net au lieu de le lire, `handleExtraAmountInputValue` s'arrête | `test-leana-vente.js`, volet J24 : net vidé comme le fait `loadVenteData` (reprise d'une vente), Entrée sur « Montant reçu » | `Cannot read properties of null (reading 'montantNet')`, aucun message, net jamais redemandé (1/5) → message, `net/vno` demandé, net affiché (5/5) |
+| A8 | `VenteFinisCtr` et `StatVenteDepotCtr` impriment une vente marquée copie par la route de son type (`ticket/vno`, `ticket/vo`, `ticket/depot`) ; `vente/copy` n'est plus appelée | `test-a8-copie-ticket.js` : « Vente terminées », liste simulée (une VNO, une VO marquées copie), icône « Réimprimer le ticket » | `vente/copy/…` (404) → `ticket/vno/…` et `ticket/vo/…` (3/3) |
+| M4 | `SmsImpl.sendSMS` refuse avant envoi un numéro qui n'est pas un mobile ivoirien (`NUMERO_INVALIDE`, motif du contrôle, aucun appel au fournisseur ni événement du support) ; il ne compte pas dans le total de la notification. Le numéro est masqué (`TelephoneCi.masquer`, deux derniers chiffres) dans le journal du serveur et dans l'événement de refus | `TelephoneCiTest` (masquage), `SmsNumeroInvalideTest` (refus local : étranger, fixe, ancien format, trop court) | ne compilait pas → 8/8 |
+
+- Les quatre corrections sont locales : `VenteCtr.js` diffère de la branche de travail, les ajouts y restent limités à trois
+  conditions.
+- `onPrintTicketCopy` (`VenteCtr`, `VenteEnDepotCtr`) appelle encore `vente/copy`, mais aucun écran ne l'appelle : laissé
+  tel quel.
+- Ce qui n'a pas été rejoué : les tests d'écran existants de la vente et du dépôt (`retours/test-vente-*.js`,
+  `test-depot-onglets.js`) lisent et écrivent `laborex_v1_db` en direct, alors que le 9080 vise `laborex_perf`. Ils
+  sont à rejouer sur le 8080 avant fusion.
+
 ## Annexe A. Rejouer les reproductions
 
 Variables (Node 22) :

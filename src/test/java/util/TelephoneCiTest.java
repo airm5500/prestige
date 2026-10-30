@@ -64,4 +64,15 @@ public class TelephoneCiTest {
                 "ancien format et fixe ecartes : aucun candidat");
         assertEquals(null, TelephoneCi.numeroActuel(null, java.util.Arrays.asList("0708473750")));
     }
+
+    /** Rapport du 26/10, M4 : le numero du destinataire ne doit plus figurer en clair dans le journal du support. */
+    @Test
+    public void masquerNeLaisseQueLesDeuxDerniersChiffres() {
+        assertEquals("********50", TelephoneCi.masquer("0708473750"));
+        assertEquals("************50", TelephoneCi.masquer("+225 07 08 47 37 50"),
+                "separateurs retires, indicatif masque");
+        assertEquals("**", TelephoneCi.masquer("12"), "trop court : tout est masque");
+        assertEquals("", TelephoneCi.masquer(null));
+        assertEquals("", TelephoneCi.masquer("  "));
+    }
 }

@@ -73,6 +73,28 @@ public class SupportEventRessource {
         return Response.ok().entity(ResultFactory.getSuccessResultMsg()).build();
     }
 
+    // Rapport du 26/10, § 19 (SC8) : la version vient en derniere colonne, les colonnes deja lues gardent leur place
+    static final String[] ENTETES_EXPORT = { "Première apparition", "Dernière", "Occ.", "Niveau", "Module", "Type",
+            "Message", "Écran / URL", "Utilisateur", "Fil d'Ariane / Contexte", "Détail (début)", "Version" };
+
+    private static final java.time.format.DateTimeFormatter FORMAT_EXPORT = java.time.format.DateTimeFormatter
+            .ofPattern("dd/MM/yyyy HH:mm");
+
+    static String[] ligneExport(ApplicationEvent e, String detail) {
+        return new String[] { e.getCreatedAt() != null ? e.getCreatedAt().format(FORMAT_EXPORT) : "",
+                e.getLastSeenAt() != null ? e.getLastSeenAt().format(FORMAT_EXPORT) : "",
+                String.valueOf(e.getOccurrences()), StringUtils.defaultString(e.getNiveau()),
+                StringUtils.defaultString(e.getModule()), StringUtils.defaultString(e.getType()),
+                StringUtils.defaultString(e.getMessageCourt()), StringUtils.defaultString(e.getUrlOuEcran()),
+                StringUtils.defaultString(e.getUtilisateur()),
+                // fil d'Ariane (ecrans) ou explication + contexte metier (serveur) : en entier, c'est
+                // souvent lui qui dit ce que faisait la caissiere juste avant
+                StringUtils.abbreviate(StringUtils.defaultString(e.getPayloadJson()), 4000),
+                StringUtils.defaultString(detail),
+                // version de la derniere occurrence : un defaut revenu apres son correctif se lit dans le fichier
+                StringUtils.defaultString(e.getVersionApp()) };
+    }
+
     /**
      * Export Excel minimaliste du journal : l'essentiel de chaque evenement sur une ligne (dates, niveau, module,
      * message, ecran, occurrences, utilisateur, fil d'Ariane) et, pour les erreurs, le debut du detail (pile d'appels)
@@ -96,9 +118,6 @@ public class SupportEventRessource {
         // L'export doit refleter ce que l'utilisateur a sous les yeux : meme niveau ET meme recherche.
         List<ApplicationEvent> data = supportEventService.findAll(0, plafond,
                 "TOUS".equalsIgnoreCase(niveau) ? "" : niveau, query);
-        java.time.format.DateTimeFormatter format = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
-        String[] entetes = { "Première apparition", "Dernière", "Occ.", "Niveau", "Module", "Type", "Message",
-                "Écran / URL", "Utilisateur", "Fil d'Ariane / Contexte", "Détail (début)" };
         List<String[]> lignes = new java.util.ArrayList<>();
         int detailsLus = 0;
         for (ApplicationEvent e : data) {
@@ -115,17 +134,9 @@ public class SupportEventRessource {
                         StringUtils.defaultString(supportEventService.readLogContent(e.getId())).replace("\r", ""),
                         "BLOCAGE".equals(e.getModule()) ? 32000 : 4000);
             }
-            lignes.add(new String[] { e.getCreatedAt() != null ? e.getCreatedAt().format(format) : "",
-                    e.getLastSeenAt() != null ? e.getLastSeenAt().format(format) : "",
-                    String.valueOf(e.getOccurrences()), StringUtils.defaultString(e.getNiveau()),
-                    StringUtils.defaultString(e.getModule()), StringUtils.defaultString(e.getType()),
-                    StringUtils.defaultString(e.getMessageCourt()), StringUtils.defaultString(e.getUrlOuEcran()),
-                    StringUtils.defaultString(e.getUtilisateur()),
-                    // fil d'Ariane (ecrans) ou explication + contexte metier (serveur) : en entier, c'est
-                    // souvent lui qui dit ce que faisait la caissiere juste avant
-                    StringUtils.abbreviate(StringUtils.defaultString(e.getPayloadJson()), 4000), detail });
+            lignes.add(ligneExport(e, detail));
         }
-        byte[] bytes = reportExcelExportService.createSimpleExcelReport("Journal du support", entetes, lignes);
+        byte[] bytes = reportExcelExportService.createSimpleExcelReport("Journal du support", ENTETES_EXPORT, lignes);
         return Response.ok(bytes).header("Content-Disposition", "attachment; filename=\"journal_support_"
                 + java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.BASIC_ISO_DATE) + ".xls\"")
                 .build();

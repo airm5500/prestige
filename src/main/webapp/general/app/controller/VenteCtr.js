@@ -2397,6 +2397,15 @@ Ext.define('testextjs.controller.VenteCtr', {
             let venteId = vente.lgPREENREGISTREMENTID;
 
             let data = me.getNetAmountToPay();
+            if (!data) {
+                /* J24 : net pas encore recu, on le redemande au lieu de cloturer sans lui */
+                if (me.getTypeVenteCombo().getValue() === '1') {
+                    me.showNetPaidVno();
+                } else {
+                    me.showNetPaidAssurance();
+                }
+                return;
+            }
             let netTopay = data.montantNet;
 
             // Chemin de clôture (soumission) : si l'un des combos décisifs est
@@ -6987,7 +6996,9 @@ Ext.define('testextjs.controller.VenteCtr', {
                 typeVenteCombo = me.getTypeVenteCombo().getValue();
 
         if (me.getMontantRecu().getValue() != null) {
-            if (me.getToRecalculate()) {
+            /* Rapport du 26/10, J24 : la reprise d'une vente (loadVenteData) vide le net sans lever toRecalculate ;
+             * la cloture lisait alors un net absent (« data is null »). Net absent = net a recalculer. */
+            if (me.getToRecalculate() || !me.getNetAmountToPay()) {
                 Ext.MessageBox.show({
                     title: 'Message d\'erreur',
                     width: 550,
@@ -8673,6 +8684,10 @@ Ext.define('testextjs.controller.VenteCtr', {
         const me = this;
         if (me.getExtraModeReglementId()) {
             const data = me.getNetAmountToPay();
+            if (!data) {
+                /* J24 : net pas encore recu, rien a repartir */
+                return;
+            }
             const netTopay = data.montantNet;
             const montantRecu = me.getMontantRecu().getValue();
             // Montant mobile confirmé (flux espèces comptant) : on ne l'écrase
