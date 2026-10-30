@@ -24,6 +24,8 @@ const ouverte = (p, xtype) => p.evaluate((x) => Ext.ComponentQuery.query(x + '{i
   const A = C.tiersPayant('WA', '1'), K = C.tiersPayant('WK', '2');
   const assure = await C.clientAssure(null, 'DEPOTW', [{ tp: A, taux: 100 }]);
   const carnet = await C.clientAssure(null, 'DEPOTK', [{ tp: K, taux: 100 }]);
+  /* en vente CARNET, l'ecran ne cherche que les clients de type carnet (2) */
+  C.exec("UPDATE t_client SET lg_TYPE_CLIENT_ID = '2' WHERE lg_CLIENT_ID = '" + carnet.clientId + "'");
   const b = await ENV_E2E.lancer(chromium);
   const p = await b.newPage({ viewport: { width: 1600, height: 900 } });
   const erreurs = []; p.on('pageerror', (e) => erreurs.push(String(e.message)));
