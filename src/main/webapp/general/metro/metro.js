@@ -212,7 +212,9 @@
             var cs = getComputedStyle(zone);
             var W = zone.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
             var H = zone.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
-            var g = W < 640 ? 8 : 10, FACTEURS = [0.6, 1, 1.6, 2.5, 4, 6, 10, 40];
+            /* plancher 84 px (retour du 30/10) : les 43 ecrans de l analyse de gestion d une officine, en 1366 x 768,
+               debordaient de 99 px a 96 px */
+            var g = W < 640 ? 8 : 10, FACTEURS = [0.6, 1, 1.6, 2.5, 4, 6, 10, 40], PLANCHER = 84;
             function appliquer(w, f) {
                 var h = Math.round(w * 0.8), base = Math.min(w, h * 1.25);
                 ga.blocs.forEach(function (b) {
@@ -227,15 +229,15 @@
             }
             ga.cont.style.minHeight = '0';
             var choix = null;
-            for (var w = 240; w >= 96 && !choix; w -= 6) {
+            for (var w = 240; w >= PLANCHER && !choix; w -= 6) {
                 FACTEURS.forEach(function (f) {
                     var m = appliquer(w, f);
                     if (m.haut <= H && m.large <= W + 1 && (!choix || m.haut < choix.haut)) { choix = {w: w, f: f, haut: m.haut}; }
                 });
             }
             if (!choix) {   /* trop d'ecrans pour la zone : taille plancher, blocs les plus bas, la zone defile */
-                FACTEURS.forEach(function (f) { var m = appliquer(96, f); if (m.large <= W + 1 && (!choix || m.haut < choix.haut)) { choix = {w: 96, f: f, haut: m.haut}; } });
-                choix = choix || {w: 96, f: 1};
+                FACTEURS.forEach(function (f) { var m = appliquer(PLANCHER, f); if (m.large <= W + 1 && (!choix || m.haut < choix.haut)) { choix = {w: PLANCHER, f: f, haut: m.haut}; } });
+                choix = choix || {w: PLANCHER, f: 1};
             }
             appliquer(choix.w, choix.f);
             ga.cont.style.minHeight = '';
@@ -357,12 +359,28 @@
                     if (tuiles.length && actif !== champ) { e.preventDefault(); tuiles[0].focus(); }
                     return;
                 }
+                /* droite / gauche : tuile suivante / precedente dans l'ordre de lecture (rangee par rangee). La grille
+                   se remplit en mode dense, l'ordre du document n'est donc pas celui de l'ecran ; et la recherche de la
+                   tuile la plus proche a droite partait, en fin de rangee, vers une tuile lointaine puis restait
+                   bloquee (retour du 30/10). */
+                if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+                    var lecture = Array.prototype.slice.call(tuiles).map(function (t) {
+                        var r = t.getBoundingClientRect();
+                        return {t: t, haut: Math.round(r.top), gauche: r.left};
+                    }).sort(function (x, y) { return Math.abs(x.haut - y.haut) > 5 ? x.haut - y.haut : x.gauche - y.gauche; });
+                    var rang = -1;
+                    lecture.forEach(function (x, i) { if (x.t === actif) { rang = i; } });
+                    var cible = lecture[rang + (e.key === 'ArrowRight' ? 1 : -1)];
+                    e.preventDefault();
+                    if (cible) { cible.t.focus(); }
+                    return;
+                }
                 var a = actif.getBoundingClientRect(), best = null;
                 tuiles.forEach(function (t) {
                     if (t === actif) { return; }
                     var r = t.getBoundingClientRect(), dx = r.left - a.left, dy = r.top - a.top;
-                    var bon = e.key === 'ArrowRight' ? dx > 5 : e.key === 'ArrowLeft' ? dx < -5 : e.key === 'ArrowDown' ? dy > 5 : dy < -5;
-                    var d = (e.key === 'ArrowRight' || e.key === 'ArrowLeft') ? Math.abs(dx) + Math.abs(dy) * 3 : Math.abs(dy) + Math.abs(dx) * 3;
+                    var bon = e.key === 'ArrowDown' ? dy > 5 : dy < -5;
+                    var d = Math.abs(dy) + Math.abs(dx) * 3;
                     if (bon && (!best || d < best.d)) { best = {t: t, d: d}; }
                 });
                 e.preventDefault();
