@@ -434,3 +434,27 @@ Le banc n'a que 3 273 étiquettes : à ce volume, la lenteur ne se voit pas, et 
 dépend du nombre d'étiquettes de l'officine. Avec la correction, la liste ne lit que les étiquettes de la semaine,
 quel que soit l'historique. À confirmer par une mesure sur le poste où la lenteur a été vue.
 Test : `retours/test-etiquette-ancien-menu.js` (7/7).
+
+## Export ERP et liste complète des lots (30/10)
+
+Mesures sur la copie de l'officine (`laborex_v1_db`), du clic jusqu'à la réponse reçue :
+
+| Adresse | Volume | Avant | Après | Réponse |
+|---|---:|---:|---:|---|
+| `v1/stock` (export ERP) | 22 112 articles | 112,9 s | 4,3 s (3,7 s dans le test) | même contenu, même ordre des articles |
+| `v1/lot/lots` | 144 688 lots, 32 Mo | 41,4 s | 1,8 s | identique octet pour octet |
+
+- **Export ERP :** l'export ne fait que lire, mais Hibernate vidait la session avant chacune des quelque 90 requêtes
+  par lots. Les requêtes passent en `FlushModeType.COMMIT`. Seul l'ordre des fournisseurs à l'intérieur d'un
+  article peut varier, comme avant : il n'a jamais été fixé.
+- **Lots :** la requête SQL prend 0,13 s. Le reste partait dans la conversion par réflexion d'org.json, qui lève
+  une exception interne par accesseur et par lot. Le JSON est maintenant construit directement, avec les mêmes clés.
+  Les valeurs nulles restent absentes. L'adresse n'est pas découpée en pages, pour qu'un appelant extérieur
+  continue de tout recevoir.
+
+Contrôles :
+
+- `perf/test-erp-catalogue-export.js` : 3/3 ;
+- `retours/test-saisie-api.js` sur les 19 lectures `v1/lot` : 6/6, limite de 30 s, aucune alerte au Centre de
+  support ;
+- 1 587 tests unitaires : aucun échec.
