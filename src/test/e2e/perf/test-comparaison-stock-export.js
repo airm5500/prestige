@@ -13,6 +13,7 @@
  */
 const { chromium } = require('playwright-core');
 const ENV_E2E = require('../outils/poste');
+const { fichierEdition } = require('../support/editions');
 const { execFileSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
@@ -36,7 +37,7 @@ function lignesCsv(t) {
   return lignes;
 }
 
-const DOSSIER = process.env.REPORTS_FILE || '/opt/CONF/LABOREX/REPORTS', MODELE = 'rp_comparaison_surstock';
+const DOSSIER = ENV_E2E.REPORTS, MODELE = 'rp_comparaison_surstock';
 const CHAMPS = ['code:String', 'consommationUn:Integer', 'dateBon:String', 'dateEntree:String', 'qtyEntree:Integer', 'lastDateVente:String'];
 const modelePose = !fs.existsSync(path.join(DOSSIER, MODELE + '.jrxml')) && !fs.existsSync(path.join(DOSSIER, MODELE + '.jasper'));
 function poserModele() {
@@ -103,7 +104,7 @@ function retirerModele() {
     const imp = await p.evaluate(async (f) => { const x = await fetch('../DataReportingServlet?mode=COMPARAISON_STOCK&' + f); return { url: x.url, t: (await x.text()).slice(0, 300) }; }, FILTRES);
     const msPdf = Date.now() - t0;
     let lien = null; try { const j = JSON.parse(imp.t); lien = j.msg || j.url; } catch (e) { if (/\/data\/reports\//.test(imp.url)) { lien = imp.url; } }
-    const fichier = lien ? path.join(DOSSIER, 'pdf', path.basename(lien.split('?')[0])) : null;
+    const fichier = lien ? fichierEdition(lien.split('?')[0]) : null;  /* dossier des editions du poste (support/editions.js) */
     const lignesPdf = fichier && fs.existsSync(fichier) ? execFileSync('pdftotext', ['-enc', 'UTF-8', '-layout', fichier, '-'], { encoding: 'utf8', maxBuffer: 1 << 28 })
       .split(/\r?\n/).map((l) => l.trim()).filter((l) => l.startsWith('L|')).map((l) => l.split('|')) : [];
     if (fichier && fs.existsSync(fichier)) { fs.unlinkSync(fichier); }

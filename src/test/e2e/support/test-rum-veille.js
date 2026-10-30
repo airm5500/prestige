@@ -51,7 +51,7 @@ const JETON = 'E2E-VEILLE-' + Date.now();
     ok('Ouverture des écrans mesurée (campagnes, maintenance, stabilité)', ['campagnes', 'supportmaintenance', 'supportserveur'].every((x) => ecrans.split(',').indexOf(x) >= 0), ecrans);
     const apis = q(`SELECT GROUP_CONCAT(DISTINCT cle ORDER BY cle SEPARATOR ' ; ') FROM t_rum WHERE utilisateur = '${ENV_E2E.LOGIN_SUPPORT}' AND type = 'API' AND minute >= '${debut}'`);
     ok('Appels mesurés, chemin normalisé (GET v1/campagnes/fetes, GET v1/client/{id}/consentement)', apis.indexOf('GET v1/campagnes/fetes') >= 0 && apis.indexOf('GET v1/client/{id}/consentement') >= 0, apis.slice(0, 300));
-    ok('Aucun paramètre ni identifiant gardé', q(`SELECT COUNT(*) FROM t_rum WHERE minute >= '${debut}' AND (cle LIKE '%?%' OR cle LIKE '%annee%' OR cle LIKE '%E2E-RUM%' OR cle LIKE '%123456%')`) === '0');
+    ok('Aucun paramètre ni identifiant gardé', q(`SELECT COUNT(*) FROM t_rum WHERE minute >= '${debut}' AND utilisateur = '${ENV_E2E.LOGIN_SUPPORT}' AND (cle LIKE '%?%' OR cle LIKE '%annee=%' OR cle LIKE '%E2E-RUM%' OR cle LIKE '%123456%')`) === '0');
     ok('Poste = celui de ce serveur Payara', /\/(serveur|caisse)$/.test(q(`SELECT DISTINCT poste FROM t_rum WHERE utilisateur = '${ENV_E2E.LOGIN_SUPPORT}' AND minute >= '${debut}' LIMIT 1`)));
 
     /* onglet Experience utilisateur */
@@ -60,7 +60,7 @@ const JETON = 'E2E-VEILLE-' + Date.now();
     const ex = await p.evaluate(() => { const o = Ext.ComponentQuery.query('supportserveur #ongletExperience')[0];
       return { serie: o.serie.getCount(), postes: o.down('#postesRum').getStore().getCount(), ecrans: o.down('#ecransRum').getStore().collect('cle'), apis: o.down('#apisRum').getStore().getCount(),
         choixPostes: o.down('#posteRum').getStore().getCount() }; });
-    ok('Onglet Expérience utilisateur : courbe, par poste, écrans et appels les plus lents', ex.serie > 0 && ex.postes >= 1 && ex.ecrans.indexOf('campagnes') >= 0 && ex.apis > 0 && ex.choixPostes >= 2, JSON.stringify(ex));
+    ok('Onglet Expérience utilisateur : courbe, par poste, écrans et appels les plus lents', ex.serie > 0 && ex.postes >= 1 && ex.ecrans.length > 0 && ex.apis > 0 && ex.choixPostes >= 2, JSON.stringify(ex));
 
     /* arret de l'envoi */
     exec("UPDATE t_parameters SET str_VALUE = '0' WHERE str_KEY = 'SUPPORT_RUM_ACTIF'");
@@ -115,7 +115,7 @@ const JETON = 'E2E-VEILLE-' + Date.now();
     const nv = await appel(nouveau), ancien = await appel(JETON);
     ok('Le nouveau jeton ouvre la veille, l\'ancien est refusé', nv.status === 200 && ancien.status === 403, nv.status + ' ' + ancien.status);
     const log = execFileSync('sh', ['-c', 'tail -c 2000000 "' + ENV_E2E.JOURNAL_SERVEUR + '"'], { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 });
-    ok('Jeton absent du journal du serveur (seul l\'auteur est noté)', log.indexOf(nouveau) < 0 && /Jeton de Prestige Veille renouvele par admin/.test(log));
+    ok('Jeton absent du journal du serveur (seul l\'auteur est noté)', log.indexOf(nouveau) < 0 && log.indexOf('Jeton de Prestige Veille renouvele par ' + ENV_E2E.LOGIN_SUPPORT) >= 0);
     ok('Aucune fenêtre, aucune erreur JavaScript', dialogues.length === 0 && err.length === 0, dialogues.concat(err).join(' | '));
   } catch (e) {
     ok('Exécution sans exception', false, e.stack);

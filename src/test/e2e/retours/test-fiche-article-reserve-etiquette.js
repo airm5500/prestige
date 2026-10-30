@@ -28,7 +28,9 @@ const COLS = 'bool_RESERVE, int_SEUIL_MINI_RAYON, int_SEUIL_RESERVE, str_CODE_GE
 const ORIGINE = q(`SELECT CONCAT_WS('|', ${COLS.split(', ').map((c) => `IFNULL(${c}, 'NULL')`).join(', ')}) FROM t_famille WHERE lg_FAMILLE_ID = '${P}'`);
 const DESIGNATION = q(`SELECT str_DESCRIPTION FROM t_famille WHERE lg_FAMILLE_ID = '${P}'`);
 const CONTENANCE = q(`SELECT int_NUMBERDETAIL FROM t_famille WHERE lg_FAMILLE_ID = '${P}'`);
-const DCI = q("SELECT lg_DCI_ID FROM t_dci ORDER BY lg_DCI_ID LIMIT 1");
+/* une copie sans aucune DCI recoit une DCI d'essai, retiree par remettre() */
+const DCI = q("SELECT lg_DCI_ID FROM t_dci ORDER BY lg_DCI_ID LIMIT 1") || (exec("INSERT INTO t_dci (lg_DCI_ID, str_CODE, str_NAME, str_STATUT, dt_CREATED)"
+  + " VALUES ('E2E-RES-ETQ-DCI', 'E2ERESETQ', 'E2E DCI RESERVE', 'enable', NOW())"), 'E2E-RES-ETQ-DCI');
 const NOM_DCI = q(`SELECT str_NAME FROM t_dci WHERE lg_DCI_ID = '${DCI}'`);
 const TSF = 'E2E-RES-ETQ';
 const debut = q('SELECT NOW()');
@@ -38,16 +40,19 @@ function remettre() {
   exec(`UPDATE t_famille SET ${COLS.split(', ').map((c, i) => `${c} = ${v[i]}`).join(', ')} WHERE lg_FAMILLE_ID = '${P}';`
     + `DELETE FROM t_type_stock_famille WHERE lg_TYPE_STOCK_FAMILLE_ID = '${TSF}';`
     + `DELETE FROM t_famille_dci WHERE lg_FAMILLE_DCI_ID = '${TSF}';`
+    + `DELETE FROM t_dci WHERE lg_DCI_ID = 'E2E-RES-ETQ-DCI';`
     + `DELETE FROM t_etiquette_type_journal WHERE lg_FAMILLE_ID = '${P}' AND dt_CREATED >= '${debut}';`);
 }
 
 (async () => {
   droitType.remettre();
   ok('Précondition : un produit et une DCI', !!P && !!DCI, P + ' ' + DCI);
-  exec(`UPDATE t_famille SET bool_RESERVE = 1, int_SEUIL_MINI_RAYON = 4, int_SEUIL_RESERVE = 18, str_CODE_GEO_ARTICLE = 'E2E-A12', str_CODE_GEO_ARTICLE_RESERVE = 'E2E-R07' WHERE lg_FAMILLE_ID = '${P}';`
+  /* si la pose echoue, le produit est remis aussitot : sinon ses codes « E2E- » restent dans la copie */
+  try { exec(`UPDATE t_famille SET bool_RESERVE = 1, int_SEUIL_MINI_RAYON = 4, int_SEUIL_RESERVE = 18, str_CODE_GEO_ARTICLE = 'E2E-A12', str_CODE_GEO_ARTICLE_RESERVE = 'E2E-R07' WHERE lg_FAMILLE_ID = '${P}';`
     + `DELETE FROM t_type_stock_famille WHERE lg_TYPE_STOCK_FAMILLE_ID = '${TSF}';`
     + `INSERT INTO t_type_stock_famille (lg_TYPE_STOCK_FAMILLE_ID, lg_FAMILLE_ID, lg_TYPE_STOCK_ID, lg_EMPLACEMENT_ID, str_NAME, str_DESCRIPTION, dt_CREATED, str_STATUT, int_NUMBER) VALUES ('${TSF}', '${P}', '2', '1', 'reserve', 'reserve', NOW(), 'enable', 37);`
     + `INSERT INTO t_famille_dci (lg_FAMILLE_DCI_ID, lg_DCI_ID, lg_FAMILLE_ID, str_STATUT) VALUES ('${TSF}', '${DCI}', '${P}', 'enable');`);
+  } catch (e) { remettre(); throw e; }
   const reserveAttendue = q(`SELECT IFNULL(SUM(int_NUMBER), 0) FROM t_type_stock_famille WHERE lg_FAMILLE_ID = '${P}' AND lg_TYPE_STOCK_ID = '2' AND lg_EMPLACEMENT_ID = '1'`);
   const b = await ENV_E2E.lancer(chromium);
   const err = [], dialogues = [];

@@ -61,7 +61,8 @@ const sugg = (id, ref, statut, lignes) => "INSERT INTO t_suggestion_order (lg_SU
     ok('Liste : suggestion active proposée, suggestion commandée absente ; commandes = statuts du menu Commandes en cours',
       liste.some((x) => x.startsWith('SUGGESTION|' + S + '|')) && !liste.some((x) => x.indexOf(SC) >= 0)
       && liste.filter((x) => x.startsWith('COMMANDE|')).every((x) => /\|(is_Process|pharma)$/.test(x))
-      && liste.filter((x) => x.startsWith('COMMANDE|')).length === Number(q("SELECT COUNT(*) FROM t_order WHERE str_STATUT IN ('is_Process','pharma')")), statutsCmd + ' ' + liste.length);
+      /* la liste s'arrete aux 300 commandes les plus recentes : une copie reelle peut en avoir davantage */
+      && liste.filter((x) => x.startsWith('COMMANDE|')).length === Math.min(300, Number(q("SELECT COUNT(*) FROM t_order WHERE str_STATUT IN ('is_Process','pharma')"))), statutsCmd + ' ' + liste.length);
     ok('Choix sur toute la ligne, nombre de lignes en vert dans la liste', await p.evaluate(() => { const c = Ext.ComponentQuery.query('analysecommande #choix')[0];
       return c.getWidth() > 900 && /ac-nb-lignes/.test(c.listConfig.getInnerTpl()); }), await p.evaluate(() => Ext.ComponentQuery.query('analysecommande #choix')[0].getWidth()));
 

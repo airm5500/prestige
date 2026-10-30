@@ -18,7 +18,8 @@ const NOTE = 'E2E-RETOUR-STOCK';
 const [BL, PRODUIT, RECUE] = q("SELECT CONCAT_WS('|', b.str_REF_LIVRAISON, d.lg_FAMILLE_ID, d.int_QTE_RECUE) FROM t_bon_livraison b"
   + " JOIN t_bon_livraison_detail d ON d.lg_BON_LIVRAISON_ID = b.lg_BON_LIVRAISON_ID"
   + " JOIN t_famille_stock s ON s.lg_FAMILLE_ID = d.lg_FAMILLE_ID AND s.lg_EMPLACEMENT_ID = '1'"
-  + " WHERE d.int_QTE_RECUE >= 4 AND b.str_STATUT <> 'delete'"
+  /* au moins 7 recus : la ligne de 6 depasse le stock (5) sans depasser le BL, controle depuis le 19/10 */
+  + " WHERE d.int_QTE_RECUE >= 7 AND b.str_STATUT <> 'delete'"
   + " AND (SELECT COUNT(*) FROM t_bon_livraison x WHERE x.str_REF_LIVRAISON = b.str_REF_LIVRAISON) = 1"
   + " AND (SELECT COUNT(*) FROM t_bon_livraison_detail y WHERE y.lg_BON_LIVRAISON_ID = b.lg_BON_LIVRAISON_ID AND y.lg_FAMILLE_ID = d.lg_FAMILLE_ID) = 1"
   + " ORDER BY b.dt_CREATED DESC LIMIT 1").split('|');

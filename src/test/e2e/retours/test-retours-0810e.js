@@ -89,7 +89,10 @@ function poser(cmd) {
   const ouvrirFiche = async () => {
     await p.evaluate(() => { const g = Ext.ComponentQuery.query('grossistemanager')[0]; if (!g || !g.isVisible()) { testextjs.app.getController('App').onLoadNewComponent('grossistemanager', 'Grossistes', ''); } });
     await p.waitForFunction(() => { const g = Ext.ComponentQuery.query('grossistemanager')[0]; return g && g.getStore && !g.getStore().isLoading() && g.getStore().getCount() > 0; }, null, { timeout: 30000 });
-    await p.waitForFunction((id) => Ext.ComponentQuery.query('grossistemanager')[0].getStore().findExact('lg_GROSSISTE_ID', id) >= 0, G, { timeout: 15000 });
+    /* une copie reelle a plus de grossistes qu'une page : recherche sur son nom, comme l'utilisateur */
+    await p.evaluate(([id, nom]) => { const g = Ext.ComponentQuery.query('grossistemanager')[0];
+      if (g.getStore().findExact('lg_GROSSISTE_ID', id) < 0) { Ext.getCmp('rechecher').setValue(nom); g.onRechClick(); } }, [G, q("SELECT str_LIBELLE FROM t_grossiste WHERE lg_GROSSISTE_ID = '" + G + "'")]);
+    await p.waitForFunction((id) => { const st = Ext.ComponentQuery.query('grossistemanager')[0].getStore(); return !st.isLoading() && st.findExact('lg_GROSSISTE_ID', id) >= 0; }, G, { timeout: 15000 });
     await p.waitForTimeout(400);
     await p.evaluate((id) => { const g = Ext.ComponentQuery.query('grossistemanager')[0]; g.onEditClick(g, g.getStore().findExact('lg_GROSSISTE_ID', id)); }, G);
     await p.waitForFunction(() => Ext.getCmp('str_CLE_RECEPTEUR') && Ext.getCmp('str_CLE_RECEPTEUR').rendered && Ext.getCmp('etatCle') && Ext.getCmp('etatCle').isVisible()
@@ -118,7 +121,7 @@ function poser(cmd) {
     await p.evaluate(() => { if (Ext.MessageBox.isVisible()) { Ext.MessageBox.hide(); } });
     /* liste : coche + longueur */
     await p.waitForFunction((id) => { const g = Ext.ComponentQuery.query('grossistemanager')[0]; const st = g.getStore(); return !st.isLoading() && st.findExact('lg_GROSSISTE_ID', id) >= 0; }, G, { timeout: 20000 });
-    await p.evaluate(() => Ext.ComponentQuery.query('grossistemanager')[0].getStore().reload());
+    await p.evaluate(() => { Ext.ComponentQuery.query('grossistemanager')[0].getStore().reload(); });
     await p.waitForFunction((id) => { const g = Ext.ComponentQuery.query('grossistemanager')[0]; const st = g.getStore(); return !st.isLoading() && st.findExact('lg_GROSSISTE_ID', id) >= 0; }, G, { timeout: 20000 });
     await p.waitForTimeout(500);
     const cellule = await p.evaluate((id) => { const g = Ext.ComponentQuery.query('grossistemanager')[0]; const n = g.getView().getNode(g.getStore().getAt(g.getStore().findExact('lg_GROSSISTE_ID', id)));

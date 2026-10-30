@@ -107,6 +107,8 @@ function dossierPharmaMl() {
   return ligne ? ligne.replace(/^\s*pharmaMlDir\s*[=:]\s*/, '').replace(/\\(.)/g, '$1').trim() : path.join(STOCKAGE, 'pharmaml');
 }
 const PHARMAML = dossierPharmaMl();
+/* modeles d'impression lus par le serveur (util.Constant.REPORT_PATH sous Windows) ; REPORTS_FILE l'impose */
+const REPORTS = process.env.REPORTS_FILE || (WINDOWS ? 'D:/CONF/LABOREX/REPORTS' : '/opt/CONF/LABOREX/REPORTS');
 
 const VISIBLE = process.env.E2E_VISIBLE === '1';
 const CAPTURES = process.env.E2E_CAPTURES === '0' ? null
@@ -198,7 +200,7 @@ async function lancer(chromium, options) {
 
 module.exports = {
   WINDOWS, BASE, LOGIN, LOGIN_SUPPORT, CHROMIUM, TMP, PAYARA_DOMAINE, JOURNAL_SERVEUR, VISIBLE, CAPTURES, lancer, capture,
-  STOCKAGE, CONFIG_POSTE, PHARMAML,
+  STOCKAGE, CONFIG_POSTE, PHARMAML, REPORTS,
   /* arguments a placer en tete de chaque appel au client mariadb ; verifie a l'appel, pour que les tests sans base
      n'aient pas besoin du fichier d'options */
   get MARIADB() {

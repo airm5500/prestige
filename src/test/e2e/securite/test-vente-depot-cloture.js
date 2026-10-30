@@ -40,6 +40,19 @@ function nettoyer() {
   }
 }
 
+/* une copie sans aucun depot recoit un depot d'essai (retire a la fin) : sinon la liste des depots est vide */
+const DEPOT = 'E2E-DEPOT-CLOT';
+const retirerDepot = () => q("DELETE FROM hmvtproduit WHERE lg_EMPLACEMENT_ID = '" + DEPOT + "'; DELETE FROM t_famille_stock WHERE lg_EMPLACEMENT_ID = '" + DEPOT + "';"
+  + " DELETE FROM t_emplacement WHERE lg_EMPLACEMENT_ID = '" + DEPOT + "'");
+retirerDepot();
+const depotEssai = q("SELECT COUNT(*) FROM t_emplacement WHERE lg_EMPLACEMENT_ID <> '1' AND str_STATUT = 'enable'") === '0';
+if (depotEssai) {
+  q("INSERT INTO t_emplacement (lg_EMPLACEMENT_ID, lg_COMPTE_CLIENT_ID, str_NAME, str_DESCRIPTION, str_LOCALITE, str_FIRST_NAME, str_LAST_NAME,"
+    + " str_PHONE, dt_CREATED, dt_UPDATED, str_STATUT, lg_TYPEDEPOT_ID, bool_SAME_LOCATION)"
+    + " SELECT '" + DEPOT + "', lg_COMPTE_CLIENT_ID, 'DEPOT E2E CLOTURE', 'E2E', 'ABOBO', 'KOFFI', 'Jean', '0708473750', NOW(), NOW(), 'enable', '2', 0"
+    + " FROM t_compte_client WHERE lg_CLIENT_ID IS NOT NULL AND str_STATUT = 'enable' ORDER BY lg_COMPTE_CLIENT_ID LIMIT 1");  /* l ecran exige le client du compte */
+}
+
 (async () => {
   const b = await ENV_E2E.lancer(chromium);
   const p = await b.newPage({ viewport: { width: 1600, height: 900 } });
@@ -91,7 +104,7 @@ function nettoyer() {
       if (/^is_Closed/.test(etat)) { break; }
       await p.waitForTimeout(500);
     }
-    ok('« Terminer la vente » : vente en dépôt terminée par admin, aucun refus du serveur', etat === 'is_Closed|admin' && refus.every((s) => s === 200),
+    ok('« Terminer la vente » : vente en dépôt terminée par l\'utilisateur connecté, aucun refus du serveur', etat === 'is_Closed|' + ENV_E2E.LOGIN && refus.every((s) => s === 200),
       etat + ' | réponses ' + refus.join(',') + ' | ' + (await texteMessage(p)).slice(0, 150));
     ok('Aucune erreur JavaScript', erreurs.length === 0, erreurs.join(' | '));
   } catch (x) {
@@ -99,6 +112,7 @@ function nettoyer() {
   } finally {
     await b.close();
     nettoyer();
+    if (depotEssai) { retirerDepot(); }
     ok('Vente retirée, stock remis', ventes.every((v) => q("SELECT COUNT(*) FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID = '" + v + "'") === '0')
       && q("SELECT GROUP_CONCAT(CONCAT(lg_FAMILLE_STOCK_ID, '=', int_NUMBER_AVAILABLE, '/', int_NUMBER)) FROM t_famille_stock WHERE lg_FAMILLE_ID = '" + PRODUIT + "'") === STOCKS);
   }

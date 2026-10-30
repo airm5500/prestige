@@ -21,7 +21,9 @@ const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-char
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const liste = (s) => { const r = q(s); return r ? r.split(/\r?\n/) : []; };
 
-const DCI = q("SELECT lg_DCI_ID FROM t_dci WHERE str_STATUT = 'enable' ORDER BY str_NAME LIMIT 1");
+/* une copie sans aucune DCI recoit une DCI d'essai, retiree a la fin */
+const DCI = q("SELECT lg_DCI_ID FROM t_dci WHERE str_STATUT = 'enable' ORDER BY str_NAME LIMIT 1") || (exec("INSERT INTO t_dci (lg_DCI_ID, str_CODE, str_NAME, str_STATUT, dt_CREATED)"
+  + " VALUES ('E2E-DCI-D', 'E2EDCI', 'E2E DCI ESSAI', 'enable', NOW())"), 'E2E-DCI-D');
 const EMPL = q("SELECT lg_EMPLACEMENT_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
 function nettoyer() {
   exec("DELETE FROM t_famille_dci WHERE lg_FAMILLE_DCI_ID LIKE 'E2E-DCI-%'; DELETE FROM t_famille_grossiste WHERE lg_FAMILLE_GROSSISTE_ID LIKE 'E2E-DCI-%'");
@@ -126,6 +128,7 @@ function reference(condition) {
   } finally {
     await b.close();
     nettoyer();
+    exec("DELETE FROM t_dci WHERE lg_DCI_ID = 'E2E-DCI-D'");
     ok('Jeu d\'essai retiré', q("SELECT COUNT(*) FROM t_famille_dci WHERE lg_FAMILLE_DCI_ID LIKE 'E2E-DCI-%'") === '0' && q("SELECT COUNT(*) FROM t_famille_grossiste WHERE lg_FAMILLE_GROSSISTE_ID LIKE 'E2E-DCI-%'") === '0');
     const n = res.filter((r) => r.c).length;
     console.log('\n' + n + '/' + res.length + (n === res.length ? ' OK' : ' ECHEC'));

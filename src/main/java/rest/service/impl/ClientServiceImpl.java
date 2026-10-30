@@ -2196,8 +2196,14 @@ public class ClientServiceImpl implements ClientService {
         }
     }
 
+    /*
+     * Hors transaction JTA : chaque client est cree par l'ancien gestionnaire, qui tient sa propre transaction locale
+     * sur le meme pool. Dans une transaction JTA, il partageait sa connexion, la laissait en validation automatique, et
+     * la validation finale echouait (« Can't call commit when autocommit=true ») : l'import ne creait rien.
+     */
     @Override
     @SuppressWarnings("unchecked")
+    @javax.ejb.TransactionAttribute(javax.ejb.TransactionAttributeType.NOT_SUPPORTED)
     public JSONObject importerClients(dal.TUser operateur, String nomFichier, byte[] contenu,
             Map<String, String> champs, Boolean ecrire, boolean avecCorrespondance) {
         boolean entete = Boolean.parseBoolean(StringUtils.defaultString(champs.get("entete")));
@@ -2363,9 +2369,19 @@ public class ClientServiceImpl implements ClientService {
             if (compte == null) {
                 return StringUtils.defaultIfBlank(ocm.getDetailmessage(), "Création refusée par le serveur.");
             }
-            enregistrerTelephone(compte.getLgCLIENTID().getLgCLIENTID(), ligne.getTelephone());
+            /* telephone ecrit dans la transaction locale du client (l'import n'a pas de transaction JTA) */
+            TClient client = odm.getEm().find(TClient.class, compte.getLgCLIENTID().getLgCLIENTID());
+            if (client != null) {
+                odm.BeginTransaction();
+                client.setStrTELEPHONE(StringUtils.trimToNull(ligne.getTelephone()));
+                odm.getEm().merge(client);
+                odm.CloseTransaction();
+            }
             return "";
         } catch (Exception e) {
+            if (odm.getEm() != null && odm.getEm().getTransaction().isActive()) {
+                odm.getEm().getTransaction().rollback();
+            }
             LOG.log(Level.SEVERE, "creation du client importe ligne " + ligne.getNumero(), e);
             return "Erreur serveur : " + StringUtils.defaultString(e.getMessage());
         } finally {

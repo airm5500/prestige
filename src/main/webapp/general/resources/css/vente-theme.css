@@ -2241,6 +2241,29 @@ body.x-body,
 .ordo-onglets .x-tab-default-top.x-tab-over:not(.x-tab-active) { background: #eef3f9 !important; border-color: #9fb3c8 !important; }
 .ordo-onglets .x-tab-default-top.x-tab-over:not(.x-tab-active) .x-tab-inner { color: #1e3a5f !important; }
 .ordo-onglets > .x-panel-body { border: 0 !important; }
+/* Onglets en couleur du depot (retour du 18/09, cf. « depot-onglet- » plus haut) : le dessin ordo-onglets ci-dessus,
+   pose sur tous les onglets des ecrans habilles, les repeignait en blanc. Ils gardent leur teinte, y compris au
+   survol ; l'onglet ouvert reste en couleur pleine, le libelle en blanc. */
+.ordo-onglets .x-tab-default-top.x-tab.depot-onglet-vente,
+.ordo-onglets .x-tab-default-top.x-tab.depot-onglet-vente .x-tab-wrap { background: #7cc6a0 !important; }
+.ordo-onglets .x-tab-default-top.x-tab.depot-onglet-valorisation,
+.ordo-onglets .x-tab-default-top.x-tab.depot-onglet-valorisation .x-tab-wrap { background: #8fb8dd !important; }
+.ordo-onglets .x-tab-default-top.x-tab.depot-onglet-ca,
+.ordo-onglets .x-tab-default-top.x-tab.depot-onglet-ca .x-tab-wrap { background: #dcb87a !important; }
+.ordo-onglets .x-tab-default-top.x-tab.depot-onglet-caisse,
+.ordo-onglets .x-tab-default-top.x-tab.depot-onglet-caisse .x-tab-wrap { background: #b493cd !important; }
+.ordo-onglets .x-tab-default-top.x-tab.depot-onglet-vente.x-tab-active,
+.ordo-onglets .x-tab-default-top.x-tab.depot-onglet-vente.x-tab-active .x-tab-wrap { background: #1e8449 !important; border-color: #146235 !important; }
+.ordo-onglets .x-tab-default-top.x-tab.depot-onglet-valorisation.x-tab-active,
+.ordo-onglets .x-tab-default-top.x-tab.depot-onglet-valorisation.x-tab-active .x-tab-wrap { background: #2e75b6 !important; border-color: #205888 !important; }
+.ordo-onglets .x-tab-default-top.x-tab.depot-onglet-ca.x-tab-active,
+.ordo-onglets .x-tab-default-top.x-tab.depot-onglet-ca.x-tab-active .x-tab-wrap { background: #b9770e !important; border-color: #8c5a0a !important; }
+.ordo-onglets .x-tab-default-top.x-tab.depot-onglet-caisse.x-tab-active,
+.ordo-onglets .x-tab-default-top.x-tab.depot-onglet-caisse.x-tab-active .x-tab-wrap { background: #7b3fa0 !important; border-color: #5b2e78 !important; }
+.ordo-onglets .x-tab-default-top.x-tab.depot-onglet-vente .x-tab-inner,
+.ordo-onglets .x-tab-default-top.x-tab.depot-onglet-valorisation .x-tab-inner,
+.ordo-onglets .x-tab-default-top.x-tab.depot-onglet-ca .x-tab-inner,
+.ordo-onglets .x-tab-default-top.x-tab.depot-onglet-caisse .x-tab-inner { color: #fff !important; }
 /* Carte des criteres. */
 .ordo-criteres { background: #eef2f7; border: 1px solid #d5dee8; border-radius: 6px; }
 .ordo-criteres .x-form-item-label, .ordo-lib { font-size: 11px; font-weight: bold; letter-spacing: .06em; text-transform: uppercase;

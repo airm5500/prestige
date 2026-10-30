@@ -26,7 +26,11 @@ const DEBUT = q("SELECT NOW() - INTERVAL 1 SECOND");
 let produit = null, stockOrigine = null, caisseCreee = false;
 
 const ventesDuTest = () => q("SELECT IFNULL(GROUP_CONCAT(CONCAT('''', lg_PREENREGISTREMENT_ID, '''')), '''-''') FROM t_preenregistrement"
-  + " WHERE dt_CREATED >= '" + DEBUT + "' AND lg_USER_ID = '" + ADMIN + "'");
+  + " WHERE (dt_CREATED >= '" + DEBUT + "' AND lg_USER_ID = '" + ADMIN + "')"
+  /* et celles d'un essai interrompu (arret du serveur) : toutes les ventes des clients d'essai */
+  + " OR lg_CLIENT_ID IN ('" + C + "') OR lg_PREENREGISTREMENT_ID IN (SELECT pc.lg_PREENREGISTREMENT_ID"
+  + " FROM t_preenregistrement_compte_client pc JOIN t_compte_client cc ON cc.lg_COMPTE_CLIENT_ID = pc.lg_COMPTE_CLIENT_ID"
+  + " WHERE cc.lg_CLIENT_ID IN ('" + C + "'))");
 function nettoyer() {
   const v = ventesDuTest();
   exec("CREATE TEMPORARY TABLE e2e_pts_l AS SELECT lg_PREENREGISTREMENT_DETAIL_ID id FROM t_preenregistrement_detail WHERE lg_PREENREGISTREMENT_ID IN (" + v + ");"
@@ -40,6 +44,7 @@ function nettoyer() {
     + "DELETE FROM t_preenregistrement_compte_client WHERE lg_PREENREGISTREMENT_ID IN (" + v + ");"
     + "DELETE FROM t_preenregistrement_detail WHERE lg_PREENREGISTREMENT_ID IN (" + v + ");"
     + "UPDATE t_preenregistrement SET lg_PREENGISTREMENT_ANNULE_ID = NULL, lg_PARENT_ID = NULL, lg_REGLEMENT_ID = NULL WHERE lg_PREENREGISTREMENT_ID IN (" + v + ");"
+    + "DELETE FROM vente_exclu WHERE preenregistrement_id IN (" + v + ");"
     + "DELETE FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID IN (" + v + ");"
     + "DELETE FROM t_reglement WHERE lg_REGLEMENT_ID IN (SELECT id FROM e2e_pts_r);"
     + "DELETE FROM t_compte_client WHERE lg_CLIENT_ID = '" + C + "';"
@@ -54,8 +59,9 @@ function nettoyer() {
 }
 
 (async () => {
-  exec("DROP TABLE IF EXISTS zz_e2e_pts_param; CREATE TABLE zz_e2e_pts_param AS SELECT * FROM t_fidelite_parametre;"
-    + "DROP TABLE IF EXISTS zz_e2e_pts_mode; CREATE TABLE zz_e2e_pts_mode AS SELECT lg_TYPE_REGLEMENT_ID, str_STATUT FROM t_type_reglement WHERE lg_TYPE_REGLEMENT_ID = '20';");
+  nettoyer(); // reprise apres un essai interrompu : ses donnees d'essai sont retirees d'abord
+  exec("CREATE TABLE IF NOT EXISTS zz_e2e_pts_param AS SELECT * FROM t_fidelite_parametre;"
+    + "CREATE TABLE IF NOT EXISTS zz_e2e_pts_mode AS SELECT lg_TYPE_REGLEMENT_ID, str_STATUT FROM t_type_reglement WHERE lg_TYPE_REGLEMENT_ID = '20';");
   const a = q("SELECT CONCAT(f.lg_FAMILLE_ID, ':', f.int_PRICE) FROM t_famille f JOIN t_famille_stock s ON s.lg_FAMILLE_ID = f.lg_FAMILLE_ID AND s.lg_EMPLACEMENT_ID = '1'"
     + " WHERE f.str_STATUT = 'enable' AND f.int_PRICE BETWEEN 200 AND 400 AND COALESCE(f.bool_DECONDITIONNE, 0) = 0 AND COALESCE(f.lg_FAMILLE_PARENT_ID, '') = ''"
     + " AND f.bool_ACCOUNT = 1 AND s.int_NUMBER_AVAILABLE >= 0 ORDER BY f.str_NAME LIMIT 1").split(':');

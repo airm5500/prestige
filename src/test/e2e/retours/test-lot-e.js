@@ -223,7 +223,7 @@ function retirerJeuDEssai() {
   ok('Excel : le serveur repond 200', xls.statut === 200, xls.statut + ' ' + xls.type);
   ok('Excel : le fichier est un vrai classeur .xlsx (et non un csv)',
      fs.readFileSync(fxls).slice(0, 2).toString('latin1') === 'PK', xls.type);
-  const feuille = execSync("cd " + TMP + " && unzip -p recap.xlsx xl/sharedStrings.xml", { encoding: 'utf8' });
+  const feuille = execSync("unzip -p recap.xlsx xl/sharedStrings.xml", { cwd: TMP, encoding: 'utf8' });
   ok('Excel : la colonne Ecart figure dans l en-tete', /crit|Écart|cart/.test(feuille));
   ok('Excel : le detail mobile money est present', /Mobile money|ORANGE/.test(feuille), feuille.slice(0, 200));
   ok('Excel (12/09) : colonne « Mouv. caisse » apres « Nbre clients », puis « Regl TP » et « Regl DIFF »',

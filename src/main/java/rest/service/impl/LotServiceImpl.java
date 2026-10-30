@@ -27,6 +27,7 @@ import javax.persistence.Query;
 import javax.persistence.TemporalType;
 import javax.persistence.Tuple;
 import javax.persistence.TypedQuery;
+import org.json.JSONArray;
 import org.json.JSONObject;
 import rest.service.LotService;
 import rest.service.SessionHelperService;
@@ -231,8 +232,22 @@ public class LotServiceImpl implements LotService {
 
     @Override
     public JSONObject getAllLots() {
+        // tous les lots (144 000 sur la copie de l'officine) : la conversion par reflexion d'org.json
+        // (new JSONObject(bean)) prenait plus de 40 s ; memes cles, valeurs nulles absentes comme avant
+        JSONArray data = new JSONArray();
+        this.fetchLots().stream().map(this::build).map(LotServiceImpl::toJson).forEach(data::put);
+        return FunctionUtils.returnData(data);
+    }
 
-        return FunctionUtils.returnData(this.fetchLots().stream().map(this::build).collect(Collectors.toList()));
+    private static JSONObject toJson(LotDTO l) {
+        return new JSONObject().putOpt("intCip", l.getIntCip()).putOpt("intPrice", l.getIntPrice())
+                .putOpt("intPaf", l.getIntPaf()).putOpt("intNumLot", l.getIntNumLot())
+                .putOpt("intNumber", l.getIntNumber()).putOpt("dtCreated", l.getDtCreated())
+                .putOpt("dtUpdated", l.getDtUpdated()).putOpt("lgGrossisteId", l.getLgGrossisteId())
+                .putOpt("strRefLivraison", l.getStrRefLivraison()).putOpt("dtSortieUsine", l.getDtSortieUsine())
+                .putOpt("dtPeremption", l.getDtPeremption()).putOpt("intNumberGratuit", l.getIntNumberGratuit())
+                .putOpt("intQtyVendue", l.getIntQtyVendue()).putOpt("lgUserId", l.getLgUserId())
+                .putOpt("lgFamilleId", l.getLgFamilleId()).putOpt("strName", l.getStrName());
     }
 
     @Override

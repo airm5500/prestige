@@ -155,7 +155,9 @@ function poser() {
       /PRESCRITE/.test(texteFiche) && /Servie/.test(texteFiche) && /pas un document de vente/.test(texteFiche),
       texteFiche.slice(0, 700));
     ok('Elle porte la traçabilité : la saisie, sa date et son auteur',
-      /Saisie le/.test(texteFiche) && /Super/.test(texteFiche), texteFiche.slice(-400));
+      /* l'auteur est le compte du test (« Super » sur le banc, « Essai » sur le poste) */
+      /Saisie le/.test(texteFiche) && texteFiche.includes('par ' + q("SELECT str_FIRST_NAME FROM t_user WHERE str_LOGIN='" + ENV_E2E.LOGIN + "'")),
+      texteFiche.slice(-400));
     ok('Elle est paginée et datée', /Page 1/.test(texteFiche) && /dit. le/.test(texteFiche),
       texteFiche.slice(-260));
     ok('Les pièces jointes sont COMPTÉES et non imprimées : elles restent dans l application',

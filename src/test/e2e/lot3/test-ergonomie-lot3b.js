@@ -37,11 +37,11 @@ function semer() {
   exec("INSERT INTO hmvtproduit (uuid, createdAt, mvtdate, prixAchat, prixUn, qteDebut, qteFinale, qteMvt,"
     + " valeurTva, lg_EMPLACEMENT_ID, lg_FAMILLE_ID, lg_USER_ID, typeMvt, pkey, ug) VALUES"
     + " ('" + MARQUE + "-06', " + commun + "10, " + (10 - BOITES) + ", " + BOITES + ", 0,"
-    + " '" + emplacement + "', '" + PARENT + "', '" + utilisateur + "', '06', '" + MARQUE + "', 0)");
+    + " '" + emplacement + "', '" + PARENT + "', '" + utilisateur + "', '06', '" + MARQUE + "-06', 0)");
   exec("INSERT INTO hmvtproduit (uuid, createdAt, mvtdate, prixAchat, prixUn, qteDebut, qteFinale, qteMvt,"
     + " valeurTva, lg_EMPLACEMENT_ID, lg_FAMILLE_ID, lg_USER_ID, typeMvt, pkey, ug) VALUES"
     + " ('" + MARQUE + "-05', " + commun + "0, " + (BOITES * CONTENANCE) + ", " + (BOITES * CONTENANCE) + ", 0,"
-    + " '" + emplacement + "', '" + DETAIL + "', '" + utilisateur + "', '05', '" + MARQUE + "', 0)");
+    + " '" + emplacement + "', '" + DETAIL + "', '" + utilisateur + "', '05', '" + MARQUE + "-05', 0)");
   return true;
 }
 

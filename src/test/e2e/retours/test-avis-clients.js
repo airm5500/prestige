@@ -66,7 +66,9 @@ const texteXls = (f) => execFileSync('python3', ['-I', '-c', "import sys,xlrd;s=
 
     /* ---------------------------------------------------------------- menu et migration */
     ok('Migration : menu AVIS CLIENTS, 4 droits à l\'administrateur seulement', q("SELECT COUNT(*) FROM t_sous_menu WHERE str_COMPOSANT = 'avisclients'") === '1'
-      && q("SELECT COUNT(DISTINCT rp.lg_ROLE_ID) FROM t_role_privelege rp JOIN t_privilege x ON x.lg_PRIVELEGE_ID = rp.lg_PRIVILEGE_ID WHERE x.str_NAME = 'P_AVIS_REPONDRE'") === '1');
+      && q("SELECT COUNT(DISTINCT rp.lg_ROLE_ID) FROM t_role_privelege rp JOIN t_privilege x ON x.lg_PRIVELEGE_ID = rp.lg_PRIVILEGE_ID WHERE x.str_NAME = 'P_AVIS_REPONDRE'"
+        /* le role systeme '00' (SYSTEM_USER, desactive) peut porter tous les droits sur une copie reelle : il n'est le role de personne */
+        + " AND rp.lg_ROLE_ID <> '00'") === '1');
     await vue(() => testextjs.app.getController('App').onLoadNewComponent('avisclients', 'Avis clients', ''));
     await p.waitForFunction(() => Ext.ComponentQuery.query('avisclients')[0] && Ext.ComponentQuery.query('avisclients')[0].droits.success, null, { timeout: 30000 });
     await attendre();

@@ -85,6 +85,8 @@ const statut = (id) => q("SELECT IFNULL(GROUP_CONCAT(str_STATUT ORDER BY dt_ENVO
   await new Promise((r) => serveur.listen(PORT, '127.0.0.1', r));
   sauve = q("SELECT CONCAT_WS('|', IFNULL(str_URL_PHARMAML, 'NULL'), IFNULL(str_URL_PHARMAML_SECOURS, 'NULL'), str_PHARMAML_VERSION_CMDE, IFNULL(str_CLE_RECEPTEUR, ''), IFNULL(str_ID_RECEPTEUR_PHARMA, '')) FROM t_grossiste WHERE lg_GROSSISTE_ID = '" + G + "'").split('|');
   cle = sauve[3]; idOf = sauve[4];
+  /* une copie sans cle DPCI recoit celle du banc (4083) le temps du test : sans cle, aucun en-tete de controle */
+  if (!cle) { cle = '4083'; exec("UPDATE t_grossiste SET str_CLE_RECEPTEUR = '4083' WHERE lg_GROSSISTE_ID = '" + G + "'"); }
   P = q("SELECT GROUP_CONCAT(lg_FAMILLE_ID ORDER BY str_NAME SEPARATOR '|') FROM (SELECT lg_FAMILLE_ID, str_NAME FROM t_famille WHERE str_STATUT='enable' AND int_CIP REGEXP '^[0-9]{7}$' ORDER BY str_NAME LIMIT 2 OFFSET 40) x").split('|');
   nettoyer();
   exec("UPDATE t_grossiste SET str_URL_PHARMAML = 'http://127.0.0.1:" + PORT + "/PharmaML/', str_URL_PHARMAML_SECOURS = NULL, str_PHARMAML_VERSION_CMDE = '1.0.0.0' WHERE lg_GROSSISTE_ID = '" + G + "'");
@@ -192,7 +194,7 @@ const statut = (id) => q("SELECT IFNULL(GROUP_CONCAT(str_STATUT ORDER BY dt_ENVO
     serveur.close();
     nettoyer();
     exec("UPDATE t_grossiste SET str_URL_PHARMAML = " + (sauve[0] === 'NULL' ? 'NULL' : "'" + sauve[0] + "'") + ", str_URL_PHARMAML_SECOURS = " + (sauve[1] === 'NULL' ? 'NULL' : "'" + sauve[1] + "'")
-      + ", str_PHARMAML_VERSION_CMDE = '" + sauve[2] + "' WHERE lg_GROSSISTE_ID = '" + G + "'");
+      + ", str_PHARMAML_VERSION_CMDE = '" + sauve[2] + "'" + (sauve[3] ? '' : ', str_CLE_RECEPTEUR = NULL') + " WHERE lg_GROSSISTE_ID = '" + G + "'");
     ok('Jeu d\'essai retiré, grossiste remis', q("SELECT COUNT(*) FROM t_order WHERE lg_ORDER_ID IN ('" + CMD + "', '" + CMD2 + "')") === '0'
       && q("SELECT COUNT(*) FROM t_pharmaml_attente WHERE lg_GROSSISTE_ID = '" + G + "'") === '0');
     const ko = res.filter((r) => !r.c).length;

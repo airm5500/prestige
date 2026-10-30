@@ -92,7 +92,9 @@ Ext.define('testextjs.view.commandemanagement.order.OrderManager', {
                     header: 'PharmaML',
                     dataIndex: 'str_ENVOI_PHARMAML',
                     itemId: 'colEnvoiPharmaml',
-                    width: 144,
+                    /* statut et pastille « n à décider » entiers (a 144 px la pastille etait coupee et ne se cliquait
+                       plus) ; la liste defile en largeur, les icones de ligne restent atteignables */
+                    width: 168,
                     renderer: function (v, meta, r) {
                         return testextjs.view.commandemanagement.order.EnvoiPharmaMl.rendu(v, meta, r);
                     }

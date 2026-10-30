@@ -20,7 +20,14 @@ const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-char
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const SORTIE = process.env.SORTIE || ENV_E2E.TMP;
 const C = 'E2E-FID-C1';
-const SPE = '10263736171005327', VETO = '16926123341024423633';
+/* deux articles actifs de deux categories differentes, pris dans la copie (les identifiants d'une autre base n'y sont pas) :
+   le second, de preference veterinaire, voit sa categorie exclue des points */
+const article = (cond) => q("SELECT f.lg_FAMILLE_ID FROM t_famille f JOIN t_famillearticle fa ON fa.lg_FAMILLEARTICLE_ID = f.lg_FAMILLEARTICLE_ID"
+  + " WHERE f.str_STATUT = 'enable' AND COALESCE(f.bool_DECONDITIONNE, 0) = 0 AND " + cond + " ORDER BY f.lg_FAMILLE_ID LIMIT 1");
+const SPE = article("fa.str_LIBELLE LIKE 'SPECIALITE%'") || article('1 = 1');
+const CAT_SPE = q("SELECT lg_FAMILLEARTICLE_ID FROM t_famille WHERE lg_FAMILLE_ID = '" + SPE + "'");
+const VETO = article("fa.str_LIBELLE LIKE '%VETERI%' AND fa.lg_FAMILLEARTICLE_ID <> '" + CAT_SPE + "'")
+  || article("fa.lg_FAMILLEARTICLE_ID <> '" + CAT_SPE + "'");
 const CAT_VETO = q("SELECT lg_FAMILLEARTICLE_ID FROM t_famille WHERE lg_FAMILLE_ID = '" + VETO + "'");
 const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
 /* ventes : id, type, net, details [famille, montant], tiers payant, heures avant maintenant */
