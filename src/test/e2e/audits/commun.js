@@ -31,6 +31,9 @@ function bilan() {
 }
 
 const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
+/* un autre vendeur actif : valider une modification de vente SANS changement est refuse depuis le 28/10 (point 7,
+   « Aucun changement détecté ») ; les cas qui cloturent une copie changent le vendeur, sans toucher au stock */
+const AUTRE_VENDEUR = q("SELECT lg_USER_ID FROM t_user WHERE str_STATUT = 'enable' AND lg_USER_ID <> '" + ADMIN + "' ORDER BY lg_USER_ID LIMIT 1");
 /* AUDIT_DEBUT : reprendre le nettoyage d'un lancement interrompu (nettoyer.js) */
 const DEBUT = process.env.AUDIT_DEBUT || q('SELECT NOW() - INTERVAL 1 SECOND');
 const CAISSE = MARQUE + '-caisse';
@@ -244,7 +247,7 @@ function venteComptant(api) {
     const montant = o.montant !== undefined ? o.montant : data.montantNet;
     const recu = o.recu !== null ? o.recu : montant;
     const r = await api('POST', '../api/v1/vente/cloturer/vno', { venteId, typeVenteId: o.typeVente, natureVenteId: '1', devis: false, remiseId: o.remiseId,
-      userVendeurId: ADMIN, montantRecu: recu, montantRemis: 0, montantPaye: o.paye !== undefined ? o.paye : recu, totalRecap: montant, partTP: 0,
+      userVendeurId: o.vendeur || ADMIN, montantRecu: recu, montantRemis: 0, montantPaye: o.paye !== undefined ? o.paye : recu, totalRecap: montant, partTP: 0,
       typeRegleId: o.mode, clientId: o.clientId, nom: '', commentaire: '', banque: '', lieux: '', marge: data.marge || 0, data,
       reglements: [{ typeReglement: o.mode, montant: o.mode === '1' ? (o.paye !== undefined ? o.paye : recu) : montant, montantAttentu: montant }] });
     r.net = data;
@@ -355,5 +358,5 @@ const vente = (id) => {
 /* arret brutal (exception avant le finally, connexion impossible) : le jeu d'essai est quand meme retire */
 process.on('exit', () => { if (!nettoye && (etat.produits.length || etat.tiersPayants.length || etat.caisseCreee || etat.params.length)) { nettoyer(); } });
 
-module.exports = { ENV_E2E, MARQUE, ADMIN, DEBUT, ok, bilan, exec, q, liste, produit, stock, parametre, tiersPayant, encoursTp, encoursLien,
+module.exports = { ENV_E2E, MARQUE, ADMIN, AUTRE_VENDEUR, DEBUT, ok, bilan, exec, q, liste, produit, stock, parametre, tiersPayant, encoursTp, encoursLien,
   ouvrirCaisse, nettoyer, connecter, venteComptant, vente, ventesDuTest, etat, clientAssure, clientAssureParEcran, venteAssurance, lignesTp };

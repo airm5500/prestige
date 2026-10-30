@@ -44,7 +44,7 @@ const { ok, q, exec, ADMIN, MARQUE } = C;
       const copie = q("SELECT lg_PREENREGISTREMENT_ID FROM t_preenregistrement WHERE lg_PARENT_ID = '" + v + "' AND copy = 1 AND str_STATUT = 'is_Process' LIMIT 1");
       ok('VC-04 précondition : modification ouverte (copie en cours)', !!copie, JSON.stringify(m).slice(0, 160));
       const a = await api('GET', '../api/v1/vente/annulation/' + v);
-      const c = await V.cloturer(copie);
+      const c = await V.cloturer(copie, { vendeur: C.AUTRE_VENDEUR });
       /* une modification normale laisse DEUX enregistrements pointant l'origine : la copie et UNE contre-passation (prix negatif) */
       const annulations = Number(q("SELECT COUNT(*) FROM t_preenregistrement WHERE lg_PREENGISTREMENT_ANNULE_ID = '" + v + "' AND int_PRICE < 0"));
       const caisse = q("SELECT COALESCE(SUM(montant), 0) FROM mvttransaction WHERE pkey IN (SELECT lg_PREENREGISTREMENT_ID FROM t_preenregistrement"
@@ -111,7 +111,7 @@ const { ok, q, exec, ADMIN, MARQUE } = C;
         + "UPDATE mvttransaction SET createdAt = createdAt - INTERVAL 1 DAY, mvtdate = mvtdate - INTERVAL 1 DAY WHERE pkey = '" + v + "'");
       await api('PUT', '../api/v1/vente/modifier-vente-terme/' + v);
       const copie = q("SELECT lg_PREENREGISTREMENT_ID FROM t_preenregistrement WHERE lg_PARENT_ID = '" + v + "' AND copy = 1 AND str_STATUT = 'is_Process' LIMIT 1");
-      const c = await V.cloturer(copie);
+      const c = await V.cloturer(copie, { vendeur: C.AUTRE_VENDEUR });
       const dates = q("SELECT CONCAT_WS(' ; ', CONCAT('transaction de la copie ', (SELECT GROUP_CONCAT(mvtdate) FROM mvttransaction WHERE pkey = '" + copie + "')),"
         + " CONCAT('contre-passation ', (SELECT GROUP_CONCAT(m.mvtdate) FROM mvttransaction m JOIN t_preenregistrement a ON a.lg_PREENREGISTREMENT_ID = m.pkey"
         + "   WHERE a.lg_PREENGISTREMENT_ANNULE_ID = '" + v + "')),"

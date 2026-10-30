@@ -28,7 +28,7 @@ const { ok, q } = C;
     await api('PUT', '../api/v1/vente/modifier-vente-terme/' + v);
     const copie = q("SELECT lg_PREENREGISTREMENT_ID FROM t_preenregistrement WHERE lg_PARENT_ID = '" + v + "' AND copy = 1 AND str_STATUT = 'is_Process' LIMIT 1");
     if (copie) { C.etat.ventes.push(copie); }
-    const c = copie ? await V.cloturer(copie) : { success: false };
+    const c = copie ? await V.cloturer(copie, { vendeur: C.AUTRE_VENDEUR }) : { success: false };
     const [ref, jour] = q("SELECT CONCAT_WS('|', str_REF, DATE_FORMAT(dt_UPDATED, '%d/%m/%Y')) FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID = '" + copie + "'").split('|');
     ok('Préparation : vente modifiée, copie clôturée', !!copie && c.success && !!ref, ref + ' ' + JSON.stringify({ s: c.success, m: c.msg }));
 
