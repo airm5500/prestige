@@ -53,6 +53,17 @@ if (depotEssai) {
     + " FROM t_compte_client WHERE lg_CLIENT_ID IS NOT NULL AND str_STATUT = 'enable' ORDER BY lg_COMPTE_CLIENT_ID LIMIT 1");  /* l ecran exige le client du compte */
 }
 
+/* caisse de l'utilisateur d'essai : sans caisse ouverte (copie fraichement restauree), l'ecran demande de l'ouvrir et
+   la vente ne se termine pas ; une caisse d'essai est ouverte et retiree a la fin (meme regle que les autres tests) */
+const CAISSE = 'e2e-clot-depot-caisse';
+const UTILISATEUR = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
+let caisseCreee = false;
+if (q("SELECT COUNT(*) FROM t_resume_caisse WHERE lg_USER_ID = '" + UTILISATEUR + "' AND str_STATUT = 'is_Using'") === '0') {
+  q("INSERT INTO t_resume_caisse (ld_CAISSE_ID, lg_USER_ID, int_SOLDE_MATIN, int_SOLDE_SOIR, dt_DAY, dt_CREATED, lg_CREATED_BY, dt_UPDATED, lg_UPDATED_BY, str_STATUT)"
+    + " VALUES ('" + CAISSE + "', '" + UTILISATEUR + "', 0, 0, CURDATE(), NOW(), '" + UTILISATEUR + "', NOW(), '" + UTILISATEUR + "', 'is_Using')");
+  caisseCreee = true;
+}
+
 (async () => {
   const b = await ENV_E2E.lancer(chromium);
   const p = await b.newPage({ viewport: { width: 1600, height: 900 } });
@@ -113,6 +124,7 @@ if (depotEssai) {
     await b.close();
     nettoyer();
     if (depotEssai) { retirerDepot(); }
+    if (caisseCreee) { q("DELETE FROM t_resume_caisse WHERE ld_CAISSE_ID = '" + CAISSE + "'"); }
     ok('Vente retirée, stock remis', ventes.every((v) => q("SELECT COUNT(*) FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID = '" + v + "'") === '0')
       && q("SELECT GROUP_CONCAT(CONCAT(lg_FAMILLE_STOCK_ID, '=', int_NUMBER_AVAILABLE, '/', int_NUMBER)) FROM t_famille_stock WHERE lg_FAMILLE_ID = '" + PRODUIT + "'") === STOCKS);
   }
