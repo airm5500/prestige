@@ -92,6 +92,16 @@ const stylesPrestige = (p) => p.evaluate(() => {
     await p.keyboard.press('Escape');
     await p.waitForTimeout(900);
     ok('Échap : retour à l\'accueil, la première tuile a le focus', await titre(p) === 'Accueil' && /^Service client/.test(await focus(p)), await titre(p) + ' / ' + await focus(p));
+    /* retour du 30/10 (copie de l'officine, 18 menus) : en fin de rangee, la fleche droite sautait a une tuile
+       lointaine puis restait bloquee. Droite et gauche suivent l'ordre de lecture et passent par toutes les tuiles. */
+    const nbTuiles = await p.evaluate(() => document.querySelectorAll('.prestige-metro .mt-tuile').length);
+    const parcours = [await focus(p)];
+    for (let i = 1; i < nbTuiles; i++) { await p.keyboard.press('ArrowRight'); parcours.push(await focus(p)); }
+    let retourGauche = '';
+    for (let i = 1; i < nbTuiles; i++) { await p.keyboard.press('ArrowLeft'); }
+    retourGauche = await focus(p);
+    ok('Flèches droite puis gauche : toutes les tuiles de l\'accueil, chacune une fois, puis retour à la première',
+      new Set(parcours).size === nbTuiles && /^Service client/.test(retourGauche), nbTuiles + ' tuiles : ' + parcours.map((x) => x.split(',')[0]).join(' > '));
     await p.keyboard.press('ArrowRight');
     const f2 = await focus(p);
     ok('Flèche droite : la tuile suivante a le focus', f2 !== '' && !/^Service client/.test(f2) && /écran/.test(f2), f2);
