@@ -500,6 +500,63 @@ nouveau à corriger) :
   - seul le montant décimal atteint le serveur, qui le refuse avant toute écriture.
 - Tests unitaires : 1 553, aucun échec.
 
+## 20. Journal d'une autre officine (leana, export du 30/10)
+
+Source : export « Journal du support » de leana, le 30/10 à 22 h 24 (`journal_support_20261030_leana.xls`). Il contient
+200 événements en 87 familles, du 29/09 au 30/10. Lecture du fichier seulement. Les noms d'employés et les numéros de
+téléphone qu'il contient ne sont pas repris ici. Le code est comparé à `claude/new-session-xm8ptu` (30/10).
+
+**Version de leana.**
+
+- Les piles placent `onbtncloturerVnoComptant` (`VenteCtr.js:2223`) et `registerNewClient` (`VenteEnDepotCtr.js:3418`)
+  dans les versions du 13/09 au 05-09/10.
+- Leana tourne donc sur une version de mi-septembre à mi-octobre, plus ancienne que la plupart des correctifs du
+  rapport.
+
+**Déjà au rapport** (même cause ; traité après la version de leana, ou encore ouvert) :
+
+| Famille chez leana | Point |
+|---|---|
+| 70 « Redémarrage inattendu » | S1 (lot 3) |
+| Connexions dormantes par poste (60 occ., jusqu'au 30/10) | S3 (lot 4) |
+| Supervision : 1 anomalie (73) | S5 |
+| SMS POL0001 et suspensions (68) | M1, M2 |
+| Commandes, règlements, ventes sans détail ; snapshot absent | H1, H3, H4, H5 |
+| `ventestats` lent (25) et **85 blocages** du 01 au 15/10 | L1 (plus rien après le 15/10) |
+| Compteurs de la cloche lents ; `XAException` et `UnknownHost` sur `ventes-ratees` | L15, K3 |
+| `JsonbException` sur `update/item/vno` (7, jusqu'au 30/10) ; `IllegalArgumentException` sur `add/item` (30/10) | V4, V3 (`974976e0`, 23/10) |
+| `NullPointerException` sur `commande/item/add` (30/10) | C3 |
+| `NullPointerException : text` sur `monitoringproduct` (30/10) | P1 (lot 1) |
+| `result is null` (`VenteCtr.js:1336` = `checkDouchette`) | J6 (lot 4) |
+| `Ext.getCmp(...).close` ; `Me.onRechClick` ; `valheight` ; `this.store is null` | J3, J12, J15, J20 |
+| `Me.creerInventaire is not a function` (`EtatControleManager.js:878`, 16/10) | J12 : même cause, traitée par `1e023556` (17/10 : `Me` renommé) |
+| 404 `vente/findone/<code>` (29) : QR, libellés avec `/`, « . », GS1 avec une date en `/` | A1 |
+| 400 `vente/search` | A7 |
+| « Mise en page bloquée puis rétablie » (`parentNode`, tableau de bord, 21/10) | J21/J22 : la garde de `correctifs-affichage.js` a fonctionné |
+| Blocages de `fichearticle/comparaison/excel` (**64**, jusqu'au 29/10) | Traité par `df35081e` (16/10 : 327 s → 7 s), absent chez leana |
+| « Double demande de clôture » (WARN) | V7 : refus voulu |
+| `validerbl`, `tableau-board`, `client/all`, lenteurs isolées du 17/10 à 12 h 02 | L11, L12, L13, L17 |
+
+**Points nouveaux.**
+
+| N° | Anomalie | Module | Statut | Cause | Reproduction | Correctif proposé | Priorité |
+|---|---|---|---|---|---|---|---|
+| J23 | `form is undefined` / `isValid` dans `VenteEnDepotCtr.registerNewClient` (**48 occ.**, 30/09 → 29/10) | FRONTEND (vente) | Prouvé par le code (non corrigé au 30/10) | `VenteEnDepotCtr` écoute `"clientLambda form textfield"`, c'est-à-dire la fenêtre « client » de la **vente ordinaire**. Entrée dans cette fenêtre déclenche aussi le dépôt, qui cherche son propre formulaire (`clientLambdadepot form#clientLambdaform`), absent. L'erreur suit chaque `add/vno` du fil d'Ariane | Vente comptant, « Nouveau client », Entrée dans un champ | Sélecteur `clientLambdadepot form textfield` | P2 |
+| J24 | `data is null` sur `montantNet` (`onbtncloturerVnoComptant`, `handleExtraAmountInputValue`) (5 occ., 03/10 → 30/10) | FRONTEND (vente) | Prouvé par le code (scénario = hypothèse) | `getNetAmountToPay()` vaut `null` tant que `net/vno` n'a pas répondu, ou après une remise à zéro ; la clôture par Entrée sur « Montant reçu » le lit sans contrôle. La clôture ne part pas | Ajouter un produit puis Entrée sur « Montant reçu » avant la réponse de `net/vno` | Attendre ou relancer le calcul du net avant de clôturer | P2 |
+| A8 | 404 sur `POST vente/copy/<vente>` (20/10) | FRONTEND (tickets) | Prouvé par le code | La route `copy/{id}` a été retirée du serveur en juin 2024 (`0b7e3683`), mais `VenteFinisCtr.js:307` (réimpression d'une vente copiée), `VenteCtr.onPrintTicketCopy`, `VenteEnDepotCtr` et `StatVenteDepotCtr` l'appellent encore. Le ticket ne sort pas, sans message | « Ventes terminées », réimprimer une vente marquée copie | Imprimer par la route normale (`ticket/vno`, `ticket/vo`) | P2 |
+| M4 | SMS refusé par Orange, `SVC0004` « No valid addresses » (6 occ., jusqu'au 30/10) | SMS | Prouvé par le message et le code | `Sms.java:61` préfixe toujours `tel:+225` au numéro brut : un numéro étranger (`00…`) ou écrit avec des espaces est invalide. **De plus, l'événement écrit le numéro du destinataire en clair** (`SmsImpl.java:302`), donnée personnelle dans le journal du support et dans ses exports | — (lecture) | Normaliser le numéro (comme `LeTextoSmsProvider`) ; refuser proprement un numéro étranger ; masquer le numéro dans l'événement | P2 (journal) / P3 |
+| L22 | `NullPointerException` sur `GET ventestats` (`CommonUtils.hasAuthorityByName`, 22/10) et 401 sur `ventes-ratees/compteur-jour` (26/10) | VENTESTATS | Prouvé par le code | Session expirée : `buildParams` lit la liste des droits de la session sans tester l'utilisateur ; la cloche interroge `ventestats` toutes les 60 s | Laisser expirer la session, écran ouvert | Réponse « déconnecté » quand l'utilisateur de la session est absent | P3 |
+| C6 | Clé étrangère `t_bon_livraison` sur `DELETE commande/order/{id}` (02/10) | COMMANDE | Prouvé par le code | `OrderServiceImpl.removeOrder` supprime la commande sans vérifier qu'un bon de livraison la référence | Supprimer une commande déjà reçue en bon de livraison | Refus clair « commande liée au bon … » | P3 |
+| J25 | `this.majCompteCoches is not a function` (`zonegeographique/action/basculement.js:673`, 27/10) | FRONTEND | Prouvé par le code (non corrigé au 30/10) | Écouteur `checkChange: this.onCheckChange` sans `scope` : `this` est la colonne. Le compteur de produits cochés ne se met pas à jour au clic sur une ligne | Zones géographiques, « Basculement », cocher un produit | `scope: this` | P3 |
+| J26 | `printWindow is null` (`saisieperimes/action/add.js:451`, 28/10) | FRONTEND (périmés) | Prouvé par le code | `window.open` renvoie `null` quand le navigateur bloque la fenêtre surgissante ; l'impression échoue sans message | Bloquer les fenêtres surgissantes, imprimer une saisie de périmés | Tester `null` et dire d'autoriser les fenêtres, ou imprimer dans un cadre caché | P3 |
+| V9 | `Duplicate entry … 'un_vente_tp'` sur `POST vente/updateclientortierpayant` (2 occ., 30/09) | VENTE | Hypothèse | Même tiers payant (vente, compte client) enregistré deux fois lors de la modification des tiers payants d'une vente | Choisir deux fois le même tiers payant dans la modification | Dédoublonner les tiers payants reçus, refus clair | P3 |
+
+- Autres familles, sans suite à donner :
+  - `SUGGESTION_SANS_DETAIL` : un cas, données ;
+  - blocages de `fichearticle/comparaison/suggestion` : 9 cas, du 30/09 au 01/10 seulement ;
+  - lenteurs isolées : `custom/ponctionner`, `recap/dashboard`, `balance/balancesalecash`, `flag`,
+    `ws/inventaires/details`.
+
 ## Annexe A. Rejouer les reproductions
 
 Variables (Node 22) :
