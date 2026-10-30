@@ -6357,22 +6357,8 @@ public class SalesServiceImpl implements SalesService {
 
     private void updateCompteClientTiersPayantEncourAndPlafond(TPreenregistrementCompteClientTiersPayent x) {
         try {
-
-            TCompteClientTiersPayant tc = x.getLgCOMPTECLIENTTIERSPAYANTID();
-            TTiersPayant tp = tc.getLgTIERSPAYANTID();
-            tc.setDbCONSOMMATIONMENSUELLE(tc.getDbCONSOMMATIONMENSUELLE() != null
-                    ? tc.getDbCONSOMMATIONMENSUELLE() + x.getIntPRICE() : x.getIntPRICE());
-            tp.setDbCONSOMMATIONMENSUELLE(tp.getDbCONSOMMATIONMENSUELLE() != null
-                    ? tp.getDbCONSOMMATIONMENSUELLE() + x.getIntPRICE() : x.getIntPRICE());
-            if (tc.getDbPLAFONDENCOURS() != null && tc.getDbPLAFONDENCOURS() > 0) {
-                tc.setBCANBEUSE(tc.getDbPLAFONDENCOURS().compareTo(tc.getDbCONSOMMATIONMENSUELLE()) > 0);
-            }
-            if (tp.getDblPLAFONDCREDIT() != null && tp.getDblPLAFONDCREDIT().intValue() > 0) {
-                tp.setBCANBEUSE(tp.getDblPLAFONDCREDIT().intValue() > tp.getDbCONSOMMATIONMENSUELLE());
-            }
-            getEm().merge(tc);
-            getEm().merge(tp);
-
+            // CR-04 : addition faite par la base, deux clotures simultanees sur le meme organisme ne s'ecrasent plus
+            EncoursTiersPayant.ajouterEnBase(getEm(), x.getLgCOMPTECLIENTTIERSPAYANTID(), x.getIntPRICE());
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "updateCompteClientTiersPayantEncourAndPlafond", e);
         }

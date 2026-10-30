@@ -52,13 +52,63 @@ public final class EncoursTiersPayant {
         if (lien == null || !suiviParEncours(lien.getLgTIERSPAYANTID()) || montant == 0) {
             return;
         }
-        int conso = lien.getDbCONSOMMATIONMENSUELLE() == null ? 0 : lien.getDbCONSOMMATIONMENSUELLE();
-        appliquer(lien, Math.max(0, conso + montant));
-        em.merge(lien);
+        ajouterEnBase(em, lien, montant);
+    }
+
+    /**
+     * Ajoute {@code montant} (negatif pour retirer, sans passer sous zero) a l'encours du lien et de son organisme, et
+     * recalcule leur indicateur « utilisable » sous plafond, comme a la cloture.
+     *
+     * <p>
+     * CR-04 (constat d'audit, reproduit le 30/10 sur la copie de l'officine) : l'encours etait lu dans l'entite,
+     * augmente en Java puis reecrit ; deux clotures simultanees sur le meme organisme lisaient la meme valeur et la
+     * seconde ecrasait la premiere (encours 1 692 pour 3 384 de parts). L'addition est maintenant faite PAR LA BASE («
+     * encours = encours + part ») : la ligne reste verrouillee jusqu'a la fin de la transaction, les clotures
+     * s'enchainent au lieu de s'ecraser. Les valeurs obtenues sont reportees sur les entites, pour qu'un merge
+     * ulterieur dans la meme transaction ne reecrive pas l'ancienne valeur.
+     * </p>
+     */
+    public static void ajouterEnBase(EntityManager em, TCompteClientTiersPayant lien, int montant) {
+        if (lien == null || montant == 0) {
+            return;
+        }
+        // l'indicateur d'abord : MariaDB evalue les affectations de gauche a droite, il lit donc l'encours d'avant
+        em.createNativeQuery(
+                "UPDATE t_compte_client_tiers_payant SET b_CANBEUSE = CASE WHEN COALESCE(db_PLAFOND_ENCOURS, 0) > 0"
+                        + " THEN db_PLAFOND_ENCOURS > GREATEST(0, COALESCE(db_CONSOMMATION_MENSUELLE, 0) + ?1) ELSE b_CANBEUSE END,"
+                        + " db_CONSOMMATION_MENSUELLE = GREATEST(0, COALESCE(db_CONSOMMATION_MENSUELLE, 0) + ?1)"
+                        + " WHERE lg_COMPTE_CLIENT_TIERS_PAYANT_ID = ?2")
+                .setParameter(1, montant).setParameter(2, lien.getLgCOMPTECLIENTTIERSPAYANTID()).executeUpdate();
+        Object[] l = (Object[]) em
+                .createNativeQuery("SELECT db_CONSOMMATION_MENSUELLE, b_CANBEUSE"
+                        + " FROM t_compte_client_tiers_payant WHERE lg_COMPTE_CLIENT_TIERS_PAYANT_ID = ?1")
+                .setParameter(1, lien.getLgCOMPTECLIENTTIERSPAYANTID()).getSingleResult();
+        lien.setDbCONSOMMATIONMENSUELLE(somme(l[0]));
+        lien.setBCANBEUSE(vrai(l[1]));
+
         TTiersPayant payant = lien.getLgTIERSPAYANTID();
-        int consoTp = payant.getDbCONSOMMATIONMENSUELLE() == null ? 0 : payant.getDbCONSOMMATIONMENSUELLE();
-        appliquer(payant, Math.max(0, consoTp + montant));
-        em.merge(payant);
+        if (payant == null) {
+            return;
+        }
+        em.createNativeQuery(
+                "UPDATE t_tiers_payant SET b_CANBEUSE = CASE WHEN FLOOR(COALESCE(dbl_PLAFOND_CREDIT, 0)) > 0"
+                        + " THEN FLOOR(dbl_PLAFOND_CREDIT) > GREATEST(0, COALESCE(db_CONSOMMATION_MENSUELLE, 0) + ?1) ELSE b_CANBEUSE END,"
+                        + " db_CONSOMMATION_MENSUELLE = GREATEST(0, COALESCE(db_CONSOMMATION_MENSUELLE, 0) + ?1)"
+                        + " WHERE lg_TIERS_PAYANT_ID = ?2")
+                .setParameter(1, montant).setParameter(2, payant.getLgTIERSPAYANTID()).executeUpdate();
+        Object[] t = (Object[]) em
+                .createNativeQuery("SELECT db_CONSOMMATION_MENSUELLE, b_CANBEUSE"
+                        + " FROM t_tiers_payant WHERE lg_TIERS_PAYANT_ID = ?1")
+                .setParameter(1, payant.getLgTIERSPAYANTID()).getSingleResult();
+        payant.setDbCONSOMMATIONMENSUELLE(somme(t[0]));
+        payant.setBCANBEUSE(vrai(t[1]));
+    }
+
+    private static Boolean vrai(Object valeur) {
+        if (valeur == null) {
+            return null;
+        }
+        return valeur instanceof Boolean ? (Boolean) valeur : ((Number) valeur).intValue() != 0;
     }
 
     /** Recalcule l'encours de l'organisme (tous ses clients) et son indicateur « utilisable » (plafond de credit). */
