@@ -131,7 +131,7 @@ const n = (v) => Number(v || 0);
     ok('Carte grossistes, juillet 2026 : mêmes 5 groupes et montants que la requête de l\'ancien', juillet.data.map((x) => x.valeur).join(',') === juilSql && juilSql !== '0,0,0,0,0',
       juillet.data.map((x) => x.libelle + ' ' + x.valeur).join(', ') + ' / ancien ' + juilSql);
     /* « Type de vente » (Comptant / Crédit / Dépôt) : la requete getPanierMoyen de l'ancien, sur un jour qui a des ventes */
-    const jtv = q("SELECT DATE(MAX(dt_UPDATED)) FROM t_preenregistrement WHERE str_STATUT = 'is_Closed' AND int_PRICE > 0");
+    const jtv = q("SELECT DATE(MAX(dt_UPDATED)) FROM t_preenregistrement WHERE str_STATUT = 'is_Closed' AND int_PRICE > 0 AND b_IS_CANCEL = 0");
     const tv = (await api('../api/v1/tableau-bord/encaissements?frais=1&date=' + jtv)).typeVente || {};
     const tvSql = q("SELECT CONCAT_WS(',', ROUND(SUM(CASE WHEN (o.str_TYPE_VENTE = 'VNO' AND o.lg_NATURE_VENTE_ID <> '3') THEN (o.int_PRICE - o.int_PRICE_REMISE) ELSE 0 END)"
       + " + SUM(CASE WHEN o.str_TYPE_VENTE = 'VO' THEN (o.int_CUST_PART - o.int_PRICE_REMISE) ELSE 0 END)),"

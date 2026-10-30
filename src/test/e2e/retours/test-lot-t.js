@@ -206,6 +206,7 @@ function xlsxTexte(fichier) {
 
     ok('aucune erreur javascript', err.length === 0, err.join(' | '));
   } finally {
+    purgerAvoir();
     const purges = purgerInventaires();
     ok('les inventaires d essai sont retires', purges >= 0, purges);
     await b.close();
