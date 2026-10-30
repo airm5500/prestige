@@ -151,8 +151,9 @@ const ORD = {};
     const ja = q("SELECT CONCAT_WS('|', str_DETAIL, remote_host) FROM t_event_log WHERE typeLog = " + ORD.AJUSTEMENT_DE_PRODUIT + " AND str_TYPE_LOG = '" + cip + "' AND dt_CREATED >= '" + DEBUT + "' ORDER BY dt_CREATED DESC LIMIT 1");
     ok('Ajustement : journalisé avec « Stock : avant X → après X+2 » et le poste', clos.success && ja === 'Stock : avant ' + stockAvant + ' → après ' + (stockAvant + 2) + '|' + POSTE, JSON.stringify(clos).slice(0, 150) + ' / ' + ja);
 
-    /* suppression de facture (bouton de la liste des factures) : tracee avec son numero et son montant */
-    q("INSERT INTO t_facture (lg_FACTURE_ID, str_CODE_FACTURE, dbl_MONTANT_CMDE, dt_CREATED, str_STATUT) VALUES ('" + MARQUE + "-F1', '" + MARQUE + "-FACT', 12345, NOW(), 'enable')");
+    /* suppression de facture (bouton de la liste des factures) : tracee avec son numero et son montant ; facture
+       PROVISOIRE (template), seule supprimable depuis la correction d'audit F1 */
+    q("INSERT INTO t_facture (lg_FACTURE_ID, str_CODE_FACTURE, dbl_MONTANT_CMDE, dt_CREATED, str_STATUT, template) VALUES ('" + MARQUE + "-F1', '" + MARQUE + "-FACT', 12345, NOW(), 'enable', 1)");
     await p.evaluate(() => new Promise((r) => Ext.Ajax.request({ url: '../api/v1/facturation/E2E-JRN-F1', method: 'DELETE', callback: () => r() })));
     const jf = q("SELECT CONCAT_WS('|', str_DESCRIPTION, remote_host) FROM t_event_log WHERE typeLog = " + ORD.SUPPRESION_DE_FACTURE + " AND str_TYPE_LOG = '" + MARQUE + "-FACT'");
     ok('Suppression de facture : journalisée (numéro, montant, poste)', q("SELECT COUNT(*) FROM t_facture WHERE lg_FACTURE_ID = '" + MARQUE + "-F1'") === '0'
