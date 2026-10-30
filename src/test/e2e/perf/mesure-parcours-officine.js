@@ -101,6 +101,15 @@ function retirerSuggestions(avant) {
   const ordres = nouveaux('SELECT lg_SUGGESTION_ORDER_ID FROM t_suggestion_order', avant.ordres);
   const couples = nouveaux('SELECT lg_FAMILLE_GROSSISTE_ID FROM t_famille_grossiste', avant.couples);
   const produits = new Set();
+  /* empreinte du resultat (rapport des performances, par. 4.1) : produit, grossiste, quantite, prix et statut de chaque
+     ligne creee, indicateur pose sur le produit ; identique avant et apres une correction de la generation */
+  const contenu = [];
+  for (let i = 0; i < lignes.length; i += 500) {
+    q(`SELECT CONCAT_WS('|', d.lg_FAMILLE_ID, d.lg_GROSSISTE_ID, d.int_NUMBER, d.int_PRICE, d.int_PRICE_DETAIL, d.int_PAF_DETAIL,
+      d.str_STATUT, IFNULL(f.int_ORERSTATUS, 'NULL')) FROM t_suggestion_order_details d JOIN t_famille f ON f.lg_FAMILLE_ID = d.lg_FAMILLE_ID
+      WHERE d.lg_SUGGESTION_ORDER_DETAILS_ID IN (${liste(lignes.slice(i, i + 500))})`).split('\n').filter(Boolean).forEach((l) => contenu.push(l));
+  }
+  const empreinte = require('crypto').createHash('sha256').update(contenu.sort().join('\n')).digest('hex').slice(0, 16);
   for (let i = 0; i < lignes.length; i += 500) {
     const lot = liste(lignes.slice(i, i + 500));
     q(`SELECT DISTINCT lg_FAMILLE_ID FROM t_suggestion_order_details WHERE lg_SUGGESTION_ORDER_DETAILS_ID IN (${lot})`).split('\n').filter(Boolean).forEach((f) => produits.add(f));
@@ -112,7 +121,7 @@ function retirerSuggestions(avant) {
   const parValeur = new Map();
   produits.forEach((f) => { const v = avant.indicateur.has(f) ? avant.indicateur.get(f) : 'NULL'; if (!parValeur.has(v)) { parValeur.set(v, []); } parValeur.get(v).push(f); });
   parValeur.forEach((ids, v) => { for (let i = 0; i < ids.length; i += 500) { q(`UPDATE t_famille SET int_ORERSTATUS=${v === 'NULL' ? 'NULL' : Number(v)} WHERE lg_FAMILLE_ID IN (${liste(ids.slice(i, i + 500))})`); } });
-  return { lignes: lignes.length, ordres: ordres.length, couples: couples.length, produits: produits.size };
+  return { lignes: lignes.length, ordres: ordres.length, couples: couples.length, produits: produits.size, empreinte };
 }
 
 (async () => {
@@ -211,6 +220,7 @@ function retirerSuggestions(avant) {
     fs.writeFileSync(SORTIE, JSON.stringify(resultats, null, 1));
     console.log(('[' + parcours + '] ' + libelle).padEnd(60) + ' froid ' + String(c.froid).padStart(7) + ' ms  mediane ' + String(c.mediane).padStart(7)
       + ' ms  lignes ' + c.lignes + (c.appels[0] ? '  appel le plus long : ' + c.appels[0].appel + ' ' + c.appels[0].msMediane + ' ms' : '')
+      + (passages.some((x) => x.retrait && x.retrait.empreinte) ? '  empreinte ' + [...new Set(passages.map((x) => x.retrait && x.retrait.empreinte))].join('/') : '')
       + (passages.some((x) => x.erreur) ? '  ERREUR ' + passages.find((x) => x.erreur).erreur : ''));
     return c;
   }
