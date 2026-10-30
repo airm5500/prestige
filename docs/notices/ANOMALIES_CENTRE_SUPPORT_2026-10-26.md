@@ -420,6 +420,67 @@ Tests unitaires : tous passent.
 
 Les tests d'écran ont été joués seuls, après le « créneau libre » de la session principale.
 
+## 19. Journal exporté le 30/10 : tout est-il pris en compte ?
+
+Source : export « Journal du support » de l'écran Diagnostic & bugs, le 30/10 à 22 h 06
+(`journal_support_20261030_capitale.xls`, 489 événements). Lecture du fichier seulement, rien n'est écrit en base.
+Les noms d'employés du fichier ne sont pas repris ici.
+
+**Réponse courte.**
+
+- Les 489 événements se rangent tous sous un point du rapport, sauf **un défaut nouveau (K4)** et quatre lenteurs
+  isolées, rangées sous L17.
+- Les écarts avec le 26/10 :
+  - 35 événements sont apparus depuis la lecture du 26/10 à 01 h 11 ;
+  - environ 19 anciens ont été retirés par la purge (473 + 35 − 489) ;
+  - 65 événements ont été vus au moins une fois depuis.
+- Les reprises de points déjà traités s'expliquent par la version des postes, plus ancienne que les correctifs (voir
+  ci-dessous). Elles ne montrent pas qu'un correctif a échoué.
+
+**Version des postes de l'officine.**
+
+- La pile du `numBon` du 27/10 (J5, sur `localhost` et `caisse31`) place `addTpCmp` à la ligne 4699 de `VenteCtr.js`.
+- Cette ligne correspond aux versions du 05/10 (`fb7ad3ac`) au 14/10 (`9e8ef839`). À partir du 17/10, la fonction
+  est plus bas (4920, puis 5146 aujourd'hui).
+- Le serveur de l'officine tournait donc encore, le 27/10, sur une version du 05 au 14/10.
+- Cela explique les reprises après les correctifs du 17 au 25/10 :
+  - V1 (`d0c4092c`, 23/10) : 28/10 ;
+  - J8 (`9cf301d4`, 23/10) : 29/10 ;
+  - A1, liens de QR (`e5fc8dee`, 17/10) : chaque jour ;
+  - L3 (`9ee6cc84`, 25/10) : blocage le 27/10, lenteurs jusqu'au 29/10.
+- Les lots 1 à 4 de cette branche n'y sont pas non plus.
+
+**Les 35 événements apparus depuis le 26/10.**
+
+| Événements | Point | Remarque |
+|---|---|---|
+| 19 « Redémarrage inattendu » (dont 12 avec une indisponibilité de 640 à 2 580 min, après une extinction le soir) | S1 | Corrigé au lot 3, non déployé. Ceux de 2 à 4 min (27/10 21 h 02, 28/10 12 h 12 et 20 h 19, 29/10 07 h 30 et 20 h 27) sont de vrais redémarrages courts |
+| 5 « requête(s) en cours depuis plus de 10 s », le matin (07 h 20 – 07 h 35) et le 28/10 à 08 h 40 | L21, SC3 | Rattrapage du veilleur de cohérence au démarrage de chaque poste : corrigé au lot 3. Le cas du 28/10 à 08 h 40 (90 s) reste sans explication faute de détail |
+| 9 « 404 `vente/findone/<lien>` » (QR publicitaires : `https://…`, `orangemoneyafrique://…`) | A1 | Traité par `e5fc8dee` (17/10), absent des postes |
+| 1 `numBon`, `record is undefined` (27/10) | J5 | Ouvert (prouvé par le code). Version du poste : 05-14/10 |
+| 1 **`JsonbException … Integer` sur `caisse/ouvrir-caisse`** (29/10 08 h 07, + Ajax 500) | **K4, nouveau** | Voir ci-dessous |
+| 4 lenteurs isolées : `vente/net/assurance`, `produit-search/fiche`, `produit-search/produits` (29/10, 10 h 53 – 11 h 51), `commande/validerbl` (30/10) | L17, L11 | Une seule occurrence chacune, dans la même heure que `client/tiers-payants/assurance` : congestion, comme L14 et L17 |
+
+**Point nouveau.**
+
+| N° | Anomalie | Module | Statut | Cause | Reproduction | Correctif proposé | Priorité |
+|---|---|---|---|---|---|---|---|
+| K4 | `JsonbException : Error deserialize JSON value into type: class java.lang.Integer` sur `POST caisse/ouvrir-caisse` (1 occ., 29/10) | CAISSE | Prouvé par le code. Le serveur est déjà traité par `974976e0` (23/10), mais l'écran n'est pas corrigé | Le champ « Montant » d'« Ouverture de caisse » est un `numberfield` qui accepte les décimales et le vide ; `getValues()` envoie le texte tel quel, alors que `CoffreCaisseDTO.amount` est un `int`. Montant vide ou décimal → l'officine (version d'avant le 23/10) répond 500 et crée un événement. Sur la version actuelle, `SupportExceptionMapper` répond 400 « Valeur saisie invalide pour « amount » : un nombre entier est attendu », mais l'écran (`OuverturecaisseManager.js:127`) affiche « Le serveur n'a pas répondu (erreur 400) » | Ouverture de caisse, Montant vide ou « 1500,5 », puis « Ouvrir caisse » | Champ entier et obligatoire (`allowDecimals: false`, `allowBlank: false`), et message du serveur lu dans `failure` | P3 |
+
+**Familles anciennes absentes du rapport du 26/10** (une seule occurrence chacune, sans fichier de détail ; rien de
+nouveau à corriger) :
+
+- Ajax 500 sur `tierspayant/ws_transaction.jsp` (11/09) : ancienne JSP, sans détail ;
+- lenteurs isolées : `produit/monitoringproduct` (13/09, cas de P1 sans dates), `vente/peremption-proche` et
+  `vente/add/assurance` (17/09, même minute : congestion, L17).
+
+**Lacune de SC8 trouvée à cette lecture.**
+
+- L'export Excel du journal (`SupportEventRessource.exportExcel`) n'a pas de colonne « Version ».
+- Après le déploiement des lots 3 et 4, l'export ne dira donc toujours pas sur quelle version un défaut est revenu :
+  il faudra regarder l'écran.
+- Correctif proposé : ajouter la colonne en fin de feuille (P3).
+
 ## Annexe A. Rejouer les reproductions
 
 Variables (Node 22) :
