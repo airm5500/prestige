@@ -22,7 +22,7 @@ const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-charact
 const SORTIE = process.env.SORTIE || ENV_E2E.TMP;
 const PORT = 18774, G = '51217123531215794892', CLE = 'E2EK7';
 const CMD = 'E2E-0810E-DSP', RA = 'E2E-0810E-A', RB = 'E2E-0810E-B', CMDS = [CMD, RA, RB];
-const DOSSIER = '/root/prestige/pharmaml';
+const DOSSIER = ENV_E2E.PHARMAML;
 let P = [], cips = [], sauve = null, fgAvant = '';
 const recus = [];
 

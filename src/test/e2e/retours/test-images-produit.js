@@ -24,7 +24,8 @@ const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-charact
 const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
 const CAPT = process.env.CAPTURES || ENV_E2E.TMP;
 /* dossier des images : images_produits a cote du dossier de configuration (D:\\CONF\\LABOREX\\images_produits en officine) */
-const DOSSIER = process.env.DOSSIER_IMAGES || '/opt/CONF/LABOREX/images_produits';
+/* dossier images_produits a cote du dossier CONF de l'officine (ImagesProduit.dossierConfiguration) */
+const DOSSIER = process.env.DOSSIER_IMAGES || (ENV_E2E.WINDOWS ? 'D:/CONF/LABOREX/images_produits' : '/opt/CONF/LABOREX/images_produits');
 const disque = (c) => path.join(DOSSIER, c.replace(/^images-produits\//, ''));
 const TMP = fs.mkdtempSync(ENV_E2E.TMP + '/e2e-img-');
 let P, cip;

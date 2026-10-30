@@ -92,7 +92,7 @@ const VENTES = "p.int_PRICE>0 AND p.str_STATUT='is_Closed' AND p.b_IS_CANCEL=0 A
       + " AND p.dt_UPDATED >= '" + debut + "' AND p.dt_UPDATED < '" + fin + "' GROUP BY HOUR(p.dt_UPDATED) ORDER BY COUNT(*) DESC LIMIT 1").split(' ');
     const heures = q("SELECT COUNT(DISTINCT HOUR(p.dt_UPDATED)) FROM t_preenregistrement p WHERE " + VENTES
       + " AND p.dt_UPDATED >= '" + debut + "' AND p.dt_UPDATED < '" + fin + "'");
-    ok('L heure de pointe affichée est EXACTEMENT celle de la base', tuile && Number(tuile.valeur) === Number(attendu[0]) && String(tuile.sous).indexOf(String(Number(attendu[1]).toLocaleString('fr-FR').replace(/ | /g, ' '))) >= 0,
+    ok('L heure de pointe affichée est EXACTEMENT celle de la base', tuile && Number(tuile.valeur) === Number(attendu[0]) && String(tuile.sous).replace(/[\s\u00a0\u202f]/g, ' ').indexOf(Number(attendu[1]).toLocaleString('fr-FR').replace(/[\s\u00a0\u202f]/g, ' ')) >= 0,
       'écran ' + (tuile && tuile.valeur) + 'h « ' + (tuile && tuile.sous) + ' » contre base ' + attendu.join('h, ') + ' clients');
     ok('Le diagramme porte une bande par heure de vente', s.bandes === Number(heures), s.bandes + ' bandes contre ' + heures + ' heures en base');
     await clic('frequentation', false); await attendre();

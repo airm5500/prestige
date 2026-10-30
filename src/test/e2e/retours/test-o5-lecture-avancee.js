@@ -19,7 +19,7 @@ const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
 const BASE = ENV_E2E.BASE;
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
-const CONF = process.env.LECTURE_CONF || '/root/prestige/config/lecture-avancee.properties';
+const CONF = process.env.LECTURE_CONF || ENV_E2E.CONFIG_POSTE + '/lecture-avancee.properties';
 const DEBUT = q('SELECT NOW() - INTERVAL 1 SECOND');
 const PORT = 18734;
 let lent = 0, recus = [];

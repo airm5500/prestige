@@ -95,7 +95,7 @@ function nettoyer(debut) {
     const nav = await p.evaluate(() => { let t = null; Ext.ComponentQuery.query('navigation')[0].getStore().getRootNode().cascadeBy((n) => {
       if (n.get('id') === 'campagnes') { const m = n.parentNode; t = m.get('text') + ' > ' + m.childNodes.map((x) => x.get('text')).join(', '); } }); return t; });
     /* 25/10 : « Discussions WhatsApp » ajoute au meme menu */
-    ok('Menu « Campagnes SMS / WhatsApp » (menu principal) : sous-menus Campagnes, Comptes WhatsApp et Discussions WhatsApp', nav === 'Campagnes SMS / WhatsApp > Campagnes, Comptes WhatsApp, Discussions WhatsApp', nav);
+    ok('Menu « Campagnes SMS / WhatsApp » (menu principal) : sous-menus Campagnes, Comptes WhatsApp et Discussions WhatsApp', nav === 'CAMPAGNES SMS / WHATSAPP > Campagnes, Comptes WhatsApp, Discussions WhatsApp', nav);
     await p.evaluate(() => testextjs.app.getController('App').onRedirectTo('campagnes', {}));
     await p.waitForFunction(() => { const v = Ext.ComponentQuery.query('campagnes')[0]; return v && v.contexte; }, null, { timeout: 60000 });
     await p.waitForTimeout(1000);

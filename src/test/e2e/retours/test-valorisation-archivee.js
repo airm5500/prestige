@@ -19,7 +19,7 @@ const BASE = ENV_E2E.BASE;
 const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, BASE, '-e', s], { encoding: 'utf8' });
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 
-const DOSSIER = path.join(process.env.HOME || '/root', 'prestige', 'valorisations');
+const DOSSIER = path.join(ENV_E2E.STOCKAGE, 'valorisations');
 const critereOrigine = q("SELECT str_VALUE FROM t_parameters WHERE str_KEY='KEY_VALORISATION_PDF_CRITERE'");
 const moisOrigine = q("SELECT str_VALUE FROM t_parameters WHERE str_KEY='KEY_VALORISATION_PDF_MOIS_CONSERVES'");
 const posees = [];
@@ -125,7 +125,8 @@ const appeler = (p, url, methode) => p.evaluate(async ([u, m]) => {
       texteEmpl.toUpperCase().indexOf(officine.toUpperCase()) >= 0 && /Emplacement/.test(texteEmpl),
       texteEmpl.slice(0, 200));
     ok('Le PDF est bien une valorisation chiffree, prise sur toute la base',
-      /Articles valorises/.test(texteEmpl) && /\d{6,}/.test(texteEmpl), texteEmpl.slice(0, 220));
+      /* « Articles valorises » : modele du banc ; « TOTAL GENERAL » : modele rp_valoristion des officines */
+      /Articles valorises|TOTAL GENERAL/.test(texteEmpl) && /\d{6,}/.test(texteEmpl), texteEmpl.slice(0, 220));
     ok('Le PDF dit qu il vient de l archivage automatique et non d un operateur',
       /Archivage automatique/.test(texteEmpl));
 
@@ -162,7 +163,7 @@ const appeler = (p, url, methode) => p.evaluate(async ([u, m]) => {
     }, nom);
     ok('L archive est servie en application/pdf, en flux dans l onglet',
       reponse.statut === 200 && /application\/pdf/.test(reponse.type) && /inline/.test(reponse.disposition)
-      && reponse.taille === tailleAvant, JSON.stringify(reponse));
+      && reponse.taille === fs.statSync(chemin).size, JSON.stringify(reponse) + ' / ' + fs.statSync(chemin).size);
 
     /* 8. la purge retire les archives plus anciennes que la duree de conservation */
     const vieille = 'valorisation_' + 'test_purge' + '_du_2024-01-27.pdf';

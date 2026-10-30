@@ -110,7 +110,7 @@ function nettoyer() {
       && mes.droits.includes('P_TRAITER_RESERVE') && mes.droits.includes('P_CREER_INVENTAIRE') && mes.role && mes.role.code && mes.profil, JSON.stringify({ n: (mes.droits || []).length, role: mes.role, profil: mes.profil }));
     const res2 = await lire('../api/v1/reserve/droits'), pos = await lire('../api/v1/posos/droits');
     ok('GET reserve/droits et posos/droits : traiter et analyser', res2.traiter === true && pos.analyser === true, JSON.stringify([res2, pos]));
-    const auth = await p3.evaluate(async () => (await fetch('../api/v1/user/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ login: ENV_E2E.LOGIN, password: 'e2etest' }) })).json());
+    const auth = await p3.evaluate(async (login) => (await fetch('../api/v1/user/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ login, password: 'e2etest' }) })).json(), ENV_E2E.LOGIN);
     ok('Connexion : rôle explicite et droits.creerInventaire, xtypeuser inchangé', auth.success && auth.role && /ADMINISTRATEUR|SYSTEME|PHARMACIEN/.test(auth.role.code)
       && auth.droits && auth.droits.creerInventaire === true && !!auth.xtypeuser, JSON.stringify({ role: auth.role, droits: auth.droits, x: auth.xtypeuser }));
     await p3.context().close();

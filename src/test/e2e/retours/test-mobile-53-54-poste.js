@@ -43,7 +43,7 @@ function nettoyer() {
     const p2 = await (await b.newContext()).newPage();
     await p2.goto('http://localhost:8080/prestige/security/index.html', { waitUntil: 'domcontentloaded' });
     const avant = q('SELECT NOW()');
-    await p2.evaluate(async () => (await fetch('../api/v1/user/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ login: ENV_E2E.LOGIN, password: 'e2etest' }) })).json());
+    await p2.evaluate(async (login) => (await fetch('../api/v1/user/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ login, password: 'e2etest' }) })).json(), ENV_E2E.LOGIN);
     await p2.waitForTimeout(1500);
     const sans = q(`SELECT remote_host FROM t_event_log WHERE dt_CREATED >= '${avant}' AND str_DESCRIPTION LIKE 'Authentification%' ORDER BY dt_CREATED DESC LIMIT 1`);
     ok('53 · Sans X-Poste : le nom réseau reste (comme avant)', sans !== '' && !/^E2E/.test(sans), sans);

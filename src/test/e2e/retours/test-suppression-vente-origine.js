@@ -108,7 +108,8 @@ function poser() {
       + " COALESCE(MAX(origine_user_name), ''), '|', COALESCE(MAX(type_suppression), ''))"
       + " FROM vente_suppression WHERE vente_ref='" + REF + "'").split('|');
     ok('La suppression est tracee (une ligne par produit de la vente)', trace[0] === '1', JSON.stringify(trace));
-    ok('L auteur de la suppression est conserve : l operateur connecte', /Super|admin/i.test(trace[1]), trace[1]);
+    const connecte = q("SELECT CONCAT(TRIM(str_FIRST_NAME), ' ', TRIM(str_LAST_NAME)) FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
+    ok('L auteur de la suppression est conserve : l operateur connecte', trace[1] === connecte, trace[1] + ' / ' + connecte);
     ok('L utilisateur d origine est celui qui avait ouvert la vente', trace[2] === jeu.ouvreur,
       trace[2] + ' attendu ' + jeu.ouvreur);
     ok('Les deux utilisateurs sont bien distincts', trace[1] !== trace[2], trace[1] + ' vs ' + trace[2]);

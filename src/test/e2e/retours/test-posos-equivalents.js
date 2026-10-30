@@ -19,7 +19,7 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
 const BASE = ENV_E2E.BASE;
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
-const CONF = process.env.POSOS_CONF || '/root/prestige/config/posos.properties';
+const CONF = process.env.POSOS_CONF || ENV_E2E.CONFIG_POSTE + '/posos.properties';
 const MARQUE = 'E2E-EQV-';
 const PARA = ['DOLIPRANE 500MG CPR B/16', 'DOLIPRANE 1G CPR B/8', 'EFFERALGAN 500MG GEL B/16 ANF', 'DOLIPRANE 500MG CPR EFFV T/16'];
 const sqlTexte = (v) => "'" + v.replace(/'/g, "''") + "'";

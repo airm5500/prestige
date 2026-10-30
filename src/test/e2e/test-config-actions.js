@@ -8,6 +8,17 @@ const nbIcones = async p => p.evaluate(()=>{
   const menu=cols.filter(c=>c.items[0] && c.items[0].tooltip==='Autres actions').length;
   return {total:cols.length, menu:menu, icones:cols.length-menu};
 });
+/* le test part du reglage livre (cles vides = defaut) et rend a la fin le reglage de l'officine */
+const { execFileSync } = require('child_process');
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, ENV_E2E.BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const CLES = ['FICHE_ARTICLE_NB_ICONES', 'FICHE_ARTICLE_ORDRE_ACTIONS'];
+const avant = {};
+CLES.forEach((k) => { avant[k] = q("SELECT IFNULL((SELECT str_VALUE FROM t_parameters WHERE str_KEY = '" + k + "'), '<absente>')"); });
+q("UPDATE t_parameters SET str_VALUE = '' WHERE str_KEY IN ('" + CLES.join("','") + "')");
+process.on('exit', () => CLES.forEach((k) => {
+  q(avant[k] === '<absente>' ? "DELETE FROM t_parameters WHERE str_KEY = '" + k + "'"
+    : "UPDATE t_parameters SET str_VALUE = '" + avant[k].replace(/'/g, "''") + "' WHERE str_KEY = '" + k + "'");
+}));
 (async () => {
   const b = await ENV_E2E.lancer(chromium);
   const p = await b.newPage({ viewport: { width: 1700, height: 950 } });
