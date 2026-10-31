@@ -37,8 +37,9 @@ const QR = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAA
     const centre = (sel) => p.evaluate((s) => { const r = Ext.ComponentQuery.query(s)[0].getEl().dom.getBoundingClientRect();
       return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; }, sel);
     const clic = async (sel) => { const c = await centre(sel); await p.mouse.click(c.x, c.y); };
-    await p.waitForFunction(() => !Ext.ComponentQuery.query('whatsappcomptes')[0].isMasked || !Ext.ComponentQuery.query('whatsappcomptes')[0].isMasked(), null, { timeout: 20000 });
-    await p.waitForTimeout(1500);
+    /* comptes charges : l'adresse enregistree est affichee */
+    await p.waitForFunction(() => !!Ext.ComponentQuery.query('whatsappcomptes #formWEB [name=webUrl]')[0].getValue(), null, { timeout: 30000 });
+    await p.waitForTimeout(1000);
     const aides = await p.evaluate(() => { const f = Ext.ComponentQuery.query('whatsappcomptes #formWEB')[0];
       return { url: f.down('[name=webUrl]').emptyText, jeton: f.down('[name=webJeton]').emptyText }; });
     ok('Texte d\'exemple dans « Adresse du service »', /http:\/\/localhost:3010/.test(aides.url), aides.url);
@@ -46,11 +47,13 @@ const QR = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAA
 
     await clic('whatsappcomptes #formWEB [name=actif]');
     const decoche = await p.evaluate(() => Ext.ComponentQuery.query('whatsappcomptes #formWEB [name=actif]')[0].getValue());
+    /* l'adresse est retapee a l'identique, comme a la saisie */
+    const adresse = await p.evaluate(() => Ext.ComponentQuery.query('whatsappcomptes #formWEB [name=webUrl]')[0].getValue());
     await clic('whatsappcomptes #formWEB [name=webUrl]');
-    await p.keyboard.press('End');
-    await p.keyboard.type(' ');
-    await p.keyboard.press('Backspace');
-    await p.waitForTimeout(500);
+    await p.keyboard.press('Control+A');
+    /* rythme de frappe humain : ExtJS regroupe les frappes de moins de 50 ms */
+    await p.keyboard.type(adresse, { delay: 120 });
+    await p.waitForTimeout(800);
     const etatActif = await p.evaluate(() => { const f = Ext.ComponentQuery.query('whatsappcomptes #formWEB')[0];
       return { actif: f.down('[name=actif]').getValue(), url: !!f.down('[name=webUrl]').getValue(), jeton: f.down('[name=webJeton]').secretDefini }; });
     ok('Adresse et jeton renseignés : la saisie coche « Compte actif »', decoche === false && etatActif.actif === true, JSON.stringify(etatActif));
