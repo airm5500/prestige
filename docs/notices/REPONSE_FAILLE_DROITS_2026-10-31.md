@@ -153,4 +153,36 @@ rejoués un par un sur la copie de travail :
   `test-liste-utilisateurs-sans-mot-de-passe.js` ;
 - `retours/test-utilisateurs-fenetres-droits.js`, `test-profils-fenetres-modales.js`,
   `test-parametres-rubriques.js`, `test-tableau-bord.js`, `test-lot-c-surveillance.js` ;
-- `support/test-sms-configuration-sans-secret.js`.
+- `support/test-sms-configuration-sans-secret.js` ;
+- écrans dont le code a changé en passant (rôle reconnu par son droit) :
+  - `retours/test-fidelite-droits-onglets.js`, `test-fidelite.js` ;
+  - `retours/test-rh-validation-droits.js`, `test-rh.js` ;
+  - `filtres/test-filtre-multiple-cazonegeo.js`, `campagnes/test-whatsapp-discussions.js`,
+    `campagnes/test-campagnes-parametres-0825.js` ;
+  - `retours/test-libelles-menus.js`, `test-connexion-bouton-pointage.js`, `test-demandes-51-52-pointage.js` ;
+  - `securite/test-droits-serveur.js`, `filtres/test-impressions-filtres.js`.
+
+### Échecs constatés, aucun dû au correctif
+
+| Test | Échec | Cause |
+|---|---|---|
+| `test-lot-c-surveillance.js` | un cas différent à chaque passage | cas de minutage, déjà en échec dans la série du 30/10 |
+| `test-impressions-filtres.js` | 3 états sur 17 | déjà en échec dans la série du 30/10 |
+| `test-rh.js` | 1 contrôle sur 49 | le compte `admin` a été rattaché comme employé le 30/10 à 21:54 par la fiche employé de l'écran RH (code inchangé depuis le 10/10) ; c'est une donnée de la copie, pas un défaut |
+
+### Équivalence ancienne règle / nouvelle règle
+
+Sur la copie locale, les profils reconnus sont les mêmes avant et après : Administrateur, Pharmacien, Super
+Administrateur.
+
+Un seul écart existe dans le code. La liste des utilisateurs masquait aussi les comptes dont le profil a une
+**désignation** commençant par « Administrateur ». La migration, elle, ne marque l'administrateur que par son
+**libellé**, comme partout ailleurs dans l'ancien code. Pour savoir si une officine a un tel profil :
+
+```sql
+SELECT str_NAME, str_DESIGNATION FROM t_role
+ WHERE TRIM(str_DESIGNATION) LIKE 'Administrateur%' AND TRIM(str_NAME) NOT LIKE 'Administrateur%'
+   AND TRIM(str_NAME) NOT LIKE 'Super Administrateur%';
+```
+
+Si la requête renvoie un profil légitime, lui accorder `P_PROFIL_ADMIN` depuis l'écran « Profils ».
