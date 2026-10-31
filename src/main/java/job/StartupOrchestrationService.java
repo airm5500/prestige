@@ -34,8 +34,8 @@ import javax.inject.Inject;
  * {@code Lock wait timeout exceeded}.
  *
  * <p>
- * {@link NotificationJob} reste indépendant : son timer persistant {@code TimerService} et son {@code @Timeout} sont
- * liés au bean et ne peuvent pas être délégués.
+ * {@link NotificationJob} reste indépendant : son timer non persistant {@code TimerService} et son {@code @Timeout}
+ * sont liés au bean et ne peuvent pas être délégués.
  *
  * <p>
  * Les {@code @Schedule} périodiques restent dans leurs beans respectifs.

@@ -44,14 +44,16 @@ public class NotificationJob {
     }
 
     public void createTimer() {
-        // Annule les timers persistants existants avant d'en créer un nouveau,
-        // pour éviter l'accumulation de doublons à chaque redémarrage du serveur.
+        // Annule aussi l'ancien timer persistant créé par les versions précédentes,
+        // puis recrée un timer volatile. Ce job est enregistré à chaque démarrage :
+        // le persister dans ejbtimer n'apporte rien et expose Payara à un blocage si
+        // le fichier H2 est corrompu lors d'une coupure brutale.
         for (Timer t : timerService.getTimers()) {
             if ("recapActivity".equals(t.getInfo())) {
                 t.cancel();
             }
         }
-        TimerConfig recapActivity = new TimerConfig("recapActivity", true);
+        TimerConfig recapActivity = new TimerConfig("recapActivity", false);
         timerService.createCalendarTimer(
                 new ScheduleExpression().hour(findHeureEnvoiSmsRecap()).dayOfMonth("*").year("*"), recapActivity);
     }
