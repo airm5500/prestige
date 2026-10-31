@@ -42,6 +42,8 @@ public enum TypeLog {
     NOM_APPAREIL("Nom d'appareil", true),
     // demande mobile 57 : borne de pointage enrolee, retiree, pointage par une borne (ajoute a la fin : rang)
     BORNE_POINTAGE("Borne de pointage", true),
+    // Centre de support : reglages du serveur (MariaDB, Payara) appliques par le super administrateur (rang)
+    REGLAGE_SERVEUR("Réglage du serveur", true),
     // faille de droits du 31/10 : acces de depannage ouvert ou ferme (ajoute a la fin : rang)
     SECURITE_DROITS("Droits et accès sensibles", true);
 
