@@ -136,6 +136,15 @@ public class SalesServiceImpl implements SalesService {
 
     private static final Logger LOG = Logger.getLogger(SalesServiceImpl.class.getName());
 
+    /**
+     * Une prévente reçoit son numéro de ticket dès sa création. La clôture doit conserver ce numéro : il peut déjà
+     * avoir été imprimé ou encodé par l'application mobile. Les anciennes préventes sans numéro restent compatibles et
+     * en reçoivent un lors de leur clôture.
+     */
+    static String resolveTicketReference(String current, java.util.function.Supplier<String> generator) {
+        return StringUtils.isNotBlank(current) ? current : generator.get();
+    }
+
     @PersistenceContext(unitName = "JTA_UNIT")
     private EntityManager em;
     /*
@@ -1068,7 +1077,6 @@ public class SalesServiceImpl implements SalesService {
                     preenregistrement
                             .setStrREF(buildRefDevis(LocalDate.now(), emplacementDeSaisie(salesParams)).getReference());
                     preenregistrement.setStrREFBON(salesParams.getBonRef());
-                    preenregistrement.setStrREFTICKET(DateConverter.getShortId(10));
                     emg.persist(preenregistrement);
                     List<TCompteClientTiersPayant> clientTiersPayants = findCompteClientTierspayantByClientId(
                             salesParams.getClientId(), emg);
@@ -1094,6 +1102,8 @@ public class SalesServiceImpl implements SalesService {
             JSONObject data = new JSONObject();
             data.put("lgPREENREGISTREMENTID", preenregistrement.getLgPREENREGISTREMENTID());
             data.put("strREF", preenregistrement.getStrREF());
+            data.put("strREFTICKET", preenregistrement.getStrREFTICKET());
+            data.put("barcodeValue", preenregistrement.getStrREFTICKET());
             data.put("intPRICE", preenregistrement.getIntPRICE());
             data.put("intPRICEREMISE", preenregistrement.getIntPRICEREMISE());
             data.put("dateHeureCreation", DateCommonUtils.formatDateHeureCreation(preenregistrement.getDtCREATED()));
@@ -1381,6 +1391,8 @@ public class SalesServiceImpl implements SalesService {
             JSONObject data = new JSONObject();
             data.put("lgPREENREGISTREMENTID", op.getLgPREENREGISTREMENTID());
             data.put("strREF", op.getStrREF());
+            data.put("strREFTICKET", op.getStrREFTICKET());
+            data.put("barcodeValue", op.getStrREFTICKET());
             data.put("intPRICE", op.getIntPRICE());
             // Date et heure de creation : rappelees en bas de l'ecran de vente, sous la liste des articles.
             data.put("dateHeureCreation", DateCommonUtils.formatDateHeureCreation(op.getDtCREATED()));
@@ -2660,7 +2672,8 @@ public class SalesServiceImpl implements SalesService {
             tp.setLgUSERID(clotureVenteParams.getUserId());
             tp.setLgUSERVENDEURID(vendeur != null ? vendeur : clotureVenteParams.getUserId());
             tp.setLgUSERCAISSIERID(tp.getLgUSERID());
-            tp.setStrREFTICKET(DateConverter.getShortId(10));
+            tp.setStrREFTICKET(
+                    resolveTicketReference(tp.getStrREFTICKET(), () -> DateConverter.getShortId(10)));
             tp.setBISAVOIR(isAvoir);
             tp.setStrSTATUT(STATUT_IS_CLOSED);
             tp.setStrTYPEVENTE(VENTE_ASSURANCE);
@@ -2909,7 +2922,8 @@ public class SalesServiceImpl implements SalesService {
             tp.setLgUSERID(clotureVenteParams.getUserId());
             tp.setLgUSERVENDEURID(vendeur != null ? vendeur : clotureVenteParams.getUserId());
             tp.setLgUSERCAISSIERID(tp.getLgUSERID());
-            tp.setStrREFTICKET(DateConverter.getShortId(10));
+            tp.setStrREFTICKET(
+                    resolveTicketReference(tp.getStrREFTICKET(), () -> DateConverter.getShortId(10)));
             tp.setBISAVOIR(isAvoir);
             tp.setStrSTATUT(STATUT_IS_CLOSED);
             tp.setStrSTATUTVENTE(statut);
@@ -3710,7 +3724,8 @@ public class SalesServiceImpl implements SalesService {
             tp.setLgUSERID(clotureVenteParams.getUserId());
             tp.setLgUSERVENDEURID(vendeur != null ? vendeur : clotureVenteParams.getUserId());
             tp.setLgUSERCAISSIERID(tp.getLgUSERID());
-            tp.setStrREFTICKET(DateConverter.getShortId(10));
+            tp.setStrREFTICKET(
+                    resolveTicketReference(tp.getStrREFTICKET(), () -> DateConverter.getShortId(10)));
             tp.setBISAVOIR(isAvoir);
             tp.setStrSTATUT(STATUT_IS_CLOSED);
             tp.setStrSTATUTVENTE(statut);
@@ -3835,7 +3850,8 @@ public class SalesServiceImpl implements SalesService {
             tp.setLgUSERID(clotureVenteParams.getUserId());
             tp.setLgUSERVENDEURID(vendeur != null ? vendeur : clotureVenteParams.getUserId());
             tp.setLgUSERCAISSIERID(tp.getLgUSERID());
-            tp.setStrREFTICKET(DateConverter.getShortId(10));
+            tp.setStrREFTICKET(
+                    resolveTicketReference(tp.getStrREFTICKET(), () -> DateConverter.getShortId(10)));
             tp.setBISAVOIR(isAvoir);
             tp.setStrSTATUT(STATUT_IS_CLOSED);
             tp.setStrSTATUTVENTE(statut);
@@ -5613,6 +5629,8 @@ public class SalesServiceImpl implements SalesService {
         TRemise oTRemise = remiseFromId(salesParams.getRemiseId());
         TUser vendeur = getUserFromId(salesParams.getUserVendeurId());
         TPreenregistrement op = new TPreenregistrement(UUID.randomUUID().toString());
+        // Valeur numérique et stable à encoder dans le code-barres mobile. str_REF reste la référence métier lisible.
+        op.setStrREFTICKET(DateConverter.getShortId(10));
         op.setLgUSERVENDEURID(vendeur != null ? vendeur : salesParams.getUserId());
         op.setLgUSERCAISSIERID(salesParams.getUserId());
         op.setLgUSERID(salesParams.getUserId());
@@ -5628,7 +5646,6 @@ public class SalesServiceImpl implements SalesService {
         } else {
 
             op.setStrREF(buildRefDevis(LocalDate.now(), emplacementDeSaisie(salesParams)).getReferenceTemp());
-            op.setStrREFTICKET(DateConverter.getShortId(10));
         }
         op.setLgREMISEID(oTRemise != null ? oTRemise.getLgREMISEID() : "");
         op.setRemise(oTRemise);

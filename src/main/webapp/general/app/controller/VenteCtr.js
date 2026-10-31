@@ -4876,7 +4876,33 @@ Ext.define('testextjs.controller.VenteCtr', {
 
                 });
             };
-            envoyer();
+            const ancienTiersPayant = me.getAncienTierspayant();
+            const nouveauTiersPayant = record.get('lgTIERSPAYANTID');
+            if (record.get('lgCLIENTID') && ancienTiersPayant && nouveauTiersPayant
+                    && ancienTiersPayant !== nouveauTiersPayant) {
+                Ext.MessageBox.show({
+                    title: 'Changement de tiers payant',
+                    width: 620,
+                    msg: 'Ce client possede deja un tiers payant principal actif.<br><br>'
+                            + '<b>Modifier</b> : desactive l\'ancien tiers payant et le remplace par le nouveau.<br>'
+                            + '<b>Associer</b> : conserve l\'ancien tiers payant et ajoute le nouveau comme tiers payant complementaire.',
+                    buttons: Ext.MessageBox.YESNOCANCEL,
+                    buttonText: {yes: 'Modifier', no: 'Associer', cancel: 'Annuler'},
+                    icon: Ext.MessageBox.QUESTION,
+                    fn: function (button) {
+                        if (button === 'yes') {
+                            datas.tiersPayantAction = 'REPLACE';
+                            envoyer();
+                        } else if (button === 'no') {
+                            datas.tiersPayantAction = 'ASSOCIATE';
+                            envoyer();
+                        }
+                    }
+                });
+            } else {
+                datas.tiersPayantAction = 'UPDATE';
+                envoyer();
+            }
         }
 
     },

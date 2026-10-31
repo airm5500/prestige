@@ -25,6 +25,12 @@ public class ClientDTO implements Serializable {
     private String lgCLIENTID;
     private String strCODEINTERNE;
     private String lgTIERSPAYANTID;
+    /**
+     * Action demandee lors du remplacement du tiers payant principal :
+     * {@code REPLACE} remplace l'association principale, {@code ASSOCIATE}
+     * conserve l'association existante et ajoute le tiers payant en complementaire.
+     */
+    private String tiersPayantAction;
     private String email;
     private String lgVILLEID;
     private String dtNAISSANCE;
@@ -103,6 +109,14 @@ public class ClientDTO implements Serializable {
 
     public String getLgCLIENTID() {
         return lgCLIENTID;
+    }
+
+    public String getTiersPayantAction() {
+        return tiersPayantAction;
+    }
+
+    public void setTiersPayantAction(String tiersPayantAction) {
+        this.tiersPayantAction = tiersPayantAction;
     }
 
     public List<AyantDroitDTO> getAyantDroits() {

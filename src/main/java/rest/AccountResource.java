@@ -27,6 +27,7 @@ import org.json.JSONArray;
 
 import org.json.JSONObject;
 import rest.service.UserService;
+import rest.service.attendance.AttendanceService;
 import rest.service.dto.AccountInfoDTO;
 import util.CommonUtils;
 import util.Constant;
@@ -41,6 +42,8 @@ public class AccountResource {
 
     @EJB
     private UserService userService;
+    @EJB
+    private AttendanceService attendanceService;
     @Inject
     HttpServletRequest request;
 
@@ -50,6 +53,17 @@ public class AccountResource {
         var dashboard = "dashboard";
         JSONObject json = new JSONObject();
 
+        HttpSession existingSession = request.getSession(false);
+        TUser connectedUser = existingSession == null ? null
+                : (TUser) existingSession.getAttribute(Constant.AIRTIME_USER);
+        if (hasDifferentActiveUser(connectedUser, managedUser == null ? null : managedUser.getLogin())) {
+            json.put("success", false);
+            json.put("errorCode", "DIFFERENT_USER_ALREADY_CONNECTED");
+            json.put("message",
+                    "Un autre utilisateur est deja connecte dans ce navigateur. Deconnectez-le avant de changer de compte.");
+            return Response.status(Response.Status.CONFLICT).entity(json.toString()).build();
+        }
+
         TUser tu = userService.connexion(managedUser, request);
         if (tu == null) {
             json.put("success", false);
@@ -57,6 +71,7 @@ public class AccountResource {
         } else {
             String xtypeuser = "mainmenumanager";
             HttpSession hs = request.getSession(true);
+            attendanceService.login(tu.getLgUSERID(), hs.getId());
             json.put("str_LOGIN", tu.getStrLOGIN());
             json.put("str_USER_ID", tu.getLgUSERID());
             json.put("str_FIRST_NAME", tu.getStrFIRSTNAME());
@@ -112,12 +127,20 @@ public class AccountResource {
 
     }
 
+    static boolean hasDifferentActiveUser(TUser connectedUser, String requestedLogin) {
+        if (connectedUser == null || connectedUser.getStrLOGIN() == null || requestedLogin == null) {
+            return false;
+        }
+        return !connectedUser.getStrLOGIN().trim().equalsIgnoreCase(requestedLogin.trim());
+    }
+
     @POST
     @Path("logout")
     public Response deconnection() {
         JSONObject json = new JSONObject();
         HttpSession hs = request.getSession();
         TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
+        attendanceService.logout(hs.getId());
         boolean invalide = userService.deConnexion(request, tu);
         json.put("success", invalide);
         return Response.ok().entity(json.toString()).build();
