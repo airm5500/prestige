@@ -170,14 +170,15 @@ public class CommonRessource {
         return Response.ok().entity(ResultFactory.getSuccessResult(data, total)).build();
     }
 
-    /** Vrai si l'utilisateur connecte a un profil Administrateur ou Super Administrateur (detection par prefixe). */
+    /**
+     * Vrai si l'utilisateur connecte a un profil Administrateur ou Super Administrateur (droit P_PROFIL_* du profil).
+     */
     private boolean connectedIsAdmin(TUser tu) {
         try {
             for (dal.TRoleUser ru : tu.getTRoleUserCollection()) {
                 dal.TRole r = ru.getLgROLEID();
                 if (r != null && Constant.STATUT_ENABLE.equalsIgnoreCase(r.getStrSTATUT())) {
-                    String name = r.getStrNAME();
-                    if (bll.userManagement.user.isAdminRole(name) || bll.userManagement.user.isSuperAdminRole(name)) {
+                    if (bll.userManagement.user.estRoleAdmin(r) || bll.userManagement.user.estRoleSuperAdmin(r)) {
                         return true;
                     }
                 }

@@ -27,10 +27,10 @@ public interface RoleService {
     JSONObject isAdmin(TUser user);
 
     /** Creation d'un profil. Renvoie {success:"1"|"0", errors}. */
-    JSONObject createRole(String name, String designation, String type);
+    JSONObject createRole(TUser user, String name, String designation, String type);
 
     /** Modification d'un profil (recherche stricte par identifiant). */
-    JSONObject updateRole(String roleId, String name, String designation, String type);
+    JSONObject updateRole(TUser user, String roleId, String name, String designation, String type);
 
     /** Duplication d'un profil : nouveau libelle/description et copie de tous ses privileges. */
     JSONObject duplicateRole(TUser user, String roleId, String name, String designation);

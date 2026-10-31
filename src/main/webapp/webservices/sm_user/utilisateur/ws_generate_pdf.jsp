@@ -70,7 +70,7 @@
     if(OTRole != null) {
        /* if(OTRole.getStrNAME().equalsIgnoreCase(commonparameter.ROLE_ADMIN)) { //a decommenter en cas de besoin
             scr_report_file = "rp_liste_utilisateur_admin";
-        } else*/ if(OTRole.getStrNAME().equalsIgnoreCase(commonparameter.ROLE_SUPERADMIN)) {
+        } else*/ if(user.estRoleSuperAdmin(OTRole)) {
             scr_report_file = "rp_liste_utilisateur_superadmin";
         }
     }

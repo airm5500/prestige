@@ -328,18 +328,15 @@ public class CommonServiceImpl implements Serializable, CommonService {
     }
 
     /**
-     * Predicat excluant les utilisateurs dont le profil est Administrateur ou Super Administrateur. La detection se
-     * fait par prefixe de nom (str_NAME et str_DESIGNATION) afin de couvrir les variantes suffixees ("Administrateur du
-     * systeme", "Super Administrateur du systeme", ...).
+     * Predicat excluant les utilisateurs dont le profil est Administrateur ou Super Administrateur, reconnus a leur
+     * droit P_PROFIL_* (faille de droits du 31/10 : plus a leur nom).
      */
     private Predicate notAdminRolePredicate(CriteriaBuilder cb, CriteriaQuery<?> cq, Root<TUser> root) {
         javax.persistence.criteria.Subquery<String> sub = cq.subquery(String.class);
         Root<dal.TRoleUser> ru = sub.from(dal.TRoleUser.class);
         sub.select(ru.get("lgUSERID").<String> get("lgUSERID"));
-        sub.where(cb.or(cb.like(ru.get("lgROLEID").<String> get("strNAME"), Constant.ROLE_ADMIN + "%"),
-                cb.like(ru.get("lgROLEID").<String> get("strNAME"), Constant.ROLE_SUPERADMIN + "%"),
-                cb.like(ru.get("lgROLEID").<String> get("strDESIGNATION"), Constant.ROLE_ADMIN + "%"),
-                cb.like(ru.get("lgROLEID").<String> get("strDESIGNATION"), Constant.ROLE_SUPERADMIN + "%")));
+        sub.where(ru.get("lgROLEID").<String> get("lgROLEID")
+                .in(util.RolesSpeciaux.roles(util.RolesSpeciaux.P_SUPER_ADMIN, util.RolesSpeciaux.P_ADMIN)));
         return cb.not(root.get(TUser_.lgUSERID).in(sub));
     }
 

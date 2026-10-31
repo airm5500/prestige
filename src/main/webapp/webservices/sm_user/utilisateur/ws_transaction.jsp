@@ -97,19 +97,25 @@
     new logger().oCategory.info("le mode : " + request.getParameter("mode"));
     new logger().oCategory.info("ID " + request.getParameter("lg_USER_ID"));
     new logger().oCategory.info("ID connecté " + OTUser.getLgUSERID());
-    /* Retours du 25/10 : comptes et profil super administrateur reserves au super administrateur (memes regles que
-       v1/utilisateurs, que l'ecran utilise ; cette page reste appelable directement). */
+    /* Faille de droits du 31/10 : memes regles que v1/utilisateurs (que l'ecran utilise ; cette page reste appelable
+       directement) : droit du menu Utilisateurs (et de reinitialiser un mot de passe pour updatepassword), puis la
+       personne connectee ne gere un compte, et n'attribue un profil, que si elle pourrait en accorder chaque droit. */
     String modeSa = request.getParameter("mode");
     boolean refusSuperAdmin = false;
     if (modeSa != null && !bll.userManagement.user.estSuperAdmin(user) && ("create".equals(modeSa)
             || "update".equals(modeSa) || "updatepassword".equals(modeSa) || "delete".equals(modeSa))) {
-        dal.TRole roleCible = lg_ROLE_ID == null || lg_ROLE_ID.isEmpty() ? null : OdataManager.getEm().find(dal.TRole.class, lg_ROLE_ID);
-        TUser compteCible = lg_USER_ID == null || lg_USER_ID.isEmpty() ? null : OdataManager.getEm().find(TUser.class, lg_USER_ID);
-        refusSuperAdmin = bll.userManagement.user.estRoleSuperAdmin(roleCible)
-                || (!"create".equals(modeSa) && bll.userManagement.user.estSuperAdmin(compteCible));
+        String motifRefus = null;
+        if (!rest.Droits.a(request, util.Constant.P_SM_UTILISATEUR)
+                || ("updatepassword".equals(modeSa) && !rest.Droits.a(request, bll.common.Parameter.P_BT_MODIFICATION_USER))) {
+            motifRefus = "Droit manquant : Utilisateurs";
+        } else {
+            motifRefus = bll.userManagement.user.refusGestionCompte(OdataManager.getEm(), user,
+                    "create".equals(modeSa) ? null : lg_USER_ID, lg_ROLE_ID);
+        }
+        refusSuperAdmin = motifRefus != null;
         if (refusSuperAdmin) {
             ObllBase.setMessage(commonparameter.PROCESS_FAILED);
-            ObllBase.setDetailmessage("R\u00e9serv\u00e9 au super administrateur.");
+            ObllBase.setDetailmessage(motifRefus.replace("\"", "'"));
         }
     }
     if (request.getParameter("mode") != null && !refusSuperAdmin) {

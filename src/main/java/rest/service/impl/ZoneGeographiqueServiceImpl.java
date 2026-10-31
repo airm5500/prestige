@@ -56,22 +56,8 @@ public class ZoneGeographiqueServiceImpl implements ZoneGeographiqueService {
         }
     }
 
-    private String connectedRoleName(TUser user) {
-        try {
-            for (TRoleUser roleUser : user.getTRoleUserCollection()) {
-                if (roleUser.getLgROLEID() != null
-                        && commonparameter.statut_enable.equalsIgnoreCase(roleUser.getLgROLEID().getStrSTATUT())) {
-                    return roleUser.getLgROLEID().getStrNAME();
-                }
-            }
-        } catch (Exception ignore) {
-        }
-        return "";
-    }
-
     private boolean isAdminOrSuperAdmin(TUser user) {
-        String name = connectedRoleName(user);
-        return bll.userManagement.user.isAdminRole(name) || bll.userManagement.user.isSuperAdminRole(name);
+        return bll.userManagement.user.estAdminOuSuperAdmin(user);
     }
 
     /** Parametre KEY_TAKE_INTO_ACCOUNT = 1 : la colonne de prise en compte comptage est visible (regle historique). */

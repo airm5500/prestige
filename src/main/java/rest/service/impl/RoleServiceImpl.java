@@ -32,27 +32,58 @@ public class RoleServiceImpl implements RoleService {
     private static final Logger LOG = Logger.getLogger(RoleServiceImpl.class.getName());
     private static final String SUCCESS = commonparameter.PROCESS_SUCCESS;
     private static final String FAILED = commonparameter.PROCESS_FAILED;
+    /**
+     * « Tout sélectionner / désélectionner » ne touche jamais aux droits de profil special (un a la fois seulement).
+     */
+    private static final String SANS_MARQUES = " AND p.str_NAME NOT IN ('" + util.RolesSpeciaux.P_SUPER_ADMIN + "', '"
+            + util.RolesSpeciaux.P_ADMIN + "', '" + util.RolesSpeciaux.P_PHARMACIEN + "')";
 
     @PersistenceContext(unitName = "JTA_UNIT")
     private EntityManager em;
 
-    /** Nom du role actif de l'utilisateur connecte (premier role au statut enable). */
-    private String connectedRoleName(TUser user) {
-        try {
-            for (TRoleUser roleUser : user.getTRoleUserCollection()) {
-                if (roleUser.getLgROLEID() != null
-                        && commonparameter.statut_enable.equalsIgnoreCase(roleUser.getLgROLEID().getStrSTATUT())) {
-                    return roleUser.getLgROLEID().getStrNAME();
-                }
-            }
-        } catch (Exception ignore) {
-        }
-        return "";
+    /*
+     * Faille de droits du 31/10 : administrateur, super administrateur et pharmacien sont reconnus au droit P_PROFIL_*
+     * de leur profil (util.RolesSpeciaux), plus a son nom ; renommer un profil n'a plus d'effet sur les droits.
+     */
+    private boolean isAdminOrSuperAdmin(TUser user) {
+        return bll.userManagement.user.estAdminOuSuperAdmin(user);
     }
 
-    private boolean isAdminOrSuperAdmin(TUser user) {
-        String name = connectedRoleName(user);
-        return bll.userManagement.user.isAdminRole(name) || bll.userManagement.user.isSuperAdminRole(name);
+    private static boolean superAdmin(TUser user) {
+        return bll.userManagement.user.estSuperAdmin(user);
+    }
+
+    /** Vrai si l'utilisateur a ce profil (actif ou non). */
+    private boolean sonProfil(TUser user, String roleId) {
+        return user != null && roleId != null
+                && ((Number) em
+                        .createNativeQuery("SELECT COUNT(*) FROM t_role_user WHERE lg_USER_ID = ?1 AND lg_ROLE_ID = ?2")
+                        .setParameter(1, user.getLgUSERID()).setParameter(2, roleId).getSingleResult()).longValue() > 0;
+    }
+
+    /** Profil special (super administrateur, administrateur, pharmacien) : ni desactive ni supprime. */
+    private static boolean profilSysteme(TRole role) {
+        return bll.userManagement.user.estRoleSuperAdmin(role) || bll.userManagement.user.estRoleAdmin(role)
+                || bll.userManagement.user.estRolePharmacien(role);
+    }
+
+    /**
+     * Libelle refuse a qui n'est pas super administrateur : un nom reserve (« Super Administrateur… », «
+     * Administrateur… », « Pharmacien ») ne s'adopte pas ; un profil qui le porte deja peut le garder.
+     */
+    private static String refusLibelle(TUser user, TRole role, String name, String designation) {
+        if (superAdmin(user)) {
+            return null;
+        }
+        String ancienNom = role == null ? null : role.getStrNAME();
+        String ancienneDesignation = role == null ? null : role.getStrDESIGNATION();
+        boolean nomAdopte = StringUtils.isNotBlank(name) && !name.trim().equalsIgnoreCase(StringUtils.trim(ancienNom))
+                && bll.userManagement.user.nomReserve(name);
+        boolean designationAdoptee = StringUtils.isNotBlank(designation)
+                && !designation.trim().equalsIgnoreCase(StringUtils.trim(ancienneDesignation))
+                && bll.userManagement.user.nomReserve(designation);
+        return nomAdopte || designationAdoptee
+                ? "Ce libellé est réservé : seul le super administrateur peut le donner à un profil." : null;
     }
 
     @Override
@@ -77,23 +108,22 @@ public class RoleServiceImpl implements RoleService {
                     + "' AND (t.strNAME LIKE ?1 OR t.strDESIGNATION LIKE ?1)");
             if (!admin) {
                 // Les autres profils ne voient ni administrateur ni super administrateur
-                where.append(" AND t.strNAME NOT LIKE ?2 AND t.strNAME NOT LIKE ?3")
-                        .append(" AND t.strDESIGNATION NOT LIKE ?2 AND t.strDESIGNATION NOT LIKE ?3");
+                where.append(" AND t.lgROLEID NOT IN (?2)");
             } else if (!superAdmin) {
                 // Retours du 25/10 : l'administrateur ne voit pas le profil super administrateur
-                where.append(" AND t.strNAME NOT LIKE ?2 AND t.strDESIGNATION NOT LIKE ?2");
+                where.append(" AND t.lgROLEID NOT IN (?2)");
             }
             TypedQuery<Long> qc = em.createQuery("SELECT COUNT(t)" + where, Long.class).setParameter(1, like);
             TypedQuery<TRole> q = em.createQuery("SELECT t" + where + " ORDER BY t.strDESIGNATION", TRole.class)
                     .setParameter(1, like);
             if (!admin) {
-                qc.setParameter(2, commonparameter.ROLE_SUPERADMIN + "%").setParameter(3,
-                        commonparameter.ROLE_ADMIN + "%");
-                q.setParameter(2, commonparameter.ROLE_SUPERADMIN + "%").setParameter(3,
-                        commonparameter.ROLE_ADMIN + "%");
+                java.util.Set<String> exclus = util.RolesSpeciaux.roles(util.RolesSpeciaux.P_SUPER_ADMIN,
+                        util.RolesSpeciaux.P_ADMIN);
+                qc.setParameter(2, exclus);
+                q.setParameter(2, exclus);
             } else if (!superAdmin) {
-                qc.setParameter(2, commonparameter.ROLE_SUPERADMIN + "%");
-                q.setParameter(2, commonparameter.ROLE_SUPERADMIN + "%");
+                qc.setParameter(2, util.RolesSpeciaux.roles(util.RolesSpeciaux.P_SUPER_ADMIN));
+                q.setParameter(2, util.RolesSpeciaux.roles(util.RolesSpeciaux.P_SUPER_ADMIN));
             }
             long total = qc.getSingleResult();
             if (limit > 0) {
@@ -114,11 +144,20 @@ public class RoleServiceImpl implements RoleService {
     }
 
     @Override
-    public JSONObject createRole(String name, String designation, String type) {
+    public JSONObject createRole(TUser user, String name, String designation, String type) {
         JSONObject json = new JSONObject();
         try {
             if (StringUtils.isBlank(name)) {
                 return json.put("success", FAILED).put("errors", "Le libellé est obligatoire");
+            }
+            String refus = refusLibelle(user, null, name, designation);
+            if (refus != null) {
+                return json.put("success", FAILED).put("errors", refus);
+            }
+            if (!superAdmin(user) && StringUtils.isNotBlank(type)
+                    && !commonparameter.PARAMETER_CUSTOMER.equalsIgnoreCase(type.trim())) {
+                return json.put("success", FAILED).put("errors",
+                        "Seul le super administrateur choisit le type d'un profil.");
             }
             TRole role = new TRole(new KeyUtilGen().getComplexId());
             role.setStrNAME(name.trim());
@@ -135,12 +174,30 @@ public class RoleServiceImpl implements RoleService {
     }
 
     @Override
-    public JSONObject updateRole(String roleId, String name, String designation, String type) {
+    public JSONObject updateRole(TUser user, String roleId, String name, String designation, String type) {
         JSONObject json = new JSONObject();
         try {
             TRole role = em.find(TRole.class, roleId);
             if (role == null) {
                 return json.put("success", FAILED).put("errors", "Profil introuvable");
+            }
+            if (!superAdmin(user)) {
+                if (bll.userManagement.user.estRoleSuperAdmin(role)) {
+                    return json.put("success", FAILED).put("errors", "Réservé au super administrateur.");
+                }
+                if (sonProfil(user, roleId)) {
+                    return json.put("success", FAILED).put("errors",
+                            "Votre propre profil ne peut être modifié que par le super administrateur.");
+                }
+                if (StringUtils.isNotBlank(type)
+                        && !type.trim().equalsIgnoreCase(StringUtils.trim(role.getStrTYPE()))) {
+                    return json.put("success", FAILED).put("errors",
+                            "Seul le super administrateur change le type d'un profil.");
+                }
+                String refus = refusLibelle(user, role, name, designation);
+                if (refus != null) {
+                    return json.put("success", FAILED).put("errors", refus);
+                }
             }
             if (StringUtils.isNotBlank(name)) {
                 role.setStrNAME(name.trim());
@@ -169,6 +226,13 @@ public class RoleServiceImpl implements RoleService {
             if (StringUtils.isBlank(name)) {
                 return json.put("success", FAILED).put("errors", "Le libellé du nouveau profil est obligatoire");
             }
+            String refus = refusLibelle(user, null, name, designation);
+            if (refus == null && bll.userManagement.user.estRoleSuperAdmin(source) && !superAdmin(user)) {
+                refus = "Réservé au super administrateur.";
+            }
+            if (refus != null) {
+                return json.put("success", FAILED).put("errors", refus);
+            }
             TRole copie = new TRole(new KeyUtilGen().getComplexId());
             copie.setStrNAME(name.trim());
             copie.setStrDESIGNATION(StringUtils.trimToEmpty(designation));
@@ -183,6 +247,15 @@ public class RoleServiceImpl implements RoleService {
                     .setParameter(1, roleId).getResultList();
             int copies = 0;
             for (TRolePrivelege lien : liens) {
+                /*
+                 * faille de droits du 31/10 : la copie ne recoit ni le droit de profil special (P_PROFIL_*), ni un
+                 * droit que la personne connectee ne pourrait pas accorder elle-meme
+                 */
+                if (lien.getLgPRIVILEGEID() == null
+                        || util.RolesSpeciaux.MARQUES.contains(lien.getLgPRIVILEGEID().getStrNAME())
+                        || refusAttribution(user, copie, lien.getLgPRIVILEGEID()) != null) {
+                    continue;
+                }
                 TRolePrivelege nouveau = new TRolePrivelege(new KeyUtilGen().getComplexId());
                 nouveau.setLgROLEID(copie);
                 nouveau.setLgPRIVILEGEID(lien.getLgPRIVILEGEID());
@@ -215,12 +288,7 @@ public class RoleServiceImpl implements RoleService {
             if (role == null) {
                 return json.put("success", FAILED).put("errors", "Profil introuvable");
             }
-            String nom = StringUtils.defaultString(role.getStrNAME());
-            String designation = StringUtils.defaultString(role.getStrDESIGNATION());
-            if (bll.userManagement.user.isAdminRole(nom) || bll.userManagement.user.isSuperAdminRole(nom)
-                    || bll.userManagement.user.isAdminRole(designation)
-                    || bll.userManagement.user.isSuperAdminRole(designation)
-                    || commonparameter.ROLE_PHARMACIEN.equalsIgnoreCase(nom)) {
+            if (profilSysteme(role)) {
                 return json.put("success", FAILED).put("errors", "Ce profil système ne peut pas être désactivé");
             }
             if (!actif) {
@@ -251,12 +319,7 @@ public class RoleServiceImpl implements RoleService {
             if (role == null) {
                 return json.put("success", FAILED).put("errors", "Profil introuvable");
             }
-            String nom = StringUtils.defaultString(role.getStrNAME());
-            String designation = StringUtils.defaultString(role.getStrDESIGNATION());
-            if (bll.userManagement.user.isAdminRole(nom) || bll.userManagement.user.isSuperAdminRole(nom)
-                    || bll.userManagement.user.isAdminRole(designation)
-                    || bll.userManagement.user.isSuperAdminRole(designation)
-                    || commonparameter.ROLE_PHARMACIEN.equalsIgnoreCase(nom)) {
+            if (profilSysteme(role)) {
                 return json.put("success", FAILED).put("errors", "Ce profil système ne peut pas être supprimé");
             }
             long nbUtilisateurs = ((Number) em
@@ -298,12 +361,10 @@ public class RoleServiceImpl implements RoleService {
      * privilege.getListePrivilege : superadmin = tout ; admin/pharmacien = CUSTOMER+ADMIN ; autres = CUSTOMER).
      */
     private String catalogueWhere(TUser user) {
-        String roleName = connectedRoleName(user);
-        if (bll.userManagement.user.isSuperAdminRole(roleName)) {
+        if (superAdmin(user)) {
             return "";
         }
-        if (bll.userManagement.user.isAdminRole(roleName)
-                || roleName.equalsIgnoreCase(commonparameter.ROLE_PHARMACIEN)) {
+        if (bll.userManagement.user.estAdminOuPharmacien(user)) {
             return " AND (p.str_TYPE = '" + commonparameter.PARAMETER_CUSTOMER + "' OR p.str_TYPE = '"
                     + commonparameter.PARAMETER_ADMIN + "')";
         }
@@ -361,13 +422,15 @@ public class RoleServiceImpl implements RoleService {
         if (bll.userManagement.user.estRoleSuperAdmin(role)) {
             return "Réservé au super administrateur.";
         }
+        if (bll.userManagement.user.estRoleAdmin(role) && !bll.userManagement.user.estAdminOuSuperAdmin(user)) {
+            return "Réservé à l'administrateur.";
+        }
         String type = StringUtils.defaultString(privilege.getStrTYPE());
         if (commonparameter.PARAMETER_CUSTOMER.equalsIgnoreCase(type)) {
             return null;
         }
-        String roleName = connectedRoleName(user);
-        if (commonparameter.PARAMETER_ADMIN.equalsIgnoreCase(type) && (bll.userManagement.user.isAdminRole(roleName)
-                || roleName.equalsIgnoreCase(commonparameter.ROLE_PHARMACIEN))) {
+        if (commonparameter.PARAMETER_ADMIN.equalsIgnoreCase(type)
+                && bll.userManagement.user.estAdminOuPharmacien(user)) {
             return null;
         }
         return "Ce droit ne peut être accordé que par le super administrateur.";
@@ -383,6 +446,11 @@ public class RoleServiceImpl implements RoleService {
                 return json.put("success", FAILED).put("errors", "Profil ou privilège introuvable");
             }
             String refus = refusAttribution(user, role, privilege);
+            if (refus == null && !checked && util.RolesSpeciaux.P_SUPER_ADMIN.equals(privilege.getStrNAME())
+                    && sonProfil(user, roleId)) {
+                // le super administrateur ne se retire pas lui-meme ce droit (il perdrait l'acces a tout)
+                refus = "Vous ne pouvez pas retirer ce droit à votre propre profil.";
+            }
             if (refus != null) {
                 return json.put("success", FAILED).put("errors", refus);
             }
@@ -403,6 +471,13 @@ public class RoleServiceImpl implements RoleService {
                     em.remove(lien);
                 }
             }
+            if (util.RolesSpeciaux.MARQUES.contains(privilege.getStrNAME())) {
+                em.flush();
+                util.RolesSpeciaux.oublier();
+                LOG.log(Level.WARNING, "Droit de profil special {0} {1} au profil {2} par {3}",
+                        new Object[] { privilege.getStrNAME(), checked ? "accorde" : "retire", roleId,
+                                user != null ? user.getStrLOGIN() : "?" });
+            }
             return json.put("success", SUCCESS);
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "toggleRolePrivilege", e);
@@ -421,6 +496,9 @@ public class RoleServiceImpl implements RoleService {
             if (bll.userManagement.user.estRoleSuperAdmin(role) && !bll.userManagement.user.estSuperAdmin(user)) {
                 return json.put("success", FAILED).put("errors", "Réservé au super administrateur.");
             }
+            if (bll.userManagement.user.estRoleAdmin(role) && !bll.userManagement.user.estAdminOuSuperAdmin(user)) {
+                return json.put("success", FAILED).put("errors", "Réservé à l'administrateur.");
+            }
             /*
              * retour du 31/10 : « Tout sélectionner » reserve au super administrateur (un pharmacien ou un
              * administrateur s'attribuait tous les droits) ; « Tout désélectionner » reste ouvert
@@ -435,12 +513,11 @@ public class RoleServiceImpl implements RoleService {
             int count = 0;
             if (checked) {
                 // privileges du catalogue visibles, correspondant a la recherche, PAS encore attribues
-                List<?> manquants = em
-                        .createNativeQuery("SELECT p.lg_PRIVELEGE_ID FROM t_privilege p"
-                                + " WHERE p.str_STATUT = 'enable' AND (p.str_DESCRIPTION LIKE ?1 OR p.str_NAME LIKE ?1)"
-                                + catalogueWhere(user) + " AND NOT EXISTS (SELECT 1 FROM t_role_privelege rp"
-                                + " WHERE rp.lg_ROLE_ID = ?2 AND rp.lg_PRIVILEGE_ID = p.lg_PRIVELEGE_ID)")
-                        .setParameter(1, like).setParameter(2, roleId).getResultList();
+                List<?> manquants = em.createNativeQuery("SELECT p.lg_PRIVELEGE_ID FROM t_privilege p"
+                        + " WHERE p.str_STATUT = 'enable' AND (p.str_DESCRIPTION LIKE ?1 OR p.str_NAME LIKE ?1)"
+                        + catalogueWhere(user) + SANS_MARQUES + " AND NOT EXISTS (SELECT 1 FROM t_role_privelege rp"
+                        + " WHERE rp.lg_ROLE_ID = ?2 AND rp.lg_PRIVILEGE_ID = p.lg_PRIVELEGE_ID)").setParameter(1, like)
+                        .setParameter(2, roleId).getResultList();
                 for (Object id : manquants) {
                     TPrivilege privilege = em.find(TPrivilege.class, String.valueOf(id));
                     if (privilege == null) {
@@ -455,12 +532,11 @@ public class RoleServiceImpl implements RoleService {
                     count++;
                 }
             } else {
-                count = em
-                        .createNativeQuery("DELETE rp FROM t_role_privelege rp"
-                                + " JOIN t_privilege p ON p.lg_PRIVELEGE_ID = rp.lg_PRIVILEGE_ID"
-                                + " WHERE rp.lg_ROLE_ID = ?2 AND p.str_STATUT = 'enable'"
-                                + " AND (p.str_DESCRIPTION LIKE ?1 OR p.str_NAME LIKE ?1)" + catalogueWhere(user))
-                        .setParameter(1, like).setParameter(2, roleId).executeUpdate();
+                count = em.createNativeQuery("DELETE rp FROM t_role_privelege rp"
+                        + " JOIN t_privilege p ON p.lg_PRIVELEGE_ID = rp.lg_PRIVILEGE_ID"
+                        + " WHERE rp.lg_ROLE_ID = ?2 AND p.str_STATUT = 'enable'"
+                        + " AND (p.str_DESCRIPTION LIKE ?1 OR p.str_NAME LIKE ?1)" + catalogueWhere(user)
+                        + SANS_MARQUES).setParameter(1, like).setParameter(2, roleId).executeUpdate();
             }
             return json.put("success", SUCCESS).put("count", count);
         } catch (Exception e) {

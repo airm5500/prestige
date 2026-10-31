@@ -43,6 +43,8 @@ public class ParametreRessource {
 
     @EJB
     private ParametreService parametreService;
+    @EJB
+    private rest.service.LogService logService;
     @Inject
     private HttpServletRequest servletRequest;
 
@@ -66,10 +68,18 @@ public class ParametreRessource {
         return Response.ok().cacheControl(cc).entity(ResultFactory.getSuccessResult(isEnable, 1)).build();
     }
 
-    /** Valeur brute d'un parametre (str_VALUE), vide si absent. */
+    /**
+     * Valeur brute d'un parametre (str_VALUE), vide si absent. Jamais celle d'un secret (faille de droits du 31/10).
+     */
     @GET
     @Path("value/{key}")
     public Response value(@PathParam("key") String key) {
+        if (currentUserSansSession() == null) {
+            return deconnecte();
+        }
+        if (util.ParametresSecrets.estSecret(key)) {
+            return Droits.interdit("lecture d'un paramètre secret");
+        }
         String value = parametreService.getValue(key, "");
         return Response.ok().entity(ResultFactory.getSuccessResult(value, 1)).build();
     }
@@ -116,6 +126,12 @@ public class ParametreRessource {
     @GET
     @Path("detail")
     public Response detail(@DefaultValue("") @QueryParam("str_KEY") String strKey) {
+        if (currentUserSansSession() == null) {
+            return deconnecte();
+        }
+        if (util.ParametresSecrets.estSecret(strKey)) {
+            return Droits.interdit("lecture d'un paramètre secret");
+        }
         dataManager odm = new dataManager();
         String key = strKey, value = "", description = "";
         odm.initEntityManager();
@@ -137,6 +153,74 @@ public class ParametreRessource {
 
     private TUser currentUser() {
         return (TUser) servletRequest.getSession().getAttribute(Constant.AIRTIME_USER);
+    }
+
+    private TUser currentUserSansSession() {
+        javax.servlet.http.HttpSession hs = servletRequest.getSession(false);
+        return hs == null ? null : (TUser) hs.getAttribute(Constant.AIRTIME_USER);
+    }
+
+    /**
+     * Regle de visibilite historique de ws_data_all.jsp : administrateur, super administrateur ou profil de type ADMIN
+     * voient tous les parametres ; les autres, ceux de type CUSTOMER. Profils reconnus a leur droit P_PROFIL_* (faille
+     * de droits du 31/10), plus a leur nom.
+     */
+    private static boolean voitTousLesParametres(dataManager odm, TUser u) {
+        if (bll.userManagement.user.estAdminOuSuperAdmin(u)) {
+            return true;
+        }
+        dal.TRoleUser lien = new bll.userManagement.user(odm).getTRoleUser(u.getLgUSERID());
+        TRole role = lien == null ? null : lien.getLgROLEID();
+        return role != null && commonparameter.PARAMETER_ADMIN.equalsIgnoreCase(role.getStrTYPE());
+    }
+
+    /**
+     * Faille de droits du 31/10 : modifier un parametre exige le droit du menu « Gestion des parametrages » ; un
+     * parametre qui n'est pas de type CUSTOMER, de le voir (voitTousLesParametres) ; l'acces de depannage, d'etre super
+     * administrateur. Avant, une session suffisait, quelle que soit la cle. Refus en 403, ou null.
+     */
+    private Response refusModification(dataManager odm, String key, TParameters existant) {
+        TUser u = currentUser();
+        if (u == null) {
+            return Response.status(Response.Status.UNAUTHORIZED).type("application/json")
+                    .entity(new JSONObject().put("success", false).put("msg", Constant.DECONNECTED_MESSAGE).toString())
+                    .build();
+        }
+        if (bll.userManagement.user.estSuperAdmin(u)) {
+            return null;
+        }
+        Response r = Droits.refus(servletRequest, "Gestion des paramétrages", Constant.P_SM_PARAMETER_MANAGER);
+        if (r != null) {
+            return r;
+        }
+        if (ACCES_DEPANNAGE.equalsIgnoreCase(StringUtils.trim(key))) {
+            return Droits.interdit("accès de dépannage (réservé au super administrateur)");
+        }
+        if (existant != null && !commonparameter.PARAMETER_CUSTOMER.equalsIgnoreCase(existant.getStrTYPE())
+                && !voitTousLesParametres(odm, u)) {
+            return Droits.interdit("paramètre réservé à l'administrateur");
+        }
+        return null;
+    }
+
+    /** Parametre qui ouvre le compte systeme sans mot de passe (UserServiceImpl) : chaque changement est journalise. */
+    static final String ACCES_DEPANNAGE = "ACCES_DEPANNAGE_ACTIF";
+
+    private void tracerDepannage(String key, String avant, String apres) {
+        if (!ACCES_DEPANNAGE.equalsIgnoreCase(StringUtils.trim(key)) || StringUtils.equals(avant, apres)) {
+            return;
+        }
+        TUser u = currentUser();
+        String desc = "Accès de dépannage " + ("1".equals(StringUtils.trim(apres)) ? "OUVERT" : "fermé")
+                + " (paramètre " + ACCES_DEPANNAGE + " : " + StringUtils.defaultString(avant) + " -> "
+                + StringUtils.defaultString(apres) + ")";
+        LOG.log(Level.WARNING, "{0} par {1}", new Object[] { desc, u != null ? u.getStrLOGIN() : "?" });
+        try {
+            logService.journaliserSansRisque(u, ACCES_DEPANNAGE, desc, dal.enumeration.TypeLog.SECURITE_DROITS,
+                    "t_parameters", desc);
+        } catch (RuntimeException e) {
+            LOG.log(Level.WARNING, "journal de l'acces de depannage", e);
+        }
     }
 
     private Response deconnecte() {
@@ -164,11 +248,7 @@ public class ParametreRessource {
             String search = (searchValue != null && !searchValue.isEmpty()) ? searchValue : query;
             // Regle de visibilite historique de ws_data_all.jsp
             String type = commonparameter.PARAMETER_CUSTOMER;
-            bll.userManagement.user ouser = new bll.userManagement.user(odm);
-            TRole role = ouser.getTRoleUser(sessionUser.getLgUSERID()).getLgROLEID();
-            if (role != null && (bll.userManagement.user.isSuperAdminRole(role.getStrNAME())
-                    || bll.userManagement.user.isAdminRole(role.getStrNAME())
-                    || commonparameter.PARAMETER_ADMIN.equalsIgnoreCase(role.getStrTYPE()))) {
+            if (voitTousLesParametres(odm, sessionUser)) {
                 type = "%%";
             }
             TparameterManager manager = new TparameterManager(odm, sessionUser);
@@ -186,7 +266,10 @@ public class ParametreRessource {
             int fin = limit > 0 ? Math.min(parametres.size(), Math.max(0, start) + limit) : parametres.size();
             for (int i = Math.max(0, start); i < fin; i++) {
                 TParameters p = parametres.get(i);
-                JSONObject row = new JSONObject().put("str_KEY", p.getStrKEY()).put("str_VALUE", p.getStrVALUE())
+                // faille de droits du 31/10 : la valeur d'un secret ne sort pas, meme vers l'ecran des parametres
+                String valeur = util.ParametresSecrets.estSecret(p.getStrKEY())
+                        && StringUtils.isNotEmpty(p.getStrVALUE()) ? util.ParametresSecrets.MASQUE : p.getStrVALUE();
+                JSONObject row = new JSONObject().put("str_KEY", p.getStrKEY()).put("str_VALUE", valeur)
                         .put("str_DESCRIPTION", p.getStrDESCRIPTION()).put("str_TYPE", p.getStrTYPE())
                         .put("str_STATUT", p.getStrSTATUT());
                 util.RubriqueParametre.Rubrique r = util.RubriqueParametre.de(p.getStrKEY());
@@ -224,11 +307,7 @@ public class ParametreRessource {
         odm.initEntityManager();
         try {
             String type = commonparameter.PARAMETER_CUSTOMER;
-            bll.userManagement.user ouser = new bll.userManagement.user(odm);
-            TRole role = ouser.getTRoleUser(sessionUser.getLgUSERID()).getLgROLEID();
-            if (role != null && (bll.userManagement.user.isSuperAdminRole(role.getStrNAME())
-                    || bll.userManagement.user.isAdminRole(role.getStrNAME())
-                    || commonparameter.PARAMETER_ADMIN.equalsIgnoreCase(role.getStrTYPE()))) {
+            if (voitTousLesParametres(odm, sessionUser)) {
                 type = "%%";
             }
             java.util.Map<String, Integer> nombres = new java.util.HashMap<>();
@@ -274,11 +353,7 @@ public class ParametreRessource {
         odm.initEntityManager();
         try {
             String type = commonparameter.PARAMETER_CUSTOMER;
-            bll.userManagement.user ouser = new bll.userManagement.user(odm);
-            TRole role = ouser.getTRoleUser(sessionUser.getLgUSERID()).getLgROLEID();
-            if (role != null && (bll.userManagement.user.isSuperAdminRole(role.getStrNAME())
-                    || bll.userManagement.user.isAdminRole(role.getStrNAME())
-                    || commonparameter.PARAMETER_ADMIN.equalsIgnoreCase(role.getStrTYPE()))) {
+            if (voitTousLesParametres(odm, sessionUser)) {
                 type = "%%";
             }
             TparameterManager manager = new TparameterManager(odm, sessionUser);
@@ -319,7 +394,17 @@ public class ParametreRessource {
         odm.initEntityManager();
         try {
             TparameterManager manager = new TparameterManager(odm);
+            TParameters avant = manager.getParameter(key);
+            Response refus = refusModification(odm, key, avant);
+            if (refus != null) {
+                return refus;
+            }
+            String ancienneValeur = avant == null ? null : avant.getStrVALUE();
+            if (util.ParametresSecrets.estSecret(key) && util.ParametresSecrets.MASQUE.equals(value)) {
+                value = ancienneValeur; // valeur masquee renvoyee par l'ecran : le secret ne change pas
+            }
             manager.updateParameter(key, value, description);
+            tracerDepannage(key, ancienneValeur, value);
             // Exclusivite SEMOIS_ABC / SEMOIS_PAR_PRODUIT : si l'un passe a 1, l'autre est force a 0
             String v = value != null ? value.trim() : "";
             if ("SEMOIS_ABC".equals(key) && "1".equals(v)) {
@@ -366,11 +451,17 @@ public class ParametreRessource {
         try {
             TparameterManager manager = new TparameterManager(odm);
             TParameters existant = manager.getParameter(key);
+            Response refus = refusModification(odm, key, existant);
+            if (refus != null) {
+                return refus;
+            }
             if (existant == null) {
                 return Response.ok().entity(new JSONObject().put("success", commonparameter.PROCESS_FAILED)
                         .put("errors", "Paramètre introuvable").toString()).build();
             }
+            String ancienneValeur = existant.getStrVALUE();
             manager.updateParameter(key, v, existant.getStrDESCRIPTION());
+            tracerDepannage(key, ancienneValeur, v);
             // Exclusivite SEMOIS_ABC / SEMOIS_PAR_PRODUIT : si l'un passe a 1, l'autre est force a 0
             if ("SEMOIS_ABC".equals(key) && "1".equals(v)) {
                 TParameters autre = manager.getParameter("SEMOIS_PAR_PRODUIT");

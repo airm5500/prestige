@@ -741,7 +741,7 @@ public class RhRessource {
             return null;
         }
         for (dal.TRoleUser lien : u.getTRoleUserCollection()) {
-            if (lien.getLgROLEID() != null && bll.userManagement.user.isAdminRole(lien.getLgROLEID().getStrNAME())) {
+            if (lien.getLgROLEID() != null && bll.userManagement.user.estRoleAdmin(lien.getLgROLEID())) {
                 return null;
             }
         }

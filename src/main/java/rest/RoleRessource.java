@@ -41,6 +41,19 @@ public class RoleRessource {
                 .put("errors", Constant.DECONNECTED_MESSAGE).put("total", 0).toString()).build();
     }
 
+    /**
+     * Faille de droits du 31/10 : le serveur exige le droit du menu « Profils » sur toutes les routes de gestion (seule
+     * « est-admin », lue par plusieurs ecrans, reste ouverte a toute session). 401 sans session, 403 sans droit. Le
+     * super administrateur passe toujours.
+     */
+    private Response droitMenu() {
+        TUser u = currentUser();
+        if (u != null && bll.userManagement.user.estSuperAdmin(u)) {
+            return null;
+        }
+        return Droits.refus(servletRequest, "Profils", Constant.P_SM_ROLE);
+    }
+
     @GET
     public Response list(@QueryParam("search_value") String searchValue, @QueryParam("query") String query,
             @DefaultValue("true") @QueryParam("actifs") boolean actifs,
@@ -48,6 +61,10 @@ public class RoleRessource {
         TUser user = currentUser();
         if (user == null) {
             return deconnecte();
+        }
+        Response interdit = droitMenu();
+        if (interdit != null) {
+            return interdit;
         }
         String search = (searchValue != null && !searchValue.isEmpty()) ? searchValue : query;
         return Response.ok().entity(roleService.listRoles(user, search, actifs, start, limit).toString()).build();
@@ -71,6 +88,10 @@ public class RoleRessource {
         if (user == null) {
             return deconnecte();
         }
+        Response interdit = droitMenu();
+        if (interdit != null) {
+            return interdit;
+        }
         return Response.ok().entity(roleService.toggleRoleStatus(user, roleId, actif).toString()).build();
     }
 
@@ -82,7 +103,11 @@ public class RoleRessource {
         if (currentUser() == null) {
             return deconnecte();
         }
-        return Response.ok().entity(roleService.createRole(name, designation, type).toString()).build();
+        Response interdit = droitMenu();
+        if (interdit != null) {
+            return interdit;
+        }
+        return Response.ok().entity(roleService.createRole(currentUser(), name, designation, type).toString()).build();
     }
 
     @POST
@@ -93,7 +118,12 @@ public class RoleRessource {
         if (currentUser() == null) {
             return deconnecte();
         }
-        return Response.ok().entity(roleService.updateRole(roleId, name, designation, type).toString()).build();
+        Response interdit = droitMenu();
+        if (interdit != null) {
+            return interdit;
+        }
+        return Response.ok().entity(roleService.updateRole(currentUser(), roleId, name, designation, type).toString())
+                .build();
     }
 
     @POST
@@ -104,6 +134,10 @@ public class RoleRessource {
         TUser user = currentUser();
         if (user == null) {
             return deconnecte();
+        }
+        Response interdit = droitMenu();
+        if (interdit != null) {
+            return interdit;
         }
         return Response.ok().entity(roleService.duplicateRole(user, roleId, name, designation).toString()).build();
     }
@@ -116,6 +150,10 @@ public class RoleRessource {
         if (user == null) {
             return deconnecte();
         }
+        Response interdit = droitMenu();
+        if (interdit != null) {
+            return interdit;
+        }
         return Response.ok().entity(roleService.deleteRole(user, roleId).toString()).build();
     }
 
@@ -127,6 +165,10 @@ public class RoleRessource {
         TUser user = currentUser();
         if (user == null) {
             return deconnecte();
+        }
+        Response interdit = droitMenu();
+        if (interdit != null) {
+            return interdit;
         }
         String search = (searchValue != null && !searchValue.isEmpty()) ? searchValue : query;
         return Response.ok().entity(roleService.rolePrivileges(user, roleId, search, start, limit).toString()).build();
@@ -141,6 +183,10 @@ public class RoleRessource {
         if (user == null) {
             return deconnecte();
         }
+        Response interdit = droitMenu();
+        if (interdit != null) {
+            return interdit;
+        }
         return Response.ok().entity(roleService.toggleRolePrivilege(user, roleId, privilegeId, checked).toString())
                 .build();
     }
@@ -153,6 +199,10 @@ public class RoleRessource {
         TUser user = currentUser();
         if (user == null) {
             return deconnecte();
+        }
+        Response interdit = droitMenu();
+        if (interdit != null) {
+            return interdit;
         }
         return Response.ok().entity(roleService.toggleAllRolePrivileges(user, roleId, searchValue, checked).toString())
                 .build();

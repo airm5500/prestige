@@ -244,8 +244,7 @@ public class WhatsAppWebServiceImpl implements WhatsAppWebService {
             return false;
         }
         dal.TRole r = em.find(dal.TRole.class, roleId);
-        return r != null && (bll.userManagement.user.isAdminRole(r.getStrNAME())
-                || bll.userManagement.user.isSuperAdminRole(r.getStrNAME()));
+        return bll.userManagement.user.estRoleAdmin(r) || bll.userManagement.user.estRoleSuperAdmin(r);
     }
 
     @Override

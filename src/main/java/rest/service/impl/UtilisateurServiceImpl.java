@@ -40,19 +40,6 @@ public class UtilisateurServiceImpl implements UtilisateurService {
     @javax.ejb.EJB
     private rest.service.LogService logService;
 
-    private String connectedRoleName(TUser user) {
-        try {
-            for (TRoleUser roleUser : user.getTRoleUserCollection()) {
-                if (roleUser.getLgROLEID() != null
-                        && commonparameter.statut_enable.equalsIgnoreCase(roleUser.getLgROLEID().getStrSTATUT())) {
-                    return roleUser.getLgROLEID().getStrNAME();
-                }
-            }
-        } catch (Exception ignore) {
-        }
-        return "";
-    }
-
     /** Vrai si l'utilisateur connecte detient le privilege actif nomme (chaine role -> role_privelege). */
     private boolean hasPrivilege(TUser user, String privilegeName) {
         try {
@@ -75,9 +62,8 @@ public class UtilisateurServiceImpl implements UtilisateurService {
         JSONObject json = new JSONObject();
         JSONArray results = new JSONArray();
         try {
-            String roleName = connectedRoleName(connecte);
-            boolean superAdmin = bll.userManagement.user.isSuperAdminRole(roleName);
-            boolean admin = bll.userManagement.user.isAdminRole(roleName);
+            boolean superAdmin = bll.userManagement.user.estSuperAdmin(connecte);
+            boolean admin = bll.userManagement.user.estRoleAdmin(bll.userManagement.user.roleActif(connecte));
             if (!actifs && !superAdmin && !admin) {
                 // La vue des utilisateurs desactives est reservee aux administrateurs
                 return json.put("total", 0).put("results", results);
@@ -94,11 +80,10 @@ public class UtilisateurServiceImpl implements UtilisateurService {
                     + " AND t.lgUSERID.lgEMPLACEMENTID.lgEMPLACEMENTID LIKE ?2 AND t.lgUSERID.strSTATUT = ?3");
             if (!superAdmin && !admin) {
                 // Les autres profils ne voient ni l'administrateur ni le super administrateur
-                where.append(" AND t.lgROLEID.strNAME NOT LIKE ?4 AND t.lgROLEID.strNAME NOT LIKE ?5")
-                        .append(" AND t.lgROLEID.strDESIGNATION NOT LIKE ?4 AND t.lgROLEID.strDESIGNATION NOT LIKE ?5");
+                where.append(" AND t.lgROLEID.lgROLEID NOT IN (?4)");
             } else if (!superAdmin) {
                 // Retours du 25/10 : l'administrateur ne voit pas les comptes super administrateur
-                where.append(" AND t.lgROLEID.strNAME NOT LIKE ?4 AND t.lgROLEID.strDESIGNATION NOT LIKE ?4");
+                where.append(" AND t.lgROLEID.lgROLEID NOT IN (?4)");
             }
             TypedQuery<Long> qc = em.createQuery("SELECT COUNT(t)" + where, Long.class);
             TypedQuery<TRoleUser> q = em.createQuery("SELECT t" + where + " ORDER BY t.lgUSERID.strFIRSTNAME ASC",
@@ -108,10 +93,10 @@ public class UtilisateurServiceImpl implements UtilisateurService {
                 tq.setParameter(1, like).setParameter(2, emplacement).setParameter(3,
                         actifs ? commonparameter.statut_enable : commonparameter.statut_disable);
                 if (!superAdmin && !admin) {
-                    tq.setParameter(4, commonparameter.ROLE_SUPERADMIN + "%").setParameter(5,
-                            commonparameter.ROLE_ADMIN + "%");
+                    tq.setParameter(4,
+                            util.RolesSpeciaux.roles(util.RolesSpeciaux.P_SUPER_ADMIN, util.RolesSpeciaux.P_ADMIN));
                 } else if (!superAdmin) {
-                    tq.setParameter(4, commonparameter.ROLE_SUPERADMIN + "%");
+                    tq.setParameter(4, util.RolesSpeciaux.roles(util.RolesSpeciaux.P_SUPER_ADMIN));
                 }
             }
             long total = qc.getSingleResult();
@@ -290,31 +275,10 @@ public class UtilisateurServiceImpl implements UtilisateurService {
         }
     }
 
+    /** Faille de droits du 31/10 : voir bll.userManagement.user#refusGestionCompte (meme regle pour l'ancienne JSP). */
     @Override
     public String refusSuperAdmin(TUser connecte, String userId, String roleId) {
-        if (bll.userManagement.user.estSuperAdmin(connecte)) {
-            return null;
-        }
-        if (StringUtils.isNotBlank(roleId)) {
-            TRole role = em.find(TRole.class, roleId);
-            if (role == null) {
-                // l'ecran historique envoie parfois le libelle du profil au lieu de son identifiant
-                List<TRole> parLibelle = em
-                        .createQuery("SELECT t FROM TRole t WHERE t.strNAME = ?1 OR t.strDESIGNATION = ?1", TRole.class)
-                        .setParameter(1, roleId.trim()).setMaxResults(1).getResultList();
-                role = parLibelle.isEmpty() ? null : parLibelle.get(0);
-            }
-            if (bll.userManagement.user.estRoleSuperAdmin(role)) {
-                return "Seul le super administrateur peut attribuer ce profil.";
-            }
-        }
-        if (StringUtils.isNotBlank(userId)) {
-            TUser cible = em.find(TUser.class, userId);
-            if (cible != null && bll.userManagement.user.estSuperAdmin(cible)) {
-                return "Ce compte ne peut être géré que par le super administrateur.";
-            }
-        }
-        return null;
+        return bll.userManagement.user.refusGestionCompte(em, connecte, userId, roleId);
     }
 
     @Override
