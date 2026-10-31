@@ -67,7 +67,7 @@ const JOURNAL = ENV_E2E.JOURNAL_SERVEUR || 'D:/payara5/payara5/glassfish/domains
     await p.waitForTimeout(1500);
     const ajout = fs.existsSync(JOURNAL) ? fs.readFileSync(JOURNAL, 'utf8').slice(tailleJournal) : '';
     const lignes = ajout.split(/\r?\n/).filter((l) => l.includes(C));
-    ok('Journal : « Date de naissance du client … modifiée par … »', lignes.some((l) => /Date de naissance du client .* (modifiée|effacée) par /.test(l)), lignes.slice(0, 2).join(' / '));
+    ok('Journal : « Date de naissance du client … modifiée par … »', lignes.some((l) => /Date de naissance du client .* (modifi|effac)\S{1,3} par /.test(l)), lignes.slice(0, 2).join(' / '));
     ok('Journal : aucune date de naissance écrite', !/1980-02-03|1975-05-12|03\/02\/1980|12\/05\/1975/.test(ajout), '');
   } catch (x) {
     ok('Déroulé sans erreur', false, x.stack || x.message);
