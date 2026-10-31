@@ -20,7 +20,8 @@ Ext.define('testextjs.view.commandemanagement.etats.ControleAchats', {
         titre: ''
     },
 
-    ONGLETS: [{cle: 'liste', texte: 'Liste des BL'}, {cle: 'tableau', texte: 'Tableau de bord'}],
+    /* retour du 31/10 : onglet « BL annulés » (retours complets de BL) */
+    ONGLETS: [{cle: 'liste', texte: 'Liste des BL'}, {cle: 'tableau', texte: 'Tableau de bord'}, {cle: 'annules', texte: 'BL annulés'}],
 
     initComponent: function () {
         var me = this;
@@ -29,8 +30,9 @@ Ext.define('testextjs.view.commandemanagement.etats.ControleAchats', {
         });
         me.habiller(me.liste);
         me.tableau = me.creerTableau();
+        me.annules = me.creerAnnules();
         Ext.apply(me, {
-            items: [me.liste, me.tableau],
+            items: [me.liste, me.tableau, me.annules],
             dockedItems: [{
                     xtype: 'toolbar', dock: 'top', itemId: 'ongletsCa', cls: 'cec-onglets', layout: {type: 'hbox', pack: 'start', align: 'middle'},
                     items: Ext.Array.map(me.ONGLETS, function (o) {
@@ -70,8 +72,90 @@ Ext.define('testextjs.view.commandemanagement.etats.ControleAchats', {
             me.chargerTableau();
             return me.tableau;
         }
+        if (cle === 'annules') {
+            me.getLayout().setActiveItem(me.annules);
+            me.reprendreCriteresAnnules();
+            me.annules.getStore().load();
+            return me.annules;
+        }
         me.getLayout().setActiveItem(me.liste);
         return me.liste;
+    },
+
+    /* ------------------------------------------------------------------ BL annules (retour du 31/10) */
+
+    creerAnnules: function () {
+        var me = this, aujourdhui = new Date();
+        var store = Ext.create('Ext.data.Store', {
+            fields: ['id', 'refBl', 'refCommande', 'grossiste', 'dateBl', 'saisiLe', 'annuleLe', {name: 'montantHt', type: 'int'},
+                {name: 'montantTtc', type: 'int'}, 'annulePar'],
+            proxy: {type: 'ajax', url: '../api/v1/etat-control-bon/annules', reader: {type: 'json', root: 'data', totalProperty: 'total'}},
+            listeners: {beforeload: function (s) {
+                    var g = me.annules;
+                    s.getProxy().extraParams = {
+                        dtStart: Ext.Date.format(g.down('#anDebut').getValue() || aujourdhui, 'Y-m-d'),
+                        dtEnd: Ext.Date.format(g.down('#anFin').getValue() || aujourdhui, 'Y-m-d'),
+                        search: g.down('#anRecherche').getValue() || ''
+                    };
+                }, load: function (s, recs, ok) {
+                    var t = 0;
+                    s.each(function (r) {
+                        t += r.get('montantTtc');
+                    });
+                    me.annules.down('#anTotal').setText(s.getCount() + ' BL annulé(s) · ' + Ext.util.Format.number(t, '0,000') + ' TTC');
+                }}
+        });
+        var montant = function (v) {
+            return Ext.util.Format.number(v || 0, '0,000');
+        };
+        return Ext.create('Ext.grid.Panel', {
+            itemId: 'gridAnnules', store: store, cls: 'ca-annules',
+            viewConfig: {emptyText: 'Aucun BL annulé sur la période.', deferEmptyText: false},
+            dockedItems: [{xtype: 'toolbar', dock: 'top', itemId: 'barreAnnules', items: [
+                        {xtype: 'datefield', itemId: 'anDebut', fieldLabel: 'Annulés du', labelWidth: 70, width: 183, format: 'd/m/Y',
+                            value: Ext.Date.getFirstDateOfMonth(aujourdhui), maxValue: aujourdhui},
+                        {xtype: 'datefield', itemId: 'anFin', fieldLabel: 'au', labelWidth: 20, width: 133, format: 'd/m/Y',
+                            value: aujourdhui, maxValue: aujourdhui},
+                        {xtype: 'textfield', itemId: 'anRecherche', width: 260, emptyText: 'Référence BL, commande ou grossiste (contient)',
+                            enableKeyEvents: true, listeners: {specialkey: function (f, e) {
+                                    if (e.getKey() === e.ENTER) {
+                                        store.load();
+                                    }
+                                }}},
+                        {text: 'Rechercher', itemId: 'anRechercher', iconCls: 'searchicon', handler: function () {
+                                store.load();
+                            }},
+                        '->', {xtype: 'tbtext', itemId: 'anTotal', text: ''}]}],
+            columns: [
+                {text: 'Réf. BL', dataIndex: 'refBl', width: 130},
+                {text: 'Réf. commande', dataIndex: 'refCommande', width: 140},
+                {text: 'Grossiste', dataIndex: 'grossiste', flex: 1, minWidth: 160},
+                {text: 'Date du BL', dataIndex: 'dateBl', width: 95},
+                {text: 'Saisi le', dataIndex: 'saisiLe', width: 125},
+                {text: 'Annulé le', dataIndex: 'annuleLe', width: 125},
+                {text: 'Annulé par', dataIndex: 'annulePar', width: 170},
+                {text: 'Montant HT', dataIndex: 'montantHt', width: 110, align: 'right', renderer: montant},
+                {text: 'Montant TTC', dataIndex: 'montantTtc', width: 115, align: 'right', renderer: montant}
+            ]
+        });
+    },
+
+    /** A la premiere ouverture : meme periode et meme recherche que la liste. */
+    reprendreCriteresAnnules: function () {
+        var me = this, g = me.annules, c = window.criteresControleAchat ? window.criteresControleAchat() : {};
+        if (me.criteresAnnulesRepris) {
+            return;
+        }
+        me.criteresAnnulesRepris = true;
+        if (c.dtStart) {
+            g.down('#anDebut').setValue(Ext.Date.parse(c.dtStart, 'Y-m-d'));
+        }
+        if (c.dtEnd) {
+            g.down('#anFin').setValue(Ext.Date.parse(c.dtEnd, 'Y-m-d'));
+        }
+        if (c.search) {
+            g.down('#anRecherche').setValue(c.search);
+        }
     },
 
     /* ------------------------------------------------------------------ tableau de bord */

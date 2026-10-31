@@ -1509,14 +1509,41 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
         int stockRayon = versRayon.optInt("int_STOCK_RAYON", 0);
 
         if (seuilMini != null && stockRayon <= seuilMini && versRayon.optInt("int_PROPOSITION", 0) > 0) {
+            ecarterSensInverse(user, TSuggestionReserve.CATEGORIE_RESERVE, familleId);
             rattacher(user, TSuggestionReserve.CATEGORIE_RAYON, familleId);
             return;
         }
         if (seuilReserve > 0 && stockRayon > seuilReserve) {
             JSONObject versReserve = reserveService.proposition(user, familleId, TSuggestionReserve.CATEGORIE_RESERVE);
             if (versReserve != null && versReserve.optInt("int_PROPOSITION", 0) > 0) {
+                ecarterSensInverse(user, TSuggestionReserve.CATEGORIE_RAYON, familleId);
                 rattacher(user, TSuggestionReserve.CATEGORIE_RESERVE, familleId);
             }
+        }
+    }
+
+    /**
+     * Retour du 31/10 : le meme produit sortait dans les deux sens (« Réserve → rayon » et « Rayon → réserve ») avec
+     * des stocks differents ; la ligne du sens inverse venait d'une evaluation precedente et n'avait jamais ete fermee.
+     * Quand le produit passe dans un sens, les lignes automatiques ouvertes de l'autre sens, encore telles que le
+     * systeme les a proposees et sans aucun mouvement, sont retirees de leur suggestion. Une ligne modifiee par
+     * l'utilisateur ou deja (partiellement) deplacee n'est pas touchee.
+     */
+    private void ecarterSensInverse(TUser user, String categorieInverse, String familleId) {
+        int n = em.createNativeQuery("UPDATE t_suggestion_reserve_detail d JOIN t_suggestion_reserve s"
+                + " ON s.lg_SUGGESTION_RESERVE_ID = d.lg_SUGGESTION_RESERVE_ID SET d.str_ETAT = ?1, d.str_MOTIF_LIGNE = ?2,"
+                + " d.dt_UPDATED = NOW() WHERE d.lg_FAMILLE_ID = ?3 AND d.str_ETAT = ?4 AND d.int_QTE_DEPLACEE = 0"
+                + " AND s.str_ORIGINE = ?5 AND s.str_CATEGORIE = ?6 AND s.str_STATUT IN (?7, ?8) AND s.lg_EMPLACEMENT_ID = ?9")
+                .setParameter(1, TSuggestionReserveDetail.ETAT_SUPPRIMEE)
+                .setParameter(2, "Retiree automatiquement : le stock demande maintenant le sens inverse")
+                .setParameter(3, familleId).setParameter(4, TSuggestionReserveDetail.ETAT_PROPOSEE)
+                .setParameter(5, TSuggestionReserve.ORIGINE_AUTOMATIQUE).setParameter(6, categorieInverse)
+                .setParameter(7, TSuggestionReserve.STATUT_A_TRAITER)
+                .setParameter(8, TSuggestionReserve.STATUT_EN_COURS)
+                .setParameter(9, user.getLgEMPLACEMENTID().getLgEMPLACEMENTID()).executeUpdate();
+        if (n > 0) {
+            LOG.log(Level.INFO, "suggestion auto: produit={0}, {1} ligne(s) du sens {2} retiree(s)",
+                    new Object[] { familleId, n, categorieInverse });
         }
     }
 

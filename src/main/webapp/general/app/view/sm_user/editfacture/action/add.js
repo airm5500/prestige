@@ -284,9 +284,9 @@ Ext.define('testextjs.view.sm_user.editfacture.action.add', {
                 align: 'stretch',
                 padding: 0
             },
-            defaults: {
-                flex: 1
-            },
+            /* retour du 31/10 : les deux premieres sections gardent leur hauteur naturelle ; « Gestion des bons »
+               prend le reste. Le flex: 1 commun donnait un tiers a chacune : grands vides en haut, et la grille
+               coupee avec son bouton « Générer facture » hors de vue. */
             id: 'panelID',
             items: [
 
@@ -641,6 +641,7 @@ Ext.define('testextjs.view.sm_user.editfacture.action.add', {
                 },
                 {
                     xtype: 'fieldset',
+                    flex: 1,
                     id: 'detailfacturevente',
                     title: 'Gestion des bons',
                     //  hidden: true,

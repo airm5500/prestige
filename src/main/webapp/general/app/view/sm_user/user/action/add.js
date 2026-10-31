@@ -252,8 +252,10 @@ Ext.define('testextjs.view.sm_user.user.action.add', {
 
 
 
+        /* retour du 31/10 : fenetre modale (le modal de la classe ne s'applique pas a cette fenetre) */
         var win = new Ext.window.Window({
             autoShow: true,
+            modal: true,
             title: this.getTitre(),
             width: 500,
             height: 400,

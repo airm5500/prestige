@@ -144,7 +144,9 @@ Ext.define('testextjs.view.commandemanagement.bonlivraison.action.add', {
                                colonnes (ils etaient au-dessus : 6 lignes, le cadre perdait de la hauteur) */
                             columnWidth: 1 / 3,
                             layout: {type: 'anchor'},
-                            defaults: {anchor: '100%', labelWidth: 150, labelCls: 'ig-label', margin: '0 0 2 0'},
+                            /* retour du 31/10 : libelles en 16 px gras plus larges que 150 px (« Code de l'étiquette »
+                               empietait sur sa valeur) */
+                            defaults: {anchor: '100%', labelWidth: 195, labelCls: 'ig-label', margin: '0 0 2 0'},
                             items: [
                                 {
                                     xtype: 'numberfield',

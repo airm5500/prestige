@@ -199,7 +199,11 @@ Ext.define('testextjs.view.sm_user.role.action.addPrivilegeBis', {
                             scope: this,
                             handler: this.onRechClick
                         }, '->', {
+                            /* retour du 31/10 : reserve au super administrateur (affiche apres verification), sinon un
+                               pharmacien ou un administrateur s'attribue tous les droits ; refuse aussi par le serveur */
                             text: 'Tout s&eacute;lectionner',
+                            itemId: 'btnToutSelectionner',
+                            hidden: true,
                             tooltip: 'Attribuer tous les privil&egrave;ges affich&eacute;s par la recherche courante (toutes les pages)',
                             icon: 'resources/images/icons/fam/accept.png',
                             scope: this,
@@ -241,6 +245,15 @@ Ext.define('testextjs.view.sm_user.role.action.addPrivilegeBis', {
 
         this.callParent();
         OCltgridpanelID = Ext.getCmp('CltgridpanelID');
+        Ext.Ajax.request({
+            url: '../api/v1/user/droits', method: 'GET',
+            success: function (response) {
+                var r = Ext.JSON.decode(response.responseText, true) || {}, bt = OCltgridpanelID && OCltgridpanelID.down('#btnToutSelectionner');
+                if (bt && r.role && r.role.code === 'SUPER_ADMINISTRATEUR') {
+                    bt.show();
+                }
+            }
+        });
         if (Omode === "update") {
             ref = this.getOdatasource().lg_ROLE_ID;
             Ext.getCmp('str_inventaire_chosen').setValue(this.getOdatasource().str_NAME);

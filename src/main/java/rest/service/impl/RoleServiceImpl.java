@@ -421,6 +421,14 @@ public class RoleServiceImpl implements RoleService {
             if (bll.userManagement.user.estRoleSuperAdmin(role) && !bll.userManagement.user.estSuperAdmin(user)) {
                 return json.put("success", FAILED).put("errors", "Réservé au super administrateur.");
             }
+            /*
+             * retour du 31/10 : « Tout sélectionner » reserve au super administrateur (un pharmacien ou un
+             * administrateur s'attribuait tous les droits) ; « Tout désélectionner » reste ouvert
+             */
+            if (checked && !bll.userManagement.user.estSuperAdmin(user)) {
+                return json.put("success", FAILED).put("errors",
+                        "Attribuer tous les privilèges est réservé au super administrateur.");
+            }
             // Meme recherche 'contient' que la liste affichee : le lot traite est
             // exactement celui que l'utilisateur a sous les yeux.
             String like = "%" + (StringUtils.isBlank(search) ? "" : search.trim()) + "%";
