@@ -279,6 +279,9 @@ public final class Constant {
      * la fiche article.
      */
     public static final String P_SM_PARAMETER_MANAGER = "P_SM_PARAMETER_MANAGER";
+    /** Menus « Utilisateurs » et « Profils » (faille de droits du 31/10 : exiges par le serveur). */
+    public static final String P_SM_UTILISATEUR = "P_SM_UTILISATEUR";
+    public static final String P_SM_ROLE = "P_SM_ROLE";
     /**
      * Nombre d'actions presentees en icone sur la fiche article ; les suivantes vont dans le menu "...". Le menu
      * disparait quand toutes les actions sont en icone.

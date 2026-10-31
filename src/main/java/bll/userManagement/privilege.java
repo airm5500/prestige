@@ -423,13 +423,13 @@ public class privilege extends bllBase {
             search_value = "%" + (search_value == null ? "" : search_value.trim()) + "%";
 
             if (OTRoleUser != null) {
-                if (OTRoleUser.getLgROLEID().getStrNAME().equalsIgnoreCase(commonparameter.ROLE_SUPERADMIN)) {
+                if (user.estRoleSuperAdmin(OTRoleUser.getLgROLEID())) {
                     lstTPrivilege = this.getOdataManager().getEm().createQuery(
                             "SELECT t FROM TPrivilege t WHERE t.lgPRIVELEGEID LIKE ?1 AND t.strSTATUT = ?2 AND (t.strDESCRIPTION LIKE ?3 OR t.strNAME LIKE ?3) ORDER BY t.strDESCRIPTION ASC")
                             .setParameter(1, lg_PRIVILEGE_ID).setParameter(2, commonparameter.statut_enable)
                             .setParameter(3, search_value).getResultList();
-                } else if (OTRoleUser.getLgROLEID().getStrNAME().equalsIgnoreCase(commonparameter.ROLE_ADMIN)
-                        || OTRoleUser.getLgROLEID().getStrNAME().equalsIgnoreCase(commonparameter.ROLE_PHARMACIEN)) {
+                } else if (user.estRoleAdmin(OTRoleUser.getLgROLEID())
+                        || user.estRolePharmacien(OTRoleUser.getLgROLEID())) {
                     lstTPrivilege = this.getOdataManager().getEm().createQuery(
                             "SELECT t FROM TPrivilege t WHERE t.lgPRIVELEGEID LIKE ?1 AND t.strSTATUT = ?2 AND (t.strDESCRIPTION LIKE ?3 OR t.strNAME LIKE ?3) AND (t.strTYPE LIKE ?4 OR t.strTYPE LIKE ?5) ORDER BY t.strDESCRIPTION ASC")
                             .setParameter(1, lg_PRIVILEGE_ID).setParameter(2, commonparameter.statut_enable)

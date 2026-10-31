@@ -69,7 +69,7 @@
 
         TRoleUser OTRoleUser = Ouser.getTRoleUser(OTUser.getLgUSERID());
         if (OTRoleUser != null && OTRoleUser.getLgROLEID() != null) { //a remettre apres optimisation du dashbord
-            xtypeuser = (OTRoleUser.getLgROLEID().getStrNAME().equalsIgnoreCase(commonparameter.ROLE_PHARMACIEN) || OTRoleUser.getLgROLEID().getStrNAME().equalsIgnoreCase(commonparameter.ROLE_SUPERADMIN) || OTRoleUser.getLgROLEID().getStrNAME().equalsIgnoreCase(commonparameter.ROLE_ADMIN) ? "dashboard" : "mainmenumanager");
+            xtypeuser = (user.estRolePharmacien(OTRoleUser.getLgROLEID()) || user.estRoleSuperAdmin(OTRoleUser.getLgROLEID()) || user.estRoleAdmin(OTRoleUser.getLgROLEID()) ? "dashboard" : "mainmenumanager");
         }
         json.put("xtypeuser", xtypeuser);
 

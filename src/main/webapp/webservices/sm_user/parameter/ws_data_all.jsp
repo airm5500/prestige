@@ -95,8 +95,8 @@
     // parametres (y compris SYSTEME). Detection par prefixe de nom (gere les
     // variantes "Administrateur du systeme" / "Super Administrateur du systeme")
     // ou par type de role 'ADMIN'.
-    if (OTRole != null && (user.isSuperAdminRole(OTRole.getStrNAME())
-            || user.isAdminRole(OTRole.getStrNAME())
+    // Faille de droits du 31/10 : profils reconnus a leur droit P_PROFIL_*, plus a leur nom
+    if (OTRole != null && (user.estSuperAdmin(OTUser) || user.estRoleAdmin(OTRole)
             || commonparameter.PARAMETER_ADMIN.equalsIgnoreCase(OTRole.getStrTYPE()))) {
         str_TYPE = "%%";
     }

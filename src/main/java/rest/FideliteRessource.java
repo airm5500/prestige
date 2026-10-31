@@ -95,8 +95,8 @@ public class FideliteRessource {
                         || !commonparameter.statut_enable.equals(lien.getLgROLEID().getStrSTATUT())) {
                     continue;
                 }
-                String nom = lien.getLgROLEID().getStrNAME();
-                if (bll.userManagement.user.isAdminRole(nom) || commonparameter.ROLE_PHARMACIEN.equalsIgnoreCase(nom)) {
+                if (bll.userManagement.user.estRoleAdmin(lien.getLgROLEID())
+                        || bll.userManagement.user.estRolePharmacien(lien.getLgROLEID())) {
                     return true;
                 }
             }

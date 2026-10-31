@@ -41,7 +41,9 @@ public enum TypeLog {
     // demande mobile 56 : nom d'un appareil enregistre (ajoute a la fin : le type est enregistre par son rang)
     NOM_APPAREIL("Nom d'appareil", true),
     // demande mobile 57 : borne de pointage enrolee, retiree, pointage par une borne (ajoute a la fin : rang)
-    BORNE_POINTAGE("Borne de pointage", true);
+    BORNE_POINTAGE("Borne de pointage", true),
+    // faille de droits du 31/10 : acces de depannage ouvert ou ferme (ajoute a la fin : rang)
+    SECURITE_DROITS("Droits et accès sensibles", true);
 
     private final String value;
     private final boolean checked;

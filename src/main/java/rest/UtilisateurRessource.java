@@ -42,6 +42,23 @@ public class UtilisateurRessource {
                 .put("errors", Constant.DECONNECTED_MESSAGE).put("total", 0).toString()).build();
     }
 
+    /**
+     * Faille de droits du 31/10 : le serveur exige le droit du menu « Utilisateurs » sur toutes les routes (et celui de
+     * reinitialiser un mot de passe pour update-password) ; masquer le menu ne suffisait pas. 401 sans session, 403
+     * sans droit. Le super administrateur passe toujours.
+     */
+    private Response droit(String libelle, String... privileges) {
+        TUser u = currentUser();
+        if (u != null && bll.userManagement.user.estSuperAdmin(u)) {
+            return null;
+        }
+        return Droits.refus(servletRequest, libelle, privileges);
+    }
+
+    private Response droitMenu() {
+        return droit("Utilisateurs", Constant.P_SM_UTILISATEUR);
+    }
+
     /** Retours du 25/10 : comptes et profil super administrateur reserves au super administrateur. */
     private Response refus(String message) {
         return Response.ok().entity(
@@ -58,6 +75,10 @@ public class UtilisateurRessource {
         if (user == null) {
             return deconnecte();
         }
+        Response interdit = droitMenu();
+        if (interdit != null) {
+            return interdit;
+        }
         String search = (searchValue != null && !searchValue.isEmpty()) ? searchValue : query;
         return Response.ok().entity(utilisateurService.listUsers(user, search, etat, actifs, start, limit).toString())
                 .build();
@@ -70,6 +91,10 @@ public class UtilisateurRessource {
         TUser user = currentUser();
         if (user == null) {
             return deconnecte();
+        }
+        Response interdit = droitMenu();
+        if (interdit != null) {
+            return interdit;
         }
         String refus = utilisateurService.refusSuperAdmin(user, userId, null);
         if (refus != null) {
@@ -88,6 +113,10 @@ public class UtilisateurRessource {
             @FormParam("str_LIEU_TRAVAIL") String emplacementId) {
         if (currentUser() == null) {
             return deconnecte();
+        }
+        Response interdit = droitMenu();
+        if (interdit != null) {
+            return interdit;
         }
         String refus = utilisateurService.refusSuperAdmin(currentUser(), null, roleId);
         if (refus != null) {
@@ -110,6 +139,10 @@ public class UtilisateurRessource {
         if (currentUser() == null) {
             return deconnecte();
         }
+        Response interdit = droitMenu();
+        if (interdit != null) {
+            return interdit;
+        }
         String refus = utilisateurService.refusSuperAdmin(currentUser(), userId, roleId);
         if (refus != null) {
             return refus(refus);
@@ -127,6 +160,10 @@ public class UtilisateurRessource {
         if (user == null) {
             return deconnecte();
         }
+        Response interdit = droitMenu();
+        if (interdit != null) {
+            return interdit;
+        }
         String refus = utilisateurService.refusSuperAdmin(user, userId, null);
         if (refus != null) {
             return refus(refus);
@@ -140,6 +177,14 @@ public class UtilisateurRessource {
     public Response updatePassword(@FormParam("lg_USER_ID") String userId, @FormParam("str_PASSWORD") String password) {
         if (currentUser() == null) {
             return deconnecte();
+        }
+        Response interdit = droit("Réinitialiser le mot de passe d'un utilisateur",
+                bll.common.Parameter.P_BT_MODIFICATION_USER);
+        if (interdit == null) {
+            interdit = droitMenu();
+        }
+        if (interdit != null) {
+            return interdit;
         }
         String refus = utilisateurService.refusSuperAdmin(currentUser(), userId, null);
         if (refus != null) {

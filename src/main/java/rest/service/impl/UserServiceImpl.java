@@ -331,17 +331,15 @@ public class UserServiceImpl implements UserService {
 
             roleName = (role != null ? role.getStrDESIGNATION() : "");
 
-            if (role != null && (role.getStrNAME().equalsIgnoreCase(Constant.ROLE_SUPERADMIN)
-                    || role.getStrNAME().equalsIgnoreCase(Constant.ROLE_PHARMACIEN))) {
+            if (bll.userManagement.user.estRoleSuperAdmin(role) || bll.userManagement.user.estRolePharmacien(role)) {
                 xtypeload = "dashboard";
             }
             /*
              * Retours du 06/10 : administrateur, super administrateur et pharmacien reviennent au tableau de bord par
              * le bouton de l'en-tete ; les autres profils gardent le Metro. L'ecran d'accueil (xtypeload) est inchange.
              */
-            retourTableauBord = role != null && (role.getStrNAME().equalsIgnoreCase(Constant.ROLE_SUPERADMIN)
-                    || role.getStrNAME().equalsIgnoreCase(Constant.ROLE_PHARMACIEN)
-                    || role.getStrNAME().equalsIgnoreCase(Constant.ROLE_ADMIN));
+            retourTableauBord = bll.userManagement.user.estRoleSuperAdmin(role)
+                    || bll.userManagement.user.estRolePharmacien(role) || bll.userManagement.user.estRoleAdmin(role);
         }
 
         TLanguage tLanguage = tu.getLgLanguageID();

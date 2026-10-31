@@ -50,7 +50,11 @@
     new logger().oCategory.info("le mode : " + request.getParameter("mode"));
     new logger().oCategory.info("ID " + request.getParameter("lg_ROLE_ID"));
 
-    if (request.getParameter("mode") != null) {
+    /* Faille de droits du 31/10 : plus aucun ecran n'appelle cette page (les profils passent par v1/roles, qui applique
+       les regles) ; elle reste appelable directement, donc reservee au super administrateur. */
+    if (request.getParameter("mode") != null && !bll.userManagement.user.estSuperAdmin(OTUser)) {
+        ObllBase.setDetailmessage("Reserve au super administrateur");
+    } else if (request.getParameter("mode") != null) {
 
         if (request.getParameter("mode").toString().equals("create")) {
             Ouser.createRole(str_NAME, str_DESIGNATION, str_TYPE);

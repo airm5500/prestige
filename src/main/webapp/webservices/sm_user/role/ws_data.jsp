@@ -92,7 +92,7 @@
     user Ouser = new user(OdataManager);
     OTRole = Ouser.getTRoleUser(OTUser.getLgUSERID()).getLgROLEID();
     role = (OTRole != null ? OTRole.getStrNAME() : "");
-    lstTRole = Ouser.lstTRoles(search_value, lg_ROLE_ID, role);
+    lstTRole = Ouser.lstTRoles(search_value, lg_ROLE_ID, OTRole);
 %>
 
 <%

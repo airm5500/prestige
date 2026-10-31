@@ -42,9 +42,29 @@
     new logger().oCategory.info("le mode : " + request.getParameter("mode"));
     new logger().oCategory.info("ID " + request.getParameter("str_KEY"));
 
+    /* Faille de droits du 31/10 : une session ne suffit plus. Les deux reglages des ecrans de stock (jours de stock,
+       mois avant peremption) restent ouverts a qui ouvre ces ecrans ; toute autre cle exige le droit du menu « Gestion
+       des parametrages », une cle qui n'est pas de type CUSTOMER l'administrateur, l'acces de depannage le super
+       administrateur (memes regles que v1/app-params, que l'ecran des parametres utilise). */
+    String refusParametre = null;
+    if (!"KEY_DAY_STOCK".equals(str_KEY) && !"KEY_MONTH_PERIME".equals(str_KEY)
+            && !bll.userManagement.user.estSuperAdmin(OTUser)) {
+        dal.TParameters existantParam = OTparameterManager.getParameter(str_KEY);
+        if (!rest.Droits.a(request, util.Constant.P_SM_PARAMETER_MANAGER)) {
+            refusParametre = "Droit manquant : Gestion des parametrages";
+        } else if ("ACCES_DEPANNAGE_ACTIF".equalsIgnoreCase(str_KEY.trim())) {
+            refusParametre = "Reserve au super administrateur";
+        } else if (existantParam != null && !commonparameter.PARAMETER_CUSTOMER.equalsIgnoreCase(existantParam.getStrTYPE())
+                && !bll.userManagement.user.estAdminOuSuperAdmin(OTUser)) {
+            refusParametre = "Parametre reserve a l'administrateur";
+        }
+    }
     if (request.getParameter("mode") != null) {
 
         if (request.getParameter("mode").toString().equals("create")) {
+        } else if (request.getParameter("mode").toString().equals("update") && refusParametre != null) {
+            OTparameterManager.setMessage(commonparameter.PROCESS_FAILED);
+            OTparameterManager.setDetailmessage(refusParametre);
         } else if (request.getParameter("mode").toString().equals("update")) {
 
             OTparameterManager.updateParameter(str_KEY, str_VALUE, str_DESCRIPTION);

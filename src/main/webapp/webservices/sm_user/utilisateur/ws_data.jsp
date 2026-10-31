@@ -78,8 +78,8 @@
     P_BT_MODIFICATION_USER = Oprivilege.isColonneStockMachineIsAuthorize(Parameter.P_BT_MODIFICATION_USER);
     OTRole = Ouser.getTRoleUser(OTUser.getLgUSERID()).getLgROLEID();
     role = (OTRole != null ? OTRole.getStrNAME() : "");
-    lstTRoleUser = Ouser.showAllOrOneEmplacement(search_value, lg_USER_ID, OTUser.getLgEMPLACEMENTID().getLgEMPLACEMENTID(), role, etat, start, limit);
-    total = Ouser.showAllOrOneEmplacement(search_value, lg_USER_ID, OTUser.getLgEMPLACEMENTID().getLgEMPLACEMENTID(), role, etat).size();
+    lstTRoleUser = Ouser.showAllOrOneEmplacement(search_value, lg_USER_ID, OTUser.getLgEMPLACEMENTID().getLgEMPLACEMENTID(), OTRole, etat, start, limit);
+    total = Ouser.showAllOrOneEmplacement(search_value, lg_USER_ID, OTUser.getLgEMPLACEMENTID().getLgEMPLACEMENTID(), OTRole, etat).size();
 
 %>
 

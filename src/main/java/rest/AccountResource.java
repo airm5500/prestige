@@ -154,12 +154,10 @@ public class AccountResource {
                     .orElse(null);
             TRole role = oTRoleUser.getLgROLEID();
             hs.setAttribute(Constant.USER_ROLE_ID, role.getLgROLEID());
-            // Detection admin/super-admin par prefixe (gere les noms suffixes "... du systeme")
-            // pour que ces profils arrivent bien sur le dashboard apres connexion.
-            String roleName = role.getStrNAME();
-            boolean goDashboard = (roleName != null && roleName.equalsIgnoreCase(Constant.ROLE_PHARMACIEN))
-                    || bll.userManagement.user.isSuperAdminRole(roleName)
-                    || bll.userManagement.user.isAdminRole(roleName);
+            // Pharmacien, administrateur et super administrateur arrivent sur le tableau de bord (profils reconnus a
+            // leur droit P_PROFIL_*, plus a leur nom : faille de droits du 31/10)
+            boolean goDashboard = bll.userManagement.user.estRolePharmacien(role)
+                    || bll.userManagement.user.estRoleSuperAdmin(role) || bll.userManagement.user.estRoleAdmin(role);
             xtypeuser = goDashboard ? dashboard : "mainmenumanager";
 
         }
@@ -250,11 +248,11 @@ public class AccountResource {
         String code;
         if (nom == null) {
             code = "AUTRE";
-        } else if (bll.userManagement.user.isSuperAdminRole(nom)) {
+        } else if (bll.userManagement.user.estRoleSuperAdmin(role)) {
             code = "SUPER_ADMINISTRATEUR";
-        } else if (bll.userManagement.user.isAdminRole(nom)) {
+        } else if (bll.userManagement.user.estRoleAdmin(role)) {
             code = "ADMINISTRATEUR";
-        } else if (nom.equalsIgnoreCase(Constant.ROLE_PHARMACIEN)) {
+        } else if (bll.userManagement.user.estRolePharmacien(role)) {
             code = "PHARMACIEN";
         } else if ("SYSTEM_USER".equalsIgnoreCase(nom)) {
             code = "SYSTEME";
