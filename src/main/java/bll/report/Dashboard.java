@@ -24,6 +24,15 @@ import toolkits.utils.logger;
  * @author KKOFFI
  */
 public class Dashboard extends bll.bllBase {
+
+    static final String CA_GRAPHE_QUERY = "SELECT SUM(o.`int_PRICE`-COALESCE(o.`int_PRICE_REMISE`,0)),"
+            + "COUNT(o.`lg_PREENREGISTREMENT_ID`),DATE_FORMAT(o.`dt_UPDATED`,'%m/%Y') "
+            + "FROM t_preenregistrement o WHERE o.lg_TYPE_VENTE_ID <> '5' AND o.`int_PRICE` > 0 "
+            + "AND o.`str_STATUT`='" + commonparameter.statut_is_Closed + "' "
+            + "AND COALESCE(o.`b_IS_CANCEL`,0)=0 AND o.`dt_UPDATED` >= ?1 AND o.`dt_UPDATED` < ?2 "
+            + "GROUP BY DATE_FORMAT(o.`dt_UPDATED`,'%m/%Y') "
+            + "ORDER BY DATE_FORMAT(o.`dt_UPDATED`,'%m/%Y')";
+
     public Dashboard() {
         super.checkDatamanager();
     }
@@ -221,13 +230,9 @@ public class Dashboard extends bll.bllBase {
 
     public JSONArray getCaGrapheData() {
         JSONArray array = new JSONArray();
-        String query = "SELECT SUM(o.`int_PRICE`-o.`int_PRICE_REMISE`),COUNT(o.`lg_PREENREGISTREMENT_ID`),DATE_FORMAT(o.`dt_UPDATED`,'%m/%Y') FROM t_preenregistrement o"
-                + " WHERE  o.lg_TYPE_VENTE_ID <> '5' AND     o.`int_PRICE` >0 AND o.`str_STATUT` ='"
-                + commonparameter.statut_is_Closed
-                + "' AND o.`dt_UPDATED` >= ?1 AND o.`dt_UPDATED` < ?2 GROUP BY DATE_FORMAT(o.`dt_UPDATED`,'%m/%Y') ORDER BY DATE_FORMAT(o.`dt_UPDATED`,'%m/%Y')";
         try {
-            new logger().OCategory.info("query:" + query);
-            List<Object[]> list = this.getOdataManager().getEm().createNativeQuery(query)
+            new logger().OCategory.info("query:" + CA_GRAPHE_QUERY);
+            List<Object[]> list = this.getOdataManager().getEm().createNativeQuery(CA_GRAPHE_QUERY)
                     .setParameter(1, startOfYear(), TemporalType.TIMESTAMP)
                     .setParameter(2, startOfNextYear(), TemporalType.TIMESTAMP).getResultList();
             for (Object[] objects : list) {

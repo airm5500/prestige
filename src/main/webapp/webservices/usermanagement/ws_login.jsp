@@ -46,6 +46,21 @@
         str_LOGIN = request.getParameter("str_LOGIN").toString();
     }
 
+    TUser connectedUser = (TUser) session.getAttribute(commonparameter.AIRTIME_USER);
+    if (connectedUser != null && connectedUser.getStrLOGIN() != null
+            && !connectedUser.getStrLOGIN().trim().equalsIgnoreCase(str_LOGIN.trim())) {
+        JSONObject conflict = new JSONObject();
+        conflict.put("code_statut", "0");
+        conflict.put("errorCode", "DIFFERENT_USER_ALREADY_CONNECTED");
+        conflict.put("desc_statut", "Un autre utilisateur est deja connecte dans ce navigateur. Deconnectez-le avant de changer de compte.");
+        JSONArray conflicts = new JSONArray();
+        conflicts.put(conflict);
+        response.setStatus(HttpServletResponse.SC_CONFLICT);
+        response.setContentType("application/json");
+        out.print(conflicts.toString());
+        return;
+    }
+
     dataManager OdataManager = new dataManager();
     OdataManager.initEntityManager();
 
@@ -85,7 +100,7 @@
         List<TPrivilege> LstTPrivilege = Oprivilege.GetAllPrivilege(Oauthentification.getOTUser());
         // OStockManager.updateStockFamille(); // 17/06/2016
         OTparameterManager.updateSpecialMovementDate();
-        // OTparameterManager.setJobOfDatabase(); //code ajouté 26/03/2017
+        // OTparameterManager.setJobOfDatabase(); //code ajoutÃ© 26/03/2017
         /* OStockManager.updateStockFamille();
          OfamilleManagement.updateSeuil();*/
         Oprivilege.setOTUser(Oauthentification.getOTUser());
@@ -96,10 +111,10 @@
         session.setAttribute(commonparameter.UPDATE_PRICE, bool_UPDATE_PRICE);
       
 
-        //affichage des données de bienvenue sur l'afficheur de caisse
+        //affichage des donnÃ©es de bienvenue sur l'afficheur de caisse
         new Preenregistrement(OdataManager, Oauthentification.getOTUser()).reinitializeDisplay(OTOfficine.getStrNOMABREGE(), "Caisse: " + Oauthentification.getOTUser().getStrFIRSTNAME());
 
-        //fin affichage des données de bienvenue sur l'afficheur de caisse
+        //fin affichage des donnÃ©es de bienvenue sur l'afficheur de caisse
     }
 
     json.put("desc_statut", Oauthentification.getDetailmessage());

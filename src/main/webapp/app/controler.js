@@ -58,8 +58,11 @@ function authenticate(str_LOGIN, Str_PASSWORD) {
                         $("#loader").hide();
                     }
 
-                }, error: function () {
-                    alert("Erreur de connexion. Veuillez  ressayer");
+                }, error: function (xhr) {
+                    var message = xhr.responseJSON && xhr.responseJSON.message
+                            ? xhr.responseJSON.message
+                            : "Erreur de connexion. Veuillez ressayer";
+                    alert(message);
                     $("#loader").hide();
                 }
             }
