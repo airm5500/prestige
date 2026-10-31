@@ -406,6 +406,41 @@ public class DossierClientService {
         }
     }
 
+    /**
+     * Demande 58 (Prestige Mobile, 31/10) : CORRIGE ou EFFACE la date de naissance depuis la fiche client
+     * ({@code remplacer: true}). Une date est controlee comme a l'ordonnance (impossible, a venir, plus de
+     * {@value OrdonnanceClientSaisie#AGE_MAX} ans) ; une date vide ou nulle efface celle du client. Vaut pour tous les
+     * types de client : la fiche complete permet deja la meme modification avec le meme droit. Le journal nomme le
+     * client et l'utilisateur, jamais la date (donnee de sante).
+     */
+    @SuppressWarnings("unchecked")
+    public JSONObject remplacerNaissance(String clientId, JSONObject r, TUser operateur) {
+        String saisie = r.isNull("naissance") ? null : StringUtils.trimToNull(r.optString("naissance", null));
+        String motif = DateNaissance.valider(saisie, LocalDate.now());
+        if (motif != null) {
+            return refus(motif);
+        }
+        LocalDate date = DateNaissance.lire(saisie);
+        try {
+            List<Object> l = em.createNativeQuery("SELECT lg_CLIENT_ID FROM t_client WHERE lg_CLIENT_ID = ?1")
+                    .setParameter(1, StringUtils.defaultString(clientId)).getResultList();
+            if (l.isEmpty()) {
+                return refus("Client introuvable.");
+            }
+            em.createNativeQuery("UPDATE t_client SET dt_NAISSANCE = ?1, dt_UPDATED = NOW() WHERE lg_CLIENT_ID = ?2")
+                    .setParameter(1, date == null ? null : java.sql.Date.valueOf(date)).setParameter(2, clientId)
+                    .executeUpdate();
+            LOG.log(Level.INFO, "Date de naissance du client {0} {1} par {2}", new Object[] { clientId,
+                    date == null ? "effacée" : "modifiée", operateur == null ? "?" : operateur.getStrLOGIN() });
+            return new JSONObject().put("success", true)
+                    .put("message", date == null ? "Date de naissance effacée." : "Date de naissance modifiée.")
+                    .put("naissance", date == null ? "" : date.toString());
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "date de naissance d'un client", e);
+            return refus("La date de naissance n'a pas pu être enregistrée.");
+        }
+    }
+
     /** Ajoute des terrains au dossier (sans rien retirer). Un identifiant inconnu est ignore. */
     public void ajouterTerrains(String clientId, JSONArray terrains) {
         for (int i = 0; terrains != null && i < terrains.length(); i++) {

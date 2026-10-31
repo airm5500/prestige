@@ -123,7 +123,9 @@ public class OrdonnanceClientRessource {
         return Response.ok()
                 .entity(new JSONObject().put("success", true)
                         .put("consulter", autorise(DateConverter.P_ORDONNANCE_CLIENT))
-                        .put("modifier", autorise(DateConverter.P_ORDONNANCE_CLIENT_MAJ)).toString())
+                        .put("modifier", autorise(DateConverter.P_ORDONNANCE_CLIENT_MAJ))
+                        /* demande 58 : la date de naissance peut etre corrigee ou effacee (identite, remplacer) */
+                        .put("naissanceModifiable", autorise(DateConverter.P_ORDONNANCE_CLIENT_MAJ)).toString())
                 .build();
     }
 
@@ -855,7 +857,13 @@ public class OrdonnanceClientRessource {
         if (!autorise(DateConverter.P_ORDONNANCE_CLIENT)) {
             return refusConsultation();
         }
-        return Response.ok().entity(dossierService.dossier(clientId).toString()).build();
+        JSONObject d = dossierService.dossier(clientId);
+        /* demande 58 : capacite lue par Prestige Mobile pour proposer « Modifier » et « Effacer » */
+        JSONObject client = d.optJSONObject("client");
+        if (client != null) {
+            client.put("naissanceModifiable", autorise(DateConverter.P_ORDONNANCE_CLIENT_MAJ));
+        }
+        return Response.ok().entity(d.toString()).build();
     }
 
     @POST
@@ -885,8 +893,14 @@ public class OrdonnanceClientRessource {
             return refusEcriture();
         }
         JSONObject r = lireCorps(corps);
-        return r == null ? refus("La saisie n'a pas pu être lue.")
-                : Response.ok().entity(dossierService.completerIdentite(clientId, r).toString()).build();
+        if (r == null) {
+            return refus("La saisie n'a pas pu être lue.");
+        }
+        /* demande 58 : « remplacer » corrige ou efface la date de naissance ; sans lui, completion seulement */
+        return Response.ok()
+                .entity((r.optBoolean("remplacer", false) ? dossierService.remplacerNaissance(clientId, r, operateur)
+                        : dossierService.completerIdentite(clientId, r)).toString())
+                .build();
     }
 
     /** Retours du 13/10 (point 13) : les ventes du client sur la periode, une ligne par vente (« Par vente »). */
