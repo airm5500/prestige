@@ -171,7 +171,17 @@ function masquerCourbeVentesDetail() {
 
 // Un bouton par annee presente + un bouton de comparaison : la courbe ne
 // s'affiche qu'a la demande, le tableau annuel reste la vue par defaut.
+// Retour du 31/10 : les boutons sont poses mises en page suspendues (un seul calcul au lieu d'un par bouton).
 function construireBoutonsVentesDetail() {
+    Ext.suspendLayouts();
+    try {
+        poserBoutonsVentesDetail();
+    } finally {
+        Ext.resumeLayouts(true);
+    }
+}
+
+function poserBoutonsVentesDetail() {
     var cont = Ext.getCmp('ventes_boutons_detail');
     if (!cont) {
         return;
@@ -1590,7 +1600,18 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
             }
         });
     },
+    /* retour du 31/10 (point 4) : ouverture lente selon le poste. Chaque setValue relancait le calcul de toute la
+       fenetre (43 calculs a l'ouverture, 3 s sur un poste modeste) : la fiche est remplie mises en page suspendues,
+       puis calculee une seule fois. */
     updateCmp: function (rec) {
+        Ext.suspendLayouts();
+        try {
+            this.remplirFiche(rec);
+        } finally {
+            Ext.resumeLayouts(true);
+        }
+    },
+    remplirFiche: function (rec) {
         // Separateur de millier (espace) pour les montants affiches.
         const formatMillier = function (v) {
             if (v === null || v === undefined || v === '') {
