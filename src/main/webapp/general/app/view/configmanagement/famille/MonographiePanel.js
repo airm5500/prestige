@@ -69,16 +69,27 @@ Ext.define('testextjs.view.configmanagement.famille.MonographiePanel', {
     ajuster: function () {
         var me = this;
         me.garderDefilement();
-        var haut = me.hautGarde; /* chaque recalcul en attente remet la position relevee au depart */
+        /* retour du 31/10 (lenteur selon le poste) : les modifications rapprochees (rubriques, corps, source) ne
+           demandent qu'un calcul, qui couvre le panneau et son conteneur ; la position relevee au depart est remise */
+        if (me.ajustementPrevu) {
+            return;
+        }
+        me.ajustementPrevu = true;
         Ext.defer(function () {
+            me.ajustementPrevu = false;
             if (me.isDestroyed || !me.rendered) {
                 return;
             }
-            var c = me.conteneurDefilant(), d = me.domDefilant();
+            var c = me.conteneurDefilant(), d = me.domDefilant(), haut = me.hautGarde;
             me.hautGarde = null;
-            me.updateLayout();
-            if (c) {
-                c.updateLayout();
+            Ext.suspendLayouts();
+            try {
+                me.updateLayout();
+                if (c) {
+                    c.updateLayout();
+                }
+            } finally {
+                Ext.resumeLayouts(true);
             }
             if (d && haut !== null && haut !== undefined && d.scrollTop !== haut) {
                 d.scrollTop = haut;
