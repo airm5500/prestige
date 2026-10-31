@@ -4,6 +4,7 @@
  * MONOGRAPHIE (DS Pharmagora / VIDAL) d'un article : posologie, composition, contre-indications, interactions...
  * Une rangee de rubriques ; la fiche s'affiche dans le panneau (aucune fenetre). Le site n'est jamais appele par le
  * navigateur : le serveur le lit et garde chaque fiche (v1/monographie). Le panneau se masque si le service est coupe.
+ * La fiche n'est demandee qu'a la demande de l'utilisateur (bouton « Afficher la monographie » ou rubrique).
  */
 Ext.define('testextjs.view.configmanagement.famille.MonographiePanel', {
     extend: 'Ext.panel.Panel',
@@ -25,6 +26,8 @@ Ext.define('testextjs.view.configmanagement.famille.MonographiePanel', {
                 var b = e.getTarget('[data-rub]');
                 if (b) {
                     me.charger(parseInt(b.getAttribute('data-rub'), 10), false);
+                } else if (e.getTarget('.mono-afficher')) {
+                    me.charger(me.rubrique, false);
                 } else if (e.getTarget('.mono-relire')) {
                     me.charger(me.rubrique, true);
                 }
@@ -51,8 +54,16 @@ Ext.define('testextjs.view.configmanagement.famille.MonographiePanel', {
                     return;
                 }
                 me.rubriques = o.rubriques || [];
+                /* retour du 31/10 : le site est lent ou en panne ; il n'est plus interroge a l'ouverture de la fiche,
+                   seulement au clic sur « Afficher la monographie » ou sur une rubrique */
+                me.ouverte = false;
                 me.dessinerRubriques();
-                me.charger(me.rubrique, false);
+                var corps = me.zone('mono-corps');
+                if (corps) {
+                    corps.setHTML('<div class="mono-vide"><button type="button" class="mono-rub mono-afficher">'
+                            + 'Afficher la monographie</button></div>');
+                    me.ajuster();
+                }
             }
         });
     },
@@ -122,7 +133,7 @@ Ext.define('testextjs.view.configmanagement.famille.MonographiePanel', {
     dessinerRubriques: function () {
         var me = this, h = '';
         Ext.each(me.rubriques, function (r) {
-            h += '<button type="button" class="mono-rub' + (r.numero === me.rubrique ? ' actif' : '')
+            h += '<button type="button" class="mono-rub' + (me.ouverte && r.numero === me.rubrique ? ' actif' : '')
                     + '" data-rub="' + r.numero + '">' + Ext.String.htmlEncode(r.libelle) + '</button>';
         });
         var z = me.zone('mono-rubriques');
@@ -138,6 +149,7 @@ Ext.define('testextjs.view.configmanagement.famille.MonographiePanel', {
             return;
         }
         me.rubrique = rub;
+        me.ouverte = true;
         me.garderDefilement();
         /* retour du 31/10 : pendant le chargement, le corps garde sa hauteur ; reduit a une ligne, il faisait remonter
            la page (le navigateur ramene le defilement a la nouvelle hauteur) ; idem pour la ligne de la source, videe

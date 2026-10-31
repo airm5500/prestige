@@ -101,7 +101,13 @@ function nettoyer() {
       await p.evaluate((id) => { const g = Ext.ComponentQuery.query('famillemanager')[0]; g.onDetailClick(g, g.getStore().findExact('lg_FAMILLE_ID', id)); }, art[0]);
       await p.waitForFunction(() => Ext.ComponentQuery.query('#monographieDetail').length > 0, null, { timeout: 30000 });
     };
+    /* retour du 31/10 : la fiche n'est chargee qu'au clic sur « Afficher la monographie » */
+    const afficher = async () => {
+      await p.waitForSelector('.mono-panel .mono-afficher', { timeout: 30000 });
+      await p.click('.mono-panel .mono-afficher');
+    };
     await ouvrirDetail(A);
+    await afficher();
     await p.waitForFunction(() => { const c = Ext.ComponentQuery.query('#monographieDetail')[0]; return c.getEl() && c.getEl().dom.querySelector('.mono-titre'); }, null, { timeout: 30000 });
     await p.evaluate(() => { const s = Ext.ComponentQuery.query('#monographieSection')[0]; s.getEl().dom.scrollIntoView(); });
     await p.waitForTimeout(500);
@@ -133,6 +139,7 @@ function nettoyer() {
     await p.evaluate(() => Ext.ComponentQuery.query('#monographieDetail')[0].up('window').close());
     await p.waitForTimeout(500);
     await ouvrirDetail(C);
+    await afficher();
     await p.waitForFunction(() => { const c = Ext.ComponentQuery.query('#monographieDetail')[0]; return c.getEl() && /Aucune monographie/.test(c.getEl().dom.textContent); }, null, { timeout: 30000 });
     ok('Article sans monographie : message dans la section, sans fenêtre', await p.evaluate(() => Ext.ComponentQuery.query('messagebox{isVisible()}').length === 0));
     await p.evaluate(() => Ext.ComponentQuery.query('#monographieDetail')[0].up('window').close());

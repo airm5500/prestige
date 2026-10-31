@@ -53,6 +53,8 @@ const fiche = (n) => JSON.stringify({ success: true, trouve: true, lueLe: Date.n
     ok('« Commandes reçues » : au moins 10 lignes visibles (si affichée)', !g[1].visible || g[1].lignes >= 10, JSON.stringify(g[1]));
 
     /* monographie : fiche de 12 paragraphes, defilement tout en bas, clic sur une autre rubrique (fiche courte) */
+    /* retour du 31/10 : la fiche n'est chargee qu'au clic sur « Afficher la monographie » */
+    await p.waitForSelector('.mono-panel .mono-afficher', { timeout: 30000 }).then(() => p.click('.mono-panel .mono-afficher')).catch(() => {});
     const mono = await p.waitForFunction(() => { const m = Ext.ComponentQuery.query('#monographieDetail')[0];
       return m && m.isVisible(true) && m.getEl().dom.querySelectorAll('.mono-corps p').length >= 12; }, null, { timeout: 30000 }).then(() => true).catch(() => false);
     ok('Monographie affichée (fiche simulée)', mono);
