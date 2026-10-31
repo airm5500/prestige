@@ -447,15 +447,16 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                     title: 'Infos.Generales sur l\'article',
                     items: [
                         {
-                            // Bandeau d'identification de l'article
+                            // Bandeau d'identification de l'article. Retour du 31/10 : sur un petit ecran, le nom
+                            // (hbox) etait reduit a presque rien et passait sous « Péremption proche » ; les zones
+                            // vont maintenant a la ligne quand la place manque (flex CSS), le nom garde sa largeur.
                             xtype: 'container',
-                            layout: {
-                                type: 'hbox',
-                                align: 'middle'
-                            },
+                            itemId: 'bandeauArticle',
+                            layout: 'auto',
                             padding: '6 12',
                             margin: '0 0 10 0',
-                            style: 'background:#f4f8fb;border:1px solid #dbe4ec;border-radius:6px;',
+                            style: 'background:#f4f8fb;border:1px solid #dbe4ec;border-radius:6px;display:flex;flex-wrap:wrap;'
+                                    + 'align-items:center;column-gap:20px;row-gap:4px;',
                             defaultType: 'displayfield',
                             items: [
                                 {
@@ -463,7 +464,6 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                                     name: 'int_CIP',
                                     id: 'int_CIP',
                                     fieldStyle: 'color:#1a3fc4;font-weight:bold;font-size:22px',
-                                    margin: '0 25 0 0',
                                     value: 0
                                 },
                                 {
@@ -471,7 +471,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                                     name: 'str_DESCRIPTION',
                                     id: 'str_DESCRIPTION',
                                     fieldStyle: 'color:#2b2b2b;font-weight:bold;font-size:17px',
-                                    flex: 1
+                                    style: 'flex:1 1 260px;min-width:220px'
                                 },
                                 {
                                     // Date de peremption la plus proche (lot en stock, sinon date de la fiche) :
@@ -480,8 +480,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                                     name: 'peremption_proche_detail',
                                     id: 'peremption_proche_detail',
                                     hidden: true,
-                                    width: 430,
-                                    margin: '0 20 0 0'
+                                    style: 'flex:0 1 auto;max-width:430px'
                                 },
                                 {
                                     fieldLabel: 'EAN 13',
@@ -490,8 +489,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                                     name: 'int_EAN13',
                                     id: 'int_EAN13',
                                     fieldStyle: 'color:#555555;font-size:14px',
-                                    width: 230,
-                                    margin: '0 20 0 0'
+                                    width: 230
                                 },
                                 {
                                     // Code EAN fabricant : affiche seulement. Retour du 15/10 : il se saisit a la
@@ -501,8 +499,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                                     labelStyle: 'color:#7a7a7a;font-size:13px',
                                     id: 'eanFabricantDetail',
                                     fieldStyle: 'color:#555555;font-size:14px',
-                                    width: 260,
-                                    margin: '0 20 0 0'
+                                    width: 260
                                 },
                                 {
                                     fieldLabel: 'Classe ABC',
@@ -823,7 +820,8 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                             id: 'gridpanelDetailID',
                             margin: '0 0 5 0',
                             store: store_vente,
-                            height: 200,
+                            /* retour du 31/10 : au moins 10 lignes visibles sans defiler (200 px n'en montraient que 2 ou 3) */
+                            height: 420,
                             columns: [{
                                     header: 'Date',
                                     dataIndex: 'dt_UPDATED',
@@ -964,7 +962,8 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                             id: 'gridpanelOrderID',
                             margin: '0 0 5 0',
                             store: store_order,
-                            height: 200,
+                            /* retour du 31/10 : au moins 10 lignes visibles sans defiler (200 px n'en montraient que 2 ou 3) */
+                            height: 420,
                             columns: [{
                                     header: 'Date entrée',
                                     dataIndex: 'dt_ENTREE',

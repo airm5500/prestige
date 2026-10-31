@@ -109,8 +109,10 @@ Ext.define('testextjs.view.stockmanagement.etiquetagepro.EtiquetagePro', {
                 ]},
             /* retours du 25/10 (point 6) : ouvert apres une entree en stock seulement (modeApresEntree) */
             {xtype: 'toolbar', itemId: 'barreRetour', dock: 'bottom', hidden: true, items: ['->',
+                    /* retour du 31/10 : sans infobulle ; collee au coin de l'ecran, elle se posait sur le bouton et prenait
+                       le clic (le libelle dit deja tout) */
                     {text: 'Retour à commande en cours', itemId: 'retourCommande', cls: 'btn-primary', iconCls: 'retour',
-                        tooltip: 'Revenir aux commandes en cours', handler: function () {
+                        handler: function () {
                             testextjs.app.getController('App').onLoadNewComponent('i_order_manager', 'Commande en cours', '');
                         }}]}
         ];

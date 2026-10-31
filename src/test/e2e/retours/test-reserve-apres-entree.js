@@ -6,6 +6,8 @@
  *    reference de la suggestion de reserve automatique ;
  *  - « Ouvrir la suggestion de réserve » ouvre « Gestion des réserves », onglet Suggestions, sur cette suggestion ;
  *  - sans produit concerne, aucune fenetre : la suite habituelle (liste des bons) reprend.
+ * Retour du 31/10 : une ligne ancienne du sens inverse (reserve -> rayon, proposee, jamais traitee) est posee avant
+ * l'entree ; elle est ecartee quand le produit passe dans l'autre sens : un seul mouvement par produit dans la fenetre.
  * Tout est retire : bon, commande, lots, mouvements, journaux, notifications, suggestion ; produit, stock et
  * grossiste du produit remis a l'identique.
  */
@@ -17,7 +19,7 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
 const BASE = ENV_E2E.BASE;
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
-const BL = 'E2E-RAE-BL', DET = 'E2E-RAE-BLD', ORD = 'E2E-RAE-ORD', TSF = 'E2E-RAE-TSF';
+const BL = 'E2E-RAE-BL', DET = 'E2E-RAE-BLD', ORD = 'E2E-RAE-ORD', TSF = 'E2E-RAE-TSF', SR = 'E2E-RAE-SR', SRD = 'E2E-RAE-SRD';
 const REF = 'E2ERAE' + String(Date.now()).slice(-6);
 const debut = q('SELECT NOW()');
 /* produit actif, stock rayon positif, sans reserve deja, avec un grossiste */
@@ -34,7 +36,8 @@ function sauver() {
 function remettre() {
   const susp = q(`SELECT IFNULL(GROUP_CONCAT(CONCAT("'", s.lg_SUGGESTION_RESERVE_ID, "'")), "''") FROM t_suggestion_reserve s WHERE s.dt_CREATED >= '${debut}' AND s.str_ORIGINE = 'AUTOMATIQUE'`
     + ` AND NOT EXISTS (SELECT 1 FROM t_suggestion_reserve_detail d WHERE d.lg_SUGGESTION_RESERVE_ID = s.lg_SUGGESTION_RESERVE_ID AND d.lg_FAMILLE_ID <> '${P}')`);
-  exec(`DELETE FROM t_suggestion_reserve_detail WHERE lg_FAMILLE_ID = '${P}' AND dt_CREATED >= '${debut}';`
+  exec(`DELETE FROM t_suggestion_reserve_detail WHERE lg_SUGGESTION_RESERVE_ID = '${SR}'; DELETE FROM t_suggestion_reserve WHERE lg_SUGGESTION_RESERVE_ID = '${SR}';`
+    + `DELETE FROM t_suggestion_reserve_detail WHERE lg_FAMILLE_ID = '${P}' AND dt_CREATED >= '${debut}';`
     + `DELETE FROM t_suggestion_reserve WHERE lg_SUGGESTION_RESERVE_ID IN (${susp});`
     + `DELETE FROM HMvtProduit WHERE pkey = '${DET}'; DELETE FROM MvtTransaction WHERE pkey = '${BL}';`
     + `DELETE FROM t_lot WHERE str_REF_LIVRAISON = '${REF}'; DELETE FROM notification WHERE entity_ref = '${BL}';`
@@ -64,7 +67,12 @@ function remettre() {
     + `INSERT INTO t_bon_livraison (lg_BON_LIVRAISON_ID, str_REF_LIVRAISON, dt_DATE_LIVRAISON, int_MHT, int_TVA, int_HTTC, lg_ORDER_ID, str_STATUT, dt_CREATED, dt_UPDATED, lg_USER_ID)`
     + ` SELECT '${BL}', '${REF}', NOW(), 2 * f.int_PAF, 0, 2 * f.int_PAF, '${ORD}', 'enable', NOW(), NOW(), u.lg_USER_ID FROM t_famille f, t_user u WHERE f.lg_FAMILLE_ID = '${P}' AND u.str_LOGIN = '${ENV_E2E.LOGIN}';`
     + `INSERT INTO t_bon_livraison_detail (lg_BON_LIVRAISON_DETAIL, lg_GROSSISTE_ID, lg_FAMILLE_ID, lg_BON_LIVRAISON_ID, int_QTE_CMDE, int_QTE_UG, int_QTE_RECUE, int_PRIX_REFERENCE, int_PRIX_VENTE, int_PAF, int_PA_REEL, lg_ZONE_GEO_ID, str_STATUT, dt_CREATED, dt_UPDATED, int_QTE_MANQUANT, int_QTE_RETURN, int_INITSTOCK)`
-    + ` SELECT '${DET}', '${G}', f.lg_FAMILLE_ID, '${BL}', 2, 0, 0, f.int_PRICE, f.int_PRICE, f.int_PAF, f.int_PAF, f.lg_ZONE_GEO_ID, 'enable', NOW(), NOW(), 0, 0, ${STOCK} FROM t_famille f WHERE f.lg_FAMILLE_ID = '${P}';`);
+    + ` SELECT '${DET}', '${G}', f.lg_FAMILLE_ID, '${BL}', 2, 0, 0, f.int_PRICE, f.int_PRICE, f.int_PAF, f.int_PAF, f.lg_ZONE_GEO_ID, 'enable', NOW(), NOW(), 0, 0, ${STOCK} FROM t_famille f WHERE f.lg_FAMILLE_ID = '${P}';`
+    /* ligne ancienne du sens inverse (reserve -> rayon), stocks d'une evaluation precedente, jamais traitee */
+    + `INSERT INTO t_suggestion_reserve (lg_SUGGESTION_RESERVE_ID, str_REF, str_CATEGORIE, str_ORIGINE, str_STATUT, lg_EMPLACEMENT_ID, lg_USER_CREATEUR_ID, dt_CREATED, dt_UPDATED)`
+    + ` SELECT '${SR}', '${SR}', 'RAYON', 'AUTOMATIQUE', 'A_TRAITER', '1', u.lg_USER_ID, NOW(), NOW() FROM t_user u WHERE u.str_LOGIN = '${ENV_E2E.LOGIN}';`
+    + `INSERT INTO t_suggestion_reserve_detail (lg_SUGGESTION_RESERVE_DETAIL_ID, lg_SUGGESTION_RESERVE_ID, lg_FAMILLE_ID, int_QTE_PROPOSEE, int_QTE_RETENUE, int_QTE_DEPLACEE,`
+    + ` int_STOCK_RAYON, int_STOCK_RESERVE, int_SEUIL_DECLENCHEUR, str_ETAT, dt_CREATED) VALUES ('${SRD}', '${SR}', '${P}', 3, 3, 0, 1, 9, 1, 'PROPOSEE', NOW());`);
   const b = await ENV_E2E.lancer(chromium);
   const err = [];
   try {
@@ -82,6 +90,11 @@ function remettre() {
     await p.evaluate((bl) => { const g = Ext.ComponentQuery.query('bonlivraisonmanager')[0]; g.onManageDetailsClick(g, g.getStore().findExact('lg_BON_LIVRAISON_ID', bl)); }, BL);
     await p.waitForFunction(() => Ext.getCmp('btn_enterstock') && Ext.getCmp('int_NUMBER_ETIQUETTE'), null, { timeout: 30000 });
     await p.waitForTimeout(1500);
+    /* retour du 31/10 (point 5) : libelles du cadre etiquette (16 px gras) entiers, sans empieter sur les valeurs */
+    const libelles = await p.evaluate(() => ['int_NUMBER_ETIQUETTE', 'modele_ETIQUETTE_BL', 'code_ETIQUETTE_BL'].map((id) => { const c = Ext.getCmp(id);
+      const l = c.labelEl.dom, lr = l.getBoundingClientRect(), v = c.bodyEl.dom.getBoundingClientRect();
+      return { id, entier: l.scrollWidth <= l.clientWidth + 1, separe: lr.left + l.scrollWidth <= v.left + 1, valeur: Math.round(v.width) }; }));
+    ok('Cadre étiquette : libellés entiers, sans chevaucher leurs valeurs', libelles.every((x) => x.entier && x.separe && x.valeur >= 120), JSON.stringify(libelles));
     const repondre = async (motif, bouton) => {
       await p.waitForFunction((m) => Ext.Msg.isVisible() && new RegExp(m).test(Ext.Msg.msg.getEl().dom.innerText), motif, { timeout: 60000 });
       await p.evaluate((b) => { Ext.Msg.down('button[itemId=' + b + ']').btnEl.dom.click(); }, bouton);
@@ -103,6 +116,11 @@ function remettre() {
     const l = f.lignes.find((x) => x.produitId === P || x.cip === q(`SELECT int_CIP FROM t_famille WHERE lg_FAMILLE_ID = '${P}'`));
     ok('Fenêtre « Seuil de réserve atteint » : le produit, rayon → réserve, 2 à déplacer', /Seuil de réserve atteint/.test(f.titre) && l && l.categorie === 'RESERVE' && l.quantite === 2,
       JSON.stringify(f.lignes));
+    const cipP = q(`SELECT int_CIP FROM t_famille WHERE lg_FAMILLE_ID = '${P}'`), duProduit = f.lignes.filter((x) => x.cip === cipP);
+    ok('Un seul mouvement pour le produit : la ligne ancienne du sens inverse disparaît', duProduit.length === 1 && duProduit[0].categorie === 'RESERVE',
+      JSON.stringify(duProduit.map((x) => x.categorie)));
+    ok('Ligne ancienne écartée (retirée de la suggestion, avec son motif)', q(`SELECT str_ETAT FROM t_suggestion_reserve_detail WHERE lg_SUGGESTION_RESERVE_DETAIL_ID = '${SRD}'`) === 'SUPPRIMEE',
+      q(`SELECT CONCAT_WS(' | ', str_ETAT, str_MOTIF_LIGNE) FROM t_suggestion_reserve_detail WHERE lg_SUGGESTION_RESERVE_DETAIL_ID = '${SRD}'`));
     ok('Elle nomme la suggestion de réserve automatique où le produit est rangé', auto[2] === 'RESERVE' && f.texte.includes(auto[1]) && f.suggestion === auto[0], f.texte + ' / ' + auto.join('|'));
     await p.evaluate(() => Ext.ComponentQuery.query('reserveapresentree #btnOuvrirSuggestion')[0].btnEl.dom.click());
     await p.waitForFunction(() => { const m = Ext.getCmp('reservemanagerID'); return m && m.getActiveTab() && m.getActiveTab().itemId === 'ongletSuggestions'; }, null, { timeout: 30000 }).catch(() => {});

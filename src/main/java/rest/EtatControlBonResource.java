@@ -49,6 +49,17 @@ public class EtatControlBonResource {
                 ? etatControlBonService.grossistesDuGroupe(groupeId.trim()) : grossisteId;
     }
 
+    /** Retour du 31/10 : onglet « BL annulés » de l'etat de controle des achats. */
+    @GET
+    @Path("annules")
+    public Response annules(@QueryParam(value = "search") String search,
+            @QueryParam(value = "grossisteId") String grossisteId, @QueryParam(value = "groupeId") String groupeId,
+            @QueryParam(value = "dtStart") String dtStart, @QueryParam(value = "dtEnd") String dtEnd) {
+        return Response.ok().entity(
+                etatControlBonService.blAnnules(search, dtStart, dtEnd, cible(grossisteId, groupeId)).toString())
+                .build();
+    }
+
     @GET
     @Path("list")
     public Response list(@QueryParam(value = "start") int start, @QueryParam(value = "limit") int limit,

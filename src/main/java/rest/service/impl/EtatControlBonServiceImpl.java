@@ -201,7 +201,8 @@ public class EtatControlBonServiceImpl implements EtatControlBonService {
             }
         }
         if (StringUtils.isNotEmpty(search)) {
-            search = search + "%";
+            /* retour du 31/10 : recherche « contient » (et non plus « commence par ») */
+            search = "%" + search + "%";
             Join<TBonLivraison, TBonLivraisonDetail> join = root.join(TBonLivraison_.tBonLivraisonDetailCollection);
             predicates.add(cb.or(cb.like(root.get(TBonLivraison_.strREFLIVRAISON), search),
                     cb.like(root.get(TBonLivraison_.lgORDERID).get(TOrder_.strREFORDER), search),
@@ -758,6 +759,57 @@ public class EtatControlBonServiceImpl implements EtatControlBonService {
             s.append(o).append(',');
         }
         return s.length() == 0 ? "-,-" : s.toString();
+    }
+
+    /**
+     * Retour du 31/10 : BL annules (retour complet du BL) de la periode, par date d'annulation. Le BL annule passe en
+     * statut delete et garde son montant ; sa contre-passation (meme reference, meme commande, montant negatif) porte
+     * l'operateur qui a annule. Recherche « contient » sur la reference du BL, de la commande et le grossiste.
+     */
+    @Override
+    @SuppressWarnings("unchecked")
+    public JSONObject blAnnules(String search, String dtStart, String dtEnd, String grossisteId) {
+        LocalDate debut = StringUtils.isBlank(dtStart) ? LocalDate.now().withDayOfMonth(1) : LocalDate.parse(dtStart);
+        LocalDate fin = StringUtils.isBlank(dtEnd) ? LocalDate.now() : LocalDate.parse(dtEnd);
+        StringBuilder sql = new StringBuilder("SELECT b.lg_BON_LIVRAISON_ID, b.str_REF_LIVRAISON, o.str_REF_ORDER,"
+                + " g.str_LIBELLE, DATE_FORMAT(b.dt_DATE_LIVRAISON, '%d/%m/%Y'), DATE_FORMAT(b.dt_CREATED, '%d/%m/%Y %H:%i'),"
+                + " DATE_FORMAT(b.dt_UPDATED, '%d/%m/%Y %H:%i'), b.int_MHT, b.int_HTTC,"
+                + " (SELECT TRIM(CONCAT(IFNULL(u.str_FIRST_NAME, ''), ' ', IFNULL(u.str_LAST_NAME, '')))"
+                + " FROM t_bon_livraison c JOIN t_user u ON u.lg_USER_ID = c.lg_USER_ID WHERE c.lg_ORDER_ID = b.lg_ORDER_ID"
+                + " AND c.str_REF_LIVRAISON = b.str_REF_LIVRAISON AND c.int_HTTC < 0 ORDER BY c.dt_CREATED DESC LIMIT 1)"
+                + " FROM t_bon_livraison b JOIN t_order o ON o.lg_ORDER_ID = b.lg_ORDER_ID"
+                + " LEFT JOIN t_grossiste g ON g.lg_GROSSISTE_ID = o.lg_GROSSISTE_ID"
+                + " WHERE b.str_STATUT = 'delete' AND b.int_HTTC > 0 AND b.dt_UPDATED >= ?1 AND b.dt_UPDATED < ?2");
+        if (StringUtils.isNotBlank(search)) {
+            sql.append(" AND (b.str_REF_LIVRAISON LIKE ?3 OR o.str_REF_ORDER LIKE ?3 OR g.str_LIBELLE LIKE ?3)");
+        }
+        List<String> grossistes = StringUtils.isBlank(grossisteId) ? java.util.Collections.emptyList()
+                : java.util.Arrays.asList(grossisteId.split(","));
+        if (!grossistes.isEmpty()) {
+            sql.append(" AND o.lg_GROSSISTE_ID IN ?4");
+        }
+        sql.append(" ORDER BY b.dt_UPDATED DESC");
+        javax.persistence.Query q = em.createNativeQuery(sql.toString())
+                .setParameter(1, java.sql.Timestamp.valueOf(debut.atStartOfDay()))
+                .setParameter(2, java.sql.Timestamp.valueOf(fin.plusDays(1).atStartOfDay()));
+        if (StringUtils.isNotBlank(search)) {
+            q.setParameter(3, "%" + search.trim() + "%");
+        }
+        if (!grossistes.isEmpty()) {
+            q.setParameter(4, grossistes);
+        }
+        org.json.JSONArray data = new org.json.JSONArray();
+        long montant = 0;
+        for (Object[] r : (List<Object[]>) q.getResultList()) {
+            long ttc = r[8] == null ? 0 : ((Number) r[8]).longValue();
+            montant += ttc;
+            data.put(new JSONObject().put("id", r[0]).put("refBl", r[1]).put("refCommande", r[2]).put("grossiste", r[3])
+                    .put("dateBl", r[4]).put("saisiLe", r[5]).put("annuleLe", r[6])
+                    .put("montantHt", r[7] == null ? 0 : ((Number) r[7]).longValue()).put("montantTtc", ttc)
+                    .put("annulePar", StringUtils.defaultString((String) r[9])));
+        }
+        return new JSONObject().put("success", true).put("total", data.length()).put("montantTtc", montant).put("data",
+                data);
     }
 
     /** Parametre du delai de saisie des BL (jours) : au-dela, le BL est saisi en retard. */

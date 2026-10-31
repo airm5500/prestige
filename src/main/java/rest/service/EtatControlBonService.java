@@ -93,6 +93,9 @@ public interface EtatControlBonService {
     byte[] generate(String groupBy, String dtStart, String dtEnd, String grossisteId, Integer groupeId)
             throws IOException;
 
+    /** Retour du 31/10 : BL annules (retour complet du BL) de la periode, par date d'annulation. */
+    JSONObject blAnnules(String search, String dtStart, String dtEnd, String grossisteId);
+
     /** Retours du 10/10 : grossistes d'un groupe (filtre « groupe de grossistes »). */
     String grossistesDuGroupe(String groupeId);
 

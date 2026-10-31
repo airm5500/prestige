@@ -72,14 +72,22 @@ Ext.define('testextjs.view.configmanagement.famille.MonographiePanel', {
             if (me.isDestroyed || !me.rendered) {
                 return;
             }
-            me.updateLayout();
+            /* retour du 31/10 : le recalcul ramenait la page vers le milieu quand on etait en bas ; la position de
+               defilement du conteneur est remise telle quelle */
             var c = me.ownerCt;
             while (c) {
                 if (c.autoScroll || c.isXType('window')) {
-                    c.updateLayout();
                     break;
                 }
                 c = c.ownerCt;
+            }
+            var dom = c && c.rendered ? (c.body || c.getEl()).dom : null, haut = dom ? dom.scrollTop : 0;
+            me.updateLayout();
+            if (c) {
+                c.updateLayout();
+            }
+            if (dom && dom.scrollTop !== haut) {
+                dom.scrollTop = haut;
             }
         }, 10);
     },
@@ -103,6 +111,10 @@ Ext.define('testextjs.view.configmanagement.famille.MonographiePanel', {
             return;
         }
         me.rubrique = rub;
+        /* retour du 31/10 : pendant le chargement, le corps garde sa hauteur ; reduit a une ligne, il faisait remonter
+           la page (le navigateur ramene le defilement a la nouvelle hauteur). La hauteur atteinte reste le minimum :
+           une rubrique courte ne fait pas sauter la page non plus. */
+        corps.setStyle('min-height', corps.getHeight() + 'px');
         me.dessinerRubriques();
         corps.setHTML('<div class="mono-vide">Chargement…</div>');
         me.zone('mono-etat').setHTML('');

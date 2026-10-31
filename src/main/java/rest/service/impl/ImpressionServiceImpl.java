@@ -458,6 +458,47 @@ public class ImpressionServiceImpl implements Printable {
         this.commentaires = commentaires;
     }
 
+    /**
+     * Lignes du nom de l'officine pour la largeur du rouleau : le nom entier s'il tient, sinon coupe aux espaces (un
+     * mot plus large que le rouleau est coupe lui-meme).
+     */
+    static List<String> lignesNomOfficine(String nom, java.awt.FontMetrics fm, double largeur) {
+        List<String> lignes = new ArrayList<>();
+        String n = nom == null ? "" : nom.trim().replaceAll("\\s+", " ");
+        if (n.isEmpty() || fm.stringWidth(n) <= largeur) {
+            lignes.add(nom == null ? "" : nom);
+            return lignes;
+        }
+        StringBuilder l = new StringBuilder();
+        for (String mot : n.split(" ")) {
+            String essai = l.length() == 0 ? mot : l + " " + mot;
+            if (fm.stringWidth(essai) <= largeur) {
+                l.setLength(0);
+                l.append(essai);
+                continue;
+            }
+            if (l.length() > 0) {
+                lignes.add(l.toString());
+                l.setLength(0);
+            }
+            /* mot seul trop large : coupe a la largeur */
+            String reste = mot;
+            while (fm.stringWidth(reste) > largeur && reste.length() > 1) {
+                int k = reste.length() - 1;
+                while (k > 1 && fm.stringWidth(reste.substring(0, k)) > largeur) {
+                    k--;
+                }
+                lignes.add(reste.substring(0, k));
+                reste = reste.substring(k);
+            }
+            l.append(reste);
+        }
+        if (l.length() > 0) {
+            lignes.add(l.toString());
+        }
+        return lignes;
+    }
+
     public void buildHeader(Graphics2D graphics, int scaleImage, int scaleTexte, int start) {
         int logoWidth = 20;
         int logoHeight = 20;
@@ -468,7 +509,24 @@ public class ImpressionServiceImpl implements Printable {
         Image logo = new ImageIcon(jdom.scr_report_file_logo).getImage();
         Font font = new Font("Calibri (Corps)", Font.PLAIN, this.taillleNomOfficine + fontSize);
         graphics.setFont(font);
-        graphics.drawString(this.getOfficine().getStrNOMCOMPLET(), 0, start);
+        /*
+         * Retour du 31/10 : un nom d'officine trop long pour le rouleau sortait du ticket ; il passe sur plusieurs
+         * lignes, centrees, et la suite de l'en-tete (et le logo) descend d'autant. Un nom qui tient reste tel quel.
+         */
+        java.awt.FontMetrics fm = graphics.getFontMetrics();
+        double largeur = Math.min(largeurImprimable > 0 ? largeurImprimable : LARGEUR_ROULEAU_80, LARGEUR_ROULEAU_80);
+        List<String> lignesNom = lignesNomOfficine(this.getOfficine().getStrNOMCOMPLET(), fm, largeur);
+        int hauteurNom = fm.getAscent() + fm.getDescent();
+        if (lignesNom.size() <= 1) {
+            graphics.drawString(this.getOfficine().getStrNOMCOMPLET(), 0, start);
+        } else {
+            for (int k = 0; k < lignesNom.size(); k++) {
+                String l = lignesNom.get(k);
+                graphics.drawString(l, (int) Math.max(0, (largeur - fm.stringWidth(l)) / 2), start + k * hauteurNom);
+            }
+        }
+        int decalageNom = Math.max(0, lignesNom.size() - 1) * hauteurNom;
+        start += decalageNom;
         font = new Font("Arial Narrow", Font.PLAIN, 9 + fontSize);
         graphics.setFont(font);
         /*
@@ -505,7 +563,8 @@ public class ImpressionServiceImpl implements Printable {
         limit = start + (scaleTexte * ++i);
 
         if (intBegin == 0 && !prevente) {
-            graphics.drawImage(logo, 155, 85, lw, lh, null); // A decommenter pour les imprimantes thermique
+            graphics.drawImage(logo, 155, 85 + decalageNom, lw, lh, null); // A decommenter pour les imprimantes
+                                                                           // thermique
         }
     }
 

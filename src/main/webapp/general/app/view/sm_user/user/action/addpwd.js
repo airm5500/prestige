@@ -42,7 +42,8 @@ Ext.define('testextjs.view.sm_user.user.action.addpwd', {
             bodyPadding: 10,
             fieldDefaults: {
                 labelAlign: 'right',
-                labelWidth: 115,
+                /* retour du 31/10 : « Nouveau mot de passe » tient sur la largeur, les deux saisies s'alignent */
+                labelWidth: 170,
                 msgTarget: 'side'
             },
             items: [{
@@ -89,8 +90,10 @@ Ext.define('testextjs.view.sm_user.user.action.addpwd', {
 
 
 
+        /* retour du 31/10 : fenetre modale (le modal de la classe ne s'applique pas a cette fenetre) */
         var win = new Ext.window.Window({
             autoShow: true,
+            modal: true,
             title: this.getTitre(),
             width: 500,
             height: 250,
