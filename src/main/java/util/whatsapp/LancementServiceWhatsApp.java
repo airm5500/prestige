@@ -8,8 +8,11 @@ import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.concurrent.TimeUnit;
 import org.apache.commons.lang3.StringUtils;
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -70,6 +73,32 @@ public final class LancementServiceWhatsApp {
                     + script + " attendus) : " + d.getPath() + ".";
         }
         return null;
+    }
+
+    /* package.json « prestige-whatsapp-web » et src/serveur.js (le script de demarrage est verifie au lancement) */
+    private static boolean estService(File d) {
+        return verifierDossier(d, "package.json") == null;
+    }
+
+    /**
+     * Retour du 31/10 : « Parcourir » (administrateur). Sous-dossiers du chemin, tries, sans les fichiers ; sans
+     * chemin, les lecteurs du serveur. Le dossier du service compagnon est signale.
+     */
+    public static JSONArray dossiers(String chemin) {
+        File[] l = StringUtils.isBlank(chemin) ? File.listRoots()
+                : new File(chemin.trim()).listFiles(f -> f.isDirectory() && !f.isHidden());
+        JSONArray r = new JSONArray();
+        if (l == null) {
+            return r;
+        }
+        Arrays.sort(l, Comparator.comparing(f -> StringUtils.defaultIfEmpty(f.getName(), f.getPath()),
+                String.CASE_INSENSITIVE_ORDER));
+        for (int i = 0; i < l.length && i < 500; i++) {
+            File f = l[i];
+            r.put(new JSONObject().put("id", f.getAbsolutePath())
+                    .put("text", StringUtils.defaultIfEmpty(f.getName(), f.getPath())).put("service", estService(f)));
+        }
+        return r;
     }
 
     private static boolean serviceWindowsInstalle() {
