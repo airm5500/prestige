@@ -21,6 +21,10 @@
     <packaging>war</packaging>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <!-- Le WAR cible Java 17 tout en restant sur Java EE 8 (javax.*), afin que
+             les JSP existantes puissent continuer a etre migrees progressivement. -->
+        <java.version>17</java.version>
+        <maven.compiler.release>${java.version}</maven.compiler.release>
         <flyway.schemas>schema1,schema2,schema3</flyway.schemas>
         <version.arquillian_core>1.5.0.Final</version.arquillian_core>
         <pdf2dom.version>1.6</pdf2dom.version>
@@ -232,6 +236,29 @@
     <build>
         <finalName>prestige</finalName>
         <plugins>
+            <!-- Le JDK qui execute Maven doit lui aussi etre au moins en version 17.
+                 La propriete compiler.release continue de garantir le niveau des API
+                 et du bytecode produits, y compris avec un JDK de build plus recent. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <version>3.5.0</version>
+                <executions>
+                    <execution>
+                        <id>require-java-17</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <requireJavaVersion>
+                                    <version>[17,)</version>
+                                </requireJavaVersion>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
          
             <plugin>
                 <groupId>net.revelc.code.formatter</groupId>
@@ -276,8 +303,9 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.11.0</version>
                 <configuration>
-                    <source>11</source>
-                    <target>11</target>
+                    <!-- release borne a la fois le bytecode et les API du JDK : un
+                         build lance avec un JDK plus recent reste compatible Java 17. -->
+                    <release>${maven.compiler.release}</release>
                 </configuration>
             </plugin>
             <!-- Execution des tests unitaires : mvn test (le build de livraison utilise
