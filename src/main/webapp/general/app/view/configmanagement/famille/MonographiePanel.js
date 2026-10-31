@@ -68,28 +68,44 @@ Ext.define('testextjs.view.configmanagement.famille.MonographiePanel', {
      */
     ajuster: function () {
         var me = this;
+        me.garderDefilement();
+        var haut = me.hautGarde; /* chaque recalcul en attente remet la position relevee au depart */
         Ext.defer(function () {
             if (me.isDestroyed || !me.rendered) {
                 return;
             }
-            /* retour du 31/10 : le recalcul ramenait la page vers le milieu quand on etait en bas ; la position de
-               defilement du conteneur est remise telle quelle */
-            var c = me.ownerCt;
-            while (c) {
-                if (c.autoScroll || c.isXType('window')) {
-                    break;
-                }
-                c = c.ownerCt;
-            }
-            var dom = c && c.rendered ? (c.body || c.getEl()).dom : null, haut = dom ? dom.scrollTop : 0;
+            var c = me.conteneurDefilant(), d = me.domDefilant();
+            me.hautGarde = null;
             me.updateLayout();
             if (c) {
                 c.updateLayout();
             }
-            if (dom && dom.scrollTop !== haut) {
-                dom.scrollTop = haut;
+            if (d && haut !== null && haut !== undefined && d.scrollTop !== haut) {
+                d.scrollTop = haut;
             }
         }, 10);
+    },
+
+    /* retour du 31/10 : le recalcul ramenait la page vers le milieu quand on etait en bas. La position de defilement du
+       conteneur est relevee AVANT toute modification de la fiche (premier appel), puis remise apres le recalcul. */
+    garderDefilement: function () {
+        var d = this.domDefilant();
+        if (d && (this.hautGarde === null || this.hautGarde === undefined)) {
+            this.hautGarde = d.scrollTop;
+        }
+    },
+
+    conteneurDefilant: function () {
+        var c = this.ownerCt;
+        while (c && !c.autoScroll && !c.isXType('window')) {
+            c = c.ownerCt;
+        }
+        return c;
+    },
+
+    domDefilant: function () {
+        var c = this.conteneurDefilant();
+        return c && c.rendered ? (c.body || c.getEl()).dom : null;
     },
 
     dessinerRubriques: function () {
@@ -111,10 +127,15 @@ Ext.define('testextjs.view.configmanagement.famille.MonographiePanel', {
             return;
         }
         me.rubrique = rub;
+        me.garderDefilement();
         /* retour du 31/10 : pendant le chargement, le corps garde sa hauteur ; reduit a une ligne, il faisait remonter
-           la page (le navigateur ramene le defilement a la nouvelle hauteur). La hauteur atteinte reste le minimum :
+           la page (le navigateur ramene le defilement a la nouvelle hauteur) ; idem pour la ligne de la source, videe
+           le temps du chargement. La hauteur atteinte par toute la fiche reste le minimum :
            une rubrique courte ne fait pas sauter la page non plus. */
-        corps.setStyle('min-height', corps.getHeight() + 'px');
+        var fiche = me.zone('mono');
+        if (fiche) {
+            fiche.setStyle('min-height', fiche.getHeight() + 'px');
+        }
         me.dessinerRubriques();
         corps.setHTML('<div class="mono-vide">Chargement…</div>');
         me.zone('mono-etat').setHTML('');

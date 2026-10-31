@@ -25,7 +25,7 @@ const fiche = (n) => JSON.stringify({ success: true, trouve: true, lueLe: Date.n
   const erreurs = [];
   p.on('pageerror', (e) => erreurs.push(e.message));
   let longue = true;
-  await p.route(/\/api\/v1\/monographie\/fiche\//, async (r) => { const corps = fiche(longue ? 40 : 3); await new Promise((x) => setTimeout(x, 600));
+  await p.route(/\/api\/v1\/monographie\/fiche\//, async (r) => { const corps = fiche(longue ? 12 : 3); await new Promise((x) => setTimeout(x, 600));
     r.fulfill({ contentType: 'application/json', body: corps }); });
   try {
     ok('Précondition : un article au nom long avec un lot en stock', P, CIP);
@@ -52,9 +52,9 @@ const fiche = (n) => JSON.stringify({ success: true, trouve: true, lueLe: Date.n
     ok('« Consommations (sorties) » : au moins 10 lignes visibles', g[0].visible && g[0].lignes >= 10, JSON.stringify(g[0]));
     ok('« Commandes reçues » : au moins 10 lignes visibles (si affichée)', !g[1].visible || g[1].lignes >= 10, JSON.stringify(g[1]));
 
-    /* monographie : fiche longue, defilement tout en bas, clic sur une autre rubrique (fiche courte) */
+    /* monographie : fiche de 12 paragraphes, defilement tout en bas, clic sur une autre rubrique (fiche courte) */
     const mono = await p.waitForFunction(() => { const m = Ext.ComponentQuery.query('#monographieDetail')[0];
-      return m && m.isVisible(true) && m.getEl().dom.querySelectorAll('.mono-corps p').length >= 40; }, null, { timeout: 30000 }).then(() => true).catch(() => false);
+      return m && m.isVisible(true) && m.getEl().dom.querySelectorAll('.mono-corps p').length >= 12; }, null, { timeout: 30000 }).then(() => true).catch(() => false);
     ok('Monographie affichée (fiche simulée)', mono);
     if (mono) {
       const defil = () => p.evaluate(() => { const f = Ext.ComponentQuery.query('#monographieDetail')[0].up('[autoScroll=true]') || Ext.ComponentQuery.query('#monographieDetail')[0].up('form');
@@ -66,6 +66,11 @@ const fiche = (n) => JSON.stringify({ success: true, trouve: true, lueLe: Date.n
       longue = false;
       const bt = await p.evaluate(() => { const b = [...Ext.ComponentQuery.query('#monographieDetail')[0].getEl().dom.querySelectorAll('.mono-rub')].find((x) => !x.classList.contains('actif'));
         b.setAttribute('data-e2e', 'rub'); return b.textContent; });
+      /* comme l'utilisateur : le bouton est visible en bas de page (sinon Playwright le ramenerait lui-meme au centre) */
+      const visible = await p.evaluate(() => { const f = Ext.ComponentQuery.query('#monographieDetail')[0].up('[autoScroll=true]') || Ext.ComponentQuery.query('#monographieDetail')[0].up('form');
+        const z = (f.body || f.getEl()).dom.getBoundingClientRect(), r = document.querySelector('[data-e2e=rub]').getBoundingClientRect();
+        return r.top >= z.top && r.bottom <= z.bottom; });
+      ok('Monographie : en bas de page, les rubriques sont visibles', visible);
       await p.click('[data-e2e=rub]');
       await p.waitForTimeout(150);
       const pendant = await defil();

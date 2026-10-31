@@ -22,9 +22,10 @@ const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-charact
   const p = await (await b.newContext({ viewport: { width: 1600, height: 900 } })).newPage();
   const erreurs = [];
   p.on('pageerror', (e) => erreurs.push(e.message));
+  if (process.env.E2E_TRACE) p.on('request', (r) => { if (/etat-control|annules/.test(r.url())) console.log('REQ ' + decodeURIComponent(r.url())); });
   const clic = async (sel) => { await p.evaluate((s) => Ext.ComponentQuery.query(s)[0].getEl().dom.setAttribute('data-e2e', 'cible'), sel);
     await p.click('[data-e2e=cible]'); await p.evaluate(() => document.querySelector('[data-e2e=cible]').removeAttribute('data-e2e')); };
-  const saisir = async (sel, v) => { await clic(sel); await p.keyboard.press('Control+A'); await p.keyboard.type(v, { delay: 40 }); };
+  const saisir = async (sel, v) => { await clic(sel); await p.keyboard.press('Control+A'); await p.keyboard.press('Backspace'); await p.keyboard.type(v, { delay: 120 }); };
   try {
     ok('Précondition : un BL clos et un BL annulé', REF && ANN, (REF || '-') + ' / ' + (ANN || '-'));
     await connexion(p, ENV_E2E.LOGIN, 'e2etest');
@@ -38,7 +39,7 @@ const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-charact
     await p.keyboard.press('Enter');
     await p.waitForTimeout(800);
     await p.waitForFunction(() => !Ext.ComponentQuery.query('etatscontrolemanager')[0].getStore().isLoading(), null, { timeout: 120000 });
-    const refs = await p.evaluate(() => Ext.ComponentQuery.query('etatscontrolemanager')[0].getStore().collect('str_REF_LIVRAISON'));
+    const refs = await p.evaluate(() => Ext.ComponentQuery.query('etatscontrolemanager')[0].getStore().collect('strREFLIVRAISON'));
     ok('Recherche « contient » : le BL est trouvé par le milieu de sa référence', refs.includes(REF), MILIEU + ' -> ' + refs.slice(0, 5).join(', '));
 
     /* onglet BL annules */
