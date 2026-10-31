@@ -18,9 +18,10 @@ Ext.define('testextjs.view.notification.WhatsAppComptes', {
     autoScroll: true,
     bodyPadding: 10,
 
-    secret: function (name, label) {
+    /* aide : texte d'exemple tant que le secret n'est pas defini (retour du 31/10) */
+    secret: function (name, label, aide) {
         return {xtype: 'textfield', inputType: 'password', name: name, fieldLabel: label, anchor: '100%',
-            emptyText: 'non défini', itemId: name};
+            emptyText: aide ? 'non défini : ' + aide : 'non défini', aide: aide, itemId: name};
     },
 
     initComponent: function () {
@@ -61,12 +62,20 @@ Ext.define('testextjs.view.notification.WhatsAppComptes', {
                             items: [section('WhatsApp Web (service compagnon)', [
                                     {xtype: 'checkbox', name: 'actif', boxLabel: 'Compte actif', fieldLabel: 'État'},
                                     {xtype: 'checkbox', name: 'modeTest', boxLabel: 'Mode test : aucun envoi réel', fieldLabel: 'Mode test'},
-                                    {xtype: 'textfield', name: 'webUrl', fieldLabel: 'Adresse du service', emptyText: 'https://…', anchor: '100%'},
+                                    {xtype: 'textfield', name: 'webUrl', fieldLabel: 'Adresse du service', anchor: '100%',
+                                        /* retour du 31/10 : l'adresse de Prestige y etait saisie */
+                                        emptyText: 'http://localhost:3010 (port du service, pas l\'adresse de Prestige)'},
                                     /* retour du 25/10 : dossier du service sur le serveur (rempli seul quand le service repond),
                                        affiche par la banniere ; « Reconnecter » y lance demarrer.bat */
-                                    {xtype: 'textfield', name: 'webRepertoire', fieldLabel: 'Dossier du service', anchor: '100%',
-                                        emptyText: 'C:\\prestige\\whatsapp-web (rempli seul quand le service répond)'},
-                                    me.secret('webJeton', 'Jeton partagé'),
+                                    /* retour du 31/10 : « Parcourir » deroule les dossiers du serveur sous le champ */
+                                    {xtype: 'fieldcontainer', fieldLabel: 'Dossier du service', layout: 'hbox', anchor: '100%', items: [
+                                            {xtype: 'textfield', name: 'webRepertoire', flex: 1,
+                                                emptyText: 'C:\\prestige\\whatsapp-web (rempli seul quand le service répond)'},
+                                            {xtype: 'button', text: 'Parcourir…', itemId: 'btnParcourirWeb', margin: '0 0 0 6', handler: function () {
+                                                    me.parcourir();
+                                                }}]},
+                                    {xtype: 'container', itemId: 'parcoursWeb', hidden: true, margin: '0 0 8 195'},
+                                    me.secret('webJeton', 'Jeton partagé', 'JETON du fichier config.json du service'),
                                     {xtype: 'displayfield', fieldLabel: 'Avertissement',
                                         value: '<span style="color:#b9770e">Débit lent conseillé : un numéro qui envoie trop vite peut être bloqué par WhatsApp. Pour les tests et les faibles volumes.</span>'},
                                     {xtype: 'button', text: 'Enregistrer le compte Web', itemId: 'btnEnregistrerWEB', cls: 'fen-btn-principal',
@@ -137,6 +146,15 @@ Ext.define('testextjs.view.notification.WhatsAppComptes', {
         });
         me.callParent(arguments);
         me.on('afterrender', function () {
+            /* retour du 31/10 : la saisie des parametres indispensables (adresse et jeton ; pour l'API, identifiants et
+               jeton d'acces) coche « Compte actif » ; l'administrateur peut le decocher ensuite */
+            Ext.Object.each(me.INDISPENSABLES, function (mode, champs) {
+                Ext.each(champs, function (n) {
+                    me.down('#form' + mode).down('[name=' + n + ']').on('change', function () {
+                        me.activerSiComplet(mode);
+                    });
+                });
+            });
             me.charger();
             journal.load();
         });
@@ -275,14 +293,17 @@ Ext.define('testextjs.view.notification.WhatsAppComptes', {
             } else {
                 me.down('#qrWeb').update(et === 'CONNECTE' ? '<div class="wa-connecte">✓ Le téléphone est connecté : les messages partent selon les règles.</div>' : '');
             }
-            /* tant que la connexion n'est pas faite, l'ecran se rafraichit seul (le QR change toutes les 20 s environ) */
+            /* tant que l'onglet est affiche, l'ecran suit le service seul (le QR change toutes les 20 s environ).
+               Retour du 31/10 : apres le scan, WhatsApp coupe une fois la connexion (DECONNECTE quelques secondes)
+               avant de l'ouvrir ; le suivi s'arretait la et l'ecran restait « Déconnecté ». Connecte : suivi lent ;
+               reglage a corriger par l'administrateur : pas de suivi. */
             var onglet = me.down('#ongletWeb');
-            if (/QR|INITIALISATION|AUTHENTIFIE/.test(et) && onglet && onglet.isVisible(true)) {
+            if (!/NON_CONFIGURE|JETON_REFUSE|ADRESSE_INCORRECTE/.test(et) && onglet && onglet.isVisible(true)) {
                 me.minuteurWeb = setTimeout(function () {
-                    if (!me.isDestroyed) {
+                    if (!me.isDestroyed && me.down('#ongletWeb').isVisible(true)) {
                         me.chargerWeb(false);
                     }
-                }, 4000);
+                }, et === 'CONNECTE' ? 15000 : 4000);
             }
         });
     },
@@ -479,15 +500,19 @@ Ext.define('testextjs.view.notification.WhatsAppComptes', {
                     if (!f) {
                         return;
                     }
+                    me.chargement = true;
                     f.getForm().setValues(c);
                     Ext.each(['accessToken', 'verifyToken', 'appSecret', 'webJeton'], function (s) {
                         var champ = f.down('#' + s);
                         if (champ) {
                             champ.setValue('');
-                            champ.emptyText = c[s + 'Defini'] ? 'défini — laisser vide pour le garder' : 'non défini';
+                            champ.emptyText = c[s + 'Defini'] ? 'défini — laisser vide pour le garder'
+                                    : (champ.aide ? 'non défini : ' + champ.aide : 'non défini');
+                            champ.secretDefini = !!c[s + 'Defini'];
                             champ.applyEmptyText();
                         }
                     });
+                    me.chargement = false;
                 });
                 var w = me.down('#urlWebhook');
                 if (w) {
@@ -495,6 +520,65 @@ Ext.define('testextjs.view.notification.WhatsAppComptes', {
                 }
             }
         });
+    },
+
+    INDISPENSABLES: {API: ['phoneNumberId', 'wabaId', 'accessToken'], WEB: ['webUrl', 'webJeton']},
+
+    activerSiComplet: function (mode) {
+        var me = this, f = me.down('#form' + mode);
+        if (me.chargement) {
+            return;
+        }
+        var complet = Ext.Array.every(me.INDISPENSABLES[mode], function (n) {
+            var c = f.down('[name=' + n + ']');
+            return !!Ext.String.trim(String(c.getValue() || '')) || c.secretDefini === true;
+        });
+        if (complet) {
+            f.down('[name=actif]').setValue(true);
+        }
+    },
+
+    /* retour du 31/10 : choix du dossier du service parmi les dossiers du serveur, deroules sous le champ */
+    parcourir: function () {
+        var me = this, zone = me.down('#parcoursWeb');
+        if (zone.isVisible()) {
+            zone.hide();
+            return;
+        }
+        if (!zone.items.getCount()) {
+            var choisir = function (n) {
+                me.down('#formWEB').down('[name=webRepertoire]').setValue(n.getId());
+                zone.hide();
+            };
+            zone.add({xtype: 'treepanel', itemId: 'arbreDossiers', height: 260, rootVisible: false, useArrows: true,
+                store: Ext.create('Ext.data.TreeStore', {
+                    nodeParam: 'chemin', root: {id: 'racine', expanded: true},
+                    proxy: {type: 'ajax', url: '../api/v1/whatsapp/web/dossiers', reader: {type: 'json', root: 'children'}},
+                    listeners: {beforeload: function (s, op) {
+                            /* la racine de l'arbre : les lecteurs du serveur */
+                            if (op.node && op.node.isRoot()) {
+                                op.params = Ext.apply(op.params || {}, {chemin: ''});
+                            }
+                        }}
+                }),
+                columns: [{xtype: 'treecolumn', dataIndex: 'text', flex: 1, renderer: function (v, m, r) {
+                            return me.esc(v) + (r.raw && r.raw.service ? ' <b style="color:#1e8449">✓ service WhatsApp Web</b>' : '');
+                        }}],
+                listeners: {itemdblclick: function (v, n) {
+                        choisir(n);
+                    }},
+                bbar: [{xtype: 'tbtext', text: 'Double-cliquez sur le dossier, ou sélectionnez-le puis « Choisir ».'}, '->',
+                    {text: 'Choisir ce dossier', itemId: 'btnChoisirDossier', cls: 'fen-btn-principal', handler: function () {
+                            var s = zone.down('#arbreDossiers').getSelectionModel().getSelection();
+                            if (s.length) {
+                                choisir(s[0]);
+                            }
+                        }},
+                    {text: 'Fermer', handler: function () {
+                            zone.hide();
+                        }}]});
+        }
+        zone.show();
     },
 
     enregistrer: function (mode) {

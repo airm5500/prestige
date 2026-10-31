@@ -142,6 +142,21 @@ public class WhatsAppRessource {
         return Response.ok(web.demarrer(utilisateur()).toString()).build();
     }
 
+    /** Retour du 31/10 : « Parcourir » le dossier du service sur ce serveur (administrateur seulement). */
+    @GET
+    @Path("web/dossiers")
+    public Response webDossiers(@QueryParam("chemin") String chemin) {
+        Response r = controle();
+        if (r != null) {
+            return r;
+        }
+        if (!administrateur()) {
+            return Droits.interdit("Parcourir les dossiers du serveur (administrateur)");
+        }
+        return Response.ok(new JSONObject().put("success", true)
+                .put("children", util.whatsapp.LancementServiceWhatsApp.dossiers(chemin)).toString()).build();
+    }
+
     private boolean administrateur() {
         Object role = servletRequest.getSession().getAttribute(Constant.USER_ROLE_ID);
         return role != null && web.administrateur(role.toString());
