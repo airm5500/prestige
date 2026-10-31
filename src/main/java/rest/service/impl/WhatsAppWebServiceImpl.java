@@ -88,17 +88,7 @@ public class WhatsAppWebServiceImpl implements WhatsAppWebService {
                 .build();
         try {
             Response r = appel.faire(client, StringUtils.removeEnd(c.webUrl.trim(), "/"), c.webJeton.trim());
-            String t = r.readEntity(String.class);
-            JSONObject o = StringUtils.isBlank(t) ? new JSONObject() : new JSONObject(t);
-            if (r.getStatus() == 401) {
-                return echec("Le service WhatsApp Web refuse le jeton : vérifiez qu'il est identique des deux côtés.")
-                        .put("etat", "JETON_REFUSE");
-            }
-            if (r.getStatus() / 100 != 2) {
-                return echec(StringUtils.defaultIfBlank(o.optString("erreur"),
-                        "Service WhatsApp Web : HTTP " + r.getStatus()));
-            }
-            return o.put("success", true);
+            return lireReponse(r.getStatus(), r.readEntity(String.class));
         } catch (Exception e) {
             LOG.log(Level.FINE, "service WhatsApp Web", e);
             return echec("Service WhatsApp Web injoignable (" + e.getClass().getSimpleName()
@@ -106,6 +96,30 @@ public class WhatsAppWebServiceImpl implements WhatsAppWebService {
         } finally {
             client.close();
         }
+    }
+
+    /**
+     * Reponse du service. Retour du 31/10 : une reponse qui n'est pas du JSON vient d'un autre serveur (l'adresse de
+     * Prestige saisie a la place de celle du service) ; on le dit au lieu de « injoignable (JSONException) ».
+     */
+    static JSONObject lireReponse(int statut, String t) {
+        JSONObject o;
+        try {
+            o = StringUtils.isBlank(t) ? new JSONObject() : new JSONObject(t);
+        } catch (org.json.JSONException e) {
+            return echec("L'adresse renseignée ne mène pas au service WhatsApp Web (le serveur répond une page, pas le"
+                    + " service ; HTTP " + statut
+                    + "). Indiquez l'adresse du service, par défaut http://localhost:3010,"
+                    + " et non celle de Prestige.").put("etat", "ADRESSE_INCORRECTE");
+        }
+        if (statut == 401) {
+            return echec("Le service WhatsApp Web refuse le jeton : vérifiez qu'il est identique des deux côtés.")
+                    .put("etat", "JETON_REFUSE");
+        }
+        if (statut / 100 != 2) {
+            return echec(StringUtils.defaultIfBlank(o.optString("erreur"), "Service WhatsApp Web : HTTP " + statut));
+        }
+        return o.put("success", true);
     }
 
     /* etat en direct du service, garde 20 s pour la banniere (tous les postes la verifient) */
@@ -166,7 +180,7 @@ public class WhatsAppWebServiceImpl implements WhatsAppWebService {
                                     + " indiquez-le dans Comptes WhatsApp (onglet WhatsApp Web), ou démarrez demarrer.bat"
                                     + " sur le serveur.");
         }
-        if ("JETON_REFUSE".equals(et) || "NON_CONFIGURE".equals(et)) {
+        if ("JETON_REFUSE".equals(et) || "NON_CONFIGURE".equals(et) || "ADRESSE_INCORRECTE".equals(et)) {
             return r.put("alerte", true).put("type", et).put("message", "WhatsApp : " + e.optString("message"));
         }
         return r;
@@ -198,7 +212,12 @@ public class WhatsAppWebServiceImpl implements WhatsAppWebService {
             return echec("Le service WhatsApp Web est sur une autre machine (" + StringUtils.defaultString(hote)
                     + ") : démarrez-le sur cette machine, il ne peut être lancé que sur ce serveur.");
         }
-        if (!"INJOIGNABLE".equals(etat().optString("etat"))) {
+        JSONObject avant = etat();
+        if ("ADRESSE_INCORRECTE".equals(avant.optString("etat"))) {
+            /* sinon « répond déjà » : c'est Prestige qui repond, pas le service */
+            return avant;
+        }
+        if (!"INJOIGNABLE".equals(avant.optString("etat"))) {
             oublierEtat();
             return new JSONObject().put("success", true).put("deja", true).put("msg",
                     "Le service WhatsApp Web répond déjà.");

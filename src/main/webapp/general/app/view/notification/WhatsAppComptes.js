@@ -61,7 +61,9 @@ Ext.define('testextjs.view.notification.WhatsAppComptes', {
                             items: [section('WhatsApp Web (service compagnon)', [
                                     {xtype: 'checkbox', name: 'actif', boxLabel: 'Compte actif', fieldLabel: 'État'},
                                     {xtype: 'checkbox', name: 'modeTest', boxLabel: 'Mode test : aucun envoi réel', fieldLabel: 'Mode test'},
-                                    {xtype: 'textfield', name: 'webUrl', fieldLabel: 'Adresse du service', emptyText: 'https://…', anchor: '100%'},
+                                    {xtype: 'textfield', name: 'webUrl', fieldLabel: 'Adresse du service', anchor: '100%',
+                                        /* retour du 31/10 : l'adresse de Prestige y etait saisie */
+                                        emptyText: 'http://localhost:3010 (port du service, pas l\'adresse de Prestige)'},
                                     /* retour du 25/10 : dossier du service sur le serveur (rempli seul quand le service repond),
                                        affiche par la banniere ; « Reconnecter » y lance demarrer.bat */
                                     {xtype: 'textfield', name: 'webRepertoire', fieldLabel: 'Dossier du service', anchor: '100%',
