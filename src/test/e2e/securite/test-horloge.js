@@ -86,6 +86,9 @@ const verifier = async (p) => { await p.evaluate(() => window.PrestigeAlerteHorl
     const ctx3 = await b.newContext({ viewport: { width: 1500, height: 900 } });
     await ctx3.addInitScript(() => { const avant = Date.now; Date.now = () => avant() + 3 * 3600 * 1000; });
     const p3 = await ctx3.newPage();
+    /* la vraie banniere WhatsApp depend du service du poste : s'il va bien, sa verification retire la banniere posee
+       plus bas par le test. Compte sans droit WhatsApp : la banniere ne se verifie plus, celle du test reste. */
+    await p3.route(/\/api\/v1\/whatsapp\/web\/alerte/, (r) => r.fulfill({ status: 200, contentType: 'application/json', body: '{"success":false,"sansDroit":true}' }));
     p3.on('dialog', (d) => { dialogues.push(d.message()); d.dismiss().catch(() => {}); });
     await vues.connexion(p3, ENV_E2E.LOGIN, 'e2etest');
     await p3.waitForFunction(() => !!window.PrestigeAlerteHorloge, null, { timeout: 30000 });
