@@ -5,7 +5,7 @@
  *   BL3 DPCI (groupe 2) saisi le lendemain, controle termine.
  * Attendu (seuil 1 jour) : 3 BL, 2 controles (67 %), 2 dans le delai, 1 en retard, delai moyen 1,3 j ; groupe 1 : 2 BL ;
  * seuil porte a 3 jours : plus aucun retard ; filtre groupe dans la liste : grossiste grise, BL du groupe seulement ;
- * le menu ouvre le conteneur a deux onglets, la liste garde son identifiant. Jeu d'essai et seuil remis a la fin.
+ * le menu ouvre le conteneur a trois onglets (« BL annules » depuis le 31/10), la liste garde son identifiant. Jeu d'essai et seuil remis a la fin.
  */
 const { chromium } = require('playwright-core');
 const ENV_E2E = require('../outils/poste');
@@ -53,7 +53,7 @@ function bl(n, grossiste, saisie, controle) {
     await p.waitForFunction(() => Ext.ComponentQuery.query('controleachats').length > 0 && Ext.ComponentQuery.query('etatscontrolemanager')[0], null, { timeout: 30000 });
     const ouv = await p.evaluate(() => ({ onglets: Ext.ComponentQuery.query('controleachats #ongletsCa button').map((x) => x.getText()),
       liste: Ext.ComponentQuery.query('controleachats')[0].getLayout().getActiveItem().isXType('etatscontrolemanager') }));
-    ok('Le menu ouvre « Liste des BL | Tableau de bord », la liste d\'origine affichée', ouv.onglets.join('|') === 'Liste des BL|Tableau de bord' && ouv.liste === true, JSON.stringify(ouv));
+    ok('Le menu ouvre « Liste des BL | Tableau de bord | BL annulés », la liste d\'origine affichée', ouv.onglets.join('|') === 'Liste des BL|Tableau de bord|BL annulés' && ouv.liste === true, JSON.stringify(ouv));
 
     /* liste : filtre groupe */
     await p.evaluate(() => { Ext.getCmp('datedebut').setValue(new Date(2019, 0, 1)); Ext.getCmp('datefin').setValue(new Date(2019, 0, 31)); });

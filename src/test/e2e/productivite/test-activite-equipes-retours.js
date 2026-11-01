@@ -25,6 +25,15 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
     await connexion(p, ENV_E2E.LOGIN, 'e2etest');
     await ouvrirMenu(p, 'ANALYSE DE GESTION', 'Activité des équipes');
     await p.waitForFunction(() => document.querySelectorAll('.ae-pastille').length > 0, null, { timeout: 120000 });
+    /* periode : du 1er du mois precedent a aujourd'hui (le mois en cours seul peut n'avoir encore aucune vente, un 1er
+       du mois ou un dimanche : graphiques sans barre a survoler) ; saisie dans le champ « Du », puis « Actualiser » */
+    const j = new Date(), debut = new Date(j.getFullYear(), j.getMonth() - 1, 1);
+    await p.click('#' + await p.evaluate(() => Ext.ComponentQuery.query('activiteequipes #aeDebut')[0].inputEl.id), { clickCount: 3 });
+    await p.keyboard.type(String(debut.getDate()).padStart(2, '0') + '/' + String(debut.getMonth() + 1).padStart(2, '0') + '/' + debut.getFullYear());
+    await p.keyboard.press('Tab');
+    await cliquer(p, 'activiteequipes #aeActualiser');
+    await p.waitForTimeout(1500);
+    await p.waitForFunction(() => document.querySelectorAll('.ae-pastille').length > 0, null, { timeout: 120000 });
     await cliquer(p, 'activiteequipes #ae-analyses');
     const charge = () => p.waitForFunction(() => { const a = Ext.ComponentQuery.query('activiteequipes #aeAnalyses')[0];
       return document.querySelectorAll('.ae-tuile').length > 0 && !(a.loadMask && a.loadMask.isVisible()); }, null, { timeout: 180000 });

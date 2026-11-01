@@ -44,6 +44,14 @@ const [G, GNOM] = q("SELECT lg_GROSSISTE_ID, str_LIBELLE FROM t_grossiste ORDER 
 const ORDER = q("SELECT lg_ORDER_ID FROM t_order LIMIT 1");
 const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
 
+/* dates relatives au jour du test : A il y a deux mois, C il y a trois mois, B dans le mois en cours (entrees du mois) */
+const MOIS = (decalage, jour, hm) => { const j = new Date(), d = new Date(j.getFullYear(), j.getMonth() + decalage, jour);
+  const fr = String(jour).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0') + '/' + d.getFullYear();
+  return { sql: fr.split('/').reverse().join('-') + ' ' + hm + ':00', fr, frh: fr + ' ' + hm }; };
+const A_BL = MOIS(-2, 1, '00:00'), A_STOCK = MOIS(-2, 3, '09:15'), A_CLOS = MOIS(-2, 20, '10:00');
+const B_BL = MOIS(0, 1, '00:00'), B_MAJ = MOIS(0, 1, '00:05'), B_STOCK = MOIS(0, 1, '00:30');
+const C_BL = MOIS(-3, 10, '00:00'), C_CLOS = MOIS(-3, 12, '08:00');
+
 function nettoyer() {
   exec("SET FOREIGN_KEY_CHECKS = 0; DELETE FROM hmvtproduit WHERE uuid LIKE 'E2E-DE-%'; DELETE FROM t_bon_livraison_detail WHERE lg_BON_LIVRAISON_DETAIL LIKE 'E2E-DE-%';"
     + " DELETE FROM t_bon_livraison WHERE lg_BON_LIVRAISON_ID LIKE 'E2E-DE-%'; SET FOREIGN_KEY_CHECKS = 1;");
@@ -92,33 +100,33 @@ function bl(id, statut, dateBl, cloture, qte) {
     let t = await apercu();
     ok('Article sans entrée : « Dern. entrée » — aucune entrée en stock', /Dern\. entrée\s*aucune entrée en stock/.test(t), t.slice(0, 300));
 
-    /* A : entre en stock le 03/09 a 09:15 (BL du 01/09), BL retouche ensuite le 20/09 ;
-       B : BL du 05/10 NON entre en stock ; C : ancien BL du 10/08 clos le 12/08 sans mouvement */
-    exec(bl('A', 'is_Closed', '2026-09-01 00:00:00', '2026-09-20 10:00:00', 5) + bl('B', 'is_Process', '2026-10-05 00:00:00', '2026-10-05 08:00:00', 9)
-      + bl('C', 'is_Closed', '2026-08-10 00:00:00', '2026-08-12 08:00:00', 3)
+    /* A (il y a deux mois) : entre en stock le 3 a 09:15 (BL du 1er), BL retouche ensuite le 20 ;
+       B : BL du 1er du mois en cours NON entre en stock ; C (il y a trois mois) : ancien BL du 10 clos le 12 sans mouvement */
+    exec(bl('A', 'is_Closed', A_BL.sql, A_CLOS.sql, 5) + bl('B', 'is_Process', B_BL.sql, B_MAJ.sql, 9)
+      + bl('C', 'is_Closed', C_BL.sql, C_CLOS.sql, 3)
       + "INSERT INTO hmvtproduit (uuid, checked, createdAt, mvtdate, pkey, prixAchat, prixUn, qteDebut, qteFinale, qteMvt, valeurTva, lg_EMPLACEMENT_ID, lg_FAMILLE_ID, lg_USER_ID, typeMvt)"
-      + " VALUES ('E2E-DE-H', 1, '2026-09-03 09:15:00', '2026-09-03', 'E2E-DE-LA', 100, 200, 0, 5, 5, 0, '1', '" + P + "', '" + ADMIN + "', '01')");
+      + " VALUES ('E2E-DE-H', 1, '" + A_STOCK.sql + "', '" + A_STOCK.sql.slice(0, 10) + "', 'E2E-DE-LA', 100, 200, 0, 5, 5, 0, '1', '" + P + "', '" + ADMIN + "', '01')");
     t = await apercu();
-    ok('Dern. entrée = date de mise en stock 03/09/2026 09:15 (pas la date du BL non entré du 05/10)', /Dern\. entrée\s*03\/09\/2026 09:15/.test(t) && !/05\/10\/2026/.test(t), t.slice(0, 400));
-    ok('À côté : 5 u., grossiste « ' + GNOM + ' », « BL du 01/09/2026 »', t.indexOf('03/09/2026 09:15 5 u. · ' + GNOM + ' · BL du 01/09/2026') >= 0, t.slice(0, 400));
+    ok('Dern. entrée = date de mise en stock ' + A_STOCK.frh + ' (pas la date du BL non entré du ' + B_BL.fr + ')', new RegExp('Dern\\. entrée\\s*' + A_STOCK.frh).test(t) && t.indexOf(B_BL.fr) < 0, t.slice(0, 400));
+    ok('À côté : 5 u., grossiste « ' + GNOM + ' », « BL du ' + A_BL.fr + ' »', t.indexOf(A_STOCK.frh + ' 5 u. · ' + GNOM + ' · BL du ' + A_BL.fr) >= 0, t.slice(0, 400));
     const achats = JSON.parse(await p.evaluate(async (P) => (await fetch('../api/v1/produit-search/apercu/' + P)).text(), P)).achatsTotal;
     ok('Achats de l\'aperçu : BL entrés en stock seulement (5 + 3 = 8, sans les 9 du BL non entré)', achats === 8 && /Achats\s*8/.test(t), 'achatsTotal=' + achats);
     let ra = await reappro();
-    ok('Suggestion, info produit : Dern.Entrée 03/09/2026 09:15 (5), le BL non entré du mois ne compte pas dans les entrées du mois', ra.derniereEntreeDate === '03/09/2026 09:15' && ra.derniereEntreeQte === 5 && ra.qteEntreeMois === 0 && ra.frequenceAchatMois === 0, JSON.stringify(ra));
-    ok('Info produit (fiche) : même date de dernière entrée', (await info()) === '03/09/2026 09:15', await info());
+    ok('Suggestion, info produit : Dern.Entrée ' + A_STOCK.frh + ' (5), le BL non entré du mois ne compte pas dans les entrées du mois', ra.derniereEntreeDate === A_STOCK.frh && ra.derniereEntreeQte === 5 && ra.qteEntreeMois === 0 && ra.frequenceAchatMois === 0, JSON.stringify(ra));
+    ok('Info produit (fiche) : même date de dernière entrée', (await info()) === A_STOCK.frh, await info());
 
     /* sans mouvement (donnees anciennes) : date de cloture du BL */
     exec("DELETE FROM hmvtproduit WHERE uuid = 'E2E-DE-H'");
     t = await apercu();
-    ok('Sans mouvement d\'entrée : date de clôture du BL (20/09/2026 10:00), BL du 01/09/2026', /Dern\. entrée\s*20\/09\/2026 10:00 5 u\. · .* · BL du 01\/09\/2026/.test(t), t.slice(0, 400));
-    ok('Info produit : 20/09/2026 10:00', (await info()) === '20/09/2026 10:00', await info());
+    ok('Sans mouvement d\'entrée : date de clôture du BL (' + A_CLOS.frh + '), BL du ' + A_BL.fr, new RegExp('Dern\\. entrée\\s*' + A_CLOS.frh + ' 5 u\\. · .* · BL du ' + A_BL.fr).test(t), t.slice(0, 400));
+    ok('Info produit : ' + A_CLOS.frh, (await info()) === A_CLOS.frh, await info());
 
     /* le BL B entre en stock : il devient la derniere entree */
-    exec("UPDATE t_bon_livraison SET str_STATUT = 'is_Closed', dt_UPDATED = '2026-10-06 11:30:00' WHERE lg_BON_LIVRAISON_ID = 'E2E-DE-B'");
+    exec("UPDATE t_bon_livraison SET str_STATUT = 'is_Closed', dt_UPDATED = '" + B_STOCK.sql + "' WHERE lg_BON_LIVRAISON_ID = 'E2E-DE-B'");
     t = await apercu();
-    ok('BL du 05/10 entré en stock le 06/10 : Dern. entrée 06/10/2026 11:30, 9 u., BL du 05/10/2026', /Dern\. entrée\s*06\/10\/2026 11:30 9 u\. · .* · BL du 05\/10\/2026/.test(t), t.slice(0, 400));
+    ok('BL du ' + B_BL.fr + ' entré en stock : Dern. entrée ' + B_STOCK.frh + ', 9 u., BL du ' + B_BL.fr, new RegExp('Dern\\. entrée\\s*' + B_STOCK.frh + ' 9 u\\. · .* · BL du ' + B_BL.fr).test(t), t.slice(0, 400));
     ra = await reappro();
-    ok('Suggestion, info produit : Dern.Entrée 06/10/2026 11:30 (9), entrées du mois 9 sur 1 BL', ra.derniereEntreeDate === '06/10/2026 11:30' && ra.derniereEntreeQte === 9 && ra.qteEntreeMois === 9 && ra.frequenceAchatMois === 1, JSON.stringify(ra));
+    ok('Suggestion, info produit : Dern.Entrée ' + B_STOCK.frh + ' (9), entrées du mois 9 sur 1 BL', ra.derniereEntreeDate === B_STOCK.frh && ra.derniereEntreeQte === 9 && ra.qteEntreeMois === 9 && ra.frequenceAchatMois === 1, JSON.stringify(ra));
     ok('Suggestion : libellé « Dern.Entrée »', await p.evaluate(async () => /abr\('Dern\.Entrée'/.test(await (await fetch('app/view/sm_user/suggerercde/SuggerercdeManager.js?_=' + Date.now())).text())));
     ok('Aucune erreur JavaScript', err.length === 0, err.join(' | '));
   } catch (e) {

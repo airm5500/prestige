@@ -77,15 +77,20 @@ const cartes = (p) => p.evaluate(() => Array.from(document.querySelectorAll('.ti
     ok('Ticket Z : chargé à l\'ouverture sur la journée (00:00 - 23:59, tous)', lus.length === 1 && lus[0].dtStart === auj && lus[0].dtEnd === auj
       && lus[0].hrStart === '00:00' && lus[0].hrEnd === '23:59' && lus[0].userId === 'ALL' && lus[0].description === 'ALL', JSON.stringify(lus[0]));
 
-    /* dernier jour de mouvements de caisse (la veille sur le banc ; une copie figée peut ne rien avoir la veille) */
-    const DERNIER = q("SELECT MAX(mvtdate) FROM mvttransaction WHERE mvtdate < CURDATE()");
+    /* dernier jour qui a un Ticket Z (la veille sur le banc ; une copie figee peut ne rien avoir la veille, et un jour
+       de mouvements sans vente, laisse par un autre test, renvoie un recapitulatif vide) */
+    let DERNIER = '', api = null;
+    for (const d of q("SELECT DISTINCT mvtdate FROM mvttransaction WHERE mvtdate < CURDATE() ORDER BY mvtdate DESC LIMIT 15").split(/\r?\n/)) {
+      const o = JSON.parse((await appel('caisse/fetch-tickez', { dtStart: d.trim(), dtEnd: d.trim(), hrStart: '00:00', hrEnd: '23:59', userId: 'ALL', description: 'ALL' }, cnx.cookie)).corps).data;
+      if (o && Array.isArray(o.datas) && o.datas.length > 0) { DERNIER = d.trim(); api = o; break; }
+    }
+    ok('Un jour récent a un Ticket Z', !!DERNIER, DERNIER);
     const veille = DERNIER.split('-').reverse().join('/');
     await p.evaluate((d) => { const t = Ext.ComponentQuery.query('ticketzmanager')[0];
       t.down('#dtStart').setValue(Ext.Date.parse(d, 'd/m/Y')); t.down('#dtEnd').setValue(Ext.Date.parse(d, 'd/m/Y')); }, veille);
     await p.click('.ticketz .x-btn:has-text("Afficher")');
     await p.waitForFunction(() => !Ext.ComponentQuery.query('ticketzmanager')[0].loadMask || !Ext.ComponentQuery.query('ticketzmanager')[0].loadMask.isVisible(), null, { timeout: 30000 });
     await p.waitForTimeout(500);
-    const api = JSON.parse((await appel('caisse/fetch-tickez', { dtStart: DERNIER, dtEnd: DERNIER, hrStart: '00:00', hrEnd: '23:59', userId: 'ALL', description: 'ALL' }, cnx.cookie)).corps).data;
     let c = await cartes(p);
     const attendu = api.datas.map((u) => ({ titre: 'Récapitulatif de ' + u.user,
       lignes: u.modePaymentAmounts.concat(u.totaux).map((l) => [l.modeLibelle, l.montant]) }))
