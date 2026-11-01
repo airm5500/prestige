@@ -1,8 +1,8 @@
 /* PREVISIONS, onglet « ANALYSE DE LA DEMANDE » (besoins du 11/10, point 14).
- * Jeu d'essai (retire a la fin) : un produit sans aucune vente recoit 40 unites en decembre 2024, 40 en decembre 2025
- * et 8 en juillet 2025. Sur 24 mois complets (oct. 2024 → sept. 2026) :
+ * Jeu d'essai (retire a la fin), date d'apres le jour du test : un produit sans aucune vente recoit 40 unites au
+ * decembre de chacune des deux annees de la fenetre de 24 mois complets, et 8 au juillet de la premiere. Ainsi :
  *  - total 88 ; indice de decembre = 40 / (88 / 24) = 10,91 ; juillet = 4 / 3,667 = 1,09 ; pic en decembre ;
- *  - aujourd'hui en octobre : pic en decembre = « a anticiper » (novembre ou decembre) ;
+ *  - en octobre ou novembre : pic en decembre = « a anticiper » (decembre est le mois prochain ou le suivant) ;
  *  - mois en cours exclu ; refus d'une duree autre que 12, 24 ou 36 mois ;
  *  - ecran : 4e onglet, tuiles, matrice annee x mois avec indices colores, listes de produits, clic = prevision.
  */
@@ -27,11 +27,21 @@ const vente = (id, quand, qte) => q("INSERT INTO t_preenregistrement (lg_PREENRE
   + " int_PRICE_UNITAIR, int_PRICE_REMISE, str_STATUT, prixAchat, dt_CREATED, dt_UPDATED) VALUES ('e2e-dem-" + id + "', 'e2e-dem-" + id + "', '" + FAM + "', " + qte + ", " + qte
   + ", " + qte * 100 + ", 100, 0, 'is_Closed', 60, '" + quand + "', '" + quand + "')");
 
+/* fenetre de 24 mois complets (mois en cours exclu) : chaque moitie de 12 mois contient un seul decembre et un seul juillet */
+const J = new Date(), DEB = new Date(J.getFullYear(), J.getMonth() - 24, 1), FIN = new Date(J.getFullYear(), J.getMonth() - 1, 1);
+const dansMoitie = (mois, moitie) => { for (let i = 0; i < 12; i++) { const x = new Date(DEB.getFullYear(), DEB.getMonth() + moitie * 12 + i, 1); if (x.getMonth() === mois) { return x; } } return null; };
+const VENTES = [{ id: 'D1', d: dansMoitie(11, 0), jour: 10, qte: 40 }, { id: 'D2', d: dansMoitie(11, 1), jour: 12, qte: 40 }, { id: 'J1', d: dansMoitie(6, 0), jour: 5, qte: 8 }];
+const ymd = (x, jour) => x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0') + '-' + String(jour).padStart(2, '0') + ' 10:00:00';
+/* matrice attendue : null hors fenetre, 0 ou la quantite dans la fenetre */
+const MATRICE = (() => { const m = {};
+  for (let i = 0; i < 24; i++) { const x = new Date(DEB.getFullYear(), DEB.getMonth() + i, 1);
+    m[x.getFullYear()] = m[x.getFullYear()] || Array(12).fill(null); m[x.getFullYear()][x.getMonth()] = 0; }
+  VENTES.forEach((v) => { m[v.d.getFullYear()][v.d.getMonth()] += v.qte; });
+  return Object.keys(m).map((a) => ({ annee: Number(a), mois: m[a], total: m[a].reduce((s, v) => s + (v || 0), 0) })); })();
+
 (async () => {
   nettoyer();
-  vente('D24', '2024-12-10 10:00:00', 40);
-  vente('D25', '2025-12-12 10:00:00', 40);
-  vente('J25', '2025-07-05 10:00:00', 8);
+  VENTES.forEach((v) => vente(v.id, ymd(v.d, v.jour), v.qte));
   vente('X', new Date().toISOString().slice(0, 8) + '02 10:00:00', 500);   // mois en cours : exclu
   const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1600, height: 1000 } })).newPage();
@@ -47,16 +57,14 @@ const vente = (id, quand, qte) => q("INSERT INTO t_preenregistrement (lg_PREENRE
 
     /* ------------------------------------------------ API */
     const d = await api('../api/v1/analyse-commande/demande?mois=24&query=' + CIP);
-    const j = new Date(), fin = new Date(j.getFullYear(), j.getMonth() - 1, 1), deb = new Date(j.getFullYear(), j.getMonth() - 24, 1);
+    const j = J;
     const ym = (x) => x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0');
-    ok('Fenêtre : 24 mois complets, mois en cours exclu', d.success && d.debut === ym(deb) && d.fin === ym(fin), d.debut + ' → ' + d.fin);
+    ok('Fenêtre : 24 mois complets, mois en cours exclu', d.success && d.debut === ym(DEB) && d.fin === ym(FIN), d.debut + ' → ' + d.fin);
     ok('Total : 88 unités (les 500 du mois en cours ne comptent pas)', d.total === 88, d.total);
     ok('Indices : décembre 10,91, juillet 1,09, les autres mois 0', d.indices[11] === 10.91 && d.indices[6] === 1.09 && d.indices.filter((v) => v === 0).length === 10, d.indices.join(' '));
     ok('Pic en décembre', d.pic === 12, d.pic);
-    const a25 = (d.annees || []).find((a) => a.annee === 2025);
-    ok('Matrice : 2025 = 8 en juillet, 40 en décembre, total 48', a25 && a25.mois[6] === 8 && a25.mois[11] === 40 && a25.total === 48, JSON.stringify(a25));
-    const a24 = (d.annees || []).find((a) => a.annee === 2024);
-    ok('Matrice : mois hors période vides (2024 avant octobre)', a24 && a24.mois[0] === null && a24.mois[9] === 0 && a24.mois[11] === 40, JSON.stringify(a24));
+    const annees = (d.annees || []).map((a) => ({ annee: a.annee, mois: a.mois, total: a.total }));
+    ok('Matrice : année × mois, quantités du jeu d\'essai à leur place, mois hors période vides', JSON.stringify(annees) === JSON.stringify(MATRICE), JSON.stringify(annees) + ' / attendu ' + JSON.stringify(MATRICE));
     ok('Tendance : 12 derniers mois (40 + 8 → 48 ? selon la date) contre les 12 précédents', d.tendance && typeof d.tendance.recent === 'number' && d.tendance.recent + d.tendance.avant === 88, JSON.stringify(d.tendance));
     const prod = (d.produits || [])[0] || {};
     ok('Produit classé : pic décembre, indice 10,91', d.produits.length === 1 && prod.cip === CIP && prod.pic === 12 && prod.indicePic === 10.91, JSON.stringify(prod));
@@ -64,7 +72,7 @@ const vente = (id, quand, qte) => q("INSERT INTO t_preenregistrement (lg_PREENRE
     const attendu = prochain === 12 || suivant === 12;
     ok('« À anticiper » quand décembre est le mois prochain ou le suivant (' + prochain + '/' + suivant + ')', (d.anticiper.length === 1) === attendu && prod.anticiper === attendu, JSON.stringify(d.anticiper));
     const douze = await api('../api/v1/analyse-commande/demande?mois=12&query=' + CIP);
-    ok('Sur 12 mois (oct. 2025 → sept. 2026) : seul décembre 2025 (40), pas de tendance', douze.total === 40 && Object.keys(douze.tendance).length === 0, douze.total);
+    ok('Sur 12 mois : seul le décembre de la 2e année (40), pas de tendance', douze.total === 40 && Object.keys(douze.tendance).length === 0, douze.total);
     /* filtre par rayon seul (sans recherche) : avant, numerotation des parametres avec un trou -> erreur, 0 unite */
     const RAYON = q("SELECT lg_ZONE_GEO_ID FROM t_famille WHERE lg_FAMILLE_ID = '" + FAM + "'");
     const parRayon = await api('../api/v1/analyse-commande/demande?mois=24&rayonId=' + encodeURIComponent(RAYON));
@@ -91,7 +99,7 @@ const vente = (id, quand, qte) => q("INSERT INTO t_preenregistrement (lg_PREENRE
         faibles: (d.querySelectorAll('.dem-tuiles .pml-tuile-valeur')[2] || {}).textContent, janv: ind[1],
         annees: d.querySelectorAll('tr.dem-annee').length, dec: ind[12], fond: (d.querySelectorAll('tr.dem-indices td')[12] || {}).style.background,
         produits: d.querySelectorAll('table.dem-saisonniers tr.dem-produit').length, fenetre: Ext.ComponentQuery.query('analysecommande #demFenetre')[0].getEl().dom.textContent }; });
-    ok('Écran : 4 tuiles, mois le plus fort « déc. », plus faibles « 10 mois sans vente », matrice (3 années), indice de décembre en vert, janvier 0,00', ecran.tuiles === 4 && ecran.fort === 'déc.' && ecran.faibles === '10 mois sans vente' && ecran.janv === '0,00' && ecran.annees === 3
+    ok('Écran : 4 tuiles, mois le plus fort « déc. », plus faibles « 10 mois sans vente », matrice (' + MATRICE.length + ' années), indice de décembre en vert, janvier 0,00', ecran.tuiles === 4 && ecran.fort === 'déc.' && ecran.faibles === '10 mois sans vente' && ecran.janv === '0,00' && ecran.annees === MATRICE.length
       && ecran.dec === '10,91' && /169, 223, 191|a9dfbf/.test(ecran.fond) && ecran.produits === 1 && /Mois complets/.test(ecran.fenetre), JSON.stringify(ecran));
     await p.screenshot({ path: SORTIE + '/demande-saisonniere.png' });
     await p.evaluate(() => Ext.ComponentQuery.query('analysecommande #ongletDemande')[0].getEl().dom.querySelector('table.dem-saisonniers tr.dem-produit td').click());

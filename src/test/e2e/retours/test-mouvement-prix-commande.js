@@ -18,7 +18,8 @@ const GROSSISTE = q("SELECT lg_GROSSISTE_ID FROM t_grossiste WHERE str_STATUT = 
 const P = q("SELECT CONCAT_WS('|', lg_FAMILLE_ID, int_CIP) FROM t_famille WHERE str_STATUT = 'enable' AND int_CIP REGEXP '^[0-9]{7}$'"
   + " AND int_PRICE BETWEEN 1000 AND 5000 AND int_PAF BETWEEN 300 AND int_PRICE - 200 AND (SELECT COUNT(*) FROM t_famille x WHERE x.int_CIP = t_famille.int_CIP) = 1 ORDER BY str_NAME LIMIT 1").split('|');
 const pafGrossiste = () => q(`SELECT IFNULL(MAX(int_PAF), '') FROM t_famille_grossiste WHERE lg_FAMILLE_ID = '${P[0]}' AND lg_GROSSISTE_ID = '${GROSSISTE}'`);
-let pafOrigine = null;
+const liaisons = () => q(`SELECT IFNULL(GROUP_CONCAT(lg_FAMILLE_GROSSISTE_ID ORDER BY lg_FAMILLE_GROSSISTE_ID), '') FROM t_famille_grossiste WHERE lg_FAMILLE_ID = '${P[0]}' AND lg_GROSSISTE_ID = '${GROSSISTE}'`);
+let pafOrigine = null, liaisonsOrigine = null;
 
 function nettoyer() {
   const cdes = q(`SELECT IFNULL(GROUP_CONCAT(CONCAT('''', lg_ORDER_ID, '''')), '''-''') FROM t_order WHERE dt_CREATED >= '${DEBUT}' AND lg_USER_ID = '${ADMIN}'`);
@@ -27,6 +28,11 @@ function nettoyer() {
     + `DELETE FROM notification_client WHERE notification_id IN (SELECT id FROM notification WHERE created_at >= '${DEBUT}' AND entity_ref = '${P[0]}');`
     + `DELETE FROM notification WHERE created_at >= '${DEBUT}' AND entity_ref = '${P[0]}';`
     + `DELETE FROM t_event_log WHERE dt_CREATED >= '${DEBUT}' AND lg_USER_ID = '${ADMIN}' AND str_TYPE_LOG = '${P[1]}';`);
+  /* la commande cree la liaison article/grossiste si elle n'existait pas : on la retire */
+  if (liaisonsOrigine !== null) {
+    const garder = liaisonsOrigine ? liaisonsOrigine.split(',').map((x) => `'${x}'`).join(',') : "'-'";
+    q(`DELETE FROM t_famille_grossiste WHERE lg_FAMILLE_ID = '${P[0]}' AND lg_GROSSISTE_ID = '${GROSSISTE}' AND lg_FAMILLE_GROSSISTE_ID NOT IN (${garder})`);
+  }
   if (pafOrigine !== null && pafOrigine !== '') {
     q(`UPDATE t_famille_grossiste SET int_PAF = ${pafOrigine} WHERE lg_FAMILLE_ID = '${P[0]}' AND lg_GROSSISTE_ID = '${GROSSISTE}'`);
   }
@@ -51,6 +57,7 @@ function nettoyer() {
   try {
     nettoyer();
     pafOrigine = pafGrossiste();
+    liaisonsOrigine = liaisons();
     ok('Préconditions : un grossiste, un produit au CIP unique', GROSSISTE && P[0], P.join(' / '));
     await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
     await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
@@ -92,8 +99,8 @@ function nettoyer() {
     ok('Exécution sans exception', false, e.stack);
   } finally {
     try { nettoyer(); } catch (e) { console.log('nettoyage : ' + e.message); }
-    ok('Nettoyage : commande et mouvements de prix d\'essai retirés, prix d\'achat grossiste remis', q(`SELECT COUNT(*) FROM t_order WHERE dt_CREATED >= '${DEBUT}' AND lg_USER_ID = '${ADMIN}'`) === '0'
-      && q(`SELECT COUNT(*) FROM t_mouvementprice WHERE lg_FAMILLE_ID = '${P[0]}' AND dt_UPDATED >= '${DEBUT}'`) === '0' && pafGrossiste() === pafOrigine);
+    ok('Nettoyage : commande et mouvements de prix d\'essai retirés, prix d\'achat grossiste et liaison article/grossiste remis', q(`SELECT COUNT(*) FROM t_order WHERE dt_CREATED >= '${DEBUT}' AND lg_USER_ID = '${ADMIN}'`) === '0'
+      && q(`SELECT COUNT(*) FROM t_mouvementprice WHERE lg_FAMILLE_ID = '${P[0]}' AND dt_UPDATED >= '${DEBUT}'`) === '0' && pafGrossiste() === pafOrigine && liaisons() === liaisonsOrigine, liaisons() + ' / ' + liaisonsOrigine);
     await b.close();
     const k = res.filter((x) => x.c).length;
     console.log('\n' + k + '/' + res.length + ' OK');
