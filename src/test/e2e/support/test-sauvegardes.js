@@ -95,11 +95,21 @@ const ilYa = (jours) => new Date(Date.now() - jours * 86400000);
     const fichiers = fs.readdirSync(DOSSIER).filter((f) => /^prestige_.*\.sql\.gz$/.test(f));
     const nouveau = fichiers.find((f) => f !== recente && f !== vieille);
     ok('Fichier compressé créé dans le dossier, nommé par base et heure', !!nouveau && ligne.fichier === nouveau && !fichiers.some((f) => /partiel/.test(f)), fichiers.join(', '));
-    const contenu = nouveau ? zlib.gunzipSync(fs.readFileSync(path.join(DOSSIER, nouveau))).toString('utf8') : '';
+    /* relu par morceaux : decompresse, le fichier depasse la taille d'une chaine de Node (2,3 Go le 01/11) */
+    const lu = !nouveau ? {} : await new Promise((fini, echec) => {
+      const r = { tables: 0, declencheurs: false, routines: false, fin: '' };
+      const rl = require('readline').createInterface({ input: fs.createReadStream(path.join(DOSSIER, nouveau)).pipe(zlib.createGunzip()).on('error', echec), crlfDelay: Infinity });
+      rl.on('line', (l) => {
+        if (l.startsWith('CREATE TABLE `')) { r.tables++; } else if (/^(\/\*!\d+ )?CREATE\b/.test(l)) {
+          r.declencheurs = r.declencheurs || /\bTRIGGER\b/.test(l); r.routines = r.routines || /\b(PROCEDURE|FUNCTION)\b/.test(l);
+        }
+        if (l.trim()) { r.fin = l.slice(0, 200); }
+      });
+      rl.on('close', () => fini(r));
+    });
     const tables = Number(q("SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_TYPE = 'BASE TABLE'"));
-    const creees = (contenu.match(/^CREATE TABLE `/gm) || []).length;
-    ok('Sauvegarde complète : « Dump completed », toutes les tables, déclencheurs et routines', /-- Dump completed/.test(contenu.slice(-300)) && creees === tables
-      && /CREATE\b.*\bTRIGGER/.test(contenu) && /CREATE\b.*\b(PROCEDURE|FUNCTION)/.test(contenu), creees + ' / ' + tables + ' tables');
+    ok('Sauvegarde complète : « Dump completed », toutes les tables, déclencheurs et routines', /^-- Dump completed/.test(lu.fin || '') && lu.tables === tables
+      && lu.declencheurs && lu.routines, JSON.stringify(lu) + ' / ' + tables + ' tables');
     ok('Copie identique sur le second dossier', !!nouveau && fs.existsSync(path.join(COPIE, nouveau))
       && fs.statSync(path.join(COPIE, nouveau)).size === fs.statSync(path.join(DOSSIER, nouveau)).size);
     ok('Conservation : la sauvegarde de 40 jours est retirée, celle de 10 jours gardée', !fs.existsSync(path.join(DOSSIER, vieille)) && fs.existsSync(path.join(DOSSIER, recente)));
