@@ -25,7 +25,7 @@ Ext.define('testextjs.view.support.SupportServeur', {
     initComponent: function () {
         var me = this;
         me.styles();
-        me.items = [me.ongletEtat(), me.ongletExperience(), me.ongletArrets(), me.ongletReglages(), me.ongletLexique()];
+        me.items = [me.ongletEtat(), me.ongletExperience(), me.ongletArrets(), me.ongletReglages(), me.ongletSauvegardes(), me.ongletLexique()];
         me.callParent(arguments);
         me.on('afterrender', function () {
             me.chargerEtat();
@@ -40,6 +40,8 @@ Ext.define('testextjs.view.support.SupportServeur', {
                 me.etatJetonVeille();
             } else if (t.itemId === 'ongletExperience') {
                 me.chargerExperience();
+            } else if (t.itemId === 'ongletSauvegardes') {
+                me.chargerSauvegardes(true);
             } else if (t.itemId === 'ongletLexique') {
                 me.afficherLexique();
             }
@@ -53,6 +55,7 @@ Ext.define('testextjs.view.support.SupportServeur', {
         }, 15000);
         me.on('destroy', function () {
             clearInterval(me.minuteur);
+            clearTimeout(me.minuteurSauvegarde);
         });
     },
 
@@ -433,6 +436,128 @@ Ext.define('testextjs.view.support.SupportServeur', {
     },
 
     /* ============================================================================================ lexique */
+
+    /* ============================================================================================ sauvegardes */
+
+    /* retour du 01/11 : sauvegarde de la base toutes les heures (une heure perdue au plus), copie sur un second dossier,
+       conservation, historique ; marche a suivre pour restaurer. */
+    ongletSauvegardes: function () {
+        var me = this;
+        var store = Ext.create('Ext.data.Store', {fields: [{name: 'id', type: 'int'}, 'debut', 'fin', 'origine', 'statut', 'fichier',
+                {name: 'tailleMo', type: 'float'}, {name: 'dureeS', type: 'int'}, 'copie', 'message'], data: []});
+        var statuts = {REUSSIE: ['srv-ok', 'Réussie'], ECHEC: ['srv-critique', 'Échec'], EN_COURS: ['srv-encours', 'En cours'], INTERROMPUE: ['srv-critique', 'Interrompue']};
+        return {
+            title: 'Sauvegardes', itemId: 'ongletSauvegardes', iconCls: 'fa fa-database', layout: {type: 'vbox', align: 'stretch'}, autoScroll: true,
+            items: [{xtype: 'component', itemId: 'sauvEtat', cls: 'srv-etat', margin: '6 4'},
+                {xtype: 'container', padding: '6 10', layout: {type: 'hbox', align: 'top'}, defaults: {labelAlign: 'top'}, items: [
+                        {xtype: 'textfield', itemId: 'sauvDossier', fieldLabel: 'Dossier des sauvegardes', flex: 3, margin: '0 8 0 0'},
+                        {xtype: 'textfield', itemId: 'sauvCopie', fieldLabel: 'Copie sur un second dossier (autre disque, conseillé)', flex: 3, margin: '0 8 0 0'},
+                        {xtype: 'numberfield', itemId: 'sauvGarderHeures', fieldLabel: 'Toutes gardées (heures)', width: 150, minValue: 1, maxValue: 720, allowDecimals: false, margin: '0 8 0 0'},
+                        {xtype: 'numberfield', itemId: 'sauvGarderJours', fieldLabel: 'Puis une par jour (jours)', width: 150, minValue: 0, maxValue: 365, allowDecimals: false, margin: '0 8 0 0'},
+                        {xtype: 'checkbox', itemId: 'sauvActive', boxLabel: 'Sauvegarde automatique toutes les heures', margin: '24 8 0 0'}]},
+                {xtype: 'toolbar', border: false, items: [
+                        {xtype: 'button', itemId: 'btnSauvReglages', text: 'Enregistrer les réglages', iconCls: 'fa fa-save', handler: function () {
+                            me.enregistrerSauvegardes();
+                        }},
+                        {xtype: 'button', itemId: 'btnSauvMaintenant', text: 'Sauvegarder maintenant', iconCls: 'fa fa-download', handler: function () {
+                            me.sauvegarderMaintenant();
+                        }},
+                        {xtype: 'tbtext', itemId: 'sauvMessage', text: ''}]},
+                {xtype: 'gridpanel', itemId: 'sauvListe', title: 'Historique', height: 300, margin: '4', columnLines: true, store: store,
+                    viewConfig: {emptyText: 'Aucune sauvegarde pour l\'instant.', deferEmptyText: false},
+                    columns: [{text: 'Début', dataIndex: 'debut', width: 145},
+                        {text: 'Origine', dataIndex: 'origine', width: 105, renderer: function (v) {
+                                return v === 'MANUELLE' ? 'Manuelle' : 'Automatique';
+                            }},
+                        {text: 'Résultat', dataIndex: 'statut', width: 95, renderer: function (v) {
+                                var s = statuts[v] || ['', v];
+                                return '<span class="' + s[0] + '">' + me.esc(s[1]) + '</span>';
+                            }},
+                        {text: 'Taille (Mo)', dataIndex: 'tailleMo', width: 90, align: 'right'},
+                        {text: 'Durée', dataIndex: 'dureeS', width: 80, align: 'right', renderer: function (v, m, r) {
+                                return r.get('statut') === 'EN_COURS' ? '' : (v >= 60 ? Math.floor(v / 60) + ' min ' : '') + (v % 60) + ' s';
+                            }},
+                        {text: 'Copie', dataIndex: 'copie', width: 70, renderer: function (v) {
+                                return v === 'OK' ? '<span class="srv-ok">Faite</span>' : v === 'ECHEC' ? '<span class="srv-critique">Échec</span>' : '';
+                            }},
+                        {text: 'Fichier', dataIndex: 'fichier', width: 290, renderer: function (v) {
+                                return me.esc(v);
+                            }},
+                        {text: 'Message', dataIndex: 'message', flex: 1, renderer: function (v) {
+                                return me.esc(v);
+                            }}]},
+                {xtype: 'component', itemId: 'sauvRestaurer', margin: '6 10 10 10', html: ''}]
+        };
+    },
+
+    chargerSauvegardes: function (reglages) {
+        var me = this, o = me.down('#ongletSauvegardes');
+        clearTimeout(me.minuteurSauvegarde);
+        me.appel('GET', '../sauvegardes/etat', null, function (r) {
+            if (me.isDestroyed || !o) {
+                return;
+            }
+            var e = o.down('#sauvEtat');
+            if (!r.success) {
+                e.update('<span class="srv-critique">' + me.esc(r.message) + '</span>');
+                return;
+            }
+            if (reglages) {
+                o.down('#sauvDossier').setValue(r.dossier);
+                o.down('#sauvCopie').setValue(r.copie);
+                o.down('#sauvGarderHeures').setValue(r.garderHeures);
+                o.down('#sauvGarderJours').setValue(r.garderJours);
+                o.down('#sauvActive').setValue(r.active);
+            }
+            e.update((r.enCours ? '<span class="srv-encours">Sauvegarde en cours depuis ' + me.esc(r.enCoursDepuis.substring(11)) + '…</span><br>' : '')
+                    + 'Dernière sauvegarde réussie : ' + (r.derniereReussie ? '<b>' + me.esc(r.derniereReussie) + '</b>' : '<span class="srv-critique">aucune</span>')
+                    + (r.active ? '' : ' · <span class="srv-ajuster">sauvegarde automatique coupée</span>')
+                    + '<br>Outil de sauvegarde : ' + (r.outil ? me.esc(r.outil) : '<span class="srv-critique">introuvable (mariadb-dump)</span>')
+                    + ' · Espace libre : ' + (r.espaceLibreMo === null ? '—' : me.nombre(r.espaceLibreMo) + ' Mo'));
+            o.down('#sauvListe').getStore().loadData(r.liste);
+            var dernier = '';
+            Ext.each(r.liste, function (l) {
+                if (!dernier && l.statut === 'REUSSIE') {
+                    dernier = l.fichier;
+                }
+            });
+            var base = me.esc(r.base), f = me.esc(dernier || 'prestige_' + r.base + '_AAAAMMJJ_HHMM.sql.gz'), sql = f.replace(/\.gz$/, '');
+            o.down('#sauvRestaurer').update('<div class="srv-lex"><div class="srv-lex-terme">Restaurer une sauvegarde</div>'
+                    + '<div>1. Arrêter Prestige (Payara) sur le serveur : plus aucune vente pendant la restauration.</div>'
+                    + '<div>2. Décompresser le fichier ' + f + ' (7-Zip : clic droit &gt; Extraire ici).</div>'
+                    + '<div>3. Dans une invite de commandes, dossier <code>bin</code> de MariaDB, recréer la base puis la recharger :<br>'
+                    + '<code class="srv-jeton">mariadb -u root -p -e "DROP DATABASE ' + base + '; CREATE DATABASE ' + base + ' CHARACTER SET utf8mb4"</code><br>'
+                    + '<code class="srv-jeton">mariadb -u root -p --default-character-set=utf8mb4 ' + base + ' &lt; ' + sql + '</code></div>'
+                    + '<div>4. Redémarrer Prestige. Les opérations faites après l\'heure de la sauvegarde sont à ressaisir.</div>'
+                    + '<div>Mesuré le 01/11/2026 : une base de 6,7 Go se recharge en 4 min 30 environ.</div></div>');
+            if (r.enCours) {
+                me.minuteurSauvegarde = setTimeout(function () {
+                    if (!me.isDestroyed && me.getActiveTab() && me.getActiveTab().itemId === 'ongletSauvegardes') {
+                        me.chargerSauvegardes(false);
+                    }
+                }, 3000);
+            }
+        });
+    },
+
+    enregistrerSauvegardes: function () {
+        var me = this, o = me.down('#ongletSauvegardes'), m = o.down('#sauvMessage');
+        me.appel('POST', '../sauvegardes/reglages', {dossier: o.down('#sauvDossier').getValue(), copie: o.down('#sauvCopie').getValue(),
+            active: o.down('#sauvActive').getValue(), garderHeures: o.down('#sauvGarderHeures').getValue(), garderJours: o.down('#sauvGarderJours').getValue()}, function (r) {
+            m.setText('<span class="' + (r.success ? 'srv-ok' : 'srv-critique') + '">' + me.esc(r.message) + '</span>');
+            if (r.success) {
+                me.chargerSauvegardes(true);
+            }
+        });
+    },
+
+    sauvegarderMaintenant: function () {
+        var me = this, o = me.down('#ongletSauvegardes'), m = o.down('#sauvMessage');
+        me.appel('POST', '../sauvegardes/maintenant', {}, function (r) {
+            m.setText('<span class="' + (r.success ? 'srv-ok' : 'srv-critique') + '">' + me.esc(r.message) + '</span>');
+            me.chargerSauvegardes(false);
+        });
+    },
 
     ongletLexique: function () {
         var me = this;
