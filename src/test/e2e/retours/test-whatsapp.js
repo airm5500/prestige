@@ -49,6 +49,21 @@ function nettoyer() {
   const modeAvant = q("SELECT str_VALUE FROM t_parameters WHERE str_KEY = 'KEY_WHATSAPP_MODE_DEFAUT'");
   const journalAvant = q("SELECT COUNT(*) FROM whatsapp_message");
   const tailleLog = fs.statSync(LOG).size;
+  /* aucun message reel, quelle que soit la configuration de la copie (retour du 01/11 : compte WhatsApp Web actif en
+     envoi reel et mode WEB par defaut -> l'essai partait vers le service) : tous les comptes en mode test, compte Web
+     sans adresse ni jeton, API par defaut. Tout est remis a la fin (comptesAvant, modeAvant). */
+  exec("UPDATE whatsapp_compte SET mode_test = 1; UPDATE whatsapp_compte SET web_url = NULL, web_jeton = NULL WHERE mode = 'WEB';"
+    + "UPDATE t_parameters SET str_VALUE = 'API' WHERE str_KEY = 'KEY_WHATSAPP_MODE_DEFAUT'");
+  const reelPossible = () => q("SELECT COUNT(*) FROM whatsapp_compte WHERE actif = 1 AND mode_test = 0") !== '0';
+  /* aucun SMS reel non plus (retour du 01/11 : le repli SMS partait vers l'API d'Orange) : le SMS n'a pas de mode test,
+     un fournisseur fictif au code inconnu est mis en vigueur, l'envoi est bloque avant tout appel au fournisseur.
+     Bascule en une transaction : sans fournisseur en vigueur, l'application reprendrait Orange. Remis a la fin. */
+  if (q("SELECT COUNT(*) FROM sms_fournisseur WHERE id = 'E2E-WA-SMS'") !== '0') { throw new Error('fournisseur SMS fictif d\'un essai précédent encore en place : remettre le fournisseur en vigueur d\'abord'); }
+  const smsAvant = q("SELECT GROUP_CONCAT(CONCAT(\"'\", id, \"'\")) FROM sms_fournisseur WHERE en_vigueur = 1");
+  const debut = q('SELECT NOW()');
+  const evtSms = "module = 'SMS' AND message_court LIKE 'Aucun fournisseur SMS en vigueur%'";
+  const evtAvant = q("SELECT CONCAT_WS('|', id, occurrences, last_seen_at, modified_at) FROM t_application_event WHERE " + evtSms).split(/\r?\n/).filter(Boolean);
+  const smsReelPossible = () => q("SELECT COUNT(*) FROM sms_fournisseur WHERE en_vigueur = 1") !== '1' || q("SELECT COUNT(*) FROM sms_fournisseur WHERE en_vigueur = 1 AND id = 'E2E-WA-SMS'") !== '1';
   exec("INSERT INTO t_client (lg_CLIENT_ID, str_FIRST_NAME, str_LAST_NAME, lg_TYPE_CLIENT_ID, str_ADRESSE, str_NUMERO_SECURITE_SOCIAL, dt_CREATED, dt_UPDATED, str_STATUT) VALUES"
     + " ('" + A + "', 'ZZWHATSAPP', 'AWA', '1', '07 07 07 07 01', 'E2EWA01', NOW(), NOW(), 'enable'),"
     + " ('" + B + "', 'ZZWHATSAPP', 'BINTOU', '1', '0707070702', NULL, NOW(), NOW(), 'enable'),"
@@ -73,6 +88,8 @@ function nettoyer() {
   const post = (u, corps) => p.evaluate(async ([u, c]) => JSON.parse(await (await fetch(u, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(c) })).text()), [u, corps]);
   const get = (u) => p.evaluate(async (u) => JSON.parse(await (await fetch(u)).text()), u);
   try {
+    exec("START TRANSACTION; UPDATE sms_fournisseur SET en_vigueur = 0;"
+      + " INSERT INTO sms_fournisseur (id, code, libelle, actif, en_vigueur, dlr_mode, created_at) VALUES ('E2E-WA-SMS', 'E2E-AUCUN', 'Essai e2e : aucun envoi', 1, 1, 'POLLING', NOW()); COMMIT;");
     await p.goto(URL + '/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
     await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
@@ -110,6 +127,7 @@ function nettoyer() {
     ok('Envoi réel sans configuration : refusé (adresse et jeton nécessaires)', reel.success === false && /adresse et jeton/.test(reel.message), JSON.stringify(reel));
 
     /* ------------------------------------------------ essai */
+    if (reelPossible()) { throw new Error('un compte WhatsApp actif est en envoi réel : essai annulé, aucun message envoyé'); }
     await p.evaluate(() => { const e = Ext.ComponentQuery.query('whatsappcomptes')[0]; e.down('#numeroEssai').setValue('07 07 07 07 01'); });
     await clic('whatsappcomptes #btnEssai', 2500);
     const essai = await p.evaluate(() => Ext.ComponentQuery.query('whatsappcomptes #resultatEssai')[0].getValue());
@@ -122,6 +140,8 @@ function nettoyer() {
     await p.evaluate(() => { const g = Ext.ComponentQuery.query('rappelshabitude')[0]; g.down('#query').setValue('ZZWHATSAPP'); g.rechercher(); });
     await p.waitForTimeout(2500);
     await p.evaluate(() => { const g = Ext.ComponentQuery.query('rappelshabitude')[0]; g.getSelectionModel().selectAll(); });
+    if (reelPossible()) { throw new Error('un compte WhatsApp actif est en envoi réel : rappel annulé, aucun message envoyé'); }
+    if (smsReelPossible()) { throw new Error('un fournisseur SMS réel est en vigueur : rappel annulé, aucun SMS envoyé'); }
     await clic('rappelshabitude #btnSms', 800);
     await clic('rappelshabitude #envWhatsappSms', 800);
     await p.evaluate(() => Ext.MessageBox.msgButtons.yes.el.dom.click());
@@ -137,6 +157,10 @@ function nettoyer() {
     const notifsA = q("SELECT COUNT(DISTINCT n.id) FROM notification n JOIN notification_client nc ON nc.notification_id = n.id WHERE nc.client_id = '" + A + "'");
     ok('Repli SMS : une notification SMS pour B seul (A n\'est pas doublé)', notifsB === '2' && notifsA === '1', 'B=' + notifsB + ' A=' + notifsA);
     ok('Aucun message pour C', q("SELECT COUNT(*) FROM notification_client WHERE client_id = '" + C + "'") === '0' && q("SELECT COUNT(*) FROM whatsapp_message WHERE client_id = '" + C + "'") === '0');
+    /* le repli part en tache de fond : attendre son blocage avant de remettre le fournisseur reel */
+    const bloque = () => q("SELECT COUNT(*) FROM t_application_event WHERE " + evtSms + " AND last_seen_at >= '" + debut + "'") !== '0';
+    for (let i = 0; i < 40 && !bloque(); i++) { await p.waitForTimeout(500); }
+    ok('Repli SMS bloqué avant le fournisseur (aucun SMS réel)', bloque());
 
     /* ------------------------------------------------ webhooks (sans session) */
     const brut = async (methode, chemin, corps, entetes) => { const r = await fetch(URL + '/api/' + chemin, { method: methode, body: corps, headers: entetes || {} }); return { s: r.status, t: await r.text() }; };
@@ -202,7 +226,18 @@ function nettoyer() {
         + " WHERE mode = " + v[0]);
     });
     exec("UPDATE t_parameters SET str_VALUE = '" + modeAvant + "' WHERE str_KEY = 'KEY_WHATSAPP_MODE_DEFAUT'");
-    ok('Comptes, paramètre, journal et jeu d\'essai remis', q("SELECT COUNT(*) FROM t_client WHERE lg_CLIENT_ID IN " + clients) === '0'
+    /* fournisseur SMS : notifications d'essai deja retirees (nettoyer), un repli encore en route ne trouve plus rien */
+    await new Promise((r) => setTimeout(r, 3000));
+    exec("START TRANSACTION; DELETE FROM sms_fournisseur WHERE id = 'E2E-WA-SMS';"
+      + (smsAvant && smsAvant !== 'NULL' ? " UPDATE sms_fournisseur SET en_vigueur = 1 WHERE id IN (" + smsAvant + ");" : '') + " COMMIT;"
+      + "DELETE o FROM t_application_event_occurrence o JOIN t_application_event e ON e.id = o.event_id WHERE e." + evtSms.replace(/ AND /, ' AND e.') + " AND o.seen_at >= '" + debut + "';"
+      + "DELETE FROM t_application_event WHERE " + evtSms + " AND created_at >= '" + debut + "';");
+    evtAvant.forEach((l) => { const v = l.split('|');
+      exec("UPDATE t_application_event SET occurrences = " + v[1] + ", last_seen_at = '" + v[2] + "', modified_at = '" + v[3] + "' WHERE id = '" + v[0] + "'"); });
+    ok('Fournisseur SMS en vigueur remis, événements d\'essai retirés', q("SELECT COUNT(*) FROM sms_fournisseur WHERE id = 'E2E-WA-SMS'") === '0'
+      && q("SELECT GROUP_CONCAT(CONCAT(\"'\", id, \"'\")) FROM sms_fournisseur WHERE en_vigueur = 1") === smsAvant
+      && q("SELECT COUNT(*) FROM t_application_event WHERE " + evtSms + " AND created_at >= '" + debut + "'") === '0');
+    ok('Comptes, paramètre, journal et jeu d\'essai remis',q("SELECT COUNT(*) FROM t_client WHERE lg_CLIENT_ID IN " + clients) === '0'
       && q("SELECT COUNT(*) FROM whatsapp_message") === journalAvant && q("SELECT COUNT(*) FROM whatsapp_compte WHERE access_token LIKE 'JETON-SECRET-E2E%' OR web_jeton LIKE 'WEBJETON-E2E%'") === '0');
     const ko = res.filter((r) => !r.c).length;
     console.log('\n' + (res.length - ko) + '/' + res.length + ' OK');
