@@ -60,6 +60,9 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.action.add', {
         int_total_formated = 0;
         ref = this.getNameintern();
         titre = this.getTitre();
+        /* audit 06 RF-04 : ouvert depuis la liste, le retour affiche est celui recu : ses lignes, et « Ajouter » le complete */
+        this.current = ref && ref !== '0' ? ref : null;
+        this.blChoisi = null;
         const storebonlivraison = new Ext.data.Store({
             model: 'testextjs.model.BonLivraison',
             pageSize: itemsPerPage,
@@ -224,10 +227,18 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.action.add', {
                                             minChars: 2,
                                             queryMode: 'remote',
                                             emptyText: 'Choisir un bon de livraison...',
+                                            /* audit 06 RF-02 : deux grossistes peuvent avoir le meme numero de BL ; la liste montre le grossiste */
+                                            listConfig: {
+                                                getInnerTpl: function () {
+                                                    return '{str_REF_LIVRAISON} <span style="float: right; color: #555;">{str_GROSSISTE_LIBELLE}</span>';
+                                                }
+                                            },
                                             listeners: {
-                                                select: function (cmp) {
+                                                select: function (cmp, records) {
                                                     let comboFamille = Ext.getCmp('str_NAME');
-                                                    let record = cmp.findRecord(cmp.valueField || cmp.displayField, cmp.getValue()); //recupere la ligne d
+                                                    /* la ligne choisie, pas la premiere portant ce numero (RF-02) */
+                                                    let record = (Ext.isArray(records) ? records[0] : records) || cmp.findRecord(cmp.valueField || cmp.displayField, cmp.getValue());
+                                                    Me.blChoisi = record;
                                                     Ext.getCmp('str_GROSSISTE_LIBELLE').setValue(record.get('str_GROSSISTE_LIBELLE'));
                                                     comboFamille.clearValue();
                                                     comboFamille.getStore().getProxy().url = "../RetourFourData?lg_BON_LIVRAISON_ID=" + cmp.getValue();
@@ -681,9 +692,16 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.action.add', {
         combo.getStore().load({
             params: {query: refBl},
             callback: function () {
-                if (!combo.getStore().findRecord('str_REF_LIVRAISON', refBl, 0, false, false, true)) {
+                const s = combo.getStore();
+                /* RF-02 : parmi les BL de ce numero, celui du grossiste indique */
+                const i = s.findBy(function (r) {
+                    return r.get('str_REF_LIVRAISON') === refBl && (!grossiste || r.get('str_GROSSISTE_LIBELLE') === grossiste);
+                });
+                const rec = i >= 0 ? s.getAt(i) : s.findRecord('str_REF_LIVRAISON', refBl, 0, false, false, true);
+                if (!rec) {
                     return;
                 }
+                Me.blChoisi = rec;
                 combo.setValue(refBl);
                 Ext.getCmp('str_GROSSISTE_LIBELLE').setValue(grossiste || combo.findRecord('str_REF_LIVRAISON', refBl).get('str_GROSSISTE_LIBELLE'));
                 const comboFamille = Ext.getCmp('str_NAME');
@@ -698,6 +716,9 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.action.add', {
 
     loadStore: function () {
         Ext.getCmp('gridpanelID').getStore().load({
+            params: {
+                retourId: Me.idRetour()
+            },
             callback: this.onStoreLoad
         });
     },
@@ -891,6 +912,8 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.action.add', {
         } else {
             params = {
                 lgBONLIVRAISONID: Ext.getCmp('lg_BON_LIVRAISON_ID').getValue(),
+                /* RF-02 : le BL choisi par son identifiant (le numero seul designe le BL homonyme le plus recent) */
+                blId: Me.blChoisi ? Me.blChoisi.get('lg_BON_LIVRAISON_ID') : null,
                 strCOMMENTAIRE: Ext.getCmp('str_COMMENTAIRE').getValue(),
                 items: [{
                         produitId: Ext.getCmp('lg_FAMILLE_ID_VENTE').getValue(),
