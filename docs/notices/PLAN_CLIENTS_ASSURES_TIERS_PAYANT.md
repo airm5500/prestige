@@ -63,7 +63,55 @@ aucun tiers-payant. J5 empêche le plantage, mais ne règle pas la cause. **Plan
 
 Chaque étape : test qui échoue d'abord, correction, tests voisins un par un sur le 9080, commit et push sur `PRES-/support-0211`.
 
-## 4. Questions tranchées (02/11)
+## 4. Étape 1 : recensement (02/11)
+
+Il est fait sur `PRES-/support-0211`, identique à l'intégration au 02/11. « Écran → route → règle métier » ; ✗ marque un
+chemin qui peut aujourd'hui laisser un client assuré sans tiers-payant actif, ou le montrer.
+
+### 4.1 Retirer ou désactiver un tiers-payant
+
+| Écran | Route | Règle métier appelée | Constat |
+|---|---|---|---|
+| Gestion des clients > « Tiers-payants » du client (`showclttierspayant.js`, ouvert depuis `ClientManager` et `ClientDesactiveManager`) | REST `client/gestion/tiers-payants/delete` | `tierspayantManagement.delete_compteclt_tierspayant(id)` : suppression physique du lien | ✗ aucun contrôle du dernier lien ni du principal ; aucune promotion du complémentaire |
+| Ancien écran de vente (`sm_user/dovente/action/addTiersPayant.js`, fenêtres `addtp`, `addclt`) | JSP `compteclienttierspayant/ws_transaction_clt.jsp?mode=delete` | même méthode | ✗ même défaut. **Écran à confirmer** : ouvert seulement depuis l'ancien flux `sm_user/dovente` |
+| Aucun écran trouvé | JSP `client/ws_compteclient_tierspayant_transaction.jsp`, `clienttierspayant/ws_transaction.jsp` et `ws_transaction_vente.jsp` (mode `delete`) | `delete_compteclt_tierspayant(compte, organisme)` | ✗ même défaut ; restent appelables directement |
+| Gestion des tiers-payants > activer ou désactiver un organisme | REST `TiersPayantRessource` et JSP `tierspayant/ws_transaction.jsp` | `enableOrDisableTierspayant` | **Déjà la règle voulue en partie** : les liens vers l'organisme passent à `disable`, et le client dont c'était le seul lien est désactivé avec son compte. **Mais** : aucune promotion du complémentaire quand l'organisme était le principal ; ancien gestionnaire de données, sans garantie que tout soit annulé en cas d'échec |
+| Vente, changement de carnet ou de régime obligatoire (`VenteCtr` → « Modifier infos client ») | REST `client/add/carnet`, `client/add/assurance`, `update-infos-client/{id}` | `updateClientCarnet`, `changerRo` (ClientServiceImpl) | Le nouveau lien est créé avant que l'ancien soit désactivé, dans la même transaction : pas de client sans lien. Reste le `catch` qui renvoie `null` (étape 2) |
+
+### 4.2 Créer un client assuré ou lui ajouter un tiers-payant
+
+| Écran | Route | Règle métier | Constat |
+|---|---|---|---|
+| Gestion des clients > « Ajouter » / « Modifier » (`addClientLast.js`) | REST `client/gestion/create`, `gestion/update` | `clientManagement.createClient`, `update2` (ancien gestionnaire) | ✗ le client est enregistré, puis compte, ayant droit et lien dans un `catch {}` vide : client assuré sans lien possible, écran en succès |
+| Ancienne fenêtre « Ajouter » (`configmanagement/client/action/add.js`), et `ClientDesactiveManager` (modifier, supprimer, activer, désactiver) | JSP `client/ws_transaction.jsp` (`create`, `update`, `createother`, `delete`, `enable`, `disable`) | mêmes méthodes, plus `createClient` sans tiers-payant (`createother`) | ✗ même défaut ; `createother` crée un client du type choisi **sans aucun tiers-payant**. La vue « Clients désactivés » passe encore entièrement par cette JSP |
+| Gestion des clients > « Tiers-payants » > ajouter, modifier | REST `client/gestion/tiers-payants/create`, `create-standard`, `update` (`addclttierspayant.js`) | `create_compteclt_tierspayant`, `createCompteClientTiersPayant`, `updateComptecltTierspayant` | La modification peut changer la priorité ou le régime : à contrôler à l'étape 2 (un principal doit rester) |
+| Vente, « Nouveau client » assuré ou carnet (`VenteCtr`, `VenteEnDepotCtr`, `DevisCtr`) | REST `client/add/assurance`, `client/add/carnet` | `updateOrCreateClientAssurance`, `updateCreateClientCarnet` | ✗ `createClientCarnet` : le `catch` avale l'erreur du lien, la transaction valide le client sans lien. `updateOrCreateClientAssurance` : à vérifier de la même façon |
+| Vente, ajout d'un tiers-payant (`UpdateVenteClientTpForm.js`) | REST `add-tierspayant/{client}/{type}/{taux}` | `addNewTiersPayantToClient` | Ajout seulement : pas de risque de client sans lien |
+| Imports | REST `client/import/*` ; import de ventes (`ImportationVente`, `ImportationVenteDepot`) | `importerClients` (clients **standard** seulement) ; `findOrCreateOneCmpt` | Hors sujet pour la création de clients assurés ; l'import de ventes crée des liens, jamais n'en retire |
+
+### 4.3 Lire et lister les clients assurés
+
+| Écran | Route | Constat |
+|---|---|---|
+| Vente et vente en dépôt, recherche du client assuré (`RechercheClientAss`) ; devis (`DevisClientGrid`) | REST `client/all` → `findClientAssurance` | ✗ tout client actif du type, sans condition sur les liens. **J5 protège la vente**, pas encore la liste |
+| Vente, changement de client (`UpdateVenteClientTpForm`) | REST `client/bytype/{type}` → `findClientAssurance` | ✗ même requête |
+| Gestion des clients (`ClientManager`) | REST `client/gestion` | Liste de gestion : elle doit continuer de montrer un client pour qu'on puisse le corriger, mais un client désactivé passe dans « Clients désactivés » |
+| Notifications, ordonnances | REST `client/list` → `fetchClients` | Tous types confondus : pas une vue « assurance » |
+| Toutes les vues ci-dessus | `findTiersPayantByClientId` | ✗ toute erreur (lien vers un organisme absent, etc.) donne une liste vide ; et le statut de l'**organisme** n'est pas vérifié, seulement celui du lien |
+
+### 4.4 Ce que cela change au plan
+
+- **Étape 2** : la règle unique remplace `delete_compteclt_tierspayant` pour **tous** les retraits (fiche client, JSP restantes,
+  désactivation d'un organisme). La désactivation d'un organisme fait déjà la désactivation du client ; il faut y ajouter la
+  promotion du complémentaire et l'annulation complète en cas d'échec.
+- **Étape 3** : écrans à passer en REST : « Clients désactivés » (`ClientDesactiveManager`, entièrement en JSP) et, s'il est
+  encore au menu, l'ancien écran de vente `sm_user/dovente`. La fiche client est déjà en REST : seul son bouton change.
+- **Étape 4** : création à reprendre dans `clientManagement.createClient` (appelé par REST et JSP), `createClientCarnet` et
+  `updateOrCreateClientAssurance` ; supprimer la possibilité `createother` pour un type assuré.
+- **Étape 5** : filtrer `findClientAssurance` (utilisé par `client/all` et `client/bytype`) sur « au moins un lien actif vers
+  un organisme actif ».
+
+## 5. Questions tranchées (02/11)
 
 1. **Tiers-payant « principal ».** Je le définis comme le régime obligatoire (`bISRO`) ou, s'il n'y en a pas, le lien de
    priorité 1. **Validé.** Pour un client « carnet », le carnet est son seul tiers-payant : son retrait désactive le
