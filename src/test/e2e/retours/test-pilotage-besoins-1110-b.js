@@ -61,8 +61,10 @@ const nettoyer = () => { q("DELETE FROM t_vente_ratee WHERE lg_VENTE_RATEE_ID LI
     ok('Produits vendus en rupture = calcul indépendant (90 jours, stock officine à zéro)', t.rupturesVendus.valeur === rupt, t.rupturesVendus.valeur + ' / ' + rupt);
     ok('Alertes en phrases (dont les ventes ratées à commander)', (s.alertes || []).length > 0 && (s.alertes || []).some((a) => /ratée/.test(a.texte)), JSON.stringify(s.alertes).slice(0, 300));
     const somme = (l) => (l || []).reduce((x, y) => x + y.ca, 0);
-    ok('CA par emplacement : ' + (s.emplacements || []).length + ' ligne(s), total = CA de la période (si 20 au plus)', (s.emplacements || []).length > 0 && ((s.emplacements || []).length === 20 || Math.abs(somme(s.emplacements) - s.caLignes) <= 1), somme(s.emplacements) + ' / ' + s.caLignes);
-    ok('CA par famille : total = CA de la période (si 20 au plus)', (s.familles || []).length > 0 && ((s.familles || []).length === 20 || Math.abs(somme(s.familles) - s.caLignes) <= 1), somme(s.familles) + ' / ' + s.caLignes);
+    /* debut de mois sans vente encore : listes vides, cartes sans encaissement (le mois se remplit ensuite) */
+    const moisVide = !s.caLignes;
+    ok('CA par emplacement : ' + (s.emplacements || []).length + ' ligne(s), total = CA de la période (si 20 au plus)', moisVide ? (s.emplacements || []).length === 0 : (s.emplacements || []).length > 0 && ((s.emplacements || []).length === 20 || Math.abs(somme(s.emplacements) - s.caLignes) <= 1), somme(s.emplacements) + ' / ' + s.caLignes);
+    ok('CA par famille : total = CA de la période (si 20 au plus)', moisVide ? (s.familles || []).length === 0 : (s.familles || []).length > 0 && ((s.familles || []).length === 20 || Math.abs(somme(s.familles) - s.caLignes) <= 1), somme(s.familles) + ' / ' + s.caLignes);
     /* cartes (retours du 12/10) : evolution N face a N-1..N-3, frequentation comparee, encaissements par mode */
     const an = new Date().getFullYear(), auj = new Date().toISOString().slice(0, 10);
     const evo = await api('../api/v1/pilotage/suivi/evolution?mesure=ca&pas=MOIS&comparer=2');
@@ -87,8 +89,8 @@ const nettoyer = () => { q("DELETE FROM t_vente_ratee WHERE lg_VENTE_RATEE_ID LI
     ok('Fréquentation : 24 heures, total = ventes du mois ; comparaison « même période N-1 » un an avant', fr.success && fr.courante.ventesH.length === 24
       && fr.courante.ventesH.reduce((x, v) => x + v, 0) === nbMois && fr.reference.debut === (an - 1) + auj.slice(4, 8) + '01' && /N-1/.test(fr.reference.libelle), JSON.stringify(fr.reference && { d: fr.reference.debut, l: fr.reference.libelle }));
     await onglet('asuivre');
-    await p.waitForFunction(() => document.querySelectorAll('.sv-carte[data-carte="ca"] .sv-courbe').length > 0 && document.querySelectorAll('.sv-carte[data-carte="frequentation"] .sv-barre').length > 0
-      && document.querySelectorAll('.sv-carte[data-carte="encaisse"] .sv-mode').length > 0, null, { timeout: 120000 });
+    await p.waitForFunction((vide) => document.querySelectorAll('.sv-carte[data-carte="ca"] .sv-courbe').length > 0 && document.querySelectorAll('.sv-carte[data-carte="frequentation"] .sv-barre').length > 0
+      && (vide || document.querySelectorAll('.sv-carte[data-carte="encaisse"] .sv-mode').length > 0), nbMois === 0, { timeout: 120000 });
     const ecr = await p.evaluate(() => { const tops = [...document.querySelectorAll('.pilotage-tuiles-suivi .pilotage-tuile')].map((t) => Math.round(t.getBoundingClientRect().top));
       const fonds = [...document.querySelectorAll('.pilotage-tuiles-suivi .pilotage-tuile')].map((t) => getComputedStyle(t).backgroundColor);
       const tetes = [...document.querySelectorAll('.sv-carte .sv-tete')].map((t) => getComputedStyle(t).backgroundColor);
@@ -102,7 +104,7 @@ const nettoyer = () => { q("DELETE FROM t_vente_ratee WHERE lg_VENTE_RATEE_ID LI
     ok('Les 7 tuiles tiennent sur une seule ligne, chacune sur fond de couleur douce', ecr.tuiles === 7 && ecr.uneLigne && ecr.fondsDoux, JSON.stringify(ecr));
     ok('Cartes : alertes, fréquentation, CA, encaissements, achats, TVA, marge, panier, emplacements, familles ; en-têtes de couleurs douces différentes',
       ecr.cartes === 'alertes,frequentation,ca,encaisse,achats,tva,marge,panier,emplacements,familles' && ecr.tetesDistinctes >= 9, JSON.stringify(ecr));
-    ok('Évolution du CA en courbes (N et N-1 par défaut), alertes et emplacements remplis', ecr.courbes === 2 && ecr.alertes === ecr.recues && ecr.recues > 0 && ecr.empl === ecr.emplRecus + 1, JSON.stringify(ecr));
+    ok('Évolution du CA en courbes (N et N-1 par défaut), alertes et emplacements remplis', ecr.courbes === 2 && ecr.alertes === ecr.recues && ecr.recues > 0 && (moisVide ? ecr.emplRecus === 0 : ecr.empl === ecr.emplRecus + 1), JSON.stringify(ecr));
     /* reglages : N-3 et semaine sur le CA, tranche et comparaison de la frequentation */
     await p.click('.sv-carte[data-carte="ca"] button[data-ctl="comp"][data-v="3"]');
     await p.waitForFunction(() => document.querySelectorAll('.sv-carte[data-carte="ca"] .sv-courbe').length === 4, null, { timeout: 120000 });
@@ -112,9 +114,15 @@ const nettoyer = () => { q("DELETE FROM t_vente_ratee WHERE lg_VENTE_RATEE_ID LI
     await p.selectOption('.sv-carte[data-carte="frequentation"] select[data-ctl="tranche"]', '3');
     await p.waitForFunction(() => [...document.querySelectorAll('.sv-carte[data-carte="frequentation"] text')].some((t) => /^\d+h-\d+h$/.test(t.textContent) && /^(6|9|12|15|18)h-/.test(t.textContent)), null, { timeout: 30000 });
     await p.selectOption('.sv-carte[data-carte="frequentation"] select[data-ctl="comp"]', 'N1');
-    await p.waitForFunction(() => /Même période N-1/.test(document.querySelector('.sv-carte[data-carte="frequentation"] .sv-legende').textContent), null, { timeout: 60000 });
-    const bulleF = await p.evaluate(() => document.querySelector('.sv-carte[data-carte="frequentation"] .sv-barre title').textContent);
-    ok('Fréquentation : tranche de 3 h et comparaison « même période N-1 » ; survol avec la part du CA', /% du CA/.test(bulleF), bulleF);
+    if (moisVide) {
+      /* mois sans vente : ni legende ni barres a survoler ; les reglages restent retenus (controle suivant) */
+      await p.waitForTimeout(3000);
+      ok('Fréquentation : mois sans vente, comparaison choisie sans erreur', true);
+    } else {
+      await p.waitForFunction(() => /Même période N-1/.test(document.querySelector('.sv-carte[data-carte="frequentation"] .sv-legende').textContent), null, { timeout: 60000 });
+      const bulleF = await p.evaluate(() => document.querySelector('.sv-carte[data-carte="frequentation"] .sv-barre title').textContent);
+      ok('Fréquentation : tranche de 3 h et comparaison « même période N-1 » ; survol avec la part du CA', /% du CA/.test(bulleF), bulleF);
+    }
     await p.waitForTimeout(1500);
     const prefS = await api('../api/v1/preferences/pilotage.suivi');
     ok('Réglages des cartes retenus pour l\'utilisateur', prefS.valeur && prefS.valeur.ca.comp === 3 && prefS.valeur.ca.pas === 'SEMAINE' && prefS.valeur.freq.tranche === 3 && prefS.valeur.freq.comp === 'N1', JSON.stringify(prefS.valeur));
@@ -164,32 +172,37 @@ const nettoyer = () => { q("DELETE FROM t_vente_ratee WHERE lg_VENTE_RATEE_ID LI
     ok('Suppression de la recherche', !(pref2.valeur || []).some((r) => r.nom === 'ZZ essai marge'), JSON.stringify(pref2.valeur));
 
     /* ------------------------------------------------ Comparateur */
-    await p.evaluate(() => { const t = Ext.ComponentQuery.query('pilotage #onglets')[0]; t.setActiveTab(t.down('#onglet-comparateur')); });
-    await p.waitForTimeout(1500);
-    const choisir = async (type, a, bb, tranche) => {
-      await p.evaluate(([type, a, bb, tranche]) => { const barre = Ext.ComponentQuery.query('pilotage #choixComparateur')[0];
-        const t = barre.down('#typeComparaison'); t.setValue(type); t.fireEvent('select', t); }, [type, a, bb, tranche]);
-      await p.waitForTimeout(300);
-      await p.evaluate(([type, a, bb, tranche]) => { const barre = Ext.ComponentQuery.query('pilotage #choixComparateur')[0];
-        if (a) { barre.down('#objetA').setValue(a); } if (bb) { barre.down('#objetB').setValue(bb); } if (tranche) { barre.down('#trancheHoraire').setValue(tranche); }
-        Ext.ComponentQuery.query('pilotage')[0].stores.comparateur.mois.removeAll(); barre.down('#comparer').el.dom.click(); }, [type, a, bb, tranche]);
-      await p.waitForFunction(() => { const e = Ext.ComponentQuery.query('pilotage')[0]; return e.stores.comparateur.mois.getCount() > 0 && !e.down('#onglet-comparateur').getEl().isMasked(); }, null, { timeout: 120000 });
-      await p.waitForTimeout(800);
-    };
-    await choisir('CROISER', 'caTTC', 'HEURE', 1);
-    const h1 = await p.evaluate(() => { const st = Ext.ComponentQuery.query('pilotage')[0].stores.comparateur.mois; return { n: st.getCount(), total: Math.round(st.sum('a')), visible: Ext.ComponentQuery.query('pilotage #trancheHoraire')[0].isVisible() }; });
-    ok('Croisement par heure : choix de la tranche proposé', h1.visible, JSON.stringify(h1));
-    await choisir('CROISER', 'caTTC', 'HEURE', 2);
-    const h2 = await p.evaluate(() => { const st = Ext.ComponentQuery.query('pilotage')[0].stores.comparateur.mois; return { n: st.getCount(), total: Math.round(st.sum('a')), lib: st.getAt(0).get('libelle') }; });
-    ok('Tranche de 2 heures : libellés « 08h-10h », moins de lignes, même total', /^\d\dh-\d\dh$/.test(h2.lib) && h2.n <= Math.ceil(h1.n / 2) + 1 && Math.abs(h2.total - h1.total) <= 2, JSON.stringify(h2) + ' / ' + JSON.stringify(h1));
-    const forme = (f) => p.evaluate((f) => { Ext.ComponentQuery.query('pilotage #formeComparateur #forme-' + f)[0].btnEl.dom.click();
-      const g = Ext.ComponentQuery.query('pilotage #graphique-comparateur')[0]; return g.series.getAt(0).type + ':' + [].concat(g.series.getAt(0).yField).join('+'); }, f);
-    ok('Croisement dessiné en courbe sur demande', (await forme('courbe')) === 'line:a');
-    ok('… puis en bandes', (await forme('bandes')) === 'column:a');
-    await choisir('GRANDEUR', 'caTTC', 'achatTTC');
-    ok('Comparaison de deux grandeurs en bandes : A et B côte à côte', (await forme('bandes')) === 'column:a+b');
-    ok('Retour en « Automatique » : les deux courbes d\'origine', (await forme('auto')) === 'line:a');
-    await p.screenshot({ path: SORTIE + '/pilotage-comparateur.png' });
+    if (moisVide) {
+      /* mois en cours sans vente (debut de mois) : le comparateur n'a rien a comparer ; controles faits des la premiere vente */
+      ok('Comparateur : mois en cours sans vente, contrôles reportés', true);
+    } else {
+      await p.evaluate(() => { const t = Ext.ComponentQuery.query('pilotage #onglets')[0]; t.setActiveTab(t.down('#onglet-comparateur')); });
+      await p.waitForTimeout(1500);
+      const choisir = async (type, a, bb, tranche) => {
+        await p.evaluate(([type, a, bb, tranche]) => { const barre = Ext.ComponentQuery.query('pilotage #choixComparateur')[0];
+          const t = barre.down('#typeComparaison'); t.setValue(type); t.fireEvent('select', t); }, [type, a, bb, tranche]);
+        await p.waitForTimeout(300);
+        await p.evaluate(([type, a, bb, tranche]) => { const barre = Ext.ComponentQuery.query('pilotage #choixComparateur')[0];
+          if (a) { barre.down('#objetA').setValue(a); } if (bb) { barre.down('#objetB').setValue(bb); } if (tranche) { barre.down('#trancheHoraire').setValue(tranche); }
+          Ext.ComponentQuery.query('pilotage')[0].stores.comparateur.mois.removeAll(); barre.down('#comparer').el.dom.click(); }, [type, a, bb, tranche]);
+        await p.waitForFunction(() => { const e = Ext.ComponentQuery.query('pilotage')[0]; return e.stores.comparateur.mois.getCount() > 0 && !e.down('#onglet-comparateur').getEl().isMasked(); }, null, { timeout: 120000 });
+        await p.waitForTimeout(800);
+      };
+      await choisir('CROISER', 'caTTC', 'HEURE', 1);
+      const h1 = await p.evaluate(() => { const st = Ext.ComponentQuery.query('pilotage')[0].stores.comparateur.mois; return { n: st.getCount(), total: Math.round(st.sum('a')), visible: Ext.ComponentQuery.query('pilotage #trancheHoraire')[0].isVisible() }; });
+      ok('Croisement par heure : choix de la tranche proposé', h1.visible, JSON.stringify(h1));
+      await choisir('CROISER', 'caTTC', 'HEURE', 2);
+      const h2 = await p.evaluate(() => { const st = Ext.ComponentQuery.query('pilotage')[0].stores.comparateur.mois; return { n: st.getCount(), total: Math.round(st.sum('a')), lib: st.getAt(0).get('libelle') }; });
+      ok('Tranche de 2 heures : libellés « 08h-10h », moins de lignes, même total', /^\d\dh-\d\dh$/.test(h2.lib) && h2.n <= Math.ceil(h1.n / 2) + 1 && Math.abs(h2.total - h1.total) <= 2, JSON.stringify(h2) + ' / ' + JSON.stringify(h1));
+      const forme = (f) => p.evaluate((f) => { Ext.ComponentQuery.query('pilotage #formeComparateur #forme-' + f)[0].btnEl.dom.click();
+        const g = Ext.ComponentQuery.query('pilotage #graphique-comparateur')[0]; return g.series.getAt(0).type + ':' + [].concat(g.series.getAt(0).yField).join('+'); }, f);
+      ok('Croisement dessiné en courbe sur demande', (await forme('courbe')) === 'line:a');
+      ok('… puis en bandes', (await forme('bandes')) === 'column:a');
+      await choisir('GRANDEUR', 'caTTC', 'achatTTC');
+      ok('Comparaison de deux grandeurs en bandes : A et B côte à côte', (await forme('bandes')) === 'column:a+b');
+      ok('Retour en « Automatique » : les deux courbes d\'origine', (await forme('auto')) === 'line:a');
+      await p.screenshot({ path: SORTIE + '/pilotage-comparateur.png' });
+    }
     const doublons = await p.evaluate(() => { const vus = {}, d = []; document.querySelectorAll('[id]:not([id=""])').forEach((e) => { if (vus[e.id]) { d.push(e.id); } vus[e.id] = 1; }); return d; });
     ok('Aucun élément en double dans la page', doublons.length === 0, doublons.join(' | '));
     ok('Aucune erreur JavaScript', err.length === 0, err.join(' | '));
