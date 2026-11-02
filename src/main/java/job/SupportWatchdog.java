@@ -57,6 +57,11 @@ public class SupportWatchdog {
     private SupportEventService supportEventService;
     @EJB
     private rest.service.impl.serveur.ServeurVieService vie;
+    @EJB
+    private config.AppConfig appConfig;
+
+    /** Reglages de ce poste deja releves depuis le demarrage (liste des postes, demande du 02/11). */
+    private volatile boolean posteReleve;
 
     /**
      * Stabilite du serveur (lot 4) : session en cours dans t_serveur_vie (-1 si non enregistree) et nom de la machine.
@@ -139,6 +144,9 @@ public class SupportWatchdog {
 
     @Schedule(hour = "*", minute = "*/2", persistent = false)
     public void battement() {
+        if (!posteReleve) {
+            releverPoste();
+        }
         if (!enabled || heartbeatFile == null) {
             return;
         }
@@ -162,6 +170,33 @@ public class SupportWatchdog {
             }
         } catch (Exception e) {
             LOG.log(Level.FINE, "watchdog releve", e);
+        }
+    }
+
+    /**
+     * Reglages de Payara de ce poste (serveur ou caisse secondaire) dans la liste commune des postes, au premier
+     * battement apres le demarrage : l'ecran du serveur voit ainsi les caisses sans qu'on l'ouvre sur chacune. Un echec
+     * est seulement journalise.
+     */
+    private void releverPoste() {
+        posteReleve = true;
+        try {
+            int postes;
+            try {
+                postes = Math.max(1, Math.min(200, Integer.parseInt(StringUtils
+                        .defaultIfBlank(supportEventService.getParameter("SUPPORT_SERVEUR_POSTES"), "10").trim())));
+            } catch (NumberFormatException e) {
+                postes = 10;
+            }
+            Path logs = dossierLogs();
+            rest.service.impl.serveur.CalculReglages c = rest.service.impl.serveur.CalculReglages.calculer(postes,
+                    vie.variablesMariadb(), appConfig == null || appConfig.isServerMode(), hote,
+                    getStorageBase().resolve("dumps").toAbsolutePath().toString().replace('\\', '/'),
+                    logs == null ? "" : logs.toAbsolutePath().toString().replace('\\', '/'));
+            vie.enregistrerPoste(rest.service.impl.serveur.PostesReglages.depuis(hote, c,
+                    Runtime.getRuntime().availableProcessors(), Runtime.getRuntime().maxMemory(), LocalDateTime.now()));
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "reglages du poste non releves : {0}", e.getClass().getSimpleName());
         }
     }
 

@@ -29,10 +29,12 @@ import org.json.JSONObject;
 import rest.service.SupportEventService;
 import rest.service.impl.serveur.ApplicationMariadb;
 import rest.service.impl.serveur.ApplicationPayara;
+import rest.service.impl.serveur.CalculReglages;
 import rest.service.impl.serveur.CauseArret;
 import rest.service.impl.serveur.ConfigPayara;
 import rest.service.impl.serveur.FichierMyIni;
 import rest.service.impl.serveur.MesureServeur;
+import rest.service.impl.serveur.PostesReglages;
 import rest.service.impl.serveur.ReglagesServeur;
 import rest.service.impl.serveur.ReglagesServeur.Reglage;
 import rest.service.impl.serveur.ServeurVieService;
@@ -192,55 +194,13 @@ public class SupportServeurRessource {
     }
 
     /** Reglages en place et conseilles (MariaDB, Payara) : base commune de la lecture et de l'application. */
-    private static final class Calcul {
-        int postes;
-        long ram;
-        ConfigPayara payara;
-        Map<String, String> variables;
-        boolean serveur, mariadbLocale;
-        List<Reglage> tous = new ArrayList<>(), payaraReglages = new ArrayList<>();
-        String xml = "";
-        ApplicationPayara.Domaine domaine;
-    }
-
-    private Calcul calcul() throws java.io.IOException {
-        Calcul c = new Calcul();
-        c.postes = postes();
-        String racine = System.getProperty("com.sun.aas.instanceRoot");
-        String xml = "";
-        if (racine != null) {
-            java.nio.file.Path domaine = Paths.get(racine, "config", "domain.xml");
-            if (Files.isRegularFile(domaine)) {
-                xml = new String(Files.readAllBytes(domaine), StandardCharsets.UTF_8);
-                c.xml = xml;
-            }
-        }
-        c.payara = ConfigPayara.lire(xml);
-        c.domaine = ApplicationPayara.domaine(StringUtils.defaultString(racine, "domain1"), xml);
-        c.ram = MesureServeur.ramMachine();
-        c.variables = vie.variablesMariadb();
-        c.serveur = appConfig == null || appConfig.isServerMode();
-        c.mariadbLocale = !c.payara.lu || c.payara.poolUrl.isEmpty()
-                || ConfigPayara.locale(ConfigPayara.hoteBase(c.payara.poolUrl), watchdog.getHote());
-        for (Reglage x : ReglagesServeur.comparer(c.ram, Runtime.getRuntime().availableProcessors(),
-                Runtime.getRuntime().maxMemory(), c.variables, c.postes, c.payara.lu ? c.payara.poolMax : -1, c.serveur,
-                c.mariadbLocale)) {
-            /* la memoire du serveur Java est traitee avec les options de Payara (-Xms et -Xmx ensemble) */
-            if (!(c.payara.lu && "Xmx".equals(x.cle))) {
-                c.tous.add(x);
-            }
-        }
-        if (c.payara.lu) {
-            c.payaraReglages = c.payara.comparer(ManagementFactory.getRuntimeMXBean().getInputArguments(),
-                    ReglagesServeur.heapConseille(c.ram), c.serveur, c.mariadbLocale,
-                    barres(watchdog.getStorageBase().resolve("dumps")), barres(watchdog.dossierLogs()));
-        }
-        c.tous.addAll(c.payaraReglages);
-        return c;
+    private CalculReglages calcul() throws java.io.IOException {
+        return CalculReglages.calculer(postes(), vie.variablesMariadb(), appConfig == null || appConfig.isServerMode(),
+                watchdog.getHote(), barres(watchdog.getStorageBase().resolve("dumps")), barres(watchdog.dossierLogs()));
     }
 
     /** Droits du compte de l'application pour SET GLOBAL ; message si on ne sait pas les lire. */
-    private ApplicationMariadb.Droits droitsMariadb(Calcul c) {
+    private ApplicationMariadb.Droits droitsMariadb(CalculReglages c) {
         try {
             return ApplicationMariadb.droits(vie.droitsCompte(), c.variables.get("version"), vie.compteBase());
         } catch (RuntimeException e) {
@@ -257,8 +217,9 @@ public class SupportServeurRessource {
             return r;
         }
         try {
-            Calcul c = calcul();
+            CalculReglages c = calcul();
             List<Reglage> l = c.tous;
+            relever(c);
             JSONArray a = new JSONArray();
             for (Reglage x : l) {
                 a.put(json(x));
@@ -282,6 +243,52 @@ public class SupportServeurRessource {
         } catch (Exception e) {
             LOG.log(Level.WARNING, "reglages du serveur", e);
             return echec("Lecture des réglages impossible : " + e.getClass().getSimpleName());
+        }
+    }
+
+    /** Ligne de ce poste dans la liste des postes (demande du 02/11) ; un echec n'empeche pas l'ecran. */
+    private void relever(CalculReglages c) {
+        try {
+            vie.enregistrerPoste(PostesReglages.depuis(watchdog.getHote(), c,
+                    Runtime.getRuntime().availableProcessors(), Runtime.getRuntime().maxMemory(),
+                    java.time.LocalDateTime.now()));
+        } catch (RuntimeException e) {
+            LOG.log(Level.FINE, "releve du poste", e);
+        }
+    }
+
+    /**
+     * Reglages de Payara de chaque poste releve (serveur et caisses qui ont leur propre Payara), avec les alertes
+     * d'ensemble (demande du 02/11). Lecture seule.
+     */
+    @GET
+    @Path("machines")
+    public Response machines() {
+        Response r = controle();
+        if (r != null) {
+            return r;
+        }
+        try {
+            List<PostesReglages.Poste> postes = vie.postes();
+            JSONArray a = new JSONArray();
+            for (PostesReglages.Poste p : postes) {
+                a.put(p.json().put("courant", p.hote.equals(watchdog.getHote())
+                        && p.domaine.equals(ApplicationPayara.domaine(StringUtils.defaultString(
+                                System.getProperty("com.sun.aas.instanceRoot"), "domain1"), "").nom)));
+            }
+            int max = -1;
+            try {
+                max = Integer.parseInt(StringUtils.defaultString(vie.variablesMariadb().get("max_connections"), "-1"));
+            } catch (NumberFormatException e) {
+                max = -1;
+            }
+            int declares = postes();
+            return ok(new JSONObject().put("data", a).put("total", a.length()).put("postes", declares)
+                    .put("maxConnexions", max).put("alertes",
+                            new JSONArray(PostesReglages.alertes(postes, declares, max, java.time.LocalDateTime.now()))));
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "reglages des postes", e);
+            return echec("Lecture des postes impossible : " + e.getClass().getSimpleName());
         }
     }
 
@@ -337,7 +344,7 @@ public class SupportServeurRessource {
                     choix.add(cles.optString(i));
                 }
             }
-            Calcul c = calcul();
+            CalculReglages c = calcul();
             if (!c.mariadbLocale) {
                 return echec("MariaDB n'est pas sur cette machine : ses réglages se font sur le serveur de base.");
             }
@@ -388,13 +395,13 @@ public class SupportServeurRessource {
     /** Une seule ecriture de my.ini a la fois. */
     private static final Object VERROU_MY_INI = new Object();
 
-    private static java.nio.file.Path cheminMyIni(Calcul c) {
+    private static java.nio.file.Path cheminMyIni(CalculReglages c) {
         String d = c.variables.get("datadir");
         return StringUtils.isBlank(d) ? null : FichierMyIni.chemin(d);
     }
 
     /** my.ini : chemin, structure comprise ou non, lignes a changer (lecture seule). */
-    private JSONObject etatMyIni(Calcul c) {
+    private JSONObject etatMyIni(CalculReglages c) {
         JSONObject o = new JSONObject();
         java.nio.file.Path p = cheminMyIni(c);
         if (p == null || !Files.isRegularFile(p)) {
@@ -430,7 +437,7 @@ public class SupportServeurRessource {
             return r;
         }
         try {
-            Calcul c = calcul();
+            CalculReglages c = calcul();
             if (!c.mariadbLocale) {
                 return echec("MariaDB n'est pas sur cette machine : son my.ini se modifie sur le serveur de base.");
             }
@@ -482,7 +489,7 @@ public class SupportServeurRessource {
     private static final long ATTENTE_MAX_MS = 10 * 60 * 1000L;
 
     /** Dossier des scripts, journaux et etats de CE domaine (le stockage est commun aux domaines du poste). */
-    private java.nio.file.Path dossierPayara(Calcul c) throws java.io.IOException {
+    private java.nio.file.Path dossierPayara(CalculReglages c) throws java.io.IOException {
         java.nio.file.Path d = watchdog.getStorageBase().resolve("reglages-payara").resolve(c.domaine.nom);
         Files.createDirectories(d);
         return d;
@@ -548,7 +555,7 @@ public class SupportServeurRessource {
      * Retour d'une application de Payara : apres le redemarrage du domaine, les reglages relus sont compares a ceux
      * attendus (une fois, trace au journal) ; dernier resultat garde pour l'ecran.
      */
-    private JSONObject retourPayara(Calcul c) {
+    private JSONObject retourPayara(CalculReglages c) {
         JSONObject o = new JSONObject().put("domaine", c.domaine.nom).put("lancement", WINDOWS && asadmin() != null);
         try {
             java.nio.file.Path d = dossierPayara(c), att = d.resolve("en-attente.json"),
@@ -624,7 +631,7 @@ public class SupportServeurRessource {
             return r;
         }
         try {
-            Calcul c = calcul();
+            CalculReglages c = calcul();
             if (!c.payara.lu) {
                 return echec("Configuration de Payara illisible.");
             }

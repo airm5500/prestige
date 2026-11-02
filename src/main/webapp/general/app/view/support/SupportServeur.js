@@ -10,6 +10,9 @@
  *    modifiables sans redemarrage) et « Écrire dans my.ini » (fichier sauvegarde avant, MariaDB jamais redemarre),
  *    confirmes dans le bouton lui-meme ; « Appliquer et redémarrer Payara » (script asadmin detache, verifie au retour ;
  *    sans mot de passe d'administration ni droit de lancer asadmin, le script reste a copier).
+ *  - Postes (demande du 02/11) : reglages de Payara de chaque poste (serveur et caisses secondaires qui ont leur propre
+ *    Payara), releves par chacun a son demarrage, avec les alertes d'ensemble (pools au-dela de MariaDB, postes non
+ *    declares, plusieurs serveurs, poste sans nouvelles). Lecture seule.
  * Aucune fenetre.
  */
 Ext.define('testextjs.view.support.SupportServeur', {
@@ -28,7 +31,7 @@ Ext.define('testextjs.view.support.SupportServeur', {
     initComponent: function () {
         var me = this;
         me.styles();
-        me.items = [me.ongletEtat(), me.ongletExperience(), me.ongletArrets(), me.ongletReglages(), me.ongletSauvegardes(), me.ongletLexique()];
+        me.items = [me.ongletEtat(), me.ongletExperience(), me.ongletArrets(), me.ongletReglages(), me.ongletPostes(), me.ongletSauvegardes(), me.ongletLexique()];
         me.callParent(arguments);
         me.on('afterrender', function () {
             me.chargerEtat();
@@ -41,6 +44,8 @@ Ext.define('testextjs.view.support.SupportServeur', {
             } else if (t.itemId === 'ongletReglages') {
                 me.chargerReglages();
                 me.etatJetonVeille();
+            } else if (t.itemId === 'ongletPostes') {
+                me.chargerPostes();
             } else if (t.itemId === 'ongletExperience') {
                 me.chargerExperience();
             } else if (t.itemId === 'ongletSauvegardes') {
@@ -336,6 +341,100 @@ Ext.define('testextjs.view.support.SupportServeur', {
             if (r.success) {
                 me.down('#arrets').getStore().loadData(r.data || []);
             }
+        });
+    },
+
+    /* ============================================================================================ postes */
+
+    ongletPostes: function () {
+        var me = this;
+        var mo = function (v) {
+            return v > 0 ? (v >= 1024 ? Ext.util.Format.number(v / 1024, '0.#') + ' Go' : v + ' Mo') : '—';
+        };
+        return {
+            title: 'Postes', itemId: 'ongletPostes', iconCls: 'fa fa-desktop', layout: {type: 'vbox', align: 'stretch'},
+            tbar: [{text: 'Actualiser', itemId: 'actualiserPostes', iconCls: 'fa fa-refresh', handler: function () {
+                        me.chargerPostes();
+                    }}, {xtype: 'tbtext', itemId: 'resumePostes', text: ''}],
+            items: [
+                {xtype: 'component', itemId: 'alertesPostes', html: '', padding: '4 8'},
+                {xtype: 'gridpanel', itemId: 'postesPayara', flex: 3, columnLines: true,
+                    store: Ext.create('Ext.data.Store', {fields: ['hote', 'domaine', 'serveur', 'mariadbLocale', 'releve', 'ramMo', 'heapMo', 'processeurs',
+                            'pool', 'filsHttp', 'aAjuster', 'critiques', 'reglages', 'courant'], data: []}),
+                    listeners: {select: function (g, rec) {
+                            var d = me.down('#reglagesPoste');
+                            d.setTitle('Réglages de Payara de « ' + me.esc(rec.get('hote')) + ' » (' + me.esc(rec.get('domaine')) + ')');
+                            d.getStore().loadData(rec.get('reglages') || []);
+                        }},
+                    columns: [
+                        {text: 'Poste', dataIndex: 'hote', width: 190, renderer: function (v, m, rec) {
+                                return me.esc(v) + (rec.get('courant') ? ' <span class="srv-ok">(ce poste)</span>' : '');
+                            }},
+                        {text: 'Domaine', dataIndex: 'domaine', width: 90},
+                        {text: 'Rôle', dataIndex: 'serveur', width: 80, renderer: function (v) {
+                                return v ? 'Serveur' : 'Caisse';
+                            }},
+                        {text: 'Base', dataIndex: 'mariadbLocale', width: 100, renderer: function (v) {
+                                return v ? 'sur ce poste' : 'à distance';
+                            }},
+                        {text: 'Relevé le', dataIndex: 'releve', width: 125, renderer: function (v) {
+                                var d = v ? Ext.Date.parse(String(v).substring(0, 16), 'Y-m-d\\TH:i') : null;
+                                return d ? Ext.Date.format(d, 'd/m/Y H:i') : '';
+                            }},
+                        {text: 'Mémoire machine', dataIndex: 'ramMo', width: 120, align: 'right', renderer: mo},
+                        {text: 'Mémoire Java', dataIndex: 'heapMo', width: 105, align: 'right', renderer: mo},
+                        {text: 'Pool', dataIndex: 'pool', width: 60, align: 'right', renderer: function (v) {
+                                return v > 0 ? v : '—';
+                            }},
+                        {text: 'Fils HTTP', dataIndex: 'filsHttp', width: 75, align: 'right', renderer: function (v) {
+                                return v > 0 ? v : '—';
+                            }},
+                        {text: 'État', dataIndex: 'aAjuster', flex: 1, minWidth: 170, renderer: function (v, m, rec) {
+                                var c = rec.get('critiques');
+                                if (c) {
+                                    return '<span class="srv-critique">' + c + ' critique(s)</span>' + (v > c ? ' · ' + (v - c) + ' à ajuster' : '');
+                                }
+                                return v ? '<span class="srv-ajuster">' + v + ' à ajuster</span>' : '<span class="srv-ok">Correct</span>';
+                            }}
+                    ]},
+                {xtype: 'gridpanel', itemId: 'reglagesPoste', flex: 2, margin: '6 0 0 0', title: 'Choisissez un poste pour voir ses réglages.', columnLines: true,
+                    store: Ext.create('Ext.data.Store', {fields: ['cle', 'libelle', 'actuel', 'conseille', 'niveau'], data: []}),
+                    columns: [
+                        {text: 'Réglage', dataIndex: 'libelle', flex: 1, minWidth: 260, renderer: function (v, m) {
+                                m.style = 'white-space:normal';
+                                return me.esc(v);
+                            }},
+                        {text: 'En place', dataIndex: 'actuel', width: 180},
+                        {text: 'Conseillé', dataIndex: 'conseille', width: 160},
+                        {text: 'État', dataIndex: 'niveau', width: 90, renderer: function (v) {
+                                var n = me.NIVEAUX[v] || ['', v];
+                                return '<span class="' + n[0] + '">' + n[1] + '</span>';
+                            }}
+                    ]},
+                {xtype: 'component', padding: '4 8', html: '<span style="color:#666">Chaque Payara (le serveur, et chaque caisse qui a le sien) inscrit ses réglages à son démarrage'
+                            + ' et à l\'ouverture de l\'onglet « Réglages conseillés ». Pour régler une caisse, ouvrez cet écran sur la caisse elle-même :'
+                            + ' les boutons « Appliquer » ne changent que le Payara qui affiche l\'écran.</span>'}
+            ]
+        };
+    },
+
+    chargerPostes: function () {
+        var me = this, o = me.down('#ongletPostes');
+        o.setLoading('Lecture des postes...');
+        me.appel('GET', 'machines', null, function (r) {
+            o.setLoading(false);
+            if (!r.success) {
+                o.down('#alertesPostes').update('<span class="srv-critique">' + me.esc(r.message) + '</span>');
+                return;
+            }
+            o.down('#postesPayara').getStore().loadData(r.data || []);
+            o.down('#reglagesPoste').getStore().loadData([]);
+            o.down('#reglagesPoste').setTitle('Choisissez un poste pour voir ses réglages.');
+            o.down('#resumePostes').setText(r.total + ' poste(s) relevé(s) pour ' + r.postes + ' déclaré(s)'
+                    + (r.maxConnexions > 0 ? ' · MariaDB accepte ' + r.maxConnexions + ' connexions' : ''));
+            o.down('#alertesPostes').update((r.alertes || []).length ? Ext.Array.map(r.alertes, function (a) {
+                return '<div class="srv-ajuster">⚠ ' + me.esc(a) + '</div>';
+            }).join('') : '<span class="srv-ok">Aucune alerte sur l\'ensemble des postes.</span>');
         });
     },
 

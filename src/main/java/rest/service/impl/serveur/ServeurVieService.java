@@ -340,4 +340,58 @@ public class ServeurVieService {
         }
         return l;
     }
+
+    /**
+     * Releve des reglages de ce poste (demande du 02/11) : sa ligne est remplacee ; les postes sans releve depuis 180
+     * jours sont retires (caisse retiree).
+     */
+    @TransactionAttribute(TransactionAttributeType.REQUIRES_NEW)
+    public void enregistrerPoste(PostesReglages.Poste p) {
+        em.createNativeQuery("REPLACE INTO t_serveur_poste (hote, domaine, serveur, mariadb_locale, releve_at, ram_mo,"
+                + " heap_mo, processeurs, pool_max, fils_http, a_ajuster, critiques, reglages)"
+                + " VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)")
+                .setParameter(1, StringUtils.left(p.hote, 80)).setParameter(2, StringUtils.left(p.domaine, 60))
+                .setParameter(3, p.serveur ? 1 : 0).setParameter(4, p.mariadbLocale ? 1 : 0)
+                .setParameter(5, Timestamp.valueOf(p.releve)).setParameter(6, p.ramMo).setParameter(7, p.heapMo)
+                .setParameter(8, p.processeurs).setParameter(9, p.pool).setParameter(10, p.filsHttp)
+                .setParameter(11, p.aAjuster).setParameter(12, p.critiques).setParameter(13, p.reglages)
+                .executeUpdate();
+        em.createNativeQuery("DELETE FROM t_serveur_poste WHERE releve_at < NOW() - INTERVAL 180 DAY").executeUpdate();
+    }
+
+    /** Postes releves, le serveur d'abord, puis par nom de machine et domaine. */
+    @SuppressWarnings("unchecked")
+    public List<PostesReglages.Poste> postes() {
+        List<PostesReglages.Poste> l = new ArrayList<>();
+        for (Object[] r : (List<Object[]>) em.createNativeQuery("SELECT hote, domaine, serveur, mariadb_locale,"
+                + " releve_at, ram_mo, heap_mo, processeurs, pool_max, fils_http, a_ajuster, critiques, reglages"
+                + " FROM t_serveur_poste ORDER BY serveur DESC, hote, domaine").getResultList()) {
+            PostesReglages.Poste p = new PostesReglages.Poste();
+            p.hote = String.valueOf(r[0]);
+            p.domaine = String.valueOf(r[1]);
+            p.serveur = entier(r[2]) == 1;
+            p.mariadbLocale = entier(r[3]) == 1;
+            p.releve = r[4] instanceof Timestamp ? ((Timestamp) r[4]).toLocalDateTime() : null;
+            p.ramMo = entier(r[5]);
+            p.heapMo = entier(r[6]);
+            p.processeurs = (int) entier(r[7]);
+            p.pool = (int) entier(r[8]);
+            p.filsHttp = (int) entier(r[9]);
+            p.aAjuster = (int) entier(r[10]);
+            p.critiques = (int) entier(r[11]);
+            p.reglages = r[12] == null ? "[]" : String.valueOf(r[12]);
+            l.add(p);
+        }
+        return l;
+    }
+
+    private static long entier(Object o) {
+        if (o instanceof Number) {
+            return ((Number) o).longValue();
+        }
+        if (o instanceof Boolean) {
+            return ((Boolean) o) ? 1 : 0;
+        }
+        return o == null ? -1 : Long.parseLong(String.valueOf(o));
+    }
 }
