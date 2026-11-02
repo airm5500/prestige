@@ -153,8 +153,13 @@ const stock = () => Number(q(`SELECT int_NUMBER_AVAILABLE FROM t_famille_stock W
   try {
     const p = await page();
 
-    /* EN-01 */
+    /* EN-01 (et EN-06 : PMP apres l'entree, ancien stock a l'ancien PMP) */
+    const [pmp0, paf] = q(`SELECT CONCAT_WS('|', IFNULL(dbl_PRIX_MOYEN_PONDERE, 0), int_PAF) FROM t_famille WHERE lg_FAMILLE_ID = '${P}'`).split('|').map(Number);
+    const s0 = stock();
     const m1 = await entrer(p, M + 'BLA');
+    const attendu = Math.round((s0 * (pmp0 > 0 ? pmp0 : paf) + 10 * paf) / (s0 + 10));
+    const pmp1 = Number(q(`SELECT dbl_PRIX_MOYEN_PONDERE FROM t_famille WHERE lg_FAMILLE_ID = '${P}'`));
+    ok('EN-06 : PMP après réception = ancien stock à l\'ancien PMP + 10 au prix d\'achat', pmp1 === attendu, 'avant ' + pmp0 + ', stock ' + s0 + ', obtenu ' + pmp1 + ', attendu ' + attendu);
     const r1 = ['LA1', 'LA2', 'LA3'].map(reste).join('/');
     ok('EN-01 : BL entré en stock', q(`SELECT str_STATUT FROM t_bon_livraison WHERE lg_BON_LIVRAISON_ID = '${M}BLA'`) === 'is_Closed', m1);
     ok('EN-01 : chaque lot garde sa propre quantité (5/3/2, et non le cumul 5/8/10)', r1 === '5/3/2', r1);
