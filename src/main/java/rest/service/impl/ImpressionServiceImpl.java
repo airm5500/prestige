@@ -12,6 +12,8 @@ import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Image;
+import java.awt.geom.Rectangle2D;
+import java.awt.image.BufferedImage;
 import java.awt.print.PageFormat;
 import java.awt.print.Paper;
 import java.awt.print.Printable;
@@ -23,12 +25,19 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.print.PrintService;
 import javax.print.attribute.HashPrintRequestAttributeSet;
 import javax.print.attribute.PrintRequestAttributeSet;
 import javax.print.attribute.standard.Chromaticity;
 import javax.print.attribute.standard.Copies;
 import javax.swing.ImageIcon;
+import rest.service.ticket.ConversionTicket;
+import rest.service.ticket.ModeleTicket;
+import rest.service.ticket.ReglagesTicket;
+import rest.service.ticket.RenduTicket;
+import rest.service.ticket.TicketDocument;
 import toolkits.utils.jdom;
 import util.Constant;
 import util.DateConverter;
@@ -39,6 +48,7 @@ import util.DateConverter;
  */
 public class ImpressionServiceImpl implements Printable {
 
+    private static final Logger LOG = Logger.getLogger(ImpressionServiceImpl.class.getName());
     SimpleDateFormat SIMPLE_DATE_FORMAT = new SimpleDateFormat("dd-MM-yyyy HH:mm:ss");
     private PrintService service;
     private int limit = 0, intBegin = 0, nombreCopie = 1, fontSize = 0;
@@ -53,6 +63,19 @@ public class ImpressionServiceImpl implements Printable {
      * </p>
      */
     private int taillleNomOfficine = 15;
+    /** Nouveau modele de ticket (demande du 02/11) : type, largeur du papier et reglages ; null = ancien ticket. */
+    private ModeleTicket modeleTicket;
+    private ReglagesTicket reglagesTicket;
+    private int papierMm = 80;
+    /** Lignes completes de la vente (designation entiere, lot) et page en cours quand le ticket est decoupe. */
+    private List<ConversionTicket.Article> articlesTicket = new ArrayList<>();
+    private List<ConversionTicket.Article> articlesPage = new ArrayList<>();
+    private int curseurArticles = 0;
+    private String referencePied = "";
+    private String encoursCarnet = "";
+    private List<String[]> piecesReglees = new ArrayList<>();
+    private TicketDocument documentEnCours;
+    private int hauteurEnCours;
     private boolean showCodeBar;
     private TImprimante oTImprimante;
     private Date operation;
@@ -412,6 +435,19 @@ public class ImpressionServiceImpl implements Printable {
 
     @Override
     public int print(Graphics graphics, PageFormat pageFormat, int pageIndex) throws PrinterException {
+        if (nouveauModele()) {
+            try {
+                return imprimerNouveau((Graphics2D) graphics.create(), pageFormat, pageIndex);
+            } catch (RuntimeException e) {
+                /* jamais de ticket perdu : en cas d'erreur du nouveau modele, l'ancien ticket sort */
+                LOG.log(Level.WARNING, "Nouveau modèle de ticket : ancien ticket imprimé", e);
+                modeleTicket = null;
+                documentEnCours = null;
+                if (pageIndex > 0) {
+                    return Printable.NO_SUCH_PAGE;
+                }
+            }
+        }
         if (pageIndex == 0) {
             Graphics2D g2d = (Graphics2D) graphics;
             largeurImprimable = pageFormat.getImageableWidth();
@@ -450,12 +486,117 @@ public class ImpressionServiceImpl implements Printable {
 
     public void buildTicket(List<String> datas, List<String> infoSellers, List<String> infoTiersPayants,
             List<String> subtotal, List<String> commentaires, String codeBar) {
+        if (!articlesTicket.isEmpty()) {
+            /* ticket decoupe en plusieurs : les lignes completes de cette page, dans l'ordre */
+            int n = (int) datas.stream().filter(ImpressionServiceImpl::estLigneArticle).count();
+            int fin = Math.min(articlesTicket.size(), curseurArticles + n);
+            articlesPage = new ArrayList<>(articlesTicket.subList(Math.min(curseurArticles, fin), fin));
+            curseurArticles = fin;
+        }
+        documentEnCours = null;
         this.codeBar = codeBar;
         this.infoSellers = infoSellers;
         this.datas = datas;
         this.infoTiersPayants = infoTiersPayants;
         this.subtotal = subtotal;
         this.commentaires = commentaires;
+    }
+
+    static boolean estLigneArticle(String l) {
+        String[] p = l == null ? new String[0] : l.split(";", -1);
+        return p.length >= 5 && !(p[0].trim().isEmpty() && p[2].trim().isEmpty());
+    }
+
+    /** Branche le nouveau modele ; sans appel, ou avec le modele « ancien », le ticket reste celui d'avant. */
+    public void modeleNouveau(ModeleTicket ticket, int papierMm, ReglagesTicket reglages) {
+        this.modeleTicket = ticket;
+        this.papierMm = papierMm;
+        this.reglagesTicket = reglages;
+    }
+
+    public void setArticlesTicket(List<ConversionTicket.Article> articles) {
+        this.articlesTicket = articles == null ? new ArrayList<>() : articles;
+        this.articlesPage = new ArrayList<>(this.articlesTicket);
+        this.curseurArticles = 0;
+    }
+
+    public void setReferencePied(String referencePied) {
+        this.referencePied = referencePied == null ? "" : referencePied;
+    }
+
+    public void setEncoursCarnet(String encoursCarnet) {
+        this.encoursCarnet = encoursCarnet == null ? "" : encoursCarnet;
+    }
+
+    public void setPiecesReglees(List<String[]> pieces) {
+        this.piecesReglees = pieces == null ? new ArrayList<>() : pieces;
+    }
+
+    boolean nouveauModele() {
+        return modeleTicket != null && reglagesTicket != null && reglagesTicket.nouveau();
+    }
+
+    private static String nonNul(String v) {
+        return v == null ? "" : v;
+    }
+
+    /** Contenu du nouveau modele, a partir des memes lignes que l'ancien ticket. */
+    TicketDocument documentNouveau() {
+        ConversionTicket.Source s = new ConversionTicket.Source();
+        s.ticket = modeleTicket;
+        s.papierMm = papierMm;
+        TOfficine o = this.getOfficine();
+        if (o != null) {
+            s.nomOfficine = nonNul(o.getStrNOMCOMPLET());
+            s.pharmacien = (nonNul(o.getStrFIRSTNAME()) + " " + nonNul(o.getStrLASTNAME())).trim();
+            s.adresse = nonNul(o.getStrADRESSSEPOSTALE());
+            s.telephone = nonNul(o.getStrPHONE());
+            s.autresTelephones = nonNul(o.getStrAUTRESPHONES());
+            s.enTete = nonNul(o.getStrENTETE());
+            s.cc = nonNul(o.getStrCOMPTECONTRIBUABLE());
+            s.rc = nonNul(o.getStrREGISTRECOMMERCE());
+            s.commentaire1 = nonNul(o.getStrCOMMENTAIRE1());
+            s.commentaire2 = nonNul(o.getStrCOMMENTAIRE2());
+        }
+        s.titre = nonNul(this.getTitle());
+        s.operation = this.getOperation();
+        s.imageCode = this.isShowCodeBar() ? nonNul(this.getCodeBar()) : "";
+        s.referencePied = referencePied;
+        s.datas = this.datas == null ? new ArrayList<>() : this.datas;
+        s.infoSellers = this.infoSellers == null ? new ArrayList<>() : this.infoSellers;
+        s.infoTiersPayants = this.infoTiersPayants == null ? new ArrayList<>() : this.infoTiersPayants;
+        s.subtotal = this.subtotal == null ? new ArrayList<>() : this.subtotal;
+        s.commentaires = this.commentaires == null ? new ArrayList<>() : this.commentaires;
+        s.articles = articlesPage;
+        s.pieces = piecesReglees;
+        s.encoursCarnet = encoursCarnet;
+        return ConversionTicket.convertir(s, reglagesTicket);
+    }
+
+    /** Haut du nouveau ticket : la meme marge haute que l'ancien (premiere ligne a 85 points, origine a -70). */
+    static final int DEPART_NOUVEAU = 72;
+
+    /**
+     * Nouveau modele : dessin du ticket, sur plusieurs pages s'il depasse la hauteur de la page. Le document est
+     * prepare une fois (Java peut demander la meme page plusieurs fois).
+     */
+    private int imprimerNouveau(Graphics2D g2d, PageFormat pageFormat, int pageIndex) {
+        if (documentEnCours == null) {
+            documentEnCours = documentNouveau();
+            BufferedImage essai = new BufferedImage(4, 4, BufferedImage.TYPE_INT_RGB);
+            Graphics2D ge = essai.createGraphics();
+            hauteurEnCours = RenduTicket.dessiner(ge, documentEnCours, reglagesTicket, papierMm, fontSize,
+                    DEPART_NOUVEAU).hauteur;
+            ge.dispose();
+        }
+        double page = pageFormat.getImageableHeight();
+        if (page <= 0 || pageIndex * page > hauteurEnCours) {
+            return Printable.NO_SUCH_PAGE;
+        }
+        g2d.translate(pageFormat.getImageableX(), pageFormat.getImageableY() - pageIndex * page);
+        g2d.clip(new Rectangle2D.Double(0, pageIndex * page, pageFormat.getImageableWidth(), page));
+        RenduTicket.dessiner(g2d, documentEnCours, reglagesTicket, papierMm, fontSize, DEPART_NOUVEAU);
+        return Printable.PAGE_EXISTS;
     }
 
     /**

@@ -1,0 +1,121 @@
+package rest.service.ticket;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Calendar;
+import java.util.Collections;
+import java.util.List;
+
+/**
+ * Tickets d'exemple de l'apercu du menu « Modeles de ticket » : donnees fictives, ecrites exactement comme Prestige les
+ * prepare pour l'ancien ticket, pour que l'apercu passe par la meme conversion que l'impression.
+ */
+public final class ExemplesTicket {
+
+    private ExemplesTicket() {
+    }
+
+    public static ConversionTicket.Source exemple(ModeleTicket t, int papierMm) {
+        ConversionTicket.Source s = new ConversionTicket.Source();
+        s.ticket = t;
+        s.papierMm = papierMm;
+        s.nomOfficine = "PHARMACIE DU PLATEAU";
+        s.pharmacien = "Dr Awa KOUASSI";
+        s.adresse = "Bd de la République, Abidjan";
+        s.telephone = "27 20 00 00 00";
+        s.autresTelephones = "07 00 00 00 00";
+        s.enTete = "Ouvert 7 j/7 de 8 h à 22 h";
+        s.cc = "1234567 X";
+        s.rc = "CI-ABJ-2019-B-0000";
+        s.commentaire1 = "Merci de votre confiance";
+        Calendar c = Calendar.getInstance();
+        c.set(2026, Calendar.NOVEMBER, 2, 17, 42, 0);
+        s.operation = c.getTime();
+        s.referencePied = "4K7Q2M9XPA";
+        switch (t) {
+        case PREVENTE:
+            s.titre = "TICKET PREVENTE N° 0042";
+            s.infoSellers = Arrays.asList("Date:: 02/11/2026 17:35", "Vendeur:: M.TOURE");
+            s.datas = Arrays.asList("Total;5.210;0", "Remise;(-) 260;0", "Net à payer;4.950;1");
+            s.articles = articles();
+            break;
+        case MOUVEMENT_CAISSE:
+            s.titre = "Sortie de caisse";
+            s.datas = Arrays.asList("Code comptable: ;625100; ", "Libellé: ;Espèces; ", "Montant: ;15 000; F CFA",
+                    "Opérateur: ;A.KONE; ");
+            s.commentaires = Arrays.asList(" ;0", "Achat de fournitures de bureau;0");
+            s.referencePied = "M2KQ8V5RDN";
+            break;
+        case REGLEMENT_DIFFERE:
+        case REGLEMENT_FACTURE:
+        case REGLEMENT_CARNET_DEPOT:
+            boolean facture = t == ModeleTicket.REGLEMENT_FACTURE;
+            s.infoTiersPayants = Collections.singletonList(facture || t == ModeleTicket.REGLEMENT_CARNET_DEPOT
+                    ? "Tiers-payant :: MUGEF-CI" : "Client :: N. ESSAI");
+            s.infoSellers = Collections.singletonList("Opérateur:: A.KONE");
+            s.datas = Arrays.asList("NBRE DOSSIER(S);VERSE;RESTANT",
+                    facture ? "2;350 000F CFA;0F CFA" : "3;20 000F CFA;7 450F CFA", " ; ; ");
+            s.subtotal = Arrays.asList(
+                    "Net à payer: ;     " + (facture ? "350.000" : "27.450") + "; F CFA;1",
+                    "Règlement: ;     " + (facture ? "Chèque" : "Espèces") + "; ;0",
+                    "Montant Versé: ;     " + (facture ? "350.000" : "20.000") + "; F CFA;0",
+                    "Monnaie: ;     0; F CFA;0");
+            s.pieces = facture
+                    ? Arrays.asList(new String[] { "Facture n° 5957", "210000" },
+                            new String[] { "Facture n° 6012", "140000" })
+                    : Arrays.asList(new String[] { "Vente 261028_00041", "12300" },
+                            new String[] { "Vente 261030_00007", "9650" },
+                            new String[] { "Vente 261101_00112", "5500" });
+            s.referencePied = "D4WQ7N2KXE";
+            break;
+        default:
+            vente(s, t);
+            break;
+        }
+        return s;
+    }
+
+    private static List<ConversionTicket.Article> articles() {
+        return Arrays.asList(
+                new ConversionTicket.Article("DOLIPRANE 1000 MG CPR B/8", 2, 1205, 2410, "Lot B2417 · 08/2028"),
+                new ConversionTicket.Article("AMOXICILLINE BIOGARAN 1 G CPR B/14", 1, 2150, 2150,
+                        "Lot 4A0931 · 03/2027"),
+                new ConversionTicket.Article("SÉRUM PHYSIOLOGIQUE UNIDOSES B/40", 1, 650, 650, ""));
+    }
+
+    private static void vente(ConversionTicket.Source s, ModeleTicket t) {
+        s.titre = "Ticket N° 0127" + (t == ModeleTicket.VENTE ? "" : " | Bon N°:: 558213");
+        s.infoSellers = Collections.singletonList("Caissier(e):: A.KONE   |   Vendeur:: M.TOURE");
+        s.articles = articles();
+        s.datas = new ArrayList<>(Arrays.asList(" 2; *;DOLIPRANE 1000MG CP;1.205;2.410",
+                " 1; *;AMOXICILLINE BIOGAR;2.150;2.150", " 1; *;SERUM PHYSIOLOGIQU;650;650", ";;;;------",
+                ";;;;5.210"));
+        s.commentaires = Arrays.asList("Merci de votre confiance;0");
+        switch (t) {
+        case VENTE_ASSURANCE:
+            s.infoTiersPayants = Arrays.asList("Matricule Assuré:: MAT-00000", "Bénéficiaire:: N. ESSAI",
+                    "Part du Client:: 990  CFA", "MUGEF-CI   80% :: 3.960  CFA");
+            s.subtotal = Arrays.asList("* ;(-) 260; F CFA;1", "Vente à terme: ;    3.960; F CFA;1",
+                    "Net à payer: ;     990; F CFA;1", "Règlement: ;     Espèces; ;0",
+                    "Montant Versé: ;     1.000; F CFA;0", "Monnaie: ;     10; F CFA;0");
+            break;
+        case VENTE_CARNET:
+            s.infoTiersPayants = Arrays.asList("Nom du Client:: N. ESSAI", "SOCIÉTÉ ESSAI SA   100% :: 4.950  CFA");
+            s.subtotal = Arrays.asList("* ;(-) 260; F CFA;1", "Vente à terme: ;    4.950; F CFA;1",
+                    "Net à payer: ;     0; F CFA;1");
+            s.encoursCarnet = "48 200 F CFA";
+            break;
+        case VENTE_DEPOT:
+            s.infoSellers = Arrays.asList("Caissier(e):: A.KONE   |   Vendeur:: M.TOURE", "Dépôt: DÉPÔT COCODY",
+                    "Client(e):: K. GÉRANT");
+            s.subtotal = Arrays.asList("* ;(-) 260; F CFA;1", "Vente à terme: ;    4.950; F CFA;1",
+                    "Net à payer: ;     0; F CFA;1");
+            break;
+        default:
+            s.subtotal = Arrays.asList("* ;(-) 260; F CFA;1", "Net à payer: ;     4.950; F CFA;1",
+                    "Règlement: ;     Espèces; ;0", "Montant Versé: ;     5.000; F CFA;0",
+                    "Monnaie: ;     50; F CFA;0");
+            break;
+        }
+    }
+}

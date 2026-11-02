@@ -23,6 +23,7 @@ import dal.TPreenregistrement;
 import dal.TPreenregistrementCompteClient;
 import dal.TPreenregistrementCompteClientTiersPayent;
 import dal.TPreenregistrementDetail;
+import dal.TCompteClientTiersPayant;
 import dal.TTiersPayant;
 import dal.TTypeMvtCaisse;
 import dal.TTypeReglement;
@@ -90,6 +91,9 @@ import util.Constant;
 import util.DateConverter;
 import util.FunctionUtils;
 import util.NumberUtils;
+import rest.service.ticket.ConversionTicket;
+import rest.service.ticket.ModeleTicket;
+import rest.service.ticket.ModeleTicketService;
 
 /**
  *
@@ -126,6 +130,91 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
         return imprimeur;
     }
 
+    /**
+     * Nouveau modele de ticket (demande du 02/11) : largeur du papier de l'imprimante et reglages du ticket, lus dans
+     * le menu « Modeles de ticket ». Une erreur laisse l'ancien ticket : l'impression ne doit jamais en dependre.
+     */
+    private void brancherModele(ImpressionServiceImpl imp, ModeleTicket ticket, PrintService printService) {
+        try {
+            int mm = modeleTicketService.largeurImprimante(printService != null ? printService.getName() : null);
+            imp.modeleNouveau(ticket, mm, modeleTicketService.reglages(ticket, mm));
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "Modèle de ticket : ancien ticket", e);
+        }
+    }
+
+    /** Ticket de vente : modele selon la vente, lignes completes (designation entiere, lot) et code du ticket. */
+    private void brancherVente(ImpressionServiceImpl imp, TPreenregistrement op, PrintService printService) {
+        try {
+            brancherModele(imp, modeleVente(op), printService);
+            imp.setReferencePied(op.getStrREFTICKET());
+            imp.setArticlesTicket(articlesTicket(op));
+            imp.setEncoursCarnet(encoursCarnet(op));
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "Modèle de ticket : ancien ticket", e);
+            imp.modeleNouveau(null, 80, null);
+        }
+    }
+
+    static ModeleTicket modeleVente(TPreenregistrement op) {
+        if (op.getLgNATUREVENTEID() != null
+                && Constant.KEY_NATURE_VENTE_DEPOT.equalsIgnoreCase(op.getLgNATUREVENTEID().getLgNATUREVENTEID())) {
+            return ModeleTicket.VENTE_DEPOT;
+        }
+        if (op.getLgTYPEVENTEID() != null
+                && Constant.VENTE_AVEC_CARNET.equals(op.getLgTYPEVENTEID().getLgTYPEVENTEID())) {
+            return ModeleTicket.VENTE_CARNET;
+        }
+        return "VO".equals(op.getStrTYPEVENTE()) ? ModeleTicket.VENTE_ASSURANCE : ModeleTicket.VENTE;
+    }
+
+    /** Lignes de la vente dans l'ordre de l'ancien ticket, designation entiere ; quantites inversees si annulee. */
+    private List<ConversionTicket.Article> articlesTicket(TPreenregistrement op) {
+        int signe = op.getIntPRICE() != null && op.getIntPRICE() < 0 ? -1 : 1;
+        List<TPreenregistrementDetail> lignes = listeVenteByIdVente(op.getLgPREENREGISTREMENTID());
+        lignes.sort(Comparator.comparing(TPreenregistrementDetail::getDtCREATED));
+        List<ConversionTicket.Article> res = new ArrayList<>();
+        for (TPreenregistrementDetail d : lignes) {
+            int q = d.getIntQUANTITY() == null ? 0 : d.getIntQUANTITY();
+            List<String> lots = TPreenregistrementDetail.lotsASortir(d.getStrLOTSSCANNES(), Math.abs(q));
+            String lot = lots.isEmpty() ? "" : (lots.size() > 1 ? "Lots " : "Lot ") + String.join(", ", lots);
+            res.add(new ConversionTicket.Article(d.getLgFAMILLEID().getStrDESCRIPTION().toUpperCase(), signe * q,
+                    d.getIntPRICEUNITAIR() == null ? 0 : d.getIntPRICEUNITAIR(),
+                    signe * (d.getIntPRICE() == null ? 0 : d.getIntPRICE()), lot));
+        }
+        return res;
+    }
+
+    /** Encours du compte carnet de la vente (consommation du compte), pour l'option « Encours du carnet ». */
+    private String encoursCarnet(TPreenregistrement op) {
+        if (modeleVente(op) != ModeleTicket.VENTE_CARNET) {
+            return "";
+        }
+        for (TPreenregistrementCompteClientTiersPayent t : listeVenteTiersPayantsByIdVente(
+                op.getLgPREENREGISTREMENTID())) {
+            TCompteClientTiersPayant c = t.getLgCOMPTECLIENTTIERSPAYANTID();
+            if (c != null && c.getDblQUOTACONSOMENSUELLE() != null) {
+                return NumberUtils.formatLongToString(c.getDblQUOTACONSOMENSUELLE()) + " F CFA";
+            }
+        }
+        return "";
+    }
+
+    /** Pieces reglees par un dossier de reglement : reference et montant ; rien au-dela de 10 lignes. */
+    private List<String[]> piecesReglees(List<TDossierReglementDetail> details, String prefixe) {
+        List<String[]> res = new ArrayList<>();
+        try {
+            for (TDossierReglementDetail d : details) {
+                res.add(new String[] { prefixe + (d.getStrREF() != null ? d.getStrREF() : ""),
+                        String.valueOf(d.getDblAMOUNT() == null ? 0 : d.getDblAMOUNT().longValue()) });
+            }
+        } catch (Exception e) {
+            LOG.log(Level.FINE, "Ventes du dossier de règlement", e);
+            return new ArrayList<>();
+        }
+        return res.size() > 10 ? new ArrayList<>() : res;
+    }
+
     private int tailleNomOfficine() {
         try {
             return Integer.parseInt(
@@ -138,6 +227,8 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
 
     @EJB
     private rest.service.ParametreService parametreService;
+    @EJB
+    private ModeleTicketService modeleTicketService;
     @EJB
     private VenteReglementService venteReglementService;
     @EJB
@@ -246,6 +337,7 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             imp.setService(printService);
             imp.setTitle(FunctionUtils.RECEIT_TITLE + title);
             imp.setTypeTicket(Constant.TICKET_VENTE);
+            brancherVente(imp, oTPreenregistrement, printService);
             imp.setShowCodeBar(true);
             imp.setEmplacement(te);
             imp.setOperation(oTPreenregistrement.getDtUPDATED());
@@ -361,6 +453,8 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             imp.setService(imprimante);
             imp.setTitle(ticket.titre());
             imp.setTypeTicket(Constant.TICKET_PREVENTE);
+            brancherModele(imp, ModeleTicket.PREVENTE, imprimante);
+            imp.setArticlesTicket(articlesTicket(p));
             imp.setShowCodeBar(true);
             imp.setEmplacement(te);
             imp.setOperation(p.getDtCREATED() != null ? p.getDtCREATED() : new Date());
@@ -419,6 +513,7 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             imp.setOfficine(officine);
             imp.setService(printService);
             imp.setTypeTicket(Constant.ACTION_VENTE);
+            brancherVente(imp, oTPreenregistrement, printService);
             imp.setShowCodeBar(true);
             imp.setEmplacement(te);
             imp.setOperation(oTPreenregistrement.getDtUPDATED());
@@ -866,6 +961,7 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             imp.setService(printService);
             imp.setTitle("Ticket N° " + title);
             imp.setTypeTicket(Constant.ACTION_VENTE);
+            brancherVente(imp, oTPreenregistrement, printService);
             imp.setShowCodeBar(true);
             imp.setEmplacement(te);
             imp.setOperation(oTPreenregistrement.getDtUPDATED());
@@ -1005,6 +1101,7 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             imp.setOfficine(officine);
             imp.setService(printService);
             imp.setTypeTicket(Constant.ACTION_VENTE);
+            brancherVente(imp, oTPreenregistrement, printService);
             imp.setShowCodeBar(true);
             imp.setEmplacement(te);
             imp.setOperation(oTPreenregistrement.getDtUPDATED());
@@ -1229,6 +1326,9 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             imp.setOfficine(officine);
             imp.setService(printService);
             imp.setTypeTicket(Constant.TICKET_REGLEMENT);
+            brancherModele(imp, ModeleTicket.REGLEMENT_DIFFERE, printService);
+            imp.setReferencePied(num);
+            imp.setPiecesReglees(piecesReglees(lstTDossierReglementDetail, "Vente "));
             imp.setShowCodeBar(true);
             imp.setOperation(dossierReglement.getDtCREATED());
             imp.setIntBegin(0);
@@ -1341,6 +1441,7 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             imp.setOfficine(officine);
             imp.setService(printService);
             imp.setTypeTicket(Constant.ACTION_VENTE);
+            brancherVente(imp, oTPreenregistrement, printService);
             imp.setShowCodeBar(true);
             imp.setEmplacement(te);
             imp.setOperation(oTPreenregistrement.getDtUPDATED());
@@ -1446,6 +1547,7 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             imp.setOfficine(officine);
             imp.setService(printService);
             imp.setTypeTicket(Constant.ACTION_VENTE);
+            brancherVente(imp, oTPreenregistrement, printService);
             imp.setShowCodeBar(true);
             imp.setEmplacement(te);
             imp.setOperation(oTPreenregistrement.getDtUPDATED());
@@ -1575,6 +1677,7 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             imp.setOfficine(officine);
             imp.setService(printService);
             imp.setTypeTicket(Constant.ACTION_VENTE);
+            brancherVente(imp, oTPreenregistrement, printService);
             imp.setShowCodeBar(true);
             imp.setEmplacement(te);
             imp.setOperation(oTPreenregistrement.getDtUPDATED());
@@ -1734,6 +1837,8 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             imp.setOfficine(officine);
             imp.setService(printService);
             imp.setTypeTicket(Constant.TICKET_REGLEMENT_CARNET_DEPOT);
+            brancherModele(imp, ModeleTicket.REGLEMENT_CARNET_DEPOT, printService);
+            imp.setReferencePied(num);
             imp.setShowCodeBar(true);
             imp.setOperation(dossierReglement.getDtCREATED());
             imp.setIntBegin(0);
@@ -2839,6 +2944,7 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             imp.setOfficine(officine);
             imp.setService(printService);
             imp.setTypeTicket(Constant.ACTION_OTHER);
+            brancherModele(imp, ModeleTicket.MOUVEMENT_CAISSE, printService);
             imp.setShowCodeBar(true);
             imp.setOperation(mvtCaisse.getDateMvt());
             imp.setIntBegin(0);
@@ -3313,6 +3419,7 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             imp.setOfficine(officine);
             imp.setService(printService);
             imp.setTypeTicket(Constant.TICKET_REGLEMENT);
+            brancherModele(imp, ModeleTicket.REGLEMENT_FACTURE, printService);
             imp.setShowCodeBar(false);
             imp.setOperation(dossierReglement.getDtCREATED());
             imp.setIntBegin(0);
