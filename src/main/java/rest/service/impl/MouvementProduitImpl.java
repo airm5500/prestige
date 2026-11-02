@@ -14,6 +14,7 @@ import dal.Notification;
 import dal.TAjustement;
 import dal.TAjustementDetail;
 import dal.TAjustementDetail_;
+import dal.TLot;
 import dal.TAjustement_;
 import dal.TCodeTva;
 import dal.TDeconditionnement;
@@ -57,6 +58,7 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import rest.service.LogService;
+import rest.service.LotService;
 import rest.service.MouvementProduitService;
 import rest.service.NotificationService;
 import rest.service.SuggestionService;
@@ -82,6 +84,8 @@ public class MouvementProduitImpl implements MouvementProduitService {
     private EntityManager em;
     @EJB
     NotificationService notificationService;
+    @EJB
+    LotService lotService;
 
     public EntityManager getEmg() {
         return em;
@@ -245,7 +249,9 @@ public class MouvementProduitImpl implements MouvementProduitService {
     }
 
     private void ajusterProduitAjustement(Params params, TAjustement ajustement) {
-        TAjustementDetail aTAjustementDetail = updateAjustementDetail(params);
+        /* audit 06 AJ-02 : lot choisi sur la ligne (mobile) ; une ligne par produit et par lot */
+        TLot lot = lotService.trouverLot(params.getRefTwo(), params.getLotId());
+        TAjustementDetail aTAjustementDetail = updateAjustementDetail(params, lot);
         if (aTAjustementDetail == null) {
             TEmplacement emplacement = ajustement.getLgUSERID().getLgEMPLACEMENTID();
             TFamilleStock familleStock = findByProduitId(params.getRefTwo(), emplacement.getLgEMPLACEMENTID());
@@ -259,6 +265,7 @@ public class MouvementProduitImpl implements MouvementProduitService {
             aTAjustementDetail.setIntNUMBERAFTERSTOCK(params.getValue() + currentStock);
             aTAjustementDetail.setDtCREATED(new Date());
             aTAjustementDetail.setDtUPDATED(new Date());
+            aTAjustementDetail.setLot(lot);
             aTAjustementDetail.setStrSTATUT(commonparameter.statut_is_Process);
             em.persist(aTAjustementDetail);
         }
@@ -385,6 +392,11 @@ public class MouvementProduitImpl implements MouvementProduitService {
                 familleStock.setIntNUMBER(familleStock.getIntNUMBERAVAILABLE());
                 familleStock.setDtUPDATED(new Date());
                 emg.merge(familleStock);
+                /* audit 06 AJ-02 : un ajustement negatif sort aussi des lots, le lot choisi d'abord */
+                if (initStock > it.getIntNUMBERAFTERSTOCK()) {
+                    lotService.sortirLots(famille.getLgFAMILLEID(), it.getLot(),
+                            initStock - it.getIntNUMBERAFTERSTOCK());
+                }
                 int compare = initStock.compareTo(it.getIntNUMBERAFTERSTOCK());
                 String action = (compare < 0) ? DateConverter.AJUSTEMENT_POSITIF : DateConverter.AJUSTEMENT_NEGATIF;
                 int qteFinale = (initStock + it.getIntNUMBER());
@@ -590,7 +602,7 @@ public class MouvementProduitImpl implements MouvementProduitService {
 
     }
 
-    private TAjustementDetail updateAjustementDetail(Params params) {
+    private TAjustementDetail updateAjustementDetail(Params params, TLot lot) {
         try {
             if (params.getRef() == null) {
                 return null;
@@ -601,6 +613,9 @@ public class MouvementProduitImpl implements MouvementProduitService {
             }
             ajustementDetail.setIntNUMBER(ajustementDetail.getIntNUMBER() + params.getValue());
             ajustementDetail.setIntNUMBERAFTERSTOCK(ajustementDetail.getIntNUMBERAFTERSTOCK() + params.getValue());
+            if (lot != null) {
+                ajustementDetail.setLot(lot);
+            }
             ajustementDetail.setDtUPDATED(new Date());
             return em.merge(ajustementDetail);
 

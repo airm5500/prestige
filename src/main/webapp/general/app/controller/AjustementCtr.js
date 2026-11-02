@@ -148,8 +148,38 @@ Ext.define('testextjs.controller.AjustementCtr', {
      * Afficher le stock rayon pendant qu'on ajuste la reserve invite a saisir une quantite
      * fausse : le stock de depart doit etre celui qu'on va reellement corriger.
      */
+    /**
+     * audit 06 AJ-02 : lots du produit encore en stock dans la liste « Lot » de la ligne. Le lot
+     * choisi est diminue en premier a la cloture d'un ajustement negatif ; sans lot, la regle de
+     * la vente s'applique. La reserve n'a pas de lots : la liste y est masquee.
+     */
+    chargerLots: function (familleId) {
+        var champ = Ext.ComponentQuery.query('doajustementmanager #lotField')[0];
+        if (!champ) {
+            return;
+        }
+        var cboZone = Ext.getCmp('str_ZONE_AJUSTEMENT');
+        var surReserve = cboZone && cboZone.getValue() === 'RESERVE';
+        champ.clearValue();
+        champ.getStore().removeAll();
+        champ.setVisible(!surReserve);
+        if (surReserve || !familleId) {
+            return;
+        }
+        Ext.Ajax.request({
+            method: 'GET',
+            url: '../api/v1/ajustement/lots/' + encodeURIComponent(familleId),
+            success: function (response) {
+                var res = Ext.JSON.decode(response.responseText, true) || {};
+                if (!champ.isDestroyed) {
+                    champ.getStore().loadData(res.data || []);
+                }
+            }
+        });
+    },
     afficherStockZone: function (familleId, stockRayon) {
         var me = this;
+        me.chargerLots(familleId);
         var champ = me.getVnostockField();
         if (!champ) {
             return;
@@ -292,6 +322,7 @@ Ext.define('testextjs.controller.AjustementCtr', {
                         "refTwo": record.get('lgFAMILLEID'),
                         "valueTwo": record.get('intNUMBERAVAILABLE'),
                         "valueFour": typeAjustement,
+                        "lotId": me.lotChoisi(),
                         "zone": (cboZone && cboZone.getValue()) ? cboZone.getValue() : 'RAYON'
                     };
                     me.addAjustement(params, url, field, produitCmp);
@@ -338,6 +369,7 @@ Ext.define('testextjs.controller.AjustementCtr', {
                     me.current = result.data;
                     field.setValue(1);
                     comboxProduit.clearValue();
+                    me.chargerLots(null);
                     me.refresh();
                 }
             },
@@ -346,6 +378,10 @@ Ext.define('testextjs.controller.AjustementCtr', {
                 Ext.Msg.alert("Message", 'server-side failure with status code' + response.status);
             }
         });
+    },
+    lotChoisi: function () {
+        var champ = Ext.ComponentQuery.query('doajustementmanager #lotField')[0];
+        return champ && champ.isVisible() && champ.getValue() ? champ.getValue() : null;
     },
     doBeforechangeVno: function (page, currentPage) {
         var me = this;
