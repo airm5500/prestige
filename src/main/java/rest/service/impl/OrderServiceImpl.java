@@ -2456,7 +2456,7 @@ public class OrderServiceImpl implements OrderService {
             return addNewLot(lot, bonLivraisonDetail, tUser, bonLivraison, false);
         } else {
             Optional<TLot> enOptionl = getLotByProduitIdAndBon(bonLivraisonDetail.getLgFAMILLEID().getLgFAMILLEID(),
-                    bonLivraison.getStrREFLIVRAISON());
+                    bonLivraison);
             if (enOptionl.isPresent()) {
                 addFreeQty(enOptionl.get(), lot, bonLivraisonDetail, bonLivraison.getStrREFLIVRAISON());
             } else {
@@ -2474,6 +2474,10 @@ public class OrderServiceImpl implements OrderService {
         TFamille famille = bonLivraisonDetai.getLgFAMILLEID();
         TOrder order = bonLivraison.getLgORDERID();
         TGrossiste grossiste = order.getLgGROSSISTEID();
+        /*
+         * audit 06, EN-05 : seules les quantites payantes se comparent a la quantite commandee ; les UG d'un lot deja
+         * saisi ne comptent plus (avant : une livraison avec UG passait ou non selon le lot qui portait les UG).
+         */
         int qty = getQtyLot(famille.getLgFAMILLEID(), bonLivraison.getStrREFLIVRAISON(), grossiste.getLgGROSSISTEID())
                 + lot.getQty();
         if (bonLivraisonDetai.getIntQTECMDE() < qty && !isFreeQty) {
@@ -2586,22 +2590,28 @@ public class OrderServiceImpl implements OrderService {
             criteria = cb.and(criteria, cb.equal(root.get(TLot_.strREFLIVRAISON), refBon));
             criteria = cb.and(criteria,
                     cb.equal(root.get(TLot_.lgGROSSISTEID).get(TGrossiste_.lgGROSSISTEID), grossisteId));
-            cq.select(cb.sumAsLong(root.get(TLot_.intNUMBER)));
+            /* quantites payantes : lot moins ses UG (audit 06, EN-05) */
+            cq.select(cb.sumAsLong(cb.diff(cb.coalesce(root.get(TLot_.intNUMBER), 0),
+                    cb.coalesce(root.get(TLot_.intNUMBERGRATUIT), 0))));
             cq.where(criteria);
             Query q = em.createQuery(cq);
-            return ((Long) q.getSingleResult()).intValue();
+            Long somme = (Long) q.getSingleResult();
+            return somme == null ? 0 : somme.intValue();
 
         } catch (Exception e) {
             return 0;
         }
     }
 
-    private Optional<TLot> getLotByProduitIdAndBon(String produitId, String bonNum) {
+    /* audit 06, EN-02 : lot de CE BL (numero et grossiste) */
+    private Optional<TLot> getLotByProduitIdAndBon(String produitId, TBonLivraison bon) {
         try {
-            TypedQuery<TLot> q = em.createQuery(
-                    "SELECT o FROM TLot o WHERE o.lgFAMILLEID.lgFAMILLEID=?1 AND o.strREFLIVRAISON=?2", TLot.class);
+            TypedQuery<TLot> q = em
+                    .createQuery("SELECT o FROM TLot o WHERE o.lgFAMILLEID.lgFAMILLEID=?1 AND o.strREFLIVRAISON=?2"
+                            + " AND o.lgGROSSISTEID.lgGROSSISTEID=?3", TLot.class);
             q.setParameter(1, produitId);
-            q.setParameter(2, bonNum);
+            q.setParameter(2, bon.getStrREFLIVRAISON());
+            q.setParameter(3, bon.getLgORDERID().getLgGROSSISTEID().getLgGROSSISTEID());
             q.setMaxResults(1);
             return Optional.ofNullable(q.getSingleResult());
         } catch (Exception e) {
@@ -2881,7 +2891,7 @@ public class OrderServiceImpl implements OrderService {
         TBonLivraisonDetail bonLivraisonDetail = getEmg().find(TBonLivraisonDetail.class, lot.getIdBonDetail());
         TBonLivraison bonLivraison = bonLivraisonDetail.getLgBONLIVRAISONID();
         Optional<TLot> enOptionl = getLotByProduitIdAndBon(bonLivraisonDetail.getLgFAMILLEID().getLgFAMILLEID(),
-                bonLivraison.getStrREFLIVRAISON());
+                bonLivraison);
         if (enOptionl.isPresent()) {
             addFreeQty(enOptionl.get(), lot, bonLivraisonDetail, bonLivraison.getStrREFLIVRAISON());
         } else {

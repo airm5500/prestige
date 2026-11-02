@@ -549,9 +549,14 @@ public class CommandeServiceImpl implements CommandeService {
     private int addToStock(Integer prixU, Integer prixA, String key, TUser u, int qty, int ug, TFamille oFamille) {
         int initStock = mvtProduitService.updateStockReturnInitStock(oFamille, u.getLgEMPLACEMENTID(), qty, ug);
         int finalQty = initStock + qty;
-        if (finalQty > 0) {
-            oFamille.setDblPRIXMOYENPONDERE(
-                    Double.valueOf(calculPrixMoyenPondereReception(initStock, oFamille.getIntPAF(), qty, prixA)));
+        /* audit 06, EN-06 : ancien stock a l'ancien PMP, UG a cout nul, pas de PMP negatif */
+        Double ancienPmp = oFamille.getDblPRIXMOYENPONDERE();
+        Double pmp = PmpReception.calculer(initStock,
+                ancienPmp != null && ancienPmp > 0 ? ancienPmp
+                        : Objects.requireNonNullElse(oFamille.getIntPAF(), 0).doubleValue(),
+                qty, ug, Objects.requireNonNullElse(prixA, 0));
+        if (pmp != null) {
+            oFamille.setDblPRIXMOYENPONDERE(pmp);
         }
 
         mouvementProduitService.saveMvtProduit(prixU, prixA, key, DateConverter.ENTREE_EN_STOCK, oFamille, u,
