@@ -143,6 +143,14 @@ Ext.define('testextjs.view.configmanagement.famille.ArticleVenduBis', {
                     type: 'number'
 
                 },
+                {name: 'prixAchat',
+                    type: 'number'
+
+                },
+                {name: 'margePourcent',
+                    type: 'number'
+
+                },
 
                 {name: 'intQUANTITY',
                     type: 'number'
@@ -207,6 +215,8 @@ Ext.define('testextjs.view.configmanagement.famille.ArticleVenduBis', {
             fields: ['id', 'libelle'],
             data: [
                 {id: 'LESS', libelle: "P.U inférieur au P.A"},
+                /* retour du 02/11 : articles vendus a perte sur la periode (montant vendu inferieur a l'achat) */
+                {id: 'MARGE_NEGATIVE', libelle: "Marge négative"},
 //                {id: 'EQUAL', libelle: "P.A égale au  P.U"},
 //                {id: 'MORE', libelle: "P.U supérieur au P.A"},
                 {id: 'TOUT', libelle: "Tous"}
@@ -279,6 +289,24 @@ Ext.define('testextjs.view.configmanagement.famille.ArticleVenduBis', {
                     renderer: amountformat,
                     align: 'right',
                     flex: 0.8
+                }, {
+                    /* retour du 02/11 : prix d'achat de l'article et marge sur le montant vendu (prix d'achat de
+                       chaque ligne de vente) ; marge en bleu, en rouge quand elle est negative */
+                    header: "Prix d'achat",
+                    dataIndex: 'prixAchat',
+                    renderer: amountformat,
+                    align: 'right',
+                    flex: 0.7
+                }, {
+                    header: 'Marge %',
+                    dataIndex: 'margePourcent',
+                    align: 'right',
+                    flex: 0.6,
+                    renderer: function (v) {
+                        var n = Number(v) || 0;
+                        return '<span style="font-weight:bold;color:' + (n < 0 ? '#d32f2f' : '#1565c0') + '">'
+                                + Ext.util.Format.number(n, '0,0.0') + ' %</span>';
+                    }
                 }, {
                     header: 'Stock rayon',
                     dataIndex: 'currentStock',

@@ -4,7 +4,9 @@
  *   - il s'appelle valorisation_<officine>_du_<AAAA-MM-JJ>.pdf ;
  *   - le parametre KEY_VALORISATION_PDF_CRITERE choisit EMPLACEMENT ou FAMILLE, avec dans les deux cas
  *     la totalite des emplacements ou des familles ;
- *   - douze mois sont conserves, les plus anciennes sont retirees.
+ *   - douze mois sont conserves, les plus anciennes sont retirees ;
+ *   - retour du 02/11 : l'archive est l'etat imprime par l'ecran Valorisation (rp_valorisation_stock_produit2 :
+ *     stock total, eclatement par TVA, total general), et non plus l'ancien rp_valoristion de 2017.
  * Le document est reellement produit depuis la base, puis servi en flux. Les archives posees par le test
  * sont retirees et les parametres remis a leur valeur d'origine a la fin. */
 const { chromium } = require('playwright-core');
@@ -42,23 +44,9 @@ function nettoyer() {
   posees.forEach((f) => { try { fs.unlinkSync(path.join(DOSSIER, f)); } catch (e) { /* deja retire */ } });
 }
 
-// Texte d'un PDF : les flux sont deflates, on en extrait les chaines affichees.
+// Texte d'un PDF, par pdftotext (comme les autres tests d'impression), espaces ramenes a un seul.
 function texteDuPdf(chemin) {
-  const zlib = require('zlib');
-  const d = fs.readFileSync(chemin);
-  let out = '';
-  const re = /stream\r?\n/g;
-  let m;
-  while ((m = re.exec(d.toString('latin1'))) !== null) {
-    const debut = m.index + m[0].length;
-    const fin = d.toString('latin1').indexOf('endstream', debut);
-    if (fin < 0) { continue; }
-    try {
-      const clair = zlib.inflateSync(d.slice(debut, fin)).toString('latin1');
-      out += (clair.match(/\((?:[^()\\]|\\.)*\)/g) || []).join(' ');
-    } catch (e) { /* flux non compresse ou image */ }
-  }
-  return out;
+  return execFileSync('pdftotext', ['-enc', 'UTF-8', '-layout', chemin, '-'], { encoding: 'utf8', maxBuffer: 1 << 28 }).replace(/\s+/g, ' ');
 }
 
 const appeler = (p, url, methode) => p.evaluate(async ([u, m]) => {
@@ -101,10 +89,10 @@ const appeler = (p, url, methode) => p.evaluate(async ([u, m]) => {
     let g = JSON.parse((await appeler(p, '../api/v1/valorisation-archive/generer', 'POST')).corps);
     /* Le modele Jasper rp_valoristion est installe sur chaque site (il n'est pas dans le depot). Sans lui, le service
        doit le dire clairement ; le parcours PDF est alors signale NON VERIFIABLE (et non compte comme reussi). */
-    const modeleAbsent = g.success === false && /rp_valoristion/.test(g.message || '');
+    const modeleAbsent = g.success === false && /rp_valorisation_stock_produit2/.test(g.message || '');
     if (modeleAbsent) {
-      ok('Sans le modele d etat du site, le service explique quoi installer (rp_valoristion)', true, g.message);
-      console.log('NON VERIFIABLE SUR CE BANC  production du PDF (etapes 2 a 6 et 8) : modele rp_valoristion absent');
+      ok('Sans le modele d etat du site, le service explique quoi installer (rp_valorisation_stock_produit2)', true, g.message);
+      console.log('NON VERIFIABLE SUR CE BANC  production du PDF (etapes 2 a 6 et 8) : modele rp_valorisation_stock_produit2 absent');
     } else {
     ok('La valorisation par emplacement est produite', g.success === true && g.critere === 'EMPLACEMENT', JSON.stringify(g));
     const nom = g.fichier;
@@ -122,11 +110,13 @@ const appeler = (p, url, methode) => p.evaluate(async ([u, m]) => {
 
     const texteEmpl = texteDuPdf(chemin);
     ok('Le PDF porte le nom de l officine et le critere retenu',
-      texteEmpl.toUpperCase().indexOf(officine.toUpperCase()) >= 0 && /Emplacement/.test(texteEmpl),
+      texteEmpl.toUpperCase().indexOf(officine.toUpperCase()) >= 0 && /EMPLACEMENT/i.test(texteEmpl),
       texteEmpl.slice(0, 200));
+    ok('L archive est l etat imprime par l ecran Valorisation : stock total, par emplacement, eclatement par TVA',
+      /STOCK TOTAL - VALORISATION PAR EMPLACEMENT/.test(texteEmpl) && /ÉCLATEMENT PAR TVA/.test(texteEmpl) && /Prix d'Achat Facture/.test(texteEmpl),
+      texteEmpl.slice(0, 220));
     ok('Le PDF est bien une valorisation chiffree, prise sur toute la base',
-      /* « Articles valorises » : modele du banc ; « TOTAL GENERAL » : modele rp_valoristion des officines */
-      /Articles valorises|TOTAL GENERAL/.test(texteEmpl) && /\d{6,}/.test(texteEmpl), texteEmpl.slice(0, 220));
+      /TOTAL GENERAL/.test(texteEmpl) && /\d{1,3}(?:[   .]\d{3}){2,}/.test(texteEmpl), texteEmpl.slice(0, 220));
     ok('Le PDF dit qu il vient de l archivage automatique et non d un operateur',
       /Archivage automatique/.test(texteEmpl));
 
@@ -146,7 +136,7 @@ const appeler = (p, url, methode) => p.evaluate(async ([u, m]) => {
     g = JSON.parse((await appeler(p, '../api/v1/valorisation-archive/generer', 'POST')).corps);
     ok('La valorisation par famille est produite', g.success === true && g.critere === 'FAMILLE', JSON.stringify(g));
     const texteFam = texteDuPdf(path.join(DOSSIER, g.fichier));
-    ok('Le PDF par famille annonce le critere Famille article', /Famille article/.test(texteFam), texteFam.slice(0, 200));
+    ok('Le PDF par famille est l etat de l ecran par famille d article', /STOCK TOTAL - VALORISATION\s+PAR FAMILLE D'ARTICLE/.test(texteFam), texteFam.slice(0, 200));
 
     /* 5. une valeur de critere inattendue ne bloque pas l archivage */
     poserParametre('KEY_VALORISATION_PDF_CRITERE', 'N IMPORTE QUOI');

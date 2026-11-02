@@ -853,6 +853,8 @@ window.PrestigeAffichage.ECRANS_COLLES = [
     'activiteequipes',
     // menu « Péremptions courtes » (GESTION DES COMMANDES, demande mobile 36 D12)
     'peremptionscourtes',
+    // menu « Modèles de ticket » (PARAMETRAGES, demande du 02/11)
+    'modelesticket',
     // retours du 05/10 (lot A)
     'facturesubrogatoire', 'modelfacture', 'modelfacturedynamique', 'factureenattenteedition',
     // lot B
@@ -973,6 +975,8 @@ window.PrestigeAffichage.ECRANS_STYLE_VENTE = [
     'activiteequipes',
     // menu « Péremptions courtes »
     'peremptionscourtes',
+    // menu « Modèles de ticket »
+    'modelesticket',
     // lot D : statistiques, parametres, administration
     'info_officine', 'parametermanager', 'grossistemanager', 'smsfournisseur', 'dcimanager', 'cazonegeomanager', 'analyseFrequentationOffManager', 'gardemanager',
     'tvastat', 'margeproducts', 'abcmanager', 'feuilledematch', 'recap', 'usermanager', 'rolemanager', 'myaccountmanager',

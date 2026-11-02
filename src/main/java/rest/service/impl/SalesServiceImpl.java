@@ -2925,6 +2925,11 @@ public class SalesServiceImpl implements SalesService {
             java.util.concurrent.atomic.AtomicReference<TTiersPayant> payantExcluOuDepot = new java.util.concurrent.atomic.AtomicReference<>();
             /* audit CR-03 et N4 : tout refus annule les ecritures deja faites (lignes tiers payant, encours) */
             if (Objects.nonNull(tp.getCaution())) {
+                String refusCaution = CautionTiersPayantServiceImpl.refusVente(tp.getCaution().getMontant(),
+                        clotureVenteParams.getTierspayants().get(0).getTpnet());
+                if (refusCaution != null) {
+                    return json.put("success", false).put("msg", refusCaution);
+                }
                 if (!updateCaution(clotureVenteParams.getTierspayants().get(0), tp, tUser)) {
                     annulerClotureIncomplete();
                     return json.put("success", false).put("msg", "Désolé la vente a été facturée");
