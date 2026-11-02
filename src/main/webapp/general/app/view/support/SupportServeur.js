@@ -349,7 +349,7 @@ Ext.define('testextjs.view.support.SupportServeur', {
     ongletPostes: function () {
         var me = this;
         var mo = function (v) {
-            return v > 0 ? (v >= 1024 ? Ext.util.Format.number(v / 1024, '0.#') + ' Go' : v + ' Mo') : '—';
+            return v > 0 ? (v >= 1024 ? String(Math.round(v / 102.4) / 10).replace('.', ',') + ' Go' : v + ' Mo') : '—';
         };
         return {
             title: 'Postes', itemId: 'ongletPostes', iconCls: 'fa fa-desktop', layout: {type: 'vbox', align: 'stretch'},

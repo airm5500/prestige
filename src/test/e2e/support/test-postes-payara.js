@@ -57,6 +57,8 @@ const REGLAGES = JSON.stringify([{ cle: 'fils', libelle: 'Fils HTTP de Payara', 
       && /\(ce poste\)/.test(texte), JSON.stringify(courant && { hote: courant.hote, domaine: courant.domaine, pool: courant.pool, fils: courant.filsHttp }));
     ok('Ce poste : rôle et base lus de sa configuration', courant && courant.serveur === true && courant.mariadbLocale === true,
       courant && courant.serveur + ' / ' + courant.mariadbLocale);
+    ok('Mémoires lisibles (« 8 Go », « 23,6 Go », jamais « 8, Go »)', /E2E-CAISSE-2[\s\S]*?\s8 Go\s+1 Go\s/.test(texte) && !/\d, Go/.test(texte),
+      texte.slice(0, 200));
     ok('Caisse d\'essai affichée : rôle Caisse, pool 5000, « 1 critique(s) · 1 à ajuster »',
       /E2E-CAISSE-2\s+domain1\s+Caisse\s+à distance[\s\S]*5000[\s\S]*1 critique\(s\) · 1 à ajuster/.test(texte), texte.slice(0, 400));
     const alertes = await p.locator('#' + await p.evaluate(() => Ext.ComponentQuery.query('supportserveur #alertesPostes')[0].getId())).innerText();
