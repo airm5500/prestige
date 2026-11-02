@@ -130,8 +130,16 @@ chemin qui peut aujourd'hui laisser un client assuré sans tiers-payant actif, o
   (création des clients d'essai par « Créer », ajout du second tiers-payant, retrait confirmé dans l'icône, contrôle de
   la liste et de « Désactivés », suppression des clients d'essai par l'icône « Supprimer »). Sur le code d'avant : 5
   contrôles en échec (pas de promotion, client sans tiers-payant toujours actif) ; après : 12/12. J5 : 3/3.
-- **Reste pour l'étape 2** : les JSP de retrait restantes (§ 4.1, lignes 2 et 3) et la désactivation d'un organisme
-  (`enableOrDisableTierspayant` : promotion et annulation complète) passent encore par l'ancienne règle.
+- **Suite (05780b06)** : les JSP de retrait restantes (§ 4.1, lignes 2 et 3) appellent `delete_compteclt_tierspayant`
+  et `deleteComptecltTierspayant`, qui délèguent maintenant au même service (une JSP effaçait encore le lien
+  physiquement : il est désormais marqué supprimé). La désactivation d'un organisme (`enableOrDisableTierspayant`)
+  promeut le complémentaire quand l'organisme était le principal ; organisme, liens et clients sont enregistrés dans la
+  même validation. À la réactivation de l'organisme, le complémentaire promu reste principal.
+- **Test d'écran** `src/test/e2e/client/test-desactivation-organisme.js` : organisme d'essai créé par « Créer » (ou
+  réactivé), deux clients, désactivation par l'icône : 10/10. L'organisme d'essai reste désactivé en base (l'écran ne
+  supprime pas un organisme qui a eu des clients) ; il est réutilisé au passage suivant. Son nom complet est doublé
+  (« … RETRAITZE2E ORGANISME RETRAIT ») : le champ « Nom » de la fiche organisme se recopie dans « Nom complet », et la
+  première version du test a saisi les deux. Ce test n'a pas été passé sur le code d'avant la correction.
 
 ## 5. Questions tranchées (02/11)
 

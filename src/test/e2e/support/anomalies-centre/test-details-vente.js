@@ -12,7 +12,7 @@
  */
 const { chromium } = require('playwright-core');
 const ENV_E2E = require('../../outils/poste');
-const { connexion, ouvrirMenu } = require('../../outils/vues');
+const { connexion, ouvrirMenu, cliquer, saisir } = require('../../outils/vues');
 
 const res = [];
 function ok(n, c, d) { res.push(!!c); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
@@ -21,10 +21,20 @@ async function iconeLigne(p, idGrille, indice, infobulle) {
   await p.locator('#' + idGrille + ' .x-grid-row').nth(indice).locator('img[data-qtip="' + infobulle + '"]').first().click();
 }
 const URL = '../api/v1/facture-tiers-payant/details-vente';
+/* attente nommee : en cas d'echec, le message dit quelle etape n'est pas venue */
+async function attendre(p, etape, fn, arg, delai) {
+  try { await p.waitForFunction(fn, arg, { timeout: delai || 60000 }); } catch (e) { throw new Error('Étape non atteinte : ' + etape + ' (' + e.message.split(/\r?\n/)[0] + ')'); }
+}
+/* croix de la fenetre qui contient ce composant */
+async function fermerFenetre(p, idComposant) {
+  const id = await p.evaluate((c) => { const w = Ext.getCmp(c) && Ext.getCmp(c).up('window'); const t = w && w.down('tool[type=close]'); return t ? t.getId() : null; }, idComposant);
+  if (id) { await p.click('#' + id); await p.waitForTimeout(400); }
+}
 
 (async () => {
   const b = await ENV_E2E.lancer(chromium);
   const p = await b.newPage({ viewport: { width: 1700, height: 950 } });
+  p.setDefaultTimeout(60000); /* un clic sur une icone absente ne doit pas bloquer le poste */
   const erreurs = []; p.on('pageerror', (e) => erreurs.push(e.message));
   await p.route('**/api/v1/support/events', (r) => r.request().method() === 'POST' ? r.fulfill({ status: 200, body: '{}' }) : r.continue());
   const appels = [];
@@ -43,12 +53,36 @@ const URL = '../api/v1/facture-tiers-payant/details-vente';
     await visible(p, 'facturemanager');
     const grille = await p.evaluate(() => { const g = Ext.ComponentQuery.query('facturemanager gridpanel, facturemanager[isXType]').filter((x) => x.getStore && x.isVisible(true))[0]
       || Ext.ComponentQuery.query('facturemanager')[0]; return g.getId(); });
-    await p.waitForFunction((id) => { const g = Ext.getCmp(id); return g && !g.getStore().isLoading() && g.getStore().getCount() > 0; }, grille, { timeout: 60000 });
-    await iconeLigne(p, grille, 0, 'Detail Bordereau');
-    await p.waitForFunction(() => { const g = Ext.getCmp('CltgridpanelID'); return g && g.isVisible(true) && !g.getStore().isLoading() && g.getStore().getCount() > 0; }, null, { timeout: 60000 });
-    await iconeLigne(p, 'CltgridpanelID', 0, 'Afficher le detail de la vente');
-    await p.waitForFunction(() => { const g = Ext.getCmp('gridpanelFacureID'); return g && !g.getStore().isLoading() && g.getStore().getCount() > 0; }, null, { timeout: 60000 });
-    const vente = await p.evaluate(() => Ext.getCmp('CltgridpanelID').getStore().getAt(0).get('lg_PREENREGISTREMENT_ID'));
+    await attendre(p, 'liste des factures chargée', (id) => { const g = Ext.getCmp(id); return g && !g.getStore().isLoading(); }, grille);
+    /* l'ecran ne montre par defaut que le dernier mois : une copie sans facture recente donne une liste vide. On
+       elargit alors la periode par le champ « du » (trois ans), comme le ferait l'utilisateur */
+    if (await p.evaluate((id) => Ext.getCmp(id).getStore().getCount(), grille) === 0) {
+      const d = new Date(); d.setFullYear(d.getFullYear() - 3);
+      await saisir(p, '#datedebut', String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0') + '/' + d.getFullYear());
+      await cliquer(p, 'facturemanager button[text=rechercher]');
+      await p.waitForTimeout(500);
+    }
+    await attendre(p, 'au moins une facture affichée', (id) => { const g = Ext.getCmp(id); return g && !g.getStore().isLoading() && g.getStore().getCount() > 0; }, grille, 120000);
+    /* premiere vente (des premieres factures et ventes) qui porte des lignes : la copie peut avoir des factures dont
+       la premiere vente est vide ; on passe a la suivante par l'ecran, sans requete en base */
+    let vente = null;
+    const nbFactures = Math.min(5, await p.evaluate((id) => Ext.getCmp(id).getStore().getCount(), grille));
+    for (let f = 0; f < nbFactures && !vente; f++) {
+      await iconeLigne(p, grille, f, 'Detail Bordereau');
+      await attendre(p, 'bordereau de la facture ' + (f + 1) + ' chargé', () => { const g = Ext.getCmp('CltgridpanelID'); return g && g.isVisible(true) && !g.getStore().isLoading(); });
+      const nbVentes = Math.min(5, await p.evaluate(() => Ext.getCmp('CltgridpanelID').getStore().getCount()));
+      for (let v = 0; v < nbVentes && !vente; v++) {
+        await iconeLigne(p, 'CltgridpanelID', v, 'Afficher le detail de la vente');
+        await attendre(p, 'détail de la vente ' + (v + 1) + ' (facture ' + (f + 1) + ') chargé', () => { const g = Ext.getCmp('gridpanelFacureID'); return g && g.isVisible(true) && !g.getStore().isLoading(); });
+        if (await p.evaluate(() => Ext.getCmp('gridpanelFacureID').getStore().getCount()) > 0) {
+          vente = await p.evaluate((i) => Ext.getCmp('CltgridpanelID').getStore().getAt(i).get('lg_PREENREGISTREMENT_ID'), v);
+        } else {
+          await fermerFenetre(p, 'gridpanelFacureID');
+        }
+      }
+      if (!vente) { await fermerFenetre(p, 'CltgridpanelID'); }
+    }
+    if (!vente) { throw new Error('aucune vente avec des lignes dans les ' + nbFactures + ' premières factures'); }
     const lignes = await p.evaluate(() => Ext.getCmp('gridpanelFacureID').getStore().getCount());
 
     /* non-regression : avec l'identifiant, memes lignes */
