@@ -85,11 +85,23 @@ public class SupportWatchdog {
             }
             serverLogDir = StringUtils.trimToEmpty(supportEventService.getParameter("SUPPORT_SERVER_LOG_PATH"));
             storageBase = resolveStorageBase();
-            heartbeatFile = storageBase.resolve("watchdog").resolve("heartbeat.flag");
+            heartbeatFile = storageBase.resolve("watchdog")
+                    .resolve(nomTemoin(System.getProperty("com.sun.aas.instanceRoot")));
             LocalDateTime now = LocalDateTime.now();
             enregistrerSession();
             Object[] precedente = precedenteEnCours();
-            if (Files.isRegularFile(heartbeatFile)) {
+            if (Files.isRegularFile(heartbeatFile) && redeploiement(demarrageJvm(), dateDeModification(null))) {
+                // Rapport du 26/10, § 21, S7 : la JVM tournait deja au dernier battement, seule l'application a ete
+                // redeployee (sans arret propre de l'ancienne). Ce n'est pas un arret du serveur.
+                LOG.info("Watchdog : redeploiement de l'application, la JVM n'a pas ete arretee");
+                if (precedente != null) {
+                    try {
+                        vie.arretPropre((Long) precedente[0]);
+                    } catch (Exception e) {
+                        LOG.log(Level.FINE, "watchdog session precedente", e);
+                    }
+                }
+            } else if (Files.isRegularFile(heartbeatFile)) {
                 // Le fichier temoin n'a pas ete supprime par un arret propre -> crash. On relit la boite noire AVANT
                 // de reecrire le temoin : c'est le dernier etat connu du serveur, il serait perdu sinon.
                 BoiteNoire.Instantane dernier = lireBattement(now);
@@ -179,6 +191,24 @@ public class SupportWatchdog {
      */
     static String cleCrash(String poste, LocalDateTime dernierBattement) {
         return "crash-" + StringUtils.defaultIfBlank(poste, "?") + "-" + dernierBattement.format(STAMP);
+    }
+
+    /**
+     * Temoin propre a l'instance Payara (rapport du 26/10, § 21, S7) : commun a la machine, il etait efface par un
+     * domaine et reecrit par l'autre, d'ou de faux arrets brutaux. Sans domaine connu : l'ancien nom.
+     */
+    static String nomTemoin(String instanceRoot) {
+        if (StringUtils.isBlank(instanceRoot)) {
+            return "heartbeat.flag";
+        }
+        java.nio.file.Path nom = Paths.get(instanceRoot.trim()).getFileName();
+        String domaine = nom == null ? "" : nom.toString().replaceAll("[^A-Za-z0-9_-]", "_");
+        return domaine.isEmpty() ? "heartbeat.flag" : "heartbeat-" + domaine + ".flag";
+    }
+
+    /** La JVM tournait deja au dernier battement : l'application a ete redeployee, le serveur ne s'est pas arrete. */
+    static boolean redeploiement(LocalDateTime demarrageJvm, LocalDateTime dernierBattement) {
+        return demarrageJvm != null && dernierBattement != null && demarrageJvm.isBefore(dernierBattement);
     }
 
     /** Derniere cause diagnostiquee au demarrage (null s'il n'y a pas eu d'arret brutal). */

@@ -124,6 +124,23 @@ class CauseArretTest {
         assertEquals(Code.PLANTAGE_JVM, CauseArret.diagnostiquer(x).code);
     }
 
+    /**
+     * Rapport du 26/10, § 21, S8 : les reglages conseilles ajoutent -XX:+HeapDumpOnOutOfMemoryError. La ligne de
+     * commande du lanceur, ecrite au redemarrage dans la fenetre lue, contient donc ce texte : ce n'est pas une
+     * OutOfMemory.
+     */
+    @Test
+    void optionDuLanceurNEstPasUneMemoireEpuisee() {
+        Indices x = indices();
+        x.extraitLog = String.join("\n",
+                "[2026-10-30T23:49:03.838+0000] [] [INFOS] [NCLS-GFLAUNCHER-00005] [javax.enterprise.launcher]",
+                "  JVM invocation command line:", "-XX:NewRatio=2", "-XX:HeapDumpPath=D:/prestige/support/dumps",
+                "-XX:+HeapDumpOnOutOfMemoryError", "-XX:+ExitOnOutOfMemoryError", "-Xms4g", "-Xmx4g");
+        assertEquals(Code.ARRET_FORCE, CauseArret.diagnostiquer(x).code);
+        x.extraitLog += "\n[2026-10-30T23:50:01.000+0000] [Payara] [SEVERE] java.lang.OutOfMemoryError: Java heap space";
+        assertEquals(Code.MEMOIRE, CauseArret.diagnostiquer(x).code, "une vraie OutOfMemory reste reconnue");
+    }
+
     @Test
     void serviceArreteMachineToujoursAllumee() {
         Indices x = indices();

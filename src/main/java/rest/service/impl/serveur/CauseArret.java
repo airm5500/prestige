@@ -165,6 +165,18 @@ public final class CauseArret {
         return d.contains("mariadb") || d.contains("mysql");
     }
 
+    /**
+     * Une vraie OutOfMemoryError, et non une option de la JVM qui la nomme (-XX:+HeapDumpOnOutOfMemoryError,
+     * ExitOnOutOfMemoryError...) : le lanceur recopie sa ligne de commande au redemarrage, dans la fenetre lue (rapport
+     * du 26/10, § 21, S8).
+     */
+    private static final java.util.regex.Pattern OUT_OF_MEMORY = java.util.regex.Pattern
+            .compile("(?<![A-Za-z])OutOfMemoryError");
+
+    static boolean memoireEpuisee(String log) {
+        return OUT_OF_MEMORY.matcher(log).find();
+    }
+
     /** Cause probable d'un arret brutal. */
     public static Diagnostic diagnostiquer(Indices x) {
         Diagnostic r = new Diagnostic();
@@ -194,7 +206,7 @@ public final class CauseArret {
         if (x.rapportJvm) {
             fixer(r, Code.PLANTAGE_JVM, "Java s'est arrêté sur une erreur interne (rapport hs_err_pid joint).",
                     "Transmettre le rapport au support ; vérifier la mémoire de la machine et la version de Java.");
-        } else if (log.contains("OutOfMemoryError") || log.contains("GC overhead limit") || x.vidageMemoire) {
+        } else if (memoireEpuisee(log) || log.contains("GC overhead limit") || x.vidageMemoire) {
             fixer(r, Code.MEMOIRE, "Le serveur Java a manqué de mémoire (OutOfMemoryError).",
                     "Augmenter la mémoire du serveur Java (réglages conseillés) ; le vidage mémoire (.hprof) montre ce qui l'occupait.");
         } else if (log.contains("No space left on device") || log.contains("Espace insuffisant")
