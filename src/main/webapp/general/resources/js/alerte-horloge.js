@@ -4,18 +4,19 @@
  *
  * Employes qui reculent la date pour ressaisir des ventes, pile CMOS faible (date perdue au demarrage), fuseau horaire
  * change : verification a la connexion puis toutes les 5 minutes (GET v1/horloge/etat), pour tous les utilisateurs.
- * Le serveur compare son horloge a l'heure d'Internet, a la derniere operation de caisse et au fuseau attendu ; ce
- * poste compare en plus sa propre horloge a celle du serveur. Toast pose sur la page, comme celui de WhatsApp (au-dessus
- * de lui s'ils sont la tous les deux) :
+ * Le serveur compare son horloge a l'heure d'Internet, a la derniere operation de caisse et au fuseau attendu.
+ * Retour du 02/11 : le controle porte sur le poste qui a le serveur Payara, et lui seul. Un poste relie a ce serveur en
+ * depend (c'est le serveur qui date les operations) : l'horloge du navigateur n'est plus comparee, elle ne change rien.
+ * Toast pose sur la page, comme celui de WhatsApp (au-dessus de lui s'ils sont la tous les deux) :
  *  - « Mettre a jour » : le serveur se synchronise comme Windows (POST v1/horloge/synchroniser) ; le compte rendu
- *    s'affiche dans le toast, puis la verification est relancee ; pour l'horloge de ce poste, le toast dit comment faire ;
+ *    s'affiche dans le toast, puis la verification est relancee ;
  *  - « Masquer » : jusqu'a la verification suivante (5 minutes).
  * Aucune fenetre.
  */
 (function () {
     'use strict';
 
-    var URL = '../api/v1/horloge/etat', TOLERANCE_MS = 120000;
+    var URL = '../api/v1/horloge/etat';
     var REGLAGE = {periode: 300000};
     var minuteur = null, arrete = false, masqueeJusqua = 0;
     /* dernier compte rendu de « Mettre a jour » : garde quand le toast est redessine (verification suivante) */
@@ -66,11 +67,6 @@
         }
     }
 
-    function duree(ms) {
-        var m = Math.round(Math.abs(ms) / 60000), h = Math.floor(m / 60), j = Math.floor(h / 24);
-        return j ? j + (j > 1 ? ' jours' : ' jour') + (h % 24 ? ' ' + (h % 24) + ' h' : '') : h ? h + ' h' + (m % 60 ? ' ' + (m % 60) + ' min' : '') : m + ' min';
-    }
-
     function raison(t) {
         var r = document.querySelector('#phr-toast .phr-raison');
         if (r) {
@@ -119,11 +115,6 @@
     }
 
     function mettreAJour(bouton, serveur) {
-        if (!serveur) {
-            raison('Sur ce poste : clic droit sur l\'heure de Windows (en bas à droite) > « Ajuster la date et l\'heure » >'
-                    + ' « Synchroniser maintenant ». Le serveur, lui, est à l\'heure.');
-            return;
-        }
         bouton.disabled = true;
         bouton.textContent = 'Mise à jour…';
         Ext.Ajax.request({url: '../api/v1/horloge/synchroniser', method: 'POST', timeout: 90000,
@@ -146,7 +137,6 @@
         if (arrete || !window.Ext || !Ext.Ajax) {
             return;
         }
-        var depart = Date.now();
         Ext.Ajax.request({url: URL, method: 'GET', timeout: 20000,
             success: function (r) {
                 var o = Ext.decode(r.responseText, true) || {};
@@ -159,14 +149,6 @@
                 var messages = (o.anomalies || []).map(function (a) {
                     return a.message;
                 }), serveur = messages.length > 0;
-                /* horloge de ce poste : comparee a celle du serveur (moitie de l'aller-retour) */
-                if (o.serveurMs) {
-                    var ecart = Date.now() - (o.serveurMs + (Date.now() - depart) / 2);
-                    if (Math.abs(ecart) > TOLERANCE_MS) {
-                        messages.push('L\'horloge de ce poste est ' + (ecart > 0 ? 'en avance' : 'en retard') + ' de ' + duree(ecart)
-                                + ' sur le serveur (' + o.serveur + ').');
-                    }
-                }
                 if (!messages.length) {
                     retirer();
                     return;
