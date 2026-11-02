@@ -80,3 +80,21 @@ Un écran est compté comme chargé quand le réseau est calme et qu'aucun masqu
      - Les empreintes des six courbes sont identiques à celles d'avant toute correction.
      - Les 34 tests Java du pilotage passent.
    - Le premier affichage de la journée reste à environ 14 s, car il calcule toutes les années.
+   - **Troisième correction : lecture dans les agrégats mensuels du pilotage, et calcul d'avance.**
+     - Pas mensuel et annuel : CA, panier, encaissé, achats et marge sont lus dans les agrégats mensuels, comme
+       dans les autres onglets. Si un mois n'est pas encore agrégé, l'année est relue dans les ventes, comme avant.
+     - Cumul à date d'une année close : seul le mois entamé est relu dans les ventes, gardé jusqu'au lendemain.
+     - **La TVA reste lue dans les ventes.** Les agrégats gardent CA HT et CA TTC arrondis au franc : leur
+       différence s'écartait de quelques francs (empreinte changée au premier essai, identique après correction).
+     - **Marge : changement voulu.** C'est celle des autres onglets, figée au calcul du mois. L'ancienne courbe
+       prenait le prix d'achat du jour : elle était de 0,4 à 0,9 % plus basse de janvier 2025 à août 2026, et
+       identique pour septembre et octobre 2026.
+     - Pas hebdomadaire : inchangé (lecture dans les ventes, avec les caches ci-dessus).
+     - Au démarrage du serveur et chaque nuit à 0 h 25, après les agrégats, toutes les courbes (six grandeurs,
+       trois pas) sont calculées d'avance (`PilotageSuiviService.prechauffer`, appelé par
+       `PilotageAgregatScheduler`).
+   - Résultat du test : premier affichage juste après le déploiement 4,7 s (contre environ 14 s), le calcul
+     d'avance n'étant sans doute pas encore fini ; onglet rouvert après l'expiration du cache **2,06 s**.
+     - Empreintes identiques à celles d'avant toute correction pour achats, CA, encaissé, panier et TVA ; marge
+       changée comme prévu.
+     - Les tests Java du pilotage passent.

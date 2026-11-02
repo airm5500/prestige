@@ -36,8 +36,13 @@ public class PilotageSuiviService {
     private static final Map<String, double[][]> ANNEES_CLOSES = new ConcurrentHashMap<>();
     private static volatile LocalDate jourAnneesCloses;
 
+    private static final java.util.logging.Logger LOG = java.util.logging.Logger
+            .getLogger(PilotageSuiviService.class.getName());
+
     @PersistenceContext(unitName = "JTA_UNIT")
     private EntityManager em;
+    @javax.ejb.EJB
+    private PilotageAgregats agregats;
 
     /** Source et colonne de date de chaque grandeur : [FROM ... WHERE conditions, colonne date, somme, compte]. */
     static String[] source(String mesure) {
@@ -106,6 +111,16 @@ public class PilotageSuiviService {
             ANNEES_CLOSES.clear();
             jourAnneesCloses = jour;
         }
+        /*
+         * La TVA reste lue dans les ventes : les agregats gardent CA HT et CA TTC arrondis au franc (par mois, et par
+         * jour pour le mois en cours), leur difference s'ecartait de quelques francs de la courbe (test du 02/11).
+         */
+        if (!"SEMAINE".equals(pas) && !"tva".equals(mesure)) {
+            double[][] r = parAgregats(mesure, pas, y, jour);
+            if (r != null) {
+                return r;
+            }
+        }
         String cle = mesure + "|" + pas + "|" + y;
         LocalDate fin = jour.plusDays(1), finAnnee = LocalDate.of(y + 1, 1, 1), debutAnnee = LocalDate.of(y, 1, 1);
         /*
@@ -138,6 +153,101 @@ public class PilotageSuiviService {
             }
         }
         return r;
+    }
+
+    /**
+     * Pas mensuel ou annuel : les mois sont lus dans les agregats du Pilotage (demande du 02/11 : une seule source pour
+     * tout le menu, et plus aucune annee relue dans les ventes). Comparaison du 02/11 sur 22 mois : CA, encaisse,
+     * achats identiques au calcul direct (la TVA, arrondie dans les agregats, reste lue dans les ventes) ; la marge est
+     * celle des autres onglets, figee au calcul du mois (le calcul direct prenait le prix d'achat du jour, et changeait
+     * donc la marge des mois passes). Le cumul a date d'une annee close lit ses mois entiers dans les agregats et relit
+     * seulement le mois entame, garde jusqu'au lendemain.
+     *
+     * @return null si un mois n'est pas encore agrege (base qui n'a jamais ouvert le Pilotage) : l'annee est alors lue
+     *         dans les ventes, comme avant
+     */
+    private double[][] parAgregats(String mesure, String pas, int y, LocalDate jour) {
+        if (agregats == null) {
+            return null;
+        }
+        boolean enCours = y == jour.getYear();
+        int moisJour = jour.getMonthValue(), dernier = enCours ? moisJour : 12;
+        List<String> mois = new ArrayList<>();
+        for (int m = 1; m <= dernier; m++) {
+            mois.add(String.format("%04d-%02d", y, m));
+        }
+        Map<String, PilotageAgregats.Agregat> lus = agregats.agregats(mois);
+        for (String m : mois) {
+            if (lus.get(m) == null) {
+                return null;
+            }
+        }
+        int nb = taille(pas);
+        double[] somme = new double[nb], compte = new double[nb], aDate = new double[2];
+        for (int m = 1; m <= dernier; m++) {
+            PilotageAgregats.Agregat a = lus.get(mois.get(m - 1));
+            int r = "MOIS".equals(pas) ? m - 1 : 0;
+            double v = valeur(mesure, a), c = compte(mesure, a);
+            somme[r] += v;
+            compte[r] += c;
+            /* l'agregat du mois en cours s'arrete a aujourd'hui : il compte entier dans le cumul a date */
+            if (m < moisJour || enCours) {
+                aDate[0] += v;
+                aDate[1] += c;
+            }
+        }
+        if (!enCours) {
+            String cle = mesure + "|" + y + "|mois entame";
+            double[][] entame = ANNEES_CLOSES.get(cle);
+            if (entame == null) {
+                LocalDate debut = LocalDate.of(y, moisJour, 1);
+                entame = periode(mesure, pas, y, jour, debut, debut, debut, debut.plusMonths(1));
+                ANNEES_CLOSES.put(cle, entame);
+            }
+            aDate[0] += entame[2][0];
+            aDate[1] += entame[2][1];
+        }
+        return new double[][] { somme, compte, aDate };
+    }
+
+    /** Montant d'une grandeur dans un agregat mensuel : memes definitions que source(). */
+    static double valeur(String mesure, PilotageAgregats.Agregat a) {
+        switch (mesure) {
+        case "encaisse":
+            return a.encaisse;
+        case "achats":
+            return a.achatTTC;
+        case "tva":
+            return a.caTTC - a.caHT;
+        case "marge":
+            return a.marge();
+        default: /* ca, panier */
+            return a.caTTC;
+        }
+    }
+
+    /** Nombre associe (ventes pour le CA et le panier, bons pour les achats), comme la 4e colonne de source(). */
+    static double compte(String mesure, PilotageAgregats.Agregat a) {
+        return "achats".equals(mesure) ? a.nbBons : "ca".equals(mesure) || "panier".equals(mesure) ? a.nbVentes : 0;
+    }
+
+    /**
+     * Calcule d'avance les courbes de l'onglet (toutes les grandeurs, tous les pas, jusqu'a N-3) : au demarrage du
+     * serveur et chaque nuit, apres les agregats (job.PilotageAgregatScheduler). Le premier affichage du jour ne
+     * calcule plus rien (mesure du 02/11 : 14 s).
+     */
+    public void prechauffer() {
+        LocalDate jour = LocalDate.now();
+        for (String pas : PAS) {
+            for (String mesure : MESURES) {
+                try {
+                    evolution(mesure, pas, 3, jour);
+                } catch (RuntimeException e) {
+                    LOG.log(java.util.logging.Level.WARNING,
+                            "pilotage : courbe " + mesure + " " + pas + " non calculee d'avance", e);
+                }
+            }
+        }
     }
 
     /**
