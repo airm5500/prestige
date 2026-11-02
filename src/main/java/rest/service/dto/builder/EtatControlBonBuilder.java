@@ -64,6 +64,11 @@ public final class EtatControlBonBuilder extends CommonBuilder {
                 .checked(computeBlControlStatus(bonLivraisonDetails)).build();
     }
 
+    /** Statut du controle d'un bon d'apres ses lignes : NON_TRAITE, EN_COURS ou TERMINE. */
+    public static String statutControle(List<BonLivraisonDetail> details) {
+        return computeBlControlStatus(details);
+    }
+
     private static String computeBlControlStatus(List<BonLivraisonDetail> details) {
         if (details == null || details.isEmpty()) {
             return "NON_TRAITE";
@@ -108,19 +113,20 @@ public final class EtatControlBonBuilder extends CommonBuilder {
     }
 
     public static String buildItems(List<BonLivraisonDetail> bonLivraisonDetails) {
-        String items = " ";
-        for (BonLivraisonDetail e : bonLivraisonDetails) {
-            items = "<b><span style='display:inline-block;width: 7%;'>" + e.getProduit().getIntCIP()
+        /* meme texte qu'avant (derniere ligne en tete, espace final), sans la concatenation quadratique (§ 21, L23) */
+        StringBuilder items = new StringBuilder();
+        for (int i = bonLivraisonDetails.size() - 1; i >= 0; i--) {
+            BonLivraisonDetail e = bonLivraisonDetails.get(i);
+            items.append("<b><span style='display:inline-block;width: 7%;'>" + e.getProduit().getIntCIP()
                     + "</span><span style='display:inline-block;width: 25%;'>" + e.getProduit().getStrDESCRIPTION()
                     + "</span><span style='display:inline-block;width: 15%;'>Qte Cmdée: (" + e.getIntQTECMDE()
                     + ")</span><span style='display:inline-block;width: 15%;'>Qte Livrée: ("
                     + (e.getIntQTERECUE() - e.getIntQTEUG())
                     + ")</span><span style='display:inline-block;width: 15%;'>Unité gratuite: (" + e.getIntQTEUG()
                     + ")</span><span style='display:inline-block;width: 15%;'>Avoir ("
-                    + (e.getIntQTERETURN() != null ? e.getIntQTERETURN() : 0) + ")</span></b><br> " + items;
+                    + (e.getIntQTERETURN() != null ? e.getIntQTERETURN() : 0) + ")</span></b><br> ");
         }
-
-        return items;
+        return items.append(' ').toString();
     }
 
     public static int computeAvoirAmount(List<BonLivraisonDetail> bonLivraisonDetails) {

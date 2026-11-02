@@ -130,10 +130,13 @@ public class EtatControlBonServiceImpl implements EtatControlBonService {
             q.setMaxResults(limit);
 
         }
+        return mettreEnForme(q.getResultList(), fullAuth);
+    }
+
+    private List<EtatControlBon> mettreEnForme(List<TBonLivraison> trouves, boolean fullAuth) {
         // Un bon dont la commande a disparu est ecarte plutot que de faire echouer tout l'ecran
         // (voir EtatControlBonBuilder.build).
-        List<EtatControlBon> bons = q.getResultList().stream().map(EtatControlBonBuilder::build)
-                .filter(Objects::nonNull)
+        List<EtatControlBon> bons = trouves.stream().map(EtatControlBonBuilder::build).filter(Objects::nonNull)
                 .peek(e1 -> e1.setReturnFullBl((!DELETE.equals(e1.getStrSTATUT()) && e1.getIntHTTC() > 0) && fullAuth))
                 .collect(Collectors.toList());
         /* retours du 10/10 (Q11) : qui a controle (application mobile), quand, combien d'ecarts */
@@ -149,6 +152,69 @@ public class EtatControlBonServiceImpl implements EtatControlBonService {
             }
         }
         return bons;
+    }
+
+    /**
+     * Rapport du 26/10, § 21, L23 : avec un filtre de statut ou d'ecart, toute la periode etait chargee et mise en
+     * forme (bons, lignes, produits et leurs rattachements) avant d'etre filtree puis paginee : plus de 20 s sur une
+     * longue periode. Le statut et l'ecart se calculent desormais sur une lecture legere des lignes (quatre colonnes),
+     * avec les memes regles ; seuls les bons de la page affichee sont ensuite charges et mis en forme.
+     *
+     * <p>
+     * Les bons que la mise en forme ecarte (grossiste ou operateur introuvable, voir EtatControlBonBuilder.build) le
+     * sont ici des la requete, pour garder le meme total.
+     */
+    private List<String> idsFiltres(rest.service.filtre.FiltresControleAchat filtres, String search, String dtStart,
+            String dtEnd, String grossisteId, String dateType, String userId) {
+        SingularAttribute<TBonLivraison, Date> dateAttr = dateAttribute(dateType);
+        CriteriaBuilder cb = em.getCriteriaBuilder();
+        CriteriaQuery<Tuple> cq = cb.createTupleQuery();
+        Root<TBonLivraison> root = cq.from(TBonLivraison.class);
+        cq.multiselect(root.get(TBonLivraison_.lgBONLIVRAISONID), root.get(dateAttr)).distinct(true)
+                .orderBy(cb.desc(root.get(dateAttr)));
+        List<Predicate> predicates = listPredicates(cb, root, LocalDate.parse(dtStart), LocalDate.parse(dtEnd),
+                grossisteId, search, dateAttr, userId);
+        predicates.add(cb
+                .isNotNull(root.get(TBonLivraison_.lgORDERID).get(TOrder_.lgGROSSISTEID).get(TGrossiste_.strLIBELLE)));
+        predicates.add(cb.isNotNull(root.get(TBonLivraison_.lgUSERID).get(TUser_.strLASTNAME)));
+        cq.where(cb.and(predicates.toArray(Predicate[]::new)));
+        List<String> ids = em.createQuery(cq).getResultList().stream().map(t -> t.get(0, String.class))
+                .collect(Collectors.toList());
+
+        Map<String, List<rest.service.dto.BonLivraisonDetail>> lignes = new java.util.HashMap<>();
+        final int paquet = 500;
+        for (int i = 0; i < ids.size(); i += paquet) {
+            List<Object[]> rows = em
+                    .createQuery("SELECT d.lgBONLIVRAISONID.lgBONLIVRAISONID, d.checked,"
+                            + " d.checkedQuantity, d.intQTERECUE FROM TBonLivraisonDetail d"
+                            + " WHERE d.lgBONLIVRAISONID.lgBONLIVRAISONID IN :ids", Object[].class)
+                    .setParameter("ids", ids.subList(i, Math.min(i + paquet, ids.size()))).getResultList();
+            for (Object[] r : rows) {
+                lignes.computeIfAbsent((String) r[0], k -> new ArrayList<>())
+                        .add(rest.service.dto.BonLivraisonDetail.builder().checked((Boolean) r[1])
+                                .quantiteControle((Integer) r[2]).intQTERECUE((Integer) r[3]).build());
+            }
+        }
+        List<EtatControlBon> legers = new ArrayList<>(ids.size());
+        for (String id : ids) {
+            List<rest.service.dto.BonLivraisonDetail> details = lignes.getOrDefault(id, new ArrayList<>());
+            legers.add(EtatControlBon.builder().lgBONLIVRAISONID(id).bonLivraisonDetails(details)
+                    .checked(EtatControlBonBuilder.statutControle(details)).build());
+        }
+        return filtres.appliquer(legers).stream().map(EtatControlBon::getLgBONLIVRAISONID).collect(Collectors.toList());
+    }
+
+    /** Les bons demandes, mis en forme, dans l'ordre des identifiants. */
+    private List<EtatControlBon> charger(List<String> ids, boolean fullAuth) {
+        if (ids.isEmpty()) {
+            return new ArrayList<>();
+        }
+        Map<String, TBonLivraison> parId = em
+                .createQuery("SELECT b FROM TBonLivraison b WHERE b.lgBONLIVRAISONID IN :ids", TBonLivraison.class)
+                .setParameter("ids", ids).getResultList().stream()
+                .collect(Collectors.toMap(TBonLivraison::getLgBONLIVRAISONID, b -> b));
+        return mettreEnForme(ids.stream().map(parId::get).filter(Objects::nonNull).collect(Collectors.toList()),
+                fullAuth);
     }
 
     private long count(String search, String dtStart, String dtEnd, String grossisteId, String dateType,
@@ -248,11 +314,10 @@ public class EtatControlBonServiceImpl implements EtatControlBonService {
         if (filtres.inactif()) {
             return listePaginee(fullAuth, search, dtStart, dtEnd, grossisteId, start, limit, dateType, userId);
         }
-        List<EtatControlBon> retenus = filtres
-                .appliquer(lister(fullAuth, search, dtStart, dtEnd, grossisteId, 0, 0, true, dateType, userId));
+        List<String> retenus = idsFiltres(filtres, search, dtStart, dtEnd, grossisteId, dateType, userId);
         int debut = Math.max(0, Math.min(start, retenus.size()));
         int fin = limit > 0 ? Math.min(debut + limit, retenus.size()) : retenus.size();
-        return FunctionUtils.returnData(retenus.subList(debut, fin), retenus.size());
+        return FunctionUtils.returnData(charger(retenus.subList(debut, fin), fullAuth), retenus.size());
     }
 
     /**
@@ -267,8 +332,7 @@ public class EtatControlBonServiceImpl implements EtatControlBonService {
         if (filtres.inactif()) {
             return count(search, dtStart, dtEnd, grossisteId, dateType, userId);
         }
-        return filtres.appliquer(lister(false, search, dtStart, dtEnd, grossisteId, 0, 0, true, dateType, userId))
-                .size();
+        return idsFiltres(filtres, search, dtStart, dtEnd, grossisteId, dateType, userId).size();
     }
 
     /** Toutes les lignes retenues par les criteres, sans pagination : pour l'impression et l'export. */

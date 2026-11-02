@@ -1209,7 +1209,7 @@ Ext.define('testextjs.controller.VenteEnDepotCtr', {
     closeClientLambdaWindow: function () {
         const me = this;
         me.showAndHideInfosStandardClient(false);
-        me.getClientLambda().destroy();
+        me.getClientLambdadepot().destroy();
         if (!me.getClient()) {
             me.getTypeReglement().setValue('1');
         }
@@ -4720,7 +4720,7 @@ Ext.define('testextjs.controller.VenteEnDepotCtr', {
     },
     onBtnCancelClient: function () {
         const me = this;
-        me.getAssuranceClient().destroy();
+        me.getAssuranceClientdepot().destroy();
         me.getClientSearchTextField().setValue('');
     },
     onGridRowSelect: function (g, record) {
@@ -7576,7 +7576,7 @@ Ext.define('testextjs.controller.VenteEnDepotCtr', {
     },
     closeMedecinWindow: function () {
         const me = this;
-        me.getMedecin().destroy();
+        me.getMedecindepot().destroy();
 
     },
     addMedecinForm: function () {

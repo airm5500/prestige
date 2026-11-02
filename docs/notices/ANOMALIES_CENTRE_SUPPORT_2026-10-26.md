@@ -684,6 +684,36 @@ L'analyse ci-dessus a été faite sur la branche de travail. Elle a été refait
 Il reste ainsi 17 points, dont 1 P1 (J27, réduit à trois accesseurs) et 5 P2 (P4, L23, L24, S7, S8). Côté métier, le
 contrat Orange reste à renouveler.
 
+### Corrigés le 02/11 : J27, P4, L23, L24, S7, S8
+
+Branche `PRES-/support-0211`, partie de la pointe de l'intégration (`a0951196`). Les tests d'écran ont été joués sur le
+9080 (domain2, base `laborex_perf`), un par un. Chaque point a d'abord un test qui échoue.
+
+| Point | Correction | Test | Avant → après |
+|---|---|---|---|
+| J27 | `VenteEnDepotCtr.js` : `getClientLambdadepot`, `getAssuranceClientdepot`, `getMedecindepot` | `test-j27-depot-client.js` : vente en dépôt simulée, « ASSOCIER UN CLIENT », puis « Annuler ». Rien n'est écrit en base | « `me.getClientLambda is not a function` », fenêtre restée ouverte (1/2) → fenêtre fermée, aucune erreur (2/2) |
+| P4 | `AnalyseVentesProduitsService` : paramètres nommés (dates, texte, emplacement, grossiste) | `test-p4-analyse-filtres.js` : onglet « Analyse », emplacement seul, puis grossiste seul | deux réponses 500 (1/3) → 200, analyse affichée (3/3) |
+| L23 | Avec un filtre de statut ou d'écart, le statut et l'écart se calculent sur une lecture légère des lignes (quatre colonnes), avec les mêmes règles. Seuls les bons de la page affichée sont chargés et mis en forme. Le texte des lignes est construit avec un `StringBuilder`, pour un résultat identique | `test-l23-controle-achats.js` : « Rechercher », puis « Non contrôlés ». Les totaux, puis le statut et le texte des lignes de chaque bon, sont comparés à une référence prise avant la correction | « Non contrôlés » : 01/10 → 02/11 : 2,3 s → 1,2 s ; 01/06 → 02/11 : 8,4 s → 1,2 s ; 01/01/2025 → 02/11 : sans réponse après 300 s → 1,4 s. Totaux identiques (416/20 et 2521/167) ; aucun écart sur les bons comparés. `EtatControlBonBuilderItemsTest` vérifie que le texte des lignes ne change pas |
+| L24 | `ClasseurExcel` : au-delà de 20 000 lignes, le classeur est écrit en flux (`SXSSFWorkbook`). Les largeurs sont estimées sur les 1 000 premières lignes, et l'export s'arrête à la taille d'une feuille avec un message. En dessous, rien ne change | `ClasseurExcelVolumeTest` : 400 000 lignes dans un tas de 256 Mo | `OutOfMemoryError` → fichier complet en 7 s |
+| S7 | Un témoin par domaine (`heartbeat-domain1.flag`, …). Si la JVM a démarré avant le dernier battement, c'est un redéploiement : arrêt propre, sans incident | `SupportWatchdogTemoinTest` (3 tests) | — (méthodes nouvelles) |
+| S8 | `CauseArret` : `OutOfMemoryError` doit être un mot isolé, l'option `-XX:+HeapDumpOnOutOfMemoryError` ne compte plus | `CauseArretTest.optionDuLanceurNEstPasUneMemoireEpuisee` | « mémoire épuisée » → « arrêt forcé ». Une vraie `OutOfMemoryError` reste reconnue |
+
+**Non-régression :**
+
+- vente (`test-leana-vente.js`, 6/6) ;
+- copie de ticket (`test-a8-copie-ticket.js`, 3/3) ;
+- suite unitaire complète.
+
+Les autres tests du contrôle des BL (`test-routes-nombre.js`, `test-controle-achats-tableau.js`) lisent la base
+directement : ils n'ont pas été joués.
+
+**Note sur L23 :**
+
+- un préchargement des lignes par paquets a d'abord été essayé : il ralentissait le filtre (2,2 s → 4,4 s) et a été
+  retiré ;
+- l'impression (`/print`) charge toujours toute la période, ce qui est voulu ;
+- le tri de la liste ne porte que sur la date : deux bons de même date sortent dans un ordre libre, avant comme après.
+
 ## Annexe A. Rejouer les reproductions
 
 Variables (Node 22) :
