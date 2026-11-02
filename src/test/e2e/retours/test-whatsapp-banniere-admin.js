@@ -57,7 +57,7 @@ function nettoyer() {
       /* sous Windows, la fenetre cmd qui a lance le service (son parent) garde le dossier ouvert : arretee aussi */
       execFileSync('powershell', ['-NoProfile', '-Command', "$p = (Get-CimInstance Win32_Process -Filter 'ProcessId=" + pid + "').ParentProcessId;"
         + ' Stop-Process -Id ' + pid + ' -Force -ErrorAction SilentlyContinue;'
-        + " if ($p -and (Get-Process -Id $p -ErrorAction SilentlyContinue).ProcessName -eq 'cmd') { Stop-Process -Id $p -Force }"]);
+        + " if ($p -and (Get-Process -Id $p -ErrorAction SilentlyContinue).ProcessName -eq 'cmd') { Stop-Process -Id $p -Force -ErrorAction SilentlyContinue }"]);
     } else if (pid) {
       process.kill(pid);
     }

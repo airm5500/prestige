@@ -1343,8 +1343,8 @@ public class SalesServiceImpl implements SalesService {
                     createPreenregistrementTierspayant(salesParams.getTierspayants(), preenregistrement);
 
                 } else {
-                    preenregistrement
-                            .setStrREF(buildRefDevis(LocalDate.now(), emplacementDeNumerotation(salesParams)).getReference());
+                    preenregistrement.setStrREF(
+                            buildRefDevis(LocalDate.now(), emplacementDeNumerotation(salesParams)).getReference());
                     preenregistrement.setStrREFBON(salesParams.getBonRef());
                     preenregistrement.setStrREFTICKET(DateConverter.getShortId(10));
                     emg.persist(preenregistrement);
@@ -1364,8 +1364,8 @@ public class SalesServiceImpl implements SalesService {
                         calculRemiseDepot(preenregistrement.getIntPRICE(), salesParams.getRemiseDepot()));
                 preenregistrement
                         .setStrTYPEVENTE((salesParams.getTypeDepoId().equals("1") ? VENTE_COMPTANT : VENTE_ASSURANCE));
-                preenregistrement
-                        .setStrREF(buildRefTmp(LocalDate.now(), emplacementDeNumerotation(salesParams)).getReferenceTemp());
+                preenregistrement.setStrREF(
+                        buildRefTmp(LocalDate.now(), emplacementDeNumerotation(salesParams)).getReferenceTemp());
                 emg.persist(preenregistrement);
             }
             emg.persist(dp);
@@ -4850,8 +4850,8 @@ public class SalesServiceImpl implements SalesService {
         newTP.setStrSTATUT(Constant.STATUT_IS_PROGRESS);
         newTP.setLgPREENGISTREMENTANNULEID(tp.getLgPREENREGISTREMENTID());
         newTP.setEmplacementVente(tp.getEmplacementVente());
-        newTP.setStrREF(
-                buildRefTmp(LocalDate.now(), ContexteVenteDepot.emplacementDeNumerotation(newTP, ooTUser)).getReferenceTemp());
+        newTP.setStrREF(buildRefTmp(LocalDate.now(), ContexteVenteDepot.emplacementDeNumerotation(newTP, ooTUser))
+                .getReferenceTemp());
         newTP.setChecked(true);
         newTP.setCopy(true);
         newTP.setMargeug(tp.getMargeug());
@@ -5692,8 +5692,8 @@ public class SalesServiceImpl implements SalesService {
     }
 
     /**
-     * Emplacement dont la saisie prend son numero : celui de l'operateur, meme pour une vente sur un depot
-     * d'extension (voir {@link ContexteVenteDepot#emplacementDeNumerotation}).
+     * Emplacement dont la saisie prend son numero : celui de l'operateur, meme pour une vente sur un depot d'extension
+     * (voir {@link ContexteVenteDepot#emplacementDeNumerotation}).
      */
     private TEmplacement emplacementDeNumerotation(SalesParams salesParams) {
         return salesParams.getUserId().getLgEMPLACEMENTID();
@@ -6019,7 +6019,8 @@ public class SalesServiceImpl implements SalesService {
         newTp.setMedecin(tp.getMedecin());
         newTp.setStrSTATUT(tp.getStrSTATUT());
         newTp.setEmplacementVente(tp.getEmplacementVente());
-        newTp.setStrREF(buildRefTmp(LocalDate.now(), ContexteVenteDepot.emplacementDeNumerotation(newTp, null)).getReferenceTemp());
+        newTp.setStrREF(buildRefTmp(LocalDate.now(), ContexteVenteDepot.emplacementDeNumerotation(newTp, null))
+                .getReferenceTemp());
         newTp.setChecked(Boolean.TRUE);
         newTp.setCopy(Boolean.FALSE);
         newTp.setMargeug(tp.getMargeug());
