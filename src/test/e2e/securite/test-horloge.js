@@ -88,7 +88,8 @@ const verifier = async (p) => { await p.evaluate(() => window.PrestigeAlerteHorl
     const p3 = await ctx3.newPage();
     /* la vraie banniere WhatsApp depend du service du poste : s'il va bien, sa verification retire la banniere posee
        plus bas par le test. Compte sans droit WhatsApp : la banniere ne se verifie plus, celle du test reste. */
-    await p3.route(/\/api\/v1\/whatsapp\/web\/alerte/, (r) => r.fulfill({ status: 200, contentType: 'application/json', body: '{"success":false,"sansDroit":true}' }));
+    let appelsWa = 0;
+    await p3.route(/\/api\/v1\/whatsapp\/web\/alerte/, (r) => { appelsWa++; r.fulfill({ status: 200, contentType: 'application/json', body: '{"success":false,"sansDroit":true}' }); });
     p3.on('dialog', (d) => { dialogues.push(d.message()); d.dismiss().catch(() => {}); });
     await vues.connexion(p3, ENV_E2E.LOGIN, 'e2etest');
     await p3.waitForFunction(() => !!window.PrestigeAlerteHorloge, null, { timeout: 30000 });
@@ -100,9 +101,13 @@ const verifier = async (p) => { await p.evaluate(() => window.PrestigeAlerteHorl
 
     /* au-dessus du toast WhatsApp (toast du serveur, ecart simule) */
     q("INSERT INTO t_parameters (str_KEY, str_VALUE, str_DESCRIPTION, str_TYPE, str_STATUT, dt_CREATED) VALUES ('KEY_HORLOGE_ESSAI_DECALAGE', '3600', 'essai e2e', 'CUSTOMER', 'enable', NOW())");
+    /* premiere verification WhatsApp passee (sans droit : elle retire la banniere puis s'arrete), avant de poser celle du test */
+    for (let i = 0; i < 60 && appelsWa === 0; i++) { await p3.waitForTimeout(500); }
     await p3.evaluate(() => { const w = document.createElement('div'); w.id = 'pwa-banniere'; w.style.cssText = 'position:fixed;right:16px;bottom:16px;height:90px;width:400px';
       document.body.appendChild(w); });
     await verifier(p3);
+    /* la mesure de l'heure d'Internet peut prendre plusieurs secondes quand son cache a expire */
+    await p3.waitForSelector('#phr-toast', { timeout: 15000 });
     const pile = await p3.evaluate(() => { const a = document.getElementById('phr-toast').getBoundingClientRect(), w = document.getElementById('pwa-banniere').getBoundingClientRect();
       return { horlogeBas: Math.round(a.bottom), whatsappHaut: Math.round(w.top) }; });
     ok('Au-dessus du toast WhatsApp, sans le recouvrir', pile.horlogeBas <= pile.whatsappHaut, JSON.stringify(pile));

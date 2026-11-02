@@ -12,7 +12,7 @@
  */
 const { chromium } = require('playwright-core');
 const ENV_E2E = require('../outils/poste');
-const { connexion, ouvrirMenu } = require('../outils/vues');
+const { connexion, ouvrirMenu, choisir } = require('../outils/vues');
 const { execFileSync } = require('child_process');
 
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, ENV_E2E.BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
@@ -78,8 +78,8 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
     /* filtre « Marge negative » choisi dans la liste deroulante */
     const choix = await p.evaluate(() => Ext.getCmp('prixachatFiltre').getStore().collect('libelle'));
     ok('« Marge négative » proposée dans le filtre prix d\'achat', choix.indexOf('Marge négative') >= 0, choix.join(' | '));
-    await p.click('#prixachatFiltre-inputEl');
-    await p.locator('.x-boundlist-item').filter({ hasText: 'Marge négative' }).first().click();
+    /* fleche de la liste, comme a la souris (le champ est saisissable : un clic dedans n'ouvre pas la liste) */
+    await choisir(p, '#prixachatFiltre', 'Marge négative');
     const t1 = Date.now();
     await charger();
     const dureeAvec = Date.now() - t1;
