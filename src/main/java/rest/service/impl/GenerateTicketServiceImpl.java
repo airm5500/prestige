@@ -1927,6 +1927,17 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
     private void printTicketZ(ImpressionServiceImpl serviceImpression, LinkedList<String> body,
             LinkedList<String> footer) throws PrinterException {
 
+        brancherModele(serviceImpression, ModeleTicket.TICKET_Z, serviceImpression.getService());
+        if (serviceImpression.nouveauModele()) {
+            /* nouveau modele : un seul travail, decoupe en pages par le rendu ; l'ancien ticket Z en secours */
+            LinkedList<String> tout = new LinkedList<>(body);
+            tout.addAll(footer);
+            serviceImpression.setTypeTicket(Constant.TICKET_ZZ);
+            serviceImpression.setTicketZdatas(tout);
+            serviceImpression.setDatas(tout);
+            serviceImpression.printTicketVente(1);
+            return;
+        }
         int bodySize = body.size();
         int size = bodySize + footer.size();
         int breaking = breakingTicketZParam();

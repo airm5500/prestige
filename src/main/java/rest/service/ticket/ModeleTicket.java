@@ -34,7 +34,7 @@ public enum ModeleTicket {
 
     /** Le nouveau modele existe-t-il deja pour ce ticket ? Sinon seul l'ancien est propose. */
     public boolean nouveauDisponible() {
-        return this != TICKET_Z;
+        return true;
     }
 
     public boolean estVente() {

@@ -87,6 +87,8 @@ public final class ConversionTicket {
             c.prevente();
         } else if (s.ticket == ModeleTicket.MOUVEMENT_CAISSE) {
             c.mouvement();
+        } else if (s.ticket == ModeleTicket.TICKET_Z) {
+            c.ticketZ();
         } else if (s.ticket == ModeleTicket.REGLEMENT_DIFFERE || s.ticket == ModeleTicket.REGLEMENT_FACTURE
                 || s.ticket == ModeleTicket.REGLEMENT_CARNET_DEPOT) {
             c.reglement();
@@ -424,6 +426,54 @@ public final class ConversionTicket {
         }
     }
 
+    /* ---------- ticket Z ---------- */
+
+    /**
+     * Ticket Z, a partir des lignes de l'ancien : pour chaque caissier, le detail par moyen comme avant (libelles
+     * inchanges), ses especes en tiroir encadrees ; puis le total de l'officine (lignes terminees par « ;G ») et les
+     * signatures.
+     */
+    private void ticketZ() {
+        doc.bloc(TicketDocument.TITRE).texte(s.titre.replaceAll("\\s+", " ").trim(), Style.GRAND);
+        Bloc corps = doc.bloc(TicketDocument.CORPS);
+        Bloc totaux = doc.bloc(TicketDocument.TOTAUX);
+        boolean premier = true;
+        for (String l : s.datas) {
+            String[] p = l.split(";", -1);
+            String libelle = p[0].trim().replaceAll("\\s*:$", "").trim();
+            String valeur = p.length > 1 ? p[1].trim() : "";
+            boolean pied = p.length > 6 && "G".equals(p[6].trim());
+            if (libelle.isEmpty()) {
+                continue;
+            }
+            if (libelle.startsWith("RECAPITULATIF DE CAISSE")) {
+                if (!premier) {
+                    corps.trait(false);
+                }
+                premier = false;
+                corps.texte("CAISSIER : " + coupe(libelle)[1], Style.GRAS);
+            } else if (pied) {
+                if (totaux.vide()) {
+                    totaux.trait(true);
+                    totaux.texte("TOTAL OFFICINE", Style.GRAS);
+                }
+                if (libelle.equals("TOTAL ESP")) {
+                    doc.bloc(TicketDocument.NET).encadre("TOTAL ESPÈCES", montantF(valeur), Style.GRAND);
+                } else {
+                    totaux.paire(libelle, montantF(valeur), Style.NORMAL);
+                }
+            } else if (libelle.equals("Total espèce")) {
+                corps.encadre("Espèces en tiroir", montantF(valeur), Style.GRAS);
+            } else {
+                corps.paire(libelle, montantF(valeur), p.length > 4 && "1".equals(p[4].trim()) ? Style.GRAS
+                        : Style.NORMAL);
+            }
+        }
+        if (r.signatures()) {
+            doc.bloc(TicketDocument.SIGNATURES).signatures(Arrays.asList("Caissier", "Responsable"));
+        }
+    }
+
     /* ---------- reglements ---------- */
 
     private void reglement() {
@@ -500,6 +550,11 @@ public final class ConversionTicket {
         }
         if (s.ticket == ModeleTicket.PREVENTE) {
             doc.bloc(TicketDocument.PIED).pied(s.imageCode, "Présentez ce ticket à la caisse", date, true);
+            return;
+        }
+        if (s.ticket == ModeleTicket.TICKET_Z) {
+            doc.bloc(TicketDocument.PIED).trait(false);
+            doc.bloc(TicketDocument.PIED).texte("Édité le " + date, Style.PETIT);
             return;
         }
         doc.bloc(TicketDocument.PIED).trait(false);

@@ -192,7 +192,31 @@ class RenduTicketTest {
     void ancienModeleEtTicketZ() {
         assertFalse(ReglagesTicket.depuis(ModeleTicket.VENTE, new JSONObject().put("modele", "ANCIEN")).nouveau());
         assertTrue(new ReglagesTicket(ModeleTicket.VENTE).nouveau());
-        assertFalse(new ReglagesTicket(ModeleTicket.TICKET_Z).nouveau(), "Z : nouveau modele pas encore disponible");
+        assertTrue(new ReglagesTicket(ModeleTicket.TICKET_Z).nouveau());
+    }
+
+    /** Ticket Z : le detail par moyen de chaque caissier, comme avant, puis le total officine et les signatures. */
+    @Test
+    void ticketZDetailParCaissier() {
+        String t = texte(doc(ModeleTicket.TICKET_Z, 80, new ReglagesTicket(ModeleTicket.TICKET_Z)));
+        assertTrue(t.contains("TEXTE[TICKET Z DU 02/11/2026 A 17:42]"), t);
+        assertTrue(t.contains("TEXTE[CAISSIER : A.KONE]"), t);
+        assertTrue(t.contains("TEXTE[CAISSIER : M.TOURE]"), t);
+        assertTrue(t.contains("PAIRE[Espèce(vno/vo) | 184 350 F CFA]"), t);
+        assertTrue(t.contains("PAIRE[OM (vno/vo) | 22 500 F CFA]"), t);
+        assertTrue(t.contains("PAIRE[Espèce Sortie | -15 000 F CFA]"), t);
+        assertTrue(t.contains("ENCADRE[Espèces en tiroir | 169 350 F CFA]"), t);
+        assertTrue(t.contains("PAIRE[Total CB (vno/vo) | 12 000 F CFA]"), t);
+        assertTrue(t.contains("TEXTE[TOTAL OFFICINE]"), t);
+        assertTrue(t.contains("ENCADRE[TOTAL ESPÈCES | 266 350 F CFA]"), t);
+        assertTrue(t.contains("PAIRE[TOTAL OM | 22 500 F CFA]"), t);
+        assertTrue(t.contains("SIGNATURES"), "signatures actives par defaut\n" + t);
+        assertFalse(t.contains("PIED["), "pas de code-barres sur le ticket Z\n" + t);
+        assertTrue(t.indexOf("A.KONE") < t.indexOf("M.TOURE") && t.indexOf("M.TOURE") < t.indexOf("TOTAL OFFICINE"), t);
+        String sans = texte(doc(ModeleTicket.TICKET_Z, 58, ReglagesTicket.depuis(ModeleTicket.TICKET_Z,
+                new JSONObject().put("signatures", false))));
+        assertFalse(sans.contains("SIGNATURES"), sans);
+        assertTrue(sans.contains("ENCADRE[TOTAL ESPÈCES | 266 350 F]"), sans);
     }
 
     @Test

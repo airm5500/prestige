@@ -1,7 +1,7 @@
 /* DEMANDE DU 02/11 : MENU « MODELES DE TICKET » (PARAMETRAGES).
  *
  * Par les vues, avec de vrais clics. Ce que le test etablit :
- *  - le menu s'ouvre : dix tickets, l'apercu du ticket choisi s'affiche ; « Ticket Z » reste a l'ancien modele ;
+ *  - le menu s'ouvre : dix tickets, l'apercu du ticket choisi s'affiche ; « Ticket Z » au nouveau modele par defaut ;
  *  - 58 mm : l'apercu est plus etroit qu'a 80 mm ;
  *  - « Mouvement de caisse » : signatures actives par defaut ; les couper raccourcit l'apercu et active « Enregistrer » ;
  *  - glisser un bloc a la souris le deplace (ordre renvoye par le serveur), sans probleme bloquant ;
@@ -53,7 +53,8 @@ const remettre = () => {
     const tickets = await p.locator(racine + ' .mtk-ticket').allInnerTexts();
     const z = tickets.find((t) => /^Ticket Z/.test(t)) || '';
     ok('Menu ouvert : dix tickets, aperçu affiché', tickets.length === 10, tickets.length);
-    ok('« Ticket Z » reste à l\'ancien modèle', /Ancien modèle/.test(z), z);
+    ok('« Ticket Z » dans la liste, au nouveau modèle par défaut', /Nouveau modèle/.test(z)
+      || q("SELECT COUNT(*) FROM ticket_modele WHERE ticket = 'TICKET_Z' AND largeur = 80") !== '0', z);
     const a80 = await apercu();
 
     await apresApercu(() => p.locator(racine + ' .mtk-barre [data-choix=largeur][data-valeur="58"]').click());

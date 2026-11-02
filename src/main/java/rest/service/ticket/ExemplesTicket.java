@@ -39,6 +39,18 @@ public final class ExemplesTicket {
             s.datas = Arrays.asList("Total;5.210;0", "Remise;(-) 260;0", "Net à payer;4.950;1");
             s.articles = articles();
             break;
+        case TICKET_Z:
+            s.titre = "TICKET Z DU 02/11/2026  A  17:42";
+            s.datas = Arrays.asList("RECAPITULATIF DE CAISSE: A.KONE ; ; ; ;1;0", " ; ; ; ; ; ; ",
+                    "Espèce(vno/vo):;184.350; F CFA;;0;1", "Crédit(vno/vo):;41.200; F CFA;;0;1",
+                    "Espèce Sortie:;-15.000; F CFA;;0;1", "OM (vno/vo):;22.500; F CFA;;0;1",
+                    "Total espèce: ;169.350;F CFA;;1;1", "Total CB (vno/vo): ;12.000;F CFA;;1;1", " ; ; ; ; ; ; ",
+                    "RECAPITULATIF DE CAISSE: M.TOURE ; ; ; ;1;0", " ; ; ; ; ; ; ",
+                    "Espèce(vno/vo):;91.000; F CFA;;0;1", "Espèce Regl:;6.000; F CFA;;0;1",
+                    "Total espèce: ;97.000;F CFA;;1;1", " ; ; ; ; ; ; ",
+                    "TOTAL ESP: ; 266.350; F CFA;;1;1;G", "TOTAL OM: ; 22.500; F CFA;;1;1;G",
+                    "TOTAL (VNO/VO): ;41.200; F CFA;;1;1;G", "TOTAL CB: ; 12.000; F CFA;;1;1;G");
+            break;
         case MOUVEMENT_CAISSE:
             s.titre = "Sortie de caisse";
             s.datas = Arrays.asList("Code comptable: ;625100; ", "Libellé: ;Espèces; ", "Montant: ;15 000; F CFA",
