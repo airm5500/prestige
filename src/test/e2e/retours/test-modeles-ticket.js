@@ -102,6 +102,32 @@ const remettre = () => {
     ok('Enregistrer : signatures coupées et disposition en base', enBase.signatures === false && ordreBase.indexOf(bas) < ordreBase.indexOf(haut),
       JSON.stringify(enBase).slice(0, 250));
 
+    /* nom de l'officine (retour du 02/11) : choisi d'un clic comme les autres blocs, agrandi par « + », deplace */
+    const entete = () => p.locator(racine + ' .mtk-zone[data-bloc=ENTETE]');
+    const hEntete = (await entete().boundingBox()).height;
+    await entete().click();
+    await p.waitForTimeout(400);
+    ok('Nom de l\'officine choisi d\'un clic', /mtk-choisie/.test(await entete().getAttribute('class') || ''), await entete().getAttribute('class'));
+    await apresApercu(() => p.locator(racine + ' [data-taille="1"]').click());
+    const tailleNom = await p.evaluate(() => { const c = Ext.ComponentQuery.query('modelesticket')[0]; const x = (c.reglages().disposition || []).find((d) => d.bloc === 'ENTETE'); return x && x.taille; });
+    const hNom = (await entete().boundingBox()).height;
+    ok('« + » : nom de l\'officine agrandi', tailleNom === 1 && hNom > hEntete, tailleNom + ' pt, ' + hEntete + ' → ' + hNom + ' px');
+    const avantNom = (await apercu()).ordre;
+    const suivant = avantNom[avantNom.indexOf('ENTETE') + 1];
+    const be = await entete().boundingBox();
+    const bs = await p.locator(racine + ` .mtk-zone[data-bloc=${suivant}]`).boundingBox();
+    await apresApercu(async () => {
+      await p.mouse.move(be.x + be.width / 2, be.y + be.height / 2);
+      await p.mouse.down();
+      await p.mouse.move(be.x + be.width / 2, be.y + be.height / 2 + 20, { steps: 4 });
+      await p.mouse.move(bs.x + bs.width / 2, bs.y + bs.height - 2, { steps: 12 });
+      await p.mouse.up();
+    });
+    const apresNom = await apercu();
+    ok('Nom de l\'officine glissé sous « ' + suivant + ' », aucun problème bloquant',
+      apresNom.ordre.indexOf('ENTETE') > apresNom.ordre.indexOf(suivant) && apresNom.bloquants.length === 0,
+      apresNom.ordre.join(',') + ' / ' + apresNom.bloquants.join(' | '));
+
     const defaut = p.locator(racine + ' [data-action=defaut]');
     await defaut.click();
     const question = await defaut.innerText();

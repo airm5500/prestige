@@ -37,8 +37,8 @@ import util.Constant;
 
 /**
  * Menu « Modeles de ticket » (demande du 02/11) : reglages de chaque ticket de caisse, apercu dessine par le meme code
- * que l'impression, disposition des blocs controlee par le serveur (rien ne deborde, l'en-tete et le pied restent en
- * place), largeur du papier de chaque imprimante. Lecture pour tout utilisateur connecte ; modification reservee au
+ * que l'impression, disposition des blocs controlee par le serveur (rien ne deborde, le pied reste en place ; le nom de
+ * l'officine se regle comme les autres blocs), largeur du papier de chaque imprimante. Lecture pour tout utilisateur connecte ; modification reservee au
  * droit P_SM_MODELES_TICKET.
  */
 @Path("v1/modeles-ticket")

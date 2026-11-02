@@ -4,8 +4,8 @@
  * PARAMETRAGES > « Modèles de ticket » (demande du 02/11). À gauche les tickets de caisse ; au centre le modèle
  * (ancien ou nouveau) et les options du ticket choisi ; à droite l'aperçu, dessiné par le serveur avec le même code
  * que l'impression. Dans l'aperçu, un bloc se déplace à la souris (ou aux flèches du clavier) et s'aligne ou change
- * de taille ; le serveur contrôle chaque disposition (rien ne dépasse du papier, l'en-tête et le code-barres restent
- * en place) et « Enregistrer » ne s'active que sans problème bloquant. Largeur du papier : 80 ou 58 mm, réglée par
+ * de taille ; le serveur contrôle chaque disposition (rien ne dépasse du papier, le code-barres reste
+ * en place ; le nom de l'officine se règle et se déplace comme les autres blocs) et « Enregistrer » ne s'active que sans problème bloquant. Largeur du papier : 80 ou 58 mm, réglée par
  * imprimante. Aucune fenêtre : les confirmations se font dans le bouton. Modification réservée au droit
  * P_SM_MODELES_TICKET ; sinon lecture seule. Routes : ../api/v1/modeles-ticket.
  */

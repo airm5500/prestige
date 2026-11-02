@@ -75,13 +75,12 @@ public final class RenduTicket {
             }
             l.add(pos, id);
         }
-        l.add(0, TicketDocument.ENTETE);
         l.add(TicketDocument.PIED);
         return l;
     }
 
     /**
-     * Problemes bloquants d'une disposition (bloc inconnu ou en double, en-tete ou pied deplaces, alignement ou taille
+     * Problemes bloquants d'une disposition (bloc inconnu ou en double, pied deplace, alignement ou taille
      * hors bornes) ; les avertissements (ordre inhabituel) vont dans {@code avertissements}.
      */
     public static List<String> controler(ReglagesTicket r, List<String> avertissements) {
@@ -94,9 +93,6 @@ public final class RenduTicket {
                 bloquants.add("Bloc inconnu : « " + p.bloc + " ».");
             } else if (!vus.add(p.bloc)) {
                 bloquants.add("Le bloc « " + TicketDocument.libelle(p.bloc) + " » est placé deux fois.");
-            }
-            if (TicketDocument.ENTETE.equals(p.bloc) && i != 0) {
-                bloquants.add("Le nom de l'officine reste en tête du ticket.");
             }
             if (TicketDocument.PIED.equals(p.bloc) && i != d.size() - 1) {
                 bloquants.add("Le code-barres reste au pied du ticket.");
