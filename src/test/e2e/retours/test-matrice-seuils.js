@@ -79,10 +79,12 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
     ok('La médiane des rotations ne compte plus les ruptures : elle est calculée sur les produits en stock', Math.abs(s1.seuils.rotation - s1.seuils.medianeRotation) < 0.001 && s1.seuils.medianeRotation > 0, s1.seuils.medianeRotation);
 
     /* Un seuil saisi. */
-    await p.evaluate(() => { const e = Ext.ComponentQuery.query('analysearticle')[0]; e.down('#seuilRotation').setValue(1.5); });
+    /* seuil different de la mediane du jour : egal a elle, l'en-tete dit « (mediane) », a juste titre */
+    const saisi = Math.round((Number(s1.seuils.medianeRotation) + 0.25) * 100) / 100;
+    await p.evaluate((v) => { const e = Ext.ComponentQuery.query('analysearticle')[0]; e.down('#seuilRotation').setValue(v); }, saisi);
     await p.waitForTimeout(1000); await attendre();
     const s2 = await lire();
-    ok('Un seuil saisi remplace la médiane et l en-tête le dit', s2.seuils.rotation === 1.5 && /vendu \/ stock ≥ 1,50 \(saisi ; médiane/.test(s2.entete), s2.entete.split(/\r?\n/)[1]);
+    ok('Un seuil saisi remplace la médiane et l en-tête le dit', s2.seuils.rotation === saisi && new RegExp('vendu / stock ≥ ' + saisi.toFixed(2).replace('.', ',') + ' \\(saisi ; médiane').test(s2.entete), s2.entete.split(/\r?\n/)[1]);
 
     /* Retour en jours, puis les filtres. */
     await p.evaluate(() => { const e = Ext.ComponentQuery.query('analysearticle')[0]; const c = e.down('#modeRotation'); c.setValue('JOURS'); c.fireEvent('select', c, [c.findRecordByValue('JOURS')]); });

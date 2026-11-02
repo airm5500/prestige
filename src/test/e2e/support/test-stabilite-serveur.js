@@ -78,7 +78,9 @@ const HOTE_ESSAI = 'E2E-SERVEUR';
     const filsAttendus = (filsDomaine.match(/max-thread-pool-size="(\d+)"/) || [])[1] || '5';
     ok('Fils HTTP lus dans domain.xml (' + filsAttendus + ')', r.o['http-thread-pool'] && r.o['http-thread-pool'].split('|')[0] === filsAttendus, r.o['http-thread-pool']);
     ok('Tampon InnoDB en place = valeur de MariaDB', r.o.innodb_buffer_pool_size && r.o.innodb_buffer_pool_size.split('|')[0] !== '?', r.o.innodb_buffer_pool_size);
-    ok('Bloc my.ini et commandes asadmin, sans mot de passe', /^\[mysqld\]\ninnodb_buffer_pool_size=/.test(r.myIni) && /call asadmin set configs\.config\.server-config\.thread-pools/.test(r.asadmin)
+    ok('Bloc my.ini et commandes asadmin, sans mot de passe', /^\[mysqld\]\ninnodb_buffer_pool_size=/.test(r.myIni)
+      /* commande des fils HTTP seulement s'ils sont a ajuster (deja bons : rien a lancer) */
+      && (r.o['http-thread-pool'].split('|')[2] === 'OK' || /call asadmin set configs\.config\.server-config\.thread-pools/.test(r.asadmin))
       && !/password/i.test(r.myIni + r.asadmin), r.asadmin.slice(0, 200));
     /* nombre de postes : 40 -> MariaDB doit accepter 39 caisses x 32 + serveur 50 + marge 50 ; fils et pool restent ceux d'UN poste */
     await p.evaluate(() => { Ext.ComponentQuery.query('supportserveur #postes')[0].setValue(40); });

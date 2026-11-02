@@ -4953,8 +4953,7 @@ Ext.define('testextjs.controller.VenteCtr', {
                             if (records.length > 1) {
                                 Ext.create('testextjs.view.vente.user.ClientGrid', {data: clientStore}).show();
                             } else if (records.length === 1) {
-                                me.client = records[0];
-                                me.onSelectClientAssurance();
+                                me.choisirClientAssurance(records[0]);
                             } else {
                                 Ext.MessageBox.show({
                                     title: 'INFOS',
@@ -4984,8 +4983,7 @@ Ext.define('testextjs.controller.VenteCtr', {
     },
     onGridRowSelect: function (g, record) {
         const me = this;
-        me.client = record[0];
-        me.onSelectClientAssurance();
+        me.choisirClientAssurance(record[0]);
         me.onBtnCancelClient();
     },
     updateCurrentVenteClientData: function (client, tierspayant) {
@@ -5052,6 +5050,34 @@ Ext.define('testextjs.controller.VenteCtr', {
         return false;
     },
 
+    /**
+     * Rapport du centre de support (J5) : un client assure sans tiers-payant faisait lever « numBon of undefined »
+     * (addTpCmp recevait tierspayants[0], absent) et la vente restait sans bloc tiers-payant ni message. Il n'est plus
+     * pris : la caissiere est prevenue, le client deja en place reste.
+     */
+    choisirClientAssurance: function (client) {
+        const me = this;
+        if (client && !me.aDesTiersPayants(client)) {
+            me.signalerClientSansTiersPayant(client);
+            return;
+        }
+        me.client = client;
+        me.onSelectClientAssurance();
+    },
+    aDesTiersPayants: function (client) {
+        const tierspayants = client ? client.get('tiersPayants') : null;
+        return Ext.isArray(tierspayants) && tierspayants.length > 0 && !!tierspayants[0];
+    },
+    signalerClientSansTiersPayant: function (client) {
+        const nom = client ? Ext.String.trim((client.get('strFIRSTNAME') || '') + ' ' + (client.get('strLASTNAME') || '')) : '';
+        Ext.MessageBox.show({
+            title: 'Client sans tiers-payant',
+            msg: 'Le client ' + Ext.String.htmlEncode(nom) + ' n’a aucun tiers-payant. Associez-lui un tiers-payant sur sa fiche'
+                    + ' avant de l’utiliser pour une vente assurance.',
+            buttons: Ext.MessageBox.OK,
+            icon: Ext.MessageBox.WARNING
+        });
+    },
     onSelectClientAssurance: function () {
         const me = this;
         const typeVenteId = me.getTypeVenteCombo().getValue();
@@ -5082,6 +5108,10 @@ Ext.define('testextjs.controller.VenteCtr', {
         let client = me.getClient();
         if (client) {
             const tierspayants = client.get('tiersPayants');
+            if (!me.aDesTiersPayants(client)) {
+                me.signalerClientSansTiersPayant(client);
+                return;
+            }
             me.updateAssurerCmp();
             me.updateAyantDroitCmp();
             me.addTpCmp(tierspayants[0]);
@@ -5094,6 +5124,10 @@ Ext.define('testextjs.controller.VenteCtr', {
         const client = me.getClient();
         if (client) {
             const tierspayants = client.get('tiersPayants');
+            if (!me.aDesTiersPayants(client)) {
+                me.signalerClientSansTiersPayant(client);
+                return;
+            }
             me.updateAssurerCmp();
             me.addTpCmp(tierspayants[0]);
         }
@@ -5149,12 +5183,14 @@ Ext.define('testextjs.controller.VenteCtr', {
     onBtnClientAssuranceClick: function (grid, rowIndex, colIndex) {
         const me = this;
         const record = grid.getStore().getAt(colIndex);
-        me.client = record;
-        me.onSelectClientAssurance();
+        me.choisirClientAssurance(record);
         me.onBtnCancelClient();
     },
     addTpCmp: function (record) {
         let me = this, tpContainerForm = me.getTpContainerForm();
+        if (!record) {
+            return; // J5 : aucun tiers-payant a afficher
+        }
         // Ne pas perdre le numero de bon deja saisi : la reconstruction du bloc (apres
         // enregistrement de la fiche client par exemple) repart du record serveur, qui ne
         // connait pas encore ce bon - il vidait la saisie de la caissiere.

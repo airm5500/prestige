@@ -85,6 +85,9 @@ const service = () => { try { execSync('curl -s -m 2 http://127.0.0.1:' + PORT +
     q("UPDATE whatsapp_compte SET actif = 1, mode_test = 1, web_url = 'http://127.0.0.1:" + PORT + "', web_jeton = 'e2e-jeton', sante = NULL, sante_raison = NULL"
       + (aColonne() ? ', web_repertoire = NULL' : '') + " WHERE mode = 'WEB'");
     ok('Précondition : service d\'essai arrêté', !service());
+    /* le serveur garde l'etat du service 20 s (toutes les caisses le demandent) : l'adresse changee en base n'est lue
+       qu'apres, la premiere verification de l'ecran doit tomber au-dela */
+    await new Promise((r) => setTimeout(r, 21000));
 
     const p = await (await b.newContext({ viewport: { width: 1600, height: 900 } })).newPage();
     p.on('pageerror', (e) => erreurs.push(e.message));

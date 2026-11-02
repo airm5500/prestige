@@ -51,7 +51,7 @@ public class AnalyseVentesProduitsService {
             + " LEFT JOIN t_code_tva v ON v.lg_CODE_TVA_ID = f.lg_CODE_TVA_ID"
             + " WHERE p.int_PRICE > 0 AND p.str_STATUT = 'is_Closed' AND p.b_IS_CANCEL = 0"
             + " AND p.lg_TYPE_VENTE_ID <> '" + PilotageSql.TYPE_VENTE_EXCLU + "'"
-            + " AND p.dt_UPDATED >= ?1 AND p.dt_UPDATED < ?2";
+            + " AND p.dt_UPDATED >= :debut AND p.dt_UPDATED < :fin";
     static final String MESURES = " COUNT(DISTINCT p.lg_PREENREGISTREMENT_ID), COALESCE(SUM(d.int_QUANTITY), 0),"
             + " COALESCE(SUM(d.int_PRICE - COALESCE(d.int_PRICE_REMISE, 0)), 0),"
             + " COALESCE(SUM((d.int_PRICE - COALESCE(d.int_PRICE_REMISE, 0)) / (1 + (COALESCE(v.int_VALUE, 0) / 100))), 0),"
@@ -77,20 +77,24 @@ public class AnalyseVentesProduitsService {
         }
 
         String sql() {
-            return (texte == null ? "" : " AND (f.int_CIP LIKE ?3 ESCAPE '!' OR f.str_NAME LIKE ?3 ESCAPE '!')")
-                    + (emplacement == null ? "" : " AND f.lg_ZONE_GEO_ID = ?4")
-                    + (grossiste == null ? "" : " AND f.lg_GROSSISTE_ID = ?5");
+            /*
+             * parametres nommes : numerotes (?3, ?4, ?5), un filtre absent laissait un trou dans la numerotation, que
+             * Hibernate refuse (rapport du 26/10, § 21, P4 : emplacement ou grossiste seul en erreur 500)
+             */
+            return (texte == null ? "" : " AND (f.int_CIP LIKE :texte ESCAPE '!' OR f.str_NAME LIKE :texte ESCAPE '!')")
+                    + (emplacement == null ? "" : " AND f.lg_ZONE_GEO_ID = :emplacement")
+                    + (grossiste == null ? "" : " AND f.lg_GROSSISTE_ID = :grossiste");
         }
 
         void poser(Query q) {
             if (texte != null) {
-                q.setParameter(3, texte.replace("!", "!!").replace("%", "!%").replace("_", "!_") + "%");
+                q.setParameter("texte", texte.replace("!", "!!").replace("%", "!%").replace("_", "!_") + "%");
             }
             if (emplacement != null) {
-                q.setParameter(4, emplacement);
+                q.setParameter("emplacement", emplacement);
             }
             if (grossiste != null) {
-                q.setParameter(5, grossiste);
+                q.setParameter("grossiste", grossiste);
             }
         }
     }
@@ -111,7 +115,7 @@ public class AnalyseVentesProduitsService {
 
     @SuppressWarnings("unchecked")
     private List<Object[]> lignes(String sql, LocalDate debut, LocalDate fin, Filtres f) {
-        Query q = em.createNativeQuery(sql).setParameter(1, debut.toString()).setParameter(2,
+        Query q = em.createNativeQuery(sql).setParameter("debut", debut.toString()).setParameter("fin",
                 fin.plusDays(1).toString());
         f.poser(q);
         return q.getResultList();

@@ -40,6 +40,11 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
     let e = await etat();
     ok('Grille plus large que l\'écran : une barre flottante, à la largeur de la grille, dans l\'écran, au bas de la grille', e.barres === 1 && e.barre
       && Math.abs(e.barre.g - e.vue.g) <= 1 && Math.abs(e.barre.l - e.vue.l) <= 1 && e.barre.b <= 760 && e.barre.b <= e.vue.b + 1 && e.barre.h > e.vue.h, JSON.stringify(e));
+    await p.mouse.click(1000, 33);
+    await p.waitForTimeout(900);
+    const visibleDessus = await p.evaluate(() => { const b = Array.from(document.querySelectorAll('.pbh-barre')).find((x) => x.style.display !== 'none');
+      const r = b.getBoundingClientRect(), el = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return !!(el && el.closest('.pbh-barre')); });
+    ok('Menu fermé : la barre reste au-dessus des lignes de la grille (cliquable)', visibleDessus);
     /* le navigateur des tests n'affiche pas de barres natives (barres superposees) : on verifie le style qui la cache */
     const natif = await p.evaluate(() => { const v = Array.from(document.querySelectorAll('.x-grid-view')).find((x) => x.offsetParent && x.scrollWidth > x.clientWidth + 2);
       return { classe: v.classList.contains('pbh-vue'), hauteur: getComputedStyle(v, '::-webkit-scrollbar').height }; });
@@ -89,6 +94,24 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
     await p.waitForTimeout(1500);
     e = await etat();
     ok('Comparaison CA familles : une barre flottante', e.grille && e.barres === 1 && /^Colonnes 1–\d+ sur \d+$/.test(e.texte), JSON.stringify({ grille: e.grille, barres: e.barres, texte: e.texte }));
+    /* retour du 02/11 : menu ouvert par-dessus l'ecran, la barre passait au-dessus du menu */
+    if (await p.locator('.x-border-region-slide-in').filter({ visible: true }).count() === 0) {
+      const id = await p.evaluate(() => { const n = Ext.ComponentQuery.query('navigation')[0]; return n.placeholder ? n.placeholder.getId() : null; });
+      if (id) { await p.click('#' + id); }
+      await p.locator('.x-border-region-slide-in').filter({ visible: true }).first().waitFor({ timeout: 10000 });
+    }
+    await p.waitForTimeout(900);
+    const menu = await p.evaluate(() => {
+      const b = Array.from(document.querySelectorAll('.pbh-barre')).find((x) => x.style.display !== 'none');
+      const nav = Array.from(document.querySelectorAll('.x-border-region-slide-in')).find((x) => x.offsetParent);
+      if (!b || !nav) { return { barre: !!b, menu: !!nav }; }
+      const rb = b.getBoundingClientRect(), rn = nav.getBoundingClientRect();
+      const x = Math.max(rb.left, rn.left) + 5, y = rb.top + rb.height / 2;
+      const recouvre = x < Math.min(rb.right, rn.right) && y > rn.top && y < rn.bottom;
+      const el = recouvre ? document.elementFromPoint(x, y) : null;
+      return { barre: true, menu: true, recouvre, dessus: !!(el && el.closest('.pbh-barre')) };
+    });
+    ok('Menu ouvert par-dessus l\'écran : la barre de défilement passe sous le menu', menu.barre && menu.menu && !menu.dessus, JSON.stringify(menu));
     ok('Aucune erreur JavaScript, aucune fenêtre du navigateur', erreurs.length === 0 && dialogues.length === 0, erreurs.concat(dialogues).join(' | '));
   } catch (e) {
     ok('Parcours sans exception', false, e.stack);

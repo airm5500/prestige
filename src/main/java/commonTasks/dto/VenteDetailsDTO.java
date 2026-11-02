@@ -796,6 +796,38 @@ public class VenteDetailsDTO implements Serializable {
         this.intAVOIR = (int) avoir;
     }
 
+    /**
+     * Recapitulatif des articles vendus (retour du 02/11) : avec le prix d'achat de l'article et le montant d'achat des
+     * quantites vendues (prix d'achat enregistre sur chaque ligne de vente), d'ou la marge en %.
+     */
+    public VenteDetailsDTO(String lgFAMILLEID, String strNAME, String intCIP, TUser operateur, TUser caissier,
+            int stock, long qty, long avoir, String rayonId, String libelleRayon, long price, Integer prixAchat,
+            Long montantAchat) {
+        this(lgFAMILLEID, strNAME, intCIP, operateur, caissier, stock, qty, avoir, rayonId, libelleRayon, price);
+        this.prixAchat = prixAchat == null ? 0 : prixAchat;
+        this.montantAchat = montantAchat == null ? 0 : montantAchat;
+        this.margePourcent = margePourcent(price, this.montantAchat);
+    }
+
+    private long montantAchat;
+    private double margePourcent;
+
+    /** Marge sur le montant vendu, en %, a un chiffre apres la virgule ; 0 sans montant vendu. */
+    static double margePourcent(long montantVente, long montantAchat) {
+        if (montantVente == 0) {
+            return 0d;
+        }
+        return Math.round((montantVente - montantAchat) * 1000d / montantVente) / 10d;
+    }
+
+    public long getMontantAchat() {
+        return montantAchat;
+    }
+
+    public double getMargePourcent() {
+        return margePourcent;
+    }
+
     // Stock reserve de l'article (0 si non suivi) et marqueur « couvert par la
     // reserve » : la ligne sort au filtre stock rayon mais le total rayon +
     // reserve depasse le seuil — mise en evidence a l'ecran et sur le PDF.

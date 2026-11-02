@@ -98,10 +98,15 @@
         }
     }
 
+    /*
+     * Dans une fenetre : juste au-dessus d'elle. Sur l'ecran principal : sous le menu de gauche ouvert par-dessus
+     * l'ecran (volet flottant d'ExtJS, x-border-region-slide-in, z-index 5) - a 900, la barre passait sur le menu
+     * (retour du 02/11) -, mais au-dessus des lignes de la grille, qui n'ont pas de z-index.
+     */
     function zIndex(vue) {
         var f = vue.closest ? vue.closest('.x-window, .x-layer') : null;
         var z = f ? parseInt(getComputedStyle(f).zIndex, 10) : NaN;
-        return isNaN(z) ? 900 : z + 1;
+        return isNaN(z) ? 4 : z + 1;
     }
 
     function placer(x) {

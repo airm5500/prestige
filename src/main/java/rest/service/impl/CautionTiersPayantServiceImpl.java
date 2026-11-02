@@ -44,6 +44,7 @@ import rest.service.dto.CautionHistoriqueDTO;
 import util.Constant;
 import util.DateUtil;
 import util.FunctionUtils;
+import util.NumberUtils;
 
 /**
  *
@@ -90,11 +91,9 @@ public class CautionTiersPayantServiceImpl implements CautionTiersPayantService 
         }
         Caution caution = this.em.find(Caution.class, addCaution.getIdCaution());
         int montant = caution.getMontant() + amount;
-        if (caution.getMontant() < 0) {
-            if (!canModifyCaution(caution.getMontant(), amount)) {
-                return json.put("success", false).put("msg", "Impossible de reduire le montant");
-
-            }
+        String refus = refusAjustement(caution.getMontant(), amount);
+        if (refus != null) {
+            return json.put("success", false).put("msg", refus);
         }
 
         addCautionHistorique(caution, amount);
@@ -105,12 +104,31 @@ public class CautionTiersPayantServiceImpl implements CautionTiersPayantService 
 
     }
 
-    private boolean canModifyCaution(int montant, int newAmount) {
-        if (newAmount < 0) {
-            return montant >= 0;
+    /*
+     * Une caution ne passe plus sous 0 (retour du 02/11) : un retrait au-dela du solde est refuse, un versement est
+     * toujours accepte (avant, une caution negative ne pouvait meme plus etre remontee).
+     */
+    static String refusAjustement(int solde, int ajustement) {
+        if (ajustement >= 0 || solde + ajustement >= 0) {
+            return null;
         }
-        return newAmount < montant;
+        return "La caution ne peut pas passer sous 0 : solde " + NumberUtils.formatLongToString(solde)
+                + " F, retrait demandé " + NumberUtils.formatLongToString(-ajustement) + " F.";
+    }
 
+    /** Part de la vente prise sur la caution : jamais plus que le solde, jamais negative. */
+    static int partCaution(int solde, int montantVente) {
+        return Math.max(0, Math.min(solde, montantVente));
+    }
+
+    /** Refus de cloturer quand la part caution depasse le solde (consomme entre-temps, par exemple sur un autre poste). */
+    static String refusVente(int solde, int partCaution) {
+        if (partCaution <= solde) {
+            return null;
+        }
+        return "Caution insuffisante : solde " + NumberUtils.formatLongToString(Math.max(0, solde))
+                + " F, part caution de la vente " + NumberUtils.formatLongToString(partCaution)
+                + " F. Recalculez le net de la vente.";
     }
 
     private void addCautionHistorique(Caution caution, int amount) {

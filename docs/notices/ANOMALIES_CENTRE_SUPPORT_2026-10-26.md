@@ -576,6 +576,219 @@ Chaque point a d'abord été reproduit par un test qui échoue sur la version d�
   `test-depot-onglets.js`) lisent et écrivent `laborex_v1_db` en direct, alors que le 9080 vise `laborex_perf`. Ils
   sont à rejouer sur le 8080 avant fusion.
 
+## 21. Poste local : journal du 02/11 et dossier `D:\prestige\support` (août → 02/11)
+
+### Sources
+
+- **Journal exporté le 02/11 à 16 h 55.**
+  - 81 lignes, avec la colonne Version.
+  - Ce sont les événements du poste de développement : comptes d'essai, tests automatiques, essais de charge, redéploiements des
+    sessions.
+- **Archive du dossier `support` du même poste.**
+  - 616 fichiers d'événements, du 24/08 au 02/11, avec la trace complète ;
+  - les réglages Payara appliqués le 30/10 à 23 h 48 ;
+  - le témoin du chien de garde.
+- **Lecture.**
+  - Chaque événement est écrit dans deux fichiers identiques à la même seconde : « 2 fichiers » = 1 occurrence.
+  - 117 familles hors lenteurs, plus 85 familles de lenteurs. Toutes ont été comparées à ce rapport et au code de la branche de
+    travail `claude/new-session-xm8ptu` au 02/11.
+  - Données personnelles : aucune n'est recopiée ici. Le numéro du destinataire SMS apparaît déjà masqué (`********02`) : M4
+    est actif sur ce poste.
+
+### Ce qui est déjà connu ou réglé
+
+| Famille | Statut |
+|---|---|
+| SMS refusés par Orange `POL0001` (01/11) | **M1, avec un nouveau motif : « Expired contract »**. Le contrat Orange a expiré (en septembre, le forfait était épuisé). Pas un défaut de code : **renouveler le contrat sur le portail Orange** |
+| Coupures vers `api.orange.com` (30/10, 03 h) | M3 |
+| `form is undefined` (dépôt), `montantNet` nul, `ImportXLS` | J23, J24 (corrigés par `eab11f8e`), J3 (lot 1). Pas encore sur la branche de travail |
+| `client-assurance//0`, `catalogue-essai`, `ws_tree_menu.jsp` | A3, A6, § 14 |
+| Retour carnet `pkey_unq` et `id to load` | R1, R2 : toujours ouverts sur la branche de travail |
+| `ventes-ratees/compteur-jour` : connexion inutilisable | K3 |
+| Supervision : « 1 anomalie sur 12 » (14 occ.) | S5 : notification activée, `SUPPORT_EMAIL` vide (paramétrage) |
+| « Redémarrage inattendu » (30), « mémoire JVM élevée » (16), « N requêtes en cours » (11) | S1, S4, L21 / SC3 |
+| Jobs « aucun passage » (archivage PDF, snapshot, purges) | S2, corrigés (`2bfc5240`, `20fcf178`, `3254e207`). Les retards de 30 à 97 h du veilleur et de la purge correspondent au poste éteint |
+| Contrôles de cohérence : commandes (500), lots périmés (227), règlements (10), ventes sans mouvement (5) | H1 à H4. Les échantillons ne portent pas le préfixe `f00d` du banc : ce sont les données de la copie de l'officine |
+| Suggestion lente « cause non identifiée » sur `suggestion-pharmaml/E2E-…` | SC4 (le préfixe `/api/v1/suggestion` attrape aussi d'autres routes) |
+| `checkproduit`, `info` lents | L10 (décision en attente) |
+| Lot sans date de fabrication, export ERP `Short.compareTo`, import clients `autocommit`, compteur de vente `Duplicate entry`, tableau de bord des retours fournisseur, journal d'activité des équipes | Corrigés sur la branche de travail (`4943d90d`, `6aad9684`, `623fa71c`, `a7a21810`, `b3aa24f1`, `a976efe1`). Les événements viennent d'un WAR antérieur |
+| Blocages `stock`, `lot/lots`, `ventestats/suggerer`, `analyse-tierspayant/suggestion` | Corrigés : `623fa71c`, `024c792f` |
+| Environnement ou test | Erreur `E2E anomalie logicielle` (levée volontairement) ; `max-results cannot be negative` (test de panne de l'inventaire) ; `AccessLocalException` du 06/10 (redéploiement) ; `getViewSize` (essai de la session tests-performance, corrigé 14 min après) ; tables absentes d'une copie ; plantage natif de domain2 le 30/10 à 07 h 48 (169 Mo de RAM libre) ; impression « retenue par le spouleur » (imprimante texte du poste) |
+| Lenteurs (85 familles) | Poste chargé par les tests et le banc. Environ 30 routes ne figurent pas dans `RAPPORT_LENTEUR_CONNEXION.md`. Les plus fréquentes : `monographie/fiche` (28 occ. le 31/10), `ventestats/article-vendus-recap`, `mouchard-prix/liste`, `caisse/resumecaisse`, les exports `fichearticle/comparaison/*` et `datareporting/articleInvendus/excel`. À mesurer seules, par la session tests-performance |
+
+### Points nouveaux
+
+| Point | Constat | Module | Preuve | Reproduction | Correction proposée | Priorité |
+|---|---|---|---|---|---|---|
+| J27 | `me.getAddaddclientwindow is not a function` (29/10) | FRONTEND (dépôt) | **Prouvé par le code**. `VenteEnDepotCtr` est une copie de `VenteCtr` (16/09) : ses références ont pris le suffixe `depot`, mais six appels gardent l'ancien accesseur, qui n'existe pas (`getClientLambda`, `getAssuranceClient`, `getAddaddclientwindow`, `getAddCarnetwindow`, `getMedecin`, `getAyantdroiGrid`). Effets : <br>- après création d'un client assuré, la fenêtre reste ouverte et la vente n'est pas rattachée (un second clic crée un doublon) ;<br>- le choix d'un client standard ne met pas la vente à jour ;<br>- les boutons « Annuler » des fenêtres client, assuré, carnet et médecin ne font rien ;<br>- la liste des ayants droit ne s'affiche pas.<br>Le correctif J23 rend Entrée active dans la fenêtre « client » du dépôt : elle aboutit au même `closeClientLambdaWindow` que le bouton | Vente en dépôt, « Associer un client » : créer un assuré, choisir un client standard, ou « Annuler » | Accesseurs `get…depot`. À livrer avec J23 | **P1** |
+| P4 | `analyse-produits` en 500 : « Unexpected gap in ordinal parameter labels » (12/10, accès distant) | PRODUITS | **Prouvé par le code** : `AnalyseVentesProduitsService` numérote les paramètres `?3`, `?4`, `?5` et ne pose que ceux qui sont remplis. Hibernate refuse les trous : emplacement seul, grossiste seul, texte + grossiste, emplacement + grossiste échouent | Produits, onglet « Analyse », filtrer sur un grossiste seul | Paramètres nommés ; ajouter ces cas au test `test-produits-analyse.js` | **P2** |
+| V10 (corrigé sur l'intégration, voir plus bas) | `StaleObjectStateException` sur `TFamilleStock` à la clôture (03/09 sur un vrai poste, 29/10 en essai de charge) | VENTE | **Prouvé par le code** : le stock porte un `@Version`, la clôture le lit sans verrou (`MvtProduitServiceImpl.findStock`), le modifie puis fait `merge`. Deux caisses qui vendent le même produit au même instant : la seconde reçoit une erreur 500. La transaction est bien annulée. Proche de V8, cause différente | Deux postes, même produit, « Valider » au même instant | Verrou d'écriture sur le stock, lignes triées par produit (évite aussi V8) ; sinon, message « Stock modifié par une autre caisse, validez à nouveau » | **P2** |
+| L23 | Blocages de plus de 20 s sur `etat-control-bon/list` et `/print` (6 dans le journal, du 30/10 au 02/11) | ÉTAT DE CONTRÔLE | **Prouvé par le code** : requêtes en série. `EtatControlBonBuilder` charge les lignes de chaque bon, puis le produit et la zone de chaque ligne, une par une, et concatène les chaînes à coût quadratique. Avec un filtre de statut ou d'écart, ou à l'impression, toute la période est chargée sans pagination | « État de contrôle des achats », un mois, filtre de statut ou « Imprimer » | Chargement groupé des lignes, produits et zones ; `StringBuilder` ; statut calculé en SQL | **P2** |
+| L24 | `OutOfMemoryError` sur `common/logs/export-excel` (30/10), puis un blocage de 24 s (02/11) | JOURNAL | **Prouvé par le code** : `LogServiceImpl.exportExcel` lit toutes les lignes de la période, `ClasseurExcel` construit le classeur en mémoire et ajuste la largeur des colonnes. Tout le serveur en pâtit | « Fichier journal », période longue, « Excel » | Classeur en flux (`SXSSFWorkbook`), largeurs fixes au-delà de N lignes, plafond de lignes avec message | **P2** |
+| S7 | « Arrêt brutal : arrêt forcé ~0 min » : 69 événements du 15/10 au 02/11, dont 66 de 0 ou 1 min | SERVEUR (chien de garde) | **Prouvé par le code** : le témoin `D:\prestige\support\watchdog\heartbeat.flag` est **commun à toute la machine** (`SupportWatchdog`, `StockageDisque`). Un domaine l'efface à son arrêt propre, l'autre le réécrit dans les 2 min, et le premier le trouve en redémarrant. La boîte noire montre alors le tas de l'autre domaine (3072 Mo au lieu de 4096). Rien ne distingue non plus un redéploiement d'un plantage. Chaque cas crée un incident | domain1 et domain2 lancés, redéployer l'un, attendre un battement de l'autre | Un témoin par instance (nom du domaine dans le fichier, PID dans le contenu) ; si la JVM a démarré avant le dernier battement, classer « Redéploiement » en INFO | **P2** |
+| S8 | « Mémoire du serveur Java épuisée » (FATAL, 30/10 à 23 h 50) | SERVEUR (chien de garde) | **Prouvé par le code et le journal**. Ce n'est pas une OutOfMemory : les réglages conseillés, appliqués à 23 h 48, ajoutent `-XX:+HeapDumpOnOutOfMemoryError`. La ligne de commande du lanceur, écrite à 23 h 49, contient donc `OutOfMemoryError`, et `CauseArret` cherche ce simple texte. Le cas se reproduira **après chaque démarrage** d'un domaine réglé, en FATAL avec ticket. Le témoin venait en plus de l'autre domaine (S7) | `CauseArretTest` avec un extrait qui contient cette ligne du lanceur : attendu « arrêt forcé », obtenu « mémoire » | Chercher `java.lang.OutOfMemoryError` ou `OutOfMemoryError:`, ignorer les lignes `NCLS-GFLAUNCHER` | **P2** |
+| P3 | `NullPointerException : text` sur `etat-control-bon/list` (8 occ., 01-02/11) | ÉTAT DE CONTRÔLE | **Prouvé par le code** : `LocalDate.parse(dtStart)` sans contrôle (`EtatControlBonServiceImpl`, `list` et `count`). L'appel qui part sans dates n'est pas identifié : l'écran les envoie normalement | `GET etat-control-bon/list` sans `dtStart` | Comme P1 : « Période manquante » ; côté écran, ne pas lancer la recherche sans dates | P3 |
+| C7 | NPE `getLgGROSSISTEID()` sur `commande/produit/commande/famille/{id}` (30/10) | COMMANDE | **Prouvé par le code** : `OrderServiceImpl.buildBonsDetailsByProduits` lit le libellé du grossiste de la ligne de bon de livraison sans contrôle (colonne facultative). Même risque pour la zone. Origine de la donnée : hypothèse (essai interrompu) | Fiche article, liste des entrées d'un produit dont une ligne de bon n'a pas de grossiste | Grossiste de la ligne, sinon celui du bon, sinon vide | P3 |
+| A9 | 404 sur les `ws_data.jsp` de Devise, Type de société, FamilleOrder, Menu, WarehouseOrder (10, 28/10 et 01/11, recette des écrans) | FRONTEND | **Prouvé par le dépôt** : ces cinq JSP n'ont jamais existé. Les écrans, actifs au menu, affichent une liste vide et « Problème avec le serveur ». `sm_user/menu/ws_data.jsp` est aussi appelé par quatre fenêtres. Même nature qu'A5. `recette-ecrans.js` ne compte pas les 404 comme des échecs | Ouvrir l'un de ces menus | Désactiver ces entrées par une migration, ou les réécrire en REST ; faire compter les 404 dans la recette | P3 |
+| J28 | `componentLayoutCounter, a is undefined` (FamilleManager, 15/10 et 31/10) | FRONTEND | Hypothèse appuyée par le code : la globale `Me_Workflow` désigne un écran déjà détruit quand la recherche différée (600 ms) ou le rechargement après enregistrement s'exécute | Taper 3 lettres dans la recherche, puis changer d'écran dans les 600 ms | Garde `isDestroyed` dans `onRechClick` et dans les `success` (même famille que J12, J13) | P3 |
+| J29 | `Ext.getCmp(...).hide` dans `famille/action/importOrder.js` (22/09) | FRONTEND | **Prouvé par le code** : la fenêtre masque ou affiche `lg_GROSSISTE_ID`, champ qu'elle n'a pas (copie de l'import de commande). Si un autre écran ouvert a ce champ, c'est lui qui est masqué | Gestion des articles, « Importer », choisir un type d'action | Retirer l'écouteur (le grossiste n'est pas envoyé) | P3 |
+| J30 | `getVnoproduitCombo() is undefined` dans `onPrintTicket.failure` (3, 06/10 → 28/10) | FRONTEND (vente) | **Prouvé par le code** ; scénario supposé : l'impression échoue (30 s) alors que l'écran de vente est fermé, et le code redonne la main à un champ disparu. Pareil dans `VenteEnDepotCtr` | Imprimante lente ou absente, clôturer puis quitter l'écran | Garde sur le champ, et un message « ticket non imprimé » | P3 |
+| L25 | Blocage `facture-subrogatoire/liste` (01/11, 38 s) | FACTURATION | Hypothèse : la ressource charge toute la période et pagine en Java | À mesurer seul | Pagination et comptage en SQL | P3 |
+| L26 | Blocage `suggestion/diagnostic` (29/10) | COMMANDE | Hypothèse : la pile est dans la vérification de session Hibernate. `diagnosticManques` n'a pas reçu le correctif `024c792f` (flush à la validation) | À mesurer avec une grande limite | Lecture seule ou flush à la validation | P3 |
+| M5 | NPE « URI template … must not be null » à l'envoi SMS (25/08) | SMS | Configuration : URL du jeton Orange absente. `SmsImpl.tokenEndpoint` peut encore renvoyer `null` | Fournisseur Orange sans URL de jeton | Message « Fournisseur SMS non configuré » | P3 |
+| S9 | Les réglages Payara écrivent `hs_err_pidp.log` au lieu de `hs_err_pid%p.log` | SERVEUR (réglages) | **Prouvé par le fichier `.bat` du 30/10** : le `%` est doublé, puis `call` le développe une seconde fois. Le code est sur la branche `claude/reglages-serveur-etape3-payara`, pas sur la branche de travail. Vigilance associée : `-Xms` égal à `-Xmx` (4 Go réservés dès le démarrage) sur un poste où deux domaines tournent | Appliquer les réglages, lire `domain.xml` | Échapper `%%%%` derrière `call` ; contrôler le nom complet | P3 |
+| J31 | `e.getEditor is not a function` (06/10) | FRONTEND | Hypothèse : aucune ligne d'écran dans la pile, ni fil d'Ariane | — | Joindre l'écran actif à l'événement | P4 |
+| S10 | « Connexions à la base saturées » (15/10) : en réalité, le mot de passe du pool était absent pendant une reconfiguration | SERVEUR (chien de garde) | Prouvé par l'extrait (`RAR5117`) | — | Ajouter une cause « pool mal configuré » | P4 |
+
+### Revérification sur la branche d'intégration (02/11)
+
+L'analyse ci-dessus a été faite sur la branche de travail. Elle a été refaite sur `integration/recette-2026-10-29`
+(`a0951196`, 02/11 14 h 53), pour corriger à partir de cette base et éviter des conflits plus tard.
+
+**Situation de l'intégration :**
+
+- elle contient 138 commits absents de la branche de travail, dont tous ceux de ce rapport : les lots 1 à 4, K4 et les P2
+  de leana (fusion `2d926b01`). J3, J6, J23, J24, A3, L5 et S1 y sont donc corrigés ;
+- il lui manque 8 commits récents de la branche de travail (marge des articles vendus, valorisation archivée, contrôle de
+  l'horloge, barre de défilement, notices). Aucun ne touche un fichier concerné ici ;
+- les correctifs cités plus haut comme présents sur la branche de travail y figurent aussi.
+
+**Statut des points du § 21 sur l'intégration :**
+
+| Point | Statut sur l'intégration | Fichiers à modifier | Risque de conflit |
+|---|---|---|---|
+| V10 | **Déjà corrigé** : `ad954220` (essai de charge du 29/10) verrouille le produit et son stock, dans l'ordre, à la clôture (`MvtProduitServiceImpl.verrouillerArticles`). Absent de la branche de travail. **Point retiré** | — | — |
+| J27 | **Corrigé à moitié** : `50157c1c` a remis `getAddaddclientwindowdepot`, `getAddCarnetwindowdepot` et `getAyantdroiGriddepot`. Restent `getClientLambda` (fermeture de la fenêtre « client » : Entrée depuis J23, bouton « Annuler »), `getAssuranceClient` (« Annuler » de la fenêtre assuré) et `getMedecin` (« Annuler » de la fenêtre médecin). **Reste P1** : la fenêtre « client » du dépôt ne se ferme plus, et la vente n'est pas rattachée au client | `VenteEnDepotCtr.js` | Faible : 5 commits propres à l'intégration, aucun depuis le 31/10. Les branches `codex/*` et `dev` touchent aussi ce fichier, mais ce sont des lignes anciennes, hors de ce circuit |
+| P4 | Ouvert, identique | `AnalyseVentesProduitsService.java` | Aucun |
+| L23 | Ouvert, identique | `EtatControlBonBuilder.java`, `EtatControlBonServiceImpl.java` | Aucun |
+| L24 | Ouvert, identique | `LogServiceImpl.java`, `ClasseurExcel.java` (utilisé par d'autres exports : limiter le changement au journal, ou tester tous les appelants) | Aucun |
+| S7 | Ouvert, identique | `SupportWatchdog.java` | Faible : l'intégration y a S1 (+17 lignes), sur laquelle il faut partir |
+| S8 | Ouvert, identique : la règle « mémoire » est à la ligne 197 sur l'intégration | `CauseArret.java`, `CauseArretTest.java` | Faible : même remarque (S1) |
+| P3 | Ouvert, identique | `EtatControlBonServiceImpl.java` | À faire avec L23, même fichier |
+| C7 | Ouvert, identique | `OrderServiceImpl.java` | **À surveiller** : la branche `PRES-/audit06-stock` (02/11, 6 commits hors intégration) modifie ce fichier, mais aucun de ses blocs ne recouvre `buildBonsDetailsByProduits`. Corriger après sa fusion, ou en ne touchant que les deux lignes concernées |
+| A9 | Ouvert, identique (5 JSP absentes, 13 appels) | migration de `t_sous_menu`, ou écrans REST ; `recette-ecrans.js` | Aucun dans le code ; une migration Flyway doit prendre le numéro libre suivant sur l'intégration |
+| J28 | Ouvert : `onRechClick` n'a toujours pas de garde | `FamilleManager.js` | Faible : 4 commits propres à l'intégration, aucun depuis le 31/10 |
+| J29 | Ouvert, identique | `famille/action/importOrder.js` | Aucun sur l'intégration ; anciennes branches `codex/*` seulement |
+| J30 | Ouvert, identique (`VenteCtr.js:4703`, et `VenteEnDepotCtr`) | `VenteCtr.js`, `VenteEnDepotCtr.js` | Faible : 8 commits propres à l'intégration, aucun depuis le 31/10 |
+| L25, L26 | Ouverts (hypothèses), identiques | `FactureSubrogatoireRessource.java`, `SuggestionImpl.java` | Aucun |
+| M5 | Ouvert, identique | `SmsImpl.java` | Faible : l'intégration y a M4 |
+| S9 | Ouvert : `ApplicationPayara.java` est maintenant sur l'intégration, et double toujours le `%` | `ApplicationPayara.java` | Aucun |
+| J31, S10 | Ouverts (P4) | — | — |
+
+**Pour corriger sans conflit :**
+
+- partir de la pointe de l'intégration, et non de la branche de travail : les fichiers de la vente, du chien de garde et
+  des SMS y ont déjà des correctifs qui manquent sur la branche de travail ;
+- corriger C7 après la fusion de `PRES-/audit06-stock`.
+
+Il reste ainsi 17 points, dont 1 P1 (J27, réduit à trois accesseurs) et 5 P2 (P4, L23, L24, S7, S8). Côté métier, le
+contrat Orange reste à renouveler.
+
+### Corrigés le 02/11 : J27, P4, L23, L24, S7, S8
+
+Branche `PRES-/support-0211`, partie de la pointe de l'intégration (`a0951196`). Les tests d'écran ont été joués sur le
+9080 (domain2, base `laborex_perf`), un par un. Chaque point a d'abord un test qui échoue.
+
+| Point | Correction | Test | Avant → après |
+|---|---|---|---|
+| J27 | `VenteEnDepotCtr.js` : `getClientLambdadepot`, `getAssuranceClientdepot`, `getMedecindepot` | `test-j27-depot-client.js` : vente en dépôt simulée, « ASSOCIER UN CLIENT », puis « Annuler ». Rien n'est écrit en base | « `me.getClientLambda is not a function` », fenêtre restée ouverte (1/2) → fenêtre fermée, aucune erreur (2/2) |
+| P4 | `AnalyseVentesProduitsService` : paramètres nommés (dates, texte, emplacement, grossiste) | `test-p4-analyse-filtres.js` : onglet « Analyse », emplacement seul, puis grossiste seul | deux réponses 500 (1/3) → 200, analyse affichée (3/3) |
+| L23 | Avec un filtre de statut ou d'écart, le statut et l'écart se calculent sur une lecture légère des lignes (quatre colonnes), avec les mêmes règles. Seuls les bons de la page affichée sont chargés et mis en forme. Le texte des lignes est construit avec un `StringBuilder`, pour un résultat identique | `test-l23-controle-achats.js` : « Rechercher », puis « Non contrôlés ». Les totaux, puis le statut et le texte des lignes de chaque bon, sont comparés à une référence prise avant la correction | « Non contrôlés » : 01/10 → 02/11 : 2,3 s → 1,2 s ; 01/06 → 02/11 : 8,4 s → 1,2 s ; 01/01/2025 → 02/11 : sans réponse après 300 s → 1,4 s. Totaux identiques (416/20 et 2521/167) ; aucun écart sur les bons comparés. `EtatControlBonBuilderItemsTest` vérifie que le texte des lignes ne change pas |
+| L24 | `ClasseurExcel` : au-delà de 20 000 lignes, le classeur est écrit en flux (`SXSSFWorkbook`). Les largeurs sont estimées sur les 1 000 premières lignes, et l'export s'arrête à la taille d'une feuille avec un message. En dessous, rien ne change | `ClasseurExcelVolumeTest` : 400 000 lignes dans un tas de 256 Mo | `OutOfMemoryError` → fichier complet en 7 s |
+| S7 | Un témoin par domaine (`heartbeat-domain1.flag`, …). Si la JVM a démarré avant le dernier battement, c'est un redéploiement : arrêt propre, sans incident | `SupportWatchdogTemoinTest` (3 tests) | — (méthodes nouvelles) |
+| S8 | `CauseArret` : `OutOfMemoryError` doit être un mot isolé, l'option `-XX:+HeapDumpOnOutOfMemoryError` ne compte plus | `CauseArretTest.optionDuLanceurNEstPasUneMemoireEpuisee` | « mémoire épuisée » → « arrêt forcé ». Une vraie `OutOfMemoryError` reste reconnue |
+
+**Non-régression :**
+
+- vente (`test-leana-vente.js`, 6/6) ;
+- copie de ticket (`test-a8-copie-ticket.js`, 3/3) ;
+- suite unitaire complète.
+
+Les autres tests du contrôle des BL (`test-routes-nombre.js`, `test-controle-achats-tableau.js`) lisent la base
+directement : ils n'ont pas été joués.
+
+**Note sur L23 :**
+
+- un préchargement des lignes par paquets a d'abord été essayé : il ralentissait le filtre (2,2 s → 4,4 s) et a été
+  retiré ;
+- l'impression (`/print`) charge toujours toute la période, ce qui est voulu ;
+- le tri de la liste ne porte que sur la date : deux bons de même date sortent dans un ordre libre, avant comme après.
+
+## 22. Production : journal du 02/11 à 18 h 47, avant mise à jour
+
+### Source et version
+
+- **Journal de la production (officine), exporté le 02/11 à 18 h 47.**
+  - 40 lignes, du 30/10 au 02/11. Elles suivent la purge manuelle du 30/10 à 23 h 31 (489 événements, voir § 19).
+  - Aucun nom ni numéro n'est recopié ici.
+- **Version de la production : antérieure au 17/10.**
+  - L'export n'a pas la colonne Version (K4, 30/10).
+  - On y trouve encore des erreurs corrigées le 17/10 (A1), le 23/10 (V1), le 25/10 (L3) et le 26/10 (P1).
+- **Question posée : la mise à jour règle-t-elle tout ?** Chaque famille a été comparée au code de
+  `integration/recette-2026-10-29` et de `PRES-/support-0211`.
+
+### Réglé par la mise à jour (code présent sur l'intégration)
+
+| Événements (occurrences) | Point | Correctif |
+|---|---|---|
+| `TransientPropertyValueException … lgUSERVENDEURID` sur `vente/add/assurance` (5), et l'Ajax 500 associé (2) : vendeur tapé sans être choisi dans la liste | V1 | `d0c4092c` (23/10) : le vendeur est lu en base, inconnu c'est la caissière |
+| 404 `vente/findone/https://…` (2) et `vente/findone/.` (1) : QR publicitaire scanné, code fait de points | A1 | `e5fc8dee` (17/10), `d4531230` (23/10), lot 1 (26/10) |
+| `NullPointerException : text` sur `produit/monitoringproduct` (2), et l'Ajax 500 (2) | P1 | lot 1, `2419ba39` (26/10) |
+| `caisse/tickez` et `fetch-tickez` lents (2) | L3 | `9ee6cc84` (25/10) |
+| « Snapshot de stock absent pour la veille » (1) | H5 | `bc1995ab` |
+| « Redémarrage inattendu » après une extinction : la nuit du 30 au 31/10 (~630 et ~650 min) et la fin de semaine (31/10 13 h → 02/11 06 h 50, ~2500 min) | S1 | lot 3, `72505bdc` : classé « Extinction normale de la machine », en INFO |
+
+### Réglé seulement si `PRES-/support-0211` est fusionnée avant la mise à jour
+
+| Événements | Point |
+|---|---|
+| Deux « Redémarrage inattendu » pour un seul démarrage (02/11 à 06 h 50 et 06 h 54), et « ~1 min » le 31/10 à 13 h 05 (redémarrage ou redéploiement) | S7 : témoin par domaine, redéploiement sans incident (`3a6766ec`) |
+| Avec les réglages Payara appliqués : fausse « mémoire épuisée » au démarrage | S8 (même commit) |
+
+Les autres correctifs de cette branche (J27, P4, L23, L24) ne sont pas dans ce journal.
+
+### Reste ouvert après la mise à jour
+
+| Événements (occurrences) | Point | Nature | À faire |
+|---|---|---|---|
+| `can't access property "numBon", record is undefined` (`VenteCtr.js:4699`, 1) | **J5 (P2) : corrigé le 02/11, voir plus bas** | Code : `onNewClientAssurance` et les deux fonctions voisines appellent `addTpCmp(tierspayants[0])` sans vérifier que la liste n'est pas vide. Toujours ouvert sur l'intégration | Tester la liste, ne pas reconstruire le bloc sans tiers-payant |
+| `Communications link failure`, `XAException` (« dernier paquet reçu il y a 227 s ») sur `ventes-ratees/compteur-jour` et `vente/peremption-proche` (3), puis à 12 h 33-34 une vague de lenteurs : `add/assurance`, `common/users`, `typeventes`, `ventestats`, compteurs de la cloche (9) | **K3 (P2)** | Réglage : le pool garde des connexions que MariaDB a fermées, et ne les vérifie pas. Le premier appel qui en reçoit une échoue | Appliquer les réglages Payara : validation du pool (`1e3781f7`, sur l'intégration). **Ce n'est pas le war : c'est l'outil de réglages** |
+| « Suggestion lente : index manquant » sur `suggestion-reserve/en-attente/count` (1) | SC4 (P3) | Le diagnostic attrape toute route qui commence par `/api/v1/suggestion` (toujours le cas sur l'intégration) | Tester le préfixe `/api/v1/suggestion/` ; vérifier l'index V7.1.8 en officine |
+| Contrôles de cohérence : commandes sans ligne (500, le plafond), lots périmés non marqués (228), dossiers de règlement sans ligne (10), ventes terminées sans mouvement de caisse (5) | H1 à H4 | H1, H2 : en grande partie des faux positifs du contrôle. H3 : données anciennes. H4 : 5 vraies ventes incomplètes (V6) | Corriger les contrôles H1 et H2 ; régulariser les 5 ventes après accord |
+| SMS refusés `POL0001`, puis suspendus (5) | M1 | Métier : contrat Orange expiré | Renouveler le contrat |
+| « Supervision : 1 anomalie sur 11 » (8) | S5 | Paramétrage : notification active sans adresse `SUPPORT_EMAIL` | Renseigner l'adresse, ou désactiver la notification |
+| Lenteurs : `facturation-groupe` (3, jusqu'à 16 h 48), `tableau-board/tableau` (2) | L18, L12 | Hypothèses : périodes longues traitées en Java | À mesurer après la mise à jour |
+
+### Conclusion
+
+La mise à jour fait disparaître 16 des 40 lignes, dont la seule erreur répétée en journée : V1, 5 fois l'après-midi
+du 02/11. Ce compte suppose que `PRES-/support-0211` est fusionnée d'abord : sans elle, les « redémarrages inattendus »
+en double restent (S7).
+
+Trois actions restent hors du code livré :
+
+- appliquer les réglages Payara (K3), une fois les réglages relus (S9) ;
+- renouveler le contrat Orange (M1) ;
+- renseigner `SUPPORT_EMAIL` (S5).
+
+Le seul défaut de code de priorité 2 qui restait ouvert, **J5**, est corrigé ci-dessous.
+
+### J5 corrigé (02/11), sur `PRES-/support-0211`
+
+- **Correction.**
+  - Un client assuré sans tiers-payant n'est plus pris : la caissière lit « Le client … n'a aucun tiers-payant.
+    Associez-lui un tiers-payant sur sa fiche avant de l'utiliser pour une vente assurance. ».
+  - Le client déjà en place sur la vente reste.
+  - Même garde après la création ou la modification d'une fiche client, et dans `addTpCmp`.
+  - Fichiers : `VenteCtr.js` et `VenteEnDepotCtr.js`, qui avait le même code.
+- **Test.** `support/anomalies-centre/test-j5-client-sans-tiers-payant.js` passe par SERVICE CLIENT > Ventes, vente
+  assurance, nom tapé puis Entrée. La recherche est simulée, rien n'est écrit en base.
+  - Avant : `Cannot read properties of undefined (reading 'numBon')`, aucun message (0/2).
+  - Après : aucune erreur, message affiché, et un client avec tiers-payant garde son bloc (3/3).
+- **Non-régression.** `test-j27-depot-client.js` 2/2, `test-leana-vente.js` 6/6, `test-a8-copie-ticket.js` 3/3.
+- **Limite.** La vente en dépôt n'a pas de test d'écran propre pour J5 : son code est la copie de celui de la vente,
+  testé.
+
 ## Annexe A. Rejouer les reproductions
 
 Variables (Node 22) :

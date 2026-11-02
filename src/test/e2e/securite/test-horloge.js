@@ -3,8 +3,8 @@
  *  - horloge du serveur fausse d'une heure (ecart a l'heure d'Internet simule par KEY_HORLOGE_ESSAI_DECALAGE) : toast
  *    « en avance de 1 h », avec « Mettre a jour » et « Masquer » ;
  *  - date reculee : une operation de caisse datee de dans 2 jours est signalee (sans Internet) ;
- *  - horloge de ce poste fausse (navigateur avance de 3 h) : signalee ; « Mettre a jour » dit comment synchroniser le
- *    poste, sans appel au serveur ;
+ *  - retour du 02/11 : le controle porte sur le poste qui a le serveur Payara. Un poste relie a ce serveur en depend :
+ *    son horloge fausse (navigateur avance de 3 h) ne change rien aux operations, aucun rappel n'est affiche ;
  *  - « Mettre a jour » (heure du serveur) : appel de synchronisation (intercepte : Windows n'est pas touche par le
  *    test), compte rendu dans le toast ; « Masquer » retire le toast ;
  *  - au-dessus du toast WhatsApp quand les deux sont affiches ; aucune fenetre.
@@ -88,7 +88,8 @@ const verifier = async (p) => { await p.evaluate(() => window.PrestigeAlerteHorl
     const p3 = await ctx3.newPage();
     /* la vraie banniere WhatsApp depend du service du poste : s'il va bien, sa verification retire la banniere posee
        plus bas par le test. Compte sans droit WhatsApp : la banniere ne se verifie plus, celle du test reste. */
-    await p3.route(/\/api\/v1\/whatsapp\/web\/alerte/, (r) => r.fulfill({ status: 200, contentType: 'application/json', body: '{"success":false,"sansDroit":true}' }));
+    let appelsWa = 0;
+    await p3.route(/\/api\/v1\/whatsapp\/web\/alerte/, (r) => { appelsWa++; r.fulfill({ status: 200, contentType: 'application/json', body: '{"success":false,"sansDroit":true}' }); });
     p3.on('dialog', (d) => { dialogues.push(d.message()); d.dismiss().catch(() => {}); });
     await vues.connexion(p3, ENV_E2E.LOGIN, 'e2etest');
     await p3.waitForFunction(() => !!window.PrestigeAlerteHorloge, null, { timeout: 30000 });
@@ -96,19 +97,21 @@ const verifier = async (p) => { await p.evaluate(() => window.PrestigeAlerteHorl
     await p3.route('**/api/v1/horloge/synchroniser', (r) => { appels3++; r.fulfill({ status: 200, body: '{}' }); });
     await verifier(p3);
     t = await toast(p3);
-    ok('Horloge de ce poste en avance de 3 h : signalée', t && /horloge de ce poste est en avance de 3 h/.test(t.texte), t && t.texte);
-    await p3.click('#phr-toast [data-phr="mettre-a-jour"]');
-    await p3.waitForTimeout(500);
-    t = await toast(p3);
-    ok('Poste seul en faute : « Mettre à jour » dit comment synchroniser ce poste, sans appel au serveur', appels3 === 0 && t && /Synchroniser maintenant/.test(t.raison), t && t.raison);
+    ok('Poste relié au serveur, horloge en avance de 3 h : aucun rappel (seul le serveur date les opérations)', t === null && appels3 === 0, t && t.texte);
 
-    /* au-dessus du toast WhatsApp */
+    /* au-dessus du toast WhatsApp (toast du serveur, ecart simule) */
+    q("INSERT INTO t_parameters (str_KEY, str_VALUE, str_DESCRIPTION, str_TYPE, str_STATUT, dt_CREATED) VALUES ('KEY_HORLOGE_ESSAI_DECALAGE', '3600', 'essai e2e', 'CUSTOMER', 'enable', NOW())");
+    /* premiere verification WhatsApp passee (sans droit : elle retire la banniere puis s'arrete), avant de poser celle du test */
+    for (let i = 0; i < 60 && appelsWa === 0; i++) { await p3.waitForTimeout(500); }
     await p3.evaluate(() => { const w = document.createElement('div'); w.id = 'pwa-banniere'; w.style.cssText = 'position:fixed;right:16px;bottom:16px;height:90px;width:400px';
       document.body.appendChild(w); });
     await verifier(p3);
+    /* la mesure de l'heure d'Internet peut prendre plusieurs secondes quand son cache a expire */
+    await p3.waitForSelector('#phr-toast', { timeout: 15000 });
     const pile = await p3.evaluate(() => { const a = document.getElementById('phr-toast').getBoundingClientRect(), w = document.getElementById('pwa-banniere').getBoundingClientRect();
       return { horlogeBas: Math.round(a.bottom), whatsappHaut: Math.round(w.top) }; });
     ok('Au-dessus du toast WhatsApp, sans le recouvrir', pile.horlogeBas <= pile.whatsappHaut, JSON.stringify(pile));
+    q("DELETE FROM t_parameters WHERE str_KEY = 'KEY_HORLOGE_ESSAI_DECALAGE'");
     await ctx3.close();
     ok('Aucune fenêtre', dialogues.length === 0, dialogues.join(' | '));
   } catch (x) { ok('Parcours sans exception', false, x.stack); } finally {

@@ -115,9 +115,8 @@ public class ValorisationArchiveRessource {
         Path archive = archiveService.archiver(jour, true);
         if (archive == null) {
             return Response.ok().entity(new JSONObject().put("success", false)
-                    .put("message",
-                            "La valorisation n'a pas pu etre produite. Verifiez que le modele d'etat"
-                                    + " rp_valoristion est installe et consultez les journaux du serveur.")
+                    .put("message", "La valorisation n'a pas pu etre produite. Verifiez que le modele d'etat"
+                            + " rp_valorisation_stock_produit2 est installe et consultez les journaux du serveur.")
                     .toString()).build();
         }
         int purgees = archiveService.purger(jour);

@@ -199,15 +199,10 @@ public class SalesNetComputingServiceImpl implements SalesNetComputingService {
     }
 
     private NetComputingDTO computeCaution(TiersPayantParams tierspayant, TTiersPayant payant, TPreenregistrement op) {
-        int montantTp;
         Caution c = payant.getCaution();
         int caution = c.getMontant();
         int montantPaye = op.getIntPRICE() - op.getIntPRICEREMISE();
-        if (caution >= montantPaye) {
-            montantTp = montantPaye;
-        } else {
-            montantTp = caution;
-        }
+        int montantTp = CautionTiersPayantServiceImpl.partCaution(caution, montantPaye);
         NetComputingDTO netComputing = new NetComputingDTO();
         netComputing.setIdCompteClientTiersPayant(tierspayant.getCompteTp());
         netComputing.setPlafondVente(0);

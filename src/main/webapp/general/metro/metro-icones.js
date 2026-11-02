@@ -101,6 +101,7 @@ window.PrestigeMetroIcones = {
     "familleorder": "send", // Proposition Commande
     "commandemanager": "circle-check-big", // Validation Commande
     "peremptionscourtes": "timer", // Péremptions courtes
+    "modelesticket": "receipt", // Modèles de ticket
     "traitementcommandemanager": "cog", // Traitement Commande
     "warehouseorder": "repeat", // Transaction Commande
     "bonlivraisonmanager": "package-check", // Gestion des entrées
