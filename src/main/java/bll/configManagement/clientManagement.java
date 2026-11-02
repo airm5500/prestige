@@ -581,6 +581,19 @@ public class clientManagement extends bllBase {
         return lstTCompteClientTiersPayant;
     }
 
+    /**
+     * Tiers-payants actifs d'un compte client DESACTIVE (fiche ouverte depuis « Clients desactives ») : l'utilisateur
+     * doit voir le tiers-payant qu'il vient d'ajouter avant de reactiver le client. La liste ordinaire ne montre que
+     * les comptes actifs et reste inchangee.
+     */
+    public List<TCompteClientTiersPayant> getTiersPayantsCompteDesactive(String lg_COMPTE_CLIENT_ID) {
+        return this.getOdataManager().getEm().createQuery(
+                "SELECT t FROM TCompteClientTiersPayant t WHERE t.lgCOMPTECLIENTID.lgCOMPTECLIENTID = ?1 AND t.lgCOMPTECLIENTID.strSTATUT = ?2 AND t.strSTATUT = ?3 AND t.lgTIERSPAYANTID.strSTATUT = ?3 ORDER BY t.intPRIORITY ASC",
+                TCompteClientTiersPayant.class).setParameter(1, lg_COMPTE_CLIENT_ID)
+                .setParameter(2, commonparameter.statut_disable).setParameter(3, commonparameter.statut_enable)
+                .getResultList();
+    }
+
     public List<TCompteClientTiersPayant> getTiersPayantsByClient(String search_value, String lg_COMPTE_CLIENT_ID,
             String lg_TIERS_PAYANT_ID) {
         List<TCompteClientTiersPayant> lstTCompteClientTiersPayant = new ArrayList<>();
@@ -1239,6 +1252,12 @@ public class clientManagement extends bllBase {
                     : commonparameter.statut_enable);
             OTCompteClient = this.getOdataManager().getEm().find(TCompteClient.class, lg_COMPTE_CLIENT_ID);
 
+            if (OTCompteClient != null && str_STATUT.equalsIgnoreCase(commonparameter.statut_enable)
+                    && !this.principalActifPourReactivation(OTCompteClient)) {
+                this.buildErrorTraceMessage("Ce client assuré n'a aucun tiers-payant actif : ajoutez-lui d'abord un"
+                        + " tiers-payant (icône « Ajouter des tiers payants a ce client »), puis réactivez-le.");
+                return false;
+            }
             if (OTCompteClient != null) {
                 lstTCompteClientTiersPayant = OclientManagement.getTiersPayantsByClient("", "%%", lg_COMPTE_CLIENT_ID,
                         state);
@@ -1272,6 +1291,40 @@ public class clientManagement extends bllBase {
             this.buildErrorTraceMessage("Echec de l'opération");
         }
         return result;
+    }
+
+    /**
+     * Plan « clients assures et tiers-payants » (02/11), etape 3 : un client assure (assurance ou carnet) n'est
+     * reactive que s'il a un tiers-payant actif chez un organisme actif. S'il en a mais qu'aucun n'est en priorite 1
+     * (donnee ancienne), celui de plus petite priorite devient le principal, enregistre avec la reactivation. Les
+     * autres types de client ne sont pas concernes.
+     */
+    private boolean principalActifPourReactivation(TCompteClient compte) {
+        TClient client = compte.getLgCLIENTID();
+        String type = client == null || client.getLgTYPECLIENTID() == null ? null
+                : client.getLgTYPECLIENTID().getLgTYPECLIENTID();
+        if (!util.Constant.CLIENT_ASSURANCE.equals(type) && !util.Constant.CLIENT_CARNET.equals(type)) {
+            return true;
+        }
+        List<TCompteClientTiersPayant> actifs = this.getOdataManager().getEm()
+                .createQuery("SELECT t FROM TCompteClientTiersPayant t WHERE t.lgCOMPTECLIENTID.lgCOMPTECLIENTID = ?1"
+                        + " AND t.strSTATUT = ?2 AND t.lgTIERSPAYANTID.strSTATUT = ?2 ORDER BY t.intPRIORITY ASC",
+                        TCompteClientTiersPayant.class)
+                .setParameter(1, compte.getLgCOMPTECLIENTID()).setParameter(2, commonparameter.statut_enable)
+                .getResultList();
+        if (actifs.isEmpty()) {
+            return false;
+        }
+        boolean principal = actifs.stream()
+                .anyMatch(t -> Boolean.TRUE.equals(t.getBISRO()) || Integer.valueOf(1).equals(t.getIntPRIORITY()));
+        if (!principal) {
+            TCompteClientTiersPayant promu = actifs.stream()
+                    .filter(t -> t.getIntPRIORITY() != null && t.getIntPRIORITY() > 0).findFirst()
+                    .orElse(actifs.get(0));
+            promu.setIntPRIORITY(1);
+            promu.setDtUPDATED(new Date());
+        }
+        return true;
     }
 
     private boolean doesCodeInternClientExist(String str_CODE_INTERNE) {

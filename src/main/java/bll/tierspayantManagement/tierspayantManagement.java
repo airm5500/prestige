@@ -860,6 +860,18 @@ public class tierspayantManagement extends bllBase {
             TTiersPayant OTTiersPayant = this.getTTiersPayant(lg_TIERS_PAYANT_ID);
             TCompteClient OTCompteClient = new clientManagement(this.getOdataManager())
                     .getTCompteClient(lg_COMPTE_CLIENT_ID);
+            if (OTCompteClient == null) {
+                /*
+                 * plan « clients assures » (02/11), etape 3 : un client desactive (faute de tiers-payant) peut en
+                 * recevoir un, pour etre ensuite reactive ; jamais un client supprime
+                 */
+                TCompteClient desactive = this.getOdataManager().getEm().find(TCompteClient.class, lg_COMPTE_CLIENT_ID);
+                if (desactive != null && commonparameter.statut_disable.equals(desactive.getStrSTATUT())
+                        && desactive.getLgCLIENTID() != null
+                        && commonparameter.statut_disable.equals(desactive.getLgCLIENTID().getStrSTATUT())) {
+                    OTCompteClient = desactive;
+                }
+            }
 
             if (OTTiersPayant != null && OTCompteClient != null) {
                 if (!this.isTiersPayantExistForCptltTiersP(OTCompteClient.getLgCOMPTECLIENTID(),
@@ -2290,6 +2302,18 @@ public class tierspayantManagement extends bllBase {
             TTiersPayant OTTiersPayant = this.getTTiersPayant(lg_TIERS_PAYANT_ID);
             TCompteClient OTCompteClient = new clientManagement(this.getOdataManager())
                     .getTCompteClient(lg_COMPTE_CLIENT_ID);
+            if (OTCompteClient == null) {
+                /*
+                 * plan « clients assures » (02/11), etape 3 : un client desactive (faute de tiers-payant) peut en
+                 * recevoir un, pour etre ensuite reactive ; jamais un client supprime
+                 */
+                TCompteClient desactive = this.getOdataManager().getEm().find(TCompteClient.class, lg_COMPTE_CLIENT_ID);
+                if (desactive != null && commonparameter.statut_disable.equals(desactive.getStrSTATUT())
+                        && desactive.getLgCLIENTID() != null
+                        && commonparameter.statut_disable.equals(desactive.getLgCLIENTID().getStrSTATUT())) {
+                    OTCompteClient = desactive;
+                }
+            }
 
             if (OTTiersPayant != null && OTCompteClient != null) {
                 if (!this.isTiersPayantExistForCptltTiersP(OTCompteClient.getLgCOMPTECLIENTID(),

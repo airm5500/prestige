@@ -33,7 +33,9 @@ Ext.define('testextjs.view.configmanagement.client.ClientDesactiveManager', {
         Me_Workflow = this;
         lg_TYPE_CLIENT_ID = "";
 
-        url_services_data_client = '../webservices/configmanagement/client/ws_data.jsp?str_STATUT=disable';
+        /* plan « clients assures » (02/11), etape 3 : liste, activation, desactivation et suppression par l'API REST
+           (memes methodes metier que la JSP) ; la reactivation d'un client assure exige un tiers-payant actif */
+        url_services_data_client = '../api/v1/client/gestion?actifs=false';
         url_services_pdf_client = '../webservices/configmanagement/client/ws_generate_pdf.jsp?str_STATUT=disable';
 
         var itemsPerPage = 20;
@@ -222,7 +224,7 @@ Ext.define('testextjs.view.configmanagement.client.ClientDesactiveManager', {
                     listeners: {
                         select: function(cmp) {
                             lg_TYPE_CLIENT_ID = cmp.getValue();
-                            Ext.getCmp('OGrid').getStore().getProxy().url = url_services_data_client + "&lg_TYPE_CLIENT_ID=" + lg_TYPE_CLIENT_ID;
+                            Ext.getCmp('OGrid').getStore().getProxy().url = '../api/v1/client/gestion?actifs=false' + "&lg_TYPE_CLIENT_ID=" + lg_TYPE_CLIENT_ID;
                             Me_Workflow.onRechClick();
                         }
                     }
@@ -387,7 +389,8 @@ Ext.define('testextjs.view.configmanagement.client.ClientDesactiveManager', {
                         var rec = grid.getStore().getAt(rowIndex);
                         testextjs.app.getController('App').ShowWaitingProcess();
                         Ext.Ajax.request({
-                            url: url_services_transaction_client + 'delete',
+                            url: '../api/v1/client/gestion/delete',
+                            method: 'POST',
                             params: {
                                 lg_CLIENT_ID: rec.get('lg_CLIENT_ID')
                             },
@@ -511,8 +514,10 @@ Ext.define('testextjs.view.configmanagement.client.ClientDesactiveManager', {
         PrestigeConfirmation.ligne('Message', "Voulez-vous d&eacute;sactiver le client " + "<br><b>" + rec.get('str_FIRST_LAST_NAME') + "</b>", function () {
                         testextjs.app.getController('App').ShowWaitingProcess();
                         Ext.Ajax.request({
-                            url: url_services_transaction_client + 'disable',
+                            url: '../api/v1/client/gestion/toggle-statut',
+                            method: 'POST',
                             params: {
+                                actif: false,
                                 lg_COMPTE_CLIENT_ID: rec.get('lg_COMPTE_CLIENT_ID')
                             },
                             success: function(response)
@@ -555,8 +560,10 @@ Ext.define('testextjs.view.configmanagement.client.ClientDesactiveManager', {
                         var rec = grid.getStore().getAt(rowIndex);
                         testextjs.app.getController('App').ShowWaitingProcess();
                         Ext.Ajax.request({
-                            url: url_services_transaction_client + 'enable',
+                            url: '../api/v1/client/gestion/toggle-statut',
+                            method: 'POST',
                             params: {
+                                actif: true,
                                 lg_COMPTE_CLIENT_ID: rec.get('lg_COMPTE_CLIENT_ID')
                             },
                             success: function(response)

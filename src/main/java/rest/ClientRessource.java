@@ -990,6 +990,14 @@ public class ClientRessource {
             }
             List<dal.TCompteClientTiersPayant> liste = new clientManagement(odm).getTiersPayantsByClient(search, compte,
                     tp);
+            // compte desactive (fiche ouverte depuis « Clients desactives ») : montrer ses tiers-payants actifs, dont
+            // celui qu'on vient d'ajouter pour pouvoir le reactiver
+            if (liste.isEmpty() && org.apache.commons.lang3.StringUtils.isNotBlank(compteClientId)) {
+                dal.TCompteClient c = odm.getEm().find(dal.TCompteClient.class, compteClientId);
+                if (c != null && commonparameter.statut_disable.equals(c.getStrSTATUT())) {
+                    liste = new clientManagement(odm).getTiersPayantsCompteDesactive(compteClientId);
+                }
+            }
             org.json.JSONArray results = new org.json.JSONArray();
             int fin = limit > 0 ? Math.min(liste.size(), Math.max(0, start) + limit) : liste.size();
             for (int i = Math.max(0, start); i < fin; i++) {

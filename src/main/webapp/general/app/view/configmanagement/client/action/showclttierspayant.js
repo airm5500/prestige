@@ -415,10 +415,38 @@ Ext.define('testextjs.view.configmanagement.client.action.showclttierspayant', {
             mode: "createtierspayantByclt",
             titre: "Ajouter un tiers payant au client [" + this.getOdatasource().str_FIRST_LAST_NAME + "]"
         });
-    }, onRemoveClick: function(grid, rowIndex) {
+    }, onRemoveClick: function(grid, rowIndex, colIndex, item, e) {
+        var rec = grid.getStore().getAt(rowIndex),
+                icone = e && e.getTarget ? e.getTarget() : null;
+        /* plan « clients assures » (02/11), etape 3 : le bouton annonce l'effet du retrait avant la confirmation
+           (client desactive, complementaire promu principal) ; la confirmation reste dans l'icone */
+        var confirmer = function (texte) {
+            if (icone && icone.parentNode) {
+                PrestigeConfirmation.icone(icone, texte, retirer);
+            } else {
+                PrestigeConfirmation.ligne('Message', texte, retirer);
+            }
+        };
+        Ext.Ajax.request({
+            url: url_rest_transaction_client_tierspayants + 'effet-retrait',
+            method: 'GET',
+            params: {lg_COMPTE_CLIENT_TIERS_PAYANT_ID: rec.get('lg_COMPTE_CLIENT_TIERS_PAYANT_ID')},
+            success: function (response) {
+                var effet = Ext.JSON.decode(response.responseText, true) || {};
+                if (effet.refus) {
+                    Ext.MessageBox.alert('Retrait impossible', effet.refus);
+                    return;
+                }
+                confirmer(effet.effet === 'DESACTIVATION_CLIENT' ? 'Confirmer : le client sera désactivé'
+                        : effet.effet === 'PROMOTION' ? 'Confirmer : ' + effet.promu + ' deviendra le tiers-payant principal'
+                        : 'Confirmer le retrait');
+            },
+            failure: function () {
+                confirmer('Confirmer le retrait');
+            }
+        });
 
-        PrestigeConfirmation.ligne('Message', 'Confirmation de la suppresssion', function () {
-                        var rec = grid.getStore().getAt(rowIndex);
+        function retirer() {
                         Ext.Ajax.request({
                             url: url_rest_transaction_client_tierspayants + 'delete',
                             method: 'POST',
@@ -454,10 +482,7 @@ Ext.define('testextjs.view.configmanagement.client.action.showclttierspayant', {
 
                             }
                         });
-                        return;
-                    });
-
-
+        }
     },
     onRechClick: function() {
 

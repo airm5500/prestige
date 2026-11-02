@@ -141,6 +141,26 @@ chemin qui peut aujourd'hui laisser un client assuré sans tiers-payant actif, o
   (« … RETRAITZE2E ORGANISME RETRAIT ») : le champ « Nom » de la fiche organisme se recopie dans « Nom complet », et la
   première version du test a saisi les deux. Ce test n'a pas été passé sur le code d'avant la correction.
 
+### 4.6 Étape 3 : fait (02/11)
+
+- **Bouton « Retirer » de la fiche client** : il lit l'effet (`effet-retrait`) avant de demander confirmation, et
+  l'annonce dans l'icône même : « Confirmer : le client sera désactivé » (dernier tiers-payant), « Confirmer : X
+  deviendra le tiers-payant principal » (complémentaire promu), sinon « Confirmer le retrait ». Un retrait refusé
+  (ventes non réglées) est dit tout de suite, sans proposer de confirmer.
+- **Réactivation** (`enableOrDisableClient`, depuis « Clients » comme depuis « Clients désactivés ») : refusée pour un
+  client assuré ou carnet sans tiers-payant actif chez un organisme actif ; le message dit d'en ajouter un d'abord. S'il
+  en a mais qu'aucun n'est principal (données anciennes), celui de plus petite priorité passe en priorité 1.
+- **Choix fait par défaut** : un client désactivé peut recevoir un tiers-payant (sinon, désactivé faute de
+  tiers-payant, il ne pouvait plus revenir). La fiche d'un client désactivé montre ses tiers-payants actifs. Un client
+  supprimé reste exclu.
+- **« Clients désactivés »** : liste, activation, désactivation et suppression passent par l'API REST. Restent en JSP :
+  la modification directe dans la grille (la route REST équivalente a d'autres valeurs par défaut et risquait de toucher
+  aux tiers-payants : une route dédiée viendra), l'impression, l'import et les exports.
+- **Ancienne fenêtre de tiers-payants de la vente** : son retrait passe par la même route REST que la fiche client.
+- **Tests (domain2, `laborex_perf`)** : `test-retrait-tiers-payant.js` étendu (textes des boutons, refus de réactivation
+  par les deux écrans, ajout au client désactivé, réactivation) : en échec sur la version d'avant, 19/19 après ;
+  `test-desactivation-organisme.js` 10/10 ; J5 3/3.
+
 ## 5. Questions tranchées (02/11)
 
 1. **Tiers-payant « principal ».** Je le définis comme le régime obligatoire (`bISRO`) ou, s'il n'y en a pas, le lien de

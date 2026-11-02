@@ -299,17 +299,21 @@ Ext.define('testextjs.view.sm_user.dovente.action.addTiersPayant', {
         PrestigeConfirmation.ligne('Message', 'confirm la suppresssion', function () {
                         var rec = grid.getStore().getAt(rowIndex);
                         Ext.Ajax.request({
-                            url: url_services_transaction_tierspayant_dovente + 'delete',
+                            /* plan « clients assures » (02/11), etape 3 : meme retrait que la fiche client (REST, une
+                               transaction : client desactive au dernier tiers-payant, complementaire promu principal) */
+                            url: '../api/v1/client/gestion/tiers-payants/delete',
+                            method: 'POST',
                             params: {
                                 lg_COMPTE_CLIENT_TIERS_PAYANT_ID: rec.get('lg_COMPTE_CLIENT_TIERS_PAYANT_ID')
                             },
                             success: function(response)
                             {
                                 var object = Ext.JSON.decode(response.responseText, false);
-                                if (object.success === 0) {
+                                if (String(object.success) === '0') {
                                     Ext.MessageBox.alert('Error Message', object.errors);
                                     return;
                                 }
+                                Ext.MessageBox.alert('Confirmation', object.errors);
                                 grid.getStore().reload();
                             },
                             failure: function(response)

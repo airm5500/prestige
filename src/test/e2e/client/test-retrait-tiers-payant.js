@@ -123,7 +123,10 @@ const UN = { nom: MARQUE, prenom: 'UN' }, DEUX = { nom: MARQUE, prenom: 'DEUX' }
   /* icone « Supprimer » de la ligne, puis confirmation dans l'icone ; renvoie le message affiche */
   const retirer = async (indexLigne) => {
     await cliquerIcone('#CltgridpanelID', indexLigne, 'Supprimer');
-    await p.waitForTimeout(400);
+    /* le bouton de confirmation apparait apres la lecture de l'effet du retrait */
+    await p.waitForFunction(() => Array.from(document.querySelectorAll('.prestige-confirmer-icone')).some((x) => x.offsetWidth > 0)
+      || Ext.ComponentQuery.query('messagebox{isVisible()}').length > 0, null, { timeout: 10000 }).catch(() => {});
+    await p.waitForTimeout(450);
     const confirmation = await p.evaluate(() => {
       const c = Array.from(document.querySelectorAll('.prestige-confirmer-icone')).find((x) => x.offsetWidth > 0);
       return c ? { texte: c.innerText || c.title, id: c.id || (c.id = 'e2e-confirmer-' + Date.now()) } : null;
@@ -162,6 +165,8 @@ const UN = { nom: MARQUE, prenom: 'UN' }, DEUX = { nom: MARQUE, prenom: 'DEUX' }
     const r1 = await retirer(principal.i);
     liens = await liensAffiches();
     ok('Retrait du principal accepté', String(r1.r.success) !== '0' && liens.length === 1, JSON.stringify({ r1, liens }));
+    ok('Le bouton annonce l\'effet avant confirmation : « Confirmer : X deviendra le tiers-payant principal »',
+      r1.confirmation && r1.confirmation.texte === 'Confirmer : ' + complementaire.tp + ' deviendra le tiers-payant principal', JSON.stringify(r1.confirmation));
     ok('Le complémentaire restant passe en priorité 1 (principal)', liens.length === 1 && liens[0].id === complementaire.id && liens[0].priorite === 1, JSON.stringify(liens));
     ok('Le message annonce le nouveau principal', /devient le tiers-payant principal/i.test(r1.message + ' ' + (r1.r.errors || '')), r1.message);
     await fermerTiersPayants();
@@ -173,12 +178,63 @@ const UN = { nom: MARQUE, prenom: 'UN' }, DEUX = { nom: MARQUE, prenom: 'DEUX' }
     liens = await liensAffiches();
     const r2 = await retirer(0);
     ok('Retrait du dernier tiers-payant accepté', String(r2.r.success) !== '0', JSON.stringify(r2));
+    ok('Le bouton annonce l\'effet avant confirmation : « Confirmer : le client sera désactivé »',
+      r2.confirmation && r2.confirmation.texte === 'Confirmer : le client sera désactivé', JSON.stringify(r2.confirmation));
     ok('Le message dit que le client est désactivé', /d[ée]sactiv/i.test(r2.message + ' ' + (r2.r.errors || '')), r2.message);
     await fermerTiersPayants();
     liste = await chercher(false);
     ok('Le client UN quitte la liste des clients actifs', !liste.some((x) => /\bUN\b/.test(x.nom)), JSON.stringify(liste));
     const desactives = await chercher(true);
     ok('Le client UN apparaît dans « Désactivés »', desactives.some((x) => /\bUN\b/.test(x.nom)), JSON.stringify(desactives));
+
+    /* cas 3 : reactivation (etape 3) : refusee sans tiers-payant actif ; acceptee apres en avoir ajoute un */
+    const reactiver = async () => {
+      const i = await ligneClient('UN');
+      const rep = attendreReponse(/client\/gestion\/toggle-statut$/);
+      await cliquerIcone('clientgestion', i, 'D&eacute;sactiver / R&eacute;activer le client');
+      await cliquer(p, 'messagebox{isVisible()} button[itemId=yes]');
+      const r = await (await rep).json().catch(() => ({}));
+      await p.waitForTimeout(1000);
+      const message = await texteMessage(p); await fermerMessages();
+      return { r, message };
+    };
+    const refus = await reactiver();
+    let encore = await chercher(true);
+    ok('Réactivation refusée tant que le client n\'a aucun tiers-payant actif', String(refus.r.success) === '0'
+      && /aucun tiers-payant/i.test(refus.message) && encore.some((x) => /\bUN\b/.test(x.nom)), JSON.stringify(refus));
+    /* meme refus depuis l'ecran « Clients desactives » (passe en REST) */
+    await ouvrirMenu(p, 'GESTION DES TIERS-PAYANTS', 'Clients désactivés');
+    await p.waitForFunction(() => Ext.ComponentQuery.query('clientdesactive').some((c) => c.isVisible(true)), null, { timeout: 60000 });
+    await p.waitForTimeout(1500);
+    await saisir(p, 'clientdesactive #rechecher', MARQUE);
+    const listeDesactives = attendreReponse(/client\/gestion\?actifs=false/, 'GET');
+    await cliquer(p, 'clientdesactive button[text=rechercher]'); await listeDesactives;
+    await p.waitForTimeout(800);
+    const iUn = await p.evaluate((m) => Ext.ComponentQuery.query('clientdesactive')[0].getStore().findBy((r) => (r.get('str_FIRST_LAST_NAME') || '').indexOf(m + ' UN') >= 0), MARQUE);
+    ok('« Clients désactivés » (REST) liste le client UN', iUn >= 0, iUn);
+    const repActiver = attendreReponse(/client\/gestion\/toggle-statut$/);
+    await cliquerIcone('clientdesactive', iUn, 'Activer ce client');
+    await p.waitForTimeout(450);
+    const confActiver = await p.evaluate(() => { const c = Array.from(document.querySelectorAll('.prestige-confirmer-icone')).find((x) => x.offsetWidth > 0); return c ? (c.id || (c.id = 'e2e-activer-' + Date.now())) : null; });
+    if (confActiver) { await p.click('#' + confActiver); } else { await cliquer(p, 'messagebox{isVisible()} button[itemId=yes]'); }
+    const refusEcran = await (await repActiver).json().catch(() => ({}));
+    await p.waitForTimeout(800);
+    const msgEcran = await texteMessage(p); await fermerMessages();
+    ok('Depuis « Clients désactivés », la réactivation est refusée de même', String(refusEcran.success) === '0' && /aucun tiers-payant/i.test(msgEcran), JSON.stringify({ refusEcran, msgEcran }));
+    await ouvrirMenu(p, 'GESTION DES TIERS-PAYANTS', 'Clients');
+    await p.waitForFunction(() => Ext.ComponentQuery.query('clientgestion').some((c) => c.isVisible(true)), null, { timeout: 60000 });
+    await p.waitForTimeout(1000);
+    await chercher(true);
+
+    await ouvrirTiersPayants('UN');
+    const ajoutDesactive = await ajouterTiersPayant(2, 1);
+    liens = await liensAffiches();
+    ok('Un tiers-payant peut être ajouté au client désactivé', liens.length === 1, JSON.stringify({ ajoutDesactive, liens }));
+    await fermerTiersPayants();
+    await chercher(true);
+    const accord = await reactiver();
+    liste = await chercher(false);
+    ok('Avec un tiers-payant actif, le client est réactivé', String(accord.r.success) !== '0' && liste.some((x) => /\bUN\b/.test(x.nom)), JSON.stringify({ accord, liste }));
 
     ok('Aucune erreur JavaScript', erreurs.length === 0, erreurs.join(' | '));
   } catch (x) {
