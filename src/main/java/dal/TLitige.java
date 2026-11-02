@@ -87,6 +87,91 @@ public class TLitige implements Serializable {
     @JoinColumn(name = "lg_TYPELITIGE_ID", referencedColumnName = "lg_TYPELITIGE_ID")
     @ManyToOne(optional = false)
     private TTypelitige lgTYPELITIGEID;
+    /*
+     * litiges REST (audit 05, V7.2.31.61) : statut, dossier tiers payant lie, etat de facturation d'avant, ecart,
+     * cloture et auteurs
+     */
+    @Column(name = "str_STATUT")
+    private String strSTATUT;
+    @Column(name = "lg_PREENREGISTREMENT_COMPTE_CLIENT_PAYENT_ID")
+    private String lgDOSSIERID;
+    @Column(name = "str_STATUT_FACTURE_AVANT")
+    private String strSTATUTFACTUREAVANT;
+    @Column(name = "int_ECART")
+    private Integer intECART;
+    @Column(name = "str_MOTIF_CLOTURE")
+    private String strMOTIFCLOTURE;
+    @Column(name = "dt_CLOTURE")
+    @Temporal(TemporalType.TIMESTAMP)
+    private Date dtCLOTURE;
+    @Column(name = "lg_USER_ID")
+    private String lgUSERID;
+    @Column(name = "lg_USER_CLOTURE_ID")
+    private String lgUSERCLOTUREID;
+
+    public String getStrSTATUT() {
+        return strSTATUT;
+    }
+
+    public void setStrSTATUT(String strSTATUT) {
+        this.strSTATUT = strSTATUT;
+    }
+
+    public String getLgDOSSIERID() {
+        return lgDOSSIERID;
+    }
+
+    public void setLgDOSSIERID(String lgDOSSIERID) {
+        this.lgDOSSIERID = lgDOSSIERID;
+    }
+
+    public String getStrSTATUTFACTUREAVANT() {
+        return strSTATUTFACTUREAVANT;
+    }
+
+    public void setStrSTATUTFACTUREAVANT(String strSTATUTFACTUREAVANT) {
+        this.strSTATUTFACTUREAVANT = strSTATUTFACTUREAVANT;
+    }
+
+    public Integer getIntECART() {
+        return intECART;
+    }
+
+    public void setIntECART(Integer intECART) {
+        this.intECART = intECART;
+    }
+
+    public String getStrMOTIFCLOTURE() {
+        return strMOTIFCLOTURE;
+    }
+
+    public void setStrMOTIFCLOTURE(String strMOTIFCLOTURE) {
+        this.strMOTIFCLOTURE = strMOTIFCLOTURE;
+    }
+
+    public Date getDtCLOTURE() {
+        return dtCLOTURE;
+    }
+
+    public void setDtCLOTURE(Date dtCLOTURE) {
+        this.dtCLOTURE = dtCLOTURE;
+    }
+
+    public String getLgUSERID() {
+        return lgUSERID;
+    }
+
+    public void setLgUSERID(String lgUSERID) {
+        this.lgUSERID = lgUSERID;
+    }
+
+    public String getLgUSERCLOTUREID() {
+        return lgUSERCLOTUREID;
+    }
+
+    public void setLgUSERCLOTUREID(String lgUSERCLOTUREID) {
+        this.lgUSERCLOTUREID = lgUSERCLOTUREID;
+    }
 
     public TLitige() {
         // this.lgLITIGEID = new date().getComplexId();

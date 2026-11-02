@@ -1,342 +1,219 @@
-/* global Ext */
+/* global Ext, PrestigeConfirmation */
 
-var url_services_data_litige = '../webservices/configmanagement/litige/ws_data.jsp';
-var url_services_data_typelitige = '../webservices/configmanagement/litige/ws_data_typelitige.jsp';
-var url_services_transaction_litige = '../webservices/configmanagement/litige/ws_transaction.jsp?mode=';
-var Me;
+/*
+ * Litiges tiers payant (audit 05 LI-01..08, notice litiges L1..L5) : ecran sur l'API REST api/v1/litiges.
+ * Un litige est rattache a un dossier tiers payant ; tant qu'il est ouvert le dossier est hors facturation.
+ * Actions de ligne : detail (et cloture avec ou sans remboursement), annulation (confirmation dans l'icone).
+ * Les anciennes JSP (webservices/configmanagement/litige) restent dans le depot, l'ecran ne les appelle plus.
+ */
+var url_rest_litiges = '../api/v1/litiges';
+
 Ext.define('testextjs.view.configmanagement.litige.LitigeManager', {
     extend: 'Ext.grid.Panel',
     xtype: 'litige',
     id: 'litigeID',
     requires: [
-        'Ext.selection.CellModel',
         'Ext.grid.*',
-        'Ext.window.Window',
         'Ext.data.*',
-        'Ext.util.*',
-        'Ext.form.*',
-        'Ext.JSON.*',
-        'Ext.ux.ProgressBarPager',
-        'Ext.ux.grid.Printer'
-
+        'Ext.form.*'
     ],
-    title: 'Gestion des litiges',
+    title: 'Litiges tiers payant',
     plain: true,
-    maximizable: true,
-//    tools: [{type: "pin"}],
-    closable: false,
     frame: true,
+    closable: false,
     initComponent: function () {
-        Me = this;
-        var itemsPerPage = 20;
-
-        var store = new Ext.data.Store({
-            model: 'testextjs.model.Litige',
-            pageSize: itemsPerPage,
-            autoLoad: false,
+        var me = this;
+        var montant = function (v) {
+            return (v === null || v === undefined || v === '') ? '' : Ext.util.Format.number(v, '0,000');
+        };
+        var store = Ext.create('Ext.data.Store', {
+            fields: ['lg_LITIGE_ID', 'dt_CREATED', 'str_TYPE', 'str_TIERS_PAYANT', 'str_CLIENT', 'str_REF_VENTE',
+                'str_REF_BON', 'str_LIBELLE', 'str_ETAT', 'str_CONSEQUENCE', 'str_STATUT', 'int_PART_ORIGINE',
+                'int_MONTANT_CONTESTE', 'int_MONTANT_ACCORDE', 'int_ECART', 'dt_CLOTURE', 'str_MOTIF_CLOTURE',
+                'b_FACTURE', 'lg_DOSSIER_ID'],
+            pageSize: 20,
+            remoteFilter: true,
             proxy: {
                 type: 'ajax',
-                url: url_services_data_litige,
-                reader: {
-                    type: 'json',
-                    root: 'results',
-                    totalProperty: 'total'
-                }
-            }
-
-        });
-
-        var store_type_litige = new Ext.data.Store({
-            model: 'testextjs.model.TypeLitige',
-            pageSize: itemsPerPage,
-            autoLoad: false,
-            proxy: {
-                type: 'ajax',
-                url: url_services_data_typelitige,
-                reader: {
-                    type: 'json',
-                    root: 'results',
-                    totalProperty: 'total'
-                }
-            }
-
-        });
-
-        var store_type = new Ext.data.Store({
-            fields: ['str_TYPE', 'str_desc'],
-            data: [{str_TYPE: 'ALL', str_desc: 'Tous'}, {str_TYPE: 'MANQUANT', str_desc: 'Litiges non-abouti'}]
-        });
-        this.cellEditing = new Ext.grid.plugin.CellEditing({
-            clicksToEdit: 1
-        });
-
-
-        Ext.apply(this, {
-            width: '98%',
-            height: 580,
-            plugins: [this.cellEditing],
-            store: store,
-            id: 'GridLitigeID',
-            columns: [{
-                    xtype: 'rownumberer',
-                    text: 'Num.Ligne',
-                    width: 45,
-                    id: 'num_ligne',
-                    dataIndex: 'num_ligne',
-                    sortable: true/*,
-                     locked: true*/
-                }, {
-                    header: 'lg_LITIGE_ID',
-                    dataIndex: 'lg_LITIGE_ID',
-                    hidden: true,
-                    flex: 1
-                }, {
-                    header: 'Libelle',
-                    dataIndex: 'str_LIBELLE',
-                    flex: 1
-                }, {
-                    header: 'Commentaire',
-                    dataIndex: 'str_COMMENTAIRE_LITIGE',
-                    flex: 1
-                },
-                {
-                    header: 'Reference',
-                    dataIndex: 'str_REFERENCE',
-                    flex: 1
-                },
-                {
-                    header: 'Type litige',
-                    dataIndex: 'str_TYPE_LITIGE',
-                    flex: 1
-                }, {
-                    header: '&Eacute;tat',
-                    dataIndex: 'str_ETAT_LITIGE',
-                    flex: 1
-                }, {
-                    header: 'Date de creation',
-                    dataIndex: 'str_REF_CREATED',
-                    flex: 1
-                },
-                {
-                    xtype: 'actioncolumn',
-                    width: 30,
-                    sortable: false,
-                    menuDisabled: true,
-                    items: [{
-                            icon: 'resources/images/icons/fam/application_view_list.png',
-                            tooltip: 'Visualisation de la vente li&eacute;e qui a gen&eacute;re un litige',
-                            scope: this,
-                            handler: this.onDetailClick
-                        }]
-                },
-//                {
-//                    xtype: 'actioncolumn',
-//                    width: 30,
-//                    sortable: false,
-//                    menuDisabled: true,
-//                    items: [{
-//                            icon: 'resources/images/icons/fam/paste_plain.png',
-//                            tooltip: 'Editer un litige',
-//                            scope: this,
-//                            handler: this.onEditClick
-//                        }]
-//                },
-                {
-                    xtype: 'actioncolumn',
-                    width: 30,
-                    sortable: false,
-                    menuDisabled: true,
-                    items: [{
-
-                            getClass: function (v, meta, rec) {
-
-                                if (rec.get('str_STATUT') !== "is_Closed") {
-                                    return 'unpaid';
-                                } else {
-                                    return 'regle';
-                                }
-                            },
-                            getTip: function (v, meta, rec) {
-                                if (rec.get('str_STATUT') !== "is_Closed") {
-                                    return 'Cloturer le litige';
-                                } else {
-                                    return ' ';
-                                }
-                            },
-
-//                            icon: 'resources/images/icons/fam/delete.png',
-//                            tooltip: 'Cloturer un litige',
-                            scope: this,
-                            handler: this.onRemoveClick
-                        }]
-                }],
-            selModel: {
-                selType: 'cellmodel'
+                url: url_rest_litiges,
+                reader: {type: 'json', root: 'data', totalProperty: 'total'}
             },
+            listeners: {
+                beforeload: function (s) {
+                    var p = s.getProxy();
+                    p.setExtraParam('query', me.down('#rechercheLitige') ? me.down('#rechercheLitige').getValue() : '');
+                    p.setExtraParam('lg_TYPELITIGE_ID', me.down('#filtreType') ? (me.down('#filtreType').getValue() || '') : '');
+                    p.setExtraParam('filtre', me.down('#filtreStatut') ? (me.down('#filtreStatut').getValue() || 'ouverts') : 'ouverts');
+                }
+            }
+        });
+        var storeTypes = Ext.create('Ext.data.Store', {
+            fields: ['lg_TYPELITIGE_ID', 'str_NAME'],
+            autoLoad: true,
+            proxy: {
+                type: 'ajax',
+                url: url_rest_litiges + '/types',
+                reader: {type: 'json', root: 'data'}
+            }
+        });
+        Ext.apply(this, {
+            store: store,
+            columns: [
+                {header: 'Date', dataIndex: 'dt_CREATED', width: 115},
+                {header: 'Type', dataIndex: 'str_TYPE', flex: 0.8},
+                {header: 'Tiers payant', dataIndex: 'str_TIERS_PAYANT', flex: 1},
+                {header: 'Client', dataIndex: 'str_CLIENT', flex: 1},
+                {header: 'R&eacute;f. vente', dataIndex: 'str_REF_VENTE', width: 105},
+                {header: 'Bon', dataIndex: 'str_REF_BON', width: 90},
+                {header: 'Libell&eacute;', dataIndex: 'str_LIBELLE', flex: 1},
+                {header: 'Part organisme', dataIndex: 'int_PART_ORIGINE', align: 'right', width: 105, renderer: montant},
+                {header: 'Contest&eacute;', dataIndex: 'int_MONTANT_CONTESTE', align: 'right', width: 90, renderer: montant},
+                {header: 'Accord&eacute;', dataIndex: 'int_MONTANT_ACCORDE', align: 'right', width: 90, renderer: montant},
+                {
+                    header: 'Statut', dataIndex: 'str_STATUT', width: 95,
+                    renderer: function (v) {
+                        if (v === 'enable') {
+                            return "<span style='color:#E65100;font-weight:bold'>Ouvert</span>";
+                        }
+                        if (v === 'is_Closed') {
+                            return "<span style='color:#2E7D32;font-weight:bold'>Cl&ocirc;tur&eacute;</span>";
+                        }
+                        if (v === 'delete') {
+                            return "<span style='color:#757575'>Annul&eacute;</span>";
+                        }
+                        return "<span style='color:#757575'>Ancien</span>";
+                    }
+                },
+                {
+                    xtype: 'actioncolumn', width: 30, sortable: false, menuDisabled: true,
+                    items: [{
+                            icon: 'resources/images/icons/fam/grid.png',
+                            tooltip: 'D&eacute;tail du litige, de la vente et cl&ocirc;ture',
+                            handler: function (g, ri) {
+                                me.ouvrirDetail(g.getStore().getAt(ri));
+                            }
+                        }]
+                },
+                {
+                    xtype: 'actioncolumn', width: 30, sortable: false, menuDisabled: true,
+                    items: [{
+                            icon: 'resources/images/icons/fam/delete.png',
+                            tooltip: 'Annuler le litige (le dossier revient dans la facturation)',
+                            getClass: function (v, meta, rec) {
+                                return rec.get('str_STATUT') === 'enable' ? '' : 'x-hide-display';
+                            },
+                            handler: function (g, ri) {
+                                var rec = g.getStore().getAt(ri);
+                                if (rec.get('str_STATUT') !== 'enable') {
+                                    return;
+                                }
+                                PrestigeConfirmation.ligne('Litige', 'Annuler ce litige ?', function () {
+                                    me.annuler(rec);
+                                });
+                            }
+                        }]
+                }
+            ],
             tbar: [{
                     text: 'Cr&eacute;er',
                     iconCls: 'addicon',
-                    tooltip: 'Cr&eacute;er un litige',
-                    scope: this,
-                    handler: this.onAddClick
-                }, '-', {
-                    xtype: 'combobox',
-                    name: 'lg_TYPELITIGE_ID',
-                    margins: '0 0 0 10',
-                    id: 'lg_TYPELITIGE_ID',
-                    store: store_type_litige,
-                    valueField: 'lg_TYPELITIGE_ID',
-                    displayField: 'str_DESCRIPTION',
-                    typeAhead: true,
-                    queryMode: 'remote',
-                    flex: 1.5,
-                    emptyText: 'Type litige...',
-                    listeners: {
-                        select: function (cmp) {
-                            Ext.getCmp('GridLitigeID').getStore().load({lg_TYPELITIGE_ID: cmp.getValue()});
-
-                        }
+                    tooltip: 'Mettre un dossier tiers payant en litige',
+                    handler: function () {
+                        Ext.create('testextjs.view.configmanagement.litige.action.add', {
+                            odatasource: '', parentview: me, mode: 'create', titre: 'Mettre un dossier en litige'
+                        });
                     }
                 }, '-', {
                     xtype: 'combobox',
-                    name: 'str_TYPE',
-                    margins: '0 0 0 10',
-//                    fieldLabel: 'Filtre:',
-                    id: 'str_TYPE',
-                    store: store_type,
-                    valueField: 'str_TYPE',
-                    displayField: 'str_desc',
-                    typeAhead: true,
-                    queryMode: 'remote',
-                    flex: 1.5,
-                    emptyText: 'Filtre litiges...',
+                    itemId: 'filtreStatut',
+                    width: 140,
+                    editable: false,
+                    store: [['ouverts', 'Litiges ouverts'], ['clos', 'Clôturés'], ['annules', 'Annulés'],
+                        ['tous', 'Tous']],
+                    value: 'ouverts',
                     listeners: {
-                        select: function (cmp) {
-                            Ext.getCmp('GridLitigeID').getStore().load({});
+                        select: function () {
+                            store.loadPage(1);
+                        }
+                    }
+                }, {
+                    xtype: 'combobox',
+                    itemId: 'filtreType',
+                    width: 190,
+                    store: storeTypes,
+                    queryMode: 'local',
+                    valueField: 'lg_TYPELITIGE_ID',
+                    displayField: 'str_NAME',
+                    forceSelection: true,
+                    emptyText: 'Type de litige...',
+                    listeners: {
+                        select: function () {
+                            store.loadPage(1);
+                        },
+                        change: function (c, v) {
+                            if (!v) {
+                                store.loadPage(1);
+                            }
                         }
                     }
                 }, '-', {
                     xtype: 'textfield',
-                    id: 'rechecher',
-                    name: 'facture',
-                    emptyText: 'Rech',
+                    itemId: 'rechercheLitige',
+                    width: 220,
+                    emptyText: 'Vente, bon, client, tiers payant...',
                     enableKeyEvents: true,
-                    width: 200,
                     listeners: {
-                        specialKey: function (field, e, option) {
+                        specialkey: function (f, e) {
                             if (e.getKey() === e.ENTER) {
-                                Me.onRechClick();
+                                store.loadPage(1);
                             }
                         }
-
                     }
                 }, {
-                    text: 'rechercher',
-                    tooltip: 'rechercher',
+                    text: 'Rechercher',
                     iconCls: 'searchicon',
-                    scope: this,
-                    handler: this.onRechClick
+                    handler: function () {
+                        store.loadPage(1);
+                    }
                 }],
             bbar: {
                 xtype: 'pagingtoolbar',
-                store: store, // same store GridPanel is using
-                dock: 'bottom',
+                store: store,
                 displayInfo: true
             }
         });
-
         this.callParent();
-
-        this.on('afterlayout', this.loadStore, this, {
-            delay: 1,
-            single: true
-        })
-
-
+        this.on('afterrender', function () {
+            store.loadPage(1);
+        }, this, {single: true, delay: 1});
     },
-    loadStore: function () {
-        this.getStore().load({
-            callback: this.onStoreLoad
-        });
-    },
-    onStoreLoad: function () {
-    },
-    onAddClick: function () {
-        new testextjs.view.configmanagement.litige.action.add({
-            odatasource: "",
-            parentview: this,
-            mode: "create",
-            titre: "Creer un litige"
-        });
-    },
-    onDetailClick: function (grid, rowIndex) {
-        var rec = grid.getStore().getAt(rowIndex);
-//        new testextjs.view.configmanagement.litige.action.detailLitige({
-        new testextjs.view.configmanagement.litige.action.detailTransactionLitige({
+    ouvrirDetail: function (rec) {
+        Ext.create('testextjs.view.configmanagement.litige.action.detailTransactionLitige', {
             odatasource: rec.data,
             parentview: this,
-            mode: "detail",
-            titre: "Detail du litige pour le dossier  [" + rec.get('str_FIRST_LAST_NAME') + "/" + rec.get('str_ORGANISME') + "]"
+            mode: 'detail',
+            titre: 'Litige ' + (rec.get('str_REF_VENTE') || '') + ' - ' + (rec.get('str_TIERS_PAYANT') || '')
         });
     },
-    onRemoveClick: function (grid, rowIndex) {
-        var rec = grid.getStore().getAt(rowIndex);
-        if (rec.get('str_STATUT') !== "is_Closed") {
-            PrestigeConfirmation.ligne('Message', 'Confirmer la suppresssion', function () {
-
-                            Ext.Ajax.request({
-                                url: url_services_transaction_litige + 'delete',
-                                params: {
-                                    lg_LITIGE_ID: rec.get('lg_LITIGE_ID')
-                                },
-                                success: function (response)
-                                {
-                                    var object = Ext.JSON.decode(response.responseText, false);
-                                    if (object.success === 0) {
-                                        Ext.MessageBox.alert('Error Message', object.errors);
-                                        return;
-                                    } else {
-                                        Ext.MessageBox.alert('Confirmation', object.errors);
-                                    }
-                                    grid.getStore().reload();
-                                },
-                                failure: function (response)
-                                {
-                                    // alert("non ok");
-                                    var object = Ext.JSON.decode(response.responseText, false);
-                                    //  alert(object);
-
-                                    console.log("Bug " + response.responseText);
-                                    Ext.MessageBox.alert('Error Message', response.responseText);
-
-                                }
-                            });
-                            return;
-                        });
-        }
-
-
-    },
-    onRechClick: function () {
-        var val = Ext.getCmp('rechecher');
-        var lg_TYPELITIGE_ID = "";
-        var str_TYPE = "";
-//
-        if (Ext.getCmp('str_TYPE').getValue() != null) {
-            str_TYPE = Ext.getCmp('str_TYPE').getValue();
-        }
-
-        if (Ext.getCmp('lg_TYPELITIGE_ID').getValue() != null) {
-            lg_TYPELITIGE_ID = Ext.getCmp('lg_TYPELITIGE_ID').getValue();
-        }
-
-        this.getStore().load({
-            params: {
-                search_value: val.value,
-                lg_TYPELITIGE_ID: lg_TYPELITIGE_ID,
-                str_TYPE: str_TYPE
+    annuler: function (rec) {
+        var me = this;
+        Ext.Ajax.request({
+            url: url_rest_litiges + '/' + encodeURIComponent(rec.get('lg_LITIGE_ID')) + '/annuler',
+            method: 'POST',
+            success: function (response) {
+                var o = Ext.JSON.decode(response.responseText, true) || {};
+                if (o.success === undefined || String(o.success) === '0') {
+                    Ext.MessageBox.alert('Litige', o.errors || 'Annulation impossible');
+                    return;
+                }
+                if (window.PrestigeToast) {
+                    PrestigeToast.afficher(o.message, {titre: 'Litige'});
+                }
+                me.getStore().reload();
+            },
+            failure: function (response) {
+                Ext.MessageBox.alert('Litige', 'Erreur serveur (' + response.status + ')');
             }
-        }, url_services_data_litige);
+        });
     }
-
 });
