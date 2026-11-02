@@ -19,6 +19,10 @@ import org.json.JSONObject;
  * toucher a ce qui est garde ;</li>
  * <li>un resultat en echec ({@code success: false}) n'est pas garde ; sans session, rien n'est garde ;</li>
  * <li>taille bornee : au-dela, les plus anciens sortent.</li>
+ * <li>les etats dont l'ecran et l'edition partagent des objets (listes de lignes) passent par {@link #ecranObjet} et
+ * {@link #editionObjet} : l'objet garde est rendu tel quel, l'edition ne le modifie pas (elle trie une copie) ; au plus
+ * {@link #OBJETS_MAX} objets gardes.</li>
+ * <li>un filtre absent et un filtre vide sont le meme filtre (parametres d'une requete).</li>
  * </ul>
  */
 public final class CacheEtats {
@@ -40,6 +44,20 @@ public final class CacheEtats {
     }
 
     private static final Map<String, Entree> ENTREES = new ConcurrentHashMap<>();
+
+    static final int OBJETS_MAX = 32;
+
+    private static final class Objet {
+        final Object valeur;
+        final long le;
+
+        Objet(Object valeur, long le) {
+            this.valeur = valeur;
+            this.le = le;
+        }
+    }
+
+    private static final Map<String, Objet> OBJETS = new ConcurrentHashMap<>();
 
     private CacheEtats() {
     }
@@ -68,6 +86,35 @@ public final class CacheEtats {
         return calcul.get();
     }
 
+    /** Ecran dont le resultat est un objet (liste de lignes) : calcule, garde et rend. */
+    public static <T> T ecranObjet(String session, String etat, Supplier<T> calcul, Object... filtres) {
+        T r = calcul.get();
+        if (session != null && r != null) {
+            long maintenant = horloge.getAsLong();
+            OBJETS.put(cle(session, etat, filtres), new Objet(r, maintenant));
+            OBJETS.values().removeIf(o -> o.le <= maintenant - DUREE_MS);
+            while (OBJETS.size() > OBJETS_MAX) {
+                OBJETS.entrySet().stream().min((a, b) -> Long.compare(a.getValue().le, b.getValue().le))
+                        .ifPresent(x -> OBJETS.remove(x.getKey()));
+            }
+        }
+        return r;
+    }
+
+    /** Edition d'un etat garde par {@link #ecranObjet} : l'objet de l'ecran s'il est encore frais, sinon le calcul. */
+    @SuppressWarnings("unchecked")
+    public static <T> T editionObjet(String session, String etat, Supplier<T> calcul, Object... filtres) {
+        if (session != null) {
+            Objet o = OBJETS.get(cle(session, etat, filtres));
+            if (o != null && horloge.getAsLong() - o.le < DUREE_MS) {
+                REPRIS.set(Boolean.TRUE);
+                return (T) o.valeur;
+            }
+        }
+        REPRIS.set(Boolean.FALSE);
+        return calcul.get();
+    }
+
     private static final ThreadLocal<Boolean> REPRIS = ThreadLocal.withInitial(() -> Boolean.FALSE);
 
     /**
@@ -80,11 +127,17 @@ public final class CacheEtats {
 
     public static final String ENTETE = "X-Donnees-Ecran";
 
-    /** La cle : session, etat et chaque filtre, longueur comprise (« a|b » et « a », « b » different). */
+    /** Etats partages entre une ressource d'ecran et une servlet d'edition. */
+    public static final String SURSTOCK = "articles-surstock";
+    public static final String STAT_FAMILLE = "statistique-famille";
+
+    /**
+     * La cle : session, etat et chaque filtre, longueur comprise (« a|b » et « a », « b » different) ; absent = vide.
+     */
     static String cle(String session, String etat, Object... filtres) {
         StringBuilder b = new StringBuilder(session).append('\u0000').append(etat);
         for (Object f : filtres) {
-            String v = f == null ? "\u0001" : String.valueOf(f);
+            String v = f == null ? "" : String.valueOf(f);
             b.append('\u0000').append(v.length()).append(':').append(v);
         }
         return b.toString();
@@ -117,5 +170,6 @@ public final class CacheEtats {
 
     static void vider() {
         ENTREES.clear();
+        OBJETS.clear();
     }
 }

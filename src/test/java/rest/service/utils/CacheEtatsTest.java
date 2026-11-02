@@ -3,6 +3,7 @@ package rest.service.utils;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.concurrent.atomic.AtomicInteger;
@@ -80,6 +81,38 @@ class CacheEtatsTest {
         JSONObject echec = CacheEtats.ecran("S1", "balance", () -> new JSONObject().put("success", false), "a");
         assertFalse(echec.getBoolean("success"));
         assertEquals(99, CacheEtats.edition("S1", "balance", () -> calcul(99), "a").getInt("total"));
+    }
+
+    @Test
+    void filtreAbsentEtFiltreVideSontLeMeme() {
+        CacheEtats.ecran("S1", "balance", () -> calcul(10), null, "b");
+        assertEquals(10, CacheEtats.edition("S1", "balance", () -> calcul(99), "", "b").getInt("total"));
+    }
+
+    @Test
+    void objetRepriseParLEdition() {
+        java.util.List<String> lignes = java.util.Arrays.asList("x", "y");
+        assertSame(lignes, CacheEtats.ecranObjet("S1", "surstock", () -> lignes, "a"));
+        assertSame(lignes, CacheEtats.editionObjet("S1", "surstock", () -> java.util.Collections.emptyList(), "a"));
+        assertTrue(CacheEtats.repris());
+        assertTrue(CacheEtats.editionObjet("S2", "surstock", () -> java.util.Collections.emptyList(), "a").isEmpty());
+        assertFalse(CacheEtats.repris());
+        maintenant += CacheEtats.DUREE_MS;
+        assertTrue(CacheEtats.editionObjet("S1", "surstock", () -> java.util.Collections.emptyList(), "a").isEmpty(),
+                "expire apres cinq minutes");
+    }
+
+    @Test
+    void objetsBornes() {
+        for (int i = 0; i < CacheEtats.OBJETS_MAX + 10; i++) {
+            final int k = i;
+            maintenant++;
+            CacheEtats.ecranObjet("S" + k, "surstock", () -> "v" + k, "a");
+        }
+        assertEquals("calcul", CacheEtats.editionObjet("S0", "surstock", () -> "calcul", "a"),
+                "le plus ancien est sorti");
+        assertEquals("v" + (CacheEtats.OBJETS_MAX + 9),
+                CacheEtats.editionObjet("S" + (CacheEtats.OBJETS_MAX + 9), "surstock", () -> "calcul", "a"));
     }
 
     @Test

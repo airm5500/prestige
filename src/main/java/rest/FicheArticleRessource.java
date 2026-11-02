@@ -25,8 +25,10 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Response;
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import rest.service.utils.CacheEtats;
 import rest.service.FicheArticleService;
 import rest.service.SuggestionService;
 import rest.service.dto.UpdateProduit;
@@ -148,8 +150,13 @@ public class FicheArticleRessource {
         if (tu == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
-        JSONObject jsono = ficheArticleService.articleSurStock(tu, query, codeFamile, codeRayon, codeGrossiste,
-                nbreMois, nbreConsommation, 0, 0);
+        /* garde pour l'impression (demande du 02/11) : le PDF reprend ces lignes au lieu de les recalculer */
+        List<ArticleDTO> datas = CacheEtats.ecranObjet(hs.getId(), CacheEtats.SURSTOCK,
+                () -> ficheArticleService.articleSurStock(tu, query, codeFamile, codeRayon, codeGrossiste, nbreMois,
+                        nbreConsommation, 0, 0, false),
+                tu.getLgEMPLACEMENTID().getLgEMPLACEMENTID(), query, codeFamile, codeRayon, codeGrossiste, nbreMois,
+                nbreConsommation);
+        JSONObject jsono = new JSONObject().put("total", datas.size()).put("data", new JSONArray(datas));
         return Response.ok().entity(jsono.toString()).build();
     }
 
