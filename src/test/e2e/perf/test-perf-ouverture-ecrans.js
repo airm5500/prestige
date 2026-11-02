@@ -44,18 +44,26 @@ const ECRANS = [
 const res = [];
 const mesures = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 300) + ']' : '')); }
-function noter(ecran, geste, ms, limite) {
+/* au-dela du budget : les appels de plus d'une seconde faits pendant le geste (adresse sans parametres) */
+function noter(ecran, geste, ms, limite, s, t0) {
   mesures.push({ ecran, geste, ms, limite });
-  ok(ecran + ' : ' + geste, ms <= limite, ms + ' ms, budget ' + limite + ' ms');
+  const lents = ms > limite && s ? s.etat.appels.filter((a) => a.debut >= t0 - 50 && a.ms >= 1000)
+    .sort((a, b) => b.ms - a.ms).slice(0, 4).map((a) => a.adresse + ' ' + a.ms + ' ms').join(' ; ') : '';
+  ok(ecran + ' : ' + geste, ms <= limite, ms + ' ms, budget ' + limite + ' ms' + (lents ? ' ; appels lents : ' + lents : ''));
 }
 
 async function session(b, login) {
   const ctx = await b.newContext({ viewport: { width: 1700, height: 1000 } });
   const p = await ctx.newPage();
-  const etat = { enVol: 0, dernier: Date.now(), erreurs: [], copies: [] };
+  const etat = { enVol: 0, dernier: Date.now(), erreurs: [], copies: [], appels: [] };
+  const debuts = new Map();
   p.on('pageerror', (e) => etat.erreurs.push(String(e.message)));
-  p.on('request', () => { etat.enVol++; etat.dernier = Date.now(); });
-  const fini = () => { etat.enVol = Math.max(0, etat.enVol - 1); etat.dernier = Date.now(); };
+  p.on('request', (r) => { etat.enVol++; etat.dernier = Date.now(); debuts.set(r, Date.now()); });
+  const fini = (r) => {
+    etat.enVol = Math.max(0, etat.enVol - 1); etat.dernier = Date.now();
+    const d = debuts.get(r); debuts.delete(r);
+    if (d) { etat.appels.push({ adresse: r.method() + ' ' + r.url().split('?')[0].replace(/^.*\/prestige\//, ''), debut: d, ms: Date.now() - d }); }
+  };
   p.on('requestfinished', fini); p.on('requestfailed', fini);
   /* copie creee par « Modifier » : retenue pour etre supprimee si le test s'arrete avant le bouton « Retour » */
   p.on('response', async (r) => {
@@ -72,15 +80,15 @@ async function session(b, login) {
   return { p, ctx, etat };
 }
 
-/* ecran charge : reseau calme depuis 400 ms et aucun masque de chargement visible */
-async function charge(s, limite) {
+/* ecran charge : reseau calme depuis 400 ms et aucun masque de chargement visible ; jamais avant le clic (depuis) */
+async function charge(s, limite, depuis) {
   const { p, etat } = s;
   const fin = Date.now() + limite;
   while (Date.now() < fin) {
     if (etat.enVol === 0 && Date.now() - etat.dernier >= 400) {
       const masque = await p.evaluate(() => Array.prototype.some.call(document.querySelectorAll('.x-mask-msg'),
         (m) => m.offsetParent !== null)).catch(() => false);
-      if (!masque) { return Date.now() - 400; }
+      if (!masque) { return Math.max(depuis || 0, Date.now() - 400); }
     }
     await p.waitForTimeout(50);
   }
@@ -97,22 +105,25 @@ async function ouvrir(s, cle) {
   }, cle);
   if (!libelles) { throw new Error('menu ' + cle + ' absent pour ce compte'); }
   const visible = (sel) => p.locator(sel).filter({ visible: true });
-  /* volet flottant ou liste deroulante restes ouverts par l'ecran precedent */
+  /* volet flottant ou liste deroulante restes ouverts par l'ecran precedent ; le volet se replie avec une animation */
   await p.keyboard.press('Escape');
-  if (await visible('.prestige-nav .x-grid-row').count() === 0) {
-    const id = await p.evaluate(() => { const n = Ext.ComponentQuery.query('navigation')[0]; return n.placeholder ? n.placeholder.getId() : null; });
-    await p.click('#' + id);
+  await p.waitForTimeout(500);
+  const deplier = async () => {
+    const id = await p.evaluate(() => { const n = Ext.ComponentQuery.query('navigation')[0]; return n.placeholder && n.placeholder.isVisible() ? n.placeholder.getId() : null; });
+    if (id) { await p.click('#' + id); }
     await visible('.prestige-nav .x-grid-row').first().waitFor({ timeout: 10000 });
-  }
+  };
   const exact = (t) => new RegExp('^\\s*' + t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*$');
-  await visible('.prestige-nav .x-grid-row').filter({ has: p.getByText(exact(libelles.parent)) }).first().click();
+  const parent = () => visible('.prestige-nav .x-grid-row').filter({ has: p.getByText(exact(libelles.parent)) }).first();
+  await deplier();
+  await parent().click({ timeout: 5000 }).catch(async () => { await deplier(); await parent().click(); });
   const item = visible('.prestige-flyout-menu .x-menu-item').filter({ has: p.getByText(exact(libelles.entree)) }).first();
   await item.waitFor({ timeout: 10000 });
   const t0 = Date.now();
   await item.click();
   await p.waitForFunction((x) => Ext.ComponentQuery.query(x).some((c) => c.isVisible(true)), libelles.ecran, { timeout: 120000 });
-  const t1 = await charge(s, 300000);
-  return { ms: t1 - t0, ecran: libelles.ecran, entree: libelles.entree };
+  const t1 = await charge(s, 300000, t0);
+  return { ms: t1 - t0, t0, ecran: libelles.ecran, entree: libelles.entree };
 }
 
 /* chaque onglet de l'ecran, par un clic sur son en-tete ; les onglets imbriques apres leur onglet parent */
@@ -136,10 +147,26 @@ async function onglets(s, ecran, nom, vus) {
       const actif = await p.evaluate(([id, i]) => { const t = Ext.getCmp(id); return t.items.indexOf(t.getActiveTab()) === i; }, [t.id, o.i]);
       const t0 = Date.now();
       if (!actif) { await p.click('#' + o.tab); }
-      const t1 = await charge(s, 300000);
-      if (!actif) { noter(nom, 'onglet « ' + o.titre + ' »', t1 - t0, BUDGET.onglet); }
+      const t1 = await charge(s, 300000, t0);
+      if (!actif) { noter(nom, 'onglet « ' + o.titre + ' »', t1 - t0, BUDGET.onglet, s, t0); }
       await onglets(s, ecran, nom, vus);
     }
+  }
+}
+
+/* onglets dessines en boutons (cec-onglet : etat de controle des achats, commandes en cours...) */
+async function boutonsOnglets(s, ecran, nom) {
+  const { p } = s;
+  const boutons = await p.evaluate((x) => {
+    const racine = Ext.ComponentQuery.query(x).filter((c) => c.isVisible(true))[0];
+    return racine ? racine.query('button[toggleGroup]').filter((b) => b.isVisible(true) && /cec-onglet/.test(b.cls || ''))
+      .map((b) => ({ id: b.getId(), texte: b.getText(), presse: b.pressed })) : [];
+  }, ecran);
+  for (const o of boutons.filter((b) => !b.presse).concat(boutons.filter((b) => b.presse))) {
+    const t0 = Date.now();
+    await p.click('#' + o.id);
+    const t1 = await charge(s, 300000, t0);
+    noter(nom, 'onglet « ' + o.texte + ' »', t1 - t0, BUDGET.onglet, s, t0);
   }
 }
 
@@ -178,16 +205,16 @@ async function modifierVente(s, nom) {
       if (await p.evaluate(() => !Ext.ComponentQuery.query('ventemanager').some((c) => c.isVisible(true)))) { await ouvrir(s, 'ventemanager'); }
       continue;
     }
-    const t1 = await charge(s, 300000);
-    noter(nom, 'clic sur « Modifier », vente affichee', t1 - t0, BUDGET.modification);
+    const t1 = await charge(s, 300000, t0);
+    noter(nom, 'clic sur « Modifier », vente affichee', t1 - t0, BUDGET.modification, s, t0);
     mesurees++;
     const retour = await p.evaluate(() => { const b = Ext.ComponentQuery.query('doventemanager #contenu [xtype=toolbar] #btnGoBack').filter((x) => x.isVisible(true))[0]; return b ? b.getId() : null; });
     if (!retour) { ok(nom + ' : bouton « Retour » visible', false); return; }
     const t2 = Date.now();
     await p.click('#' + retour);
     await p.waitForFunction(() => Ext.ComponentQuery.query('ventemanager').some((c) => c.isVisible(true)), null, { timeout: 120000 });
-    const t3 = await charge(s, 300000);
-    noter(nom, 'bouton « Retour », copie supprimee et liste reaffichee', t3 - t2, BUDGET.ouverture);
+    const t3 = await charge(s, 300000, t2);
+    noter(nom, 'bouton « Retour », copie supprimee et liste reaffichee', t3 - t2, BUDGET.ouverture, s, t2);
   }
   ok(nom + ' : aucune copie de vente ne reste apres « Retour »', s.etat.copies.length === 0, s.etat.copies.length + ' copie(s)');
 }
@@ -204,8 +231,8 @@ async function modifierVente(s, nom) {
         const s = sessions[login];
         for (let tour = 1; tour <= 2; tour++) {
           const o = await ouvrir(s, e.cle);
-          noter(e.libelle, 'ouverture du menu « ' + o.entree + ' » (' + tour + (tour === 1 ? 're' : 'e') + ' fois)', o.ms, BUDGET.ouverture);
-          if (tour === 1) { await onglets(s, o.ecran, e.libelle, []); }
+          noter(e.libelle, 'ouverture du menu « ' + o.entree + ' » (' + tour + (tour === 1 ? 're' : 'e') + ' fois)', o.ms, BUDGET.ouverture, s, o.t0);
+          if (tour === 1) { await onglets(s, o.ecran, e.libelle, []); await boutonsOnglets(s, o.ecran, e.libelle); }
           if (tour === 1 && e.modification) { await modifierVente(s, e.libelle); }
         }
       } catch (ex) {
