@@ -458,3 +458,34 @@ Contrôles :
 - `retours/test-saisie-api.js` sur les 19 lectures `v1/lot` : 6/6, limite de 30 s, aucune alerte au Centre de
   support ;
 - 1 587 tests unitaires : aucun échec.
+
+## Impression : le PDF reprend les données de l'écran (02/11)
+
+Avant, chaque bouton d'impression relançait le calcul que l'écran venait de faire. Maintenant, le serveur garde pendant
+5 minutes le résultat affiché par l'écran. Ce résultat est rangé par session, par état et par filtres
+(`CacheEtats`). L'impression le reprend si les filtres sont les mêmes. Sinon, elle calcule comme avant : dates
+changées sans relancer la recherche, autre session, ou plus de 5 minutes écoulées. La réponse porte l'en-tête
+`X-Donnees-Ecran` (1 : repris).
+
+Mesures sur `laborex_v1_db`, du clic sur « imprimer » à la réponse :
+
+| État | Recalculé | Repris |
+|---|---:|---:|
+| Balance vente/caisse (mois en cours et précédent) | 3,4 s | 0,1 s |
+| Articles en sur-stock (2 344 lignes) | 5,1 s | 3,1 s (le reste est la mise en page du PDF) |
+| Statistique famille | 1,2 s | 0,1 s |
+
+Le cache ne s'applique pas tel quel à tous les états :
+
+- Comparaison stock, unités vendues, liste des caisses et suivi des mouvements : l'écran ne lit qu'une page (15 à
+  18 lignes) en SQL, le PDF lit tout. Il n'y a rien à reprendre sans ralentir l'écran.
+- Valorisation : l'écran affiche des totaux, le PDF le détail, par deux calculs différents.
+- Liste des caisses : le PDF demande en plus le nom des clients (`findClient`), l'écran non.
+
+Taille bornée : environ 64 Mo de résultats JSON et 32 listes au plus. Les entrées de plus de 5 minutes sortent.
+
+Contrôles :
+
+- `CacheEtatsTest` : 10/10 ;
+- `retours/test-cache-edition-balance.js` : 7/7 ;
+- `retours/test-cache-edition-etats.js` : 7/7.
