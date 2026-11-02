@@ -1736,6 +1736,35 @@ public class SalesStatsServiceImpl implements SalesStatsService {
         }
     }
 
+    /**
+     * Montant d'achat des quantites vendues (retour du 02/11) : prix d'achat enregistre sur la ligne de vente, ou a
+     * defaut (lignes anciennes, a 0) le prix d'achat actuel de l'article. Somme calculee dans la meme requete groupee :
+     * ni jointure ni lecture de plus.
+     */
+    private javax.persistence.criteria.Expression<Long> montantAchat(CriteriaBuilder cb,
+            Root<TPreenregistrementDetail> root, Join<TPreenregistrementDetail, TFamille> jf) {
+        javax.persistence.criteria.Expression<Integer> prix = cb.<Integer> selectCase()
+                .when(cb.gt(root.get(TPreenregistrementDetail_.prixAchat), 0),
+                        root.get(TPreenregistrementDetail_.prixAchat))
+                .otherwise(jf.get(TFamille_.intPAF));
+        return cb.sumAsLong(cb.prod(root.get(TPreenregistrementDetail_.intQUANTITY), prix));
+    }
+
+    /**
+     * Conditions sur les totaux par produit (HAVING) : quantite totale vendue, et « marge negative » du filtre prix
+     * d'achat (montant vendu inferieur au montant d'achat sur la periode). Null si l'ecran n'en demande aucune.
+     */
+    javax.persistence.criteria.Predicate filtresSurTotaux(CriteriaBuilder cb, Root<TPreenregistrementDetail> root,
+            Join<TPreenregistrementDetail, TFamille> jf, SalesStatsParams param) {
+        javax.persistence.criteria.Predicate qte = filtreQteVendue(cb, root, param);
+        if (!Constant.MARGE_NEGATIVE.equals(param.getPrixachatFiltre())) {
+            return qte;
+        }
+        javax.persistence.criteria.Predicate perte = cb
+                .lessThan(cb.sumAsLong(root.get(TPreenregistrementDetail_.intPRICE)), montantAchat(cb, root, jf));
+        return qte == null ? perte : cb.and(qte, perte);
+    }
+
     @Override
     public List<VenteDetailsDTO> getArticlesVendus(SalesStatsParams params) {
         try {
@@ -1861,7 +1890,10 @@ public class SalesStatsServiceImpl implements SalesStatsService {
                     || (!StringUtils.isEmpty(params.getGrossisteId()) && !"ALL".equals(params.getGrossisteId()))
                     || !StringUtils.isEmpty(params.getStockFiltre())
                     || !StringUtils.isEmpty(params.getTypeTransaction())
-                    || !StringUtils.isEmpty(params.getPrixachatFiltre())) {
+                    || (!StringUtils.isEmpty(params.getPrixachatFiltre())
+                            && !Constant.MARGE_NEGATIVE.equals(params.getPrixachatFiltre()))) {
+                // « marge negative » ne retient aucun produit a l'avance (HAVING sur les totaux) : meme lecture
+                // que sans filtre
                 return -1;
             }
             if (indexVentesPresent == null) {
@@ -1939,12 +1971,12 @@ public class SalesStatsServiceImpl implements SalesStatsService {
                     cb.sumAsLong(root.get(TPreenregistrementDetail_.intAVOIR)),
                     jf.get(TFamille_.lgZONEGEOID).get(TZoneGeographique_.lgZONEGEOID),
                     jf.get(TFamille_.lgZONEGEOID).get(TZoneGeographique_.strLIBELLEE),
-                    cb.sumAsLong(root.get(TPreenregistrementDetail_.intPRICE))))
-                    .groupBy(root.get(TPreenregistrementDetail_.lgFAMILLEID))
+                    cb.sumAsLong(root.get(TPreenregistrementDetail_.intPRICE)), jf.get(TFamille_.intPAF),
+                    montantAchat(cb, root, jf))).groupBy(root.get(TPreenregistrementDetail_.lgFAMILLEID))
                     .orderBy(cb.asc(root.get(TPreenregistrementDetail_.lgFAMILLEID).get(TFamille_.strNAME)));
             List<Predicate> predicates = articlesVendusSpecialisation(cb, root, jp, jf, st, params);
             cq.where(cb.and(predicates.toArray(Predicate[]::new)));
-            javax.persistence.criteria.Predicate totalVendu = filtreQteVendue(cb, root, params);
+            javax.persistence.criteria.Predicate totalVendu = filtresSurTotaux(cb, root, jf, params);
             if (totalVendu != null) {
                 cq.having(totalVendu);
             }
@@ -1979,7 +2011,7 @@ public class SalesStatsServiceImpl implements SalesStatsService {
                 cb.coalesce(cb.sumAsLong(root.get(TPreenregistrementDetail_.intPRICE)), 0L).alias("montant"))
                 .groupBy(root.get(TPreenregistrementDetail_.lgFAMILLEID));
         cq.where(cb.and(predicates.toArray(Predicate[]::new)));
-        cq.having(filtreQteVendue(cb, root, params));
+        cq.having(filtresSurTotaux(cb, root, jf, params));
         long nombre = 0;
         long montant = 0;
         TypedQuery<Tuple> requete = getEntityManager().createQuery(cq);
@@ -1992,7 +2024,8 @@ public class SalesStatsServiceImpl implements SalesStatsService {
 
     private long[] getArticlesVendusRecapSummary(SalesStatsParams params) {
         try {
-            if (!StringUtils.isEmpty(params.getQteVenduFiltre()) && params.getQteVendu() != null) {
+            if ((!StringUtils.isEmpty(params.getQteVenduFiltre()) && params.getQteVendu() != null)
+                    || Constant.MARGE_NEGATIVE.equals(params.getPrixachatFiltre())) {
                 return resumeRecapParTotalVendu(params);
             }
 
@@ -2060,7 +2093,7 @@ public class SalesStatsServiceImpl implements SalesStatsService {
                     jf.get(TFamille_.lgFAMILLEPARENTID))).groupBy(root.get(TPreenregistrementDetail_.lgFAMILLEID));
             List<Predicate> predicates = articlesVendusSpecialisation(cb, root, jp, jf, st, params);
             cq.where(cb.and(predicates.toArray(Predicate[]::new)));
-            javax.persistence.criteria.Predicate totalVendu = filtreQteVendue(cb, root, params);
+            javax.persistence.criteria.Predicate totalVendu = filtresSurTotaux(cb, root, jf, params);
             if (totalVendu != null) {
                 cq.having(totalVendu);
             }
@@ -3357,7 +3390,7 @@ public class SalesStatsServiceImpl implements SalesStatsService {
                     .groupBy(root.get(TPreenregistrementDetail_.lgFAMILLEID));
             List<Predicate> predicates = articlesVendusSpecialisation(cb, root, jp, jf, st, params);
             cq.where(cb.and(predicates.toArray(Predicate[]::new)));
-            javax.persistence.criteria.Predicate totalVendu = filtreQteVendue(cb, root, params);
+            javax.persistence.criteria.Predicate totalVendu = filtresSurTotaux(cb, root, jf, params);
             if (totalVendu != null) {
                 cq.having(totalVendu);
             }

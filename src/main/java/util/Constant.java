@@ -253,6 +253,8 @@ public final class Constant {
     public static final String USER_ROLE_ID = "USER_ROLE_ID";
     public static final String SEUIL = "SEUIL";
     public static final String DIFF = "DIFF";
+    /** Filtre prix d'achat des articles vendus : marge negative sur la periode (montant vendu inferieur a l'achat). */
+    public static final String MARGE_NEGATIVE = "MARGE_NEGATIVE";
     public static final String KEY_MAX_PRICE_POURCENT_VENTE = "KEY_MAX_PRICE_POURCENT_VENTE";
     public static final String KEY_TAUX_CODE_TABLEAU = "KEY_TAUX_CODE_TABLEAU";
     public static final String DEFAUL_GROSSISTE = "001";
