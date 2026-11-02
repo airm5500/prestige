@@ -203,6 +203,23 @@ chemin qui peut aujourd'hui laisser un client assuré sans tiers-payant actif, o
   - une création de client a été refusée une fois pour « code interne existe déjà », sans code saisi (le passage
     suivant a réussi).
 
+### 4.9 Étape 6 : comptages faits (02/11), reprise en attente d'accord
+
+- **Comptage en lecture seule** : deux contrôles de cohérence du support, en observation (aucun ticket, aucune
+  correction), migration `V7.2.30.40__controle_clients_assures_sans_tp.sql` :
+  - `CLIENT_ASSURE_SANS_TP_ACTIF` : client assurance ou carnet actif sans lien actif vers un organisme actif ;
+  - `LIEN_TP_ORGANISME_INACTIF` : lien client / tiers-payant actif dont l'organisme est absent ou inactif.
+  Ils ne lisent que des identifiants techniques et des statuts, aucune colonne nominative. Ils tournent avec les
+  autres contrôles (planificateur, ou CENTRE DE SUPPORT > Santé application, « Lancer les contrôles de cohérence ») ;
+  le détail est dans Diagnostic & bugs (type COHERENCE, module CLIENT).
+- **Numéro de migration** : V7.2.31 et V7.2.32 sont pris sur d'autres branches, d'où V7.2.30.40 (Flyway accepte
+  l'ordre décalé).
+- **Test d'écran** `src/test/e2e/client/test-comptage-clients-assures.js` : 2/4 avant (contrôles absents), 4/4 après.
+- **Comptages sur le banc (domain2, `laborex_perf`)** : 1 client assuré actif sans tiers-payant actif, 0 lien actif
+  sur un organisme absent ou inactif. À relever sur la base de l'officine par le même bouton.
+- **Reprise** : non écrite, attend l'accord. Proposition : désactiver les clients comptés par le premier contrôle (même
+  effet que le retrait du dernier tiers-payant), et désactiver les liens comptés par le second.
+
 ## 5. Questions tranchées (02/11)
 
 1. **Tiers-payant « principal ».** Je le définis comme le régime obligatoire (`bISRO`) ou, s'il n'y en a pas, le lien de
