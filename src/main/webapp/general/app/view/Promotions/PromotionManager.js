@@ -69,8 +69,12 @@ Ext.define('testextjs.view.Promotions.PromotionManager', {
                     header: 'Active',
                     dataIndex: 'bl_ACTIVE',
                     align: 'center',
-                    flex: 0.5,
-                    renderer: function (val) {
+                    flex: 0.6,
+                    // audit 05 PR-05 : une promotion qui n'a pas commence est « A venir », pas « Oui »
+                    renderer: function (val, meta, rec) {
+                        if (rec.raw && rec.raw.str_ETAT === 'A_VENIR') {
+                            return "<span style='color:#E65100;font-weight:bold'>&Agrave; venir</span>";
+                        }
                         return val ? "<span style='color:#2E7D32;font-weight:bold'>Oui</span>"
                                 : "<span style='color:#C62828;font-weight:bold'>Non</span>";
                     }
@@ -187,7 +191,17 @@ Ext.define('testextjs.view.Promotions.PromotionManager', {
                             format: 'd/m/Y',
                             submitFormat: 'Y-m-d',
                             allowBlank: false,
-                            value: rec ? Ext.Date.parse(rec.get('dt_START_DATE'), 'd/m/Y') : new Date()
+                            value: rec ? Ext.Date.parse(rec.get('dt_START_DATE'), 'd/m/Y') : new Date(),
+                            // audit 05 PR-02 : la fin ne peut pas preceder le debut
+                            listeners: {
+                                change: function (champ, valeur) {
+                                    var fin = champ.up('form') ? champ.up('form').down('#promoFin') : null;
+                                    if (fin) {
+                                        fin.setMinValue(valeur || null);
+                                        fin.validate();
+                                    }
+                                }
+                            }
                         }, {
                             xtype: 'datefield',
                             itemId: 'promoFin',
@@ -195,15 +209,18 @@ Ext.define('testextjs.view.Promotions.PromotionManager', {
                             format: 'd/m/Y',
                             submitFormat: 'Y-m-d',
                             allowBlank: false,
-                            value: rec ? Ext.Date.parse(rec.get('dt_END_DATE'), 'd/m/Y') : new Date()
+                            value: rec ? Ext.Date.parse(rec.get('dt_END_DATE'), 'd/m/Y') : new Date(),
+                            minText: 'La date de fin doit &ecirc;tre apr&egrave;s la date de d&eacute;but'
                         }]
                 }],
             buttons: [{
                     text: 'Enregistrer',
                     handler: function () {
                         var form = win.down('form');
+                        form.down('#promoFin').setMinValue(form.down('#promoDebut').getValue() || null);
                         if (!form.isValid()) {
-                            Ext.MessageBox.alert('Echec', 'Formulaire non valide');
+                            Ext.MessageBox.alert('Echec', form.down('#promoFin').isValid() ? 'Formulaire non valide'
+                                    : 'La date de fin doit &ecirc;tre apr&egrave;s la date de d&eacute;but');
                             return;
                         }
                         testextjs.app.getController('App').ShowWaitingProcess();
@@ -366,10 +383,11 @@ Ext.define('testextjs.view.Promotions.PromotionManager', {
                                     tooltip: 'Retirer ce produit de la promotion',
                                     handler: function (g, ri) {
                                         var ligne = g.getStore().getAt(ri);
-                                        Ext.MessageBox.confirm('Message',
+                                        // confirmation dans l'icone (aucune fenetre surgissante pour une modification)
+                                        PrestigeConfirmation.ligne('Message',
                                                 'Retirer <b>' + ligne.get('str_NAME') + '</b> de la promotion ?',
-                                                function (btn) {
-                                                    if (btn === 'yes') {
+                                                function () {
+                                                    {
                                                         Ext.Ajax.request({
                                                             url: url_services_rest_promotions + 'produits/remove',
                                                             method: 'POST',
@@ -407,6 +425,7 @@ Ext.define('testextjs.view.Promotions.PromotionManager', {
                             emptyText: 'Remise %',
                             minValue: 1,
                             maxValue: 99,
+                            allowDecimals: false,
                             hidden: promoType !== 'REMISE',
                             width: 100
                         }, {
@@ -414,6 +433,7 @@ Ext.define('testextjs.view.Promotions.PromotionManager', {
                             itemId: 'champPrixPromo',
                             emptyText: 'Prix promo',
                             minValue: 1,
+                            allowDecimals: false,
                             hidden: promoType !== 'PRIX SPECIAL',
                             width: 110
                         }, {
@@ -421,6 +441,7 @@ Ext.define('testextjs.view.Promotions.PromotionManager', {
                             itemId: 'champPack',
                             emptyText: 'Unit&eacute;s gratuites',
                             minValue: 1,
+                            allowDecimals: false,
                             hidden: promoType !== 'UNITES GRATUITES',
                             width: 130
                         }, {
@@ -428,6 +449,7 @@ Ext.define('testextjs.view.Promotions.PromotionManager', {
                             itemId: 'champSeuil',
                             emptyText: 'A partir de (qte)',
                             minValue: 1,
+                            allowDecimals: false,
                             hidden: promoType !== 'UNITES GRATUITES',
                             width: 130
                         }, {
@@ -462,6 +484,19 @@ Ext.define('testextjs.view.Promotions.PromotionManager', {
                 Ext.MessageBox.alert('Information', 'Choisissez d\'abord un produit.');
                 return;
             }
+            // audit 05 PR-04, PR-07 : champs visibles controles avant l'envoi (entiers, prix special < prix public)
+            for (var i = 0; i < champsSaisie.length; i++) {
+                var champ = conteneur.down(champsSaisie[i]);
+                if (champ && !champ.hidden && !champ.isValid()) {
+                    Ext.MessageBox.alert('Information', champ.getErrors().join('<br>'));
+                    return;
+                }
+            }
+            // un seul envoi a la fois (double Entree)
+            if (declencherAjout.enCours) {
+                return;
+            }
+            declencherAjout.enCours = true;
             Ext.Ajax.request({
                 url: url_services_rest_promotions + 'produits/add',
                 method: 'POST',
@@ -472,6 +507,9 @@ Ext.define('testextjs.view.Promotions.PromotionManager', {
                     db_PROMOTION_PRICE: conteneur.down('#champPrixPromo').getValue() || 0,
                     int_PACK_NUMBER: conteneur.down('#champPack').getValue() || 0,
                     int_ACTIVE_AT: conteneur.down('#champSeuil').getValue() || 0
+                },
+                callback: function () {
+                    declencherAjout.enCours = false;
                 },
                 success: function (response) {
                     var object = Ext.JSON.decode(response.responseText, false);
@@ -498,7 +536,16 @@ Ext.define('testextjs.view.Promotions.PromotionManager', {
         };
 
         // Apres le choix du produit, focus automatique sur le premier champ de saisie visible
-        conteneur.down('#choixProduit').on('select', function () {
+        conteneur.down('#choixProduit').on('select', function (combo, records) {
+            // audit 05 PR-04 : le prix special reste sous le prix public du produit choisi
+            var choisi = Ext.isArray(records) ? records[0] : records;
+            var prixPromo = conteneur.down('#champPrixPromo');
+            if (prixPromo && choisi) {
+                var prixPublic = Number(choisi.get('int_PRICE')) || 0;
+                prixPromo.setMaxValue(prixPublic > 1 ? prixPublic - 1 : Number.MAX_VALUE);
+                prixPromo.maxText = 'Le prix promotionnel doit &ecirc;tre inf&eacute;rieur au prix public ('
+                        + prixPublic + ')';
+            }
             for (var i = 0; i < champsSaisie.length; i++) {
                 var champ = conteneur.down(champsSaisie[i]);
                 if (champ && !champ.hidden) {

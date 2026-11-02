@@ -116,17 +116,51 @@ public class PromotionRessource {
     @Path("produits/add")
     @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
     public Response addProduit(@FormParam("lg_CODE_PROMOTION_ID") int promotionId,
-            @FormParam("lg_FAMILLE_ID") String familleId, @DefaultValue("0") @FormParam("int_DISCOUNT") int discount,
-            @DefaultValue("0") @FormParam("db_PROMOTION_PRICE") double promoPrice,
-            @DefaultValue("0") @FormParam("int_PACK_NUMBER") int packNumber,
-            @DefaultValue("0") @FormParam("int_ACTIVE_AT") int activeAt) {
+            @FormParam("lg_FAMILLE_ID") String familleId, @FormParam("int_DISCOUNT") String discount,
+            @FormParam("db_PROMOTION_PRICE") String promoPrice, @FormParam("int_PACK_NUMBER") String packNumber,
+            @FormParam("int_ACTIVE_AT") String activeAt) {
         if (currentUser() == null) {
             return deconnecte();
         }
-        return Response
-                .ok().entity(promotionService
-                        .addProduit(promotionId, familleId, discount, promoPrice, packNumber, activeAt).toString())
+        /*
+         * audit 05 PR-07 : nombres recus en texte ; une valeur decimale ou illisible donne un message clair (avant :
+         * erreur HTTP brute affichee telle quelle par l'ecran).
+         */
+        Integer remise = entier(discount), pack = entier(packNumber), seuil = entier(activeAt);
+        Double prix = nombre(promoPrice);
+        if (remise == null || pack == null || seuil == null || prix == null) {
+            return Response.ok()
+                    .entity(new JSONObject().put("success", commonparameter.PROCESS_FAILED)
+                            .put("errors", "Remise, unités gratuites et seuil sont des nombres entiers (sans virgule)")
+                            .toString())
+                    .build();
+        }
+        return Response.ok()
+                .entity(promotionService.addProduit(promotionId, familleId, remise, prix, pack, seuil).toString())
                 .build();
+    }
+
+    /** entier positif ou nul ; vide = 0 ; null si decimal ou illisible */
+    private static Integer entier(String v) {
+        if (v == null || v.isBlank()) {
+            return 0;
+        }
+        try {
+            return Integer.valueOf(v.trim());
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    private static Double nombre(String v) {
+        if (v == null || v.isBlank()) {
+            return 0d;
+        }
+        try {
+            return Double.valueOf(v.trim().replace(',', '.'));
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     @POST
