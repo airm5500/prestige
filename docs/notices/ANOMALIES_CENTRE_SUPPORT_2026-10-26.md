@@ -714,6 +714,65 @@ directement : ils n'ont pas été joués.
 - l'impression (`/print`) charge toujours toute la période, ce qui est voulu ;
 - le tri de la liste ne porte que sur la date : deux bons de même date sortent dans un ordre libre, avant comme après.
 
+## 22. Production : journal du 02/11 à 18 h 47, avant mise à jour
+
+### Source et version
+
+- **Journal de la production (officine), exporté le 02/11 à 18 h 47.**
+  - 40 lignes, du 30/10 au 02/11. Elles suivent la purge manuelle du 30/10 à 23 h 31 (489 événements, voir § 19).
+  - Aucun nom ni numéro n'est recopié ici.
+- **Version de la production : antérieure au 17/10.**
+  - L'export n'a pas la colonne Version (K4, 30/10).
+  - On y trouve encore des erreurs corrigées le 17/10 (A1), le 23/10 (V1), le 25/10 (L3) et le 26/10 (P1).
+- **Question posée : la mise à jour règle-t-elle tout ?** Chaque famille a été comparée au code de
+  `integration/recette-2026-10-29` et de `PRES-/support-0211`.
+
+### Réglé par la mise à jour (code présent sur l'intégration)
+
+| Événements (occurrences) | Point | Correctif |
+|---|---|---|
+| `TransientPropertyValueException … lgUSERVENDEURID` sur `vente/add/assurance` (5), et l'Ajax 500 associé (2) : vendeur tapé sans être choisi dans la liste | V1 | `d0c4092c` (23/10) : le vendeur est lu en base, inconnu c'est la caissière |
+| 404 `vente/findone/https://…` (2) et `vente/findone/.` (1) : QR publicitaire scanné, code fait de points | A1 | `e5fc8dee` (17/10), `d4531230` (23/10), lot 1 (26/10) |
+| `NullPointerException : text` sur `produit/monitoringproduct` (2), et l'Ajax 500 (2) | P1 | lot 1, `2419ba39` (26/10) |
+| `caisse/tickez` et `fetch-tickez` lents (2) | L3 | `9ee6cc84` (25/10) |
+| « Snapshot de stock absent pour la veille » (1) | H5 | `bc1995ab` |
+| « Redémarrage inattendu » après une extinction : la nuit du 30 au 31/10 (~630 et ~650 min) et la fin de semaine (31/10 13 h → 02/11 06 h 50, ~2500 min) | S1 | lot 3, `72505bdc` : classé « Extinction normale de la machine », en INFO |
+
+### Réglé seulement si `PRES-/support-0211` est fusionnée avant la mise à jour
+
+| Événements | Point |
+|---|---|
+| Deux « Redémarrage inattendu » pour un seul démarrage (02/11 à 06 h 50 et 06 h 54), et « ~1 min » le 31/10 à 13 h 05 (redémarrage ou redéploiement) | S7 : témoin par domaine, redéploiement sans incident (`3a6766ec`) |
+| Avec les réglages Payara appliqués : fausse « mémoire épuisée » au démarrage | S8 (même commit) |
+
+Les autres correctifs de cette branche (J27, P4, L23, L24) ne sont pas dans ce journal.
+
+### Reste ouvert après la mise à jour
+
+| Événements (occurrences) | Point | Nature | À faire |
+|---|---|---|---|
+| `can't access property "numBon", record is undefined` (`VenteCtr.js:4699`, 1) | **J5 (P2)** | Code : `onNewClientAssurance` et les deux fonctions voisines appellent `addTpCmp(tierspayants[0])` sans vérifier que la liste n'est pas vide. Toujours ouvert sur l'intégration | Tester la liste, ne pas reconstruire le bloc sans tiers-payant |
+| `Communications link failure`, `XAException` (« dernier paquet reçu il y a 227 s ») sur `ventes-ratees/compteur-jour` et `vente/peremption-proche` (3), puis à 12 h 33-34 une vague de lenteurs : `add/assurance`, `common/users`, `typeventes`, `ventestats`, compteurs de la cloche (9) | **K3 (P2)** | Réglage : le pool garde des connexions que MariaDB a fermées, et ne les vérifie pas. Le premier appel qui en reçoit une échoue | Appliquer les réglages Payara : validation du pool (`1e3781f7`, sur l'intégration). **Ce n'est pas le war : c'est l'outil de réglages** |
+| « Suggestion lente : index manquant » sur `suggestion-reserve/en-attente/count` (1) | SC4 (P3) | Le diagnostic attrape toute route qui commence par `/api/v1/suggestion` (toujours le cas sur l'intégration) | Tester le préfixe `/api/v1/suggestion/` ; vérifier l'index V7.1.8 en officine |
+| Contrôles de cohérence : commandes sans ligne (500, le plafond), lots périmés non marqués (228), dossiers de règlement sans ligne (10), ventes terminées sans mouvement de caisse (5) | H1 à H4 | H1, H2 : en grande partie des faux positifs du contrôle. H3 : données anciennes. H4 : 5 vraies ventes incomplètes (V6) | Corriger les contrôles H1 et H2 ; régulariser les 5 ventes après accord |
+| SMS refusés `POL0001`, puis suspendus (5) | M1 | Métier : contrat Orange expiré | Renouveler le contrat |
+| « Supervision : 1 anomalie sur 11 » (8) | S5 | Paramétrage : notification active sans adresse `SUPPORT_EMAIL` | Renseigner l'adresse, ou désactiver la notification |
+| Lenteurs : `facturation-groupe` (3, jusqu'à 16 h 48), `tableau-board/tableau` (2) | L18, L12 | Hypothèses : périodes longues traitées en Java | À mesurer après la mise à jour |
+
+### Conclusion
+
+La mise à jour fait disparaître 16 des 40 lignes, dont la seule erreur répétée en journée : V1, 5 fois l'après-midi
+du 02/11. Ce compte suppose que `PRES-/support-0211` est fusionnée d'abord : sans elle, les « redémarrages inattendus »
+en double restent (S7).
+
+Trois actions restent hors du code livré :
+
+- appliquer les réglages Payara (K3), une fois les réglages relus (S9) ;
+- renouveler le contrat Orange (M1) ;
+- renseigner `SUPPORT_EMAIL` (S5).
+
+Un seul défaut de code de priorité 2 reste ouvert : **J5**.
+
 ## Annexe A. Rejouer les reproductions
 
 Variables (Node 22) :
