@@ -12,12 +12,40 @@
  *    puis 500) ; avec des prix valides, la page d'erreur 500 donne un message lisible, sans erreur JavaScript (avant :
  *    « Ext.JSON.decode » sur la page HTML).
  * Les envois au centre de support sont interceptes : l'essai n'y cree aucun evenement.
+ * C5/J19 (SUP-13, retour de Codex du 02/11) : l'ecran ne liste que les bons en cours. Le volet cree son propre bon
+ * « en cours » (commande, bon et une ligne E2E-SUP13, recopies du dernier bon clos), le choisit par sa reference, puis
+ * retire ces trois lignes et elles seules.
  *
  * node support/anomalies-centre/test-lot1-ecrans.js   (BASE=http://localhost:9080/prestige pour le second domaine)
  */
 const { chromium } = require('playwright-core');
 const ENV_E2E = require('../../outils/poste');
 const { connexion, ouvrirMenu, cliquer, texteMessage, repondre } = require('../../outils/vues');
+const { execFileSync } = require('child_process');
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, ENV_E2E.BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+
+/* bon de livraison « en cours » du volet C5/J19 (SUP-13) */
+const BL = 'E2E-SUP13';
+function creerBon() {
+  retirerBon();
+  q(`SET @src = (SELECT d.lg_BON_LIVRAISON_DETAIL FROM t_bon_livraison_detail d JOIN t_bon_livraison b ON b.lg_BON_LIVRAISON_ID = d.lg_BON_LIVRAISON_ID
+       JOIN t_famille f ON f.lg_FAMILLE_ID = d.lg_FAMILLE_ID WHERE b.str_STATUT = 'is_Closed' AND f.str_STATUT = 'enable' AND d.lg_GROSSISTE_ID IS NOT NULL
+       ORDER BY b.dt_UPDATED DESC LIMIT 1);
+     SET @u = (SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '${ENV_E2E.LOGIN}');
+     INSERT INTO t_order (lg_ORDER_ID, str_REF_ORDER, int_LINE, lg_GROSSISTE_ID, lg_USER_ID, str_STATUT, dt_CREATED, dt_UPDATED)
+       SELECT '${BL}-CMD', '${BL}', 1, lg_GROSSISTE_ID, @u, 'is_Closed', NOW(), NOW() FROM t_bon_livraison_detail WHERE lg_BON_LIVRAISON_DETAIL = @src;
+     INSERT INTO t_bon_livraison (lg_BON_LIVRAISON_ID, str_REF_LIVRAISON, dt_DATE_LIVRAISON, int_MHT, int_TVA, int_HTTC, lg_ORDER_ID, str_STATUT, dt_CREATED, dt_UPDATED, lg_USER_ID)
+       VALUES ('${BL}-BL', '${BL}', CURDATE(), 0, 0, 0, '${BL}-CMD', 'enable', NOW(), NOW(), @u);
+     INSERT INTO t_bon_livraison_detail (lg_BON_LIVRAISON_DETAIL, lg_GROSSISTE_ID, lg_FAMILLE_ID, lg_BON_LIVRAISON_ID, int_QTE_CMDE, int_QTE_RECUE,
+       int_PRIX_REFERENCE, int_PRIX_VENTE, int_PAF, int_PA_REEL, lg_ZONE_GEO_ID, str_STATUT, dt_CREATED, dt_UPDATED, prixTarif, prixUni)
+       SELECT '${BL}-L1', lg_GROSSISTE_ID, lg_FAMILLE_ID, '${BL}-BL', 1, 1, int_PRIX_REFERENCE, int_PRIX_VENTE, int_PAF, int_PA_REEL, lg_ZONE_GEO_ID, 'enable', NOW(), NOW(), prixTarif, prixUni
+       FROM t_bon_livraison_detail WHERE lg_BON_LIVRAISON_DETAIL = @src;`);
+  return q(`SELECT COUNT(*) FROM t_bon_livraison_detail WHERE lg_BON_LIVRAISON_ID = '${BL}-BL'`) === '1';
+}
+function retirerBon() {
+  q(`DELETE FROM t_bon_livraison_detail WHERE lg_BON_LIVRAISON_ID = '${BL}-BL'; DELETE FROM t_bon_livraison WHERE lg_BON_LIVRAISON_ID = '${BL}-BL';
+     DELETE FROM t_order WHERE lg_ORDER_ID = '${BL}-CMD';`);
+}
 
 /* VOLETS=C5 : ne jouer que ces volets (P1, A1, C5) */
 const joue = (v) => !process.env.VOLETS || process.env.VOLETS.split(',').includes(v);
@@ -112,15 +140,14 @@ async function fermerMessages(p) {
 
     /* ---- C5 / J19 ---- */
     if (joue('C5')) try {
+      /* l'ecran ne liste que les bons en cours : le volet cree le sien */
+      ok('C5 bon de livraison de test « en cours » créé', creerBon());
       await ouvrirMenu(p, 'GESTION DES COMMANDES', 'Gestion des entrées');
       await visible(p, 'bonlivraisonmanager');
-      /* l'ecran ne liste que les bons en cours : sur une copie qui n'en a aucun, ce volet ne peut pas se jouer */
-      await p.waitForFunction(() => { const g = Ext.ComponentQuery.query('bonlivraisonmanager')[0]; return g && !g.getStore().isLoading(); }, null, { timeout: 60000 });
-      if (await p.evaluate(() => Ext.ComponentQuery.query('bonlivraisonmanager')[0].getStore().getCount()) === 0) {
-        throw new Error('aucun bon de livraison en cours sur cette base : volet C5/J19 non joué');
-      }
-      await p.waitForFunction(() => { const g = Ext.ComponentQuery.query('bonlivraisonmanager')[0]; return g && !g.getStore().isLoading() && g.getStore().getCount() > 0; }, null, { timeout: 60000 });
-      await icone(p, 'bonlivraisonmanager', 'Detail livraison');
+      await p.waitForFunction((r) => { const g = Ext.ComponentQuery.query('bonlivraisonmanager')[0];
+        return g && !g.getStore().isLoading() && g.getStore().findExact('str_REF_LIVRAISON', r) >= 0; }, BL, { timeout: 60000 });
+      const grilleBl = await p.evaluate(() => Ext.ComponentQuery.query('bonlivraisonmanager')[0].getId());
+      await p.locator('#' + grilleBl + ' .x-grid-row').filter({ hasText: BL }).first().locator('img[data-qtip="Detail livraison"], img.x-action-col-icon').first().click();
       await p.waitForFunction(() => { const g = Ext.getCmp('gridpanelID'); return g && g.isVisible(true) && !g.getStore().isLoading() && g.getStore().getCount() > 0; }, null, { timeout: 60000 });
       const ouvrirPrix = async () => {
         await p.locator('#gridpanelID .x-grid-row').first().locator('img[data-qtip="Modifier Article"]').first().click();
@@ -130,7 +157,7 @@ async function fermerMessages(p) {
       const enregistrer = () => p.locator('.x-window').filter({ visible: true }).getByText('Enregistrer', { exact: true }).last().click();
 
       await ouvrirPrix();
-      await p.evaluate(() => Ext.getCmp('int_PAF').setValue(''));
+      await p.evaluate(() => { Ext.getCmp('int_PAF').setValue(''); });
       prix.length = 0;
       await enregistrer();
       await p.waitForTimeout(1500);
@@ -151,7 +178,13 @@ async function fermerMessages(p) {
       ok('J19 erreur 500 du serveur : message lisible, sans erreur JavaScript ni page HTML affichée',
         prix.length === 1 && j19.length === 0 && message && !/<!DOCTYPE|<html/i.test(message), 'envois ' + prix.length + ' | erreurs ' + j19.join(' ; ') + ' | message ' + message);
       await fermerMessages(p);
-    } catch (x) { ok('C5/J19 parcours sans exception', false, x.message); }
+    } catch (x) { ok('C5/J19 parcours sans exception', false, x.message); } finally {
+      if (joue('C5')) {
+        try { retirerBon(); } catch (x) { console.log('nettoyage C5 : ' + x.message); }
+        ok('C5 bon de test retiré, rien d\'autre', q(`SELECT (SELECT COUNT(*) FROM t_bon_livraison WHERE lg_BON_LIVRAISON_ID = '${BL}-BL')
+          + (SELECT COUNT(*) FROM t_bon_livraison_detail WHERE lg_BON_LIVRAISON_ID = '${BL}-BL') + (SELECT COUNT(*) FROM t_order WHERE lg_ORDER_ID = '${BL}-CMD')`) === '0');
+      }
+    }
 
     ok('Aucune autre erreur JavaScript', erreurs.filter((m) => !/JSON\.decode|You're trying to decode/.test(m)).length === 0, erreurs.join(' | '));
   } catch (e) {
