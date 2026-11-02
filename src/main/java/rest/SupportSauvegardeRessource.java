@@ -26,7 +26,10 @@ import util.Constant;
  * <ul>
  * <li>GET etat : reglages, outil, espace libre, sauvegarde en cours, historique ;</li>
  * <li>POST maintenant : lance une sauvegarde en arriere-plan ;</li>
- * <li>POST reglages : dossier, copie, sauvegarde automatique, conservation.</li>
+ * <li>POST reglages : dossier, copie, sauvegarde automatique, conservation ;</li>
+ * <li>POST valoriser {id} : valorisation du stock de la sauvegarde, par famille, rayon et grossiste (retour du 02/11)
+ * ;</li>
+ * <li>GET valorisation-excel?id= : la meme valorisation en classeur Excel.</li>
  * </ul>
  * Aucun acces a la base (utilisateur, mot de passe) n'est renvoye.
  */
@@ -41,6 +44,8 @@ public class SupportSauvegardeRessource {
     private SauvegardeService sauvegardeService;
     @EJB
     private SupportEventService supportEventService;
+    @EJB
+    private rest.service.impl.sauvegarde.ValorisationSauvegarde valorisationSauvegarde;
 
     @SuppressWarnings("unchecked")
     private TUser utilisateur() {
@@ -62,7 +67,8 @@ public class SupportSauvegardeRessource {
     }
 
     private static Response echec(String m) {
-        return Response.ok(new JSONObject().put("success", false).put("message", m).toString()).build();
+        return Response.ok(new JSONObject().put("success", false).put("message", m).toString(), "application/json")
+                .build();
     }
 
     private static Response ok(JSONObject o) {
@@ -117,5 +123,46 @@ public class SupportSauvegardeRessource {
         supportEventService.recordMaintenance("SAUVEGARDE_REGLAGES", "Réglages des sauvegardes enregistrés",
                 u.getStrLOGIN());
         return ok(new JSONObject().put("message", "Réglages enregistrés."));
+    }
+
+    @POST
+    @Path("valoriser")
+    public Response valoriser(String corps) {
+        TUser u = utilisateur();
+        if (u == null) {
+            return refus();
+        }
+        long id;
+        try {
+            id = new JSONObject(corps == null || corps.isEmpty() ? "{}" : corps).getLong("id");
+        } catch (Exception e) {
+            return echec("Sauvegarde non précisée.");
+        }
+        JSONObject r = valorisationSauvegarde.valoriser(id);
+        if (r.optBoolean("success")) {
+            supportEventService.recordMaintenance("SAUVEGARDE_VALORISATION",
+                    "Valorisation du stock de la sauvegarde " + r.optString("fichier"), u.getStrLOGIN());
+        }
+        return Response.ok(r.toString()).build();
+    }
+
+    @GET
+    @Path("valorisation-excel")
+    @Produces({ "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/json" })
+    public Response valorisationExcel(@javax.ws.rs.QueryParam("id") long id) {
+        if (utilisateur() == null) {
+            return refus();
+        }
+        try {
+            byte[] xlsx = valorisationSauvegarde.excel(id);
+            if (xlsx == null) {
+                return echec("Valorisation impossible pour cette sauvegarde.");
+            }
+            return Response.ok(xlsx, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                    .header("Content-Disposition", "attachment; filename=\"valorisation-sauvegarde-" + id + ".xlsx\"")
+                    .build();
+        } catch (Exception e) {
+            return echec("Export impossible : " + e.getClass().getSimpleName());
+        }
     }
 }
