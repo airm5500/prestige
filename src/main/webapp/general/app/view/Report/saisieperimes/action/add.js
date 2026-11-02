@@ -582,12 +582,14 @@ Ext.define('testextjs.view.Report.saisieperimes.action.add', {
                     myAppController.StopWaitingProcess();
                     var object = Ext.JSON.decode(response.responseText, false);
                     if (object.success) {
+                        // audit 06 PE-01 : les lignes au-delà du stock restent dans la saisie en cours
                         Ext.MessageBox.show({
                             title: 'Infos',
-                            width: 320,
-                            msg: "Nombre de produit retiré:<span style='font-weight:900;'>" + object.NB + "</span> ",
+                            width: object.nonAppliquees ? 520 : 320,
+                            msg: "Nombre de produit retiré:<span style='font-weight:900;'>" + object.NB + "</span> "
+                                    + (object.nonAppliquees ? "<br><br>" + object.message : ""),
                             buttons: Ext.MessageBox.OK,
-                            icon: Ext.MessageBox.INFO
+                            icon: object.nonAppliquees ? Ext.MessageBox.WARNING : Ext.MessageBox.INFO
                         });
                     } else {
                         myAppController.StopWaitingProcess();

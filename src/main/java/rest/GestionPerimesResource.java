@@ -139,7 +139,12 @@ public class GestionPerimesResource {
     @Path("saisie-encours")
     public Response getPerimesSaisiEnCours(@QueryParam(value = "start") int start,
             @QueryParam(value = "limit") int limit) {
-        JSONObject json = gestionPerimesService.getPerimesSaisiEnCours(start, limit);
+        HttpSession hs = servletRequest.getSession();
+        TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
+        if (tu == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        JSONObject json = gestionPerimesService.getPerimesSaisiEnCours(start, limit, tu);
         return Response.ok().entity(json.toString()).build();
     }
 
