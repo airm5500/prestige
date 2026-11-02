@@ -43,16 +43,18 @@ lg_TYPE_CLIENT_ID="";
       
        
         // alert("lg_COMPTE_CLIENT_ID "+lg_COMPTE_CLIENT_ID);
+        /* organismes actifs par REST : la JSP tierspayant/ws_data.jsp n'existe plus (404), la liste restait vide et
+           aucun tiers-payant ne pouvait etre ajoute depuis la fiche client */
         var store_tierspayant = new Ext.data.Store({
-            model: 'testextjs.model.TiersPayant',
-            pageSize: itemsPerPage,
+            fields: [{name: 'str_FULLNAME', mapping: 'strFULLNAME'}, {name: 'lg_TIERS_PAYANT_ID', mapping: 'lgTIERSPAYANTID'}],
+            pageSize: 999,
             autoLoad: false,
             proxy: {
                 type: 'ajax',
-                url: url_services_data_tierspayant,
+                url: '../api/v1/client/tiers-payants',
                 reader: {
                     type: 'json',
-                    root: 'results',
+                    root: 'data',
                     totalProperty: 'total'
                 }
             }
@@ -92,7 +94,6 @@ lg_TYPE_CLIENT_ID="";
                             id: 'lg_TIERS_PAYANT_ID',
                             store: store_tierspayant,
                             valueField: 'str_FULLNAME',
-                            pageSize: 20, //ajout la barre de pagination
                             displayField: 'str_FULLNAME',
                             typeAhead: true,
                             allowBlank: false,

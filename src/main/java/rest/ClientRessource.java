@@ -1260,30 +1260,42 @@ public class ClientRessource {
         }
     }
 
-    /** Retrait d'un tiers payant du client : MEME methode metier que la JSP (mode=delete). */
+    /**
+     * Retrait d'un tiers payant du client. Plan « clients assures et tiers-payants » (02/11) : la regle est celle de
+     * {@code ClientService.retirerTiersPayant}, en une seule transaction (dernier lien : client desactive ; principal :
+     * le complementaire suivant passe en priorite 1). Meme reponse qu'avant pour l'ecran ({@code success},
+     * {@code errors}).
+     */
     @POST
     @Path("gestion/tiers-payants/delete")
     @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
     public Response supprimerTiersPayantClient(
             @FormParam("lg_COMPTE_CLIENT_TIERS_PAYANT_ID") String compteClientTiersPayantId) {
-        TUser sessionUser = utilisateurSession();
-        if (sessionUser == null) {
+        if (utilisateurSession() == null) {
             return reponseDeconnecte();
         }
-        dataManager odm = new dataManager();
-        odm.initEntityManager();
         try {
-            odm.getEm().find(TUser.class, sessionUser.getLgUSERID());
-            bll.tierspayantManagement.tierspayantManagement otm = new bll.tierspayantManagement.tierspayantManagement(
-                    odm);
-            otm.deleteComptecltTierspayant(compteClientTiersPayantId);
-            return reponseSimple(otm.getMessage(), otm.getDetailmessage());
+            JSONObject r = clientService.retirerTiersPayant(compteClientTiersPayantId);
+            return reponseSimple(
+                    r.optBoolean("success") ? commonparameter.PROCESS_SUCCESS : commonparameter.PROCESS_FAILED,
+                    r.optString("msg"));
         } catch (Exception e) {
             LOG_GESTION.log(java.util.logging.Level.SEVERE, "supprimerTiersPayantClient", e);
-            return reponseSimple(commonparameter.PROCESS_FAILED, "Impossible de retirer le tiers payant du client");
-        } finally {
-            odm.closeEntityManager();
+            return reponseSimple(commonparameter.PROCESS_FAILED,
+                    "Impossible de retirer le tiers payant du client : rien n'a été modifié");
         }
+    }
+
+    /** Ce que ferait le retrait de ce tiers-payant, sans rien ecrire : sert au texte du bouton « Retirer ». */
+    @GET
+    @Path("gestion/tiers-payants/effet-retrait")
+    public Response effetRetraitTiersPayantClient(
+            @QueryParam("lg_COMPTE_CLIENT_TIERS_PAYANT_ID") String compteClientTiersPayantId) {
+        if (utilisateurSession() == null) {
+            return reponseDeconnecte();
+        }
+        return Response.ok().entity(clientService.effetRetraitTiersPayant(compteClientTiersPayantId).toString())
+                .build();
     }
 
     @POST

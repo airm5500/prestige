@@ -72,7 +72,7 @@ chemin qui peut aujourd'hui laisser un client assuré sans tiers-payant actif, o
 
 | Écran | Route | Règle métier appelée | Constat |
 |---|---|---|---|
-| Gestion des clients > « Tiers-payants » du client (`showclttierspayant.js`, ouvert depuis `ClientManager` et `ClientDesactiveManager`) | REST `client/gestion/tiers-payants/delete` | `tierspayantManagement.delete_compteclt_tierspayant(id)` : suppression physique du lien | ✗ aucun contrôle du dernier lien ni du principal ; aucune promotion du complémentaire |
+| Gestion des clients > « Tiers-payants » du client (`showclttierspayant.js`, ouvert depuis `ClientManager` et `ClientDesactiveManager`) | REST `client/gestion/tiers-payants/delete` | `tierspayantManagement.deleteComptecltTierspayant(id)` (rectifié le 02/11 : ce n'est pas `delete_compteclt_tierspayant`) : marque le lien comme supprimé, refuse s'il porte des ventes non réglées, marque aussi supprimés les liens des ventes en attente | ✗ aucun contrôle du dernier lien ni du principal ; aucune promotion du complémentaire. **Corrigé à l'étape 2** |
 | Ancien écran de vente (`sm_user/dovente/action/addTiersPayant.js`, fenêtres `addtp`, `addclt`) | JSP `compteclienttierspayant/ws_transaction_clt.jsp?mode=delete` | même méthode | ✗ même défaut. **Écran à confirmer** : ouvert seulement depuis l'ancien flux `sm_user/dovente` |
 | Aucun écran trouvé | JSP `client/ws_compteclient_tierspayant_transaction.jsp`, `clienttierspayant/ws_transaction.jsp` et `ws_transaction_vente.jsp` (mode `delete`) | `delete_compteclt_tierspayant(compte, organisme)` | ✗ même défaut ; restent appelables directement |
 | Gestion des tiers-payants > activer ou désactiver un organisme | REST `TiersPayantRessource` et JSP `tierspayant/ws_transaction.jsp` | `enableOrDisableTierspayant` | **Déjà la règle voulue en partie** : les liens vers l'organisme passent à `disable`, et le client dont c'était le seul lien est désactivé avec son compte. **Mais** : aucune promotion du complémentaire quand l'organisme était le principal ; ancien gestionnaire de données, sans garantie que tout soit annulé en cas d'échec |
@@ -110,6 +110,28 @@ chemin qui peut aujourd'hui laisser un client assuré sans tiers-payant actif, o
   `updateOrCreateClientAssurance` ; supprimer la possibilité `createother` pour un type assuré.
 - **Étape 5** : filtrer `findClientAssurance` (utilisé par `client/all` et `client/bytype`) sur « au moins un lien actif vers
   un organisme actif ».
+
+### 4.5 Étape 2 : fait (02/11)
+
+- **Règle** : `rest.service.impl.client.RetraitTiersPayant` décide de l'effet d'un retrait (dernier lien : client
+  désactivé ; principal retiré : le complémentaire de plus petite priorité passe en priorité 1, sans devenir régime
+  obligatoire ; complémentaire : rien d'autre). Le principal est le régime obligatoire actif, sinon la priorité 1.
+- **Écriture** : `ClientServiceImpl.retirerTiersPayant`, en une seule transaction et sans `catch` qui avale l'erreur :
+  refus si des ventes non réglées utilisent le lien (même contrôle qu'avant), liens des ventes en attente marqués
+  supprimés comme avant, puis promotion ou désactivation du client et de son compte. Toute erreur annule tout ; l'écran
+  affiche alors « rien n'a été modifié ».
+- **Routes** : `client/gestion/tiers-payants/delete` appelle ce service ; `client/gestion/tiers-payants/effet-retrait`
+  (lecture seule) donne l'effet à annoncer dans le bouton (étape 3).
+- **Défaut trouvé en chemin** : « Ajouter un tiers payant au client » (fiche client, `addclttierspayant.js`) chargeait
+  ses organismes depuis `tierspayant/ws_data.jsp`, supprimée le 04/12/2024 : la liste restait vide (404) et l'on ne
+  pouvait plus ajouter de tiers-payant depuis la fiche. Elle lit maintenant `client/tiers-payants` (REST) ; la valeur
+  envoyée reste le nom de l'organisme, comme avant.
+- **Tests** : `RetraitTiersPayantTest` (7 cas) ; `src/test/e2e/client/test-retrait-tiers-payant.js` par les vues
+  (création des clients d'essai par « Créer », ajout du second tiers-payant, retrait confirmé dans l'icône, contrôle de
+  la liste et de « Désactivés », suppression des clients d'essai par l'icône « Supprimer »). Sur le code d'avant : 5
+  contrôles en échec (pas de promotion, client sans tiers-payant toujours actif) ; après : 12/12. J5 : 3/3.
+- **Reste pour l'étape 2** : les JSP de retrait restantes (§ 4.1, lignes 2 et 3) et la désactivation d'un organisme
+  (`enableOrDisableTierspayant` : promotion et annulation complète) passent encore par l'ancienne règle.
 
 ## 5. Questions tranchées (02/11)
 

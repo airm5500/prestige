@@ -2110,6 +2110,110 @@ public class ClientServiceImpl implements ClientService {
         }
     }
 
+    /*
+     * Plan « clients assures et tiers-payants » (02/11), etape 2 : une seule regle pour retirer un tiers-payant d'un
+     * client (voir RetraitTiersPayant). L'ancienne methode (tierspayantManagement.deleteComptecltTierspayant) retirait
+     * le lien sans regarder s'il etait le dernier ou le principal : le client restait actif, « assure » sans assurance,
+     * et la vente plantait en le choisissant (J5).
+     */
+    private static final String REFUS_VENTES = "Le client sélectionné a déjà effectué des transactions avec ce tiers payant."
+            + "<br> Pour poursuivre vous devez annuler les ventes du client liées à cet Organisme";
+
+    private List<TCompteClientTiersPayant> liensActifsDuCompte(TCompteClient compte) {
+        return em
+                .createQuery("SELECT o FROM TCompteClientTiersPayant o WHERE o.lgCOMPTECLIENTID = :compte"
+                        + " AND o.strSTATUT = :actif", TCompteClientTiersPayant.class)
+                .setParameter("compte", compte).setParameter("actif", Constant.STATUT_ENABLE).getResultList();
+    }
+
+    private static rest.service.impl.client.RetraitTiersPayant.Lien versLien(TCompteClientTiersPayant l) {
+        TTiersPayant organisme = l.getLgTIERSPAYANTID();
+        return new rest.service.impl.client.RetraitTiersPayant.Lien(l.getLgCOMPTECLIENTTIERSPAYANTID(),
+                organisme == null ? "" : StringUtils.defaultString(organisme.getStrFULLNAME()),
+                Boolean.TRUE.equals(l.getBISRO()), l.getIntPRIORITY());
+    }
+
+    /** Ventes non annulees et non reglees qui utilisent ce lien (meme regle que l'ecran historique). */
+    private long ventesNonRegleesDuLien(String lienId) {
+        return em.createQuery("SELECT COUNT(o) FROM TPreenregistrementCompteClientTiersPayent o"
+                + " WHERE o.lgCOMPTECLIENTTIERSPAYANTID.lgCOMPTECLIENTTIERSPAYANTID = :lien"
+                + " AND o.lgPREENREGISTREMENTID.bISCANCEL = FALSE AND o.strSTATUTFACTURE <> :regle AND o.intPRICE > 0",
+                Long.class).setParameter("lien", lienId).setParameter("regle", commonparameter.statut_paid)
+                .getSingleResult();
+    }
+
+    private rest.service.impl.client.RetraitTiersPayant.Decision deciderRetrait(TCompteClientTiersPayant lien) {
+        List<rest.service.impl.client.RetraitTiersPayant.Lien> actifs = liensActifsDuCompte(lien.getLgCOMPTECLIENTID())
+                .stream().map(ClientServiceImpl::versLien).collect(Collectors.toList());
+        return rest.service.impl.client.RetraitTiersPayant.decider(lien.getLgCOMPTECLIENTTIERSPAYANTID(), actifs);
+    }
+
+    @Override
+    public JSONObject effetRetraitTiersPayant(String lienId) {
+        TCompteClientTiersPayant lien = StringUtils.isBlank(lienId) ? null
+                : em.find(TCompteClientTiersPayant.class, lienId);
+        if (lien == null || !actif(lien)) {
+            return new JSONObject().put("success", true).put("effet", "INTROUVABLE");
+        }
+        rest.service.impl.client.RetraitTiersPayant.Decision d = deciderRetrait(lien);
+        JSONObject json = new JSONObject().put("success", true).put("effet", d.effet.name()).put("promu",
+                d.promu == null ? "" : d.promu.nom);
+        if (ventesNonRegleesDuLien(lienId) > 0) {
+            json.put("refus", REFUS_VENTES);
+        }
+        return json;
+    }
+
+    /*
+     * Pas de catch : une erreur annule toute l'operation (lien, promotion, desactivation), la ressource la traduit en
+     * message. L'ancien code avalait l'erreur et validait ce qui avait deja ete ecrit.
+     */
+    @Override
+    public JSONObject retirerTiersPayant(String lienId) {
+        TCompteClientTiersPayant lien = StringUtils.isBlank(lienId) ? null
+                : em.find(TCompteClientTiersPayant.class, lienId);
+        if (lien == null || !actif(lien)) {
+            return new JSONObject().put("success", false).put("msg", "Ce tiers-payant n'est plus rattaché au client.");
+        }
+        if (ventesNonRegleesDuLien(lienId) > 0) {
+            return new JSONObject().put("success", false).put("msg", REFUS_VENTES);
+        }
+        rest.service.impl.client.RetraitTiersPayant.Decision d = deciderRetrait(lien);
+        Date maintenant = new Date();
+        // comme l'ecran historique : les rattachements de ce lien aux ventes en attente et a leurs instantanes
+        em.createQuery(
+                "SELECT o FROM TPreenregistrementCompteClientTiersPayent o"
+                        + " WHERE o.lgCOMPTECLIENTTIERSPAYANTID = :lien",
+                TPreenregistrementCompteClientTiersPayent.class).setParameter("lien", lien).getResultList()
+                .forEach(o -> o.setStrSTATUT(Constant.STATUT_DELETE));
+        em.createQuery(
+                "SELECT o FROM TSnapshotPreenregistrementCompteClientTiersPayent o"
+                        + " WHERE o.lgCOMPTECLIENTTIERSPAYANTID = :lien",
+                dal.TSnapshotPreenregistrementCompteClientTiersPayent.class).setParameter("lien", lien).getResultList()
+                .forEach(o -> o.setStrSTATUT(Constant.STATUT_DELETE));
+        lien.setStrSTATUT(Constant.STATUT_DELETE);
+        lien.setIntPRIORITY(-1);
+        lien.setDtUPDATED(maintenant);
+        TCompteClient compte = lien.getLgCOMPTECLIENTID();
+        String msg = "Tiers-payant retiré.";
+        if (d.effet == rest.service.impl.client.RetraitTiersPayant.Effet.PROMOTION) {
+            TCompteClientTiersPayant promu = em.find(TCompteClientTiersPayant.class, d.promu.id);
+            promu.setIntPRIORITY(1);
+            promu.setDtUPDATED(maintenant);
+            msg = "Tiers-payant retiré. " + d.promu.nom + " devient le tiers-payant principal.";
+        } else if (d.effet == rest.service.impl.client.RetraitTiersPayant.Effet.DESACTIVATION_CLIENT) {
+            TClient client = compte.getLgCLIENTID();
+            compte.setStrSTATUT(Constant.STATUT_DISABLE);
+            compte.setDtUPDATED(maintenant);
+            client.setStrSTATUT(Constant.STATUT_DISABLE);
+            client.setDtUPDATED(maintenant);
+            msg = "Tiers-payant retiré. Le client n'a plus de tiers-payant : il est désactivé"
+                    + " (voir « Clients désactivés »).";
+        }
+        em.flush();
+        return new JSONObject().put("success", true).put("effet", d.effet.name()).put("msg", msg);
+    }
+
     /** Lien client / tiers payant actif (ni supprime ni desactive). */
     static boolean actif(TCompteClientTiersPayant lien) {
         return lien != null && Constant.STATUT_ENABLE.equals(lien.getStrSTATUT());
