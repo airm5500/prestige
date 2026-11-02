@@ -2751,6 +2751,11 @@ public class SalesServiceImpl implements SalesService {
 
             }
             if (Objects.nonNull(tp.getCaution())) {
+                String refusCaution = CautionTiersPayantServiceImpl.refusVente(tp.getCaution().getMontant(),
+                        clotureVenteParams.getTierspayants().get(0).getTpnet());
+                if (refusCaution != null) {
+                    return json.put("success", false).put("msg", refusCaution);
+                }
                 if (!updateCaution(clotureVenteParams.getTierspayants().get(0), tp, tUser)) {
                     return json.put("success", false).put("msg", "Désolé la vente a été facturée");
                 }
