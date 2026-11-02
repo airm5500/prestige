@@ -54,6 +54,19 @@ public final class ContexteVenteDepot {
         return emplacementDe(operateur);
     }
 
+    /**
+     * Emplacement dont la vente prend son numero : celui de l'operateur (a defaut, de l'utilisateur de la vente), meme
+     * quand la vente se joue sur un depot d'extension. La recette d'un depot tombe dans la caisse de l'operateur : ses
+     * ventes suivent la suite de numeros de l'officine, et deux tickets du meme jour ne portent jamais le meme numero.
+     * Pour une vente d'officine, c'est exactement l'emplacement d'avant.
+     */
+    public static TEmplacement emplacementDeNumerotation(TPreenregistrement vente, TUser operateur) {
+        if (operateur != null) {
+            return emplacementDe(operateur);
+        }
+        return vente == null ? null : emplacementDe(vente.getLgUSERID());
+    }
+
     /** Vrai si la vente se joue dans un depot d'extension et non a l'officine. */
     public static boolean estEnContexteDepot(TPreenregistrement vente) {
         return vente != null && vente.getEmplacementVente() != null;

@@ -903,7 +903,7 @@ public class SalesServiceImpl implements SalesService {
         newTp.setMedecin(tp.getMedecin());
         newTp.setEmplacementVente(tp.getEmplacementVente());
         newTp.setStrREF(
-                buildRef(LocalDate.now(), ContexteVenteDepot.emplacementDeVente(newTp, ooTUser)).getReference());
+                buildRef(LocalDate.now(), ContexteVenteDepot.emplacementDeNumerotation(newTp, ooTUser)).getReference());
         tp.setBISCANCEL(true);
         tp.setDtANNULER(newTp.getDtCREATED());
         tp.setLgUSERID(ooTUser);
@@ -1200,13 +1200,13 @@ public class SalesServiceImpl implements SalesService {
                 preenregistrement.setPkBrand("");
                 if (!salesParams.isDevis()) {
                     preenregistrement.setStrREF(
-                            buildRefTmp(LocalDate.now(), emplacementDeSaisie(salesParams)).getReferenceTemp());
+                            buildRefTmp(LocalDate.now(), emplacementDeNumerotation(salesParams)).getReferenceTemp());
                     emg.persist(preenregistrement);
                     createPreenregistrementTierspayant(salesParams.getTierspayants(), preenregistrement);
 
                 } else {
                     preenregistrement
-                            .setStrREF(buildRefDevis(LocalDate.now(), emplacementDeSaisie(salesParams)).getReference());
+                            .setStrREF(buildRefDevis(LocalDate.now(), emplacementDeNumerotation(salesParams)).getReference());
                     preenregistrement.setStrREFBON(salesParams.getBonRef());
                     preenregistrement.setStrREFTICKET(DateConverter.getShortId(10));
                     emg.persist(preenregistrement);
@@ -1227,7 +1227,7 @@ public class SalesServiceImpl implements SalesService {
                 preenregistrement
                         .setStrTYPEVENTE((salesParams.getTypeDepoId().equals("1") ? VENTE_COMPTANT : VENTE_ASSURANCE));
                 preenregistrement
-                        .setStrREF(buildRefTmp(LocalDate.now(), emplacementDeSaisie(salesParams)).getReferenceTemp());
+                        .setStrREF(buildRefTmp(LocalDate.now(), emplacementDeNumerotation(salesParams)).getReferenceTemp());
                 emg.persist(preenregistrement);
             }
             emg.persist(dp);
@@ -2820,7 +2820,7 @@ public class SalesServiceImpl implements SalesService {
             }
 
             tp.setStrREF(buildRef(DateConverter.convertDateToLocalDate(tp.getDtUPDATED()),
-                    ContexteVenteDepot.emplacementDeVente(tp, tUser)).getReference());
+                    ContexteVenteDepot.emplacementDeNumerotation(tp, tUser)).getReference());
 
             boolean keyAccount = test.test(takeInAcount);
             if (keyAccount) {
@@ -3171,7 +3171,7 @@ public class SalesServiceImpl implements SalesService {
             }
 
             tp.setStrREF(buildRef(DateConverter.convertDateToLocalDate(tp.getDtUPDATED()),
-                    ContexteVenteDepot.emplacementDeVente(tp, clotureVenteParams.getUserId())).getReference());
+                    ContexteVenteDepot.emplacementDeNumerotation(tp, clotureVenteParams.getUserId())).getReference());
             java.util.function.Predicate<Optional<TParameters>> testP = e -> {
                 if (e.isPresent()) {
                     return Integer.parseInt(e.get().getStrVALUE().trim()) == 1;
@@ -4034,7 +4034,7 @@ public class SalesServiceImpl implements SalesService {
             tp.setStrSTATUT(STATUT_IS_CLOSED);
             tp.setStrSTATUTVENTE(statut);
             tp.setStrREF(buildRef(DateConverter.convertDateToLocalDate(tp.getDtUPDATED()),
-                    ContexteVenteDepot.emplacementDeVente(tp, tp.getLgUSERVENDEURID())).getReference());
+                    ContexteVenteDepot.emplacementDeNumerotation(tp, tp.getLgUSERVENDEURID())).getReference());
             tp.setIntACCOUNT(tp.getIntPRICE());
             tp.setIntPRICEOTHER(tp.getIntACCOUNT());
             tp.setCompletionDate(new Date());
@@ -4169,7 +4169,7 @@ public class SalesServiceImpl implements SalesService {
             tp.setIntPRICEOTHER(montant);
             updateUgData(clotureVenteParams.getData(), tp);
             tp.setStrREF(buildRef(DateConverter.convertDateToLocalDate(tp.getDtUPDATED()),
-                    ContexteVenteDepot.emplacementDeVente(tp, clotureVenteParams.getUserId())).getReference());
+                    ContexteVenteDepot.emplacementDeNumerotation(tp, clotureVenteParams.getUserId())).getReference());
             cloturerItemsVente(tp.getLgPREENREGISTREMENTID());
             addRecette(clotureVenteParams.getMontantPaye(), tp.getStrREFTICKET() + "_" + tp.getStrREF(),
                     tp.getLgPREENREGISTREMENTID(), clotureVenteParams.getUserId());
@@ -4468,7 +4468,7 @@ public class SalesServiceImpl implements SalesService {
         newTP.setLgPREENGISTREMENTANNULEID(tp.getLgPREENREGISTREMENTID());
         newTP.setEmplacementVente(tp.getEmplacementVente());
         newTP.setStrREF(
-                buildRefTmp(LocalDate.now(), ContexteVenteDepot.emplacementDeVente(newTP, ooTUser)).getReferenceTemp());
+                buildRefTmp(LocalDate.now(), ContexteVenteDepot.emplacementDeNumerotation(newTP, ooTUser)).getReferenceTemp());
         newTP.setChecked(true);
         newTP.setCopy(true);
         newTP.setMargeug(tp.getMargeug());
@@ -5209,38 +5209,70 @@ public class SalesServiceImpl implements SalesService {
         return newItem;
     }
 
-    private Optional<Reference> getReferenceByDateAndEmplacementId(LocalDate dateEvt, String emplacementId,
-            boolean isDevis) {
-        try {
-            TypedQuery<Reference> query = this.getEm().createNamedQuery("Reference.lastReference", Reference.class);
-            query.setParameter("id", dateEvt.format(DateTimeFormatter.ofPattern("yyyyMMdd")));
-            query.setParameter("emplacement", emplacementId);
-            query.setParameter("devis", isDevis);
-            query.setMaxResults(1);
-            return Optional.ofNullable(query.getSingleResult());
-        } catch (Exception e) {
-            return Optional.empty();
+    private static final DateTimeFormatter JOUR_COMPTEUR = DateTimeFormatter.ofPattern("yyyyMMdd");
+    private static final DateTimeFormatter PREFIXE_NUMERO = DateTimeFormatter.ofPattern("yyMMdd");
+
+    private static String numero(LocalDate date, int valeur) {
+        return date.format(PREFIXE_NUMERO) + "_" + StringUtils.leftPad(String.valueOf(valeur), 5, '0');
+    }
+
+    /**
+     * Compteur du jour d'un emplacement : celui des ventes, ou celui des proformas ({@code devis}). Il est relu sous
+     * verrou jusqu'a la fin de la transaction, pour que deux caisses ne prennent jamais le meme numero.
+     *
+     * <p>
+     * La ligne manquante est creee sans jamais en ecraser une autre (la cle est jour + emplacement + devis). Elle part
+     * du plus grand numero deja donne ce jour sur cet emplacement : une ligne retiree ou perdue ne fait pas repartir la
+     * suite a 1.
+     */
+    private Reference compteurDuJour(LocalDate date, TEmplacement emplacement, boolean devis) {
+        Optional<Reference> o = lireCompteur(date, emplacement, devis);
+        if (o.isPresent()) {
+            return o.get();
         }
+        String colonneDate = devis ? "p.dt_CREATED" : "p.dt_UPDATED";
+        getEm().createNativeQuery("INSERT INTO reference (id, emplacement_id, devis, reference, reference_temp,"
+                + " last_int_value, last_int_tmp_value) SELECT ?1, ?2, ?3, ?4, ?5,"
+                + " COALESCE(MAX(CAST(SUBSTRING(p.str_REF, 8) AS SIGNED)), 0), 0 FROM t_preenregistrement p"
+                + " JOIN t_user u ON u.lg_USER_ID = p.lg_USER_ID WHERE " + colonneDate + " >= ?6 AND " + colonneDate
+                + " < ?7 AND p.str_REF LIKE ?8 AND p.str_STATUT = ?9 AND u.lg_EMPLACEMENT_ID = ?10"
+                + " ON DUPLICATE KEY UPDATE id = id").setParameter(1, date.format(JOUR_COMPTEUR))
+                .setParameter(2, emplacement.getLgEMPLACEMENTID()).setParameter(3, devis)
+                .setParameter(4, numero(date, 0)).setParameter(5, numero(date, 0))
+                .setParameter(6, java.sql.Timestamp.valueOf(date.atStartOfDay()))
+                .setParameter(7, java.sql.Timestamp.valueOf(date.plusDays(1).atStartOfDay()))
+                .setParameter(8, date.format(PREFIXE_NUMERO) + "\\_%")
+                .setParameter(9, devis ? Constant.STATUT_IS_DEVIS : STATUT_IS_CLOSED)
+                .setParameter(10, emplacement.getLgEMPLACEMENTID()).executeUpdate();
+        return lireCompteur(date, emplacement, devis).orElseThrow(
+                () -> new IllegalStateException("Compteur du jour introuvable : " + date.format(JOUR_COMPTEUR)));
+    }
+
+    private Optional<Reference> lireCompteur(LocalDate date, TEmplacement emplacement, boolean devis) {
+        TypedQuery<Reference> query = this.getEm().createNamedQuery("Reference.lastReference", Reference.class);
+        query.setParameter("id", date.format(JOUR_COMPTEUR));
+        query.setParameter("emplacement", emplacement.getLgEMPLACEMENTID());
+        query.setParameter("devis", devis);
+        query.setLockMode(LockModeType.PESSIMISTIC_WRITE);
+        query.setHint("eclipselink.refresh", "true");
+        List<Reference> l = query.getResultList();
+        return l.isEmpty() ? Optional.empty() : Optional.of(l.get(0));
+    }
+
+    /**
+     * Emplacement dont la saisie prend son numero : celui de l'operateur, meme pour une vente sur un depot
+     * d'extension (voir {@link ContexteVenteDepot#emplacementDeNumerotation}).
+     */
+    private TEmplacement emplacementDeNumerotation(SalesParams salesParams) {
+        return salesParams.getUserId().getLgEMPLACEMENTID();
     }
 
     public Reference buildRefTmp(LocalDate dateEvt, TEmplacement emplacement) {
         Reference r = null;
         try {
-            Optional<Reference> o = getReferenceByDateAndEmplacementId(dateEvt, emplacement.getLgEMPLACEMENTID(),
-                    false);
-            if (o.isPresent()) {
-                r = o.get();
-
-            } else {
-                r = new Reference().addEmplacement(emplacement)
-                        .id(dateEvt.format(DateTimeFormatter.ofPattern("yyyyMMdd"))).lastIntValue(0)
-                        .reference(dateEvt.format(DateTimeFormatter.ofPattern("yyMMdd")) + "_"
-                                + StringUtils.leftPad(String.valueOf(0), 5, '0'));
-            }
+            r = compteurDuJour(dateEvt, emplacement, false);
             r.setLastIntTmpValue(r.getLastIntTmpValue() + 1);
-            r.setReferenceTemp(dateEvt.format(DateTimeFormatter.ofPattern("yyMMdd")) + "_"
-                    + StringUtils.leftPad(String.valueOf(r.getLastIntTmpValue()), 5, '0'));
-            getEm().merge(r);
+            r.setReferenceTemp(numero(dateEvt, r.getLastIntTmpValue()));
         } catch (Exception e) {
             LOG.log(Level.SEVERE, null, e);
         }
@@ -5248,45 +5280,20 @@ public class SalesServiceImpl implements SalesService {
     }
 
     public Reference buildRef(LocalDate oDate, TEmplacement emplacement) {
-        Reference r;
-
-        Optional<Reference> o = getReferenceByDateAndEmplacementId(oDate, emplacement.getLgEMPLACEMENTID(), false);
-        if (o.isPresent()) {
-            r = o.get();
-            r.setLastIntValue(r.getLastIntValue() + 1);
-            r.setReference(oDate.format(DateTimeFormatter.ofPattern("yyMMdd")) + "_"
-                    + StringUtils.leftPad(String.valueOf(r.getLastIntValue()), 5, '0'));
-        } else {
-            r = new Reference().addEmplacement(emplacement).id(oDate.format(DateTimeFormatter.ofPattern("yyyyMMdd")))
-                    .lastIntValue(1).lastIntTmpValue(1)
-                    .referenceTemp(oDate.format(DateTimeFormatter.ofPattern("yyMMdd")) + "_"
-                            + StringUtils.leftPad(String.valueOf(1), 5, '0'))
-                    .reference(oDate.format(DateTimeFormatter.ofPattern("yyMMdd")) + "_"
-                            + StringUtils.leftPad(String.valueOf(1), 5, '0'));
-        }
-        getEm().merge(r);
-
+        Reference r = compteurDuJour(oDate, emplacement, false);
+        r.setLastIntValue(r.getLastIntValue() + 1);
+        r.setReference(numero(oDate, r.getLastIntValue()));
         return r;
     }
 
     public Reference buildRefDevis(LocalDate oDate, TEmplacement emplacement) {
         Reference r = null;
         try {
-            Optional<Reference> o = getReferenceByDateAndEmplacementId(oDate, emplacement.getLgEMPLACEMENTID(), true);
-            if (o.isPresent()) {
-                r = o.get();
-                r.setLastIntValue(r.getLastIntValue() + 1);
-                r.setReference(oDate.format(DateTimeFormatter.ofPattern("yyMMdd")) + "_"
-                        + StringUtils.leftPad(String.valueOf(r.getLastIntValue()), 5, '0'));
-            } else {
-                r = new Reference().addEmplacement(emplacement)
-                        .id(oDate.format(DateTimeFormatter.ofPattern("yyyyMMdd"))).lastIntValue(1)
-                        .reference(oDate.format(DateTimeFormatter.ofPattern("yyMMdd")) + "_"
-                                + StringUtils.leftPad(String.valueOf(1), 5, '0'));
-            }
+            r = compteurDuJour(oDate, emplacement, true);
+            r.setLastIntValue(r.getLastIntValue() + 1);
+            r.setReference(numero(oDate, r.getLastIntValue()));
             r.setLastIntTmpValue(r.getLastIntValue());
             r.setReferenceTemp(r.getReference());
-            getEm().merge(r);
         } catch (Exception e) {
             LOG.log(Level.SEVERE, null, e);
         }
@@ -5559,7 +5566,7 @@ public class SalesServiceImpl implements SalesService {
         newTp.setMedecin(tp.getMedecin());
         newTp.setStrSTATUT(tp.getStrSTATUT());
         newTp.setEmplacementVente(tp.getEmplacementVente());
-        newTp.setStrREF(buildRefTmp(LocalDate.now(), ContexteVenteDepot.emplacementDeVente(newTp)).getReferenceTemp());
+        newTp.setStrREF(buildRefTmp(LocalDate.now(), ContexteVenteDepot.emplacementDeNumerotation(newTp, null)).getReferenceTemp());
         newTp.setChecked(Boolean.TRUE);
         newTp.setCopy(Boolean.FALSE);
         newTp.setMargeug(tp.getMargeug());
@@ -6026,10 +6033,10 @@ public class SalesServiceImpl implements SalesService {
         Medecin medecin = findMedecin(salesParams.getMedecinId());
         op.setMedecin(medecin);
         if (!salesParams.isDevis()) {
-            op.setStrREF(buildRefTmp(LocalDate.now(), emplacementDeSaisie(salesParams)).getReferenceTemp());
+            op.setStrREF(buildRefTmp(LocalDate.now(), emplacementDeNumerotation(salesParams)).getReferenceTemp());
         } else {
 
-            op.setStrREF(buildRefDevis(LocalDate.now(), emplacementDeSaisie(salesParams)).getReferenceTemp());
+            op.setStrREF(buildRefDevis(LocalDate.now(), emplacementDeNumerotation(salesParams)).getReferenceTemp());
             op.setStrREFTICKET(DateConverter.getShortId(10));
         }
         op.setLgREMISEID(oTRemise != null ? oTRemise.getLgREMISEID() : "");
