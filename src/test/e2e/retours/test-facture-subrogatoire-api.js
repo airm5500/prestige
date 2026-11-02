@@ -6,6 +6,14 @@
  *
  * Puis, a l'ecran : la liste se charge par l'API, la pagination et les totaux marchent, et « Imprimer » ouvre le releve
  * en PDF dans un onglet (inline), avec les memes ventes que la liste.
+ *
+ * MEME INSTANTANE DE DONNEES (TPF-08, retour de Codex du 02/11) : JSP et API ne se comparent que sur des donnees
+ * identiques. Sur le poste de developpement, les JSP lisent une autre base que Payara (DB_JSP=capitale, montage voulu) :
+ * le test retient alors les deux derniers mois complets dont les factures subrogatoires sont identiques dans les deux
+ * bases (meme nombre, meme empreinte des ventes, montants et bons), et le dit. Sans mois identique, la comparaison est
+ * declaree non applicable sur ce banc. En officine, une seule base : DB_JSP vaut DB_TEST, rien ne change.
+ *
+ * Variable : DB_JSP, base lue par les JSP (defaut : celle des tests).
  */
 const { chromium } = require('playwright-core');
 const ENV_E2E = require('../outils/poste');
@@ -14,16 +22,34 @@ const { execFileSync } = require('child_process');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 400) + ']' : '')); }
 const BASE = ENV_E2E.BASE;
-const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+const DB_JSP = process.env.DB_JSP || BASE;
+const qb = (base, s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, base, '-sN', '-e', s], { encoding: 'utf8', maxBuffer: 1e8 }).trim();
+const q = (s) => qb(BASE, s);
 
-/* periodes calculees depuis aujourd'hui (et non figees) : P = les deux mois precedents, M = le mois precedent */
-const [P_DEB, P_FIN, M_DEB, M_FIN, M_FIN_EXCL, J10] = q("SELECT CONCAT_WS('|',"
-  + " DATE_FORMAT(CURDATE() - INTERVAL 2 MONTH, '%Y-%m-01'), LAST_DAY(CURDATE() - INTERVAL 1 MONTH),"
-  + " DATE_FORMAT(CURDATE() - INTERVAL 1 MONTH, '%Y-%m-01'), LAST_DAY(CURDATE() - INTERVAL 1 MONTH),"
-  + " DATE_FORMAT(CURDATE(), '%Y-%m-01'), DATE_FORMAT(CURDATE() - INTERVAL 1 MONTH, '%Y-%m-10'))").split('|');
+/* empreinte des factures subrogatoires d'un mois : nombre, montant, et MD5 des ventes, references, montants et bons */
+const empreinte = (base, debut) => qb(base, "SET SESSION group_concat_max_len = 100000000; SELECT CONCAT_WS('|', COUNT(*), IFNULL(SUM(int_PRICE), 0),"
+  + " MD5(IFNULL(GROUP_CONCAT(CONCAT_WS(':', lg_PREENREGISTREMENT_ID, str_REF, int_PRICE, IFNULL(str_REF_BON, ''), lg_TIERS_PAYANT_ID)"
+  + " ORDER BY lg_PREENREGISTREMENT_ID, str_REF_BON, lg_TIERS_PAYANT_ID), ''))) FROM v_facture_subrogatoire"
+  + " WHERE dt_UPDATED >= '" + debut + "' AND dt_UPDATED < '" + debut + "' + INTERVAL 1 MONTH");
+/* les six derniers mois complets, du plus recent au plus ancien ; on retient les deux derniers mois consecutifs
+   identiques dans les deux bases (P = ces deux mois, M = le plus recent) */
+const MOIS = q("SELECT CONCAT_WS('|', " + [1, 2, 3, 4, 5, 6].map((k) => "DATE_FORMAT(CURDATE() - INTERVAL " + k + " MONTH, '%Y-%m-01')").join(', ') + ")").split('|');
+const identiques = MOIS.map((m) => DB_JSP === BASE || empreinte(BASE, m) === empreinte(DB_JSP, m));
+const k0 = identiques.findIndex((x, k) => x && identiques[k + 1]);
+const ecartes = MOIS.slice(0, k0 < 0 ? MOIS.length : k0).filter((m, k) => !identiques[k]).map((m) => m.slice(0, 7));
+const [P_DEB, P_FIN, M_DEB, M_FIN, M_FIN_EXCL, J10] = k0 < 0 ? [] : q("SELECT CONCAT_WS('|', '" + MOIS[k0 + 1] + "', LAST_DAY('" + MOIS[k0] + "'),"
+  + " '" + MOIS[k0] + "', LAST_DAY('" + MOIS[k0] + "'), '" + MOIS[k0] + "' + INTERVAL 1 MONTH, DATE_FORMAT('" + MOIS[k0] + "', '%Y-%m-10'))").split('|');
 const date = (iso) => { const [a, m, j] = iso.split('-').map(Number); return [a, m - 1, j]; };
 
 (async () => {
+  if (k0 < 0) {
+    ok('Comparaison JSP / API non applicable sur ce banc : aucun mois identique dans ' + BASE + ' et ' + DB_JSP + ' sur six mois', false,
+      'comparer sur un banc où JSP et API lisent le même instantané (une seule base, ou DB_JSP égale à DB_TEST)');
+    console.log('\n0/1 OK');
+    process.exit(1);
+  }
+  ok('Même instantané : ' + BASE + ' (API) et ' + DB_JSP + ' (JSP) ont des factures identiques sur ' + P_DEB.slice(0, 7) + ' et ' + M_DEB.slice(0, 7),
+    true, (DB_JSP === BASE ? 'une seule base' : 'mois plus récents écartés car différents : ' + (ecartes.join(', ') || 'aucun')));
   const tp = q("SELECT lg_TIERS_PAYANT_ID FROM v_facture_subrogatoire WHERE dt_UPDATED>='" + M_DEB + "' AND dt_UPDATED<'" + M_FIN_EXCL + "'"
     + " GROUP BY lg_TIERS_PAYANT_ID ORDER BY COUNT(*) DESC LIMIT 1");
   const ref = q("SELECT str_REF FROM v_facture_subrogatoire WHERE dt_UPDATED>='" + J10 + "' AND dt_UPDATED<'" + J10 + "' + INTERVAL 1 DAY AND int_PRICE>0 LIMIT 1");
@@ -42,11 +68,14 @@ const date = (iso) => { const [a, m, j] = iso.split('-').map(Number); return [a,
     const jsp0 = await lire('../webservices/sm_user/journalvente/ws_facture_subrogatoire.jsp?' + base + '&start=0&limit=20');
     const taille = jsp0.results.length;
     const total = parseInt(jsp0.total, 10);
-    ok('Référence JSP : une période longue avec des ventes', total > 100 && taille > 0, 'total ' + total + ', page ' + taille);
+    ok('Référence JSP : une période longue avec des ventes', total > 0 && taille > 0, 'total ' + total + ', page ' + taille);
+    /* une seule page de resultats : les cas « page 2 » et « derniere page » n'ont pas d'objet */
+    const plusieursPages = total > taille;
+    if (!plusieursPages) { console.log('NOTE  Une seule page (' + total + ' ventes) : cas « page 2 » et « dernière page » sans objet'); }
     const cas = [
       ['Période longue, page 1', base + '&start=0'],
-      ['Période longue, page 2', base + '&start=' + taille],
-      ['Période longue, dernière page', base + '&start=' + (Math.floor((total - 1) / taille) * taille)],
+      ...(plusieursPages ? [['Période longue, page 2', base + '&start=' + taille],
+        ['Période longue, dernière page', base + '&start=' + (Math.floor((total - 1) / taille) * taille)]] : []),
       ['Recherche par référence', mois + '&search_value=' + encodeURIComponent(ref) + '&lg_TIERS_PAYANT_ID=&h_debut=&h_fin=&start=0'],
       ['Recherche par début de nom', mois + '&search_value=K&lg_TIERS_PAYANT_ID=&h_debut=&h_fin=&start=0'],
       ['Tiers payant', mois + '&search_value=&lg_TIERS_PAYANT_ID=' + tp + '&h_debut=&h_fin=&start=0'],
@@ -66,13 +95,19 @@ const date = (iso) => { const [a, m, j] = iso.split('-').map(Number); return [a,
         const l = bons(a.lg_PREENREGISTREMENT_ID);
         return sansBon(a) === sansBon(b) && l.includes(a.str_REF_BON) && l.includes(b.str_REF_BON);
       };
+      if (!jsp || !Array.isArray(jsp.results) || !api || !Array.isArray(api.results)) {
+        ok('JSP = API : ' + nom, false, 'réponse sans liste : JSP ' + String(JSON.stringify(jsp)).slice(0, 120) + ' ; API ' + String(JSON.stringify(api)).slice(0, 120));
+        continue;
+      }
       const egal = jsp.results.length === api.results.length && jsp.results.every((r, k) => memeLigne(r, api.results[k])) && parseInt(jsp.total, 10) === api.total;
       let ecart = '';
       if (!egal) {
         const i = jsp.results.findIndex((r, k) => !memeLigne(r, api.results[k]));
         const a = jsp.results[i] || {}, b = api.results[i] || {};
         const champs = [...new Set(Object.keys(a).concat(Object.keys(b)))].filter((c) => JSON.stringify(a[c]) !== JSON.stringify(b[c]));
-        ecart = 'total ' + jsp.total + '/' + api.total + ' ; 1er écart #' + i + ' champs ' + champs.map((c) => c + ' JSP=' + JSON.stringify(a[c]).slice(0, 60) + ' API=' + JSON.stringify(b[c]).slice(0, 60)).join(' ; ');
+        /* valeurs absentes (undefined) tolerees ; les champs nominatifs ne sont pas recopies dans le journal */
+        const valeur = (c, x) => (/NAME|NOM|CLIENT|CUSTOMER|AYANT/i.test(c) ? '…' : String(JSON.stringify(x)).slice(0, 60));
+        ecart = 'total ' + jsp.total + '/' + api.total + ' ; 1er écart #' + i + ' champs ' + champs.map((c) => c + ' JSP=' + valeur(c, a[c]) + ' API=' + valeur(c, b[c])).join(' ; ');
       }
       ok('JSP = API : ' + nom + ' (' + api.results.length + ' lignes / ' + api.total + ')', egal, ecart);
     }

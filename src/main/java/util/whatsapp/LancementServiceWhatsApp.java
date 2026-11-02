@@ -11,6 +11,8 @@ import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.apache.commons.lang3.StringUtils;
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -24,8 +26,10 @@ import org.json.JSONObject;
  * <li>sinon, demarrer.bat du dossier du service en mode automatique (/auto : ni pause ni question), dans une fenetre a
  * part ; hors Windows, demarrer.sh du meme dossier.</li>
  * </ul>
- * Le dossier doit etre celui du compagnon de Prestige : package.json « prestige-whatsapp-web », src/serveur.js et le
- * script de demarrage.
+ * Le service Windows n'est demarre que s'il est celui du dossier indique (ou si aucun dossier n'est indique) : un autre
+ * dossier, une instance d'essai par exemple, est lance par son propre script, sans toucher au service installe (retour
+ * de Codex du 02/11, CAM-02). Le dossier doit etre celui du compagnon de Prestige : package.json «
+ * prestige-whatsapp-web », src/serveur.js et le script de demarrage.
  */
 public final class LancementServiceWhatsApp {
 
@@ -101,24 +105,79 @@ public final class LancementServiceWhatsApp {
         return r;
     }
 
-    private static boolean serviceWindowsInstalle() {
+    private static final Pattern CHEMIN_SERVICE = Pattern.compile("BINARY_PATH_NAME\\s*:\\s*\"?([^\"\\r\\n]+?)\"?\\s*$",
+            Pattern.MULTILINE);
+
+    /**
+     * Dossier du compagnon d'apres la configuration du service Windows (sortie de « sc qc ») : l'executable WinSW est
+     * dans {@code <dossier>\service-windows}. Null si le chemin est absent.
+     */
+    static File dossierDuService(String sortieScQc) {
+        Matcher m = CHEMIN_SERVICE.matcher(StringUtils.defaultString(sortieScQc));
+        if (!m.find()) {
+            return null;
+        }
+        File exe = new File(m.group(1).trim());
+        File service = exe.getParentFile();
+        return service == null ? null : service.getParentFile();
+    }
+
+    /** Dossier du service Windows installe, ou null s'il n'est pas installe. */
+    private static File serviceWindowsInstalle() {
         try {
-            Process p = new ProcessBuilder("sc.exe", "query", SERVICE_WINDOWS).redirectErrorStream(true)
-                    .redirectOutput(ProcessBuilder.Redirect.DISCARD).start();
-            return p.waitFor(10, TimeUnit.SECONDS) && p.exitValue() == 0;
+            Process p = new ProcessBuilder("sc.exe", "qc", SERVICE_WINDOWS).redirectErrorStream(true).start();
+            String sortie = new String(p.getInputStream().readAllBytes(), StandardCharsets.ISO_8859_1);
+            if (!p.waitFor(10, TimeUnit.SECONDS) || p.exitValue() != 0) {
+                return null;
+            }
+            File d = dossierDuService(sortie);
+            return d != null ? d : new File("");
         } catch (IOException e) {
-            return false;
+            return null;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
+            return null;
+        }
+    }
+
+    /** Vrai si le service Windows installe doit servir : aucun dossier indique, ou le dossier de ce service. */
+    static boolean parLeServiceWindows(File installe, String dossier) {
+        if (installe == null) {
             return false;
         }
+        if (StringUtils.isBlank(dossier)) {
+            return true;
+        }
+        return memeDossier(installe, new File(dossier.trim()));
+    }
+
+    private static boolean memeDossier(File a, File b) {
+        try {
+            return a.getCanonicalPath().equalsIgnoreCase(b.getCanonicalPath());
+        } catch (IOException e) {
+            return a.getAbsolutePath().equalsIgnoreCase(b.getAbsolutePath());
+        }
+    }
+
+    /** Message pour l'administrateur selon le code de sortie (null : le lancement est parti ou le service tourne). */
+    static String resultat(boolean serviceWindows, int code) {
+        if (code == 0 || (serviceWindows && code == 1056)) {
+            /* 1056 : « une instance du service est deja en cours d'execution » */
+            return null;
+        }
+        if (serviceWindows && code == 5) {
+            return "Prestige n'a pas le droit de démarrer le service Windows « Prestige - WhatsApp » (code 5) : "
+                    + "démarrez-le depuis les Services de Windows.";
+        }
+        return "Le démarrage du service WhatsApp Web a échoué (code " + code + ").";
     }
 
     /** Lance le service ; rend null si le lancement est parti, sinon la raison (pour l'administrateur). */
     public static String lancer(String dossier) {
         boolean windows = windows();
         ProcessBuilder pb;
-        if (windows && serviceWindowsInstalle()) {
+        boolean parService = windows && parLeServiceWindows(serviceWindowsInstalle(), dossier);
+        if (parService) {
             pb = new ProcessBuilder("sc.exe", "start", SERVICE_WINDOWS);
         } else {
             if (StringUtils.isBlank(dossier)) {
@@ -144,8 +203,8 @@ public final class LancementServiceWhatsApp {
         try {
             Process p = pb.start();
             /* sc start et « start » rendent la main tout de suite ; un echec immediat est signale */
-            if (p.waitFor(15, TimeUnit.SECONDS) && p.exitValue() != 0) {
-                return "Le démarrage du service WhatsApp Web a échoué (code " + p.exitValue() + ").";
+            if (p.waitFor(15, TimeUnit.SECONDS)) {
+                return resultat(parService, p.exitValue());
             }
             return null;
         } catch (IOException e) {
