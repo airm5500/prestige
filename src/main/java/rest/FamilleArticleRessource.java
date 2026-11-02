@@ -19,8 +19,10 @@ import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Response;
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import rest.service.utils.CacheEtats;
 import rest.service.FamilleArticleService;
 import rest.service.SuggestionService;
 import rest.service.dto.VingtQuatreVingtType;
@@ -54,8 +56,15 @@ public class FamilleArticleRessource {
         if (tu == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
-        JSONObject jsono = familleArticleService.statistiqueParFamilleArticleView(dtStart, dtEnd, codeFamillle, query,
-                tu, codeRayon, codeGrossiste);
+        /* garde pour l'impression (demande du 02/11) : le PDF reprend ces lignes au lieu de les recalculer */
+        org.apache.commons.lang3.tuple.Pair<commonTasks.dto.FamilleArticleStatDTO, List<commonTasks.dto.FamilleArticleStatDTO>> pair = CacheEtats
+                .ecranObjet(hs.getId(), CacheEtats.STAT_FAMILLE,
+                        () -> familleArticleService.statistiqueParFamilleArticle(dtStart, dtEnd, codeFamillle, query, tu,
+                                codeRayon, codeGrossiste),
+                        tu.getLgEMPLACEMENTID().getLgEMPLACEMENTID(), dtStart, dtEnd, codeFamillle, query, codeRayon,
+                        codeGrossiste);
+        JSONObject jsono = new JSONObject().put("success", true).put("total", pair.getRight().size())
+                .put("data", new JSONArray(pair.getRight())).put("metaData", new JSONObject(pair.getLeft()));
         return Response.ok().entity(jsono.toString()).build();
     }
 

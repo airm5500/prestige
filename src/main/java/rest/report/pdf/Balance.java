@@ -815,8 +815,8 @@ public class Balance {
         return "/data/reports/pdf/tvastat_" + report_generate_file;
     }
 
-    public String familleArticle(String dtStart, String dtEnd, String codeFamile, String query, TUser tu,
-            String codeRayon, String codeGrossiste) throws IOException {
+    public String familleArticle(String session, String dtStart, String dtEnd, String codeFamile, String query,
+            TUser tu, String codeRayon, String codeGrossiste) throws IOException {
 
         LocalDate dtSt = LocalDate.now(), dtEn = dtSt;
         try {
@@ -837,8 +837,13 @@ public class Balance {
         }
         parameters.put("P_H_CLT_INFOS", "Statistiques Familles Articles  ".toUpperCase() + P_PERIODE);
         String report_generate_file = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH_mm_ss")) + ".pdf";
-        Pair<FamilleArticleStatDTO, List<FamilleArticleStatDTO>> pair = familleArticleService
-                .statistiqueParFamilleArticle(dtStart, dtEnd, codeFamile, query, tu, codeRayon, codeGrossiste);
+        /* les lignes que l'ecran vient d'afficher, si elles ont moins de 5 min (demande du 02/11) */
+        Pair<FamilleArticleStatDTO, List<FamilleArticleStatDTO>> pair = rest.service.utils.CacheEtats.editionObjet(
+                session, rest.service.utils.CacheEtats.STAT_FAMILLE,
+                () -> familleArticleService.statistiqueParFamilleArticle(dtStart, dtEnd, codeFamile, query, tu,
+                        codeRayon, codeGrossiste),
+                tu.getLgEMPLACEMENTID().getLgEMPLACEMENTID(), dtStart, dtEnd, codeFamile, query, codeRayon,
+                codeGrossiste);
         List<FamilleArticleStatDTO> datas = pair.getRight();
         FamilleArticleStatDTO summary = pair.getLeft();
         parameters.put("montantTTC", summary.getMontantCumulTTC());

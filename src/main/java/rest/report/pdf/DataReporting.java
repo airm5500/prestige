@@ -203,8 +203,8 @@ public class DataReporting {
         return "/data/reports/pdf/articles_invendus_" + report_generate_file;
     }
 
-    public String articleSurStock(String codeFamile, String query, TUser tu, String codeRayon, String codeGrossiste,
-            int nbreMois, int nbreConsommation) throws IOException {
+    public String articleSurStock(String session, String codeFamile, String query, TUser tu, String codeRayon,
+            String codeGrossiste, int nbreMois, int nbreConsommation) throws IOException {
 
         String scr_report_file = "rp_articles_surstock";
         Map<String, Object> parameters = reportUtil.officineData(tu);
@@ -221,8 +221,13 @@ public class DataReporting {
         String report_generate_file = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH_mm_ss")) + ".pdf";
         Comparator<ArticleDTO> comparator = Comparator.comparing(ArticleDTO::getFilterId)
                 .thenComparing(ArticleDTO::getLibelle);
-        List<ArticleDTO> data = ficheArticleService.articleSurStock(tu, query, codeFamile, codeRayon, codeGrossiste,
-                nbreMois, nbreConsommation, 0, 0, true);
+        /* les lignes que l'ecran vient d'afficher, si elles ont moins de 5 min (demande du 02/11) ; triees sur une copie */
+        List<ArticleDTO> data = new java.util.ArrayList<>(rest.service.utils.CacheEtats.editionObjet(session,
+                rest.service.utils.CacheEtats.SURSTOCK,
+                () -> ficheArticleService.articleSurStock(tu, query, codeFamile, codeRayon, codeGrossiste, nbreMois,
+                        nbreConsommation, 0, 0, true),
+                tu.getLgEMPLACEMENTID().getLgEMPLACEMENTID(), query, codeFamile, codeRayon, codeGrossiste, nbreMois,
+                nbreConsommation));
         data.sort(comparator);
 
         reportUtil.buildReport(parameters, scr_report_file, jdom.scr_report_file,

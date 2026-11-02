@@ -35,9 +35,8 @@ async function imprimer(ctx, p) {
   const reponse = ctx.waitForEvent('response', { predicate: (r) => r.url().includes('/balancesalecash/pdf'), timeout: 180000 });
   await cliquer(p, 'balancesalecahs #imprimer');
   const r = await reponse;
-  await r.finished();
-  /* le corps d'un PDF ouvert dans la visionneuse n'est pas lisible : sa taille l'est */
-  const taille = (await r.request().sizes().catch(() => ({}))).responseBodySize || 0;
+  /* le corps d'un PDF ouvert dans la visionneuse n'est pas lisible : sa taille est dans l'en-tete */
+  const taille = Number(r.headers()['content-length'] || 0);
   return { entete: r.headers()['x-donnees-ecran'], type: r.headers()['content-type'] || '', taille, ms: Date.now() - t0 };
 }
 
