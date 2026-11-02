@@ -10,6 +10,8 @@ import java.util.Objects;
 import javax.persistence.Basic;
 import javax.persistence.Column;
 import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
@@ -21,6 +23,9 @@ import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
 
 /**
+ * Compteur du jour des numeros de vente : une ligne par jour, par emplacement et par type (ventes, ou proformas si
+ * {@code devis}). La cle technique {@code pk} remplace la date seule : avec la date pour cle, le compteur d'une
+ * proforma ou d'un autre emplacement ecrasait celui des ventes du jour, qui repartait a 1 (doublons de numeros).
  *
  * @author koben
  */
@@ -34,6 +39,9 @@ public class Reference implements Serializable {
 
     private static final long serialVersionUID = 1L;
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "pk", nullable = false)
+    private Long pk;
     @Basic(optional = false)
     @Column(name = "id", nullable = false)
     private String id;
@@ -68,6 +76,10 @@ public class Reference implements Serializable {
     }
 
     public Reference() {
+    }
+
+    public Long getPk() {
+        return pk;
     }
 
     public String getId() {
@@ -125,7 +137,7 @@ public class Reference implements Serializable {
     @Override
     public int hashCode() {
         int hash = 3;
-        hash = 47 * hash + Objects.hashCode(this.id);
+        hash = 47 * hash + Objects.hashCode(this.pk);
         return hash;
     }
 
@@ -141,7 +153,7 @@ public class Reference implements Serializable {
             return false;
         }
         final Reference other = (Reference) obj;
-        if (!Objects.equals(this.id, other.id)) {
+        if (this.pk == null || !Objects.equals(this.pk, other.pk)) {
             return false;
         }
         return true;
