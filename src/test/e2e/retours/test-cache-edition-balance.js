@@ -11,6 +11,8 @@ const { connexion, ouvrirMenu, cliquer, saisir } = require('../outils/vues');
 
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d ? '  [' + String(d).slice(0, 400) + ']' : '')); }
+/* plus aucun masque de chargement visible : sinon il intercepte le clic dans les champs */
+const sansMasque = (p) => p.waitForFunction(() => !Array.from(document.querySelectorAll('.x-mask')).some((m) => m.offsetParent !== null), null, { timeout: 60000 });
 const jj = (d) => String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0') + '/' + d.getFullYear();
 
 /* la balance ouverte par le menu, periode saisie et recherchee */
@@ -20,6 +22,7 @@ async function ouvrir(ctx, debut, fin) {
   await ouvrirMenu(p, 'GESTION COURANTE', 'Balance Vente/Caisse2');
   await p.waitForFunction(() => Ext.ComponentQuery.query('balancesalecahs #balanceGrid').length > 0, null, { timeout: 20000 });
   await p.waitForFunction(() => !Ext.ComponentQuery.query('balancesalecahs #balanceGrid')[0].getStore().isLoading(), null, { timeout: 60000 });
+  await sansMasque(p);
   await saisir(p, 'balancesalecahs #dtStart', debut);
   await saisir(p, 'balancesalecahs #dtEnd', fin);
   const chargement = p.waitForResponse((r) => /\/balancesalecash\?/.test(r.url()), { timeout: 120000 });
@@ -68,6 +71,7 @@ async function imprimer(ctx, p) {
     await ouvrirMenu(p2, 'GESTION COURANTE', 'Balance Vente/Caisse2');
     await p2.waitForFunction(() => Ext.ComponentQuery.query('balancesalecahs #balanceGrid').length > 0, null, { timeout: 20000 });
     await p2.waitForFunction(() => !Ext.ComponentQuery.query('balancesalecahs #balanceGrid')[0].getStore().isLoading(), null, { timeout: 60000 });
+    await sansMasque(p2);
     await saisir(p2, 'balancesalecahs #dtStart', jj(debut));
     await saisir(p2, 'balancesalecahs #dtEnd', jj(fin));
     const d = await imprimer(ctx2, p2);
