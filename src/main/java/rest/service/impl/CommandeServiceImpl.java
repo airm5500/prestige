@@ -182,7 +182,7 @@ public class CommandeServiceImpl implements CommandeService {
         List<String> out = new ArrayList<>();
         for (TBonLivraisonDetail bn : lignes) {
             TFamille f = bn.getLgFAMILLEID();
-            List<TLot> lots = getLot(f.getLgFAMILLEID(), bonLivraison.getStrREFLIVRAISON());
+            List<TLot> lots = getLot(f.getLgFAMILLEID(), bonLivraison);
             int saisi = lots.stream().mapToInt(l -> Objects.requireNonNullElse(l.getIntNUMBER(), 0)).sum();
             if ((!lots.isEmpty() && saisi < bn.getIntQTECMDE()) || (avecEcart && lots.isEmpty())) {
                 out.add(f.getIntCIP() + " " + f.getStrNAME() + " (" + saisi + "/" + bn.getIntQTECMDE() + ")");
@@ -235,7 +235,7 @@ public class CommandeServiceImpl implements CommandeService {
             for (TBonLivraisonDetail bn : lstTBonLivraisonDetail) {
                 TFamille oFamille = bn.getLgFAMILLEID();
                 famillesEntreesEnStock.add(oFamille.getLgFAMILLEID());
-                List<TLot> lots = getLot(oFamille.getLgFAMILLEID(), bonLivraison.getStrREFLIVRAISON());
+                List<TLot> lots = getLot(oFamille.getLgFAMILLEID(), bonLivraison);
                 if (peremptionDateIsEnabled && oFamille.getBoolCHECKEXPIRATIONDATE()
                         && (lots.isEmpty() || lots.stream().anyMatch(l -> Objects.isNull(l.getDtPEREMPTION())))) {
                     if (userTransaction.getStatus() == Status.STATUS_ACTIVE) {
@@ -254,13 +254,22 @@ public class CommandeServiceImpl implements CommandeService {
                 int quantiteEntree;
                 int stockApres;
                 if (lots.isEmpty()) {
-                    createTLot(bn, user, oFamille, bn.getIntQTECMDE(), bonLivraison.getStrREFLIVRAISON(), grossiste,
+                    /*
+                     * Audit 06, EN-03 : BL cree depuis un BLV PharmaML, la quantite recue est celle que le grossiste
+                     * dit avoir livree ; elle entre, et le reliquat reste. Sans BLV, la quantite commandee (inchange).
+                     */
+                    boolean depuisBlv = blvDuBon(bonLivraison);
+                    int entree = depuisBlv ? Objects.requireNonNullElse(bn.getIntQTERECUE(), 0)
+                            : Objects.requireNonNullElse(bn.getIntQTECMDE(), 0);
+                    createTLot(bn, user, oFamille, entree, bonLivraison.getStrREFLIVRAISON(), grossiste,
                             order.getStrREFORDER(), 0);
-                    quantiteEntree = Objects.requireNonNullElse(bn.getIntQTECMDE(), 0);
+                    quantiteEntree = entree;
                     stockApres = addToStock(bn.getIntPRIXVENTE(), bn.getIntPAF(), bn.getLgBONLIVRAISONDETAIL(), user,
-                            bn.getIntQTECMDE(), 0, oFamille);
-                    bn.setIntQTERECUE(bn.getIntQTECMDE());
-                    bn.setIntQTEMANQUANT(0);
+                            entree, 0, oFamille);
+                    if (!depuisBlv) {
+                        bn.setIntQTERECUE(bn.getIntQTECMDE());
+                        bn.setIntQTEMANQUANT(0);
+                    }
                     bn.setIntQTEUG(0);
                 } else {
                     int cmde = 0;
@@ -268,7 +277,8 @@ public class CommandeServiceImpl implements CommandeService {
                     for (TLot item : lots) {
                         cmde += Objects.requireNonNullElse(item.getIntNUMBER(), 0);
                         qu += Objects.requireNonNullElse(item.getIntNUMBERGRATUIT(), 0);
-                        item.setCurrentStock(cmde);
+                        /* audit 06, EN-01 : le reste du lot est sa propre quantite (avant : le cumul des lots) */
+                        item.setCurrentStock(Objects.requireNonNullElse(item.getIntNUMBER(), 0));
                         em.merge(item);
                     }
 
@@ -1301,14 +1311,28 @@ public class CommandeServiceImpl implements CommandeService {
         }
     }
 
-    private List<TLot> getLot(String idProduit, String bonRef) {
+    /** Lots du produit sur ce BL : son numero ET son grossiste (audit 06, EN-02). */
+    private List<TLot> getLot(String idProduit, TBonLivraison bon) {
         try {
-            TypedQuery<TLot> query = em.createNamedQuery("TLot.findByProduitAndBonRef", TLot.class);
+            TypedQuery<TLot> query = em.createNamedQuery("TLot.findByProduitBonRefEtGrossiste", TLot.class);
             query.setParameter("lgFAMILLEID", idProduit);
-            query.setParameter("strREFLIVRAISON", bonRef);
+            query.setParameter("strREFLIVRAISON", bon.getStrREFLIVRAISON());
+            query.setParameter("lgGROSSISTEID", bon.getLgORDERID().getLgGROSSISTEID().getLgGROSSISTEID());
             return query.getResultList();
         } catch (Exception e) {
             return List.of();
+        }
+    }
+
+    /** BL cree depuis un BLV PharmaML (audit 06, EN-03). */
+    private boolean blvDuBon(TBonLivraison bon) {
+        try {
+            Object n = em.createNativeQuery("SELECT COUNT(*) FROM t_pharmaml_blv WHERE lg_BON_LIVRAISON_ID = ?1")
+                    .setParameter(1, bon.getLgBONLIVRAISONID()).getSingleResult();
+            return n != null && ((Number) n).longValue() > 0;
+        } catch (RuntimeException e) {
+            LOG.log(Level.WARNING, "blvDuBon", e);
+            return false;
         }
     }
 
