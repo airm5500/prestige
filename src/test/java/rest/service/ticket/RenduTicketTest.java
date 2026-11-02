@@ -172,13 +172,27 @@ class RenduTicketTest {
     @Test
     void dispositionRefuseeQuandUnBlocFixeBougeOuInconnu() {
         JSONArray d = new JSONArray().put(new JSONObject().put("bloc", "TITRE"))
-                .put(new JSONObject().put("bloc", "ENTETE")).put(new JSONObject().put("bloc", "XYZ"))
+                .put(new JSONObject().put("bloc", "PIED")).put(new JSONObject().put("bloc", "XYZ"))
                 .put(new JSONObject().put("bloc", "TITRE"));
         ReglagesTicket r = ReglagesTicket.depuis(ModeleTicket.VENTE, new JSONObject().put("disposition", d));
         List<String> bloquants = RenduTicket.controler(r, new ArrayList<>());
-        assertTrue(bloquants.stream().anyMatch(b -> b.contains("en tête")), bloquants.toString());
+        assertTrue(bloquants.stream().anyMatch(b -> b.contains("au pied")), bloquants.toString());
         assertTrue(bloquants.stream().anyMatch(b -> b.contains("inconnu")), bloquants.toString());
         assertTrue(bloquants.stream().anyMatch(b -> b.contains("deux fois")), bloquants.toString());
+    }
+
+    /** Retour du 02/11 : le nom de l'officine se choisit, s'agrandit et se deplace comme les autres blocs. */
+    @Test
+    void nomDeLOfficineDeplacableEtReglable() {
+        assertFalse(TicketDocument.FIXES.contains(TicketDocument.ENTETE));
+        JSONArray d = new JSONArray().put(new JSONObject().put("bloc", "COORDONNEES"))
+                .put(new JSONObject().put("bloc", "ENTETE").put("alignement", "G").put("taille", 3));
+        ReglagesTicket r = ReglagesTicket.depuis(ModeleTicket.VENTE, new JSONObject().put("disposition", d));
+        List<String> ordre = RenduTicket.ordre(r);
+        assertTrue(ordre.indexOf("ENTETE") > ordre.indexOf("COORDONNEES"), ordre.toString());
+        assertEquals("PIED", ordre.get(ordre.size() - 1));
+        assertTrue(RenduTicket.controler(r, new ArrayList<>()).isEmpty());
+        assertEquals(3, r.position("ENTETE").taille);
     }
 
     @Test

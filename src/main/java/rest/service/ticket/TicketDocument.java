@@ -9,7 +9,8 @@ import java.util.Map;
 
 /**
  * Contenu d'un ticket du nouveau modele, en blocs nommes : c'est ce que le rendu dessine, a l'impression comme dans
- * l'apercu du menu « Modeles de ticket ». Un bloc se deplace d'un seul tenant ; l'en-tete et le pied sont fixes.
+ * l'apercu du menu « Modeles de ticket ». Un bloc se deplace d'un seul tenant ; seul le pied est fixe (le nom de
+ * l'officine se deplace et se regle comme les autres blocs depuis le retour du 02/11).
  */
 public final class TicketDocument {
 
@@ -28,10 +29,10 @@ public final class TicketDocument {
     public static final String SIGNATURES = "SIGNATURES";
     public static final String PIED = "PIED";
 
-    /** Ordre du modele ; l'en-tete reste premier et le pied dernier. */
+    /** Ordre du modele ; le pied reste dernier. */
     public static final List<String> ORDRE = Collections.unmodifiableList(Arrays.asList(ENTETE, COORDONNEES, TITRE,
             INTERVENANTS, CLIENT, CORPS, RECAP, TOTAUX, NET, REGLEMENT, MENTIONS, COMMENTAIRE, SIGNATURES, PIED));
-    public static final List<String> FIXES = Collections.unmodifiableList(Arrays.asList(ENTETE, PIED));
+    public static final List<String> FIXES = Collections.unmodifiableList(Arrays.asList(PIED));
 
     private static final Map<String, String> LIBELLES = new LinkedHashMap<>();
 
