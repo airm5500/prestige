@@ -884,59 +884,61 @@ public class tierspayantManagement extends bllBase {
     }
 
     // SUPPRESSION
+    /*
+     * Plan « clients assures et tiers-payants » (02/11), etape 2 : tous les retraits passent par la regle unique du
+     * service REST (ClientService.retirerTiersPayant), en une seule transaction : dernier lien actif retire, le client
+     * est desactive ; principal retire, le complementaire passe en priorite 1 ; refus si des ventes non reglees
+     * utilisent le lien. Ces methodes ne sont plus appelees que par d'anciennes JSP.
+     */
     public void delete_compteclt_tierspayant(String lg_COMPTE_CLIENT_ID, String lg_TIERS_PAYANT_ID) {
-        List<TCompteClientTiersPayant> lstTCompteClientTiersPayant = new ArrayList<TCompteClientTiersPayant>();
-        try {
-
-            new logger().OCategory.info(" ID Compte Client " + lg_COMPTE_CLIENT_ID);
-            new logger().OCategory.info(" ID Tiers Payant " + lg_TIERS_PAYANT_ID);
-            lstTCompteClientTiersPayant = this.getOdataManager().getEm().createQuery(
-                    "SELECT t FROM TCompteClientTiersPayant t WHERE t.lgCOMPTECLIENTID.lgCOMPTECLIENTID = ?1 AND t.lgTIERSPAYANTID.lgTIERSPAYANTID = ?2")
-                    .setParameter(1, lg_COMPTE_CLIENT_ID).setParameter(2, lg_TIERS_PAYANT_ID).getResultList();
-
-            for (TCompteClientTiersPayant OTCompteClientTiersPayant : lstTCompteClientTiersPayant) {
-                this.refresh(OTCompteClientTiersPayant);
-                this.delete(OTCompteClientTiersPayant);
-            }
-
-            // OTCompteClientTiersPayant.setStrSTATUT(commonparameter.statut_delete);
-            this.buildSuccesTraceMessage(this.getOTranslate().getValue("SUCCES"));
-        } catch (Exception e) {
-            e.printStackTrace();
-            this.buildErrorTraceMessage("Impossible de supprimer un tiers payant ayant un compte client");
+        List<String> liens = this.getOdataManager().getEm().createQuery(
+                "SELECT t.lgCOMPTECLIENTTIERSPAYANTID FROM TCompteClientTiersPayant t WHERE t.lgCOMPTECLIENTID.lgCOMPTECLIENTID = ?1"
+                        + " AND t.lgTIERSPAYANTID.lgTIERSPAYANTID = ?2 AND t.strSTATUT = ?3",
+                String.class).setParameter(1, lg_COMPTE_CLIENT_ID).setParameter(2, lg_TIERS_PAYANT_ID)
+                .setParameter(3, commonparameter.statut_enable).getResultList();
+        if (liens.isEmpty()) {
+            this.buildErrorTraceMessage("Ce tiers-payant n'est plus rattaché au client.");
+            return;
         }
-
+        for (String lien : liens) {
+            if (!retirerParLaRegleUnique(lien)) {
+                return;
+            }
+        }
     }
 
-    // fin karno
     public void delete_compteclt_tierspayant(String lg_COMPTE_CLIENT_TIERS_PAYANT_ID) {
-        List<TCompteClientTiersPayant> lstTCompteClientTiersPayant = new ArrayList<TCompteClientTiersPayant>();
-        int i = 0;
+        retirerParLaRegleUnique(lg_COMPTE_CLIENT_TIERS_PAYANT_ID);
+    }
+
+    /** Retrait par la regle unique ; renseigne le message de l'ecran. Faux si le retrait est refuse ou echoue. */
+    private boolean retirerParLaRegleUnique(String lg_COMPTE_CLIENT_TIERS_PAYANT_ID) {
+        rest.service.ClientService service = null;
+        for (String nom : new String[] { "java:module/ClientServiceImpl!rest.service.ClientService",
+                "java:global/prestige/ClientServiceImpl!rest.service.ClientService" }) {
+            try {
+                service = (rest.service.ClientService) new javax.naming.InitialContext().lookup(nom);
+                break;
+            } catch (Exception e) {
+                new logger().OCategory.debug("ClientService introuvable via " + nom);
+            }
+        }
+        if (service == null) {
+            this.buildErrorTraceMessage("Impossible de retirer le tiers payant du client : rien n'a été modifié");
+            return false;
+        }
         try {
-
-            lstTCompteClientTiersPayant = this.getOdataManager().getEm()
-                    .createQuery("SELECT t FROM TCompteClientTiersPayant t WHERE t.lgCOMPTECLIENTTIERSPAYANTID = ?1")
-                    .setParameter(1, lg_COMPTE_CLIENT_TIERS_PAYANT_ID).getResultList();
-
-            for (TCompteClientTiersPayant OTCompteClientTiersPayant : lstTCompteClientTiersPayant) {
-                this.refresh(OTCompteClientTiersPayant);
-                if (this.delete(OTCompteClientTiersPayant)) {
-                    i++;
-                }
+            JSONObject r = service.retirerTiersPayant(lg_COMPTE_CLIENT_TIERS_PAYANT_ID);
+            if (r.optBoolean("success")) {
+                this.buildSuccesTraceMessage(r.optString("msg"));
+                return true;
             }
-
-            if (lstTCompteClientTiersPayant.size() == i) {
-                this.buildSuccesTraceMessage(this.getOTranslate().getValue("SUCCES"));
-            } else {
-                this.buildErrorTraceMessage(
-                        "Le client sélectionné a déjà effectué des transactions avec ce tiers payant");
-            }
-
+            this.buildErrorTraceMessage(r.optString("msg"));
         } catch (Exception e) {
             e.printStackTrace();
-            this.buildErrorTraceMessage("Impossible de supprimer ce tiers payant associé au client courant");
+            this.buildErrorTraceMessage("Impossible de retirer le tiers payant du client : rien n'a été modifié");
         }
-
+        return false;
     }
 
     // mise a jour tiers payant compte client
@@ -2130,6 +2132,27 @@ public class tierspayantManagement extends bllBase {
                             OTCompteClientTiersPayant1.getLgCOMPTECLIENTID().getLgCOMPTECLIENTID(), "%%", state);
 
                     if (str_STATUT.equalsIgnoreCase(commonparameter.statut_disable)) {
+                        /*
+                         * plan « clients assures » (02/11) : si l'organisme desactive etait le principal du client et
+                         * qu'il lui reste un complementaire, celui-ci passe en priorite 1. Le tout est enregistre avec
+                         * l'organisme, en une seule validation (persiste ci-dessous).
+                         */
+                        if (lstTCompteCTP.size() > 1) {
+                            rest.service.impl.client.RetraitTiersPayant.Decision d = rest.service.impl.client.RetraitTiersPayant
+                                    .decider(OTCompteClientTiersPayant1.getLgCOMPTECLIENTTIERSPAYANTID(),
+                                            lstTCompteCTP.stream()
+                                                    .map(rest.service.impl.client.RetraitTiersPayant.Lien::de)
+                                                    .collect(java.util.stream.Collectors.toList()));
+                            if (d.effet == rest.service.impl.client.RetraitTiersPayant.Effet.PROMOTION) {
+                                for (TCompteClientTiersPayant autre : lstTCompteCTP) {
+                                    if (autre.getLgCOMPTECLIENTTIERSPAYANTID().equals(d.promu.id)) {
+                                        autre.setIntPRIORITY(1);
+                                        autre.setDtUPDATED(new Date());
+                                        this.getOdataManager().getEm().merge(autre);
+                                    }
+                                }
+                            }
+                        }
                         if (lstTCompteCTP.size() >= 1) {
                             OTCompteClientTiersPayant1.setStrSTATUT(str_STATUT);
                             OTCompteClientTiersPayant1.setDtUPDATED(new Date());
@@ -2254,48 +2277,9 @@ public class tierspayantManagement extends bllBase {
 
     }
 
+    /** Retrait d'un tiers-payant du client : regle unique (voir delete_compteclt_tierspayant). */
     public void deleteComptecltTierspayant(String lg_COMPTE_CLIENT_TIERS_PAYANT_ID) {
-        TCompteClientTiersPayant OClientTiersPayant = null;
-        System.out.println("lg_COMPTE_CLIENT_TIERS_PAYANT_ID ---------------------------------"
-                + lg_COMPTE_CLIENT_TIERS_PAYANT_ID);
-
-        try {
-            OClientTiersPayant = this.getOdataManager().getEm().find(TCompteClientTiersPayant.class,
-                    lg_COMPTE_CLIENT_TIERS_PAYANT_ID);
-
-            if (verifieComptClientTierspayantVente(lg_COMPTE_CLIENT_TIERS_PAYANT_ID) > 0) {
-                this.buildErrorTraceMessage(
-                        "Le client sélectionné a déjà effectué des transactions avec ce tiers payant.<br> Pour poursuivre vous devez annuler les ventes du client liées à cet Organisme");
-            } else {
-                if (!this.getOdataManager().getEm().getTransaction().isActive()) {
-                    this.getOdataManager().getEm().getTransaction().begin();
-                }
-                this.getComptClientTierspayantVente(lg_COMPTE_CLIENT_TIERS_PAYANT_ID).stream().map((p) -> {
-                    p.setStrSTATUT(commonparameter.statut_delete);
-                    return p;
-                }).forEachOrdered((p) -> {
-                    this.getOdataManager().getEm().merge(p);
-                });
-
-                this.getCompteClientTiersPayents(lg_COMPTE_CLIENT_TIERS_PAYANT_ID).stream().map((sp) -> {
-                    sp.setStrSTATUT(commonparameter.statut_delete);
-                    return sp;
-                }).forEachOrdered((sp) -> {
-                    this.getOdataManager().getEm().merge(sp);
-                });
-                OClientTiersPayant.setStrSTATUT(commonparameter.statut_delete);
-                this.getOdataManager().getEm().merge(OClientTiersPayant);
-                if (this.getOdataManager().getEm().getTransaction().isActive()) {
-                    this.getOdataManager().getEm().getTransaction().commit();
-                }
-                this.buildSuccesTraceMessage(this.getOTranslate().getValue("SUCCES"));
-            }
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            this.buildErrorTraceMessage("Impossible de supprimer ce tiers payant associé au client courant");
-        }
-
+        retirerParLaRegleUnique(lg_COMPTE_CLIENT_TIERS_PAYANT_ID);
     }
 
     public TCompteClientTiersPayant createComptecltTierspayant(String lg_COMPTE_CLIENT_ID, String lg_TIERS_PAYANT_ID,

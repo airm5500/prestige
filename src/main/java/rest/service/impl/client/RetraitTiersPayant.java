@@ -44,6 +44,14 @@ public final class RetraitTiersPayant {
             this.regimeObligatoire = regimeObligatoire;
             this.priorite = priorite == null || priorite < 1 ? Integer.MAX_VALUE : priorite;
         }
+
+        /** Lien d'un client vers un organisme, tel qu'enregistre. */
+        public static Lien de(dal.TCompteClientTiersPayant l) {
+            dal.TTiersPayant organisme = l.getLgTIERSPAYANTID();
+            String nom = organisme == null || organisme.getStrFULLNAME() == null ? "" : organisme.getStrFULLNAME();
+            return new Lien(l.getLgCOMPTECLIENTTIERSPAYANTID(), nom, Boolean.TRUE.equals(l.getBISRO()),
+                    l.getIntPRIORITY());
+        }
     }
 
     public static final class Decision {

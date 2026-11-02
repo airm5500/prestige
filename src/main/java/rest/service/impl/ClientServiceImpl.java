@@ -2126,13 +2126,6 @@ public class ClientServiceImpl implements ClientService {
                 .setParameter("compte", compte).setParameter("actif", Constant.STATUT_ENABLE).getResultList();
     }
 
-    private static rest.service.impl.client.RetraitTiersPayant.Lien versLien(TCompteClientTiersPayant l) {
-        TTiersPayant organisme = l.getLgTIERSPAYANTID();
-        return new rest.service.impl.client.RetraitTiersPayant.Lien(l.getLgCOMPTECLIENTTIERSPAYANTID(),
-                organisme == null ? "" : StringUtils.defaultString(organisme.getStrFULLNAME()),
-                Boolean.TRUE.equals(l.getBISRO()), l.getIntPRIORITY());
-    }
-
     /** Ventes non annulees et non reglees qui utilisent ce lien (meme regle que l'ecran historique). */
     private long ventesNonRegleesDuLien(String lienId) {
         return em.createQuery("SELECT COUNT(o) FROM TPreenregistrementCompteClientTiersPayent o"
@@ -2144,7 +2137,7 @@ public class ClientServiceImpl implements ClientService {
 
     private rest.service.impl.client.RetraitTiersPayant.Decision deciderRetrait(TCompteClientTiersPayant lien) {
         List<rest.service.impl.client.RetraitTiersPayant.Lien> actifs = liensActifsDuCompte(lien.getLgCOMPTECLIENTID())
-                .stream().map(ClientServiceImpl::versLien).collect(Collectors.toList());
+                .stream().map(rest.service.impl.client.RetraitTiersPayant.Lien::de).collect(Collectors.toList());
         return rest.service.impl.client.RetraitTiersPayant.decider(lien.getLgCOMPTECLIENTTIERSPAYANTID(), actifs);
     }
 
