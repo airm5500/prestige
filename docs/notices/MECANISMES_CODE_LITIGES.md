@@ -21,6 +21,25 @@ et ni la suppression ni la clôture ne font ce qu'elles affichent. Deux
 générations de code coexistent sur le même écran et écrivent dans la même
 table avec des champs différents.
 
+**Contexte d'exploitation (retour officine du 02/11).** Le module n'a **jamais
+été utilisé** en exploitation et il est **lié à la facturation** (il agit sur
+`str_STATUT_FACTURE` des lignes tiers-payant). Cela change la recommandation :
+
+1. **Priorité : désactiver le menu**, pas corriger. Un module jamais utilisé
+   dont le bouton « créer » sort silencieusement un dossier de la facturation
+   (L1) est un risque pur sans bénéfice ; le retirer du menu supprime le
+   risque sans toucher au code métier (même modèle que la migration
+   `V6.9.109` qui a désactivé l'ancien écran JSP de règlement différé).
+2. **Avant désactivation, un seul contrôle** : exécuter les deux requêtes de
+   détection L1 ci-dessous. Si elles reviennent vides (attendu puisque le
+   module n'a jamais servi), il n'y a **aucune reprise de données** à faire et
+   les chantiers L1-L5 deviennent sans objet tant que le module reste fermé.
+3. **Si un besoin litige revient un jour**, la refonte se rattache au
+   **chantier facturation** (`MECANISMES_CODE_FACTURATION_TIERS_PAYANT.md`) :
+   mêmes lignes `pcctp`, mêmes statuts `unpaid`/`charged`, même service REST —
+   ne pas réanimer les JSP ni `LitigeManager`. Les mécanismes L1-L5 ci-dessous
+   restent documentés pour cette éventualité.
+
 ---
 
 ## L1 — Créer un litige : enregistrement vide, dossier sorti de la facturation sans retour possible (critique)

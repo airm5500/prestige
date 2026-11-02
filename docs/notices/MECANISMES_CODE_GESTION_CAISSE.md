@@ -130,6 +130,65 @@ le solde du matin du résumé en héritera (`setIntSOLDEMATIN`).
 dans le service — même garde dans `ouvrirCaisse` (`:2210-2241`) où le montant
 du fond vient de l'écran.
 
+## G6 — « Recette » ≠ « balance vente caisse » : les deux chiffres ne sont pas construits pareil (majeure — symptôme constaté en officine)
+
+**Symptôme rapporté (02/11).** La recette affichée diffère parfois de la
+balance vente caisse, alors qu'elles devraient être égales.
+
+**Analyse.** Les deux écrans ne lisent **ni la même table, ni les mêmes
+montants, ni les mêmes dates** :
+- la **recette** est écrite à chaque clôture dans `t_recettes` avec le
+  **`montantPaye` envoyé par le poste** (`addRecette`, appels
+  `SalesServiceImpl.java:2831` (assurance), `:3186` (comptant), `:4174`
+  (dépôt)), puis le journal recette lit un **snapshot journalier figé**
+  (`TSnapShopDalyRecette`, `webservices/sm_user/journalrecette/ws_data.jsp:96`,
+  construit par `bll/teller/SnapshotManager`) ;
+- la **balance vente caisse** recalcule en direct depuis `mvttransaction`
+  (`montantRegle`/`montantPaye`/`montantNet` par `mvtDate`,
+  `BalanceServiceImpl.java:73-119`, `CaisseServiceImpl.balanceVenteCaisse`
+  `:2031-2046`).
+
+D'où quatre sources d'écart, toutes déjà prouvées par ailleurs :
+1. **Vente VO avec remise** (CR-05) : `montantRegle` est sous-évalué de la
+   remise à la clôture, la recette reçoit le `montantPaye` → écart égal à la
+   remise sur chaque vente concernée.
+2. **Net ≠ encaissé** (VC-06 mobile, VC-07 arrondi à 5 F, VC-14 montants du
+   poste) : la recette porte l'encaissé, la balance le net/réglé → écarts de
+   1-2 F par vente remisée, 10 % sur une prévente remisée encaissée au mobile.
+3. **Dates divergentes** (VC-12) : annulation ou modification d'une vente d'un
+   jour passé → la transaction négative **et** la recette négative sont
+   antidatées au jour d'origine (`copyRecette`,
+   `SalesServiceImpl.java:1046-1051` : `dtCREATED = dt_UPDATED de la vente
+   clonée`, montant × −1) mais la recette **positive** de la nouvelle vente est
+   datée du jour (`addRecette` → `new Date()`) ; de plus la recette
+   d'annulation complémentaire n'est créée **que si la caisse du caissier
+   d'origine est fermée** (`:733`). Le jour J de la balance et le jour J de la
+   recette ne reçoivent donc pas les mêmes composantes.
+4. **Snapshot figé** : toute opération postérieure à la construction du
+   snapshot journalier (annulation tardive, modification antidatée) met à jour
+   la balance recalculée mais pas le journal recette.
+
+**Rapprochement (lecture seule — identifie la composante en écart, vente par
+vente).**
+```sql
+SELECT p.str_REF, r.int_AMOUNT AS recette, m.montantPaye, m.montantRegle,
+       m.mvtDate AS date_balance, DATE(r.dt_CREATED) AS date_recette
+FROM t_recettes r
+JOIN mvttransaction m      ON m.pkey = r.str_REF_FACTURE
+JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = m.pkey
+WHERE r.int_AMOUNT <> m.montantPaye
+   OR DATE(r.dt_CREATED) <> m.mvtDate
+ORDER BY r.dt_CREATED DESC;
+```
+
+**Correction proposée.** Pas de rustine locale : l'égalité découle des
+chantiers **C4/C7** (comptant : serveur autorité sur les montants, règle de
+date unique) et **A5/A6** (VO/carnet : remise et `montantRegle`), plus une
+décision sur le snapshot (le recalculer à l'affichage ou le rafraîchir après
+toute opération antidatée). À inscrire en test de recette transversal :
+**sur une journée de banc complète, recette = balance = billetage, au franc
+près**, y compris après une annulation et une modification antidatées.
+
 ---
 
 ## Critères d'acceptation
