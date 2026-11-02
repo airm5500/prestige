@@ -287,6 +287,18 @@ public class ClientServiceImpl implements ClientService {
             if (!StringUtils.isEmpty(typeClientId)) {
                 predicates.add(cb.and(cb.equal(root.get(TClient_.lgTYPECLIENTID).get("lgTYPECLIENTID"), typeClientId)));
             }
+            /*
+             * plan « clients assures » (02/11), etape 5 : un client assurance ou carnet n'est propose que s'il a un
+             * tiers-payant actif chez un organisme actif ; les autres types ne sont pas concernes
+             */
+            javax.persistence.criteria.Subquery<String> lienActif = cq.subquery(String.class);
+            Root<TCompteClientTiersPayant> lien = lienActif.from(TCompteClientTiersPayant.class);
+            lienActif.select(lien.get("lgCOMPTECLIENTTIERSPAYANTID")).where(
+                    cb.equal(lien.get("lgCOMPTECLIENTID").get("lgCLIENTID"), root),
+                    cb.equal(lien.get("strSTATUT"), Constant.STATUT_ENABLE),
+                    cb.equal(lien.get("lgTIERSPAYANTID").get("strSTATUT"), Constant.STATUT_ENABLE));
+            predicates.add(cb.or(cb.not(root.get(TClient_.lgTYPECLIENTID).get("lgTYPECLIENTID")
+                    .in(Constant.CLIENT_ASSURANCE, Constant.CLIENT_CARNET)), cb.exists(lienActif)));
             if (!StringUtils.isEmpty(query)) {
                 /*
                  * retours du 13/10 (point 11) : « commence par » (defaut) ou « contient » ; prenoms, code interne et
@@ -316,9 +328,23 @@ public class ClientServiceImpl implements ClientService {
 
             return resultat.stream().map(cl -> new ClientDTO(cl, findTiersPayantByClientId(cl.getLgCLIENTID()),
                     findAyantDroitByClientId(cl.getLgCLIENTID()))).collect(Collectors.toList());
-        } catch (Exception e) {
-            LOG.log(Level.SEVERE, null, e);
-            return Collections.emptyList();
+        } catch (RuntimeException e) {
+            // etape 5 : une erreur de lecture n'est plus une liste vide (« aucun client ») ; l'ecran la signale
+            LOG.log(Level.SEVERE, "recherche des clients assures", e);
+            throw new LectureClientsException(
+                    "La recherche des clients a échoué : réessayez ; si l'erreur revient," + " signalez-la au support.",
+                    e);
+        }
+    }
+
+    /** Erreur de lecture des clients ou de leurs tiers-payants, signalee a l'ecran au lieu d'une liste vide. */
+    @javax.ejb.ApplicationException(rollback = true)
+    public static class LectureClientsException extends RuntimeException {
+
+        private static final long serialVersionUID = 1L;
+
+        public LectureClientsException(String message, Throwable cause) {
+            super(message, cause);
         }
     }
 
@@ -328,15 +354,20 @@ public class ClientServiceImpl implements ClientService {
     public List<TiersPayantParams> findTiersPayantByClientId(String clientId) {
         try {
             TypedQuery<TCompteClientTiersPayant> query = getEmg().createQuery(
-                    "SELECT o FROM TCompteClientTiersPayant o WHERE o.lgCOMPTECLIENTID.lgCLIENTID.lgCLIENTID=?1 AND o.strSTATUT=?2",
+                    "SELECT o FROM TCompteClientTiersPayant o WHERE o.lgCOMPTECLIENTID.lgCLIENTID.lgCLIENTID=?1 AND o.strSTATUT=?2"
+                            + " AND o.lgTIERSPAYANTID.strSTATUT=?2",
                     TCompteClientTiersPayant.class);
             query.setParameter(1, clientId);
             query.setParameter(2, Constant.STATUT_ENABLE);
             return query.getResultList().stream().map(TiersPayantParams::new).sorted(comparator)
                     .collect(Collectors.toList());
-        } catch (Exception e) {
-            LOG.log(Level.SEVERE, null, e);
-            return Collections.emptyList();
+        } catch (RuntimeException e) {
+            /*
+             * plan « clients assures » (02/11), etape 5 : seuls les liens vers un organisme actif sont rendus, et une
+             * erreur de lecture n'est plus une liste vide (le client paraissait sans tiers-payant)
+             */
+            LOG.log(Level.SEVERE, "tiers-payants du client", e);
+            throw new LectureClientsException("Lecture des tiers-payants du client impossible.", e);
         }
     }
 

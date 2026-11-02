@@ -181,6 +181,28 @@ chemin qui peut aujourd'hui laisser un client assuré sans tiers-payant actif, o
   d'écran ne la provoque ; elle est assurée par la validation unique. La création normale depuis la vente n'est pas
   rejouée : les tests existants de ce chemin préparent leurs données par SQL.
 
+### 4.8 Étape 5 : fait (02/11)
+
+- **Recherche de la vente, de la vente en dépôt et du devis** (`findClientAssurance`, routes `client/all` et
+  `client/bytype`) : un client assurance ou carnet n'est proposé que s'il a un tiers-payant actif chez un organisme
+  actif. Les autres types ne sont pas concernés.
+- **Tiers-payants d'un client** (`findTiersPayantByClientId`) : seuls les liens vers un organisme actif sont rendus.
+- **Erreurs de lecture** : elles ne deviennent plus une liste vide (« aucun client », « aucun tiers-payant »). Elles
+  remontent au gestionnaire global de l'API, qui les journalise au Centre de support ; la vente, la vente en dépôt et
+  le devis affichent « La recherche du client a échoué » au lieu de fermer la recherche en silence.
+- **Défaut non reproductible par l'écran** : après les étapes 2 à 4, je n'ai trouvé aucun geste qui laisse un client
+  assuré actif sans tiers-payant actif ; il n'en reste que dans des données anciennes (l'étape 6 les comptera). Pistes
+  écartées : la modification en grille de « Clients désactivés » n'a plus d'éditeur ; « Modifier » sur un client
+  désactivé dont l'organisme est désactivé échoue (voir ci-dessous) sans le réactiver.
+- **Test d'écran** `src/test/e2e/client/test-recherche-client-sans-tp.js` (non-régression) : client créé sur
+  l'organisme d'essai, organisme désactivé, la vente « Assurance » ne propose pas le client. Gestes partagés avec le
+  test de l'étape 4 dans `src/test/e2e/client/outils-clients.js`.
+- **Constats hors périmètre** :
+  - « Modifier » puis « Enregistrer » sur un client sans tiers-payant principal actif répond une erreur technique
+    (« Cannot invoke … commit() … is null », `clientManagement.update2`) ;
+  - une création de client a été refusée une fois pour « code interne existe déjà », sans code saisi (le passage
+    suivant a réussi).
+
 ## 5. Questions tranchées (02/11)
 
 1. **Tiers-payant « principal ».** Je le définis comme le régime obligatoire (`bISRO`) ou, s'il n'y en a pas, le lien de

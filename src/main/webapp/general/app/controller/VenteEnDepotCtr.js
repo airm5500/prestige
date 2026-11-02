@@ -4710,7 +4710,9 @@ Ext.define('testextjs.controller.VenteEnDepotCtr', {
                             }
 
                         } else {
+                            /* plan « clients assures » (02/11), etape 5 : une erreur de lecture est dite, plus tue */
                             me.onBtnCancelClient();
+                            Ext.MessageBox.alert('Recherche du client', 'La recherche du client a échoué : réessayez. Si l’erreur revient, le support en a la trace.');
                         }
                     }
                 });
