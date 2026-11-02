@@ -751,7 +751,7 @@ Les autres correctifs de cette branche (J27, P4, L23, L24) ne sont pas dans ce j
 
 | Événements (occurrences) | Point | Nature | À faire |
 |---|---|---|---|
-| `can't access property "numBon", record is undefined` (`VenteCtr.js:4699`, 1) | **J5 (P2)** | Code : `onNewClientAssurance` et les deux fonctions voisines appellent `addTpCmp(tierspayants[0])` sans vérifier que la liste n'est pas vide. Toujours ouvert sur l'intégration | Tester la liste, ne pas reconstruire le bloc sans tiers-payant |
+| `can't access property "numBon", record is undefined` (`VenteCtr.js:4699`, 1) | **J5 (P2) : corrigé le 02/11, voir plus bas** | Code : `onNewClientAssurance` et les deux fonctions voisines appellent `addTpCmp(tierspayants[0])` sans vérifier que la liste n'est pas vide. Toujours ouvert sur l'intégration | Tester la liste, ne pas reconstruire le bloc sans tiers-payant |
 | `Communications link failure`, `XAException` (« dernier paquet reçu il y a 227 s ») sur `ventes-ratees/compteur-jour` et `vente/peremption-proche` (3), puis à 12 h 33-34 une vague de lenteurs : `add/assurance`, `common/users`, `typeventes`, `ventestats`, compteurs de la cloche (9) | **K3 (P2)** | Réglage : le pool garde des connexions que MariaDB a fermées, et ne les vérifie pas. Le premier appel qui en reçoit une échoue | Appliquer les réglages Payara : validation du pool (`1e3781f7`, sur l'intégration). **Ce n'est pas le war : c'est l'outil de réglages** |
 | « Suggestion lente : index manquant » sur `suggestion-reserve/en-attente/count` (1) | SC4 (P3) | Le diagnostic attrape toute route qui commence par `/api/v1/suggestion` (toujours le cas sur l'intégration) | Tester le préfixe `/api/v1/suggestion/` ; vérifier l'index V7.1.8 en officine |
 | Contrôles de cohérence : commandes sans ligne (500, le plafond), lots périmés non marqués (228), dossiers de règlement sans ligne (10), ventes terminées sans mouvement de caisse (5) | H1 à H4 | H1, H2 : en grande partie des faux positifs du contrôle. H3 : données anciennes. H4 : 5 vraies ventes incomplètes (V6) | Corriger les contrôles H1 et H2 ; régulariser les 5 ventes après accord |
@@ -771,7 +771,23 @@ Trois actions restent hors du code livré :
 - renouveler le contrat Orange (M1) ;
 - renseigner `SUPPORT_EMAIL` (S5).
 
-Un seul défaut de code de priorité 2 reste ouvert : **J5**.
+Le seul défaut de code de priorité 2 qui restait ouvert, **J5**, est corrigé ci-dessous.
+
+### J5 corrigé (02/11), sur `PRES-/support-0211`
+
+- **Correction.**
+  - Un client assuré sans tiers-payant n'est plus pris : la caissière lit « Le client … n'a aucun tiers-payant.
+    Associez-lui un tiers-payant sur sa fiche avant de l'utiliser pour une vente assurance. ».
+  - Le client déjà en place sur la vente reste.
+  - Même garde après la création ou la modification d'une fiche client, et dans `addTpCmp`.
+  - Fichiers : `VenteCtr.js` et `VenteEnDepotCtr.js`, qui avait le même code.
+- **Test.** `support/anomalies-centre/test-j5-client-sans-tiers-payant.js` passe par SERVICE CLIENT > Ventes, vente
+  assurance, nom tapé puis Entrée. La recherche est simulée, rien n'est écrit en base.
+  - Avant : `Cannot read properties of undefined (reading 'numBon')`, aucun message (0/2).
+  - Après : aucune erreur, message affiché, et un client avec tiers-payant garde son bloc (3/3).
+- **Non-régression.** `test-j27-depot-client.js` 2/2, `test-leana-vente.js` 6/6, `test-a8-copie-ticket.js` 3/3.
+- **Limite.** La vente en dépôt n'a pas de test d'écran propre pour J5 : son code est la copie de celui de la vente,
+  testé.
 
 ## Annexe A. Rejouer les reproductions
 
