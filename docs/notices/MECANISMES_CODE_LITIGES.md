@@ -22,23 +22,68 @@ générations de code coexistent sur le même écran et écrivent dans la même
 table avec des champs différents.
 
 **Contexte d'exploitation (retour officine du 02/11).** Le module n'a **jamais
-été utilisé** en exploitation et il est **lié à la facturation** (il agit sur
-`str_STATUT_FACTURE` des lignes tiers-payant). Cela change la recommandation :
+été utilisé** en exploitation ; il est **lié à la facturation** et l'objectif
+est de le **corriger, le mettre à jour et l'améliorer pour l'utiliser** — pas
+de le désactiver.
 
-1. **Priorité : désactiver le menu**, pas corriger. Un module jamais utilisé
-   dont le bouton « créer » sort silencieusement un dossier de la facturation
-   (L1) est un risque pur sans bénéfice ; le retirer du menu supprime le
-   risque sans toucher au code métier (même modèle que la migration
-   `V6.9.109` qui a désactivé l'ancien écran JSP de règlement différé).
-2. **Avant désactivation, un seul contrôle** : exécuter les deux requêtes de
-   détection L1 ci-dessous. Si elles reviennent vides (attendu puisque le
-   module n'a jamais servi), il n'y a **aucune reprise de données** à faire et
-   les chantiers L1-L5 deviennent sans objet tant que le module reste fermé.
-3. **Si un besoin litige revient un jour**, la refonte se rattache au
+## À quoi sert le module (reconstitué depuis le code, sans invention)
+
+Un **litige** est un **dossier tiers-payant facturé mais contesté ou rejeté
+par l'organisme** (bon refusé, montant contesté, assuré non reconnu…). Le
+circuit prévu par le code est le suivant :
+
+1. **Entrée** — trois portes, toutes dans le circuit de recouvrement :
+   - l'écran **Facturation tiers-payant** : bouton « Envoyer le dossier en
+     litige » sur une ligne de bon
+     (`FacturationTiersPayantManager.js:189-191`) ;
+   - le détail de la **balance âgée** : même bouton sur un dossier impayé
+     (`BalanceageeDetailManager.js:265-267`) ;
+   - l'écran **Litiges** lui-même (création manuelle,
+     `LitigeManager.js:177-179`).
+   L'éligibilité voulue : dossier **facturé et non réglé** (requête
+   `LitigeManager.java:73-76` : présent dans `TFactureDetail`, absent de
+   `TDossierReglementDetail`).
+2. **Qualification** — le formulaire (`litige/action/add.js`) enregistre :
+   **type de litige** (table `t_typelitige`, paramétrable), tiers-payant,
+   client, **référence de la vente**, libellé, état, conséquences,
+   description, commentaire.
+3. **Effet sur la facturation** — la ligne tiers-payant passe
+   `str_STATUT_FACTURE = 'is_Litige'` : le dossier **sort du circuit de
+   facturation/règlement tant que le différend n'est pas tranché** (il ne doit
+   plus apparaître dans « Éditer facture » ni être relancé).
+4. **Dénouement** — deux clôtures prévues :
+   - **avec remboursement** (`closureLitigeWithRemboursement:303-331`) :
+     l'organisme accepte de payer un montant (éventuellement ajusté) → la part
+     organisme de la ligne est réécrite à ce montant et la ligne **repasse
+     `unpaid`**, donc refacturable ;
+   - **sans remboursement** (`closureLitigeWithoutRemboursement:335-359`) :
+     rejet définitif → part organisme **mise à 0**, litige clos, la perte est
+     assumée (aujourd'hui sans trace : voir L3).
+   La **suppression** d'un litige doit annuler la mise en litige et restaurer
+   la ligne dans le circuit.
+
+C'est donc le chaînon manquant entre la facturation et la balance âgée : sans
+lui, un bon rejeté par l'organisme reste éternellement `unpaid` et pollue les
+relances. Le module a du sens métier ; c'est son implémentation qui a été
+abandonnée à mi-chemin (blocs commentés, boutons éditer/clôturer masqués dans
+l'écran, `LitigeManager.js:139/:168`).
+
+## Cap de la remise en service
+
+1. **Terrain vierge** : le module n'ayant jamais servi, exécuter d'abord les
+   requêtes de détection L1 — attendues **vides** → aucune reprise de données,
+   on reconstruit proprement sans contrainte d'historique.
+2. **Porter le circuit entier en REST** (règle du projet) dans le périmètre du
    **chantier facturation** (`MECANISMES_CODE_FACTURATION_TIERS_PAYANT.md`) :
-   mêmes lignes `pcctp`, mêmes statuts `unpaid`/`charged`, même service REST —
-   ne pas réanimer les JSP ni `LitigeManager`. Les mécanismes L1-L5 ci-dessous
-   restent documentés pour cette éventualité.
+   mêmes lignes `pcctp`, mêmes statuts, un seul service transactionnel qui
+   remplace à la fois `LitigeManager` et `PrestigeLitige` (une seule façon
+   d'écrire `t_litige`). Les JSP sortent du circuit sans être supprimées.
+3. **Corriger dans l'ordre** : L1 (création complète + statut visible du
+   reste du système), L2 (transitions suppression/clôture réelles et
+   idempotentes), L3 (montants bornés, abandon tracé, encours ajusté — lien
+   chantier A1), L4 (éligibilité et doublons), L5 (architecture).
+4. Conserver les trois portes d'entrée existantes (facturation, balance âgée,
+   écran Litiges) : elles sont bien placées, seul le back doit changer.
 
 ---
 
