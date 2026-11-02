@@ -13,6 +13,11 @@
  *  - « Reconnecter » : le service demarre, la banniere disparait, le dossier annonce par le service est garde ;
  *  - aucune erreur JavaScript, aucune fenetre.
  * Le compte WhatsApp Web est remis comme avant ; dossier, service d'essai et compte d'essai retires a la fin.
+ *
+ * CAM-02 (retour de Codex du 02/11) : sur un poste ou le service Windows « prestige-whatsapp » est installe et tourne,
+ * « Reconnecter » demarrait CE service (sc start, refuse : code 5) au lieu de l'instance d'essai. Le scenario joue ici
+ * est « service arrete puis redemarre », sur l'instance d'essai seule (son dossier, son port) ; le service installe du
+ * poste n'est ni arrete, ni relance : son etat et son processus sont les memes avant et apres.
  */
 const { chromium } = require('playwright-core');
 /* ce test verifie la banniere WhatsApp : elle n'est pas masquee au lancement (outils/poste.js) */
@@ -64,11 +69,16 @@ function nettoyer() {
   q("DELETE FROM t_role_user WHERE lg_USER_ID = '" + ID + "'; DELETE FROM t_event_log WHERE lg_USER_ID = '" + ID + "';"
     + " DELETE FROM t_session_utilisateur WHERE lg_USER_ID = '" + ID + "'; DELETE FROM t_user WHERE lg_USER_ID = '" + ID + "'");
 }
+/* service Windows installe du poste : etat et processus (sc queryex), ou '' s'il n'est pas installe */
+const serviceDuPoste = () => { if (process.platform !== 'win32') { return ''; }
+  try { const t = execSync('sc.exe queryex prestige-whatsapp', { encoding: 'latin1' });
+    return ((t.match(/STATE\s*:\s*(\d+)/) || [])[1] || '?') + '/' + ((t.match(/PID\s*:\s*(\d+)/) || [])[1] || '?'); } catch (e) { return ''; } };
 const service = () => { try { execSync('curl -s -m 2 http://127.0.0.1:' + PORT + '/etat', { encoding: 'utf8' }); return true; } catch (e) { return false; } };
 
 (async () => {
   const b = await ENV_E2E.lancer(chromium);
   const erreurs = [], dialogues = [];
+  const posteAvant = serviceDuPoste();
   try {
     preparerDossier();
     q("DROP TABLE IF EXISTS e2e_wa_sauve; CREATE TABLE e2e_wa_sauve AS SELECT * FROM whatsapp_compte WHERE mode = 'WEB'");
@@ -145,6 +155,8 @@ const service = () => { try { execSync('curl -s -m 2 http://127.0.0.1:' + PORT +
     ok('« Reconnecter » : le bouton annonce le démarrage', /Démarrage/i.test(pendant), pendant);
     ok('« Reconnecter » : le service démarre et la bannière disparaît', service() && t3 === '', 'service ' + service() + ' / ' + t3);
     ok('Le dossier annoncé par le service est gardé', aColonne() && q("SELECT web_repertoire FROM whatsapp_compte WHERE mode = 'WEB'") === fs.realpathSync(DOSSIER), aColonne() ? q("SELECT web_repertoire FROM whatsapp_compte WHERE mode = 'WEB'") : 'colonne absente');
+    ok('Le service WhatsApp installé sur le poste n\'est pas touché (même état, même processus)', serviceDuPoste() === posteAvant,
+      (posteAvant || 'non installé') + ' -> ' + (serviceDuPoste() || 'non installé'));
     ok('Aucune erreur JavaScript, aucune fenêtre', erreurs.length === 0 && dialogues.length === 0, erreurs.concat(dialogues).join(' | '));
   } catch (x) {
     ok('Parcours sans exception', false, x.stack);
