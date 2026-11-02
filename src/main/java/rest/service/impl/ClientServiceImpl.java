@@ -93,6 +93,8 @@ public class ClientServiceImpl implements ClientService {
     private ExcelGeneratorService excelGeneratorService;
     @PersistenceContext(unitName = "JTA_UNIT")
     private EntityManager em;
+    @javax.annotation.Resource
+    private javax.ejb.SessionContext sessionContext;
 
     public EntityManager getEmg() {
         return em;
@@ -1356,6 +1358,9 @@ public class ClientServiceImpl implements ClientService {
                 json.put("success", false).put("msg", "Veuillez sélectionner un tiers-payant valide");
                 return json;
             }
+            if (tc == null && !Constant.STATUT_ENABLE.equals(p.getStrSTATUT())) {
+                return json.put("success", false).put("msg", ORGANISME_INACTIF);
+            }
             if (tc == null) {
                 if (!StringUtils.isEmpty(client.getStrNUMEROSECURITESOCIAL())) {
                     if (doesNumeroSecuriteSocialExist(client.getStrNUMEROSECURITESOCIAL(), p)) {
@@ -1416,8 +1421,9 @@ public class ClientServiceImpl implements ClientService {
             return json;
         } catch (Exception e) {
             LOG.log(Level.SEVERE, null, e);
-
-            json.put("success", false).put("msg", "Erreur de création du client");
+            // plan « clients assures » (02/11), etape 4 : rien n'est garde d'une creation ou modification en echec
+            sessionContext.setRollbackOnly();
+            json.put("success", false).put("msg", "Erreur de création du client : rien n'a été enregistré");
             return json;
 
         }
@@ -1455,6 +1461,9 @@ public class ClientServiceImpl implements ClientService {
             if (p == null) {
                 json.put("success", false).put("msg", "Veuillez sélectionner un tiers-payant valide");
                 return json;
+            }
+            if (tc == null && !Constant.STATUT_ENABLE.equals(p.getStrSTATUT())) {
+                return json.put("success", false).put("msg", ORGANISME_INACTIF);
             }
 
             if (tc == null) {
@@ -1502,7 +1511,9 @@ public class ClientServiceImpl implements ClientService {
         } catch (Exception e) {
             // L'echec etait avale sans trace : impossible de diagnostiquer un client refuse.
             LOG.log(Level.SEVERE, "creation/modification client", e);
-            json.put("success", false).put("msg", "Erreur de création du client");
+            // plan « clients assures » (02/11), etape 4 : rien n'est garde d'une creation ou modification en echec
+            sessionContext.setRollbackOnly();
+            json.put("success", false).put("msg", "Erreur de création du client : rien n'a été enregistré");
             return json;
 
         }
@@ -2206,6 +2217,10 @@ public class ClientServiceImpl implements ClientService {
         em.flush();
         return new JSONObject().put("success", true).put("effet", d.effet.name()).put("msg", msg);
     }
+
+    /** Plan « clients assures » (02/11), etape 4 : un client ne se cree pas sur un organisme desactive. */
+    static final String ORGANISME_INACTIF = "Cet organisme n'est plus actif : choisissez-en un autre."
+            + " Le client n'a pas été créé.";
 
     /** Lien client / tiers payant actif (ni supprime ni desactive). */
     static boolean actif(TCompteClientTiersPayant lien) {

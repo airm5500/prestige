@@ -797,6 +797,18 @@ public class clientManagement extends bllBase {
             if (!OTTypeClient.getLgTYPECLIENTID().equals("6")) {
                 OTTiersPayant = new tierspayantManagement(this.getOdataManager()).getTTiersPayant(lg_TIERS_PAYANT_ID);
             }
+            /*
+             * plan « clients assures » (02/11), etape 4 : un client assurance ou carnet n'existe que par son organisme.
+             * Organisme introuvable ou desactive entre-temps : rien n'est cree (avant : client et compte enregistres
+             * sans tiers-payant, ecran en succes).
+             */
+            boolean assure = estTypeAssure(OTTypeClient.getLgTYPECLIENTID());
+            if (assure && OTTiersPayant == null) {
+                this.buildErrorTraceMessage(
+                        "Cet organisme n'est plus actif ou est introuvable : choisissez-en un autre."
+                                + " Le client n'a pas été créé.");
+                return null;
+            }
             TCompany categoryClient = null;
             if (!"".equals(lg_COMPANY_ID)) {
                 categoryClient = this.getOdataManager().getEm().find(TCompany.class, lg_COMPANY_ID);
@@ -847,38 +859,79 @@ public class clientManagement extends bllBase {
                 }
             }
 
-            this.persiste(OTClient);
+            // client assure : client, compte, ayant droit et tiers-payant dans une seule validation (tout ou rien)
+            dataManager odm = this.getOdataManager();
+            boolean groupe = assure && !odm.isTransactionGroupe();
+            if (groupe) {
+                odm.setTransactionGroupe(true);
+                odm.BeginTransaction();
+            }
             try {
-                // OTCompteClient = new compteClientManagement(this.getOdataManager()).createCompteClient("",
-                // dbl_QUOTA_CONSO_MENSUELLE, dbl_CAUTION, dbl_SOLDE, commonparameter.clt_CLIENT,
-                // OTClient.getLgCLIENTID()); // a decommenter en cas de probleme
-                OTCompteClient = new compteClientManagement(this.getOdataManager()).createCompteClient("", 0.0,
-                        dbl_CAUTION, dbl_SOLDE, commonparameter.clt_CLIENT, OTClient.getLgCLIENTID());
+                this.persiste(OTClient);
+                TCompteClientTiersPayant lien = null;
+                try {
+                    // OTCompteClient = new compteClientManagement(this.getOdataManager()).createCompteClient("",
+                    // dbl_QUOTA_CONSO_MENSUELLE, dbl_CAUTION, dbl_SOLDE, commonparameter.clt_CLIENT,
+                    // OTClient.getLgCLIENTID()); // a decommenter en cas de probleme
+                    OTCompteClient = new compteClientManagement(this.getOdataManager()).createCompteClient("", 0.0,
+                            dbl_CAUTION, dbl_SOLDE, commonparameter.clt_CLIENT, OTClient.getLgCLIENTID());
 
-                OTCompteClient.setLgCLIENTID(OTClient);
-                this.persiste(OTCompteClient);
-                if (!OTTypeClient.getLgTYPECLIENTID().equals("6")) {
-                    if (OTTiersPayant.getLgTYPETIERSPAYANTID().getLgTYPETIERSPAYANTID().equalsIgnoreCase("1")) {
-                        new ayantDroitManagement(this.getOdataManager()).createAyantdroit(OTClient.getLgCLIENTID(),
-                                lg_CATEGORIE_AYANTDROIT_ID, str_FIRST_NAME, str_LAST_NAME, str_SEXE, dt_NAISSANCE,
-                                lg_VILLE_ID, lg_RISQUE_ID, OTClient.getStrNUMEROSECURITESOCIAL(),
-                                OTClient.getStrCODEINTERNE());
+                    OTCompteClient.setLgCLIENTID(OTClient);
+                    this.persiste(OTCompteClient);
+                    if (!OTTypeClient.getLgTYPECLIENTID().equals("6")) {
+                        if (OTTiersPayant.getLgTYPETIERSPAYANTID().getLgTYPETIERSPAYANTID().equalsIgnoreCase("1")) {
+                            new ayantDroitManagement(this.getOdataManager()).createAyantdroit(OTClient.getLgCLIENTID(),
+                                    lg_CATEGORIE_AYANTDROIT_ID, str_FIRST_NAME, str_LAST_NAME, str_SEXE, dt_NAISSANCE,
+                                    lg_VILLE_ID, lg_RISQUE_ID, OTClient.getStrNUMEROSECURITESOCIAL(),
+                                    OTClient.getStrCODEINTERNE());
+                        }
+
+                        lien = new tierspayantManagement(this.getOdataManager()).create_compteclt_tierspayant(
+                                OTCompteClient.getLgCOMPTECLIENTID(), lg_TIERS_PAYANT_ID, int_POURCENTAGE, int_PRIORITY,
+                                dbl_QUOTA_CONSO_VENTE, dbl_QUOTA_CONSO_VENTE, str_NUMERO_SECURITE_SOCIAL,
+                                dbPLAFONDENCOURS, b_IsAbsolute);
+                        if (lien != null) {
+                            this.buildSuccesTraceMessage(this.getOTranslate().getValue("SUCCES"));
+                        }
                     }
 
-                    if (new tierspayantManagement(this.getOdataManager()).create_compteclt_tierspayant(
-                            OTCompteClient.getLgCOMPTECLIENTID(), lg_TIERS_PAYANT_ID, int_POURCENTAGE, int_PRIORITY,
-                            dbl_QUOTA_CONSO_VENTE, dbl_QUOTA_CONSO_VENTE, str_NUMERO_SECURITE_SOCIAL, dbPLAFONDENCOURS,
-                            b_IsAbsolute) != null) {
-                        this.buildSuccesTraceMessage(this.getOTranslate().getValue("SUCCES"));
+                    /*
+                     * if (new
+                     * tierspayantManagement(this.getOdataManager()).create_compteclt_tierspayant(OTCompteClient.
+                     * getLgCOMPTECLIENTID(), lg_TIERS_PAYANT_ID, int_POURCENTAGE, int_PRIORITY, bool_REGIME_add)) {
+                     * this.buildSuccesTraceMessage(this.getOTranslate().getValue("SUCCES")); }
+                     */
+                } catch (Exception e) {
+                    // autres types : comportement historique conserve ; client assure : tout est annule plus bas
+                    if (assure) {
+                        throw e;
                     }
                 }
-
-                /*
-                 * if (new tierspayantManagement(this.getOdataManager()).create_compteclt_tierspayant(OTCompteClient.
-                 * getLgCOMPTECLIENTID(), lg_TIERS_PAYANT_ID, int_POURCENTAGE, int_PRIORITY, bool_REGIME_add)) {
-                 * this.buildSuccesTraceMessage(this.getOTranslate().getValue("SUCCES")); }
-                 */
+                if (assure && lien == null) {
+                    throw new IllegalStateException("tiers-payant non rattache au nouveau client");
+                }
+                if (groupe) {
+                    odm.CloseTransaction();
+                }
             } catch (Exception e) {
+                if (!groupe) {
+                    throw e;
+                }
+                try {
+                    if (odm.getEm().getTransaction().isActive()) {
+                        odm.getEm().getTransaction().rollback();
+                    }
+                } catch (RuntimeException r) {
+                    new logger().OCategory.error("annulation de la creation du client impossible", r);
+                }
+                new logger().OCategory.error("creation du client assure annulee", e);
+                this.buildErrorTraceMessage("Le tiers-payant n'a pas pu être rattaché au client : rien n'a été créé."
+                        + " Vérifiez l'organisme et le pourcentage, puis recommencez.");
+                return null;
+            } finally {
+                if (groupe) {
+                    odm.setTransactionGroupe(false);
+                }
             }
 
             /*
@@ -962,6 +1015,13 @@ public class clientManagement extends bllBase {
             String str_DOMICILE, String str_AUTRE_ADRESSE, String str_CODE_POSTAL, String str_COMMENTAIRE,
             String lg_VILLE_ID, Double dbl_QUOTA_CONSO_MENSUELLE, Double dbl_CAUTION, int dbl_SOLDE,
             String lg_TYPE_CLIENT_ID) {
+        // plan « clients assures » (02/11), etape 4 : cette creation ne rattache aucun tiers-payant ; elle est donc
+        // refusee pour un client assurance ou carnet (ancienne JSP, mode createother)
+        if (estTypeAssure(lg_TYPE_CLIENT_ID)) {
+            this.buildErrorTraceMessage("Un client assurance ou carnet se crée avec son tiers-payant, depuis la gestion"
+                    + " des clients. Le client n'a pas été créé.");
+            return null;
+        }
         try {
 
             TClient OTClient = new TClient();
@@ -1299,6 +1359,11 @@ public class clientManagement extends bllBase {
      * (donnee ancienne), celui de plus petite priorite devient le principal, enregistre avec la reactivation. Les
      * autres types de client ne sont pas concernes.
      */
+    /** Client assurance ou carnet : il n'existe que par un tiers-payant actif. */
+    static boolean estTypeAssure(String typeClientId) {
+        return util.Constant.CLIENT_ASSURANCE.equals(typeClientId) || util.Constant.CLIENT_CARNET.equals(typeClientId);
+    }
+
     private boolean principalActifPourReactivation(TCompteClient compte) {
         TClient client = compte.getLgCLIENTID();
         String type = client == null || client.getLgTYPECLIENTID() == null ? null

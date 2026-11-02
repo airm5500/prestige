@@ -161,6 +161,26 @@ chemin qui peut aujourd'hui laisser un client assuré sans tiers-payant actif, o
   par les deux écrans, ajout au client désactivé, réactivation) : en échec sur la version d'avant, 19/19 après ;
   `test-desactivation-organisme.js` 10/10 ; J5 3/3.
 
+### 4.7 Étape 4 : fait (02/11)
+
+- **Défaut reproduit** : l'organisme choisi est désactivé (par un autre poste) entre le choix et « Enregistrer ».
+  - Gestion des clients : le client et son compte étaient enregistrés **sans tiers-payant**, l'écran annonçait le succès.
+  - Vente (« nouveau client » assurance) : le client était créé **sur l'organisme désactivé**.
+- **Gestion des clients** (`clientManagement.createClient`, appelé par la route REST et la JSP) : pour un client
+  assurance ou carnet, l'organisme doit être actif, sinon refus avant toute écriture. Client, compte, ayant droit et
+  tiers-payant sont enregistrés dans **une seule validation** (mode « transaction groupée » de l'ancien gestionnaire) :
+  un lien non créé annule tout. Les autres types de client gardent leur comportement.
+- **Création sans tiers-payant** (`createother`, ancienne JSP) : refusée pour un type assurance ou carnet ; le seul
+  écran qui l'appelle crée des clients de rétrocession, non concernés.
+- **Vente** (`updateOrCreateClientAssurance`, `updateCreateClientCarnet`) : organisme désactivé refusé à la création ;
+  une erreur annule toute la transaction (avant : l'erreur était avalée et ce qui avait été écrit était validé).
+- **Test d'écran** `src/test/e2e/client/test-creation-client-assure.js`, deux onglets du même compte : « Créer » rempli
+  en A, organisme désactivé en B, « Enregistrer » en A ; même course depuis la vente ; puis création normale (client avec
+  son principal). Version d'avant : 2/7 ; après : 9/9. Voisins : retrait 19/19, organisme 10/10, J5 3/3.
+- **Non couvert par un test d'écran** : l'annulation après un échec du lien lui-même (organisme actif). Aucun geste
+  d'écran ne la provoque ; elle est assurée par la validation unique. La création normale depuis la vente n'est pas
+  rejouée : les tests existants de ce chemin préparent leurs données par SQL.
+
 ## 5. Questions tranchées (02/11)
 
 1. **Tiers-payant « principal ».** Je le définis comme le régime obligatoire (`bISRO`) ou, s'il n'y en a pas, le lien de
