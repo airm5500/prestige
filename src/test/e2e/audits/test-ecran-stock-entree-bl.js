@@ -52,7 +52,7 @@ function remettre() {
     + `DELETE FROM HMvtProduit WHERE pkey IN (${dets}); DELETE FROM MvtTransaction WHERE pkey IN (${ids});`
     + `DELETE FROM notification WHERE entity_ref IN (${ids});`
     + `DELETE FROM t_etiquette WHERE lg_FAMILLE_ID = '${P}' AND dt_CREATED >= '${debut}';`
-    + `DELETE FROM t_warehouse WHERE str_REF_LIVRAISON IN (${refs}); DELETE FROM t_lot WHERE str_REF_LIVRAISON IN (${refs});`
+    + `DELETE FROM t_warehouse WHERE str_REF_LIVRAISON IN (${refs}); DELETE FROM t_lot WHERE str_REF_LIVRAISON IN (${refs}) OR lg_LOT_ID LIKE '${M}%';`
     + `DELETE FROM t_event_log WHERE dt_CREATED >= '${debut}' AND (str_DESCRIPTION LIKE '%E2EA06%');`
     + `UPDATE t_pharmaml_blv SET lg_BON_LIVRAISON_ID = NULL WHERE lg_ID = '${M}BLV';  DELETE FROM t_pharmaml_blv WHERE lg_ID = '${M}BLV';`
     + `DELETE FROM t_bon_livraison_detail WHERE lg_BON_LIVRAISON_ID IN (${ids}); DELETE FROM t_bon_livraison WHERE lg_BON_LIVRAISON_ID IN (${ids});`
@@ -85,6 +85,8 @@ const stock = () => Number(q(`SELECT int_NUMBER_AVAILABLE FROM t_famille_stock W
   remettre();
   ok('Précondition : un produit sans contrôle de péremption, deux grossistes', !!P && !!G1 && !!G2 && Number(STOCK) >= 3, P + ' ' + G1 + ' ' + G2);
   sauver();
+  /* EN-06 : un PMP different du prix d'achat de la fiche, sinon l'ancien calcul et le nouveau se confondent */
+  exec(`UPDATE t_famille SET dbl_PRIX_MOYEN_PONDERE = 2 * int_PAF WHERE lg_FAMILLE_ID = '${P}'`);
   /* EN-01 : BL A (grossiste 1), 10 commandees, lots 5, 3, 2 */
   bon('A', G1, REF, 'enable', 10, 0);
   lot('LA1', G1, REF, 5); lot('LA2', G1, REF, 3); lot('LA3', G1, REF, 2);
@@ -94,11 +96,13 @@ const stock = () => Number(q(`SELECT int_NUMBER_AVAILABLE FROM t_famille_stock W
   bon('C', G1, REF3, 'enable', 10, 8);
   exec(`INSERT INTO t_pharmaml_blv (lg_ID, lg_GROSSISTE_ID, lg_ORDER_ID, lg_BON_LIVRAISON_ID, str_REF_LIVRAISON, dt_RECU, dt_UTILISE)`
     + ` VALUES ('${M}BLV', '${G1}', '${M}OC', '${M}BLC', '${REF3}', NOW(), NOW())`);
-  /* EN-04 : commande passee, une ligne */
+  /* EN-04 : commande en cours (celles que liste « Commandes »), une ligne */
+  /* prix lus d'abord : le declencheur de t_order_detail modifie t_famille, qui ne peut pas etre lue dans la meme instruction */
+  const [paf, prix] = q(`SELECT int_PAF, int_PRICE FROM t_famille WHERE lg_FAMILLE_ID = '${P}'`).split('\t').map(Number);
   exec(`INSERT INTO t_order (lg_ORDER_ID, str_REF_ORDER, int_LINE, lg_GROSSISTE_ID, lg_USER_ID, str_STATUT, dt_CREATED, dt_UPDATED, int_PRICE, recu, direct_import)`
-    + ` VALUES ('${M}OD', '${M}OD${SUF}', 1, '${G1}', '${ADMIN}', 'passed', NOW(), NOW(), 0, 0, 0);`
-    + `INSERT INTO t_order_detail (lg_ORDERDETAIL_ID, lg_ORDER_ID, lg_FAMILLE_ID, lg_GROSSISTE_ID, int_NUMBER, int_PRICE, int_PAF_DETAIL, int_PRICE_DETAIL, str_STATUT, dt_CREATED, dt_UPDATED)`
-    + ` SELECT '${M}OD-L', '${M}OD', f.lg_FAMILLE_ID, '${G1}', 2, 2 * f.int_PAF, f.int_PAF, f.int_PRICE, 'is_Process', NOW(), NOW() FROM t_famille f WHERE f.lg_FAMILLE_ID = '${P}'`);
+    + ` VALUES ('${M}OD', '${M}OD${SUF}', 1, '${G1}', '${ADMIN}', 'is_Process', NOW(), NOW(), 0, 0, 0);`
+    + `INSERT INTO t_order_detail (lg_ORDERDETAIL_ID, lg_ORDER_ID, lg_FAMILLE_ID, lg_GROSSISTE_ID, int_NUMBER, int_PRICE, int_PAF_DETAIL, int_PRICE_DETAIL, prixAchat, prixUnitaire, str_STATUT, dt_CREATED, dt_UPDATED)`
+    + ` VALUES ('${M}OD-L', '${M}OD', '${P}', '${G1}', 2, ${2 * paf}, ${paf}, ${prix}, ${paf}, ${prix}, 'is_Process', NOW(), NOW())`);
 
   const b = await ENV_E2E.lancer(chromium);
   const err = [];
@@ -141,7 +145,8 @@ const stock = () => Number(q(`SELECT int_NUMBER_AVAILABLE FROM t_famille_stock W
     await p.click('#btn_enterstock');
     await repondre(p, 'UNITÉS GRATUITES', 'yes');
     await repondre(p, "Confirmer l'entrée en stock", 'yes');
-    const suite = await p.waitForFunction(() => Ext.Msg.isVisible() && Ext.Msg.msg.getEl().dom.innerText, null, { timeout: 60000 }).then((h) => h.jsonValue());
+    /* « Veuillez patienter » pendant le traitement, puis le message de fin */
+    const suite = await p.waitForFunction(() => { const t = Ext.Msg.isVisible() && Ext.Msg.msg.getEl().dom.innerText; return t && !/patienter/i.test(t) ? t : false; }, null, { timeout: 180000 }).then((h) => h.jsonValue());
     if (/impression des entrées/.test(suite)) {
       await repondre(p, 'impression des entrées', 'no');
       await repondre(p, 'imprimer les étiquettes', 'no');
@@ -208,15 +213,17 @@ const stock = () => Number(q(`SELECT int_NUMBER_AVAILABLE FROM t_famille_stock W
       await pg.waitForTimeout(800);
     };
     const enregistrer = async (pg, ref) => {
-      await pg.click('#str_REF_LIVRAISON input, input#str_REF_LIVRAISON-inputEl');
-      await pg.keyboard.type(ref, { delay: 20 });
-      await pg.click('#int_MHT input, input#int_MHT-inputEl');
-      await pg.keyboard.press('Control+A');
-      await pg.keyboard.type('1000', { delay: 20 });
+      /* n° de BL, date, montant HT et TVA (le formulaire refuse un champ vide) */
+      const saisir = async (id, v) => { const c = pg.locator('#' + id + '-inputEl'); await c.click(); await c.fill(''); await pg.keyboard.type(v, { delay: 20 }); };
+      const j = new Date();
+      await saisir('str_REF_LIVRAISON', ref);
+      await saisir('dt_DATE_LIVRAISON', String(j.getDate()).padStart(2, '0') + '/' + String(j.getMonth() + 1).padStart(2, '0') + '/' + j.getFullYear());
+      await saisir('int_MHT', '1000');
+      await saisir('int_TVA', '0');
       const rep = pg.waitForResponse((r) => r.url().includes('commande/creerbl'), { timeout: 30000 });
       await pg.locator('.x-window').filter({ visible: true }).getByText('Enregistrer', { exact: true }).click();
-      if (await pg.waitForFunction(() => Ext.Msg.isVisible() && /différent/.test(Ext.Msg.msg.getEl().dom.innerText), null, { timeout: 4000 }).then(() => true, () => false)) {
-        await repondre(pg, 'différent', 'yes');
+      if (await pg.waitForFunction(() => Ext.Msg.isVisible() && /diff[ée]rent/.test(Ext.Msg.msg.getEl().dom.innerText), null, { timeout: 4000 }).then(() => true, () => false)) {
+        await repondre(pg, 'diff[ée]rent', 'yes');
       }
       return (await rep).json();
     };
