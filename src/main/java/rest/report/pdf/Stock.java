@@ -171,13 +171,39 @@ public class Stock {
             String lgZONEGEOID, String end, String begin, String emplacementId, String typeStock, String tri)
             throws IOException {
 
-        String scr_report_file = mode > 0 ? "rp_valorisation_stock_produit2" : "rp_valorisation_stock_produit";
         Map<String, Object> parameters = reportUtil.officineData(tu);
-        parameters.put("P_H_CLT_INFOS", titreValorisation(mode, dtSt, typeStock));
-        parameters.put("P_TYPE_STOCK", typeStockNormalise(typeStock));
         Object officine = parameters.get("P_H_INSTITUTION");
         String report_generate_file = nomFichierValorisation(officine == null ? null : officine.toString(), dtSt,
                 "pdf");
+        produireValorisation(parameters, mode, dtSt, lgGROSSISTEID, lgFAMILLEARTICLEID, lgZONEGEOID, end, begin,
+                emplacementId, typeStock, tri, jdom.scr_report_pdf + report_generate_file);
+        return "/data/reports/pdf/" + report_generate_file;
+    }
+
+    /**
+     * Retour du 02/11 : l'archivage automatique de la valorisation (fins et debuts de mois) produit l'etat imprime par
+     * l'ecran Valorisation - meme modele, memes donnees, meme titre -, et non plus l'ancien rp_valoristion. Stock total
+     * (rayon et reserve) de l'emplacement donne, sans restriction, trie par libelle ; aucun operateur derriere.
+     *
+     * @param mode
+     *            1 par famille d'article, 2 par emplacement
+     * @param pdfPath
+     *            chemin complet du PDF a produire
+     */
+    public void valorisationArchivee(int mode, LocalDate dtSt, String emplacementId, String pdfPath)
+            throws IOException {
+        Map<String, Object> parameters = reportUtil.officineData(new TUser());
+        parameters.put("P_PRINTED_BY", "Archivage automatique");
+        produireValorisation(parameters, mode, dtSt, null, null, null, null, null, emplacementId, "0", "libelle",
+                pdfPath);
+    }
+
+    private void produireValorisation(Map<String, Object> parameters, int mode, LocalDate dtSt, String lgGROSSISTEID,
+            String lgFAMILLEARTICLEID, String lgZONEGEOID, String end, String begin, String emplacementId,
+            String typeStock, String tri, String pdfPath) throws IOException {
+        String scr_report_file = mode > 0 ? "rp_valorisation_stock_produit2" : "rp_valorisation_stock_produit";
+        parameters.put("P_H_CLT_INFOS", titreValorisation(mode, dtSt, typeStock));
+        parameters.put("P_TYPE_STOCK", typeStockNormalise(typeStock));
         ValorisationDTO o = produitService.getValeurStockPdf(mode, dtSt, lgGROSSISTEID, lgFAMILLEARTICLEID, lgZONEGEOID,
                 end, begin, emplacementId, typeStock);
 
@@ -195,14 +221,10 @@ public class Stock {
             parameters.put("totalTarif", o.getMontantTarif());
             trierDetail(o.getDatas(), tri);
 
-            reportUtil.buildReport(parameters, scr_report_file, jdom.scr_report_file,
-                    jdom.scr_report_pdf + report_generate_file, o.getDatas());
+            reportUtil.buildReport(parameters, scr_report_file, jdom.scr_report_file, pdfPath, o.getDatas());
         } else {
-            reportUtil.buildReportEmptyDs(parameters, scr_report_file, jdom.scr_report_file,
-                    jdom.scr_report_pdf + report_generate_file);
+            reportUtil.buildReportEmptyDs(parameters, scr_report_file, jdom.scr_report_file, pdfPath);
         }
-
-        return "/data/reports/pdf/" + report_generate_file;
     }
 
     /**

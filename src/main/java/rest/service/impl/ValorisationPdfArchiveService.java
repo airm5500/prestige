@@ -1,11 +1,7 @@
 package rest.service.impl;
 
-import bll.configManagement.familleManagement;
 import dal.TOfficine;
 import dal.TParameters;
-import dal.TUser;
-import dal.dataManager;
-import dal.jconnexion;
 import java.io.File;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
@@ -15,19 +11,17 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.ejb.EJB;
 import javax.ejb.Stateless;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 import org.apache.commons.lang3.StringUtils;
-import report.reportManager;
+import rest.report.pdf.Stock;
 import toolkits.utils.jdom;
 import util.StockageDisque;
-import bll.entity.EntityData;
 
 /**
  * Archivage de la valorisation du stock en PDF (evolution 5, point 2).
@@ -40,11 +34,10 @@ import bll.entity.EntityData;
  * </p>
  *
  * <p>
- * Le document est exactement celui de l'ecran : memes modeles Jasper installes sur site ({@code rp_valoristion} par
- * emplacement, {@code rp_valoristion_by_famille} par famille), memes parametres, et le critere le plus large - tous les
- * emplacements ou toutes les familles -, ce qui correspond a ce qu'on obtient a la main en ne restreignant rien. Le
- * chemin de l'ecran n'est pas touche : l'archivage est un second appel, en lecture seule, qui ne partage avec lui que
- * les modeles.
+ * Le document est celui qu'imprime l'ecran Valorisation (retour du 02/11) : meme modele
+ * ({@code rp_valorisation_stock_produit2}), memes donnees et meme titre, produits par le meme code
+ * ({@link rest.report.pdf.Stock#valorisationArchivee}), pour le stock total de l'officine, par emplacement ou par
+ * famille selon le reglage, sans restriction. L'ancien modele de 2017 ({@code rp_valoristion}) n'est plus utilise.
  * </p>
  */
 @Stateless
@@ -59,21 +52,24 @@ public class ValorisationPdfArchiveService {
     public static final String PARAM_CRITERE = "KEY_VALORISATION_PDF_CRITERE";
     public static final String PARAM_MOIS_CONSERVES = "KEY_VALORISATION_PDF_MOIS_CONSERVES";
 
-    /** Critere « par emplacement » : modele rp_valoristion, celui de l'ecran quand on ne restreint rien. */
+    /** Critere « par emplacement » : valorisation par emplacement de l'ecran (mode 2). */
     public static final String CRITERE_EMPLACEMENT = "EMPLACEMENT";
-    /** Critere « par famille » : modele rp_valoristion_by_famille. */
+    /** Critere « par famille » : valorisation par famille d'article de l'ecran (mode 1). */
     public static final String CRITERE_FAMILLE = "FAMILLE";
 
-    private static final String MODELE_EMPLACEMENT = "rp_valoristion";
-    private static final String MODELE_FAMILLE = "rp_valoristion_by_famille";
+    /** Modele de l'impression de l'ecran Valorisation, installe sur site. */
+    static final String MODELE = "rp_valorisation_stock_produit2";
 
-    /** Tous les emplacements / toutes les familles : le modele filtre par LIKE, « % » ne restreint rien. */
-    private static final String TOUT = "%";
+    /** Emplacement de l'officine (le stock des depots d'extension a sa propre valorisation). */
+    private static final String OFFICINE = "1";
 
     private static final DateTimeFormatter JOUR = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
     @PersistenceContext(unitName = "JTA_UNIT")
     private EntityManager em;
+
+    @EJB
+    private Stock stock;
 
     /**
      * Jours d'archivage : fin de mois (27 au 31) et debut du suivant (1 au 3), soit huit editions par mois quel que
@@ -143,32 +139,20 @@ public class ValorisationPdfArchiveService {
             LOG.log(Level.INFO, "Valorisation PDF : archivage arrete par {0}", PARAM_ACTIF);
             return null;
         }
-        dataManager dm = new dataManager();
-        jconnexion connexion = new jconnexion();
         try {
-            dm.initEntityManager();
-            TOfficine officine = dm.getEm().find(TOfficine.class, "1");
+            TOfficine officine = em.find(TOfficine.class, OFFICINE);
             Path cible = dossier().resolve(nomFichier(officine == null ? null : officine.getStrNOMABREGE(), jour));
             if (!forcer && Files.isRegularFile(cible) && cible.toFile().length() > 0) {
                 LOG.log(Level.INFO, "Valorisation PDF : {0} existe deja, rien n''est reecrit", cible);
                 return cible;
             }
-
-            String critere = critere();
-            String modele = CRITERE_FAMILLE.equals(critere) ? MODELE_FAMILLE : MODELE_EMPLACEMENT;
-            Path modeleSource = cheminModele(modele);
-            if (modeleSource == null) {
-                LOG.log(Level.WARNING, "Valorisation PDF : modele {0}.jrxml introuvable, archivage abandonne", modele);
+            String repertoire = repertoireEtats();
+            if (StringUtils.isBlank(repertoire) || !new File(repertoire, MODELE + ".jrxml").isFile()) {
+                LOG.log(Level.WARNING, "Valorisation PDF : modele {0}.jrxml introuvable, archivage abandonne", MODELE);
                 return null;
             }
-
-            reportManager rapport = new reportManager();
-            rapport.setPath_report_src(modeleSource.toString());
-            rapport.setPath_report_pdf(cible.toString());
-
-            connexion.initConnexion();
-            connexion.OpenConnexion();
-            rapport.BuildReport(parametres(dm, officine, critere), connexion);
+            String critere = critere();
+            stock.valorisationArchivee(CRITERE_FAMILLE.equals(critere) ? 1 : 2, jour, OFFICINE, cible.toString());
 
             if (Files.isRegularFile(cible) && cible.toFile().length() > 0) {
                 LOG.log(Level.INFO, "Valorisation PDF archivee : {0} (critere {1})", new Object[] { cible, critere });
@@ -179,29 +163,13 @@ public class ValorisationPdfArchiveService {
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "Valorisation PDF : echec de l'archivage du " + jour, e);
             return null;
-        } finally {
-            try {
-                connexion.CloseConnexion();
-            } catch (Exception e) {
-                LOG.log(Level.FINE, "fermeture de la connexion de rapport", e);
-            }
         }
     }
 
     /**
-     * Modele Jasper : le repertoire des etats du site d'abord ({@code jdom.scr_report_file}), comme pour toutes les
-     * autres editions. Aucun chemin en dur : c'est precisement ce qui faisait echouer certaines editions ailleurs que
-     * sur le poste ou elles avaient ete ecrites.
+     * Repertoire des etats du site ({@code jdom.scr_report_file}), charge s'il ne l'est pas encore : le traitement de
+     * nuit peut passer avant toute edition.
      */
-    private Path cheminModele(String modele) {
-        String repertoire = repertoireEtats();
-        if (StringUtils.isBlank(repertoire)) {
-            return null;
-        }
-        File fichier = new File(repertoire, modele + ".jrxml");
-        return fichier.isFile() ? fichier.toPath() : null;
-    }
-
     static String repertoireEtats() {
         if (StringUtils.isNotBlank(jdom.scr_report_file)) {
             return jdom.scr_report_file;
@@ -215,90 +183,7 @@ public class ValorisationPdfArchiveService {
         return jdom.scr_report_file;
     }
 
-    /**
-     * Memes parametres que l'edition de l'ecran, avec le critere le plus large. Les sous-etats sont cherches dans le
-     * repertoire des etats du site, et non dans un chemin en dur.
-     */
-    private Map<String, Object> parametres(dataManager dm, TOfficine officine, String critere) {
-        Map<String, Object> p = new HashMap<>();
-        String repertoire = StringUtils.defaultString(repertoireEtats());
-
-        p.put("P_H_CLT_INFOS", "Valorisation Simple\n d'Inventaire");
-        p.put("P_H_LOGO", jdom.scr_report_file_logo);
-        p.put("P_H_INSTITUTION", officine == null ? "" : StringUtils.defaultString(officine.getStrNOMABREGE()));
-        p.put("P_INSTITUTION_ADRESSE",
-                officine == null ? "" : StringUtils.defaultString(officine.getStrADRESSSEPOSTALE()));
-        // Edition automatique : aucun operateur derriere. On le dit, plutot que de laisser croire
-        // qu'une personne a lance le document.
-        p.put("P_PRINTED_BY", "Archivage automatique");
-        p.put("P_AUTRE_DESC", officine == null ? "" : StringUtils.trimToEmpty(officine.getStrFIRSTNAME()) + " "
-                + StringUtils.trimToEmpty(officine.getStrLASTNAME()));
-        p.put("P_H_CI", entete(officine == null ? null : officine.getStrCENTREIMPOSITION(),
-                officine == null ? null : officine.getStrREGISTREIMPOSITION(), "CI:"));
-        p.put("P_H_CC", entete(officine == null ? null : officine.getStrCOMPTECONTRIBUABLE(),
-                officine == null ? null : officine.getStrREGISTRECOMMERCE(), "CC:"));
-        p.put("P_H_PHONE", officine == null || StringUtils.isBlank(officine.getStrPHONE()) ? ""
-                : "Tel: " + officine.getStrPHONE());
-
-        p.put("P_SEARCH", TOUT);
-        p.put("P_EMPLACEMENT_ID", TOUT);
-        p.put("P_SUBTITLE", CRITERE_FAMILLE.equals(critere) ? "Famille article" : "Emplacement");
-        p.put("P_START", "");
-        p.put("P_END", "");
-        p.put("P_PATH_SUBREPORT", repertoire);
-        p.put("SUBREPORT_DIR", repertoire);
-
-        totauxTva(dm, p);
-        return p;
-    }
-
-    private static String entete(String premier, String second, String prefixe) {
-        String a = StringUtils.trimToEmpty(premier);
-        String b = StringUtils.trimToEmpty(second);
-        String valeur = a.isEmpty() ? b : (b.isEmpty() ? a : a + " / " + b);
-        return valeur.isEmpty() ? " " : prefixe + valeur;
-    }
-
-    /**
-     * Totaux par taux de TVA, comme l'edition de l'ecran. Une officine dont la valorisation ne fait ressortir qu'un
-     * seul taux (ou aucun) ne doit pas faire echouer l'edition : les montants manquants valent zero, alors que
-     * l'edition de l'ecran leve une exception de conversion dans ce cas.
-     */
-    private void totauxTva(dataManager dm, Map<String, Object> p) {
-        List<EntityData> lignes = new ArrayList<>();
-        try {
-            TUser aucun = null;
-            lignes = new familleManagement(dm, aucun).getValorisationTVAData(TOUT);
-        } catch (Exception e) {
-            LOG.log(Level.WARNING, "Valorisation PDF : totaux de TVA indisponibles, zeros utilises", e);
-        }
-        EntityData taux0 = lignes.size() > 0 ? lignes.get(0) : null;
-        EntityData taux18 = lignes.size() > 1 ? lignes.get(1) : null;
-
-        p.put("P_TVA_0", taux0 == null ? "" : StringUtils.defaultString(taux0.getStr_value5()));
-        p.put("P_TVA_18", taux18 == null ? "" : StringUtils.defaultString(taux18.getStr_value5()));
-
-        double pv0 = nombre(taux0 == null ? null : taux0.getStr_value1());
-        double pv18 = nombre(taux18 == null ? null : taux18.getStr_value1());
-        double paf0 = nombre(taux0 == null ? null : taux0.getStr_value3());
-        double paf18 = nombre(taux18 == null ? null : taux18.getStr_value3());
-        double pat0 = nombre(taux0 == null ? null : taux0.getStr_value4());
-        double pat18 = nombre(taux18 == null ? null : taux18.getStr_value4());
-
-        p.put("P_TVA_0_PV", pv0);
-        p.put("P_TVA_18_PV", pv18);
-        p.put("P_TVA_0_PAF", paf0);
-        p.put("P_TVA_18_PAF", paf18);
-        p.put("P_TVA_0_PAT", pat0);
-        p.put("P_TVA_18_PAT", pat18);
-        p.put("P_TVA_0_POND", pat0);
-        p.put("P_TVA_18_POND", pat18);
-        p.put("P_TVA_0_PVG", pv0 + pv18);
-        p.put("P_TVA_0_PAFG", paf0 + paf18);
-        p.put("P_TVA_0_PATG", pat0 + pat18);
-        p.put("P_TVA_0_PONDG", String.valueOf(pat0 + pat18));
-    }
-
+    /** Conversion tolerante d'un montant lu en texte : zero plutot qu'une erreur. */
     static double nombre(String valeur) {
         try {
             return Double.parseDouble(StringUtils.trimToEmpty(valeur));
