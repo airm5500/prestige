@@ -57,8 +57,18 @@ Un écran est compté comme chargé quand le réseau est calme et qu'aucun masqu
      emplacement, sans filtre de date.
    - Écran récent, réservé au super administrateur.
    - Piste : mesurer chaque section en base, puis ne recalculer la section « Stock » que sur demande.
-3. **Pilotage, onglet « À suivre » : environ 12 s dès que le cache a plus de 10 minutes.**
-   - Cause : `PilotageSuiviService.evolution`, avec quatre appels `suivi/evolution` de 2 à 10,5 s.
-   - Le cache (`DUREE_CACHE`) ne dure que 10 minutes, alors que les années N-1 à N-3 ne changent plus.
-   - Onglet absent de dev.
-   - Piste : garder en cache les années closes jusqu'au lendemain et ne recalculer que l'année en cours.
+3. **Pilotage, onglet « À suivre » : 15 s dès que le cache a plus de 10 minutes. Corrigé en partie : 8 s.**
+   - Cause : `PilotageSuiviService.evolution`, avec six appels `suivi/evolution` (une courbe par grandeur).
+   - Le cache (`DUREE_CACHE`) ne dure que 10 minutes, et tout était recalculé, y compris les années N-1 à N-3, qui
+     ne changent plus. Onglet absent de dev.
+   - **Correction (1f25f282) :** les années closes sont gardées jusqu'au lendemain, et seule l'année en cours est
+     relue.
+   - Test d'écran `src/test/e2e/perf/test-pilotage-a-suivre-cache.js` : il rouvre l'onglet après l'expiration du
+     cache.
+     - Avant : 15,1 s, échec.
+     - Après : 8,0 s, encore au-dessus du budget de 3 s.
+     - Les empreintes des six courbes sont identiques avant et après : les chiffres ne changent pas.
+   - Le premier affichage du jour reste à environ 14 s, car il calcule toutes les années.
+   - Reste : le calcul de l'année en cours, environ 8 s. Pour passer sous 3 s, il faudrait lire les mois clos dans
+     les agrégats mensuels du pilotage, qui sont déjà tenus à jour avec le contrôle des corrections tardives, et
+     ne relire en direct que le mois en cours.
