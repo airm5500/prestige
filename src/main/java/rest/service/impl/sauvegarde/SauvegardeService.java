@@ -85,6 +85,11 @@ public class SauvegardeService {
                 ? "C:\\prestige\\sauvegardes" : System.getProperty("user.home") + "/prestige-sauvegardes");
     }
 
+    /** Second dossier des sauvegardes ; vide si aucun. */
+    public String copie() {
+        return StringUtils.defaultString(parametre(CLE_COPIE));
+    }
+
     public boolean active() {
         return !"0".equals(parametre(CLE_ACTIVE));
     }
@@ -407,7 +412,7 @@ public class SauvegardeService {
         return null;
     }
 
-    private static Path domaineXml() {
+    static Path domaineXml() {
         String racine = System.getProperty("com.sun.aas.instanceRoot");
         if (racine == null) {
             throw new IllegalStateException("Dossier du domaine Payara inconnu.");
@@ -416,7 +421,7 @@ public class SauvegardeService {
     }
 
     /** Fichier temporaire lisible par le seul compte du serveur (il recoit le mot de passe de la base). */
-    private static Path fichierPrive(String prefixe, String suffixe) throws java.io.IOException {
+    static Path fichierPrive(String prefixe, String suffixe) throws java.io.IOException {
         Path f;
         try {
             f = Files.createTempFile(prefixe, suffixe,
@@ -432,7 +437,7 @@ public class SauvegardeService {
         return f;
     }
 
-    private static void supprimer(Path f) {
+    static void supprimer(Path f) {
         if (f != null) {
             try {
                 Files.deleteIfExists(f);

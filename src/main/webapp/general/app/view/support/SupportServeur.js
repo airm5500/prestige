@@ -485,9 +485,122 @@ Ext.define('testextjs.view.support.SupportServeur', {
                             }},
                         {text: 'Message', dataIndex: 'message', flex: 1, renderer: function (v) {
                                 return me.esc(v);
-                            }}]},
+                            }},
+                        {text: 'Stock', width: 95, sortable: false, renderer: function (v, m, r) {
+                                return r.get('statut') === 'REUSSIE' ? '<a href="#" class="sauv-valoriser">Valoriser</a>' : '';
+                            }}],
+                    listeners: {cellclick: function (g, td, i, r, tr, l, e) {
+                            if (e.getTarget('.sauv-valoriser')) {
+                                e.preventDefault();
+                                me.valoriserSauvegarde(r);
+                            }
+                        }}},
+                me.panneauValorisation(),
                 {xtype: 'component', itemId: 'sauvRestaurer', margin: '6 10 10 10', html: ''}]
         };
+    },
+
+    /* retour du 02/11 : valorisation du stock d'une sauvegarde, sans restaurer la base sur un autre poste */
+    panneauValorisation: function () {
+        var me = this, montant = function (v) {
+            return me.nombre(v);
+        };
+        var store = Ext.create('Ext.data.Store', {fields: ['code', 'libelle', {name: 'qteRayon', type: 'int'}, {name: 'achatRayon', type: 'int'},
+                {name: 'venteRayon', type: 'int'}, {name: 'qteReserve', type: 'int'}, {name: 'achatReserve', type: 'int'}, {name: 'venteReserve', type: 'int'}], data: []});
+        var choisir = function () {
+            me.afficherValorisation();
+        };
+        return {xtype: 'panel', itemId: 'sauvValo', title: 'Valorisation du stock de la sauvegarde', margin: '4', hidden: true, layout: {type: 'vbox', align: 'stretch'},
+            tbar: [{xtype: 'combobox', itemId: 'sauvValoPar', fieldLabel: 'Par', labelWidth: 30, width: 170, editable: false, queryMode: 'local', value: 1,
+                    store: [[1, 'Famille'], [2, 'Rayon'], [3, 'Grossiste']], listeners: {change: choisir}},
+                {xtype: 'combobox', itemId: 'sauvValoEmplacement', fieldLabel: 'Emplacement', labelWidth: 85, width: 320, editable: false, queryMode: 'local',
+                    hidden: true, displayField: 'nom', valueField: 'id', store: Ext.create('Ext.data.Store', {fields: ['id', 'nom'], data: []}), listeners: {change: choisir}},
+                '->', {xtype: 'button', itemId: 'btnSauvValoExport', text: 'Exporter (Excel)', iconCls: 'fa fa-file-excel-o', disabled: true, handler: function () {
+                        var a = document.createElement('a');
+                        a.href = '../api/v1/support/sauvegardes/valorisation-excel?id=' + me.valorisation.id;
+                        a.download = 'valorisation-sauvegarde-' + me.valorisation.id + '.xlsx';
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                    }}],
+            items: [{xtype: 'component', itemId: 'sauvValoEntete', cls: 'srv-etat', margin: '4 6'},
+                {xtype: 'gridpanel', itemId: 'sauvValoListe', height: 320, columnLines: true, store: store,
+                    columns: [{text: 'Code', dataIndex: 'code', width: 110, renderer: function (v) {
+                                return me.esc(v);
+                            }},
+                        {text: 'Libellé', dataIndex: 'libelle', flex: 1, renderer: function (v) {
+                                return me.esc(v);
+                            }},
+                        {text: 'Qté rayon', dataIndex: 'qteRayon', width: 90, align: 'right', renderer: montant},
+                        {text: 'Achat rayon', dataIndex: 'achatRayon', width: 120, align: 'right', renderer: montant},
+                        {text: 'Vente rayon', dataIndex: 'venteRayon', width: 120, align: 'right', renderer: montant},
+                        {text: 'Qté réserve', dataIndex: 'qteReserve', width: 95, align: 'right', renderer: montant},
+                        {text: 'Achat réserve', dataIndex: 'achatReserve', width: 120, align: 'right', renderer: montant},
+                        {text: 'Vente réserve', dataIndex: 'venteReserve', width: 120, align: 'right', renderer: montant}]}]};
+    },
+
+    valoriserSauvegarde: function (r) {
+        var me = this, o = me.down('#ongletSauvegardes'), p = o.down('#sauvValo'), e = o.down('#sauvValoEntete');
+        if (me.valorisationEnCours) {
+            return;
+        }
+        me.valorisationEnCours = true;
+        me.valorisation = null;
+        p.show();
+        p.down('#sauvValoListe').getStore().removeAll();
+        p.down('#btnSauvValoExport').disable();
+        e.update('<span class="srv-encours">Valorisation de la sauvegarde du ' + me.esc(r.get('debut').substring(0, 16)) + ' en cours : lecture du fichier, une à deux minutes…</span>');
+        Ext.Ajax.request({url: '../api/v1/support/sauvegardes/valoriser', method: 'POST', jsonData: {id: r.get('id')}, timeout: 900000,
+            success: function (rep) {
+                me.valorisationEnCours = false;
+                var v = Ext.decode(rep.responseText, true) || {success: false, message: 'Réponse illisible.'};
+                if (me.isDestroyed) {
+                    return;
+                }
+                if (!v.success) {
+                    e.update('<span class="srv-critique">' + me.esc(v.message) + '</span>');
+                    return;
+                }
+                me.valorisation = v;
+                var c = p.down('#sauvValoEmplacement');
+                c.getStore().loadData(v.emplacements);
+                c.setVisible(v.emplacements.length > 1);
+                c.suspendEvents();
+                c.setValue(v.emplacements.length ? v.emplacements[0].id : null);
+                c.resumeEvents();
+                p.down('#btnSauvValoExport').enable();
+                me.afficherValorisation();
+            },
+            failure: function (rep) {
+                me.valorisationEnCours = false;
+                if (!me.isDestroyed) {
+                    e.update('<span class="srv-critique">' + (rep.status === 401 ? 'Session expirée.' : 'Le serveur ne répond pas.') + '</span>');
+                }
+            }});
+    },
+
+    afficherValorisation: function () {
+        var me = this, o = me.down('#ongletSauvegardes'), p = o.down('#sauvValo'), v = me.valorisation;
+        if (!v) {
+            return;
+        }
+        var emp = p.down('#sauvValoEmplacement').getValue(), mode = p.down('#sauvValoPar').getValue(), e = v.emplacements[0] || null;
+        Ext.each(v.emplacements, function (x) {
+            if (x.id === emp) {
+                e = x;
+            }
+        });
+        var lignes = e ? e.modes[String(mode)] : [], t = {achatRayon: 0, venteRayon: 0, achatReserve: 0, venteReserve: 0};
+        Ext.each(lignes, function (l) {
+            Ext.Object.each(t, function (k) {
+                t[k] += l[k];
+            });
+        });
+        p.down('#sauvValoListe').getStore().loadData(lignes);
+        p.down('#sauvValoEntete').update('Valorisation du stock de la sauvegarde du <b>' + me.esc(v.debut) + '</b>' + (e ? ' · ' + me.esc(e.nom) : '')
+                + ' · calculée en ' + v.dureeS + ' s<br>Achat : rayon <b>' + me.nombre(t.achatRayon) + '</b> + réserve <b>' + me.nombre(t.achatReserve)
+                + '</b> = <b>' + me.nombre(t.achatRayon + t.achatReserve) + '</b> · Vente : rayon <b>' + me.nombre(t.venteRayon) + '</b> + réserve <b>'
+                + me.nombre(t.venteReserve) + '</b> = <b>' + me.nombre(t.venteRayon + t.venteReserve) + '</b>');
     },
 
     chargerSauvegardes: function (reglages) {
