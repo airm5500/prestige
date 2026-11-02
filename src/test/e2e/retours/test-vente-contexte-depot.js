@@ -207,8 +207,14 @@ const champVente = (id, colonne) => q("SELECT COALESCE(" + colonne + ", 'NULL') 
     ok('le montant encaisse est bien celui de la vente',
       Number(q("SELECT montantNet FROM mvttransaction WHERE pkey='" + vd.id + "'")) === QTE * ctx0.produit.pu,
       q("SELECT montantNet FROM mvttransaction WHERE pkey='" + vd.id + "'") + ' attendu ' + QTE * ctx0.produit.pu);
-    ok('la reference de la vente est numerotee sur le depot, pas sur l officine',
-      Number(q("SELECT COUNT(*) FROM reference WHERE emplacement_id='" + DEPOT + "'")) > 0);
+    /* 02/11 : la regle du 16/09 (un compteur propre au depot) donnait des numeros en double - le compteur du depot
+       ecrasait celui de l'officine, puis deux tickets du jour portaient le meme numero. La vente du depot suit
+       desormais la suite de l'officine (test vente/test-numerotation-ventes.js). */
+    const numeroDe = (id) => Number(q("SELECT SUBSTRING_INDEX(str_REF, '_', -1) FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID='" + id + "'"));
+    ok('la vente du depot suit la suite de numeros de l officine, sans compteur a part',
+      numeroDe(vd.id) > numeroDe(officine.id)
+      && Number(q("SELECT COUNT(*) FROM reference WHERE emplacement_id='" + DEPOT + "'")) === 0,
+      numeroDe(officine.id) + ' -> ' + numeroDe(vd.id));
 
     /* ------------------------------------------------- un depot invalide ramene au comportement d avant */
     const inconnu = await creer('CE-DEPOT-N-EXISTE-PAS');
