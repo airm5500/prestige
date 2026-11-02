@@ -19,6 +19,7 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 import rest.service.BalanceService;
 import rest.service.dto.BalanceParamsDTO;
+import rest.service.utils.CacheEtats;
 import toolkits.parameters.commonparameter;
 import static toolkits.parameters.enumExtentionFiles.LOG;
 import util.Constant;
@@ -52,8 +53,12 @@ public class BalanceVenteRessource {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
 
-        JSONObject json = balanceService.getBalanceVenteCaisseDataView(BalanceParamsDTO.builder().dtStart(dtStart)
-                .dtEnd(dtEnd).emplacementId(tu.getLgEMPLACEMENTID().getLgEMPLACEMENTID()).avecTva(true).build());
+        String emplacement = tu.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
+        /* garde pour l'impression (demande du 02/11) : le PDF reprend ces donnees au lieu de les recalculer */
+        JSONObject json = CacheEtats.ecran(hs.getId(), ETAT_BALANCE,
+                () -> balanceService.getBalanceVenteCaisseDataView(BalanceParamsDTO.builder().dtStart(dtStart)
+                        .dtEnd(dtEnd).emplacementId(emplacement).avecTva(true).build()),
+                emplacement, dtStart, dtEnd);
         return Response.ok().entity(json.toString()).build();
     }
 
@@ -91,6 +96,7 @@ public class BalanceVenteRessource {
     }
 
     private static final String P_BALANCE_ANCIENNE = "P_BALANCE_ANCIENNE_PRESENTATION";
+    private static final String ETAT_BALANCE = "balance-vente-caisse";
 
     /**
      * L'edition de la balance dans sa nouvelle presentation (retour des tests du 09/09) : les memes blocs que l'ecran,
@@ -106,8 +112,12 @@ public class BalanceVenteRessource {
         if (tu == null) {
             return Response.status(Response.Status.UNAUTHORIZED).build();
         }
-        JSONObject vue = balanceService.getBalanceVenteCaisseDataView(BalanceParamsDTO.builder().dtStart(dtStart)
-                .dtEnd(dtEnd).emplacementId(tu.getLgEMPLACEMENTID().getLgEMPLACEMENTID()).avecTva(true).build());
+        String emplacement = tu.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
+        JSONObject vue = CacheEtats.edition(hs.getId(), ETAT_BALANCE,
+                () -> balanceService.getBalanceVenteCaisseDataView(BalanceParamsDTO.builder().dtStart(dtStart)
+                        .dtEnd(dtEnd).emplacementId(emplacement).avecTva(true).build()),
+                emplacement, dtStart, dtEnd);
+        boolean repris = CacheEtats.repris();
         java.util.Map<String, Object> parametres = reportUtil.officineData(tu);
         parametres.put("P_PERIODE", "Du " + dateLisible(dtStart) + " au " + dateLisible(dtEnd));
         parametres.put("P_ENTETES", rest.service.impl.EditionBalance.entetes());
@@ -123,7 +133,7 @@ public class BalanceVenteRessource {
                             + "<h3 style=\"color:#C00000;\">L'édition n'a pas pu être générée.</h3></body></html>",
                     "text/html;charset=UTF-8").build();
         }
-        return Response.ok(fichier, "application/pdf")
+        return Response.ok(fichier, "application/pdf").header(CacheEtats.ENTETE, repris ? "1" : "0")
                 .header("Content-Disposition", "inline; filename=balance_vente_caisse_"
                         + LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd_MM_yyyy_H_mm_ss")) + ".pdf")
                 .build();
