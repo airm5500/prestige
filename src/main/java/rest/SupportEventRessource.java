@@ -47,12 +47,29 @@ public class SupportEventRessource {
     @GET
     public Response findAll(@DefaultValue("0") @QueryParam("start") int start,
             @DefaultValue("20") @QueryParam("limit") int limit, @QueryParam("niveau") String niveau,
-            @QueryParam("query") String query) {
+            @QueryParam("query") String query, @QueryParam("module") String module,
+            @QueryParam("dtStart") String dtStart, @QueryParam("dtEnd") String dtEnd) {
         // « TOUS » est le libelle de la liste deroulante, pas un niveau : il vaut absence de filtre.
         String filtreNiveau = "TOUS".equalsIgnoreCase(niveau) ? "" : niveau;
-        List<ApplicationEvent> data = supportEventService.findAll(start, limit, filtreNiveau, query);
-        return Response.ok()
-                .entity(ResultFactory.getSuccessResult(data, supportEventService.count(filtreNiveau, query))).build();
+        try {
+            List<ApplicationEvent> data = supportEventService.findAll(start, limit, filtreNiveau, query, module,
+                    dtStart, dtEnd);
+            return Response.ok().entity(ResultFactory.getSuccessResult(data,
+                    supportEventService.count(filtreNiveau, query, module, dtStart, dtEnd))).build();
+        } catch (java.time.format.DateTimeParseException e) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(ResultFactory.getFailResult("Date de période invalide (attendu : aaaa-mm-jj).")).build();
+        }
+    }
+
+    /** Modules presents dans le journal : liste du filtre « Module » de l'ecran Diagnostic & bugs. */
+    @GET
+    @Path("modules")
+    public Response modules() {
+        // un objet par module : le lecteur de la liste deroulante lit des champs, pas des chaines nues
+        List<java.util.Map<String, String>> data = new java.util.ArrayList<>();
+        supportEventService.modules().forEach(m -> data.add(java.util.Collections.singletonMap("module", m)));
+        return Response.ok().entity(ResultFactory.getSuccessResult(data, data.size())).build();
     }
 
     @POST
@@ -109,15 +126,16 @@ public class SupportEventRessource {
     @Path("export/excel")
     @Produces("application/vnd.ms-excel")
     public Response exportExcel(@QueryParam("niveau") String niveau, @QueryParam("query") String query,
-            @DefaultValue("500") @QueryParam("limit") int limit) throws java.io.IOException {
+            @DefaultValue("500") @QueryParam("limit") int limit, @QueryParam("module") String module,
+            @QueryParam("dtStart") String dtStart, @QueryParam("dtEnd") String dtEnd) throws java.io.IOException {
         TUser user = currentUser();
         if (user == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
         int plafond = Math.max(1, Math.min(limit, 2000));
-        // L'export doit refleter ce que l'utilisateur a sous les yeux : meme niveau ET meme recherche.
+        // L'export doit refleter ce que l'utilisateur a sous les yeux : memes niveau, recherche, module et periode.
         List<ApplicationEvent> data = supportEventService.findAll(0, plafond,
-                "TOUS".equalsIgnoreCase(niveau) ? "" : niveau, query);
+                "TOUS".equalsIgnoreCase(niveau) ? "" : niveau, query, module, dtStart, dtEnd);
         List<String[]> lignes = new java.util.ArrayList<>();
         int detailsLus = 0;
         for (ApplicationEvent e : data) {
@@ -186,13 +204,15 @@ public class SupportEventRessource {
     @GET
     @Path("export/liste")
     @Produces("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-    public Response exportListe(@QueryParam("niveau") String niveau, @QueryParam("query") String query)
-            throws java.io.IOException {
+    public Response exportListe(@QueryParam("niveau") String niveau, @QueryParam("query") String query,
+            @QueryParam("module") String module, @QueryParam("dtStart") String dtStart,
+            @QueryParam("dtEnd") String dtEnd) throws java.io.IOException {
         String filtreNiveau = "TOUS".equalsIgnoreCase(niveau) ? "" : niveau;
-        List<ApplicationEvent> data = supportEventService.findAll(0, 0, filtreNiveau, query);
+        List<ApplicationEvent> data = supportEventService.findAll(0, 0, filtreNiveau, query, module, dtStart, dtEnd);
         byte[] contenu = new rest.report.excel.ClasseurExcel<ApplicationEvent>("Événements")
                 .titre("CENTRE DE SUPPORT - ÉVÉNEMENTS CAPTURÉS").critere("Niveau", filtreNiveau)
-                .critere("Recherche", query).dateHeure("1ère apparition", ApplicationEvent::getCreatedAt)
+                .critere("Recherche", query).critere("Module", module).critere("Du", dtStart).critere("Au", dtEnd)
+                .dateHeure("1ère apparition", ApplicationEvent::getCreatedAt)
                 .dateHeure("Dernière", ApplicationEvent::getLastSeenAt).texte("Module", ApplicationEvent::getModule)
                 .texte("Type", ApplicationEvent::getType).texte("Niveau", ApplicationEvent::getNiveau)
                 .texte("Message", ApplicationEvent::getMessageCourt)

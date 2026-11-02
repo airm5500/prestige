@@ -44,6 +44,19 @@ public interface SupportEventService {
     /** Comptage avec les memes criteres que la liste, recherche comprise. */
     long count(String niveau, String recherche);
 
+    /**
+     * Liste filtree aussi par module et par periode de derniere apparition (dates yyyy-MM-dd, bornes incluses ; vide =
+     * sans borne). limit <= 0 : tout le resultat.
+     */
+    List<ApplicationEvent> findAll(int start, int limit, String niveau, String recherche, String module, String du,
+            String au);
+
+    /** Comptage avec les memes criteres que la liste filtree par module et periode. */
+    long count(String niveau, String recherche, String module, String du, String au);
+
+    /** Modules presents dans le journal, par ordre alphabetique (liste du filtre « Module »). */
+    List<String> modules();
+
     String createTicketFromEvent(String eventId, TUser user);
 
     /**

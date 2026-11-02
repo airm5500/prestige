@@ -21,6 +21,23 @@ Ext.define('testextjs.view.support.SupportDiagnostic', {
             fields: [{name: 'niveau', type: 'string'}]
         });
 
+        /* Demande du 02/11 : filtre par module. La liste vient du journal lui-meme (modules presents), precedee de
+           « TOUS » qui vaut absence de filtre. */
+        const modules = Ext.create('Ext.data.Store', {
+            fields: [{name: 'module', type: 'string'}],
+            autoLoad: true,
+            proxy: {
+                type: 'ajax',
+                url: '../api/v1/support/events/modules',
+                reader: {type: 'json', root: 'data'}
+            },
+            listeners: {
+                load: function (st) {
+                    st.insert(0, {module: 'TOUS'});
+                }
+            }
+        });
+
         const store = Ext.create('Ext.data.Store', {
             idProperty: 'id',
             fields: [
@@ -57,6 +74,51 @@ Ext.define('testextjs.view.support.SupportDiagnostic', {
                 {
                     xtype: 'gridpanel',
                     store: store,
+                    /* Demande du 02/11 : seconde barre, filtres par module et par periode (derniere apparition, bornes
+                       incluses). Le module s'applique des le choix ; une date, au choix dans le calendrier ou en
+                       quittant le champ. */
+                    dockedItems: [{
+                            xtype: 'toolbar',
+                            dock: 'top',
+                            itemId: 'barreFiltres',
+                            items: [
+                                {
+                                    xtype: 'combobox',
+                                    itemId: 'comboModule',
+                                    fieldLabel: 'Module',
+                                    labelWidth: 50,
+                                    width: 260,
+                                    store: modules,
+                                    valueField: 'module',
+                                    displayField: 'module',
+                                    queryMode: 'local',
+                                    editable: false,
+                                    value: 'TOUS'
+                                },
+                                {
+                                    xtype: 'datefield',
+                                    itemId: 'dateDu',
+                                    fieldLabel: 'Du',
+                                    labelWidth: 25,
+                                    width: 145,
+                                    format: 'd/m/Y',
+                                    emptyText: 'début'
+                                },
+                                {
+                                    xtype: 'datefield',
+                                    itemId: 'dateAu',
+                                    fieldLabel: 'Au',
+                                    labelWidth: 25,
+                                    width: 145,
+                                    format: 'd/m/Y',
+                                    emptyText: 'fin'
+                                },
+                                {
+                                    xtype: 'tbtext',
+                                    text: 'Période : date de dernière apparition'
+                                }
+                            ]
+                        }],
                     tbar: [
                         {
                             xtype: 'combobox',

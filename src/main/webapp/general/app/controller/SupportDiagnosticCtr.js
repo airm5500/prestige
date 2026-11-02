@@ -16,6 +16,18 @@ Ext.define('testextjs.controller.SupportDiagnosticCtr', {
         {
             ref: 'champRecherche',
             selector: 'supportdiagnostic textfield#champRecherche'
+        },
+        {
+            ref: 'comboModule',
+            selector: 'supportdiagnostic combobox#comboModule'
+        },
+        {
+            ref: 'dateDu',
+            selector: 'supportdiagnostic datefield#dateDu'
+        },
+        {
+            ref: 'dateAu',
+            selector: 'supportdiagnostic datefield#dateAu'
         }
     ],
     init: function (application) {
@@ -25,6 +37,16 @@ Ext.define('testextjs.controller.SupportDiagnosticCtr', {
             },
             'supportdiagnostic combobox#comboNiveau': {
                 change: this.onNiveauChange
+            },
+            'supportdiagnostic combobox#comboModule': {
+                select: this.rechargerListe
+            },
+            /* une date s'applique quand elle est choisie au calendrier ou quand on quitte le champ (Tab, Entree) :
+               pas a chaque frappe, sans quoi une date en cours de saisie rechargerait la liste */
+            'supportdiagnostic datefield#dateDu, supportdiagnostic datefield#dateAu': {
+                select: this.onDateChoisie,
+                blur: this.onDateChoisie,
+                specialkey: this.onToucheRecherche
             },
             'supportdiagnostic button#btnActualiser': {
                 click: this.doRefresh
@@ -68,12 +90,36 @@ Ext.define('testextjs.controller.SupportDiagnosticCtr', {
         this.getDiagnosticGrid().getStore().reload();
     },
 
-    /* Export Excel du journal : memes criteres que l'ecran, niveau ET recherche. */
+    /* Export Excel du journal : memes criteres que l'ecran (niveau, recherche, module, periode). */
     onExcel: function () {
         const niveau = this.getComboNiveau() ? this.getComboNiveau().getValue() : 'TOUS';
+        const f = this.filtresModulePeriode();
         window.open('../api/v1/support/events/export/excel?limit=500&niveau='
                 + encodeURIComponent(niveau === 'TOUS' || !niveau ? '' : niveau)
-                + '&query=' + encodeURIComponent(this.termeRecherche()));
+                + '&query=' + encodeURIComponent(this.termeRecherche())
+                + '&module=' + encodeURIComponent(f.module) + '&dtStart=' + f.dtStart + '&dtEnd=' + f.dtEnd);
+    },
+
+    /** Module (vide pour « TOUS ») et bornes de periode au format aaaa-mm-jj (vides si non saisies ou invalides). */
+    filtresModulePeriode: function () {
+        const module = this.getComboModule() ? this.getComboModule().getValue() : '';
+        const date = function (champ) {
+            return champ && champ.isValid() && champ.getValue() ? Ext.Date.format(champ.getValue(), 'Y-m-d') : '';
+        };
+        return {
+            module: !module || module === 'TOUS' ? '' : module,
+            dtStart: date(this.getDateDu()),
+            dtEnd: date(this.getDateAu())
+        };
+    },
+
+    /* recharge seulement si la periode a change depuis le dernier chargement (sortie du champ sans saisie) */
+    onDateChoisie: function () {
+        const f = this.filtresModulePeriode();
+        const p = this.getDiagnosticGrid().getStore().getProxy().extraParams;
+        if ((p.dtStart || '') !== f.dtStart || (p.dtEnd || '') !== f.dtEnd) {
+            this.rechargerListe();
+        }
     },
 
     /** Terme saisi dans le champ de recherche, vide si le champ est absent. */
@@ -89,6 +135,10 @@ Ext.define('testextjs.controller.SupportDiagnosticCtr', {
         const niveau = this.getComboNiveau() ? this.getComboNiveau().getValue() : '';
         store.getProxy().extraParams.niveau = (niveau === 'TOUS') ? '' : niveau;
         store.getProxy().extraParams.query = this.termeRecherche();
+        const f = this.filtresModulePeriode();
+        store.getProxy().extraParams.module = f.module;
+        store.getProxy().extraParams.dtStart = f.dtStart;
+        store.getProxy().extraParams.dtEnd = f.dtEnd;
         store.loadPage(1);
     },
 
@@ -102,11 +152,20 @@ Ext.define('testextjs.controller.SupportDiagnosticCtr', {
         }
     },
 
+    /* « Effacer » vide la recherche, le module et la periode */
     onEffacerRecherche: function () {
         const champ = this.getChampRecherche();
         if (champ) {
             champ.setValue('');
         }
+        if (this.getComboModule()) {
+            this.getComboModule().setValue('TOUS');
+        }
+        Ext.each([this.getDateDu(), this.getDateAu()], function (d) {
+            if (d) {
+                d.reset();
+            }
+        });
         this.rechargerListe();
     },
 
