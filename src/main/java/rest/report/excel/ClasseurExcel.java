@@ -18,6 +18,8 @@ import org.apache.poi.ss.usermodel.IndexedColors;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.streaming.SXSSFSheet;
+import org.apache.poi.xssf.streaming.SXSSFWorkbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 /**
@@ -61,6 +63,18 @@ public final class ClasseurExcel<T> {
             this.valeur = valeur;
         }
     }
+
+    /**
+     * Rapport du 26/10, § 21, L24 : au-dela de ce nombre de lignes, le classeur est ecrit en flux (quelques centaines
+     * de lignes en memoire, le reste sur disque) et la largeur des colonnes est estimee sur le debut, sans
+     * autoSizeColumn. L'export du journal sur une longue periode avait epuise la memoire du serveur. En dessous, rien
+     * ne change.
+     */
+    static final int SEUIL_FLUX = 20_000;
+    /** Lignes lues pour estimer la largeur des colonnes d'un gros classeur. */
+    private static final int LIGNES_ESTIMATION = 1_000;
+    /** Derniere ligne utilisable d'une feuille Excel (1 048 576 lignes). */
+    private static final int DERNIERE_LIGNE_EXCEL = 1_048_575;
 
     private final String nomFeuille;
     private final List<Colonne<T>> colonnes = new ArrayList<>();
@@ -123,7 +137,10 @@ public final class ClasseurExcel<T> {
      * et triee comme l'ecran, l'export devant refleter ce que l'utilisateur a sous les yeux.
      */
     public byte[] construire(List<T> lignes) throws IOException {
-        try (Workbook classeur = new XSSFWorkbook(); ByteArrayOutputStream sortie = new ByteArrayOutputStream()) {
+        List<T> contenu = lignes == null ? List.of() : lignes;
+        boolean flux = contenu.size() > SEUIL_FLUX;
+        Workbook classeur = flux ? new SXSSFWorkbook(200) : new XSSFWorkbook();
+        try (ByteArrayOutputStream sortie = new ByteArrayOutputStream()) {
             Sheet feuille = classeur.createSheet(nomFeuille);
             CreationHelper aide = classeur.getCreationHelper();
 
@@ -165,7 +182,6 @@ public final class ClasseurExcel<T> {
                 cellule.setCellStyle(styleEntete);
             }
 
-            List<T> contenu = lignes == null ? List.of() : lignes;
             if (contenu.isEmpty()) {
                 // Un classeur vide laisse l'utilisateur devant une feuille muette : on lui dit
                 // explicitement qu'aucune ligne ne correspond aux criteres rappeles au-dessus.
@@ -173,12 +189,22 @@ public final class ClasseurExcel<T> {
                         .setCellValue("Aucune donnée ne correspond aux critères de sélection.");
             }
             for (T ligne : contenu) {
+                if (rang == DERNIERE_LIGNE_EXCEL) {
+                    feuille.createRow(rang).createCell(0).setCellValue(
+                            "Export limité à la taille d'une feuille Excel : réduisez la période pour voir la suite.");
+                    break;
+                }
                 Row row = feuille.createRow(rang++);
                 for (int i = 0; i < colonnes.size(); i++) {
                     ecrire(row.createCell(i), colonnes.get(i), ligne, styleDate, styleDateHeure);
                 }
             }
 
+            if (flux) {
+                estimerLargeurs(feuille, contenu);
+                classeur.write(sortie);
+                return sortie.toByteArray();
+            }
             for (int i = 0; i < colonnes.size(); i++) {
                 feuille.autoSizeColumn(i);
                 // autoSizeColumn colle au contenu : quelques dixiemes de caractere de marge
@@ -190,6 +216,32 @@ public final class ClasseurExcel<T> {
 
             classeur.write(sortie);
             return sortie.toByteArray();
+        } finally {
+            if (classeur instanceof SXSSFWorkbook) {
+                ((SXSSFWorkbook) classeur).dispose();
+            }
+            classeur.close();
+        }
+    }
+
+    /** Largeur d'un gros classeur : en-tete et premieres lignes, memes marge et plafond que autoSizeColumn. */
+    private void estimerLargeurs(Sheet feuille, List<T> contenu) {
+        int lues = Math.min(LIGNES_ESTIMATION, contenu.size());
+        for (int i = 0; i < colonnes.size(); i++) {
+            Colonne<T> colonne = colonnes.get(i);
+            int caracteres = colonne.titre.length();
+            for (int r = 0; r < lues; r++) {
+                Object valeur;
+                try {
+                    valeur = colonne.valeur.apply(contenu.get(r));
+                } catch (RuntimeException e) {
+                    valeur = null;
+                }
+                int n = valeur == null ? 0 : (colonne.type == Type.DATE ? 10
+                        : colonne.type == Type.DATE_HEURE ? 16 : String.valueOf(valeur).length());
+                caracteres = Math.max(caracteres, n);
+            }
+            ((SXSSFSheet) feuille).setColumnWidth(i, Math.min((caracteres + 2) * 256 + 512, 60 * 256));
         }
     }
 
