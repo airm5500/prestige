@@ -25,6 +25,25 @@ const path = require('path');
 
 const WINDOWS = process.platform === 'win32';
 
+/* pdftotext : les tests lisent les PDF mis en page par Poppler. Sous Windows, celui de Git (xpdf) peut passer devant
+   dans le PATH et coupe autrement les lignes longues : les controles de mise en page echouent alors sans raison.
+   Poppler (POPPLER_BIN, ou installe par winget) est donc mis en tete du PATH, pour ce test et ce qu'il lance. */
+if (WINDOWS) {
+  let bin = process.env.POPPLER_BIN || '';
+  if (!bin) {
+    const paquets = path.join(process.env.LOCALAPPDATA || '', 'Microsoft', 'WinGet', 'Packages');
+    try {
+      for (const p of fs.readdirSync(paquets).filter((d) => /poppler/i.test(d))) {
+        for (const v of fs.readdirSync(path.join(paquets, p)).filter((d) => /^poppler-/i.test(d)).sort().reverse()) {
+          const b = path.join(paquets, p, v, 'Library', 'bin');
+          if (!bin && fs.existsSync(path.join(b, 'pdftotext.exe'))) { bin = b; }
+        }
+      }
+    } catch (e) { /* pas de winget : PATH inchange */ }
+  }
+  if (bin) { process.env.PATH = bin + path.delimiter + process.env.PATH; }
+}
+
 /* Sous Windows, le client mariadb lit ses arguments dans la page de codes du systeme : une requete « -e » avec des
    accents arrive fausse (« Incorrect string value: '\xE9' », melange de collations). La requete passe alors par
    l'entree standard, en UTF-8. Les requetes en ASCII ne changent pas. */

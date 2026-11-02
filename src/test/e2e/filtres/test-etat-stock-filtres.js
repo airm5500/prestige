@@ -37,7 +37,7 @@ const NOMS = RAYONS.map((r) => q("SELECT str_LIBELLEE FROM t_zone_geographique W
       new URLSearchParams({ lg_ZONE_GEO_ID: RAYONS.join(',') }).toString());
     let texte = '';
     if (/pdf/.test(pdf.ct || '')) { const f = path.join(os.tmpdir(), 'etat-' + Date.now() + '.pdf'); fs.writeFileSync(f, Buffer.from(pdf.b));
-      texte = execFileSync('pdftotext', ['-enc', 'UTF-8', '-layout', f, '-'], { encoding: 'utf8' }).replace(/\s+/g, ' '); fs.unlinkSync(f); }
+      texte = execFileSync('pdftotext', ['-enc', 'UTF-8', '-layout', f, '-'], { encoding: 'utf8', maxBuffer: 100 * 1024 * 1024 }).replace(/\s+/g, ' '); fs.unlinkSync(f); }
     ok('Impression avec réserve : les noms des 2 rayons cochés', NOMS.every((n) => texte.indexOf(n.replace(/\s+/g, ' ')) >= 0) && RAYONS.every((r) => texte.indexOf(r) < 0),
       NOMS.join(' / ') + ' :: ' + texte.slice(0, 260));
     ok('Aucune erreur JavaScript', err.length === 0, err.join(' | '));

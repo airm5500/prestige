@@ -14,6 +14,7 @@ const LOGIN = ENV_E2E.LOGIN;
 const EMP = q(`SELECT lg_EMPLACEMENT_ID FROM t_user WHERE str_LOGIN = '${LOGIN}'`);
 const [ID, CIP, NOM] = q(`SELECT f.lg_FAMILLE_ID, f.int_CIP, f.str_NAME FROM t_famille f JOIN t_famille_stock s ON s.lg_FAMILLE_ID = f.lg_FAMILLE_ID
   AND s.lg_EMPLACEMENT_ID = '${EMP}' WHERE f.str_STATUT = 'enable' AND LENGTH(f.int_CIP) = 7 AND f.str_NAME REGEXP '^[A-Z]{3}'
+  AND NOT EXISTS (SELECT 1 FROM t_famille g WHERE g.lg_FAMILLE_ID <> f.lg_FAMILLE_ID AND g.str_STATUT = 'enable' AND g.int_CIP LIKE CONCAT(f.int_CIP, '%'))
   ORDER BY f.lg_FAMILLE_ID LIMIT 1`).split('\t');
 const remettre = () => q(`UPDATE t_famille SET str_STATUT = 'enable' WHERE lg_FAMILLE_ID = '${ID}';
   UPDATE t_famille_grossiste SET str_STATUT = 'enable' WHERE lg_FAMILLE_ID = '${ID}';
@@ -53,9 +54,9 @@ const remettre = () => q(`UPDATE t_famille SET str_STATUT = 'enable' WHERE lg_FA
     await p.evaluate(() => Ext.ComponentQuery.query('#chercherDesactives')[0].setValue(true));
     await p.waitForFunction((cip) => Ext.ComponentQuery.query('#resultGrid')[0].getStore().getRange().some((r) => r.get('intCIP') === cip), CIP, { timeout: 10000 }).catch(() => {});
     ok('Case cochée : effet immédiat, produit trouvé', (await lignes()).includes(CIP), (await lignes()).join(','));
-    const cellule = await p.evaluate(() => { const g = Ext.ComponentQuery.query('#resultGrid')[0]; return g.getView().getNode(0).innerHTML; });
+    const cellule = await p.evaluate((cip) => { const g = Ext.ComponentQuery.query('#resultGrid')[0]; return g.getView().getNode(Math.max(0, g.getStore().findExact('intCIP', cip))).innerHTML; }, CIP);
     ok('Affiché en rouge avec « (désactivé) »', cellule.includes('(désactivé)') && cellule.includes('color:#c62828'));
-    await p.evaluate(() => { const g = Ext.ComponentQuery.query('#resultGrid')[0]; g.fireEvent('itemdblclick', g, g.getStore().getAt(0)); });
+    await p.evaluate((cip) => { const g = Ext.ComponentQuery.query('#resultGrid')[0]; g.fireEvent('itemdblclick', g, g.getStore().getAt(Math.max(0, g.getStore().findExact('intCIP', cip)))); }, CIP);
     await p.waitForFunction(() => { const m = Ext.MessageBox; return m.isVisible() && /désactivé/.test(m.msg.getEl().dom.innerHTML); }, null, { timeout: 5000 }).catch(() => {});
     ok('Associer : proposition d\'activer le produit', await p.evaluate(() => Ext.MessageBox.isVisible() && /activer/.test(Ext.MessageBox.msg.getEl().dom.innerHTML)));
     await p.evaluate(() => Ext.MessageBox.down('button[itemId=yes]').btnEl.dom.click());
@@ -70,6 +71,8 @@ const remettre = () => q(`UPDATE t_famille SET str_STATUT = 'enable' WHERE lg_FA
   } finally {
     remettre();
     await b.close();
+    /* le code de la ligne de BL d'essai ne doit etre pose sur aucun produit (un « Oui » mal place l'associait) */
+    ok('Aucun produit ne porte le code d\'essai 9999999', q("SELECT COUNT(*) FROM t_famille WHERE int_CIP = '9999999'") === '0');
     const ko = res.filter((x) => !x.c).length;
     console.log('\n' + (res.length - ko) + '/' + res.length + ' verifications');
     process.exit(ko ? 1 : 0);

@@ -22,6 +22,14 @@ const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-char
 const M = 'E2E-SRE-';
 const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
 const EMPL = q("SELECT lg_EMPLACEMENT_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
+/* un autre emplacement ; sans depot (copie de l'officine), un depot d'essai retire a la fin */
+const DEPOT_ESSAI = 'E2E-SRE-DEPOT';
+if (q("SELECT COUNT(*) FROM t_emplacement WHERE lg_EMPLACEMENT_ID <> '" + EMPL + "'") === '0') {
+  exec("INSERT INTO t_emplacement (lg_EMPLACEMENT_ID, lg_COMPTE_CLIENT_ID, str_NAME, str_DESCRIPTION, str_LOCALITE, str_FIRST_NAME, str_LAST_NAME,"
+    + " str_PHONE, dt_CREATED, dt_UPDATED, str_STATUT, lg_TYPEDEPOT_ID, bool_SAME_LOCATION) SELECT '" + DEPOT_ESSAI + "', lg_COMPTE_CLIENT_ID, 'DEPOT E2E RESERVE',"
+    + " 'E2E', 'ABOBO', 'ESSAI', 'Depot', '0700000000', NOW(), NOW(), 'enable', '2', 0 FROM t_compte_client cc"
+    + " WHERE EXISTS (SELECT 1 FROM t_client c WHERE c.lg_CLIENT_ID = cc.lg_CLIENT_ID AND c.str_STATUT = 'enable') LIMIT 1");
+}
 const AUTRE = q("SELECT lg_EMPLACEMENT_ID FROM t_emplacement WHERE lg_EMPLACEMENT_ID <> '" + EMPL + "' ORDER BY lg_EMPLACEMENT_ID LIMIT 1");
 
 function retirer() {
@@ -52,7 +60,7 @@ const verrou = (id) => q("SELECT IFNULL(lg_USER_VERROU_ID, 'NULL') FROM t_sugges
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 90000 });
     await p.waitForTimeout(1500);
 
-    const liste = await appel('GET', '../api/v1/suggestion-reserve/liste?search_value=&limit=500');
+    const liste = await appel('GET', '../api/v1/suggestion-reserve/liste?search_value=&limit=100000');
     const ids = (liste.j.results || []).map((r) => r.lg_SUGGESTION_RESERVE_ID || r.id).filter((x) => x && x.indexOf('E2E-SRE-') === 0).sort();
     ok('Route liste : A et C (emplacement de l\'utilisateur), jamais B', ids.join(',') === M + 'A,' + M + 'C', ids.join(','));
     const total = await appel('GET', '../api/v1/suggestion-reserve/liste?limit=1');
@@ -85,7 +93,9 @@ const verrou = (id) => q("SELECT IFNULL(lg_USER_VERROU_ID, 'NULL') FROM t_sugges
   } finally {
     await b.close();
     retirer();
-    ok('Jeu d\'essai retiré', q("SELECT COUNT(*) FROM t_suggestion_reserve WHERE lg_SUGGESTION_RESERVE_ID LIKE '" + M + "%'") === '0');
+    exec("DELETE FROM t_emplacement WHERE lg_EMPLACEMENT_ID = '" + DEPOT_ESSAI + "'");
+    ok('Jeu d\'essai retiré', q("SELECT COUNT(*) FROM t_suggestion_reserve WHERE lg_SUGGESTION_RESERVE_ID LIKE '" + M + "%'") === '0'
+      && q("SELECT COUNT(*) FROM t_emplacement WHERE lg_EMPLACEMENT_ID = '" + DEPOT_ESSAI + "'") === '0');
     const ko = res.filter((r) => !r.c).length;
     console.log('\n' + (res.length - ko) + '/' + res.length + ' OK');
     process.exit(ko ? 1 : 0);
