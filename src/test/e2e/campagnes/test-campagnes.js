@@ -12,6 +12,16 @@
  *    (texte libre), apercu personnalise (nom de famille / prenom), envoi WhatsApp simule ;
  *  - journal ; le texte libre n'est conserve ni dans les tables des campagnes ni dans les journaux du serveur ;
  *  - sans le droit P_SM_CAMPAGNES, l'API refuse ; aucune fenetre, aucune erreur JavaScript ; tout est remis.
+ *
+ * Independant de la date et des donnees (CAM-06, retour de Codex du 02/11) : le 01/11, la Toussaint et de vrais
+ * anniversaires faisaient echouer le parcours (l'ecran choisit d'office la premiere proposition, qui etait la fete ; de
+ * vrais clients nes ce jour figuraient dans la liste). Desormais :
+ *  - la fete d'essai (Tabaski) est posee a la date du jour AVANT la preparation : anniversaires et fete tombent le meme
+ *    jour, comme le 01/11 (collision couverte a chaque passage) ;
+ *  - chaque proposition est choisie par son titre, d'un clic dans la liste ;
+ *  - un client « hors jeu » ne le jour meme tient la place d'un vrai client : il est decoche avant l'envoi et ne recoit
+ *    rien ; seuls les destinataires fictifs attendus sont retenus ;
+ *  - aucune date systeme modifiee, aucune proposition de la sauvegarde purgee : seul ce que le test cree est retire.
  */
 const { chromium } = require('playwright-core');
 const ENV_E2E = require('../outils/poste');
@@ -28,8 +38,9 @@ const URL = 'http://localhost:8080/prestige';
 const LOG = ENV_E2E.JOURNAL_SERVEUR;
 const droit = privilegeEssai(q, exec, ENV_E2E.LOGIN, 'P_SM_CAMPAGNES');
 
-const A = 'E2E-CMP-A', B = 'E2E-CMP-B', C = 'E2E-CMP-C', D = 'E2E-CMP-D', E = 'E2E-CMP-E';
-const clients = "('" + [A, B, C, D, E].join("','") + "')";
+const A = 'E2E-CMP-A', B = 'E2E-CMP-B', C = 'E2E-CMP-C', D = 'E2E-CMP-D', E = 'E2E-CMP-E', H = 'E2E-CMP-H';
+const FICTIFS = [A, B, C, D, E];
+const clients = "('" + FICTIFS.concat(H).join("','") + "')";
 const AUJ = q('SELECT CURDATE()');
 const ANNEE = AUJ.slice(0, 4);
 const NAISS = (an) => an + AUJ.slice(4);
@@ -56,7 +67,6 @@ function nettoyer(debut) {
   const tabaskiAvant = q(`SELECT COALESCE(MAX(date_fete), '') FROM t_fete_date WHERE code = 'TABASKI' AND annee = ${ANNEE}`);
   const tabaskiActif = q("SELECT actif + 0 FROM t_fete WHERE code = 'TABASKI'");
   const tailleLog = fs.statSync(LOG).size;
-  ok('Précondition : aucun vrai client actif né un ' + AUJ.slice(5), q("SELECT COUNT(*) FROM t_client WHERE str_STATUT = 'enable' AND DATE_FORMAT(dt_NAISSANCE, '%m-%d') = DATE_FORMAT(CURDATE(), '%m-%d')") === '0');
   exec("UPDATE whatsapp_compte SET actif = 1, mode_test = 1, phone_number_id = COALESCE(phone_number_id, '1234567890'), access_token = COALESCE(access_token, 'E2E-CMP-JETON') WHERE mode = 'API';"
     + "UPDATE t_parameters SET str_VALUE = 'API' WHERE str_KEY = 'KEY_WHATSAPP_MODE_DEFAUT';"
     /* propositions automatiques en SMS pour ce parcours (WhatsApp par defaut depuis le 25/10) : remis a la fin */
@@ -66,7 +76,9 @@ function nettoyer(debut) {
     + ` ('${B}', 'ZZCAMPAGNE', 'BINTOU', '1', '0707070712', 'F', '${NAISS(1985)}', NOW(), NOW(), 'enable'),`
     + ` ('${C}', 'ZZCAMPAGNE', 'CHANTAL', '1', '', 'F', '${NAISS(2000)}', NOW(), NOW(), 'enable'),`
     + ` ('${D}', 'ZZCAMPAGNE', 'DRISSA', '1', '0707070714', 'M', '1970-05-05', NOW(), NOW(), 'enable'),`
-    + ` ('${E}', 'ZZCAMPAGNE', 'EMMA', '1', '0707070715', 'F', '${NAISS(1995)}', NOW(), NOW(), 'enable');`
+    + ` ('${E}', 'ZZCAMPAGNE', 'EMMA', '1', '0707070715', 'F', '${NAISS(1995)}', NOW(), NOW(), 'enable'),`
+    /* « hors jeu » : ne aujourd'hui et joignable, il tient la place d'un vrai client ne ce jour (cas du 01/11) */
+    + ` ('${H}', 'ZZHORSJEU', 'HUGO', '1', '0707070716', 'M', '${NAISS(1980)}', NOW(), NOW(), 'enable');`
     + `UPDATE t_client SET bool_CONSENT_SMS = 0 WHERE lg_CLIENT_ID = '${B}';`
     + `UPDATE t_client SET bool_CONSENT_WHATSAPP = 1 WHERE lg_CLIENT_ID = '${D}';`);
 
@@ -89,6 +101,17 @@ function nettoyer(debut) {
     await p.click('#' + id);
   };
   const texteBouton = (p, requete) => p.evaluate((r) => Ext.ComponentQuery.query(r)[0].getText(), requete);
+  /* proposition choisie par son titre, d'un clic sur sa ligne (l'ecran selectionne d'office la premiere de la liste) */
+  const choisirProposition = async (p, debutTitre) => {
+    const grille = await p.evaluate(() => Ext.ComponentQuery.query('campagnes #listePropositions')[0].getEl().id);
+    await p.locator('#' + grille + ' .x-grid-row').filter({ hasText: debutTitre }).first().click();
+    await p.waitForFunction((t) => { const o = Ext.ComponentQuery.query('campagnes #ongletPropositions')[0];
+      return o.proposition && o.proposition.get('titre').indexOf(t) === 0; }, debutTitre, { timeout: 15000 });
+    await p.waitForTimeout(1500);
+  };
+  const proposes = () => Number(q("SELECT COUNT(*) FROM t_campagne_ligne l JOIN t_campagne c ON c.id = l.campagne_id WHERE c.statut = 'PROPOSEE' AND l.statut = 'PROPOSE'"));
+  const clocheCampagnes = (p) => p.evaluate(async () => { const r = await (await fetch('../api/v1/notifications-centre/compteurs?cles=campagnes')).json();
+    return { n: r.compteurs.campagnes, actif: PrestigeNotif.actives().some((x) => x.key === 'campagnes') }; });
   try {
     const p = await (await b.newContext({ viewport: { width: 1600, height: 1000 } })).newPage();
     await ouvrir(p);
@@ -104,43 +127,7 @@ function nettoyer(debut) {
     const bandeau = await p.evaluate(() => Ext.ComponentQuery.query('campagnes #ongletPropositions #bandeau')[0].getEl().dom.textContent);
     ok('Volet automatique désactivé par défaut (bandeau)', /préparation automatique est désactivée/.test(bandeau) && q("SELECT str_VALUE FROM t_parameters WHERE str_KEY = 'KEY_CAMPAGNE_AUTO_ACTIF'") === '0', bandeau);
 
-    /* --- propositions : anniversaires du jour */
-    await p.click('.campagnes .x-btn:has-text("Préparer les propositions du jour")');
-    await p.waitForFunction(() => Ext.ComponentQuery.query('campagnes #listePropositions')[0].getStore().getCount() > 0, null, { timeout: 30000 });
-    await p.waitForTimeout(1200);
-    const prop = await p.evaluate(() => { const o = Ext.ComponentQuery.query('campagnes #ongletPropositions')[0]; const g = o.down('#destinataires');
-      const l = {}; g.getStore().each((r) => { l[r.get('client')] = r.get('joignable') ? 'OK' : r.get('motif'); });
-      return { titre: o.down('#listePropositions').getStore().getAt(0).get('titre'), l, coches: g.getSelectionModel().getCount(), onglet: o.title }; });
-    ok('Proposition « Anniversaires du jour » : seuls les clients nés ce jour', /^Anniversaires du /.test(prop.titre) && Object.keys(prop.l).sort().join(',') === 'ZZCAMPAGNE AWA,ZZCAMPAGNE BINTOU,ZZCAMPAGNE CHANTAL,ZZCAMPAGNE EMMA', JSON.stringify(prop));
-    ok('Refus SMS et numéro invalide écartés avec leur motif ; joignables cochés', prop.l['ZZCAMPAGNE BINTOU'] === 'A refusé les SMS' && prop.l['ZZCAMPAGNE CHANTAL'] === 'Numéro absent ou invalide'
-      && prop.l['ZZCAMPAGNE AWA'] === 'OK' && prop.coches === 2 && prop.onglet === 'Propositions (2)', JSON.stringify(prop));
-    const cloche = await p.evaluate(async () => { const r = await (await fetch('../api/v1/notifications-centre/compteurs?cles=campagnes')).json();
-      return { n: r.compteurs.campagnes, actif: PrestigeNotif.actives().some((x) => x.key === 'campagnes') }; });
-    ok('Cloche : 2 messages proposés, catégorie affichée d\'office', cloche.n === 2 && cloche.actif, JSON.stringify(cloche));
-    /* on decoche EMMA, on passe en WhatsApp (simule), on envoie */
-    await p.evaluate((e) => { const g = Ext.ComponentQuery.query('campagnes #ongletPropositions #destinataires')[0]; g.getSelectionModel().deselect(g.getStore().findRecord('clientId', e)); }, E);
-    await p.evaluate(() => { Ext.ComponentQuery.query('campagnes #ongletPropositions #canal')[0].setValue('WHATSAPP'); });
-    await p.waitForTimeout(1200);
-    await p.evaluate(() => { Ext.ComponentQuery.query('campagnes #ongletPropositions #modele')[0].setValue('MODELE_ANNIVERSAIRE'); });
-    const avant = await texteBouton(p, 'campagnes #envoyerProposition');
-    await cliquer(p, 'campagnes #envoyerProposition');
-    await p.waitForTimeout(300);
-    const conf = await texteBouton(p, 'campagnes #envoyerProposition');
-    ok('Bouton « Envoyer à 1 client(s) », confirmation dans le bouton (sans fenêtre)', avant === 'Envoyer à 1 client(s)' && /Confirmer l'envoi à 1 client/.test(conf), avant + ' → ' + conf);
-    await cliquer(p, 'campagnes #envoyerProposition');
-    await p.waitForFunction(() => /en cours d'envoi/.test(Ext.ComponentQuery.query('campagnes #ongletPropositions #etat')[0].getEl().dom.textContent), null, { timeout: 30000 });
-    await p.waitForTimeout(4000);
-    const lignes = q(`SELECT GROUP_CONCAT(CONCAT(l.lg_CLIENT_ID, ':', l.statut) ORDER BY l.lg_CLIENT_ID) FROM t_campagne_ligne l JOIN t_campagne c ON c.id = l.campagne_id WHERE c.categorie = 'ANNIVERSAIRE' AND c.origine = 'AUTO' AND c.created_at >= '${debut}'`);
-    ok('Envoyé à AWA seulement ; EMMA décochée ; écartés conservés', lignes === `${A}:PREPARE,${B}:EXCLU,${C}:EXCLU,${E}:DECOCHE`, lignes);
-    const wa = q(`SELECT GROUP_CONCAT(CONCAT(client_id, ':', statut, ':', simule + 0)) FROM whatsapp_message WHERE client_id IN ${clients}`);
-    ok('WhatsApp simulé (mode test) pour AWA, rien pour EMMA', wa === `${A}:SIMULE:1`, wa);
-    ok('Proposition envoyée, cloche à 0', q(`SELECT statut FROM t_campagne WHERE categorie = 'ANNIVERSAIRE' AND origine = 'AUTO' AND created_at >= '${debut}'`) === 'ENVOYEE'
-      && await p.evaluate(async () => (await (await fetch('../api/v1/notifications-centre/compteurs?cles=campagnes')).json()).compteurs.campagnes) === 0);
-    await p.click('.campagnes .x-btn:has-text("Préparer les propositions du jour")');
-    await p.waitForTimeout(2500);
-    ok('Pas de seconde proposition le même jour', q(`SELECT COUNT(*) FROM t_campagne WHERE categorie = 'ANNIVERSAIRE' AND origine = 'AUTO' AND date_cible = CURDATE()`) === '1');
-
-    /* --- fetes : date saisie dans le calendrier, proposition, abandon */
+    /* --- fete d'essai posee a la date du jour AVANT la preparation : anniversaires et fete le meme jour (cas du 01/11) */
     await onglet(p, 'Fêtes');
     await p.evaluate(() => { Ext.ComponentQuery.query('campagnes #calendrier')[0].expand(false); });
     await p.waitForTimeout(1500);
@@ -154,16 +141,71 @@ function nettoyer(debut) {
     ok('Calendrier : date de Tabaski saisie pour ' + ANNEE, q(`SELECT date_fete FROM t_fete_date WHERE code = 'TABASKI' AND annee = ${ANNEE}`) === AUJ);
     exec("UPDATE t_fete SET actif = 1 WHERE code = 'TABASKI'");
     await onglet(p, 'Propositions');
+
+    /* --- propositions du jour : anniversaires ET fete */
     await p.click('.campagnes .x-btn:has-text("Préparer les propositions du jour")');
-    await p.waitForFunction(() => Ext.ComponentQuery.query('campagnes #listePropositions')[0].getStore().getCount() > 0, null, { timeout: 30000 });
-    const fete = await p.evaluate(() => Ext.ComponentQuery.query('campagnes #listePropositions')[0].getStore().getAt(0).get('titre'));
+    await p.waitForFunction(() => Ext.ComponentQuery.query('campagnes #listePropositions')[0].getStore().getCount() > 0, null, { timeout: 60000 });
+    await p.waitForTimeout(1200);
+    const titres = await p.evaluate(() => { const l = []; Ext.ComponentQuery.query('campagnes #listePropositions')[0].getStore().each((r) => l.push(r.get('titre'))); return l; });
+    ok('Même jour : une proposition d\'anniversaires et une de la fête, distinctes', titres.some((t) => /^Anniversaires du /.test(t)) && titres.some((t) => /^Fêtes — Tabaski/.test(t))
+      && q(`SELECT COUNT(*) FROM t_campagne WHERE origine = 'AUTO' AND date_cible = CURDATE() AND created_at >= '${debut}' AND (categorie = 'ANNIVERSAIRE' OR fete_code = 'TABASKI')`) === '2', titres.join(' | '));
+    await choisirProposition(p, 'Anniversaires du ');
+    const prop = await p.evaluate(() => { const o = Ext.ComponentQuery.query('campagnes #ongletPropositions')[0]; const g = o.down('#destinataires');
+      const l = {}; g.getStore().each((r) => { l[r.get('clientId')] = r.get('joignable') ? 'OK' : r.get('motif'); });
+      return { titre: o.proposition.get('titre'), l, coches: g.getSelectionModel().getSelection().map((r) => r.get('clientId')) }; });
+    const fictifs = Object.keys(prop.l).filter((id) => FICTIFS.indexOf(id) >= 0).sort().join(',');
+    ok('Proposition « Anniversaires du jour » : les clients fictifs nés ce jour (pas DRISSA), et le client hors jeu',
+      /^Anniversaires du /.test(prop.titre) && fictifs === [A, B, C, E].join(',') && prop.l[H] === 'OK', JSON.stringify({ titre: prop.titre, fictifs, horsJeu: prop.l[H] }));
+    ok('Refus SMS et numéro invalide écartés avec leur motif ; joignables cochés', prop.l[B] === 'A refusé les SMS' && prop.l[C] === 'Numéro absent ou invalide'
+      && prop.l[A] === 'OK' && prop.coches.indexOf(A) >= 0 && prop.coches.indexOf(E) >= 0 && prop.coches.indexOf(B) < 0,
+      JSON.stringify({ B: prop.l[B], C: prop.l[C], coches: prop.coches.filter((x) => FICTIFS.indexOf(x) >= 0) }));
+    /* la cloche compte tous les messages proposes en attente : ceux du test, et ceux deja en attente sur la copie */
+    const cloche = await clocheCampagnes(p);
+    const attendus = proposes();
+    ok('Cloche : les messages proposés en attente, dont ceux du test ; catégorie affichée d\'office', cloche.n === attendus && cloche.n >= 3 && cloche.actif,
+      JSON.stringify(cloche) + ' attendu ' + attendus);
+    /* seule AWA est gardee : EMMA et tout client hors jeu sont decoches, comme l'utilisateur le ferait */
+    await p.evaluate((garder) => { const g = Ext.ComponentQuery.query('campagnes #ongletPropositions #destinataires')[0]; const sm = g.getSelectionModel();
+      sm.deselect(sm.getSelection().filter((r) => r.get('clientId') !== garder)); }, A);
+    await p.evaluate(() => { Ext.ComponentQuery.query('campagnes #ongletPropositions #canal')[0].setValue('WHATSAPP'); });
+    await p.waitForTimeout(1200);
+    await p.evaluate(() => { Ext.ComponentQuery.query('campagnes #ongletPropositions #modele')[0].setValue('MODELE_ANNIVERSAIRE'); });
+    const avant = await texteBouton(p, 'campagnes #envoyerProposition');
+    await cliquer(p, 'campagnes #envoyerProposition');
+    await p.waitForTimeout(300);
+    const conf = await texteBouton(p, 'campagnes #envoyerProposition');
+    ok('Bouton « Envoyer à 1 client(s) », confirmation dans le bouton (sans fenêtre)', avant === 'Envoyer à 1 client(s)' && /Confirmer l'envoi à 1 client/.test(conf), avant + ' → ' + conf);
+    await cliquer(p, 'campagnes #envoyerProposition');
+    await p.waitForFunction(() => /en cours d'envoi/.test(Ext.ComponentQuery.query('campagnes #ongletPropositions #etat')[0].getEl().dom.textContent), null, { timeout: 30000 });
+    await p.waitForTimeout(4000);
+    const anniv = `SELECT id FROM t_campagne WHERE categorie = 'ANNIVERSAIRE' AND origine = 'AUTO' AND created_at >= '${debut}'`;
+    const lignes = q(`SELECT GROUP_CONCAT(CONCAT(l.lg_CLIENT_ID, ':', l.statut) ORDER BY l.lg_CLIENT_ID) FROM t_campagne_ligne l WHERE l.campagne_id IN (${anniv}) AND l.lg_CLIENT_ID IN ${clients}`);
+    const autresRetenus = q(`SELECT COUNT(*) FROM t_campagne_ligne l WHERE l.campagne_id IN (${anniv}) AND l.statut = 'PREPARE' AND l.lg_CLIENT_ID <> '${A}'`);
+    ok('Envoyé à AWA seulement ; EMMA et le client hors jeu décochés ; écartés conservés',
+      lignes === `${A}:PREPARE,${B}:EXCLU,${C}:EXCLU,${E}:DECOCHE,${H}:DECOCHE` && autresRetenus === '0', lignes + ' ; autres retenus ' + autresRetenus);
+    const wa = q(`SELECT GROUP_CONCAT(CONCAT(client_id, ':', statut, ':', simule + 0)) FROM whatsapp_message WHERE client_id IN ${clients}`);
+    const waAutres = q(`SELECT COUNT(*) FROM whatsapp_message WHERE created_at >= '${debut}' AND (client_id IS NULL OR client_id NOT IN ${clients})`);
+    ok('WhatsApp simulé (mode test) pour AWA ; rien pour EMMA, le client hors jeu ni aucun autre client', wa === `${A}:SIMULE:1` && waAutres === '0', wa + ' ; autres ' + waAutres);
+    const clocheApres = await clocheCampagnes(p);
+    ok('Proposition envoyée ; la cloche ne compte plus ses messages', q(`SELECT statut FROM t_campagne WHERE id IN (${anniv})`) === 'ENVOYEE'
+      && clocheApres.n === proposes() && clocheApres.n <= cloche.n - 2, clocheApres.n + ' (avant ' + cloche.n + ')');
+    await p.click('.campagnes .x-btn:has-text("Préparer les propositions du jour")');
+    await p.waitForTimeout(2500);
+    ok('Pas de seconde proposition le même jour (anniversaires ni fête)', q(`SELECT COUNT(*) FROM t_campagne WHERE categorie = 'ANNIVERSAIRE' AND origine = 'AUTO' AND date_cible = CURDATE()`) === '1'
+      && q(`SELECT COUNT(*) FROM t_campagne WHERE fete_code = 'TABASKI' AND origine = 'AUTO' AND date_cible = CURDATE()`) === '1');
+
+    /* --- fete du meme jour : choisie par son titre, puis abandonnee */
+    await choisirProposition(p, 'Fêtes — Tabaski');
+    const fete = await p.evaluate(() => Ext.ComponentQuery.query('campagnes #ongletPropositions')[0].proposition.get('titre'));
     ok('Proposition de la fête du jour', /^Fêtes — Tabaski/.test(fete), fete);
+    const etatAbandon = await p.evaluate(() => { const x = Ext.ComponentQuery.query('campagnes #abandonner'); return x.length + ' ' + x.map((b) => b.getText() + '/' + b.isDisabled() + '/' + b.isVisible(true)).join(' ; '); });
     await cliquer(p, 'campagnes #abandonner');
     await p.waitForTimeout(300);
-    ok('Abandon à confirmer dans le bouton', await texteBouton(p, 'campagnes #abandonner') === 'Confirmer : ne rien envoyer');
+    const texteAbandon = await texteBouton(p, 'campagnes #abandonner');
+    ok('Abandon à confirmer dans le bouton', texteAbandon === 'Confirmer : ne rien envoyer', etatAbandon + ' -> ' + texteAbandon);
     await cliquer(p, 'campagnes #abandonner');
     await p.waitForTimeout(2500);
-    ok('Abandon : rien n\'est envoyé', q(`SELECT CONCAT(statut, ':', nb_envoyes) FROM t_campagne WHERE categorie = 'FETE' AND created_at >= '${debut}'`) === 'ABANDONNEE:0'
+    ok('Abandon : rien n\'est envoyé', q(`SELECT CONCAT(statut, ':', nb_envoyes) FROM t_campagne WHERE fete_code = 'TABASKI' AND created_at >= '${debut}'`) === 'ABANDONNEE:0'
       && q(`SELECT COUNT(*) FROM t_campagne_ligne l JOIN t_campagne c ON c.id = l.campagne_id WHERE c.categorie = 'FETE' AND c.created_at >= '${debut}' AND l.lg_NOTIFICATION_ID IS NOT NULL`) === '0');
 
     /* --- infos clients : filtres, accord explicite, texte libre, envoi */

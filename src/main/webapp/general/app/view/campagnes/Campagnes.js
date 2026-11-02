@@ -689,6 +689,9 @@ Ext.define('testextjs.view.campagnes.Campagnes', {
             o.down('#envoyerProposition').disable();
             o.down('#abandonner').disable();
             if (g.getStore().getCount()) {
+                /* CAM-06 : la meme proposition rechargee garde sa selection ; sans la vider, select(0) ne declenche
+                   rien et la ligne reste selectionnee sans destinataires, boutons desactives */
+                g.getSelectionModel().deselectAll(true);
                 g.getSelectionModel().select(0);
             }
         });
