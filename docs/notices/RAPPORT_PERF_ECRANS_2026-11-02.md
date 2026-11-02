@@ -57,7 +57,7 @@ Un écran est compté comme chargé quand le réseau est calme et qu'aucun masqu
      emplacement, sans filtre de date.
    - Écran récent, réservé au super administrateur.
    - Piste : mesurer chaque section en base, puis ne recalculer la section « Stock » que sur demande.
-3. **Pilotage, onglet « À suivre » : 15 s dès que le cache a plus de 10 minutes. Corrigé en partie : 8 s.**
+3. **Pilotage, onglet « À suivre » : 15 s dès que le cache a plus de 10 minutes. Corrigé : 2 s.**
    - Cause : `PilotageSuiviService.evolution`, avec six appels `suivi/evolution` (une courbe par grandeur).
    - Le cache (`DUREE_CACHE`) ne dure que 10 minutes, et tout était recalculé, y compris les années N-1 à N-3, qui
      ne changent plus. Onglet absent de dev.
@@ -68,7 +68,15 @@ Un écran est compté comme chargé quand le réseau est calme et qu'aucun masqu
      - Avant : 15,1 s, échec.
      - Après : 8,0 s, encore au-dessus du budget de 3 s.
      - Les empreintes des six courbes sont identiques avant et après : les chiffres ne changent pas.
-   - Le premier affichage du jour reste à environ 14 s, car il calcule toutes les années.
-   - Reste : le calcul de l'année en cours, environ 8 s. Pour passer sous 3 s, il faudrait lire les mois clos dans
-     les agrégats mensuels du pilotage, qui sont déjà tenus à jour avec le contrôle des corrections tardives, et
-     ne relire en direct que le mois en cours.
+   - **Seconde correction :** les mois clos de l'année en cours sont aussi gardés jusqu'au lendemain. Seul le mois
+     en cours est relu en direct.
+     - Les requêtes restent les mêmes, découpées par période : les sommes et les comptes s'additionnent.
+     - Les agrégats mensuels du pilotage n'ont pas été utilisés : pour la marge et la TVA, leurs définitions
+       diffèrent de celles des courbes (jointure stricte sur la TVA, CA pris dans l'en-tête de la vente, arrondis
+       séparés). Les chiffres auraient changé.
+     - Le contrôle des corrections tardives, lancé à l'ouverture du pilotage, et le bouton « Recalculer » vident ces
+       caches (`PilotageSuiviService.oublier()`) : une vente annulée après coup sur un mois clos est donc reprise.
+   - Résultat du test, onglet rouvert après l'expiration du cache : **1,96 s** (contre 15,1 s, puis 8,0 s).
+     - Les empreintes des six courbes sont identiques à celles d'avant toute correction.
+     - Les 34 tests Java du pilotage passent.
+   - Le premier affichage de la journée reste à environ 14 s, car il calcule toutes les années.

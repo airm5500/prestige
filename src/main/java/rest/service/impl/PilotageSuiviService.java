@@ -91,59 +91,96 @@ public class PilotageSuiviService {
     }
 
     /**
-     * Une annee de la serie d'evolution : [sommes par rang, comptes par rang, {somme, compte} du cumul a date]. Une
-     * annee close ne bouge plus : elle est gardee jusqu'au lendemain (le cumul a date depend du jour). Seule l'annee en
-     * cours est relue a l'expiration du cache de dix minutes (mesure du 02/11 : 12 s quand tout etait recalcule).
+     * Une annee de la serie d'evolution : [sommes par rang, comptes par rang, {somme, compte} du cumul a date].
+     *
+     * <p>
+     * Ce qui est passe ne bouge plus : une annee close, et les mois clos de l'annee en cours, sont gardes jusqu'au
+     * lendemain (le cumul a date depend du jour). Seul le mois en cours est relu a l'expiration du cache de dix minutes
+     * (mesures du 02/11, onglet rouvert apres expiration : 15 s quand tout etait recalcule, 8 s avec l'annee en cours
+     * entiere). Une correction tardive d'un mois clos, vue par le controle du Pilotage ou reprise par « Recalculer »,
+     * vide ces caches ({@link #oublier()}). Memes requetes, decoupees par periode : les sommes et les comptes
+     * s'additionnent, les chiffres ne changent pas.
      */
     private double[][] annee(String mesure, String pas, int y, LocalDate jour) {
-        boolean close = y < jour.getYear();
+        if (!jour.equals(jourAnneesCloses)) {
+            ANNEES_CLOSES.clear();
+            jourAnneesCloses = jour;
+        }
         String cle = mesure + "|" + pas + "|" + y;
-        if (close) {
-            if (!jour.equals(jourAnneesCloses)) {
-                ANNEES_CLOSES.clear();
-                jourAnneesCloses = jour;
-            }
+        LocalDate fin = jour.plusDays(1), finAnnee = LocalDate.of(y + 1, 1, 1), debutAnnee = LocalDate.of(y, 1, 1);
+        /*
+         * une semaine ISO deborde d'au plus trois jours sur l'annee civile voisine : sept jours de marge, puis seules
+         * les lignes de l'annee y sont gardees
+         */
+        LocalDate debutMarge = debutAnnee.minusDays(7);
+        if (y < jour.getYear()) {
+            LocalDate finMarge = finAnnee.plusDays(7).isBefore(fin) ? finAnnee.plusDays(7) : fin;
             double[][] c = ANNEES_CLOSES.get(cle);
-            if (c != null) {
-                return c;
+            if (c == null) {
+                c = periode(mesure, pas, y, jour, debutMarge, finMarge, debutAnnee,
+                        finAnnee.isBefore(fin) ? finAnnee : fin);
+                ANNEES_CLOSES.put(cle, c);
+            }
+            return c;
+        }
+        LocalDate debutMois = jour.withDayOfMonth(1);
+        double[][] clos = ANNEES_CLOSES.get(cle + "|mois clos");
+        if (clos == null) {
+            clos = periode(mesure, pas, y, jour, debutMarge, debutMois, debutAnnee, debutMois);
+            ANNEES_CLOSES.put(cle + "|mois clos", clos);
+        }
+        double[][] courant = periode(mesure, pas, y, jour, debutMois, fin, debutMois, fin);
+        double[][] r = new double[3][];
+        for (int i = 0; i < 3; i++) {
+            r[i] = new double[clos[i].length];
+            for (int j = 0; j < r[i].length; j++) {
+                r[i][j] = clos[i][j] + courant[i][j];
             }
         }
+        return r;
+    }
+
+    /**
+     * Part de l'annee y lue sur une periode : serie au pas choisi sur [debut, fin[, cumul a date sur [debutAD, finAD[ ;
+     * seules les lignes de l'annee y sont gardees.
+     */
+    private double[][] periode(String mesure, String pas, int y, LocalDate jour, LocalDate debut, LocalDate fin,
+            LocalDate debutAD, LocalDate finAD) {
         String[] s = source(mesure);
         int nb = taille(pas);
         String annee = "SEMAINE".equals(pas) ? "DATE_FORMAT(" + s[1] + ", '%x') + 0" : "YEAR(" + s[1] + ")";
         String rang = "SEMAINE".equals(pas) ? "DATE_FORMAT(" + s[1] + ", '%v') + 0"
                 : "MOIS".equals(pas) ? "MONTH(" + s[1] + ")" : "1";
-        /*
-         * une semaine ISO deborde d'au plus trois jours sur l'annee civile voisine : sept jours de marge, puis seules
-         * les lignes de l'annee y sont gardees
-         */
-        LocalDate fin = jour.plusDays(1), finAnnee = LocalDate.of(y + 1, 1, 1);
-        LocalDate debut = LocalDate.of(y, 1, 1).minusDays(7);
-        LocalDate finMarge = finAnnee.plusDays(7).isBefore(fin) ? finAnnee.plusDays(7) : fin;
         double[] somme = new double[nb], compte = new double[nb], aDate = new double[2];
-        for (Object[] l : lignes("SELECT " + annee + " AS an, " + rang + " AS rg, COALESCE(" + s[2] + ", 0), " + s[3]
-                + s[0] + " AND " + s[1] + " >= ?1 AND " + s[1] + " < ?2 GROUP BY an, rg", debut, finMarge)) {
-            int r = (int) n(l[1]) - 1;
-            if ((int) n(l[0]) == y && r >= 0 && r < nb) {
-                somme[r] += n(l[2]);
-                compte[r] += n(l[3]);
+        if (debut.isBefore(fin)) {
+            for (Object[] l : lignes("SELECT " + annee + " AS an, " + rang + " AS rg, COALESCE(" + s[2] + ", 0), "
+                    + s[3] + s[0] + " AND " + s[1] + " >= ?1 AND " + s[1] + " < ?2 GROUP BY an, rg", debut, fin)) {
+                int r = (int) n(l[1]) - 1;
+                if ((int) n(l[0]) == y && r >= 0 && r < nb) {
+                    somme[r] += n(l[2]);
+                    compte[r] += n(l[3]);
+                }
             }
         }
         /* cumul a date : du 1er janvier au meme jour et mois que la date du jour */
         String md = String.format("%02d%02d", jour.getMonthValue(), jour.getDayOfMonth());
-        for (Object[] l : lignes("SELECT YEAR(" + s[1] + ") AS an, COALESCE(" + s[2] + ", 0), " + s[3] + s[0] + " AND "
-                + s[1] + " >= ?1 AND " + s[1] + " < ?2 AND DATE_FORMAT(" + s[1] + ", '%m%d') <= '" + md
-                + "' GROUP BY an", LocalDate.of(y, 1, 1), finAnnee.isBefore(fin) ? finAnnee : fin)) {
-            if ((int) n(l[0]) == y) {
-                aDate[0] = n(l[1]);
-                aDate[1] = n(l[2]);
+        if (debutAD.isBefore(finAD)) {
+            for (Object[] l : lignes("SELECT YEAR(" + s[1] + ") AS an, COALESCE(" + s[2] + ", 0), " + s[3] + s[0]
+                    + " AND " + s[1] + " >= ?1 AND " + s[1] + " < ?2 AND DATE_FORMAT(" + s[1] + ", '%m%d') <= '" + md
+                    + "' GROUP BY an", debutAD, finAD)) {
+                if ((int) n(l[0]) == y) {
+                    aDate[0] += n(l[1]);
+                    aDate[1] += n(l[2]);
+                }
             }
         }
-        double[][] r = { somme, compte, aDate };
-        if (close) {
-            ANNEES_CLOSES.put(cle, r);
-        }
-        return r;
+        return new double[][] { somme, compte, aDate };
+    }
+
+    /** Les chiffres d'un mois clos ont change (controle des corrections tardives, « Recalculer ») : tout est relu. */
+    public static void oublier() {
+        CACHE.clear();
+        ANNEES_CLOSES.clear();
     }
 
     /**
