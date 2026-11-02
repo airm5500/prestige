@@ -622,7 +622,7 @@ Chaque point a d'abord été reproduit par un test qui échoue sur la version d�
 |---|---|---|---|---|---|---|
 | J27 | `me.getAddaddclientwindow is not a function` (29/10) | FRONTEND (dépôt) | **Prouvé par le code**. `VenteEnDepotCtr` est une copie de `VenteCtr` (16/09) : ses références ont pris le suffixe `depot`, mais six appels gardent l'ancien accesseur, qui n'existe pas (`getClientLambda`, `getAssuranceClient`, `getAddaddclientwindow`, `getAddCarnetwindow`, `getMedecin`, `getAyantdroiGrid`). Effets : <br>- après création d'un client assuré, la fenêtre reste ouverte et la vente n'est pas rattachée (un second clic crée un doublon) ;<br>- le choix d'un client standard ne met pas la vente à jour ;<br>- les boutons « Annuler » des fenêtres client, assuré, carnet et médecin ne font rien ;<br>- la liste des ayants droit ne s'affiche pas.<br>Le correctif J23 rend Entrée active dans la fenêtre « client » du dépôt : elle aboutit au même `closeClientLambdaWindow` que le bouton | Vente en dépôt, « Associer un client » : créer un assuré, choisir un client standard, ou « Annuler » | Accesseurs `get…depot`. À livrer avec J23 | **P1** |
 | P4 | `analyse-produits` en 500 : « Unexpected gap in ordinal parameter labels » (12/10, accès distant) | PRODUITS | **Prouvé par le code** : `AnalyseVentesProduitsService` numérote les paramètres `?3`, `?4`, `?5` et ne pose que ceux qui sont remplis. Hibernate refuse les trous : emplacement seul, grossiste seul, texte + grossiste, emplacement + grossiste échouent | Produits, onglet « Analyse », filtrer sur un grossiste seul | Paramètres nommés ; ajouter ces cas au test `test-produits-analyse.js` | **P2** |
-| V10 | `StaleObjectStateException` sur `TFamilleStock` à la clôture (03/09 sur un vrai poste, 29/10 en essai de charge) | VENTE | **Prouvé par le code** : le stock porte un `@Version`, la clôture le lit sans verrou (`MvtProduitServiceImpl.findStock`), le modifie puis fait `merge`. Deux caisses qui vendent le même produit au même instant : la seconde reçoit une erreur 500. La transaction est bien annulée. Proche de V8, cause différente | Deux postes, même produit, « Valider » au même instant | Verrou d'écriture sur le stock, lignes triées par produit (évite aussi V8) ; sinon, message « Stock modifié par une autre caisse, validez à nouveau » | **P2** |
+| V10 (corrigé sur l'intégration, voir plus bas) | `StaleObjectStateException` sur `TFamilleStock` à la clôture (03/09 sur un vrai poste, 29/10 en essai de charge) | VENTE | **Prouvé par le code** : le stock porte un `@Version`, la clôture le lit sans verrou (`MvtProduitServiceImpl.findStock`), le modifie puis fait `merge`. Deux caisses qui vendent le même produit au même instant : la seconde reçoit une erreur 500. La transaction est bien annulée. Proche de V8, cause différente | Deux postes, même produit, « Valider » au même instant | Verrou d'écriture sur le stock, lignes triées par produit (évite aussi V8) ; sinon, message « Stock modifié par une autre caisse, validez à nouveau » | **P2** |
 | L23 | Blocages de plus de 20 s sur `etat-control-bon/list` et `/print` (6 dans le journal, du 30/10 au 02/11) | ÉTAT DE CONTRÔLE | **Prouvé par le code** : requêtes en série. `EtatControlBonBuilder` charge les lignes de chaque bon, puis le produit et la zone de chaque ligne, une par une, et concatène les chaînes à coût quadratique. Avec un filtre de statut ou d'écart, ou à l'impression, toute la période est chargée sans pagination | « État de contrôle des achats », un mois, filtre de statut ou « Imprimer » | Chargement groupé des lignes, produits et zones ; `StringBuilder` ; statut calculé en SQL | **P2** |
 | L24 | `OutOfMemoryError` sur `common/logs/export-excel` (30/10), puis un blocage de 24 s (02/11) | JOURNAL | **Prouvé par le code** : `LogServiceImpl.exportExcel` lit toutes les lignes de la période, `ClasseurExcel` construit le classeur en mémoire et ajuste la largeur des colonnes. Tout le serveur en pâtit | « Fichier journal », période longue, « Excel » | Classeur en flux (`SXSSFWorkbook`), largeurs fixes au-delà de N lignes, plafond de lignes avec message | **P2** |
 | S7 | « Arrêt brutal : arrêt forcé ~0 min » : 69 événements du 15/10 au 02/11, dont 66 de 0 ou 1 min | SERVEUR (chien de garde) | **Prouvé par le code** : le témoin `D:\prestige\support\watchdog\heartbeat.flag` est **commun à toute la machine** (`SupportWatchdog`, `StockageDisque`). Un domaine l'efface à son arrêt propre, l'autre le réécrit dans les 2 min, et le premier le trouve en redémarrant. La boîte noire montre alors le tas de l'autre domaine (3072 Mo au lieu de 4096). Rien ne distingue non plus un redéploiement d'un plantage. Chaque cas crée un incident | domain1 et domain2 lancés, redéployer l'un, attendre un battement de l'autre | Un témoin par instance (nom du domaine dans le fichier, PID dans le contenu) ; si la JVM a démarré avant le dernier battement, classer « Redéploiement » en INFO | **P2** |
@@ -640,15 +640,49 @@ Chaque point a d'abord été reproduit par un test qui échoue sur la version d�
 | J31 | `e.getEditor is not a function` (06/10) | FRONTEND | Hypothèse : aucune ligne d'écran dans la pile, ni fil d'Ariane | — | Joindre l'écran actif à l'événement | P4 |
 | S10 | « Connexions à la base saturées » (15/10) : en réalité, le mot de passe du pool était absent pendant une reconfiguration | SERVEUR (chien de garde) | Prouvé par l'extrait (`RAR5117`) | — | Ajouter une cause « pool mal configuré » | P4 |
 
-### Ce qui n'est pas sur la branche de travail
+### Revérification sur la branche d'intégration (02/11)
 
-Les correctifs de ce rapport (lots 1 à 4, K4, P2 de leana) restent sur `PRES-/anomalies-support-954194`. Sur la branche de
-travail au 02/11, on trouve donc encore :
+L'analyse ci-dessus a été faite sur la branche de travail. Elle a été refaite sur `integration/recette-2026-10-29`
+(`a0951196`, 02/11 14 h 53), pour corriger à partir de cette base et éviter des conflits plus tard.
 
-- J3, J6, J23, J24 ;
-- A3 (proforma) ;
-- L5 ;
-- le correctif S1 (extinction de Windows).
+**Situation de l'intégration :**
+
+- elle contient 138 commits absents de la branche de travail, dont tous ceux de ce rapport : les lots 1 à 4, K4 et les P2
+  de leana (fusion `2d926b01`). J3, J6, J23, J24, A3, L5 et S1 y sont donc corrigés ;
+- il lui manque 8 commits récents de la branche de travail (marge des articles vendus, valorisation archivée, contrôle de
+  l'horloge, barre de défilement, notices). Aucun ne touche un fichier concerné ici ;
+- les correctifs cités plus haut comme présents sur la branche de travail y figurent aussi.
+
+**Statut des points du § 21 sur l'intégration :**
+
+| Point | Statut sur l'intégration | Fichiers à modifier | Risque de conflit |
+|---|---|---|---|
+| V10 | **Déjà corrigé** : `ad954220` (essai de charge du 29/10) verrouille le produit et son stock, dans l'ordre, à la clôture (`MvtProduitServiceImpl.verrouillerArticles`). Absent de la branche de travail. **Point retiré** | — | — |
+| J27 | **Corrigé à moitié** : `50157c1c` a remis `getAddaddclientwindowdepot`, `getAddCarnetwindowdepot` et `getAyantdroiGriddepot`. Restent `getClientLambda` (fermeture de la fenêtre « client » : Entrée depuis J23, bouton « Annuler »), `getAssuranceClient` (« Annuler » de la fenêtre assuré) et `getMedecin` (« Annuler » de la fenêtre médecin). **Reste P1** : la fenêtre « client » du dépôt ne se ferme plus, et la vente n'est pas rattachée au client | `VenteEnDepotCtr.js` | Faible : 5 commits propres à l'intégration, aucun depuis le 31/10. Les branches `codex/*` et `dev` touchent aussi ce fichier, mais ce sont des lignes anciennes, hors de ce circuit |
+| P4 | Ouvert, identique | `AnalyseVentesProduitsService.java` | Aucun |
+| L23 | Ouvert, identique | `EtatControlBonBuilder.java`, `EtatControlBonServiceImpl.java` | Aucun |
+| L24 | Ouvert, identique | `LogServiceImpl.java`, `ClasseurExcel.java` (utilisé par d'autres exports : limiter le changement au journal, ou tester tous les appelants) | Aucun |
+| S7 | Ouvert, identique | `SupportWatchdog.java` | Faible : l'intégration y a S1 (+17 lignes), sur laquelle il faut partir |
+| S8 | Ouvert, identique : la règle « mémoire » est à la ligne 197 sur l'intégration | `CauseArret.java`, `CauseArretTest.java` | Faible : même remarque (S1) |
+| P3 | Ouvert, identique | `EtatControlBonServiceImpl.java` | À faire avec L23, même fichier |
+| C7 | Ouvert, identique | `OrderServiceImpl.java` | **À surveiller** : la branche `PRES-/audit06-stock` (02/11, 6 commits hors intégration) modifie ce fichier, mais aucun de ses blocs ne recouvre `buildBonsDetailsByProduits`. Corriger après sa fusion, ou en ne touchant que les deux lignes concernées |
+| A9 | Ouvert, identique (5 JSP absentes, 13 appels) | migration de `t_sous_menu`, ou écrans REST ; `recette-ecrans.js` | Aucun dans le code ; une migration Flyway doit prendre le numéro libre suivant sur l'intégration |
+| J28 | Ouvert : `onRechClick` n'a toujours pas de garde | `FamilleManager.js` | Faible : 4 commits propres à l'intégration, aucun depuis le 31/10 |
+| J29 | Ouvert, identique | `famille/action/importOrder.js` | Aucun sur l'intégration ; anciennes branches `codex/*` seulement |
+| J30 | Ouvert, identique (`VenteCtr.js:4703`, et `VenteEnDepotCtr`) | `VenteCtr.js`, `VenteEnDepotCtr.js` | Faible : 8 commits propres à l'intégration, aucun depuis le 31/10 |
+| L25, L26 | Ouverts (hypothèses), identiques | `FactureSubrogatoireRessource.java`, `SuggestionImpl.java` | Aucun |
+| M5 | Ouvert, identique | `SmsImpl.java` | Faible : l'intégration y a M4 |
+| S9 | Ouvert : `ApplicationPayara.java` est maintenant sur l'intégration, et double toujours le `%` | `ApplicationPayara.java` | Aucun |
+| J31, S10 | Ouverts (P4) | — | — |
+
+**Pour corriger sans conflit :**
+
+- partir de la pointe de l'intégration, et non de la branche de travail : les fichiers de la vente, du chien de garde et
+  des SMS y ont déjà des correctifs qui manquent sur la branche de travail ;
+- corriger C7 après la fusion de `PRES-/audit06-stock`.
+
+Il reste ainsi 17 points, dont 1 P1 (J27, réduit à trois accesseurs) et 5 P2 (P4, L23, L24, S7, S8). Côté métier, le
+contrat Orange reste à renouveler.
 
 ## Annexe A. Rejouer les reproductions
 
