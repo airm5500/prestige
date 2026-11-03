@@ -75,6 +75,13 @@ Ext.define('testextjs.model.caisse.VenteItem', {
         {
             name: 'unitesOffertes',
             type: 'number'
+        },
+        {
+            /* cas 1 du 03/11 : ligne cochee « C » (au comptant) d'une vente assurance ; toujours false sans le
+             * parametre KEY_LIGNE_COMPTANT_VO */
+            name: 'comptant',
+            type: 'boolean',
+            defaultValue: false
         }
 
 

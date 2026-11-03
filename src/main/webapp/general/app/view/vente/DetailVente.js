@@ -152,6 +152,13 @@ Ext.define('testextjs.view.vente.DetailVente', {
 
                                                 },
                                                 {
+                                                    /* cas 1 du 03/11 : vente née de la même saisie (assurance <-> comptant) */
+                                                    fieldLabel: 'Vente liée n°',
+                                                    flex: 1,
+                                                    hidden: !vente.venteLiee,
+                                                    value: vente.venteLieeRef || vente.venteLiee
+                                                },
+                                                {
                                                     fieldLabel: 'Montant total',
                                                     flex: 1,
                                                     value: vente.intPRICE,

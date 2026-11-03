@@ -378,6 +378,14 @@ Ext.define('testextjs.controller.VenteCtr', {
             selector: 'doventemanager #contenu #montantTp'
         },
         {
+            ref: 'montantComptant',
+            selector: 'doventemanager #contenu #montantComptant'
+        },
+        {
+            ref: 'montantPartClient',
+            selector: 'doventemanager #contenu #montantPartClient'
+        },
+        {
             ref: 'sansBon',
             selector: 'doventemanager #contenu #sansBon'
         },
@@ -835,6 +843,12 @@ Ext.define('testextjs.controller.VenteCtr', {
                     },
                     'doventemanager #typeVente': {
                         select: this.onTypeVenteSelect
+                    },
+                    /* cas 1 du 03/11 : la colonne « C » n'existe que si KEY_LIGNE_COMPTANT_VO = 1 (créée par le
+                     * contrôleur) ; ces écouteurs ne jouent donc jamais sans le paramètre */
+                    'doventemanager #contenu #gridContainer #venteGrid #colComptant': {
+                        beforecheckchange: this.onLigneComptantBeforeCheck,
+                        checkchange: this.onLigneComptantCheck
                     }
                     , 'addCarnetwindow #btnCancelAssClient': {
                         click: this.onBtnCancelCarnet
@@ -973,6 +987,7 @@ Ext.define('testextjs.controller.VenteCtr', {
         me.checkSansBon();
         me.checkParamImpressionTicketCaisse();
         me.checkParamLectureGs1();
+        me.checkParamLigneComptant();
 
     },
     /*
@@ -1042,6 +1057,8 @@ Ext.define('testextjs.controller.VenteCtr', {
         sansBon.setValue(false);
         montantTp.hide();
         sansBon.hide();
+        me.masquerRailComptant();
+        me.rafraichirColonneComptant('1');
         me.setGridFillHeight(true);
         // Retour au comptant : le bouton « associer un client » redevient
         // disponible si le reglement est en especes
@@ -1100,6 +1117,8 @@ Ext.define('testextjs.controller.VenteCtr', {
      * remplir la hauteur. Différé pour laisser le layout se poser. */
     onVenteGridAfterRender: function () {
         const me = this;
+        // cas 1 du 03/11 : la colonne « C » suit la grille (rien sans le paramètre)
+        me.rafraichirColonneComptant();
         // deux passes : la 1re peut faire (dis)paraître la scrollbar, la 2nde
         // stabilise (le calcul est idempotent, il converge)
         Ext.defer(function () {
@@ -1152,6 +1171,7 @@ Ext.define('testextjs.controller.VenteCtr', {
                 ayantDroyCmp.hide();
             }
         }
+        me.rafraichirColonneComptant(typevente);
     },
     modifierTypeVente: function (newValue, venteId, field) {
         const me = this;
@@ -1180,6 +1200,7 @@ Ext.define('testextjs.controller.VenteCtr', {
                 }
                 field.setValue(dataRetour);
                 me.resetTitle(dataRetour);
+                me.rafraichirColonneComptant(dataRetour);
             },
             failure: function (response, options) {
                 progress.hide();
@@ -2317,6 +2338,7 @@ Ext.define('testextjs.controller.VenteCtr', {
                     me.getMontantNet().setValue(montantNet);
                     me.getVnomontantRemise().setValue(me.getNetAmountToPay().remise);
                     me.getMontantTp().setValue(me.getNetAmountToPay().montantTp);
+                    me.afficherRailComptant(me.getNetAmountToPay());
                     me.handleMontantField(montantNet);
                     if (Ext.isFunction(onDone)) {
                         onDone();
@@ -7217,6 +7239,14 @@ Ext.define('testextjs.controller.VenteCtr', {
                     let result = Ext.JSON.decode(response.responseText, true);
                     progress.hide();
                     if (result.success) {
+                        if (result.venteLiee) {
+                            // cas 1 du 03/11 : deux ventes nées de la même saisie ; bandeau, jamais de fenêtre
+                            me.toastVente('Vente terminée et scindée : ' + result.refVente + ' (assurance, part client '
+                                    + Ext.util.Format.number(result.partClient || 0, '0,000.') + ' CFA) et '
+                                    + result.refVenteLiee + ' (comptant, '
+                                    + Ext.util.Format.number(result.montantComptant || 0, '0,000.')
+                                    + ' CFA). Tickets : assurance, client combiné, reçu caisse.');
+                        }
                         apresSucces();
                     } else {
                         let codeError = result.codeError;
@@ -7385,6 +7415,7 @@ Ext.define('testextjs.controller.VenteCtr', {
                                 me.getMontantNet().setValue(me.getNetAmountToPay().montantNet);
                                 me.getVnomontantRemise().setValue(me.getNetAmountToPay().remise);
                                 me.getMontantTp().setValue(me.getNetAmountToPay().montantTp);
+                                me.afficherRailComptant(me.getNetAmountToPay());
                                 if (montantNet === 0) {
                                     me.getMontantRecu().disable();
                                     me.getVnobtnCloture().enable();
@@ -8350,6 +8381,121 @@ Ext.define('testextjs.controller.VenteCtr', {
             return colle[2];
         }
         return null;
+    },
+
+    /* ------------------------------------------------------------------------------------------------------
+     * Cas 1 du 03/11/2026 : ligne au comptant dans une vente assurance (KEY_LIGNE_COMPTANT_VO). Paramètre à 0 :
+     * aucune colonne créée, aucun appel, rail inchangé ; la grille et ses événements sont ceux d'aujourd'hui.
+     * ------------------------------------------------------------------------------------------------------ */
+
+    /** Valeur relue à chaque ouverture de l'écran de vente, sans cache. */
+    checkParamLigneComptant: function () {
+        const me = this;
+        me.ligneComptantVo = false;
+        Ext.Ajax.request({
+            method: 'GET', url: '../api/v1/app-params/value/KEY_LIGNE_COMPTANT_VO',
+            success: function (response) {
+                const r = Ext.JSON.decode(response.responseText, true) || {};
+                me.ligneComptantVo = r.success === true && String(r.data).trim() === '1';
+                me.rafraichirColonneComptant();
+            }
+        });
+    },
+
+    /** La vue de vente (panneau ventevno) qui porte la grille, si elle est à l'écran. */
+    vueVenteComptant: function () {
+        const grid = this.getVnogrid && this.getVnogrid();
+        return grid && !grid.destroyed ? grid.up('ventevno') : null;
+    },
+
+    /**
+     * Crée, montre ou cache la colonne « C » selon le paramètre et le type de vente (visible en assurance seulement,
+     * Q1.7). Idempotent, appelé à chaque changement de type.
+     */
+    rafraichirColonneComptant: function (typeVente) {
+        const me = this, vue = me.vueVenteComptant();
+        if (!vue) {
+            return;
+        }
+        if (!me.ligneComptantVo) {
+            vue.retirerColonneComptant();
+            return;
+        }
+        const type = typeVente || me.getSafeComboValue('getTypeVenteCombo', '1');
+        vue.construireColonneComptant(type === '2');
+    },
+
+    /** Rail : « DONT COMPTANT » et « DONT PART CLIENT », en assurance avec le paramètre seulement. */
+    afficherRailComptant: function (net) {
+        const me = this;
+        const comptant = me.getMontantComptant && me.getMontantComptant();
+        const partClient = me.getMontantPartClient && me.getMontantPartClient();
+        if (!comptant || !partClient) {
+            return;
+        }
+        const visible = !!me.ligneComptantVo && me.getSafeComboValue('getTypeVenteCombo', '1') === '2';
+        comptant.setValue(net ? (net.montantComptant || 0) : 0);
+        partClient.setValue(net ? (net.montantPartClient || 0) : 0);
+        comptant.setVisible(visible);
+        partClient.setVisible(visible);
+    },
+
+    masquerRailComptant: function () {
+        const me = this;
+        const comptant = me.getMontantComptant && me.getMontantComptant();
+        const partClient = me.getMontantPartClient && me.getMontantPartClient();
+        if (comptant) {
+            comptant.setValue(0);
+            comptant.hide();
+        }
+        if (partClient) {
+            partClient.setValue(0);
+            partClient.hide();
+        }
+    },
+
+    /** Avant le cochage : vente assurance ouverte, paramètre actif ; promotion refusée (Q1.2), visible sans fenêtre. */
+    onLigneComptantBeforeCheck: function (colonne, rowIdx, checked, record) {
+        const me = this;
+        if (!me.ligneComptantVo || !me.getCurrent() || me.getSafeComboValue('getTypeVenteCombo', '1') !== '2') {
+            return false;
+        }
+        if (checked && record && record.get('promotion')) {
+            me.toastVente('Ligne en promotion : une ligne au comptant d\'une vente assurance ne porte pas de promotion.');
+            return false;
+        }
+        return true;
+    },
+
+    /** PUT item/{id}/comptant puis net/assurance ; refus du serveur : la coche revient, message sans fenêtre. */
+    onLigneComptantCheck: function (colonne, rowIdx, checked, record) {
+        const me = this;
+        const revenir = function (msg) {
+            record.set('comptant', !checked);
+            record.commit();
+            me.toastVente(msg || 'Cochage refusé');
+        };
+        Ext.Ajax.request({
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            url: '../api/v1/vente/item/' + record.get('lgPREENREGISTREMENTDETAILID') + '/comptant',
+            params: Ext.JSON.encode({comptant: !!checked}),
+            success: function (response) {
+                const result = Ext.JSON.decode(response.responseText, true) || {};
+                if (!result.success) {
+                    revenir(result.msg);
+                    return;
+                }
+                record.commit();
+                me.toRecalculate = true;
+                me.autoComputeNetAssurance();
+                me.getVnoproduitCombo().focus(true, 100);
+            },
+            failure: function (response) {
+                const result = Ext.JSON.decode(response.responseText, true) || {};
+                revenir(result.msg || ('Cochage refusé (' + response.status + ')'));
+            }
+        });
     },
 
     /** Petite alerte flottante qui disparait seule (ne prend pas le focus : la saisie continue). */

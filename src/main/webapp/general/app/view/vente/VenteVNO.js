@@ -528,6 +528,13 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                              * hauteur qu'en assurance (le contrôleur passe à 250 quand le
                                              * bandeau assurance est affiché) */
                                             minHeight: 440,
+                                            viewConfig: {
+                                                /* cas 1 du 03/11 : ligne cochée « C » sur fond jaune pâle ;
+                                                 * aucune classe tant qu'aucune ligne n'est cochée */
+                                                getRowClass: function (record) {
+                                                    return record.get('comptant') ? 'vp-ligne-comptant' : '';
+                                                }
+                                            },
                                             columns: [
                                                 {
                                                     text: '#',
@@ -559,6 +566,10 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                                                     + (r.get('unitesOffertes') > 0 ? ' : dont '
                                                                             + r.get('unitesOffertes') + ' offerte(s)' : '')
                                                                     + '</span>';
+                                                        }
+                                                        // cas 1 du 03/11 : pastille de la ligne cochée « C »
+                                                        if (r.get('comptant')) {
+                                                            t += ' <span class="vp-cpt-pastille">COMPTANT</span>';
                                                         }
                                                         return t;
                                                     }
@@ -1030,6 +1041,34 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                                         return Ext.util.Format.number(v, '0,000.') + ' CFA';
                                                     }
                                                 },
+                                                {
+                                                    /* cas 1 du 03/11 : net des lignes cochées « C » ; montré par le
+                                                     * contrôleur en vente assurance quand KEY_LIGNE_COMPTANT_VO = 1 */
+                                                    xtype: 'displayfield',
+                                                    fieldLabel: 'DONT COMPTANT :',
+                                                    labelWidth: 165,
+                                                    itemId: 'montantComptant',
+                                                    hidden: true,
+                                                    value: 0,
+                                                    fieldStyle: "color:#b26a00;font-size:1.2em;font-weight: bold;",
+                                                    margin: '0 0 2 0',
+                                                    renderer: function (v) {
+                                                        return Ext.util.Format.number(v, '0,000.') + ' CFA';
+                                                    }
+                                                },
+                                                {
+                                                    xtype: 'displayfield',
+                                                    fieldLabel: 'DONT PART CLIENT :',
+                                                    labelWidth: 165,
+                                                    itemId: 'montantPartClient',
+                                                    hidden: true,
+                                                    value: 0,
+                                                    fieldStyle: "color:#1b5e20;font-size:1.2em;font-weight: bold;",
+                                                    margin: '0 0 2 0',
+                                                    renderer: function (v) {
+                                                        return Ext.util.Format.number(v, '0,000.') + ' CFA';
+                                                    }
+                                                },
 
                                                 {
                                                     xtype: 'combobox',
@@ -1336,5 +1375,62 @@ Ext.define('testextjs.view.vente.VenteVNO', {
 
         });
         me.callParent(arguments);
+    },
+
+    /* ------------------------------------------------------------------------------------------------------
+     * Cas 1 du 03/11/2026 : colonne à cocher « C » (ligne au comptant) d'une vente assurance. La colonne n'est
+     * créée que si le contrôleur l'appelle (KEY_LIGNE_COMPTANT_VO = 1) : sinon la grille est celle d'aujourd'hui.
+     * ------------------------------------------------------------------------------------------------------ */
+
+    /** La colonne « C » si elle est en place, sinon null. */
+    colonneComptant: function () {
+        const grille = this.down('#venteGrid');
+        return grille ? grille.down('#colComptant') : null;
+    },
+
+    /** Crée la colonne (40 px, avant la colonne d'action) et règle sa visibilité ; idempotent. */
+    construireColonneComptant: function (visible) {
+        const me = this, grille = me.down('#venteGrid');
+        if (!grille || !grille.rendered) {
+            return;
+        }
+        let colonne = me.colonneComptant();
+        if (!colonne) {
+            const entete = grille.headerCt;
+            const action = entete.items.findBy(function (c) {
+                return c.isXType && c.isXType('actioncolumn');
+            });
+            const position = action ? entete.items.indexOf(action) : entete.items.getCount();
+            colonne = entete.insert(position, {
+                xtype: 'checkcolumn',
+                text: 'C',
+                itemId: 'colComptant',
+                dataIndex: 'comptant',
+                width: 40,
+                align: 'center',
+                sortable: false,
+                menuDisabled: true,
+                hideable: false,
+                draggable: false,
+                resizable: false,
+                tdCls: 'vp-cpt-cellule',
+                tooltip: 'Ligne au comptant : hors assurance, réglée par le client ; une vente comptant est créée à la clôture',
+                hidden: !visible
+            });
+            grille.getView().refresh();
+            return;
+        }
+        if (colonne.isHidden() === !!visible) {
+            colonne.setVisible(!!visible);
+        }
+    },
+
+    /** Retire la colonne (paramètre revenu à 0) ; rien si elle n'existe pas. */
+    retirerColonneComptant: function () {
+        const grille = this.down('#venteGrid'), colonne = this.colonneComptant();
+        if (grille && colonne) {
+            grille.headerCt.remove(colonne, true);
+            grille.getView().refresh();
+        }
     }
 });
