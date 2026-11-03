@@ -20,7 +20,9 @@ import rest.service.impl.serveur.ReglagesServeur.Reglage;
  * <ul>
  * <li>ligne d'un poste : role (serveur ou caisse), memoire, pool, fils HTTP, reglages a ajuster ;</li>
  * <li>alertes d'ensemble : pools de tous les postes au-dela de ce que MariaDB accepte, plus de postes releves que
- * declares, plusieurs machines « serveur », poste « serveur » dont la base est ailleurs, poste sans nouvelles.</li>
+ * declares, poste sans nouvelles ; un seul serveur par reseau (retour du 03/11), la machine qui heberge la base : une
+ * autre machine configuree en serveur est une caisse a corriger (elle lancerait les taches planifiees en double), la
+ * machine de la base configuree en client aussi (les taches ne tourneraient nulle part).</li>
  * </ul>
  * Aucune donnee de vente ni de client ; jamais de mot de passe (l'URL du pool n'est pas gardee).
  */
@@ -96,23 +98,53 @@ public final class PostesReglages {
             LocalDateTime maintenant) {
         List<String> l = new ArrayList<>();
         int pools = 0;
-        Set<String> machines = new LinkedHashSet<>(), serveurs = new LinkedHashSet<>();
+        Set<String> machines = new LinkedHashSet<>(), configuresServeur = new LinkedHashSet<>(),
+                machinesDeLaBase = new LinkedHashSet<>();
         for (Poste p : postes) {
             machines.add(p.hote);
             if (p.pool > 0) {
                 pools += p.pool;
             }
             if (p.serveur) {
-                serveurs.add(p.hote);
-                if (!p.mariadbLocale) {
-                    l.add("« " + p.hote + " » se déclare serveur, mais sa base est sur une autre machine : vérifiez"
-                            + " application.mode dans son fichier dicisms.properties (une caisse reçoit des réglages"
-                            + " plus petits).");
-                }
+                configuresServeur.add(p.hote);
+            }
+            if (p.mariadbLocale) {
+                machinesDeLaBase.add(p.hote);
             }
             if (p.releve != null && Duration.between(p.releve, maintenant).compareTo(SANS_NOUVELLES) > 0) {
                 l.add("Pas de relevé de « " + p.hote + " » (" + p.domaine + ") depuis le " + p.releve.format(JOUR)
                         + " : poste éteint, retiré ou Payara arrêté.");
+            }
+        }
+        /*
+         * Un seul serveur par reseau (retour du 03/11) : c'est la machine qui heberge la base ; toutes les autres sont
+         * des caisses (application.mode=client dans dicisms.properties).
+         */
+        if (!machinesDeLaBase.isEmpty()) {
+            String serveur = String.join(", ", machinesDeLaBase);
+            Set<String> dits = new LinkedHashSet<>();
+            for (Poste p : postes) {
+                if (p.serveur && !machinesDeLaBase.contains(p.hote) && dits.add(p.hote)) {
+                    l.add("« " + p.hote + " » est configuré en serveur alors que la base est sur « " + serveur
+                            + " » : c'est une caisse. Mettez application.mode=client dans son dicisms.properties,"
+                            + " sinon il lance aussi les tâches du serveur (stock du jour, notifications, campagnes,"
+                            + " réapprovisionnement) en double.");
+                }
+                if (!p.serveur && machinesDeLaBase.contains(p.hote) && dits.add(p.hote)) {
+                    l.add("« " + p.hote + " » héberge la base mais est configuré en client : mettez"
+                            + " application.mode=server dans son dicisms.properties, sinon les tâches planifiées ne"
+                            + " tournent sur aucun poste.");
+                }
+            }
+            if (machinesDeLaBase.size() > 1) {
+                l.add("Plusieurs machines hébergent une base : " + serveur + ". Il n'y a qu'un serveur par réseau.");
+            }
+        } else if (!postes.isEmpty()) {
+            l.add("Aucun relevé de la machine qui héberge la base (le serveur) : son Payara n'a pas encore cette"
+                    + " version, ou il est arrêté.");
+            if (configuresServeur.size() > 1) {
+                l.add("Plusieurs machines sont configurées en serveur : " + String.join(", ", configuresServeur)
+                        + ". Il n'y a qu'un serveur par réseau : les autres doivent avoir application.mode=client.");
             }
         }
         if (maxConnexions > 0 && pools + MARGE_OUTILS > maxConnexions) {
@@ -123,9 +155,6 @@ public final class PostesReglages {
         if (machines.size() > postesDeclares) {
             l.add(machines.size() + " machines relevées pour " + postesDeclares
                     + " poste(s) déclaré(s) : mettez à jour le nombre de postes, qui dimensionne MariaDB.");
-        }
-        if (serveurs.size() > 1) {
-            l.add("Plusieurs machines se déclarent serveur : " + String.join(", ", serveurs) + ".");
         }
         return l;
     }

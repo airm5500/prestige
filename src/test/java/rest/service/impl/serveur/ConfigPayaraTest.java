@@ -88,6 +88,9 @@ class ConfigPayaraTest {
                         "pool-adresse").niveau);
         assertTrue(ConfigPayara.locale("localhost", "X") && ConfigPayara.locale("pc-officine", "PC-OFFICINE")
                 && !ConfigPayara.locale("192.168.1.10", "PC-OFFICINE"));
+        /* retour du 03/11 : le serveur dont le pool vise sa propre adresse IP a bien sa base sur place */
+        assertTrue(ConfigPayara.locale("192.168.1.10", "PC-OFFICINE", Arrays.asList("192.168.1.10", "fe80::1")));
+        assertTrue(!ConfigPayara.locale("192.168.1.20", "PC-CAISSE", Arrays.asList("192.168.1.10")));
     }
 
     @Test
