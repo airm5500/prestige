@@ -98,7 +98,7 @@ function remettre() {
       const fen = p.locator('#AjoutLitige');
       const tp = await p.evaluate(() => Ext.getCmp('AjoutLitige').down('#litigeTiersPayant').id);
       await p.locator('#' + tp + '-inputEl').click();
-      await p.locator('#' + tp + '-inputEl').pressSequentially(TP.slice(0, 6), { delay: 40 });
+      await p.locator('#' + tp + '-inputEl').pressSequentially(TP, { delay: 20 });
       await p.locator('.x-boundlist:visible .x-boundlist-item').filter({ hasText: TP }).first().click({ timeout: 20000 });
       await p.waitForTimeout(300);
       const dossier = await p.evaluate(() => Ext.getCmp('AjoutLitige').down('#litigeDossier').id);

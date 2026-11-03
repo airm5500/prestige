@@ -337,11 +337,12 @@ public class LitigeServiceImpl implements LitigeService {
                     + StringUtils.defaultString(compte.getLgCOMPTECLIENTID().getLgCLIENTID().getStrLASTNAME())).trim();
         }
         String lib = StringUtils.defaultIfBlank(StringUtils.trimToNull(libelle), type.getStrNAME());
+        /* chaque texte borne a sa colonne (V7.2.32.1) : un nom long faisait echouer la creation (erreur 500) */
         TLitige l = new TLitige(StringUtils.left(client, 100), vente.getStrREF(), StringUtils.left(lib, 100),
-                StringUtils.defaultIfBlank(etat, "Non payé"),
-                StringUtils.defaultIfBlank(consequence, "Aucune conséquence"),
-                StringUtils.defaultIfBlank(StringUtils.trimToNull(description), lib));
-        l.setStrCOMMENTAIRELITIGE(StringUtils.trimToNull(commentaire));
+                StringUtils.left(StringUtils.defaultIfBlank(etat, "Non payé"), 40),
+                StringUtils.left(StringUtils.defaultIfBlank(consequence, "Aucune conséquence"), 100),
+                StringUtils.left(StringUtils.defaultIfBlank(StringUtils.trimToNull(description), lib), 100));
+        l.setStrCOMMENTAIRELITIGE(StringUtils.left(StringUtils.trimToNull(commentaire), 100));
         l.setLgTYPELITIGEID(type);
         l.setLgTIERSPAYANTID(compte.getLgTIERSPAYANTID());
         l.setIntAMOUNTTOTALLITIGE(part);
