@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Cas 1 — Tickets validés : assurance + client combiné</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root{--navy:#1e3a5f;--fond:#ECF1F6;--bord:#C9D5E1;--orange:#e07b18;--vert:#2e7d32}
+  body{margin:0;background:var(--fond);font:12.5px/1.4 "Segoe UI",Tahoma,Arial,sans-serif;color:#1b2733;padding:12px}
+  .note{background:#E8F5E9;border:1px solid #A5D6A7;border-left:5px solid var(--vert);border-radius:8px;padding:8px 12px;margin-bottom:14px}
+  .note b{color:#1b5e20}
+  h2{font-size:14px;color:var(--navy);margin:18px 0 6px;letter-spacing:.06em;text-transform:uppercase}
+  .cmt{color:#5a6b7c;font-size:11.5px;margin:0 0 8px}
+  .rang{display:flex;gap:28px;flex-wrap:wrap;align-items:flex-start}
+  .ticket{width:300px;background:#fff;padding:12px 14px;font:11.5px/1.35 "Courier New",Consolas,monospace;color:#111;box-shadow:0 2px 8px rgba(0,0,0,.18);border-top:6px solid #ddd;position:relative}
+  .ticket::after{content:"";position:absolute;left:0;right:0;bottom:-8px;height:8px;background:linear-gradient(135deg,transparent 50%,#fff 50%) 0 0/10px 8px,linear-gradient(225deg,transparent 50%,#fff 50%) 0 0/10px 8px}
+  .ticket .c{text-align:center}
+  .ticket .b{font-weight:700}
+  .ticket .sep{border-top:1px dashed #666;margin:5px 0}
+  .ticket .l{display:flex;justify-content:space-between;gap:6px}
+  .ticket .l .r{white-space:nowrap}
+  .ticket .sub{padding-left:10px;color:#333}
+  .ticket .big{font-size:14px;font-weight:700}
+  .ticket .bar{height:30px;margin:6px auto 2px;width:85%;background:repeating-linear-gradient(90deg,#000 0 2px,#fff 2px 3px,#000 3px 4px,#fff 4px 7px,#000 7px 8px,#fff 8px 10px)}
+  .ticket .cpt{background:#FFF6D5;margin:0 -4px;padding:0 4px}
+  .lgd{font-size:11px;color:#5a6b7c;width:300px}
+  .lgd b{color:var(--navy)}
+  .etq{position:absolute;top:-6px;right:10px;background:var(--navy);color:#fff;font:700 10px "Segoe UI",sans-serif;padding:2px 8px;border-radius:0 0 6px 6px;letter-spacing:.06em}
+</style>
+</head>
+<body>
+<div class="note"><b>Version validée le 03/11 — cas 1, tickets.</b> Deux tickets : <b>ticket assurance</b> (destiné à l'organisme : lignes prises en charge seulement, taux et part par ligne, un exemplaire par tiers-payant) et <b>ticket client combiné</b> (reçu du client : les deux ventes sur un seul papier). Le reçu caisse existant reste imprimé comme aujourd'hui. Montants de l'exemple avec remise produit 5 % ; noms fictifs.</div>
+
+<h2>Les deux tickets imprimés à la clôture</h2>
+<div class="rang">
+  <div class="ticket"><span class="etq">TICKET ASSURANCE</span>
+    <div class="c b">PHARMACIE DE LA CAPITALE</div>
+    <div class="c">Abidjan — Tél. 07 00 00 00 00</div>
+    <div class="sep"></div>
+    <div class="l"><span>Ticket N° VO-2026-01039</span><span class="r">Bon N° BN-2026-00871</span></div>
+    <div class="l"><span>03/11/2026 10:31</span><span class="r">N° jour : 71</span></div>
+    <div>C : [CAISSIÈRE] — V : [VENDEUR]</div>
+    <div class="b">VENTE ASSURANCE</div>
+    <div class="sep"></div>
+    <div>RAPICLAV 1G CPR B/14</div>
+    <div class="l sub"><span>6 725 x 1</span><span class="r">6 725</span></div>
+    <div class="l sub"><span>Crédit : T[70 %] — Mont. :</span><span class="r">4 708</span></div>
+    <div>ISOLONE 20MG CPR EFFV B/20</div>
+    <div class="l sub"><span>3 145 x 1</span><span class="r">3 145</span></div>
+    <div class="l sub"><span>Crédit : T[70 %] — Mont. :</span><span class="r">2 201</span></div>
+    <div class="sep"></div>
+    <div class="l"><span>TTC</span><span class="r b">9 870</span></div>
+    <div class="l"><span>(-) Remise</span><span class="r">148</span></div>
+    <div class="l"><span>Matricule Assuré :</span><span class="r">A-20451</span></div>
+    <div class="l"><span>Bénéficiaire :</span><span class="r">KOUAME J.</span></div>
+    <div class="l"><span>MCI-CARE 70 % :</span><span class="r">6 909 CFA</span></div>
+    <div class="l big"><span>Part du Client :</span><span class="r">2 810 CFA</span></div>
+    <div class="sep"></div>
+    <div class="l"><span>Espèces</span><span class="r">2 810</span></div>
+    <div class="l"><span>Montant Versé</span><span class="r">2 810</span></div>
+    <div class="l"><span>Monnaie</span><span class="r">0</span></div>
+    <div class="bar"></div>
+    <div class="c">VO-2026-01039</div>
+    <div class="c">Nos vœux de bonne santé. Merci pour la confiance</div>
+  </div>
+
+  <div class="ticket"><span class="etq">TICKET CLIENT</span>
+    <div class="c b">PHARMACIE DE LA CAPITALE</div>
+    <div class="c">Abidjan — Tél. 07 00 00 00 00</div>
+    <div class="sep"></div>
+    <div class="l"><span>Reçu client</span><span class="r">03/11/2026 10:31</span></div>
+    <div class="l"><span>N° jour : 71 / 72</span><span class="r"></span></div>
+    <div>C : [CAISSIÈRE] — V : [VENDEUR]</div>
+    <div class="sep"></div>
+    <div class="b">VENTE ASSURANCE — VO-2026-01039</div>
+    <div>RAPICLAV 1G CPR B/14</div>
+    <div class="l sub"><span>6 725 x 1</span><span class="r">6 725</span></div>
+    <div class="l sub"><span>Crédit : T[70 %] — Mont. :</span><span class="r">4 708</span></div>
+    <div>ISOLONE 20MG CPR EFFV B/20</div>
+    <div class="l sub"><span>3 145 x 1</span><span class="r">3 145</span></div>
+    <div class="l sub"><span>Crédit : T[70 %] — Mont. :</span><span class="r">2 201</span></div>
+    <div class="l"><span>MCI-CARE 70 %</span><span class="r">6 909</span></div>
+    <div class="l"><span>(-) Remise</span><span class="r">148</span></div>
+    <div class="l b"><span>Part du client</span><span class="r">2 810</span></div>
+    <div class="sep"></div>
+    <div class="b">VENTE AU COMPTANT — VNO-2026-01040</div>
+    <div class="cpt">
+      <div>KETODERM 2% CREME T/15G</div>
+      <div class="l sub"><span>4 135 x 1</span><span class="r">4 135</span></div>
+      <div class="l sub"><span>LIGNE COMPTANT</span><span class="r"></span></div>
+    </div>
+    <div class="l"><span>(-) Remise</span><span class="r">207</span></div>
+    <div class="l b"><span>Comptant</span><span class="r">3 930</span></div>
+    <div class="sep"></div>
+    <div class="l"><span>TTC des deux ventes</span><span class="r">14 005</span></div>
+    <div class="l big"><span>NET A PAYER</span><span class="r">6 740 CFA</span></div>
+    <div class="l"><span>Espèces — Versé</span><span class="r">6 740</span></div>
+    <div class="l"><span>Monnaie</span><span class="r">0</span></div>
+    <div class="sep"></div>
+    <div class="l"><span>Assuré / bénéficiaire :</span><span class="r">KOUAME J.</span></div>
+    <div class="bar"></div>
+    <div class="c">VO-2026-01039 · VNO-2026-01040</div>
+    <div class="c">Nos vœux de bonne santé. Merci pour la confiance</div>
+  </div>
+
+  <div class="lgd"><b>Lecture</b><br>• Le ticket assurance ne contient <b>que</b> les lignes prises en charge et ne mentionne pas la vente comptant.<br>• « Crédit : T[taux] — Mont. : part » par ligne devient le format de <b>tous</b> les tickets de vente assurance (Q1.9), quand le paramètre est actif.<br>• Le ticket client porte un seul code-barres (la vente assurance) ; la référence comptant est en clair, et la vente comptant se retrouve aussi par son numéro dans « Ventes terminées ».<br>• Le reçu caisse existant (copie « orange ») reste imprimé une fois pour le total encaissé : 6 740 CFA.<br>• Côté code : nouveau modèle <code>ModeleTicket.VENTE_MIXTE</code> ; le gabarit <code>VENTE_ASSURANCE</code> gagne les deux lignes de crédit par article.</div>
+</div>
+</body>
+</html>

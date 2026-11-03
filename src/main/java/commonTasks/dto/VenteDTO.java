@@ -91,6 +91,26 @@ public class VenteDTO implements Serializable {
     private String strTYPEVENTENAME;
     private String mvdate;
     private boolean copy = false;
+    /** Cas 1 du 03/11/2026 : identifiant et reference de la vente nee de la meme saisie (null sinon). */
+    private String venteLiee;
+    private String venteLieeRef;
+
+    public String getVenteLiee() {
+        return venteLiee;
+    }
+
+    public void setVenteLiee(String venteLiee) {
+        this.venteLiee = venteLiee;
+    }
+
+    public String getVenteLieeRef() {
+        return venteLieeRef;
+    }
+
+    public void setVenteLieeRef(String venteLieeRef) {
+        this.venteLieeRef = venteLieeRef;
+    }
+
     private Integer intPRICERESTE;
     private String medecinId;
     private String nom;
@@ -591,6 +611,7 @@ public class VenteDTO implements Serializable {
         this.strSTATUT = tp.getStrSTATUT();
         this.strREFBON = tp.getStrREFBON();
         this.copy = tp.getCopy();
+        this.venteLiee = tp.getLgVENTELIEEID();
         this.mvdate = DateConverter.convertDateToYYYY_MM_DD(tp.getDtUPDATED());
         try {
             TRemise remise = tp.getRemise();
@@ -669,6 +690,7 @@ public class VenteDTO implements Serializable {
         this.intCUSTPART = tp.getIntCUSTPART();
         this.dtUPDATED = dateFormat.format(tp.getDtUPDATED());
         this.copy = tp.getCopy();
+        this.venteLiee = tp.getLgVENTELIEEID();
         try {
             this.dateAnnulation = dateFormat.format(tp.getDtANNULER());
             this.heureAnnulation = heureFormat.format(tp.getDtANNULER());
@@ -739,6 +761,7 @@ public class VenteDTO implements Serializable {
         this.heure = heureFormat.format(tp.getDtUPDATED());
         this.strSTATUT = tp.getStrSTATUT();
         this.copy = tp.getCopy();
+        this.venteLiee = tp.getLgVENTELIEEID();
         this.mvdate = DateConverter.convertDateToYYYY_MM_DD(tp.getDtUPDATED());
         try {
             this.dateAnnulation = dateFormat.format(tp.getDtANNULER());
@@ -787,6 +810,7 @@ public class VenteDTO implements Serializable {
         this.sansbon = tp.getBWITHOUTBON();
         this.lgTYPEVENTEID = tp.getLgTYPEVENTEID().getLgTYPEVENTEID();
         this.copy = tp.getCopy();
+        this.venteLiee = tp.getLgVENTELIEEID();
         this.mvdate = DateConverter.convertDateToYYYY_MM_DD(tp.getDtUPDATED());
         try {
             this.montantPaye = mt.getMontantPaye();
@@ -845,6 +869,7 @@ public class VenteDTO implements Serializable {
         this.sansbon = tp.getBWITHOUTBON();
         this.lgTYPEVENTEID = tp.getLgTYPEVENTEID().getLgTYPEVENTEID();
         this.copy = tp.getCopy();
+        this.venteLiee = tp.getLgVENTELIEEID();
         this.mvdate = DateConverter.convertDateToYYYY_MM_DD(tp.getDtUPDATED());
         TClient cl = tp.getClient();
         if (cl != null) {
@@ -913,6 +938,7 @@ public class VenteDTO implements Serializable {
         this.mvdate = DateConverter.convertDateToYYYY_MM_DD(tp.getDtUPDATED());
         TClient cl = tp.getClient();
         this.copy = tp.getCopy();
+        this.venteLiee = tp.getLgVENTELIEEID();
         if (cl != null) {
             this.clientFullName = cl.getStrFIRSTNAME() + " " + cl.getStrLASTNAME();
         }
@@ -995,6 +1021,7 @@ public class VenteDTO implements Serializable {
         this.strSTATUT = tp.getStrSTATUT();
         this.mvdate = DateConverter.convertDateToYYYY_MM_DD(tp.getDtUPDATED());
         this.copy = tp.getCopy();
+        this.venteLiee = tp.getLgVENTELIEEID();
         try {
             this.remiseDepot = Integer.valueOf(tp.getLgREMISEID());
         } catch (Exception e) {
@@ -1050,6 +1077,7 @@ public class VenteDTO implements Serializable {
         this.strSTATUT = tp.getStrSTATUT();
         this.strREFBON = tp.getStrREFBON();
         this.copy = tp.getCopy();
+        this.venteLiee = tp.getLgVENTELIEEID();
         this.mvdate = DateConverter.convertDateToYYYY_MM_DD(tp.getDtUPDATED());
         try {
             this.dateAnnulation = dateFormat.format(tp.getDtANNULER());
@@ -1143,6 +1171,7 @@ public class VenteDTO implements Serializable {
         this.sansbon = tp.getBWITHOUTBON();
         this.lgTYPEVENTEID = tp.getLgTYPEVENTEID().getLgTYPEVENTEID();
         this.copy = tp.getCopy();
+        this.venteLiee = tp.getLgVENTELIEEID();
         this.dateOperation = tp.getDtUPDATED();
         this.mvdate = DateConverter.convertDateToYYYY_MM_DD(tp.getDtUPDATED());
         this.items = tpds;
@@ -1364,6 +1393,7 @@ public class VenteDTO implements Serializable {
         this.mvdate = DateConverter.convertDateToYYYY_MM_DD(tp.getDtUPDATED());
         TClient cl = tp.getClient();
         this.copy = tp.getCopy();
+        this.venteLiee = tp.getLgVENTELIEEID();
         if (cl != null) {
             this.clientFullName = cl.getStrFIRSTNAME() + " " + cl.getStrLASTNAME();
         }
@@ -1415,6 +1445,7 @@ public class VenteDTO implements Serializable {
         this.sansbon = tp.getBWITHOUTBON();
         this.lgTYPEVENTEID = tp.getLgTYPEVENTEID().getLgTYPEVENTEID();
         this.copy = tp.getCopy();
+        this.venteLiee = tp.getLgVENTELIEEID();
         this.mvdate = DateConverter.convertDateToYYYY_MM_DD(tp.getDtUPDATED());
         TClient cl = tp.getClient();
         if (cl != null) {

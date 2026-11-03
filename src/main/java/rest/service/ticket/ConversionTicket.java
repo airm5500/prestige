@@ -121,8 +121,8 @@ public final class ConversionTicket {
             }
         }
         if (r.ccRc()) {
-            String ccrc = (vide(s.cc) ? "" : "CC " + s.cc.trim())
-                    + (vide(s.cc) || vide(s.rc) ? "" : " · ") + (vide(s.rc) ? "" : "RC " + s.rc.trim());
+            String ccrc = (vide(s.cc) ? "" : "CC " + s.cc.trim()) + (vide(s.cc) || vide(s.rc) ? "" : " · ")
+                    + (vide(s.rc) ? "" : "RC " + s.rc.trim());
             c.texte(ccrc, Style.PETIT);
         }
         if (r.commentaires()) {
@@ -259,8 +259,8 @@ public final class ConversionTicket {
             b.paire(libelle, montantF(lv[1]), Style.NORMAL);
         }
         if (!b.vide()) {
-            b.elements.add(0, new TicketDocument.Element(TicketDocument.Genre.TRAIT, Style.NORMAL, null, null, null,
-                    null, null));
+            b.elements.add(0,
+                    new TicketDocument.Element(TicketDocument.Genre.TRAIT, Style.NORMAL, null, null, null, null, null));
         }
     }
 
@@ -295,8 +295,7 @@ public final class ConversionTicket {
                     reglement.paire("Règlement", mode, Style.NORMAL);
                 }
                 modeDit = true;
-                reglement.paire(estEspeces(mode) ? "Espèces versées" : "Montant versé", montantF(valeur),
-                        Style.NORMAL);
+                reglement.paire(estEspeces(mode) ? "Espèces versées" : "Montant versé", montantF(valeur), Style.NORMAL);
             } else if (libelle.startsWith("Monnaie")) {
                 reglement.paire("Monnaie rendue", montantF(valeur), Style.GRAS);
             } else if (!libelle.isEmpty()) {
@@ -354,10 +353,8 @@ public final class ConversionTicket {
             }
         }
         String recap = s.articles.isEmpty() || !r.recapitulatif() ? "" : recap(s.articles);
-        doc.bloc(TicketDocument.INTERVENANTS, "C").texte(
-                (vendeur.isEmpty() ? "" : "Vendeur : " + vendeur) + (vendeur.isEmpty() || recap.isEmpty() ? "" : " · ")
-                        + recap,
-                Style.PETIT);
+        doc.bloc(TicketDocument.INTERVENANTS, "C").texte((vendeur.isEmpty() ? "" : "Vendeur : " + vendeur)
+                + (vendeur.isEmpty() || recap.isEmpty() ? "" : " · ") + recap, Style.PETIT);
         doc.bloc(TicketDocument.CORPS).trait(false);
         String organisme = "";
         for (String l : s.datas) {
@@ -465,8 +462,8 @@ public final class ConversionTicket {
             } else if (libelle.equals("Total espèce")) {
                 corps.encadre("Espèces en tiroir", montantF(valeur), Style.GRAS);
             } else {
-                corps.paire(libelle, montantF(valeur), p.length > 4 && "1".equals(p[4].trim()) ? Style.GRAS
-                        : Style.NORMAL);
+                corps.paire(libelle, montantF(valeur),
+                        p.length > 4 && "1".equals(p[4].trim()) ? Style.GRAS : Style.NORMAL);
             }
         }
         if (r.signatures()) {
@@ -578,7 +575,7 @@ public final class ConversionTicket {
         return new String[] { t.substring(0, i).replaceAll("\\s+", " ").trim(), t.substring(i + k).trim() };
     }
 
-    /** Montant de l'ancien ticket (« 2.410 », « (-) 260 », « 990  CFA ») en « 2 410 ». */
+    /** Montant de l'ancien ticket (« 2.410 », « (-) 260 », « 990 CFA ») en « 2 410 ». */
     static String montant(String v) {
         if (v == null) {
             return "";

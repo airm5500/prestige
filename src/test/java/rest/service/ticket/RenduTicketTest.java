@@ -17,8 +17,8 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Nouveau modele de ticket (demande du 02/11) : contenu converti depuis les lignes de l'ancien ticket, rendu sans
- * debordement en 80 et 58 mm, reglages (remise masquee, lot, CC/RC, carnet, signatures) et disposition controlee.
- * Les apercus sont ecrits dans le dossier donne par -Dticket.apercus (facultatif) pour les regarder.
+ * debordement en 80 et 58 mm, reglages (remise masquee, lot, CC/RC, carnet, signatures) et disposition controlee. Les
+ * apercus sont ecrits dans le dossier donne par -Dticket.apercus (facultatif) pour les regarder.
  */
 class RenduTicketTest {
 
@@ -111,8 +111,8 @@ class RenduTicketTest {
         TicketDocument d = doc(ModeleTicket.VENTE_CARNET, 80, r);
         String avec = texte(d);
         assertTrue(avec.contains("Encours du carnet après la vente | 48 200 F CFA"), avec);
-        assertEquals("[Signature du client]", d.existant(TicketDocument.SIGNATURES).elements.get(0).libelles
-                .toString());
+        assertEquals("[Signature du client]",
+                d.existant(TicketDocument.SIGNATURES).elements.get(0).libelles.toString());
     }
 
     @Test
@@ -122,8 +122,8 @@ class RenduTicketTest {
         assertTrue(t.contains("SORTIE DE CAISSE"), t);
         assertTrue(t.contains("ENCADRE[MONTANT | 15 000 F CFA]"), t);
         assertTrue(t.contains("Achat de fournitures de bureau"), t);
-        assertEquals("[Caissier, Bénéficiaire]", d.existant(TicketDocument.SIGNATURES).elements.get(0).libelles
-                .toString());
+        assertEquals("[Caissier, Bénéficiaire]",
+                d.existant(TicketDocument.SIGNATURES).elements.get(0).libelles.toString());
     }
 
     @Test
@@ -227,8 +227,8 @@ class RenduTicketTest {
         assertTrue(t.contains("SIGNATURES"), "signatures actives par defaut\n" + t);
         assertFalse(t.contains("PIED["), "pas de code-barres sur le ticket Z\n" + t);
         assertTrue(t.indexOf("A.KONE") < t.indexOf("M.TOURE") && t.indexOf("M.TOURE") < t.indexOf("TOTAL OFFICINE"), t);
-        String sans = texte(doc(ModeleTicket.TICKET_Z, 58, ReglagesTicket.depuis(ModeleTicket.TICKET_Z,
-                new JSONObject().put("signatures", false))));
+        String sans = texte(doc(ModeleTicket.TICKET_Z, 58,
+                ReglagesTicket.depuis(ModeleTicket.TICKET_Z, new JSONObject().put("signatures", false))));
         assertFalse(sans.contains("SIGNATURES"), sans);
         assertTrue(sans.contains("ENCADRE[TOTAL ESPÈCES | 266 350 F]"), sans);
     }

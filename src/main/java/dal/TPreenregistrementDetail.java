@@ -103,6 +103,20 @@ public class TPreenregistrementDetail implements Serializable {
     /** Audit 05 PR-01 : promotion (t_promotion_product) qui a fixe le prix de la ligne ; null sinon. */
     @Column(name = "promotion_produit_id")
     private Integer promotionProduitId;
+    /**
+     * Cas 1 du 03/11/2026 : ligne cochee « C » (au comptant) dans une vente assurance. Hors du calcul tiers-payant ; a
+     * la cloture, elle part dans la vente comptant liee. Toujours 0 sans le parametre KEY_LIGNE_COMPTANT_VO.
+     */
+    @Column(name = "comptant")
+    private Boolean comptant = false;
+
+    public boolean isComptant() {
+        return Boolean.TRUE.equals(comptant);
+    }
+
+    public void setComptant(Boolean comptant) {
+        this.comptant = comptant != null && comptant;
+    }
 
     public TPreenregistrementDetail() {
     }
@@ -394,6 +408,7 @@ public class TPreenregistrementDetail implements Serializable {
         this.valeurTva = p.getValeurTva();
         this.prixAchat = p.getPrixAchat();
         this.montantTvaUg = p.getMontantTvaUg();
+        this.comptant = p.isComptant();
 
     }
 

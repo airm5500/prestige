@@ -32,7 +32,8 @@ public final class CalculReglages {
     static List<String> adressesLocales() {
         List<String> l = new ArrayList<>();
         try {
-            for (java.net.NetworkInterface i : java.util.Collections.list(java.net.NetworkInterface.getNetworkInterfaces())) {
+            for (java.net.NetworkInterface i : java.util.Collections
+                    .list(java.net.NetworkInterface.getNetworkInterfaces())) {
                 for (java.net.InetAddress a : java.util.Collections.list(i.getInetAddresses())) {
                     String s = a.getHostAddress();
                     int z = s.indexOf('%');
@@ -46,8 +47,8 @@ public final class CalculReglages {
     }
 
     /**
-     * La base de ce Payara (URL de son pool, dans domain.xml) est-elle sur cette machine ? Vrai dans le doute (domain.xml
-     * illisible, pool sans URL), comme dans {@link #calculer}.
+     * La base de ce Payara (URL de son pool, dans domain.xml) est-elle sur cette machine ? Vrai dans le doute
+     * (domain.xml illisible, pool sans URL), comme dans {@link #calculer}.
      *
      * @param hote
      *            nom de cette machine

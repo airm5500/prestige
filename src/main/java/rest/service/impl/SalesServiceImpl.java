@@ -2094,6 +2094,40 @@ public class SalesServiceImpl implements SalesService {
 
     }
 
+    @Override
+    public JSONObject marquerLigneComptant(String itemId, boolean comptant) {
+        JSONObject json = new JSONObject();
+        try {
+            EntityManager emg = getEm();
+            boolean actif = rest.service.vente.LigneComptant.actif(emg);
+            if (!actif) {
+                return json.put("success", false).put("http", 403).put("msg",
+                        rest.service.vente.LigneComptant.MSG_INACTIF);
+            }
+            TPreenregistrementDetail detail = StringUtils.isBlank(itemId) ? null
+                    : emg.find(TPreenregistrementDetail.class, itemId);
+            if (detail == null || detail.getLgPREENREGISTREMENTID() == null) {
+                return json.put("success", false).put("msg",
+                        "Ce produit n'est plus dans la vente : actualisez l'écran avant de continuer.");
+            }
+            TPreenregistrement tp = detail.getLgPREENREGISTREMENTID();
+            String refus = rest.service.vente.LigneComptant.refusCochage(true, tp, detail, comptant,
+                    controleVenteModifiable(tp.getLgPREENREGISTREMENTID()));
+            if (refus != null) {
+                return json.put("success", false).put("msg", refus);
+            }
+            detail.setComptant(comptant);
+            detail.setDtUPDATED(new Date());
+            emg.merge(detail);
+            return json.put("success", true).put("comptant", detail.isComptant())
+                    .put("itemId", detail.getLgPREENREGISTREMENTDETAILID())
+                    .put("venteId", tp.getLgPREENREGISTREMENTID());
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "marquerLigneComptant", e);
+            return json.put("success", false).put("msg", "Erreur :: l'opération a échouée");
+        }
+    }
+
     public void updateLogFile(TUser user, String ref, String desc, TypeLog typeLog, Object t, EntityManager emg) {
         TEventLog eventLog = new TEventLog(UUID.randomUUID().toString());
         eventLog.setLgUSERID(user);
@@ -5111,6 +5145,8 @@ public class SalesServiceImpl implements SalesService {
         newTd.setIntAVOIR(tp.getIntAVOIR());
         newTd.setIntAVOIRSERVED(tp.getIntQUANTITYSERVED());
         newTd.setBISAVOIR(tp.getBISAVOIR());
+        // cas 1 du 03/11 : la coche « C » suit la ligne dans la copie de modification
+        newTd.setComptant(tp.isComptant());
         clonePrixReferenceVente(tp, newTd);
         getEm().persist(newTd);
         return newTd;
