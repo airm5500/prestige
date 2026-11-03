@@ -1002,9 +1002,9 @@ public class CaisseServiceImpl implements CaisseService {
             if (getStatutCoffre(idUser) != null) {
                 return json.put("success", false).put("msg", "Cet utilisateur a déjà reçu un fond de caisse");
             }
-            // gestion de caisse G5 : fond de caisse strictement positif
-            if (amount == null || amount <= 0) {
-                return json.put("success", false).put("msg", "Le fond de caisse doit être supérieur à 0");
+            // gestion de caisse G5 : fond de caisse negatif refuse ; 0 reste permis, c'est l'usage de l'officine
+            if (amount == null || amount < 0) {
+                return json.put("success", false).put("msg", "Le fond de caisse ne peut pas être négatif");
             }
             createCoffreCaisse(user, operateur, amount.doubleValue());
         } catch (Exception e) {
@@ -2266,9 +2266,9 @@ public class CaisseServiceImpl implements CaisseService {
             throw new CaisseUsingExeception(
                     messageFondDejaAttribue(coffreEnAttente.getIntAMOUNT(), coffreEnAttente.getDtCREATED()));
         }
-        // gestion de caisse G5 : fond de caisse strictement positif
-        if (coffreCaisseDto.getAmount() <= 0) {
-            throw new CaisseUsingExeception("Le fond de caisse doit être supérieur à 0");
+        // gestion de caisse G5 : fond de caisse negatif refuse ; 0 reste permis, c'est l'usage de l'officine
+        if (coffreCaisseDto.getAmount() < 0) {
+            throw new CaisseUsingExeception("Le fond de caisse ne peut pas être négatif");
         }
         String description = "Ouverture de la caisse de " + user.getStrFIRSTNAME() + " " + user.getStrLASTNAME()
                 + " d'un montant de " + coffreCaisseDto.getAmount();

@@ -1,5 +1,6 @@
 /* Gestion de caisse (notice MECANISMES_CODE_GESTION_CAISSE), par les ecrans (clics de l'utilisateur), compte e2e :
- *  - G5 : « Ouverture de Caisse » avec un fond de 0 : refus affiche, aucune caisse ouverte ; puis 50 000 : ouverte ;
+ *  - G5 : « Ouverture de Caisse » avec un fond de -500 : aucune caisse ouverte ; puis fond de 0 (usage de l'officine,
+ *         2 802 caisses sur 2 804 en 3 ans) : caisse ouverte ;
  *  - G2 : « Mouvements de Caisse » > Creer, sortie de caisse de 0 : refus, rien d'enregistre (le champ n'accepte que
  *         des chiffres : une sortie negative ne se saisit pas) ; sortie de 2 000 et double clic sur « Enregistrer » :
  *         un seul mouvement, de signe negatif ;
@@ -67,26 +68,24 @@ function nettoyer() {
   try {
     await connexion(p, ENV_E2E.LOGIN, 'e2etest');
 
-    /* G5 : ouverture avec un fond de 0, puis 50 000 */
+    /* G5 : fond negatif refuse ; fond de 0, l'usage de l'officine, accepte */
     await ouvrirMenu(p, 'SERVICE CLIENT', 'Ouverture de Caisse');
     await p.waitForFunction(() => Ext.getCmp('btnValidate') && Ext.getCmp('btnValidate').isVisible(true), null, { timeout: 60000 });
     await p.waitForTimeout(800);
+    await champ(p, 'coffreCaisseAmount', '-500');
+    const saisi = await p.evaluate(() => Ext.getCmp('coffreCaisseAmount').getRawValue());
+    await cliquer(p, '#btnValidate');
+    const mNeg = await message(p, 'ok');
+    const ouvertNeg = resumeOuvert();
+    ok('G5 : fond de -500 : signe refusé à la saisie ou fond refusé, aucune caisse ouverte',
+        ouvertNeg === '' && (!/-/.test(saisi) || /n.gatif/i.test(mNeg)), saisi + ' | ' + mNeg + ' | ' + ouvertNeg);
+    await p.waitForFunction(() => Ext.getCmp('btnValidate') && Ext.getCmp('btnValidate').isVisible(true), null, { timeout: 20000 });
     await champ(p, 'coffreCaisseAmount', '0');
     await cliquer(p, '#btnValidate');
-    const m0 = await message(p, 'ok');
-    const ouvert0 = resumeOuvert();
-    ok('G5 : ouverture avec un fond de 0 refusée, aucune caisse ouverte', /sup.rieur . 0/.test(m0) && ouvert0 === '', m0 + ' | ' + ouvert0);
-    if (ouvert0 === '') {
-      await p.waitForFunction(() => Ext.getCmp('btnValidate') && Ext.getCmp('btnValidate').isVisible(true), null, { timeout: 20000 });
-      await champ(p, 'coffreCaisseAmount', '50000');
-      await cliquer(p, '#btnValidate');
-      await message(p, 'no'); /* « Confirmation de l'impression du ticket » : non */
-    } else if (/impression/i.test(m0)) {
-      await repondre(p, 'no').catch(() => {});
-    }
+    const m0 = await message(p, 'no'); /* « Confirmation de l'impression du ticket » : non */
     await p.waitForTimeout(1500);
     const ouvert = resumeOuvert();
-    ok('G5 : ouverture avec 50 000 : caisse ouverte avec ce fond', /^\S+ 50000$/.test(ouvert) || ouvert0 !== '', ouvert);
+    ok('G5 : ouverture avec un fond de 0 (usage de l\'officine) : caisse ouverte', /^\S+ 0$/.test(ouvert), m0 + ' | ' + ouvert);
     const RESUME = ouvert.split(' ')[0];
 
     /* G2 : sortie de caisse de 0, puis 2 000 en double clic */
