@@ -203,7 +203,7 @@ chemin qui peut aujourd'hui laisser un client assuré sans tiers-payant actif, o
   - une création de client a été refusée une fois pour « code interne existe déjà », sans code saisi (le passage
     suivant a réussi).
 
-### 4.9 Étape 6 : comptages faits (02/11), reprise en attente d'accord
+### 4.9 Étape 6 : comptages (02/11) et reprise (03/11)
 
 - **Comptage en lecture seule** : deux contrôles de cohérence du support, en observation (aucun ticket, aucune
   correction), migration `V7.2.30.40__controle_clients_assures_sans_tp.sql` :
@@ -217,8 +217,21 @@ chemin qui peut aujourd'hui laisser un client assuré sans tiers-payant actif, o
 - **Test d'écran** `src/test/e2e/client/test-comptage-clients-assures.js` : 2/4 avant (contrôles absents), 4/4 après.
 - **Comptages sur le banc (domain2, `laborex_perf`)** : 1 client assuré actif sans tiers-payant actif, 0 lien actif
   sur un organisme absent ou inactif. À relever sur la base de l'officine par le même bouton.
-- **Reprise** : non écrite, attend l'accord. Proposition : désactiver les clients comptés par le premier contrôle (même
-  effet que le retrait du dernier tiers-payant), et désactiver les liens comptés par le second.
+- **Reprise (accord du 03/11)** : migration `V7.2.30.41__reprise_clients_assures_sans_tp.sql`, même effet que la
+  désactivation d'un organisme, rien n'est supprimé :
+  1. lien actif vers un organisme absent ou inactif : désactivé (il revient si l'organisme est réactivé) ;
+  2. client qui garde des liens actifs sans principal (ni régime obligatoire, ni priorité 1) : celui de plus petite
+     priorité passe en priorité 1, sans devenir régime obligatoire ;
+  3. client assuré ou carnet actif sans lien actif vers un organisme actif : désactivé avec son compte. Il revient par
+     « Clients désactivés » une fois un tiers-payant actif ajouté (étape 3).
+- **Test** : `test-comptage-clients-assures.js` vérifie aussi qu'aucun cas ne reste : 5/6 avant la reprise (1 client),
+  6/6 après. Sur le banc, aucun lien n'était concerné : les points 1 et 2 ont tourné sans cas (aucun chemin d'écran ne
+  produit plus cet état). Tests clients relancés un par un après la reprise (voir le commit).
+- **En officine** : contrôles et reprise arrivent dans le même déploiement ; la reprise passe au démarrage, avant le
+  premier contrôle, qui doit donc trouver 0 et 0. Les clients repris apparaissent dans « Clients désactivés ». Pour
+  connaître leur nombre avant la reprise, déployer d'abord une version qui ne contient que V7.2.30.40.
+- **Incident de banc** : le redéploiement sur domain2 a saturé la mémoire du serveur (tas plein après de nombreux
+  redéploiements, sans lien avec la migration) ; domain2 a été arrêté de force puis redémarré, domain1 n'a pas bougé.
 
 ## 5. Questions tranchées (02/11)
 

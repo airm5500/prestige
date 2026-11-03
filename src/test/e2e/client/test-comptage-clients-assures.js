@@ -6,7 +6,8 @@
  *
  * Parcours par les vues (compte e2e-sa) : CENTRE DE SUPPORT > Santé application, « Lancer les contrôles de
  * cohérence », « Oui ». Attendu : la fenetre de resultat porte les deux controles, avec un nombre de cas (pas
- * d'erreur), en mode « observation ». Le test affiche les deux nombres, rien d'autre.
+ * d'erreur), en mode « observation ». Le test affiche les deux nombres, rien d'autre. Apres la reprise
+ * (V7.2.30.41), les deux nombres sont nuls.
  *
  * node client/test-comptage-clients-assures.js   (BASE=http://localhost:9080/prestige)
  */
@@ -45,6 +46,8 @@ const CONTROLES = ['Client assure actif sans tiers-payant actif', 'Tiers-payant 
       const l = lignes.find((x) => x[0] === libelle);
       ok('Contrôle « ' + libelle + ' » compté en observation', !!l && /^\d+$/.test(l[1]) && l[2] === 'observation', JSON.stringify(l || null));
       if (l) { console.log('      comptage : ' + l[1]); }
+      /* reprise V7.2.30.41 (accord du 03/11) : les donnees anciennes sont reprises, aucun cas ne reste */
+      ok('Reprise faite : aucun cas « ' + libelle + ' »', !!l && l[1] === '0', JSON.stringify(l || null));
     }
     await p.evaluate(() => Ext.ComponentQuery.query('window[title=Résultat des contrôles de cohérence]').forEach((w) => w.close()));
     ok('Aucune erreur JavaScript', erreurs.length === 0, erreurs.join(' | '));
