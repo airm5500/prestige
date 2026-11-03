@@ -8454,9 +8454,20 @@ Ext.define('testextjs.controller.VenteCtr', {
         }
     },
 
+    /** L'enregistrement d'une ligne de la grille de vente, par son rang (ExtJS 4) ou tel que fourni. */
+    enregistrementComptant: function (rowIdx, record) {
+        if (record && record.get) {
+            return record;
+        }
+        const grid = this.getVnogrid && this.getVnogrid();
+        return grid ? grid.getStore().getAt(rowIdx) : null;
+    },
+
     /** Avant le cochage : vente assurance ouverte, paramètre actif ; promotion refusée (Q1.2), visible sans fenêtre. */
-    onLigneComptantBeforeCheck: function (colonne, rowIdx, checked, record) {
+    onLigneComptantBeforeCheck: function (colonne, rowIdx, checked, recordDonne) {
         const me = this;
+        // ExtJS 4 : l'evenement ne porte pas l'enregistrement, il est relu dans le magasin de la grille
+        const record = me.enregistrementComptant(rowIdx, recordDonne);
         if (!me.ligneComptantVo || !me.getCurrent() || me.getSafeComboValue('getTypeVenteCombo', '1') !== '2') {
             return false;
         }
@@ -8468,8 +8479,12 @@ Ext.define('testextjs.controller.VenteCtr', {
     },
 
     /** PUT item/{id}/comptant puis net/assurance ; refus du serveur : la coche revient, message sans fenêtre. */
-    onLigneComptantCheck: function (colonne, rowIdx, checked, record) {
+    onLigneComptantCheck: function (colonne, rowIdx, checked, recordDonne) {
         const me = this;
+        const record = me.enregistrementComptant(rowIdx, recordDonne);
+        if (!record) {
+            return;
+        }
         const revenir = function (msg) {
             record.set('comptant', !checked);
             record.commit();
