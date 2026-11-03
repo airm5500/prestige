@@ -4,7 +4,8 @@ Ext.define('testextjs.view.produits.PrixReference', {
     extend: 'Ext.window.Window',
     xtype: 'prixReference',
     autoShow: true,
-    height: 500,
+    /* cas 2 du 03/11 : la grille « Historique des références » (journal, Q2.6) prend place sous la liste des prix */
+    height: 700,
     width: '50%',
     modal: true,
     title: 'GESTION DES PRIX DE REFERENCE',
@@ -15,7 +16,8 @@ Ext.define('testextjs.view.produits.PrixReference', {
         produit: null
     },
     layout: {
-        type: 'fit'
+        type: 'vbox',
+        align: 'stretch'
     },
     initComponent: function () {
         const me = this;
@@ -82,6 +84,7 @@ Ext.define('testextjs.view.produits.PrixReference', {
             items: [
                 {
                     xtype: 'fieldset',
+                    flex: 1,
                     title: '<span style="color:blue;font-weight:bold;font-size:14px;">LISTE DE PRIX DE REFERENCE [ ' + produit.str_NAME + ' ]</span>',
                     bodyPadding: 20,
                     modelValidation: true,
@@ -226,6 +229,7 @@ Ext.define('testextjs.view.produits.PrixReference', {
                                                 method: 'DELETE',
                                                 success: function (response, options) {
                                                     me.down('grid').getStore().reload();
+                                                    me.chargerJournal();
 
                                                 }, failure: function (response, options) {
 
@@ -250,11 +254,53 @@ Ext.define('testextjs.view.produits.PrixReference', {
 
 
                     }
+                },
+                {
+                    /* cas 2 du 03/11 (Q2.6) : journal des ajouts, modifications et suppressions, fiche article ET
+                     * caisse (qui, quand, origine, avant / apres). Lecture seule. */
+                    xtype: 'fieldset',
+                    title: '<span style="color:blue;font-weight:bold;">HISTORIQUE DES RÉFÉRENCES</span>',
+                    bodyPadding: 5,
+                    layout: 'fit',
+                    items: {
+                        xtype: 'grid',
+                        itemId: 'journalGrid',
+                        height: 150,
+                        emptyText: 'Aucun mouvement journalisé pour ce produit.',
+                        viewConfig: {deferEmptyText: false},
+                        store: Ext.create('Ext.data.Store', {
+                            autoLoad: false,
+                            pageSize: null,
+                            fields: ['id', 'date', 'qui', 'origine', 'tiersPayant', 'action', 'avant', 'apres', 'venteId'],
+                            proxy: {
+                                type: 'ajax',
+                                url: '../api/v1/prix-reference/' + produit.lg_FAMILLE_ID + '/journal',
+                                reader: {type: 'json', root: 'data', totalProperty: 'total'}
+                            }
+                        }),
+                        columns: [
+                            {text: 'Date', dataIndex: 'date', width: 110},
+                            {text: 'Qui', dataIndex: 'qui', flex: 1},
+                            {text: 'Origine', dataIndex: 'origine', flex: 1.2},
+                            {text: 'Tiers-payant', dataIndex: 'tiersPayant', flex: 1},
+                            {text: 'Action', dataIndex: 'action', width: 90},
+                            {text: 'Avant', dataIndex: 'avant', flex: 1},
+                            {text: 'Après', dataIndex: 'apres', flex: 1}
+                        ]
+                    }
                 }
             ]
         });
         me.callParent(arguments);
         me.loadGridData();
+        me.chargerJournal();
+    },
+    /** Journal relu a l'ouverture et apres chaque enregistrement ou suppression. */
+    chargerJournal: function () {
+        const journal = this.down('#journalGrid');
+        if (journal && !journal.destroyed) {
+            journal.getStore().load();
+        }
     },
     onNew: function (produit) {
         const me = this;
@@ -297,6 +343,7 @@ Ext.define('testextjs.view.produits.PrixReference', {
                 progress.hide();
                 wind.destroy();
                 me.down('grid').getStore().reload();
+                me.chargerJournal();
 
             },
             failure: function (response, options) {
