@@ -1,0 +1,292 @@
+menu	sous_menu	composant	statut	privilege
+SERVICE CLIENT	Liste des ventes dépots	ventehistoriquedepotmanager	enable	P_SM_STATISTIQUE_VENTEDEPOT
+SERVICE CLIENT	Fonds de caisse	ouverturecaisseempmanager	enable	P_SM_OUVERTURE_CAISSEMP
+SERVICE CLIENT	Ouverture de Caisse	ouverturecaissemanger	enable	P_SM_OUVERTURECAISSE
+SERVICE CLIENT	Pre-vente	preenregistrementmanager	enable	P_SM_PRE_ENREGISTREMENT
+SERVICE CLIENT	Vente dépôt	ventedepot	enable	P_SM_VENTEDEPOT
+SERVICE CLIENT	Ventes	cloturerventemanager	enable	P_SM_CLOTURER_CAISSE
+SERVICE CLIENT	Vente terminées	ventemanager	enable	P_SM_VENTE
+SERVICE CLIENT	Cloture de Caisse	caissemanger	enable	P_SM_CAISSE
+SERVICE CLIENT	Analyse Posologie	pososmanager	enable	P_SM_POSOS
+SERVICE CLIENT	Liste des ventes annulées	venteannuler	enable	P_SM_VENTEANNULES
+SERVICE CLIENT	Proforma	devismanager	enable	P_SM_DEVIS
+SERVICE CLIENT	Ventes ratées	ventesrateesmanager	enable	P_SM_VENTES_RATEES
+SERVICE CLIENT	Modèles de messages	modelemessagemanager	enable	P_SM_MODELES_MESSAGES
+SERVICE CLIENT	Points fidélité	fideliteclients	enable	P_SM_FIDELITE
+SERVICE CLIENT	Liste des avoirs	venteavoirmanager	enable	P_SM_AVOIR
+SERVICE CLIENT	Rappels traitement	rappelshabitude	enable	P_SM_RAPPELS_HABITUDE
+SERVICE CLIENT	Ordonnancier	ordonnancier	enable	P_SM_ORDONNANCIER
+SERVICE CLIENT	Suivi dossier client	ordonnanceclient	enable	P_ORDONNANCE_CLIENT
+SERVICE CLIENT	Corbeille des ventes	corbeillevente	enable	P_SM_CORBEILLE_VENTE
+SERVICE CLIENT	Ventes sans n° de bon	ventemanagerbis	enable	P_VENTE_WITHOUT_BON
+SERVICE CLIENT	Vendeurs et caissiers	vendeurcaissiermanager	enable	P_SM_VENDEUR_CAISSIER
+SERVICE CLIENT	Ventes unités gratuites	venteugs	enable	P_SM_VENTES_UGS
+SERVICE CLIENT	Retraits et abandons	suppressionsvente	enable	P_SM_SUPPRESSIONS_VENTE
+GESTION COURANTE	Bons par organisme	facturesubrogatoireother	enable	P_SM_FACTURESUBRO_ORGANISME
+GESTION COURANTE	Ticket Z	ticketzmanager	enable	P_SM_TICKETZ
+GESTION COURANTE	Mouvements de Caisse	mvtcaissemanager	enable	P_SM_MVT_CAISSE
+GESTION COURANTE	Visualiser la caisse	visualisercaissemanager	enable	P_SM_VISUALISATION_CAISSE
+GESTION COURANTE	Liste de Caisse	listecaissemanager	enable	P_SM_LISTE_CAISSE
+GESTION COURANTE	Gestion Caisse	gestcaissemanager	enable	P_SM_GEST_CAISSE
+GESTION COURANTE	Journal Vente	journalventemanager	enable	P_SM_JOURNAL_VENTE
+GESTION COURANTE	Point Caisse Depot	pointcaisseview	enable	P_SM_POINT_SALECASHDEPOT
+GESTION COURANTE	Liste des mouvements	mvtcaissebismanager	enable	P_SM_MOUVEMENT_FALSE
+GESTION COURANTE	Balance Depot	balancesalecashdepot	enable	P_SM_BALANCE_SALECASHDEPOT
+GESTION COURANTE	Balance Vente/Caisse	ventecaissemanager	enable	P_SM_BALANCE_VENTECAISSE
+GESTION COURANTE	Balance Vente/Caisse2	balancesalecahs	enable	P_SM_BALANCE_SALECASH
+GESTION COURANTE	Liste des mouvements	cashmovements	enable	P_SM_CASHMOVEMENTS
+GESTION COURANTE	Balance para	balancepara	enable	P_SM_PARA
+GESTION COURANTE	Liste des bons	facturesubrogatoire	enable	P_SM_FACTURE_SUBROGATOIRE
+GESTION COURANTE	Articles vendus récap	articlevendurecapitulatif	enable	P_SM_ARTICLEVENDURECAPITULATIF
+GESTION COURANTE	Caisse/recette	caisserecetterecap	enable	P_SM_RECAP_CAISSE_RECETTE
+GESTION COURANTE	Liste des articles vendus	articlevendumanager	enable	P_SM_ARTICLEVENDU
+GESTION COURANTE	Mouchard prix de vente	mouvementprixvente	enable	P_SM_MOUCHARCAISSEPRIXMODIFIE
+GESTION COURANTE	Gerer Numero Caisse	numerocaissemanager	disable	P_SM_NUMERO_CAISSE
+FACTURATION	Liste des Différés Client	diffmanager	enable	P_SM_DIFFERES
+FACTURATION	Gestion des différés	delayed	enable	P_SM_GESTION_DIF
+FACTURATION	Liste des Reglements	reglementmanager	enable	P_SM_REGLEMENT
+FACTURATION	Factures	facturemanager	enable	P_SM_FACTURE
+FACTURATION	Dossiers à facturer	factureenattenteedition	enable	P_SM_FACTUREATTENTE
+FACTURATION	Récap par organisme	recapOrganisme	enable	P_SM_RECAPITULATIFORGANISME
+FACTURATION	Règlement différé	deferredpayment	disable	P_SM_DEFRREDPAYMENT
+FACTURATION	Factures Compagnies Ass	groupeInvoices	enable	P_SM_GROUPINVOICES
+FACTURATION	Factures provisoires	factureprovisoire	enable	P_SM_PROVI_FACTURE
+FACTURATION	Modèle de facture	modelfacture	enable	P_SM_MODEL_FACTURE
+FACTURATION	Suivi des bons	tpventes	enable	P_SM_TPIERSPAYANT
+FACTURATION	Modèles de facture	modelfacturedynamique	enable	P_SM_MODEL_FACTURE_DYNAMIQUE
+GESTION DES TIERS-PAYANTS	Clients désactivés	clientdesactive	enable	P_SM_CLIENT_DESACTIVE
+GESTION DES TIERS-PAYANTS	Groupe et Compagnie d'Ass	groupetierspayant	enable	P_SM_GROUPETP
+GESTION DES TIERS-PAYANTS	Balance agée détaillée	balanceagee_detail	enable	P_SM_BALANCEAGEE_DETAIL
+GESTION DES TIERS-PAYANTS	Tiers payants désactivés	tierspayantdesactive	enable	P_SM_TIERSPAYANT_DESACTIVE
+GESTION DES TIERS-PAYANTS	Balance âgée récap	balanceagee	enable	P_SM_BALANCEAGEE
+GESTION DES TIERS-PAYANTS	Emplacements/Depot	emplacement	enable	P_SM_EMPLACEMENT
+GESTION DES TIERS-PAYANTS	Gestion des litiges	litige	enable	P_SM_LITIGE
+GESTION DES TIERS-PAYANTS	Regimes Caisse	regimecaissemanager	enable	P_SM_REGIME_CAISSE
+GESTION DES TIERS-PAYANTS	Tiers-payants	tierspayantmanager	enable	P_SM_TIERS_PAYANT
+GESTION DES TIERS-PAYANTS	Dossiers Tiers-payants	dossiertierspayantmanager	enable	P_SM_DOSSIER_TIERS_PAYANTS
+GESTION DES TIERS-PAYANTS	Grille de Remise	grilleremisemanager	enable	P_SM_GRILLE_REMISE
+GESTION DES TIERS-PAYANTS	Remises	remisemanager	enable	P_SM_REMISE
+GESTION DES TIERS-PAYANTS	Type tiers-payants	typetierspayantmanager	enable	P_SM_TYPETIERSPAYANTS
+GESTION DES TIERS-PAYANTS	Taux Rembourssement	tauxrembourssementmanager	enable	P_SM_TAUX_REMBOURSSEMENT
+GESTION DES TIERS-PAYANTS	Facturation Tiers payant	facturationtierspayant	disable	P_SM_FACTURATION_TIERSPAYANT
+GESTION DES TIERS-PAYANTS	Clients	clientmanager	enable	P_SM_CLIENT
+GESTION DES TIERS-PAYANTS	Societes	company	enable	P_SM_COMPANY
+GESTION DES TIERS-PAYANTS	Retour carnet dépôt	retourcarnetdepot	enable	P_SM_RTC_DEPOT
+GESTION DES TIERS-PAYANTS	Tiers-payants exclus	tpexclus	enable	P_SM_TP_EXCLUS
+GESTION DES TIERS-PAYANTS	Balance carnet	balancesalecahsCarnet	enable	P_SM_TP_A_EXCLURE_BALANCE
+GESTION DES TIERS-PAYANTS	Depot carnet	tierpayantasdepot	enable	P_SM_TIERPAYANT_AS_DEPOT
+GESTION DES TIERS-PAYANTS	Gestion carnet dépôt	reglementdepot	enable	P_SM_RG_DEPOT
+GESTION DES TIERS-PAYANTS	Gerer les tp a exclure	tierspExclus	enable	P_SM_TP_A_EXCLURE
+GESTION DES TIERS-PAYANTS	Cautions	cautiontierspayant	enable	P_SM_CAUTIONS_TP
+GESTION DES TIERS-PAYANTS	Gestion depots extensions	depotextension	enable	P_SM_DEPOT_EXTENSION
+GESTION DES TIERS-PAYANTS	Catégorie Client	categorymanager	enable	P_SM_CATEGORY_CLIENT
+MENU PHARMACIEN	Articles en sur-stock	SurStock	enable	P_SM_SUR_STOCK
+MENU PHARMACIEN	Ventes modifiées	ventesmodifieesmanager	enable	P_SM_VENTES_MODIFIEES
+MENU PHARMACIEN	Fichier Journal	logfile	enable	P_SM_LOGFILE
+MENU PHARMACIEN	Gestion des surstocks	gestionsurstock	enable	P_SM_GESTION_SURSTOCK
+GESTION DES PROMOTIONS	Promotions	promotionmanager	enable	P_SM_PROMOTIONS
+GESTION DES PROMOTIONS	Historique des Promotions	promotionhistorymanager	enable	P_SM_PROMOTION_History
+GESTION DES COMMANDES	Suggestion de reappro.	i_sugg_manager	enable	P_SM_SUGG_REAPPRO
+GESTION DES COMMANDES	Prévisions	analysecommande	enable	P_SM_ANALYSE_COMMANDE
+GESTION DES COMMANDES	Proposition Commande	familleorder	enable	P_SM_FAMILLE_ORDER
+GESTION DES COMMANDES	Péremptions courtes	peremptionscourtes	enable	P_SM_PEREMPTIONS_COURTES
+GESTION DES COMMANDES	1- Evaluation des offres		disable	P_SM_EVALUATION
+GESTION DES COMMANDES	Commande en cours	i_order_manager	enable	P_SM_COMMANDE_PROCESS
+GESTION DES COMMANDES	Validation Commande	commandemanager	enable	P_SM_COMMANDE
+GESTION DES COMMANDES	Transaction Commande	warehouseorder	enable	P_SM_WAREHOUSE_ORDER
+GESTION DES COMMANDES	Traitement Commande	traitementcommandemanager	enable	P_SM_TRAITEMENT_COMMANDE
+GESTION DES COMMANDES	Suggerer Commande	suggerercdemanager	delete	P_SM_SUGGERER_CDE
+GESTION DES COMMANDES	Gestion des entrées	bonlivraisonmanager	enable	P_SM_BL
+GESTION DES COMMANDES	3- Suggestions Commandees	suggestionscommandeesmanager	disable	P_SM_SUGGESTIONS_COMMANDEES
+GESTION DES COMMANDES	Enregistrement Commande	registerordermanager	enable	P_SM_ENREGISTREMENT_COMMANDE
+GESTION DES COMMANDES	Suivi des commandes	suiviordermanager	disable	P_SM_SUIVI_COMMANDE
+GESTION DES COMMANDES	Liste des ruptures	rupturepharma	enable	P_SM_RUPTURE_PHARMAML
+GESTION DES COMMANDES	Historique	historiquemanager	enable	P_SM_HISTORIQUE
+GESTION DES COMMANDES	Compte Client	clientaccountmanager	enable	P_SM_CLIENT_ACCOUNT
+GESTION DES COMMANDES	Pointer BL et avoirs	pointagebl	enable	P_SM_POINTAGE_BL
+GESTION DES COMMANDES	Etat de contrôle Achats	etatscontrolemanager	enable	P_SM_ETAT_CHECK_ACHAT
+GESTION DES COMMANDES	Retour fournisseur	retourfrsmanager	enable	P_SM_RETOUR_FRS
+GESTION TEST	Decoupe	decoupemanager	enable	P_SM_DECOUPE
+GESTION DES COMMANDES	Liste des ruptures de stock	rupturefournisseurmanager	disable	P_SM_RUPTURE
+GESTION DES COMMANDES	Etat de control annuel	etatannuel	enable	P_SM_ETAT_CONTROL_ANNUEL
+GESTION DES COMMANDES	Offres de prix	evaluationoffreprixmanager	enable	P_SM_EVALUATION_OFFRE_PRIX
+GESTION DES COMMANDES	Liste des Lots	LotStockManager	enable	P_SM_LISTELOTS
+GESTION DES COMMANDES	Unites Gratuites	ugmanager	enable	P_SM_UG
+GESTION DES COMMANDES	Achats mensuels grossiste	achatgrossistemensuel	enable	P_SM_ACHAT_GROSSISTE_MENSUEL
+GESTION DU STOCK	Retour dépot	retourdepot	enable	P_SM_RETOURDEPOT
+GESTION DU STOCK	Détails	detailsmanager	enable	P_SM_MENU_DETAILS
+GESTION DU STOCK	Gestion des doublons	doublons	enable	P_SM_MENUDOUBLONS
+GESTION DU STOCK	Ecart inventaire	ecartinventaire	disable	P_SM_ECART_INVENTAIRE
+GESTION DU STOCK	Fiche Article	famillemanager	enable	P_SM_FAMILLE
+GESTION DU STOCK	Produits	produitsxx	enable	P_SM_XXXX
+GESTION DU STOCK	Déconditionnement produits	deconditionnement	disable	P_SM_DECONDITIONNEMENT
+GESTION DU STOCK	Produits par code géo	produitscodegeo	enable	P_SM_PRODUITS_CODE_GEO
+GESTION DU STOCK	Liste Articles Désactivés	familledisablemanager	enable	P_SM_ARTICLES_DISABLES
+GESTION DU STOCK	Suivi mouvement article2	monitoringproduct	enable	P_SM_MONITORING
+GESTION DU STOCK	Suivi mouvement article	suivientreevente	enable	P_SM_SUIVI_VENTE
+GESTION DU STOCK	Entrées / sorties détail	detailentreesortie	enable	P_SM_DETAIL_ENTREE_SORTIE
+GESTION DU STOCK	Evaluation des ventes	evaluationventemoyenne	enable	P_SM_EVALUATION_VENTEMOYENNE
+GESTION DU STOCK	Suivi du stock et ventes	suivistockvente	enable	P_SM_SUIVI_STOCK_VENTE
+GESTION DU STOCK	Articles Mouvementés	articlemvtgrid	enable	P_SM_ARTICLEMVT
+GESTION DU STOCK	Articles invendus	stockmort	enable	P_SM_STOCKMORT
+GESTION DU STOCK	Gamme produits	gammeproduits	enable	P_SM_GAMME_PRODUITS
+GESTION DU STOCK	Etat de stock	etatstock	enable	P_SM_ETAT_STOCK
+GESTION DU STOCK	Laboratoire produits	laboratoireproduits	enable	P_SM_LABORATOIRE_PRODUITS
+GESTION DU STOCK	Mise à jour produits	importationgp	enable	P_SM_IMPORT
+GESTION DU STOCK	Annulés en inventaire	venteproduitannules	enable	P_SM_INVENTAIRE_PRODUIT_ANNULES
+GESTION DU STOCK	Travaux d'Inventaire	inventaire	enable	P_SM_INVENTAIRE
+GESTION DU STOCK	Ventes par produit	statproductsell	enable	P_SM_STATPRODUCTSELL
+GESTION DU STOCK	Ajustement du Stock	ajustementmanager	enable	P_SM_AJUSTEMENT
+GESTION DU STOCK	Comparaison stock article	famillestockcomparaisonmanager	enable	P_SM_FAMILLE_COMPARAISON
+GESTION DU STOCK	Saisie des périmés	saisieperime	enable	P_SM_SAISIEPERIME
+GESTION DU STOCK	Gestion des périmés	perime	enable	P_SM_PERIME
+GESTION DU STOCK	Recherche périmés	peremptionquery	enable	P_SM_QUERY
+GESTION DU STOCK	Périmés rétirés du stock	perimeremovetostock	enable	P_SM_PERIMEREMOVETOSTOCK
+GESTION DU STOCK	Étiquettage Pro	etiquetagepro	enable	P_SM_ETIQUETAGE_PRO
+GESTION DU STOCK	Gestion étiquette	etiquette	enable	P_SM_ETIQUETTE
+GESTION DU STOCK	Gestion des réserves	reservemanager	enable	P_SM_RESERVE
+GESTION DU STOCK	Valorisation du stock	valorisationstock	enable	P_SM_VALORISATION_STOCK
+GESTION DU STOCK	Gerer Code Gestion	codegestionmanager	enable	P_SM_CODE_GESTION
+GESTION DU STOCK	Optimisation quantite	optimisationquantitemanager	enable	P_SM_OPTIMISATION_QUANTITE
+GESTION DU STOCK	Liste Article Vendus	articlevendu	enable	P_SM_ARTICLE_VENDUS
+GESTION DU STOCK	Evolution Stock	evolutionstock	enable	P_SM_EVOLUTION_STOCK
+GESTION DU STOCK	Suivi article complet	monitoringarticlecomplet	enable	P_SM_SUIVI_MVT_ARTICLE_COMPLET
+GESTION DU STOCK	Set valorisation	setvalorisation	enable	P_SET_VALORISATION
+PARAMETRAGES	Menu personnel	kobysky	enable	P_SM_KOBYSKY
+PARAMETRAGES	Gestion des imprimantes	imprimantemanager	disable	P_SM_PRINTER
+PARAMETRAGES	Paramétrage général	parametermanager	enable	P_SM_PARAMETER_MANAGER
+PARAMETRAGES	Gestion des devises	devisemanager	enable	P_SM_DEVISE
+PARAMETRAGES	Identification Pharmacie	info_officine	enable	P_INFO_OFFICINE
+PARAMETRAGES	Gerer workflow remise	workflowremisearticlemanager	enable	P_SM_WORKFLOW_REMISE
+PARAMETRAGES	Gerer Ayant Droit	ayantdroitmanager	enable	P_SM_AYANT_DROIT
+PARAMETRAGES	Emplacement	zonegeographiquemanager	enable	P_SM_ZONE_GEO
+PARAMETRAGES	Gerer Type Remise	typeremisemanager	enable	P_SM_TYPE_REMISE
+PARAMETRAGES	Gerer Escompte Societe	escomptesocietemanager	enable	P_SM_ESCOMPTE_SOCIETE
+PARAMETRAGES	Gerer Tranche	tranchemanager	enable	P_SM_TRANCHE
+PARAMETRAGES	Groupe famille	groupefamillemanager	enable	P_SM_GROUPE_FAMILLE
+PARAMETRAGES	Parametres generaux	ParametreGenerauxManager	disable	P_SM_PARAM_GEN
+PARAMETRAGES	Gerer Motif Retour	motifretourmanager	enable	P_SM_MOTIF_RETOUR
+PARAMETRAGES	Gerer Specialite Medecin	specialitemanager	enable	P_SM_SPECIALITE_MEDECIN
+PARAMETRAGES	Gerer Etat Article	etatarticlemanager	enable	P_SM_ETAT_ARTICLE
+PARAMETRAGES	Gerer Ville	villemanager	enable	P_SM_VILLE
+PARAMETRAGES	Gerer Risques	risquemanager	enable	P_SM_RISQUE
+PARAMETRAGES	Catégories ayants droit	categorieayantdroitmanager	enable	P_SM_CAT_AYANT_DROIT
+PARAMETRAGES	Gerer Contre Indication	contreindicationmanager	enable	P_SM_CONTRE_INDICATION
+PARAMETRAGES	Gerer Famille	famillearticlemanager	enable	P_SM_FAMILLE_ARTICLE
+PARAMETRAGES	Gerer les DCI	dcimanager	enable	P_SM_GESTION_DCI
+PARAMETRAGES	Gerer Fiche Societe	fichesocietemanager	enable	P_SM_FICHE_SOCIETE
+PARAMETRAGES	Gerer Centre Payeur	centrepayeurmanager	enable	P_SM_CENTRE_PAYEUR
+PARAMETRAGES	Gerer Forme Article	formearticlemanager	enable	P_SM_FORME_ARTICLE
+PARAMETRAGES	Gerer Type Risque	typerisquemanager	enable	P_SM_TYPE_RISQUE
+PARAMETRAGES	Gerer Type Societe	typesocietemanager	enable	P_SM_TYPE_SOCIETE
+PARAMETRAGES	Gerer medecin	medecinmanager	enable	P_SM_MEDECIN
+PARAMETRAGES	Mode de règlements	modereglementview	enable	P_SM_MODE_REGLEMENT_VIEW
+PARAMETRAGES	Groupe grossistes	groupegrossistes	enable	P_SM_GROUPE_GROSSISTES
+PARAMETRAGES	Motifs règlément	motifreglement	enable	P_SM_MOTIF_REGLEMENT_NEW
+PARAMETRAGES	Gerer Grossistes	grossistemanager	enable	P_SM_GROSSISTE
+PARAMETRAGES	Gerer Fabricant	fabriquantmanager	enable	P_SM_FABRICANT
+PARAMETRAGES	Fournisseurs SMS	smsfournisseur	enable	P_SM_FOURNISSEUR_SMS
+RETROCESSION	Gestion des confrères	confreremanager	enable	P_SM_CONFRERE
+RETROCESSION	Retrocession	retrocessionmanager	enable	P_SM_RETROCESSION
+ANALYSE DE GESTION	Rapport activité	recap	enable	P_SM_RECAP
+ANALYSE DE GESTION	Rapport  de Gestion	RapportGestions	enable	P_SM_RAPPORTGESTIONS
+ANALYSE DE GESTION	Pilotage de l'officine	pilotage	enable	P_SM_PILOTAGE
+ANALYSE DE GESTION	Rapport  de Gestion2	managementreport	enable	P_SM_MANAGEMENTREPORT
+ANALYSE DE GESTION	Chiffre d'Affaires 20/80	vingtquatrevingt	enable	P_SM_VINGTQUATREVINGTS
+ANALYSE DE GESTION	Analyse tiers payants	analysetierspayant	enable	P_SM_ANALYSE_TIERSPAYANT
+ANALYSE DE GESTION	Statistique famille	statfamilleartcl	enable	P_SM_FAMI_STAT
+ANALYSE DE GESTION	Compte d'exploitation	compteExploitation	enable	P_SM_PRESENTATION_COMPTE_EXPLOITATION
+ANALYSE DE GESTION	Balance agée par org.	BalanceAgeOrganismeManager	delete	P_SM_BALANCE_AGE_ORG
+ANALYSE DE GESTION	Ruptures de stock	RuptureStockManager	enable	P_SM_STAT_RUPTUR_STOCK
+ANALYSE DE GESTION	Liste des abandons et annulation	AbandonEtAnnulationManager	delete	P_SM_ABANDON_ANNULATION
+ANALYSE DE GESTION	Tableau de bord du pharmacien2	tableauPhama	enable	P_SM_PHARMDASHBOARD
+ANALYSE DE GESTION	Activité opérateurs	statActiviteOperateurManager	enable	P_SM_STAT_ACTIVITE_OP
+ANALYSE DE GESTION	Fréquentation officine	analyseFrequentationOffManager	enable	P_SM_ANALYSE_FREQENCE
+ANALYSE DE GESTION	Stats famille article	statistiquefamillearticlemanager	enable	P_SM_STAT_FAMILLE_ARTICLE
+ANALYSE DE GESTION	Balance agee detaillée	BalanceAgeDetailleManager	delete	P_SM_BALANCE_AGE_DETAILLE
+ANALYSE DE GESTION	Liste de caisse detaillée	ListeDeCaisseDetailleManager	delete	P_SM_LISTE_CAISSE_DETAILLE
+ANALYSE DE GESTION	Comparaison CA familles	comparaisonChiffreAffaireManager	enable	P_SM_COMP_CHIF_AFF_FAMILLE
+ANALYSE DE GESTION	Liste differes clients	listeDiffereClientManager	delete	P_SM_LIST_DIFF_CLT
+ANALYSE DE GESTION	Unités vendues	statistiqueuniteventemanager	enable	P_SM_STAT_UNIT_VENTE
+ANALYSE DE GESTION	Journal	journalmanager	enable	P_SM_REPORT
+ANALYSE DE GESTION	Balance agee generale	BalanceAgeGeneraleManager	delete	P_SM_BALANCE_AGE_GEN
+ANALYSE DE GESTION	Dossier en attente d'edition	DossierEnAttenteEditionManager	delete	P_SM_DOS_ATENT_EDIT
+ANALYSE DE GESTION	Balance vente caisse	BalanceVenteCaisseManager	delete	P_SM_BALANCE_VENTE_CAISSE
+ANALYSE DE GESTION	Tableau de bord pharmacien	tableauBordPharmacienManager	enable	P_SM_TABLEAU_BORD_PHARMACIEN
+ANALYSE DE GESTION	Journal des ventes	journaldesventesmanager	delete	P_SM_JOURNAL_VENTES
+ANALYSE DE GESTION	Statistiques des ventes	statistiqueventemanager	enable	P_SM_STAT_VENTES
+ANALYSE DE GESTION	Activité des équipes	activiteequipes	enable	P_SM_ACTIVITE_EQUIPES
+ANALYSE DE GESTION	Facture Reglee	facturepaidmanager	enable	P_SM_FACTURE_REGLEE
+ANALYSE DE GESTION	Groupe report	groupereportmanager	disable	P_SM_GROUPEREPORT
+ANALYSE DE GESTION	Tableau pharmacien	recaptableaupharma	enable	P_SM_RECATABLEAUBORD
+ANALYSE DE GESTION	Tableau de bord carnet	tableauPhamaCarnet	enable	P_SM_PHARMDASHBOARD_CARNET
+ANALYSE DE GESTION	Stock Par Produit	reportdynamiquemanager	enable	P_SM_REPORT_DYNAMIC
+ANALYSE DE GESTION	Vente Par Produit	venteproduitmanager	enable	P_SM_VENTE_PRODUIT
+ANALYSE DE GESTION	Marge sur produits	margeproducts	enable	P_SM_MARGEPRODUCTS
+ANALYSE DE GESTION	Journal Recette	journalrecettemanager	enable	P_SM_JOURNAL_RECETTE
+ANALYSE DE GESTION	CA par grossiste	statistiqueProvider	enable	P_SM_PROVIDERS_PRODUITS_STAT
+ANALYSE DE GESTION	Stats produits / labo	statislaboratoireproduits	enable	P_SM_LABORATOIRE_PRODUITS_STAT
+ANALYSE DE GESTION	CA emplacement / famille	cazonegeomanager	enable	P_SM_CA_ZONE_GEO
+ANALYSE DE GESTION	CA par emplacement	statistiqueRayons	enable	P_SM_RAYONS_PRODUITS_STAT
+ANALYSE DE GESTION	Stats produits / gamme	statisgammeproduits	enable	P_SM_GAMME_PRODUITS_STAT
+ANALYSE DE GESTION	Suivi remise	suiviremise	enable	P_SM_SUIVI_REMISE_VENTE
+ANALYSE DE GESTION	Achats annuels	achatannuel	enable	P_SM_ETAT_ACHAT_ANNUEL
+ANALYSE DE GESTION	STATISTIQUE ANNUEL CA	caannuel	enable	P_SM_ETAT_CA_ANNUEL
+ANALYSE DE GESTION	Statistique des achats	orderstatscmp	enable	P_SM_ORDERSTATCMP
+ANALYSE DE GESTION	Récapitulatif activité	activitiessummary	enable	P_SM_ACTIVITIESSUM
+ANALYSE DE GESTION	Statistique sur TVA2	tvastat	enable	P_SM_TVASTATS
+ANALYSE DE GESTION	Statistiques sur TVA	statistiqueTVA	enable	P_SM_TVA
+ANALYSE DE GESTION	Vente / stock famille	analyseventemanager	enable	P_SM_ANALYSEVENTE
+ANALYSE DE GESTION	Ventes mensuelles client	venteavoirclientkmanager	enable	P_SM_VENTECLIENT
+ANALYSE DE GESTION	Achats Mensuels Produits	achatproduitManager	enable	P_SM_ACHAT_PRODUCT
+ANALYSE DE GESTION	Ventes mensuelles société	ventesocieteManager	enable	P_SM_VENTESSOCIETES
+ANALYSE DE GESTION	Achats fournisseurs	achatfourManager	enable	P_SM_ACHATPROVIDER
+ANALYSE DE GESTION	Rétrocessions	RetrocessionsManager	enable	P_SM_SOLDESRETROCESSION
+ANALYSE DE GESTION	Analyse article	analysearticle	enable	P_SM_ANALYSE_ARTICLE
+ANALYSE DE GESTION	Classification ABC	abcmanager	enable	P_SM_CLASSIFICATION_ABC
+ANALYSE DE GESTION	Gestion des gardes	gardemanager	enable	P_SM_GESTION_GARDES
+ANALYSE DE GESTION	Feuille de match	feuilledematch	enable	P_SM_FEUILLE_DE_MATCH
+NOTIFICATIONS	Gestion des Sms	outboudmessagemanager	enable	P_SM_GESTION_SMS
+NOTIFICATIONS	Model Notification	alerteventmanager	enable	P_SM_MODEL_NOTIFICATION
+NOTIFICATIONS	Envoi de SMS RECAP	smsRecap	enable	P_SM_ENVOI_SMS_RECAP_ACTIVITE
+NOTIFICATIONS	Catégorie notification	categorieNotification	enable	P_SM_CATEGORIE_NOTIFICATION_SMS_EMAIL
+NOTIFICATIONS	Menu notifications	menunotification	enable	P_SM_NOTIFICATION_SMS_EMAIL
+GESTION DES UTILISATEURS	Mon compte	myaccountmanager	enable	P_SM_MON_COMPTE
+GESTION DES UTILISATEURS	Utilisateurs	usermanager	enable	P_SM_UTILISATEUR
+GESTION DES UTILISATEURS	Privileges	privilegemanager	enable	P_SM_PRIVILEGE
+GESTION DES UTILISATEURS	Personnalisation	personalisationmanager	disable	P_SM_PERSONNALISATION
+GESTION DES UTILISATEURS	Gestion de profils	rolemanager	enable	P_SM_ROLE
+GESTION DES UTILISATEURS	Langues	languagemanager	enable	P_SM_LANGUAGE
+GESTION DES UTILISATEURS	Deconnexion	basic-panels3	enable	P_SM_DECONNEXION
+GESTION DES UTILISATEURS	Skin	skinmanager	disable	P_SM_SKIN
+CONFIGURATION	Module	modulemanager	enable	P_SM_MODULE
+CONFIGURATION	Table	tablemanager	enable	P_SM_TABLE
+CONFIGURATION	Menu	menumanager	enable	P_SM_MENU
+CONFIGURATION	Produit	productitemmanager	enable	P_SM_PRODUCT_ITEM
+CONFIGURATION	Sous-menu	sousmenumanager	enable	P_SM_SOUSMENU
+CONFIGURATION	Tva	tvamanager	enable	P_SM_TVA
+CONFIGURATION	Type Depense	typedepensemanager	enable	P_SM_TYPE_DEPENSE
+CONFIGURATION	Type Recette	typerecettemanager	enable	P_SM_TYPE_RECETTE
+CONFIGURATION	Type Contenance	typecontenancemanager	enable	P_SM_TYPE_CONTENANCE
+CONFIGURATION	Produit Par Contenance	produitcontenancemanager	enable	
+Campagnes SMS / WhatsApp	Campagnes	campagnes	enable	P_SM_CAMPAGNES
+Campagnes SMS / WhatsApp	Comptes WhatsApp	whatsappcomptes	enable	P_SM_WHATSAPP
+Campagnes SMS / WhatsApp	Discussions WhatsApp	whatsappdiscussions	enable	P_SM_WHATSAPP_DISCUSSIONS
+RESSOURCES HUMAINES	Ressources humaines	rhmanager	enable	P_SM_RH
+GESTION STOCK	Etat Stock	etatstockmanager	enable	P_SM_ETAT_STOCK
+GESTION STOCK	Entree Stock	entreestockmanager	delete	P_SM_ENTREE_STOCK
+Avis clients	Avis clients	avisclients	enable	P_SM_AVIS_CLIENTS
+GESTION STOCK	Entree Stock	entreestockmanager	enable	P_SM_ENTREE_STOCK
+GESTION CLIENT	Institution	institutionmanager	disable	P_SM_INSTITUTION
+GESTION CLIENT	Schema carte	schemacartemanager	disable	P_SM_SCHEMACARTE
+GESTION CLIENT	Preference	preferencemanager	disable	P_SM_PREFERENCE
+GESTION CLIENT	Sms	outboudmessagemanager	enable	P_SM_SMS
+GESTION CLIENT	Email	notification	enable	P_SM_EMAIL
+CENTRE DE SUPPORT	Me contacter	supportcontact	enable	P_SM_SUPPORT_CONTACT
+CENTRE DE SUPPORT	Tickets support	supporttickets	enable	P_SM_SUPPORT_TICKETS
+CENTRE DE SUPPORT	Diagnostic & bugs	supportdiagnostic	enable	P_SM_SUPPORT_DIAGNOSTIC
+CENTRE DE SUPPORT	Stabilité du serveur	supportserveur	enable	P_SM_SUPPORT_SERVEUR
+CENTRE DE SUPPORT	Santé application	supportsante	enable	P_SM_SUPPORT_SANTE
+CENTRE DE SUPPORT	Historique	supporthistorique	enable	P_SM_SUPPORT_HISTORIQUE
+CENTRE DE SUPPORT	Maintenance	supportmaintenance	enable	P_SM_SUPPORT_MAINTENANCE
+CENTRE DE SUPPORT	Audit & rapprochements	auditrapprochements	enable	P_SM_AUDIT
