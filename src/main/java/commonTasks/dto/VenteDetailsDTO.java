@@ -36,6 +36,9 @@ public class VenteDetailsDTO implements Serializable {
     private String strREF;
     private String lgFAMILLEID;
     private String strNAME;
+    /** Audit 05 PR-01 : ligne tarifee par une promotion, et unites gratuites comprises dans la quantite. */
+    private boolean promotion;
+    private Integer unitesOffertes = 0;
     private String intCIP;
     private String intEAN13;
     private String strSTATUT;
@@ -450,6 +453,16 @@ public class VenteDetailsDTO implements Serializable {
         htAmont = (int) Math.ceil((d.getIntPRICE() - d.getIntPRICEREMISE()) / valeurTva1);
         this.montantNetHt = htAmont;
         this.calculationBasePrice = d.getCalculationBasePrice();
+        this.promotion = d.getPromotionProduitId() != null;
+        this.unitesOffertes = this.promotion && d.getIntFREEPACKNUMBER() != null ? d.getIntFREEPACKNUMBER() : 0;
+    }
+
+    public boolean isPromotion() {
+        return promotion;
+    }
+
+    public Integer getUnitesOffertes() {
+        return unitesOffertes;
     }
 
     public VenteDetailsDTO(TPreenregistrementDetail d, boolean b) {

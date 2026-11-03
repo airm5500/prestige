@@ -67,6 +67,14 @@ Ext.define('testextjs.model.caisse.VenteItem', {
         {
             name: 'BISAVOIR',
             type: 'boolean'
+        },
+        {
+            name: 'promotion',
+            type: 'boolean'
+        },
+        {
+            name: 'unitesOffertes',
+            type: 'number'
         }
 
 

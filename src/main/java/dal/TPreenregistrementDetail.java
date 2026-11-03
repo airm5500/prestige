@@ -100,8 +100,19 @@ public class TPreenregistrementDetail implements Serializable {
     private Integer montantTvaUg = 0;
     @Column(name = "calculation_base_price")
     private Integer calculationBasePrice;
+    /** Audit 05 PR-01 : promotion (t_promotion_product) qui a fixe le prix de la ligne ; null sinon. */
+    @Column(name = "promotion_produit_id")
+    private Integer promotionProduitId;
 
     public TPreenregistrementDetail() {
+    }
+
+    public Integer getPromotionProduitId() {
+        return promotionProduitId;
+    }
+
+    public void setPromotionProduitId(Integer promotionProduitId) {
+        this.promotionProduitId = promotionProduitId;
     }
 
     public Integer getPrixAchat() {

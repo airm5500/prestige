@@ -1167,6 +1167,12 @@ Ext.define('testextjs.controller.VenteCtr', {
                 const dataRetour = result.typeVenteId;
                 if (result.success) {
                     me.showAssureContainer(dataRetour);
+                    // audit 05 PR-01 : lignes en promotion revenues au prix public (pas de promotion en assurance)
+                    if (result.promotionsRetirees > 0 && me.getCurrent()) {
+                        me.getCurrent().intPRICE = result.intPRICE;
+                        me.getTotalField().setValue(result.intPRICE);
+                        me.refresh();
+                    }
                     me.getClientSearchTextField().focus(true, 50);
                 } else {
                     Ext.Msg.alert("Message", result.msg);

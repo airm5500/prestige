@@ -534,6 +534,11 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
                                     20)
                             + ";" + DateConverter.amountFormat(opr.getIntPRICEUNITAIR()) + ";"
                             + DateConverter.amountFormat(opr.getIntPRICE()));
+            // audit 05 PR-01 : unites gratuites d'une promotion, comprises dans la quantite et non payees
+            if (opr.getPromotionProduitId() != null && opr.getIntFREEPACKNUMBER() != null
+                    && opr.getIntFREEPACKNUMBER() > 0) {
+                datas.add(" ; ;DONT " + opr.getIntFREEPACKNUMBER() + " OFFERTE(S);;");
+            }
         });
 
         datas.add(";;;;------");
