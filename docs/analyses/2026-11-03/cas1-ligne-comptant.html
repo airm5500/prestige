@@ -2,24 +2,23 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<title>Cas 1 — Vente assurance : ligne au comptant</title>
+<title>Cas 1 — Vente assurance : ligne au comptant (version validée)</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   /* Maquette statique de l'écran VENTE ASSURANCE (VenteView + VenteVNO), thème "Direction A". */
   :root{--navy:#1e3a5f;--navy2:#152d4e;--fond:#ECF1F6;--bord:#C9D5E1;--txt:#1b2733;--vert:#2e7d32;--rouge:#c0392b;--orange:#e07b18;--bleu:#0D47A1;--jaune:#FFF6D5}
   *{box-sizing:border-box}
-  body{margin:0;background:var(--fond);font:12.5px/1.4 "Segoe UI",Tahoma,Arial,sans-serif;color:var(--txt)}
+  body{margin:0;background:var(--fond);font:12.5px/1.4 "Segoe UI",Tahoma,Arial,sans-serif;color:var(--txt);overflow-x:auto}
   .appbar{height:40px;background:linear-gradient(180deg,#1e3a5f,#152d4e);color:#fff;display:flex;align-items:center;padding:0 14px;gap:18px;font-weight:700}
   .appbar .pharm{margin-left:auto;margin-right:auto;background:rgba(255,255,255,.12);padding:4px 26px;border-radius:5px;letter-spacing:.06em}
   .appbar .user{font-weight:400;font-size:11px}
   .fil{background:#fff;border-bottom:1px solid var(--bord);padding:5px 14px;font-weight:700;font-size:12px}
   .note{background:#FFF8E1;border:1px solid #F0D27A;border-left:5px solid var(--orange);border-radius:8px;padding:8px 12px;margin:10px 12px}
   .note b{color:#8a4b00}
+  .note.ok{background:#E8F5E9;border-color:#A5D6A7;border-left-color:var(--vert)} .note.ok b{color:#1b5e20}
   h2{font-size:14px;color:var(--navy);margin:22px 12px 6px;letter-spacing:.06em;text-transform:uppercase}
   .cmt{color:#5a6b7c;font-size:11.5px;margin:0 12px 8px}
-  /* --- enveloppe vente --- */
   .shell{margin:6px 8px 0;border-radius:12px;background:var(--fond);min-width:1240px}
-  body{overflow-x:auto}
   .shell-h{background:linear-gradient(180deg,#1e3a5f,#152d4e);color:#fff;border-radius:12px 12px 0 0;padding:9px 14px;display:flex;align-items:center;gap:8px;font-weight:800;letter-spacing:.08em;font-size:15px}
   .shell-h .r{margin-left:auto;display:flex;gap:6px;align-items:center;font-size:11px;font-weight:700;letter-spacing:0}
   .btn{border:1px solid #9fb0c2;border-radius:4px;background:linear-gradient(#fff,#e9eef3);padding:4px 10px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:5px;font-size:11.5px;color:#1b2733}
@@ -28,8 +27,8 @@
   .btn.teal{background:linear-gradient(145deg,#26a69a,#00897b)} .btn.blue{background:linear-gradient(145deg,#42a5f5,#1e88e5)} .btn.amber{background:linear-gradient(145deg,#f5a623,#d97f06)}
   .bande{background:#fff;border:1px solid var(--bord);border-left:5px solid var(--navy);border-radius:8px;padding:6px 12px 8px;margin:10px 0;display:flex;gap:14px;align-items:center;font-size:11px}
   .bande label{font-weight:800;letter-spacing:.1em;color:#5a6b7c}
-  .seg{display:inline-flex;border:1px solid #9fb0c2;border-radius:4px;overflow:hidden}
-  .seg span{padding:4px 10px;background:#f3f6f9;font-weight:700}
+  .seg{display:inline-flex;border:1px solid #9fb0c2;border-radius:4px;overflow:hidden;flex-shrink:0}
+  .seg span{padding:4px 10px;background:#f3f6f9;font-weight:700;white-space:nowrap}
   .seg span.on{background:var(--navy);color:#fff}
   .champ{border:1px solid #A9BACB;border-radius:3px;background:#fff;padding:4px 7px;min-width:90px;display:inline-block;color:#333}
   .champ.vide{color:#8a97a3}
@@ -37,7 +36,7 @@
   .champ.focus{background:#0de9ca;border-color:#7FC6BC;font-weight:700}
   .cols{display:flex;gap:8px;padding:0 2px}
   .colL{flex:1;min-width:0}
-  .colR{width:400px}
+  .colR{width:400px;flex-shrink:0}
   fieldset{border:1px solid var(--bord);border-radius:8px;padding:8px 12px 10px;margin:0 0 12px;background:#fff;box-shadow:0 1px 4px rgba(21,45,78,.10)}
   legend{font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--navy);padding:0 6px}
   fieldset.tp{background:#F0F8FF}
@@ -52,6 +51,7 @@
   table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
   thead th{background:linear-gradient(180deg,#1e3a5f,#152d4e);color:#EDF3F9;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;padding:8px;text-align:left;border-right:1px solid rgba(255,255,255,.14)}
   thead th:first-child{border-radius:8px 0 0 0}
+  thead th.new{box-shadow:inset 0 -3px 0 var(--orange)}
   tbody td{padding:2px 8px;border-bottom:1px solid #E5EBF1;font-weight:700;font-size:14px;line-height:20px}
   tbody tr:nth-child(even) td{background:#F5F8FB}
   td.num,th.num{text-align:right} td.c,th.c{text-align:center}
@@ -71,17 +71,24 @@
   .rouge{color:var(--rouge)} .vert{color:var(--vert)} .bleu{color:var(--bleu)} .orange{color:#b8860b}
   .recu{border:2px solid #152d4e;border-radius:6px;background:#fff;padding:6px 10px;font-weight:700;font-size:1.25em;width:110px;text-align:right}
   .sep{border-bottom:1px solid var(--bord);margin:6px 0}
-  .toast{position:relative;background:#E8F5E9;border:1px solid #A5D6A7;border-left:5px solid var(--vert);border-radius:6px;padding:6px 10px;margin:8px 0;font-weight:700;color:#1b5e20;font-size:11.5px}
+  .toast{background:#E8F5E9;border:1px solid #A5D6A7;border-left:5px solid var(--vert);border-radius:6px;padding:6px 10px;margin:8px 0;font-weight:700;color:#1b5e20;font-size:11.5px}
+  .param{display:grid;grid-template-columns:60px 90px 1fr 90px 90px;gap:8px;align-items:center;padding:6px 10px;background:#fff;border:1px solid var(--bord);border-radius:6px;font-size:12px;margin:0 12px 10px}
+  .param .tag{background:#5a6b7c;color:#fff;border-radius:10px;padding:1px 8px;font-size:10px;font-weight:700;text-align:center}
+  .sw{width:34px;height:18px;border-radius:9px;background:#C9D5E1;position:relative;display:inline-block}
+  .sw::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff}
+  .sw.on{background:var(--vert)} .sw.on::after{left:18px}
 </style>
 </head>
 <body>
 <div class="appbar"><span>➕ PRESTIGE 3</span><span class="user">mar. 03 nov. 2026 <b>10:42</b></span><span class="pharm">🏥 PHARMACIE</span><span class="user">Caissière</span></div>
 <div class="fil">Ventes</div>
-<div class="note"><b>Maquette — cas 1.</b> Écran VENTE ASSURANCE existant + une colonne à cocher <b>« CPT »</b> (comptant) par ligne. Les lignes cochées sortent du calcul assurance, s'affichent sur fond jaune pâle, et le rail de paiement montre « DONT COMPTANT ». Un seul bouton TERMINER LA VENTE → deux ventes, deux tickets (voir <a href="cas1-tickets.html">cas1-tickets.html</a>). Noms de patients fictifs.</div>
+<div class="note ok"><b>Version validée le 03/11 — cas 1.</b> Variante A retenue : colonne à cocher <b>« C »</b> (comptant) par ligne, visible uniquement en vente <b>Assurance</b> (pas en Carnet) et uniquement si le paramètre ci-dessous est actif. Les lignes cochées sortent du calcul assurance et s'affichent sur fond jaune pâle. À « TERMINER LA VENTE », la vente est <b>scindée en deux ventes distinctes</b> (assurance + comptant), indépendantes pour l'annulation. Tickets : voir <a href="cas1-tickets.html">cas1-tickets.html</a>. Noms fictifs.</div>
 
-<h2>Variante A — colonne « CPT » dans la grille (recommandée)</h2>
-<p class="cmt">La colonne n'apparaît qu'en type Assurance / Carnet (46 px pris sur DESIGNATION). Rien ne change au comptant.</p>
+<h2>0. Paramètre d'activation (Paramétrage général)</h2>
+<p class="cmt">Désactivé par défaut : rien ne change à l'écran ni dans le code de clôture tant qu'il est à 0.</p>
+<div class="param"><span>214</span><span class="tag">Ventes et caisse</span><span><b>Vente assurance : lignes au comptant</b> — permet de cocher des produits non pris en charge, scindés en une vente comptant à la clôture</span><span>CUSTOMER</span><span class="sw"></span></div>
 
+<h2>1. Saisie — une ligne cochée « C »</h2>
 <div class="shell">
   <div class="shell-h">VENTE ASSURANCE
     <span class="r"><span class="btn cyan">POINT MOBILE MONEY</span><span class="champ vide" style="min-width:230px">▭ Scanner le ticket ou saisir le n°</span><span class="btn">🧾 Ventes en attente</span></span></div>
@@ -107,10 +114,10 @@
           <div class="row" style="margin-left:40px;font-size:11px"><span class="lab">Stock</span><span class="bleu">42</span><span class="lab" style="margin-left:20px">Rayon</span><span class="bleu">B-07</span><span class="lab" style="margin-left:20px">Péremption</span><span class="bleu">08/2027</span></div>
         </fieldset>
         <fieldset style="padding:8px 6px 0"><legend>Liste des articles choisis</legend>
-          <div class="gbar"><span class="champ vide" style="min-width:150px">Recherche d'un produit</span><span class="btn">🔍 rechercher</span><span class="lab">REMISE:</span><span class="champ sel vide" style="min-width:120px">Choisir une remise...</span>
+          <div class="gbar"><span class="champ vide" style="min-width:150px">Recherche d'un produit</span><span class="btn">🔍 rechercher</span><span class="lab">REMISE:</span><span class="champ sel" style="min-width:120px">Remise 5 %</span>
             <span class="total"><small>TOTAL</small>14 005 CFA</span></div>
           <table>
-            <thead><tr><th style="width:40px">LG</th><th style="width:85px">C.CIP</th><th>Designation</th><th class="num" style="width:58px">QD</th><th class="num" style="width:58px">QS</th><th class="num" style="width:75px">P.U</th><th class="num" style="width:85px">Montant</th><th class="c" style="width:46px" title="Au comptant : non pris par l'assurance">CPT</th><th style="width:36px"></th></tr></thead>
+            <thead><tr><th style="width:40px">LG</th><th style="width:85px">C.CIP</th><th>Designation</th><th class="num" style="width:58px">QD</th><th class="num" style="width:58px">QS</th><th class="num" style="width:75px">P.U</th><th class="num" style="width:85px">Montant</th><th class="c new" style="width:40px" title="Comptant : produit non pris en charge par l'assurance">C</th><th style="width:36px"></th></tr></thead>
             <tbody>
               <tr><td>1</td><td>3400210</td><td>RAPICLAV 1G CPR B/14</td><td class="num qd">1</td><td class="num">1</td><td class="num">6 725</td><td class="num">6 725</td><td class="c"><span class="chk"></span></td><td class="c">🗑</td></tr>
               <tr><td>2</td><td>3400211</td><td>ISOLONE 20MG CPR EFFV B/20</td><td class="num qd">1</td><td class="num">1</td><td class="num">3 145</td><td class="num">3 145</td><td class="c"><span class="chk"></span></td><td class="c">🗑</td></tr>
@@ -124,18 +131,18 @@
       <div class="colR">
         <fieldset class="pay"><legend>Réglement</legend>
           <div class="mont">
-            <span>NET A PAYER :</span><span class="v rouge">7 095 CFA</span>
-            <span>MONTANT REMISE :</span><span class="v vert">0 CFA</span>
+            <span>NET A PAYER :</span><span class="v rouge">6 740 CFA</span>
+            <span>MONTANT REMISE :</span><span class="v vert">355 CFA</span>
             <span>PART ASSURANCE :</span><span class="v bleu">6 909 CFA</span>
-            <span>DONT COMPTANT :</span><span class="v orange">4 135 CFA</span>
-            <span>DONT PART CLIENT :</span><span class="v">2 960 CFA</span>
+            <span>DONT COMPTANT :</span><span class="v orange">3 930 CFA</span>
+            <span>DONT PART CLIENT :</span><span class="v">2 810 CFA</span>
           </div>
           <div class="row" style="margin-top:6px"><span class="lab">TYPE RÈGLEMENT :</span><span class="champ sel" style="min-width:180px">💵 Espèces</span></div>
           <div class="sep"></div>
-          <div class="row"><span class="lab">💰 MONTANT RECU :</span><span class="recu">7 095</span></div>
+          <div class="row"><span class="lab">💰 MONTANT RECU :</span><span class="recu">6 740</span></div>
           <div class="mont" style="margin-top:6px"><span>MONNAIE :</span><span class="v bleu">0 CFA</span><span>Dernière Monnaie :</span><span class="v bleu">0 CFA</span></div>
           <div class="sep"></div>
-          <span class="btn act teal">💳 TERMINER LA VENTE — 2 tickets</span>
+          <span class="btn act teal">💳 TERMINER LA VENTE</span>
           <span class="btn act blue">⏸ METTRE EN ATTENTE</span>
           <span class="btn act blue">📄 AFFICHER NET A PAYER</span>
           <span class="btn act amber">↩ RETOUR</span>
@@ -144,25 +151,12 @@
     </div>
   </div>
 </div>
+<p class="cmt" style="margin-top:8px">Calcul de l'exemple avec la remise produit 5 % (Q1.1) : lignes assurance 9 870 → part MCI-CARE 70 % = 6 909, part client 2 961 − remise 5 % (148) ≈ 2 810 ; ligne comptant 4 135 − 5 % (207) ≈ 3 930 ; net 6 740 (arrondis au multiple de 5 comme aujourd'hui). Le montant reçu est imputé d'abord sur le comptant, puis sur la part client (Q1.3). Pas de promotion sur la ligne cochée (Q1.2).</p>
 
-<h2>Variante B — bascule par la colonne d'action (sans nouvelle colonne)</h2>
-<p class="cmt">Si la largeur de la grille est jugée trop juste : l'icône 💶 à côté de la corbeille bascule la ligne. L'état se lit par la couleur et la pastille. Moins lisible qu'une case : à réserver si la colonne CPT gêne.</p>
-<div class="shell" style="margin-bottom:10px"><div style="padding:10px">
-  <fieldset style="padding:8px 6px 0;margin:0"><legend>Liste des articles choisis</legend>
-    <table>
-      <thead><tr><th style="width:40px">LG</th><th style="width:85px">C.CIP</th><th>Designation</th><th class="num" style="width:58px">QD</th><th class="num" style="width:58px">QS</th><th class="num" style="width:75px">P.U</th><th class="num" style="width:85px">Montant</th><th style="width:64px"></th></tr></thead>
-      <tbody>
-        <tr><td>1</td><td>3400210</td><td>RAPICLAV 1G CPR B/14</td><td class="num qd">1</td><td class="num">1</td><td class="num">6 725</td><td class="num">6 725</td><td class="c" title="Passer au comptant">💶 🗑</td></tr>
-        <tr class="cpt"><td>2</td><td>3400212</td><td>KETODERM 2% CREME T/15G <span class="pastille">COMPTANT</span></td><td class="num qd">1</td><td class="num">1</td><td class="num">4 135</td><td class="num">4 135</td><td class="c" title="Remettre en assurance">🛡 🗑</td></tr>
-      </tbody>
-    </table>
-  </fieldset>
-</div></div>
-
-<h2>Après « TERMINER LA VENTE » — retour à l'écran</h2>
-<p class="cmt">Aucune fenêtre : un bandeau sous le titre confirme les deux ventes créées et les tickets imprimés, avec réimpression possible par ticket.</p>
+<h2>2. Après « TERMINER LA VENTE »</h2>
+<p class="cmt">Aucune fenêtre : un bandeau confirme les deux ventes créées, chacune avec sa référence, sa transaction de caisse et son annulation propre. Deux tickets : assurance (exemplaires par tiers-payant) et client combiné, plus le reçu caisse habituel.</p>
 <div class="shell" style="margin-bottom:24px"><div style="padding:10px">
-  <div class="toast">✔ Vente terminée : <b>VO-2026-01039</b> (assurance, part client 2 960 CFA) + <b>VNO-2026-01040</b> (comptant, 4 135 CFA) — 3 tickets imprimés (1 assurance MCI-CARE, 1 comptant, 1 reçu caisse). &nbsp;<span class="btn">🖨 Réimprimer le ticket assurance</span> <span class="btn">🖨 Réimprimer le ticket comptant</span></div>
+  <div class="toast">✔ Vente terminée et scindée : <b>VO-2026-01039</b> (assurance, part client 2 810 CFA) et <b>VNO-2026-01040</b> (comptant, 3 930 CFA). Tickets imprimés : assurance MCI-CARE, client combiné, reçu caisse. &nbsp;<span class="btn">🖨 Ticket assurance</span> <span class="btn">🖨 Ticket client</span></div>
 </div></div>
 </body>
 </html>

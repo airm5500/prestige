@@ -1,6 +1,7 @@
 # Analyses du 3 novembre 2026 — quatre fonctionnalités à venir
 
 Demande d'origine : [analyse_new.md](analyse_new.md) (copie du fichier de l'utilisateur, noms de personnes masqués).
+Réponses et décisions du 03/11 : [reponses_evolution.md](reponses_evolution.md) — chaque analyse commence par un §0 « Décisions » et les maquettes sont la version validée.
 Ce dossier ne contient **que des documents et des maquettes HTML statiques** : aucun code de l'application n'a été modifié.
 Les maquettes s'ouvrent directement dans un navigateur (largeur recommandée ≥ 1 280 px pour les écrans de vente).
 

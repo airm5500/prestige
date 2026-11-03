@@ -2,11 +2,10 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<title>Cas 3 — Ordonnancier : onglet Produits</title>
+<title>Cas 3 — Ordonnancier : onglets Produits (version validée)</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
-  /* Maquette statique, fidèle au thème Prestige (navy #1e3a5f, fond #ECF1F6, cartes blanches). */
-  :root{--navy:#1e3a5f;--navy2:#152d4e;--fond:#ECF1F6;--bord:#C9D5E1;--txt:#1b2733;--vert:#2e7d32;--rouge:#c0392b;--orange:#e07b18;--bleu:#0D47A1}
+  :root{--navy:#1e3a5f;--navy2:#152d4e;--fond:#ECF1F6;--bord:#C9D5E1;--txt:#1b2733;--vert:#2e7d32;--rouge:#c0392b;--orange:#e07b18;--bleu:#0D47A1;--violet:#8E24AA}
   *{box-sizing:border-box}
   body{margin:0;background:var(--fond);font:12.5px/1.4 "Segoe UI",Tahoma,Arial,sans-serif;color:var(--txt)}
   .appbar{height:40px;background:linear-gradient(180deg,#1e3a5f,#152d4e);color:#fff;display:flex;align-items:center;padding:0 14px;gap:18px;font-weight:700}
@@ -14,8 +13,8 @@
   .appbar .user{font-weight:400;font-size:11px}
   .fil{background:#fff;border-bottom:1px solid var(--bord);padding:5px 14px;font-weight:700;font-size:12px}
   .page{margin:10px 12px}
-  .note{background:#FFF8E1;border:1px solid #F0D27A;border-left:5px solid var(--orange);border-radius:8px;padding:8px 12px;margin-bottom:10px}
-  .note b{color:#8a4b00}
+  .note{background:#E8F5E9;border:1px solid #A5D6A7;border-left:5px solid var(--vert);border-radius:8px;padding:8px 12px;margin-bottom:10px}
+  .note b{color:#1b5e20}
   .carte{background:#fff;border:1px solid var(--bord);border-radius:8px;box-shadow:0 1px 4px rgba(21,45,78,.10)}
   .barre{display:flex;align-items:center;gap:8px;padding:7px 10px;border-bottom:1px solid var(--bord);flex-wrap:wrap}
   .barre label{font-weight:700;font-size:11px}
@@ -25,10 +24,7 @@
   .btn{border:1px solid #9fb0c2;border-radius:4px;background:linear-gradient(#fff,#e9eef3);padding:4px 10px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:5px;font-size:12px}
   .btn.ico::before{content:"";width:12px;height:12px;border-radius:3px;background:#5f9ad7;display:inline-block}
   .btn.vert{background:var(--vert);color:#fff;border-color:#1b5e20}
-  .btn.vert::before{background:#fff}
   .btn.rouge{background:#d84315;color:#fff;border-color:#a33009}
-  .btn.rouge::before{background:#fff}
-  .btn.navy{background:var(--navy);color:#fff;border-color:var(--navy2)}
   .btn.confirm{background:#f5a623;color:#fff;border-color:#b86e00}
   .estompe{opacity:.45}
   .onglets{display:flex;gap:4px;padding:8px 10px 0}
@@ -39,23 +35,24 @@
   thead th{background:linear-gradient(180deg,#1e3a5f,#152d4e);color:#EDF3F9;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;padding:8px;text-align:left;border-right:1px solid rgba(255,255,255,.14)}
   tbody td{padding:4px 8px;border-bottom:1px solid #E5EBF1;font-weight:700;font-size:13px;line-height:18px}
   tbody tr:nth-child(even) td{background:#F5F8FB}
-  td.num,th.num{text-align:right}
-  td.c,th.c{text-align:center}
+  td.num,th.num{text-align:right} td.c,th.c{text-align:center}
   .chk{display:inline-block;width:15px;height:15px;border:1px solid #6b7c8d;border-radius:3px;background:#fff;vertical-align:middle;position:relative}
   .chk.on{background:var(--navy);border-color:var(--navy)}
   .chk.on::after{content:"";position:absolute;left:4px;top:1px;width:5px;height:9px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg)}
   .pastille{display:inline-block;padding:0 6px;border-radius:3px;font-size:10px;letter-spacing:.05em;color:#fff;margin-left:6px;vertical-align:middle}
-  .p-ord{background:var(--bleu)} .p-sens{background:#8E24AA} .p-tab{background:#5a6b7c}
+  .p-ord{background:var(--bleu)} .p-sens{background:var(--violet)} .p-tab{background:#5a6b7c}
+  @keyframes clignote{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(142,36,170,.6)}50%{opacity:.35;box-shadow:0 0 0 6px rgba(142,36,170,0)}}
+  .p-sens.vente{animation:clignote 1s ease-in-out 3}
+  .p-sens.vente.infini{animation-iteration-count:infinite}
+  @media (prefers-reduced-motion:reduce){.p-sens.vente{animation:none;outline:2px solid var(--violet);outline-offset:1px}}
   .pied{display:flex;align-items:center;gap:6px;padding:6px 10px;border-top:1px solid var(--bord);font-size:11px;color:#4a5968}
   .pied .pg{border:1px solid #9fb0c2;border-radius:3px;padding:1px 7px;background:#fff}
   .pied .pg.on{background:var(--navy);color:#fff}
   .pied .droite{margin-left:auto}
-  .legende{display:flex;gap:18px;padding:6px 10px;font-size:11px;color:#4a5968;border-top:1px solid var(--bord)}
-  .variante{margin-top:28px}
+  .legende{display:flex;gap:18px;padding:6px 10px;font-size:11px;color:#4a5968;border-top:1px solid var(--bord);flex-wrap:wrap}
   h2{font-size:14px;color:var(--navy);margin:18px 0 6px;letter-spacing:.06em;text-transform:uppercase}
   .cmt{color:#5a6b7c;font-size:11.5px;margin:0 0 8px}
-  .ligne-vente{display:flex;gap:8px;align-items:center;padding:6px 10px;border-bottom:1px solid #E5EBF1;font-weight:700}
-  .ligne-vente .cip{color:#5a6b7c;width:90px}
+  .small{font-size:11px;color:#5a6b7c}
 </style>
 </head>
 <body>
@@ -63,11 +60,11 @@
 <div class="fil">Ordonnancier</div>
 
 <div class="page">
-<div class="note"><b>Maquette — cas 3.</b> Troisième onglet <b>« Produits »</b> dans l'écran Ordonnancier existant. Les onglets <i>Registre</i> et <i>Analyse</i> ne changent pas. La barre de filtres du haut (dates, médecin) est estompée sur cet onglet, qui a sa propre barre. Chaque case est enregistrée au clic (API REST), sans bouton Enregistrer ni fenêtre.</div>
+<div class="note"><b>Version validée le 03/11 — cas 3.</b> Variante C : deux onglets <b>« Produits ordonnancier »</b> et <b>« Produits sensibles »</b> ajoutés à l'écran Ordonnancier. <i>Registre</i> et <i>Analyse</i> ne changent pas. Chaque case est enregistrée au clic (REST), sans bouton Enregistrer ni fenêtre ; même droit que le menu. Un produit sensible est traité comme un produit ordonnancier partout (médecin obligatoire, registre, éditions), code tableau facultatif. À la vente, la pastille « SENSIBLE » clignote.</div>
 
-<!-- ======================= VARIANTE A : deux cases par ligne ======================= -->
-<h2>Variante A — deux cases par ligne (Ordonnancier / Sensible)</h2>
-<p class="cmt">Un seul onglet, une ligne par article. Convient si « sensible » est un simple sous-type d'ordonnancier (question Q3.2).</p>
+<!-- ======================= ONGLET 1 ======================= -->
+<h2>1. Onglet « Produits ordonnancier »</h2>
+<p class="cmt">La barre commune (dates, médecin) est estompée sur ces onglets ; l'onglet a sa propre barre. Règle inchangée : un produit entre au registre s'il est coché <b>et</b> a un code tableau — les lignes sans code tableau sont signalées.</p>
 <div class="carte">
   <div class="barre estompe">
     <label>Du :</label><span class="champ">03/11/2026 📅</span>
@@ -76,95 +73,71 @@
     <span class="champ vide" style="min-width:230px">Nom du client ou référence...</span>
     <span class="btn ico">rechercher</span><span class="btn ico">Imprimer</span><span class="btn ico">Exporter</span><span class="btn ico">Créer inventaire</span>
   </div>
-  <div class="onglets"><span class="onglet">Registre</span><span class="onglet">Analyse</span><span class="onglet actif nouveau">Produits</span></div>
+  <div class="onglets"><span class="onglet">Registre</span><span class="onglet">Analyse</span><span class="onglet actif nouveau">Produits ordonnancier</span><span class="onglet nouveau">Produits sensibles</span></div>
   <div class="barre" style="border-top:1px solid var(--bord)">
     <span class="champ vide" style="min-width:260px">Nom ou CIP… (Entrée)</span>
-    <label>Rayon :</label><span class="champ sel vide" style="min-width:130px">Tous</span>
-    <label>Afficher :</label><span class="champ sel" style="min-width:170px">Produits ordonnancier</span>
+    <label>Code tableau :</label><span class="champ sel vide" style="min-width:90px">Tous</span>
+    <label>Afficher :</label><span class="champ sel" style="min-width:170px">Produits cochés</span>
     <span class="btn ico">Rechercher</span><span class="btn">Effacer</span>
     <span style="margin-left:auto;font-weight:700">128 produits</span>
-    <span class="btn vert">Cocher « Ordonnancier » sur tout le résultat</span>
+    <span class="btn vert">Cocher tout le résultat</span>
     <span class="btn rouge">Décocher tout le résultat</span>
   </div>
   <table>
-    <thead><tr><th style="width:40px">LG</th><th style="width:100px">C.CIP</th><th>Désignation</th><th style="width:90px">Code tableau</th><th class="num" style="width:90px">Prix vente</th><th class="num" style="width:70px">Stock</th><th class="c" style="width:110px">Ordonnancier</th><th class="c" style="width:90px">Sensible</th></tr></thead>
+    <thead><tr><th style="width:40px">LG</th><th style="width:100px">C.CIP</th><th>Désignation</th><th style="width:100px">Code tableau</th><th class="num" style="width:90px">Prix vente</th><th class="num" style="width:70px">Stock</th><th class="c" style="width:110px">Ordonnancier</th><th style="width:150px">Coché par / le</th></tr></thead>
     <tbody>
-      <tr><td>1</td><td>3400930</td><td>ALPRAZOLAM 0,25MG CPR B/30</td><td><span class="pastille p-tab">B</span></td><td class="num">1 450</td><td class="num">42</td><td class="c"><span class="chk on"></span></td><td class="c"><span class="chk"></span></td></tr>
-      <tr><td>2</td><td>3400931</td><td>BROMAZEPAM 6MG CPR B/30</td><td><span class="pastille p-tab">B</span></td><td class="num">1 980</td><td class="num">17</td><td class="c"><span class="chk on"></span></td><td class="c"><span class="chk"></span></td></tr>
-      <tr><td>3</td><td>3400932</td><td>CODEINE/PARACETAMOL 500MG CPR B/16</td><td><span class="pastille p-tab">A</span></td><td class="num">2 300</td><td class="num">0</td><td class="c"><span class="chk on"></span></td><td class="c"><span class="chk on"></span></td></tr>
-      <tr><td>4</td><td>3400933</td><td>MISOPROSTOL 200µG CPR B/30</td><td>—</td><td class="num">8 700</td><td class="num">6</td><td class="c"><span class="chk"></span></td><td class="c"><span class="chk on"></span></td></tr>
-      <tr><td>5</td><td>3400934</td><td>TRAMADOL 50MG GEL B/20</td><td><span class="pastille p-tab">A</span></td><td class="num">2 150</td><td class="num">31</td><td class="c"><span class="chk on"></span></td><td class="c"><span class="chk"></span></td></tr>
-      <tr><td>6</td><td>3400935</td><td>ZOLPIDEM 10MG CPR B/14</td><td><span class="pastille p-tab">B</span></td><td class="num">3 400</td><td class="num">12</td><td class="c"><span class="chk on"></span></td><td class="c"><span class="chk"></span></td></tr>
-      <tr><td>7</td><td>3400936</td><td>SILDENAFIL 100MG CPR B/4</td><td>—</td><td class="num">5 900</td><td class="num">25</td><td class="c"><span class="chk"></span></td><td class="c"><span class="chk on"></span></td></tr>
+      <tr><td>1</td><td>3400930</td><td>ALPRAZOLAM 0,25MG CPR B/30</td><td><span class="pastille p-tab">B</span></td><td class="num">1 450</td><td class="num">42</td><td class="c"><span class="chk on"></span></td><td class="small">Dr K. — 12/09/2026</td></tr>
+      <tr><td>2</td><td>3400931</td><td>BROMAZEPAM 6MG CPR B/30</td><td><span class="pastille p-tab">B</span></td><td class="num">1 980</td><td class="num">17</td><td class="c"><span class="chk on"></span></td><td class="small">Dr K. — 12/09/2026</td></tr>
+      <tr><td>3</td><td>3400932</td><td>CODEINE/PARACETAMOL 500MG CPR B/16</td><td><span class="pastille p-tab">A</span></td><td class="num">2 300</td><td class="num">0</td><td class="c"><span class="chk on"></span></td><td class="small">Dr K. — 12/09/2026</td></tr>
+      <tr><td>4</td><td>3400934</td><td>TRAMADOL 50MG GEL B/20</td><td><span class="pastille p-tab">A</span></td><td class="num">2 150</td><td class="num">31</td><td class="c"><span class="chk on"></span></td><td class="small">A. M. — 03/11/2026</td></tr>
+      <tr><td>5</td><td>3400941</td><td>TRAMADOL 100MG/ML SOL BUV FL/10ML <span class="pastille" style="background:var(--orange)">SANS CODE TABLEAU</span></td><td style="color:var(--orange)">— à saisir</td><td class="num">3 950</td><td class="num">4</td><td class="c"><span class="chk on"></span></td><td class="small">A. M. — 03/11/2026</td></tr>
+      <tr><td>6</td><td>3400935</td><td>ZOLPIDEM 10MG CPR B/14</td><td><span class="pastille p-tab">B</span></td><td class="num">3 400</td><td class="num">12</td><td class="c"><span class="chk on"></span></td><td class="small">Dr K. — 12/09/2026</td></tr>
     </tbody>
   </table>
-  <div class="legende"><span><span class="chk on"></span> enregistré au clic</span><span><span class="pastille p-tab" style="margin:0">B</span> code tableau de la fiche article (lecture seule ici)</span><span>« — » : sans code tableau → voir Q3.1</span></div>
+  <div class="legende"><span><span class="chk on"></span> enregistré au clic</span><span><span class="pastille p-tab" style="margin:0">B</span> code tableau de la fiche article, saisissable ici (texte libre, comme la fiche)</span><span><span class="pastille" style="background:var(--orange);margin:0">SANS CODE TABLEAU</span> coché mais n'entre pas au registre tant que le code manque (règle conservée, Q3.1)</span></div>
   <div class="pied"><span class="pg">«</span><span class="pg">‹</span><span class="pg on">1</span><span class="pg">2</span><span class="pg">3</span><span class="pg">›</span><span class="pg">»</span><span class="pg">⟳</span><span class="droite">Page 1 - 20 sur 128</span></div>
 </div>
 
-<!-- ======================= VARIANTE B : confirmation dans le bouton ======================= -->
-<h2>Variante B — même onglet, cochage en lot en deux temps (confirmation dans le bouton)</h2>
-<p class="cmt">Le bouton de lot affiche d'abord le nombre réel renvoyé par le serveur (<code>simuler: true</code>, comme dans <code>Products.js</code>), puis devient « Confirmer ». Aucune fenêtre.</p>
-<div class="carte">
-  <div class="barre">
-    <span class="champ" style="min-width:260px">tram</span>
-    <label>Rayon :</label><span class="champ sel vide" style="min-width:130px">Tous</span>
-    <label>Afficher :</label><span class="champ sel" style="min-width:170px">Tous</span>
-    <span class="btn ico">Rechercher</span><span class="btn">Effacer</span>
-    <span style="margin-left:auto;font-weight:700">6 produits</span>
-    <span class="btn confirm">Confirmer : cocher « Sensible » sur 6 produits</span>
-    <span class="btn">Annuler</span>
-  </div>
-  <table>
-    <thead><tr><th style="width:40px">LG</th><th style="width:100px">C.CIP</th><th>Désignation</th><th style="width:90px">Code tableau</th><th class="num" style="width:90px">Prix vente</th><th class="num" style="width:70px">Stock</th><th class="c" style="width:110px">Ordonnancier</th><th class="c" style="width:90px">Sensible</th></tr></thead>
-    <tbody>
-      <tr><td>1</td><td>3400934</td><td>TRAMADOL 50MG GEL B/20</td><td><span class="pastille p-tab">A</span></td><td class="num">2 150</td><td class="num">31</td><td class="c"><span class="chk on"></span></td><td class="c"><span class="chk"></span></td></tr>
-      <tr><td>2</td><td>3400940</td><td>TRAMADOL 100MG CPR LP B/30</td><td><span class="pastille p-tab">A</span></td><td class="num">4 800</td><td class="num">9</td><td class="c"><span class="chk on"></span></td><td class="c"><span class="chk"></span></td></tr>
-      <tr><td>3</td><td>3400941</td><td>TRAMADOL 100MG/ML SOL BUV FL/10ML</td><td>—</td><td class="num">3 950</td><td class="num">4</td><td class="c"><span class="chk"></span></td><td class="c"><span class="chk"></span></td></tr>
-      <tr><td>4</td><td>3400942</td><td>TRAMADOL/PARACETAMOL 37,5MG CPR B/20</td><td><span class="pastille p-tab">A</span></td><td class="num">3 100</td><td class="num">22</td><td class="c"><span class="chk on"></span></td><td class="c"><span class="chk"></span></td></tr>
-      <tr><td>5</td><td>3400943</td><td>TRAMADOL 50MG INJ B/5</td><td>—</td><td class="num">6 200</td><td class="num">2</td><td class="c"><span class="chk"></span></td><td class="c"><span class="chk"></span></td></tr>
-      <tr><td>6</td><td>3400944</td><td>TRAMADOL 150MG CPR LP B/30</td><td><span class="pastille p-tab">A</span></td><td class="num">5 300</td><td class="num">0</td><td class="c"><span class="chk on"></span></td><td class="c"><span class="chk"></span></td></tr>
-    </tbody>
-  </table>
-  <div class="pied"><span class="pg">«</span><span class="pg">‹</span><span class="pg on">1</span><span class="pg">›</span><span class="pg">»</span><span class="pg">⟳</span><span class="droite">Page 1 - 6 sur 6</span></div>
-</div>
-
-<!-- ======================= VARIANTE C : deux sous-onglets ======================= -->
-<h2>Variante C — deux onglets séparés « Produits ordonnancier » et « Produits sensibles »</h2>
-<p class="cmt">Si l'on veut deux listes gérées par des personnes différentes, ou si « sensible » suit une règle distincte (pas de code tableau requis). Même grille, une seule colonne à cocher par onglet.</p>
+<!-- ======================= ONGLET 2 ======================= -->
+<h2>2. Onglet « Produits sensibles » — cochage en lot avec confirmation dans le bouton</h2>
+<p class="cmt">Même grille, une seule colonne à cocher. Le bouton de lot affiche d'abord le nombre réel renvoyé par le serveur (<code>simuler: true</code>, comme <code>Products.js</code>) puis devient « Confirmer ». Code tableau facultatif pour un produit sensible.</p>
 <div class="carte">
   <div class="onglets"><span class="onglet">Registre</span><span class="onglet">Analyse</span><span class="onglet nouveau">Produits ordonnancier</span><span class="onglet actif nouveau">Produits sensibles</span></div>
   <div class="barre" style="border-top:1px solid var(--bord)">
-    <span class="champ vide" style="min-width:260px">Nom ou CIP… (Entrée)</span>
-    <label>Afficher :</label><span class="champ sel" style="min-width:170px">Produits sensibles</span>
-    <span class="btn ico">Rechercher</span>
-    <span style="margin-left:auto;font-weight:700">3 produits</span>
-    <span class="btn vert">Cocher tout le résultat</span><span class="btn rouge">Décocher tout le résultat</span>
+    <span class="champ" style="min-width:260px">miso</span>
+    <label>Afficher :</label><span class="champ sel" style="min-width:170px">Tous</span>
+    <span class="btn ico">Rechercher</span><span class="btn">Effacer</span>
+    <span style="margin-left:auto;font-weight:700">4 produits</span>
+    <span class="btn confirm">Confirmer : cocher « Sensible » sur 4 produits</span>
+    <span class="btn">Annuler</span>
   </div>
   <table>
-    <thead><tr><th style="width:40px">LG</th><th style="width:100px">C.CIP</th><th>Désignation</th><th class="num" style="width:90px">Prix vente</th><th class="num" style="width:70px">Stock</th><th class="c" style="width:90px">Sensible</th><th style="width:170px">Coché par / le</th></tr></thead>
+    <thead><tr><th style="width:40px">LG</th><th style="width:100px">C.CIP</th><th>Désignation</th><th style="width:100px">Code tableau</th><th class="num" style="width:90px">Prix vente</th><th class="num" style="width:70px">Stock</th><th class="c" style="width:90px">Sensible</th><th style="width:150px">Coché par / le</th></tr></thead>
     <tbody>
-      <tr><td>1</td><td>3400932</td><td>CODEINE/PARACETAMOL 500MG CPR B/16</td><td class="num">2 300</td><td class="num">0</td><td class="c"><span class="chk on"></span></td><td style="font-weight:400;color:#5a6b7c">Dr K. — 02/11/2026</td></tr>
-      <tr><td>2</td><td>3400933</td><td>MISOPROSTOL 200µG CPR B/30</td><td class="num">8 700</td><td class="num">6</td><td class="c"><span class="chk on"></span></td><td style="font-weight:400;color:#5a6b7c">Dr K. — 02/11/2026</td></tr>
-      <tr><td>3</td><td>3400936</td><td>SILDENAFIL 100MG CPR B/4</td><td class="num">5 900</td><td class="num">25</td><td class="c"><span class="chk on"></span></td><td style="font-weight:400;color:#5a6b7c">A. M. — 03/11/2026</td></tr>
+      <tr><td>1</td><td>3400933</td><td>MISOPROSTOL 200µG CPR B/30</td><td>—</td><td class="num">8 700</td><td class="num">6</td><td class="c"><span class="chk on"></span></td><td class="small">Dr K. — 02/11/2026</td></tr>
+      <tr><td>2</td><td>3400950</td><td>MISOPROSTOL 200µG CPR B/4</td><td>—</td><td class="num">1 900</td><td class="num">11</td><td class="c"><span class="chk"></span></td><td class="small"></td></tr>
+      <tr><td>3</td><td>3400951</td><td>MIFEPRISTONE/MISOPROSTOL KIT</td><td>—</td><td class="num">14 500</td><td class="num">2</td><td class="c"><span class="chk"></span></td><td class="small"></td></tr>
+      <tr><td>4</td><td>3400936</td><td>SILDENAFIL 100MG CPR B/4</td><td>—</td><td class="num">5 900</td><td class="num">25</td><td class="c"><span class="chk on"></span></td><td class="small">A. M. — 03/11/2026</td></tr>
     </tbody>
   </table>
-  <div class="pied"><span class="pg on">1</span><span class="droite">Page 1 - 3 sur 3</span></div>
+  <div class="legende"><span>Un produit sensible entre au registre <b>même sans code tableau</b> (Q3.1) et suit le même traitement que l'ordonnancier (Q3.2).</span><span>Même droit que le menu (Q3.4).</span></div>
+  <div class="pied"><span class="pg on">1</span><span class="droite">Page 1 - 4 sur 4</span></div>
 </div>
 
-<!-- ======================= COMPLÉMENT : pastille sur la ligne de vente ======================= -->
-<h2>Complément (Q3.3) — pastille sur la ligne de vente</h2>
-<p class="cmt">Dès l'ajout du produit dans « Liste des articles choisis », une pastille signale qu'un médecin sera exigé à la clôture (si <code>KEY_GERE_ORDONCIER = 1</code>). Évite de découvrir le blocage au moment de terminer la vente.</p>
+<!-- ======================= LIGNE DE VENTE ======================= -->
+<h2>3. À la vente — pastille « SENSIBLE » clignotante (Q3.3)</h2>
+<p class="cmt">Dès l'ajout du produit dans « Liste des articles choisis ». « SENSIBLE » clignote trois fois puis reste affichée (variante : clignotement permanent, en dessous) ; « ORDONNANCIER » reste fixe. Le médecin sera exigé à la clôture si <code>KEY_GERE_ORDONCIER = 1</code>. Rechargez la page pour revoir l'animation.</p>
 <div class="carte">
   <table>
     <thead><tr><th style="width:40px">LG</th><th style="width:90px">C.CIP</th><th>Designation</th><th class="num" style="width:60px">QD</th><th class="num" style="width:60px">QS</th><th class="num" style="width:80px">P.U</th><th class="num" style="width:90px">Montant</th><th style="width:40px"></th></tr></thead>
     <tbody>
       <tr><td>1</td><td>3400101</td><td>PARACETAMOL 1G CPR B/8</td><td class="num" style="color:var(--bleu)">1</td><td class="num">1</td><td class="num">1 200</td><td class="num">1 200</td><td class="c">🗑</td></tr>
       <tr><td>2</td><td>3400934</td><td>TRAMADOL 50MG GEL B/20 <span class="pastille p-ord">ORDONNANCIER</span></td><td class="num" style="color:var(--bleu)">1</td><td class="num">1</td><td class="num">2 150</td><td class="num">2 150</td><td class="c">🗑</td></tr>
-      <tr><td>3</td><td>3400933</td><td>MISOPROSTOL 200µG CPR B/30 <span class="pastille p-sens">SENSIBLE</span></td><td class="num" style="color:var(--bleu)">1</td><td class="num">1</td><td class="num">8 700</td><td class="num">8 700</td><td class="c">🗑</td></tr>
+      <tr><td>3</td><td>3400933</td><td>MISOPROSTOL 200µG CPR B/30 <span class="pastille p-sens vente">SENSIBLE</span></td><td class="num" style="color:var(--bleu)">1</td><td class="num">1</td><td class="num">8 700</td><td class="num">8 700</td><td class="c">🗑</td></tr>
+      <tr><td>4</td><td>3400936</td><td>SILDENAFIL 100MG CPR B/4 <span class="pastille p-sens vente infini">SENSIBLE</span> <span class="small">(variante : clignotement permanent)</span></td><td class="num" style="color:var(--bleu)">1</td><td class="num">1</td><td class="num">5 900</td><td class="num">5 900</td><td class="c">🗑</td></tr>
     </tbody>
   </table>
-  <div class="legende"><span>Le champ <code>scheduled</code> est déjà renvoyé par la recherche produit ; il manque seulement l'affichage.</span></div>
+  <div class="legende"><span>Le champ <code>scheduled</code> est déjà renvoyé par la recherche produit ; il manque l'affichage et le champ <code>sensible</code>.</span><span>Sans animation si le poste a « réduire les animations » : contour violet fixe.</span></div>
 </div>
 </div>
 </body>

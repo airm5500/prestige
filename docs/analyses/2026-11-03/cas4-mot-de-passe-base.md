@@ -4,6 +4,26 @@ Demande d'origine : [analyse_new.md](analyse_new.md), cas 4. Maquette : [cas4-se
 
 Analyse faite **sans ouvrir** `D:\CONF`, `domain.xml` ni aucun `.cnf` réel : uniquement le code qui les lit. Aucun secret n'est cité.
 
+## 0. Retour du 03/11/2026 ([reponses_evolution.md](reponses_evolution.md)) — à reprendre après les cas 1 à 3
+
+| Point | Réponse / décision |
+|-------|--------------------|
+| Activation | Nouveau paramètre `KEY_SECURITE_BASE` dans `t_parameters`, **désactivé par défaut** : l'onglet « Sécurité » n'apparaît pas, et aucune des protections (alias Payara, compte de sauvegarde dédié, archives chiffrées) n'est appliquée tant qu'il est à 0. Les sauvegardes et la connexion continuent exactement comme aujourd'hui. |
+| « Peut-on saisir le mot de passe nous-mêmes ? » | **Oui.** L'écran propose deux modes, au choix dans le même formulaire : **« Générer »** (le serveur tire un mot de passe fort, jamais affiché) ou **« Saisir »** (deux champs masqués « Nouveau mot de passe » / « Confirmer », contrôle de force : 12 caractères minimum, lettres + chiffres + symbole, sans `&`, `?`, `'`, `"` ni espace à cause de l'URL JDBC et des fichiers `.cnf`). Dans les deux cas la valeur transite une seule fois vers le serveur en HTTPS, n'est **ni journalisée ni renvoyée**, et le champ est vidé après validation. Ma recommandation reste « Générer » par défaut, « Saisir » pour celui qui veut le connaître — en gardant en tête que le but du cas est justement qu'un employé ne le connaisse pas. |
+| Exigence | **Aucune régression** : chaque étape de la rotation est vérifiée (test de connexion) et réversible ; la sauvegarde Java ne change de source d'identifiants que si le paramètre est actif ; sinon elle garde `domain.xml`. |
+
+### Recommandations (ordre conseillé, chacune livrable seule)
+
+1. **Sans code, dès maintenant** : MariaDB en écoute locale ou liste blanche d'IP (S7) ; rotation manuelle une fois ; vérifier sur le
+   serveur le `SAUVEGARDE_COMPRESSION.bat` (hors dépôt) et le remplacer par les scripts `outils/officine` qui n'ont pas de mot de passe
+   en ligne de commande.
+2. **Lot A (sécurité du stockage)** : `JdbConnexion` → pool JNDI (S4, supprime la copie du XML et le risque dans `server.log`) ;
+   sauvegarde Java sur compte dédié `prestige_sauvegarde` avec `.cnf` chiffré DPAPI (S5) ; `fichierPrive()` avec ACL Windows.
+3. **Lot B (écran)** : onglet « Sécurité » avec état, rotation (générer ou saisir), alias Payara, purge des copies `domain.xml`, journal.
+4. **Lot C** : archives chiffrées (S6) avec clé hors serveur et essai de restauration obligatoire.
+
+Questions Q4.1 à Q4.6 toujours ouvertes (§4), à reprendre quand les trois premiers cas seront finis.
+
 ## 1. L'existant : où vit le mot de passe aujourd'hui
 
 Il est stocké à **trois endroits indépendants**. Le cacher demande trois actions distinctes.

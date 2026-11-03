@@ -3,6 +3,25 @@
 Demande d'origine : [analyse_new.md](analyse_new.md), cas 1. Maquettes : [cas1-ligne-comptant.html](cas1-ligne-comptant.html)
 (écran) et [cas1-tickets.html](cas1-tickets.html) (tickets).
 
+## 0. Décisions prises le 03/11/2026 ([reponses_evolution.md](reponses_evolution.md))
+
+| Point | Décision |
+|-------|----------|
+| Activation | Nouveau paramètre `KEY_LIGNE_COMPTANT_VO` dans `t_parameters`, **désactivé par défaut**. Désactivé : écran, calcul, clôture et tickets strictement identiques à aujourd'hui (la colonne n'est même pas créée dans la grille). |
+| Écran | **Variante A**, colonne à cocher intitulée **« C »** (au lieu de « CPT »), visible seulement en type Assurance. |
+| Scission | **Oui** : après validation (« TERMINER LA VENTE »), la vente est scindée en **deux ventes distinctes** — une vente assurance (VO) et une vente comptant (VNO) — exactement comme si l'une avait été faite avant l'autre. Elles sont indépendantes : annuler l'une n'annule jamais l'autre (Q1.5). |
+| Tickets | **Deux tickets** : (1) le ticket **assurance** (lignes prises en charge seulement, taux et part par ligne, exemplaires par tiers-payant) et (2) un ticket **client combiné** qui reprend les deux ventes. Le ticket assurance ne mentionne pas la vente comptant (ligne « + 1 article au comptant… » retirée). Le reçu caisse existant est inchangé. |
+| Q1.1 remise | **Oui**, la remise s'applique aussi aux lignes comptant : ce sont des remises produit, et il y a deux ventes distinctes (chacune porte sa remise). |
+| Q1.2 promotions | **Non** : pas de promotion sur les lignes comptant d'une vente assurance. |
+| Q1.3 imputation | **Comptant d'abord**, puis la part client de la vente assurance. |
+| Q1.5 annulation | **Non** : deux ventes différentes, jamais liées pour l'annulation. |
+| Q1.7 carnet | **Non** : uniquement les ventes assurance (type 2). |
+| Q1.9 ticket VO | **Oui** : taux et part prise en charge par ligne sur **tous** les tickets de vente assurance (sous le même paramètre d'activation, pour ne rien changer tant qu'il est désactivé). |
+| Exigence | **Aucune régression** : la scission ne s'exécute que si le paramètre est actif **et** qu'au moins une ligne est cochée ; sinon le code de clôture actuel est appelé tel quel. |
+
+Conséquences sur l'architecture : l'option A du §2 est retenue. Le lien entre les deux ventes (`lg_VENTE_LIEE_ID`) ne sert qu'à l'affichage
+(« vente liée n° … » dans le détail et le ticket combiné), jamais à un traitement couplé.
+
 ## 1. L'existant
 
 ### Un seul écran pour les trois types de vente
@@ -113,16 +132,16 @@ de pré-vente doivent gérer la paire, et décocher = redéplacer la ligne. Plus
 
 | Couche | Fichier | Modification |
 |--------|---------|--------------|
-| SQL | migration Flyway | `t_preenregistrement_detail.comptant TINYINT(1) DEFAULT 0` ; `t_preenregistrement.lg_VENTE_LIEE_ID` (+ index) ; paramètres `KEY_LIGNE_COMPTANT_VO` (activation), `KEY_TICKET_COMBINE`. |
+| SQL | migration Flyway | `t_preenregistrement_detail.comptant TINYINT(1) DEFAULT 0` ; `t_preenregistrement.lg_VENTE_LIEE_ID` (+ index) ; paramètre `KEY_LIGNE_COMPTANT_VO` (activation, défaut `0`). |
 | Entités | `dal/TPreenregistrementDetail`, `dal/TPreenregistrement`, `VenteDetailsDTO`, `VenteDTO` | champs `comptant`, `venteLiee`. |
 | REST | `rest/SalesRessource.java` | `PUT v1/vente/item/{id}/comptant {comptant}` ; `cloturer/assurance` renvoie les deux ids et les deux références. |
 | Service | `SalesServiceImpl.updateVenteClotureAssurance` | extraction des lignes cochées → `scinderLignesComptant()` → clôture VNO liée ; répartition du règlement. |
 | Calcul | `SalesNetComputingServiceImpl.buildSaleItemInputs` / `calcule` | ignorer les lignes `comptant`, ajouter `montantComptant` dans `MontantAPaye`. |
-| Ticket | `GenerateTicketServiceImpl`, `ConversionTicket`, `ImpressionServiceImpl`, `ModeleTicket` | taux et pris en charge par ligne (optionnel) ; mention « Vente liée n° … » ; ticket combiné (optionnel). |
+| Ticket | `GenerateTicketServiceImpl`, `ConversionTicket`, `ImpressionServiceImpl`, `ModeleTicket` | taux et pris en charge par ligne sur le ticket VO (si paramètre actif) ; nouveau modèle `VENTE_MIXTE` = ticket client combiné. |
 | ExtJS modèle | `model/caisse/VenteItem.js` | champ `comptant`. |
-| ExtJS vue | `view/vente/VenteVNO.js` | checkcolumn « CPT » (46 px) visible seulement en type 2/3 ; ligne « DONT COMPTANT » dans le rail ; renderer de ligne (fond jaune pâle + pastille). |
-| ExtJS ctrl | `controller/VenteCtr.js` | `checkchange` → PUT puis `net/assurance` ; clôture : impression des deux tickets ; affichage « 2 tickets imprimés ». |
-| Annulation | écran d'annulation de vente | proposer la vente liée (Q1.5). |
+| ExtJS vue | `view/vente/VenteVNO.js` | checkcolumn « C » (40 px) ajoutée **seulement si** le paramètre est actif et en type 2 ; ligne « DONT COMPTANT » dans le rail ; renderer de ligne (fond jaune pâle + pastille). |
+| ExtJS ctrl | `controller/VenteCtr.js` | `checkchange` → PUT puis `net/assurance` ; promotion refusée sur une ligne cochée ; clôture : impression ticket VO + ticket combiné ; bandeau « 2 ventes créées ». |
+| Annulation | — | rien : les deux ventes s'annulent séparément (Q1.5). |
 | Affichage | `correctifs-affichage.js` | rien (pas de nouveau menu). |
 
 Aucune JSP nouvelle ; aucune fenêtre : la case se coche dans la grille et la clôture reste sur « TERMINER LA VENTE ».

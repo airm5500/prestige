@@ -2,6 +2,27 @@
 
 Demande d'origine : [analyse_new.md](analyse_new.md), cas 2. Maquette : [cas2-prix-reference-caisse.html](cas2-prix-reference-caisse.html).
 
+## 0. Décisions prises le 03/11/2026 ([reponses_evolution.md](reponses_evolution.md))
+
+| Point | Décision |
+|-------|----------|
+| Activation | Nouveau paramètre `KEY_PRIX_REF_CAISSE` dans `t_parameters`, **désactivé par défaut**. Désactivé : les colonnes ne sont pas créées, la grille est strictement celle d'aujourd'hui. |
+| Disposition | **B** : colonnes groupées par tiers-payant de la vente (en-tête de groupe au nom du tiers-payant → **P.REF** | **TAUX**), visibles en vente Assurance seulement. Au-delà de deux tiers-payants, les groupes s'ajoutent (défilement horizontal de la grille), DESIGNATION garde une largeur minimale et l'info-bulle. |
+| Contrôles de saisie | P.REF : entier, **≥ 5** et **≤ prix de vente** de la ligne (un prix de référence au-dessus du prix de vente n'a pas de sens pour le remboursement — à confirmer), vide = prix de vente. TAUX : entier, **5 à 100**, vide = taux du tiers-payant pour ce client. Valeur refusée → cellule rouge et message sous la grille, l'ancienne valeur est rétablie, aucun appel serveur. |
+| Q2.1 | **Permanente** : écriture dans `prix_reference`, même effet que la fiche article. |
+| Q2.2 | **Pas de droit spécifique** : toute personne qui saisit une vente assurance peut saisir. |
+| Q2.3 | **Aucune option à choisir** : la caisse écrit toujours en `MIX_TAUX_PRIX`. Si le produit a déjà une référence pour ce tiers-payant, elle est affichée et modifiable ; sinon la grille affiche par défaut le **prix de vente** comme référence et le **taux du compte client** pour ce tiers-payant, et rien n'est écrit tant que l'utilisateur ne modifie pas une cellule. *(La réponse parle d'« infos sur le grossiste » : lu comme « infos déjà saisies pour ce tiers-payant » ; à confirmer.)* |
+| Q2.5 | Non tranché : voir recommandation ci-dessous. |
+| Q2.6 | **Oui** : journal des ajouts, modifications et suppressions (fiche article **et** caisse), avec qui, quand, ancienne et nouvelle valeur, vente d'origine. |
+| Exigence | **Aucune régression** : le moteur de calcul n'est pas modifié dans ce lot ; la saisie à la caisse ne fait qu'alimenter `prix_reference` puis relancer `net/assurance`, exactement comme une saisie en fiche article. |
+
+**Recommandation sur Q2.5 (prix de référence par tiers-payant).** Avec la disposition B, l'utilisateur saisit un prix de référence *par
+tiers-payant* ; or le moteur retient aujourd'hui le **minimum** de tous les prix de référence de la vente pour calculer la base de toutes les
+parts. Avec deux tiers-payants et deux prix différents, la part du second ne sera pas celle que la colonne laisse attendre. Je recommande
+de **livrer le cas 2 sans toucher au moteur** (zéro régression), en affichant dans l'aperçu « Pris en charge » la valeur réellement calculée
+par le serveur, puis d'ouvrir un **lot séparé « base de calcul par tiers-payant »** avec son jeu de tests de non-régression sur le banc
+(ventes multi-tiers-payants avant/après). Tant que ce lot n'est pas livré, un libellé discret sous la grille rappelle la règle du minimum.
+
 ## 1. L'existant
 
 ### Sur la fiche article (aujourd'hui)

@@ -2,6 +2,21 @@
 
 Demande d'origine : [analyse_new.md](analyse_new.md), cas 3. Maquette : [cas3-ordonnancier-produits.html](cas3-ordonnancier-produits.html).
 
+## 0. Décisions prises le 03/11/2026 ([reponses_evolution.md](reponses_evolution.md))
+
+| Point | Décision |
+|-------|----------|
+| Écran | **Variante C** : deux onglets séparés dans l'écran Ordonnancier, « Produits ordonnancier » et « Produits sensibles », chacun avec sa recherche, son filtre (cochés / non cochés / tous), le cochage unitaire enregistré au clic et le cochage en lot avec confirmation dans le bouton. |
+| Vente | Pastille **« SENSIBLE » clignotante** sur la ligne de vente dès l'ajout du produit (pastille « ORDONNANCIER » fixe pour les autres). Clignotement doux, 3 pulsations puis fixe, pour ne pas gêner la saisie ; respecte `prefers-reduced-motion`. |
+| Q3.1 | Un produit sensible **peut** avoir un code tableau, mais ce n'est **pas obligatoire** : il est traité comme un produit ordonnancier dès qu'il est coché « sensible ». Pour les produits ordonnancier, la règle actuelle « coché **et** code tableau » est **conservée**. |
+| Q3.2 | **Même traitement partout** : médecin obligatoire à la clôture (si `KEY_GERE_ORDONCIER = 1`), présence dans le registre, le détail, les éditions et l'analyse. Une colonne « Motif » (Ordonnancier / Sensible) est ajoutée au détail et aux éditions, sans changer le reste. |
+| Q3.3 | **Oui**, pastille sur la ligne de vente. |
+| Q3.4 | **Pas de droit distinct** : qui voit le menu Ordonnancier (`P_SM_ORDONNANCIER`) peut cocher. |
+| Exigence | **Aucune régression** : la règle existante pour « ordonnancier » ne change pas ; « sensible » s'ajoute par un **OU** dans une méthode unique. Les ventes et registres existants sont inchangés tant qu'aucun produit n'est coché « sensible ». |
+
+Règle centralisée : `estProduitOrdonnancier(f) = f.sensible || (f.scheduled && isNotBlank(f.intT))` — avec `isNotBlank`, ce qui corrige au
+passage la NullPointerException latente de `checkOrdonnancier` (à couvrir par un test qui échoue d'abord).
+
 ## 1. L'existant
 
 ### Ce qu'est l'ordonnancier aujourd'hui

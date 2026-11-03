@@ -57,7 +57,8 @@
 <div class="fil">Centre de support › Stabilité du serveur</div>
 
 <div class="page">
-<div class="note"><b>Maquette — cas 4.</b> Nouvel onglet <b>« Sécurité »</b> dans l'écran existant <i>Stabilité du serveur</i> (<code>SupportServeur.js</code>), réservé au super-admin. Il <b>n'affiche jamais</b> un mot de passe : seulement où il est stocké, s'il est protégé, et depuis quand. Toutes les actions confirment dans le bouton, sans fenêtre.</div>
+<div class="note"><b>Maquette — cas 4 (mise à jour du 03/11).</b> Nouvel onglet <b>« Sécurité »</b> dans l'écran existant <i>Stabilité du serveur</i> (<code>SupportServeur.js</code>), réservé au super-admin et visible seulement si le paramètre <b>« Sécurité de la base »</b> est actif (désactivé par défaut). Il <b>n'affiche jamais</b> un mot de passe : seulement où il est stocké, s'il est protégé, et depuis quand. La rotation accepte un mot de passe <b>généré ou saisi</b>. Toutes les actions confirment dans le bouton, sans fenêtre.</div>
+<div class="carte" style="padding:6px 10px;display:grid;grid-template-columns:60px 90px 1fr 90px 90px;gap:8px;align-items:center;font-size:12px"><span>216</span><span class="etat info" style="text-align:center">Système</span><span><b>Sécurité de la base : onglet et protections</b> — rotation, alias Payara, compte de sauvegarde dédié, archives chiffrées</span><span>SYSTEME</span><span style="width:34px;height:18px;border-radius:9px;background:#C9D5E1;display:inline-block"></span></div>
 
 <!-- ============ VUE 1 : état ============ -->
 <h2>Vue 1 — État de la protection (avant toute action)</h2>
@@ -97,7 +98,7 @@
 
 <!-- ============ VUE 2 : rotation ============ -->
 <h2>Vue 2 — Rotation du mot de passe, en un seul bouton (S1)</h2>
-<p class="cmt">Déplié sous l'action « Changer le mot de passe de la base ». Le nouveau mot de passe est généré par le serveur et n'est jamais affiché ni renvoyé au navigateur. Le compte d'administration MariaDB est saisi pour cette opération seulement, jamais stocké.</p>
+<p class="cmt">Déplié sous l'action « Changer le mot de passe de la base ». Deux modes au choix : <b>Générer</b> (le serveur tire un mot de passe fort, jamais affiché ni renvoyé) ou <b>Saisir</b> (vous le choisissez, champs masqués, contrôle de force). Le compte d'administration MariaDB est saisi pour cette opération seulement, jamais stocké.</p>
 <div class="carte"><div class="corps">
   <div class="grille">
     <fieldset><legend>1. Compte d'administration (pour cette opération)</legend>
@@ -105,9 +106,15 @@
       <div class="ligne"><span class="lib" style="width:180px">Mot de passe</span><span class="champ mdp">••••••••••</span><span class="small">non conservé</span></div>
       <div class="ligne"><span class="lib" style="width:180px">Votre mot de passe Prestige</span><span class="champ mdp">••••••••</span><span class="small">second facteur (Q4.1)</span></div>
     </fieldset>
+    <fieldset><legend>1 bis. Nouveau mot de passe de la base</legend>
+      <div class="ligne"><span class="lib" style="width:180px">Mode</span><span class="btn navy">Générer (recommandé)</span><span class="btn">Saisir moi-même</span></div>
+      <div class="ligne"><span class="lib" style="width:180px">Nouveau mot de passe</span><span class="champ mdp">••••••••••••••</span><span class="small">mode « Saisir » seulement</span></div>
+      <div class="ligne"><span class="lib" style="width:180px">Confirmer</span><span class="champ mdp">••••••••••••••</span><span class="etat ok">FORT</span></div>
+      <p class="small" style="margin:6px 0 0">12 caractères minimum, lettres + chiffres + symbole ; sans <code>&amp; ? ' "</code> ni espace (URL JDBC et fichiers .cnf). Jamais journalisé, jamais renvoyé ; champs vidés après validation.</p>
+    </fieldset>
     <fieldset><legend>2. Ce qui sera fait, dans l'ordre</legend>
       <ul class="etapes">
-        <li class="fait">Générer un mot de passe fort (24 caractères, jamais affiché)</li>
+        <li class="fait">Prendre le mot de passe généré (24 caractères) ou saisi — jamais affiché</li>
         <li class="fait">Vérifier la connexion avec le compte d'administration</li>
         <li class="encours"><code>ALTER USER 'prestige'@'localhost' IDENTIFIED BY …</code></li>
         <li>Mettre à jour le pool Payara (alias <code>prestige-db</code>) et le fichier de configuration (chiffré)</li>

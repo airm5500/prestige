@@ -2,35 +2,32 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<title>Cas 2 — Prix et taux de référence à la caisse</title>
+<title>Cas 2 — Prix et taux de référence à la caisse (version validée)</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   :root{--navy:#1e3a5f;--navy2:#152d4e;--fond:#ECF1F6;--bord:#C9D5E1;--txt:#1b2733;--vert:#2e7d32;--rouge:#c0392b;--orange:#e07b18;--bleu:#0D47A1}
   *{box-sizing:border-box}
-  body{margin:0;background:var(--fond);font:12.5px/1.4 "Segoe UI",Tahoma,Arial,sans-serif;color:var(--txt)}
+  body{margin:0;background:var(--fond);font:12.5px/1.4 "Segoe UI",Tahoma,Arial,sans-serif;color:var(--txt);overflow-x:auto}
   .appbar{height:40px;background:linear-gradient(180deg,#1e3a5f,#152d4e);color:#fff;display:flex;align-items:center;padding:0 14px;gap:18px;font-weight:700}
   .appbar .pharm{margin-left:auto;margin-right:auto;background:rgba(255,255,255,.12);padding:4px 26px;border-radius:5px;letter-spacing:.06em}
   .appbar .user{font-weight:400;font-size:11px}
   .fil{background:#fff;border-bottom:1px solid var(--bord);padding:5px 14px;font-weight:700;font-size:12px}
-  .note{background:#FFF8E1;border:1px solid #F0D27A;border-left:5px solid var(--orange);border-radius:8px;padding:8px 12px;margin:10px 12px}
-  .note b{color:#8a4b00}
+  .note{background:#E8F5E9;border:1px solid #A5D6A7;border-left:5px solid var(--vert);border-radius:8px;padding:8px 12px;margin:10px 12px}
+  .note b{color:#1b5e20}
   h2{font-size:14px;color:var(--navy);margin:22px 12px 6px;letter-spacing:.06em;text-transform:uppercase}
   .cmt{color:#5a6b7c;font-size:11.5px;margin:0 12px 8px}
   .shell{margin:6px 8px 0;border-radius:12px;background:var(--fond);min-width:1240px}
-  body{overflow-x:auto}
-  .shell-h{background:linear-gradient(180deg,#1e3a5f,#152d4e);color:#fff;border-radius:12px 12px 0 0;padding:9px 14px;font-weight:800;letter-spacing:.08em;font-size:15px}
   .btn{border:1px solid #9fb0c2;border-radius:4px;background:linear-gradient(#fff,#e9eef3);padding:4px 10px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:5px;font-size:11.5px;color:#1b2733}
-  .btn.vert{background:var(--vert);color:#fff;border-color:#1b5e20}
-  .btn.confirm{background:#f5a623;color:#fff;border-color:#b86e00}
   .btn.act{display:flex;justify-content:center;width:100%;margin:0 0 7px;padding:8px;font-size:12px;color:#fff;border:1px solid rgba(0,0,0,.15)}
   .btn.teal{background:linear-gradient(145deg,#26a69a,#00897b)} .btn.blue{background:linear-gradient(145deg,#42a5f5,#1e88e5)} .btn.amber{background:linear-gradient(145deg,#f5a623,#d97f06)}
   .champ{border:1px solid #A9BACB;border-radius:3px;background:#fff;padding:4px 7px;min-width:80px;display:inline-block;color:#333}
   .champ.vide{color:#8a97a3}
   .champ.sel::after{content:" ▾";float:right;color:#5a6b7c}
   .champ.edit{background:#0de9ca;border-color:#7FC6BC;font-weight:700}
+  .champ.ko{background:#FDECEA;border:2px solid var(--rouge);color:var(--rouge);font-weight:700}
   .cols{display:flex;gap:8px;padding:0 2px}
   .colL{flex:1;min-width:0}
-  .colR{width:400px}
+  .colR{width:400px;flex-shrink:0}
   fieldset{border:1px solid var(--bord);border-radius:8px;padding:8px 12px 10px;margin:0 0 12px;background:#fff;box-shadow:0 1px 4px rgba(21,45,78,.10)}
   legend{font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--navy);padding:0 6px}
   fieldset.tp{background:#F0F8FF}
@@ -41,16 +38,15 @@
   .tpbloc b{color:var(--navy)}
   table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
   thead th{background:linear-gradient(180deg,#1e3a5f,#152d4e);color:#EDF3F9;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;padding:8px;text-align:left;border-right:1px solid rgba(255,255,255,.14)}
-  thead th.grp{text-align:center;background:#2C4D78;padding:4px}
-  thead th.new{box-shadow:inset 0 -3px 0 var(--orange)}
+  thead th.grp{text-align:center;background:#2C4D78;padding:4px;box-shadow:inset 0 -3px 0 var(--orange)}
   tbody td{padding:2px 8px;border-bottom:1px solid #E5EBF1;font-weight:700;font-size:14px;line-height:20px}
   tbody tr:nth-child(even) td{background:#F5F8FB}
-  tbody tr.sel td{background:#FFE9C7!important}
   td.num,th.num{text-align:right} td.c,th.c{text-align:center}
   td.qd{color:var(--bleu);font-weight:800}
   td.ref{color:#6a1b9a}
+  td.def{color:#8a97a3;font-weight:400;font-style:italic}
   td.ed{background:#E4FBF6!important;outline:1px solid #7FC6BC;outline-offset:-1px}
-  .plus{display:inline-block;background:#5a6b7c;color:#fff;border-radius:8px;padding:0 5px;font-size:10px;margin-left:4px;vertical-align:middle}
+  td.err{background:#FDECEA!important}
   .gbar{display:flex;align-items:center;gap:8px;padding:5px 6px;border-bottom:1px solid var(--bord);background:#fff;font-size:11.5px}
   .gbar .total{margin-left:auto;background:#152D4E;color:#fff;padding:3px 14px;border-radius:6px;font-weight:700;font-size:1.35em;min-width:180px;text-align:center}
   .gbar .total small{font-size:.55em;opacity:.8;display:block;line-height:1}
@@ -58,46 +54,55 @@
   .mont{display:grid;grid-template-columns:auto 1fr;gap:3px 10px;align-items:center;font-size:11.5px;font-weight:700}
   .mont .v{font-size:15px;font-weight:800}
   .rouge{color:var(--rouge)} .vert{color:var(--vert)} .bleu{color:var(--bleu)}
-  /* volet docké */
-  .volet{border:1px solid #B9CBDD;border-top:4px solid #6a1b9a;border-radius:0 0 8px 8px;background:#FBF7FF;padding:8px 10px;margin:0 0 6px}
-  .volet h4{margin:0 0 6px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#6a1b9a}
-  .volet .tpl{display:grid;grid-template-columns:150px 150px 110px 110px 130px 1fr;gap:8px;align-items:center;padding:5px 0;border-bottom:1px solid #E5DDF0;font-size:11.5px}
-  .volet .tpl.h{font-weight:800;color:#5a6b7c;font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid #C9B8DD}
-  .volet .tpl:last-of-type{border-bottom:none}
-  .volet .actions{display:flex;gap:8px;align-items:center;margin-top:8px;font-size:11px;color:#5a6b7c}
   .small{font-size:11px;color:#5a6b7c}
+  .msg{padding:5px 8px;border-radius:4px;font-size:11.5px;font-weight:700;margin:4px 0}
+  .msg.ko{background:#FDECEA;color:#7a1f14;border-left:4px solid var(--rouge)}
+  .msg.ok{background:#E8F5E9;color:#1b5e20;border-left:4px solid var(--vert)}
+  .param{display:grid;grid-template-columns:60px 90px 1fr 90px 90px;gap:8px;align-items:center;padding:6px 10px;background:#fff;border:1px solid var(--bord);border-radius:6px;font-size:12px;margin:0 12px 10px}
+  .param .tag{background:#5a6b7c;color:#fff;border-radius:10px;padding:1px 8px;font-size:10px;font-weight:700;text-align:center}
+  .sw{width:34px;height:18px;border-radius:9px;background:#C9D5E1;position:relative;display:inline-block}
+  .sw::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff}
+  .journal{margin:0 12px 24px}
 </style>
 </head>
 <body>
-<div class="appbar"><span>➕ PRESTIGE 3</span><span class="user">mar. 03 nov. 2026 <b>10:42</b></span><span class="pharm">🏥 PHARMACIE</span><span class="user">Pharmacien</span></div>
+<div class="appbar"><span>➕ PRESTIGE 3</span><span class="user">mar. 03 nov. 2026 <b>10:42</b></span><span class="pharm">🏥 PHARMACIE</span><span class="user">Caissière</span></div>
 <div class="fil">Ventes</div>
-<div class="note"><b>Maquette — cas 2.</b> Trois dispositions pour saisir le prix de référence et le taux par tiers-payant <b>depuis la grille de vente</b>, avec le même effet que la fiche article (écriture dans <code>prix_reference</code> puis recalcul du net). Les colonnes nouvelles sont soulignées en orange. Aucune fenêtre : la saisie se fait dans la cellule ou dans un volet docké sous la grille.</div>
+<div class="note"><b>Version validée le 03/11 — cas 2.</b> Disposition <b>B</b> : un groupe de colonnes <b>P.REF | TAUX</b> par tiers-payant de la vente, en vente Assurance, si le paramètre est actif. Aucune option à choisir : la caisse écrit en <code>MIX_TAUX_PRIX</code>, de façon <b>permanente</b> (même effet que la fiche article), sans droit particulier. Par défaut, la grille affiche en gris le prix de vente et le taux du client ; une cellule modifiée est écrite, journalisée, puis le net est recalculé.</div>
 
-<!-- =============== A =============== -->
-<h2>Disposition A — deux colonnes « P.REF » et « TAUX » dans la grille</h2>
-<p class="cmt">P.REF est la colonne déjà présente mais cachée (<code>calculationBasePrice</code>), rendue visible et éditable en Assurance/Carnet. C.CIP passe de flex à 80 px pour faire la place. Un seul tiers-payant sur la vente : édition directe à la cellule (1 clic, Entrée valide). Plusieurs tiers-payants : la cellule montre le principal et une pastille « +1 » ; le clic ouvre le volet de la disposition C.</p>
+<h2>0. Paramètre d'activation (Paramétrage général)</h2>
+<div class="param"><span>215</span><span class="tag">Ventes et caisse</span><span><b>Vente assurance : prix et taux de référence saisissables dans la grille</b> — colonnes par tiers-payant, écriture dans la fiche article</span><span>CUSTOMER</span><span class="sw"></span></div>
+
+<h2>1. Vente à deux tiers-payants — saisie dans la grille</h2>
+<p class="cmt">Ligne 1 : références déjà présentes sur le produit (violet). Ligne 2 : aucune référence → valeurs par défaut en gris italique (prix de vente, taux du client) ; la cellule TAUX CNPS est en cours de saisie. Ligne 3 : saisie refusée (prix de référence supérieur au prix de vente).</p>
 <div class="shell"><div style="padding:0 10px 10px">
   <fieldset class="tp" style="margin-top:10px"><legend>Infos tiers payants</legend>
     <div class="tpbloc"><b>TP1</b> MCI-CARE <span>Taux : <b>70 %</b></span><span>N° de bon : <span class="champ">BN-2026-00871</span></span><span class="btn">Générer</span><span class="btn">Retirer</span></div>
+    <div class="tpbloc"><b>TP2</b> CNPS <span>Taux : <b>20 %</b></span><span>N° de bon : <span class="champ">CN-77120</span></span><span class="btn">Générer</span><span class="btn">Retirer</span></div>
   </fieldset>
   <div class="cols">
     <div class="colL">
       <fieldset style="padding:8px 6px 0"><legend>Liste des articles choisis</legend>
-        <div class="gbar"><span class="champ vide" style="min-width:150px">Recherche d'un produit</span><span class="btn">🔍 rechercher</span><span class="lab">REMISE:</span><span class="champ sel vide" style="min-width:120px">Choisir une remise...</span><span class="total"><small>TOTAL</small>9 870 CFA</span></div>
+        <div class="gbar"><span class="champ vide" style="min-width:150px">Recherche d'un produit</span><span class="btn">🔍 rechercher</span><span class="lab">REMISE:</span><span class="champ sel vide" style="min-width:120px">Choisir une remise...</span><span class="total"><small>TOTAL</small>14 005 CFA</span></div>
         <table>
-          <thead><tr><th style="width:40px">LG</th><th style="width:80px">C.CIP</th><th>Designation</th><th class="num" style="width:55px">QD</th><th class="num" style="width:55px">QS</th><th class="num" style="width:72px">P.U</th><th class="num new" style="width:85px" title="Prix de référence du tiers-payant">P.REF</th><th class="num new" style="width:70px" title="Taux du tiers-payant pour ce produit">TAUX</th><th class="num" style="width:85px">Montant</th><th style="width:36px"></th></tr></thead>
+          <thead>
+            <tr><th rowspan="2" style="width:40px">LG</th><th rowspan="2" style="width:80px">C.CIP</th><th rowspan="2" style="min-width:170px">Designation</th><th rowspan="2" class="num" style="width:50px">QD</th><th rowspan="2" class="num" style="width:50px">QS</th><th rowspan="2" class="num" style="width:70px">P.U</th><th colspan="2" class="grp">MCI-CARE</th><th colspan="2" class="grp">CNPS</th><th rowspan="2" class="num" style="width:80px">Montant</th><th rowspan="2" style="width:34px"></th></tr>
+            <tr><th class="num" style="width:78px" title="Prix de référence pour ce tiers-payant (≥ 5, ≤ prix de vente)">P.REF</th><th class="num" style="width:60px" title="Taux pour ce tiers-payant et ce produit (5 à 100)">Taux</th><th class="num" style="width:78px">P.REF</th><th class="num" style="width:60px">Taux</th></tr>
+          </thead>
           <tbody>
-            <tr><td>1</td><td>3400210</td><td>RAPICLAV 1G CPR B/14</td><td class="num qd">1</td><td class="num">1</td><td class="num">6 725</td><td class="num ref">6 000</td><td class="num ref">70 %</td><td class="num">6 725</td><td class="c">🗑</td></tr>
-            <tr><td>2</td><td>3400211</td><td>ISOLONE 20MG CPR EFFV B/20</td><td class="num qd">1</td><td class="num">1</td><td class="num">3 145</td><td class="num ed"><span class="champ edit" style="min-width:60px;padding:1px 5px">2 900</span></td><td class="num ref">70 %</td><td class="num">3 145</td><td class="c">🗑</td></tr>
-            <tr><td>3</td><td>3400212</td><td>KETODERM 2% CREME T/15G</td><td class="num qd">1</td><td class="num">1</td><td class="num">4 135</td><td class="num" style="color:#8a97a3">—</td><td class="num ref">50 %</td><td class="num">4 135</td><td class="c">🗑</td></tr>
+            <tr><td>1</td><td>3400210</td><td title="RAPICLAV 1G CPR B/14">RAPICLAV 1G CPR B/14</td><td class="num qd">1</td><td class="num">1</td><td class="num">6 725</td><td class="num ref">6 000</td><td class="num ref">70</td><td class="num ref">6 000</td><td class="num ref">20</td><td class="num">6 725</td><td class="c">🗑</td></tr>
+            <tr><td>2</td><td>3400211</td><td title="ISOLONE 20MG CPR EFFV B/20">ISOLONE 20MG CPR EFFV…</td><td class="num qd">1</td><td class="num">1</td><td class="num">3 145</td><td class="num def">3 145</td><td class="num def">70</td><td class="num def">3 145</td><td class="num ed"><span class="champ edit" style="min-width:48px;padding:1px 5px">15</span></td><td class="num">3 145</td><td class="c">🗑</td></tr>
+            <tr><td>3</td><td>3400212</td><td title="KETODERM 2% CREME T/15G">KETODERM 2% CREME T/15G</td><td class="num qd">1</td><td class="num">1</td><td class="num">4 135</td><td class="num err"><span class="champ ko" style="min-width:60px;padding:1px 5px">5 000</span></td><td class="num def">70</td><td class="num def">4 135</td><td class="num def">20</td><td class="num">4 135</td><td class="c">🗑</td></tr>
           </tbody>
         </table>
-        <div class="pied"><span>« ‹ Page 1 sur 1 › » ⟳</span><span style="margin-left:14px">3 lignes · 3 produits</span><span style="margin-left:auto" class="small">P.REF vide = prix de vente utilisé · TAUX = taux de la vente sauf référence propre au produit</span></div>
+        <div class="msg ko">✖ Ligne 3, MCI-CARE : le prix de référence (5 000) dépasse le prix de vente (4 135). Valeur rétablie, rien n'a été enregistré.</div>
+        <div class="msg ok">✔ Ligne 2, CNPS : taux 15 % enregistré sur la fiche article ISOLONE 20MG (MIX prix + taux) — net recalculé.</div>
+        <div class="pied"><span>« ‹ Page 1 sur 1 › » ⟳</span><span style="margin-left:14px">3 lignes · 3 produits</span><span style="margin-left:auto" class="small">Gris italique = valeur par défaut, non enregistrée · Violet = référence de la fiche article · Entrée valide, Échap annule</span></div>
       </fieldset>
     </div>
     <div class="colR">
       <fieldset class="pay"><legend>Réglement</legend>
-        <div class="mont"><span>NET A PAYER :</span><span class="v rouge">4 010 CFA</span><span>MONTANT REMISE :</span><span class="v vert">0 CFA</span><span>PART ASSURANCE :</span><span class="v bleu">5 860 CFA</span></div>
+        <div class="mont"><span>NET A PAYER :</span><span class="v rouge">3 115 CFA</span><span>MONTANT REMISE :</span><span class="v vert">0 CFA</span><span>PART ASSURANCE :</span><span class="v bleu">10 890 CFA</span></div>
         <div class="row" style="margin-top:6px"><span class="lab">TYPE RÈGLEMENT :</span><span class="champ sel" style="min-width:180px">💵 Espèces</span></div>
         <div class="row" style="margin-top:6px"><span class="lab">💰 MONTANT RECU :</span><span class="champ" style="width:110px;text-align:right;font-size:1.2em;border:2px solid #152d4e">0</span></div>
         <div style="margin-top:8px"><span class="btn act teal">💳 TERMINER LA VENTE</span><span class="btn act blue">⏸ METTRE EN ATTENTE</span><span class="btn act amber">↩ RETOUR</span></div>
@@ -106,53 +111,31 @@
   </div>
 </div></div>
 
-<!-- =============== B =============== -->
-<h2>Disposition B — colonnes groupées par tiers-payant (vente à deux tiers-payants)</h2>
-<p class="cmt">Transposition exacte de la fenêtre « Prix de référence » de la fiche article (une ligne par tiers-payant) dans la grille. Lisible jusqu'à deux tiers-payants (RO + RC) ; au-delà, bascule automatique vers C. Prend 150 px par tiers-payant : DESIGNATION se resserre, info-bulle sur le libellé complet. Mêmes montants qu'aujourd'hui : même table, même moteur.</p>
-<div class="shell"><div style="padding:10px">
-  <fieldset class="tp" style="margin:0 0 8px"><legend>Infos tiers payants</legend>
-    <div class="tpbloc"><b>TP1</b> MCI-CARE <span>Taux : <b>70 %</b></span><span>N° de bon : <span class="champ">BN-2026-00871</span></span></div>
-    <div class="tpbloc"><b>TP2</b> CNPS <span>Taux : <b>20 %</b></span><span>N° de bon : <span class="champ">CN-77120</span></span></div>
-  </fieldset>
-  <fieldset style="padding:8px 6px 0;margin:0"><legend>Liste des articles choisis</legend>
-    <table>
-      <thead>
-        <tr><th rowspan="2" style="width:40px">LG</th><th rowspan="2" style="width:80px">C.CIP</th><th rowspan="2">Designation</th><th rowspan="2" class="num" style="width:50px">QD</th><th rowspan="2" class="num" style="width:50px">QS</th><th rowspan="2" class="num" style="width:70px">P.U</th><th colspan="2" class="grp new">MCI-CARE</th><th colspan="2" class="grp new">CNPS</th><th rowspan="2" class="num" style="width:80px">Montant</th><th rowspan="2" style="width:34px"></th></tr>
-        <tr><th class="num" style="width:75px">P.REF</th><th class="num" style="width:60px">Taux</th><th class="num" style="width:75px">P.REF</th><th class="num" style="width:60px">Taux</th></tr>
-      </thead>
-      <tbody>
-        <tr><td>1</td><td>3400210</td><td title="RAPICLAV 1G CPR B/14">RAPICLAV 1G CPR B/14</td><td class="num qd">1</td><td class="num">1</td><td class="num">6 725</td><td class="num ref">6 000</td><td class="num ref">70 %</td><td class="num ref">6 000</td><td class="num ref">20 %</td><td class="num">6 725</td><td class="c">🗑</td></tr>
-        <tr><td>2</td><td>3400211</td><td title="ISOLONE 20MG CPR EFFV B/20">ISOLONE 20MG CPR EFFV…</td><td class="num qd">1</td><td class="num">1</td><td class="num">3 145</td><td class="num ref">2 900</td><td class="num ref">70 %</td><td class="num" style="color:#8a97a3">—</td><td class="num ed"><span class="champ edit" style="min-width:48px;padding:1px 5px">15</span></td><td class="num">3 145</td><td class="c">🗑</td></tr>
-      </tbody>
-    </table>
-    <div class="pied"><span class="small">Chaque cellule saisie écrit la ligne <code>prix_reference</code> du couple produit × tiers-payant, exactement comme la fiche article, puis le net est recalculé. Aucune modification du moteur de calcul.</span></div>
-  </fieldset>
-</div></div>
+<h2>2. Contrôles de saisie (dans la cellule, sans fenêtre)</h2>
+<div class="journal">
+  <table style="background:#fff">
+    <thead><tr><th>Cellule</th><th>Règle</th><th>Si la règle n'est pas respectée</th></tr></thead>
+    <tbody>
+      <tr><td>P.REF</td><td>entier ; ≥ 5 ; ≤ prix de vente de la ligne (à confirmer) ; vide = prix de vente, aucune écriture</td><td rowspan="2">cellule rouge, message sous la grille, ancienne valeur rétablie, <b>aucun appel serveur</b></td></tr>
+      <tr><td>TAUX</td><td>entier ; 5 à 100 ; vide = taux du compte client pour ce tiers-payant, aucune écriture</td></tr>
+      <tr><td>Les deux</td><td>écriture en <code>MIX_TAUX_PRIX</code> seulement après Entrée ; Échap annule ; interdit si la vente est close ou en type Comptant/Carnet</td><td>cellule non éditable</td></tr>
+      <tr><td>Serveur</td><td>mêmes bornes revérifiées côté REST (<code>@Min(5)</code> existant, taux 5-100, prix ≤ prix de vente) ; refus = message, la grille recharge la valeur en base</td><td>message sous la grille</td></tr>
+    </tbody>
+  </table>
+</div>
 
-<!-- =============== C =============== -->
-<h2>Disposition C — volet « Référence tiers-payant » docké sous la grille (complément de A ou B au-delà de deux tiers-payants)</h2>
-<p class="cmt">Au clic sur une ligne (ou sur la pastille « +1 » de A), le volet s'ouvre <b>sous la grille</b>, sans fenêtre. Un bloc par tiers-payant de la vente ; le montant pris en charge est recalculé par le serveur (aperçu avant d'appliquer). Le bouton « Appliquer à la fiche article » demande sa confirmation dans le bouton lui-même, puis relance le net.</p>
-<div class="shell" style="margin-bottom:24px"><div style="padding:10px">
-  <fieldset style="padding:8px 6px 0;margin:0 0 0"><legend>Liste des articles choisis</legend>
-    <table>
-      <thead><tr><th style="width:40px">LG</th><th style="width:80px">C.CIP</th><th>Designation</th><th class="num" style="width:55px">QD</th><th class="num" style="width:55px">QS</th><th class="num" style="width:72px">P.U</th><th class="num new" style="width:85px">P.REF</th><th class="num new" style="width:70px">TAUX</th><th class="num" style="width:85px">Montant</th><th style="width:36px"></th></tr></thead>
-      <tbody>
-        <tr><td>1</td><td>3400210</td><td>RAPICLAV 1G CPR B/14</td><td class="num qd">1</td><td class="num">1</td><td class="num">6 725</td><td class="num ref">6 000<span class="plus">+1</span></td><td class="num ref">70 %<span class="plus">+1</span></td><td class="num">6 725</td><td class="c">🗑</td></tr>
-        <tr class="sel"><td>2</td><td>3400211</td><td>ISOLONE 20MG CPR EFFV B/20</td><td class="num qd">1</td><td class="num">1</td><td class="num">3 145</td><td class="num ref">2 900<span class="plus">+1</span></td><td class="num ref">70 %<span class="plus">+1</span></td><td class="num">3 145</td><td class="c">🗑</td></tr>
-      </tbody>
-    </table>
-  </fieldset>
-  <div class="volet">
-    <h4>Référence tiers-payant — ISOLONE 20MG CPR EFFV B/20 · prix de vente 3 145 · ligne 2</h4>
-    <div class="tpl h"><span>Tiers-payant</span><span>Option de prix</span><span>Prix de réf.</span><span>Taux</span><span>Pris en charge (aperçu)</span><span>Source</span></div>
-    <div class="tpl"><b>MCI-CARE</b> <span class="small">(TP1, 70 %)</span><span class="champ sel" style="min-width:140px">Prix + taux</span><span class="champ edit" style="min-width:90px;text-align:right">2 900</span><span class="champ" style="min-width:70px;text-align:right">70</span><span style="font-weight:800;color:var(--bleu)">2 030 CFA</span><span class="small">fiche article, modifié ici</span></div>
-    <div class="tpl"><b>CNPS</b> <span class="small">(TP2, 20 %)</span><span class="champ sel" style="min-width:140px">Taux seul</span><span class="champ vide" style="min-width:90px;text-align:right">—</span><span class="champ edit" style="min-width:70px;text-align:right">15</span><span style="font-weight:800;color:var(--bleu)">435 CFA</span><span class="small">nouveau pour ce produit</span></div>
-    <div class="actions">
-      <span class="btn confirm">Confirmer : appliquer à la fiche article (2 tiers-payants) et recalculer</span>
-      <span class="btn">Annuler</span>
-      <span style="margin-left:auto">Même effet que la fiche article : s'applique à toutes les ventes futures et aux ventes en cours de ce produit (Q2.7). Journalisé (Q2.6).</span>
-    </div>
-  </div>
-</div></div>
+<h2>3. Journal (fiche article, onglet « Historique des références ») — Q2.6</h2>
+<p class="cmt">Alimenté par les deux chemins (fiche article et caisse), pour les ajouts, modifications et suppressions.</p>
+<div class="journal">
+  <table style="background:#fff">
+    <thead><tr><th>Date</th><th>Qui</th><th>Origine</th><th>Tiers-payant</th><th>Action</th><th>Avant</th><th>Après</th></tr></thead>
+    <tbody>
+      <tr><td>03/11/2026 10:44</td><td>Caissière A.</td><td>Caisse — vente VO-2026-01039</td><td>CNPS</td><td>Ajout</td><td>—</td><td>prix 3 145 · taux 15 %</td></tr>
+      <tr><td>28/10/2026 16:02</td><td>Pharmacien K.</td><td>Fiche article</td><td>MCI-CARE</td><td>Modification</td><td>prix 6 500 · taux 70 %</td><td>prix 6 000 · taux 70 %</td></tr>
+      <tr><td>12/09/2026 09:10</td><td>Pharmacien K.</td><td>Fiche article</td><td>CNPS</td><td>Suppression</td><td>prix 6 200</td><td>—</td></tr>
+    </tbody>
+  </table>
+  <p class="small">Rappel (Q2.5, non tranché) : le moteur retient aujourd'hui le <b>minimum</b> des prix de référence de la vente pour toutes les parts. Recommandation : livrer sans toucher au moteur, puis un lot séparé « base de calcul par tiers-payant » avec ses tests de non-régression.</p>
+</div>
 </body>
 </html>
