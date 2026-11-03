@@ -7,11 +7,17 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import commonTasks.dto.ClotureVenteParams;
+import commonTasks.dto.VenteReglementDTO;
+import dal.TFamille;
 import dal.TPreenregistrement;
 import dal.TPreenregistrementDetail;
 import dal.TTypeVente;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 import util.Constant;
 
@@ -92,6 +98,98 @@ public class LigneComptantTest {
         assertArrayEquals(new int[] { 0, 0 }, LigneComptant.imputation(0, 3930, 2810));
         // trop paye : le surplus (monnaie) reste a la vente assurance
         assertArrayEquals(new int[] { 3930, 3070 }, LigneComptant.imputation(7000, 3930, 2810));
+    }
+
+    private static VenteReglementDTO reglement(String type, int montant, int verse) {
+        VenteReglementDTO r = new VenteReglementDTO();
+        r.setTypeReglement(type);
+        r.setMontant(montant);
+        r.setMontantAttentu(montant);
+        r.setMontantVerse(verse);
+        return r;
+    }
+
+    private static String texte(Set<VenteReglementDTO> s) {
+        StringBuilder b = new StringBuilder();
+        for (VenteReglementDTO r : s) {
+            b.append(r.getTypeReglement()).append(':').append(r.getMontant()).append('/').append(r.getMontantVerse())
+                    .append(' ');
+        }
+        return b.toString().trim();
+    }
+
+    @Test
+    public void unSeulModeCoupeEnDeux() {
+        // especes 6 740 recus (7 000 tendus) pour un comptant de 3 930 : 3 930 au comptant, le reste et la monnaie
+        // a l'assurance
+        Set<VenteReglementDTO> r = new LinkedHashSet<>(Arrays.asList(reglement("1", 6740, 7000)));
+        List<Set<VenteReglementDTO>> parts = LigneComptant.repartirReglements(r, 3930);
+        assertEquals("1:3930/3930", texte(parts.get(0)));
+        assertEquals("1:2810/3070", texte(parts.get(1)));
+    }
+
+    @Test
+    public void deuxModesImputesComptantDAbord() {
+        // mobile 3 000 + especes 3 740 : le comptant (3 930) prend le mode le plus fort puis 930 d'especes
+        Set<VenteReglementDTO> r = new LinkedHashSet<>(
+                Arrays.asList(reglement("5", 3000, 3000), reglement("1", 3740, 3740)));
+        List<Set<VenteReglementDTO>> parts = LigneComptant.repartirReglements(r, 3930);
+        assertEquals("1:3740/3740 5:190/190", texte(parts.get(0)));
+        assertEquals("5:2810/2810", texte(parts.get(1)));
+        // rien de paye (differe) : tout reste a l'assurance avec un montant nul, le comptant n'a rien
+        parts = LigneComptant.repartirReglements(Arrays.asList(reglement("4", 0, 0)), 3930);
+        assertTrue(parts.get(0).isEmpty());
+        assertEquals("4:0/0", texte(parts.get(1)));
+    }
+
+    @Test
+    public void chargeDeClotureDeLaVenteComptantLiee() {
+        TFamille f = new TFamille("F");
+        f.setBoolACCOUNT(true);
+        f.setIntPAF(2000);
+        List<TPreenregistrementDetail> lignes = new ArrayList<>();
+        TPreenregistrementDetail a = ligne("r", 6725, 101, false);
+        TPreenregistrementDetail k = ligne("k", 4135, 207, true);
+        k.setIntQUANTITY(1);
+        k.setLgFAMILLEID(f);
+        a.setIntQUANTITY(1);
+        a.setLgFAMILLEID(f);
+        lignes.add(a);
+        lignes.add(k);
+        ClotureVenteParams vo = new ClotureVenteParams();
+        vo.setVenteId("VO");
+        vo.setTypeVenteId("2");
+        vo.setNatureVenteId("1");
+        vo.setRemiseId("R5");
+        vo.setUserVendeurId("U1");
+        vo.setClientId("C1");
+        vo.setTypeRegleId("1");
+        vo.setMontantRecu(7000);
+        vo.setMontantRemis(260);
+        vo.setMontantPaye(6740);
+        vo.setTotalRecap(10860);
+        vo.setMarge(5000);
+        vo.setReglements(new LinkedHashSet<>(Arrays.asList(reglement("1", 7000, 7000))));
+        ClotureVenteParams c = LigneComptant.parametresVenteComptant(vo, lignes, "VNO");
+        // la vente comptant : son net arrondi (3 928 -> 3 930), type comptant, memes client / vendeur / remise
+        assertEquals("VNO", c.getVenteId());
+        assertEquals("1", c.getTypeVenteId());
+        assertEquals("C1", c.getClientId());
+        assertEquals("U1", c.getUserVendeurId());
+        assertEquals("R5", c.getRemiseId());
+        assertEquals(Integer.valueOf(3930), c.getMontantPaye());
+        assertEquals(Integer.valueOf(3930), c.getMontantRecu());
+        assertEquals(Integer.valueOf(0), c.getMontantRemis());
+        assertEquals(Integer.valueOf(4135), c.getTotalRecap());
+        assertEquals(Integer.valueOf(4135 - 207 - 2000), c.getMarge());
+        assertEquals("1:3930/3930", texte(c.getReglements()));
+        // la vente assurance garde le reste : part client 2 810, monnaie inchangee
+        assertEquals(Integer.valueOf(2810), vo.getMontantPaye());
+        assertEquals(Integer.valueOf(3070), vo.getMontantRecu());
+        assertEquals(Integer.valueOf(260), vo.getMontantRemis());
+        assertEquals(Integer.valueOf(10860 - 4135), vo.getTotalRecap());
+        assertEquals(Integer.valueOf(5000 - (4135 - 207 - 2000)), vo.getMarge());
+        assertEquals("1:3070/3070", texte(vo.getReglements()));
     }
 
     @Test
