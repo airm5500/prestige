@@ -376,7 +376,11 @@ public class RetourFournisseurRessource {
                     "Vous n'avez pas le droit de valider un retour : saisissez-le ligne par ligne pour le mettre en attente"))
                     .build();
         }
-        retourFournisseurService.returnFullBonLivraison(id, params.getLgMOTIFRETOUR());
+        try {
+            retourFournisseurService.returnFullBonLivraison(id, params == null ? null : params.getLgMOTIFRETOUR());
+        } catch (RefusMetier e) {
+            return Response.ok().entity(ResultFactory.getFailResult(e.getMessage())).build();
+        }
 
         return Response.ok().entity(ResultFactory.getSuccessResultMsg()).build();
     }

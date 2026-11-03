@@ -79,8 +79,14 @@ public class TSuggestionReserve implements Serializable {
     @ManyToOne
     private MotifSuggestionReserve motif;
 
+    /*
+     * Journal du support du 03/11 : un emplacement introuvable (identifiant vide ou depot retire, aucune cle etrangere)
+     * faisait echouer toute la liste des suggestions. La suggestion est lue comme sans emplacement, ce que la liste
+     * admet deja.
+     */
     @JoinColumn(name = "lg_EMPLACEMENT_ID", referencedColumnName = "lg_EMPLACEMENT_ID")
     @ManyToOne
+    @org.hibernate.annotations.NotFound(action = org.hibernate.annotations.NotFoundAction.IGNORE)
     private TEmplacement lgEMPLACEMENTID;
 
     @JoinColumn(name = "lg_USER_CREATEUR_ID", referencedColumnName = "lg_USER_ID")
