@@ -7,6 +7,8 @@ package rest.service.ticket;
 public enum ModeleTicket {
     PREVENTE("Prévente", "Ventes"), VENTE("Vente comptant", "Ventes"), VENTE_ASSURANCE("Vente assurance", "Ventes"),
     VENTE_CARNET("Vente carnet", "Ventes"), VENTE_DEPOT("Vente dépôt", "Ventes"),
+    /** Cas 1 du 03/11/2026 : reçu client combine, vente assurance + vente comptant liee (une saisie, deux ventes). */
+    VENTE_MIXTE("Vente assurance + comptant (reçu client)", "Ventes"),
     REGLEMENT_DIFFERE("Règlement différé", "Règlements"), REGLEMENT_FACTURE("Règlement facture", "Règlements"),
     REGLEMENT_CARNET_DEPOT("Règlement carnet / dépôt", "Règlements"), MOUVEMENT_CAISSE("Mouvement de caisse", "Caisse"),
     TICKET_Z("Ticket Z", "Caisse");
@@ -33,7 +35,8 @@ public enum ModeleTicket {
     }
 
     public boolean estVente() {
-        return this == VENTE || this == VENTE_ASSURANCE || this == VENTE_CARNET || this == VENTE_DEPOT;
+        return this == VENTE || this == VENTE_ASSURANCE || this == VENTE_CARNET || this == VENTE_DEPOT
+                || this == VENTE_MIXTE;
     }
 
     public static ModeleTicket depuis(String code) {

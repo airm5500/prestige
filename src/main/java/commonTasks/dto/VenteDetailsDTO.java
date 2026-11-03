@@ -38,6 +38,17 @@ public class VenteDetailsDTO implements Serializable {
     private String strNAME;
     /** Audit 05 PR-01 : ligne tarifee par une promotion, et unites gratuites comprises dans la quantite. */
     private boolean promotion;
+    /** Cas 1 du 03/11/2026 : ligne cochee « C » (au comptant) d'une vente assurance. */
+    private boolean comptant;
+
+    public boolean isComptant() {
+        return comptant;
+    }
+
+    public void setComptant(boolean comptant) {
+        this.comptant = comptant;
+    }
+
     private Integer unitesOffertes = 0;
     private String intCIP;
     private String intEAN13;
@@ -476,6 +487,7 @@ public class VenteDetailsDTO implements Serializable {
         this.calculationBasePrice = d.getCalculationBasePrice();
         this.promotion = d.getPromotionProduitId() != null;
         this.unitesOffertes = this.promotion && d.getIntFREEPACKNUMBER() != null ? d.getIntFREEPACKNUMBER() : 0;
+        this.comptant = d.isComptant();
     }
 
     public boolean isPromotion() {

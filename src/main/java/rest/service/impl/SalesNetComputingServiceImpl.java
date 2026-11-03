@@ -270,9 +270,25 @@ public class SalesNetComputingServiceImpl implements SalesNetComputingService {
             output = tiersPayantCalculationService.calculate(input);
             op.setIntCUSTPART(output.getTotalPatientShare().intValue());
         } else {
+            // cas 1 du 03/11 : les lignes cochees « C » sortent du moteur tiers-payant (parametre a 0 ou aucune coche :
+            // la liste est exactement celle d'aujourd'hui). La remise produit reste calculee sur toutes les lignes.
+            List<TPreenregistrementDetail> lignesMoteur = rest.service.vente.LigneComptant
+                    .lignesPourLeCalcul(rest.service.vente.LigneComptant.actif(em), op, items);
             output = tiersPayantCalculationService
-                    .calculate(buildCalculationInput(op, items, compteClientTiersPayents, tpsBons));
+                    .calculate(buildCalculationInput(op, lignesMoteur, compteClientTiersPayents, tpsBons));
             montantAPaye = remiseSurPartClient(op, remise, items, output);
+            if (lignesMoteur != items) {
+                // ligne sortie du moteur : plus de base de calcul tiers-payant
+                for (TPreenregistrementDetail d : items) {
+                    if (d.isComptant() && d.getCalculationBasePrice() != null) {
+                        d.setCalculationBasePrice(null);
+                        em.merge(d);
+                    }
+                }
+                int comptant = rest.service.vente.LigneComptant
+                        .arrondi5(rest.service.vente.LigneComptant.montantComptant(items));
+                montantAPaye.setMontantComptant(comptant);
+            }
         }
 
         Map<String, List<TPreenregistrementCompteClientTiersPayent>> maps = compteClientTiersPayents.stream().collect(
@@ -320,6 +336,9 @@ public class SalesNetComputingServiceImpl implements SalesNetComputingService {
         montantAPaye.setMontantTp(output.getTotalTiersPayant().intValue());
 
         montantAPaye.setMontantNet(NumberUtils.arrondiModuloOfNumber(op.getIntCUSTPART(), 5));
+        // cas 1 du 03/11 : le net = part client des lignes assurance + lignes comptant ; le rail affiche les deux
+        montantAPaye
+                .setMontantPartClient(Math.max(0, montantAPaye.getMontantNet() - montantAPaye.getMontantComptant()));
         // Plus de motifs de refus : tous les plafonds (compte, par vente, credit de l'organisme)
         // ECRETENT la part tiers payant, et l'avertissement dit la difference laissee au client.
         String messagePlafonds = output.getWarningMessage();

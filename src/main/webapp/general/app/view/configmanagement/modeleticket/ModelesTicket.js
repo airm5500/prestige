@@ -24,11 +24,11 @@ Ext.define('testextjs.view.configmanagement.modeleticket.ModelesTicket', {
     URL: '../api/v1/modeles-ticket',
 
     OPTIONS: [
-        {cle: 'remise', libelle: 'Afficher la remise', aide: 'Si non : ni la remise ni le total avant remise, la remise reste appliquée', pour: ['PREVENTE', 'VENTE', 'VENTE_ASSURANCE', 'VENTE_CARNET', 'VENTE_DEPOT']},
-        {cle: 'lot', libelle: 'Afficher le lot vendu', aide: 'Lots lus par GS1 ; place réservée entre « quantité × prix » et le montant', pour: ['VENTE', 'VENTE_ASSURANCE', 'VENTE_CARNET', 'VENTE_DEPOT']},
-        {cle: 'recapitulatif', libelle: 'Afficher « articles · boîtes »', aide: 'Pour contrôler le sac au comptoir', pour: ['PREVENTE', 'VENTE', 'VENTE_ASSURANCE', 'VENTE_CARNET', 'VENTE_DEPOT']},
-        {cle: 'ccRc', libelle: 'Afficher CC et RC', aide: 'Fiche officine', pour: ['VENTE', 'VENTE_ASSURANCE', 'VENTE_CARNET', 'VENTE_DEPOT', 'REGLEMENT_DIFFERE', 'REGLEMENT_FACTURE', 'REGLEMENT_CARNET_DEPOT', 'MOUVEMENT_CAISSE']},
-        {cle: 'commentaires', libelle: 'Commentaires de l\'officine', aide: 'En-tête et commentaires du bas de l\'identification officine', pour: ['VENTE', 'VENTE_ASSURANCE', 'VENTE_CARNET', 'VENTE_DEPOT', 'REGLEMENT_DIFFERE', 'REGLEMENT_FACTURE', 'REGLEMENT_CARNET_DEPOT', 'MOUVEMENT_CAISSE']},
+        {cle: 'remise', libelle: 'Afficher la remise', aide: 'Si non : ni la remise ni le total avant remise, la remise reste appliquée', pour: ['PREVENTE', 'VENTE', 'VENTE_ASSURANCE', 'VENTE_CARNET', 'VENTE_DEPOT', 'VENTE_MIXTE']},
+        {cle: 'lot', libelle: 'Afficher le lot vendu', aide: 'Lots lus par GS1 ; place réservée entre « quantité × prix » et le montant', pour: ['VENTE', 'VENTE_ASSURANCE', 'VENTE_CARNET', 'VENTE_DEPOT', 'VENTE_MIXTE']},
+        {cle: 'recapitulatif', libelle: 'Afficher « articles · boîtes »', aide: 'Pour contrôler le sac au comptoir', pour: ['PREVENTE', 'VENTE', 'VENTE_ASSURANCE', 'VENTE_CARNET', 'VENTE_DEPOT', 'VENTE_MIXTE']},
+        {cle: 'ccRc', libelle: 'Afficher CC et RC', aide: 'Fiche officine', pour: ['VENTE', 'VENTE_ASSURANCE', 'VENTE_CARNET', 'VENTE_DEPOT', 'VENTE_MIXTE', 'REGLEMENT_DIFFERE', 'REGLEMENT_FACTURE', 'REGLEMENT_CARNET_DEPOT', 'MOUVEMENT_CAISSE']},
+        {cle: 'commentaires', libelle: 'Commentaires de l\'officine', aide: 'En-tête et commentaires du bas de l\'identification officine', pour: ['VENTE', 'VENTE_ASSURANCE', 'VENTE_CARNET', 'VENTE_DEPOT', 'VENTE_MIXTE', 'REGLEMENT_DIFFERE', 'REGLEMENT_FACTURE', 'REGLEMENT_CARNET_DEPOT', 'MOUVEMENT_CAISSE']},
         {cle: 'encoursCarnet', libelle: 'Encours du carnet après la vente', aide: '', pour: ['VENTE_CARNET']},
         {cle: 'signatureClient', libelle: 'Signature du client', aide: 'Preuve quand l\'entreprise conteste un bon', pour: ['VENTE_CARNET']},
         {cle: 'signatures', libelle: 'Signatures caissier et bénéficiaire', aide: 'Pièce justificative', pour: ['MOUVEMENT_CAISSE']},

@@ -2097,6 +2097,40 @@ public class SalesServiceImpl implements SalesService {
 
     }
 
+    @Override
+    public JSONObject marquerLigneComptant(String itemId, boolean comptant) {
+        JSONObject json = new JSONObject();
+        try {
+            EntityManager emg = getEm();
+            boolean actif = rest.service.vente.LigneComptant.actif(emg);
+            if (!actif) {
+                return json.put("success", false).put("http", 403).put("msg",
+                        rest.service.vente.LigneComptant.MSG_INACTIF);
+            }
+            TPreenregistrementDetail detail = StringUtils.isBlank(itemId) ? null
+                    : emg.find(TPreenregistrementDetail.class, itemId);
+            if (detail == null || detail.getLgPREENREGISTREMENTID() == null) {
+                return json.put("success", false).put("msg",
+                        "Ce produit n'est plus dans la vente : actualisez l'écran avant de continuer.");
+            }
+            TPreenregistrement tp = detail.getLgPREENREGISTREMENTID();
+            String refus = rest.service.vente.LigneComptant.refusCochage(true, tp, detail, comptant,
+                    controleVenteModifiable(tp.getLgPREENREGISTREMENTID()));
+            if (refus != null) {
+                return json.put("success", false).put("msg", refus);
+            }
+            detail.setComptant(comptant);
+            detail.setDtUPDATED(new Date());
+            emg.merge(detail);
+            return json.put("success", true).put("comptant", detail.isComptant())
+                    .put("itemId", detail.getLgPREENREGISTREMENTDETAILID())
+                    .put("venteId", tp.getLgPREENREGISTREMENTID());
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "marquerLigneComptant", e);
+            return json.put("success", false).put("msg", "Erreur :: l'opération a échouée");
+        }
+    }
+
     public void updateLogFile(TUser user, String ref, String desc, TypeLog typeLog, Object t, EntityManager emg) {
         TEventLog eventLog = new TEventLog(UUID.randomUUID().toString());
         eventLog.setLgUSERID(user);
@@ -3121,6 +3155,30 @@ public class SalesServiceImpl implements SalesService {
                 annulerVenteAnterieur(tp.getLgUSERID(), venteAsupprimer);
                 venteModifieeService.enregistrerModificationProduits(tp.getLgUSERID(), venteAsupprimer, tp);
             }
+            /*
+             * Cas 1 du 03/11/2026 : lignes cochees « C » -> vente comptant liee. Un seul point d'entree, emprunte
+             * seulement si le parametre est actif ET qu'au moins une ligne est cochee ; sinon rien de ce bloc ne
+             * s'execute et la cloture est celle d'aujourd'hui. Place apres les controles qui rendent la main sans
+             * annuler la transaction : a partir d'ici tout refus l'annule, les deux ventes avec.
+             */
+            TPreenregistrement venteComptantLiee = null;
+            ClotureVenteParams clotureComptant = null;
+            if (rest.service.vente.LigneComptant.actif(emg)
+                    && rest.service.vente.LigneComptant.aDesLignesComptant(lstTPreenregistrementDetail)) {
+                List<TPreenregistrementDetail> restantes = rest.service.vente.LigneComptant
+                        .lignesAssurance(lstTPreenregistrementDetail);
+                if (restantes.isEmpty()) {
+                    annulerClotureIncomplete();
+                    return json.put("success", false).put("codeError", 0).put("msg",
+                            "Toutes les lignes sont cochées au comptant : passez la vente au comptant, ou décochez au moins une ligne.");
+                }
+                venteComptantLiee = scinderLignesComptant(tp, lstTPreenregistrementDetail, tUser);
+                clotureComptant = rest.service.vente.LigneComptant.parametresVenteComptant(clotureVenteParams,
+                        lstTPreenregistrementDetail, venteComptantLiee.getLgPREENREGISTREMENTID());
+                lstTPreenregistrementDetail = restantes;
+                montant = tp.getIntPRICE();
+                amount = montant - tp.getIntPRICEREMISE();
+            }
             if (clotureVenteParams.getTypeRegleId().equals(REGL_DIFF)) {
                 isDiff = true;
             }
@@ -3174,6 +3232,23 @@ public class SalesServiceImpl implements SalesService {
             tp.setCompletionDate(new Date());
             emg.merge(tp);
             daterModificationALaVenteDOrigine(tp);
+            if (venteComptantLiee != null) {
+                /*
+                 * Cas 1 du 03/11 : la vente comptant liee est cloturee par le code de la vente au comptant, dans la
+                 * meme transaction (meme verrou, meme caisse deja controlee). Un refus annule les deux ventes.
+                 */
+                JSONObject resultatComptant = updateVenteClotureComptant(clotureComptant);
+                if (!resultatComptant.optBoolean("success", false)) {
+                    annulerClotureIncomplete();
+                    return json.put("success", false).put("codeError", 0).put("msg",
+                            "La vente comptant liée n'a pas été validée (" + resultatComptant.optString("msg", "")
+                                    + ") : aucune des deux ventes n'est enregistrée.");
+                }
+                json.put("venteLiee", venteComptantLiee.getLgPREENREGISTREMENTID())
+                        .put("refVenteLiee", venteComptantLiee.getStrREF()).put("refVente", tp.getStrREF())
+                        .put("montantComptant", clotureComptant.getMontantPaye())
+                        .put("partClient", clotureVenteParams.getMontantPaye());
+            }
 
             if (clotureVenteParams.getMontantRemis() > 0) {
                 afficheurMontantAPayer(clotureVenteParams.getMontantRemis(), " MONNAIE:");
@@ -3197,6 +3272,83 @@ public class SalesServiceImpl implements SalesService {
             }
         }
         return json;
+    }
+
+    /**
+     * Cas 1 du 03/11/2026 : cree la vente comptant liee (meme client, vendeur, caisse, remise, medecin, emplacement) et
+     * y deplace les lignes cochees « C » : une ligne n'appartient qu'a une vente, le stock ne sort qu'une fois. Les
+     * totaux de la vente assurance sont ramenes aux lignes restantes ; sa part client perd le net des lignes deplacees
+     * (le calcul du net l'y avait ajoute). Lien reciproque lg_VENTE_LIEE_ID. Dans la transaction et sous le verrou de
+     * la cloture appelante.
+     */
+    private TPreenregistrement scinderLignesComptant(TPreenregistrement vo, List<TPreenregistrementDetail> lignes,
+            TUser tUser) {
+        EntityManager emg = getEm();
+        List<TPreenregistrementDetail> cochees = rest.service.vente.LigneComptant.lignesComptant(lignes);
+        int total = rest.service.vente.LigneComptant.montantTotal(cochees);
+        int remise = rest.service.vente.LigneComptant.montantRemise(cochees);
+        int tva = rest.service.vente.LigneComptant.montantTva(cochees);
+        int account = rest.service.vente.LigneComptant.montantAccount(cochees);
+        int remisePara = rest.service.vente.LigneComptant.remisePara(cochees);
+        Date maintenant = new Date();
+
+        TPreenregistrement vno = new TPreenregistrement(UUID.randomUUID().toString());
+        vno.setLgUSERVENDEURID(vo.getLgUSERVENDEURID() != null ? vo.getLgUSERVENDEURID() : tUser);
+        vno.setLgUSERCAISSIERID(tUser);
+        vno.setLgUSERID(tUser);
+        vno.setPkBrand("");
+        vno.setEmplacementVente(vo.getEmplacementVente());
+        vno.setMedecin(vo.getMedecin());
+        vno.setStrREF(buildRefTmp(LocalDate.now(), ContexteVenteDepot.emplacementDeNumerotation(vo, tUser))
+                .getReferenceTemp());
+        vno.setLgREMISEID(vo.getLgREMISEID());
+        vno.setRemise(vo.getRemise());
+        vno.setClient(vo.getClient());
+        vno.setStrFIRSTNAMECUSTOMER(vo.getClient() != null ? vo.getClient().getStrFIRSTNAME() : "");
+        vno.setStrLASTNAMECUSTOMER(vo.getClient() != null ? vo.getClient().getStrLASTNAME() : "");
+        vno.setStrPHONECUSTOME(StringUtils.defaultString(vo.getStrPHONECUSTOME()));
+        vno.setStrINFOSCLT("");
+        vno.setDtCREATED(maintenant);
+        vno.setDtUPDATED(maintenant);
+        vno.setLgNATUREVENTEID(vo.getLgNATUREVENTEID());
+        vno.setLgTYPEVENTEID(typeVenteFromId(VENTE_COMPTANT_ID));
+        vno.setStrTYPEVENTE(KEY_VENTE_NON_ORDONNANCEE);
+        vno.setIntPRICE(total);
+        vno.setIntACCOUNT(account);
+        vno.setIntPRICEOTHER(0);
+        vno.setBISCANCEL(false);
+        vno.setBWITHOUTBON(false);
+        vno.setIntCUSTPART(Math.max(0, total - remise));
+        vno.setIntPRICEREMISE(remise);
+        vno.setIntREMISEPARA(remisePara);
+        vno.setIntSENDTOSUGGESTION(0);
+        vno.setMontantTva(tva);
+        vno.setCopy(false);
+        vno.setChecked(Boolean.TRUE);
+        vno.setStrSTATUTVENTE(NON_DIFFERE);
+        vno.setStrSTATUT(STATUT_IS_PROGRESS);
+        vno.setLgVENTELIEEID(vo.getLgPREENREGISTREMENTID());
+        vno.setTPreenregistrementDetailCollection(new ArrayList<>(cochees));
+        emg.persist(vno);
+        for (TPreenregistrementDetail d : cochees) {
+            d.setLgPREENREGISTREMENTID(vno);
+            d.setCalculationBasePrice(null);
+            d.setDtUPDATED(maintenant);
+            emg.merge(d);
+        }
+        if (vo.getTPreenregistrementDetailCollection() != null) {
+            vo.getTPreenregistrementDetailCollection().removeAll(cochees);
+        }
+        vo.setIntPRICE(Math.max(0, valeur(vo.getIntPRICE()) - total));
+        vo.setIntPRICEREMISE(Math.max(0, valeur(vo.getIntPRICEREMISE()) - remise));
+        vo.setIntACCOUNT(Math.max(0, valeur(vo.getIntACCOUNT()) - account));
+        vo.setMontantTva(Math.max(0, valeur(vo.getMontantTva()) - tva));
+        vo.setIntREMISEPARA(Math.max(0, valeur(vo.getIntREMISEPARA()) - remisePara));
+        vo.setIntCUSTPART(Math.max(0, valeur(vo.getIntCUSTPART()) - (total - remise)));
+        vo.setLgVENTELIEEID(vno.getLgPREENREGISTREMENTID());
+        emg.merge(vo);
+        emg.flush();
+        return vno;
     }
 
     private boolean gererOrdoncier() {
@@ -5121,6 +5273,8 @@ public class SalesServiceImpl implements SalesService {
         newTd.setIntAVOIR(tp.getIntAVOIR());
         newTd.setIntAVOIRSERVED(tp.getIntQUANTITYSERVED());
         newTd.setBISAVOIR(tp.getBISAVOIR());
+        // cas 1 du 03/11 : la coche « C » suit la ligne dans la copie de modification
+        newTd.setComptant(tp.isComptant());
         clonePrixReferenceVente(tp, newTd);
         getEm().persist(newTd);
         return newTd;

@@ -30,6 +30,17 @@ public class SalesParams implements Serializable {
     private String bonRef = "";
     private boolean sansBon;
     private boolean checkUg;
+    /** Cas 1 du 03/11/2026 : valeur de la coche « C » envoyee par PUT item/{id}/comptant. */
+    private boolean comptant;
+
+    public boolean isComptant() {
+        return comptant;
+    }
+
+    public void setComptant(boolean comptant) {
+        this.comptant = comptant;
+    }
+
     private TUser userId;
     private String venteId;
     private String itemId;
