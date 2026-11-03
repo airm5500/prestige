@@ -2473,12 +2473,16 @@ public class SalesServiceImpl implements SalesService {
         this.getEm().persist(oTPreenregistrementCompteClient);
     }
 
-    public TRecettes addRecette(Integer montant, String desc, String refId, TUser user) {
+    /*
+     * gestion de caisse G6 : la recette porte la date de la vente, comme la balance (mvttransaction.mvtdate) ; une
+     * vente modifiee garde la date de la vente d'origine, sa recette aussi (decision du 03/11)
+     */
+    public TRecettes addRecette(Integer montant, String desc, String refId, TUser user, Date dateVente) {
         TRecettes recette = new TRecettes();
         recette.setIdRecette(UUID.randomUUID().toString());
         recette.setLgTYPERECETTEID(findTTypeRecetteById());
         recette.setIntAMOUNT(montant.doubleValue());
-        recette.setDtCREATED(new Date());
+        recette.setDtCREATED(dateVente != null ? dateVente : new Date());
         recette.setDtUPDATED(recette.getDtCREATED());
         recette.setStrDESCRIPTION(desc);
         recette.setStrREFFACTURE(refId);
@@ -2962,7 +2966,8 @@ public class SalesServiceImpl implements SalesService {
             }
             if (amount > 0) {
 
-                addRecette(clotureVenteParams.getMontantPaye(), VENTE_ASSURANCE, tp.getLgPREENREGISTREMENTID(), tUser);
+                addRecette(clotureVenteParams.getMontantPaye(), VENTE_ASSURANCE, tp.getLgPREENREGISTREMENTID(), tUser,
+                        tp.getDtUPDATED());
             }
             TTypeReglement typeReglement = findById(clotureVenteParams.getTypeRegleId());
             MvtTransaction mvtTransaction = addTransaction(tUser, tp, montant, amount,
@@ -3318,7 +3323,7 @@ public class SalesServiceImpl implements SalesService {
             }
             TTypeReglement tTypeReglement = findById(clotureVenteParams.getTypeRegleId());
             addRecette(clotureVenteParams.getMontantPaye(), VENTE_COMPTANT, tp.getLgPREENREGISTREMENTID(),
-                    clotureVenteParams.getUserId());
+                    clotureVenteParams.getUserId(), tp.getDtUPDATED());
             MvtTransaction mt = addTransaction(tUser, tp, montant, tp.getIntACCOUNT(), amount,
                     clotureVenteParams.getMontantRecu(), true, CategoryTransaction.CREDIT,
                     TypeTransaction.VENTE_COMPTANT, tTypeReglement, typeMvtCaisse.get(),
@@ -4307,7 +4312,7 @@ public class SalesServiceImpl implements SalesService {
                     ContexteVenteDepot.emplacementDeNumerotation(tp, clotureVenteParams.getUserId())).getReference());
             cloturerItemsVente(tp.getLgPREENREGISTREMENTID());
             addRecette(clotureVenteParams.getMontantPaye(), tp.getStrREFTICKET() + "_" + tp.getStrREF(),
-                    tp.getLgPREENREGISTREMENTID(), clotureVenteParams.getUserId());
+                    tp.getLgPREENREGISTREMENTID(), clotureVenteParams.getUserId(), tp.getDtUPDATED());
             MvtTransaction mvtTransaction = addTransaction(tUser, tp, montant, tp.getIntACCOUNT(), amount,
                     clotureVenteParams.getMontantRecu(), true, CategoryTransaction.CREDIT,
                     TypeTransaction.VENTE_COMPTANT, findById(clotureVenteParams.getTypeRegleId()), typeMvtCaisse.get(),
@@ -5968,6 +5973,13 @@ public class SalesServiceImpl implements SalesService {
             p.getVenteReglements().forEach(t -> {
                 t.setMvtDate(venteDateNew);
                 this.getEm().merge(t);
+            });
+            // gestion de caisse G6 : la recette suit la nouvelle date, comme la balance ; sinon recette et balance
+            // de vente caisse different de son montant, chacune a un jour
+            findRecette(p.getLgPREENREGISTREMENTID()).ifPresent(r -> {
+                r.setDtCREATED(venteDate);
+                r.setDtUPDATED(venteDate);
+                this.getEm().merge(r);
             });
             String desc = "Modification de la vente " + p.getStrREF() + " date initiale : "
                     + DateCommonUtils.formatDate(initiale) + " nouvelle date :" + DateCommonUtils.formatDate(venteDate)
