@@ -79,11 +79,48 @@ public final class ExemplesTicket {
                             new String[] { "Vente 261101_00112", "5500" });
             s.referencePied = "D4WQ7N2KXE";
             break;
+        case VENTE_MIXTE:
+            mixte(s);
+            break;
         default:
             vente(s, t);
             break;
         }
         return s;
+    }
+
+    /** Cas 1 du 03/11/2026 : les deux ventes de la maquette validee (noms fictifs). */
+    private static void mixte(ConversionTicket.Source s) {
+        TicketCombine.Entree e = new TicketCombine.Entree();
+        e.refVo = "VO-2026-01039";
+        e.refVno = "VNO-2026-01040";
+        e.articlesVo = Arrays.asList(
+                new ConversionTicket.Article("RAPICLAV 1G CPR B/14", 1, 6725, 6725, "",
+                        Collections.singletonList(CreditLigne.libelle(null, 70, 4708))),
+                new ConversionTicket.Article("ISOLONE 20MG CPR EFFV B/20", 1, 3145, 3145, "",
+                        Collections.singletonList(CreditLigne.libelle(null, 70, 2201))));
+        e.articlesVno = Collections
+                .singletonList(new ConversionTicket.Article("KETODERM 2% CREME T/15G", 1, 4135, 4135, ""));
+        e.tiersPayants = Collections.singletonList(new String[] { "MCI-CARE", "70", "6909" });
+        e.totalVo = 9870;
+        e.remiseVo = 148;
+        e.partClientVo = 2810;
+        e.totalVno = 4135;
+        e.remiseVno = 207;
+        e.netVno = 3930;
+        e.assure = "N. ESSAI";
+        e.modeReglement = "Espèces";
+        e.verse = 6740;
+        e.monnaie = 0;
+        TicketCombine.Sortie c = TicketCombine.construire(e);
+        s.titre = c.titre;
+        s.infoSellers = Collections.singletonList("Caissier(e):: A.KONE   |   Vendeur:: M.TOURE");
+        s.infoTiersPayants = c.infoTiersPayants;
+        s.datas = c.datas;
+        s.subtotal = c.subtotal;
+        s.articles = c.articles;
+        s.sections = c.sections;
+        s.commentaires = Arrays.asList("Merci de votre confiance;0");
     }
 
     private static List<ConversionTicket.Article> articles() {

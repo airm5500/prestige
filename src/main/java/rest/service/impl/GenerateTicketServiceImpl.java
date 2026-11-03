@@ -92,7 +92,9 @@ import util.DateConverter;
 import util.FunctionUtils;
 import util.NumberUtils;
 import rest.service.ticket.ConversionTicket;
+import rest.service.ticket.CreditLigne;
 import rest.service.ticket.ModeleTicket;
+import rest.service.ticket.TicketCombine;
 import rest.service.ticket.ModeleTicketService;
 
 /**
@@ -173,6 +175,7 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
         int signe = op.getIntPRICE() != null && op.getIntPRICE() < 0 ? -1 : 1;
         List<TPreenregistrementDetail> lignes = listeVenteByIdVente(op.getLgPREENREGISTREMENTID());
         lignes.sort(Comparator.comparing(TPreenregistrementDetail::getDtCREATED));
+        Map<String, List<String>> credits = signe < 0 ? Collections.emptyMap() : creditsParLigne(op, lignes);
         List<ConversionTicket.Article> res = new ArrayList<>();
         for (TPreenregistrementDetail d : lignes) {
             int q = d.getIntQUANTITY() == null ? 0 : d.getIntQUANTITY();
@@ -180,9 +183,133 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             String lot = lots.isEmpty() ? "" : (lots.size() > 1 ? "Lots " : "Lot ") + String.join(", ", lots);
             res.add(new ConversionTicket.Article(d.getLgFAMILLEID().getStrDESCRIPTION().toUpperCase(), signe * q,
                     d.getIntPRICEUNITAIR() == null ? 0 : d.getIntPRICEUNITAIR(),
-                    signe * (d.getIntPRICE() == null ? 0 : d.getIntPRICE()), lot));
+                    signe * (d.getIntPRICE() == null ? 0 : d.getIntPRICE()), lot,
+                    credits.getOrDefault(d.getLgPREENREGISTREMENTDETAILID(), Collections.emptyList())));
         }
         return res;
+    }
+
+    /**
+     * Cas 1 du 03/11/2026 (Q1.9) : « Crédit : T[taux %] — Mont. : part » par ligne et par tiers-payant, sur les tickets
+     * de vente assurance seulement et seulement si KEY_LIGNE_COMPTANT_VO vaut 1. Parametre a 0 : table vide, ticket
+     * inchange. Jamais bloquant pour l'impression.
+     */
+    private Map<String, List<String>> creditsParLigne(TPreenregistrement op, List<TPreenregistrementDetail> lignes) {
+        try {
+            if (op == null || lignes == null || lignes.isEmpty() || modeleVente(op) != ModeleTicket.VENTE_ASSURANCE
+                    || !rest.service.vente.LigneComptant.actif(getEntityManager())) {
+                return Collections.emptyMap();
+            }
+            List<TPreenregistrementCompteClientTiersPayent> tps = listeVenteTiersPayantsByIdVente(
+                    op.getLgPREENREGISTREMENTID());
+            if (tps == null || tps.isEmpty()) {
+                return Collections.emptyMap();
+            }
+            List<Integer> bases = new ArrayList<>();
+            for (TPreenregistrementDetail d : lignes) {
+                Integer base = d.getCalculationBasePrice();
+                bases.add(base != null && base > 0 ? base : (d.getIntPRICE() == null ? 0 : d.getIntPRICE()));
+            }
+            Map<String, List<String>> res = new HashMap<>();
+            boolean nommer = tps.size() > 1;
+            for (TPreenregistrementCompteClientTiersPayent tp : tps) {
+                int taux = tp.getIntPERCENT() == null ? 0 : tp.getIntPERCENT();
+                int total = tp.getIntPRICE() == null ? 0 : tp.getIntPRICE();
+                List<Integer> parts = CreditLigne.parts(bases, taux, total);
+                String nom = nommer ? tp.getLgCOMPTECLIENTTIERSPAYANTID().getLgTIERSPAYANTID().getStrNAME() : null;
+                for (int i = 0; i < lignes.size() && i < parts.size(); i++) {
+                    res.computeIfAbsent(lignes.get(i).getLgPREENREGISTREMENTDETAILID(), k -> new ArrayList<>())
+                            .add(CreditLigne.libelle(nom, taux, parts.get(i)));
+                }
+            }
+            return res;
+        } catch (RuntimeException e) {
+            LOG.log(Level.WARNING, "Crédit par ligne du ticket assurance", e);
+            return Collections.emptyMap();
+        }
+    }
+
+    /**
+     * Cas 1 du 03/11/2026 : ticket client combine (ModeleTicket.VENTE_MIXTE) quand la vente assurance a une vente
+     * comptant liee : les deux ventes sur un seul papier, un seul code-barres (celui de la vente assurance). Imprime
+     * apres les exemplaires tiers-payant et le recu caisse, et jamais bloquant pour eux. Rien sans vente liee.
+     */
+    private void imprimerTicketCombine(TPreenregistrement vo, PrintService printService, TImprimante imprimante,
+            TOfficine officine, TEmplacement te) {
+        try {
+            if (vo == null || StringUtils.isBlank(vo.getLgVENTELIEEID())) {
+                return;
+            }
+            TPreenregistrement vno = getEntityManager().find(TPreenregistrement.class, vo.getLgVENTELIEEID());
+            if (vno == null) {
+                return;
+            }
+            MvtTransaction mvtVo = findByPkey(vo.getLgPREENREGISTREMENTID());
+            MvtTransaction mvtVno = findByPkey(vno.getLgPREENREGISTREMENTID());
+            if (mvtVo == null || mvtVno == null) {
+                return;
+            }
+            boolean voirNumTicket = voirNumeroTicket();
+            TicketCombine.Entree e = new TicketCombine.Entree();
+            e.refVo = voirNumTicket ? vo.getStrREF() : vo.getStrREFTICKET();
+            e.refVno = voirNumTicket ? vno.getStrREF() : vno.getStrREFTICKET();
+            e.articlesVo = articlesTicket(vo);
+            e.articlesVno = articlesTicket(vno);
+            List<String[]> tps = new ArrayList<>();
+            for (TPreenregistrementCompteClientTiersPayent t : listeVenteTiersPayantsByIdVente(
+                    vo.getLgPREENREGISTREMENTID())) {
+                tps.add(new String[] { t.getLgCOMPTECLIENTTIERSPAYANTID().getLgTIERSPAYANTID().getStrNAME(),
+                        String.valueOf(t.getIntPERCENT() == null ? 0 : t.getIntPERCENT()),
+                        String.valueOf(t.getIntPRICE() == null ? 0 : t.getIntPRICE()) });
+            }
+            e.tiersPayants = tps;
+            e.totalVo = vo.getIntPRICE() == null ? 0 : vo.getIntPRICE();
+            e.remiseVo = vo.getIntPRICEREMISE() == null ? 0 : vo.getIntPRICEREMISE();
+            e.partClientVo = DateConverter
+                    .arrondiModuloOfNumber(Math.max(0, vo.getIntCUSTPART() == null ? 0 : vo.getIntCUSTPART()), 5);
+            e.totalVno = vno.getIntPRICE() == null ? 0 : vno.getIntPRICE();
+            e.remiseVno = vno.getIntPRICEREMISE() == null ? 0 : vno.getIntPRICEREMISE();
+            e.netVno = DateConverter.arrondiModuloOfNumber(Math.max(0, e.totalVno - e.remiseVno), 5);
+            TClient c = vo.getClient();
+            TAyantDroit ad = vo.getAyantDroit();
+            e.assure = ad != null ? ad.getStrFIRSTNAME() + " " + ad.getStrLASTNAME()
+                    : (c != null ? c.getStrFIRSTNAME() + " " + c.getStrLASTNAME() : "");
+            e.modeReglement = mvtVo.getReglement() != null ? mvtVo.getReglement().getStrNAME() : "";
+            Map<String, Integer> parModes = new java.util.LinkedHashMap<>();
+            for (VenteReglement r : vo.getVenteReglements()) {
+                parModes.merge(r.getTypeReglement().getStrNAME(), r.getMontant(), Integer::sum);
+            }
+            for (VenteReglement r : vno.getVenteReglements()) {
+                parModes.merge(r.getTypeReglement().getStrNAME(), r.getMontant(), Integer::sum);
+            }
+            List<String[]> reglements = new ArrayList<>();
+            parModes.forEach((k, v) -> reglements.add(new String[] { k, String.valueOf(v) }));
+            e.reglements = reglements;
+            e.verse = Math.abs(mvtVo.getMontantVerse() == null ? 0 : mvtVo.getMontantVerse())
+                    + Math.abs(mvtVno.getMontantVerse() == null ? 0 : mvtVno.getMontantVerse());
+            e.monnaie = Math.max(0, e.verse - (e.partClientVo + e.netVno));
+            TicketCombine.Sortie sortie = TicketCombine.construire(e);
+
+            ImpressionServiceImpl imp = nouvelImprimeur();
+            imp.setOTImprimante(imprimante);
+            imp.setOfficine(officine);
+            imp.setService(printService);
+            imp.setTypeTicket(Constant.ACTION_VENTE);
+            brancherModele(imp, ModeleTicket.VENTE_MIXTE, printService);
+            imp.setReferencePied(vo.getStrREFTICKET());
+            imp.setArticlesTicket(sortie.articles);
+            imp.setSectionsTicket(sortie.sections);
+            imp.setShowCodeBar(true);
+            imp.setEmplacement(te);
+            imp.setOperation(vo.getDtUPDATED());
+            imp.setIntBegin(0);
+            imp.setTitle(sortie.titre);
+            imp.buildTicket(sortie.datas, generateDataSeller(vo), sortie.infoTiersPayants, sortie.subtotal,
+                    Collections.emptyList(), buildLineBarecode(vo.getStrREFTICKET()));
+            imp.printTicketVente(1);
+        } catch (Exception ex) {
+            LOG.log(Level.WARNING, "Ticket client combiné (vente liée)", ex);
+        }
     }
 
     /** Encours du compte carnet de la vente (consommation du compte), pour l'option « Encours du carnet ». */
@@ -527,6 +654,7 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
                         generateDataSummaryVo(oTPreenregistrement, mvtTransaction),
                         generateCommentaire(oTPreenregistrement, mvtTransaction), fileBarecode);
                 print(imp, oTPreenregistrement);
+                imprimerTicketCombine(oTPreenregistrement, printService, imprimante, officine, te);
             } else {
                 page = datas.size() / counter;
                 while (page != pageCurrent) {
@@ -557,6 +685,7 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
                             generateCommentaire(oTPreenregistrement, mvtTransaction), fileBarecode);
                 }
                 print(imp, oTPreenregistrement);
+                imprimerTicketCombine(oTPreenregistrement, printService, imprimante, officine, te);
 
             }
             json.put("success", true);
@@ -622,6 +751,7 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
         List<String> datas = new ArrayList<>();
         List<TPreenregistrementDetail> lstTPreenregistrementDetail = listeVenteByIdVente(op.getLgPREENREGISTREMENTID());
         lstTPreenregistrementDetail.sort(Comparator.comparing(TPreenregistrementDetail::getDtCREATED));
+        Map<String, List<String>> credits = creditsParLigne(op, lstTPreenregistrementDetail);
         lstTPreenregistrementDetail.forEach(opr -> {
             datas.add(
                     " " + opr.getIntQUANTITY() + "; *;"
@@ -633,6 +763,10 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             if (opr.getPromotionProduitId() != null) {
                 int offertes = opr.getIntFREEPACKNUMBER() != null ? opr.getIntFREEPACKNUMBER() : 0;
                 datas.add(" ; ;PROMOTION" + (offertes > 0 ? " DONT " + offertes + " OFFERTE(S)" : "") + ";;");
+            }
+            // cas 1 du 03/11 (Q1.9) : credit par tiers-payant sous la ligne, parametre actif seulement
+            for (String c : credits.getOrDefault(opr.getLgPREENREGISTREMENTDETAILID(), Collections.emptyList())) {
+                datas.add(" ; ;" + c + ";;");
             }
         });
 
@@ -1119,6 +1253,7 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             if (datas.size() <= counter) {
                 imp.buildTicket(datas, infoSellers, infotiersPayants, generateDataSummarys, commentaires, fileBarecode);
                 print(imp, oTPreenregistrement, listeVenteTiersPayants, printUniqueTicket, mvtTransaction, isReedit);
+                imprimerTicketCombine(oTPreenregistrement, printService, imprimante, officine, te);
 
             } else {
                 page = datas.size() / counter;
@@ -1149,6 +1284,7 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
                             fileBarecode);
                 }
                 print(imp, oTPreenregistrement, listeVenteTiersPayants, printUniqueTicket, mvtTransaction, isReedit);
+                imprimerTicketCombine(oTPreenregistrement, printService, imprimante, officine, te);
 
             }
             json.put("success", true);
@@ -1460,6 +1596,7 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
                         generateDataSummaryVo(oTPreenregistrement, mvtTransaction),
                         generateCommentaire(oTPreenregistrement, mvtTransaction), fileBarecode);
                 imp.printTicketVente(1);
+                imprimerTicketCombine(oTPreenregistrement, printService, imprimante, officine, te);
             } else {
                 page = datas.size() / counter;
                 while (page != pageCurrent) {

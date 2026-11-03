@@ -525,6 +525,23 @@ public class SalesRessource {
         return Response.ok().entity(json.toString()).build();
     }
 
+    /**
+     * Cas 1 du 03/11/2026 : coche ou decoche la ligne « C » (au comptant) d'une vente assurance. Corps : {comptant}.
+     * 403 quand le parametre KEY_LIGNE_COMPTANT_VO est a 0 (le chemin n'existe pas sans lui).
+     */
+    @PUT
+    @Path("item/{id}/comptant")
+    public Response marquerLigneComptant(@PathParam("id") String itemId, SalesParams params) {
+        HttpSession hs = servletRequest.getSession();
+        TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
+        if (tu == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        JSONObject json = salesService.marquerLigneComptant(itemId, params != null && params.isComptant());
+        int http = json.optInt("http", 200);
+        return Response.status(http).entity(json.toString()).build();
+    }
+
     @POST
     @Path("update/item/vno")
     public Response updateItemVente(SalesParams params) {

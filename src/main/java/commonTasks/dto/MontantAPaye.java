@@ -36,6 +36,28 @@ public class MontantAPaye implements Serializable {
 
     private PrixReferenceType type;
     private int tiersPayantBaseAmount;// montant de reference + montant de produit sans prix de reference
+    /**
+     * Cas 1 du 03/11/2026 : net des lignes cochees « C » (prix - remise, arrondi a 5) et part client des lignes
+     * assurance (net - comptant). 0 tant que le parametre est a 0 ou qu'aucune ligne n'est cochee.
+     */
+    private int montantComptant = 0;
+    private int montantPartClient = 0;
+
+    public int getMontantComptant() {
+        return montantComptant;
+    }
+
+    public void setMontantComptant(int montantComptant) {
+        this.montantComptant = montantComptant;
+    }
+
+    public int getMontantPartClient() {
+        return montantPartClient;
+    }
+
+    public void setMontantPartClient(int montantPartClient) {
+        this.montantPartClient = montantPartClient;
+    }
 
     public boolean isRestructuring() {
         return restructuring;

@@ -27,13 +27,37 @@ public final class ConversionTicket {
         public final int prixUnitaire;
         public final int montant;
         public final String lot;
+        /**
+         * Cas 1 du 03/11/2026 : mentions sous la ligne (« Crédit : T[70 %] — Mont. : 4 708 » par tiers-payant sur le
+         * ticket assurance, « LIGNE COMPTANT » sur le ticket combine). Vide : rien ne change.
+         */
+        public final List<String> credits;
 
         public Article(String designation, int quantite, int prixUnitaire, int montant, String lot) {
+            this(designation, quantite, prixUnitaire, montant, lot, Collections.emptyList());
+        }
+
+        public Article(String designation, int quantite, int prixUnitaire, int montant, String lot,
+                List<String> credits) {
             this.designation = designation == null ? "" : designation;
             this.quantite = quantite;
             this.prixUnitaire = prixUnitaire;
             this.montant = montant;
             this.lot = lot == null ? "" : lot;
+            this.credits = credits == null ? Collections.emptyList() : credits;
+        }
+    }
+
+    /** Cas 1 du 03/11/2026 : une vente du ticket combine : titre, lignes, totaux « libelle, valeur ». */
+    public static final class Section {
+        public final String titre;
+        public final List<Article> articles;
+        public final List<String[]> totaux;
+
+        public Section(String titre, List<Article> articles, List<String[]> totaux) {
+            this.titre = titre == null ? "" : titre;
+            this.articles = articles == null ? Collections.emptyList() : articles;
+            this.totaux = totaux == null ? Collections.emptyList() : totaux;
         }
     }
 
@@ -66,6 +90,8 @@ public final class ConversionTicket {
         public List<String[]> pieces = Collections.emptyList();
         /** Encours du carnet apres la vente, deja mis en forme ; vide si inconnu. */
         public String encoursCarnet = "";
+        /** Ticket combine (VENTE_MIXTE) : les deux ventes ; vide pour les autres tickets. */
+        public List<Section> sections = Collections.emptyList();
     }
 
     private final Source s;
@@ -92,6 +118,8 @@ public final class ConversionTicket {
         } else if (s.ticket == ModeleTicket.REGLEMENT_DIFFERE || s.ticket == ModeleTicket.REGLEMENT_FACTURE
                 || s.ticket == ModeleTicket.REGLEMENT_CARNET_DEPOT) {
             c.reglement();
+        } else if (s.ticket == ModeleTicket.VENTE_MIXTE && !s.sections.isEmpty()) {
+            c.mixte();
         } else {
             c.vente();
         }
@@ -161,8 +189,7 @@ public final class ConversionTicket {
         String total = "";
         if (!s.articles.isEmpty()) {
             for (Article a : s.articles) {
-                corps.article(a.designation, a.quantite + " × " + nombre(a.prixUnitaire), r.lot() ? a.lot : "",
-                        nombre(a.montant));
+                article(corps, a);
                 articles++;
                 boites += Math.abs(a.quantite);
             }
@@ -179,16 +206,18 @@ public final class ConversionTicket {
                 continue;
             }
             if (s.articles.isEmpty()) {
+                if (p[0].trim().isEmpty()) {
+                    // mention sous la ligne (promotion, credit) : pas un article
+                    corps.texte(p[2].trim(), Style.PETIT);
+                    continue;
+                }
                 corps.article(p[2].trim(), p[0].trim() + " × " + montant(p[3]), "", montant(p[4]));
                 articles++;
                 boites += Math.abs(entier(p[0]));
             }
         }
         corps.trait(false);
-        if (r.recapitulatif() && articles > 0) {
-            doc.bloc(TicketDocument.RECAP).texte(articles + (articles > 1 ? " articles" : " article") + " · " + boites
-                    + (boites > 1 ? " boîtes" : " boîte"), Style.PETIT);
-        }
+        recap(articles, boites);
         sousTotaux(total);
         mentions();
         if (s.ticket == ModeleTicket.VENTE_CARNET) {
@@ -200,6 +229,26 @@ public final class ConversionTicket {
                 doc.bloc(TicketDocument.SIGNATURES).signatures(Collections.singletonList("Signature du client"));
             }
         }
+        commentairesOfficine();
+    }
+
+    /** Une ligne d'article, puis ses mentions (credit par tiers-payant, ligne comptant) en petit. */
+    private void article(Bloc corps, Article a) {
+        corps.article(a.designation, a.quantite + " × " + nombre(a.prixUnitaire), r.lot() ? a.lot : "",
+                nombre(a.montant));
+        for (String c : a.credits) {
+            corps.texte(c, Style.PETIT);
+        }
+    }
+
+    private void recap(int articles, int boites) {
+        if (r.recapitulatif() && articles > 0) {
+            doc.bloc(TicketDocument.RECAP).texte(articles + (articles > 1 ? " articles" : " article") + " · " + boites
+                    + (boites > 1 ? " boîtes" : " boîte"), Style.PETIT);
+        }
+    }
+
+    private void commentairesOfficine() {
         if (r.commentaires()) {
             Bloc c = doc.bloc(TicketDocument.COMMENTAIRE);
             c.trait(false);
@@ -209,6 +258,54 @@ public final class ConversionTicket {
                 c.elements.clear();
             }
         }
+    }
+
+    /* ---------- ticket client combine (cas 1 du 03/11/2026) ---------- */
+
+    /**
+     * Les deux ventes nees de la meme saisie, chacune sous son titre avec ses lignes et ses totaux ; puis le TTC des
+     * deux ventes, le net a payer et le reglement, une fois.
+     */
+    private void mixte() {
+        doc.bloc(TicketDocument.TITRE).texte(titreVente(s.titre), Style.GRAND);
+        intervenants();
+        clients();
+        Bloc corps = doc.bloc(TicketDocument.CORPS);
+        int articles = 0;
+        int boites = 0;
+        for (Section sec : s.sections) {
+            corps.trait(false);
+            corps.texte(sec.titre, Style.GRAS);
+            for (Article a : sec.articles) {
+                article(corps, a);
+                articles++;
+                boites += Math.abs(a.quantite);
+            }
+            for (String[] t : sec.totaux) {
+                if (t == null || t.length < 2) {
+                    continue;
+                }
+                if (t[0].startsWith("(-)") && !r.remise()) {
+                    continue;
+                }
+                corps.paire(t[0], montantF(t[1]), Style.NORMAL);
+            }
+        }
+        corps.trait(false);
+        recap(articles, boites);
+        String total = "";
+        for (String l : s.datas) {
+            String[] p = l.split(";", -1);
+            if (p.length >= 5 && p[0].trim().isEmpty() && p[2].trim().isEmpty() && p[4].matches(".*\\d.*")) {
+                total = p[4].trim();
+            }
+        }
+        if (!vide(total)) {
+            doc.bloc(TicketDocument.TOTAUX).paire(TicketCombine.TTC_DEUX_VENTES, montantF(total), Style.NORMAL);
+        }
+        sousTotaux("");
+        mentions();
+        commentairesOfficine();
     }
 
     /** « Ticket N° 0127 | Bon N°:: 558213 » devient « TICKET N° 0127 · Bon N° 558213 ». */

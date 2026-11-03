@@ -33,6 +33,13 @@ public interface SalesService {
 
     JSONObject updateTPreenregistrementDetail(SalesParams params);
 
+    /**
+     * Cas 1 du 03/11/2026 : coche ou decoche la ligne « C » (au comptant) d'une vente assurance. Refus si le parametre
+     * KEY_LIGNE_COMPTANT_VO est a 0 (cle « http » = 403), si la vente n'est pas une assurance, si elle est close ou si
+     * la ligne porte une promotion.
+     */
+    JSONObject marquerLigneComptant(String itemId, boolean comptant);
+
     JSONObject controleDetailVente(String venteId) throws JSONException;
 
     JSONObject stockVendableProduit(String produitId) throws JSONException;

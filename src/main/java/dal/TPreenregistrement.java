@@ -263,6 +263,20 @@ public class TPreenregistrement implements Serializable {
     @Column(name = "dt_CLOTURE_AVOIR")
     @Temporal(TemporalType.TIMESTAMP)
     private Date dtCLOTUREAVOIR;
+    /**
+     * Cas 1 du 03/11/2026 : vente nee de la meme saisie (vente comptant liee a une vente assurance, et reciproquement).
+     * Sert a l'affichage (detail, ticket combine), jamais a un traitement couple : chaque vente s'annule seule.
+     */
+    @Column(name = "lg_VENTE_LIEE_ID", length = 40)
+    private String lgVENTELIEEID;
+
+    public String getLgVENTELIEEID() {
+        return lgVENTELIEEID;
+    }
+
+    public void setLgVENTELIEEID(String lgVENTELIEEID) {
+        this.lgVENTELIEEID = lgVENTELIEEID;
+    }
 
     public boolean isImported() {
         return imported;

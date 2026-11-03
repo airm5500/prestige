@@ -227,6 +227,21 @@ public class SalesStatsServiceImpl implements SalesStatsService {
         return getEntityManager().find(TEmplacement.class, id);
     }
 
+    /** Cas 1 du 03/11/2026 : reference de la vente nee de la meme saisie, pour l'affichage du detail. */
+    private void completerVenteLiee(VenteDTO dto, TPreenregistrement p) {
+        try {
+            if (dto == null || p == null || StringUtils.isBlank(p.getLgVENTELIEEID())) {
+                return;
+            }
+            TPreenregistrement liee = findById(p.getLgVENTELIEEID());
+            if (liee != null) {
+                dto.setVenteLieeRef(liee.getStrREF());
+            }
+        } catch (RuntimeException e) {
+            LOG.log(Level.FINE, "vente liee", e);
+        }
+    }
+
     private TPreenregistrement findById(String id) {
         TPreenregistrement tp = getEntityManager().find(TPreenregistrement.class, id);
         getEntityManager().refresh(tp);
@@ -750,6 +765,7 @@ public class SalesStatsServiceImpl implements SalesStatsService {
         }
         VenteDTO data = new VenteDTO(p, venteTps,
                 (p.getAyantDroit() != null ? new AyantDroitDTO(p.getAyantDroit()) : null), o);
+        completerVenteLiee(data, p);
         if (CollectionUtils.isNotEmpty(p.getVenteReglements())) {
             data.setReglements(this.venteReglementService.buildFromEntities(p.getVenteReglements()));
         } else {

@@ -3428,3 +3428,10 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
 .vp-vente .vp-ref-message-ko { background: #FDECEA; color: #7a1f14; border-left: 4px solid #c0392b; }
 .vp-vente .vp-ref-message-ok { background: #E8F5E9; color: #1b5e20; border-left: 4px solid #2e7d32; }
 .vp-vente .vp-ref-rappel { font-size: 11px; color: #5a6b7c; padding: 0 4px; }
+/* Cas 1 du 03/11/2026 : ligne au comptant dans une vente assurance (KEY_LIGNE_COMPTANT_VO). Rien de ceci ne s'applique
+   tant qu'aucune ligne n'est cochee et que la colonne « C » n'est pas creee. */
+.vp-vente .x-grid-row.vp-ligne-comptant .x-grid-cell { background-color: #FFF8C6 !important; }
+.vp-vente .x-grid-row.vp-ligne-comptant.x-grid-row-selected .x-grid-cell { background-color: #FFF0A0 !important; }
+.vp-vente .vp-cpt-pastille { display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 9px; font-size: 10px;
+  font-weight: 700; letter-spacing: .04em; color: #7a4a00; background: #FFE08A; border: 1px solid #e0b040; vertical-align: 1px; }
+.vp-vente .x-grid-cell.vp-cpt-cellule { cursor: pointer; }

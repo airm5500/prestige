@@ -74,6 +74,13 @@ public class ImpressionServiceImpl implements Printable {
     private String referencePied = "";
     private String encoursCarnet = "";
     private List<String[]> piecesReglees = new ArrayList<>();
+    /** Cas 1 du 03/11/2026 : les deux ventes du ticket client combine (VENTE_MIXTE). */
+    private List<ConversionTicket.Section> sectionsTicket = new ArrayList<>();
+
+    public void setSectionsTicket(List<ConversionTicket.Section> sections) {
+        this.sectionsTicket = sections == null ? new ArrayList<>() : sections;
+    }
+
     private TicketDocument documentEnCours;
     private int hauteurEnCours;
     private boolean showCodeBar;
@@ -502,9 +509,13 @@ public class ImpressionServiceImpl implements Printable {
         this.commentaires = commentaires;
     }
 
+    /**
+     * Ligne d'article de l'ancien ticket : une quantite en tete. Les mentions sous la ligne (promotion, credit par
+     * tiers-payant, ligne comptant) n'en sont pas : elles ne consomment pas d'article a la mise en page.
+     */
     static boolean estLigneArticle(String l) {
         String[] p = l == null ? new String[0] : l.split(";", -1);
-        return p.length >= 5 && !(p[0].trim().isEmpty() && p[2].trim().isEmpty());
+        return p.length >= 5 && !p[0].trim().isEmpty();
     }
 
     /** Branche le nouveau modele ; sans appel, ou avec le modele « ancien », le ticket reste celui d'avant. */
@@ -570,6 +581,7 @@ public class ImpressionServiceImpl implements Printable {
         s.articles = articlesPage;
         s.pieces = piecesReglees;
         s.encoursCarnet = encoursCarnet;
+        s.sections = sectionsTicket;
         return ConversionTicket.convertir(s, reglagesTicket);
     }
 
