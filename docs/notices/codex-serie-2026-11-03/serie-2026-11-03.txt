@@ -442,6 +442,7 @@ support/anomalies-centre/test-leana-vente.js
 support/anomalies-centre/test-lot1-api.js
 support/anomalies-centre/test-lot1-ecrans.js
 support/anomalies-centre/test-lot4-ecrans.js
+support/anomalies-centre/test-menus-jsp-supprimees-masques.js
 support/anomalies-centre/test-p4-analyse-filtres.js
 support/anomalies-centre/test-prix-bl.js
 support/test-connexion-allers-retours.js
