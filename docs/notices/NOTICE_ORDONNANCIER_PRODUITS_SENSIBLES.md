@@ -62,7 +62,7 @@ nombre et la recherche ; aucune donnée de patient.
 `.jrxml` du dossier REPORTS de l'officine (`D:\CONF\LABOREX\REPORTS`) et ne retombe sur le modèle du WAR que s'ils
 sont absents. **Au déploiement, copier `src/main/resources/reports/ordonnancier.jrxml` dans REPORTS et retirer
 `ordonnancier.jasper`** (il est recompilé au premier PDF). Sans cela, l'édition reste à l'ancienne mise en page, sans la
-colonne Motif ; c'est le seul point en échec sur le poste local (voir ci-dessous).
+colonne Motif. Fait sur le poste local le 03/11/2026 (anciens fichiers gardés en `*.avant-cas3`).
 
 ## Tests
 
@@ -74,7 +74,7 @@ Tests d'écran, un par un, sur `http://localhost:8080/prestige` avec le compte `
 
 | Test | Résultat | Parcours |
 |------|---------:|----------|
-| `test-produit-sensible-vente.js` | 26/27 | onglet Produits sensibles (barre commune masquée), case cochée au clic et journalisée, pastille SENSIBLE clignotante sur la ligne de vente, clôture refusée sans médecin, parcours client puis médecin suivi à l'écran, vente close, vente au registre, détail avec motif Sensible, décochage : le produit sort du registre. Le seul échec : la colonne Motif dans le PDF, parce que le poste a son propre `ordonnancier.jrxml` dans REPORTS (ci-dessus) |
+| `test-produit-sensible-vente.js` | 27/27 | onglet Produits sensibles (barre commune masquée), case cochée au clic et journalisée, pastille SENSIBLE clignotante sur la ligne de vente, clôture refusée sans médecin, parcours client puis médecin suivi à l'écran, vente close, vente au registre, détail avec motif Sensible, décochage : le produit sort du registre., PDF avec la colonne Motif et la mention Sensible (après remplacement du jrxml dans REPORTS, ci-dessus) |
 | `test-sans-code-tableau.js` | 13/13 | case Ordonnancier cochée au clic, badge « SANS CODE TABLEAU », pas de pastille, clôture sans médecin et sans plantage, produit absent du registre |
 | `test-cochage-lot.js` | 16/16 | compteur, premier clic = nombre dans le bouton sans fenêtre, délai de 10 s sans écriture, second clic = lot appliqué et journalisé, Décocher = état initial |
 | `etape3/test-ordonnancier.js` (régression) | 62/62 | registre, détail, recherche, éditions, inventaire, analyse inchangés ; deux assertions mises à jour (quatre onglets) |
