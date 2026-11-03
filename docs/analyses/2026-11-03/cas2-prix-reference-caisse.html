@@ -108,7 +108,7 @@
 
 <!-- =============== B =============== -->
 <h2>Disposition B — colonnes groupées par tiers-payant (vente à deux tiers-payants)</h2>
-<p class="cmt">Exact quand la vente a deux tiers-payants (RO + RC), lisible jusqu'à deux. Au-delà, bascule automatique vers C. Prend 150 px par tiers-payant : DESIGNATION se resserre, info-bulle sur le libellé complet.</p>
+<p class="cmt">Transposition exacte de la fenêtre « Prix de référence » de la fiche article (une ligne par tiers-payant) dans la grille. Lisible jusqu'à deux tiers-payants (RO + RC) ; au-delà, bascule automatique vers C. Prend 150 px par tiers-payant : DESIGNATION se resserre, info-bulle sur le libellé complet. Mêmes montants qu'aujourd'hui : même table, même moteur.</p>
 <div class="shell"><div style="padding:10px">
   <fieldset class="tp" style="margin:0 0 8px"><legend>Infos tiers payants</legend>
     <div class="tpbloc"><b>TP1</b> MCI-CARE <span>Taux : <b>70 %</b></span><span>N° de bon : <span class="champ">BN-2026-00871</span></span></div>
@@ -125,12 +125,12 @@
         <tr><td>2</td><td>3400211</td><td title="ISOLONE 20MG CPR EFFV B/20">ISOLONE 20MG CPR EFFV…</td><td class="num qd">1</td><td class="num">1</td><td class="num">3 145</td><td class="num ref">2 900</td><td class="num ref">70 %</td><td class="num" style="color:#8a97a3">—</td><td class="num ed"><span class="champ edit" style="min-width:48px;padding:1px 5px">15</span></td><td class="num">3 145</td><td class="c">🗑</td></tr>
       </tbody>
     </table>
-    <div class="pied"><span class="small">Le prix de référence retenu par le moteur est aujourd'hui le <b>minimum</b> des deux (Q2.5) : la maquette affiche ce que l'utilisateur saisit, pas ce que le moteur retient.</span></div>
+    <div class="pied"><span class="small">Chaque cellule saisie écrit la ligne <code>prix_reference</code> du couple produit × tiers-payant, exactement comme la fiche article, puis le net est recalculé. Aucune modification du moteur de calcul.</span></div>
   </fieldset>
 </div></div>
 
 <!-- =============== C =============== -->
-<h2>Disposition C — volet « Référence tiers-payant » docké sous la grille (recommandée, avec A)</h2>
+<h2>Disposition C — volet « Référence tiers-payant » docké sous la grille (complément de A ou B au-delà de deux tiers-payants)</h2>
 <p class="cmt">Au clic sur une ligne (ou sur la pastille « +1 » de A), le volet s'ouvre <b>sous la grille</b>, sans fenêtre. Un bloc par tiers-payant de la vente ; le montant pris en charge est recalculé par le serveur (aperçu avant d'appliquer). Le bouton « Appliquer à la fiche article » demande sa confirmation dans le bouton lui-même, puis relance le net.</p>
 <div class="shell" style="margin-bottom:24px"><div style="padding:10px">
   <fieldset style="padding:8px 6px 0;margin:0 0 0"><legend>Liste des articles choisis</legend>
