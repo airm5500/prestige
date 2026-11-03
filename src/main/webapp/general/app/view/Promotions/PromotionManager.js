@@ -487,6 +487,13 @@ Ext.define('testextjs.view.Promotions.PromotionManager', {
             // audit 05 PR-04, PR-07 : champs visibles controles avant l'envoi (entiers, prix special < prix public)
             for (var i = 0; i < champsSaisie.length; i++) {
                 var champ = conteneur.down(champsSaisie[i]);
+                // une valeur collee « 12.5 » passe le controle d'ExtJS et serait arrondie a 13 sans rien dire
+                var brut = champ && !champ.hidden ? String(champ.getRawValue()).trim() : '';
+                if (champ && !champ.hidden && champ.allowDecimals === false && brut !== '' && !/^\d+$/.test(brut)) {
+                    Ext.MessageBox.alert('Information', Ext.String.htmlEncode(brut) + ' : saisissez un nombre entier'
+                            + ' (les d&eacute;cimales ne sont pas accept&eacute;es).');
+                    return;
+                }
                 if (champ && !champ.hidden && !champ.isValid()) {
                     Ext.MessageBox.alert('Information', champ.getErrors().join('<br>'));
                     return;

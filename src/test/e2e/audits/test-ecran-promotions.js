@@ -138,6 +138,8 @@ function poser() {
     const ajouter = async (nom, champ, valeur) => {
       const combo = await p.evaluate(() => Ext.ComponentQuery.query('window combobox[itemId=choixProduit]').filter((c) => c.isVisible(true))[0].id);
       await p.locator('#' + combo + '-inputEl').click();
+      await p.keyboard.press('Control+A');
+      await p.keyboard.press('Backspace');
       await p.locator('#' + combo + '-inputEl').pressSequentially(nom.slice(0, 8), { delay: 40 });
       await p.locator('.x-boundlist:visible .x-boundlist-item').filter({ hasText: nom }).first().click({ timeout: 20000 });
       await p.waitForTimeout(400);
