@@ -24,3 +24,4 @@ __pycache__/
 
 # réglages Claude Code propres au poste (chemins, mots de passe locaux) : jamais dans Git
 .claude/settings.local.json
+/docs/notices/codex-serie-2026-11-03/captures-pixel/

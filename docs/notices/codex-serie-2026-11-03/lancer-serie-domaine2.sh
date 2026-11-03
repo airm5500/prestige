@@ -26,9 +26,19 @@ printf "[client]\nuser=%s\npassword=%s\nhost=127.0.0.1\nport=3307\n" "$us" "$pw"
 export MARIADB_OPTIONS="$CNF" E2E_CAPTURES=0 DB_TEST=laborex_perf E2E_BASE_LIBRE=1 \
   E2E_URL=http://localhost:9080/prestige PAYARA_DOMAINE=D:/payara5/payara5/glassfish/domains/domain2
 
+# Les tests « identique au pixel » (cas 1 et 2 du 03/11) comparent leurs captures avec une tolerance d'arrondi de
+# couleur ; sans dossier de captures, ils comparent des empreintes exactes et echouent a tort. Ils recoivent donc un
+# dossier de captures, les autres tests n'en ont pas (pas de videos).
+PIXEL="$ICI/captures-pixel"
+
 : > "$SORTIE"
 for t in $(tr -d '\r' < "$LISTE" ); do
   echo "=== $t" >> "$SORTIE"
-  (cd "$E2E" && timeout 1200 node "$t" >> "$SORTIE" 2>&1); echo "--- code $?" >> "$SORTIE"
+  case "$t" in
+    prix-reference/test-grille-identique-parametre-0.js|ligne-comptant/test-parametre-0-identique.js)
+      mkdir -p "$PIXEL"; CAPT="$PIXEL" ;;
+    *) CAPT=0 ;;
+  esac
+  (cd "$E2E" && E2E_CAPTURES="$CAPT" timeout 1200 node "$t" >> "$SORTIE" 2>&1); echo "--- code $?" >> "$SORTIE"
 done
 echo "Termine : $(grep -c '^--- code 0' "$SORTIE") reussis sur $(grep -c '^=== ' "$SORTIE")" >> "$SORTIE"
