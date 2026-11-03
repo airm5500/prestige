@@ -16,10 +16,9 @@ import rest.service.ticket.ConversionTicket.Section;
  */
 public final class TicketCombine {
 
-    public static final String LIGNE_COMPTANT = "LIGNE COMPTANT";
     public static final String TITRE_ASSURANCE = "VENTE ASSURANCE";
     public static final String TITRE_COMPTANT = "VENTE AU COMPTANT";
-    public static final String TTC_DEUX_VENTES = "TTC des deux ventes";
+    public static final String TTC_DEUX_VENTES = "Total des deux ventes";
 
     /** Ce que la cloture a enregistre pour les deux ventes. */
     public static final class Entree {
@@ -75,12 +74,8 @@ public final class TicketCombine {
         totauxVo.add(new String[] { "Part du client", ConversionTicket.nombre(e.partClientVo) });
         s.sections.add(new Section(TITRE_ASSURANCE + " — " + e.refVo, e.articlesVo, totauxVo));
 
-        /* section comptant : chaque article porte la mention LIGNE COMPTANT */
-        List<Article> comptant = new ArrayList<>();
-        for (Article a : e.articlesVno) {
-            comptant.add(new Article(a.designation, a.quantite, a.prixUnitaire, a.montant, a.lot,
-                    Collections.singletonList(LIGNE_COMPTANT)));
-        }
+        /* section comptant : retour du 03/11, plus de mention « LIGNE COMPTANT » sous les articles (le titre suffit) */
+        List<Article> comptant = new ArrayList<>(e.articlesVno);
         List<String[]> totauxVno = new ArrayList<>();
         if (e.remiseVno > 0) {
             totauxVno.add(new String[] { "(-) Remise", ConversionTicket.nombre(e.remiseVno) });

@@ -33,8 +33,8 @@ class TicketLigneComptantTest {
         assertEquals(600, plafonne.get(0) + plafonne.get(1));
         assertEquals(Arrays.asList(400, 200), plafonne);
         assertTrue(CreditLigne.parts(Collections.emptyList(), 70, 100).isEmpty());
-        assertEquals("Crédit : T[70 %] — Mont. : 4 708", CreditLigne.libelle(null, 70, 4708));
-        assertEquals("Crédit MUGEF-CI : T[80 %] — Mont. : 1 200", CreditLigne.libelle("MUGEF-CI", 80, 1200));
+        assertEquals("Taux 70 % : 4 708", CreditLigne.libelle(null, 70, 4708));
+        assertEquals("MUGEF-CI · Taux 80 % : 1 200", CreditLigne.libelle("MUGEF-CI", 80, 1200));
     }
 
     @Test
@@ -47,14 +47,14 @@ class TicketLigneComptantTest {
                         Collections.singletonList(CreditLigne.libelle(null, 70, 2201))));
         String t = texte(ConversionTicket.convertir(s, new ReglagesTicket(ModeleTicket.VENTE_ASSURANCE)));
         int rapiclav = t.indexOf("ARTICLE[RAPICLAV 1G CPR B/14");
-        int credit1 = t.indexOf("TEXTE[Crédit : T[70 %] — Mont. : **4 708**]");
+        int credit1 = t.indexOf("TEXTE[Taux 70 % : **4 708**]");
         int isolone = t.indexOf("ARTICLE[ISOLONE 20MG CPR EFFV B/20");
-        int credit2 = t.indexOf("TEXTE[Crédit : T[70 %] — Mont. : **2 201**]");
+        int credit2 = t.indexOf("TEXTE[Taux 70 % : **2 201**]");
         assertTrue(rapiclav >= 0 && credit1 > rapiclav && isolone > credit1 && credit2 > isolone, t);
         // sans credit : le ticket est celui d'aujourd'hui (aucune mention)
         String sans = texte(ConversionTicket.convertir(ExemplesTicket.exemple(ModeleTicket.VENTE_ASSURANCE, 80),
                 new ReglagesTicket(ModeleTicket.VENTE_ASSURANCE)));
-        assertFalse(sans.contains("Crédit"), sans);
+        assertFalse(sans.contains("Taux "), sans);
         assertFalse(sans.contains("COMPTANT"), sans);
     }
 
@@ -66,26 +66,26 @@ class TicketLigneComptantTest {
         assertTrue(t.contains("TICKET N° VO-2026-01039 · VNO-2026-01040"), t);
         int assurance = t.indexOf("TEXTE[VENTE ASSURANCE — VO-2026-01039]");
         int rapiclav = t.indexOf("ARTICLE[RAPICLAV 1G CPR B/14 | 1 × 6 725 | 6 725]");
-        int credit = t.indexOf("TEXTE[Crédit : T[70 %] — Mont. : **4 708**]");
+        int credit = t.indexOf("TEXTE[Taux 70 % : **4 708**]");
         int mci = t.indexOf("PAIRE[MCI-CARE [**70%**] | 6 909 F CFA]");
         int remiseVo = t.indexOf("PAIRE[(-) Remise | 148 F CFA]");
         int partClient = t.indexOf("PAIRE[Part du client | 2 810 F CFA]");
         int comptant = t.indexOf("TEXTE[VENTE AU COMPTANT — VNO-2026-01040]");
         int ketoderm = t.indexOf("ARTICLE[KETODERM 2% CREME T/15G | 1 × 4 135 | 4 135]");
-        int ligneComptant = t.indexOf("TEXTE[LIGNE COMPTANT]");
+        assertFalse(t.contains("LIGNE COMPTANT"), t);
         int remiseVno = t.indexOf("PAIRE[(-) Remise | 207 F CFA]");
         int netVno = t.indexOf("PAIRE[Comptant | 3 930 F CFA]");
-        int ttc = t.indexOf("PAIRE[TTC des deux ventes | 14 005 F CFA]");
+        int ttc = t.indexOf("PAIRE[Total des deux ventes | 14 005 F CFA]");
         int net = t.indexOf("ENCADRE[NET À PAYER | 6 740 F CFA]");
-        int[] ordre = { assurance, rapiclav, credit, mci, remiseVo, partClient, comptant, ketoderm, ligneComptant,
-                remiseVno, netVno, ttc, net };
+        int[] ordre = { assurance, rapiclav, credit, mci, remiseVo, partClient, comptant, ketoderm, remiseVno, netVno,
+                ttc, net };
         for (int i = 0; i < ordre.length; i++) {
             assertTrue(ordre[i] >= 0, i + " absent : " + t);
             if (i > 0) {
                 assertTrue(ordre[i] > ordre[i - 1], i + " mal place : " + t);
             }
         }
-        assertTrue(t.contains("PAIRE[Assuré / bénéficiaire | N. ESSAI]"), t);
+        assertTrue(t.contains("PAIRE[Assuré / bénéficiaire : | N. ESSAI]"), t);
         assertTrue(t.contains("PAIRE[Espèces versées | 6 740 F CFA]"), t);
         assertTrue(t.contains("PAIRE[Monnaie rendue | 0 F CFA]"), t);
         assertTrue(t.contains("TEXTE[3 articles · 3 boîtes]"), t);
@@ -111,9 +111,9 @@ class TicketLigneComptantTest {
         String datas = String.join("\n", s.datas);
         assertTrue(datas.contains("VENTE ASSURANCE VO-2026-01039"), datas);
         assertTrue(datas.contains(" 1; *;RAPICLAV 1G CPR B/14;6 725;6 725"), datas);
-        assertTrue(datas.contains(" ; ;Crédit : T[70 %] — Mont. : 4 708;;"), datas);
+        assertTrue(datas.contains(" ; ;Taux 70 % : 4 708;;"), datas);
         assertTrue(datas.contains("VENTE AU COMPTANT VNO-2026-01040"), datas);
-        assertTrue(datas.contains(" ; ;LIGNE COMPTANT;;"), datas);
+        assertFalse(datas.contains("LIGNE COMPTANT"), datas);
         assertTrue(datas.endsWith(";;;;------\n;;;;14 005"), datas);
         assertEquals(Arrays.asList("Net à payer: ;     6 740; F CFA;1", "Règlement: ;     Espèces; ;0",
                 "Montant Versé: ;     6 740; F CFA;0", "Monnaie: ;     0; F CFA;0"), s.subtotal);

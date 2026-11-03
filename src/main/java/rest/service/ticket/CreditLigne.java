@@ -6,8 +6,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Cas 1 du 03/11/2026 (Q1.9) : sur le ticket de vente assurance, chaque ligne porte « Crédit : T[taux %] — Mont. : part
- * » pour chaque tiers-payant. Les parts par ligne sont recalculees a partir de la base de calcul de la ligne et du taux
+ * Cas 1 du 03/11/2026 (Q1.9) : sur le ticket de vente assurance, chaque ligne porte « Taux <taux> % : part » pour
+ * chaque tiers-payant. Les parts par ligne sont recalculees a partir de la base de calcul de la ligne et du taux
  * applique, puis ramenees au total de l'organisme sur la vente (plafonds, arrondis) : la somme des lignes est
  * exactement la part imprimee dans le bloc tiers-payant.
  */
@@ -60,9 +60,12 @@ public final class CreditLigne {
         return res;
     }
 
-    /** « Crédit : T[70 %] — Mont. : 4 708 », le nom de l'organisme en plus quand la vente en a plusieurs. */
+    /**
+     * « Taux 70 % : 4 708 » (retour du 03/11 : sans « Crédit » ni « Mont. »), precede du nom de l'organisme quand la
+     * vente en a plusieurs : « MUGEF-CI · Taux 80 % : 1 200 ».
+     */
     public static String libelle(String nomTiersPayant, int taux, int montant) {
-        String nom = nomTiersPayant == null || nomTiersPayant.trim().isEmpty() ? "" : " " + nomTiersPayant.trim();
-        return "Crédit" + nom + " : T[" + taux + " %] — Mont. : " + ConversionTicket.nombre(montant);
+        String nom = nomTiersPayant == null || nomTiersPayant.trim().isEmpty() ? "" : nomTiersPayant.trim() + " · ";
+        return nom + "Taux " + taux + " % : " + ConversionTicket.nombre(montant);
     }
 }

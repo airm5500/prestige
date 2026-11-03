@@ -94,9 +94,9 @@ class RenduTicketTest {
     void assurancePresentationB() {
         String t = texte(doc(ModeleTicket.VENTE_ASSURANCE, 80, new ReglagesTicket(ModeleTicket.VENTE_ASSURANCE)));
         assertTrue(t.contains("TEXTE[TICKET N° 0127]"), t);
-        assertTrue(t.contains("PAIRE[Bon N° | 558213]"), t);
-        assertTrue(t.contains("PAIRE[Matricule assuré | MAT-00000]"), t);
-        assertTrue(t.contains("PAIRE[MUGEF-CI [**80%**] | 3 960 F CFA]"), t);
+        assertTrue(t.contains("PAIRE[Bon N° : | 558213]"), t);
+        assertTrue(t.contains("PAIRE[Matricule assuré : | MAT-00000]"), t);
+        assertTrue(t.contains("PAIRE[MUGEF-CI [**80%**] : | 3 960 F CFA]"), t);
         assertTrue(t.contains("PAIRE[Vente à terme | 3 960 F CFA]"), t);
         assertTrue(t.contains("ENCADRE[NET À PAYER | 990 F CFA]"), t);
     }

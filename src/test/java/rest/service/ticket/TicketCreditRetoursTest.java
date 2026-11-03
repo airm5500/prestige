@@ -39,7 +39,7 @@ class TicketCreditRetoursTest {
     @Test
     void tauxDuTiersPayantEnGrasEntreCrochets() {
         List<String> client = bloc(assurance(new ReglagesTicket(ModeleTicket.VENTE_ASSURANCE)), TicketDocument.CLIENT);
-        assertTrue(client.contains("PAIRE[MUGEF-CI [**80%**] | 3 960 F CFA]"), client.toString());
+        assertTrue(client.contains("PAIRE[MUGEF-CI [**80%**] : | 3 960 F CFA]"), client.toString());
     }
 
     @Test
@@ -48,9 +48,13 @@ class TicketCreditRetoursTest {
         List<String> titre = bloc(d, TicketDocument.TITRE);
         assertEquals(Collections.singletonList("TEXTE[TICKET N° 0127]"), titre);
         List<String> client = bloc(d, TicketDocument.CLIENT);
-        int bon = client.indexOf("PAIRE[Bon N° | 558213]");
-        int tp = client.indexOf("PAIRE[MUGEF-CI [**80%**] | 3 960 F CFA]");
-        assertTrue(bon >= 0 && bon == tp - 1, client.toString());
+        int bon = client.indexOf("PAIRE[Bon N° : | 558213]");
+        int beneficiaire = client.indexOf("PAIRE[Bénéficiaire : | N. ESSAI]");
+        int partClient = client.indexOf("PAIRE[Part du client : | 990 F CFA]");
+        int tp = client.indexOf("PAIRE[MUGEF-CI [**80%**] : | 3 960 F CFA]");
+        // retour du 03/11 : le bon sous le beneficiaire, jamais entre la part du client et celle de l'assurance
+        assertTrue(beneficiaire >= 0 && bon == beneficiaire + 1 && partClient == bon + 1 && tp == partClient + 1,
+                client.toString());
     }
 
     @Test
@@ -68,7 +72,7 @@ class TicketCreditRetoursTest {
         s.articles = Collections.singletonList(new ConversionTicket.Article("ISOLONE 20MG CPR EFFV B/20", 1, 3710, 3710,
                 "", Collections.singletonList(CreditLigne.libelle(null, 70, 2597))));
         String t = texte(ConversionTicket.convertir(s, new ReglagesTicket(ModeleTicket.VENTE_ASSURANCE)));
-        assertTrue(t.contains("TEXTE[Crédit : T[70 %] — Mont. : **2 597**]"), t);
+        assertTrue(t.contains("TEXTE[Taux 70 % : **2 597**]"), t);
     }
 
     @Test

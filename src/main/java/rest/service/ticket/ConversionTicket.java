@@ -30,8 +30,8 @@ public final class ConversionTicket {
         public final int montant;
         public final String lot;
         /**
-         * Cas 1 du 03/11/2026 : mentions sous la ligne (« Crédit : T[70 %] — Mont. : 4 708 » par tiers-payant sur le
-         * ticket assurance, « LIGNE COMPTANT » sur le ticket combine). Vide : rien ne change.
+         * Cas 1 du 03/11/2026 : mentions sous la ligne (« Taux 70 % : 4 708 » par tiers-payant sur le ticket
+         * assurance). Vide : rien ne change.
          */
         public final List<String> credits;
 
@@ -239,7 +239,7 @@ public final class ConversionTicket {
                 nombre(a.montant));
         for (String c : a.credits) {
             // retour du 03/11 : le montant du credit en gras
-            corps.texte(c.replaceFirst("(Mont\\. : )(\\S.*)$",
+            corps.texte(c.replaceFirst("^(.* : )(\\d[\\d ]*)$",
                     "$1" + TicketDocument.GRAS_DEBUT + "$2" + TicketDocument.GRAS_FIN), Style.PETIT);
         }
     }
@@ -363,7 +363,8 @@ public final class ConversionTicket {
     }
 
     /**
-     * Lignes du client et des tiers-payants ; {@code bon} (retour du 03/11) va juste au-dessus du premier organisme.
+     * Lignes du client et des tiers-payants, chaque libelle suivi de « : » ; {@code bon} (retour du 03/11) va au-dessus
+     * de la part du client (ou du premier organisme) : jamais entre la part du client et celle de l'assurance.
      */
     private void clients(String bon) {
         Bloc b = doc.bloc(TicketDocument.CLIENT);
@@ -377,19 +378,20 @@ public final class ConversionTicket {
             String libelle;
             if (taux.matches()) {
                 // retour du 03/11 : « ZZAUDIT-TP-C1 [70%] », le taux en gras
-                if (organisme < 0) {
-                    organisme = b.elements.size();
-                }
                 libelle = libelleOrganisme(taux);
             } else {
                 libelle = lv[0].replace("Nom du Client", "Client").replace("Matricule Assuré", "Matricule assuré")
                         .replace("Part du Client", "Part du client").replaceAll("(\\d)%", "$1 %");
             }
-            b.paire(libelle, montantF(lv[1]), Style.NORMAL);
+            if (organisme < 0 && (taux.matches() || libelle.startsWith("Part du client"))) {
+                organisme = b.elements.size();
+            }
+            // retour du 03/11 : « Bénéficiaire : », « Part du client : »...
+            b.paire(libelle.replaceAll("\\s*:+\\s*$", "") + " :", montantF(lv[1]), Style.NORMAL);
         }
         if (!vide(bon)) {
             b.elements.add(organisme < 0 ? b.elements.size() : organisme, new TicketDocument.Element(
-                    TicketDocument.Genre.PAIRE, Style.NORMAL, "Bon N°", bon.trim(), null, null, null));
+                    TicketDocument.Genre.PAIRE, Style.NORMAL, "Bon N° :", bon.trim(), null, null, null));
         }
         if (!b.vide()) {
             b.elements.add(0,

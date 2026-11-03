@@ -190,9 +190,9 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
     }
 
     /**
-     * Cas 1 du 03/11/2026 (Q1.9) : « Crédit : T[taux %] — Mont. : part » par ligne et par tiers-payant, sur les tickets
-     * de vente assurance seulement et seulement si KEY_LIGNE_COMPTANT_VO vaut 1. Parametre a 0 : table vide, ticket
-     * inchange. Jamais bloquant pour l'impression.
+     * Cas 1 du 03/11/2026 (Q1.9) : « Taux <taux> % : part » par ligne et par tiers-payant, sur les tickets de vente
+     * assurance seulement et seulement si KEY_LIGNE_COMPTANT_VO vaut 1. Parametre a 0 : table vide, ticket inchange.
+     * Jamais bloquant pour l'impression.
      */
     private Map<String, List<String>> creditsParLigne(TPreenregistrement op, List<TPreenregistrementDetail> lignes) {
         try {
