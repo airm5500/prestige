@@ -817,7 +817,14 @@ window.PrestigeAffichage.MENUS_MASQUES = [
     'ventemanagerbis',                  // SERVICE CLIENT > Ventes sans n° de bon
     'vendeurcaissiermanager',           // SERVICE CLIENT > Vendeurs et caissiers
     'corbeillevente',                   // SERVICE CLIENT > Corbeille des ventes
-    'statistiquefamillearticlemanager'  // ANALYSE DE GESTION > Stats famille article
+    'statistiquefamillearticlemanager', // ANALYSE DE GESTION > Stats famille article
+    /* journal du support du 03/11 (choix de l'utilisateur) : leur liste lit une JSP supprimee (404), l'ecran reste
+       vide. Les reprendre en REST les ferait revenir. */
+    'warehouseorder',                   // Transaction Commande
+    'typesocietemanager',               // Gerer Type Societe
+    'menumanager',                      // Menu
+    'familleorder',                     // Proposition Commande
+    'devisemanager'                     // Gestion des devises
 ];
 
 /** Retire de l'arbre du menu charge les entrees masquees (et un module qui n'aurait plus aucune entree). */
