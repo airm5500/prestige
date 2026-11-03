@@ -75,10 +75,12 @@ function nettoyer() {
     await champ(p, 'coffreCaisseAmount', '-500');
     const saisi = await p.evaluate(() => Ext.getCmp('coffreCaisseAmount').getRawValue());
     await cliquer(p, '#btnValidate');
-    const mNeg = await message(p, 'ok');
+    /* refus dans le champ lui-meme (rapport du 26/10, K4) : le motif s'affiche sous le champ, rien ne part au serveur */
+    const refusChamp = await p.evaluate(() => { const c = Ext.getCmp('coffreCaisseAmount'); return c.isValid() ? '' : String(c.getActiveError() || 'champ invalide'); });
+    const mNeg = refusChamp ? '' : await message(p, 'ok');
     const ouvertNeg = resumeOuvert();
     ok('G5 : fond de -500 : signe refusé à la saisie ou fond refusé, aucune caisse ouverte',
-        ouvertNeg === '' && (!/-/.test(saisi) || /n.gatif/i.test(mNeg)), saisi + ' | ' + mNeg + ' | ' + ouvertNeg);
+        ouvertNeg === '' && (!/-/.test(saisi) || refusChamp !== '' || /n.gatif/i.test(mNeg)), saisi + ' | ' + refusChamp + ' | ' + mNeg + ' | ' + ouvertNeg);
     await p.waitForFunction(() => Ext.getCmp('btnValidate') && Ext.getCmp('btnValidate').isVisible(true), null, { timeout: 20000 });
     await champ(p, 'coffreCaisseAmount', '0');
     await cliquer(p, '#btnValidate');
