@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Cas 1 — Tickets : vente assurance + vente comptant liée</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root{--navy:#1e3a5f;--fond:#ECF1F6;--bord:#C9D5E1;--orange:#e07b18}
+  body{margin:0;background:var(--fond);font:12.5px/1.4 "Segoe UI",Tahoma,Arial,sans-serif;color:#1b2733;padding:12px}
+  .note{background:#FFF8E1;border:1px solid #F0D27A;border-left:5px solid var(--orange);border-radius:8px;padding:8px 12px;margin-bottom:14px}
+  .note b{color:#8a4b00}
+  h2{font-size:14px;color:var(--navy);margin:18px 0 6px;letter-spacing:.06em;text-transform:uppercase}
+  .cmt{color:#5a6b7c;font-size:11.5px;margin:0 0 8px}
+  .rang{display:flex;gap:28px;flex-wrap:wrap;align-items:flex-start}
+  .ticket{width:300px;background:#fff;padding:12px 14px;font:11.5px/1.35 "Courier New",Consolas,monospace;color:#111;box-shadow:0 2px 8px rgba(0,0,0,.18);border-top:6px solid #ddd;position:relative}
+  .ticket::after{content:"";position:absolute;left:0;right:0;bottom:-8px;height:8px;background:linear-gradient(135deg,transparent 50%,#fff 50%) 0 0/10px 8px,linear-gradient(225deg,transparent 50%,#fff 50%) 0 0/10px 8px}
+  .ticket .c{text-align:center}
+  .ticket .b{font-weight:700}
+  .ticket .sep{border-top:1px dashed #666;margin:5px 0}
+  .ticket .l{display:flex;justify-content:space-between;gap:6px}
+  .ticket .l .r{white-space:nowrap}
+  .ticket .sub{padding-left:10px;color:#333}
+  .ticket .big{font-size:14px;font-weight:700}
+  .ticket .bar{height:30px;margin:6px auto 2px;width:85%;background:repeating-linear-gradient(90deg,#000 0 2px,#fff 2px 3px,#000 3px 4px,#fff 4px 7px,#000 7px 8px,#fff 8px 10px)}
+  .ticket .cpt{background:#FFF6D5;margin:0 -4px;padding:0 4px}
+  .lgd{font-size:11px;color:#5a6b7c;width:300px}
+  .lgd b{color:var(--navy)}
+</style>
+</head>
+<body>
+<div class="note"><b>Maquette — cas 1, tickets.</b> Deux ventes liées → deux tickets distincts (plus le reçu caisse déjà existant), ou un ticket client combiné facultatif. Les montants reprennent l'exemple du dossier ; les noms sont fictifs. La ligne « montant · T[taux] · pris en charge » par article est <b>nouvelle</b> pour Prestige (Q1.9).</div>
+
+<h2>Proposition 1 — deux tickets (recommandée)</h2>
+<p class="cmt">Ticket A : vente assurance, imprimé en autant d'exemplaires que de tiers-payants (comme aujourd'hui). Ticket B : vente comptant liée, c'est le reçu du client pour ce qui n'est pas pris en charge. Chacun porte la référence de l'autre.</p>
+<div class="rang">
+  <div class="ticket">
+    <div class="c b">PHARMACIE DE LA CAPITALE</div>
+    <div class="c">Abidjan — Tél. 07 00 00 00 00</div>
+    <div class="sep"></div>
+    <div class="l"><span>Ticket N° VO-2026-01039</span><span class="r">Bon N° BN-2026-00871</span></div>
+    <div class="l"><span>03/11/2026 10:31</span><span class="r">N° jour : 71</span></div>
+    <div>C : [CAISSIÈRE] — V : [VENDEUR]</div>
+    <div class="b">VENTE ASSURANCE</div>
+    <div class="sep"></div>
+    <div>RAPICLAV 1G CPR B/14</div>
+    <div class="l sub"><span>6 725 x 1</span><span class="r">6 725</span></div>
+    <div class="l sub"><span>Assurance 70 %</span><span class="r">4 708</span></div>
+    <div>ISOLONE 20MG CPR EFFV B/20</div>
+    <div class="l sub"><span>3 145 x 1</span><span class="r">3 145</span></div>
+    <div class="l sub"><span>Assurance 70 %</span><span class="r">2 201</span></div>
+    <div class="sep"></div>
+    <div class="l"><span>TOTAL</span><span class="r b">9 870</span></div>
+    <div class="l"><span>Matricule Assuré :</span><span class="r">A-20451</span></div>
+    <div class="l"><span>Bénéficiaire :</span><span class="r">KOUAME J.</span></div>
+    <div class="l"><span>MCI-CARE 70 % :</span><span class="r">6 909 CFA</span></div>
+    <div class="l big"><span>Part du Client :</span><span class="r">2 960 CFA</span></div>
+    <div class="sep"></div>
+    <div class="l"><span>Espèces</span><span class="r">2 960</span></div>
+    <div class="l"><span>Montant Versé</span><span class="r">2 960</span></div>
+    <div class="l"><span>Monnaie</span><span class="r">0</span></div>
+    <div class="sep"></div>
+    <div class="c">+ 1 article au comptant : voir ticket VNO-2026-01040</div>
+    <div class="bar"></div>
+    <div class="c">VO-2026-01039</div>
+    <div class="c">Nos vœux de bonne santé. Merci pour la confiance</div>
+  </div>
+
+  <div class="ticket">
+    <div class="c b">PHARMACIE DE LA CAPITALE</div>
+    <div class="c">Abidjan — Tél. 07 00 00 00 00</div>
+    <div class="sep"></div>
+    <div class="l"><span>Ticket N° VNO-2026-01040</span><span class="r"></span></div>
+    <div class="l"><span>03/11/2026 10:31</span><span class="r">N° jour : 72</span></div>
+    <div>C : [CAISSIÈRE] — V : [VENDEUR]</div>
+    <div class="b">VENTE AU COMPTANT</div>
+    <div class="c">(liée à la vente assurance VO-2026-01039)</div>
+    <div class="sep"></div>
+    <div class="cpt">
+      <div>KETODERM 2% CREME T/15G</div>
+      <div class="l sub"><span>4 135 x 1</span><span class="r">4 135</span></div>
+      <div class="l sub"><span>Non pris en charge</span><span class="r">comptant</span></div>
+    </div>
+    <div class="sep"></div>
+    <div class="l big"><span>NET A PAYER</span><span class="r">4 135 CFA</span></div>
+    <div class="l"><span>Espèces</span><span class="r">4 135</span></div>
+    <div class="l"><span>Montant Versé</span><span class="r">4 135</span></div>
+    <div class="l"><span>Monnaie</span><span class="r">0</span></div>
+    <div class="sep"></div>
+    <div class="l"><span>Client :</span><span class="r">KOUAME J.</span></div>
+    <div class="bar"></div>
+    <div class="c">VNO-2026-01040</div>
+    <div class="c">Nos vœux de bonne santé. Merci pour la confiance</div>
+  </div>
+
+  <div class="lgd"><b>Lecture</b><br>• Le ticket assurance ne contient <b>que</b> les lignes prises en charge : c'est lui que reçoit l'organisme.<br>• Le ticket comptant est le reçu de la part non couverte, avec son propre numéro et sa propre transaction de caisse.<br>• Le reçu caisse existant (copie « orange ») reste imprimé une fois pour l'ensemble encaissé : 2 960 + 4 135 = 7 095 CFA.<br>• Le taux et le montant pris en charge par ligne (« Assurance 70 % — 4 708 ») sont optionnels : paramètre sur le modèle de ticket VENTE_ASSURANCE.</div>
+</div>
+
+<h2>Proposition 2 — ticket client combiné (facultatif, en plus)</h2>
+<p class="cmt">Un seul papier pour le client, qui récapitule les deux ventes ; le ticket assurance séparé reste imprimé pour l'organisme. À activer par paramètre <code>KEY_TICKET_COMBINE</code>.</p>
+<div class="rang">
+  <div class="ticket">
+    <div class="c b">PHARMACIE DE LA CAPITALE</div>
+    <div class="c">Abidjan — Tél. 07 00 00 00 00</div>
+    <div class="sep"></div>
+    <div class="l"><span>Reçu client</span><span class="r">03/11/2026 10:31</span></div>
+    <div>C : [CAISSIÈRE] — V : [VENDEUR]</div>
+    <div class="sep"></div>
+    <div class="b">VENTE ASSURANCE — VO-2026-01039</div>
+    <div>RAPICLAV 1G CPR B/14</div>
+    <div class="l sub"><span>6 725 x 1 — T[70 %] — pris : 4 708</span><span class="r">6 725</span></div>
+    <div>ISOLONE 20MG CPR EFFV B/20</div>
+    <div class="l sub"><span>3 145 x 1 — T[70 %] — pris : 2 201</span><span class="r">3 145</span></div>
+    <div class="l"><span>MCI-CARE prend en charge</span><span class="r">6 909</span></div>
+    <div class="l b"><span>Part du client</span><span class="r">2 960</span></div>
+    <div class="sep"></div>
+    <div class="b">AU COMPTANT — VNO-2026-01040</div>
+    <div class="cpt">
+      <div>KETODERM 2% CREME T/15G</div>
+      <div class="l sub"><span>4 135 x 1 — non pris en charge</span><span class="r">4 135</span></div>
+    </div>
+    <div class="l b"><span>Comptant</span><span class="r">4 135</span></div>
+    <div class="sep"></div>
+    <div class="l"><span>TTC des deux ventes</span><span class="r">14 005</span></div>
+    <div class="l big"><span>NET A PAYER</span><span class="r">7 095 CFA</span></div>
+    <div class="l"><span>Espèces — Versé</span><span class="r">7 095</span></div>
+    <div class="l"><span>Monnaie</span><span class="r">0</span></div>
+    <div class="sep"></div>
+    <div class="l"><span>Assuré / bénéficiaire :</span><span class="r">KOUAME J.</span></div>
+    <div class="bar"></div>
+    <div class="c">VO-2026-01039 · VNO-2026-01040</div>
+    <div class="c">Nos vœux de bonne santé. Merci pour la confiance</div>
+  </div>
+  <div class="lgd"><b>Limites</b><br>• Deux codes-barres sur un même ticket : le scan « reprise par n° de ticket » doit viser l'un ou l'autre — on n'imprime qu'un code-barres (celui de la VO) et la référence VNO en clair.<br>• Le gabarit Java2D (<code>ImpressionServiceImpl</code>) est commun à tous les types : ce ticket serait un nouveau <code>ModeleTicket.VENTE_MIXTE</code>.</div>
+</div>
+</body>
+</html>

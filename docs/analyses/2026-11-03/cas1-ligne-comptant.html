@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Cas 1 — Vente assurance : ligne au comptant</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  /* Maquette statique de l'écran VENTE ASSURANCE (VenteView + VenteVNO), thème "Direction A". */
+  :root{--navy:#1e3a5f;--navy2:#152d4e;--fond:#ECF1F6;--bord:#C9D5E1;--txt:#1b2733;--vert:#2e7d32;--rouge:#c0392b;--orange:#e07b18;--bleu:#0D47A1;--jaune:#FFF6D5}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--fond);font:12.5px/1.4 "Segoe UI",Tahoma,Arial,sans-serif;color:var(--txt)}
+  .appbar{height:40px;background:linear-gradient(180deg,#1e3a5f,#152d4e);color:#fff;display:flex;align-items:center;padding:0 14px;gap:18px;font-weight:700}
+  .appbar .pharm{margin-left:auto;margin-right:auto;background:rgba(255,255,255,.12);padding:4px 26px;border-radius:5px;letter-spacing:.06em}
+  .appbar .user{font-weight:400;font-size:11px}
+  .fil{background:#fff;border-bottom:1px solid var(--bord);padding:5px 14px;font-weight:700;font-size:12px}
+  .note{background:#FFF8E1;border:1px solid #F0D27A;border-left:5px solid var(--orange);border-radius:8px;padding:8px 12px;margin:10px 12px}
+  .note b{color:#8a4b00}
+  h2{font-size:14px;color:var(--navy);margin:22px 12px 6px;letter-spacing:.06em;text-transform:uppercase}
+  .cmt{color:#5a6b7c;font-size:11.5px;margin:0 12px 8px}
+  /* --- enveloppe vente --- */
+  .shell{margin:6px 8px 0;border-radius:12px;background:var(--fond);min-width:1240px}
+  body{overflow-x:auto}
+  .shell-h{background:linear-gradient(180deg,#1e3a5f,#152d4e);color:#fff;border-radius:12px 12px 0 0;padding:9px 14px;display:flex;align-items:center;gap:8px;font-weight:800;letter-spacing:.08em;font-size:15px}
+  .shell-h .r{margin-left:auto;display:flex;gap:6px;align-items:center;font-size:11px;font-weight:700;letter-spacing:0}
+  .btn{border:1px solid #9fb0c2;border-radius:4px;background:linear-gradient(#fff,#e9eef3);padding:4px 10px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:5px;font-size:11.5px;color:#1b2733}
+  .btn.cyan{background:#1E88E5;color:#fff;border-color:#1565C0}
+  .btn.act{display:flex;justify-content:center;width:100%;margin:0 0 7px;padding:8px;font-size:12px;letter-spacing:.03em;color:#fff;border:1px solid rgba(0,0,0,.15)}
+  .btn.teal{background:linear-gradient(145deg,#26a69a,#00897b)} .btn.blue{background:linear-gradient(145deg,#42a5f5,#1e88e5)} .btn.amber{background:linear-gradient(145deg,#f5a623,#d97f06)}
+  .bande{background:#fff;border:1px solid var(--bord);border-left:5px solid var(--navy);border-radius:8px;padding:6px 12px 8px;margin:10px 0;display:flex;gap:14px;align-items:center;font-size:11px}
+  .bande label{font-weight:800;letter-spacing:.1em;color:#5a6b7c}
+  .seg{display:inline-flex;border:1px solid #9fb0c2;border-radius:4px;overflow:hidden}
+  .seg span{padding:4px 10px;background:#f3f6f9;font-weight:700}
+  .seg span.on{background:var(--navy);color:#fff}
+  .champ{border:1px solid #A9BACB;border-radius:3px;background:#fff;padding:4px 7px;min-width:90px;display:inline-block;color:#333}
+  .champ.vide{color:#8a97a3}
+  .champ.sel::after{content:" ▾";float:right;color:#5a6b7c}
+  .champ.focus{background:#0de9ca;border-color:#7FC6BC;font-weight:700}
+  .cols{display:flex;gap:8px;padding:0 2px}
+  .colL{flex:1;min-width:0}
+  .colR{width:400px}
+  fieldset{border:1px solid var(--bord);border-radius:8px;padding:8px 12px 10px;margin:0 0 12px;background:#fff;box-shadow:0 1px 4px rgba(21,45,78,.10)}
+  legend{font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--navy);padding:0 6px}
+  fieldset.tp{background:#F0F8FF}
+  fieldset.prod{background:#EAF1F8}
+  fieldset.pay{background:#F3F7FB;border-top:4px solid var(--navy)}
+  .row{display:flex;gap:10px;align-items:center;margin:3px 0}
+  .row .lab{font-weight:700;font-size:11.5px}
+  .assure{display:flex;gap:10px}
+  .assure fieldset{flex:1;padding:2px 10px 4px;margin:0}
+  .tpbloc{display:flex;gap:14px;align-items:center;background:#fff;border:1px solid var(--bord);border-radius:6px;padding:6px 10px;margin:4px 0;font-size:11.5px}
+  .tpbloc b{color:var(--navy)}
+  table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+  thead th{background:linear-gradient(180deg,#1e3a5f,#152d4e);color:#EDF3F9;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;padding:8px;text-align:left;border-right:1px solid rgba(255,255,255,.14)}
+  thead th:first-child{border-radius:8px 0 0 0}
+  tbody td{padding:2px 8px;border-bottom:1px solid #E5EBF1;font-weight:700;font-size:14px;line-height:20px}
+  tbody tr:nth-child(even) td{background:#F5F8FB}
+  td.num,th.num{text-align:right} td.c,th.c{text-align:center}
+  td.qd{color:var(--bleu);font-weight:800}
+  tr.cpt td{background:var(--jaune)!important}
+  .chk{display:inline-block;width:15px;height:15px;border:1px solid #6b7c8d;border-radius:3px;background:#fff;vertical-align:middle;position:relative}
+  .chk.on{background:var(--navy);border-color:var(--navy)}
+  .chk.on::after{content:"";position:absolute;left:4px;top:1px;width:5px;height:9px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg)}
+  .pastille{display:inline-block;padding:0 6px;border-radius:3px;font-size:10px;letter-spacing:.05em;color:#fff;margin-left:6px;vertical-align:middle;background:#b8860b}
+  .gbar{display:flex;align-items:center;gap:8px;padding:5px 6px;border-bottom:1px solid var(--bord);background:#fff;font-size:11.5px}
+  .gbar .total{margin-left:auto;background:#152D4E;color:#fff;padding:3px 14px;border-radius:6px;font-weight:700;font-size:1.35em;min-width:180px;text-align:center}
+  .gbar .total small{font-size:.55em;opacity:.8;display:block;line-height:1}
+  .pied{display:flex;align-items:center;gap:6px;padding:6px 8px;border-top:1px solid var(--bord);font-size:11px;color:#4a5968;background:#fff;border-radius:0 0 8px 8px}
+  .pied .droite{margin-left:auto}
+  .mont{display:grid;grid-template-columns:auto 1fr;gap:3px 10px;align-items:center;font-size:11.5px;font-weight:700}
+  .mont .v{font-size:15px;font-weight:800;text-align:left}
+  .rouge{color:var(--rouge)} .vert{color:var(--vert)} .bleu{color:var(--bleu)} .orange{color:#b8860b}
+  .recu{border:2px solid #152d4e;border-radius:6px;background:#fff;padding:6px 10px;font-weight:700;font-size:1.25em;width:110px;text-align:right}
+  .sep{border-bottom:1px solid var(--bord);margin:6px 0}
+  .toast{position:relative;background:#E8F5E9;border:1px solid #A5D6A7;border-left:5px solid var(--vert);border-radius:6px;padding:6px 10px;margin:8px 0;font-weight:700;color:#1b5e20;font-size:11.5px}
+</style>
+</head>
+<body>
+<div class="appbar"><span>➕ PRESTIGE 3</span><span class="user">mar. 03 nov. 2026 <b>10:42</b></span><span class="pharm">🏥 PHARMACIE</span><span class="user">Caissière</span></div>
+<div class="fil">Ventes</div>
+<div class="note"><b>Maquette — cas 1.</b> Écran VENTE ASSURANCE existant + une colonne à cocher <b>« CPT »</b> (comptant) par ligne. Les lignes cochées sortent du calcul assurance, s'affichent sur fond jaune pâle, et le rail de paiement montre « DONT COMPTANT ». Un seul bouton TERMINER LA VENTE → deux ventes, deux tickets (voir <a href="cas1-tickets.html">cas1-tickets.html</a>). Noms de patients fictifs.</div>
+
+<h2>Variante A — colonne « CPT » dans la grille (recommandée)</h2>
+<p class="cmt">La colonne n'apparaît qu'en type Assurance / Carnet (46 px pris sur DESIGNATION). Rien ne change au comptant.</p>
+
+<div class="shell">
+  <div class="shell-h">VENTE ASSURANCE
+    <span class="r"><span class="btn cyan">POINT MOBILE MONEY</span><span class="champ vide" style="min-width:230px">▭ Scanner le ticket ou saisir le n°</span><span class="btn">🧾 Ventes en attente</span></span></div>
+  <div style="padding:0 10px 10px">
+    <div class="bande"><label>TYPE</label><span class="seg"><span>Au comptant</span><span class="on">● Assurance</span><span>Carnet</span></span>
+      <label>NATURE</label><span class="seg"><span class="on">Prescription</span><span>Conseil</span><span>Dépôt</span></span>
+      <label>VENDEUR</label><span class="champ sel" style="min-width:150px">ASSALE M.</span>
+      <label>CONSEIL</label><span class="champ sel vide" style="min-width:110px">Facultatif</span></div>
+
+    <div class="assure">
+      <fieldset><legend>Rechercher le client</legend><span class="champ" style="width:100%">KOUAME J. (A-20451)</span></fieldset>
+      <fieldset><legend>Infos assuré</legend><div class="row">👤 <b>KOUAME Jean</b> &nbsp;(A-20451) ✎ 📊</div></fieldset>
+      <fieldset><legend>Infos ayant droit</legend><div class="row">👤 <b>KOUAME Jean</b> (lui-même) ✎</div></fieldset>
+    </div>
+    <fieldset class="tp"><legend>Infos tiers payants</legend>
+      <div class="tpbloc"><b>TP1</b> MCI-CARE <span>Taux : <b>70 %</b></span><span>N° de bon : <span class="champ" style="min-width:120px">BN-2026-00871</span></span><span class="btn">Générer</span><span class="btn">Retirer</span></div>
+    </fieldset>
+
+    <div class="cols">
+      <div class="colL">
+        <fieldset class="prod"><legend>Rechercher un produit</legend>
+          <div class="row"><span style="font-size:26px">💊</span><span class="champ focus" style="flex:2">Choisir un article par Nom ou Cip...</span><span class="lab">QD:</span><span class="champ" style="width:120px">1</span></div>
+          <div class="row" style="margin-left:40px;font-size:11px"><span class="lab">Stock</span><span class="bleu">42</span><span class="lab" style="margin-left:20px">Rayon</span><span class="bleu">B-07</span><span class="lab" style="margin-left:20px">Péremption</span><span class="bleu">08/2027</span></div>
+        </fieldset>
+        <fieldset style="padding:8px 6px 0"><legend>Liste des articles choisis</legend>
+          <div class="gbar"><span class="champ vide" style="min-width:150px">Recherche d'un produit</span><span class="btn">🔍 rechercher</span><span class="lab">REMISE:</span><span class="champ sel vide" style="min-width:120px">Choisir une remise...</span>
+            <span class="total"><small>TOTAL</small>14 005 CFA</span></div>
+          <table>
+            <thead><tr><th style="width:40px">LG</th><th style="width:85px">C.CIP</th><th>Designation</th><th class="num" style="width:58px">QD</th><th class="num" style="width:58px">QS</th><th class="num" style="width:75px">P.U</th><th class="num" style="width:85px">Montant</th><th class="c" style="width:46px" title="Au comptant : non pris par l'assurance">CPT</th><th style="width:36px"></th></tr></thead>
+            <tbody>
+              <tr><td>1</td><td>3400210</td><td>RAPICLAV 1G CPR B/14</td><td class="num qd">1</td><td class="num">1</td><td class="num">6 725</td><td class="num">6 725</td><td class="c"><span class="chk"></span></td><td class="c">🗑</td></tr>
+              <tr><td>2</td><td>3400211</td><td>ISOLONE 20MG CPR EFFV B/20</td><td class="num qd">1</td><td class="num">1</td><td class="num">3 145</td><td class="num">3 145</td><td class="c"><span class="chk"></span></td><td class="c">🗑</td></tr>
+              <tr class="cpt"><td>3</td><td>3400212</td><td>KETODERM 2% CREME T/15G <span class="pastille">COMPTANT</span></td><td class="num qd">1</td><td class="num">1</td><td class="num">4 135</td><td class="num">4 135</td><td class="c"><span class="chk on"></span></td><td class="c">🗑</td></tr>
+            </tbody>
+          </table>
+          <div class="pied"><span>« ‹ Page 1 sur 1 › » ⟳</span><span style="margin-left:14px">3 lignes · 3 produits</span><span class="droite">Créée le 03/11/2026 10:31</span></div>
+        </fieldset>
+      </div>
+
+      <div class="colR">
+        <fieldset class="pay"><legend>Réglement</legend>
+          <div class="mont">
+            <span>NET A PAYER :</span><span class="v rouge">7 095 CFA</span>
+            <span>MONTANT REMISE :</span><span class="v vert">0 CFA</span>
+            <span>PART ASSURANCE :</span><span class="v bleu">6 909 CFA</span>
+            <span>DONT COMPTANT :</span><span class="v orange">4 135 CFA</span>
+            <span>DONT PART CLIENT :</span><span class="v">2 960 CFA</span>
+          </div>
+          <div class="row" style="margin-top:6px"><span class="lab">TYPE RÈGLEMENT :</span><span class="champ sel" style="min-width:180px">💵 Espèces</span></div>
+          <div class="sep"></div>
+          <div class="row"><span class="lab">💰 MONTANT RECU :</span><span class="recu">7 095</span></div>
+          <div class="mont" style="margin-top:6px"><span>MONNAIE :</span><span class="v bleu">0 CFA</span><span>Dernière Monnaie :</span><span class="v bleu">0 CFA</span></div>
+          <div class="sep"></div>
+          <span class="btn act teal">💳 TERMINER LA VENTE — 2 tickets</span>
+          <span class="btn act blue">⏸ METTRE EN ATTENTE</span>
+          <span class="btn act blue">📄 AFFICHER NET A PAYER</span>
+          <span class="btn act amber">↩ RETOUR</span>
+        </fieldset>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h2>Variante B — bascule par la colonne d'action (sans nouvelle colonne)</h2>
+<p class="cmt">Si la largeur de la grille est jugée trop juste : l'icône 💶 à côté de la corbeille bascule la ligne. L'état se lit par la couleur et la pastille. Moins lisible qu'une case : à réserver si la colonne CPT gêne.</p>
+<div class="shell" style="margin-bottom:10px"><div style="padding:10px">
+  <fieldset style="padding:8px 6px 0;margin:0"><legend>Liste des articles choisis</legend>
+    <table>
+      <thead><tr><th style="width:40px">LG</th><th style="width:85px">C.CIP</th><th>Designation</th><th class="num" style="width:58px">QD</th><th class="num" style="width:58px">QS</th><th class="num" style="width:75px">P.U</th><th class="num" style="width:85px">Montant</th><th style="width:64px"></th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>3400210</td><td>RAPICLAV 1G CPR B/14</td><td class="num qd">1</td><td class="num">1</td><td class="num">6 725</td><td class="num">6 725</td><td class="c" title="Passer au comptant">💶 🗑</td></tr>
+        <tr class="cpt"><td>2</td><td>3400212</td><td>KETODERM 2% CREME T/15G <span class="pastille">COMPTANT</span></td><td class="num qd">1</td><td class="num">1</td><td class="num">4 135</td><td class="num">4 135</td><td class="c" title="Remettre en assurance">🛡 🗑</td></tr>
+      </tbody>
+    </table>
+  </fieldset>
+</div></div>
+
+<h2>Après « TERMINER LA VENTE » — retour à l'écran</h2>
+<p class="cmt">Aucune fenêtre : un bandeau sous le titre confirme les deux ventes créées et les tickets imprimés, avec réimpression possible par ticket.</p>
+<div class="shell" style="margin-bottom:24px"><div style="padding:10px">
+  <div class="toast">✔ Vente terminée : <b>VO-2026-01039</b> (assurance, part client 2 960 CFA) + <b>VNO-2026-01040</b> (comptant, 4 135 CFA) — 3 tickets imprimés (1 assurance MCI-CARE, 1 comptant, 1 reçu caisse). &nbsp;<span class="btn">🖨 Réimprimer le ticket assurance</span> <span class="btn">🖨 Réimprimer le ticket comptant</span></div>
+</div></div>
+</body>
+</html>

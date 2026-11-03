@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Cas 4 — Sécurité de la base (onglet Centre de support)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root{--navy:#1e3a5f;--navy2:#152d4e;--fond:#ECF1F6;--bord:#C9D5E1;--txt:#1b2733;--vert:#2e7d32;--rouge:#c0392b;--orange:#e07b18;--bleu:#0D47A1}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--fond);font:12.5px/1.4 "Segoe UI",Tahoma,Arial,sans-serif;color:var(--txt)}
+  .appbar{height:40px;background:linear-gradient(180deg,#1e3a5f,#152d4e);color:#fff;display:flex;align-items:center;padding:0 14px;gap:18px;font-weight:700}
+  .appbar .pharm{margin-left:auto;margin-right:auto;background:rgba(255,255,255,.12);padding:4px 26px;border-radius:5px;letter-spacing:.06em}
+  .appbar .user{font-weight:400;font-size:11px}
+  .fil{background:#fff;border-bottom:1px solid var(--bord);padding:5px 14px;font-weight:700;font-size:12px}
+  .page{margin:10px 12px}
+  .note{background:#FFF8E1;border:1px solid #F0D27A;border-left:5px solid var(--orange);border-radius:8px;padding:8px 12px;margin-bottom:10px}
+  .note b{color:#8a4b00}
+  .carte{background:#fff;border:1px solid var(--bord);border-radius:8px;box-shadow:0 1px 4px rgba(21,45,78,.10);margin-bottom:14px}
+  .onglets{display:flex;gap:4px;padding:8px 10px 0;border-bottom:1px solid var(--bord)}
+  .onglet{padding:6px 14px;border:1px solid var(--bord);border-bottom:none;border-radius:6px 6px 0 0;background:#f3f6f9;font-weight:700;color:#4a5968;font-size:11.5px}
+  .onglet.actif{background:var(--navy);color:#fff;border-color:var(--navy)}
+  .onglet.nouveau{outline:2px dashed var(--orange);outline-offset:2px}
+  .corps{padding:12px}
+  .grille{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  fieldset{border:1px solid var(--bord);border-radius:8px;padding:8px 12px 10px;margin:0 0 12px;background:#fff}
+  legend{font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--navy);padding:0 6px}
+  .ligne{display:flex;align-items:center;gap:10px;padding:5px 0;border-bottom:1px solid #EEF2F6}
+  .ligne:last-child{border-bottom:none}
+  .ligne .lib{width:300px;font-weight:700}
+  .etat{display:inline-block;padding:2px 9px;border-radius:12px;font-size:10.5px;font-weight:800;letter-spacing:.05em;color:#fff}
+  .ok{background:var(--vert)} .ko{background:var(--rouge)} .warn{background:var(--orange)} .info{background:#5a6b7c}
+  .btn{border:1px solid #9fb0c2;border-radius:4px;background:linear-gradient(#fff,#e9eef3);padding:5px 12px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-size:12px}
+  .btn.vert{background:var(--vert);color:#fff;border-color:#1b5e20}
+  .btn.navy{background:var(--navy);color:#fff;border-color:var(--navy2)}
+  .btn.confirm{background:#f5a623;color:#fff;border-color:#b86e00}
+  .btn.off{opacity:.5;cursor:default}
+  .champ{border:1px solid #A9BACB;border-radius:3px;background:#fff;padding:5px 8px;min-width:200px;display:inline-block;color:#333;font-family:Consolas,monospace}
+  .champ.vide{color:#8a97a3;font-family:inherit}
+  .champ.mdp{letter-spacing:.2em}
+  .etapes{list-style:none;padding:0;margin:6px 0 0}
+  .etapes li{padding:4px 0 4px 26px;position:relative}
+  .etapes li::before{content:"";position:absolute;left:4px;top:7px;width:12px;height:12px;border-radius:50%;background:#C9D5E1}
+  .etapes li.fait::before{background:var(--vert)}
+  .etapes li.encours::before{background:var(--orange);box-shadow:0 0 0 3px rgba(224,123,24,.25)}
+  table{width:100%;border-collapse:collapse}
+  thead th{background:linear-gradient(180deg,#1e3a5f,#152d4e);color:#EDF3F9;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;padding:7px 8px;text-align:left}
+  tbody td{padding:5px 8px;border-bottom:1px solid #E5EBF1;font-size:12px}
+  tbody tr:nth-child(even) td{background:#F5F8FB}
+  .small{font-size:11px;color:#5a6b7c}
+  h2{font-size:14px;color:var(--navy);margin:18px 0 6px;letter-spacing:.06em;text-transform:uppercase}
+  .cmt{color:#5a6b7c;font-size:11.5px;margin:0 0 8px}
+  .alerte{background:#FDECEA;border:1px solid #F5C2BD;border-left:5px solid var(--rouge);border-radius:6px;padding:6px 10px;margin:8px 0;font-weight:700;color:#7a1f14}
+</style>
+</head>
+<body>
+<div class="appbar"><span>➕ PRESTIGE 3</span><span class="user">mar. 03 nov. 2026 <b>10:42</b></span><span class="pharm">🏥 PHARMACIE</span><span class="user">Super-admin</span></div>
+<div class="fil">Centre de support › Stabilité du serveur</div>
+
+<div class="page">
+<div class="note"><b>Maquette — cas 4.</b> Nouvel onglet <b>« Sécurité »</b> dans l'écran existant <i>Stabilité du serveur</i> (<code>SupportServeur.js</code>), réservé au super-admin. Il <b>n'affiche jamais</b> un mot de passe : seulement où il est stocké, s'il est protégé, et depuis quand. Toutes les actions confirment dans le bouton, sans fenêtre.</div>
+
+<!-- ============ VUE 1 : état ============ -->
+<h2>Vue 1 — État de la protection (avant toute action)</h2>
+<div class="carte">
+  <div class="onglets"><span class="onglet">État</span><span class="onglet">Expérience</span><span class="onglet">Arrêts</span><span class="onglet">Réglages</span><span class="onglet">Postes</span><span class="onglet">Sauvegardes</span><span class="onglet actif nouveau">Sécurité</span><span class="onglet">Lexique</span></div>
+  <div class="corps">
+    <div class="alerte">⚠ Le mot de passe de la base est lisible en clair à 2 endroits sur ce serveur. Dernière rotation : jamais.</div>
+    <div class="grille">
+      <fieldset><legend>Où est stocké le mot de passe de la base</legend>
+        <div class="ligne"><span class="lib">Pool Payara <code>laborex_pool</code> (domain.xml)</span><span class="etat ko">EN CLAIR</span><span class="small">protection possible : alias Payara</span></div>
+        <div class="ligne"><span class="lib">Fichier de configuration <code>config_laborex_v1.xml</code></span><span class="etat ko">OBFUSQUÉ (clé connue)</span><span class="small">accès JDBC direct, 107 fichiers</span></div>
+        <div class="ligne"><span class="lib">Sauvegarde intégrée (toutes les heures)</span><span class="etat warn">LIT DOMAIN.XML</span><span class="small">compte applicatif, droits complets</span></div>
+        <div class="ligne"><span class="lib">Scripts de sauvegarde Windows (12:30 / 21:30)</span><span class="etat warn">.CNF EN CLAIR (ACL)</span><span class="small">compte dédié <code>prestige_sauvegarde</code></span></div>
+        <div class="ligne"><span class="lib">Copies <code>domain.xml.avant-prestige-*</code></span><span class="etat ko">4 FICHIERS</span><span class="small">contiennent l'ancien mot de passe</span></div>
+        <div class="ligne"><span class="lib">Journal serveur (<code>server.log</code>)</span><span class="etat warn">RISQUE</span><span class="small">URL JDBC journalisée sur erreur</span></div>
+      </fieldset>
+      <fieldset><legend>Sauvegardes et archives</legend>
+        <div class="ligne"><span class="lib">Archives <code>.sql.gz</code> intégrées</span><span class="etat ko">NON CHIFFRÉES</span><span class="small">48 h + 30 jours, C:\prestige\sauvegardes</span></div>
+        <div class="ligne"><span class="lib">Archives zstd / RAR des scripts</span><span class="etat ko">NON CHIFFRÉES</span><span class="small">D:\SAUVEGARDE_JOURNALIERE + copie</span></div>
+        <div class="ligne"><span class="lib">Journaux binaires copiés</span><span class="etat ko">EN CLAIR</span></div>
+        <div class="ligne"><span class="lib">MariaDB écoute sur</span><span class="etat warn">0.0.0.0:3306</span><span class="small">recommandé : 127.0.0.1 ou liste blanche</span></div>
+        <div class="ligne"><span class="lib">Dernier essai de restauration</span><span class="etat info">12/10/2026 — OK</span></div>
+      </fieldset>
+    </div>
+    <fieldset><legend>Actions</legend>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <span class="btn navy">🔑 Changer le mot de passe de la base…</span>
+        <span class="btn">🔒 Protéger le mot de passe du pool (alias Payara)</span>
+        <span class="btn">🧹 Purger les 4 copies de domain.xml</span>
+        <span class="btn">🗜 Activer le chiffrement des archives…</span>
+        <span class="btn off">📜 Journal des actions de sécurité</span>
+      </div>
+      <p class="small" style="margin:8px 0 0">Les actions sont réservées au super-admin, journalisées (qui, quand, quoi — jamais la valeur) et chacune se confirme dans son bouton.</p>
+    </fieldset>
+  </div>
+</div>
+
+<!-- ============ VUE 2 : rotation ============ -->
+<h2>Vue 2 — Rotation du mot de passe, en un seul bouton (S1)</h2>
+<p class="cmt">Déplié sous l'action « Changer le mot de passe de la base ». Le nouveau mot de passe est généré par le serveur et n'est jamais affiché ni renvoyé au navigateur. Le compte d'administration MariaDB est saisi pour cette opération seulement, jamais stocké.</p>
+<div class="carte"><div class="corps">
+  <div class="grille">
+    <fieldset><legend>1. Compte d'administration (pour cette opération)</legend>
+      <div class="ligne"><span class="lib" style="width:180px">Utilisateur MariaDB</span><span class="champ">root</span></div>
+      <div class="ligne"><span class="lib" style="width:180px">Mot de passe</span><span class="champ mdp">••••••••••</span><span class="small">non conservé</span></div>
+      <div class="ligne"><span class="lib" style="width:180px">Votre mot de passe Prestige</span><span class="champ mdp">••••••••</span><span class="small">second facteur (Q4.1)</span></div>
+    </fieldset>
+    <fieldset><legend>2. Ce qui sera fait, dans l'ordre</legend>
+      <ul class="etapes">
+        <li class="fait">Générer un mot de passe fort (24 caractères, jamais affiché)</li>
+        <li class="fait">Vérifier la connexion avec le compte d'administration</li>
+        <li class="encours"><code>ALTER USER 'prestige'@'localhost' IDENTIFIED BY …</code></li>
+        <li>Mettre à jour le pool Payara (alias <code>prestige-db</code>) et le fichier de configuration (chiffré)</li>
+        <li>Tester la nouvelle connexion ; <b>sinon revenir à l'ancien mot de passe</b></li>
+        <li>Purger les copies de domain.xml et noter la rotation dans le journal</li>
+      </ul>
+    </fieldset>
+  </div>
+  <div style="display:flex;gap:10px;align-items:center">
+    <span class="btn confirm">Confirmer : changer le mot de passe maintenant (coupure ≈ 10 s)</span>
+    <span class="btn">Annuler</span>
+    <span class="small">Premier clic : « Changer le mot de passe » → le bouton devient « Confirmer… » ; second clic : exécution. Aucune fenêtre.</span>
+  </div>
+</div></div>
+
+<!-- ============ VUE 3 : après ============ -->
+<h2>Vue 3 — Après rotation et protection</h2>
+<div class="carte"><div class="corps">
+  <div class="grille">
+    <fieldset><legend>Où est stocké le mot de passe de la base</legend>
+      <div class="ligne"><span class="lib">Pool Payara <code>laborex_pool</code></span><span class="etat ok">ALIAS PAYARA</span><span class="small">master password changée (Q4.4)</span></div>
+      <div class="ligne"><span class="lib">Fichier de configuration</span><span class="etat ok">SUPPRIMÉ DU FICHIER</span><span class="small">JDBC direct → pool JNDI (S4)</span></div>
+      <div class="ligne"><span class="lib">Sauvegarde intégrée</span><span class="etat ok">COMPTE DÉDIÉ, .CNF CHIFFRÉ (DPAPI)</span></div>
+      <div class="ligne"><span class="lib">Scripts Windows</span><span class="etat ok">.CNF CHIFFRÉ (DPAPI, SYSTEM)</span></div>
+      <div class="ligne"><span class="lib">Copies domain.xml</span><span class="etat ok">AUCUNE</span></div>
+      <div class="ligne"><span class="lib">Dernière rotation</span><span class="etat info">03/11/2026 10:51 — par Super-admin</span><span class="small">prochaine recommandée : 03/05/2027</span></div>
+    </fieldset>
+    <fieldset><legend>Journal des actions de sécurité</legend>
+      <table><thead><tr><th>Date</th><th>Qui</th><th>Action</th><th>Résultat</th></tr></thead>
+      <tbody>
+        <tr><td>03/11/2026 10:51</td><td>Super-admin</td><td>Rotation du mot de passe de la base</td><td><span class="etat ok">OK</span></td></tr>
+        <tr><td>03/11/2026 10:52</td><td>Super-admin</td><td>Alias Payara posé sur le pool</td><td><span class="etat ok">OK</span></td></tr>
+        <tr><td>03/11/2026 10:52</td><td>Super-admin</td><td>Purge de 4 copies de domain.xml</td><td><span class="etat ok">OK</span></td></tr>
+        <tr><td>03/11/2026 10:55</td><td>Super-admin</td><td>Chiffrement des archives activé</td><td><span class="etat ok">OK</span></td></tr>
+        <tr><td>03/11/2026 11:05</td><td>(planifié)</td><td>Sauvegarde intégrée, compte dédié</td><td><span class="etat ok">OK — archive chiffrée</span></td></tr>
+      </tbody></table>
+    </fieldset>
+  </div>
+  <div class="alerte" style="background:#E8F5E9;border-color:#A5D6A7;border-left-color:var(--vert);color:#1b5e20">✔ Un ancien mot de passe ne permet plus de se connecter. Aucune copie en clair sur ce serveur. Les archives ne s'ouvrent qu'avec la clé conservée hors du serveur (Q4.3).</div>
+</div></div>
+</div>
+</body>
+</html>
