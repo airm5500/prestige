@@ -57,6 +57,18 @@ public final class TicketDocument {
         return LIBELLES.getOrDefault(bloc, bloc);
     }
 
+    /**
+     * Retour du 03/11 : une partie d'un texte ou d'une paire en gras (taux du tiers-payant, montant du credit). Les
+     * marques ne s'impriment pas ; le rendu change de police entre elles. Caracteres a usage prive : trim() ne les
+     * retire pas, aucun texte de Prestige ne les contient.
+     */
+    public static final char GRAS_DEBUT = '';
+    public static final char GRAS_FIN = '';
+
+    public static String gras(String t) {
+        return t == null || t.isEmpty() ? "" : GRAS_DEBUT + t + GRAS_FIN;
+    }
+
     public enum Style {
         NORMAL, GRAS, PETIT, NOM, GRAND, NUMERO
     }
@@ -92,8 +104,9 @@ public final class TicketDocument {
 
         @Override
         public String toString() {
-            return genre + "[" + a + (b.isEmpty() ? "" : " | " + b) + (c.isEmpty() ? "" : " | " + c)
-                    + (d.isEmpty() ? "" : " | " + d) + "]";
+            return (genre + "[" + a + (b.isEmpty() ? "" : " | " + b) + (c.isEmpty() ? "" : " | " + c)
+                    + (d.isEmpty() ? "" : " | " + d) + "]").replace(String.valueOf(GRAS_DEBUT), "**")
+                            .replace(String.valueOf(GRAS_FIN), "**");
         }
     }
 

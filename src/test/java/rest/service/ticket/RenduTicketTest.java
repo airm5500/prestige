@@ -57,7 +57,7 @@ class RenduTicketTest {
     void venteComptant() {
         String t = texte(doc(ModeleTicket.VENTE, 80, new ReglagesTicket(ModeleTicket.VENTE)));
         assertTrue(t.contains("TICKET N° 0127"), t);
-        assertTrue(t.contains("27 20 00 00 00 · 07 00 00 00 00"), t);
+        assertTrue(t.contains("TEXTE[27 20 00 00 00-07 00 00 00 00 | Bd de la République, Abidjan]"), t);
         assertTrue(t.contains("AMOXICILLINE BIOGARAN 1 G CPR B/14"), "designation entiere\n" + t);
         assertTrue(t.contains("2 × 1 205 | 2 410"), t);
         assertTrue(t.contains("3 articles · 4 boîtes"), t);
@@ -93,9 +93,10 @@ class RenduTicketTest {
     @Test
     void assurancePresentationB() {
         String t = texte(doc(ModeleTicket.VENTE_ASSURANCE, 80, new ReglagesTicket(ModeleTicket.VENTE_ASSURANCE)));
-        assertTrue(t.contains("TICKET N° 0127 · Bon N° 558213"), t);
+        assertTrue(t.contains("TEXTE[TICKET N° 0127]"), t);
+        assertTrue(t.contains("PAIRE[Bon N° | 558213]"), t);
         assertTrue(t.contains("PAIRE[Matricule assuré | MAT-00000]"), t);
-        assertTrue(t.contains("PAIRE[MUGEF-CI 80 % | 3 960 F CFA]"), t);
+        assertTrue(t.contains("PAIRE[MUGEF-CI [**80%**] | 3 960 F CFA]"), t);
         assertTrue(t.contains("PAIRE[Vente à terme | 3 960 F CFA]"), t);
         assertTrue(t.contains("ENCADRE[NET À PAYER | 990 F CFA]"), t);
     }
@@ -150,7 +151,8 @@ class RenduTicketTest {
         String t = texte(doc(ModeleTicket.VENTE, 58, new ReglagesTicket(ModeleTicket.VENTE)));
         assertTrue(t.contains("ENCADRE[NET | 4 950 F CFA]"), t);
         assertTrue(t.contains("PAIRE[Monnaie rendue | 50 F]"), t);
-        assertTrue(t.contains("TEXTE[Tél. 07 00 00 00 00]"), "un telephone par ligne\n" + t);
+        assertTrue(t.contains("TEXTE[27 20 00 00 00-07 00 00 00 00 | Bd de la République, Abidjan]"),
+                "telephones et adresse sur une ligne, coupee au rendu\n" + t);
     }
 
     @Test

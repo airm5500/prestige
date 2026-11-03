@@ -7,6 +7,8 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import rest.service.ticket.TicketDocument.Bloc;
 import rest.service.ticket.TicketDocument.Style;
 
@@ -94,6 +96,11 @@ public final class ConversionTicket {
         public List<Section> sections = Collections.emptyList();
     }
 
+    /** Titre d'une vente a credit : « Ticket N° 0127 | Bon N°:: 558213 ». */
+    private static final Pattern TITRE_ET_BON = Pattern.compile("(?i)^(.*?)\\s*\\|\\s*Bon\\s*N°\\s*:*(.*)$");
+    /** Ligne d'un tiers-payant : « MUGEF-CI 80% », le nom puis le taux. */
+    private static final Pattern TAUX_ORGANISME = Pattern.compile("^(.*\\S)\\s+(\\d+(?:[.,]\\d+)?)\\s*%$");
+
     private final Source s;
     private final ReglagesTicket r;
     private final TicketDocument doc;
@@ -138,16 +145,9 @@ public final class ConversionTicket {
             return;
         }
         c.texte(s.pharmacien, Style.NORMAL);
-        c.texte(s.adresse, Style.NORMAL);
-        if (!tel.isEmpty()) {
-            if (court && tel.contains(" · ")) {
-                for (String t : tel.split(" · ")) {
-                    c.texte("Tél. " + t, Style.NORMAL);
-                }
-            } else {
-                c.texte("Tél. " + tel, Style.NORMAL);
-            }
-        }
+        // retour du 03/11 : telephones et adresse sur une ligne, « 2724361166-0708123958 | BP 771 YAMOUSSOUKRO »
+        String numeros = tel.replace(" · ", "-");
+        c.texte(numeros + (numeros.isEmpty() || vide(s.adresse) ? "" : " | ") + nul(s.adresse).trim(), Style.NORMAL);
         if (r.ccRc()) {
             String ccrc = (vide(s.cc) ? "" : "CC " + s.cc.trim()) + (vide(s.cc) || vide(s.rc) ? "" : " · ")
                     + (vide(s.rc) ? "" : "RC " + s.rc.trim());
@@ -179,9 +179,10 @@ public final class ConversionTicket {
     /* ---------- ventes ---------- */
 
     private void vente() {
-        doc.bloc(TicketDocument.TITRE).texte(titreVente(s.titre), Style.GRAND);
+        String[] titreEtBon = titreEtBon(s.titre);
+        doc.bloc(TicketDocument.TITRE).texte(titreVente(titreEtBon[0]), Style.GRAND);
         intervenants();
-        clients();
+        clients(titreEtBon[1]);
         Bloc corps = doc.bloc(TicketDocument.CORPS);
         corps.trait(false);
         int articles = 0;
@@ -237,7 +238,9 @@ public final class ConversionTicket {
         corps.article(a.designation, a.quantite + " × " + nombre(a.prixUnitaire), r.lot() ? a.lot : "",
                 nombre(a.montant));
         for (String c : a.credits) {
-            corps.texte(c, Style.PETIT);
+            // retour du 03/11 : le montant du credit en gras
+            corps.texte(c.replaceFirst("(Mont\\. : )(\\S.*)$",
+                    "$1" + TicketDocument.GRAS_DEBUT + "$2" + TicketDocument.GRAS_FIN), Style.PETIT);
         }
     }
 
@@ -269,7 +272,7 @@ public final class ConversionTicket {
     private void mixte() {
         doc.bloc(TicketDocument.TITRE).texte(titreVente(s.titre), Style.GRAND);
         intervenants();
-        clients();
+        clients("");
         Bloc corps = doc.bloc(TicketDocument.CORPS);
         int articles = 0;
         int boites = 0;
@@ -288,7 +291,8 @@ public final class ConversionTicket {
                 if (t[0].startsWith("(-)") && !r.remise()) {
                     continue;
                 }
-                corps.paire(t[0], montantF(t[1]), Style.NORMAL);
+                Matcher taux = TAUX_ORGANISME.matcher(t[0]);
+                corps.paire(taux.matches() ? libelleOrganisme(taux) : t[0], montantF(t[1]), Style.NORMAL);
             }
         }
         corps.trait(false);
@@ -306,6 +310,20 @@ public final class ConversionTicket {
         sousTotaux("");
         mentions();
         commentairesOfficine();
+    }
+
+    /**
+     * Retour du 03/11 : le numero de bon quitte le titre pour le bloc du client, au-dessus de la part du tiers-payant.
+     * « Ticket N° 0127 | Bon N°:: 558213 » donne { « Ticket N° 0127 », « 558213 » } ; sans bon, le titre entier et « ».
+     */
+    static String[] titreEtBon(String titre) {
+        String t = nul(titre);
+        Matcher m = TITRE_ET_BON.matcher(t);
+        if (m.matches()) {
+            String bon = m.group(2).trim();
+            return new String[] { m.group(1), "null".equalsIgnoreCase(bon) ? "" : bon };
+        }
+        return new String[] { t, "" };
     }
 
     /** « Ticket N° 0127 | Bon N°:: 558213 » devient « TICKET N° 0127 · Bon N° 558213 ». */
@@ -344,21 +362,44 @@ public final class ConversionTicket {
         return libelle + " : " + lv[1];
     }
 
-    private void clients() {
+    /**
+     * Lignes du client et des tiers-payants ; {@code bon} (retour du 03/11) va juste au-dessus du premier organisme.
+     */
+    private void clients(String bon) {
         Bloc b = doc.bloc(TicketDocument.CLIENT);
+        int organisme = -1;
         for (String l : s.infoTiersPayants) {
             if (l == null || l.trim().isEmpty()) {
                 continue;
             }
             String[] lv = coupe(l);
-            String libelle = lv[0].replace("Nom du Client", "Client").replace("Matricule Assuré", "Matricule assuré")
-                    .replace("Part du Client", "Part du client").replaceAll("(\\d)%", "$1 %");
+            Matcher taux = TAUX_ORGANISME.matcher(lv[0]);
+            String libelle;
+            if (taux.matches()) {
+                // retour du 03/11 : « ZZAUDIT-TP-C1 [70%] », le taux en gras
+                if (organisme < 0) {
+                    organisme = b.elements.size();
+                }
+                libelle = libelleOrganisme(taux);
+            } else {
+                libelle = lv[0].replace("Nom du Client", "Client").replace("Matricule Assuré", "Matricule assuré")
+                        .replace("Part du Client", "Part du client").replaceAll("(\\d)%", "$1 %");
+            }
             b.paire(libelle, montantF(lv[1]), Style.NORMAL);
+        }
+        if (!vide(bon)) {
+            b.elements.add(organisme < 0 ? b.elements.size() : organisme, new TicketDocument.Element(
+                    TicketDocument.Genre.PAIRE, Style.NORMAL, "Bon N°", bon.trim(), null, null, null));
         }
         if (!b.vide()) {
             b.elements.add(0,
                     new TicketDocument.Element(TicketDocument.Genre.TRAIT, Style.NORMAL, null, null, null, null, null));
         }
+    }
+
+    /** Retour du 03/11 : « ZZAUDIT-TP-C1 70 % » devient « ZZAUDIT-TP-C1 [70%] », le taux en gras. */
+    private static String libelleOrganisme(Matcher taux) {
+        return taux.group(1).trim() + " [" + TicketDocument.gras(taux.group(2) + "%") + "]";
     }
 
     /** Lignes « libelle;valeur;unite;gras » : remise, net, reglements, versement, monnaie. */
@@ -383,8 +424,7 @@ public final class ConversionTicket {
                 totaux.paire(s.ticket == ModeleTicket.VENTE_CARNET ? "Pris sur le carnet" : "Vente à terme",
                         montantF(valeur), Style.NORMAL);
             } else if (libelle.startsWith("Net à payer")) {
-                doc.bloc(TicketDocument.NET).encadre(court ? "NET" : "NET À PAYER", montant(valeur) + " F CFA",
-                        Style.GRAND);
+                net(court ? "NET" : "NET À PAYER", montant(valeur) + " F CFA");
             } else if (libelle.equals("Règlement")) {
                 mode = valeur;
             } else if (libelle.startsWith("Montant Versé")) {
@@ -407,6 +447,16 @@ public final class ConversionTicket {
         if (!vide(total) && ((remise && r.remise()) || (!remise && terme))) {
             totaux.elements.add(0, new TicketDocument.Element(TicketDocument.Genre.PAIRE, Style.NORMAL, "Total",
                     montantF(total), null, null, null));
+        }
+    }
+
+    /** Le net a payer, encadre ou non selon le reglage (retour du 03/11), toujours en grand. */
+    private void net(String libelle, String valeur) {
+        Bloc n = doc.bloc(TicketDocument.NET);
+        if (r.cadreNet()) {
+            n.encadre(libelle, valeur, Style.GRAND);
+        } else {
+            n.paire(libelle, valeur, Style.GRAND);
         }
     }
 
@@ -459,8 +509,7 @@ public final class ConversionTicket {
             String libelle = p[0].trim();
             String valeur = p.length > 1 ? p[1].trim() : "";
             if (libelle.startsWith("Net à payer") || libelle.equals("Part client")) {
-                doc.bloc(TicketDocument.NET).encadre(court ? "NET" : "NET À PAYER", montant(valeur) + " F CFA",
-                        Style.GRAND);
+                net(court ? "NET" : "NET À PAYER", montant(valeur) + " F CFA");
             } else if (libelle.equals("Remise")) {
                 if (r.remise()) {
                     doc.bloc(TicketDocument.TOTAUX).paire("*", "− " + montantF(valeur), Style.NORMAL);
@@ -499,7 +548,7 @@ public final class ConversionTicket {
             } else if (libelle.startsWith("Libellé")) {
                 corps.paire("Mode", valeur, Style.NORMAL);
             } else if (libelle.startsWith("Montant")) {
-                doc.bloc(TicketDocument.NET).encadre("MONTANT", montant(valeur) + " F CFA", Style.GRAND);
+                net("MONTANT", montant(valeur) + " F CFA");
             } else if (!libelle.isEmpty()) {
                 corps.paire(libelle, valeur, Style.NORMAL);
             }
@@ -552,7 +601,7 @@ public final class ConversionTicket {
                     totaux.texte("TOTAL OFFICINE", Style.GRAS);
                 }
                 if (libelle.equals("TOTAL ESP")) {
-                    doc.bloc(TicketDocument.NET).encadre("TOTAL ESPÈCES", montantF(valeur), Style.GRAND);
+                    net("TOTAL ESPÈCES", montantF(valeur));
                 } else {
                     totaux.paire(libelle, montantF(valeur), Style.NORMAL);
                 }
@@ -628,7 +677,7 @@ public final class ConversionTicket {
                     Style.NORMAL);
         }
         if (!vide(verse)) {
-            doc.bloc(TicketDocument.NET).encadre("RÉGLÉ", montant(verse) + " F CFA", Style.GRAND);
+            net("RÉGLÉ", montant(verse) + " F CFA");
         }
         if (!vide(reste)) {
             reglement.paire("Reste dû", montantF(reste), Style.GRAS);
@@ -652,7 +701,10 @@ public final class ConversionTicket {
             return;
         }
         doc.bloc(TicketDocument.PIED).trait(false);
-        doc.bloc(TicketDocument.PIED).pied(s.imageCode, s.referencePied, date, false);
+        // retour du 03/11 : le numero deja imprime en haut du ticket ne se repete pas a cote du code-barres
+        String reference = !vide(s.referencePied) && nul(s.titre).contains(s.referencePied.trim()) ? ""
+                : s.referencePied;
+        doc.bloc(TicketDocument.PIED).pied(s.imageCode, reference, date, false);
     }
 
     /* ---------- outils ---------- */

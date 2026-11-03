@@ -47,9 +47,9 @@ class TicketLigneComptantTest {
                         Collections.singletonList(CreditLigne.libelle(null, 70, 2201))));
         String t = texte(ConversionTicket.convertir(s, new ReglagesTicket(ModeleTicket.VENTE_ASSURANCE)));
         int rapiclav = t.indexOf("ARTICLE[RAPICLAV 1G CPR B/14");
-        int credit1 = t.indexOf("TEXTE[Crédit : T[70 %] — Mont. : 4 708]");
+        int credit1 = t.indexOf("TEXTE[Crédit : T[70 %] — Mont. : **4 708**]");
         int isolone = t.indexOf("ARTICLE[ISOLONE 20MG CPR EFFV B/20");
-        int credit2 = t.indexOf("TEXTE[Crédit : T[70 %] — Mont. : 2 201]");
+        int credit2 = t.indexOf("TEXTE[Crédit : T[70 %] — Mont. : **2 201**]");
         assertTrue(rapiclav >= 0 && credit1 > rapiclav && isolone > credit1 && credit2 > isolone, t);
         // sans credit : le ticket est celui d'aujourd'hui (aucune mention)
         String sans = texte(ConversionTicket.convertir(ExemplesTicket.exemple(ModeleTicket.VENTE_ASSURANCE, 80),
@@ -66,8 +66,8 @@ class TicketLigneComptantTest {
         assertTrue(t.contains("TICKET N° VO-2026-01039 · VNO-2026-01040"), t);
         int assurance = t.indexOf("TEXTE[VENTE ASSURANCE — VO-2026-01039]");
         int rapiclav = t.indexOf("ARTICLE[RAPICLAV 1G CPR B/14 | 1 × 6 725 | 6 725]");
-        int credit = t.indexOf("TEXTE[Crédit : T[70 %] — Mont. : 4 708]");
-        int mci = t.indexOf("PAIRE[MCI-CARE 70 % | 6 909 F CFA]");
+        int credit = t.indexOf("TEXTE[Crédit : T[70 %] — Mont. : **4 708**]");
+        int mci = t.indexOf("PAIRE[MCI-CARE [**70%**] | 6 909 F CFA]");
         int remiseVo = t.indexOf("PAIRE[(-) Remise | 148 F CFA]");
         int partClient = t.indexOf("PAIRE[Part du client | 2 810 F CFA]");
         int comptant = t.indexOf("TEXTE[VENTE AU COMPTANT — VNO-2026-01040]");

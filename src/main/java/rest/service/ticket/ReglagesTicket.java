@@ -12,8 +12,9 @@ import org.json.JSONObject;
  * <p>
  * Valeurs par defaut, decidees avec l'officine : nouveau modele ; remise affichee (« * ») ; lot vendu, CC/RC, encours
  * et signature du carnet desactives ; recapitulatif « articles · boites » et commentaires de l'officine affiches ;
- * signatures actives sur le mouvement de caisse et le ticket Z. La disposition (ordre, alignement et taille des blocs)
- * est vide par defaut : l'ordre du modele s'applique.
+ * signatures actives sur le mouvement de caisse et le ticket Z ; net a payer encadre (le cadre peut etre retire depuis
+ * le retour du 03/11). La disposition (ordre, alignement et taille des blocs) est vide par defaut : l'ordre du modele
+ * s'applique.
  */
 public final class ReglagesTicket {
 
@@ -49,6 +50,7 @@ public final class ReglagesTicket {
     private boolean encoursCarnet = false;
     private boolean signatureClient = false;
     private boolean signatures;
+    private boolean cadreNet = true;
     private List<Position> disposition = new ArrayList<>();
 
     public ReglagesTicket(ModeleTicket ticket) {
@@ -103,6 +105,13 @@ public final class ReglagesTicket {
         return signatures;
     }
 
+    /**
+     * Retour du 03/11 : cadre autour du net a payer (montant, regle, total especes) ; sans lui, le net reste en grand.
+     */
+    public boolean cadreNet() {
+        return cadreNet;
+    }
+
     public List<Position> disposition() {
         return Collections.unmodifiableList(disposition);
     }
@@ -122,7 +131,7 @@ public final class ReglagesTicket {
         return new JSONObject().put("ticket", ticket.name()).put("modele", modele).put("remise", remise).put("lot", lot)
                 .put("ccRc", ccRc).put("recapitulatif", recapitulatif).put("commentaires", commentaires)
                 .put("encoursCarnet", encoursCarnet).put("signatureClient", signatureClient)
-                .put("signatures", signatures).put("disposition", d);
+                .put("signatures", signatures).put("cadreNet", cadreNet).put("disposition", d);
     }
 
     /** Reglages lus d'un JSON (base ou ecran) ; une valeur absente garde le defaut. */
@@ -141,6 +150,7 @@ public final class ReglagesTicket {
         r.encoursCarnet = j.optBoolean("encoursCarnet", r.encoursCarnet);
         r.signatureClient = j.optBoolean("signatureClient", r.signatureClient);
         r.signatures = j.optBoolean("signatures", r.signatures);
+        r.cadreNet = j.optBoolean("cadreNet", r.cadreNet);
         JSONArray d = j.optJSONArray("disposition");
         if (d != null) {
             for (int i = 0; i < d.length(); i++) {

@@ -29,6 +29,7 @@ Ext.define('testextjs.view.configmanagement.modeleticket.ModelesTicket', {
         {cle: 'recapitulatif', libelle: 'Afficher « articles · boîtes »', aide: 'Pour contrôler le sac au comptoir', pour: ['PREVENTE', 'VENTE', 'VENTE_ASSURANCE', 'VENTE_CARNET', 'VENTE_DEPOT', 'VENTE_MIXTE']},
         {cle: 'ccRc', libelle: 'Afficher CC et RC', aide: 'Fiche officine', pour: ['VENTE', 'VENTE_ASSURANCE', 'VENTE_CARNET', 'VENTE_DEPOT', 'VENTE_MIXTE', 'REGLEMENT_DIFFERE', 'REGLEMENT_FACTURE', 'REGLEMENT_CARNET_DEPOT', 'MOUVEMENT_CAISSE']},
         {cle: 'commentaires', libelle: 'Commentaires de l\'officine', aide: 'En-tête et commentaires du bas de l\'identification officine', pour: ['VENTE', 'VENTE_ASSURANCE', 'VENTE_CARNET', 'VENTE_DEPOT', 'VENTE_MIXTE', 'REGLEMENT_DIFFERE', 'REGLEMENT_FACTURE', 'REGLEMENT_CARNET_DEPOT', 'MOUVEMENT_CAISSE']},
+        {cle: 'cadreNet', libelle: 'Cadre autour du net à payer', aide: 'Si non : le net reste en gros caractères, sans cadre', pour: ['PREVENTE', 'VENTE', 'VENTE_ASSURANCE', 'VENTE_CARNET', 'VENTE_DEPOT', 'VENTE_MIXTE', 'REGLEMENT_DIFFERE', 'REGLEMENT_FACTURE', 'REGLEMENT_CARNET_DEPOT', 'MOUVEMENT_CAISSE', 'TICKET_Z']},
         {cle: 'encoursCarnet', libelle: 'Encours du carnet après la vente', aide: '', pour: ['VENTE_CARNET']},
         {cle: 'signatureClient', libelle: 'Signature du client', aide: 'Preuve quand l\'entreprise conteste un bon', pour: ['VENTE_CARNET']},
         {cle: 'signatures', libelle: 'Signatures caissier et bénéficiaire', aide: 'Pièce justificative', pour: ['MOUVEMENT_CAISSE']},

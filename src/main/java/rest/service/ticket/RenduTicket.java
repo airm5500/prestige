@@ -5,7 +5,6 @@ import java.awt.Color;
 import java.awt.Font;
 import java.awt.FontMetrics;
 import java.awt.Graphics2D;
-import java.awt.Image;
 import java.awt.RenderingHints;
 import java.awt.Stroke;
 import java.awt.image.BufferedImage;
@@ -234,32 +233,89 @@ public final class RenduTicket {
 
     private void ligne(String texte, String alignement) {
         FontMetrics fm = g.getFontMetrics();
-        int w = fm.stringWidth(texte);
+        int w = largeurTexte(texte);
         double x = "C".equals(alignement) ? (largeur - w) / 2 : "D".equals(alignement) ? largeur - w : 0;
         y += fm.getAscent();
-        g.drawString(texte, (float) Math.max(0, x), y);
+        dessinerTexte(texte, Math.max(0, x), y);
         y += fm.getDescent() + 1;
         if (w > largeur + 0.5) {
-            res.debordements.add(texte);
+            res.debordements.add(sansMarques(texte));
         }
     }
 
     /** Libelle a gauche (coupe au besoin), valeur a droite sur la derniere ligne du libelle. */
     private void paire(String gauche, String droite, double l, double decalage) {
         FontMetrics fm = g.getFontMetrics();
-        int wd = fm.stringWidth(droite);
+        int wd = largeurTexte(droite);
         if (wd > l + 0.5) {
-            res.debordements.add(droite);
+            res.debordements.add(sansMarques(droite));
         }
         List<String> lignes = couper(gauche, Math.max(20, l - wd - 6));
         for (int i = 0; i < lignes.size(); i++) {
             y += fm.getAscent();
-            g.drawString(lignes.get(i), (float) decalage, y);
+            dessinerTexte(lignes.get(i), decalage, y);
             if (i == lignes.size() - 1 && !droite.isEmpty()) {
-                g.drawString(droite, (float) (decalage + l - wd), y);
+                dessinerTexte(droite, decalage + l - wd, y);
             }
             y += fm.getDescent() + 1;
         }
+    }
+
+    /* ---------- parties en gras (retour du 03/11) ---------- */
+
+    /** Le texte sans les marques de gras. */
+    static String sansMarques(String t) {
+        return t == null ? "" : t.replace(String.valueOf(TicketDocument.GRAS_DEBUT), "")
+                .replace(String.valueOf(TicketDocument.GRAS_FIN), "");
+    }
+
+    /** Largeur d'un texte dans la police courante, ses parties marquees en gras. */
+    private int largeurTexte(String t) {
+        if (t.indexOf(TicketDocument.GRAS_DEBUT) < 0) {
+            return g.getFontMetrics().stringWidth(sansMarques(t));
+        }
+        Font normale = g.getFont();
+        Font grasse = normale.deriveFont(Font.BOLD);
+        int w = 0;
+        boolean enGras = false;
+        StringBuilder morceau = new StringBuilder();
+        for (char ch : (t + TicketDocument.GRAS_DEBUT).toCharArray()) {
+            if (ch == TicketDocument.GRAS_DEBUT || ch == TicketDocument.GRAS_FIN) {
+                w += g.getFontMetrics(enGras ? grasse : normale).stringWidth(morceau.toString());
+                morceau.setLength(0);
+                enGras = ch == TicketDocument.GRAS_DEBUT;
+            } else {
+                morceau.append(ch);
+            }
+        }
+        return w;
+    }
+
+    /** Dessine un texte a partir de x, ses parties marquees en gras ; la police courante est rendue telle quelle. */
+    private void dessinerTexte(String t, double x, int base) {
+        if (t.indexOf(TicketDocument.GRAS_DEBUT) < 0) {
+            g.drawString(sansMarques(t), (float) x, base);
+            return;
+        }
+        Font normale = g.getFont();
+        Font grasse = normale.deriveFont(Font.BOLD);
+        double xx = x;
+        boolean enGras = false;
+        StringBuilder morceau = new StringBuilder();
+        for (char ch : (t + TicketDocument.GRAS_DEBUT).toCharArray()) {
+            if (ch == TicketDocument.GRAS_DEBUT || ch == TicketDocument.GRAS_FIN) {
+                if (morceau.length() > 0) {
+                    g.setFont(enGras ? grasse : normale);
+                    g.drawString(morceau.toString(), (float) xx, base);
+                    xx += g.getFontMetrics().stringWidth(morceau.toString());
+                    morceau.setLength(0);
+                }
+                enGras = ch == TicketDocument.GRAS_DEBUT;
+            } else {
+                morceau.append(ch);
+            }
+        }
+        g.setFont(normale);
     }
 
     private void article(Element e, int ecart) {
@@ -349,7 +405,10 @@ public final class RenduTicket {
         int largeurImage = qr ? 80 : (int) (largeur * (largeur < 150 ? 0.52 : 0.58));
         int hauteurImage = qr ? 80 : 30;
         y += 4;
-        Image img = image(e.a);
+        BufferedImage img = image(e.a);
+        if (img != null && !qr) {
+            img = sansTexte(img);
+        }
         if (img != null) {
             g.drawImage(img, 0, y, largeurImage, hauteurImage, null);
         } else {
@@ -385,7 +444,59 @@ public final class RenduTicket {
         y += fm.getDescent() + 1;
     }
 
-    private static Image image(String chemin) {
+    /**
+     * Retour du 03/11 : le code-barres des tickets porte son numero imprime sous les barres, alors que le numero est
+     * deja en haut du ticket. On garde les barres seules : la plus longue suite de rangees identiques a la premiere
+     * rangee sombre (les barres sont verticales). Une image qui n'a pas cette forme (QR, logo) est rendue telle quelle.
+     */
+    static BufferedImage sansTexte(BufferedImage img) {
+        int w = img.getWidth();
+        int h = img.getHeight();
+        int haut = -1;
+        for (int yy = 0; yy < h && haut < 0; yy++) {
+            if (sombre(img, yy)) {
+                haut = yy;
+            }
+        }
+        if (haut < 0) {
+            return img;
+        }
+        int bas = haut + 1;
+        while (bas < h && memeRangee(img, haut, bas)) {
+            bas++;
+        }
+        boolean dessous = false;
+        for (int yy = bas; yy < h && !dessous; yy++) {
+            dessous = sombre(img, yy);
+        }
+        if (!dessous || bas - haut < Math.max(10, h / 3)) {
+            return img;
+        }
+        return img.getSubimage(0, haut, w, bas - haut);
+    }
+
+    private static boolean sombre(BufferedImage img, int yy) {
+        for (int x = 0; x < img.getWidth(); x++) {
+            int p = img.getRGB(x, yy);
+            int alpha = p >>> 24;
+            int lum = (((p >> 16) & 0xff) + ((p >> 8) & 0xff) + (p & 0xff)) / 3;
+            if (alpha > 128 && lum < 128) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean memeRangee(BufferedImage img, int y1, int y2) {
+        for (int x = 0; x < img.getWidth(); x++) {
+            if (img.getRGB(x, y1) != img.getRGB(x, y2)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static BufferedImage image(String chemin) {
         if (chemin == null || chemin.isEmpty()) {
             return null;
         }
@@ -420,19 +531,21 @@ public final class RenduTicket {
         }
     }
 
-    /** Coupe un texte aux espaces pour la largeur donnee ; un mot plus large est coupe lui-meme. */
+    /**
+     * Coupe un texte aux espaces pour la largeur donnee ; un mot plus large est coupe lui-meme. Une partie en gras
+     * coupee en deux reste en gras sur les deux lignes.
+     */
     List<String> couper(String texte, double l) {
         List<String> lignes = new ArrayList<>();
         String t = texte == null ? "" : texte.trim().replaceAll("\\s+", " ");
-        FontMetrics fm = g.getFontMetrics();
-        if (t.isEmpty() || fm.stringWidth(t) <= l) {
+        if (t.isEmpty() || largeurTexte(t) <= l) {
             lignes.add(t);
             return lignes;
         }
         StringBuilder courante = new StringBuilder();
         for (String mot : t.split(" ")) {
             String essai = courante.length() == 0 ? mot : courante + " " + mot;
-            if (fm.stringWidth(essai) <= l) {
+            if (largeurTexte(essai) <= l) {
                 courante.setLength(0);
                 courante.append(essai);
                 continue;
@@ -442,9 +555,9 @@ public final class RenduTicket {
                 courante.setLength(0);
             }
             String reste = mot;
-            while (fm.stringWidth(reste) > l && reste.length() > 1) {
+            while (largeurTexte(reste) > l && reste.length() > 1) {
                 int k = reste.length() - 1;
-                while (k > 1 && fm.stringWidth(reste.substring(0, k)) > l) {
+                while (k > 1 && largeurTexte(reste.substring(0, k)) > l) {
                     k--;
                 }
                 lignes.add(reste.substring(0, k));
@@ -454,6 +567,13 @@ public final class RenduTicket {
         }
         if (courante.length() > 0) {
             lignes.add(courante.toString());
+        }
+        boolean enGras = false;
+        for (int i = 0; i < lignes.size(); i++) {
+            String ligne = (enGras ? String.valueOf(TicketDocument.GRAS_DEBUT) : "") + lignes.get(i);
+            int debut = ligne.lastIndexOf(TicketDocument.GRAS_DEBUT);
+            enGras = debut >= 0 && ligne.indexOf(TicketDocument.GRAS_FIN, debut) < 0;
+            lignes.set(i, enGras ? ligne + TicketDocument.GRAS_FIN : ligne);
         }
         return lignes;
     }
