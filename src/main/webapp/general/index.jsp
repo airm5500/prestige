@@ -5,6 +5,7 @@
 --%>
 
 <%@page import="util.Constant"%>
+<%@page import="util.JetonDeploiement"%>
 <%@page import="bll.userManagement.user"%>
 <%@page import="dal.TRole"%>
 <%@page import="bll.entity.EntityData"%>
@@ -54,6 +55,8 @@
             sessionStorage.setItem("connecteduser", '<%=roleId%>');
             /* utilisateur de cette page : envoye a chaque requete, refuse (409) si la session a change de compte */
             window.PRESTIGE_UTILISATEUR = '<%= String.valueOf(OTUser.getLgUSERID()).replaceAll("[^A-Za-z0-9_-]", "") %>';
+            /* jeton du deploiement : ajoute a l'adresse des scripts et styles de Prestige (a jour apres chaque deploiement) */
+            window.PRESTIGE_VERSION_RESSOURCES = '<%= JetonDeploiement.JETON %>';
 
         </script>
         <title><%= jdom.APP_NAME%> :: Ver <%= jdom.APP_VERSION%></title>
@@ -69,47 +72,49 @@
              (son empreinte sha512 correspond a l'attribut integrity qui figurait ici). -->
         <link rel="stylesheet" type="text/css" href="resources/font-awesome-6.5.1/css/all.min.css" />
         <!-- Navigation moderne -->
-        <link rel="stylesheet" type="text/css" href="resources/css/navigation.css" />
+        <link rel="stylesheet" type="text/css" href="resources/css/navigation.css?v=<%= JetonDeploiement.JETON %>" />
         <!-- Themes du menu A, C, D au choix de l'utilisateur (le menu actuel reste par defaut) -->
-        <link rel="stylesheet" type="text/css" href="resources/css/menu-prestige.css" />
+        <link rel="stylesheet" type="text/css" href="resources/css/menu-prestige.css?v=<%= JetonDeploiement.JETON %>" />
         <!-- Barre de defilement horizontale flottante des grilles qui debordent (option 3 de la maquette D) -->
-        <link rel="stylesheet" type="text/css" href="resources/css/barre-horizontale.css" />
-        <link rel="stylesheet" href="bootstrap.css">
+        <link rel="stylesheet" type="text/css" href="resources/css/barre-horizontale.css?v=<%= JetonDeploiement.JETON %>" />
+        <link rel="stylesheet" href="bootstrap.css?v=<%= JetonDeploiement.JETON %>">
         <!-- Header moderne (theme navy aligne sur la navigation) :
              charge APRES bootstrap.css pour primer sur le theme KitchenSink -->
-        <link rel="stylesheet" type="text/css" href="resources/css/header.css" />
+        <link rel="stylesheet" type="text/css" href="resources/css/header.css?v=<%= JetonDeploiement.JETON %>" />
         <!-- Refonte ecran de vente (direction A) : surcharge visuelle uniquement -->
-        <link rel="stylesheet" type="text/css" href="resources/css/vente-theme.css" />
-        <script src="resources/js/sans-unload.js"></script>
+        <link rel="stylesheet" type="text/css" href="resources/css/vente-theme.css?v=<%= JetonDeploiement.JETON %>" />
+        <script src="resources/js/sans-unload.js?v=<%= JetonDeploiement.JETON %>"></script>
         <!-- Experience utilisateur (RUM) : temps d'ecran et d'appel, avant tout autre script qui appelle le serveur -->
-        <script src="resources/js/mesures-rum.js"></script>
+        <script src="resources/js/mesures-rum.js?v=<%= JetonDeploiement.JETON %>"></script>
         <script src="ext/ext-all.js"></script>
+        <!-- Fichiers d'ecran charges par le reseau : avec le jeton du deploiement (avant scripts-groupes.js) -->
+        <script src="resources/js/version-ressources.js?v=<%= JetonDeploiement.JETON %>"></script>
         <!-- Connexion simultanee (RAPPORT_CHARGE_2026-10-29, § 4.6) : les scripts des ecrans en un seul appel, puis
              Ext.Loader les prend dans cette table au lieu de ~1 000 requetes. Sans la table, rien ne change. -->
         <script src="../api/v1/ecrans/scripts.js"></script>
-        <script src="resources/js/scripts-groupes.js"></script>
+        <script src="resources/js/scripts-groupes.js?v=<%= JetonDeploiement.JETON %>"></script>
         <!-- Empeche ExtJS de couper la fin du texte des info-bulles et des boites de
              message (on lisait "Avoir deja" au lieu de "Avoir deja certifie"). A charger
              apres ext-all.js. -->
-        <script src="resources/js/correctifs-affichage.js"></script>
+        <script src="resources/js/correctifs-affichage.js?v=<%= JetonDeploiement.JETON %>"></script>
         <!-- Metro (choix du 25/10) : monte dans Prestige par mainmenumanager, sans iframe -->
-        <link rel="stylesheet" type="text/css" href="metro/metro.css" />
-        <script src="metro/metro-icones.js"></script>
-        <script src="metro/metro.js"></script>
+        <link rel="stylesheet" type="text/css" href="metro/metro.css?v=<%= JetonDeploiement.JETON %>" />
+        <script src="metro/metro-icones.js?v=<%= JetonDeploiement.JETON %>"></script>
+        <script src="metro/metro.js?v=<%= JetonDeploiement.JETON %>"></script>
         <!-- Controle de saisie commun (dates impossibles refusees au lieu d'etre decalees) -->
-        <script src="resources/js/controle-saisie.js"></script>
-        <script src="resources/js/selecteur-periodes.js"></script>
-        <script src="resources/js/veille-geometrie.js"></script>
-        <script src="resources/js/menu-prestige.js"></script>
-        <script src="resources/js/barre-horizontale.js"></script>
+        <script src="resources/js/controle-saisie.js?v=<%= JetonDeploiement.JETON %>"></script>
+        <script src="resources/js/selecteur-periodes.js?v=<%= JetonDeploiement.JETON %>"></script>
+        <script src="resources/js/veille-geometrie.js?v=<%= JetonDeploiement.JETON %>"></script>
+        <script src="resources/js/menu-prestige.js?v=<%= JetonDeploiement.JETON %>"></script>
+        <script src="resources/js/barre-horizontale.js?v=<%= JetonDeploiement.JETON %>"></script>
         <!-- Banniere « session WhatsApp a reconnecter » (droits verifies par le serveur) -->
-        <script src="resources/js/alerte-whatsapp.js"></script>
+        <script src="resources/js/alerte-whatsapp.js?v=<%= JetonDeploiement.JETON %>"></script>
         <!-- Rappel « date et heure du systeme fausses » (tous les utilisateurs, toutes les 5 minutes) -->
-        <script src="resources/js/alerte-horloge.js"></script>
+        <script src="resources/js/alerte-horloge.js?v=<%= JetonDeploiement.JETON %>"></script>
         <!-- Generateur de code CIP interne : bouton « + » des fiches de creation d'article -->
-        <script src="resources/js/code-cip.js"></script>
+        <script src="resources/js/code-cip.js?v=<%= JetonDeploiement.JETON %>"></script>
 
-        <script src="bootstrap.js"></script>
+        <script src="bootstrap.js?v=<%= JetonDeploiement.JETON %>"></script>
 
         <!-- </x-bootstrap> -->
 
@@ -122,7 +127,7 @@
 
         <script type="text/javascript" src="../resources/js/modernizr-2.6.2.min.js"></script>
         <script src="ext/locale/ext-lang-fr.js" type="text/javascript"></script>
-        <script src="app.js"></script>
+        <script src="app.js?v=<%= JetonDeploiement.JETON %>"></script>
 
         <link href="../resources/font-awesome-4.5.0/css/font-awesome.min.css" rel="stylesheet" type="text/css">
 
