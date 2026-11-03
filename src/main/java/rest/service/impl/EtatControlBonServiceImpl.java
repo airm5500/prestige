@@ -103,6 +103,14 @@ public class EtatControlBonServiceImpl implements EtatControlBonService {
     @EJB
     private ExcelGeneratorService excelGeneratorService;
 
+    /**
+     * Journal du support du 03/11 : une date videe a l'ecran (ou absente) donnait une erreur. Elle vaut la date du
+     * jour, comme a l'ouverture de l'ecran.
+     */
+    static LocalDate jour(String date) {
+        return StringUtils.isBlank(date) ? LocalDate.now() : LocalDate.parse(date.trim());
+    }
+
     private SingularAttribute<TBonLivraison, Date> dateAttribute(String dateType) {
         return DATE_TYPE_ENTREE.equalsIgnoreCase(dateType) ? TBonLivraison_.dtCREATED : TBonLivraison_.dtDATELIVRAISON;
     }
@@ -121,8 +129,8 @@ public class EtatControlBonServiceImpl implements EtatControlBonService {
         CriteriaQuery<TBonLivraison> cq = cb.createQuery(TBonLivraison.class);
         Root<TBonLivraison> root = cq.from(TBonLivraison.class);
         cq.select(root).distinct(true).orderBy(cb.desc(root.get(dateAttr)));
-        List<Predicate> predicates = listPredicates(cb, root, LocalDate.parse(dtStart), LocalDate.parse(dtEnd),
-                grossisteId, search, dateAttr, userId);
+        List<Predicate> predicates = listPredicates(cb, root, jour(dtStart), jour(dtEnd), grossisteId, search, dateAttr,
+                userId);
         cq.where(cb.and(predicates.toArray(Predicate[]::new)));
         TypedQuery<TBonLivraison> q = em.createQuery(cq);
         if (!all) {
@@ -172,8 +180,8 @@ public class EtatControlBonServiceImpl implements EtatControlBonService {
         Root<TBonLivraison> root = cq.from(TBonLivraison.class);
         cq.multiselect(root.get(TBonLivraison_.lgBONLIVRAISONID), root.get(dateAttr)).distinct(true)
                 .orderBy(cb.desc(root.get(dateAttr)));
-        List<Predicate> predicates = listPredicates(cb, root, LocalDate.parse(dtStart), LocalDate.parse(dtEnd),
-                grossisteId, search, dateAttr, userId);
+        List<Predicate> predicates = listPredicates(cb, root, jour(dtStart), jour(dtEnd), grossisteId, search, dateAttr,
+                userId);
         predicates.add(cb
                 .isNotNull(root.get(TBonLivraison_.lgORDERID).get(TOrder_.lgGROSSISTEID).get(TGrossiste_.strLIBELLE)));
         predicates.add(cb.isNotNull(root.get(TBonLivraison_.lgUSERID).get(TUser_.strLASTNAME)));
@@ -223,8 +231,8 @@ public class EtatControlBonServiceImpl implements EtatControlBonService {
         CriteriaQuery<Long> cq = cb.createQuery(Long.class);
         Root<TBonLivraison> root = cq.from(TBonLivraison.class);
         cq.select(cb.countDistinct(root));
-        List<Predicate> predicates = listPredicates(cb, root, LocalDate.parse(dtStart), LocalDate.parse(dtEnd),
-                grossisteId, search, dateAttribute(dateType), userId);
+        List<Predicate> predicates = listPredicates(cb, root, jour(dtStart), jour(dtEnd), grossisteId, search,
+                dateAttribute(dateType), userId);
         cq.where(cb.and(predicates.toArray(Predicate[]::new)));
         TypedQuery<Long> q = em.createQuery(cq);
         return Objects.isNull(q.getSingleResult()) ? 0 : q.getSingleResult();

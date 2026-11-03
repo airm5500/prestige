@@ -98,7 +98,12 @@ public class RetourFournisseurServiceImpl implements RetourFournisseurService {
 
     @Override
     public RetourDetailsDTO addItem(RetourDetailsDTO params) {
-        TRetourFournisseur fournisseur = getEntityManager().find(TRetourFournisseur.class, params.getLgRETOURFRSID());
+        // journal du support du 03/11 : sans retour (identifiant absent ou retour supprime), erreur technique
+        TRetourFournisseur fournisseur = StringUtils.isBlank(params.getLgRETOURFRSID()) ? null
+                : getEntityManager().find(TRetourFournisseur.class, params.getLgRETOURFRSID());
+        if (fournisseur == null) {
+            throw new RefusMetier("Retour fournisseur introuvable : rouvrez-le depuis la liste.");
+        }
         /*
          * Decision 17 D7 du pharmacien : une ligne par produit, motif et lot. Meme motif et meme lot : la quantite
          * s'ajoute a la ligne (comme avant) ; autre motif : nouvelle ligne, avec un message. Le total du produit sur le
@@ -372,7 +377,12 @@ public class RetourFournisseurServiceImpl implements RetourFournisseurService {
     @Override
     public void returnFullBonLivraison(String bonId, String motifId) throws CloneNotSupportedException {
 
-        TBonLivraison bonLivraison = this.getEntityManager().find(TBonLivraison.class, bonId);
+        // journal du support du 03/11 : un BL introuvable (supprime entre-temps) donnait une erreur technique
+        TBonLivraison bonLivraison = StringUtils.isBlank(bonId) ? null
+                : this.getEntityManager().find(TBonLivraison.class, bonId);
+        if (bonLivraison == null) {
+            throw new RefusMetier("BL introuvable : il a peut-être été supprimé. Actualisez la liste.");
+        }
         TRetourFournisseur retourFournisseur = createRetourFournisseur(this.sessionHelperService.getCurrentUser(), "",
                 null, bonLivraison);
         retourFournisseur.setStrSTATUT(Constant.STATUT_ENABLE);
