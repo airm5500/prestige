@@ -131,6 +131,24 @@ public interface FicheArticleService {
             int limit) throws JSONException;
 
     /** Coche ou decoche tout le resultat de la recherche (toutes pages) ; simuler : compte seulement. */
+    /**
+     * Onglets « Produits ordonnancier » / « Produits sensibles » de l'ecran Ordonnancier (cas 3 du 03/11/2026).
+     *
+     * @param filtre
+     *            coches / noncoches / tous
+     * @param champ
+     *            ordonnancier (is_scheduled) ou sensible (is_sensible)
+     */
+    JSONObject produitsOrdonnancier(String query, String rayon, String filtre, String champ, TUser u, int start,
+            int limit) throws JSONException;
+
+    /** Coche ou decoche UN produit, et le journalise. */
+    boolean cocherProduitOrdonnancier(String id, String champ, boolean valeur, TUser u);
+
+    /** Coche ou decoche TOUT le resultat de la recherche ; simuler rend seulement le nombre concerne. */
+    JSONObject cocherProduitsOrdonnancierLot(String query, String rayon, String filtre, String champ, boolean valeur,
+            boolean simuler, TUser u) throws JSONException;
+
     JSONObject cocherProduitAccounts(String query, String rayon, String filtre, String grossiste, TUser u,
             boolean coche, boolean simuler);
 

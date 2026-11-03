@@ -514,6 +514,10 @@ Ext.define('testextjs.model.Famille', {
 
             type: 'boolean'
         },
+        /* produit « sensible » de l'ordonnancier (cas 3 du 03/11/2026) */
+        {name: 'sensible',
+            type: 'boolean'
+        },
         {name: 'ACTION_DESACTIVE_PRODUIT',
 
             type: 'boolean'

@@ -158,6 +158,7 @@ public class FamilleDTO {
     private String laboratoire;
     private String gamme;
     private boolean scheduled;
+    private boolean sensible;
     private int stock;
 
     public int getStock() {
@@ -721,6 +722,14 @@ public class FamilleDTO {
         this.scheduled = scheduled;
     }
 
+    public boolean isSensible() {
+        return sensible;
+    }
+
+    public void setSensible(boolean sensible) {
+        this.sensible = sensible;
+    }
+
     public List<FamilleGrossisteDTO> getFamilleGrosiste() {
         return familleGrosiste;
     }
@@ -802,6 +811,7 @@ public class FamilleDTO {
         this.boolCHECKEXPIRATIONDATE = o.getBoolCHECKEXPIRATIONDATE();
         this.dtLASTUPDATESEUILREAPPRO = o.getDtLASTUPDATESEUILREAPPRO();
         this.scheduled = o.isScheduled();
+        this.sensible = o.isSensible();
         TRemise remise = o.getLgREMISEID();
         if (remise != null) {
             this.lgREMISEID = remise.getLgREMISEID();

@@ -739,6 +739,7 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
             json.put("P_UPDATE_DESIGNATION", Boolean.valueOf(objArray[8].toString()));
             json.put("lg_FAMILLE_ID", t.getLgFAMILLEID());
             json.put("scheduled", t.isScheduled());
+            json.put("sensible", t.isSensible());
             json.put("cmu_price", 0);
             json.put("codeEanFabriquant", t.getCodeEanFabriquant());
 
@@ -869,6 +870,7 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
             json.put("P_UPDATE_DESIGNATION", Boolean.valueOf(objArray[8].toString()));
             json.put("lg_FAMILLE_ID", t.getLgFAMILLEID());
             json.put("scheduled", t.isScheduled());
+            json.put("sensible", t.isSensible());
             json.put("codeEanFabriquant", t.getCodeEanFabriquant());
 
             try {

@@ -22,8 +22,8 @@ import rest.service.ticket.TicketDocument.Element;
 import rest.service.ticket.TicketDocument.Style;
 
 /**
- * Dessin du nouveau modele de ticket (demande du 02/11). Le meme code sert a l'imprimante et a l'apercu du menu
- * « Modeles de ticket » : ce que l'on voit a l'ecran est ce qui sort.
+ * Dessin du nouveau modele de ticket (demande du 02/11). Le meme code sert a l'imprimante et a l'apercu du menu «
+ * Modeles de ticket » : ce que l'on voit a l'ecran est ce qui sort.
  *
  * <p>
  * Tout tient dans la largeur imprimable du rouleau (72 mm sur 80 mm, 48 mm sur 58 mm) : les textes trop longs passent a
@@ -80,8 +80,8 @@ public final class RenduTicket {
     }
 
     /**
-     * Problemes bloquants d'une disposition (bloc inconnu ou en double, pied deplace, alignement ou taille
-     * hors bornes) ; les avertissements (ordre inhabituel) vont dans {@code avertissements}.
+     * Problemes bloquants d'une disposition (bloc inconnu ou en double, pied deplace, alignement ou taille hors bornes)
+     * ; les avertissements (ordre inhabituel) vont dans {@code avertissements}.
      */
     public static List<String> controler(ReglagesTicket r, List<String> avertissements) {
         List<String> bloquants = new ArrayList<>();
@@ -128,8 +128,8 @@ public final class RenduTicket {
     }
 
     /** Dessine le ticket a partir de la hauteur {@code depart} ; rend la hauteur atteinte et les zones des blocs. */
-    public static Resultat dessiner(Graphics2D g, TicketDocument doc, ReglagesTicket r, int papierMm,
-            int ajoutPolice, int depart) {
+    public static Resultat dessiner(Graphics2D g, TicketDocument doc, ReglagesTicket r, int papierMm, int ajoutPolice,
+            int depart) {
         RenduTicket rendu = new RenduTicket(g, largeurImprimable(papierMm), tailleBase(papierMm, ajoutPolice));
         g.setColor(Color.BLACK);
         g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);

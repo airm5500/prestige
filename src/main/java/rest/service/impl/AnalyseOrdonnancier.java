@@ -195,14 +195,23 @@ public final class AnalyseOrdonnancier {
         return resultat;
     }
 
-    /** CIP et code tableau, sous la forme « 8074624 - tableau A ». */
+    /**
+     * CIP et code tableau, sous la forme « 8074624 - tableau A » ; un produit sensible (cas 3 du 03/11/2026) porte en
+     * plus son motif : « 8074624 - sensible », « 8074624 - tableau A - sensible ».
+     */
     private static String complementProduit(VenteDetailsDTO item) {
         String cip = StringUtils.defaultString(item.getIntCIP());
         String tableau = StringUtils.defaultString(item.getCodeTableau());
+        String complement;
         if (tableau.isEmpty()) {
-            return cip;
+            complement = cip;
+        } else {
+            complement = cip.isEmpty() ? "tableau " + tableau : cip + " - tableau " + tableau;
         }
-        return cip.isEmpty() ? "tableau " + tableau : cip + " - tableau " + tableau;
+        if (item.isSensible()) {
+            complement = complement.isEmpty() ? "sensible" : complement + " - sensible";
+        }
+        return complement;
     }
 
     private static String libelleOuInconnu(String valeur, String defaut) {

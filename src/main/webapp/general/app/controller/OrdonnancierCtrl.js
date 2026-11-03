@@ -98,6 +98,41 @@ Ext.define('testextjs.controller.OrdonnancierCtrl', {
             },
             'ordonnancier #inventaire': {
                 click: this.doInventaire
+            },
+            /* onglets Produits ordonnancier / Produits sensibles (cas 3 du 03/11/2026) */
+            'ordonnancier gridpanel[champOrdonnancier] #recherche': {
+                specialkey: function (champ, e) {
+                    if (e.getKey() === e.ENTER) {
+                        this.rechercherProduits(champ.up('gridpanel'));
+                    }
+                }
+            },
+            'ordonnancier gridpanel[champOrdonnancier] #rechercher': {
+                click: function (bouton) {
+                    this.rechercherProduits(bouton.up('gridpanel'));
+                }
+            },
+            'ordonnancier gridpanel[champOrdonnancier] #rayon': {
+                select: function (combo) {
+                    this.rechercherProduits(combo.up('gridpanel'));
+                }
+            },
+            'ordonnancier gridpanel[champOrdonnancier] #filtre': {
+                select: function (combo) {
+                    this.rechercherProduits(combo.up('gridpanel'));
+                }
+            },
+            'ordonnancier gridpanel[champOrdonnancier] #effacer': {
+                click: this.effacerFiltresProduits
+            },
+            'ordonnancier gridpanel[champOrdonnancier] #colonneCoche': {
+                checkchange: this.cocherProduit
+            },
+            'ordonnancier gridpanel[champOrdonnancier] #btnCocherTout': {
+                click: this.cocherLot
+            },
+            'ordonnancier gridpanel[champOrdonnancier] #btnDecocherTout': {
+                click: this.cocherLot
             }
             /* "ordonnancier gridpanel actioncolumn": {
              printTicket: this.printTicket,
@@ -166,9 +201,178 @@ Ext.define('testextjs.controller.OrdonnancierCtrl', {
      * Ensuite, seuls « Actualiser » et un changement de filtres la relancent.
      */
     surChangementOnglet: function (onglets, onglet) {
-        if (onglet && onglet.getItemId() === 'ongletAnalyse' && !this.analyseChargee) {
+        if (!onglet) {
+            return;
+        }
+        // La barre commune (periode, medecin, editions) ne vaut que pour le registre et l'analyse :
+        // sur les onglets produits elle tromperait l'utilisateur, qui croirait filtrer la liste.
+        var ecran = this.getOrdonnancier();
+        var barre = ecran ? ecran.getDockedItems('toolbar[dock="top"]')[0] : null;
+        if (barre) {
+            barre.setVisible(!onglet.champOrdonnancier);
+        }
+        if (onglet.champOrdonnancier) {
+            // Chargement a la demande, comme l'analyse : la liste des articles ne se paie qu'a l'ouverture.
+            if (!onglet.produitsCharges) {
+                onglet.produitsCharges = true;
+                onglet.getStore().on('load', function () {
+                    this.majTotalProduits(onglet);
+                }, this);
+                onglet.getStore().on('beforeload', function (st) {
+                    st.getProxy().extraParams = ecran.criteresProduits(onglet);
+                });
+                onglet.getStore().loadPage(1);
+            }
+            return;
+        }
+        if (onglet.getItemId() === 'ongletAnalyse' && !this.analyseChargee) {
             this.doAnalyser();
         }
+    },
+
+    /* ====== Onglets Produits ordonnancier / Produits sensibles (cas 3 du 03/11/2026) ====== */
+
+    rechercherProduits: function (grille) {
+        this.annulerConfirmation(grille);
+        grille.getStore().loadPage(1);
+    },
+
+    effacerFiltresProduits: function (bouton) {
+        var grille = bouton.up('gridpanel');
+        grille.down('#recherche').setValue('');
+        grille.down('#rayon').clearValue();
+        grille.down('#filtre').setValue(grille.champOrdonnancier === 'sensible' ? 'tous' : 'coches');
+        this.rechercherProduits(grille);
+    },
+
+    majTotalProduits: function (grille, message) {
+        var t = grille.down('#totalResultat');
+        if (!t) {
+            return;
+        }
+        var n = grille.getStore().getTotalCount();
+        t.update('<b>' + Ext.util.Format.number(n, '0,000').replace(/,/g, ' ') + '</b> produit(s)'
+                + (message ? ' &middot; <span style="color:#a00">' + message + '</span>' : ''));
+    },
+
+    /**
+     * Une case cochee est enregistree aussitot (REST), sans bouton ni fenetre. En cas d'echec la case
+     * revient a son etat et le motif s'affiche a cote du compteur, pas dans une fenetre.
+     */
+    cocherProduit: function (colonne, rowIndex, checked) {
+        var me = this;
+        var grille = colonne.up('gridpanel');
+        var store = grille.getStore();
+        var rec = store.getAt(rowIndex);
+        if (!rec) {
+            return;
+        }
+        Ext.Ajax.request({
+            method: 'PUT',
+            url: '../api/v1/fichearticle/ordonnancier/' + encodeURIComponent(rec.get('lgFAMILLEID')),
+            headers: {'Content-Type': 'application/json'},
+            params: Ext.JSON.encode({champ: grille.champOrdonnancier, valeur: checked}),
+            success: function (r) {
+                var o = Ext.JSON.decode(r.responseText, true) || {};
+                if (o.success) {
+                    rec.commit();
+                    me.majTotalProduits(grille);
+                } else {
+                    rec.set(colonne.dataIndex, !checked);
+                    rec.commit();
+                    me.majTotalProduits(grille, o.msg || 'Le cochage a &eacute;t&eacute; refus&eacute;.');
+                }
+            },
+            failure: function (r) {
+                rec.set(colonne.dataIndex, !checked);
+                rec.commit();
+                me.majTotalProduits(grille, 'Le cochage a &eacute;chou&eacute; (' + r.status + ').');
+            }
+        });
+    },
+
+    /**
+     * Cocher / decocher TOUT le resultat, en deux temps et SANS fenetre : le premier clic demande le nombre au
+     * serveur (simuler) et l'inscrit dans le bouton (« Cocher 128 produits ? Confirmer ») ; le second clic, dans
+     * les 10 secondes, applique. Tout autre geste (recherche, autre bouton, delai) remet le bouton a l'etat initial.
+     */
+    cocherLot: function (bouton) {
+        var me = this;
+        var grille = bouton.up('gridpanel');
+        var valeur = bouton.valeurLot === true;
+        var criteres = Ext.apply(me.getOrdonnancier().criteresProduits(grille), {valeur: valeur});
+        var envoyer = function (simuler, ok) {
+            bouton.setDisabled(true);
+            Ext.Ajax.request({
+                method: 'PUT', url: '../api/v1/fichearticle/ordonnancier/lot', timeout: 240000,
+                headers: {'Content-Type': 'application/json'},
+                params: Ext.JSON.encode(Ext.apply({simuler: simuler}, criteres)),
+                callback: function () {
+                    bouton.setDisabled(false);
+                },
+                success: function (r) {
+                    var o = Ext.JSON.decode(r.responseText, true) || {};
+                    if (o.success === false) {
+                        me.annulerConfirmation(grille);
+                        me.majTotalProduits(grille, o.msg || 'Op&eacute;ration refus&eacute;e.');
+                        return;
+                    }
+                    ok(o);
+                },
+                failure: function (r) {
+                    me.annulerConfirmation(grille);
+                    me.majTotalProduits(grille, 'L\'op&eacute;ration a &eacute;chou&eacute; (' + r.status + ').');
+                }
+            });
+        };
+        if (bouton.confirmation) {
+            // second clic : on applique ce qui a ete annonce
+            var nombre = bouton.confirmation.nombre;
+            me.annulerConfirmation(grille);
+            envoyer(false, function () {
+                grille.getStore().reload();
+                bouton.setText(nombre + ' produit(s) ' + (valeur ? 'coché(s)' : 'décoché(s)'));
+                bouton.compteRendu = setTimeout(function () {
+                    me.annulerConfirmation(grille);
+                }, 4000);
+            });
+            return;
+        }
+        me.annulerConfirmation(grille);
+        envoyer(true, function (o) {
+            if (!o.nombre) {
+                bouton.setText('Aucun produit dans le résultat');
+                bouton.compteRendu = setTimeout(function () {
+                    me.annulerConfirmation(grille);
+                }, 4000);
+                return;
+            }
+            bouton.confirmation = {nombre: o.nombre};
+            bouton.addCls('ordo-btn-confirmer');
+            bouton.setText((valeur ? 'Cocher ' : 'Décocher ') + o.nombre + ' produit(s) ? <b>Confirmer</b>');
+            bouton.confirmation.delai = setTimeout(function () {
+                me.annulerConfirmation(grille);
+            }, 10000);
+        });
+    },
+
+    /** Remet les deux boutons de lot d'un onglet a leur etat initial. */
+    annulerConfirmation: function (grille) {
+        Ext.Array.each([grille.down('#btnCocherTout'), grille.down('#btnDecocherTout')], function (b) {
+            if (!b) {
+                return;
+            }
+            if (b.confirmation) {
+                clearTimeout(b.confirmation.delai);
+                b.confirmation = null;
+            }
+            if (b.compteRendu) {
+                clearTimeout(b.compteRendu);
+                b.compteRendu = null;
+            }
+            b.removeCls('ordo-btn-confirmer');
+            b.setText(b.valeurLot ? 'Cocher tout le résultat' : 'Décocher tout le résultat');
+        });
     },
 
     doAnalyser: function () {

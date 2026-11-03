@@ -69,6 +69,24 @@ Ext.define('testextjs.model.caisse.VenteItem', {
             type: 'boolean'
         },
         {
+            /* cas 3 du 03/11/2026 : produit de l'ordonnancier (soumis a ordonnance + code tableau, ou sensible) */
+            name: 'scheduled',
+            type: 'boolean'
+        },
+        {
+            name: 'sensible',
+            type: 'boolean'
+        },
+        {
+            name: 'codeTableau',
+            type: 'string'
+        },
+        {
+            /* « Ordonnancier », « Sensible » ou vide : calcule par le serveur, une seule regle */
+            name: 'motif',
+            type: 'string'
+        },
+        {
             name: 'promotion',
             type: 'boolean'
         },

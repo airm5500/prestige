@@ -2539,10 +2539,12 @@ public class SalesServiceImpl implements SalesService {
         return list.stream().anyMatch(p);
     }
 
-    private boolean checkOrdonnancier(List<TPreenregistrementDetail> list) {
-        java.util.function.Predicate<TPreenregistrementDetail> p = e -> (e.getLgFAMILLEID().isScheduled()
-                && !e.getLgFAMILLEID().getIntT().trim().isEmpty());
-        return list.stream().anyMatch(p);
+    /**
+     * La vente contient-elle un produit de l'ordonnancier ? La regle est celle de TFamille.estProduitOrdonnancier (cas
+     * 3 du 03/11/2026) : la meme que pour le registre, et sans plantage quand le code tableau est a NULL.
+     */
+    static boolean checkOrdonnancier(List<TPreenregistrementDetail> list) {
+        return list.stream().anyMatch(e -> e.getLgFAMILLEID() != null && e.getLgFAMILLEID().estProduitOrdonnancier());
     }
 
     private TTypeReglement findById(String id) {
