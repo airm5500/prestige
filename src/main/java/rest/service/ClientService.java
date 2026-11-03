@@ -52,6 +52,19 @@ public interface ClientService {
 
     List<TiersPayantParams> findTiersPayantByClientIdExcludeRo(String clientId);
 
+    /**
+     * Effet qu'aurait le retrait de ce lien client / tiers-payant, sans rien ecrire (texte du bouton « Retirer ») :
+     * {@code effet} (SIMPLE, PROMOTION, DESACTIVATION_CLIENT, INTROUVABLE), {@code promu}, {@code refus}.
+     */
+    org.json.JSONObject effetRetraitTiersPayant(String lienId);
+
+    /**
+     * Retire un tiers-payant du client, en une seule transaction : dernier lien actif, le client est desactive ;
+     * principal retire, le complementaire suivant passe en priorite 1. Refuse si des ventes non reglees utilisent ce
+     * lien. Renvoie {@code success} et {@code msg}.
+     */
+    org.json.JSONObject retirerTiersPayant(String lienId);
+
     List<TiersPayantDTO> findTiersPayants(String query, String type);
 
     List<TiersPayantDTO> findTiersPayants(String query, String type, Boolean carnetDepot);

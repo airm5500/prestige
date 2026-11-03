@@ -93,6 +93,8 @@ public class ClientServiceImpl implements ClientService {
     private ExcelGeneratorService excelGeneratorService;
     @PersistenceContext(unitName = "JTA_UNIT")
     private EntityManager em;
+    @javax.annotation.Resource
+    private javax.ejb.SessionContext sessionContext;
 
     public EntityManager getEmg() {
         return em;
@@ -285,6 +287,18 @@ public class ClientServiceImpl implements ClientService {
             if (!StringUtils.isEmpty(typeClientId)) {
                 predicates.add(cb.and(cb.equal(root.get(TClient_.lgTYPECLIENTID).get("lgTYPECLIENTID"), typeClientId)));
             }
+            /*
+             * plan « clients assures » (02/11), etape 5 : un client assurance ou carnet n'est propose que s'il a un
+             * tiers-payant actif chez un organisme actif ; les autres types ne sont pas concernes
+             */
+            javax.persistence.criteria.Subquery<String> lienActif = cq.subquery(String.class);
+            Root<TCompteClientTiersPayant> lien = lienActif.from(TCompteClientTiersPayant.class);
+            lienActif.select(lien.get("lgCOMPTECLIENTTIERSPAYANTID")).where(
+                    cb.equal(lien.get("lgCOMPTECLIENTID").get("lgCLIENTID"), root),
+                    cb.equal(lien.get("strSTATUT"), Constant.STATUT_ENABLE),
+                    cb.equal(lien.get("lgTIERSPAYANTID").get("strSTATUT"), Constant.STATUT_ENABLE));
+            predicates.add(cb.or(cb.not(root.get(TClient_.lgTYPECLIENTID).get("lgTYPECLIENTID")
+                    .in(Constant.CLIENT_ASSURANCE, Constant.CLIENT_CARNET)), cb.exists(lienActif)));
             if (!StringUtils.isEmpty(query)) {
                 /*
                  * retours du 13/10 (point 11) : « commence par » (defaut) ou « contient » ; prenoms, code interne et
@@ -314,9 +328,23 @@ public class ClientServiceImpl implements ClientService {
 
             return resultat.stream().map(cl -> new ClientDTO(cl, findTiersPayantByClientId(cl.getLgCLIENTID()),
                     findAyantDroitByClientId(cl.getLgCLIENTID()))).collect(Collectors.toList());
-        } catch (Exception e) {
-            LOG.log(Level.SEVERE, null, e);
-            return Collections.emptyList();
+        } catch (RuntimeException e) {
+            // etape 5 : une erreur de lecture n'est plus une liste vide (« aucun client ») ; l'ecran la signale
+            LOG.log(Level.SEVERE, "recherche des clients assures", e);
+            throw new LectureClientsException(
+                    "La recherche des clients a échoué : réessayez ; si l'erreur revient," + " signalez-la au support.",
+                    e);
+        }
+    }
+
+    /** Erreur de lecture des clients ou de leurs tiers-payants, signalee a l'ecran au lieu d'une liste vide. */
+    @javax.ejb.ApplicationException(rollback = true)
+    public static class LectureClientsException extends RuntimeException {
+
+        private static final long serialVersionUID = 1L;
+
+        public LectureClientsException(String message, Throwable cause) {
+            super(message, cause);
         }
     }
 
@@ -326,15 +354,20 @@ public class ClientServiceImpl implements ClientService {
     public List<TiersPayantParams> findTiersPayantByClientId(String clientId) {
         try {
             TypedQuery<TCompteClientTiersPayant> query = getEmg().createQuery(
-                    "SELECT o FROM TCompteClientTiersPayant o WHERE o.lgCOMPTECLIENTID.lgCLIENTID.lgCLIENTID=?1 AND o.strSTATUT=?2",
+                    "SELECT o FROM TCompteClientTiersPayant o WHERE o.lgCOMPTECLIENTID.lgCLIENTID.lgCLIENTID=?1 AND o.strSTATUT=?2"
+                            + " AND o.lgTIERSPAYANTID.strSTATUT=?2",
                     TCompteClientTiersPayant.class);
             query.setParameter(1, clientId);
             query.setParameter(2, Constant.STATUT_ENABLE);
             return query.getResultList().stream().map(TiersPayantParams::new).sorted(comparator)
                     .collect(Collectors.toList());
-        } catch (Exception e) {
-            LOG.log(Level.SEVERE, null, e);
-            return Collections.emptyList();
+        } catch (RuntimeException e) {
+            /*
+             * plan « clients assures » (02/11), etape 5 : seuls les liens vers un organisme actif sont rendus, et une
+             * erreur de lecture n'est plus une liste vide (le client paraissait sans tiers-payant)
+             */
+            LOG.log(Level.SEVERE, "tiers-payants du client", e);
+            throw new LectureClientsException("Lecture des tiers-payants du client impossible.", e);
         }
     }
 
@@ -1356,6 +1389,9 @@ public class ClientServiceImpl implements ClientService {
                 json.put("success", false).put("msg", "Veuillez sélectionner un tiers-payant valide");
                 return json;
             }
+            if (tc == null && !Constant.STATUT_ENABLE.equals(p.getStrSTATUT())) {
+                return json.put("success", false).put("msg", ORGANISME_INACTIF);
+            }
             if (tc == null) {
                 if (!StringUtils.isEmpty(client.getStrNUMEROSECURITESOCIAL())) {
                     if (doesNumeroSecuriteSocialExist(client.getStrNUMEROSECURITESOCIAL(), p)) {
@@ -1416,8 +1452,9 @@ public class ClientServiceImpl implements ClientService {
             return json;
         } catch (Exception e) {
             LOG.log(Level.SEVERE, null, e);
-
-            json.put("success", false).put("msg", "Erreur de création du client");
+            // plan « clients assures » (02/11), etape 4 : rien n'est garde d'une creation ou modification en echec
+            sessionContext.setRollbackOnly();
+            json.put("success", false).put("msg", "Erreur de création du client : rien n'a été enregistré");
             return json;
 
         }
@@ -1455,6 +1492,9 @@ public class ClientServiceImpl implements ClientService {
             if (p == null) {
                 json.put("success", false).put("msg", "Veuillez sélectionner un tiers-payant valide");
                 return json;
+            }
+            if (tc == null && !Constant.STATUT_ENABLE.equals(p.getStrSTATUT())) {
+                return json.put("success", false).put("msg", ORGANISME_INACTIF);
             }
 
             if (tc == null) {
@@ -1502,7 +1542,9 @@ public class ClientServiceImpl implements ClientService {
         } catch (Exception e) {
             // L'echec etait avale sans trace : impossible de diagnostiquer un client refuse.
             LOG.log(Level.SEVERE, "creation/modification client", e);
-            json.put("success", false).put("msg", "Erreur de création du client");
+            // plan « clients assures » (02/11), etape 4 : rien n'est garde d'une creation ou modification en echec
+            sessionContext.setRollbackOnly();
+            json.put("success", false).put("msg", "Erreur de création du client : rien n'a été enregistré");
             return json;
 
         }
@@ -2109,6 +2151,107 @@ public class ClientServiceImpl implements ClientService {
             em.merge(compteClientTiersPayant);
         }
     }
+
+    /*
+     * Plan « clients assures et tiers-payants » (02/11), etape 2 : une seule regle pour retirer un tiers-payant d'un
+     * client (voir RetraitTiersPayant). L'ancienne methode (tierspayantManagement.deleteComptecltTierspayant) retirait
+     * le lien sans regarder s'il etait le dernier ou le principal : le client restait actif, « assure » sans assurance,
+     * et la vente plantait en le choisissant (J5).
+     */
+    private static final String REFUS_VENTES = "Le client sélectionné a déjà effectué des transactions avec ce tiers payant."
+            + "<br> Pour poursuivre vous devez annuler les ventes du client liées à cet Organisme";
+
+    private List<TCompteClientTiersPayant> liensActifsDuCompte(TCompteClient compte) {
+        return em
+                .createQuery("SELECT o FROM TCompteClientTiersPayant o WHERE o.lgCOMPTECLIENTID = :compte"
+                        + " AND o.strSTATUT = :actif", TCompteClientTiersPayant.class)
+                .setParameter("compte", compte).setParameter("actif", Constant.STATUT_ENABLE).getResultList();
+    }
+
+    /** Ventes non annulees et non reglees qui utilisent ce lien (meme regle que l'ecran historique). */
+    private long ventesNonRegleesDuLien(String lienId) {
+        return em.createQuery("SELECT COUNT(o) FROM TPreenregistrementCompteClientTiersPayent o"
+                + " WHERE o.lgCOMPTECLIENTTIERSPAYANTID.lgCOMPTECLIENTTIERSPAYANTID = :lien"
+                + " AND o.lgPREENREGISTREMENTID.bISCANCEL = FALSE AND o.strSTATUTFACTURE <> :regle AND o.intPRICE > 0",
+                Long.class).setParameter("lien", lienId).setParameter("regle", commonparameter.statut_paid)
+                .getSingleResult();
+    }
+
+    private rest.service.impl.client.RetraitTiersPayant.Decision deciderRetrait(TCompteClientTiersPayant lien) {
+        List<rest.service.impl.client.RetraitTiersPayant.Lien> actifs = liensActifsDuCompte(lien.getLgCOMPTECLIENTID())
+                .stream().map(rest.service.impl.client.RetraitTiersPayant.Lien::de).collect(Collectors.toList());
+        return rest.service.impl.client.RetraitTiersPayant.decider(lien.getLgCOMPTECLIENTTIERSPAYANTID(), actifs);
+    }
+
+    @Override
+    public JSONObject effetRetraitTiersPayant(String lienId) {
+        TCompteClientTiersPayant lien = StringUtils.isBlank(lienId) ? null
+                : em.find(TCompteClientTiersPayant.class, lienId);
+        if (lien == null || !actif(lien)) {
+            return new JSONObject().put("success", true).put("effet", "INTROUVABLE");
+        }
+        rest.service.impl.client.RetraitTiersPayant.Decision d = deciderRetrait(lien);
+        JSONObject json = new JSONObject().put("success", true).put("effet", d.effet.name()).put("promu",
+                d.promu == null ? "" : d.promu.nom);
+        if (ventesNonRegleesDuLien(lienId) > 0) {
+            json.put("refus", REFUS_VENTES);
+        }
+        return json;
+    }
+
+    /*
+     * Pas de catch : une erreur annule toute l'operation (lien, promotion, desactivation), la ressource la traduit en
+     * message. L'ancien code avalait l'erreur et validait ce qui avait deja ete ecrit.
+     */
+    @Override
+    public JSONObject retirerTiersPayant(String lienId) {
+        TCompteClientTiersPayant lien = StringUtils.isBlank(lienId) ? null
+                : em.find(TCompteClientTiersPayant.class, lienId);
+        if (lien == null || !actif(lien)) {
+            return new JSONObject().put("success", false).put("msg", "Ce tiers-payant n'est plus rattaché au client.");
+        }
+        if (ventesNonRegleesDuLien(lienId) > 0) {
+            return new JSONObject().put("success", false).put("msg", REFUS_VENTES);
+        }
+        rest.service.impl.client.RetraitTiersPayant.Decision d = deciderRetrait(lien);
+        Date maintenant = new Date();
+        // comme l'ecran historique : les rattachements de ce lien aux ventes en attente et a leurs instantanes
+        em.createQuery(
+                "SELECT o FROM TPreenregistrementCompteClientTiersPayent o"
+                        + " WHERE o.lgCOMPTECLIENTTIERSPAYANTID = :lien",
+                TPreenregistrementCompteClientTiersPayent.class).setParameter("lien", lien).getResultList()
+                .forEach(o -> o.setStrSTATUT(Constant.STATUT_DELETE));
+        em.createQuery(
+                "SELECT o FROM TSnapshotPreenregistrementCompteClientTiersPayent o"
+                        + " WHERE o.lgCOMPTECLIENTTIERSPAYANTID = :lien",
+                dal.TSnapshotPreenregistrementCompteClientTiersPayent.class).setParameter("lien", lien).getResultList()
+                .forEach(o -> o.setStrSTATUT(Constant.STATUT_DELETE));
+        lien.setStrSTATUT(Constant.STATUT_DELETE);
+        lien.setIntPRIORITY(-1);
+        lien.setDtUPDATED(maintenant);
+        TCompteClient compte = lien.getLgCOMPTECLIENTID();
+        String msg = "Tiers-payant retiré.";
+        if (d.effet == rest.service.impl.client.RetraitTiersPayant.Effet.PROMOTION) {
+            TCompteClientTiersPayant promu = em.find(TCompteClientTiersPayant.class, d.promu.id);
+            promu.setIntPRIORITY(1);
+            promu.setDtUPDATED(maintenant);
+            msg = "Tiers-payant retiré. " + d.promu.nom + " devient le tiers-payant principal.";
+        } else if (d.effet == rest.service.impl.client.RetraitTiersPayant.Effet.DESACTIVATION_CLIENT) {
+            TClient client = compte.getLgCLIENTID();
+            compte.setStrSTATUT(Constant.STATUT_DISABLE);
+            compte.setDtUPDATED(maintenant);
+            client.setStrSTATUT(Constant.STATUT_DISABLE);
+            client.setDtUPDATED(maintenant);
+            msg = "Tiers-payant retiré. Le client n'a plus de tiers-payant : il est désactivé"
+                    + " (voir « Clients désactivés »).";
+        }
+        em.flush();
+        return new JSONObject().put("success", true).put("effet", d.effet.name()).put("msg", msg);
+    }
+
+    /** Plan « clients assures » (02/11), etape 4 : un client ne se cree pas sur un organisme desactive. */
+    static final String ORGANISME_INACTIF = "Cet organisme n'est plus actif : choisissez-en un autre."
+            + " Le client n'a pas été créé.";
 
     /** Lien client / tiers payant actif (ni supprime ni desactive). */
     static boolean actif(TCompteClientTiersPayant lien) {

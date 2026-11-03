@@ -109,8 +109,18 @@ public class SupportEventServiceImpl implements SupportEventService {
      */
     @Override
     public List<ApplicationEvent> findAll(int start, int limit, String niveau, String recherche) {
+        return findAll(start, limit, niveau, recherche, null, null, null);
+    }
+
+    /**
+     * Liste filtree comme {@link #findAll(int, int, String, String)}, plus le module et la periode (demande du 02/11).
+     * La periode porte sur la derniere apparition, comme le recapitulatif de l'Historique et la purge.
+     */
+    @Override
+    public List<ApplicationEvent> findAll(int start, int limit, String niveau, String recherche, String module,
+            String du, String au) {
         StringBuilder jpql = new StringBuilder("SELECT o FROM ApplicationEvent o WHERE 1=1");
-        Map<String, Object> params = criteresDeRecherche(jpql, niveau, recherche);
+        Map<String, Object> params = criteresDeRecherche(jpql, niveau, recherche, module, du, au);
         jpql.append(" ORDER BY o.lastSeenAt DESC");
         TypedQuery<ApplicationEvent> query = em.createQuery(jpql.toString(), ApplicationEvent.class);
         params.forEach(query::setParameter);
@@ -129,8 +139,13 @@ public class SupportEventServiceImpl implements SupportEventService {
 
     @Override
     public long count(String niveau, String recherche) {
+        return count(niveau, recherche, null, null, null);
+    }
+
+    @Override
+    public long count(String niveau, String recherche, String module, String du, String au) {
         StringBuilder jpql = new StringBuilder("SELECT COUNT(o) FROM ApplicationEvent o WHERE 1=1");
-        Map<String, Object> params = criteresDeRecherche(jpql, niveau, recherche);
+        Map<String, Object> params = criteresDeRecherche(jpql, niveau, recherche, module, du, au);
         TypedQuery<Long> query = em.createQuery(jpql.toString(), Long.class);
         params.forEach(query::setParameter);
         return query.getSingleResult();
@@ -140,7 +155,8 @@ public class SupportEventServiceImpl implements SupportEventService {
      * Criteres communs a la liste, au comptage et a l'export : les trois doivent voir exactement le meme ensemble, sans
      * quoi la pagination et le total ne s'accordent plus.
      */
-    private Map<String, Object> criteresDeRecherche(StringBuilder jpql, String niveau, String recherche) {
+    private Map<String, Object> criteresDeRecherche(StringBuilder jpql, String niveau, String recherche, String module,
+            String du, String au) {
         Map<String, Object> params = new java.util.HashMap<>();
         if (StringUtils.isNotBlank(niveau) && !"TOUS".equalsIgnoreCase(niveau)) {
             jpql.append(" AND o.niveau = :niveau");
@@ -152,7 +168,26 @@ public class SupportEventServiceImpl implements SupportEventService {
                     .append(" OR LOWER(o.utilisateur) LIKE :terme)");
             params.put("terme", "%" + recherche.trim().toLowerCase() + "%");
         }
+        if (StringUtils.isNotBlank(module) && !"TOUS".equalsIgnoreCase(module)) {
+            jpql.append(" AND o.module = :module");
+            params.put("module", module.trim());
+        }
+        // dates au format yyyy-MM-dd, bornes incluses : une date invalide leve une erreur, pas une liste non filtree
+        if (StringUtils.isNotBlank(du)) {
+            jpql.append(" AND o.lastSeenAt >= :du");
+            params.put("du", LocalDate.parse(du.trim()).atStartOfDay());
+        }
+        if (StringUtils.isNotBlank(au)) {
+            jpql.append(" AND o.lastSeenAt < :au");
+            params.put("au", LocalDate.parse(au.trim()).plusDays(1).atStartOfDay());
+        }
         return params;
+    }
+
+    @Override
+    public List<String> modules() {
+        return em.createQuery("SELECT DISTINCT o.module FROM ApplicationEvent o WHERE o.module IS NOT NULL"
+                + " AND o.module <> '' ORDER BY o.module", String.class).getResultList();
     }
 
     @Override
