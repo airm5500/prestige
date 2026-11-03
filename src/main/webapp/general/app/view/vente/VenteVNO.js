@@ -1344,5 +1344,270 @@ Ext.define('testextjs.view.vente.VenteVNO', {
 
         });
         me.callParent(arguments);
+    },
+
+    /* ------------------------------------------------------------------------------------------------------
+     * Cas 2 du 03/11/2026 : prix et taux de reference par tiers-payant, saisis dans la grille (disposition B).
+     * Rien de tout ceci n'existe tant que le controleur ne l'appelle pas : avec KEY_PRIX_REF_CAISSE a 0, ou en
+     * vente comptant / carnet, la grille est strictement celle d'aujourd'hui (aucune colonne creee, C.CIP inchange).
+     * ------------------------------------------------------------------------------------------------------ */
+
+    /** Les groupes de colonnes P.REF | TAUX en place, par identifiant de tiers-payant. */
+    tiersPayantsDesColonnesReferenceTp: function () {
+        const grille = this.down('#venteGrid');
+        if (!grille) {
+            return [];
+        }
+        return grille.headerCt.items.getRange().filter(function (c) {
+            return !!c.groupeReferenceTp;
+        }).map(function (c) {
+            return c.groupeReferenceTp;
+        });
+    },
+
+    /**
+     * Construit (ou reconstruit) un groupe de colonnes par tiers-payant de la vente, entre P.U et MONTANT.
+     * tiersPayants : [{tpId, libelle}] dans l'ordre de priorite. Les groupes deja en place pour les memes
+     * tiers-payants, dans le meme ordre, sont gardes ; sinon tout est refait.
+     */
+    construireColonnesReferenceTp: function (tiersPayants) {
+        const me = this, grille = me.down('#venteGrid');
+        if (!grille || !grille.rendered) {
+            return;
+        }
+        const voulus = (tiersPayants || []).map(function (t) {
+            return t.tpId + '|' + t.libelle;
+        }).join(';');
+        const enPlace = me.tiersPayantsDesColonnesReferenceTp().map(function (t) {
+            return t.tpId + '|' + t.libelle;
+        }).join(';');
+        if (voulus === enPlace) {
+            return;
+        }
+        me.retirerColonnesReferenceTp(true);
+        if (!tiersPayants || !tiersPayants.length) {
+            return;
+        }
+        const entete = grille.headerCt;
+        const montant = entete.items.findBy(function (c) {
+            return c.dataIndex === 'intPRICE';
+        });
+        let position = montant ? entete.items.indexOf(montant) : entete.items.getCount() - 1;
+        const cip = entete.items.findBy(function (c) {
+            return c.dataIndex === 'intCIP';
+        });
+        if (cip) {
+            // C.CIP fixe a 80 px et DESIGNATION garde une largeur minimale ; remis en place au retrait.
+            if (cip.flex) {
+                cip.flexReferenceTp = cip.flex;
+            }
+            cip.flex = null;
+            cip.setWidth(80);
+        }
+        const designation = entete.items.findBy(function (c) {
+            return c.dataIndex === 'strNAME';
+        });
+        if (designation && !designation.minWidth) {
+            designation.minWidthReferenceTp = true;
+            designation.minWidth = 170;
+        }
+        Ext.each(tiersPayants, function (tp) {
+            entete.insert(position++, me.groupeColonnesReferenceTp(tp));
+        });
+        grille.getView().refresh();
+    },
+
+    /** Un groupe « libelle du tiers-payant » -> P.REF | TAUX, 70 px chacune, editables. */
+    groupeColonnesReferenceTp: function (tp) {
+        const me = this;
+        const colonne = function (champ, texte, info) {
+            return {
+                text: texte,
+                width: 70,
+                align: 'right',
+                sortable: false,
+                menuDisabled: true,
+                hideable: false,
+                draggable: false,
+                resizable: false,
+                tdCls: 'vp-ref-cellule',
+                tooltip: info,
+                referenceTp: {tpId: tp.tpId, libelle: tp.libelle, champ: champ},
+                renderer: function (valeur, meta, enregistrement) {
+                    return me.rendreCelluleReferenceTp(enregistrement, tp.tpId, champ, meta);
+                },
+                editor: {
+                    xtype: 'numberfield',
+                    allowDecimals: false,
+                    allowBlank: true,
+                    hideTrigger: true,
+                    keyNavEnabled: false,
+                    mouseWheelEnabled: false,
+                    selectOnFocus: true,
+                    maskRe: /[0-9]/,
+                    listeners: {
+                        /* Entree valide, Echap annule ; un clic ailleurs abandonne la saisie (le controleur ne
+                         * garde que les validations par Entree). */
+                        specialkey: function (champTexte, e) {
+                            champTexte.valideParEntree = (e.getKey() === e.ENTER);
+                        },
+                        focus: function (champTexte) {
+                            champTexte.valideParEntree = false;
+                        }
+                    }
+                }
+            };
+        };
+        return {
+            text: Ext.String.htmlEncode(tp.libelle || ''),
+            groupeReferenceTp: {tpId: tp.tpId, libelle: tp.libelle},
+            menuDisabled: true,
+            sortable: false,
+            draggable: false,
+            cls: 'vp-ref-groupe',
+            columns: [
+                colonne('valeur', 'P.REF', 'Prix de référence pour ce tiers-payant (de 5 au prix de vente)'),
+                colonne('taux', 'TAUX', 'Taux pour ce tiers-payant et ce produit (5 à 100)')
+            ]
+        };
+    },
+
+    /** La reference de la ligne pour un tiers-payant, telle que le serveur l'a envoyee (ou null). */
+    referenceTpDeLaLigne: function (enregistrement, tpId) {
+        const refs = enregistrement ? enregistrement.get('referencesTp') : null;
+        if (!Ext.isArray(refs)) {
+            return null;
+        }
+        for (let i = 0; i < refs.length; i++) {
+            if (refs[i] && refs[i].tpId === tpId) {
+                return refs[i];
+            }
+        }
+        return null;
+    },
+
+    /** Gris italique = valeur par defaut (rien d'enregistre) ; violet = reference de la fiche article. */
+    rendreCelluleReferenceTp: function (enregistrement, tpId, champ, meta) {
+        const ref = this.referenceTpDeLaLigne(enregistrement, tpId);
+        if (!ref) {
+            return '';
+        }
+        if (meta) {
+            meta.tdCls = (meta.tdCls ? meta.tdCls + ' ' : '') + (ref.defaut ? 'vp-ref-defaut' : 'vp-ref-fiche');
+        }
+        if (champ === 'taux') {
+            return Ext.util.Format.number(ref.taux, '0');
+        }
+        return Ext.util.Format.number(ref.valeur, '0,000.');
+    },
+
+    /** Retire les groupes et rend a C.CIP et DESIGNATION leur largeur d'origine. */
+    retirerColonnesReferenceTp: function (sansRafraichir) {
+        const me = this, grille = me.down('#venteGrid');
+        if (!grille || !grille.rendered) {
+            return;
+        }
+        const entete = grille.headerCt;
+        const groupes = entete.items.getRange().filter(function (c) {
+            return !!c.groupeReferenceTp;
+        });
+        if (!groupes.length) {
+            return;
+        }
+        Ext.each(groupes, function (g) {
+            entete.remove(g, true);
+        });
+        const cip = entete.items.findBy(function (c) {
+            return c.dataIndex === 'intCIP';
+        });
+        if (cip && cip.flexReferenceTp) {
+            cip.width = null;
+            cip.flex = cip.flexReferenceTp;
+            delete cip.flexReferenceTp;
+        }
+        const designation = entete.items.findBy(function (c) {
+            return c.dataIndex === 'strNAME';
+        });
+        if (designation && designation.minWidthReferenceTp) {
+            designation.minWidth = undefined;
+            delete designation.minWidthReferenceTp;
+        }
+        me.afficherMessageReferenceTp(null);
+        me.afficherRappelReferenceTp(false);
+        if (!sansRafraichir) {
+            entete.updateLayout();
+            grille.getView().refresh();
+        }
+    },
+
+    /** Message sous la grille (refus en rouge, enregistrement en vert) ; null le retire. Cree a la demande. */
+    afficherMessageReferenceTp: function (texte, erreur) {
+        const me = this, conteneur = me.down('#gridContainer'), grille = me.down('#venteGrid');
+        let message = me.down('#messageReferenceTp');
+        if (!texte) {
+            if (message) {
+                message.hide();
+            }
+            return;
+        }
+        if (!message) {
+            if (!conteneur || !grille) {
+                return;
+            }
+            message = conteneur.insert(conteneur.items.indexOf(grille) + 1, {
+                xtype: 'component', itemId: 'messageReferenceTp', cls: 'vp-ref-message', margin: '0 0 5 0'
+            });
+        }
+        message.removeCls(['vp-ref-message-ko', 'vp-ref-message-ok']);
+        message.addCls(erreur ? 'vp-ref-message-ko' : 'vp-ref-message-ok');
+        message.update((erreur ? '✖ ' : '✔ ') + Ext.String.htmlEncode(texte));
+        message.show();
+    },
+
+    /** Libelle discret sous la grille : regle du minimum (Q2.5), tant que le lot « base par tiers-payant » n'est pas livre. */
+    afficherRappelReferenceTp: function (visible) {
+        const me = this, conteneur = me.down('#gridContainer'), grille = me.down('#venteGrid');
+        let rappel = me.down('#rappelReferenceTp');
+        if (!visible) {
+            if (rappel) {
+                rappel.hide();
+            }
+            return;
+        }
+        if (!rappel) {
+            if (!conteneur || !grille) {
+                return;
+            }
+            const message = me.down('#messageReferenceTp');
+            rappel = conteneur.insert(conteneur.items.indexOf(message || grille) + 1, {
+                xtype: 'component', itemId: 'rappelReferenceTp', cls: 'vp-ref-rappel', margin: '0 0 5 0',
+                html: 'Gris italique = valeur par défaut, non enregistrée · Violet = référence de la fiche article · '
+                        + 'Entrée valide, Échap annule · Avec plusieurs tiers-payants, le calcul retient le plus petit '
+                        + 'des prix de référence de la vente.'
+            });
+        }
+        rappel.show();
+    },
+
+    /** Cellule marquee en rouge un court instant apres un refus. */
+    marquerCelluleReferenceTp: function (enregistrement, colonne) {
+        const grille = this.down('#venteGrid');
+        if (!grille || !enregistrement || !colonne) {
+            return;
+        }
+        const cellule = grille.getView().getCell(enregistrement, colonne);
+        if (cellule) {
+            // un refus qui suit un autre de pres garde son marquage : le minuteur precedent est annule
+            if (cellule.dom.minuteurReferenceTp) {
+                clearTimeout(cellule.dom.minuteurReferenceTp);
+            }
+            cellule.addCls('vp-ref-erreur');
+            cellule.dom.minuteurReferenceTp = Ext.defer(function () {
+                if (cellule.dom) {
+                    cellule.dom.minuteurReferenceTp = null;
+                    cellule.removeCls('vp-ref-erreur');
+                }
+            }, 2500);
+        }
     }
 });
