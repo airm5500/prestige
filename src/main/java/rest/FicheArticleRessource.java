@@ -269,6 +269,87 @@ public class FicheArticleRessource {
                 .toString()).build();
     }
 
+    // ----------------- Ordonnancier : produits ordonnancier / sensibles (cas 3 du 03/11/2026) -----------------
+
+    /** Lecture et ecriture sous le droit du menu Ordonnancier (Q3.4 : pas de droit distinct). */
+    private TUser utilisateurOrdonnancier(JSONObject refus) throws JSONException {
+        HttpSession hs = servletRequest.getSession();
+        TUser tu = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
+        if (tu == null) {
+            refus.put("success", false).put("msg", Constant.DECONNECTED_MESSAGE);
+            return null;
+        }
+        @SuppressWarnings("unchecked")
+        List<dal.TPrivilege> privileges = (List<dal.TPrivilege>) hs.getAttribute(Constant.USER_LIST_PRIVILEGE);
+        if (!hasPrivilege(privileges, "P_SM_ORDONNANCIER")) {
+            refus.put("success", false).put("msg", "Vous n'avez pas le droit d'accéder à l'ordonnancier.");
+            return null;
+        }
+        return tu;
+    }
+
+    @GET
+    @Path("ordonnancier")
+    public Response produitsOrdonnancier(@QueryParam(value = "query") String query,
+            @QueryParam(value = "rayon") String rayon, @QueryParam(value = "filtre") String filtre,
+            @QueryParam(value = "champ") String champ, @QueryParam(value = "start") int start,
+            @QueryParam(value = "limit") int limit) throws JSONException {
+        JSONObject refus = new JSONObject();
+        TUser tu = utilisateurOrdonnancier(refus);
+        if (tu == null) {
+            return Response.ok().entity(refus.put("total", 0).put("data", new JSONArray()).toString()).build();
+        }
+        JSONObject json = ficheArticleService.produitsOrdonnancier(query, rayon, filtre, champ, tu, Math.max(0, start),
+                limit <= 0 ? 20 : Math.min(limit, 1000));
+        return Response.ok().entity(json.toString()).build();
+    }
+
+    @PUT
+    @Path("ordonnancier/{id}")
+    public Response cocherProduitOrdonnancier(@PathParam("id") String id, String corps) throws JSONException {
+        JSONObject refus = new JSONObject();
+        TUser tu = utilisateurOrdonnancier(refus);
+        if (tu == null) {
+            return Response.ok().entity(refus.toString()).build();
+        }
+        JSONObject c;
+        try {
+            c = new JSONObject(corps == null || corps.isEmpty() ? "{}" : corps);
+        } catch (Exception e) {
+            return Response.ok().entity(ResultFactory.getFailResult("Demande illisible.")).build();
+        }
+        boolean res = ficheArticleService.cocherProduitOrdonnancier(id, c.optString("champ", "ordonnancier"),
+                c.optBoolean("valeur", false), tu);
+        return Response.ok()
+                .entity(new JSONObject().put("success", res).put("msg", res ? "" : "Produit introuvable.").toString())
+                .build();
+    }
+
+    /**
+     * Cocher (ou decocher) TOUT le resultat de la recherche courante, toutes pages. simuler rend le nombre concerne,
+     * pour la confirmation dans le bouton.
+     */
+    @PUT
+    @Path("ordonnancier/lot")
+    public Response cocherProduitsOrdonnancierLot(String corps) throws JSONException {
+        JSONObject refus = new JSONObject();
+        TUser tu = utilisateurOrdonnancier(refus);
+        if (tu == null) {
+            return Response.ok().entity(refus.toString()).build();
+        }
+        JSONObject c;
+        try {
+            c = new JSONObject(corps == null || corps.isEmpty() ? "{}" : corps);
+        } catch (Exception e) {
+            return Response.ok().entity(ResultFactory.getFailResult("Demande illisible.")).build();
+        }
+        return Response.ok()
+                .entity(ficheArticleService.cocherProduitsOrdonnancierLot(c.optString("query", ""),
+                        c.optString("rayon", ""), c.optString("filtre", ""), c.optString("champ", "ordonnancier"),
+                        c.optBoolean("valeur", true), c.optBoolean("simuler", false), tu).toString())
+                .build();
+    }
+
     @GET
     @Path("saisieperimes")
     public Response saisiePerimes(@QueryParam(value = "codeFamile") String codeFamile,
