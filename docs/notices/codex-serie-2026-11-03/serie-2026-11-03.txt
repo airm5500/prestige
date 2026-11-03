@@ -455,6 +455,7 @@ support/test-reglages-serveur-application.js
 support/test-reglages-serveur-payara.js
 support/test-rum-veille.js
 support/test-sauvegardes.js
+support/test-scripts-a-jour-apres-deploiement.js
 support/test-sms-configuration-sans-secret.js
 support/test-stabilite-serveur.js
 support/test-support-recherche-exports.js
