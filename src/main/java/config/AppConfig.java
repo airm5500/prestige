@@ -8,8 +8,14 @@ import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.annotation.PostConstruct;
+import javax.ejb.Lock;
+import javax.ejb.LockType;
 import javax.ejb.Singleton;
 import javax.ejb.Startup;
+import javax.ejb.TransactionAttribute;
+import javax.ejb.TransactionAttributeType;
+import javax.persistence.EntityManager;
+import javax.persistence.PersistenceContext;
 
 /**
  *
@@ -17,6 +23,7 @@ import javax.ejb.Startup;
  */
 @Singleton
 @Startup
+@Lock(LockType.READ)
 public class AppConfig {
 
     private static final Logger LOG = Logger.getLogger(AppConfig.class.getName());
@@ -25,6 +32,20 @@ public class AppConfig {
 
     private String applicationMode;
     private String modReappro;
+
+    /**
+     * Un seul serveur par reseau (retour du 03/11) : un poste configure en serveur qui n'heberge pas la base, alors que la
+     * machine qui l'heberge est connue comme serveur (t_serveur_poste), ne lance pas les taches planifiees. Decision
+     * revue toutes les {@link #REVUE_MS} ms ; dans le doute (table absente, base injoignable), rien ne change.
+     */
+    static final long REVUE_MS = 10 * 60 * 1000L;
+
+    @PersistenceContext(unitName = "JTA_UNIT")
+    private EntityManager em;
+
+    private volatile Boolean tachesIci;
+    private volatile long revueA;
+    private volatile boolean signale;
 
     private static final String CONFIG_COMMENT = "Configuration de l'application\n"
             + "application.mode: server | client\n" + "reappro.mode: semois | default";
@@ -92,8 +113,54 @@ public class AppConfig {
         }
     }
 
+    /**
+     * Ce poste lance-t-il les taches du serveur ? Configure en serveur (application.mode) et, s'il n'heberge pas la base,
+     * aucune autre machine connue comme le vrai serveur (voir {@link #estDeclareServeur()} pour le mode saisi).
+     */
+    @TransactionAttribute(TransactionAttributeType.NOT_SUPPORTED)
     public boolean isServerMode() {
+        if (!estDeclareServeur()) {
+            return false;
+        }
+        Boolean t = tachesIci;
+        if (t == null || System.currentTimeMillis() >= revueA) {
+            t = revoir();
+        }
+        return t;
+    }
+
+    /** Mode saisi dans dicisms.properties, tel quel (releve du poste, alertes de l'ecran « Postes »). */
+    public boolean estDeclareServeur() {
         return "server".equals(applicationMode);
+    }
+
+    private boolean revoir() {
+        boolean t = true;
+        try {
+            String hote;
+            try {
+                hote = java.net.InetAddress.getLocalHost().getHostName(); // comme le releve du poste (SupportWatchdog)
+            } catch (java.io.IOException e) {
+                hote = job.PosteLocal.nomMachine();
+            }
+            if (!rest.service.impl.serveur.CalculReglages.baseLocale(hote)) {
+                Number n = (Number) em.createNativeQuery("SELECT COUNT(*) FROM t_serveur_poste WHERE serveur = 1"
+                        + " AND mariadb_locale = 1 AND hote <> ? AND releve_at > NOW() - INTERVAL 30 DAY")
+                        .setParameter(1, hote).getSingleResult();
+                t = rest.service.impl.serveur.PostesReglages.tachesDuServeurIci(true, false, n.longValue() > 0);
+            }
+        } catch (Exception e) {
+            t = true;
+        }
+        if (!t && !signale) {
+            signale = true;
+            LOG.warning("application.mode=server, mais la base est sur une autre machine connue comme serveur :"
+                    + " ce poste est une caisse, les taches planifiees n'y sont pas lancees."
+                    + " Mettez application.mode=client dans son dicisms.properties.");
+        }
+        tachesIci = t;
+        revueA = System.currentTimeMillis() + REVUE_MS;
+        return t;
     }
 
     public boolean isDefaultReapproMode() {

@@ -6,6 +6,8 @@
  *    enorme et un reglage critique, l'autre sans nouvelles depuis 40 jours ; les alertes d'ensemble les signalent ;
  *  - un seul serveur par reseau (retour du 03/11) : une caisse d'essai configuree en serveur est signalee comme
  *    caisse, avec le nom du vrai serveur (la machine de la base) et la ligne a corriger ;
+ *  - le resume dit que ce poste (le serveur) lance les taches planifiees : une caisse configuree en serveur ne les
+ *    lui retire pas, c'est elle qui ne les lance plus ;
  *  - clic sur une caisse : ses reglages s'affichent dessous ;
  *  - lecture seule, aucune fenetre, aucune erreur JavaScript ; lignes et droit d'essai retires.
  */
@@ -72,6 +74,8 @@ const REGLAGES = JSON.stringify([{ cle: 'fils', libelle: 'Fils HTTP de Payara', 
     ok('Alerte : caisse sans nouvelles depuis 40 jours', /Pas de relevé de « E2E-CAISSE-3 »/.test(alertes), alertes.slice(0, 300));
     const resume = await p.evaluate(() => Ext.ComponentQuery.query('supportserveur #resumePostes')[0].el.dom.textContent);
     ok('Résumé : postes relevés, postes déclarés, connexions MariaDB', /\d+ poste\(s\) relevé\(s\) pour \d+ déclaré\(s\)/.test(resume), resume);
+    ok('Résumé : le serveur (base sur ce poste) lance toujours les tâches planifiées, malgré une caisse configurée en serveur',
+      /Tâches planifiées : lancées sur ce poste/.test(resume), resume);
 
     /* clic sur la caisse : ses reglages dessous */
     await p.locator('.supportserveur .x-grid-row').filter({ hasText: 'E2E-CAISSE-2' }).first().click();
