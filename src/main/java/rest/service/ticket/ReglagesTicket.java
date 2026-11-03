@@ -22,6 +22,12 @@ public final class ReglagesTicket {
     public static final String NOUVEAU = "NOUVEAU";
     /** Ecart de taille de police permis pour un bloc, en points, de part et d'autre de la taille du modele. */
     public static final int ECART_TAILLE_MAX = 4;
+    /**
+     * Retour du 03/11 : polices proposees (toutes livrees avec Windows), la premiere par defaut. Une police absente du
+     * poste qui imprime retombe sur Arial Narrow (RenduTicket).
+     */
+    public static final List<String> POLICES = Collections
+            .unmodifiableList(java.util.Arrays.asList("Segoe UI", "Arial Narrow", "Tahoma", "Calibri", "Verdana"));
 
     /** Position d'un bloc : son identifiant, son alignement (G, C, D) et son ecart de taille. */
     public static final class Position {
@@ -51,6 +57,7 @@ public final class ReglagesTicket {
     private boolean signatureClient = false;
     private boolean signatures;
     private boolean cadreNet = true;
+    private String police = POLICES.get(0);
     private List<Position> disposition = new ArrayList<>();
 
     public ReglagesTicket(ModeleTicket ticket) {
@@ -112,6 +119,11 @@ public final class ReglagesTicket {
         return cadreNet;
     }
 
+    /** Retour du 03/11 : police du nouveau modele, l'une de {@link #POLICES}. */
+    public String police() {
+        return police;
+    }
+
     public List<Position> disposition() {
         return Collections.unmodifiableList(disposition);
     }
@@ -131,7 +143,7 @@ public final class ReglagesTicket {
         return new JSONObject().put("ticket", ticket.name()).put("modele", modele).put("remise", remise).put("lot", lot)
                 .put("ccRc", ccRc).put("recapitulatif", recapitulatif).put("commentaires", commentaires)
                 .put("encoursCarnet", encoursCarnet).put("signatureClient", signatureClient)
-                .put("signatures", signatures).put("cadreNet", cadreNet).put("disposition", d);
+                .put("signatures", signatures).put("cadreNet", cadreNet).put("police", police).put("disposition", d);
     }
 
     /** Reglages lus d'un JSON (base ou ecran) ; une valeur absente garde le defaut. */
@@ -151,6 +163,8 @@ public final class ReglagesTicket {
         r.signatureClient = j.optBoolean("signatureClient", r.signatureClient);
         r.signatures = j.optBoolean("signatures", r.signatures);
         r.cadreNet = j.optBoolean("cadreNet", r.cadreNet);
+        String police = j.optString("police", r.police);
+        r.police = POLICES.contains(police) ? police : r.police;
         JSONArray d = j.optJSONArray("disposition");
         if (d != null) {
             for (int i = 0; i < d.length(); i++) {

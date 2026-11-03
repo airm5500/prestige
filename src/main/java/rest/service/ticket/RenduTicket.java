@@ -32,7 +32,27 @@ import rest.service.ticket.TicketDocument.Style;
 public final class RenduTicket {
 
     public static final double PT_MM = 72 / 25.4;
-    private static final String POLICE = "Arial Narrow";
+    /** Police de repli, celle du ticket d'avant le 03/11. */
+    static final String POLICE_REPLI = "Arial Narrow";
+    private static volatile java.util.Set<String> installees;
+
+    /** Retour du 03/11 : la police choisie dans « Modeles de ticket » si le poste l'a, sinon {@code repli}. */
+    static String choisirPolice(String voulue, String repli) {
+        java.util.Set<String> polices = installees;
+        if (polices == null) {
+            polices = new java.util.HashSet<>();
+            try {
+                for (String f : java.awt.GraphicsEnvironment.getLocalGraphicsEnvironment()
+                        .getAvailableFontFamilyNames()) {
+                    polices.add(f.toLowerCase(java.util.Locale.ROOT));
+                }
+            } catch (RuntimeException | Error e) {
+                // environnement sans polices : le repli
+            }
+            installees = polices;
+        }
+        return voulue != null && polices.contains(voulue.toLowerCase(java.util.Locale.ROOT)) ? voulue : repli;
+    }
 
     /** Ce que le dessin a produit : hauteur, zone de chaque bloc et debordements. */
     public static final class Resultat {
@@ -117,19 +137,22 @@ public final class RenduTicket {
     private final Graphics2D g;
     private final double largeur;
     private final int base;
+    private final String police;
     private final Resultat res = new Resultat();
     private int y;
 
-    private RenduTicket(Graphics2D g, double largeur, int base) {
+    private RenduTicket(Graphics2D g, double largeur, int base, String police) {
         this.g = g;
         this.largeur = largeur;
         this.base = base;
+        this.police = police;
     }
 
     /** Dessine le ticket a partir de la hauteur {@code depart} ; rend la hauteur atteinte et les zones des blocs. */
     public static Resultat dessiner(Graphics2D g, TicketDocument doc, ReglagesTicket r, int papierMm, int ajoutPolice,
             int depart) {
-        RenduTicket rendu = new RenduTicket(g, largeurImprimable(papierMm), tailleBase(papierMm, ajoutPolice));
+        RenduTicket rendu = new RenduTicket(g, largeurImprimable(papierMm), tailleBase(papierMm, ajoutPolice),
+                choisirPolice(r.police(), POLICE_REPLI));
         g.setColor(Color.BLACK);
         g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
         rendu.y = depart;
@@ -181,17 +204,17 @@ public final class RenduTicket {
         int t = base + ecart;
         switch (s) {
         case GRAS:
-            return new Font(POLICE, Font.BOLD, t);
+            return new Font(police, Font.BOLD, t);
         case PETIT:
-            return new Font(POLICE, Font.PLAIN, Math.max(6, t - 1));
+            return new Font(police, Font.PLAIN, Math.max(6, t - 1));
         case NOM:
-            return new Font(POLICE, Font.BOLD, t + 6);
+            return new Font(police, Font.BOLD, t + 6);
         case GRAND:
-            return new Font(POLICE, Font.BOLD, t + 3);
+            return new Font(police, Font.BOLD, t + 3);
         case NUMERO:
-            return new Font(POLICE, Font.BOLD, t + 12);
+            return new Font(police, Font.BOLD, t + 12);
         default:
-            return new Font(POLICE, Font.PLAIN, t);
+            return new Font(police, Font.PLAIN, t);
         }
     }
 

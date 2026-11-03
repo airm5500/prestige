@@ -23,6 +23,9 @@ Ext.define('testextjs.view.configmanagement.modeleticket.ModelesTicket', {
 
     URL: '../api/v1/modeles-ticket',
 
+    /* retour du 03/11 : memes polices que ReglagesTicket.POLICES, la premiere par defaut */
+    POLICES: ['Segoe UI', 'Arial Narrow', 'Tahoma', 'Calibri', 'Verdana'],
+
     OPTIONS: [
         {cle: 'remise', libelle: 'Afficher la remise', aide: 'Si non : ni la remise ni le total avant remise, la remise reste appliquée', pour: ['PREVENTE', 'VENTE', 'VENTE_ASSURANCE', 'VENTE_CARNET', 'VENTE_DEPOT', 'VENTE_MIXTE']},
         {cle: 'lot', libelle: 'Afficher le lot vendu', aide: 'Lots lus par GS1 ; place réservée entre « quantité × prix » et le montant', pour: ['VENTE', 'VENTE_ASSURANCE', 'VENTE_CARNET', 'VENTE_DEPOT', 'VENTE_MIXTE']},
@@ -80,6 +83,9 @@ Ext.define('testextjs.view.configmanagement.modeleticket.ModelesTicket', {
                 + '.mtk-choix button+button{border-left:1px solid #cbd5e1}'
                 + '.mtk-choix button.mtk-sel{background:#2563eb;color:#fff}.mtk-choix span.mtk-sel{padding:0 8px;font-size:12px;min-width:44px;text-align:center}'
                 + '.mtk-choix button:disabled{cursor:default;opacity:.55}'
+                + '.mtk-champ.mtk-police{flex-wrap:wrap}.mtk-police>span:first-child{flex-basis:100%}'
+                + '.mtk-police .mtk-choix{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:#cbd5e1;width:100%}'
+                + '.mtk-police .mtk-choix button{border:0;font-size:13px;padding:6px 4px;white-space:nowrap}.mtk-police .mtk-choix button:last-child{grid-column:span 2}'
                 + '.mtk-bascule{width:38px;height:22px;border-radius:11px;border:0;background:#cbd5e1;position:relative;cursor:pointer;flex:none;transition:background .15s}'
                 + '.mtk-bascule:after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;transition:left .15s}'
                 + '.mtk-bascule.mtk-on{background:#16a34a}.mtk-bascule.mtk-on:after{left:19px}.mtk-bascule:disabled{opacity:.5;cursor:default}'
@@ -190,6 +196,11 @@ Ext.define('testextjs.view.configmanagement.modeleticket.ModelesTicket', {
         h.push('</div><div class="mtk-reglages">');
         h.push('<div class="mtk-champ"><span>Modèle<small>' + (t.nouveauDisponible ? '« Ancien » rétablit le ticket d\'avant, à l\'identique' : 'Le nouveau modèle de ce ticket n\'est pas encore disponible') + '</small></span>'
                 + me.choix('modele', [{v: 'ANCIEN', l: 'Ancien'}, {v: 'NOUVEAU', l: 'Nouveau'}], r.modele, !me.droit() || !t.nouveauDisponible) + '</div>');
+        /* retour du 03/11 : police du nouveau modele, chaque choix ecrit dans sa police */
+        h.push('<div class="mtk-champ mtk-police"><span>Police<small>Segoe UI par défaut ; une police absente du poste imprime en Arial Narrow</small></span>'
+                + me.choix('police', me.POLICES.map(function (x) {
+                    return {v: x, l: '<span style="font-family:&quot;' + x + '&quot;">' + x + '</span>'};
+                }), r.police || me.POLICES[0], !me.droit() || r.modele !== 'NOUVEAU') + '</div>');
         me.OPTIONS.forEach(function (o) {
             if (o.pour.indexOf(me.etat.ticket) < 0) {
                 return;
@@ -513,6 +524,10 @@ Ext.define('testextjs.view.configmanagement.modeleticket.ModelesTicket', {
         } else if (nom === 'modele') {
             me.modifier(function (r) {
                 r.modele = valeur;
+            });
+        } else if (nom === 'police') {
+            me.modifier(function (r) {
+                r.police = valeur;
             });
         } else if (nom === 'alignement') {
             var id = me.etat.selection;
