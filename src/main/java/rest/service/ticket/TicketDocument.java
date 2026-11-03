@@ -131,8 +131,8 @@ public final class TicketDocument {
         }
 
         public Bloc trait(boolean plein) {
-            elements.add(new Element(plein ? Genre.TRAIT_PLEIN : Genre.TRAIT, Style.NORMAL, null, null, null, null,
-                    null));
+            elements.add(
+                    new Element(plein ? Genre.TRAIT_PLEIN : Genre.TRAIT, Style.NORMAL, null, null, null, null, null));
             return this;
         }
 

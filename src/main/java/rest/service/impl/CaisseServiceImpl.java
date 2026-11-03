@@ -799,8 +799,8 @@ public class CaisseServiceImpl implements CaisseService {
          * la transaction de caisse porte la date saisie du mouvement (decision du 26/10 : date de l'operation reelle).
          *
          * gestion de caisse G2 : le type de mouvement porte le sens, jamais le signe (une sortie saisie negative
-         * devenait une entree) ; un meme mouvement envoye deux fois de suite (double clic, double
-         * Entree) n'est enregistre qu'une fois : la caisse en cours est verrouillee le temps du controle.
+         * devenait une entree) ; un meme mouvement envoye deux fois de suite (double clic, double Entree) n'est
+         * enregistre qu'une fois : la caisse en cours est verrouillee le temps du controle.
          */
         if (dateFuture(caisseDTO.getDateMvt())) {
             return json.put("success", false).put("msg", "La date du mouvement ne peut pas être dans le futur.");

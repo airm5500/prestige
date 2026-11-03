@@ -38,8 +38,8 @@ import util.Constant;
 /**
  * Menu « Modeles de ticket » (demande du 02/11) : reglages de chaque ticket de caisse, apercu dessine par le meme code
  * que l'impression, disposition des blocs controlee par le serveur (rien ne deborde, le pied reste en place ; le nom de
- * l'officine se regle comme les autres blocs), largeur du papier de chaque imprimante. Lecture pour tout utilisateur connecte ; modification reservee au
- * droit P_SM_MODELES_TICKET.
+ * l'officine se regle comme les autres blocs), largeur du papier de chaque imprimante. Lecture pour tout utilisateur
+ * connecte ; modification reservee au droit P_SM_MODELES_TICKET.
  */
 @Path("v1/modeles-ticket")
 @Produces("application/json")
@@ -66,8 +66,8 @@ public class ModeleTicketRessource {
     @SuppressWarnings("unchecked")
     private boolean peutModifier() {
         HttpSession s = servletRequest.getSession(false);
-        return s != null && CommonUtils.hasAuthorityByName(
-                (List<TPrivilege>) s.getAttribute(commonparameter.USER_LIST_PRIVILEGE), DROIT);
+        return s != null && CommonUtils
+                .hasAuthorityByName((List<TPrivilege>) s.getAttribute(commonparameter.USER_LIST_PRIVILEGE), DROIT);
     }
 
     private static Response json(JSONObject j) {
@@ -96,8 +96,8 @@ public class ModeleTicketRessource {
         }
         JSONArray blocs = new JSONArray();
         for (String b : TicketDocument.ORDRE) {
-            blocs.put(new JSONObject().put("id", b).put("libelle", TicketDocument.libelle(b))
-                    .put("fixe", TicketDocument.FIXES.contains(b)));
+            blocs.put(new JSONObject().put("id", b).put("libelle", TicketDocument.libelle(b)).put("fixe",
+                    TicketDocument.FIXES.contains(b)));
         }
         return json(new JSONObject().put("success", true).put("largeur", mm).put("droit", peutModifier())
                 .put("tickets", tickets).put("imprimantes", imprimantes).put("blocs", blocs)
@@ -137,8 +137,8 @@ public class ModeleTicketRessource {
         List<String> avertissements = new ArrayList<>();
         List<String> bloquants = RenduTicket.controler(r, avertissements);
         RenduTicket.Resultat[] res = new RenduTicket.Resultat[1];
-        java.awt.image.BufferedImage img = RenduTicket.apercu(
-                ConversionTicket.convertir(ExemplesTicket.exemple(t, mm), r), r, mm, ECHELLE, res);
+        java.awt.image.BufferedImage img = RenduTicket
+                .apercu(ConversionTicket.convertir(ExemplesTicket.exemple(t, mm), r), r, mm, ECHELLE, res);
         for (String d : res[0].debordements) {
             bloquants.add("« " + d + " » dépasse de la largeur du papier.");
         }
@@ -174,12 +174,13 @@ public class ModeleTicketRessource {
             JSONObject rendu = rendu(t, mm, r);
             JSONArray bloquants = rendu.getJSONArray("bloquants");
             if (bloquants.length() > 0) {
-                return json(new JSONObject().put("success", false).put("bloquants", bloquants)
-                        .put("msg", "Disposition refusée : " + bloquants.getString(0)));
+                return json(new JSONObject().put("success", false).put("bloquants", bloquants).put("msg",
+                        "Disposition refusée : " + bloquants.getString(0)));
             }
             service.enregistrer(r, mm, u.getStrLOGIN());
-            return json(new JSONObject().put("success", true).put("msg", "Modèle « " + t.libelle() + " » ("
-                    + mm + " mm) enregistré.").put("reglages", r.json()));
+            return json(new JSONObject().put("success", true)
+                    .put("msg", "Modèle « " + t.libelle() + " » (" + mm + " mm) enregistré.")
+                    .put("reglages", r.json()));
         } catch (Exception e) {
             LOG.log(Level.WARNING, "Enregistrement du modèle de ticket " + t, e);
             return refus("Enregistrement impossible : " + e.getMessage());
