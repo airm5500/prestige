@@ -279,8 +279,8 @@ public class PrixReferenceServiceImpl implements PrixReferenceService {
     }
 
     @Override
-    public SaisieReferenceResultat saisieCaisse(String venteId, String detailId, String tiersPayantId,
-            Integer valeur, Integer taux) {
+    public SaisieReferenceResultat saisieCaisse(String venteId, String detailId, String tiersPayantId, Integer valeur,
+            Integer taux) {
         if (StringUtils.isBlank(tiersPayantId)) {
             return SaisieReferenceResultat.refus("Le tiers-payant est obligatoire.");
         }

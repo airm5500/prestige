@@ -116,8 +116,8 @@ public class PrixReferenceRessource {
 
     /**
      * Saisie a la caisse d'une reference pour une ligne et un tiers-payant de la vente : bornes reverifiees par le
-     * service (entier, prix de 5 au prix de vente, taux de 5 a 100, 400 sinon), ecriture MIX_TAUX_PRIX journalisee
-     * avec la vente, puis recalcul du net par le meme chemin que net/assurance (le moteur n'est pas modifie).
+     * service (entier, prix de 5 au prix de vente, taux de 5 a 100, 400 sinon), ecriture MIX_TAUX_PRIX journalisee avec
+     * la vente, puis recalcul du net par le meme chemin que net/assurance (le moteur n'est pas modifie).
      */
     @PUT
     @Path("vente/{venteId}/ligne/{detailId}")
