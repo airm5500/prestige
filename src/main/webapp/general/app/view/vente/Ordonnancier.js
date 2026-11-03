@@ -296,11 +296,135 @@ Ext.define('testextjs.view.vente.Ordonnancier', {
                         displayInfo: true
 
                     }
-                }, me.ongletAnalyse()]
+                }, me.ongletAnalyse(), me.ongletProduits('ordonnancier'), me.ongletProduits('sensible')]
                 }]
 
         });
         me.callParent(arguments);
+    },
+
+    /**
+     * Les onglets « Produits ordonnancier » et « Produits sensibles » (cas 3 du 03/11/2026, variante C).
+     *
+     * Meme gabarit que la gestion des articles (configmanagement/famille/Products.js) : recherche, filtre
+     * coches / non coches / tous, compteur, case enregistree AU CLIC (aucun bouton Enregistrer, aucune fenetre),
+     * et cochage de TOUT le resultat en deux temps, la confirmation se faisant dans le bouton lui-meme.
+     *
+     * La barre commune (periode, medecin) n'a pas de sens ici : le controleur la masque sur ces onglets et la
+     * retablit sur Registre et Analyse. Chaque onglet porte sa propre barre.
+     *
+     * @param champ
+     *            'ordonnancier' (is_scheduled) ou 'sensible' (is_sensible)
+     */
+    ongletProduits: function (champ) {
+        var me = this;
+        var sensible = champ === 'sensible';
+        var parPage = 20;
+        var store = Ext.create('Ext.data.Store', {
+            idProperty: 'lgFAMILLEID',
+            fields: [{name: 'lgFAMILLEID', type: 'string'}, {name: 'intCIP', type: 'string'},
+                {name: 'strNAME', type: 'string'}, {name: 'intPRICE', type: 'number'}, {name: 'stock', type: 'number'},
+                {name: 'scheduled', type: 'boolean'}, {name: 'intT', type: 'string'}, {name: 'sensible', type: 'boolean'}],
+            pageSize: parPage,
+            autoLoad: false,
+            proxy: {
+                type: 'ajax',
+                url: '../api/v1/fichearticle/ordonnancier',
+                timeout: 240000,
+                reader: {type: 'json', root: 'data', totalProperty: 'total'}
+            }
+        });
+        var filtres = Ext.create('Ext.data.Store', {
+            fields: ['libelle', 'valeur'],
+            data: [{libelle: 'Produits cochés', valeur: 'coches'}, {libelle: 'Produits non cochés', valeur: 'noncoches'},
+                {libelle: 'Tous', valeur: 'tous'}]
+        });
+        var rayons = Ext.create('Ext.data.Store', {
+            idProperty: 'id', fields: ['id', 'libelle'], autoLoad: false, pageSize: 9999,
+            proxy: {type: 'ajax', url: '../api/v1/common/rayons', reader: {type: 'json', root: 'data', totalProperty: 'total'}}
+        });
+        return {
+            title: sensible ? 'Produits sensibles' : 'Produits ordonnancier',
+            itemId: sensible ? 'ongletSensibles' : 'ongletProduitsOrdonnancier',
+            xtype: 'gridpanel',
+            /* le champ coche par cet onglet ; sert aussi de marqueur « onglet produits » au controleur */
+            champOrdonnancier: champ,
+            store: store,
+            viewConfig: {
+                forceFit: true,
+                columnLines: true,
+                stripeRows: true,
+                deferEmptyText: false,
+                emptyText: '<div style="padding:12px">Aucun produit pour ces crit&egrave;res.</div>'
+            },
+            columns: [
+                {xtype: 'rownumberer', text: 'LG', width: 40},
+                {header: 'C.CIP', dataIndex: 'intCIP', flex: 0.7, sortable: false, menuDisabled: true},
+                {
+                    header: 'D&eacute;signation', dataIndex: 'strNAME', flex: 2.5, sortable: false, menuDisabled: true,
+                    renderer: function (v, m, r) {
+                        var t = Ext.String.htmlEncode(v);
+                        // Regle conservee (Q3.1) : coche « ordonnancier » mais sans code tableau, le produit
+                        // n'entre pas au registre. Le dire ici evite de le decouvrir a l'edition.
+                        if (!sensible && r.get('scheduled') && !r.get('intT')) {
+                            t += ' <span class="ordo-badge-sans-code" title="Coch&eacute; mais sans code tableau : '
+                                    + 'n\'entre pas au registre tant que le code manque">SANS CODE TABLEAU</span>';
+                        }
+                        return t;
+                    }
+                },
+                {
+                    header: 'Code tableau', dataIndex: 'intT', width: 95, align: 'center', sortable: false, menuDisabled: true,
+                    renderer: function (v) {
+                        return v ? '<b>' + Ext.String.htmlEncode(v) + '</b>' : '<span style="color:#999">&mdash;</span>';
+                    }
+                },
+                {header: 'Prix vente', dataIndex: 'intPRICE', xtype: 'numbercolumn', format: '0,000.', align: 'right',
+                    flex: 0.6, sortable: false, menuDisabled: true},
+                {header: 'Stock', dataIndex: 'stock', align: 'right', flex: 0.4, sortable: false, menuDisabled: true},
+                {
+                    xtype: 'checkcolumn',
+                    header: sensible ? 'Sensible' : 'Ordonnancier',
+                    dataIndex: champ === 'sensible' ? 'sensible' : 'scheduled',
+                    itemId: 'colonneCoche',
+                    width: 95, sortable: false, menuDisabled: true
+                }
+            ],
+            dockedItems: [{
+                    xtype: 'toolbar', dock: 'top', items: [
+                        {xtype: 'textfield', itemId: 'recherche', emptyText: 'Nom ou CIP… (Entrée)', width: 260,
+                            maxLength: 100, enforceMaxLength: true, enableKeyEvents: true},
+                        {xtype: 'combobox', itemId: 'rayon', flex: 1, minWidth: 170, store: rayons, pageSize: 99999,
+                            valueField: 'id', displayField: 'libelle', queryMode: 'remote', minChars: 2,
+                            emptyText: 'Tous les emplacements'},
+                        {xtype: 'combobox', itemId: 'filtre', fieldLabel: 'Afficher', labelWidth: 55, width: 230, store: filtres,
+                            valueField: 'valeur', displayField: 'libelle', editable: false, queryMode: 'local',
+                            value: sensible ? 'tous' : 'coches'},
+                        {text: 'Rechercher', itemId: 'rechercher', iconCls: 'searchicon'},
+                        {text: 'Effacer', itemId: 'effacer', tooltip: 'Effacer les filtres'}
+                    ]
+                }, {
+                    xtype: 'toolbar', dock: 'top', items: [
+                        {xtype: 'component', itemId: 'totalResultat', html: ''}, '->',
+                        {text: 'Cocher tout le résultat', itemId: 'btnCocherTout', iconCls: 'checkicon', valeurLot: true,
+                            tooltip: 'Coche TOUS les produits de la recherche courante, sur toutes les pages ; '
+                                    + 'le bouton affiche le nombre, puis demande de confirmer'},
+                        {text: 'Décocher tout le résultat', itemId: 'btnDecocherTout', valeurLot: false,
+                            tooltip: 'Décoche TOUS les produits de la recherche courante, sur toutes les pages ; '
+                                    + 'le bouton affiche le nombre, puis demande de confirmer'}
+                    ]
+                }],
+            bbar: {xtype: 'pagingtoolbar', pageSize: parPage, store: store, displayInfo: true}
+        };
+    },
+
+    /** Les criteres de la recherche d'un onglet produits, communs a la liste et au lot. */
+    criteresProduits: function (grille) {
+        var v = function (id) {
+            var c = grille.down('#' + id);
+            return c ? (c.getValue() || '') : '';
+        };
+        return {query: v('recherche'), rayon: v('rayon'), filtre: v('filtre'), champ: grille.champOrdonnancier};
     },
 
     /**
