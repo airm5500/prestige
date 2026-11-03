@@ -69,6 +69,7 @@ import javax.persistence.criteria.Join;
 import javax.persistence.criteria.JoinType;
 import javax.persistence.criteria.Predicate;
 import javax.persistence.criteria.Root;
+import dal.enumeration.TypeLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.json.JSONArray;
@@ -126,6 +127,8 @@ public class FicheArticleServiceImpl implements FicheArticleService {
 
     @EJB
     private InventaireService inventaireService;
+    @EJB
+    private rest.service.LogService logService;
     @EJB
     private LotService lotService;
 
@@ -1344,6 +1347,129 @@ public class FicheArticleServiceImpl implements FicheArticleService {
                     .setParameter(1, coche ? 0 : 1).setParameter(2, ids.subList(i, Math.min(ids.size(), i + 500)))
                     .executeUpdate();
         }
+        return new JSONObject().put("success", true).put("nombre", n);
+    }
+
+    // ----------------- Ordonnancier : produits ordonnancier / sensibles (cas 3 du 03/11/2026) -----------------
+
+    private static boolean champSensible(String champ) {
+        return "sensible".equalsIgnoreCase(champ);
+    }
+
+    private static String libelleChamp(String champ) {
+        return champSensible(champ) ? "sensible" : "ordonnancier";
+    }
+
+    /** Les criteres communs a la liste et au lot : articles actifs de l'emplacement, recherche, rayon, filtre coche. */
+    private List<Predicate> produitsOrdonnancier(CriteriaBuilder cb, Root<TFamilleStock> root,
+            Join<TFamilleStock, TFamille> famille, String query, String rayon, String filtre, String champ, TUser u) {
+        List<Predicate> predicates = new ArrayList<>();
+        predicates.add(cb.equal(root.get(TFamilleStock_.lgEMPLACEMENTID), u.getLgEMPLACEMENTID()));
+        predicates.add(cb.equal(famille.get(TFamille_.strSTATUT), DateConverter.STATUT_ENABLE));
+        predicates.add(cb.equal(root.get(TFamilleStock_.strSTATUT), DateConverter.STATUT_ENABLE));
+        if (StringUtils.isNotBlank(query)) {
+            String q = query.trim() + "%";
+            predicates
+                    .add(cb.or(cb.like(famille.get(TFamille_.intCIP), q), cb.like(famille.get(TFamille_.strNAME), q)));
+        }
+        if (StringUtils.isNotBlank(rayon) && !"ALL".equals(rayon)) {
+            predicates.add(cb.equal(famille.get(TFamille_.lgZONEGEOID).get(TZoneGeographique_.lgZONEGEOID), rayon));
+        }
+        javax.persistence.criteria.Path<Boolean> coche = champSensible(champ) ? famille.get(TFamille_.sensible)
+                : famille.get(TFamille_.scheduled);
+        if ("coches".equalsIgnoreCase(filtre)) {
+            predicates.add(cb.isTrue(coche));
+        } else if ("noncoches".equalsIgnoreCase(filtre)) {
+            predicates.add(cb.isFalse(coche));
+        }
+        return predicates;
+    }
+
+    @Override
+    public JSONObject produitsOrdonnancier(String query, String rayon, String filtre, String champ, TUser u, int start,
+            int limit) throws JSONException {
+        try {
+            CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();
+            CriteriaQuery<javax.persistence.Tuple> cq = cb.createTupleQuery();
+            Root<TFamilleStock> root = cq.from(TFamilleStock.class);
+            Join<TFamilleStock, TFamille> f = root.join(TFamilleStock_.lgFAMILLEID, JoinType.INNER);
+            cq.multiselect(f.get(TFamille_.lgFAMILLEID), f.get(TFamille_.intCIP), f.get(TFamille_.strNAME),
+                    f.get(TFamille_.intPRICE), root.get(TFamilleStock_.intNUMBERAVAILABLE), f.get(TFamille_.scheduled),
+                    f.get(TFamille_.intT), f.get(TFamille_.sensible)).orderBy(cb.asc(f.get(TFamille_.strNAME)));
+            cq.where(cb
+                    .and(produitsOrdonnancier(cb, root, f, query, rayon, filtre, champ, u).toArray(Predicate[]::new)));
+            TypedQuery<javax.persistence.Tuple> tq = getEntityManager().createQuery(cq);
+            tq.setFirstResult(start);
+            tq.setMaxResults(limit);
+            JSONArray data = new JSONArray();
+            for (javax.persistence.Tuple t : tq.getResultList()) {
+                data.put(new JSONObject().put("lgFAMILLEID", t.get(0)).put("intCIP", t.get(1)).put("strNAME", t.get(2))
+                        .put("intPRICE", t.get(3) == null ? 0 : t.get(3)).put("stock", t.get(4) == null ? 0 : t.get(4))
+                        .put("scheduled", Boolean.TRUE.equals(t.get(5)))
+                        .put("intT", t.get(6) == null ? "" : String.valueOf(t.get(6)).trim())
+                        .put("sensible", Boolean.TRUE.equals(t.get(7))));
+            }
+            CriteriaQuery<Long> cc = cb.createQuery(Long.class);
+            Root<TFamilleStock> rc = cc.from(TFamilleStock.class);
+            Join<TFamilleStock, TFamille> fc = rc.join(TFamilleStock_.lgFAMILLEID, JoinType.INNER);
+            cc.select(cb.count(rc));
+            cc.where(
+                    cb.and(produitsOrdonnancier(cb, rc, fc, query, rayon, filtre, champ, u).toArray(Predicate[]::new)));
+            Long total = getEntityManager().createQuery(cc).getSingleResult();
+            return new JSONObject().put("success", true).put("total", total).put("data", data);
+        } catch (Exception e) {
+            LOG.log(Level.SEVERE, "produitsOrdonnancier", e);
+            return new JSONObject().put("success", false).put("total", 0).put("data", new JSONArray());
+        }
+    }
+
+    @Override
+    public boolean cocherProduitOrdonnancier(String id, String champ, boolean valeur, TUser u) {
+        TFamille famille = getEntityManager().find(TFamille.class, id);
+        if (famille == null) {
+            return false;
+        }
+        if (champSensible(champ)) {
+            famille.setSensible(valeur);
+        } else {
+            famille.setScheduled(valeur);
+        }
+        getEntityManager().merge(famille);
+        // Journal d'audit (Q3.5) : qui a coche quoi ; aucune donnee de patient.
+        logService.updateItem(u, id,
+                "Produit " + StringUtils.defaultString(famille.getIntCIP()) + " "
+                        + StringUtils.defaultString(famille.getStrNAME()) + (valeur ? " coché " : " décoché ")
+                        + libelleChamp(champ),
+                TypeLog.ORDONNANCIER_PRODUIT, famille);
+        return true;
+    }
+
+    @Override
+    public JSONObject cocherProduitsOrdonnancierLot(String query, String rayon, String filtre, String champ,
+            boolean valeur, boolean simuler, TUser u) throws JSONException {
+        CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();
+        CriteriaQuery<String> cq = cb.createQuery(String.class);
+        Root<TFamilleStock> root = cq.from(TFamilleStock.class);
+        Join<TFamilleStock, TFamille> f = root.join(TFamilleStock_.lgFAMILLEID, JoinType.INNER);
+        cq.select(f.get(TFamille_.lgFAMILLEID)).distinct(true);
+        cq.where(cb.and(produitsOrdonnancier(cb, root, f, query, rayon, filtre, champ, u).toArray(Predicate[]::new)));
+        List<String> ids = getEntityManager().createQuery(cq).getResultList();
+        if (simuler || ids.isEmpty()) {
+            return new JSONObject().put("success", true).put("nombre", ids.size());
+        }
+        String colonne = champSensible(champ) ? "is_sensible" : "is_scheduled";
+        int n = 0;
+        for (int i = 0; i < ids.size(); i += 500) {
+            n += getEntityManager()
+                    .createNativeQuery("UPDATE t_famille SET " + colonne + " = ?1 WHERE lg_FAMILLE_ID IN ?2")
+                    .setParameter(1, valeur ? 1 : 0).setParameter(2, ids.subList(i, Math.min(ids.size(), i + 500)))
+                    .executeUpdate();
+        }
+        logService.updateItem(u, "lot",
+                n + " produit(s) " + (valeur ? "coché(s) " : "décoché(s) ") + libelleChamp(champ)
+                        + " en lot (recherche « " + StringUtils.defaultString(query).trim() + " », filtre "
+                        + StringUtils.defaultString(filtre, "tous") + ")",
+                TypeLog.ORDONNANCIER_PRODUIT, new TFamille());
         return new JSONObject().put("success", true).put("nombre", n);
     }
 

@@ -24,6 +24,8 @@ public class OrdonnancierLigneDTO implements Serializable {
     private String cip = "";
     private String produit = "";
     private String codeTableau = "";
+    /** Motif d'entree au registre (cas 3 du 03/11/2026) : Ordonnancier ou Sensible. */
+    private String motif = "";
     private Integer quantite = 0;
     private Integer montant = 0;
     private String vendeur = "";
@@ -98,6 +100,14 @@ public class OrdonnancierLigneDTO implements Serializable {
 
     public void setCodeTableau(String codeTableau) {
         this.codeTableau = codeTableau;
+    }
+
+    public String getMotif() {
+        return motif;
+    }
+
+    public void setMotif(String motif) {
+        this.motif = motif;
     }
 
     public Integer getQuantite() {

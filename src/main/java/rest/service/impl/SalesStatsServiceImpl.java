@@ -1370,17 +1370,19 @@ public class SalesStatsServiceImpl implements SalesStatsService {
     }
 
     /**
-     * Les produits d'une vente qui entrent dans l'ordonnancier : soumis a ordonnance ET porteurs d'un code tableau.
+     * Les produits d'une vente qui entrent dans l'ordonnancier : soumis a ordonnance ET porteurs d'un code tableau, ou
+     * coches « sensible » (cas 3 du 03/11/2026).
      *
      * <p>
-     * Les deux conditions comptent. Un produit soumis a ordonnance sans code tableau n'a pas de rubrique ou figurer
-     * dans le registre ; un code tableau sur un produit libre de prescription n'y a rien a faire non plus.
+     * La regle est celle de TFamille.estProduitOrdonnancier, la meme qu'a la cloture de vente. Un produit soumis a
+     * ordonnance sans code tableau n'a pas de rubrique ou figurer dans le registre ; un code tableau sur un produit
+     * libre de prescription n'y a rien a faire non plus ; un produit sensible y entre dans tous les cas.
      * </p>
      */
     @Override
     public List<VenteDetailsDTO> produitsOrdonnancier(String venteId) {
-        return findByParent(venteId).stream().filter(
-                el -> el.getLgFAMILLEID().isScheduled() && StringUtils.isNotBlank(el.getLgFAMILLEID().getIntT()))
+        return findByParent(venteId).stream()
+                .filter(el -> el.getLgFAMILLEID() != null && el.getLgFAMILLEID().estProduitOrdonnancier())
                 .map(VenteDetailsDTO::new).collect(Collectors.toList());
     }
 

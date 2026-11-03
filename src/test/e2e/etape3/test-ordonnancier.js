@@ -412,9 +412,12 @@ function nettoyer() {
       vue.destroy();
       return resultat;
     });
-    ok('L\'ecran a deux onglets', ecran.nbOnglets === 2, ecran.titres.join(' | '));
-    ok('Registre et Analyse', ecran.titres.join('|') === 'Registre|Analyse', ecran.titres.join('|'));
-    ok('Les filtres sont partages par les deux onglets', ecran.filtresPartages);
+    // cas 3 du 03/11/2026 : deux onglets de plus, « Produits ordonnancier » et « Produits sensibles »,
+    // apres Registre et Analyse qui ne changent pas (src/test/e2e/ordonnancier/ les couvre)
+    ok('L\'ecran a quatre onglets', ecran.nbOnglets === 4, ecran.titres.join(' | '));
+    ok('Registre et Analyse d\'abord, puis les deux onglets produits',
+      ecran.titres.join('|') === 'Registre|Analyse|Produits ordonnancier|Produits sensibles', ecran.titres.join('|'));
+    ok('Les filtres sont partages par Registre et Analyse', ecran.filtresPartages);
     ok('La grille du registre porte son propre itemId', ecran.registrePresent);
     ok('Les trois palmares sont presents', ecran.palmares);
     ok('L\'onglet Analyse a ses filtres et ses actions', ecran.boutonsAnalyse);

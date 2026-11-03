@@ -3359,3 +3359,60 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
     text-align: center;
 }
 .vp-attente-nombre:empty { display: none; }
+
+/* ================= ORDONNANCIER : produits ordonnancier / sensibles (cas 3 du 03/11/2026) ================= */
+
+/* Onglets produits : coche « ordonnancier » sans code tableau, le produit n'entre pas au registre (Q3.1) */
+.ordo-badge-sans-code {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 0 6px;
+    border-radius: 3px;
+    font-size: 10px;
+    letter-spacing: .05em;
+    color: #fff;
+    background: #e07b18;
+    vertical-align: middle;
+}
+
+/* Bouton de lot en attente de confirmation : la confirmation se fait DANS le bouton, pas dans une fenetre */
+.ordo-btn-confirmer .x-btn-inner,
+.ordo-btn-confirmer .x-btn-inner-default-toolbar-small {
+    color: #fff !important;
+}
+.ordo-btn-confirmer {
+    background: #e07b18 !important;
+    border-color: #b8640f !important;
+}
+
+/* Ligne de vente : pastille ORDONNANCIER fixe, pastille SENSIBLE qui clignote 3 fois puis reste (Q3.3) */
+.vp-pastille {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 0 6px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: bold;
+    letter-spacing: .05em;
+    color: #fff;
+    vertical-align: middle;
+}
+.vp-pastille-ordonnancier {
+    background: #0D47A1;
+}
+.vp-pastille-sensible {
+    background: #8e24aa;
+    animation: vp-pastille-clignote 1s ease-in-out 3;
+}
+@keyframes vp-pastille-clignote {
+    0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(142, 36, 170, .6); }
+    50% { opacity: .35; box-shadow: 0 0 0 6px rgba(142, 36, 170, 0); }
+}
+/* poste qui demande moins d'animations : contour fixe, aucun clignotement */
+@media (prefers-reduced-motion: reduce) {
+    .vp-pastille-sensible {
+        animation: none;
+        outline: 2px solid #8e24aa;
+        outline-offset: 1px;
+    }
+}

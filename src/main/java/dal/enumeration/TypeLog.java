@@ -45,7 +45,9 @@ public enum TypeLog {
     // Centre de support : reglages du serveur (MariaDB, Payara) appliques par le super administrateur (rang)
     REGLAGE_SERVEUR("Réglage du serveur", true),
     // faille de droits du 31/10 : acces de depannage ouvert ou ferme (ajoute a la fin : rang)
-    SECURITE_DROITS("Droits et accès sensibles", true);
+    SECURITE_DROITS("Droits et accès sensibles", true),
+    // cas 3 du 03/11/2026 : produit coche / decoche « ordonnancier » ou « sensible » (ajoute a la fin : rang)
+    ORDONNANCIER_PRODUIT("Produit ordonnancier ou sensible", true);
 
     private final String value;
     private final boolean checked;

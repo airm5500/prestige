@@ -46,6 +46,7 @@ Ext.define('testextjs.view.vente.DetailProduitsVente', {
                 {name: 'intCIP', type: 'string'},
                 {name: 'strNAME', type: 'string'},
                 {name: 'codeTableau', type: 'string'},
+                {name: 'motif', type: 'string'},
                 {name: 'intQUANTITY', type: 'int'},
                 {name: 'intPRICEUNITAIR', type: 'int'},
                 {name: 'intPRICE', type: 'int'}
@@ -75,6 +76,16 @@ Ext.define('testextjs.view.vente.DetailProduitsVente', {
                 header: 'Tableau', dataIndex: 'codeTableau', width: 80, align: 'center',
                 renderer: function (valeur) {
                     return valeur ? '<b>' + valeur + '</b>' : '';
+                }
+            });
+            // cas 3 du 03/11/2026 (Q3.2) : pourquoi le produit est au registre, sans rien changer au reste
+            colonnes.push({
+                header: 'Motif', dataIndex: 'motif', width: 95, align: 'center',
+                renderer: function (valeur) {
+                    if (valeur === 'Sensible') {
+                        return '<span class="vp-pastille vp-pastille-sensible" style="animation:none;margin:0">SENSIBLE</span>';
+                    }
+                    return valeur ? Ext.String.htmlEncode(valeur) : '';
                 }
             });
         }

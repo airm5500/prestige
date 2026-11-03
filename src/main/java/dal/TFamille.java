@@ -321,6 +321,9 @@ public class TFamille implements Serializable {
     private GammeProduit gamme;
     @Column(name = "is_scheduled")
     private boolean scheduled = false;
+    /** Produit « sensible » (cas 3 du 03/11/2026) : entre dans l'ordonnancier meme sans code tableau. */
+    @Column(name = "is_sensible")
+    private boolean sensible = false;
     @Column(name = "cmu_price")
     private Integer cmuPrice;
     @Column(name = "code_ean_fabriquant")
@@ -348,6 +351,34 @@ public class TFamille implements Serializable {
 
     public void setScheduled(boolean scheduled) {
         this.scheduled = scheduled;
+    }
+
+    public boolean isSensible() {
+        return sensible;
+    }
+
+    public void setSensible(boolean sensible) {
+        this.sensible = sensible;
+    }
+
+    /**
+     * LA regle de l'ordonnancier, en un seul endroit (cas 3 du 03/11/2026) : un produit y entre s'il est coche «
+     * sensible », OU s'il est soumis a ordonnance ET porte un code tableau (regle historique, conservee telle quelle).
+     *
+     * <p>
+     * Un code tableau a NULL ne fait plus planter la cloture de vente : la verification se fait sans trim().
+     * </p>
+     */
+    public boolean estProduitOrdonnancier() {
+        return sensible || (scheduled && intT != null && !intT.trim().isEmpty());
+    }
+
+    /** Le motif d'entree dans l'ordonnancier : « Sensible », « Ordonnancier », ou vide si le produit n'y entre pas. */
+    public String motifOrdonnancier() {
+        if (sensible) {
+            return "Sensible";
+        }
+        return estProduitOrdonnancier() ? "Ordonnancier" : "";
     }
 
     public void setGamme(GammeProduit gamme) {

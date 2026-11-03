@@ -31,6 +31,7 @@
     <field name="cip" class="java.lang.String"/>
     <field name="produit" class="java.lang.String"/>
     <field name="codeTableau" class="java.lang.String"/>
+    <field name="motif" class="java.lang.String"/>
     <field name="quantite" class="java.lang.Integer"/>
     <field name="montant" class="java.lang.Integer"/>
     <field name="vendeur" class="java.lang.String"/>
@@ -117,9 +118,14 @@
                     <text><![CDATA[CIP]]></text>
                 </staticText>
                 <staticText>
-                    <reportElement x="498" y="0" width="158" height="20" forecolor="#FFFFFF"/>
+                    <reportElement x="498" y="0" width="112" height="20" forecolor="#FFFFFF"/>
                     <textElement verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
                     <text><![CDATA[Produit]]></text>
+                </staticText>
+                <staticText>
+                    <reportElement x="612" y="0" width="44" height="20" forecolor="#FFFFFF"/>
+                    <textElement verticalAlignment="Middle"><font size="8" isBold="true"/></textElement>
+                    <text><![CDATA[Motif]]></text>
                 </staticText>
                 <staticText>
                     <reportElement x="658" y="0" width="34" height="20" forecolor="#FFFFFF"/>
@@ -186,9 +192,14 @@
                 <textFieldExpression><![CDATA[$F{cip}]]></textFieldExpression>
             </textField>
             <textField isStretchWithOverflow="true" isBlankWhenNull="true">
-                <reportElement stretchType="RelativeToTallestObject" x="498" y="1" width="158" height="14"/>
+                <reportElement stretchType="RelativeToTallestObject" x="498" y="1" width="112" height="14"/>
                 <textElement verticalAlignment="Middle"><font size="7"/></textElement>
                 <textFieldExpression><![CDATA[$F{produit}]]></textFieldExpression>
+            </textField>
+            <textField isBlankWhenNull="true">
+                <reportElement stretchType="RelativeToTallestObject" x="612" y="1" width="44" height="14"/>
+                <textElement verticalAlignment="Middle"><font size="6"/></textElement>
+                <textFieldExpression><![CDATA[$F{motif}]]></textFieldExpression>
             </textField>
             <textField isBlankWhenNull="true">
                 <reportElement stretchType="RelativeToTallestObject" x="658" y="1" width="34" height="14"/>

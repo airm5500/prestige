@@ -560,6 +560,14 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                                                             + r.get('unitesOffertes') + ' offerte(s)' : '')
                                                                     + '</span>';
                                                         }
+                                                        // cas 3 du 03/11/2026 (Q3.3) : produit de l'ordonnancier signale
+                                                        // des l'ajout, plutot que decouvert au refus de la cloture.
+                                                        // SENSIBLE clignote 3 fois puis reste ; ORDONNANCIER est fixe.
+                                                        if (r.get('motif') === 'Sensible') {
+                                                            t += ' <span class="vp-pastille vp-pastille-sensible">SENSIBLE</span>';
+                                                        } else if (r.get('motif') === 'Ordonnancier') {
+                                                            t += ' <span class="vp-pastille vp-pastille-ordonnancier">ORDONNANCIER</span>';
+                                                        }
                                                         return t;
                                                     }
                                                 }, {

@@ -68,6 +68,11 @@ public class VenteDetailsDTO implements Serializable {
      * retient que les produits soumis a ordonnance ET porteurs d'un code tableau.
      */
     private String codeTableau;
+    /** Produit soumis a ordonnance (is_scheduled) et produit « sensible » (cas 3 du 03/11/2026). */
+    private boolean scheduled;
+    private boolean sensible;
+    /** Motif d'entree dans l'ordonnancier : « Ordonnancier », « Sensible », ou vide. */
+    private String motif = "";
     private String nom;
     private int intAVOIR;
     private int currentStock;
@@ -428,6 +433,9 @@ public class VenteDetailsDTO implements Serializable {
         this.intEAN13 = f.getIntEAN13();
         this.strSTATUT = f.getStrSTATUT();
         this.codeTableau = f.getIntT();
+        this.scheduled = f.isScheduled();
+        this.sensible = f.isSensible();
+        this.motif = f.motifOrdonnancier();
         this.intPRICEUNITAIR = d.getIntPRICEUNITAIR();
         this.intQUANTITY = d.getIntQUANTITY();
         this.intQUANTITYSERVED = (p.getStrSTATUT().equals(Constant.STATUT_IS_CLOSED)
@@ -478,6 +486,9 @@ public class VenteDetailsDTO implements Serializable {
         this.intEAN13 = f.getIntEAN13();
         this.strSTATUT = f.getStrSTATUT();
         this.codeTableau = f.getIntT();
+        this.scheduled = f.isScheduled();
+        this.sensible = f.isSensible();
+        this.motif = f.motifOrdonnancier();
         this.intPRICEUNITAIR = d.getIntPRICEUNITAIR();
         this.intQUANTITY = d.getIntQUANTITY();
         this.intQUANTITYSERVED = (p.getStrSTATUT().equals(Constant.STATUT_IS_CLOSED)
@@ -937,5 +948,29 @@ public class VenteDetailsDTO implements Serializable {
 
     public void setCodeTableau(String codeTableau) {
         this.codeTableau = codeTableau;
+    }
+
+    public boolean isScheduled() {
+        return scheduled;
+    }
+
+    public void setScheduled(boolean scheduled) {
+        this.scheduled = scheduled;
+    }
+
+    public boolean isSensible() {
+        return sensible;
+    }
+
+    public void setSensible(boolean sensible) {
+        this.sensible = sensible;
+    }
+
+    public String getMotif() {
+        return motif;
+    }
+
+    public void setMotif(String motif) {
+        this.motif = motif;
     }
 }

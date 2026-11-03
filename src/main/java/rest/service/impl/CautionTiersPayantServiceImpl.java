@@ -121,7 +121,9 @@ public class CautionTiersPayantServiceImpl implements CautionTiersPayantService 
         return Math.max(0, Math.min(solde, montantVente));
     }
 
-    /** Refus de cloturer quand la part caution depasse le solde (consomme entre-temps, par exemple sur un autre poste). */
+    /**
+     * Refus de cloturer quand la part caution depasse le solde (consomme entre-temps, par exemple sur un autre poste).
+     */
     static String refusVente(int solde, int partCaution) {
         if (partCaution <= solde) {
             return null;

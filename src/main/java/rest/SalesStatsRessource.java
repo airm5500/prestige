@@ -756,7 +756,7 @@ public class SalesStatsRessource {
 
     /** En-tetes du registre, partages par l'edition PDF et l'export Excel. */
     private static final String[] ENTETES_ORDONNANCIER = { "Date", "Heure", "Référence", "Client", "Médecin",
-            "N° ordre", "CIP", "Produit", "Tableau", "Qté", "Montant", "Vendeur" };
+            "N° ordre", "CIP", "Produit", "Tableau", "Motif", "Qté", "Montant", "Vendeur" };
 
     /**
      * Le registre mis a plat : une ligne par produit delivre, et non par vente.
@@ -784,6 +784,7 @@ public class SalesStatsRessource {
                 ligne.setCip(StringUtils.defaultString(detail.getIntCIP()));
                 ligne.setProduit(StringUtils.defaultString(detail.getStrNAME()));
                 ligne.setCodeTableau(StringUtils.defaultString(detail.getCodeTableau()));
+                ligne.setMotif(StringUtils.defaultString(detail.getMotif()));
                 ligne.setQuantite(detail.getIntQUANTITY() != null ? detail.getIntQUANTITY() : 0);
                 ligne.setMontant(detail.getIntPRICE() != null ? detail.getIntPRICE() : 0);
                 ligne.setVendeur(StringUtils.defaultString(vente.getUserVendeurName()));
@@ -988,6 +989,7 @@ public class SalesStatsRessource {
             row.createCell(col++).setCellValue(ligne.getCip());
             row.createCell(col++).setCellValue(ligne.getProduit());
             row.createCell(col++).setCellValue(ligne.getCodeTableau());
+            row.createCell(col++).setCellValue(ligne.getMotif());
             row.createCell(col++).setCellValue(ligne.getQuantite());
             row.createCell(col++).setCellValue(ligne.getMontant());
             row.createCell(col++).setCellValue(ligne.getVendeur());
