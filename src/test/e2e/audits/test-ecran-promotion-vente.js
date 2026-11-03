@@ -19,12 +19,12 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
 const BASE = ENV_E2E.BASE;
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 
-/* une remise client active avec une grille VNO de taux > 0, et le code remise article qui y mene */
-const [REMISE, NOM_REMISE, TYPE_REMISE, CODE] = q("SELECT r.lg_REMISE_ID, r.str_NAME, tr.str_DESCRIPTION, w.str_CODE_REMISE_ARTICLE FROM t_remise r"
-  + " JOIN t_type_remise tr ON tr.lg_TYPE_REMISE_ID = r.lg_TYPE_REMISE_ID"
-  + " JOIN t_grille_remise g ON g.lg_REMISE_ID = r.lg_REMISE_ID AND g.str_STATUT = 'enable' AND g.dbl_TAUX > 0"
-  + " JOIN t_workflow_remise_article w ON w.str_CODE_GRILLE_VNO = g.str_CODE_GRILLE AND w.str_STATUT = 'enable'"
-  + " WHERE r.str_STATUT = 'enable' AND w.str_CODE_REMISE_ARTICLE NOT IN ('2', '3') ORDER BY r.str_NAME LIMIT 1").split('\t');
+/* remise produit d'essai (10 %) sur la grille VNO d'un code remise article actif, autre que 2 et 3 (sans remise) */
+const REMISE = 'E2E-PR01-REMISE', NOM_REMISE = 'E2E PR01 remise', GRILLE = 'E2E-PR01-GRILLE';
+const TYPE_REMISE_PRODUIT = '54291528198233221411';
+const TYPE_REMISE = q(`SELECT str_DESCRIPTION FROM t_type_remise WHERE lg_TYPE_REMISE_ID = '${TYPE_REMISE_PRODUIT}'`);
+const [CODE, CODE_GRILLE] = q("SELECT str_CODE_REMISE_ARTICLE, str_CODE_GRILLE_VNO FROM t_workflow_remise_article WHERE str_STATUT = 'enable'"
+  + " AND str_CODE_REMISE_ARTICLE NOT IN ('2', '3') AND str_CODE_GRILLE_VNO IS NOT NULL ORDER BY str_CODE_REMISE_ARTICLE DESC LIMIT 1").split('\t');
 /* trois produits en stock, hors promotion, prix public >= 1000, non deconditionnes */
 const produits = q("SELECT GROUP_CONCAT(CONCAT_WS('|', f.lg_FAMILLE_ID, f.int_CIP, f.int_PRICE, IFNULL(f.str_CODE_REMISE, 'NULL'),"
   + " IFNULL(f.bl_PROMOTED + 0, 'NULL'), s.int_NUMBER_AVAILABLE, s.int_NUMBER) SEPARATOR ';') FROM (SELECT f.* FROM t_famille f"
@@ -45,6 +45,10 @@ const produitPromo = (promotion, f, prix, seuil, offertes) => q(`INSERT INTO t_p
   + ` int_ACTIVE_AT, dt_PROMOTED_DATE, lg_FAMILLE_ID, lg_CODE_PROMOTION_ID) VALUES (0, 0, ${offertes}, ${prix}, ${seuil}, NOW(), '${f.id}', ${promotion});`
   + ` UPDATE t_famille SET bl_PROMOTED = 1 WHERE lg_FAMILLE_ID = '${f.id}'`);
 function poser() {
+  q(`INSERT INTO t_remise (lg_REMISE_ID, str_NAME, str_CODE, dbl_TAUX, str_STATUT, dt_CREATED, dt_UPDATED, lg_TYPE_REMISE_ID)`
+    + ` VALUES ('${REMISE}', '${NOM_REMISE}', 'E2EPR01', 10, 'enable', NOW(), NOW(), '${TYPE_REMISE_PRODUIT}');`
+    + ` INSERT INTO t_grille_remise (lg_GRILLE_REMISE_ID, str_CODE_GRILLE, str_DESCRIPTION, dbl_TAUX, str_STATUT, lg_REMISE_ID, dt_CREATED, dt_UPDATED)`
+    + ` VALUES ('${GRILLE}', ${CODE_GRILLE}, 'E2E PR01', 10, 'enable', '${REMISE}', NOW(), NOW())`);
   ids.push(promo('PRIX SPECIAL', -2, 5)); produitPromo(ids[0], P, P.prix - 100, 0, 0);
   ids.push(promo('PRIX SPECIAL', 3, 10)); produitPromo(ids[1], T, T.prix - 100, 0, 0);
   ids.push(promo('UNITES GRATUITES', -2, 5)); produitPromo(ids[2], U, U.prix, 2, 1);
@@ -57,6 +61,7 @@ function nettoyer() {
       + " DELETE FROM t_preenregistrement_compte_client_tiers_payent WHERE lg_PREENREGISTREMENT_ID = '" + v + "';"
       + " DELETE FROM t_preenregistrement_detail WHERE lg_PREENREGISTREMENT_ID = '" + v + "'; DELETE FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID = '" + v + "'");
   }
+  q(`DELETE FROM t_grille_remise WHERE lg_GRILLE_REMISE_ID = '${GRILLE}'; DELETE FROM t_remise WHERE lg_REMISE_ID = '${REMISE}'`);
   const liste = ids.join(',') || '0';
   q(`DELETE FROM t_promotion_product WHERE lg_CODE_PROMOTION_ID IN (${liste}); DELETE FROM t_promotion WHERE lg_CODE_PROMOTION_ID IN (${liste})`);
   for (const f of produits) {
@@ -68,7 +73,7 @@ const ligne = (v, f) => q(`SELECT CONCAT_WS(' ', int_QUANTITY, int_PRICE_UNITAIR
   + ` IFNULL(promotion_produit_id, 'NULL')) FROM t_preenregistrement_detail WHERE lg_PREENREGISTREMENT_ID = '${v}' AND lg_FAMILLE_ID = '${f.id}'`).split(' ');
 
 (async () => {
-  ok('Jeu d\'essai : une remise client et trois produits', !!REMISE && produits.length === 3 && !!U && !!NOM_ASSURANCE,
+  ok('Jeu d\'essai : un code remise article et trois produits', !!CODE && !!CODE_GRILLE && !!TYPE_REMISE && produits.length === 3 && !!U && !!NOM_ASSURANCE,
     NOM_REMISE + ' / ' + produits.map((f) => f.cip + ' ' + f.prix).join(', '));
   try { poser(); } catch (e) { nettoyer(); throw e; }
   const b = await ENV_E2E.lancer(chromium);
@@ -124,18 +129,21 @@ const ligne = (v, f) => q(`SELECT CONCAT_WS(' ', int_QUANTITY, int_PRICE_UNITAIR
     ok('Total de la vente affiché', Number(String(total).replace(/\D/g, '')) === attendu
       && Number(q(`SELECT int_PRICE FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID = '${vente}'`)) === attendu, total + ' / ' + attendu);
 
-    /* remise client : type puis remise, choisis dans les listes */
-    await choisir(p, 'doventemanager #contenu [xtype=container] #typeRemise', TYPE_REMISE);
-    await p.waitForTimeout(500);
+    /* remise client choisie dans la liste « REMISE » (la liste du type de remise est masquee a l'ecran) */
     await choisir(p, 'doventemanager #contenu [xtype=container] #remise', NOM_REMISE);
+    await p.waitForLoadState('networkidle').catch(() => {});
+    await p.waitForTimeout(1500);
+    /* Entree dans le champ produit vide : calcul du net a payer, comme a la caisse */
+    await cliquer(p, 'doventemanager #contenu [xtype=fieldcontainer] #produit');
+    await p.keyboard.press('Enter');
     await p.waitForLoadState('networkidle').catch(() => {});
     await p.waitForTimeout(2000);
     const rp = ligne(vente, P)[4], rt = ligne(vente, T)[4], ru = ligne(vente, U)[4];
     ok('Remise client : rien sur les lignes en promotion, la remise sur la ligne sans promotion', rp === '0' && ru === '0' && Number(rt) > 0,
       'P=' + rp + ' U=' + ru + ' T=' + rt);
 
-    /* passage en assurance par la liste du type de vente */
-    await choisir(p, 'doventemanager #typeVente', NOM_ASSURANCE);
+    /* passage en assurance : bouton « Assurance » du type de vente */
+    await p.locator('text=/^\\s*Assurance\\s*$/').filter({ visible: true }).first().click();
     await p.waitForLoadState('networkidle').catch(() => {});
     await p.waitForTimeout(2500);
     const ap = ligne(vente, P), au = ligne(vente, U);
@@ -154,7 +162,8 @@ const ligne = (v, f) => q(`SELECT CONCAT_WS(' ', int_QUANTITY, int_PRICE_UNITAIR
     await b.close();
     nettoyer();
     ok('Données d\'essai retirées', ventes.every((v) => q("SELECT COUNT(*) FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID = '" + v + "'") === '0')
-      && q(`SELECT COUNT(*) FROM t_promotion WHERE lg_CODE_PROMOTION_ID IN (${ids.join(',') || 0})`) === '0');
+      && q(`SELECT COUNT(*) FROM t_promotion WHERE lg_CODE_PROMOTION_ID IN (${ids.join(',') || 0})`) === '0'
+      && q(`SELECT COUNT(*) FROM t_remise WHERE lg_REMISE_ID = '${REMISE}'`) === '0');
   }
   const ko = res.filter((x) => !x.c).length;
   console.log('\n' + (res.length - ko) + '/' + res.length + (ko ? ' ECHEC' : ' OK'));
