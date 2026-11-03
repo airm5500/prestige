@@ -670,11 +670,19 @@ public class CaisseServiceImpl implements CaisseService {
     public JSONObject rollbackcloseCaisse(TUser o, String idCaisse) throws JSONException {
         JSONObject json = new JSONObject();
         try {
-            TResumeCaisse oTResumeCaisse = getEntityManager().find(TResumeCaisse.class, idCaisse);
+            TResumeCaisse oTResumeCaisse = getEntityManager().find(TResumeCaisse.class, idCaisse,
+                    javax.persistence.LockModeType.PESSIMISTIC_WRITE);
 
             if (oTResumeCaisse.getStrSTATUT().equals(Constant.STATUT_IS_USING)) {
                 json.put("success", false).put("msg",
                         " Impossible d'annuler cette caisse ;La caisse specifiée est déjà  en cours d'utilisation");
+                return json;
+            }
+            // gestion de caisse G3 : une cloture validee est definitive (le billetage et les editions du jour sont
+            // la piece comptable) ; seule une cloture pas encore validee s'annule.
+            if (Constant.STATUT_IS_CLOSED.equals(oTResumeCaisse.getStrSTATUT())) {
+                json.put("success", false).put("msg", " Impossible d'annuler cette clôture : elle a déjà été validée."
+                        + " Une clôture validée est définitive.");
                 return json;
             }
             TResumeCaisse oTResumeCaisseCurrent = this.getTResumeCaisse(oTResumeCaisse.getLgUSERID().getLgUSERID(),
@@ -779,7 +787,8 @@ public class CaisseServiceImpl implements CaisseService {
         if (!checkCaisse(user)) {
             return json.put("success", false).put("msg", "Votre caisse est fermée.");
         }
-        TTypeMvtCaisse typeMvtCaisse = emg.find(TTypeMvtCaisse.class, caisseDTO.getIdTypeMvt());
+        TTypeMvtCaisse typeMvtCaisse = caisseDTO.getIdTypeMvt() == null ? null
+                : emg.find(TTypeMvtCaisse.class, caisseDTO.getIdTypeMvt());
         TModeReglement modeReglement = findModeByIdOrName(caisseDTO.getIdModeRegle());
         TTypeReglement tTypeReglement = findTypeRegByIdOrName(caisseDTO.getIdTypeRegl());
         if (modeReglement == null) {
@@ -788,9 +797,35 @@ public class CaisseServiceImpl implements CaisseService {
         /*
          * Audit VC-16 (reproduit le 25/10) : un mouvement date de demain etait accepte. Une date future est refusee ;
          * la transaction de caisse porte la date saisie du mouvement (decision du 26/10 : date de l'operation reelle).
+         *
+         * gestion de caisse G2 : le type de mouvement porte le sens, jamais le signe (une sortie saisie negative
+         * devenait une entree) ; un meme mouvement envoye deux fois de suite (double clic, double
+         * Entree) n'est enregistre qu'une fois : la caisse en cours est verrouillee le temps du controle.
          */
         if (dateFuture(caisseDTO.getDateMvt())) {
             return json.put("success", false).put("msg", "La date du mouvement ne peut pas être dans le futur.");
+        }
+        if (typeMvtCaisse == null) {
+            return json.put("success", false).put("msg", "Choisissez le type de mouvement.");
+        }
+        if (caisseDTO.getAmount() == null || caisseDTO.getAmount() <= 0) {
+            return json.put("success", false).put("msg",
+                    "Le montant doit être supérieur à 0 : le type de mouvement (entrée ou sortie) en donne le sens.");
+        }
+        TResumeCaisse enCours = resumeCaisseEnCours(user);
+        if (enCours != null) {
+            emg.lock(enCours, javax.persistence.LockModeType.PESSIMISTIC_WRITE);
+        }
+        long recents = emg.createQuery("SELECT COUNT(o) FROM TMvtCaisse o WHERE o.lgUSERID = ?1"
+                + " AND o.lgTYPEMVTCAISSEID.lgTYPEMVTCAISSEID = ?2 AND o.lgMODEREGLEMENTID.lgMODEREGLEMENTID = ?3"
+                + " AND ABS(o.intAMOUNT) = ?4 AND o.dtCREATED >= ?5", Long.class).setParameter(1, user.getLgUSERID())
+                .setParameter(2, typeMvtCaisse.getLgTYPEMVTCAISSEID())
+                .setParameter(3, modeReglement.getLgMODEREGLEMENTID())
+                .setParameter(4, caisseDTO.getAmount().doubleValue())
+                .setParameter(5, new Date(System.currentTimeMillis() - 15000L)).getSingleResult();
+        if (recents > 0) {
+            return json.put("success", false).put("msg", "Ce mouvement vient d'être enregistré (il y a moins de 15 s) :"
+                    + " il n'est pas enregistré une deuxième fois.");
         }
         if (typeMvtCaisse.getLgTYPEMVTCAISSEID().equals(Constant.MVT_SORTIE_CAISSE)) {
             caisseDTO.setAmount(caisseDTO.getAmount() * (-1));
@@ -988,6 +1023,10 @@ public class CaisseServiceImpl implements CaisseService {
             }
             if (getStatutCoffre(idUser) != null) {
                 return json.put("success", false).put("msg", "Cet utilisateur a déjà reçu un fond de caisse");
+            }
+            // gestion de caisse G5 : fond de caisse negatif refuse ; 0 reste permis, c'est l'usage de l'officine
+            if (amount == null || amount < 0) {
+                return json.put("success", false).put("msg", "Le fond de caisse ne peut pas être négatif");
             }
             createCoffreCaisse(user, operateur, amount.doubleValue());
         } catch (Exception e) {
@@ -2248,6 +2287,10 @@ public class CaisseServiceImpl implements CaisseService {
         if (coffreEnAttente != null) {
             throw new CaisseUsingExeception(
                     messageFondDejaAttribue(coffreEnAttente.getIntAMOUNT(), coffreEnAttente.getDtCREATED()));
+        }
+        // gestion de caisse G5 : fond de caisse negatif refuse ; 0 reste permis, c'est l'usage de l'officine
+        if (coffreCaisseDto.getAmount() < 0) {
+            throw new CaisseUsingExeception("Le fond de caisse ne peut pas être négatif");
         }
         String description = "Ouverture de la caisse de " + user.getStrFIRSTNAME() + " " + user.getStrLASTNAME()
                 + " d'un montant de " + coffreCaisseDto.getAmount();

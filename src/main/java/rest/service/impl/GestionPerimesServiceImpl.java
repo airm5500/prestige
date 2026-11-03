@@ -21,9 +21,11 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 import javax.ejb.EJB;
 import javax.ejb.Stateless;
 import javax.persistence.EntityManager;
@@ -61,29 +63,74 @@ public class GestionPerimesServiceImpl implements GestionPerimesService {
 
     @Override
     public JSONObject addPerime(String lgFAMILLEID, Integer intNUMBER, String intLot, String dtPeremption, TUser user) {
-        List<TWarehouse> list = checkIsExist(lgFAMILLEID);
         String empl = user.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
+        /*
+         * audit 06 PE-01, PE-02, PE-04 : toutes les lignes en cours du produit dans cet emplacement, quelle que soit
+         * leur date
+         */
+        List<TWarehouse> list = checkIsExist(lgFAMILLEID, empl);
         if (list.isEmpty()) {
             return update(lgFAMILLEID, intNUMBER, empl, dtPeremption, user, intLot);
         } else {
 
-            TWarehouse tw = getTWarehouse(lgFAMILLEID, intLot);
+            TWarehouse tw = list.stream().filter(w -> Objects.equals(w.getIntNUMLOT(), intLot)).findFirst()
+                    .orElse(null);
             if (tw != null) {
-                return updateStock(tw, intNUMBER, empl);
+                return updateStock(tw, intNUMBER, empl, list);
             } else {
                 return updateFamillyStock(user, lgFAMILLEID, intNUMBER, intLot, dtPeremption, list, empl);
             }
         }
     }
 
-    private List<TWarehouse> checkIsExist(String lgFAMILLEID) {
-
-        List<TWarehouse> list = getEntityManager().createQuery(
-                "SELECT o FROM TWarehouse o WHERE  FUNCTION('DATE', o.dtCREATED)= FUNCTION('DATE',?1) AND o.lgFAMILLEID.lgFAMILLEID=?2  AND o.strSTATUT=?3")
-                .setParameter(1, new Date()).setParameter(2, lgFAMILLEID).setParameter(3, Constant.STATUT_PENDING)
+    /** lignes en cours (non cloturees) du produit, saisies par les utilisateurs de cet emplacement */
+    private List<TWarehouse> checkIsExist(String lgFAMILLEID, String emplacementId) {
+        return getEntityManager()
+                .createQuery(
+                        "SELECT o FROM TWarehouse o WHERE o.lgFAMILLEID.lgFAMILLEID = ?1 AND o.strSTATUT = ?2"
+                                + " AND o.lgUSERID.lgEMPLACEMENTID.lgEMPLACEMENTID = ?3 ORDER BY o.dtCREATED",
+                        TWarehouse.class)
+                .setParameter(1, lgFAMILLEID).setParameter(2, Constant.STATUT_PENDING).setParameter(3, emplacementId)
                 .getResultList();
-        return list;
+    }
 
+    /**
+     * toute la saisie en cours de cet emplacement (audit 06 PE-02 : quelle que soit la date ; PE-04 : par emplacement)
+     */
+    private List<TWarehouse> lignesEnCours(String emplacementId) {
+        return getEntityManager().createQuery(
+                "SELECT o FROM TWarehouse o WHERE o.strSTATUT = ?1 AND o.lgUSERID.lgEMPLACEMENTID.lgEMPLACEMENTID = ?2"
+                        + " ORDER BY o.dtCREATED",
+                TWarehouse.class).setParameter(1, Constant.STATUT_PENDING).setParameter(2, emplacementId)
+                .getResultList();
+    }
+
+    private static int total(List<TWarehouse> lignes) {
+        return lignes.stream().mapToInt(w -> Objects.requireNonNullElse(w.getIntNUMBER(), 0)).sum();
+    }
+
+    /**
+     * Audit 06 PE-03 : la cloture diminue le reste des lots du produit : le lot saisi d'abord, puis les lots deja
+     * perimes, puis les autres, par date de peremption.
+     */
+    private void sortirLots(String produitId, String numLot, int quantite) {
+        @SuppressWarnings("unchecked")
+        List<Object[]> lots = getEntityManager()
+                .createNativeQuery("SELECT lg_LOT_ID, current_stock FROM t_lot"
+                        + " WHERE lg_FAMILLE_ID = ?1 AND current_stock > 0"
+                        + " ORDER BY (int_NUM_LOT = ?2) DESC, (dt_PEREMPTION <= NOW()) DESC, dt_PEREMPTION, dt_CREATED")
+                .setParameter(1, produitId).setParameter(2, Objects.requireNonNullElse(numLot, "")).getResultList();
+        int reste = quantite;
+        for (Object[] l : lots) {
+            if (reste <= 0) {
+                break;
+            }
+            int pris = Math.min(reste, ((Number) l[1]).intValue());
+            getEntityManager().createNativeQuery(
+                    "UPDATE t_lot SET current_stock = current_stock - ?1, dt_UPDATED = NOW() WHERE lg_LOT_ID = ?2")
+                    .setParameter(1, pris).setParameter(2, l[0]).executeUpdate();
+            reste -= pris;
+        }
     }
 
     private TFamilleStock getTProductItemStock(String lgFAMILLEID, String lgEMPLACEMENTID) {
@@ -102,7 +149,8 @@ public class GestionPerimesServiceImpl implements GestionPerimesService {
 
     }
 
-    public JSONObject updateStock(TWarehouse oWarehouse, Integer intNUMBER, String lgEMPLACEMENTID) {
+    public JSONObject updateStock(TWarehouse oWarehouse, Integer intNUMBER, String lgEMPLACEMENTID,
+            List<TWarehouse> lignes) {
 
         JSONObject json = new JSONObject();
 
@@ -110,12 +158,15 @@ public class GestionPerimesServiceImpl implements GestionPerimesService {
 
             TFamilleStock oFamilleStock = getTProductItemStock(oWarehouse.getLgFAMILLEID().getLgFAMILLEID(),
                     lgEMPLACEMENTID);
-            if (oFamilleStock.getIntNUMBERAVAILABLE() < (intNUMBER + oWarehouse.getIntNUMBER())) {
+            /* audit 06 PE-01 : toutes les lignes du produit (tous lots), pas seulement celle de ce lot */
+            if (oFamilleStock.getIntNUMBERAVAILABLE() < (intNUMBER + total(lignes))) {
                 json.put("success", false);
                 json.put("message",
                         "Cette ligne existe déjà avec quantité <span style='font-weight:900;'>"
                                 + oWarehouse.getIntNUMBER()
-                                + "</span>\n La somme des différentes quantités es supérieure à celle du stock");
+                                + "</span>\n La somme des quantités saisies pour ce produit (tous lots : "
+                                + (intNUMBER + total(lignes)) + ") est supérieure au stock ("
+                                + oFamilleStock.getIntNUMBERAVAILABLE() + ")");
             } else {
                 oWarehouse.setIntNUMBER(intNUMBER + oWarehouse.getIntNUMBER());
                 oWarehouse.setStockFinal(oFamilleStock.getIntNUMBERAVAILABLE() - oWarehouse.getIntNUMBER());
@@ -233,7 +284,12 @@ public class GestionPerimesServiceImpl implements GestionPerimesService {
             TWarehouse nWarehouse = getEntityManager().find(TWarehouse.class, params.getRef());
             TFamilleStock oTFamilleStock = getTProductItemStock(nWarehouse.getLgFAMILLEID().getLgFAMILLEID(),
                     user.getLgEMPLACEMENTID().getLgEMPLACEMENTID());
-            if (oTFamilleStock.getIntNUMBERAVAILABLE() < params.getValue()) {
+            /* audit 06 PE-01 : les autres lignes du produit comptent aussi */
+            int autres = total(checkIsExist(nWarehouse.getLgFAMILLEID().getLgFAMILLEID(),
+                    user.getLgEMPLACEMENTID().getLgEMPLACEMENTID()).stream()
+                            .filter(w -> !w.getLgWAREHOUSEID().equals(nWarehouse.getLgWAREHOUSEID()))
+                            .collect(Collectors.toList()));
+            if (oTFamilleStock.getIntNUMBERAVAILABLE() < params.getValue() + autres) {
                 json.put("success", false);
                 json.put("message",
                         "La quantité  à retirer est supérieure à celle en stock<br> Vous pouvez faire un ajustement du stock <br> Quantité en stock <span style='color:red;font-weight:900;'>"
@@ -293,15 +349,15 @@ public class GestionPerimesServiceImpl implements GestionPerimesService {
         }
 
         try {
-            List<TWarehouse> list;
-            TWarehouse oWarehouse = getEntityManager().find(TWarehouse.class, id);
-            list = getEntityManager().createQuery(
-                    "SELECT o FROM TWarehouse o WHERE  FUNCTION('DATE', o.dtCREATED)= FUNCTION('DATE',?1) AND o.strSTATUT=?2")
-                    .setParameter(1, oWarehouse.getDtCREATED()).setParameter(2, Constant.STATUT_PENDING)
-                    .getResultList();
-            int i = 0;
-            MvtProduitObselete mvtProduit = new MvtProduitObselete();
+            /*
+             * audit 06 PE-02, PE-04 : toute la saisie en cours de l'emplacement de l'utilisateur, quelle que soit la
+             * date (avant : les lignes du jour de la premiere ligne, de tous les emplacements).
+             */
             TEmplacement emplacement = user.getLgEMPLACEMENTID();
+            List<TWarehouse> list = lignesEnCours(emplacement.getLgEMPLACEMENTID());
+            int i = 0;
+            List<String> nonAppliquees = new ArrayList<>();
+            MvtProduitObselete mvtProduit = new MvtProduitObselete();
             JSONArray items = new JSONArray();
             for (TWarehouse tWarehouse : list) {
 
@@ -309,7 +365,15 @@ public class GestionPerimesServiceImpl implements GestionPerimesService {
                 TFamilleStock oTFamilleStock = getTProductItemStock(tWarehouse.getLgFAMILLEID().getLgFAMILLEID(),
                         emplacement.getLgEMPLACEMENTID());
                 Integer stockInit = oTFamilleStock.getIntNUMBERAVAILABLE();
-                if (oTFamilleStock.getIntNUMBERAVAILABLE() > 0) {
+                /*
+                 * audit 06 PE-01 : controle refait a la cloture avec le stock courant ; une ligne qui le rendrait
+                 * negatif reste en attente et est signalee.
+                 */
+                if (stockInit < tWarehouse.getIntNUMBER()) {
+                    nonAppliquees
+                            .add(famille.getIntCIP() + " " + famille.getStrNAME() + " (lot " + tWarehouse.getIntNUMLOT()
+                                    + ") : " + tWarehouse.getIntNUMBER() + " à retirer, " + stockInit + " en stock");
+                } else {
                     oTFamilleStock
                             .setIntNUMBERAVAILABLE(oTFamilleStock.getIntNUMBERAVAILABLE() - tWarehouse.getIntNUMBER());
                     oTFamilleStock.setIntNUMBER(oTFamilleStock.getIntNUMBERAVAILABLE());
@@ -319,6 +383,7 @@ public class GestionPerimesServiceImpl implements GestionPerimesService {
                     tWarehouse.setStrSTATUT(Constant.STATUT_DELETE);
                     getEntityManager().merge(oTFamilleStock);
                     getEntityManager().merge(tWarehouse);
+                    sortirLots(famille.getLgFAMILLEID(), tWarehouse.getIntNUMLOT(), tWarehouse.getIntNUMBER());
                     mvtProduit.saveMvtProduit(famille.getIntPRICE(), tWarehouse.getLgWAREHOUSEID(), Constant.PERIME,
                             famille, user, emplacement, tWarehouse.getIntNUMBER(), stockInit,
                             stockInit - tWarehouse.getIntNUMBER(), 0, getEntityManager());
@@ -346,6 +411,11 @@ public class GestionPerimesServiceImpl implements GestionPerimesService {
             createNotification("", TypeNotification.SAISIS_PERIMES, user, donnee, null);
             json.put("success", true);
             json.put("NB", i);
+            if (!nonAppliquees.isEmpty()) {
+                json.put("nonAppliquees", nonAppliquees.size()).put("message",
+                        nonAppliquees.size() + " ligne(s) non retirée(s), stock insuffisant ; elles restent dans la"
+                                + " saisie en cours :<br>- " + String.join("<br>- ", nonAppliquees));
+            }
 
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "updateStock {0}", e);
@@ -384,22 +454,39 @@ public class GestionPerimesServiceImpl implements GestionPerimesService {
 
     @Override
     public JSONObject getPerimesSaisiEnCours(int start, int limit) {
-        long count = fetchPerimesSaisiEnCoursCount();
+        return getPerimesSaisiEnCours(start, limit, null);
+    }
+
+    @Override
+    public JSONObject getPerimesSaisiEnCours(int start, int limit, TUser user) {
+        String empl = user == null || user.getLgEMPLACEMENTID() == null ? null
+                : user.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
+        long count = fetchPerimesSaisiEnCoursCount(empl);
         JSONObject json = new JSONObject();
-        json.put("data", new JSONArray(fetchPerimesSaisiEnCours(start, limit)));
+        json.put("data", new JSONArray(fetchPerimesSaisiEnCours(start, limit, empl)));
         json.put("total", count);
         return json;
     }
 
-    private List<PerimesDTO> fetchPerimesSaisiEnCours(int start, int limit) {
+    /** audit 06 PE-02, PE-04 : lignes en cours de l'emplacement (toutes si null), quelle que soit leur date */
+    private static String filtreEnCours(String empl) {
+        return " WHERE `t_warehouse`.`str_STATUT`='" + Constant.STATUT_PENDING + "'"
+                + (empl == null ? ""
+                        : " AND EXISTS (SELECT 1 FROM t_user u WHERE u.lg_USER_ID = `t_warehouse`.`lg_USER_ID`"
+                                + " AND u.lg_EMPLACEMENT_ID = ?1)");
+    }
+
+    private List<PerimesDTO> fetchPerimesSaisiEnCours(int start, int limit, String empl) {
         List<PerimesDTO> datas = new ArrayList<>();
         try {
             String qry = "SELECT  `t_warehouse`.`lg_FAMILLE_ID`, `t_warehouse`.`int_NUM_LOT`, `t_warehouse`.`int_NUMBER`, DATE_FORMAT(`t_warehouse`.`dt_CREATED`,'%d/%m/%Y %H:%i') AS DATEENTREE, `t_famille`.`int_CIP`,";
             qry += "  DATE_FORMAT(`t_warehouse`.`dt_PEREMPTION`,'%d/%m/%Y') AS  dtPEREMPTION,`t_famille`.`str_NAME`, `t_warehouse`.`lg_WAREHOUSE_ID`,`t_warehouse`.`stock_initial`,`t_warehouse`.`stock_final` FROM  `t_famille`  INNER JOIN `t_warehouse` ON (`t_famille`.`lg_FAMILLE_ID` = `t_warehouse`.`lg_FAMILLE_ID`)";
-            qry += " WHERE  DATE(`t_warehouse`.`dt_CREATED`) = CURDATE() AND  `t_warehouse`.`str_STATUT`='"
-                    + Constant.STATUT_PENDING + "'   ORDER BY `t_warehouse`.`dt_CREATED` DESC LIMIT " + start + ", "
-                    + limit + "";
-            List<Object[]> list = this.getEntityManager().createNativeQuery(qry).getResultList();
+            qry += filtreEnCours(empl) + " ORDER BY `t_warehouse`.`dt_CREATED` DESC LIMIT " + start + ", " + limit;
+            javax.persistence.Query nq = this.getEntityManager().createNativeQuery(qry);
+            if (empl != null) {
+                nq.setParameter(1, empl);
+            }
+            List<Object[]> list = nq.getResultList();
 
             for (Object[] objects : list) {
                 PerimesDTO perimesDTO = new PerimesDTO();
@@ -422,16 +509,19 @@ public class GestionPerimesServiceImpl implements GestionPerimesService {
         return datas;
     }
 
-    private long fetchPerimesSaisiEnCoursCount() {
+    private long fetchPerimesSaisiEnCoursCount(String empl) {
 
         long count = 0;
 
         try {
 
-            String qry = "SELECT COUNT( `t_warehouse`.`lg_FAMILLE_ID`) FROM  `t_famille`  INNER JOIN `t_warehouse` ON (`t_famille`.`lg_FAMILLE_ID` = `t_warehouse`.`lg_FAMILLE_ID`) WHERE  DATE(`t_warehouse`.`dt_CREATED`) = CURDATE() AND  `t_warehouse`.`str_STATUT`='"
-                    + Constant.STATUT_PENDING + "'";
-
-            Object object = this.getEntityManager().createNativeQuery(qry).getSingleResult();
+            String qry = "SELECT COUNT( `t_warehouse`.`lg_FAMILLE_ID`) FROM  `t_famille`  INNER JOIN `t_warehouse` ON (`t_famille`.`lg_FAMILLE_ID` = `t_warehouse`.`lg_FAMILLE_ID`)"
+                    + filtreEnCours(empl);
+            javax.persistence.Query nq = this.getEntityManager().createNativeQuery(qry);
+            if (empl != null) {
+                nq.setParameter(1, empl);
+            }
+            Object object = nq.getSingleResult();
             count = Long.parseLong(object + "");
 
         } catch (Exception e) {

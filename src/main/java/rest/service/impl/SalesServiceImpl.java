@@ -49,6 +49,7 @@ import dal.TPreenregistrementCompteClient;
 import dal.TPreenregistrementCompteClientTiersPayent;
 import dal.TPreenregistrementDetail;
 import dal.TPreenregistrementDetail_;
+import dal.TPromotionProduct;
 import dal.TPreenregistrement_;
 import dal.TRecettes;
 import dal.TReglement;
@@ -983,6 +984,7 @@ public class SalesServiceImpl implements SalesService {
         newItem.setIntPRICEOTHER(tp.getIntPRICEOTHER());
         newItem.setIntPRICEDETAILOTHER(tp.getIntPRICEDETAILOTHER());
         newItem.setIntFREEPACKNUMBER(tp.getIntFREEPACKNUMBER());
+        newItem.setPromotionProduitId(tp.getPromotionProduitId());
         newItem.setIntPRICEREMISE((-1) * tp.getIntPRICEREMISE());
         newItem.setIntAVOIR((-1) * tp.getIntAVOIR());
         newItem.setIntAVOIRSERVED((-1) * tp.getIntQUANTITYSERVED());
@@ -1316,7 +1318,7 @@ public class SalesServiceImpl implements SalesService {
                     emplacementDeSaisie(salesParams))) {
                 return json;
             }
-            Pair<TPreenregistrement, TPreenregistrementDetail> pair = initVente(salesParams);
+            Pair<TPreenregistrement, TPreenregistrementDetail> pair = initVente(salesParams, false);
             TPreenregistrement preenregistrement = pair.getKey();
             TPreenregistrementDetail dp = pair.getRight();
             findClientById(salesParams.getClientId()).ifPresent(c -> {
@@ -1669,7 +1671,7 @@ public class SalesServiceImpl implements SalesService {
                 return json;
             }
 
-            Pair<TPreenregistrement, TPreenregistrementDetail> pair = initVente(salesParams);
+            Pair<TPreenregistrement, TPreenregistrementDetail> pair = initVente(salesParams, true);
             TPreenregistrement op = pair.getKey();
             TPreenregistrementDetail dt = pair.getRight();
             op.setStrTYPEVENTE(Constant.KEY_VENTE_NON_ORDONNANCEE);
@@ -1719,8 +1721,123 @@ public class SalesServiceImpl implements SalesService {
         return getEm().find(TTypeVente.class, id);
     }
 
+    /*
+     * Audit 05 PR-01 : la promotion est appliquee par le serveur, a la vente au comptant seulement (jamais en assurance
+     * ni pour un depot), si elle est en cours (debut <= aujourd'hui <= fin). - REMISE, PRIX SPECIAL : prix unitaire
+     * promotionnel (s'il est inferieur au prix envoye) ; - UNITES GRATUITES (n offertes a partir de s) : sur chaque
+     * groupe complet de s + n boites de la ligne, n ne sont pas payees ; elles sont dans la quantite de la ligne, donc
+     * sortent du stock et reviennent a l'annulation. La ligne garde la promotion appliquee (promotion_produit_id) : la
+     * remise client ne s'y ajoute pas.
+     */
+    private static final String PROMO_UNITES_GRATUITES = "UNITES GRATUITES";
+
+    private boolean venteAvecPromotion(TPreenregistrement tp) {
+        return Constant.KEY_VENTE_NON_ORDONNANCEE.equals(tp.getStrTYPEVENTE()) && StringUtils.isEmpty(tp.getPkBrand());
+    }
+
+    private TPromotionProduct promotionEnCours(TFamille famille) {
+        Date debutDuJour = Date.from(LocalDate.now().atStartOfDay(java.time.ZoneId.systemDefault()).toInstant());
+        List<TPromotionProduct> promotions = getEm()
+                .createQuery("SELECT o FROM TPromotionProduct o"
+                        + " WHERE o.lgFAMILLEID.lgFAMILLEID = ?1 AND o.lgCODEPROMOTIONID.dtSTARTDATE <= ?2"
+                        + " AND o.lgCODEPROMOTIONID.dtENDDATE >= ?3 ORDER BY o.lgCODEPROMOTIONID.dtSTARTDATE DESC",
+                        TPromotionProduct.class)
+                .setParameter(1, famille.getLgFAMILLEID()).setParameter(2, new Date()).setParameter(3, debutDuJour)
+                .setMaxResults(1).getResultList();
+        return promotions.isEmpty() ? null : promotions.get(0);
+    }
+
+    /** Applique la promotion en cours a une ligne qui n'en a pas : prix unitaire et marque ; false si aucune. */
+    private boolean promouvoirLigne(TPreenregistrementDetail d) {
+        TPromotionProduct promotion = promotionEnCours(d.getLgFAMILLEID());
+        if (promotion == null) {
+            return false;
+        }
+        if (PROMO_UNITES_GRATUITES.equals(promotion.getLgCODEPROMOTIONID().getStrTYPE())) {
+            d.setPromotionProduitId(promotion.getLgPROMOTIONPRODUCTID());
+            return true;
+        }
+        int prix = promotion.getDbPRICE() != null ? (int) Math.round(promotion.getDbPRICE()) : 0;
+        if (prix > 0 && d.getIntPRICEUNITAIR() != null && prix < d.getIntPRICEUNITAIR()) {
+            d.setIntPRICEUNITAIR(prix);
+            d.setPromotionProduitId(promotion.getLgPROMOTIONPRODUCTID());
+            return true;
+        }
+        return false;
+    }
+
+    private int unitesGratuites(TPreenregistrementDetail d) {
+        if (d.getPromotionProduitId() == null) {
+            return 0;
+        }
+        TPromotionProduct promotion = getEm().find(TPromotionProduct.class, d.getPromotionProduitId());
+        if (promotion == null || !PROMO_UNITES_GRATUITES.equals(promotion.getLgCODEPROMOTIONID().getStrTYPE())) {
+            return 0;
+        }
+        int seuil = promotion.getIntACTIVEAT() != null ? promotion.getIntACTIVEAT() : 0;
+        int offertes = promotion.getIntPACKNUMBER() != null ? promotion.getIntPACKNUMBER() : 0;
+        if (seuil <= 0 || offertes <= 0) {
+            return 0;
+        }
+        return (d.getIntQUANTITY() / (seuil + offertes)) * offertes;
+    }
+
+    /** Montant de la ligne : unites payees (quantite moins unites gratuites) au prix unitaire. */
+    private int montantLigne(TPreenregistrementDetail d) {
+        int gratuites = unitesGratuites(d);
+        d.setIntFREEPACKNUMBER(gratuites);
+        return d.getIntPRICEUNITAIR() * (d.getIntQUANTITY() - gratuites);
+    }
+
+    /**
+     * Recalcule une ligne au prix public (sans promotion) ou au prix promotionnel, et reporte l'ecart sur la vente
+     * (vente qui devient assurance, ou redevient comptant).
+     */
+    private void retarifierLigne(TPreenregistrement tp, TPreenregistrementDetail d, boolean promotion) {
+        int ancienPrix = d.getIntPRICE();
+        int ancienneTva = d.getMontantTva();
+        d.setPromotionProduitId(null);
+        d.setIntPRICEUNITAIR(d.getLgFAMILLEID().getIntPRICE());
+        if (promotion) {
+            promouvoirLigne(d);
+        }
+        d.setIntPRICE(montantLigne(d));
+        d.setMontantTva(calculeTva(d.getLgFAMILLEID().getLgCODETVAID(), d.getIntPRICE()));
+        d.setIntPRICEREMISE(0);
+        d.setDtUPDATED(new Date());
+        tp.setIntPRICE(tp.getIntPRICE() + d.getIntPRICE() - ancienPrix);
+        tp.setMontantTva(tp.getMontantTva() + d.getMontantTva() - ancienneTva);
+        if (Boolean.TRUE.equals(d.getBoolACCOUNT())) {
+            tp.setIntACCOUNT(tp.getIntACCOUNT() + d.getIntPRICE() - ancienPrix);
+        }
+        getEm().merge(d);
+    }
+
+    /** Vente qui passe en assurance : les lignes en promotion reviennent au prix public. Rend le nombre de lignes. */
+    private int retirerPromotions(TPreenregistrement tp) {
+        int n = 0;
+        for (TPreenregistrementDetail d : getItems(tp)) {
+            if (d.getPromotionProduitId() != null) {
+                retarifierLigne(tp, d, false);
+                n++;
+            }
+        }
+        return n;
+    }
+
+    /** Vente qui redevient comptant : les lignes au prix public prennent la promotion en cours. */
+    private void appliquerPromotions(TPreenregistrement tp) {
+        for (TPreenregistrementDetail d : getItems(tp)) {
+            if (d.getPromotionProduitId() == null && d.getLgFAMILLEID().getIntPRICE() != null
+                    && d.getLgFAMILLEID().getIntPRICE().equals(d.getIntPRICEUNITAIR())
+                    && promotionEnCours(d.getLgFAMILLEID()) != null) {
+                retarifierLigne(tp, d, true);
+            }
+        }
+    }
+
     private TPreenregistrementDetail addPreenregistrementItem(TPreenregistrement tp, TFamille oFamille, int qte,
-            int qteServie, int qteUg, Integer pu) {
+            int qteServie, int qteUg, Integer pu, boolean comptant) {
 
         findParamettreTakeIntoAccount("KEY_TAKE_INTO_ACCOUNT");
         TCodeTva tva = oFamille.getLgCODETVAID();
@@ -1731,15 +1848,17 @@ public class SalesServiceImpl implements SalesService {
         tpd.setDtCREATED(new Date());
         tpd.setDtUPDATED(tpd.getDtCREATED());
         tpd.setIntPRICEUNITAIR(pu);
-        tpd.setIntPRICE(pu * qte);
-        tpd.setMontantTva(calculeTva(tva, pu * qte));
+        tpd.setIntQUANTITY(qte);
+        if (comptant) {
+            promouvoirLigne(tpd);
+        }
+        tpd.setIntPRICE(montantLigne(tpd));
+        tpd.setMontantTva(calculeTva(tva, tpd.getIntPRICE()));
         tpd.setValeurTva(tva.getIntVALUE());
         tpd.setIntUG(qteUg);
-        tpd.setIntQUANTITY(qte);
         tpd.setIntQUANTITYSERVED(qteServie);
         tpd.setIntPRICEOTHER(0);
         tpd.setIntPRICEDETAILOTHER(0);
-        tpd.setIntFREEPACKNUMBER(0);
         tpd.setIntPRICEREMISE(0);
         tpd.setIntAVOIR(tpd.getIntQUANTITY() - tpd.getIntQUANTITYSERVED());
         tpd.setIntAVOIRSERVED(tpd.getIntQUANTITYSERVED());
@@ -1816,9 +1935,8 @@ public class SalesServiceImpl implements SalesService {
                 }
                 int oldPrice = tpd.getIntPRICE();
                 int montantTva = tpd.getMontantTva();
-                tpd.setIntFREEPACKNUMBER(0);
                 tpd.setIntQUANTITY(qty);
-                tpd.setIntPRICE(tpd.getIntPRICEUNITAIR() * tpd.getIntQUANTITY());
+                tpd.setIntPRICE(montantLigne(tpd));
                 tpd.setMontantTva(calculeTva(tva, tpd.getIntPRICE()));
                 tpd.setIntQUANTITYSERVED(tpd.getIntQUANTITYSERVED() + params.getQteServie());
                 tpd.setIntAVOIRSERVED(tpd.getIntQUANTITYSERVED());
@@ -1846,7 +1964,7 @@ public class SalesServiceImpl implements SalesService {
                     return json;
                 }
                 TPreenregistrementDetail dp = addPreenregistrementItem(tp, famille, params.getQte(),
-                        params.getQteServie(), params.getQteUg(), params.getItemPu());
+                        params.getQteServie(), params.getQteUg(), params.getItemPu(), venteAvecPromotion(tp));
                 noterLotScanne(dp, params);
 
                 emg.persist(dp);
@@ -1926,9 +2044,11 @@ public class SalesServiceImpl implements SalesService {
 
                 // send sms
                 detail.setIntPRICEUNITAIR(params.getItemPu());
+                // audit 05 PR-01 : prix saisi a la main, la promotion ne s'applique plus a la ligne
+                detail.setPromotionProduitId(null);
             }
             detail.setIntQUANTITY(params.getQte());
-            detail.setIntPRICE(detail.getIntPRICEUNITAIR() * params.getQte());
+            detail.setIntPRICE(montantLigne(detail));
             detail.setMontantTva(calculeTva(famille.getLgCODETVAID(), detail.getIntPRICE()));
             detail.setIntQUANTITYSERVED(params.getQteServie());
             int intAVOIRSERVED = (params.getQteServie() - intQUANTITYSERVEDOLD)
@@ -2342,6 +2462,12 @@ public class SalesServiceImpl implements SalesService {
             tp.setLgTYPEVENTEID(typeVenteFromId(salesParams.getTypeVenteId()));
             tp.setStrTYPEVENTE(salesParams.getTypeVenteId().equals(Parameter.VENTE_COMPTANT)
                     ? Parameter.KEY_VENTE_NON_ORDONNANCEE : Parameter.KEY_VENTE_ORDONNANCE);
+            // audit 05 PR-01 : promotion au comptant seulement
+            if (venteAvecPromotion(tp)) {
+                appliquerPromotions(tp);
+            } else {
+                retirerPromotions(tp);
+            }
             tp.setDtUPDATED(new Date());
             emg.merge(tp);
 
@@ -2518,12 +2644,16 @@ public class SalesServiceImpl implements SalesService {
         this.getEm().persist(oTPreenregistrementCompteClient);
     }
 
-    public TRecettes addRecette(Integer montant, String desc, String refId, TUser user) {
+    /*
+     * gestion de caisse G6 : la recette porte la date de la vente, comme la balance (mvttransaction.mvtdate) ; une
+     * vente modifiee garde la date de la vente d'origine, sa recette aussi (decision du 03/11)
+     */
+    public TRecettes addRecette(Integer montant, String desc, String refId, TUser user, Date dateVente) {
         TRecettes recette = new TRecettes();
         recette.setIdRecette(UUID.randomUUID().toString());
         recette.setLgTYPERECETTEID(findTTypeRecetteById());
         recette.setIntAMOUNT(montant.doubleValue());
-        recette.setDtCREATED(new Date());
+        recette.setDtCREATED(dateVente != null ? dateVente : new Date());
         recette.setDtUPDATED(recette.getDtCREATED());
         recette.setStrDESCRIPTION(desc);
         recette.setStrREFFACTURE(refId);
@@ -2864,6 +2994,14 @@ public class SalesServiceImpl implements SalesService {
                         clotureVenteParams.getUserId());
             }
             tp = emg.find(TPreenregistrement.class, venteId);
+            // audit 05 PR-01 : une vente assurance n'a pas de prix promotionnel ; s'il en reste, les lignes reviennent
+            // au prix public et la validation est a refaire sur le nouveau montant (rien n'est encaisse).
+            if (retirerPromotions(tp) > 0) {
+                emg.merge(tp);
+                return json.put("success", false).put("codeError", 0).put("msg",
+                        "Les prix promotionnels ont été retirés : une promotion ne s'applique qu'à la vente au comptant."
+                                + " Vérifiez le nouveau montant puis validez à nouveau.");
+            }
             // La vente quitte l'attente : son verrou de rappel n'a plus de raison d'etre
             tp.setStrRAPPELPAR(null);
             tp.setDtRAPPELLE(null);
@@ -3014,7 +3152,8 @@ public class SalesServiceImpl implements SalesService {
             }
             if (amount > 0) {
 
-                addRecette(clotureVenteParams.getMontantPaye(), VENTE_ASSURANCE, tp.getLgPREENREGISTREMENTID(), tUser);
+                addRecette(clotureVenteParams.getMontantPaye(), VENTE_ASSURANCE, tp.getLgPREENREGISTREMENTID(), tUser,
+                        tp.getDtUPDATED());
             }
             TTypeReglement typeReglement = findById(clotureVenteParams.getTypeRegleId());
             MvtTransaction mvtTransaction = addTransaction(tUser, tp, montant, amount,
@@ -3381,7 +3520,7 @@ public class SalesServiceImpl implements SalesService {
             }
             TTypeReglement tTypeReglement = findById(clotureVenteParams.getTypeRegleId());
             addRecette(clotureVenteParams.getMontantPaye(), VENTE_COMPTANT, tp.getLgPREENREGISTREMENTID(),
-                    clotureVenteParams.getUserId());
+                    clotureVenteParams.getUserId(), tp.getDtUPDATED());
             MvtTransaction mt = addTransaction(tUser, tp, montant, tp.getIntACCOUNT(), amount,
                     clotureVenteParams.getMontantRecu(), true, CategoryTransaction.CREDIT,
                     TypeTransaction.VENTE_COMPTANT, tTypeReglement, typeMvtCaisse.get(),
@@ -4005,8 +4144,9 @@ public class SalesServiceImpl implements SalesService {
             montantTva.add(x.getMontantTva());
             TFamille famille = x.getLgFAMILLEID();
             int remise = 0;
-            if (!StringUtils.isEmpty(famille.getStrCODEREMISE()) && !famille.getStrCODEREMISE().equals("2")
-                    && !famille.getStrCODEREMISE().equals("3")) {
+            // audit 05 PR-01 : pas de remise client sur une ligne en promotion
+            if (x.getPromotionProduitId() == null && !StringUtils.isEmpty(famille.getStrCODEREMISE())
+                    && !famille.getStrCODEREMISE().equals("2") && !famille.getStrCODEREMISE().equals("3")) {
                 TGrilleRemise grilleRemise = remiseService.getGrilleRemiseRemiseFromWorkflow(
                         x.getLgPREENREGISTREMENTID(), famille, oTRemise.getLgREMISEID());
                 if (grilleRemise != null) {
@@ -4534,7 +4674,7 @@ public class SalesServiceImpl implements SalesService {
                     ContexteVenteDepot.emplacementDeNumerotation(tp, clotureVenteParams.getUserId())).getReference());
             cloturerItemsVente(tp.getLgPREENREGISTREMENTID());
             addRecette(clotureVenteParams.getMontantPaye(), tp.getStrREFTICKET() + "_" + tp.getStrREF(),
-                    tp.getLgPREENREGISTREMENTID(), clotureVenteParams.getUserId());
+                    tp.getLgPREENREGISTREMENTID(), clotureVenteParams.getUserId(), tp.getDtUPDATED());
             MvtTransaction mvtTransaction = addTransaction(tUser, tp, montant, tp.getIntACCOUNT(), amount,
                     clotureVenteParams.getMontantRecu(), true, CategoryTransaction.CREDIT,
                     TypeTransaction.VENTE_COMPTANT, findById(clotureVenteParams.getTypeRegleId()), typeMvtCaisse.get(),
@@ -4754,8 +4894,11 @@ public class SalesServiceImpl implements SalesService {
             TTypeVente newype = getEm().find(TTypeVente.class, params.getTypeVenteId());
             p.setLgTYPEVENTEID(newype);
             p.setStrTYPEVENTE(VENTE_ASSURANCE);
+            // audit 05 PR-01 : pas de promotion en assurance ; l'ecran recharge les lignes et le total
+            int retirees = retirerPromotions(p);
             getEm().merge(p);
-            return new JSONObject().put("success", true).put("typeVenteId", params.getTypeVenteId());
+            return new JSONObject().put("success", true).put("typeVenteId", params.getTypeVenteId())
+                    .put("promotionsRetirees", retirees).put("intPRICE", p.getIntPRICE());
 
         } catch (Exception e) {
             LOG.log(Level.SEVERE, null, e);
@@ -4963,6 +5106,7 @@ public class SalesServiceImpl implements SalesService {
         newTd.setIntPRICEOTHER(tp.getIntPRICEOTHER());
         newTd.setIntPRICEDETAILOTHER(tp.getIntPRICEDETAILOTHER());
         newTd.setIntFREEPACKNUMBER(tp.getIntFREEPACKNUMBER());
+        newTd.setPromotionProduitId(tp.getPromotionProduitId());
         newTd.setIntPRICEREMISE(tp.getIntPRICEREMISE());
         newTd.setIntAVOIR(tp.getIntAVOIR());
         newTd.setIntAVOIRSERVED(tp.getIntQUANTITYSERVED());
@@ -5816,8 +5960,9 @@ public class SalesServiceImpl implements SalesService {
             montantTva.add(x.getMontantTva());
             TFamille famille = x.getLgFAMILLEID();
             Integer remise = 0;
-            if (!StringUtils.isEmpty(famille.getStrCODEREMISE()) && !famille.getStrCODEREMISE().equals("2")
-                    && !famille.getStrCODEREMISE().equals("3")) {
+            // audit 05 PR-01 : pas de remise client sur une ligne en promotion
+            if (x.getPromotionProduitId() == null && !StringUtils.isEmpty(famille.getStrCODEREMISE())
+                    && !famille.getStrCODEREMISE().equals("2") && !famille.getStrCODEREMISE().equals("3")) {
                 TGrilleRemise oGrilleRemise = remiseService.getGrilleRemiseRemiseFromWorkflow(
                         x.getLgPREENREGISTREMENTID(), famille, oTRemise.getLgREMISEID());
                 if (oGrilleRemise != null) {
@@ -6315,6 +6460,13 @@ public class SalesServiceImpl implements SalesService {
                 t.setMvtDate(venteDateNew);
                 this.getEm().merge(t);
             });
+            // gestion de caisse G6 : la recette suit la nouvelle date, comme la balance ; sinon recette et balance
+            // de vente caisse different de son montant, chacune a un jour
+            findRecette(p.getLgPREENREGISTREMENTID()).ifPresent(r -> {
+                r.setDtCREATED(venteDate);
+                r.setDtUPDATED(venteDate);
+                this.getEm().merge(r);
+            });
             String desc = "Modification de la vente " + p.getStrREF() + " date initiale : "
                     + DateCommonUtils.formatDate(initiale) + " nouvelle date :" + DateCommonUtils.formatDate(venteDate)
                     + " par " + ooTUser.getStrFIRSTNAME() + " " + ooTUser.getStrLASTNAME();
@@ -6483,7 +6635,7 @@ public class SalesServiceImpl implements SalesService {
         return new TTypeVente(id);
     }
 
-    private Pair<TPreenregistrement, TPreenregistrementDetail> initVente(SalesParams salesParams) {
+    private Pair<TPreenregistrement, TPreenregistrementDetail> initVente(SalesParams salesParams, boolean comptant) {
         TFamille tf = this.em.find(TFamille.class, salesParams.getProduitId());
         TTypeVente oTTypeVente = fromId(salesParams.getTypeVenteId());
         TNatureVente oTNatureVente = newNatureVenteFromId(salesParams.getNatureVenteId());
@@ -6536,7 +6688,7 @@ public class SalesServiceImpl implements SalesService {
         op.setStrSTATUT(salesParams.getStatut());
 
         TPreenregistrementDetail dt = addPreenregistrementItem(op, tf, salesParams.getQte(), salesParams.getQteServie(),
-                salesParams.getQteUg(), salesParams.getItemPu());
+                salesParams.getQteUg(), salesParams.getItemPu(), comptant && !salesParams.isDepot());
         noterLotScanne(dt, salesParams);
         return Pair.of(op, dt);
     }

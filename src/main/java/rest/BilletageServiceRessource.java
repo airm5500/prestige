@@ -80,7 +80,12 @@ public class BilletageServiceRessource {
         if (tu == null) {
             return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
         }
-        this.billetageService.cloturerCaisse(billetage, tu);
+        try {
+            this.billetageService.cloturerCaisse(billetage, tu);
+        } catch (rest.service.exception.CaisseUsingExeception e) {
+            // gestion de caisse G1 : refus lisible par la caissiere (avant : erreur 500 et evenement de support)
+            return Response.ok().entity(ResultFactory.getFailResult(e.getMessage())).build();
+        }
         return Response.ok().entity(ResultFactory.getSuccessResultMsg()).build();
     }
 

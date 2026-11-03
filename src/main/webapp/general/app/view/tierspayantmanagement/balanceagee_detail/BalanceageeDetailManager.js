@@ -254,19 +254,20 @@ Ext.define('testextjs.view.tierspayantmanagement.balanceagee_detail.BalanceageeD
                             scope: this,
                             handler: this.onDetailTransactionClick
                         }]
-                }/*,
-                 {
-                 xtype: 'actioncolumn',
-                 width: 30,
-                 sortable: false,
-                 menuDisabled: true,
-                 items: [{
-                 icon: 'resources/images/icons/fam/folder_go.png',
-                 tooltip: 'Envoyer le dossier en litige',
-                 scope: this,
-                 handler: this.onSendToLitigeClick
-                 }]
-                 }*/],
+                },
+                // audit 05 / litiges : porte d'entree retablie (le dossier se choisit parmi ceux du tiers payant)
+                {
+                    xtype: 'actioncolumn',
+                    width: 30,
+                    sortable: false,
+                    menuDisabled: true,
+                    items: [{
+                            icon: 'resources/images/icons/fam/folder_go.png',
+                            tooltip: 'Mettre un dossier de ce tiers payant en litige',
+                            scope: this,
+                            handler: this.onSendToLitigeClick
+                        }]
+                }],
             selModel: {
                 selType: 'cellmodel'
             },
@@ -569,7 +570,7 @@ Ext.define('testextjs.view.tierspayantmanagement.balanceagee_detail.BalanceageeD
             odatasource: rec.data,
             parentview: this,
             mode: "createlitige",
-            titre: "Creation d'un litige pour le dossier  [" + rec.get('str_FIRST_NAME') + " " + rec.get('str_LAST_NAME') + "]"
+            titre: "Mettre en litige un dossier de " + rec.get('str_TIERS_PAYANT')
         });
     },
     onEditpwdClick: function (grid, rowIndex) {

@@ -895,8 +895,8 @@ window.PrestigeAffichage.ECRANS_COLLES = [
     'evolutionstock', 'famillestockcomparaisonmanager', 'peremptionquery',
     'articlemvtgrid',
     'depotextension',
-    // tiers payants et clients
-    'tierspayantmanager', 'clientmanager', 'analysetierspayant',
+    // tiers payants et clients ; menu « Litiges tiers payant » (audit 05, V7.2.31.61)
+    'tierspayantmanager', 'clientmanager', 'analysetierspayant', 'litige',
     // analyses
     'abcmanager', 'vingtquatrevingt', 'margeproducts', 'feuilledematch',
     'evaluationventemoyenne', 'cazonegeomanager', 'analyseFrequentationOffManager',
@@ -966,7 +966,7 @@ window.PrestigeAffichage.ECRANS_STYLE_VENTE = [
     'factureprovisoire', 'groupeInvoices', 'recapOrganisme', 'modelfacture', 'modelfacturedynamique', 'factureenattenteedition',
     // lot B : clients, tiers payants, promotions, remises
     'promotionhistorymanager', 'promotionmanager', 'logfile', 'ventesmodifieesmanager', 'tierspayantmanager', 'clientmanager',
-    'groupetierspayant', 'reglementdepot', 'balanceagee', 'balanceagee_detail', 'remisemanager', 'suiviremise',
+    'groupetierspayant', 'reglementdepot', 'balanceagee', 'balanceagee_detail', 'remisemanager', 'suiviremise', 'litige',
     // lot C : achats et stock
     'etatscontrolemanager', 'bonlivraisonmanager', 'i_order_manager', 'retourfrsmanager', 'detailsmanager', 'ajustementmanager',
     'inventaire', 'peremptionquery', 'monitoringarticlecomplet', 'etatstock', 'evaluationventemoyenne', 'reservemanager',

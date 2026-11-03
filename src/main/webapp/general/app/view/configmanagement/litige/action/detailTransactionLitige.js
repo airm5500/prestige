@@ -1,571 +1,240 @@
-var url_services_transaction_litige = '../webservices/configmanagement/litige/ws_transaction.jsp?mode=';
+/* global Ext */
 
-
-var OCltgridpanelID;
-var Oview;
-var Omode;
-var Me;
-
-
-var str_MEDECIN;
-var lg_TYPE_VENTE_ID;
-var int_total_product;
-var lg_CLIENT_ID;
-var lg_COMPTE_CLIENT_ID;
-var ref_vente;
-var ref;
-
-Ext.util.Format.decimalSeparator = ',';
-Ext.util.Format.thousandSeparator = '.';
-function amountformat(val) {
-    return Ext.util.Format.number(val, '0,000.');
-}
-
+/*
+ * Detail d'un litige (audit 05 LI-02, LI-08 ; notice litiges L2, L3), sur l'API REST api/v1/litiges/{id} : litige,
+ * dossier tiers payant lie, lignes de la vente ; et, pour un litige ouvert, la cloture : avec remboursement (montant
+ * accorde entre 1 et la part d'origine) ou sans remboursement (motif obligatoire). Confirmation dans le bouton.
+ */
 Ext.define('testextjs.view.configmanagement.litige.action.detailTransactionLitige', {
     extend: 'Ext.window.Window',
     xtype: 'detailtransactionlitige',
     id: 'detailtransactionlitigeID',
-    requires: [
-        'Ext.form.*',
-        'Ext.window.Window',
-        'testextjs.store.Statut',
-        'Ext.grid.*',
-        'Ext.layout.container.Column',
-        'testextjs.model.Famille',
-        'testextjs.model.CompteClient',
-        'testextjs.view.sm_user.dovente.action.add',
-        'Ext.selection.CellModel'
-
-    ],
+    requires: ['Ext.form.*', 'Ext.window.Window', 'Ext.grid.*'],
     config: {
         odatasource: '',
         parentview: '',
         mode: '',
-        titre: '',
-        obtntext: '',
-        nameintern: ''
+        titre: ''
     },
-    title: 'Choix.Client',
-    bodyPadding: 5,
-    layout: 'column',
     initComponent: function () {
-
-        var url_services_data_detailsvente = "../webservices/sm_user/detailsvente/ws_data.jsp";
-
-        Oview = this.getParentview();
-        Omode = this.getMode();
-        Me = this;
-        Ogrid = this.getObtntext();
-        str_MEDECIN = "";
-        lg_TYPE_VENTE_ID = "";
-        int_total_product = 0;
-        int_total_vente = 0;
-        ref_vente = this.getNameintern();
-
-        ref = this.getOdatasource().lg_PREENREGISTREMENT_ID;
-       
-        var itemsPerPage = 20;
-
-
-
-        var store_details = new Ext.data.Store({
-            model: 'testextjs.model.DetailsVente',
-            pageSize: itemsPerPage,
-            autoLoad: true,
-            proxy: {
-                type: 'ajax',
-                url: url_services_data_detailsvente + "?lg_PREENREGISTREMENT_ID=" + ref + "&str_STATUT=is_Closed",
-                reader: {
-                    type: 'json',
-                    root: 'results',
-                    totalProperty: 'total'
-                }
-            }
-
+        var me = this;
+        var source = this.getOdatasource() || {};
+        var montant = function (v) {
+            return (v === null || v === undefined || v === '') ? '' : Ext.util.Format.number(v, '0,000');
+        };
+        var lignes = Ext.create('Ext.data.Store', {
+            fields: ['int_CIP', 'str_NAME', 'int_QUANTITY', 'int_PRICE_UNITAIR', 'int_PRICE']
         });
-
-        str_REF = new Ext.form.field.Display(
-                {
-                    xtype: 'displayfield',
-                    fieldLabel: 'Reference:',
-                    name: 'str_REF',
-                    id: 'str_REF',
-                    fieldStyle: "color:blue;",
-                    margin: '0 15 15 0',
-                    flex: 0.7
-
-                });
-        str_STATUT_TRAITEMENT = new Ext.form.field.Display(
-                {
-                    xtype: 'displayfield',
-                    fieldLabel: 'Decision:',
-                    hidden: true,
-                    name: 'str_STATUT_TRAITEMENT',
-                    id: 'str_STATUT_TRAITEMENT',
-                    fieldStyle: "color:blue;",
-                    margin: '0 15 15 0',
-                    flex: 0.7
-
-                });
-
-        str_FULLNAME = new Ext.form.field.Display(
-                {
-                    xtype: 'displayfield',
-                    fieldLabel: 'Nom organisme:',
-                    name: 'str_FULLNAME',
-                    id: 'str_FULLNAME',
-                    fieldStyle: "color:blue;",
-                    margin: '0 15 15 0',
-                    flex: 0.7
-
-                });
-
-        int_AMOUNT_DUS = new Ext.form.field.Display(
-                {
-                    xtype: 'displayfield',
-                    fieldLabel: 'Montant dus:',
-                    name: 'int_AMOUNT_DUS',
-                    id: 'int_AMOUNT_DUS',
-                    fieldStyle: "color:blue;",
-                    margin: '0 15 15 0',
-                    flex: 0.7
-
-                });
-
-        int_ECART = new Ext.form.field.Display(
-                {
-                    xtype: 'displayfield',
-                    fieldLabel: 'Ecart:',
-                    hidden: true,
-                    name: 'int_ECART',
-                    id: 'int_ECART',
-                    fieldStyle: "color:blue;",
-                    margin: '0 15 15 0',
-                    flex: 0.7
-
-                });
-
-        str_TYPELITIGE = new Ext.form.field.Display(
-                {
-                    xtype: 'displayfield',
-                    fieldLabel: 'Type litige:',
-                    name: 'str_TYPELITIGE',
-                    id: 'str_TYPELITIGE',
-                    fieldStyle: "color:blue;",
-                    margin: '0 15 15 0',
-                    flex: 0.7
-
-                });
-
-
-
-        str_FIRST_LAST_NAME = new Ext.form.field.Display(
-                {
-                    xtype: 'displayfield',
-                    fieldLabel: 'Nom & Prenom(s) client:',
-                    name: 'str_FIRST_LAST_NAME',
-                    id: 'str_FIRST_LAST_NAME',
-                    fieldStyle: "color:blue;",
-                    margin: '0 15 15 0',
-                    flex: 1
-
-                });
-
-        dt_CREATED = new Ext.form.field.Display(
-                {
-                    xtype: 'displayfield',
-                    fieldLabel: 'Date prise en compte:',
-                    name: 'dt_CREATED',
-                    id: 'dt_CREATED',
-                    margin: '0 15 15 0',
-                    fieldStyle: "color:blue;",
-                            flex: 1
-
-                });
-
-        str_DESCRIPTION = new Ext.form.field.Display(
-                {
-                    xtype: 'displayfield',
-                    fieldLabel: 'Commentaire:',
-                    name: 'str_DESCRIPTION',
-                    id: 'str_DESCRIPTION',
-                    fieldStyle: "color:blue;",
-                    margin: '0 15 15 0',
-                    flex: 1
-
-                });
-
-        str_MEDECIN = new Ext.form.field.Display(
-                {
-                    xtype: 'displayfield',
-                    //allowBlank: false,
-                    fieldLabel: 'Nom du medecin',
-                    name: 'str_MEDECIN',
-                    id: 'str_MEDECIN',
-                    margin: '0 25 0 0',
-                    fieldStyle: "color:blue;",
-                    emptyText: 'Nom du medecin'
-                });
-
-
-
-        lg_TYPE_VENTE_ID = new Ext.form.field.Display(
-                {
-                    xtype: 'displayfield',
-                    //allowBlank: false,
-                    fieldLabel: 'Nature de vente',
-                    name: 'lg_TYPE_VENTE_ID',
-                    id: 'lg_TYPE_VENTE_ID',
-                    fieldStyle: "color:blue;",
-                    emptyText: 'Nature de vente'
-                });
-
-
-        int_total_product = new Ext.form.field.Display(
-                {
-                    xtype: 'displayfield',
-                    fieldLabel: 'Total produit(s)',
-                    name: 'int_total_product',
-                    id: 'int_total_product',
-                    emptyText: 'Total produit(s)',
-                    value: 0,
-                    fieldStyle: "color:blue;",
-                    align: 'right'
-
-                });
-
-        int_total_vente = new Ext.form.field.Display(
-                {
-                    xtype: 'displayfield',
-                    fieldLabel: 'Total vente',
-                    name: 'int_total_vente',
-                    id: 'int_total_vente',
-                    emptyText: 'Total vente',
-                    value: 0,
-//                    renderer: amountformat,
-                    fieldStyle: "color:blue;",
-                    align: 'right'
-
-                });
-
-
-
-
-        var form = new Ext.form.Panel({
-            width: 1050,
-            layout: {
-                type: 'hbox'
-            },
-            defaults: {
-                flex: 1
-            },
-            items: ['CltgridpanelID', 'info_detail_transaction'],
-            autoHeight: true,
-            fieldDefaults: {
-                labelAlign: 'left',
-                labelWidth: 200,
-                margin: '0 0 15 10',
-                anchor: '100%',
-                msgTarget: 'side'
-            },
-            items: [
-                {
-                    xtype: 'fieldset',
-                    id: 'CltgridpanelID',
-                    height: 450,
-                    margin: '10 10 10 10',
-                    title: 'Information sur le litige',
-                    defaultType: 'textfield',
-                    defaults: {
-                        anchor: '100%'
-                    },
-                    items: [
-                        str_REF,
-                        str_FULLNAME,
-                        str_FIRST_LAST_NAME,
-                        str_DESCRIPTION,
-                        dt_CREATED,
-                        str_TYPELITIGE,
-                        int_AMOUNT_DUS,
-                        {
-                            fieldLabel: 'Montant r&eacute;gl&eacute;',
-                            emptyText: 'Montant a regle',
-                            name: 'int_AMOUNT',
-                            margin: '0 15 15 0',
-                            id: 'int_AMOUNT',
-                            xtype: 'numberfield',
-                            allowBlank: false,
-                            regex: /[0-9.]/
-                        },
-                        int_ECART,
-                        str_STATUT_TRAITEMENT
+        var info = function (itemId, label) {
+            return {xtype: 'displayfield', itemId: itemId, fieldLabel: label, value: ''};
+        };
+        Ext.apply(this, {
+            title: this.getTitre() || 'Litige',
+            width: 900,
+            modal: true,
+            layout: {type: 'vbox', align: 'stretch'},
+            bodyPadding: 8,
+            items: [{
+                    xtype: 'container',
+                    layout: {type: 'hbox', align: 'stretch'},
+                    defaults: {flex: 1, xtype: 'container', layout: 'anchor', defaults: {labelWidth: 130}},
+                    items: [{
+                            items: [info('dStatut', 'Statut'), info('dType', 'Type'), info('dTiersPayant', 'Tiers payant'),
+                                info('dClient', 'Client'), info('dLibelle', 'Libell&eacute;'), info('dMotif', 'Motif organisme'),
+                                info('dConsequence', 'Cons&eacute;quence')]
+                        }, {
+                            items: [info('dVente', 'Vente'), info('dBon', 'Bon'), info('dFacture', 'Facturation'),
+                                info('dPart', 'Part organisme'), info('dConteste', 'Contest&eacute;'),
+                                info('dAccorde', 'Accord&eacute; / &eacute;cart'), info('dCloture', 'Cl&ocirc;ture')]
+                        }]
+                }, {
+                    xtype: 'grid',
+                    title: 'Lignes de la vente',
+                    height: 170,
+                    store: lignes,
+                    columns: [
+                        {header: 'CIP', dataIndex: 'int_CIP', width: 90},
+                        {header: 'Produit', dataIndex: 'str_NAME', flex: 1},
+                        {header: 'Qt&eacute;', dataIndex: 'int_QUANTITY', width: 60, align: 'right'},
+                        {header: 'P.U.', dataIndex: 'int_PRICE_UNITAIR', width: 90, align: 'right', renderer: montant},
+                        {header: 'Montant', dataIndex: 'int_PRICE', width: 100, align: 'right', renderer: montant}
                     ]
                 }, {
-                    columnWidth: 0.50,
-                    margin: '10 10 10 10',
-                    xtype: 'fieldset',
-                    title: 'Information detaillee de la vente',
-                    id: 'info_detail_transaction',
-                    layout: 'anchor',
-                    defaultType: 'textfield',
-                    items: [lg_TYPE_VENTE_ID,
-                        str_MEDECIN,
-                        {
-                            xtype: 'fieldset',
-                            title: 'Liste Produit(s)',
-                            collapsible: true,
-                            defaultType: 'textfield',
-                            layout: 'anchor',
-                            defaults: {
-                                anchor: '100%'
-                            },
+                    xtype: 'form',
+                    itemId: 'formCloture',
+                    title: 'Cl&ocirc;turer le litige',
+                    hidden: true,
+                    bodyPadding: 8,
+                    defaults: {labelWidth: 170, anchor: '100%', msgTarget: 'side'},
+                    items: [{
+                            xtype: 'radiogroup',
+                            itemId: 'clotureMode',
+                            fieldLabel: 'D&eacute;cision de l\'organisme',
+                            columns: 2,
                             items: [
-                                {
-                                    columnWidth: 0.65,
-                                    xtype: 'gridpanel',
-                                    id: 'gridpanelID',
-                                    //plugins: [this.cellEditing],
-                                    store: store_details,
-                                    height: 300,
-                                    columns: [{
-                                            text: 'Details Vente Id',
-                                            flex: 1,
-                                            sortable: true,
-                                            hidden: true,
-                                            dataIndex: 'lg_PREENREGISTREMENT_DETAIL_ID',
-                                            id: 'lg_PREENREGISTREMENT_DETAIL_ID'
-                                        }, {
-                                            text: 'Famille',
-                                            flex: 1,
-                                            sortable: true,
-                                            hidden: true,
-                                            dataIndex: 'lg_FAMILLE_ID'
-                                        }, {
-                                            xtype: 'rownumberer',
-                                            text: 'Ligne',
-                                            width: 45,
-                                            sortable: true/*,
-                                             locked: true*/
-                                        }, {
-                                            text: 'CIP',
-                                            flex: 1,
-                                            sortable: true,
-                                            dataIndex: 'int_CIP'
-                                        }, /* {
-                                         text: 'EAN',
-                                         flex: 1,
-                                         sortable: true,
-                                         dataIndex: 'int_EAN13'
-                                         },*/ {
-                                            text: 'Designation',
-                                            flex: 2,
-                                            sortable: true,
-                                            dataIndex: 'str_FAMILLE_NAME'
-                                        }, {
-                                            header: 'QD',
-                                            dataIndex: 'int_QUANTITY',
-                                            flex: 1/*,
-                                             editor: {
-                                             xtype: 'numberfield',
-                                             allowBlank: false,
-                                             regex: /[0-9.]/
-                                             }*/
-                                        }, {
-                                            text: 'QS',
-                                            flex: 1,
-                                            hidden: true,
-                                            sortable: true,
-                                            dataIndex: 'int_QUANTITY_SERVED'
-                                        }, {
-                                            text: 'Montant',
-                                            flex: 1,
-                                            sortable: true,
-                                            dataIndex: 'int_PRICE_DETAIL',
-                                            renderer: amountformat,
-                                            align: 'right'
-                                        }],
-                                    bbar: {
-                                        xtype: 'pagingtoolbar',
-                                        pageSize: 10,
-                                        store: store_details,
-                                        displayInfo: true,
-                                        plugins: new Ext.ux.ProgressBarPager()
-                                    }
-                                }]
-                        },
-                        int_total_product,
-                        int_total_vente
-
-                    ]
-
-                }]
-        });
-
-        if (Omode === "detail") {
-            ref = this.getOdatasource().lg_LITIGE_ID;
-            //ref_litige = this.getOdatasource().str_REF;
-            ref_litige = this.getOdatasource().str_REF_CREATED;
-
-
-
-            Ext.getCmp('str_REF').setValue(this.getOdatasource().str_REF);
-            Ext.getCmp('str_FULLNAME').setValue(this.getOdatasource().str_ORGANISME);
-            Ext.getCmp('str_TYPELITIGE').setValue(this.getOdatasource().lg_TYPELITIGE_ID);
-            Ext.getCmp('str_DESCRIPTION').setValue(this.getOdatasource().str_DESCRIPTION);
-            Ext.getCmp('str_FIRST_LAST_NAME').setValue(this.getOdatasource().str_FIRST_LAST_NAME);
-            Ext.getCmp('dt_CREATED').setValue(this.getOdatasource().dt_CREATED);
-
-            if (this.getOdatasource().str_STATUT == "enable") {
-                Ext.getCmp('int_AMOUNT').setValue(this.getOdatasource().int_AMOUNT_DUS);
-            } else {
-                Ext.getCmp('int_AMOUNT').setValue(this.getOdatasource().int_AMOUNT);
-            }
-
-
-            Ext.getCmp('lg_TYPE_VENTE_ID').setValue(this.getOdatasource().lg_TYPE_VENTE_ID);
-            Ext.getCmp('str_MEDECIN').setValue(this.getOdatasource().str_MEDECIN);
-            Ext.getCmp('int_total_product').setValue(this.getOdatasource().int_total_product + '  Produit(s)');
-            Ext.getCmp('int_total_vente').setValue(this.getOdatasource().int_total_vente + '  CFA');
-            Ext.getCmp('int_AMOUNT_DUS').setValue(this.getOdatasource().int_AMOUNT_DUS + '  CFA');
-            var int_ECART = this.getOdatasource().int_ECART;
-            if (int_ECART != 0) {
-                int_ECART = "<span style='color: red; font-weight: bold;'>" + int_ECART + "</span>";
-            }
-            Ext.getCmp('int_ECART').setValue(int_ECART + '  CFA');
-             Ext.getCmp('str_STATUT_TRAITEMENT').setValue(this.getOdatasource().str_STATUT_TRAITEMENT);
-
-
-        }
-
-        this.callParent();
-        OCltgridpanelID = Ext.getCmp('CltgridpanelID');
-
-        var win = new Ext.window.Window({
-            autoShow: true,
-            id: 'cltwinID',
-            title: this.getTitre(),
-            width: 1200,
-            Height: 500,
-            layout: 'fit',
-            plain: true,
-            items: form,
+                                {boxLabel: 'Avec remboursement', name: 'remboursement', inputValue: 'true', checked: true},
+                                {boxLabel: 'Sans remboursement (abandon)', name: 'remboursement', inputValue: 'false'}
+                            ],
+                            listeners: {
+                                change: function (g, v) {
+                                    var avec = String(v.remboursement) === 'true';
+                                    var m = me.down('#clotureMontant');
+                                    m.setDisabled(!avec);
+                                    m.allowBlank = !avec;
+                                    var motif = me.down('#clotureMotif');
+                                    motif.allowBlank = avec;
+                                    m.validate();
+                                    motif.validate();
+                                }
+                            }
+                        }, {
+                            xtype: 'numberfield',
+                            itemId: 'clotureMontant',
+                            name: 'int_MONTANT',
+                            fieldLabel: 'Montant accord&eacute;',
+                            allowBlank: false,
+                            allowDecimals: false,
+                            minValue: 1,
+                            hideTrigger: true
+                        }, {
+                            xtype: 'textfield',
+                            itemId: 'clotureMotif',
+                            name: 'str_MOTIF',
+                            fieldLabel: 'Motif',
+                            maxLength: 255,
+                            blankText: 'Indiquez le motif de l\'abandon'
+                        }]
+                }],
             buttons: [{
-                    text: 'Cloturer sans remboursement',
-                    id: 'btn_cloture_sr',
-                    handler: this.onbtnsavewithout
+                    text: 'Cl&ocirc;turer',
+                    itemId: 'btnCloturer',
+                    hidden: true,
+                    handler: function (b) {
+                        me.cloturer(b);
+                    }
                 }, {
-                    text: 'Cloturer avec remboursement',
-                    id: 'btn_cloture_ar',
-                    handler: this.onbtnsavewith
-                }, {
-                    text: 'RETOUR',
-                    id: 'btn_cancel',
+                    text: 'Fermer',
                     handler: function () {
-                        win.close();
+                        me.close();
                     }
                 }]
         });
-
-        if (this.getOdatasource().str_STATUT != "enable") {
-            Ext.getCmp('int_AMOUNT').disable();
-            Ext.getCmp('str_STATUT_TRAITEMENT').show();
-            Ext.getCmp('int_ECART').show();
-            Ext.getCmp('btn_cancel').setText("RETOUR");
-            Ext.getCmp('btn_cloture_sr').hide();
-            Ext.getCmp('btn_cloture_ar').hide();
-
-        }
+        this.callParent();
+        this.show();
+        this.setLoading('Chargement...');
+        Ext.Ajax.request({
+            url: '../api/v1/litiges/' + encodeURIComponent(source.lg_LITIGE_ID),
+            method: 'GET',
+            success: function (response) {
+                me.setLoading(false);
+                var o = Ext.JSON.decode(response.responseText, true) || {};
+                if (o.success === undefined || String(o.success) === '0') {
+                    Ext.MessageBox.alert('Litige', o.errors || 'Litige introuvable');
+                    return;
+                }
+                me.afficher(o, lignes);
+            },
+            failure: function (response) {
+                me.setLoading(false);
+                Ext.MessageBox.alert('Litige', 'Erreur serveur (' + response.status + ')');
+            }
+        });
     },
-    onbtnsavewith: function (button) { //cloturer avec approbation de reglement
-
-        var internal_url = "";
-
-        if (Omode === "detail") {
-            internal_url = url_services_transaction_litige + 'closurewithremboursement';
+    afficher: function (o, lignes) {
+        var me = this;
+        var n = function (v) {
+            return (v === null || v === undefined || v === '') ? '' : Ext.util.Format.number(v, '0,000');
+        };
+        var statuts = {enable: 'Ouvert', is_Closed: 'Clôturé', 'delete': 'Annulé'};
+        var set = function (id, v) {
+            me.down('#' + id).setValue(Ext.String.htmlEncode(v === null || v === undefined ? '' : String(v)));
+        };
+        set('dStatut', statuts[o.str_STATUT] || 'Ancien (sans dossier lié)');
+        set('dType', o.str_TYPE);
+        set('dTiersPayant', o.str_TIERS_PAYANT);
+        set('dClient', o.str_CLIENT);
+        set('dLibelle', o.str_LIBELLE);
+        set('dMotif', o.str_DESCRIPTION);
+        set('dConsequence', o.str_CONSEQUENCE);
+        set('dVente', (o.str_REF_VENTE || '') + (o.dt_VENTE ? ' du ' + o.dt_VENTE : '')
+                + (o.int_TOTAL_VENTE !== undefined ? ' - total ' + n(o.int_TOTAL_VENTE) : ''));
+        set('dBon', (o.str_REF_BON || '') + (o.int_PERCENT !== undefined ? ' (' + o.int_PERCENT + ' %)' : ''));
+        set('dFacture', o.b_FACTURE ? 'Facturé' + (o.str_FACTURE ? ' (' + o.str_FACTURE + ')' : '') : 'Non facturé');
+        set('dPart', n(o.int_PART_ORIGINE));
+        set('dConteste', n(o.int_MONTANT_CONTESTE));
+        set('dAccorde', o.int_MONTANT_ACCORDE === null || o.int_MONTANT_ACCORDE === undefined ? ''
+                : n(o.int_MONTANT_ACCORDE) + ' / ' + n(o.int_ECART));
+        set('dCloture', (o.dt_CLOTURE || '') + (o.str_MOTIF_CLOTURE ? ' - ' + o.str_MOTIF_CLOTURE : ''));
+        lignes.loadData(o.lignes || []);
+        me.litige = o;
+        if (o.str_STATUT === 'enable') {
+            var m = me.down('#clotureMontant');
+            m.setMaxValue(o.int_PART_ORIGINE);
+            m.maxText = 'Au plus la part d\'origine (' + o.int_PART_ORIGINE + ')';
+            m.minText = 'Au moins 1 (sinon : sans remboursement)';
+            me.down('#formCloture').show();
+            me.down('#btnCloturer').show();
         }
-
-        var int_AMOUNT = Ext.getCmp('int_AMOUNT').getValue();
-        if (int_AMOUNT < 5) {
-            Ext.MessageBox.alert('Error Message', 'Verifiez le montant saisi');
+        me.center();
+    },
+    cloturer: function (b) {
+        var me = this;
+        var form = me.down('#formCloture').getForm();
+        if (!form.isValid()) {
+            var erreurs = [];
+            form.getFields().each(function (f) {
+                if (!f.isValid()) {
+                    var libelle = document.createElement('div');
+                    libelle.innerHTML = f.fieldLabel || '';
+                    erreurs.push(libelle.textContent + ' : ' + f.getErrors().join(', '));
+                }
+            });
+            Ext.MessageBox.alert('Litige', erreurs.join('<br>'));
             return;
         }
-
-        Ext.MessageBox.confirm('Message',
-                'Confirmation de la cloture avec remboursement du litige',
-                function (btn) {
-                    if (btn == 'yes') {
-                        Ext.Ajax.request({
-                            url: internal_url,
-                            params: {
-                                str_REF: ref_litige,
-                                int_AMOUNT: Ext.getCmp('int_AMOUNT').getValue()
-                            },
-                            success: function (response)
-                            {
-                                var object = Ext.JSON.decode(response.responseText, false);
-                                if (object.success == 0) {
-                                    Ext.MessageBox.alert('Error Message', object.errors);
-                                    return;
-                                } else {
-                                    Ext.MessageBox.alert('Confirmation', object.errors);
-                                    Oview.getStore().reload();
-                                }
-                            },
-                            failure: function (response)
-                            {
-                                var object = Ext.JSON.decode(response.responseText, false);
-                                console.log("Bug " + response.responseText);
-                                Ext.MessageBox.alert('Error Message', response.responseText);
-
-                            }
-                        });
-                        var bouton = button.up('window');
-                        bouton.close();
-                    }
-
-                });
-
-    },
-    onbtnsavewithout: function (button) { //cloturer avec approbation de reglement
-
-        var internal_url = "";
-
-        if (Omode === "detail") {
-            internal_url = url_services_transaction_litige + 'closurewithoutremboursement';
+        // confirmation dans le bouton : premier clic « Confirmer la clôture ? », second clic dans les 5 s
+        if (!b.enConfirmation) {
+            b.texteInitial = b.texteInitial || b.getText();
+            b.enConfirmation = true;
+            b.confirmeDepuis = Date.now();
+            b.setText('Confirmer la cl&ocirc;ture ?');
+            Ext.defer(function () {
+                if (b.enConfirmation && !b.isDestroyed) {
+                    b.enConfirmation = false;
+                    b.setText(b.texteInitial);
+                }
+            }, 5000);
+            return;
         }
-        Ext.MessageBox.confirm('Message',
-                'Confirmation de la cloture sans remboursement du litige',
-                function (btn) {
-                    if (btn == 'yes') {
-                        Ext.Ajax.request({
-                            url: internal_url,
-                            params: {
-                                str_REF: ref_litige
-                            },
-                            success: function (response)
-                            {
-                                var object = Ext.JSON.decode(response.responseText, false);
-                                if (object.success == 0) {
-                                    Ext.MessageBox.alert('Error Message', object.errors);
-                                    return;
-                                } else {
-                                    Ext.MessageBox.alert('Confirmation', object.errors);
-                                    Oview.getStore().reload();
-                                }
-                            },
-                            failure: function (response)
-                            {
-                                var object = Ext.JSON.decode(response.responseText, false);
-                                console.log("Bug " + response.responseText);
-                                Ext.MessageBox.alert('Error Message', response.responseText);
-
-                            }
-                        });
-
-                        var bouton = button.up('window');
-                        bouton.close();
-                    }
-                });
-
+        if (Date.now() - b.confirmeDepuis < 400) {
+            return;
+        }
+        b.enConfirmation = false;
+        b.setText(b.texteInitial);
+        b.disable();
+        var v = form.getValues();
+        Ext.Ajax.request({
+            url: '../api/v1/litiges/' + encodeURIComponent(me.litige.lg_LITIGE_ID) + '/cloturer',
+            method: 'POST',
+            params: {remboursement: v.remboursement, int_MONTANT: v.int_MONTANT || '', str_MOTIF: v.str_MOTIF || ''},
+            success: function (response) {
+                var o = Ext.JSON.decode(response.responseText, true) || {};
+                if (o.success === undefined || String(o.success) === '0') {
+                    b.enable();
+                    Ext.MessageBox.alert('Litige', o.errors || 'Clôture impossible');
+                    return;
+                }
+                var liste = Ext.getCmp('litigeID');
+                if (liste && liste.getStore) {
+                    liste.getStore().reload();
+                }
+                me.close();
+                Ext.MessageBox.alert('Litige', o.message);
+            },
+            failure: function (response) {
+                b.enable();
+                Ext.MessageBox.alert('Litige', 'Erreur serveur (' + response.status + ')');
+            }
+        });
     }
 });

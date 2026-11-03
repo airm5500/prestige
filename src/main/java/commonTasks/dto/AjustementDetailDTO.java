@@ -29,6 +29,12 @@ public class AjustementDetailDTO implements Serializable {
     private String operateur, motifAjustement, commentaire;
     /** Zone ajustee, reprise de l'en-tete : RAYON ou RESERVE. */
     private String zone;
+    /** audit 06 AJ-02 : numero du lot choisi sur la ligne */
+    private String numLot;
+
+    public String getNumLot() {
+        return numLot;
+    }
 
     public String getZone() {
         return zone;
@@ -209,6 +215,7 @@ public class AjustementDetailDTO implements Serializable {
         this.lgAJUSTEMENTID = a.getLgAJUSTEMENTID();
         this.operateur = tu.getStrFIRSTNAME() + " " + tu.getStrLASTNAME();
         this.zone = a.getStrZONE();
+        this.numLot = ajustementDetail.getLot() != null ? ajustementDetail.getLot().getIntNUMLOT() : null;
         this.dateOperation = ajustementDetail.getDtUPDATED();
         MotifAjustement ma = ajustementDetail.getTypeAjustement();
         if (ma != null) {

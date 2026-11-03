@@ -211,6 +211,34 @@ Ext.define('testextjs.view.produits.Ajuster', {
                                     value: 0
                                 },
                                 {
+                                    // audit 06 AJ-02 : lot a diminuer en premier (facultatif) ; sans lot,
+                                    // la regle de la vente s'applique a la cloture
+                                    xtype: 'combobox',
+                                    itemId: 'lotField',
+                                    fieldLabel: 'Lot',
+                                    labelWidth: 30,
+                                    flex: 1,
+                                    margin: '0 0 0 10',
+                                    queryMode: 'local',
+                                    editable: false,
+                                    forceSelection: true,
+                                    valueField: 'lgLOTID',
+                                    displayField: 'numLot',
+                                    emptyText: 'Lot (facultatif)',
+                                    store: Ext.create('Ext.data.Store', {
+                                        fields: ['lgLOTID', 'numLot', 'peremption', 'stock', 'perime'],
+                                        data: []
+                                    }),
+                                    listConfig: {
+                                        getInnerTpl: function () {
+                                            return '<span style="font-weight:bold;">{numLot}</span>'
+                                                    + ' <span style="color:{[values.perime ? "#c62828" : "#555"]};">'
+                                                    + '{peremption}{[values.perime ? " (périmé)" : ""]}</span>'
+                                                    + '<span style="float:right;">( {stock} )</span>';
+                                        }
+                                    }
+                                },
+                                {
                                     xtype: 'textfield',
                                     value: 1,
                                     itemId: 'qtyField',
@@ -330,6 +358,10 @@ Ext.define('testextjs.view.produits.Ajuster', {
                                                     flex: 2.5,
                                                     sortable: true,
                                                     dataIndex: 'strNAME'
+                                                }, {
+                                                    text: 'Lot',
+                                                    flex: 0.8,
+                                                    dataIndex: 'numLot'
                                                 }, {
                                                     xtype: 'numbercolumn',
                                                     header: 'Quantité',

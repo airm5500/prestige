@@ -142,6 +142,7 @@ public class RetourFournisseurServiceImpl implements RetourFournisseurService {
         if (total > bonLivraisonDetail.getIntQTERECUE()) {
             return false;
         }
+        controlerPlafond(bonLivraisonDetail, item.getLgRETOURFRSID().getLgRETOURFRSID(), total);
         controlerStock(item.getLgFAMILLEID().getLgFAMILLEID(),
                 item.getLgRETOURFRSID().getLgUSERID().getLgEMPLACEMENTID().getLgEMPLACEMENTID(), total);
         item.setIntNUMBERRETURN(item.getIntNUMBERRETURN() + params.getIntNUMBERRETURN());
@@ -158,6 +159,7 @@ public class RetourFournisseurServiceImpl implements RetourFournisseurService {
         if (params.getIntNUMBERRETURN() > bonLivraisonDetail.getIntQTERECUE()) {
             return null;
         }
+        controlerPlafond(bonLivraisonDetail, item.getLgRETOURFRSID().getLgRETOURFRSID(), params.getIntNUMBERRETURN());
         controlerStock(item.getLgFAMILLEID().getLgFAMILLEID(),
                 item.getLgRETOURFRSID().getLgUSERID().getLgEMPLACEMENTID().getLgEMPLACEMENTID(),
                 params.getIntNUMBERRETURN());
@@ -210,6 +212,30 @@ public class RetourFournisseurServiceImpl implements RetourFournisseurService {
     private int stockDisponible(String produitId, String emplacementId) {
         TFamilleStock st = getFamilleStock(produitId, emplacementId);
         return st == null || st.getIntNUMBERAVAILABLE() == null ? 0 : st.getIntNUMBERAVAILABLE();
+    }
+
+    /**
+     * Audit 06 RF-03 : la quantite recue d'une ligne de BL plafonne TOUS ses retours. Les boites deja retournees sur
+     * cette ligne par les autres retours (valides, en attente ou en preparation) sont deduites.
+     *
+     * @param quantite
+     *            boites de ce produit sur le retour en cours, apres l'ajout
+     */
+    private void controlerPlafond(TBonLivraisonDetail ligne, String retourId, int quantite) {
+        Long ailleurs = getEntityManager().createQuery(
+                "SELECT SUM(d.intNUMBERRETURN) FROM TRetourFournisseurDetail d WHERE d.bonLivraisonDetail.lgBONLIVRAISONDETAIL = ?1"
+                        + " AND d.lgRETOURFRSID.lgRETOURFRSID <> ?2"
+                        + " AND (d.lgRETOURFRSID.strSTATUT IS NULL OR d.lgRETOURFRSID.strSTATUT <> ?3)",
+                Long.class).setParameter(1, ligne.getLgBONLIVRAISONDETAIL())
+                .setParameter(2, Objects.requireNonNullElse(retourId, "")).setParameter(3, DateConverter.STATUT_DELETE)
+                .getSingleResult();
+        int deja = ailleurs == null ? 0 : ailleurs.intValue();
+        int recue = Objects.requireNonNullElse(ligne.getIntQTERECUE(), 0);
+        if (deja > 0 && deja + quantite > recue) {
+            throw new RefusMetier(
+                    "Quantité à retourner (" + quantite + ") supérieure à ce qui reste à retourner sur ce BL : " + recue
+                            + " reçue(s), " + deja + " déjà retournée(s) par d'autres retours.");
+        }
     }
 
     /* demandes des applications mobiles (3, D4) : une ligne de retour ne depasse jamais le stock disponible */
@@ -287,6 +313,7 @@ public class RetourFournisseurServiceImpl implements RetourFournisseurService {
             throw new RefusMetier("Quantité à retourner (" + (dejaRetourne + item.getIntNUMBERRETURN())
                     + ") supérieure à la quantité reçue sur ce BL (" + bonLivraisonDetail.getIntQTERECUE() + ").");
         }
+        controlerPlafond(bonLivraisonDetail, item.getLgRETOURFRSID(), dejaRetourne + item.getIntNUMBERRETURN());
         controlerStock(item.getProduitId(), emplacementId, dejaRetourne + item.getIntNUMBERRETURN());
         TRetourFournisseurDetail oTRetourFournisseurDetail = new TRetourFournisseurDetail(UUID.randomUUID().toString());
         oTRetourFournisseurDetail.setIntNUMBERRETURN(item.getIntNUMBERRETURN());

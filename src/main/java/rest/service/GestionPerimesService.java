@@ -26,5 +26,10 @@ public interface GestionPerimesService {
 
     JSONObject getPerimesSaisiEnCours(int start, int limit);
 
+    /**
+     * Saisie en cours de l'emplacement de l'utilisateur, quelle que soit la date des lignes (audit 06 PE-02, PE-04).
+     */
+    JSONObject getPerimesSaisiEnCours(int start, int limit, TUser user);
+
     boolean hasCloturePrivilege(TUser user);
 }

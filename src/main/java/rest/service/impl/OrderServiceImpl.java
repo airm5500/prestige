@@ -104,9 +104,16 @@ public class OrderServiceImpl implements OrderService {
         params.setOperateur(this.sessionHelperService.getCurrentUser());
         List<String> erro = new ArrayList<>();
 
-        TOrder order = getEmg().find(TOrder.class, params.getRefParent());
+        /* audit 06, EN-04 : la commande est verrouillee le temps de la creation : deux postes ne creent pas deux BL */
+        TOrder order = getEmg().find(TOrder.class, params.getRefParent(),
+                javax.persistence.LockModeType.PESSIMISTIC_WRITE);
         if (order == null) {
             return json.put("success", false).put("msg", "Echec: La commande n'existe pas");
+        }
+        String blExistant = blDeLaCommande(order.getLgORDERID());
+        if (blExistant != null) {
+            return json.put("success", false).put("msg",
+                    "Le bon de livraison de cette commande a déjà été créé (BL " + blExistant + ").");
         }
         TGrossiste grossiste = order.getLgGROSSISTEID();
         // Retours du 10/10 : reference du BL enregistree en majuscules (espaces de bord retires).
@@ -332,6 +339,15 @@ public class OrderServiceImpl implements OrderService {
             LOG.log(Level.SEVERE, null, e);
         }
         return tEtiquette;
+    }
+
+    /** Numero du BL non annule deja cree pour cette commande, ou null (audit 06, EN-04). */
+    private String blDeLaCommande(String orderId) {
+        List<String> refs = getEmg()
+                .createQuery("SELECT t.strREFLIVRAISON FROM TBonLivraison t WHERE t.lgORDERID.lgORDERID = ?1"
+                        + " AND t.strSTATUT <> ?2", String.class)
+                .setParameter(1, orderId).setParameter(2, Constant.STATUT_DELETE).setMaxResults(1).getResultList();
+        return refs.isEmpty() ? null : refs.get(0);
     }
 
     private boolean isRefBLExistForGrossiste(String ref, String idGrossiste) {
@@ -1986,7 +2002,8 @@ public class OrderServiceImpl implements OrderService {
     public void deleteBonLivraison(String id) {
         TBonLivraison bonLivraison = getEmg().find(TBonLivraison.class, id);
         bonLivraison.getTBonLivraisonDetailCollection().forEach(getEmg()::remove);
-        deleteLots(bonLivraison.getStrREFLIVRAISON());
+        deleteLots(bonLivraison.getStrREFLIVRAISON(),
+                bonLivraison.getLgORDERID().getLgGROSSISTEID().getLgGROSSISTEID());
         TOrder order = bonLivraison.getLgORDERID();
         order.getTOrderDetailCollection().forEach(d -> {
 
@@ -1998,11 +2015,14 @@ public class OrderServiceImpl implements OrderService {
         getEmg().merge(order);
     }
 
-    private void deleteLots(String blRef) {
+    /* audit 06, EN-02 : seulement les lots de CE BL (numero et grossiste), pas ceux du meme numero chez un autre */
+    private void deleteLots(String blRef, String grossisteId) {
 
         try {
-            List<TLot> lot = getEmg().createQuery("SELECT o FROM  TLot o WHERE o.strREFLIVRAISON=?1")
-                    .setParameter(1, blRef).getResultList();
+            List<TLot> lot = getEmg()
+                    .createQuery(
+                            "SELECT o FROM  TLot o WHERE o.strREFLIVRAISON=?1 AND o.lgGROSSISTEID.lgGROSSISTEID=?2")
+                    .setParameter(1, blRef).setParameter(2, grossisteId).getResultList();
             lot.forEach(getEmg()::remove);
 
         } catch (Exception e) {
@@ -2111,11 +2131,13 @@ public class OrderServiceImpl implements OrderService {
 
     }
 
-    private List<TLot> getLot(String idProduit, String bonRef) {
+    /** Lots du produit sur ce BL : son numero ET son grossiste (audit 06, EN-02). */
+    private List<TLot> getLot(String idProduit, String bonRef, String grossisteId) {
         try {
-            TypedQuery<TLot> query = em.createNamedQuery("TLot.findByProduitAndBonRef", TLot.class);
+            TypedQuery<TLot> query = em.createNamedQuery("TLot.findByProduitBonRefEtGrossiste", TLot.class);
             query.setParameter("lgFAMILLEID", idProduit);
             query.setParameter("strREFLIVRAISON", bonRef);
+            query.setParameter("lgGROSSISTEID", grossisteId);
             return query.getResultList();
         } catch (Exception e) {
             return List.of();
@@ -2146,7 +2168,7 @@ public class OrderServiceImpl implements OrderService {
             boolean checkDatePeremption = checkDatePeremption();
             for (TBonLivraisonDetail bonLivraisonDetail : bonLivraisonDetails) {
                 TFamille famille = bonLivraisonDetail.getLgFAMILLEID();
-                List<TLot> lots = getLot(famille.getLgFAMILLEID(), bonLivraison.getStrREFLIVRAISON());
+                List<TLot> lots = getLot(famille.getLgFAMILLEID(), bonLivraison.getStrREFLIVRAISON(), grossiste);
                 JSONObject json = new JSONObject();
 
                 TFamilleGrossiste oTFamilleGrossiste = findFamilleGrossiste(famille.getLgFAMILLEID(), grossiste);
@@ -2318,11 +2340,13 @@ public class OrderServiceImpl implements OrderService {
         TBonLivraisonDetail bonLivraisonDetail = getEmg().find(TBonLivraisonDetail.class, deleteLot.getIdBonDetail());
 
         int freeQty = 0;
+        String grossisteId = bonLivraisonDetail.getLgBONLIVRAISONID().getLgORDERID().getLgGROSSISTEID()
+                .getLgGROSSISTEID();
         List<TLot> lots;
         if (deleteLot.isRemoveLot()) {
-            lots = getLotByIdProduitAndNumLot(deleteLot);
+            lots = getLotByIdProduitAndNumLot(deleteLot, grossisteId);
         } else {
-            lots = getLotByIdProduitAndRefBon(deleteLot);
+            lots = getLotByIdProduitAndRefBon(deleteLot, grossisteId);
         }
 
         for (TLot lot : lots) {
@@ -2330,7 +2354,7 @@ public class OrderServiceImpl implements OrderService {
             freeQty += Objects.requireNonNullElse(lot.getIntNUMBERGRATUIT(), 0);
             getEmg().remove(lot);
         }
-        getWSByIdProduitAndRefBon(deleteLot).forEach(this.getEmg()::remove);
+        getWSByIdProduitAndRefBon(deleteLot, grossisteId).forEach(this.getEmg()::remove);
         bonLivraisonDetail.setIntQTERECUE(bonLivraisonDetail.getIntQTERECUE() - freeQty);
 
         bonLivraisonDetail.setIntQTEUG(bonLivraisonDetail.getIntQTEUG() - freeQty);
@@ -2338,11 +2362,13 @@ public class OrderServiceImpl implements OrderService {
         getEmg().merge(bonLivraisonDetail);
     }
 
-    private List<TLot> getLotByIdProduitAndRefBon(DeleteLot deleteLot) {
-        TypedQuery<TLot> typedQuery = getEmg().createQuery(
-                "SELECT o FROM TLot o WHERE o.strREFLIVRAISON=?1 AND o.lgFAMILLEID.lgFAMILLEID=?2", TLot.class);
+    private List<TLot> getLotByIdProduitAndRefBon(DeleteLot deleteLot, String grossisteId) {
+        TypedQuery<TLot> typedQuery = getEmg()
+                .createQuery("SELECT o FROM TLot o WHERE o.strREFLIVRAISON=?1 AND o.lgFAMILLEID.lgFAMILLEID=?2"
+                        + " AND o.lgGROSSISTEID.lgGROSSISTEID=?3", TLot.class);
         typedQuery.setParameter(1, deleteLot.getRefBon());
         typedQuery.setParameter(2, deleteLot.getIdProduit());
+        typedQuery.setParameter(3, grossisteId);
         return typedQuery.getResultList();
     }
 
@@ -2350,13 +2376,15 @@ public class OrderServiceImpl implements OrderService {
      * Demandes des applications mobiles (16, D1) : le lot est toujours cherche SUR CE BL. Avant, il l'etait par numero
      * + produit seulement : le meme numero de lot etait supprime sur tous les BL, y compris ceux deja entres en stock.
      */
-    private List<TLot> getLotByIdProduitAndNumLot(DeleteLot deleteLot) {
+    private List<TLot> getLotByIdProduitAndNumLot(DeleteLot deleteLot, String grossisteId) {
         TypedQuery<TLot> typedQuery = getEmg().createQuery(
-                "SELECT o FROM TLot o WHERE o.intNUMLOT =?1 AND o.lgFAMILLEID.lgFAMILLEID=?2 AND o.strREFLIVRAISON=?3",
+                "SELECT o FROM TLot o WHERE o.intNUMLOT =?1 AND o.lgFAMILLEID.lgFAMILLEID=?2 AND o.strREFLIVRAISON=?3"
+                        + " AND o.lgGROSSISTEID.lgGROSSISTEID=?4",
                 TLot.class);
         typedQuery.setParameter(1, deleteLot.getNumLot());
         typedQuery.setParameter(2, deleteLot.getIdProduit());
         typedQuery.setParameter(3, deleteLot.getRefBon());
+        typedQuery.setParameter(4, grossisteId);
         return typedQuery.getResultList();
     }
 
@@ -2364,13 +2392,15 @@ public class OrderServiceImpl implements OrderService {
      * Lignes d'entrepot du BL (n° de BL, et n° de lot si un seul lot est retire). Avant, le n° de BL etait compare au
      * numero de lot : elles n'etaient jamais retirees.
      */
-    private List<TWarehouse> getWSByIdProduitAndRefBon(DeleteLot deleteLot) {
+    private List<TWarehouse> getWSByIdProduitAndRefBon(DeleteLot deleteLot, String grossisteId) {
         boolean unLot = deleteLot.isRemoveLot() && StringUtils.isNotEmpty(deleteLot.getNumLot());
-        TypedQuery<TWarehouse> typedQuery = getEmg()
-                .createQuery("SELECT o FROM TWarehouse o WHERE o.strREFLIVRAISON =?1 AND o.lgFAMILLEID.lgFAMILLEID=?2"
-                        + (unLot ? " AND o.intNUMLOT=?3" : ""), TWarehouse.class);
+        TypedQuery<TWarehouse> typedQuery = getEmg().createQuery(
+                "SELECT o FROM TWarehouse o WHERE o.strREFLIVRAISON =?1 AND o.lgFAMILLEID.lgFAMILLEID=?2"
+                        + " AND o.lgGROSSISTEID.lgGROSSISTEID=?4" + (unLot ? " AND o.intNUMLOT=?3" : ""),
+                TWarehouse.class);
         typedQuery.setParameter(1, deleteLot.getRefBon());
         typedQuery.setParameter(2, deleteLot.getIdProduit());
+        typedQuery.setParameter(4, grossisteId);
         if (unLot) {
             typedQuery.setParameter(3, deleteLot.getNumLot());
         }
@@ -2426,7 +2456,7 @@ public class OrderServiceImpl implements OrderService {
             return addNewLot(lot, bonLivraisonDetail, tUser, bonLivraison, false);
         } else {
             Optional<TLot> enOptionl = getLotByProduitIdAndBon(bonLivraisonDetail.getLgFAMILLEID().getLgFAMILLEID(),
-                    bonLivraison.getStrREFLIVRAISON());
+                    bonLivraison);
             if (enOptionl.isPresent()) {
                 addFreeQty(enOptionl.get(), lot, bonLivraisonDetail, bonLivraison.getStrREFLIVRAISON());
             } else {
@@ -2444,6 +2474,10 @@ public class OrderServiceImpl implements OrderService {
         TFamille famille = bonLivraisonDetai.getLgFAMILLEID();
         TOrder order = bonLivraison.getLgORDERID();
         TGrossiste grossiste = order.getLgGROSSISTEID();
+        /*
+         * audit 06, EN-05 : seules les quantites payantes se comparent a la quantite commandee ; les UG d'un lot deja
+         * saisi ne comptent plus (avant : une livraison avec UG passait ou non selon le lot qui portait les UG).
+         */
         int qty = getQtyLot(famille.getLgFAMILLEID(), bonLivraison.getStrREFLIVRAISON(), grossiste.getLgGROSSISTEID())
                 + lot.getQty();
         if (bonLivraisonDetai.getIntQTECMDE() < qty && !isFreeQty) {
@@ -2556,22 +2590,28 @@ public class OrderServiceImpl implements OrderService {
             criteria = cb.and(criteria, cb.equal(root.get(TLot_.strREFLIVRAISON), refBon));
             criteria = cb.and(criteria,
                     cb.equal(root.get(TLot_.lgGROSSISTEID).get(TGrossiste_.lgGROSSISTEID), grossisteId));
-            cq.select(cb.sumAsLong(root.get(TLot_.intNUMBER)));
+            /* quantites payantes : lot moins ses UG (audit 06, EN-05) */
+            cq.select(cb.sumAsLong(cb.diff(cb.coalesce(root.get(TLot_.intNUMBER), 0),
+                    cb.coalesce(root.get(TLot_.intNUMBERGRATUIT), 0))));
             cq.where(criteria);
             Query q = em.createQuery(cq);
-            return ((Long) q.getSingleResult()).intValue();
+            Long somme = (Long) q.getSingleResult();
+            return somme == null ? 0 : somme.intValue();
 
         } catch (Exception e) {
             return 0;
         }
     }
 
-    private Optional<TLot> getLotByProduitIdAndBon(String produitId, String bonNum) {
+    /* audit 06, EN-02 : lot de CE BL (numero et grossiste) */
+    private Optional<TLot> getLotByProduitIdAndBon(String produitId, TBonLivraison bon) {
         try {
-            TypedQuery<TLot> q = em.createQuery(
-                    "SELECT o FROM TLot o WHERE o.lgFAMILLEID.lgFAMILLEID=?1 AND o.strREFLIVRAISON=?2", TLot.class);
+            TypedQuery<TLot> q = em
+                    .createQuery("SELECT o FROM TLot o WHERE o.lgFAMILLEID.lgFAMILLEID=?1 AND o.strREFLIVRAISON=?2"
+                            + " AND o.lgGROSSISTEID.lgGROSSISTEID=?3", TLot.class);
             q.setParameter(1, produitId);
-            q.setParameter(2, bonNum);
+            q.setParameter(2, bon.getStrREFLIVRAISON());
+            q.setParameter(3, bon.getLgORDERID().getLgGROSSISTEID().getLgGROSSISTEID());
             q.setMaxResults(1);
             return Optional.ofNullable(q.getSingleResult());
         } catch (Exception e) {
@@ -2851,7 +2891,7 @@ public class OrderServiceImpl implements OrderService {
         TBonLivraisonDetail bonLivraisonDetail = getEmg().find(TBonLivraisonDetail.class, lot.getIdBonDetail());
         TBonLivraison bonLivraison = bonLivraisonDetail.getLgBONLIVRAISONID();
         Optional<TLot> enOptionl = getLotByProduitIdAndBon(bonLivraisonDetail.getLgFAMILLEID().getLgFAMILLEID(),
-                bonLivraison.getStrREFLIVRAISON());
+                bonLivraison);
         if (enOptionl.isPresent()) {
             addFreeQty(enOptionl.get(), lot, bonLivraisonDetail, bonLivraison.getStrREFLIVRAISON());
         } else {

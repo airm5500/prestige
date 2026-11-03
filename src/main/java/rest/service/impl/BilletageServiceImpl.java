@@ -34,6 +34,7 @@ import java.util.stream.Collectors;
 import javax.ejb.EJB;
 import javax.ejb.Stateless;
 import javax.persistence.EntityManager;
+import javax.persistence.LockModeType;
 import javax.persistence.PersistenceContext;
 import javax.persistence.Query;
 import javax.persistence.TemporalType;
@@ -218,13 +219,33 @@ public class BilletageServiceImpl implements BilletageService {
 
     @Override
     public void cloturerCaisse(BilletageDTO billetage, TUser user) throws CaisseUsingExeception {
-        TResumeCaisse oTResumeCaisse = this.em.find(TResumeCaisse.class, billetage.getResumeCaisseId());
+        /*
+         * Gestion de caisse G1 : resume relu sous verrou (deux envois simultanes : le second attend le premier puis
+         * voit la caisse fermee), caisse de l'appelant seulement, une seule cloture (aucun billetage deja enregistre),
+         * coupures positives ou nulles (le total est toujours la somme des coupures, BilletageDTO.getTotal).
+         */
+        TResumeCaisse oTResumeCaisse = billetage.getResumeCaisseId() == null ? null
+                : this.em.find(TResumeCaisse.class, billetage.getResumeCaisseId(), LockModeType.PESSIMISTIC_WRITE);
         if (oTResumeCaisse == null) {
             throw new CaisseUsingExeception("Erreur de cloture de la caisse [" + billetage.getResumeCaisseId() + "]");
         }
-        if (oTResumeCaisse.getStrSTATUT().equals(Constant.STATUT_IS_PROGRESS)) {
+        if (oTResumeCaisse.getLgUSERID() == null
+                || !oTResumeCaisse.getLgUSERID().getLgUSERID().equals(user.getLgUSERID())) {
+            throw new CaisseUsingExeception("Cette caisse n'est pas la vôtre : chacun clôture sa propre caisse");
+        }
+        if (!Constant.STATUT_IS_USING.equals(oTResumeCaisse.getStrSTATUT())) {
             throw new CaisseUsingExeception("Impossible de cloturer cette caisse [" + billetage.getResumeCaisseId()
                     + "]. Elle est déjà fermée");
+        }
+        long billetages = this.em.createQuery("SELECT COUNT(o) FROM TBilletage o WHERE o.ldCAISSEID = ?1", Long.class)
+                .setParameter(1, oTResumeCaisse.getLdCAISSEID()).getSingleResult();
+        if (billetages > 0) {
+            throw new CaisseUsingExeception("Cette caisse a déjà un billetage : elle est déjà clôturée");
+        }
+        if (billetage.getDixMille() < 0 || billetage.getCinqMille() < 0 || billetage.getDeuxMille() < 0
+                || billetage.getMille() < 0 || billetage.getCinqCent() < 0 || billetage.getAutre() < 0) {
+            throw new CaisseUsingExeception("Billetage invalide : les nombres de billets et le montant des pièces"
+                    + " ne peuvent pas être négatifs");
         }
         // caisseAmountOtherMvts(oTResumeCaisse)
         setLigneResumeCaissesFromDto(oTResumeCaisse);

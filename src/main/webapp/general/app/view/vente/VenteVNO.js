@@ -550,7 +550,18 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                                     text: 'DESIGNATION',
                                                     flex: 2.5,
                                                     sortable: true,
-                                                    dataIndex: 'strNAME'
+                                                    dataIndex: 'strNAME',
+                                                    // audit 05 PR-01 : prix fixe par une promotion (comptant)
+                                                    renderer: function (v, m, r) {
+                                                        var t = Ext.String.htmlEncode(v);
+                                                        if (r.get('promotion')) {
+                                                            t += ' <span style="color:#c0392b;font-weight:bold">PROMOTION'
+                                                                    + (r.get('unitesOffertes') > 0 ? ' : dont '
+                                                                            + r.get('unitesOffertes') + ' offerte(s)' : '')
+                                                                    + '</span>';
+                                                        }
+                                                        return t;
+                                                    }
                                                 }, {
                                                     xtype: 'numbercolumn',
                                                     header: 'QD',

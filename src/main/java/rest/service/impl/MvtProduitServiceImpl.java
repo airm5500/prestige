@@ -680,7 +680,9 @@ public class MvtProduitServiceImpl implements MvtProduitService {
     }
 
     private void ajusterProduitAjustement(Params params, TAjustement ajustement) {
-        TAjustementDetail ajustementDetail = updateAjustementDetail(params);
+        /* audit 06 AJ-02 : lot choisi sur la ligne ; une ligne par produit et par lot */
+        TLot lot = lotService.trouverLot(params.getRefTwo(), params.getLotId());
+        TAjustementDetail ajustementDetail = updateAjustementDetail(params, lot);
         if (ajustementDetail == null) {
             TEmplacement emplacement = ajustement.getLgUSERID().getLgEMPLACEMENTID();
             TFamilleStock familleStock = findStockByProduitId(params.getRefTwo(), emplacement.getLgEMPLACEMENTID());
@@ -700,6 +702,7 @@ public class MvtProduitServiceImpl implements MvtProduitService {
             ajustementDetail.setDtCREATED(new Date());
             ajustementDetail.setDtUPDATED(ajustementDetail.getDtCREATED());
             ajustementDetail.setTypeAjustement(getOneTypeAjustement(params.getValueFour()));
+            ajustementDetail.setLot(lot);
             ajustementDetail.setStrSTATUT(STATUT_IS_PROGRESS);
             this.getEmg().persist(ajustementDetail);
         }
@@ -799,10 +802,10 @@ public class MvtProduitServiceImpl implements MvtProduitService {
         }
     }
 
-    private TAjustementDetail updateAjustementDetail(Params params) {
+    private TAjustementDetail updateAjustementDetail(Params params, TLot lot) {
         try {
             TAjustementDetail ajustementDetail = findAjustementDetailsByParenId(params.getRefParent(),
-                    params.getRefTwo());
+                    params.getRefTwo(), lot);
             if (ajustementDetail == null) {
                 return null;
             }
@@ -859,6 +862,11 @@ public class MvtProduitServiceImpl implements MvtProduitService {
                 familleStock.setIntNUMBER(familleStock.getIntNUMBERAVAILABLE());
                 familleStock.setDtUPDATED(ajustement.getDtUPDATED());
                 emg.merge(familleStock);
+                /* audit 06 AJ-02 : un ajustement negatif sort aussi des lots, le lot choisi d'abord */
+                if (initStock > it.getIntNUMBERAFTERSTOCK()) {
+                    lotService.sortirLots(famille.getLgFAMILLEID(), it.getLot(),
+                            initStock - it.getIntNUMBERAFTERSTOCK());
+                }
                 int compare = initStock.compareTo(it.getIntNUMBERAFTERSTOCK());
 
                 String action2 = (compare < 0) ? AJUSTEMENT_POSITIF : AJUSTEMENT_NEGATIF;
@@ -942,13 +950,17 @@ public class MvtProduitServiceImpl implements MvtProduitService {
                 TAjustementDetail.class).setParameter(1, idParent).getResultList();
     }
 
-    private TAjustementDetail findAjustementDetailsByParenId(String idParent, String produitId) {
+    private TAjustementDetail findAjustementDetailsByParenId(String idParent, String produitId, TLot lot) {
         try {
             TypedQuery<TAjustementDetail> q = getEmg().createQuery(
-                    "SELECT o FROM TAjustementDetail o WHERE o.lgAJUSTEMENTID.lgAJUSTEMENTID=?1 AND o.lgFAMILLEID.lgFAMILLEID=?2 ",
+                    "SELECT o FROM TAjustementDetail o WHERE o.lgAJUSTEMENTID.lgAJUSTEMENTID=?1 AND o.lgFAMILLEID.lgFAMILLEID=?2 "
+                            + (lot == null ? "AND o.lot IS NULL" : "AND o.lot.lgLOTID = ?3"),
                     TAjustementDetail.class);
             q.setParameter(1, idParent);
             q.setParameter(2, produitId);
+            if (lot != null) {
+                q.setParameter(3, lot.getLgLOTID());
+            }
             q.setMaxResults(1);
             return q.getSingleResult();
         } catch (Exception e) {
@@ -1262,6 +1274,39 @@ public class MvtProduitServiceImpl implements MvtProduitService {
         return json.put("success", true).put("msg", "Retour mis en attente de validation : rien n'est sorti du stock");
     }
 
+    /**
+     * Audit 06 RF-05 : boites retournees sans lot indique. Elles sortent d'abord des lots recus avec ce BL (peremption
+     * la plus proche d'abord), puis, pour le reste, selon la regle de la vente.
+     */
+    private void sortirLotsRetour(EntityManager emg, String produitId, TBonLivraison bl, TGrossiste grossiste,
+            int quantite) {
+        int reste = quantite;
+        if (bl != null && bl.getStrREFLIVRAISON() != null) {
+            String grossisteId = grossiste == null ? null : grossiste.getLgGROSSISTEID();
+            @SuppressWarnings("unchecked")
+            List<Object[]> lots = emg
+                    .createNativeQuery("SELECT lg_LOT_ID, current_stock FROM t_lot"
+                            + " WHERE lg_FAMILLE_ID = ?1 AND str_REF_LIVRAISON = ?2 AND current_stock > 0"
+                            + " AND (?3 IS NULL OR lg_GROSSISTE_ID IS NULL OR lg_GROSSISTE_ID = ?3)"
+                            + " ORDER BY dt_PEREMPTION, dt_CREATED")
+                    .setParameter(1, produitId).setParameter(2, bl.getStrREFLIVRAISON()).setParameter(3, grossisteId)
+                    .getResultList();
+            for (Object[] l : lots) {
+                if (reste <= 0) {
+                    break;
+                }
+                int pris = Math.min(reste, ((Number) l[1]).intValue());
+                emg.createNativeQuery(
+                        "UPDATE t_lot SET current_stock = current_stock - ?1, dt_UPDATED = NOW() WHERE lg_LOT_ID = ?2")
+                        .setParameter(1, pris).setParameter(2, l[0]).executeUpdate();
+                reste -= pris;
+            }
+        }
+        if (reste > 0) {
+            lotService.pickLot(produitId, reste);
+        }
+    }
+
     @Override
     public JSONObject validerRetourFournisseur(Params params) throws JSONException {
         JSONObject json = new JSONObject();
@@ -1346,6 +1391,13 @@ public class MvtProduitServiceImpl implements MvtProduitService {
                     emg.createNativeQuery("UPDATE t_lot SET current_stock = GREATEST(0, COALESCE(current_stock,"
                             + " int_NUMBER) - ?1), dt_UPDATED = NOW() WHERE lg_LOT_ID = ?2")
                             .setParameter(1, d.getIntNUMBERRETURN()).setParameter(2, d.getLgLOTID()).executeUpdate();
+                } else {
+                    /*
+                     * audit 06 RF-05 : sans lot indique (cas du web), les lots recus avec ce BL, puis la regle de la
+                     * vente
+                     */
+                    sortirLotsRetour(emg, tf.getLgFAMILLEID(), bonLivraison, fournisseur.getLgGROSSISTEID(),
+                            d.getIntNUMBERRETURN());
                 }
                 mouvementProduitService.saveMvtProduit(0, d.getIntPAF(), d.getLgRETOURFRSDETAIL(), RETOUR_FOURNISSEUR,
                         tf, params.getOperateur(), empl, d.getIntNUMBERRETURN(), sockInit, finalQty, 0);

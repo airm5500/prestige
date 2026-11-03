@@ -26,6 +26,7 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Response;
 import org.json.JSONException;
 import org.json.JSONObject;
+import rest.service.LotService;
 import rest.service.MouvementProduitService;
 import toolkits.parameters.commonparameter;
 import util.Constant;
@@ -43,6 +44,8 @@ public class AjustRessource {
     private HttpServletRequest servletRequest;
     @EJB
     private MouvementProduitService mvtProduitService;
+    @EJB
+    private LotService lotService;
 
     @POST
     @Path("creeation")
@@ -75,6 +78,13 @@ public class AjustRessource {
 
         JSONObject json = mvtProduitService.cloreAjustement(params);
         return Response.ok().entity(json.toString()).build();
+    }
+
+    /** audit 06 AJ-02 : lots du produit encore en stock (liste « Lot » de la ligne d'ajustement) */
+    @GET
+    @Path("lots/{produitId}")
+    public Response lotsAjustement(@PathParam("produitId") String produitId) throws JSONException {
+        return Response.ok().entity(lotService.lotsEnStock(produitId).toString()).build();
     }
 
     @POST

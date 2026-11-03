@@ -49,6 +49,17 @@ public class Params implements Serializable {
     /** Liste des differes (retours du 07/10) : NON_SOLDES (defaut), NON_REGLES, PARTIELS, REGLES ou TOUS. */
     private String etatDiffere;
 
+    /** audit 06 AJ-02 : lot d'une ligne d'ajustement (identifiant ou numero du lot), facultatif */
+    private String lotId;
+
+    public String getLotId() {
+        return lotId;
+    }
+
+    public void setLotId(String lotId) {
+        this.lotId = lotId;
+    }
+
     public String getEtatDiffere() {
         return etatDiffere;
     }

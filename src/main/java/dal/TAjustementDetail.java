@@ -65,6 +65,18 @@ public class TAjustementDetail implements Serializable {
     @ManyToOne
     @JoinColumn(name = "motif_ajustement_id", referencedColumnName = "id")
     private MotifAjustement typeAjustement;
+    /** audit 06 AJ-02 : lot choisi sur la ligne, diminue en premier a la cloture (facultatif) */
+    @ManyToOne
+    @JoinColumn(name = "lg_LOT_ID", referencedColumnName = "lg_LOT_ID")
+    private TLot lot;
+
+    public TLot getLot() {
+        return lot;
+    }
+
+    public void setLot(TLot lot) {
+        this.lot = lot;
+    }
 
     public TAjustementDetail() {
     }

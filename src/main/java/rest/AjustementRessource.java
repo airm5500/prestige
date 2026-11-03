@@ -28,6 +28,7 @@ import javax.ws.rs.core.Response;
 import org.json.JSONException;
 import org.json.JSONObject;
 import rest.service.AjustementAnalyseService;
+import rest.service.LotService;
 import rest.service.MvtProduitService;
 import rest.service.mobile.MobileClientRefService;
 import toolkits.parameters.commonparameter;
@@ -54,6 +55,8 @@ public class AjustementRessource {
     private HttpServletRequest servletRequest;
     @EJB
     MvtProduitService mvtProduitService;
+    @EJB
+    private LotService lotService;
     @EJB
     private AjustementAnalyseService ajustementAnalyseService;
     @EJB
@@ -106,6 +109,13 @@ public class AjustementRessource {
     private String uneFois(String clientRef, String type, java.util.function.Supplier<JSONObject> operation,
             java.util.function.Function<JSONObject, String> identifiant) {
         return mobileClientRefService.uneFois(clientRef, type, operation, identifiant);
+    }
+
+    /** audit 06 AJ-02 : lots du produit encore en stock (liste « Lot » de la ligne d'ajustement) */
+    @GET
+    @Path("lots/{produitId}")
+    public Response lotsAjustement(@PathParam("produitId") String produitId) throws JSONException {
+        return Response.ok().entity(lotService.lotsEnStock(produitId).toString()).build();
     }
 
     @POST

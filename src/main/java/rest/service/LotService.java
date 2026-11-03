@@ -22,6 +22,18 @@ public interface LotService {
 
     void pickLot(String produitId, int quantitVendue);
 
+    /** audit 06 AJ-02 : lot du produit designe par son identifiant ou son numero ; null si absent */
+    dal.TLot trouverLot(String produitId, String lotIdOuNumero);
+
+    /**
+     * Audit 06 AJ-02 : sortie de boites des lots. Le lot choisi d'abord (s'il est donne), puis, pour ce qu'il ne couvre
+     * pas, la regle de {@link #pickLot(String, int)}.
+     */
+    void sortirLots(String produitId, dal.TLot lotChoisi, int quantite);
+
+    /** audit 06 AJ-02 : lots du produit encore en stock, peremption la plus proche d'abord (liste « Lot ») */
+    JSONObject lotsEnStock(String produitId);
+
     /**
      * Retours du 10/10 (lecture GS1, mode B) : sortie de la vente en commencant par les lots des boites scannees (un
      * par boite, s'ils ont encore du stock et ne sont pas perimes), le reste comme {@link #pickLot(String, int)}.

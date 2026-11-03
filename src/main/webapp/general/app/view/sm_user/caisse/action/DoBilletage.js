@@ -241,6 +241,9 @@ Ext.define('testextjs.view.sm_user.caisse.action.DoBilletage', {
                         }
                     });
 
+                } else {
+                    // gestion de caisse G1 : le refus du serveur est affiche (avant : rien)
+                    Ext.MessageBox.alert('Clôture de caisse', object.msg || 'La clôture n\'a pas abouti');
                 }
 
 

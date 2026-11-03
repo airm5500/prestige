@@ -51,9 +51,46 @@ public class PromotionServiceImpl implements PromotionService {
         return TYPE_REMISE.equals(type) || TYPE_PRIX_SPECIAL.equals(type) || TYPE_UNITES_GRATUITES.equals(type);
     }
 
-    /** Active tant que la date de fin n'est pas depassee (meme regle que la vente : isActivePromotion >= 0). */
-    private boolean estActive(Date fin) {
-        return fin != null && !fin.before(truncate(new Date()));
+    /** Audit 05 PR-05 : active si debut <= aujourd'hui <= fin (avant : la date de fin seule). */
+    private boolean estActive(Date debut, Date fin) {
+        Date jour = truncate(new Date());
+        return fin != null && !fin.before(jour) && (debut == null || !truncate(debut).after(jour));
+    }
+
+    /** Etat affiche : EN_COURS, A_VENIR ou TERMINEE. */
+    private String etat(Date debut, Date fin) {
+        Date jour = truncate(new Date());
+        if (fin != null && fin.before(jour)) {
+            return "TERMINEE";
+        }
+        return debut != null && truncate(debut).after(jour) ? "A_VENIR" : "EN_COURS";
+    }
+
+    /**
+     * Audit 05 PR-06 : drapeau « en promotion » recalcule a partir des promotions non terminees qui contiennent encore
+     * le produit (avant : remis a 0 au retrait ou a la cloture meme si une autre promotion le contenait).
+     */
+    private void recalculerDrapeau(String familleId) {
+        em.createNativeQuery("UPDATE t_famille f SET f.bl_PROMOTED = EXISTS (SELECT 1 FROM t_promotion_product pp"
+                + " JOIN t_promotion p ON p.lg_CODE_PROMOTION_ID = pp.lg_CODE_PROMOTION_ID"
+                + " WHERE pp.lg_FAMILLE_ID = f.lg_FAMILLE_ID AND p.dt_END_DATE >= CURDATE())"
+                + " WHERE f.lg_FAMILLE_ID = ?1").setParameter(1, familleId).executeUpdate();
+    }
+
+    /**
+     * Audit 05 PR-06 : autre promotion du produit dont la periode chevauche [debut, fin] ; null si aucune. Le
+     * chevauchement est refuse : la vente n'a ainsi jamais a choisir entre deux promotions.
+     */
+    private String chevauchement(String familleId, int promotionId, Date debut, Date fin) {
+        List<?> r = em
+                .createNativeQuery("SELECT CONCAT(p.str_TYPE, ' du ', DATE_FORMAT(p.dt_START_DATE, '%d/%m/%Y'),"
+                        + " ' au ', DATE_FORMAT(p.dt_END_DATE, '%d/%m/%Y')) FROM t_promotion_product pp"
+                        + " JOIN t_promotion p ON p.lg_CODE_PROMOTION_ID = pp.lg_CODE_PROMOTION_ID"
+                        + " WHERE pp.lg_FAMILLE_ID = ?1 AND p.lg_CODE_PROMOTION_ID <> ?2"
+                        + " AND p.dt_START_DATE <= ?4 AND p.dt_END_DATE >= ?3 ORDER BY p.dt_START_DATE LIMIT 1")
+                .setParameter(1, familleId).setParameter(2, promotionId).setParameter(3, debut).setParameter(4, fin)
+                .getResultList();
+        return r.isEmpty() ? null : String.valueOf(r.get(0));
     }
 
     private Date truncate(Date date) {
@@ -85,7 +122,8 @@ public class PromotionServiceImpl implements PromotionService {
             for (Object[] r : (List<Object[]>) q.getResultList()) {
                 results.put(new JSONObject().put("lg_CODE_PROMOTION_ID", String.valueOf(r[0]))
                         .put("str_TYPE", r[1] != null ? r[1] : "").put("dt_START_DATE", fmt((Date) r[2]))
-                        .put("dt_END_DATE", fmt((Date) r[3])).put("bl_ACTIVE", estActive((Date) r[3]))
+                        .put("dt_END_DATE", fmt((Date) r[3])).put("bl_ACTIVE", estActive((Date) r[2], (Date) r[3]))
+                        .put("str_ETAT", etat((Date) r[2], (Date) r[3]))
                         .put("int_NUMBER_PRODUCT", ((Number) r[4]).intValue()));
             }
             return json.put("total", total).put("results", results);
@@ -141,18 +179,38 @@ public class PromotionServiceImpl implements PromotionService {
                 if (!typeValide(type)) {
                     return json.put("success", FAILED).put("errors", "Type de promotion invalide");
                 }
-                promotion.setStrTYPE(type);
             }
-            if (StringUtils.isNotBlank(dtStart)) {
-                promotion.setDtSTARTDATE(parse(dtStart));
-            }
-            if (StringUtils.isNotBlank(dtEnd)) {
-                promotion.setDtENDDATE(parse(dtEnd));
-            }
-            if (promotion.getDtENDDATE().before(promotion.getDtSTARTDATE())) {
+            /*
+             * audit 05 PR-02 : dates controlees AVANT toute ecriture sur l'entite geree (avant : le refus etait affiche
+             * mais les dates inversees etaient deja posees, et la transaction les enregistrait).
+             */
+            Date debut = StringUtils.isNotBlank(dtStart) ? parse(dtStart) : promotion.getDtSTARTDATE();
+            Date fin = StringUtils.isNotBlank(dtEnd) ? parse(dtEnd) : promotion.getDtENDDATE();
+            if (fin.before(debut)) {
                 return json.put("success", FAILED).put("errors", "La date de fin doit être après la date de début");
             }
+            /* audit 05 PR-06 : la nouvelle periode ne doit pas chevaucher une autre promotion de ses produits */
+            for (Object fam : em
+                    .createNativeQuery("SELECT lg_FAMILLE_ID FROM t_promotion_product WHERE lg_CODE_PROMOTION_ID = ?1")
+                    .setParameter(1, promotionId).getResultList()) {
+                String autre = chevauchement(String.valueOf(fam), promotionId, debut, fin);
+                if (autre != null) {
+                    TFamille f = em.find(TFamille.class, String.valueOf(fam));
+                    return json.put("success", FAILED).put("errors", "Nouvelle période refusée : le produit "
+                            + (f != null ? f.getStrNAME() : fam) + " est déjà dans la promotion " + autre);
+                }
+            }
+            if (StringUtils.isNotBlank(type) && !type.equals(promotion.getStrTYPE())) {
+                promotion.setStrTYPE(type);
+            }
+            promotion.setDtSTARTDATE(debut);
+            promotion.setDtENDDATE(fin);
             em.merge(promotion);
+            for (Object fam : em
+                    .createNativeQuery("SELECT lg_FAMILLE_ID FROM t_promotion_product WHERE lg_CODE_PROMOTION_ID = ?1")
+                    .setParameter(1, promotionId).getResultList()) {
+                recalculerDrapeau(String.valueOf(fam));
+            }
             return json.put("success", SUCCESS).put("errors", "Promotion modifiée avec succès");
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "updatePromotion", e);
@@ -168,16 +226,36 @@ public class PromotionServiceImpl implements PromotionService {
             if (promotion == null) {
                 return json.put("success", FAILED).put("errors", "Promotion introuvable");
             }
+            /*
+             * audit 05 PR-03 : une promotion terminee garde sa date de fin ; une promotion a venir ne se cloture pas
+             * (fin avant debut) ; une promotion en cours s'arrete hier, ou ce soir si elle a commence aujourd'hui.
+             */
+            Date jour = truncate(new Date());
+            if (promotion.getDtENDDATE().before(jour)) {
+                return json.put("success", FAILED).put("errors", "Promotion déjà terminée le "
+                        + fmt(promotion.getDtENDDATE()) + " : sa date de fin n'est pas modifiée");
+            }
+            if (truncate(promotion.getDtSTARTDATE()).after(jour)) {
+                return json.put("success", FAILED).put("errors",
+                        "Promotion pas encore commencée (début le " + fmt(promotion.getDtSTARTDATE())
+                                + ") : modifiez ses dates ou retirez ses produits au lieu de la clôturer");
+            }
             Calendar hier = Calendar.getInstance();
             hier.add(Calendar.DAY_OF_MONTH, -1);
-            promotion.setDtENDDATE(truncate(hier.getTime()));
+            Date fin = truncate(hier.getTime());
+            if (fin.before(truncate(promotion.getDtSTARTDATE()))) {
+                fin = jour;
+            }
+            promotion.setDtENDDATE(fin);
             em.merge(promotion);
-            // Retrait du drapeau promotion sur tous les produits de cette promotion
-            int produits = em.createNativeQuery("UPDATE t_famille f JOIN t_promotion_product pp"
-                    + " ON pp.lg_FAMILLE_ID = f.lg_FAMILLE_ID SET f.bl_PROMOTED = 0"
-                    + " WHERE pp.lg_CODE_PROMOTION_ID = ?1").setParameter(1, promotionId).executeUpdate();
-            return json.put("success", SUCCESS).put("errors",
-                    "Promotion clôturée : " + produits + " produit(s) sorti(s) de promotion");
+            em.flush();
+            // Drapeau promotion recalcule pour chaque produit (une autre promotion peut encore le contenir)
+            List<?> familles = em
+                    .createNativeQuery("SELECT lg_FAMILLE_ID FROM t_promotion_product WHERE lg_CODE_PROMOTION_ID = ?1")
+                    .setParameter(1, promotionId).getResultList();
+            familles.forEach(f -> recalculerDrapeau(String.valueOf(f)));
+            return json.put("success", SUCCESS).put("errors", "Promotion clôturée (fin le " + fmt(fin) + ") : "
+                    + familles.size() + " produit(s) sorti(s) de cette promotion");
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "cloturerPromotion", e);
             return json.put("success", FAILED).put("errors", "Impossible de clôturer la promotion");
@@ -277,6 +355,16 @@ public class PromotionServiceImpl implements PromotionService {
             if (famille == null) {
                 return json.put("success", FAILED).put("errors", "Produit introuvable");
             }
+            /* audit 05 PR-06 : pas d'ajout a une promotion terminee, ni de chevauchement avec une autre promotion */
+            if (promotion.getDtENDDATE().before(truncate(new Date()))) {
+                return json.put("success", FAILED).put("errors", "Promotion terminée le "
+                        + fmt(promotion.getDtENDDATE()) + " : on ne peut plus y ajouter de produit");
+            }
+            String autre = chevauchement(familleId, promotionId, promotion.getDtSTARTDATE(), promotion.getDtENDDATE());
+            if (autre != null) {
+                return json.put("success", FAILED).put("errors", "Le produit " + famille.getStrNAME()
+                        + " est déjà dans la promotion " + autre + " : les périodes se chevauchent");
+            }
             String type = StringUtils.defaultString(promotion.getStrTYPE());
             double prixPromo;
             switch (type) {
@@ -289,6 +377,11 @@ public class PromotionServiceImpl implements PromotionService {
             case TYPE_PRIX_SPECIAL:
                 if (promoPrice <= 0) {
                     return json.put("success", FAILED).put("errors", "Le prix promotionnel doit être supérieur à 0");
+                }
+                /* audit 05 PR-04 : un prix special est inferieur au prix public */
+                if (famille.getIntPRICE() != null && promoPrice >= famille.getIntPRICE()) {
+                    return json.put("success", FAILED).put("errors", "Le prix promotionnel (" + Math.round(promoPrice)
+                            + ") doit être inférieur au prix public (" + famille.getIntPRICE() + ")");
                 }
                 prixPromo = promoPrice;
                 break;
@@ -324,8 +417,8 @@ public class PromotionServiceImpl implements PromotionService {
             }
 
             // Le produit est marque comme promu : la vente appliquera le prix/pack promotionnel
-            famille.setBlPROMOTED(Boolean.TRUE);
-            em.merge(famille);
+            em.flush();
+            recalculerDrapeau(famille.getLgFAMILLEID());
 
             // Trace dans l'historique des promotions
             TPromotionHistory histo = new TPromotionHistory();
@@ -363,8 +456,8 @@ public class PromotionServiceImpl implements PromotionService {
             TFamille famille = produit.getLgFAMILLEID();
             em.remove(produit);
             if (famille != null) {
-                famille.setBlPROMOTED(Boolean.FALSE);
-                em.merge(famille);
+                em.flush();
+                recalculerDrapeau(famille.getLgFAMILLEID());
             }
             return json.put("success", SUCCESS).put("errors", "Produit retiré de la promotion");
         } catch (Exception e) {

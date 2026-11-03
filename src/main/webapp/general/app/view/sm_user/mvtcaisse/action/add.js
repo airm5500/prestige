@@ -478,7 +478,16 @@ Ext.define('testextjs.view.sm_user.mvtcaisse.action.add', {
 
         const fenetre = Ext.getCmp("paydebtID"),
                 formulaire = fenetre.down('form');
+        // gestion de caisse G2 : un seul envoi a la fois (double clic, double Entree)
+        if (Me_add_mvt_caisse.envoiEnCours) {
+            return;
+        }
         if (formulaire.isValid()) {
+            if (!(Number(Ext.getCmp('int_MONTANT_Add_MvtCaisse').getValue()) > 0)) {
+                Ext.MessageBox.alert('Mouvement de caisse', 'Le montant doit &ecirc;tre sup&eacute;rieur &agrave; 0.');
+                return;
+            }
+            Me_add_mvt_caisse.envoiEnCours = true;
 
             testextjs.app.getController('App').ShowWaitingProcess();
             let datas = {
@@ -500,7 +509,9 @@ Ext.define('testextjs.view.sm_user.mvtcaisse.action.add', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 params: Ext.JSON.encode(datas),
-
+                callback: function () {
+                    Me_add_mvt_caisse.envoiEnCours = false;
+                },
                 success: function (response)
                 {
                     testextjs.app.getController('App').StopWaitingProcess();

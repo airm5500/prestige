@@ -251,6 +251,56 @@ public class LotServiceImpl implements LotService {
     }
 
     @Override
+    public TLot trouverLot(String produitId, String lotIdOuNumero) {
+        if (lotIdOuNumero == null || lotIdOuNumero.isBlank() || produitId == null) {
+            return null;
+        }
+        List<TLot> lots = em.createQuery(
+                "SELECT o FROM TLot o WHERE o.lgFAMILLEID.lgFAMILLEID = ?1 AND (o.lgLOTID = ?2 OR o.intNUMLOT = ?2)"
+                        + " ORDER BY o.currentStock DESC, o.dtPEREMPTION",
+                TLot.class).setParameter(1, produitId).setParameter(2, lotIdOuNumero.trim()).setMaxResults(1)
+                .getResultList();
+        return lots.isEmpty() ? null : lots.get(0);
+    }
+
+    @Override
+    public void sortirLots(String produitId, TLot lotChoisi, int quantite) {
+        int reste = quantite;
+        if (lotChoisi != null && reste > 0) {
+            Number dispo = (Number) em
+                    .createNativeQuery("SELECT COALESCE(current_stock, 0) FROM t_lot WHERE lg_LOT_ID = ?1")
+                    .setParameter(1, lotChoisi.getLgLOTID()).getResultList().stream().findFirst().orElse(0);
+            int pris = Math.min(reste, Math.max(0, dispo.intValue()));
+            if (pris > 0) {
+                em.createNativeQuery(
+                        "UPDATE t_lot SET current_stock = current_stock - ?1, dt_UPDATED = NOW() WHERE lg_LOT_ID = ?2")
+                        .setParameter(1, pris).setParameter(2, lotChoisi.getLgLOTID()).executeUpdate();
+                reste -= pris;
+            }
+        }
+        if (reste > 0) {
+            pickLot(produitId, reste);
+        }
+    }
+
+    @Override
+    public JSONObject lotsEnStock(String produitId) {
+        JSONArray data = new JSONArray();
+        @SuppressWarnings("unchecked")
+        List<Object[]> lots = em
+                .createNativeQuery("SELECT lg_LOT_ID, int_NUM_LOT, DATE_FORMAT(dt_PEREMPTION, '%d/%m/%Y'),"
+                        + " current_stock, dt_PEREMPTION <= NOW() FROM t_lot WHERE lg_FAMILLE_ID = ?1 AND current_stock > 0"
+                        + " AND int_NUM_LOT IS NOT NULL AND int_NUM_LOT <> '' ORDER BY dt_PEREMPTION, dt_CREATED")
+                .setParameter(1, produitId).getResultList();
+        for (Object[] l : lots) {
+            data.put(new JSONObject().put("lgLOTID", l[0]).put("numLot", l[1]).putOpt("peremption", l[2])
+                    .put("stock", ((Number) l[3]).intValue())
+                    .put("perime", l[4] != null && ((Number) l[4]).intValue() == 1));
+        }
+        return new JSONObject().put("success", true).put("total", data.length()).put("data", data);
+    }
+
+    @Override
     public void pickLot(String produitId, int quantiteVendue) {
         if (quantiteVendue == 0) {
             return;

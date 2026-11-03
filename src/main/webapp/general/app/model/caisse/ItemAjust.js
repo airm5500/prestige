@@ -32,6 +32,10 @@ Ext.define('testextjs.model.caisse.ItemAjust', {
             type: 'string'
         },
         {
+            name: 'numLot',
+            type: 'string'
+        },
+        {
             name: 'intNUMBER',
             type: 'number'
         },

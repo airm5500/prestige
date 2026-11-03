@@ -90,8 +90,10 @@ public class SalesNetComputingServiceImpl implements SalesNetComputingService {
             totalAmount += x.getIntPRICE();
             TFamille famille = x.getLgFAMILLEID();
             int remise = 0;
-            if (Objects.nonNull(oTRemise) && !StringUtils.isEmpty(famille.getStrCODEREMISE())
-                    && !famille.getStrCODEREMISE().equals("2") && !famille.getStrCODEREMISE().equals("3")) {
+            // audit 05 PR-01 : pas de remise client sur une ligne en promotion
+            if (Objects.nonNull(oTRemise) && x.getPromotionProduitId() == null
+                    && !StringUtils.isEmpty(famille.getStrCODEREMISE()) && !famille.getStrCODEREMISE().equals("2")
+                    && !famille.getStrCODEREMISE().equals("3")) {
                 TGrilleRemise grilleRemise = grilleRemiseRemiseFromWorkflow(x.getLgPREENREGISTREMENTID(), famille,
                         oTRemise.getLgREMISEID());
                 if (grilleRemise != null) {
