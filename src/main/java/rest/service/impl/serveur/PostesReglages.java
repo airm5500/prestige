@@ -87,6 +87,15 @@ public final class PostesReglages {
     }
 
     /**
+     * Un seul serveur par reseau (retour du 03/11) : un Payara configure en serveur lance les taches planifiees, sauf
+     * s'il n'heberge pas la base alors que la machine qui l'heberge est connue comme serveur (c'est alors une caisse
+     * mal configuree, qui les lancerait en double). Dans le doute (aucun serveur connu), rien ne change.
+     */
+    public static boolean tachesDuServeurIci(boolean declareServeur, boolean baseLocale, boolean autreServeurConnu) {
+        return declareServeur && (baseLocale || !autreServeurConnu);
+    }
+
+    /**
      * Alertes d'ensemble sur les postes releves.
      *
      * @param postesDeclares

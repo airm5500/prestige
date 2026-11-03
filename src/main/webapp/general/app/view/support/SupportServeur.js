@@ -431,7 +431,9 @@ Ext.define('testextjs.view.support.SupportServeur', {
             o.down('#reglagesPoste').getStore().loadData([]);
             o.down('#reglagesPoste').setTitle('Choisissez un poste pour voir ses réglages.');
             o.down('#resumePostes').setText(r.total + ' poste(s) relevé(s) pour ' + r.postes + ' déclaré(s)'
-                    + (r.maxConnexions > 0 ? ' · MariaDB accepte ' + r.maxConnexions + ' connexions' : ''));
+                    + (r.maxConnexions > 0 ? ' · MariaDB accepte ' + r.maxConnexions + ' connexions' : '')
+                    + ' · Tâches planifiées : ' + (r.tachesIci ? 'lancées sur ce poste'
+                            : (r.declareServeur ? 'non lancées ici (caisse configurée en serveur)' : 'lancées par le serveur')));
             o.down('#alertesPostes').update((r.alertes || []).length ? Ext.Array.map(r.alertes, function (a) {
                 return '<div class="srv-ajuster">⚠ ' + me.esc(a) + '</div>';
             }).join('') : '<span class="srv-ok">Aucune alerte sur l\'ensemble des postes.</span>');

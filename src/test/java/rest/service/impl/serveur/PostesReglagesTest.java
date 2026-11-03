@@ -125,6 +125,22 @@ class PostesReglagesTest {
                 a.toString());
     }
 
+    /**
+     * Retour du 03/11 : une caisse configuree en serveur ne lance pas les taches planifiees quand la machine qui heberge
+     * la base est connue comme serveur ; dans le doute, rien ne change.
+     */
+    @Test
+    void tachesDuServeurSeulementSurLeVraiServeur() {
+        assertTrue(PostesReglages.tachesDuServeurIci(true, true, true), "serveur avec la base : taches lancees");
+        assertTrue(PostesReglages.tachesDuServeurIci(true, true, false));
+        assertTrue(!PostesReglages.tachesDuServeurIci(true, false, true),
+                "configure en serveur, base ailleurs, vrai serveur connu : caisse, pas de taches");
+        assertTrue(PostesReglages.tachesDuServeurIci(true, false, false),
+                "base ailleurs mais aucun serveur connu (base sur une machine sans Payara) : comme avant");
+        assertTrue(!PostesReglages.tachesDuServeurIci(false, true, false), "configure en client : jamais");
+        assertTrue(!PostesReglages.tachesDuServeurIci(false, false, true));
+    }
+
     @Test
     void posteSansNouvelles() {
         PostesReglages.Poste c = poste("CAISSE-2", false, 32);

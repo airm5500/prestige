@@ -46,6 +46,28 @@ public final class CalculReglages {
     }
 
     /**
+     * La base de ce Payara (URL de son pool, dans domain.xml) est-elle sur cette machine ? Vrai dans le doute (domain.xml
+     * illisible, pool sans URL), comme dans {@link #calculer}.
+     *
+     * @param hote
+     *            nom de cette machine
+     */
+    public static boolean baseLocale(String hote) {
+        String racine = System.getProperty("com.sun.aas.instanceRoot");
+        try {
+            java.nio.file.Path domaine = racine == null ? null : Paths.get(racine, "config", "domain.xml");
+            if (domaine == null || !Files.isRegularFile(domaine)) {
+                return true;
+            }
+            ConfigPayara p = ConfigPayara.lire(new String(Files.readAllBytes(domaine), StandardCharsets.UTF_8));
+            return !p.lu || p.poolUrl.isEmpty()
+                    || ConfigPayara.locale(ConfigPayara.hoteBase(p.poolUrl), hote, adressesLocales());
+        } catch (java.io.IOException | RuntimeException e) {
+            return true;
+        }
+    }
+
+    /**
      * @param serveur
      *            poste declare « serveur » (application.mode), sinon caisse
      * @param hote

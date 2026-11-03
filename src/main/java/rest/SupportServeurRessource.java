@@ -195,7 +195,7 @@ public class SupportServeurRessource {
 
     /** Reglages en place et conseilles (MariaDB, Payara) : base commune de la lecture et de l'application. */
     private CalculReglages calcul() throws java.io.IOException {
-        return CalculReglages.calculer(postes(), vie.variablesMariadb(), appConfig == null || appConfig.isServerMode(),
+        return CalculReglages.calculer(postes(), vie.variablesMariadb(), appConfig == null || appConfig.estDeclareServeur(),
                 watchdog.getHote(), barres(watchdog.getStorageBase().resolve("dumps")), barres(watchdog.dossierLogs()));
     }
 
@@ -284,7 +284,10 @@ public class SupportServeurRessource {
             }
             int declares = postes();
             return ok(new JSONObject().put("data", a).put("total", a.length()).put("postes", declares)
-                    .put("maxConnexions", max).put("alertes",
+                    .put("maxConnexions", max)
+                    /* un seul serveur par reseau (retour du 03/11) : ce Payara lance-t-il les taches planifiees ? */
+                    .put("tachesIci", appConfig == null || appConfig.isServerMode())
+                    .put("declareServeur", appConfig == null || appConfig.estDeclareServeur()).put("alertes",
                             new JSONArray(PostesReglages.alertes(postes, declares, max, java.time.LocalDateTime.now()))));
         } catch (Exception e) {
             LOG.log(Level.WARNING, "reglages des postes", e);

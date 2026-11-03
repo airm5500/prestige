@@ -172,7 +172,7 @@ public class SupportWatchdog {
             }
             Path logs = dossierLogs();
             rest.service.impl.serveur.CalculReglages c = rest.service.impl.serveur.CalculReglages.calculer(postes,
-                    vie.variablesMariadb(), appConfig == null || appConfig.isServerMode(), hote,
+                    vie.variablesMariadb(), appConfig == null || appConfig.estDeclareServeur(), hote,
                     getStorageBase().resolve("dumps").toAbsolutePath().toString().replace('\\', '/'),
                     logs == null ? "" : logs.toAbsolutePath().toString().replace('\\', '/'));
             vie.enregistrerPoste(rest.service.impl.serveur.PostesReglages.depuis(hote, c,
