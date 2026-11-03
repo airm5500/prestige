@@ -185,6 +185,9 @@ public class SalesServiceImpl implements SalesService {
     private RemiseService remiseService;
     @EJB
     private SessionHelperService sessionHelperService;
+    /** Cas 2 du 03/11/2026 : colonnes P.REF | TAUX de la grille de vente (seulement si le parametre est actif). */
+    @EJB
+    private rest.service.PrixReferenceService prixReferenceService;
     @EJB
     private CautionTiersPayantService cautionTiersPayantService;
     @EJB
@@ -4361,6 +4364,11 @@ public class SalesServiceImpl implements SalesService {
             }
             List<TPreenregistrementDetail> list = q.getResultList();
             List<VenteDetailsDTO> datas = list.stream().map(VenteDetailsDTO::new).collect(Collectors.toList());
+            // Cas 2 du 03/11 : references par tiers-payant, seulement si KEY_PRIX_REF_CAISSE = 1 et vente assurance ;
+            // sinon la methode rend la main sans toucher aux lignes.
+            if (!list.isEmpty()) {
+                prixReferenceService.completerReferencesTp(datas, list.get(0).getLgPREENREGISTREMENTID());
+            }
             json.put("total", count);
             json.put("data", new JSONArray(datas));
         } catch (Exception e) {

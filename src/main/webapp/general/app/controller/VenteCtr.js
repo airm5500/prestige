@@ -770,8 +770,10 @@ Ext.define('testextjs.controller.VenteCtr', {
 
                     },
                     'doventemanager #contenu [xtype=gridpanel]': {
-                        /* retour du 25/10 : quantite decimale refusee avant tout envoi */
-                        validateedit: this.controlerQuantiteEntiere,
+                        /* cas 2 du 03/11 : colonnes P.REF | TAUX interceptees AVANT onGridEdit (aucun update/item/vno) ;
+                         * pour les autres colonnes, retour du 25/10 : quantite decimale refusee avant tout envoi */
+                        beforeedit: this.onVenteGridBeforeEdit,
+                        validateedit: this.onVenteGridValidateEdit,
                         edit: this.onGridEdit,
                         afterrender: this.onVenteGridAfterRender
                     },
@@ -973,6 +975,7 @@ Ext.define('testextjs.controller.VenteCtr', {
         me.checkSansBon();
         me.checkParamImpressionTicketCaisse();
         me.checkParamLectureGs1();
+        me.checkParamPrixRefCaisse();
 
     },
     /*
@@ -1046,6 +1049,7 @@ Ext.define('testextjs.controller.VenteCtr', {
         // Retour au comptant : le bouton « associer un client » redevient
         // disponible si le reglement est en especes
         me.refreshBtnClientComptant();
+        me.rafraichirColonnesReferenceTp();
     },
     /* Comptant : la grille s'étire jusqu'au bas du panneau (plein écran, pour
      * occuper toute la hauteur quel que soit l'écran). En assurance/carnet le
@@ -1098,8 +1102,13 @@ Ext.define('testextjs.controller.VenteCtr', {
     },
     /* À l'affichage de la grille (vente comptant par défaut) : on l'étire pour
      * remplir la hauteur. Différé pour laisser le layout se poser. */
-    onVenteGridAfterRender: function () {
+    onVenteGridAfterRender: function (grid) {
         const me = this;
+        // cas 2 du 03/11 : les colonnes de reference suivent les lignes chargees (tiers-payants de la vente) ;
+        // sans le parametre, l'ecouteur rend la main aussitot
+        if (grid && grid.getStore) {
+            grid.mon(grid.getStore(), 'datachanged', me.rafraichirColonnesReferenceTp, me);
+        }
         // deux passes : la 1re peut faire (dis)paraître la scrollbar, la 2nde
         // stabilise (le calcul est idempotent, il converge)
         Ext.defer(function () {
@@ -1152,6 +1161,7 @@ Ext.define('testextjs.controller.VenteCtr', {
                 ayantDroyCmp.hide();
             }
         }
+        me.rafraichirColonnesReferenceTp();
     },
     modifierTypeVente: function (newValue, venteId, field) {
         const me = this;
@@ -1180,6 +1190,9 @@ Ext.define('testextjs.controller.VenteCtr', {
                 }
                 field.setValue(dataRetour);
                 me.resetTitle(dataRetour);
+                // cas 2 du 03/11 : le type de vente est connu de la combo seulement ici ; les colonnes de reference
+                // suivent (retirees au comptant / carnet, construites en assurance)
+                me.rafraichirColonnesReferenceTp();
             },
             failure: function (response, options) {
                 progress.hide();
@@ -5476,9 +5489,11 @@ Ext.define('testextjs.controller.VenteCtr', {
         me.getTpContainerForm().removeAll();
         me.buildtierspayantContainer();
         me.updateAssurerCmp();
-
-
-
+        // cas 2 du 03/11 : les tiers-payants de la vente ont change (ajout / retrait) : les lignes sont rechargees
+        // pour que les groupes de colonnes P.REF | TAUX suivent. Rien sans le parametre.
+        if (me.prixRefCaisse && me.getCurrent()) {
+            me.refresh();
+        }
     },
     removetierspayanttp: function (tpId, _newTp) {
         const me = this, current = me.getCurrent();
@@ -7591,6 +7606,10 @@ Ext.define('testextjs.controller.VenteCtr', {
                     const result = Ext.JSON.decode(response.responseText, true);
                     if (result.success) {
                         me.getVnoproduitCombo().focus(true, 100);
+                        if (me.prixRefCaisse) {
+                            // cas 2 du 03/11 : un tiers-payant de moins, un groupe P.REF | TAUX de moins
+                            me.refresh();
+                        }
                     } else {
                         Ext.Msg.alert("Message", 'Le tiers-payant n\'est pas supprimé');
                     }
@@ -7619,6 +7638,9 @@ Ext.define('testextjs.controller.VenteCtr', {
                     const result = Ext.JSON.decode(response.responseText, true);
                     if (!result.success) {
                         Ext.Msg.alert("Message", 'Le tiers-payant n\'a pas été ajouté');
+                    } else if (me.prixRefCaisse) {
+                        // cas 2 du 03/11 : un tiers-payant de plus sur la vente, un groupe P.REF | TAUX de plus
+                        me.refresh();
                     }
 
                 },
@@ -8246,6 +8268,222 @@ Ext.define('testextjs.controller.VenteCtr', {
      * Retours du 10/10 (Q6) : lecture des etiquettes GS1 (QR / DataMatrix) au scan, si KEY_VENTE_LECTURE_GS1 = 1.
      * Valeur relue a chaque ouverture de la vente (sans cache) ; 0 ou absente : rien ne change.
      */
+    /* ------------------------------------------------------------------------------------------------------
+     * Cas 2 du 03/11/2026 : prix et taux de reference par tiers-payant saisis dans la grille (KEY_PRIX_REF_CAISSE).
+     * Parametre a 0 : aucune colonne creee, aucun appel ; la grille et ses evenements sont ceux d'aujourd'hui.
+     * ------------------------------------------------------------------------------------------------------ */
+
+    /** Valeur relue a chaque ouverture de l'ecran de vente, sans cache. */
+    checkParamPrixRefCaisse: function () {
+        const me = this;
+        me.prixRefCaisse = false;
+        Ext.Ajax.request({
+            method: 'GET', url: '../api/v1/app-params/value/KEY_PRIX_REF_CAISSE',
+            success: function (response) {
+                const r = Ext.JSON.decode(response.responseText, true) || {};
+                me.prixRefCaisse = r.success === true && String(r.data).trim() === '1';
+                if (me.prixRefCaisse) {
+                    me.rafraichirColonnesReferenceTp();
+                }
+            }
+        });
+    },
+
+    /** La vue de vente (panneau ventevno) qui porte la grille, si elle est a l'ecran. */
+    vueVenteReferenceTp: function () {
+        const grid = this.getVnogrid && this.getVnogrid();
+        return grid && !grid.destroyed ? grid.up('ventevno') : null;
+    },
+
+    /**
+     * Construit ou retire les groupes de colonnes selon l'etat courant : parametre actif, vente assurance (type 2),
+     * lignes chargees portant leurs references. Idempotent, appele a chaque changement de lignes ou de type.
+     */
+    rafraichirColonnesReferenceTp: function () {
+        const me = this, vue = me.vueVenteReferenceTp();
+        if (!vue) {
+            return;
+        }
+        if (!me.prixRefCaisse) {
+            vue.retirerColonnesReferenceTp();
+            return;
+        }
+        const typeVente = me.getSafeComboValue('getTypeVenteCombo', '1');
+        const grid = me.getVnogrid();
+        let tiersPayants = null;
+        if (typeVente === '2' && grid && grid.getStore().getCount() > 0) {
+            const refs = grid.getStore().getAt(0).get('referencesTp');
+            if (Ext.isArray(refs) && refs.length) {
+                tiersPayants = refs.map(function (r) {
+                    return {tpId: r.tpId, libelle: r.libelle};
+                });
+            }
+        }
+        if (tiersPayants) {
+            vue.construireColonnesReferenceTp(tiersPayants);
+            vue.afficherRappelReferenceTp(true);
+        } else {
+            vue.retirerColonnesReferenceTp();
+        }
+    },
+
+    /** Avant l'edition d'une cellule P.REF | TAUX : valeur courante dans l'editeur ; refus hors vente assurance. */
+    onVenteGridBeforeEdit: function (editor, e) {
+        const me = this;
+        const ref = e.column && e.column.referenceTp;
+        if (!ref) {
+            return true;
+        }
+        const vue = me.vueVenteReferenceTp();
+        if (!me.prixRefCaisse || !vue || me.getSafeComboValue('getTypeVenteCombo', '1') !== '2') {
+            return false;
+        }
+        const courante = vue.referenceTpDeLaLigne(e.record, ref.tpId);
+        if (!courante) {
+            return false;
+        }
+        vue.afficherMessageReferenceTp(null);
+        e.value = ref.champ === 'taux' ? courante.taux : courante.valeur;
+        return true;
+    },
+
+    /** Point d'entree unique de validateedit : colonnes de reference d'abord, sinon le controle des quantites. */
+    onVenteGridValidateEdit: function (editor, e) {
+        if (e.column && e.column.referenceTp) {
+            // toujours faux : la grille ne doit jamais ecrire la valeur dans l'enregistrement ni lever « edit »
+            // (donc jamais update/item/vno) ; c'est l'appel PUT qui fait foi, puis le rechargement des lignes
+            this.validerSaisieReferenceTp(editor, e);
+            return false;
+        }
+        return this.controlerQuantiteEntiere(editor, e);
+    },
+
+    /**
+     * Validation locale des bornes (entier, prix de 5 au prix de vente, taux de 5 a 100) : refus = cellule rouge,
+     * message sous la grille, ancienne valeur gardee, AUCUN appel serveur. Validation par Entree seulement : un clic
+     * ailleurs abandonne la saisie en silence. Valeur inchangee : rien n'est ecrit.
+     */
+    validerSaisieReferenceTp: function (editor, e) {
+        const me = this, vue = me.vueVenteReferenceTp(), ref = e.column.referenceTp;
+        if (!vue) {
+            return;
+        }
+        const champ = e.column.getEditor ? e.column.getEditor(e.record) : null;
+        const parEntree = champ && champ.valideParEntree;
+        if (champ) {
+            champ.valideParEntree = false;
+        }
+        if (!parEntree) {
+            return;
+        }
+        const courante = vue.referenceTpDeLaLigne(e.record, ref.tpId);
+        if (!courante) {
+            return;
+        }
+        const brut = String(champ && champ.getRawValue ? champ.getRawValue() : e.value).trim();
+        const ligne = (e.rowIdx + 1) + ', ' + ref.libelle;
+        const refuser = function (motif) {
+            vue.marquerCelluleReferenceTp(e.record, e.column);
+            vue.afficherMessageReferenceTp('Ligne ' + ligne + ' : ' + motif + ' Valeur rétablie, rien n\'a été enregistré.', true);
+        };
+        if (brut === '' || !/^\d+$/.test(brut)) {
+            refuser(ref.champ === 'taux' ? 'le taux doit être un nombre entier.' : 'le prix de référence doit être un nombre entier.');
+            return;
+        }
+        const saisie = parseInt(brut, 10);
+        const prixVente = parseInt(e.record.get('intPRICEUNITAIR'), 10) || 0;
+        let valeur = courante.valeur, taux = courante.taux;
+        if (ref.champ === 'taux') {
+            taux = saisie;
+            if (taux < 5 || taux > 100) {
+                refuser('le taux (' + taux + ') doit être compris entre 5 et 100.');
+                return;
+            }
+        } else {
+            valeur = saisie;
+            if (valeur < 5) {
+                refuser('le prix de référence (' + valeur + ') doit être d\'au moins 5.');
+                return;
+            }
+            if (prixVente > 0 && valeur > prixVente) {
+                refuser('le prix de référence (' + Ext.util.Format.number(valeur, '0,000.') + ') dépasse le prix de vente ('
+                        + Ext.util.Format.number(prixVente, '0,000.') + ').');
+                return;
+            }
+        }
+        // la cellule complementaire garde sa valeur par defaut (prix de vente ou taux du client) si elle n'a pas
+        // encore ete saisie : les deux bornes s'appliquent aussi a elle
+        if (valeur < 5 || (prixVente > 0 && valeur > prixVente)) {
+            refuser('le prix de référence (' + Ext.util.Format.number(valeur, '0,000.') + ') doit être compris entre 5 et le prix de vente.');
+            return;
+        }
+        if (taux < 5 || taux > 100) {
+            refuser('le taux (' + taux + ') doit être compris entre 5 et 100.');
+            return;
+        }
+        // Entree sur une valeur inchangee : rien n'est ecrit (une valeur par defaut reste une valeur par defaut tant
+        // qu'elle n'est pas modifiee ; une reference de la fiche reste telle quelle)
+        if (valeur === courante.valeur && taux === courante.taux) {
+            return;
+        }
+        me.enregistrerReferenceTp(e.record, ref, valeur, taux, ligne);
+    },
+
+    /** PUT v1/prix-reference/vente/{venteId}/ligne/{detailId}, puis net recalcule et lignes rechargees. */
+    enregistrerReferenceTp: function (record, ref, valeur, taux, ligne) {
+        const me = this, vue = me.vueVenteReferenceTp(), vente = me.getCurrent();
+        if (!vue || !vente) {
+            return;
+        }
+        const produit = record.get('strNAME');
+        Ext.Ajax.request({
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            url: '../api/v1/prix-reference/vente/' + vente.lgPREENREGISTREMENTID + '/ligne/'
+                    + record.get('lgPREENREGISTREMENTDETAILID'),
+            params: Ext.JSON.encode({
+                tiersPayantId: ref.tpId, valeur: valeur, taux: taux,
+                remiseId: me.getVnoremise().getValue(), tierspayants: me.buildAssuranceData()
+            }),
+            success: function (response) {
+                const result = Ext.JSON.decode(response.responseText, true) || {};
+                if (!result.success) {
+                    vue.afficherMessageReferenceTp('Ligne ' + ligne + ' : ' + (result.msg || 'saisie refusée.'), true);
+                    me.refresh();
+                    return;
+                }
+                vue.afficherMessageReferenceTp('Ligne ' + ligne + ' : prix de référence ' + Ext.util.Format.number(valeur, '0,000.')
+                        + ' et taux ' + taux + ' % enregistrés sur la fiche article ' + produit + ' — net recalculé.', false);
+                if (result.net && result.net.success && result.net.data) {
+                    me.appliquerNetReferenceTp(result.net.data);
+                } else {
+                    me.toRecalculate = true;
+                    me.autoComputeNetAssurance();
+                }
+                // les lignes rechargees portent la reference enregistree (violet) ; le rechargement rend le focus
+                // au champ produit
+                me.refresh();
+            },
+            failure: function (response) {
+                const result = Ext.JSON.decode(response.responseText, true) || {};
+                vue.afficherMessageReferenceTp('Ligne ' + ligne + ' : ' + (result.msg || ('saisie refusée (' + response.status + ').')), true);
+                me.refresh();
+            }
+        });
+    },
+
+    /** Meme application du net que autoComputeNetAssurance (montant net, remise, part tiers-payant). */
+    appliquerNetReferenceTp: function (net) {
+        const me = this;
+        me.netAmountToPay = net;
+        me.toRecalculate = false;
+        const montantNet = net.montantNet;
+        me.getMontantNet().setValue(montantNet);
+        me.getVnomontantRemise().setValue(net.remise);
+        me.getMontantTp().setValue(net.montantTp);
+        me.handleMontantField(montantNet);
+    },
+
     checkParamLectureGs1: function () {
         const me = this;
         me.lectureGs1 = false;

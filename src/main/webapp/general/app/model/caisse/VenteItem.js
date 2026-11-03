@@ -93,6 +93,13 @@ Ext.define('testextjs.model.caisse.VenteItem', {
         {
             name: 'unitesOffertes',
             type: 'number'
+        },
+        {
+            /* cas 2 du 03/11 : [{tpId, compteTpId, libelle, valeur, taux, type, defaut, prixReferenceId}] par
+             * tiers-payant de la vente ; absent (null) quand KEY_PRIX_REF_CAISSE vaut 0 ou hors vente assurance */
+            name: 'referencesTp',
+            type: 'auto',
+            defaultValue: null
         }
 
 

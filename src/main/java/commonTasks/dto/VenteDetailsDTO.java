@@ -102,6 +102,19 @@ public class VenteDetailsDTO implements Serializable {
     private boolean deconditionne;
     private Integer calculationBasePrice;
     private int marge;
+    /**
+     * Cas 2 du 03/11/2026 : prix et taux de reference de la ligne pour chaque tiers-payant de la vente. Rempli
+     * seulement si KEY_PRIX_REF_CAISSE vaut 1 et en vente assurance ; null sinon, et alors absent du JSON.
+     */
+    private java.util.List<rest.service.dto.ReferenceTpDTO> referencesTp;
+
+    public java.util.List<rest.service.dto.ReferenceTpDTO> getReferencesTp() {
+        return referencesTp;
+    }
+
+    public void setReferencesTp(java.util.List<rest.service.dto.ReferenceTpDTO> referencesTp) {
+        this.referencesTp = referencesTp;
+    }
 
     public int getMarge() {
         return marge;
