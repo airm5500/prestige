@@ -931,7 +931,9 @@ window.PrestigeAffichage.ECRANS_COLLES = [
     // preventes et devis (demande de l'officine du 30/09, style du menu Vente)
     'preenregistrementmanager', 'devismanager',
     // retours du 10/10 : liste des lots, statistiques des ruptures, activite par operateur
-    'LotStockManager', 'RuptureStockManager', 'statActiviteOperateurManager'
+    'LotStockManager', 'RuptureStockManager', 'statActiviteOperateurManager',
+    // demande du 02/11 : comparaison CA familles, statistiques des ventes, clients et tiers payants desactives
+    'comparaisonChiffreAffaireManager', 'statistiqueventemanager', 'clientdesactive', 'tierspayantdesactive'
 ];
 
 /**
@@ -990,7 +992,9 @@ window.PrestigeAffichage.ECRANS_STYLE_VENTE = [
     // retours du 06/10 (4) : balance vente / caisse
     'balancesalecahs',
     // retours du 10/10 : liste des lots, statistiques des ruptures, activite par operateur
-    'LotStockManager', 'RuptureStockManager', 'statActiviteOperateurManager'
+    'LotStockManager', 'RuptureStockManager', 'statActiviteOperateurManager',
+    // demande du 02/11 : comparaison CA familles, statistiques des ventes, clients et tiers payants desactives
+    'comparaisonChiffreAffaireManager', 'statistiqueventemanager', 'clientdesactive', 'tierspayantdesactive'
 ];
 /**
  * FENETRES au nouveau style (retours du 06/10) : toute fenetre ouverte depuis l'un de ces ecrans (detail, modification,

@@ -710,10 +710,10 @@ public class StatisticsFamilleArticle extends bll.bllBase {
                     json.put(CA_MONTH_PERCENT_FIELDS[monthIndex] + "_1",
                             Math.round(percent(previousAmount, previousYearTotals[monthIndex])));
                     json.put(CA_MONTH_PROGRESS_FIELDS[monthIndex], Math.round(progress(currentAmount, previousAmount)));
-
-                    array.put(json);
-                    count++;
                 }
+                // une ligne par famille (elle etait ajoutee a chaque mois, soit douze fois)
+                array.put(json);
+                count++;
             }
         } catch (Exception e) {
             e.printStackTrace();

@@ -18,7 +18,8 @@ import org.json.JSONObject;
  * par semaine, mois ou annee, l'annee en cours face a N-1, N-2 et N-3 au plus ; frequentation horaire comparee ;
  * encaissements par mode de reglement. Memes perimetres que le reste du Pilotage (ventes cloturees, non annulees, de
  * montant positif, hors type exclu ; encaisse = vente_reglement ; achats = bons de livraison clotures). Lecture seule,
- * resultat garde dix minutes (les annees passees ne bougent plus).
+ * resultat garde dix minutes ; les annees closes des evolutions sont gardees jusqu'au lendemain (elles ne bougent
+ * plus).
  */
 @Stateless
 public class PilotageSuiviService {
@@ -31,9 +32,17 @@ public class PilotageSuiviService {
             + " AND p.lg_TYPE_VENTE_ID <> '" + PilotageSql.TYPE_VENTE_EXCLU + "'";
     private static final long DUREE_CACHE = 10 * 60 * 1000L;
     private static final Map<String, Object[]> CACHE = new ConcurrentHashMap<>();
+    /** Annees closes des courbes d'evolution, valables pour le jour jourAnneesCloses (voir annee()). */
+    private static final Map<String, double[][]> ANNEES_CLOSES = new ConcurrentHashMap<>();
+    private static volatile LocalDate jourAnneesCloses;
+
+    private static final java.util.logging.Logger LOG = java.util.logging.Logger
+            .getLogger(PilotageSuiviService.class.getName());
 
     @PersistenceContext(unitName = "JTA_UNIT")
     private EntityManager em;
+    @javax.ejb.EJB
+    private PilotageAgregats agregats;
 
     /** Source et colonne de date de chaque grandeur : [FROM ... WHERE conditions, colonne date, somme, compte]. */
     static String[] source(String mesure) {
@@ -87,6 +96,204 @@ public class PilotageSuiviService {
     }
 
     /**
+     * Une annee de la serie d'evolution : [sommes par rang, comptes par rang, {somme, compte} du cumul a date].
+     *
+     * <p>
+     * Ce qui est passe ne bouge plus : une annee close, et les mois clos de l'annee en cours, sont gardes jusqu'au
+     * lendemain (le cumul a date depend du jour). Seul le mois en cours est relu a l'expiration du cache de dix minutes
+     * (mesures du 02/11, onglet rouvert apres expiration : 15 s quand tout etait recalcule, 8 s avec l'annee en cours
+     * entiere). Une correction tardive d'un mois clos, vue par le controle du Pilotage ou reprise par « Recalculer »,
+     * vide ces caches ({@link #oublier()}). Memes requetes, decoupees par periode : les sommes et les comptes
+     * s'additionnent, les chiffres ne changent pas.
+     */
+    private double[][] annee(String mesure, String pas, int y, LocalDate jour) {
+        if (!jour.equals(jourAnneesCloses)) {
+            ANNEES_CLOSES.clear();
+            jourAnneesCloses = jour;
+        }
+        /*
+         * La TVA reste lue dans les ventes : les agregats gardent CA HT et CA TTC arrondis au franc (par mois, et par
+         * jour pour le mois en cours), leur difference s'ecartait de quelques francs de la courbe (test du 02/11).
+         */
+        if (!"SEMAINE".equals(pas) && !"tva".equals(mesure)) {
+            double[][] r = parAgregats(mesure, pas, y, jour);
+            if (r != null) {
+                return r;
+            }
+        }
+        String cle = mesure + "|" + pas + "|" + y;
+        LocalDate fin = jour.plusDays(1), finAnnee = LocalDate.of(y + 1, 1, 1), debutAnnee = LocalDate.of(y, 1, 1);
+        /*
+         * une semaine ISO deborde d'au plus trois jours sur l'annee civile voisine : sept jours de marge, puis seules
+         * les lignes de l'annee y sont gardees
+         */
+        LocalDate debutMarge = debutAnnee.minusDays(7);
+        if (y < jour.getYear()) {
+            LocalDate finMarge = finAnnee.plusDays(7).isBefore(fin) ? finAnnee.plusDays(7) : fin;
+            double[][] c = ANNEES_CLOSES.get(cle);
+            if (c == null) {
+                c = periode(mesure, pas, y, jour, debutMarge, finMarge, debutAnnee,
+                        finAnnee.isBefore(fin) ? finAnnee : fin);
+                ANNEES_CLOSES.put(cle, c);
+            }
+            return c;
+        }
+        LocalDate debutMois = jour.withDayOfMonth(1);
+        double[][] clos = ANNEES_CLOSES.get(cle + "|mois clos");
+        if (clos == null) {
+            clos = periode(mesure, pas, y, jour, debutMarge, debutMois, debutAnnee, debutMois);
+            ANNEES_CLOSES.put(cle + "|mois clos", clos);
+        }
+        double[][] courant = periode(mesure, pas, y, jour, debutMois, fin, debutMois, fin);
+        double[][] r = new double[3][];
+        for (int i = 0; i < 3; i++) {
+            r[i] = new double[clos[i].length];
+            for (int j = 0; j < r[i].length; j++) {
+                r[i][j] = clos[i][j] + courant[i][j];
+            }
+        }
+        return r;
+    }
+
+    /**
+     * Pas mensuel ou annuel : les mois sont lus dans les agregats du Pilotage (demande du 02/11 : une seule source pour
+     * tout le menu, et plus aucune annee relue dans les ventes). Comparaison du 02/11 sur 22 mois : CA, encaisse,
+     * achats identiques au calcul direct (la TVA, arrondie dans les agregats, reste lue dans les ventes) ; la marge est
+     * celle des autres onglets, figee au calcul du mois (le calcul direct prenait le prix d'achat du jour, et changeait
+     * donc la marge des mois passes). Le cumul a date d'une annee close lit ses mois entiers dans les agregats et relit
+     * seulement le mois entame, garde jusqu'au lendemain.
+     *
+     * @return null si un mois n'est pas encore agrege (base qui n'a jamais ouvert le Pilotage) : l'annee est alors lue
+     *         dans les ventes, comme avant
+     */
+    private double[][] parAgregats(String mesure, String pas, int y, LocalDate jour) {
+        if (agregats == null) {
+            return null;
+        }
+        boolean enCours = y == jour.getYear();
+        int moisJour = jour.getMonthValue(), dernier = enCours ? moisJour : 12;
+        List<String> mois = new ArrayList<>();
+        for (int m = 1; m <= dernier; m++) {
+            mois.add(String.format("%04d-%02d", y, m));
+        }
+        Map<String, PilotageAgregats.Agregat> lus = agregats.agregats(mois);
+        for (String m : mois) {
+            if (lus.get(m) == null) {
+                return null;
+            }
+        }
+        int nb = taille(pas);
+        double[] somme = new double[nb], compte = new double[nb], aDate = new double[2];
+        for (int m = 1; m <= dernier; m++) {
+            PilotageAgregats.Agregat a = lus.get(mois.get(m - 1));
+            int r = "MOIS".equals(pas) ? m - 1 : 0;
+            double v = valeur(mesure, a), c = compte(mesure, a);
+            somme[r] += v;
+            compte[r] += c;
+            /* l'agregat du mois en cours s'arrete a aujourd'hui : il compte entier dans le cumul a date */
+            if (m < moisJour || enCours) {
+                aDate[0] += v;
+                aDate[1] += c;
+            }
+        }
+        if (!enCours) {
+            String cle = mesure + "|" + y + "|mois entame";
+            double[][] entame = ANNEES_CLOSES.get(cle);
+            if (entame == null) {
+                LocalDate debut = LocalDate.of(y, moisJour, 1);
+                entame = periode(mesure, pas, y, jour, debut, debut, debut, debut.plusMonths(1));
+                ANNEES_CLOSES.put(cle, entame);
+            }
+            aDate[0] += entame[2][0];
+            aDate[1] += entame[2][1];
+        }
+        return new double[][] { somme, compte, aDate };
+    }
+
+    /** Montant d'une grandeur dans un agregat mensuel : memes definitions que source(). */
+    static double valeur(String mesure, PilotageAgregats.Agregat a) {
+        switch (mesure) {
+        case "encaisse":
+            return a.encaisse;
+        case "achats":
+            return a.achatTTC;
+        case "tva":
+            return a.caTTC - a.caHT;
+        case "marge":
+            return a.marge();
+        default: /* ca, panier */
+            return a.caTTC;
+        }
+    }
+
+    /** Nombre associe (ventes pour le CA et le panier, bons pour les achats), comme la 4e colonne de source(). */
+    static double compte(String mesure, PilotageAgregats.Agregat a) {
+        return "achats".equals(mesure) ? a.nbBons : "ca".equals(mesure) || "panier".equals(mesure) ? a.nbVentes : 0;
+    }
+
+    /**
+     * Calcule d'avance les courbes de l'onglet (toutes les grandeurs, tous les pas, jusqu'a N-3) : au demarrage du
+     * serveur et chaque nuit, apres les agregats (job.PilotageAgregatScheduler). Le premier affichage du jour ne
+     * calcule plus rien (mesure du 02/11 : 14 s).
+     */
+    public void prechauffer() {
+        LocalDate jour = LocalDate.now();
+        for (String pas : PAS) {
+            for (String mesure : MESURES) {
+                try {
+                    evolution(mesure, pas, 3, jour);
+                } catch (RuntimeException e) {
+                    LOG.log(java.util.logging.Level.WARNING,
+                            "pilotage : courbe " + mesure + " " + pas + " non calculee d'avance", e);
+                }
+            }
+        }
+    }
+
+    /**
+     * Part de l'annee y lue sur une periode : serie au pas choisi sur [debut, fin[, cumul a date sur [debutAD, finAD[ ;
+     * seules les lignes de l'annee y sont gardees.
+     */
+    private double[][] periode(String mesure, String pas, int y, LocalDate jour, LocalDate debut, LocalDate fin,
+            LocalDate debutAD, LocalDate finAD) {
+        String[] s = source(mesure);
+        int nb = taille(pas);
+        String annee = "SEMAINE".equals(pas) ? "DATE_FORMAT(" + s[1] + ", '%x') + 0" : "YEAR(" + s[1] + ")";
+        String rang = "SEMAINE".equals(pas) ? "DATE_FORMAT(" + s[1] + ", '%v') + 0"
+                : "MOIS".equals(pas) ? "MONTH(" + s[1] + ")" : "1";
+        double[] somme = new double[nb], compte = new double[nb], aDate = new double[2];
+        if (debut.isBefore(fin)) {
+            for (Object[] l : lignes("SELECT " + annee + " AS an, " + rang + " AS rg, COALESCE(" + s[2] + ", 0), "
+                    + s[3] + s[0] + " AND " + s[1] + " >= ?1 AND " + s[1] + " < ?2 GROUP BY an, rg", debut, fin)) {
+                int r = (int) n(l[1]) - 1;
+                if ((int) n(l[0]) == y && r >= 0 && r < nb) {
+                    somme[r] += n(l[2]);
+                    compte[r] += n(l[3]);
+                }
+            }
+        }
+        /* cumul a date : du 1er janvier au meme jour et mois que la date du jour */
+        String md = String.format("%02d%02d", jour.getMonthValue(), jour.getDayOfMonth());
+        if (debutAD.isBefore(finAD)) {
+            for (Object[] l : lignes("SELECT YEAR(" + s[1] + ") AS an, COALESCE(" + s[2] + ", 0), " + s[3] + s[0]
+                    + " AND " + s[1] + " >= ?1 AND " + s[1] + " < ?2 AND DATE_FORMAT(" + s[1] + ", '%m%d') <= '" + md
+                    + "' GROUP BY an", debutAD, finAD)) {
+                if ((int) n(l[0]) == y) {
+                    aDate[0] += n(l[1]);
+                    aDate[1] += n(l[2]);
+                }
+            }
+        }
+        return new double[][] { somme, compte, aDate };
+    }
+
+    /** Les chiffres d'un mois clos ont change (controle des corrections tardives, « Recalculer ») : tout est relu. */
+    public static void oublier() {
+        CACHE.clear();
+        ANNEES_CLOSES.clear();
+    }
+
+    /**
      * Evolution d'une grandeur : une serie par annee (l'annee en cours, puis N-1 .. N-comparer), chacune au pas choisi
      * (53 semaines ISO, 12 mois, ou une valeur). Chaque annee porte aussi son cumul « a date » (du 1er janvier au meme
      * jour que la date du jour) et l'evolution de l'annee en cours par rapport a elle, sur ce cumul.
@@ -97,34 +304,18 @@ public class PilotageSuiviService {
         if (c != null && System.currentTimeMillis() - (long) c[0] < DUREE_CACHE) {
             return new JSONObject((String) c[1]);
         }
-        String[] s = source(mesure);
         int an = jour.getYear(), nb = taille(pas);
         int premier = "ANNEE".equals(pas) ? an - Math.max(1, comparer) : an - comparer;
-        LocalDate debut = LocalDate.of(premier, 1, 1).minusDays(7), fin = jour.plusDays(1);
-        String annee = "SEMAINE".equals(pas) ? "DATE_FORMAT(" + s[1] + ", '%x') + 0" : "YEAR(" + s[1] + ")";
-        String rang = "SEMAINE".equals(pas) ? "DATE_FORMAT(" + s[1] + ", '%v') + 0"
-                : "MOIS".equals(pas) ? "MONTH(" + s[1] + ")" : "1";
         boolean panier = "panier".equals(mesure);
-        double[][] somme = new double[an - premier + 1][nb], compte = new double[an - premier + 1][nb];
-        for (Object[] l : lignes("SELECT " + annee + " AS an, " + rang + " AS rg, COALESCE(" + s[2] + ", 0), " + s[3]
-                + s[0] + " AND " + s[1] + " >= ?1 AND " + s[1] + " < ?2 GROUP BY an, rg", debut, fin)) {
-            int a = (int) n(l[0]) - premier, r = (int) n(l[1]) - 1;
-            if (a >= 0 && a < somme.length && r >= 0 && r < nb) {
-                somme[a][r] += n(l[2]);
-                compte[a][r] += n(l[3]);
-            }
-        }
-        /* cumul a date : du 1er janvier au meme jour et mois que la date du jour, pour chaque annee */
+        double[][] somme = new double[an - premier + 1][], compte = new double[an - premier + 1][];
         double[] sommeAD = new double[somme.length], compteAD = new double[somme.length];
         String md = String.format("%02d%02d", jour.getMonthValue(), jour.getDayOfMonth());
-        for (Object[] l : lignes("SELECT YEAR(" + s[1] + ") AS an, COALESCE(" + s[2] + ", 0), " + s[3] + s[0] + " AND "
-                + s[1] + " >= ?1 AND " + s[1] + " < ?2 AND DATE_FORMAT(" + s[1] + ", '%m%d') <= '" + md
-                + "' GROUP BY an", LocalDate.of(premier, 1, 1), fin)) {
-            int a = (int) n(l[0]) - premier;
-            if (a >= 0 && a < somme.length) {
-                sommeAD[a] = n(l[1]);
-                compteAD[a] = n(l[2]);
-            }
+        for (int a = 0; a < somme.length; a++) {
+            double[][] v = annee(mesure, pas, premier + a, jour);
+            somme[a] = v[0];
+            compte[a] = v[1];
+            sommeAD[a] = v[2][0];
+            compteAD[a] = v[2][1];
         }
         JSONArray series = new JSONArray();
         int courant = rang(jour, pas);

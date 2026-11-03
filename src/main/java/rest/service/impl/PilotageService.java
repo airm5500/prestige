@@ -2641,6 +2641,7 @@ public class PilotageService {
         int faits = agregats.recalculer(moisDeLaPeriode(axe.graphique));
         /* Les chiffres ont change : l'ecran ne doit pas continuer a servir la version d'avant. */
         CACHE.clear();
+        PilotageSuiviService.oublier();
         return faits;
     }
 
@@ -2664,6 +2665,7 @@ public class PilotageService {
         if (repris > 0) {
             /* Des mois ont change : l'ecran ne doit pas continuer a servir la version d'avant. */
             CACHE.clear();
+            PilotageSuiviService.oublier();
         }
         return new JSONObject().put("success", true).put("repris", repris);
     }

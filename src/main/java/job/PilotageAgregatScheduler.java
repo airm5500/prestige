@@ -8,6 +8,7 @@ import javax.ejb.TransactionAttributeType;
 import javax.inject.Inject;
 import config.AppConfig;
 import rest.service.impl.PilotageAgregats;
+import rest.service.impl.PilotageSuiviService;
 
 /**
  * Prepare les agregats du menu de pilotage AVANT qu'on ouvre l'ecran.
@@ -34,9 +35,14 @@ public class PilotageAgregatScheduler {
     @Inject
     private AppConfig appConfig;
 
+    /** Courbes de l'onglet « A suivre », calculees apres les agregats qu'elles lisent (demande du 02/11). */
+    @Inject
+    private PilotageSuiviService suivi;
+
     @TransactionAttribute(TransactionAttributeType.NOT_SUPPORTED)
     public void runOnStartup() {
         agregats.prechauffer();
+        suivi.prechauffer();
     }
 
     @Schedule(hour = "0", minute = "25", second = "0", persistent = false)
@@ -47,5 +53,7 @@ public class PilotageAgregatScheduler {
         }
         /* Le mois qui vient de finir est clos : on le calcule cette nuit, pour que personne ne l'attende demain. */
         agregats.prechauffer();
+        /* nouvelle journee : le cache des courbes repart de zero, on le remplit avant l'ouverture */
+        suivi.prechauffer();
     }
 }
