@@ -4,6 +4,8 @@
  *  - ce poste y figure, marque « (ce poste) », avec son role, sa memoire, son pool et ses fils HTTP ;
  *  - deux caisses d'essai (lignes posees par le test, comme si leur Payara les avait relevees) : l'une a un pool
  *    enorme et un reglage critique, l'autre sans nouvelles depuis 40 jours ; les alertes d'ensemble les signalent ;
+ *  - un seul serveur par reseau (retour du 03/11) : une caisse d'essai configuree en serveur est signalee comme
+ *    caisse, avec le nom du vrai serveur (la machine de la base) et la ligne a corriger ;
  *  - clic sur une caisse : ses reglages s'affichent dessous ;
  *  - lecture seule, aucune fenetre, aucune erreur JavaScript ; lignes et droit d'essai retires.
  */
@@ -29,7 +31,8 @@ const REGLAGES = JSON.stringify([{ cle: 'fils', libelle: 'Fils HTTP de Payara', 
   retirer();
   exec(`INSERT INTO t_serveur_poste (hote, domaine, serveur, mariadb_locale, releve_at, ram_mo, heap_mo, processeurs, pool_max, fils_http, a_ajuster, critiques, reglages)
         VALUES ('E2E-CAISSE-2', 'domain1', 0, 0, NOW() - INTERVAL 1 HOUR, 8192, 1024, 4, 5000, 5, 2, 1, '${REGLAGES}'),
-               ('E2E-CAISSE-3', 'domain1', 0, 0, NOW() - INTERVAL 40 DAY, 4096, 1024, 2, 32, 50, 0, 0, '[]')`);
+               ('E2E-CAISSE-3', 'domain1', 0, 0, NOW() - INTERVAL 40 DAY, 4096, 1024, 2, 32, 50, 0, 0, '[]'),
+               ('E2E-CAISSE-4', 'domain1', 1, 0, NOW() - INTERVAL 1 HOUR, 4096, 1024, 2, 50, 100, 0, 0, '[]')`);
   const b = await ENV_E2E.lancer(chromium);
   const dialogues = [], err = [];
   try {
@@ -63,6 +66,9 @@ const REGLAGES = JSON.stringify([{ cle: 'fils', libelle: 'Fils HTTP de Payara', 
       /E2E-CAISSE-2\s+domain1\s+Caisse\s+à distance[\s\S]*5000[\s\S]*1 critique\(s\) · 1 à ajuster/.test(texte), texte.slice(0, 400));
     const alertes = await p.locator('#' + await p.evaluate(() => Ext.ComponentQuery.query('supportserveur #alertesPostes')[0].getId())).innerText();
     ok('Alerte : pools au-delà de ce que MariaDB accepte', /totalisent \d+ connexions[\s\S]*n'en accepte que \d+/.test(alertes), alertes.slice(0, 300));
+    ok('Alerte : caisse configurée en serveur, nommée avec le vrai serveur et la ligne à corriger',
+      new RegExp('« E2E-CAISSE-4 » est configuré en serveur alors que la base est sur « ' + (courant ? courant.hote : '?') + ' »[\\s\\S]*application\\.mode=client').test(alertes)
+      && !/« E2E-CAISSE-2 » est configuré en serveur/.test(alertes), alertes.slice(0, 500));
     ok('Alerte : caisse sans nouvelles depuis 40 jours', /Pas de relevé de « E2E-CAISSE-3 »/.test(alertes), alertes.slice(0, 300));
     const resume = await p.evaluate(() => Ext.ComponentQuery.query('supportserveur #resumePostes')[0].el.dom.textContent);
     ok('Résumé : postes relevés, postes déclarés, connexions MariaDB', /\d+ poste\(s\) relevé\(s\) pour \d+ déclaré\(s\)/.test(resume), resume);

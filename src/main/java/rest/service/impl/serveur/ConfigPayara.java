@@ -102,9 +102,25 @@ public final class ConfigPayara {
 
     /** Vrai si l'hote designe cette machine (adresse de bouclage ou nom de la machine). */
     public static boolean locale(String hote, String nomMachine) {
+        return locale(hote, nomMachine, java.util.Collections.emptyList());
+    }
+
+    /**
+     * Vrai si l'hote designe cette machine : adresse de bouclage, nom de la machine, ou l'une de ses adresses (retour
+     * du 03/11 : le pool du serveur peut viser sa propre adresse IP).
+     */
+    public static boolean locale(String hote, String nomMachine, java.util.Collection<String> adresses) {
         String h = hote == null ? "" : hote.trim().toLowerCase(Locale.ROOT);
-        return h.equals("127.0.0.1") || h.equals("localhost") || h.equals("::1") || h.equals("[::1]")
-                || (nomMachine != null && h.equalsIgnoreCase(nomMachine.trim()));
+        if (h.equals("127.0.0.1") || h.equals("localhost") || h.equals("::1") || h.equals("[::1]")
+                || (nomMachine != null && h.equalsIgnoreCase(nomMachine.trim()))) {
+            return true;
+        }
+        for (String a : adresses) {
+            if (a != null && !h.isEmpty() && h.equalsIgnoreCase(a.trim())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     static boolean ipv4(String hote) {

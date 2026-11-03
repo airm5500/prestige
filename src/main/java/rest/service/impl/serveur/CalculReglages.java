@@ -28,6 +28,23 @@ public final class CalculReglages {
     CalculReglages() {
     }
 
+    /** Adresses de cette machine (toutes ses cartes reseau) ; vide si on ne sait pas les lire. */
+    static List<String> adressesLocales() {
+        List<String> l = new ArrayList<>();
+        try {
+            for (java.net.NetworkInterface i : java.util.Collections.list(java.net.NetworkInterface.getNetworkInterfaces())) {
+                for (java.net.InetAddress a : java.util.Collections.list(i.getInetAddresses())) {
+                    String s = a.getHostAddress();
+                    int z = s.indexOf('%');
+                    l.add(z < 0 ? s : s.substring(0, z));
+                }
+            }
+        } catch (java.net.SocketException | RuntimeException e) {
+            return l;
+        }
+        return l;
+    }
+
     /**
      * @param serveur
      *            poste declare « serveur » (application.mode), sinon caisse
@@ -57,7 +74,7 @@ public final class CalculReglages {
         c.variables = variables;
         c.serveur = serveur;
         c.mariadbLocale = !c.payara.lu || c.payara.poolUrl.isEmpty()
-                || ConfigPayara.locale(ConfigPayara.hoteBase(c.payara.poolUrl), hote);
+                || ConfigPayara.locale(ConfigPayara.hoteBase(c.payara.poolUrl), hote, adressesLocales());
         for (Reglage x : ReglagesServeur.comparer(c.ram, Runtime.getRuntime().availableProcessors(),
                 Runtime.getRuntime().maxMemory(), c.variables, c.postes, c.payara.lu ? c.payara.poolMax : -1, c.serveur,
                 c.mariadbLocale)) {

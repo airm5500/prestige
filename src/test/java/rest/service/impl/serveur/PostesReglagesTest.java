@@ -88,13 +88,40 @@ class PostesReglagesTest {
         assertEquals(Collections.emptyList(), a);
     }
 
+    /** Retour du 03/11 : un seul serveur par reseau, celui qui heberge la base ; les autres sont des caisses. */
     @Test
-    void caisseDeclareeServeurEtBaseAilleurs() {
+    void caisseConfigureeEnServeurNommeeAvecLeVraiServeur() {
         PostesReglages.Poste c = poste("CAISSE-2", true, 50);
         c.mariadbLocale = false;
         List<String> a = PostesReglages.alertes(Arrays.asList(poste("SERVEUR", true, 50), c), 2, 500, MAINTENANT);
-        assertTrue(a.stream().anyMatch(x -> x.contains("« CAISSE-2 » se déclare serveur")), a.toString());
-        assertTrue(a.stream().anyMatch(x -> x.contains("Plusieurs machines se déclarent serveur : SERVEUR, CAISSE-2")),
+        assertTrue(a.stream().anyMatch(x -> x.startsWith("« CAISSE-2 » est configuré en serveur")
+                && x.contains("la base est sur « SERVEUR »") && x.contains("application.mode=client")
+                && x.contains("en double")), a.toString());
+        assertEquals(1, a.size(), a.toString());
+    }
+
+    @Test
+    void machineDeLaBaseConfigureeEnClient() {
+        PostesReglages.Poste s = poste("SERVEUR", false, 32);
+        s.mariadbLocale = true;
+        List<String> a = PostesReglages.alertes(Arrays.asList(s, poste("CAISSE-2", false, 32)), 2, 500, MAINTENANT);
+        assertTrue(a.stream().anyMatch(x -> x.startsWith("« SERVEUR » héberge la base mais est configuré en client")
+                && x.contains("application.mode=server")), a.toString());
+    }
+
+    @Test
+    void serveurPasEncoreReleve() {
+        List<String> a = PostesReglages.alertes(Arrays.asList(poste("CAISSE-2", false, 32)), 2, 500, MAINTENANT);
+        assertTrue(a.stream().anyMatch(x -> x.startsWith("Aucun relevé de la machine qui héberge la base")), a.toString());
+    }
+
+    @Test
+    void plusieursServeursSansMachineDeLaBaseConnue() {
+        PostesReglages.Poste a1 = poste("PC-1", true, 50), a2 = poste("PC-2", true, 50);
+        a1.mariadbLocale = false;
+        a2.mariadbLocale = false;
+        List<String> a = PostesReglages.alertes(Arrays.asList(a1, a2), 2, 500, MAINTENANT);
+        assertTrue(a.stream().anyMatch(x -> x.startsWith("Plusieurs machines sont configurées en serveur : PC-1, PC-2")),
                 a.toString());
     }
 
