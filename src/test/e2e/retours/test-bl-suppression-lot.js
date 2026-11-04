@@ -19,11 +19,14 @@ const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LO
 const [DET, REF, PROD, RECUE, UG] = q("SELECT CONCAT_WS('|', d.lg_BON_LIVRAISON_DETAIL, b.str_REF_LIVRAISON, d.lg_FAMILLE_ID, d.int_QTE_RECUE, d.int_QTE_UG) FROM t_bon_livraison_detail d"
   + " JOIN t_bon_livraison b ON b.lg_BON_LIVRAISON_ID = d.lg_BON_LIVRAISON_ID WHERE b.str_REF_LIVRAISON NOT LIKE 'E2E%' ORDER BY d.dt_CREATED DESC LIMIT 1").split('|');
 const AUTRE = 'E2E-BL-AUTRE';
+/* audit 06 (EN-02) : les lots sont cherches par n° de BL ET grossiste ; ceux de l'essai portent le grossiste du BL */
+const GROS = q(`SELECT o.lg_GROSSISTE_ID FROM t_bon_livraison_detail d JOIN t_bon_livraison b ON b.lg_BON_LIVRAISON_ID = d.lg_BON_LIVRAISON_ID`
+  + ` JOIN t_order o ON o.lg_ORDER_ID = b.lg_ORDER_ID WHERE d.lg_BON_LIVRAISON_DETAIL = '${DET}'`);
 function lot(id, ref, num, ug) {
-  return `INSERT INTO t_lot (lg_LOT_ID, lg_USER_ID, lg_FAMILLE_ID, int_NUM_LOT, int_NUMBER, int_NUMBER_GRATUIT, str_REF_LIVRAISON, str_STATUT, dt_CREATED, dt_UPDATED, int_QTY_VENDUE)`
-    + ` VALUES ('${id}', '${ADMIN}', '${PROD}', '${num}', ${5 + ug}, ${ug}, '${ref}', 'enable', NOW(), NOW(), 0);`
-    + `INSERT INTO t_warehouse (lg_WAREHOUSE_ID, lg_USER_ID, lg_FAMILLE_ID, int_NUM_LOT, int_NUMBER, int_NUMBER_GRATUIT, str_REF_LIVRAISON, str_STATUT, dt_CREATED, dt_UPDATED)`
-    + ` VALUES ('${id}-w', '${ADMIN}', '${PROD}', '${num}', ${5 + ug}, ${ug}, '${ref}', 'enable', NOW(), NOW());`;
+  return `INSERT INTO t_lot (lg_LOT_ID, lg_USER_ID, lg_FAMILLE_ID, lg_GROSSISTE_ID, int_NUM_LOT, int_NUMBER, int_NUMBER_GRATUIT, str_REF_LIVRAISON, str_STATUT, dt_CREATED, dt_UPDATED, int_QTY_VENDUE)`
+    + ` VALUES ('${id}', '${ADMIN}', '${PROD}', '${GROS}', '${num}', ${5 + ug}, ${ug}, '${ref}', 'enable', NOW(), NOW(), 0);`
+    + `INSERT INTO t_warehouse (lg_WAREHOUSE_ID, lg_USER_ID, lg_FAMILLE_ID, lg_GROSSISTE_ID, int_NUM_LOT, int_NUMBER, int_NUMBER_GRATUIT, str_REF_LIVRAISON, str_STATUT, dt_CREATED, dt_UPDATED)`
+    + ` VALUES ('${id}-w', '${ADMIN}', '${PROD}', '${GROS}', '${num}', ${5 + ug}, ${ug}, '${ref}', 'enable', NOW(), NOW());`;
 }
 const nettoyer = () => exec("DELETE FROM t_lot WHERE lg_LOT_ID LIKE 'E2E-LOTD-%'; DELETE FROM t_warehouse WHERE lg_WAREHOUSE_ID LIKE 'E2E-LOTD-%';"
   + `UPDATE t_bon_livraison_detail SET int_QTE_RECUE = ${RECUE}, int_QTE_UG = ${UG} WHERE lg_BON_LIVRAISON_DETAIL = '${DET}'`);

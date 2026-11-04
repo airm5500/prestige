@@ -2396,13 +2396,13 @@ public class OrderServiceImpl implements OrderService {
         boolean unLot = deleteLot.isRemoveLot() && StringUtils.isNotEmpty(deleteLot.getNumLot());
         TypedQuery<TWarehouse> typedQuery = getEmg().createQuery(
                 "SELECT o FROM TWarehouse o WHERE o.strREFLIVRAISON =?1 AND o.lgFAMILLEID.lgFAMILLEID=?2"
-                        + " AND o.lgGROSSISTEID.lgGROSSISTEID=?4" + (unLot ? " AND o.intNUMLOT=?3" : ""),
+                        + " AND o.lgGROSSISTEID.lgGROSSISTEID=?3" + (unLot ? " AND o.intNUMLOT=?4" : ""),
                 TWarehouse.class);
         typedQuery.setParameter(1, deleteLot.getRefBon());
         typedQuery.setParameter(2, deleteLot.getIdProduit());
-        typedQuery.setParameter(4, grossisteId);
+        typedQuery.setParameter(3, grossisteId);
         if (unLot) {
-            typedQuery.setParameter(3, deleteLot.getNumLot());
+            typedQuery.setParameter(4, deleteLot.getNumLot());
         }
         return typedQuery.getResultList();
     }
