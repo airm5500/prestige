@@ -407,6 +407,8 @@ retours/test-ticket-cadre-net.js
 retours/test-ticket-police.js
 retours/test-reserve-boutons-lisibles.js
 retours/test-entetes-survol-lisibles.js
+retours/test-sans-filet-colore.js
+retours/test-bl-quantite-sans-lot.js
 retours/test-titre-retour-ecran.js
 retours/test-types-etiquette-filtres.js
 retours/test-types-etiquette.js
