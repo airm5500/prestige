@@ -98,3 +98,27 @@ Un écran est compté comme chargé quand le réseau est calme et qu'aucun masqu
      - Empreintes identiques à celles d'avant toute correction pour achats, CA, encaissé, panier et TVA ; marge
        changée comme prévu.
      - Les tests Java du pilotage passent.
+
+## Entrée en stock d'un bon de livraison (demande du 03/11)
+
+**Constat.** Le clic sur « Oui » à « Confirmer l'entrée en stock » était lent : environ 100 ms par ligne du bon.
+- Test d'écran `src/test/e2e/perf/test-perf-entree-stock.js` : menu, détail du bon, « ENTRÉE EN STOCK », les deux
+  « Oui », chronomètre jusqu'à la question d'impression. Bon d'essai sur la copie `laborex_perf`, retiré à la fin.
+- Avant : 40 lignes 6,5 s et 5,8 s (échec, budget 3 s) ; 150 lignes 15,6 s.
+
+**Cause.** La procédure `proc_indicateur_sugges`, appelée par le déclencheur de `t_warehouse` à chaque ligne entrée
+(et par ceux des lignes de commande et de suggestion), avait été créée avec un paramètre en `utf8mb4`, jeu par défaut
+de la base. Les colonnes `lg_FAMILLE_ID` sont en `utf8mb3` : la comparaison convertit la colonne et l'index n'est plus
+utilisé. Chaque appel parcourait tout l'index de `t_famille` (22 170 lignes) et toute la table
+`t_suggestion_order_details` (15 942 lignes). Trouvé par des instantanés des fils de domain2 et la liste des requêtes
+en cours. Les requêtes Java de la boucle prennent moins de 2 ms chacune en base.
+
+**Correction.** Script Flyway répétable `R__proc_indicateur_sugges.sql` : même logique, l'identifiant est recopié dans
+des variables du type exact de chaque colonne (`TYPE OF`, MariaDB 10.3 et plus). Appliqué au démarrage, sans action
+manuelle.
+- Après : 40 lignes 1,9 s et 1,5 s ; 150 lignes 4,8 s. Un bon moyen de la copie (7 lignes) passe sous la seconde.
+- Mêmes indicateurs : 15 produits pris dans chaque état présent (0, 1 et 2), procédure appelée dans une transaction
+  annulée, résultat identique à la règle d'origine pour tous. La copie n'a aucun produit dans les états 3 et 4.
+- Reste environ 30 ms par ligne, réparties entre les écritures normales (lot, mouvement, étiquette, stock) : pas de
+  cause unique.
+- Profit annexe attendu : la création et la modification des lignes de commande passent par la même procédure.
