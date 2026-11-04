@@ -91,6 +91,8 @@ table.pp-g tr.ecart td{background:#fff8eb}
 table.pp-g tr.pointee td{color:#3d5a50}
 table.pp-g td.pp-vide{text-align:center;color:#556677;padding:24px}
 .pp-actions-ligne{display:flex;gap:4px}
+.pp-btn.pp-icone-conf{padding:0}
+.pp-btn.pp-icone-conf .x-action-col-icon{display:inline-block;width:auto;height:auto;padding:2px 7px;line-height:inherit;cursor:pointer}
 .pp-pas{display:inline-block;padding:1px 8px;border-radius:10px;font-size:11px;font-weight:600;white-space:nowrap}
 .pp-pas.ok{background:#e3f5ef;color:#0b6b57}
 .pp-pas.att{background:#fff4e5;color:#b45309}

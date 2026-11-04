@@ -735,11 +735,14 @@ window.PrestigePresentations = (function () {
                 b.classList.add('pp-arme');
             }
         });
-        var cible = focus ? dom.querySelector('[data-pp-focus="' + focus + '"]') : null;
-        if (!cible && ctx.focusVoulu) {
-            cible = dom.querySelector('[data-pp-focus="' + ctx.focusVoulu + '"]');
-            ctx.focusVoulu = null;
+        /* un deplacement demande (Entree vers la quantite, fleches) passe avant le champ qui avait le curseur */
+        var cible = ctx.focusVoulu ? dom.querySelector('[data-pp-focus="' + ctx.focusVoulu + '"]') : null;
+        if (cible) {
+            debut = null;
+        } else if (focus) {
+            cible = dom.querySelector('[data-pp-focus="' + focus + '"]');
         }
+        ctx.focusVoulu = null;
         if (cible) {
             cible.focus();
             if (debut !== null && cible.setSelectionRange && cible.type !== 'number') {
@@ -919,7 +922,8 @@ window.PrestigePresentations = (function () {
                 + '<span class="pp-kbd">+</span><span class="pp-kbd">−</span> quantité · <span class="pp-kbd">Échap</span> retour à la recherche · '
                 + '<span class="pp-kbd">F4</span> équivalents DCI · <span class="pp-kbd">F8</span> vérifier la disponibilité</div>' + message(ctx)
                 + '<div class="pp-corps">' + h + '</div>'
-                + '<div class="pp-pied"><b data-pp-total="resume">' + nf(t.lignes) + ' lignes · ' + nf(t.boites) + ' boîtes · ' + nf(t.montant) + ' F</b>'
+                + '<div class="pp-pied"><b><span data-pp-total="lignes">' + nf(t.lignes) + '</span> lignes · <span data-pp-total="boites">' + nf(t.boites)
+                + '</span> boîtes · <span data-pp-total="montant">' + nf(t.montant) + '</span> F</b>'
                 + '<span class="pp-espace"></span>' + btn('btn_export_csv') + menuPlus(['btn_dispo_verifier', 'btn_equivalents_dci'].concat(PLUS_SUGG))
                 + btn('btn_cancel', {texte: 'Fermer'}) + btn('btn_sugg_commander_pml', {cls: 'prim', texte: 'Commander'}) + '</div>';
     }
@@ -1089,7 +1093,8 @@ window.PrestigePresentations = (function () {
                     return '<tr><td>' + enc(l.lg_FAMILLE_CIP) + '</td><td>' + enc(l.lg_FAMILLE_NAME) + '</td><td class="n">' + champQte(ctx, l, false) + '</td>'
                             + '<td class="n">' + nf(l.int_PAF) + '</td><td class="n">' + nf(l.int_PRICE) + '</td><td>' + pastilleDispo(ctx, l) + '</td></tr>';
                 }).join('') + '</tbody></table>'
-                + '<div class="pp-total"><span class="pp-gris">' + nf(t.lignes) + ' lignes · ' + nf(t.boites) + ' boîtes · Total</span><b data-pp-total="montant">' + nf(t.montant) + ' F CFA</b></div>'
+                + '<div class="pp-total"><span class="pp-gris"><span data-pp-total="lignes">' + nf(t.lignes) + '</span> lignes · <span data-pp-total="boites">'
+                + nf(t.boites) + '</span> boîtes · Total</span><b data-pp-total="montant">' + nf(t.montant) + ' F CFA</b></div>'
                 + '<div class="pp-actions-papier">' + btnMethode('imprimer-commande', 'Imprimer') + btn('btn_creerbl', {cls: 'prim', texte: 'Créer le bon de livraison'}) + '</div>'
                 + '</div></div>'
                 + '<div class="pp-pied"><span class="pp-gris">Autres actions</span><span class="pp-espace"></span>' + btn('btn_cmd_envoyer_pml')
@@ -1145,7 +1150,10 @@ window.PrestigePresentations = (function () {
     function actionsLigneEntree(ctx, l) {
         var id = enc(l.lg_BON_LIVRAISON_DETAIL);
         return '<button type="button" class="pp-btn fin" data-pp-ligne-action="saisir" data-pp-ligne="' + id + '" title="Saisie de la quantité, des UG et du lot (fenêtre d\'origine « Ajout de lot »)">Saisir</button>'
-                + (num(l.freeQty) > 0 || l.hasLots ? '<button type="button" class="pp-btn fin" data-pp-ligne-action="retirer" data-pp-ligne="' + id + '" title="Suppression de lot (action d\'origine)">Retirer</button>' : '')
+                /* x-action-col-icon : l'action d'origine (PrestigeConfirmation.ligne) demande alors « Confirmer ? » dans le
+                   bouton lui-meme, comme sur l'icone de la grille, au lieu d'une fenetre */
+                + (num(l.freeQty) > 0 || l.hasLots ? '<button type="button" class="pp-btn fin pp-icone-conf" data-pp-ligne-action="retirer" data-pp-ligne="' + id
+                        + '" title="Suppression de lot (action d\'origine)"><span class="x-action-col-icon">Retirer</span></button>' : '')
                 + '<button type="button" class="pp-btn fin lien" data-pp-ligne-action="article" data-pp-ligne="' + id + '" title="Modifier l\'article (action d\'origine)">Article</button>';
     }
     function piedEntree(ctx, t, entree) {
