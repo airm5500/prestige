@@ -20,6 +20,7 @@ const ATTENDU = 'LG,C.CIP,DESIGNATION,QD,QS,P.U,MONTANT,';
 
 (async () => {
   A.parametre('KEY_PRIX_REF_CAISSE', '0');
+  A.parametre('KEY_LIGNE_COMPTANT_VO', '0'); /* cas 1 desactive : la colonne « C » n'entre pas dans l'en-tete attendu */
   const TP = A.tiersPayant('R3', '1');
   const P = C.produitSansReference(5);
   const CIP = C.cip(P);

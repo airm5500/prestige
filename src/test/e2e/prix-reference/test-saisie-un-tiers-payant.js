@@ -17,6 +17,7 @@ const { ok, q, A } = C;
 
 (async () => {
   A.parametre('KEY_PRIX_REF_CAISSE', '1');
+  A.parametre('KEY_LIGNE_COMPTANT_VO', '0'); /* cas 1 desactive : la colonne « C » n'entre pas dans l'en-tete attendu */
   const TP = A.tiersPayant('R1', '1');
   const P = C.produitSansReference(3);
   const CIP = C.cip(P);
