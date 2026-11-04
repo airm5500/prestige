@@ -126,6 +126,8 @@ prix-reference/test-grille-identique-parametre-0.js
 prix-reference/test-non-regression-net.js
 prix-reference/test-saisie-un-tiers-payant.js
 prix-reference/test-saisies-refusees.js
+prix-reference/test-base-par-tp-non-regression.js
+prix-reference/test-base-par-tp-deux-tiers-payants.js
 productivite/test-activite-equipes-analyses.js
 productivite/test-activite-equipes-donnees.js
 productivite/test-activite-equipes-pastilles.js
