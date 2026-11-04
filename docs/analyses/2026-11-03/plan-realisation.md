@@ -217,3 +217,11 @@ Compléments décidés en cours de réalisation :
 - **Tests d'écran du cas 1** : l'imprimante PDF du poste prend une à deux minutes par ticket ; les tests attendent jusqu'à quatre minutes
   et comptent les exemplaires dans le journal serveur.
 - Les tests d'écran n'ont pas été rejoués sur la branche d'intégration après fusion ; à faire avant recette.
+
+### Lot Q2.5 livré (04/11/2026)
+
+Branche `refs/heads/PRES-/quizzical-solomon-415068`, trois commits (`cab9b056b`, `8d5106f3a`, `ad63efa12`), base `origin/integration/recette-2026-10-29`,
+non fusionnée. Migration `V7.2.36` (paramètre `KEY_PRIX_REF_BASE_PAR_TP`, défaut `0`) ; moteur `TiersPayantCalculationService` et
+`SalesNetComputingServiceImpl` modifiés **derrière le paramètre**, règle du minimum figée par un jeu de tests et identique au franc près à `0` ;
+rappel du minimum masqué sous la grille à `1` ; test d'écran à deux tiers-payants 20/20 ; notice `docs/notices/NOTICE_PRIX_REFERENCE_BASE_PAR_TP.md`.
+Paramètre remis à `0` sur la base locale.
