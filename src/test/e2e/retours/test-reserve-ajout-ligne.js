@@ -30,7 +30,8 @@ const RESERVE_AVANT = PS.map((p) => q("SELECT IFNULL(bool_RESERVE, 'NULL') FROM 
 function nettoyer() {
   exec("DELETE d FROM t_suggestion_reserve_detail d JOIN t_suggestion_reserve s ON s.lg_SUGGESTION_RESERVE_ID = d.lg_SUGGESTION_RESERVE_ID WHERE s.str_COMMENTAIRE = 'E2E-RES-LIGNE';"
     + " DELETE FROM t_suggestion_reserve WHERE str_COMMENTAIRE = 'E2E-RES-LIGNE'; DELETE FROM mobile_client_ref WHERE ref LIKE 'E2E-RL-%';"
-    + " DELETE FROM t_type_stock_famille WHERE lg_TYPE_STOCK_FAMILLE_ID LIKE 'E2E-RES-LIGNE-%';");
+    + " DELETE FROM t_type_stock_famille WHERE lg_TYPE_STOCK_FAMILLE_ID LIKE 'E2E-RES-LIGNE-%';"
+    + " DELETE FROM t_emplacement WHERE lg_EMPLACEMENT_ID = 'ZZ-E2E';");
   PS.forEach((p, i) => exec("UPDATE t_famille SET bool_RESERVE = " + RESERVE_AVANT[i] + " WHERE lg_FAMILLE_ID = '" + p + "'"));
 }
 
@@ -79,6 +80,11 @@ function nettoyer() {
     exec("UPDATE t_suggestion_reserve SET lg_USER_VERROU_ID = NULL, dt_VERROU = NULL, str_STATUT = 'ANNULEE' WHERE lg_SUGGESTION_RESERVE_ID = '" + ID + "'");
     const ann = await appel(p, 'POST', '../api/v1/suggestion-reserve/' + ID + '/lignes', { produitId: PS[1], quantite: 3 });
     ok('Suggestion annulée : refus (clôturée), rien d\'ajouté', ann.success === false && /clotur/i.test(ann.msg || ann.message || '') && lignesDe(ID, PS[1]) === '0', JSON.stringify(ann).slice(0, 200));
+    /* un vrai second emplacement (retire au nettoyage) : un identifiant absent de t_emplacement se lirait comme
+     * « sans emplacement », donc visible, et l'essai ne prouverait rien */
+    exec("INSERT INTO t_emplacement (lg_EMPLACEMENT_ID, lg_COMPTE_CLIENT_ID, str_NAME, str_DESCRIPTION, str_LOCALITE, str_FIRST_NAME, str_LAST_NAME,"
+      + " str_PHONE, dt_CREATED, dt_UPDATED, str_STATUT, lg_TYPEDEPOT_ID, bool_SAME_LOCATION) VALUES ('ZZ-E2E', '"
+      + q("SELECT lg_COMPTE_CLIENT_ID FROM t_compte_client LIMIT 1") + "', 'E2E RESERVE AILLEURS', 'E2E', 'E2E', 'E2E', 'E2E', '0', NOW(), NOW(), 'disable', '2', 0)");
     exec("UPDATE t_suggestion_reserve SET str_STATUT = 'A_TRAITER', lg_EMPLACEMENT_ID = 'ZZ-E2E' WHERE lg_SUGGESTION_RESERVE_ID = '" + ID + "'");
     const ailleurs = await appel(p, 'POST', '../api/v1/suggestion-reserve/' + ID + '/lignes', { produitId: PS[1], quantite: 3 });
     const ouvrirAilleurs = await appel(p, 'PUT', '../api/v1/suggestion-reserve/' + ID + '/ouvrir');
@@ -96,7 +102,8 @@ function nettoyer() {
     await b.close();
     nettoyer();
     ok('Données d\'essai retirées, produits remis', q("SELECT COUNT(*) FROM t_suggestion_reserve WHERE str_COMMENTAIRE = 'E2E-RES-LIGNE'") === '0'
-      && q("SELECT COUNT(*) FROM t_type_stock_famille WHERE lg_TYPE_STOCK_FAMILLE_ID LIKE 'E2E-RES-LIGNE-%'") === '0');
+      && q("SELECT COUNT(*) FROM t_type_stock_famille WHERE lg_TYPE_STOCK_FAMILLE_ID LIKE 'E2E-RES-LIGNE-%'") === '0'
+      && q("SELECT COUNT(*) FROM t_emplacement WHERE lg_EMPLACEMENT_ID = 'ZZ-E2E'") === '0');
   }
   const ko = res.filter((x) => !x.c).length;
   console.log('\n' + (res.length - ko) + '/' + res.length + (ko ? ' ECHEC' : ' OK'));
