@@ -499,7 +499,11 @@ Ext.define('testextjs.controller.PilotageCtr', {
         }
         var stores = ecran.stores[cle];
         var onglet = ecran.down('#onglet-' + cle);
-        if (onglet) {
+        /* A suivre : affichage progressif, seules les tuiles et les cartes du calcul attendent (04/11) */
+        var progressif = cle === 'asuivre' && onglet;
+        if (progressif) {
+            ecran.preparerSuivi();
+        } else if (onglet) {
             onglet.setLoading('Rassemblement des chiffres...');
         }
         /*
@@ -524,7 +528,11 @@ Ext.define('testextjs.controller.PilotageCtr', {
             timeout: 180000,
             callback: function () {
                 if (onglet && !onglet.isDestroyed && numero === me.demandes[cle]) {
-                    onglet.setLoading(false);
+                    if (progressif) {
+                        ecran.finSuivi();
+                    } else {
+                        onglet.setLoading(false);
+                    }
                 }
             },
             success: function (reponse) {

@@ -52,7 +52,13 @@ const [FAMILLE, CA_FAMILLE] = q(`SELECT COALESCE(fa.str_LIBELLE, '(non renseign�
     const g12 = p.waitForResponse((r) => r.url().includes('pilotage/onglet/asuivre') && r.url().includes('axe=G12'), { timeout: 180000 });
     await choisir(p, 'pilotage #barrePeriode #axe', 'Glissant 12 mois');
     await g12;
-    await p.waitForFunction(() => { const o = Ext.ComponentQuery.query('pilotage #onglet-asuivre')[0]; return !(o.loadMask && o.loadMask.isVisible()); }, null, { timeout: 60000, polling: 50 });
+    /* affichage progressif (04/11) : l'onglet n'est plus masque en entier ; on attend les tuiles demasquees et les
+       cartes du calcul (emplacements, familles) remplies */
+    await p.waitForFunction(() => {
+      const e = Ext.ComponentQuery.query('pilotage')[0];
+      const t = e.down('#tuiles-asuivre');
+      return !(t.el && t.el.isMasked()) && ['emplacements', 'familles'].every((c) => { const n = e.carteSuivi(c); return n && !n.querySelector('.sv-attente'); });
+    }, null, { timeout: 60000, polling: 50 });
     const ms = Date.now() - t;
     await p.waitForTimeout(500);
     ok('« À suivre », glissant 12 mois : rempli en moins de 12 s', ms < MAX_MS, ms + ' ms');

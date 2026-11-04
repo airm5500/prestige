@@ -1281,6 +1281,54 @@ public class PilotageService {
         return liste(sql, periode);
     }
 
+    /**
+     * Produits vendus ces 90 derniers jours et en rupture aujourd'hui (officine), du plus vendu au moins vendu. La plus
+     * longue lecture de l'onglet au premier clic (3,5 s sur la copie de l'officine, 04/11) : elle tourne elle aussi sur
+     * son propre fil, en meme temps que les demandes par mois.
+     */
+    @SuppressWarnings("unchecked")
+    List<Tuple> rupturesVendues() {
+        Query q = em.createNativeQuery("SELECT f.int_CIP AS cip, f.str_NAME AS libelle, SUM(d.int_QUANTITY) AS vendus"
+                + " FROM t_preenregistrement_detail d JOIN t_preenregistrement p"
+                + " ON p.lg_PREENREGISTREMENT_ID = d.lg_PREENREGISTREMENT_ID JOIN t_famille f"
+                + " ON f.lg_FAMILLE_ID = d.lg_FAMILLE_ID WHERE p.int_PRICE > 0 AND p.str_STATUT = 'is_Closed'"
+                + " AND p.b_IS_CANCEL = 0 AND p.dt_UPDATED >= :depuis AND f.str_STATUT = 'enable'"
+                + " AND NOT EXISTS (SELECT 1 FROM t_famille_stock s WHERE s.lg_FAMILLE_ID = f.lg_FAMILLE_ID"
+                + " AND s.lg_EMPLACEMENT_ID = :emplacement AND s.int_NUMBER_AVAILABLE > 0)"
+                + " GROUP BY f.lg_FAMILLE_ID, f.int_CIP, f.str_NAME ORDER BY vendus DESC", Tuple.class);
+        q.setParameter("depuis", java.sql.Timestamp.valueOf(LocalDate.now().minusDays(90).atStartOfDay()));
+        q.setParameter("emplacement", PilotageSql.EMPLACEMENT_OFFICINE);
+        return q.getResultList();
+    }
+
+    /** {@link #rupturesVendues()} sur son propre fil ; reservee a {@link #aSuivre}. */
+    @javax.ejb.Asynchronous
+    public java.util.concurrent.Future<List<Tuple>> rupturesVenduesAsync() {
+        return new javax.ejb.AsyncResult<>(rupturesVendues());
+    }
+
+    private java.util.concurrent.Future<List<Tuple>> lancerRupturesVendues() {
+        try {
+            return moiMeme.rupturesVenduesAsync();
+        } catch (RuntimeException e) {
+            LOG.log(Level.WARNING, "pilotage : lecture asynchrone des ruptures impossible, lecture directe", e);
+            return null;
+        }
+    }
+
+    private List<Tuple> obtenirRupturesVendues(java.util.concurrent.Future<List<Tuple>> attente) {
+        if (attente != null) {
+            try {
+                return attente.get(30, java.util.concurrent.TimeUnit.MINUTES);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            } catch (java.util.concurrent.ExecutionException | java.util.concurrent.TimeoutException e) {
+                LOG.log(Level.WARNING, "pilotage : lecture asynchrone des ruptures en echec, reprise en direct", e);
+            }
+        }
+        return rupturesVendues();
+    }
+
     /** Les 20 premiers, avec leur part du CA. */
     private JSONArray repartition(List<Tuple> lignes, double caTotal) {
         JSONArray r = new JSONArray();
@@ -1300,6 +1348,7 @@ public class PilotageService {
                 axe.courante);
         java.util.concurrent.Future<List<Tuple>> attenteFamilles = lancer(SQL_REPARTITION_FAMILLES, axe.courante);
         java.util.concurrent.Future<List<Tuple>> attenteMargeNegative = lancer(SQL_MARGE_NEGATIVE, axe.courante);
+        java.util.concurrent.Future<List<Tuple>> attenteRuptures = lancerRupturesVendues();
         Totaux courant = totaux(axe.courante);
         Totaux reference = axe.reference == null ? null : totaux(axe.reference);
         JSONArray mois = moisAgreges(axe);
@@ -1307,18 +1356,7 @@ public class PilotageService {
         ajouterKpiStockPanier(axe, courant, reference, mois, tuiles, KPI_STOCK_PANIER);
 
         /* produits vendus ces 90 derniers jours et en rupture aujourd'hui (officine) */
-        Query q = em.createNativeQuery("SELECT f.int_CIP AS cip, f.str_NAME AS libelle, SUM(d.int_QUANTITY) AS vendus"
-                + " FROM t_preenregistrement_detail d JOIN t_preenregistrement p"
-                + " ON p.lg_PREENREGISTREMENT_ID = d.lg_PREENREGISTREMENT_ID JOIN t_famille f"
-                + " ON f.lg_FAMILLE_ID = d.lg_FAMILLE_ID WHERE p.int_PRICE > 0 AND p.str_STATUT = 'is_Closed'"
-                + " AND p.b_IS_CANCEL = 0 AND p.dt_UPDATED >= :depuis AND f.str_STATUT = 'enable'"
-                + " AND NOT EXISTS (SELECT 1 FROM t_famille_stock s WHERE s.lg_FAMILLE_ID = f.lg_FAMILLE_ID"
-                + " AND s.lg_EMPLACEMENT_ID = :emplacement AND s.int_NUMBER_AVAILABLE > 0)"
-                + " GROUP BY f.lg_FAMILLE_ID, f.int_CIP, f.str_NAME ORDER BY vendus DESC", Tuple.class);
-        q.setParameter("depuis", java.sql.Timestamp.valueOf(LocalDate.now().minusDays(90).atStartOfDay()));
-        q.setParameter("emplacement", PilotageSql.EMPLACEMENT_OFFICINE);
-        @SuppressWarnings("unchecked")
-        List<Tuple> enRupture = q.getResultList();
+        List<Tuple> enRupture = obtenirRupturesVendues(attenteRuptures);
         JSONArray ruptures = new JSONArray();
         for (int i = 0; i < Math.min(15, enRupture.size()); i++) {
             Tuple t = enRupture.get(i);

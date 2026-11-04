@@ -122,3 +122,50 @@ manuelle.
 - Reste environ 30 ms par ligne, réparties entre les écritures normales (lot, mouvement, étiquette, stock) : pas de
   cause unique.
 - Profit annexe attendu : la création et la modification des lignes de commande passent par la même procédure.
+
+## Pilotage, onglet « À suivre » : affichage progressif (demande du 04/11)
+
+**Constat**, juste après un démarrage, premier clic sur les vrais menus :
+- Onglet entièrement masqué de 5,8 s à 6,4 s, dont `GET pilotage/onglet/asuivre` : 5,3 à 6,0 s.
+- Les six courbes sont bien calculées d'avance au démarrage (moins de 0,2 s chacune). Mais l'écran ne les demandait
+  qu'après la réponse de l'onglet.
+- Ce qui ne l'est pas : le haut de l'onglet (tuiles, alertes, répartitions). Il est calculé au clic, et le cache
+  d'écran ne dure que 5 minutes, par utilisateur.
+- Lectures mesurées sur la copie, période « Mois en cours » :
+  - produits vendus en rupture sur 90 jours : 3,5 s ;
+  - demandes par mois sur 13 mois, pour le taux de rupture : 1,4 s ;
+  - toutes les autres : moins de 0,2 s.
+
+  Les deux premières s'enchaînaient sur le même fil.
+- Synthèse : 0,28 s. La seconde ressentie à l'ouverture du menu vient du contrôle des corrections tardives, voulu à
+  l'ouverture.
+
+**Correction :**
+- **Écran** (`PilotageCtr.actualiser`, `PilotageManager.preparerSuivi`) :
+  - les courbes, la fréquentation et les encaissements partent dès le clic ;
+  - seules les tuiles, les alertes et les deux répartitions restent « en chargement » jusqu'à la réponse de l'onglet ;
+  - une carte restée sans réponse affiche « Indisponible ».
+- **Serveur** : la lecture des ruptures sur 90 jours tourne sur son propre fil, comme les trois autres lectures
+  lourdes de l'onglet. Requête inchangée.
+
+**Mesure** (test `src/test/e2e/perf/test-pilotage-a-suivre-progressif.js`, à froid) :
+
+| | Avant | Après |
+|---|---|---|
+| Courbes et fréquentation affichées | 2,24 s et 2,34 s (échec) | 0,46 s et 0,32 s |
+| Onglet entièrement rempli | 2,28 s et 2,37 s | 2,36 s et 1,59 s |
+
+- Ce jour-là, la base avait ses pages en mémoire : le calcul de l'onglet a pris 1,5 à 2,2 s, contre 5,3 s au
+  premier passage.
+- **Mêmes chiffres.** Les empreintes du contenu (clés triées, nombres relus) sont identiques entre l'ancienne et la
+  nouvelle version, pour la réponse de l'onglet et pour les six courbes.
+- L'empreinte du texte brut, elle, n'est pas fiable : une réponse resservie par le cache n'écrit ni les clés ni les
+  nombres comme la réponse calculée.
+- **Ergonomie.** Changer de période dans la liste (« Vs mois précédent ») recalcule l'onglet : tuiles comparées à
+  « Octobre 2026 (au 4) », toutes les cartes remplies, aucune erreur JavaScript (8 contrôles sur 8).
+- **Test existant** `test-pilotage-a-suivre.js` :
+  - il attendait la disparition du masque posé sur tout l'onglet ;
+  - il attend désormais les tuiles démasquées et les cartes Emplacements et Familles remplies ;
+  - lancé sur la copie (`DB_TEST=laborex_perf`), il passe 4 contrôles sur 4, CA en tête égal à la base.
+- Reste : la lecture des ruptures sur 90 jours (environ 3,5 s base froide) fixe la durée du remplissage des tuiles et
+  des alertes.
