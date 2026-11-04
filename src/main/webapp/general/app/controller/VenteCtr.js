@@ -8304,10 +8304,25 @@ Ext.define('testextjs.controller.VenteCtr', {
      * Parametre a 0 : aucune colonne creee, aucun appel ; la grille et ses evenements sont ceux d'aujourd'hui.
      * ------------------------------------------------------------------------------------------------------ */
 
-    /** Valeur relue a chaque ouverture de l'ecran de vente, sans cache. */
+    /**
+     * Valeurs relues a chaque ouverture de l'ecran de vente, sans cache. KEY_PRIX_REF_BASE_PAR_TP (lot Q2.5) ne sert
+     * qu'au rappel sous la grille : a 1, chaque tiers-payant est calcule sur son propre prix de reference et le rappel
+     * de la regle du minimum disparait ; le montant pris en charge affiche est toujours celui calcule par le serveur.
+     */
     checkParamPrixRefCaisse: function () {
         const me = this;
         me.prixRefCaisse = false;
+        me.prixRefBaseParTp = false;
+        Ext.Ajax.request({
+            method: 'GET', url: '../api/v1/app-params/value/KEY_PRIX_REF_BASE_PAR_TP',
+            success: function (response) {
+                const r = Ext.JSON.decode(response.responseText, true) || {};
+                me.prixRefBaseParTp = r.success === true && String(r.data).trim() === '1';
+                if (me.prixRefCaisse) {
+                    me.rafraichirColonnesReferenceTp();
+                }
+            }
+        });
         Ext.Ajax.request({
             method: 'GET', url: '../api/v1/app-params/value/KEY_PRIX_REF_CAISSE',
             success: function (response) {
@@ -8352,7 +8367,7 @@ Ext.define('testextjs.controller.VenteCtr', {
         }
         if (tiersPayants) {
             vue.construireColonnesReferenceTp(tiersPayants);
-            vue.afficherRappelReferenceTp(true);
+            vue.afficherRappelReferenceTp(true, !me.prixRefBaseParTp);
         } else {
             vue.retirerColonnesReferenceTp();
         }

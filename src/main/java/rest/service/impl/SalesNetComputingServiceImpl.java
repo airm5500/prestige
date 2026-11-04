@@ -397,6 +397,8 @@ public class SalesNetComputingServiceImpl implements SalesNetComputingService {
         input.setNatureVente(Constant.VENTE_ASSURANCE_ID.equals(tTypeVente.getLgTYPEVENTEID()) ? NatureVente.ASSURANCE
                 : NatureVente.CARNET);
         input.setDiscountAmount(BigDecimal.valueOf(Objects.requireNonNullElse(sale.getIntPRICEREMISE(), 0)));
+        // lot « base par tiers-payant » (Q2.5) : a 0 (defaut), le moteur applique la regle du minimum, inchangee
+        input.setBasePrixReferenceParTiersPayant(rest.service.calculation.BaseParTiersPayant.actif(em));
 
         Set<String> tiersPayantIds = new HashSet<>();
         List<TiersPayantInput> tiersPayantInputs = buildTiersPayantInputs(compteClientTiersPayents, tiersPayantIds,

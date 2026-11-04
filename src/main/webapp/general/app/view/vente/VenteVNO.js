@@ -1623,8 +1623,12 @@ Ext.define('testextjs.view.vente.VenteVNO', {
         message.show();
     },
 
-    /** Libelle discret sous la grille : regle du minimum (Q2.5), tant que le lot « base par tiers-payant » n'est pas livre. */
-    afficherRappelReferenceTp: function (visible) {
+    /**
+     * Libelle discret sous la grille : legende des couleurs et, tant que KEY_PRIX_REF_BASE_PAR_TP vaut 0, rappel de la
+     * regle du minimum (Q2.5). A 1 (regleMinimum faux), chaque tiers-payant est calcule sur son propre prix de
+     * reference : le rappel disparait, la legende reste.
+     */
+    afficherRappelReferenceTp: function (visible, regleMinimum) {
         const me = this, conteneur = me.down('#gridContainer'), grille = me.down('#venteGrid');
         let rappel = me.down('#rappelReferenceTp');
         if (!visible) {
@@ -1633,18 +1637,22 @@ Ext.define('testextjs.view.vente.VenteVNO', {
             }
             return;
         }
+        const texte = 'Gris italique = valeur par défaut, non enregistrée · Violet = référence de la fiche article · '
+                + 'Entrée valide, Échap annule'
+                + (regleMinimum === false ? ''
+                        : ' · Avec plusieurs tiers-payants, le calcul retient le plus petit des prix de référence de la vente.');
         if (!rappel) {
             if (!conteneur || !grille) {
                 return;
             }
             const message = me.down('#messageReferenceTp');
             rappel = conteneur.insert(conteneur.items.indexOf(message || grille) + 1, {
-                xtype: 'component', itemId: 'rappelReferenceTp', cls: 'vp-ref-rappel', margin: '0 0 5 0',
-                html: 'Gris italique = valeur par défaut, non enregistrée · Violet = référence de la fiche article · '
-                        + 'Entrée valide, Échap annule · Avec plusieurs tiers-payants, le calcul retient le plus petit '
-                        + 'des prix de référence de la vente.'
+                xtype: 'component', itemId: 'rappelReferenceTp', cls: 'vp-ref-rappel', margin: '0 0 5 0', html: texte
             });
+        } else if (rappel.texteRappel !== texte) {
+            rappel.update(texte);
         }
+        rappel.texteRappel = texte;
         rappel.show();
     },
 
