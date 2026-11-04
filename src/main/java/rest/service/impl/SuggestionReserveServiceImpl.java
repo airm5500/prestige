@@ -233,11 +233,20 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
         if (motifId != null) {
             jpql.append(" AND s.motif.id = :motifId");
         }
-        if (notBlank(dtStart)) {
-            jpql.append(" AND s.dtCREATED >= :dtStart");
-        }
-        if (notBlank(dtEnd)) {
-            jpql.append(" AND s.dtCREATED <= :dtEnd");
+        // Retour du 03/11 : une suggestion encore a traiter reste visible quelle que soit sa date de creation (la
+        // suggestion automatique est creee une fois puis chaque entree en stock y ajoute ses produits) ; les dates
+        // filtrent les suggestions closes.
+        if (notBlank(dtStart) || notBlank(dtEnd)) {
+            List<String> dates = new ArrayList<>();
+            if (notBlank(dtStart)) {
+                dates.add("s.dtCREATED >= :dtStart");
+            }
+            if (notBlank(dtEnd)) {
+                dates.add("s.dtCREATED <= :dtEnd");
+            }
+            jpql.append(" AND (s.strSTATUT IN ('").append(TSuggestionReserve.STATUT_A_TRAITER).append("', '")
+                    .append(TSuggestionReserve.STATUT_EN_COURS).append("') OR (").append(String.join(" AND ", dates))
+                    .append("))");
         }
         // Un meme filtre utilisateur porte sur les trois roles : createur, traitant ou cloturant.
         if (notBlank(userId)) {
@@ -474,8 +483,10 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
             return echec("Suggestion introuvable.");
         }
         JSONArray lignes = new JSONArray();
-        for (TSuggestionReserveDetail d : chargerLignes(suggestionId)) {
-            lignes.put(ligneJson(user, d));
+        List<TSuggestionReserveDetail> details = chargerLignes(suggestionId);
+        java.util.Map<String, JSONObject> actuels = actuels(user, s, details);
+        for (TSuggestionReserveDetail d : details) {
+            lignes.put(ligneJson(user, d, actuels));
         }
         return new JSONObject().put("success", true).put("entete", enteteJson(s)).put("lignes", lignes);
     }
@@ -484,6 +495,9 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
         TypedQuery<TSuggestionReserveDetail> q = em.createNamedQuery("TSuggestionReserveDetail.findBySuggestion",
                 TSuggestionReserveDetail.class);
         q.setParameter("suggestionId", suggestionId);
+        // retour du 03/11 : les produits des lignes lus par paquets (IN) plutot qu'un par un
+        q.setHint("eclipselink.batch.type", "IN");
+        q.setHint("eclipselink.batch", "d.lgFAMILLEID");
         return q.getResultList();
     }
 
@@ -932,8 +946,11 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
         int supprimes = 0;
         int ignores = 0;
 
-        for (TSuggestionReserveDetail d : chargerLignes(suggestionId)) {
-            JSONObject l = ligneJson(user, d);
+        List<TSuggestionReserveDetail> details = chargerLignes(suggestionId);
+        java.util.Map<String, JSONObject> actuels = actuels(user, em.find(TSuggestionReserve.class, suggestionId),
+                details);
+        for (TSuggestionReserveDetail d : details) {
+            JSONObject l = ligneJson(user, d, actuels);
             String etat = d.getStrETAT();
             if (TSuggestionReserveDetail.ETAT_TRAITEE.equals(etat)) {
                 reussis++;
@@ -1667,6 +1684,26 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
     }
 
     private JSONObject ligneJson(TUser user, TSuggestionReserveDetail d) {
+        return ligneJson(user, d, null);
+    }
+
+    /** Retour du 03/11 : stock actuel de tous les produits de la suggestion, en deux requetes. */
+    private java.util.Map<String, JSONObject> actuels(TUser user, TSuggestionReserve s,
+            List<TSuggestionReserveDetail> details) {
+        if (user == null || s == null) {
+            return java.util.Collections.emptyMap();
+        }
+        List<TFamille> familles = new ArrayList<>();
+        for (TSuggestionReserveDetail d : details) {
+            if (d.getLgFAMILLEID() != null) {
+                familles.add(d.getLgFAMILLEID());
+            }
+        }
+        return reserveService.propositions(user, familles, s.getStrCATEGORIE());
+    }
+
+    /** {@code actuels} : propositions deja calculees par produit ({@code null} : calcul de la seule ligne). */
+    private JSONObject ligneJson(TUser user, TSuggestionReserveDetail d, java.util.Map<String, JSONObject> actuels) {
         TFamille f = d.getLgFAMILLEID();
         JSONObject json = new JSONObject();
         json.put("lg_SUGGESTION_RESERVE_DETAIL_ID", d.getLgSUGGESTIONRESERVEDETAILID());
@@ -1691,8 +1728,8 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
 
         // Stock ACTUEL a cote du stock constate a la creation : l'utilisateur voit si la proposition a vieilli.
         if (f != null && user != null) {
-            JSONObject actuel = reserveService.proposition(user, f.getLgFAMILLEID(),
-                    d.getLgSUGGESTIONRESERVEID().getStrCATEGORIE());
+            JSONObject actuel = actuels != null ? actuels.get(f.getLgFAMILLEID()) : reserveService.proposition(user,
+                    f.getLgFAMILLEID(), d.getLgSUGGESTIONRESERVEID().getStrCATEGORIE());
             if (actuel != null) {
                 json.put("int_STOCK_RAYON_ACTUEL", actuel.optInt("int_STOCK_RAYON", 0));
                 json.put("int_STOCK_RESERVE_ACTUEL", actuel.optInt("int_STOCK_RESERVE", 0));

@@ -105,7 +105,7 @@ const arrondi5 = (v) => (v <= 0 ? 0 : (v % 5 === 0 ? v : v + (5 - (v % 5))));
     /* l'imprimante PDF du poste peut mettre plusieurs minutes a repondre : la reponse HTTP est un renseignement, la
        preuve de l'impression est la mesure du journal du serveur ci-dessous */
     console.log('      (ticket/vo : ' + (clot.ticket ? 'réponse ' + clot.ticket.http : 'pas de réponse dans les 4 minutes') + ')');
-    /* journal du serveur : la mesure d'impression dit combien d'exemplaires sont partis : tiers-payant, recu caisse, ticket combine */
+    /* journal du serveur : la mesure d'impression dit combien d'exemplaires sont partis : tiers-payant puis ticket combine (retour du 03/11 : plus de recu caisse en plus) */
     let exemplaires = null;
     if (require('fs').existsSync(journal)) {
       const fd = require('fs').openSync(journal, 'r'); const taille = require('fs').statSync(journal).size;
@@ -113,7 +113,7 @@ const arrondi5 = (v) => (v <= 0 ? 0 : (v % 5 === 0 ? v : v + (5 - (v % 5))));
       const m = tampon.toString('utf8').match(/vente\/ticket\/vo[^\n]*?\((\d+) fois\)/g);
       if (m) { exemplaires = Number(m[m.length - 1].match(/\((\d+) fois\)/)[1]); }
     }
-    ok('Trois exemplaires imprimés : tiers-payant, reçu caisse, ticket client combiné (journal du serveur)', exemplaires === 3, exemplaires === null ? 'mesure absente du journal (impression rapide)' : exemplaires);
+    ok('Deux tickets imprimés : assurance (un tiers-payant) et client combiné, sans reçu caisse (journal du serveur)', exemplaires === 2, exemplaires === null ? 'mesure absente du journal (impression rapide)' : exemplaires);
 
     /* 4. annulation de la vente comptant, par la liste des ventes terminees */
     await C.ouvrirEcran(p, 'ventemanager');

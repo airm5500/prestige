@@ -394,7 +394,8 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
     reloadGrid: function () {
         // Au premier affichage on se limite a la journee en cours : c'est ce qu'on vient
         // consulter dans la quasi-totalite des cas. Les dates restent modifiables pour
-        // remonter plus loin.
+        // remonter plus loin. Retour du 03/11 : les suggestions encore a traiter s'affichent
+        // toujours (le serveur n'applique les dates qu'aux suggestions closes).
         if (!this.filtreInitialise) {
             this.filtreInitialise = true;
             // Le droit d'annuler est demande une seule fois : il pilote l'affichage de l'icone.

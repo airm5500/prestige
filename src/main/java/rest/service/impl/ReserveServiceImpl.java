@@ -598,9 +598,75 @@ public class ReserveServiceImpl implements ReserveService {
         String empl = user.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
         int stockRayon = nz(getNumberAvailable(familleId, empl));
         int stockReserve = nz(getTypeStockNumber(TYPE_STOCK_RESERVE, familleId, empl));
-        int seuilReserve = nz(f.getIntSEUILRESERVE());
-        Integer seuilMini = f.getIntSEUILMINIRAYON();
+        return calculProposition(familleId, stockRayon, stockReserve, nz(f.getIntSEUILRESERVE()),
+                f.getIntSEUILMINIRAYON(), categorie);
+    }
 
+    /**
+     * Retour du 03/11 : meme calcul que {@link #proposition}, pour tous les produits d'une suggestion en deux requetes
+     * (stock rayon, stock reserve) au lieu de trois par ligne : une grosse suggestion automatique s'ouvre en une
+     * seconde au lieu de depasser le delai du navigateur (« Chargement impossible »).
+     */
+    @Override
+    public java.util.Map<String, JSONObject> propositions(TUser user, java.util.Collection<TFamille> familles,
+            String categorie) {
+        java.util.Map<String, JSONObject> res = new java.util.HashMap<>();
+        if (familles == null || familles.isEmpty()) {
+            return res;
+        }
+        String empl = user.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
+        java.util.Map<String, TFamille> parId = new java.util.LinkedHashMap<>();
+        for (TFamille f : familles) {
+            if (f != null) {
+                parId.put(f.getLgFAMILLEID(), f);
+            }
+        }
+        java.util.Map<String, Integer> rayon = new java.util.HashMap<>();
+        java.util.Map<String, Integer> reserve = new java.util.HashMap<>();
+        List<String> ids = new ArrayList<>(parId.keySet());
+        for (int i = 0; i < ids.size(); i += 500) {
+            List<String> lot = ids.subList(i, Math.min(ids.size(), i + 500));
+            lireStocks(em.createNativeQuery("SELECT t.lg_FAMILLE_ID, t.int_NUMBER_AVAILABLE FROM t_famille_stock t "
+                    + "WHERE t.lg_EMPLACEMENT_ID = ?1 AND t.str_STATUT = 'enable' AND t.lg_FAMILLE_ID IN ("
+                    + marques(lot.size(), 2) + ")"), empl, lot, rayon);
+            Query q = em.createNativeQuery("SELECT t.lg_FAMILLE_ID, t.int_NUMBER FROM t_type_stock_famille t "
+                    + "WHERE t.lg_EMPLACEMENT_ID = ?1 AND t.lg_TYPE_STOCK_ID = '" + TYPE_STOCK_RESERVE
+                    + "' AND t.lg_FAMILLE_ID IN (" + marques(lot.size(), 2) + ")");
+            lireStocks(q, empl, lot, reserve);
+        }
+        for (TFamille f : parId.values()) {
+            String id = f.getLgFAMILLEID();
+            res.put(id, calculProposition(id, nz(rayon.get(id)), nz(reserve.get(id)), nz(f.getIntSEUILRESERVE()),
+                    f.getIntSEUILMINIRAYON(), categorie));
+        }
+        return res;
+    }
+
+    private static String marques(int n, int premier) {
+        StringBuilder b = new StringBuilder();
+        for (int i = 0; i < n; i++) {
+            b.append(i == 0 ? "" : ",").append('?').append(premier + i);
+        }
+        return b.toString();
+    }
+
+    /** Premiere valeur trouvee par produit, comme getSingleResult avec setMaxResults(1). */
+    private static void lireStocks(Query q, String empl, List<String> ids, java.util.Map<String, Integer> sortie) {
+        q.setParameter(1, empl);
+        for (int i = 0; i < ids.size(); i++) {
+            q.setParameter(i + 2, ids.get(i));
+        }
+        for (Object o : q.getResultList()) {
+            Object[] r = (Object[]) o;
+            if (r[0] != null && r[1] != null && !sortie.containsKey(String.valueOf(r[0]))) {
+                sortie.put(String.valueOf(r[0]), ((Number) r[1]).intValue());
+            }
+        }
+    }
+
+    /** Le calcul de la proposition, sans acces a la base (une seule formule pour les deux chemins). */
+    static JSONObject calculProposition(String familleId, int stockRayon, int stockReserve, int seuilReserve,
+            Integer seuilMini, String categorie) {
         JSONObject json = new JSONObject();
         json.put("lg_FAMILLE_ID", familleId);
         json.put("int_STOCK_RAYON", stockRayon);

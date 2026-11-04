@@ -232,7 +232,8 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
     /**
      * Cas 1 du 03/11/2026 : ticket client combine (ModeleTicket.VENTE_MIXTE) quand la vente assurance a une vente
      * comptant liee : les deux ventes sur un seul papier, un seul code-barres (celui de la vente assurance). Imprime
-     * apres les exemplaires tiers-payant et le recu caisse, et jamais bloquant pour eux. Rien sans vente liee.
+     * apres les exemplaires tiers-payant (il remplace le recu caisse), et jamais bloquant pour eux. Rien sans vente
+     * liee.
      */
     private void imprimerTicketCombine(TPreenregistrement vo, PrintService printService, TImprimante imprimante,
             TOfficine officine, TEmplacement te) {
@@ -1166,6 +1167,35 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
         }
     }
 
+    /**
+     * Retour du 03/11 : une vente assurance avec une vente comptant liee (ligne cochee comptant) sort un ticket par
+     * tiers-payant puis le ticket client combine ; le recu caisse n'est plus imprime en plus. Il reste sans vente liee,
+     * en ticket unique (il est alors le seul ticket assurance) ou sans exemplaire tiers-payant.
+     */
+    static boolean recuCaisseAImprimer(TPreenregistrement vo, boolean printUniqueTicket, int nbTiersPayants) {
+        boolean venteLiee = vo != null && StringUtils.isNotBlank(vo.getLgVENTELIEEID());
+        return !venteLiee || printUniqueTicket || nbTiersPayants <= 0;
+    }
+
+    /** Tickets d'une vente liee : un par tiers-payant, plus le ticket combine. */
+    static int ticketsVenteLiee(int nbTiersPayants) {
+        return nbTiersPayants + 1;
+    }
+
+    /** Le ticket combine sortira-t-il ? (memes conditions que imprimerTicketCombine) */
+    private boolean combineImprimable(TPreenregistrement vo) {
+        try {
+            if (vo == null || StringUtils.isBlank(vo.getLgVENTELIEEID())) {
+                return false;
+            }
+            TPreenregistrement vno = getEntityManager().find(TPreenregistrement.class, vo.getLgVENTELIEEID());
+            return vno != null && findByPkey(vo.getLgPREENREGISTREMENTID()) != null
+                    && findByPkey(vno.getLgPREENREGISTREMENTID()) != null;
+        } catch (RuntimeException e) {
+            return false;
+        }
+    }
+
     private void print(ImpressionServiceImpl impressionService, TPreenregistrement oTPreenregistrement,
             List<TPreenregistrementCompteClientTiersPayent> listeVenteTiersPayants, boolean printUniqueTicket,
             MvtTransaction mvtTransaction, boolean isReedit) throws PrinterException {
@@ -1178,8 +1208,11 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
                 }
             }
             if (Objects.nonNull(mvtTransaction)) {
-
-                printCashierReceipt(oTPreenregistrement, impressionService, isReedit);
+                // retour du 03/11 : avec une vente comptant liee, le ticket combine remplace le recu caisse
+                if (recuCaisseAImprimer(oTPreenregistrement, printUniqueTicket, listeVenteTiersPayants.size())
+                        || !combineImprimable(oTPreenregistrement)) {
+                    printCashierReceipt(oTPreenregistrement, impressionService, isReedit);
+                }
             } else {
                 int copies = nbreDeCopiesOranges(oTPreenregistrement, 1);
                 for (int i = 0; i < copies; i++) {

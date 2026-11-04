@@ -122,15 +122,47 @@ function remettre() {
     ok('Ligne ancienne écartée (retirée de la suggestion, avec son motif)', q(`SELECT str_ETAT FROM t_suggestion_reserve_detail WHERE lg_SUGGESTION_RESERVE_DETAIL_ID = '${SRD}'`) === 'SUPPRIMEE',
       q(`SELECT CONCAT_WS(' | ', str_ETAT, str_MOTIF_LIGNE) FROM t_suggestion_reserve_detail WHERE lg_SUGGESTION_RESERVE_DETAIL_ID = '${SRD}'`));
     ok('Elle nomme la suggestion de réserve automatique où le produit est rangé', auto[2] === 'RESERVE' && f.texte.includes(auto[1]) && f.suggestion === auto[0], f.texte + ' / ' + auto.join('|'));
-    await p.evaluate(() => Ext.ComponentQuery.query('reserveapresentree #btnOuvrirSuggestion')[0].btnEl.dom.click());
+    /* retour du 03/11 : « elle tourne jusqu'a ne rien afficher » (Erreur / Chargement impossible) */
+    const t0 = Date.now();
+    const repOuvrir = p.waitForResponse((x) => /suggestion-reserve\/[^/]+\/ouvrir/.test(x.url()), { timeout: 120000 })
+      .then(async (x) => { const corps = await x.text().catch(() => ''); const j = (() => { try { return JSON.parse(corps); } catch (e) { return {}; } })();
+        await x.finished().catch(() => {}); const t = x.request().timing();
+        return { http: x.status(), ms: Date.now() - t0, serveur: Math.round(t.responseEnd >= 0 ? t.responseEnd : t.responseStart), lignes: (j.lignes || []).length, corps: corps.slice(0, 120) }; }).catch((e) => ({ http: 0, ms: Date.now() - t0, corps: String(e).slice(0, 200) }));
+    await p.locator('.x-window:has-text("Seuil de réserve atteint") a, .x-window:has-text("Seuil de réserve atteint") button').filter({ hasText: 'Ouvrir la suggestion de réserve' }).first().click();
     await p.waitForFunction(() => { const m = Ext.getCmp('reservemanagerID'); return m && m.getActiveTab() && m.getActiveTab().itemId === 'ongletSuggestions'; }, null, { timeout: 30000 }).catch(() => {});
     /* la fenetre de traitement affiche sa propre fenetre interne (win) */
     await p.waitForFunction(() => Ext.ComponentQuery.query('reservetraitementsuggestion').some((w) => w.win && w.win.isVisible()), null, { timeout: 30000 }).catch(() => {});
     const ouvert = await p.evaluate(() => { const m = Ext.getCmp('reservemanagerID'), w = Ext.ComponentQuery.query('reservetraitementsuggestion').find((x) => x.win && x.win.isVisible());
       return { onglet: m && m.getActiveTab() && m.getActiveTab().itemId, suggestion: w ? w.getSuggestionid() : null }; });
     ok('« Ouvrir la suggestion de réserve » : Gestion des réserves, onglet Suggestions, la suggestion ouverte', ouvert.onglet === 'ongletSuggestions' && ouvert.suggestion === auto[0], JSON.stringify(ouvert));
+    const ouverture = await repOuvrir;
+    /* retour du 03/11 : « l'onglet Suggestions demeure vide » : la suggestion automatique (creee un autre jour, le bon
+       y ajoute ses produits) doit figurer dans la liste affichee par defaut */
+    await p.waitForFunction(() => { const g = Ext.getCmp('reservemanagerID').down('#ongletSuggestions'); return g && !g.getStore().isLoading() && g.filtreInitialise; }, null, { timeout: 30000 }).catch(() => {});
+    await p.waitForTimeout(800);
+    const liste = await p.evaluate(() => { const g = Ext.getCmp('reservemanagerID').down('#ongletSuggestions');
+      return { ids: g.getStore().getRange().map((r) => r.get('lg_SUGGESTION_RESERVE_ID')), refs: g.getStore().getRange().map((r) => r.get('str_REF') + ' ' + r.get('str_STATUT') + ' ' + r.get('dt_CREATED')) }; });
+    ok('Onglet Suggestions : la suggestion de réserve automatique est dans la liste affichée par défaut', liste.ids.includes(auto[0]),
+      auto[1] + ' créée le ' + q(`SELECT dt_CREATED FROM t_suggestion_reserve WHERE lg_SUGGESTION_RESERVE_ID = '${auto[0]}'`) + ' ; liste : ' + JSON.stringify(liste.refs.slice(0, 5)));
+    await p.waitForTimeout(1500);
+    const charge = await p.evaluate(() => {
+      const w = Ext.ComponentQuery.query('reservetraitementsuggestion').find((x) => x.win && x.win.isVisible());
+      const g = w && w.win.down('grid');
+      const erreur = Ext.ComponentQuery.query('messagebox').some((m) => m.isVisible() && /Chargement impossible/.test(m.getEl().dom.innerText));
+      const vides = Array.from(document.querySelectorAll('.x-window')).filter((x) => x.offsetParent && /Aucune ligne/.test(x.innerText)).length;
+      return { lignes: g ? g.getStore().getCount() : -1, erreur, vides, masque: !!document.querySelector('.x-mask-msg:not([style*="display: none"])'),
+        produit: g ? (g.getStore().getRange().map((r) => r.data).filter((x) => x.int_STOCK_RAYON_ACTUEL !== undefined)) : [] };
+    });
+    /* stock actuel affiche a cote du stock a la creation : celui de la base, pour le produit du bon */
+    const ligneP = (charge.produit || []).find((x) => x.lg_FAMILLE_ID === P);
+    ok('Stock actuel du produit = stock de la base (rayon ' + (Number(STOCK) + 2) + ')', ligneP && ligneP.int_STOCK_RAYON_ACTUEL === Number(STOCK) + 2,
+      ligneP ? JSON.stringify({ rayon: ligneP.int_STOCK_RAYON_ACTUEL, reserve: ligneP.int_STOCK_RESERVE_ACTUEL, proposition: ligneP.int_PROPOSITION_ACTUELLE }) : 'ligne absente');
+    ok('Le serveur rend la suggestion (' + ouverture.lignes + ' lignes) en moins de 2 s : plus de « Chargement impossible »', ouverture.http === 200 && ouverture.serveur < 2000,
+      ouverture.serveur + ' ms au serveur, ' + ouverture.ms + ' ms depuis le clic');
+    ok('La suggestion se charge : réponse du serveur sans erreur', ouverture.http === 200, JSON.stringify(ouverture));
+    ok('Ses lignes s\'affichent (au moins le produit du bon), sans « Chargement impossible »', charge.lignes >= 1 && !charge.erreur, JSON.stringify(charge) + ' ' + ouverture.ms + ' ms');
     /* fermeture comme l'utilisateur, une fois la suggestion chargee */
-    await p.waitForTimeout(2500);
+    await p.evaluate(() => { const m = Ext.ComponentQuery.query('messagebox').find((x) => x.isVisible()); if (m) { m.close(); } });
     await p.evaluate(() => { const w = Ext.ComponentQuery.query('reservetraitementsuggestion').find((x) => x.win && x.win.isVisible()); if (w) { w.win.close(); } });
 
     /* sans produit concerne : aucune fenetre, la suite part tout de suite */

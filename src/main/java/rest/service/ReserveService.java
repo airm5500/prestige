@@ -209,6 +209,13 @@ public interface ReserveService {
     JSONObject proposition(TUser user, String familleId, String categorie);
 
     /**
+     * Retour du 03/11 : {@link #proposition} pour plusieurs produits a la fois (stocks lus en deux requetes), par
+     * identifiant de produit.
+     */
+    java.util.Map<String, JSONObject> propositions(TUser user, java.util.Collection<dal.TFamille> familles,
+            String categorie);
+
+    /**
      * Stock actuellement en reserve pour un produit, dans l'emplacement de l'utilisateur.
      *
      * <p>

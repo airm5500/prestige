@@ -7260,7 +7260,7 @@ Ext.define('testextjs.controller.VenteCtr', {
                                     + Ext.util.Format.number(result.partClient || 0, '0,000.') + ' CFA) et '
                                     + result.refVenteLiee + ' (comptant, '
                                     + Ext.util.Format.number(result.montantComptant || 0, '0,000.')
-                                    + ' CFA). Tickets : assurance, client combiné, reçu caisse.');
+                                    + ' CFA). Tickets : assurance et client combiné.');
                         }
                         apresSucces();
                     } else {

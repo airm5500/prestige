@@ -2461,7 +2461,15 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
 .act-imprimer { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231e3a5f' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9V2h12v7'/%3E%3Crect x='6' y='14' width='12' height='8'/%3E%3Cpath d='M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2'/%3E%3C/svg%3E"); }
 .theme-grille .x-grid-header-ct { background: #f5f8fb !important; border-color: #e0e7ef !important; }
 .theme-grille .x-column-header { background: transparent !important; border-color: transparent !important; }
-.theme-grille .x-column-header-inner { color: #6b7b8c; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; font-weight: bold; }
+.theme-grille .x-column-header-inner { color: #556677; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; font-weight: bold; }
+/* Retour du 03/11 : entetes lisibles, au repos (gris plus fonce, contraste >= 4,5) comme au survol : l'ancien survol
+   vert des grilles « my-grid-header » (#00695C) passait derriere le texte gris du nouveau theme. */
+.theme-grille .x-column-header-inner .x-column-header-text { color: #556677; }
+.theme-grille .x-column-header-inner.x-column-header-over,
+.theme-grille .x-column-header-inner.x-column-header-open { background: #e3edf7 !important; background-image: none !important; }
+.theme-grille .x-column-header-over .x-column-header-text,
+.theme-grille .x-column-header-open .x-column-header-text,
+.theme-grille .x-column-header-inner.x-column-header-over { color: #1e3a5f !important; }
 .theme-grille .x-grid-row .x-grid-cell { border-color: #eef2f6 !important; background: #fff; height: 38px; vertical-align: middle; }
 .theme-grille .x-grid-row-over .x-grid-cell { background: #f5f8fb !important; }
 .theme-grille .x-grid-row-selected .x-grid-cell { background: #e8f0fa !important; }

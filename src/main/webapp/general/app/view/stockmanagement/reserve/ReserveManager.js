@@ -32,18 +32,20 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveManager', {
                 '.tab-reassort.x-tab { background-color: #2a6b2e !important; border-color: #1a4a1e !important; }',
                 '.tab-reassort.x-tab .x-tab-inner, .tab-reassort.x-tab .x-tab-text { color: #fff !important; font-weight: bold !important; }',
                 '.tab-reassort.x-tab-active { background-color: #3daa42 !important; border-top: 3px solid #fff !important; }',
-                '.btn-reappro-orange.x-btn { background-color: #ff9500 !important; background-image: none !important; border-color: #b05a00 !important; }',
-                '.btn-reappro-orange.x-btn .x-btn-inner { color: #fff !important; font-weight: bold !important; }',
-                '.btn-reassort-green.x-btn { background-color: #3daa42 !important; background-image: none !important; border-color: #1a4a1e !important; }',
-                '.btn-reassort-green.x-btn .x-btn-inner { color: #fff !important; font-weight: bold !important; }',
+                // Retour du 03/11 : classe repetee pour passer devant l'habillage commun des barres
+                // (.mv-barre .x-btn.ordo-btn, fond clair) qui rendait le texte blanc invisible, survol compris.
+                '.x-btn.btn-reappro-orange.btn-reappro-orange.btn-reappro-orange { background-color: #b45309 !important; background-image: none !important; border-color: #b05a00 !important; }',
+                '.x-btn.btn-reappro-orange.btn-reappro-orange.btn-reappro-orange .x-btn-inner { color: #fff !important; font-weight: bold !important; }',
+                '.x-btn.btn-reassort-green.btn-reassort-green.btn-reassort-green { background-color: #2e7d32 !important; background-image: none !important; border-color: #1a4a1e !important; }',
+                '.x-btn.btn-reassort-green.btn-reassort-green.btn-reassort-green .x-btn-inner { color: #fff !important; font-weight: bold !important; }',
                 // Onglet SUGGESTIONS : violet
                 '.tab-suggestions.x-tab { background-color: #6a1b9a !important; border-color: #4a137a !important; }',
                 '.tab-suggestions.x-tab .x-tab-inner, .tab-suggestions.x-tab .x-tab-text { color: #fff !important; font-weight: bold !important; }',
                 '.tab-suggestions.x-tab-active { background-color: #8e24aa !important; border-top: 3px solid #fff !important; }',
-                '.btn-suggestions-violet.x-btn { background-color: #8e24aa !important; background-image: none !important; border-color: #4a137a !important; }',
-                '.btn-suggestions-violet.x-btn .x-btn-inner { color: #fff !important; font-weight: bold !important; }',
-                '.btn-deja-traitee.x-btn { background-color: #2a6b2e !important; background-image: none !important; border-color: #1a4a1e !important; }',
-                '.btn-deja-traitee.x-btn .x-btn-inner { color: #fff !important; font-weight: bold !important; }',
+                '.x-btn.btn-suggestions-violet.btn-suggestions-violet.btn-suggestions-violet { background-color: #8e24aa !important; background-image: none !important; border-color: #4a137a !important; }',
+                '.x-btn.btn-suggestions-violet.btn-suggestions-violet.btn-suggestions-violet .x-btn-inner { color: #fff !important; font-weight: bold !important; }',
+                '.x-btn.btn-deja-traitee.btn-deja-traitee.btn-deja-traitee { background-color: #2a6b2e !important; background-image: none !important; border-color: #1a4a1e !important; }',
+                '.x-btn.btn-deja-traitee.btn-deja-traitee.btn-deja-traitee .x-btn-inner { color: #fff !important; font-weight: bold !important; }',
                 // Onglet HISTORIQUE : gris
                 '.tab-historique.x-tab { background-color: #5f6368 !important; border-color: #3c4043 !important; }',
                 '.tab-historique.x-tab .x-tab-inner, .tab-historique.x-tab .x-tab-text { color: #fff !important; font-weight: bold !important; }',
