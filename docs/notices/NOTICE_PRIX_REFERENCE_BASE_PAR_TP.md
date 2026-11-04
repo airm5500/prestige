@@ -38,7 +38,9 @@ Conséquences à connaître :
   prioritaire couvre toute sa base (100 %) : à 1, le complémentaire prend encore sa part sur ce qui reste du prix de la
   ligne (il ne s'arrête plus à la base du prioritaire) ;
 - la borne « reste du prix de la ligne » est celle de la ligne, pas de la base du prioritaire : un complémentaire qui
-  valorise le produit plus haut que le prioritaire n'est plus privé de sa part.
+  valorise le produit plus haut que le prioritaire n'est plus privé de sa part. **Choix validé le 04/11/2026** : un
+  tiers-payant ne paie jamais plus que ce que le client aurait payé, et la colonne P.REF / TAUX de chaque organisme
+  dit vraiment ce qu'il rembourse.
 
 ## Exemples chiffrés (vente assurance, A prioritaire à 70 %, B complémentaire à 20 %, quantité 1)
 
