@@ -19,7 +19,7 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
 const BASE = ENV_E2E.BASE;
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
-const BL = 'E2E-RAE-BL', DET = 'E2E-RAE-BLD', ORD = 'E2E-RAE-ORD', TSF = 'E2E-RAE-TSF', SR = 'E2E-RAE-SR', SRD = 'E2E-RAE-SRD';
+const BL = 'E2E-RAE-BL', DET = 'E2E-RAE-BLD', ORD = 'E2E-RAE-ORD', TSF = 'E2E-RAE-TSF', SR = 'E2E-RAE-SR', SRD = 'E2E-RAE-SRD', SR2 = 'E2E-RAE-SR2', SRD2 = 'E2E-RAE-SRD2';
 const REF = 'E2ERAE' + String(Date.now()).slice(-6);
 const debut = q('SELECT NOW()');
 /* produit actif, stock rayon positif, sans reserve deja, avec un grossiste */
@@ -36,7 +36,7 @@ function sauver() {
 function remettre() {
   const susp = q(`SELECT IFNULL(GROUP_CONCAT(CONCAT("'", s.lg_SUGGESTION_RESERVE_ID, "'")), "''") FROM t_suggestion_reserve s WHERE s.dt_CREATED >= '${debut}' AND s.str_ORIGINE = 'AUTOMATIQUE'`
     + ` AND NOT EXISTS (SELECT 1 FROM t_suggestion_reserve_detail d WHERE d.lg_SUGGESTION_RESERVE_ID = s.lg_SUGGESTION_RESERVE_ID AND d.lg_FAMILLE_ID <> '${P}')`);
-  exec(`DELETE FROM t_suggestion_reserve_detail WHERE lg_SUGGESTION_RESERVE_ID = '${SR}'; DELETE FROM t_suggestion_reserve WHERE lg_SUGGESTION_RESERVE_ID = '${SR}';`
+  exec(`DELETE FROM t_suggestion_reserve_detail WHERE lg_SUGGESTION_RESERVE_ID IN ('${SR}', '${SR2}'); DELETE FROM t_suggestion_reserve WHERE lg_SUGGESTION_RESERVE_ID IN ('${SR}', '${SR2}');`
     + `DELETE FROM t_suggestion_reserve_detail WHERE lg_FAMILLE_ID = '${P}' AND dt_CREATED >= '${debut}';`
     + `DELETE FROM t_suggestion_reserve WHERE lg_SUGGESTION_RESERVE_ID IN (${susp});`
     + `DELETE FROM HMvtProduit WHERE pkey = '${DET}'; DELETE FROM MvtTransaction WHERE pkey = '${BL}';`
@@ -72,7 +72,14 @@ function remettre() {
     + `INSERT INTO t_suggestion_reserve (lg_SUGGESTION_RESERVE_ID, str_REF, str_CATEGORIE, str_ORIGINE, str_STATUT, lg_EMPLACEMENT_ID, lg_USER_CREATEUR_ID, dt_CREATED, dt_UPDATED)`
     + ` SELECT '${SR}', '${SR}', 'RAYON', 'AUTOMATIQUE', 'A_TRAITER', '1', u.lg_USER_ID, NOW(), NOW() FROM t_user u WHERE u.str_LOGIN = '${ENV_E2E.LOGIN}';`
     + `INSERT INTO t_suggestion_reserve_detail (lg_SUGGESTION_RESERVE_DETAIL_ID, lg_SUGGESTION_RESERVE_ID, lg_FAMILLE_ID, int_QTE_PROPOSEE, int_QTE_RETENUE, int_QTE_DEPLACEE,`
-    + ` int_STOCK_RAYON, int_STOCK_RESERVE, int_SEUIL_DECLENCHEUR, str_ETAT, dt_CREATED) VALUES ('${SRD}', '${SR}', '${P}', 3, 3, 0, 1, 9, 1, 'PROPOSEE', NOW());`);
+    + ` int_STOCK_RAYON, int_STOCK_RESERVE, int_SEUIL_DECLENCHEUR, str_ETAT, dt_CREATED) VALUES ('${SRD}', '${SR}', '${P}', 3, 3, 0, 1, 9, 1, 'PROPOSEE', NOW());`
+    /* retour du 04/11 : une suggestion automatique ancienne (meme sens, rayon -> reserve), encore ouverte, contient deja
+       le produit ; l'entree doit creer SA suggestion et y reprendre la ligne, sans la laisser en double dans l'ancienne */
+    + `INSERT INTO t_suggestion_reserve (lg_SUGGESTION_RESERVE_ID, str_REF, str_CATEGORIE, str_ORIGINE, str_STATUT, lg_EMPLACEMENT_ID, lg_USER_CREATEUR_ID, dt_CREATED, dt_UPDATED)`
+    + ` SELECT '${SR2}', '${SR2}', 'RESERVE', 'AUTOMATIQUE', 'A_TRAITER', '1', u.lg_USER_ID, NOW() - INTERVAL 80 DAY, NOW() - INTERVAL 80 DAY FROM t_user u WHERE u.str_LOGIN = '${ENV_E2E.LOGIN}';`
+    + `INSERT INTO t_suggestion_reserve_detail (lg_SUGGESTION_RESERVE_DETAIL_ID, lg_SUGGESTION_RESERVE_ID, lg_FAMILLE_ID, int_QTE_PROPOSEE, int_QTE_RETENUE, int_QTE_DEPLACEE,`
+    + ` int_STOCK_RAYON, int_STOCK_RESERVE, int_SEUIL_DECLENCHEUR, str_ETAT, dt_CREATED) VALUES ('${SRD2}', '${SR2}', '${P}', 1, 1, 0, 1, 0, 1, 'PROPOSEE', NOW() - INTERVAL 80 DAY);`);
+  const ANCIENNES = q("SELECT IFNULL(GROUP_CONCAT(lg_SUGGESTION_RESERVE_ID), '') FROM t_suggestion_reserve WHERE str_ORIGINE = 'AUTOMATIQUE' AND str_STATUT IN ('A_TRAITER', 'EN_COURS')").split(',');
   const b = await ENV_E2E.lancer(chromium);
   const err = [];
   try {
@@ -121,6 +128,18 @@ function remettre() {
       JSON.stringify(duProduit.map((x) => x.categorie)));
     ok('Ligne ancienne écartée (retirée de la suggestion, avec son motif)', q(`SELECT str_ETAT FROM t_suggestion_reserve_detail WHERE lg_SUGGESTION_RESERVE_DETAIL_ID = '${SRD}'`) === 'SUPPRIMEE',
       q(`SELECT CONCAT_WS(' | ', str_ETAT, str_MOTIF_LIGNE) FROM t_suggestion_reserve_detail WHERE lg_SUGGESTION_RESERVE_DETAIL_ID = '${SRD}'`));
+    /* retour du 04/11 : « une suggestion par bon » : nouvelle, datee du jour, au numero du bon, avec les seuls produits du bon */
+    const nouv = q(`SELECT CONCAT_WS('|', DATE(dt_CREATED) = CURDATE(), dt_CREATED >= '${debut}', IFNULL(str_COMMENTAIRE, ''), str_REF) FROM t_suggestion_reserve WHERE lg_SUGGESTION_RESERVE_ID = '${f.suggestion}'`).split('|');
+    ok('Une suggestion par bon : nouvelle suggestion, pas une suggestion déjà ouverte', !!f.suggestion && !ANCIENNES.includes(f.suggestion) && nouv[1] === '1',
+      f.suggestion + ' ; déjà ouvertes : ' + ANCIENNES.length);
+    ok('Elle est datée du jour et porte le numéro du bon (' + REF + ')', nouv[0] === '1' && nouv[2].includes(REF) && f.texte.includes(REF), nouv.join(' | ') + ' / ' + f.texte);
+    ok('Elle ne contient que les produits du bon', q(`SELECT COUNT(*) FROM t_suggestion_reserve_detail WHERE lg_SUGGESTION_RESERVE_ID = '${f.suggestion}' AND lg_FAMILLE_ID <> '${P}'`) === '0');
+    ok("La ligne de l'ancienne suggestion est reprise dans celle du bon (retirée de l'ancienne, avec son motif)",
+      q(`SELECT str_ETAT FROM t_suggestion_reserve_detail WHERE lg_SUGGESTION_RESERVE_DETAIL_ID = '${SRD2}'`) === 'SUPPRIMEE'
+      && /BL/.test(q(`SELECT IFNULL(str_MOTIF_LIGNE, '') FROM t_suggestion_reserve_detail WHERE lg_SUGGESTION_RESERVE_DETAIL_ID = '${SRD2}'`)),
+      q(`SELECT CONCAT_WS(' | ', str_ETAT, str_MOTIF_LIGNE) FROM t_suggestion_reserve_detail WHERE lg_SUGGESTION_RESERVE_DETAIL_ID = '${SRD2}'`));
+    ok("Le produit n'est proposé qu'une fois dans le sens rayon → réserve (lignes ouvertes)", q(`SELECT COUNT(*) FROM t_suggestion_reserve_detail d JOIN t_suggestion_reserve s ON s.lg_SUGGESTION_RESERVE_ID = d.lg_SUGGESTION_RESERVE_ID`
+      + ` WHERE d.lg_FAMILLE_ID = '${P}' AND s.str_CATEGORIE = 'RESERVE' AND s.str_STATUT IN ('A_TRAITER', 'EN_COURS') AND d.str_ETAT IN ('PROPOSEE', 'MODIFIEE')`) === '1');
     ok('Elle nomme la suggestion de réserve automatique où le produit est rangé', auto[2] === 'RESERVE' && f.texte.includes(auto[1]) && f.suggestion === auto[0], f.texte + ' / ' + auto.join('|'));
     /* retour du 03/11 : « elle tourne jusqu'a ne rien afficher » (Erreur / Chargement impossible) */
     const t0 = Date.now();
@@ -142,7 +161,7 @@ function remettre() {
     await p.waitForTimeout(800);
     const liste = await p.evaluate(() => { const g = Ext.getCmp('reservemanagerID').down('#ongletSuggestions');
       return { ids: g.getStore().getRange().map((r) => r.get('lg_SUGGESTION_RESERVE_ID')), refs: g.getStore().getRange().map((r) => r.get('str_REF') + ' ' + r.get('str_STATUT') + ' ' + r.get('dt_CREATED')) }; });
-    ok('Onglet Suggestions : la suggestion de réserve automatique est dans la liste affichée par défaut', liste.ids.includes(auto[0]),
+    ok('Onglet Suggestions : la suggestion du bon est dans la liste affichée par défaut', liste.ids.includes(auto[0]) && auto[0] === f.suggestion,
       auto[1] + ' créée le ' + q(`SELECT dt_CREATED FROM t_suggestion_reserve WHERE lg_SUGGESTION_RESERVE_ID = '${auto[0]}'`) + ' ; liste : ' + JSON.stringify(liste.refs.slice(0, 5)));
     await p.waitForTimeout(1500);
     const charge = await p.evaluate(() => {

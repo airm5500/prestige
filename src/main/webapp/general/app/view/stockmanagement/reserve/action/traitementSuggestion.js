@@ -79,6 +79,11 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.traitementSuggestion',
                 return Ext.Array.contains(ids, r.get('lg_FAMILLE_ID'));
             });
             var autres = total - store.getCount();
+            /* retour du 04/11 : la suggestion du bon ne contient que ses produits ; rien a masquer, pas de bandeau */
+            if (autres <= 0) {
+                toutAfficher();
+                return;
+            }
             bandeauBon.update('Produits du bon de livraison seulement : <b>' + store.getCount() + '</b> sur ' + total
                     + (autres > 0 ? ' (la suggestion contient ' + autres + ' autre(s) produit(s)) — <a href="#">Tout afficher</a>' : ''));
             bandeauBon.show();

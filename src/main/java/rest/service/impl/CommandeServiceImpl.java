@@ -438,14 +438,18 @@ public class CommandeServiceImpl implements CommandeService {
             // Suggestions de reserve : evaluation APRES le commit, sinon le stock lu serait celui
             // d'avant l'entree. Rien n'est propage : un incident de suggestion ne doit pas remettre
             // en cause une entree en stock deja validee.
+            // Retour du 04/11 : une suggestion par bon, datee du jour et au numero du bon.
+            List<String> suggestionsDuBon = new ArrayList<>();
             try {
-                suggestionReserveService.evaluerApresMouvementLot(user, famillesEntreesEnStock);
+                suggestionsDuBon = suggestionReserveService.evaluerApresEntree(user, famillesEntreesEnStock,
+                        bonLivraison.getStrREFLIVRAISON());
             } catch (Exception e) {
                 LOG.log(Level.WARNING, "Suggestions de reserve non evaluees apres cloture du BL " + id, e);
             }
             /* retours du 13/10 (point 6) : produits du bon dont le seuil de reserve est atteint, montres a l'ecran */
             try {
-                json.put("reserve", suggestionReserveService.lignesOuvertesAuto(user, famillesEntreesEnStock));
+                json.put("reserve",
+                        suggestionReserveService.lignesOuvertesAuto(user, famillesEntreesEnStock, suggestionsDuBon));
             } catch (Exception e) {
                 LOG.log(Level.WARNING, "Suggestions de reserve non lues apres cloture du BL " + id, e);
             }

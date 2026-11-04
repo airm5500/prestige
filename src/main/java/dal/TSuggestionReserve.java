@@ -27,7 +27,7 @@ import javax.xml.bind.annotation.XmlRootElement;
 @XmlRootElement
 @NamedQueries({
         @NamedQuery(name = "TSuggestionReserve.findAll", query = "SELECT s FROM TSuggestionReserve s ORDER BY s.dtCREATED DESC"),
-        @NamedQuery(name = "TSuggestionReserve.findOuverteAuto", query = "SELECT s FROM TSuggestionReserve s WHERE s.lgEMPLACEMENTID.lgEMPLACEMENTID = :empl AND s.strCATEGORIE = :categorie AND s.strORIGINE = :origine AND s.strSTATUT IN ('A_TRAITER','EN_COURS') ORDER BY s.dtCREATED DESC") })
+        @NamedQuery(name = "TSuggestionReserve.findOuverteAuto", query = "SELECT s FROM TSuggestionReserve s WHERE s.lgEMPLACEMENTID.lgEMPLACEMENTID = :empl AND s.strCATEGORIE = :categorie AND s.strORIGINE = :origine AND s.strSTATUT IN ('A_TRAITER','EN_COURS') AND (s.strCOMMENTAIRE IS NULL OR s.strCOMMENTAIRE NOT LIKE 'Entrée en stock du BL %') ORDER BY s.dtCREATED DESC") })
 public class TSuggestionReserve implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -41,6 +41,12 @@ public class TSuggestionReserve implements Serializable {
     public static final String ORIGINE_AUTOMATIQUE = "AUTOMATIQUE";
     /** Reservee a une generation planifiee : aucune suggestion de ce type n'est produite a ce jour. */
     public static final String ORIGINE_SYSTEME = "SYSTEME";
+
+    /**
+     * Debut du commentaire d'une suggestion automatique creee par l'entree en stock d'un bon (retour du 04/11) : elle
+     * ne recoit que les produits de ce bon, jamais ceux des ventes (voir findOuverteAuto).
+     */
+    public static final String COMMENTAIRE_BON = "Entrée en stock du BL ";
 
     public static final String STATUT_A_TRAITER = "A_TRAITER";
     public static final String STATUT_EN_COURS = "EN_COURS";

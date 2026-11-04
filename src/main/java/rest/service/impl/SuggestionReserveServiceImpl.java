@@ -234,8 +234,8 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
             jpql.append(" AND s.motif.id = :motifId");
         }
         // Retour du 03/11 : une suggestion encore a traiter reste visible quelle que soit sa date de creation (la
-        // suggestion automatique est creee une fois puis chaque entree en stock y ajoute ses produits) ; les dates
-        // filtrent les suggestions closes.
+        // suggestion automatique des ventes est creee une fois puis s'enrichit) ; les dates filtrent les suggestions
+        // closes.
         if (notBlank(dtStart) || notBlank(dtEnd)) {
             List<String> dates = new ArrayList<>();
             if (notBlank(dtStart)) {
@@ -1425,6 +1425,38 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
     }
 
     @Override
+    @TransactionAttribute(TransactionAttributeType.REQUIRES_NEW)
+    public List<String> evaluerApresEntree(TUser user, java.util.Collection<String> familleIds, String numeroBon) {
+        List<String> creees = new ArrayList<>();
+        if (familleIds == null || familleIds.isEmpty()) {
+            return creees;
+        }
+        SuggestionsDuBon bon = new SuggestionsDuBon(numeroBon);
+        for (String familleId : familleIds) {
+            try {
+                evaluerUnProduit(user, familleId, bon);
+            } catch (Exception e) {
+                // Un produit en erreur ne prive pas les autres de leur evaluation.
+                LOG.log(Level.WARNING, "evaluerApresEntree famille=" + familleId, e);
+            }
+        }
+        for (TSuggestionReserve s : bon.parCategorie.values()) {
+            creees.add(s.getLgSUGGESTIONRESERVEID());
+        }
+        return creees;
+    }
+
+    /** Suggestions ouvertes pour un bon pendant son evaluation, une par sens, creees a la premiere ligne. */
+    private static final class SuggestionsDuBon {
+        final String numero;
+        final java.util.Map<String, TSuggestionReserve> parCategorie = new java.util.LinkedHashMap<>();
+
+        SuggestionsDuBon(String numero) {
+            this.numero = numero == null || numero.trim().isEmpty() ? "?" : numero.trim();
+        }
+    }
+
+    @Override
     public void planifierEvaluationApresVente(TUser user, String familleId) {
         if (familleId == null || familleId.trim().isEmpty()) {
             return;
@@ -1504,6 +1536,14 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
      * produit le calcul automatique des seuils, les deux cas s'excluent de toute facon.
      */
     private void evaluerUnProduit(TUser user, String familleId) {
+        evaluerUnProduit(user, familleId, null);
+    }
+
+    /**
+     * @param bon
+     *            suggestions du bon en cours d'entree en stock, ou {@code null} (vente, autre mouvement)
+     */
+    private void evaluerUnProduit(TUser user, String familleId, SuggestionsDuBon bon) {
         if (familleId == null || familleId.trim().isEmpty()) {
             return;
         }
@@ -1527,14 +1567,14 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
 
         if (seuilMini != null && stockRayon <= seuilMini && versRayon.optInt("int_PROPOSITION", 0) > 0) {
             ecarterSensInverse(user, TSuggestionReserve.CATEGORIE_RESERVE, familleId);
-            rattacher(user, TSuggestionReserve.CATEGORIE_RAYON, familleId);
+            rattacher(user, TSuggestionReserve.CATEGORIE_RAYON, familleId, bon);
             return;
         }
         if (seuilReserve > 0 && stockRayon > seuilReserve) {
             JSONObject versReserve = reserveService.proposition(user, familleId, TSuggestionReserve.CATEGORIE_RESERVE);
             if (versReserve != null && versReserve.optInt("int_PROPOSITION", 0) > 0) {
                 ecarterSensInverse(user, TSuggestionReserve.CATEGORIE_RAYON, familleId);
-                rattacher(user, TSuggestionReserve.CATEGORIE_RESERVE, familleId);
+                rattacher(user, TSuggestionReserve.CATEGORIE_RESERVE, familleId, bon);
             }
         }
     }
@@ -1564,8 +1604,15 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
         }
     }
 
-    /** Ajoute le produit a la suggestion automatique ouverte de ce sens, ou en ouvre une. */
-    private void rattacher(TUser user, String categorie, String familleId) {
+    /**
+     * Ajoute le produit a la suggestion automatique ouverte de ce sens, ou en ouvre une. Pour une entree en stock
+     * ({@code bon} renseigne), a la suggestion de ce bon.
+     */
+    private void rattacher(TUser user, String categorie, String familleId, SuggestionsDuBon bon) {
+        if (bon != null) {
+            rattacherAuBon(user, categorie, familleId, bon);
+            return;
+        }
         TSuggestionReserve s = suggestionAutoOuverte(user, categorie);
         if (s == null) {
             s = ouvrirSuggestionAuto(user, categorie);
@@ -1578,6 +1625,72 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
         }
     }
 
+    /**
+     * Retour du 04/11 : le produit va dans la suggestion du bon, creee au premier produit. Sa ligne encore telle que
+     * proposee dans une suggestion automatique plus ancienne de ce sens y est reprise : retiree de l'ancienne, avec le
+     * motif, pour ne jamais proposer deux fois le meme deplacement. Une ligne deja modifiee par l'utilisateur ou deja
+     * (partiellement) deplacee n'est pas touchee : le produit reste alors dans son ancienne suggestion.
+     */
+    private void rattacherAuBon(TUser user, String categorie, String familleId, SuggestionsDuBon bon) {
+        String empl = user.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
+        TSuggestionReserve s = bon.parCategorie.get(categorie);
+        Number engagees = (Number) em.createNativeQuery("SELECT COUNT(*) FROM t_suggestion_reserve_detail d"
+                + " JOIN t_suggestion_reserve s ON s.lg_SUGGESTION_RESERVE_ID = d.lg_SUGGESTION_RESERVE_ID"
+                + " WHERE d.lg_FAMILLE_ID = ?1 AND s.str_ORIGINE = ?2 AND s.str_CATEGORIE = ?3 AND s.str_STATUT IN (?4, ?5)"
+                + " AND s.lg_EMPLACEMENT_ID = ?6 AND s.lg_SUGGESTION_RESERVE_ID <> ?7"
+                + " AND (d.str_ETAT = ?8 OR (d.str_ETAT = ?9 AND d.int_QTE_DEPLACEE > 0))").setParameter(1, familleId)
+                .setParameter(2, TSuggestionReserve.ORIGINE_AUTOMATIQUE).setParameter(3, categorie)
+                .setParameter(4, TSuggestionReserve.STATUT_A_TRAITER)
+                .setParameter(5, TSuggestionReserve.STATUT_EN_COURS).setParameter(6, empl)
+                .setParameter(7, s == null ? "" : s.getLgSUGGESTIONRESERVEID())
+                .setParameter(8, TSuggestionReserveDetail.ETAT_MODIFIEE)
+                .setParameter(9, TSuggestionReserveDetail.ETAT_PROPOSEE).getSingleResult();
+        if (engagees != null && engagees.intValue() > 0) {
+            LOG.log(Level.INFO, "suggestion du bon {0}: produit={1} laisse dans sa suggestion (ligne engagee)",
+                    new Object[] { bon.numero, familleId });
+            return;
+        }
+        if (s == null) {
+            s = ouvrirSuggestionAuto(user, categorie);
+            s.setStrCOMMENTAIRE(TSuggestionReserve.COMMENTAIRE_BON + bon.numero);
+            bon.parCategorie.put(categorie, s);
+        }
+        int reprises = em.createNativeQuery("UPDATE t_suggestion_reserve_detail d JOIN t_suggestion_reserve s"
+                + " ON s.lg_SUGGESTION_RESERVE_ID = d.lg_SUGGESTION_RESERVE_ID SET d.str_ETAT = ?1, d.str_MOTIF_LIGNE = ?2,"
+                + " d.dt_UPDATED = NOW() WHERE d.lg_FAMILLE_ID = ?3 AND d.str_ETAT = ?4 AND d.int_QTE_DEPLACEE = 0"
+                + " AND s.str_ORIGINE = ?5 AND s.str_CATEGORIE = ?6 AND s.str_STATUT IN (?7, ?8) AND s.lg_EMPLACEMENT_ID = ?9"
+                + " AND s.lg_SUGGESTION_RESERVE_ID <> ?10").setParameter(1, TSuggestionReserveDetail.ETAT_SUPPRIMEE)
+                .setParameter(2, "Reprise dans la suggestion " + s.getStrREF() + " du BL " + bon.numero)
+                .setParameter(3, familleId).setParameter(4, TSuggestionReserveDetail.ETAT_PROPOSEE)
+                .setParameter(5, TSuggestionReserve.ORIGINE_AUTOMATIQUE).setParameter(6, categorie)
+                .setParameter(7, TSuggestionReserve.STATUT_A_TRAITER)
+                .setParameter(8, TSuggestionReserve.STATUT_EN_COURS).setParameter(9, empl)
+                .setParameter(10, s.getLgSUGGESTIONRESERVEID()).executeUpdate();
+        if (ajouterLigne(user, s, familleId, 0) != null) {
+            LOG.log(Level.INFO, "suggestion du bon {0}: produit={1} rattache a {2} ({3}), {4} ligne(s) reprise(s)",
+                    new Object[] { bon.numero, familleId, s.getStrREF(), categorie, reprises });
+        }
+    }
+
+    @Override
+    public org.json.JSONArray lignesOuvertesAuto(TUser user, java.util.Collection<String> familleIds,
+            java.util.Collection<String> enTete) {
+        org.json.JSONArray a = lignesOuvertesAuto(user, familleIds);
+        if (enTete == null || enTete.isEmpty()) {
+            return a;
+        }
+        org.json.JSONArray tri = new org.json.JSONArray();
+        for (int passe = 0; passe < 2; passe++) {
+            for (int i = 0; i < a.length(); i++) {
+                org.json.JSONObject l = a.getJSONObject(i);
+                if (enTete.contains(l.optString("suggestionId")) == (passe == 0)) {
+                    tri.put(l);
+                }
+            }
+        }
+        return tri;
+    }
+
     @Override
     @SuppressWarnings("unchecked")
     public org.json.JSONArray lignesOuvertesAuto(TUser user, java.util.Collection<String> familleIds) {
@@ -1587,7 +1700,8 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
         }
         List<Object[]> r = em.createNativeQuery(
                 "SELECT s.lg_SUGGESTION_RESERVE_ID, s.str_REF, s.str_CATEGORIE, f.int_CIP, f.str_NAME,"
-                        + " d.int_STOCK_RAYON, d.int_STOCK_RESERVE, d.int_SEUIL_DECLENCHEUR, d.int_QTE_PROPOSEE, f.lg_FAMILLE_ID"
+                        + " d.int_STOCK_RAYON, d.int_STOCK_RESERVE, d.int_SEUIL_DECLENCHEUR, d.int_QTE_PROPOSEE, f.lg_FAMILLE_ID,"
+                        + " s.str_COMMENTAIRE"
                         + " FROM t_suggestion_reserve_detail d JOIN t_suggestion_reserve s ON s.lg_SUGGESTION_RESERVE_ID = d.lg_SUGGESTION_RESERVE_ID"
                         + " JOIN t_famille f ON f.lg_FAMILLE_ID = d.lg_FAMILLE_ID"
                         + " WHERE s.str_ORIGINE = ?1 AND s.str_STATUT IN (?2, ?3) AND s.lg_EMPLACEMENT_ID = ?4"
@@ -1602,9 +1716,16 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
                     .put("cip", l[3]).put("nom", l[4]).put("stockRayon", l[5] == null ? 0 : ((Number) l[5]).intValue())
                     .put("stockReserve", l[6] == null ? 0 : ((Number) l[6]).intValue())
                     .put("seuil", l[7] == null ? 0 : ((Number) l[7]).intValue())
-                    .put("quantite", l[8] == null ? 0 : ((Number) l[8]).intValue()).put("produitId", l[9]));
+                    .put("quantite", l[8] == null ? 0 : ((Number) l[8]).intValue()).put("produitId", l[9])
+                    .put("bon", numeroDuBon((String) l[10])));
         }
         return a;
+    }
+
+    /** Numero du bon d'une suggestion creee par une entree en stock, sinon chaine vide. */
+    static String numeroDuBon(String commentaire) {
+        return commentaire != null && commentaire.startsWith(TSuggestionReserve.COMMENTAIRE_BON)
+                ? commentaire.substring(TSuggestionReserve.COMMENTAIRE_BON.length()) : "";
     }
 
     private TSuggestionReserve suggestionAutoOuverte(TUser user, String categorie) {

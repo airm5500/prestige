@@ -67,8 +67,9 @@ Ext.define('testextjs.view.commandemanagement.ReserveApresEntreeFenetre', {
 
     initComponent: function () {
         var me = this, enc = Ext.String.htmlEncode;
+        /* retour du 04/11 : la suggestion du bon porte son numero */
         var refs = Ext.Array.unique(Ext.Array.map(me.lignes, function (l) {
-            return l.ref;
+            return l.ref + (l.bon ? ' du BL ' + l.bon : '');
         }));
         me.suggestionId = me.lignes[0].suggestionId;
         /* retours du 25/10 (point 10) : sans le menu Reserve, la suggestion ne s'ouvrait pas (« Erreur / Chargement
@@ -139,7 +140,7 @@ Ext.define('testextjs.view.commandemanagement.ReserveApresEntreeFenetre', {
         var html = '<html><head><meta charset="utf-8"><title>Produits à déplacer</title><style>body{font:12px Arial,sans-serif;margin:16px}'
                 + 'h1{font-size:16px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #999;padding:4px 6px;text-align:left}.n{text-align:right}</style></head>'
                 + '<body><h1>Seuil de réserve atteint : produits à déplacer</h1><p>Suggestion ' + enc(Ext.Array.unique(Ext.Array.map(me.lignes, function (l) {
-                    return l.ref;
+                    return l.ref + (l.bon ? ' du BL ' + l.bon : '');
                 })).join(', ')) + ' · ' + Ext.Date.format(new Date(), 'd/m/Y H:i') + '</p>'
                 + '<table><thead><tr><th>CIP</th><th>Produit</th><th>Sens</th><th class="n">Rayon</th><th class="n">Réserve</th><th class="n">À déplacer</th></tr></thead>'
                 + '<tbody>' + lignes + '</tbody></table></body></html>';

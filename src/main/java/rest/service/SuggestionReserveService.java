@@ -218,6 +218,16 @@ public interface SuggestionReserveService {
     void evaluerApresMouvementLot(TUser user, java.util.Collection<String> familleIds);
 
     /**
+     * Retour du 04/11 : apres l'entree en stock d'un bon, une suggestion automatique par bon et par sens, datee du jour
+     * et au numero du bon, qui ne reprend que les produits du bon. Une ligne encore telle que proposee d'une suggestion
+     * automatique plus ancienne y est reprise (retiree de l'ancienne) ; une ligne deja modifiee ou deplacee reste ou
+     * elle est. Les ventes gardent la suggestion automatique ouverte commune. Ne leve jamais.
+     *
+     * @return identifiants des suggestions creees pour ce bon
+     */
+    java.util.List<String> evaluerApresEntree(TUser user, java.util.Collection<String> familleIds, String numeroBon);
+
+    /**
      * Cree une suggestion portant sur TOUS les articles d'un resultat de recherche, et non sur une selection.
      *
      * <p>
@@ -285,4 +295,8 @@ public interface SuggestionReserveService {
      * pour ces produits (seuil de reserve atteint), pour les montrer et ouvrir la suggestion. Lecture seule.
      */
     org.json.JSONArray lignesOuvertesAuto(TUser user, java.util.Collection<String> familleIds);
+
+    /** Idem, les lignes des suggestions donnees (celles du bon) en tete. */
+    org.json.JSONArray lignesOuvertesAuto(TUser user, java.util.Collection<String> familleIds,
+            java.util.Collection<String> enTete);
 }

@@ -4,8 +4,8 @@
  *  - « Infos générales » : la colonne des etiquettes tient sur 3 lignes, comme les autres (libelles a gauche) ;
  *  - « Retour » et « ENTREE EN STOCK » au style des boutons de « Suivi dossier client » ;
  *  - apres l'entree : fenetre « Seuil de réserve atteint » avec « Imprimer » (impression sans onglet ni fenetre) ;
- *  - « Ouvrir la suggestion » : seuls les produits du bon s'affichent, avec « Tout afficher » pour le reste ;
- *    avant « Traiter », tout est de nouveau affiche ;
+ *  - « Ouvrir la suggestion » : la suggestion du bon (retour du 04/11, une suggestion par bon) ne contient que le
+ *    produit du bon, sans bandeau de filtre ; l'autre produit reste dans la suggestion deja ouverte, intact ;
  *  - sans le droit « Gestion des réserves » : message clair, pas d'ouverture, « Imprimer » reste ;
  *  - fenetre des produits en avoir : « Veuillez mettre ces produits de côté » en rouge clignotant ;
  *  - aucune erreur JavaScript. Tout est retire : bon, commande, lots, mouvements, suggestions ; produit remis ; droit remis.
@@ -131,12 +131,11 @@ function remettre() {
     await p.waitForTimeout(2500);
     let s = await p.evaluate(() => { const w = Ext.ComponentQuery.query('reservetraitementsuggestion').find((x) => x.win && x.win.isVisible()), g = w.win.down('grid'), st = g.getStore();
       const b = g.down('#filtreBon'); return { ids: st.collect('lg_FAMILLE_ID'), total: (st.snapshot || st.data).getCount(), bandeau: b && b.isVisible() ? b.getEl().dom.innerText : '' }; });
-    ok('Suggestion ouverte : seulement le produit du bon, bandeau « Tout afficher »', s.ids.length === 1 && s.ids[0] === P && s.total === 2 && /1.*sur 2/.test(s.bandeau) && /Tout afficher/.test(s.bandeau), JSON.stringify(s));
-    await p.evaluate(() => { const w = Ext.ComponentQuery.query('reservetraitementsuggestion').find((x) => x.win && x.win.isVisible()); w.win.down('#filtreBon').getEl().dom.querySelector('a').click(); });
-    await p.waitForTimeout(500);
-    s = await p.evaluate(() => { const w = Ext.ComponentQuery.query('reservetraitementsuggestion').find((x) => x.win && x.win.isVisible()), g = w.win.down('grid');
-      return { n: g.getStore().getCount(), bandeau: g.down('#filtreBon').isVisible() }; });
-    ok('« Tout afficher » : les 2 produits de la suggestion', s.n === 2 && !s.bandeau, JSON.stringify(s));
+    ok('Suggestion ouverte : celle du bon, avec le seul produit du bon, sans bandeau de filtre', s.ids.length === 1 && s.ids[0] === P && s.total === 1 && !s.bandeau, JSON.stringify(s));
+    const ouverte = await p.evaluate(() => Ext.ComponentQuery.query('reservetraitementsuggestion').find((x) => x.win && x.win.isVisible()).getSuggestionid());
+    ok('La suggestion déjà ouverte garde son autre produit, intact, et n\'est pas celle du bon', ouverte !== SUG
+      && q(`SELECT CONCAT_WS('|', str_ETAT, int_QTE_PROPOSEE) FROM t_suggestion_reserve_detail WHERE lg_SUGGESTION_RESERVE_DETAIL_ID = '${SUG}-1'`) === 'PROPOSEE|3'
+      && q(`SELECT COUNT(*) FROM t_suggestion_reserve_detail WHERE lg_SUGGESTION_RESERVE_ID = '${SUG}' AND lg_FAMILLE_ID = '${P}'`) === '0', ouverte);
     await p.evaluate(() => { const w = Ext.ComponentQuery.query('reservetraitementsuggestion').find((x) => x.win && x.win.isVisible()); if (w) { w.win.close(); } });
 
     /* avoirs : consigne en rouge clignotant (meme fenetre qu'apres l'entree en stock) */
