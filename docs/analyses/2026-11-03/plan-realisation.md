@@ -195,3 +195,25 @@ multi-tiers-payants avant / après et annonce aux officines.
 | C2 | Borne P.REF ≤ prix de vente | appliquée (sinon seulement ≥ 5 comme la fiche) |
 | C3 | Cas 1 : remise produit sur une ligne cochée saisie avant / après la coche | conservée telle quelle, recalculée sur la vente VNO |
 | C4 | Cas 3 : journal d'audit des cochages (Q3.5) | oui, journal existant |
+
+## 8. État au 04/11/2026
+
+| Cas | Branche de session | Commits | Intégré dans `origin/integration/recette-2026-10-29` |
+|-----|--------------------|---------|-------------------------------------------------------|
+| 3 | `refs/heads/PRES-/happy-almeida-e382ca` | lots 3.1 à 3.4, migration `V7.2.33`, 27/27 tests d'écran | oui |
+| 2 | `refs/heads/PRES-/quirky-shtern-c8f3ea` | lots 2.1 à 2.3, migration `V7.2.34`, 4 tests d'écran, net 8/8 | oui, sauf le commit `1346c506` (largeurs de la grille, retours du 04/11), présent sur `PRES-/integration-cas-1-2-3` |
+| 1 | `refs/heads/PRES-/vigorous-northcutt-ec550e` | lots 1.1 à 1.4, migration `V7.2.35`, 5 tests d'écran | oui |
+
+Vérifié sur les commits : le moteur `TiersPayantCalculationService` n'est touché par aucun des trois cas ; le cas 1 modifie seulement
+`SalesNetComputingServiceImpl` (exclusion des lignes cochées, lot 1.1), comme prévu.
+
+Compléments décidés en cours de réalisation :
+
+- **Q2.5 tranché** : la base de calcul par tiers-payant part dans un **lot séparé**, derrière un paramètre `KEY_PRIX_REF_BASE_PAR_TP`
+  (défaut `0`), à lancer après le cas 1. Jusque-là le rappel de la règle du minimum reste sous la grille.
+- **Déploiement, cas 3** : le dossier `D:\CONF\LABOREX\REPORTS` du poste prime sur les modèles du WAR. Le `ordonnancier.jrxml` livré doit y
+  être copié (et le `.jasper` compilé retiré) sur chaque poste, sinon la colonne Motif n'apparaît pas dans le PDF. Sur le poste local, les
+  anciens fichiers sont conservés en `*.avant-cas3`.
+- **Tests d'écran du cas 1** : l'imprimante PDF du poste prend une à deux minutes par ticket ; les tests attendent jusqu'à quatre minutes
+  et comptent les exemplaires dans le journal serveur.
+- Les tests d'écran n'ont pas été rejoués sur la branche d'intégration après fusion ; à faire avant recette.
