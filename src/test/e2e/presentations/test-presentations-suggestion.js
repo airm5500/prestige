@@ -143,6 +143,7 @@ const qteBase = (i) => Number(q(`SELECT int_NUMBER FROM t_suggestion_order_detai
       const bt = await C.boutonsVariante(p);
       ok(v + ' : actions d\'origine présentes (Exporter CSV, Fermer)', bt.some((t) => /Exporter CSV|Plus/.test(t)) && bt.includes('Fermer'), bt.join(' | '));
       await C.ergonomie(p, 'Suggestion ' + v);
+      await C.tete(p, v, 'Suggestion ' + v, 'lg_GROSSISTE_ID');
     }
 
     ok('Lignes lues page par page, comme la grille d\'origine (limite ≤ 50)', limites.length > 0 && Math.max(...limites) <= 50, JSON.stringify(limites));

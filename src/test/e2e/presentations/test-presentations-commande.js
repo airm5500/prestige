@@ -16,9 +16,10 @@ const { q, exec, ok } = C;
 
 const SUF = String(Date.now()).slice(-6);
 const OID = 'E2E-PS-CMD' + SUF, REF = 'E2EPSC' + SUF;
-const P = C.produits(2);
+/* trois produits : deux lignes de depart, le troisieme ajoute par le cadre « Ajout Produit » en variante C */
+const P = C.produits(3);
 const G = P.length ? P[0].g : null;
-const D = P.map((x, i) => OID + '-L' + i);
+const D = P.slice(0, 2).map((x, i) => OID + '-L' + i);
 const ADMIN = q(`SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '${C.ENV_E2E.LOGIN}'`);
 
 function retirer() {
@@ -30,12 +31,12 @@ const montantBase = () => Number(q(`SELECT SUM(int_PRICE) FROM t_order_detail WH
 
 (async () => {
   retirer();
-  ok('Précondition : deux produits ordinaires avec un grossiste', P.length === 2 && !!G && !!ADMIN, JSON.stringify(P.map((x) => x.id)));
+  ok('Précondition : trois produits ordinaires avec un grossiste', P.length === 3 && !!G && !!ADMIN, JSON.stringify(P.map((x) => x.id)));
   C.sauver('cmd', P.map((x) => x.id));
   exec(`INSERT INTO t_order (lg_ORDER_ID, str_REF_ORDER, int_LINE, lg_GROSSISTE_ID, lg_USER_ID, str_STATUT, dt_CREATED, dt_UPDATED, int_PRICE, recu, direct_import)`
     + ` VALUES ('${OID}', '${REF}', 2, '${G}', '${ADMIN}', 'is_Process', NOW(), NOW(), 0, 0, 0);`);
   /* une instruction par ligne : le declencheur de t_order_detail modifie t_famille */
-  P.forEach((x, i) => exec(`INSERT INTO t_order_detail (lg_ORDERDETAIL_ID, lg_ORDER_ID, lg_FAMILLE_ID, lg_GROSSISTE_ID, int_NUMBER, int_PRICE, int_PAF_DETAIL,`
+  P.slice(0, 2).forEach((x, i) => exec(`INSERT INTO t_order_detail (lg_ORDERDETAIL_ID, lg_ORDER_ID, lg_FAMILLE_ID, lg_GROSSISTE_ID, int_NUMBER, int_PRICE, int_PAF_DETAIL,`
     + ` int_PRICE_DETAIL, prixAchat, prixUnitaire, str_STATUT, dt_CREATED, dt_UPDATED) VALUES ('${D[i]}', '${OID}', '${x.id}', '${G}', 2, ${2 * x.paf}, ${x.paf},`
     + ` ${x.prix}, ${x.paf}, ${x.prix}, 'is_Process', NOW(), NOW())`));
 
@@ -56,6 +57,8 @@ const montantBase = () => Number(q(`SELECT SUM(int_PRICE) FROM t_order_detail WH
     });
     ok('Actuelle : écran d\'origine par défaut (grille et boutons d\'origine, aucune variante)', actuel.on === 'actuel' && !actuel.vue && actuel.grille && actuel.bl, JSON.stringify(actuel));
     ok('Actuelle : le sélecteur ne recouvre aucun champ ni bouton', !actuel.chevauche.length, actuel.chevauche.join(','));
+    ok('Actuelle : cadres du haut d\'origine (titres et habillage inchangés)', !(await p.$('fieldset.pp-tete'))
+      && (await p.evaluate(() => [...document.querySelectorAll('.x-fieldset-header-text')].map((e) => e.textContent).join('|'))).includes('Infos Generales'));
     await C.ENV_E2E.capture(p, 'commande-actuelle');
 
     for (const v of ['A', 'B', 'C']) {
@@ -104,10 +107,30 @@ const montantBase = () => Number(q(`SELECT SUM(int_PRICE) FROM t_order_detail WH
       const bt = await C.boutonsVariante(p);
       ok(v + ' : actions d\'origine présentes (Créer le bon de livraison, Fermer)', bt.some((t) => /Créer le bon de livraison/.test(t)) && bt.includes('Fermer'), bt.join(' | '));
       await C.ergonomie(p, 'Commande ' + v);
+      await C.tete(p, v, 'Commande ' + v, 'lgGROSSISTEID');
     }
 
+    /* variante C : un produit ajoute par le cadre d'origine « Ajout Produit » (article, quantite, Entree) */
+    await p.click('#str_NAME-inputEl');
+    await p.keyboard.press('Control+A');
+    await p.keyboard.type(P[2].cip, { delay: 15 });
+    await p.waitForFunction(() => { const x = Ext.getCmp('str_NAME'); return x.isExpanded && x.getStore().getCount() > 0 && !x.getStore().isLoading(); }, null, { timeout: 30000 });
+    await p.locator('#' + await p.evaluate(() => Ext.getCmp('str_NAME').picker.getId()) + ' .x-boundlist-item').first().click();
+    await p.waitForFunction(() => document.activeElement && /int_QUANTITE/.test(document.activeElement.id), null, { timeout: 15000 });
+    await p.keyboard.press('Control+A');
+    await p.keyboard.type('2');
+    await p.keyboard.press('Enter');
+    await p.waitForFunction(() => document.querySelectorAll('.pp-vue input[data-pp-qte]').length === 3, null, { timeout: 30000 }).catch(() => {});
+    await C.attendreCalme(p);
+    const ajout = Number(q(`SELECT IFNULL(SUM(int_NUMBER), 0) FROM t_order_detail WHERE lg_ORDER_ID = '${OID}' AND lg_FAMILLE_ID = '${P[2].id}'`));
+    ok('C : produit ajouté par le cadre « Ajout Produit » d\'origine : en base et dans la variante (3 lignes, 6 boîtes)', ajout === 2
+      && (await p.evaluate(() => document.querySelectorAll('.pp-vue input[data-pp-qte]').length)) === 3 && (await C.total(p, 'boites')) === 6,
+      JSON.stringify({ ajout, boites: await C.total(p, 'boites') }));
+
     await C.choisirPresentation(p, 'actuel');
-    await p.waitForFunction(() => { const g = Ext.getCmp('gridpanelID'); return g && g.isVisible(true) && !g.getStore().isLoading() && g.getStore().getCount() === 2; }, null, { timeout: 60000 });
+    await p.waitForFunction(() => { const g = Ext.getCmp('gridpanelID'); return g && g.isVisible(true) && !g.getStore().isLoading() && g.getStore().getCount() === 3; }, null, { timeout: 60000 });
+    ok('Retour à l\'écran actuel : cadres du haut rendus à l\'identique', !(await p.$('fieldset.pp-tete'))
+      && (await p.evaluate(() => [...document.querySelectorAll('.x-fieldset-header-text')].map((e) => e.textContent).join('|'))).includes('Infos Generales'));
     ok('Retour à l\'écran actuel : grille d\'origine, sans variante', !(await p.$('.pp-vue')));
     ok('Aucune erreur JavaScript ni fenêtre du navigateur', !erreurs.length, erreurs.join(' | '));
   } catch (e) {

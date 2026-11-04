@@ -199,6 +199,53 @@ window.PrestigePresentations = (function () {
         }, 10);
     }
 
+    /* ------------------------------------------------------------------ cadres du haut (habillage seul) */
+
+    /* Les cadres du haut (repartiteur, montants, ajout de produit, etiquettes) restent les composants d'origine, avec
+       leurs actions : la variante ne change que leur titre et leur habillage (classe CSS), puis les rend a la sortie. */
+    var TITRES_TETE = {
+        suggestion: {
+            A: ['1 · Répartiteur et montants', '2 · Ajouter un produit à la suggestion'],
+            B: ['Répartiteur', 'Ajouter un produit'],
+            C: ['Suggestion', 'Ajouter une ligne (nom ou CIP)']
+        },
+        commande: {
+            A: ['1 · Choisir le répartiteur', '2 · Ajouter des produits'],
+            B: ['Répartiteur', 'Ajouter un produit'],
+            C: ['Fournisseur', 'Ajouter une ligne au bon (nom ou CIP)']
+        },
+        entree: {
+            A: ['Bon de livraison et étiquettes'],
+            B: ['Bon de livraison'],
+            C: ['Réception et étiquettes']
+        }
+    };
+
+    function habillerTete(ctx) {
+        var titres = (TITRES_TETE[ctx.cle] || {})[ctx.v] || [];
+        ctx.tete = ctx.ecran.query('> fieldset').filter(function (f) {
+            return f !== ctx.cadre;
+        });
+        ctx.tete.forEach(function (f, i) {
+            f.ppTitre = f.title;
+            f.addCls(['pp-tete', 'pp-tete-' + ctx.v]);
+            if (titres[i]) {
+                f.setTitle(titres[i]);
+            }
+        });
+        ctx.ecran.addCls('pp-avec-tete');
+    }
+    function rendreTete(ctx) {
+        (ctx.tete || []).forEach(function (f) {
+            if (!f.isDestroyed) {
+                f.removeCls(['pp-tete', 'pp-tete-' + ctx.v]);
+                f.setTitle(f.ppTitre);
+            }
+        });
+        ctx.ecran.removeCls('pp-avec-tete');
+        ctx.tete = null;
+    }
+
     /* ------------------------------------------------------------------ montage d'une variante */
 
     function monter(ecran, cle, v) {
@@ -224,6 +271,7 @@ window.PrestigePresentations = (function () {
         if (barre) {
             barre.hide();
         }
+        habillerTete(ctx);
         var dom = ctx.vue.getEl().dom;
         dom.addEventListener('click', function (ev) {
             surClic(ctx, ev);
@@ -273,6 +321,7 @@ window.PrestigePresentations = (function () {
         if (ctx.vue) {
             ctx.vue.destroy();
         }
+        rendreTete(ctx);
         ctx.cadre.show();
         if (ctx.barre) {
             ctx.barre.show();

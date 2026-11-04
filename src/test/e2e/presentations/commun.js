@@ -142,3 +142,23 @@ const boutonsVariante = (p) => p.evaluate(() => [...document.querySelectorAll('.
 
 module.exports = { ENV_E2E, q, exec, liste, ok, bilan, produits, sauver, remettre, demarrer, ouvrirDocument, choisirPresentation,
   attendreCalme, total, saisirQuantite, ergonomie, boutonsVariante };
+
+/* cadres du haut habilles par la variante : titres, habillage, champ actif sans le turquoise clignotant ; ils restent
+   les composants d'origine (memes identifiants, memes actions) */
+async function tete(p, v, nom, champ) {
+  const r = await p.evaluate(([x, c]) => {
+    const fs = [...document.querySelectorAll('fieldset.pp-tete')].filter((f) => f.offsetWidth > 0);
+    const titres = fs.map((f) => (f.querySelector('.x-fieldset-header-text') || {}).textContent || '');
+    const habilles = fs.every((f) => f.classList.contains('pp-tete-' + x));
+    let fond = null;
+    const cmp = c && Ext.getCmp(c);
+    if (cmp && cmp.inputEl) { cmp.inputEl.dom.focus(); fond = getComputedStyle(cmp.inputEl.dom).backgroundColor; }
+    return { n: fs.length, titres, habilles, fond };
+  }, [v, champ]);
+  ok(nom + ' : cadres du haut habillés par la variante (' + r.titres.join(' | ') + ')', r.n > 0 && r.habilles, JSON.stringify(r));
+  if (champ) {
+    ok(nom + ' : champ actif du haut sans le turquoise clignotant', r.fond && r.fond !== 'rgb(13, 233, 202)', r.fond);
+  }
+  return r;
+}
+module.exports.tete = tete;

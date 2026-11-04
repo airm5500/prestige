@@ -131,6 +131,7 @@ async function retirerUg(p, v, i) {
     await saisirUg(p, 'A', 0);
     await retirerUg(p, 'A', 0);
     await C.ergonomie(p, 'Entrée A');
+    await C.tete(p, 'A', 'Entrée A', 'int_NUMBER_ETIQUETTE');
 
     /* ---------- B : ecarts */
     await C.choisirPresentation(p, 'B');
@@ -149,6 +150,7 @@ async function retirerUg(p, v, i) {
     const btB = await C.boutonsVariante(p);
     ok('B : actions d\'origine (Vérifier les UG saisies, Retour)', btB.includes('Vérifier les UG saisies') && btB.includes('Retour'), btB.join(' | '));
     await C.ergonomie(p, 'Entrée B');
+    await C.tete(p, 'B', 'Entrée B', 'int_NUMBER_ETIQUETTE');
 
     /* ---------- C : scanner */
     await C.choisirPresentation(p, 'C');
@@ -184,6 +186,7 @@ async function retirerUg(p, v, i) {
     const btC = await C.boutonsVariante(p);
     ok('C : actions d\'origine (Saisir, Vérifier les UG saisies, Retour)', btC.includes('Saisir') && btC.includes('Vérifier les UG saisies') && btC.includes('Retour'), btC.join(' | '));
     await C.ergonomie(p, 'Entrée C');
+    await C.tete(p, 'C', 'Entrée C', 'int_NUMBER_ETIQUETTE');
 
     await C.choisirPresentation(p, 'actuel');
     await p.waitForFunction(() => { const g = Ext.getCmp('gridpanelID'); return g && g.isVisible(true) && !g.getStore().isLoading() && g.getStore().getCount() === 2; }, null, { timeout: 60000 });
