@@ -107,6 +107,7 @@ perf/test-perf-ouverture-ecrans.js
 perf/test-perf-pilotage.js
 perf/test-pilotage-a-suivre-cache.js
 perf/test-pilotage-a-suivre.js
+perf/test-pilotage-a-suivre-progressif.js
 perf/test-scripts-groupes.js
 perf/test-statistique-famille.js
 perf/test-statistique-rayon-grossiste.js
