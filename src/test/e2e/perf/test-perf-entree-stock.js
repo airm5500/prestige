@@ -43,6 +43,10 @@ function sauver() {
 }
 function retirer(b) {
   exec(`DELETE FROM HMvtProduit WHERE pkey LIKE '${b.BL}-D%'; DELETE FROM MvtTransaction WHERE pkey = '${b.BL}';`
+    /* etiquettes et entrees d'entrepot creees avec chaque lot (addWarehouse) */
+    + `DELETE e FROM t_etiquette e JOIN t_warehouse w ON w.str_CODE_ETIQUETTE = e.str_CODE AND w.lg_FAMILLE_ID = e.lg_FAMILLE_ID`
+    + ` AND ABS(TIMESTAMPDIFF(SECOND, w.dt_CREATED, e.dt_CREATED)) <= 2 WHERE w.str_REF_LIVRAISON = '${b.REF}';`
+    + `DELETE FROM t_warehouse WHERE str_REF_LIVRAISON = '${b.REF}';`
     + `DELETE FROM t_lot WHERE str_REF_LIVRAISON = '${b.REF}'; DELETE FROM notification WHERE entity_ref = '${b.BL}';`
     + `DELETE FROM t_event_log WHERE dt_CREATED >= '${debut}' AND str_DESCRIPTION LIKE '%${b.REF}%';`
     + `DELETE FROM t_bon_livraison_detail WHERE lg_BON_LIVRAISON_ID = '${b.BL}'; DELETE FROM t_bon_livraison WHERE lg_BON_LIVRAISON_ID = '${b.BL}';`
@@ -179,7 +183,8 @@ function creer(b) {
     const stockApres = q(`SELECT GROUP_CONCAT(CONCAT(lg_FAMILLE_ID, ':', int_NUMBER_AVAILABLE) ORDER BY lg_FAMILLE_ID) FROM t_famille_stock WHERE lg_EMPLACEMENT_ID = '1' AND lg_FAMILLE_ID IN (${LISTE})`);
     ok('Données d\'essai retirées, stocks remis', stockApres === stockAvant
       && q(`SELECT COUNT(*) FROM t_bon_livraison WHERE lg_BON_LIVRAISON_ID LIKE '${PREFIXE}%'`) === '0'
-      && q(`SELECT COUNT(*) FROM HMvtProduit WHERE pkey LIKE '${PREFIXE}%'`) === '0');
+      && q(`SELECT COUNT(*) FROM HMvtProduit WHERE pkey LIKE '${PREFIXE}%'`) === '0'
+      && q("SELECT COUNT(*) FROM t_warehouse WHERE str_REF_LIVRAISON LIKE 'E2EPBL%'") === '0');
   }
   const echecs = res.filter((r) => !r.c).length;
   console.log((res.length - echecs) + '/' + res.length + ' controles respectes');
