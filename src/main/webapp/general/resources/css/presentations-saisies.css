@@ -38,6 +38,9 @@
 .pp-chiffre small{color:#556677;font-size:11px}
 .pp-chiffre b{font-size:16px;color:#1e3a5f}
 .pp-espace{flex:1}
+.pp-pages{display:inline-flex;gap:6px;align-items:center;font-size:12px}
+.pp-pages .pp-btn{min-width:32px;padding:4px 8px;font-size:15px;line-height:1}
+.pp-pages .pp-btn[disabled]{opacity:.4;cursor:default}
 .pp-message{padding:6px 12px;flex:none;font-weight:600}
 .pp-message.ok{background:#e3f5ef;color:#0b6b57}
 .pp-message.ko{background:#fdecea;color:#b42318}

@@ -237,7 +237,11 @@ window.PrestigePresentations = (function () {
         dom.addEventListener('input', function (ev) {
             if (ev.target && ev.target.getAttribute('data-pp-filtre') !== null) {
                 ctx.filtre = ev.target.value;
-                rendre(ctx);
+                if (ctx.cle === 'suggestion') {
+                    rechercherSuggestion(ctx);
+                } else {
+                    rendre(ctx);
+                }
             }
         });
         /* toute modification faite par une action d'origine (ajout de produit, fenetre de lot...) recharge la grille
@@ -276,6 +280,19 @@ window.PrestigePresentations = (function () {
         ecran.ppCtx = null;
     }
 
+    /** Recherche d'origine de la suggestion (champ « rechercherDetail », action de recherche) apres la frappe. */
+    function rechercherSuggestion(ctx) {
+        clearTimeout(ctx.minRecherche);
+        ctx.minRecherche = setTimeout(function () {
+            var champ = Ext.getCmp('rechercherDetail');
+            if (ctx.detruit || !champ || !ctx.ecran.onRechClick) {
+                return;
+            }
+            champ.setValue(ctx.filtre);
+            ctx.ecran.onRechClick();
+        }, 350);
+    }
+
     function planifierChargement(ctx) {
         clearTimeout(ctx.minChargement);
         ctx.minChargement = setTimeout(function () {
@@ -296,15 +313,59 @@ window.PrestigePresentations = (function () {
 
     /* ------------------------------------------------------------------ lecture des lignes (API existantes) */
 
+    /* Suggestion : le calcul de chaque ligne est couteux (ventes des derniers mois, stock, prix...). La variante montre
+       donc les lignes de la page de la grille d'origine (meme pagination, meme recherche, aucune requete de plus) et
+       lit les totaux de toute la suggestion par une requete d'agregat. */
+    function chargerPageSuggestion(ctx) {
+        var st = ctx.grille.getStore();
+        if (st.isLoading() || !st.lastOptions) {
+            /* la grille d'origine n'a pas encore lu sa page : son evenement « load » relancera la lecture */
+            return;
+        }
+        ctx.lignes = st.getRange().map(function (r) {
+            return r.data;
+        });
+        ctx.page = {debut: st.getCount() ? (st.currentPage - 1) * st.pageSize + 1 : 0, fin: (st.currentPage - 1) * st.pageSize + st.getCount(),
+            total: st.getTotalCount(), avant: st.currentPage > 1, apres: st.currentPage * st.pageSize < st.getTotalCount()};
+        ctx.charge = true;
+        ctx.erreur = null;
+        rendre(ctx);
+        var jeton = (ctx.jeton || 0) + 1;
+        ctx.jeton = jeton;
+        ctx.totauxEnCours = true;
+        Ext.Ajax.request({
+            method: 'GET', url: '../api/v1/presentations-saisies/suggestion/' + encodeURIComponent(ctx.ecran.getNameintern()) + '/totaux',
+            success: function (r) {
+                var o = Ext.JSON.decode(r.responseText, true) || {};
+                if (!ctx.detruit && jeton === ctx.jeton && o.success) {
+                    ctx.srv = {lignes: num(o.lignes), boites: num(o.boites), montant: num(o.montant)};
+                }
+            },
+            callback: function () {
+                if (!ctx.detruit && jeton === ctx.jeton) {
+                    ctx.totauxEnCours = false;
+                    rendre(ctx);
+                }
+            }
+        });
+    }
+
     function charger(ctx) {
         if (ctx.detruit) {
             return;
         }
-        var e = ctx.ecran, id = e.getNameintern(), url, params;
         if (ctx.cle === 'suggestion') {
-            url = '../api/v1/suggestion/list/items';
-            params = {orderId: id, query: '', start: 0, limit: 5000, page: 1};
-        } else if (ctx.cle === 'commande') {
+            chargerPageSuggestion(ctx);
+            return;
+        }
+        /* une seule lecture a la fois : une demande arrivee pendant la lecture est rejouee une fois a la fin */
+        if (ctx.lecture) {
+            ctx.relire = true;
+            return;
+        }
+        ctx.lecture = true;
+        var e = ctx.ecran, id = e.getNameintern(), url, params;
+        if (ctx.cle === 'commande') {
             url = '../api/v1/commande/commande-en-cours-items';
             params = {orderId: id, query: '', filtre: 'ALL', start: 0, limit: 5000, page: 1};
         } else {
@@ -315,6 +376,13 @@ window.PrestigePresentations = (function () {
         ctx.jeton = jeton;
         Ext.Ajax.request({
             method: 'GET', url: url, params: params, timeout: 240000,
+            callback: function () {
+                ctx.lecture = false;
+                if (ctx.relire && !ctx.detruit) {
+                    ctx.relire = false;
+                    charger(ctx);
+                }
+            },
             success: function (r) {
                 if (ctx.detruit || jeton !== ctx.jeton) {
                     return;
@@ -451,6 +519,17 @@ window.PrestigePresentations = (function () {
             }
             return;
         }
+        if ((el = t.closest('[data-pp-page]'))) {
+            var pager = ctx.grille.down('pagingtoolbar');
+            if (pager && !el.disabled) {
+                if (el.getAttribute('data-pp-page') === '1') {
+                    pager.moveNext();
+                } else {
+                    pager.movePrevious();
+                }
+            }
+            return;
+        }
         if ((el = t.closest('[data-pp-plus]'))) {
             ouvrirPlus(el, el.getAttribute('data-pp-plus').split(','));
             return;
@@ -571,6 +650,10 @@ window.PrestigePresentations = (function () {
     function enregistrerQuantite(ctx, l, q) {
         var e = ctx.ecran, id = idLigne(ctx, l), ancienne = quantite(ctx, l);
         l.int_NUMBER = q;
+        if (ctx.srv) {
+            ctx.srv.boites += q - ancienne;
+            ctx.srv.montant += (q - ancienne) * prixAchat(ctx, l);
+        }
         if (ctx.cle === 'commande') {
             l.int_PRICE = q * num(l.int_PAF);
         }
@@ -580,6 +663,10 @@ window.PrestigePresentations = (function () {
             ctx.enCours--;
             if (!ok) {
                 l.int_NUMBER = ancienne;
+                if (ctx.srv) {
+                    ctx.srv.boites -= q - ancienne;
+                    ctx.srv.montant -= (q - ancienne) * prixAchat(ctx, l);
+                }
                 ctx.message = {niveau: 'ko', texte: msg || 'La quantité n\'a pas été enregistrée.'};
             } else {
                 ctx.message = null;
@@ -674,6 +761,10 @@ window.PrestigePresentations = (function () {
                 + valeur + '</b></div>';
     }
     function totaux(ctx) {
+        if (ctx.cle === 'suggestion') {
+            return ctx.srv ? {lignes: ctx.srv.lignes, boites: ctx.srv.boites, montant: ctx.srv.montant}
+            : {lignes: ctx.page ? ctx.page.total : ctx.lignes.length, boites: 0, montant: 0};
+        }
         var t = {lignes: ctx.lignes.length, boites: 0, montant: 0};
         ctx.lignes.forEach(function (l) {
             t.boites += quantite(ctx, l);
@@ -683,7 +774,7 @@ window.PrestigePresentations = (function () {
     }
     function filtrer(ctx, lignes) {
         var f = (ctx.filtre || '').trim().toLowerCase();
-        if (!f) {
+        if (!f || ctx.cle === 'suggestion') {
             return lignes;
         }
         return lignes.filter(function (l) {
@@ -767,7 +858,18 @@ window.PrestigePresentations = (function () {
     function titreSuggestion(ctx) {
         var d = ctx.ecran.getOdatasource() || {}, g = Ext.getCmp('lg_GROSSISTE_ID');
         return '<div class="pp-titre">Suggestion ' + enc(d.str_REF || '') + ' <small>· ' + enc(g ? g.getRawValue() : (d.str_GROSSISTE_LIBELLE || ''))
-                + ' · ' + ctx.lignes.length + ' lignes</small></div>';
+                + ' · ' + nf(totaux(ctx).lignes) + ' lignes</small></div>';
+    }
+    /** Pagination d'origine : lignes affichees et pages precedente / suivante. */
+    function pagesSuggestion(ctx) {
+        var pg = ctx.page;
+        if (!pg) {
+            return '';
+        }
+        return '<span class="pp-pages"><span class="pp-gris" data-pp-pages>' + (pg.total ? 'Lignes ' + nf(pg.debut) + '–' + nf(pg.fin) + ' sur ' + nf(pg.total)
+                : 'Aucune ligne') + '</span><button type="button" class="pp-btn" data-pp-page="-1"' + (pg.avant ? '' : ' disabled')
+                + ' aria-label="Page précédente" title="Page précédente">‹</button><button type="button" class="pp-btn" data-pp-page="1"'
+                + (pg.apres ? '' : ' disabled') + ' aria-label="Page suivante" title="Page suivante">›</button></span>';
     }
     var PLUS_SUGG = ['btn_dispo_reverifier', 'btn_dispo_imprimer', 'btn_produits_retires', 'btn_clean_sugg', 'btn_print'];
 
@@ -777,7 +879,7 @@ window.PrestigePresentations = (function () {
                 + chiffre('Boîtes', nf(t.boites), '', ' data-pp-total="boites"')
                 + chiffre('Montant achat', nf(t.montant) + ' F', '', ' data-pp-total="montant"')
                 + (c.connus ? chiffre('Indisponibles', nf(c.NON), c.NON ? 'pp-rouge' : '') : '')
-                + '<span class="pp-espace"></span>' + boutons + '</div>';
+                + pagesSuggestion(ctx) + '<span class="pp-espace"></span>' + boutons + '</div>';
     }
 
     function tableSuggestionA(ctx) {
@@ -923,7 +1025,7 @@ window.PrestigePresentations = (function () {
                 + '<span class="pp-kbd">F4</span> équivalents DCI · <span class="pp-kbd">F8</span> vérifier la disponibilité</div>' + message(ctx)
                 + '<div class="pp-corps">' + h + '</div>'
                 + '<div class="pp-pied"><b><span data-pp-total="lignes">' + nf(t.lignes) + '</span> lignes · <span data-pp-total="boites">' + nf(t.boites)
-                + '</span> boîtes · <span data-pp-total="montant">' + nf(t.montant) + '</span> F</b>'
+                + '</span> boîtes · <span data-pp-total="montant">' + nf(t.montant) + '</span> F</b>' + pagesSuggestion(ctx)
                 + '<span class="pp-espace"></span>' + btn('btn_export_csv') + menuPlus(['btn_dispo_verifier', 'btn_equivalents_dci'].concat(PLUS_SUGG))
                 + btn('btn_cancel', {texte: 'Fermer'}) + btn('btn_sugg_commander_pml', {cls: 'prim', texte: 'Commander'}) + '</div>';
     }
@@ -1491,7 +1593,11 @@ window.PrestigePresentations = (function () {
         /* pour les tests d'ecran : etat de la variante montee (lecture seule) */
         etat: function () {
             var c = courant;
-            return c && !c.detruit ? {cle: c.cle, v: c.v, lignes: c.lignes.length, charge: c.charge, enCours: c.enCours || 0} : null;
+            var occupe = (c && c.enCours) || 0;
+            if (c && !c.detruit && (c.totauxEnCours || c.lecture || c.grille.getStore().isLoading())) {
+                occupe++;
+            }
+            return c && !c.detruit ? {cle: c.cle, v: c.v, lignes: c.lignes.length, charge: c.charge, enCours: occupe} : null;
         }
     };
 })();

@@ -39,8 +39,9 @@ const montantBase = () => Number(q(`SELECT SUM(int_PRICE) FROM t_order_detail WH
     + ` int_PRICE_DETAIL, prixAchat, prixUnitaire, str_STATUT, dt_CREATED, dt_UPDATED) VALUES ('${D[i]}', '${OID}', '${x.id}', '${G}', 2, ${2 * x.paf}, ${x.paf},`
     + ` ${x.prix}, ${x.paf}, ${x.prix}, 'is_Process', NOW(), NOW())`));
 
-  const { b, p, erreurs } = await C.demarrer(chromium);
+  let b = null, p = null, erreurs = [];
   try {
+    ({ b, p, erreurs } = await C.demarrer(chromium));
     await C.ouvrirDocument(p, 'Commande en cours', 'i_order_manager', 'str_REF_ORDER', REF, 'Modifier');
     await p.waitForFunction(() => { const g = Ext.getCmp('gridpanelID'); return g && g.isVisible(true) && !g.getStore().isLoading() && g.getStore().getCount() === 2; }, null, { timeout: 60000 });
     await p.waitForTimeout(800);
@@ -111,9 +112,9 @@ const montantBase = () => Number(q(`SELECT SUM(int_PRICE) FROM t_order_detail WH
     ok('Aucune erreur JavaScript ni fenêtre du navigateur', !erreurs.length, erreurs.join(' | '));
   } catch (e) {
     ok('Parcours sans exception', false, e.stack || e);
-    await C.ENV_E2E.capture(p, 'exception');
+    if (p) { await C.ENV_E2E.capture(p, 'exception').catch(() => {}); }
   } finally {
-    await b.close();
+    if (b) { await b.close().catch(() => {}); }
     retirer();
     ok('Données du test retirées', q(`SELECT COUNT(*) FROM t_order WHERE lg_ORDER_ID LIKE 'E2E-PS-CMD%'`) === '0');
     process.exit(C.bilan());

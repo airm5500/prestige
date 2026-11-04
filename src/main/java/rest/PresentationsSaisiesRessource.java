@@ -34,6 +34,11 @@ import util.Constant;
  * vente ({@link Gs1}) et dit a quelle ligne du bon elle correspond. Lecture seule : rien n'est ecrit ici, la quantite
  * lue est enregistree ensuite par l'action existante d'ajout de lot. Le code lu n'est jamais journalise.
  * </p>
+ * <p>
+ * GET suggestion/{id}/totaux : nombre de lignes, boites et montant d'achat de toute la suggestion, en une seule requete
+ * d'agregat. Les variantes affichent les lignes page par page, comme la grille d'origine (le calcul de chaque ligne de
+ * suggestion est couteux) : leurs totaux viennent d'ici et non des lignes affichees. Lecture seule.
+ * </p>
  */
 @Path("v1/presentations-saisies")
 @Produces(MediaType.APPLICATION_JSON)
@@ -99,5 +104,21 @@ public class PresentationsSaisiesRessource {
             }
         }
         return Response.ok(o.put("msg", "Aucune ligne de ce bon ne correspond à ce code.").toString()).build();
+    }
+
+    @GET
+    @Path("suggestion/{id}/totaux")
+    public Response totauxSuggestion(@PathParam("id") String suggestionId) {
+        JSONObject o = new JSONObject().put("success", false);
+        if (utilisateur() == null) {
+            return Response.ok(o.put("msg", Constant.DECONNECTED_MESSAGE).toString()).build();
+        }
+        Object[] t = (Object[]) em
+                .createNativeQuery("SELECT COUNT(*), COALESCE(SUM(int_NUMBER), 0), COALESCE(SUM(int_PRICE), 0)"
+                        + " FROM t_suggestion_order_details WHERE lg_SUGGESTION_ORDER_ID = ?1")
+                .setParameter(1, suggestionId).getSingleResult();
+        return Response.ok(o.put("success", true).put("lignes", ((Number) t[0]).longValue())
+                .put("boites", ((Number) t[1]).longValue()).put("montant", ((Number) t[2]).longValue()).toString())
+                .build();
     }
 }

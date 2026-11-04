@@ -38,8 +38,9 @@ const qteBase = (i) => Number(q(`SELECT int_NUMBER FROM t_suggestion_order_detai
       + ` int_PRICE, int_PRICE_DETAIL, int_PAF_DETAIL, dt_CREATED, dt_UPDATED, str_STATUT) VALUES ('${D[i]}', '${SID}', '${G}', '${x.id}', 3, ${3 * x.paf},`
       + ` ${x.prix}, ${x.paf}, NOW(), NOW(), 'is_Process');`).join(''));
 
-  const { b, p, erreurs } = await C.demarrer(chromium);
+  let b = null, p = null, erreurs = [];
   try {
+    ({ b, p, erreurs } = await C.demarrer(chromium));
     await C.ouvrirDocument(p, 'Suggestion de reappro.', 'i_sugg_manager', 'str_REF', REF, 'Modifier');
     await p.waitForFunction(() => { const g = Ext.getCmp('gridpanelSuggestionID'); return g && g.isVisible(true) && !g.getStore().isLoading() && g.getStore().getCount() === 2; }, null, { timeout: 60000 });
     await p.waitForTimeout(800);
@@ -57,8 +58,15 @@ const qteBase = (i) => Number(q(`SELECT int_NUMBER FROM t_suggestion_order_detai
     ok('Actuelle : le sélecteur ne recouvre aucun champ ni bouton', !actuel.chevauche.length, actuel.chevauche.join(','));
     await C.ENV_E2E.capture(p, 'suggestion-actuelle');
 
+    /* les variantes lisent la page de la grille d'origine : aucune demande de lignes au-dela de sa taille de page */
+    const limites = [];
+    p.on('request', (r) => { const m = /suggestion\/list\/items\?.*\blimit=(\d+)/.exec(r.url()); if (m) { limites.push(Number(m[1])); } });
+
     for (const v of ['A', 'B', 'C']) {
       await C.choisirPresentation(p, v);
+      const pages = await p.evaluate(() => { const e = document.querySelector('.pp-vue [data-pp-pages]');
+        return e ? { t: e.textContent, prec: document.querySelector('.pp-vue [data-pp-page="-1"]').disabled, suiv: document.querySelector('.pp-vue [data-pp-page="1"]').disabled } : null; });
+      ok(v + ' : pagination d\'origine affichée (lignes 1–2 sur 2, pas d\'autre page)', pages && pages.t === 'Lignes 1–2 sur 2' && pages.prec && pages.suiv, JSON.stringify(pages));
       if (v === 'B') {
         /* groupes replies (confort) : on les ouvre d'un clic */
         for (let k = 0; k < 3; k++) {
@@ -105,7 +113,8 @@ const qteBase = (i) => Number(q(`SELECT int_NUMBER FROM t_suggestion_order_detai
         /* clavier : recherche, Entree vers la quantite, « + » puis « − », Echap */
         await p.click('.pp-vue input[data-pp-filtre]');
         await p.keyboard.type(P[1].cip, { delay: 30 });
-        await p.waitForTimeout(300);
+        await p.waitForFunction(() => document.querySelectorAll('.pp-vue input[data-pp-qte]').length === 1, null, { timeout: 20000 }).catch(() => {});
+        await C.attendreCalme(p);
         const filtrees = await p.evaluate(() => document.querySelectorAll('.pp-vue input[data-pp-qte]').length);
         ok('C : la recherche au clavier filtre les lignes (CIP)', filtrees === 1, filtrees);
         await p.keyboard.press('Enter');
@@ -124,7 +133,8 @@ const qteBase = (i) => Number(q(`SELECT int_NUMBER FROM t_suggestion_order_detai
         await p.click('.pp-vue input[data-pp-filtre]');
         await p.keyboard.press('Control+A');
         await p.keyboard.press('Backspace');
-        await p.waitForTimeout(300);
+        await p.waitForFunction(() => document.querySelectorAll('.pp-vue input[data-pp-qte]').length === 2, null, { timeout: 20000 }).catch(() => {});
+        await C.attendreCalme(p);
       } else {
         await C.saisirQuantite(p, D[0], 3);
       }
@@ -135,15 +145,16 @@ const qteBase = (i) => Number(q(`SELECT int_NUMBER FROM t_suggestion_order_detai
       await C.ergonomie(p, 'Suggestion ' + v);
     }
 
+    ok('Lignes lues page par page, comme la grille d\'origine (limite ≤ 50)', limites.length > 0 && Math.max(...limites) <= 50, JSON.stringify(limites));
     await C.choisirPresentation(p, 'actuel');
     await p.waitForFunction(() => { const g = Ext.getCmp('gridpanelSuggestionID'); return g && g.isVisible(true) && !g.getStore().isLoading() && g.getStore().getCount() === 2; }, null, { timeout: 60000 });
     ok('Retour à l\'écran actuel : grille d\'origine, sans variante', !(await p.$('.pp-vue')));
     ok('Aucune erreur JavaScript ni fenêtre du navigateur', !erreurs.length, erreurs.join(' | '));
   } catch (e) {
     ok('Parcours sans exception', false, e.stack || e);
-    await C.ENV_E2E.capture(p, 'exception');
+    if (p) { await C.ENV_E2E.capture(p, 'exception').catch(() => {}); }
   } finally {
-    await b.close();
+    if (b) { await b.close().catch(() => {}); }
     retirer();
     ok('Données du test retirées', q(`SELECT COUNT(*) FROM t_suggestion_order WHERE lg_SUGGESTION_ORDER_ID LIKE 'E2E-PS-SUG%'`) === '0');
     process.exit(C.bilan());
