@@ -82,6 +82,12 @@ function creer(b) {
   console.log('Serveur : ' + BASE + ', base ' + DB + ', ' + PRODUITS.length + ' lignes, grossiste ' + G);
   ok('Précondition : ' + LIGNES + ' produits en stock au rayon, hors réserve, d\'un même grossiste', PRODUITS.length === LIGNES, PRODUITS.length);
   if (PRODUITS.length !== LIGNES) { process.exit(1); }
+  /* la procedure de l'indicateur doit etre la version remise sur l'index (R__proc_indicateur_sugges.sql) */
+  const proc = q("SELECT CONCAT_WS(' | ', p.CHARACTER_SET_NAME, r.ROUTINE_DEFINITION LIKE '%vFamille%', r.LAST_ALTERED) FROM information_schema.ROUTINES r"
+    + " LEFT JOIN information_schema.PARAMETERS p ON p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.ROUTINE_NAME AND p.ORDINAL_POSITION = 1"
+    + " WHERE r.ROUTINE_SCHEMA = DATABASE() AND r.ROUTINE_NAME = 'proc_indicateur_sugges'");
+  const flyway = q("SELECT IFNULL(MAX(CONCAT_WS(' ', installed_on, success)), 'absent') FROM flyway_schema_history WHERE script = 'R__proc_indicateur_sugges.sql'");
+  ok('Procédure de l\'indicateur à jour (variables du type des colonnes)', / \| 1 \| /.test(proc), 'paramètre | à jour | modifiée : ' + proc + ' ; Flyway : ' + flyway);
   for (let i = 1; i <= ESSAIS; i++) { BONS.push(bon(i)); }
   remettre();
   sauver();
