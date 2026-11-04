@@ -17,6 +17,8 @@ const { ok, q, A } = C;
 
 (async () => {
   A.parametre('KEY_PRIX_REF_CAISSE', '1');
+  /* grille de reference : sans la colonne « C » de la ligne comptant (cas 1), quel que soit le reglage du poste */
+  A.parametre('KEY_LIGNE_COMPTANT_VO', '0');
   const TP = A.tiersPayant('R1', '1');
   const P = C.produitSansReference(3);
   const CIP = C.cip(P);
