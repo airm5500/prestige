@@ -90,7 +90,7 @@ const ATTENDU = 'LG,C.CIP,DESIGNATION,QD,QS,P.U,MONTANT,';
     const v4 = await C.venteCourante(p);
     C.noterVente(v4);
     const e4 = await C.entete(p);
-    ok('Paramètre à 1, vente assurance : le groupe de colonnes apparaît, C.CIP à 80 px', e4 && e4.groupes.length === 1 && e4.colonnes.find((c) => c.texte === 'C.CIP').largeur === 80, JSON.stringify(e4 && e4.colonnes));
+    ok('Paramètre à 1, vente assurance : le groupe de colonnes apparaît, C.CIP à 100 px', e4 && e4.groupes.length === 1 && e4.colonnes.find((c) => c.texte === 'C.CIP').largeur === 100, JSON.stringify(e4 && e4.colonnes));
     const det4 = await lire('../api/v1/vente/deatails?start=0&limit=10&venteId=' + v4);
     ok('Paramètre à 1 : la réponse « deatails » porte referencesTp', /referencesTp/.test(det4.corps), det4.corps.slice(0, 200));
     /* « Mettre en attente » : l'ecran se remet au comptant sur la MEME grille ; les colonnes doivent disparaitre */
@@ -103,7 +103,7 @@ const ATTENDU = 'LG,C.CIP,DESIGNATION,QD,QS,P.U,MONTANT,';
     const e5 = await C.entete(p);
     ok('Après « Mettre en attente » (même grille : ' + memeGrille + ') : colonnes retirées, C.CIP reprend sa largeur (flex), libellé masqué',
       e5 && e5.groupes.length === 0 && !e5.rappel && e5.colonnes.map((c) => c.texte).join(',') === ATTENDU && e5.colonnes.find((c) => c.texte === 'C.CIP').flex === 1
-      && e5.colonnes.find((c) => c.texte === 'C.CIP').largeur > 80, JSON.stringify(e5 && e5.colonnes));
+      && e5.colonnes.find((c) => c.texte === 'C.CIP').largeur > 100, JSON.stringify(e5 && e5.colonnes));
     const c5 = await capture('comptant-apres-attente');
     const i15 = identiques(c1, c5);
     ok('Même grille après retrait des colonnes : capture identique au pixel à la grille d\'origine', c5.largeurs === c1.largeurs && i15.ok, c5.largeurs + ' ; ' + i15.detail);
