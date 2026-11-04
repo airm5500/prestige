@@ -32,8 +32,10 @@ Réalisation du cas 2 de `docs/analyses/2026-11-03/` (analyse `cas2-prix-taux-re
   Aucun droit particulier (toute personne qui saisit une vente assurance).
 - Le net est recalculé par le **même service** que `net/assurance` et appliqué à l'écran ; le focus revient au champ
   produit ; aucun `update/item/vno` ne part pour ces cellules (interception avant `onGridEdit`).
-- Libellé discret sous la grille : légende des couleurs et rappel de la règle du minimum (Q2.5, non tranché : avec
-  plusieurs tiers-payants, le moteur retient le plus petit des prix de référence de la vente). Lot séparé à ouvrir.
+- Libellé discret sous la grille : légende des couleurs et rappel de la règle du minimum (Q2.5 : avec plusieurs
+  tiers-payants, le moteur retient le plus petit des prix de référence de la vente). Le lot séparé « base de calcul
+  par tiers-payant » (`NOTICE_PRIX_REFERENCE_BASE_PAR_TP.md`, paramètre `KEY_PRIX_REF_BASE_PAR_TP`) remplace cette
+  règle quand il est activé ; le rappel disparaît alors.
 
 ## Journal (Q2.6)
 

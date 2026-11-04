@@ -9,6 +9,11 @@ public class CalculationInput {
     private NatureVente natureVente;
     private BigDecimal discountAmount;
     private BigDecimal totalSalesAmount;
+    /**
+     * Lot « base par tiers-payant » (Q2.5) : vrai si KEY_PRIX_REF_BASE_PAR_TP vaut 1. Faux par defaut : la regle du
+     * minimum des prix de reference s'applique, exactement comme avant ce lot.
+     */
+    private boolean basePrixReferenceParTiersPayant;
 
     public List<SaleItemInput> getSaleItems() {
         return saleItems;
@@ -48,6 +53,14 @@ public class CalculationInput {
 
     public void setTotalSalesAmount(BigDecimal totalSalesAmount) {
         this.totalSalesAmount = totalSalesAmount;
+    }
+
+    public boolean isBasePrixReferenceParTiersPayant() {
+        return basePrixReferenceParTiersPayant;
+    }
+
+    public void setBasePrixReferenceParTiersPayant(boolean basePrixReferenceParTiersPayant) {
+        this.basePrixReferenceParTiersPayant = basePrixReferenceParTiersPayant;
     }
 
     @Override
