@@ -1752,28 +1752,67 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
         me.sauverPrefsSuivi();
     },
 
-    /** Remplit l'onglet A suivre : alertes et repartitions (reponse de l'onglet), puis chaque carte. */
-    afficherSuivi: function (r) {
-        var me = this, F = testextjs.view.pilotage.PilotageManager, enc = Ext.String.htmlEncode;
-        me.donneesSuivi = r;
-        var go = function () {
-            me.dessinerAlertes(r);
-            var repartition = function (lignes) {
-                var t = '<table class="sv-table"><tr><th></th><th class="n">CA</th><th class="n">Part</th><th class="n">Marge</th><th class="n">Ventes</th></tr>';
-                Ext.each(lignes || [], function (x) {
-                    t += '<tr><td>' + enc(x.libelle) + '</td><td class="n">' + F.nombre(x.ca) + '</td><td class="n"><span class="suivi-barre" style="width:'
-                            + Math.max(2, Math.round(x.part * 0.6)) + 'px"></span> ' + F.nombre(x.part, '0,000.0') + ' %</td><td class="n">' + F.nombre(x.marge)
-                            + '</td><td class="n">' + F.nombre(x.ventes) + '</td></tr>';
-                });
-                return t + ((lignes || []).length ? '' : '<tr><td colspan="5" class="sv-note">Aucune vente sur la période.</td></tr>') + '</table>';
-            };
-            me.corpsSuivi('emplacements', repartition(r.emplacements));
-            me.corpsSuivi('familles', repartition(r.familles));
+    /* Cartes remplies par la reponse de l'onglet (calcul lourd) ; les autres ont leur propre appel. */
+    CARTES_ONGLET_SUIVI: ['alertes', 'emplacements', 'familles'],
+
+    /**
+     * AFFICHAGE PROGRESSIF (04/11). Les courbes, la frequentation et les encaissements ne dependent pas du calcul de
+     * l'onglet (ruptures des 90 derniers jours, demandes de treize mois : plusieurs secondes au premier clic) : ils
+     * partent des le clic, et seules les tuiles et les cartes qui attendent ce calcul restent « en chargement ».
+     * Avant, tout l'onglet restait masque jusqu'a sa reponse, et les courbes - calculees d'avance au demarrage -
+     * n'etaient demandees qu'ensuite.
+     */
+    preparerSuivi: function () {
+        var me = this, tuiles = me.down('#tuiles-asuivre');
+        Ext.each(me.CARTES_ONGLET_SUIVI, function (cle) {
+            me.corpsSuivi(cle, '<div class="sv-attente">Chargement…</div>');
+        });
+        if (tuiles) {
+            tuiles.setLoading('Rassemblement des chiffres...');
+        }
+        me.avecPrefsSuivi(function () {
             me.chargerFrequentation();
             Ext.Object.each(me.EVOLUTIONS, function (k) {
                 me.chargerEvolution(k);
             });
+        });
+    },
+
+    /** Fin de la demande de l'onglet A suivre : tuiles demasquees ; une carte restee sans reponse le dit. */
+    finSuivi: function () {
+        var me = this, tuiles = me.down('#tuiles-asuivre');
+        if (tuiles && !tuiles.isDestroyed) {
+            tuiles.setLoading(false);
+        }
+        Ext.each(me.CARTES_ONGLET_SUIVI, function (cle) {
+            var c = me.carteSuivi(cle);
+            if (c && c.querySelector('.sv-attente')) {
+                me.corpsSuivi(cle, '<div class="sv-note">Indisponible.</div>');
+            }
+        });
+    },
+
+    /** Remplit les alertes et les repartitions avec la reponse de l'onglet (les courbes sont deja parties). */
+    afficherSuivi: function (r) {
+        var me = this, F = testextjs.view.pilotage.PilotageManager, enc = Ext.String.htmlEncode;
+        me.donneesSuivi = r;
+        me.dessinerAlertes(r);
+        var repartition = function (lignes) {
+            var t = '<table class="sv-table"><tr><th></th><th class="n">CA</th><th class="n">Part</th><th class="n">Marge</th><th class="n">Ventes</th></tr>';
+            Ext.each(lignes || [], function (x) {
+                t += '<tr><td>' + enc(x.libelle) + '</td><td class="n">' + F.nombre(x.ca) + '</td><td class="n"><span class="suivi-barre" style="width:'
+                        + Math.max(2, Math.round(x.part * 0.6)) + 'px"></span> ' + F.nombre(x.part, '0,000.0') + ' %</td><td class="n">' + F.nombre(x.marge)
+                        + '</td><td class="n">' + F.nombre(x.ventes) + '</td></tr>';
+            });
+            return t + ((lignes || []).length ? '' : '<tr><td colspan="5" class="sv-note">Aucune vente sur la période.</td></tr>') + '</table>';
         };
+        me.corpsSuivi('emplacements', repartition(r.emplacements));
+        me.corpsSuivi('familles', repartition(r.familles));
+    },
+
+    /** Les reglages des cartes (pas, comparaison, tranche) sont lus une fois, avant la premiere courbe. */
+    avecPrefsSuivi: function (go) {
+        var me = this;
         if (me.prefsChargees) {
             go();
             return;
