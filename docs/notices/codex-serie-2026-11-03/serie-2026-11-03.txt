@@ -409,6 +409,7 @@ retours/test-reserve-boutons-lisibles.js
 retours/test-entetes-survol-lisibles.js
 retours/test-sans-filet-colore.js
 retours/test-bl-quantite-sans-lot.js
+perf/test-perf-entree-stock.js
 retours/test-titre-retour-ecran.js
 retours/test-types-etiquette-filtres.js
 retours/test-types-etiquette.js
