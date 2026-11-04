@@ -1,0 +1,153 @@
+/* Presentations a l'essai des saisies (proposition du 04/11) : resources/js/presentations-saisies.js */
+
+/* ---------- selecteur, pose en haut a droite de l'ecran */
+.pp-selecteur{position:absolute;top:4px;right:10px;z-index:20;display:flex;align-items:center;gap:2px;background:#fff;
+  border:1px solid #c3cfdb;border-radius:7px;padding:2px 3px;box-shadow:0 1px 2px rgba(16,24,40,.08);font:12px "Segoe UI",Arial,sans-serif}
+.pp-selecteur .pp-sel-titre{color:#556677;padding:0 6px 0 4px}
+.pp-selecteur button{border:0;background:transparent;color:#1e3a5f;font:inherit;font-weight:600;padding:3px 8px;border-radius:5px;cursor:pointer;min-width:26px}
+.pp-selecteur button:hover{background:#e3edf7}
+.pp-selecteur button.on{background:#1e3a5f;color:#fff}
+.pp-selecteur button:disabled{color:#9aa8b6;cursor:default;background:transparent}
+.pp-selecteur button:focus-visible{outline:2px solid #2563eb;outline-offset:1px}
+
+/* ---------- cadre de la variante */
+.pp-vue{background:#fff;border:1px solid #dfe6ee;border-radius:10px;overflow:hidden;margin:5px 0;color:#1b2a3a;
+  font:13px/1.45 "Segoe UI",Arial,sans-serif}
+.pp-cadre{height:100%;display:flex;flex-direction:column;min-height:0}
+.pp-attente{padding:40px;text-align:center;color:#556677}
+.pp-attente.ko{color:#b42318}
+.pp-titre{background:#2b4a73;color:#fff;padding:7px 12px;font-weight:600;flex:none;padding-right:240px}
+.pp-titre small{color:#c9d6e6;font-weight:400}
+.pp-barre{display:flex;gap:6px;align-items:center;padding:8px 10px;border-bottom:1px solid #dfe6ee;flex-wrap:wrap;background:#fbfcfe;flex:none}
+.pp-raccourcis{color:#556677;font-size:12px}
+.pp-corps{flex:1;min-height:0;overflow:auto}
+.pp-cols{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 300px}
+.pp-cols>.pp-corps,.pp-cols>.pp-col{min-height:0;overflow:auto}
+.pp-col{display:flex;flex-direction:column}
+.pp-cote{border-left:1px solid #dfe6ee;padding:12px;background:#fbfcfe;overflow:auto}
+.pp-cote h4{margin:0 0 6px;font-size:13px;color:#1e3a5f}
+.pp-ligne-cote{display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-bottom:1px dashed #e3e9f0}
+.pp-ligne-cote span{color:#556677}
+.pp-ligne-cote a{color:#2563eb;font-weight:600}
+.pp-mini{display:flex;align-items:flex-end;gap:3px;height:46px;margin:6px 0 8px}
+.pp-mini i{flex:1;background:#9db7d6;border-radius:2px 2px 0 0}
+.pp-mini i.c{background:#2563eb}
+.pp-pied{display:flex;gap:18px;align-items:center;padding:8px 12px;border-top:1px solid #dfe6ee;background:#f8fafc;flex-wrap:wrap;flex:none}
+.pp-sous-pied{padding:4px 12px;color:#556677;flex:none}
+.pp-chiffre{display:flex;flex-direction:column}
+.pp-chiffre small{color:#556677;font-size:11px}
+.pp-chiffre b{font-size:16px;color:#1e3a5f}
+.pp-espace{flex:1}
+.pp-message{padding:6px 12px;flex:none;font-weight:600}
+.pp-message.ok{background:#e3f5ef;color:#0b6b57}
+.pp-message.ko{background:#fdecea;color:#b42318}
+.pp-message.info{background:#e3edf7;color:#1e3a5f}
+.pp-note{margin-top:6px;color:#b45309;font-size:12px}
+
+/* ---------- boutons */
+.pp-btn{display:inline-flex;align-items:center;gap:6px;border:1px solid #c3cfdb;background:#f4f7fa;color:#1e3a5f;border-radius:6px;
+  padding:5px 11px;font:inherit;font-weight:600;cursor:pointer;white-space:nowrap}
+.pp-btn:hover{background:#e3edf7}
+.pp-btn.prim{background:#17987e;border-color:#17987e;color:#fff}
+.pp-btn.prim:hover{background:#12806a}
+.pp-btn.fin{padding:2px 7px;font-size:12px}
+.pp-btn.lien{background:transparent;border-color:transparent;color:#2563eb}
+.pp-btn:disabled{opacity:.55;cursor:default}
+.pp-btn.pp-arme{background:#c0392b;border-color:#c0392b;color:#fff}
+.pp-btn:focus-visible,.pp-groupe:focus-visible,.pp-onglets button:focus-visible{outline:2px solid #2563eb;outline-offset:1px}
+.pp-pile{display:grid;gap:6px;margin-top:12px}
+.pp-pile.fin{margin-top:16px;padding-top:10px;border-top:1px solid #dfe6ee}
+.pp-menu .x-menu-item-text{font-weight:600}
+
+/* ---------- champs */
+.pp-recherche{flex:1;min-width:220px;border:1px solid #c3cfdb;border-radius:6px;padding:6px 10px;font:inherit;background:#fff;color:#1b2a3a}
+.pp-recherche.grande{font-size:15px;padding:9px 14px;border:2px solid #2563eb}
+.pp-recherche:focus{outline:none;box-shadow:0 0 0 3px rgba(37,99,235,.2)}
+.pp-qte-champ{width:64px;text-align:right;border:1px solid #c3cfdb;border-radius:5px;padding:3px 6px;font:inherit;font-weight:700;color:#0b6b57;background:#fff}
+.pp-qte-champ:focus{outline:none;border-color:#2563eb;box-shadow:0 0 0 2px rgba(37,99,235,.2)}
+.pp-qte{display:inline-flex;align-items:center;border:1px solid #c3cfdb;border-radius:6px;overflow:hidden}
+.pp-qte .pp-qte-champ{border:0;border-radius:0;width:56px;text-align:center}
+.pp-qte button{border:0;background:#f4f7fa;color:#1e3a5f;font:inherit;font-weight:700;padding:3px 9px;cursor:pointer}
+.pp-qte button:hover{background:#e3edf7}
+.pp-qte button:disabled{color:#b8c3cf;cursor:default}
+.pp-kbd{display:inline-block;border:1px solid #c3cfdb;border-bottom-width:2px;border-radius:4px;padding:0 5px;font-size:11px;background:#fff;color:#1e3a5f;margin:0 2px}
+
+/* ---------- tableaux */
+table.pp-g{width:100%;border-collapse:collapse;font-size:12.5px}
+table.pp-g th{position:sticky;top:0;z-index:1;background:#f5f8fb;color:#556677;text-transform:uppercase;font-size:10.5px;letter-spacing:.04em;
+  text-align:left;padding:7px 8px;border-bottom:1px solid #dfe6ee;white-space:nowrap}
+table.pp-g thead tr+tr th{top:27px}
+table.pp-g th.grp{background:#eaf0f7;color:#1e3a5f;text-align:center;border-left:1px solid #dfe6ee}
+table.pp-g td{padding:5px 8px;border-bottom:1px solid #eef2f6;white-space:nowrap}
+table.pp-g.dense td{padding:3px 8px}
+table.pp-g td.n,table.pp-g th.n{text-align:right}
+table.pp-g td.bl,table.pp-g th.bl{border-left:1px solid #eef2f6}
+table.pp-g td.des{font-weight:600;white-space:normal;min-width:200px}
+table.pp-g td.cip{color:#556677}
+table.pp-g tr[data-pp-sel]{cursor:pointer}
+table.pp-g tbody tr:hover td{background:#f6f9fc}
+table.pp-g tr.sel td{background:#e8f0fa}
+table.pp-g tr.ecart td{background:#fff8eb}
+table.pp-g tr.pointee td{color:#3d5a50}
+table.pp-g td.pp-vide{text-align:center;color:#556677;padding:24px}
+.pp-actions-ligne{display:flex;gap:4px}
+.pp-pas{display:inline-block;padding:1px 8px;border-radius:10px;font-size:11px;font-weight:600;white-space:nowrap}
+.pp-pas.ok{background:#e3f5ef;color:#0b6b57}
+.pp-pas.att{background:#fff4e5;color:#b45309}
+.pp-pas.ko{background:#fdecea;color:#b42318}
+.pp-pas.info{background:#e3edf7;color:#1e3a5f}
+.pp-gris{color:#6b7c8d}
+.pp-rouge{color:#b42318 !important}
+.pp-orange{color:#b45309}
+
+/* ---------- suggestion B : groupes */
+.pp-groupe{display:flex;width:100%;gap:8px;align-items:center;padding:7px 10px;font:inherit;font-weight:700;font-size:12px;border:0;
+  border-bottom:1px solid #dfe6ee;cursor:pointer;text-align:left}
+.pp-groupe.r{background:#fdecea;color:#b42318}
+.pp-groupe.s{background:#fff4e5;color:#b45309}
+.pp-groupe.c{background:#f3f6fa;color:#556677}
+
+/* ---------- commande A : etapes */
+.pp-etapes{display:flex;margin:0;padding:12px;list-style:none;border-bottom:1px solid #dfe6ee;background:#fff;flex:none}
+.pp-etape{flex:1;display:flex;align-items:center;gap:8px;color:#556677;font-weight:600}
+.pp-etape .rond{width:24px;height:24px;border-radius:50%;border:2px solid #c3cfdb;display:grid;place-items:center;font-size:12px;background:#fff;flex:none}
+.pp-etape.fait{color:#0b6b57}
+.pp-etape.fait .rond{background:#17987e;border-color:#17987e;color:#fff}
+.pp-etape.cours{color:#1e3a5f}
+.pp-etape.cours .rond{border-color:#2563eb;color:#2563eb}
+.pp-etape:not(:last-child)::after{content:"";flex:1;height:2px;background:#dfe6ee;margin:0 10px}
+
+/* ---------- commande B : cartes */
+.pp-carte{border:1px solid #dfe6ee;border-radius:8px;padding:10px;margin-bottom:8px;background:#fff}
+.pp-carte small{color:#556677;display:block}
+.pp-carte b{display:block;font-size:18px;color:#1e3a5f}
+.pp-jauge{height:8px;background:#e6ecf3;border-radius:5px;overflow:hidden;margin-top:6px}
+.pp-jauge i{display:block;height:100%;background:#17987e}
+
+/* ---------- commande C : papier */
+.pp-fond-papier{background:#eef2f7;padding:16px}
+.pp-papier{max-width:960px;margin:0 auto;background:#fff;border:1px solid #d6dde6;box-shadow:0 2px 8px rgba(0,0,0,.06);padding:22px 26px}
+.pp-haut{display:flex;justify-content:space-between;border-bottom:2px solid #1e3a5f;padding-bottom:10px;margin-bottom:10px}
+.pp-haut h4{margin:0;font-size:18px;color:#1e3a5f}
+.pp-droite{text-align:right}
+table.pp-g.papier th{position:static}
+table.pp-g.papier .pp-qte-champ{border-color:transparent;background:transparent;color:#1b2a3a}
+table.pp-g.papier .pp-qte-champ:hover,table.pp-g.papier .pp-qte-champ:focus{border-color:#c3cfdb;background:#fff}
+.pp-total{display:flex;justify-content:flex-end;align-items:baseline;gap:20px;margin-top:12px;font-size:15px}
+.pp-actions-papier{display:flex;gap:6px;justify-content:flex-end;margin-top:12px}
+
+/* ---------- entrees */
+.pp-progression{display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid #dfe6ee;flex:none}
+.pp-progression .pp-jauge{flex:1;margin:0}
+.pp-onglets{display:flex;gap:4px;padding:8px 10px 0;border-bottom:1px solid #dfe6ee;background:#fbfcfe;flex:none}
+.pp-onglets button{padding:6px 12px;border:1px solid transparent;border-bottom:0;border-radius:7px 7px 0 0;font:inherit;font-weight:600;color:#556677;
+  background:transparent;cursor:pointer}
+.pp-onglets button.on{background:#fff;border-color:#dfe6ee;color:#1e3a5f;margin-bottom:-1px}
+.pp-onglets button em{font-style:normal;background:#b42318;color:#fff;border-radius:9px;padding:0 6px;margin-left:5px;font-size:11px}
+.pp-scan{display:grid;grid-template-columns:1.2fr 1fr;gap:12px;padding:12px;border-bottom:1px solid #dfe6ee;flex:none}
+.pp-scan .pp-recherche{width:100%;box-sizing:border-box}
+.pp-aide{margin-top:6px;font-size:12px}
+.pp-dernier{border:2px solid #17987e;border-radius:10px;padding:10px 12px;background:#e3f5ef}
+.pp-dernier.vide{border-color:#dfe6ee;background:#f8fafc;color:#556677}
+.pp-dernier.erreur{border-color:#b42318;background:#fdecea;color:#b42318}
+.pp-dernier b{font-size:14px}

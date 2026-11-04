@@ -106,6 +106,9 @@
         <script src="resources/js/selecteur-periodes.js?v=<%= JetonDeploiement.JETON %>"></script>
         <script src="resources/js/veille-geometrie.js?v=<%= JetonDeploiement.JETON %>"></script>
         <script src="resources/js/menu-prestige.js?v=<%= JetonDeploiement.JETON %>"></script>
+        <!-- Presentations a l'essai des saisies (proposition du 04/11) : ecran actuel par defaut -->
+        <link rel="stylesheet" type="text/css" href="resources/css/presentations-saisies.css?v=<%= JetonDeploiement.JETON %>" />
+        <script src="resources/js/presentations-saisies.js?v=<%= JetonDeploiement.JETON %>"></script>
         <script src="resources/js/barre-horizontale.js?v=<%= JetonDeploiement.JETON %>"></script>
         <!-- Banniere « session WhatsApp a reconnecter » (droits verifies par le serveur) -->
         <script src="resources/js/alerte-whatsapp.js?v=<%= JetonDeploiement.JETON %>"></script>

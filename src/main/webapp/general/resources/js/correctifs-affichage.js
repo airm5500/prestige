@@ -1310,6 +1310,26 @@ window.PrestigeAffichage.appliquerSiConcerne = function (ecran) {
     if (window.PrestigeAffichage.resynchroniserMiseEnPage) {
         window.PrestigeAffichage.resynchroniserMiseEnPage.planifier();
     }
+    // Presentations a l'essai des saisies (proposition du 04/11) : liste PRESENTATIONS_SAISIES ci-dessous, code dans
+    // resources/js/presentations-saisies.js. Sans choix sur le poste, l'ecran actuel ne change pas.
+    if (window.PrestigePresentations) {
+        window.PrestigePresentations.appliquerSiConcerne(ecran);
+    }
+};
+
+/*
+ * Presentations a l'essai des saisies (proposition du 04/11, docs/notices/PROPOSITION_SAISIES_2026-11-04.html) : pour
+ * chaque ecran, l'ecran actuel reste le defaut ; A, B et C se choisissent dans l'ecran meme (selecteur
+ * « Présentation » en haut a droite), choix memorise par poste. Elles ne changent que la presentation et appellent
+ * les actions existantes de l'ecran. Retirer une entree ici fait disparaitre le selecteur de cet ecran.
+ */
+window.PrestigeAffichage.PRESENTATIONS_SAISIES = {
+    suggestion: {xtype: 'suggerercdemanager', libelle: 'Suggestion ouverte', variantes: {
+            A: 'Tableau regroupé et panneau produit', B: 'Lignes rangées par urgence', C: 'Saisie au clavier'}},
+    commande: {xtype: 'ordermanagerlist', libelle: 'Saisie de commande', variantes: {
+            A: 'Commande guidée par étapes', B: 'Lignes à gauche, synthèse à droite', C: 'Bon de commande « papier »'}},
+    entree: {xtype: 'bonlivraisondetail', libelle: 'Gestion des entrées', variantes: {
+            A: 'Pointage ligne à ligne', B: 'Contrôle par les écarts', C: 'Réception au scanner'}}
 };
 
 Ext.onReady(function () {
