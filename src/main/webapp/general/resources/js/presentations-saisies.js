@@ -1208,8 +1208,13 @@ window.PrestigePresentations = (function () {
     function gestionLot(ctx) {
         return ctx.ecran.gestionLot === true;
     }
+    /* Quantite recue de la ligne : la commandee moins le reliquat (colonne RELICAT de l'ecran d'origine). L'API de la
+       grille renvoie « int_QTE_RECUE » egale a la commandee pour l'affichage d'origine ; le reliquat seul dit l'ecart. */
+    function recue(l) {
+        return Math.max(0, num(l.int_QTE_CMDE) - num(l.int_QTE_MANQUANT));
+    }
     function statutEntree(ctx, l) {
-        var cde = num(l.int_QTE_CMDE), recu = num(l.int_QTE_RECUE);
+        var cde = num(l.int_QTE_CMDE), recu = recue(l);
         if (gestionLot(ctx) && !l.lots) {
             return ['ko', 'Lot manquant', 'lots'];
         }
@@ -1221,10 +1226,10 @@ window.PrestigePresentations = (function () {
     function totauxEntree(ctx) {
         var t = {lignes: ctx.lignes.length, recu: 0, saisi: 0, ug: 0, montant: 0, pointees: 0, ecarts: 0, lots: 0, prix: 0, ugLignes: 0};
         ctx.lignes.forEach(function (l) {
-            t.recu += num(l.int_QTE_RECUE);
+            t.recu += recue(l);
             t.saisi += num(l.quantiteSaisie);
             t.ug += num(l.freeQty);
-            t.montant += num(l.int_QTE_RECUE) * num(l.int_PAF);
+            t.montant += recue(l) * num(l.int_PAF);
             if (l.checked) {
                 t.pointees++;
             }
@@ -1281,9 +1286,9 @@ window.PrestigePresentations = (function () {
                 + ctx.lignes.map(function (l) {
                     var s = statutEntree(ctx, l), id = enc(l.lg_BON_LIVRAISON_DETAIL);
                     var pointage = l.checked ? '<span class="pp-pas ok" title="Quantité pointée : ' + nf(l.checkedQuantity) + '">Pointé ✓</span>'
-                            : '<button type="button" class="pp-btn fin" data-pp-ligne-action="pointer" data-pp-ligne="' + id + '" title="Pointer cette ligne : quantité reçue ' + nf(l.int_QTE_RECUE) + '">Pointer</button>';
+                            : '<button type="button" class="pp-btn fin" data-pp-ligne-action="pointer" data-pp-ligne="' + id + '" title="Pointer cette ligne : quantité reçue ' + nf(recue(l)) + '">Pointer</button>';
                     return '<tr class="' + (l.checked ? 'pointee' : '') + '"><td>' + pointage + '</td><td>' + enc(l.lg_FAMILLE_CIP) + '</td><td class="des">' + enc(l.lg_FAMILLE_NAME) + '</td>'
-                            + '<td class="n">' + nf(l.int_QTE_CMDE) + '</td><td class="n"><b>' + nf(l.int_QTE_RECUE) + '</b></td><td class="n">' + nf(l.quantiteSaisie) + '</td>'
+                            + '<td class="n">' + nf(l.int_QTE_CMDE) + '</td><td class="n"><b>' + nf(recue(l)) + '</b></td><td class="n">' + nf(l.quantiteSaisie) + '</td>'
                             + '<td class="n">' + nf(l.freeQty) + '</td><td>' + (l.lots ? enc(l.lots) : (gestionLot(ctx) ? '<span class="pp-pas ko">à saisir</span>' : '<span class="pp-gris">—</span>')) + '</td>'
                             + '<td>' + enc(l.datePeremption || '') + '</td><td class="n">' + nf(l.int_PAF) + '</td><td class="n">' + nf(l.int_PRIX_VENTE) + '</td>'
                             + '<td><span class="pp-pas ' + s[0] + '">' + s[1] + '</span></td><td class="pp-actions-ligne">' + actionsLigneEntree(ctx, l) + '</td></tr>';
@@ -1329,12 +1334,12 @@ window.PrestigePresentations = (function () {
                 + (lignes.length ? lignes.map(function (l) {
                     var s = statutEntree(ctx, l);
                     return '<tr class="' + (s[2] || l.prixDiff === true ? 'ecart' : '') + '"><td>' + enc(l.lg_FAMILLE_CIP) + '</td><td class="des">' + enc(l.lg_FAMILLE_NAME) + '</td>'
-                            + '<td class="n">' + nf(l.int_QTE_CMDE) + '</td><td class="n"><b>' + nf(l.int_QTE_RECUE) + '</b></td><td class="n">' + nf(l.int_QTE_MANQUANT) + '</td>'
+                            + '<td class="n">' + nf(l.int_QTE_CMDE) + '</td><td class="n"><b>' + nf(recue(l)) + '</b></td><td class="n">' + nf(l.int_QTE_MANQUANT) + '</td>'
                             + '<td class="n">' + nf(l.quantiteSaisie) + '</td><td class="n">' + nf(l.freeQty) + '</td><td>' + enc(l.lots || '') + '</td>'
                             + '<td class="n">' + nf(l.int_PRIX_VENTE) + (l.prixDiff === true ? ' <span class="pp-pas att" title="Prix de vente du BL différent du prix en machine">≠</span>' : '') + '</td>'
                             + '<td><span class="pp-pas ' + s[0] + '">' + s[1] + '</span></td><td class="pp-actions-ligne">' + actionsLigneEntree(ctx, l) + '</td></tr>';
                 }).join('') : '<tr><td colspan="11" class="pp-vide">Rien dans cet onglet.</td></tr>') + '</tbody></table></div>'
-                + '<div class="pp-sous-pied">' + (ctx.onglet === 'tout' ? '' : 'Les ' + conformes + ' ligne' + (conformes > 1 ? 's' : '') + ' conformes restent dans « Tout ».') + '</div>'
+                + '<div class="pp-sous-pied">' + (ctx.onglet === 'tout' ? '' : (conformes > 1 ? 'Les ' + conformes + ' lignes conformes restent' : (conformes ? 'La ligne conforme reste' : 'Aucune ligne conforme')) + ' dans « Tout ».') + '</div>'
                 + piedEntree(ctx, t, btn('btn_enterstock', {cls: 'prim', texte: 'Entrée en stock'}));
     }
 
@@ -1424,7 +1429,7 @@ window.PrestigePresentations = (function () {
                 lignesLues++;
                 boites += lu;
             }
-            if (lu >= num(l.int_QTE_RECUE) && num(l.int_QTE_RECUE) > 0) {
+            if (lu >= recue(l) && recue(l) > 0) {
                 complets++;
             }
         });
@@ -1436,7 +1441,7 @@ window.PrestigePresentations = (function () {
         } else if (d.erreur) {
             carte = '<div class="pp-dernier erreur" role="alert"><small>Dernière lecture</small><br><b>' + enc(d.erreur) + '</b></div>';
         } else {
-            var l = ligneParId(ctx, d.ligne) || {}, lu = totalLu(ctx, d.ligne), recu = num(l.int_QTE_RECUE);
+            var l = ligneParId(ctx, d.ligne) || {}, lu = totalLu(ctx, d.ligne), recu = recue(l);
             carte = '<div class="pp-dernier" role="status"><small>Dernière lecture · ' + enc(d.heure) + ' · ' + enc(d.source) + '</small><br><b>' + enc(l.lg_FAMILLE_NAME) + '</b><br>'
                     + (d.lot ? 'Lot <b>' + enc(d.lot) + '</b> · ' : '<span class="pp-gris">sans lot</span> · ')
                     + (d.peremption ? 'péremption <b>' + enc(peremptionLisible(d.peremption)) + '</b> · ' : '')
@@ -1454,7 +1459,7 @@ window.PrestigePresentations = (function () {
                 + '<div class="pp-corps"><table class="pp-g"><thead><tr><th>CIP</th><th>Désignation</th><th class="n">Cdé</th><th class="n">Reçu</th><th class="n">Lu</th>'
                 + '<th>Lots lus</th><th>Pointage</th><th>État</th><th></th></tr></thead><tbody>'
                 + ctx.lignes.map(function (l) {
-                    var id = l.lg_BON_LIVRAISON_DETAIL, lu = totalLu(ctx, id), recu = num(l.int_QTE_RECUE);
+                    var id = l.lg_BON_LIVRAISON_DETAIL, lu = totalLu(ctx, id), recu = recue(l);
                     var lots = (ctx.lectures[id] || []).map(function (x) {
                         return x.lot ? enc(x.lot) + (x.peremption ? ' · ' + enc(peremptionLisible(x.peremption)) : '') + ' (' + x.n + ')' : 'sans lot (' + x.n + ')';
                     }).join('<br>');
@@ -1551,10 +1556,10 @@ window.PrestigePresentations = (function () {
             el.textContent = 'Pointage…';
             Ext.Ajax.request({
                 method: 'POST', url: '../api/v1/commande/bon/items/checked-quantities', headers: {'Content-Type': 'application/json'},
-                params: Ext.JSON.encode({id: l.lg_BON_LIVRAISON_DETAIL, checkedQuantity: num(l.int_QTE_RECUE)}),
+                params: Ext.JSON.encode({id: l.lg_BON_LIVRAISON_DETAIL, checkedQuantity: recue(l)}),
                 success: function () {
                     l.checked = true;
-                    l.checkedQuantity = num(l.int_QTE_RECUE);
+                    l.checkedQuantity = recue(l);
                     ctx.message = null;
                     rendre(ctx);
                 },
