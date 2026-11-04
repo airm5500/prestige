@@ -3367,6 +3367,10 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
 .vp-vente .x-grid-cell.vp-ref-defaut .x-grid-cell-inner { color: #8a97a3; font-weight: 400; font-style: italic; }
 .vp-vente .x-grid-cell.vp-ref-fiche .x-grid-cell-inner { color: #6a1b9a; font-weight: 700; }
 .vp-vente .x-grid-cell.vp-ref-cellule { cursor: text; }
+.vp-vente .x-grid-cell.vp-ref-cellule .x-grid-cell-inner { padding-left: 4px; padding-right: 6px; }
+.vp-vente .x-column-header.vp-ref-groupe .x-column-header-text { display: block; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vp-vente .x-column-header.vp-ref-groupe .x-column-header .x-column-header-inner { padding-left: 4px; padding-right: 4px; }
+.vp-vente .vp-ref-groupe-texte { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .vp-vente .x-grid-cell.vp-ref-erreur { background: #FDECEA !important; box-shadow: inset 0 0 0 2px #c0392b; }
 .vp-vente .vp-ref-message { padding: 5px 8px; border-radius: 4px; font-size: 11.5px; font-weight: 700; }
 .vp-vente .vp-ref-message-ko { background: #FDECEA; color: #7a1f14; border-left: 4px solid #c0392b; }

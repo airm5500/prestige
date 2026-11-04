@@ -1385,17 +1385,11 @@ Ext.define('testextjs.view.vente.VenteVNO', {
             return c.dataIndex === 'intPRICE';
         });
         let position = montant ? entete.items.indexOf(montant) : entete.items.getCount() - 1;
-        const cip = entete.items.findBy(function (c) {
-            return c.dataIndex === 'intCIP';
-        });
-        if (cip) {
-            // C.CIP fixe a 80 px et DESIGNATION garde une largeur minimale ; remis en place au retrait.
-            if (cip.flex) {
-                cip.flexReferenceTp = cip.flex;
-            }
-            cip.flex = null;
-            cip.setWidth(80);
-        }
+        // C.CIP a 100 px (le code reste lisible en entier), QD et QS a 55 px (des quantites), DESIGNATION garde une
+        // largeur minimale ; tout est remis en place au retrait des groupes.
+        me.fixerLargeurReferenceTp(entete, 'intCIP', 100);
+        me.fixerLargeurReferenceTp(entete, 'intQUANTITY', 55);
+        me.fixerLargeurReferenceTp(entete, 'intQUANTITYSERVED', 55);
         const designation = entete.items.findBy(function (c) {
             return c.dataIndex === 'strNAME';
         });
@@ -1409,13 +1403,40 @@ Ext.define('testextjs.view.vente.VenteVNO', {
         grille.getView().refresh();
     },
 
-    /** Un groupe « libelle du tiers-payant » -> P.REF | TAUX, 70 px chacune, editables. */
+    /** Fixe la largeur d'une colonne a flex, en gardant son flex d'origine pour le retrait. */
+    fixerLargeurReferenceTp: function (entete, dataIndex, largeur) {
+        const col = entete.items.findBy(function (c) {
+            return c.dataIndex === dataIndex;
+        });
+        if (!col) {
+            return;
+        }
+        if (col.flex) {
+            col.flexReferenceTp = col.flex;
+        }
+        col.flex = null;
+        col.setWidth(largeur);
+    },
+
+    /** Rend a une colonne son flex d'origine. */
+    rendreLargeurReferenceTp: function (entete, dataIndex) {
+        const col = entete.items.findBy(function (c) {
+            return c.dataIndex === dataIndex;
+        });
+        if (col && col.flexReferenceTp) {
+            col.width = null;
+            col.flex = col.flexReferenceTp;
+            delete col.flexReferenceTp;
+        }
+    },
+
+    /** Un groupe « libelle du tiers-payant » -> P.REF | TAUX (80 et 60 px), editables. */
     groupeColonnesReferenceTp: function (tp) {
         const me = this;
-        const colonne = function (champ, texte, info) {
+        const colonne = function (champ, texte, info, largeur) {
             return {
                 text: texte,
-                width: 70,
+                width: largeur,
                 align: 'right',
                 sortable: false,
                 menuDisabled: true,
@@ -1450,16 +1471,20 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                 }
             };
         };
+        // libelle long coupe par des points de suspension dans son groupe (140 px), nom complet en info-bulle
+        const libelle = Ext.String.htmlEncode(tp.libelle || '');
         return {
-            text: Ext.String.htmlEncode(tp.libelle || ''),
+            text: '<span class="vp-ref-groupe-texte" data-qtip="' + libelle + '">' + libelle + '</span>',
             groupeReferenceTp: {tpId: tp.tpId, libelle: tp.libelle},
+            // largeur fixee a la somme des deux colonnes : sans elle, l'en-tete s'elargit a la longueur du libelle
+            width: 140,
             menuDisabled: true,
             sortable: false,
             draggable: false,
             cls: 'vp-ref-groupe',
             columns: [
-                colonne('valeur', 'P.REF', 'Prix de référence pour ce tiers-payant (de 5 au prix de vente)'),
-                colonne('taux', 'TAUX', 'Taux pour ce tiers-payant et ce produit (5 à 100)')
+                colonne('valeur', 'P.REF', 'Prix de référence pour ce tiers-payant (de 5 au prix de vente)', 80),
+                colonne('taux', 'TAUX', 'Taux pour ce tiers-payant et ce produit (5 à 100)', 60)
             ]
         };
     },
@@ -1509,14 +1534,9 @@ Ext.define('testextjs.view.vente.VenteVNO', {
         Ext.each(groupes, function (g) {
             entete.remove(g, true);
         });
-        const cip = entete.items.findBy(function (c) {
-            return c.dataIndex === 'intCIP';
+        Ext.each(['intCIP', 'intQUANTITY', 'intQUANTITYSERVED'], function (dataIndex) {
+            me.rendreLargeurReferenceTp(entete, dataIndex);
         });
-        if (cip && cip.flexReferenceTp) {
-            cip.width = null;
-            cip.flex = cip.flexReferenceTp;
-            delete cip.flexReferenceTp;
-        }
         const designation = entete.items.findBy(function (c) {
             return c.dataIndex === 'strNAME';
         });
