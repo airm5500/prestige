@@ -12,8 +12,8 @@ Réalisation du cas 2 de `docs/analyses/2026-11-03/` (analyse `cas2-prix-taux-re
   d'aujourd'hui (pas de champ `referencesTp`), et les services de la caisse répondent **403**. Le test d'écran 3 compare
   l'en-tête de la grille au pixel près (comptant et assurance, paramètre à 0 puis à 1 au comptant).
 - **À 1**, en vente **Assurance** (type 2) seulement : un groupe de colonnes par tiers-payant de la vente, en-tête au
-  nom du tiers-payant → **P.REF | TAUX** (70 px chacune), placé entre P.U et MONTANT ; C.CIP passe à 80 px et
-  DESIGNATION garde 170 px au minimum. Les groupes suivent les tiers-payants de la vente (ajout par « Ajouter une
+  nom du tiers-payant (coupé par des points de suspension, nom complet en info-bulle) → **P.REF | TAUX** (80 et 60 px), placé entre P.U et MONTANT ; C.CIP passe à 100 px (code
+  lisible en entier), QD et QS à 55 px, DESIGNATION garde 170 px au minimum. Les groupes suivent les tiers-payants de la vente (ajout par « Ajouter une
   Assurance complémentaire », « Retirer », rappel d'une vente) et disparaissent au comptant / carnet et à la remise à
   zéro de l'écran (mise en attente, retour).
 

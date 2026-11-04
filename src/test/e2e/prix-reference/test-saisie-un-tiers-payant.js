@@ -37,9 +37,9 @@ const { ok, q, A } = C;
 
     /* 2. la grille */
     let e = await C.entete(p);
-    ok('Un groupe de colonnes au nom du tiers-payant, P.REF | TAUX à 70 px', e && e.groupes.length === 1 && e.groupes[0] === TP
-      && e.colonnes.find((c) => c.groupe).sous.map((s) => s.texte + ':' + s.largeur).join(',') === 'P.REF:70,TAUX:70', JSON.stringify(e && e.colonnes));
-    ok('C.CIP fixé à 80 px, le groupe placé entre P.U et MONTANT', e && e.colonnes.find((c) => c.texte === 'C.CIP').largeur === 80
+    ok('Un groupe de colonnes au nom du tiers-payant, P.REF à 80 px | TAUX à 60 px', e && e.groupes.length === 1 && e.groupes[0] === TP
+      && e.colonnes.find((c) => c.groupe).sous.map((s) => s.texte + ':' + s.largeur).join(',') === 'P.REF:80,TAUX:60', JSON.stringify(e && e.colonnes));
+    ok('C.CIP fixé à 100 px, le groupe placé entre P.U et MONTANT', e && e.colonnes.find((c) => c.texte === 'C.CIP').largeur === 100
       && e.colonnes.map((c) => c.groupe ? 'TP' : c.texte).join(',') === 'LG,C.CIP,DESIGNATION,QD,QS,P.U,TP,MONTANT,', e && e.colonnes.map((c) => c.texte + ':' + c.largeur).join(' '));
     ok('Libellé discret sous la grille (règle du minimum)', e && e.rappel);
     let l = await C.ligne(p, CIP);
