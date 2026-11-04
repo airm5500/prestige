@@ -1923,14 +1923,6 @@ body.x-body,
     min-width: 0;
     margin: 4px 0;
 }
-/* Retour du 04/11 (style C) : la couleur de chaque indicateur passe dans sa pastille ; tuile blanche. */
-.pilotage-ardoise .pilotage-tuiles-suivi .pilotage-tuile[data-cle="rotation"]::before { background: #e3edf7; color: #1f5f9e; }
-.pilotage-ardoise .pilotage-tuiles-suivi .pilotage-tuile[data-cle="tauxRupture"]::before { background: #fff2e0; color: #a35400; }
-.pilotage-ardoise .pilotage-tuiles-suivi .pilotage-tuile[data-cle="evolPanier"]::before { background: #efebfa; color: #5b3fa0; }
-.pilotage-ardoise .pilotage-tuiles-suivi .pilotage-tuile[data-cle="rupturesVendus"]::before { background: #fdeceb; color: #b42318; }
-.pilotage-ardoise .pilotage-tuiles-suivi .pilotage-tuile[data-cle="rateesACommander"]::before { background: #fff2e0; color: #a35400; }
-.pilotage-ardoise .pilotage-tuiles-suivi .pilotage-tuile[data-cle="margeNegative"]::before { background: #fbe9f1; color: #a33a6b; }
-.pilotage-ardoise .pilotage-tuiles-suivi .pilotage-tuile[data-cle="peremption"]::before { background: #e6f4ee; color: #17795f; }
 .pilotage-ardoise .sv-cartes {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3452,3 +3444,79 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
 .vp-vente .vp-cpt-pastille { display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 9px; font-size: 10px;
   font-weight: 700; letter-spacing: .04em; color: #7a4a00; background: #FFE08A; border: 1px solid #e0b040; vertical-align: 1px; }
 .vp-vente .x-grid-cell.vp-cpt-cellule { cursor: pointer; }
+
+/* ===== Retour du 04/11 (2) : « pourquoi les couleurs ont disparu ? ». Le retrait des filets ne devait pas emporter les
+   couleurs douces demandees le 05/10 (« sinon on ne sent pas la difference, l'ecran est plat »). Les teintes reviennent
+   en FOND (bandeaux, tuiles), jamais en trait sur un bord ; les pastilles portent une icone qui dit ce qu'elles montrent. */
+
+/* Tableau de bord : bandeau de chaque carte dans la teinte de la carte, en degrade vers le blanc. */
+.tb-tete { background: linear-gradient(180deg, var(--doux, #f5f8fc) 0%, #ffffff 140%); border-bottom: 1px solid rgba(15, 23, 42, .07); }
+
+/* Cartes des ecrans : bandeaux teintes, alternes entre voisines ; sec-* fixe une teinte qui a un sens. */
+.ordo-carte > .x-panel-header, .ordo-carte .x-panel-header-default { background: #eef4fb !important; border-bottom: 1px solid #dbe6f2 !important; box-shadow: none; }
+.ordo-carte:nth-child(4n+2) > .x-panel-header { background: #eaf6f1 !important; border-bottom-color: #d3ebe1 !important; }
+.ordo-carte:nth-child(4n+3) > .x-panel-header { background: #fdf4e6 !important; border-bottom-color: #efe4d2 !important; }
+.ordo-carte:nth-child(4n+4) > .x-panel-header { background: #f2effb !important; border-bottom-color: #e2dcf5 !important; }
+.ordo-carte.sec-bleu > .x-panel-header { background: #eef4fb !important; border-bottom-color: #dbe6f2 !important; }
+.ordo-carte.sec-vert > .x-panel-header { background: #eaf6f1 !important; border-bottom-color: #d3ebe1 !important; }
+.ordo-carte.sec-ambre > .x-panel-header { background: #fdf4e6 !important; border-bottom-color: #efe4d2 !important; }
+.ordo-carte.sec-violet > .x-panel-header { background: #f2effb !important; border-bottom-color: #e2dcf5 !important; }
+.mv-panneau .x-panel:not(.ordo-carte) > .x-panel-header-default:not(.x-tab-bar) { background: #eef4fb !important; border-bottom: 1px solid #dbe6f2 !important; }
+
+/* Pilotage : chaque tuile a sa teinte douce (fond en degrade) et une pastille avec l'icone de son indicateur. */
+.pilotage-ardoise .pilotage-tuile { --doux: #eef4fb; --fort: #1f5f9e; --ico: "\e473";
+    background: linear-gradient(135deg, var(--doux) 0%, #ffffff 80%) !important; box-shadow: 0 4px 12px rgba(15, 23, 42, .06); }
+.pilotage-ardoise .pilotage-tuile::before { content: var(--ico); font-family: "Font Awesome 6 Free"; font-weight: 900; font-size: 13px;
+    background: #ffffff; color: var(--fort); box-shadow: 0 1px 3px rgba(15, 23, 42, .12); }
+/* argent qui rentre : vert */
+.pilotage-ardoise .pilotage-tuile:is([data-cle="caTTC"], [data-cle="caHT"], [data-cle="ca"], [data-cle="encaisse"], [data-cle="valeurVente"]) { --doux: #e6f6ee; --fort: #17795f; --ico: "\f51e"; }
+/* marge et resultat : bleu */
+.pilotage-ardoise .pilotage-tuile:is([data-cle="marge"], [data-cle="tauxMarge"], [data-cle="tauxNet"]) { --doux: #e8f0fb; --fort: #1f5f9e; --ico: "\25"; }
+.pilotage-ardoise .pilotage-tuile[data-cle="resultatNet"] { --doux: #e8f0fb; --fort: #1f5f9e; --ico: "\f201"; }
+/* achats : violet */
+.pilotage-ardoise .pilotage-tuile:is([data-cle="achats"], [data-cle="achat"], [data-cle="achatMoyen"], [data-cle="coutAchat"], [data-cle="valeurAchat"], [data-cle="nbBons"]) { --doux: #f0ebfb; --fort: #5b3fa0; --ico: "\f0d1"; }
+/* rapports : cyan */
+.pilotage-ardoise .pilotage-tuile:is([data-cle="ratio"], [data-cle="ratioVA"], [data-cle="ecart"]) { --doux: #e3f4f8; --fort: #1d7488; --ico: "\f24e"; }
+.pilotage-ardoise .pilotage-tuile[data-cle="rotation"] { --doux: #e3f4f8; --fort: #1d7488; --ico: "\f2f1"; }
+/* tiers-payant et credit : ambre */
+.pilotage-ardoise .pilotage-tuile:is([data-cle="tiersPayant"], [data-cle="tpFacture"], [data-cle="tpRegle"], [data-cle="credit"]) { --doux: #fff3e0; --fort: #a35400; --ico: "\f2b5"; }
+/* ventes et frequentation : bleu clair */
+.pilotage-ardoise .pilotage-tuile[data-cle="nbVentes"] { --doux: #e7f1fd; --fort: #1565c0; --ico: "\f07a"; }
+.pilotage-ardoise .pilotage-tuile:is([data-cle="panier"], [data-cle="evolPanier"]) { --doux: #e7f1fd; --fort: #1565c0; --ico: "\f291"; }
+.pilotage-ardoise .pilotage-tuile[data-cle="frequentation"] { --doux: #e7f1fd; --fort: #1565c0; --ico: "\f0c0"; }
+.pilotage-ardoise .pilotage-tuile[data-cle="remises"] { --doux: #fdf0f6; --fort: #a33a6b; --ico: "\f02c"; }
+.pilotage-ardoise .pilotage-tuile[data-cle="annulees"] { --doux: #f1f4f8; --fort: #5b6b7c; --ico: "\f05e"; }
+.pilotage-ardoise .pilotage-tuile[data-cle="charges"] { --doux: #f1f4f8; --fort: #5b6b7c; --ico: "\f571"; }
+/* stock a surveiller : rose */
+.pilotage-ardoise .pilotage-tuile:is([data-cle="ruptures"], [data-cle="rupturesVendus"], [data-cle="tauxRupture"], [data-cle="sousSeuil"], [data-cle="rateesACommander"]) { --doux: #fdeeee; --fort: #b42318; --ico: "\f071"; }
+.pilotage-ardoise .pilotage-tuile:is([data-cle="margeNegative"], [data-cle="negatifs"]) { --doux: #fdeeee; --fort: #b42318; --ico: "\e097"; }
+.pilotage-ardoise .pilotage-tuile[data-cle="peremption"] { --doux: #fff3e0; --fort: #a35400; --ico: "\f252"; }
+.pilotage-ardoise .pilotage-tuile[data-cle="dormant"] { --doux: #f1f4f8; --fort: #5b6b7c; --ico: "\f186"; }
+.pilotage-ardoise .pilotage-tuile:is([data-cle="sansPrix"], [data-cle="sansSeuil"]) { --doux: #f1f4f8; --fort: #5b6b7c; --ico: "\f02b"; }
+.pilotage-ardoise .pilotage-tuile[data-cle="sansRayon"] { --doux: #f1f4f8; --fort: #5b6b7c; --ico: "\f3c5"; }
+/* tuile en alerte : fond rose, pastille rouge pleine */
+.pilotage-ardoise .pilotage-tuile.pilotage-tuile-alerte, .pilotage-ardoise .pilotage-tuile:has(.pilotage-alerte) { --doux: #fde7e7; --fort: #b42318; }
+.pilotage-ardoise .pilotage-tuile.pilotage-tuile-alerte::before, .pilotage-ardoise .pilotage-tuile:has(.pilotage-alerte)::before { content: "\f071"; background: #b42318; color: #ffffff; }
+
+/* Tuiles des parametres : fond teinte par tuile, sans pastille vide. */
+.fc-tuiles .fc-tuile { padding-left: 12px !important; }
+.fc-tuiles .fc-tuile::before { content: none; display: none; }
+.fc-tuiles .fc-tuile:nth-child(6n+1) { background: #f1f6fd; }
+.fc-tuiles .fc-tuile:nth-child(6n+2) { background: #eef8f4; }
+.fc-tuiles .fc-tuile:nth-child(6n+3) { background: #fdf6ec; }
+.fc-tuiles .fc-tuile:nth-child(6n+4) { background: #f5f2fc; }
+.fc-tuiles .fc-tuile:nth-child(6n+5) { background: #fdf1f2; }
+.fc-tuiles .fc-tuile:nth-child(6n+6) { background: #eff8fa; }
+
+/* Tuiles des ordonnances et de PharmaML : le fond reprend la teinte de la pastille ; plus de point sans sens. */
+.ordo-tuile { background: #f1f6fd; }
+.ordo-tuile::before { content: "\f05a"; font-family: "Font Awesome 6 Free"; font-weight: 900; font-size: 13px; }
+.ordo-tuile.ordo-tuile-rouge { background: #fdf1f0; }
+.ordo-tuile.ordo-tuile-verte { background: #eef8f4; }
+.ordo-tuile.ordo-tuile-grise { background: #f4f6f9; }
+.pml-tuile { background: #f6f8fa; }
+.pml-tuile::before { content: "\f05a"; font-family: "Font Awesome 6 Free"; font-weight: 900; font-size: 13px; }
+.pml-tuile.ok { background: #f1faf6; } .pml-tuile.info { background: #f1f6fd; }
+.pml-tuile.alerte { background: #fffaf0; } .pml-tuile.critique { background: #fff5f4; }
+.pml-tuile.ok::before, .pml-tuile.info::before, .pml-tuile.alerte::before, .pml-tuile.critique::before { font-family: inherit; font-size: 15px; font-weight: 800; }
+.ordo-tuile.ordo-tuile-rouge::before, .ordo-tuile.ordo-tuile-verte::before { font-family: inherit; font-size: 15px; font-weight: 800; }
