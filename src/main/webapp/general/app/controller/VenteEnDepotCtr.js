@@ -3242,7 +3242,7 @@ Ext.define('testextjs.controller.VenteEnDepotCtr', {
                     border: false,
                     title: '<span style="font-size:12px;">SÉLECTION RAPIDE MOBILE MONEY</span>',
                     layout: {type: 'hbox', align: 'stretch'},
-                    style: 'border-bottom:2px solid #1E8449;',
+                    style: 'border-bottom:1px solid #d5dee8;',
                     items: boutons
                 });
             }

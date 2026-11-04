@@ -75,7 +75,7 @@ Ext.define('testextjs.view.avisclients.AvisClients', {
             '.avisclients .av-detail h3{margin:0 0 2px;font-size:15px}',
             '.avisclients .av-detail .av-gris{color:#6b7785;font-size:12px}',
             '.avisclients .av-detail .av-bloc{background:#f4f7f9;border-radius:8px;padding:8px 10px;margin:8px 0;white-space:pre-wrap;word-wrap:break-word}',
-            '.avisclients .av-detail .av-reponse{background:#e7f3f0;border-left:3px solid #1d8a76}',
+            '.avisclients .av-detail .av-reponse{background:#e7f3f0}',
             '.avisclients .av-vide{color:#8a96a3;text-align:center;padding:60px 20px}',
             '.avisclients .an{padding:10px 14px;font-size:13px}',
             '.avisclients .an-tuiles{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:12px}',

@@ -73,10 +73,13 @@ Ext.define('testextjs.view.support.SupportServeur', {
         }
         Ext.util.CSS.createStyleSheet(
                 '.srv-tuiles{display:flex;flex-wrap:wrap;gap:10px;padding:10px}'
-                + '.srv-tuile{flex:1 1 170px;min-width:170px;border:1px solid #d5dbe1;border-left:5px solid #1f6fb2;border-radius:8px;background:#fff;padding:8px 10px}'
+                + '.srv-tuile{flex:1 1 170px;min-width:170px;border:1px solid #d5dbe1;border-radius:8px;background:#fff;padding:8px 10px 8px 48px;position:relative}'
+                /* retour du 04/11 (style C) : pastille a gauche au lieu du filet de couleur */
+                + '.srv-tuile::before{content:"\\2022";position:absolute;left:10px;top:10px;width:28px;height:28px;border-radius:7px;display:flex;'
+                + 'align-items:center;justify-content:center;font-size:18px;font-weight:800;background:#e3edf7;color:#1f5f9e}'
                 + '.srv-tuile .t{font-size:11px;color:#5d6d7e;text-transform:uppercase;letter-spacing:.3px}'
                 + '.srv-tuile .n{font-size:20px;font-weight:bold;color:#1b2631;margin-top:2px}.srv-tuile .s{font-size:11px;color:#5d6d7e}'
-                + '.srv-tuile.alerte{border-left-color:#c0392b}.srv-tuile.alerte .n{color:#c0392b}.srv-tuile.attention{border-left-color:#e67e22}'
+                + '.srv-tuile.alerte::before{content:"!";background:#fdeceb;color:#b42318}.srv-tuile.alerte .n{color:#c0392b}.srv-tuile.attention::before{content:"!";background:#fff2e0;color:#a35400}'
                 + '.srv-cause{margin:10px;padding:10px 12px;border-radius:6px;background:#fdecea;color:#7b241c;border:1px solid #f5b7b1}'
                 + '.srv-cause.WARN{background:#fff4e0;color:#7a4b00;border-color:#f8c471}'
                 + '.srv-ok{color:#1e8449;font-weight:bold}.srv-ajuster{color:#b9770e;font-weight:bold}.srv-critique{color:#c0392b;font-weight:bold}'
@@ -85,7 +88,7 @@ Ext.define('testextjs.view.support.SupportServeur', {
                 + '.srv-code textarea{font-family:Consolas,monospace !important;font-size:12px !important}'
                 + '.srv-lex-image{padding:10px 12px;background:#eaf2f8;border-radius:6px;color:#1b4f72;margin-bottom:6px}'
                 + '.srv-lex-groupe{margin:16px 0 6px;color:#1f6fb2;font-size:15px}'
-                + '.srv-lex{border:1px solid #d5dbe1;border-left:5px solid #1f6fb2;border-radius:8px;background:#fff;padding:10px 12px;margin-bottom:10px;line-height:1.55}'
+                + '.srv-lex{border:1px solid #d5dbe1;border-radius:8px;background:#fff;padding:10px 12px;margin-bottom:10px;line-height:1.55}'
                 + '.srv-lex>div{margin-top:3px}.srv-lex-terme{font-weight:bold;font-size:14px;color:#1b2631}'
                 + '.srv-lex-ici{background:#f4f6f8;border-radius:4px;padding:1px 6px;margin-left:6px}'
                 + '.srv-confirmer,.srv-confirmer .x-btn-inner{background:#c0392b !important;color:#fff !important}'

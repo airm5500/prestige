@@ -328,7 +328,7 @@
 .prestige-nav .x-tree-node-expanded > .x-grid-row .x-grid-cell {
     background: #17304f !important;
     background-color: #17304f !important;
-    border-left: 4px solid rgba(93,173,226,0.5) !important;
+    font-weight: 700;
 }
 
 /* ---- Scrollbar ---- */
@@ -451,8 +451,8 @@
 .prestige-flyout-menu .x-menu-item:hover {
     background-color: var(--vp-survol-fond, #ffcc80) !important;
     background-image: none !important;
-    border-left: 4px solid var(--vp-survol-bord, #e65100) !important;
-    border-radius: 0 6px 6px 0 !important;
+    border-radius: 6px !important;
+    font-weight: 700;
     transform: translateX(4px);
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35), inset 0 0 0 1px var(--vp-survol-bord, #e65100) !important;
 }

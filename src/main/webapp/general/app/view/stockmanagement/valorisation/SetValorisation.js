@@ -117,10 +117,13 @@ Ext.define('testextjs.view.stockmanagement.valorisation.SetValorisation', {
         Ext.util.CSS.createStyleSheet(
                 '.setvalo-bandeau{margin:8px 10px 0;padding:8px 12px;border-radius:6px;background:#fdecea;color:#8a1c1c;border:1px solid #f5b7b1}'
                 + '.setvalo-tuiles{display:flex;flex-wrap:wrap;gap:10px;padding:4px 6px}'
-                + '.setvalo-tuile{flex:1 1 150px;min-width:150px;border:1px solid #d5dbe1;border-left:5px solid #1f6fb2;border-radius:8px;background:#fff;padding:8px 10px}'
+                + '.setvalo-tuile{flex:1 1 150px;min-width:150px;border:1px solid #d5dbe1;border-radius:8px;background:#fff;padding:8px 10px 8px 48px;position:relative}'
+                /* retour du 04/11 (style C) : pastille a gauche au lieu du filet de couleur */
+                + '.setvalo-tuile::before{content:"\\2022";position:absolute;left:10px;top:10px;width:28px;height:28px;border-radius:7px;display:flex;'
+                + 'align-items:center;justify-content:center;font-size:18px;font-weight:800;background:#e3edf7;color:#1f5f9e}'
                 + '.setvalo-tuile .t{font-size:11px;color:#5d6d7e;text-transform:uppercase;letter-spacing:.3px}'
                 + '.setvalo-tuile .n{font-size:20px;font-weight:bold;color:#1b2631;margin-top:2px}'
-                + '.setvalo-tuile.cible{border-left-color:#8e44ad}.setvalo-tuile.obtenu{border-left-color:#c0392b}'
+                + '.setvalo-tuile.cible::before{background:#efebfa;color:#5b3fa0}.setvalo-tuile.obtenu::before{content:"!";background:#fdeceb;color:#b42318}'
                 + '.setvalo-tuile.obtenu .n:after{content:" SIMULATION";font-size:10px;color:#c0392b;vertical-align:middle;margin-left:6px}'
                 + '.setvalo-plus{color:#1e8449;font-size:11px}.setvalo-moins{color:#c0392b;font-size:11px}'
                 + '.setvalo-info{color:#34495e}.setvalo-erreur{color:#c0392b;font-weight:bold}.setvalo-ok{color:#1e8449}'

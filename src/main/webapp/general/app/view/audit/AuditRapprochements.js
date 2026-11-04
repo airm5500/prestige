@@ -67,9 +67,12 @@ Ext.define('testextjs.view.audit.AuditRapprochements', {
         Ext.util.CSS.createStyleSheet(
                 '.audit-tuiles{display:flex;flex-wrap:wrap;gap:10px;padding:10px}'
                 + '.audit-tuile{flex:1 1 200px;min-width:200px;max-width:320px;border-radius:8px;padding:10px 12px;cursor:pointer;'
-                + 'border:1px solid #d5dbe1;border-left:6px solid #1e8449;background:#fff;transition:box-shadow .15s,transform .15s}'
+                + 'border:1px solid #d5dbe1;background:#fff;transition:box-shadow .15s,transform .15s;position:relative;padding-left:48px}'
+                /* retour du 04/11 (style C) : l'etat passe dans une pastille a gauche, plus de filet de couleur */
+                + '.audit-tuile::before{content:"\\2713";position:absolute;left:10px;top:10px;width:28px;height:28px;border-radius:7px;display:flex;'
+                + 'align-items:center;justify-content:center;font-weight:800;background:#e6f4ee;color:#17795f}'
                 + '.audit-tuile:hover{box-shadow:0 2px 8px rgba(0,0,0,.15);transform:translateY(-1px)}'
-                + '.audit-tuile.ecart{border-left-color:#c0392b}.audit-tuile.erreur{border-left-color:#e67e22}'
+                + '.audit-tuile.ecart::before{content:"!";background:#fdeceb;color:#b42318}.audit-tuile.erreur::before{content:"!";background:#fff2e0;color:#a35400}'
                 + '.audit-tuile.choisie{outline:2px solid #1f6fb2}'
                 + '.audit-tuile .t{font-weight:bold;color:#2c3e50;margin-bottom:4px}'
                 + '.audit-tuile .n{font-size:22px;font-weight:bold;color:#1e8449}.audit-tuile.ecart .n{color:#c0392b}'

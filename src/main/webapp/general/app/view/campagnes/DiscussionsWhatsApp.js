@@ -31,7 +31,7 @@ Ext.define('testextjs.view.campagnes.DiscussionsWhatsApp', {
                 '.wad .wad-liste{background:#f3f6fa}'
                 + '.wad .wad-item{display:flex;gap:10px;padding:9px 12px;border-bottom:1px solid #e3e9f1;cursor:pointer;align-items:flex-start}'
                 + '.wad .wad-item:hover{background:#eaf1f8}'
-                + '.wad .wad-item.x-item-selected{background:#e3f4f8;box-shadow:inset 3px 0 0 #f2b84b}'
+                + '.wad .wad-item.x-item-selected{background:#e3edf7;font-weight:700;color:#1e3a5f}'
                 + '.wad .wad-av{width:36px;height:36px;flex:0 0 36px;border-radius:50%;background:#dcfce7;color:#15803d;display:grid;place-items:center;font-size:16px}'
                 + '.wad .wad-corps{flex:1;min-width:0}'
                 + '.wad .wad-l1{display:flex;gap:6px;align-items:baseline}'

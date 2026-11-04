@@ -110,7 +110,6 @@ body.x-body,
 .vp-shell > .x-panel-body > .x-fieldset {
     background: #FFFFFF;
     border: 1px solid #C9D5E1;
-    border-left: 5px solid #1e3a5f;
     border-radius: 8px;
     padding: 6px 12px 8px;
     margin-bottom: 12px;
@@ -213,7 +212,6 @@ body.x-body,
 .vp-vente .x-fieldset.vp-paycard {
     background: #F3F7FB;
     border: 1px solid #B9CBDD;
-    border-top: 4px solid #1e3a5f;
     box-shadow: 0 2px 10px rgba(21, 45, 78, .14);
 }
 
@@ -1219,11 +1217,12 @@ body.x-body,
     align-items: baseline;
     gap: 8px;
     font-size: 11.5px;
-    padding: 2px 0 2px 8px;
-    border-left: 3px solid #c9d3d9;
+    padding: 2px 0;
 }
-.vp-ap-lots li.proche { border-left-color: #c26a00; }
-.vp-ap-lots li.perime { border-left-color: #c0392b; }
+/* retour du 04/11 (style A) : le niveau s'ecrit dans une etiquette en tete de ligne, plus de filet de couleur */
+.vp-ap-lots li.proche::before, .vp-ap-lots li.perime::before { flex: 0 0 auto; border-radius: 9px; padding: 0 7px; font-size: 10.5px; font-weight: 700; }
+.vp-ap-lots li.proche::before { content: "Proche"; background: #fff2e0; color: #8a4500; }
+.vp-ap-lots li.perime::before { content: "P\00E9rim\00E9"; background: #fdeceb; color: #9b1c1c; }
 .vp-ap-lots li .d { font-weight: 800; color: #14303a; }
 .vp-ap-lots li .q { color: #6b8089; }
 .vp-ap-lots li .r { margin-left: auto; font-weight: 700; color: #6b8089; }
@@ -1314,7 +1313,7 @@ body.x-body,
 .ventilation-balance .vb-lib { text-align: left; color: #34495e; }
 .ventilation-balance .vb-n { text-align: right; font-weight: bold; }
 .ventilation-balance .vb-p { text-align: right; color: #1565c0; font-weight: bold; }
-.ventilation-balance .vb-total td { border-top: 2px solid #2E75B6; font-weight: bold; }
+.ventilation-balance .vb-total td { border-top: 2px solid #94a3b8; font-weight: bold; }
 .ventilation-balance .vb-operateur td { color: #7f8c8d; font-weight: normal; }
 .ventilation-balance .vb-operateur .vb-n, .ventilation-balance .vb-operateur .vb-p { font-weight: normal; }
 
@@ -1371,7 +1370,7 @@ body.x-body,
 .analyse-article-quadrants .aa-entete { font-size: 12px; color: #333; margin-bottom: 6px; }
 /* Les trois regles de classement, en clair sous la periode : marge, rotation, ruptures. */
 .analyse-article-quadrants .aa-regles { display: inline-block; margin-top: 3px; padding: 2px 8px; font-size: 12px;
-    color: #1E3A5F; background: #EEF3FA; border-left: 3px solid #b7791f; border-radius: 3px; }
+    color: #1E3A5F; background: #EEF3FA; border-radius: 6px; }
 .analyse-article-quadrants .aa-grille { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .analyse-article-quadrants .aa-quadrant { background: #fff; border: 1px solid #d5dde5; border-radius: 3px; padding: 6px 10px; cursor: pointer; min-height: 96px; }
 .analyse-article-quadrants .aa-quadrant:hover { box-shadow: 0 0 0 2px #b8c6d4 inset; }
@@ -1410,7 +1409,7 @@ body.x-body,
 .synthese-inventaire .si-table tr:nth-child(even) td { background: #f7f9fb; }
 .synthese-inventaire .si-n { text-align: right; font-weight: bold; white-space: nowrap; }
 .synthese-inventaire .si-c { color: #7f8c8d; font-size: 11px; }
-.synthese-inventaire .si-fort td { border-top: 2px solid #2E75B6; border-bottom: 2px solid #2E75B6; }
+.synthese-inventaire .si-fort td { border-top: 2px solid #94a3b8; border-bottom: 2px solid #94a3b8; }
 .synthese-inventaire .si-rouge { color: #B02A37; }
 .synthese-inventaire .si-vert { color: #1E7E34; }
 .synthese-inventaire .si-vide { color: #7f8c8d; font-style: italic; text-align: center; }
@@ -1924,13 +1923,14 @@ body.x-body,
     min-width: 0;
     margin: 4px 0;
 }
-.pilotage-ardoise .pilotage-tuiles-suivi .pilotage-tuile[data-cle="rotation"] { background: #eef4ff; border-left-color: #6b8fd6; }
-.pilotage-ardoise .pilotage-tuiles-suivi .pilotage-tuile[data-cle="tauxRupture"] { background: #fff6e8; border-left-color: #e0a54a; }
-.pilotage-ardoise .pilotage-tuiles-suivi .pilotage-tuile[data-cle="evolPanier"] { background: #f4efff; border-left-color: #9a84d6; }
-.pilotage-ardoise .pilotage-tuiles-suivi .pilotage-tuile[data-cle="rupturesVendus"] { background: #fff0f0; }
-.pilotage-ardoise .pilotage-tuiles-suivi .pilotage-tuile[data-cle="rateesACommander"] { background: #fff3ea; border-left-color: #e8925a; }
-.pilotage-ardoise .pilotage-tuiles-suivi .pilotage-tuile[data-cle="margeNegative"] { background: #fdf0f6; border-left-color: #d97aa5; }
-.pilotage-ardoise .pilotage-tuiles-suivi .pilotage-tuile[data-cle="peremption"] { background: #edf8f1; border-left-color: #5fb487; }
+/* Retour du 04/11 (style C) : la couleur de chaque indicateur passe dans sa pastille ; tuile blanche. */
+.pilotage-ardoise .pilotage-tuiles-suivi .pilotage-tuile[data-cle="rotation"]::before { background: #e3edf7; color: #1f5f9e; }
+.pilotage-ardoise .pilotage-tuiles-suivi .pilotage-tuile[data-cle="tauxRupture"]::before { background: #fff2e0; color: #a35400; }
+.pilotage-ardoise .pilotage-tuiles-suivi .pilotage-tuile[data-cle="evolPanier"]::before { background: #efebfa; color: #5b3fa0; }
+.pilotage-ardoise .pilotage-tuiles-suivi .pilotage-tuile[data-cle="rupturesVendus"]::before { background: #fdeceb; color: #b42318; }
+.pilotage-ardoise .pilotage-tuiles-suivi .pilotage-tuile[data-cle="rateesACommander"]::before { background: #fff2e0; color: #a35400; }
+.pilotage-ardoise .pilotage-tuiles-suivi .pilotage-tuile[data-cle="margeNegative"]::before { background: #fbe9f1; color: #a33a6b; }
+.pilotage-ardoise .pilotage-tuiles-suivi .pilotage-tuile[data-cle="peremption"]::before { background: #e6f4ee; color: #17795f; }
 .pilotage-ardoise .sv-cartes {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2007,22 +2007,22 @@ body.x-body,
 .pilotage-ardoise .sv-titre { cursor: grab; }
 .pilotage-ardoise .sv-aide { font-size: 12px; color: #64748b; padding: 4px 2px 0 2px; }
 .pilotage-ardoise .sv-lien { border: 0; background: none; color: #1565c0; text-decoration: underline; cursor: pointer; font-size: 12px; }
-/* La tuile porte son liseré ambre : c'est le seul accent de couleur de l'ecran, la variation gardant
-   le vert et le rouge qui lui appartiennent. */
+/* Retour du 04/11 (style C) : tuile au cadre gris, l'accent ambre passe dans une pastille a gauche. */
 .pilotage-ardoise .pilotage-tuile {
     border-color: #dde4ec;
-    border-left: 4px solid #b7791f;
     border-radius: 6px;
 }
+.pilotage-ardoise .pilotage-tuile { position: relative; padding-left: 48px !important; }
+.pilotage-ardoise .pilotage-tuile::before { content: "\2022"; position: absolute; left: 10px; top: 10px; width: 28px; height: 28px; border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 800; line-height: 1; background: #fdf3e1; color: #8a5a00; }
 .pilotage-ardoise .pilotage-tuile-libelle {
     color: #64748b;
 }
 .pilotage-ardoise .pilotage-tuile-valeur {
     color: #1e293b;
 }
-/* Une tuile en ALERTE prend le rouge jusque dans son liseré : on ne peut pas la manquer. */
-.pilotage-ardoise .pilotage-tuile:has(.pilotage-alerte) {
-    border-left-color: #c0392b;
+/* Une tuile en ALERTE prend le rouge jusque dans sa pastille : on ne peut pas la manquer. */
+.pilotage-ardoise .pilotage-tuile:has(.pilotage-alerte)::before {
+    background: #fdeceb; color: #b42318; content: "!";
 }
 .pilotage-ardoise .x-grid-row-over .x-grid-cell {
     background-color: #fdf8ef;
@@ -2051,8 +2051,8 @@ body.x-body,
 }
 .pilotage-ardoise .pilotage-tuile-alerte {
     border-color: #e6b0aa;
-    border-left-color: #c0392b;
 }
+.pilotage-ardoise .pilotage-tuile-alerte::before { background: #fdeceb; color: #b42318; content: "!"; }
 /* Les chiffres du detail mensuel gagnent un point : ils sont ce qu'on vient lire (21/09). */
 .pilotage-ardoise .x-grid-cell-inner {
     font-size: 13px;
@@ -2096,11 +2096,13 @@ body.x-body,
 .ordo-alerte-majeure .x-grid-cell-inner { color: #c0392b; font-weight: bold; }
 /* Tuiles de l'analyse des ordonnances. */
 .ordo-tuiles { display: flex; flex-wrap: wrap; gap: 8px; }
-.ordo-tuile { flex: 1 1 180px; border: 1px solid #d6dde5; border-left: 4px solid #1E5FA8; border-radius: 4px;
+.ordo-tuile { flex: 1 1 180px; border: 1px solid #d6dde5; border-radius: 4px;
     padding: 6px 10px; background: #fff; }
-.ordo-tuile-rouge { border-left-color: #c0392b; }
-.ordo-tuile-verte { border-left-color: #17987e; }
-.ordo-tuile-grise { border-left-color: #95a5a6; }
+.ordo-tuile { position: relative; padding-left: 48px !important; }
+.ordo-tuile::before { content: "\2022"; position: absolute; left: 10px; top: 8px; width: 28px; height: 28px; border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 800; line-height: 1; background: #e3edf7; color: #1f5f9e; }
+.ordo-tuile.ordo-tuile-rouge::before { background: #fdeceb; color: #b42318; content: "!"; }
+.ordo-tuile.ordo-tuile-verte::before { background: #e6f4ee; color: #17795f; content: "\2713"; }
+.ordo-tuile.ordo-tuile-grise::before { background: #eef2f6; color: #5b6b7c; }
 .ordo-tuile-titre { font-size: 11px; color: #666; text-transform: uppercase; }
 .ordo-tuile-valeur { font-size: 22px; font-weight: bold; color: #222; line-height: 28px; }
 .ordo-tuile-detail { font-size: 11px; color: #555; }
@@ -2148,7 +2150,7 @@ body.x-body,
 /* Prevente depuis l'ordonnance (30/09) : recapitulatif avant creation. */
 .ordo-prevente ul { margin: 4px 0 0 18px; padding: 0; list-style: disc; }
 .ordo-prevente-ecartees li { color: #8a5a00; }
-.ordo-prevente-alerte { margin-top: 8px; padding: 4px 8px; background: #fff4e0; border-left: 3px solid #e07b18;
+.ordo-prevente-alerte { margin-top: 8px; padding: 4px 8px; background: #fff4e0; border-radius: 6px;
     color: #7a4500; }
 .ordo-prevente-ecartees { margin: 4px 0 0 18px; padding: 0; list-style: disc; }
 /* Info-bulles de l'ecran des ordonnances (30/09) : elles restent affichees mais laissent passer le clic. */
@@ -2156,7 +2158,7 @@ body.x-body,
 .ordo-prevente-partiel { color: #b35900; }
 /* Reste a delivrer (30/09). */
 .ordo-etat-reste { background: #e67e22; }
-.ordo-reste-client { padding: 5px 8px; background: #fff4e0; border-left: 3px solid #e67e22; color: #7a4500; font-size: 12px; }
+.ordo-reste-client { padding: 5px 8px; background: #fff4e0; border-radius: 6px; color: #7a4500; font-size: 12px; }
 .ordo-reste-client a { color: #1E5FA8; font-weight: bold; }
 .ordo-info-renouv { color: #1e3a5f; font-size: 12px; }
 
@@ -2692,28 +2694,22 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
 /* Champ ouvert (liste ou calendrier deplie) : bordure du theme. */
 .x-pickerfield-open .x-form-text, .x-form-focus { border-color: #2E75B6 !important; }
 
-/* ===== En-tetes de section en couleurs douces (demande du 05/10 : « sinon on ne sent pas la difference, l'ecran est
-   plat ») : chaque carte a un bandeau teinte et un filet de couleur a gauche. Les cartes sans teinte choisie alternent
-   d'elles-memes entre voisines ; sec-* fixe une teinte qui a un sens (terrains = ambre, mesures = bleu, conso = vert). */
-.ordo-carte > .x-panel-header, .ordo-carte .x-panel-header-default { background: #eef4fb !important;
-    border-bottom: 1px solid #dbe6f2 !important; box-shadow: inset 4px 0 0 #2E75B6; }
-.ordo-carte:nth-child(4n+2) > .x-panel-header { background: #eaf6f1 !important; border-bottom-color: #d3ebe1 !important; box-shadow: inset 4px 0 0 #17987e; }
-.ordo-carte:nth-child(4n+3) > .x-panel-header { background: #fdf4e6 !important; border-bottom-color: #f3e2c6 !important; box-shadow: inset 4px 0 0 #e08a1e; }
-.ordo-carte:nth-child(4n+4) > .x-panel-header { background: #f2effb !important; border-bottom-color: #e2dcf5 !important; box-shadow: inset 4px 0 0 #7b68c8; }
-.ordo-carte.sec-bleu > .x-panel-header { background: #eef4fb !important; border-bottom-color: #dbe6f2 !important; box-shadow: inset 4px 0 0 #2E75B6; }
-.ordo-carte.sec-vert > .x-panel-header { background: #eaf6f1 !important; border-bottom-color: #d3ebe1 !important; box-shadow: inset 4px 0 0 #17987e; }
-.ordo-carte.sec-ambre > .x-panel-header { background: #fdf4e6 !important; border-bottom-color: #f3e2c6 !important; box-shadow: inset 4px 0 0 #e08a1e; }
-.ordo-carte.sec-violet > .x-panel-header { background: #f2effb !important; border-bottom-color: #e2dcf5 !important; box-shadow: inset 4px 0 0 #7b68c8; }
+/* ===== En-tetes de section (retour du 04/11, style B) : bandeau de titre gris sur toute la largeur, separe du contenu
+   par un trait fin ; plus de filet de couleur ni de teinte alternee. */
+.ordo-carte > .x-panel-header, .ordo-carte .x-panel-header-default { background: #eef2f6 !important;
+    border-bottom: 1px solid #dde4ec !important; box-shadow: none; }
 
-/* Tuiles des parametres : une couleur douce par tuile (fond et filet du haut), la tuile choisie garde son cadre navy. */
-.fc-tuiles .fc-tuile { border-top-width: 3px !important; }
-.fc-tuiles .fc-tuile:nth-child(6n+1) { background: #f1f6fd; border-top-color: #2E75B6; }
-.fc-tuiles .fc-tuile:nth-child(6n+2) { background: #eef8f4; border-top-color: #17987e; }
-.fc-tuiles .fc-tuile:nth-child(6n+3) { background: #fdf6ec; border-top-color: #e08a1e; }
-.fc-tuiles .fc-tuile:nth-child(6n+4) { background: #f5f2fc; border-top-color: #7b68c8; }
-.fc-tuiles .fc-tuile:nth-child(6n+5) { background: #fdf1f2; border-top-color: #d0576b; }
-.fc-tuiles .fc-tuile:nth-child(6n+6) { background: #eff8fa; border-top-color: #2a9bb3; }
-.fc-tuiles .fc-tuile.fc-tuile-active { border-color: #1e3a5f; border-top-color: #1e3a5f; box-shadow: inset 0 0 0 1px #1e3a5f, 0 4px 12px rgba(30, 58, 95, .12); }
+/* Tuiles des parametres (retour du 04/11, style C) : tuile blanche, une pastille teintee a gauche porte la couleur ; la
+   tuile choisie garde son cadre navy. */
+.fc-tuiles .fc-tuile { position: relative; padding-left: 50px !important; }
+.fc-tuiles .fc-tuile::before { content: "\2022"; position: absolute; left: 12px; top: 10px; width: 28px; height: 28px; border-radius: 7px;
+    display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; background: #e3edf7; color: #2E75B6; }
+.fc-tuiles .fc-tuile:nth-child(6n+2)::before { background: #e6f4ee; color: #17795f; }
+.fc-tuiles .fc-tuile:nth-child(6n+3)::before { background: #fff2e0; color: #a35400; }
+.fc-tuiles .fc-tuile:nth-child(6n+4)::before { background: #efebfa; color: #5b3fa0; }
+.fc-tuiles .fc-tuile:nth-child(6n+5)::before { background: #fdeceb; color: #b42318; }
+.fc-tuiles .fc-tuile:nth-child(6n+6)::before { background: #e3f4f8; color: #1d7488; }
+.fc-tuiles .fc-tuile.fc-tuile-active { border-color: #1e3a5f; box-shadow: inset 0 0 0 1px #1e3a5f, 0 4px 12px rgba(30, 58, 95, .12); }
 
 /* Ecrans habilles a onglets (clients, reglements depot...) : le corps des onglets et des panneaux internes non cadres
    avait un fond transparent, le fond d'ecran de l'application transparaissait derriere les barres. */
@@ -2728,8 +2724,8 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
 
 /* Ecrans habilles : panneaux internes et boutons restes au bleu ExtJS (gardes : « Filtres », « Effacer les filtres » ;
    fiche officine, mon compte : « Enregistrer »). Dessin seulement. */
-.mv-panneau .x-panel:not(.ordo-carte) > .x-panel-header-default:not(.x-tab-bar) { background: #eef4fb !important; background-image: none !important;
-    border: 0 !important; border-bottom: 1px solid #dbe6f2 !important; box-shadow: inset 4px 0 0 #2E75B6; }
+.mv-panneau .x-panel:not(.ordo-carte) > .x-panel-header-default:not(.x-tab-bar) { background: #eef2f6 !important; background-image: none !important;
+    border: 0 !important; border-bottom: 1px solid #dde4ec !important; box-shadow: none; }
 .mv-panneau .x-panel:not(.ordo-carte) > .x-panel-header-default .x-panel-header-text-default { color: #1e3a5f !important; font-weight: bold; }
 .mv-panneau .x-btn-default-small:not(.ordo-btn):not(.ordo-btn-primaire):not(.ordo-puce):not(.seg-bouton),
 .mv-panneau .x-btn-default-medium:not(.ordo-btn):not(.ordo-btn-primaire):not(.ordo-puce) {
@@ -2792,20 +2788,27 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
 .x-window.fen-theme > .x-window-body, .x-window.fen-theme .x-window-body-default { background: #f6f8fb !important; border-color: #e0e7ef !important; }
 .x-window.fen-theme .x-panel-body-default, .x-window.fen-theme .x-form-body { background-color: transparent; }
 .x-window.fen-theme .x-panel-body-default-framed, .x-window.fen-theme .x-panel-default-framed { background: #f6f8fb !important; border-color: #e0e7ef !important; }
-/* Sections : cartes blanches, titre en petites capitales, filet de couleur a gauche */
+/* Sections (retour du 04/11, style B) : cartes blanches, titre dans un bandeau gris sur toute la largeur de la carte,
+   separe du contenu par un trait fin ; plus de filet de couleur. Le bandeau couvre le bord haut : la carte n'a pas de
+   marge laterale, son contenu garde la sienne. */
 .x-window.fen-theme > .x-window-body { border: 0 !important; }
 .mv-panneau fieldset.fen-section, .x-window.fen-theme fieldset.fen-section { background: #fff !important; border: 1px solid #d5dee8 !important; border-radius: 8px;
-    box-shadow: inset 3px 0 0 #2E75B6; }
+    box-shadow: none; padding-left: 0 !important; padding-right: 0 !important; padding-top: 0 !important; }
+.mv-panneau fieldset.fen-section > legend.x-fieldset-header, .x-window.fen-theme fieldset.fen-section > legend.x-fieldset-header {
+    float: left; width: 100% !important; box-sizing: border-box; margin: 0 0 6px 0 !important; padding: 5px 12px !important;
+    background: #e9eef4 !important; border-bottom: 1px solid #dde4ec; border-radius: 7px 7px 0 0 !important; }
+/* legende flottante : elle passe a l'interieur de la carte, sous son bord haut, au lieu d'etre posee dessus */
+.mv-panneau fieldset.fen-section > .x-fieldset-body, .x-window.fen-theme fieldset.fen-section > .x-fieldset-body { clear: both; padding: 0 10px; }
 .mv-panneau fieldset.fen-section .x-fieldset-header-text, .mv-panneau fieldset.fen-section legend,
 .x-window.fen-theme fieldset.fen-section .x-fieldset-header-text, .x-window.fen-theme fieldset.fen-section legend {
     color: #1e3a5f !important; font-weight: bold; text-transform: uppercase; letter-spacing: .06em; background: transparent !important; }
-.mv-panneau fieldset.fen-section .x-fieldset-header, .x-window.fen-theme fieldset.fen-section .x-fieldset-header { background: #fff !important; border-radius: 6px; }
+.mv-panneau fieldset.fen-section .x-fieldset-header-text, .x-window.fen-theme fieldset.fen-section .x-fieldset-header-text { background: transparent !important; }
 .x-window.fen-theme .x-form-item-label { color: #5b6b7c; }
 .x-window.fen-theme .x-form-text { border-color: #c3cfdb; border-radius: 4px; background-image: none !important; }
 .x-window.fen-theme .x-form-display-field { color: #1e2a36; }
 /* Panneaux internes titres : bandeau teinte comme les sections des ecrans */
-.x-window.fen-theme .x-panel-header-default:not(.x-window-header) { background: #eef4fb !important; background-image: none !important;
-    border-color: #dbe6f2 !important; box-shadow: inset 4px 0 0 #2E75B6; }
+.x-window.fen-theme .x-panel-header-default:not(.x-window-header) { background: #eef2f6 !important; background-image: none !important;
+    border-color: #dde4ec !important; box-shadow: none; }
 .x-window.fen-theme .x-panel-header-default .x-panel-header-text-default { color: #1e3a5f !important; font-weight: bold; }
 /* Pied : bouton principal navy, les autres en secondaire */
 .x-window.fen-theme .x-toolbar-footer { background: #fff !important; border-top: 1px solid #e0e7ef !important; }
@@ -2839,7 +2842,7 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
 .tb-carte { background: #fff; border: 1px solid rgba(226,232,240,.9); border-radius: 16px; overflow: hidden; display: flex; flex-direction: column;
     box-shadow: 0 10px 28px rgba(15,23,42,.07); }
 .tb-tete { padding: 11px 16px; font-weight: 800; font-size: 13.5px; color: #0f172a; display: flex; align-items: center; gap: 10px; min-height: 50px;
-    background: linear-gradient(180deg, var(--doux, #f5f8fc) 0%, #ffffff 140%); border-bottom: 2px solid var(--accent); }
+    background: #eef2f6; border-bottom: 1px solid #dde4ec; } /* retour du 04/11 (style B) : bandeau gris, sans trait de couleur */
 .tb-tete > .fa-solid { color: var(--accent); font-size: 15px; }
 .tb-outils { margin-left: auto; display: flex; gap: 8px; align-items: center; font-weight: 600; font-size: 12px; }
 /* Hauteur minimale : vides, les cartes tiendraient toutes dans l'ecran et seraient toutes lues d'un coup. */
@@ -2851,7 +2854,7 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
 .tb-masquer { cursor: pointer; color: #b42318; display: none; font-size: 15px; }
 .tb-edition .tb-poignee, .tb-edition .tb-masquer { display: inline; }
 .tb-kpi { border-radius: 16px; padding: 14px 16px; border: 1px solid #d5dee8; background: #fff; position: relative; overflow: hidden; }
-.tb-tuile { display: flex; gap: 12px; align-items: flex-start; box-shadow: 0 10px 28px rgba(15,23,42,.07); border-top: 3px solid var(--accent);
+.tb-tuile { display: flex; gap: 12px; align-items: flex-start; box-shadow: 0 10px 28px rgba(15,23,42,.07);
     background: linear-gradient(135deg, var(--doux, #fff) 0%, #ffffff 85%); transition: transform .18s ease, box-shadow .18s ease; }
 .tb-tuile:hover, .tb-carte:hover { transform: translateY(-2px); box-shadow: 0 14px 32px rgba(15,23,42,.12); }
 .tb-carte { transition: transform .18s ease, box-shadow .18s ease; }
@@ -2913,7 +2916,7 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
 .tb-reglage.ouvert { display: block; } .tb-reglage input { width: 50px; padding: 2px 4px; border: 1px solid #c3cfdb; border-radius: 4px; }
 .tb-reglage label { display: inline-flex; gap: 4px; align-items: center; margin: 2px 12px 2px 0; }
 .tb-empile { display: flex; height: 16px; border-radius: 5px; overflow: hidden; margin: 6px 0; } .tb-empile i { display: block; height: 100%; }
-.tb-encart { margin-top: 10px; padding: 8px 10px; border: 1px solid #f3c6cd; border-top: 3px solid #e11d48; border-radius: 10px; background: #fef7f8; }
+.tb-encart { margin-top: 10px; padding: 8px 10px; border: 0; border-radius: 10px; background: #fdeceb; color: #7a1f14; }
 .tb-attente { padding: 26px 10px; text-align: center; color: #8a99a8; }
 .tb-fenetre .x-window-body { background: #fff !important; } .tb-dans-fenetre { padding: 0; }
 
@@ -3085,20 +3088,20 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
 .mono-erreur { color: #b0263a; }
 .mono-note { color: #8a6d00; font-size: 11px; margin-top: 8px; }
 .mono-classe { margin: 6px 0; color: #4a5866; }
-.mono-inter { border-left: 4px solid #9aa7b3; background: #f7f9fb; border-radius: 4px; padding: 6px 10px; margin: 0 0 8px; }
+.mono-inter { background: #f7f9fb; border-radius: 4px; padding: 6px 10px; margin: 0 0 8px; }
 .mono-inter-tete { margin-bottom: 4px; }
 .mono-niveau { display: inline-block; border-radius: 10px; padding: 1px 8px; margin-right: 8px; font-size: 11px; background: #e3e8ed; }
-.mono-inter.g4 { border-left-color: #b0263a; } .mono-inter.g4 .mono-niveau { background: #b0263a; color: #fff; }
-.mono-inter.g3 { border-left-color: #d9661f; } .mono-inter.g3 .mono-niveau { background: #d9661f; color: #fff; }
-.mono-inter.g2 { border-left-color: #d4a514; } .mono-inter.g2 .mono-niveau { background: #f6e3a1; color: #5a4300; }
+.mono-inter.g4 .mono-niveau { background: #b0263a; color: #fff; }
+.mono-inter.g3 .mono-niveau { background: #d9661f; color: #fff; }
+.mono-inter.g2 .mono-niveau { background: #f6e3a1; color: #5a4300; }
 /* Ecran de vente : interactions entre les lignes (KEY_INTERACTIONS_VENTE) */
 .inter-bandeau { background: #fff8ec; border: 1px solid #f0c98a; border-radius: 6px; padding: 6px 10px; font: 12px/1.5 Arial, sans-serif; color: #24323f; }
 .inter-tete { font-weight: bold; color: #9a4a00; margin-bottom: 2px; }
-.inter-ligne { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-left: 4px solid #9aa7b3; padding-left: 6px; margin: 2px 0; }
+.inter-ligne { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-left: 2px; margin: 2px 0; }
 .inter-ligne .mono-niveau { display: inline-block; border-radius: 10px; padding: 0 8px; margin-right: 8px; font-size: 11px; background: #e3e8ed; }
-.inter-ligne.g4 { border-left-color: #b0263a; } .inter-ligne.g4 .mono-niveau { background: #b0263a; color: #fff; }
-.inter-ligne.g3 { border-left-color: #d9661f; } .inter-ligne.g3 .mono-niveau { background: #d9661f; color: #fff; }
-.inter-ligne.g2 { border-left-color: #d4a514; } .inter-ligne.g2 .mono-niveau { background: #f6e3a1; color: #5a4300; }
+.inter-ligne.g4 .mono-niveau { background: #b0263a; color: #fff; }
+.inter-ligne.g3 .mono-niveau { background: #d9661f; color: #fff; }
+.inter-ligne.g2 .mono-niveau { background: #f6e3a1; color: #5a4300; }
 .inter-conseil { color: #4a5866; }
 
 /* Retours du 08/10 : icones d'action et lignes moins « plates ».
@@ -3149,7 +3152,8 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
     background-color: var(--vp-survol-fond, #ffcc80) !important; }
 
 /* Retours du 08/10 (4) : liste des ruptures, ligne dont on affiche les equivalents proposes (repere a gauche) */
-.x-grid-row.rupture-choisie .x-grid-cell:first-child { box-shadow: inset 4px 0 0 #2E75B6; }
+.x-grid-row.rupture-choisie .x-grid-cell { background-color: #e3edf7 !important; }
+.x-grid-row.rupture-choisie .x-grid-cell-inner { font-weight: 700; color: #1e3a5f; }
 .x-grid-row.rupture-choisie .x-grid-cell .x-grid-cell-inner { font-weight: 600; }
 
 /* Retours du 08/10 (8) : « Commander par PharmaML », action principale des ecrans de suggestion et de commande
@@ -3177,11 +3181,14 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
 .alerte-pml-type.commerciale { background: #b26b00; }
 .alerte-pml-lue { opacity: .65; }
 .pml-tuiles { display: flex; flex-wrap: wrap; gap: 10px; }
-.pml-tuile { flex: 1 1 170px; min-width: 160px; padding: 10px 12px; border-radius: 8px; background: #f6f8fa; border: 1px solid #e3e8ee; border-left: 4px solid #9aa7b5; }
-.pml-tuile.ok { border-left-color: #17795f; background: #f1faf6; } /* retours du 10/10 : couleurs douces */
-.pml-tuile.info { border-left-color: #1f5f9e; background: #f1f6fd; }
-.pml-tuile.alerte { border-left-color: #d08a00; background: #fffaf0; }
-.pml-tuile.critique { border-left-color: #b42318; background: #fff5f4; }
+.pml-tuile { flex: 1 1 170px; min-width: 160px; padding: 10px 12px; border-radius: 8px; background: #fff; border: 1px solid #e3e8ee; }
+/* retour du 04/11 (style C) : tuile blanche, l'etat passe dans la pastille (✓ correct, i information, ! a surveiller) */
+.pml-tuile { position: relative; padding-left: 48px !important; }
+.pml-tuile::before { content: "\2022"; position: absolute; left: 10px; top: 10px; width: 28px; height: 28px; border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 800; line-height: 1; background: #eef2f6; color: #5b6b7c; }
+.pml-tuile.ok::before { background: #e6f4ee; color: #17795f; content: "\2713"; }
+.pml-tuile.info::before { background: #e3edf7; color: #1f5f9e; content: "i"; }
+.pml-tuile.alerte::before { background: #fff2e0; color: #a35400; content: "!"; }
+.pml-tuile.critique::before { background: #fdeceb; color: #b42318; content: "!"; }
 .pml-tuile.cliquable { cursor: pointer; }
 .pml-tuile.cliquable:hover { box-shadow: 0 1px 4px rgba(0,0,0,.12); }
 .pml-tuile-valeur { font-size: 22px; font-weight: 700; color: #1d2733; line-height: 26px; }
@@ -3266,7 +3273,7 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
 /* Retours du 10/10 (Q12) : fenetre produit des previsions — vert = ce qui s'ajoute, rouge doux = ce qui se retranche */
 .pv-calcul tr.pv-plus td { background: #eaf7ef; color: #14532d; }
 .pv-calcul tr.pv-moins td { background: #fdeeee; color: #8a2a2a; }
-.pv-calcul tr.pv-total td { font-weight: 700; border-top: 2px solid #1f3b5a; }
+.pv-calcul tr.pv-total td { font-weight: 700; border-top: 2px solid #94a3b8; }
 .pv-calcul .pv-origine { color: #5b6b7b; font-size: 10px; font-weight: normal; }
 .pv-calcul tr { cursor: help; }
 /* Retours du 10/10 : onglet Analyse (nombre de lignes en vert, pastilles filtrantes, marqueur equivalent cliquable) */
@@ -3300,7 +3307,7 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
 .gc-analyse .gc-manquant { color: #c0392b; font-weight: 600; }
 .gc-analyse .gc-surplus { color: #17795f; font-weight: 600; }
 .gc-analyse .gc-regle { margin-bottom: 8px; color: #3b4a5a; }
-.gc-analyse .gc-pistes { margin-top: 12px; padding: 8px 10px; background: #f6f8fa; border-left: 3px solid #1f3b5a; }
+.gc-analyse .gc-pistes { margin-top: 12px; padding: 8px 10px; background: #eef2f6; border-radius: 6px; }
 .gc-analyse .gc-pistes ul { margin: 6px 0 0 18px; padding: 0; }
 .gc-analyse .gc-hausse { color: #c0392b; }
 .gc-analyse .gc-baisse { color: #17795f; }
@@ -3434,8 +3441,8 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
 .vp-vente .x-grid-cell.vp-ref-cellule { cursor: text; }
 .vp-vente .x-grid-cell.vp-ref-erreur { background: #FDECEA !important; box-shadow: inset 0 0 0 2px #c0392b; }
 .vp-vente .vp-ref-message { padding: 5px 8px; border-radius: 4px; font-size: 11.5px; font-weight: 700; }
-.vp-vente .vp-ref-message-ko { background: #FDECEA; color: #7a1f14; border-left: 4px solid #c0392b; }
-.vp-vente .vp-ref-message-ok { background: #E8F5E9; color: #1b5e20; border-left: 4px solid #2e7d32; }
+.vp-vente .vp-ref-message-ko { background: #FDECEA; color: #7a1f14; border-radius: 6px; }
+.vp-vente .vp-ref-message-ok { background: #E8F5E9; color: #1b5e20; border-radius: 6px; }
 .vp-vente .vp-ref-rappel { font-size: 11px; color: #5a6b7c; padding: 0 4px; }
 
 /* Cas 1 du 03/11/2026 : ligne au comptant dans une vente assurance (KEY_LIGNE_COMPTANT_VO). Rien de ceci ne s'applique

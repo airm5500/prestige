@@ -771,7 +771,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                     xtype: 'fieldset',
                     id: 'fieldset_reserve_etiquette',
                     title: '<span style="color:#8a5a00;font-weight:bold;letter-spacing:.5px;">RÉSERVE, DCI ET ÉTIQUETTE</span>',
-                    style: 'border-top:4px solid #b8860b;',
+                    style: 'border-top:1px solid #d5dee8;',
                     collapsible: true,
                     layout: {type: 'hbox', align: 'stretch'},
                     items: [
@@ -816,7 +816,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                     xtype: 'fieldset',
                     id: 'fieldset_conso_detail',
                     title: '<span style="color:#0d6a74;font-weight:bold;letter-spacing:.5px;">CONSOMMATIONS (SORTIES)</span>',
-                    style: 'border-top:4px solid #0d6a74;',
+                    style: 'border-top:1px solid #d5dee8;',
                     collapsible: true,
                     defaultType: 'textfield',
                     layout: 'anchor',
@@ -956,7 +956,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                 {
                     xtype: 'fieldset',
                     title: '<span style="color:#b25a00;font-weight:bold;letter-spacing:.5px;">COMMANDES RECUES</span>',
-                    style: 'border-top:4px solid #b25a00;',
+                    style: 'border-top:1px solid #d5dee8;',
                     collapsible: true,
                     id: 'infoconsorecu',
                     hidden: true,
@@ -1167,7 +1167,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                 {
                     xtype: 'fieldset',
                     title: '<span style="color:#6a3fa0;font-weight:bold;letter-spacing:.5px;">VENTES REALISEES</span>',
-                    style: 'border-top:4px solid #6a3fa0;',
+                    style: 'border-top:1px solid #d5dee8;',
                     collapsible: true,
                     id: 'infoventerealise',
                     defaultType: 'textfield',
@@ -1329,7 +1329,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.detailArticle', {
                     /* Retours du 07/10 : monographie DS Pharmagora (VIDAL), dans la fiche (aucune fenetre) */
                     xtype: 'fieldset', itemId: 'monographieSection',
                     title: '<span style="color:#0d6a74;font-weight:bold;letter-spacing:.5px;">MONOGRAPHIE (VIDAL)</span>',
-                    style: 'border-top:4px solid #0d6a74;',
+                    style: 'border-top:1px solid #d5dee8;',
                     collapsible: true,
                     items: [{
                             xtype: 'monographiepanel', itemId: 'monographieDetail',
