@@ -616,6 +616,10 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
 
         try {
             TPreenregistrement oTPreenregistrement = getEntityManager().find(TPreenregistrement.class, id);
+            /*
+             * retour du 05/11 : la reimpression (Ventes terminees) sort seulement le ticket de cette vente, en un
+             * exemplaire ; ni le ticket client combine de la vente comptant liee, ni les copies du paiement mobile
+             */
             String oldId = id;
             MvtTransaction mvtTransaction = findByPkey(oldId);
             if (mvtTransaction == null) {
@@ -654,8 +658,7 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
                 imp.buildTicket(datas, infoSellers, infotiersPayants,
                         generateDataSummaryVo(oTPreenregistrement, mvtTransaction),
                         generateCommentaire(oTPreenregistrement, mvtTransaction), fileBarecode);
-                print(imp, oTPreenregistrement);
-                imprimerTicketCombine(oTPreenregistrement, printService, imprimante, officine, te);
+                imp.printTicketVente(1);
             } else {
                 page = datas.size() / counter;
                 while (page != pageCurrent) {
@@ -664,7 +667,7 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
                     }
                     imp.buildTicket(lstDataFinal, infoSellers, infotiersPayants, Collections.emptyList(),
                             Collections.emptyList(), fileBarecode);
-                    print(imp, oTPreenregistrement);
+                    imp.printTicketVente(1);
 
                     k = counter;
                     diff = datas.size() - counter;
@@ -685,8 +688,7 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
                             generateDataSummaryVo(oTPreenregistrement, mvtTransaction),
                             generateCommentaire(oTPreenregistrement, mvtTransaction), fileBarecode);
                 }
-                print(imp, oTPreenregistrement);
-                imprimerTicketCombine(oTPreenregistrement, printService, imprimante, officine, te);
+                imp.printTicketVente(1);
 
             }
             json.put("success", true);

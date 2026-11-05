@@ -27,7 +27,8 @@ const remettre = () => q(AVANT ? `UPDATE ticket_modele SET reglages = UNHEX('${A
   : "DELETE FROM ticket_modele WHERE ticket = 'VENTE_ASSURANCE' AND largeur = 80");
 
 (async () => {
-  remettre();
+  /* depart des reglages par defaut : ceux du poste (personnalises) sont mis de cote et remis a la fin */
+  q("DELETE FROM ticket_modele WHERE ticket = 'VENTE_ASSURANCE' AND largeur = 80");
   const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1600, height: 900 } })).newPage();
   const erreurs = []; p.on('pageerror', (e) => erreurs.push(e.message));

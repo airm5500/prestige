@@ -19,6 +19,8 @@ const arrondi5 = (v) => (v <= 0 ? 0 : (v % 5 === 0 ? v : v + (5 - (v % 5))));
 
 (async () => {
   A.parametre('KEY_LIGNE_COMPTANT_VO', '1');
+  /* grille de reference du cas 1 : sans les colonnes du prix de reference (cas 2), quel que soit le reglage du poste */
+  A.parametre('KEY_PRIX_REF_CAISSE', '0');
   const TP = A.tiersPayant('C2', '1');
   const P1 = C.produitSimple(2);
   const P2 = C.produitSimple(3);

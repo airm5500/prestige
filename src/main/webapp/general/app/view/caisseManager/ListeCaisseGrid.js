@@ -52,6 +52,15 @@ Ext.define('testextjs.view.caisseManager.ListeCaisseGrid', {
                             header: 'Op&eacute;rateur',
                             dataIndex: 'operateur',
                             flex: 1
+                        }, {
+                            /* retour du 05/11 : le nom du client sur chaque vente, comme dans la visualisation de caisse */
+                            header: 'Client',
+                            dataIndex: 'client',
+                            itemId: 'colClient',
+                            flex: 1,
+                            renderer: function (v) {
+                                return Ext.String.htmlEncode(v || '');
+                            }
                         }
 
                         , {
