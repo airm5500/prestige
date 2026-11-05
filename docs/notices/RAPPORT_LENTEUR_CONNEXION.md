@@ -489,3 +489,36 @@ Contrôles :
 - `CacheEtatsTest` : 10/10 ;
 - `retours/test-cache-edition-balance.js` : 7/7 ;
 - `retours/test-cache-edition-etats.js` : 7/7.
+
+## Connexion juste après un déploiement (05/11)
+
+**Constat remonté** : après un déploiement, une fois les identifiants saisis, la page reste figée avant que le
+chargement ne commence, puis l'accueil s'affiche longtemps après.
+
+**Mesure** (domain2, connexion par le vrai formulaire juste après le redéploiement de la recette `be6cf76ee`) :
+
+| Temps après le clic | Juste après le déploiement | À chaud |
+|---|---:|---:|
+| Identifiants acceptés (`POST user/auth`) | 0,8 s | 0,5 s |
+| Page d'accueil demandée | 1,6 s | 0,6 s |
+| Page d'accueil construite (DOMContentLoaded) | **13,4 s** | 1,7 s |
+| Menu rempli | 14,7 s | 2,3 s |
+
+Entre 1,6 s et 13,4 s, la page reste blanche. Elle attend `GET api/v1/ecrans/scripts.js` (11,5 s, contre 0,75 s à
+chaud), chargé en tête de `general/index.jsp`. Ce paquet réunit les 1 095 scripts d'écran (rapport de charge du
+29/10, § 4.6). Il était assemblé **à la première demande**, donc par le premier utilisateur connecté après chaque
+déploiement ou redémarrage. La factory JPA des anciens écrans, préparée en arrière-plan au démarrage, était déjà
+prête à ce moment-là (7 s sur domain1, 4,5 à 22 s sur domain2) : elle n'est pas en cause.
+
+**Correction** : le paquet est assemblé au démarrage, en arrière-plan (`AppContextListener`, fil
+`prechauffage-scripts-ecrans`), comme la factory JPA. Un utilisateur qui arrive pendant l'assemblage en attend la fin,
+sans le refaire. Le journal indique « Scripts des ecrans prepares en … ms ». Le contenu servi ne change pas.
+
+Après la page, les tuiles du tableau de bord restent lentes au premier passage (alertes 8,8 s, tuiles 6,7 s,
+valorisation 4,5 s) : la base n'a pas encore ses données en mémoire (§ 7.4). Elles se remplissent après l'affichage.
+
+Contrôles :
+
+- `EcransScriptsRessourceTest` : 5/5 ;
+- `perf/test-connexion-apres-deploiement.js`, à lancer pendant un déploiement : paquet reçu en moins de 3 s, page
+  construite moins de 5 s après le clic.
