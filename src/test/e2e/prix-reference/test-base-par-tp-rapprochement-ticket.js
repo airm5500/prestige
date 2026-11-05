@@ -89,8 +89,12 @@ const arrondi5 = (n) => { const m = n % 5; return m <= 2 ? n - m : n - m + 5; };
       bases === [P1.id + ':' + refA1, P2.id + ':' + refB2].sort().join(';'), bases);
     const tauxBase = q("SELECT IFNULL(GROUP_CONCAT(CONCAT(d.lg_FAMILLE_ID, '|', t.compte_tiers_payant_id, '=', ROUND(t.taux * 100)) ORDER BY d.lg_FAMILLE_ID, t.compte_tiers_payant_id SEPARATOR ';'), 'aucun')"
       + " FROM taux_produit t JOIN t_preenregistrement_detail d ON d.lg_PREENREGISTREMENT_DETAIL_ID = t.sale_iem_id WHERE d.lg_PREENREGISTREMENT_ID = '" + venteId + "'");
-    const tauxAttendus = [P1.id + '|' + compteA + '=60', P1.id + '|' + compteB + '=30', P2.id + '|' + compteB + '=30'].sort().join(';');
-    ok('Base : un taux par ligne et organisme ayant une référence, celui de la référence, sans doublon', tauxBase === tauxAttendus, tauxBase + ' attendu ' + tauxAttendus);
+    const tauxAttendus = [P1.id + '|' + compteA + '=60', P1.id + '|' + compteB + '=30', P2.id + '|' + compteA + '=70', P2.id + '|' + compteB + '=30'].sort().join(';');
+    ok('Base : une trace taux_produit par organisme sur chaque ligne (taux appliqué : 60/30 puis 70/30), sans doublon', tauxBase === tauxAttendus, tauxBase + ' attendu ' + tauxAttendus);
+    const basesLignes = q("SELECT IFNULL(GROUP_CONCAT(CONCAT(d.lg_FAMILLE_ID, '|', t.compte_tiers_payant_id, '=', IFNULL(t.base_ligne, 'NULL')) ORDER BY d.lg_FAMILLE_ID, t.compte_tiers_payant_id SEPARATOR ';'), 'aucun')"
+      + " FROM taux_produit t JOIN t_preenregistrement_detail d ON d.lg_PREENREGISTREMENT_DETAIL_ID = t.sale_iem_id WHERE d.lg_PREENREGISTREMENT_ID = '" + venteId + "'");
+    const basesAttendues = [P1.id + '|' + compteA + '=' + refA1, P1.id + '|' + compteB + '=' + refB1, P2.id + '|' + compteA + '=' + P2.pu, P2.id + '|' + compteB + '=' + refB2].sort().join(';');
+    ok('Base : base_ligne = la base réellement appliquée à chaque organisme (sa référence, sinon le prix de vente)', basesLignes === basesAttendues, basesLignes + ' attendu ' + basesAttendues);
     const vente = q("SELECT CONCAT_WS('|', str_STATUT, int_PRICE, int_CUST_PART) FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID = '" + venteId + "'").split('|');
     ok('Base : vente close, prix ' + prix + ', part client = prix - parts à 4 F près', vente[0] === 'is_Closed' && Number(vente[1]) === prix && Math.abs(Number(vente[2]) - (prix - partA - partB)) <= 4, vente.join('|'));
 
