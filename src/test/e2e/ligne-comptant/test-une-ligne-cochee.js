@@ -48,7 +48,7 @@ const arrondi5 = (v) => (v <= 0 ? 0 : (v % 5 === 0 ? v : v + (5 - (v % 5))));
 
     /* 1. colonne et rail */
     const e1 = await C.entete(p);
-    ok('Colonne « C » visible, 40 px, après MONTANT', e1 && e1.colonneCVisible && e1.largeurC === 40 && e1.textes === 'LG,C.CIP,DESIGNATION,QD,QS,P.U,MONTANT,C,', JSON.stringify(e1));
+    ok('Colonne « C » visible, 40 px, après MONTANT', e1 && e1.colonneCVisible && e1.largeurC === 40 && e1.textes === ',C.CIP,DESIGNATION,QD,QS,P.U,MONTANT,C,', JSON.stringify(e1));
     const r0 = await C.rail(p);
     ok('Rail : DONT COMPTANT (0) et DONT PART CLIENT (= net) visibles avant toute coche', r0.comptant && r0.comptant.visible && r0.comptant.valeur === 0 && r0.partClient.visible
       && r0.partClient.valeur === r0.net.valeur, JSON.stringify(r0));

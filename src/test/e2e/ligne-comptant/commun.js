@@ -13,7 +13,7 @@ const { ok, q, exec, MARQUE } = A;
 
 const CHAMP_PRODUIT = 'doventemanager #contenu [xtype=fieldcontainer] #produit';
 const GRILLE = 'doventemanager #contenu #gridContainer #venteGrid';
-const COLONNES_ORIGINE = 'LG,C.CIP,DESIGNATION,QD,QS,P.U,MONTANT,';
+const COLONNES_ORIGINE = ',C.CIP,DESIGNATION,QD,QS,P.U,MONTANT,';
 
 /* produit du test : stock large, prix entre 1 000 et 9 000, sans promotion, CIP unique, pas de deconditionnement */
 function produitSimple(rang) {

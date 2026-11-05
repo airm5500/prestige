@@ -200,16 +200,18 @@ async function terminer(p) {
   return { ok: r.status() < 400 && corps.success !== false, codeError: corps.codeError, msg: corps.msg || ecranTexte };
 }
 
-/* la ligne de la grille de vente qui porte l'article : texte de la cellule Designation et pastille eventuelle */
+/* la ligne de la grille de vente qui porte l'article : texte de la cellule Designation et triangles eventuels */
 const ligneVente = (p, cip) => p.evaluate((c) => {
   const g = Ext.ComponentQuery.query('doventemanager grid')[0];
   const r = g && g.getStore().findRecord('intCIP', c);
   if (!r) { return null; }
   const ligne = g.getView().getNode(r);
-  const pastille = ligne.querySelector('.vp-pastille');
+  /* retour du 05/11 : triangles « ! » devant le nom (violet sensible, rouge ordonnancier) au lieu des pastilles */
+  const triangles = Array.from(ligne.querySelectorAll('.vp-triangle'));
+  const pastille = triangles[0] || null;
   return { motif: r.get('motif'), sensible: r.get('sensible'), scheduled: r.get('scheduled'), texte: ligne.textContent,
-    pastille: pastille ? pastille.textContent : '', classes: pastille ? pastille.className : '',
-    animation: pastille ? getComputedStyle(pastille).animationName : '' };
+    pastille: triangles.map((x) => /vp-triangle-sensible/.test(x.className) ? 'SENSIBLE' : 'ORDONNANCIER').join('+'),
+    classes: pastille ? pastille.className : '', animation: pastille ? getComputedStyle(pastille).animationName : '' };
 }, cip);
 
 module.exports = { ENV_E2E, vues, q, ok, bilan, articleSimple, remettreArticle, parametreOrdonnancier, remettreParametre, ouvrirCaisse,

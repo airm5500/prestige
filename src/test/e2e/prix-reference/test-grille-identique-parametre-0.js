@@ -16,7 +16,7 @@ const C = require('./commun');
 const { ok, q, A } = C;
 const crypto = require('crypto');
 
-const ATTENDU = 'LG,C.CIP,DESIGNATION,QD,QS,P.U,MONTANT,';
+const ATTENDU = ',C.CIP,DESIGNATION,QD,QS,P.U,MONTANT,';
 
 (async () => {
   A.parametre('KEY_PRIX_REF_CAISSE', '0');

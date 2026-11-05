@@ -3392,7 +3392,7 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
     border-color: #b8640f !important;
 }
 
-/* Ligne de vente : pastille ORDONNANCIER fixe, pastille SENSIBLE qui clignote 3 fois puis reste (Q3.3) */
+/* Pastilles SENSIBLE / ORDONNANCIER (cas 3, Q3.3) : gardees pour le detail des produits d'une vente */
 .vp-pastille {
     display: inline-block;
     margin-left: 6px;
@@ -3422,6 +3422,30 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
         outline: 2px solid #8e24aa;
         outline-offset: 1px;
     }
+}
+/* Ligne de vente (retour du 05/11, remplace les pastilles du cas 3) : triangle « ! » devant le nom du produit ;
+   violet = sensible, rouge = soumis a ordonnance avec code tableau ; il clignote a l'ajout de la ligne puis reste fixe */
+.vp-triangle {
+    display: inline-block;
+    width: 16px;
+    height: 14px;
+    margin-right: 4px;
+    vertical-align: -2px;
+    line-height: 0;
+    cursor: help;
+}
+.vp-triangle svg { display: block; overflow: visible; }
+.vp-triangle text { fill: #fff; font: 700 9px Arial, sans-serif; }
+.vp-triangle-sensible path { fill: #8e24aa; }
+.vp-triangle-ordonnancier path { fill: #d32f2f; }
+.vp-triangle-nouveau { animation: vp-triangle-clignote .8s ease-in-out 4; }
+@keyframes vp-triangle-clignote {
+    0%, 100% { opacity: 1; }
+    50% { opacity: .2; }
+}
+/* poste qui demande moins d'animations : triangle fixe */
+@media (prefers-reduced-motion: reduce) {
+    .vp-triangle-nouveau { animation: none; }
 }
 
 /* Cas 2 du 03/11/2026 : colonnes P.REF | TAUX par tiers-payant dans la grille de vente assurance (KEY_PRIX_REF_CAISSE).

@@ -42,7 +42,7 @@ const { ok, q, A } = C;
     ok('Un groupe de colonnes au nom du tiers-payant, P.REF à 80 px | TAUX à 60 px', e && e.groupes.length === 1 && e.groupes[0] === TP
       && e.colonnes.find((c) => c.groupe).sous.map((s) => s.texte + ':' + s.largeur).join(',') === 'P.REF:80,TAUX:60', JSON.stringify(e && e.colonnes));
     ok('C.CIP fixé à 100 px, le groupe placé entre P.U et MONTANT', e && e.colonnes.find((c) => c.texte === 'C.CIP').largeur === 100
-      && e.colonnes.map((c) => c.groupe ? 'TP' : c.texte).join(',') === 'LG,C.CIP,DESIGNATION,QD,QS,P.U,TP,MONTANT,', e && e.colonnes.map((c) => c.texte + ':' + c.largeur).join(' '));
+      && e.colonnes.map((c) => c.groupe ? 'TP' : c.texte).join(',') === ',C.CIP,DESIGNATION,QD,QS,P.U,TP,MONTANT,', e && e.colonnes.map((c) => c.texte + ':' + c.largeur).join(' '));
     ok('Libellé discret sous la grille (règle du minimum)', e && e.rappel);
     let l = await C.ligne(p, CIP);
     ok('Valeurs par défaut en gris italique : prix de vente et taux du client (70)', l && l.refs.length === 1 && l.refs[0].defaut === true && l.refs[0].valeur === P.pu
