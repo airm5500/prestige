@@ -63,7 +63,8 @@ public class EcransScriptsRessource {
         }
     }
 
-    private static volatile Lot lot;
+    /* visible des tests : remise a zero entre deux essais */
+    static volatile Lot lot;
 
     @Context
     private ServletContext contexte;
@@ -85,6 +86,28 @@ public class EcransScriptsRessource {
         }
         /* revalide a chaque connexion (304 si rien n'a change) ; reservee au poste connecte */
         return r.tag(empreinte).header("Cache-Control", "private, no-cache").header("Vary", "Accept-Encoding").build();
+    }
+
+    /**
+     * Construit la table au demarrage de l'application (dal.AppContextListener), en arriere-plan.
+     * <p>
+     * Sans cela, le premier utilisateur qui se connectait apres un deploiement payait sa construction : 11,5 s de page
+     * blanche apres l'acceptation des identifiants (mesure du 05/11 sur domain2, 1 095 fichiers), contre 0,75 s
+     * ensuite. Un utilisateur qui arrive pendant la construction attend sa fin (verrou de {@link #lot}), sans la
+     * refaire.
+     */
+    public static void prechauffer(ServletContext contexte) {
+        long debut = System.currentTimeMillis();
+        try {
+            Lot l = lot(contexte);
+            LOG.log(Level.INFO,
+                    "Scripts des ecrans prepares en {0} ms ({1} octets compresses) : la premiere connexion"
+                            + " apres le deploiement ne paiera pas leur assemblage",
+                    new Object[] { System.currentTimeMillis() - debut, l.gzip.length });
+        } catch (RuntimeException e) {
+            /* la premiere connexion la construira, comme avant */
+            LOG.log(Level.WARNING, "Preparation des scripts des ecrans : {0}", e.toString());
+        }
     }
 
     static Lot lot(ServletContext contexte) {
