@@ -23,7 +23,21 @@ const os = require('os');
 const path = require('path');
 const { connexion: connexionVue, ouvrirMenu, cliquer } = require('../outils/vues');
 /* la premiere connexion apres un deploiement, ou pendant le rattachement de l'application au pool recree, peut depasser le delai : trois essais */
-const connexion = async (p, login, mdp) => { let e = null; for (let i = 0; i < 3; i++) { try { await connexionVue(p, login, mdp); return; } catch (x) { e = x; } } throw e; };
+const connexion = async (p, login, mdp) => {
+  let e = null;
+  for (let i = 0; i < 3; i++) {
+    /* session encore ouverte dans ce navigateur (page recreee sans redemarrage) : la page de connexion renvoie a l'application */
+    await p.goto(BASE_HTTP + '/security/index.html', { waitUntil: 'domcontentloaded' }).catch(() => {});
+    await p.waitForTimeout(1500);
+    if (/\/general\//.test(p.url()) || await p.locator('#str_login').count() === 0 && /general/.test(p.url())) {
+      await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 240000 });
+      await p.waitForFunction(() => { const n = Ext.ComponentQuery.query('navigation')[0]; return n && n.getStore().getRootNode().childNodes.length > 0 && !n.getStore().isLoading(); }, null, { timeout: 120000 });
+      return;
+    }
+    try { await connexionVue(p, login, mdp); return; } catch (x) { e = x; }
+  }
+  throw e;
+};
 const privilegeEssai = require('../support/privilege-essai');
 
 const res = [];
