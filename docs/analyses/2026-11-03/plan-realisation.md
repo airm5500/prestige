@@ -271,4 +271,21 @@ Branche `refs/heads/PRES-/determined-khayyam-d98c43`, trois commits (`83bbc241a`
 compte dédié chiffré DPAPI (`IdentifiantsBaseService`, `outils/officine/identifiants-sauvegarde.ps1`) ; ACL Windows réelles ; scripts
 officine chiffrés ; notice `docs/notices/NOTICE_SECURITE_BASE_LOT_A.md`. Tests : unitaires verts, test d'écran 17/17, deux écrans
 existants 9/9 et 4/4 à `1` sur domain3 ; paramètre remis à `0`. Vérification ici : aucun secret dans les lignes ajoutées, `D:\CONF\LABOREX\CONF`
-jamais ouvert. Prochain : lot 4.B (écran Sécurité, alias Payara, rotation), qui dépend de 4.A.
+jamais ouvert. Complément du 05/11 : commit `5460c8204` (mesure du pool sur domain3 à `1` : 105 connexions prises et rendues,
+5 au plus, aucune fuite ; notice seule, aucun code). Reste : essai de charge multipostes sur domain2 avant l'officine.
+
+### Lot 4.B livré (05/11/2026)
+
+Branche `refs/heads/PRES-/vigilant-pare-ce7bc4`, 14 commits (`bb9afe4a2` à `b90bc5a28`), posée sur le lot 4.A (`2da428bcf` ; le
+complément `5460c8204`, notice seule, n'y est pas), **non fusionnée**. Migration `V7.2.39` (`KEY_SECURITE_DERNIERE_ROTATION`,
+table `t_securite_journal` sans valeur de mot de passe), rejouable, inactive à `KEY_SECURITE_BASE = 0`. Serveur : `SecuriteBaseService`,
+`RotationMotDePasse`, `MotDePasseBase`, `Asadmin`, REST dans `SupportServeurRessource` sous `superAdmin()` avec re-saisie du mot de passe
+de session (Q4.1), compte de rotation saisi à chaque fois (Q4.2). Écran : onglet « Sécurité » de l'écran Stabilité du serveur
+(`SupportServeur.js`), confirmation dans le bouton, rappel à six mois (Q4.6). Actions : rotation (Générer ou Saisir, retour arrière
+transactionnel), alias Payara `prestige-db` (S2), purge des copies `domain.xml.avant-prestige-*`. Tests : unitaires, test d'écran 23/23
+sur domain3 ; `server.log` sans valeur. Vérification ici : aucun secret ni chemin `D:\CONF\LABOREX\CONF` dans les lignes ajoutées.
+
+**Point d'attention (notice §3 bis)** : après une rotation ou la pose de l'alias réussies, Payara **redémarre** (lancé détaché), car
+l'application garde l'ancienne fabrique du pool ; le retour arrière, lui, ne redémarre rien. En officine, rotation et alias se font
+donc **hors heures d'ouverture**, postes fermés. Non fait : changement de la master password (commande documentée, à faire sur site,
+Q4.4) ; banc Linux. Prochain : lot 4.C (archives chiffrées, clé hors serveur chez le pharmacien, Q4.3), à poser sur la branche 4.B.
