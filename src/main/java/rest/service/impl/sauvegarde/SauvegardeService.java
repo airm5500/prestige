@@ -24,6 +24,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.zip.GZIPOutputStream;
+import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
 import javax.ejb.Asynchronous;
 import javax.ejb.ConcurrencyManagement;
@@ -38,14 +39,17 @@ import org.apache.commons.lang3.StringUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import rest.service.SupportEventService;
+import rest.service.impl.securite.FichierPrive;
+import rest.service.impl.securite.IdentifiantsBaseService;
 
 /**
  * SAUVEGARDES DE LA BASE (retour du 01/11 : Prestige n'avait pas de sauvegarde integree ; objectif : une heure de
  * donnees perdue au plus).
  * <ul>
  * <li>outil de MariaDB (mariadb-dump, a defaut mysqldump) trouve dans le dossier de MariaDB (@@basedir) ou le parametre
- * KEY_SAUVEGARDE_OUTIL ; acces lus dans domain.xml et passes par un fichier d'options temporaire, jamais en ligne de
- * commande ni dans les journaux ;</li>
+ * KEY_SAUVEGARDE_OUTIL ; acces lus dans domain.xml (ou, si KEY_SECURITE_BASE = 1, compte dedie de sauvegarde lu dans le
+ * fichier d'identifiants chiffre : {@link IdentifiantsBaseService}) et passes par un fichier d'options prive
+ * ({@link FichierPrive}, ACL du seul compte du serveur), jamais en ligne de commande ni dans les journaux ;</li>
  * <li>--single-transaction : copie coherente sans bloquer les ventes ; compressee a la volee (.sql.gz), ecrite sous un
  * nom provisoire puis renommee seulement si l'outil a fini (« Dump completed ») ;</li>
  * <li>copie optionnelle sur un second dossier (autre disque, cle, partage) ; conservation : tout sur
@@ -78,6 +82,13 @@ public class SauvegardeService {
     private final AtomicBoolean enCours = new AtomicBoolean();
     private volatile long enCoursDepuis;
 
+    /** Fichiers d'options laisses par un arret du serveur pendant une sauvegarde ou une valorisation. */
+    @PostConstruct
+    void nettoyerOrphelins() {
+        FichierPrive.nettoyer("prestige-sauvegarde");
+        FichierPrive.nettoyer("prestige-valorisation");
+    }
+
     /* ============================================================================================ reglages */
 
     public String dossier() {
@@ -92,6 +103,40 @@ public class SauvegardeService {
 
     public boolean active() {
         return !"0".equals(parametre(CLE_ACTIVE));
+    }
+
+    /** KEY_SECURITE_BASE = 1 : compte dedie de sauvegarde dans le fichier chiffre, plus de lecture de domain.xml. */
+    public boolean securiteActive() {
+        return "1".equals(parametre(IdentifiantsBaseService.CLE_ACTIF));
+    }
+
+    /**
+     * Acces a la base pour l'outil de MariaDB (sauvegarde, valorisation) : le compte dedie du fichier d'identifiants si
+     * la securite est active, sinon le pool de domain.xml comme avant. IllegalStateException, sans secret, si l'acces
+     * est illisible : le message va dans t_sauvegarde et au Centre de support.
+     */
+    public PoolMariaDb identifiants() throws java.io.IOException {
+        if (securiteActive()) {
+            PoolMariaDb p = IdentifiantsBaseService
+                    .lire(IdentifiantsBaseService.fichier(parametre(IdentifiantsBaseService.CLE_FICHIER)));
+            p.base = StringUtils.defaultString(lireUn("SELECT DATABASE()"));
+            if (p.base.isEmpty()) {
+                throw new IllegalStateException("Nom de la base en service introuvable.");
+            }
+            return p;
+        }
+        String xml = new String(Files.readAllBytes(domaineXml()), StandardCharsets.UTF_8);
+        PoolMariaDb pool = PoolMariaDb.lire(xml);
+        if (pool == null || StringUtils.isBlank(pool.base)) {
+            throw new IllegalStateException("Accès à la base introuvable dans la configuration de Payara.");
+        }
+        if (pool.motDePasseProtege()) {
+            throw new IllegalStateException(
+                    "Le mot de passe de la base est protégé par un alias de Payara : l'outil de sauvegarde ne peut pas le lire."
+                            + " Passez par le compte de sauvegarde dédié (paramètre "
+                            + IdentifiantsBaseService.CLE_ACTIF + " = 1).");
+        }
+        return pool;
     }
 
     private int entier(String cle, int defaut) {
@@ -169,15 +214,8 @@ public class SauvegardeService {
             executerSql(
                     "UPDATE t_sauvegarde SET statut = 'INTERROMPUE', message = 'Arrêtée avec le serveur' WHERE statut = 'EN_COURS'");
             id = nouvelleLigne(origine);
-            String xml = new String(Files.readAllBytes(domaineXml()), StandardCharsets.UTF_8);
-            PoolMariaDb pool = PoolMariaDb.lire(xml);
-            if (pool == null || StringUtils.isBlank(pool.base)) {
-                throw new IllegalStateException("Accès à la base introuvable dans la configuration de Payara.");
-            }
-            if (pool.motDePasseProtege()) {
-                throw new IllegalStateException(
-                        "Le mot de passe de la base est protégé par un alias de Payara : l'outil de sauvegarde ne peut pas le lire.");
-            }
+            FichierPrive.nettoyer("prestige-sauvegarde");
+            PoolMariaDb pool = identifiants();
             String outil = outil();
             if (outil == null) {
                 throw new IllegalStateException(
@@ -196,7 +234,7 @@ public class SauvegardeService {
             fichier = Conservation.nom(pool.base, LocalDateTime.now());
             Path cible = dossier.resolve(fichier);
             partiel = dossier.resolve(fichier + ".partiel");
-            options = fichierPrive("prestige-sauvegarde", ".cnf");
+            options = fichierPrive("prestige-sauvegarde", ".cnf", securiteActive());
             Files.write(options, pool.options().getBytes(StandardCharsets.UTF_8));
             erreurs = Files.createTempFile("prestige-sauvegarde", ".txt");
             ProcessBuilder pb = new ProcessBuilder(outil, "--defaults-extra-file=" + options.toAbsolutePath(),
@@ -420,8 +458,21 @@ public class SauvegardeService {
         return Paths.get(racine, "config", "domain.xml");
     }
 
-    /** Fichier temporaire lisible par le seul compte du serveur (il recoit le mot de passe de la base). */
-    static Path fichierPrive(String prefixe, String suffixe) throws java.io.IOException {
+    /**
+     * Fichier lisible par le seul compte du serveur (il recoit le mot de passe de la base) : dans le dossier prive du
+     * domaine, aux ACL reelles ({@link FichierPrive}). Si ces droits ne peuvent pas etre poses, la sauvegarde est
+     * refusee quand la securite est active ; sinon, repli sur l'ancien fichier temporaire (journalise).
+     */
+    static Path fichierPrive(String prefixe, String suffixe, boolean strict) throws java.io.IOException {
+        try {
+            return FichierPrive.creer(prefixe, suffixe);
+        } catch (java.io.IOException e) {
+            if (strict) {
+                throw e;
+            }
+            LOG.log(Level.WARNING, "Dossier privé indisponible ({0}) : fichier d''options dans le dossier temporaire",
+                    e.getMessage());
+        }
         Path f;
         try {
             f = Files.createTempFile(prefixe, suffixe,

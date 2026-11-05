@@ -64,6 +64,72 @@ public final class PoolMariaDb {
         return p;
     }
 
+    /**
+     * Lit un fichier d'options du client MariaDB (section [client] : user, password, host, port, guillemets et
+     * echappements de {@link #options()} compris) : le fichier d'identifiants du compte dedie de sauvegarde (cas 4, lot
+     * 4.A). La base n'y figure pas : l'appelant la renseigne. null si aucune section [client].
+     */
+    public static PoolMariaDb depuisOptions(String texte) {
+        if (texte == null) {
+            return null;
+        }
+        PoolMariaDb p = null;
+        boolean client = false;
+        for (String ligne : texte.split("\\r?\\n")) {
+            String l = ligne.trim();
+            if (l.isEmpty() || l.startsWith("#") || l.startsWith(";")) {
+                continue;
+            }
+            if (l.startsWith("[")) {
+                client = l.equalsIgnoreCase("[client]");
+                if (client && p == null) {
+                    p = new PoolMariaDb();
+                }
+                continue;
+            }
+            int i = l.indexOf('=');
+            if (!client || i < 0) {
+                continue;
+            }
+            String cle = l.substring(0, i).trim().toLowerCase(), v = sansGuillemets(l.substring(i + 1).trim());
+            switch (cle) {
+            case "user":
+                p.utilisateur = v;
+                break;
+            case "password":
+                p.motDePasse = v;
+                break;
+            case "host":
+                p.hote = StringUtils.defaultIfBlank(v, p.hote);
+                break;
+            case "port":
+                if (StringUtils.isNumeric(v)) {
+                    p.port = Integer.parseInt(v);
+                }
+                break;
+            default:
+                break;
+            }
+        }
+        return p;
+    }
+
+    static String sansGuillemets(String v) {
+        if (v.length() >= 2 && v.startsWith("\"") && v.endsWith("\"")) {
+            StringBuilder b = new StringBuilder();
+            for (int i = 1; i < v.length() - 1; i++) {
+                char c = v.charAt(i);
+                if (c == '\\' && i + 1 < v.length() - 1) {
+                    b.append(v.charAt(++i));
+                } else {
+                    b.append(c);
+                }
+            }
+            return b.toString();
+        }
+        return v;
+    }
+
     /** Mot de passe range par Payara sous un alias (${ALIAS=...}) : illisible pour l'outil de sauvegarde. */
     public boolean motDePasseProtege() {
         return motDePasse.startsWith("${");

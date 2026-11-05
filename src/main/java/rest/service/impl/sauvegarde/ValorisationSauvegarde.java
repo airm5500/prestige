@@ -97,15 +97,17 @@ public class ValorisationSauvegarde {
             if (client == null) {
                 return echec("Client de MariaDB (mariadb) introuvable à côté de l'outil de sauvegarde.");
             }
-            PoolMariaDb pool = PoolMariaDb
-                    .lire(new String(Files.readAllBytes(SauvegardeService.domaineXml()), StandardCharsets.UTF_8));
-            if (pool == null || pool.motDePasseProtege()) {
-                return echec("Accès à la base illisible dans la configuration de Payara.");
+            PoolMariaDb pool;
+            try {
+                pool = sauvegardeService.identifiants();
+            } catch (IllegalStateException e) {
+                return echec(e.getMessage());
             }
             executer("DROP DATABASE IF EXISTS " + BASE_TEMPORAIRE);
             executer("CREATE DATABASE " + BASE_TEMPORAIRE + " CHARACTER SET utf8mb4");
             baseCreee = true;
-            options = SauvegardeService.fichierPrive("prestige-valorisation", ".cnf");
+            options = SauvegardeService.fichierPrive("prestige-valorisation", ".cnf",
+                    sauvegardeService.securiteActive());
             Files.write(options, pool.options().getBytes(StandardCharsets.UTF_8));
             erreurs = Files.createTempFile("prestige-valorisation", ".txt");
             ProcessBuilder pb = new ProcessBuilder(client.toString(),

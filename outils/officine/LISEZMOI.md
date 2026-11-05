@@ -7,7 +7,10 @@ Règles communes :
 - chaque script **lit d'abord l'état** et l'affiche, et `-Lire` s'arrête là ;
 - chaque script peut être **relancé sans risque** : une valeur déjà posée est remplacée, jamais dupliquée ;
 - **aucun mot de passe** n'est écrit dans les scripts, affiché ou journalisé. Le compte de sauvegarde lit le sien dans
-  un fichier d'options que seuls SYSTEM et les administrateurs peuvent lire.
+  un fichier d'options **chiffré** (DPAPI de Windows, portée machine : `identifiants-sauvegarde.ps1`) que seuls SYSTEM,
+  les administrateurs et le compte de Payara peuvent lire ; une copie emportée du fichier est illisible. Le clair
+  n'existe que le temps du script, dans `C:\ProgramData\Prestige\prive` (ACL du seul compte qui lance le script),
+  puis est supprimé. Voir [NOTICE_SECURITE_BASE_LOT_A.md](../../docs/notices/NOTICE_SECURITE_BASE_LOT_A.md).
 
 ## Ordre d'application
 
@@ -43,9 +46,13 @@ base ne doit pas emporter ses sauvegardes.
 - Journal binaire dans `my.ini` (`log_bin`, `binlog_format=ROW`, `expire_logs_days=8`, `sync_binlog=1`) et mémoire
   InnoDB (6 Go par défaut, `-SansMemoire` pour ne pas y toucher).
 - Une copie datée de `my.ini` est faite avant toute modification.
-- `-CreerCompte` crée le compte `prestige_sauvegarde`, qui n'a que les droits de lecture, de sauvegarde et de journal.
-  Son mot de passe est tiré au hasard et n'est jamais affiché ; le mot de passe root est saisi de façon masquée et
-  n'est gardé nulle part.
+- `-CreerCompte` crée le compte `prestige_sauvegarde`, qui n'a que les droits de lecture, de sauvegarde et de journal
+  (plus l'écriture de la base temporaire `prestige_valo_tmp` de la valorisation d'une sauvegarde). Son mot de passe
+  est tiré au hasard et n'est jamais affiché ; le mot de passe root est saisi de façon masquée et n'est gardé nulle
+  part (`-OptionsRoot <fichier>` pour un poste sans console). Le fichier d'options est écrit chiffré ; `-ComptePayara`
+  y ajoute le droit de lecture du compte de Payara s'il n'est ni SYSTEM ni administrateur.
+- `-Chiffrer` convertit un fichier d'options encore en clair (installé avant le lot 4.A) en fichier chiffré. Un
+  fichier en clair reste lu par les scripts 3, 4 et 6, mais pas par la sauvegarde intégrée de Prestige.
 
 **`3-sauvegarde-complete.ps1`**
 - Elle remplace `SAUVEGARDE_COMPRESSION.bat` :
