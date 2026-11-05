@@ -37,6 +37,9 @@ public final class ApplicationPayara {
                 + "|connection-leak-timeout-in-seconds=\\d{1,5}|fail-all-connections=true"
                 + "|connection-creation-retry-attempts=\\d{1,3}|connection-creation-retry-interval-in-seconds=\\d{1,4}"
                 + "|max-pool-size=\\d{1,4})"));
+        /* cas 4, lot 4.B : seule forme du mot de passe du pool admise dans la liste fermee : l'alias Payara */
+        SET.add(Pattern.compile(
+                "resources\\.jdbc-connection-pool\\.[A-Za-z0-9_\\-]+\\.property\\.password=\\$\\{ALIAS=[A-Za-z0-9_\\-.]+\\}"));
         SET.add(Pattern.compile("resources\\.jdbc-connection-pool\\.[A-Za-z0-9_\\-]+\\.property\\.url="
                 + "jdbc:(?:mariadb|mysql)://127\\.0\\.0\\.1(?:[:/?][A-Za-z0-9_:/?&=.\\-]*)?"));
         SET.add(Pattern.compile(
@@ -96,6 +99,28 @@ public final class ApplicationPayara {
             }
         }
         return false;
+    }
+
+    /**
+     * Cas 4, lot 4.B : exception controlee a la liste fermee pour la SEULE propriete « password » du pool de Prestige :
+     * valeur en clair (rotation d'un pool sans alias) ou alias ${ALIAS=...}. La valeur doit respecter l'alphabet du mot
+     * de passe de la base (rest.service.impl.securite.MotDePasseBase) : rien que cmd.exe ou asadmin puisse interpreter.
+     */
+    public static List<String> motDePassePool(String pool, String valeur) {
+        if (pool == null || !pool.matches("[A-Za-z0-9_\\-]+")) {
+            throw new IllegalArgumentException("Nom de pool non admis.");
+        }
+        /*
+         * nouveau mot de passe : alphabet de MotDePasseBase ; ancien (retour arriere) : tel qu'il est dans domain.xml,
+         * hors espace, guillemet et caractere de commande (le client asadmin est lance sans cmd.exe : voir Asadmin)
+         */
+        if (valeur == null || valeur.isEmpty() || valeur.length() > 120 || valeur.matches(".*[\\s\"\\p{Cntrl}].*")) {
+            throw new IllegalArgumentException("Valeur non admise pour le mot de passe du pool.");
+        }
+        List<String> a = new ArrayList<>();
+        a.add("set");
+        a.add("resources.jdbc-connection-pool." + pool + ".property.password=" + valeur);
+        return a;
     }
 
     /** « asadmin set "a=b c" » -> [set, a=b c] ; null si la ligne n'est pas une commande asadmin. */
