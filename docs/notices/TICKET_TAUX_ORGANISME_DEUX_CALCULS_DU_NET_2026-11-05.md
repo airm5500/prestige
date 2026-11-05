@@ -26,12 +26,19 @@ tous les suivants avec 20.
 **Effet** : le montant annoncé au client dépend du nombre de clics. Clôture au premier clic : l'organisme est facturé
 1 820 F. Clôture après un second clic : 524 F.
 
-## Décision attendue avant correction : quel taux fait foi quand une référence existe ?
+## Décision prise le 05/11/2026
 
-- **Taux du compte (20 %)** : corriger l'entrée du moteur pour qu'il prenne le taux du compte dès le premier calcul
-  quand une option de prix existe. Résultat stable : 524 F.
-- **Taux mémorisé sur la vente (100 %)** : corriger la réécriture après calcul pour qu'elle garde le taux utilisé.
-  Résultat stable : 1 820 F.
+Le taux saisi fait foi : s'il est présent sur la ligne de l'organisme, c'est qu'il a été saisi un jour. Le taux de la
+fiche du compte ne sert qu'en son absence. Les références priment ligne par ligne :
+
+- produit sans référence : prix de vente × taux du client ;
+- produit à prix de référence seul : prix de référence × taux du client ;
+- produit à taux de référence seul : prix de vente × taux de référence ;
+- produit à prix et taux de référence : prix de référence × taux de référence.
+
+Sur l'exemple : A = 1 620 × 100 % = 1 620, B = 1 995 × 10 % = 200, part de l'organisme 1 820 F à chaque calcul.
+Correction : `SalesNetComputingServiceImpl` ne réécrit plus le taux de la fiche sur la ligne de l'organisme quand une
+option de prix existe (les deux chemins de calcul), le taux mémorisé reste celui utilisé par le calcul.
 
 ## Critère de recette
 

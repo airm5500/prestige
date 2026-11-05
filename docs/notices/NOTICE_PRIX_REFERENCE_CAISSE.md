@@ -133,14 +133,16 @@ saisie d'un tiers-payant 25/25, saisies refusées 20/20, grille identique à par
 cohérence (unitaire) 4/4. Sur le code faussé (taux de ligne empilés, prix de référence ignoré) : rapprochement 8/21,
 bilan 11/21.
 
-**Défaut suspecté, non corrigé** (`test-non-regression-net.js`, 7/8 : une vente sur 40, reproduite trois fois) : quand
-une vente porte un taux mémorisé différent du taux contractuel du compte (ici 100 mémorisé, 20 au compte) et qu'un
-prix de référence existe pour l'un de ses produits, le premier calcul du net applique le taux mémorisé (part 1 820 sur
-4 020) puis réécrit le taux contractuel sur la ligne de l'organisme (`isHasPriceOption` dans
-`SalesNetComputingServiceImpl`) ; le calcul suivant, identique, donne alors 524. Le montant affiché à la caisse dépend
-donc du nombre de recalculs. Le moteur n'est pas touché par le cas 2 (comportement antérieur, taux contractuel repris
-dès qu'une option de prix existe) : à trancher avant correction, le test reste rouge sur ce point et imprime le détail
-de la vente (lignes, organismes, références, taux) quand les deux séries divergent.
+**Second défaut confirmé et corrigé** (`test-non-regression-net.js`, rouge d'abord à 7/8 sur une vente sur 40, reproduit
+trois fois) : quand une vente porte un taux saisi différent du taux de la fiche du compte (100 saisi, 20 à la fiche) et
+qu'un prix de référence existe pour l'un de ses produits, le premier calcul du net appliquait le taux saisi (part 1 820
+sur 4 020) puis réécrivait le taux de la fiche sur la ligne de l'organisme ; le calcul suivant, identique, donnait 524.
+Règle tranchée le 05/11 : le taux saisi fait foi (s'il est présent, c'est qu'il a été voulu un jour), le taux de la fiche
+ne sert qu'en son absence ; un produit à prix de référence seul vaut prix de référence × taux du client, un produit à
+taux de référence vaut prix de vente × taux de référence, les deux ensemble prix de référence × taux de référence, un
+produit sans référence prix de vente × taux du client. `SalesNetComputingServiceImpl` ne réécrit plus le taux de la
+fiche quand une option de prix existe (deux chemins de calcul) ; le test imprime le détail de la vente (lignes,
+organismes, références, taux) quand les deux séries divergent.
 
 ## Points à connaître
 
