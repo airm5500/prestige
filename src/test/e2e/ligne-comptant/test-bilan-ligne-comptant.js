@@ -149,7 +149,9 @@ const nb = (s) => (s === 'aucun' || s === 'aucune' ? 0 : s.split(' ; ').length);
       dVo + ' || ' + dVno);
     ok('B. Solde du client = somme des deux dettes = net affiché (à l\'arrondi près), même solde en base',
       Math.abs(soldeClient - railB.net.valeur) <= 4 && soldeClient === Number(dVo.split('/')[1]) + Number(dVno.split('/')[1]), soldeClient + ' / net ' + railB.net.valeur);
-    ok('B. Aucune recette, mouvements de caisse à 0 payé, reste dû = dette', C.recettes(vB) === 'aucune' && C.recettes(vnoB) === 'aucune'
+    /* un differe ecrit une recette a 0 (comportement d'origine, pour les deux types de vente) : rien d'encaisse */
+    const recetteNulle = (id) => C.recettes(id) === 'aucune' || C.recettes(id).split(' ; ').every((r) => r.startsWith('0/'));
+    ok('B. Rien d\'encaissé (recettes nulles), mouvements de caisse à 0 payé, reste dû = dette', recetteNulle(vB) && recetteNulle(vnoB)
       && Number(C.mouvements(vB).split('/')[6]) === 0 && Number(C.mouvements(vnoB).split('/')[6]) === 0 && C.vente(vB).statutVente === 'Differe' && C.vente(vnoB).statutVente === 'Differe',
       C.mouvements(vB) + ' || ' + C.mouvements(vnoB) + ' ' + C.vente(vB).statutVente);
     const apresB = stocks();
