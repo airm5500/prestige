@@ -83,6 +83,16 @@ public class InvoiceServlet extends HttpServlet {
         JdbConnexion Ojconnexion = new JdbConnexion();
 
         Ojconnexion.openConnexion();
+        try {
+            traiter(request, response, Ojconnexion);
+        } finally {
+            /* cas 4, lot 4.A : la connexion (du pool quand KEY_SECURITE_BASE = 1) est rendue a la fin de l'edition */
+            Ojconnexion.closeConnexion();
+        }
+    }
+
+    private void traiter(HttpServletRequest request, HttpServletResponse response, JdbConnexion Ojconnexion)
+            throws ServletException, IOException, JRException {
         HttpSession session = request.getSession();
         TUser OTUser = (TUser) session.getAttribute(Constant.AIRTIME_USER);
         OdataManager = new dataManager();

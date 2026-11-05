@@ -7,9 +7,15 @@
      - innodb_buffer_pool_size (6 Go par defaut, pour un serveur dedie de 16 Go).
      Une copie datee de my.ini est faite avant toute modification ; une cle deja presente est remplacee, jamais
      dupliquee.
-  2. -CreerCompte : compte MariaDB dedie aux sauvegardes, avec les seuls droits utiles. Son mot de passe est tire au
-     hasard et range dans un fichier d'options lisible par SYSTEM et les administrateurs seulement. Il n'est jamais
-     affiche. Le mot de passe root est demande par MariaDB lui-meme (saisie masquee) et n'est garde nulle part.
+  2. -CreerCompte : compte MariaDB dedie aux sauvegardes, avec les seuls droits utiles (et l'ecriture de la base
+     temporaire de valorisation prestige_valo_tmp de Prestige). Son mot de passe est tire au hasard et range dans un
+     fichier d'options CHIFFRE (DPAPI, portee machine : identifiants-sauvegarde.ps1) lisible par SYSTEM, les
+     administrateurs et le compte de Payara (-ComptePayara) seulement. Il n'est jamais affiche. Le mot de passe root
+     est demande par MariaDB lui-meme (saisie masquee) et n'est garde nulle part ; -OptionsRoot <fichier> le lit dans
+     un fichier d'options existant (poste sans console).
+     Ce fichier sert aux taches planifiees (3, 4, 6) et a la sauvegarde integree de Prestige quand le parametre
+     KEY_SECURITE_BASE vaut 1 (docs/notices/NOTICE_SECURITE_BASE_LOT_A.md).
+  3. -Chiffrer : convertit un fichier d'options encore en clair (installation d'avant le lot 4.A) en fichier chiffre.
 
   Le journal binaire et la memoire ne s'appliquent qu'au redemarrage de MariaDB : -Redemarrer le fait (toutes les
   caisses sont coupees quelques secondes : a faire hors des heures d'ouverture).
@@ -18,6 +24,8 @@
     .\2-configurer-mariadb.ps1 -Lire
     .\2-configurer-mariadb.ps1 -DossierJournal 'E:\mariadb-journal' -Redemarrer
     .\2-configurer-mariadb.ps1 -CreerCompte
+    .\2-configurer-mariadb.ps1 -CreerCompte -ComptePayara 'RM\prestige-service'
+    .\2-configurer-mariadb.ps1 -Chiffrer
 #>
 param(
     [string]$Ini = 'D:\Program Files\MariaDB 10.6\data\my.ini',
@@ -32,10 +40,39 @@ param(
     [switch]$CreerCompte,
     [string]$Compte = 'prestige_sauvegarde',
     [string]$FichierOptions = 'C:\ProgramData\Prestige\sauvegarde.cnf',
+    # fichier d'options de root (--defaults-extra-file) a la place de la saisie masquee
+    [string]$OptionsRoot = '',
+    # compte Windows qui fait tourner Payara s'il n'est ni SYSTEM ni administrateur (DOMAINE\compte)
+    [string]$ComptePayara = '',
+    [switch]$Chiffrer,
     [switch]$Lire,
     [switch]$Redemarrer
 )
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'identifiants-sauvegarde.ps1')
+
+# ecrit le fichier d'options chiffre, lisible par SYSTEM, les administrateurs et le compte de Payara
+function Ecrire-FichierOptions([string]$clair) {
+    New-Item -ItemType Directory -Force -Path (Split-Path $FichierOptions -Parent) | Out-Null
+    # l'ancien fichier est retire d'abord : ses droits (SYSTEM, administrateurs) ne doivent pas bloquer la reecriture
+    if (Test-Path $FichierOptions) {
+        $sid = [System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+        icacls $FichierOptions /grant "*${sid}:F" 2>&1 | Out-Null
+        Remove-Item -Force $FichierOptions
+    }
+    [System.IO.File]::WriteAllText($FichierOptions, (Chiffrer-Options $clair), (New-Object System.Text.UTF8Encoding($false)))
+    $droits = @('/inheritance:r', '/grant:r', '*S-1-5-18:F', '*S-1-5-32-544:F')
+    if ($ComptePayara) { $droits += "${ComptePayara}:R" }
+    icacls $FichierOptions @droits | Out-Null
+}
+
+if ($Chiffrer) {
+    $clair = Dechiffrer-Options $FichierOptions
+    Ecrire-FichierOptions $clair
+    $clair = $null
+    Write-Host "Fichier $FichierOptions chiffre (DPAPI, portee machine) ; acces : SYSTEM, administrateurs$(if ($ComptePayara) { ", $ComptePayara" })"
+    return
+}
 
 # remplace ou ajoute "cle=valeur" dans la section [mysqld] ; renvoie les nouvelles lignes
 function Regler([string[]]$lignes, [string]$cle, [string]$valeur) {
@@ -104,18 +141,21 @@ if ($CreerCompte) {
 CREATE USER IF NOT EXISTS '$Compte'@'localhost' IDENTIFIED BY '$mdp';
 ALTER USER '$Compte'@'localhost' IDENTIFIED BY '$mdp';
 GRANT SELECT, SHOW VIEW, TRIGGER, EVENT, LOCK TABLES, RELOAD, REPLICATION CLIENT, BINLOG MONITOR ON *.* TO '$Compte'@'localhost';
+GRANT ALL PRIVILEGES ON ``prestige_valo_tmp``.* TO '$Compte'@'localhost';
 "@
     # les ordres passent par l'entree du client, jamais par un fichier : rien ne reste sur le disque si on interrompt
-    Write-Host "Mot de passe root de MariaDB (saisie masquee) :"
-    $sql | & $Client "--port=$Port" --host=localhost -u root -p
+    if ($OptionsRoot) {
+        $sql | & $Client "--defaults-extra-file=$OptionsRoot" "--port=$Port" --host=localhost
+    } else {
+        Write-Host "Mot de passe root de MariaDB (saisie masquee) :"
+        $sql | & $Client "--port=$Port" --host=localhost -u root -p
+    }
     $sql = $null
     if ($LASTEXITCODE -ne 0) { throw "creation du compte $Compte refusee par MariaDB" }
-    New-Item -ItemType Directory -Force -Path (Split-Path $FichierOptions -Parent) | Out-Null
-    [System.IO.File]::WriteAllText($FichierOptions, "[client]`r`nuser=$Compte`r`npassword=$mdp`r`nport=$Port`r`nhost=localhost`r`n")
+    # chiffre (DPAPI) ; lisible par SYSTEM (taches planifiees), les administrateurs et le compte de Payara seulement
+    Ecrire-FichierOptions "[client]`r`nuser=$Compte`r`npassword=$mdp`r`nport=$Port`r`nhost=localhost`r`n"
     $mdp = $null
-    # lisible par SYSTEM (taches planifiees) et les administrateurs seulement
-    icacls $FichierOptions /inheritance:r /grant:r '*S-1-5-18:F' '*S-1-5-32-544:F' | Out-Null
-    Write-Host "Compte $Compte cree ; options dans $FichierOptions (acces : SYSTEM, administrateurs)"
+    Write-Host "Compte $Compte cree ; options chiffrees dans $FichierOptions (acces : SYSTEM, administrateurs$(if ($ComptePayara) { ", $ComptePayara" }))"
 }
 
 if ($Redemarrer) {

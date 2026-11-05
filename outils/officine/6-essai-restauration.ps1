@@ -9,7 +9,9 @@
    - le serveur cible doit etre different du serveur d'origine (port et dossier de donnees compares) ;
    - la base cible ne doit pas exister, sauf -Remplacer ;
    - seules des lectures sont faites sur la base d'origine (comptes de ventes, aucune donnee nominative).
-  Aucun mot de passe en clair : chaque serveur est decrit par un fichier d'options (--defaults-extra-file).
+  Aucun mot de passe en clair : chaque serveur est decrit par un fichier d'options (--defaults-extra-file), chiffre
+  par 2-configurer-mariadb.ps1 ou encore en clair (identifiants-sauvegarde.ps1 lit les deux, dans un fichier prive le
+  temps du script).
 
   Exemple (instance d'essai sur le port 3307) :
     .\6-essai-restauration.ps1 -Base laborex_v1_db -OptionsCible 'C:\ProgramData\Prestige\essai.cnf' `
@@ -28,8 +30,13 @@ param(
     [switch]$Remplacer
 )
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'identifiants-sauvegarde.ps1')
 $client = Join-Path $BinMariaDB 'mariadb.exe'
 $binlog = Join-Path $BinMariaDB 'mariadb-binlog.exe'
+# fichiers d'options en clair, prives, le temps du script (les chemins donnes peuvent etre chiffres ou non)
+$OptionsOrigine = Options-Temporaires $OptionsOrigine
+$OptionsCible = Options-Temporaires $OptionsCible
+try {
 if (-not $Zstd) { $c = Get-Command zstd -ErrorAction SilentlyContinue; if ($c) { $Zstd = $c.Source } }
 function Sql([string]$options, [string]$requete) {
     # PowerShell 5 traiterait toute ligne d'erreur du client comme fatale : seul son code de sortie compte
@@ -102,3 +109,7 @@ Write-Host "origine    : $a"
 Write-Host "restauree  : $b"
 if ($a -ne $b) { Write-Warning 'ecart entre la base d''origine et la base restauree'; exit 1 }
 Write-Host 'restauration conforme'
+} finally {
+    Retirer-OptionsTemporaires $OptionsOrigine
+    Retirer-OptionsTemporaires $OptionsCible
+}

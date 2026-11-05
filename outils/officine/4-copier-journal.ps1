@@ -9,7 +9,8 @@
    1. FLUSH BINARY LOGS : MariaDB ferme le fichier en cours et en ouvre un nouveau ;
    2. chaque fichier ferme absent de Destination (ou de taille differente) y est copie, puis dans -CopieVers ;
    3. les copies de plus de JoursGardes jours sont supprimees (MariaDB purge les siens apres expire_logs_days).
-  Aucun mot de passe : le compte de sauvegarde lit le sien dans FichierOptions. Journal : journal.log dans Destination.
+  Aucun mot de passe : le compte de sauvegarde lit le sien dans FichierOptions (chiffre, dechiffre le temps du script
+  dans un fichier prive : identifiants-sauvegarde.ps1). Journal : journal.log dans Destination.
   Code de sortie 1 si la copie a echoue.
 
   Exemple :
@@ -23,8 +24,10 @@ param(
     [int]$JoursGardes = 14
 )
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'identifiants-sauvegarde.ps1')
 New-Item -ItemType Directory -Force -Path $Destination | Out-Null
 $journal = Join-Path $Destination 'journal.log'
+$optionsClair = $null
 function Note([string]$m) {
     $l = "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') $m"
     Write-Host $l
@@ -33,7 +36,7 @@ function Note([string]$m) {
 function Sql([string]$requete) {
     # PowerShell 5 traiterait toute ligne d'erreur du client comme fatale : seul son code de sortie compte
     $ErrorActionPreference = 'Continue'
-    $r = & $Client "--defaults-extra-file=$FichierOptions" -N -B -e $requete 2>&1
+    $r = & $Client "--defaults-extra-file=$optionsClair" -N -B -e $requete 2>&1
     if ($LASTEXITCODE -ne 0) { throw "MariaDB : $r" }
     return $r
 }
@@ -57,6 +60,7 @@ function Purger([string]$dossier) {
 }
 
 try {
+    $optionsClair = Options-Temporaires $FichierOptions
     if ("$(Sql 'SELECT @@log_bin')".Trim() -ne '1') { throw 'journal binaire inactif (2-configurer-mariadb.ps1, puis redemarrer MariaDB)' }
     $racine = "$(Sql 'SELECT @@log_bin_basename')".Trim() -replace '/', '\'
     $source = Split-Path $racine -Parent
@@ -76,4 +80,6 @@ try {
 } catch {
     Note "ECHEC : $($_.Exception.Message)"
     exit 1
+} finally {
+    Retirer-OptionsTemporaires $optionsClair
 }

@@ -8,7 +8,8 @@
    - copie hors de la machine (-CopieVers : second disque, NAS, dossier synchronise) ;
    - rotation : toutes les sauvegardes des JoursGardes derniers jours, puis la plus recente de chacune des
      SemainesGardees dernieres semaines et des MoisGardes derniers mois ; le reste est supprime ;
-   - aucun mot de passe : le compte de sauvegarde lit le sien dans FichierOptions (2-configurer-mariadb.ps1 -CreerCompte).
+   - aucun mot de passe : le compte de sauvegarde lit le sien dans FichierOptions (2-configurer-mariadb.ps1 -CreerCompte),
+     chiffre par DPAPI et dechiffre le temps du script dans un fichier prive (identifiants-sauvegarde.ps1).
   Journal du script : sauvegarde.log dans Destination (noms de fichiers, tailles, durees ; jamais de donnees).
   Code de sortie 1 si une base n'a pas ete sauvegardee.
 
@@ -30,6 +31,7 @@ param(
     [switch]$Rotation
 )
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'identifiants-sauvegarde.ps1')
 # lance par une tache planifiee (powershell -File), "a,b" arrive en un seul texte
 $Bases = @($Bases | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
 New-Item -ItemType Directory -Force -Path $Destination | Out-Null
@@ -67,14 +69,18 @@ if (-not $Zstd) { $c = Get-Command zstd -ErrorAction SilentlyContinue; if ($c) {
 $client = Join-Path $BinMariaDB 'mariadb.exe'
 $dump = Join-Path $BinMariaDB 'mariadb-dump.exe'
 $echecs = 0
-
+# fichier d'options en clair, prive, le temps du script seulement (supprime dans le finally)
+$optionsClair = $null
+if (-not $Rotation) {
+    try { $optionsClair = Options-Temporaires $FichierOptions } catch { Note "ECHEC : $($_.Exception.Message)"; exit 1 }
+}
+try {
 foreach ($base in $Bases) {
     if (-not $Rotation) {
-        if (-not (Test-Path $FichierOptions)) { throw "fichier d'options introuvable : $FichierOptions (2-configurer-mariadb.ps1 -CreerCompte)" }
         $horodatage = Get-Date -Format 'yyyyMMdd-HHmm'
         $erreurs = Join-Path $env:TEMP "sauvegarde-$base-$horodatage.err"
         $ErrorActionPreference = 'Continue'
-        $logBin = (& $client "--defaults-extra-file=$FichierOptions" -N -B -e 'SELECT @@log_bin' 2>&1)
+        $logBin = (& $client "--defaults-extra-file=$optionsClair" -N -B -e 'SELECT @@log_bin' 2>&1)
         $codeClient = $LASTEXITCODE
         $ErrorActionPreference = 'Stop'
         if ($codeClient -ne 0) {
@@ -82,7 +88,7 @@ foreach ($base in $Bases) {
             Note "$base : ECHEC, connexion a MariaDB impossible : $("$logBin".Trim())"
             continue
         }
-        $options = "--defaults-extra-file=`"$FichierOptions`" --single-transaction --routines --triggers --events --hex-blob --log-error=`"$erreurs`""
+        $options = "--defaults-extra-file=`"$optionsClair`" --single-transaction --routines --triggers --events --hex-blob --log-error=`"$erreurs`""
         if ("$logBin".Trim() -eq '1') { $options += ' --master-data=2' } else { Note "$base : journal binaire inactif, position non notee" }
         if ($Zstd) {
             $fichier = Join-Path $Destination "$base-$horodatage.sql.zst"
@@ -119,5 +125,8 @@ foreach ($base in $Bases) {
     }
     Rotation $Destination $base
     if ($CopieVers -and (Test-Path $CopieVers)) { Rotation $CopieVers $base }
+}
+} finally {
+    Retirer-OptionsTemporaires $optionsClair
 }
 if ($echecs) { exit 1 }

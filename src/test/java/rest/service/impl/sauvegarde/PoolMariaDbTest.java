@@ -35,6 +35,28 @@ class PoolMariaDbTest {
         assertTrue(o.contains("port=3307\n"));
     }
 
+    /** Cas 4, lot 4.A : fichier d'options du compte de sauvegarde (valeurs nues ou entre guillemets, commentaires). */
+    @Test
+    void fichierDOptionsDuCompteDeSauvegarde() {
+        PoolMariaDb p = PoolMariaDb
+                .depuisOptions("# commentaire\n[mysqld]\nuser=pasmoi\n[client]\nuser=prestige_sauvegarde\n"
+                        + "password=\"a\\\"b\\\\c#d\"\nhost=127.0.0.1\nport=3307\n; fin\n");
+        assertEquals("prestige_sauvegarde", p.utilisateur);
+        assertEquals("a\"b\\c#d", p.motDePasse);
+        assertEquals("127.0.0.1", p.hote);
+        assertEquals(3307, p.port);
+        assertEquals("", p.base);
+        assertEquals(
+                "[client]\nuser=\"prestige_sauvegarde\"\npassword=\"a\\\"b\\\\c#d\"\nhost=\"127.0.0.1\"\nport=3307\n",
+                p.options());
+        PoolMariaDb nu = PoolMariaDb.depuisOptions("[client]\nuser=x\npassword=y z\n");
+        assertEquals("y z", nu.motDePasse);
+        assertEquals("localhost", nu.hote);
+        assertEquals(3306, nu.port);
+        assertNull(PoolMariaDb.depuisOptions("[mysqld]\nuser=x\n"));
+        assertNull(PoolMariaDb.depuisOptions(null));
+    }
+
     @Test
     void urlJdbcEtAlias() {
         PoolMariaDb p = PoolMariaDb.lire(

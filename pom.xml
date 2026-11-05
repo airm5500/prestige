@@ -73,6 +73,18 @@
             <artifactId>gethostname4j</artifactId>
             <version>1.0.0</version>
         </dependency>
+        <!-- DPAPI de Windows (Crypt32) pour le fichier d'identifiants du compte de sauvegarde (cas 4, lot 4.A) :
+             meme version que celle deja embarquee par gethostname4j -->
+        <dependency>
+            <groupId>net.java.dev.jna</groupId>
+            <artifactId>jna</artifactId>
+            <version>5.7.0</version>
+        </dependency>
+        <dependency>
+            <groupId>net.java.dev.jna</groupId>
+            <artifactId>jna-platform</artifactId>
+            <version>5.7.0</version>
+        </dependency>
         
         <dependency>
             <groupId>TOOLKITS</groupId>
