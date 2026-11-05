@@ -107,6 +107,7 @@ perf/test-perf-ouverture-ecrans.js
 perf/test-perf-pilotage.js
 perf/test-pilotage-a-suivre-cache.js
 perf/test-pilotage-a-suivre.js
+perf/test-pilotage-a-suivre-progressif.js
 perf/test-scripts-groupes.js
 perf/test-statistique-famille.js
 perf/test-statistique-rayon-grossiste.js
@@ -125,6 +126,9 @@ prix-reference/test-grille-identique-parametre-0.js
 prix-reference/test-non-regression-net.js
 prix-reference/test-saisie-un-tiers-payant.js
 prix-reference/test-saisies-refusees.js
+prix-reference/test-base-par-tp-non-regression.js
+prix-reference/test-base-par-tp-deux-tiers-payants.js
+prix-reference/test-rapprochement-ticket.js
 productivite/test-activite-equipes-analyses.js
 productivite/test-activite-equipes-donnees.js
 productivite/test-activite-equipes-pastilles.js
@@ -411,6 +415,13 @@ retours/test-sans-filet-colore.js
 retours/test-couleurs-douces.js
 retours/test-bl-quantite-sans-lot.js
 perf/test-perf-entree-stock.js
+retours/test-reedition-un-ticket.js
+retours/test-caisse-vente-scindee.js
+retours/test-grille-vente-triangles.js
+retours/test-ordonnancier-numero-client.js
+retours/test-historique-ordonnancier.js
+retours/test-modeles-ticket-0511.js
+retours/test-rh-badge-bouton-nouveau.js
 retours/test-titre-retour-ecran.js
 retours/test-types-etiquette-filtres.js
 retours/test-types-etiquette.js

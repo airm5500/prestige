@@ -202,4 +202,31 @@ class AnalyseOrdonnancierTest {
         assertTrue(texte.contains("2 unité(s)"), texte);
         assertTrue(texte.contains("1000"), texte);
     }
+
+    @Test
+    @DisplayName("Retour du 05/11 : le numero du client a cote de son nom ; deux homonymes restent deux lignes")
+    void numeroClient() {
+        VenteDTO a = vente("V1", "DUPONT JEAN", "DR HOUSE", "9001", produit("P1", "X", "1", "A", 2, 100));
+        a.setLgCLIENTID("C1");
+        a.setClientNumero("0700000101");
+        VenteDTO b = vente("V2", "DUPONT JEAN", "DR HOUSE", "9001", produit("P1", "X", "1", "A", 1, 50));
+        b.setLgCLIENTID("C2");
+        b.setClientNumero("RUE DES ESSAIS");
+        AnalyseOrdonnancier.Resultat r = AnalyseOrdonnancier.analyser(Arrays.asList(a, b), 10);
+
+        assertEquals(2, r.getClientsDistincts(), "deux clients homonymes");
+        assertEquals("0700000101", r.getTopClients().get(0).getComplement());
+        assertEquals("RUE DES ESSAIS", r.getTopClients().get(1).getComplement());
+        assertEquals("0700000101", AnalyseOrdonnancier.aPlat(r).get(1).getComplement());
+    }
+
+    @Test
+    @DisplayName("Retour du 05/11 : telephone ; client assurance sans telephone, son adresse ; client standard, jamais l'adresse")
+    void regleDuNumero() {
+        assertEquals("0700000101", VenteDTO.numeroClient("6", " 0700000101 ", "RUE A"));
+        assertEquals("", VenteDTO.numeroClient("6", null, "RUE A"));
+        assertEquals("0700000303", VenteDTO.numeroClient("1", "0700000303", "RUE C"));
+        assertEquals("RUE D", VenteDTO.numeroClient("1", "", "RUE D"));
+        assertEquals("", VenteDTO.numeroClient("1", null, null));
+    }
 }

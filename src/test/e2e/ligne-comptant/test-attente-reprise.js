@@ -11,6 +11,8 @@ const { ok, q, A } = C;
 
 (async () => {
   A.parametre('KEY_LIGNE_COMPTANT_VO', '1');
+  /* grille de reference du cas 1 : sans les colonnes du prix de reference (cas 2), quel que soit le reglage du poste */
+  A.parametre('KEY_PRIX_REF_CAISSE', '0');
   const TP = A.tiersPayant('C4', '1');
   const P1 = C.produitSimple(5);
   const P2 = C.produitSimple(6);

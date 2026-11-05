@@ -3,7 +3,7 @@
  * Parcours a l'ecran (compte de test, KEY_GERE_ORDONCIER mis a 1 pour la duree du test) :
  *  1. Ordonnancier > onglet « Produits sensibles » : la barre commune (periode, medecin) est masquee ; recherche du
  *     produit par son CIP, clic sur la case : enregistre aussitot, journalise, visible apres rechargement ;
- *  2. Ventes : l'article tape par son CIP porte la pastille « SENSIBLE », qui clignote ;
+ *  2. Ventes : l'article tape par son CIP porte le triangle violet « ! » (retour du 05/11), qui clignote ;
  *  3. « Terminer la vente » est refuse tant qu'il n'y a pas de medecin ; le parcours client puis medecin s'ouvre, on le
  *     suit, la vente se termine ;
  *  4. Ordonnancier > Registre : la vente est la, son detail porte le motif « Sensible », l'edition PDF aussi ;
@@ -83,8 +83,8 @@ const lire = (p, url) => p.evaluate(async (u) => { const r = await fetch(u, { cr
     if (venteId) { ventes.push(venteId); }
     const ligne = await C.ligneVente(p, article.cip);
     C.ok('La ligne de vente porte le motif Sensible', ligne && ligne.motif === 'Sensible' && ligne.sensible === true, JSON.stringify(ligne));
-    C.ok('Pastille « SENSIBLE » affichée sur la ligne', ligne && ligne.pastille === 'SENSIBLE' && /vp-pastille-sensible/.test(ligne.classes), ligne && ligne.classes);
-    C.ok('La pastille clignote (animation CSS)', ligne && ligne.animation === 'vp-pastille-clignote', ligne && ligne.animation);
+    C.ok('Triangle violet « ! » (sensible) affiché sur la ligne', ligne && ligne.pastille === 'SENSIBLE' && /vp-triangle-sensible/.test(ligne.classes), ligne && ligne.classes);
+    C.ok('Le triangle clignote à l\'ajout (animation CSS)', ligne && ligne.animation === 'vp-triangle-clignote', ligne && ligne.animation);
 
     /* 3. la cloture exige un medecin ; parcours client puis medecin */
     const refus = await C.terminer(p);

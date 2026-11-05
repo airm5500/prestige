@@ -498,7 +498,10 @@ Ext.define('testextjs.view.vente.Ordonnancier', {
                     items: [
                         me.grillePalmares('Produits les plus d&eacute;livr&eacute;s', 'grilleTopProduits',
                                 me.produitStore, 'CIP / tableau'),
-                        me.grillePalmares('Clients', 'grilleTopClients', me.clientStore, null),
+                        // retour du 05/11 : a cote du nom, de quoi joindre le client (telephone ; adresse a
+                        // defaut pour un client assurance)
+                        me.grillePalmares('Clients', 'grilleTopClients', me.clientStore,
+                                'T&eacute;l&eacute;phone / adresse'),
                         me.grillePalmares('M&eacute;decins prescripteurs', 'grilleTopMedecins',
                                 me.medecinStore, 'N&deg; ordre')
                     ]

@@ -165,6 +165,10 @@ public final class AnalyseOrdonnancier {
             String venteId = vente.getLgPREENREGISTREMENTID();
             ventesRetenues.add(StringUtils.defaultString(venteId));
             String client = libelleOuInconnu(vente.getClientFullName(), "Client non renseigné");
+            // Le client est reconnu a son identifiant : deux homonymes restent deux lignes, chacune avec son numero
+            // (telephone, ou adresse pour un client assurance qui n'en a pas ; retour du 05/11).
+            String cleClient = libelleOuInconnu(vente.getLgCLIENTID(), client);
+            String numeroClient = StringUtils.defaultString(vente.getClientNumero());
             String medecin = libelleOuInconnu(vente.getNom(), "Médecin non renseigné");
 
             for (VenteDetailsDTO item : items) {
@@ -180,7 +184,7 @@ public final class AnalyseOrdonnancier {
                         StringUtils.defaultString(item.getIntCIP()));
                 cumul(produits, cleProduit, libelleOuInconnu(item.getStrNAME(), "Produit inconnu"),
                         complementProduit(item)).ajouter(venteId, quantite, montant);
-                cumul(clients, client, client, "").ajouter(venteId, quantite, montant);
+                cumul(clients, cleClient, client, numeroClient).ajouter(venteId, quantite, montant);
                 cumul(medecins, medecin, medecin, StringUtils.defaultString(vente.getNumOrder())).ajouter(venteId,
                         quantite, montant);
             }

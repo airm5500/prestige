@@ -88,6 +88,8 @@ public class VenteDTO implements Serializable {
     private String lgEMPLACEMENTID;
     private String desciptiontypedepot;
     private String clientFullName;
+    /** Le numero du client pour l'ordonnancier (retour du 05/11) : voir {@link #numeroClient}. */
+    private String clientNumero;
     private String strTYPEVENTENAME;
     private String mvdate;
     private boolean copy = false;
@@ -241,6 +243,29 @@ public class VenteDTO implements Serializable {
 
     public boolean isBeCancel() {
         return beCancel;
+    }
+
+    public String getClientNumero() {
+        return clientNumero;
+    }
+
+    public void setClientNumero(String clientNumero) {
+        this.clientNumero = clientNumero;
+    }
+
+    /**
+     * Le numero par lequel on joint un client de l'ordonnancier (reponse du 05/11) : son telephone ; pour un client qui
+     * n'est pas standard (assurance, carnet), son adresse quand il n'a pas de telephone. Un client standard sans
+     * telephone n'a pas de numero : son adresse n'est pas reprise.
+     */
+    public static String numeroClient(String typeClientId, String telephone, String adresse) {
+        if (telephone != null && !telephone.trim().isEmpty()) {
+            return telephone.trim();
+        }
+        if ("6".equals(typeClientId) || adresse == null) {
+            return "";
+        }
+        return adresse.trim();
     }
 
     public String getClientFullName() {
@@ -1286,6 +1311,9 @@ public class VenteDTO implements Serializable {
         if (cl != null) {
             this.clientFullName = cl.getStrFIRSTNAME() + " " + cl.getStrLASTNAME();
             this.lgCLIENTID = cl.getLgCLIENTID();
+            this.clientNumero = numeroClient(
+                    cl.getLgTYPECLIENTID() != null ? cl.getLgTYPECLIENTID().getLgTYPECLIENTID() : null,
+                    cl.getStrTELEPHONE(), cl.getStrADRESSE());
         }
 
         // Le medecin prescripteur. Il n'etait pas repris ici : la colonne « Medecin » de

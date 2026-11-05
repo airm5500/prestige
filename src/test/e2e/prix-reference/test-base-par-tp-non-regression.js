@@ -169,7 +169,10 @@ function attendu(c) {
     const fige = { sansReference: parCle(s0), avecReferences: parCle(r0) };
     if (fs.existsSync(FIGE) && process.env.E2E_REFIGER !== '1') {
       const avant = JSON.parse(fs.readFileSync(FIGE, 'utf8'));
-      const dA = comparer(avant.sansReference, fige.sansReference), dB = comparer(avant.avecReferences, fige.avecReferences);
+      /* seules les ventes presentes dans les deux series se comparent : une vente close plus recente fait sortir la plus
+         ancienne de l'echantillon, sans rien dire du calcul */
+      const dA = comparer(avant.sansReference, fige.sansReference, (k) => k in fige.sansReference),
+        dB = comparer(avant.avecReferences, fige.avecReferences, (k) => k in fige.avecReferences);
       const communes = Object.keys(avant.sansReference).filter((k) => fige.sansReference[k]).length;
       ok('Série à 0 sans référence identique au franc près à la série figée (' + communes + ' ventes communes, ' + FIGE + ')', communes >= Math.min(copies.length, 10) && dA.length === 0, dA.slice(0, 3).join(' | '));
       ok('Série à 0 avec références identique au franc près à la série figée (règle du minimum inchangée)', dB.length === 0, dB.slice(0, 3).join(' | '));

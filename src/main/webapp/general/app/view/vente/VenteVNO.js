@@ -12,6 +12,40 @@ Ext.define('testextjs.view.vente.VenteVNO', {
     requires: ['testextjs.view.vente.SuiviConsoFenetre', 'testextjs.view.vente.ClientStandardFenetre',
         'testextjs.view.vente.VentesAttenteFenetre'],
     xtype: 'ventevno',
+    statics: {
+        /* lignes deja affichees : le triangle ne clignote qu'a l'ajout de la ligne, puis reste fixe */
+        trianglesVus: {},
+        /**
+         * Retour du 05/11 : repere de l'ordonnancier devant le nom du produit, un triangle avec « ! » a l'interieur.
+         * Violet : produit sensible ; rouge : soumis a ordonnance avec un code tableau ; les deux si les deux.
+         */
+        trianglesOrdonnancier: function (r) {
+            const vus = testextjs.view.vente.VenteVNO.trianglesVus;
+            const cle = r.get('lgPREENREGISTREMENTDETAILID') || r.id;
+            /* la grille redessine la ligne juste apres l'ajout (reponse du serveur) : clignotement pendant 4 s depuis le
+               premier affichage, fixe ensuite */
+            const nouveau = cle && (!vus[cle] || Date.now() - vus[cle] < 4000);
+            const tableau = r.get('scheduled') && Ext.String.trim(String(r.get('codeTableau') || '')) !== '';
+            const triangle = function (genre, info) {
+                return '<span class="vp-triangle vp-triangle-' + genre + (nouveau ? ' vp-triangle-nouveau' : '')
+                        + '" data-qtip="' + Ext.String.htmlEncode(info) + '" aria-label="' + Ext.String.htmlEncode(info) + '">'
+                        + '<svg viewBox="0 0 16 14" width="16" height="14" aria-hidden="true"><path d="M8 1 15 13H1Z"/>'
+                        + '<text x="8" y="12" text-anchor="middle">!</text></svg></span>';
+            };
+            let t = '';
+            if (r.get('sensible')) {
+                t += triangle('sensible', 'Produit sensible : inscrit à l\'ordonnancier, médecin demandé à la clôture');
+            }
+            if (tableau) {
+                t += triangle('ordonnancier', 'Produit de l\'ordonnancier (soumis à ordonnance, tableau '
+                        + Ext.String.trim(String(r.get('codeTableau'))) + ') : médecin demandé à la clôture');
+            }
+            if (t && cle && !vus[cle]) {
+                vus[cle] = Date.now();
+            }
+            return t;
+        }
+    },
 //    frame: true,
     border: 0,
     width: '100%',
@@ -545,8 +579,10 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                                 },
                                                 {
                                                     xtype: 'rownumberer',
-                                                    text: 'LG',
-                                                    width: 45,
+                                                    // retour du 05/11 : numeros de ligne gardes, sans titre
+                                                    text: '',
+                                                    itemId: 'colNumeroLigne',
+                                                    width: 34,
                                                     sortable: true
                                                 }, {
                                                     text: 'C.CIP',
@@ -560,20 +596,15 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                                     dataIndex: 'strNAME',
                                                     // audit 05 PR-01 : prix fixe par une promotion (comptant)
                                                     renderer: function (v, m, r) {
-                                                        var t = Ext.String.htmlEncode(v);
+                                                        // retour du 05/11 (remplace les pastilles SENSIBLE / ORDONNANCIER du cas 3) :
+                                                        // triangle « ! » AVANT le nom, visible meme si le nom est long ; violet = sensible,
+                                                        // rouge = soumis a ordonnance avec code tableau, les deux si les deux
+                                                        var t = testextjs.view.vente.VenteVNO.trianglesOrdonnancier(r) + Ext.String.htmlEncode(v);
                                                         if (r.get('promotion')) {
                                                             t += ' <span style="color:#c0392b;font-weight:bold">PROMOTION'
                                                                     + (r.get('unitesOffertes') > 0 ? ' : dont '
                                                                             + r.get('unitesOffertes') + ' offerte(s)' : '')
                                                                     + '</span>';
-                                                        }
-                                                        // cas 3 du 03/11/2026 (Q3.3) : produit de l'ordonnancier signale
-                                                        // des l'ajout, plutot que decouvert au refus de la cloture.
-                                                        // SENSIBLE clignote 3 fois puis reste ; ORDONNANCIER est fixe.
-                                                        if (r.get('motif') === 'Sensible') {
-                                                            t += ' <span class="vp-pastille vp-pastille-sensible">SENSIBLE</span>';
-                                                        } else if (r.get('motif') === 'Ordonnancier') {
-                                                            t += ' <span class="vp-pastille vp-pastille-ordonnancier">ORDONNANCIER</span>';
                                                         }
                                                         // cas 1 du 03/11 : pastille de la ligne cochée « C »
                                                         if (r.get('comptant')) {
@@ -588,7 +619,8 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                                     format: '0,000.',
                                                     align: 'right',
                                                     tdCls: 'vp-col-qd',
-                                                    flex: 1,
+                                                    // retour du 05/11 : largeur d'une quantite de 3 chiffres
+                                                    width: 48,
                                                     editor: {
                                                         xtype: 'numberfield',
                                                         allowBlank: true,
@@ -604,7 +636,7 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                                 }, {
                                                     text: 'QS',
                                                     xtype: 'numbercolumn',
-                                                    flex: 1,
+                                                    width: 48,
                                                     sortable: true,
                                                     dataIndex: 'intQUANTITYSERVED',
                                                     MaskRe: /[0-9.]/,
@@ -634,7 +666,8 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                                 {
                                                     text: 'P.U',
                                                     xtype: 'numbercolumn',
-                                                    flex: 1,
+                                                    // retour du 05/11 : a la largeur d'un prix (« 100.000 »), plus etiree
+                                                    width: 80,
                                                     sortable: true,
                                                     dataIndex: 'intPRICEUNITAIR',
                                                     format: '0,000.',
@@ -663,7 +696,8 @@ Ext.define('testextjs.view.vente.VenteVNO', {
 
                                                 {
                                                     text: 'MONTANT',
-                                                    flex: 1,
+                                                    // retour du 05/11 : plus etroit (un montant de 7 chiffres tient)
+                                                    width: 90,
                                                     xtype: 'numbercolumn',
                                                     sortable: true,
                                                     dataIndex: 'intPRICE',
@@ -1432,11 +1466,9 @@ Ext.define('testextjs.view.vente.VenteVNO', {
             return c.dataIndex === 'intPRICE';
         });
         let position = montant ? entete.items.indexOf(montant) : entete.items.getCount() - 1;
-        // C.CIP a 100 px (le code reste lisible en entier), QD et QS a 55 px (des quantites), DESIGNATION garde une
-        // largeur minimale ; tout est remis en place au retrait des groupes.
+        // C.CIP a 100 px (le code reste lisible en entier), DESIGNATION garde une largeur minimale ; tout est remis en
+        // place au retrait des groupes. QD et QS ont leur largeur fixe (48 px) dans tous les cas depuis le 05/11.
         me.fixerLargeurReferenceTp(entete, 'intCIP', 100);
-        me.fixerLargeurReferenceTp(entete, 'intQUANTITY', 55);
-        me.fixerLargeurReferenceTp(entete, 'intQUANTITYSERVED', 55);
         const designation = entete.items.findBy(function (c) {
             return c.dataIndex === 'strNAME';
         });
@@ -1447,7 +1479,45 @@ Ext.define('testextjs.view.vente.VenteVNO', {
         Ext.each(tiersPayants, function (tp) {
             entete.insert(position++, me.groupeColonnesReferenceTp(tp));
         });
+        if (!me.ajustementReferenceTpBranche) {
+            // retour du 05/11 : un prix de reference n'est jamais coupé (« 1.2… ») ; apres chaque rendu des lignes, une
+            // colonne P.REF / TAUX trop etroite pour son contenu est elargie juste assez
+            me.ajustementReferenceTpBranche = true;
+            grille.getView().on({
+                refresh: me.ajusterLargeursReferenceTp,
+                itemupdate: me.ajusterLargeursReferenceTp,
+                itemadd: me.ajusterLargeursReferenceTp,
+                scope: me,
+                buffer: 60
+            });
+        }
         grille.getView().refresh();
+    },
+
+    /** Elargit une colonne P.REF / TAUX dont un contenu deborde (jamais de points de suspension sur un prix). */
+    ajusterLargeursReferenceTp: function () {
+        const me = this, grille = me.down('#venteGrid');
+        if (!grille || !grille.rendered || grille.isDestroyed) {
+            return;
+        }
+        const racine = grille.getView().getEl();
+        if (!racine) {
+            return;
+        }
+        Ext.each(grille.headerCt.getGridColumns(), function (col) {
+            if (col.tdCls !== 'vp-ref-cellule' || !col.rendered) {
+                return;
+            }
+            let largeur = col.getWidth(), voulue = largeur;
+            Ext.each(Ext.query('.x-grid-cell-' + col.getId() + ' .x-grid-cell-inner', racine.dom), function (cellule) {
+                if (cellule.scrollWidth > cellule.clientWidth) {
+                    voulue = Math.max(voulue, largeur + cellule.scrollWidth - cellule.clientWidth + 2);
+                }
+            });
+            if (voulue > largeur) {
+                col.setWidth(voulue);
+            }
+        });
     },
 
     /** Fixe la largeur d'une colonne a flex, en gardant son flex d'origine pour le retrait. */
@@ -1581,7 +1651,7 @@ Ext.define('testextjs.view.vente.VenteVNO', {
         Ext.each(groupes, function (g) {
             entete.remove(g, true);
         });
-        Ext.each(['intCIP', 'intQUANTITY', 'intQUANTITYSERVED'], function (dataIndex) {
+        Ext.each(['intCIP'], function (dataIndex) {
             me.rendreLargeurReferenceTp(entete, dataIndex);
         });
         const designation = entete.items.findBy(function (c) {

@@ -129,7 +129,34 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
     private ImpressionServiceImpl nouvelImprimeur() {
         ImpressionServiceImpl imprimeur = new ImpressionServiceImpl();
         imprimeur.setTaillleNomOfficine(tailleNomOfficine());
+        List<rest.service.ticket.TicketDocument> apercu = APERCU.get();
+        if (apercu != null) {
+            imprimeur.setApercu(apercu::add);
+        }
         return imprimeur;
+    }
+
+    /** Documents captures par {@link #apercuTicketVo(String)} pendant l'appel en cours ; null en impression normale. */
+    private static final ThreadLocal<List<rest.service.ticket.TicketDocument>> APERCU = new ThreadLocal<>();
+
+    /**
+     * Apercu du 05/11 (tests de rapprochement ecran / ticket / base) : le ticket de reimpression de la vente, construit
+     * par le meme chemin que {@link #lunchPrinterForTicketVo(String)}, sans rien envoyer a l'imprimante. Vide si le
+     * ticket est encore l'ancien modele.
+     */
+    @Override
+    public List<rest.service.ticket.TicketDocument> apercuTicketVo(String id) throws JSONException {
+        List<rest.service.ticket.TicketDocument> docs = new ArrayList<>();
+        APERCU.set(docs);
+        try {
+            JSONObject r = lunchPrinterForTicketVo(id);
+            if (docs.isEmpty() && r != null && r.has("msg")) {
+                throw new IllegalStateException(r.optString("msg"));
+            }
+            return docs;
+        } finally {
+            APERCU.remove();
+        }
     }
 
     /**
@@ -208,18 +235,53 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             List<Integer> bases = new ArrayList<>();
             for (TPreenregistrementDetail d : lignes) {
                 Integer base = d.getCalculationBasePrice();
-                bases.add(base != null && base > 0 ? base : (d.getIntPRICE() == null ? 0 : d.getIntPRICE()));
+                // le prix de reference est unitaire : la base de la ligne le multiplie par la quantite
+                int q = d.getIntQUANTITY() == null ? 0 : Math.abs(d.getIntQUANTITY());
+                bases.add(base != null && base > 0 ? base * q : (d.getIntPRICE() == null ? 0 : d.getIntPRICE()));
             }
             Map<String, List<String>> res = new HashMap<>();
+            // retour du 05/11 : avec un prix de reference, la ligne montre la reference (« P.REF 6 000 »)
+            for (TPreenregistrementDetail d : lignes) {
+                String pref = CreditLigne.prixReference(d.getCalculationBasePrice(), d.getIntPRICEUNITAIR());
+                if (!pref.isEmpty()) {
+                    res.computeIfAbsent(d.getLgPREENREGISTREMENTDETAILID(), k -> new ArrayList<>()).add(pref);
+                }
+            }
             boolean nommer = tps.size() > 1;
+            List<Integer> tauxReels = new ArrayList<>();
             for (TPreenregistrementCompteClientTiersPayent tp : tps) {
-                int taux = tp.getIntPERCENT() == null ? 0 : tp.getIntPERCENT();
+                tauxReels.add(tp.getIntPERCENT() == null ? 0 : tp.getIntPERCENT());
+            }
+            // ticket du 05/11 : le taux modifie sur une ligne (taux_produit) remplace celui de l'organisme
+            Map<String, Integer> tauxLignes = tauxDesLignes(lignes);
+            List<List<Integer>> tauxParTp = new ArrayList<>();
+            for (int t = 0; t < tps.size(); t++) {
+                String compte = tps.get(t).getLgCOMPTECLIENTTIERSPAYANTID() == null ? ""
+                        : tps.get(t).getLgCOMPTECLIENTTIERSPAYANTID().getLgCOMPTECLIENTTIERSPAYANTID();
+                List<Integer> col = new ArrayList<>();
+                for (TPreenregistrementDetail d : lignes) {
+                    col.add(tauxLignes.getOrDefault(d.getLgPREENREGISTREMENTDETAILID() + "|" + compte,
+                            tauxReels.get(t)));
+                }
+                tauxParTp.add(col);
+            }
+            // retour du 05/11 : le total des taux affiches ne depasse jamais 100 %, ligne par ligne
+            List<List<Integer>> affichesParLigne = new ArrayList<>();
+            for (int i = 0; i < lignes.size(); i++) {
+                List<Integer> taux = new ArrayList<>();
+                for (List<Integer> col : tauxParTp) {
+                    taux.add(col.get(i));
+                }
+                affichesParLigne.add(CreditLigne.tauxAffiches(taux));
+            }
+            for (int t = 0; t < tps.size(); t++) {
+                TPreenregistrementCompteClientTiersPayent tp = tps.get(t);
                 int total = tp.getIntPRICE() == null ? 0 : tp.getIntPRICE();
-                List<Integer> parts = CreditLigne.parts(bases, taux, total);
+                List<Integer> parts = CreditLigne.parts(bases, tauxParTp.get(t), total);
                 String nom = nommer ? tp.getLgCOMPTECLIENTTIERSPAYANTID().getLgTIERSPAYANTID().getStrNAME() : null;
                 for (int i = 0; i < lignes.size() && i < parts.size(); i++) {
                     res.computeIfAbsent(lignes.get(i).getLgPREENREGISTREMENTDETAILID(), k -> new ArrayList<>())
-                            .add(CreditLigne.libelle(nom, taux, parts.get(i)));
+                            .add(CreditLigne.libelle(nom, affichesParLigne.get(i).get(t), parts.get(i)));
                 }
             }
             return res;
@@ -227,6 +289,26 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             LOG.log(Level.WARNING, "Crédit par ligne du ticket assurance", e);
             return Collections.emptyMap();
         }
+    }
+
+    /**
+     * Taux modifies sur les lignes (table taux_produit, en fraction : 0.7), en pourcentage, par « ligne|compte
+     * tiers-payant ». Vide si aucun.
+     */
+    private Map<String, Integer> tauxDesLignes(List<TPreenregistrementDetail> lignes) {
+        Map<String, Integer> res = new HashMap<>();
+        List<String> ids = new ArrayList<>();
+        lignes.forEach(d -> ids.add(d.getLgPREENREGISTREMENTDETAILID()));
+        if (ids.isEmpty()) {
+            return res;
+        }
+        List<dal.Rate> rates = getEntityManager()
+                .createQuery("SELECT r FROM Rate r WHERE r.saleIemId IN :ids", dal.Rate.class).setParameter("ids", ids)
+                .getResultList();
+        for (dal.Rate r : rates) {
+            res.put(r.getSaleIemId() + "|" + r.getCompteTiersPayantId(), Math.round(r.getTaux() * 100));
+        }
+        return res;
     }
 
     /**
@@ -616,6 +698,10 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
 
         try {
             TPreenregistrement oTPreenregistrement = getEntityManager().find(TPreenregistrement.class, id);
+            /*
+             * retour du 05/11 : la reimpression (Ventes terminees) sort seulement le ticket de cette vente, en un
+             * exemplaire ; ni le ticket client combine de la vente comptant liee, ni les copies du paiement mobile
+             */
             String oldId = id;
             MvtTransaction mvtTransaction = findByPkey(oldId);
             if (mvtTransaction == null) {
@@ -654,8 +740,7 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
                 imp.buildTicket(datas, infoSellers, infotiersPayants,
                         generateDataSummaryVo(oTPreenregistrement, mvtTransaction),
                         generateCommentaire(oTPreenregistrement, mvtTransaction), fileBarecode);
-                print(imp, oTPreenregistrement);
-                imprimerTicketCombine(oTPreenregistrement, printService, imprimante, officine, te);
+                imp.printTicketVente(1);
             } else {
                 page = datas.size() / counter;
                 while (page != pageCurrent) {
@@ -664,7 +749,7 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
                     }
                     imp.buildTicket(lstDataFinal, infoSellers, infotiersPayants, Collections.emptyList(),
                             Collections.emptyList(), fileBarecode);
-                    print(imp, oTPreenregistrement);
+                    imp.printTicketVente(1);
 
                     k = counter;
                     diff = datas.size() - counter;
@@ -685,8 +770,7 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
                             generateDataSummaryVo(oTPreenregistrement, mvtTransaction),
                             generateCommentaire(oTPreenregistrement, mvtTransaction), fileBarecode);
                 }
-                print(imp, oTPreenregistrement);
-                imprimerTicketCombine(oTPreenregistrement, printService, imprimante, officine, te);
+                imp.printTicketVente(1);
 
             }
             json.put("success", true);
@@ -708,9 +792,28 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
     @Override
     public List<TPreenregistrementCompteClientTiersPayent> listeVenteTiersPayantsByIdVente(String id) {
 
-        return getEntityManager().createQuery(
+        return parPriorite(getEntityManager().createQuery(
                 "SELECT t FROM TPreenregistrementCompteClientTiersPayent t WHERE t.lgPREENREGISTREMENTID.lgPREENREGISTREMENTID = ?1   ORDER BY t.intPERCENT DESC ")
-                .setParameter(1, id).getResultList();
+                .setParameter(1, id).getResultList());
+    }
+
+    /**
+     * Photo du 05/11 : les organismes dans l'ordre de leur priorite (le principal d'abord, puis le complementaire), le
+     * taux le plus fort d'abord a priorite egale ; un organisme sans priorite passe apres les autres. Sans cet ordre,
+     * deux taux egaux (70 % et 70 % du reste) sortaient au hasard et le plafond a 100 % des taux affiches donnait 30 %
+     * au principal.
+     */
+    public static List<TPreenregistrementCompteClientTiersPayent> parPriorite(
+            List<TPreenregistrementCompteClientTiersPayent> parts) {
+        if (parts == null) {
+            return new ArrayList<>();
+        }
+        List<TPreenregistrementCompteClientTiersPayent> res = new ArrayList<>(parts);
+        res.sort(java.util.Comparator.comparingInt((TPreenregistrementCompteClientTiersPayent p) -> {
+            TCompteClientTiersPayant c = p.getLgCOMPTECLIENTTIERSPAYANTID();
+            return c == null || c.getIntPRIORITY() == null ? Integer.MAX_VALUE : c.getIntPRIORITY();
+        }).thenComparingInt(p -> -(p.getIntPERCENT() == null ? 0 : p.getIntPERCENT())));
+        return res;
     }
 
     @Override

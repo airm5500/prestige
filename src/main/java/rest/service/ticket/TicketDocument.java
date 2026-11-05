@@ -15,7 +15,10 @@ import java.util.Map;
 public final class TicketDocument {
 
     public static final String ENTETE = "ENTETE";
+    /** Retour du 05/11 : le nom du pharmacien, l'adresse et le commentaire de l'en-tete sont trois blocs. */
+    public static final String PHARMACIEN = "PHARMACIEN";
     public static final String COORDONNEES = "COORDONNEES";
+    public static final String MESSAGE = "MESSAGE";
     public static final String TITRE = "TITRE";
     public static final String INTERVENANTS = "INTERVENANTS";
     public static final String CLIENT = "CLIENT";
@@ -30,15 +33,18 @@ public final class TicketDocument {
     public static final String PIED = "PIED";
 
     /** Ordre du modele ; le pied reste dernier. */
-    public static final List<String> ORDRE = Collections.unmodifiableList(Arrays.asList(ENTETE, COORDONNEES, TITRE,
-            INTERVENANTS, CLIENT, CORPS, RECAP, TOTAUX, NET, REGLEMENT, MENTIONS, COMMENTAIRE, SIGNATURES, PIED));
+    public static final List<String> ORDRE = Collections
+            .unmodifiableList(Arrays.asList(ENTETE, PHARMACIEN, COORDONNEES, MESSAGE, TITRE, INTERVENANTS, CLIENT,
+                    CORPS, RECAP, TOTAUX, NET, REGLEMENT, MENTIONS, COMMENTAIRE, SIGNATURES, PIED));
     public static final List<String> FIXES = Collections.unmodifiableList(Arrays.asList(PIED));
 
     private static final Map<String, String> LIBELLES = new LinkedHashMap<>();
 
     static {
         LIBELLES.put(ENTETE, "Nom de l'officine");
-        LIBELLES.put(COORDONNEES, "Coordonnées");
+        LIBELLES.put(PHARMACIEN, "Nom du pharmacien");
+        LIBELLES.put(COORDONNEES, "Adresse et téléphones");
+        LIBELLES.put(MESSAGE, "Commentaire de l'en-tête");
         LIBELLES.put(TITRE, "Numéro du ticket");
         LIBELLES.put(INTERVENANTS, "Caisse et vendeur");
         LIBELLES.put(CLIENT, "Client / organisme");
@@ -70,11 +76,15 @@ public final class TicketDocument {
     }
 
     public enum Style {
-        NORMAL, GRAS, PETIT, NOM, GRAND, NUMERO
+        NORMAL, GRAS, PETIT, NOM, GRAND, NUMERO,
+        /** Retour du 05/11 : titre de section (« VENTE ASSURANCE », « CAISSIER : ») : gras, taille reglable a part. */
+        SECTION
     }
 
     public enum Genre {
-        TEXTE, PAIRE, ARTICLE, ENCADRE, TRAIT, TRAIT_PLEIN, SIGNATURES, PIED, TABLE
+        TEXTE, PAIRE, ARTICLE, ENCADRE, TRAIT, TRAIT_PLEIN, SIGNATURES, PIED, TABLE,
+        /** Retour du 05/11 : trait plein et fin, au-dessus du numero du ticket. */
+        TRAIT_FIN
     }
 
     /** Une ligne logique du ticket ; le rendu la coupe a la largeur du papier si besoin. */
@@ -143,6 +153,12 @@ public final class TicketDocument {
             return this;
         }
 
+        /** Retour du 05/11 : trait plein et fin. */
+        public Bloc traitFin() {
+            elements.add(new Element(Genre.TRAIT_FIN, Style.NORMAL, null, null, null, null, null));
+            return this;
+        }
+
         public Bloc trait(boolean plein) {
             elements.add(
                     new Element(plein ? Genre.TRAIT_PLEIN : Genre.TRAIT, Style.NORMAL, null, null, null, null, null));
@@ -207,7 +223,9 @@ public final class TicketDocument {
     static String alignementModele(String bloc) {
         switch (bloc) {
         case ENTETE:
+        case PHARMACIEN:
         case COORDONNEES:
+        case MESSAGE:
         case COMMENTAIRE:
             return "C";
         default:

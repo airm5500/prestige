@@ -53,6 +53,9 @@ public interface GenerateTicketService {
 
     List<String> generateDataSeller(TPreenregistrement p);
 
+    /** Ticket de reimpression de la vente, construit sans l'imprimer (tests de rapprochement du 05/11). */
+    List<rest.service.ticket.TicketDocument> apercuTicketVo(String id) throws JSONException;
+
     List<String> generateDataVenteSupprime(TPreenregistrement p);
 
     List<String> generateDataTiersPayant(TPreenregistrement p);

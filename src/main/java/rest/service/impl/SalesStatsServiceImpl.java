@@ -1385,6 +1385,37 @@ public class SalesStatsServiceImpl implements SalesStatsService {
         }
     }
 
+    @Override
+    public JSONObject historiqueOrdonnancier(java.time.LocalDate du, java.time.LocalDate au, String produit,
+            String categorie, int start, int limit) {
+        HistoriqueOrdonnancier.Criteres c = HistoriqueOrdonnancier.criteres(du, au, produit, categorie);
+        Query compte = getEntityManager()
+                .createNativeQuery("SELECT COUNT(*)" + HistoriqueOrdonnancier.FROM + c.getWhere());
+        Query lignes = getEntityManager()
+                .createNativeQuery(HistoriqueOrdonnancier.COLONNES + HistoriqueOrdonnancier.FROM
+                        + HistoriqueOrdonnancier.JOINTURES + c.getWhere() + HistoriqueOrdonnancier.ORDRE);
+        for (int i = 0; i < c.getParametres().size(); i++) {
+            compte.setParameter(i + 1, c.getParametres().get(i));
+            lignes.setParameter(i + 1, c.getParametres().get(i));
+        }
+        if (limit > 0) {
+            lignes.setFirstResult(Math.max(0, start)).setMaxResults(limit);
+        }
+        boolean voirReference = false;
+        try {
+            TParameters p = getEntityManager().find(TParameters.class, Constant.KEY_SHOW_NUMERO_TICKET);
+            voirReference = p != null && "1".equals(StringUtils.trim(p.getStrVALUE()));
+        } catch (Exception e) {
+            // parametre absent : le ticket porte son numero de ticket
+        }
+        JSONArray data = new JSONArray();
+        for (Object o : lignes.getResultList()) {
+            data.put(HistoriqueOrdonnancier.ligne((Object[]) o, voirReference));
+        }
+        return new JSONObject().put("success", true).put("total", ((Number) compte.getSingleResult()).longValue())
+                .put("data", data);
+    }
+
     /**
      * Les produits d'une vente qui entrent dans l'ordonnancier : soumis a ordonnance ET porteurs d'un code tableau, ou
      * coches « sensible » (cas 3 du 03/11/2026).

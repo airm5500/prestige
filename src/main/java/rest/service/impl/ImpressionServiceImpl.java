@@ -52,6 +52,8 @@ public class ImpressionServiceImpl implements Printable {
     SimpleDateFormat SIMPLE_DATE_FORMAT = new SimpleDateFormat("dd-MM-yyyy HH:mm:ss");
     private PrintService service;
     private int limit = 0, intBegin = 0, nombreCopie = 1, fontSize = 0;
+    /** Limite droite de la zone imprimable du pilote, en points ; 0 si inconnue. */
+    private double droiteImprimable = 0;
     /**
      * Taille de police du nom de l'officine, en tete du ticket.
      *
@@ -82,6 +84,11 @@ public class ImpressionServiceImpl implements Printable {
     }
 
     private TicketDocument documentEnCours;
+    /**
+     * Apercu du 05/11 (tests de rapprochement) : le document du nouveau modele est remis ici au lieu de partir a
+     * l'imprimante. Null en impression normale.
+     */
+    private java.util.function.Consumer<TicketDocument> apercu;
     private int hauteurEnCours;
     private boolean showCodeBar;
     private TImprimante oTImprimante;
@@ -377,7 +384,18 @@ public class ImpressionServiceImpl implements Printable {
         this.service = service;
     }
 
+    public void setApercu(java.util.function.Consumer<TicketDocument> apercu) {
+        this.apercu = apercu;
+    }
+
     public void printTicketVente(int copies) throws PrinterException {
+        if (apercu != null) {
+            // apercu : le meme document que l'impression, rien n'est envoye a l'imprimante
+            if (nouveauModele()) {
+                apercu.accept(documentNouveau());
+            }
+            return;
+        }
         long t0 = System.nanoTime();
         PrinterJob printerjob;
         try {
@@ -407,6 +425,16 @@ public class ImpressionServiceImpl implements Printable {
             printRequestAttributeSet.add(new Copies(copies)); // nombre de copie a imprimer
             printRequestAttributeSet.add(Chromaticity.COLOR); // insiste sur la netteté de la couleur du texte
 
+            // retour du 05/11 : limite droite reelle de la zone imprimable, d'apres le pilote (Star TSP100 : 204,3 pt)
+            droiteImprimable = 0;
+            try {
+                PageFormat valide = printerjob.validatePage(pageFormat);
+                if (valide != null && valide.getImageableWidth() > 0) {
+                    droiteImprimable = valide.getImageableX() + valide.getImageableWidth();
+                }
+            } catch (RuntimeException e) {
+                LOG.log(Level.FINE, "Zone imprimable du pilote inconnue", e);
+            }
             printerjob.setPrintable(this, pageFormat);
             long t1 = System.nanoTime();
             try {
@@ -601,14 +629,38 @@ public class ImpressionServiceImpl implements Printable {
                     DEPART_NOUVEAU).hauteur;
             ge.dispose();
         }
-        double page = pageFormat.getImageableHeight();
-        if (page <= 0 || pageIndex * page > hauteurEnCours) {
+        if (!placer(g2d, pageFormat, pageIndex, papierMm, hauteurEnCours, droiteImprimable)) {
             return Printable.NO_SUCH_PAGE;
         }
-        g2d.translate(pageFormat.getImageableX(), pageFormat.getImageableY() - pageIndex * page);
-        g2d.clip(new Rectangle2D.Double(0, pageIndex * page, pageFormat.getImageableWidth(), page));
         RenduTicket.dessiner(g2d, documentEnCours, reglagesTicket, papierMm, fontSize, DEPART_NOUVEAU);
         return Printable.PAGE_EXISTS;
+    }
+
+    /**
+     * Place la page {@code pageIndex} du nouveau ticket ; faux s'il n'y a plus de page. Le papier de Java est fictif
+     * (Letter, 612 points) : le ticket part du debut de la zone (9 points + debut de l'imprimante). Retour du 05/11 :
+     * la limite droite reelle vient du pilote ({@code droite}, PrinterJob.validatePage ; 0 si inconnue) ; un ticket qui
+     * la depasserait garde son depart (a gauche, l'imprimante coupe avant 9 points) et se reduit pour finir avant elle.
+     */
+    static boolean placer(Graphics2D g2d, PageFormat pageFormat, int pageIndex, int papierMm, int hauteur,
+            double droite) {
+        double largeur = RenduTicket.largeurImprimable(papierMm);
+        // essais du 05/11 : a 0 puis a 5 points, la Star coupait le bord gauche ; le depart reste a 9 points
+        double x = pageFormat.getImageableX();
+        double echelle = 1;
+        if (droite > x && x + largeur > droite) {
+            // photo du 05/11 : ramene a gauche, le ticket etait coupe a gauche ; il garde son depart et se reduit
+            echelle = (droite - x) / largeur;
+        }
+        double page = pageFormat.getImageableHeight() / echelle;
+        if (page <= 0 || pageIndex * page > hauteur) {
+            return false;
+        }
+        g2d.translate(x, pageFormat.getImageableY());
+        g2d.scale(echelle, echelle);
+        g2d.translate(0, -pageIndex * page);
+        g2d.clip(new Rectangle2D.Double(0, pageIndex * page, largeur + 1, page));
+        return true;
     }
 
     /**
@@ -734,7 +786,14 @@ public class ImpressionServiceImpl implements Printable {
             graphics.setFont(font);
 
             for (int i = 0; i < curDatas.size(); i++) {
-                String[] parts = curDatas.get(i).split(";");
+                /*
+                 * retour du 05/11 : les mentions sous un produit (promotion, credit par tiers-payant) finissent par des
+                 * colonnes vides ; split sans limite les retirait et l'ancien ticket ne sortait plus
+                 */
+                String[] parts = java.util.Arrays.copyOf(curDatas.get(i).split(";", -1), 5);
+                for (int c = 0; c < parts.length; c++) {
+                    parts[c] = parts[c] == null ? "" : parts[c];
+                }
                 graphics.drawString(parts[0], 0, start + (scaleTexte * (i + 1)));
                 graphics.drawString(parts[1], 10 + columnOne, start + (scaleTexte * (i + 1)));
                 graphics.drawString(parts[2], 25 + columnTwo, start + (scaleTexte * (i + 1)));

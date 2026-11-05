@@ -135,26 +135,40 @@ public final class RenduTicket {
     }
 
     private final Graphics2D g;
-    private final double largeur;
+    /** Largeur utile du rouleau, marges deduites. */
+    private final double largeurTotale;
+    /** Largeur du bloc en cours (retour du 05/11 : un bloc peut etre plus etroit que le rouleau). */
+    private double largeur;
+    /** Bloc retreci : chaque texte tient sur une ligne, termine par « … ». */
+    private boolean uneLigne;
     private final int base;
     private final String police;
     private final Resultat res = new Resultat();
     private int y;
+    private ReglagesTicket.Position position;
 
     private RenduTicket(Graphics2D g, double largeur, int base, String police) {
         this.g = g;
+        this.largeurTotale = largeur;
         this.largeur = largeur;
         this.base = base;
         this.police = police;
     }
 
+    /** Retour du 05/11 : marge de chaque cote, en points. */
+    static double marge(ReglagesTicket r, int papierMm) {
+        return Math.max(0, Math.min(ReglagesTicket.MARGE_MAX, r.marge())) * PT_MM;
+    }
+
     /** Dessine le ticket a partir de la hauteur {@code depart} ; rend la hauteur atteinte et les zones des blocs. */
     public static Resultat dessiner(Graphics2D g, TicketDocument doc, ReglagesTicket r, int papierMm, int ajoutPolice,
             int depart) {
-        RenduTicket rendu = new RenduTicket(g, largeurImprimable(papierMm), tailleBase(papierMm, ajoutPolice),
-                choisirPolice(r.police(), POLICE_REPLI));
+        double marge = marge(r, papierMm);
+        RenduTicket rendu = new RenduTicket(g, largeurImprimable(papierMm) - 2 * marge,
+                tailleBase(papierMm, ajoutPolice), choisirPolice(r.police(), POLICE_REPLI));
         g.setColor(Color.BLACK);
         g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+        g.translate(marge, 0);
         rendu.y = depart;
         for (String id : ordre(r)) {
             Bloc b = doc.existant(id);
@@ -164,13 +178,24 @@ public final class RenduTicket {
             ReglagesTicket.Position p = r.position(id);
             String alignement = p != null && !p.alignement.isEmpty() ? p.alignement : b.alignement;
             int ecart = p != null ? p.taille : 0;
+            // retour du 05/11 : bloc retreci, place selon son alignement, chaque texte sur une ligne
+            int pourcent = p != null && !TicketDocument.PIED.equals(id) ? p.largeur : 100;
+            rendu.largeur = rendu.largeurTotale * pourcent / 100.0;
+            rendu.uneLigne = pourcent < 100;
+            double x0 = "C".equals(alignement) ? (rendu.largeurTotale - rendu.largeur) / 2
+                    : "D".equals(alignement) ? rendu.largeurTotale - rendu.largeur : 0;
+            rendu.position = p;
+            g.translate(x0, 0);
             int y0 = rendu.y;
             for (Element e : b.elements) {
                 rendu.element(e, alignement, ecart);
             }
+            g.translate(-x0, 0);
             rendu.res.zones.put(id, new int[] { y0, rendu.y });
             rendu.y += 2;
         }
+        g.translate(-marge, 0);
+        rendu.largeur = rendu.largeurTotale;
         rendu.res.hauteur = rendu.y;
         return rendu.res;
     }
@@ -213,6 +238,8 @@ public final class RenduTicket {
             return new Font(police, Font.BOLD, t + 3);
         case NUMERO:
             return new Font(police, Font.BOLD, t + 12);
+        case SECTION:
+            return new Font(police, Font.BOLD, Math.max(6, t + (position != null ? position.section : 0)));
         default:
             return new Font(police, Font.PLAIN, t);
         }
@@ -239,6 +266,9 @@ public final class RenduTicket {
         case TRAIT:
         case TRAIT_PLEIN:
             trait(e.genre == TicketDocument.Genre.TRAIT_PLEIN);
+            break;
+        case TRAIT_FIN:
+            traitFin();
             break;
         case SIGNATURES:
             signatures(e, ecart);
@@ -342,10 +372,14 @@ public final class RenduTicket {
     }
 
     private void article(Element e, int ecart) {
-        g.setFont(police(Style.GRAS, ecart));
+        // retour du 05/11 : designation et « quantite × prix » de tailles reglables a part
+        int nom = position != null ? position.nom : 0;
+        int detail = position != null ? position.detail : 0;
+        g.setFont(police(Style.GRAS, ecart + nom));
         for (String l : couper(e.a, largeur)) {
             ligne(l, "G");
         }
+        ecart += detail;
         g.setFont(police(Style.NORMAL, ecart));
         FontMetrics fm = g.getFontMetrics();
         Font gras = police(Style.GRAS, ecart);
@@ -404,6 +438,16 @@ public final class RenduTicket {
         y += 3;
     }
 
+    /** Retour du 05/11 : trait plein et fin, plus leger que celui des totaux. */
+    private void traitFin() {
+        y += 3;
+        Stroke avant = g.getStroke();
+        g.setStroke(new BasicStroke(0.6f));
+        g.drawLine(0, y, (int) largeur, y);
+        g.setStroke(avant);
+        y += 3;
+    }
+
     private void signatures(Element e, int ecart) {
         if (e.libelles.isEmpty()) {
             return;
@@ -425,8 +469,10 @@ public final class RenduTicket {
 
     private void pied(Element e, int ecart) {
         boolean qr = "QR".equals(e.d);
-        int largeurImage = qr ? 80 : (int) (largeur * (largeur < 150 ? 0.52 : 0.58));
-        int hauteurImage = qr ? 80 : 30;
+        // retour du 05/11 : la taille du pied agrandit ou reduit aussi le code-barres (12 % par point)
+        double echelle = Math.max(0.5, 1 + 0.12 * ecart);
+        int largeurImage = (int) Math.min(largeur * 0.8, (qr ? 80 : largeur * (largeur < 150 ? 0.52 : 0.58)) * echelle);
+        int hauteurImage = (int) Math.round((qr ? largeurImage : 30 * echelle));
         y += 4;
         BufferedImage img = image(e.a);
         if (img != null && !qr) {
@@ -554,6 +600,39 @@ public final class RenduTicket {
         }
     }
 
+    /** {@link #points} en police Dialog 9 (pour les tests). */
+    static String pointsPour(String t, double l) {
+        BufferedImage img = new BufferedImage(4, 4, BufferedImage.TYPE_INT_RGB);
+        Graphics2D gi = img.createGraphics();
+        try {
+            gi.setFont(new Font("Dialog", Font.PLAIN, 9));
+            return new RenduTicket(gi, l, 9, "Dialog").points(t, l);
+        } finally {
+            gi.dispose();
+        }
+    }
+
+    /**
+     * Retour du 05/11 : le texte raccourci pour tenir dans {@code l}, termine par « … » (le gras ouvert est referme).
+     */
+    String points(String t, double l) {
+        int k = t.length();
+        String essai = t;
+        while (k > 0) {
+            essai = t.substring(0, k).trim();
+            int debut = essai.lastIndexOf(TicketDocument.GRAS_DEBUT);
+            if (debut >= 0 && essai.indexOf(TicketDocument.GRAS_FIN, debut) < 0) {
+                essai += TicketDocument.GRAS_FIN;
+            }
+            essai += "…";
+            if (largeurTexte(essai) <= l) {
+                return essai;
+            }
+            k--;
+        }
+        return "…";
+    }
+
     /**
      * Coupe un texte aux espaces pour la largeur donnee ; un mot plus large est coupe lui-meme. Une partie en gras
      * coupee en deux reste en gras sur les deux lignes.
@@ -563,6 +642,10 @@ public final class RenduTicket {
         String t = texte == null ? "" : texte.trim().replaceAll("\\s+", " ");
         if (t.isEmpty() || largeurTexte(t) <= l) {
             lignes.add(t);
+            return lignes;
+        }
+        if (uneLigne) {
+            lignes.add(points(t, l));
             return lignes;
         }
         StringBuilder courante = new StringBuilder();

@@ -141,6 +141,40 @@ public class SalesRessource {
         return Response.ok().entity(json.toString()).build();
     }
 
+    /**
+     * Apercu du 05/11 : contenu du ticket de reimpression de la vente, bloc par bloc, sans impression (tests de
+     * rapprochement ecran / ticket / base). Lecture seule.
+     */
+    @GET
+    @Path("ticket/vo/{id}/apercu")
+    public Response apercuTicketVo(@PathParam("id") String id) throws JSONException {
+        JSONObject json = new JSONObject();
+        try {
+            org.json.JSONArray tickets = new org.json.JSONArray();
+            for (rest.service.ticket.TicketDocument d : generateTicketService.apercuTicketVo(id)) {
+                org.json.JSONArray blocs = new org.json.JSONArray();
+                for (rest.service.ticket.TicketDocument.Bloc b : d.blocsNonVides()) {
+                    org.json.JSONArray elements = new org.json.JSONArray();
+                    for (rest.service.ticket.TicketDocument.Element e : b.elements) {
+                        elements.put(new JSONObject().put("genre", e.genre.name()).put("a", sansGras(e.a))
+                                .put("b", sansGras(e.b)).put("c", sansGras(e.c)).put("d", sansGras(e.d)));
+                    }
+                    blocs.put(new JSONObject().put("id", b.id).put("elements", elements));
+                }
+                tickets.put(new JSONObject().put("modele", d.ticket().name()).put("blocs", blocs));
+            }
+            json.put("success", true).put("tickets", tickets);
+        } catch (RuntimeException e) {
+            json.put("success", false).put("msg", String.valueOf(e.getMessage()));
+        }
+        return Response.ok().entity(json.toString()).build();
+    }
+
+    private static String sansGras(String t) {
+        return t == null ? "" : t.replace(String.valueOf(rest.service.ticket.TicketDocument.GRAS_DEBUT), "")
+                .replace(String.valueOf(rest.service.ticket.TicketDocument.GRAS_FIN), "");
+    }
+
     @POST
     @Path("add/vno")
     public Response addVente(SalesParams params, @HeaderParam(X_CLIENT_REF) String clientRef) {

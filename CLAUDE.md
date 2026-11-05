@@ -34,6 +34,30 @@
 - Les tests passent par le vrai chemin de l'écran et retirent leurs données.
 - L'ergonomie se teste aussi.
 - Lancer les tests d'écran un par un, jamais deux en même temps : sinon, faux échecs et mesures faussées.
+- **Obligatoire pour toute nouvelle fonctionnalité et toute modification** : un travail n'est pas fini sans ses tests
+  de rapprochement et de cohérence. Le but : aucun défaut ne doit arriver en production.
+  - Test de rapprochement (e2e) : une donnée visible à plusieurs endroits (écran, ticket, PDF, export, base) est
+    comparée partout, ligne par ligne. Exemple : `prix-reference/test-rapprochement-ticket.js`.
+  - Test de cohérence (unitaire) : un calcul (montant, taux, répartition, plafond, arrondi, stock, date) est vérifié
+    par ses règles (part = base × taux, somme = total, jamais négatif), sur des milliers de cas tirés au hasard avec
+    une graine fixe. Exemple : `CreditLigneCoherenceTest`.
+  - Jeux d'essai variés, jamais un seul cas : valeurs différentes d'une ligne à l'autre, quantité supérieure à 1, zéro,
+    plafond atteint, plusieurs organismes, annulation, paramètre à 0 et à 1.
+  - Chaque nouveau test doit d'abord échouer sur l'ancien code (ou sur le défaut remis à l'essai), puis passer.
+  - Toute donnée écrite en base doit avoir un lecteur et un test qui la relit ; une donnée écrite et jamais relue est
+    un défaut.
+  - Test de bilan avant / après (e2e) : une opération laisse exactement les traces attendues, ni plus ni moins.
+- Contrôles métier, selon l'opération (détail dans `docs/notices/STRATEGIE_TESTS.md`) :
+  - stock du produit : avant ± quantité, sur le bon emplacement, jamais en double ; une annulation rend tout ;
+  - mouvements : stock, caisse, recette, règlement, un seul par opération, bons montants, type, utilisateur et date ;
+  - suivi des mouvements : stock initial + entrées − sorties = stock actuel, écran de suivi = base ;
+  - solde du client : avant + crédit − règlements, identique à l'écran, sur les relevés et en base ;
+  - parts des organismes et caisse : identiques sur le ticket, la facture, le relevé, le ticket Z et en base.
+- Un défaut est « confirmé » s'il est prouvé par un test qui échoue ou reproduit par Codex ; sinon il est « suspecté ».
+  Claude Code produit (exploration, tests, corrections) ; Codex contre-vérifie.
+- Avant de dire « fini », le compte rendu liste : les endroits où la donnée apparaît, et le test de rapprochement qui
+  les compare ; les règles de calcul, et le test de cohérence qui les vérifie ; les traces attendues (stock,
+  mouvements, solde), et le test de bilan ; les cas variés couverts.
 - Construction :
   - build : `mvn -o -q -DskipTests package` (JDK 11) ;
   - déploiement : `asadmin redeploy --name prestige --contextroot prestige target/prestige.war` ;

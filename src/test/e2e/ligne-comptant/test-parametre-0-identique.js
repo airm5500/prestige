@@ -14,6 +14,8 @@ const crypto = require('crypto');
 
 (async () => {
   A.parametre('KEY_LIGNE_COMPTANT_VO', '0');
+  /* grille de reference du cas 1 : sans les colonnes du prix de reference (cas 2), quel que soit le reglage du poste */
+  A.parametre('KEY_PRIX_REF_CAISSE', '0');
   const TP = A.tiersPayant('C1', '1');
   const P = C.produitSimple(1);
   const CIP = C.cip(P);
