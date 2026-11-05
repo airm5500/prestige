@@ -383,7 +383,7 @@ public class SecuriteBaseService {
             } else {
                 set(portAdmin, nomPool, motDePasse);
             }
-            redemarrerPool(portAdmin, nomPool);
+            redemarrerPool(portAdmin, nomPool, true);
         }
 
         @Override
@@ -391,13 +391,14 @@ public class SecuriteBaseService {
             testerPool();
         }
 
+        /** Idempotent ; sans ping : l'etape de test dira si l'ancien mot de passe repond. */
         @Override
         public void retablirPayara() throws Exception {
             if (parAlias) {
                 throw new IllegalStateException("l'ancienne valeur de l'alias n'est pas connue");
             }
             set(portAdmin, nomPool, ancienPayara);
-            redemarrerPool(portAdmin, nomPool);
+            redemarrerPool(portAdmin, nomPool, false);
         }
     }
 
@@ -443,15 +444,17 @@ public class SecuriteBaseService {
 
     /**
      * Redemarrage du pool apres un « set » de sa propriete password. Payara 5.2022.5 ne recree pas le pool sur un
-     * changement de propriete : il met a jour la fabrique de connexions mais garde l'ancien compte pour les
-     * connexions de l'application (constate : « Access denied » cote application alors que ping-connection-pool
-     * reussit). La ressource JDBC est donc desactivee puis reactivee (le pool est detruit et recree avec ses
-     * proprietes), puis le pool est teste par asadmin : le ping echoue si MariaDB refuse le compte.
+     * changement de propriete : il met a jour la fabrique de connexions mais garde l'ancien compte pour les connexions
+     * de l'application (constate : « Access denied » cote application alors que ping-connection-pool reussit). La
+     * ressource JDBC est donc desactivee puis reactivee (le pool est detruit et recree avec ses proprietes), puis le
+     * pool est teste par asadmin : le ping echoue si MariaDB refuse le compte.
      */
-    static void redemarrerPool(int portAdmin, String nomPool) throws Exception {
+    static void redemarrerPool(int portAdmin, String nomPool, boolean ping) throws Exception {
         Asadmin.commande(portAdmin, 120, "set", "resources.jdbc-resource." + PoolMariaDb.JNDI + ".enabled=false");
         Asadmin.commande(portAdmin, 120, "set", "resources.jdbc-resource." + PoolMariaDb.JNDI + ".enabled=true");
-        Asadmin.commande(portAdmin, 120, "ping-connection-pool", nomPool);
+        if (ping) {
+            Asadmin.commande(portAdmin, 120, "ping-connection-pool", nomPool);
+        }
     }
 
     /** Une connexion neuve par le pool (apres son redemarrage) ; trois essais a une seconde. */
@@ -624,7 +627,7 @@ public class SecuriteBaseService {
             r.etapes.add("Alias " + ALIAS + (existe ? " mis à jour" : " créé"));
             try {
                 set(portAdmin, nomPool, "${ALIAS=" + ALIAS + "}");
-                redemarrerPool(portAdmin, nomPool);
+                redemarrerPool(portAdmin, nomPool, true);
                 r.etapes.add("Pool " + nomPool + " : mot de passe remplacé par l'alias");
                 testerPool();
                 r.etapes.add("Connexion par le pool vérifiée");
@@ -634,7 +637,7 @@ public class SecuriteBaseService {
                 r.etapes.add("Échec : " + RotationMotDePasse.cause(e));
                 try {
                     set(portAdmin, nomPool, p.motDePasse);
-                    redemarrerPool(portAdmin, nomPool);
+                    redemarrerPool(portAdmin, nomPool, true);
                     testerPool();
                     r.etapes.add("Pool rétabli avec la valeur en clair, connexion vérifiée");
                     r.retourArriere = true;

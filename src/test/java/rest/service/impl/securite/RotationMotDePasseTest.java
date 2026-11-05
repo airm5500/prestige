@@ -85,8 +85,8 @@ class RotationMotDePasseTest {
         assertFalse(r.ok);
         assertTrue(r.retourArriere);
         assertFalse(r.incoherent);
-        assertEquals(List.of("alterUser:nouveau", "majPayara", "alterUser:ancien", "tester"), s.appels,
-                "Payara n'est pas retabli : il n'a pas change");
+        assertEquals(List.of("alterUser:nouveau", "majPayara", "retablirPayara", "alterUser:ancien", "tester"),
+                s.appels, "Payara retabli meme si sa mise a jour a echoue : la valeur a pu etre posee avant l'echec");
         s.coherent(ANCIEN);
         assertTrue(r.message.contains("revenu"), r.message);
         sansValeur(r);
