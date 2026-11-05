@@ -138,7 +138,15 @@ const fauxDomainXml = (mdp) => '<domain><resources><jdbc-connection-pool name="l
   const attendreTexte = async (p, sel, motif, delai) => { const fin = Date.now() + (delai || 120000); let t = ''; while (Date.now() < fin) { t = await texte(p, sel); if (motif.test(t)) { return t; } await p.waitForTimeout(500); } return t; };
   const boutonTexte = (p, sel) => p.evaluate((s) => Ext.ComponentQuery.query(s)[0].getText(), S(sel));
   /* confirmation dans le bouton : premier clic arme, second clic execute */
-  const confirmer = async (p, sel) => { await cliquer(p, S(sel)); const t = await boutonTexte(p, sel); await p.waitForTimeout(300); await cliquer(p, S(sel)); return t; };
+  const confirmer = async (p, sel) => {
+    const etat = await p.evaluate((s) => { const c = Ext.ComponentQuery.query(s)[0]; return c ? (c.isDisabled() ? 'désactivé' : 'actif') + ' ' + c.getText() : 'absent'; }, S(sel));
+    await cliquer(p, S(sel));
+    let t = await boutonTexte(p, sel);
+    if (!/Confirmer/.test(t)) { await p.waitForTimeout(800); await cliquer(p, S(sel)); t = await boutonTexte(p, sel); }
+    await p.waitForTimeout(300);
+    await cliquer(p, S(sel));
+    return t + (/Confirmer/.test(t) ? '' : ' [bouton avant clic : ' + etat + ']');
+  };
   const etatApi = (p) => p.evaluate(() => fetch('../api/v1/support/serveur/securite/etat').then((r) => r.json()));
   const journal = () => q("SELECT CONCAT(str_ACTION, ' ', str_RESULTAT, ' ', COALESCE(str_DETAIL, '')) FROM t_securite_journal WHERE id > " + idJournal + " ORDER BY id");
   const ouvrir = async (p) => { await ouvrirMenu(p, 'CENTRE DE SUPPORT', 'Stabilité du serveur');
@@ -242,7 +250,7 @@ const fauxDomainXml = (mdp) => '<domain><resources><jdbc-connection-pool name="l
     const okAlias = await attendrePool(p, (x) => x.password === '${ALIAS=' + ALIAS + '}');
     const aliases = asadmin('list-password-aliases');
     ok('Alias Payara : confirmation dans le bouton, domain.xml porte ${ALIAS=prestige-db}, alias listé, pool en service, journal ALIAS OK', /Confirmer/.test(armeAlias) && okAlias
-      && new RegExp('^\\s*' + ALIAS + '\\s*$', 'm').test(aliases) && /plus en clair/.test(await texte(p, '#secMessage')) && /ALIAS OK/.test(journal()) && connecte(APP, P2), sanitize(mAlias + ' | ' + await texte(p, '#secMessage')));
+      && new RegExp('^\\s*' + ALIAS + '\\s*$', 'm').test(aliases) && /plus en clair/.test(await texte(p, '#secMessage')) && /ALIAS OK/.test(journal()) && connecte(APP, P2), sanitize(armeAlias + ' | ' + mAlias + ' | ' + await texte(p, '#secMessage') + ' | alias listés : ' + aliases + ' | dernière réponse : ' + (reponses[reponses.length - 1] || '').slice(0, 200)));
     ok('… Payara a redémarré, Prestige répond avec le pool sous alias', await apresRedemarrage(null, pidAlias));
     const stockage2 = await attendreTexte(p, '#secStockage', /ALIAS PAYARA/);
     ok('… état : pool ALIAS PAYARA, bouton d\'alias désactivé', /ALIAS PAYARA/.test(stockage2) && await p.evaluate((s) => Ext.ComponentQuery.query(s)[0].isDisabled(), S('#btnSecAlias')), sanitize(stockage2));
