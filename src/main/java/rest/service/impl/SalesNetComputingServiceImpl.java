@@ -328,6 +328,9 @@ public class SalesNetComputingServiceImpl implements SalesNetComputingService {
                     .ifPresent(itemShare -> {
                         saleLine.setCalculationBasePrice(itemShare.getCalculationBasePrice());
                         em.merge(saleLine);
+                        // ticket du 05/11 : un seul taux par ligne et par organisme, celui du dernier calcul
+                        em.createQuery("DELETE FROM Rate r WHERE r.saleIemId = :id")
+                                .setParameter("id", saleLine.getLgPREENREGISTREMENTDETAILID()).executeUpdate();
                         itemShare.getRates().forEach(em::persist);
                     });
         }
@@ -553,6 +556,9 @@ public class SalesNetComputingServiceImpl implements SalesNetComputingService {
                     .ifPresent(itemShare -> {
                         saleLine.setCalculationBasePrice(itemShare.getCalculationBasePrice());
                         em.merge(saleLine);
+                        // ticket du 05/11 : un seul taux par ligne et par organisme, celui du dernier calcul
+                        em.createQuery("DELETE FROM Rate r WHERE r.saleIemId = :id")
+                                .setParameter("id", saleLine.getLgPREENREGISTREMENTDETAILID()).executeUpdate();
                         itemShare.getRates().forEach(em::persist);
                     });
         }

@@ -27,13 +27,28 @@ public final class CreditLigne {
      *            part de l'organisme sur la vente, telle qu'enregistree a la cloture
      */
     public static List<Integer> parts(List<Integer> bases, int taux, int totalTp) {
+        List<Integer> tauxParLigne = new ArrayList<>();
+        if (bases != null) {
+            bases.forEach(x -> tauxParLigne.add(taux));
+        }
+        return parts(bases, tauxParLigne, totalTp);
+    }
+
+    /**
+     * Ticket du 05/11 : chaque ligne avec son propre taux (taux modifie sur la ligne a l'ecran de vente, table
+     * taux_produit), toujours ramene au total de l'organisme.
+     */
+    public static List<Integer> parts(List<Integer> bases, List<Integer> tauxParLigne, int totalTp) {
         List<Integer> res = new ArrayList<>();
         if (bases == null || bases.isEmpty()) {
             return res;
         }
-        BigDecimal t = BigDecimal.valueOf(Math.max(0, taux)).divide(BigDecimal.valueOf(100), 10, RoundingMode.HALF_UP);
         long somme = 0;
-        for (Integer b : bases) {
+        for (int i = 0; i < bases.size(); i++) {
+            Integer b = bases.get(i);
+            Integer tx = tauxParLigne == null || i >= tauxParLigne.size() ? null : tauxParLigne.get(i);
+            BigDecimal t = BigDecimal.valueOf(Math.max(0, tx == null ? 0 : tx)).divide(BigDecimal.valueOf(100), 10,
+                    RoundingMode.HALF_UP);
             int p = BigDecimal.valueOf(b == null ? 0 : b).multiply(t).setScale(0, RoundingMode.HALF_UP).intValue();
             res.add(p);
             somme += p;

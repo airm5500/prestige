@@ -208,7 +208,9 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             List<Integer> bases = new ArrayList<>();
             for (TPreenregistrementDetail d : lignes) {
                 Integer base = d.getCalculationBasePrice();
-                bases.add(base != null && base > 0 ? base : (d.getIntPRICE() == null ? 0 : d.getIntPRICE()));
+                // le prix de reference est unitaire : la base de la ligne le multiplie par la quantite
+                int q = d.getIntQUANTITY() == null ? 0 : Math.abs(d.getIntQUANTITY());
+                bases.add(base != null && base > 0 ? base * q : (d.getIntPRICE() == null ? 0 : d.getIntPRICE()));
             }
             Map<String, List<String>> res = new HashMap<>();
             // retour du 05/11 : avec un prix de reference, la ligne montre la reference (« P.REF 6 000 »)
@@ -223,17 +225,36 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             for (TPreenregistrementCompteClientTiersPayent tp : tps) {
                 tauxReels.add(tp.getIntPERCENT() == null ? 0 : tp.getIntPERCENT());
             }
-            // retour du 05/11 : le total des taux affiches ne depasse jamais 100 %
-            List<Integer> affiches = CreditLigne.tauxAffiches(tauxReels);
+            // ticket du 05/11 : le taux modifie sur une ligne (taux_produit) remplace celui de l'organisme
+            Map<String, Integer> tauxLignes = tauxDesLignes(lignes);
+            List<List<Integer>> tauxParTp = new ArrayList<>();
+            for (int t = 0; t < tps.size(); t++) {
+                String compte = tps.get(t).getLgCOMPTECLIENTTIERSPAYANTID() == null ? ""
+                        : tps.get(t).getLgCOMPTECLIENTTIERSPAYANTID().getLgCOMPTECLIENTTIERSPAYANTID();
+                List<Integer> col = new ArrayList<>();
+                for (TPreenregistrementDetail d : lignes) {
+                    col.add(tauxLignes.getOrDefault(d.getLgPREENREGISTREMENTDETAILID() + "|" + compte,
+                            tauxReels.get(t)));
+                }
+                tauxParTp.add(col);
+            }
+            // retour du 05/11 : le total des taux affiches ne depasse jamais 100 %, ligne par ligne
+            List<List<Integer>> affichesParLigne = new ArrayList<>();
+            for (int i = 0; i < lignes.size(); i++) {
+                List<Integer> taux = new ArrayList<>();
+                for (List<Integer> col : tauxParTp) {
+                    taux.add(col.get(i));
+                }
+                affichesParLigne.add(CreditLigne.tauxAffiches(taux));
+            }
             for (int t = 0; t < tps.size(); t++) {
                 TPreenregistrementCompteClientTiersPayent tp = tps.get(t);
-                int taux = tauxReels.get(t);
                 int total = tp.getIntPRICE() == null ? 0 : tp.getIntPRICE();
-                List<Integer> parts = CreditLigne.parts(bases, taux, total);
+                List<Integer> parts = CreditLigne.parts(bases, tauxParTp.get(t), total);
                 String nom = nommer ? tp.getLgCOMPTECLIENTTIERSPAYANTID().getLgTIERSPAYANTID().getStrNAME() : null;
                 for (int i = 0; i < lignes.size() && i < parts.size(); i++) {
                     res.computeIfAbsent(lignes.get(i).getLgPREENREGISTREMENTDETAILID(), k -> new ArrayList<>())
-                            .add(CreditLigne.libelle(nom, affiches.get(t), parts.get(i)));
+                            .add(CreditLigne.libelle(nom, affichesParLigne.get(i).get(t), parts.get(i)));
                 }
             }
             return res;
@@ -241,6 +262,26 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             LOG.log(Level.WARNING, "Crédit par ligne du ticket assurance", e);
             return Collections.emptyMap();
         }
+    }
+
+    /**
+     * Taux modifies sur les lignes (table taux_produit, en fraction : 0.7), en pourcentage, par « ligne|compte
+     * tiers-payant ». Vide si aucun.
+     */
+    private Map<String, Integer> tauxDesLignes(List<TPreenregistrementDetail> lignes) {
+        Map<String, Integer> res = new HashMap<>();
+        List<String> ids = new ArrayList<>();
+        lignes.forEach(d -> ids.add(d.getLgPREENREGISTREMENTDETAILID()));
+        if (ids.isEmpty()) {
+            return res;
+        }
+        List<dal.Rate> rates = getEntityManager()
+                .createQuery("SELECT r FROM Rate r WHERE r.saleIemId IN :ids", dal.Rate.class).setParameter("ids", ids)
+                .getResultList();
+        for (dal.Rate r : rates) {
+            res.put(r.getSaleIemId() + "|" + r.getCompteTiersPayantId(), Math.round(r.getTaux() * 100));
+        }
+        return res;
     }
 
     /**
