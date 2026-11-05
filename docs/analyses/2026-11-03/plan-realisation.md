@@ -226,7 +226,7 @@ non fusionnée. Migration `V7.2.36` (paramètre `KEY_PRIX_REF_BASE_PAR_TP`, déf
 rappel du minimum masqué sous la grille à `1` ; test d'écran à deux tiers-payants 20/20 ; notice `docs/notices/NOTICE_PRIX_REFERENCE_BASE_PAR_TP.md`.
 Paramètre remis à `0` sur la base locale.
 
-## 9. Cas 4 — plan proposé (05/11/2026, à valider)
+## 9. Cas 4 — plan validé le 05/11/2026 (les six recommandations Q4.1 à Q4.6 sont acceptées telles quelles)
 
 Paramètre `KEY_SECURITE_BASE` (défaut `0`) : tant qu'il est à `0`, l'onglet Sécurité n'existe pas et la sauvegarde lit `domain.xml` comme
 aujourd'hui. Chaque lot est livrable seul et réversible.
