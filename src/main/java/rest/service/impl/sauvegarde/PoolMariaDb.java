@@ -21,22 +21,31 @@ public final class PoolMariaDb {
     private PoolMariaDb() {
     }
 
-    /** Lit le pool de la ressource {@link #JNDI} ; null si domain.xml ne le decrit pas. */
-    public static PoolMariaDb lire(String xml) {
-        if (xml == null) {
-            return null;
-        }
+    /** Nom du pool de la ressource {@link #JNDI} dans domain.xml (laborex_pool si la ressource n'est pas decrite). */
+    public static String nomPool(String xml) {
         String nom = null;
-        Matcher r = Pattern.compile("<jdbc-resource\\b[^>]*>").matcher(xml);
+        Matcher r = Pattern.compile("<jdbc-resource\\b[^>]*>").matcher(xml == null ? "" : xml);
         while (r.find()) {
             if (JNDI.equals(attribut(r.group(), "jndi-name"))) {
                 nom = attribut(r.group(), "pool-name");
                 break;
             }
         }
-        if (StringUtils.isBlank(nom)) {
-            nom = "laborex_pool";
+        return StringUtils.isBlank(nom) ? "laborex_pool" : nom;
+    }
+
+    /** Nom de l'alias Payara qui porte le mot de passe (${ALIAS=nom}) ; null si le mot de passe est en clair. */
+    public String alias() {
+        Matcher m = Pattern.compile("^\\$\\{ALIAS=([^}]+)\\}$").matcher(motDePasse);
+        return m.matches() ? m.group(1) : null;
+    }
+
+    /** Lit le pool de la ressource {@link #JNDI} ; null si domain.xml ne le decrit pas. */
+    public static PoolMariaDb lire(String xml) {
+        if (xml == null) {
+            return null;
         }
+        String nom = nomPool(xml);
         Matcher m = Pattern.compile("<jdbc-connection-pool\\b[^>]*\\sname=\"" + Pattern.quote(nom)
                 + "\"[^>]*>([\\s\\S]*?)</jdbc-connection-pool>").matcher(xml);
         if (!m.find()) {
