@@ -274,7 +274,7 @@ function lireTicket(t) {
 /* dettes (differe) portees par une vente : t_preenregistrement_compte_client */
 const dettes = (id) => q("SELECT IFNULL(GROUP_CONCAT(CONCAT_WS('/', int_PRICE, int_PRICE_RESTE, str_STATUT) ORDER BY int_PRICE SEPARATOR ' ; '), 'aucune') FROM t_preenregistrement_compte_client WHERE lg_PREENREGISTREMENT_ID = '" + id + "'");
 /* mouvements de stock d'une vente (hmvtproduit) : produit/quantite/type */
-const mouvementsStock = (id) => q("SELECT IFNULL(GROUP_CONCAT(CONCAT_WS('/', h.lg_FAMILLE_ID, h.qte, h.typeMvt) ORDER BY h.lg_FAMILLE_ID, h.typeMvt SEPARATOR ' ; '), 'aucun') FROM hmvtproduit h"
+const mouvementsStock = (id) => q("SELECT IFNULL(GROUP_CONCAT(CONCAT_WS('/', h.lg_FAMILLE_ID, h.qteMvt, h.typeMvt) ORDER BY h.lg_FAMILLE_ID, h.typeMvt SEPARATOR ' ; '), 'aucun') FROM hmvtproduit h"
   + " WHERE h.lg_PREENREGISTREMENT_DETAIL_ID IN (SELECT lg_PREENREGISTREMENT_DETAIL_ID FROM t_preenregistrement_detail WHERE lg_PREENREGISTREMENT_ID = '" + id + "')");
 /* detail d'une vente tel que l'ecran « Ventes terminees » le lit (find-one) */
 const detailVente = (p, id) => p.evaluate(async (v) => (await fetch('../api/v1/ventestats/find-one/' + v)).json(), id);

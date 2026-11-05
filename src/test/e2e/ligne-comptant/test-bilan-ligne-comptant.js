@@ -102,10 +102,14 @@ const nb = (s) => (s === 'aucun' || s === 'aucune' ? 0 : s.split(' ; ').length);
     /* le ticket assurance : somme des parts par ligne = parts en base, organisme par organisme */
     const ap = await C.apercu(p, vA, false);
     const ta = ap.success ? C.lireTicket(ap.tickets[0]) : null;
-    const partsRO = ta ? ta.articles.map((a) => (a.credits.find((c) => c.texte.indexOf(RO) === 0) || { part: 0 }).part).reduce((s, x) => s + x, 0) : -1;
-    const partsRC = ta ? ta.articles.map((a) => (a.credits.find((c) => c.texte.indexOf(RC) === 0) || { part: 0 }).part).reduce((s, x) => s + x, 0) : -1;
-    ok('A. Ticket assurance : une seule ligne (P1 × 2), parts par ligne RO et RC = parts en base (plafond compris)', ta && ta.articles.length === 1 && ta.articles[0].quantite === 2
-      && partsRO === partRO && partsRC === partRC, JSON.stringify(ta && ta.articles));
+    /* le ticket nomme l'organisme devant « Taux » seulement quand plusieurs ont une part : on compare la somme des parts
+       imprimees sous la ligne a la somme des parts en base, organisme par organisme quand il est nomme */
+    const credits = ta ? ta.articles.flatMap((a) => a.credits) : [];
+    const sommeCredits = credits.reduce((s, c) => s + c.part, 0);
+    const nommes = credits.filter((c) => c.texte.indexOf(RO) === 0 || c.texte.indexOf(RC) === 0);
+    const parOrganisme = nommes.length === 0 || (nommes.every((c) => (c.texte.indexOf(RO) === 0 ? c.part === partRO : c.part === partRC)));
+    ok('A. Ticket assurance : une seule ligne (P1 × 2), somme des parts imprimées sous la ligne = parts en base (plafond compris), organisme nommé = sa part',
+      ta && ta.articles.length === 1 && ta.articles[0].quantite === 2 && sommeCredits === partRO + partRC && parOrganisme, JSON.stringify(ta && ta.articles) + ' base RO ' + partRO + ' RC ' + partRC);
     /* annulation de la vente comptant */
     const refVno = C.vente(vnoA).ref, refVo = C.vente(vA).ref;
     const a1 = await C.annulerVente(p, refVno);
