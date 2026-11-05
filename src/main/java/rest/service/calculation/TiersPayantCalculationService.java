@@ -289,11 +289,12 @@ public class TiersPayantCalculationService {
             if (reference != null && reference.getOptionPrixType() != PrixReferenceType.PRIX_REFERENCE) {
                 rate = reference.getRate() / 100.0f;
             }
-            if (reference != null) {
-                // taux_produit : le taux applique et, s'il y en a un, le prix de reference propre a l'organisme ;
-                // c'est ce que le ticket relit pour imprimer la part de chaque ligne
+            if (!saleItem.getPrixAssurances().isEmpty()) {
+                // taux_produit : des qu'une reference existe sur la ligne, chaque organisme y laisse le taux applique
+                // et la base unitaire REELLEMENT utilisee (sa reference, sinon le prix de vente) ; c'est ce que le
+                // ticket relit pour imprimer la part de chaque ligne, sans reprendre la base d'un autre organisme
                 Rate memo = new Rate(saleItem.getSalesLineId(), tiersPayantInput.getClientTiersPayantId(), rate);
-                memo.setBaseLigne(aPrixReference ? reference.getPrice() : null);
+                memo.setBaseLigne(baseUnitaire.intValue());
                 itemShare.getRates().add(memo);
             }
             BigDecimal resteSurLaLigne = saleItem.getTotalSalesAmount().subtract(totalPartTiersPayant);

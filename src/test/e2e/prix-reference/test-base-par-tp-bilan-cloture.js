@@ -22,7 +22,7 @@ const { ok, q, exec, A } = C;
 const CLE = 'KEY_PRIX_REF_BASE_PAR_TP';
 const arrondi5 = (n) => { const m = n % 5; return m <= 2 ? n - m : n - m + 5; };
 
-const mvtStock = (venteId) => q("SELECT IFNULL(GROUP_CONCAT(CONCAT(h.lg_FAMILLE_ID, ':', h.qteDebut, '+', h.qteMvt, '=', h.qteFinale, '@', h.lg_EMPLACEMENT_ID) ORDER BY h.lg_FAMILLE_ID SEPARATOR ';'), 'aucun')"
+const mvtStock = (venteId) => q("SELECT IFNULL(GROUP_CONCAT(CONCAT(h.lg_FAMILLE_ID, ':', h.qteDebut, '-', h.qteMvt, '=', h.qteFinale, '@', h.lg_EMPLACEMENT_ID) ORDER BY h.lg_FAMILLE_ID SEPARATOR ';'), 'aucun')"
   + " FROM hmvtproduit h JOIN t_preenregistrement_detail d ON d.lg_PREENREGISTREMENT_DETAIL_ID = h.lg_PREENREGISTREMENT_DETAIL_ID WHERE d.lg_PREENREGISTREMENT_ID = '" + venteId + "'");
 const nbMvtStock = (produits, depuis) => Number(q("SELECT COUNT(*) FROM hmvtproduit WHERE lg_FAMILLE_ID IN ('" + produits.join("','") + "') AND createdAt >= '" + depuis + "'"));
 const journal = (produits) => Number(q("SELECT COUNT(*) FROM prix_reference_journal WHERE produit_id IN ('" + produits.join("','") + "')"));
@@ -99,20 +99,28 @@ const tauxProduit = (venteId) => q("SELECT IFNULL(GROUP_CONCAT(CONCAT(d.lg_FAMIL
       ok('Paramètre à ' + valeur + ' : stock P1 = avant - 1, stock P2 = avant - 2 (emplacement 1)', A.stock(P1) === avant.stock[0] - 1 && A.stock(P2) === avant.stock[1] - 2,
         avant.stock.join('/') + ' -> ' + A.stock(P1) + '/' + A.stock(P2));
       const mvts = mvtStock(venteId);
-      ok('Paramètre à ' + valeur + ' : un seul mouvement de stock par ligne, début + mouvement = fin = stock lu',
-        mvts === [P1.id + ':' + avant.stock[0] + '+-1=' + (avant.stock[0] - 1) + '@1', P2.id + ':' + avant.stock[1] + '+-2=' + (avant.stock[1] - 2) + '@1'].sort().join(';')
+      ok('Paramètre à ' + valeur + ' : un seul mouvement de stock par ligne, début - quantité = fin = stock lu',
+        mvts === [P1.id + ':' + avant.stock[0] + '-1=' + (avant.stock[0] - 1) + '@1', P2.id + ':' + avant.stock[1] + '-2=' + (avant.stock[1] - 2) + '@1'].sort().join(';')
         && nbMvtStock([P1.id, P2.id], A.DEBUT) === avant.mvtStock + 2, mvts + ' (' + (nbMvtStock([P1.id, P2.id], A.DEBUT) - avant.mvtStock) + ' nouveaux)');
       const mouvements = L.mouvements(venteId), recettes = L.recettes(venteId), reglements = L.reglements(venteId);
-      ok('Paramètre à ' + valeur + ' : un seul mouvement de caisse au net ' + net + ', une recette, un règlement', mouvements.split(' ; ').length === 1 && mouvements.split('/')[1] === String(net)
-        && recettes.split(' ; ').length === 1 && recettes !== 'aucune' && reglements.split(' ; ').length === 1 && reglements.split('/')[1] === String(net),
+      /* mvttransaction : type/montant/montantNet/montantCredit/montantVerse/montantRegle/montantPaye/... : montant = prix de la vente, credit = parts des
+         organismes, verse = paye = net ; recette = net ; vente_reglement : type/montant/montant_attentu/montant_verse : montant = net */
+      const m = mouvements.split('/');
+      ok('Paramètre à ' + valeur + ' : un seul mouvement de caisse (prix ' + prix + ', crédit organismes ' + (partA + partB) + ', versé = payé = net ' + net + '), une recette au net, un règlement au net',
+        mouvements.split(' ; ').length === 1 && m[1] === String(prix) && m[3] === String(partA + partB) && m[4] === String(net) && m[6] === String(net)
+        && recettes.split(' ; ').length === 1 && recettes.split('/')[0] === String(net) && reglements.split(' ; ').length === 1 && reglements.split('/')[1] === String(net),
         mouvements + ' | ' + recettes + ' | ' + reglements);
       ok('Paramètre à ' + valeur + ' : encours du lien et de l\'organisme = avant + part (A puis B)',
         A.encoursLien(compteA) === avant.encoursLienA + partA && A.encoursTp(TA) === avant.encoursTpA + partA
         && A.encoursLien(compteB) === avant.encoursLienB + partB && A.encoursTp(TB) === avant.encoursTpB + partB,
         [A.encoursLien(compteA), A.encoursTp(TA), A.encoursLien(compteB), A.encoursTp(TB)].join('/') + ' avant ' + [avant.encoursLienA, avant.encoursTpA, avant.encoursLienB, avant.encoursTpB].join('/'));
       const taux = tauxProduit(venteId);
-      ok('Paramètre à ' + valeur + ' : un taux par ligne et organisme ayant une référence (70, 20, 20), sans doublon ni ligne en trop',
-        taux === [P1.id + '|' + compteA + '=70', P1.id + '|' + compteB + '=20', P2.id + '|' + compteB + '=20'].sort().join(';'), taux);
+      /* a 0 : un taux par ligne et organisme ayant une reference ; a 1 : des qu'une reference existe sur la ligne, chaque organisme laisse sa trace
+         (taux applique et base propre), relue par le ticket */
+      const tauxAttendus = valeur === '0' ? [P1.id + '|' + compteA + '=70', P1.id + '|' + compteB + '=20', P2.id + '|' + compteB + '=20']
+        : [P1.id + '|' + compteA + '=70', P1.id + '|' + compteB + '=20', P2.id + '|' + compteA + '=70', P2.id + '|' + compteB + '=20'];
+      ok('Paramètre à ' + valeur + ' : taux_produit = ' + (valeur === '0' ? 'un taux par ligne et organisme ayant une référence (3)' : 'une trace par organisme sur chaque ligne portant une référence (4)') + ', sans doublon ni ligne en trop',
+        taux === tauxAttendus.sort().join(';'), taux);
       const bases = q("SELECT GROUP_CONCAT(CONCAT(lg_FAMILLE_ID, ':', IFNULL(calculation_base_price, 'NULL')) ORDER BY lg_FAMILLE_ID SEPARATOR ';') FROM t_preenregistrement_detail WHERE lg_PREENREGISTREMENT_ID = '" + venteId + "'");
       const basesAttendues = valeur === '0' ? [P1.id + ':' + refB1, P2.id + ':' + refB2] : [P1.id + ':' + refA1, P2.id + ':' + refB2];
       ok('Paramètre à ' + valeur + ' : base de calcul par ligne = ' + (valeur === '0' ? 'le plus petit prix de référence' : 'la référence du premier organisme qui en a une'),

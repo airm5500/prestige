@@ -226,10 +226,12 @@ class BaseParTiersPayantTest {
     class BaseParTiersPayantActive {
 
         @Test
-        @DisplayName("Sans reference, rien ne change : 70 % du prix de vente x quantite")
+        @DisplayName("Sans reference, rien ne change : 70 % du prix de vente x quantite, aucune trace taux_produit")
         void sansReferenceIdentique() {
             CalculationResult r0 = calcul(vente(false, deuxTiersPayants(), ligne("l1", 3450, 2)));
             CalculationResult r1 = calcul(vente(true, deuxTiersPayants(), ligne("l1", 3450, 2)));
+            assertTrue(partLigne(r1, "l1").getRates().isEmpty());
+            assertFalse(r1.isHasPriceOption());
             assertEquals(part(r0, A), part(r1, A));
             assertEquals(part(r0, B), part(r1, B));
             assertEquals(r0.getTotalPatientShare(), r1.getTotalPatientShare());
@@ -276,11 +278,12 @@ class BaseParTiersPayantTest {
             assertEquals(600, part(r, B));
             assertEquals(900, r.getTotalPatientShare().intValue());
             assertEquals(3000, partLigne(r, "l1").getCalculationBasePrice());
-            // A n'a pas de reference : aucun taux_produit pour lui ; B porte sa base
+            // A n'a pas de reference : sa trace porte le prix de vente, celle de B sa reference (le ticket relit
+            // la base de chacun, jamais celle de l'autre)
             String memos = partLigne(r, "l1").getRates().stream()
                     .map(x -> x.getCompteTiersPayantId() + ":" + Math.round(x.getTaux() * 100) + "/" + x.getBaseLigne())
                     .sorted().collect(java.util.stream.Collectors.joining(" "));
-            assertEquals(B + ":20/3000", memos);
+            assertEquals(A + ":70/5000 " + B + ":20/3000", memos);
         }
 
         @Test
