@@ -52,6 +52,8 @@ public class ImpressionServiceImpl implements Printable {
     SimpleDateFormat SIMPLE_DATE_FORMAT = new SimpleDateFormat("dd-MM-yyyy HH:mm:ss");
     private PrintService service;
     private int limit = 0, intBegin = 0, nombreCopie = 1, fontSize = 0;
+    /** Limite droite de la zone imprimable du pilote, en points ; 0 si inconnue. */
+    private double droiteImprimable = 0;
     /**
      * Taille de police du nom de l'officine, en tete du ticket.
      *
@@ -407,6 +409,16 @@ public class ImpressionServiceImpl implements Printable {
             printRequestAttributeSet.add(new Copies(copies)); // nombre de copie a imprimer
             printRequestAttributeSet.add(Chromaticity.COLOR); // insiste sur la netteté de la couleur du texte
 
+            // retour du 05/11 : limite droite reelle de la zone imprimable, d'apres le pilote (Star TSP100 : 204,3 pt)
+            droiteImprimable = 0;
+            try {
+                PageFormat valide = printerjob.validatePage(pageFormat);
+                if (valide != null && valide.getImageableWidth() > 0) {
+                    droiteImprimable = valide.getImageableX() + valide.getImageableWidth();
+                }
+            } catch (RuntimeException e) {
+                LOG.log(Level.FINE, "Zone imprimable du pilote inconnue", e);
+            }
             printerjob.setPrintable(this, pageFormat);
             long t1 = System.nanoTime();
             try {
@@ -601,7 +613,7 @@ public class ImpressionServiceImpl implements Printable {
                     DEPART_NOUVEAU).hauteur;
             ge.dispose();
         }
-        if (!placer(g2d, pageFormat, pageIndex, papierMm, hauteurEnCours)) {
+        if (!placer(g2d, pageFormat, pageIndex, papierMm, hauteurEnCours, droiteImprimable)) {
             return Printable.NO_SUCH_PAGE;
         }
         RenduTicket.dessiner(g2d, documentEnCours, reglagesTicket, papierMm, fontSize, DEPART_NOUVEAU);
@@ -609,18 +621,30 @@ public class ImpressionServiceImpl implements Printable {
     }
 
     /**
-     * Place la page {@code pageIndex} du nouveau ticket ; faux s'il n'y a plus de page. Retour du 05/11 : le papier est
-     * celui de Java par defaut (Letter, 612 points), pas le rouleau : sa largeur ne dit rien de l'imprimante, le ticket
-     * part donc du debut de la zone (9 points + debut de l'imprimante) sans recentrage. Le bord droit se protege par la
-     * marge du rouleau (menu « Modeles de ticket »).
+     * Place la page {@code pageIndex} du nouveau ticket ; faux s'il n'y a plus de page. Le papier de Java est fictif
+     * (Letter, 612 points) : le ticket part du debut de la zone (9 points + debut de l'imprimante). Retour du 05/11 :
+     * la limite droite reelle vient du pilote ({@code droite}, PrinterJob.validatePage ; 0 si inconnue) ; un ticket qui
+     * la depasserait est ramene a gauche juste assez, et reduit seulement s'il ne tient toujours pas. Rien n'est coupe.
      */
-    static boolean placer(Graphics2D g2d, PageFormat pageFormat, int pageIndex, int papierMm, int hauteur) {
-        double page = pageFormat.getImageableHeight();
+    static boolean placer(Graphics2D g2d, PageFormat pageFormat, int pageIndex, int papierMm, int hauteur,
+            double droite) {
+        double largeur = RenduTicket.largeurImprimable(papierMm);
+        double x = pageFormat.getImageableX();
+        double echelle = 1;
+        if (droite > 0 && x + largeur > droite) {
+            x = Math.max(0, droite - largeur);
+            if (x + largeur > droite) {
+                echelle = (droite - x) / largeur;
+            }
+        }
+        double page = pageFormat.getImageableHeight() / echelle;
         if (page <= 0 || pageIndex * page > hauteur) {
             return false;
         }
-        g2d.translate(pageFormat.getImageableX(), pageFormat.getImageableY() - pageIndex * page);
-        g2d.clip(new Rectangle2D.Double(0, pageIndex * page, pageFormat.getImageableWidth(), page));
+        g2d.translate(x, pageFormat.getImageableY());
+        g2d.scale(echelle, echelle);
+        g2d.translate(0, -pageIndex * page);
+        g2d.clip(new Rectangle2D.Double(0, pageIndex * page, largeur + 1, page));
         return true;
     }
 
