@@ -34,13 +34,20 @@
 - Les tests passent par le vrai chemin de l'écran et retirent leurs données.
 - L'ergonomie se teste aussi.
 - Lancer les tests d'écran un par un, jamais deux en même temps : sinon, faux échecs et mesures faussées.
-- Test de rapprochement (e2e) : un montant affiché à plusieurs endroits (écran, ticket, PDF, base) est comparé partout,
-  ligne par ligne. Exemple : `prix-reference/test-rapprochement-ticket.js`.
-- Test de cohérence (unitaire) : un calcul avec répartition, plafond ou arrondi est vérifié par ses règles (part =
-  base × taux, somme = total), sur des milliers de cas tirés au hasard avec une graine fixe. Exemple :
-  `CreditLigneCoherenceTest`.
-- Les jeux d'essai varient les données : taux différents d'une ligne à l'autre, quantité supérieure à 1, plafond,
-  ligne à 0 %.
+- **Obligatoire pour toute nouvelle fonctionnalité et toute modification** : un travail n'est pas fini sans ses tests
+  de rapprochement et de cohérence. Le but : aucun défaut ne doit arriver en production.
+  - Test de rapprochement (e2e) : une donnée visible à plusieurs endroits (écran, ticket, PDF, export, base) est
+    comparée partout, ligne par ligne. Exemple : `prix-reference/test-rapprochement-ticket.js`.
+  - Test de cohérence (unitaire) : un calcul (montant, taux, répartition, plafond, arrondi, stock, date) est vérifié
+    par ses règles (part = base × taux, somme = total, jamais négatif), sur des milliers de cas tirés au hasard avec
+    une graine fixe. Exemple : `CreditLigneCoherenceTest`.
+  - Jeux d'essai variés, jamais un seul cas : valeurs différentes d'une ligne à l'autre, quantité supérieure à 1, zéro,
+    plafond atteint, plusieurs organismes, annulation, paramètre à 0 et à 1.
+  - Chaque nouveau test doit d'abord échouer sur l'ancien code (ou sur le défaut remis à l'essai), puis passer.
+  - Toute donnée écrite en base doit avoir un lecteur et un test qui la relit ; une donnée écrite et jamais relue est
+    un défaut.
+- Avant de dire « fini », le compte rendu liste : les endroits où la donnée apparaît, et le test de rapprochement qui
+  les compare ; les règles de calcul, et le test de cohérence qui les vérifie ; les cas variés couverts.
 - Construction :
   - build : `mvn -o -q -DskipTests package` (JDK 11) ;
   - déploiement : `asadmin redeploy --name prestige --contextroot prestige target/prestige.war` ;
