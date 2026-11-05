@@ -21,7 +21,9 @@ const { execFileSync } = require('child_process');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { connexion, ouvrirMenu, cliquer } = require('../outils/vues');
+const { connexion: connexionVue, ouvrirMenu, cliquer } = require('../outils/vues');
+/* la premiere connexion apres un deploiement, ou pendant le rattachement de l'application au pool recree, peut depasser le delai : trois essais */
+const connexion = async (p, login, mdp) => { let e = null; for (let i = 0; i < 3; i++) { try { await connexionVue(p, login, mdp); return; } catch (x) { e = x; } } throw e; };
 const privilegeEssai = require('../support/privilege-essai');
 
 const res = [];
@@ -61,8 +63,8 @@ const ASADMIN_JAR = path.resolve(DOMAINE, '..', '..', 'modules', 'admin-cli.jar'
 const JAVA = process.env.JAVA_HOME ? path.join(process.env.JAVA_HOME, 'bin', 'java.exe') : 'java';
 const asadmin = (...args) => execFileSync(JAVA, ['-jar', ASADMIN_JAR, '--interactive=false', '--port', pool0.portAdmin, ...args], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
 const setPool = (prop, valeur) => asadmin('set', 'resources.jdbc-connection-pool.laborex_pool.property.' + prop + '=' + valeur);
-/* apres un set : la ressource JDBC est desactivee puis reactivee (Payara garde sinon l'ancien compte pour l'application), puis ping */
-const flush = () => { asadmin('set', 'resources.jdbc-resource.jdbc/__laborex_pool.enabled=false'); asadmin('set', 'resources.jdbc-resource.jdbc/__laborex_pool.enabled=true'); asadmin('ping-connection-pool', 'laborex_pool'); };
+/* apres un set : ping par asadmin ; l'application se rattache d'elle-meme au pool recree en une a deux minutes (voir le service) */
+const flush = () => { asadmin('ping-connection-pool', 'laborex_pool'); };
 /* domain.xml est reecrit par Payara un peu apres chaque « set » */
 const attendrePool = async (p, test) => { const fin = Date.now() + 20000; while (Date.now() < fin) { if (test(pool())) { return true; } await p.waitForTimeout(500); } return test(pool()); };
 /* connexion directe d'un compte d'essai avec un mot de passe donne (fichier d'options du test, jamais la ligne de commande) */

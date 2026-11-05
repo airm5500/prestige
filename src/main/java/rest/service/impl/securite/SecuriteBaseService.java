@@ -436,40 +436,55 @@ public class SecuriteBaseService {
         try {
             Files.write(f,
                     ("AS_ADMIN_ALIASPASSWORD=" + valeur.replace("\\", "\\\\") + "\n").getBytes(StandardCharsets.UTF_8));
-            Asadmin.commande(portAdmin, 120, sousCommande, "--passwordfile", f.toAbsolutePath().toString(), alias);
+            /* --passwordfile est une option de l'utilitaire : avant la sous-commande */
+            Asadmin.commande(portAdmin, 120, "--passwordfile", f.toAbsolutePath().toString(), sousCommande, alias);
         } finally {
             Files.deleteIfExists(f);
         }
     }
 
     /**
-     * Redemarrage du pool apres un « set » de sa propriete password. Payara 5.2022.5 ne recree pas le pool sur un
-     * changement de propriete : il met a jour la fabrique de connexions mais garde l'ancien compte pour les connexions
-     * de l'application (constate : « Access denied » cote application alors que ping-connection-pool reussit). La
-     * ressource JDBC est donc desactivee puis reactivee (le pool est detruit et recree avec ses proprietes), puis le
-     * pool est teste par asadmin : le ping echoue si MariaDB refuse le compte.
+     * Apres un « set » sur une propriete du pool, Payara detruit le pool et le recree a la demande : pendant une a deux
+     * minutes, les objets DataSource que l'application tenait avant le changement echouent (RAR7099 puis « No password
+     * credential found » dans server.log) avant de se rattacher au nouveau pool ; les connexions deja ouvertes
+     * continuent. Constate sur Payara 5.2022.5 : ni flush-connection-pool ni la bascule de la ressource JDBC n'abregent
+     * ce delai (la bascule l'aggrave), et la propriete dynamic-reconfiguration-wait-timeout-in-seconds bloque
+     * l'application. Le pool est donc seulement teste par asadmin (ping : echoue si MariaDB refuse le compte), puis
+     * l'application attend que sa propre connexion repasse ({@link #testerPool()}).
      */
     static void redemarrerPool(int portAdmin, String nomPool, boolean ping) throws Exception {
-        Asadmin.commande(portAdmin, 120, "set", "resources.jdbc-resource." + PoolMariaDb.JNDI + ".enabled=false");
-        Asadmin.commande(portAdmin, 120, "set", "resources.jdbc-resource." + PoolMariaDb.JNDI + ".enabled=true");
         if (ping) {
             Asadmin.commande(portAdmin, 120, "ping-connection-pool", nomPool);
         }
     }
 
-    /** Une connexion neuve par le pool (apres son redemarrage) ; trois essais a une seconde. */
+    /** Delai maximal d'attente du rattachement de l'application au pool recree (voir {@link #redemarrerPool}). */
+    static final int ATTENTE_POOL_S = 150;
+
+    /**
+     * Une connexion neuve par le pool, par une nouvelle recherche JNDI (pas l'objet injecte, qui peut etre perime),
+     * reessayee toutes les 5 s pendant {@link #ATTENTE_POOL_S} : le temps du rattachement decrit dans
+     * {@link #redemarrerPool}.
+     */
     void testerPool() throws Exception {
         Exception derniere = null;
-        for (int i = 0; i < 3; i++) {
-            try (Connection c = ds.getConnection(); Statement s = c.createStatement();
-                    ResultSet rs = s.executeQuery("SELECT 1")) {
-                rs.next();
-                return;
+        long fin = System.currentTimeMillis() + ATTENTE_POOL_S * 1000L;
+        do {
+            try {
+                DataSource d = IdentifiantsBaseService.pool();
+                if (d == null) {
+                    d = ds;
+                }
+                try (Connection c = d.getConnection(); Statement s = c.createStatement();
+                        ResultSet rs = s.executeQuery("SELECT 1")) {
+                    rs.next();
+                    return;
+                }
             } catch (Exception e) {
                 derniere = e;
-                Thread.sleep(1000);
+                Thread.sleep(5000);
             }
-        }
+        } while (System.currentTimeMillis() < fin);
         throw new IllegalStateException("le pool ne se connecte plus : " + RotationMotDePasse.cause(derniere));
     }
 
