@@ -12,8 +12,8 @@ import java.util.List;
  * <li>mise a jour de Payara (propriete du pool ou alias) ;</li>
  * <li>pool redemarre et connexion testee.</li>
  * </ol>
- * Si 2 ou 3 echoue : Payara est retabli (si 2 avait reussi) puis ALTER USER inverse avec l'ancien mot de passe quand il
- * est connu ; sinon le resultat dit exactement ou en est chaque cote.
+ * Si 2 ou 3 echoue : Payara est retabli (meme si 2 a echoue : la valeur a pu etre posee avant l'echec) puis ALTER USER
+ * inverse avec l'ancien mot de passe quand il est connu ; sinon le resultat dit exactement ou en est chaque cote.
  */
 public final class RotationMotDePasse {
 
@@ -73,15 +73,16 @@ public final class RotationMotDePasse {
             r.etapes.add((payaraFait ? "Connexion par le pool en échec : " : "Payara a refusé la mise à jour : ")
                     + cause(ex));
         }
-        /* retour arriere */
-        if (payaraFait) {
-            try {
-                e.retablirPayara();
-                r.etapes.add("Payara rétabli");
-            } catch (Exception ex) {
-                r.etapes.add("Payara non rétabli : " + cause(ex));
-                r.incoherent = true;
-            }
+        /*
+         * retour arriere : Payara d'abord (la mise a jour a pu echouer apres avoir pose la valeur : le retablissement
+         * est idempotent), puis MariaDB
+         */
+        try {
+            e.retablirPayara();
+            r.etapes.add("Payara rétabli");
+        } catch (Exception ex) {
+            r.etapes.add("Payara non rétabli : " + cause(ex));
+            r.incoherent = true;
         }
         if (ancien == null) {
             r.etapes.add("Ancien mot de passe inconnu (alias) : MariaDB garde le nouveau");
