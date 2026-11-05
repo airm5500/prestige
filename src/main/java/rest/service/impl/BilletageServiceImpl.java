@@ -247,6 +247,12 @@ public class BilletageServiceImpl implements BilletageService {
             throw new CaisseUsingExeception("Billetage invalide : les nombres de billets et le montant des pièces"
                     + " ne peuvent pas être négatifs");
         }
+        try {
+            billetage.getTotal();
+        } catch (ArithmeticException e) {
+            throw new CaisseUsingExeception("Billetage invalide : le total dépasse ce que la caisse peut enregistrer."
+                    + " Vérifiez les nombres de billets saisis");
+        }
         // caisseAmountOtherMvts(oTResumeCaisse)
         setLigneResumeCaissesFromDto(oTResumeCaisse);
         setLigneResumeCaissesFromReglement(oTResumeCaisse);
