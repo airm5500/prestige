@@ -1104,10 +1104,14 @@ Ext.define('testextjs.view.support.SupportServeur', {
                                                     }}]},
                                         {xtype: 'component', itemId: 'secModeTexte', html: ''},
                                         {xtype: 'container', itemId: 'secSaisie', hidden: true, layout: {type: 'hbox', align: 'bottom'}, items: [
-                                                Ext.apply(mdp('secNouveau', 'Nouveau mot de passe'), {enableKeyEvents: true, listeners: {keyup: function () {
+                                                Ext.apply(mdp('secNouveau', 'Nouveau mot de passe'), {enableKeyEvents: true, checkChangeBuffer: 50, listeners: {keyup: function () {
+                                                            me.forceSecurite();
+                                                        }, change: function () {
                                                             me.forceSecurite();
                                                         }}}),
-                                                Ext.apply(mdp('secConfirmation', 'Confirmer'), {enableKeyEvents: true, listeners: {keyup: function () {
+                                                Ext.apply(mdp('secConfirmation', 'Confirmer'), {enableKeyEvents: true, checkChangeBuffer: 50, listeners: {keyup: function () {
+                                                            me.forceSecurite();
+                                                        }, change: function () {
                                                             me.forceSecurite();
                                                         }}}),
                                                 {xtype: 'component', itemId: 'secForce', html: '', margin: '0 0 6 0'}]}]}]},
