@@ -225,3 +225,29 @@ non fusionnée. Migration `V7.2.36` (paramètre `KEY_PRIX_REF_BASE_PAR_TP`, déf
 `SalesNetComputingServiceImpl` modifiés **derrière le paramètre**, règle du minimum figée par un jeu de tests et identique au franc près à `0` ;
 rappel du minimum masqué sous la grille à `1` ; test d'écran à deux tiers-payants 20/20 ; notice `docs/notices/NOTICE_PRIX_REFERENCE_BASE_PAR_TP.md`.
 Paramètre remis à `0` sur la base locale.
+
+## 9. Cas 4 — plan proposé (05/11/2026, à valider)
+
+Paramètre `KEY_SECURITE_BASE` (défaut `0`) : tant qu'il est à `0`, l'onglet Sécurité n'existe pas et la sauvegarde lit `domain.xml` comme
+aujourd'hui. Chaque lot est livrable seul et réversible.
+
+| Lot | Contenu | Code | Durée |
+|-----|---------|------|-------|
+| 4.0 Sans code | Audit du `SAUVEGARDE_COMPRESSION.bat` du serveur ; MariaDB en écoute locale ou liste blanche (S7) ; compte `prestige_sauvegarde` pour les scripts PowerShell (déjà prévu par `2-configurer-mariadb.ps1 -CreerCompte`) ; rotation manuelle une fois. | non | ½ jour sur place |
+| 4.A Stockage | `JdbConnexion` → DataSource JNDI (S4), filtrage de l'URL dans les journaux ; sauvegarde Java et valorisation sur compte dédié avec `.cnf` chiffré DPAPI (S5) ; `fichierPrive()` avec ACL Windows. Test : sauvegarde horaire et valorisation identiques avant / après, écrans JSP un par un sur le banc. | oui | 3 à 4 jours |
+| 4.B Écran | Onglet « Sécurité » du Centre de support (`superAdmin()`) : état, rotation en un bouton (Générer / Saisir), alias Payara (S2), purge des copies `domain.xml.avant-prestige-*`, journal `t_securite_journal` sans valeur. Rotation transactionnelle : test de connexion puis retour arrière par `ALTER USER` inverse si échec. | oui | 3 jours |
+| 4.C Archives | Archives `.sql.gz` chiffrées (S6), RAR/7z avec mot de passe, binlogs chiffrés ; essai de restauration adapté. | oui + scripts | 2 jours |
+
+### Questions ouvertes et recommandation
+
+| # | Question | Recommandation |
+|---|----------|----------------|
+| Q4.1 | Qui lance une rotation ? | Super-admin seulement, avec re-saisie de son mot de passe de session dans le même formulaire. |
+| Q4.2 | Compte MariaDB de rotation (`ALTER USER`) | Saisi à chaque rotation, jamais stocké. |
+| Q4.3 | Clé des archives chiffrées | Mot de passe d'archive choisi par le pharmacien, conservé hors serveur (papier au coffre) ; le support à distance le demande au pharmacien pour restaurer. |
+| Q4.4 | Master password Payara | La changer avec `--savemasterpassword=true` (démarrage en service Windows conservé, protection par ACL) ; `false` écarté. |
+| Q4.5 | Supprimer le chemin JDBC direct ? | Oui (S4), après inventaire des usages hors Payara (`InvoiceServlet`, outils en ligne de commande) ; aucun connu à ce jour. |
+| Q4.6 | Politique de rotation | À chaque départ d'employé et tous les 6 mois ; rappel dans l'onglet Sécurité quand la dernière rotation a plus de 6 mois. |
+
+Ordre : 4.0 dès maintenant sur place (sans moi), puis 4.A, 4.B, 4.C. Le lot 4.B dépend de 4.A (la sauvegarde ne doit plus lire
+`domain.xml` avant de poser l'alias Payara).
