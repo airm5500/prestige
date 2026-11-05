@@ -734,7 +734,14 @@ public class ImpressionServiceImpl implements Printable {
             graphics.setFont(font);
 
             for (int i = 0; i < curDatas.size(); i++) {
-                String[] parts = curDatas.get(i).split(";");
+                /*
+                 * retour du 05/11 : les mentions sous un produit (promotion, credit par tiers-payant) finissent par des
+                 * colonnes vides ; split sans limite les retirait et l'ancien ticket ne sortait plus
+                 */
+                String[] parts = java.util.Arrays.copyOf(curDatas.get(i).split(";", -1), 5);
+                for (int c = 0; c < parts.length; c++) {
+                    parts[c] = parts[c] == null ? "" : parts[c];
+                }
                 graphics.drawString(parts[0], 0, start + (scaleTexte * (i + 1)));
                 graphics.drawString(parts[1], 10 + columnOne, start + (scaleTexte * (i + 1)));
                 graphics.drawString(parts[2], 25 + columnTwo, start + (scaleTexte * (i + 1)));
