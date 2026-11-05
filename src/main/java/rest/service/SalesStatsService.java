@@ -131,6 +131,15 @@ public interface SalesStatsService {
             boolean avecProduits);
 
     /**
+     * Retour du 05/11 : historique des ventes des produits sensibles ou de l'ordonnancier (voir
+     * rest.service.impl.HistoriqueOrdonnancier). {@code limit <= 0} : toutes les lignes (exports).
+     *
+     * @return {@code total} et {@code data}
+     */
+    JSONObject historiqueOrdonnancier(java.time.LocalDate du, java.time.LocalDate au, String produit, String categorie,
+            int start, int limit);
+
+    /**
      * Les produits d'une vente qui entrent dans l'ordonnancier : soumis a ordonnance ET porteurs d'un code tableau.
      * C'est ce que le bouton « Voir detail » de l'ordonnancier va chercher, pour la seule vente choisie.
      */

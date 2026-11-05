@@ -886,6 +886,100 @@ public class SalesStatsRessource {
                 .put("topMedecins", palmaresJson(r.getTopMedecins())).toString()).build();
     }
 
+    // =============================================================================================
+    // Retour du 05/11 : menu « Historique » de l'ordonnancier. La grille, l'export Excel et
+    // l'impression lisent la meme requete avec les memes filtres (HistoriqueOrdonnancier).
+    // =============================================================================================
+
+    private static LocalDate jourHistorique(String valeur, LocalDate defaut) {
+        try {
+            return StringUtils.isBlank(valeur) ? defaut : LocalDate.parse(valeur.trim());
+        } catch (Exception e) {
+            return defaut;
+        }
+    }
+
+    private static String periodeHistorique(LocalDate du, LocalDate au) {
+        DateTimeFormatter f = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+        return "du " + du.format(f) + " au " + au.format(f);
+    }
+
+    private TUser utilisateurHistorique() {
+        HttpSession hs = servletRequest.getSession(false);
+        return hs == null ? null : (TUser) hs.getAttribute(Constant.AIRTIME_USER);
+    }
+
+    private java.util.List<JSONObject> lignesHistorique(JSONObject r) {
+        java.util.List<JSONObject> lignes = new java.util.ArrayList<>();
+        org.json.JSONArray data = r.getJSONArray("data");
+        for (int i = 0; i < data.length(); i++) {
+            lignes.add(data.getJSONObject(i));
+        }
+        return lignes;
+    }
+
+    @GET
+    @Path("historique-ordonnancier")
+    public Response historiqueOrdonnancier(@QueryParam("du") String du, @QueryParam("au") String au,
+            @QueryParam("produit") String produit, @QueryParam("categorie") String categorie,
+            @QueryParam("start") int start, @QueryParam("limit") @DefaultValue("50") int limit) {
+        if (utilisateurHistorique() == null) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+        LocalDate a = jourHistorique(au, LocalDate.now()), d = jourHistorique(du, a);
+        return Response.ok().entity(salesService
+                .historiqueOrdonnancier(d, a, produit, categorie, start, Math.max(1, Math.min(limit, 500))).toString())
+                .build();
+    }
+
+    @GET
+    @Path("historique-ordonnancier/excel")
+    @Produces("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    public Response historiqueOrdonnancierExcel(@QueryParam("du") String du, @QueryParam("au") String au,
+            @QueryParam("produit") String produit, @QueryParam("categorie") String categorie) throws IOException {
+        if (utilisateurHistorique() == null) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+        LocalDate a = jourHistorique(au, LocalDate.now()), d = jourHistorique(du, a);
+        JSONObject r = salesService.historiqueOrdonnancier(d, a, produit, categorie, 0, 0);
+        byte[] data = new rest.report.excel.ClasseurExcel<JSONObject>("Historique")
+                .titre("HISTORIQUE DES PRODUITS SENSIBLES ET DE L'ORDONNANCIER")
+                .critere("Période", periodeHistorique(d, a))
+                .critere("Catégorie", rest.service.impl.HistoriqueOrdonnancier.libelleCategorie(categorie))
+                .critere("Produit", StringUtils.defaultIfBlank(produit, "Tous")).texte("Date", l -> l.optString("date"))
+                .texte("Ticket", l -> l.optString("ticket")).texte("CIP", l -> l.optString("cip"))
+                .texte("Produit", l -> l.optString("produit")).nombre("Quantité", l -> l.optLong("quantite"))
+                .texte("Client", l -> l.optString("client")).texte("Prescripteur", l -> l.optString("prescripteur"))
+                .texte("Vendeur", l -> l.optString("vendeur")).texte("Catégorie", l -> l.optString("categorie"))
+                .construire(lignesHistorique(r));
+        return Response.ok(data, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                .header("Content-Disposition",
+                        "attachment; filename=historique_ordonnancier_" + d.format(DateTimeFormatter.BASIC_ISO_DATE)
+                                + "_" + a.format(DateTimeFormatter.BASIC_ISO_DATE) + ".xlsx")
+                .build();
+    }
+
+    @GET
+    @Path("historique-ordonnancier/pdf")
+    @Produces("application/pdf")
+    public Response historiqueOrdonnancierPdf(@QueryParam("du") String du, @QueryParam("au") String au,
+            @QueryParam("produit") String produit, @QueryParam("categorie") String categorie) throws Exception {
+        TUser user = utilisateurHistorique();
+        if (user == null) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+        LocalDate a = jourHistorique(au, LocalDate.now()), d = jourHistorique(du, a);
+        JSONObject r = salesService.historiqueOrdonnancier(d, a, produit, categorie, 0, 0);
+        Object officine = reportUtil.officineData(user).get("P_H_INSTITUTION");
+        String sousTitre = periodeHistorique(d, a) + " — "
+                + rest.service.impl.HistoriqueOrdonnancier.libelleCategorie(categorie)
+                + (StringUtils.isBlank(produit) ? "" : " — produit « " + produit.trim() + " »");
+        byte[] pdf = rest.service.impl.HistoriqueOrdonnancier.pdf(lignesHistorique(r), r.optLong("total"),
+                officine == null ? "" : officine.toString(), sousTitre);
+        return Response.ok(pdf, "application/pdf")
+                .header("Content-Disposition", "inline; filename=historique_ordonnancier.pdf").build();
+    }
+
     @GET
     @Path("ventesordonnanciers/analyse/pdf")
     public Response imprimerAnalyseOrdonnancier(@QueryParam(value = "dtStart") String dtStart,

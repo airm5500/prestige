@@ -777,6 +777,7 @@ Ext.application({
         'testextjs.view.caisseManager.GestionCaisseOnglets',
         'testextjs.view.activiteequipes.ActiviteEquipes',
         'testextjs.view.receptionmobile.PeremptionsCourtes',
+        'testextjs.view.vente.HistoriqueOrdonnancier',
         'testextjs.view.configmanagement.modeleticket.ModelesTicket',
         'testextjs.view.actions.action',
         'testextjs.view.configmanagement.famille.Products',

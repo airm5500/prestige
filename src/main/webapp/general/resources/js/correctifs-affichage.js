@@ -910,6 +910,8 @@ window.PrestigeAffichage.ECRANS_COLLES = [
     // ventes
     'ventemanager', 'venteannuler', 'venteavoirmanager', 'venteproduitannules',
     'suppressionsvente', 'delayed', 'tpventes', 'ordonnancier', 'suiviremise',
+    // menu « Historique ordonnancier » (SERVICE CLIENT, retour du 05/11)
+    'historiqueordonnancier',
     // retours des tests du 12/09 : ruptures PharmaML, cautions tiers payant
     'rupturepharma', 'cautiontierspayant',
     // service client
@@ -966,6 +968,8 @@ window.PrestigeAffichage.ECRANS_STYLE_VENTE = [
     'preenregistrementmanager', 'devismanager',
     // lot 2 : ventes, ventes annulees, suppressions de vente, ordonnancier
     'ventemanager', 'venteannuler', 'suppressionsvente', 'ordonnancier',
+    // menu « Historique ordonnancier » (retour du 05/11)
+    'historiqueordonnancier',
     // lot 3 : Posos, articles vendus (recapitulatif), gestion de caisse, mouvements de caisse
     'pososmanager', 'articlevendurecapitulatif', 'gestcaissemanager', 'mvtcaissemanager',
     // lot 4 : facture subrogatoire, ventes ratees, mouchard des prix de vente
