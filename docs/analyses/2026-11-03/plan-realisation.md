@@ -251,3 +251,14 @@ aujourd'hui. Chaque lot est livrable seul et réversible.
 
 Ordre : 4.0 dès maintenant sur place (sans moi), puis 4.A, 4.B, 4.C. Le lot 4.B dépend de 4.A (la sauvegarde ne doit plus lire
 `domain.xml` avant de poser l'alias Payara).
+
+### Lot 4.A scindé (décision du 05/11/2026)
+
+| Sous-lot | Contenu | Risque | Vérification |
+|----------|---------|--------|--------------|
+| 4.A1 Sauvegarde | Sauvegarde Java et valorisation sur compte dédié `prestige_sauvegarde`, `.cnf` chiffré DPAPI dans un dossier à ACL restreinte, `fichierPrive()` avec ACL Windows, nettoyage des `.cnf` orphelins au démarrage. Derrière `KEY_SECURITE_BASE` ; à 0, lecture de `domain.xml` inchangée. | faible | Dump du compte dédié comparé au dump actuel sur le banc (tables, lignes, routines, vues, événements, triggers) ; sauvegarde horaire et valorisation identiques avant / après ; alerte dans `t_sauvegarde` si le `.cnf` est illisible. |
+| 4.A2 JNDI | `JdbConnexion` → DataSource JNDI non-XA, autocommit vérifié, repli sur l'ancien chemin XML si le `lookup` échoue ; filtrage de l'URL dans les journaux. Précédé de l'inventaire Q4.5 (usages hors Payara) et des `jconnexion` sans `close()`. | moyen | Écrans JSP un par un sur le banc ; `max-pool-size` et `leak-timeout` réglés ; essai de charge sur `domain2` pour l'épuisement du pool. Sur le poste local le paramètre reste à 0 (deux bases voulues). |
+
+Ordre : 4.A1 puis 4.A2, chacun livrable seul.
+
+**Q4.1 à Q4.6 validées le 05/11/2026** telles que recommandées ci-dessus. Le lot 4.0 (sans code) est à faire sur place ; 4.A1 peut démarrer.
