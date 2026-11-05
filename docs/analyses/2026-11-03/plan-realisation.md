@@ -289,3 +289,21 @@ sur domain3 ; `server.log` sans valeur. Vérification ici : aucun secret ni chem
 l'application garde l'ancienne fabrique du pool ; le retour arrière, lui, ne redémarre rien. En officine, rotation et alias se font
 donc **hors heures d'ouverture**, postes fermés. Non fait : changement de la master password (commande documentée, à faire sur site,
 Q4.4) ; banc Linux. Prochain : lot 4.C (archives chiffrées, clé hors serveur chez le pharmacien, Q4.3), à poser sur la branche 4.B.
+
+## 10. Règle de tests du 05/11/2026 et compléments livrés
+
+Règle transmise par la session principale le 05/11 (CLAUDE.md section Tests et `docs/notices/STRATEGIE_TESTS.md`, branche
+`claude/new-session-xm8ptu`, commit `9d9ab0330`) : toute fonctionnalité ou modification comporte un **test de rapprochement**
+(même donnée comparée écran / ticket / PDF / export / base), un **test de cohérence** unitaire à graine fixe sur des milliers de cas,
+et un **bilan avant / après** (traces exactes : stock, mouvements, solde) ; jeux variés ; chaque test échoue d'abord sur l'ancien code ;
+toute donnée écrite en base a un lecteur et un test qui la relit. État au 05/11 soir, vérifié par git, aucune branche fusionnée par moi :
+
+| Cas | Branche | Commits du jour | Rapprochement | Cohérence | Bilan | Remarques |
+|---|---|---|---|---|---|---|
+| Cas 1 | `PRES-/vigorous-northcutt-ec550e` | `089b95a69`, `e278b90ef`, `bb0bb822b`, `550b36aac` | écran / tickets / base, 19 cas (3 écarts avec le défaut simulé : preuve « échoue d'abord ») | `LigneComptantCoherenceTest`, `CreditLigneCoherenceTest` (5 000 ventes) | 23/23 sur domain3 | **défaut confirmé et corrigé** : la vente liée n'était pas relue par le détail de vente (`SalesStatsServiceImpl`). |
+| Cas 2 | `PRES-/quirky-shtern-c8f3ea` | `e2595ab54`, `bfa4b1013`, `b6027805a`, `93070c27e` | caisse / fiche / base 21/21 | `ReferenceCaisseCoherenceTest` (20 000 cas, 5 000 ventes) | 23/23 | deux correctifs du net : taux de ligne non empilés dans `taux_produit` ; **le taux saisi fait foi même quand une référence existe** (tranché par l'utilisateur le 05/11, ticket `TICKET_TAUX_ORGANISME_DEUX_CALCULS_DU_NET_2026-11-05.md`). Fusionné par la session dans `PRES-/integration-cas-1-2-3` (`ad9d585a9`), pas dans `integration/recette`. |
+| Lot Q2.5 | `PRES-/quizzical-solomon-415068` | `8dcf5bf88`, `3b7d5aae6`, `b9e80654f`, `807d957db`, `a8100cb5d` | ticket 21/21 | `BaseParTiersPayantCoherenceTest` (5 000 ventes, à 0 et à 1) | 28/28 ; non-régression 13/13 | nouvelle migration **`V7.2.36.1`** (`taux_produit.base_ligne`, base propre de chaque organisme, écrite par le net à 1 et relue par le ticket) ; `integration/recette` fusionnée dans la branche (`009d2470e`). **Décision en attente** : P.REF par assurance sur le ticket. |
+| Cas 3 | `PRES-/happy-almeida-e382ca` | aucun | à faire (motif ligne par ligne écran / détail / PDF / Excel) | à faire (`estProduitOrdonnancier`) | à faire | session en attente de votre décision. |
+| Lot 4.A | `PRES-/determined-khayyam-d98c43` | `5460c8204` (mesure) | déjà présent (dumps table par table) | à faire (aller-retour DPAPI) | déjà présent | session en attente. |
+| Lot 4.B | `PRES-/vigilant-pare-ce7bc4` | aucun | à faire (état affiché / domain.xml / journal / server.log) | à faire (tirage à graine fixe) | à faire (`t_parameters`, `t_securite_journal`) | session en attente. |
+| Lot 4.C | `PRES-/beautiful-kare-259612` | aucun | — | — | — | session arrêtée avant de commencer (espace disque puis arrêt inattendu) ; à relancer, brief à compléter avec cette règle. |
