@@ -123,6 +123,19 @@ function poserReferences(copies) {
     parametre('1'); const r1 = await serie();
     const d2 = comparer(r0, r1);
     ok('Avec ' + nbRef + ' prix de référence d\'essai (MIX, PRIX_REFERENCE, TAUX) : séries 0 et 1 identiques', nbRef > 0 && d2.length === 0, d2.slice(0, 3).join(' | '));
+    if (d2.length) {
+      /* diagnostic avant nettoyage : lignes, organismes, references et taux de chaque vente qui diverge, puis un troisieme calcul */
+      const r2 = await serie();
+      const d3 = comparer(r1, r2);
+      console.log('  (diagnostic) séries 1 et 2 : ' + (d3.length ? d3.join(' | ') : 'identiques'));
+      d2.slice(0, 3).map((d) => d.split(' ')[0]).forEach((id) => {
+        const dump = (titre, s) => console.log('  (diagnostic) ' + id + ' ' + titre + ' : ' + q(s).replace(/\n/g, ' ; '));
+        dump('lignes', "SELECT CONCAT_WS('|', lg_FAMILLE_ID, int_PRICE_UNITAIR, int_QUANTITY, int_PRICE, int_PRICE_REMISE, calculation_base_price) FROM t_preenregistrement_detail WHERE lg_PREENREGISTREMENT_ID = '" + id + "'");
+        dump('organismes', "SELECT CONCAT_WS('|', t.lg_COMPTE_CLIENT_TIERS_PAYANT_ID, l.lg_TIERS_PAYANT_ID, t.int_PERCENT, t.int_PRICE, l.int_POURCENTAGE, l.dbl_PLAFOND, l.db_PLAFOND_ENCOURS, l.dbl_QUOTA_CONSO_VENTE, l.dbl_QUOTA_CONSO_MENSUELLE, l.db_CONSOMMATION_MENSUELLE, o.dbl_PLAFOND_CREDIT, o.dbl_PLAFOND_VENTE) FROM t_preenregistrement_compte_client_tiers_payent t JOIN t_compte_client_tiers_payant l ON l.lg_COMPTE_CLIENT_TIERS_PAYANT_ID = t.lg_COMPTE_CLIENT_TIERS_PAYANT_ID JOIN t_tiers_payant o ON o.lg_TIERS_PAYANT_ID = l.lg_TIERS_PAYANT_ID WHERE t.lg_PREENREGISTREMENT_ID = '" + id + "'");
+        dump('références', "SELECT CONCAT_WS('|', r.id, r.type_prix, r.valeur, r.valeur_taux, r.produit_id, r.tiersPayant_id) FROM prix_reference r WHERE r.produit_id IN (SELECT lg_FAMILLE_ID FROM t_preenregistrement_detail WHERE lg_PREENREGISTREMENT_ID = '" + id + "')");
+        dump('taux_produit', "SELECT CONCAT_WS('|', sale_iem_id, compte_tiers_payant_id, taux) FROM taux_produit WHERE sale_iem_id LIKE '" + id + "-%'");
+      });
+    }
     const changes = comparer(s0, r0).length;
     ok('Les références d\'essai ont bien pesé sur le calcul (le chemin des prix de référence est exercé)', changes > 0, changes + ' ventes dont le net a changé');
     ok('Aucune vente d\'origine modifiée (statut clos, non touchée pendant le test)', q("SELECT COUNT(*) FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID IN ('" + copies.map((c) => c.origine).join("','") + "')"

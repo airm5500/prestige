@@ -90,6 +90,60 @@ journal et `taux_produit` retirés ; les ventes d'origine ne sont jamais écrite
      ce tiers-payant seulement, A reste en gris, net = serveur, « Retirer » → un groupe.
 - Non-régression d'un parcours existant : `audits/test-ecran-promotion-vente.js` (édition de QD dans la grille).
 
+## Tests de la règle du 05/11 (rapprochement, cohérence, bilan)
+
+Compte rendu demandé par la règle, pour le cas 2 :
+
+- **Où la donnée apparaît, et le test de rapprochement** (`test-rapprochement-caisse-fiche-base.js`, sur domain3 /
+  `laborex_audit`) : un prix ou un taux saisi à la caisse est lu dans la cellule de la grille, le modèle de la ligne,
+  `GET v1/prix-reference/vente/{id}`, la fiche article (service `GET v1/prix-reference/{produitId}` et écran, liste et
+  historique), la table `prix_reference`, le journal, le net affiché et `net/assurance` ; puis, la vente close par
+  l'écran (TERMINER LA VENTE), la part de l'organisme (`t_preenregistrement_compte_client_tiers_payent`), la part du
+  client et `taux_produit` par ligne. Quatre lignes aux valeurs différentes (P.REF seul, TAUX seul, P.REF puis TAUX,
+  rien), quantités 1, 2, 3, 1 posées par la cellule QD. Le ticket imprimé est rapproché par
+  `test-rapprochement-ticket.js` (branche d'intégration, aperçu du ticket) : taux et P.REF de chaque ligne.
+- **Règles de calcul, et le test de cohérence** (`ReferenceCaisseCoherenceTest`, graine fixe 20261105) :
+  acceptation si et seulement si 5 ≤ prix ≤ prix de vente (borne haute seulement si le prix de vente est connu) et
+  5 ≤ taux ≤ 100, zéro et vide refusés, sur 20 000 cas ; moteur (inchangé, mais consommateur des références) : part de
+  l'organisme = Σ (prix de référence ou prix de vente) × quantité × taux de la ligne, jamais au-dessus de la base,
+  écrêtée au plafond par vente, part du client = total − part ≥ 0, taux mémorisé = taux de l'organisme, sur 5 000
+  ventes à un organisme et 5 000 à deux (le second prend au plus le reste de la base) ; journal : avant / après
+  recopiés, modification à l'identique = pas de changement, copie détachée fidèle, sur 20 000 tirages. Échec montré
+  d'abord sur un code faussé (borne basse à 4, taux ignoré dans la détection de changement : 2 échecs), puis vert.
+- **Traces attendues, et le test de bilan** (`test-bilan-avant-apres.js`) : relevé avant / après chaque opération de
+  `prix_reference`, journal, `taux_produit`, ventes, lignes, organismes de la vente, caisse (`mvttransaction`),
+  mouvements de produit (`hmvtproduit`), recettes, règlements, stock, prix du produit, paramètre. Ajout par P.REF :
+  + 1 référence, + 1 journal AJOUT, + 1 taux de ligne, parts de la vente ouverte recalculées (= règle) ; modification
+  du taux : référence modifiée, + 1 journal, taux de ligne remplacé, parts recalculées ; saisie refusée (0) et saisie
+  sans changement : rien ; ajout par TAUX : idem ajout ; paramètre à 0 : 403, rien ; suppression en fiche : − 1
+  référence, + 1 journal SUPPRESSION, rien d'autre. Jamais : stock, mouvements, caisse, recettes, règlements, lignes de
+  vente, prix du produit.
+- **Cas variés** : quantités 1, 2, 3 ; prix de référence égal au prix de vente, à 5, en dessous ; taux 5 à 100 ;
+  zéro, vide, négatif, prix au-dessus du prix de vente ; plafond par vente atteint ; un et deux organismes ; paramètre
+  à 0 et à 1 ; ajout, modification, suppression.
+
+**Défaut confirmé et corrigé** (révélé par le rapprochement, test en échec d'abord) : à chaque recalcul du net, les
+taux de ligne s'empilaient dans `taux_produit` (six lignes pour une ligne de vente après six recalculs, dont les
+anciens taux). `SalesNetComputingServiceImpl` efface les taux de la ligne avant d'enregistrer ceux du dernier calcul,
+mêmes lignes que le correctif `74e359ee5` de la branche d'intégration (ticket 2912673621 du 05/11), pour une fusion
+sans conflit. Les montants ne changent pas (`test-non-regression-net.js` rejoué).
+
+Résultats sur domain3 (`laborex_audit`), un test à la fois, le 05/11 au soir : rapprochement 21/21, bilan 23/23,
+saisie d'un tiers-payant 25/25, saisies refusées 20/20, grille identique à paramètre 0 12/12, deux tiers-payants 12/12,
+cohérence (unitaire) 4/4. Sur le code faussé (taux de ligne empilés, prix de référence ignoré) : rapprochement 8/21,
+bilan 11/21.
+
+**Second défaut confirmé et corrigé** (`test-non-regression-net.js`, rouge d'abord à 7/8 sur une vente sur 40, reproduit
+trois fois) : quand une vente porte un taux saisi différent du taux de la fiche du compte (100 saisi, 20 à la fiche) et
+qu'un prix de référence existe pour l'un de ses produits, le premier calcul du net appliquait le taux saisi (part 1 820
+sur 4 020) puis réécrivait le taux de la fiche sur la ligne de l'organisme ; le calcul suivant, identique, donnait 524.
+Règle tranchée le 05/11 : le taux saisi fait foi (s'il est présent, c'est qu'il a été voulu un jour), le taux de la fiche
+ne sert qu'en son absence ; un produit à prix de référence seul vaut prix de référence × taux du client, un produit à
+taux de référence vaut prix de vente × taux de référence, les deux ensemble prix de référence × taux de référence, un
+produit sans référence prix de vente × taux du client. `SalesNetComputingServiceImpl` ne réécrit plus le taux de la
+fiche quand une option de prix existe (deux chemins de calcul) ; le test imprime le détail de la vente (lignes,
+organismes, références, taux) quand les deux séries divergent.
+
 ## Points à connaître
 
 - Une vente assurance ne peut pas être repassée au comptant par le type de vente (refus de l'application, comportement
