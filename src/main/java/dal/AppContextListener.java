@@ -70,6 +70,12 @@ public class AppContextListener implements ServletContextListener {
                 "prechauffage-factory-jpa");
         prechauffage.setDaemon(true);
         prechauffage.start();
+        // Paquet des scripts d'ecran (api/v1/ecrans/scripts.js) prepare de meme : fabrique a la premiere demande, il
+        // laissait la page d'accueil blanche 11,5 s pour le premier utilisateur connecte apres un deploiement.
+        Thread scripts = new Thread(() -> rest.EcransScriptsRessource.prechauffer(sce.getServletContext()),
+                "prechauffage-scripts-ecrans");
+        scripts.setDaemon(true);
+        scripts.start();
     }
 
     /**

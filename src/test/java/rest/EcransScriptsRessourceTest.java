@@ -3,13 +3,17 @@ package rest;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.FileTime;
+import java.lang.reflect.Proxy;
 import java.util.List;
+import javax.servlet.ServletContext;
 import java.util.zip.GZIPInputStream;
 import org.json.JSONObject;
 import org.junit.jupiter.api.Test;
@@ -79,5 +83,51 @@ public class EcransScriptsRessourceTest {
         EcransScriptsRessource.Lot l = EcransScriptsRessource.construire("/p", null, f,
                 EcransScriptsRessource.signature(f), 0);
         assertEquals(0, table(l.brut).length(), "table vide : tout part par le reseau comme avant");
+    }
+
+    /** Contexte de servlet reduit a ce que lit la ressource : dossier general/app et racine de l'application. */
+    private ServletContext contexte() {
+        return (ServletContext) Proxy.newProxyInstance(getClass().getClassLoader(),
+                new Class<?>[] { ServletContext.class }, (o, m, a) -> {
+                    if ("getRealPath".equals(m.getName())) {
+                        return dossier.toString();
+                    }
+                    if ("getContextPath".equals(m.getName())) {
+                        return "/prestige";
+                    }
+                    return null;
+                });
+    }
+
+    /*
+     * retour du 05/11 : la table etait construite a la premiere connexion apres un deploiement (11,5 s de page blanche)
+     */
+    @Test
+    public void prechauffageConstruitLaTableAvantLaPremiereDemande() throws Exception {
+        Files.write(dossier.resolve("A.js"), "Ext.define('A', {});".getBytes(StandardCharsets.UTF_8));
+        EcransScriptsRessource.lot = null;
+        try {
+            EcransScriptsRessource.prechauffer(contexte());
+            EcransScriptsRessource.Lot pret = EcransScriptsRessource.lot;
+            assertNotNull(pret, "table construite par le prechauffage, sans demande");
+            assertEquals("Ext.define('A', {});", table(pret.brut).getString("/prestige/general/app/A.js"));
+            assertSame(pret, EcransScriptsRessource.lot(contexte()), "la premiere demande reprend la table preparee");
+        } finally {
+            EcransScriptsRessource.lot = null;
+        }
+    }
+
+    /* un dossier illisible ne doit jamais empecher le demarrage */
+    @Test
+    public void prechauffageSansDossierNeBloquePas() {
+        EcransScriptsRessource.lot = null;
+        try {
+            ServletContext vide = (ServletContext) Proxy.newProxyInstance(getClass().getClassLoader(),
+                    new Class<?>[] { ServletContext.class }, (o, m, a) -> null);
+            EcransScriptsRessource.prechauffer(vide);
+            assertNotNull(EcransScriptsRessource.lot, "table vide : chaque fichier part par le reseau comme avant");
+        } finally {
+            EcransScriptsRessource.lot = null;
+        }
     }
 }
