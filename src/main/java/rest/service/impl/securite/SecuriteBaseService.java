@@ -498,6 +498,16 @@ public class SecuriteBaseService {
                     xml);
             String horo = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"));
             Path dossier = FichierPrive.dossier();
+            /* scripts et journaux des redemarrages precedents : gardes sept jours */
+            try (DirectoryStream<Path> anciens = Files.newDirectoryStream(dossier, "redemarrer-*")) {
+                for (Path a : anciens) {
+                    if (Files.getLastModifiedTime(a).toMillis() < System.currentTimeMillis() - 7L * 24 * 3600 * 1000) {
+                        Files.deleteIfExists(a);
+                    }
+                }
+            } catch (Exception e) {
+                LOG.log(Level.FINE, "anciens scripts de redémarrage", e);
+            }
             Path bat = dossier.resolve("redemarrer-" + horo + ".bat"),
                     journal = dossier.resolve("redemarrer-" + horo + ".log");
             String fin = "\r\n", sortie = " >> \"" + journal + "\" 2>&1" + fin;

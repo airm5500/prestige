@@ -135,7 +135,34 @@ les fichiers. **Le compte applicatif réel de la copie locale n'est jamais touch
 
 ## 7. Résultats sur le poste (05/11/2026)
 
-(à compléter)
+Serveur d'essai : Payara `domain3` (HTTP 10090, administration 10048), base `laborex_audit` (copie de `laborex_v1_db`),
+Payara et MariaDB 10.6 sur le poste. `domain1` et `laborex_v1_db` jamais touchés ; le compte applicatif réel du pool de
+domain3 n'a jamais été modifié (le test bascule le pool sur un compte d'essai, puis le remet, avec un redémarrage à
+chaque fois).
+
+| Test | Résultat |
+|---|---|
+| `mvn -o test` : `MotDePasseBaseTest` (7), `RotationMotDePasseTest` (6), `ApplicationPayaraTest` (9), `PoolMariaDbTest` (4) | tout vert |
+| `test-securite-ecran.js` (écran) | **23 / 23** au 4ᵉ passage complet (≈ 25 min, cinq redémarrages de Payara) |
+| … à 0 | pas d'onglet, l'API répond `actif = false` |
+| … à 1 | onglet présent ; état : pool EN CLAIR sur le compte d'essai, 3 copies de domain.xml en clair, rotation jamais faite ; bouton de purge « 3 copie(s) », bouton d'alias actif |
+| … mauvais mot de passe de session | refus, ligne `ROTATION REFUSE` au journal, rien ne change, champs vidés |
+| … rotation Générer | mot de passe de 24 caractères de l'alphabet admis dans domain.xml, ancien refusé par MariaDB, nouveau accepté, journal `ROTATION OK mot de passe généré`, date de rotation posée ; Payara a redémarré de lui-même (nouveau processus, journal `Successfully restarted the domain`), reconnexion, onglet rouvert |
+| … rotation Saisir | saisie trop courte : « TROP COURT » à l'écran et refus du serveur, rien ne change ; saisie forte : « FORT », changé et vérifié, redémarrage |
+| … échec simulé (compte verrouillé par le test avant la rotation) | `ping-connection-pool` échoue (« this account is locked »), Payara rétabli, ancien mot de passe remis, `RETOUR_ARRIERE` dans `server.log`, **aucun redémarrage**, écran et API répondent aussitôt |
+| … alias Payara | confirmation dans le bouton, domain.xml porte `${ALIAS=prestige-db}`, alias listé, journal `ALIAS OK`, redémarrage, état « ALIAS PAYARA », bouton d'alias désactivé |
+| … rotation en mode alias | changé et vérifié (connexion directe), domain.xml garde l'alias, ancien refusé, nouveau accepté, redémarrage |
+| … purge | 3 copies supprimées, l'autre fichier du dossier conservé, état « AUCUNE », journal `PURGE_COPIES OK` |
+| … secrets | aucun des mots de passe (comptes d'essai, générés, saisis, compte de rotation) dans 1,3 Mo de `server.log` (tous les fichiers tournés), ni `IDENTIFIED BY` avec sa valeur, ni `AS_ADMIN_ALIASPASSWORD`, ni dans les 26 réponses de l'API, ni dans `t_securite_journal` |
+| … ergonomie | aucune fenêtre, aucune erreur JavaScript |
+| … remise | pool remis sur son compte d'origine (domain.xml identique), Payara redémarré et Prestige répond, alias retiré, paramètres, journal, comptes et fichiers du test retirés |
+
+Les passages précédents ont servi à établir le comportement de Payara décrit au §3 bis (le test échouait à la
+connexion après chaque changement du pool) et à corriger : `--passwordfile` avant la sous-commande, lecture de
+domain.xml pendant que Payara le réécrit, indicateur de force mis à jour sur `change`, vérification directe en mode
+alias (le ping se connectait avec l'ancienne valeur de l'alias).
+
+Non fait ici : changement de la master password (§4, commande documentée seulement) ; le banc Linux.
 
 ## 8. Retour arrière
 
