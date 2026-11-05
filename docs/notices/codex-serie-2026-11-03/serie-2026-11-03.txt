@@ -419,6 +419,8 @@ retours/test-caisse-vente-scindee.js
 retours/test-grille-vente-triangles.js
 retours/test-ordonnancier-numero-client.js
 retours/test-historique-ordonnancier.js
+retours/test-modeles-ticket-0511.js
+retours/test-rh-badge-bouton-nouveau.js
 retours/test-titre-retour-ecran.js
 retours/test-types-etiquette-filtres.js
 retours/test-types-etiquette.js
