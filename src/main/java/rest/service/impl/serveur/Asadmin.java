@@ -78,7 +78,14 @@ public final class Asadmin {
         c.addAll(Arrays.asList(arguments));
         Object[] r = executer(c, secondes);
         if ((Integer) r[0] != 0) {
-            throw new IllegalStateException("asadmin " + arguments[0] + " : " + resume((String) r[1]));
+            String nom = arguments[0];
+            for (int i = 0; i < arguments.length; i++) {
+                if (!arguments[i].startsWith("--") && (i == 0 || !"--passwordfile".equals(arguments[i - 1]))) {
+                    nom = arguments[i];
+                    break;
+                }
+            }
+            throw new IllegalStateException("asadmin " + nom + " : " + resume((String) r[1]));
         }
         return (String) r[1];
     }
