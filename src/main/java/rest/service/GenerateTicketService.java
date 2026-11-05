@@ -56,6 +56,12 @@ public interface GenerateTicketService {
     /** Ticket de reimpression de la vente, construit sans l'imprimer (tests de rapprochement du 05/11). */
     List<rest.service.ticket.TicketDocument> apercuTicketVo(String id) throws JSONException;
 
+    /**
+     * Ticket client combine (vente assurance + vente comptant liee) construit sans l'imprimer, par le meme chemin que
+     * la cloture (tests de rapprochement du cas 1). Vide sans vente liee.
+     */
+    List<rest.service.ticket.TicketDocument> apercuTicketCombine(String voId);
+
     List<String> generateDataVenteSupprime(TPreenregistrement p);
 
     List<String> generateDataTiersPayant(TPreenregistrement p);

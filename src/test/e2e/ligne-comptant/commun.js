@@ -179,7 +179,8 @@ const toast = (p) => p.evaluate(() => { const t = Array.from(document.querySelec
 
 /* « TERMINER LA VENTE » : montant recu = net, clic, reponse de cloturer/assurance. La question du ticket est refusee,
    sauf imprimer = true : elle est acceptee et la reponse de ticket/vo est attendue (l'imprimante PDF du poste est lente). */
-async function terminerVente(p, imprimer) {
+/* mode 'differe' : le mode de reglement « Differe » est choisi dans la liste, aucun montant recu n'est tape */
+async function terminerVente(p, imprimer, mode) {
   /* AFFICHER NET A PAYER : meme chemin que la caissiere, le net est pose avant de saisir le montant recu */
   const net = p.waitForResponse((x) => /\/vente\/net\/assurance/.test(x.url()), { timeout: 30000 });
   net.catch(() => {});
@@ -188,10 +189,16 @@ async function terminerVente(p, imprimer) {
   await p.waitForTimeout(1200);
   if (await vues.texteMessage(p)) { await vues.repondre(p, 'ok').catch(() => {}); }
   const r = await rail(p);
-  await vues.cliquer(p, 'doventemanager #contenu #montantRecu');
-  await p.keyboard.press('Control+A');
-  await p.keyboard.type(String(r.net.valeur), { delay: 20 });
-  await p.keyboard.press('Tab');
+  if (mode === 'differe') {
+    await vues.choisir(p, 'doventemanager #contenu [xtype=fieldset] [xtype=container] #typeReglement', 'Differe');
+    await p.waitForTimeout(800);
+    if (await vues.texteMessage(p)) { await vues.repondre(p, 'ok').catch(() => {}); }
+  } else {
+    await vues.cliquer(p, 'doventemanager #contenu #montantRecu');
+    await p.keyboard.press('Control+A');
+    await p.keyboard.type(String(r.net.valeur), { delay: 20 });
+    await p.keyboard.press('Tab');
+  }
   await p.waitForTimeout(500);
   const rep = p.waitForResponse((x) => /\/vente\/cloturer\/assurance/.test(x.url()), { timeout: 120000 });
   rep.catch(() => {});
@@ -228,6 +235,67 @@ const reglements = (id) => q("SELECT IFNULL(GROUP_CONCAT(CONCAT_WS('/', type_reg
 const lignesTp = (id) => A.lignesTp(id);
 const venteLieeDe = (id) => q("SELECT IFNULL(lg_VENTE_LIEE_ID, '') FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID = '" + id + "'");
 
-module.exports = { chromium, A, vues, ok, q, exec, MARQUE, CHAMP_PRODUIT, GRILLE, COLONNES_ORIGINE, produitSimple, cip, remiseEssai, ouvrirEcran, visible,
+
+/* ---- lecture des tickets sans impression (apercu) ---- */
+const chiffres = (t) => Number(String(t || '').replace(/[^\d-]/g, '')) || 0;
+/* GET ticket/vo/{id}/apercu (ticket assurance de reimpression) ou apercu-combine (ticket client combine) */
+const apercu = (p, venteId, combine) => p.evaluate(async ([v, c]) => (await fetch('../api/v1/vente/ticket/vo/' + v + (c ? '/apercu-combine' : '/apercu'))).json(), [venteId, !!combine]);
+/* un ticket relu : articles (designation, quantite, prix, montant, mentions « Taux x % : part »), titres de section
+   (TEXTE du corps hors mentions), paires libelle -> valeur, net encadre */
+function lireTicket(t) {
+  const articles = []; const paires = {}; const titres = []; const textes = []; let net = null;
+  for (const b of t.blocs) {
+    for (const e of b.elements) {
+      if (e.genre === 'ARTICLE') {
+        const m = String(e.b).match(/^(-?\d+)\s*×\s*([\d\s  ]+)$/);
+        articles.push({ designation: e.a, quantite: m ? Number(m[1]) : null, pu: m ? chiffres(m[2]) : null, montant: chiffres(e.d), credits: [], section: titres.length });
+      } else if (b.id === 'CORPS' && e.genre === 'TEXTE') {
+        const m = e.a.match(/Taux\s+(\d+)\s*%\s*:\s*([\d\s  ]+)$/);
+        if (m && articles.length) { articles[articles.length - 1].credits.push({ taux: Number(m[1]), part: chiffres(m[2]), texte: e.a }); }
+        else if (/^VENTE /.test(e.a)) { titres.push(e.a); }
+        else { textes.push(e.a); }
+      } else if (e.genre === 'PAIRE' || e.genre === 'ENCADRE') {
+        const cle = e.a.replace(/\s*:\s*$/, '').trim();
+        paires[cle] = e.b;
+        if (/net/i.test(cle) && /payer/i.test(cle)) { net = chiffres(e.b); }
+        if (b.id === 'CORPS') { articles.push({ paire: cle, valeur: chiffres(e.b), section: titres.length }); }
+      } else if (e.genre === 'TEXTE') { textes.push(e.a); }
+    }
+  }
+  return { modele: t.modele, articles: articles.filter((a) => !a.paire), totaux: articles.filter((a) => a.paire), paires, titres, textes, net };
+}
+
+/* dettes (differe) portees par une vente : t_preenregistrement_compte_client */
+const dettes = (id) => q("SELECT IFNULL(GROUP_CONCAT(CONCAT_WS('/', int_PRICE, int_PRICE_RESTE, str_STATUT) ORDER BY int_PRICE SEPARATOR ' ; '), 'aucune') FROM t_preenregistrement_compte_client WHERE lg_PREENREGISTREMENT_ID = '" + id + "'");
+/* mouvements de stock d'une vente (hmvtproduit) : produit/quantite/type */
+const mouvementsStock = (id) => q("SELECT IFNULL(GROUP_CONCAT(CONCAT_WS('/', h.lg_FAMILLE_ID, h.qte, h.typeMvt) ORDER BY h.lg_FAMILLE_ID, h.typeMvt SEPARATOR ' ; '), 'aucun') FROM hmvtproduit h"
+  + " WHERE h.lg_PREENREGISTREMENT_DETAIL_ID IN (SELECT lg_PREENREGISTREMENT_DETAIL_ID FROM t_preenregistrement_detail WHERE lg_PREENREGISTREMENT_ID = '" + id + "')");
+/* detail d'une vente tel que l'ecran « Ventes terminees » le lit (find-one) */
+const detailVente = (p, id) => p.evaluate(async (v) => (await fetch('../api/v1/ventestats/find-one/' + v)).json(), id);
+
+/* annulation d'une vente par la liste des ventes terminees (recherche par sa reference, icone « Annuler.Vente », confirmation) */
+async function annulerVente(p, ref) {
+  await ouvrirEcran(p, 'ventemanager');
+  await visible(p, 'ventemanager #query');
+  await vues.cliquer(p, 'ventemanager #query');
+  await p.keyboard.press('Control+A');
+  await p.keyboard.type(ref, { delay: 20 });
+  await vues.cliquer(p, 'ventemanager #rechercher');
+  await p.waitForTimeout(2500);
+  const rangee = p.locator('.x-grid-row').filter({ visible: true, hasText: ref }).first();
+  await rangee.waitFor({ timeout: 30000 });
+  const rep = p.waitForResponse((x) => /\/vente\/annulation\//.test(x.url()), { timeout: 120000 });
+  rep.catch(() => {});
+  await rangee.locator('img[data-qtip="Annuler.Vente"]').first().click();
+  await vues.attendreMessage(p, 'Annuler', 15000);
+  await vues.repondre(p, 'yes');
+  const r = await rep;
+  await p.waitForTimeout(2000);
+  if (/impression du ticket/i.test(await vues.texteMessage(p))) { await vues.repondre(p, 'no'); }
+  await p.waitForTimeout(800);
+  return r.status();
+}
+
+module.exports = { chiffres, apercu, lireTicket, dettes, mouvementsStock, detailVente, annulerVente, chromium, A, vues, ok, q, exec, MARQUE, CHAMP_PRODUIT, GRILLE, COLONNES_ORIGINE, produitSimple, cip, remiseEssai, ouvrirEcran, visible,
   connecterEtOuvrirVente, nouvelleVente, choisirType, passerEnAssurance, choisirClient, saisirBon, taperArticle, choisirRemise, venteCourante, noterVente,
   entete, ligne, cocher, rail, toast, terminerVente, vente, lignes, mouvements, recettes, reglements, lignesTp, venteLieeDe };
