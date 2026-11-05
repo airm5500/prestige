@@ -698,10 +698,13 @@ window.PrestigePresentations = (function () {
     /** Meme API que la grille d'origine (update-qte-cmde, updateorderitem), puis rechargement de l'ecran. */
     function enregistrerQuantite(ctx, l, q) {
         var e = ctx.ecran, id = idLigne(ctx, l), ancienne = quantite(ctx, l);
+        /* valeurs d'avant, remises telles quelles si le serveur refuse (quantite et montant de la ligne) ; les totaux
+           ne sont corriges en retour que s'ils n'ont pas ete relus entre-temps (une relecture dit deja la base) */
+        var avant = {n: l.int_NUMBER, prix: l.int_PRICE}, srv = ctx.srv, ecart = q - ancienne, pa = prixAchat(ctx, l);
         l.int_NUMBER = q;
-        if (ctx.srv) {
-            ctx.srv.boites += q - ancienne;
-            ctx.srv.montant += (q - ancienne) * prixAchat(ctx, l);
+        if (srv) {
+            srv.boites += ecart;
+            srv.montant += ecart * pa;
         }
         if (ctx.cle === 'commande') {
             l.int_PRICE = q * num(l.int_PAF);
@@ -711,10 +714,13 @@ window.PrestigePresentations = (function () {
         var fin = function (ok, msg) {
             ctx.enCours--;
             if (!ok) {
-                l.int_NUMBER = ancienne;
-                if (ctx.srv) {
-                    ctx.srv.boites -= q - ancienne;
-                    ctx.srv.montant -= (q - ancienne) * prixAchat(ctx, l);
+                l.int_NUMBER = avant.n;
+                if (ctx.cle === 'commande') {
+                    l.int_PRICE = avant.prix;
+                }
+                if (srv && ctx.srv === srv) {
+                    srv.boites -= ecart;
+                    srv.montant -= ecart * pa;
                 }
                 ctx.message = {niveau: 'ko', texte: msg || 'La quantité n\'a pas été enregistrée.'};
             } else {
