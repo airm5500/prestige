@@ -6,7 +6,10 @@
  * que l'impression. Dans l'aperçu, un bloc se déplace à la souris (ou aux flèches du clavier) et s'aligne ou change
  * de taille ; le serveur contrôle chaque disposition (rien ne dépasse du papier, le code-barres reste
  * en place ; le nom de l'officine se règle et se déplace comme les autres blocs) et « Enregistrer » ne s'active que sans problème bloquant. Largeur du papier : 80 ou 58 mm, réglée par
- * imprimante. Aucune fenêtre : les confirmations se font dans le bouton. Modification réservée au droit
+ * imprimante. Retour du 05/11 : réglages d'alignement, de taille et de largeur juste à gauche de l'aperçu, aperçu
+ * à l'échelle de l'écran (sans défilement), réglages communs (police, marge, en-tête, pied) repris sur tous les
+ * tickets à l'enregistrement, export et import des réglages (80 et 58 mm).
+ * Aucune fenêtre : les confirmations se font dans le bouton. Modification réservée au droit
  * P_SM_MODELES_TICKET ; sinon lecture seule. Routes : ../api/v1/modeles-ticket.
  */
 Ext.define('testextjs.view.configmanagement.modeleticket.ModelesTicket', {
@@ -23,16 +26,22 @@ Ext.define('testextjs.view.configmanagement.modeleticket.ModelesTicket', {
 
     URL: '../api/v1/modeles-ticket',
 
-    /* retour du 03/11 : memes polices que ReglagesTicket.POLICES, la premiere par defaut */
+    /* retour du 03/11 : memes polices que ReglagesTicket.POLICES (le serveur envoie la liste) ; Arial Narrow par defaut (05/11) */
     POLICES: ['Segoe UI', 'Arial Narrow', 'Tahoma', 'Calibri', 'Verdana'],
+    POLICE_DEFAUT: 'Arial Narrow',
+    /* retour du 05/11 : tailles par partie du bloc des articles */
+    PARTIES: [{cle: 'section', libelle: 'Titres de section', aide: '« VENTE ASSURANCE », « CAISSIER : »'},
+        {cle: 'nom', libelle: 'Désignation', aide: 'Nom du produit'},
+        {cle: 'detail', libelle: 'Quantité × prix', aide: 'Et le montant de la ligne'}],
 
     OPTIONS: [
         {cle: 'remise', libelle: 'Afficher la remise', aide: 'Si non : ni la remise ni le total avant remise, la remise reste appliquée', pour: ['PREVENTE', 'VENTE', 'VENTE_ASSURANCE', 'VENTE_CARNET', 'VENTE_DEPOT', 'VENTE_MIXTE']},
         {cle: 'lot', libelle: 'Afficher le lot vendu', aide: 'Lots lus par GS1 ; place réservée entre « quantité × prix » et le montant', pour: ['VENTE', 'VENTE_ASSURANCE', 'VENTE_CARNET', 'VENTE_DEPOT', 'VENTE_MIXTE']},
-        {cle: 'recapitulatif', libelle: 'Afficher « articles · boîtes »', aide: 'Pour contrôler le sac au comptoir', pour: ['PREVENTE', 'VENTE', 'VENTE_ASSURANCE', 'VENTE_CARNET', 'VENTE_DEPOT', 'VENTE_MIXTE']},
+        {cle: 'recapitulatif', libelle: 'Afficher « lignes · boîtes »', aide: 'Pour contrôler le sac au comptoir', pour: ['PREVENTE', 'VENTE', 'VENTE_ASSURANCE', 'VENTE_CARNET', 'VENTE_DEPOT', 'VENTE_MIXTE']},
         {cle: 'ccRc', libelle: 'Afficher CC et RC', aide: 'Fiche officine', pour: ['VENTE', 'VENTE_ASSURANCE', 'VENTE_CARNET', 'VENTE_DEPOT', 'VENTE_MIXTE', 'REGLEMENT_DIFFERE', 'REGLEMENT_FACTURE', 'REGLEMENT_CARNET_DEPOT', 'MOUVEMENT_CAISSE']},
         {cle: 'commentaires', libelle: 'Commentaires de l\'officine', aide: 'En-tête et commentaires du bas de l\'identification officine', pour: ['VENTE', 'VENTE_ASSURANCE', 'VENTE_CARNET', 'VENTE_DEPOT', 'VENTE_MIXTE', 'REGLEMENT_DIFFERE', 'REGLEMENT_FACTURE', 'REGLEMENT_CARNET_DEPOT', 'MOUVEMENT_CAISSE']},
         {cle: 'cadreNet', libelle: 'Cadre autour du net à payer', aide: 'Si non : le net reste en gros caractères, sans cadre', pour: ['PREVENTE', 'VENTE', 'VENTE_ASSURANCE', 'VENTE_CARNET', 'VENTE_DEPOT', 'VENTE_MIXTE', 'REGLEMENT_DIFFERE', 'REGLEMENT_FACTURE', 'REGLEMENT_CARNET_DEPOT', 'MOUVEMENT_CAISSE', 'TICKET_Z']},
+        {cle: 'net', libelle: 'Afficher le net à payer', aide: 'Retour du 05/11 : non par défaut sur la vente dépôt', pour: ['VENTE_DEPOT']},
         {cle: 'encoursCarnet', libelle: 'Encours du carnet après la vente', aide: '', pour: ['VENTE_CARNET']},
         {cle: 'signatureClient', libelle: 'Signature du client', aide: 'Preuve quand l\'entreprise conteste un bon', pour: ['VENTE_CARNET']},
         {cle: 'signatures', libelle: 'Signatures caissier et bénéficiaire', aide: 'Pièce justificative', pour: ['MOUVEMENT_CAISSE']},
@@ -50,6 +59,11 @@ Ext.define('testextjs.view.configmanagement.modeleticket.ModelesTicket', {
             me.ecouter();
             me.charger();
         }, me, {single: true});
+        me.on('resize', function () {
+            if (me.racine && me.etat.apercu) {
+                me.afficherApercu(me.etat.apercu);
+            }
+        });
         me.on('destroy', function () {
             if (me.minuteur) {
                 clearTimeout(me.minuteur);
@@ -69,7 +83,7 @@ Ext.define('testextjs.view.configmanagement.modeleticket.ModelesTicket', {
                 + '.mtk-lib{color:#64748b;font-size:12px}'
                 + '.mtk-imp{display:inline-flex;align-items:center;gap:4px;font-size:12px;padding:2px 2px 2px 8px;border:1px solid #e2e8f0;border-radius:14px}'
                 + '.mtk-lecture{margin-left:auto;color:#9a3412;background:#fff7ed;border:1px solid #fed7aa;border-radius:6px;padding:3px 8px;font-size:12px}'
-                + '.mtk-corps{display:grid;grid-template-columns:220px minmax(280px,360px) 1fr;gap:12px;padding:12px 14px;flex:1;align-items:start}'
+                + '.mtk-corps{display:grid;grid-template-columns:210px minmax(270px,320px) 1fr;gap:12px;padding:12px 14px;flex:1;align-items:start}'
                 + '.mtk-liste,.mtk-reglages,.mtk-apercu{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:8px}'
                 + '.mtk-groupe{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#64748b;margin:8px 6px 4px}'
                 + '.mtk-ticket{display:block;width:100%;text-align:left;border:0;background:none;border-radius:7px;padding:6px 8px;cursor:pointer;font:inherit;color:inherit}'
@@ -94,17 +108,23 @@ Ext.define('testextjs.view.configmanagement.modeleticket.ModelesTicket', {
                 + '.mtk-controle{margin-top:10px;font-size:12px;line-height:1.5}'
                 + '.mtk-ok{color:#15803d}.mtk-ko{color:#b91c1c}.mtk-avert{color:#b45309}'
                 + '.mtk-aide{color:#64748b;font-size:12px;margin-bottom:8px}'
-                + '.mtk-papier{display:flex;justify-content:center;background:#e2e8f0;border-radius:8px;padding:14px;outline:none;overflow:auto;max-height:calc(100vh - 230px)}'
+                + '.mtk-vue{display:flex;gap:10px;align-items:flex-start}'
+                + '.mtk-outils{flex:none;width:250px}.mtk-outils .mtk-selection{margin-top:0}'
+                + '.mtk-papier{flex:1;min-width:0;display:flex;justify-content:center;background:#e2e8f0;border-radius:8px;padding:14px;outline:none;overflow:hidden}'
                 + '.mtk-papier:focus{box-shadow:0 0 0 2px #93c5fd}'
                 + '.mtk-feuille{position:relative;flex:none;box-shadow:0 2px 10px rgba(15,23,42,.18);background:#fff}'
                 + '.mtk-feuille img{display:block;user-select:none;-webkit-user-drag:none}'
                 + '.mtk-zone{position:absolute;left:0;right:0;border:1px dashed transparent;border-radius:3px}'
-                + '.mtk-zone:not(.mtk-fixe):hover{border-color:#93c5fd;background:rgba(37,99,235,.05)}'
+                + '.mtk-zone:not(.mtk-fixe):hover,.mtk-zone.mtk-reglable:hover{border-color:#93c5fd;background:rgba(37,99,235,.05)}'
+                + '.mtk-zone.mtk-reglable{cursor:pointer}'
                 + '.mtk-zone.mtk-mobile{cursor:grab;touch-action:none}'
                 + '.mtk-zone.mtk-choisie{border:2px solid #2563eb;background:rgba(37,99,235,.07)}'
                 + '.mtk-zone.mtk-glisse{cursor:grabbing;background:rgba(37,99,235,.15);border-color:#2563eb;z-index:2;opacity:.9}'
                 + '.mtk-depot{display:none;position:absolute;left:-6px;right:-6px;height:4px;background:#2563eb;border-radius:2px;pointer-events:none}'
-                + '.mtk-boutons{display:flex;flex-wrap:wrap;gap:8px;padding:0 14px 14px}.mtk-espace{flex:1}'
+                + '.mtk-boutons{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px}'
+                + '.mtk-boutons .mtk-btn{width:100%;text-align:center;padding:6px 8px;white-space:normal;line-height:1.25}'
+                + '.mtk-boutons .mtk-large{grid-column:span 2}'
+                + '.mtk-commun{color:#1d4ed8;font-size:11px;margin-top:4px}'
                 + '.mtk-btn{border:1px solid #cbd5e1;background:#fff;border-radius:7px;padding:7px 14px;cursor:pointer;font:inherit}'
                 + '.mtk-btn:hover:not(:disabled){background:#f1f5f9}.mtk-btn:disabled{opacity:.5;cursor:default}'
                 + '.mtk-btn.mtk-prim{background:#2563eb;border-color:#2563eb;color:#fff}.mtk-btn.mtk-prim:hover:not(:disabled){background:#1d4ed8}'
@@ -197,10 +217,16 @@ Ext.define('testextjs.view.configmanagement.modeleticket.ModelesTicket', {
         h.push('<div class="mtk-champ"><span>Modèle<small>' + (t.nouveauDisponible ? '« Ancien » rétablit le ticket d\'avant, à l\'identique' : 'Le nouveau modèle de ce ticket n\'est pas encore disponible') + '</small></span>'
                 + me.choix('modele', [{v: 'ANCIEN', l: 'Ancien'}, {v: 'NOUVEAU', l: 'Nouveau'}], r.modele, !me.droit() || !t.nouveauDisponible) + '</div>');
         /* retour du 03/11 : police du nouveau modele, chaque choix ecrit dans sa police */
-        h.push('<div class="mtk-champ mtk-police"><span>Police<small>Segoe UI par défaut ; une police absente du poste imprime en Arial Narrow</small></span>'
-                + me.choix('police', me.POLICES.map(function (x) {
+        h.push('<div class="mtk-champ mtk-police"><span>Police<small>Arial Narrow par défaut ; commune à tous les tickets ; une police absente du poste imprime en Arial Narrow</small></span>'
+                + me.choix('police', (d.polices || me.POLICES).map(function (x) {
                     return {v: x, l: '<span style="font-family:&quot;' + x + '&quot;">' + x + '</span>'};
-                }), r.police || me.POLICES[0], !me.droit() || r.modele !== 'NOUVEAU') + '</div>');
+                }), r.police || me.POLICE_DEFAUT, !me.droit() || r.modele !== 'NOUVEAU') + '</div>');
+        /* retour du 05/11 : marge du rouleau, commune a tous les tickets */
+        var marge = r.marge || 0, margeMax = d.margeMax || 6, actif = me.droit() && r.modele === 'NOUVEAU';
+        h.push('<div class="mtk-champ"><span>Marge du rouleau<small>De chaque côté ; commune à tous les tickets</small></span><span class="mtk-choix">'
+                + '<button type="button" data-marge="-1"' + (actif && marge > 0 ? '' : ' disabled') + ' aria-label="Réduire la marge">−</button>'
+                + '<span class="mtk-sel" data-valeur-marge="' + marge + '">' + marge + ' mm</span>'
+                + '<button type="button" data-marge="1"' + (actif && marge < margeMax ? '' : ' disabled') + ' aria-label="Agrandir la marge">+</button></span></div>');
         me.OPTIONS.forEach(function (o) {
             if (o.pour.indexOf(me.etat.ticket) < 0) {
                 return;
@@ -208,19 +234,21 @@ Ext.define('testextjs.view.configmanagement.modeleticket.ModelesTicket', {
             h.push('<div class="mtk-champ"><span>' + enc(o.libelle) + (o.aide ? '<small>' + enc(o.aide) + '</small>' : '') + '</span>'
                     + '<button type="button" class="mtk-bascule' + (r[o.cle] ? ' mtk-on' : '') + '" data-option="' + o.cle + '" role="switch" aria-checked="' + !!r[o.cle] + '" aria-label="' + enc(o.libelle) + '"' + (me.droit() && r.modele === 'NOUVEAU' ? '' : ' disabled') + '></button></div>');
         });
-        h.push(me.rendreSelection(r));
-        h.push('<div class="mtk-controle"></div>');
-        h.push('</div><div class="mtk-apercu"><div class="mtk-aide">' + (r.modele === 'NOUVEAU'
-                ? (me.droit() ? 'Glissez un bloc pour le déplacer ; cliquez-le pour l\'aligner ou changer sa taille (flèches du clavier : ↑ ↓ déplacer, ← → aligner).' : 'Aperçu du ticket.')
-                : 'Ancien modèle : le ticket sort comme avant. Aperçu du nouveau modèle, pour comparer.') + '</div>'
-                + '<div class="mtk-papier" tabindex="0" aria-label="Aperçu du ticket"><div class="mtk-attente">Aperçu…</div></div></div></div>');
         var modifie = !!me.etat.brouillons[me.cle()];
-        h.push('<div class="mtk-boutons">'
-                + '<button type="button" class="mtk-btn" data-action="defaut"' + (me.droit() ? '' : ' disabled') + '>Rétablir la disposition par défaut</button>'
+        /* retour du 05/11 : les boutons remontent dans la place libre, sous les reglages du bloc (a gauche de l'apercu) */
+        var boutons = '<div class="mtk-boutons">'
+                + '<button type="button" class="mtk-btn mtk-prim mtk-large" data-action="enregistrer" disabled>Enregistrer</button>'
                 + '<button type="button" class="mtk-btn" data-action="annuler"' + (modifie ? '' : ' disabled') + '>Annuler les modifications</button>'
-                + '<button type="button" class="mtk-btn mtk-prim" data-action="enregistrer" disabled>Enregistrer</button>'
-                + '<span class="mtk-espace"></span>'
-                + '<button type="button" class="mtk-btn mtk-attention" data-action="ancien"' + (me.droit() ? '' : ' disabled') + '>Revenir à l\'ancien modèle pour tous les tickets</button></div>');
+                + '<button type="button" class="mtk-btn" data-action="defaut"' + (me.droit() ? '' : ' disabled') + '>Rétablir la disposition par défaut</button>'
+                + '<button type="button" class="mtk-btn" data-action="exporter" title="Réglages de tous les tickets, 80 et 58 mm, dans un fichier">Exporter</button>'
+                + '<button type="button" class="mtk-btn" data-action="importer"' + (me.droit() ? '' : ' disabled') + ' title="Reprendre un fichier exporté sur un autre poste">Importer</button>'
+                + '<input type="file" class="mtk-fichier" accept=".json,application/json" hidden>'
+                + '<button type="button" class="mtk-btn mtk-attention mtk-large" data-action="ancien"' + (me.droit() ? '' : ' disabled') + '>Revenir à l\'ancien modèle pour tous les tickets</button></div>';
+        h.push('</div><div class="mtk-apercu"><div class="mtk-aide">' + (r.modele === 'NOUVEAU'
+                ? (me.droit() ? 'Glissez un bloc pour le déplacer ; cliquez-le pour l\'aligner, changer sa taille ou sa largeur (flèches du clavier : ↑ ↓ déplacer, ← → aligner).' : 'Aperçu du ticket.')
+                : 'Ancien modèle : le ticket sort comme avant. Aperçu du nouveau modèle, pour comparer.') + '</div>'
+                + '<div class="mtk-vue"><div class="mtk-outils">' + me.rendreSelection(r) + boutons + '<div class="mtk-controle"></div></div>'
+                + '<div class="mtk-papier" tabindex="0" aria-label="Aperçu du ticket"><div class="mtk-attente">Aperçu…</div></div></div></div></div>');
         me.racine.innerHTML = h.join('');
         if (me.etat.apercu) {
             me.afficherApercu(me.etat.apercu);
@@ -235,13 +263,31 @@ Ext.define('testextjs.view.configmanagement.modeleticket.ModelesTicket', {
         var p = me.position(r, s), bloc = Ext.Array.findBy(me.etat.donnees.blocs, function (b) {
             return b.id === s;
         });
-        var max = me.etat.donnees.ecartTailleMax;
-        return '<div class="mtk-selection"><b>Bloc choisi : ' + enc(bloc ? bloc.libelle : s) + '</b>'
-                + '<div class="mtk-champ"><span>Alignement</span>' + me.choix('alignement', [{v: 'G', l: 'Gauche'}, {v: 'C', l: 'Centre'}, {v: 'D', l: 'Droite'}], p.alignement || 'DEFAUT', !me.droit()) + '</div>'
-                + '<div class="mtk-champ"><span>Taille du texte<small>De −' + max + ' à +' + max + ' points autour du modèle</small></span><span class="mtk-choix">'
-                + '<button type="button" data-taille="-1"' + (me.droit() && p.taille > -max ? '' : ' disabled') + ' aria-label="Réduire">−</button>'
-                + '<span class="mtk-sel">' + (p.taille > 0 ? '+' : '') + p.taille + ' pt</span>'
-                + '<button type="button" data-taille="1"' + (me.droit() && p.taille < max ? '' : ' disabled') + ' aria-label="Agrandir">+</button></span></div></div>';
+        var d = me.etat.donnees, max = d.ecartTailleMax, min = d.largeurMin || 30, pied = s === 'PIED';
+        var pas = function (attr, valeur, bas, haut, unite, libelle, aide) {
+            return '<div class="mtk-champ"><span>' + libelle + (aide ? '<small>' + aide + '</small>' : '') + '</span><span class="mtk-choix">'
+                    + '<button type="button" ' + attr + '="-1"' + (me.droit() && valeur > bas ? '' : ' disabled') + ' aria-label="Réduire : ' + libelle + '">−</button>'
+                    + '<span class="mtk-sel">' + (unite === 'pt' && valeur > 0 ? '+' : '') + valeur + ' ' + unite + '</span>'
+                    + '<button type="button" ' + attr + '="1"' + (me.droit() && valeur < haut ? '' : ' disabled') + ' aria-label="Agrandir : ' + libelle + '">+</button></span></div>';
+        };
+        var h = '<div class="mtk-selection"><b>Bloc choisi : ' + enc(bloc ? bloc.libelle : s) + '</b>';
+        if (!pied) {
+            h += '<div class="mtk-champ"><span>Alignement</span>' + me.choix('alignement', [{v: 'G', l: 'Gauche'}, {v: 'C', l: 'Centre'}, {v: 'D', l: 'Droite'}], p.alignement || 'DEFAUT', !me.droit()) + '</div>';
+        }
+        h += pas('data-taille', p.taille || 0, -max, max, 'pt', pied ? 'Taille du code-barres' : 'Taille du texte', 'De −' + max + ' à +' + max + ' points autour du modèle');
+        if (!pied) {
+            /* retour du 05/11 : bloc plus etroit, chaque texte sur une ligne termine par « … » */
+            h += pas('data-largeur', p.largeur || 100, min, 100, '%', 'Largeur du bloc', 'En dessous de 100 % : une ligne, terminée par « … »');
+        }
+        if (s === 'CORPS') {
+            me.PARTIES.forEach(function (x) {
+                h += pas('data-partie="' + x.cle + '" data-pas', p[x.cle] || 0, -max, max, 'pt', x.libelle, x.aide);
+            });
+        }
+        if ((d.blocsCommuns || []).indexOf(s) >= 0) {
+            h += '<div class="mtk-commun">Réglage commun : repris sur tous les tickets à l\'enregistrement.</div>';
+        }
+        return h + '</div>';
     },
 
     choix: function (nom, valeurs, courante, inactif) {
@@ -257,7 +303,20 @@ Ext.define('testextjs.view.configmanagement.modeleticket.ModelesTicket', {
         var p = Ext.Array.findBy(r.disposition || [], function (x) {
             return x.bloc === bloc;
         });
-        return p || {bloc: bloc, alignement: '', taille: 0};
+        return p || {bloc: bloc, alignement: '', taille: 0, largeur: 100};
+    },
+
+    copie: function (p) {
+        var c = {bloc: p.bloc, alignement: p.alignement || '', taille: p.taille || 0};
+        if (p.largeur && p.largeur !== 100) {
+            c.largeur = p.largeur;
+        }
+        if (p.section || p.nom || p.detail) {
+            c.section = p.section || 0;
+            c.nom = p.nom || 0;
+            c.detail = p.detail || 0;
+        }
+        return c;
     },
 
     /** Disposition complete dans l'ordre donne (blocs deplacables seulement), en gardant alignements et tailles. */
@@ -267,11 +326,35 @@ Ext.define('testextjs.view.configmanagement.modeleticket.ModelesTicket', {
         }).map(function (b) {
             return b.id;
         });
-        return ordre.filter(function (id) {
+        var d = ordre.filter(function (id) {
             return fixes.indexOf(id) < 0;
         }).map(function (id) {
-            var p = me.position(r, id);
-            return {bloc: id, alignement: p.alignement || '', taille: p.taille || 0};
+            return me.copie(me.position(r, id));
+        });
+        /* retour du 05/11 : le pied (taille du code-barres) se regle, mais reste le dernier */
+        var pied = me.position(r, 'PIED');
+        if (pied.taille) {
+            d.push(me.copie(pied));
+        }
+        return d;
+    },
+
+    /** Change d'un pas un reglage numerique du bloc choisi, dans ses bornes. */
+    regler: function (champ, pas, bas, haut, defaut) {
+        var me = this, id = me.etat.selection;
+        me.modifier(function (r) {
+            var d = me.disposition(r, me.etat.apercu.ordre), p = Ext.Array.findBy(d, function (x) {
+                return x.bloc === id;
+            });
+            if (!p) {
+                p = me.copie(me.position(r, id));
+                d.push(p);
+            }
+            var v = (p[champ] === undefined ? defaut : p[champ]) + pas;
+            p[champ] = Math.max(bas, Math.min(haut, v));
+            r.disposition = d.map(function (x) {
+                return me.copie(x);
+            });
         });
     },
 
@@ -350,8 +433,13 @@ Ext.define('testextjs.view.configmanagement.modeleticket.ModelesTicket', {
             return;
         }
         var mobile = me.droit() && r.modele === 'NOUVEAU';
-        var h = ['<div class="mtk-feuille" style="width:' + o.largeurImage + 'px;height:' + o.hauteurImage + 'px">',
-            '<img alt="Aperçu du ticket" src="data:image/png;base64,' + o.image + '" width="' + o.largeurImage + '" height="' + o.hauteurImage + '">'];
+        /* retour du 05/11 : l'apercu tient dans la hauteur de l'ecran, reduit au besoin (aucun defilement) */
+        var dispo = window.innerHeight - papier.getBoundingClientRect().top - 40;
+        var f = Math.max(0.3, Math.min(1, dispo / o.hauteurImage));
+        me.etat.facteur = f;
+        var l = Math.round(o.largeurImage * f), hh = Math.round(o.hauteurImage * f), ech = o.echelle * f;
+        var h = ['<div class="mtk-feuille" style="width:' + l + 'px;height:' + hh + 'px">',
+            '<img alt="Aperçu du ticket" src="data:image/png;base64,' + o.image + '" width="' + l + '" height="' + hh + '">'];
         Object.keys(o.zones).forEach(function (id) {
             var z = o.zones[id], b = Ext.Array.findBy(me.etat.donnees.blocs, function (x) {
                 return x.id === id;
@@ -359,9 +447,9 @@ Ext.define('testextjs.view.configmanagement.modeleticket.ModelesTicket', {
             if (!b) {
                 return;
             }
-            h.push('<div class="mtk-zone' + (b.fixe ? ' mtk-fixe' : '') + (me.etat.selection === id ? ' mtk-choisie' : '') + (mobile && !b.fixe ? ' mtk-mobile' : '')
-                    + '" data-bloc="' + id + '" title="' + Ext.String.htmlEncode(b.libelle + (b.fixe ? ' (fixe)' : '')) + '" style="top:' + Math.round(z[0] * o.echelle) + 'px;height:'
-                    + Math.max(6, Math.round((z[1] - z[0]) * o.echelle)) + 'px"></div>');
+            h.push('<div class="mtk-zone' + (b.fixe ? ' mtk-fixe' : '') + (id === 'PIED' ? ' mtk-reglable' : '') + (me.etat.selection === id ? ' mtk-choisie' : '') + (mobile && !b.fixe ? ' mtk-mobile' : '')
+                    + '" data-bloc="' + id + '" title="' + Ext.String.htmlEncode(b.libelle + (b.fixe ? ' (reste en bas ; taille réglable)' : '')) + '" style="top:' + Math.round(z[0] * ech) + 'px;height:'
+                    + Math.max(6, Math.round((z[1] - z[0]) * ech)) + 'px"></div>');
         });
         h.push('<div class="mtk-depot"></div></div>');
         papier.innerHTML = h.join('');
@@ -388,7 +476,7 @@ Ext.define('testextjs.view.configmanagement.modeleticket.ModelesTicket', {
             var b = e.target.closest('button');
             if (!b || b.disabled) {
                 var zone = e.target.closest('.mtk-zone');
-                if (zone && !zone.classList.contains('mtk-fixe') && !(me.glisse && me.glisse.bouge)) {
+                if (zone && (!zone.classList.contains('mtk-fixe') || zone.classList.contains('mtk-reglable')) && !(me.glisse && me.glisse.bouge)) {
                     me.etat.selection = zone.getAttribute('data-bloc');
                     me.rendre();
                 }
@@ -408,22 +496,29 @@ Ext.define('testextjs.view.configmanagement.modeleticket.ModelesTicket', {
                     r[cle] = !r[cle];
                 });
             } else if (b.hasAttribute('data-taille')) {
-                var pas = Number(b.getAttribute('data-taille')), id = me.etat.selection;
+                var max = me.etat.donnees.ecartTailleMax;
+                me.regler('taille', Number(b.getAttribute('data-taille')), -max, max, 0);
+            } else if (b.hasAttribute('data-largeur')) {
+                me.regler('largeur', 10 * Number(b.getAttribute('data-largeur')), me.etat.donnees.largeurMin || 30, 100, 100);
+            } else if (b.hasAttribute('data-partie')) {
+                var m = me.etat.donnees.ecartTailleMax;
+                me.regler(b.getAttribute('data-partie'), Number(b.getAttribute('data-pas')), -m, m, 0);
+            } else if (b.hasAttribute('data-marge')) {
+                var pasMarge = Number(b.getAttribute('data-marge'));
                 me.modifier(function (r) {
-                    var ordre = me.etat.apercu.ordre, d = me.disposition(r, ordre);
-                    d.forEach(function (p) {
-                        if (p.bloc === id) {
-                            p.taille = Math.max(-me.etat.donnees.ecartTailleMax, Math.min(me.etat.donnees.ecartTailleMax, p.taille + pas));
-                        }
-                    });
-                    r.disposition = d;
+                    r.marge = Math.max(0, Math.min(me.etat.donnees.margeMax || 6, (r.marge || 0) + pasMarge));
                 });
             } else if (b.hasAttribute('data-action')) {
                 me.action(b, b.getAttribute('data-action'));
             }
         });
+        el.addEventListener('change', function (e) {
+            if (e.target.classList && e.target.classList.contains('mtk-fichier')) {
+                me.lireImport(e.target);
+            }
+        });
         el.addEventListener('keydown', function (e) {
-            if (!e.target.classList || !e.target.classList.contains('mtk-papier') || !me.etat.selection || !me.droit()) {
+            if (!e.target.classList || !e.target.classList.contains('mtk-papier') || !me.etat.selection || me.etat.selection === 'PIED' || !me.droit()) {
                 return;
             }
             var al = ['G', 'C', 'D'], p = me.position(me.reglages(), me.etat.selection);
@@ -482,21 +577,22 @@ Ext.define('testextjs.view.configmanagement.modeleticket.ModelesTicket', {
     cibleDepot: function (y, bloc) {
         var me = this, a = me.etat.apercu, feuille = me.racine.querySelector('.mtk-feuille');
         var haut = feuille.getBoundingClientRect().top, depot = me.racine.querySelector('.mtk-depot');
+        var ech = a.echelle * (me.etat.facteur || 1);
         var presents = me.blocsMobiles(a).filter(function (id) {
             return id !== bloc;
         });
         var avant = null, ligne = null;
         for (var i = 0; i < presents.length; i++) {
-            var z = a.zones[presents[i]], milieu = haut + (z[0] + z[1]) / 2 * a.echelle;
+            var z = a.zones[presents[i]], milieu = haut + (z[0] + z[1]) / 2 * ech;
             if (y < milieu) {
                 avant = presents[i];
-                ligne = z[0] * a.echelle;
+                ligne = z[0] * ech;
                 break;
             }
         }
         if (ligne === null) {
             var dernier = a.zones[presents[presents.length - 1]] || a.zones.PIED;
-            ligne = dernier[1] * a.echelle;
+            ligne = dernier[1] * ech;
         }
         depot.style.display = 'block';
         depot.style.top = (ligne - 2) + 'px';
@@ -582,6 +678,44 @@ Ext.define('testextjs.view.configmanagement.modeleticket.ModelesTicket', {
         }, 6000);
     },
 
+    /** Fichier choisi : la confirmation se fait dans le bouton « Importer » (aucune fenetre). */
+    lireImport: function (input) {
+        var me = this, f = input.files && input.files[0];
+        if (!f) {
+            return;
+        }
+        var lecteur = new FileReader();
+        lecteur.onload = function () {
+            me.texteImport = String(lecteur.result || '');
+            var b = me.racine.querySelector('[data-action="importer"]');
+            if (b) {
+                me.confirmer(b, 'Confirmer : importer « ' + f.name + ' » ?', function () {
+                    me.importer();
+                });
+            }
+        };
+        lecteur.readAsText(f);
+    },
+
+    importer: function () {
+        var me = this;
+        Ext.Ajax.request({
+            url: me.URL + '/import', method: 'POST', headers: {'Content-Type': 'application/json'},
+            rawData: me.texteImport || '{}',
+            success: function (rep) {
+                var o = Ext.decode(rep.responseText, true) || {};
+                PrestigeToast.afficher(o.msg || 'Import impossible.', {niveau: o.success ? 'ok' : 'erreur'});
+                if (o.success) {
+                    me.etat.brouillons = {};
+                    me.charger();
+                }
+            },
+            failure: function () {
+                PrestigeToast.afficher('Import impossible (serveur injoignable).', {niveau: 'erreur'});
+            }
+        });
+    },
+
     action: function (b, action) {
         var me = this;
         if (action === 'enregistrer') {
@@ -595,6 +729,11 @@ Ext.define('testextjs.view.configmanagement.modeleticket.ModelesTicket', {
                     if (o.success) {
                         me.ticketCourant().reglages = o.reglages;
                         delete me.etat.brouillons[me.cle()];
+                        if (o.autres) {
+                            /* retour du 05/11 : reglages communs reportes sur d'autres tickets */
+                            me.charger();
+                            return;
+                        }
                     }
                     me.rendre();
                 },
@@ -609,10 +748,24 @@ Ext.define('testextjs.view.configmanagement.modeleticket.ModelesTicket', {
             me.demanderApercu();
         } else if (action === 'defaut') {
             me.confirmer(b, 'Confirmer : rétablir la disposition par défaut ?', function () {
+                /* retour du 05/11 : la disposition par defaut du ticket (tailles du 05/11 pour un nouveau ticket) */
+                var defaut = me.ticketCourant().defaut || {};
                 me.modifier(function (r) {
-                    r.disposition = [];
+                    r.disposition = Ext.clone(defaut.disposition || []);
                 });
             });
+        } else if (action === 'exporter') {
+            window.location.href = me.URL + '/export';
+        } else if (action === 'importer') {
+            if (b.getAttribute('data-confirme') === '1') {
+                me.confirmer(b, '', function () {
+                    me.importer();
+                });
+            } else {
+                var fichier = me.racine.querySelector('.mtk-fichier');
+                fichier.value = '';
+                fichier.click();
+            }
         } else if (action === 'ancien') {
             me.confirmer(b, 'Confirmer : ancien modèle pour tous les tickets, sur toutes les caisses ?', function () {
                 Ext.Ajax.request({

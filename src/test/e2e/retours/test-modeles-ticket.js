@@ -11,7 +11,8 @@
  *  - « Rétablir la disposition par défaut » : le premier clic pose la question dans le bouton, sans fenetre ;
  *  - largeur d'une imprimante changee par son bouton : en base ;
  *  - aucune erreur JavaScript.
- * Reglages et largeur d'imprimante remis comme avant.
+ * Reglages (toute la table : depuis le 05/11, l'enregistrement reporte les reglages communs sur les autres tickets)
+ * et largeur d'imprimante remis comme avant.
  */
 const { chromium } = require('playwright-core');
 const ENV_E2E = require('../outils/poste');
@@ -22,12 +23,16 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
 const BASE = ENV_E2E.BASE;
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const MENU = q("SELECT str_VALUE FROM t_menu WHERE lg_MENU_ID = '10'");
-const AVANT = q("SELECT HEX(reglages) FROM ticket_modele WHERE ticket = 'MOUVEMENT_CAISSE' AND largeur = 58");
+const TABLE = () => q("SELECT CONCAT_WS('|', ticket, largeur, HEX(reglages), IFNULL(DATE_FORMAT(maj, '%Y-%m-%d %H:%i:%s'), ''), HEX(IFNULL(utilisateur, ''))) FROM ticket_modele ORDER BY ticket, largeur");
+const AVANT = TABLE();
 const IMPRIMANTE = q("SELECT CONCAT_WS('|', lg_IMPRIMANTE_ID, int_LARGEUR_PAPIER) FROM t_imprimante WHERE COALESCE(str_STATUT, '') <> 'delete' ORDER BY str_NAME LIMIT 1");
 const [IMP_ID, IMP_LARGEUR] = IMPRIMANTE ? IMPRIMANTE.split('|') : [];
 const remettre = () => {
-  q(AVANT ? `UPDATE ticket_modele SET reglages = UNHEX('${AVANT}') WHERE ticket = 'MOUVEMENT_CAISSE' AND largeur = 58`
-    : "DELETE FROM ticket_modele WHERE ticket = 'MOUVEMENT_CAISSE' AND largeur = 58");
+  q('DELETE FROM ticket_modele');
+  AVANT.split('\n').filter(Boolean).forEach((l) => {
+    const [t, lg, r, maj, u] = l.split('|');
+    q(`INSERT INTO ticket_modele (ticket, largeur, reglages, maj, utilisateur) VALUES ('${t}', ${Number(lg)}, UNHEX('${r}'), ${maj ? `'${maj}'` : 'NOW()'}, UNHEX('${u}'))`);
+  });
   if (IMP_ID) { q(`UPDATE t_imprimante SET int_LARGEUR_PAPIER = ${Number(IMP_LARGEUR)} WHERE lg_IMPRIMANTE_ID = '${IMP_ID}'`); }
 };
 
@@ -107,13 +112,14 @@ const remettre = () => {
     /* nom de l'officine (retour du 02/11) : choisi d'un clic comme les autres blocs, agrandi par « + », deplace */
     const entete = () => p.locator(racine + ' .mtk-zone[data-bloc=ENTETE]');
     const hEntete = (await entete().boundingBox()).height;
+    const tailleAvant = await p.evaluate(() => { const c = Ext.ComponentQuery.query('modelesticket')[0]; const x = (c.reglages().disposition || []).find((d) => d.bloc === 'ENTETE'); return x ? x.taille : 0; });
     await entete().click();
     await p.waitForTimeout(400);
     ok('Nom de l\'officine choisi d\'un clic', /mtk-choisie/.test(await entete().getAttribute('class') || ''), await entete().getAttribute('class'));
     await apresApercu(() => p.locator(racine + ' [data-taille="1"]').click());
     const tailleNom = await p.evaluate(() => { const c = Ext.ComponentQuery.query('modelesticket')[0]; const x = (c.reglages().disposition || []).find((d) => d.bloc === 'ENTETE'); return x && x.taille; });
     const hNom = (await entete().boundingBox()).height;
-    ok('« + » : nom de l\'officine agrandi', tailleNom === 1 && hNom > hEntete, tailleNom + ' pt, ' + hEntete + ' → ' + hNom + ' px');
+    ok('« + » : nom de l\'officine agrandi', tailleNom === tailleAvant + 1 && hNom > hEntete, tailleAvant + ' → ' + tailleNom + ' pt, ' + hEntete + ' → ' + hNom + ' px');
     const avantNom = (await apercu()).ordre;
     const suivant = avantNom[avantNom.indexOf('ENTETE') + 1];
     const be = await entete().boundingBox();
@@ -136,8 +142,10 @@ const remettre = () => {
     const fenetre = await p.evaluate(() => Ext.ComponentQuery.query('window').some((w) => w.isVisible()));
     ok('« Rétablir la disposition par défaut » : la question est dans le bouton, aucune fenêtre', /Confirmer/.test(question) && !fenetre, question);
     await apresApercu(() => defaut.click());
-    const retabli = await p.evaluate(() => Ext.ComponentQuery.query('modelesticket')[0].reglages().disposition.length);
-    ok('Second clic : disposition par défaut (brouillon)', retabli === 0, retabli);
+    /* retour du 05/11 : la disposition par defaut du ticket (tailles du 05/11), plus une disposition vide */
+    const retabli = await p.evaluate(() => { const c = Ext.ComponentQuery.query('modelesticket')[0];
+      return { brouillon: JSON.stringify(c.reglages().disposition), defaut: JSON.stringify((c.ticketCourant().defaut || {}).disposition || []) }; });
+    ok('Second clic : disposition par défaut du ticket (brouillon)', retabli.brouillon === retabli.defaut, JSON.stringify(retabli));
     await p.locator(racine + ' [data-action=annuler]').click();
 
     if (IMP_ID) {
@@ -154,7 +162,7 @@ const remettre = () => {
   } finally {
     await b.close();
     remettre();
-    ok('Réglages et imprimante remis comme avant', q("SELECT COALESCE(HEX(MAX(reglages)), '') FROM ticket_modele WHERE ticket = 'MOUVEMENT_CAISSE' AND largeur = 58") === AVANT
+    ok('Réglages et imprimante remis comme avant', TABLE() === AVANT
       && (!IMP_ID || q(`SELECT int_LARGEUR_PAPIER FROM t_imprimante WHERE lg_IMPRIMANTE_ID = '${IMP_ID}'`) === IMP_LARGEUR));
   }
   const ko = res.filter((x) => !x.c).length;

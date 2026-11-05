@@ -2,11 +2,12 @@
  * par defaut ? »
  *
  * Par les vues, avec de vrais clics, dans le menu « Modeles de ticket » (Parametrages). Ce que le test etablit :
- *  - « Vente assurance » (80 mm) : le champ « Police » propose cinq polices, Segoe UI choisie par defaut ;
+ *  - « Vente assurance » (80 mm) : le champ « Police » propose cinq polices, Arial Narrow choisie par defaut
+ *    (retour du 05/11 ; Segoe UI jusque-la, gardee par les reglages deja enregistres) ;
  *  - chaque choix est ecrit dans sa propre police, et le champ tient dans la colonne des reglages (ergonomie) ;
  *  - un clic sur « Tahoma » : le choix passe sur Tahoma, l'apercu se redessine, « Enregistrer » s'active ;
  *  - « Enregistrer » : police = Tahoma en base pour ce ticket et cette largeur, et le choix reste affiche apres
- *    un aller-retour sur un autre ticket ;
+ *    un aller-retour sur un autre ticket ; retour du 05/11 : la police est commune, la vente au comptant la prend aussi ;
  *  - aucune erreur JavaScript.
  * Reglages remis comme avant.
  *
@@ -21,13 +22,22 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
 const BASE = ENV_E2E.BASE;
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const MENU = q("SELECT str_VALUE FROM t_menu WHERE lg_MENU_ID = '10'");
-const AVANT = q("SELECT HEX(reglages) FROM ticket_modele WHERE ticket = 'VENTE_ASSURANCE' AND largeur = 80");
-const remettre = () => q(AVANT ? `UPDATE ticket_modele SET reglages = UNHEX('${AVANT}') WHERE ticket = 'VENTE_ASSURANCE' AND largeur = 80`
-  : "DELETE FROM ticket_modele WHERE ticket = 'VENTE_ASSURANCE' AND largeur = 80");
+const TABLE = () => q("SELECT CONCAT_WS('|', ticket, largeur, HEX(reglages), IFNULL(DATE_FORMAT(maj, '%Y-%m-%d %H:%i:%s'), ''), HEX(IFNULL(utilisateur, ''))) FROM ticket_modele ORDER BY ticket, largeur");
+/* retour du 05/11 : l'enregistrement reporte les reglages communs (police, marge, en-tete, pied) sur tous les tickets :
+   toute la table est mise de cote et remise a la fin */
+const AVANT = TABLE();
+const remettre = () => {
+  q('DELETE FROM ticket_modele');
+  AVANT.split('\n').filter(Boolean).forEach((l) => {
+    const [t, lg, r, maj, u] = l.split('|');
+    q(`INSERT INTO ticket_modele (ticket, largeur, reglages, maj, utilisateur) VALUES ('${t}', ${Number(lg)}, UNHEX('${r}'), ${maj ? `'${maj}'` : 'NOW()'}, UNHEX('${u}'))`);
+  });
+};
 const POLICES = ['Segoe UI', 'Arial Narrow', 'Tahoma', 'Calibri', 'Verdana'];
 
 (async () => {
-  remettre();
+  /* depart des valeurs par defaut pour les deux tickets regardes */
+  q("DELETE FROM ticket_modele WHERE largeur = 80 AND ticket IN ('VENTE_ASSURANCE', 'VENTE')");
   const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1600, height: 900 } })).newPage();
   const erreurs = []; p.on('pageerror', (e) => erreurs.push(e.message));
@@ -61,7 +71,7 @@ const POLICES = ['Segoe UI', 'Arial Narrow', 'Tahoma', 'Calibri', 'Verdana'];
       v: x.getAttribute('data-valeur'), texte: x.textContent.trim(), police: getComputedStyle(x.querySelector('span') || x).fontFamily
     })));
     ok('Champ « Police » : cinq polices proposées', JSON.stringify(boutons.map((x) => x.v)) === JSON.stringify(POLICES), JSON.stringify(boutons.map((x) => x.v)));
-    ok('Segoe UI choisie par défaut', await choisie() === 'Segoe UI', await choisie());
+    ok('Arial Narrow choisie par défaut', await choisie() === 'Arial Narrow', await choisie());
     ok('Chaque choix est écrit dans sa propre police', boutons.length === 5 && boutons.every((x) => x.police.replace(/["']/g, '').startsWith(x.v)),
       JSON.stringify(boutons.map((x) => x.police)));
     const tient = await p.evaluate(() => {
@@ -95,7 +105,9 @@ const POLICES = ['Segoe UI', 'Arial Narrow', 'Tahoma', 'Calibri', 'Verdana'];
     ok('Enregistrer : police = Tahoma en base (vente assurance, 80 mm)', enBase.police === 'Tahoma', JSON.stringify(enBase).slice(0, 250));
 
     await apresApercu(() => p.locator(racine + ' .mtk-ticket[data-ticket=VENTE]').click());
-    ok('Vente au comptant : toujours Segoe UI (réglage par ticket)', await choisie() === 'Segoe UI', await choisie());
+    ok('Vente au comptant : Tahoma aussi (police commune à tous les tickets)', await choisie() === 'Tahoma', await choisie());
+    const venteBase = JSON.parse(q("SELECT reglages FROM ticket_modele WHERE ticket = 'VENTE' AND largeur = 80") || '{}');
+    ok('Police commune : Tahoma en base pour la vente au comptant', venteBase.police === 'Tahoma', JSON.stringify(venteBase).slice(0, 200));
     await apresApercu(() => p.locator(racine + ' .mtk-ticket[data-ticket=VENTE_ASSURANCE]').click());
     ok('Retour sur la vente assurance : Tahoma reste choisie', await choisie() === 'Tahoma', await choisie());
     ok('Aucune erreur JavaScript', erreurs.length === 0, erreurs.join(' | '));
@@ -104,7 +116,7 @@ const POLICES = ['Segoe UI', 'Arial Narrow', 'Tahoma', 'Calibri', 'Verdana'];
   } finally {
     await b.close();
     remettre();
-    ok('Réglages remis comme avant', q("SELECT COALESCE(HEX(MAX(reglages)), '') FROM ticket_modele WHERE ticket = 'VENTE_ASSURANCE' AND largeur = 80") === AVANT);
+    ok('Réglages remis comme avant', TABLE() === AVANT);
   }
   const ko = res.filter((x) => !x.c).length;
   console.log('\n' + (res.length - ko) + '/' + res.length + (ko ? ' ECHEC' : ' OK'));

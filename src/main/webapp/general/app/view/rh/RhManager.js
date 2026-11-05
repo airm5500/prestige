@@ -933,7 +933,9 @@ Ext.define('testextjs.view.rh.RhManager', {
                             emptyText: 'Ex. : badge perdu, départ'},
                         {xtype: 'component', itemId: 'badgeMessage', margin: '8 0 0 0', html: ''}
                     ],
-                    buttons: [
+                    /* retour du 05/11 : quatre boutons sur une ligne debordaient de la fiche (« Nouveau » coupe a gauche) ;
+                       les actions sur le badge en haut, « Enregistrer » seul en dessous */
+                    dockedItems: [{xtype: 'toolbar', dock: 'bottom', ui: 'footer', itemId: 'barreBadgeActions', layout: {type: 'hbox', pack: 'end'}, items: [
                         {text: 'Nouveau', itemId: 'btnNouveauBadge', cls: 'fen-btn', tooltip: 'Vider le formulaire pour créer un badge', handler: function () {
                                 me.editerBadge(null);
                             }},
@@ -946,11 +948,12 @@ Ext.define('testextjs.view.rh.RhManager', {
                             tooltip: 'Nouveau QR pour ce badge (exemplaire perdu ou photographié) : les exemplaires déjà imprimés ne permettront plus de se connecter',
                             handler: function (b) {
                                 me.regenererBadge(b);
-                            }},
+                            }}
+                        ]}, {xtype: 'toolbar', dock: 'bottom', ui: 'footer', itemId: 'barreBadgeEnregistrer', layout: {type: 'hbox', pack: 'end'}, items: [
                         {text: 'Enregistrer', itemId: 'btnEnregistrerBadge', cls: 'fen-btn fen-btn-principal', handler: function (b) {
                                 me.enregistrerBadge(b);
                             }}
-                    ]
+                        ]}]
                 }]
         };
     },

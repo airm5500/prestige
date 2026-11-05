@@ -22,9 +22,17 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
 const BASE = ENV_E2E.BASE;
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const MENU = q("SELECT str_VALUE FROM t_menu WHERE lg_MENU_ID = '10'");
-const AVANT = q("SELECT HEX(reglages) FROM ticket_modele WHERE ticket = 'VENTE_ASSURANCE' AND largeur = 80");
-const remettre = () => q(AVANT ? `UPDATE ticket_modele SET reglages = UNHEX('${AVANT}') WHERE ticket = 'VENTE_ASSURANCE' AND largeur = 80`
-  : "DELETE FROM ticket_modele WHERE ticket = 'VENTE_ASSURANCE' AND largeur = 80");
+const TABLE = () => q("SELECT CONCAT_WS('|', ticket, largeur, HEX(reglages), IFNULL(DATE_FORMAT(maj, '%Y-%m-%d %H:%i:%s'), ''), HEX(IFNULL(utilisateur, ''))) FROM ticket_modele ORDER BY ticket, largeur");
+/* retour du 05/11 : l'enregistrement reporte les reglages communs (police, marge, en-tete, pied) sur tous les tickets :
+   toute la table est mise de cote et remise a la fin */
+const AVANT = TABLE();
+const remettre = () => {
+  q('DELETE FROM ticket_modele');
+  AVANT.split('\n').filter(Boolean).forEach((l) => {
+    const [t, lg, r, maj, u] = l.split('|');
+    q(`INSERT INTO ticket_modele (ticket, largeur, reglages, maj, utilisateur) VALUES ('${t}', ${Number(lg)}, UNHEX('${r}'), ${maj ? `'${maj}'` : 'NOW()'}, UNHEX('${u}'))`);
+  });
+};
 
 (async () => {
   /* depart des reglages par defaut : ceux du poste (personnalises) sont mis de cote et remis a la fin */
@@ -104,7 +112,7 @@ const remettre = () => q(AVANT ? `UPDATE ticket_modele SET reglages = UNHEX('${A
   } finally {
     await b.close();
     remettre();
-    ok('Réglages remis comme avant', q("SELECT COALESCE(HEX(MAX(reglages)), '') FROM ticket_modele WHERE ticket = 'VENTE_ASSURANCE' AND largeur = 80") === AVANT);
+    ok('Réglages remis comme avant', TABLE() === AVANT);
   }
   const ko = res.filter((x) => !x.c).length;
   console.log('\n' + (res.length - ko) + '/' + res.length + (ko ? ' ECHEC' : ' OK'));
