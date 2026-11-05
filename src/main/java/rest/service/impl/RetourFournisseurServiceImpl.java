@@ -383,8 +383,29 @@ public class RetourFournisseurServiceImpl implements RetourFournisseurService {
         retourFournisseur.setLgBONLIVRAISONID(bonLivraison);
         mvtProduitService.validerFullBlRetourFournisseur(retourFournisseur, motifRetour, bonLivraisonDetails);
         deleteMvtTransactionByPkey(bonId);
+        lotsHorsService(bonLivraison, bonLivraisonDetails);
         this.getEntityManager().merge(bonLivraison);
 
+    }
+
+    /**
+     * Lots du BL annule mis hors service : sans cela, un BL ressaisi sous le meme numero pour le meme grossiste les
+     * retrouve et les compte (cloture refusee ou quantite faussee). Voir docs/notices/ANALYSE_ANNULATION_BL.md.
+     */
+    private void lotsHorsService(TBonLivraison bonLivraison, List<TBonLivraisonDetail> bonLivraisonDetails) {
+        List<String> produits = bonLivraisonDetails.stream().map(d -> d.getLgFAMILLEID().getLgFAMILLEID()).distinct()
+                .collect(java.util.stream.Collectors.toList());
+        if (produits.isEmpty()) {
+            return;
+        }
+        this.getEntityManager().createQuery(
+                "UPDATE TLot o SET o.strSTATUT = :hs, o.dtUPDATED = :maintenant WHERE o.strREFLIVRAISON = :ref"
+                        + " AND o.lgGROSSISTEID.lgGROSSISTEID = :grossiste AND o.lgFAMILLEID.lgFAMILLEID IN :produits"
+                        + " AND (o.strSTATUT IS NULL OR o.strSTATUT <> :hs)")
+                .setParameter("hs", LotsBonLivraison.HORS_SERVICE).setParameter("maintenant", new Date())
+                .setParameter("ref", bonLivraison.getStrREFLIVRAISON())
+                .setParameter("grossiste", bonLivraison.getLgORDERID().getLgGROSSISTEID().getLgGROSSISTEID())
+                .setParameter("produits", produits).executeUpdate();
     }
 
     private void cloneBl(TBonLivraison bonLivraison, TUser user, ArrayList<TBonLivraisonDetail> bonLivraisonDetails)

@@ -156,7 +156,9 @@ public class CommandeServiceImpl implements CommandeService {
             cq.multiselect(cb.sum(root.get("intNUMBER")), cb.sum(root.get("intNUMBERGRATUIT")),
                     root.get("lgFAMILLEID").get("lgFAMILLEID")).groupBy(root.get("lgFAMILLEID").get("lgFAMILLEID"));
             cq.where(cb.and(cb.equal(root.get("strREFLIVRAISON"), refBon),
-                    cb.equal(root.get("lgFAMILLEID").get("lgFAMILLEID"), idArticle)));
+                    cb.equal(root.get("lgFAMILLEID").get("lgFAMILLEID"), idArticle),
+                    cb.or(cb.isNull(root.get("strSTATUT")),
+                            cb.notEqual(root.get("strSTATUT"), LotsBonLivraison.HORS_SERVICE))));
             Query q = this.getEm().createQuery(cq);
             return q.getResultList();
         } catch (Exception e) {
@@ -183,7 +185,7 @@ public class CommandeServiceImpl implements CommandeService {
         for (TBonLivraisonDetail bn : lignes) {
             TFamille f = bn.getLgFAMILLEID();
             List<TLot> lots = getLot(f.getLgFAMILLEID(), bonLivraison.getStrREFLIVRAISON());
-            int saisi = lots.stream().mapToInt(l -> Objects.requireNonNullElse(l.getIntNUMBER(), 0)).sum();
+            int saisi = LotsBonLivraison.saisi(lots);
             if ((!lots.isEmpty() && saisi < bn.getIntQTECMDE()) || (avecEcart && lots.isEmpty())) {
                 out.add(f.getIntCIP() + " " + f.getStrNAME() + " (" + saisi + "/" + bn.getIntQTECMDE() + ")");
             }
@@ -272,7 +274,8 @@ public class CommandeServiceImpl implements CommandeService {
                         em.merge(item);
                     }
 
-                    if (cmde < bn.getIntQTECMDE()) {
+                    Integer entree = LotsBonLivraison.quantiteEntree(lots, bn.getIntQTECMDE(), bn.getIntQTEUG());
+                    if (entree == null) {
                         LOG.log(Level.INFO,
                                 String.format("La reception de certains produits n'a pas ete faite %s %d %d  ",
                                         oFamille.getIntCIP(), cmde, bn.getIntQTECMDE()));
@@ -282,8 +285,7 @@ public class CommandeServiceImpl implements CommandeService {
                         return json.put("success", false).put("msg",
                                 "La reception de certains produits n'a pas ete faite. Veuillez verifier vos saisie");
                     }
-                    cmde = (cmde > (bn.getIntQTECMDE() + bn.getIntQTEUG()) ? (bn.getIntQTECMDE() + bn.getIntQTEUG())
-                            : cmde);
+                    cmde = entree;
                     quantiteEntree = cmde;
                     stockApres = addToStock(bn.getIntPRIXVENTE(), bn.getIntPAF(), bn.getLgBONLIVRAISONDETAIL(), user,
                             cmde, qu, oFamille);
@@ -1306,7 +1308,7 @@ public class CommandeServiceImpl implements CommandeService {
             TypedQuery<TLot> query = em.createNamedQuery("TLot.findByProduitAndBonRef", TLot.class);
             query.setParameter("lgFAMILLEID", idProduit);
             query.setParameter("strREFLIVRAISON", bonRef);
-            return query.getResultList();
+            return LotsBonLivraison.actifs(query.getResultList());
         } catch (Exception e) {
             return List.of();
         }

@@ -2116,7 +2116,7 @@ public class OrderServiceImpl implements OrderService {
             TypedQuery<TLot> query = em.createNamedQuery("TLot.findByProduitAndBonRef", TLot.class);
             query.setParameter("lgFAMILLEID", idProduit);
             query.setParameter("strREFLIVRAISON", bonRef);
-            return query.getResultList();
+            return LotsBonLivraison.actifs(query.getResultList());
         } catch (Exception e) {
             return List.of();
         }
@@ -2267,7 +2267,8 @@ public class OrderServiceImpl implements OrderService {
     private boolean hasExistLot(String bonNum, String produitId) {
         try {
             Query q = this.em.createNativeQuery(
-                    "SELECT COUNT(o.lg_LOT_ID)>0 FROM t_lot o WHERE o.str_REF_LIVRAISON =?1 AND o.lg_FAMILLE_ID=?2 AND (o.int_NUM_LOT IS NOT NULL AND o.int_NUM_LOT <>'') ");
+                    "SELECT COUNT(o.lg_LOT_ID)>0 FROM t_lot o WHERE o.str_REF_LIVRAISON =?1 AND o.lg_FAMILLE_ID=?2 AND (o.int_NUM_LOT IS NOT NULL AND o.int_NUM_LOT <>'') "
+                            + " AND (o.str_STATUT IS NULL OR o.str_STATUT <> 'delete')");
             q.setParameter(1, bonNum);
             q.setParameter(2, produitId);
             return ((Integer) q.getSingleResult()) > 0;
@@ -2280,7 +2281,8 @@ public class OrderServiceImpl implements OrderService {
     private boolean isExistLot(String bonNum, String produitId) {
         try {
             Query q = this.em.createNativeQuery(
-                    "SELECT COUNT(o.lg_LOT_ID)>0 FROM t_lot o WHERE o.str_REF_LIVRAISON =?1 AND o.lg_FAMILLE_ID=?2");
+                    "SELECT COUNT(o.lg_LOT_ID)>0 FROM t_lot o WHERE o.str_REF_LIVRAISON =?1 AND o.lg_FAMILLE_ID=?2"
+                            + " AND (o.str_STATUT IS NULL OR o.str_STATUT <> 'delete')");
             q.setParameter(1, bonNum);
             q.setParameter(2, produitId);
             return ((Integer) q.getSingleResult()) > 0;
@@ -2340,7 +2342,7 @@ public class OrderServiceImpl implements OrderService {
 
     private List<TLot> getLotByIdProduitAndRefBon(DeleteLot deleteLot) {
         TypedQuery<TLot> typedQuery = getEmg().createQuery(
-                "SELECT o FROM TLot o WHERE o.strREFLIVRAISON=?1 AND o.lgFAMILLEID.lgFAMILLEID=?2", TLot.class);
+                "SELECT o FROM TLot o WHERE o.strREFLIVRAISON=?1 AND o.lgFAMILLEID.lgFAMILLEID=?2" + ACTIF, TLot.class);
         typedQuery.setParameter(1, deleteLot.getRefBon());
         typedQuery.setParameter(2, deleteLot.getIdProduit());
         return typedQuery.getResultList();
@@ -2352,7 +2354,8 @@ public class OrderServiceImpl implements OrderService {
      */
     private List<TLot> getLotByIdProduitAndNumLot(DeleteLot deleteLot) {
         TypedQuery<TLot> typedQuery = getEmg().createQuery(
-                "SELECT o FROM TLot o WHERE o.intNUMLOT =?1 AND o.lgFAMILLEID.lgFAMILLEID=?2 AND o.strREFLIVRAISON=?3",
+                "SELECT o FROM TLot o WHERE o.intNUMLOT =?1 AND o.lgFAMILLEID.lgFAMILLEID=?2 AND o.strREFLIVRAISON=?3"
+                        + ACTIF,
                 TLot.class);
         typedQuery.setParameter(1, deleteLot.getNumLot());
         typedQuery.setParameter(2, deleteLot.getIdProduit());
@@ -2556,6 +2559,8 @@ public class OrderServiceImpl implements OrderService {
             criteria = cb.and(criteria, cb.equal(root.get(TLot_.strREFLIVRAISON), refBon));
             criteria = cb.and(criteria,
                     cb.equal(root.get(TLot_.lgGROSSISTEID).get(TGrossiste_.lgGROSSISTEID), grossisteId));
+            criteria = cb.and(criteria, cb.or(cb.isNull(root.get(TLot_.strSTATUT)),
+                    cb.notEqual(root.get(TLot_.strSTATUT), LotsBonLivraison.HORS_SERVICE)));
             cq.select(cb.sumAsLong(root.get(TLot_.intNUMBER)));
             cq.where(criteria);
             Query q = em.createQuery(cq);
@@ -2566,10 +2571,15 @@ public class OrderServiceImpl implements OrderService {
         }
     }
 
+    /** Lots d'un BL annule exclus (voir LotsBonLivraison). */
+    private static final String ACTIF = " AND (o.strSTATUT IS NULL OR o.strSTATUT <> '" + LotsBonLivraison.HORS_SERVICE
+            + "')";
+
     private Optional<TLot> getLotByProduitIdAndBon(String produitId, String bonNum) {
         try {
             TypedQuery<TLot> q = em.createQuery(
-                    "SELECT o FROM TLot o WHERE o.lgFAMILLEID.lgFAMILLEID=?1 AND o.strREFLIVRAISON=?2", TLot.class);
+                    "SELECT o FROM TLot o WHERE o.lgFAMILLEID.lgFAMILLEID=?1 AND o.strREFLIVRAISON=?2" + ACTIF,
+                    TLot.class);
             q.setParameter(1, produitId);
             q.setParameter(2, bonNum);
             q.setMaxResults(1);
