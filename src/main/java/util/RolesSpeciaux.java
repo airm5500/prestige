@@ -1,6 +1,9 @@
 package util;
 
-import dal.dataManager;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -9,7 +12,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.persistence.EntityManager;
+import javax.naming.InitialContext;
+import javax.sql.DataSource;
 
 /**
  * Faille de droits du 31/10 : les profils super administrateur, administrateur et pharmacien etaient reconnus a leur
@@ -71,21 +75,47 @@ public final class RolesSpeciaux {
         return rolesParMarque;
     }
 
-    @SuppressWarnings("unchecked")
+    /** Lignes (droit de profil, identifiant du profil) des profils marques. */
+    @FunctionalInterface
+    interface Lecteur {
+        List<Object[]> lire() throws Exception;
+    }
+
+    private static final String JNDI_SOURCE = "jdbc/__laborex_pool";
+    private static final String SQL = "SELECT p.str_NAME, rp.lg_ROLE_ID FROM t_role_privelege rp"
+            + " JOIN t_privilege p ON p.lg_PRIVELEGE_ID = rp.lg_PRIVILEGE_ID"
+            + " WHERE p.str_STATUT = 'enable' AND p.str_NAME IN (?, ?, ?)";
+
+    /**
+     * Lecture directe par la source de donnees du serveur. Elle passait par la factory EclipseLink des anciens ecrans
+     * (dal.dataManager) : juste apres un deploiement, pendant le prechauffage de celle-ci, chaque connexion attendait
+     * son verrou (2,1 a 2,5 s mesures le 05/11 sur l'acceptation des identifiants, 0,05 s ensuite).
+     */
+    static final Lecteur LECTEUR_SERVEUR = () -> {
+        DataSource ds = (DataSource) new InitialContext().lookup(JNDI_SOURCE);
+        List<Object[]> lignes = new ArrayList<>();
+        try (Connection cx = ds.getConnection(); PreparedStatement ps = cx.prepareStatement(SQL)) {
+            ps.setString(1, P_SUPER_ADMIN);
+            ps.setString(2, P_ADMIN);
+            ps.setString(3, P_PHARMACIEN);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    lignes.add(new Object[] { rs.getString(1), rs.getString(2) });
+                }
+            }
+        }
+        return lignes;
+    };
+
+    /* visible des tests */
+    static volatile Lecteur lecteur = LECTEUR_SERVEUR;
+
     private static synchronized void charger() {
         if (System.currentTimeMillis() - luLe <= DUREE_MS) {
             return;
         }
-        dataManager odm = new dataManager();
         try {
-            odm.initEntityManager();
-            EntityManager em = odm.getEm();
-            List<Object[]> lignes = em
-                    .createNativeQuery("SELECT p.str_NAME, rp.lg_ROLE_ID FROM t_role_privelege rp"
-                            + " JOIN t_privilege p ON p.lg_PRIVELEGE_ID = rp.lg_PRIVILEGE_ID"
-                            + " WHERE p.str_STATUT = 'enable' AND p.str_NAME IN (?1, ?2, ?3)")
-                    .setParameter(1, P_SUPER_ADMIN).setParameter(2, P_ADMIN).setParameter(3, P_PHARMACIEN)
-                    .getResultList();
+            List<Object[]> lignes = lecteur.lire();
             Map<String, Set<String>> m = new HashMap<>();
             for (Object[] l : lignes) {
                 m.computeIfAbsent(String.valueOf(l[0]), k -> new HashSet<>()).add(String.valueOf(l[1]));
@@ -93,14 +123,9 @@ public final class RolesSpeciaux {
             m.replaceAll((k, v) -> Collections.unmodifiableSet(v));
             rolesParMarque = Collections.unmodifiableMap(m);
             luLe = System.currentTimeMillis();
-        } catch (RuntimeException e) {
+        } catch (Exception e) {
             LOG.log(Level.SEVERE, "Lecture des profils speciaux impossible : derniere liste connue conservee", e);
             luLe = System.currentTimeMillis() - DUREE_MS + 5_000L; // nouvel essai dans 5 s
-        } finally {
-            try {
-                odm.closeEntityManager();
-            } catch (RuntimeException ignore) {
-            }
         }
     }
 }
