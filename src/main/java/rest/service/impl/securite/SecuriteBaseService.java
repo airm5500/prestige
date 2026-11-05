@@ -441,8 +441,17 @@ public class SecuriteBaseService {
         }
     }
 
+    /**
+     * Redemarrage du pool apres un « set » de sa propriete password. Payara 5.2022.5 ne recree pas le pool sur un
+     * changement de propriete : il met a jour la fabrique de connexions mais garde l'ancien compte pour les
+     * connexions de l'application (constate : « Access denied » cote application alors que ping-connection-pool
+     * reussit). La ressource JDBC est donc desactivee puis reactivee (le pool est detruit et recree avec ses
+     * proprietes), puis le pool est teste par asadmin : le ping echoue si MariaDB refuse le compte.
+     */
     static void redemarrerPool(int portAdmin, String nomPool) throws Exception {
-        Asadmin.commande(portAdmin, 120, "flush-connection-pool", nomPool);
+        Asadmin.commande(portAdmin, 120, "set", "resources.jdbc-resource." + PoolMariaDb.JNDI + ".enabled=false");
+        Asadmin.commande(portAdmin, 120, "set", "resources.jdbc-resource." + PoolMariaDb.JNDI + ".enabled=true");
+        Asadmin.commande(portAdmin, 120, "ping-connection-pool", nomPool);
     }
 
     /** Une connexion neuve par le pool (apres son redemarrage) ; trois essais a une seconde. */
