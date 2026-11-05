@@ -260,6 +260,11 @@ class BaseParTiersPayantTest {
             // base affichee sur la ligne : celle du tiers-payant prioritaire
             assertEquals(4000, partLigne(r, "l1").getCalculationBasePrice());
             assertTrue(r.isHasPriceOption());
+            // taux_produit : pour chaque organisme, le taux applique et SA base, relus par le ticket
+            String memos = partLigne(r, "l1").getRates().stream()
+                    .map(x -> x.getCompteTiersPayantId() + ":" + Math.round(x.getTaux() * 100) + "/" + x.getBaseLigne())
+                    .sorted().collect(java.util.stream.Collectors.joining(" "));
+            assertEquals(A + ":70/4000 " + B + ":20/3000", memos);
         }
 
         @Test
@@ -271,6 +276,11 @@ class BaseParTiersPayantTest {
             assertEquals(600, part(r, B));
             assertEquals(900, r.getTotalPatientShare().intValue());
             assertEquals(3000, partLigne(r, "l1").getCalculationBasePrice());
+            // A n'a pas de reference : aucun taux_produit pour lui ; B porte sa base
+            String memos = partLigne(r, "l1").getRates().stream()
+                    .map(x -> x.getCompteTiersPayantId() + ":" + Math.round(x.getTaux() * 100) + "/" + x.getBaseLigne())
+                    .sorted().collect(java.util.stream.Collectors.joining(" "));
+            assertEquals(B + ":20/3000", memos);
         }
 
         @Test

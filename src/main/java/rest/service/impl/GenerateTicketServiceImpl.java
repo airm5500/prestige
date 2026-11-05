@@ -252,18 +252,27 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             for (TPreenregistrementCompteClientTiersPayent tp : tps) {
                 tauxReels.add(tp.getIntPERCENT() == null ? 0 : tp.getIntPERCENT());
             }
-            // ticket du 05/11 : le taux modifie sur une ligne (taux_produit) remplace celui de l'organisme
-            Map<String, Integer> tauxLignes = tauxDesLignes(lignes);
+            // ticket du 05/11 : le taux modifie sur une ligne (taux_produit) remplace celui de l'organisme ;
+            // lot Q2.5 : la base propre de l'organisme sur la ligne (taux_produit.base_ligne x quantite) remplace
+            // la base de la ligne
+            Map<String, dal.Rate> tauxLignes = tauxDesLignes(lignes);
             List<List<Integer>> tauxParTp = new ArrayList<>();
+            List<List<Integer>> basesParTp = new ArrayList<>();
             for (int t = 0; t < tps.size(); t++) {
                 String compte = tps.get(t).getLgCOMPTECLIENTTIERSPAYANTID() == null ? ""
                         : tps.get(t).getLgCOMPTECLIENTTIERSPAYANTID().getLgCOMPTECLIENTTIERSPAYANTID();
                 List<Integer> col = new ArrayList<>();
-                for (TPreenregistrementDetail d : lignes) {
-                    col.add(tauxLignes.getOrDefault(d.getLgPREENREGISTREMENTDETAILID() + "|" + compte,
-                            tauxReels.get(t)));
+                List<Integer> basesCol = new ArrayList<>();
+                for (int i = 0; i < lignes.size(); i++) {
+                    TPreenregistrementDetail d = lignes.get(i);
+                    dal.Rate r = tauxLignes.get(d.getLgPREENREGISTREMENTDETAILID() + "|" + compte);
+                    col.add(r == null ? tauxReels.get(t) : Math.round(r.getTaux() * 100));
+                    int q = d.getIntQUANTITY() == null ? 0 : Math.abs(d.getIntQUANTITY());
+                    basesCol.add(r != null && r.getBaseLigne() != null && r.getBaseLigne() > 0 ? r.getBaseLigne() * q
+                            : bases.get(i));
                 }
                 tauxParTp.add(col);
+                basesParTp.add(basesCol);
             }
             // retour du 05/11 : le total des taux affiches ne depasse jamais 100 %, ligne par ligne
             List<List<Integer>> affichesParLigne = new ArrayList<>();
@@ -277,7 +286,7 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             for (int t = 0; t < tps.size(); t++) {
                 TPreenregistrementCompteClientTiersPayent tp = tps.get(t);
                 int total = tp.getIntPRICE() == null ? 0 : tp.getIntPRICE();
-                List<Integer> parts = CreditLigne.parts(bases, tauxParTp.get(t), total);
+                List<Integer> parts = CreditLigne.parts(basesParTp.get(t), tauxParTp.get(t), total);
                 String nom = nommer ? tp.getLgCOMPTECLIENTTIERSPAYANTID().getLgTIERSPAYANTID().getStrNAME() : null;
                 for (int i = 0; i < lignes.size() && i < parts.size(); i++) {
                     res.computeIfAbsent(lignes.get(i).getLgPREENREGISTREMENTDETAILID(), k -> new ArrayList<>())
@@ -292,11 +301,11 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
     }
 
     /**
-     * Taux modifies sur les lignes (table taux_produit, en fraction : 0.7), en pourcentage, par « ligne|compte
-     * tiers-payant ». Vide si aucun.
+     * Taux modifies sur les lignes (table taux_produit, en fraction : 0.7) et base propre de l'organisme sur la ligne
+     * (lot Q2.5), par « ligne|compte tiers-payant ». Vide si aucun.
      */
-    private Map<String, Integer> tauxDesLignes(List<TPreenregistrementDetail> lignes) {
-        Map<String, Integer> res = new HashMap<>();
+    private Map<String, dal.Rate> tauxDesLignes(List<TPreenregistrementDetail> lignes) {
+        Map<String, dal.Rate> res = new HashMap<>();
         List<String> ids = new ArrayList<>();
         lignes.forEach(d -> ids.add(d.getLgPREENREGISTREMENTDETAILID()));
         if (ids.isEmpty()) {
@@ -306,7 +315,7 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
                 .createQuery("SELECT r FROM Rate r WHERE r.saleIemId IN :ids", dal.Rate.class).setParameter("ids", ids)
                 .getResultList();
         for (dal.Rate r : rates) {
-            res.put(r.getSaleIemId() + "|" + r.getCompteTiersPayantId(), Math.round(r.getTaux() * 100));
+            res.put(r.getSaleIemId() + "|" + r.getCompteTiersPayantId(), r);
         }
         return res;
     }
