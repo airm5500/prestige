@@ -194,9 +194,15 @@ async function terminerVente(p, imprimer, mode) {
     await p.waitForTimeout(800);
     if (await vues.texteMessage(p)) { await vues.repondre(p, 'ok').catch(() => {}); }
   } else {
-    await vues.cliquer(p, 'doventemanager #contenu #montantRecu');
-    await p.keyboard.press('Control+A');
-    await p.keyboard.type(String(r.net.valeur), { delay: 20 });
+    /* la premiere frappe peut etre avalee par le champ (montant a cinq chiffres) : on relit et on retape au besoin */
+    for (let essai = 0; essai < 3; essai++) {
+      await vues.cliquer(p, 'doventemanager #contenu #montantRecu');
+      await p.keyboard.press('Control+A');
+      await p.keyboard.type(String(r.net.valeur), { delay: 40 });
+      await p.waitForTimeout(300);
+      const saisi = await p.evaluate(() => Number(String(Ext.ComponentQuery.query('doventemanager #contenu #montantRecu')[0].getValue()).replace(/\D/g, '')));
+      if (saisi === r.net.valeur) { break; }
+    }
     await p.keyboard.press('Tab');
   }
   await p.waitForTimeout(500);

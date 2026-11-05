@@ -87,6 +87,10 @@ const arrondi5 = (v) => (v <= 0 ? 0 : (v % 5 === 0 ? v : v + (5 - (v % 5))));
       console.log('      (E2E_DEFAUT : prix de la vente comptant altéré de +100 en base ; les rapprochements suivants doivent échouer)');
     }
     const vo = C.vente(venteId), vno = C.vente(vnoId);
+    /* le ticket porte la reference ou le numero de ticket selon le reglage du poste (KEY_SHOW_NUMERO_TICKET) */
+    const refsVo = [vo.ref, q("SELECT str_REF_TICKET FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID = '" + venteId + "'")];
+    const refsVno = [vno.ref, q("SELECT str_REF_TICKET FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID = '" + vnoId + "'")];
+    const porte = (texte, refs) => refs.some((r) => r && String(texte).includes(r));
     const partTpBase = Number(q("SELECT IFNULL(SUM(int_PRICE), 0) FROM t_preenregistrement_compte_client_tiers_payent WHERE lg_PREENREGISTREMENT_ID = '" + venteId + "'"));
     const lignesVo = q("SELECT GROUP_CONCAT(CONCAT_WS('/', lg_FAMILLE_ID, int_QUANTITY, int_PRICE_UNITAIR, int_PRICE) ORDER BY dt_CREATED) FROM t_preenregistrement_detail WHERE lg_PREENREGISTREMENT_ID = '" + venteId + "'");
     const lignesVno = q("SELECT GROUP_CONCAT(CONCAT_WS('/', lg_FAMILLE_ID, int_QUANTITY, int_PRICE_UNITAIR, int_PRICE) ORDER BY dt_CREATED) FROM t_preenregistrement_detail WHERE lg_PREENREGISTREMENT_ID = '" + vnoId + "'");
@@ -114,7 +118,7 @@ const arrondi5 = (v) => (v <= 0 ? 0 : (v % 5 === 0 ? v : v + (5 - (v % 5))));
       && ta.articles.map((a, i) => Math.abs(parts[i] - Math.round(a.montant * 0.7))).filter((d) => d > 0).length <= 1, 'parts ' + parts.join(',') + ' / base ' + partTpBase);
     const blocTp = Object.keys(ta.paires).filter((k) => k.indexOf(TP) === 0).map((k) => C.chiffres(ta.paires[k]))[0];
     ok('Ticket assurance : bloc client = part de l\'organisme en base, net imprimé = part client affichée, aucune mention de la vente comptant',
-      blocTp === partTpBase && ta.net === rail.partClient.valeur && !JSON.stringify(ap).toUpperCase().includes('COMPTANT') && !JSON.stringify(ap).includes(vno.ref),
+      blocTp === partTpBase && ta.net === rail.partClient.valeur && !JSON.stringify(ap).toUpperCase().includes('COMPTANT') && !porte(JSON.stringify(ap), refsVno),
       'bloc ' + blocTp + ' net ' + ta.net + ' ' + JSON.stringify(ta.paires));
 
     /* ---- le ticket client combine ---- */
@@ -123,15 +127,16 @@ const arrondi5 = (v) => (v <= 0 ? 0 : (v % 5 === 0 ? v : v + (5 - (v % 5))));
     const tc = C.lireTicket(ac.tickets[0]);
     const sec1 = tc.articles.filter((a) => a.section === 1), sec2 = tc.articles.filter((a) => a.section === 2);
     ok('Ticket combiné : deux sections titrées par les deux références (assurance puis comptant)',
-      tc.titres.length === 2 && tc.titres[0].includes(vo.ref) && /ASSURANCE/.test(tc.titres[0]) && tc.titres[1].includes(vno.ref) && /COMPTANT/.test(tc.titres[1]), JSON.stringify(tc.titres));
+      tc.titres.length === 2 && porte(tc.titres[0], refsVo) && /ASSURANCE/.test(tc.titres[0]) && porte(tc.titres[1], refsVno) && /COMPTANT/.test(tc.titres[1]), JSON.stringify(tc.titres));
     ok('Ticket combiné = base : section assurance = lignes 1 et 3, section comptant = ligne 2, mêmes quantités et montants',
       sec1.length === 2 && sec1[0].quantite === 2 && sec1[0].montant === 2 * P[0].pu && sec1[1].quantite === 3 && sec1[1].montant === 3 * P[2].pu
       && sec2.length === 1 && sec2[0].quantite === 1 && sec2[0].montant === P[1].pu, JSON.stringify(tc.articles));
     const tot = {}; tc.totaux.forEach((t) => { tot[t.paire] = t.valeur; });
-    const ttc = C.chiffres(tc.paires['TTC des deux ventes']);
+    const cleTtc = Object.keys(tc.paires).find((k) => /deux ventes/i.test(k));
+    const ttc = C.chiffres(tc.paires[cleTtc]);
     ok('Ticket combiné = écran : Part du client, Comptant, TTC des deux ventes et NET = rail affiché avant la clôture',
       tot['Part du client'] === rail.partClient.valeur && tot['Comptant'] === rail.comptant.valeur && ttc === vo.prix + vno.prix && ttc === totalAssurance + totalComptant
-      && tc.net === rail.net.valeur, JSON.stringify({ tot, ttc, net: tc.net, rail }));
+      && tc.net === rail.net.valeur, JSON.stringify({ tot, cleTtc, ttc, net: tc.net, rail }));
     ok('Ticket combiné : « Taux 70 % : part » sous chaque ligne assurance, mêmes parts que le ticket assurance ; organisme et remises dans les totaux',
       sec1.map((a) => (a.credits[0] ? a.credits[0].part : -1)).join(',') === parts.join(',') && Object.keys(tot).some((k) => k.indexOf(TP) === 0) && tot[Object.keys(tot).find((k) => k.indexOf(TP) === 0)] === partTpBase,
       JSON.stringify(tot));

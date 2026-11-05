@@ -2825,7 +2825,17 @@ public class SalesStatsServiceImpl implements SalesStatsService {
     public rest.service.dto.VenteDTO getOne(String id) {
         TPreenregistrement tp = this.getEntityManager().find(TPreenregistrement.class, id);
         MvtTransaction mt = findByVente(id);
-        return VenteDTOBuilder.buildVenteDTO(tp, mt);
+        rest.service.dto.VenteDTO dto = VenteDTOBuilder.buildVenteDTO(tp, mt);
+        // cas 1 du 03/11 : la vente liee (assurance <-> comptant) est lue par le detail de vente ; defaut confirme le
+        // 05/11 par le test de rapprochement : la colonne lg_VENTE_LIEE_ID etait ecrite et jamais relue ici
+        if (tp != null && StringUtils.isNotBlank(tp.getLgVENTELIEEID())) {
+            dto.setVenteLiee(tp.getLgVENTELIEEID());
+            TPreenregistrement liee = this.getEntityManager().find(TPreenregistrement.class, tp.getLgVENTELIEEID());
+            if (liee != null) {
+                dto.setVenteLieeRef(liee.getStrREF());
+            }
+        }
+        return dto;
 
     }
 
