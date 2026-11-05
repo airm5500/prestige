@@ -666,7 +666,8 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                                 {
                                                     text: 'P.U',
                                                     xtype: 'numbercolumn',
-                                                    flex: 1,
+                                                    // retour du 05/11 : a la largeur d'un prix (« 100.000 »), plus etiree
+                                                    width: 80,
                                                     sortable: true,
                                                     dataIndex: 'intPRICEUNITAIR',
                                                     format: '0,000.',

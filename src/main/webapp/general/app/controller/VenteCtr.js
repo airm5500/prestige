@@ -6498,8 +6498,9 @@ Ext.define('testextjs.controller.VenteCtr', {
                             fieldLabel: 'TP' + record.order,
                             // En carnet : largeur au plus juste pour que le taux reste COLLE au nom
                             // du compte, et que les infos (encours/plafonds) occupent la droite de
-                            // cette meme ligne (retour d'officine).
-                            ...(carnet ? {width: 320} : {flex: 1.5}),
+                            // cette meme ligne (retour d'officine). Retour du 05/11 : en assurance aussi,
+                            // le nom prend sa largeur naturelle (bornee) et le taux le suit.
+                            ...(carnet ? {width: 320} : {maxWidth: 300}),
                             labelWidth: 30,
                             fieldStyle: "color:blue;font-weight:bold;",
                             value: record.tpFullName,
@@ -6508,7 +6509,7 @@ Ext.define('testextjs.controller.VenteCtr', {
                         {
                             xtype: 'displayfield',
                             fieldLabel: 'Taux:',
-                            ...(carnet ? {width: 120} : {flex: 0.5}),
+                            ...(carnet ? {width: 120} : {width: 90}),
                             labelWidth: 30,
                             name: 'taux' + record.order,
                             itemId: 'taux' + record.order,

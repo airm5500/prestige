@@ -2,7 +2,8 @@
  *  - devant le nom du produit, un triangle avec « ! » : violet pour un produit sensible, rouge pour un produit soumis a
  *    ordonnance avec code tableau, les deux si les deux ; infobulle au survol ; il clignote a l'ajout de la ligne puis
  *    reste fixe ; le mot « SENSIBLE » / « ORDONNANCIER » n'apparait plus dans la ligne ;
- *  - LG sans titre (numeros gardes), QD et QS a la largeur d'une quantite de 3 chiffres, MONTANT plus etroit ;
+ *  - LG sans titre (numeros gardes), QD et QS a la largeur d'une quantite de 3 chiffres, MONTANT plus etroit, P.U a 80 px ;
+ *  - dans « Infos assurance », le taux colle au nom du tiers-payant ;
  *  - P.REF jamais coupe (aucun « … ») ; aucune cellule de nombre coupee.
  * Par le vrai chemin : prix de reference a la caisse actif (KEY_PRIX_REF_CAISSE a 1, ligne comptant a 0), vente
  * assurance a un tiers-payant, quatre articles tapes par leur CIP. Trois articles d'essai portent le temps du test les
@@ -95,6 +96,17 @@ const ligne = (p, cipProduit) => p.evaluate(([g, c]) => {
       numeros + ' ; ' + e.colonnes.map((c) => c.texte + ':' + c.largeur).join(' '));
     ok('QD et QS à la largeur d\'une quantité de 3 chiffres (48 px)', col('QD').largeur === 48 && col('QS').largeur === 48, col('QD').largeur + ' / ' + col('QS').largeur);
     ok('MONTANT plus étroit (90 px)', col('MONTANT').largeur === 90, col('MONTANT').largeur);
+    /* retour du 05/11 (suite) : P.U a la largeur d'un prix, plus etiree ; taux colle au nom de l'assurance */
+    ok("P.U à la largeur d'un prix (80 px)", col('P.U').largeur === 80, col('P.U').largeur);
+    const ecartTaux = await p.evaluate(() => {
+      const t = Ext.ComponentQuery.query('#taux1').find((x) => x.isVisible());
+      if (!t) { return null; }
+      const nom = t.previousSibling();
+      const r = document.createRange(); r.selectNodeContents(nom.inputEl.dom);
+      const finNom = r.getBoundingClientRect().right, debutTaux = t.labelEl.dom.getBoundingClientRect().left;
+      return { ecart: Math.round(debutTaux - finNom), nom: nom.getValue(), taux: t.getValue() };
+    });
+    ok("Taux juste à côté du nom de l'assurance (écart ≤ 30 px)", ecartTaux && ecartTaux.ecart >= 0 && ecartTaux.ecart <= 30, JSON.stringify(ecartTaux));
     const coupes = await p.evaluate((g) => {
       const gr = Ext.ComponentQuery.query(g)[0], out = [];
       gr.headerCt.getGridColumns().filter((c) => c.tdCls === 'vp-ref-cellule' || ['intQUANTITY', 'intQUANTITYSERVED', 'intPRICEUNITAIR', 'intPRICE', 'intCIP'].includes(c.dataIndex))
