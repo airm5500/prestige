@@ -512,7 +512,28 @@ prête à ce moment-là (7 s sur domain1, 4,5 à 22 s sur domain2) : elle n'est 
 
 **Correction** : le paquet est assemblé au démarrage, en arrière-plan (`AppContextListener`, fil
 `prechauffage-scripts-ecrans`), comme la factory JPA. Un utilisateur qui arrive pendant l'assemblage en attend la fin,
-sans le refaire. Le journal indique « Scripts des ecrans prepares en … ms ». Le contenu servi ne change pas.
+sans le refaire. Le journal indique « Scripts des ecrans prepares en … ms » (1,0 à 1,3 s). Le contenu servi ne change
+pas.
+
+**Vérification** : quatre redéploiements en alternance sur domain2, machine calme (06:29-06:35), connexion lancée dès
+que l'application répond :
+
+| Temps après le clic | Sans correction (2 essais) | Avec correction (2 essais) |
+|---|---:|---:|
+| Identifiants acceptés (`POST user/auth`) | 2,5 et 2,1 s | 2,2 et 2,2 s |
+| Paquet des scripts | 0,67 et 0,59 s | 0,16 et 0,15 s |
+| Page d'accueil construite | 4,2 et 3,6 s | 3,3 et 3,1 s |
+| Menu rempli | 5,0 et 4,3 s | 4,1 et 3,9 s |
+
+Sur une machine calme, l'assemblage à la demande ne coûte que 0,5 s : le gain de la correction est d'environ 0,5 à
+0,9 s. Les 11,5 s de la première mesure (03:03) venaient surtout de la charge de la machine à ce moment-là :
+plusieurs sessions y construisaient et déployaient, la factory JPA avait mis 22 s au lieu de 3,4 s, et le disque D:
+était plein à 98 %. Le premier utilisateur payait l'assemblage au pire moment ; il ne le paie plus.
+
+**Ce qui reste** : la première acceptation des identifiants après un déploiement prend 2,1 à 2,5 s, contre 0,4 à 0,5 s
+ensuite. Le sablier « Connexion en cours… » tourne pendant ce temps. Puis la page reste blanche environ 1 s, le
+temps de demander l'accueil et de lire les scripts, avant l'écran de chargement d'Ext JS. Cause de la lenteur de
+`user/auth` à froid non encore cherchée.
 
 Après la page, les tuiles du tableau de bord restent lentes au premier passage (alertes 8,8 s, tuiles 6,7 s,
 valorisation 4,5 s) : la base n'a pas encore ses données en mémoire (§ 7.4). Elles se remplissent après l'affichage.
@@ -521,4 +542,5 @@ Contrôles :
 
 - `EcransScriptsRessourceTest` : 5/5 ;
 - `perf/test-connexion-apres-deploiement.js`, à lancer pendant un déploiement : paquet reçu en moins de 3 s, page
-  construite moins de 5 s après le clic.
+  construite moins de 5 s après le clic. 4/4 dans les quatre essais. Sur une machine calme, il passe aussi sans la
+  correction : il ne départage les deux versions que sous charge.

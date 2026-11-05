@@ -40,6 +40,10 @@ const statut = (url) => new Promise((r) => {
   const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1600, height: 1000 } })).newPage();
   const erreurs = []; p.on('pageerror', (e) => erreurs.push(String(e.message)));
+  /* duree de chaque requete, de son depart a la fin de sa reponse */
+  const departs = new Map(); const durees = {};
+  p.on('request', (r) => departs.set(r, Date.now()));
+  p.on('requestfinished', (r) => { const u = r.url().replace(BASE, '').split('?')[0]; if (departs.has(r)) durees[u] = Date.now() - departs.get(r); });
   try {
     await p.goto(BASE + '/security/index.html', { waitUntil: 'domcontentloaded' });
     await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest');
@@ -50,14 +54,13 @@ const statut = (url) => new Promise((r) => {
     const tAccueil = Date.now() - t0;
     const rep = await scripts;
     if (!rep) { throw new Error('paquet des scripts jamais recu'); }
-    const tim = rep.request().timing();
-    const dureeScripts = Math.round(tim.responseEnd > 0 ? tim.responseEnd - tim.requestStart : -1);
     await p.waitForLoadState('domcontentloaded');
+    const dureeScripts = durees['/api/v1/ecrans/scripts.js'] === undefined ? -1 : durees['/api/v1/ecrans/scripts.js'];
     const tPage = Date.now() - t0;
     await p.waitForFunction(() => { const n = window.Ext && Ext.ComponentQuery.query('navigation')[0];
       return n && n.getStore().getRootNode().childNodes.length > 0 && !n.getStore().isLoading(); }, null, { timeout: 300000, polling: 50 });
     const tMenu = Date.now() - t0;
-    console.log(JSON.stringify({ accueilDemande: tAccueil, scripts: dureeScripts, page: tPage, menu: tMenu }));
+    console.log(JSON.stringify({ identifiants: durees['/api/v1/user/auth'], accueilDemande: tAccueil, scripts: dureeScripts, page: tPage, menu: tMenu }));
     ok('Paquet des scripts d ecran recu dans son budget', rep.status() < 400 && dureeScripts >= 0 && dureeScripts <= BUDGET_SCRIPTS_MS,
       dureeScripts + ' ms, budget ' + BUDGET_SCRIPTS_MS + ' ms, statut ' + rep.status());
     ok('Page d accueil construite peu apres le clic', tPage <= BUDGET_PAGE_MS, tPage + ' ms apres le clic, budget ' + BUDGET_PAGE_MS + ' ms');
