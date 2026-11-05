@@ -51,16 +51,20 @@ public class TiersPayantCalculationService {
         calculationResult.setTotalSaleAmount(input.getTotalSalesAmount().setScale(0, RoundingMode.HALF_UP));
         List<TiersPayantLineOutput> lineOutputs = new ArrayList<>();
         StringBuilder warnings = new StringBuilder();
+        // Le total tiers-payant est la SOMME DES PARTS ARRONDIES de chaque organisme (celles qui sont enregistrees et
+        // imprimees), et non l'arrondi de la somme des parts non arrondies : les deux pouvaient differer de 1 F par
+        // organisme (877,5 + 877,5 : parts 878 + 878 = 1 756, arrondi de la somme 1 755), et la part client avec eux.
+        BigDecimal sommeDesParts = BigDecimal.ZERO;
         for (TiersPayantInput tpInput : input.getTiersPayants()) {
 
             BigDecimal remainingAmountForTps = tiersPayants.getOrDefault(tpInput.getClientTiersPayantId(),
                     BigDecimal.ZERO);
             remainingAmountForTps = remainingAmountForTps.setScale(0, RoundingMode.HALF_UP);
 
-            BigDecimal actualShare = applyCeilings(remainingAmountForTps, tpInput, warnings);
+            BigDecimal actualShare = applyCeilings(remainingAmountForTps, tpInput, warnings).setScale(0,
+                    RoundingMode.HALF_UP);
 
-            totalAmountAssurance = totalAmountAssurance.add(actualShare).subtract(remainingAmountForTps);
-            totalAmountAssurance = totalAmountAssurance.setScale(0, RoundingMode.HALF_UP);
+            sommeDesParts = sommeDesParts.add(actualShare);
             TiersPayantLineOutput lineOutput = new TiersPayantLineOutput();
             lineOutput.setClientTiersPayantId(tpInput.getClientTiersPayantId());
             lineOutput.setMontant(actualShare);
@@ -75,7 +79,8 @@ public class TiersPayantCalculationService {
             lineOutput.setNumBon(tpInput.getNumBon());
             lineOutputs.add(lineOutput);
         }
-        calculationResult.setTotalTiersPayant(totalAmountAssurance);
+        calculationResult.setTotalTiersPayant(input.getTiersPayants().isEmpty()
+                ? totalAmountAssurance.setScale(0, RoundingMode.HALF_UP) : sommeDesParts);
         calculationResult.setTiersPayantLines(lineOutputs);
         BigDecimal partAssure = calculatePatientShare(calculationResult, input.getNatureVente());
         calculationResult.setTotalPatientShare(partAssure);
@@ -288,7 +293,8 @@ public class TiersPayantCalculationService {
             }
             BigDecimal resteSurLaLigne = saleItem.getTotalSalesAmount().subtract(totalPartTiersPayant);
             if (resteSurLaLigne.compareTo(BigDecimal.ZERO) <= 0) {
-                break;
+                // plus rien a prendre : l'organisme n'a pas de part, mais sa reference (base affichee, taux) est lue
+                continue;
             }
             BigDecimal actualShare;
             if (rate == 1.0f && natureVente == NatureVente.ASSURANCE && !aPrixReference) {

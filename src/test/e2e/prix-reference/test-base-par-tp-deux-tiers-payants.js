@@ -16,23 +16,6 @@ const C = require('./commun');
 const { ok, q, exec, A } = C;
 const CLE = 'KEY_PRIX_REF_BASE_PAR_TP';
 
-async function ajouterB(p, TB) {
-  await p.locator('text=/Ajouter une Assurance compl/').filter({ visible: true }).first().click();
-  const COMBO = 'window[title="TIERS-PAYANTS ASSOCIES"] combobox[name=compteTp]';
-  await p.waitForFunction((c) => Ext.ComponentQuery.query(c).some((x) => x.isVisible(true)), COMBO, { timeout: 15000 });
-  await C.vues.cliquer(p, COMBO);
-  await p.keyboard.type(TB, { delay: 25 });
-  const item = p.locator('.x-boundlist-item').filter({ visible: true, hasText: TB }).first();
-  await item.waitFor({ timeout: 20000 });
-  await item.click();
-  const repAjout = p.waitForResponse((r) => /vente\/addtp\//.test(r.url()), { timeout: 30000 });
-  const repLignes = p.waitForResponse((r) => /vente\/deatails/.test(r.url()), { timeout: 30000 });
-  await p.locator('.x-window').filter({ visible: true, hasText: 'TIERS-PAYANTS ASSOCIES' }).getByText('Valider', { exact: true }).click();
-  await repAjout;
-  await repLignes;
-  await p.waitForTimeout(1500);
-}
-
 /* parts par compte tiers-payant, d'apres la reponse net/assurance du serveur */
 const parts = (serveur) => { const r = {}; (serveur.data.tierspayants || []).forEach((t) => { r[t.compteTp] = t.tpnet; }); return r; };
 /* net a payer arrondi au multiple de 5, comme le serveur (NumberUtils.arrondiModuloOfNumber) */
@@ -61,7 +44,7 @@ const texteRappel = (p) => p.evaluate(() => { const r = Ext.ComponentQuery.query
     await C.taperArticle(p, CIP);
     const vente1 = await C.venteCourante(p);
     C.noterVente(vente1);
-    await ajouterB(p, TB);
+    await C.ajouterTiersPayant(p, TB);
     const e1 = await C.entete(p);
     ok('Paramètre à 0 : vente assurance sur A et B, deux groupes de colonnes', !!vente1 && e1 && e1.groupes.join(',') === TA + ',' + TB, JSON.stringify(e1 && e1.groupes));
     const rappel1 = await texteRappel(p);
@@ -93,7 +76,7 @@ const texteRappel = (p) => p.evaluate(() => { const r = Ext.ComponentQuery.query
     await C.taperArticle(p, CIP);
     const vente2 = await C.venteCourante(p);
     C.noterVente(vente2);
-    await ajouterB(p, TB);
+    await C.ajouterTiersPayant(p, TB);
     const e2 = await C.entete(p);
     ok('Paramètre à 1 : nouvelle vente sur A et B, deux groupes de colonnes', !!vente2 && vente2 !== vente1 && e2 && e2.groupes.join(',') === TA + ',' + TB, JSON.stringify(e2 && e2.groupes));
     const rappel2 = await texteRappel(p);

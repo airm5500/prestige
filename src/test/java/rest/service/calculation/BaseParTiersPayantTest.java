@@ -335,6 +335,21 @@ class BaseParTiersPayantTest {
     }
 
     @Test
+    @DisplayName("Le total tiers-payant est la somme des parts arrondies de chaque organisme, aux deux valeurs")
+    void totalEgalSommeDesPartsArrondies() {
+        // 8 775 x 10 % = 877,5 pour chacun des deux organismes : parts 878 + 878 = 1 756, alors que l'arrondi de
+        // la somme (1 755) donnait un total different des parts imprimees et enregistrees (defaut d'avant le lot)
+        List<TiersPayantInput> tps = Arrays.asList(tiersPayant(A, "MUGEF-CI", 10, 1), tiersPayant(B, "ASCOMA", 10, 2));
+        for (boolean b : new boolean[] { false, true }) {
+            CalculationResult r = calcul(vente(b, tps, ligne("l1", 8775, 1)));
+            assertEquals(878, part(r, A));
+            assertEquals(878, part(r, B));
+            assertEquals(1756, r.getTotalTiersPayant().intValue(), "total a " + (b ? 1 : 0));
+            assertEquals(8775 - 1756, r.getTotalPatientShare().intValue(), "client a " + (b ? 1 : 0));
+        }
+    }
+
+    @Test
     @DisplayName("Le parametre ne vaut 1 que s'il vaut exactement 1")
     void lectureDuParametre() {
         assertTrue(BaseParTiersPayant.valeurActive("1"));
