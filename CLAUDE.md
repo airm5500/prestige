@@ -46,8 +46,18 @@
   - Chaque nouveau test doit d'abord échouer sur l'ancien code (ou sur le défaut remis à l'essai), puis passer.
   - Toute donnée écrite en base doit avoir un lecteur et un test qui la relit ; une donnée écrite et jamais relue est
     un défaut.
+  - Test de bilan avant / après (e2e) : une opération laisse exactement les traces attendues, ni plus ni moins.
+- Contrôles métier, selon l'opération (détail dans `docs/notices/STRATEGIE_TESTS.md`) :
+  - stock du produit : avant ± quantité, sur le bon emplacement, jamais en double ; une annulation rend tout ;
+  - mouvements : stock, caisse, recette, règlement, un seul par opération, bons montants, type, utilisateur et date ;
+  - suivi des mouvements : stock initial + entrées − sorties = stock actuel, écran de suivi = base ;
+  - solde du client : avant + crédit − règlements, identique à l'écran, sur les relevés et en base ;
+  - parts des organismes et caisse : identiques sur le ticket, la facture, le relevé, le ticket Z et en base.
+- Un défaut est « confirmé » s'il est prouvé par un test qui échoue ou reproduit par Codex ; sinon il est « suspecté ».
+  Claude Code produit (exploration, tests, corrections) ; Codex contre-vérifie.
 - Avant de dire « fini », le compte rendu liste : les endroits où la donnée apparaît, et le test de rapprochement qui
-  les compare ; les règles de calcul, et le test de cohérence qui les vérifie ; les cas variés couverts.
+  les compare ; les règles de calcul, et le test de cohérence qui les vérifie ; les traces attendues (stock,
+  mouvements, solde), et le test de bilan ; les cas variés couverts.
 - Construction :
   - build : `mvn -o -q -DskipTests package` (JDK 11) ;
   - déploiement : `asadmin redeploy --name prestige --contextroot prestige target/prestige.war` ;
