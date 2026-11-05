@@ -30,6 +30,7 @@ const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 500) + ']' : '')); }
 if (!ENV_E2E.WINDOWS) { console.log('Test Windows seulement (asadmin du poste) : rien a faire ici.'); process.exit(0); }
 const BASE = ENV_E2E.BASE;
+const BASE_HTTP = require('../outils/vues').BASE;
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
 const droit = privilegeEssai(q, exec, ENV_E2E.LOGIN_SUPPORT, 'P_SM_SUPPORT_SERVEUR');
@@ -63,8 +64,29 @@ const ASADMIN_JAR = path.resolve(DOMAINE, '..', '..', 'modules', 'admin-cli.jar'
 const JAVA = process.env.JAVA_HOME ? path.join(process.env.JAVA_HOME, 'bin', 'java.exe') : 'java';
 const asadmin = (...args) => execFileSync(JAVA, ['-jar', ASADMIN_JAR, '--interactive=false', '--port', pool0.portAdmin, ...args], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
 const setPool = (prop, valeur) => asadmin('set', 'resources.jdbc-connection-pool.laborex_pool.property.' + prop + '=' + valeur);
-/* apres un set : ping par asadmin ; l'application se rattache d'elle-meme au pool recree en une a deux minutes (voir le service) */
+/* apres un set : ping par asadmin (Payara ouvre une connexion neuve avec la configuration du moment) */
 const flush = () => { asadmin('ping-connection-pool', 'laborex_pool'); };
+/* processus qui ecoute le port d'administration : change au redemarrage du domaine */
+const pidPayara = () => { const l = execFileSync('netstat', ['-ano'], { encoding: 'utf8' }).split(/\r?\n/).find((x) => new RegExp(':' + pool0.portAdmin + '\\s.*LISTENING').test(x)); return l ? l.trim().split(/\s+/).pop() : ''; };
+const sommeil = (ms) => new Promise((r) => setTimeout(r, ms));
+const repond = async () => { try { const r = await fetch(BASE_HTTP + '/security/index.html'); return r.status === 200; } catch (e) { return false; } };
+/* attend le redemarrage du domaine (nouveau processus, puis Prestige qui repond, puis un temps de chauffe) ; false si rien n'a redemarre */
+async function attendreRedemarrage(pidAvant, delaiArret) {
+  let fin = Date.now() + (delaiArret || 120000);
+  while (Date.now() < fin && pidPayara() === pidAvant) { await sommeil(2000); }
+  if (pidPayara() === pidAvant) { return false; }
+  fin = Date.now() + 600000;
+  while (Date.now() < fin && !(pidPayara() && await repond())) { await sommeil(5000); }
+  await sommeil(20000);
+  return true;
+}
+/* redemarrage du domaine par le test lui-meme (bascule du pool sur le compte d'essai, puis remise), comme le fait le service */
+async function redemarrerDomaine() {
+  const pid = pidPayara();
+  const nom = path.basename(DOMAINE), dossier = path.dirname(DOMAINE);
+  try { execFileSync('cmd', ['/c', path.resolve(DOMAINE, '..', '..', '..', 'bin', 'asadmin.bat'), '--interactive=false', 'restart-domain', '--domaindir', dossier, nom], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 600000 }); } catch (e) { console.log('  restart-domain : ' + String(e.stderr || e.message).trim().slice(0, 200)); }
+  return attendreRedemarrage(pid, 60000);
+}
 /* domain.xml est reecrit par Payara un peu apres chaque « set » */
 const attendrePool = async (p, test) => { const fin = Date.now() + 20000; while (Date.now() < fin) { if (test(pool())) { return true; } await p.waitForTimeout(500); } return test(pool()); };
 /* connexion directe d'un compte d'essai avec un mot de passe donne (fichier d'options du test, jamais la ligne de commande) */
@@ -108,6 +130,7 @@ const fauxDomainXml = (mdp) => '<domain><resources><jdbc-connection-pool name="l
   const ouvrir = async (p) => { await ouvrirMenu(p, 'CENTRE DE SUPPORT', 'Stabilité du serveur');
     await p.waitForFunction(() => Ext.ComponentQuery.query('supportserveur').length > 0, null, { timeout: 30000 }); await p.waitForTimeout(2500); };
   const rotation = async (p, { session, compte, mdp, mode, nouveau, confirmation }) => {
+    const pid = pidPayara();
     await remplir(p, '#secMdpSession', session);
     if (!await p.evaluate((s) => Ext.ComponentQuery.query(s)[0].isVisible(), S('#secFormulaire'))) { await cliquer(p, S('#btnSecRotation')); await p.waitForTimeout(300); }
     await remplir(p, '#secCompteRotation', compte); await remplir(p, '#secMdpRotation', mdp);
@@ -118,28 +141,37 @@ const fauxDomainXml = (mdp) => '<domain><resources><jdbc-connection-pool name="l
     const message = await attendreTexte(p, '#secRotationMessage', /./, 240000);
     await p.waitForFunction((s) => !/en cours/.test(Ext.ComponentQuery.query(s)[0].getEl().dom.textContent), S('#secRotationMessage'), { timeout: 240000 });
     await p.waitForTimeout(1500);
-    return { arme, force, message: await texte(p, '#secRotationMessage'), etapes: await texte(p, '#secEtapes'), champs: [await valeur(p, '#secMdpRotation'), await valeur(p, '#secNouveau'), await valeur(p, '#secConfirmation')].join('') };
+    return { pid, arme, force, message: await texte(p, '#secRotationMessage'), etapes: await texte(p, '#secEtapes'), alerte: await texte(p, '#secAlerte'), champs: [await valeur(p, '#secMdpRotation'), await valeur(p, '#secNouveau'), await valeur(p, '#secConfirmation')].join('') };
   };
   let depuis = fs.statSync(LOG).size;
   let generes = [];
-  try {
-    /* 0. le pool de Payara passe sur le compte d'application du test */
-    setPool('user', APP); setPool('password', P0); flush();
-    const p = await contexte.newPage();
+  let p = null;
+  /* nouvelle page connectee, ecran ouvert sur l'onglet Securite */
+  const reouvrir = async (avecOnglet) => {
+    if (p) { await p.close().catch(() => {}); }
+    p = await contexte.newPage();
     await connexion(p, ENV_E2E.LOGIN_SUPPORT, 'e2etest');
     await ouvrir(p);
+    if (avecOnglet) {
+      await p.waitForFunction(() => Ext.ComponentQuery.query('supportserveur #ongletSecurite').length > 0, null, { timeout: 30000 }).catch(() => {});
+      await p.click('.supportserveur .x-tab:has-text("Sécurité")');
+      await attendreTexte(p, '#secStockage', /Pool Payara/);
+    }
+  };
+  /* apres une rotation ou un alias reussis, le service redemarre Payara : on attend, puis on se reconnecte */
+  const apresRedemarrage = async (r, pid) => { const ok = await attendreRedemarrage(pid); await reouvrir(true); return ok; };
+  try {
+    /* 0. le pool de Payara passe sur le compte d'application du test : Payara doit redemarrer pour le prendre */
+    setPool('user', APP); setPool('password', P0); flush();
+    const redemarre0 = await redemarrerDomaine();
+    await reouvrir(false);
     const api0 = await etatApi(p);
-    ok('À 0 : pas d\'onglet « Sécurité » (le pool tourne sur le compte d\'essai), l\'API répond actif = false', api0.success && api0.actif === false
+    ok('À 0 : pas d\'onglet « Sécurité » (le pool tourne sur le compte d\'essai après redémarrage), l\'API répond actif = false', redemarre0 && api0.success && api0.actif === false
       && await p.evaluate(() => Ext.ComponentQuery.query('supportserveur #ongletSecurite').length === 0) && !(await p.locator('.supportserveur .x-tab:has-text("Sécurité")').count()), JSON.stringify(api0));
 
     /* 1. a 1 : onglet et etat */
     parametre('KEY_SECURITE_BASE', '1');
-    await p.reload({ waitUntil: 'domcontentloaded' });
-    await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 240000 });
-    await p.waitForFunction(() => { const n = Ext.ComponentQuery.query('navigation')[0]; return n && n.getStore().getRootNode().childNodes.length > 0 && !n.getStore().isLoading(); }, null, { timeout: 120000 });
-    await ouvrir(p);
-    await p.waitForFunction(() => Ext.ComponentQuery.query('supportserveur #ongletSecurite').length > 0, null, { timeout: 30000 }).catch(() => {});
-    await p.click('.supportserveur .x-tab:has-text("Sécurité")');
+    await reouvrir(true);
     const stockage = await attendreTexte(p, '#secStockage', /Pool Payara/);
     const alerte = await texte(p, '#secAlerte');
     ok('À 1 : onglet « Sécurité » présent ; état : pool EN CLAIR sur le compte d\'essai, 3 copies de domain.xml en clair, rotation jamais faite', /EN CLAIR/.test(stockage) && stockage.indexOf(APP) >= 0
@@ -156,8 +188,10 @@ const fauxDomainXml = (mdp) => '<domain><resources><jdbc-connection-pool name="l
     r = await rotation(p, { session: 'e2etest', compte: ADMIN, mdp: PA, mode: 'GENERER' });
     const pool1 = pool();
     if (pool1.password && pool1.password !== P0) { generes.push(pool1.password); }
-    ok('Rotation « Générer » : changé et vérifié ; domain.xml porte un mot de passe de 24 caractères de l\'alphabet admis ; l\'ancien ne se connecte plus, le nouveau si', /changé et vérifié/.test(r.message) && pool1.user === APP
-      && pool1.password !== P0 && /^[A-Za-z0-9#*+\-./:;=@\[\]_~]{24}$/.test(pool1.password) && !connecte(APP, P0) && connecte(APP, pool1.password), sanitize(r.message + ' | ' + r.etapes));
+    ok('Rotation « Générer » : changé et vérifié ; domain.xml porte un mot de passe de 24 caractères de l\'alphabet admis ; l\'ancien ne se connecte plus, le nouveau si ; l\'écran annonce le redémarrage', /changé et vérifié/.test(r.message) && pool1.user === APP
+      && pool1.password !== P0 && /^[A-Za-z0-9#*+\-./:;=@\[\]_~]{24}$/.test(pool1.password) && !connecte(APP, P0) && connecte(APP, pool1.password) && /redémarre/.test(r.message) && /redémarre/.test(r.alerte), sanitize(r.message + ' | ' + r.etapes));
+    const redemarre1 = await apresRedemarrage(r, r.pid);
+    ok('… Payara a redémarré de lui-même (nouveau processus), Prestige répond et l\'onglet se rouvre', redemarre1 && /Pool Payara/.test(await texte(p, '#secStockage')));
     ok('… journal : ROTATION OK « mot de passe généré », date de dernière rotation posée, champs vidés, état rafraîchi', /ROTATION OK mot de passe généré/.test(journal()) && r.champs === ''
       && /^\d{4}-\d\d-\d\d \d\d:\d\d$/.test(q("SELECT str_VALUE FROM t_parameters WHERE str_KEY = 'KEY_SECURITE_DERNIERE_ROTATION'"))
       && !/JAMAIS/.test(await attendreTexte(p, '#secRotationEtat', /par e2e|prochaine recommandée/)), sanitize(journal()));
@@ -168,6 +202,7 @@ const fauxDomainXml = (mdp) => '<domain><resources><jdbc-connection-pool name="l
     r = await rotation(p, { session: 'e2etest', compte: ADMIN, mdp: PA, mode: 'SAISIR', nouveau: P2, confirmation: P2 });
     ok('Rotation « Saisir » forte : changé et vérifié ; domain.xml porte la valeur saisie, l\'ancienne ne se connecte plus', /FORT/.test(r.force) && /changé et vérifié/.test(r.message) && pool().password === P2 && connecte(APP, P2) && !connecte(APP, pool1.password)
       && /ROTATION OK mot de passe saisi/.test(journal()) && r.champs === '', sanitize(r.force + ' | ' + r.message));
+    ok('… Payara a redémarré, Prestige répond', await apresRedemarrage(r, r.pid));
 
     /* 5. echec simule : compte verrouille avant la rotation (les connexions ouvertes du pool survivent, les nouvelles non) */
     exec("ALTER USER '" + APP + "'@'localhost' ACCOUNT LOCK");
@@ -181,10 +216,11 @@ const fauxDomainXml = (mdp) => '<domain><resources><jdbc-connection-pool name="l
       && /ROTATION par .* : RETOUR_ARRIERE/.test(jEchec), sanitize(r.message + ' | ' + r.etapes));
     await p.waitForTimeout(2000);
     const apiApres = await etatApi(p);
-    ok('… après déverrouillage, l\'écran et l\'API répondent (pool en service)', apiApres.success && apiApres.pool && apiApres.pool.forme === 'CLAIR', JSON.stringify(apiApres).slice(0, 300));
+    ok('… après déverrouillage, l\'écran et l\'API répondent sans redémarrage (pool revenu aux valeurs du démarrage)', apiApres.success && apiApres.pool && apiApres.pool.forme === 'CLAIR' && pidPayara() === r.pid && !/redémarre/.test(r.message), JSON.stringify(apiApres).slice(0, 300));
 
     /* 6. alias Payara */
     await remplir(p, '#secMdpSession', 'e2etest');
+    const pidAlias = pidPayara();
     const armeAlias = await confirmer(p, '#btnSecAlias');
     const mAlias = await attendreTexte(p, '#secMessage', /alias|Alias|Échec|échec/i, 240000);
     await p.waitForFunction((s) => !/en cours|Pose de/.test(Ext.ComponentQuery.query(s)[0].getEl().dom.textContent), S('#secMessage'), { timeout: 240000 });
@@ -192,6 +228,7 @@ const fauxDomainXml = (mdp) => '<domain><resources><jdbc-connection-pool name="l
     const aliases = asadmin('list-password-aliases');
     ok('Alias Payara : confirmation dans le bouton, domain.xml porte ${ALIAS=prestige-db}, alias listé, pool en service, journal ALIAS OK', /Confirmer/.test(armeAlias) && okAlias
       && new RegExp('^\\s*' + ALIAS + '\\s*$', 'm').test(aliases) && /plus en clair/.test(await texte(p, '#secMessage')) && /ALIAS OK/.test(journal()) && connecte(APP, P2), sanitize(mAlias + ' | ' + await texte(p, '#secMessage')));
+    ok('… Payara a redémarré, Prestige répond avec le pool sous alias', await apresRedemarrage(null, pidAlias));
     const stockage2 = await attendreTexte(p, '#secStockage', /ALIAS PAYARA/);
     ok('… état : pool ALIAS PAYARA, bouton d\'alias désactivé', /ALIAS PAYARA/.test(stockage2) && await p.evaluate((s) => Ext.ComponentQuery.query(s)[0].isDisabled(), S('#btnSecAlias')), sanitize(stockage2));
 
@@ -199,6 +236,7 @@ const fauxDomainXml = (mdp) => '<domain><resources><jdbc-connection-pool name="l
     r = await rotation(p, { session: 'e2etest', compte: ADMIN, mdp: PA, mode: 'SAISIR', nouveau: P3, confirmation: P3 });
     ok('Rotation en mode alias : changé et vérifié ; domain.xml garde l\'alias (aucune valeur), l\'ancien ne se connecte plus, le nouveau si', /changé et vérifié/.test(r.message) && pool().password === '${ALIAS=' + ALIAS + '}'
       && connecte(APP, P3) && !connecte(APP, P2) && /alias prestige-db/.test(r.etapes), sanitize(r.message + ' | ' + r.etapes));
+    ok('… Payara a redémarré, Prestige répond avec le nouveau mot de passe sous alias', await apresRedemarrage(r, r.pid));
 
     /* 8. purge des copies */
     await remplir(p, '#secMdpSession', 'e2etest');
@@ -226,6 +264,7 @@ const fauxDomainXml = (mdp) => '<domain><resources><jdbc-connection-pool name="l
     try { setPool('password', pool0.password); setPool('user', pool0.user); } catch (e) { remise += ' pool:' + e.message; }
     try { asadmin('delete-password-alias', ALIAS); } catch (e) { remise += ' alias:' + (e.stderr || e.message); }
     try { flush(); } catch (e) { remise += ' flush:' + e.message; }
+    const redemarreFin = await redemarrerDomaine();
     exec("DELETE FROM t_parameters WHERE str_KEY IN ('" + CLES.join("','") + "');"
       + (reglagesAvant && reglagesAvant !== 'NULL' ? reglagesAvant.split('|').map((kv) => { const i = kv.indexOf('=');
         return "INSERT INTO t_parameters (str_KEY, str_VALUE, str_DESCRIPTION, str_TYPE, str_STATUT, dt_CREATED) VALUES ('" + kv.slice(0, i) + "', '" + kv.slice(i + 1).replace(/\\/g, '\\\\').replace(/'/g, "''") + "', 'Sécurité de la base', 'SYSTEME', 'enable', NOW());"; }).join('') : '')
@@ -235,7 +274,7 @@ const fauxDomainXml = (mdp) => '<domain><resources><jdbc-connection-pool name="l
     const poolFin = pool();
     const fin = Date.now() + 20000;
     while ((poolFin.user !== pool0.user || poolFin.password !== pool0.password) && Date.now() < fin) { execFileSync('cmd', ['/c', 'timeout', '/t', '1', '/nobreak'], { stdio: 'ignore' }); Object.assign(poolFin, pool()); }
-    ok('Pool remis sur son compte d\'origine (domain.xml identique), alias retiré, paramètres, journal, comptes et fichiers du test retirés', poolFin.user === pool0.user && poolFin.password === pool0.password && !/prestige-db/.test(asadmin('list-password-aliases'))
+    ok('Pool remis sur son compte d\'origine (domain.xml identique), Payara redémarré et Prestige répond, alias retiré, paramètres, journal, comptes et fichiers du test retirés', poolFin.user === pool0.user && poolFin.password === pool0.password && redemarreFin && await repond() && !/prestige-db/.test(asadmin('list-password-aliases'))
       && !fs.existsSync(TMP) && q("SELECT COUNT(*) FROM mysql.user WHERE User IN ('" + APP + "', '" + ADMIN + "')") === '0'
       && q("SELECT COALESCE(GROUP_CONCAT(CONCAT(str_KEY, '=', str_VALUE) ORDER BY str_KEY SEPARATOR '|'), 'NULL') FROM t_parameters WHERE str_KEY IN ('" + CLES.join("','") + "')") === (reglagesAvant || 'NULL')
       && q('SELECT COALESCE(MAX(id), 0) FROM t_securite_journal') === String(idJournal), remise || 'ok');

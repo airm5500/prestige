@@ -33,6 +33,8 @@ public final class RotationMotDePasse {
         public boolean retourArriere;
         /** MariaDB et Payara peuvent ne plus porter le meme mot de passe : intervention necessaire. */
         public boolean incoherent;
+        /** Le domaine Payara redemarre (lance apres un succes). */
+        public boolean redemarrage;
         public String message = "";
         public final List<String> etapes = new ArrayList<>();
 

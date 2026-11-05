@@ -348,7 +348,7 @@ public class SupportServeurRessource {
 
     private static Response resultatSecurite(rest.service.impl.securite.RotationMotDePasse.Resultat r) {
         JSONObject o = new JSONObject().put("success", r.ok).put("message", r.message)
-                .put("retourArriere", r.retourArriere).put("incoherent", r.incoherent)
+                .put("retourArriere", r.retourArriere).put("incoherent", r.incoherent).put("redemarrage", r.redemarrage)
                 .put("etapes", new JSONArray(r.etapes));
         return Response.ok(o.toString()).build();
     }

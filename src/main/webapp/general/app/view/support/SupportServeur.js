@@ -1288,7 +1288,11 @@ Ext.define('testextjs.view.support.SupportServeur', {
                 if (r.success) {
                     o.down('#secMdpSession').setValue('');
                 }
-                me.chargerSecurite();
+                if (r.redemarrage) {
+                    me.redemarrageSecurite();
+                } else {
+                    me.chargerSecurite();
+                }
             },
             failure: function (rep) {
                 corps = null;
@@ -1298,6 +1302,19 @@ Ext.define('testextjs.view.support.SupportServeur', {
                     m.setText('<span class="srv-critique">' + (rep.status === 401 ? 'Session expirée.' : 'Le serveur ne répond pas.') + '</span>');
                 }
             }});
+    },
+
+    /* Payara redemarre (rotation ou alias reussis) : plus aucune action possible ici, l'utilisateur se reconnecte */
+    redemarrageSecurite: function () {
+        var me = this, o = me.down('#ongletSecurite');
+        Ext.each(['btnSecRotation', 'btnSecAlias', 'btnSecPurger', 'btnSecLancer'], function (id) {
+            var b = o.down('#' + id);
+            if (b) {
+                b.disable();
+            }
+        });
+        o.down('#secAlerte').update('<div class="srv-sec-alerte warn">Payara redémarre (environ une minute) pour reprendre le nouveau réglage du pool :'
+                + ' reconnectez-vous ensuite et rouvrez cet onglet pour voir l\'état à jour.</div>');
     },
 
     actionSecurite: function (chemin, corps, enCours) {
@@ -1323,7 +1340,11 @@ Ext.define('testextjs.view.support.SupportServeur', {
                 if (r.success) {
                     o.down('#secMdpSession').setValue('');
                 }
-                me.chargerSecurite();
+                if (r.redemarrage) {
+                    me.redemarrageSecurite();
+                } else {
+                    me.chargerSecurite();
+                }
             },
             failure: function (rep) {
                 if (!me.isDestroyed) {

@@ -46,6 +46,8 @@ import rest.service.impl.serveur.Asadmin;
  * <li>{@link #rotation} : rotation transactionnelle (S1) avec un compte MariaDB de rotation saisi pour l'occasion et
  * jamais garde (Q4.2) ; mot de passe genere ici ou saisi, jamais journalise ni renvoye ;</li>
  * <li>{@link #alias} : alias Payara {@link #ALIAS} pose sur le pool (S2) ; {@link #purgerCopies} ;</li>
+ * <li>apres une rotation ou une pose d'alias reussies, le domaine Payara redemarre (lance detache) : voir
+ * {@link #verifierPool} pour la raison ; un retour arriere, lui, n'en a pas besoin ;</li>
  * <li>{@link #verifierMotDePasseSession} : second facteur de Q4.1, avec un frein apres cinq refus.</li>
  * </ul>
  * Les ordres a Payara passent par asadmin ({@link Asadmin}), la seule exception a la liste fermee etant la propriete
@@ -378,27 +380,26 @@ public class SecuriteBaseService {
         public void majPayara(String motDePasse) throws Exception {
             if (parAlias) {
                 aliasPayara(portAdmin, "update-password-alias", p.alias(), motDePasse);
-                /* la valeur de l'alias est relue quand le pool est recree : la propriete est reposee a l'identique */
-                set(portAdmin, nomPool, "${ALIAS=" + p.alias() + "}");
             } else {
                 set(portAdmin, nomPool, motDePasse);
             }
-            redemarrerPool(portAdmin, nomPool, true);
         }
 
+        /**
+         * Payara ouvre une connexion neuve avec la configuration du moment (alias relu) : voir {@link #verifierPool}.
+         */
         @Override
         public void tester() throws Exception {
-            testerPool();
+            verifierPool(portAdmin, nomPool);
         }
 
-        /** Idempotent ; sans ping : l'etape de test dira si l'ancien mot de passe repond. */
+        /** Idempotent ; l'etape de test qui suit dira si l'ancien mot de passe repond. */
         @Override
         public void retablirPayara() throws Exception {
             if (parAlias) {
                 throw new IllegalStateException("l'ancienne valeur de l'alias n'est pas connue");
             }
             set(portAdmin, nomPool, ancienPayara);
-            redemarrerPool(portAdmin, nomPool, false);
         }
     }
 
@@ -444,48 +445,64 @@ public class SecuriteBaseService {
     }
 
     /**
-     * Apres un « set » sur une propriete du pool, Payara detruit le pool et le recree a la demande : pendant une a deux
-     * minutes, les objets DataSource que l'application tenait avant le changement echouent (RAR7099 puis « No password
-     * credential found » dans server.log) avant de se rattacher au nouveau pool ; les connexions deja ouvertes
-     * continuent. Constate sur Payara 5.2022.5 : ni flush-connection-pool ni la bascule de la ressource JDBC n'abregent
-     * ce delai (la bascule l'aggrave), et la propriete dynamic-reconfiguration-wait-timeout-in-seconds bloque
-     * l'application. Le pool est donc seulement teste par asadmin (ping : echoue si MariaDB refuse le compte), puis
-     * l'application attend que sa propre connexion repasse ({@link #testerPool()}).
+     * Verification par asadmin ping-connection-pool : Payara ouvre une connexion neuve avec la configuration du moment
+     * (propriete du pool, alias relu) ; echoue si MariaDB refuse le compte. C'est la seule verification possible avant
+     * le redemarrage : apres un « set » sur une propriete du pool, Payara recree le pool, mais les objets DataSource
+     * que l'application tient depuis son demarrage (unites JPA, EJB) gardent l'ancienne fabrique et echouent (RAR7099
+     * puis « No password credential found » dans server.log) tant que le domaine n'a pas redemarre. Constate sur Payara
+     * 5.2022.5 : ni flush-connection-pool, ni la bascule de la ressource JDBC, ni la propriete
+     * dynamic-reconfiguration-wait-timeout-in-seconds n'y changent rien ; seul un retour aux valeurs du demarrage remet
+     * l'application en service sans redemarrage, ce qui rend le retour arriere immediat.
      */
-    static void redemarrerPool(int portAdmin, String nomPool, boolean ping) throws Exception {
-        if (ping) {
-            Asadmin.commande(portAdmin, 120, "ping-connection-pool", nomPool);
+    static void verifierPool(int portAdmin, String nomPool) throws Exception {
+        Asadmin.commande(portAdmin, 120, "ping-connection-pool", nomPool);
+    }
+
+    /**
+     * Redemarrage du domaine en cours, lance detache (processus cree par WMI, hors de l'arbre de Payara, comme
+     * l'application des reglages) apres 3 s : la reponse HTTP part avant. Windows seulement ; false si le lancement
+     * echoue (il faut alors redemarrer Payara a la main : la configuration est deja coherente).
+     */
+    static boolean redemarrerDomaine(String xml) {
+        if (!Asadmin.WINDOWS || Asadmin.chemin() == null) {
+            return false;
+        }
+        try {
+            ApplicationPayara.Domaine d = ApplicationPayara.domaine(System.getProperty("com.sun.aas.instanceRoot"),
+                    xml);
+            String horo = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"));
+            Path dossier = FichierPrive.dossier();
+            Path bat = dossier.resolve("redemarrer-" + horo + ".bat"),
+                    journal = dossier.resolve("redemarrer-" + horo + ".log");
+            String fin = "\r\n", sortie = " >> \"" + journal + "\" 2>&1" + fin;
+            String script = "@echo off" + fin + "timeout /t 3 /nobreak > NUL" + fin + "echo DEBUT %date% %time%"
+                    + sortie + "call \"" + Asadmin.chemin() + "\" --interactive=false restart-domain --domaindir \""
+                    + d.dossierDomaines + "\" " + d.nom + sortie + "echo FIN %errorlevel% %date% %time%" + sortie;
+            Files.write(bat, script.getBytes(StandardCharsets.ISO_8859_1));
+            String ps = ApplicationPayara.commandeLancement(bat.toAbsolutePath().toString());
+            Object[] l = Asadmin.executer(
+                    java.util.Arrays.asList("powershell.exe", "-NoProfile", "-NonInteractive", "-EncodedCommand",
+                            java.util.Base64.getEncoder().encodeToString(ps.getBytes(StandardCharsets.UTF_16LE))),
+                    60);
+            boolean ok = ApplicationPayara.lance((Integer) l[0], (String) l[1]);
+            LOG.log(ok ? Level.INFO : Level.WARNING, "Sécurité de la base : redémarrage du domaine {0} {1}",
+                    new Object[] { d.nom,
+                            ok ? "lancé" : "NON lancé : " + StringUtils.abbreviate(String.valueOf(l[1]).trim(), 200) });
+            return ok;
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "redémarrage du domaine non lancé", e);
+            return false;
         }
     }
 
-    /** Delai maximal d'attente du rattachement de l'application au pool recree (voir {@link #redemarrerPool}). */
-    static final int ATTENTE_POOL_S = 150;
-
-    /**
-     * Une connexion neuve par le pool, par une nouvelle recherche JNDI (pas l'objet injecte, qui peut etre perime),
-     * reessayee toutes les 5 s pendant {@link #ATTENTE_POOL_S} : le temps du rattachement decrit dans
-     * {@link #redemarrerPool}.
-     */
-    void testerPool() throws Exception {
-        Exception derniere = null;
-        long fin = System.currentTimeMillis() + ATTENTE_POOL_S * 1000L;
-        do {
-            try {
-                DataSource d = IdentifiantsBaseService.pool();
-                if (d == null) {
-                    d = ds;
-                }
-                try (Connection c = d.getConnection(); Statement s = c.createStatement();
-                        ResultSet rs = s.executeQuery("SELECT 1")) {
-                    rs.next();
-                    return;
-                }
-            } catch (Exception e) {
-                derniere = e;
-                Thread.sleep(5000);
-            }
-        } while (System.currentTimeMillis() < fin);
-        throw new IllegalStateException("le pool ne se connecte plus : " + RotationMotDePasse.cause(derniere));
+    /** Apres un succes : le redemarrage est lance, et le resultat le dit. */
+    private static void redemarrageApres(RotationMotDePasse.Resultat r, String xml) {
+        r.redemarrage = redemarrerDomaine(xml);
+        r.etapes.add(r.redemarrage ? "Payara redémarre dans quelques secondes (environ une minute)"
+                : "Redémarrage de Payara non lancé : redémarrez-le à la main (la configuration est cohérente)");
+        r.message += r.redemarrage
+                ? " Payara redémarre (environ une minute) : reconnectez-vous ensuite et rouvrez cet onglet."
+                : " Redémarrez Payara à la main pour que l'application reprenne le nouveau mot de passe.";
     }
 
     /** Hote du compte applicatif : CURRENT_USER() par le pool, sinon mysql.user par le compte de rotation. */
@@ -582,6 +599,7 @@ public class SecuriteBaseService {
             if (r.ok) {
                 parametre(CLE_DERNIERE_ROTATION, LocalDateTime.now().format(DATE),
                         "Sécurité de la base : date de la dernière rotation du mot de passe");
+                redemarrageApres(r, xml);
             }
             journaliser(d.login, "ROTATION", r.ok ? "OK" : r.retourArriere ? "RETOUR_ARRIERE" : "ECHEC",
                     ("GENERER".equals(d.mode) ? "mot de passe généré" : "mot de passe saisi") + " ; " + r.detail());
@@ -642,18 +660,17 @@ public class SecuriteBaseService {
             r.etapes.add("Alias " + ALIAS + (existe ? " mis à jour" : " créé"));
             try {
                 set(portAdmin, nomPool, "${ALIAS=" + ALIAS + "}");
-                redemarrerPool(portAdmin, nomPool, true);
                 r.etapes.add("Pool " + nomPool + " : mot de passe remplacé par l'alias");
-                testerPool();
-                r.etapes.add("Connexion par le pool vérifiée");
+                verifierPool(portAdmin, nomPool);
+                r.etapes.add("Connexion par le pool vérifiée (alias relu)");
                 r.ok = true;
                 r.message = "Le mot de passe du pool n'est plus en clair dans domain.xml (alias " + ALIAS + ").";
+                redemarrageApres(r, xml);
             } catch (Exception e) {
                 r.etapes.add("Échec : " + RotationMotDePasse.cause(e));
                 try {
                     set(portAdmin, nomPool, p.motDePasse);
-                    redemarrerPool(portAdmin, nomPool, true);
-                    testerPool();
+                    verifierPool(portAdmin, nomPool);
                     r.etapes.add("Pool rétabli avec la valeur en clair, connexion vérifiée");
                     r.retourArriere = true;
                     r.message = "Alias non posé : le pool est revenu à sa valeur en clair.";
