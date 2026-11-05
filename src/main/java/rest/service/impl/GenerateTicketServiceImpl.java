@@ -129,7 +129,34 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
     private ImpressionServiceImpl nouvelImprimeur() {
         ImpressionServiceImpl imprimeur = new ImpressionServiceImpl();
         imprimeur.setTaillleNomOfficine(tailleNomOfficine());
+        List<rest.service.ticket.TicketDocument> apercu = APERCU.get();
+        if (apercu != null) {
+            imprimeur.setApercu(apercu::add);
+        }
         return imprimeur;
+    }
+
+    /** Documents captures par {@link #apercuTicketVo(String)} pendant l'appel en cours ; null en impression normale. */
+    private static final ThreadLocal<List<rest.service.ticket.TicketDocument>> APERCU = new ThreadLocal<>();
+
+    /**
+     * Apercu du 05/11 (tests de rapprochement ecran / ticket / base) : le ticket de reimpression de la vente, construit
+     * par le meme chemin que {@link #lunchPrinterForTicketVo(String)}, sans rien envoyer a l'imprimante. Vide si le
+     * ticket est encore l'ancien modele.
+     */
+    @Override
+    public List<rest.service.ticket.TicketDocument> apercuTicketVo(String id) throws JSONException {
+        List<rest.service.ticket.TicketDocument> docs = new ArrayList<>();
+        APERCU.set(docs);
+        try {
+            JSONObject r = lunchPrinterForTicketVo(id);
+            if (docs.isEmpty() && r != null && r.has("msg")) {
+                throw new IllegalStateException(r.optString("msg"));
+            }
+            return docs;
+        } finally {
+            APERCU.remove();
+        }
     }
 
     /**

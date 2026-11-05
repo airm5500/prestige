@@ -84,6 +84,11 @@ public class ImpressionServiceImpl implements Printable {
     }
 
     private TicketDocument documentEnCours;
+    /**
+     * Apercu du 05/11 (tests de rapprochement) : le document du nouveau modele est remis ici au lieu de partir a
+     * l'imprimante. Null en impression normale.
+     */
+    private java.util.function.Consumer<TicketDocument> apercu;
     private int hauteurEnCours;
     private boolean showCodeBar;
     private TImprimante oTImprimante;
@@ -379,7 +384,18 @@ public class ImpressionServiceImpl implements Printable {
         this.service = service;
     }
 
+    public void setApercu(java.util.function.Consumer<TicketDocument> apercu) {
+        this.apercu = apercu;
+    }
+
     public void printTicketVente(int copies) throws PrinterException {
+        if (apercu != null) {
+            // apercu : le meme document que l'impression, rien n'est envoye a l'imprimante
+            if (nouveauModele()) {
+                apercu.accept(documentNouveau());
+            }
+            return;
+        }
         long t0 = System.nanoTime();
         PrinterJob printerjob;
         try {
