@@ -160,9 +160,10 @@ session.
 | Écrans existants à 1 (domain3) : `support/anomalies-centre/test-lot1-ecrans.js` (Suivi mouvement article, vente, détail d'un bon avec `ws_transaction.jsp`) | **9 / 9**, comportement identique |
 | … `audits/test-fiche-article-qte-restante-lot.js` (Fiche Article, recherche, fenêtre des lots) | **4 / 4** |
 
-Pool : `max-pool-size` reste à 32. Le suivi du pool de domain3 (`monitoring jdbc-connection-pool`) n'a pas livré de
-compteurs exploitables pendant ces tests (activé trop tard, remis à OFF) : la mesure d'épuisement reste à faire sur le
-banc (`outils/banc/peupler_banc.py`) ou sur `domain2`, avec `-DelaisJdbc` du script 1 posé.
+Pool (suivi `jdbc-connection-pool` de domain3 à HIGH pendant les deux tests d'écrans ci-dessus, à 1, puis remis à OFF) :
+105 connexions prises et **105 rendues**, 0 fuite potentielle, 0 attente, **5 connexions au plus en même temps** (seuil
+stable 8, `max-pool-size` 32). Les anciens écrans rendent bien leurs connexions au pool ; `max-pool-size` reste à 32.
+L'essai de charge sur `domain2` (plusieurs postes, `-DelaisJdbc` posé) reste à faire avant la mise en officine.
 
 Non essayé ici : `6-essai-restauration.ps1` (il faut un second serveur MariaDB ; il n'utilise que les fonctions déjà
 exercées par 3 et 4), la tâche planifiée sous SYSTEM (`5-planifier.ps1` inchangé), le banc Linux.
