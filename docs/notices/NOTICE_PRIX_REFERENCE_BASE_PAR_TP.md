@@ -56,6 +56,18 @@ Conséquences à connaître :
 Test d'écran (produit à 3 710, réf. A saisie à 3 210, réf. B à 2 710) : à 0, A 1 897 / B 542 / net 1 270 ; à 1,
 A **2 247** / B 542 / net **920**.
 
+## Ticket et traces (règle de test du 05/11)
+
+- **Total tiers-payant = somme des parts arrondies** de chaque organisme (défaut antérieur au lot, corrigé aux deux
+  valeurs du paramètre) : 8 775 à 10 % pour deux organismes donnait des parts 878 + 878 = 1 756 mais un total 1 755
+  (arrondi de la somme), et la part client avec. Le total, le net et la part client suivent désormais les parts
+  enregistrées et imprimées.
+- **`taux_produit.base_ligne`** (migration `V7.2.36.1__taux_produit_base_ligne.sql`, rejouable) : à 1, le calcul du
+  net écrit, pour chaque ligne et chaque organisme ayant une référence, le taux appliqué et le prix de référence
+  unitaire propre à l'organisme ; le ticket (`GenerateTicketServiceImpl.creditsParLigne`) relit cette base pour
+  imprimer la part de chaque ligne (« NOM · Taux x % : part »), au lieu de la base unique de la ligne. À 0 ou sans
+  référence, la colonne reste à NULL et le ticket est celui d'aujourd'hui.
+
 ## Écran
 
 - `VenteCtr.checkParamPrixRefCaisse` relit aussi `KEY_PRIX_REF_BASE_PAR_TP` à l'ouverture de l'écran de vente ;

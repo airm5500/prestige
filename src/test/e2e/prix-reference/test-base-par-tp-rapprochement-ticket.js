@@ -43,6 +43,7 @@ const arrondi5 = (n) => { const m = n % 5; return m <= 2 ? n - m : n - m + 5; };
     C.noterVente(venteId);
     await C.saisirQuantite(p, CIP2, 2);
     await C.ajouterTiersPayant(p, TB);
+    await C.saisirBon(p, 2, C.MARQUE + '-BON-R6B'); /* le net exige un numero de bon par organisme */
     const lignesBase = q("SELECT GROUP_CONCAT(CONCAT(lg_FAMILLE_ID, ':', int_QUANTITY) ORDER BY lg_FAMILLE_ID SEPARATOR ';') FROM t_preenregistrement_detail WHERE lg_PREENREGISTREMENT_ID = '" + venteId + "'");
     ok('Préparation : vente assurance sur A et B, deux lignes, quantités 1 et 2', !!venteId
       && lignesBase === [P1.id + ':1', P2.id + ':2'].sort().join(';'), lignesBase);

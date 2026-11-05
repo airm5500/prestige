@@ -60,6 +60,7 @@ const tauxProduit = (venteId) => q("SELECT IFNULL(GROUP_CONCAT(CONCAT(d.lg_FAMIL
       C.noterVente(venteId);
       await C.saisirQuantite(p, CIP2, 2);
       await C.ajouterTiersPayant(p, TB);
+      await C.saisirBon(p, 2, C.MARQUE + '-BON-B7B-' + valeur); /* le net exige un numero de bon par organisme */
       if (premiere) {
         for (const s of [[CIP1, TA, 'valeur', refA1], [CIP1, TB, 'valeur', refB1], [CIP2, TB, 'valeur', refB2]]) { await C.saisirEtEnregistrer(p, s[0], s[1], s[2], s[3]); }
         premiere = false;
