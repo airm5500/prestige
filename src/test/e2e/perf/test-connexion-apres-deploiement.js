@@ -8,6 +8,8 @@
  *
  * A lancer PENDANT un deploiement (ou juste avant qu'il se termine) : le test attend que l'application reponde,
  * ouvre l'ecran de connexion et se connecte aussitot, comme l'utilisateur qui attend devant cet ecran.
+ *  - les identifiants sont acceptes en moins de 1 s (ils attendaient le prechauffage de la factory des anciens
+ *    ecrans : 2,1 a 2,5 s, voir util.RolesSpeciaux) ;
  *  - le paquet des scripts arrive en moins de 3 s ;
  *  - la page d'accueil est construite (DOMContentLoaded) en moins de 5 s apres le clic ;
  *  - le menu est rempli ;
@@ -19,6 +21,7 @@ const { chromium } = require('playwright-core');
 const ENV_E2E = require('../outils/poste');
 const { BASE } = require('../outils/vues');
 
+const BUDGET_IDENTIFIANTS_MS = 1000;
 const BUDGET_SCRIPTS_MS = 3000;
 const BUDGET_PAGE_MS = 5000;
 const ATTENTE_MS = Number(process.env.ATTENTE_DEPLOIEMENT_MS || 600000);
@@ -61,6 +64,8 @@ const statut = (url) => new Promise((r) => {
       return n && n.getStore().getRootNode().childNodes.length > 0 && !n.getStore().isLoading(); }, null, { timeout: 300000, polling: 50 });
     const tMenu = Date.now() - t0;
     console.log(JSON.stringify({ identifiants: durees['/api/v1/user/auth'], accueilDemande: tAccueil, scripts: dureeScripts, page: tPage, menu: tMenu }));
+    const dureeAuth = durees['/api/v1/user/auth'] === undefined ? -1 : durees['/api/v1/user/auth'];
+    ok('Identifiants acceptes dans leur budget', dureeAuth >= 0 && dureeAuth <= BUDGET_IDENTIFIANTS_MS, dureeAuth + ' ms, budget ' + BUDGET_IDENTIFIANTS_MS + ' ms');
     ok('Paquet des scripts d ecran recu dans son budget', rep.status() < 400 && dureeScripts >= 0 && dureeScripts <= BUDGET_SCRIPTS_MS,
       dureeScripts + ' ms, budget ' + BUDGET_SCRIPTS_MS + ' ms, statut ' + rep.status());
     ok('Page d accueil construite peu apres le clic', tPage <= BUDGET_PAGE_MS, tPage + ' ms apres le clic, budget ' + BUDGET_PAGE_MS + ' ms');
