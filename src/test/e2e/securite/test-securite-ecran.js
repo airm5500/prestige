@@ -241,7 +241,11 @@ const fauxDomainXml = (mdp) => '<domain><resources><jdbc-connection-pool name="l
     const apiApres = await etatApi(p);
     ok('… après déverrouillage, l\'écran et l\'API répondent sans redémarrage (pool revenu aux valeurs du démarrage)', apiApres.success && apiApres.pool && apiApres.pool.forme === 'CLAIR' && pidPayara() === r.pid && !/redémarre/.test(r.message), JSON.stringify(apiApres).slice(0, 300));
 
-    /* 6. alias Payara */
+    /* 6. alias Payara (etat rafraichi comme le ferait l'utilisateur : autre onglet puis retour) */
+    await p.click('.supportserveur .x-tab:has-text("État")');
+    await p.waitForTimeout(800);
+    await p.click('.supportserveur .x-tab:has-text("Sécurité")');
+    await attendreTexte(p, '#secStockage', /EN CLAIR/);
     await remplir(p, '#secMdpSession', 'e2etest');
     const pidAlias = pidPayara();
     const armeAlias = await confirmer(p, '#btnSecAlias');

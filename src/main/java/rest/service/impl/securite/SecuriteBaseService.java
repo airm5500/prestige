@@ -233,15 +233,29 @@ public class SecuriteBaseService {
         return l;
     }
 
+    /**
+     * Pool lu dans domain.xml. Payara reecrit le fichier peu apres un « set » : une lecture pendant l'ecriture donne un
+     * pool vide ou absent ; trois essais a 400 ms.
+     */
     PoolMariaDb pool() {
         Path x = domaineXml();
-        try {
-            return x == null || !Files.isRegularFile(x) ? null
-                    : PoolMariaDb.lire(new String(Files.readAllBytes(x), StandardCharsets.UTF_8));
-        } catch (Exception e) {
-            LOG.log(Level.FINE, "domain.xml", e);
+        if (x == null) {
             return null;
         }
+        PoolMariaDb p = null;
+        for (int i = 0; i < 3; i++) {
+            try {
+                p = Files.isRegularFile(x) ? PoolMariaDb.lire(new String(Files.readAllBytes(x), StandardCharsets.UTF_8))
+                        : null;
+                if (p != null && !p.motDePasse.isEmpty()) {
+                    return p;
+                }
+                Thread.sleep(400);
+            } catch (Exception e) {
+                LOG.log(Level.FINE, "domain.xml", e);
+            }
+        }
+        return p;
     }
 
     private String xml() throws java.io.IOException {
