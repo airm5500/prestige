@@ -414,6 +414,11 @@ retours/test-sans-filet-colore.js
 retours/test-couleurs-douces.js
 retours/test-bl-quantite-sans-lot.js
 perf/test-perf-entree-stock.js
+retours/test-reedition-un-ticket.js
+retours/test-caisse-vente-scindee.js
+retours/test-grille-vente-triangles.js
+retours/test-ordonnancier-numero-client.js
+retours/test-historique-ordonnancier.js
 retours/test-titre-retour-ecran.js
 retours/test-types-etiquette-filtres.js
 retours/test-types-etiquette.js
