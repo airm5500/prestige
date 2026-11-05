@@ -1760,8 +1760,9 @@ public class SalesServiceImpl implements SalesService {
             d.setPromotionProduitId(promotion.getLgPROMOTIONPRODUCTID());
             return true;
         }
-        int prix = promotion.getDbPRICE() != null ? (int) Math.round(promotion.getDbPRICE()) : 0;
-        if (prix > 0 && d.getIntPRICEUNITAIR() != null && prix < d.getIntPRICEUNITAIR()) {
+        Integer prix = rest.service.promotion.PromotionLigne.prixUnitaire(promotion.getLgCODEPROMOTIONID().getStrTYPE(),
+                promotion.getIntDISCOUNT(), promotion.getDbPRICE(), d.getIntPRICEUNITAIR());
+        if (prix != null) {
             d.setIntPRICEUNITAIR(prix);
             d.setPromotionProduitId(promotion.getLgPROMOTIONPRODUCTID());
             return true;
@@ -1777,19 +1778,15 @@ public class SalesServiceImpl implements SalesService {
         if (promotion == null || !PROMO_UNITES_GRATUITES.equals(promotion.getLgCODEPROMOTIONID().getStrTYPE())) {
             return 0;
         }
-        int seuil = promotion.getIntACTIVEAT() != null ? promotion.getIntACTIVEAT() : 0;
-        int offertes = promotion.getIntPACKNUMBER() != null ? promotion.getIntPACKNUMBER() : 0;
-        if (seuil <= 0 || offertes <= 0) {
-            return 0;
-        }
-        return (d.getIntQUANTITY() / (seuil + offertes)) * offertes;
+        return rest.service.promotion.PromotionLigne.unitesOffertes(d.getIntQUANTITY(), promotion.getIntACTIVEAT(),
+                promotion.getIntPACKNUMBER());
     }
 
     /** Montant de la ligne : unites payees (quantite moins unites gratuites) au prix unitaire. */
     private int montantLigne(TPreenregistrementDetail d) {
         int gratuites = unitesGratuites(d);
         d.setIntFREEPACKNUMBER(gratuites);
-        return d.getIntPRICEUNITAIR() * (d.getIntQUANTITY() - gratuites);
+        return rest.service.promotion.PromotionLigne.montant(d.getIntPRICEUNITAIR(), d.getIntQUANTITY(), gratuites);
     }
 
     /**
