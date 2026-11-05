@@ -148,10 +148,25 @@ public class SalesRessource {
     @GET
     @Path("ticket/vo/{id}/apercu")
     public Response apercuTicketVo(@PathParam("id") String id) throws JSONException {
+        return apercuTicket(() -> generateTicketService.apercuTicketVo(id));
+    }
+
+    /** Meme apercu pour une vente au comptant (audit 05 PR-01 : rapprochement des promotions). Lecture seule. */
+    @GET
+    @Path("ticket/vno/{id}/apercu")
+    public Response apercuTicketVno(@PathParam("id") String id) throws JSONException {
+        return apercuTicket(() -> generateTicketService.apercuTicketVno(id));
+    }
+
+    private interface ApercuTicket {
+        java.util.List<rest.service.ticket.TicketDocument> documents() throws JSONException;
+    }
+
+    private Response apercuTicket(ApercuTicket apercu) throws JSONException {
         JSONObject json = new JSONObject();
         try {
             org.json.JSONArray tickets = new org.json.JSONArray();
-            for (rest.service.ticket.TicketDocument d : generateTicketService.apercuTicketVo(id)) {
+            for (rest.service.ticket.TicketDocument d : apercu.documents()) {
                 org.json.JSONArray blocs = new org.json.JSONArray();
                 for (rest.service.ticket.TicketDocument.Bloc b : d.blocsNonVides()) {
                     org.json.JSONArray elements = new org.json.JSONArray();
