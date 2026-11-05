@@ -597,12 +597,6 @@ public class ImpressionServiceImpl implements Printable {
         return ConversionTicket.convertir(s, reglagesTicket);
     }
 
-    /**
-     * Essai du 05/11 : le nouveau ticket part 4 points avant la zone de l'ancien (5 points au lieu de 9, plus le debut
-     * de l'imprimante) pour equilibrer les blancs ; a 0 point la Star coupait le bord gauche.
-     */
-    static final double RETRAIT_GAUCHE = 4;
-
     /** Haut du nouveau ticket : la meme marge haute que l'ancien (premiere ligne a 85 points, origine a -70). */
     static final int DEPART_NOUVEAU = 72;
 
@@ -635,8 +629,8 @@ public class ImpressionServiceImpl implements Printable {
     static boolean placer(Graphics2D g2d, PageFormat pageFormat, int pageIndex, int papierMm, int hauteur,
             double droite) {
         double largeur = RenduTicket.largeurImprimable(papierMm);
-        // essai du 05/11 : a 9 points, plus de blanc a gauche qu'a droite ; le nouveau ticket part a 5 points
-        double x = Math.max(0, pageFormat.getImageableX() - RETRAIT_GAUCHE);
+        // essais du 05/11 : a 0 puis a 5 points, la Star coupait le bord gauche ; le depart reste a 9 points
+        double x = pageFormat.getImageableX();
         double echelle = 1;
         if (droite > x && x + largeur > droite) {
             // photo du 05/11 : ramene a gauche, le ticket etait coupe a gauche ; il garde son depart et se reduit

@@ -60,7 +60,7 @@ class CadrageTicketTest {
     void ticket80SurLeRouleau() {
         int[] e = encre(80, 0);
         assertTrue(e[1] > 0, "rien n'est dessine");
-        assertTrue(e[0] >= 5 && e[0] < 9, "debut " + e[0] + " pt (5 pt depuis le 05/11)");
+        assertTrue(e[0] >= 9 && e[0] < 20, "debut " + e[0]);
         assertTrue(e[1] <= 80 * 72 / 25.4, "le ticket deborde du rouleau de 80 mm : fin a " + e[1] + " pt");
     }
 
@@ -74,7 +74,7 @@ class CadrageTicketTest {
     @Test
     void debutDeLImprimanteRespecte() {
         int[] e = encre(80, 10);
-        assertTrue(e[0] >= 15 && e[0] < 19, "debut " + e[0]);
+        assertTrue(e[0] >= 19, "debut " + e[0]);
         assertFalse(e[1] > 80 * 72 / 25.4 + 10, "fin " + e[1]);
     }
 
@@ -83,16 +83,16 @@ class CadrageTicketTest {
     void starRienAuDelaDeLaZoneDuPilote() {
         int[] e = encre(80, 0, DROITE_STAR);
         assertTrue(e[1] > 0, "rien n'est dessine");
-        // photo du 05/11 : ramene a 0 pt, le ticket etait coupe a gauche ; a 9 pt, plus de blanc a gauche qu'a droite :
-        // il part a 5 pt et se reduit pour finir avant la limite du pilote
-        assertTrue(e[0] >= 5 && e[0] < 9, "debut a " + e[0] + " pt (attendu 5 pt)");
+        // photos du 05/11 : a 0 pt puis a 5 pt, la Star coupait le bord gauche ; le ticket garde son depart (9 pt) et
+        // se reduit pour finir avant la limite du pilote
+        assertTrue(e[0] >= 9, "coupe a gauche : debut a " + e[0] + " pt (le depart reste a 9 pt)");
         assertTrue(e[1] <= DROITE_STAR, "coupe a droite : fin a " + e[1] + " pt pour une zone de " + DROITE_STAR);
     }
 
     @Test
     void starAvecDebutDImprimanteRienAuDelaNonPlus() {
         int[] e = encre(80, 15, DROITE_STAR);
-        assertTrue(e[0] >= 20 && e[0] < 24, "debut a " + e[0] + " pt (5 + 15)");
+        assertTrue(e[0] >= 24, "debut a " + e[0] + " pt (9 + 15)");
         assertTrue(e[1] > 0 && e[1] <= DROITE_STAR, "fin a " + e[1] + " pt");
     }
 
