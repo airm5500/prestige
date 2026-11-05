@@ -601,33 +601,27 @@ public class ImpressionServiceImpl implements Printable {
                     DEPART_NOUVEAU).hauteur;
             ge.dispose();
         }
-        // retour du 05/11 : ticket centre dans la zone imprimable du pilote, reduit s'il est plus large (le bord droit
-        // n'est jamais coupe)
-        double[] cadre = cadrage(RenduTicket.largeurImprimable(papierMm), pageFormat.getImageableWidth());
-        double page = pageFormat.getImageableHeight() / cadre[0];
-        if (page <= 0 || pageIndex * page > hauteurEnCours) {
+        if (!placer(g2d, pageFormat, pageIndex, papierMm, hauteurEnCours)) {
             return Printable.NO_SUCH_PAGE;
         }
-        g2d.translate(pageFormat.getImageableX() + cadre[1], pageFormat.getImageableY());
-        g2d.scale(cadre[0], cadre[0]);
-        g2d.translate(0, -pageIndex * page);
-        g2d.clip(new Rectangle2D.Double(0, pageIndex * page, RenduTicket.largeurImprimable(papierMm) + 1, page));
         RenduTicket.dessiner(g2d, documentEnCours, reglagesTicket, papierMm, fontSize, DEPART_NOUVEAU);
         return Printable.PAGE_EXISTS;
     }
 
     /**
-     * Retour du 05/11 : echelle et decalage horizontal du ticket ({@code largeurTicket} points) dans une zone
-     * imprimable de {@code zone} points : centre s'il tient, reduit a la zone sinon.
+     * Place la page {@code pageIndex} du nouveau ticket ; faux s'il n'y a plus de page. Retour du 05/11 : le papier est
+     * celui de Java par defaut (Letter, 612 points), pas le rouleau : sa largeur ne dit rien de l'imprimante, le ticket
+     * part donc du debut de la zone (9 points + debut de l'imprimante) sans recentrage. Le bord droit se protege par la
+     * marge du rouleau (menu « Modeles de ticket »).
      */
-    static double[] cadrage(double largeurTicket, double zone) {
-        if (zone <= 0 || largeurTicket <= 0) {
-            return new double[] { 1, 0 };
+    static boolean placer(Graphics2D g2d, PageFormat pageFormat, int pageIndex, int papierMm, int hauteur) {
+        double page = pageFormat.getImageableHeight();
+        if (page <= 0 || pageIndex * page > hauteur) {
+            return false;
         }
-        if (largeurTicket > zone) {
-            return new double[] { zone / largeurTicket, 0 };
-        }
-        return new double[] { 1, (zone - largeurTicket) / 2 };
+        g2d.translate(pageFormat.getImageableX(), pageFormat.getImageableY() - pageIndex * page);
+        g2d.clip(new Rectangle2D.Double(0, pageIndex * page, pageFormat.getImageableWidth(), page));
+        return true;
     }
 
     /**
