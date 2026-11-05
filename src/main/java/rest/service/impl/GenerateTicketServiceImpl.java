@@ -724,9 +724,28 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
     @Override
     public List<TPreenregistrementCompteClientTiersPayent> listeVenteTiersPayantsByIdVente(String id) {
 
-        return getEntityManager().createQuery(
+        return parPriorite(getEntityManager().createQuery(
                 "SELECT t FROM TPreenregistrementCompteClientTiersPayent t WHERE t.lgPREENREGISTREMENTID.lgPREENREGISTREMENTID = ?1   ORDER BY t.intPERCENT DESC ")
-                .setParameter(1, id).getResultList();
+                .setParameter(1, id).getResultList());
+    }
+
+    /**
+     * Photo du 05/11 : les organismes dans l'ordre de leur priorite (le principal d'abord, puis le complementaire), le
+     * taux le plus fort d'abord a priorite egale ; un organisme sans priorite passe apres les autres. Sans cet ordre,
+     * deux taux egaux (70 % et 70 % du reste) sortaient au hasard et le plafond a 100 % des taux affiches donnait 30 %
+     * au principal.
+     */
+    public static List<TPreenregistrementCompteClientTiersPayent> parPriorite(
+            List<TPreenregistrementCompteClientTiersPayent> parts) {
+        if (parts == null) {
+            return new ArrayList<>();
+        }
+        List<TPreenregistrementCompteClientTiersPayent> res = new ArrayList<>(parts);
+        res.sort(java.util.Comparator.comparingInt((TPreenregistrementCompteClientTiersPayent p) -> {
+            TCompteClientTiersPayant c = p.getLgCOMPTECLIENTTIERSPAYANTID();
+            return c == null || c.getIntPRIORITY() == null ? Integer.MAX_VALUE : c.getIntPRIORITY();
+        }).thenComparingInt(p -> -(p.getIntPERCENT() == null ? 0 : p.getIntPERCENT())));
+        return res;
     }
 
     @Override
