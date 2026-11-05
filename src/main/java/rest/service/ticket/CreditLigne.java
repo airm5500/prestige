@@ -59,20 +59,42 @@ public final class CreditLigne {
         }
         if (Math.abs(somme - total) <= res.size()) {
             // simple ecart d'arrondi : la derniere ligne l'absorbe (6 725 et 3 145 a 70 % -> 4 708 et 2 201)
-            int dernier = res.get(res.size() - 1) + (int) (total - somme);
-            res.set(res.size() - 1, Math.max(0, dernier));
+            absorber(res, (int) (total - somme));
             return res;
         }
         // plafonne par le moteur : chaque ligne au prorata, la derniere absorbe l'ecart
         long cumul = 0;
-        for (int i = 0; i < res.size() - 1; i++) {
+        for (int i = 0; i < res.size(); i++) {
             int p = BigDecimal.valueOf(res.get(i)).multiply(BigDecimal.valueOf(total))
                     .divide(BigDecimal.valueOf(somme), 0, RoundingMode.HALF_UP).intValue();
             res.set(i, p);
             cumul += p;
         }
-        res.set(res.size() - 1, (int) Math.max(0, total - cumul));
+        absorber(res, (int) (total - cumul));
         return res;
+    }
+
+    /**
+     * Tests de coherence du 05/11 : l'ecart d'arrondi va a la derniere ligne qui a une part et peut l'absorber sans
+     * passer sous zero ; jamais a une ligne a 0 % (elle afficherait une part), et la somme tombe toujours juste.
+     */
+    private static void absorber(List<Integer> res, int residu) {
+        if (residu == 0) {
+            return;
+        }
+        for (int i = res.size() - 1; i >= 0; i--) {
+            if (res.get(i) > 0 && res.get(i) + residu >= 0) {
+                res.set(i, res.get(i) + residu);
+                return;
+            }
+        }
+        // aucune ligne ne l'absorbe seule : de la derniere vers la premiere, sans passer sous zero
+        int reste = residu;
+        for (int i = res.size() - 1; i >= 0 && reste != 0; i--) {
+            int nouveau = Math.max(0, res.get(i) + reste);
+            reste -= nouveau - res.get(i);
+            res.set(i, nouveau);
+        }
     }
 
     /**
