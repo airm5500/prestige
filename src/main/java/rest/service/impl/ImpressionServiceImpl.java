@@ -624,18 +624,16 @@ public class ImpressionServiceImpl implements Printable {
      * Place la page {@code pageIndex} du nouveau ticket ; faux s'il n'y a plus de page. Le papier de Java est fictif
      * (Letter, 612 points) : le ticket part du debut de la zone (9 points + debut de l'imprimante). Retour du 05/11 :
      * la limite droite reelle vient du pilote ({@code droite}, PrinterJob.validatePage ; 0 si inconnue) ; un ticket qui
-     * la depasserait est ramene a gauche juste assez, et reduit seulement s'il ne tient toujours pas. Rien n'est coupe.
+     * la depasserait garde son depart (a gauche, l'imprimante coupe avant 9 points) et se reduit pour finir avant elle.
      */
     static boolean placer(Graphics2D g2d, PageFormat pageFormat, int pageIndex, int papierMm, int hauteur,
             double droite) {
         double largeur = RenduTicket.largeurImprimable(papierMm);
         double x = pageFormat.getImageableX();
         double echelle = 1;
-        if (droite > 0 && x + largeur > droite) {
-            x = Math.max(0, droite - largeur);
-            if (x + largeur > droite) {
-                echelle = (droite - x) / largeur;
-            }
+        if (droite > x && x + largeur > droite) {
+            // photo du 05/11 : ramene a gauche, le ticket etait coupe a gauche ; il garde son depart et se reduit
+            echelle = (droite - x) / largeur;
         }
         double page = pageFormat.getImageableHeight() / echelle;
         if (page <= 0 || pageIndex * page > hauteur) {

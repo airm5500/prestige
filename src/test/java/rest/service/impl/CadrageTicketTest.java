@@ -83,13 +83,15 @@ class CadrageTicketTest {
     void starRienAuDelaDeLaZoneDuPilote() {
         int[] e = encre(80, 0, DROITE_STAR);
         assertTrue(e[1] > 0, "rien n'est dessine");
-        assertTrue(e[0] >= 0, "debut " + e[0]);
+        // photo du 05/11 : ramene a 0 pt, le ticket etait coupe a gauche ; il garde son depart (9 pt), il est reduit
+        assertTrue(e[0] >= 9, "coupe a gauche : debut a " + e[0] + " pt (le depart reste a 9 pt)");
         assertTrue(e[1] <= DROITE_STAR, "coupe a droite : fin a " + e[1] + " pt pour une zone de " + DROITE_STAR);
     }
 
     @Test
     void starAvecDebutDImprimanteRienAuDelaNonPlus() {
         int[] e = encre(80, 15, DROITE_STAR);
+        assertTrue(e[0] >= 24, "debut a " + e[0] + " pt (9 + 15)");
         assertTrue(e[1] > 0 && e[1] <= DROITE_STAR, "fin a " + e[1] + " pt");
     }
 
