@@ -34,6 +34,13 @@
 - Les tests passent par le vrai chemin de l'écran et retirent leurs données.
 - L'ergonomie se teste aussi.
 - Lancer les tests d'écran un par un, jamais deux en même temps : sinon, faux échecs et mesures faussées.
+- Test de rapprochement (e2e) : un montant affiché à plusieurs endroits (écran, ticket, PDF, base) est comparé partout,
+  ligne par ligne. Exemple : `prix-reference/test-rapprochement-ticket.js`.
+- Test de cohérence (unitaire) : un calcul avec répartition, plafond ou arrondi est vérifié par ses règles (part =
+  base × taux, somme = total), sur des milliers de cas tirés au hasard avec une graine fixe. Exemple :
+  `CreditLigneCoherenceTest`.
+- Les jeux d'essai varient les données : taux différents d'une ligne à l'autre, quantité supérieure à 1, plafond,
+  ligne à 0 %.
 - Construction :
   - build : `mvn -o -q -DskipTests package` (JDK 11) ;
   - déploiement : `asadmin redeploy --name prestige --contextroot prestige target/prestige.war` ;
