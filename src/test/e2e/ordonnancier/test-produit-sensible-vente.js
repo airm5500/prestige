@@ -84,7 +84,7 @@ const lire = (p, url) => p.evaluate(async (u) => { const r = await fetch(u, { cr
     const ligne = await C.ligneVente(p, article.cip);
     C.ok('La ligne de vente porte le motif Sensible', ligne && ligne.motif === 'Sensible' && ligne.sensible === true, JSON.stringify(ligne));
     C.ok('Triangle violet « ! » (sensible) affiché sur la ligne', ligne && ligne.pastille === 'SENSIBLE' && /vp-triangle-sensible/.test(ligne.classes), ligne && ligne.classes);
-    C.ok('Le triangle clignote à l'ajout (animation CSS)', ligne && ligne.animation === 'vp-triangle-clignote', ligne && ligne.animation);
+    C.ok('Le triangle clignote à l\'ajout (animation CSS)', ligne && ligne.animation === 'vp-triangle-clignote', ligne && ligne.animation);
 
     /* 3. la cloture exige un medecin ; parcours client puis medecin */
     const refus = await C.terminer(p);
