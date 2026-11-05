@@ -150,6 +150,7 @@ const fauxDomainXml = (mdp) => '<domain><resources><jdbc-connection-pool name="l
     await remplir(p, '#secCompteRotation', compte); await remplir(p, '#secMdpRotation', mdp);
     await cliquer(p, S(mode === 'SAISIR' ? '#secModeSaisir' : '#secModeGenerer')); await p.waitForTimeout(200);
     if (mode === 'SAISIR') { await remplir(p, '#secNouveau', nouveau); await p.keyboard.press('Tab'); await remplir(p, '#secConfirmation', confirmation); await p.keyboard.press('Tab'); }
+    if (mode === 'SAISIR') { await p.waitForTimeout(400); }
     const force = mode === 'SAISIR' ? await texte(p, '#secForce') : '';
     const arme = await confirmer(p, '#btnSecLancer');
     const message = await attendreTexte(p, '#secRotationMessage', /./, 240000);
