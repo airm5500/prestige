@@ -240,13 +240,6 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
                 bases.add(base != null && base > 0 ? base * q : (d.getIntPRICE() == null ? 0 : d.getIntPRICE()));
             }
             Map<String, List<String>> res = new HashMap<>();
-            // retour du 05/11 : avec un prix de reference, la ligne montre la reference (« P.REF 6 000 »)
-            for (TPreenregistrementDetail d : lignes) {
-                String pref = CreditLigne.prixReference(d.getCalculationBasePrice(), d.getIntPRICEUNITAIR());
-                if (!pref.isEmpty()) {
-                    res.computeIfAbsent(d.getLgPREENREGISTREMENTDETAILID(), k -> new ArrayList<>()).add(pref);
-                }
-            }
             boolean nommer = tps.size() > 1;
             List<Integer> tauxReels = new ArrayList<>();
             for (TPreenregistrementCompteClientTiersPayent tp : tps) {
@@ -258,21 +251,42 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             Map<String, dal.Rate> tauxLignes = tauxDesLignes(lignes);
             List<List<Integer>> tauxParTp = new ArrayList<>();
             List<List<Integer>> basesParTp = new ArrayList<>();
+            List<List<Integer>> basesUnitairesParTp = new ArrayList<>();
             for (int t = 0; t < tps.size(); t++) {
                 String compte = tps.get(t).getLgCOMPTECLIENTTIERSPAYANTID() == null ? ""
                         : tps.get(t).getLgCOMPTECLIENTTIERSPAYANTID().getLgCOMPTECLIENTTIERSPAYANTID();
                 List<Integer> col = new ArrayList<>();
                 List<Integer> basesCol = new ArrayList<>();
+                List<Integer> unitaires = new ArrayList<>();
                 for (int i = 0; i < lignes.size(); i++) {
                     TPreenregistrementDetail d = lignes.get(i);
                     dal.Rate r = tauxLignes.get(d.getLgPREENREGISTREMENTDETAILID() + "|" + compte);
                     col.add(r == null ? tauxReels.get(t) : Math.round(r.getTaux() * 100));
                     int q = d.getIntQUANTITY() == null ? 0 : Math.abs(d.getIntQUANTITY());
-                    basesCol.add(r != null && r.getBaseLigne() != null && r.getBaseLigne() > 0 ? r.getBaseLigne() * q
-                            : bases.get(i));
+                    boolean propre = r != null && r.getBaseLigne() != null && r.getBaseLigne() > 0;
+                    basesCol.add(propre ? r.getBaseLigne() * q : bases.get(i));
+                    unitaires.add(propre ? r.getBaseLigne() : null);
                 }
                 tauxParTp.add(col);
                 basesParTp.add(basesCol);
+                basesUnitairesParTp.add(unitaires);
+            }
+            // retour du 05/11 : avec un prix de reference, la ligne montre la reference (« P.REF 6 000 ») ; lot Q2.5 :
+            // si les organismes n'ont pas la meme base sur la ligne, chacun imprime la sienne sur sa ligne de credit
+            List<Boolean> prefParOrganisme = new ArrayList<>();
+            for (int i = 0; i < lignes.size(); i++) {
+                TPreenregistrementDetail d = lignes.get(i);
+                List<Integer> unitaires = new ArrayList<>();
+                for (List<Integer> u : basesUnitairesParTp) {
+                    unitaires.add(u.get(i));
+                }
+                boolean parOrganisme = nommer && CreditLigne.basesDifferentes(unitaires);
+                prefParOrganisme.add(parOrganisme);
+                String pref = parOrganisme ? ""
+                        : CreditLigne.prixReference(d.getCalculationBasePrice(), d.getIntPRICEUNITAIR());
+                if (!pref.isEmpty()) {
+                    res.computeIfAbsent(d.getLgPREENREGISTREMENTDETAILID(), k -> new ArrayList<>()).add(pref);
+                }
             }
             // retour du 05/11 : le total des taux affiches ne depasse jamais 100 %, ligne par ligne
             List<List<Integer>> affichesParLigne = new ArrayList<>();
@@ -289,8 +303,15 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
                 List<Integer> parts = CreditLigne.parts(basesParTp.get(t), tauxParTp.get(t), total);
                 String nom = nommer ? tp.getLgCOMPTECLIENTTIERSPAYANTID().getLgTIERSPAYANTID().getStrNAME() : null;
                 for (int i = 0; i < lignes.size() && i < parts.size(); i++) {
+                    Integer prefOrganisme = null;
+                    if (prefParOrganisme.get(i)) {
+                        Integer u = basesUnitairesParTp.get(t).get(i);
+                        Integer pv = lignes.get(i).getIntPRICEUNITAIR();
+                        // sur le prix de vente : pas de P.REF, comme une ligne sans reference
+                        prefOrganisme = u != null && (pv == null || u.intValue() != pv.intValue()) ? u : null;
+                    }
                     res.computeIfAbsent(lignes.get(i).getLgPREENREGISTREMENTDETAILID(), k -> new ArrayList<>())
-                            .add(CreditLigne.libelle(nom, affichesParLigne.get(i).get(t), parts.get(i)));
+                            .add(CreditLigne.libelle(nom, prefOrganisme, affichesParLigne.get(i).get(t), parts.get(i)));
                 }
             }
             return res;

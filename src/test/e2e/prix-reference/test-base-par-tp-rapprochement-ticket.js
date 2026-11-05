@@ -115,7 +115,12 @@ const arrondi5 = (n) => { const m = n % 5; return m <= 2 ? n - m : n - m + 5; };
     const blocA = C.chiffres(t.paires[TA]), blocB = C.chiffres(t.paires[TB]);
     ok('Ticket : bloc client A = somme des lignes de A = base = écran ; idem B', blocA === credit(0, TA).part + credit(1, TA).part && blocA === partA
       && blocB === credit(0, TB).part + credit(1, TB).part && blocB === partB, JSON.stringify(t.paires));
-    ok('Ticket : P.REF imprimé = base de calcul de la ligne (' + refA1 + ', ' + refB2 + ')', t.articles[0].pref === refA1 && t.articles[1].pref === refB2, JSON.stringify(t.articles.map((a) => a.pref)));
+    /* les organismes n'ont pas la meme base sur ces lignes : chacun imprime SON P.REF sur sa ligne de credit, la ligne n'a plus de P.REF unique ;
+       A sur la ligne 2 est au prix de vente : pas de P.REF pour lui */
+    ok('Ticket : chaque assurance imprime son propre P.REF sur sa ligne (ligne 1 : A ' + refA1 + ', B ' + refB1 + ' ; ligne 2 : B ' + refB2 + ', A au prix de vente)',
+      credit(0, TA).pref === refA1 && credit(0, TB).pref === refB1 && credit(1, TA).pref === null && credit(1, TB).pref === refB2,
+      t.articles.map((a) => a.credits.map((c) => c.texte).join(' / ')).join(' ; '));
+    ok('Ticket : plus de P.REF unique sur une ligne dont les assurances ont des bases différentes', t.articles[0].pref === null && t.articles[1].pref === null, JSON.stringify(t.articles.map((a) => a.pref)));
     ok('Ticket : net imprimé = net affiché avant la clôture = prix - parts arrondi à 5', t.net === rail.net.valeur && t.net === arrondi5(prix - partA - partB), 'ticket ' + t.net + ' / écran ' + rail.net.valeur);
     ok('Aucune erreur JavaScript', sess.erreurs.length === 0, sess.erreurs.join(' | '));
   } catch (e) {

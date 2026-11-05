@@ -228,8 +228,8 @@ function lireTicket(t) {
     for (const e of b.elements) {
       if (e.genre === 'ARTICLE') { articles.push({ designation: e.a, detail: e.b, montant: chiffres(e.d), credits: [], pref: null }); }
       else if (b.id === 'CORPS' && e.genre === 'TEXTE' && articles.length) {
-        const m = e.a.match(/^(?:(.*?)\s*·\s*)?Taux\s+(\d+)\s*%\s*:\s*([\d\s  ]+)$/);
-        if (m) { articles[articles.length - 1].credits.push({ nom: m[1] || '', taux: Number(m[2]), part: chiffres(m[3]), texte: e.a }); }
+        const m = e.a.match(/^(?:(.*?)\s*·\s*)?(?:P\.REF\s+([\d\s  ]+?)\s*·\s*)?Taux\s+(\d+)\s*%\s*:\s*([\d\s  ]+)$/);
+        if (m) { articles[articles.length - 1].credits.push({ nom: m[1] || '', pref: m[2] ? chiffres(m[2]) : null, taux: Number(m[3]), part: chiffres(m[4]), texte: e.a }); }
         const r = e.a.match(/^P\.REF\s+([\d\s  ]+)$/);
         if (r) { articles[articles.length - 1].pref = chiffres(r[1]); }
       } else if (e.genre === 'PAIRE' || e.genre === 'ENCADRE') {
