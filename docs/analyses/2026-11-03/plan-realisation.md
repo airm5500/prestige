@@ -262,3 +262,13 @@ Ordre : 4.0 dès maintenant sur place (sans moi), puis 4.A, 4.B, 4.C. Le lot 4.B
 Ordre : 4.A1 puis 4.A2, chacun livrable seul.
 
 **Q4.1 à Q4.6 validées le 05/11/2026** telles que recommandées ci-dessus. Le lot 4.0 (sans code) est à faire sur place ; 4.A1 peut démarrer.
+
+### Lot 4.A livré (05/11/2026)
+
+Branche `refs/heads/PRES-/determined-khayyam-d98c43`, trois commits (`83bbc241a`, `553106b49`, `2da428bcf`), base `origin/integration/recette-2026-10-29`,
+**non fusionnée** (fusion après tests verts, sur décision de l'utilisateur). Migration `V7.2.38` (`KEY_SECURITE_BASE`, défaut `0`) ;
+`JdbConnexion` par le pool JNDI à `1` et connexion directe à `0` (vérifié dans le journal de domain3) ; sauvegarde et valorisation sur
+compte dédié chiffré DPAPI (`IdentifiantsBaseService`, `outils/officine/identifiants-sauvegarde.ps1`) ; ACL Windows réelles ; scripts
+officine chiffrés ; notice `docs/notices/NOTICE_SECURITE_BASE_LOT_A.md`. Tests : unitaires verts, test d'écran 17/17, deux écrans
+existants 9/9 et 4/4 à `1` sur domain3 ; paramètre remis à `0`. Vérification ici : aucun secret dans les lignes ajoutées, `D:\CONF\LABOREX\CONF`
+jamais ouvert. Prochain : lot 4.B (écran Sécurité, alias Payara, rotation), qui dépend de 4.A.
