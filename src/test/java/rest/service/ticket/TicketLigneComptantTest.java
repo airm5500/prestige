@@ -88,7 +88,7 @@ class TicketLigneComptantTest {
         assertTrue(t.contains("PAIRE[Assuré / bénéficiaire : | N. ESSAI]"), t);
         assertTrue(t.contains("PAIRE[Espèces versées | 6 740 F CFA]"), t);
         assertTrue(t.contains("PAIRE[Monnaie rendue | 0 F CFA]"), t);
-        assertTrue(t.contains("TEXTE[3 articles · 3 boîtes]"), t);
+        assertTrue(t.contains("TEXTE[3 lignes · 3 boîtes]"), t);
         // un seul code-barres : celui de la vente assurance
         assertEquals(1, d.existant(TicketDocument.PIED).elements.stream()
                 .filter(e -> e.genre == TicketDocument.Genre.PIED).count());

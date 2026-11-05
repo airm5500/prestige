@@ -131,6 +131,11 @@ public final class ConversionTicket {
             c.vente();
         }
         c.pied();
+        if (s.ticket != ModeleTicket.PREVENTE && c.doc.existant(TicketDocument.TITRE) != null) {
+            // retour du 05/11 : le trait qui separe l'en-tete du numero, plus leger, se deplace avec le numero
+            c.doc.existant(TicketDocument.TITRE).elements.add(0, new TicketDocument.Element(
+                    TicketDocument.Genre.TRAIT_FIN, Style.NORMAL, null, null, null, null, null));
+        }
         return c.doc;
     }
 
@@ -144,7 +149,8 @@ public final class ConversionTicket {
             c.texte(tel.isEmpty() ? "" : "Tél. " + tel, Style.NORMAL);
             return;
         }
-        c.texte(s.pharmacien, Style.NORMAL);
+        // retour du 05/11 : nom du pharmacien, adresse et commentaire de l'en-tete en trois blocs separes
+        doc.bloc(TicketDocument.PHARMACIEN).texte(s.pharmacien, Style.NORMAL);
         // retour du 03/11 : telephones et adresse sur une ligne, « 2724361166-0708123958 | BP 771 YAMOUSSOUKRO »
         String numeros = tel.replace(" · ", "-");
         c.texte(numeros + (numeros.isEmpty() || vide(s.adresse) ? "" : " | ") + nul(s.adresse).trim(), Style.NORMAL);
@@ -154,9 +160,8 @@ public final class ConversionTicket {
             c.texte(ccrc, Style.PETIT);
         }
         if (r.commentaires()) {
-            c.texte(s.enTete, Style.NORMAL);
+            doc.bloc(TicketDocument.MESSAGE).texte(s.enTete, Style.NORMAL);
         }
-        doc.bloc(TicketDocument.COORDONNEES).trait(true);
     }
 
     /** Telephone principal et autres numeros de l'identification officine, separes par « · ». */
@@ -246,7 +251,8 @@ public final class ConversionTicket {
 
     private void recap(int articles, int boites) {
         if (r.recapitulatif() && articles > 0) {
-            doc.bloc(TicketDocument.RECAP).texte(articles + (articles > 1 ? " articles" : " article") + " · " + boites
+            // retour du 05/11 : « 3 lignes · 3 boîtes »
+            doc.bloc(TicketDocument.RECAP).texte(articles + (articles > 1 ? " lignes" : " ligne") + " · " + boites
                     + (boites > 1 ? " boîtes" : " boîte"), Style.PETIT);
         }
     }
@@ -278,7 +284,7 @@ public final class ConversionTicket {
         int boites = 0;
         for (Section sec : s.sections) {
             corps.trait(false);
-            corps.texte(sec.titre, Style.GRAS);
+            corps.texte(sec.titre, Style.SECTION);
             for (Article a : sec.articles) {
                 article(corps, a);
                 articles++;
@@ -369,6 +375,16 @@ public final class ConversionTicket {
     private void clients(String bon) {
         Bloc b = doc.bloc(TicketDocument.CLIENT);
         int organisme = -1;
+        // retour du 05/11 : le total des taux affiches ne depasse jamais 100 % (70 % + 30 %, jamais 29 % ni 31 %)
+        List<Integer> tauxLus = new ArrayList<>();
+        for (String l : s.infoTiersPayants) {
+            Matcher m = l == null ? null : TAUX_ORGANISME.matcher(coupe(l)[0]);
+            if (m != null && m.matches()) {
+                tauxLus.add((int) Math.round(Double.parseDouble(m.group(2).replace(',', '.'))));
+            }
+        }
+        List<Integer> affiches = CreditLigne.tauxAffiches(tauxLus);
+        int rangTaux = 0;
         for (String l : s.infoTiersPayants) {
             if (l == null || l.trim().isEmpty()) {
                 continue;
@@ -378,7 +394,7 @@ public final class ConversionTicket {
             String libelle;
             if (taux.matches()) {
                 // retour du 03/11 : « ZZAUDIT-TP-C1 [70%] », le taux en gras
-                libelle = libelleOrganisme(taux);
+                libelle = taux.group(1).trim() + " [" + TicketDocument.gras(affiches.get(rangTaux++) + "%") + "]";
             } else {
                 libelle = lv[0].replace("Nom du Client", "Client").replace("Matricule Assuré", "Matricule assuré")
                         .replace("Part du Client", "Part du client").replaceAll("(\\d)%", "$1 %");
@@ -387,7 +403,9 @@ public final class ConversionTicket {
                 organisme = b.elements.size();
             }
             // retour du 03/11 : « Bénéficiaire : », « Part du client : »...
-            b.paire(libelle.replaceAll("\\s*:+\\s*$", "") + " :", montantF(lv[1]), Style.NORMAL);
+            // retour du 05/11 : le matricule tel quel, jamais en montant
+            String valeur = libelle.toLowerCase(Locale.FRENCH).startsWith("matricule") ? lv[1].trim() : montantF(lv[1]);
+            b.paire(libelle.replaceAll("\\s*:+\\s*$", "") + " :", valeur, Style.NORMAL);
         }
         if (!vide(bon)) {
             b.elements.add(organisme < 0 ? b.elements.size() : organisme, new TicketDocument.Element(
@@ -423,8 +441,9 @@ public final class ConversionTicket {
                 }
             } else if (libelle.startsWith("Vente à terme")) {
                 terme = true;
+                // retour du 05/11 : la ligne entiere en gras
                 totaux.paire(s.ticket == ModeleTicket.VENTE_CARNET ? "Pris sur le carnet" : "Vente à terme",
-                        montantF(valeur), Style.NORMAL);
+                        montantF(valeur), Style.GRAS);
             } else if (libelle.startsWith("Net à payer")) {
                 net(court ? "NET" : "NET À PAYER", montant(valeur) + " F CFA");
             } else if (libelle.equals("Règlement")) {
@@ -454,6 +473,10 @@ public final class ConversionTicket {
 
     /** Le net a payer, encadre ou non selon le reglage (retour du 03/11), toujours en grand. */
     private void net(String libelle, String valeur) {
+        if (!r.net()) {
+            // retour du 05/11 : vente depot sans net a payer (reglage)
+            return;
+        }
         Bloc n = doc.bloc(TicketDocument.NET);
         if (r.cadreNet()) {
             n.encadre(libelle, valeur, Style.GRAND);
@@ -528,8 +551,7 @@ public final class ConversionTicket {
 
     private static String recap(List<Article> l) {
         int boites = l.stream().mapToInt(a -> Math.abs(a.quantite)).sum();
-        return l.size() + (l.size() > 1 ? " articles" : " article") + " · " + boites
-                + (boites > 1 ? " boîtes" : " boîte");
+        return l.size() + (l.size() > 1 ? " lignes" : " ligne") + " · " + boites + (boites > 1 ? " boîtes" : " boîte");
     }
 
     /* ---------- mouvement de caisse ---------- */
@@ -596,7 +618,7 @@ public final class ConversionTicket {
                     corps.trait(false);
                 }
                 premier = false;
-                corps.texte("CAISSIER : " + coupe(libelle)[1], Style.GRAS);
+                corps.texte("CAISSIER : " + coupe(libelle)[1], Style.SECTION);
             } else if (pied) {
                 if (totaux.vide()) {
                     totaux.trait(true);
@@ -605,18 +627,34 @@ public final class ConversionTicket {
                 if (libelle.equals("TOTAL ESP")) {
                     net("TOTAL ESPÈCES", montantF(valeur));
                 } else {
-                    totaux.paire(libelle, montantF(valeur), Style.NORMAL);
+                    totaux.paire(libelleZ(libelle), montantF(valeur), Style.NORMAL);
                 }
             } else if (libelle.equals("Total espèce")) {
-                corps.encadre("Espèces en tiroir", montantF(valeur), Style.GRAS);
+                // retour du 05/11 : sans cadre, « Espèces en caisse »
+                if (r.cadreNet()) {
+                    corps.encadre("Espèces en tiroir", montantF(valeur), Style.GRAS);
+                } else {
+                    corps.paire("Espèces en caisse", montantF(valeur), Style.GRAS);
+                }
             } else {
-                corps.paire(libelle, montantF(valeur),
+                corps.paire(libelleZ(libelle), montantF(valeur),
                         p.length > 4 && "1".equals(p[4].trim()) ? Style.GRAS : Style.NORMAL);
             }
         }
         if (r.signatures()) {
             doc.bloc(TicketDocument.SIGNATURES).signatures(Arrays.asList("Caissier", "Responsable"));
         }
+    }
+
+    /** Retour du 05/11 : « Crédit » au lieu de « Crédit(vno/vo) », « TOTAL CRÉDIT » au lieu de « TOTAL (VNO/VO) ». */
+    static String libelleZ(String libelle) {
+        if (libelle.matches("(?i)^cr[ée]dit\\s*\\(vno/vo\\)$")) {
+            return "Crédit";
+        }
+        if (libelle.matches("(?i)^total\\s*\\(vno/vo\\)$")) {
+            return "TOTAL CRÉDIT";
+        }
+        return libelle;
     }
 
     /* ---------- reglements ---------- */

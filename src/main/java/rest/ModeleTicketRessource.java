@@ -88,7 +88,9 @@ public class ModeleTicketRessource {
         for (Map.Entry<ModeleTicket, ReglagesTicket> e : service.tous(mm).entrySet()) {
             tickets.put(new JSONObject().put("ticket", e.getKey().name()).put("libelle", e.getKey().libelle())
                     .put("groupe", e.getKey().groupe()).put("nouveauDisponible", e.getKey().nouveauDisponible())
-                    .put("reglages", e.getValue().json()));
+                    .put("reglages", e.getValue().json())
+                    // retour du 05/11 : « Rétablir la disposition par défaut » reprend celle du ticket
+                    .put("defaut", new ReglagesTicket(e.getKey()).json()));
         }
         JSONArray imprimantes = new JSONArray();
         for (Object[] i : service.imprimantes()) {
@@ -101,7 +103,9 @@ public class ModeleTicketRessource {
         }
         return json(new JSONObject().put("success", true).put("largeur", mm).put("droit", peutModifier())
                 .put("tickets", tickets).put("imprimantes", imprimantes).put("blocs", blocs)
-                .put("ecartTailleMax", ReglagesTicket.ECART_TAILLE_MAX));
+                .put("ecartTailleMax", ReglagesTicket.ECART_TAILLE_MAX).put("largeurMin", ReglagesTicket.LARGEUR_MIN)
+                .put("margeMax", ReglagesTicket.MARGE_MAX).put("polices", new JSONArray(ReglagesTicket.POLICES))
+                .put("blocsCommuns", new JSONArray(ReglagesTicket.BLOCS_COMMUNS)));
     }
 
     /** Reglages recus de l'ecran, lus et bornes comme ceux de la base. */
@@ -177,14 +181,83 @@ public class ModeleTicketRessource {
                 return json(new JSONObject().put("success", false).put("bloquants", bloquants).put("msg",
                         "Disposition refusée : " + bloquants.getString(0)));
             }
-            service.enregistrer(r, mm, u.getStrLOGIN());
+            int autres = service.enregistrerAvecCommuns(r, mm, u.getStrLOGIN());
             return json(new JSONObject().put("success", true)
-                    .put("msg", "Modèle « " + t.libelle() + " » (" + mm + " mm) enregistré.")
-                    .put("reglages", r.json()));
+                    .put("msg",
+                            "Modèle « " + t.libelle() + " » (" + mm + " mm) enregistré"
+                                    + (autres > 0 ? " ; réglages communs reportés sur " + autres + " autre"
+                                            + (autres > 1 ? "s tickets" : " ticket") : "")
+                                    + ".")
+                    .put("autres", autres).put("reglages", r.json()));
         } catch (Exception e) {
             LOG.log(Level.WARNING, "Enregistrement du modèle de ticket " + t, e);
             return refus("Enregistrement impossible : " + e.getMessage());
         }
+    }
+
+    /** Retour du 05/11 : fichier des reglages de tous les tickets (80 et 58 mm), a importer sur un autre poste. */
+    @GET
+    @Path("export")
+    public Response exporter() {
+        if (connecte() == null) {
+            return refus(Constant.DECONNECTED_MESSAGE);
+        }
+        return Response.ok().entity(service.exporter().toString(2))
+                .header("Content-Disposition", "attachment; filename=\"modeles-ticket.json\"").build();
+    }
+
+    /**
+     * Retour du 05/11 : reprend un fichier exporte. Chaque ticket est controle comme a l'enregistrement ; un seul
+     * ticket refuse et rien n'est ecrit.
+     */
+    @POST
+    @Path("import")
+    public Response importer(String texte) {
+        TUser u = connecte();
+        if (u == null) {
+            return refus(Constant.DECONNECTED_MESSAGE);
+        }
+        if (!peutModifier()) {
+            return refus("Modification réservée aux utilisateurs qui ont le droit « Modèles de ticket ».");
+        }
+        JSONObject fichier;
+        try {
+            fichier = new JSONObject(texte == null || texte.isEmpty() ? "{}" : texte);
+        } catch (RuntimeException e) {
+            return refus("Fichier illisible : ce n'est pas un export des modèles de ticket.");
+        }
+        JSONObject largeurs = fichier.optJSONObject("largeurs");
+        if (!ModeleTicketService.FORMAT_EXPORT.equals(fichier.optString("format")) || largeurs == null) {
+            return refus("Fichier illisible : ce n'est pas un export des modèles de ticket.");
+        }
+        List<Object[]> lus = new ArrayList<>();
+        try {
+            for (String l : largeurs.keySet()) {
+                int mm = ModeleTicketService.largeurValide(Integer.parseInt(l));
+                JSONObject tickets = largeurs.getJSONObject(l);
+                for (String nom : tickets.keySet()) {
+                    ModeleTicket t = ModeleTicket.depuis(nom);
+                    if (t == null) {
+                        continue;
+                    }
+                    ReglagesTicket r = ReglagesTicket.depuis(t, tickets.getJSONObject(nom));
+                    JSONArray bloquants = rendu(t, mm, r).getJSONArray("bloquants");
+                    if (bloquants.length() > 0) {
+                        return refus(
+                                "Import refusé (« " + t.libelle() + " », " + mm + " mm) : " + bloquants.getString(0));
+                    }
+                    lus.add(new Object[] { r, mm });
+                }
+            }
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "Import des modèles de ticket", e);
+            return refus("Import impossible : " + e.getMessage());
+        }
+        for (Object[] o : lus) {
+            service.enregistrer((ReglagesTicket) o[0], (Integer) o[1], u.getStrLOGIN());
+        }
+        return json(new JSONObject().put("success", true).put("importes", lus.size()).put("msg", lus.size() + " réglage"
+                + (lus.size() > 1 ? "s" : "") + " de ticket importé" + (lus.size() > 1 ? "s" : "") + "."));
     }
 
     @POST

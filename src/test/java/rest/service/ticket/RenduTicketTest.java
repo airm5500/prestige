@@ -60,7 +60,7 @@ class RenduTicketTest {
         assertTrue(t.contains("TEXTE[27 20 00 00 00-07 00 00 00 00 | Bd de la République, Abidjan]"), t);
         assertTrue(t.contains("AMOXICILLINE BIOGARAN 1 G CPR B/14"), "designation entiere\n" + t);
         assertTrue(t.contains("2 × 1 205 | 2 410"), t);
-        assertTrue(t.contains("3 articles · 4 boîtes"), t);
+        assertTrue(t.contains("3 lignes · 4 boîtes"), t);
         assertTrue(t.contains("PAIRE[Total | 5 210 F CFA]"), t);
         assertTrue(t.contains("PAIRE[* | − 260 F CFA]"), t);
         assertTrue(t.contains("ENCADRE[NET À PAYER | 4 950 F CFA]"), t);
@@ -121,7 +121,7 @@ class RenduTicketTest {
         TicketDocument d = doc(ModeleTicket.MOUVEMENT_CAISSE, 80, new ReglagesTicket(ModeleTicket.MOUVEMENT_CAISSE));
         String t = texte(d);
         assertTrue(t.contains("SORTIE DE CAISSE"), t);
-        assertTrue(t.contains("ENCADRE[MONTANT | 15 000 F CFA]"), t);
+        assertTrue(t.contains("PAIRE[MONTANT | 15 000 F CFA]"), t);
         assertTrue(t.contains("Achat de fournitures de bureau"), t);
         assertEquals("[Caissier, Bénéficiaire]",
                 d.existant(TicketDocument.SIGNATURES).elements.get(0).libelles.toString());
@@ -141,7 +141,7 @@ class RenduTicketTest {
     void preventeNumeroEtQr() {
         String t = texte(doc(ModeleTicket.PREVENTE, 80, new ReglagesTicket(ModeleTicket.PREVENTE)));
         assertTrue(t.contains("TEXTE[N° 0042]"), t);
-        assertTrue(t.contains("Vendeur : M.TOURE · 3 articles · 4 boîtes"), t);
+        assertTrue(t.contains("Vendeur : M.TOURE · 3 lignes · 4 boîtes"), t);
         assertTrue(t.contains("ENCADRE[NET À PAYER | 4 950 F CFA]"), t);
         assertTrue(t.contains("Présentez ce ticket à la caisse"), t);
     }
@@ -221,10 +221,10 @@ class RenduTicketTest {
         assertTrue(t.contains("PAIRE[Espèce(vno/vo) | 184 350 F CFA]"), t);
         assertTrue(t.contains("PAIRE[OM (vno/vo) | 22 500 F CFA]"), t);
         assertTrue(t.contains("PAIRE[Espèce Sortie | -15 000 F CFA]"), t);
-        assertTrue(t.contains("ENCADRE[Espèces en tiroir | 169 350 F CFA]"), t);
+        assertTrue(t.contains("PAIRE[Espèces en caisse | 169 350 F CFA]"), t);
         assertTrue(t.contains("PAIRE[Total CB (vno/vo) | 12 000 F CFA]"), t);
         assertTrue(t.contains("TEXTE[TOTAL OFFICINE]"), t);
-        assertTrue(t.contains("ENCADRE[TOTAL ESPÈCES | 266 350 F CFA]"), t);
+        assertTrue(t.contains("PAIRE[TOTAL ESPÈCES | 266 350 F CFA]"), t);
         assertTrue(t.contains("PAIRE[TOTAL OM | 22 500 F CFA]"), t);
         assertTrue(t.contains("SIGNATURES"), "signatures actives par defaut\n" + t);
         assertFalse(t.contains("PIED["), "pas de code-barres sur le ticket Z\n" + t);

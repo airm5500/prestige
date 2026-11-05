@@ -58,6 +58,44 @@ public class ModeleTicketService {
                 .setParameter(4, utilisateur).executeUpdate();
     }
 
+    /**
+     * Retour du 05/11 : enregistre {@code r}, puis reporte ses reglages communs (police, marge, en-tete, pied, largeur
+     * et taille de ces blocs) sur les autres tickets de la meme largeur. Un ticket deja identique n'est pas reecrit :
+     * celui qui n'a jamais ete enregistre garde ses valeurs par defaut.
+     *
+     * @return le nombre d'autres tickets modifies
+     */
+    public int enregistrerAvecCommuns(ReglagesTicket r, int largeur, String utilisateur) {
+        enregistrer(r, largeur, utilisateur);
+        int n = 0;
+        for (ModeleTicket t : ModeleTicket.values()) {
+            if (t == r.ticket()) {
+                continue;
+            }
+            ReglagesTicket avant = reglages(t, largeur);
+            ReglagesTicket apres = avant.avecCommuns(r);
+            if (!apres.json().similar(avant.json())) {
+                enregistrer(apres, largeur, utilisateur);
+                n++;
+            }
+        }
+        return n;
+    }
+
+    /** Retour du 05/11 : les reglages de tous les tickets, en 80 et 58 mm, pour les reprendre sur un autre poste. */
+    public JSONObject exporter() {
+        JSONObject largeurs = new JSONObject();
+        for (int largeur : new int[] { 80, 58 }) {
+            JSONObject tickets = new JSONObject();
+            tous(largeur).forEach((t, r) -> tickets.put(t.name(), r.json()));
+            largeurs.put(String.valueOf(largeur), tickets);
+        }
+        return new JSONObject().put("format", FORMAT_EXPORT).put("version", ReglagesTicket.VERSION).put("largeurs",
+                largeurs);
+    }
+
+    public static final String FORMAT_EXPORT = "prestige-modeles-ticket";
+
     /** « Revenir à l'ancien modèle pour toutes les caisses » : chaque ticket, dans les deux largeurs. */
     public void ancienPartout(String utilisateur) {
         for (int largeur : new int[] { 80, 58 }) {

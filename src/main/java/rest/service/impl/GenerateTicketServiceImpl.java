@@ -211,15 +211,29 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
                 bases.add(base != null && base > 0 ? base : (d.getIntPRICE() == null ? 0 : d.getIntPRICE()));
             }
             Map<String, List<String>> res = new HashMap<>();
+            // retour du 05/11 : avec un prix de reference, la ligne montre la reference (« P.REF 6 000 »)
+            for (TPreenregistrementDetail d : lignes) {
+                String pref = CreditLigne.prixReference(d.getCalculationBasePrice(), d.getIntPRICEUNITAIR());
+                if (!pref.isEmpty()) {
+                    res.computeIfAbsent(d.getLgPREENREGISTREMENTDETAILID(), k -> new ArrayList<>()).add(pref);
+                }
+            }
             boolean nommer = tps.size() > 1;
+            List<Integer> tauxReels = new ArrayList<>();
             for (TPreenregistrementCompteClientTiersPayent tp : tps) {
-                int taux = tp.getIntPERCENT() == null ? 0 : tp.getIntPERCENT();
+                tauxReels.add(tp.getIntPERCENT() == null ? 0 : tp.getIntPERCENT());
+            }
+            // retour du 05/11 : le total des taux affiches ne depasse jamais 100 %
+            List<Integer> affiches = CreditLigne.tauxAffiches(tauxReels);
+            for (int t = 0; t < tps.size(); t++) {
+                TPreenregistrementCompteClientTiersPayent tp = tps.get(t);
+                int taux = tauxReels.get(t);
                 int total = tp.getIntPRICE() == null ? 0 : tp.getIntPRICE();
                 List<Integer> parts = CreditLigne.parts(bases, taux, total);
                 String nom = nommer ? tp.getLgCOMPTECLIENTTIERSPAYANTID().getLgTIERSPAYANTID().getStrNAME() : null;
                 for (int i = 0; i < lignes.size() && i < parts.size(); i++) {
                     res.computeIfAbsent(lignes.get(i).getLgPREENREGISTREMENTDETAILID(), k -> new ArrayList<>())
-                            .add(CreditLigne.libelle(nom, taux, parts.get(i)));
+                            .add(CreditLigne.libelle(nom, affiches.get(t), parts.get(i)));
                 }
             }
             return res;

@@ -22,11 +22,14 @@ class TicketPoliceTest {
             Arrays.asList(GraphicsEnvironment.getLocalGraphicsEnvironment().getAvailableFontFamilyNames()));
 
     @Test
-    void cinqPolicesSegoeUiParDefaut() {
+    void cinqPolicesArialNarrowParDefaut() {
         assertEquals(Arrays.asList("Segoe UI", "Arial Narrow", "Tahoma", "Calibri", "Verdana"), ReglagesTicket.POLICES);
+        // retour du 05/11 : Arial Narrow pour un ticket jamais enregistre ; Segoe UI reste celle des reglages d'avant
         ReglagesTicket r = new ReglagesTicket(ModeleTicket.VENTE);
-        assertEquals("Segoe UI", r.police());
-        assertEquals("Segoe UI", r.json().getString("police"));
+        assertEquals("Arial Narrow", r.police());
+        assertEquals("Arial Narrow", r.json().getString("police"));
+        assertEquals("Segoe UI",
+                ReglagesTicket.depuis(ModeleTicket.VENTE, new org.json.JSONObject().put("modele", "NOUVEAU")).police());
     }
 
     @Test

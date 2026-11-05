@@ -46,7 +46,7 @@ class TicketCreditRetoursTest {
     void numeroDeBonAuDessusDeLaPartDuTiersPayant() {
         TicketDocument d = assurance(new ReglagesTicket(ModeleTicket.VENTE_ASSURANCE));
         List<String> titre = bloc(d, TicketDocument.TITRE);
-        assertEquals(Collections.singletonList("TEXTE[TICKET N° 0127]"), titre);
+        assertEquals(java.util.Arrays.asList("TRAIT_FIN[]", "TEXTE[TICKET N° 0127]"), titre);
         List<String> client = bloc(d, TicketDocument.CLIENT);
         int bon = client.indexOf("PAIRE[Bon N° : | 558213]");
         int beneficiaire = client.indexOf("PAIRE[Bénéficiaire : | N. ESSAI]");
@@ -62,7 +62,7 @@ class TicketCreditRetoursTest {
         ConversionTicket.Source s = ExemplesTicket.exemple(ModeleTicket.VENTE_ASSURANCE, 80);
         s.titre = "Ticket N° 0127 | Bon N°:: ";
         TicketDocument d = ConversionTicket.convertir(s, new ReglagesTicket(ModeleTicket.VENTE_ASSURANCE));
-        assertEquals(Collections.singletonList("TEXTE[TICKET N° 0127]"), bloc(d, TicketDocument.TITRE));
+        assertEquals(java.util.Arrays.asList("TRAIT_FIN[]", "TEXTE[TICKET N° 0127]"), bloc(d, TicketDocument.TITRE));
         assertFalse(texte(d).contains("Bon N°"), texte(d));
     }
 

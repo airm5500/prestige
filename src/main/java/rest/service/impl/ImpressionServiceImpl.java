@@ -601,14 +601,33 @@ public class ImpressionServiceImpl implements Printable {
                     DEPART_NOUVEAU).hauteur;
             ge.dispose();
         }
-        double page = pageFormat.getImageableHeight();
+        // retour du 05/11 : ticket centre dans la zone imprimable du pilote, reduit s'il est plus large (le bord droit
+        // n'est jamais coupe)
+        double[] cadre = cadrage(RenduTicket.largeurImprimable(papierMm), pageFormat.getImageableWidth());
+        double page = pageFormat.getImageableHeight() / cadre[0];
         if (page <= 0 || pageIndex * page > hauteurEnCours) {
             return Printable.NO_SUCH_PAGE;
         }
-        g2d.translate(pageFormat.getImageableX(), pageFormat.getImageableY() - pageIndex * page);
-        g2d.clip(new Rectangle2D.Double(0, pageIndex * page, pageFormat.getImageableWidth(), page));
+        g2d.translate(pageFormat.getImageableX() + cadre[1], pageFormat.getImageableY());
+        g2d.scale(cadre[0], cadre[0]);
+        g2d.translate(0, -pageIndex * page);
+        g2d.clip(new Rectangle2D.Double(0, pageIndex * page, RenduTicket.largeurImprimable(papierMm) + 1, page));
         RenduTicket.dessiner(g2d, documentEnCours, reglagesTicket, papierMm, fontSize, DEPART_NOUVEAU);
         return Printable.PAGE_EXISTS;
+    }
+
+    /**
+     * Retour du 05/11 : echelle et decalage horizontal du ticket ({@code largeurTicket} points) dans une zone
+     * imprimable de {@code zone} points : centre s'il tient, reduit a la zone sinon.
+     */
+    static double[] cadrage(double largeurTicket, double zone) {
+        if (zone <= 0 || largeurTicket <= 0) {
+            return new double[] { 1, 0 };
+        }
+        if (largeurTicket > zone) {
+            return new double[] { zone / largeurTicket, 0 };
+        }
+        return new double[] { 1, (zone - largeurTicket) / 2 };
     }
 
     /**

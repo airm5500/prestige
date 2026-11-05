@@ -61,6 +61,41 @@ public final class CreditLigne {
     }
 
     /**
+     * Retour du 05/11 : taux tels qu'imprimes, dans l'ordre des organismes. Leur total ne depasse jamais 100 % ; quand
+     * il s'en ecarte d'un ou deux points (29 % ou 31 % pour un complementaire qui prend le reste d'un 70 %), le dernier
+     * organisme affiche le reste exact : 100 − les autres. Les parts (montants) ne changent pas.
+     */
+    public static List<Integer> tauxAffiches(List<Integer> taux) {
+        List<Integer> res = new ArrayList<>();
+        if (taux == null) {
+            return res;
+        }
+        int cumul = 0;
+        for (int i = 0; i < taux.size(); i++) {
+            int t = Math.max(0, taux.get(i) == null ? 0 : taux.get(i));
+            boolean dernier = i == taux.size() - 1;
+            if (cumul + t > 100 || (dernier && i > 0 && Math.abs(cumul + t - 100) <= 2)) {
+                t = Math.max(0, 100 - cumul);
+            }
+            res.add(t);
+            cumul += t;
+        }
+        return res;
+    }
+
+    /**
+     * Retour du 05/11 : « P.REF 6 000 » quand la ligne a un prix de reference different du prix de vente ; vide sinon
+     * (sans reference, la ligne garde le seul taux du client).
+     */
+    public static String prixReference(Integer reference, Integer prixVente) {
+        if (reference == null || reference <= 0
+                || (prixVente != null && reference.intValue() == prixVente.intValue())) {
+            return "";
+        }
+        return "P.REF " + ConversionTicket.nombre(reference);
+    }
+
+    /**
      * « Taux 70 % : 4 708 » (retour du 03/11 : sans « Crédit » ni « Mont. »), precede du nom de l'organisme quand la
      * vente en a plusieurs : « MUGEF-CI · Taux 80 % : 1 200 ».
      */
