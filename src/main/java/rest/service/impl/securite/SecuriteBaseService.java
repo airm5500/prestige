@@ -363,6 +363,8 @@ public class SecuriteBaseService {
         final String nomPool, hoteCompte, compteRotation, motDePasseRotation, ancienPayara;
         final int portAdmin;
         final boolean parAlias;
+        /** Derniere valeur posee cote Payara (alias) : verifiee en direct, l'alias n'etant relu qu'au redemarrage. */
+        private String valeurPosee;
 
         Reel(PoolMariaDb p, String nomPool, int portAdmin, String hoteCompte, String compteRotation,
                 String motDePasseRotation) {
@@ -397,14 +399,24 @@ public class SecuriteBaseService {
             } else {
                 set(portAdmin, nomPool, motDePasse);
             }
+            valeurPosee = motDePasse;
         }
 
         /**
-         * Payara ouvre une connexion neuve avec la configuration du moment (alias relu) : voir {@link #verifierPool}.
+         * Pool en clair : ping-connection-pool (Payara ouvre une connexion neuve avec la propriete du moment, voir
+         * {@link #verifierPool}). Alias : la valeur de l'alias n'est relue qu'au redemarrage (le ping se connecterait
+         * avec l'ancienne valeur), donc connexion directe au serveur MariaDB avec le compte du pool et la valeur posee
+         * dans l'alias : MariaDB l'accepte, et asadmin a confirme la mise a jour de l'alias.
          */
         @Override
         public void tester() throws Exception {
-            verifierPool(portAdmin, nomPool);
+            if (parAlias) {
+                try (Connection c = connexionDirecte(p, p.utilisateur, valeurPosee)) {
+                    c.isValid(5);
+                }
+            } else {
+                verifierPool(portAdmin, nomPool);
+            }
         }
 
         /** Idempotent ; l'etape de test qui suit dira si l'ancien mot de passe repond. */
