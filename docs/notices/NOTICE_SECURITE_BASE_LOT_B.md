@@ -75,8 +75,11 @@ retour aux valeurs du démarrage remet l'application en service sans redémarrag
 arrière immédiat** (aucun redémarrage après un échec). Un alias relu (`update-password-alias`) n'est pris en compte
 qu'au prochain démarrage du pool, pour la même raison.
 
-Le service vérifie donc la nouvelle configuration par `asadmin ping-connection-pool` (Payara ouvre une connexion neuve
-avec la configuration du moment, alias relu : le ping échoue si MariaDB refuse le compte), puis, en cas de succès
+Le service vérifie donc la nouvelle configuration avant de redémarrer : pool en clair, par `asadmin
+ping-connection-pool` (Payara ouvre une connexion neuve avec la propriété du moment : le ping échoue si MariaDB refuse
+le compte) ; pool sous alias, par une connexion JDBC directe au serveur MariaDB avec le compte du pool et la valeur
+posée dans l'alias (le ping se connecterait encore avec l'ancienne valeur de l'alias, relue au redémarrage seulement ;
+asadmin a confirmé la mise à jour de l'alias). Puis, en cas de succès
 seulement, lance le redémarrage du domaine en cours (script `redemarrer-<horodatage>.bat` dans le dossier privé du
 domaine, processus créé par WMI hors de l'arbre de Payara, délai de 3 s pour que la réponse parte ; même mécanisme que
 « Appliquer et redémarrer Payara »). L'écran l'annonce (« Payara redémarre, environ une minute : reconnectez-vous

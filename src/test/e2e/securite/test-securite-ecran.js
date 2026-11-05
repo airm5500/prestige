@@ -167,6 +167,7 @@ const fauxDomainXml = (mdp) => '<domain><resources><jdbc-connection-pool name="l
     return { pid, arme, force, message: await texte(p, '#secRotationMessage'), etapes: await texte(p, '#secEtapes'), alerte: await texte(p, '#secAlerte'), champs: [await valeur(p, '#secMdpRotation'), await valeur(p, '#secNouveau'), await valeur(p, '#secConfirmation')].join('') };
   };
   let depuis = fs.statSync(LOG).size;
+  const debutTest = Date.now() - 1000;
   let generes = [];
   let p = null;
   /* nouvelle page connectee, ecran ouvert sur l'onglet Securite */
@@ -273,12 +274,14 @@ const fauxDomainXml = (mdp) => '<domain><resources><jdbc-connection-pool name="l
     ok('Purge des copies : confirmation dans le bouton, 3 copies supprimées, l\'autre fichier du dossier reste, état « AUCUNE », journal PURGE_COPIES OK', /Confirmer/.test(armePurge) && /3 copie\(s\) supprimée/.test(mPurge)
       && fs.readdirSync(COPIES).join(',') === 'autre-fichier.txt' && /Copies.*AUCUNE/.test(await attendreTexte(p, '#secStockage', /AUCUNE/)) && /PURGE_COPIES OK 3 copie/.test(journal()), sanitize(mPurge + ' | ' + journal()));
 
-    /* 9. aucun secret nulle part */
-    const j = journalDepuis(depuis);
+    /* 9. aucun secret nulle part (le journal a tourne a chaque redemarrage : tous les fichiers ecrits depuis le debut) */
+    const j = fs.readdirSync(path.dirname(LOG)).filter((f) => /^server\.log/.test(f) && fs.statSync(path.join(path.dirname(LOG), f)).mtimeMs >= debutTest)
+      .map((f) => fs.readFileSync(path.join(path.dirname(LOG), f), 'utf8')).join('\n');
     const secrets = [P0, PA, P2, P3, P4].concat(generes);
     const fuite = (t) => secrets.find((s) => t.indexOf(s) >= 0);
     ok('Aucun mot de passe (comptes d\'essai, générés, saisis, compte de rotation) dans server.log, ni ordre ALTER USER avec sa valeur, ni fichier d\'alias',
       !fuite(j) && !/IDENTIFIED BY '[^*]/.test(j) && !/AS_ADMIN_ALIASPASSWORD=/.test(j) && j.indexOf(ADMIN + "'@") < 0 && !/password=(?!\*\*\*)[^\s"&*${]+/i.test(j), (fuite(j) ? 'fuite' : 'ok') + ' ' + j.length + ' octets');
+    ok('… journal du serveur bien lu malgré ses rotations', j.length > 10000, j.length + ' octets');
     ok('Aucun mot de passe dans les réponses de l\'API de sécurité, ni dans la table t_securite_journal', !reponses.some((t) => fuite(t)) && !fuite(journal()) && reponses.length > 5, reponses.length + ' réponses');
     ok('Aucune fenêtre, aucune erreur JavaScript', dialogues.length === 0 && err.length === 0, dialogues.concat(err).join(' | '));
   } catch (e) {
