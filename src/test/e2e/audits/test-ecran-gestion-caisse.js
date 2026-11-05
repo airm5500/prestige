@@ -6,8 +6,15 @@
  *         un seul mouvement, de signe negatif ;
  *  - G1 : « Cloture de Caisse » ouverte dans deux onglets, « VALIDER » clique dans les deux en meme temps : un seul
  *         billetage, le second onglet affiche le refus ; total du billetage = somme des coupures ;
+ *  - G1 : billetage tape avec des zeros en trop (1 433 328 billets de 10 000) : refuse avec un message, aucun
+ *         billetage, la caisse reste ouverte (avant : total faux de 1 448 382 348 enregistre et caisse fermee) ;
  *  - G3 : « Gestion Caisse », cloture validee (icone « Valider la cloture ») : l'icone « Annuler la cloture » n'est
  *         plus proposee, le billetage reste.
+ * Rapprochement (regle du 05/11) : la ligne de la caisse dans « Gestion Caisse » (fond, billetage, solde, ecart) = base
+ * (resume de caisse, billetage, coupures). Bilan : la sortie de caisse laisse un mouvement de caisse et un seul mouvement
+ * de transaction, de 2 000 ; la cloture un seul billetage et ses coupures.
+ * L'attribution d'un fond par un administrateur (G5) n'a pas de chemin a l'ecran : le formulaire existe, aucun bouton
+ * ne l'ouvre ; elle n'est pas rejouee ici.
  * Les cas sans chemin a l'ecran (cloture du resume d'un autre caissier, total different des coupures, annulation
  * d'une cloture validee) sont refuses par le serveur ; ils ne sont pas rejoues ici (pas d'appel direct de l'API).
  * Donnees : tout ce que le compte e2e cree pendant le test est retire a la fin (base de test seulement).
@@ -114,6 +121,9 @@ function nettoyer() {
     const mv = mouvements().split(',').filter((x) => x !== '');
     const nouveaux = mv.slice(mv0 === '' ? 0 : mv0.split(',').length);
     ok('G2 : double clic sur « Enregistrer » : un seul mouvement, sortie enregistrée en négatif', nouveaux.length === 1 && Number(nouveaux[0]) === -2000, mv.join(','));
+    const tr = q(`SELECT CONCAT_WS(' ', COUNT(*), IFNULL(SUM(ABS(t.montant)), 0)) FROM mvttransaction t JOIN t_mvt_caisse m ON m.lg_MVT_CAISSE_ID = t.pkey`
+      + ` WHERE m.lg_USER_ID = '${USER}' AND m.lg_TYPE_MVT_CAISSE_ID = '4' AND m.${depuis('dt_CREATED')}`);
+    ok('G2 : bilan de la sortie : un seul mouvement de transaction, de 2 000', tr === '1 2000', tr);
 
     /* G1 : cloture dans deux onglets, VALIDER en meme temps */
     const p2 = await ctx.newPage();
@@ -133,6 +143,19 @@ function nettoyer() {
       await champ(page, 'int_NB_MIL', '2');
       return page.locator('.x-window .x-btn').filter({ visible: true }).filter({ hasText: /^\s*VALIDER\s*$/ }).first();
     };
+    /* G1 : billetage tape avec des zeros en trop : refuse, rien d'enregistre, caisse toujours ouverte */
+    await billetage(p);
+    await champ(p, 'int_NB_DIX', '1433328');
+    await champ(p, 'int_NB_MIL', '4236');
+    const tape = await p.evaluate(() => Ext.getCmp('int_NB_DIX').getRawValue());
+    await p.locator('.x-window .x-btn').filter({ visible: true }).filter({ hasText: /^\s*VALIDER\s*$/ }).first().click();
+    await p.waitForTimeout(2500);
+    const mTrop = await message(p, 'ok');
+    const apresTrop = q(`SELECT CONCAT_WS(' ', (SELECT COUNT(*) FROM t_billetage WHERE ld_CAISSE_ID = '${RESUME}'), (SELECT str_STATUT FROM t_resume_caisse WHERE ld_CAISSE_ID = '${RESUME}'))`);
+    ok('G1 : billetage trop grand (14 333 284 236) refusé avec un message, aucun billetage, caisse toujours ouverte',
+      apresTrop === '0 is_Using' && /billetage invalide|d.passe/i.test(mTrop), tape + ' | ' + mTrop + ' | ' + apresTrop);
+    for (const f of await p.locator('.x-window .x-tool-close').filter({ visible: true }).all()) { await f.click().catch(() => {}); }
+    await p.waitForTimeout(800);
     const v1 = await billetage(p);
     const v2 = await billetage(p2);
     await Promise.all([v1.click(), v2.click()]);
@@ -156,6 +179,15 @@ function nettoyer() {
     const icone = async (id, src) => { const l = await ligne(id); if (!l) { return 0; }
       return p.locator('#' + l + ' [data-qtip*="' + src + '"]').filter({ visible: true }).count(); };
     ok('G3 : avant validation, la clôture de la caisse est listée avec l\'icône de validation', (await icone(RESUME, 'Valider la cloture')) === 1);
+    /* rapprochement : la ligne affichee = la base */
+    const affiche = await p.evaluate((r) => { const g = Ext.ComponentQuery.query('gestcaissemanager gridpanel').filter((x) => x.isVisible(true))[0];
+      const x = g.getStore().getAt(g.getStore().findExact('ldCAISSEID', r)); return x ? [x.get('intSOLDEMATIN'), x.get('billetage'), x.get('intSOLDESOIR'), x.get('ecart')].join(' ') : ''; }, RESUME);
+    const enBase = q(`SELECT CONCAT_WS(' ', r.int_SOLDE_MATIN, ROUND(b.int_AMOUNT), r.int_SOLDE_SOIR, ROUND(b.int_AMOUNT) - ABS(r.int_SOLDE_SOIR)) FROM t_resume_caisse r`
+      + ` JOIN t_billetage b ON b.ld_CAISSE_ID = r.ld_CAISSE_ID WHERE r.ld_CAISSE_ID = '${RESUME}'`);
+    ok('Rapprochement « Gestion Caisse » : fond, billetage, solde et écart affichés = base (fond 0, billetage 52 000)',
+      affiche !== '' && affiche === enBase && /^0 52000 /.test(enBase), 'écran ' + affiche + ' | base ' + enBase);
+    const detail = q(`SELECT CONCAT_WS(' ', COUNT(*), IFNULL(SUM(d.int_NB_DIX_MIL), 0), IFNULL(SUM(d.int_NB_MIL), 0)) FROM t_billetage_details d JOIN t_billetage b ON b.lg_BILLETAGE_ID = d.lg_BILLETAGE_ID WHERE b.ld_CAISSE_ID = '${RESUME}'`);
+    ok('Bilan de la clôture : un seul détail de coupures (5 × 10 000, 2 × 1 000)', detail === '1 5 2', detail);
     const lv = await ligne(RESUME);
     if (lv) {
       await p.locator('#' + lv + ' [data-qtip*="Valider la cloture"]').filter({ visible: true }).first().click();
