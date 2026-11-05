@@ -530,10 +530,24 @@ Sur une machine calme, l'assemblage à la demande ne coûte que 0,5 s : le gain 
 plusieurs sessions y construisaient et déployaient, la factory JPA avait mis 22 s au lieu de 3,4 s, et le disque D:
 était plein à 98 %. Le premier utilisateur payait l'assemblage au pire moment ; il ne le paie plus.
 
-**Ce qui reste** : la première acceptation des identifiants après un déploiement prend 2,1 à 2,5 s, contre 0,4 à 0,5 s
-ensuite. Le sablier « Connexion en cours… » tourne pendant ce temps. Puis la page reste blanche environ 1 s, le
-temps de demander l'accueil et de lire les scripts, avant l'écran de chargement d'Ext JS. Cause de la lenteur de
-`user/auth` à froid non encore cherchée.
+**Identifiants acceptés lentement (suite du 05/11)** : la première acceptation des identifiants après un déploiement
+prenait 2,1 à 2,5 s sur machine calme (3 à 7 s sous charge), contre 0,05 s ensuite ; le sablier « Connexion en
+cours… » tournait pendant ce temps. Les captures des fils du serveur pendant cette connexion montrent `user/auth`
+bloqué sur le verrou de `dal.dataManager` : la reconnaissance des profils spéciaux (`util.RolesSpeciaux`, appelée pour
+choisir l'écran d'accueil) lisait la base par la factory EclipseLink des anciens écrans, que le préchauffage du
+démarrage tient verrouillée pendant sa construction (3 s à machine calme, 12 s sous charge). Correction : lecture
+directe par la source de données `jdbc/__laborex_pool`, même requête, même résultat ; plus aucune attente de ce
+verrou sur le chemin de la connexion (captures refaites).
+
+| Juste après un redéploiement de domain2 | identifiants | page construite | menu rempli |
+|---|---|---|---|
+| sans cette correction, machine calme | 3,5 s | 4,5 s | 5,2 s |
+| avec, machine calme | 0,29 s | 1,1 s | 2,2 s |
+| avec, par curl seul | 0,29 s | | |
+| sans, sous charge (factory 11,7 s) | 7,5 s | 10,9 s | 13,8 s |
+| avec, sous charge (factory 12,3 s) | 2,4 s | 4,8 s | 8,5 s |
+
+Sous charge, les 2,4 s restants sont du temps de calcul ordinaire d'une machine saturée, sans attente de verrou.
 
 Après la page, les tuiles du tableau de bord restent lentes au premier passage (alertes 8,8 s, tuiles 6,7 s,
 valorisation 4,5 s) : la base n'a pas encore ses données en mémoire (§ 7.4). Elles se remplissent après l'affichage.
@@ -541,6 +555,11 @@ valorisation 4,5 s) : la base n'a pas encore ses données en mémoire (§ 7.4). 
 Contrôles :
 
 - `EcransScriptsRessourceTest` : 5/5 ;
+- `RolesSpeciauxTest` : 3/3 (lecture rendue sans attendre le verrou des anciens écrans, en échec sur l'ancien code ;
+  3 000 cas au hasard à graine fixe sur le rangement des profils par droit ; lecture en échec qui garde la dernière
+  liste) ;
 - `perf/test-connexion-apres-deploiement.js`, à lancer pendant un déploiement : paquet reçu en moins de 3 s, page
   construite moins de 5 s après le clic. 4/4 dans les quatre essais. Sur une machine calme, il passe aussi sans la
-  correction : il ne départage les deux versions que sous charge.
+  correction : il ne départage les deux versions que sous charge. Depuis, il contrôle aussi l'acceptation des
+  identifiants en moins de 1 s : en échec sur l'ancien code dans les deux essais (3,5 s et 7,5 s), réussi à machine
+  calme avec la correction (0,29 s).
