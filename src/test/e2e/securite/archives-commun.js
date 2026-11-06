@@ -23,10 +23,13 @@ function remettreReglages(avant) {
 const ps = (commande) => execFileSync('powershell', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', commande], { encoding: 'utf8' });
 const psFichier = (script, args) => execFileSync('powershell', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', script].concat(args), { encoding: 'utf8' });
 const compteWindows = process.env.USERDOMAIN + '\\' + process.env.USERNAME;
-/* fichier d'identifiants de sauvegarde : les options du compte d'essai (deja [client] user/password/host/port), chiffrees DPAPI */
+/* fichier d'identifiants de sauvegarde : les options du compte d'essai (user/password/host/port, guillemets retires comme
+ * le fait le client), reecrites au format du script 2 puis chiffrees DPAPI ; la valeur ne passe que par PowerShell */
 function identifiants(fichier) {
   const options = (ENV_E2E.MARIADB[0] || '').replace('--defaults-extra-file=', '');
-  ps(". '" + path.join(OFFICINE, 'identifiants-sauvegarde.ps1') + "'; $c = [IO.File]::ReadAllText('" + options + "'); [IO.File]::WriteAllText('" + fichier + "', (Chiffrer-Options $c), (New-Object System.Text.UTF8Encoding($false))); icacls '" + fichier + "' /inheritance:r /grant:r '*S-1-5-18:F' '*S-1-5-32-544:F' '" + compteWindows + ":R' | Out-Null");
+  ps(". '" + path.join(OFFICINE, 'identifiants-sauvegarde.ps1') + "'; $o = @{}; foreach ($l in [IO.File]::ReadAllLines('" + options + "')) { if ($l -match '^\\s*(user|password|host|port)\\s*=\\s*(.*?)\\s*$') { $o[$Matches[1]] = $Matches[2] -replace '^([\"'']?)(.*)\\1$', '$2' } }"
+    + " $c = \"[client]`r`nuser=$($o.user)`r`npassword=$($o.password)`r`nhost=$($o.host)`r`nport=$($o.port)`r`n\";"
+    + " [IO.File]::WriteAllText('" + fichier + "', (Chiffrer-Options $c), (New-Object System.Text.UTF8Encoding($false))); $c = $null; icacls '" + fichier + "' /inheritance:r /grant:r '*S-1-5-18:F' '*S-1-5-32-544:F' '" + compteWindows + ":R' | Out-Null");
   return fichier;
 }
 /* la cle par le vrai script 7 : fichier DPAPI, trace dans la base ; la cle affichee une fois est captee pour verifier les archives */
@@ -40,8 +43,10 @@ function dechiffrer(archive, vers, cle) {
   return ps(". '" + MODULE + "'; Dechiffrer-Fichier '" + archive + "' '" + vers + "' (Octets-Cle '" + cle + "')").trim();
 }
 const tailleChiffree = (clair) => 44 + (Math.floor(clair / 16) + 1) * 16 + 32;
-const magie = (fichier) => fs.readFileSync(fichier).slice(0, 8).toString('latin1');
-const estGzip = (fichier) => { const b = fs.readFileSync(fichier).slice(0, 2); return b[0] === 0x1f && b[1] === 0x8b; };
+const lisible = (f) => { try { return fs.statSync(f).isFile(); } catch (e) { return false; } };
+const magie = (fichier) => (lisible(fichier) ? fs.readFileSync(fichier).slice(0, 8).toString('latin1') : '');
+const estGzip = (fichier) => { if (!lisible(fichier)) { return false; } const b = fs.readFileSync(fichier).slice(0, 2); return b[0] === 0x1f && b[1] === 0x8b; };
+const taille = (fichier) => (lisible(fichier) ? fs.statSync(fichier).size : -1);
 /* empreinte d'un dump .sql.gz : INSERT par table (nombre, condensat), tables creees, fin */
 function empreinte(fichierGz) {
   return new Promise((fini, echec) => {
@@ -92,4 +97,4 @@ const ligneSauvegarde = (id) => q("SELECT CONCAT_WS('<|>', id, statut, COALESCE(
 const listing = (d) => fs.existsSync(d) ? fs.readdirSync(d).sort() : [];
 
 module.exports = Object.assign({}, C, { CLES, reglages, remettreReglages, RACINE, OFFICINE, MODULE, ps, psFichier, compteWindows, identifiants, creerCle, dechiffrer, tailleChiffree, magie, estGzip, empreinte,
-  SAUV: S, ouvrirSauvegardes, texteSauvegardes, texteRestaurer, sauvegarder, valoriser, ligneSauvegarde, listing });
+  SAUV: S, ouvrirSauvegardes, texteSauvegardes, texteRestaurer, sauvegarder, valoriser, ligneSauvegarde, listing, lisible, taille });

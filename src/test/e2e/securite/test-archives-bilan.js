@@ -58,10 +58,10 @@ const prives = () => (fs.existsSync(PRIVE) ? fs.readdirSync(PRIVE).filter((f) =>
     const f1 = path.join(DOSSIER, nouveaux1[0] || 'absent');
     const b1 = A.ligneSauvegarde(l1.id).split('<|>');
     ok('À 1 avec la clé : exactement UN fichier de plus dans le dossier, .sql.gz.aes, magie PRSTGA01, pas de .sql.gz en clair ni de .partiel',
-      nouveaux1.length === 1 && /^prestige_.*\.sql\.gz\.aes$/.test(nouveaux1[0]) && fs.existsSync(f1) && A.magie(f1) === 'PRSTGA01' && !A.estGzip(f1), nouveaux1.join(','));
+      nouveaux1.length === 1 && /^prestige_.*\.sql\.gz\.aes$/.test(nouveaux1[0]) && A.lisible(f1) && A.magie(f1) === 'PRSTGA01' && !A.estGzip(f1), nouveaux1.join(',') + ' ' + (b1[5] || ''));
     ok('t_sauvegarde : une ligne de plus, REUSSIE, fichier = celui du dossier, taille = taille du fichier, message vide ; lignes antérieures inchangées',
-      Number(q('SELECT COUNT(*) FROM t_sauvegarde WHERE id > ' + idSauvegarde)) === 1 && b1[1] === 'REUSSIE' && b1[2] === nouveaux1[0] && Number(b1[3]) === fs.statSync(f1).size && b1[5] === '' && apres1.sauvegardes === avant.sauvegardes, b1.join(' | '));
-    ok('Taille de l\'archive = formule (en-tête 44 + blocs de 16 bourrés + HMAC 32) pour un gzip entier : (taille − 76) multiple de 16', (fs.statSync(f1).size - 76) % 16 === 0 && fs.statSync(f1).size > 1024, String(fs.statSync(f1).size));
+      Number(q('SELECT COUNT(*) FROM t_sauvegarde WHERE id > ' + idSauvegarde)) === 1 && b1[1] === 'REUSSIE' && b1[2] === nouveaux1[0] && Number(b1[3]) === A.taille(f1) && b1[5] === '' && apres1.sauvegardes === avant.sauvegardes, b1.join(' | '));
+    ok('Taille de l\'archive = formule (en-tête 44 + blocs de 16 bourrés + HMAC 32) pour un gzip entier : (taille − 76) multiple de 16', (A.taille(f1) - 76) % 16 === 0 && A.taille(f1) > 1024, String(A.taille(f1)));
     ok('t_parameters identique, t_securite_journal identique (une sauvegarde ne journalise pas), dossier privé sans fichier d\'options qui reste',
       apres1.parametres === avant.parametres && apres1.journal === avant.journal && apres1.prives.length === 0, JSON.stringify(apres1.prives));
 

@@ -9,7 +9,8 @@ const path = require('path');
 const { connexion: connexionVue, ouvrirMenu, cliquer, BASE: BASE_HTTP } = require('../outils/vues');
 
 const BASE = ENV_E2E.BASE;
-const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
+/* sortie du client : fins de ligne \r\n sous Windows, et antislashs echappes sans --raw (C:\\Users) ; on lit la valeur telle qu'elle est en base */
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', '--raw', BASE, '-sN', '-e', s], { encoding: 'utf8' }).replace(/\r\n/g, '\n').trim();
 const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
 const CLES = ['KEY_SECURITE_BASE', 'KEY_SECURITE_DERNIERE_ROTATION', 'KEY_SECURITE_DOSSIER_COPIES', 'KEY_SECURITE_FICHIER_IDENTIFIANTS', 'KEY_SAUVEGARDE_ACTIVE'];
 const DOMAINE = ENV_E2E.PAYARA_DOMAINE;

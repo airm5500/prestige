@@ -66,7 +66,7 @@ const sanitize = (s) => String(s || '').replace(/\s+/g, ' ');
     ok('Dernier essai de restauration : écran « ' + ESSAI + ' — CONFORME » + rappel (plus d\'un mois) = API = t_parameters',
       e0.rotation.indexOf(ESSAI + ' — ' + ESSAI_RESULTAT) >= 0 && /obligatoire chaque mois/.test(e0.rotation) && /Essai de restauration obligatoire chaque mois : dernier le 2026-09-20 08:00 \(CONFORME\), plus d.un mois/.test(e0.alerte)
       && a0.dernierEssai === ESSAI && a0.dernierEssaiResultat === ESSAI_RESULTAT && a0.rappelEssai === true && a0.prochainEssai === '2026-10-20'
-      && q("SELECT CONCAT(str_VALUE, '|') FROM t_parameters WHERE str_KEY IN ('KEY_SECURITE_DERNIER_ESSAI_RESTAURATION', 'KEY_SECURITE_DERNIER_ESSAI_RESULTAT') ORDER BY str_KEY").replace(/\n/g, '') === ESSAI + '|' + ESSAI_RESULTAT + '|',
+      && q("SELECT CONCAT(str_VALUE, '|') FROM t_parameters WHERE str_KEY IN ('KEY_SECURITE_DERNIER_ESSAI_RESTAURATION', 'KEY_SECURITE_DERNIER_ESSAI_RESULTAT') ORDER BY str_KEY").replace(/\s/g, '') === ESSAI.replace(' ', '') + '|' + ESSAI_RESULTAT + '|',
       sanitize(e0.rotation.match(/Dernier essai[^P]*/) + ' | ' + e0.alerte));
     const lj = e0.journal.filter((l) => l.action === 'CLE_ARCHIVE');
     ok('Journal : la ligne CLE_ARCHIVE du script 7 affichée à l\'écran = API = t_securite_journal (date, qui, résultat, détail), libellé « Clé des archives de sauvegarde (script 7) »',
@@ -82,12 +82,12 @@ const sanitize = (s) => String(s || '').replace(/\s+/g, ' ');
     const base1 = A.ligneSauvegarde(l1.id);
     const fichiers1 = A.listing(DOSSIER);
     ok('À 1 : « Sauvegarder maintenant » → ligne « Réussie », fichier .sql.gz.aes (' + l1.duree + ' s) = t_sauvegarde.fichier = seul fichier du dossier, taille écran = taille du fichier, onglet « Archives : chiffrées »',
-      l1.statut === 'REUSSIE' && /\.sql\.gz\.aes$/.test(l1.fichier) && l1.chiffree === true && fs.existsSync(f1) && fichiers1.length === 1 && fichiers1[0] === l1.fichier
-      && base1.split('<|>')[2] === l1.fichier && Number(base1.split('<|>')[3]) === fs.statSync(f1).size && Math.abs(l1.tailleMo - fs.statSync(f1).size / 1048576) < 0.1
+      l1.statut === 'REUSSIE' && /\.sql\.gz\.aes$/.test(l1.fichier) && l1.chiffree === true && A.lisible(f1) && fichiers1.length === 1 && fichiers1[0] === l1.fichier
+      && base1.split('<|>')[2] === l1.fichier && Number(base1.split('<|>')[3]) === A.taille(f1) && Math.abs(l1.tailleMo - A.taille(f1) / 1048576) < 0.1
       && /Archives : chiffrées \(AES/.test(t1), JSON.stringify(l1) + ' | ' + base1);
     ok('Le fichier commence par la magie PRSTGA01 (pas un gzip en clair) ; déchiffré avec la clé affichée par le script 7, c\'est un dump gzip complet',
-      A.magie(f1) === 'PRSTGA01' && !A.estGzip(f1) && (() => { try { A.dechiffrer(f1, f1 + '.clair.gz', c.cle); return A.estGzip(f1 + '.clair.gz'); } catch (e) { console.log(e.message); return false; } })(), A.magie(f1));
-    const emp1 = fs.existsSync(f1 + '.clair.gz') ? await A.empreinte(f1 + '.clair.gz').catch((e) => ({ erreur: String(e) })) : { erreur: 'absent' };
+      A.magie(f1) === 'PRSTGA01' && !A.estGzip(f1) && (() => { try { if (!A.lisible(f1)) { return false; } A.dechiffrer(f1, f1 + '.clair.gz', c.cle); return A.estGzip(f1 + '.clair.gz'); } catch (e) { console.log(e.message); return false; } })(), A.magie(f1));
+    const emp1 = A.lisible(f1 + '.clair.gz') ? await A.empreinte(f1 + '.clair.gz').catch((e) => ({ erreur: String(e) })) : { erreur: 'absent' };
     const v1 = await A.valoriser(p);
     ok('« Valoriser » sur l\'archive chiffrée : totaux calculés (famille, rayon, grossiste)', /calculée en/.test(v1.entete) && v1[1] && v1[1].lignes > 0 && v1[2].lignes > 0 && v1[3].lignes > 0, sanitize(v1.entete) + ' ' + JSON.stringify(v1[1]));
     const r1 = await A.texteRestaurer(p);
@@ -96,7 +96,7 @@ const sanitize = (s) => String(s || '').replace(/\s+/g, ' ');
     parametre('KEY_SECURITE_BASE', '0');
     const l0 = await A.sauvegarder(p, l1.id);
     const f0 = path.join(DOSSIER, l0.fichier || '');
-    const emp0 = fs.existsSync(f0) ? await A.empreinte(f0).catch((e) => ({ erreur: String(e) })) : { erreur: 'absent' };
+    const emp0 = A.lisible(f0) ? await A.empreinte(f0).catch((e) => ({ erreur: String(e) })) : { erreur: 'absent' };
     const ecarts = [];
     Object.keys(Object.assign({}, emp0.tables || {}, emp1.tables || {})).forEach((t) => { if ((emp0.tables || {})[t] !== (emp1.tables || {})[t] && !/^(t_sauvegarde|t_parameters|t_securite_journal|t_application_event|t_serveur_|t_rum|t_session|t_support_|t_journal|t_poste|t_log|t_prestige|t_connexion|t_user$|t_statistique|t_alerte|t_notification|t_pointage|t_tache|t_incident|t_maintenance)/.test(t)) { ecarts.push(t + ' : ' + (emp0.tables || {})[t] + ' / ' + (emp1.tables || {})[t]); } });
     ok('À 0 juste après : fichier .sql.gz en clair (gzip), même nombre de tables créées et mêmes lignes INSERT par table que l\'archive chiffrée déchiffrée (' + Object.keys(emp1.tables || {}).length + ' tables), les deux finissent par « Dump completed »',
