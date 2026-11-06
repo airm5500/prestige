@@ -214,6 +214,152 @@ const ligneVente = (p, cip) => p.evaluate((c) => {
     classes: pastille ? pastille.className : '', animation: pastille ? getComputedStyle(pastille).animationName : '' };
 }, cip);
 
+/* ---- Aides de la regle de tests du 05/11/2026 (rapprochement, bilan avant / apres) ---- */
+const fs = require('fs');
+const path = require('path');
+
+/* n articles simples (meme critere qu'articleSimple), CIP distincts */
+function articlesSimples(n) {
+  return q("SELECT CONCAT_WS('~', f.lg_FAMILLE_ID, f.int_CIP, s.int_NUMBER_AVAILABLE, s.int_NUMBER, IFNULL(f.is_scheduled, 0),"
+    + " IFNULL(f.is_sensible, 0), IFNULL(f.int_T, ''), f.int_PRICE, f.str_NAME) FROM t_famille f JOIN t_famille_stock s"
+    + " ON s.lg_FAMILLE_ID = f.lg_FAMILLE_ID AND s.lg_EMPLACEMENT_ID = '1' WHERE f.str_STATUT = 'enable' AND s.str_STATUT = 'enable'"
+    + " AND f.int_CIP REGEXP '^[0-9]{7}$' AND f.int_PRICE BETWEEN 300 AND 3000 AND s.int_NUMBER_AVAILABLE > 20 AND f.bool_DECONDITIONNE = 0"
+    + " AND IFNULL(f.is_scheduled, 0) = 0 AND IFNULL(f.is_sensible, 0) = 0 AND IFNULL(f.int_T, '') = ''"
+    + " AND (SELECT COUNT(*) FROM t_famille x WHERE x.int_CIP = f.int_CIP) = 1"
+    + " AND NOT EXISTS (SELECT 1 FROM t_famille e WHERE e.lg_FAMILLE_PARENT_ID = f.lg_FAMILLE_ID) ORDER BY f.int_CIP LIMIT " + n)
+    .split(/\n/).filter(Boolean).map((x) => { const l = x.split('~');
+      return { id: l[0], cip: l[1], stock: l[2], stockTotal: l[3], scheduled: l[4], sensible: l[5], intT: l[6], prix: Number(l[7]), nom: l[8] }; });
+}
+
+/* pose directement les drapeaux d'un produit (jeu d'essai ; le cochage par l'ecran est couvert par les autres tests) */
+function poserDrapeaux(a, scheduled, sensible, intT) {
+  q("UPDATE t_famille SET is_scheduled = " + (scheduled ? 1 : 0) + ", is_sensible = " + (sensible ? 1 : 0) + ", int_T = "
+    + (intT ? "'" + intT + "'" : 'NULL') + " WHERE lg_FAMILLE_ID = '" + a.id + "'");
+}
+
+/* client et medecin d'essai, pour une cloture avec medecin */
+function poserClientEtMedecin(j) {
+  purgerClientEtMedecin(j);
+  q("INSERT INTO medecin (id, num_ordre, nom, commentaire, created_at) VALUES ('" + j.medecin + "', '" + j.numOrdre + "', '" + j.nomMedecin + "', 'recette e2e', NOW());"
+    + " INSERT INTO t_client (lg_CLIENT_ID, str_CODE_INTERNE, str_FIRST_NAME, str_LAST_NAME, lg_TYPE_CLIENT_ID, dt_CREATED, dt_UPDATED, str_STATUT)"
+    + " VALUES ('" + j.client + "', '" + j.client + "', '" + j.nomClient + "', 'E2E', '6', NOW(), NOW(), 'enable');"
+    + " INSERT INTO t_compte_client (lg_COMPTE_CLIENT_ID, str_CODE_COMPTE_CLIENT, str_TYPE, P_KEY, dbl_QUOTA_CONSO_MENSUELLE, dbl_CAUTION, dec_Balance,"
+    + " dt_CREATED, dt_UPDATED, str_STATUT, lg_CLIENT_ID, dbl_PLAFOND) VALUES ('" + j.client + "', '" + j.client + "', 'CLIENT', '" + j.client + "', 0, 0, 0,"
+    + " NOW(), NOW(), 'enable', '" + j.client + "', 0)");
+}
+function purgerClientEtMedecin(j) {
+  q("DELETE FROM medecin WHERE id = '" + j.medecin + "'; DELETE FROM t_compte_client WHERE lg_CLIENT_ID = '" + j.client + "';"
+    + " DELETE FROM t_client WHERE lg_CLIENT_ID = '" + j.client + "'");
+}
+
+/* apres le refus de « Terminer la vente » : le parcours « client puis medecin », suivi a l'ecran */
+async function rattacherClientEtMedecin(p, j, venteId) {
+  await visible(p, 'ordonnanceparcours');
+  await vues.cliquer(p, 'ordonnanceparcours #rechercheClient');
+  const repClients = p.waitForResponse((r) => /client\/lambda/.test(r.url()), { timeout: 60000 });
+  await p.keyboard.type(j.nomClient, { delay: 20 });
+  await repClients;
+  await p.waitForTimeout(800);
+  const ligneClient = p.locator('.x-window:visible .x-grid-row').filter({ hasText: j.nomClient }).first();
+  await ligneClient.waitFor({ timeout: 15000 });
+  await ligneClient.locator('.x-action-col-icon').first().click();
+  await p.waitForFunction(() => { const f = Ext.ComponentQuery.query('ordonnanceparcours')[0];
+    const v = f && f.down('#volets'); return v && v.getLayout().getActiveItem().getItemId() === 'voletMedecin'; }, null, { timeout: 30000 });
+  await p.waitForTimeout(800);
+  const clientOk = q("SELECT IFNULL(lg_CLIENT_ID, '') FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID = '" + venteId + "'") === j.client;
+  await vues.cliquer(p, 'ordonnanceparcours #rechercheMedecin');
+  const repMed = p.waitForResponse((r) => /medecin\/medecins/.test(r.url()), { timeout: 60000 });
+  await p.keyboard.type(j.nomMedecin.slice(0, 18), { delay: 20 });
+  await repMed;
+  await p.waitForTimeout(800);
+  const ligneMed = p.locator('.x-window:visible .x-grid-row').filter({ hasText: j.nomMedecin }).first();
+  await ligneMed.waitFor({ timeout: 15000 });
+  const repUpd = p.waitForResponse((r) => /vente\/update\/medecin/.test(r.url()), { timeout: 60000 });
+  await ligneMed.locator('.x-action-col-icon').first().click();
+  await repUpd;
+  await p.waitForTimeout(1200);
+  await p.evaluate(() => Ext.ComponentQuery.query('messagebox{isVisible()}').forEach((m) => m.close())).catch(() => {});
+  const medecinOk = q("SELECT IFNULL(medecin_id, '') FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID = '" + venteId + "'") === j.medecin;
+  return { clientOk, medecinOk };
+}
+
+/* quantite d'une ligne de vente : vrai clic sur la cellule QD, frappe, Entree */
+async function saisirQuantite(p, cip, n) {
+  const id = await p.evaluate((c) => { const g = Ext.ComponentQuery.query('doventemanager grid')[0]; const r = g.getStore().findRecord('intCIP', c);
+    const col = g.columns.filter((x) => x.dataIndex === 'intQUANTITY')[0]; const cell = g.getView().getCell(r, col);
+    cell.dom.id = cell.dom.id || 'e2e-qd-' + c; return cell.dom.id; }, cip);
+  const rep = p.waitForResponse((r) => /vente\/update\/item/.test(r.url()), { timeout: 60000 });
+  await p.click('#' + id);
+  await p.waitForTimeout(400);
+  await p.keyboard.press('Control+A');
+  await p.keyboard.type(String(n), { delay: 40 });
+  await p.keyboard.press('Enter');
+  await rep;
+  await p.waitForTimeout(1000);
+}
+
+/* un fichier servi par Prestige (PDF, export), rapatrie par la page puis ecrit dans TMP */
+async function telecharger(p, url, nom) {
+  const r = await p.evaluate(async (u) => {
+    const x = await fetch(u, { credentials: 'same-origin' });
+    const o = new Uint8Array(await x.arrayBuffer()); let s = '';
+    for (let i = 0; i < o.length; i += 8192) { s += String.fromCharCode.apply(null, o.subarray(i, i + 8192)); }
+    return { statut: x.status, b64: btoa(s), disposition: x.headers.get('content-disposition') || '' };
+  }, url);
+  const chemin = path.join(ENV_E2E.TMP, nom);
+  fs.writeFileSync(chemin, Buffer.from(r.b64, 'base64'));
+  return { statut: r.statut, chemin, taille: fs.statSync(chemin).size, disposition: r.disposition };
+}
+
+/* texte d'un PDF, mis en page (pdftotext -layout), en lignes */
+function lignesPdf(chemin) {
+  return execFileSync('pdftotext', ['-layout', chemin, '-'], { encoding: 'utf8' }).replace(/\r/g, '').split('\n');
+}
+
+/* lignes d'un export .xls (premiere feuille), par xlrd */
+function lignesXls(chemin) {
+  const feuilles = JSON.parse(execFileSync('python', ['-X', 'utf8', path.resolve(__dirname, '../outils/lire_xls.py'), chemin], { encoding: 'utf8' }));
+  return feuilles.length ? feuilles[0].lignes : [];
+}
+
+/* ---- traces en base, pour les bilans avant / apres ---- */
+const stock = (id) => Number(q("SELECT int_NUMBER_AVAILABLE FROM t_famille_stock WHERE lg_EMPLACEMENT_ID = '1' AND lg_FAMILLE_ID = '" + id + "'"));
+const mvtStock = (venteId) => q("SELECT IFNULL(GROUP_CONCAT(CONCAT(h.lg_FAMILLE_ID, ':', h.qteDebut, '-', h.qteMvt, '=', h.qteFinale, '@', h.lg_EMPLACEMENT_ID) ORDER BY h.lg_FAMILLE_ID SEPARATOR ';'), 'aucun')"
+  + " FROM hmvtproduit h JOIN t_preenregistrement_detail d ON d.lg_PREENREGISTREMENT_DETAIL_ID = h.lg_PREENREGISTREMENT_DETAIL_ID WHERE d.lg_PREENREGISTREMENT_ID = '" + venteId + "'");
+const mouvements = (id) => q("SELECT IFNULL(GROUP_CONCAT(CONCAT_WS('/', typeTransaction, montant, montantNet, montantVerse, montantPaye, montantRestant) SEPARATOR ' ; '), 'aucun')"
+  + " FROM mvttransaction WHERE pkey = '" + id + "'");
+const recettes = (id) => q("SELECT IFNULL(GROUP_CONCAT(CAST(int_AMOUNT AS SIGNED) SEPARATOR ' ; '), 'aucune') FROM t_recettes WHERE str_REF_FACTURE = '" + id + "'");
+const reglements = (id) => q("SELECT IFNULL(GROUP_CONCAT(CONCAT_WS('/', type_regelement, montant, montant_attentu) SEPARATOR ' ; '), 'aucun') FROM vente_reglement WHERE vente_id = '" + id + "'");
+/* lignes du journal d'audit du cochage (type ORDONNANCIER_PRODUIT) depuis un instant : qui, reference, quoi */
+const journalCochage = (depuis) => q("SELECT IFNULL(GROUP_CONCAT(CONCAT_WS('|', str_CREATED_BY, IFNULL(lg_USER_ID, ''), str_TYPE_LOG, str_DESCRIPTION) ORDER BY dt_CREATED, str_DESCRIPTION SEPARATOR '\n'), '')"
+  + " FROM t_event_log WHERE str_TABLE_CONCERN = 'dal.TFamille' AND (str_DESCRIPTION LIKE '%sensible%' OR str_DESCRIPTION LIKE '%ordonnancier%') AND dt_CREATED >= '" + depuis + "'")
+  .split('\n').filter(Boolean);
+/* empreinte d'une table : nombre de lignes et somme de controle de toutes les colonnes sauf celles exclues */
+function empreinte(table, exclues, ou) {
+  const colonnes = q("SELECT GROUP_CONCAT(column_name ORDER BY ordinal_position) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = '" + table + "'")
+    .split(',').filter((c) => exclues.indexOf(c) < 0);
+  return q("SELECT CONCAT(COUNT(*), ':', IFNULL(SUM(CRC32(CONCAT_WS('|', " + colonnes.map((c) => "IFNULL(`" + c + "`, 'NULL')").join(', ') + "))), 0)) FROM `" + table + "`"
+    + (ou ? ' WHERE ' + ou : ''));
+}
+const drapeaux = (ids) => q("SELECT IFNULL(GROUP_CONCAT(CONCAT(lg_FAMILLE_ID, ':', IFNULL(is_scheduled, 0), IFNULL(is_sensible, 0)) ORDER BY lg_FAMILLE_ID SEPARATOR ';'), '')"
+  + " FROM t_famille WHERE lg_FAMILLE_ID IN ('" + ids.join("','") + "')");
+/* l'ensemble des traces que le cochage ne doit pas toucher */
+const photo = () => ({
+  familles: empreinte('t_famille', ['is_scheduled', 'is_sensible']),
+  stocks: empreinte('t_famille_stock', []),
+  ventes: q('SELECT COUNT(*) FROM t_preenregistrement'),
+  lignes: q('SELECT COUNT(*) FROM t_preenregistrement_detail'),
+  mvtStock: q('SELECT COUNT(*) FROM hmvtproduit'),
+  caisse: q('SELECT COUNT(*) FROM mvttransaction'),
+  recettes: q('SELECT COUNT(*) FROM t_recettes'),
+  reglements: q('SELECT COUNT(*) FROM vente_reglement'),
+  journal: q('SELECT COUNT(*) FROM t_event_log')
+});
+const memePhoto = (a, b, sauf) => Object.keys(a).filter((k) => (sauf || []).indexOf(k) < 0).every((k) => a[k] === b[k]);
+const ecartPhoto = (a, b) => Object.keys(a).filter((k) => a[k] !== b[k]).map((k) => k + ' ' + a[k] + ' -> ' + b[k]).join(', ') || 'aucun';
+
 module.exports = { ENV_E2E, vues, q, ok, bilan, articleSimple, remettreArticle, parametreOrdonnancier, remettreParametre, ouvrirCaisse,
   fermerCaisse, retirerVentes, ouvrirEcran, visible, ouvrirOnglet, chercherProduits, lignesOnglet, cliquerCase, texteBouton, texteCompteur,
-  nouvelleVente, taperArticle, venteCourante, terminer, ligneVente };
+  nouvelleVente, taperArticle, venteCourante, terminer, ligneVente,
+  /* regle du 05/11 */ articlesSimples, poserDrapeaux, poserClientEtMedecin, purgerClientEtMedecin, rattacherClientEtMedecin, saisirQuantite,
+  telecharger, lignesPdf, lignesXls, stock, mvtStock, mouvements, recettes, reglements, journalCochage, empreinte, drapeaux, photo, memePhoto, ecartPhoto };

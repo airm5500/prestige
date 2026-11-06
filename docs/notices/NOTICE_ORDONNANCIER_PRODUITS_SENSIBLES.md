@@ -86,3 +86,21 @@ set NODE_PATH=D:\outils-e2e\node_modules
 set PLAYWRIGHT_BROWSERS_PATH=D:\pw-browsers
 node src\test\e2e\ordonnancier\test-produit-sensible-vente.js
 ```
+
+## Règle de tests du 05/11/2026 : état au 06/11 (pause générale demandée)
+
+- **Cohérence** (unitaire, graine fixe) : `ProduitOrdonnancierCoherenceTest` (6 propriétés, 20 000 produits et
+  5 000 ventes tirés au hasard) : rouge d'abord avec l'ancienne règle remise dans `TFamille` (3 NullPointerException,
+  3 assertions), vert sur la règle unique. Commit 54dcad460.
+- **Rapprochement** (écran) : `src/test/e2e/ordonnancier/test-rapprochement-motif.js`, motif, code tableau,
+  quantité et montant comparés ligne par ligne entre grille de vente, détail du registre (écran et service), PDF
+  (pdftotext), Excel (`outils/lire_xls.py`) et base ; cinq produits variés, paramètre à 1 puis à 0 ; défaut simulé
+  par `E2E_DEFAUT_SIMULE=1`. **Écrit, pas encore joué.**
+- **Bilan avant / après** (écran) : `src/test/e2e/ordonnancier/test-bilan-cochage-cloture.js`, photo de la base
+  avant et après chaque cochage (unitaire, lot, décochage, onglet ordonnancier) puis clôture d'une vente (stock,
+  mouvements, caisse, recette, règlement, registre) ; défaut simulé par `E2E_DEFAUT_SIMULE=1`. **Écrit, pas encore joué.**
+- Reste à faire : construire le WAR (`mvn -o -q -DskipTests package`, JDK 11), prendre le verrou commun
+  (`mkdir D:\projet\p3errou-e2e`, rendu par trap EXIT), redéployer sur domain3 (`asadmin --port 10048 redeploy`),
+  jouer les deux tests un par un sur `http://localhost:10090/prestige` / `laborex_audit` avec `E2E_DEFAUT_SIMULE=1`
+  (doivent échouer) puis sans (doivent passer), rejouer les trois tests du cas 3 et `etape3/test-ordonnancier.js`,
+  reporter les chiffres ici.
