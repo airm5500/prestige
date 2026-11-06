@@ -40,12 +40,20 @@ function produits(n) {
 
 /* sauvegarde des fiches produits touchees (le declencheur de t_order_detail et les API de quantite peuvent les modifier) */
 const SAUVE = ['t_famille', 't_famille_stock', 't_famille_grossiste'];
+/* lignes creees par le test (ex. lien produit-grossiste cree par updateorderitem) : retirees a la remise */
+const CREEES = ['t_famille_stock', 't_famille_grossiste'];
+const sauves = {};
 function sauver(suffixe, ids) {
+  sauves[suffixe] = ids;
   SAUVE.forEach((t) => exec(`DROP TABLE IF EXISTS e2e_ps_${suffixe}_${t}; CREATE TABLE e2e_ps_${suffixe}_${t} AS SELECT * FROM ${t} WHERE lg_FAMILLE_ID IN (${liste(ids)});`));
 }
 function remettre(suffixe) {
   SAUVE.forEach((t) => {
     if (q(`SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'e2e_ps_${suffixe}_${t}'`) === '1') {
+      if (sauves[suffixe] && CREEES.includes(t)) {
+        const cle = q(`SELECT column_name FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = '${t}' ORDER BY ordinal_position LIMIT 1`);
+        exec(`DELETE FROM ${t} WHERE lg_FAMILLE_ID IN (${liste(sauves[suffixe])}) AND \`${cle}\` NOT IN (SELECT \`${cle}\` FROM e2e_ps_${suffixe}_${t});`);
+      }
       const cols = q(`SELECT GROUP_CONCAT(CONCAT('\`', column_name, '\` = VALUES(\`', column_name, '\`)')) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = '${t}'`);
       exec(`INSERT INTO ${t} SELECT * FROM e2e_ps_${suffixe}_${t} ON DUPLICATE KEY UPDATE ${cols}; DROP TABLE e2e_ps_${suffixe}_${t};`);
     }
