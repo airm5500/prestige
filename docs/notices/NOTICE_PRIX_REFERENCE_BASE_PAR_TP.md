@@ -68,6 +68,12 @@ A **2 247** / B 542 / net **920**.
   imprimer la part de chaque ligne (« NOM · Taux x % : part »), au lieu de la base unique de la ligne. À 0 ou sans
   référence, la colonne reste à NULL et le ticket est celui d'aujourd'hui.
 
+- **P.REF par assurance sur le ticket** (retour du 05/11) : quand les organismes d'une ligne n'ont pas la même
+  base, la ligne n'imprime plus un « P.REF » unique : chaque organisme imprime la sienne sur sa ligne de crédit,
+  « CNAM · P.REF 2 335 · Taux 60 % : 1 401 » puis « MUPEMENET · P.REF 1 835 · Taux 30 % : 551 » (un organisme au
+  prix de vente n'imprime pas de P.REF). Même base pour tous, un seul organisme, ou paramètre à 0 : ticket
+  d'aujourd'hui (`CreditLigne.basesDifferentes`, `CreditLigne.libelle` avec prix de référence).
+
 ## Écran
 
 - `VenteCtr.checkParamPrixRefCaisse` relit aussi `KEY_PRIX_REF_BASE_PAR_TP` à l'ouverture de l'écran de vente ;
