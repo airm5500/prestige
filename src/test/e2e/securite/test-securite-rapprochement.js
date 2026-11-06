@@ -12,7 +12,7 @@
  */
 const { chromium } = require('playwright-core');
 const C = require('./securite-commun');
-const { ENV_E2E, q, exec, parametre, reglages, remettreReglages, journal, pool, dossierCopies, connexion, ouvrirOnglet, texte, attendreTexte, etatAffiche, rotationRefusee, purger, lignesServeur, fs, os, path } = C;
+const { ENV_E2E, q, exec, parametre, reglages, remettreReglages, journal, pool, dossierCopies, connexion, ouvrirOnglet, texte, attendreTexte, etatAffiche, rotationRefusee, purger, attendreJournal, lignesServeur, fs, os, path } = C;
 
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 600) + ']' : '')); }
@@ -29,7 +29,7 @@ const sanitize = (s) => String(s || '').replace(/\s+/g, ' ');
   const COPIES = dossierCopies(TMP);
   parametre('KEY_SECURITE_BASE', '1'); parametre('KEY_SECURITE_DOSSIER_COPIES', COPIES); parametre('KEY_SAUVEGARDE_ACTIVE', '0');
   parametre('KEY_SECURITE_FICHIER_IDENTIFIANTS', path.join(TMP, 'absent.cnf')); parametre('KEY_SECURITE_DERNIERE_ROTATION', DATE_ROTATION);
-  const depuis = fs.statSync(C.LOG).size;
+  const depuis = Date.now();
   const b = await ENV_E2E.lancer(chromium);
   const dialogues = [], err = [];
   const contexte = await b.newContext({ viewport: { width: 1600, height: 1000 } });
@@ -59,7 +59,8 @@ const sanitize = (s) => String(s || '').replace(/\s+/g, ' ');
     const mPurge = await purger(p);
     /* etat rafraichi comme le ferait l'utilisateur : autre onglet puis retour */
     await p.click('.supportserveur .x-tab:has-text("État")'); await p.waitForTimeout(800);
-    await p.click('.supportserveur .x-tab:has-text("Sécurité")'); await attendreTexte(p, '#secStockage', /Copies/);
+    await p.click('.supportserveur .x-tab:has-text("Sécurité")'); await attendreTexte(p, '#secStockage', /AUCUNE/);
+    await attendreJournal(p, 'PURGE_COPIES');
     const e1 = await etatAffiche(p), a1 = await api(p);
     if (DEFAUT) { exec("UPDATE t_securite_journal SET str_DETAIL = CONCAT(str_DETAIL, ' (défaut simulé)') WHERE id = (SELECT * FROM (SELECT MAX(id) FROM t_securite_journal) x)"); }
     const base = journal(idJournal).reverse(); /* la plus recente en premier, comme l'ecran */

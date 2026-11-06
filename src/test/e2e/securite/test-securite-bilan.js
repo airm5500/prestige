@@ -12,7 +12,7 @@
 const { chromium } = require('playwright-core');
 const crypto = require('crypto');
 const C = require('./securite-commun');
-const { ENV_E2E, q, exec, parametre, reglages, remettreReglages, journal, pool, dossierCopies, connexion, ouvrirOnglet, rotationRefusee, purger, lignesServeur, fs, os, path, execFileSync } = C;
+const { ENV_E2E, q, exec, parametre, reglages, remettreReglages, journal, pool, dossierCopies, connexion, ouvrirOnglet, rotationRefusee, purger, lignesServeur, texteServeur, fs, os, path, execFileSync } = C;
 
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 600) + ']' : '')); }
@@ -35,7 +35,7 @@ const listing = (d) => fs.readdirSync(d).sort().join(',');
   parametre('KEY_SECURITE_BASE', '1'); parametre('KEY_SECURITE_DOSSIER_COPIES', COPIES); parametre('KEY_SAUVEGARDE_ACTIVE', '0');
   parametre('KEY_SECURITE_FICHIER_IDENTIFIANTS', path.join(TMP, 'absent.cnf')); parametre('KEY_SECURITE_DERNIERE_ROTATION', '');
   /* bilan AVANT (apres les reglages du test) */
-  const avant = { parametres: empreinteParametres(), journal: empreinteJournal(idJournal), xml: md5(fs.readFileSync(C.XML)), pool: JSON.stringify(pool()), comptes: comptesMariadb(), pid: pidPayara(), copies: listing(COPIES), log: fs.statSync(C.LOG).size, instant: q('SELECT NOW()') };
+  const avant = { parametres: empreinteParametres(), journal: empreinteJournal(idJournal), xml: md5(fs.readFileSync(C.XML)), pool: JSON.stringify(pool()), comptes: comptesMariadb(), pid: pidPayara(), copies: listing(COPIES), log: Date.now(), instant: q('SELECT NOW()') };
   const b = await ENV_E2E.lancer(chromium);
   const dialogues = [], err = [];
   const contexte = await b.newContext({ viewport: { width: 1600, height: 1000 } });
@@ -69,7 +69,7 @@ const listing = (d) => fs.readdirSync(d).sort().join(',');
     ok('Dossier des copies : les 3 copies supprimées, le fichier étranger conservé, rien d\'autre', avant.copies === 'autre-fichier.txt,domain.xml.avant-prestige-20261101-120000,domain.xml.avant-prestige-20261102-120000,domain.xml.avant-prestige-20261103-120000'
       && apres.copies === 'autre-fichier.txt', avant.copies + ' -> ' + apres.copies);
     const lignes = lignesServeur(avant.log);
-    const brut = (() => { const n = fs.statSync(C.LOG).size - avant.log; const fd = fs.openSync(C.LOG, 'r'); const buf = Buffer.alloc(Math.max(0, n)); if (n > 0) { fs.readSync(fd, buf, 0, n, avant.log); } fs.closeSync(fd); return buf.toString('utf8'); })();
+    const brut = texteServeur(avant.log);
     ok('server.log : exactement 2 lignes du service (ROTATION REFUSE, PURGE_COPIES OK), aucune valeur de mot de passe', lignes.length === 2 && lignes[0].action === 'ROTATION' && lignes[0].resultat === 'REFUSE' && lignes[1].action === 'PURGE_COPIES' && lignes[1].resultat === 'OK'
       && brut.indexOf('mauvais-mot-de-passe') < 0 && brut.indexOf('ValeurSansImportance') < 0 && !/IDENTIFIED BY '[^*]/.test(brut), JSON.stringify(lignes));
     ok('Écran : messages attendus (refus, purge), aucune fenêtre, aucune erreur JavaScript', /incorrect/.test(mRefus) && /3 copie\(s\) supprimée/.test(mPurge) && dialogues.length === 0 && err.length === 0, mRefus + ' | ' + mPurge + ' | ' + dialogues.concat(err).join(' | '));
