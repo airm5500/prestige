@@ -47,6 +47,9 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'identifiants-sauvegarde.ps1')
 . (Join-Path $PSScriptRoot 'archive-chiffree.ps1')
 
+# valeur dans un litteral SQL : antislashs et apostrophes echappes (un chemin D:\tmp sinon devient D:<tab>mp)
+function Sql-Texte([string]$v) { return ($v -replace '\\', '\\' -replace "'", "''") }
+
 function Saisie-Masquee([string]$invite) {
     $s = Read-Host -Prompt $invite -AsSecureString
     $p = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($s)
@@ -59,8 +62,8 @@ function Tracer([string]$resultat, [string]$detail) {
     $optionsClair = $null
     try {
         $optionsClair = Options-Temporaires $FichierOptions
-        $qui = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name -replace "'", ''
-        $d = $detail -replace "'", ''
+        $qui = Sql-Texte ([System.Security.Principal.WindowsIdentity]::GetCurrent().Name)
+        $d = Sql-Texte $detail
         $sql = "INSERT INTO ``$Base``.t_parameters (str_KEY, str_VALUE, str_DESCRIPTION, str_TYPE, str_STATUT, dt_CREATED, dt_UPDATED) " +
             "VALUES ('KEY_SECURITE_CLE_ARCHIVE_DATE', DATE_FORMAT(NOW(), '%Y-%m-%d %H:%i'), 'Securite de la base : date de creation de la cle des archives (7-cle-archive.ps1)', 'SYSTEME', 'enable', NOW(), NOW()) " +
             "ON DUPLICATE KEY UPDATE str_VALUE = VALUES(str_VALUE), dt_UPDATED = NOW(); " +
