@@ -111,6 +111,20 @@ public class EtatControlBonServiceImpl implements EtatControlBonService {
         return StringUtils.isBlank(date) ? LocalDate.now() : LocalDate.parse(date.trim());
     }
 
+    /** Bornes de la periode : du debut du premier jour (inclus) au debut du lendemain du dernier (exclu). */
+    static Date[] bornes(LocalDate debut, LocalDate fin) {
+        return new Date[] { java.sql.Timestamp.valueOf(debut.atStartOfDay()),
+                java.sql.Timestamp.valueOf(fin.plusDays(1).atStartOfDay()) };
+    }
+
+    /**
+     * Periode rappelee en tete de l'impression : les dates retenues par la liste (une date videe vaut la date du jour),
+     * et non les dates saisies, faute de quoi l'etat imprimait « Periode du au ».
+     */
+    public static String periode(String dtStart, String dtEnd) {
+        return "Période du " + jour(dtStart) + " au " + jour(dtEnd);
+    }
+
     private SingularAttribute<TBonLivraison, Date> dateAttribute(String dateType) {
         return DATE_TYPE_ENTREE.equalsIgnoreCase(dateType) ? TBonLivraison_.dtCREATED : TBonLivraison_.dtDATELIVRAISON;
     }
@@ -251,8 +265,9 @@ public class EtatControlBonServiceImpl implements EtatControlBonService {
         // On compare directement la colonne (TIMESTAMP) avec des bornes, sans l'envelopper dans DATE(...).
         // Cela rend le predicat "sargable" : MySQL peut utiliser l'index sur la colonne de date
         // au lieu de scanner toute la table (cause de la lenteur au chargement et en recherche).
-        Date startInclusive = java.sql.Timestamp.valueOf(dtStart.atStartOfDay());
-        Date endExclusive = java.sql.Timestamp.valueOf(dtEnd.plusDays(1).atStartOfDay());
+        Date[] periode = bornes(dtStart, dtEnd);
+        Date startInclusive = periode[0];
+        Date endExclusive = periode[1];
         // Jointure INTERNE sur la commande : un bon dont la commande a disparu de la base ne peut
         // pas etre mis en forme (le grossiste se lit sur la commande), et le chargement paresseux
         // levait alors une exception qui remontait jusqu'a la ressource - l'ecran ENTIER repartait
