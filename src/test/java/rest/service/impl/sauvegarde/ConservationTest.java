@@ -22,6 +22,20 @@ class ConservationTest {
         assertNull(Conservation.date("labo", "prestige_autre_20261101_2005.sql.gz"));
         assertNull(Conservation.date("labo", "notes.txt"));
         assertNull(Conservation.date("labo", "prestige_labo_20261101_2005.sql.gz.partiel"));
+        /* lot 4.C : archive chiffree, meme date ; un .aes d'une autre base ou mal forme n'est pas reconnu */
+        assertEquals(MAINTENANT, Conservation.date("labo", "prestige_labo_20261101_2005.sql.gz.aes"));
+        assertNull(Conservation.date("labo", "prestige_autre_20261101_2005.sql.gz.aes"));
+        assertNull(Conservation.date("labo", "prestige_labo_20261101_2005.sql.gz.aes.partiel"));
+        assertNull(Conservation.date("labo", "prestige_labo_20261101_2005.sql.aes"));
+    }
+
+    @Test
+    void archivesChiffreesEtEnClairSontConserveesEnsemble() {
+        /* lot 4.C : le passage de 0 a 1 melange .sql.gz et .sql.gz.aes dans le dossier ; la regle est la meme */
+        String c = n(31, 10, 22) + ".aes", vieille = n(29, 10, 9) + ".aes", trenteUn = n(1, 10, 12) + ".aes";
+        List<String> fichiers = Arrays.asList(n(1, 11, 19), c, n(29, 10, 18), vieille, n(2, 10, 12), trenteUn,
+                "prestige_labo_20261101_2005.sql.gz.aes.partiel");
+        assertEquals(Arrays.asList(vieille, trenteUn), Conservation.aRetirer("labo", fichiers, MAINTENANT, 48, 30));
     }
 
     @Test

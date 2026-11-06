@@ -13,8 +13,8 @@ import java.util.regex.Pattern;
 
 /**
  * Noms des fichiers de sauvegarde et conservation : toutes les sauvegardes des dernieres heures, puis la plus recente
- * de chaque jour, puis plus rien. Seuls les fichiers nommes par Prestige pour cette base sont concernes : un autre
- * fichier du dossier n'est jamais retire.
+ * de chaque jour, puis plus rien. Seuls les fichiers nommes par Prestige pour cette base sont concernes (en clair
+ * .sql.gz, ou chiffres .sql.gz.aes depuis le lot 4.C) : un autre fichier du dossier n'est jamais retire.
  */
 public final class Conservation {
 
@@ -29,7 +29,8 @@ public final class Conservation {
 
     /** Date d'une sauvegarde de cette base d'apres son nom ; null pour tout autre fichier. */
     public static LocalDateTime date(String base, String fichier) {
-        Matcher m = Pattern.compile("prestige_" + Pattern.quote(base) + "_(\\d{8}_\\d{4})\\.sql\\.gz").matcher(fichier);
+        Matcher m = Pattern.compile("prestige_" + Pattern.quote(base) + "_(\\d{8}_\\d{4})\\.sql\\.gz(\\.aes)?")
+                .matcher(fichier);
         if (!m.matches()) {
             return null;
         }

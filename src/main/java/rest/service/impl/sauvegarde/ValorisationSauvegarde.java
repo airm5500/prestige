@@ -40,6 +40,7 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import rest.service.impl.securite.ArchiveChiffree;
 
 /**
  * VALORISATION DU STOCK D'UNE SAUVEGARDE (retour du 02/11 : valoriser sans restaurer toute la base sur un autre poste).
@@ -115,10 +116,17 @@ public class ValorisationSauvegarde {
                     BASE_TEMPORAIRE);
             pb.redirectError(erreurs.toFile());
             pb.redirectOutput(ProcessBuilder.Redirect.DISCARD);
+            /* lot 4.C : archive chiffree ouverte (HMAC verifie, cle lue) avant de lancer le client */
+            java.io.InputStream octets;
+            try {
+                octets = flux(fichier);
+            } catch (IllegalStateException e) {
+                return echec(e.getMessage());
+            }
             Process p = pb.start();
             int tables;
-            try (BufferedReader in = new BufferedReader(new InputStreamReader(
-                    new GZIPInputStream(Files.newInputStream(fichier), 1 << 16), StandardCharsets.ISO_8859_1), 1 << 20);
+            try (BufferedReader in = new BufferedReader(
+                    new InputStreamReader(new GZIPInputStream(octets, 1 << 16), StandardCharsets.ISO_8859_1), 1 << 20);
                     Writer out = new BufferedWriter(
                             new OutputStreamWriter(p.getOutputStream(), StandardCharsets.ISO_8859_1), 1 << 20)) {
                 tables = ExtraitSauvegarde.filtrer(in, out, TABLES);
@@ -306,7 +314,7 @@ public class ValorisationSauvegarde {
 
     /** Le fichier dans le dossier des sauvegardes, a defaut dans sa copie ; seul un nom de sauvegarde est accepte. */
     private Path trouver(String nom) {
-        if (!nom.matches("prestige_[A-Za-z0-9_$-]+_\\d{8}_\\d{4}\\.sql\\.gz")) {
+        if (!nom.matches("prestige_[A-Za-z0-9_$-]+_\\d{8}_\\d{4}\\.sql\\.gz(\\.aes)?")) {
             return null;
         }
         for (String d : new String[] { sauvegardeService.dossier(), sauvegardeService.copie() }) {
@@ -318,6 +326,29 @@ public class ValorisationSauvegarde {
             }
         }
         return null;
+    }
+
+    /**
+     * Octets du fichier de sauvegarde : tels quels, ou dechiffres (lot 4.C, .sql.gz.aes) avec la cle des archives du
+     * serveur ; le HMAC est verifie avant le premier octet. IllegalStateException, sans valeur, si la cle manque ou ne
+     * convient pas.
+     */
+    private java.io.InputStream flux(Path fichier) throws Exception {
+        if (!ArchiveChiffree.estChiffree(fichier.getFileName().toString())) {
+            return Files.newInputStream(fichier);
+        }
+        byte[] cle = sauvegardeService.cleLecture();
+        if (cle == null) {
+            throw new IllegalStateException("Sauvegarde chiffrée, mais la clé des archives est absente sur ce serveur ("
+                    + sauvegardeService.fichierCle()
+                    + ") : 7-cle-archive.ps1 -Creer, ou déchiffrez-la avec la clé du pharmacien.");
+        }
+        try {
+            return ArchiveChiffree.dechiffrer(fichier, cle);
+        } catch (java.security.GeneralSecurityException e) {
+            throw new IllegalStateException("Sauvegarde chiffrée illisible avec la clé des archives de ce serveur"
+                    + " (mauvaise clé ou fichier altéré) : " + fichier.getFileName());
+        }
     }
 
     /** Client de MariaDB a cote de l'outil de sauvegarde : mariadb, a defaut mysql. */

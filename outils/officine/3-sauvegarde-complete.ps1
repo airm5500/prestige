@@ -9,7 +9,12 @@
    - rotation : toutes les sauvegardes des JoursGardes derniers jours, puis la plus recente de chacune des
      SemainesGardees dernieres semaines et des MoisGardes derniers mois ; le reste est supprime ;
    - aucun mot de passe : le compte de sauvegarde lit le sien dans FichierOptions (2-configurer-mariadb.ps1 -CreerCompte),
-     chiffre par DPAPI et dechiffre le temps du script dans un fichier prive (identifiants-sauvegarde.ps1).
+     chiffre par DPAPI et dechiffre le temps du script dans un fichier prive (identifiants-sauvegarde.ps1) ;
+   - cas 4, lot 4.C : si KEY_SECURITE_BASE vaut 1 dans la base, l'archive est CHIFFREE (AES, archive-chiffree.ps1)
+     avant d'etre ecrite et copiee : fichier .sql.zst.aes (ou .sql.rar.aes), lisible avec la cle du pharmacien
+     seulement (7-cle-archive.ps1 ; sur le serveur elle est dans FichierCle, chiffree par DPAPI). Avec zstd, rien en
+     clair ne touche le disque ; avec RAR, l'archive en clair passe par le dossier prive puis est supprimee.
+     Cle absente : la sauvegarde est faite EN CLAIR et le journal le dit (AVERTISSEMENT). A 0 : rien ne change.
   Journal du script : sauvegarde.log dans Destination (noms de fichiers, tailles, durees ; jamais de donnees).
   Code de sortie 1 si une base n'a pas ete sauvegardee.
 
@@ -22,6 +27,7 @@ param(
     [string]$Destination = 'D:\SAUVEGARDE_JOURNALIERE',
     [string]$CopieVers = '',
     [string]$FichierOptions = 'C:\ProgramData\Prestige\sauvegarde.cnf',
+    [string]$FichierCle = 'C:\ProgramData\Prestige\archive.cnf',
     [string]$BinMariaDB = 'D:\Program Files\MariaDB 10.6\bin',
     [string]$Zstd = '',
     [string]$Rar = 'C:\Program Files\WinRAR\Rar.exe',
@@ -32,6 +38,7 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'identifiants-sauvegarde.ps1')
+. (Join-Path $PSScriptRoot 'archive-chiffree.ps1')
 # lance par une tache planifiee (powershell -File), "a,b" arrive en un seul texte
 $Bases = @($Bases | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
 New-Item -ItemType Directory -Force -Path $Destination | Out-Null
@@ -43,7 +50,7 @@ function Note([string]$m) {
 }
 
 function Rotation([string]$dossier, [string]$base) {
-    $fichiers = Get-ChildItem -Path $dossier -File | Where-Object { $_.Name -match ('^' + [regex]::Escape($base) + '-(\d{8}-\d{4})\.sql\.(zst|rar)$') } |
+    $fichiers = Get-ChildItem -Path $dossier -File | Where-Object { $_.Name -match ('^' + [regex]::Escape($base) + '-(\d{8}-\d{4})\.sql\.(zst|rar)(\.aes)?$') } |
         ForEach-Object { [pscustomobject]@{ F = $_; Date = [datetime]::ParseExact(($_.Name -replace '^.*-(\d{8}-\d{4})\.sql\..*$', '$1'), 'yyyyMMdd-HHmm', $null) } } |
         Sort-Object Date -Descending
     if (-not $fichiers) { return }
@@ -88,19 +95,44 @@ foreach ($base in $Bases) {
             Note "$base : ECHEC, connexion a MariaDB impossible : $("$logBin".Trim())"
             continue
         }
+        # cas 4, lot 4.C : archive chiffree quand KEY_SECURITE_BASE vaut 1 et que la cle est lisible
+        $cle = $null
+        if ((Securite-Base $client $optionsClair $base) -eq '1') {
+            try { $cle = Lire-CleArchive $FichierCle } catch { Note "$base : AVERTISSEMENT, archive NON chiffree : $($_.Exception.Message)" }
+        }
         $options = "--defaults-extra-file=`"$optionsClair`" --single-transaction --routines --triggers --events --hex-blob --log-error=`"$erreurs`""
         if ("$logBin".Trim() -eq '1') { $options += ' --master-data=2' } else { Note "$base : journal binaire inactif, position non notee" }
         if ($Zstd) {
             $fichier = Join-Path $Destination "$base-$horodatage.sql.zst"
-            $commande = "`"$dump`" $options $base | `"$Zstd`" -q -T0 -10 -o `"$fichier`""
+            if ($cle) {
+                # zstd ecrit sur sa sortie standard, chiffree a la volee : rien en clair sur le disque
+                $commande = "`"$dump`" $options $base | `"$Zstd`" -q -T0 -10 -c"
+            } else {
+                $commande = "`"$dump`" $options $base | `"$Zstd`" -q -T0 -10 -o `"$fichier`""
+            }
         } else {
             $fichier = Join-Path $Destination "$base-$horodatage.sql.rar"
             $commande = "`"$dump`" $options $base | `"$Rar`" a -inul -m3 -si$base-$horodatage.sql `"$fichier`""
         }
         $t0 = Get-Date
-        # cmd pour le tube : PowerShell 5 abime les octets qui passent entre deux programmes
-        cmd /c $commande
-        $codeCompression = $LASTEXITCODE
+        if ($cle -and $Zstd) {
+            $fichier += $ARCHIVE_SUFFIXE
+            $codeCompression = Chiffrer-Commande $commande $fichier $cle
+        } elseif ($cle) {
+            # RAR n'ecrit pas sur sa sortie standard : archive en clair dans le dossier prive, chiffree puis supprimee
+            $clair = Join-Path (Dossier-Prive) "$base-$horodatage.sql.rar"
+            $commande = $commande.Replace("`"$fichier`"", "`"$clair`"")
+            cmd /c $commande
+            $codeCompression = $LASTEXITCODE
+            $fichier += $ARCHIVE_SUFFIXE
+            try {
+                if ($codeCompression -eq 0 -and (Test-Path $clair)) { Chiffrer-Fichier $clair $fichier $cle | Out-Null }
+            } finally { Remove-Item -Force -ErrorAction SilentlyContinue $clair }
+        } else {
+            # cmd pour le tube : PowerShell 5 abime les octets qui passent entre deux programmes
+            cmd /c $commande
+            $codeCompression = $LASTEXITCODE
+        }
         $duree = [int]((Get-Date) - $t0).TotalSeconds
         $messages = if (Test-Path $erreurs) { (Get-Content $erreurs | Where-Object { $_ -match '\S' -and $_ -notmatch '^\s*(--\s*)?Warning' }) } else { @() }
         Remove-Item -Force -ErrorAction SilentlyContinue $erreurs
@@ -111,7 +143,7 @@ foreach ($base in $Bases) {
             continue
         }
         $taille = [math]::Round((Get-Item $fichier).Length / 1MB, 1)
-        Note "$base : $fichier, $taille Mo, $duree s"
+        Note "$base : $fichier, $taille Mo, $duree s$(if ($cle) { ', chiffree (AES)' })"
         if ($CopieVers) {
             try {
                 New-Item -ItemType Directory -Force -Path $CopieVers | Out-Null
@@ -128,5 +160,6 @@ foreach ($base in $Bases) {
 }
 } finally {
     Retirer-OptionsTemporaires $optionsClair
+    $cle = $null
 }
 if ($echecs) { exit 1 }
