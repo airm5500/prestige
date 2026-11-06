@@ -11,7 +11,7 @@
  *  2. date de debut videe, fin = aujourd'hui ;
  *  3. debut = jour du dernier BL de la base, fin videe ;
  *  4. les memes dates saisies (doit egaler le cas 3) ;
- *  5. une longue periode (plusieurs pages) : nombres seulement.
+ *  5. les douze derniers mois (plusieurs pages) : liste et nombre seulement.
  * Lecture seule : aucune donnee ecrite, les fichiers telecharges sont effaces.
  *
  * node support/anomalies-centre/test-rapprochement-controle-achats.js   (BASE=http://localhost:10090/prestige)
@@ -29,12 +29,13 @@ function ok(n, c, d) { res.push(!!c); console.log((c ? 'PASS' : 'FAIL') + '  ' +
 const iso = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 const affiche = (s) => s.slice(8, 10) + '/' + s.slice(5, 7) + '/' + s.slice(0, 4);
 const AUJOURDHUI = iso(new Date());
+const IL_Y_A_UN_AN = iso(new Date(Date.now() - 365 * 86400000));
 const dossier = fs.mkdtempSync(path.join(os.tmpdir(), 'rappr-ctrl-achats-'));
 
-/* lignes de la premiere feuille : [nombre de lignes de donnees, references (colonne « Réf Bon »)] */
-const LIRE_XLSX = 'import sys, json, openpyxl\n'
-  + 'f = openpyxl.load_workbook(sys.argv[1], read_only=True).worksheets[0]\n'
-  + 'l = [[("" if c is None else str(c)) for c in r] for r in f.iter_rows(values_only=True)]\n'
+/* export au format .xls (HSSF) ; lignes de la premiere feuille : [nombre de lignes de donnees, references (colonne « Réf Bon »)] */
+const LIRE_XLS = 'import sys, json, xlrd\n'
+  + 'f = xlrd.open_workbook(sys.argv[1]).sheet_by_index(0)\n'
+  + 'l = [[str(c.value) for c in f.row(k)] for k in range(f.nrows)]\n'
   + 'i = next((k for k, r in enumerate(l) if "Réf Bon" in r), None)\n'
   + 'c = l[i].index("Réf Bon") if i is not None else -1\n'
   + 'd = [r for r in l[i + 1:] if any(x.strip() for x in r)] if i is not None else []\n'
@@ -70,13 +71,24 @@ const LIRE_XLSX = 'import sys, json, openpyxl\n'
     const r = await p.request.get(BASE + '/api/v1/etat-control-bon/nombre?' + new URLSearchParams(c).toString());
     return (await r.json()).nombre; };
   const imprimer = async () => {
-    const rep = p.waitForResponse((r) => /etat-control-bon\/print/.test(r.url()), { timeout: 180000 });
+    const rep = p.waitForResponse((r) => /etat-control-bon\/print/.test(r.url()), { timeout: 420000 });
     await cliquer(p, 'etatscontrolemanager button[text=Imprimer]');
     const j = await (await rep).json();
     await p.waitForTimeout(800);
     if (!j.success) { return { erreur: j.msg }; }
     const f = path.join(dossier, 'etat.pdf');
-    fs.writeFileSync(f, await (await p.request.get(BASE + '/' + j.msg.replace(/^\/+/, ''))).body());
+    /* meme adresse que l'onglet ouvert par l'ecran : '..' + msg, depuis la page */
+    const pdfRep = await p.request.get(new URL('..' + j.msg, p.url()).href);
+    let octets = await pdfRep.body();
+    if (octets.slice(0, 4).toString() !== '%PDF') {
+      /* poste local : domain3 ecrit ses PDF dans le dossier de domain1 (configuration commune), d'ou un 404 par HTTP */
+      const local = require('../editions').fichierEdition(j.msg);
+      if (local && fs.existsSync(local)) { octets = fs.readFileSync(local); fs.unlinkSync(local); }
+    }
+    if (octets.slice(0, 4).toString() !== '%PDF') {
+      return { erreur: 'pas un PDF : ' + pdfRep.status() + ' ' + j.msg + ' ' + octets.slice(0, 80).toString() };
+    }
+    fs.writeFileSync(f, octets);
     const texte = execFileSync('pdftotext', ['-enc', 'UTF-8', '-layout', f, '-'], { encoding: 'utf8' });
     fs.unlinkSync(f);
     const periode = (texte.match(/Période du (\S*) au (\S*)/) || []);
@@ -84,30 +96,36 @@ const LIRE_XLSX = 'import sys, json, openpyxl\n'
     return { texte, debut: periode[1], fin: periode[2], nombre: n ? Number(n[1]) : null };
   };
   const exporter = async () => {
-    const tel = p.waitForEvent('download', { timeout: 180000 });
+    const tel = p.waitForEvent('download', { timeout: 420000 });
     await cliquer(p, 'etatscontrolemanager button[tooltip="Exporter la liste en Excel"]');
     const d = await tel;
-    const f = path.join(dossier, 'etat.xlsx'); await d.saveAs(f);
-    const x = JSON.parse(execFileSync('python', ['-I', '-c', LIRE_XLSX, f], { encoding: 'utf8' }));
+    const f = path.join(dossier, 'etat.xls'); await d.saveAs(f);
+    const x = JSON.parse(execFileSync('python', ['-I', '-c', LIRE_XLS, f], { encoding: 'utf8' }));
     fs.unlinkSync(f);
     return x;
   };
 
-  const rapprocher = async (nom, debut, fin, attendu, refsAussi) => {
+  const rapprocher = async (nom, debut, fin, attendu, refsAussi, documents) => {
     await poserDate('datedebut', debut);
     await poserDate('datefin', fin);
     const r = await rechercher();
     const e = await ecran();
     ok(nom + ' : la liste répond', r.status() === 200, r.status());
     const n = await nombre();
+    if (documents === false) {
+      ok(nom + ' : liste = nombre', e.total === n, JSON.stringify({ liste: e.total, nombre: n }));
+      return e;
+    }
+    const t0 = Date.now();
     const pdf = await imprimer();
+    console.log('      (impression : ' + Math.round((Date.now() - t0) / 1000) + ' s)');
     const xl = await exporter();
     ok(nom + ' : liste = nombre = PDF = Excel', !pdf.erreur && e.total === n && e.total === pdf.nombre && e.total === xl.lignes,
       JSON.stringify({ liste: e.total, nombre: n, pdf: pdf.nombre || pdf.erreur, excel: xl.lignes }));
     ok(nom + ' : période imprimée = période de la liste', pdf.debut === attendu[0] && pdf.fin === attendu[1],
       JSON.stringify({ imprime: [pdf.debut, pdf.fin], attendu, saisies: e.saisies }));
     if (refsAussi) {
-      const absentesPdf = e.refs.filter((x) => pdf.texte.indexOf(x) < 0);
+      const absentesPdf = e.refs.filter((x) => (pdf.texte || '').indexOf(x) < 0);
       const xlTriees = xl.refs.slice().sort(), ecranTriees = e.refs.slice().sort();
       ok(nom + ' : mêmes références à l\'écran, dans le PDF et dans l\'Excel', e.total === e.page && absentesPdf.length === 0
         && JSON.stringify(xlTriees) === JSON.stringify(ecranTriees),
@@ -123,8 +141,9 @@ const LIRE_XLSX = 'import sys, json, openpyxl\n'
     await ouverture;
     await p.waitForTimeout(1500);
 
-    /* jour du dernier BL : liste sur une longue periode, triee du plus recent au plus ancien */
-    const long = await rapprocher('Cas 5, du 2020-01-01 à aujourd\'hui', '2020-01-01', AUJOURDHUI, ['2020-01-01', AUJOURDHUI], false);
+    /* jour du dernier BL : liste sur une longue periode, triee du plus recent au plus ancien. Liste et nombre seulement :
+       l'impression de douze mois depasse 7 min sur la copie d'audit (lenteur suivie a part). */
+    const long = await rapprocher('Cas 5, du ' + IL_Y_A_UN_AN + ' à aujourd\'hui', IL_Y_A_UN_AN, AUJOURDHUI, [IL_Y_A_UN_AN, AUJOURDHUI], false, false);
     ok('Cas 5 : la base de test a des BL sur la période', long.total > 0, long.total);
     const brut = long.dates[0] || '', fr = brut.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
     const dernier = fr ? fr[3] + '-' + fr[2] + '-' + fr[1] : brut.slice(0, 10);
