@@ -733,20 +733,30 @@ public final class ConversionTicket {
         if (s.operation != null) {
             date = new SimpleDateFormat(court ? "dd/MM/yy HH:mm" : "dd/MM/yyyy HH:mm").format(s.operation);
         }
+        // retour du 06/11 : la date a son propre bloc, reglable a part du code-barres
         if (s.ticket == ModeleTicket.PREVENTE) {
-            doc.bloc(TicketDocument.PIED).pied(s.imageCode, "Présentez ce ticket à la caisse", date, true);
+            date(date);
+            doc.bloc(TicketDocument.PIED).pied(s.imageCode, "Présentez ce ticket à la caisse", "", true);
             return;
         }
         if (s.ticket == ModeleTicket.TICKET_Z) {
             doc.bloc(TicketDocument.PIED).trait(false);
-            doc.bloc(TicketDocument.PIED).texte("Édité le " + date, Style.PETIT);
+            date(vide(date) ? "" : "Édité le " + date);
             return;
         }
         doc.bloc(TicketDocument.PIED).trait(false);
         // retour du 03/11 : le numero deja imprime en haut du ticket ne se repete pas a cote du code-barres
         String reference = !vide(s.referencePied) && nul(s.titre).contains(s.referencePied.trim()) ? ""
                 : s.referencePied;
-        doc.bloc(TicketDocument.PIED).pied(s.imageCode, reference, date, false);
+        date(date);
+        doc.bloc(TicketDocument.PIED).pied(s.imageCode, reference, "", false);
+    }
+
+    /** Retour du 06/11 : la date du ticket dans son bloc (vide : pas de bloc). */
+    private void date(String date) {
+        if (!vide(date)) {
+            doc.bloc(TicketDocument.DATE).texte(date, Style.PETIT);
+        }
     }
 
     /* ---------- outils ---------- */

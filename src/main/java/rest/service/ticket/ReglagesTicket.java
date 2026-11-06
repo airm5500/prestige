@@ -53,7 +53,7 @@ public final class ReglagesTicket {
      */
     public static final List<String> BLOCS_COMMUNS = Collections.unmodifiableList(
             Arrays.asList(TicketDocument.ENTETE, TicketDocument.PHARMACIEN, TicketDocument.COORDONNEES,
-                    TicketDocument.MESSAGE, TicketDocument.COMMENTAIRE, TicketDocument.PIED));
+                    TicketDocument.MESSAGE, TicketDocument.COMMENTAIRE, TicketDocument.DATE, TicketDocument.PIED));
 
     /**
      * Position d'un bloc : son identifiant, son alignement (G, C, D), son ecart de taille, sa largeur (pourcentage,

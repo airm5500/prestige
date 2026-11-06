@@ -97,14 +97,15 @@ class TicketCreditRetoursTest {
         s.referencePied = "5849567953";
         List<String> pied = bloc(ConversionTicket.convertir(s, new ReglagesTicket(ModeleTicket.VENTE_ASSURANCE)),
                 TicketDocument.PIED);
-        assertTrue(pied.contains("PIED[ | 02/11/2026 17:42]"), pied.toString());
+        // retour du 06/11 : la date est dans son propre bloc ; le pied ne porte que le code-barres
+        assertTrue(pied.contains("PIED[]"), pied.toString());
     }
 
     @Test
     void referenceGardeeAuPiedQuandLeTitreNeLaPortePas() {
         List<String> pied = bloc(ConversionTicket.convertir(ExemplesTicket.exemple(ModeleTicket.VENTE, 80),
                 new ReglagesTicket(ModeleTicket.VENTE)), TicketDocument.PIED);
-        assertTrue(pied.contains("PIED[ | 4K7Q2M9XPA | 02/11/2026 17:42]"), pied.toString());
+        assertTrue(pied.contains("PIED[ | 4K7Q2M9XPA]"), pied.toString());
     }
 
     /** Image du code-barres comme GenerateTicketServiceImpl.buildLineBarecode : barres puis numero en dessous. */

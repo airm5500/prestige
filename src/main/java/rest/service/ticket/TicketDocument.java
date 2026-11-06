@@ -30,12 +30,14 @@ public final class TicketDocument {
     public static final String MENTIONS = "MENTIONS";
     public static final String COMMENTAIRE = "COMMENTAIRE";
     public static final String SIGNATURES = "SIGNATURES";
+    /** Retour du 06/11 : la date du ticket, a part du code-barres (taille et alignement propres). */
+    public static final String DATE = "DATE";
     public static final String PIED = "PIED";
 
     /** Ordre du modele ; le pied reste dernier. */
     public static final List<String> ORDRE = Collections
             .unmodifiableList(Arrays.asList(ENTETE, PHARMACIEN, COORDONNEES, MESSAGE, TITRE, INTERVENANTS, CLIENT,
-                    CORPS, RECAP, TOTAUX, NET, REGLEMENT, MENTIONS, COMMENTAIRE, SIGNATURES, PIED));
+                    CORPS, RECAP, TOTAUX, NET, REGLEMENT, MENTIONS, COMMENTAIRE, SIGNATURES, DATE, PIED));
     public static final List<String> FIXES = Collections.unmodifiableList(Arrays.asList(PIED));
 
     private static final Map<String, String> LIBELLES = new LinkedHashMap<>();
@@ -56,6 +58,7 @@ public final class TicketDocument {
         LIBELLES.put(MENTIONS, "Mentions (acompte, reste…)");
         LIBELLES.put(COMMENTAIRE, "Commentaire du bas");
         LIBELLES.put(SIGNATURES, "Signatures");
+        LIBELLES.put(DATE, "Date du ticket");
         LIBELLES.put(PIED, "Code-barres");
     }
 
