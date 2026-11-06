@@ -145,6 +145,10 @@ CREATE USER IF NOT EXISTS '$Compte'@'localhost' IDENTIFIED BY '$mdp';
 ALTER USER '$Compte'@'localhost' IDENTIFIED BY '$mdp';
 GRANT SELECT, SHOW VIEW, TRIGGER, EVENT, LOCK TABLES, RELOAD, REPLICATION CLIENT, BINLOG MONITOR ON *.* TO '$Compte'@'localhost';
 GRANT ALL PRIVILEGES ON ``prestige_valo_tmp``.* TO '$Compte'@'localhost';
+"@
+    # lot 4.C : trace des essais de restauration et de la cle des archives ; tables presentes apres le deploiement du WAR
+    # (V7.2.39, V7.2.40) : sinon ces deux droits sont sautes et signales, le reste n'en depend pas
+    $sqlTrace = @"
 GRANT INSERT, UPDATE ON ``$Base``.t_parameters TO '$Compte'@'localhost';
 GRANT INSERT ON ``$Base``.t_securite_journal TO '$Compte'@'localhost';
 "@
@@ -157,6 +161,15 @@ GRANT INSERT ON ``$Base``.t_securite_journal TO '$Compte'@'localhost';
     }
     $sql = $null
     if ($LASTEXITCODE -ne 0) { throw "creation du compte $Compte refusee par MariaDB" }
+    $ErrorActionPreference = 'Continue'
+    if ($OptionsRoot) {
+        $rTrace = ($sqlTrace | & $Client "--defaults-extra-file=$OptionsRoot" "--port=$Port" --host=localhost --force 2>&1)
+    } else {
+        Write-Host "Mot de passe root de MariaDB, une seconde fois (droits de la trace, lot 4.C) :"
+        $rTrace = ($sqlTrace | & $Client "--port=$Port" --host=localhost -u root -p --force 2>&1)
+    }
+    $ErrorActionPreference = 'Stop'
+    if ("$rTrace" -match 'ERROR') { Write-Host "  Droits de la trace (t_parameters, t_securite_journal de $Base) non poses : $("$rTrace".Trim()) ; relancer -CreerCompte apres le deploiement du WAR" }
     # chiffre (DPAPI) ; lisible par SYSTEM (taches planifiees), les administrateurs et le compte de Payara seulement
     Ecrire-FichierOptions "[client]`r`nuser=$Compte`r`npassword=$mdp`r`nport=$Port`r`nhost=localhost`r`n"
     $mdp = $null

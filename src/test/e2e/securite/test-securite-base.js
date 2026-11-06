@@ -93,7 +93,7 @@ function comparer(a, b) {
   try {
     sortie = execFileSync('powershell', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', path.join(RACINE, 'outils', 'officine', '2-configurer-mariadb.ps1'),
       '-Ini', path.join(TMP, 'my.ini'), '-DossierJournal', path.join(TMP, 'journal'), '-SansMemoire', '-CreerCompte', '-Compte', COMPTE, '-Port', port,
-      '-OptionsRoot', optionsRoot, '-FichierOptions', FICHIER, '-ComptePayara', process.env.USERDOMAIN + '\\' + process.env.USERNAME], { encoding: 'utf8' });
+      '-OptionsRoot', optionsRoot, '-FichierOptions', FICHIER, '-ComptePayara', process.env.USERDOMAIN + '\\' + process.env.USERNAME, '-Base', BASE], { encoding: 'utf8' });
   } catch (e) { sortie = String(e.stdout) + String(e.stderr); }
   const contenu = fs.existsSync(FICHIER) ? fs.readFileSync(FICHIER, 'utf8') : '';
   ok('Script 2 -CreerCompte : compte dédié créé, fichier d\'options chiffré (en-tête DPAPI, rien en clair)', /options chiffrees/.test(sortie)
