@@ -42,7 +42,9 @@ import rest.service.impl.serveur.Asadmin;
  * <ul>
  * <li>{@link #etat()} : ou vit le mot de passe de la base et sous quelle forme (pool en clair ou alias Payara,
  * sauvegarde sur compte dedie ou par domain.xml), date de la derniere rotation et rappel a 6 mois (Q4.6), copies
- * domain.xml.avant-prestige-* qui contiennent encore un mot de passe en clair, journal des actions ;</li>
+ * domain.xml.avant-prestige-* qui contiennent encore un mot de passe en clair, journal des actions ; lot 4.C : archives
+ * de sauvegarde chiffrees ou non (cle posee par 7-cle-archive.ps1), date et resultat du dernier essai de restauration
+ * (6-essai-restauration.ps1) et rappel quand il a plus d'un mois ({@link #rappelEssai}) ;</li>
  * <li>{@link #rotation} : rotation transactionnelle (S1) avec un compte MariaDB de rotation saisi pour l'occasion et
  * jamais garde (Q4.2) ; mot de passe genere ici ou saisi, jamais journalise ni renvoye ;</li>
  * <li>{@link #alias} : alias Payara {@link #ALIAS} pose sur le pool (S2) ; {@link #purgerCopies} ;</li>
@@ -67,6 +69,11 @@ public class SecuriteBaseService {
     public static final String CLE_DOSSIER_COPIES = "KEY_SECURITE_DOSSIER_COPIES";
     public static final String PREFIXE_COPIE = "domain.xml.avant-prestige-";
     public static final int RAPPEL_MOIS = 6;
+    /* lot 4.C : archives chiffrees et essai de restauration (ecrits par les scripts 6 et 7, lus ici) */
+    public static final String CLE_CLE_ARCHIVE_DATE = "KEY_SECURITE_CLE_ARCHIVE_DATE";
+    public static final String CLE_DERNIER_ESSAI = "KEY_SECURITE_DERNIER_ESSAI_RESTAURATION";
+    public static final String CLE_DERNIER_ESSAI_RESULTAT = "KEY_SECURITE_DERNIER_ESSAI_RESULTAT";
+    public static final int RAPPEL_ESSAI_MOIS = 1;
     static final int REFUS_MAX = 5;
     static final long FREIN_MS = 5 * 60 * 1000L;
     private static final DateTimeFormatter DATE = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
@@ -188,6 +195,57 @@ public class SecuriteBaseService {
     }
 
     /* ============================================================================================ etat */
+
+    /**
+     * L'essai de restauration est obligatoire chaque mois : rappel si la date est vide, illisible ou vieille de plus de
+     * {@link #RAPPEL_ESSAI_MOIS} mois a l'instant donne.
+     */
+    static boolean rappelEssai(String derniere, LocalDateTime maintenant) {
+        LocalDateTime d = dateParametre(derniere);
+        return d == null || d.plusMonths(RAPPEL_ESSAI_MOIS).isBefore(maintenant);
+    }
+
+    /** Date au plus tard du prochain essai (AAAA-MM-JJ), ou vide si aucun essai n'a ete fait. */
+    static String prochainEssai(String derniere) {
+        LocalDateTime d = dateParametre(derniere);
+        return d == null ? "" : d.plusMonths(RAPPEL_ESSAI_MOIS).format(DATE).substring(0, 10);
+    }
+
+    static LocalDateTime dateParametre(String v) {
+        if (StringUtils.isBlank(v)) {
+            return null;
+        }
+        try {
+            return LocalDateTime.parse(v.trim(), DATE);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /** Etat des archives chiffrees et du dernier essai de restauration (lot 4.C) ; jamais une valeur de cle. */
+    JSONObject archives() {
+        Path fc = ArchiveChiffree.fichierCle(parametre(ArchiveChiffree.CLE_FICHIER_CLE));
+        boolean clePresente = Files.isRegularFile(fc);
+        String derniereArchive = "";
+        try (Connection c = ds.getConnection(); Statement s = c.createStatement(); ResultSet rs = s
+                .executeQuery("SELECT fichier FROM t_sauvegarde WHERE statut = 'REUSSIE' ORDER BY id DESC LIMIT 1")) {
+            if (rs.next()) {
+                derniereArchive = StringUtils.defaultString(rs.getString(1));
+            }
+        } catch (Exception e) {
+            LOG.log(Level.FINE, "derniere sauvegarde", e);
+        }
+        String essai = parametre(CLE_DERNIER_ESSAI), resultat = parametre(CLE_DERNIER_ESSAI_RESULTAT),
+                cleDate = parametre(CLE_CLE_ARCHIVE_DATE);
+        return new JSONObject().put("chiffrees", clePresente).put("clePresente", clePresente)
+                .put("fichierCle", fc.toString()).put("cleDate", cleDate == null ? JSONObject.NULL : cleDate)
+                .put("derniereArchive", derniereArchive)
+                .put("derniereArchiveChiffree", ArchiveChiffree.estChiffree(derniereArchive))
+                .put("dernierEssai", essai == null ? JSONObject.NULL : essai)
+                .put("dernierEssaiResultat", resultat == null ? JSONObject.NULL : resultat)
+                .put("rappelEssai", rappelEssai(essai, LocalDateTime.now())).put("prochainEssai", prochainEssai(essai))
+                .put("rappelEssaiMois", RAPPEL_ESSAI_MOIS);
+    }
 
     static Path domaineXml() {
         String r = System.getProperty("com.sun.aas.instanceRoot");
@@ -342,6 +400,7 @@ public class SecuriteBaseService {
         }
         o.put("derniereRotationPar", par);
         o.put("journal", j);
+        o.put("archives", archives());
         o.put("asadmin", Asadmin.chemin() != null);
         o.put("alias", ALIAS);
         String domaine = domaineXml() == null ? "domain1"

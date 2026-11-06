@@ -8,8 +8,9 @@
      Une copie datee de my.ini est faite avant toute modification ; une cle deja presente est remplacee, jamais
      dupliquee.
   2. -CreerCompte : compte MariaDB dedie aux sauvegardes, avec les seuls droits utiles (et l'ecriture de la base
-     temporaire de valorisation prestige_valo_tmp de Prestige). Son mot de passe est tire au hasard et range dans un
-     fichier d'options CHIFFRE (DPAPI, portee machine : identifiants-sauvegarde.ps1) lisible par SYSTEM, les
+     temporaire de valorisation prestige_valo_tmp de Prestige ; lot 4.C : la trace des essais de restauration et de la
+     cle des archives dans t_parameters et t_securite_journal de -Base, qui doivent exister : deployer le WAR
+     d'abord). Son mot de passe est tire au hasard et range dans un fichier d'options CHIFFRE (DPAPI, portee machine : identifiants-sauvegarde.ps1) lisible par SYSTEM, les
      administrateurs et le compte de Payara (-ComptePayara) seulement. Il n'est jamais affiche. Le mot de passe root
      est demande par MariaDB lui-meme (saisie masquee) et n'est garde nulle part ; -OptionsRoot <fichier> le lit dans
      un fichier d'options existant (poste sans console).
@@ -44,6 +45,8 @@ param(
     [string]$OptionsRoot = '',
     # compte Windows qui fait tourner Payara s'il n'est ni SYSTEM ni administrateur (DOMAINE\compte)
     [string]$ComptePayara = '',
+    # base de Prestige : le compte y ecrit la trace des essais de restauration et de la cle des archives (lot 4.C)
+    [string]$Base = 'laborex_v1_db',
     [switch]$Chiffrer,
     [switch]$Lire,
     [switch]$Redemarrer
@@ -142,6 +145,8 @@ CREATE USER IF NOT EXISTS '$Compte'@'localhost' IDENTIFIED BY '$mdp';
 ALTER USER '$Compte'@'localhost' IDENTIFIED BY '$mdp';
 GRANT SELECT, SHOW VIEW, TRIGGER, EVENT, LOCK TABLES, RELOAD, REPLICATION CLIENT, BINLOG MONITOR ON *.* TO '$Compte'@'localhost';
 GRANT ALL PRIVILEGES ON ``prestige_valo_tmp``.* TO '$Compte'@'localhost';
+GRANT INSERT, UPDATE ON ``$Base``.t_parameters TO '$Compte'@'localhost';
+GRANT INSERT ON ``$Base``.t_securite_journal TO '$Compte'@'localhost';
 "@
     # les ordres passent par l'entree du client, jamais par un fichier : rien ne reste sur le disque si on interrompt
     if ($OptionsRoot) {

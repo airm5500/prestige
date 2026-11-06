@@ -978,11 +978,14 @@ Ext.define('testextjs.view.support.SupportServeur', {
                 o.down('#sauvGarderJours').setValue(r.garderJours);
                 o.down('#sauvActive').setValue(r.active);
             }
+            var ch = r.chiffrement || {};
             e.update((r.enCours ? '<span class="srv-encours">Sauvegarde en cours depuis ' + me.esc(r.enCoursDepuis.substring(11)) + '…</span><br>' : '')
                     + 'Dernière sauvegarde réussie : ' + (r.derniereReussie ? '<b>' + me.esc(r.derniereReussie) + '</b>' : '<span class="srv-critique">aucune</span>')
                     + (r.active ? '' : ' · <span class="srv-ajuster">sauvegarde automatique coupée</span>')
                     + '<br>Outil de sauvegarde : ' + (r.outil ? me.esc(r.outil) : '<span class="srv-critique">introuvable (mariadb-dump)</span>')
-                    + ' · Espace libre : ' + (r.espaceLibreMo === null ? '—' : me.nombre(r.espaceLibreMo) + ' Mo'));
+                    + ' · Espace libre : ' + (r.espaceLibreMo === null ? '—' : me.nombre(r.espaceLibreMo) + ' Mo')
+                    + '<br>Archives : ' + (ch.actif ? '<span class="srv-ok">chiffrées (AES, clé des archives du pharmacien)</span>'
+                    : ch.securite ? '<span class="srv-critique">NON chiffrées : clé absente (' + me.esc(ch.fichierCle) + ', 7-cle-archive.ps1 -Creer)</span>' : 'en clair (sécurité de la base inactive)'));
             o.down('#sauvListe').getStore().loadData(r.liste);
             var dernier = '';
             Ext.each(r.liste, function (l) {
@@ -990,10 +993,12 @@ Ext.define('testextjs.view.support.SupportServeur', {
                     dernier = l.fichier;
                 }
             });
-            var base = me.esc(r.base), f = me.esc(dernier || 'prestige_' + r.base + '_AAAAMMJJ_HHMM.sql.gz'), sql = f.replace(/\.gz$/, '');
+            var chiffre = /\.aes$/.test(dernier || '') || (!dernier && ch.actif);
+            var base = me.esc(r.base), f = me.esc(dernier || 'prestige_' + r.base + '_AAAAMMJJ_HHMM.sql.gz' + (chiffre ? '.aes' : '')), gz = f.replace(/\.aes$/, ''), sql = gz.replace(/\.gz$/, '');
             o.down('#sauvRestaurer').update('<div class="srv-lex"><div class="srv-lex-terme">Restaurer une sauvegarde</div>'
                     + '<div>1. Arrêter Prestige (Payara) sur le serveur : plus aucune vente pendant la restauration.</div>'
-                    + '<div>2. Décompresser le fichier ' + f + ' (7-Zip : clic droit &gt; Extraire ici).</div>'
+                    + (chiffre ? '<div>2. Déchiffrer avec la clé des archives (gardée par le pharmacien) : <code class="srv-jeton">powershell -File outils\\officine\\7-cle-archive.ps1 -Dechiffrer ' + f + '</code>, puis décompresser ' + gz + ' (7-Zip : clic droit &gt; Extraire ici).</div>'
+                        : '<div>2. Décompresser le fichier ' + f + ' (7-Zip : clic droit &gt; Extraire ici).</div>')
                     + '<div>3. Dans une invite de commandes, dossier <code>bin</code> de MariaDB, recréer la base puis la recharger :<br>'
                     + '<code class="srv-jeton">mariadb -u root -p -e "DROP DATABASE ' + base + '; CREATE DATABASE ' + base + ' CHARACTER SET utf8mb4"</code><br>'
                     + '<code class="srv-jeton">mariadb -u root -p --default-character-set=utf8mb4 ' + base + ' &lt; ' + sql + '</code></div>'
@@ -1046,7 +1051,8 @@ Ext.define('testextjs.view.support.SupportServeur', {
     ongletSecurite: function () {
         var me = this;
         var journal = Ext.create('Ext.data.Store', {fields: ['date', 'login', 'action', 'resultat', 'detail'], data: []});
-        var actions = {ROTATION: 'Rotation du mot de passe de la base', ALIAS: 'Alias Payara posé sur le pool', PURGE_COPIES: 'Purge des copies de domain.xml'};
+        var actions = {ROTATION: 'Rotation du mot de passe de la base', ALIAS: 'Alias Payara posé sur le pool', PURGE_COPIES: 'Purge des copies de domain.xml',
+            CLE_ARCHIVE: 'Clé des archives de sauvegarde (script 7)', ESSAI_RESTAURATION: 'Essai de restauration (script 6)'};
         var resultats = {OK: ['ok', 'OK'], ECHEC: ['ko', 'Échec'], RETOUR_ARRIERE: ['warn', 'Retour arrière'], REFUSE: ['ko', 'Refusé']};
         var mdp = function (itemId, label, largeur) {
             return {xtype: 'textfield', itemId: itemId, inputType: 'password', fieldLabel: label, labelAlign: 'top', width: largeur || 230, margin: '0 10 0 0',
@@ -1173,19 +1179,26 @@ Ext.define('testextjs.view.support.SupportServeur', {
         var ligne = function (lib, badge, small) {
             return '<div class="srv-sec-ligne"><span class="lib">' + lib + '</span>' + badge + (small ? '<span class="small">' + small + '</span>' : '') + '</div>';
         };
-        var p = r.pool || {}, c = r.copies || {}, s = r.sauvegarde || {};
+        var p = r.pool || {}, c = r.copies || {}, s = r.sauvegarde || {}, a = r.archives || {};
         var clair = (p.forme === 'CLAIR' ? 1 : 0) + (c.enClair || 0);
+        /* lot 4.C : archives chiffrees et essai de restauration mensuel obligatoire */
+        var alerteArchives = (a.clePresente ? '' : '<div class="srv-sec-alerte">⚠ Archives de sauvegarde NON chiffrées : clé absente (' + me.esc(a.fichierCle) + ') · sur le serveur : <code>7-cle-archive.ps1 -Creer</code>, la clé reste chez le pharmacien.</div>')
+                + (a.rappelEssai ? '<div class="srv-sec-alerte warn">Essai de restauration obligatoire chaque mois : ' + (a.dernierEssai ? 'dernier le ' + me.esc(a.dernierEssai) + ' (' + me.esc(a.dernierEssaiResultat || '') + '), plus d\'un mois' : 'jamais fait')
+                        + ' · sur le serveur : <code>6-essai-restauration.ps1</code> avec la clé gardée hors du serveur.</div>' : '');
         var alerte = clair > 0 ? '<div class="srv-sec-alerte">⚠ Le mot de passe de la base est lisible en clair à ' + clair + ' endroit(s) sur ce serveur'
                 + (r.rappel ? ' · Dernière rotation : ' + (r.derniereRotation ? me.esc(r.derniereRotation) + ' (plus de ' + r.rappelMois + ' mois : rotation recommandée)' : 'jamais') : '') + '.</div>'
                 : r.rappel ? '<div class="srv-sec-alerte warn">Aucune copie en clair · Dernière rotation : ' + (r.derniereRotation ? me.esc(r.derniereRotation) + ' (plus de ' + r.rappelMois + ' mois : rotation recommandée)' : 'jamais') + '.</div>'
                 : '<div class="srv-sec-alerte ok">✔ Aucune copie en clair du mot de passe de la base sur ce serveur · Dernière rotation : ' + me.esc(r.derniereRotation) + '.</div>';
-        o.down('#secAlerte').update(alerte);
+        o.down('#secAlerte').update(alerte + alerteArchives);
         o.down('#secStockage').update('<div class="srv-sec-bloc"><h4>Où est stocké le mot de passe de la base</h4>'
                 + ligne('Pool Payara <code>' + me.esc(p.nom) + '</code> (domain.xml)', p.forme === 'ALIAS' ? etat('ok', 'ALIAS PAYARA') : p.forme === 'CLAIR' ? etat('ko', 'EN CLAIR') : etat('', 'INCONNU'),
                         p.forme === 'ALIAS' ? 'alias ' + me.esc(p.alias) + ' · compte ' + me.esc(p.utilisateur) : p.forme === 'CLAIR' ? 'protection possible : alias Payara · compte ' + me.esc(p.utilisateur) : 'pool non décrit')
                 + ligne('Anciens écrans (JSP, éditions)', etat('ok', 'POOL JNDI'), 'plus d\'URL JDBC avec le mot de passe')
                 + ligne('Sauvegarde intégrée (toutes les heures)', s.present && s.chiffre ? etat('ok', 'COMPTE DÉDIÉ, FICHIER CHIFFRÉ') : s.present ? etat('warn', 'COMPTE DÉDIÉ, FICHIER EN CLAIR') : etat('ko', 'FICHIER ABSENT'),
                         me.esc(s.fichier) + (s.present ? '' : ' : lancez 2-configurer-mariadb.ps1 -CreerCompte'))
+                + ligne('Archives de sauvegarde (<code>.sql.gz</code> de Prestige, <code>.sql.zst</code> et journaux des scripts)', a.clePresente ? etat('ok', 'CHIFFRÉES (AES)') : etat('ko', 'NON CHIFFRÉES'),
+                        a.clePresente ? 'clé posée' + (a.cleDate ? ' le ' + me.esc(a.cleDate) : '') + ', gardée hors du serveur par le pharmacien' + (a.derniereArchive ? ' · dernière sauvegarde intégrée : ' + me.esc(a.derniereArchive) + (a.derniereArchiveChiffree ? ' (chiffrée)' : ' (en clair)') : '')
+                            : 'clé absente : ' + me.esc(a.fichierCle) + ' · 7-cle-archive.ps1 -Creer')
                 + ligne('Copies <code>domain.xml.avant-prestige-*</code>', c.nombre ? etat(c.enClair ? 'ko' : 'warn', c.nombre + ' FICHIER(S)' + (c.enClair ? ', ' + c.enClair + ' EN CLAIR' : '')) : etat('ok', 'AUCUNE'),
                         c.nombre ? 'contiennent l\'ancien mot de passe : à purger après rotation' : me.esc(c.dossier))
                 + ligne('Master password de Payara (protège l\'alias)', etat('warn', 'À CHANGER SUR LE SERVEUR'), 'par le pharmacien : <code class="srv-jeton">' + me.esc(r.masterPasswordCommande) + '</code>')
@@ -1194,6 +1207,8 @@ Ext.define('testextjs.view.support.SupportServeur', {
                 + ligne('Dernière rotation', r.derniereRotation ? etat('', me.esc(r.derniereRotation) + (r.derniereRotationPar ? ' — par ' + me.esc(r.derniereRotationPar) : '')) : etat('ko', 'JAMAIS'),
                         r.prochaine ? 'prochaine recommandée : ' + me.esc(r.prochaine) : 'recommandée dès maintenant')
                 + ligne('Politique (Q4.6)', etat('', 'À CHAQUE DÉPART + TOUS LES 6 MOIS'), '')
+                + ligne('Dernier essai de restauration', a.dernierEssai ? etat(a.dernierEssaiResultat === 'CONFORME' ? 'ok' : 'ko', me.esc(a.dernierEssai) + ' — ' + me.esc(a.dernierEssaiResultat || '')) : etat('ko', 'JAMAIS'),
+                        a.rappelEssai ? 'obligatoire chaque mois : à faire maintenant (6-essai-restauration.ps1, clé saisie)' : 'prochain au plus tard : ' + me.esc(a.prochainEssai))
                 + ligne('Lancement d\'asadmin depuis Prestige', r.asadmin ? etat('ok', 'POSSIBLE') : etat('ko', 'IMPOSSIBLE'), r.asadmin ? 'rotation et alias depuis cet écran' : 'cet écran ne peut agir que sur le serveur Payara')
                 + '</div>');
         var bA = o.down('#btnSecAlias'), bP = o.down('#btnSecPurger');

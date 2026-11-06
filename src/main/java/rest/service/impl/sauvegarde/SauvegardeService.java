@@ -12,6 +12,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.PosixFilePermissions;
+import java.security.SecureRandom;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -39,6 +40,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import rest.service.SupportEventService;
+import rest.service.impl.securite.ArchiveChiffree;
 import rest.service.impl.securite.FichierPrive;
 import rest.service.impl.securite.IdentifiantsBaseService;
 
@@ -54,7 +56,11 @@ import rest.service.impl.securite.IdentifiantsBaseService;
  * nom provisoire puis renommee seulement si l'outil a fini (« Dump completed ») ;</li>
  * <li>copie optionnelle sur un second dossier (autre disque, cle, partage) ; conservation : tout sur
  * KEY_SAUVEGARDE_GARDER_HEURES (48), puis une par jour sur KEY_SAUVEGARDE_GARDER_JOURS (30) ;</li>
- * <li>historique dans t_sauvegarde ; echec, ou aucune sauvegarde reussie depuis 2 h, signale au Centre de support.</li>
+ * <li>historique dans t_sauvegarde ; echec, ou aucune sauvegarde reussie depuis 2 h, signale au Centre de support
+ * ;</li>
+ * <li>cas 4, lot 4.C : si KEY_SECURITE_BASE = 1 et que la cle des archives est posee (7-cle-archive.ps1, fichier DPAPI
+ * {@link #fichierCle()}), le .sql.gz est chiffre a la volee ({@link ArchiveChiffree}, fichier .sql.gz.aes) ; cle
+ * absente : archive en clair et message qui le dit. A 0 : rien ne change, octet pour octet.</li>
  * </ul>
  */
 @Singleton
@@ -81,6 +87,7 @@ public class SauvegardeService {
 
     private final AtomicBoolean enCours = new AtomicBoolean();
     private volatile long enCoursDepuis;
+    private final SecureRandom alea = new SecureRandom();
 
     /** Fichiers d'options laisses par un arret du serveur pendant une sauvegarde ou une valorisation. */
     @PostConstruct
@@ -137,6 +144,24 @@ public class SauvegardeService {
                             + IdentifiantsBaseService.CLE_ACTIF + " = 1).");
         }
         return pool;
+    }
+
+    /** Fichier de la cle des archives (lot 4.C) : parametre, sinon a cote du fichier d'identifiants. */
+    public Path fichierCle() {
+        return ArchiveChiffree.fichierCle(parametre(ArchiveChiffree.CLE_FICHIER_CLE));
+    }
+
+    /**
+     * Cle des archives si la securite est active et la cle posee ; null : archives en clair (securite a 0, ou cle non
+     * posee). IllegalStateException, sans valeur, si le fichier existe mais n'est pas lisible par ce compte.
+     */
+    public byte[] cleArchive() {
+        return securiteActive() ? ArchiveChiffree.lireCle(fichierCle()) : null;
+    }
+
+    /** Cle pour LIRE une archive chiffree (valorisation), quel que soit le parametre ; null si aucune cle posee. */
+    public byte[] cleLecture() {
+        return ArchiveChiffree.lireCle(fichierCle());
     }
 
     private int entier(String cle, int defaut) {
@@ -216,6 +241,7 @@ public class SauvegardeService {
             id = nouvelleLigne(origine);
             FichierPrive.nettoyer("prestige-sauvegarde");
             PoolMariaDb pool = identifiants();
+            byte[] cle = cleArchive();
             String outil = outil();
             if (outil == null) {
                 throw new IllegalStateException(
@@ -231,7 +257,7 @@ public class SauvegardeService {
                 throw new IllegalStateException("Espace insuffisant dans " + dossier + " : " + (libre >> 20)
                         + " Mo libres, " + (besoin >> 20) + " Mo nécessaires.");
             }
-            fichier = Conservation.nom(pool.base, LocalDateTime.now());
+            fichier = Conservation.nom(pool.base, LocalDateTime.now()) + (cle != null ? ArchiveChiffree.SUFFIXE : "");
             Path cible = dossier.resolve(fichier);
             partiel = dossier.resolve(fichier + ".partiel");
             options = fichierPrive("prestige-sauvegarde", ".cnf", securiteActive());
@@ -244,8 +270,12 @@ public class SauvegardeService {
             Process p = pb.start();
             byte[] fin = new byte[256];
             int finLongueur = 0;
-            try (InputStream in = p.getInputStream(); OutputStream out = new GZIPOutputStream(
-                    new BufferedOutputStream(Files.newOutputStream(partiel), 1 << 16), 1 << 16)) {
+            /* a 0 (ou sans cle) : exactement le flux d'avant ; avec la cle, le gzip est chiffre a la volee */
+            OutputStream brut = new BufferedOutputStream(Files.newOutputStream(partiel), 1 << 16);
+            if (cle != null) {
+                brut = ArchiveChiffree.chiffrer(brut, cle, alea);
+            }
+            try (InputStream in = p.getInputStream(); OutputStream out = new GZIPOutputStream(brut, 1 << 16)) {
                 byte[] tampon = new byte[1 << 16];
                 int n;
                 while ((n = in.read(tampon)) > 0) {
@@ -285,6 +315,10 @@ public class SauvegardeService {
             reussie = true;
             message = "ECHEC".equals(copieEtat) ? "Sauvegarde faite, mais la copie sur le second dossier a échoué."
                     : "";
+            if (cle == null && securiteActive()) {
+                message = StringUtils.trim(message + " Archive NON chiffrée : clé des archives absente (" + fichierCle()
+                        + ", à créer par outils\\officine\\7-cle-archive.ps1 -Creer).");
+            }
         } catch (Exception e) {
             message = e instanceof IllegalStateException ? e.getMessage() : "Sauvegarde en échec : "
                     + e.getClass().getSimpleName() + " " + StringUtils.defaultString(e.getMessage());
@@ -354,6 +388,7 @@ public class SauvegardeService {
                         .put("statut", rs.getString(5)).put("fichier", StringUtils.defaultString(rs.getString(6)))
                         .put("tailleMo", Math.round(rs.getLong(7) / 104857.6) / 10.0).put("dureeS", rs.getInt(8))
                         .put("copie", StringUtils.defaultString(rs.getString(9)))
+                        .put("chiffree", ArchiveChiffree.estChiffree(rs.getString(6)))
                         .put("message", StringUtils.defaultString(rs.getString(10))));
             }
         } catch (Exception e) {
@@ -362,6 +397,11 @@ public class SauvegardeService {
         if (base.isEmpty()) {
             base = StringUtils.defaultString(lireUn("SELECT DATABASE()"));
         }
+        /* lot 4.C : les prochaines archives seront-elles chiffrees ? */
+        boolean securite = securiteActive();
+        Path fc = fichierCle();
+        o.put("chiffrement", new JSONObject().put("securite", securite).put("fichierCle", fc.toString())
+                .put("clePresente", Files.isRegularFile(fc)).put("actif", securite && Files.isRegularFile(fc)));
         return o.put("liste", l).put("base", base);
     }
 
@@ -392,7 +432,7 @@ public class SauvegardeService {
 
     private static void conserver(Path dossier, String base, int heures, int jours) {
         List<String> noms = new ArrayList<>();
-        try (DirectoryStream<Path> ds = Files.newDirectoryStream(dossier, "prestige_*.sql.gz")) {
+        try (DirectoryStream<Path> ds = Files.newDirectoryStream(dossier, "prestige_*.sql.gz*")) {
             for (Path f : ds) {
                 noms.add(f.getFileName().toString());
             }
@@ -407,7 +447,7 @@ public class SauvegardeService {
 
     /** Fichiers provisoires d'une sauvegarde interrompue (arret du serveur pendant l'ecriture). */
     private static void retirerPartiels(Path dossier) {
-        try (DirectoryStream<Path> ds = Files.newDirectoryStream(dossier, "prestige_*.sql.gz.partiel")) {
+        try (DirectoryStream<Path> ds = Files.newDirectoryStream(dossier, "prestige_*.sql.gz*.partiel")) {
             for (Path f : ds) {
                 supprimer(f);
             }
