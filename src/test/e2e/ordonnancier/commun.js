@@ -209,7 +209,9 @@ const ligneVente = (p, cip) => p.evaluate((c) => {
   /* retour du 05/11 : triangles « ! » devant le nom (violet sensible, rouge ordonnancier) au lieu des pastilles */
   const triangles = Array.from(ligne.querySelectorAll('.vp-triangle'));
   const pastille = triangles[0] || null;
-  return { motif: r.get('motif'), sensible: r.get('sensible'), scheduled: r.get('scheduled'), texte: ligne.textContent,
+  const marques = Array.from(ligne.querySelectorAll('.vp-pastille, .vp-triangle')).map((m) => /sensible/.test(m.className) ? 'SENSIBLE'
+    : /ordonnancier/.test(m.className) ? 'ORDONNANCIER' : m.textContent.trim()).sort();
+  return { motif: r.get('motif'), sensible: r.get('sensible'), scheduled: r.get('scheduled'), texte: ligne.textContent, marques,
     pastille: triangles.map((x) => /vp-triangle-sensible/.test(x.className) ? 'SENSIBLE' : 'ORDONNANCIER').join('+'),
     classes: pastille ? pastille.className : '', animation: pastille ? getComputedStyle(pastille).animationName : '' };
 }, cip);
@@ -312,6 +314,11 @@ async function telecharger(p, url, nom) {
 }
 
 /* texte d'un PDF, mis en page (pdftotext -layout), en lignes */
+/* texte d'un PDF dans l'ordre du flux (pdftotext -raw) : en mode -layout, la mise en page de Jasper melange les lignes quand une
+   cellule (medecin, vendeur) passe sur plusieurs lignes ; en -raw chaque ligne du registre se lit d'un trait */
+function textePdf(chemin) {
+  return execFileSync('pdftotext', ['-raw', chemin, '-'], { encoding: 'utf8' }).replace(/\r/g, '');
+}
 function lignesPdf(chemin) {
   return execFileSync('pdftotext', ['-layout', chemin, '-'], { encoding: 'utf8' }).replace(/\r/g, '').split('\n');
 }
@@ -331,10 +338,11 @@ const mouvements = (id) => q("SELECT IFNULL(GROUP_CONCAT(CONCAT_WS('/', typeTran
 const recettes = (id) => q("SELECT IFNULL(GROUP_CONCAT(CAST(int_AMOUNT AS SIGNED) SEPARATOR ' ; '), 'aucune') FROM t_recettes WHERE str_REF_FACTURE = '" + id + "'");
 const reglements = (id) => q("SELECT IFNULL(GROUP_CONCAT(CONCAT_WS('/', type_regelement, montant, montant_attentu) SEPARATOR ' ; '), 'aucun') FROM vente_reglement WHERE vente_id = '" + id + "'");
 /* lignes du journal d'audit du cochage (type ORDONNANCIER_PRODUIT) depuis un instant : qui, reference, quoi */
-const journalCochage = (depuis) => q("SELECT IFNULL(GROUP_CONCAT(CONCAT_WS('|', str_CREATED_BY, IFNULL(lg_USER_ID, ''), str_TYPE_LOG, str_DESCRIPTION) ORDER BY dt_CREATED, str_DESCRIPTION SEPARATOR '\n'), '')"
+const journalCochage = (depuis) => q("SELECT IFNULL(GROUP_CONCAT(CONCAT_WS('|', str_CREATED_BY, IFNULL(lg_USER_ID, ''), str_TYPE_LOG, str_DESCRIPTION) ORDER BY dt_CREATED, str_DESCRIPTION SEPARATOR ' ~~ '), '')"
   + " FROM t_event_log WHERE str_TABLE_CONCERN = 'dal.TFamille' AND (str_DESCRIPTION LIKE '%sensible%' OR str_DESCRIPTION LIKE '%ordonnancier%') AND dt_CREATED >= '" + depuis + "'")
-  .split('\n').filter(Boolean);
-/* empreinte d'une table : nombre de lignes et somme de controle de toutes les colonnes sauf celles exclues */
+  .split(' ~~ ').filter(Boolean); /* separateur sans saut de ligne : le client mariadb echappe les sauts de ligne d'une valeur */
+/* empreinte d'une table : nombre de lignes et somme de controle de toutes les colonnes sauf celles exclues (VERSION, la colonne de
+   version optimiste de JPA, avance a chaque merge d'un produit : exclue comme les drapeaux ; dt_UPDATED ne l'est pas) */
 function empreinte(table, exclues, ou) {
   const colonnes = q("SELECT GROUP_CONCAT(column_name ORDER BY ordinal_position) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = '" + table + "'")
     .split(',').filter((c) => exclues.indexOf(c) < 0);
@@ -345,7 +353,10 @@ const drapeaux = (ids) => q("SELECT IFNULL(GROUP_CONCAT(CONCAT(lg_FAMILLE_ID, ':
   + " FROM t_famille WHERE lg_FAMILLE_ID IN ('" + ids.join("','") + "')");
 /* l'ensemble des traces que le cochage ne doit pas toucher */
 const photo = () => ({
-  familles: empreinte('t_famille', ['is_scheduled', 'is_sensible']),
+  /* dt_UPDATED est posee par le declencheur t_famille_before_upd_tr a chaque UPDATE (qui ecrit aussi une ligne de t_famille_history) :
+     exclue de l'empreinte, controlee a part par misAJourDepuis */
+  familles: empreinte('t_famille', ['is_scheduled', 'is_sensible', 'VERSION', 'dt_UPDATED']),
+  historique: q('SELECT COUNT(*) FROM t_famille_history'),
   stocks: empreinte('t_famille_stock', []),
   ventes: q('SELECT COUNT(*) FROM t_preenregistrement'),
   lignes: q('SELECT COUNT(*) FROM t_preenregistrement_detail'),
@@ -355,6 +366,8 @@ const photo = () => ({
   reglements: q('SELECT COUNT(*) FROM vente_reglement'),
   journal: q('SELECT COUNT(*) FROM t_event_log')
 });
+/* produits dont la date de mise a jour a avance depuis un instant : les seuls que l'operation a touches */
+const misAJourDepuis = (depuis) => q("SELECT IFNULL(GROUP_CONCAT(lg_FAMILLE_ID ORDER BY lg_FAMILLE_ID SEPARATOR ';'), '') FROM t_famille WHERE dt_UPDATED >= '" + depuis + "'");
 const memePhoto = (a, b, sauf) => Object.keys(a).filter((k) => (sauf || []).indexOf(k) < 0).every((k) => a[k] === b[k]);
 const ecartPhoto = (a, b) => Object.keys(a).filter((k) => a[k] !== b[k]).map((k) => k + ' ' + a[k] + ' -> ' + b[k]).join(', ') || 'aucun';
 
@@ -362,4 +375,4 @@ module.exports = { ENV_E2E, vues, q, ok, bilan, articleSimple, remettreArticle, 
   fermerCaisse, retirerVentes, ouvrirEcran, visible, ouvrirOnglet, chercherProduits, lignesOnglet, cliquerCase, texteBouton, texteCompteur,
   nouvelleVente, taperArticle, venteCourante, terminer, ligneVente,
   /* regle du 05/11 */ articlesSimples, poserDrapeaux, poserClientEtMedecin, purgerClientEtMedecin, rattacherClientEtMedecin, saisirQuantite,
-  telecharger, lignesPdf, lignesXls, stock, mvtStock, mouvements, recettes, reglements, journalCochage, empreinte, drapeaux, photo, memePhoto, ecartPhoto };
+  telecharger, lignesPdf, textePdf, lignesXls, stock, mvtStock, mouvements, recettes, reglements, journalCochage, empreinte, drapeaux, photo, misAJourDepuis, memePhoto, ecartPhoto };

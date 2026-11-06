@@ -60,19 +60,27 @@ async function clicLot(p, onglet, bouton) {
   return corps;
 }
 /* ce que change une operation : drapeaux des produits suivis et photo de la base, hors journal */
-const etat = () => ({ drapeaux: C.drapeaux(SUIVIS), photo: C.photo() });
+const etat = () => ({ quand: C.q('SELECT NOW()'), drapeaux: C.drapeaux(SUIVIS), photo: C.photo() });
+/* produits dont les drapeaux different entre deux etats */
+const touches = (avant, apres) => { const a = {}; avant.drapeaux.split(';').forEach((x) => { a[x.split(':')[0]] = x; });
+  return apres.drapeaux.split(';').filter((x) => a[x.split(':')[0]] !== x).map((x) => x.split(':')[0]).sort(); };
 function bilan(nom, avant, apres, drapeauxAttendus, journalAttendu) {
   const journal = C.journalCochage(DEBUT);
   const nouvelles = journal.slice(Number(avant.photo.journal) === Number(apres.photo.journal) ? journal.length : journal.length - (Number(apres.photo.journal) - Number(avant.photo.journal)));
   C.ok(nom + ' : seuls les drapeaux attendus changent', apres.drapeaux === drapeauxAttendus, apres.drapeaux + ' attendu ' + drapeauxAttendus);
-  C.ok(nom + ' : rien d\'autre ne bouge (produits hors drapeaux, stocks, ventes, lignes, mouvements, caisse, recettes, règlements)',
-    C.memePhoto(avant.photo, apres.photo, ['journal']), C.ecartPhoto(avant.photo, apres.photo));
+  C.ok(nom + ' : rien d\'autre ne bouge (produits hors drapeaux et date de mise à jour, stocks, ventes, lignes, mouvements, caisse, recettes, règlements)',
+    C.memePhoto(avant.photo, apres.photo, ['journal', 'historique']), C.ecartPhoto(avant.photo, apres.photo));
+  const t = touches(avant, apres);
+  C.ok(nom + ' : seuls les produits touchés ont une date de mise à jour qui avance, et le déclencheur historise exactement ces ' + t.length + ' ligne(s)',
+    C.misAJourDepuis(avant.quand) === t.join(';') && Number(apres.photo.historique) - Number(avant.photo.historique) === t.length,
+    'mis à jour ' + C.misAJourDepuis(avant.quand) + ' / touchés ' + t.join(';') + ' / historique +' + (Number(apres.photo.historique) - Number(avant.photo.historique)));
   C.ok(nom + ' : le journal gagne exactement ' + journalAttendu.length + ' ligne(s), du compte e2e, avec la référence et le libellé attendus',
     Number(apres.photo.journal) - Number(avant.photo.journal) === journalAttendu.length
     && nouvelles.length === journalAttendu.length && journalAttendu.every((m, i) => nouvelles[i].indexOf(C.ENV_E2E.LOGIN + '|' + USER + '|') === 0 && m.test(nouvelles[i])),
     (Number(apres.photo.journal) - Number(avant.photo.journal)) + ' / ' + nouvelles.join(' ; '));
 }
-const avecDrapeaux = (modifs) => C.drapeaux(SUIVIS).split(';').map((x) => { const [id, d] = x.split(':'); return id + ':' + (modifs[id] || d); }).join(';');
+/* drapeaux attendus : ceux d'AVANT l'operation, modifies la ou on l'attend (jamais relus en base apres, sinon un ecrit parasite passerait) */
+const avecDrapeaux = (avant, modifs) => avant.drapeaux.split(';').map((x) => { const [id, d] = x.split(':'); return id + ':' + (modifs[id] || d); }).join(';');
 
 (async () => {
   C.ok('Jeu d\'essai : trois articles simples, un lot de 3 à 5 produits non sensibles', A1.cip && A2.cip && TEMOIN.cip && N >= 3 && N <= 5, PREFIXE + ' -> ' + N);
@@ -96,7 +104,7 @@ const avecDrapeaux = (modifs) => C.drapeaux(SUIVIS).split(';').map((x) => { cons
     if (DEFAUT_SIMULE) { C.q("UPDATE t_famille SET is_sensible = 1 WHERE lg_FAMILLE_ID = '" + TEMOIN.id + "'"); console.log('DEFAUT SIMULE : le temoin est coche en base dans le dos de l\'ecran'); }
     let apres = etat();
     C.ok('Case cochée : le serveur accepte', rep.success === true, JSON.stringify(rep));
-    bilan('Cochage unitaire', avant, apres, avecDrapeaux({ [A1.id]: '01' }), [new RegExp('\\|' + A1.id + '\\|Produit ' + A1.cip + ' .*coché sensible')]);
+    bilan('Cochage unitaire', avant, apres, avecDrapeaux(avant, { [A1.id]: '01' }), [new RegExp('\\|' + A1.id + '\\|Produit ' + A1.cip + ' .*coché sensible')]);
 
     /* A2. lot : premier clic (rien d'ecrit), second clic (N drapeaux, une ligne de journal) */
     avant = etat();
@@ -110,7 +118,7 @@ const avecDrapeaux = (modifs) => C.drapeaux(SUIVIS).split(';').map((x) => { cons
     apres = etat();
     C.ok('Second clic : le lot est appliqué', fait.success === true && fait.nombre === N, JSON.stringify(fait));
     const lotCoche = {}; lot.forEach((x) => { lotCoche[x.id] = x.scheduled + '1'; });
-    bilan('Cochage en lot', avant, apres, avecDrapeaux(lotCoche), [new RegExp('\\|lot\\|' + N + ' produit\\(s\\) coché\\(s\\) sensible en lot \\(recherche « ' + PREFIXE.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ' »')]);
+    bilan('Cochage en lot', avant, apres, avecDrapeaux(avant, lotCoche), [new RegExp('\\|lot\\|' + N + ' produit\\(s\\) coché\\(s\\) sensible en lot \\(recherche « ' + PREFIXE.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ' »')]);
 
     /* A3. lot decoche : etat initial rendu */
     avant = etat();
@@ -119,7 +127,7 @@ const avecDrapeaux = (modifs) => C.drapeaux(SUIVIS).split(';').map((x) => { cons
     apres = etat();
     C.ok('Décocher tout (deux clics) : le lot est défait', defait.success === true && defait.nombre === N, JSON.stringify(defait));
     const lotInitial = {}; lot.forEach((x) => { lotInitial[x.id] = x.scheduled + x.sensible; });
-    bilan('Décochage en lot', avant, apres, avecDrapeaux(lotInitial), [new RegExp('\\|lot\\|' + N + ' produit\\(s\\) décoché\\(s\\) sensible en lot')]);
+    bilan('Décochage en lot', avant, apres, avecDrapeaux(avant, lotInitial), [new RegExp('\\|lot\\|' + N + ' produit\\(s\\) décoché\\(s\\) sensible en lot')]);
 
     /* A4. onglet Produits ordonnancier : la case joue sur is_scheduled seulement, sur A2 */
     await C.ouvrirOnglet(p, 'Produits ordonnancier', 'ongletProduitsOrdonnancier');
@@ -128,11 +136,11 @@ const avecDrapeaux = (modifs) => C.drapeaux(SUIVIS).split(';').map((x) => { cons
     C.ok('A2 trouvé dans l\'onglet Produits ordonnancier, non coché', lignes.length === 1 && lignes[0].scheduled === false, JSON.stringify(lignes));
     rep = await C.cliquerCase(p, 'ongletProduitsOrdonnancier', 0);
     apres = etat();
-    bilan('Case Ordonnancier cochée', avant, apres, avecDrapeaux({ [A2.id]: '10' }), [new RegExp('\\|' + A2.id + '\\|Produit ' + A2.cip + ' .*coché ordonnancier')]);
+    bilan('Case Ordonnancier cochée', avant, apres, avecDrapeaux(avant, { [A2.id]: '10' }), [new RegExp('\\|' + A2.id + '\\|Produit ' + A2.cip + ' .*coché ordonnancier')]);
     avant = etat();
     await C.cliquerCase(p, 'ongletProduitsOrdonnancier', 0);
     apres = etat();
-    bilan('Case Ordonnancier décochée', avant, apres, avecDrapeaux({ [A2.id]: '00' }), [new RegExp('\\|' + A2.id + '\\|Produit ' + A2.cip + ' .*décoché ordonnancier')]);
+    bilan('Case Ordonnancier décochée', avant, apres, avecDrapeaux(avant, { [A2.id]: '00' }), [new RegExp('\\|' + A2.id + '\\|Produit ' + A2.cip + ' .*décoché ordonnancier')]);
 
     /* B. cloture d'une vente : A1 (sensible, quantite 2) et A2 (ordinaire, quantite 3), medecin rattache */
     const stockAvant = { a1: C.stock(A1.id), a2: C.stock(A2.id) };
@@ -141,6 +149,7 @@ const avecDrapeaux = (modifs) => C.drapeaux(SUIVIS).split(';').map((x) => { cons
       '../api/v1/ventestats/ventesordonnanciers?dtStart=' + jour + '&dtEnd=' + jour + '&medecinId=&query=&start=0&limit=500');
     const registreAvant = (await registre()).data || [];
     const photoAvant = C.photo();
+    const quandCloture = C.q('SELECT NOW()');
     const journalAvant = C.journalCochage(DEBUT).length;
     await C.nouvelleVente(p);
     await C.taperArticle(p, A1.cip);
@@ -171,11 +180,13 @@ const avecDrapeaux = (modifs) => C.drapeaux(SUIVIS).split(';').map((x) => { cons
     C.ok('Un seul mouvement de caisse au prix de la vente (' + prix + '), une recette, un règlement', C.mouvements(venteId).split(' ; ').length === 1 && m[1] === String(prix)
       && C.recettes(venteId).split(' ; ').length === 1 && C.reglements(venteId).split(' ; ').length === 1, C.mouvements(venteId) + ' | ' + C.recettes(venteId) + ' | ' + C.reglements(venteId));
     const photoApres = C.photo();
-    C.ok('Photo après la clôture : +1 vente, +2 lignes, +2 mouvements de stock, +1 caisse, +1 recette, +1 règlement ; produits et journal du cochage inchangés',
+    C.ok('Photo après la clôture : +1 vente, +2 lignes, +2 mouvements de stock, +1 caisse, +1 recette, +1 règlement ; journal du cochage inchangé',
       Number(photoApres.ventes) - Number(photoAvant.ventes) === 1 && Number(photoApres.lignes) - Number(photoAvant.lignes) === 2
       && Number(photoApres.mvtStock) - Number(photoAvant.mvtStock) === 2 && Number(photoApres.caisse) - Number(photoAvant.caisse) === 1
       && Number(photoApres.recettes) - Number(photoAvant.recettes) === 1 && Number(photoApres.reglements) - Number(photoAvant.reglements) === 1
-      && photoApres.familles === photoAvant.familles && C.journalCochage(DEBUT).length === journalAvant, C.ecartPhoto(photoAvant, photoApres));
+      && C.journalCochage(DEBUT).length === journalAvant, C.ecartPhoto(photoAvant, photoApres));
+    C.ok('La clôture ne met à jour aucune ligne de t_famille (ni les produits vendus, ni les autres) et l’historique des produits ne bouge pas',
+      C.misAJourDepuis(quandCloture) === '' && photoApres.historique === photoAvant.historique, 'mis à jour [' + C.misAJourDepuis(quandCloture) + '] historique ' + photoAvant.historique + ' -> ' + photoApres.historique);
     const registreApres = (await registre()).data || [];
     const nouvelles = registreApres.filter((v) => !registreAvant.some((x) => x.lgPREENREGISTREMENTID === v.lgPREENREGISTREMENTID));
     C.ok('Le registre gagne exactement une délivrance, la nôtre', nouvelles.length === 1 && nouvelles[0].lgPREENREGISTREMENTID === venteId && registreApres.length === registreAvant.length + 1,
