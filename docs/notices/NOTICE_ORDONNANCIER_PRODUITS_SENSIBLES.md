@@ -90,7 +90,7 @@ node src\test\e2e\ordonnancier\test-produit-sensible-vente.js
 ## Règle de tests du 05/11/2026 : les trois tests, joués le 06/11 sur domain3 (`laborex_audit`)
 
 Chaque test a d'abord été mis en échec sur un défaut (ancienne règle ou défaut simulé), puis joué sur le vrai code.
-Tests d'écran joués un par un sous le verrou commun `D:\projet\p3errou-e2e`, WAR de la branche redéployé sur
+Tests d'écran joués un par un sous le verrou commun `D:\projet\p3\verrou-e2e`, WAR de la branche redéployé sur
 domain3 (`http://localhost:10090/prestige`).
 
 | Test | Rouge d'abord | Vert |
