@@ -298,17 +298,15 @@ public class SalesNetComputingServiceImpl implements SalesNetComputingService {
             TPreenregistrementCompteClientTiersPayent venteTiersPayantItem = maps
                     .get(lineResult.getClientTiersPayantId()).get(0);
 
-            if (output.isHasPriceOption()) {
-                TCompteClientTiersPayant tcctp = venteTiersPayantItem.getLgCOMPTECLIENTTIERSPAYANTID();
-                venteTiersPayantItem.setIntPERCENT(tcctp.getIntPOURCENTAGE());
-            } else {
-                // Taux UTILISE par le calcul, jamais le taux effectif (part ecretee / total) :
-                // ecrire ce dernier degradait le taux a chaque recalcul (100 -> 92 -> 85...),
-                // faisait deriver les montants a chaque modification de produit et figeait la
-                // part meme apres relevement d'un plafond. Le ticket retrouve aussi le taux
-                // contractuel (100 % en carnet).
-                venteTiersPayantItem.setIntPERCENT(lineResult.getTauxApplique());
-            }
+            // Taux UTILISE par le calcul, jamais le taux effectif (part ecretee / total) :
+            // ecrire ce dernier degradait le taux a chaque recalcul (100 -> 92 -> 85...),
+            // faisait deriver les montants a chaque modification de produit et figeait la
+            // part meme apres relevement d'un plafond. Le ticket retrouve aussi le taux
+            // contractuel (100 % en carnet).
+            // Regle du 05/11 : le taux saisi fait foi, meme quand une reference existe dans la
+            // vente ; reecrire ici le taux de la fiche du compte faisait changer la part de
+            // l'organisme entre le premier calcul du net et le suivant.
+            venteTiersPayantItem.setIntPERCENT(lineResult.getTauxApplique());
             venteTiersPayantItem.setIntPRICE(lineResult.getMontant().intValue());
             venteTiersPayantItem.setStrREFBON(lineResult.getNumBon());
 
@@ -529,14 +527,10 @@ public class SalesNetComputingServiceImpl implements SalesNetComputingService {
         for (TiersPayantLineOutput lineResult : output.getTiersPayantLines()) {
             TPreenregistrementCompteClientTiersPayent saleLine = maps.get(lineResult.getClientTiersPayantId()).get(0);
 
-            if (output.isHasPriceOption()) {
-                TCompteClientTiersPayant tcctp = saleLine.getLgCOMPTECLIENTTIERSPAYANTID();
-                saleLine.setIntPERCENT(tcctp.getIntPOURCENTAGE());
-            } else {
-                // Meme regle que sur l'autre chemin de calcul : le taux memorise est celui
-                // utilise par le calcul, pas le taux effectif apres ecretage.
-                saleLine.setIntPERCENT(lineResult.getTauxApplique());
-            }
+            // Meme regle que sur l'autre chemin de calcul : le taux memorise est celui utilise
+            // par le calcul (taux saisi, sinon taux de la fiche), pas le taux effectif apres
+            // ecretage, et jamais le taux de la fiche reecrit parce qu'une reference existe.
+            saleLine.setIntPERCENT(lineResult.getTauxApplique());
             saleLine.setIntPRICE(lineResult.getMontant().intValue());
             saleLine.setStrREFBON(lineResult.getNumBon());
 
