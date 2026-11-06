@@ -230,6 +230,9 @@ function lireTicket(t) {
       else if (b.id === 'CORPS' && e.genre === 'TEXTE' && articles.length) {
         const m = e.a.match(/^(?:(.*?)\s*·\s*)?(?:P\.REF\s+([\d\s  ]+?)\s*·\s*)?Taux\s+(\d+)\s*%\s*:\s*([\d\s  ]+)$/);
         if (m) { articles[articles.length - 1].credits.push({ nom: m[1] || '', pref: m[2] ? chiffres(m[2]) : null, taux: Number(m[3]), part: chiffres(m[4]), texte: e.a }); }
+        /* retour du 06/11 : prix de reference et taux sur une seule ligne, « [NOM · ]P[2 235] * T[70%] : 1 565 » */
+        const k = e.a.match(/^(?:(.*?)\s*·\s*)?P\[([\d\s  ]+)\]\s*\*\s*T\[(\d+)%\]\s*:\s*([\d\s  ]+)$/);
+        if (k) { articles[articles.length - 1].credits.push({ nom: k[1] || '', pref: chiffres(k[2]), taux: Number(k[3]), part: chiffres(k[4]), texte: e.a, compact: true }); }
         const r = e.a.match(/^P\.REF\s+([\d\s  ]+)$/);
         if (r) { articles[articles.length - 1].pref = chiffres(r[1]); }
       } else if (e.genre === 'PAIRE' || e.genre === 'ENCADRE') {

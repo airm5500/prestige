@@ -251,9 +251,9 @@ public final class ConversionTicket {
 
     private void recap(int articles, int boites) {
         if (r.recapitulatif() && articles > 0) {
-            // retour du 05/11 : « 3 lignes · 3 boîtes »
+            // retour du 05/11 : « 3 lignes · 3 boîtes » ; retour du 06/11 : « 3 lignes · 3 articles »
             doc.bloc(TicketDocument.RECAP).texte(articles + (articles > 1 ? " lignes" : " ligne") + " · " + boites
-                    + (boites > 1 ? " boîtes" : " boîte"), Style.PETIT);
+                    + (boites > 1 ? " articles" : " article"), Style.PETIT);
         }
     }
 
@@ -524,7 +524,7 @@ public final class ConversionTicket {
                 doc.bloc(TicketDocument.CLIENT).paire(lv[0], lv[1], Style.NORMAL);
             }
         }
-        String recap = s.articles.isEmpty() || !r.recapitulatif() ? "" : recap(s.articles);
+        String recap = s.articles.isEmpty() || !r.recapitulatif() ? "" : recapitulatif(s.articles);
         doc.bloc(TicketDocument.INTERVENANTS, "C").texte((vendeur.isEmpty() ? "" : "Vendeur : " + vendeur)
                 + (vendeur.isEmpty() || recap.isEmpty() ? "" : " · ") + recap, Style.PETIT);
         doc.bloc(TicketDocument.CORPS).trait(false);
@@ -549,9 +549,11 @@ public final class ConversionTicket {
         }
     }
 
-    private static String recap(List<Article> l) {
-        int boites = l.stream().mapToInt(a -> Math.abs(a.quantite)).sum();
-        return l.size() + (l.size() > 1 ? " lignes" : " ligne") + " · " + boites + (boites > 1 ? " boîtes" : " boîte");
+    /** Retour du 06/11 : « 3 lignes · 5 articles » (somme des quantites, en valeur absolue), plus de « boîtes ». */
+    static String recapitulatif(List<Article> l) {
+        int articles = l.stream().mapToInt(a -> Math.abs(a.quantite)).sum();
+        return l.size() + (l.size() > 1 ? " lignes" : " ligne") + " · " + articles
+                + (articles > 1 ? " articles" : " article");
     }
 
     /* ---------- mouvement de caisse ---------- */

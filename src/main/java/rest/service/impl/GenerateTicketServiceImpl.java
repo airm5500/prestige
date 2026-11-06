@@ -292,6 +292,7 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             // retour du 05/11 : avec un prix de reference, la ligne montre la reference (« P.REF 6 000 ») ; lot Q2.5 :
             // si les organismes n'ont pas la meme base sur la ligne, chacun imprime la sienne sur sa ligne de credit
             List<Boolean> prefParOrganisme = new ArrayList<>();
+            List<Integer> prefDeLaLigne = new ArrayList<>();
             for (int i = 0; i < lignes.size(); i++) {
                 TPreenregistrementDetail d = lignes.get(i);
                 List<Integer> unitaires = new ArrayList<>();
@@ -300,11 +301,11 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
                 }
                 boolean parOrganisme = nommer && CreditLigne.basesDifferentes(unitaires);
                 prefParOrganisme.add(parOrganisme);
-                String pref = parOrganisme ? ""
-                        : CreditLigne.prixReference(d.getCalculationBasePrice(), d.getIntPRICEUNITAIR());
-                if (!pref.isEmpty()) {
-                    res.computeIfAbsent(d.getLgPREENREGISTREMENTDETAILID(), k -> new ArrayList<>()).add(pref);
-                }
+                // retour du 06/11 : plus de ligne « P.REF » a part, le prix de reference va sur la ligne de credit
+                // (« P[2 235] * T[70%] : 1 565 »)
+                prefDeLaLigne.add(parOrganisme
+                        || CreditLigne.prixReference(d.getCalculationBasePrice(), d.getIntPRICEUNITAIR()).isEmpty()
+                                ? null : d.getCalculationBasePrice());
             }
             // retour du 05/11 : le total des taux affiches ne depasse jamais 100 %, ligne par ligne
             List<List<Integer>> affichesParLigne = new ArrayList<>();
@@ -321,7 +322,7 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
                 List<Integer> parts = CreditLigne.parts(basesParTp.get(t), tauxParTp.get(t), total);
                 String nom = nommer ? tp.getLgCOMPTECLIENTTIERSPAYANTID().getLgTIERSPAYANTID().getStrNAME() : null;
                 for (int i = 0; i < lignes.size() && i < parts.size(); i++) {
-                    Integer prefOrganisme = null;
+                    Integer prefOrganisme = prefDeLaLigne.get(i);
                     if (prefParOrganisme.get(i)) {
                         Integer u = basesUnitairesParTp.get(t).get(i);
                         Integer pv = lignes.get(i).getIntPRICEUNITAIR();

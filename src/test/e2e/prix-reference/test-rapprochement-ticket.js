@@ -34,7 +34,10 @@ function lireTicket(t) {
       if (e.genre === 'ARTICLE') { articles.push({ designation: e.a, detail: e.b, montant: chiffres(e.d), credits: [], pref: null }); }
       else if (b.id === 'CORPS' && e.genre === 'TEXTE' && articles.length) {
         const m = e.a.match(/Taux\s+(\d+)\s*%\s*:\s*([\d\s  ]+)$/);
-        if (m) { articles[articles.length - 1].credits.push({ taux: Number(m[1]), part: chiffres(m[2]), texte: e.a }); }
+        if (m) { articles[articles.length - 1].credits.push({ taux: Number(m[1]), part: chiffres(m[2]), texte: e.a, pref: null }); }
+        /* retour du 06/11 : « P[2 235] * T[70%] : 1 565 », prix de reference et taux sur une seule ligne */
+        const k = e.a.match(/P\[([\d\s  ]+)\]\s*\*\s*T\[(\d+)%\]\s*:\s*([\d\s  ]+)$/);
+        if (k) { articles[articles.length - 1].credits.push({ taux: Number(k[2]), part: chiffres(k[3]), texte: e.a, pref: chiffres(k[1]) }); }
         const r = e.a.match(/^P\.REF\s+([\d\s  ]+)$/);
         if (r) { articles[articles.length - 1].pref = chiffres(r[1]); }
       } else if (e.genre === 'PAIRE' || e.genre === 'ENCADRE') {
@@ -106,7 +109,13 @@ function lireTicket(t) {
     const tauxTicket = t.articles.map((a) => a.credits[0] ? a.credits[0].taux : null);
     ok('Véracité : chaque ligne du ticket porte le taux affiché à l\'écran (80, 70, 80)', tauxTicket.join(',') === tauxEcran.join(','),
       'ticket ' + tauxTicket.join(',') + ' / écran ' + tauxEcran.join(','));
-    ok('Ligne 3 : le prix de référence est imprimé (P.REF)', t.articles[2] && t.articles[2].pref === prixRef, JSON.stringify(t.articles[2]));
+    /* retour du 06/11 : prix de reference et taux sur une seule ligne, plus de ligne « P.REF » a part */
+    ok('Ligne 3 : prix de référence et taux sur une seule ligne « P[' + prixRef + '] * T[80%] : part », sans ligne « P.REF » à part',
+      t.articles[2] && t.articles[2].pref === null && t.articles[2].credits.length === 1 && t.articles[2].credits[0].pref === prixRef
+      && /^P\[[\d\s  ]+\] \* T\[80%\] : [\d\s  ]+$/.test(t.articles[2].credits[0].texte), JSON.stringify(t.articles[2]));
+    ok('Lignes 1 et 2, sans prix de référence : « Taux x % : part » comme avant',
+      [0, 1].every((i) => t.articles[i] && t.articles[i].credits.length === 1 && t.articles[i].credits[0].pref === null
+        && /^Taux \d+ % : [\d\s  ]+$/.test(t.articles[i].credits[0].texte)), JSON.stringify(t.articles.slice(0, 2)));
 
     /* coherence : part = base x taux, une seule ligne au plus porte l'arrondi */
     const bases = t.articles.map((a, i) => (i === 2 ? prixRef : P[i].pu));

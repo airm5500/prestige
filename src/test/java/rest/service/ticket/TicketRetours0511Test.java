@@ -111,7 +111,7 @@ class TicketRetours0511Test {
         assertFalse(String.join("", bloc(d, TicketDocument.COORDONNEES)).contains("KOUASSI"));
         assertTrue(bloc(d, TicketDocument.TITRE).get(0).startsWith("TRAIT_FIN"),
                 bloc(d, TicketDocument.TITRE).toString());
-        assertTrue(texte(d).contains("3 lignes · 4 boîtes"), texte(d));
+        assertTrue(texte(d).contains("3 lignes · 4 articles"), texte(d));
     }
 
     @Test

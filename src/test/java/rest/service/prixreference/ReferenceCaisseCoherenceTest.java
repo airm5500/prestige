@@ -38,8 +38,8 @@ import rest.service.calculation.dto.TiersPayantPrixInput;
  * <ul>
  * <li>bornes de la saisie : accepte si, et seulement si, 5 &lt;= prix &lt;= prix de vente (borne haute seulement si le
  * prix de vente est connu) et 5 &lt;= taux &lt;= 100 ; zero, vide et negatif refuses ;</li>
- * <li>moteur (inchange par le cas 2, mais c'est lui qui consomme ce que la caisse ecrit) : part de l'organisme =
- * somme des lignes de (prix de reference ou prix de vente) x quantite x taux de la ligne, jamais au-dessus de la base,
+ * <li>moteur (inchange par le cas 2, mais c'est lui qui consomme ce que la caisse ecrit) : part de l'organisme = somme
+ * des lignes de (prix de reference ou prix de vente) x quantite x taux de la ligne, jamais au-dessus de la base,
  * ecretee au plafond par vente, part du client = total - part, jamais negative ; avec deux organismes, le second prend
  * au plus le reste de la base ;</li>
  * <li>journal : avant / apres recopies tels quels, une modification a l'identique n'est pas un changement, la copie
@@ -246,7 +246,9 @@ class ReferenceCaisseCoherenceTest {
             // le client paie le reste, jamais moins que zero
             assertEquals(0, res.getTotalSaleAmount().compareTo(BigDecimal.valueOf(total)), vente);
             BigDecimal client = res.getTotalPatientShare();
-            assertEquals(0, client.compareTo(BigDecimal.valueOf(total).subtract(res.getTotalTiersPayant()).max(BigDecimal.ZERO)),
+            assertEquals(0,
+                    client.compareTo(
+                            BigDecimal.valueOf(total).subtract(res.getTotalTiersPayant()).max(BigDecimal.ZERO)),
                     "part du client, " + vente);
             assertTrue(client.signum() >= 0, vente);
             // le taux memorise sur la vente est celui de l'organisme, jamais le taux effectif apres plafond
@@ -283,18 +285,22 @@ class ReferenceCaisseCoherenceTest {
                 BigDecimal o2 = s.getTiersPayants().getOrDefault(LIEN_2, BigDecimal.ZERO);
                 proche("organisme 1, ligne " + i, p1, o1, vente);
                 proche("organisme 2, ligne " + i, p2, o2, vente);
-                assertTrue(o1.add(o2).compareTo(l.base().add(BigDecimal.ONE)) <= 0, "les deux parts depassent la base, ligne " + i + ", " + vente);
+                assertTrue(o1.add(o2).compareTo(l.base().add(BigDecimal.ONE)) <= 0,
+                        "les deux parts depassent la base, ligne " + i + ", " + vente);
                 if (p2.compareTo(part(l, taux2)) < 0) {
                     lignesSaturees++;
                 }
                 somme1 = somme1.add(p1);
                 somme2 = somme2.add(p2);
             }
-            proche("part de l'organisme 1", BigDecimal.valueOf(arrondi(somme1)), res.getTiersPayantLines().get(0).getMontant(), vente);
-            proche("part de l'organisme 2", BigDecimal.valueOf(arrondi(somme2)), res.getTiersPayantLines().get(1).getMontant(), vente);
+            proche("part de l'organisme 1", BigDecimal.valueOf(arrondi(somme1)),
+                    res.getTiersPayantLines().get(0).getMontant(), vente);
+            proche("part de l'organisme 2", BigDecimal.valueOf(arrondi(somme2)),
+                    res.getTiersPayantLines().get(1).getMontant(), vente);
             assertTrue(res.getTotalPatientShare().signum() >= 0, vente);
         }
-        assertTrue(lignesSaturees > VENTES / 5, "trop peu de lignes ou le second organisme est borne : " + lignesSaturees);
+        assertTrue(lignesSaturees > VENTES / 5,
+                "trop peu de lignes ou le second organisme est borne : " + lignesSaturees);
     }
 
     /* ---------------------------------------------------------------- journal et copie */
@@ -349,7 +355,8 @@ class ReferenceCaisseCoherenceTest {
             } else if (variation == 3) {
                 // seul le type change
                 apres = ReferenceCaisse.copie(avant);
-                apres.setType(PrixReferenceType.values()[(avant.getType().ordinal() + 1) % PrixReferenceType.values().length]);
+                apres.setType(PrixReferenceType.values()[(avant.getType().ordinal() + 1)
+                        % PrixReferenceType.values().length]);
             } else if (variation == 4) {
                 // seul l'etat actif change
                 apres = ReferenceCaisse.copie(avant);
@@ -360,14 +367,16 @@ class ReferenceCaisseCoherenceTest {
                 apres.setTiersPayant(avant.getTiersPayant());
             }
             boolean attendu = avant.getValeur() != apres.getValeur() || avant.getType() != apres.getType()
-                    || !memeTaux(avant.getValeurTaux(), apres.getValeurTaux()) || avant.isEnabled() != apres.isEnabled();
-            String cas = "cas " + k + " : " + avant.getValeur() + "/" + avant.getValeurTaux() + "/" + avant.getType() + " -> "
-                    + apres.getValeur() + "/" + apres.getValeurTaux() + "/" + apres.getType();
+                    || !memeTaux(avant.getValeurTaux(), apres.getValeurTaux())
+                    || avant.isEnabled() != apres.isEnabled();
+            String cas = "cas " + k + " : " + avant.getValeur() + "/" + avant.getValeurTaux() + "/" + avant.getType()
+                    + " -> " + apres.getValeur() + "/" + apres.getValeurTaux() + "/" + apres.getType();
             assertEquals(attendu, ReferenceCaisse.change(avant, apres), cas);
             if (attendu) {
                 changements++;
             }
-            PrixReferenceJournal j = ReferenceCaisse.journal(PrixReferenceJournalAction.MODIFICATION, avant, apres, u, "VO-" + k, "POSTE");
+            PrixReferenceJournal j = ReferenceCaisse.journal(PrixReferenceJournalAction.MODIFICATION, avant, apres, u,
+                    "VO-" + k, "POSTE");
             assertEquals(avant.getValeur(), j.getAncienneValeur(), cas);
             assertEquals(apres.getValeur(), j.getNouvelleValeur(), cas);
             assertTrue(memeTaux(avant.getValeurTaux(), j.getAncienTaux()), cas);

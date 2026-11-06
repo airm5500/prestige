@@ -142,13 +142,17 @@ public final class CreditLigne {
 
     /**
      * Lot « base par tiers-payant » (Q2.5) : quand les organismes d'une ligne n'ont pas la meme base, chacun imprime
-     * SON prix de reference : « CNAM · P.REF 2 335 · Taux 60 % : 1 401 ». prixReference null : libelle d'aujourd'hui.
+     * SON prix de reference. Retour du 06/11 : « CNAM · P[2 335] * T[60%] : 1 401 », une seule ligne pour le prix de
+     * reference et le taux. prixReference null : libelle d'aujourd'hui (« Taux 70 % : 700 »).
      */
     public static String libelle(String nomTiersPayant, Integer prixReference, int taux, int montant) {
         String nom = nomTiersPayant == null || nomTiersPayant.trim().isEmpty() ? "" : nomTiersPayant.trim() + " · ";
-        String pref = prixReference == null || prixReference <= 0 ? ""
-                : "P.REF " + ConversionTicket.nombre(prixReference) + " · ";
-        return nom + pref + "Taux " + taux + " % : " + ConversionTicket.nombre(montant);
+        // retour du 06/11 : prix de reference et taux sur une seule ligne, « P[2 235] * T[70%] : 1 565 »
+        if (prixReference != null && prixReference > 0) {
+            return nom + "P[" + ConversionTicket.nombre(prixReference) + "] * T[" + taux + "%] : "
+                    + ConversionTicket.nombre(montant);
+        }
+        return nom + "Taux " + taux + " % : " + ConversionTicket.nombre(montant);
     }
 
     /**

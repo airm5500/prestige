@@ -9,15 +9,15 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Lot « base par tiers-payant » (Q2.5), retour du 05/11 : quand les organismes d'une ligne n'ont pas la meme base,
- * chacun imprime SON prix de reference sur sa ligne de credit (« CNAM · P.REF 2 335 · Taux 60 % : 1 401 ») et la ligne
- * ne porte plus le « P.REF » unique ; avec une seule base, rien ne change.
+ * chacun imprime SON prix de reference sur sa ligne de credit (« CNAM · P[2 335] * T[60%] : 1 401 » depuis le 06/11) et
+ * la ligne ne porte plus le « P.REF » unique ; avec une seule base, rien ne change.
  */
 class CreditLignePrixReferenceParOrganismeTest {
 
     @Test
     void chaqueOrganismeImprimeSonPrixDeReference() {
-        assertEquals("CNAM · P.REF 2 335 · Taux 60 % : 1 401", CreditLigne.libelle("CNAM", 2335, 60, 1401));
-        assertEquals("MUPEMENET · P.REF 1 835 · Taux 30 % : 551", CreditLigne.libelle("MUPEMENET", 1835, 30, 551));
+        assertEquals("CNAM · P[2 335] * T[60%] : 1 401", CreditLigne.libelle("CNAM", 2335, 60, 1401));
+        assertEquals("MUPEMENET · P[1 835] * T[30%] : 551", CreditLigne.libelle("MUPEMENET", 1835, 30, 551));
     }
 
     @Test

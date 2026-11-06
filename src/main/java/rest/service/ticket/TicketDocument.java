@@ -49,7 +49,7 @@ public final class TicketDocument {
         LIBELLES.put(INTERVENANTS, "Caisse et vendeur");
         LIBELLES.put(CLIENT, "Client / organisme");
         LIBELLES.put(CORPS, "Articles / détail");
-        LIBELLES.put(RECAP, "Articles · boîtes");
+        LIBELLES.put(RECAP, "Lignes · articles");
         LIBELLES.put(TOTAUX, "Total et remise");
         LIBELLES.put(NET, "Net à payer");
         LIBELLES.put(REGLEMENT, "Règlement");

@@ -60,7 +60,7 @@ class RenduTicketTest {
         assertTrue(t.contains("TEXTE[27 20 00 00 00-07 00 00 00 00 | Bd de la République, Abidjan]"), t);
         assertTrue(t.contains("AMOXICILLINE BIOGARAN 1 G CPR B/14"), "designation entiere\n" + t);
         assertTrue(t.contains("2 × 1 205 | 2 410"), t);
-        assertTrue(t.contains("3 lignes · 4 boîtes"), t);
+        assertTrue(t.contains("3 lignes · 4 articles"), t);
         assertTrue(t.contains("PAIRE[Total | 5 210 F CFA]"), t);
         assertTrue(t.contains("PAIRE[* | − 260 F CFA]"), t);
         assertTrue(t.contains("ENCADRE[NET À PAYER | 4 950 F CFA]"), t);
@@ -141,7 +141,7 @@ class RenduTicketTest {
     void preventeNumeroEtQr() {
         String t = texte(doc(ModeleTicket.PREVENTE, 80, new ReglagesTicket(ModeleTicket.PREVENTE)));
         assertTrue(t.contains("TEXTE[N° 0042]"), t);
-        assertTrue(t.contains("Vendeur : M.TOURE · 3 lignes · 4 boîtes"), t);
+        assertTrue(t.contains("Vendeur : M.TOURE · 3 lignes · 4 articles"), t);
         assertTrue(t.contains("ENCADRE[NET À PAYER | 4 950 F CFA]"), t);
         assertTrue(t.contains("Présentez ce ticket à la caisse"), t);
     }
