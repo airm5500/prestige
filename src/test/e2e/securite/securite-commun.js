@@ -26,8 +26,9 @@ function remettreReglages(avant) {
       return "INSERT INTO t_parameters (str_KEY, str_VALUE, str_DESCRIPTION, str_TYPE, str_STATUT, dt_CREATED) VALUES ('" + kv.slice(0, i) + "', '" + sql(kv.slice(i + 1)) + "', 'Sécurité de la base', 'SYSTEME', 'enable', NOW());"; }).join('') : ''));
 }
 /* journal de securite : lignes apres un id, dans l'ordre, date a la seconde */
-const journal = (apres) => q("SELECT CONCAT_WS('\t', id, DATE_FORMAT(dt_DATE, '%Y-%m-%d %H:%i:%s'), str_LOGIN, str_ACTION, str_RESULTAT, COALESCE(str_DETAIL, '')) FROM t_securite_journal WHERE id > " + apres + " ORDER BY id")
-  .split('\n').filter((l) => l).map((l) => { const [id, date, login, action, resultat, detail] = l.split('\t'); return { id: Number(id), date, login, action, resultat, detail }; });
+/* (le client mariadb echappe les tabulations en sortie : separateur propre) */
+const journal = (apres) => q("SELECT CONCAT_WS('<|>', id, DATE_FORMAT(dt_DATE, '%Y-%m-%d %H:%i:%s'), str_LOGIN, str_ACTION, str_RESULTAT, COALESCE(str_DETAIL, '')) FROM t_securite_journal WHERE id > " + apres + " ORDER BY id")
+  .split('\n').filter((l) => l).map((l) => { const [id, date, login, action, resultat, detail] = l.split('<|>'); return { id: Number(id), date, login, action, resultat, detail }; });
 /* pool de Prestige dans domain.xml : compte et forme (valeur jamais affichee) */
 function pool() {
   const xml = fs.readFileSync(XML, 'utf8');
@@ -98,14 +99,35 @@ async function rotationRefusee(p) {
   return attendreTexte(p, '#secRotationMessage', /incorrect|Trop de refus/, 60000);
 }
 async function purger(p) {
-  await remplir(p, '#secMdpSession', 'e2etest');
-  await confirmer(p, '#btnSecPurger');
-  const m = await attendreTexte(p, '#secMessage', /supprimée|Saisissez|incorrect/, 60000);
-  await p.waitForTimeout(1500);
+  let m = '';
+  for (let i = 0; i < 2; i++) {
+    await remplir(p, '#secMdpSession', 'e2etest');
+    await confirmer(p, '#btnSecPurger');
+    m = await attendreTexte(p, '#secMessage', /supprimée|Saisissez|incorrect|ne répond pas/, 60000);
+    await p.waitForTimeout(1500);
+    if (!/ne répond pas/.test(m)) { break; }
+    await p.waitForTimeout(3000); /* premier appel juste apres un deploiement : un second essai */
+  }
   return m;
 }
-/* lignes INFO du journal du serveur ecrites par le service (jamais une valeur) */
-const lignesServeur = (depuis) => { const n = fs.statSync(LOG).size - depuis; if (n <= 0) { return []; } const fd = fs.openSync(LOG, 'r'); const b = Buffer.alloc(n); fs.readSync(fd, b, 0, n, depuis); fs.closeSync(fd);
-  return (b.toString('utf8').match(/Sécurité de la base : [A-Z_]+ par [^\n]*? : [A-Z_]+/g) || []).map((l) => { const m = l.match(/Sécurité de la base : ([A-Z_]+) par (.*?) : ([A-Z_]+)/); return { action: m[1], login: m[2], resultat: m[3] }; }); };
+/* attend que le tableau du journal affiche une ligne donnee en tete */
+const attendreJournal = (p, action) => p.waitForFunction(([s, a]) => { const st = Ext.ComponentQuery.query(s)[0].getStore(); return st.getCount() > 0 && st.getAt(0).get('action') === a; }, [S('#secJournal'), action], { timeout: 30000 }).catch(() => {});
+/* lignes INFO du journal du serveur ecrites par le service (jamais une valeur), horodatees depuis un instant (ms) :
+   tous les fichiers server.log* ecrits depuis (le journal tourne a 2 Mo), lus en latin1 (page de codes du poste) */
+function lignesServeur(depuisMs) {
+  const dossier = path.dirname(LOG), l = [];
+  for (const f of fs.readdirSync(dossier).filter((x) => /^server\.log/.test(x) && fs.statSync(path.join(dossier, x)).mtimeMs >= depuisMs - 1000)) {
+    const t = fs.readFileSync(path.join(dossier, f), 'latin1');
+    const re = /\[(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d+)([+-]\d{4})\][^\n]*\n\s*S.curit. de la base : ([A-Z_]+) par (.*?) : ([A-Z_]+)/g;
+    let m;
+    while ((m = re.exec(t))) { const quand = new Date(m[1] + m[2].replace(/(\d\d)(\d\d)/, '$1:$2')).getTime(); if (quand >= depuisMs - 1000) { l.push({ quand, action: m[3], login: m[4], resultat: m[5] }); } }
+  }
+  return l.sort((a, b) => a.quand - b.quand);
+}
+/* texte brut du journal du serveur depuis un instant (meme fichiers), pour y chercher une valeur qui ne doit pas s'y trouver */
+function texteServeur(depuisMs) {
+  const dossier = path.dirname(LOG);
+  return fs.readdirSync(dossier).filter((x) => /^server\.log/.test(x) && fs.statSync(path.join(dossier, x)).mtimeMs >= depuisMs - 1000).map((x) => fs.readFileSync(path.join(dossier, x), 'latin1')).join('\n');
+}
 
-module.exports = { ENV_E2E, BASE, BASE_HTTP, q, exec, CLES, DOMAINE, XML, LOG, parametre, reglages, remettreReglages, journal, pool, dossierCopies, connexion, ouvrirOnglet, S, texte, attendreTexte, remplir, confirmer, etatAffiche, rotationRefusee, purger, lignesServeur, os, fs, path, execFileSync };
+module.exports = { ENV_E2E, BASE, BASE_HTTP, q, exec, CLES, DOMAINE, XML, LOG, parametre, reglages, remettreReglages, journal, pool, dossierCopies, connexion, ouvrirOnglet, S, texte, attendreTexte, remplir, confirmer, etatAffiche, rotationRefusee, purger, attendreJournal, lignesServeur, texteServeur, os, fs, path, execFileSync };
