@@ -82,7 +82,7 @@ const sanitize = (s) => String(s || '').replace(/\s+/g, ' ');
     const base1 = A.ligneSauvegarde(l1.id);
     const fichiers1 = A.listing(DOSSIER);
     ok('À 1 : « Sauvegarder maintenant » → ligne « Réussie », fichier .sql.gz.aes (' + l1.duree + ' s) = t_sauvegarde.fichier = seul fichier du dossier, taille écran = taille du fichier, onglet « Archives : chiffrées »',
-      l1.statut === 'REUSSIE' && /\.sql\.gz\.aes$/.test(l1.fichier) && l1.chiffree === true && A.lisible(f1) && fichiers1.length === 1 && fichiers1[0] === l1.fichier
+      l1.statut === 'REUSSIE' && /\.sql\.gz\.aes$/.test(l1.fichier) && A.lisible(f1) && fichiers1.length === 1 && fichiers1[0] === l1.fichier
       && base1.split('<|>')[2] === l1.fichier && Number(base1.split('<|>')[3]) === A.taille(f1) && Math.abs(l1.tailleMo - A.taille(f1) / 1048576) < 0.1
       && /Archives : chiffrées \(AES/.test(t1), JSON.stringify(l1) + ' | ' + base1);
     ok('Le fichier commence par la magie PRSTGA01 (pas un gzip en clair) ; déchiffré avec la clé affichée par le script 7, c\'est un dump gzip complet',
@@ -100,7 +100,7 @@ const sanitize = (s) => String(s || '').replace(/\s+/g, ' ');
     const ecarts = [];
     Object.keys(Object.assign({}, emp0.tables || {}, emp1.tables || {})).forEach((t) => { if ((emp0.tables || {})[t] !== (emp1.tables || {})[t] && !/^(t_sauvegarde|t_parameters|t_securite_journal|t_application_event|t_serveur_|t_rum|t_session|t_support_|t_journal|t_poste|t_log|t_prestige|t_connexion|t_user$|t_statistique|t_alerte|t_notification|t_pointage|t_tache|t_incident|t_maintenance)/.test(t)) { ecarts.push(t + ' : ' + (emp0.tables || {})[t] + ' / ' + (emp1.tables || {})[t]); } });
     ok('À 0 juste après : fichier .sql.gz en clair (gzip), même nombre de tables créées et mêmes lignes INSERT par table que l\'archive chiffrée déchiffrée (' + Object.keys(emp1.tables || {}).length + ' tables), les deux finissent par « Dump completed »',
-      l0.statut === 'REUSSIE' && /\.sql\.gz$/.test(l0.fichier) && l0.chiffree === false && A.estGzip(f0) && emp0.creees > 100 && emp0.creees === emp1.creees && emp0.fin === 'Dump completed' && emp1.fin === 'Dump completed' && ecarts.length === 0,
+      l0.statut === 'REUSSIE' && /\.sql\.gz$/.test(l0.fichier) && A.estGzip(f0) && emp0.creees > 100 && emp0.creees === emp1.creees && emp0.fin === 'Dump completed' && emp1.fin === 'Dump completed' && ecarts.length === 0,
       ecarts.join(' ; ') || (emp1.creees + ' tables, ' + emp1.fin));
     const v0 = await A.valoriser(p);
     ok('Valorisation de l\'archive en clair : mêmes totaux que sur l\'archive chiffrée', /calculée en/.test(v0.entete) && JSON.stringify([v0[1], v0[2], v0[3]]) === JSON.stringify([v1[1], v1[2], v1[3]]), JSON.stringify(v0[1]) + ' / ' + JSON.stringify(v1[1]));

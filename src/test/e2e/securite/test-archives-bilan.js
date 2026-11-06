@@ -75,11 +75,12 @@ const prives = () => (fs.existsSync(PRIVE) ? fs.readdirSync(PRIVE).filter((f) =>
 
     /* 3. a 0 : comme avant, octet pour octet (gzip), message vide */
     parametre('KEY_SECURITE_BASE', '0'); parametre('KEY_SECURITE_FICHIER_CLE_ARCHIVE', CLE);
+    const avant0 = { parametres: empreinteParametres(), journal: empreinteJournal() };
     const l0 = await A.sauvegarder(p, l2.id);
     const apres0 = { parametres: empreinteParametres(), journal: empreinteJournal(), fichiers: A.listing(DOSSIER), prives: prives() };
     const nouveaux0 = apres0.fichiers.filter((f) => apres2.fichiers.indexOf(f) < 0);
     ok('À 0 (clé présente mais sécurité inactive) : UN .sql.gz en clair de plus, gzip, message vide, rien d\'autre ; t_parameters et journal toujours identiques',
-      l0.statut === 'REUSSIE' && nouveaux0.length === 1 && /\.sql\.gz$/.test(nouveaux0[0]) && A.estGzip(path.join(DOSSIER, nouveaux0[0])) && l0.message === '' && apres0.parametres === avant.parametres && apres0.journal === avant.journal && apres0.prives.length === 0,
+      l0.statut === 'REUSSIE' && nouveaux0.length === 1 && /\.sql\.gz$/.test(nouveaux0[0]) && A.estGzip(path.join(DOSSIER, nouveaux0[0])) && l0.message === '' && apres0.parametres === avant0.parametres && apres0.journal === avant0.journal && apres0.prives.length === 0,
       JSON.stringify(l0) + ' ' + nouveaux0.join(','));
     ok('Trois sauvegardes : trois lignes de plus dans t_sauvegarde, trois fichiers de plus dans le dossier, ni plus ni moins',
       Number(q('SELECT COUNT(*) FROM t_sauvegarde WHERE id > ' + idSauvegarde)) === 3 && apres0.fichiers.length === avant.fichiers.length + 3, apres0.fichiers.join(','));
