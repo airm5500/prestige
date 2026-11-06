@@ -195,7 +195,8 @@ function Chiffrer-Fichier([string]$source, [string]$sortie, [byte[]]$cle) {
 function Chiffrer-Commande([string]$commande, [string]$sortie, [byte[]]$cle) {
     $psi = New-Object System.Diagnostics.ProcessStartInfo
     $psi.FileName = 'cmd.exe'
-    $psi.Arguments = '/c ' + $commande
+    # la commande entiere entre guillemets : cmd garde alors ceux des programmes et des chemins qu'elle contient
+    $psi.Arguments = '/c "' + $commande + '"'
     $psi.UseShellExecute = $false
     $psi.RedirectStandardOutput = $true
     $p = [System.Diagnostics.Process]::Start($psi)
@@ -307,7 +308,8 @@ function Dechiffrer-Fichier([string]$fichier, [string]$sortie, [byte[]]$cle) {
 function Dechiffrer-VersCommande([string]$fichier, [string]$commande, [byte[]]$cle) {
     $psi = New-Object System.Diagnostics.ProcessStartInfo
     $psi.FileName = 'cmd.exe'
-    $psi.Arguments = '/c ' + $commande
+    # la commande entiere entre guillemets : cmd garde alors ceux des programmes et des chemins qu'elle contient
+    $psi.Arguments = '/c "' + $commande + '"'
     $psi.UseShellExecute = $false
     $psi.RedirectStandardInput = $true
     $p = [System.Diagnostics.Process]::Start($psi)

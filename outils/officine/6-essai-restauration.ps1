@@ -74,6 +74,8 @@ function Etape([string]$nom, [scriptblock]$f) {
     Write-Host ("{0} : {1:N0} s" -f $nom, $s)
     $script:etapes += "$nom $s s"
 }
+# valeur dans un litteral SQL : antislashs et apostrophes echappes (un chemin D:\tmp sinon devient D:<tab>mp)
+function Sql-Texte([string]$v) { return ($v -replace '\\', '\\' -replace "'", "''") }
 function Saisie-Masquee([string]$invite) {
     $s = Read-Host -Prompt $invite -AsSecureString
     $p = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($s)
@@ -187,7 +189,7 @@ if ($a -ne $b) { Write-Warning 'ecart entre la base d''origine et la base restau
 else { Write-Host 'restauration conforme'; $resultat = 'CONFORME'; $sortie = 0 }
 } catch {
     Write-Host "ECHEC : $($_.Exception.Message)"
-    $etapes += "echec : $($_.Exception.Message -replace "'", '')"
+    $etapes += "echec : $($_.Exception.Message)"
     $resultat = 'ECHEC'
     $sortie = 1
 } finally {
@@ -197,9 +199,10 @@ else { Write-Host 'restauration conforme'; $resultat = 'CONFORME'; $sortie = 0 }
     if (-not $SansTrace) {
         try {
             $duree = [int]((Get-Date) - $debut).TotalSeconds
-            $detail = ("$(if ($fichier) { $fichier.Name } else { 'archive introuvable' })$(if ($chiffree) { ' (chiffree)' }) ; $($etapes -join ' ; ') ; $duree s" -replace "'", '')
+            $detail = "$(if ($fichier) { $fichier.Name } else { 'archive introuvable' })$(if ($chiffree) { ' (chiffree)' }) ; $($etapes -join ' ; ') ; $duree s"
             if ($detail.Length -gt 990) { $detail = $detail.Substring(0, 990) }
-            $qui = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name -replace "'", ''
+            $detail = Sql-Texte $detail
+            $qui = Sql-Texte ([System.Security.Principal.WindowsIdentity]::GetCurrent().Name)
             Sql $OptionsOrigine ("INSERT INTO ``$Base``.t_parameters (str_KEY, str_VALUE, str_DESCRIPTION, str_TYPE, str_STATUT, dt_CREATED, dt_UPDATED) VALUES " +
                 "('KEY_SECURITE_DERNIER_ESSAI_RESTAURATION', DATE_FORMAT(NOW(), '%Y-%m-%d %H:%i'), 'Securite de la base : date du dernier essai de restauration (6-essai-restauration.ps1)', 'SYSTEME', 'enable', NOW(), NOW()), " +
                 "('KEY_SECURITE_DERNIER_ESSAI_RESULTAT', '$resultat', 'Securite de la base : resultat du dernier essai de restauration (CONFORME, ECART, ECHEC)', 'SYSTEME', 'enable', NOW(), NOW()) " +
