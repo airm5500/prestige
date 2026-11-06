@@ -157,7 +157,7 @@ public class JdbConnexion {
         return filtrer(texte, password, urlConnexion);
     }
 
-    static String filtrer(String texte, String motDePasse, String url) {
+    public static String filtrer(String texte, String motDePasse, String url) {
         if (texte == null) {
             return "";
         }

@@ -127,6 +127,14 @@ Unitaires (`mvn -o test`, JDK 11) :
   Payara le paramètre est inactif ;
 - `JdbConnexionTest` : le texte journalisé ne contient ni l'URL ni le mot de passe ;
 - `PoolMariaDbTest` (existant) : lecture de `domain.xml`, options échappées.
+- `IdentifiantsBaseCoherenceTest` (cohérence, règle de test du 05/11) : 5 000 cas tirés au hasard avec la graine fixe
+  `20261105` par règle : aller-retour `options()` → `depuisOptions()` (mots de passe de 1 à 64 caractères sur l'ASCII
+  imprimable complet plus accents et symboles : 1 161 avec guillemet, 1 193 avec antislash, 2 000 avec `#` ou `;`,
+  4 651 hors ASCII ; ports de 1 à 65535) ; chiffrement DPAPI → déchiffrement identique, rien du clair dans le bloc,
+  250 cas relus par le fichier, 100 blocs abîmés d'un octet refusés sans secret dans le message ; filtrage du journal
+  sur 5 000 messages de 8 gabarits (URL seule, mot de passe seul, les deux, vide). **Preuve d'échec d'abord** sur trois
+  défauts simulés, chacun rétabli ensuite : `options()` sans échappement → 2 règles en échec dès le cas 16 ; `filtrer()`
+  sans masque du mot de passe → échec dès le cas 0 ; `chiffrer()` sans DPAPI → bloc refusé au déchiffrement.
 
 Écran (`src/test/e2e/securite/test-securite-base.js`, Windows, un seul test à la fois ; réglages `BASE`, `DB_TEST`,
 `E2E_BASE_LIBRE=1`, `PAYARA_DOMAINE` pour un autre domaine) : le compte dédié et le fichier chiffré sont créés par le
@@ -148,7 +156,7 @@ session.
 
 | Test | Résultat |
 |---|---|
-| `mvn -o test` : `FichierPriveTest`, `IdentifiantsBaseServiceTest`, `JdbConnexionTest`, `PoolMariaDbTest` | 4 classes, tout vert (ACL d'une seule entrée vérifiée, chiffrement et relecture DPAPI, messages sans secret) |
+| `mvn -o test` : `FichierPriveTest`, `IdentifiantsBaseServiceTest`, `IdentifiantsBaseCoherenceTest`, `JdbConnexionTest`, `PoolMariaDbTest` | 5 classes, tout vert (15 000 cas aléatoires pour la cohérence (ACL d'une seule entrée vérifiée, chiffrement et relecture DPAPI, messages sans secret) |
 | `test-securite-base.js` (écran) | **17 / 17** au 4ᵉ passage (les trois premiers ont corrigé le test lui-même : tables vivantes du serveur `t_serveur_*`, `t_application_event` ; sélecteur du bouton Imprimer ; la JSP répond par une redirection 302 vers son PDF) |
 | … sauvegarde à 0 | « Réussie », 484,2 Mo, 100 s ; 363/363 tables, 201 avec des lignes, routines, déclencheurs, « Dump completed » |
 | … sauvegarde à 1 (compte dédié vu dans `PROCESSLIST` pendant le dump) | « Réussie », 484,2 Mo, 91 s ; **aucun écart** table par table (nombre de lignes et condensat) hors tables que le serveur écrit lui-même (`t_sauvegarde`, `t_parameters`, `t_rum`, `t_application_event`, `t_serveur_mesure`, `t_serveur_vie`) |
