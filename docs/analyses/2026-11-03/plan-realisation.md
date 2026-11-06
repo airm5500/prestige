@@ -290,6 +290,26 @@ l'application garde l'ancienne fabrique du pool ; le retour arrière, lui, ne re
 donc **hors heures d'ouverture**, postes fermés. Non fait : changement de la master password (commande documentée, à faire sur site,
 Q4.4) ; banc Linux. Prochain : lot 4.C (archives chiffrées, clé hors serveur chez le pharmacien, Q4.3), à poser sur la branche 4.B.
 
+### Lot 4.C livré (06/11/2026)
+
+Branche `refs/heads/PRES-/cas4-lot-4c-archives-e5f376`, 6 commits (`a6dcff874` à `86c054dd7`), posée sur le lot 4.B (`b90bc5a28`),
+**non fusionnée**. Migration `V7.2.40` (trois paramètres : `KEY_SECURITE_CLE_ARCHIVE_DATE`, `KEY_SECURITE_DERNIER_ESSAI_RESTAURATION`,
+`KEY_SECURITE_DERNIER_ESSAI_RESULTAT` ; aucune valeur secrète, aucune table), rejouable, inactive à `KEY_SECURITE_BASE = 0`.
+Archives chiffrées AES-256-CBC + HMAC-SHA256, clé dérivée par PBKDF2, format commun PowerShell / Java (`archive-chiffree.ps1`,
+`ArchiveChiffree.java`, vecteur partagé `tests/vecteur-java.hex`) ; la clé reste chez le pharmacien (Q4.3), sur le serveur seulement
+chiffrée par DPAPI, affichée une seule fois par le script `7-cle-archive.ps1`. Scripts 3, 4 et 6 adaptés (restauration d'essai avec trace
+mensuelle) ; serveur `SauvegardeService`, `SecuriteBaseService` ; onglet « Sécurité » (archives chiffrées oui / non, dernier essai de
+restauration, rappel à un mois). Notice `docs/notices/NOTICE_SECURITE_BASE_LOT_C.md`. Vérification ici : branche bien posée sur 4.B,
+aucun secret, chemin `D:\CONF\LABOREX\CONF` ni identifiant de modèle dans les lignes ajoutées.
+
+Les trois tests de la règle du 05/11, rouges d'abord puis verts (chiffres rapportés par la session) : cohérence Java
+`ArchiveChiffreeCoherenceTest` 3 000 cas (2 échecs sur défaut simulé, puis 6 tests verts) et PowerShell 2 000 cas (3 FAIL / 9, puis 9/9) ;
+rapprochement d'écran 12/13 puis 13/13 ; bilan avant / après 7/10 puis 10/10. Essai réel des scripts sur `laborex_audit` (instance 3307) :
+archive chiffrée de 387 Mo déchiffrée et restaurée conforme (409/409 tables, ventes closes identiques). Non-régression : lot 4.A 17/17,
+lot 4.B 8/8, 9/9 et 23/23. Poste remis en l'état (instance 3307 arrêtée, `KEY_SECURITE_BASE` à 0) ; le WAR de domain3 est celui du lot C.
+Non exercé automatiquement : `-Verifier` et `-CleSaisie` (saisie console), chiffrement des journaux binaires par le script 4 (`log_bin`
+à 0 sur ce poste), chemin RAR. Reste sur site : master password (Q4.4), lot 4.0, essai de charge domain2.
+
 ## 10. Règle de tests du 05/11/2026 et compléments livrés
 
 Règle transmise par la session principale le 05/11 (CLAUDE.md section Tests et `docs/notices/STRATEGIE_TESTS.md`, branche
@@ -301,9 +321,9 @@ toute donnée écrite en base a un lecteur et un test qui la relit. État au 05/
 | Cas | Branche | Commits du jour | Rapprochement | Cohérence | Bilan | Remarques |
 |---|---|---|---|---|---|---|
 | Cas 1 | `PRES-/vigorous-northcutt-ec550e` | `089b95a69`, `e278b90ef`, `bb0bb822b`, `550b36aac` | écran / tickets / base, 19 cas (3 écarts avec le défaut simulé : preuve « échoue d'abord ») | `LigneComptantCoherenceTest`, `CreditLigneCoherenceTest` (5 000 ventes) | 23/23 sur domain3 | **défaut confirmé et corrigé** : la vente liée n'était pas relue par le détail de vente (`SalesStatsServiceImpl`). |
-| Cas 2 | `PRES-/quirky-shtern-c8f3ea` | `e2595ab54`, `bfa4b1013`, `b6027805a`, `93070c27e` | caisse / fiche / base 21/21 | `ReferenceCaisseCoherenceTest` (20 000 cas, 5 000 ventes) | 23/23 | deux correctifs du net : taux de ligne non empilés dans `taux_produit` ; **le taux saisi fait foi même quand une référence existe** (tranché par l'utilisateur le 05/11, ticket `TICKET_TAUX_ORGANISME_DEUX_CALCULS_DU_NET_2026-11-05.md`). Fusionné par la session dans `PRES-/integration-cas-1-2-3` (`ad9d585a9`), pas dans `integration/recette`. |
+| Cas 2 | `PRES-/quirky-shtern-c8f3ea` | `e2595ab54`, `bfa4b1013`, `b6027805a`, `93070c27e` | caisse / fiche / base 21/21 | `ReferenceCaisseCoherenceTest` (20 000 cas, 5 000 ventes) | 23/23 | deux correctifs du net : taux de ligne non empilés dans `taux_produit` ; **le taux saisi fait foi même quand une référence existe** (tranché par l'utilisateur le 05/11, ticket `TICKET_TAUX_ORGANISME_DEUX_CALCULS_DU_NET_2026-11-05.md`). Fusionné par la session dans `PRES-/integration-cas-1-2-3` (`ad9d585a9`), puis cas 1, cas 2 et lot Q2.5 fusionnés dans `integration/recette-2026-10-29` par la session principale le 06/11 avec l'accord de l'utilisateur (vérifié ici par `git merge-base --is-ancestor`). |
 | Lot Q2.5 | `PRES-/quizzical-solomon-415068` | `8dcf5bf88`, `3b7d5aae6`, `b9e80654f`, `807d957db`, `a8100cb5d` | ticket 21/21 | `BaseParTiersPayantCoherenceTest` (5 000 ventes, à 0 et à 1) | 28/28 ; non-régression 13/13 | nouvelle migration **`V7.2.36.1`** (`taux_produit.base_ligne`, base propre de chaque organisme, écrite par le net à 1 et relue par le ticket) ; `integration/recette` fusionnée dans la branche (`009d2470e`). **Décision en attente** : P.REF par assurance sur le ticket. |
-| Cas 3 | `PRES-/happy-almeida-e382ca` | aucun | à faire (motif ligne par ligne écran / détail / PDF / Excel) | à faire (`estProduitOrdonnancier`) | à faire | session en attente de votre décision. |
-| Lot 4.A | `PRES-/determined-khayyam-d98c43` | `5460c8204` (mesure) | déjà présent (dumps table par table) | à faire (aller-retour DPAPI) | déjà présent | session en attente. |
+| Cas 3 | `PRES-/happy-almeida-e382ca` | `54dcad460`, `c134de41a` | écrit (`c134de41a`), joué sur domain3 : écarts tous côté test ou environnement (triangles au lieu des pastilles, PDF de domain3 écrit dans le dossier de domain1), tests en cours d'ajustement | `54dcad460` : règle unique, 20 000 produits, 5 000 ventes, vert après rouge | écrit (`c134de41a`), en cours | livraison finale attendue. |
+| Lot 4.A | `PRES-/determined-khayyam-d98c43` | `5460c8204` (mesure), `55fbb4e6a` (cohérence) | déjà présent (dumps table par table) | `55fbb4e6a` : 5 000 cas par règle (fichier d'options, DPAPI, journal filtré), échec prouvé sur trois défauts simulés (rapporté, non rejoué ici) | déjà présent | commits vérifiés par git. |
 | Lot 4.B | `PRES-/vigilant-pare-ce7bc4` | aucun | à faire (état affiché / domain.xml / journal / server.log) | à faire (tirage à graine fixe) | à faire (`t_parameters`, `t_securite_journal`) | session en attente. |
-| Lot 4.C | `PRES-/beautiful-kare-259612` | aucun | — | — | — | session arrêtée avant de commencer (espace disque puis arrêt inattendu) ; à relancer, brief à compléter avec cette règle. |
+| Lot 4.C | `PRES-/cas4-lot-4c-archives-e5f376` | `a6dcff874` à `86c054dd7` (06/11) | écran 13/13 (12/13 en rouge) | `ArchiveChiffreeCoherenceTest` 3 000 cas + PowerShell 2 000 cas | 10/10 (7/10 en rouge) | migration `V7.2.40` ; essai réel 387 Mo restauré conforme ; voir §9 « Lot 4.C livré ». |
