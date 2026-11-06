@@ -148,10 +148,28 @@ public class SalesRessource {
     @GET
     @Path("ticket/vo/{id}/apercu")
     public Response apercuTicketVo(@PathParam("id") String id) throws JSONException {
+        return apercuTickets(() -> generateTicketService.apercuTicketVo(id));
+    }
+
+    /**
+     * Cas 1 (tests de rapprochement du 05/11) : le ticket client combine de la vente assurance et de sa vente comptant
+     * liee, construit sans impression. Liste vide quand la vente n'a pas de vente liee.
+     */
+    @GET
+    @Path("ticket/vo/{id}/apercu-combine")
+    public Response apercuTicketCombine(@PathParam("id") String id) throws JSONException {
+        return apercuTickets(() -> generateTicketService.apercuTicketCombine(id));
+    }
+
+    private interface Documents {
+        List<rest.service.ticket.TicketDocument> lire() throws JSONException;
+    }
+
+    private static Response apercuTickets(Documents documents) throws JSONException {
         JSONObject json = new JSONObject();
         try {
             org.json.JSONArray tickets = new org.json.JSONArray();
-            for (rest.service.ticket.TicketDocument d : generateTicketService.apercuTicketVo(id)) {
+            for (rest.service.ticket.TicketDocument d : documents.lire()) {
                 org.json.JSONArray blocs = new org.json.JSONArray();
                 for (rest.service.ticket.TicketDocument.Bloc b : d.blocsNonVides()) {
                     org.json.JSONArray elements = new org.json.JSONArray();

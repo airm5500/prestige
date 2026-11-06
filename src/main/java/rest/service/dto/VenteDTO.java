@@ -45,6 +45,9 @@ public class VenteDTO {
     private final String strMEDECIN;
 
     private final String strREFBON;
+    /** Cas 1 du 03/11/2026 : vente nee de la meme saisie (assurance <-> comptant), identifiant et reference. */
+    private String venteLiee;
+    private String venteLieeRef;
 
     private final String strORDONNANCE;
     private final String strINFOSCLT;

@@ -159,6 +159,24 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
         }
     }
 
+    @Override
+    public List<rest.service.ticket.TicketDocument> apercuTicketCombine(String voId) {
+        List<rest.service.ticket.TicketDocument> docs = new ArrayList<>();
+        APERCU.set(docs);
+        try {
+            TPreenregistrement vo = getEntityManager().find(TPreenregistrement.class, voId);
+            if (vo == null) {
+                throw new IllegalStateException("Vente introuvable");
+            }
+            PrintService printService = findPrintService();
+            imprimerTicketCombine(vo, printService, findImprimanteByName(printService), findOfficine(),
+                    vo.getLgUSERID().getLgEMPLACEMENTID());
+            return docs;
+        } finally {
+            APERCU.remove();
+        }
+    }
+
     /**
      * Nouveau modele de ticket (demande du 02/11) : largeur du papier de l'imprimante et reglages du ticket, lus dans
      * le menu « Modeles de ticket ». Une erreur laisse l'ancien ticket : l'impression ne doit jamais en dependre.

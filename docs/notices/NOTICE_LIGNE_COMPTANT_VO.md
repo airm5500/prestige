@@ -47,6 +47,20 @@ Migration `V7.2.35__ligne_comptant_vo.sql` (rejouable) : `t_preenregistrement_de
 4. `test-attente-reprise.js` : mise en attente puis reprise, la coche survit.
 5. `test-non-regression-cloture.js` : paramètre à 0 et à 1 sans coche ⇒ mêmes lignes écrites ; échec simulé pendant la clôture de la vente comptant ⇒ aucune des deux ventes close.
 
+## Tests de la règle du 05/11 (rapprochement, cohérence, bilan)
+
+| Famille | Test | Ce qu'il compare ou vérifie |
+|---|---|---|
+| Rapprochement (e2e) | `src/test/e2e/ligne-comptant/test-rapprochement-ligne-comptant.js` | Trois lignes (quantités 2, 1 cochée, 3), remise 5 %, un organisme à 70 % : écran (grille, rail) = base (lignes des deux ventes, part de l'organisme, part client, mouvements de caisse) = ticket assurance (aperçu `ticket/vo/{id}/apercu` : lignes assurance seules, « Taux 70 % : part », somme = part en base = bloc client, net = part client) = ticket client combiné (aperçu `ticket/vo/{id}/apercu-combine` : sections, Part du client, Comptant, Total des deux ventes, net) = détail de vente (`ventestats/find-one` : vente liée et sa référence, dans les deux sens). `E2E_DEFAUT=1` altère le prix de la vente comptant en base après la clôture : le test doit échouer (3 rapprochements sur 19). |
+| Cohérence (unitaire) | `LigneComptantCoherenceTest` (5 000 ventes tirées, graine fixe) | Lignes du moteur = lignes non cochées (ordre, rien de perdu) ; montants des lignes cochées (prix, remise, TVA, CA, marge) ; arrondi à 5 ; imputation comptant d'abord, somme = payé, jamais négatif ; répartition des modes de règlement (un mode une fois par vente, versé ≥ montant) ; charge de la vente liée (payé, reçu, monnaie, total, marge, règlements partagés sans perte). Preuve « échoue d'abord » : avec l'assurance servie avant le comptant, 2 propriétés sur 6 échouent. |
+| Cohérence (unitaire) | `CreditLigneCoherenceTest` (intégration du 05/11) | Parts par ligne du ticket assurance : part = base × taux, somme = total, jamais négative, plafond au prorata. |
+| Bilan avant / après (e2e) | `src/test/e2e/ligne-comptant/test-bilan-ligne-comptant.js` | A : deux organismes (RO plafonné par vente, RC), quantités 2, 3 et 1, deux lignes cochées : stock −quantité une fois par produit, mouvements de stock sur la bonne vente, un mouvement de caisse, une recette et un règlement par vente, lignes tiers-payant (RO au plafond, somme = écran), ticket assurance (parts par organisme = base) ; annulation de la vente comptant (ses produits reviennent, l'assurance ne bouge pas) puis de la vente assurance (tout le stock rendu). B : différé : une dette par vente (part client, comptant), solde du client = somme des dettes = net, aucune recette. C : organisme à 100 % : part client 0, net = comptant seul, l'assurance n'encaisse rien. |
+| Bilan (e2e, déjà livré) | `test-non-regression-cloture.js`, `test-une-ligne-cochee.js` | Paramètre 0 / 1 sans coche : mêmes lignes écrites ; échec simulé ⇒ aucune des deux ventes close ; annulation de la vente comptant sans toucher l'assurance. |
+
+Défaut confirmé le 05/11 par le test de rapprochement : la vente liée (`lg_VENTE_LIEE_ID`) était écrite en base mais le
+détail de vente (`ventestats/find-one`, `SalesStatsServiceImpl.getOne`) ne la relisait pas. Corrigé : le DTO du détail porte
+`venteLiee` et `venteLieeRef`.
+
 ## Recette officine
 
 Activer le paramètre sur un poste pilote une semaine avant généralisation. Le paramètre se lit à chaque ouverture de
