@@ -165,7 +165,33 @@ DPAPI, sans `password=`. `E2E_DEFAUT=1` dépose un `.partiel` en clair : le test
 
 ## 8. Résultats sur le poste (06/11/2026)
 
-À compléter à la fin de la série (voir le rapport final de la session).
+Poste local, Payara `domain3` (port 10090), base d'essai `laborex_audit`, sous le verrou commun `verrou-e2e`
+(tests d'écran lancés un par un). Chaque test a d'abord été mis au rouge sur un défaut simulé, puis au vert.
+
+| Test (règle du 05/11) | Rouge d'abord (défaut simulé) | Vert ensuite |
+|---|---|---|
+| Cohérence Java `ArchiveChiffreeCoherenceTest` (graine 20261106, 3 000 cas : tailles 0 à 70 000, clés, itérations) + `EssaiRestaurationRappelTest` (5 000 dates) + `ConservationTest` | comparaison du HMAC désactivée : 2 échecs | 6 tests Java verts, 3 000 cas ; vecteur PowerShell relu par Java et vecteur Java relu par PowerShell |
+| Cohérence PowerShell `tests/test-archive-coherence.ps1` (2 000 cas, même graine) | `-Defaut` : 3 FAIL sur 9 | 9/9 |
+| Rapprochement d'écran `test-archives-rapprochement.js` (script 7 → onglet Sécurité → API → `t_parameters`/`t_securite_journal` → fichier ; sauvegarde à 1 déchiffrée avec la clé affichée ; valorisation sur archive chiffrée = sur archive en clair) | `E2E_DEFAUT=1` : 12/13 | 13/13 |
+| Bilan avant/après `test-archives-bilan.js` (une sauvegarde à 1 avec clé, à 1 sans clé, à 0 : fichiers, lignes, paramètres, journal, `server.log`) | `E2E_DEFAUT=1` : 7/10 | 10/10 |
+
+Essai réel des scripts (`laborex_audit`, dump de 387 Mo, instance MariaDB jetable sur le port 3307) :
+
+| Étape | Résultat |
+|---|---|
+| `7-cle-archive.ps1 -Creer` | clé affichée une fois ; fichier DPAPI (en-tête, rien en clair) ; `KEY_SECURITE_CLE_ARCHIVE_DATE` posée ; journal `CLE_ARCHIVE` sans la valeur |
+| `-Creer` sur une clé existante sans `-Remplacer` | refusé (code 1) |
+| `3-sauvegarde-complete.ps1` à 1 | `laborex_audit-20261106-0352.sql.zst.aes`, 387,1 Mo, 20 s, magie `PRSTGA01`, taille conforme à la formule, aucun fichier en clair, journal « chiffrée (AES) » ; dossier privé vide après |
+| `7-cle-archive.ps1 -Dechiffrer` | HMAC vérifié puis 387,1 Mo en clair en 2 s ; `zstd -t` valide ; tête « MariaDB dump » |
+| `-Dechiffrer` sans fichier de clé ni console | refusé, rien écrit |
+| `4-copier-journal.ps1` à 1 | s'arrête sur « journal binaire inactif » (`log_bin` à 0 sur ce poste : chemin chiffré du journal non exercé ici) |
+| `6-essai-restauration.ps1` sur 3307 | « restauration conforme » : 409/409 tables, `t_parameters` 226/226, ventes closes 473 415/473 415 ; 4 113 s ; trace `KEY_SECURITE_DERNIER_ESSAI_RESTAURATION` / `RESULTAT=CONFORME` ; journal `ESSAI_RESTAURATION OK` (chiffrée, HMAC 1 s, clé acceptée) ; ni clé ni mot de passe dans la sortie |
+| `3-sauvegarde-complete.ps1` à 0 | `.sql.zst` en clair (magie zstd), journal sans « chiffrée » |
+| `-Rotation` | les `.zst` et `.zst.aes` du jour tous gardés |
+| Remise en état | paramètres identiques, journal purgé, base 3307 supprimée, fichiers retirés |
+
+Non-régression : lot A `test-securite-base.js` 17/17 ; lot B `test-securite-rapprochement.js` 8/8, `test-securite-bilan.js`
+9/9, `test-securite-ecran.js` 23/23 (WAR du lot C). `KEY_SECURITE_BASE` remis à 0, données d'essai retirées.
 
 ## 9. Limites
 
