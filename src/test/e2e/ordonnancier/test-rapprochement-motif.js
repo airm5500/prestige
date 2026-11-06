@@ -39,6 +39,13 @@ function nettoyer() {
   if (caisseOuverte) { C.fermerCaisse(CAISSE); }
 }
 
+/* la marque de la ligne de vente : celle du motif est la, et toute autre marque est justifiee par les drapeaux (pastille unique
+   du cas 3, ou triangles sensible ET ordonnancier du retour du 05/11 : les deux rendus sont admis) */
+const marqueJuste = (l, j) => {
+  const m = l.marques || [];
+  if (!j[4]) { return m.length === 0; }
+  return m.indexOf(j[5]) >= 0 && m.every((x) => (x === 'SENSIBLE' && j[1]) || (x === 'ORDONNANCIER' && j[0] && !!j[2]));
+};
 /* la meme ligne, vue de chaque source : cip / code tableau / motif / quantite / montant */
 const cle = (cip, code, motif, qte, montant) => [cip, code || '', motif || '', Number(qte), Number(montant)].join('/');
 const lire = (p, url) => p.evaluate(async (u) => { const r = await fetch(u, { credentials: 'same-origin' }); return r.json(); }, url);
@@ -67,12 +74,12 @@ const lire = (p, url) => p.evaluate(async (u) => { const r = await fetch(u, { cr
     for (const a of attendus.filter((x) => x.qte !== 1)) { await C.saisirQuantite(p, a.cip, a.qte); }
     const grille = [];
     for (const a of attendus) { grille.push(await C.ligneVente(p, a.cip)); }
-    C.ok('Grille de vente : les cinq lignes, motif et pastille de chacune (Sensible, Ordonnancier, Sensible, rien, rien)',
-      grille.every((l, i) => l && (l.motif || '') === attendus[i].motif && (l.pastille || '') === attendus[i].pastille),
-      JSON.stringify(grille.map((l) => l && [l.motif, l.pastille])));
+    C.ok('Grille de vente : les cinq lignes, motif et marque de chacune (Sensible, Ordonnancier, Sensible, rien, rien)',
+      grille.every((l, i) => l && (l.motif || '') === attendus[i].motif && marqueJuste(l, JEU[i])),
+      JSON.stringify(grille.map((l) => l && [l.motif, l.marques])));
     const enBase = C.q("SELECT GROUP_CONCAT(CONCAT_WS('/', f.int_CIP, IFNULL(f.int_T, ''), CASE WHEN f.is_sensible = 1 THEN 'Sensible' WHEN f.is_scheduled = 1 AND IFNULL(f.int_T, '') <> '' THEN 'Ordonnancier' ELSE '' END,"
-      + " d.int_QUANTITY, d.int_PRICE) ORDER BY f.int_CIP SEPARATOR '\n') FROM t_preenregistrement_detail d JOIN t_famille f ON f.lg_FAMILLE_ID = d.lg_FAMILLE_ID"
-      + " WHERE d.lg_PREENREGISTREMENT_ID = '" + venteId + "'").split('\n').sort();
+      + " d.int_QUANTITY, d.int_PRICE) ORDER BY f.int_CIP SEPARATOR ' ~~ ') FROM t_preenregistrement_detail d JOIN t_famille f ON f.lg_FAMILLE_ID = d.lg_FAMILLE_ID"
+      + " WHERE d.lg_PREENREGISTREMENT_ID = '" + venteId + "'").split(' ~~ ').sort();
     const attendusBase = attendus.map((a) => cle(a.cip, a.code, a.motif, a.qte, a.montant)).sort();
     C.ok('Base : les cinq lignes avec leurs quantites et montants (prix x quantite), motif selon la regle', enBase.join('|') === attendusBase.join('|'), enBase.join(' ; '));
 
@@ -115,21 +122,18 @@ const lire = (p, url) => p.evaluate(async (u) => { const r = await fetch(u, { cr
     const filtre = 'dtStart=' + jour + '&dtEnd=' + jour + '&medecinId=' + J.medecin + '&query=';
     const pdf = await lire(p, '../api/v1/ventestats/ventesordonnanciers/pdf?' + filtre);
     C.ok('L\'édition PDF du registre aboutit', pdf.success === true && !!pdf.url, JSON.stringify(pdf));
-    const fichierPdf = await C.telecharger(p, '..' + pdf.url, 'ordonnancier-rapprochement.pdf');
-    const lignesPdf = C.lignesPdf(fichierPdf.chemin);
+    /* le fichier ecrit par le serveur (REPORTS_PDF pour un autre domaine que domain1) : l'URL rendue n'est pas servie par l'application */
+    const cheminPdf = require('../support/editions').fichierEdition(pdf.url);
+    C.ok('Le fichier PDF est écrit sur le disque', require('fs').existsSync(cheminPdf), cheminPdf);
+    const textePdf = C.textePdf(cheminPdf);
     const clesPdf = [];
     for (const a of attendus) {
-      const l = lignesPdf.filter((x) => x.indexOf(a.cip) >= 0);
-      if (!l.length) { continue; }
-      const colonnes = l[0].trim().split(/\s{2,}/);
-      /* ... | CIP | Produit | Tabl. | Motif | Qté | Montant | Vendeur : les colonnes vides sont absentes du texte, on lit par position relative au CIP */
-      const i = colonnes.indexOf(a.cip);
-      const suite = colonnes.slice(i + 1);
-      const nombres = suite.map((x) => x.replace(/[\s  ]/g, '')).filter((x) => /^\d+$/.test(x));
-      const motif = suite.find((x) => x === 'Sensible' || x === 'Ordonnancier') || '';
-      const code = suite.find((x) => /^(A|B|C|I|II|III)$/.test(x)) || '';
-      clesPdf.push(cle(a.cip, code, motif, nombres[nombres.length - 2], nombres[nombres.length - 1]));
+      /* dans l'ordre du flux : CIP, nom du produit (parfois coupe sur deux lignes), motif, code tableau, quantite, montant (milliers separes) */
+      const m = new RegExp(a.cip + '\\s+' + a.nom.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+')
+        + '\\s+(?:(Sensible|Ordonnancier)\\s+)?(?:([A-Za-z][\\w-]*)\\s+)?(\\d+)\\s+(\\d{1,3}(?: \\d{3})*)(?=\\s|$)').exec(textePdf);
+      if (m) { clesPdf.push(cle(a.cip, m[2], m[1], m[3], m[4].replace(/ /g, ''))); }
     }
+    const lignesPdf = textePdf.split('\n');
     C.ok('PDF : les trois lignes du registre, chacune avec son code tableau, son motif, sa quantité et son montant (= écran = base)',
       clesPdf.sort().join('|') === clesAttendues.join('|'), clesPdf.join(' ; ') + ' // ' + lignesPdf.filter((x) => attendus.some((a) => x.indexOf(a.cip) >= 0)).join(' // '));
     C.ok('PDF : P4 et P5 n\'y sont pas', !lignesPdf.some((x) => x.indexOf(P[3].cip) >= 0 || x.indexOf(P[4].cip) >= 0));
@@ -154,7 +158,7 @@ const lire = (p, url) => p.evaluate(async (u) => { const r = await fetch(u, { cr
     ventes.push(vente0);
     const grille0 = [];
     for (const a of attendus) { grille0.push(await C.ligneVente(p, a.cip)); }
-    C.ok('Paramètre à 0 : les pastilles de la grille de vente sont les mêmes', grille0.every((l, i) => l && (l.pastille || '') === attendus[i].pastille), JSON.stringify(grille0.map((l) => l && l.pastille)));
+    C.ok('Paramètre à 0 : les marques de la grille de vente sont les mêmes', grille0.every((l, i) => l && marqueJuste(l, JEU[i])), JSON.stringify(grille0.map((l) => l && l.marques)));
     const fin0 = await C.terminer(p);
     C.ok('Paramètre à 0 : la vente se termine sans médecin', fin0.ok && C.q("SELECT str_STATUT FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID = '" + vente0 + "'") === 'is_Closed', fin0.msg);
     const detail0 = await lire(p, '../api/v1/ventestats/ventesordonnanciers?dtStart=' + jour + '&dtEnd=' + jour + '&medecinId=&query=&start=0&limit=500');
