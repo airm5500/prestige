@@ -22,8 +22,22 @@ public class Rate implements Serializable {
     @Column(name = "sale_iem_id", nullable = false)
     private String saleIemId;
     private float taux;
+    /**
+     * Lot « base par tiers-payant » (Q2.5) : prix de reference unitaire applique a cet organisme sur cette ligne, ou
+     * null (prix de vente, ou regle du minimum a 0). Le ticket le relit pour imprimer la part de la ligne.
+     */
+    @Column(name = "base_ligne")
+    private Integer baseLigne;
 
     public Rate() {
+    }
+
+    public Integer getBaseLigne() {
+        return baseLigne;
+    }
+
+    public void setBaseLigne(Integer baseLigne) {
+        this.baseLigne = baseLigne;
     }
 
     public Rate(String saleIemId, String compteTiersPayantId, float taux) {

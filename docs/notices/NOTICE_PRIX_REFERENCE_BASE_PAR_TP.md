@@ -38,7 +38,9 @@ Conséquences à connaître :
   prioritaire couvre toute sa base (100 %) : à 1, le complémentaire prend encore sa part sur ce qui reste du prix de la
   ligne (il ne s'arrête plus à la base du prioritaire) ;
 - la borne « reste du prix de la ligne » est celle de la ligne, pas de la base du prioritaire : un complémentaire qui
-  valorise le produit plus haut que le prioritaire n'est plus privé de sa part.
+  valorise le produit plus haut que le prioritaire n'est plus privé de sa part. **Choix validé le 04/11/2026** : un
+  tiers-payant ne paie jamais plus que ce que le client aurait payé, et la colonne P.REF / TAUX de chaque organisme
+  dit vraiment ce qu'il rembourse.
 
 ## Exemples chiffrés (vente assurance, A prioritaire à 70 %, B complémentaire à 20 %, quantité 1)
 
@@ -53,6 +55,24 @@ Conséquences à connaître :
 
 Test d'écran (produit à 3 710, réf. A saisie à 3 210, réf. B à 2 710) : à 0, A 1 897 / B 542 / net 1 270 ; à 1,
 A **2 247** / B 542 / net **920**.
+
+## Ticket et traces (règle de test du 05/11)
+
+- **Total tiers-payant = somme des parts arrondies** de chaque organisme (défaut antérieur au lot, corrigé aux deux
+  valeurs du paramètre) : 8 775 à 10 % pour deux organismes donnait des parts 878 + 878 = 1 756 mais un total 1 755
+  (arrondi de la somme), et la part client avec. Le total, le net et la part client suivent désormais les parts
+  enregistrées et imprimées.
+- **`taux_produit.base_ligne`** (migration `V7.2.36.1__taux_produit_base_ligne.sql`, rejouable) : à 1, le calcul du
+  net écrit, pour chaque ligne et chaque organisme ayant une référence, le taux appliqué et le prix de référence
+  unitaire propre à l'organisme ; le ticket (`GenerateTicketServiceImpl.creditsParLigne`) relit cette base pour
+  imprimer la part de chaque ligne (« NOM · Taux x % : part »), au lieu de la base unique de la ligne. À 0 ou sans
+  référence, la colonne reste à NULL et le ticket est celui d'aujourd'hui.
+
+- **P.REF par assurance sur le ticket** (retour du 05/11) : quand les organismes d'une ligne n'ont pas la même
+  base, la ligne n'imprime plus un « P.REF » unique : chaque organisme imprime la sienne sur sa ligne de crédit,
+  « CNAM · P.REF 2 335 · Taux 60 % : 1 401 » puis « MUPEMENET · P.REF 1 835 · Taux 30 % : 551 » (un organisme au
+  prix de vente n'imprime pas de P.REF). Même base pour tous, un seul organisme, ou paramètre à 0 : ticket
+  d'aujourd'hui (`CreditLigne.basesDifferentes`, `CreditLigne.libelle` avec prix de référence).
 
 ## Écran
 

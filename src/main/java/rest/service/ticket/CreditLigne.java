@@ -137,7 +137,39 @@ public final class CreditLigne {
      * vente en a plusieurs : « MUGEF-CI · Taux 80 % : 1 200 ».
      */
     public static String libelle(String nomTiersPayant, int taux, int montant) {
+        return libelle(nomTiersPayant, null, taux, montant);
+    }
+
+    /**
+     * Lot « base par tiers-payant » (Q2.5) : quand les organismes d'une ligne n'ont pas la meme base, chacun imprime
+     * SON prix de reference : « CNAM · P.REF 2 335 · Taux 60 % : 1 401 ». prixReference null : libelle d'aujourd'hui.
+     */
+    public static String libelle(String nomTiersPayant, Integer prixReference, int taux, int montant) {
         String nom = nomTiersPayant == null || nomTiersPayant.trim().isEmpty() ? "" : nomTiersPayant.trim() + " · ";
-        return nom + "Taux " + taux + " % : " + ConversionTicket.nombre(montant);
+        String pref = prixReference == null || prixReference <= 0 ? ""
+                : "P.REF " + ConversionTicket.nombre(prixReference) + " · ";
+        return nom + pref + "Taux " + taux + " % : " + ConversionTicket.nombre(montant);
+    }
+
+    /**
+     * Vrai si au moins deux organismes de la ligne ont des bases unitaires propres differentes (null = base de la
+     * ligne, ignoree) : la ligne imprime alors un P.REF par organisme au lieu du P.REF unique.
+     */
+    public static boolean basesDifferentes(List<Integer> basesUnitaires) {
+        Integer premiere = null;
+        if (basesUnitaires == null) {
+            return false;
+        }
+        for (Integer b : basesUnitaires) {
+            if (b == null) {
+                continue;
+            }
+            if (premiere == null) {
+                premiere = b;
+            } else if (!premiere.equals(b)) {
+                return true;
+            }
+        }
+        return false;
     }
 }

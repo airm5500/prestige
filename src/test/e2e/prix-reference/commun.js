@@ -177,6 +177,71 @@ const journal = (produitId) => q("SELECT IFNULL(GROUP_CONCAT(CONCAT_WS('/', acti
   + " IFNULL(nouveau_taux, 'NULL'), IFNULL(nouveau_type, 'NULL'), IFNULL(vente_id, 'NULL'), IFNULL(utilisateur_id, 'NULL'), IFNULL(poste, 'NULL'), tiers_payant_id)"
   + " ORDER BY date_action, id SEPARATOR ' ; '), 'aucun') FROM prix_reference_journal WHERE produit_id = '" + produitId + "'");
 
+/* « Ajouter une Assurance complémentaire » : tiers-payant choisi dans la fenetre TIERS-PAYANTS ASSOCIES, « Valider »,
+   attente de l'ajout et du rechargement des lignes */
+async function ajouterTiersPayant(p, tpId) {
+  await p.locator('text=/Ajouter une Assurance compl/').filter({ visible: true }).first().click();
+  const COMBO = 'window[title="TIERS-PAYANTS ASSOCIES"] combobox[name=compteTp]';
+  await p.waitForFunction((c) => Ext.ComponentQuery.query(c).some((x) => x.isVisible(true)), COMBO, { timeout: 15000 });
+  await vues.cliquer(p, COMBO);
+  await p.keyboard.type(tpId, { delay: 25 });
+  const item = p.locator('.x-boundlist-item').filter({ visible: true, hasText: tpId }).first();
+  await item.waitFor({ timeout: 20000 });
+  await item.click();
+  const repAjout = p.waitForResponse((r) => /vente\/addtp\//.test(r.url()), { timeout: 30000 });
+  const repLignes = p.waitForResponse((r) => /vente\/deatails/.test(r.url()), { timeout: 30000 });
+  await p.locator('.x-window').filter({ visible: true, hasText: 'TIERS-PAYANTS ASSOCIES' }).getByText('Valider', { exact: true }).click();
+  await repAjout;
+  await repLignes;
+  await p.waitForTimeout(1500);
+}
+
+/* quantite d'une ligne, par la cellule QD de la grille (clic, frappe, Entree), attente de update/item/vno */
+async function saisirQuantite(p, cipProduit, quantite) {
+  const id = await p.evaluate(([g, c]) => {
+    const grille = Ext.ComponentQuery.query(g)[0];
+    const r = grille.getStore().findRecord('intCIP', c, 0, false, true, true);
+    const col = grille.headerCt.getGridColumns().filter((x) => x.dataIndex === 'intQUANTITY')[0];
+    if (!r || !col) { return null; }
+    const cellule = grille.getView().getCell(r, col);
+    cellule.dom.id = cellule.dom.id || ('e2e-qd-' + Math.random().toString(36).slice(2));
+    return cellule.dom.id;
+  }, [GRILLE, cipProduit]);
+  if (!id) { throw new Error('Cellule QD introuvable : ' + cipProduit); }
+  const rep = p.waitForResponse((r) => /vente\/update\/item\/vno/.test(r.url()), { timeout: 60000 });
+  rep.catch(() => {});
+  await p.click('#' + id);
+  await p.waitForTimeout(400);
+  await p.keyboard.press('Control+A');
+  await p.keyboard.type(String(quantite), { delay: 30 });
+  await p.keyboard.press('Enter');
+  await rep;
+  await p.waitForTimeout(2000);
+}
+
+/* ticket relu par l'apercu (meme chemin que la reimpression, rien n'est imprime) : articles avec, par organisme, la
+   ligne « NOM · Taux x % : part » (nom absent avec un seul organisme), paires du bloc client, net a payer */
+const chiffres = (t) => Number(String(t || '').replace(/[^\d-]/g, '')) || 0;
+function lireTicket(t) {
+  const articles = []; const paires = {}; let net = null;
+  for (const b of t.blocs) {
+    for (const e of b.elements) {
+      if (e.genre === 'ARTICLE') { articles.push({ designation: e.a, detail: e.b, montant: chiffres(e.d), credits: [], pref: null }); }
+      else if (b.id === 'CORPS' && e.genre === 'TEXTE' && articles.length) {
+        const m = e.a.match(/^(?:(.*?)\s*·\s*)?(?:P\.REF\s+([\d\s  ]+?)\s*·\s*)?Taux\s+(\d+)\s*%\s*:\s*([\d\s  ]+)$/);
+        if (m) { articles[articles.length - 1].credits.push({ nom: m[1] || '', pref: m[2] ? chiffres(m[2]) : null, taux: Number(m[3]), part: chiffres(m[4]), texte: e.a }); }
+        const r = e.a.match(/^P\.REF\s+([\d\s  ]+)$/);
+        if (r) { articles[articles.length - 1].pref = chiffres(r[1]); }
+      } else if (e.genre === 'PAIRE' || e.genre === 'ENCADRE') {
+        paires[e.a.replace(/\s*:\s*$/, '').trim()] = e.b;
+        if (/net/i.test(e.a) && /payer/i.test(e.a)) { net = chiffres(e.b); }
+      }
+    }
+  }
+  return { articles, paires, net };
+}
+const apercuTicket = (p, venteId) => p.evaluate(async (v) => (await fetch('../api/v1/vente/ticket/vo/' + v + '/apercu')).json(), venteId);
+
 function nettoyer() {
   retirerReferences();
   A.nettoyer();
@@ -184,4 +249,4 @@ function nettoyer() {
 
 module.exports = { chromium, A, vues, ok, q, exec, MARQUE, CHAMP_PRODUIT, GRILLE, produitSansReference, cip, ouvrirEcran, visible, connecterEtOuvrirVente,
   nouvelleVente, passerEnAssurance, choisirClient, saisirBon, taperArticle, venteCourante, noterVente, entete, ligne, saisirCellule, saisirEtEnregistrer,
-  netAffiche, focusProduit, netServeur, references, journal, retirerReferences, nettoyer };
+  netAffiche, focusProduit, netServeur, references, journal, retirerReferences, nettoyer, ajouterTiersPayant, saisirQuantite, lireTicket, apercuTicket, chiffres };

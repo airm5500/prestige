@@ -226,10 +226,12 @@ class BaseParTiersPayantTest {
     class BaseParTiersPayantActive {
 
         @Test
-        @DisplayName("Sans reference, rien ne change : 70 % du prix de vente x quantite")
+        @DisplayName("Sans reference, rien ne change : 70 % du prix de vente x quantite, aucune trace taux_produit")
         void sansReferenceIdentique() {
             CalculationResult r0 = calcul(vente(false, deuxTiersPayants(), ligne("l1", 3450, 2)));
             CalculationResult r1 = calcul(vente(true, deuxTiersPayants(), ligne("l1", 3450, 2)));
+            assertTrue(partLigne(r1, "l1").getRates().isEmpty());
+            assertFalse(r1.isHasPriceOption());
             assertEquals(part(r0, A), part(r1, A));
             assertEquals(part(r0, B), part(r1, B));
             assertEquals(r0.getTotalPatientShare(), r1.getTotalPatientShare());
@@ -260,6 +262,11 @@ class BaseParTiersPayantTest {
             // base affichee sur la ligne : celle du tiers-payant prioritaire
             assertEquals(4000, partLigne(r, "l1").getCalculationBasePrice());
             assertTrue(r.isHasPriceOption());
+            // taux_produit : pour chaque organisme, le taux applique et SA base, relus par le ticket
+            String memos = partLigne(r, "l1").getRates().stream()
+                    .map(x -> x.getCompteTiersPayantId() + ":" + Math.round(x.getTaux() * 100) + "/" + x.getBaseLigne())
+                    .sorted().collect(java.util.stream.Collectors.joining(" "));
+            assertEquals(A + ":70/4000 " + B + ":20/3000", memos);
         }
 
         @Test
@@ -271,6 +278,12 @@ class BaseParTiersPayantTest {
             assertEquals(600, part(r, B));
             assertEquals(900, r.getTotalPatientShare().intValue());
             assertEquals(3000, partLigne(r, "l1").getCalculationBasePrice());
+            // A n'a pas de reference : sa trace porte le prix de vente, celle de B sa reference (le ticket relit
+            // la base de chacun, jamais celle de l'autre)
+            String memos = partLigne(r, "l1").getRates().stream()
+                    .map(x -> x.getCompteTiersPayantId() + ":" + Math.round(x.getTaux() * 100) + "/" + x.getBaseLigne())
+                    .sorted().collect(java.util.stream.Collectors.joining(" "));
+            assertEquals(A + ":70/5000 " + B + ":20/3000", memos);
         }
 
         @Test
@@ -331,6 +344,21 @@ class BaseParTiersPayantTest {
             assertEquals(600, part(r, B));
             assertEquals(2900, r.getTotalPatientShare().intValue());
             assertTrue(r.getWarningMessage().contains("MUGEF-CI"));
+        }
+    }
+
+    @Test
+    @DisplayName("Le total tiers-payant est la somme des parts arrondies de chaque organisme, aux deux valeurs")
+    void totalEgalSommeDesPartsArrondies() {
+        // 8 775 x 10 % = 877,5 pour chacun des deux organismes : parts 878 + 878 = 1 756, alors que l'arrondi de
+        // la somme (1 755) donnait un total different des parts imprimees et enregistrees (defaut d'avant le lot)
+        List<TiersPayantInput> tps = Arrays.asList(tiersPayant(A, "MUGEF-CI", 10, 1), tiersPayant(B, "ASCOMA", 10, 2));
+        for (boolean b : new boolean[] { false, true }) {
+            CalculationResult r = calcul(vente(b, tps, ligne("l1", 8775, 1)));
+            assertEquals(878, part(r, A));
+            assertEquals(878, part(r, B));
+            assertEquals(1756, r.getTotalTiersPayant().intValue(), "total a " + (b ? 1 : 0));
+            assertEquals(8775 - 1756, r.getTotalPatientShare().intValue(), "client a " + (b ? 1 : 0));
         }
     }
 
