@@ -87,20 +87,55 @@ set PLAYWRIGHT_BROWSERS_PATH=D:\pw-browsers
 node src\test\e2e\ordonnancier\test-produit-sensible-vente.js
 ```
 
-## Règle de tests du 05/11/2026 : état au 06/11 (pause générale demandée)
+## Règle de tests du 05/11/2026 : les trois tests, joués le 06/11 sur domain3 (`laborex_audit`)
 
-- **Cohérence** (unitaire, graine fixe) : `ProduitOrdonnancierCoherenceTest` (6 propriétés, 20 000 produits et
-  5 000 ventes tirés au hasard) : rouge d'abord avec l'ancienne règle remise dans `TFamille` (3 NullPointerException,
-  3 assertions), vert sur la règle unique. Commit 54dcad460.
-- **Rapprochement** (écran) : `src/test/e2e/ordonnancier/test-rapprochement-motif.js`, motif, code tableau,
-  quantité et montant comparés ligne par ligne entre grille de vente, détail du registre (écran et service), PDF
-  (pdftotext), Excel (`outils/lire_xls.py`) et base ; cinq produits variés, paramètre à 1 puis à 0 ; défaut simulé
-  par `E2E_DEFAUT_SIMULE=1`. **Écrit, pas encore joué.**
-- **Bilan avant / après** (écran) : `src/test/e2e/ordonnancier/test-bilan-cochage-cloture.js`, photo de la base
-  avant et après chaque cochage (unitaire, lot, décochage, onglet ordonnancier) puis clôture d'une vente (stock,
-  mouvements, caisse, recette, règlement, registre) ; défaut simulé par `E2E_DEFAUT_SIMULE=1`. **Écrit, pas encore joué.**
-- Reste à faire : construire le WAR (`mvn -o -q -DskipTests package`, JDK 11), prendre le verrou commun
-  (`mkdir D:\projet\p3errou-e2e`, rendu par trap EXIT), redéployer sur domain3 (`asadmin --port 10048 redeploy`),
-  jouer les deux tests un par un sur `http://localhost:10090/prestige` / `laborex_audit` avec `E2E_DEFAUT_SIMULE=1`
-  (doivent échouer) puis sans (doivent passer), rejouer les trois tests du cas 3 et `etape3/test-ordonnancier.js`,
-  reporter les chiffres ici.
+Chaque test a d'abord été mis en échec sur un défaut (ancienne règle ou défaut simulé), puis joué sur le vrai code.
+Tests d'écran joués un par un sous le verrou commun `D:\projet\p3errou-e2e`, WAR de la branche redéployé sur
+domain3 (`http://localhost:10090/prestige`).
+
+| Test | Rouge d'abord | Vert |
+|---|---|---|
+| Cohérence `ProduitOrdonnancierCoherenceTest` (6 propriétés, 20 000 produits, 5 000 ventes, graine 20261105) | ancienne règle remise dans `TFamille` : 3 NullPointerException + 3 assertions | 6/6 |
+| Rapprochement `test-rapprochement-motif.js` | `E2E_DEFAUT_SIMULE=1` (code tableau de P2 effacé en base après la clôture) : 19/23, les 4 échecs portent tous sur P2 (détail écran, PDF, Excel, marques à paramètre 0) | 23/23 |
+| Bilan `test-bilan-cochage-cloture.js` | `E2E_DEFAUT_SIMULE=1` (un témoin coché en base dans le dos de l'écran) : 41/42, le seul échec est le témoin (« seuls les drapeaux attendus changent ») | 42/42 |
+| Régression `test-produit-sensible-vente.js` | — | 27/27 |
+| Régression `test-sans-code-tableau.js`, `test-cochage-lot.js` | — | 13/13, 16/16 |
+| Régression `etape3/test-ordonnancier.js` | — | 62/62 |
+
+### Où la donnée apparaît et comment elle est rapprochée
+
+Pour cinq produits variés (sensible ; ordonnancier avec code A ; sensible **et** ordonnancier avec code II ;
+scheduled sans code ; ordinaire), le motif, le code tableau, la quantité et le montant sont lus et comparés ligne par
+ligne dans : la grille de vente (marques), la base (`t_preenregistrement_detail`), le détail du registre à l'écran,
+le service du détail, le PDF (`pdftotext -raw`, fichier écrit par le serveur) et l'export Excel (`outils/lire_xls.py`).
+Le paramètre à 0 garde les mêmes marques et sort la vente du registre.
+
+### Règle de calcul et test de cohérence
+
+Règle unique `TFamille.estProduitOrdonnancier() = sensible || (scheduled && code tableau non vide)`, motif « Sensible »
+prioritaire sur « Ordonnancier ». Le test de cohérence la vérifie sur des milliers de produits et de ventes tirés au
+hasard (codes nuls, vides, blancs, variés), avec la réversibilité cocher / décocher et l'accord clôture / registre.
+
+### Traces attendues et test de bilan
+
+- Cochage (unitaire, lot, décochage, onglet ordonnancier) : seuls les drapeaux attendus changent, **lus avant
+  l'opération** et jamais relus après ; une ligne de journal `t_journal_cochage` par opération, du compte connecté ;
+  `dt_UPDATED` n'avance et `t_famille_history` ne grossit (déclencheur `t_famille_before_upd_tr`) que pour les produits
+  touchés ; stocks, ventes, lignes, mouvements, caisse, recettes, règlements inchangés (empreinte CRC32 de chaque table).
+- Clôture d'une vente (A1 sensible ×2, A2 ordinaire ×3) : refus sans médecin, puis stock −2 / −3 sur l'emplacement 1,
+  un mouvement de stock par ligne (début − quantité = fin = stock lu), un mouvement de caisse au prix, une recette, un
+  règlement, +1 vente, +2 lignes, journal du cochage inchangé, **aucune ligne de `t_famille` mise à jour**, registre
+  +1 dont le détail ne porte que A1 (motif Sensible, quantité 2).
+
+### Écarts signalés sur la branche d'intégration (06/11) : tous côté test, aucun côté code
+
+- P3 (sensible + ordonnancier) montre les deux marques : l'intégration a remplacé les pastilles par des triangles ;
+  le test accepte la marque du motif plus les marques justifiées par les drapeaux.
+- Contrôle base : séparateur `
+` de `GROUP_CONCAT` cassé par le client mariadb sous Windows ; remplacé par ` ~~ `.
+- PDF : quantités `NaN` parce que `pdftotext -layout` mélange les lignes quand une cellule passe sur deux lignes ;
+  lecture en `-raw`. L'URL rendue n'est pas servie par l'application : le fichier est lu sur le disque.
+- Bilan « rien d'autre ne bouge » : `VERSION` (JPA) et `dt_UPDATED` (déclencheur) bougent à chaque mise à jour ;
+  exclues de l'empreinte et contrôlées à part.
+- `etape3/test-ordonnancier.js` visait `localhost:8080` en dur tout en semant ses données dans la base de domain3 :
+  il respecte désormais `BASE`.
