@@ -12,7 +12,6 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-import java.util.Objects;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.ejb.Stateless;
@@ -24,6 +23,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import rest.service.LitigeService;
+import rest.service.litige.ClotureLitige;
 import toolkits.parameters.commonparameter;
 
 /**
@@ -409,12 +409,12 @@ public class LitigeServiceImpl implements LitigeService {
         int part = l.getIntAMOUNTTOTALLITIGE() == null ? 0 : l.getIntAMOUNTTOTALLITIGE();
         int accorde = 0;
         if (remboursement) {
-            try {
-                accorde = Integer.parseInt(StringUtils.defaultString(montant).trim());
-            } catch (NumberFormatException e) {
+            Integer saisi = ClotureLitige.montantAccorde(montant);
+            if (saisi == null) {
                 return echec("Saisissez le montant accordé par l'organisme (nombre entier)");
             }
-            if (accorde <= 0 || accorde > part) {
+            accorde = saisi;
+            if (!ClotureLitige.accordeValide(accorde, part)) {
                 return echec("Le montant accordé doit être compris entre 1 et la part d'origine (" + part + ")");
             }
         } else if (StringUtils.isBlank(motif)) {
@@ -425,16 +425,16 @@ public class LitigeServiceImpl implements LitigeService {
         if (dossier == null || !EN_LITIGE.equals(dossier.getStrSTATUTFACTURE())) {
             return echec("Le dossier lié n'est plus en litige : clôture impossible");
         }
-        int ecart = part - accorde;
+        int ecart = ClotureLitige.ecart(part, accorde);
         if (FACTURE.equals(l.getStrSTATUTFACTUREAVANT())) {
             // dossier deja facture : la facture emise ne change pas, le restant a recouvrer diminue de l'ecart
             TFactureDetail lf = ligneFacture(dossier.getLgPREENREGISTREMENTCOMPTECLIENTPAYENTID());
             if (lf != null && ecart > 0) {
-                lf.setDblMONTANTRESTANT(moins(lf.getDblMONTANTRESTANT(), ecart));
+                lf.setDblMONTANTRESTANT(ClotureLitige.restant(lf.getDblMONTANTRESTANT(), ecart));
                 lf.setDtUPDATED(new Date());
                 em.merge(lf);
                 TFacture f = lf.getLgFACTUREID();
-                f.setDblMONTANTRESTANT(moins(f.getDblMONTANTRESTANT(), ecart));
+                f.setDblMONTANTRESTANT(ClotureLitige.restant(f.getDblMONTANTRESTANT(), ecart));
                 f.setDtUPDATED(new Date());
                 em.merge(f);
             }
@@ -452,9 +452,9 @@ public class LitigeServiceImpl implements LitigeService {
             }
             TCompteClientTiersPayant compte = dossier.getLgCOMPTECLIENTTIERSPAYANTID();
             if (compte != null && ecart > 0) {
-                int conso = Math.max(0, Objects.requireNonNullElse(compte.getDbCONSOMMATIONMENSUELLE(), 0) - ecart);
+                int conso = ClotureLitige.encours(compte.getDbCONSOMMATIONMENSUELLE(), ecart);
                 compte.setDbCONSOMMATIONMENSUELLE(conso);
-                if (conso <= Objects.requireNonNullElse(compte.getDbPLAFONDENCOURS(), 0)) {
+                if (ClotureLitige.utilisable(conso, compte.getDbPLAFONDENCOURS())) {
                     compte.setBCANBEUSE(true);
                 }
                 em.merge(compte);
@@ -474,9 +474,5 @@ public class LitigeServiceImpl implements LitigeService {
                         ? "Litige clôturé : " + accorde + " accordé"
                                 + (ecart > 0 ? ", écart de " + ecart + " abandonné" : "")
                         : "Litige clôturé sans remboursement : créance de " + part + " abandonnée");
-    }
-
-    private static Double moins(Double v, int ecart) {
-        return Math.max(0d, (v == null ? 0d : v) - ecart);
     }
 }

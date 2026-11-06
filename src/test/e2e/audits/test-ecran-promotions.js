@@ -161,8 +161,11 @@ function poser() {
 
     /* PR-07 et PR-06 dans B (REMISE, a venir, chevauche A) */
     await produitsDe(ids.B);
-    const r7 = await ajouter(NOM_Q, 'champRemise', '12.5');
-    ok('PR-07 : remise décimale : message clair, pas de page d’erreur, rien d’enregistré', !/<html|exception|HTTP Status|Error report/i.test(r7.t) && /entier|d.cimal|virgule|valide/i.test(r7.t) && lignes(ids.B) === '0', r7.t);
+    /* regle du 05/11 : plusieurs valeurs decimales (moitie, sous 1, presque 100, longue), aucune enregistree arrondie */
+    for (const v of ['12.5', '0.5', '99.99', '33.3333']) {
+      const r7 = await ajouter(NOM_Q, 'champRemise', v);
+      ok(`PR-07 : remise décimale ${v} : message clair, pas de page d’erreur, rien d’enregistré`, !/<html|exception|HTTP Status|Error report/i.test(r7.t) && /entier|d.cimal|virgule|valide/i.test(r7.t) && lignes(ids.B) === '0', r7.t);
+    }
     const r6 = await ajouter(NOM_P, 'champRemise', 10);
     await fermerProduits();
     ok('PR-06 : P déjà dans une promotion dont la période chevauche : ajout refusé', /chevauch/i.test(r6.t) && lignes(ids.B) === '0', r6.t + ' ; lignes B ' + lignes(ids.B));

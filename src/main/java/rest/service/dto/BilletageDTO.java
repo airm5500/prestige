@@ -70,14 +70,21 @@ public class BilletageDTO {
         this.autre = autre;
     }
 
+    /**
+     * Somme des coupures. Gestion de caisse G1 : calcul exact ; un total qui ne tient pas dans un entier (faute de
+     * frappe) leve ArithmeticException au lieu de donner un total faux, voire negatif.
+     */
     public int getTotal() {
-        return autre + (cinqCent * 500) + (deuxMille * 2000) + (mille * 1000) + (cinqMille * 5000) + (dixMille * 10000);
+        long total = (long) autre + 500L * cinqCent + 2000L * deuxMille + 1000L * mille + 5000L * cinqMille
+                + 10000L * dixMille;
+        return Math.toIntExact(total);
     }
 
     @Override
     public String toString() {
         return "Billatage = cinqCent=" + cinqCent + ", deuxMille=" + deuxMille + ", mille=" + mille + ", cinqMille="
-                + cinqMille + ", dixMille=" + dixMille + ", autre=" + autre + " total=" + this.getTotal();
+                + cinqMille + ", dixMille=" + dixMille + ", autre=" + autre + " total="
+                + (500L * cinqCent + 2000L * deuxMille + 1000L * mille + 5000L * cinqMille + 10000L * dixMille + autre);
     }
 
 }

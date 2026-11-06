@@ -161,6 +161,13 @@ public class SalesRessource {
         return apercuTickets(() -> generateTicketService.apercuTicketCombine(id));
     }
 
+    /** Meme apercu pour une vente au comptant (audit 05 PR-01 : rapprochement des promotions). Lecture seule. */
+    @GET
+    @Path("ticket/vno/{id}/apercu")
+    public Response apercuTicketVno(@PathParam("id") String id) throws JSONException {
+        return apercuTickets(() -> generateTicketService.apercuTicketVno(id));
+    }
+
     private interface Documents {
         List<rest.service.ticket.TicketDocument> lire() throws JSONException;
     }

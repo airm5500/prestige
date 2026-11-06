@@ -146,10 +146,23 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
      */
     @Override
     public List<rest.service.ticket.TicketDocument> apercuTicketVo(String id) throws JSONException {
+        return apercu(() -> lunchPrinterForTicketVo(id));
+    }
+
+    @Override
+    public List<rest.service.ticket.TicketDocument> apercuTicketVno(String id) throws JSONException {
+        return apercu(() -> lunchPrinterForTicket(id));
+    }
+
+    private interface Reimpression {
+        JSONObject lancer() throws JSONException;
+    }
+
+    private List<rest.service.ticket.TicketDocument> apercu(Reimpression reimpression) throws JSONException {
         List<rest.service.ticket.TicketDocument> docs = new ArrayList<>();
         APERCU.set(docs);
         try {
-            JSONObject r = lunchPrinterForTicketVo(id);
+            JSONObject r = reimpression.lancer();
             if (docs.isEmpty() && r != null && r.has("msg")) {
                 throw new IllegalStateException(r.optString("msg"));
             }
@@ -226,10 +239,17 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             int q = d.getIntQUANTITY() == null ? 0 : d.getIntQUANTITY();
             List<String> lots = TPreenregistrementDetail.lotsASortir(d.getStrLOTSSCANNES(), Math.abs(q));
             String lot = lots.isEmpty() ? "" : (lots.size() > 1 ? "Lots " : "Lot ") + String.join(", ", lots);
+            List<String> mentions = new ArrayList<>();
+            // audit 05 PR-01 : le nouveau modele ne lit pas les lignes de l'ancien ticket ; la mention PROMOTION (et
+            // les unites offertes) y etait perdue
+            if (signe > 0 && d.getPromotionProduitId() != null) {
+                int offertes = d.getIntFREEPACKNUMBER() != null ? d.getIntFREEPACKNUMBER() : 0;
+                mentions.add("PROMOTION" + (offertes > 0 ? " DONT " + offertes + " OFFERTE(S)" : ""));
+            }
+            mentions.addAll(credits.getOrDefault(d.getLgPREENREGISTREMENTDETAILID(), Collections.emptyList()));
             res.add(new ConversionTicket.Article(d.getLgFAMILLEID().getStrDESCRIPTION().toUpperCase(), signe * q,
                     d.getIntPRICEUNITAIR() == null ? 0 : d.getIntPRICEUNITAIR(),
-                    signe * (d.getIntPRICE() == null ? 0 : d.getIntPRICE()), lot,
-                    credits.getOrDefault(d.getLgPREENREGISTREMENTDETAILID(), Collections.emptyList())));
+                    signe * (d.getIntPRICE() == null ? 0 : d.getIntPRICE()), lot, mentions));
         }
         return res;
     }
