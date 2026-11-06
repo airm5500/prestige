@@ -131,7 +131,8 @@ public class EtatControlBonResource {
 
             java.util.Map<String, Object> parametres = reportUtil.officineData(user);
             parametres.put("P_H_CLT_INFOS", "ÉTAT DE CONTRÔLE DES ACHATS");
-            StringBuilder periode = new StringBuilder("Période du " + dtStart + " au " + dtEnd);
+            StringBuilder periode = new StringBuilder(
+                    rest.service.impl.EtatControlBonServiceImpl.periode(dtStart, dtEnd));
             for (String critere : filtres.libelles()) {
                 periode.append("   |   ").append(critere);
             }
