@@ -1199,6 +1199,8 @@ Ext.define('testextjs.view.support.SupportServeur', {
                 + ligne('Archives de sauvegarde (<code>.sql.gz</code> de Prestige, <code>.sql.zst</code> et journaux des scripts)', a.clePresente ? etat('ok', 'CHIFFRÉES (AES)') : etat('ko', 'NON CHIFFRÉES'),
                         a.clePresente ? 'clé posée' + (a.cleDate ? ' le ' + me.esc(a.cleDate) : '') + ', gardée hors du serveur par le pharmacien' + (a.derniereArchive ? ' · dernière sauvegarde intégrée : ' + me.esc(a.derniereArchive) + (a.derniereArchiveChiffree ? ' (chiffrée)' : ' (en clair)') : '')
                             : 'clé absente : ' + me.esc(a.fichierCle) + ' · 7-cle-archive.ps1 -Creer')
+                + ligne('Dernier essai de restauration (obligatoire chaque mois)', a.dernierEssai ? etat(a.dernierEssaiResultat === 'CONFORME' ? 'ok' : 'ko', me.esc(a.dernierEssai) + ' — ' + me.esc(a.dernierEssaiResultat || '')) : etat('ko', 'JAMAIS FAIT'),
+                        a.rappelEssai ? 'à faire maintenant : 6-essai-restauration.ps1 sur le serveur, clé saisie' : 'prochain au plus tard : ' + me.esc(a.prochainEssai))
                 + ligne('Copies <code>domain.xml.avant-prestige-*</code>', c.nombre ? etat(c.enClair ? 'ko' : 'warn', c.nombre + ' FICHIER(S)' + (c.enClair ? ', ' + c.enClair + ' EN CLAIR' : '')) : etat('ok', 'AUCUNE'),
                         c.nombre ? 'contiennent l\'ancien mot de passe : à purger après rotation' : me.esc(c.dossier))
                 + ligne('Master password de Payara (protège l\'alias)', etat('warn', 'À CHANGER SUR LE SERVEUR'), 'par le pharmacien : <code class="srv-jeton">' + me.esc(r.masterPasswordCommande) + '</code>')
@@ -1207,8 +1209,6 @@ Ext.define('testextjs.view.support.SupportServeur', {
                 + ligne('Dernière rotation', r.derniereRotation ? etat('', me.esc(r.derniereRotation) + (r.derniereRotationPar ? ' — par ' + me.esc(r.derniereRotationPar) : '')) : etat('ko', 'JAMAIS'),
                         r.prochaine ? 'prochaine recommandée : ' + me.esc(r.prochaine) : 'recommandée dès maintenant')
                 + ligne('Politique (Q4.6)', etat('', 'À CHAQUE DÉPART + TOUS LES 6 MOIS'), '')
-                + ligne('Dernier essai de restauration', a.dernierEssai ? etat(a.dernierEssaiResultat === 'CONFORME' ? 'ok' : 'ko', me.esc(a.dernierEssai) + ' — ' + me.esc(a.dernierEssaiResultat || '')) : etat('ko', 'JAMAIS'),
-                        a.rappelEssai ? 'obligatoire chaque mois : à faire maintenant (6-essai-restauration.ps1, clé saisie)' : 'prochain au plus tard : ' + me.esc(a.prochainEssai))
                 + ligne('Lancement d\'asadmin depuis Prestige', r.asadmin ? etat('ok', 'POSSIBLE') : etat('ko', 'IMPOSSIBLE'), r.asadmin ? 'rotation et alias depuis cet écran' : 'cet écran ne peut agir que sur le serveur Payara')
                 + '</div>');
         var bA = o.down('#btnSecAlias'), bP = o.down('#btnSecPurger');

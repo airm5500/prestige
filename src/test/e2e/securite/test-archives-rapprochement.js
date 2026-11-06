@@ -64,10 +64,10 @@ const sanitize = (s) => String(s || '').replace(/\s+/g, ' ');
       /Archives de sauvegarde/.test(e0.stockage) && /CHIFFRÉES \(AES\)/.test(e0.stockage) && e0.stockage.indexOf('clé posée le ' + dateCle) >= 0 && a0.clePresente === true && a0.chiffrees === true
       && a0.cleDate === dateCle && path.normalize(a0.fichierCle) === path.normalize(CLE), sanitize(e0.stockage.match(/Archives de sauvegarde[^C]*C[^·]*/) + ' | ' + JSON.stringify(a0)));
     ok('Dernier essai de restauration : écran « ' + ESSAI + ' — CONFORME » + rappel (plus d\'un mois) = API = t_parameters',
-      e0.rotation.indexOf(ESSAI + ' — ' + ESSAI_RESULTAT) >= 0 && /obligatoire chaque mois/.test(e0.rotation) && /Essai de restauration obligatoire chaque mois : dernier le 2026-09-20 08:00 \(CONFORME\), plus d.un mois/.test(e0.alerte)
+      e0.stockage.indexOf(ESSAI + ' — ' + ESSAI_RESULTAT) >= 0 && /obligatoire chaque mois.*à faire maintenant/.test(e0.stockage) && /Essai de restauration obligatoire chaque mois : dernier le 2026-09-20 08:00 \(CONFORME\), plus d.un mois/.test(e0.alerte)
       && a0.dernierEssai === ESSAI && a0.dernierEssaiResultat === ESSAI_RESULTAT && a0.rappelEssai === true && a0.prochainEssai === '2026-10-20'
       && q("SELECT CONCAT(str_VALUE, '|') FROM t_parameters WHERE str_KEY IN ('KEY_SECURITE_DERNIER_ESSAI_RESTAURATION', 'KEY_SECURITE_DERNIER_ESSAI_RESULTAT') ORDER BY str_KEY").replace(/\s/g, '') === ESSAI.replace(' ', '') + '|' + ESSAI_RESULTAT + '|',
-      sanitize(e0.rotation.match(/Dernier essai[^P]*/) + ' | ' + e0.alerte));
+      sanitize(e0.stockage.match(/Dernier essai[^C]*/) + ' | ' + e0.alerte));
     const lj = e0.journal.filter((l) => l.action === 'CLE_ARCHIVE');
     ok('Journal : la ligne CLE_ARCHIVE du script 7 affichée à l\'écran = API = t_securite_journal (date, qui, résultat, détail), libellé « Clé des archives de sauvegarde (script 7) »',
       lj.length === 1 && lj[0].date === jCle[0].date && lj[0].login === jCle[0].login && lj[0].resultat === 'OK' && lj[0].detail === jCle[0].detail
