@@ -89,6 +89,14 @@ async function cliquerEtAttendre(p, requete, morceauUrl) {
     const entete = await texte(p, '#exFicheEntete');
     ok('fiche : écran = source', entete.indexOf(source.pslib) >= 0 && entete.indexOf('6431') >= 0 && entete.indexOf('9110') >= 0
       && entete.indexOf('3000001262862') >= 0, entete.slice(0, 200));
+    /* base des prix : CFA, HT pour la parapharmacie (TVA > 0), TTC pour les medicaments (exoneres) */
+    ok('fiche : prix FAIR248 (TVA 18) présentés en CFA HT, parapharmacie', entete.indexOf('CFA HT, parapharmacie') >= 0, entete.slice(0, 300));
+    const bases = await p.evaluate(() => { const e = Ext.ComponentQuery.query('extranetsgrossistes')[0];
+      return [18, 5.5, '18', 0, '0', null, undefined, '', 'abc'].map((x) => e.basePrix(x)); });
+    ok('fiche : base des prix selon la TVA (18, 5,5 → HT ; 0 → TTC ; inconnue → non attribuée)', JSON.stringify(bases) === JSON.stringify([
+      'CFA HT, parapharmacie', 'CFA HT, parapharmacie', 'CFA HT, parapharmacie', 'CFA TTC, médicament', 'CFA TTC, médicament',
+      'CFA, HT ou TTC selon la catégorie : TVA inconnue', 'CFA, HT ou TTC selon la catégorie : TVA inconnue',
+      'CFA, HT ou TTC selon la catégorie : TVA inconnue', 'CFA, HT ou TTC selon la catégorie : TVA inconnue']), JSON.stringify(bases));
     const agEcran = (await magasin(p, 'agencesFiche')).map((a) => a.etcode + ':' + (a.psstk === null ? 'inconnu' : a.psstk) + ':' + (a.colisages || []).join(','));
     const agBase = lignes("SELECT etcode, IFNULL(psstk, 'inconnu'), IFNULL(colisages, '') FROM extranet_stock_agence WHERE pscode = 'FAIR248' ORDER BY rang")
       .map((l) => l[0] + ':' + l[1] + ':' + l[2].replace(/[\[\] ]/g, ''));

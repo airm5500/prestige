@@ -157,7 +157,7 @@ besoin) qui servira de jeu d'essai à un faux serveur local.
 | § | Module | Verdict | Pourquoi / ce qui manque |
 |---|---|---|---|
 | 3 | Ubipharm nouveaux produits | **Faisable maintenant**, partiel | Sélecteurs et attributs connus. Manquent : une page complète, la pagination éventuelle. Disponibilité ≠ quantité, à garder en texte. |
-| 4 | Fiche produit `SavoirPlusJSON` | **Faisable maintenant** | Le mieux documenté. Listes vides (`reappro`, `promos`, `arrivage`, `substitu`, `qttcde`) gardées en JSON brut tant que leur schéma est inconnu. HT/TTC et devise des prix inconnus : stockés bruts, aucune comparaison de prix tant que ce n'est pas tranché. |
+| 4 | Fiche produit `SavoirPlusJSON` | **Faisable maintenant** | Le mieux documenté. Listes vides (`reappro`, `promos`, `arrivage`, `substitu`, `qttcde`) gardées en JSON brut tant que leur schéma est inconnu. Prix en CFA, HT pour la parapharmacie et TTC pour les médicaments (réponse du 07/11) ; stockés bruts, base affichée sur la fiche. |
 | 5 | Images produit | **Avec captures** | Une réponse image réelle (Content-Type, cas « pas d'image »). Utilité faible : à la fin. |
 | 6 | Réapprovisionnements `ReturnProduitsReapproJSON` | **Faisable maintenant** | Paramètres DataTables et enveloppe connus ; pagination calculée. Clé métier d'une ligne inconnue : on garde chaque ligne avec sa position et son agence, sans dédoublonner. Sens de la date (colonne 1) à confirmer. |
 | 7 | Liste des réclamations | **Faisable maintenant** | Enveloppe, six cellules, filtres ALL/C/V connus ; `id`, `eta`, `appl` tirés du lien. Contrôle de complétude `recordsTotal` = lignes reçues. Filtre des « supprimées » inconnu (on les voit dans ALL). |
@@ -252,7 +252,7 @@ Le connecteur peut aussi **remplir** ce code : quand un article est rapproché p
    « numéro associé » (704579) est peut-être un numéro de facture ou de BL [inconnu].
 3. **Quinzaines TEDIS ↔ bons de livraison** (`t_bon_livraison.str_REF_LIVRAISON`) : contrôle des montants facturés
    par quinzaine, avec l'écart déclaré/calculé affiché tel quel.
-4. **Prix** : `pspven` / `psppub` face à `int_PAF` / `int_PRICE` — **seulement** une fois HT/TTC et devise établis.
+4. **Prix** : `pspven` / `psppub` face à `int_PAF` / `int_PRICE` — prix en CFA, HT pour la parapharmacie, TTC pour les médicaments (réponse du 07/11). La fiche ne portant pas la catégorie, la parapharmacie est reconnue à sa TVA (> 0) ; comparaison encore à écrire, avec son test de cohérence.
 5. **Nouveaux produits** : liste des pscode absents de Prestige, pour création assistée.
 
 ---
@@ -338,7 +338,8 @@ Réponses complètes enregistrées (fichier « Enregistrer sous » ou HAR filtr�
    les quinzaines (`idDate`) ; une promotion non vide.
 
 Décisions métier :
-10. Les prix `pspven` et `psppub` sont-ils HT ou TTC, en FCFA ?
+10. ~~Les prix `pspven` et `psppub` sont-ils HT ou TTC, en FCFA ?~~ **Répondu le 07/11** : en CFA ; HT pour les
+    parapharmacies, TTC pour les médicaments.
 11. Le PSCODE du point 15 est-il bien la référence Ubipharm ? Le garder sur la fiche article, dans
     `t_famille_grossiste`, ou les deux ?
 12. Que représentent le « numéro associé » des réclamations et la date des réapprovisionnements ?

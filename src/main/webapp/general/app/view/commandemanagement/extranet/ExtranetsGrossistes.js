@@ -328,6 +328,18 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
         };
     },
 
+    /**
+     * Base des prix Ubipharm (réponse de l'utilisateur, 07/11) : en CFA ; HT pour la parapharmacie, TTC pour les
+     * médicaments. La fiche ne porte pas la catégorie : la parapharmacie est reconnue à sa TVA (taux > 0), les
+     * médicaments étant exonérés. Taux inconnu : base non attribuée.
+     */
+    basePrix: function (taux) {
+        if (taux === null || taux === undefined || taux === '' || isNaN(Number(taux))) {
+            return 'CFA, HT ou TTC selon la catégorie : TVA inconnue';
+        }
+        return Number(taux) > 0 ? 'CFA HT, parapharmacie' : 'CFA TTC, médicament';
+    },
+
     afficherFiche: function (f) {
         var me = this, e = me.down('#exFicheEntete'), t = me.texte, c = Ext.bind(me.connu, me);
         if (!f) {
@@ -341,7 +353,7 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
                 + '<tr><td style="padding:2px 12px 2px 0">Code affiché</td><td>' + c(f.picode) + '</td></tr>'
                 + '<tr><td style="padding:2px 12px 2px 0">Statut</td><td>' + c(f.stlib) + '</td></tr>'
                 + '<tr><td style="padding:2px 12px 2px 0">Prix pspven / psppub</td><td>' + c(f.pspven) + ' / '
-                + c(f.psppub) + ' <span style="color:#95a5a6">(HT/TTC et devise non établis)</span></td></tr>'
+                + c(f.psppub) + ' <span style="color:#95a5a6">(' + me.basePrix(f.tvtaux) + ')</span></td></tr>'
                 + '<tr><td style="padding:2px 12px 2px 0">TVA</td><td>' + c(f.tvtaux) + '</td></tr>'
                 + '<tr><td style="padding:2px 12px 2px 0">Stock société</td><td>' + c(f.psstkSoc)
                 + ' — somme des agences : ' + c(f.sommeStockAgences) + '</td></tr>'
