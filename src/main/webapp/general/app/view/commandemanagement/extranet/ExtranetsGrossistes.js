@@ -67,6 +67,8 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
             listeners: {
                 load: function (st, r, ok) {
                     me.afficherDate('#exNouveauxDate', ok ? st.getProxy().getReader().rawData : null);
+                    /* un rechargement de la liste ne perd pas le dernier rapprochement affiché */
+                    me.appliquerRapprochement();
                 }
             }
         });
@@ -512,8 +514,20 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
 
     /* ---------------------------------------------------------------- nouveaux produits */
 
+    /** Résultat du dernier rapprochement, reporté sur chaque ligne de la liste (par référence). */
+    appliquerRapprochement: function () {
+        var me = this, parPs = me.rapprochement;
+        if (!parPs) {
+            return;
+        }
+        me.nouveaux.each(function (rec) {
+            rec.set('prestige', parPs[rec.get('pscode')] || null);
+        });
+        me.nouveaux.commitChanges();
+    },
+
     ongletNouveaux: function () {
-        var me = this, statuts = {CODE_GROSSISTE: 'trouvé (code grossiste)', CIP: 'trouvé (CIP)',
+        var me = this, statuts = {PSCODE: 'trouvé (référence Ubipharm de la fiche)', CIP: 'trouvé (CIP)',
             PLUSIEURS: 'plusieurs articles', INTROUVABLE: 'absent de Prestige'};
         return {
             title: 'Nouveaux produits', itemId: 'exOngletNouveaux', layout: 'fit',
@@ -531,10 +545,8 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
                                     Ext.each(r.data || [], function (x) {
                                         parPs[x.pscode] = x;
                                     });
-                                    me.nouveaux.each(function (rec) {
-                                        rec.set('prestige', parPs[rec.get('pscode')] || null);
-                                    });
-                                    me.nouveaux.commitChanges();
+                                    me.rapprochement = r.success ? parPs : null;
+                                    me.appliquerRapprochement();
                                     me.message('#exNouveauxMsg', r, 'Rapprochement fait (aucun article modifié)');
                                 }, me.down('#exOngletNouveaux'));
                             }},

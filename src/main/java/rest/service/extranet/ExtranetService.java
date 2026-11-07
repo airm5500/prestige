@@ -294,12 +294,9 @@ public class ExtranetService {
 
     /**
      * Rapprochement des nouveaux produits en cache avec les articles de Prestige : propose seulement, ne cree ni ne
-     * modifie aucun article.
-     *
-     * @param grossisteId
-     *            grossiste Ubipharm dans Prestige (code article chez ce grossiste), ou null
+     * modifie aucun article. Ordre : reference Ubipharm de la fiche article (PSCODE), puis CIP / EAN 13.
      */
-    public JSONObject rapprocherNouveaux(String grossisteId) {
+    public JSONObject rapprocherNouveaux() {
         JSONArray produits = new NouveauxProduitsDepot(em).lire().optJSONArray("produits");
         List<RapprochementProduits.Demande> demandes = new ArrayList<>();
         for (int i = 0; produits != null && i < produits.length(); i++) {
@@ -312,8 +309,7 @@ public class ExtranetService {
             demandes.add(new RapprochementProduits.Demande(pscode, codes));
         }
         JSONArray r = new JSONArray();
-        for (RapprochementProduits.Resultat x : new RapprochementProduits(em).rapprocher(demandes,
-                StringUtils.trimToNull(grossisteId))) {
+        for (RapprochementProduits.Resultat x : new RapprochementProduits(em).rapprocher(demandes)) {
             r.put(x.toJson());
         }
         return new JSONObject().put("success", true).put("data", r);

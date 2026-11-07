@@ -21,8 +21,8 @@ import rest.service.extranet.ubipharm.RapprochementProduits.Statut;
 
 /**
  * Coherence de la decision de rapprochement (logique pure, sans base), sur des milliers de cas tires avec une graine
- * fixe : priorite au code grossiste, un seul statut, candidats complets et sans doublon, CIP compares en chaines, code
- * vide jamais rapproche, articles supprimes exclus.
+ * fixe : priorite a la reference Ubipharm de la fiche, un seul statut, candidats complets et sans doublon, CIP compares
+ * en chaines, code vide jamais rapproche, articles supprimes exclus.
  */
 class RapprochementCoherenceTest {
 
@@ -58,7 +58,7 @@ class RapprochementCoherenceTest {
         int parStatut[] = new int[Statut.values().length];
         for (int cas = 0; cas < CAS; cas++) {
             int n = r.nextInt(8);
-            List<Article> parGrossiste = new ArrayList<>(), parCodes = new ArrayList<>();
+            List<Article> parReference = new ArrayList<>(), parCodes = new ArrayList<>();
             for (int i = 0; i < n; i++) {
                 /* identifiants parfois repetes : une meme fiche peut revenir plusieurs fois */
                 String id = "F" + r.nextInt(6);
@@ -69,7 +69,7 @@ class RapprochementCoherenceTest {
                 }
                 Article a = new Article(id, "Article " + id, statut, tirer(r, PSCODES), codes);
                 if (r.nextBoolean()) {
-                    parGrossiste.add(a);
+                    parReference.add(a);
                 }
                 if (r.nextInt(3) > 0) {
                     parCodes.add(a);
@@ -80,9 +80,9 @@ class RapprochementCoherenceTest {
             for (int k = r.nextInt(4); k > 0; k--) {
                 cherches.add(tirer(r, CODES));
             }
-            Resultat res = RapprochementProduits.decider(pscode, cherches, parGrossiste, parCodes);
+            Resultat res = RapprochementProduits.decider(pscode, cherches, parReference, parCodes);
             parStatut[res.statut().ordinal()]++;
-            verifier(res, pscode, cherches, parGrossiste, parCodes);
+            verifier(res, pscode, cherches, parReference, parCodes);
         }
         /* jeu varie : chaque statut est rencontre de nombreuses fois */
         for (Statut s : Statut.values()) {
@@ -91,7 +91,7 @@ class RapprochementCoherenceTest {
     }
 
     /** Oracle ecrit independamment de l'implementation. */
-    private static void verifier(Resultat res, String pscode, List<String> cherches, List<Article> parGrossiste,
+    private static void verifier(Resultat res, String pscode, List<String> cherches, List<Article> parReference,
             List<Article> parCodes) {
         List<String> ids = res.candidats().stream().map(Article::familleId).collect(Collectors.toList());
         /* sans doublon, jamais un article supprime */
@@ -99,32 +99,32 @@ class RapprochementCoherenceTest {
         res.candidats().forEach(a -> assertFalse("delete".equals(a.statutArticle())));
         /* un seul statut, coherent avec le nombre de candidats */
         switch (res.statut()) {
-        case CODE_GROSSISTE:
+        case PSCODE:
         case CIP:
             assertEquals(1, ids.size());
             assertEquals(res.statut().name(), res.critere());
             break;
         case PLUSIEURS:
             assertTrue(ids.size() >= 2);
-            assertTrue("CODE_GROSSISTE".equals(res.critere()) || "CIP".equals(res.critere()));
+            assertTrue("PSCODE".equals(res.critere()) || "CIP".equals(res.critere()));
             break;
         default:
             assertTrue(ids.isEmpty());
             assertNull(res.critere());
         }
         String p = sansBlancs(pscode);
-        Set<String> attendusGrossiste = new LinkedHashSet<>();
+        Set<String> attendusReference = new LinkedHashSet<>();
         if (!p.isEmpty()) {
-            for (Article a : parGrossiste) {
-                if (!"delete".equals(a.statutArticle()) && p.equals(sansBlancs(a.codeGrossiste()))) {
-                    attendusGrossiste.add(a.familleId());
+            for (Article a : parReference) {
+                if (!"delete".equals(a.statutArticle()) && p.equals(sansBlancs(a.referenceUbipharm()))) {
+                    attendusReference.add(a.familleId());
                 }
             }
         }
-        if (!attendusGrossiste.isEmpty()) {
-            /* priorite au code grossiste, tous les candidats listes */
-            assertEquals("CODE_GROSSISTE", res.critere());
-            assertEquals(new ArrayList<>(attendusGrossiste), ids);
+        if (!attendusReference.isEmpty()) {
+            /* priorite a la reference Ubipharm de la fiche, tous les candidats listes */
+            assertEquals("PSCODE", res.critere());
+            assertEquals(new ArrayList<>(attendusReference), ids);
             return;
         }
         Set<String> c = new HashSet<>();
@@ -151,14 +151,14 @@ class RapprochementCoherenceTest {
     }
 
     @Test
-    void codeGrossistePrioritaireSurUnCipQuiDesigneUnAutreArticle() {
+    void referenceUbipharmPrioritaireSurUnCipQuiDesigneUnAutreArticle() {
         Article a = new Article("A", "A", "enable", "FAIR248", Arrays.asList("111", null, null, null, null));
         Article b = new Article("B", "B", "enable", null, Arrays.asList("3000001262862", null, null, null, null));
         Resultat r = RapprochementProduits.decider("FAIR248", Collections.singletonList("3000001262862"),
                 Collections.singletonList(a), Arrays.asList(a, b));
-        assertEquals(Statut.CODE_GROSSISTE, r.statut());
+        assertEquals(Statut.PSCODE, r.statut());
         assertEquals("A", r.candidats().get(0).familleId());
-        /* sans grossiste connu (liste vide), le CIP decide */
+        /* sans reference sur aucune fiche (liste vide), le CIP decide */
         r = RapprochementProduits.decider("FAIR248", Collections.singletonList("3000001262862"),
                 Collections.emptyList(), Arrays.asList(a, b));
         assertEquals(Statut.CIP, r.statut());

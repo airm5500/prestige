@@ -316,11 +316,12 @@ Tests prévus (aperçu) :
 ## 6. Informations à demander à l'utilisateur
 
 Préalables :
-1. Le cookie `SESSIONID` partagé a-t-il été invalidé (déconnexion ou changement de mot de passe) ?
+1. Le cookie `SESSIONID` partagé a-t-il été invalidé (déconnexion ou changement de mot de passe) ? **Réponse du
+   07/11 : « ok ».**
 2. Ubipharm et TEDIS autorisent-ils un accès automatisé à leur extranet (conditions d'utilisation, cadence) ? Un compte
-   dédié au connecteur est-il possible ?
-3. Accord pour lire `t_famille_grossiste` (codes articles, non nominatif) sur la copie locale, afin de voir si les
-   pscode y sont déjà ?
+   dédié au connecteur est-il possible ? **Réponse du 07/11 : oui, accord des grossistes pour un accès automatisé.**
+3. ~~Accord pour lire `t_famille_grossiste` (codes articles, non nominatif) sur la copie locale, afin de voir si les
+   pscode y sont déjà ?~~ **Sans objet (réponse du 07/11)** : le PSCODE n'est pas rangé dans `t_famille_grossiste`.
 
 Connexion (captures depuis les outils de développement du navigateur, **valeurs de cookies, jetons et mots de passe
 masquées**) :
@@ -340,8 +341,9 @@ Réponses complètes enregistrées (fichier « Enregistrer sous » ou HAR filtr�
 Décisions métier :
 10. ~~Les prix `pspven` et `psppub` sont-ils HT ou TTC, en FCFA ?~~ **Répondu le 07/11** : en CFA ; HT pour les
     parapharmacies, TTC pour les médicaments.
-11. Le PSCODE du point 15 est-il bien la référence Ubipharm ? Le garder sur la fiche article, dans
-    `t_famille_grossiste`, ou les deux ?
+11. ~~Le PSCODE du point 15 est-il bien la référence Ubipharm ? Où le ranger ?~~ **Répondu le 07/11** : c'est la
+    référence Ubipharm, rangée sur la fiche article (`t_famille`), comme le code EAN 13, et pas dans
+    `t_famille_grossiste`. Réalisé : voir section 8.
 12. Que représentent le « numéro associé » des réclamations et la date des réapprovisionnements ?
 13. Quels usages viennent en premier : disponibilité par agence, suivi des réclamations, contrôle des quinzaines
     TEDIS, nouveaux produits ?
@@ -382,3 +384,29 @@ d'un `deploy` l'a régénérée. À prévoir au premier déploiement en officine
 Reste à faire avant tout appel réel : invalider le cookie partagé, autoriser l'accès, remplacer les jeux d'essai
 reconstitués par des captures réelles, confirmer le lien PSCODE / `t_famille_grossiste.str_CODE_ARTICLE` (lecture de
 la table à autoriser), réponses aux questions de la section 6.
+
+## 8. Référence Ubipharm (PSCODE) sur la fiche article (07/11)
+
+- Colonne `t_famille.code_ubipharm` (VARCHAR 40, indexée ; V7.5.6), vide par défaut. `t_famille_grossiste` n'est ni
+  lue ni écrite.
+- Fiche article (GESTION DU STOCK > Fiche Article > Modifier) : champ « Référence Ubipharm », sous « Code EAN
+  fabricant ». Enregistré sans aucun blanc ; vide = effacé ; absent de la requête = inchangé (anciens appels, création
+  d'un article détail). En modification, la valeur est lue à part (`GET v1/fichearticle/{id}/code-ubipharm`) et n'est
+  envoyée qu'une fois lue : enregistrer avant son arrivée ne l'efface pas.
+- Rapprochement des nouveaux produits : d'abord la référence de la fiche (statut « trouvé (référence Ubipharm de la
+  fiche) »), puis CIP / EAN 13 ; plusieurs articles avec la même référence → « plusieurs articles », tous listés. Le
+  paramètre `grossisteId` est retiré.
+- Tests :
+  - cohérence : `CodeUbipharmCoherenceTest` (5 000 saisies tirées, graine 20261107 : aucun blanc gardé, casse et zéros
+    de tête gardés, idempotence, valeur enregistrée retrouvée par le rapprochement) et `RapprochementCoherenceTest`
+    (20 000 cas) ; 105 tests unitaires extranet, 0 échec ;
+  - rapprochement et bilan (écran) : `src/test/e2e/extranet/test-reference-ubipharm-fiche.js`, 18/18 : saisie à
+    l'écran = base = écran des extranets = API ; seule `code_ubipharm` change sur l'article, aucun autre article,
+    `t_famille_grossiste` identique ; réouverture, enregistrement avant lecture, effacement ; article remis à
+    l'identique. `test-rapprochement-extranets.js` rejoué : 40/40.
+- Observations (suspectées, antérieures, non corrigées) : dans la fenêtre « Modifier » de la fiche article, le focus
+  est déplacé pendant les premières secondes de chargement : une frappe immédiate perd des caractères (constaté aussi
+  sur « Code EAN fabricant »). Le test attend que la fenêtre soit posée.
+- Déploiement : sur domain3, ni `redeploy` ni `undeploy` + `deploy` ne régénéraient la politique JACC des EJB après un
+  changement de signature (erreur « Client not authorized », 500). Il a fallu supprimer
+  `generated/policy/prestige` entre `undeploy` et `deploy`. À vérifier au déploiement en officine.

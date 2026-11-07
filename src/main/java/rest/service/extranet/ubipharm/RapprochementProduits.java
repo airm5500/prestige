@@ -17,8 +17,9 @@ import org.json.JSONObject;
  * Rapprochement d'un produit Ubipharm avec les articles de Prestige (analyse du 07/11, §4.1). LECTURE SEULE : aucun
  * article n'est cree ni modifie ; le resultat est une proposition a valider.
  * <ol>
- * <li>{@link Statut#CODE_GROSSISTE} : un article dont {@code t_famille_grossiste.str_CODE_ARTICLE} = pscode pour le
- * grossiste Ubipharm (prioritaire ; ignore si l'identifiant du grossiste n'est pas fourni) ;</li>
+ * <li>{@link Statut#PSCODE} : un article dont la reference Ubipharm de la fiche ({@code t_famille.code_ubipharm}) =
+ * pscode (prioritaire). Reponse de l'utilisateur du 07/11 : le PSCODE est range sur la fiche article, comme le code EAN
+ * 13, et pas dans {@code t_famille_grossiste} ;</li>
  * <li>{@link Statut#CIP} : un seul article dont int_CIP, int_CIP2 a int_CIP4 ou int_EAN13 = un des codes Ubipharm
  * ;</li>
  * <li>{@link Statut#PLUSIEURS} : plusieurs candidats a la meme etape, tous listes ;</li>
@@ -34,7 +35,7 @@ import org.json.JSONObject;
 public final class RapprochementProduits {
 
     public enum Statut {
-        CODE_GROSSISTE, CIP, PLUSIEURS, INTROUVABLE
+        PSCODE, CIP, PLUSIEURS, INTROUVABLE
     }
 
     /** Statut d'un article supprime dans t_famille / t_famille_grossiste. */
@@ -45,20 +46,21 @@ public final class RapprochementProduits {
         final String familleId;
         final String nom;
         final String statutArticle;
-        final String codeGrossiste;
+        final String referenceUbipharm;
         final List<String> codes;
 
         /**
-         * @param codeGrossiste
-         *            str_CODE_ARTICLE chez le grossiste Ubipharm, ou null
+         * @param referenceUbipharm
+         *            t_famille.code_ubipharm (PSCODE de la fiche), ou null
          * @param codes
          *            int_CIP, int_CIP2, int_CIP3, int_CIP4, int_EAN13 (null permis)
          */
-        public Article(String familleId, String nom, String statutArticle, String codeGrossiste, List<String> codes) {
+        public Article(String familleId, String nom, String statutArticle, String referenceUbipharm,
+                List<String> codes) {
             this.familleId = familleId;
             this.nom = nom;
             this.statutArticle = statutArticle;
-            this.codeGrossiste = codeGrossiste;
+            this.referenceUbipharm = referenceUbipharm;
             this.codes = codes == null ? Collections.emptyList() : Collections.unmodifiableList(new ArrayList<>(codes));
         }
 
@@ -74,8 +76,8 @@ public final class RapprochementProduits {
             return statutArticle;
         }
 
-        public String codeGrossiste() {
-            return codeGrossiste;
+        public String referenceUbipharm() {
+            return referenceUbipharm;
         }
 
         public List<String> codes() {
@@ -84,7 +86,7 @@ public final class RapprochementProduits {
 
         JSONObject toJson() {
             return new JSONObject().put("familleId", familleId).put("nom", nul(nom))
-                    .put("statutArticle", nul(statutArticle)).put("codeGrossiste", nul(codeGrossiste))
+                    .put("statutArticle", nul(statutArticle)).put("referenceUbipharm", nul(referenceUbipharm))
                     .put("codes", new JSONArray(codes.stream().map(RapprochementProduits::nul).toArray()));
         }
     }
@@ -111,12 +113,12 @@ public final class RapprochementProduits {
             return statut;
         }
 
-        /** Un candidat pour CODE_GROSSISTE et CIP, tous pour PLUSIEURS, aucun pour INTROUVABLE. */
+        /** Un candidat pour PSCODE et CIP, tous pour PLUSIEURS, aucun pour INTROUVABLE. */
         public List<Article> candidats() {
             return candidats;
         }
 
-        /** Etape qui a trouve : CODE_GROSSISTE ou CIP ; null si introuvable. */
+        /** Etape qui a trouve : PSCODE ou CIP ; null si introuvable. */
         public String critere() {
             return critere;
         }
@@ -154,19 +156,18 @@ public final class RapprochementProduits {
     /**
      * Decision a partir des candidats lus (pre-filtres ou non : la comparaison exacte est refaite ici).
      *
-     * @param parCodeGrossiste
-     *            articles lies au grossiste Ubipharm, avec leur str_CODE_ARTICLE
+     * @param parReference
+     *            articles avec leur reference Ubipharm (t_famille.code_ubipharm)
      * @param parCodes
      *            articles avec leurs CIP / EAN13
      */
-    public static Resultat decider(String pscode, Collection<String> codes, List<Article> parCodeGrossiste,
+    public static Resultat decider(String pscode, Collection<String> codes, List<Article> parReference,
             List<Article> parCodes) {
         String p = code(pscode);
-        if (p != null && parCodeGrossiste != null) {
-            List<Article> l = distincts(parCodeGrossiste, a -> p.equals(code(a.codeGrossiste)));
+        if (p != null && parReference != null) {
+            List<Article> l = distincts(parReference, a -> p.equals(code(a.referenceUbipharm)));
             if (!l.isEmpty()) {
-                return new Resultat(pscode, l.size() == 1 ? Statut.CODE_GROSSISTE : Statut.PLUSIEURS, l,
-                        Statut.CODE_GROSSISTE.name());
+                return new Resultat(pscode, l.size() == 1 ? Statut.PSCODE : Statut.PLUSIEURS, l, Statut.PSCODE.name());
             }
         }
         Set<String> cherches = new LinkedHashSet<>();
@@ -203,10 +204,9 @@ public final class RapprochementProduits {
 
     /* ----------------------------------------------------------- requetes */
 
-    static final String PAR_CODE_GROSSISTE = "SELECT f.lg_FAMILLE_ID, f.str_NAME, f.str_STATUT, fg.str_CODE_ARTICLE"
-            + " FROM t_famille_grossiste fg JOIN t_famille f ON f.lg_FAMILLE_ID = fg.lg_FAMILLE_ID"
-            + " WHERE fg.lg_GROSSISTE_ID = :g AND REPLACE(fg.str_CODE_ARTICLE, ' ', '') IN (:p)"
-            + " AND COALESCE(fg.str_STATUT, '') <> 'delete' AND COALESCE(f.str_STATUT, '') <> 'delete'"
+    /* la reference est enregistree sans blancs (FicheArticleRessource) : comparaison directe, par l'index */
+    static final String PAR_REFERENCE = "SELECT f.lg_FAMILLE_ID, f.str_NAME, f.str_STATUT, f.code_ubipharm"
+            + " FROM t_famille f WHERE f.code_ubipharm IN (:p) AND COALESCE(f.str_STATUT, '') <> 'delete'"
             + " ORDER BY f.str_NAME, f.lg_FAMILLE_ID";
     static final String PAR_CODES = "SELECT f.lg_FAMILLE_ID, f.str_NAME, f.str_STATUT, f.int_CIP, f.int_CIP2,"
             + " f.int_CIP3, f.int_CIP4, f.int_EAN13 FROM t_famille f WHERE COALESCE(f.str_STATUT, '') <> 'delete' AND ("
@@ -220,19 +220,14 @@ public final class RapprochementProduits {
         this.em = em;
     }
 
-    /**
-     * Rapproche un produit.
-     *
-     * @param grossisteId
-     *            lg_GROSSISTE_ID d'Ubipharm dans Prestige ; null : etape « code grossiste » sautee
-     */
-    public Resultat rapprocher(String pscode, Collection<String> codes, String grossisteId) {
-        return rapprocher(Collections.singletonList(new Demande(pscode, codes)), grossisteId).get(0);
+    /** Rapproche un produit. */
+    public Resultat rapprocher(String pscode, Collection<String> codes) {
+        return rapprocher(Collections.singletonList(new Demande(pscode, codes))).get(0);
     }
 
     /** Rapproche une liste de produits avec deux requetes en tout ; resultats dans l'ordre des demandes. */
     @SuppressWarnings("unchecked")
-    public List<Resultat> rapprocher(List<Demande> demandes, String grossisteId) {
+    public List<Resultat> rapprocher(List<Demande> demandes) {
         Set<String> pscodes = new LinkedHashSet<>(), codes = new LinkedHashSet<>();
         for (Demande d : demandes) {
             String p = code(d.pscode);
@@ -246,11 +241,11 @@ public final class RapprochementProduits {
                 }
             });
         }
-        List<Article> parCodeGrossiste = new ArrayList<>(), parCodes = new ArrayList<>();
-        if (grossisteId != null && !grossisteId.trim().isEmpty() && !pscodes.isEmpty()) {
-            for (Object[] o : (List<Object[]>) em.createNativeQuery(PAR_CODE_GROSSISTE).setParameter("g", grossisteId)
+        List<Article> parReference = new ArrayList<>(), parCodes = new ArrayList<>();
+        if (!pscodes.isEmpty()) {
+            for (Object[] o : (List<Object[]>) em.createNativeQuery(PAR_REFERENCE)
                     .setParameter("p", new ArrayList<>(pscodes)).getResultList()) {
-                parCodeGrossiste.add(new Article((String) o[0], (String) o[1], (String) o[2], (String) o[3], null));
+                parReference.add(new Article((String) o[0], (String) o[1], (String) o[2], (String) o[3], null));
             }
         }
         if (!codes.isEmpty()) {
@@ -262,19 +257,19 @@ public final class RapprochementProduits {
         }
         List<Resultat> r = new ArrayList<>();
         for (Demande d : demandes) {
-            r.add(decider(d.pscode, d.codes, parCodeGrossiste, parCodes));
+            r.add(decider(d.pscode, d.codes, parReference, parCodes));
         }
         return r;
     }
 
     /** Rapprochement des lignes d'une page « Nouveaux produits » (code = CIP lu). */
-    public List<Resultat> rapprocherLignes(List<NouveauProduitUbipharm> lignes, String grossisteId) {
+    public List<Resultat> rapprocherLignes(List<NouveauProduitUbipharm> lignes) {
         List<Demande> d = new ArrayList<>();
         for (NouveauProduitUbipharm p : lignes) {
             d.add(new Demande(p.pscode(),
                     p.cip() == null ? Collections.emptyList() : Collections.singletonList(p.cip())));
         }
-        return rapprocher(d, grossisteId);
+        return rapprocher(d);
     }
 
     private static String trim(String s) {

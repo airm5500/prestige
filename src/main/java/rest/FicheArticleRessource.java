@@ -677,7 +677,8 @@ public class FicheArticleRessource {
             @FormParam("bool_SUGGERABLE") String boolSuggerable, @FormParam("bool_REMISE") String boolRemise,
             @FormParam("int_Q1_SEUIL_REAPPRO") String q1SeuilReappro,
             @FormParam("int_Q2_QTE_REAPPRO") String q2QteReappro,
-            @FormParam("code_EAN_FABRIQUANT") String codeEanFabriquant) {
+            @FormParam("code_EAN_FABRIQUANT") String codeEanFabriquant,
+            @FormParam("code_UBIPHARM") String codeUbipharm) {
         HttpSession hs = servletRequest.getSession();
         TUser sessionUser = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
         if (sessionUser == null) {
@@ -698,6 +699,7 @@ public class FicheArticleRessource {
                 util.ControleSaisie.longueur("Le code CIP", intCip, 20),
                 util.ControleSaisie.longueur("Le code EAN", intEan13, 50),
                 util.ControleSaisie.longueur("Le code EAN fabricant", codeEanFabriquant, 40),
+                util.ControleSaisie.longueur("La référence Ubipharm", codeUbipharm, 40),
                 util.ControleSaisie.montant("Le prix de vente", intPrice),
                 util.ControleSaisie.montant("Le prix d'achat", intPaf),
                 util.ControleSaisie.montant("Le prix d'achat tarif", intPat),
@@ -747,6 +749,7 @@ public class FicheArticleRessource {
                 }
                 if (famille != null) {
                     enregistrerEanFabricant(odm, ofm.getMessage(), ref, codeEanFabriquant);
+                    enregistrerCodeUbipharm(odm, ofm.getMessage(), ref, codeUbipharm);
                 }
                 return reponseEnregistrement(ofm.getMessage(), ref, ofm.getDetailmessage());
             }
@@ -764,6 +767,7 @@ public class FicheArticleRessource {
                         booleenOuNull(boolCalculSeuil), booleenOuNull(boolSuggerable), booleenOuNull(boolRemise),
                         entierOuNull(q1SeuilReappro), entierOuNull(q2QteReappro));
                 enregistrerEanFabricant(odm, ofm.getMessage(), familleId, codeEanFabriquant);
+                enregistrerCodeUbipharm(odm, ofm.getMessage(), familleId, codeUbipharm);
                 return reponseEnregistrement(ofm.getMessage(), familleId, ofm.getDetailmessage());
             }
             return reponseEnregistrement(commonparameter.PROCESS_FAILED, familleId, "PAS D'ACTION");
@@ -832,6 +836,57 @@ public class FicheArticleRessource {
         famille.setCodeEanFabriquant(code.isEmpty() ? null : code);
         odm.closeTransaction();
         odm.getEm().getEntityManagerFactory().getCache().evict(dal.TFamille.class, familleId);
+    }
+
+    /**
+     * Reference Ubipharm (PSCODE) de la fiche article, rangee dans t_famille comme le code EAN 13 (reponse du 07/11) :
+     * absente de la requete, elle reste telle quelle ; vide, elle est effacee ; sinon enregistree sans aucun blanc (le
+     * rapprochement compare sans blancs). Ecrite seulement si l'article a bien ete enregistre.
+     */
+    static String normaliserCodeUbipharm(String code) {
+        if (code == null) {
+            return null;
+        }
+        String c = code.replaceAll("[\\s\\u00A0\\u202F]+", "");
+        return c.isEmpty() ? "" : c;
+    }
+
+    private static void enregistrerCodeUbipharm(dal.dataManager odm, String resultat, String familleId,
+            String codeUbipharm) {
+        String code = normaliserCodeUbipharm(codeUbipharm);
+        if (code == null || !commonparameter.PROCESS_SUCCESS.equals(resultat) || familleId == null
+                || familleId.isEmpty()) {
+            return;
+        }
+        dal.TFamille famille = odm.getEm().find(dal.TFamille.class, familleId);
+        if (famille == null) {
+            return;
+        }
+        odm.beginTransaction();
+        famille.setCodeUbipharm(code.isEmpty() ? null : code);
+        odm.closeTransaction();
+        odm.getEm().getEntityManagerFactory().getCache().evict(dal.TFamille.class, familleId);
+    }
+
+    /** Reference Ubipharm (PSCODE) actuelle d'un article, pour la fiche article ouverte en modification. */
+    @GET
+    @Path("{id}/code-ubipharm")
+    public Response lireCodeUbipharm(@PathParam("id") String id) {
+        if (servletRequest.getSession().getAttribute(commonparameter.AIRTIME_USER) == null) {
+            return Response.ok()
+                    .entity(new JSONObject().put("success", false).put("msg", Constant.DECONNECTED_MESSAGE).toString())
+                    .build();
+        }
+        dal.dataManager odm = new dal.dataManager();
+        odm.initEntityManager();
+        try {
+            dal.TFamille famille = odm.getEm().find(dal.TFamille.class, id);
+            return Response.ok().entity(new JSONObject().put("success", famille != null).put("codeUbipharm",
+                    famille == null || famille.getCodeUbipharm() == null ? JSONObject.NULL : famille.getCodeUbipharm())
+                    .toString()).build();
+        } finally {
+            odm.closeEntityManager();
+        }
     }
 
     private static Response reponseEnregistrement(String success, String ref, String errors) {

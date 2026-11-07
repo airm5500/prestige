@@ -237,8 +237,8 @@ public class ExtranetRessource {
     /** Propose les articles de Prestige correspondants ; ne cree ni ne modifie rien. */
     @GET
     @Path("ubipharm/nouveaux/rapprochement")
-    public Response rapprochement(@QueryParam("grossisteId") String grossisteId) {
+    public Response rapprochement() {
         Response r = refus();
-        return r != null ? r : ok(service.rapprocherNouveaux(grossisteId));
+        return r != null ? r : ok(service.rapprocherNouveaux());
     }
 }
