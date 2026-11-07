@@ -68,6 +68,14 @@ page est donc coupé.
 **Proposition.** Le passer en vert, comme le « Oui » de la liste des promotions. Il doit rester lisible quand la
 ligne est sélectionnée.
 
+**Fait le 07/11.**
+- « PROMOTION » (et « : dont N offerte(s) ») est écrit en vert #2E7D32, en gras : la même couleur que le « Oui » de la
+  liste des promotions, lue à l'écran par le test.
+- Sur une ligne sélectionnée, le vert passe en vert foncé #1B5E20 pour rester lisible sur le fond violet de la
+  sélection.
+- Test d'écran : `retours/test-vente-promotion-vert-0611.js` (prix spécial, unités gratuites, sans promotion ;
+  contraste mesuré, ligne sélectionnée ou non).
+
 ### 3.2 Texte du ticket : « PROMOTION 5+1 OFFERT(S) »
 
 **Compris.** Pour une promotion « à partir de 5, 1 unité gratuite », le ticket doit afficher
@@ -161,6 +169,13 @@ qu'avant]
 C'est seulement son affichage qu'il faut réduire, à 13 caractères. Le champ de saisie du produit ne change pas. Le
 reste de ce point est donc remplacé par cette précision.
 
+**Fait le 07/11.** La colonne C.CIP a une largeur fixe de 140 px : 13 chiffres y tiennent dans la police de la
+grille (gras, 14 px, 8 px de retrait de chaque côté), pas 17. La place gagnée va à DESIGNATION. Le champ de saisie du
+produit n'est pas limité.
+- En vente assurance avec prix de référence, C.CIP passait à 100 px. Un CIP de 13 chiffres y était coupé (le test le
+  mesure). Elle passe aussi à 140 px, et garde cette largeur après le retrait des colonnes.
+- Test d'écran : `retours/test-vente-colonne-cip-0611.js`.
+
 **Compris (première lecture, remplacée).**
 - Le champ de saisie du produit est trop large : le réduire à 13 caractères.
 - Le champ QD est trop large : le réduire à 4 caractères.
@@ -216,6 +231,24 @@ lente qu'aujourd'hui.
 - Si deux postes saisissent un prix différent pour le même produit et le même organisme, la dernière vente validée
   l'emporte. Est-ce acceptable ? [oui]
 
+**Fait le 07/11** (réponses par défaut retenues).
+- La saisie est gardée sur la vente, dans une nouvelle table `prix_reference_saisie` (une ligne par ligne de vente et
+  par organisme). Le calcul du net, la grille et le ticket la lisent avant la fiche.
+- À la clôture d'une vente assurance, chaque saisie est écrite sur la fiche article, notée au journal avec la vente,
+  puis retirée. Le journal ne garde que la valeur finale, pas les états intermédiaires.
+- Une vente abandonnée ne touche plus la fiche. Une vente en attente garde ses saisies, puisqu'elles sont attachées à
+  ses lignes.
+- Message sous la grille : « … retenus pour cette vente ; ils iront sur la fiche article à la validation ».
+- Annulation d'une vente close : le prix reste sur la fiche. Une ligne « Annulation de la vente » est notée au journal
+  pour chaque produit et organisme, avec la valeur de la fiche. Sur la fiche article, son origine est
+  « Annulation — vente … ».
+- Tests :
+  - `test-saisie-validee-cloture-0611.js` : vente abandonnée, saisie, clôture, ticket, vente suivante ; 18/18, 9/18
+    sur l'ancien code ;
+  - `test-annulation-vente-journal-0611.js` : vente close puis annulée, avec et sans saisie ; 9/13 sur l'ancien code ;
+  - les huit tests du cas 2 sont passés à la nouvelle règle : saisie gardée d'abord, fiche et journal après la
+    clôture.
+
 ### 5.2 Pas de ligne prix/taux par produit quand c'est le taux de l'assurance
 
 **Compris.** Si aucun prix de référence ni aucun taux n'a été saisi sur la ligne, le ticket ne doit pas afficher de
@@ -234,6 +267,18 @@ sa part. Le point 5.1 supprime en plus la cause des « P[…] » inattendus.
 **À trancher.**
 - Cela revient sur une demande du 03/11 (cas 1), qui voulait « Taux X % : part » sous chaque ligne. Je considère que
   votre nouvelle demande la remplace. [oui]
+
+**Fait le 07/11.** Une ligne n'est imprimée sous le produit que si l'un de ces cas se présente :
+- la ligne a un prix de référence ;
+- un taux saisi diffère de celui de l'organisme ;
+- une base propre diffère du prix de vente.
+
+Sinon, rien ne s'imprime sous le produit, et le bloc de l'organisme garde sa part.
+
+Tests :
+- `CreditLigneAffichageTest` : 10 000 cas tirés au hasard ;
+- `test-rapprochement-ticket.js` : 19/19, et 18/19 sur l'ancien code ;
+- les tests de la ligne comptant sont adaptés.
 
 ---
 
@@ -325,6 +370,14 @@ règlement.
 **À trancher.** Le détail assurance doit-il s'afficher même quand le paramètre « ligne comptant » est à 0 ? [oui :
 c'est un écran de consultation]
 
+**Fait le 07/11 (icônes et bouton).**
+- « Re-imprimer la facture » a un dessin de facture, « Modifier info client » un dessin de client : plus aucun doublon
+  sur une ligne. Les règles sont déclarées dans `correctifs-affichage.js`.
+- « Générer une suggestion » est caché pour tout le monde (le code reste, un drapeau le rétablit).
+- Test d'écran : `retours/test-ventes-terminees-icones-0611.js`.
+- **Pas encore fait** : le détail d'une vente (poste et adresse tronqués, pastille promotion, détail assurance par
+  ligne).
+
 ---
 
 ## 10. Historique ordonnancier : en onglet, et colonne « Poste »
@@ -395,6 +448,14 @@ c'est un écran de consultation]
 - « RES » est-il bien le stock du magasin de réserve, comme « Stock Res » dans la barre d'information ? Si c'est
   plutôt des quantités réservées pour des clients, ce n'est pas la même donnée. [stock de réserve]
 
+**Fait le 07/11.**
+- Colonne « RES » en vert et en gras, après le stock. Le serveur la lit dans la même table et de la même façon que la
+  barre d'information (stock de type réserve, emplacement du poste), en une seule requête pour la page.
+- Mois en trois lettres (Jan … Déc, Jun et Jul distincts), nom complet au survol.
+- Libellé élargi ; QTE, SEUIL (62 px) et MOY (56 px) en largeur fixe.
+- La saisie de QTE au clavier marche toujours.
+- Test d'écran : `retours/test-suggestion-stock-reserve-0611.js` (réserves 7, 13 et 0 ; grille = barre = base).
+
 ---
 
 ## 13. Ventes unités gratuites
@@ -437,12 +498,32 @@ c'est un écran de consultation]
 **À trancher.** Un sous-menu dans Campagnes, ou un onglet de l'écran Campagnes ? [sous-menu, juste après
 « Campagnes »]
 
+**Fait le 07/11.** Migration V7.2.40, rejouable :
+- « Modèles de messages » passe sous « Campagnes SMS / WhatsApp », juste après « Campagnes ». Les sous-menus suivants
+  sont décalés d'un rang.
+- Chaque rôle qui avait le sous-menu reçoit le droit du menu Campagnes : personne ne perd l'accès.
+- L'écran et son droit ne changent pas.
+- Test d'écran : `retours/test-menu-modeles-messages-0611.js` (menu lu et ouvert par le volet, droits en base).
+
 ---
 
 ## 15. Fiche article : champ PSCODE
 
 **Précision de l'utilisateur (07/11).** Le PSCODE est un code grossiste secondaire. Il est facultatif à la création,
 et on doit pouvoir rechercher un produit avec.
+
+**Seconde précision (07/11, nuit).** Le PSCODE est la référence Ubipharm. Il est rangé sur la fiche article
+(`t_famille`) comme le code EAN 13, et non dans `t_famille_grossiste`.
+
+**Fait le 07/11.**
+- Colonne `t_famille.str_PSCODE` (migration V7.2.39), 20 caractères au plus, avec un index.
+- Champ « PSCODE (Ubipharm) » dans « Modifier » et dans la création de la fiche article.
+- Le code est enregistré en majuscules, sans espaces autour. Seuls les lettres, les chiffres et les tirets sont
+  acceptés, sinon un message est affiché.
+- Recherche par le PSCODE dans la fiche article et dans le champ produit de l'écran de vente : la liste passe par le
+  même filtre que la fiche, et le code tapé puis Entrée (recherche exacte, comme la douchette) trouve aussi le PSCODE.
+- Pas encore fait : l'export et l'import des articles.
+- Test d'écran : `retours/test-fiche-pscode-0611.js`.
 
 **Compris.** Il faut un nouveau champ alphanumérique, PSCODE (par exemple FORT256), sur la fiche article et en base.
 
