@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<!-- Jeu d'essai RECONSTITUE (pas une capture) : cas limites du plan du 07/11 (§8, §18) :
+     colonnes sans titre, produit inconnu a pscode vide, prix inconnu, quantite > 1, cellule manquante,
+     metadonnees introuvables (agence absente), libelles en div/label. -->
+<html lang="fr">
+<head><meta charset="utf-8"><title>R&eacute;clamation</title></head>
+<body>
+<div class="row"><div class="col"><label>R&eacute;f&eacute;rence :</label></div><div class="col">YOP1410730GNA</div></div>
+<div class="row"><div class="col"><label>Statut</label></div><div class="col">Cl&ocirc;tur&eacute;e</div></div>
+<div class="row"><span>Date d&rsquo;envoi</span> <span>01/10/2026</span></div>
+<table id="reclamation">
+  <tr><th></th><th></th><th>#</th><th>Produit</th><th></th><th></th><th></th><th></th><th></th><th></th><th></th><th></th><th></th><th></th></tr>
+  <tr>
+    <td></td><td>700001 700002</td><td>1</td>
+    <td data-pscode="">Produit inconnu<br>R&eacute;f. :</td>
+    <td>3</td><td>N/A</td><td></td><td>CASSE</td><td></td><td></td><td></td><td>Produit cass&eacute; &amp; ab&icirc;m&eacute;</td><td></td><td>Aucun commentaire</td>
+  </tr>
+  <tr>
+    <td></td><td>700003</td><td>2</td>
+    <td><div data-pscode="DOLI500">DOLI500</div><div>DOLIPRANE 500MG CPR B/16</div><div>3400930000001</div></td>
+    <td>12</td><td>0 CFA</td><td>1</td><td>ERREUR DE LIVRAISON</td><td>Accord</td><td></td><td></td><td></td><td></td><td></td>
+  </tr>
+  <tr>
+    <td></td><td>700004</td><td>3</td>
+    <td><span data-pscode="AMOX1G">AMOX1G</span> AMOXICILLINE 1G</td>
+    <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+  </tr>
+  <tr>
+    <td>cellules</td><td>manquantes</td><td>3</td><td><span data-pscode="X1">X1</span></td><td>5</td>
+  </tr>
+  <tr><td colspan="14">Aucune donn&eacute;e</td></tr>
+</table>
+</body>
+</html>
