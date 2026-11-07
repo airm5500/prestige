@@ -986,6 +986,8 @@ window.PrestigeAffichage.ECRANS_STYLE_VENTE = [
     'saisieperime', 'saisieperimeonglets', 'margeonglets', 'gestionsurstock', 'i_sugg_manager',
     // menu « Activité des équipes »
     'activiteequipes',
+    // menu « Extranets grossistes » (GESTION DES COMMANDES, plan du 07/11)
+    'extranetsgrossistes',
     // menu « Péremptions courtes »
     'peremptionscourtes',
     // menu « Modèles de ticket »
