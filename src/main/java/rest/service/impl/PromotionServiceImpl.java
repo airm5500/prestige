@@ -491,7 +491,8 @@ public class PromotionServiceImpl implements PromotionService {
                         .put("lg_FAMILLE_ID", r[3] != null ? r[3] : "").put("str_NAME", r[4] != null ? r[4] : "")
                         .put("str_TYPE", r[5] != null ? r[5] : "")
                         .put("int_DISCOUNT", r[6] != null ? String.valueOf(r[6]) : "")
-                        .put("bl_MODE", r[7] != null && ((Number) r[7]).intValue() != 0 ? "Oui" : "Non")
+                        /* plan du 06/11 point 3.4 : bl_MODE arrive en Boolean, un cast en Number vidait la liste */
+                        .put("bl_MODE", versBooleen(r[7]) ? "Oui" : "Non")
                         .put("db_PROMOTION_PRICE", r[8] != null ? String.valueOf(((Number) r[8]).doubleValue()) : "")
                         .put("int_PACK_NUMBER", r[9] != null ? String.valueOf(r[9]) : "")
                         .put("int_ACTIVE_AT", r[10] != null ? String.valueOf(r[10]) : "")
