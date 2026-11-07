@@ -1672,8 +1672,14 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
 
     ongletSuivi: function (onglet) {
         var me = this;
+        /*
+         * Plan du 06/11, point 2 : le defilement s'arretait trop tot. En vbox, la hauteur a faire defiler etait
+         * calculee a l'ouverture, quand les cartes ne disaient que « Chargement… » ; les courbes et les tableaux
+         * arrivent ensuite, sans nouveau calcul, et le bas des dernieres cartes restait hors d'atteinte. En
+         * disposition « auto », c'est le navigateur qui mesure la page a chaque remplissage.
+         */
         return {xtype: 'panel', itemId: 'onglet-' + onglet.cle, title: onglet.titre, cleOnglet: onglet.cle, border: false,
-            autoScroll: true, layout: {type: 'vbox', align: 'stretch'}, items: [
+            autoScroll: true, layout: 'auto', items: [
                 {xtype: 'component', itemId: 'aideDisposition', cls: 'sv-aide', html: '<span class="fa-solid fa-up-down-left-right"></span> Glissez les tuiles,'
                             + ' et les cartes par leur titre, pour les ranger dans l\'ordre voulu (ordre enregistré pour vous).'
                             + ' <button type="button" class="sv-lien" data-defaut="asuivre">Disposition par défaut</button>',
@@ -1806,8 +1812,9 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
             });
             return t + ((lignes || []).length ? '' : '<tr><td colspan="5" class="sv-note">Aucune vente sur la période.</td></tr>') + '</table>';
         };
-        me.corpsSuivi('emplacements', repartition(r.emplacements));
-        me.corpsSuivi('familles', repartition(r.familles));
+        /* point 2 du 06/11 : les grands tableaux defilent dans leur carte, comme les alertes */
+        me.corpsSuivi('emplacements', '<div class="sv-defile">' + repartition(r.emplacements) + '</div>');
+        me.corpsSuivi('familles', '<div class="sv-defile">' + repartition(r.familles) + '</div>');
     },
 
     /** Les reglages des cartes (pas, comparaison, tranche) sont lus une fois, avant la premiere courbe. */
