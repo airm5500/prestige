@@ -7,6 +7,7 @@ import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.DefaultValue;
 import javax.ws.rs.GET;
+import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
@@ -119,5 +120,125 @@ public class ExtranetRessource {
     public Response collecte(@PathParam("id") long id) {
         Response r = refus();
         return r != null ? r : ok(service.collecte(id));
+    }
+
+    private String login() {
+        return Droits.utilisateur(requete).getStrLOGIN();
+    }
+
+    /* ============================================================ Ubipharm : fiche produit */
+
+    @GET
+    @Path("ubipharm/produits/{pscode}")
+    public Response fiche(@PathParam("pscode") String pscode) {
+        Response r = refus();
+        return r != null ? r : ok(service.ficheEnCache(pscode));
+    }
+
+    /** Lit la fiche sur l'extranet maintenant (GET seulement) et met le cache a jour. */
+    @POST
+    @Path("ubipharm/produits/{pscode}/collecte")
+    public Response collecterFiche(@PathParam("pscode") String pscode) {
+        Response r = refus();
+        return r != null ? r : ok(service.collecterFiche(pscode, login()));
+    }
+
+    /* ============================================================ Ubipharm : reapprovisionnements */
+
+    @GET
+    @Path("ubipharm/reappro")
+    public Response reappro(@QueryParam("recherche") String recherche, @QueryParam("agence") String agence,
+            @DefaultValue("1") @QueryParam("page") int page, @DefaultValue("50") @QueryParam("limit") int limit) {
+        Response r = refus();
+        return r != null ? r : ok(service.reapproEnCache(recherche, agence, Math.max(0, page - 1), limit));
+    }
+
+    @POST
+    @Path("ubipharm/reappro/collecte")
+    public Response collecterReappro() {
+        Response r = refus();
+        return r != null ? r : ok(service.collecterReappro(login()));
+    }
+
+    /* ============================================================ Ubipharm : reclamations */
+
+    @GET
+    @Path("ubipharm/reclamations")
+    public Response reclamations(@DefaultValue("ALL") @QueryParam("filtre") String filtre) {
+        Response r = refus();
+        return r != null ? r : ok(service.reclamationsEnCache(filtre));
+    }
+
+    @POST
+    @Path("ubipharm/reclamations/collecte")
+    public Response collecterReclamations(@DefaultValue("ALL") @QueryParam("filtre") String filtre) {
+        Response r = refus();
+        return r != null ? r : ok(service.collecterReclamations(filtre, login()));
+    }
+
+    @GET
+    @Path("ubipharm/reclamations/detail")
+    public Response reclamation(@QueryParam("id") String id, @QueryParam("eta") String eta,
+            @QueryParam("appl") String appl) {
+        Response r = refus();
+        return r != null ? r : ok(service.reclamationEnCache(id, eta, appl));
+    }
+
+    @POST
+    @Path("ubipharm/reclamations/detail/collecte")
+    public Response collecterReclamation(@QueryParam("id") String id, @QueryParam("eta") String eta,
+            @QueryParam("appl") String appl) {
+        Response r = refus();
+        return r != null ? r : ok(service.collecterReclamation(id, eta, appl, login()));
+    }
+
+    @POST
+    @Path("ubipharm/reclamations/pdf/collecte")
+    public Response collecterPdf(@QueryParam("id") String id, @QueryParam("eta") String eta,
+            @QueryParam("appl") String appl) {
+        Response r = refus();
+        return r != null ? r : ok(service.collecterPdfReclamation(id, eta, appl, login()));
+    }
+
+    /** PDF deja telecharge, ouvert dans le navigateur (jamais retelecharge ici). */
+    @GET
+    @Path("ubipharm/reclamations/pdf")
+    @Produces("application/pdf")
+    public Response pdf(@QueryParam("id") String id, @QueryParam("eta") String eta, @QueryParam("appl") String appl) {
+        Response r = refus();
+        if (r != null) {
+            return r;
+        }
+        java.nio.file.Path f = service.fichierPdfReclamation(id, eta, appl);
+        if (f == null) {
+            return Response.status(Response.Status.NOT_FOUND).type(MediaType.TEXT_PLAIN).entity("PDF non téléchargé")
+                    .build();
+        }
+        return Response.ok(f.toFile(), "application/pdf")
+                .header("Content-Disposition", "inline; filename=\"reclamation-" + id + ".pdf\"").build();
+    }
+
+    /* ============================================================ Ubipharm : nouveaux produits */
+
+    @GET
+    @Path("ubipharm/nouveaux")
+    public Response nouveaux() {
+        Response r = refus();
+        return r != null ? r : ok(service.nouveauxEnCache());
+    }
+
+    @POST
+    @Path("ubipharm/nouveaux/collecte")
+    public Response collecterNouveaux() {
+        Response r = refus();
+        return r != null ? r : ok(service.collecterNouveaux(login()));
+    }
+
+    /** Propose les articles de Prestige correspondants ; ne cree ni ne modifie rien. */
+    @GET
+    @Path("ubipharm/nouveaux/rapprochement")
+    public Response rapprochement(@QueryParam("grossisteId") String grossisteId) {
+        Response r = refus();
+        return r != null ? r : ok(service.rapprocherNouveaux(grossisteId));
     }
 }

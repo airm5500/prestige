@@ -111,7 +111,7 @@ public final class ReclamationsCollecteur {
     }
 
     /** Parametres controles : id en chiffres, eta et appl en lettres et chiffres (1 a 10). */
-    static Map<String, String> parametres(String id, String eta, String appl) {
+    public static Map<String, String> parametres(String id, String eta, String appl) {
         if (id == null || !ReclamationsParseur.ID.matcher(id).matches()) {
             throw new IllegalArgumentException("Identifiant de réclamation refusé");
         }
