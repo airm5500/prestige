@@ -270,11 +270,15 @@ Ext.define('testextjs.view.configmanagement.modeleticket.ModelesTicket', {
                     + '<span class="mtk-sel">' + (unite === 'pt' && valeur > 0 ? '+' : '') + valeur + ' ' + unite + '</span>'
                     + '<button type="button" ' + attr + '="1"' + (me.droit() && valeur < haut ? '' : ' disabled') + ' aria-label="Agrandir : ' + libelle + '">+</button></span></div>';
         };
-        var h = '<div class="mtk-selection"><b>Bloc choisi : ' + enc(bloc ? bloc.libelle : s) + '</b>';
+        var h = '<div class="mtk-selection"><b>Bloc choisi : ' + enc(pied ? 'Code-barres et date' : (bloc ? bloc.libelle : s)) + '</b>';
         if (!pied) {
             h += '<div class="mtk-champ"><span>Alignement</span>' + me.choix('alignement', [{v: 'G', l: 'Gauche'}, {v: 'C', l: 'Centre'}, {v: 'D', l: 'Droite'}], p.alignement || 'DEFAUT', !me.droit()) + '</div>';
         }
         h += pas('data-taille', p.taille || 0, -max, max, 'pt', pied ? 'Taille du code-barres' : 'Taille du texte', 'De −' + max + ' à +' + max + ' points autour du modèle');
+        if (pied) {
+            /* plan du 06/11 point 1 : la date reste a cote du code-barres, avec sa propre taille */
+            h += pas('data-taille-date', me.position(r, 'DATE').taille || 0, -max, max, 'pt', 'Taille de la date', 'Date et heure, à côté du code-barres');
+        }
         if (!pied) {
             /* retour du 05/11 : bloc plus etroit, chaque texte sur une ligne termine par « … » */
             h += pas('data-largeur', p.largeur || 100, min, 100, '%', 'Largeur du bloc', 'En dessous de 100 % : une ligne, terminée par « … »');
@@ -340,8 +344,8 @@ Ext.define('testextjs.view.configmanagement.modeleticket.ModelesTicket', {
     },
 
     /** Change d'un pas un reglage numerique du bloc choisi, dans ses bornes. */
-    regler: function (champ, pas, bas, haut, defaut) {
-        var me = this, id = me.etat.selection;
+    regler: function (champ, pas, bas, haut, defaut, autreBloc) {
+        var me = this, id = autreBloc || me.etat.selection;
         me.modifier(function (r) {
             var d = me.disposition(r, me.etat.apercu.ordre), p = Ext.Array.findBy(d, function (x) {
                 return x.bloc === id;
@@ -495,6 +499,9 @@ Ext.define('testextjs.view.configmanagement.modeleticket.ModelesTicket', {
                 me.modifier(function (r) {
                     r[cle] = !r[cle];
                 });
+            } else if (b.hasAttribute('data-taille-date')) {
+                var maxDate = me.etat.donnees.ecartTailleMax;
+                me.regler('taille', Number(b.getAttribute('data-taille-date')), -maxDate, maxDate, 0, 'DATE');
             } else if (b.hasAttribute('data-taille')) {
                 var max = me.etat.donnees.ecartTailleMax;
                 me.regler('taille', Number(b.getAttribute('data-taille')), -max, max, 0);

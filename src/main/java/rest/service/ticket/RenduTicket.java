@@ -59,6 +59,11 @@ public final class RenduTicket {
         public int hauteur;
         public final Map<String, int[]> zones = new LinkedHashMap<>();
         public final List<String> debordements = new ArrayList<>();
+        /** Plan du 06/11 point 1 : hauteur du code-barres et taille de la police de la date, dessines au pied. */
+        public int hauteurCodeBarres;
+        public int policeDate;
+        /** La date ne tenait pas a cote du code-barres : elle est passee dessous. */
+        public boolean dateSousCodeBarres;
     }
 
     public static double largeurImprimable(int papierMm) {
@@ -146,6 +151,8 @@ public final class RenduTicket {
     private final Resultat res = new Resultat();
     private int y;
     private ReglagesTicket.Position position;
+    /** Plan du 06/11 point 1 : taille propre de la date du pied (reglage du bloc « Date du ticket »). */
+    private int tailleDate;
 
     private RenduTicket(Graphics2D g, double largeur, int base, String police) {
         this.g = g;
@@ -170,6 +177,8 @@ public final class RenduTicket {
         g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
         g.translate(marge, 0);
         rendu.y = depart;
+        ReglagesTicket.Position date = r.position(TicketDocument.DATE);
+        rendu.tailleDate = date != null ? date.taille : 0;
         for (String id : ordre(r)) {
             Bloc b = doc.existant(id);
             if (b == null || b.vide()) {
@@ -188,7 +197,9 @@ public final class RenduTicket {
             g.translate(x0, 0);
             int y0 = rendu.y;
             for (Element e : b.elements) {
-                rendu.element(e, alignement, ecart);
+                // plan du 06/11 point 1 : un texte du pied est une date (« Édité le » du ticket Z) : taille de la date
+                boolean datePied = TicketDocument.PIED.equals(id) && e.genre == TicketDocument.Genre.TEXTE;
+                rendu.element(e, alignement, datePied ? rendu.tailleDate : ecart);
             }
             g.translate(-x0, 0);
             rendu.res.zones.put(id, new int[] { y0, rendu.y });
@@ -487,19 +498,38 @@ public final class RenduTicket {
         double libre = largeur - x;
         int yt = y;
         Font gras = police(Style.GRAS, ecart - 1);
-        Font petit = police(Style.PETIT, ecart);
-        String[] lignes = { e.b, e.c };
-        for (int i = 0; i < lignes.length; i++) {
-            Font f = i == 0 ? gras : petit;
-            g.setFont(f);
-            FontMetrics fm = g.getFontMetrics();
-            for (String l : couper(lignes[i], libre)) {
+        // plan du 06/11 point 1 : la date reste a cote du code-barres, mais avec sa propre taille
+        Font petit = police(Style.PETIT, tailleDate);
+        res.hauteurCodeBarres = hauteurImage;
+        res.policeDate = petit.getSize();
+        g.setFont(gras);
+        FontMetrics fm = g.getFontMetrics();
+        for (String l : couper(e.b, libre)) {
+            yt += fm.getAscent();
+            g.drawString(l, (float) x, yt);
+            yt += fm.getDescent() + 1;
+        }
+        g.setFont(petit);
+        fm = g.getFontMetrics();
+        List<String> date = couper(e.c, libre);
+        // trop grande pour la place a droite (elle serait coupee en morceaux) : la date passe sous le code-barres
+        boolean dessous = date.size() > 1 && couper(e.c, largeur).size() < date.size();
+        res.dateSousCodeBarres = dessous;
+        if (!dessous) {
+            for (String l : date) {
                 yt += fm.getAscent();
                 g.drawString(l, (float) x, yt);
                 yt += fm.getDescent() + 1;
             }
         }
         y = Math.max(y + hauteurImage, yt) + 2;
+        if (dessous) {
+            for (String l : couper(e.c, largeur)) {
+                y += fm.getAscent();
+                g.drawString(l, 0, y);
+                y += fm.getDescent() + 1;
+            }
+        }
     }
 
     private void table(Element e, int ecart) {

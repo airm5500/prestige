@@ -155,6 +155,10 @@ public class ModeleTicketRessource {
         return new JSONObject().put("image", Base64.getEncoder().encodeToString(png.toByteArray()))
                 .put("largeurImage", img.getWidth()).put("hauteurImage", img.getHeight()).put("echelle", ECHELLE)
                 .put("zones", zones).put("ordre", ordre).put("bloquants", new JSONArray(bloquants))
+                // plan du 06/11 point 1 : tailles dessinees du code-barres et de la date, reglees a part
+                .put("pied",
+                        new JSONObject().put("codeBarres", res[0].hauteurCodeBarres)
+                                .put("policeDate", res[0].policeDate).put("dateDessous", res[0].dateSousCodeBarres))
                 .put("avertissements", new JSONArray(avertissements));
     }
 

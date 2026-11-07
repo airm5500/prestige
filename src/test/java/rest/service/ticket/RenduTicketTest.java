@@ -67,9 +67,8 @@ class RenduTicketTest {
         assertTrue(t.contains("PAIRE[Espèces versées | 5 000 F CFA]"), t);
         assertTrue(t.contains("PAIRE[Monnaie rendue | 50 F CFA]"), t);
         assertTrue(t.contains("Merci de votre confiance"), t);
-        // retour du 06/11 : la date dans son bloc, a part du code-barres
-        assertTrue(t.contains("PIED[ | 4K7Q2M9XPA]"), t);
-        assertTrue(t.contains("TEXTE[02/11/2026 17:42]"), t);
+        // plan du 06/11 point 1 : la date reste a cote du code-barres (sa taille se regle a part)
+        assertTrue(t.contains("PIED[ | 4K7Q2M9XPA | 02/11/2026 17:42]"), t);
         assertFalse(t.contains("CC "), "CC/RC desactives par defaut\n" + t);
         assertFalse(t.contains("Lot B2417"), "lot desactive par defaut\n" + t);
     }
