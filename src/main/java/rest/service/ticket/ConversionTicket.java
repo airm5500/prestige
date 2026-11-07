@@ -456,6 +456,13 @@ public final class ConversionTicket {
                 reglement.paire(estEspeces(mode) ? "Espèces versées" : "Montant versé", montantF(valeur), Style.NORMAL);
             } else if (libelle.startsWith("Monnaie")) {
                 reglement.paire("Monnaie rendue", montantF(valeur), Style.GRAS);
+            } else if (libelle.equals(ReglementTicket.ESPECES_VERSEES)) {
+                /* plan du 06/11 point 6 : acompte d'un differe, apres « Règlement : Différé » */
+                if (!mode.isEmpty() && !estEspeces(mode)) {
+                    reglement.paire("Règlement", mode, Style.NORMAL);
+                }
+                modeDit = true;
+                reglement.paire(ReglementTicket.ESPECES_VERSEES, montantF(valeur), Style.NORMAL);
             } else if (!libelle.isEmpty()) {
                 reglement.paire(libelle, montantF(valeur), Style.NORMAL);
                 modeDit = true;

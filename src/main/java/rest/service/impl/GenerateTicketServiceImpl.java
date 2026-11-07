@@ -94,6 +94,7 @@ import util.NumberUtils;
 import rest.service.ticket.ConversionTicket;
 import rest.service.ticket.CreditLigne;
 import rest.service.ticket.ModeleTicket;
+import rest.service.ticket.ReglementTicket;
 import rest.service.ticket.TicketCombine;
 import rest.service.ticket.ModeleTicketService;
 
@@ -440,6 +441,8 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             e.verse = Math.abs(mvtVo.getMontantVerse() == null ? 0 : mvtVo.getMontantVerse())
                     + Math.abs(mvtVno.getMontantVerse() == null ? 0 : mvtVno.getMontantVerse());
             e.monnaie = Math.max(0, e.verse - (e.partClientVo + e.netVno));
+            e.differe = estDiffere(vo, null);
+            e.especesDiffere = especesDiffere(mvtVo) + especesDiffere(mvtVno);
             TicketCombine.Sortie sortie = TicketCombine.construire(e);
 
             ImpressionServiceImpl imp = nouvelImprimeur();
@@ -1146,7 +1149,21 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
                     + "; F CFA;0");
 
         }
-        return datas;
+        return estDiffere(p, null) ? ReglementTicket.differe(datas, especesDiffere(mvtTransaction)) : datas;
+    }
+
+    /**
+     * Plan du 06/11, point 6 : vente differee (statut de la vente, ou mode « Différé » choisi a la cloture). Le differe
+     * est range avec les especes dans les mouvements : sans ce test, le ticket imprimait « Espèces versées : 0 » et «
+     * Monnaie rendue : 0 ».
+     */
+    static boolean estDiffere(TPreenregistrement p, String typeRegleId) {
+        return Constant.DIFFERE.equalsIgnoreCase(p.getStrSTATUTVENTE()) || Constant.REGL_DIFF.equals(typeRegleId);
+    }
+
+    /** Acompte encaisse sur un differe : le montant paye du mouvement de caisse (0 si rien). */
+    private static int especesDiffere(MvtTransaction mvt) {
+        return mvt == null || mvt.getMontantPaye() == null ? 0 : Math.abs(mvt.getMontantPaye());
     }
 
     /** Reglement en plusieurs parts dont aucune en especes (fractionnement mobile + mobile). */
@@ -1562,6 +1579,13 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
 
             }
         }
+        if (estDiffere(oPreenregistrement, clotureVenteParams.getTypeRegleId())) {
+            int du = Math.max(0, DateConverter.arrondiModuloOfNumber(
+                    Math.max(0, oPreenregistrement.getIntCUSTPART() == null ? 0 : oPreenregistrement.getIntCUSTPART()),
+                    5));
+            Integer recu = clotureVenteParams.getMontantRecu();
+            return ReglementTicket.differe(datas, Math.max(0, Math.min(recu == null ? 0 : recu, du)));
+        }
         return datas;
     }
 
@@ -1631,6 +1655,9 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
                 datas.add("Monnaie: ;     " + DateConverter.amountFormat((change >= 0 ? change : 0)) + "; F CFA;0");
 
             }
+        }
+        if (estDiffere(oPreenregistrement, null)) {
+            return ReglementTicket.differe(datas, especesDiffere(clotureVenteParams));
         }
         return datas;
     }

@@ -40,6 +40,9 @@ public final class TicketCombine {
         public List<String[]> reglements = Collections.emptyList();
         public int verse;
         public int monnaie;
+        /** Plan du 06/11 point 6 : vente differee, et acompte encaisse en especes (0 : rien). */
+        public boolean differe;
+        public int especesDiffere;
     }
 
     /** Ce que l'imprimeur recoit. */
@@ -118,6 +121,11 @@ public final class TicketCombine {
         }
         s.subtotal.add("Montant Versé: ;     " + ConversionTicket.nombre(e.verse) + "; F CFA;0");
         s.subtotal.add("Monnaie: ;     " + ConversionTicket.nombre(Math.max(0, e.monnaie)) + "; F CFA;0");
+        if (e.differe) {
+            List<String> r = ReglementTicket.differe(s.subtotal, e.especesDiffere);
+            s.subtotal.clear();
+            s.subtotal.addAll(r);
+        }
         return s;
     }
 
