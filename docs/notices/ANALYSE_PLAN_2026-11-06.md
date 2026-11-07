@@ -106,7 +106,11 @@ ligne est sélectionnée.
 
 ### 3.4 Historique des promotions vide, et en onglet
 
-**Le journal n'était pas joint à votre message.** Je n'ai pas trouvé l'erreur dans les journaux du poste. La cause
+**Confirmé et corrigé le 07/11.** Le journal fourni (`D:\log_historiques_promotions.txt`) montre
+`ClassCastException` Boolean → Number à `listHistorique`. La correction est le commit `0fb711f1e`. Le test d'écran
+`audits/test-ecran-historique-promotions.js` échouait à 10/16 sur l'ancien code et passe à 16/16 après correction.
+
+**Analyse d'origine.** Le journal n'était pas joint à votre message. Je n'ai pas trouvé l'erreur dans les journaux du poste. La cause
 est pourtant visible dans le code :
 - l'historique lit une colonne « oui/non » comme si c'était un nombre ;
 - cela provoque une erreur, qui est avalée en silence ;
@@ -153,7 +157,11 @@ qu'avant]
 
 ## 4. Écran de vente : champs CIP et QD, étiquettes
 
-**Compris.**
+**Précision de l'utilisateur (07/11).** Le « champ CIP » est la colonne C.CIP de la grille des produits choisis.
+C'est seulement son affichage qu'il faut réduire, à 13 caractères. Le champ de saisie du produit ne change pas. Le
+reste de ce point est donc remplacé par cette précision.
+
+**Compris (première lecture, remplacée).**
 - Le champ de saisie du produit est trop large : le réduire à 13 caractères.
 - Le champ QD est trop large : le réduire à 4 caractères.
 - Avec la place gagnée, afficher après le nom du produit les étiquettes « sensible », « promotion » et
@@ -432,6 +440,9 @@ c'est un écran de consultation]
 ---
 
 ## 15. Fiche article : champ PSCODE
+
+**Précision de l'utilisateur (07/11).** Le PSCODE est un code grossiste secondaire. Il est facultatif à la création,
+et on doit pouvoir rechercher un produit avec.
 
 **Compris.** Il faut un nouveau champ alphanumérique, PSCODE (par exemple FORT256), sur la fiche article et en base.
 
