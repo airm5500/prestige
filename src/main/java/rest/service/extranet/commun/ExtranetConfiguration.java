@@ -118,6 +118,17 @@ public final class ExtranetConfiguration {
         return entier(s.prefixeCle() + "_TIMEOUT_MS", DELAI_DEFAUT_MS, 1000, 120000);
     }
 
+    /** Page qui porte le formulaire de connexion (defaut « / », redirections suivies sur le meme site). */
+    public String cheminConnexion(SourceExtranet s) {
+        String v = lire(s.prefixeCle() + "_CHEMIN_CONNEXION");
+        return v == null || !v.startsWith("/") ? "/" : v;
+    }
+
+    /** Nom du champ identifiant, si la detection automatique (premier champ texte du formulaire) ne convient pas. */
+    public String champIdentifiant(SourceExtranet s) {
+        return lire(s.prefixeCle() + "_CHAMP_IDENTIFIANT");
+    }
+
     public int pagesMax(SourceExtranet s) {
         return entier(s.prefixeCle() + "_PAGES_MAX", PAGES_MAX_DEFAUT, 1, 10000);
     }

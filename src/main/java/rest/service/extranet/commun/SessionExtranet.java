@@ -37,6 +37,11 @@ public final class SessionExtranet {
     private LocalDateTime derniereReussite;
     private LocalDateTime expireeLe;
     private String definiePar;
+    /** COOKIE (colle) ou CONNEXION (connexion automatique avec les identifiants enregistres). */
+    private String mode;
+    private LocalDateTime derniereConnexion;
+    /** Motif du dernier echec de connexion automatique (jamais un secret) ; null apres une reussite. */
+    private String echecConnexion;
 
     public SessionExtranet(SourceExtranet source) {
         this.source = source;
@@ -62,7 +67,31 @@ public final class SessionExtranet {
         definieLe = LocalDateTime.now();
         definiePar = utilisateur;
         expireeLe = null;
+        mode = "COOKIE";
         return null;
+    }
+
+    /** Session ouverte par la connexion automatique (cookies recus de l'extranet). */
+    synchronized void definirParConnexion(Map<String, String> recus) {
+        cookies.clear();
+        cookies.putAll(recus);
+        etat = Etat.A_VERIFIER;
+        definieLe = LocalDateTime.now();
+        definiePar = "connexion automatique";
+        expireeLe = null;
+        mode = "CONNEXION";
+        derniereConnexion = definieLe;
+        echecConnexion = null;
+    }
+
+    synchronized void connexionEchouee(String motif) {
+        derniereConnexion = LocalDateTime.now();
+        echecConnexion = motif;
+    }
+
+    /** Nom et valeur de cookie acceptables (memes regles que pour un cookie colle). */
+    static boolean cookieValide(String nom, String valeur) {
+        return nom != null && valeur != null && NOM.matcher(nom).matches() && VALEUR.matcher(valeur).matches();
     }
 
     /** Lecture d'un en-tete Cookie colle ; null si un seul element est invalide. */
@@ -104,6 +133,8 @@ public final class SessionExtranet {
         derniereReussite = null;
         expireeLe = null;
         definiePar = null;
+        mode = null;
+        echecConnexion = null;
     }
 
     public synchronized boolean utilisable() {
@@ -170,7 +201,10 @@ public final class SessionExtranet {
                 .put("definieLe", definieLe == null ? JSONObject.NULL : definieLe.toString())
                 .put("definiePar", definiePar == null ? JSONObject.NULL : definiePar)
                 .put("derniereReussite", derniereReussite == null ? JSONObject.NULL : derniereReussite.toString())
-                .put("expireeLe", expireeLe == null ? JSONObject.NULL : expireeLe.toString());
+                .put("expireeLe", expireeLe == null ? JSONObject.NULL : expireeLe.toString())
+                .put("mode", mode == null ? JSONObject.NULL : mode)
+                .put("derniereConnexion", derniereConnexion == null ? JSONObject.NULL : derniereConnexion.toString())
+                .put("echecConnexion", echecConnexion == null ? JSONObject.NULL : echecConnexion);
     }
 
     @Override

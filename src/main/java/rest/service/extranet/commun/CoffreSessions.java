@@ -11,6 +11,7 @@ public final class CoffreSessions {
 
     private static final Map<SourceExtranet, SessionExtranet> SESSIONS = new EnumMap<>(SourceExtranet.class);
     private static final Map<SourceExtranet, TransportExtranet> TRANSPORTS = new EnumMap<>(SourceExtranet.class);
+    private static final Map<SourceExtranet, ConnexionExtranet> CONNEXIONS = new EnumMap<>(SourceExtranet.class);
 
     static {
         for (SourceExtranet s : SourceExtranet.values()) {
@@ -26,7 +27,16 @@ public final class CoffreSessions {
     }
 
     public static synchronized TransportExtranet transport(SourceExtranet s) {
-        return TRANSPORTS.computeIfAbsent(s,
-                x -> new TransportExtranet(SESSIONS.get(x), ExtranetConfiguration.duServeur()));
+        return TRANSPORTS.computeIfAbsent(s, x -> {
+            TransportExtranet t = new TransportExtranet(SESSIONS.get(x), ExtranetConfiguration.duServeur());
+            t.connexion(connexion(x));
+            return t;
+        });
+    }
+
+    /** Connexion automatique de l'extranet (identifiants chargés par le service avant chaque usage). */
+    public static synchronized ConnexionExtranet connexion(SourceExtranet s) {
+        return CONNEXIONS.computeIfAbsent(s,
+                x -> new ConnexionExtranet(SESSIONS.get(x), ExtranetConfiguration.duServeur()));
     }
 }

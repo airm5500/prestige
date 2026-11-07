@@ -11,7 +11,9 @@ import javax.persistence.PersistenceContext;
 import org.apache.commons.lang3.StringUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import rest.service.extranet.commun.ChiffrementExtranet;
 import rest.service.extranet.commun.CoffreSessions;
+import rest.service.extranet.commun.ComptesExtranet;
 import rest.service.extranet.commun.ExtranetException;
 import rest.service.extranet.commun.JournalCollecte;
 import rest.service.extranet.commun.SessionExtranet;
@@ -62,13 +64,75 @@ public class ExtranetService {
 
     /* ============================================================ sessions */
 
-    /** Etat des sessions de tous les extranets (jamais leur valeur). */
+    /** Etat des sessions de tous les extranets (jamais leur valeur) et des identifiants (jamais le mot de passe). */
     public JSONObject sessions() {
         JSONArray l = new JSONArray();
+        ComptesExtranet comptes = comptes();
         for (SourceExtranet s : SourceExtranet.values()) {
-            l.put(CoffreSessions.session(s).publique());
+            l.put(CoffreSessions.session(s).publique().put("compte", comptes.publique(s)));
         }
         return new JSONObject().put("success", true).put("data", l);
+    }
+
+    private ComptesExtranet comptes() {
+        return new ComptesExtranet(em, ChiffrementExtranet.duServeur());
+    }
+
+    /**
+     * Donne a la connexion automatique les identifiants enregistres (ou aucun). Appele avant chaque collecte : une
+     * modification faite sur un autre poste est prise en compte.
+     *
+     * @return null si tout va bien, sinon le motif (mot de passe indechiffrable : cle changee)
+     */
+    private String chargerIdentifiants(SourceExtranet s) {
+        try {
+            CoffreSessions.connexion(s).identifiants(comptes().identifiants(s));
+            return null;
+        } catch (java.security.GeneralSecurityException e) {
+            CoffreSessions.connexion(s).identifiants(null);
+            LOG.log(Level.WARNING, "Identifiants {0} illisibles ({1})",
+                    new Object[] { s, e.getClass().getSimpleName() });
+            return "Mot de passe enregistré illisible (clé du serveur changée) : saisissez-le de nouveau";
+        }
+    }
+
+    /** Corps : identifiant, motDePasse (vide : inchange). Administrateur seulement (controle dans l'API). */
+    public JSONObject enregistrerCompte(SourceExtranet s, String identifiant, String motDePasse, String utilisateur) {
+        String refus;
+        try {
+            refus = comptes().enregistrer(s, identifiant, motDePasse, utilisateur);
+        } catch (java.security.GeneralSecurityException e) {
+            LOG.log(Level.WARNING, "Chiffrement {0} impossible ({1})",
+                    new Object[] { s, e.getClass().getSimpleName() });
+            refus = "Chiffrement du mot de passe impossible sur ce serveur";
+        }
+        if (refus != null) {
+            return new JSONObject().put("success", false).put("msg", refus);
+        }
+        em.flush();
+        chargerIdentifiants(s);
+        return new JSONObject().put("success", true).put("compte", comptes().publique(s));
+    }
+
+    public JSONObject effacerCompte(SourceExtranet s) {
+        comptes().effacer(s);
+        CoffreSessions.connexion(s).identifiants(null);
+        return new JSONObject().put("success", true).put("compte", comptes().publique(s));
+    }
+
+    /** Connexion maintenant avec les identifiants enregistres (bouton « Se connecter »). */
+    public JSONObject seConnecter(SourceExtranet s) {
+        String motif = chargerIdentifiants(s);
+        if (motif != null) {
+            return new JSONObject().put("success", false).put("msg", motif);
+        }
+        try {
+            CoffreSessions.connexion(s).connecter();
+            return new JSONObject().put("success", true).put("session", CoffreSessions.session(s).publique());
+        } catch (ExtranetException e) {
+            return new JSONObject().put("success", false).put("nature", e.nature().name()).put("msg", e.getMessage())
+                    .put("session", CoffreSessions.session(s).publique());
+        }
     }
 
     public JSONObject definirSession(SourceExtranet s, String cookies, String utilisateur) {
@@ -118,6 +182,7 @@ public class ExtranetService {
 
     private JSONObject collecter(SourceExtranet s, String module, String parametres, String utilisateur,
             Travail travail) {
+        chargerIdentifiants(s);
         JournalCollecte journal = new JournalCollecte(em);
         long id = journal.ouvrir(s, module, parametres, utilisateur);
         try {
@@ -258,6 +323,7 @@ public class ExtranetService {
     public JSONObject collecterReappro(String utilisateur) {
         JournalCollecte journal = new JournalCollecte(em);
         SourceExtranet s = SourceExtranet.UBIPHARM;
+        chargerIdentifiants(s);
         long id = journal.ouvrir(s, ReapproCollecteur.MODULE, null, utilisateur);
         try {
             ReapproCollecteur.Resultat r = ReapproCollecteur.lire(CoffreSessions.transport(s),
@@ -281,6 +347,7 @@ public class ExtranetService {
     }
 
     public JSONObject collecterNouveaux(String utilisateur) {
+        chargerIdentifiants(SourceExtranet.UBIPHARM);
         JournalCollecte journal = new JournalCollecte(em);
         try {
             long id = new NouveauxProduitsCollecteur(CoffreSessions.transport(SourceExtranet.UBIPHARM))

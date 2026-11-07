@@ -103,6 +103,63 @@ public class ExtranetRessource {
         return s == null ? sourceInconnue() : ok(service.effacerSession(s));
     }
 
+    /**
+     * Corps : {"identifiant": "...", "motDePasse": "..."} (mot de passe vide : inchange) ; administrateur seulement.
+     */
+    @PUT
+    @Path("comptes/{source}")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Response enregistrerCompte(@PathParam("source") String source, String corps) {
+        Response r = refus();
+        if (r != null) {
+            return r;
+        }
+        if (!administrateur()) {
+            return Droits.interdit("Renseigner les identifiants d'un extranet (administrateur)");
+        }
+        SourceExtranet s = SourceExtranet.lire(source);
+        if (s == null) {
+            return sourceInconnue();
+        }
+        JSONObject in;
+        try {
+            in = new JSONObject(corps == null ? "{}" : corps);
+        } catch (Exception e) {
+            in = new JSONObject();
+        }
+        return ok(service.enregistrerCompte(s, in.optString("identifiant", null), in.optString("motDePasse", null),
+                login()));
+    }
+
+    @DELETE
+    @Path("comptes/{source}")
+    public Response effacerCompte(@PathParam("source") String source) {
+        Response r = refus();
+        if (r != null) {
+            return r;
+        }
+        if (!administrateur()) {
+            return Droits.interdit("Effacer les identifiants d'un extranet (administrateur)");
+        }
+        SourceExtranet s = SourceExtranet.lire(source);
+        return s == null ? sourceInconnue() : ok(service.effacerCompte(s));
+    }
+
+    /** Connexion maintenant avec les identifiants enregistres ; administrateur seulement. */
+    @POST
+    @Path("comptes/{source}/connexion")
+    public Response seConnecter(@PathParam("source") String source) {
+        Response r = refus();
+        if (r != null) {
+            return r;
+        }
+        if (!administrateur()) {
+            return Droits.interdit("Connecter un extranet (administrateur)");
+        }
+        SourceExtranet s = SourceExtranet.lire(source);
+        return s == null ? sourceInconnue() : ok(service.seConnecter(s));
+    }
+
     @GET
     @Path("{source}/collectes")
     public Response collectes(@PathParam("source") String source, @QueryParam("module") String module,

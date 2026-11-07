@@ -15,7 +15,9 @@ public class ExtranetException extends Exception {
         /** Reponse recue mais pas du type ou du schema attendu. */
         REPONSE_INATTENDUE,
         /** Pagination incoherente : page vide, repetee, total qui change, limite atteinte. */
-        PAGINATION
+        PAGINATION,
+        /** Connexion automatique impossible : identifiants refuses, captcha, formulaire introuvable. */
+        CONNEXION_REFUSEE
     }
 
     private final Nature nature;

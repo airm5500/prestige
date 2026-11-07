@@ -44,6 +44,8 @@ public final class TransportExtranet {
     private final Object verrou = new Object();
     private long dernierAppel;
     private int appels;
+    /** Connexion automatique (identifiants enregistres) ; null : session collee seulement. */
+    private volatile ConnexionExtranet connexion;
 
     public TransportExtranet(SessionExtranet session, ExtranetConfiguration conf) {
         this.session = session;
@@ -52,6 +54,10 @@ public final class TransportExtranet {
         this.pauseMs = conf.pauseMs(s);
         this.delai = Duration.ofMillis(conf.delaiMs(s));
         this.client = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NEVER).connectTimeout(delai).build();
+    }
+
+    void connexion(ConnexionExtranet c) {
+        this.connexion = c;
     }
 
     public SessionExtranet session() {
@@ -81,10 +87,29 @@ public final class TransportExtranet {
         if (referer != null) {
             verifierChemin(referer);
         }
+        ConnexionExtranet c = connexion;
         if (!session.utilisable()) {
-            throw new ExtranetException(ExtranetException.Nature.SESSION_ABSENTE,
-                    "Aucune session valide pour " + session.source() + " : un administrateur doit la renseigner");
+            if (c == null || !c.disponible()) {
+                throw new ExtranetException(ExtranetException.Nature.SESSION_ABSENTE, "Aucune session valide pour "
+                        + session.source() + " : un administrateur doit renseigner les identifiants ou un cookie");
+            }
+            c.connecter();
+            return envoyer(chemin, parametres, attendu, referer);
         }
+        try {
+            return envoyer(chemin, parametres, attendu, referer);
+        } catch (ExtranetException e) {
+            /* session expiree : une seule reconnexion avec les identifiants enregistres, puis le meme appel */
+            if (e.nature() != ExtranetException.Nature.SESSION_EXPIREE || c == null || !c.disponible()) {
+                throw e;
+            }
+            c.connecter();
+            return envoyer(chemin, parametres, attendu, referer);
+        }
+    }
+
+    private ReponseExtranet envoyer(String chemin, Map<String, String> parametres, Attendu attendu, String referer)
+            throws ExtranetException {
         URI uri = URI.create(adresse + chemin + requete(parametres));
         HttpRequest.Builder b = HttpRequest.newBuilder(uri).GET().timeout(delai).header("User-Agent", "Prestige")
                 .header("Cookie", session.enTeteCookie());

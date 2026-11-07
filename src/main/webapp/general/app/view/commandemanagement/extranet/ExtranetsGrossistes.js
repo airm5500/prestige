@@ -207,10 +207,34 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
                 xtype: 'fieldset', title: libelle, itemId: 'exSession' + source, padding: 10,
                 items: [
                     {xtype: 'label', itemId: 'exEtat' + source, text: '...'},
+                    {xtype: 'component', itemId: 'exCompteEtat' + source, margin: '6 0 0 0', html: ''},
+                    {xtype: 'container', layout: 'hbox', margin: '8 0 0 0', itemId: 'exCompte' + source, hidden: true,
+                        items: [
+                            {xtype: 'textfield', itemId: 'exIdentifiant' + source, width: 260, maxLength: 200,
+                                fieldLabel: 'Identifiant', labelWidth: 70, enforceMaxLength: true,
+                                inputAttrTpl: 'autocomplete="off"'},
+                            {xtype: 'textfield', itemId: 'exMotDePasse' + source, inputType: 'password', width: 260,
+                                maxLength: 200, enforceMaxLength: true, fieldLabel: 'Mot de passe', labelWidth: 80,
+                                margin: '0 0 0 8', inputAttrTpl: 'autocomplete="new-password"'},
+                            {xtype: 'button', text: 'Enregistrer', itemId: 'exCompteEnregistrer' + source,
+                                margin: '0 0 0 6', handler: function () {
+                                    me.enregistrerCompte(source);
+                                }},
+                            {xtype: 'button', text: 'Se connecter', itemId: 'exConnecter' + source,
+                                margin: '0 0 0 6', handler: function () {
+                                    me.seConnecter(source);
+                                }},
+                            {xtype: 'button', text: 'Effacer les identifiants', itemId: 'exCompteEffacer' + source,
+                                margin: '0 0 0 6', handler: function (b) {
+                                    me.confirmerDansBouton(b, 'Confirmer l\'effacement', function () {
+                                        me.effacerCompte(source);
+                                    });
+                                }}
+                        ]},
                     {xtype: 'container', layout: 'hbox', margin: '8 0 0 0', itemId: 'exSaisie' + source, hidden: true,
                         items: [
                             {xtype: 'textfield', itemId: 'exCookie' + source, inputType: 'password', width: 420,
-                                emptyText: aide, fieldLabel: 'Cookie', labelWidth: 50},
+                                emptyText: aide, fieldLabel: 'ou cookie', labelWidth: 60},
                             {xtype: 'button', text: 'Enregistrer', margin: '0 0 0 6', handler: function () {
                                     me.definirSession(source);
                                 }},
@@ -227,11 +251,11 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
         return {
             title: 'Sessions', itemId: 'exOngletSessions', autoScroll: true, bodyPadding: 12,
             items: [
-                {xtype: 'component', margin: '0 0 10 0', html: '<div style="color:#555">Connectez-vous à l\'extranet '
-                            + 'dans votre navigateur, puis copiez la valeur du cookie de session (outils de '
-                            + 'développement &gt; Application &gt; Cookies). Prestige la garde en mémoire du serveur '
-                            + 'seulement : elle n\'est ni enregistrée, ni réaffichée, et disparaît au redémarrage. '
-                            + 'Réservé à l\'administrateur.</div>'},
+                {xtype: 'component', margin: '0 0 10 0', html: '<div style="color:#555">Saisissez l\'identifiant et '
+                            + 'le mot de passe de chaque extranet : Prestige se connecte seul et se reconnecte quand '
+                            + 'la session expire. Le mot de passe est chiffré sur le serveur et n\'est jamais '
+                            + 'réaffiché (laisser le champ vide garde l\'ancien). En secours, un cookie de session '
+                            + 'copié depuis le navigateur peut être collé. Réservé à l\'administrateur.</div>'},
                 bloc('UBIPHARM', 'Ubipharm Côte d\'Ivoire', 'SESSIONID=...'),
                 bloc('TEDIS', 'TEDIS', 'nom=valeur; nom2=valeur2'),
                 {xtype: 'label', itemId: 'exSessionsMsg'}
@@ -258,8 +282,85 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
                 if (saisie) {
                     saisie.setVisible(r.administrateur === true);
                 }
+                me.afficherCompte(s, r.administrateur === true);
             });
         }, me.down('#exOngletSessions'));
+    },
+
+    afficherCompte: function (s, admin) {
+        var me = this, c = s.compte || {}, etat = me.down('#exCompteEtat' + s.source),
+                bloc = me.down('#exCompte' + s.source), id = me.down('#exIdentifiant' + s.source),
+                h = function (v) {
+                    return Ext.String.htmlEncode(String(v).replace('T', ' ').substring(0, 16));
+                };
+        if (etat) {
+            etat.update(c.enregistre
+                    ? 'Identifiants enregistrés : <b>' + Ext.String.htmlEncode(c.identifiant || '') + '</b>, mot de passe '
+                    + (c.motDePasseEnregistre ? 'enregistré' : 'absent')
+                    + (c.modifieLe ? ' — modifiés le ' + h(c.modifieLe) + (c.modifiePar ? ' par '
+                            + Ext.String.htmlEncode(c.modifiePar) : '') : '')
+                    + (s.mode === 'CONNEXION' && s.derniereConnexion && !s.echecConnexion
+                            ? '<br><span style="color:#27ae60">Connecté automatiquement le ' + h(s.derniereConnexion)
+                            + '</span>' : '')
+                    + (s.echecConnexion ? '<br><span style="color:#c0392b">Dernière connexion échouée : '
+                            + Ext.String.htmlEncode(s.echecConnexion) + '</span>' : '')
+                    : 'Aucun identifiant enregistré');
+        }
+        if (bloc) {
+            bloc.setVisible(admin);
+        }
+        if (id && !id.isDirty() && !id.hasFocus) {
+            id.setValue(c.identifiant || '');
+            id.resetOriginalValue();
+        }
+        var connecter = me.down('#exConnecter' + s.source), effacer = me.down('#exCompteEffacer' + s.source);
+        if (connecter) {
+            connecter.setDisabled(!c.enregistre);
+        }
+        if (effacer) {
+            effacer.setDisabled(!c.enregistre);
+        }
+    },
+
+    enregistrerCompte: function (source) {
+        var me = this, id = me.down('#exIdentifiant' + source), mdp = me.down('#exMotDePasse' + source),
+                b = me.down('#exCompteEnregistrer' + source);
+        b.disable();
+        Ext.Ajax.request({
+            method: 'PUT', url: me.URL + 'comptes/' + source,
+            jsonData: {identifiant: Ext.String.trim(id.getValue() || ''), motDePasse: mdp.getValue() || ''},
+            callback: function (o, ok, rep) {
+                b.enable();
+                mdp.setValue('');
+                var r = Ext.decode(rep.responseText, true) || {success: false, msg: 'Erreur ' + rep.status};
+                if (r.success) {
+                    id.resetOriginalValue();
+                }
+                me.message('#exSessionsMsg', r, 'Identifiants enregistrés');
+                me.chargerSessions();
+            }
+        });
+    },
+
+    seConnecter: function (source) {
+        var me = this;
+        me.appel('POST', 'comptes/' + source + '/connexion', function (r) {
+            me.message('#exSessionsMsg', r, 'Connecté à l\'extranet');
+            me.chargerSessions();
+        }, me.down('#exSession' + source));
+    },
+
+    effacerCompte: function (source) {
+        var me = this;
+        me.appel('DELETE', 'comptes/' + source, function (r) {
+            var id = me.down('#exIdentifiant' + source);
+            if (id) {
+                id.setValue('');
+                id.resetOriginalValue();
+            }
+            me.message('#exSessionsMsg', r, 'Identifiants effacés');
+            me.chargerSessions();
+        });
     },
 
     definirSession: function (source) {

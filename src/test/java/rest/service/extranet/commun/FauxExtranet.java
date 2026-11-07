@@ -49,6 +49,8 @@ public final class FauxExtranet implements AutoCloseable {
         public final String ajax;
         public final String referer;
         public final long instant;
+        /** Corps recu (formulaire de connexion), vide pour un GET. */
+        public String corps = "";
 
         Appel(String methode, String chemin, String requete, String cookie, String ajax, String referer) {
             this.methode = methode;
@@ -67,7 +69,13 @@ public final class FauxExtranet implements AutoCloseable {
     }
 
     private final HttpServer serveur;
-    private final Map<String, Repondeur> routes = new ConcurrentHashMap<>();
+
+    /** Reponse selon l'appel complet (methode, cookie, corps). */
+    public interface RepondeurAppel {
+        Reponse repondre(Appel a);
+    }
+
+    private final Map<String, RepondeurAppel> routes = new ConcurrentHashMap<>();
     private final List<Appel> appels = Collections.synchronizedList(new ArrayList<>());
 
     public FauxExtranet() throws IOException {
@@ -75,10 +83,12 @@ public final class FauxExtranet implements AutoCloseable {
         serveur.createContext("/", ex -> {
             String chemin = ex.getRequestURI().getPath();
             String req = ex.getRequestURI().getRawQuery();
-            appels.add(new Appel(ex.getRequestMethod(), chemin, req, ex.getRequestHeaders().getFirst("Cookie"),
-                    ex.getRequestHeaders().getFirst("X-Requested-With"), ex.getRequestHeaders().getFirst("Referer")));
-            Repondeur r = routes.get(chemin);
-            Reponse rep = r == null ? null : r.repondre(req);
+            Appel appel = new Appel(ex.getRequestMethod(), chemin, req, ex.getRequestHeaders().getFirst("Cookie"),
+                    ex.getRequestHeaders().getFirst("X-Requested-With"), ex.getRequestHeaders().getFirst("Referer"));
+            appel.corps = new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+            appels.add(appel);
+            RepondeurAppel r = routes.get(chemin);
+            Reponse rep = r == null ? null : r.repondre(appel);
             if (rep == null) {
                 rep = new Reponse(404, "text/plain", "absent".getBytes(StandardCharsets.UTF_8), null);
             }
@@ -100,6 +110,11 @@ public final class FauxExtranet implements AutoCloseable {
     }
 
     public FauxExtranet route(String chemin, Repondeur r) {
+        routes.put(chemin, a -> r.repondre(a.requete));
+        return this;
+    }
+
+    public FauxExtranet routeAppel(String chemin, RepondeurAppel r) {
         routes.put(chemin, r);
         return this;
     }
@@ -122,6 +137,21 @@ public final class FauxExtranet implements AutoCloseable {
         }
         return new TransportExtranet(session, ExtranetConfiguration
                 .de(Map.of(s.prefixeCle() + "_URL", adresse(), s.prefixeCle() + "_PAUSE_MS", String.valueOf(pauseMs))));
+    }
+
+    /** Transport sans session, avec connexion automatique et identifiants donnes (null : aucun). */
+    public TransportExtranet transportAvecConnexion(SourceExtranet s, Map<String, String> reglages,
+            ConnexionExtranet.Identifiants id) {
+        SessionExtranet session = new SessionExtranet(s);
+        Map<String, String> r = new java.util.HashMap<>(reglages == null ? Map.of() : reglages);
+        r.put(s.prefixeCle() + "_URL", adresse());
+        r.put(s.prefixeCle() + "_PAUSE_MS", "0");
+        ExtranetConfiguration conf = ExtranetConfiguration.de(r);
+        TransportExtranet t = new TransportExtranet(session, conf);
+        ConnexionExtranet c = new ConnexionExtranet(session, conf);
+        c.identifiants(id);
+        t.connexion(c);
+        return t;
     }
 
     @Override
