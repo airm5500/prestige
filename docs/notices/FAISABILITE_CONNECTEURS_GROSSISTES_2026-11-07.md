@@ -34,8 +34,8 @@ reste à capturer.
   Ubipharm** (`data-pscode`, champ `pscode` ; même préfixe `ps` que `pslib`, `pspven`, `psppub`…) **[probable]**.
   Prestige a déjà une table pour ce genre de code : `t_famille_grossiste.str_CODE_ARTICLE` (code article chez un
   grossiste), que PharmaML utilise déjà. C'est une question à trancher avant d'implémenter le point 15.
-- **Estimation** : socle + Ubipharm (fiche, réappro, réclamations, nouveaux produits) + écran : **9 à 11 jours**.
-  Ensemble complet, TEDIS et connexion automatisée compris : **15 à 19 jours**, sous réserve des captures.
+- **Estimation** : socle + Ubipharm (fiche, réappro, réclamations, nouveaux produits) + écran : **9 à 11 jours de charge**, soit **environ 5 jours calendaires** avec des sessions en parallèle.
+  Ensemble complet : **15 à 19 jours de charge**, **7 à 8 jours calendaires**, sous réserve des captures.
 
 ---
 
@@ -280,6 +280,24 @@ n'appellent jamais les extranets : un faux serveur local sert les réponses enre
 
 Restent hors estimation tant qu'ils sont bloqués : historique des réclamations TEDIS, liste des quinzaines,
 `miseEnPlace`.
+
+**Ces jours sont de la charge, pas du délai.** Avec plusieurs sessions en parallèle, le calendrier devient :
+
+| Jour | Travail | Sessions |
+|---|---|---|
+| J1 | Socle (étape 1) : il fixe les interfaces, la table `extranet_collecte` et le faux serveur ; tout le reste en dépend | 1 |
+| J2-J3 | Étapes 2, 3, 4 et 5 en parallèle : fichiers distincts, numéros de migration Flyway attribués d'avance pour éviter les collisions | 4 |
+| J4 | API + écran + menu (étape 6), puis tests d'écran | 1 |
+| J5 | Tests de rapprochement et de bilan, contre-vérification Codex, corrections | 1 |
+| dès réception des captures | TEDIS (7), modules en attente (8), connexion B ou D (9) en parallèle | 2-3 |
+
+Soit **environ 5 jours calendaires pour Ubipharm utilisable**, et **7 à 8 jours pour l'ensemble**.
+
+Ce qui ne se parallélise pas :
+- les captures et les réponses de l'utilisateur (section 6) : sans session valide ni réponses enregistrées, aucun
+  module ne peut être testé ;
+- les tests d'écran, lancés un par un (règle du projet), sur un nombre limité de domaines Payara ;
+- la contre-vérification et la recette par l'utilisateur.
 
 Tests prévus (aperçu) :
 - **Cohérence** : pagination (pages = ⌈total / longueur⌉, arrêt sur page vide ou répétée, total qui change) sur des
