@@ -166,16 +166,30 @@ function attendu(c) {
     const nbRef = poserReferences(copies);
     const r0 = await serie();
     ok('Références d\'essai posées, différentes par tiers-payant (' + nbRef + ') : elles pèsent sur le calcul', nbRef > 0 && comparer(s0, r0).length > 0, comparer(s0, r0).length + ' ventes dont le net a changé');
-    const fige = { sansReference: parCle(s0), avecReferences: parCle(r0) };
+    /* references posees par copie (origine -> produit|tiers-payant -> valeur/taux) : elles dependent de l'echantillon
+       (une reference partagee prend le taux de la premiere copie qui la pose) ; seules les copies dont les references
+       sont les memes qu'au lancement fige se comparent « avec references » */
+    const refsParCle = {}; copies.forEach((c) => { refsParCle[c.origine] = Object.keys(c.refs).sort().map((k) => k + '=' + c.refs[k].valeur + '/' + c.refs[k].taux).join(';'); });
+    const fige = { sansReference: parCle(s0), avecReferences: parCle(r0), refs: refsParCle };
     if (fs.existsSync(FIGE) && process.env.E2E_REFIGER !== '1') {
       const avant = JSON.parse(fs.readFileSync(FIGE, 'utf8'));
       /* seules les ventes presentes dans les deux series se comparent : une vente close plus recente fait sortir la plus
          ancienne de l'echantillon, sans rien dire du calcul */
+      const memesRefs = (k) => k in fige.avecReferences && !!avant.refs && avant.refs[k] === fige.refs[k];
       const dA = comparer(avant.sansReference, fige.sansReference, (k) => k in fige.sansReference),
-        dB = comparer(avant.avecReferences, fige.avecReferences, (k) => k in fige.avecReferences);
+        dB = comparer(avant.avecReferences, fige.avecReferences, memesRefs);
       const communes = Object.keys(avant.sansReference).filter((k) => fige.sansReference[k]).length;
+      const comparables = Object.keys(avant.avecReferences).filter(memesRefs).length;
       ok('Série à 0 sans référence identique au franc près à la série figée (' + communes + ' ventes communes, ' + FIGE + ')', communes >= Math.min(copies.length, 10) && dA.length === 0, dA.slice(0, 3).join(' | '));
-      ok('Série à 0 avec références identique au franc près à la série figée (règle du minimum inchangée)', dB.length === 0, dB.slice(0, 3).join(' | '));
+      if (avant.refs) {
+        ok('Série à 0 avec références identique au franc près à la série figée, sur les ' + comparables + ' copies aux mêmes références (règle du minimum inchangée)',
+          comparables >= 5 && dB.length === 0, dB.slice(0, 3).join(' | '));
+      } else {
+        /* fichier fige d'avant l'enregistrement des references : la serie sans reference (ancre d'avant le lot) est gardee,
+           la serie avec references et ses references sont figees maintenant */
+        fs.writeFileSync(FIGE, JSON.stringify({ sansReference: avant.sansReference, avecReferences: fige.avecReferences, refs: fige.refs }, null, 1));
+        ok('Série à 0 avec références : fichier figé sans les références posées, complété (à comparer au lancement suivant)', fs.existsSync(FIGE));
+      }
     } else {
       fs.writeFileSync(FIGE, JSON.stringify(fige, null, 1));
       ok('Séries à 0 figées dans ' + FIGE + ' (à comparer après la livraison du lot)', fs.existsSync(FIGE));

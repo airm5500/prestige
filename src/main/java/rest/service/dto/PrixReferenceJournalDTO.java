@@ -1,6 +1,7 @@
 package rest.service.dto;
 
 import dal.PrixReferenceJournal;
+import dal.PrixReferenceJournalAction;
 import dal.PrixReferenceType;
 import java.text.SimpleDateFormat;
 import java.util.Objects;
@@ -27,7 +28,10 @@ public class PrixReferenceJournalDTO {
         this.id = j.getId();
         this.date = j.getDateAction() == null ? "" : new SimpleDateFormat("dd/MM/yyyy HH:mm").format(j.getDateAction());
         this.qui = Objects.requireNonNullElse(j.getUtilisateur(), "");
-        this.origine = origine(j.getVenteId(), referenceVente);
+        this.origine = j.getAction() == PrixReferenceJournalAction.ANNULATION
+                ? "Annulation — vente "
+                        + (referenceVente == null || referenceVente.isEmpty() ? j.getVenteId() : referenceVente)
+                : origine(j.getVenteId(), referenceVente);
         this.tiersPayant = Objects.requireNonNullElse(libelleTiersPayant, j.getTiersPayantId());
         this.action = j.getAction() == null ? "" : j.getAction().getLibelle();
         this.avant = resume(j.getAncienneValeur(), j.getAncienTaux(), j.getAncienType());

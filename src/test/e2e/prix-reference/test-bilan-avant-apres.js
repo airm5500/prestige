@@ -5,19 +5,22 @@
  *
  * Operations, par le vrai chemin de l'ecran (cellule cliquee, valeur tapee, Entree) sur une vente assurance de deux
  * lignes (quantites 2 et 1) :
- *  1. P.REF sur la ligne 1                -> + 1 prix_reference (MIX, taux de l'organisme), + 1 journal AJOUT, + 1 taux
- *     de ligne (taux_produit), part de l'organisme et part du client de la vente ouverte recalculees (= regle) ;
- *  2. TAUX 60 sur la ligne 1              -> meme ligne prix_reference modifiee, + 1 journal MODIFICATION, taux de
- *     ligne remplace (pas empile), parts recalculees ;
+ * Plan du 06/11, point 5.1 : une saisie de la caisse est gardee sur la vente (prix_reference_saisie) et n'est ecrite sur
+ * la fiche article (prix_reference + journal) qu'a la cloture.
+ *  1. P.REF sur la ligne 1                -> + 1 saisie gardee (MIX, taux de l'organisme), + 1 taux de ligne
+ *     (taux_produit), part de l'organisme et part du client de la vente ouverte recalculees (= regle) ; fiche et
+ *     journal intacts ;
+ *  2. TAUX 60 sur la ligne 1              -> meme saisie modifiee, taux de ligne remplace (pas empile), parts
+ *     recalculees ;
  *  3. P.REF 0 sur la ligne 1 (refuse)     -> rien ;
  *  4. TAUX 60 a nouveau (sans changement) -> rien ;
- *  5. TAUX 35 sur la ligne 2              -> + 1 prix_reference (prix de vente, 35), + 1 journal AJOUT, + 1 taux de
- *     ligne, parts recalculees ;
+ *  5. TAUX 35 sur la ligne 2              -> + 1 saisie gardee (prix de vente, 35), + 1 taux de ligne, parts recalculees ;
  *  6. parametre a 0, saisie par le service -> 403, rien ;
- *  7. « Supprimer » en fiche article (ligne 1) -> - 1 prix_reference, + 1 journal SUPPRESSION, rien d'autre (la vente
- *     ouverte n'est pas recalculee par la fiche).
- * Jamais : stock, mouvements de produit, caisse, recette, reglement, nombre de ventes, lignes de vente (quantites,
- * prix), nombre d'organismes, prix du produit. Le defaut remis a l'essai : les taux de ligne s'empilaient a chaque
+ *  6 bis. TERMINER LA VENTE               -> - 2 saisies gardees, + 2 prix_reference (valeurs finales), + 2 journal
+ *     AJOUT portant la vente (et rien pour les etats intermediaires) ;
+ *  7. « Supprimer » en fiche article (ligne 1) -> - 1 prix_reference, + 1 journal SUPPRESSION, rien d'autre.
+ * Jamais avant la cloture : stock, mouvements de produit, caisse, recette, reglement, nombre de ventes, lignes de vente
+ * (quantites, prix), nombre d'organismes, prix du produit, fiche article, journal. Le defaut remis a l'essai : les taux de ligne s'empilaient a chaque
  * recalcul (6 lignes taux_produit pour une ligne de vente) ; un seul par ligne et par organisme desormais.
  * Tout est retire a la fin. Lancement seul : node src/test/e2e/prix-reference/test-bilan-avant-apres.js
  */
@@ -42,6 +45,8 @@ const { ok, q, A } = C;
     referencesDesProduits: C.references(P1.id) + ' | ' + C.references(P2.id),
     journal: q('SELECT COUNT(*) FROM prix_reference_journal'),
     journalDesProduits: C.journal(P1.id) + ' | ' + C.journal(P2.id),
+    saisies: q('SELECT COUNT(*) FROM prix_reference_saisie'),
+    saisiesDesProduits: C.saisiesGardees(P1.id) + ' | ' + C.saisiesGardees(P2.id),
     tauxProduit: q('SELECT COUNT(*) FROM taux_produit'),
     ventes: q('SELECT COUNT(*) FROM t_preenregistrement'),
     vente: venteId ? q("SELECT CONCAT_WS('|', str_STATUT, int_PRICE, IFNULL(int_CUST_PART, 'NULL'), IFNULL(int_PRICE_REMISE, 0)) FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID = '" + venteId + "'") : '',
@@ -99,25 +104,24 @@ const { ok, q, A } = C;
     await p.waitForTimeout(1500);
     const t0 = releve();
     ok('Préparation : vente assurance ouverte, quantités 2 et 1, aucune référence sur les deux produits', !!venteId
-      && t0.lignes.indexOf(P1.id + '/2/' + P1.pu + '/' + (2 * P1.pu)) >= 0 && t0.lignes.indexOf(P2.id + '/1/' + P2.pu) >= 0 && t0.referencesDesProduits === 'aucune | aucune', t0.lignes);
+      && t0.lignes.indexOf(P1.id + '/2/' + P1.pu + '/' + (2 * P1.pu)) >= 0 && t0.lignes.indexOf(P2.id + '/1/' + P2.pu) >= 0 && t0.referencesDesProduits === 'aucune | aucune'
+      && t0.saisiesDesProduits === 'aucune | aucune', t0.lignes);
 
     /* 1. P.REF sur la ligne 1 */
     const valeur1 = P1.pu - 200;
     const r1 = await C.saisirEtEnregistrer(p, CIP1, TP, 'valeur', valeur1);
     const t1 = releve();
     ok('1. P.REF ' + valeur1 + ' sur la ligne 1 : accepté', r1.http === 200 && r1.success === true, JSON.stringify(r1).slice(0, 200));
-    bilan('1. Ajout par P.REF', t0, t1, ['prixReference', 'referencesDesProduits', 'journal', 'journalDesProduits', ...AVEC_RECALCUL], (a, b) => compte(b, 'prixReference') === compte(a, 'prixReference') + 1
-      && compte(b, 'journal') === compte(a, 'journal') + 1 && b.referencesDesProduits === TP + '/MIX_TAUX_PRIX/' + valeur1 + '/' + TAUX_TP + '/1 | aucune'
-      && new RegExp('^AJOUT/NULL/' + valeur1 + '/NULL/' + TAUX_TP + '/MIX_TAUX_PRIX/' + venteId + '/' + A.ADMIN + '/[^/]+/' + TP + ' \\| aucun$').test(b.journalDesProduits)
+    bilan('1. Ajout par P.REF', t0, t1, ['saisies', 'saisiesDesProduits', ...AVEC_RECALCUL], (a, b) => compte(b, 'saisies') === compte(a, 'saisies') + 1
+      && b.saisiesDesProduits === TP + '/MIX_TAUX_PRIX/' + valeur1 + '/' + TAUX_TP + '/1 | aucune'
       && compte(b, 'tauxProduit') === compte(a, 'tauxProduit') + 1 && partsRecalculees(b, regle(valeur1, TAUX_TP, TAUX_TP)));
 
     /* 2. TAUX 60 sur la ligne 1 */
     const r2 = await C.saisirEtEnregistrer(p, CIP1, TP, 'taux', 60);
     const t2 = releve();
     ok('2. TAUX 60 sur la ligne 1 : accepté', r2.http === 200 && r2.success === true, JSON.stringify(r2).slice(0, 200));
-    bilan('2. Modification du taux', t1, t2, ['referencesDesProduits', 'journal', 'journalDesProduits', 'vente', 'organismesDeLaVente'], (a, b) => compte(b, 'prixReference') === compte(a, 'prixReference')
-      && compte(b, 'journal') === compte(a, 'journal') + 1 && b.referencesDesProduits === TP + '/MIX_TAUX_PRIX/' + valeur1 + '/60/1 | aucune'
-      && new RegExp(' ; MODIFICATION/' + valeur1 + '/' + valeur1 + '/' + TAUX_TP + '/60/MIX_TAUX_PRIX/' + venteId + '/' + A.ADMIN + '/[^/]+/' + TP + ' \\| aucun$').test(b.journalDesProduits)
+    bilan('2. Modification du taux', t1, t2, ['saisiesDesProduits', 'vente', 'organismesDeLaVente'], (a, b) => compte(b, 'saisies') === compte(a, 'saisies')
+      && b.saisiesDesProduits === TP + '/MIX_TAUX_PRIX/' + valeur1 + '/60/1 | aucune'
       && compte(b, 'tauxProduit') === compte(a, 'tauxProduit') && partsRecalculees(b, regle(valeur1, 60, TAUX_TP)));
     const tauxLigne1 = q("SELECT IFNULL(GROUP_CONCAT(ROUND(t.taux * 100)), 'aucun') FROM taux_produit t JOIN t_preenregistrement_detail d ON d.lg_PREENREGISTREMENT_DETAIL_ID = t.sale_iem_id"
       + " WHERE d.lg_PREENREGISTREMENT_ID = '" + venteId + "' AND d.lg_FAMILLE_ID = '" + P1.id + "'");
@@ -146,9 +150,8 @@ const { ok, q, A } = C;
     const r5 = await C.saisirEtEnregistrer(p, CIP2, TP, 'taux', 35);
     const t5 = releve();
     ok('5. TAUX 35 sur la ligne 2 : accepté', r5.http === 200 && r5.success === true, JSON.stringify(r5).slice(0, 200));
-    bilan('5. Ajout par TAUX', t4, t5, ['prixReference', 'referencesDesProduits', 'journal', 'journalDesProduits', ...AVEC_RECALCUL], (a, b) => compte(b, 'prixReference') === compte(a, 'prixReference') + 1
-      && compte(b, 'journal') === compte(a, 'journal') + 1 && b.referencesDesProduits === TP + '/MIX_TAUX_PRIX/' + valeur1 + '/60/1 | ' + TP + '/MIX_TAUX_PRIX/' + P2.pu + '/35/1'
-      && new RegExp(' \\| AJOUT/NULL/' + P2.pu + '/NULL/35/MIX_TAUX_PRIX/' + venteId + '/' + A.ADMIN + '/[^/]+/' + TP + '$').test(b.journalDesProduits)
+    bilan('5. Ajout par TAUX', t4, t5, ['saisies', 'saisiesDesProduits', ...AVEC_RECALCUL], (a, b) => compte(b, 'saisies') === compte(a, 'saisies') + 1
+      && b.saisiesDesProduits === TP + '/MIX_TAUX_PRIX/' + valeur1 + '/60/1 | ' + TP + '/MIX_TAUX_PRIX/' + P2.pu + '/35/1'
       && compte(b, 'tauxProduit') === compte(a, 'tauxProduit') + 1 && partsRecalculees(b, regle(valeur1, 60, 35)));
 
     /* 6. parametre a 0 : le service refuse, rien n'est ecrit */
@@ -160,7 +163,29 @@ const { ok, q, A } = C;
     ok('6. Paramètre à 0 : la saisie par le service est refusée (403)', put === 403, put);
     bilan('6. Paramètre à 0', t5, t6, ['parametre']);
     A.exec("UPDATE t_parameters SET str_VALUE = '1' WHERE str_KEY = 'KEY_PRIX_REF_CAISSE'");
+    const t6a = releve();
+
+    /* avant la cloture : la vente, ses lignes, le stock, la caisse, la fiche et le journal n'ont jamais bouge */
+    const jamais = ['ventes', 'lignes', 'organismes', 'caisse', 'mouvementsProduit', 'recettes', 'reglements', 'stock', 'produits',
+      'prixReference', 'referencesDesProduits', 'journal', 'journalDesProduits'];
+    ok('Avant la clôture : stock, mouvements de produit, caisse, recettes, règlements, nombre de ventes, lignes de vente, prix du produit, fiche article et journal strictement inchangés',
+      jamais.every((k) => t0[k] === t6a[k]), jamais.filter((k) => t0[k] !== t6a[k]).map((k) => k + ' : ' + t0[k] + ' -> ' + t6a[k]).join(' ; '));
+    ok('Avant la clôture : deux taux de ligne en tout (un par ligne avec référence), deux saisies gardées, la vente toujours ouverte',
+      compte(t6a, 'tauxProduit') === compte(t0, 'tauxProduit') + 2 && compte(t6a, 'saisies') === compte(t0, 'saisies') + 2
+      && t6a.vente.indexOf('is_Process|' + prixVente() + '|') === 0, t0.tauxProduit + ' -> ' + t6a.tauxProduit + ' ; ' + t6a.vente);
+
+    /* 6 bis. TERMINER LA VENTE : les saisies partent sur la fiche */
+    const L = require('../ligne-comptant/commun');
+    const clot = await L.terminerVente(p, false);
+    ok('6 bis. TERMINER LA VENTE : succès', clot.success === true, JSON.stringify(clot).slice(0, 200));
     const t6b = releve();
+    ok('6 bis. Clôture : - 2 saisies gardées, + 2 prix de référence (valeurs finales), + 2 journal AJOUT portant la vente, rien pour les états intermédiaires',
+      compte(t6b, 'saisies') === compte(t6a, 'saisies') - 2 && t6b.saisiesDesProduits === 'aucune | aucune'
+      && compte(t6b, 'prixReference') === compte(t6a, 'prixReference') + 2 && compte(t6b, 'journal') === compte(t6a, 'journal') + 2
+      && t6b.referencesDesProduits === TP + '/MIX_TAUX_PRIX/' + valeur1 + '/60/1 | ' + TP + '/MIX_TAUX_PRIX/' + P2.pu + '/35/1'
+      && new RegExp('^AJOUT/NULL/' + valeur1 + '/NULL/60/MIX_TAUX_PRIX/' + venteId + '/' + A.ADMIN + '/[^/]+/' + TP
+        + ' \\| AJOUT/NULL/' + P2.pu + '/NULL/35/MIX_TAUX_PRIX/' + venteId + '/' + A.ADMIN + '/[^/]+/' + TP + '$').test(t6b.journalDesProduits),
+      t6b.saisiesDesProduits + ' || ' + t6b.referencesDesProduits + ' || ' + t6b.journalDesProduits);
 
     /* 7. suppression en fiche article de la reference de la ligne 1 */
     await C.ouvrirEcran(p, 'famillemanager');
@@ -190,12 +215,6 @@ const { ok, q, A } = C;
       && compte(b, 'journal') === compte(a, 'journal') + 1 && b.referencesDesProduits === 'aucune | ' + TP + '/MIX_TAUX_PRIX/' + P2.pu + '/35/1'
       && new RegExp(' ; SUPPRESSION/' + valeur1 + '/NULL/60/NULL/NULL/NULL/' + A.ADMIN + '/[^/]+/' + TP + ' \\| ').test(b.journalDesProduits));
 
-    /* en tout : la vente, ses lignes, le stock, la caisse, les recettes et les reglements n'ont jamais bouge */
-    const jamais = ['ventes', 'lignes', 'organismes', 'caisse', 'mouvementsProduit', 'recettes', 'reglements', 'stock', 'produits'];
-    ok('Du début à la fin : stock, mouvements de produit, caisse, recettes, règlements, nombre de ventes, lignes de vente et prix du produit strictement inchangés',
-      jamais.every((k) => t0[k] === t7[k]), jamais.filter((k) => t0[k] !== t7[k]).map((k) => k + ' : ' + t0[k] + ' -> ' + t7[k]).join(' ; '));
-    ok('Du début à la fin : deux taux de ligne en tout (un par ligne avec référence), la vente toujours ouverte', compte(t7, 'tauxProduit') === compte(t0, 'tauxProduit') + 2
-      && t7.vente.indexOf('is_Process|' + prixVente() + '|') === 0, t0.tauxProduit + ' -> ' + t7.tauxProduit + ' ; ' + t7.vente);
     ok('Aucune erreur JavaScript', sess.erreurs.length === 0, sess.erreurs.join(' | '));
   } catch (e) {
     ok('Parcours sans exception', false, e.stack + ' ' + sess.erreurs.join(' | '));

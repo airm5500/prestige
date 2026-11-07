@@ -176,4 +176,39 @@ public final class CreditLigne {
         }
         return false;
     }
+
+    /**
+     * Plan du 06/11, point 5.2 : une ligne du ticket n'imprime sa ligne prix/taux (« Taux 70 % : part » ou « P[…] *
+     * T[…%] : part ») que si elle a quelque chose de PROPRE : un prix de reference different du prix de vente, un taux
+     * saisi sur la ligne different de celui de l'organisme, ou une base propre a un organisme (lot Q2.5) differente du
+     * prix de vente. Sinon c'est le taux de l'assurance qui s'applique : rien sous le produit, la part reste comptee
+     * dans le bloc de l'organisme.
+     *
+     * @param tauxLigne
+     *            taux saisi sur la ligne pour chaque organisme (null : aucun)
+     * @param tauxOrganismes
+     *            taux de chaque organisme sur la vente
+     * @param basesPropres
+     *            base unitaire propre de chaque organisme sur la ligne (null : aucune)
+     */
+    public static boolean afficherLigne(Integer prixReference, Integer prixVente, List<Integer> tauxLigne,
+            List<Integer> tauxOrganismes, List<Integer> basesPropres) {
+        if (!prixReference(prixReference, prixVente).isEmpty()) {
+            return true;
+        }
+        for (int t = 0; tauxLigne != null && t < tauxLigne.size(); t++) {
+            Integer tx = tauxLigne.get(t);
+            Integer org = tauxOrganismes == null || t >= tauxOrganismes.size() ? null : tauxOrganismes.get(t);
+            if (tx != null && (org == null || tx.intValue() != org.intValue())) {
+                return true;
+            }
+        }
+        for (int t = 0; basesPropres != null && t < basesPropres.size(); t++) {
+            Integer b = basesPropres.get(t);
+            if (b != null && b > 0 && (prixVente == null || b.intValue() != prixVente.intValue())) {
+                return true;
+            }
+        }
+        return false;
+    }
 }

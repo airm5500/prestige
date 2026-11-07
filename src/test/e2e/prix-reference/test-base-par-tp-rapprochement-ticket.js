@@ -55,9 +55,10 @@ const arrondi5 = (n) => { const m = n % 5; return m <= 2 ? n - m : n - m + 5; };
     let acceptees = 0;
     for (const s of saisies) { const r = await C.saisirEtEnregistrer(p, s[0], s[1], s[2], s[3]); if (r.http === 200 && r.success === true) { acceptees++; } }
     ok('Six saisies de référence acceptées (P.REF et TAUX, deux organismes, deux lignes)', acceptees === 6, acceptees + '/6');
-    ok('Références en base : A ' + refA1 + '/60 et B ' + refB1 + '/30 sur la ligne 1, B ' + refB2 + '/30 sur la ligne 2',
-      C.references(P1.id) === TA + '/MIX_TAUX_PRIX/' + refA1 + '/60/1 ; ' + TB + '/MIX_TAUX_PRIX/' + refB1 + '/30/1'
-      && C.references(P2.id) === TB + '/MIX_TAUX_PRIX/' + refB2 + '/30/1', C.references(P1.id) + ' | ' + C.references(P2.id));
+    ok('Saisies gardées sur la vente : A ' + refA1 + '/60 et B ' + refB1 + '/30 sur la ligne 1, B ' + refB2 + '/30 sur la ligne 2 ; fiche intacte avant la clôture (point 5.1)',
+      C.saisiesGardees(P1.id) === TA + '/MIX_TAUX_PRIX/' + refA1 + '/60/1 ; ' + TB + '/MIX_TAUX_PRIX/' + refB1 + '/30/1'
+      && C.saisiesGardees(P2.id) === TB + '/MIX_TAUX_PRIX/' + refB2 + '/30/1' && C.references(P1.id) === 'aucune' && C.references(P2.id) === 'aucune',
+      C.saisiesGardees(P1.id) + ' | ' + C.saisiesGardees(P2.id) + ' | ' + C.references(P1.id) + ' | ' + C.references(P2.id));
 
     /* la regle : parts attendues par ligne et par organisme */
     const l1A = Math.round(refA1 * 0.6), l1B = Math.min(Math.round(refB1 * 0.3), P1.pu - l1A);
@@ -80,6 +81,10 @@ const arrondi5 = (n) => { const m = n % 5; return m <= 2 ? n - m : n - m + 5; };
     /* cloture par l'ecran, sans impression */
     const clot = await L.terminerVente(p, false);
     ok('TERMINER LA VENTE : succès', clot.http === 200 && clot.success === true, JSON.stringify(clot).slice(0, 300));
+    ok('Après la clôture : fiche = saisies (A ' + refA1 + '/60 et B ' + refB1 + '/30 sur la ligne 1, B ' + refB2 + '/30 sur la ligne 2), plus de saisie gardée',
+      C.references(P1.id) === TA + '/MIX_TAUX_PRIX/' + refA1 + '/60/1 ; ' + TB + '/MIX_TAUX_PRIX/' + refB1 + '/30/1'
+      && C.references(P2.id) === TB + '/MIX_TAUX_PRIX/' + refB2 + '/30/1' && C.saisiesGardees(P1.id) === 'aucune' && C.saisiesGardees(P2.id) === 'aucune',
+      C.references(P1.id) + ' | ' + C.references(P2.id) + ' | ' + C.saisiesGardees(P1.id) + ' | ' + C.saisiesGardees(P2.id));
 
     /* base */
     const tpBase = {}; A.lignesTp(venteId).split(' ; ').forEach((x) => { const c = x.split('/'); tpBase[c[0]] = Number(c[2]); });

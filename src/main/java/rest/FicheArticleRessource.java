@@ -677,7 +677,7 @@ public class FicheArticleRessource {
             @FormParam("bool_SUGGERABLE") String boolSuggerable, @FormParam("bool_REMISE") String boolRemise,
             @FormParam("int_Q1_SEUIL_REAPPRO") String q1SeuilReappro,
             @FormParam("int_Q2_QTE_REAPPRO") String q2QteReappro,
-            @FormParam("code_EAN_FABRIQUANT") String codeEanFabriquant) {
+            @FormParam("code_EAN_FABRIQUANT") String codeEanFabriquant, @FormParam("str_PSCODE") String psCode) {
         HttpSession hs = servletRequest.getSession();
         TUser sessionUser = (TUser) hs.getAttribute(commonparameter.AIRTIME_USER);
         if (sessionUser == null) {
@@ -698,6 +698,9 @@ public class FicheArticleRessource {
                 util.ControleSaisie.longueur("Le code CIP", intCip, 20),
                 util.ControleSaisie.longueur("Le code EAN", intEan13, 50),
                 util.ControleSaisie.longueur("Le code EAN fabricant", codeEanFabriquant, 40),
+                util.ControleSaisie.longueur("Le PSCODE", psCode == null ? null : psCode.trim(), 20),
+                psCode != null && !psCode.trim().matches("[A-Za-z0-9-]*")
+                        ? "Le PSCODE ne contient que des lettres, des chiffres et des tirets." : null,
                 util.ControleSaisie.montant("Le prix de vente", intPrice),
                 util.ControleSaisie.montant("Le prix d'achat", intPaf),
                 util.ControleSaisie.montant("Le prix d'achat tarif", intPat),
@@ -747,6 +750,7 @@ public class FicheArticleRessource {
                 }
                 if (famille != null) {
                     enregistrerEanFabricant(odm, ofm.getMessage(), ref, codeEanFabriquant);
+                    enregistrerPsCode(odm, ofm.getMessage(), ref, psCode);
                 }
                 return reponseEnregistrement(ofm.getMessage(), ref, ofm.getDetailmessage());
             }
@@ -764,6 +768,7 @@ public class FicheArticleRessource {
                         booleenOuNull(boolCalculSeuil), booleenOuNull(boolSuggerable), booleenOuNull(boolRemise),
                         entierOuNull(q1SeuilReappro), entierOuNull(q2QteReappro));
                 enregistrerEanFabricant(odm, ofm.getMessage(), familleId, codeEanFabriquant);
+                enregistrerPsCode(odm, ofm.getMessage(), familleId, psCode);
                 return reponseEnregistrement(ofm.getMessage(), familleId, ofm.getDetailmessage());
             }
             return reponseEnregistrement(commonparameter.PROCESS_FAILED, familleId, "PAS D'ACTION");
@@ -830,6 +835,35 @@ public class FicheArticleRessource {
         }
         odm.beginTransaction();
         famille.setCodeEanFabriquant(code.isEmpty() ? null : code);
+        odm.closeTransaction();
+        odm.getEm().getEntityManagerFactory().getCache().evict(dal.TFamille.class, familleId);
+    }
+
+    /**
+     * Plan du 06/11, point 15 : PSCODE (reference Ubipharm) de la fiche article. Absent de la requete, il reste tel
+     * quel (anciens appels) ; vide, il est efface ; sinon il est enregistre en majuscules, sans les espaces autour.
+     * Ecrit seulement si l'article a bien ete enregistre.
+     */
+    static String normaliserPsCode(String psCode) {
+        if (psCode == null) {
+            return null;
+        }
+        String code = psCode.trim().toUpperCase(java.util.Locale.ROOT);
+        return code.isEmpty() ? "" : code;
+    }
+
+    private static void enregistrerPsCode(dal.dataManager odm, String resultat, String familleId, String psCode) {
+        String code = normaliserPsCode(psCode);
+        if (code == null || !commonparameter.PROCESS_SUCCESS.equals(resultat) || familleId == null
+                || familleId.isEmpty()) {
+            return;
+        }
+        dal.TFamille famille = odm.getEm().find(dal.TFamille.class, familleId);
+        if (famille == null) {
+            return;
+        }
+        odm.beginTransaction();
+        famille.setStrPSCODE(code.isEmpty() ? null : code);
         odm.closeTransaction();
         odm.getEm().getEntityManagerFactory().getCache().evict(dal.TFamille.class, familleId);
     }

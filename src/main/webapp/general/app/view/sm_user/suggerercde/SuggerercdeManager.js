@@ -308,7 +308,8 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
                             },
                             columns: [
                                 {text: 'CIP', flex: 0.7, sortable: true, dataIndex: 'str_FAMILLE_CIP', renderer: Me_Window.columnRenderer},
-                                {text: 'LIBELLE', flex: 2.5, sortable: true, dataIndex: 'str_FAMILLE_NAME', renderer: Me_Window.columnRenderer},
+                                /* plan du 06/11, point 12 : libelle plus large, la place vient de QTE, MOY et SEUIL */
+                                {text: 'LIBELLE', flex: 3.6, sortable: true, dataIndex: 'str_FAMILLE_NAME', renderer: Me_Window.columnRenderer},
                                 /* Disponibilite PharmaML (plan d'octobre 1.2) : dernier resultat connu, info-bulle detaillee. */
                                 /* Retours du 06/10 : indicateur seul, sans entete, et verification de ce produit sur la ligne (⟳). */
                                 {text: '', itemId: 'colDispo', width: 40, sortable: false, menuDisabled: true, align: 'center', resizable: false,
@@ -346,7 +347,14 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
                                         return amountformat(value);
                                     }
                                 },
-                                {text: 'SEUIL', flex: 1, sortable: true, dataIndex: 'int_SEUIL', align: 'right', renderer: Me_Window.numberColumnRenderer, editor: {xtype: 'numberfield', minValue: 1, selectOnFocus: true, allowBlank: false, regex: /[0-9.]/}},
+                                /* plan du 06/11, point 12 : RES = stock du magasin de reserve, en vert (meme valeur que « Stock Res ») */
+                                {text: 'RES', itemId: 'colStockReserve', width: 56, sortable: true, dataIndex: 'int_STOCK_RESERVE', align: 'right', tooltip: 'Stock réserve',
+                                    renderer: function (value, metadata, record) {
+                                        metadata.style = Me_Window.manageColor(record) + 'color: #2E7D32; font-weight: bold; font-size: 16px;';
+                                        metadata.tdCls = 'vp-res';
+                                        return amountformat(Number(value) || 0);
+                                    }},
+                                {text: 'SEUIL', width: 62, sortable: true, dataIndex: 'int_SEUIL', align: 'right', renderer: Me_Window.numberColumnRenderer, editor: {xtype: 'numberfield', minValue: 1, selectOnFocus: true, allowBlank: false, regex: /[0-9.]/}},
                                 /* Colisage (plan d'octobre 1.6) : rappel, informatif ; rien n'est arrondi. */
                                 {text: 'COLIS.', width: 58, sortable: false, menuDisabled: true, dataIndex: 'int_COLISAGE', align: 'right',
                                     renderer: function (v, meta, record) {
@@ -357,13 +365,13 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
                                 {
     header: 'QTE',
     dataIndex: 'int_NUMBER',
+    width: 62,
     align: 'right',
     renderer: function (value, metadata, record) {
         var bgStyle = Me_Window.manageColor(record);
         metadata.style = bgStyle + 'color: green; font-weight: bold; font-size: 16px;';
         return amountformat(value);
                                     },
-                                    flex: 1,
                                     editor: {
                                         xtype: 'numberfield',
                                         minValue: 0,
@@ -400,7 +408,7 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
                                 {
                                     header: 'MOY',
                                     align: 'right',
-                                    flex: 1,
+                                    width: 56,
                                     renderer: function (value, metadata, record) {
                                         var v1 = Number(record.get('int_VALUE1')) || 0;
                                         var v2 = Number(record.get('int_VALUE2')) || 0;
@@ -415,10 +423,11 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
                                     }
                                 },
 
-                                {header: AppController.getMonthToDisplay(0, currentMonth), dataIndex: 'int_VALUE0', flex: 1, align: 'right', renderer: Me_Window.numberColumnRenderer},
-                                {header: AppController.getMonthToDisplay(1, currentMonth), dataIndex: 'int_VALUE1', align: 'right', renderer: Me_Window.numberColumnRenderer, flex: 0.7},
-                                {header: AppController.getMonthToDisplay(2, currentMonth), dataIndex: 'int_VALUE2', align: 'right', format: '0,000.', renderer: Me_Window.numberColumnRenderer, flex: 0.7},
-                                {header: AppController.getMonthToDisplay(3, currentMonth), dataIndex: 'int_VALUE3', align: 'right', renderer: Me_Window.numberColumnRenderer, flex: 0.7},
+                                /* plan du 06/11, point 12 : mois en 3 lettres (Jun / Jul distincts), nom complet au survol */
+                                {header: Me_Window.moisCourt(0), tooltip: AppController.getMonthToDisplay(0, currentMonth), dataIndex: 'int_VALUE0', flex: 0.8, align: 'right', renderer: Me_Window.numberColumnRenderer},
+                                {header: Me_Window.moisCourt(1), tooltip: AppController.getMonthToDisplay(1, currentMonth), dataIndex: 'int_VALUE1', align: 'right', renderer: Me_Window.numberColumnRenderer, flex: 0.7},
+                                {header: Me_Window.moisCourt(2), tooltip: AppController.getMonthToDisplay(2, currentMonth), dataIndex: 'int_VALUE2', align: 'right', format: '0,000.', renderer: Me_Window.numberColumnRenderer, flex: 0.7},
+                                {header: Me_Window.moisCourt(3), tooltip: AppController.getMonthToDisplay(3, currentMonth), dataIndex: 'int_VALUE3', align: 'right', renderer: Me_Window.numberColumnRenderer, flex: 0.7},
                                 {xtype: 'actioncolumn', width: 30, sortable: false, menuDisabled: true, items: [{icon: 'resources/images/icons/fam/cog.png', tooltip: 'Qté détail', scope: this, handler: this.onQtyDetail, getClass: function (value, metadata, record) {
                                                 if (record.get('bool_DECONDITIONNE_EXIST') === 1) {
                                                     return '';
@@ -583,6 +592,11 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
         });
     },
 
+    /** Plan du 06/11, point 12 : mois de l'historique en 3 lettres (indice 0 = mois courant). */
+    moisCourt: function (indice) {
+        var noms = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun', 'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'];
+        return noms[((currentMonth - indice) % 12 + 12) % 12];
+    },
     focusCell: function(grid, rowIndex) {
         var store = grid.getStore();
         if (store.getCount() > 0 && rowIndex < store.getCount() && !grid.getPlugin('cellplugin').activeEditor) {

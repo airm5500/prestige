@@ -924,6 +924,8 @@ public class SalesServiceImpl implements SalesService {
             donneesMap.put(NotificationUtils.MONTANT.getId(), NumberUtils.formatIntToString(tp.getIntPRICE()));
             createNotification(desc, TypeNotification.MODIFICATION_VENTE, ooTUser, donneesMap,
                     tp.getLgPREENREGISTREMENTID());
+            // plan du 06/11, point 5.1 : le prix pose par cette vente reste sur la fiche, l'annulation est notee
+            prixReferenceService.noterAnnulationVente(tp.getLgPREENREGISTREMENTID());
 
             json.put("success", true);
             json.put("msg", "L'opération effectuée avec success");
@@ -3226,6 +3228,8 @@ public class SalesServiceImpl implements SalesService {
             carnetAsDepotService.create(tp, mvtTransaction, payantExcluOuDepot.get());
 
             mvtProduitService.updateVenteStock(tp, lstTPreenregistrementDetail);
+            // plan du 06/11, point 5.1 : les prix de reference saisis a la caisse vont sur la fiche a la cloture
+            prixReferenceService.validerSaisiesVente(tp.getLgPREENREGISTREMENTID());
             tp.setCompletionDate(new Date());
             emg.merge(tp);
             daterModificationALaVenteDOrigine(tp);
@@ -4978,8 +4982,12 @@ public class SalesServiceImpl implements SalesService {
             Join<TFamille, TFamilleStock> fa = root.join("tFamilleStockCollection", JoinType.INNER);
             Predicate predicate = cb.conjunction();
             query = query + "%";
-            predicate = cb.and(predicate, cb.or(cb.like(root.get(TFamille_.intCIP), query),
-                    cb.like(st.get("strCODEARTICLE"), query), cb.like(root.get(TFamille_.intEAN13), query)));
+            predicate = cb.and(predicate,
+                    cb.or(cb.like(root.get(TFamille_.intCIP), query), cb.like(st.get("strCODEARTICLE"), query),
+                            cb.like(root.get(TFamille_.intEAN13), query),
+                            // plan du 06/11, point 15 : le PSCODE (reference Ubipharm, enregistre en majuscules) tape
+                            // au champ produit
+                            cb.like(root.<String> get("strPSCODE"), query.toUpperCase(java.util.Locale.ROOT))));
             predicate = cb.and(predicate, cb.equal(root.get(TFamille_.strSTATUT), "enable"));
             predicate = cb.and(predicate, cb.equal(fa.get("lgEMPLACEMENTID").get("lgEMPLACEMENTID"), emplacementId));
             cq.select(cb.construct(SearchDTO.class, root.get(TFamille_.lgFAMILLEID), root.get(TFamille_.intCIP),

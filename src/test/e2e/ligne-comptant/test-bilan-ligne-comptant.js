@@ -108,8 +108,13 @@ const nb = (s) => (s === 'aucun' || s === 'aucune' ? 0 : s.split(' ; ').length);
     const sommeCredits = credits.reduce((s, c) => s + c.part, 0);
     const nommes = credits.filter((c) => c.texte.indexOf(RO) === 0 || c.texte.indexOf(RC) === 0);
     const parOrganisme = nommes.length === 0 || (nommes.every((c) => (c.texte.indexOf(RO) === 0 ? c.part === partRO : c.part === partRC)));
-    ok('A. Ticket assurance : une seule ligne (P1 × 2), somme des parts imprimées sous la ligne = parts en base (plafond compris), organisme nommé = sa part',
-      ta && ta.articles.length === 1 && ta.articles[0].quantite === 2 && sommeCredits === partRO + partRC && parOrganisme, JSON.stringify(ta && ta.articles) + ' base RO ' + partRO + ' RC ' + partRC);
+    /* plan du 06/11, point 5.2 : la ligne suit les taux des organismes (rien de saisi) -> aucune ligne prix/taux sous le
+       produit ; les parts sont comparees a la base dans le bloc de chaque organisme */
+    const bloc = (org) => { const k = ta ? Object.keys(ta.paires).find((x) => x.indexOf(org) === 0) : null; return k ? C.chiffres(ta.paires[k]) : null; };
+    ok('A. Ticket assurance : une seule ligne (P1 × 2), rien sous la ligne (point 5.2) ; bloc de chaque organisme = sa part en base (plafond compris)',
+      ta && ta.articles.length === 1 && ta.articles[0].quantite === 2 && credits.length === 0 && sommeCredits === 0 && parOrganisme
+      && bloc(RO) === partRO && (partRC === 0 ? (bloc(RC) === null || bloc(RC) === 0) : bloc(RC) === partRC),
+      JSON.stringify(ta && ta.articles) + ' blocs ' + JSON.stringify(ta && ta.paires) + ' base RO ' + partRO + ' RC ' + partRC);
     /* annulation de la vente comptant */
     const refVno = C.vente(vnoA).ref, refVo = C.vente(vA).ref;
     const a1 = await C.annulerVente(p, refVno);

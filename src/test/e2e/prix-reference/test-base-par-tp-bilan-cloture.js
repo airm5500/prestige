@@ -61,13 +61,18 @@ const tauxProduit = (venteId) => q("SELECT IFNULL(GROUP_CONCAT(CONCAT(d.lg_FAMIL
       await C.saisirQuantite(p, CIP2, 2);
       await C.ajouterTiersPayant(p, TB);
       await C.saisirBon(p, 2, C.MARQUE + '-BON-B7B-' + valeur); /* le net exige un numero de bon par organisme */
+      const saisiesIci = premiere;
       if (premiere) {
         for (const s of [[CIP1, TA, 'valeur', refA1], [CIP1, TB, 'valeur', refB1], [CIP2, TB, 'valeur', refB2]]) { await C.saisirEtEnregistrer(p, s[0], s[1], s[2], s[3]); }
         premiere = false;
       }
-      ok('Paramètre à ' + valeur + ' : vente assurance à deux organismes et deux lignes (1 et 2), références posées', !!venteId
-        && C.references(P1.id) === TA + '/MIX_TAUX_PRIX/' + refA1 + '/70/1 ; ' + TB + '/MIX_TAUX_PRIX/' + refB1 + '/20/1' && C.references(P2.id) === TB + '/MIX_TAUX_PRIX/' + refB2 + '/20/1',
-        C.references(P1.id) + ' | ' + C.references(P2.id));
+      /* plan du 06/11, point 5.1 : a la premiere vente les references sont saisies (gardees sur la vente, fiche intacte) ;
+         a la seconde, elles viennent de la fiche, ecrite a la cloture de la premiere */
+      const refsP1 = TA + '/MIX_TAUX_PRIX/' + refA1 + '/70/1 ; ' + TB + '/MIX_TAUX_PRIX/' + refB1 + '/20/1', refsP2 = TB + '/MIX_TAUX_PRIX/' + refB2 + '/20/1';
+      ok('Paramètre à ' + valeur + ' : vente assurance à deux organismes et deux lignes (1 et 2), références ' + (saisiesIci ? 'saisies sur la vente, fiche intacte' : 'reprises de la fiche, sans saisie'), !!venteId
+        && (saisiesIci ? C.saisiesGardees(P1.id) === refsP1 && C.saisiesGardees(P2.id) === refsP2 && C.references(P1.id) === 'aucune' && C.references(P2.id) === 'aucune'
+          : C.references(P1.id) === refsP1 && C.references(P2.id) === refsP2 && C.saisiesGardees(P1.id) === 'aucune' && C.saisiesGardees(P2.id) === 'aucune'),
+        C.saisiesGardees(P1.id) + ' | ' + C.saisiesGardees(P2.id) + ' | ' + C.references(P1.id) + ' | ' + C.references(P2.id));
 
       /* parts attendues selon la regle de la valeur */
       let partA, partB;
@@ -125,7 +130,13 @@ const tauxProduit = (venteId) => q("SELECT IFNULL(GROUP_CONCAT(CONCAT(d.lg_FAMIL
       const basesAttendues = valeur === '0' ? [P1.id + ':' + refB1, P2.id + ':' + refB2] : [P1.id + ':' + refA1, P2.id + ':' + refB2];
       ok('Paramètre à ' + valeur + ' : base de calcul par ligne = ' + (valeur === '0' ? 'le plus petit prix de référence' : 'la référence du premier organisme qui en a une'),
         bases === basesAttendues.sort().join(';'), bases);
-      ok('Paramètre à ' + valeur + ' : le journal des prix de référence n\'a pas bougé à la clôture', journal([P1.id, P2.id]) === avant.journal, avant.journal + ' -> ' + journal([P1.id, P2.id]));
+      if (saisiesIci) {
+        ok('Paramètre à ' + valeur + ' : à la clôture, les trois saisies partent sur la fiche (+ 3 au journal), plus de saisie gardée',
+          journal([P1.id, P2.id]) === avant.journal + 3 && C.references(P1.id) === refsP1 && C.references(P2.id) === refsP2
+          && C.saisiesGardees(P1.id) === 'aucune' && C.saisiesGardees(P2.id) === 'aucune', avant.journal + ' -> ' + journal([P1.id, P2.id]) + ' ; ' + C.references(P1.id) + ' | ' + C.references(P2.id));
+      } else {
+        ok('Paramètre à ' + valeur + ' : rien de saisi, le journal des prix de référence n\'a pas bougé à la clôture', journal([P1.id, P2.id]) === avant.journal, avant.journal + ' -> ' + journal([P1.id, P2.id]));
+      }
       resultats[valeur] = { partA, partB, net, mouvements: mouvements.split(' ; ').length, stock: [avant.stock[0] - A.stock(P1), avant.stock[1] - A.stock(P2)] };
     }
     ok('Entre 0 et 1, seules les parts changent (A plus grand à 1, net plus petit), pas les traces (stock, mouvements)',

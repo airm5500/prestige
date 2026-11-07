@@ -34,6 +34,11 @@ Ext.define('testextjs.model.TSuggestionOrderDetails', {
             name: 'int_STOCK',
             type: 'string'
         },
+        /* plan du 06/11, point 12 : stock du magasin de reserve (colonne RES) */
+        {
+            name: 'int_STOCK_RESERVE',
+            type: 'string'
+        },
         {
             name: 'int_RESTE',
             type: 'string'

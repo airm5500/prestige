@@ -1,7 +1,7 @@
 /* CAS 2 DU 03/11/2026, TEST D'ECRAN 3 : avec KEY_PRIX_REF_CAISSE a 0, la grille est strictement celle d'aujourd'hui.
  *
  *  1. parametre a 0 : vente assurance avec un article -> aucune colonne de reference, en-tete de reference
- *     (LG, C.CIP flex, DESIGNATION, QD, QS, P.U, MONTANT, action), aucun champ referencesTp dans la reponse
+ *     (LG, C.CIP 140 px, DESIGNATION, QD, QS, P.U, MONTANT, action), aucun champ referencesTp dans la reponse
  *     « deatails », GET vente/{id} refuse (403) ; capture de l'en-tete et de la premiere ligne ;
  *  2. meme parametre a 0 : vente comptant -> meme en-tete, capture identique au pixel (meme largeurs) ;
  *  3. parametre a 1 : vente comptant -> toujours aucune colonne (vente de type 2 seulement), capture identique ;
@@ -58,7 +58,7 @@ const ATTENDU = ',C.CIP,DESIGNATION,QD,QS,P.U,MONTANT,';
     C.noterVente(v1);
     const e1 = await C.entete(p);
     ok('Paramètre à 0, vente assurance : aucune colonne de référence, en-tête d\'aujourd\'hui', e1 && e1.groupes.length === 0 && !e1.rappel
-      && e1.colonnes.map((c) => c.texte).join(',') === ATTENDU && e1.colonnes.find((c) => c.texte === 'C.CIP').flex === 1, JSON.stringify(e1 && e1.colonnes));
+      && e1.colonnes.map((c) => c.texte).join(',') === ATTENDU && e1.colonnes.find((c) => c.texte === 'C.CIP').largeur === 140 /* point 4 du 06/11 : largeur fixe, plus de flex */, JSON.stringify(e1 && e1.colonnes));
     const det = await lire('../api/v1/vente/deatails?start=0&limit=10&venteId=' + v1);
     ok('Paramètre à 0 : la réponse « deatails » ne porte pas referencesTp', det.http === 200 && !/referencesTp/.test(det.corps), det.corps.slice(0, 200));
     const refus = await lire('../api/v1/prix-reference/vente/' + v1);
@@ -92,7 +92,7 @@ const ATTENDU = ',C.CIP,DESIGNATION,QD,QS,P.U,MONTANT,';
     const v4 = await C.venteCourante(p);
     C.noterVente(v4);
     const e4 = await C.entete(p);
-    ok('Paramètre à 1, vente assurance : le groupe de colonnes apparaît, C.CIP à 100 px', e4 && e4.groupes.length === 1 && e4.colonnes.find((c) => c.texte === 'C.CIP').largeur === 100, JSON.stringify(e4 && e4.colonnes));
+    ok('Paramètre à 1, vente assurance : le groupe de colonnes apparaît, C.CIP à 140 px', e4 && e4.groupes.length === 1 && e4.colonnes.find((c) => c.texte === 'C.CIP').largeur === 140, JSON.stringify(e4 && e4.colonnes));
     const det4 = await lire('../api/v1/vente/deatails?start=0&limit=10&venteId=' + v4);
     ok('Paramètre à 1 : la réponse « deatails » porte referencesTp', /referencesTp/.test(det4.corps), det4.corps.slice(0, 200));
     /* « Mettre en attente » : l'ecran se remet au comptant sur la MEME grille ; les colonnes doivent disparaitre */
@@ -103,9 +103,9 @@ const ATTENDU = ',C.CIP,DESIGNATION,QD,QS,P.U,MONTANT,';
     await p.waitForTimeout(2500);
     const memeGrille = await p.evaluate((g) => { const x = Ext.ComponentQuery.query(g)[0]; return x ? x.getId() : null; }, C.GRILLE) === idGrille;
     const e5 = await C.entete(p);
-    ok('Après « Mettre en attente » (même grille : ' + memeGrille + ') : colonnes retirées, C.CIP reprend sa largeur (flex), libellé masqué',
-      e5 && e5.groupes.length === 0 && !e5.rappel && e5.colonnes.map((c) => c.texte).join(',') === ATTENDU && e5.colonnes.find((c) => c.texte === 'C.CIP').flex === 1
-      && e5.colonnes.find((c) => c.texte === 'C.CIP').largeur > 100, JSON.stringify(e5 && e5.colonnes));
+    ok('Après « Mettre en attente » (même grille : ' + memeGrille + ') : colonnes retirées, C.CIP reprend sa largeur (140 px depuis le point 4 du 06/11), libellé masqué',
+      e5 && e5.groupes.length === 0 && !e5.rappel && e5.colonnes.map((c) => c.texte).join(',') === ATTENDU
+      && e5.colonnes.find((c) => c.texte === 'C.CIP').largeur === 140, JSON.stringify(e5 && e5.colonnes));
     const c5 = await capture('comptant-apres-attente');
     const i15 = identiques(c1, c5);
     ok('Même grille après retrait des colonnes : capture identique au pixel à la grille d\'origine', c5.largeurs === c1.largeurs && i15.ok, c5.largeurs + ' ; ' + i15.detail);

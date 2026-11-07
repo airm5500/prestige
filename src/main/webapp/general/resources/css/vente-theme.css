@@ -3548,3 +3548,13 @@ a.ordo-compteur:hover { border-color: #2E75B6; }
 .pml-tuile.alerte { background: #fffaf0; } .pml-tuile.critique { background: #fff5f4; }
 .pml-tuile.ok::before, .pml-tuile.info::before, .pml-tuile.alerte::before, .pml-tuile.critique::before { font-family: inherit; font-size: 15px; font-weight: 800; }
 .ordo-tuile.ordo-tuile-rouge::before, .ordo-tuile.ordo-tuile-verte::before { font-family: inherit; font-size: 15px; font-weight: 800; }
+
+/* Plan du 06/11, point 3.1 : « PROMOTION » en vert sur la ligne de vente, comme le « Oui » de la liste des promotions.
+   Ligne selectionnee (fond violet clair) : vert plus fonce, pour garder un contraste lisible. */
+.vp-promo-texte { color: #2E7D32; font-weight: bold; }
+.x-grid-item-selected .vp-promo-texte, .x-grid-row-selected .vp-promo-texte, .vp-ligne-active .vp-promo-texte { color: #1B5E20 !important; }
+/* plan du 06/11, point 12 : colonne RES de la suggestion, vert fonce sur une ligne selectionnee (fond violet) */
+.x-grid-row-selected > .x-grid-cell.vp-res > .x-grid-cell-inner, .vp-ligne-active > .x-grid-cell.vp-res > .x-grid-cell-inner { color: #1B5E20 !important; }
+
+/* Plan du 06/11, point 9 : « Re-imprimer la facture » (Ventes terminees), distincte de l'imprimante du ticket. */
+.act-facture { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231e3a5f' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 2h14v20l-3-2-2 2-2-2-2 2-2-2-3 2z'/%3E%3Cpath d='M9 7h6M9 11h6M9 15h4'/%3E%3C/svg%3E"); }

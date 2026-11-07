@@ -291,16 +291,20 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             List<List<Integer>> tauxParTp = new ArrayList<>();
             List<List<Integer>> basesParTp = new ArrayList<>();
             List<List<Integer>> basesUnitairesParTp = new ArrayList<>();
+            // plan du 06/11, point 5.2 : taux saisis sur la ligne (null si aucun), par organisme
+            List<List<Integer>> tauxSaisisParTp = new ArrayList<>();
             for (int t = 0; t < tps.size(); t++) {
                 String compte = tps.get(t).getLgCOMPTECLIENTTIERSPAYANTID() == null ? ""
                         : tps.get(t).getLgCOMPTECLIENTTIERSPAYANTID().getLgCOMPTECLIENTTIERSPAYANTID();
                 List<Integer> col = new ArrayList<>();
                 List<Integer> basesCol = new ArrayList<>();
                 List<Integer> unitaires = new ArrayList<>();
+                List<Integer> saisis = new ArrayList<>();
                 for (int i = 0; i < lignes.size(); i++) {
                     TPreenregistrementDetail d = lignes.get(i);
                     dal.Rate r = tauxLignes.get(d.getLgPREENREGISTREMENTDETAILID() + "|" + compte);
                     col.add(r == null ? tauxReels.get(t) : Math.round(r.getTaux() * 100));
+                    saisis.add(r == null ? null : Math.round(r.getTaux() * 100));
                     int q = d.getIntQUANTITY() == null ? 0 : Math.abs(d.getIntQUANTITY());
                     boolean propre = r != null && r.getBaseLigne() != null && r.getBaseLigne() > 0;
                     basesCol.add(propre ? r.getBaseLigne() * q : bases.get(i));
@@ -309,17 +313,26 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
                 tauxParTp.add(col);
                 basesParTp.add(basesCol);
                 basesUnitairesParTp.add(unitaires);
+                tauxSaisisParTp.add(saisis);
             }
             // retour du 05/11 : avec un prix de reference, la ligne montre la reference (« P.REF 6 000 ») ; lot Q2.5 :
             // si les organismes n'ont pas la meme base sur la ligne, chacun imprime la sienne sur sa ligne de credit
             List<Boolean> prefParOrganisme = new ArrayList<>();
             List<Integer> prefDeLaLigne = new ArrayList<>();
+            List<Boolean> afficher = new ArrayList<>();
             for (int i = 0; i < lignes.size(); i++) {
                 TPreenregistrementDetail d = lignes.get(i);
                 List<Integer> unitaires = new ArrayList<>();
                 for (List<Integer> u : basesUnitairesParTp) {
                     unitaires.add(u.get(i));
                 }
+                List<Integer> saisis = new ArrayList<>();
+                for (List<Integer> sx : tauxSaisisParTp) {
+                    saisis.add(sx.get(i));
+                }
+                // plan du 06/11, point 5.2 : rien sous le produit quand la ligne suit le taux de l'assurance
+                afficher.add(CreditLigne.afficherLigne(d.getCalculationBasePrice(), d.getIntPRICEUNITAIR(), saisis,
+                        tauxReels, unitaires));
                 boolean parOrganisme = nommer && CreditLigne.basesDifferentes(unitaires);
                 prefParOrganisme.add(parOrganisme);
                 // retour du 06/11 : plus de ligne « P.REF » a part, le prix de reference va sur la ligne de credit
@@ -343,6 +356,9 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
                 List<Integer> parts = CreditLigne.parts(basesParTp.get(t), tauxParTp.get(t), total);
                 String nom = nommer ? tp.getLgCOMPTECLIENTTIERSPAYANTID().getLgTIERSPAYANTID().getStrNAME() : null;
                 for (int i = 0; i < lignes.size() && i < parts.size(); i++) {
+                    if (!afficher.get(i)) {
+                        continue;
+                    }
                     Integer prefOrganisme = prefDeLaLigne.get(i);
                     if (prefParOrganisme.get(i)) {
                         Integer u = basesUnitairesParTp.get(t).get(i);

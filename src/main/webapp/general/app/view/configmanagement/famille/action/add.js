@@ -279,6 +279,8 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
                         { xtype: 'combobox', fieldLabel: 'Grossiste', name: 'lg_GROSSISTE_ID', itemId: 'lg_GROSSISTE_ID', store: store_grossiste_famille, valueField: 'lg_GROSSISTE_ID', pageSize: 20, displayField: 'str_LIBELLE', minChars: 2, allowBlank: false, queryMode: 'remote', emptyText: 'Choisir un grossiste...' },
                         { fieldLabel: 'Code EAN 13', xtype: 'textfield', maskRe: /[0-9.]/, emptyText: 'Code EAN 13', name: 'int_EAN13', itemId: 'int_EAN13' },
                         { fieldLabel: 'Code EAN fabricant', xtype: 'textfield', maxLength: 40, enforceMaxLength: true, emptyText: 'Code EAN fabricant', name: 'code_EAN_FABRIQUANT', itemId: 'code_EAN_FABRIQUANT' },
+                        // plan du 06/11, point 15 : reference Ubipharm, facultative, en majuscules
+                        { fieldLabel: 'PSCODE (Ubipharm)', xtype: 'textfield', maxLength: 20, enforceMaxLength: true, maskRe: /[A-Za-z0-9-]/, fieldStyle: 'text-transform:uppercase;', emptyText: 'ex. FORT256', name: 'str_PSCODE', itemId: 'str_PSCODE' },
                         { xtype: 'combobox', fieldLabel: 'Code TVA', name: 'lg_CODE_TVA_ID', itemId: 'lg_CODE_TVA_ID', store: store_codetva, valueField: 'lg_CODE_TVA_ID', displayField: 'str_NAME', typeAhead: true, allowBlank: false, queryMode: 'remote', emptyText: 'Choisir un code TVA...' },
                         { xtype: 'displayfield', fieldLabel: 'Stock', hidden: true, name: 'int_NUMBER_AVAILABLE', itemId: 'int_NUMBER_AVAILABLE', fieldStyle: 'color:blue;font-weight:bold;', value: 0 } ]
                         },
@@ -641,6 +643,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
             g('lg_CODE_TVA_ID').setValue(ds.lg_CODE_TVA_ID);
             g('int_EAN13').setValue(ds.int_EAN13);
             g('code_EAN_FABRIQUANT').setValue(ds.codeEanFabriquant || '');
+            if (g('str_PSCODE')) { g('str_PSCODE').setValue(ds.str_PSCODE || ''); }
             g('bool_RESERVE').setValue(ds.bool_RESERVE);
             if (g('bool_CALCUL_SEUIL')) { g('bool_CALCUL_SEUIL').setValue(ds.bool_CALCUL_SEUIL === undefined ? true : ds.bool_CALCUL_SEUIL); }
             if (g('bool_SUGGERABLE')) { g('bool_SUGGERABLE').setValue(ds.bool_SUGGERABLE === undefined ? true : ds.bool_SUGGERABLE); }
@@ -900,6 +903,7 @@ Ext.define('testextjs.view.configmanagement.famille.action.add', {
                 int_CIP: g('int_CIP').getValue(),
                 int_EAN13: g('int_EAN13').getValue(),
                 code_EAN_FABRIQUANT: Ext.String.trim(g('code_EAN_FABRIQUANT').getValue() || ''),
+                str_PSCODE: g('str_PSCODE') ? Ext.String.trim(g('str_PSCODE').getValue() || '').toUpperCase() : undefined,
                 lg_CODE_TVA_ID: g('lg_CODE_TVA_ID').getValue(),
                 int_SEUIL_RESERVE: (function(){ var s=form.down('#int_SEUIL_RESERVE'); return s ? s.getValue() : 0; })(),
                 int_SEUIL_MINI_RAYON: form.down('#int_SEUIL_MINI_RAYON') ? form.down('#int_SEUIL_MINI_RAYON').getValue() : null,

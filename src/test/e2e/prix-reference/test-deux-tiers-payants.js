@@ -56,8 +56,8 @@ const { ok, q, A } = C;
     const prixRef = P.pu - 200;
     const r = await C.saisirEtEnregistrer(p, CIP, TB, 'valeur', prixRef);
     ok('P.REF saisi sur B : PUT accepté', r.http === 200 && r.success === true, JSON.stringify(r).slice(0, 200));
-    ok('Écrit pour B et B seulement (MIX, taux 20 de B)', C.references(P.id) === TB + '/MIX_TAUX_PRIX/' + prixRef + '/20/1', C.references(P.id));
-    ok('Journal AJOUT pour B, portant la vente', new RegExp('^AJOUT/NULL/' + prixRef + '/NULL/20/MIX_TAUX_PRIX/' + venteId + '/.*/' + TB + '$').test(C.journal(P.id)), C.journal(P.id));
+    ok('Saisie gardée pour B et B seulement (MIX, taux 20 de B)', C.saisiesGardees(P.id) === TB + '/MIX_TAUX_PRIX/' + prixRef + '/20/1', C.saisiesGardees(P.id));
+    ok('Point 5.1 : fiche et journal intacts avant la clôture de la vente (' + venteId + ')', C.references(P.id) === 'aucune' && C.journal(P.id) === 'aucun', C.references(P.id) + ' | ' + C.journal(P.id));
     const l3 = await C.ligne(p, CIP);
     ok('À l\'écran : A reste en gris (défaut), B passe en violet', l3 && l3.refs[0].defaut === true && l3.refs[1].defaut === false && l3.refs[1].valeur === prixRef
       && /vp-ref-defaut/.test(l3.cellules[0].classes) && /vp-ref-fiche/.test(l3.cellules[2].classes), JSON.stringify(l3));

@@ -1075,7 +1075,11 @@ window.PrestigeAffichage.ECRANS_FOND_VENTE = ['ordonnanceclient'];
  * (cog_edit = « Reinitialiser le mot de passe » chez les utilisateurs, retour du 05/10 : deux crayons identiques).
  */
 window.PrestigeAffichage.ICONES_TRAIT_INFOBULLE = [
-    [/mot de passe|password/i, 'act-motdepasse']
+    [/mot de passe|password/i, 'act-motdepasse'],
+    // plan du 06/11, point 9 (Ventes terminees) : meme imprimante pour le ticket et la facture, meme crayon pour la
+    // vente et le client ; la facture et le client ont leur propre dessin
+    [/^re-?imprimer la facture$/i, 'act-facture'],
+    [/^modifier info client$/i, 'act-client']
 ];
 
 window.PrestigeAffichage.ICONES_TRAIT = [

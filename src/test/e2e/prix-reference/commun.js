@@ -19,6 +19,7 @@ function retirerReferences() {
   const produits = A.etat.produits.map((p) => "'" + p.id + "'").join(',') || "'-'";
   exec("DELETE FROM prix_reference_journal WHERE tiers_payant_id LIKE '" + MARQUE + "%' OR (produit_id IN (" + produits + ") AND date_action >= '" + A.DEBUT + "');"
     + " DELETE FROM prix_reference WHERE tiersPayant_id LIKE '" + MARQUE + "%' OR produit_id IN (" + produits + ");"
+    + " DELETE FROM prix_reference_saisie WHERE tiers_payant_id LIKE '" + MARQUE + "%' OR produit_id IN (" + produits + ");"
     + " DELETE FROM taux_produit WHERE sale_iem_id IN (SELECT lg_PREENREGISTREMENT_DETAIL_ID FROM t_preenregistrement_detail d JOIN t_preenregistrement p"
     + " ON p.lg_PREENREGISTREMENT_ID = d.lg_PREENREGISTREMENT_ID WHERE p.dt_CREATED >= '" + A.DEBUT + "' AND p.lg_USER_ID = '" + A.ADMIN + "')");
 }
@@ -173,6 +174,9 @@ const netServeur = (sess, venteId) => sess.p.evaluate(async (v) => {
 
 const references = (produitId) => q("SELECT IFNULL(GROUP_CONCAT(CONCAT_WS('/', tiersPayant_id, type_prix, valeur, IFNULL(valeur_taux, 'NULL'), enabled + 0) ORDER BY tiersPayant_id SEPARATOR ' ; '), 'aucune')"
   + " FROM prix_reference WHERE produit_id = '" + produitId + "'");
+/* plan du 06/11, point 5.1 : saisies de la caisse gardees sur la vente (pas encore sur la fiche), meme format que references() */
+const saisiesGardees = (produitId) => q("SELECT IFNULL(GROUP_CONCAT(CONCAT_WS('/', tiers_payant_id, type_prix, valeur, IFNULL(valeur_taux, 'NULL'), 1) ORDER BY tiers_payant_id SEPARATOR ' ; '), 'aucune')"
+  + " FROM prix_reference_saisie WHERE produit_id = '" + produitId + "'");
 const journal = (produitId) => q("SELECT IFNULL(GROUP_CONCAT(CONCAT_WS('/', action, IFNULL(ancienne_valeur, 'NULL'), IFNULL(nouvelle_valeur, 'NULL'), IFNULL(ancien_taux, 'NULL'),"
   + " IFNULL(nouveau_taux, 'NULL'), IFNULL(nouveau_type, 'NULL'), IFNULL(vente_id, 'NULL'), IFNULL(utilisateur_id, 'NULL'), IFNULL(poste, 'NULL'), tiers_payant_id)"
   + " ORDER BY date_action, id SEPARATOR ' ; '), 'aucun') FROM prix_reference_journal WHERE produit_id = '" + produitId + "'");
@@ -252,4 +256,4 @@ function nettoyer() {
 
 module.exports = { chromium, A, vues, ok, q, exec, MARQUE, CHAMP_PRODUIT, GRILLE, produitSansReference, cip, ouvrirEcran, visible, connecterEtOuvrirVente,
   nouvelleVente, passerEnAssurance, choisirClient, saisirBon, taperArticle, venteCourante, noterVente, entete, ligne, saisirCellule, saisirEtEnregistrer,
-  netAffiche, focusProduit, netServeur, references, journal, retirerReferences, nettoyer, ajouterTiersPayant, saisirQuantite, lireTicket, apercuTicket, chiffres };
+  netAffiche, focusProduit, netServeur, references, saisiesGardees, journal, retirerReferences, nettoyer, ajouterTiersPayant, saisirQuantite, lireTicket, apercuTicket, chiffres };

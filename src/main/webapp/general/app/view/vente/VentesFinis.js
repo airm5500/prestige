@@ -3,6 +3,10 @@
 Ext.define('testextjs.view.vente.VentesFinis', {
     extend: 'Ext.panel.Panel',
     xtype: 'ventemanager',
+    statics: {
+        // plan du 06/11, point 9 : « Generer une suggestion » cache pour tout le monde
+        SUGGESTION_MASQUEE: true
+    },
     requires: [
         'testextjs.view.garde.SelecteurGarde'
     ],
@@ -465,6 +469,10 @@ Ext.define('testextjs.view.vente.VentesFinis', {
                                     icon: 'resources/images/icons/fam/folder_go.png',
                                     tooltip: 'Generer une suggestion pour la vente',
                                     getClass: function (value, metadata, record) {
+                                        // plan du 06/11, point 9 : bouton cache pour tout le monde
+                                        if (testextjs.view.vente.VentesFinis.SUGGESTION_MASQUEE) {
+                                            return 'x-hide-display';
+                                        }
                                         if (record.get('intPRICE') <= 0) {
                                             return 'x-hide-display';
                                         } else {

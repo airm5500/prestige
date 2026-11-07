@@ -4,6 +4,7 @@ import commonTasks.dto.VenteDetailsDTO;
 import dal.PrixReference;
 import dal.PrixReferenceJournal;
 import dal.PrixReferenceJournalAction;
+import dal.PrixReferenceSaisie;
 import dal.PrixReferenceType;
 import dal.TCompteClientTiersPayant;
 import dal.TFamille;
@@ -20,6 +21,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.LinkedHashMap;
 import java.util.Optional;
 import java.util.Set;
 import java.util.logging.Level;
@@ -210,7 +212,8 @@ public class PrixReferenceServiceImpl implements PrixReferenceService {
             return lignes;
         }
         Map<String, PrixReference> existantes = new HashMap<>();
-        for (PrixReference p : getActifByProduitIdAndTiersPayantIds(produit.getLgFAMILLEID(), new HashSet<>(tpIds))) {
+        // plan du 06/11, point 5.1 : la saisie de la caisse sur cette vente passe avant la fiche
+        for (PrixReference p : referencesDeLaLigneDeVente(ligne, new HashSet<>(tpIds))) {
             existantes.put(p.getTiersPayant().getLgTIERSPAYANTID(), p);
         }
         int prixVente = Objects.requireNonNullElse(ligne.getIntPRICEUNITAIR(), 0);
@@ -308,6 +311,153 @@ public class PrixReferenceServiceImpl implements PrixReferenceService {
             return SaisieReferenceResultat.refus(motif);
         }
         TFamille produit = ligne.getLgFAMILLEID();
+        /*
+         * Plan du 06/11, point 5.1 : la saisie est gardee sur la VENTE (prix_reference_saisie) ; le calcul et la grille
+         * la lisent aussitot, la fiche article et le journal ne sont ecrits qu'a la cloture (validerSaisiesVente).
+         */
+        PrixReferenceSaisie saisie = saisieDeLaLigne(detailId, tiersPayantId);
+        Optional<PrixReference> fiche = getByProduitIdAndTiersPayantId(produit.getLgFAMILLEID(), tiersPayantId);
+        PrixReference effective = saisie != null ? depuisSaisie(saisie, produit)
+                : fiche.filter(PrixReference::isEnabled).map(ReferenceCaisse::copie).orElse(null);
+        PrixReference nouvelle = new PrixReference();
+        nouvelle.setId(fiche.map(PrixReference::getId).orElse(null));
+        nouvelle.setEnabled(true);
+        nouvelle.setType(ReferenceCaisse.typeCaisse());
+        nouvelle.setProduit(produit);
+        nouvelle.setTiersPayant(em.find(TTiersPayant.class, tiersPayantId));
+        nouvelle.setValeur(valeur);
+        nouvelle.setValeurTaux((float) taux);
+        if (effective != null && !ReferenceCaisse.change(effective, nouvelle)) {
+            return SaisieReferenceResultat.ecrite(new PrixReferenceDTO(nouvelle));
+        }
+        if (saisie == null) {
+            saisie = new PrixReferenceSaisie();
+            saisie.setVenteId(venteId);
+            saisie.setDetailId(detailId);
+            saisie.setProduitId(produit.getLgFAMILLEID());
+            saisie.setTiersPayantId(tiersPayantId);
+            remplir(saisie, valeur, taux);
+            em.persist(saisie);
+        } else {
+            remplir(saisie, valeur, taux);
+            em.merge(saisie);
+        }
+        return SaisieReferenceResultat.ecrite(new PrixReferenceDTO(nouvelle));
+    }
+
+    private void remplir(PrixReferenceSaisie saisie, int valeur, int taux) {
+        saisie.setType(ReferenceCaisse.typeCaisse());
+        saisie.setValeur(valeur);
+        saisie.setValeurTaux((float) taux);
+        saisie.setDateSaisie(new java.util.Date());
+        TUser u = sessionHelperService == null ? null : sessionHelperService.getCurrentUser();
+        saisie.setUtilisateurId(u == null ? null : u.getLgUSERID());
+    }
+
+    private PrixReferenceSaisie saisieDeLaLigne(String detailId, String tiersPayantId) {
+        List<PrixReferenceSaisie> l = em
+                .createQuery("SELECT s FROM PrixReferenceSaisie s WHERE s.detailId = :d AND s.tiersPayantId = :t",
+                        PrixReferenceSaisie.class)
+                .setParameter("d", detailId).setParameter("t", tiersPayantId).getResultList();
+        return l.isEmpty() ? null : l.get(0);
+    }
+
+    /** Reference detachee (jamais persistee) portant la saisie de la caisse. */
+    private PrixReference depuisSaisie(PrixReferenceSaisie s, TFamille produit) {
+        PrixReference r = new PrixReference();
+        r.setId(null);
+        r.setEnabled(true);
+        r.setType(s.getType());
+        r.setProduit(produit);
+        r.setTiersPayant(em.find(TTiersPayant.class, s.getTiersPayantId()));
+        r.setValeur(s.getValeur());
+        r.setValeurTaux(s.getValeurTaux());
+        return r;
+    }
+
+    @Override
+    public List<PrixReference> referencesDeLaLigneDeVente(TPreenregistrementDetail ligne, Set<String> tiersPayantIds) {
+        TFamille produit = ligne == null ? null : ligne.getLgFAMILLEID();
+        if (produit == null) {
+            return List.of();
+        }
+        List<PrixReference> fiche = getActifByProduitIdAndTiersPayantIds(produit.getLgFAMILLEID(), tiersPayantIds);
+        List<PrixReferenceSaisie> saisies;
+        try {
+            saisies = em
+                    .createQuery("SELECT s FROM PrixReferenceSaisie s WHERE s.detailId = :d", PrixReferenceSaisie.class)
+                    .setParameter("d", ligne.getLgPREENREGISTREMENTDETAILID()).getResultList();
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "saisies de la ligne", e);
+            return fiche;
+        }
+        if (saisies.isEmpty()) {
+            return fiche;
+        }
+        Map<String, PrixReference> parTp = new java.util.LinkedHashMap<>();
+        fiche.forEach(p -> parTp.put(p.getTiersPayant().getLgTIERSPAYANTID(), p));
+        for (PrixReferenceSaisie s : saisies) {
+            if (tiersPayantIds == null || tiersPayantIds.contains(s.getTiersPayantId())) {
+                parTp.put(s.getTiersPayantId(), depuisSaisie(s, produit));
+            }
+        }
+        return new ArrayList<>(parTp.values());
+    }
+
+    @Override
+    public int validerSaisiesVente(String venteId) {
+        if (venteId == null) {
+            return 0;
+        }
+        List<PrixReferenceSaisie> saisies = em
+                .createQuery("SELECT s FROM PrixReferenceSaisie s WHERE s.venteId = :v ORDER BY s.dateSaisie",
+                        PrixReferenceSaisie.class)
+                .setParameter("v", venteId).getResultList();
+        for (PrixReferenceSaisie s : saisies) {
+            TFamille produit = em.find(TFamille.class, s.getProduitId());
+            if (produit != null) {
+                ecrireSurLaFiche(produit, s.getTiersPayantId(), s.getValeur(), s.getValeurTaux(), venteId);
+            }
+            em.remove(s);
+        }
+        return saisies.size();
+    }
+
+    @Override
+    public int noterAnnulationVente(String venteId) {
+        if (venteId == null) {
+            return 0;
+        }
+        try {
+            List<PrixReferenceJournal> lignes = em.createQuery(
+                    "SELECT j FROM PrixReferenceJournal j WHERE j.venteId = :v AND j.action IN :actions ORDER BY j.dateAction",
+                    PrixReferenceJournal.class).setParameter("v", venteId)
+                    .setParameter("actions",
+                            List.of(PrixReferenceJournalAction.AJOUT, PrixReferenceJournalAction.MODIFICATION))
+                    .getResultList();
+            // un couple produit / tiers-payant une seule fois, meme s'il a ete ajoute puis modifie
+            Map<String, PrixReferenceJournal> couples = new LinkedHashMap<>();
+            for (PrixReferenceJournal j : lignes) {
+                couples.put(j.getProduitId() + "|" + j.getTiersPayantId(), j);
+            }
+            int n = 0;
+            for (PrixReferenceJournal j : couples.values()) {
+                Optional<PrixReference> fiche = getByProduitIdAndTiersPayantId(j.getProduitId(), j.getTiersPayantId());
+                if (fiche.isPresent()) {
+                    journaliser(PrixReferenceJournalAction.ANNULATION, fiche.get(), fiche.get(), venteId);
+                    n++;
+                }
+            }
+            return n;
+        } catch (Exception e) {
+            // la note au journal ne doit jamais faire echouer l'annulation de la vente
+            LOG.log(Level.WARNING, "journal de l'annulation", e);
+            return 0;
+        }
+    }
+
+    /** Ecriture sur la fiche article (comme la saisie de la caisse avant le 06/11), journalisee avec la vente. */
+    private void ecrireSurLaFiche(TFamille produit, String tiersPayantId, int valeur, Float taux, String venteId) {
         Optional<PrixReference> existante = getByProduitIdAndTiersPayantId(produit.getLgFAMILLEID(), tiersPayantId);
         PrixReference reference;
         if (existante.isPresent()) {
@@ -316,7 +466,7 @@ public class PrixReferenceServiceImpl implements PrixReferenceService {
             reference.setEnabled(true);
             reference.setType(ReferenceCaisse.typeCaisse());
             reference.setValeur(valeur);
-            reference.setValeurTaux((float) taux);
+            reference.setValeurTaux(taux);
             em.merge(reference);
             if (ReferenceCaisse.change(avant, reference)) {
                 journaliser(PrixReferenceJournalAction.MODIFICATION, avant, reference, venteId);
@@ -328,11 +478,10 @@ public class PrixReferenceServiceImpl implements PrixReferenceService {
             reference.setProduit(produit);
             reference.setTiersPayant(em.find(TTiersPayant.class, tiersPayantId));
             reference.setValeur(valeur);
-            reference.setValeurTaux((float) taux);
+            reference.setValeurTaux(taux);
             em.persist(reference);
             journaliser(PrixReferenceJournalAction.AJOUT, null, reference, venteId);
         }
-        return SaisieReferenceResultat.ecrite(new PrixReferenceDTO(reference));
     }
 
     private void journaliser(PrixReferenceJournalAction action, PrixReference avant, PrixReference apres,

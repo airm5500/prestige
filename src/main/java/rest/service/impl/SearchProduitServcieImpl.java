@@ -562,7 +562,9 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
         if (StringUtils.isNotEmpty(search)) {
             sql.append("AND (t.int_CIP LIKE :search OR EXISTS (SELECT 1 FROM t_famille_grossiste fgc ")
                     .append("WHERE fgc.lg_FAMILLE_ID = t.lg_FAMILLE_ID AND fgc.str_CODE_ARTICLE LIKE :search) ")
-                    .append("OR t.int_EAN13 LIKE :search OR t.str_NAME LIKE :search OR t.code_ean_fabriquant LIKE :search ) ");
+                    .append("OR t.int_EAN13 LIKE :search OR t.str_NAME LIKE :search OR t.code_ean_fabriquant LIKE :search ")
+                    // plan du 06/11, point 15 : reference Ubipharm (PSCODE) de la fiche article
+                    .append("OR t.str_PSCODE LIKE :search ) ");
         }
         if (!checkDeconditionne) {
             sql.append("AND t.bool_DECONDITIONNE = 0 ");
@@ -699,6 +701,7 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
         json.put("lg_GROSSISTE_ID",
                 t.getLgGROSSISTEID() != null ? StringUtils.defaultString(t.getLgGROSSISTEID().getStrLIBELLE()) : "");
         json.put("codeEanFabriquant", t.getCodeEanFabriquant());
+        json.put("str_PSCODE", StringUtils.defaultString(t.getStrPSCODE()));
         return json;
     }
 
@@ -742,6 +745,7 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
             json.put("sensible", t.isSensible());
             json.put("cmu_price", 0);
             json.put("codeEanFabriquant", t.getCodeEanFabriquant());
+            json.put("str_PSCODE", StringUtils.defaultString(t.getStrPSCODE()));
 
             json.put("str_NAME", t.getStrNAME());
             json.put("STATUS", t.getIntORERSTATUS());
@@ -872,6 +876,7 @@ public class SearchProduitServcieImpl implements SearchProduitServcie {
             json.put("scheduled", t.isScheduled());
             json.put("sensible", t.isSensible());
             json.put("codeEanFabriquant", t.getCodeEanFabriquant());
+            json.put("str_PSCODE", StringUtils.defaultString(t.getStrPSCODE()));
 
             try {
                 if (gamme != null) {

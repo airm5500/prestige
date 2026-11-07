@@ -13,6 +13,7 @@
  * Lancement seul : node src/test/e2e/prix-reference/test-base-par-tp-deux-tiers-payants.js
  */
 const C = require('./commun');
+const L = require('../ligne-comptant/commun');
 const { ok, q, exec, A } = C;
 const CLE = 'KEY_PRIX_REF_BASE_PAR_TP';
 
@@ -54,7 +55,9 @@ const texteRappel = (p) => p.evaluate(() => { const r = Ext.ComponentQuery.query
     ok('P.REF saisi sur A (' + refA + ') : PUT accepté', rA.http === 200 && rA.success === true, JSON.stringify(rA).slice(0, 200));
     const rB = await C.saisirEtEnregistrer(p, CIP, TB, 'valeur', refB);
     ok('P.REF saisi sur B (' + refB + ') : PUT accepté', rB.http === 200 && rB.success === true, JSON.stringify(rB).slice(0, 200));
-    ok('Deux références écrites, une par tiers-payant', C.references(P.id) === TA + '/MIX_TAUX_PRIX/' + refA + '/70/1 ; ' + TB + '/MIX_TAUX_PRIX/' + refB + '/20/1', C.references(P.id));
+    ok('Deux saisies gardées sur la vente, une par tiers-payant ; fiche intacte avant la clôture (point 5.1)',
+      C.saisiesGardees(P.id) === TA + '/MIX_TAUX_PRIX/' + refA + '/70/1 ; ' + TB + '/MIX_TAUX_PRIX/' + refB + '/20/1' && C.references(P.id) === 'aucune',
+      C.saisiesGardees(P.id) + ' | ' + C.references(P.id));
 
     const s1 = await C.netServeur(sess, vente1);
     const p1 = parts(s1);
@@ -66,6 +69,13 @@ const texteRappel = (p) => p.evaluate(() => { const r = Ext.ComponentQuery.query
     const ligne1 = await C.ligne(p, CIP);
     ok('Les deux cellules P.REF sont en violet (références de la fiche)', ligne1 && ligne1.refs[0].valeur === refA && ligne1.refs[1].valeur === refB
       && /vp-ref-fiche/.test(ligne1.cellules[0].classes) && /vp-ref-fiche/.test(ligne1.cellules[2].classes), JSON.stringify(ligne1 && ligne1.refs));
+
+    /* cloture de la vente 1 : les deux references partent sur la fiche (plan du 06/11, point 5.1) */
+    await C.saisirBon(p, 2, C.MARQUE + '-BON-B'); /* le net exige un numero de bon par organisme */
+    const clot1 = await L.terminerVente(p, false);
+    ok('Vente 1 close par l\'écran : les deux références sont sur la fiche, plus de saisie gardée', clot1.success === true
+      && C.references(P.id) === TA + '/MIX_TAUX_PRIX/' + refA + '/70/1 ; ' + TB + '/MIX_TAUX_PRIX/' + refB + '/20/1' && C.saisiesGardees(P.id) === 'aucune',
+      JSON.stringify(clot1).slice(0, 200) + ' ' + C.references(P.id) + ' | ' + C.saisiesGardees(P.id));
 
     /* ---- 2. parametre a 1 : base par tiers-payant ---- */
     exec("UPDATE t_parameters SET str_VALUE = '1' WHERE str_KEY = '" + CLE + "'");

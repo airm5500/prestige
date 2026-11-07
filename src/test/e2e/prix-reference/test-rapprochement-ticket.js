@@ -16,7 +16,10 @@
  *  - part de chaque ligne = base x son taux (une seule ligne au plus porte l'arrondi) ;
  *  - somme des lignes = part de l'organisme en base = part imprimee dans le bloc client = part affichee a l'ecran ;
  *  - net imprime = net affiche = prix - part de l'organisme ;
- *  - en base, un seul taux par ligne modifiee (les recalculs ne les empilent plus).
+ *  - en base, un seul taux par ligne modifiee (les recalculs ne les empilent plus) ;
+ *  - plan du 06/11, point 5.2 : la ligne 1 (ni prix de reference ni taux saisi : taux de l'assurance) n'a AUCUNE ligne
+ *    prix/taux sous le produit ; sa part reste comptee dans le bloc de l'organisme (part du bloc - lignes imprimees =
+ *    base de la ligne 1 x taux de l'assurance).
  * Tout est retire a la fin (vente, client, tiers-payant, prix de reference, journal, parametres, stock, caisse).
  * Lancement seul : node src/test/e2e/prix-reference/test-rapprochement-ticket.js
  */
@@ -102,32 +105,36 @@ function lireTicket(t) {
     ok('Aperçu du ticket : le ticket de vente assurance est produit sans impression', apercu.success === true && apercu.tickets.length === 1
       && apercu.tickets[0].modele === 'VENTE_ASSURANCE', JSON.stringify(apercu).slice(0, 300));
     const t = lireTicket(apercu.tickets[0]);
-    ok('Le ticket porte les trois lignes, chacune avec une ligne « Taux … % : … »', t.articles.length === 3 && t.articles.every((a) => a.credits.length === 1),
-      JSON.stringify(t.articles));
+    ok('Le ticket porte les trois lignes ; une ligne prix/taux sous les lignes 2 et 3 seulement', t.articles.length === 3
+      && t.articles[1].credits.length === 1 && t.articles[2].credits.length === 1, JSON.stringify(t.articles));
+    /* plan du 06/11, point 5.2 : ligne au taux de l'assurance, rien sous le produit */
+    ok('Point 5.2 : ligne 1 (taux de l\'assurance, rien de saisi) : aucune ligne « Taux » ni « P[…] » sous le produit',
+      t.articles[0] && t.articles[0].credits.length === 0 && t.articles[0].pref === null, JSON.stringify(t.articles[0]));
 
-    /* veracite : le taux de chaque ligne est celui de l'ecran */
+    /* veracite : le taux des lignes 2 et 3 est celui de l'ecran */
     const tauxTicket = t.articles.map((a) => a.credits[0] ? a.credits[0].taux : null);
-    ok('Véracité : chaque ligne du ticket porte le taux affiché à l\'écran (80, 70, 80)', tauxTicket.join(',') === tauxEcran.join(','),
+    ok('Véracité : lignes 2 et 3, le ticket porte le taux affiché à l\'écran (70, 80)', tauxTicket.slice(1).join(',') === tauxEcran.slice(1).join(','),
       'ticket ' + tauxTicket.join(',') + ' / écran ' + tauxEcran.join(','));
     /* retour du 06/11 : prix de reference et taux sur une seule ligne, plus de ligne « P.REF » a part */
     ok('Ligne 3 : prix de référence et taux sur une seule ligne « P[' + prixRef + '] * T[80%] : part », sans ligne « P.REF » à part',
       t.articles[2] && t.articles[2].pref === null && t.articles[2].credits.length === 1 && t.articles[2].credits[0].pref === prixRef
       && /^P\[[\d\s  ]+\] \* T\[80%\] : [\d\s  ]+$/.test(t.articles[2].credits[0].texte), JSON.stringify(t.articles[2]));
-    ok('Lignes 1 et 2, sans prix de référence : « Taux x % : part » comme avant',
-      [0, 1].every((i) => t.articles[i] && t.articles[i].credits.length === 1 && t.articles[i].credits[0].pref === null
-        && /^Taux \d+ % : [\d\s  ]+$/.test(t.articles[i].credits[0].texte)), JSON.stringify(t.articles.slice(0, 2)));
+    ok('Ligne 2, taux saisi sans prix de référence : « Taux 70 % : part » comme avant',
+      t.articles[1] && t.articles[1].credits.length === 1 && t.articles[1].credits[0].pref === null
+        && /^Taux 70 % : [\d\s  ]+$/.test(t.articles[1].credits[0].texte), JSON.stringify(t.articles[1]));
 
     /* coherence : part = base x taux, une seule ligne au plus porte l'arrondi */
     const bases = t.articles.map((a, i) => (i === 2 ? prixRef : P[i].pu));
     const attendues = bases.map((b, i) => Math.round(b * tauxEcran[i] / 100));
-    const parts = t.articles.map((a) => (a.credits[0] ? a.credits[0].part : -1));
-    const ecarts = parts.map((x, i) => Math.abs(x - attendues[i]));
-    ok('Cohérence : part de chaque ligne = base × son taux (une seule ligne au plus porte l\'arrondi, ±3 F)',
-      ecarts.filter((d) => d > 0).length <= 1 && ecarts.every((d) => d <= 3), 'ticket ' + parts.join(',') + ' / attendu ' + attendues.join(','));
-    const somme = parts.reduce((s, x) => s + x, 0);
     const tpImprime = Object.keys(t.paires).filter((k) => k.indexOf(C.MARQUE) === 0 || /\[\d+%\]/.test(k)).map((k) => chiffres(t.paires[k]))[0];
-    ok('Cohérence : somme des lignes = part de l\'organisme en base = part imprimée dans le bloc client',
-      somme === partTpBase && tpImprime === partTpBase, 'lignes ' + somme + ' / base ' + partTpBase + ' / bloc client ' + tpImprime + ' ' + JSON.stringify(t.paires));
+    /* point 5.2 : la part de la ligne 1 n'est plus imprimee sous le produit, c'est le reste de la part de l'organisme */
+    const imprimees = t.articles.map((a) => (a.credits[0] ? a.credits[0].part : null));
+    const parts = [partTpBase - (imprimees[1] || 0) - (imprimees[2] || 0), imprimees[1], imprimees[2]];
+    const ecarts = parts.map((x, i) => (x === null ? 999 : Math.abs(x - attendues[i])));
+    ok('Cohérence : part de chaque ligne = base × son taux (ligne 1 = part du bloc − lignes imprimées ; une seule ligne au plus porte l\'arrondi, ±3 F)',
+      ecarts.filter((d) => d > 0).length <= 1 && ecarts.every((d) => d <= 3), 'parts ' + parts.join(',') + ' / attendu ' + attendues.join(','));
+    ok('Cohérence : part de l\'organisme en base = part imprimée dans le bloc client',
+      tpImprime === partTpBase, 'base ' + partTpBase + ' / bloc client ' + tpImprime + ' ' + JSON.stringify(t.paires));
     ok('Rapprochement écran : la part affichée à l\'écran avant la clôture = part en base',
       railAvant && railAvant.montantTp === partTpBase, JSON.stringify(railAvant));
     const prixTotal = Number(vente[1]);

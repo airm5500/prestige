@@ -283,7 +283,7 @@ Ext.define('testextjs.view.produits.PrixReference', {
                             {text: 'Qui', dataIndex: 'qui', flex: 1},
                             {text: 'Origine', dataIndex: 'origine', flex: 1.2},
                             {text: 'Tiers-payant', dataIndex: 'tiersPayant', flex: 1},
-                            {text: 'Action', dataIndex: 'action', width: 90},
+                            {text: 'Action', dataIndex: 'action', width: 150},
                             {text: 'Avant', dataIndex: 'avant', flex: 1},
                             {text: 'Après', dataIndex: 'apres', flex: 1}
                         ]

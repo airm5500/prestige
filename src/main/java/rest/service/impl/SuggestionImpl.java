@@ -1791,6 +1791,35 @@ public class SuggestionImpl implements SuggestionService {
         return familleGrossiste;
     }
 
+    /**
+     * Plan du 06/11, point 12 : stock du magasin de reserve (type de stock 2) des produits de la page, pour
+     * l'emplacement du poste, en une seule requete. Meme source que « Stock Res » de la barre d'information
+     * (reappro-infos).
+     */
+    private Map<String, Integer> stocksReserve(List<TSuggestionOrderDetails> lignes, String empl) {
+        Map<String, Integer> resultat = new java.util.HashMap<>();
+        List<String> ids = lignes.stream().map(d -> d.getLgFAMILLEID().getLgFAMILLEID()).distinct()
+                .collect(Collectors.toList());
+        if (ids.isEmpty()) {
+            return resultat;
+        }
+        try {
+            @SuppressWarnings("unchecked")
+            List<Object[]> rows = getEmg().createNativeQuery(
+                    "SELECT tsf.lg_FAMILLE_ID, tsf.int_NUMBER FROM t_type_stock_famille tsf WHERE tsf.lg_TYPE_STOCK_ID = '2'"
+                            + " AND tsf.lg_EMPLACEMENT_ID = ?1 AND tsf.lg_FAMILLE_ID IN ?2")
+                    .setParameter(1, empl != null ? empl : "").setParameter(2, ids).getResultList();
+            for (Object[] r : rows) {
+                if (r[0] != null && r[1] != null && !resultat.containsKey(r[0].toString())) {
+                    resultat.put(r[0].toString(), ((Number) r[1]).intValue());
+                }
+            }
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "stock reserve de la suggestion", e);
+        }
+        return resultat;
+    }
+
     @Override
     public JSONObject fetchItems(String suggestionId, String searchValue, int start, int limit) {
         // removeInBulk(supprimerLigneSuggestion(suggestionId));
@@ -1834,6 +1863,7 @@ public class SuggestionImpl implements SuggestionService {
             LocalDate nMoinsTrois = moisUn.minusMonths(3);
 
             data.put("total", count);
+            Map<String, Integer> reserves = stocksReserve(detailses, empl);
 
             long boucleStart = System.currentTimeMillis();
 
@@ -1873,6 +1903,8 @@ public class SuggestionImpl implements SuggestionService {
                         ? famille.getLgCODEGESTIONID().getIntDATEBUTOIRARTICLE() : 0);
 
                 json.put("int_STOCK", oTFamillestock.getIntNUMBERAVAILABLE());
+                // plan du 06/11, point 12 : colonne RES = « Stock Res » de la barre d'information (meme source)
+                json.put("int_STOCK_RESERVE", reserves.getOrDefault(famille.getLgFAMILLEID(), 0));
                 json.put("int_NUMBER", order.getIntNUMBER());
 
                 long etatStart = System.currentTimeMillis();

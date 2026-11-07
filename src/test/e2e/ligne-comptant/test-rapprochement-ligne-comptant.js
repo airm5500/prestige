@@ -4,7 +4,7 @@
  *  - l'ecran avant la cloture (grille : quantite, prix, montant, coche ; rail : net, part tiers-payant, DONT COMPTANT,
  *    DONT PART CLIENT) ;
  *  - la base apres la cloture (lignes de chaque vente, part de l'organisme, part client, mouvement de caisse) ;
- *  - le ticket assurance relu par l'apercu (lignes assurance seulement, « Taux 70 % : part » sous chacune, bloc client,
+ *  - le ticket assurance relu par l'apercu (lignes assurance seulement, rien sous les lignes au taux de l'assurance (point 5.2 du 06/11), bloc client,
  *    net ; aucune mention de la vente comptant) ;
  *  - le ticket client combine relu par l'apercu (section assurance, section comptant, part du client, comptant, TTC des
  *    deux ventes, net) ;
@@ -111,11 +111,12 @@ const arrondi5 = (v) => (v <= 0 ? 0 : (v % 5 === 0 ? v : v + (5 - (v % 5))));
     ok('Ticket assurance = base : deux lignes (1 et 3) avec leurs quantités et montants, la ligne cochée absente',
       ta.articles.length === 2 && ta.articles[0].quantite === 2 && ta.articles[0].montant === 2 * P[0].pu && ta.articles[1].quantite === 3 && ta.articles[1].montant === 3 * P[2].pu,
       JSON.stringify(ta.articles));
-    const parts = ta.articles.map((a) => (a.credits[0] ? a.credits[0].part : -1));
-    const tauxTicket = ta.articles.map((a) => (a.credits[0] ? a.credits[0].taux : -1));
-    ok('Ticket assurance : « Taux 70 % : part » sous chaque ligne, part = base × 70 % (une ligne au plus porte l\'arrondi), somme = part de l\'organisme en base',
-      tauxTicket.join(',') === '70,70' && parts.reduce((s, x) => s + x, 0) === partTpBase
-      && ta.articles.map((a, i) => Math.abs(parts[i] - Math.round(a.montant * 0.7))).filter((d) => d > 0).length <= 1, 'parts ' + parts.join(',') + ' / base ' + partTpBase);
+    /* plan du 06/11, point 5.2 (remplace le « Taux 70 % sous chaque ligne » du cas 1) : lignes au taux de l'assurance,
+       rien de saisi -> aucune ligne prix/taux sous le produit ; leur part reste dans le bloc de l'organisme */
+    const parts = ta.articles.map((a) => Math.round(a.montant * 0.7));
+    ok('Ticket assurance (point 5.2) : aucune ligne « Taux » ni « P[…] » sous les lignes au taux de l\'assurance ; somme des parts (base × 70 %) = part de l\'organisme en base (±2 F)',
+      ta.articles.every((a) => a.credits.length === 0) && Math.abs(parts.reduce((s, x) => s + x, 0) - partTpBase) <= 2,
+      JSON.stringify(ta.articles.map((a) => a.credits)) + ' parts ' + parts.join(',') + ' / base ' + partTpBase);
     const blocTp = Object.keys(ta.paires).filter((k) => k.indexOf(TP) === 0).map((k) => C.chiffres(ta.paires[k]))[0];
     ok('Ticket assurance : bloc client = part de l\'organisme en base, net imprimé = part client affichée, aucune mention de la vente comptant',
       blocTp === partTpBase && ta.net === rail.partClient.valeur && !JSON.stringify(ap).toUpperCase().includes('COMPTANT') && !porte(JSON.stringify(ap), refsVno),
@@ -137,8 +138,8 @@ const arrondi5 = (v) => (v <= 0 ? 0 : (v % 5 === 0 ? v : v + (5 - (v % 5))));
     ok('Ticket combiné = écran : Part du client, Comptant, TTC des deux ventes et NET = rail affiché avant la clôture',
       tot['Part du client'] === rail.partClient.valeur && tot['Comptant'] === rail.comptant.valeur && ttc === vo.prix + vno.prix && ttc === totalAssurance + totalComptant
       && tc.net === rail.net.valeur, JSON.stringify({ tot, cleTtc, ttc, net: tc.net, rail }));
-    ok('Ticket combiné : « Taux 70 % : part » sous chaque ligne assurance, mêmes parts que le ticket assurance ; organisme et remises dans les totaux',
-      sec1.map((a) => (a.credits[0] ? a.credits[0].part : -1)).join(',') === parts.join(',') && Object.keys(tot).some((k) => k.indexOf(TP) === 0) && tot[Object.keys(tot).find((k) => k.indexOf(TP) === 0)] === partTpBase,
+    ok('Ticket combiné (point 5.2) : rien sous les lignes assurance au taux de l\'assurance, comme le ticket assurance ; organisme et remises dans les totaux',
+      sec1.every((a) => a.credits.length === 0) && Object.keys(tot).some((k) => k.indexOf(TP) === 0) && tot[Object.keys(tot).find((k) => k.indexOf(TP) === 0)] === partTpBase,
       JSON.stringify(tot));
 
     /* ---- le detail de vente ---- */

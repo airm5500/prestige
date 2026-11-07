@@ -3,6 +3,7 @@ package rest.service;
 import commonTasks.dto.VenteDetailsDTO;
 import dal.PrixReference;
 import dal.TPreenregistrement;
+import dal.TPreenregistrementDetail;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -60,6 +61,25 @@ public interface PrixReferenceService {
      */
     SaisieReferenceResultat saisieCaisse(String venteId, String detailId, String tiersPayantId, Integer valeur,
             Integer taux);
+
+    /**
+     * Plan du 06/11, point 5.1 : references actives d'une ligne de vente pour ces tiers-payants, la saisie faite a la
+     * caisse sur CETTE vente (pas encore validee) remplacant celle de la fiche article.
+     */
+    List<PrixReference> referencesDeLaLigneDeVente(TPreenregistrementDetail ligne, Set<String> tiersPayantIds);
+
+    /**
+     * Plan du 06/11, point 5.1 : a la cloture de la vente, recopie ses saisies de la caisse sur la fiche article (ajout
+     * ou modification, journalisee avec la vente), puis les retire. Renvoie le nombre de saisies recopiees.
+     */
+    int validerSaisiesVente(String venteId);
+
+    /**
+     * Plan du 06/11, point 5.1 : annulation d'une vente close dont les saisies de la caisse ont ete ecrites sur la
+     * fiche article. Le prix reste sur la fiche ; une ligne ANNULATION est notee au journal pour chaque couple produit
+     * / tiers-payant, avec la valeur actuelle de la fiche. Renvoie le nombre de lignes notees.
+     */
+    int noterAnnulationVente(String venteId);
 
     /** Journal d'un produit, du plus recent au plus ancien. */
     List<PrixReferenceJournalDTO> journalProduit(String produitId);

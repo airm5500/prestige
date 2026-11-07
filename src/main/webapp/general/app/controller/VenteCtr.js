@@ -8499,8 +8499,9 @@ Ext.define('testextjs.controller.VenteCtr', {
                     me.refresh();
                     return;
                 }
+                // plan du 06/11, point 5.1 : la saisie reste sur la vente, la fiche n'est ecrite qu'a la cloture
                 vue.afficherMessageReferenceTp('Ligne ' + ligne + ' : prix de référence ' + Ext.util.Format.number(valeur, '0,000.')
-                        + ' et taux ' + taux + ' % enregistrés sur la fiche article ' + produit + ' — net recalculé.', false);
+                        + ' et taux ' + taux + ' % retenus pour cette vente (' + produit + ') ; ils iront sur la fiche article à la validation — net recalculé.', false);
                 if (result.net && result.net.success && result.net.data) {
                     me.appliquerNetReferenceTp(result.net.data);
                 } else {

@@ -586,7 +586,9 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                                     sortable: true
                                                 }, {
                                                     text: 'C.CIP',
-                                                    flex: 1,
+                                                    // plan du 06/11, point 4 : affichage reduit a 13 caracteres (140 px : 13 chiffres en gras 14 px, plus le
+                                                    // retrait de 8 px de chaque cote de la cellule), la place va a DESIGNATION
+                                                    width: 140,
                                                     sortable: true,
                                                     dataIndex: 'intCIP'
                                                 }, {
@@ -601,7 +603,8 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                                         // rouge = soumis a ordonnance avec code tableau, les deux si les deux
                                                         var t = testextjs.view.vente.VenteVNO.trianglesOrdonnancier(r) + Ext.String.htmlEncode(v);
                                                         if (r.get('promotion')) {
-                                                            t += ' <span style="color:#c0392b;font-weight:bold">PROMOTION'
+                                                            // plan du 06/11, point 3.1 : en vert, comme le « Oui » de la liste des promotions (vente-theme.css)
+                                                            t += ' <span class="vp-promo-texte">PROMOTION'
                                                                     + (r.get('unitesOffertes') > 0 ? ' : dont '
                                                                             + r.get('unitesOffertes') + ' offerte(s)' : '')
                                                                     + '</span>';
@@ -1466,9 +1469,9 @@ Ext.define('testextjs.view.vente.VenteVNO', {
             return c.dataIndex === 'intPRICE';
         });
         let position = montant ? entete.items.indexOf(montant) : entete.items.getCount() - 1;
-        // C.CIP a 100 px (le code reste lisible en entier), DESIGNATION garde une largeur minimale ; tout est remis en
+        // C.CIP a 140 px (13 caracteres : le code reste lisible en entier), DESIGNATION garde une largeur minimale ; tout est remis en
         // place au retrait des groupes. QD et QS ont leur largeur fixe (48 px) dans tous les cas depuis le 05/11.
-        me.fixerLargeurReferenceTp(entete, 'intCIP', 100);
+        me.fixerLargeurReferenceTp(entete, 'intCIP', 140);
         const designation = entete.items.findBy(function (c) {
             return c.dataIndex === 'strNAME';
         });
@@ -1707,7 +1710,7 @@ Ext.define('testextjs.view.vente.VenteVNO', {
             }
             return;
         }
-        const texte = 'Gris italique = valeur par défaut, non enregistrée · Violet = référence de la fiche article · '
+        const texte = 'Gris italique = valeur par défaut, non enregistrée · Violet = référence de la fiche article, ou saisie sur cette vente (écrite sur la fiche à la validation) · '
                 + 'Entrée valide, Échap annule'
                 + (regleMinimum === false ? ''
                         : ' · Avec plusieurs tiers-payants, le calcul retient le plus petit des prix de référence de la vente.');

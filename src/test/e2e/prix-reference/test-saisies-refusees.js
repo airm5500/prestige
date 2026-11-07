@@ -39,7 +39,7 @@ const { ok, q, A } = C;
       await p.waitForTimeout(900);
       ok('« ' + texte + ' » en ' + champ.toUpperCase() + ' : cellule rouge, message sous la grille', rouge && attendu.test(e.message), (rouge ? 'rouge' : 'pas rouge') + ' / ' + e.message);
       ok('« ' + texte + ' » : ancienne valeur rétablie (défaut ' + (champ === 'taux' ? 80 : P.pu) + '), rien en base', l && l.refs[0].defaut === true
-        && l.refs[0].valeur === P.pu && l.refs[0].taux === 80 && l.cellules.every((c) => /vp-ref-defaut/.test(c.classes)) && C.references(P.id) === 'aucune', JSON.stringify(l && l.refs));
+        && l.refs[0].valeur === P.pu && l.refs[0].taux === 80 && l.cellules.every((c) => /vp-ref-defaut/.test(c.classes)) && C.references(P.id) === 'aucune' && C.saisiesGardees(P.id) === 'aucune', JSON.stringify(l && l.refs));
       ok('« ' + texte + ' » : aucune requête réseau', requetes.length === 0, requetes.join(' '));
     };
     await refuser('valeur', '4', /au moins 5/);
@@ -53,25 +53,26 @@ const { ok, q, A } = C;
     await p.waitForTimeout(800);
     const lTexte = await C.ligne(p, CIP);
     ok('« abc » en P.REF : lettres refusées à la frappe, valeur inchangée, rien en base, aucune requête', lTexte && lTexte.refs[0].defaut === true
-      && lTexte.refs[0].valeur === P.pu && C.references(P.id) === 'aucune' && requetes.length === 0, JSON.stringify(lTexte && lTexte.refs) + ' ' + requetes.join(' '));
+      && lTexte.refs[0].valeur === P.pu && C.references(P.id) === 'aucune' && C.saisiesGardees(P.id) === 'aucune' && requetes.length === 0, JSON.stringify(lTexte && lTexte.refs) + ' ' + requetes.join(' '));
     /* Entree sur la valeur par defaut telle quelle : rien n'est ecrit */
     requetes = [];
     await C.saisirCellule(p, CIP, TP, 'taux', '80');
     await p.waitForTimeout(800);
-    ok('Entrée sur le taux par défaut (80) sans le changer : rien n\'est écrit, aucune requête', C.references(P.id) === 'aucune' && requetes.length === 0, requetes.join(' '));
+    ok('Entrée sur le taux par défaut (80) sans le changer : rien n\'est écrit, aucune requête', C.references(P.id) === 'aucune' && C.saisiesGardees(P.id) === 'aucune' && requetes.length === 0, requetes.join(' '));
 
     /* un clic ailleurs abandonne la saisie : rien n'est enregistre, pas de message */
     requetes = [];
     await C.saisirCellule(p, CIP, TP, 'valeur', String(P.pu - 50), 'Tab');
     await p.waitForTimeout(800);
     const lAb = await C.ligne(p, CIP);
-    ok('Saisie quittée sans Entrée (Tab) : abandonnée, valeur par défaut gardée, aucune requête', lAb && lAb.refs[0].defaut === true && C.references(P.id) === 'aucune'
+    ok('Saisie quittée sans Entrée (Tab) : abandonnée, valeur par défaut gardée, aucune requête', lAb && lAb.refs[0].defaut === true && C.references(P.id) === 'aucune' && C.saisiesGardees(P.id) === 'aucune'
       && !requetes.some((u) => /prix-reference|update\/item/.test(u)), JSON.stringify(lAb && lAb.refs) + ' ' + requetes.join(' '));
 
     /* la grille n'est pas bloquee : une saisie valide passe */
     const r = await C.saisirEtEnregistrer(p, CIP, TP, 'taux', 25);
-    ok('Saisie valide ensuite (taux 25) : enregistrée', r.success === true && C.references(P.id) === TP + '/MIX_TAUX_PRIX/' + P.pu + '/25/1', C.references(P.id));
-    ok('Le prix de référence enregistré avec ce taux est le prix de vente (valeur par défaut)', /^AJOUT\/NULL\/' + P.pu + '\//.test(C.journal(P.id)) || new RegExp('^AJOUT/NULL/' + P.pu + '/NULL/25/').test(C.journal(P.id)), C.journal(P.id));
+    ok('Saisie valide ensuite (taux 25) : gardée sur la vente, avec le prix de vente comme prix de référence (valeur par défaut)',
+      r.success === true && C.saisiesGardees(P.id) === TP + '/MIX_TAUX_PRIX/' + P.pu + '/25/1', C.saisiesGardees(P.id));
+    ok('Point 5.1 : fiche et journal intacts avant la clôture', C.references(P.id) === 'aucune' && C.journal(P.id) === 'aucun', C.references(P.id) + ' | ' + C.journal(P.id));
     ok('Aucune erreur JavaScript', sess.erreurs.length === 0, sess.erreurs.join(' | '));
   } catch (e) {
     ok('Parcours sans exception', false, e.stack + ' ' + sess.erreurs.join(' | '));

@@ -363,28 +363,28 @@ public class SalesNetComputingServiceImpl implements SalesNetComputingService {
             si.setRegularUnitPrice(BigDecimal.valueOf(sl.getIntPRICEUNITAIR()));
             input.setTotalSalesAmount(Objects.requireNonNullElse(input.getTotalSalesAmount(), BigDecimal.ZERO)
                     .add(si.getTotalSalesAmount()));
-            this.prixReferenceService.getActifByProduitIdAndTiersPayantIds(produit.getLgFAMILLEID(), tiersPayantIds)
-                    .forEach(prixRef -> {
+            // plan du 06/11, point 5.1 : la saisie de la caisse sur cette vente passe avant la fiche article
+            this.prixReferenceService.referencesDeLaLigneDeVente(sl, tiersPayantIds).forEach(prixRef -> {
 
-                        TTiersPayant pt = prixRef.getTiersPayant();
-                        tiersPayantInputs.forEach(cl -> {
-                            if (cl.getTiersPayantId().equals(pt.getLgTIERSPAYANTID())) {
-                                TiersPayantPrixInput pi = new TiersPayantPrixInput();
-                                pi.setCompteTiersPayantId(cl.getClientTiersPayantId());
-                                pi.setPrice(prixRef.getValeur());
-                                if (Objects.isNull(prixRef.getValeurTaux())) {
-                                    pi.setRate(100.0f);
-                                } else {
-                                    pi.setRate(prixRef.getValeurTaux());
-                                }
+                TTiersPayant pt = prixRef.getTiersPayant();
+                tiersPayantInputs.forEach(cl -> {
+                    if (cl.getTiersPayantId().equals(pt.getLgTIERSPAYANTID())) {
+                        TiersPayantPrixInput pi = new TiersPayantPrixInput();
+                        pi.setCompteTiersPayantId(cl.getClientTiersPayantId());
+                        pi.setPrice(prixRef.getValeur());
+                        if (Objects.isNull(prixRef.getValeurTaux())) {
+                            pi.setRate(100.0f);
+                        } else {
+                            pi.setRate(prixRef.getValeurTaux());
+                        }
 
-                                pi.setOptionPrixType(prixRef.getType());
-                                si.getPrixAssurances().add(pi);
-                            }
+                        pi.setOptionPrixType(prixRef.getType());
+                        si.getPrixAssurances().add(pi);
+                    }
 
-                        });
+                });
 
-                    });
+            });
 
             return si;
         }).collect(Collectors.toList());

@@ -7,9 +7,13 @@
  *  1. Ventes > nouvelle vente > « Assurance » > client assure > quatre articles tapes par leur CIP ; QD de la ligne 2
  *     mise a 2 et de la ligne 3 a 3 par la cellule de la grille ;
  *  2. ligne 1 : P.REF = prix - 150 ; ligne 2 : TAUX 65 ; ligne 3 : P.REF = prix - 300 puis TAUX 45 ; ligne 4 : rien ;
- *  3. rapprochement de chaque ligne sur les huit endroits ; net = regle (somme des bases x taux) = serveur = ecran ;
+ *  3. rapprochement de chaque ligne : cellule = modele = service de la vente = saisie gardee sur la vente ; fiche
+ *     article et journal intacts avant la cloture (plan du 06/11, point 5.1) ; net = regle (somme des bases x taux)
+ *     = serveur = ecran ;
  *  4. AFFICHER NET A PAYER, montant recu, TERMINER LA VENTE (sans impression) : part de l'organisme en base = part
  *     affichee avant la cloture ; taux_produit = taux de chaque ligne avec reference, aucun pour la ligne sans ;
+ *     fiche article (service) = table prix_reference = valeur finale de chaque ligne, une ligne AJOUT par ligne au
+ *     journal portant la vente, plus de saisie gardee ;
  *  5. fiche article de la ligne 3 : liste et historique a l'ecran = service = base.
  * Le ticket imprime est rapproche par test-rapprochement-ticket.js (branche d'integration, apercu du ticket).
  * Tout est retire a la fin. Lancement seul : node src/test/e2e/prix-reference/test-rapprochement-caisse-fiche-base.js
@@ -117,26 +121,18 @@ async function terminerVente(p) {
       const svc = serviceVente.find((x) => x.detailId === l.detailId && x.tpId === TP) || {};
       const fiche = ((await lire(p, '../api/v1/prix-reference/' + P[i].id)).data || []).find((x) => x.tiersPayantId === TP);
       const enBase = C.references(P[i].id);
+      const gardee = C.saisiesGardees(P[i].id);
       const a = attendu[i];
       const d = { cellule, modele: ref && { valeur: ref.valeur, taux: ref.taux, defaut: ref.defaut }, service: { valeur: svc.valeur, taux: svc.taux, defaut: svc.defaut, type: svc.type },
-        fiche: fiche && { valeur: fiche.valeur, taux: fiche.taux, type: fiche.type }, base: enBase, attendu: a };
+        fiche: fiche && { valeur: fiche.valeur, taux: fiche.taux, type: fiche.type }, base: enBase, gardee, attendu: a };
       ok('Ligne ' + (i + 1) + ' : cellule = modèle = service de la vente = attendu (' + a.valeur + ' / ' + a.taux + ' %' + (a.enBase ? ', enregistré' : ', par défaut') + ')',
         cellule && cellule.valeur === a.valeur && cellule.taux === a.taux && ref && ref.valeur === a.valeur && ref.taux === a.taux && ref.defaut === !a.enBase
         && svc.valeur === a.valeur && svc.taux === a.taux && svc.defaut === !a.enBase, JSON.stringify(d));
-      if (a.enBase) {
-        ok('Ligne ' + (i + 1) + ' : fiche article (service) = table prix_reference = saisie (MIX, ' + a.valeur + ', ' + a.taux + ' %)',
-          fiche && fiche.valeur === a.valeur && Number(fiche.taux) === a.taux && fiche.type === 'MIX_TAUX_PRIX' && enBase === TP + '/MIX_TAUX_PRIX/' + a.valeur + '/' + a.taux + '/1',
-          JSON.stringify(d));
-      } else {
-        ok('Ligne ' + (i + 1) + ' : rien en fiche article ni en base (valeurs par défaut jamais enregistrées)', !fiche && enBase === 'aucune', JSON.stringify(d));
-      }
+      ok('Ligne ' + (i + 1) + ' : ' + (a.enBase ? 'saisie gardée sur la vente (MIX, ' + a.valeur + ', ' + a.taux + ' %)' : 'aucune saisie gardée (valeur par défaut)')
+        + ' ; fiche article (service) et table prix_reference intactes avant la clôture (point 5.1)',
+        (a.enBase ? gardee === TP + '/MIX_TAUX_PRIX/' + a.valeur + '/' + a.taux + '/1' : gardee === 'aucune') && !fiche && enBase === 'aucune', JSON.stringify(d));
     }
-    const j1 = C.journal(P[0].id); const j2 = C.journal(P[1].id); const j3 = C.journal(P[2].id); const j4 = C.journal(P[3].id);
-    ok('Journal : AJOUT sur les lignes 1 et 2, AJOUT puis MODIFICATION (taux 80 → 45) sur la ligne 3, rien sur la 4, tous portant la vente',
-      new RegExp('^AJOUT/NULL/' + attendu[0].valeur + '/NULL/80/MIX_TAUX_PRIX/' + venteId + '/').test(j1)
-      && new RegExp('^AJOUT/NULL/' + P[1].pu + '/NULL/65/MIX_TAUX_PRIX/' + venteId + '/').test(j2)
-      && new RegExp('^AJOUT/NULL/' + attendu[2].valeur + '/NULL/80/MIX_TAUX_PRIX/' + venteId + '/[^;]+ ; MODIFICATION/' + attendu[2].valeur + '/' + attendu[2].valeur + '/80/45/MIX_TAUX_PRIX/' + venteId + '/').test(j3)
-      && j4 === 'aucun', [j1, j2, j3, j4].join(' || '));
+    ok('Journal intact avant la clôture sur les quatre lignes', P.every((x) => C.journal(x.id) === 'aucun'), P.map((x) => C.journal(x.id)).join(' || '));
 
     /* net : regle = serveur = ecran */
     const ecran = await C.netAffiche(p);
@@ -163,6 +159,26 @@ async function terminerVente(p) {
     ok('taux_produit : un seul taux par ligne avec référence (80, 65, 45 = taux affichés), aucun pour la ligne sans référence',
       parts.length === 3 && new Set(parts.map((x) => x.split('=')[0])).size === 3 && [0, 1, 2].every((i) => parts.indexOf(P[i].id + '=' + attendu[i].taux) >= 0)
       && !parts.some((x) => x.startsWith(P[3].id + '=')), tauxLignes);
+
+    for (let i = 0; i < P.length; i++) {
+      const a = attendu[i];
+      const fiche = ((await lire(p, '../api/v1/prix-reference/' + P[i].id)).data || []).find((x) => x.tiersPayantId === TP);
+      const enBase = C.references(P[i].id);
+      const d = { fiche: fiche && { valeur: fiche.valeur, taux: fiche.taux, type: fiche.type }, base: enBase, gardee: C.saisiesGardees(P[i].id), attendu: a };
+      if (a.enBase) {
+        ok('Après la clôture, ligne ' + (i + 1) + ' : fiche article (service) = table prix_reference = valeur finale saisie (MIX, ' + a.valeur + ', ' + a.taux + ' %), plus de saisie gardée',
+          fiche && fiche.valeur === a.valeur && Number(fiche.taux) === a.taux && fiche.type === 'MIX_TAUX_PRIX' && enBase === TP + '/MIX_TAUX_PRIX/' + a.valeur + '/' + a.taux + '/1'
+          && d.gardee === 'aucune', JSON.stringify(d));
+      } else {
+        ok('Après la clôture, ligne ' + (i + 1) + ' : rien en fiche article ni en base (valeurs par défaut jamais enregistrées)', !fiche && enBase === 'aucune' && d.gardee === 'aucune', JSON.stringify(d));
+      }
+    }
+    const j1 = C.journal(P[0].id); const j2 = C.journal(P[1].id); const j3 = C.journal(P[2].id); const j4 = C.journal(P[3].id);
+    ok('Journal après la clôture : un seul AJOUT (valeur finale) sur les lignes 1, 2 et 3 (taux 80, 65, 45), rien sur la 4, tous portant la vente',
+      new RegExp('^AJOUT/NULL/' + attendu[0].valeur + '/NULL/80/MIX_TAUX_PRIX/' + venteId + '/[^;]+$').test(j1)
+      && new RegExp('^AJOUT/NULL/' + P[1].pu + '/NULL/65/MIX_TAUX_PRIX/' + venteId + '/[^;]+$').test(j2)
+      && new RegExp('^AJOUT/NULL/' + attendu[2].valeur + '/NULL/45/MIX_TAUX_PRIX/' + venteId + '/[^;]+$').test(j3)
+      && j4 === 'aucun', [j1, j2, j3, j4].join(' || '));
 
     /* 5. fiche article de la ligne 3 : ecran = service = base */
     await C.ouvrirEcran(p, 'famillemanager');
@@ -191,11 +207,11 @@ async function terminerVente(p) {
       && svcFiche[0].valeur === a3.valeur && Number(svcFiche[0].taux) === a3.taux && C.references(P[2].id) === TP + '/MIX_TAUX_PRIX/' + a3.valeur + '/' + a3.taux + '/1',
       JSON.stringify({ ecran: fiche.prix, service: svcFiche, base: C.references(P[2].id) }));
     const journalSvc = (await lire(p, '../api/v1/prix-reference/' + P[2].id + '/journal')).data || [];
-    ok('Fiche article (écran) : historique = service = base (Ajout puis Modification, origine « Caisse — vente … », taux 80 → 45)',
-      fiche.journal.length === 2 && journalSvc.length === 2 && fiche.journal[0].action === 'Modification' && fiche.journal[1].action === 'Ajout'
-      && fiche.journal.every((j) => /^Caisse — vente /.test(j.origine)) && /taux 80 %/.test(fiche.journal[1].apres) && /taux 45 %/.test(fiche.journal[0].apres)
+    ok('Fiche article (écran) : historique = service = base (un Ajout à la clôture, origine « Caisse — vente … », taux 45)',
+      fiche.journal.length === 1 && journalSvc.length === 1 && fiche.journal[0].action === 'Ajout'
+      && /^Caisse — vente /.test(fiche.journal[0].origine) && /taux 45 %/.test(fiche.journal[0].apres)
       && JSON.stringify(fiche.journal.map((j) => [j.action, j.avant, j.apres])) === JSON.stringify(journalSvc.map((j) => [j.action, j.avant, j.apres]))
-      && C.journal(P[2].id).split(' ; ').length === 2, JSON.stringify({ ecran: fiche.journal, service: journalSvc }));
+      && C.journal(P[2].id).split(' ; ').length === 1, JSON.stringify({ ecran: fiche.journal, service: journalSvc }));
     ok('Aucune erreur JavaScript', sess.erreurs.length === 0, sess.erreurs.join(' | '));
   } catch (e) {
     ok('Parcours sans exception', false, e.stack + ' ' + sess.erreurs.join(' | '));
