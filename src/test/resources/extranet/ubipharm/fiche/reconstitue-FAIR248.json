@@ -1,0 +1,26 @@
+{
+  "reappro": [],
+  "produit": {
+    "pscode": "FAIR248",
+    "pslib": "FAIR&W GLUTAT GEL DCHE ECLAT E",
+    "pslibc": "XTRA1000ML",
+    "picode": "3000001262862",
+    "stlib": "Normal",
+    "pspven": 6431,
+    "psppub": 9110,
+    "tvtaux": 18,
+    "psstkSoc": 31,
+    "infosParEtablissement": [
+      { "etcode": "BKE", "etlib": "UBIPHARM BOUAKE", "psstk": 6 },
+      { "etcode": "GNA", "etlib": "UBIPHARM GAGNOA", "psstk": 0 },
+      { "etcode": "VRI", "etlib": "UBIPHARM ZONE 4", "psstk": 0 },
+      { "etcode": "YOP", "etlib": "YOPOUGON CLIENT", "psstk": 25, "colisages": [12] }
+    ],
+    "produitsSubstitution": null
+  },
+  "cips": [],
+  "promos": [],
+  "arrivage": [],
+  "substitu": [],
+  "qttcde": []
+}
