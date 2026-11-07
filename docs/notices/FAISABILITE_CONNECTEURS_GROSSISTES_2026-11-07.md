@@ -346,3 +346,38 @@ Décisions métier :
     TEDIS, nouveaux produits ?
 14. Qui a le droit de fournir la session et de lancer une collecte (administrateur seulement ?) ; collecte à la demande
     seulement, ou aussi planifiée ?
+
+## 7. Réalisation Ubipharm (07/11) : état et tests
+
+Écran : GESTION DES COMMANDES > Extranets grossistes (onglets Sessions, Fiche produit, Réapprovisionnements,
+Réclamations, Nouveaux produits, Collectes). API : `v1/extranet/...`. Tables `extranet_*` (V7.5.0 à V7.5.5), seules
+écrites ; aucune table métier touchée. TEDIS : non commencé (captures manquantes).
+
+Où la donnée apparaît, et qui la compare :
+
+| Donnée | Endroits | Test |
+|---|---|---|
+| Fiche produit (désignation, code, prix, TVA, stock société, stocks par agence) | extranet, base, écran | `src/test/e2e/extranet/test-rapprochement-extranets.js` |
+| Réapprovisionnements (61 lignes, 3 pages, même produit sur deux agences, N/A, colisages multiples, sans CIP) | extranet, base, écran | idem |
+| Réclamations (liste, détail, PDF : SHA-256 et taille) | extranet, base, écran, fichier | idem |
+| Nouveaux produits et rapprochement proposé | extranet, base, écran | idem |
+
+Règles de calcul et de lecture (tests de cohérence, graine 20261107, milliers de cas) : normalisation (chaînes, montants,
+dates strictes, N/A jamais 0), pagination DataTables (pages vides, répétées, total qui change, limite), rapprochement
+des produits. 103 tests unitaires, 0 échec.
+
+Bilan avant / après (test d'écran) : une ligne `extranet_collecte` par opération avec le statut attendu ; empreintes
+des tables métier identiques ; uniquement des GET vers l'extranet ; session expirée → ECHEC, cache précédent gardé,
+état « expirée » à l'écran ; effacement de la session confirmé dans le bouton ; données et PDF du test retirés.
+
+Le test d'écran tourne sur domain3 / `laborex_audit`, face à un faux extranet local (`faux-extranet.js`, jamais le
+vrai) : 38/38. Avec `FAUX_DEFAUT=ligne-perdue` (une ligne annoncée jamais servie), il échoue (32/38) : la collecte est
+refusée (ECHEC) et l'ancien cache est gardé.
+
+Note de déploiement : sur domain3, un `redeploy` n'avait pas régénéré la politique JACC des EJB
+(`generated/policy/prestige/prestige_internal`) : le nouveau service était refusé (erreur 500). Un `undeploy` suivi
+d'un `deploy` l'a régénérée. À prévoir au premier déploiement en officine.
+
+Reste à faire avant tout appel réel : invalider le cookie partagé, autoriser l'accès, remplacer les jeux d'essai
+reconstitués par des captures réelles, confirmer le lien PSCODE / `t_famille_grossiste.str_CODE_ARTICLE` (lecture de
+la table à autoriser), réponses aux questions de la section 6.
