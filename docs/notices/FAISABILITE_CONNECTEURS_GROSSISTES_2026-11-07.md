@@ -203,8 +203,9 @@ besoin) qui servira de jeu d'essai à un faux serveur local.
 2. Ensuite, selon les captures du formulaire de connexion : **B** si la connexion est un simple formulaire sans
    captcha ni second facteur et si l'officine accepte de confier le mot de passe au serveur ; sinon **D**. **C** n'a
    d'intérêt que si la connexion exige du JavaScript et qu'il n'y a pas de second facteur.
-**Décision du 07/11** : on garde l'option A (cookie collé dans l'onglet Sessions, en mémoire du serveur seulement).
-Aucun identifiant ni mot de passe de grossiste n'est rangé dans Prestige ; B, C et D ne sont pas engagées.
+**Décision du 07/11 (corrigée)** : l'utilisateur renseigne lui-même l'identifiant et le mot de passe de chaque
+extranet dans Prestige (option B) ; le serveur se connecte seul et se reconnecte quand la session expire. Le cookie
+collé (option A) reste possible en secours. Voir section 9.
 
 3. Dans tous les cas : un compte dédié au connecteur, si le grossiste le permet, pour ne pas partager la session de
    la personne ; et l'accord du grossiste sur un accès automatisé (conditions d'utilisation, cadence).
@@ -326,8 +327,8 @@ Préalables :
 3. ~~Accord pour lire `t_famille_grossiste` (codes articles, non nominatif) sur la copie locale, afin de voir si les
    pscode y sont déjà ?~~ **Sans objet (réponse du 07/11)** : le PSCODE n'est pas rangé dans `t_famille_grossiste`.
 
-Mode de connexion : **décidé le 07/11**, on garde le cookie collé (option A, section 3.2). Les captures 4 et 6
-servent seulement à reconnaître une page de connexion (expiration), pas à automatiser la connexion.
+Mode de connexion : **décidé le 07/11 (corrigé)**, identifiant et mot de passe saisis dans Prestige (option B,
+section 9). Les captures 4 et 6 restent utiles si le formulaire réel diffère de ce que le serveur sait lire.
 
 Connexion (captures depuis les outils de développement du navigateur, **valeurs de cookies, jetons et mots de passe
 masquées**) :
