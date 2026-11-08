@@ -97,10 +97,16 @@ public class ExtranetService {
     }
 
     /** Corps : identifiant, motDePasse (vide : inchange). Administrateur seulement (controle dans l'API). */
-    public JSONObject enregistrerCompte(SourceExtranet s, String identifiant, String motDePasse, String utilisateur) {
+    public JSONObject enregistrerCompte(SourceExtranet s, String identifiant, String motDePasse, String pageConnexion,
+            String champIdentifiant, String utilisateur) {
         String refus;
         try {
-            refus = comptes().enregistrer(s, identifiant, motDePasse, utilisateur);
+            String page = ComptesExtranet.normaliserPage(pageConnexion,
+                    rest.service.extranet.commun.ExtranetConfiguration.duServeur().adresse(s));
+            String champ = ComptesExtranet.normaliserChamp(champIdentifiant);
+            refus = comptes().enregistrer(s, identifiant, motDePasse, page, champ, utilisateur);
+        } catch (IllegalArgumentException e) {
+            refus = e.getMessage();
         } catch (java.security.GeneralSecurityException e) {
             LOG.log(Level.WARNING, "Chiffrement {0} impossible ({1})",
                     new Object[] { s, e.getClass().getSimpleName() });

@@ -216,6 +216,12 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
                             {xtype: 'textfield', itemId: 'exMotDePasse' + source, inputType: 'password', width: 260,
                                 maxLength: 200, enforceMaxLength: true, fieldLabel: 'Mot de passe', labelWidth: 80,
                                 margin: '0 0 0 8', inputAttrTpl: 'autocomplete="new-password"'},
+                            {xtype: 'textfield', itemId: 'exPage' + source, width: 230, maxLength: 300,
+                                enforceMaxLength: true, fieldLabel: 'Page de connexion', labelWidth: 110,
+                                margin: '0 0 0 8', emptyText: '/ (par défaut)'},
+                            {xtype: 'textfield', itemId: 'exChamp' + source, width: 190, maxLength: 100,
+                                enforceMaxLength: true, fieldLabel: 'Champ identifiant', labelWidth: 105,
+                                margin: '0 0 0 8', emptyText: 'automatique'},
                             {xtype: 'button', text: 'Enregistrer', itemId: 'exCompteEnregistrer' + source,
                                 margin: '0 0 0 6', handler: function () {
                                     me.enregistrerCompte(source);
@@ -297,6 +303,7 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
             etat.update(c.enregistre
                     ? 'Identifiants enregistrés : <b>' + Ext.String.htmlEncode(c.identifiant || '') + '</b>, mot de passe '
                     + (c.motDePasseEnregistre ? 'enregistré' : 'absent')
+                    + (c.pageConnexion ? ' — page de connexion ' + Ext.String.htmlEncode(c.pageConnexion) : '')
                     + (c.modifieLe ? ' — modifiés le ' + h(c.modifieLe) + (c.modifiePar ? ' par '
                             + Ext.String.htmlEncode(c.modifiePar) : '') : '')
                     + (s.mode === 'CONNEXION' && s.derniereConnexion && !s.echecConnexion
@@ -309,10 +316,13 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
         if (bloc) {
             bloc.setVisible(admin);
         }
-        if (id && !id.isDirty() && !id.hasFocus) {
-            id.setValue(c.identifiant || '');
-            id.resetOriginalValue();
-        }
+        Ext.each([[id, c.identifiant], [me.down('#exPage' + s.source), c.pageConnexion],
+            [me.down('#exChamp' + s.source), c.champIdentifiant]], function (x) {
+            if (x[0] && !x[0].isDirty() && !x[0].hasFocus) {
+                x[0].setValue(x[1] || '');
+                x[0].resetOriginalValue();
+            }
+        });
         var connecter = me.down('#exConnecter' + s.source), effacer = me.down('#exCompteEffacer' + s.source);
         if (connecter) {
             connecter.setDisabled(!c.enregistre);
@@ -328,13 +338,17 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
         b.disable();
         Ext.Ajax.request({
             method: 'PUT', url: me.URL + 'comptes/' + source,
-            jsonData: {identifiant: Ext.String.trim(id.getValue() || ''), motDePasse: mdp.getValue() || ''},
+            jsonData: {identifiant: Ext.String.trim(id.getValue() || ''), motDePasse: mdp.getValue() || '',
+                pageConnexion: Ext.String.trim(me.down('#exPage' + source).getValue() || ''),
+                champIdentifiant: Ext.String.trim(me.down('#exChamp' + source).getValue() || '')},
             callback: function (o, ok, rep) {
                 b.enable();
                 mdp.setValue('');
                 var r = Ext.decode(rep.responseText, true) || {success: false, msg: 'Erreur ' + rep.status};
                 if (r.success) {
                     id.resetOriginalValue();
+                    me.down('#exPage' + source).resetOriginalValue();
+                    me.down('#exChamp' + source).resetOriginalValue();
                 }
                 me.message('#exSessionsMsg', r, 'Identifiants enregistrés');
                 me.chargerSessions();
@@ -353,11 +367,13 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
     effacerCompte: function (source) {
         var me = this;
         me.appel('DELETE', 'comptes/' + source, function (r) {
-            var id = me.down('#exIdentifiant' + source);
-            if (id) {
-                id.setValue('');
-                id.resetOriginalValue();
-            }
+            Ext.each(['#exIdentifiant', '#exPage', '#exChamp'], function (sel) {
+                var f = me.down(sel + source);
+                if (f) {
+                    f.setValue('');
+                    f.resetOriginalValue();
+                }
+            });
             me.message('#exSessionsMsg', r, 'Identifiants effacés');
             me.chargerSessions();
         });

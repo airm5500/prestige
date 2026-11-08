@@ -41,11 +41,22 @@ public final class ConnexionExtranet {
         final String identifiant;
         final String motDePasse;
         final String empreinte;
+        /** Page qui porte le formulaire (chemin, « / » si vide) et champ identifiant impose (null : detection). */
+        final String pageConnexion;
+        final String champIdentifiant;
 
         public Identifiants(String identifiant, String motDePasse, String empreinte) {
+            this(identifiant, motDePasse, empreinte, null, null);
+        }
+
+        public Identifiants(String identifiant, String motDePasse, String empreinte, String pageConnexion,
+                String champIdentifiant) {
             this.identifiant = identifiant;
             this.motDePasse = motDePasse;
             this.empreinte = empreinte;
+            this.pageConnexion = pageConnexion == null || pageConnexion.trim().isEmpty() ? "/" : pageConnexion.trim();
+            this.champIdentifiant = champIdentifiant == null || champIdentifiant.trim().isEmpty() ? null
+                    : champIdentifiant.trim();
         }
 
         @Override
@@ -113,12 +124,12 @@ public final class ConnexionExtranet {
                 throw refus("Identifiants déjà refusés par l'extranet : corrigez-les avant un nouvel essai");
             }
             Map<String, String> pot = new LinkedHashMap<>();
-            String chemin = conf.cheminConnexion(session.source());
+            String chemin = id.pageConnexion;
             Page page = suivre(get(origine.resolve(chemin.substring(1)), null, pot), pot);
-            Formulaire f = lireFormulaire(page.corps, conf.champIdentifiant(session.source()));
+            Formulaire f = lireFormulaire(page.corps, id.champIdentifiant);
             if (f == null) {
-                throw refus("Formulaire de connexion introuvable sur " + chemin + " (réglage "
-                        + session.source().prefixeCle() + "_CHEMIN_CONNEXION)");
+                throw refus("Formulaire de connexion introuvable sur " + chemin
+                        + " : indiquez la page de connexion dans l'onglet Sessions");
             }
             if (f.captcha) {
                 throw refus("L'extranet demande un captcha : connexion automatique impossible, collez un cookie");

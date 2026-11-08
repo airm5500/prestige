@@ -432,17 +432,17 @@ le bouton). Mot de passe laissé vide à l'enregistrement : l'ancien est gardé.
   serveur hors base et hors dépôt (`D:\prestige\cles\extranet.cle`, créé au premier usage ; `EXTRANET_CLE_FICHIER` pour
   un autre emplacement). Une copie de la base seule ne livre pas le mot de passe. **Perdre la clé oblige à ressaisir les
   mots de passe** : la sauvegarder avec la configuration du poste.
-- Connexion : le serveur ouvre la page de connexion (`/` par défaut, réglage `EXTRANET_<SOURCE>_CHEMIN_CONNEXION`), lit
-  le formulaire qui porte un champ mot de passe, garde ses champs cachés (jeton), remplit l'identifiant (premier champ
-  texte, ou `EXTRANET_<SOURCE>_CHAMP_IDENTIFIANT`) et le mot de passe, puis poste à l'action du formulaire, sur le même
+- Connexion : le serveur ouvre la page de connexion (champ « Page de connexion » de l'onglet Sessions, `/` si vide ;
+  aucun fichier de configuration), lit le formulaire qui porte un champ mot de passe, garde ses champs cachés (jeton),
+  remplit l'identifiant (premier champ texte, ou le « Champ identifiant » saisi dans l'onglet) et le mot de passe, puis poste à l'action du formulaire, sur le même
   site seulement. C'est le seul POST du connecteur.
 - Avant chaque collecte, sans session : connexion. Session expirée pendant une collecte : **une** reconnexion, puis le
   même appel.
 - Garde-fous : captcha → arrêt (jamais contourné) ; identifiants refusés → pas de nouvel essai tant qu'ils ne sont pas
   modifiés (le compte n'est pas bloqué) ; formulaire vers un autre site → refus ; journal : chemin et statut seulement.
 - Le formulaire réel d'Ubipharm et de TEDIS n'a jamais été vu : si « Se connecter » échoue avec « Formulaire de
-  connexion introuvable », régler `EXTRANET_<SOURCE>_CHEMIN_CONNEXION` (dans `extranet.properties`) sur la page de
-  connexion ; s'il demande un second facteur ou un captcha, revenir au cookie collé.
+  connexion introuvable », saisir l'adresse de la page de connexion dans le champ « Page de connexion » de l'onglet
+  Sessions (une adresse complète du même extranet est ramenée à son chemin ; un autre site est refusé) ; s'il demande un second facteur ou un captcha, revenir au cookie collé.
 
 **Tests** :
 - cohérence : `ChiffrementExtranetCoherenceTest` (3 000 mots de passe tirés, graine 20261107 : aller-retour exact, jamais
@@ -455,3 +455,9 @@ le bouton). Mot de passe laissé vide à l'enregistrement : l'ancien est gardé.
   passe, reconnexion seule après expiration, bilan (deux collectes complètes, aucune table métier touchée), effacement,
   nettoyage ;
 - non-régression : `test-rapprochement-extranets.js` 40/40, `test-reference-ubipharm-fiche.js` 18/18.
+
+Correction du 08/11 (demande de l'utilisateur : pas de nouveau fichier) : la page de connexion et le champ identifiant se
+règlent dans l'onglet Sessions et sont rangés dans `extranet_compte` (V7.5.8), plus dans `extranet.properties`. Tests :
+`PageConnexionCoherenceTest` (3 000 chemins tirés, graine 20261108), 120 tests extranet au vert ;
+`test-identifiants-extranet.js` 37/37 (autre site refusé, base = écran = API, aucun fichier créé) ;
+`test-rapprochement-extranets.js` 40/40.

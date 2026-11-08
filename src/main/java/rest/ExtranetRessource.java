@@ -128,7 +128,7 @@ public class ExtranetRessource {
             in = new JSONObject();
         }
         return ok(service.enregistrerCompte(s, in.optString("identifiant", null), in.optString("motDePasse", null),
-                login()));
+                in.optString("pageConnexion", null), in.optString("champIdentifiant", null), login()));
     }
 
     @DELETE

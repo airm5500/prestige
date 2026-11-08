@@ -221,11 +221,11 @@ class ConnexionExtranetTest {
             TransportExtranet t = f.transportAvecConnexion(SourceExtranet.UBIPHARM, null, ids(MOT_DE_PASSE, "e1"));
             ExtranetException e = assertThrows(ExtranetException.class,
                     () -> t.lire("/donnees", null, Attendu.JSON, null));
-            assertTrue(e.getMessage().contains("EXTRANET_UBIPHARM_CHEMIN_CONNEXION"));
+            assertTrue(e.getMessage().contains("onglet Sessions"), e.getMessage());
             assertEquals(0, posts(f).size());
-            /* avec le reglage, la page de connexion est trouvee */
-            TransportExtranet t2 = f.transportAvecConnexion(SourceExtranet.UBIPHARM,
-                    Map.of("EXTRANET_UBIPHARM_CHEMIN_CONNEXION", "/login"), ids(MOT_DE_PASSE, "e1"));
+            /* page de connexion saisie avec les identifiants (onglet Sessions), champ identifiant impose */
+            TransportExtranet t2 = f.transportAvecConnexion(SourceExtranet.UBIPHARM, null,
+                    new ConnexionExtranet.Identifiants(IDENTIFIANT, MOT_DE_PASSE, "e1", "/login", "email"));
             t2.lire("/donnees", null, Attendu.JSON, null);
             assertEquals(1, posts(f).size());
         }

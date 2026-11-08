@@ -123,6 +123,20 @@ const sessionsApi = (p) => p.evaluate(() => fetch('../api/v1/extranet/sessions')
     await cliquerEtAttendre(p, ECRAN + ' #exCompteEnregistrerUBIPHARM', '/comptes/UBIPHARM');
     c = compte();
     ok('base : identifiant inchangé, chiffré remplacé', c.length === 1 && c[0][0] === srv.IDENTIFIANT && c[0][1] !== chiffre1 && c[0][1].indexOf(srv.MOT_DE_PASSE) < 0);
+    /* ---- page de connexion reglee dans l'ecran (aucun fichier) : autre site refuse, adresse complete ramenee au chemin */
+    await taper(p, '#exPageUBIPHARM', 'https://ailleurs.exemple/login');
+    const rp = await cliquerEtAttendre(p, ECRAN + ' #exCompteEnregistrerUBIPHARM', '/comptes/UBIPHARM');
+    ok('page de connexion : autre site refusé, base inchangée', rp.success === false && /doit être sur/.test(rp.msg)
+      && q("SELECT IFNULL(page_connexion, 'NULL') FROM extranet_compte WHERE source = 'UBIPHARM'") === 'NULL', rp.msg);
+    await taper(p, '#exPageUBIPHARM', 'http://127.0.0.1:18765/');
+    await taper(p, '#exChampUBIPHARM', 'login');
+    await cliquerEtAttendre(p, ECRAN + ' #exCompteEnregistrerUBIPHARM', '/comptes/UBIPHARM');
+    const pc = lignes("SELECT page_connexion, champ_identifiant FROM extranet_compte WHERE source = 'UBIPHARM'")[0];
+    const apiPage = JSON.parse(await sessionsApi(p)).data.find((s) => s.source === 'UBIPHARM').compte;
+    ok('page de connexion : base = écran = API (« / », champ « login »)', pc[0] === '/' && pc[1] === 'login'
+      && apiPage.pageConnexion === '/' && apiPage.champIdentifiant === 'login' && (await valeur(p, '#exPageUBIPHARM')) === '/'
+      && (await valeur(p, '#exChampUBIPHARM')) === 'login', JSON.stringify(pc));
+    ok('aucun fichier extranet.properties créé', !fs.existsSync('D:/prestige/extranet.properties'));
     const r4 = await cliquerEtAttendre(p, ECRAN + ' #exConnecterUBIPHARM', '/connexion');
     ok('connexion : réussie après correction', r4.success === true && r4.session && r4.session.mode === 'CONNEXION', JSON.stringify(r4));
     ok('extranet : deux POST /Login au total, le second réussi', srv.etat.connexions.length === 2 && srv.etat.connexions[1].reussie);
