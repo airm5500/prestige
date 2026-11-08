@@ -4,6 +4,7 @@ import dal.TUser;
 import javax.ejb.EJB;
 import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
+import javax.ws.rs.Consumes;
 import javax.ws.rs.DefaultValue;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
@@ -79,6 +80,45 @@ public class CorrespondanceGrossisteRessource {
     public Response lignesImport(@PathParam("commandeId") String commandeId) {
         Response r = nonConnecte();
         return r != null ? r : Response.ok(service.lignesImport(commandeId).toString()).build();
+    }
+
+    /** Lot 3 : propositions par la designation pour les codes non reconnus a l'import (toujours a valider). */
+    @POST
+    @Path("rapprocher")
+    public Response rapprocher() {
+        Response refus = Droits.refus(servletRequest, "Correspondances grossistes", DROIT);
+        if (refus != null) {
+            return refus;
+        }
+        JSONObject calcul = service.rapprocherDesignations(Droits.utilisateur(servletRequest).getStrLOGIN());
+        return Response.ok(new JSONObject().put("success", true).put("calcul", calcul).toString()).build();
+    }
+
+    /**
+     * Lot 3 : decision humaine. Corps : {@code {"familleId": "...", "version": "..."}} pour valider, {@code {"version":
+     * "..."}} pour rejeter ; version = celle lue dans la liste (409 si la ligne a change depuis).
+     */
+    @POST
+    @Path("{id}/{action: valider|rejeter}")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Response decider(@PathParam("id") long id, @PathParam("action") String action, String corps) {
+        Response refus = Droits.refus(servletRequest, "Correspondances grossistes", DROIT);
+        if (refus != null) {
+            return refus;
+        }
+        JSONObject c = corps == null || corps.trim().isEmpty() ? new JSONObject() : new JSONObject(corps);
+        CorrespondanceGrossisteService.Reponse r = service.decider(id, action.toUpperCase(java.util.Locale.ROOT),
+                c.optString("familleId", null), c.optString("version", null),
+                Droits.utilisateur(servletRequest).getStrLOGIN());
+        return Response.status(r.statut).type(MediaType.APPLICATION_JSON).entity(r.corps.toString()).build();
+    }
+
+    /** Lot 3 : fiches actives pour « Autre produit » (CIP ou EAN exact, ou designation). */
+    @GET
+    @Path("fiches")
+    public Response fiches(@QueryParam("q") String q, @DefaultValue("20") @QueryParam("limit") int limit) {
+        Response r = nonConnecte();
+        return r != null ? r : Response.ok(service.rechercherFiches(q, limit).toString()).build();
     }
 
     @GET

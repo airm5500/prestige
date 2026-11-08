@@ -327,6 +327,156 @@ public class CorrespondanceGrossisteService {
         return new JSONObject().put("success", true).put("commandeId", commandeId).put("data", a);
     }
 
+    // ------------------------------------------------------------------ rapprochement par designation (lot 3)
+
+    /** Condition SQL d'une correspondance « a traiter » : a valider, contredite, ou contradiction signalee. */
+    static final String A_TRAITER = "(c.etat IN ('PROPOSEE','CONTREDITE') OR c.famille_contradiction IS NOT NULL)";
+
+    /** Fiches actives : identifiant -> designation (description, a defaut le nom). */
+    private Map<String, String> designationsFiches() {
+        Map<String, String> m = new LinkedHashMap<>();
+        @SuppressWarnings("unchecked")
+        List<Object[]> l = em.createNativeQuery("SELECT lg_FAMILLE_ID, COALESCE(NULLIF(TRIM(str_DESCRIPTION), ''),"
+                + " str_NAME) FROM t_famille WHERE str_STATUT = 'enable'").getResultList();
+        for (Object[] r : l) {
+            m.put((String) r[0], r[1] == null ? "" : r[1].toString());
+        }
+        return m;
+    }
+
+    /**
+     * Propose des produits, par leur designation, pour les codes lus a l'import et non reconnus (lot 2,
+     * ligne_import_grossiste sans fiche). Toujours a valider ; une correspondance enregistree autrement (exacte,
+     * apprise d'un BL, validee, rejetee, contredite) est conservee ; une proposition par designation est recalculee.
+     */
+    public JSONObject rapprocherDesignations(String utilisateur) {
+        long calculId = ouvrirCalcul("DESIGNATIONS", utilisateur);
+        CorrespondanceApprochee moteur = new CorrespondanceApprochee(designationsFiches());
+        @SuppressWarnings("unchecked")
+        List<Object[]> lus = em.createNativeQuery("SELECT li.lg_GROSSISTE_ID, li.code_normalise,"
+                + " MAX(li.designation_brute) FROM ligne_import_grossiste li"
+                + " WHERE li.lg_FAMILLE_ID IS NULL AND li.lg_GROSSISTE_ID IS NOT NULL AND li.code_normalise IS NOT NULL"
+                + " AND CHAR_LENGTH(li.code_normalise) <= 40 AND li.designation_brute IS NOT NULL"
+                + " AND TRIM(li.designation_brute) <> '' GROUP BY li.lg_GROSSISTE_ID, li.code_normalise"
+                + " ORDER BY li.lg_GROSSISTE_ID, li.code_normalise").getResultList();
+        Map<String, Existante> existantes = existantes();
+        int n = 0, creees = 0, modifiees = 0, inchangees = 0, conservees = 0;
+        for (Object[] r : lus) {
+            n++;
+            String grossiste = (String) r[0], code = (String) r[1], designation = (String) r[2];
+            Existante ex = existantes.get(grossiste + "|" + code);
+            Decision d = CorrespondanceApprochee.proposer(ex == null ? null : ex.etat, ex == null ? null : ex.source,
+                    moteur.candidats(designation, CorrespondanceApprochee.NB_CANDIDATS));
+            String candidats = CorrespondanceRegles.candidatsJson(d.candidats);
+            if (!d.aEcrire()) {
+                conservees++;
+            } else if (ex == null) {
+                creees += em.createNativeQuery("INSERT IGNORE INTO correspondance_grossiste (cle_grossiste,"
+                        + " lg_GROSSISTE_ID, code_grossiste, designation_grossiste, etat, source, motif, score,"
+                        + " candidats, dt_creation, dt_maj, calcul_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9,"
+                        + " NOW(3), NOW(3), ?10)").setParameter(1, grossiste).setParameter(2, grossiste)
+                        .setParameter(3, code).setParameter(4, couper(designation, 200)).setParameter(5, d.etat.name())
+                        .setParameter(6, d.source.name()).setParameter(7, d.motif.name()).setParameter(8, d.score)
+                        .setParameter(9, candidats).setParameter(10, calculId).executeUpdate();
+            } else if (d.identiqueA(ex.etat, ex.famille, ex.source, ex.motif, ex.score, ex.candidats)) {
+                inchangees++;
+            } else {
+                modifiees += em
+                        .createNativeQuery("UPDATE correspondance_grossiste SET motif = ?1, score = ?2,"
+                                + " candidats = ?3, designation_grossiste = ?4, dt_maj = NOW(3), calcul_id = ?5"
+                                + " WHERE id = ?6 AND etat = 'PROPOSEE' AND source = 'APPROCHE'")
+                        .setParameter(1, d.motif.name()).setParameter(2, d.score).setParameter(3, candidats)
+                        .setParameter(4, couper(designation, 200)).setParameter(5, calculId).setParameter(6, ex.id)
+                        .executeUpdate();
+            }
+        }
+        em.createNativeQuery("UPDATE correspondance_calcul SET fin = NOW(3), statut = 'COMPLET', codes_lus = ?1,"
+                + " creees = ?2, modifiees = ?3, inchangees = ?4, conservees = ?5, sans_resultat = 0 WHERE id = ?6")
+                .setParameter(1, n).setParameter(2, creees).setParameter(3, modifiees).setParameter(4, inchangees)
+                .setParameter(5, conservees).setParameter(6, calculId).executeUpdate();
+        LOG.log(Level.INFO, "Correspondances grossistes, designations {0} : {1} codes, {2} creees, {3} modifiees",
+                new Object[] { calculId, n, creees, modifiees });
+        return calcul(calculId);
+    }
+
+    private static String couper(String s, int n) {
+        return s == null || s.length() <= n ? s : s.substring(0, n);
+    }
+
+    /** Resultat d'une decision humaine : statut HTTP et corps. */
+    public static final class Reponse {
+        public final int statut;
+        public final JSONObject corps;
+
+        Reponse(int statut, JSONObject corps) {
+            this.statut = statut;
+            this.corps = corps;
+        }
+    }
+
+    private static Reponse refus(int statut, String msg) {
+        return new Reponse(statut, new JSONObject().put("success", false).put("msg", msg));
+    }
+
+    /**
+     * Decision humaine sur une correspondance : VALIDER (pour la fiche choisie : un candidat, ou une autre fiche
+     * active) ou REJETER. {@code version} est celle lue a l'ecran (dt_maj) : si la ligne a change depuis, rien n'est
+     * ecrit (409). La contradiction signalee est levee ; les compteurs de reception restent.
+     */
+    public Reponse decider(long id, String action, String familleId, String version, String utilisateur) {
+        boolean valider = "VALIDER".equals(action);
+        if (!valider && !"REJETER".equals(action)) {
+            return refus(400, "Action inconnue");
+        }
+        if (valider && (familleId == null || ((Number) em
+                .createNativeQuery("SELECT COUNT(*) FROM t_famille WHERE lg_FAMILLE_ID = ?1 AND str_STATUT = 'enable'")
+                .setParameter(1, familleId).getSingleResult()).intValue() != 1)) {
+            return refus(400, "Produit introuvable ou inactif");
+        }
+        int n = em.createNativeQuery("UPDATE correspondance_grossiste SET etat = ?1, source = 'HUMAIN',"
+                + " lg_FAMILLE_ID = ?2, famille_contradiction = NULL, lg_USER_VALIDATION = ?3, dt_validation = NOW(),"
+                + " dt_maj = NOW(3) WHERE id = ?4 AND DATE_FORMAT(dt_maj, '%Y-%m-%d %H:%i:%s.%f') = ?5")
+                .setParameter(1, valider ? Etat.VALIDEE.name() : Etat.REJETEE.name())
+                .setParameter(2, valider ? familleId : null).setParameter(3, utilisateur).setParameter(4, id)
+                .setParameter(5, version == null ? "" : version).executeUpdate();
+        if (n == 0) {
+            boolean existe = ((Number) em
+                    .createNativeQuery("SELECT COUNT(*) FROM correspondance_grossiste WHERE id = ?1")
+                    .setParameter(1, id).getSingleResult()).intValue() == 1;
+            return existe ? refus(409, "Modifiée entre-temps par un autre poste : la liste est rechargée.")
+                    : refus(404, "Correspondance introuvable");
+        }
+        @SuppressWarnings("unchecked")
+        List<Object[]> l = em.createNativeQuery("SELECT " + COLONNES + " WHERE c.id = ?1").setParameter(1, id)
+                .getResultList();
+        return new Reponse(200,
+                new JSONObject().put("success", true)
+                        .put("msg", valider ? "Correspondance validée" : "Correspondance rejetée")
+                        .put("ligne", lignes(l).getJSONObject(0)));
+    }
+
+    /** Fiches actives pour « Autre produit » : CIP ou EAN exact, ou designation contenant le texte. */
+    public JSONObject rechercherFiches(String texte, int limit) {
+        JSONArray a = new JSONArray();
+        String t = texte == null ? "" : texte.trim();
+        if (t.length() >= 2) {
+            @SuppressWarnings("unchecked")
+            List<Object[]> l = em
+                    .createNativeQuery("SELECT lg_FAMILLE_ID, str_DESCRIPTION, int_CIP, int_EAN13"
+                            + " FROM t_famille WHERE str_STATUT = 'enable' AND (int_CIP = ?1 OR int_EAN13 = ?2"
+                            + " OR str_DESCRIPTION LIKE ?3) ORDER BY int_CIP = ?4 DESC, str_DESCRIPTION LIMIT ?5")
+                    .setParameter(1, t).setParameter(2, t)
+                    .setParameter(3, "%" + t.replace("\\", "").replace("%", "").replace("_", "\\_") + "%")
+                    .setParameter(4, t).setParameter(5, Math.max(1, Math.min(limit, 50))).getResultList();
+            for (Object[] r : l) {
+                a.put(new JSONObject().put("familleId", r[0]).put("famille", r[1] == null ? JSONObject.NULL : r[1])
+                        .put("cip", r[2] == null ? JSONObject.NULL : r[2])
+                        .put("ean", r[3] == null ? JSONObject.NULL : r[3]));
+            }
+        }
+        return new JSONObject().put("success", true).put("data", a);
+    }
+
     // ------------------------------------------------------------------ lectures
 
     private static final String COLONNES = "c.id, c.cle_grossiste, c.lg_GROSSISTE_ID, c.source_extranet,"
@@ -336,8 +486,8 @@ public class CorrespondanceGrossisteService {
             + " DATE_FORMAT(c.dt_maj, " + FORMAT_DATE + "), DATE_FORMAT(c.dt_derniere_confirmation, " + FORMAT_DATE
             + "), c.lg_USER_VALIDATION, DATE_FORMAT(c.dt_validation, " + FORMAT_DATE + "), c.calcul_id,"
             + " c.famille_contradiction, fc.str_DESCRIPTION AS contradiction_libelle, DATE_FORMAT(c.dt_derniere_contradiction, "
-            + FORMAT_DATE
-            + ") FROM correspondance_grossiste c LEFT JOIN t_grossiste g ON g.lg_GROSSISTE_ID = c.lg_GROSSISTE_ID"
+            + FORMAT_DATE + "), DATE_FORMAT(c.dt_maj, '%Y-%m-%d %H:%i:%s.%f') AS version_ligne"
+            + " FROM correspondance_grossiste c LEFT JOIN t_grossiste g ON g.lg_GROSSISTE_ID = c.lg_GROSSISTE_ID"
             + " LEFT JOIN t_famille f ON f.lg_FAMILLE_ID = c.lg_FAMILLE_ID"
             + " LEFT JOIN t_famille fc ON fc.lg_FAMILLE_ID = c.famille_contradiction";
 
@@ -345,7 +495,7 @@ public class CorrespondanceGrossisteService {
             "codeGrossiste", "cip", "ean", "designationGrossiste", "familleId", "famille", "familleCip",
             "familleStatut", "etat", "source", "motif", "score", "candidats", "nbConfirmations", "nbContradictions",
             "dateCreation", "dateMaj", "dateDerniereConfirmation", "utilisateurValidation", "dateValidation",
-            "calculId", "familleContradictionId", "familleContradiction", "dateDerniereContradiction" };
+            "calculId", "familleContradictionId", "familleContradiction", "dateDerniereContradiction", "version" };
 
     private JSONArray lignes(List<Object[]> l) {
         Set<String> ids = new LinkedHashSet<>();
@@ -423,7 +573,9 @@ public class CorrespondanceGrossisteService {
     public JSONObject liste(String etat, String grossiste, int start, int limit) {
         StringBuilder where = new StringBuilder(" WHERE 1 = 1");
         List<Object> params = new ArrayList<>();
-        if (etat != null && !etat.isEmpty()) {
+        if ("A_TRAITER".equals(etat)) {
+            where.append(" AND ").append(A_TRAITER);
+        } else if (etat != null && !etat.isEmpty()) {
             params.add(etat);
             where.append(" AND c.etat = ?").append(params.size());
         }
@@ -460,9 +612,19 @@ public class CorrespondanceGrossisteService {
                     .put("etat", r[2]).put("source", r[3]).put("nombre", ((Number) r[4]).longValue()));
         }
         @SuppressWarnings("unchecked")
+        List<Object[]> t = em.createNativeQuery("SELECT c.cle_grossiste, MAX(g.str_LIBELLE), COUNT(*)"
+                + " FROM correspondance_grossiste c LEFT JOIN t_grossiste g ON g.lg_GROSSISTE_ID = c.lg_GROSSISTE_ID"
+                + " WHERE " + A_TRAITER + " GROUP BY c.cle_grossiste ORDER BY MAX(g.str_LIBELLE)").getResultList();
+        JSONArray aTraiter = new JSONArray();
+        for (Object[] r : t) {
+            aTraiter.put(
+                    new JSONObject().put("cleGrossiste", r[0]).put("grossiste", r[1] == null ? JSONObject.NULL : r[1])
+                            .put("nombre", ((Number) r[2]).longValue()));
+        }
+        @SuppressWarnings("unchecked")
         List<Object> dernier = em.createNativeQuery("SELECT MAX(id) FROM correspondance_calcul").getResultList();
         Object id = dernier.isEmpty() ? null : dernier.get(0);
-        return new JSONObject().put("success", true).put("data", a).put("dernierCalcul",
+        return new JSONObject().put("success", true).put("data", a).put("aTraiter", aTraiter).put("dernierCalcul",
                 id == null ? JSONObject.NULL : calcul(((Number) id).longValue()));
     }
 
