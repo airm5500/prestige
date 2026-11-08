@@ -1,7 +1,11 @@
 # Promotions : récapitulatif à valider
 
 Ce récapitulatif reprend votre demande du 07/11 (cas de test « unité gratuite », option « par palier de »,
-historique, traçabilité, analyse) et le point 13 du plan du 06/11. Rien n'est codé.
+historique, traçabilité, analyse) et le point 13 du plan du 06/11.
+
+**État au 08/11 : validé (« Oui, par défaut ») et codé** (`ec8bf8593`, `7ddfc0511` sur `integration/recette-2026-10-29`).
+Voir `RAPPORT_PROMOTIONS_2026-11-08.md` pour les tests et les deux écarts à confirmer (retrait d'un produit
+supprimé mais journalisé ; onglet Analyse des unités gratuites du fournisseur non repris).
 
 Ma réponse par défaut est entre crochets.
 

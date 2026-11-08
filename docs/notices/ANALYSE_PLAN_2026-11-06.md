@@ -161,6 +161,11 @@ qu'avant]
 - Les ventes passées dont la promotion a déjà été supprimée ne pourront pas être reconstituées. C'est une limite
   connue.
 
+**Fait le 08/11** (points 3.2, 3.3 et 3.5, avec la demande du 07/11 : voir `RECAP_PROMOTIONS_2026-11-07.md` et
+`RAPPORT_PROMOTIONS_2026-11-08.md`) : option « par palier de », mention « PROMOTION x+n OFFERT(S) », écran d'ajout,
+journal de toutes les actions (retrait sur vente passée en assurance compris), onglets Historique, Ventes en promotion
+et Analyse, PDF et Excel.
+
 ---
 
 ## 4. Écran de vente : champs CIP et QD, étiquettes
@@ -484,6 +489,11 @@ c'est un écran de consultation]
 - Faut-il aussi inclure les unités offertes par les promotions, dans une colonne ou un onglet à part ? [oui, colonne
   séparée]
 - L'analyse doit-elle avoir un graphique ? [oui, un graphique en barres pour les 10 premiers produits]
+
+**Fait le 08/11** (`retours/test-ventes-ug-0811.js`, 7/15 sur l'ancien code, 16/16) : écran déclaré, colonne Vendeur
+à l'écran et sur le PDF, recherche, pagination par le serveur. Suivant le récapitulatif validé du 07/11 (§6), les unités
+offertes par les promotions ne sont pas mêlées ici : elles sont dans l'onglet Analyse des promotions. L'onglet Analyse
+propre aux unités gratuites du fournisseur n'est pas fait : à confirmer.
 
 ---
 
