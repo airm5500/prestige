@@ -170,6 +170,17 @@ Le droit a été vérifié sur la base du poste local le 08/11 :
 Dans l'écran des rôles, il apparaît dans la liste des droits « attribués » du rôle. S'il manque sur un poste, c'est que
 `V7.0.4` n'y est pas passée : lancer la migration, sans rien créer à la main.
 
+## Réserve après entrée et droit `P_RESERVE_SUGGESTION` (demande 60)
+
+La clôture d'un BL (`PUT v1/commande/validerbl/{id}`, avec ou sans `mode=RECU`) renvoie dans `reserve` les lignes des
+suggestions de réserve automatiques, que montre la fenêtre « Seuil de réserve atteint ».
+
+- Un profil sans le droit `P_RESERVE_SUGGESTION` reçoit `reserve: []` : la fenêtre ne s'ouvre pas.
+  - La clôture n'est pas gênée.
+  - La suggestion est créée en base comme avant.
+- Tant que ce droit n'existe pas (actif) en base, rien ne change. Il est créé par la migration `V7.2.70` de la demande
+  60.
+
 ## Tests
 
 - **Cohérence** (unitaires, graine fixe) :
@@ -178,4 +189,5 @@ Dans l'écran des rôles, il apparaît dans la liste des droits « attribués »
 - **Écran et rapprochement** (e2e) :
   - `retours/test-demande59-bl-recu.js` ;
   - `retours/test-retours-refus-abandon.js` ;
-  - `retours/test-retour-fournisseur-attente.js` (existant, nettoyage complété).
+  - `retours/test-retour-fournisseur-attente.js` (existant, nettoyage complété) ;
+  - `retours/test-reserve-apres-entree-droit-suggestions.js`.

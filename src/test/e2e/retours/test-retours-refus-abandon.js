@@ -111,7 +111,7 @@ function retirer() {
     const tip = [...n.querySelectorAll('[data-qtip]')].map((x) => x.getAttribute('data-qtip')).join(' ');
     return { present: true, statuts, total: st.getCount(), texte: n.textContent.replace(/\s+/g, ' '), tip, icone: !!img }; }, id);
   const boutons = () => p.evaluate(() => { const v = (id) => { const c = Ext.getCmp(id); return c && !c.isDestroyed && c.isVisible() ? c.getText ? c.getText() : (c.getEl() ? c.getEl().dom.textContent : 'oui') : null; };
-    return { valider: v('btn_save'), attente: v('btn_attente'), refuser: v('btn_refuser'), abandonner: v('btn_abandonner'), motif: !!v('retourMotifRefus'), info: v('retourRefusInfo') }; });
+    return { valider: v('btn_save'), attente: v('btn_attente'), refuser: v('btn_refuser'), abandonner: v('btn_abandonner'), motif: !!(Ext.getCmp('retourMotifRefus') && Ext.getCmp('retourMotifRefus').isVisible()), info: v('retourRefusInfo') }; });
   const ouvrirRetour = async (id) => {
     await liste('Tous les états');
     const l = await ligne(id);

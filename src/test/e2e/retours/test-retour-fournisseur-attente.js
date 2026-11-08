@@ -64,6 +64,9 @@ function retirer() {
   const boite = (p) => p.evaluate(() => Ext.ComponentQuery.query('messagebox').some((m) => m.isVisible()));
   /* liste des retours, puis ouverture du retour d'essai par l'icone de la ligne */
   const ouvrirDepuisListe = async (p) => {
+    /* l'ecran revient de lui-meme a la liste 1,2 s apres l'enregistrement : on l'attend, sinon ce retour remplace la
+       liste ouverte ici pendant qu'on la lit */
+    await p.waitForFunction(() => { const b = Ext.getCmp('btn_save'); return !b || b.isDestroyed || !b.isVisible(true); }, null, { timeout: 8000 }).catch(() => {});
     await p.evaluate(() => testextjs.app.getController('App').onRedirectTo('retourfrsmanager', {}));
     await p.waitForFunction((id) => { const g = Ext.ComponentQuery.query('retourfrsmanager')[0]; return g && !g.getStore().isLoading() && g.getStore().findExact('lg_RETOUR_FRS_ID', id) >= 0; }, retourId, { timeout: 30000 });
     await p.waitForTimeout(800);
