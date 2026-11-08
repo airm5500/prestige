@@ -126,11 +126,11 @@ async function ouvrir(p, code) {
         const grille = e.down('#exListe' + code + 'Grille');
         const lignes = Array.from(grille.getView().getEl().dom.querySelectorAll('tr.x-grid-row')).map((tr) =>
           Array.from(tr.querySelectorAll('td')).map((td) => td.textContent.replace(/\s+/g, ' ').trim()));
-        return { nombre: e.down('#exListe' + code + 'Nombre').text, store: e.listes[code].getCount(), max: e.AFFICHAGE_MAX,
+        return { nombre: e.down('#exListe' + code + 'Nombre').text, store: e.listes[code].getCount(),
           titres: grille.columns.map((x) => x.text), lignes };
       }, code);
       ok(code + ' : nombre affiché = base', g.nombre.indexOf(base.length + ' ligne(s)') === 0, g.nombre);
-      ok(code + ' : grille chargée = base (dans la limite d\'affichage)', g.store === Math.min(base.length, g.max),
+      ok(code + ' : grille chargée = base, toutes les lignes (rendu par tampon, 08/11)', g.store === base.length,
         g.store + ' / ' + base.length);
       ecarts = [];
       const titresRep = r.colonnes || [];

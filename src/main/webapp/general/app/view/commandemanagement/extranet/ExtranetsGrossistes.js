@@ -1105,6 +1105,8 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
                         {xtype: 'label', itemId: id + 'Nombre'}, {xtype: 'tbspacer', width: 12},
                         {xtype: 'label', itemId: id + 'Date'}]}],
             items: [{xtype: 'gridpanel', itemId: id + 'Grille', store: me.listes[code], columnLines: true,
+                    /* toutes les lignes atteignables a la molette (retour du 08/11, point 3) */
+                    plugins: [{ptype: 'bufferedrenderer'}],
                     viewConfig: {deferEmptyText: false,
                         emptyText: '<div style="padding:12px">Aucune ligne. « Lire sur l\'extranet » lit la liste ;'
                                 + ' « Toute la période » affiche les lignes des autres dates.</div>'},
@@ -1420,10 +1422,8 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
         }, grille);
     },
 
-    /** Lignes affichées au plus : le catalogue TEDIS (près de 17 000 produits) figerait la grille. */
-    AFFICHAGE_MAX: 500,
-
-    /** Recherche dans toutes les colonnes ; au-delà de AFFICHAGE_MAX lignes trouvées, les premières sont affichées. */
+    /** Recherche dans toutes les colonnes et filtre de période ; toutes les lignes trouvées vont dans la grille (rendu par
+     *  tampon : seules les lignes proches de la zone visible sont dessinées, le catalogue TEDIS reste fluide). */
     filtrerListe: function (code) {
         var me = this, id = 'exListe' + code, st = me.listes[code], tout = (me.donnees || {})[code] || [],
                 q = Ext.String.trim(me.valeur('#' + id + 'Recherche')).toLowerCase(), nombre = me.down('#' + id + 'Nombre'),
@@ -1432,11 +1432,9 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
                     return (!q || (l.cellules || []).join(' ').toLowerCase().indexOf(q) >= 0)
                             && (!p || !cd || me.dansPeriode(cd, l.cellules, p));
                 });
-        st.loadData(trouves.slice(0, me.AFFICHAGE_MAX));
+        st.loadData(trouves);
         if (nombre) {
-            nombre.setText(trouves.length + (q || p ? ' / ' + tout.length : '') + ' ligne(s)'
-                    + (trouves.length > me.AFFICHAGE_MAX ? ' — ' + me.AFFICHAGE_MAX + ' affichées : affinez la recherche'
-                            : ''));
+            nombre.setText(trouves.length + (q || p ? ' / ' + tout.length : '') + ' ligne(s)');
         }
     },
 
