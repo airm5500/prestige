@@ -130,6 +130,11 @@ fortes par grossiste n'a montré aucune erreur. Exemples : « AYANFER SIROP FL 2
 
 **`correspondance_grossiste`** : une ligne par (grossiste, code grossiste).
 - **Identifiants** : `grossiste_id` (`t_grossiste`) ou, pour Ubipharm qui n'y est pas, `source_extranet`.
+  - Ubipharm, à reprendre quand les connecteurs arriveront sur la branche de travail : la référence Ubipharm d'une
+    fiche est `t_famille.str_PSCODE`. Depuis le 08/11, l'onglet « Nouveaux produits » des connecteurs l'enregistre
+    sur confirmation, seulement quand un seul article actif a le même CIP ou EAN 13, et trace chaque enregistrement
+    au journal (`t_event_log`, table `t_famille`, avant → après). Une ligne `EXT:UBIPHARM` de
+    `correspondance_grossiste` prendra ce PSCODE comme code, avec la source `PSCODE`.
 - **Données du grossiste** : `code_grossiste`, `cip`, `ean`, `designation_grossiste`, `laboratoire_grossiste` (bruts).
 - **Produit** : `lg_FAMILLE_ID` (null tant qu'elle n'est pas rapprochée).
 - **`etat`** : `AUTO_EXACTE`, `PROPOSEE`, `VALIDEE`, `REJETEE`, `CONTREDITE`.
