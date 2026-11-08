@@ -159,7 +159,8 @@ class CorrespondanceReglesCoherenceTest {
         // le tirage couvre tous les motifs
         for (Motif mo : Motif.values()) {
             if (mo == Motif.RECU_EN_BL || mo == Motif.DESIGNATION) {
-                // reception d'un BL (ReceptionBlCoherenceTest) et designation (ApprocheeCoherenceTest) : jamais par decider
+                // reception d'un BL (ReceptionBlCoherenceTest) et designation (ApprocheeCoherenceTest) : jamais par
+                // decider
                 assertEquals(0, vus.getOrDefault(mo, 0));
                 continue;
             }

@@ -224,6 +224,21 @@ Ce qui reste en place :
     second passage sans effet, calcul du lot 1 sans écraser l'appris ni le décidé.
   - Limite : la clôture réelle entre en stock ; le test pose un BL clôturé et rejoue la même méthode par l'API.
     L'appel ajouté dans `cloturerBonLivraison` n'est donc pas couvert de bout en bout.
+- **Lot 3, livré** :
+  - moteur `CorrespondanceApprochee` (logique pure, reprise de l'essai) : propositions par la désignation pour les
+    codes non reconnus à l'import, toujours à valider, 3 candidats au plus ; une correspondance enregistrée autrement
+    est conservée ;
+  - écran GESTION DES COMMANDES > « Correspondance grossistes » (migration V7.6.2, droit
+    `P_CORRESPONDANCE_GROSSISTES`) : file « à traiter » (à valider, contredites, contradictions signalées), filtres
+    par grossiste et par état, dosages en évidence, « Valider ce produit », « Autre produit… » (CIP, EAN ou
+    désignation), « Rejeter », « Proposer par désignation », tous confirmés dans le bouton ;
+  - une décision enregistre l'utilisateur et la date, lève la contradiction signalée ; refusée (409) si la ligne a
+    changé depuis la lecture.
+  - Tests : `ApprocheeCoherenceTest` (6 000 variantes générées, score = calcul refait à part, autre dosage ou autre
+    marque jamais au seuil fort ; échoue si l'on retire les pénalités) et `test-correspondance-lot3.js` (27/27).
+  - Reste ouvert (question 3) : une correspondance validée n'est pas encore relue par l'import des fichiers ; la
+    ligne reste non reconnue au prochain import tant qu'on n'écrit pas dans `t_famille_grossiste` ou que l'import ne
+    lit pas `correspondance_grossiste`.
 
 ## 5. Questions
 

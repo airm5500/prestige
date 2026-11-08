@@ -25,8 +25,8 @@ import rest.service.correspondance.CorrespondanceRegles.Source;
 /**
  * Coherence du rapprochement par la designation (lot 3). Catalogue genere avec une graine fixe (marques, molecules,
  * dosages, formes, conditionnements) ; designations « grossiste » tirees comme variantes d'une fiche (abreviations,
- * casse, accents, blancs, unite collee ou non, virgule decimale, faute de frappe sur la marque, mot en moins).
- * Verifie, sur des milliers de cas :
+ * casse, accents, blancs, unite collee ou non, virgule decimale, faute de frappe sur la marque, mot en moins). Verifie,
+ * sur des milliers de cas :
  * <ul>
  * <li>score de chaque candidat = calcul refait a part (oracle), entre 0 et 1, candidats tries et distincts ;</li>
  * <li>dosage ou quantite differents, ou marque differente : jamais au seuil fort (0,7) ;</li>
@@ -165,8 +165,7 @@ class ApprocheeCoherenceTest {
     private static final Map<String, Double> IDF = idf();
 
     private static double oracle(String lu, Fiche f) {
-        CorrespondanceApprochee.Signature a = CorrespondanceApprochee
-                .signature(CorrespondanceApprochee.normaliser(lu));
+        CorrespondanceApprochee.Signature a = CorrespondanceApprochee.signature(CorrespondanceApprochee.normaliser(lu));
         CorrespondanceApprochee.Signature b = CorrespondanceApprochee
                 .signature(CorrespondanceApprochee.normaliser(f.designation));
         Set<String> union = new HashSet<>(a.mots);
@@ -276,7 +275,8 @@ class ApprocheeCoherenceTest {
     void casNommes() {
         assertEquals(Arrays.asList("AYANFER", "SP", "FL", "200", "ML"),
                 CorrespondanceApprochee.normaliser("Ayanfer sirop flacon 200ml"));
-        assertEquals(Arrays.asList("KEM", "SUSP", "F", "200", "ML"), CorrespondanceApprochee.normaliser("KEM SUS F/200ML"));
+        assertEquals(Arrays.asList("KEM", "SUSP", "F", "200", "ML"),
+                CorrespondanceApprochee.normaliser("KEM SUS F/200ML"));
         assertEquals(CorrespondanceApprochee.signature(CorrespondanceApprochee.normaliser("X 2,5MG")).nombres,
                 CorrespondanceApprochee.signature(CorrespondanceApprochee.normaliser("X 2.50 mg")).nombres);
         assertEquals("PALUMAX", CorrespondanceApprochee.marque("PALUMAX 60 mg CPR"));

@@ -778,6 +778,7 @@ Ext.application({
         'testextjs.view.activiteequipes.ActiviteEquipes',
         'testextjs.view.receptionmobile.PeremptionsCourtes',
         'testextjs.view.configmanagement.modeleticket.ModelesTicket',
+        'testextjs.view.commandemanagement.correspondance.CorrespondancesGrossistes',
         'testextjs.view.actions.action',
         'testextjs.view.configmanagement.famille.Products',
         'testextjs.view.configmanagement.famille.ProduitsOnglets',

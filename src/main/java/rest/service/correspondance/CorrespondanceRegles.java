@@ -41,7 +41,9 @@ public final class CorrespondanceRegles {
         INTROUVABLE,
         /** correspondance apprise d'un BL cloture (lot 2), jamais produite par {@link #decider} */
         RECU_EN_BL,
-        /** proposition par la designation (lot 3, {@link CorrespondanceApprochee}), jamais produite par {@link #decider} */
+        /**
+         * proposition par la designation (lot 3, {@link CorrespondanceApprochee}), jamais produite par {@link #decider}
+         */
         DESIGNATION
     }
 

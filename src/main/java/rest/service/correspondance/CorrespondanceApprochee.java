@@ -20,8 +20,8 @@ import rest.service.correspondance.CorrespondanceRegles.Motif;
 import rest.service.correspondance.CorrespondanceRegles.Source;
 
 /**
- * Correspondance produits grossistes / Prestige, lot 3 : rapprochement APPROCHE par la designation, logique PURE
- * (aucun acces a la base). Reprend l'essai mesure dans l'etude du 08/11 (precision 98,4 % au seuil 0,7) :
+ * Correspondance produits grossistes / Prestige, lot 3 : rapprochement APPROCHE par la designation, logique PURE (aucun
+ * acces a la base). Reprend l'essai mesure dans l'etude du 08/11 (precision 98,4 % au seuil 0,7) :
  * <ul>
  * <li>designation normalisee : majuscules, accents retires, abreviations unifiees (CPR, GEL, SP, SUSP, FL, B...),
  * nombres separes de leur unite ;</li>
@@ -41,7 +41,9 @@ public final class CorrespondanceApprochee {
     static final double PENALITE_DOSAGE = 0.6;
     static final double PENALITE_MARQUE = 0.5;
     static final double IDF_INCONNU = 8.0;
-    /** Mots trop frequents (plus de fiches que cela) : ne servent pas a trouver les candidats, seulement a les noter. */
+    /**
+     * Mots trop frequents (plus de fiches que cela) : ne servent pas a trouver les candidats, seulement a les noter.
+     */
     static final int FREQUENCE_MAX_INDEX = 400;
     static final int POOL = 60;
 
@@ -189,7 +191,10 @@ public final class CorrespondanceApprochee {
     private final Map<String, Double> idf = new HashMap<>();
     private final Map<String, List<String>> index = new HashMap<>();
 
-    /** @param fiches fiches actives : identifiant -> designation (ordre indifferent) */
+    /**
+     * @param fiches
+     *            fiches actives : identifiant -> designation (ordre indifferent)
+     */
     public CorrespondanceApprochee(Map<String, String> fiches) {
         this.designations = new LinkedHashMap<>(fiches);
         Map<String, Integer> df = new HashMap<>();
