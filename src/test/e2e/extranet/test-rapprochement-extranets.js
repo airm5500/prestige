@@ -186,7 +186,7 @@ if (Number(q('SELECT COUNT(*) FROM extranet_compte')) > 0) {
       && nvBase.map((l) => l[0]).join(',').indexOf('SCRIPT') < 0 && nvBase.some((l) => l[0] === 'FAIR248'), JSON.stringify(nvEcran));
     await cliquerEtAttendre(p, ECRAN + ' #exRapprocher', '/nouveaux/rapprochement');
     const rap = (await magasin(p, 'nouveaux')).map((x) => x.prestige && x.prestige.statut);
-    ok('rapprochement : un statut par produit', rap.every((s) => ['CODE_GROSSISTE', 'CIP', 'PLUSIEURS', 'INTROUVABLE'].indexOf(s) >= 0), rap.join(','));
+    ok('rapprochement : un statut par produit', rap.every((s) => ['PSCODE', 'CIP', 'PLUSIEURS', 'INTROUVABLE'].indexOf(s) >= 0), rap.join(','));
 
     /* ---- session expiree : page de connexion en 200, cache precedent garde */
     const nvAvant = q('SELECT COUNT(*) FROM extranet_nouveau_produit');

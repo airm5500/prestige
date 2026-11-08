@@ -107,7 +107,9 @@ function demarrer(port) {
       case '/Accueil':
         return envoyer(200, 'text/html; charset=utf-8', '<html><body>Accueil</body></html>');
       case '/NouveauxProduits':
-        return html('nouveaux/reconstitue-nouveaux-produits.html');
+        /* etat.nouveauxHtml : page generee par un test (cas varies), sinon la page reconstituee */
+        return etat.nouveauxHtml ? envoyer(200, 'text/html; charset=utf-8', etat.nouveauxHtml)
+          : html('nouveaux/reconstitue-nouveaux-produits.html');
       default:
         return envoyer(404, 'text/plain', 'absent');
     }
