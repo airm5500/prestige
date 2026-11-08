@@ -158,6 +158,11 @@ class CorrespondanceReglesCoherenceTest {
         }
         // le tirage couvre tous les motifs
         for (Motif mo : Motif.values()) {
+            if (mo == Motif.RECU_EN_BL) {
+                // motif de la reception d'un BL : jamais produit par decider (voir ReceptionBlCoherenceTest)
+                assertEquals(0, vus.getOrDefault(mo, 0));
+                continue;
+            }
             assertTrue(vus.getOrDefault(mo, 0) > 50, "motif peu couvert : " + mo + " " + vus);
         }
     }

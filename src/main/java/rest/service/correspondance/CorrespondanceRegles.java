@@ -31,12 +31,75 @@ public final class CorrespondanceRegles {
     }
 
     public enum Source {
-        CODE_GROSSISTE, CIP, EAN, HUMAIN
+        CODE_GROSSISTE, CIP, EAN, HUMAIN, BL
     }
 
     public enum Motif {
         CONSERVEE, CODE_VIDE, CODE_AMBIGU, DESACCORD_CODE_CLE, CODE_GROSSISTE_CONNU, CLE_UNIQUE, CLE_AMBIGUE,
-        INTROUVABLE
+        INTROUVABLE,
+        /** correspondance apprise d'un BL cloture (lot 2), jamais produite par {@link #decider} */
+        RECU_EN_BL
+    }
+
+    /** Score d'une correspondance apprise d'un BL cloture : produit recu et entre en stock sous ce code. */
+    public static final BigDecimal SCORE_BL = new BigDecimal("0.950");
+
+    /**
+     * Lot 2 : un code lu a l'import d'un fichier grossiste, recu sur un BL cloture pour la fiche {@code recue}.
+     * <ul>
+     * <li>aucune correspondance : CREER (AUTO_EXACTE, source BL) ;</li>
+     * <li>meme fiche (ou fiche parmi les candidats d'une PROPOSEE) : CONFIRMER, etat inchange ;</li>
+     * <li>AUTO_EXACTE pour une autre fiche : CONTREDIRE, l'etat passe CONTREDITE, la fiche d'origine reste ;</li>
+     * <li>VALIDEE, CONTREDITE ou PROPOSEE pour une autre fiche, et toute REJETEE : SIGNALER, etat et fiche
+     * inchanges.</li>
+     * </ul>
+     * Exactement un compteur (confirmations ou contradictions) augmente de 1.
+     */
+    public static final class Reception {
+        public enum Action {
+            CREER, CONFIRMER, CONTREDIRE, SIGNALER
+        }
+
+        public final Action action;
+        public final Etat etatApres;
+        public final String familleApres;
+        public final String familleContradiction;
+        public final int confirmations;
+        public final int contradictions;
+        public final Source sourceCreation;
+
+        Reception(Action action, Etat etatApres, String familleApres, String familleContradiction) {
+            this.action = action;
+            this.etatApres = etatApres;
+            this.familleApres = familleApres;
+            this.familleContradiction = familleContradiction;
+            boolean contre = action == Action.CONTREDIRE || action == Action.SIGNALER;
+            this.confirmations = contre ? 0 : 1;
+            this.contradictions = contre ? 1 : 0;
+            this.sourceCreation = action == Action.CREER ? Source.BL : null;
+        }
+    }
+
+    public static Reception recevoir(Etat etat, String famille, List<String> candidats, String recue) {
+        if (etat == null) {
+            return new Reception(Reception.Action.CREER, Etat.AUTO_EXACTE, recue, null);
+        }
+        boolean meme = recue.equals(famille);
+        switch (etat) {
+        case AUTO_EXACTE:
+            return meme ? new Reception(Reception.Action.CONFIRMER, etat, famille, null)
+                    : new Reception(Reception.Action.CONTREDIRE, Etat.CONTREDITE, famille, recue);
+        case VALIDEE:
+        case CONTREDITE:
+            return meme ? new Reception(Reception.Action.CONFIRMER, etat, famille, null)
+                    : new Reception(Reception.Action.SIGNALER, etat, famille, recue);
+        case PROPOSEE:
+            return candidats != null && candidats.contains(recue)
+                    ? new Reception(Reception.Action.CONFIRMER, etat, famille, null)
+                    : new Reception(Reception.Action.SIGNALER, etat, famille, recue);
+        default:
+            return new Reception(Reception.Action.SIGNALER, etat, famille, recue);
+        }
     }
 
     public static final BigDecimal SCORE_CODE = new BigDecimal("1.000");

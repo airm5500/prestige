@@ -59,6 +59,28 @@ public class CorrespondanceGrossisteRessource {
         return Response.ok(new JSONObject().put("success", true).put("calcul", calcul).toString()).build();
     }
 
+    /**
+     * Lot 2 : rejoue la reception d'un BL cloture (elle est faite d'office a la cloture). Sans effet sur un BL non
+     * cloture ou deja applique.
+     */
+    @POST
+    @Path("reception-bl/{blId}")
+    public Response receptionBl(@PathParam("blId") String blId) {
+        Response refus = Droits.refus(servletRequest, "Correspondances grossistes", DROIT);
+        if (refus != null) {
+            return refus;
+        }
+        return Response.ok(service.appliquerReceptionBl(blId).toString()).build();
+    }
+
+    /** Lot 2 : lignes d'un fichier grossiste importe, avec leur code et leur sort a la reception. */
+    @GET
+    @Path("import/{commandeId}")
+    public Response lignesImport(@PathParam("commandeId") String commandeId) {
+        Response r = nonConnecte();
+        return r != null ? r : Response.ok(service.lignesImport(commandeId).toString()).build();
+    }
+
     @GET
     @Path("produit/{familleId}")
     public Response produit(@PathParam("familleId") String familleId) {

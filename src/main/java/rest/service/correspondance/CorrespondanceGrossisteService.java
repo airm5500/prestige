@@ -92,7 +92,8 @@ public class CorrespondanceGrossisteService {
                 List<String> cle = new ArrayList<>(parCle.getOrDefault(code, Collections.emptySet()));
                 Decision d = CorrespondanceRegles.decider(new Entree(code, new ArrayList<>(c.getValue()), cle,
                         ex == null ? null : ex.etat, ex == null ? null : ex.famille));
-                if (d.motif == Motif.CONSERVEE) {
+                if (d.motif == Motif.CONSERVEE || (ex != null && ex.source == Source.BL)) {
+                    // lot 2 : une correspondance apprise d'un BL cloture vaut plus que les tables ; jamais recalculee
                     conservees++;
                 } else if (!d.aEcrire()) {
                     sansResultat++;
@@ -198,11 +199,131 @@ public class CorrespondanceGrossisteService {
         return em
                 .createNativeQuery("UPDATE correspondance_grossiste SET lg_FAMILLE_ID = ?1, etat = ?2, source = ?3,"
                         + " motif = ?4, score = ?5, candidats = ?6, dt_maj = NOW(3), calcul_id = ?7"
-                        + " WHERE id = ?8 AND etat NOT IN " + ETATS_CONSERVES)
+                        + " WHERE id = ?8 AND etat NOT IN " + ETATS_CONSERVES + " AND source <> 'BL'")
                 .setParameter(1, d.familleId).setParameter(2, d.etat.name()).setParameter(3, d.source.name())
                 .setParameter(4, d.motif.name()).setParameter(5, d.score)
                 .setParameter(6, CorrespondanceRegles.candidatsJson(d.candidats)).setParameter(7, calculId)
                 .setParameter(8, id).executeUpdate();
+    }
+
+    // ------------------------------------------------------------------ reception d'un BL (lot 2)
+
+    /**
+     * Applique a correspondance_grossiste les lignes importees d'un BL CLOTURE : pour chaque ligne du BL, les lignes du
+     * fichier importe pour la meme commande et la meme fiche (un code distinct = une reception). Rejouable : une ligne
+     * deja appliquee ne l'est plus. Les regles sont dans {@link CorrespondanceRegles#recevoir}.
+     */
+    public JSONObject appliquerReceptionBl(String blId) {
+        @SuppressWarnings("unchecked")
+        List<Object[]> l = em.createNativeQuery("SELECT d.lg_BON_LIVRAISON_DETAIL, d.lg_FAMILLE_ID, li.id,"
+                + " li.lg_GROSSISTE_ID, li.code_normalise, li.designation_brute"
+                + " FROM t_bon_livraison b JOIN t_bon_livraison_detail d ON d.lg_BON_LIVRAISON_ID = b.lg_BON_LIVRAISON_ID"
+                + " JOIN ligne_import_grossiste li ON li.lg_ORDER_ID = b.lg_ORDER_ID AND li.lg_FAMILLE_ID = d.lg_FAMILLE_ID"
+                + " WHERE b.lg_BON_LIVRAISON_ID = ?1 AND b.str_STATUT = 'is_Closed' AND li.dt_application IS NULL"
+                + " AND li.code_normalise IS NOT NULL AND li.lg_GROSSISTE_ID IS NOT NULL ORDER BY li.id")
+                .setParameter(1, blId).getResultList();
+        // (grossiste, code, fiche) -> ligne du BL, designation, lignes du fichier
+        Map<String, Object[]> receptions = new LinkedHashMap<>();
+        Set<Long> vues = new LinkedHashSet<>();
+        for (Object[] r : l) {
+            long traceId = ((Number) r[2]).longValue();
+            if (!vues.add(traceId)) {
+                continue; // meme fiche sur deux lignes du BL : une seule application par ligne du fichier
+            }
+            String cle = r[3] + "|" + r[4] + "|" + r[1];
+            Object[] rec = receptions.computeIfAbsent(cle,
+                    k -> new Object[] { r[0], r[1], r[3], r[4], r[5], new ArrayList<Long>() });
+            @SuppressWarnings("unchecked")
+            List<Long> traces = (List<Long>) rec[5];
+            traces.add(traceId);
+        }
+        Map<CorrespondanceRegles.Reception.Action, Integer> compte = new java.util.EnumMap<>(
+                CorrespondanceRegles.Reception.Action.class);
+        for (Object[] rec : receptions.values()) {
+            String detailId = (String) rec[0], famille = (String) rec[1], grossiste = (String) rec[2],
+                    code = (String) rec[3], designation = (String) rec[4];
+            @SuppressWarnings("unchecked")
+            List<Long> traces = (List<Long>) rec[5];
+            @SuppressWarnings("unchecked")
+            List<Object[]> ex = em.createNativeQuery("SELECT id, etat, lg_FAMILLE_ID, candidats"
+                    + " FROM correspondance_grossiste WHERE cle_grossiste = ?1 AND code_grossiste = ?2 FOR UPDATE")
+                    .setParameter(1, grossiste).setParameter(2, code).getResultList();
+            CorrespondanceRegles.Reception r;
+            if (ex.isEmpty()) {
+                r = CorrespondanceRegles.recevoir(null, null, Collections.emptyList(), famille);
+                em.createNativeQuery("INSERT INTO correspondance_grossiste (cle_grossiste, lg_GROSSISTE_ID,"
+                        + " code_grossiste, designation_grossiste, lg_FAMILLE_ID, etat, source, motif, score, candidats,"
+                        + " nb_confirmations, dt_creation, dt_maj, dt_derniere_confirmation)"
+                        + " VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, 1, NOW(3), NOW(3), NOW())")
+                        .setParameter(1, grossiste).setParameter(2, grossiste).setParameter(3, code)
+                        .setParameter(4,
+                                designation == null || designation.length() <= 200 ? designation
+                                        : designation.substring(0, 200))
+                        .setParameter(5, famille).setParameter(6, r.etatApres.name())
+                        .setParameter(7, r.sourceCreation.name()).setParameter(8, Motif.RECU_EN_BL.name())
+                        .setParameter(9, CorrespondanceRegles.SCORE_BL)
+                        .setParameter(10, CorrespondanceRegles.candidatsJson(Collections.singletonList(famille)))
+                        .executeUpdate();
+            } else {
+                Object[] e = ex.get(0);
+                Etat etat = enumOuNull(Etat.class, (String) e[1]);
+                List<String> candidats = new ArrayList<>();
+                if (e[3] != null) {
+                    new JSONArray(e[3].toString()).forEach(x -> candidats.add(x.toString()));
+                }
+                r = CorrespondanceRegles.recevoir(etat, (String) e[2], candidats, famille);
+                em.createNativeQuery("UPDATE correspondance_grossiste SET etat = ?1,"
+                        + " nb_confirmations = nb_confirmations + ?2, nb_contradictions = nb_contradictions + ?3,"
+                        + " dt_derniere_confirmation = IF(?6 > 0, NOW(), dt_derniere_confirmation),"
+                        + " famille_contradiction = IF(?7 > 0, ?4, famille_contradiction),"
+                        + " dt_derniere_contradiction = IF(?8 > 0, NOW(), dt_derniere_contradiction), dt_maj = NOW(3)"
+                        + " WHERE id = ?5").setParameter(1, r.etatApres.name()).setParameter(2, r.confirmations)
+                        .setParameter(3, r.contradictions).setParameter(4, r.familleContradiction)
+                        .setParameter(5, ((Number) e[0]).longValue()).setParameter(6, r.confirmations)
+                        .setParameter(7, r.contradictions).setParameter(8, r.contradictions).executeUpdate();
+            }
+            compte.merge(r.action, 1, Integer::sum);
+            StringBuilder ids = new StringBuilder();
+            for (int i = 0; i < traces.size(); i++) {
+                ids.append(i == 0 ? "" : ",").append(traces.get(i));
+            }
+            em.createNativeQuery("UPDATE ligne_import_grossiste SET lg_BON_LIVRAISON_DETAIL = ?1,"
+                    + " dt_application = NOW(3), resultat = ?2 WHERE dt_application IS NULL AND id IN (" + ids + ")")
+                    .setParameter(1, detailId).setParameter(2, r.action.name()).executeUpdate();
+        }
+        JSONObject res = new JSONObject().put("success", true).put("blId", blId).put("receptions", receptions.size());
+        for (CorrespondanceRegles.Reception.Action a : CorrespondanceRegles.Reception.Action.values()) {
+            res.put(a.name().toLowerCase(), compte.getOrDefault(a, 0));
+        }
+        if (!receptions.isEmpty()) {
+            LOG.log(Level.INFO, "Correspondances grossistes, BL {0} : {1}", new Object[] { blId, res });
+        }
+        return res;
+    }
+
+    /** Lignes importees d'une commande, dans l'ordre du fichier (lecteur de ligne_import_grossiste). */
+    public JSONObject lignesImport(String commandeId) {
+        @SuppressWarnings("unchecked")
+        List<Object[]> l = em.createNativeQuery("SELECT li.id, li.rang, li.lg_GROSSISTE_ID, li.code_brut,"
+                + " li.code_normalise, li.designation_brute, li.lg_FAMILLE_ID, f.str_DESCRIPTION, li.lg_ORDERDETAIL_ID,"
+                + " li.quantite, li.prix_achat, DATE_FORMAT(li.dt_import, " + FORMAT_DATE + "),"
+                + " li.lg_BON_LIVRAISON_DETAIL, DATE_FORMAT(li.dt_application, " + FORMAT_DATE + "), li.resultat"
+                + " FROM ligne_import_grossiste li LEFT JOIN t_famille f ON f.lg_FAMILLE_ID = li.lg_FAMILLE_ID"
+                + " WHERE li.lg_ORDER_ID = ?1 ORDER BY li.rang").setParameter(1, commandeId).getResultList();
+        String[] n = { "id", "rang", "grossisteId", "codeBrut", "codeNormalise", "designation", "familleId", "famille",
+                "commandeDetailId", "quantite", "prixAchat", "dateImport", "blDetailId", "dateApplication",
+                "resultat" };
+        JSONArray a = new JSONArray();
+        for (Object[] r : l) {
+            JSONObject o = new JSONObject();
+            for (int i = 0; i < n.length; i++) {
+                Object v = r[i];
+                o.put(n[i],
+                        v == null ? JSONObject.NULL : v instanceof Number ? ((Number) v).longValue() : v.toString());
+            }
+            a.put(o);
+        }
+        return new JSONObject().put("success", true).put("commandeId", commandeId).put("data", a);
     }
 
     // ------------------------------------------------------------------ lectures
@@ -212,15 +333,17 @@ public class CorrespondanceGrossisteService {
             + " f.str_DESCRIPTION, f.int_CIP, f.str_STATUT, c.etat, c.source, c.motif, c.score, c.candidats,"
             + " c.nb_confirmations, c.nb_contradictions, DATE_FORMAT(c.dt_creation, " + FORMAT_DATE + "),"
             + " DATE_FORMAT(c.dt_maj, " + FORMAT_DATE + "), DATE_FORMAT(c.dt_derniere_confirmation, " + FORMAT_DATE
-            + "), c.lg_USER_VALIDATION, DATE_FORMAT(c.dt_validation, " + FORMAT_DATE + "), c.calcul_id"
-            + " FROM correspondance_grossiste c LEFT JOIN t_grossiste g ON g.lg_GROSSISTE_ID = c.lg_GROSSISTE_ID"
-            + " LEFT JOIN t_famille f ON f.lg_FAMILLE_ID = c.lg_FAMILLE_ID";
+            + "), c.lg_USER_VALIDATION, DATE_FORMAT(c.dt_validation, " + FORMAT_DATE + "), c.calcul_id,"
+            + " c.famille_contradiction, fc.str_DESCRIPTION, DATE_FORMAT(c.dt_derniere_contradiction, " + FORMAT_DATE
+            + ") FROM correspondance_grossiste c LEFT JOIN t_grossiste g ON g.lg_GROSSISTE_ID = c.lg_GROSSISTE_ID"
+            + " LEFT JOIN t_famille f ON f.lg_FAMILLE_ID = c.lg_FAMILLE_ID"
+            + " LEFT JOIN t_famille fc ON fc.lg_FAMILLE_ID = c.famille_contradiction";
 
     private static final String[] NOMS = { "id", "cleGrossiste", "grossisteId", "sourceExtranet", "grossiste",
             "codeGrossiste", "cip", "ean", "designationGrossiste", "familleId", "famille", "familleCip",
             "familleStatut", "etat", "source", "motif", "score", "candidats", "nbConfirmations", "nbContradictions",
             "dateCreation", "dateMaj", "dateDerniereConfirmation", "utilisateurValidation", "dateValidation",
-            "calculId" };
+            "calculId", "familleContradictionId", "familleContradiction", "dateDerniereContradiction" };
 
     private JSONArray lignes(List<Object[]> l) {
         Set<String> ids = new LinkedHashSet<>();
@@ -285,9 +408,12 @@ public class CorrespondanceGrossisteService {
     /** Correspondances d'un produit : retenu, ou candidat d'une correspondance a valider. */
     public JSONObject produit(String familleId) {
         @SuppressWarnings("unchecked")
-        List<Object[]> l = em.createNativeQuery("SELECT " + COLONNES + " WHERE c.lg_FAMILLE_ID = ?1"
-                + " OR (c.lg_FAMILLE_ID IS NULL AND c.candidats LIKE ?2) ORDER BY g.str_LIBELLE, c.code_grossiste")
-                .setParameter(1, familleId).setParameter(2, "%\"" + familleId.replace("%", "") + "\"%").getResultList();
+        List<Object[]> l = em
+                .createNativeQuery("SELECT " + COLONNES + " WHERE c.lg_FAMILLE_ID = ?1"
+                        + " OR (c.lg_FAMILLE_ID IS NULL AND c.candidats LIKE ?2) OR c.famille_contradiction = ?3"
+                        + " ORDER BY g.str_LIBELLE, c.code_grossiste")
+                .setParameter(1, familleId).setParameter(2, "%\"" + familleId.replace("%", "") + "\"%")
+                .setParameter(3, familleId).getResultList();
         return new JSONObject().put("success", true).put("familleId", familleId).put("data", lignes(l));
     }
 
