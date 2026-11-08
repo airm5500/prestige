@@ -58,6 +58,8 @@
 <body>
 <header>
   <h1>Icône de Prestige : le mortier, et six autres au même style</h1>
+  <p><b>Votre choix</b> (en tête, n° 1) : le mortier aux feuilles avec la gélule couchée à terre. Les sept propositions
+    d'origine suivent, renumérotées de 2 à 8.</p>
   <p>Plan du 08/11, point 10. Vous avez proposé un modèle : un mortier vert menthe marqué d'une croix, avec le pilon et des
     feuilles, dessiné au trait noir épais. La proposition 1 le redessine entièrement (aucune image reprise) ; les six autres
     gardent le même style : contour noir, aplats menthe, crème et ambre, une face ombrée à droite.</p>
@@ -181,6 +183,25 @@
           + (p ? '' : croixP(32, 38.5, 4, 5, C, p));
       } }
   ];
+
+  // Votre choix : le mortier de la 1, avec la gelule de la 4 couchee a terre
+  function geluleCouchee(cx, cy, l, h, angle, p) {
+    var t = trait(p), r = h / 2, x1 = cx - l / 2, x2 = cx + l / 2, y1 = cy - r;
+    return '<g transform="rotate(' + angle + ' ' + cx + ' ' + cy + ')">'
+      + '<path d="M' + cx + ' ' + y1 + 'H' + (x1 + r) + 'a' + r + ' ' + r + ' 0 0 0 0 ' + h + 'H' + cx + 'z" fill="' + M + '" ' + t + '/>'
+      + '<path d="M' + cx + ' ' + y1 + 'H' + (x2 - r) + 'a' + r + ' ' + r + ' 0 0 1 0 ' + h + 'H' + cx + 'z" fill="' + C + '" ' + t + '/>'
+      + (p ? '' : '<rect x="' + (x1 + 3) + '" y="' + (y1 + 2.2) + '" width="' + (l / 2 - 5) + '" height="2.2" rx="1.1" fill="#fff" fill-opacity=".75"/>'
+               + '<path d="M' + (cx + 1.5) + ' ' + (cy + r - 2.2) + 'H' + (x2 - r) + 'a' + (r - 2.2) + ' ' + (r - 2.2) + ' 0 0 0 ' + (r - 2.8) + ' -2' + '" stroke="' + CF + '" stroke-width="2.2" fill="none" stroke-linecap="round"/>')
+      + '</g>';
+  }
+  var mortier = icones[0];
+  icones.unshift({ id: 'mortiergelule', nom: 'Mortier et gélule (votre choix : 1 + 4)', palette: 'menthe, crème, contour noir',
+    idee: 'Le mortier aux feuilles de la 1, un peu réduit et remonté, avec la gélule de la 4 couchée à terre, au pied du mortier.',
+    svg: function (p) {
+      // le pied du mortier et la gelule reposent sur la meme ligne de sol
+      return '<g transform="translate(' + (p ? '-2 7.5' : '-1.5 7.8') + ') scale(' + (p ? .86 : .87) + ')">' + mortier.svg(p) + '</g>'
+        + geluleCouchee(p ? 50 : 50.5, p ? 53.2 : 55, p ? 24 : 22, p ? 12 : 11, -6, p);
+    } });
 
   function svg(x, t) {
     return '<svg xmlns="http://www.w3.org/2000/svg" width="' + t + '" height="' + t + '" viewBox="0 0 64 64">' + x.svg(t <= 24) + '</svg>';
