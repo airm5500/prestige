@@ -505,6 +505,10 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                                 + 'des mises en attente. Le critère de durée se règle au-dessus du graphique.', longues), {dockedItems: [me.barreSeuil()]}),
                         me.cadre('cSensibles', 'Actions sensibles', 'Annulations et modifications de ventes par employé ; remises dans l\'infobulle. '
                                 + 'À rapprocher de la caisse.', sensibles),
+                        /* plan du 08/11, point 18 : motifs des annulations et modifications, par auteur de la vente d'origine */
+                        me.cadre('cMotifs', 'Annulations et modifications par motif', 'Motif choisi à l\'annulation ou à la modification d\'une vente, '
+                                + 'compté pour l\'auteur de la vente d\'origine (pas pour celui qui annule). Une annulation n\'est pas toujours une erreur : '
+                                + 'voir le motif.', {xtype: 'component', itemId: 'aeMotifs', autoScroll: true, html: ''}),
                         me.cadre('cRepartition', 'Répartition des tâches', 'Ce que fait chaque employé sur la période, par type d\'action.', repartition)
                     ]}
             ]
@@ -756,6 +760,7 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                 }
                 me.donneesAnalyses = o.data;
                 me.dessinerAnalyses(o.data);
+                me.chargerMotifs(f);
             },
             failure: function (r) {
                 if (!a.isDestroyed) {
@@ -763,6 +768,46 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                     a.down('#aeTuiles').update('<div class="ae-vide">Le serveur n\'a pas répondu (' + r.status + ').</div>');
                 }
             }});
+    },
+
+    /* plan du 08/11, point 18 : rubrique « Annulations et modifications par motif » (meme recapitulatif que l'onglet
+       « Analyse par motif » des ventes annulees) */
+    chargerMotifs: function (f) {
+        var me = this, c = me.down('#aeMotifs');
+        if (!c) {
+            return;
+        }
+        Ext.Ajax.request({url: '../api/v1/vente-motifs/recap', method: 'GET', params: {dtStart: f.debut, dtEnd: f.fin, employeId: f.employeId || ''},
+            success: function (r) {
+                var o = Ext.decode(r.responseText, true) || {};
+                if (!c.isDestroyed) {
+                    c.update(o.success ? me.htmlMotifs(o) : '<div class="ae-vide">' + Ext.String.htmlEncode(o.msg || 'Indisponible') + '</div>');
+                }
+            },
+            failure: function () {
+                if (!c.isDestroyed) {
+                    c.update('<div class="ae-vide">Indisponible : réessayer.</div>');
+                }
+            }});
+    },
+
+    htmlMotifs: function (o) {
+        var e = Ext.String.htmlEncode, t = o.total || {};
+        if (!t.nb) {
+            return '<div class="ae-vide">Aucune annulation ni modification avec motif sur la période.</div>';
+        }
+        var table = function (titre, lignes, nom) {
+            return '<table class="ae-motifs"><thead><tr><th>' + titre + '</th><th>Annul.</th><th>Modif.</th><th>Total</th></tr></thead><tbody>'
+                    + Ext.Array.map(lignes, function (x) {
+                        return '<tr><td>' + e(x[nom]) + '</td><td class="n">' + x.annulations + '</td><td class="n">' + x.modifications
+                                + '</td><td class="n"><b>' + x.nb + '</b></td></tr>';
+                    }).join('') + '</tbody><tfoot><tr><th>Total</th><th class="n">' + t.annulations + '</th><th class="n">' + t.modifications
+                    + '</th><th class="n">' + t.nb + '</th></tr></tfoot></table>';
+        };
+        return '<style>.ae-motifs{border-collapse:collapse;width:100%;font-size:12px;margin:4px 0 10px}.ae-motifs th{background:#e8eef7;'
+                + 'color:#1a3d6d;text-align:left;padding:4px 6px}.ae-motifs td{padding:3px 6px;border-bottom:1px solid #eef1f5}'
+                + '.ae-motifs .n{text-align:right}</style>'
+                + table('Auteur de la vente', o.parAuteur || [], 'auteur') + table('Motif', o.parMotif || [], 'motif');
     },
 
     dessinerAnalyses: function (d) {

@@ -34,6 +34,8 @@ function nettoyer() {
     + "CREATE TEMPORARY TABLE e2e_p29_r AS SELECT lg_REGLEMENT_ID id FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID IN (" + v + ") AND lg_REGLEMENT_ID IS NOT NULL;"
     + "DELETE FROM vente_modifiee_ligne WHERE modification_id IN (SELECT id FROM vente_modifiee WHERE vente_id IN (" + v + ") OR vente_origine_id IN (" + v + "));"
     + "DELETE FROM vente_modifiee WHERE vente_id IN (" + v + ") OR vente_origine_id IN (" + v + ");"
+    + (q("SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'vente_motif'") === '1'
+      ? "DELETE FROM vente_motif WHERE vente_id IN (" + v + ") OR nouvelle_vente_id IN (" + v + ");" : '')
     + "DELETE FROM vente_reglement WHERE vente_id IN (" + v + ");"
     + "DELETE FROM annulation_recette WHERE preenregistrement_id IN (" + v + ");"
     + "DELETE FROM hmvtproduit WHERE pkey IN (SELECT id FROM e2e_p29_l);"
@@ -98,6 +100,9 @@ function nettoyer() {
     }, id);
     if (!cible || cible.startsWith('ABSENTE:')) { throw new Error('Icône « Modifier » absente ou masquée pour la vente ' + id + ' ' + cible); }
     await p.click('#' + cible);
+    /* plan du 08/11, point 18 : vente modifiable -> menu des motifs sur l'icone ; « Erreur de saisie » (ancien code : rien) */
+    const motif = p.locator('.prestige-motif-vente .prestige-motif-item').filter({ hasText: 'Erreur de saisie' }).first();
+    if (await motif.waitFor({ state: 'visible', timeout: 5000 }).then(() => true).catch(() => false)) { await motif.click(); }
   };
   const copieChargee = () => p.waitForFunction(() => { const c = testextjs.app.getController('VenteCtr'); return c.current && c.current.lgPREENREGISTREMENTID
     && Ext.ComponentQuery.query('doventemanager #btnCloture').some((x) => x.isVisible(true)) && c.getVnoproduitCombo && c.getVnoproduitCombo(); }, null, { timeout: 30000 }).then(() => true, () => false);

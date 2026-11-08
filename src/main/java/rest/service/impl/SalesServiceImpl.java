@@ -159,6 +159,8 @@ public class SalesServiceImpl implements SalesService {
     @EJB
     private LogService logService;
     @EJB
+    private rest.service.MotifVenteService motifVenteService;
+    @EJB
     private MvtProduitService mvtProduitService;
     @EJB
     private MouvementProduitService mouvementProduitService;
@@ -3280,6 +3282,9 @@ public class SalesServiceImpl implements SalesService {
                 TPreenregistrement venteAsupprimer = getEm().find(TPreenregistrement.class, tp.getLgPARENTID());
                 annulerVenteAnterieur(tp.getLgUSERID(), venteAsupprimer);
                 venteModifieeService.enregistrerModificationProduits(tp.getLgUSERID(), venteAsupprimer, tp);
+                /* plan du 08/11, point 18 : le motif de la modification est valide avec la nouvelle vente */
+                motifVenteService.validerModification(venteAsupprimer.getLgPREENREGISTREMENTID(),
+                        tp.getLgPREENREGISTREMENTID());
             }
             /*
              * Cas 1 du 03/11/2026 : lignes cochees « C » -> vente comptant liee. Un seul point d'entree, emprunte
@@ -3769,6 +3774,9 @@ public class SalesServiceImpl implements SalesService {
                 annulerVenteAnterieur(tp.getLgUSERID(), venteAsupprimer);
                 // Point 6 : mouchard des ventes modifiées, écart produit par produit
                 venteModifieeService.enregistrerModificationProduits(tp.getLgUSERID(), venteAsupprimer, tp);
+                /* plan du 08/11, point 18 : le motif de la modification est valide avec la nouvelle vente */
+                motifVenteService.validerModification(venteAsupprimer.getLgPREENREGISTREMENTID(),
+                        tp.getLgPREENREGISTREMENTID());
             }
             updateDiffere(clotureVenteParams, tp, compteClient);
             TReglement tReglement = createTReglement(clotureVenteParams.getUserId(), modeReglement, "",
@@ -5438,6 +5446,8 @@ public class SalesServiceImpl implements SalesService {
                 getEm().merge(original);
             }
             getEm().remove(tp);
+            /* plan du 08/11, point 18 : modification abandonnee, son motif ne compte pas */
+            motifVenteService.abandonnerModification(tp.getLgPARENTID());
             return json.put("success", true).put("msg", "Copie de modification supprimée");
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "supprimerCopieVente " + venteId, e);

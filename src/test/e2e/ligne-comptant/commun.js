@@ -297,11 +297,20 @@ async function annulerVente(p, ref) {
   await p.waitForTimeout(2500);
   const rangee = p.locator('.x-grid-row').filter({ visible: true, hasText: ref }).first();
   await rangee.waitFor({ timeout: 30000 });
-  const rep = p.waitForResponse((x) => /\/vente\/annulation\//.test(x.url()), { timeout: 120000 });
+  /* plan du 08/11, point 18 : le motif est choisi dans un menu sur l'icone, la confirmation se fait dans le motif
+     (premier clic : « Confirmer l'annulation (...) ? », second clic : annulation). Ancien code : fenetre « Annuler ». */
+  const rep = p.waitForResponse((x) => /\/vente\/annulation\/|\/vente-motifs\/annulation\//.test(x.url()), { timeout: 120000 });
   rep.catch(() => {});
   await rangee.locator('img[data-qtip="Annuler.Vente"]').first().click();
-  await vues.attendreMessage(p, 'Annuler', 15000);
-  await vues.repondre(p, 'yes');
+  const menu = p.locator('.prestige-motif-vente .prestige-motif-item').filter({ hasText: 'Erreur de saisie' }).first();
+  if (await menu.waitFor({ state: 'visible', timeout: 8000 }).then(() => true).catch(() => false)) {
+    await menu.click();
+    await p.waitForTimeout(600);
+    await p.locator('.prestige-motif-vente .prestige-motif-item').filter({ hasText: 'Confirmer' }).first().click();
+  } else {
+    await vues.attendreMessage(p, 'Annuler', 15000);
+    await vues.repondre(p, 'yes');
+  }
   const r = await rep;
   await p.waitForTimeout(2000);
   if (/impression du ticket/i.test(await vues.texteMessage(p))) { await vues.repondre(p, 'no'); }
