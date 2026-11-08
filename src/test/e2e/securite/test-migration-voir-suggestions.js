@@ -39,7 +39,7 @@ try {
   Object.entries(ROLES).forEach(([role, droits]) => {
     q("INSERT INTO t_role (lg_ROLE_ID, str_NAME, str_DESIGNATION, str_TYPE, str_STATUT, dt_CREATED) VALUES ('" + role + "', '" + role + "', '" + role + "', 'CUSTOMER', 'enable', NOW())");
     droits.forEach((d, i) => q("INSERT INTO t_role_privelege (lg_ROLE_PRIVILEGE, lg_ROLE_ID, lg_PRIVILEGE_ID, dt_CREATED)"
-      + " SELECT '" + role + '-' + i + "', '" + role + "', lg_PRIVELEGE_ID, NOW() FROM t_privilege WHERE str_NAME = '" + d + "'"));
+      + " SELECT '" + role + '-' + i + "', '" + role + "', lg_PRIVELEGE_ID, NOW() FROM t_privilege WHERE str_NAME = '" + d + "' ORDER BY str_STATUT = 'enable' DESC LIMIT 1"));
   });
   ok('Rôles d\'essai sans le droit avant la migration', Object.keys(ROLES).every((r) => nbDroit(r) === 0));
 

@@ -27,8 +27,8 @@ const PROFILS = {
 
 function nettoyer() {
   const ids = Object.values(PROFILS).map((p) => "'" + p.id + "'").join(',');
-  q("DELETE d FROM t_suggestion_reserve_detail d JOIN t_suggestion_reserve s ON s.lg_SUGGESTION_RESERVE_ID = d.lg_SUGGESTION_RESERVE_ID WHERE s.str_COMMENTAIRE LIKE 'E2E-RVSE-%';"
-    + " DELETE FROM t_suggestion_reserve WHERE str_COMMENTAIRE LIKE 'E2E-RVSE-%';"
+  q("DELETE d FROM t_suggestion_reserve_detail d JOIN t_suggestion_reserve s ON s.lg_SUGGESTION_RESERVE_ID = d.lg_SUGGESTION_RESERVE_ID WHERE (s.str_COMMENTAIRE LIKE 'E2E-RVSE-%' OR s.lg_USER_CREATEUR_ID IN (" + ids + "));"
+    + " DELETE FROM t_suggestion_reserve WHERE (str_COMMENTAIRE LIKE 'E2E-RVSE-%' OR lg_USER_CREATEUR_ID IN (" + ids + "));"
     + ' DELETE FROM t_preference_utilisateur WHERE lg_USER_ID IN (' + ids + ');'
     + ' DELETE FROM t_role_privelege WHERE lg_ROLE_ID IN (' + ids + '); DELETE FROM t_role_user WHERE lg_USER_ID IN (' + ids + ');'
     + ' DELETE FROM t_role WHERE lg_ROLE_ID IN (' + ids + '); DELETE FROM t_event_log WHERE lg_USER_ID IN (' + ids + ');'
@@ -38,7 +38,7 @@ function nettoyer() {
 function creerProfil(p) {
   q("INSERT INTO t_role (lg_ROLE_ID, str_NAME, str_DESIGNATION, str_TYPE, str_STATUT, dt_CREATED) VALUES ('" + p.id + "', '" + p.id + "', '" + p.id + "', 'CUSTOMER', 'enable', NOW())");
   p.droits.forEach((d, i) => q("INSERT INTO t_role_privelege (lg_ROLE_PRIVILEGE, lg_ROLE_ID, lg_PRIVILEGE_ID, dt_CREATED)"
-    + " SELECT '" + p.id + '-' + i + "', '" + p.id + "', lg_PRIVELEGE_ID, NOW() FROM t_privilege WHERE str_NAME = '" + d + "'"));
+    + " SELECT '" + p.id + '-' + i + "', '" + p.id + "', lg_PRIVELEGE_ID, NOW() FROM t_privilege WHERE str_NAME = '" + d + "' ORDER BY str_STATUT = 'enable' DESC LIMIT 1"));
   q("INSERT INTO t_user (lg_USER_ID, str_LOGIN, str_PASSWORD, str_FIRST_NAME, str_LAST_NAME, str_FUNCTION, str_STATUT, lg_EMPLACEMENT_ID, dt_CREATED, int_CONNEXION)"
     + " VALUES ('" + p.id + "', '" + p.login + "', MD5('" + MDP + "'), 'E2E', '" + p.id + "', 'Magasinier', 'enable', '1', NOW(), 0)");
   q("INSERT INTO t_role_user (lg_USER_ROLE_ID, lg_ROLE_ID, lg_USER_ID, dt_CREATED) VALUES ('" + p.id + "', '" + p.id + "', '" + p.id + "', NOW())");
@@ -71,7 +71,10 @@ function creerProfil(p) {
   /* une ligne cochee par un clic sur sa case, puis « Suggestion sur la selection », motif, commentaire, creation */
   const creerParLaSelection = async (p, rang, commentaire) => {
     const grille = await p.evaluate(() => Ext.getCmp('reservemanagerID').getActiveTab().getId());
-    await p.locator('#' + grille + ' .x-grid-row-checker').nth(rang).click();
+    /* la grille peut se redessiner juste apres son chargement : on attend une case visible */
+    const cases = p.locator('#' + grille + ' .x-grid-row-checker').filter({ visible: true });
+    await cases.nth(rang).waitFor({ state: 'visible', timeout: 30000 });
+    await cases.nth(rang).click();
     await cliquer(p, '#' + grille + ' button[text=Suggestion sur la selection]');
     await p.waitForFunction(() => Ext.ComponentQuery.query('window combo[itemId=cboMotifRech]').some((c) => c.isVisible(true) && c.getStore().getCount() > 0), null, { timeout: 15000 });
     await choisir(p, 'window combo[itemId=cboMotifRech]', 0);
@@ -94,12 +97,12 @@ function creerProfil(p) {
     ok('SANS : onglets TOUT, REAPPRO, REASSORT, HISTORIQUE, sans SUGGESTIONS', await onglets(p) === 'TOUT,REAPPRO RESERVE (ENVOI EN RESERVE),REASSORT RAYON (ENVOI EN RAYON),HISTORIQUE', await onglets(p));
     await creerParLaSelection(p, 0, PROFILS.sans.com);
     const msg = await attendreMessage(p, 'elle sera traitée par une personne habilitée', 20000);
-    const cree = q("SELECT CONCAT_WS('|', str_REF, lg_USER_ID, str_STATUT, (SELECT COUNT(*) FROM t_suggestion_reserve_detail d WHERE d.lg_SUGGESTION_RESERVE_ID = s.lg_SUGGESTION_RESERVE_ID)) FROM t_suggestion_reserve s WHERE str_COMMENTAIRE = '" + PROFILS.sans.com + "'").split('|');
+    const cree = q("SELECT CONCAT_WS('|', str_REF, lg_USER_CREATEUR_ID, str_STATUT, (SELECT COUNT(*) FROM t_suggestion_reserve_detail d WHERE d.lg_SUGGESTION_RESERVE_ID = s.lg_SUGGESTION_RESERVE_ID)) FROM t_suggestion_reserve s WHERE str_COMMENTAIRE = '" + PROFILS.sans.com + "'").split('|');
     ok('SANS : création permise, la suggestion est en base à son nom (à traiter, une ligne)', cree[1] === PROFILS.sans.id && cree[2] === 'A_TRAITER' && cree[3] === '1', cree.join('|'));
     ok('SANS : message « Demande <ref> créée : elle sera traitée par une personne habilitée »', !!msg && msg.indexOf('Demande ' + cree[0] + ' créée : elle sera traitée par une personne habilitée.') >= 0, msg);
     ok('SANS : aucune fenêtre de traitement ouverte, toujours sans onglet SUGGESTIONS', await p.evaluate(() => Ext.ComponentQuery.query('window').filter((w) => w.isVisible() && /traitement|Suggestion\s+SR/i.test(w.title || '')).length === 0)
       && !(await onglets(p)).includes('SUGGESTIONS'));
-    await repondre(p, 'ok');
+    if (msg) { await repondre(p, 'ok'); }
     const cs = await cloche(p);
     ok('SANS : cloche sans section ni choix « Suggestions de réserve »', !/Suggestions de reserve/i.test(cs.panneau) && cs.choix.length > 0 && cs.choix.indexOf('reserve') < 0, JSON.stringify(cs.choix));
     ok('SANS : aucune requête refusée (403) pendant le parcours', p.refus.length === 0, p.refus.join(' ; '));
@@ -110,11 +113,12 @@ function creerProfil(p) {
     ok('AVEC : les cinq onglets, comme avant', await onglets(p) === 'TOUT,REAPPRO RESERVE (ENVOI EN RESERVE),REASSORT RAYON (ENVOI EN RAYON),SUGGESTIONS,HISTORIQUE', await onglets(p));
     await creerParLaSelection(p, 1, PROFILS.avec.com);
     await p.waitForFunction(() => { const m = Ext.getCmp('reservemanagerID'); return m.getActiveTab() === m.down('#ongletSuggestions'); }, null, { timeout: 20000 }).catch(() => {});
-    const refAvec = q("SELECT str_REF FROM t_suggestion_reserve WHERE str_COMMENTAIRE = '" + PROFILS.avec.com + "' AND lg_USER_ID = '" + PROFILS.avec.id + "'");
+    const refAvec = q("SELECT str_REF FROM t_suggestion_reserve WHERE str_COMMENTAIRE = '" + PROFILS.avec.com + "' AND lg_USER_CREATEUR_ID = '" + PROFILS.avec.id + "'");
     ok('AVEC : la création bascule sur l\'onglet SUGGESTIONS, sans le message des demandes', !!refAvec && await p.evaluate(() => { const m = Ext.getCmp('reservemanagerID'); return m.getActiveTab() === m.down('#ongletSuggestions'); })
       && !(await attendreMessage(p, 'personne habilitée', 1500)), refAvec);
-    await p.waitForFunction(() => { const g = Ext.getCmp('reservemanagerID').down('#ongletSuggestions'); return g && !g.getStore().isLoading(); }, null, { timeout: 30000 });
-    const vues = await p.evaluate(() => Ext.getCmp('reservemanagerID').down('#ongletSuggestions').getStore().collect('str_REF'));
+    /* la liste se charge apres la bascule : on attend qu'elle soit remplie */
+    await p.waitForFunction(() => { const g = Ext.getCmp('reservemanagerID').down('#ongletSuggestions'); return g && g.store && !g.store.isLoading() && g.store.getCount() > 0; }, null, { timeout: 30000 }).catch(() => {});
+    const vues = await p.evaluate(() => Ext.getCmp('reservemanagerID').down('#ongletSuggestions').store.collect('str_REF'));
     ok('AVEC : l\'onglet SUGGESTIONS liste sa suggestion et la demande de SANS', vues.indexOf(refAvec) >= 0 && vues.indexOf(cree[0]) >= 0, JSON.stringify(vues.slice(0, 6)));
     const ca = await cloche(p);
     ok('AVEC : la cloche montre les suggestions de réserve et les propose dans « Choisir les notifications »', /Suggestions de reserve a traiter/.test(ca.panneau) && ca.choix.indexOf('reserve') >= 0, ca.panneau.slice(0, 120));
@@ -127,7 +131,7 @@ function creerProfil(p) {
     await b.close();
     nettoyer();
     ok('Jeu d\'essai retiré (profils, rôles, suggestions)', q("SELECT (SELECT COUNT(*) FROM t_user WHERE lg_USER_ID LIKE 'E2E-RVSE-%') + (SELECT COUNT(*) FROM t_role WHERE lg_ROLE_ID LIKE 'E2E-RVSE-%')"
-      + " + (SELECT COUNT(*) FROM t_suggestion_reserve WHERE str_COMMENTAIRE LIKE 'E2E-RVSE-%')") === '0');
+      + " + (SELECT COUNT(*) FROM t_suggestion_reserve WHERE str_COMMENTAIRE LIKE 'E2E-RVSE-%' OR lg_USER_CREATEUR_ID LIKE 'E2E-RVSE-%')") === '0');
   }
   const ko = res.filter((x) => !x.c).length;
   console.log('\n' + (res.length - ko) + '/' + res.length + (ko ? ' ECHEC' : ' OK'));

@@ -38,8 +38,13 @@ const LIBELLE = 'Droit manquant : Voir les suggestions de réserve';
 
 function nettoyer() {
   const ids = Object.values(PROFILS).map((p) => "'" + p.id + "'").join(',');
-  q("DELETE d FROM t_suggestion_reserve_detail d JOIN t_suggestion_reserve s ON s.lg_SUGGESTION_RESERVE_ID = d.lg_SUGGESTION_RESERVE_ID WHERE s.str_COMMENTAIRE = '" + COMMENTAIRE + "';"
-    + " DELETE FROM t_suggestion_reserve WHERE str_COMMENTAIRE = '" + COMMENTAIRE + "'; DELETE FROM mobile_client_ref WHERE ref LIKE 'E2E-RVS-%';"
+  q("DELETE d FROM t_suggestion_reserve_detail d JOIN t_suggestion_reserve s ON s.lg_SUGGESTION_RESERVE_ID = d.lg_SUGGESTION_RESERVE_ID WHERE (s.str_COMMENTAIRE = '" + COMMENTAIRE + "' OR s.lg_USER_CREATEUR_ID IN (" + ids + "));"
+    + " DELETE FROM t_suggestion_reserve WHERE (str_COMMENTAIRE = '" + COMMENTAIRE + "' OR lg_USER_CREATEUR_ID IN (" + ids + ")); DELETE FROM mobile_client_ref WHERE ref LIKE 'E2E-RVS-%';"
+    /* inventaire qu'un profil aurait cree par {id}/inventaire (ancien code, sans controle du droit) */
+    + ' CREATE TEMPORARY TABLE e2e_rvs_inv AS SELECT lg_INVENTAIRE_ID id FROM t_inventaire WHERE lg_USER_ID IN (' + ids + ');'
+    + ' DELETE FROM t_inventaire_famille WHERE lg_INVENTAIRE_ID IN (SELECT id FROM e2e_rvs_inv); DELETE FROM t_inventaire_versement WHERE lg_INVENTAIRE_ID IN (SELECT id FROM e2e_rvs_inv);'
+    + ' DELETE FROM rattrapage_cloture_inventaire WHERE lg_INVENTAIRE_ID IN (SELECT id FROM e2e_rvs_inv); DELETE FROM t_inventaire WHERE lg_INVENTAIRE_ID IN (SELECT id FROM e2e_rvs_inv);'
+    + ' DROP TEMPORARY TABLE e2e_rvs_inv;'
     + ' DELETE FROM t_role_privelege WHERE lg_ROLE_ID IN (' + ids + '); DELETE FROM t_role_user WHERE lg_USER_ID IN (' + ids + ');'
     + ' DELETE FROM t_role WHERE lg_ROLE_ID IN (' + ids + '); DELETE FROM t_event_log WHERE lg_USER_ID IN (' + ids + ');'
     + ' DELETE FROM t_employe WHERE lg_USER_ID IN (' + ids + '); DELETE FROM t_user WHERE lg_USER_ID IN (' + ids + ');');
@@ -48,7 +53,7 @@ function nettoyer() {
 function creerProfil(p) {
   q("INSERT INTO t_role (lg_ROLE_ID, str_NAME, str_DESIGNATION, str_TYPE, str_STATUT, dt_CREATED) VALUES ('" + p.id + "', '" + p.id + "', '" + p.id + "', 'CUSTOMER', 'enable', NOW())");
   p.droits.forEach((d, i) => q("INSERT INTO t_role_privelege (lg_ROLE_PRIVILEGE, lg_ROLE_ID, lg_PRIVILEGE_ID, dt_CREATED)"
-    + " SELECT '" + p.id + '-' + i + "', '" + p.id + "', lg_PRIVELEGE_ID, NOW() FROM t_privilege WHERE str_NAME = '" + d + "'"));
+    + " SELECT '" + p.id + '-' + i + "', '" + p.id + "', lg_PRIVELEGE_ID, NOW() FROM t_privilege WHERE str_NAME = '" + d + "' ORDER BY str_STATUT = 'enable' DESC LIMIT 1"));
   q("INSERT INTO t_user (lg_USER_ID, str_LOGIN, str_PASSWORD, str_FIRST_NAME, str_LAST_NAME, str_FUNCTION, str_STATUT, lg_EMPLACEMENT_ID, dt_CREATED, int_CONNEXION)"
     + " VALUES ('" + p.id + "', '" + p.login + "', MD5('" + MDP + "'), 'E2E', '" + p.id + "', 'Magasinier', 'enable', '1', NOW(), 0)");
   q("INSERT INTO t_role_user (lg_USER_ROLE_ID, lg_ROLE_ID, lg_USER_ID, dt_CREATED) VALUES ('" + p.id + "', '" + p.id + "', '" + p.id + "', NOW())");
@@ -96,7 +101,7 @@ const droitEnBase = (login) => q("SELECT COUNT(*) FROM t_user u JOIN t_role_user
     ['PUT', S + id + '/ouvrir'], ['PUT', S + id + '/liberer'], ['PUT', S + id + '/controler', { observation: 'E2E' }], ['POST', S + id + '/inventaire'],
     ['PUT', S + 'ligne/' + ligne + '/annuler', { motif: 'E2E' }], ['PUT', S + id + '/annuler', { motif: 'E2E' }]];
   const bilan = (id) => q("SELECT CONCAT_WS('|', s.str_STATUT, IFNULL(s.lg_USER_VERROU_ID, '-'), (SELECT COUNT(*) FROM t_suggestion_reserve_detail d WHERE d.lg_SUGGESTION_RESERVE_ID = s.lg_SUGGESTION_RESERVE_ID),"
-    + " (SELECT GROUP_CONCAT(CONCAT(d.lg_FAMILLE_ID, ':', IFNULL(d.int_QTE_RETENUE, '-'), ':', IFNULL(d.str_STATUT, '-')) ORDER BY d.lg_FAMILLE_ID) FROM t_suggestion_reserve_detail d WHERE d.lg_SUGGESTION_RESERVE_ID = s.lg_SUGGESTION_RESERVE_ID),"
+    + " (SELECT GROUP_CONCAT(CONCAT(d.lg_FAMILLE_ID, ':', IFNULL(d.int_QTE_RETENUE, '-'), ':', IFNULL(d.str_ETAT, '-'), ':', IFNULL(d.int_QTE_DEPLACEE, '-')) ORDER BY d.lg_FAMILLE_ID) FROM t_suggestion_reserve_detail d WHERE d.lg_SUGGESTION_RESERVE_ID = s.lg_SUGGESTION_RESERVE_ID),"
     + " (SELECT COUNT(*) FROM t_suggestion_reserve WHERE str_COMMENTAIRE = '" + COMMENTAIRE + "'), (SELECT COUNT(*) FROM t_mouvement_reserve WHERE dt_CREATED >= '" + DEBUT + "'),"
     + " (SELECT COUNT(*) FROM t_inventaire WHERE dt_CREATED >= '" + DEBUT + "')) FROM t_suggestion_reserve s WHERE s.lg_SUGGESTION_RESERVE_ID = '" + id + "'");
   const refuse = (r) => r.http === 403 && r.interdit === true && r.msg === LIBELLE;
@@ -109,7 +114,7 @@ const droitEnBase = (login) => q("SELECT COUNT(*) FROM t_user u JOIN t_role_user
       items: [{ lg_FAMILLE_ID: PS[0], int_QTE: 2 }, { lg_FAMILLE_ID: PS[1], int_QTE: 3 }] }, 'E2E-RVS-1');
     const ID = cree.lg_SUGGESTION_RESERVE_ID;
     ok('SANS : création permise, réponse {lg_SUGGESTION_RESERVE_ID, str_REF}', cree.http === 200 && cree.success === true && !!ID && !!cree.str_REF, JSON.stringify(cree).slice(0, 200));
-    const enBase = q("SELECT CONCAT_WS('|', str_REF, lg_USER_ID, str_STATUT, (SELECT COUNT(*) FROM t_suggestion_reserve_detail d WHERE d.lg_SUGGESTION_RESERVE_ID = s.lg_SUGGESTION_RESERVE_ID)) FROM t_suggestion_reserve s WHERE lg_SUGGESTION_RESERVE_ID = '" + ID + "'");
+    const enBase = q("SELECT CONCAT_WS('|', str_REF, lg_USER_CREATEUR_ID, str_STATUT, (SELECT COUNT(*) FROM t_suggestion_reserve_detail d WHERE d.lg_SUGGESTION_RESERVE_ID = s.lg_SUGGESTION_RESERVE_ID)) FROM t_suggestion_reserve s WHERE lg_SUGGESTION_RESERVE_ID = '" + ID + "'");
     ok('SANS : la suggestion créée est en base (référence, auteur, à traiter, deux lignes)', enBase === [cree.str_REF, PROFILS.sans.id, 'A_TRAITER', '2'].join('|'), enBase);
     const recherche = await appel(sans, 'POST', S + 'creer-depuis-recherche', { type: 'ALL', search: CIP, motifId: MOTIF, commentaire: COMMENTAIRE }, 'E2E-RVS-2');
     ok('SANS : création depuis la recherche permise', recherche.http === 200 && !recherche.interdit && (recherche.success === true ? !!recherche.str_REF : true), JSON.stringify(recherche).slice(0, 200));
@@ -145,6 +150,8 @@ const droitEnBase = (login) => q("SELECT COUNT(*) FROM t_user u JOIN t_role_user
     const det = await appel(avec, 'GET', S + ID);
     const detail = det.data || det;
     ok('AVEC : le détail rend la suggestion créée par SANS (référence, deux lignes)', JSON.stringify(det).indexOf(cree.str_REF) >= 0 && (detail.lignes || []).length === 2, JSON.stringify(det).slice(0, 200));
+    const liste = await appel(avec, 'GET', S + 'liste?limit=200');
+    ok('AVEC : la liste répond sans erreur et contient la demande de SANS', liste.success !== false && JSON.stringify(liste).indexOf(cree.str_REF) >= 0, JSON.stringify(liste).slice(0, 160));
     const excel = await appel(avec, 'GET', S + ID + '/compte-rendu/excel');
     ok('AVEC : compte-rendu/excel non refusé par le droit', excel.http !== 403, excel.http);
     for (const a of actions('ZZZ-E2E-RVS', 'ZZZ-E2E-RVS')) {
@@ -190,7 +197,8 @@ const droitEnBase = (login) => q("SELECT COUNT(*) FROM t_user u JOIN t_role_user
     const anonyme = await (await b.newContext()).newPage();
     await anonyme.goto(URL + '/security/index.html', { waitUntil: 'domcontentloaded' });
     const anon = await appel(anonyme, 'GET', S + 'liste');
-    ok('Sans session : liste répond comme avant (200, « déconnecté », jamais 403)', anon.http === 200 && anon.success === false && !anon.interdit, JSON.stringify(anon).slice(0, 120));
+    /* reponse d'avant (constatee sur l'ancien code) : 401 « Veuillez vous connecter », jamais 403 */
+    ok('Sans session : liste répond comme avant (401 « Veuillez vous connecter », jamais 403)', anon.http === 401 && !anon.interdit && /connecter/.test(anon.brut || anon.msg || ''), JSON.stringify(anon).slice(0, 120));
     await anonyme.context().close();
   } catch (x) {
     ok('Déroulé sans erreur', false, x.stack);
@@ -198,7 +206,8 @@ const droitEnBase = (login) => q("SELECT COUNT(*) FROM t_user u JOIN t_role_user
     await b.close();
     nettoyer();
     ok('Jeu d\'essai retiré (profils, rôles, suggestions)', q("SELECT (SELECT COUNT(*) FROM t_user WHERE lg_USER_ID LIKE 'E2E-RVS-%') + (SELECT COUNT(*) FROM t_role WHERE lg_ROLE_ID LIKE 'E2E-RVS-%')"
-      + " + (SELECT COUNT(*) FROM t_suggestion_reserve WHERE str_COMMENTAIRE = '" + COMMENTAIRE + "')") === '0');
+      + " + (SELECT COUNT(*) FROM t_suggestion_reserve WHERE str_COMMENTAIRE = '" + COMMENTAIRE + "' OR lg_USER_CREATEUR_ID LIKE 'E2E-RVS-%')"
+      + " + (SELECT COUNT(*) FROM t_inventaire WHERE lg_USER_ID LIKE 'E2E-RVS-%') + (SELECT COUNT(*) FROM mobile_client_ref WHERE ref LIKE 'E2E-RVS-%')") === '0');
   }
   const ko = res.filter((x) => !x.c).length;
   console.log('\n' + (res.length - ko) + '/' + res.length + (ko ? ' ECHEC' : ' OK'));
