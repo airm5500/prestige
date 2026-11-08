@@ -2396,6 +2396,20 @@ public class SuggestionImpl implements SuggestionService {
     @Override
     @TransactionAttribute(TransactionAttributeType.REQUIRED)
     public void cleanSuggestion(String suggestionId, TUser tUser) {
+        nettoyer(suggestionId, tUser);
+    }
+
+    @Override
+    @TransactionAttribute(TransactionAttributeType.REQUIRED)
+    public int nettoyerALOuverture(String suggestionId, TUser tUser) {
+        TParameters tp = em.find(TParameters.class, "KEY_NETTOYER_SUGGESTION_OUVERTURE");
+        if (tp == null || tp.getStrVALUE() == null || !"1".equals(tp.getStrVALUE().trim())) {
+            return -1;
+        }
+        return nettoyer(suggestionId, tUser);
+    }
+
+    private int nettoyer(String suggestionId, TUser tUser) {
         // On récupère l'ID de l'emplacement de l'utilisateur
         String emplacementId = tUser.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
 
@@ -2411,9 +2425,10 @@ public class SuggestionImpl implements SuggestionService {
             journaliserRetrait(idsToDelete, MOTIF_SUPPRESSION_USER, tUser.getLgUSERID(), null);
             removeInBulk(idsToDelete);
             LOG.log(Level.INFO, "Nettoyage termine pour la suggestion {0}", suggestionId);
-        } else {
-            LOG.log(Level.INFO, "Aucune ligne a nettoyer pour la suggestion {0}", suggestionId);
+            return idsToDelete.size();
         }
+        LOG.log(Level.INFO, "Aucune ligne a nettoyer pour la suggestion {0}", suggestionId);
+        return 0;
     }
 
     /*

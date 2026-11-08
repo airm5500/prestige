@@ -124,9 +124,11 @@ const lignes = () => q(`SELECT lg_FAMILLE_ID FROM t_suggestion_order_details WHE
 
     /* ----- 11.2 : Nettoyer la suggestion ----- */
     const avant = lignes();
-    await p.locator('.x-btn').filter({ hasText: 'Nettoyer la suggestion' }).first().click();
-    await p.waitForFunction(() => Ext.Msg.isVisible(), null, { timeout: 15000 });
-    await p.evaluate(() => { Ext.Msg.down('button[itemId=yes]').btnEl.dom.click(); });
+    /* plan du 08/11, point 11.3 : confirmation dans le bouton (premier clic), plus de fenetre */
+    await p.click('#btn_clean_sugg');
+    await p.waitForFunction(() => /Confirmer/.test(Ext.getCmp('btn_clean_sugg').getText()), null, { timeout: 15000 });
+    await p.waitForTimeout(600);
+    await p.click('#btn_clean_sugg');
     for (let k = 0; k < 30 && lignes().length === avant.length; k++) { await p.waitForTimeout(500); }
     await p.waitForTimeout(1500);
     const apres = lignes();

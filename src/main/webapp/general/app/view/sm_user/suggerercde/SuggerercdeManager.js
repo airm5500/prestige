@@ -441,6 +441,12 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
                             ],
                         tbar: [
                             {xtype: 'textfield', id: 'rechercherDetail', name: 'rechercherDetail', emptyText: 'Recherche', width: 190, listeners: {'render': function (cmp) {cmp.getEl().on('keypress', function (e) {if (e.getKey() === e.ENTER) {Me_Window.onRechClick();}});}}},
+                            /* plan du 08/11, point 11.4 : recharge la page en cours (recherche gardee), lignes ET couleurs */
+                            {xtype: 'button', text: 'Actualiser', id: 'btn_sugg_actualiser', iconCls: 'x-tbar-loading', margins: '0 0 0 6',
+                                tooltip: 'Recharger les lignes et leurs couleurs (commande en cours, autre suggestion, BL non clôturé)',
+                                handler: function () {
+                                    Me_Window.actualiser();
+                                }},
                             {xtype: 'tbseparator'},
                             testextjs.view.commandemanagement.disponibilite.DisponibilitePharmaMl.comboFiltre('filtreDispo', function (v) {
                                 testextjs.view.commandemanagement.disponibilite.DisponibilitePharmaMl.filtrer(
@@ -472,44 +478,49 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
                      * avec « Commander par PharmaML », tienne sur un ecran de 1366 px */
                     xtype: 'toolbar', ui: 'footer', dock: 'bottom', border: '0', cls: 'sugg-barre-bas',
                     items: ['->',
-                        {text: 'Retour', id: 'btn_cancel',cls: 'btn-primary', iconCls: 'icon-clear-group', scope: this, hidden: false, handler: this.onbtncancel},
-                        {text: 'Imprimer', id: 'btn_print',cls: 'btn-primary', iconCls: 'icon-clear-group', scope: this, hidden: true, handler: this.onbtnprint},
-                        /* Export CSV de la suggestion en cours : meme fichier (CIP;QTE) que
-                         * l'export deja disponible depuis la liste des suggestions. Le
-                         * telechargement part du clic, pas d'un retour de requete : aucune
-                         * fenetre surgissante a debloquer. */
-                        {text: 'Exporter CSV', id: 'btn_export_csv', cls: 'btn-primary',
-                            iconCls: 'export_csv_icon', scope: this,
-                            tooltip: 'Exporter les lignes de cette suggestion au format CSV',
-                            handler: this.onbtnexportcsv},
-                        
-                        {text: 'Vérifier la disponibilité', id: 'btn_dispo_verifier', cls: 'btn-primary', scope: this,
+                        /* plan du 08/11, point 11.3 : boutons regroupes par usage (Retour | disponibilite | sorties |
+                         * produits | actions principales), sans icones (elles se chevauchaient) ; chaque bouton garde
+                         * son identifiant et reste a un clic */
+                        {text: 'Retour', id: 'btn_cancel',cls: 'btn-primary', scope: this, hidden: false, handler: this.onbtncancel},
+                        {xtype: 'tbseparator', cls: 'sugg-separateur'},
+                        {text: 'Vérifier la disponibilité', id: 'btn_dispo_verifier', cls: 'btn-primary sugg-groupe-dispo', scope: this,
                             tooltip: 'Interroger le grossiste par PharmaML (information seulement, aucune commande)',
                             handler: function () {
                                 Me_Window.verifierDispo(false);
                             }},
-                        {text: 'Revérifier les indisponibles', id: 'btn_dispo_reverifier', cls: 'btn-primary', scope: this,
+                        {text: 'Revérifier les indisponibles', id: 'btn_dispo_reverifier', cls: 'btn-primary sugg-groupe-dispo', scope: this,
                             tooltip: 'Interroger un grossiste au choix pour les produits non disponibles',
                             handler: function () {
                                 Me_Window.verifierDispo(true);
                             }},
-                        {text: 'Imprimer la disponibilité', id: 'btn_dispo_imprimer', cls: 'btn-primary', scope: this,
+                        {text: 'Imprimer la disponibilité', id: 'btn_dispo_imprimer', cls: 'btn-primary sugg-groupe-dispo', scope: this,
                             handler: function () {
                                 testextjs.view.commandemanagement.disponibilite.DisponibilitePharmaMl.imprimer('SUGGESTION', orderIdRef,
                                         Me_Window.getOdatasource() && Me_Window.getOdatasource().str_REF);
                             }},
+                        {xtype: 'tbseparator', cls: 'sugg-separateur'},
+                        {text: 'Imprimer', id: 'btn_print',cls: 'btn-primary', scope: this, hidden: true, handler: this.onbtnprint},
+                        /* Export CSV de la suggestion en cours : meme fichier (CIP;QTE) que
+                         * l'export deja disponible depuis la liste des suggestions. Le
+                         * telechargement part du clic, pas d'un retour de requete : aucune
+                         * fenetre surgissante a debloquer. */
+                        {text: 'Exporter CSV', id: 'btn_export_csv', cls: 'btn-primary', scope: this,
+                            tooltip: 'Exporter les lignes de cette suggestion au format CSV',
+                            handler: this.onbtnexportcsv},
+                        {xtype: 'tbseparator', cls: 'sugg-separateur'},
                         {text: 'Équivalents DCI', id: 'btn_equivalents_dci', cls: 'btn-primary', scope: this,
                             tooltip: 'Produits de la suggestion déjà couverts par un équivalent (même DCI) en stock',
                             handler: this.onEquivalentsDci},
                         {text: 'Produits retirés', id: 'btn_produits_retires', cls: 'btn-primary', scope: this,
                             tooltip: 'Produits supprimés de cette suggestion : les ramener',
                             handler: this.onProduitsRetires},
+                        {xtype: 'tbseparator', cls: 'sugg-separateur'},
                         {
                             text: 'Nettoyer la suggestion',
                             id: 'btn_clean_sugg',
-                            iconCls: 'icon-delete', 
+                            cls: 'sugg-action-principale',
                             scope: this,
-                            tooltip: 'supprimer les produits dont le STOCK > SEUIL',
+                            tooltip: 'Retirer les produits au-dessus du seuil (rayon + réserve)',
                             handler: this.onCleanSuggestion,
                             style: {
                                 'background-image': 'none',
@@ -545,7 +556,8 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
             Ext.getCmp('int_ACHAT').setValue(int_montant_achat + '  CFA');
             Ext.getCmp('int_DATE_BUTOIR_ARTICLE').setValue(this.getOdatasource().int_DATE_BUTOIR_ARTICLE);
             
-            OgridpanelSuggestionID.getStore().load({params: {orderId: orderIdRef, query: null}});
+            /* plan du 08/11, point 11.5 : nettoyage a l'ouverture si le parametre est a 1, puis la liste */
+            Me_Window.ouvrirPuisCharger(OgridpanelSuggestionID);
         }
 
         Ext.getCmp('gridpanelSuggestionID').on('edit', function (editor, e) {
@@ -849,7 +861,7 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
         }
     },
     
-  onCleanSuggestion: function() {
+  onCleanSuggestion: function(bouton) {
     var me = this; 
 
     if (!orderIdRef) {
@@ -857,10 +869,9 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
         return;
     }
 
-    Ext.MessageBox.confirm('Confirmation',
-        'Voulez-vous supprimer les produits dont le stock est supérieur au seuil ?',
-        function(btn) {
-            if (btn === 'yes') {
+    /* plan du 08/11, point 11.3 : confirmation dans le bouton (plus de fenetre) */
+    PrestigeConfirmation.bouton(bouton, 'Confirmer : nettoyer ?', function () {
+            {
                 testextjs.app.getController('App').ShowWaitingProcess();
 
                 Ext.Ajax.request({
@@ -873,7 +884,9 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
 
                         if (JsorResponse && JsorResponse.success) {
                             
-                            //Ext.MessageBox.alert('Opération réussie', 'La suggestion a été nettoyée avec succès.');
+                            if (window.PrestigeToast) {
+                                PrestigeToast.afficher('Suggestion nettoyée (produits retirés : voir « Produits retirés »).', {niveau: 'ok'});
+                            }
 
                             var grid = Ext.getCmp('gridpanelSuggestionID');
                             grid.getStore().load({
@@ -1090,23 +1103,28 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
                 v3 = Number(record.get('int_VALUE3')) || 0;
         var moy3 = Math.round((v1 + v2 + v3) / 3);
         var venteHebdo = Math.round((moy3 / 4) * 100) / 100;
-        var nom = record.get('str_FAMILLE_NAME') || '';
         bar.setText('Chargement des infos . . .');
         Ext.Ajax.request({
             url: '../api/v1/commande/produit/reappro-infos/' + record.get('lg_FAMILLE_ID'),
             method: 'GET',
             success: function (resp) {
                 var d = Ext.JSON.decode(resp.responseText, true) || {};
-                var sr = Number(d.stockReserve) || 0;
-                var srColor = sr > 0 ? 'green' : 'red';
+                /* plan du 08/11, point 11.6 : VMJ (celle de la fenetre Prevision) et couverture (rayon + reserve) / VMJ,
+                   a la place du nom du produit et du stock reserve */
+                var vmj = (d.vmj === null || d.vmj === undefined) ? null : Number(d.vmj);
+                var couv = (d.couvertureJours === null || d.couvertureJours === undefined) ? null : Number(d.couvertureJours);
+                var texteVmj = vmj === null ? '-' : Ext.util.Format.number(vmj, '0.00').replace('.', ',');
+                var texteCouv = couv === null ? '-' : (couv < 0 ? 'aucune vente' : couv + ' j');
                 // Moyenne d'achat 3 mois = quantites RECUES (achats) des 3 derniers mois fermes / 3 (backend)
                 var moyAchat3 = Math.round((Number(d.moyenneAchat3Mois) || 0) * 100) / 100;
-                var html = '<b style="color:blue;">' + Ext.String.htmlEncode(nom) + '</b> &nbsp;|&nbsp; '
+                var html = abr('VMJ', 'Vente moyenne journalière (prévision du mois / 30, comme la fenêtre Prévision)')
+                        + ' : <span class="sugg-info-vmj" style="color:blue;font-weight:bold;">' + texteVmj + '</span> &nbsp;|&nbsp; '
+                        + abr('Couverture', 'Couverture du stock : (stock rayon + stock réserve) / VMJ, en jours')
+                        + ' : <span class="sugg-info-couverture" style="color:blue;font-weight:bold;">' + texteCouv + '</span> &nbsp;|&nbsp; '
                         + abr('Dern.Entrée', 'Date de la dernière mise en stock') + ' : <span style="color:red;font-weight:bold;">' + (d.derniereEntreeDate || '-') + '</span> '
                         + '(qté <span style="color:red;font-weight:bold;">' + (d.derniereEntreeQte || 0) + '</span>) &nbsp;|&nbsp; '
                         + abr('Fréq.achat (' + moisCourt + ')', 'Fréquence d\'achat (' + mois + ')') + ' : <span style="color:orange;font-weight:bold;">' + (d.frequenceAchatMois || 0) + '</span> &nbsp;|&nbsp; '
                         + abr('Qté entrée (' + moisCourt + ')', 'Quantité totale entrée (' + mois + ')') + ' : <span style="color:orange;font-weight:bold;">' + (d.qteEntreeMois || 0) + '</span> &nbsp;|&nbsp; '
-                        + abr('Stock Res', 'Stock réserve') + ' : <span style="color:' + srColor + ';font-weight:bold;">' + sr + '</span> &nbsp;|&nbsp; '
                         + abr('VMH (MOY/4)', 'Vente moyenne hebdomadaire (moyenne des 3 mois / 4)') + ' : <span style="color:red;font-weight:bold;">' + venteHebdo + '</span> &nbsp;|&nbsp; '
                         + abr('Moy d\'achat 3mois', 'Moyenne d\'achat sur 3 mois') + ' : <span style="color:red;font-weight:bold;">' + moyAchat3 + '</span>';
                 bar.setText(html, false);
@@ -1248,6 +1266,40 @@ onRemoveClick: function (grid, rowIndex) {
         });
     },
     
+    /** Plan du 08/11, point 11.4 : la page en cours, recherche gardee ; les couleurs viennent avec les lignes. */
+    actualiser: function () {
+        const s = Ext.getCmp('gridpanelSuggestionID').getStore(), px = s.getProxy();
+        Me_Window.focusContext = {row: 0};
+        px.setExtraParam('query', Ext.getCmp('rechercherDetail').getValue());
+        px.setExtraParam('orderId', orderIdRef);
+        s.loadPage(s.currentPage || 1);
+    },
+
+    /**
+     * Plan du 08/11, point 11.5 : KEY_NETTOYER_SUGGESTION_OUVERTURE a 1, l\'ouverture nettoie la suggestion (meme
+     * regle que le bouton), puis charge la liste ; un court message dit combien de produits sont sortis.
+     */
+    ouvrirPuisCharger: function (grid) {
+        const charger = function () {
+            grid.getStore().load({params: {orderId: orderIdRef, query: null}});
+        };
+        if (!orderIdRef) {
+            charger();
+            return;
+        }
+        Ext.Ajax.request({
+            url: '../api/v1/suggestion/ouverture?suggestionId=' + encodeURIComponent(orderIdRef), method: 'POST',
+            callback: function (o, succes, rep) {
+                const r = succes ? Ext.decode(rep.responseText, true) : null;
+                charger();
+                if (r && r.actif && r.retires > 0 && window.PrestigeToast) {
+                    PrestigeToast.afficher(r.retires + (r.retires > 1 ? ' produits retirés' : ' produit retiré')
+                            + ' à l\'ouverture (voir « Produits retirés »).', {niveau: 'info', titre: 'Suggestion nettoyée'});
+                }
+            }
+        });
+    },
+
     onRechClick: function () {
         const val = Ext.getCmp('rechercherDetail');
         Me_Window.focusContext = { row: 0 };

@@ -9,8 +9,9 @@
  * Par les ecrans (compte de test) : liste des suggestions > recherche de la reference (tapee, Entree) > « Modifier » :
  *  - colonne « RES » presente, a droite du stock, en vert et en gras (vert fonce sur la ligne selectionnee, comme
  *    « PROMOTION » en vente : le fond violet de la selection impose sinon un texte noir) ;
- *  - rapprochement ligne par ligne : RES de la grille = « Stock Res » de la barre d'information (clic sur la ligne) =
- *    base (t_type_stock_famille, type 2, emplacement du poste) : 7, 13, 0 ;
+ *  - rapprochement ligne par ligne : RES de la grille = base (t_type_stock_famille, type 2, emplacement du poste) :
+ *    7, 13, 0 ; plan du 08/11, point 11.6 : la barre d'information n'affiche plus « Stock Res » mais la VMJ (celle de
+ *    la prevision, prevu du mois / 30) et la couverture = (rayon + reserve) / VMJ, comparees a la base ;
  *  - en-tetes de mois en trois lettres, tous differents, nom complet en info-bulle ;
  *  - LIBELLE au moins 4 fois plus large que QTE ; QTE, MOY et SEUIL <= 62 px ;
  *  - la saisie de QTE au clavier marche toujours (9 puis Entree -> 9 en base) ;
@@ -25,6 +26,15 @@ const RESERVES = [7, 13, null];
 const QTES = [4, 2, 1];
 let ids = [];
 
+/* plan du 08/11, point 11.6 : VMJ et couverture attendues d'apres la base (meme regle que le serveur) */
+const infosBase = (id) => {
+  const l = q("SELECT CONCAT_WS('|', (SELECT COALESCE(SUM(int_NUMBER_AVAILABLE), 0) FROM t_famille_stock WHERE lg_FAMILLE_ID = '" + id + "' AND lg_EMPLACEMENT_ID = '1'),"
+    + " IFNULL((SELECT prevu_mois FROM t_prevision_produit WHERE lg_FAMILLE_ID = '" + id + "' AND lg_EMPLACEMENT_ID = '1'), 'AUCUNE'))").split('|');
+  const rayon = Number(l[0]), res = Number(reserveBase(id));
+  if (l[1] === 'AUCUNE') { return { vmj: '-', couverture: '-' }; }
+  const vmj = Number(l[1]) / 30;
+  return { vmj: (Math.round(vmj * 100) / 100).toFixed(2).replace('.', ','), couverture: vmj <= 0 ? 'aucune vente' : Math.floor((Math.max(0, rayon) + Math.max(0, res)) / vmj) + ' j' };
+};
 const reserveBase = (id) => q("SELECT IFNULL((SELECT int_NUMBER FROM t_type_stock_famille WHERE lg_TYPE_STOCK_ID = '2' AND lg_FAMILLE_ID = '" + id
   + "' AND lg_EMPLACEMENT_ID = '1' LIMIT 1), 0)");
 
@@ -37,7 +47,8 @@ function poser() {
   ids = q("SELECT f.lg_FAMILLE_ID FROM t_famille f WHERE f.str_STATUT = 'enable' AND f.str_NAME LIKE 'B%'"
     + " AND EXISTS (SELECT 1 FROM t_famille_stock s WHERE s.lg_FAMILLE_ID = f.lg_FAMILLE_ID AND s.lg_EMPLACEMENT_ID = '1')"
     + " AND NOT EXISTS (SELECT 1 FROM t_type_stock_famille t WHERE t.lg_FAMILLE_ID = f.lg_FAMILLE_ID AND t.lg_TYPE_STOCK_ID = '2')"
-    + " ORDER BY f.str_NAME LIMIT 3").split(/\r?\n/).map((x) => x.trim()).filter(Boolean);
+    /* de preference des produits qui ont une prevision vendue (VMJ > 0) : la couverture depend alors de la reserve */
+    + " ORDER BY EXISTS (SELECT 1 FROM t_prevision_produit v WHERE v.lg_FAMILLE_ID = f.lg_FAMILLE_ID AND v.lg_EMPLACEMENT_ID = '1' AND v.prevu_mois > 0) DESC, f.str_NAME LIMIT 3").split(/\r?\n/).map((x) => x.trim()).filter(Boolean);
   if (ids.length !== 3) { return 'moins de 3 produits sans stock reserve'; }
   const grossiste = q('SELECT lg_GROSSISTE_ID FROM t_grossiste LIMIT 1');
   ids.forEach((id, i) => {
@@ -114,14 +125,17 @@ const cellule = (p, famille, dataIndex) => p.evaluate(([f, d]) => {
     for (let i = 0; i < 3; i++) {
       const idCel = await cellule(p, ids[i], 'str_FAMILLE_NAME');
       if (idCel) { await p.click('#' + idCel); }
-      await p.waitForFunction(() => /Stock Res/.test((Ext.getCmp('suggInfoBar') && Ext.getCmp('suggInfoBar').getEl().dom.textContent) || ''), null, { timeout: 15000 }).catch(() => {});
+      await p.waitForFunction(() => /Couverture/.test((Ext.getCmp('suggInfoBar') && Ext.getCmp('suggInfoBar').getEl().dom.textContent) || ''), null, { timeout: 15000 }).catch(() => {});
       await p.waitForTimeout(700);
-      const barre = await p.evaluate(() => { const t = Ext.getCmp('suggInfoBar').getEl().dom.textContent; const m = t.match(/Stock Res\s*:\s*(-?\d+)/); return m ? m[1] : null; });
+      const barre = await p.evaluate(() => { const d = Ext.getCmp('suggInfoBar').getEl().dom, x = (c) => { const e = d.querySelector(c); return e ? e.textContent.trim() : null; };
+        return { vmj: x('.sugg-info-vmj'), couverture: x('.sugg-info-couverture'), stockRes: /Stock Res/.test(d.textContent) }; });
       const ligne = grille.lignes.find((l) => l.id === ids[i]) || {};
-      compare.push({ produit: i + 1, grille: ligne.texte, barre, base: reserveBase(ids[i]) });
+      compare.push({ produit: i + 1, grille: ligne.texte, base: reserveBase(ids[i]), barre, attendu: infosBase(ids[i]) });
     }
-    ok('Rapprochement ligne par ligne : RES de la grille = « Stock Res » de la barre = base (7, 13, 0)',
-      compare.every((c) => c.grille === c.barre && c.barre === c.base) && compare.map((c) => c.base).join('/') === '7/13/0', JSON.stringify(compare));
+    ok('Rapprochement ligne par ligne : RES de la grille = base (7, 13, 0)',
+      compare.every((c) => c.grille === c.base) && compare.map((c) => c.base).join('/') === '7/13/0', JSON.stringify(compare));
+    ok('Barre d\'information : VMJ et couverture (rayon + réserve) / VMJ = base, ligne par ligne ; plus de « Stock Res »',
+      compare.every((c) => c.barre.vmj === c.attendu.vmj && c.barre.couverture === c.attendu.couverture && !c.barre.stockRes), JSON.stringify(compare.map((c) => [c.barre, c.attendu])));
 
     ok('En-têtes de mois en 3 lettres, tous différents, nom complet en info-bulle',
       grille.mois.every((m) => m && /^[A-ZÉ][a-zéû]{2}$/.test(m.texte) && m.bulle.length > 3 && m.bulle.toLowerCase().indexOf(m.texte.toLowerCase().slice(0, 2)) >= 0)

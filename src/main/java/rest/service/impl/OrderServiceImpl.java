@@ -2881,6 +2881,27 @@ public class OrderServiceImpl implements OrderService {
             }
 
             double moyenneAchat = (freq > 0) ? ((double) qteMois / freq) : 0d;
+            /*
+             * Plan du 08/11, point 11.6 : VMJ = la meme que la fenetre Prevision (prevu du mois / 30, table
+             * t_prevision_produit) ; couverture = (rayon + reserve) / VMJ, en jours, -1 si rien ne se vend.
+             */
+            int stockRayon = 0;
+            Double vmj = null;
+            try {
+                List<Object[]> pr = getEmg().createNativeQuery("SELECT"
+                        + " (SELECT COALESCE(SUM(s.int_NUMBER_AVAILABLE), 0) FROM t_famille_stock s WHERE s.lg_FAMILLE_ID = ?1"
+                        + "   AND s.lg_EMPLACEMENT_ID = ?2),"
+                        + " (SELECT p.prevu_mois FROM t_prevision_produit p WHERE p.lg_FAMILLE_ID = ?1 AND p.lg_EMPLACEMENT_ID = ?2)")
+                        .setParameter(1, produitId).setParameter(2, empl != null ? empl : "").getResultList();
+                if (!pr.isEmpty()) {
+                    stockRayon = pr.get(0)[0] == null ? 0 : ((Number) pr.get(0)[0]).intValue();
+                    vmj = pr.get(0)[1] == null ? null : ((Number) pr.get(0)[1]).doubleValue() / 30.0;
+                }
+            } catch (Exception ex) {
+                LOG.log(Level.WARNING, "produitReapproInfos : VMJ", ex);
+            }
+            o.put("stockRayon", stockRayon).put("vmj", vmj == null ? JSONObject.NULL : vmjAffichee(vmj))
+                    .put("couvertureJours", couvertureReappro(stockRayon, stockReserve, vmj));
             o.put("derniereEntreeDate", derniereDate).put("derniereEntreeQte", derniereQte)
                     .put("frequenceAchatMois", freq).put("qteEntreeMois", qteMois).put("stockReserve", stockReserve)
                     .put("moyenneAchatMois", moyenneAchat).put("moyenneAchat3Mois", moyenneAchat3Mois);
@@ -2888,6 +2909,21 @@ public class OrderServiceImpl implements OrderService {
             LOG.log(Level.SEVERE, "produitReapproInfos", e);
         }
         return o;
+    }
+
+    /** Plan du 08/11, point 11.6 : VMJ a deux decimales, comme la fenetre Prevision (calcul.parJour). */
+    static double vmjAffichee(double vmj) {
+        return Math.round(vmj * 100) / 100.0;
+    }
+
+    /**
+     * Plan du 08/11, point 11.6 : couverture en jours = (rayon + reserve) / VMJ ; -1 sans vente, null sans prevision.
+     */
+    static Integer couvertureReappro(int rayon, int reserve, Double vmj) {
+        if (vmj == null) {
+            return null;
+        }
+        return rest.service.impl.prevision.Recommandation.couverture(Math.max(0, rayon) + Math.max(0, reserve), 0, vmj);
     }
 
     @Override

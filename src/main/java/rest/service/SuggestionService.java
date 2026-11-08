@@ -139,6 +139,14 @@ public interface SuggestionService {
 
     void cleanSuggestion(String suggestionId, TUser tUser);
 
+    /**
+     * Plan du 08/11, point 11.5 : a l'ouverture d'une suggestion, nettoyage si KEY_NETTOYER_SUGGESTION_OUVERTURE vaut
+     * 1.
+     *
+     * @return nombre de lignes retirees, ou -1 si le parametre est a 0 (rien n'est fait)
+     */
+    int nettoyerALOuverture(String suggestionId, TUser tUser);
+
     void deleteSuggestion(String suggestionId);
 
     boolean changeGrossiste(String suggestionId, String grossisteId);

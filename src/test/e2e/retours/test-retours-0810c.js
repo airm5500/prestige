@@ -103,8 +103,8 @@ function nettoyer() {
     await p.click('#' + cellule);
     await p.waitForFunction(() => /Dern\.Entrée/.test(Ext.getCmp('suggInfoBar').getEl().dom.textContent), null, { timeout: 20000 });
     const barre = await p.evaluate(() => { const d = Ext.getCmp('suggInfoBar').getEl().dom; return { t: d.textContent, bulles: [...d.querySelectorAll('[data-qtip]')].map((x) => x.getAttribute('data-qtip')) }; });
-    ok('Barre d\'infos produit : libellés abrégés (Dern.Entrée depuis le 10/10, Fréq.achat, Qté entrée, Stock Res, VMH (MOY/4), Moy d\'achat 3mois)',
-      /Dern\.Entrée/.test(barre.t) && /Fréq\.achat \(\w+\)/.test(barre.t) && /Qté entrée \(\w+\)/.test(barre.t) && /Stock Res :/.test(barre.t) && /VMH \(MOY\/4\)/.test(barre.t)
+    ok('Barre d\'infos produit : libellés abrégés (Dern.Entrée depuis le 10/10, Fréq.achat, Qté entrée, VMJ, Couverture (plan du 08/11, 11.6 : plus de Stock Res), VMH (MOY/4), Moy d\'achat 3mois)',
+      /Dern\.Entrée/.test(barre.t) && /Fréq\.achat \(\w+\)/.test(barre.t) && /Qté entrée \(\w+\)/.test(barre.t) && /VMJ :/.test(barre.t) && /Couverture :/.test(barre.t) && !/Stock Res/.test(barre.t) && /VMH \(MOY\/4\)/.test(barre.t)
       && /Moy d'achat 3mois/.test(barre.t) && !/Fréquence achat|Vente hebdo|Stock Reserve/.test(barre.t), barre.t);
     ok('Libellés complets en info-bulle', barre.bulles.some((x) => /Date de la dernière mise en stock/.test(x)) && barre.bulles.some((x) => /Vente moyenne hebdomadaire/.test(x)), JSON.stringify(barre.bulles));
     await p.screenshot({ path: SORTIE + '/suggestion-infos-abregees.png' });
