@@ -79,6 +79,7 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
         me.rafraichissement = Ext.create('Ext.data.Store', {
             fields: ['source', 'code', 'libelle', 'delai', 'derniereComplete', 'dernierEssai', 'statutDernierEssai',
                 'prochaine'],
+            pageSize: 1000,
             proxy: {type: 'ajax', url: me.URL + 'rafraichissement', reader: {type: 'json', root: 'data'}}
         });
         me.rechercheUbipharm = Ext.create('Ext.data.Store', {fields: ['pscode', 'designation', 'cip', 'statut', 'dispo',
@@ -962,7 +963,7 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
     ongletRafraichissement: function () {
         var me = this, date = function (v) {
             return me.texte(v ? String(v).replace('T', ' ').substring(0, 16) : '');
-        };
+        }, edition = Ext.create('Ext.grid.plugin.CellEditing', {clicksToEdit: 1});
         return {
             title: 'Rafraîchissement', itemId: 'exOngletRafraichissement', layout: 'fit',
             dockedItems: [{xtype: 'toolbar', dock: 'top', items: [
@@ -972,19 +973,23 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
                                     + 'tard au plus tôt.</span>'},
                         '->', {xtype: 'label', itemId: 'exRafraichissementMsg'}]}],
             items: [{xtype: 'gridpanel', itemId: 'exRafraichissementGrille', store: me.rafraichissement,
-                    columnLines: true, plugins: [Ext.create('Ext.grid.plugin.CellEditing', {clicksToEdit: 1})],
+                    columnLines: true, plugins: [edition],
                     viewConfig: {deferEmptyText: false, emptyText: '<div style="padding:12px">Aucune liste</div>'},
                     columns: [
-                        {text: 'Grossiste', dataIndex: 'source', width: 90, renderer: me.texte},
+                        {text: 'Grossiste', dataIndex: 'source', width: 105, renderer: me.texte},
                         {text: 'Liste', dataIndex: 'libelle', flex: 1, renderer: me.texte},
                         {text: 'Relire tous les', dataIndex: 'delai', width: 120,
                             renderer: function (v) {
                                 return '<b>' + me.texte(me.libelleDelai(v)) + '</b> ▾';
                             },
-                            editor: {xtype: 'combo', editable: false, store: me.DELAIS, queryMode: 'local'}},
-                        {text: 'Dernière lecture complète', dataIndex: 'derniereComplete', width: 160, renderer: date},
+                            /* le choix dans la liste enregistre aussitôt, sans Entrée ni clic ailleurs */
+                            editor: {xtype: 'combo', editable: false, store: me.DELAIS, queryMode: 'local',
+                                listeners: {select: function () {
+                                        edition.completeEdit();
+                                    }}}},
+                        {text: 'Dernière lecture complète', dataIndex: 'derniereComplete', width: 185, renderer: date},
                         {text: 'Dernier essai', dataIndex: 'dernierEssai', width: 130, renderer: date},
-                        {text: 'Résultat', dataIndex: 'statutDernierEssai', width: 90, renderer: me.texte},
+                        {text: 'Résultat', dataIndex: 'statutDernierEssai', width: 110, renderer: me.texte},
                         {text: 'Prochaine lecture', dataIndex: 'prochaine', width: 140, renderer: date}],
                     listeners: {edit: function (ed, e) {
                             if (e.field !== 'delai' || e.value === e.originalValue) {
