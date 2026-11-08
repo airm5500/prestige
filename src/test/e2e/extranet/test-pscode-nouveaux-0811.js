@@ -34,10 +34,8 @@ function ok(n, c, d) {
 const ECRAN = 'extranetsgrossistes';
 const texte = (p, sel) => p.evaluate((s) => { const c = Ext.ComponentQuery.query('extranetsgrossistes ' + s)[0]; return c && c.el ? c.el.dom.textContent : ''; }, sel);
 
-if (Number(q('SELECT COUNT(*) FROM extranet_compte')) > 0) {
-  console.log('ARRET : ' + ENV_E2E.BASE + ' contient des comptes d’extranet (identifiants réels) : test non lancé.');
-  process.exit(2);
-}
+/* Garde : comptes reels en base -> toutes les sources doivent viser 127.0.0.1 (garde-extranets.js) */
+require('./garde-extranets').verifier(q, ENV_E2E.BASE, ENV_E2E.PAYARA_DOMAINE);
 
 /* codes d'essai absents de la base (préfixe 9 et 13 chiffres) */
 const base = 9000000000000 + (Date.now() % 1000000) * 1000;

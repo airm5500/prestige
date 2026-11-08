@@ -29,13 +29,9 @@ function ok(n, c, d) {
 const RESTE = "CONCAT_WS('|', str_NAME, int_CIP, int_PRICE, int_PAF, IFNULL(int_EAN13, ''), IFNULL(code_ean_fabriquant, ''),"
   + " IFNULL(str_CODE_GEO_ARTICLE, ''), lg_ZONE_GEO_ID, str_STATUT, IFNULL(lg_GROSSISTE_ID, ''))";
 
-/* Garde (incident du 08/11) : la base ne doit contenir aucun compte d'extranet. Sinon ce sont des comptes reels :
- * l'ecran des extranets s'y connecterait sur les vrais sites et le nettoyage du test les effacerait. */
-if (Number(q('SELECT COUNT(*) FROM extranet_compte')) > 0) {
-  console.log('ARRET : ' + ENV_E2E.BASE + ' contient des comptes d’extranet (identifiants réels) : test non lancé.'
-    + ' Utiliser une base sans compte enregistré.');
-  process.exit(2);
-}
+/* Garde (incident du 08/11) : avec des comptes reels en base, l'ecran s'y connecte seul ; le test n'est accepte que si
+ * toutes les sources visent 127.0.0.1 (garde-extranets.js). Ce test n'efface aucun compte (seulement la session collee). */
+require('./garde-extranets').verifier(q, ENV_E2E.BASE, ENV_E2E.PAYARA_DOMAINE);
 
 (async () => {
   const [P, cip, nom] = q("SELECT CONCAT_WS('|', f.lg_FAMILLE_ID, f.int_CIP, f.str_NAME) FROM t_famille f WHERE f.str_STATUT = 'enable'"

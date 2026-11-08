@@ -58,13 +58,9 @@ async function cliquerEtAttendre(p, requete, morceauUrl) {
   return rep.json().catch(() => ({}));
 }
 
-/* Garde (incident du 08/11) : la base ne doit contenir aucun compte d'extranet. Sinon ce sont des comptes reels :
- * l'ecran des extranets s'y connecterait sur les vrais sites et le nettoyage du test les effacerait. */
-if (Number(q('SELECT COUNT(*) FROM extranet_compte')) > 0) {
-  console.log('ARRET : ' + ENV_E2E.BASE + ' contient des comptes d’extranet (identifiants réels) : test non lancé.'
-    + ' Utiliser une base sans compte enregistré.');
-  process.exit(2);
-}
+/* Garde (incident du 08/11) : avec des comptes reels en base, l'ecran s'y connecte seul ; le test n'est accepte que si
+ * toutes les sources visent 127.0.0.1 (garde-extranets.js). Ce test n'efface aucun compte (seulement la session collee). */
+require('./garde-extranets').verifier(q, ENV_E2E.BASE, ENV_E2E.PAYARA_DOMAINE);
 
 (async () => {
   const srv = await faux.demarrer(18765);

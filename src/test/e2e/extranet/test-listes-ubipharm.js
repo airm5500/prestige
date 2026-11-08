@@ -76,6 +76,9 @@ const titres = (p, code) => p.evaluate((c) => Ext.ComponentQuery.query('extranet
 const baseListe = (code, collecte) => lignes('SELECT HEX(cellules), IFNULL(HEX(pscode), \'NULL\'), IFNULL(HEX(cip), \'NULL\') FROM extranet_liste_ligne WHERE liste = \''
   + code + '\' AND collecte_id = ' + collecte + ' ORDER BY position').map((l) => ({ cellules: JSON.parse(deHex(l[0])), pscode: deHex(l[1]), cip: deHex(l[2]) }));
 
+/* Garde : comptes reels en base -> toutes les sources doivent viser 127.0.0.1 (garde-extranets.js) */
+require('./garde-extranets').verifier(q, ENV_E2E.BASE, ENV_E2E.PAYARA_DOMAINE);
+
 (async () => {
   const srv = await faux.demarrer(18765);
   const navigateur = await ENV_E2E.lancer(chromium);
