@@ -756,5 +756,5 @@ paliers bien formés), total HT écran = base ; bilan : aucune table métier tou
 
 Défaut trouvé par ce test : l'écran abandonnait toute lecture après 5 minutes (offres DPCI au premier essai, catalogue
 et promotions Copharmed), alors que le serveur la terminait. « Lire sur l'extranet » attend désormais jusqu'à
-20 minutes et l'annonce (« cela peut prendre plusieurs minutes »). Le test, qui échouait (délai dépassé), passe : 64/64
-sur les 9 listes. Pour un usage courant, le rafraîchissement automatique (onglet Rafraîchissement) évite d'attendre.
+20 minutes et l'annonce (« cela peut prendre plusieurs minutes »). Le test, qui échouait (délai dépassé), passe sur les 9 listes (DPCI documents,
+commandes et réclamations 64/66 puis 26/26 après correction du test lui-même ; offres 14/14 ; Copharmed 24/24). Pour un usage courant, le rafraîchissement automatique (onglet Rafraîchissement) évite d'attendre.
