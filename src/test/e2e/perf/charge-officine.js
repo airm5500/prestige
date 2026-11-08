@@ -29,9 +29,17 @@
  * rechargee depuis l'original apres l'essai. Preparation : comptes e2e-c01 a e2e-c15, copies de e2e (memes roles) ;
  * chaque caisse est ouverte par l'ecran, quand la vente le propose (« Votre caisse est fermée... » : Oui, fond saisi).
  *
+ * RYTHME REEL D'UNE OFFICINE (lenteurs aleatoires en caisse, 08/11) : ROLES=caisse ne lance que des caisses ;
+ * VENTES_HEURE fixe le nombre de ventes par heure de toutes les caisses ensemble (pic mesure dans les copies : 175 a
+ * 185 ventes/h avec 5 a 8 caissiers pour une officine a 1 800 ventes/jour ; heure normale 60 a 90). Les clients
+ * arrivent au hasard (attente exponentielle entre deux ventes d'une caisse), donc en rafales comme au comptoir. Chaque
+ * geste qui depasse SEUIL_LENT ms est date et liste ; s'il depasse 1,5 s, les fils du serveur sont captures (jstack,
+ * SERVEUR_PID) chaque seconde tant qu'il dure. Les sauvegardes automatiques (t_sauvegarde) du palier sont relevees.
+ *
  * Variables : BASE, DB_TEST + E2E_BASE_LIBRE=1, MARIADB_OPTIONS, PALIERS (1,2,4,8,15), DUREE_PALIER (300), LOURDS (0),
  * PERIODE_LOURDE (30),
- * PAUSE_CAISSE (8), GESTE_MAX (120), SERVEUR_PID (processus Java de Payara), JSTAT, SORTIE.
+ * PAUSE_CAISSE (8), GESTE_MAX (120), SERVEUR_PID (processus Java de Payara), JSTAT, SORTIE,
+ * ROLES (liste separee par des virgules, ou « caisse »), VENTES_HEURE, SEUIL_LENT (2000), JSTACK.
  */
 const { chromium } = require('playwright-core');
 const ENV_E2E = require('../outils/poste');
@@ -50,8 +58,13 @@ const GESTE_MAX = Number(process.env.GESTE_MAX || 120) * 1000;
 const PID = process.env.SERVEUR_PID;
 const JSTAT = process.env.JSTAT || 'C:/Program Files/Eclipse Adoptium/jdk-17.0.20.101-hotspot/bin/jstat.exe';
 const SORTIE = process.env.SORTIE || path.join(ENV_E2E.TMP, 'charge-' + DB + '.json');
-const ROLES = ['caisse', 'caisse', 'recherche', 'caisse', 'commande', 'caisse', 'etats', 'caisse', 'facturation', 'caisse',
-  'recherche', 'caisse', 'commande', 'caisse', 'caisse'];
+const ROLES = process.env.ROLES === 'caisse' ? Array(Math.max(...PALIERS)).fill('caisse')
+  : process.env.ROLES ? process.env.ROLES.split(',')
+    : ['caisse', 'caisse', 'recherche', 'caisse', 'commande', 'caisse', 'etats', 'caisse', 'facturation', 'caisse',
+      'recherche', 'caisse', 'commande', 'caisse', 'caisse'];
+const VENTES_HEURE = Number(process.env.VENTES_HEURE || 0);
+const SEUIL_LENT = Number(process.env.SEUIL_LENT || 2000);
+const JSTACK = process.env.JSTACK || JSTAT.replace(/jstat(\.exe)?$/, 'jstack$1');
 /* postes d'etats lourds en plus (LOURDS) : suggestion depuis le recap sur PERIODE_LOURDE jours, en boucle ; ils
    demarrent une minute apres les autres postes et occupent chacun un fil du serveur pendant des minutes */
 const LOURDS = Number(process.env.LOURDS || 0);
@@ -157,9 +170,23 @@ async function poste(b, i, fin, palier) {
   async function geste(nom, action) {
     const t0 = Date.now();
     let ok = true, detail = '';
-    try { await action(); const tf = await repos(); await messageErreur(nom); gestes.push({ t: t0, palier, poste: i, role, nom, ms: Math.max(0, tf - t0), ok }); return; }
+    /* geste encore en cours apres 1,5 s : fils du serveur captures chaque seconde tant qu'il dure */
+    const piles = [];
+    let enCours = true;
+    const capturer = async () => {
+      while (enCours && PID && Date.now() - t0 < GESTE_MAX) {
+        const f = path.join(path.dirname(SORTIE), 'piles-p' + palier + '-poste' + i + '-' + t0 + '-' + (Date.now() - t0) + '.txt');
+        await new Promise((r) => execFile(JSTACK, [PID], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 },
+          (e, out) => { if (!e) { fs.writeFileSync(f, out); piles.push(path.basename(f)); } r(); }));
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+    };
+    const minuteurPiles = setTimeout(() => { capturer().catch(() => {}); }, 1500);
+    const finir = () => { enCours = false; clearTimeout(minuteurPiles); };
+    try { await action(); const tf = await repos(); finir(); await messageErreur(nom); gestes.push({ t: t0, palier, poste: i, role, nom, ms: Math.max(0, tf - t0), ok, piles }); return; }
     catch (e) { ok = false; detail = String(e.message).split('\n')[0].slice(0, 200); }
-    gestes.push({ t: t0, palier, poste: i, role, nom, ms: Date.now() - t0, ok });
+    finir();
+    gestes.push({ t: t0, palier, poste: i, role, nom, ms: Date.now() - t0, ok, piles });
     /* ce que montrait l'ecran : boite de message visible et capture */
     const ecran = await vues.texteMessage(p).catch(() => '');
     const capture = path.join(path.dirname(SORTIE), 'echec-p' + palier + '-poste' + i + '-' + Date.now() + '.png');
@@ -261,7 +288,9 @@ async function poste(b, i, fin, palier) {
             await vues.repondre(p, 'no');
           }
         });
-        await p.waitForTimeout(PAUSE_CAISSE);
+        /* rythme reel : attente exponentielle, moyenne = postes x 3 600 s / VENTES_HEURE, moins la duree d'une vente (~10 s) */
+        await p.waitForTimeout(VENTES_HEURE ? Math.min(Math.max(0, fin - Date.now()),
+          Math.round(-Math.log(1 - Math.random()) * Math.max(1000, palier * 3600000 / VENTES_HEURE - 10000))) : PAUSE_CAISSE);
       }
     } else if (role === 'recherche') {
       await geste('fiche article : ouverture', () => ouvrir('famillemanager'));
@@ -393,7 +422,8 @@ async function poste(b, i, fin, palier) {
     const synthese = { postes: n, dureeS: Math.round((Date.now() - debut) / 1000), ventes, ventesParHeure: Math.round(ventes * 3600000 / (Date.now() - debut)),
       erreurs: erreurs.filter((x) => x.palier === n).length,
       gestes: Object.keys(par).map((k) => ({ nom: k, n: par[k].length, echecs: par[k].filter((x) => !x.ok).length,
-        mediane: quantile(par[k].map((x) => x.ms), 0.5), p90: quantile(par[k].map((x) => x.ms), 0.9), max: Math.max(...par[k].map((x) => x.ms)) })),
+        mediane: quantile(par[k].map((x) => x.ms), 0.5), p90: quantile(par[k].map((x) => x.ms), 0.9), p99: quantile(par[k].map((x) => x.ms), 0.99),
+        max: Math.max(...par[k].map((x) => x.ms)), lents: par[k].filter((x) => x.ms > SEUIL_LENT).length })),
       serveur: { tasMaxMo: Math.max(...rel.map((x) => x.tasMo || 0)), vieuxMaxMo: Math.max(...rel.map((x) => x.vieuxMo || 0)),
         gcS: rel.length ? Math.round(((rel[rel.length - 1].gcS || 0) - (rel[0].gcS || 0)) * 10) / 10 : null,
         gcComplets: rel.length ? (rel[rel.length - 1].gcComplets || 0) - (rel[0].gcComplets || 0) : null,
@@ -406,7 +436,20 @@ async function poste(b, i, fin, palier) {
     console.log(`\n=== ${n} poste(s) : ${ventes} ventes (${synthese.ventesParHeure}/h), ${synthese.erreurs} erreur(s) ; tas Java max ${synthese.serveur.tasMaxMo} Mo,`
       + ` GC ${synthese.serveur.gcS} s (${synthese.serveur.gcComplets} complets), connexions max ${synthese.serveur.connexionsMax}, verrous ${synthese.serveur.attentesVerrou},`
       + ` interblocages ${synthese.serveur.interblocages} ; poste de test : CPU max ${synthese.poste.cpuMax} %, memoire libre min ${synthese.poste.memLibreMinGo} Go`);
-    synthese.gestes.forEach((x) => console.log(`   ${x.nom.padEnd(42)} n=${String(x.n).padStart(4)}  echecs ${x.echecs}  mediane ${x.mediane} ms  p90 ${x.p90} ms  max ${x.max} ms`));
+    synthese.gestes.forEach((x) => console.log(`   ${x.nom.padEnd(42)} n=${String(x.n).padStart(4)}  echecs ${x.echecs}  mediane ${x.mediane} ms  p90 ${x.p90} ms  p99 ${x.p99} ms  max ${x.max} ms  > ${SEUIL_LENT} ms : ${x.lents}`));
+    /* gestes lents dates, avec l'etat de MariaDB au releve le plus proche */
+    const heure = (t) => new Date(t).toTimeString().slice(0, 8);
+    g.filter((x) => x.ms > SEUIL_LENT).sort((a, c) => a.t - c.t).forEach((x) => {
+      const r = rel.reduce((m, y) => (!m || Math.abs(y.t - x.t) < Math.abs(m.t - x.t) ? y : m), null) || {};
+      console.log(`   lent ${heure(x.t)} poste ${x.poste} ${x.nom} ${x.ms} ms${x.ok ? '' : ' (echec)'} ; MariaDB en cours ${r.Threads_running}, longues ${r.requetesLongues} ; piles ${x.piles && x.piles.length ? x.piles[0] : '-'}`);
+    });
+    let sauvegardes = '';
+    try {
+      sauvegardes = q("SELECT IFNULL(GROUP_CONCAT(CONCAT(TIME(debut), ' ', statut, ' ', IFNULL(duree_s, '?'), ' s') SEPARATOR ' | '), 'aucune')"
+        + ' FROM t_sauvegarde WHERE debut >= FROM_UNIXTIME(' + Math.floor(debut / 1000) + ')');
+    } catch (e) { sauvegardes = 'illisible'; }
+    synthese.sauvegardes = sauvegardes;
+    console.log('   sauvegardes pendant le palier : ' + sauvegardes);
     erreurs.filter((x) => x.palier === n).slice(0, 8).forEach((x) => console.log('   ! poste ' + x.poste + ' (' + x.role + ') ' + x.type + ' : ' + x.detail));
     fs.writeFileSync(SORTIE, JSON.stringify(Object.assign({}, resultat, { gestes, erreurs, releves })));
   }
