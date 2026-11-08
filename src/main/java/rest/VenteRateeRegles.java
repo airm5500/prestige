@@ -61,4 +61,14 @@ public final class VenteRateeRegles {
     public static boolean confirmationGroupeeNecessaire(int nbDemandesActives) {
         return nbDemandesActives > 1;
     }
+
+    /**
+     * Plan du 08/11, point 13 : une demande passe « Commandé » a l'entree en stock de son produit si elle est active,
+     * pas encore commandee, et anterieure a l'entree (la commande en cours ne suffit pas : elle peut etre supprimee).
+     */
+    public static boolean commandeeParEntree(String statut, boolean dejaCommandee, java.util.Date creee,
+            java.util.Date entree, boolean produitEntre) {
+        return "enable".equals(statut) && !dejaCommandee && produitEntre && creee != null && entree != null
+                && creee.before(entree);
+    }
 }

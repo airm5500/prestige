@@ -130,6 +130,8 @@ public class CommandeServiceImpl implements CommandeService {
     private OrderService orderService;
     @EJB
     private rest.service.SuggestionReserveService suggestionReserveService;
+    @EJB
+    private rest.service.VentesRateesService ventesRateesService;
     @PersistenceContext(unitName = "JTA_UNIT")
     private EntityManager em;
     @EJB
@@ -234,6 +236,8 @@ public class CommandeServiceImpl implements CommandeService {
             // Produits dont le stock rayon augmente : ils seront evalues APRES le commit, pour voir
             // s'ils passent au-dessus du seuil reserve et appellent un rangement en reserve.
             Set<String> famillesEntreesEnStock = new java.util.LinkedHashSet<>();
+            /* plan du 08/11, point 13 : produits reellement entres (quantite > 0), pour les ventes ratees */
+            Set<String> produitsRecus = new java.util.LinkedHashSet<>();
             for (TBonLivraisonDetail bn : lstTBonLivraisonDetail) {
                 TFamille oFamille = bn.getLgFAMILLEID();
                 famillesEntreesEnStock.add(oFamille.getLgFAMILLEID());
@@ -370,6 +374,9 @@ public class CommandeServiceImpl implements CommandeService {
                  * arrive : rien n'est annonce pour un produit facture non livre (aucune quantite entree, ou retour «
                  * facturé non livré » sur ce bon) ni pour un produit dont le stock reste a zero.
                  */
+                if (quantiteEntree > 0) {
+                    produitsRecus.add(oFamille.getLgFAMILLEID());
+                }
                 if (AvoirNotifiable.produitDisponible(quantiteEntree, stockApres,
                         retourFactureNonLivre(bonLivraison, oFamille))) {
                     avoirs.stream().filter(e -> e.getLgFAMILLEID().equals(oFamille)).forEach(s -> avoirs0.add(s));
@@ -454,6 +461,16 @@ public class CommandeServiceImpl implements CommandeService {
                         suggestionReserveService.lignesOuvertesAuto(user, famillesEntreesEnStock, suggestionsDuBon));
             } catch (Exception e) {
                 LOG.log(Level.WARNING, "Suggestions de reserve non lues apres cloture du BL " + id, e);
+            }
+            /*
+             * plan du 08/11, point 13 : ventes ratees des produits entres -> « Commandé » (apres le commit : un
+             * incident ne remet pas en cause l'entree en stock)
+             */
+            try {
+                json.put("ventesRateesCommandees", ventesRateesService.marquerCommandeesParEntree(produitsRecus,
+                        bonLivraison.getStrREFLIVRAISON(), user, bonLivraison.getDtUPDATED()));
+            } catch (Exception e) {
+                LOG.log(Level.WARNING, "Ventes ratees non marquees apres cloture du BL " + id, e);
             }
 
             // Envoi immédiat des SMS d'avoir (après commit pour que la notification

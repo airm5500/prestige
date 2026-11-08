@@ -201,6 +201,18 @@ public class VenteRateeDTO implements Serializable {
         return this;
     }
 
+    /** Plan du 08/11, point 13 : BL dont l'entree en stock a marque la demande « Commandé » (vide sinon). */
+    private String entreeBl = "";
+
+    public String getEntreeBl() {
+        return entreeBl;
+    }
+
+    public VenteRateeDTO setEntreeBl(String entreeBl) {
+        this.entreeBl = entreeBl == null ? "" : entreeBl;
+        return this;
+    }
+
     public String getEtat() {
         return commande ? "Commandé" : "Non commandé";
     }

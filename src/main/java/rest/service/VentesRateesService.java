@@ -55,6 +55,13 @@ public interface VentesRateesService {
     int commander(String id, boolean toutes, TUser auteur);
 
     /**
+     * Plan du 08/11, point 13 : apres l'entree en stock d'un BL, les demandes actives des produits entres, anterieures
+     * a l'entree, passent « Commandé » (reference du BL gardee). Rend le nombre de demandes marquees.
+     */
+    int marquerCommandeesParEntree(java.util.Collection<String> produitsEntres, String refBl, TUser auteur,
+            java.util.Date entree);
+
+    /**
      * Rattache une saisie libre a un produit de la base. Le libelle initialement saisi est conserve ; la demande
      * participe ensuite aux recherches et analyses du produit.
      */

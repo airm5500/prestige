@@ -45,7 +45,7 @@ public class VentesRateesRessource {
     private static final Logger LOG = Logger.getLogger(VentesRateesRessource.class.getName());
 
     private static final String[] ENTETES = { "Date", "CIP", "Produit / désignation", "Qté", "Client", "Téléphone",
-            "Motif", "Commentaire", "Utilisateur", "État", "Produit rattaché" };
+            "Motif", "Commentaire", "Utilisateur", "État", "Produit rattaché", "Entrée BL" };
 
     @Inject
     private HttpServletRequest servletRequest;
@@ -450,6 +450,8 @@ public class VentesRateesRessource {
                     row.createCell(col++).setCellValue(dto.getUtilisateur());
                     row.createCell(col++).setCellValue(dto.getEtat());
                     row.createCell(col++).setCellValue(dto.getProduitRattache());
+                    /* plan du 08/11, point 13 : BL dont l'entree en stock a marque la demande « Commandé » */
+                    row.createCell(col++).setCellValue(dto.getEntreeBl());
                 });
         return Response.ok(data, "application/vnd.ms-excel").encoding("UTF-8")
                 .header("Content-Disposition", "attachment; filename=ventes-ratees.xls").build();
@@ -479,7 +481,8 @@ public class VentesRateesRessource {
                     .append(champCsv(l.getNomClient())).append(';').append(champCsv(l.getTelephone())).append(';')
                     .append(champCsv(l.getMotif())).append(';').append(champCsv(l.getCommentaire())).append(';')
                     .append(champCsv(l.getUtilisateur())).append(';').append(champCsv(l.getEtat())).append(';')
-                    .append(champCsv(l.getProduitRattache())).append("\r\n");
+                    .append(champCsv(l.getProduitRattache())).append(';').append(champCsv(l.getEntreeBl()))
+                    .append("\r\n");
         }
         return Response.ok(csv.toString().getBytes(StandardCharsets.UTF_8), "text/csv").encoding("UTF-8")
                 .header("Content-Disposition", "attachment; filename=ventes-ratees.csv").build();
@@ -532,7 +535,8 @@ public class VentesRateesRessource {
                 .put("telephone", l.getTelephone()).put("motifId", l.getMotifId() == null ? "" : l.getMotifId())
                 .put("motif", l.getMotif()).put("commentaire", l.getCommentaire()).put("commande", l.isCommande())
                 .put("dateCommande", l.getDateCommande()).put("utilisateurCommande", l.getUtilisateurCommande())
-                .put("rattache", l.isRattache()).put("produitRattache", l.getProduitRattache()).put("date", l.getDate())
+                .put("entreeBl", l.getEntreeBl()).put("rattache", l.isRattache())
+                .put("produitRattache", l.getProduitRattache()).put("date", l.getDate())
                 .put("utilisateur", l.getUtilisateur()).put("connu", l.isConnu()).put("etat", l.getEtat());
     }
 

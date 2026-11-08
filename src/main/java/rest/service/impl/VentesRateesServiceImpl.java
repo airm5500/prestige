@@ -163,6 +163,35 @@ public class VentesRateesServiceImpl implements VentesRateesService {
         return marquees;
     }
 
+    @Override
+    @TransactionAttribute(TransactionAttributeType.REQUIRED)
+    public int marquerCommandeesParEntree(java.util.Collection<String> produitsEntres, String refBl, TUser auteur,
+            Date entree) {
+        if (produitsEntres == null || produitsEntres.isEmpty() || entree == null) {
+            return 0;
+        }
+        List<VenteRatee> candidates = em
+                .createQuery("SELECT o FROM VenteRatee o WHERE o.lgFAMILLEID IN :ids"
+                        + " AND o.strSTATUT = 'enable' AND o.boolCOMMANDE = FALSE", VenteRatee.class)
+                .setParameter("ids", new ArrayList<>(produitsEntres)).getResultList();
+        Date maintenant = new Date();
+        int marquees = 0;
+        for (VenteRatee v : candidates) {
+            if (!rest.VenteRateeRegles.commandeeParEntree(v.getStrSTATUT(), v.isBoolCOMMANDE(), v.getDtCREATED(),
+                    entree, produitsEntres.contains(v.getLgFAMILLEID()))) {
+                continue;
+            }
+            v.setBoolCOMMANDE(true);
+            v.setDtCOMMANDE(entree);
+            v.setLgUSERCOMMANDEID(auteur != null ? auteur.getLgUSERID() : null);
+            v.setStrREFENTREE(StringUtils.left(refBl, 40));
+            v.setDtUPDATED(maintenant);
+            em.merge(v);
+            marquees++;
+        }
+        return marquees;
+    }
+
     /** Demandes actives (enable, non commandees) du meme produit que la demande donnee, celle-ci comprise. */
     private List<VenteRatee> demandesActivesDuMemeProduit(VenteRatee v) {
         TypedQuery<VenteRatee> q;
@@ -411,7 +440,8 @@ public class VentesRateesServiceImpl implements VentesRateesService {
                     .setUtilisateur(nomUtilisateur(v.getLgUSERID(), nomsUtilisateurs));
             if (v.isBoolCOMMANDE()) {
                 dto.setDateCommande(v.getDtCOMMANDE() != null ? format.format(v.getDtCOMMANDE()) : "")
-                        .setUtilisateurCommande(nomUtilisateur(v.getLgUSERCOMMANDEID(), nomsUtilisateurs));
+                        .setUtilisateurCommande(nomUtilisateur(v.getLgUSERCOMMANDEID(), nomsUtilisateurs))
+                        .setEntreeBl(StringUtils.defaultString(v.getStrREFENTREE()));
             }
             if (v.getDtRATTACHEMENT() != null && StringUtils.isNotBlank(v.getLgFAMILLEID())) {
                 dto.setProduitRattache(nomProduit(v.getLgFAMILLEID(), nomsProduits));
