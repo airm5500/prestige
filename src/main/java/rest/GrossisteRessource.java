@@ -14,6 +14,7 @@ import javax.ws.rs.FormParam;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
@@ -21,6 +22,7 @@ import javax.ws.rs.core.Response;
 import org.apache.commons.lang3.StringUtils;
 import org.json.JSONObject;
 import rest.service.GrossisteService;
+import rest.service.impl.EtatControleAchatService;
 import toolkits.parameters.commonparameter;
 import util.Constant;
 
@@ -40,6 +42,8 @@ public class GrossisteRessource {
     private HttpServletRequest servletRequest;
     @EJB
     private GrossisteService grossisteService;
+    @EJB
+    private EtatControleAchatService etatControleAchatService;
 
     private TUser currentUser() {
         return (TUser) servletRequest.getSession().getAttribute(Constant.AIRTIME_USER);
@@ -54,6 +58,28 @@ public class GrossisteRessource {
         return Response.ok().entity(
                 new JSONObject().put("success", success).put("errors", StringUtils.defaultString(errors)).toString())
                 .build();
+    }
+
+    /**
+     * Plan du 08/11, point 2 : etat de controle d'achat du grossiste (fiche grossiste), a la place de
+     * webservices/commandemanagement/etats/ws_data.jsp. Memes parametres et meme reponse ({total, results}).
+     */
+    @GET
+    @Path("{id}/etat-controle-achat")
+    public Response etatControleAchat(@PathParam("id") String grossisteId, @QueryParam("datedebut") String debut,
+            @QueryParam("datefin") String fin, @QueryParam("search_value") String recherche,
+            @DefaultValue("0") @QueryParam("start") int start, @DefaultValue("20") @QueryParam("limit") int limit) {
+        TUser user = currentUser();
+        if (user == null) {
+            return deconnecte();
+        }
+        @SuppressWarnings("unchecked")
+        java.util.List<dal.TPrivilege> privileges = (java.util.List<dal.TPrivilege>) servletRequest.getSession()
+                .getAttribute(Constant.USER_LIST_PRIVILEGE);
+        boolean retourComplet = privileges != null
+                && util.DateConverter.hasAuthorityByName(privileges, bll.common.Parameter.ACTION_RETURN_FULL_BL);
+        return Response.ok().entity(etatControleAchatService
+                .lister(grossisteId, debut, fin, recherche, start, limit, retourComplet).toString()).build();
     }
 
     @GET
