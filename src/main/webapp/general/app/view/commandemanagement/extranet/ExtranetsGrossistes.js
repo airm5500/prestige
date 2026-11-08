@@ -64,6 +64,10 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
             listeners: {
                 load: function (st, r, ok) {
                     me.afficherDate('#exNouveauxDate', ok ? st.getProxy().getReader().rawData : null);
+                    var n = me.down('#exNouveauxNombre');
+                    if (n) {
+                        n.setText('<b>' + st.getCount() + '</b> produit(s)', false);
+                    }
                     /* un rechargement de la liste ne perd pas le dernier rapprochement affiché */
                     me.appliquerRapprochement();
                 }
@@ -94,7 +98,7 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
         };
         Ext.apply(me, {
             items: [{
-                    xtype: 'tabpanel', itemId: 'exOnglets', plain: true,
+                    xtype: 'tabpanel', itemId: 'exOnglets', plain: true, activeTab: 1,
                     items: [me.ongletSessions(),
                         rubrique('Ubipharm', 'exOngletUbipharm', [
                             rubrique('Produits', 'exRubriqueProduits', [me.ongletFiche(),
@@ -159,14 +163,43 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
 
     /* ---------------------------------------------------------------- outils */
 
-    texte: function (v) {
+    /**
+     * Contenu complet au survol d'une cellule (demande du 08/11 : colonnes étroites). Encodé deux fois : l'attribut est
+     * décodé par le navigateur, puis la bulle affiche du HTML ; le texte de l'extranet reste du texte.
+     */
+    bulle: function (meta, v) {
+        var s = v === null || v === undefined ? '' : String(v);
+        if (meta && s) {
+            meta.tdAttr = 'data-qtip="' + Ext.String.htmlEncode(Ext.String.htmlEncode(s)) + '"';
+        }
+    },
+
+    texte: function (v, meta) {
+        testextjs.view.commandemanagement.extranet.ExtranetsGrossistes.prototype.bulle(meta, v);
         return v === null || v === undefined ? '' : Ext.String.htmlEncode(String(v));
     },
 
     /** Valeur inconnue : affichée « inconnu », jamais 0. */
-    connu: function (v) {
+    connu: function (v, meta) {
+        testextjs.view.commandemanagement.extranet.ExtranetsGrossistes.prototype.bulle(meta, v);
         return v === null || v === undefined ? '<span style="color:#95a5a6">inconnu</span>'
                 : Ext.String.htmlEncode(String(v));
+    },
+
+    /** Disponibilité : « oui », « disponible », « en stock » en vert ; « non », « rupture »... en rouge (08/11). */
+    DISPO_OUI: /^\s*(oui|disponible|en stock|stock disponible)/i,
+    DISPO_NON: /^\s*(non|indisponible|rupture|en rupture|épuisé|hors stock|pas de stock)/i,
+
+    dispo: function (v, meta) {
+        var p = testextjs.view.commandemanagement.extranet.ExtranetsGrossistes.prototype,
+                s = v === null || v === undefined ? '' : String(v), couleur = p.DISPO_OUI.test(s) ? '#1e8449'
+                : p.DISPO_NON.test(s) ? '#c0392b' : null;
+        p.bulle(meta, s);
+        if (v === null || v === undefined) {
+            return '<span style="color:#95a5a6">inconnu</span>';
+        }
+        return couleur ? '<span style="color:' + couleur + ';font-weight:bold">' + Ext.String.htmlEncode(s) + '</span>'
+                : Ext.String.htmlEncode(s);
     },
 
     valeur: function (sel) {
@@ -217,6 +250,8 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
     afficherDate: function (sel, brut) {
         var l = this.down(sel), d = brut && (brut.dateCollecte || brut.collecteLe
                 || (brut.collecte && (brut.collecte.fin || brut.collecte.debut)));
+        this.datesLues = this.datesLues || {};
+        this.datesLues[sel] = d ? String(d).replace('T', ' ').substring(0, 16) : null;
         if (l) {
             l.setText(d ? 'Données collectées le ' + Ext.String.htmlEncode(String(d).replace('T', ' ').substring(0, 16))
                     : 'Aucune collecte enregistrée');
@@ -245,6 +280,20 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
         b.arme = false;
         b.setText(b.texteNormal);
         action();
+    },
+
+    /**
+     * Liste déjà lue (demande du 08/11) : le premier clic sur « Lire sur l'extranet » demande, dans le bouton, s'il
+     * faut la relire ; sans second clic, la liste déjà gardée reste affichée. Évite des lectures répétées (lenteur,
+     * allure de robot pour l'extranet).
+     */
+    lireSiBesoin: function (b, selDate, action) {
+        var d = (this.datesLues || {})[selDate];
+        if (!d) {
+            action();
+            return;
+        }
+        this.confirmerDansBouton(b, 'Déjà lu le ' + d + ' : relire ?', action);
     },
 
     /** Onglet affiché : descend jusqu'au sous-onglet actif des rubriques, puis le charge. */
@@ -360,6 +409,8 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
                 };
         return {
             title: 'Sessions', itemId: 'exOngletSessions', autoScroll: true, bodyPadding: 14,
+            /* administrateur et super administrateur seulement (08/11) : montre apres la reponse du serveur */
+            tabConfig: {hidden: true},
             bodyStyle: 'background:#f4f6f8',
             items: [
                 {xtype: 'component', margin: '0 0 12 0', html: '<div style="color:#555;line-height:1.5">Saisissez '
@@ -389,6 +440,13 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
                 return;
             }
             me.reconnexions = me.reconnexions || {};
+            var onglet = me.down('#exOngletSessions');
+            if (onglet && onglet.tab) {
+                onglet.tab.setVisible(r.administrateur === true);
+                if (r.administrateur !== true && me.down('#exOnglets').getActiveTab() === onglet) {
+                    me.down('#exOnglets').setActiveTab(1);
+                }
+            }
             Ext.each(r.data, function (s) {
                 var l = me.down('#exEtat' + s.source), saisie = me.down('#exSaisie' + s.source),
                         c = s.compte || {}, ouverte = s.etat === 'VALIDE' || s.etat === 'A_VERIFIER',
@@ -493,9 +551,12 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
                 x[0].resetOriginalValue();
             }
         });
-        var connecter = me.down('#exConnecter' + s.source), effacer = me.down('#exCompteEffacer' + s.source);
+        var connecter = me.down('#exConnecter' + s.source), effacer = me.down('#exCompteEffacer' + s.source),
+                ouverte = s.etat === 'VALIDE' || s.etat === 'A_VERIFIER';
         if (connecter) {
-            connecter.setDisabled(!c.enregistre);
+            /* deja connecte : rien a faire (demande du 08/11) ; la reconnexion reste automatique a l'expiration */
+            connecter.setDisabled(!c.enregistre || ouverte);
+            connecter.setText(ouverte ? '✓ Connecté' : 'Se connecter');
         }
         if (effacer) {
             effacer.setDisabled(!c.enregistre);
@@ -632,7 +693,7 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
             }, me.down('#exOngletFiche'));
         };
         return {
-            title: 'Fiche produit', itemId: 'exOngletFiche', layout: {type: 'vbox', align: 'stretch'},
+            title: 'Fiche produit', itemId: 'exOngletFiche', layout: {type: 'vbox', align: 'stretch'}, autoScroll: true,
             dockedItems: [{xtype: 'toolbar', dock: 'top', items: [
                         {xtype: 'textfield', itemId: 'exPscode', fieldLabel: 'Référence, CIP, nom ou DCI', labelWidth: 160,
                             width: 380, emptyText: 'ex. FAIR248, 3000000786710, paracetamol', enableKeyEvents: true,
@@ -655,7 +716,8 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
                         {xtype: 'checkbox', itemId: 'exRechercheStock', boxLabel: 'En stock seulement', margin: '0 0 0 6'},
                         '->', {xtype: 'label', itemId: 'exFicheMsg'}]}],
             items: [
-                {xtype: 'gridpanel', itemId: 'exRechercheGrille', hidden: true, height: 230, columnLines: true,
+                {xtype: 'gridpanel', itemId: 'exRechercheGrille', hidden: true, height: 200, columnLines: true,
+                    collapsible: true, titleCollapse: true,
                     store: me.rechercheUbipharm, title: 'Résultats de la recherche Ubipharm',
                     viewConfig: {deferEmptyText: false, emptyText: '<div style="padding:12px">Aucun produit</div>'},
                     columns: [
@@ -663,7 +725,7 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
                         {text: 'Désignation', dataIndex: 'designation', flex: 2, renderer: me.texte},
                         {text: 'CIP', dataIndex: 'cip', width: 120, renderer: me.texte},
                         {text: 'Statut', dataIndex: 'statut', width: 90, renderer: me.texte},
-                        {text: 'Disponibilité', dataIndex: 'dispo', flex: 2, renderer: me.texte},
+                        {text: 'Disponibilité', dataIndex: 'dispo', flex: 2, renderer: me.dispo},
                         {text: 'Prix', dataIndex: 'prix', flex: 1, renderer: me.texte},
                         {text: 'Colisage', dataIndex: 'colisage', width: 70, renderer: me.texte},
                         {text: 'Mayité', width: 95, align: 'center', sortable: false, menuDisabled: true,
@@ -681,14 +743,15 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
                             lire(true);
                         }}},
                 {xtype: 'component', itemId: 'exFicheEntete', padding: 10, html: ''},
-                {xtype: 'gridpanel', flex: 1, store: me.agencesFiche, title: 'Stock par agence', columnLines: true,
+                {xtype: 'gridpanel', itemId: 'exAgencesGrille', flex: 1, minHeight: 320, store: me.agencesFiche,
+                    title: 'Stock par agence', columnLines: true,
                     viewConfig: {deferEmptyText: false, emptyText: '<div style="padding:12px">Aucune agence</div>'},
                     columns: [
                         {text: 'Agence', dataIndex: 'etcode', width: 80, renderer: me.texte},
                         {text: 'Libellé', dataIndex: 'etlib', flex: 1, renderer: me.texte},
                         {text: 'Stock', dataIndex: 'psstk', width: 90, align: 'right', renderer: me.connu},
-                        {text: 'Colisages', dataIndex: 'colisages', width: 140, renderer: function (v) {
-                                return Ext.isArray(v) ? me.texte(v.join(', ')) : me.connu(null);
+                        {text: 'Colisages', dataIndex: 'colisages', flex: 1, minWidth: 140, renderer: function (v, meta) {
+                                return Ext.isArray(v) ? me.texte(v.join(', '), meta) : me.connu(null);
                             }}
                     ]}
             ]
@@ -746,12 +809,14 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
                         {text: 'Rechercher', iconCls: 'searchicon', handler: function () {
                                 me.reappro.loadPage(1);
                             }},
-                        {text: 'Lire sur l\'extranet', itemId: 'exReapproCollecter', handler: function () {
+                        {text: 'Lire sur l\'extranet', itemId: 'exReapproCollecter', handler: function (b) {
+                                me.lireSiBesoin(b, '#exReapproDate', function () {
                                 me.appel('POST', 'ubipharm/reappro/collecte', function (r) {
                                     me.message('#exReapproMsg', r, r.collecte ? r.collecte.lignesRecues
                                             + ' lignes lues sur ' + r.collecte.lignesAnnoncees : 'Terminé');
                                     me.reappro.loadPage(1);
                                 }, me.down('#exOngletReappro'));
+                                });
                             }},
                         '->', {xtype: 'label', itemId: 'exReapproMsg'}, {xtype: 'label', itemId: 'exReapproDate'}]}],
             items: [{xtype: 'gridpanel', store: me.reappro, columnLines: true,
@@ -765,9 +830,13 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
                         {text: 'Agence', dataIndex: 'codeAgence', width: 70, renderer: me.texte},
                         {text: 'Statut', dataIndex: 'statut', width: 90, renderer: me.texte},
                         {text: 'Disponibilité par agence', dataIndex: 'disponibilites', flex: 1, minWidth: 220,
-                            renderer: function (v) {
+                            renderer: function (v, meta) {
+                                me.bulle(meta, Ext.Array.map(v || [], function (a) {
+                                    return (a.etcode || a.etlib) + ' : ' + (a.dispo === null || a.dispo === undefined
+                                            ? 'inconnu' : a.dispo) + (a.colisageTexte ? ' (colis ' + a.colisageTexte + ')' : '');
+                                }).join(' ; '));
                                 return Ext.Array.map(v || [], function (a) {
-                                    return me.texte(a.etcode || a.etlib) + ' : ' + me.connu(a.dispo)
+                                    return me.texte(a.etcode || a.etlib) + ' : ' + me.dispo(a.dispo)
                                             + (a.colisageTexte ? ' (colis ' + me.texte(a.colisageTexte) + ')' : '');
                                 }).join('<br>');
                             }}
@@ -790,12 +859,14 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
                             listeners: {select: function () {
                                     me.reclamations.load();
                                 }}},
-                        {text: 'Lire sur l\'extranet', itemId: 'exReclamationsCollecter', handler: function () {
+                        {text: 'Lire sur l\'extranet', itemId: 'exReclamationsCollecter', handler: function (b) {
+                                me.lireSiBesoin(b, '#exReclamationsDate', function () {
                                 me.appel('POST', 'ubipharm/reclamations/collecte?filtre='
                                         + me.down('#exFiltre').getValue(), function (r) {
                                     me.message('#exReclamationsMsg', r, (r.nombre || 0) + ' réclamations lues');
                                     me.reclamations.load();
                                 }, me.down('#exOngletReclamations'));
+                                });
                             }},
                         '->', {xtype: 'label', itemId: 'exReclamationsMsg'},
                         {xtype: 'label', itemId: 'exReclamationsDate'}]}],
@@ -897,12 +968,14 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
         return {
             title: 'Nouveaux produits', itemId: 'exOngletNouveaux', layout: 'fit',
             dockedItems: [{xtype: 'toolbar', dock: 'top', items: [
-                        {text: 'Lire sur l\'extranet', itemId: 'exNouveauxCollecter', handler: function () {
+                        {text: 'Lire sur l\'extranet', itemId: 'exNouveauxCollecter', handler: function (b) {
+                                me.lireSiBesoin(b, '#exNouveauxDate', function () {
                                 me.appel('POST', 'ubipharm/nouveaux/collecte', function (r) {
                                     me.message('#exNouveauxMsg', r, r.collecte && r.collecte.statut === 'PARTIELLE'
                                             ? 'Liste peut-être incomplète (pagination visible)' : 'Liste lue');
                                     me.nouveaux.load();
                                 }, me.down('#exOngletNouveaux'));
+                                });
                             }},
                         {text: 'Rapprocher avec Prestige', itemId: 'exRapprocher', handler: function () {
                                 me.appel('GET', 'ubipharm/nouveaux/rapprochement', function (r) {
@@ -915,7 +988,9 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
                                     me.message('#exNouveauxMsg', r, 'Rapprochement fait (aucun article modifié)');
                                 }, me.down('#exOngletNouveaux'));
                             }},
-                        '->', {xtype: 'label', itemId: 'exNouveauxMsg'}, {xtype: 'label', itemId: 'exNouveauxDate'}]}],
+                        '->', {xtype: 'label', itemId: 'exNouveauxMsg'}, {xtype: 'tbspacer', width: 12},
+                        {xtype: 'label', itemId: 'exNouveauxNombre'}, {xtype: 'tbspacer', width: 12},
+                        {xtype: 'label', itemId: 'exNouveauxDate'}]}],
             items: [{xtype: 'gridpanel', store: me.nouveaux, columnLines: true,
                     viewConfig: {deferEmptyText: false, emptyText: '<div style="padding:12px">Aucun produit</div>'},
                     columns: [
@@ -924,8 +999,8 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
                         {text: 'CIP', dataIndex: 'cip', width: 130, renderer: me.texte},
                         {text: 'Catégorie', dataIndex: 'categorie', width: 110, renderer: me.texte},
                         {text: 'Date', dataIndex: 'dateAffichee', width: 90, renderer: me.texte},
-                        {text: 'Mouvement', dataIndex: 'mouvement', width: 110, renderer: me.texte},
-                        {text: 'Disponibilité', dataIndex: 'disponibilite', width: 100, renderer: me.connu},
+                        {text: 'Mouvement', dataIndex: 'mouvement', width: 110, renderer: me.dispo},
+                        {text: 'Disponibilité', dataIndex: 'disponibilite', width: 100, renderer: me.dispo},
                         {text: 'Prestige', dataIndex: 'prestige', width: 230, renderer: function (v) {
                                 if (!v) {
                                     return '';
@@ -952,8 +1027,10 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
         return {
             title: titre, itemId: id, listeCode: code, layout: 'fit',
             dockedItems: [{xtype: 'toolbar', dock: 'top', items: [
-                        {text: 'Lire sur l\'extranet', itemId: id + 'Collecter', handler: function () {
-                                me.chargerListe(code, true);
+                        {text: 'Lire sur l\'extranet', itemId: id + 'Collecter', handler: function (b) {
+                                me.lireSiBesoin(b, '#' + id + 'Date', function () {
+                                    me.chargerListe(code, true);
+                                });
                             }},
                         {xtype: 'textfield', itemId: id + 'Recherche', emptyText: 'Rechercher', width: 220,
                             listeners: {change: function () {
@@ -991,7 +1068,8 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
             var genre = me.genreColonne(titre);
             colonnes.push({text: me.texte(titre), dataIndex: 'cellules', minWidth: genre.min, flex: genre.flex,
                 align: genre.align, tdCls: genre.tdCls,
-                renderer: function (v) {
+                renderer: function (v, meta) {
+                    me.bulle(meta, v ? v[i] : '');
                     return me.celluleListe(genre, v ? v[i] : '');
                 }});
         });
@@ -1038,13 +1116,8 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
         if (genre.nom === 'montant' && /^-?\d+(\.\d+)?$/.test(s)) {
             return me.montant(s);
         }
-        if (genre.nom === 'dispo') {
-            if (/^(oui|disponible)/i.test(s)) {
-                return '<span style="color:#1e8449;font-weight:bold">' + me.texte(s) + '</span>';
-            }
-            if (/^(non|indisponible|rupture)/i.test(s)) {
-                return '<span style="color:#c0392b;font-weight:bold">' + me.texte(s) + '</span>';
-            }
+        if (genre.nom === 'dispo' || me.DISPO_OUI.test(s) || me.DISPO_NON.test(s)) {
+            return me.dispo(s);
         }
         if (genre.nom === 'ug' && s) {
             return '<span style="color:#8e44ad">' + me.texte(s) + '</span>';
