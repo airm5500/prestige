@@ -46,7 +46,18 @@ public class NotificationsCentreRessource {
         if (servletRequest.getSession().getAttribute(Constant.AIRTIME_USER) == null) {
             return deconnecte();
         }
-        return Response.ok(new JSONObject().put("success", true).put("data", service.catalogue()).toString()).build();
+        /* demande 60 : la categorie des suggestions de reserve n'est proposee qu'a ceux qui peuvent les voir */
+        org.json.JSONArray catalogue = service.catalogue();
+        if (!Droits.a(servletRequest, SuggestionReserveRessource.P_VOIR_SUGGESTIONS)) {
+            org.json.JSONArray filtre = new org.json.JSONArray();
+            for (int i = 0; i < catalogue.length(); i++) {
+                if (!"reserve".equals(catalogue.getJSONObject(i).optString("cle"))) {
+                    filtre.put(catalogue.getJSONObject(i));
+                }
+            }
+            catalogue = filtre;
+        }
+        return Response.ok(new JSONObject().put("success", true).put("data", catalogue).toString()).build();
     }
 
     @GET
@@ -62,6 +73,11 @@ public class NotificationsCentreRessource {
         List<String> l = new ArrayList<>();
         for (String c : StringUtils.defaultString(cles).split(",")) {
             if (StringUtils.isNotBlank(c) && l.size() < 20) {
+                /* demande 60 : sans le droit de voir les suggestions de reserve, la cloche ne les compte pas */
+                if ("reserve".equals(c.trim())
+                        && !Droits.a(servletRequest, SuggestionReserveRessource.P_VOIR_SUGGESTIONS)) {
+                    continue;
+                }
                 l.add(c.trim());
             }
         }

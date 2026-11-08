@@ -55,9 +55,9 @@ public class BalanceVenteRessource {
 
         String emplacement = tu.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
         /* garde pour l'impression (demande du 02/11) : le PDF reprend ces donnees au lieu de les recalculer */
-        JSONObject json = CacheEtats.ecran(hs.getId(), ETAT_BALANCE,
-                () -> balanceService.getBalanceVenteCaisseDataView(BalanceParamsDTO.builder().dtStart(dtStart)
-                        .dtEnd(dtEnd).emplacementId(emplacement).avecTva(true).build()),
+        JSONObject json = CacheEtats.ecran(
+                hs.getId(), ETAT_BALANCE, () -> balanceService.getBalanceVenteCaisseDataView(BalanceParamsDTO.builder()
+                        .dtStart(dtStart).dtEnd(dtEnd).emplacementId(emplacement).avecTva(true).build()),
                 emplacement, dtStart, dtEnd);
         return Response.ok().entity(json.toString()).build();
     }
@@ -113,9 +113,9 @@ public class BalanceVenteRessource {
             return Response.status(Response.Status.UNAUTHORIZED).build();
         }
         String emplacement = tu.getLgEMPLACEMENTID().getLgEMPLACEMENTID();
-        JSONObject vue = CacheEtats.edition(hs.getId(), ETAT_BALANCE,
-                () -> balanceService.getBalanceVenteCaisseDataView(BalanceParamsDTO.builder().dtStart(dtStart)
-                        .dtEnd(dtEnd).emplacementId(emplacement).avecTva(true).build()),
+        JSONObject vue = CacheEtats.edition(
+                hs.getId(), ETAT_BALANCE, () -> balanceService.getBalanceVenteCaisseDataView(BalanceParamsDTO.builder()
+                        .dtStart(dtStart).dtEnd(dtEnd).emplacementId(emplacement).avecTva(true).build()),
                 emplacement, dtStart, dtEnd);
         boolean repris = CacheEtats.repris();
         java.util.Map<String, Object> parametres = reportUtil.officineData(tu);

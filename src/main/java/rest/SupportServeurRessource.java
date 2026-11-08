@@ -195,8 +195,9 @@ public class SupportServeurRessource {
 
     /** Reglages en place et conseilles (MariaDB, Payara) : base commune de la lecture et de l'application. */
     private CalculReglages calcul() throws java.io.IOException {
-        return CalculReglages.calculer(postes(), vie.variablesMariadb(), appConfig == null || appConfig.estDeclareServeur(),
-                watchdog.getHote(), barres(watchdog.getStorageBase().resolve("dumps")), barres(watchdog.dossierLogs()));
+        return CalculReglages.calculer(postes(), vie.variablesMariadb(),
+                appConfig == null || appConfig.estDeclareServeur(), watchdog.getHote(),
+                barres(watchdog.getStorageBase().resolve("dumps")), barres(watchdog.dossierLogs()));
     }
 
     /** Droits du compte de l'application pour SET GLOBAL ; message si on ne sait pas les lire. */
@@ -249,9 +250,9 @@ public class SupportServeurRessource {
     /** Ligne de ce poste dans la liste des postes (demande du 02/11) ; un echec n'empeche pas l'ecran. */
     private void relever(CalculReglages c) {
         try {
-            vie.enregistrerPoste(PostesReglages.depuis(watchdog.getHote(), c,
-                    Runtime.getRuntime().availableProcessors(), Runtime.getRuntime().maxMemory(),
-                    java.time.LocalDateTime.now()));
+            vie.enregistrerPoste(
+                    PostesReglages.depuis(watchdog.getHote(), c, Runtime.getRuntime().availableProcessors(),
+                            Runtime.getRuntime().maxMemory(), java.time.LocalDateTime.now()));
         } catch (RuntimeException e) {
             LOG.log(Level.FINE, "releve du poste", e);
         }
@@ -272,9 +273,10 @@ public class SupportServeurRessource {
             List<PostesReglages.Poste> postes = vie.postes();
             JSONArray a = new JSONArray();
             for (PostesReglages.Poste p : postes) {
-                a.put(p.json().put("courant", p.hote.equals(watchdog.getHote())
-                        && p.domaine.equals(ApplicationPayara.domaine(StringUtils.defaultString(
-                                System.getProperty("com.sun.aas.instanceRoot"), "domain1"), "").nom)));
+                a.put(p.json().put("courant",
+                        p.hote.equals(watchdog.getHote()) && p.domaine.equals(ApplicationPayara.domaine(
+                                StringUtils.defaultString(System.getProperty("com.sun.aas.instanceRoot"), "domain1"),
+                                "").nom)));
             }
             int max = -1;
             try {
@@ -287,8 +289,9 @@ public class SupportServeurRessource {
                     .put("maxConnexions", max)
                     /* un seul serveur par reseau (retour du 03/11) : ce Payara lance-t-il les taches planifiees ? */
                     .put("tachesIci", appConfig == null || appConfig.isServerMode())
-                    .put("declareServeur", appConfig == null || appConfig.estDeclareServeur()).put("alertes",
-                            new JSONArray(PostesReglages.alertes(postes, declares, max, java.time.LocalDateTime.now()))));
+                    .put("declareServeur", appConfig == null || appConfig.estDeclareServeur())
+                    .put("alertes", new JSONArray(
+                            PostesReglages.alertes(postes, declares, max, java.time.LocalDateTime.now()))));
         } catch (Exception e) {
             LOG.log(Level.WARNING, "reglages des postes", e);
             return echec("Lecture des postes impossible : " + e.getClass().getSimpleName());

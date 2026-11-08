@@ -444,6 +444,66 @@ function prestigeHeaderClock() {
 }
 
 // ===================================================================
+//  DROITS DE LA RESERVE (demande 60) : lus une fois par session (GET v1/reserve/droits).
+//  voirSuggestions() : true / false une fois la reponse recue ; null avant, ou si la route ne repond pas (on garde
+//  alors le comportement d'avant : onglet et cloche affiches, le serveur refusant de toute facon sans le droit).
+// ===================================================================
+var PrestigeDroitsReserve = window.PrestigeDroitsReserve = (function () {
+    var droits = null, attente = [], enCours = false;
+
+    function charger(suite) {
+        if (droits !== null) {
+            if (suite) {
+                suite(droits);
+            }
+            return;
+        }
+        if (suite) {
+            attente.push(suite);
+        }
+        if (enCours) {
+            return;
+        }
+        enCours = true;
+        Ext.Ajax.request({
+            url: '../api/v1/reserve/droits', method: 'GET',
+            callback: function (o, succes, r) {
+                var v = succes ? Ext.JSON.decode(r.responseText, true) : null;
+                droits = v && v.success ? v : {};
+                enCours = false;
+                var l = attente;
+                attente = [];
+                Ext.each(l, function (f) {
+                    try {
+                        f(droits);
+                    } catch (e) {
+                    }
+                });
+            }
+        });
+    }
+
+    function voirSuggestions() {
+        return droits === null || typeof droits.voirSuggestions !== 'boolean' ? null : droits.voirSuggestions;
+    }
+
+    /**
+     * Apres la creation d'une suggestion : sans le droit de voir les suggestions, on ne l'ouvre pas, on dit qu'elle
+     * sera traitee par une personne habilitee. Rend true si le message a ete affiche (l'appelant s'arrete alors).
+     */
+    function demandeCreee(res) {
+        if (voirSuggestions() !== false) {
+            return false;
+        }
+        var ref = res && res.str_REF ? ' ' + Ext.String.htmlEncode(res.str_REF) : '';
+        Ext.MessageBox.alert('Demande créée', 'Demande' + ref + ' créée : elle sera traitée par une personne habilitée.');
+        return true;
+    }
+
+    return {charger: charger, voirSuggestions: voirSuggestions, demandeCreee: demandeCreee};
+})();
+
+// ===================================================================
 //  CENTRE DE NOTIFICATIONS - architecture extensible par categories
 // ===================================================================
 //
@@ -511,7 +571,8 @@ var PrestigeNotif = (function () {
     function disponibles() {
         var ordre = (prefs && prefs.ordre) || [];
         var l = Ext.Array.filter(providers, function (p) {
-            return !p.optionnel || menuAccessible(p.menu);
+            /* autorise : droit propre a la categorie (demande 60 : suggestions de reserve) */
+            return (!p.optionnel || menuAccessible(p.menu)) && (!p.autorise || p.autorise());
         });
         return Ext.Array.sort(l.slice(), function (a, b) {
             var ia = ordre.indexOf(a.key), ib = ordre.indexOf(b.key);
@@ -542,9 +603,12 @@ var PrestigeNotif = (function () {
             callback: function (o, succes, r) {
                 var v = succes ? Ext.JSON.decode(r.responseText, true) : null;
                 prefs = v && v.success && v.valeur && typeof v.valeur === 'object' ? v.valeur : {};
-                if (suite) {
-                    suite();
-                }
+                /* demande 60 : les categories soumises a un droit attendent les droits de la reserve */
+                PrestigeDroitsReserve.charger(function () {
+                    if (suite) {
+                        suite();
+                    }
+                });
             }
         });
     }
@@ -990,6 +1054,10 @@ function prestigeNotifOuvrirMenu(xtype) {
 PrestigeNotif.register({
     key: 'reserve',
     label: 'Suggestions de reserve a traiter',
+    /* demande 60 : masquee sans le droit « Voir les suggestions de reserve » */
+    autorise: function () {
+        return PrestigeDroitsReserve.voirSuggestions() !== false;
+    },
     icon: 'fa-exchange',
     color: '#48c9b0',
     url: '../api/v1/suggestion-reserve/en-attente',

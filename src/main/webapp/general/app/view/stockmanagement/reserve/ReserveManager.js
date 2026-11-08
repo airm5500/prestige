@@ -125,6 +125,14 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveManager', {
                 }
             }
         ];
+        /* demande 60 : sans le droit « Voir les suggestions de reserve », pas d'onglet SUGGESTIONS. Droits pas encore
+           connus (cas rare : lus a l'ouverture de l'application) : l'onglet est retire des leur arrivee. */
+        var droitsReserve = window.PrestigeDroitsReserve;
+        if (droitsReserve && droitsReserve.voirSuggestions() === false) {
+            this.items = Ext.Array.filter(this.items, function (it) {
+                return it.itemId !== 'ongletSuggestions';
+            });
+        }
         // Chargement pilote UNIQUEMENT ici. Les grilles ne se chargent plus d'elles-memes a
         // l'affichage : leur chargement automatique se cumulait avec celui declenche au
         // changement d'onglet, et la meme requete partait deux fois.
@@ -158,6 +166,17 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveManager', {
             },
             afterrender: function (tabPanel) {
                 updateReservePastille(tabPanel);
+                if (droitsReserve && droitsReserve.voirSuggestions() === null) {
+                    droitsReserve.charger(function () {
+                        var onglet = tabPanel.isDestroyed ? null : tabPanel.down('#ongletSuggestions');
+                        if (onglet && droitsReserve.voirSuggestions() === false) {
+                            if (tabPanel.getActiveTab() === onglet) {
+                                tabPanel.setActiveTab(0);
+                            }
+                            tabPanel.remove(onglet);
+                        }
+                    });
+                }
                 // Le premier onglet affiche n'a pas recu d'evenement de changement : on le charge ici.
                 Ext.defer(function () {
                     chargerOnglet(tabPanel.getActiveTab());

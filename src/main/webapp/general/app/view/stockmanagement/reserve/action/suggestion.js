@@ -262,6 +262,10 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.suggestion', {
 
         // Bascule sur l'onglet SUGGESTIONS et ouvre directement la suggestion creee.
         var allerAuxSuggestions = function (res) {
+            /* demande 60 : sans le droit de voir les suggestions, la demande n'est pas ouverte */
+            if (window.PrestigeDroitsReserve && PrestigeDroitsReserve.demandeCreee(res)) {
+                return;
+            }
             var manager = Ext.getCmp('reservemanagerID');
             var onglet = manager ? manager.down('#ongletSuggestions') : null;
             if (!manager || !onglet) {

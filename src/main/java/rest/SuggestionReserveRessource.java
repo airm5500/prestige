@@ -35,6 +35,10 @@ import util.Constant;
 @Consumes("application/json")
 public class SuggestionReserveRessource {
 
+    /** Droit « Voir et ouvrir les suggestions de reserve » (demande 60, migration V7.2.70). */
+    public static final String P_VOIR_SUGGESTIONS = "P_RESERVE_SUGGESTION";
+    public static final String LIBELLE_VOIR_SUGGESTIONS = "Voir les suggestions de réserve";
+
     @Inject
     private HttpServletRequest servletRequest;
     private @EJB SuggestionReserveService suggestionReserveService;
@@ -48,6 +52,17 @@ public class SuggestionReserveRessource {
 
     private Response deconnecte() {
         return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+    }
+
+    /**
+     * Demande 60 : lire, ouvrir et traiter une suggestion de reserve exige P_RESERVE_SUGGESTION (web et mobile). La
+     * creation ({@code creer}, {@code creer-depuis-recherche}) et les {@code motifs} n'y sont pas soumis : un
+     * magasinier sans ce droit peut deposer une demande que d'autres traiteront (decision du pharmacien du 08/11).
+     *
+     * @return le refus 403 a renvoyer, ou null si la session porte le droit
+     */
+    private Response refusVoir() {
+        return Droits.a(servletRequest, P_VOIR_SUGGESTIONS) ? null : Droits.interdit(LIBELLE_VOIR_SUGGESTIONS);
     }
 
     /** Motifs disponibles, eventuellement restreints a un sens de mouvement. */
@@ -73,6 +88,10 @@ public class SuggestionReserveRessource {
         if (user == null) {
             return deconnecte();
         }
+        Response refusVoir = refusVoir();
+        if (refusVoir != null) {
+            return refusVoir;
+        }
         JSONObject json = suggestionReserveService.lister(user, statut, categorie, origine, motifId, search, dtStart,
                 dtEnd, userId, controle, tri, start, limit > 0 ? limit : 20);
         return Response.ok().entity(json.toString()).build();
@@ -85,6 +104,10 @@ public class SuggestionReserveRessource {
         TUser user = currentUser();
         if (user == null) {
             return deconnecte();
+        }
+        Response refusVoir = refusVoir();
+        if (refusVoir != null) {
+            return refusVoir;
         }
         // Le panneau de la cloche attend {results:[...], total:n} : un tableau nu serait ignore.
         JSONArray liste = suggestionReserveService.suggestionsEnAttente(user, limit > 0 ? limit : 50);
@@ -99,6 +122,10 @@ public class SuggestionReserveRessource {
         TUser user = currentUser();
         if (user == null) {
             return deconnecte();
+        }
+        Response refusVoir = refusVoir();
+        if (refusVoir != null) {
+            return refusVoir;
         }
         return Response.ok().entity(
                 new JSONObject().put("total", suggestionReserveService.compterSuggestionsEnAttente(user)).toString())
@@ -124,6 +151,10 @@ public class SuggestionReserveRessource {
         if (user == null) {
             return deconnecte();
         }
+        Response refusVoir = refusVoir();
+        if (refusVoir != null) {
+            return refusVoir;
+        }
         List<String> listeIds = new ArrayList<>();
         if (ids != null && !ids.trim().isEmpty()) {
             for (String id : ids.split(",")) {
@@ -144,6 +175,10 @@ public class SuggestionReserveRessource {
         TUser user = currentUser();
         if (user == null) {
             return deconnecte();
+        }
+        Response refusVoir = refusVoir();
+        if (refusVoir != null) {
+            return refusVoir;
         }
         return Response.ok().entity(suggestionReserveService.detail(user, id).toString()).build();
     }
@@ -245,6 +280,10 @@ public class SuggestionReserveRessource {
         if (refusDroit != null) {
             return refusDroit;
         }
+        Response refusVoir = refusVoir();
+        if (refusVoir != null) {
+            return refusVoir;
+        }
         TUser user = currentUser();
         if (user == null) {
             return deconnecte();
@@ -267,6 +306,10 @@ public class SuggestionReserveRessource {
         Response refusDroit = Droits.refus(servletRequest, "Traiter la réserve", "P_TRAITER_RESERVE", "P_SM_RESERVE");
         if (refusDroit != null) {
             return refusDroit;
+        }
+        Response refusVoir = refusVoir();
+        if (refusVoir != null) {
+            return refusVoir;
         }
         TUser user = currentUser();
         if (user == null) {
@@ -292,6 +335,10 @@ public class SuggestionReserveRessource {
         if (refusDroit != null) {
             return refusDroit;
         }
+        Response refusVoir = refusVoir();
+        if (refusVoir != null) {
+            return refusVoir;
+        }
         TUser user = currentUser();
         if (user == null) {
             return deconnecte();
@@ -306,6 +353,10 @@ public class SuggestionReserveRessource {
         Response refusDroit = Droits.refus(servletRequest, "Traiter la réserve", "P_TRAITER_RESERVE", "P_SM_RESERVE");
         if (refusDroit != null) {
             return refusDroit;
+        }
+        Response refusVoir = refusVoir();
+        if (refusVoir != null) {
+            return refusVoir;
         }
         TUser user = currentUser();
         if (user == null) {
@@ -322,6 +373,10 @@ public class SuggestionReserveRessource {
         if (refusDroit != null) {
             return refusDroit;
         }
+        Response refusVoir = refusVoir();
+        if (refusVoir != null) {
+            return refusVoir;
+        }
         TUser user = currentUser();
         if (user == null) {
             return deconnecte();
@@ -337,6 +392,10 @@ public class SuggestionReserveRessource {
         if (refusDroit != null) {
             return refusDroit;
         }
+        Response refusVoir = refusVoir();
+        if (refusVoir != null) {
+            return refusVoir;
+        }
         TUser user = currentUser();
         if (user == null) {
             return deconnecte();
@@ -351,6 +410,10 @@ public class SuggestionReserveRessource {
         TUser user = currentUser();
         if (user == null) {
             return deconnecte();
+        }
+        Response refusVoir = refusVoir();
+        if (refusVoir != null) {
+            return refusVoir;
         }
         return Response.ok().entity(suggestionReserveService.compteRendu(user, id).toString()).build();
     }
@@ -395,6 +458,10 @@ public class SuggestionReserveRessource {
         if (refusDroit != null) {
             return refusDroit;
         }
+        Response refusVoir = refusVoir();
+        if (refusVoir != null) {
+            return refusVoir;
+        }
         TUser user = currentUser();
         if (user == null) {
             return deconnecte();
@@ -410,6 +477,10 @@ public class SuggestionReserveRessource {
         if (refusDroit != null) {
             return refusDroit;
         }
+        Response refusVoir = refusVoir();
+        if (refusVoir != null) {
+            return refusVoir;
+        }
         TUser user = currentUser();
         if (user == null) {
             return deconnecte();
@@ -424,6 +495,10 @@ public class SuggestionReserveRessource {
         Response refusDroit = Droits.refus(servletRequest, "Traiter la réserve", "P_TRAITER_RESERVE", "P_SM_RESERVE");
         if (refusDroit != null) {
             return refusDroit;
+        }
+        Response refusVoir = refusVoir();
+        if (refusVoir != null) {
+            return refusVoir;
         }
         TUser user = currentUser();
         if (user == null) {
@@ -442,6 +517,10 @@ public class SuggestionReserveRessource {
         if (refusDroit != null) {
             return refusDroit;
         }
+        Response refusVoir = refusVoir();
+        if (refusVoir != null) {
+            return refusVoir;
+        }
         TUser user = currentUser();
         if (user == null) {
             return deconnecte();
@@ -456,6 +535,10 @@ public class SuggestionReserveRessource {
         Response refusDroit = Droits.refus(servletRequest, "Traiter la réserve", "P_TRAITER_RESERVE", "P_SM_RESERVE");
         if (refusDroit != null) {
             return refusDroit;
+        }
+        Response refusVoir = refusVoir();
+        if (refusVoir != null) {
+            return refusVoir;
         }
         TUser user = currentUser();
         if (user == null) {
@@ -474,6 +557,10 @@ public class SuggestionReserveRessource {
         if (refusDroit != null) {
             return refusDroit;
         }
+        Response refusVoir = refusVoir();
+        if (refusVoir != null) {
+            return refusVoir;
+        }
         TUser user = currentUser();
         if (user == null) {
             return deconnecte();
@@ -491,6 +578,10 @@ public class SuggestionReserveRessource {
         TUser user = currentUser();
         if (user == null) {
             return deconnecte();
+        }
+        Response refusVoir = refusVoir();
+        if (refusVoir != null) {
+            return refusVoir;
         }
         byte[] data = suggestionReserveService.exportCompteRenduExcel(user, id);
         return Response.ok(data).header("Content-Disposition", "attachment; filename=\"compte_rendu_suggestion.xls\"")

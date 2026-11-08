@@ -30,7 +30,9 @@ public final class PostesReglages {
 
     /** Au-dela, un poste sans nouveau releve est signale (caisse eteinte, retiree, ou Payara arrete). */
     public static final Duration SANS_NOUVELLES = Duration.ofDays(30);
-    /** Connexions laissees aux outils (sauvegarde, client SQL), comme dans {@link ReglagesServeur#connexionsMariadb}. */
+    /**
+     * Connexions laissees aux outils (sauvegarde, client SQL), comme dans {@link ReglagesServeur#connexionsMariadb}.
+     */
     static final int MARGE_OUTILS = 50;
 
     private static final DateTimeFormatter JOUR = DateTimeFormatter.ofPattern("dd/MM/yyyy");

@@ -74,8 +74,7 @@ public class ModeleTicketService {
             return 80;
         }
         try {
-            List<?> l = em
-                    .createNativeQuery("SELECT int_LARGEUR_PAPIER FROM t_imprimante WHERE str_NAME = ?1 LIMIT 1")
+            List<?> l = em.createNativeQuery("SELECT int_LARGEUR_PAPIER FROM t_imprimante WHERE str_NAME = ?1 LIMIT 1")
                     .setParameter(1, nom).getResultList();
             if (!l.isEmpty() && l.get(0) != null) {
                 return largeurValide(((Number) l.get(0)).intValue());
@@ -90,8 +89,10 @@ public class ModeleTicketService {
     public List<Object[]> imprimantes() {
         List<Object[]> res = new ArrayList<>();
         try {
-            for (Object o : em.createNativeQuery("SELECT lg_IMPRIMANTE_ID, str_NAME, int_LARGEUR_PAPIER"
-                    + " FROM t_imprimante WHERE COALESCE(str_STATUT, '') <> 'delete' ORDER BY str_NAME").getResultList()) {
+            for (Object o : em
+                    .createNativeQuery("SELECT lg_IMPRIMANTE_ID, str_NAME, int_LARGEUR_PAPIER"
+                            + " FROM t_imprimante WHERE COALESCE(str_STATUT, '') <> 'delete' ORDER BY str_NAME")
+                    .getResultList()) {
                 Object[] l = (Object[]) o;
                 res.add(new Object[] { l[0], l[1], largeurValide(((Number) l[2]).intValue()) });
             }
