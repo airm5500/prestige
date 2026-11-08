@@ -16,17 +16,33 @@ public enum SourceExtranet {
             "https://auth.ubipharm.com/realms/TIC-SSO/protocol/openid-connect/auth?scope=openid&response_type=code"
                     + "&client_id=ExtranetClientGrossiste02"
                     + "&redirect_uri=https%3A%2F%2Fclient-cotedivoire.ubipharm.com%2FCallbackSSO"
-                    + "&state=L0lkZW50aWZpY2F0aW9u"),
-    TEDIS("https://www.tedispharma-ci.com", "EXTRANET_TEDIS", null);
+                    + "&state=L0lkZW50aWZpY2F0aW9u",
+            null),
+    /*
+     * TEDIS (relevee le 08/11) : /login porte un formulaire sans adresse d'envoi ; le site l'envoie en AJAX a la racine
+     * « / » et recoit du JSON ({error, msg} / {succes}). Poster sur /login donne 405.
+     */
+    TEDIS("https://www.tedispharma-ci.com", "EXTRANET_TEDIS", "https://www.tedispharma-ci.com/login", "/");
 
     private final String adresseParDefaut;
     private final String prefixeCle;
     private final String pageConnexionParDefaut;
+    private final String actionConnexionAjax;
 
-    SourceExtranet(String adresseParDefaut, String prefixeCle, String pageConnexionParDefaut) {
+    SourceExtranet(String adresseParDefaut, String prefixeCle, String pageConnexionParDefaut,
+            String actionConnexionAjax) {
         this.adresseParDefaut = adresseParDefaut;
         this.prefixeCle = prefixeCle;
         this.pageConnexionParDefaut = pageConnexionParDefaut;
+        this.actionConnexionAjax = actionConnexionAjax;
+    }
+
+    /**
+     * Chemin ou le site envoie son formulaire de connexion par AJAX quand le formulaire n'a pas d'adresse d'envoi ; la
+     * reponse est alors du JSON. Null : formulaire classique (envoi a son action, reponse HTML).
+     */
+    public String actionConnexionAjax() {
+        return actionConnexionAjax;
     }
 
     /**

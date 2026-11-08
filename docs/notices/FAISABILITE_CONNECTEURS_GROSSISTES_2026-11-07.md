@@ -560,3 +560,22 @@ Tests :
   → aucune connexion ; total des POST /Login recompté (5). À rejouer sur domain3 avec le faux extranet quand domain3
   sera libre (domain3 servait à l'utilisateur au moment du changement).
 - `test-identifiants-extranet.js` 40/40 et `test-listes-ubipharm.js` 87/87 avec la page par défaut (avant le bouton).
+
+## 12. Connexion TEDIS : cause du 405 et correction (08/11)
+
+Relevé sur la page `https://www.tedispharma-ci.com/login` (navigateur intégré, sans saisie) : le formulaire
+`#loginForm` n'a pas d'adresse d'envoi ; un script jQuery l'intercepte et l'envoie en AJAX à la racine
+`https://www.tedispharma-ci.com` (champs `_token`, `email`, `password`). Réponse JSON : `error` + `msg` (refus),
+`errorServer` ou `erreurServeurIndisponible` (panne), `succes` + `data.PremierePageApresConnexion` (connecté, puis
+/dashboard, /createCommande…). Prestige postait sur `/login` (adresse de la page faute d'action) : 405. Pas de captcha.
+
+Correction :
+- `SourceExtranet.TEDIS` : page de connexion par défaut `/login` (extranet réel seulement) et envoi AJAX vers `/`.
+- `ConnexionExtranet` : formulaire sans action et extranet à envoi AJAX → POST à `/` avec `X-Requested-With` et
+  `Accept: application/json`, lecture du JSON ; refus : identifiants plus retentés avant modification ; panne : nouvel
+  essai permis ; réponse inconnue : refus. Le message de l'extranet n'est jamais journalisé. Ubipharm inchangé.
+
+Tests : `ConnexionTedisTest` (4 tests, échoue d'abord sur l'ancien code : « statut 405 sur /login ») : un seul POST, à
+`/`, en AJAX, jeton, identifiant et mot de passe (caractères spéciaux) ; session ouverte puis page protégée lue avec le
+cookie reçu ; refus non retenté, correction acceptée ; 4 réponses de panne ou inattendues. 141 tests extranet au vert.
+Essai réel : à faire par l'utilisateur (« Enregistrer » dans l'onglet Sessions, bloc TEDIS).

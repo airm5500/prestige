@@ -26,7 +26,9 @@ class PageConnexionParDefautTest {
         assertNull(u.pageConnexionParDefaut("http://127.0.0.1:18765"), "faux extranet des tests : page « / »");
         assertNull(u.pageConnexionParDefaut("http://client-cotedivoire.ubipharm.com"), "http : pas l'extranet réel");
         assertNull(u.pageConnexionParDefaut(null));
-        assertNull(SourceExtranet.TEDIS.pageConnexionParDefaut("https://www.tedispharma-ci.com"));
+        /* TEDIS : /login par defaut depuis le 08/11 (ConnexionTedisTest) */
+        assertEquals("https://www.tedispharma-ci.com/login",
+                SourceExtranet.TEDIS.pageConnexionParDefaut("https://www.tedispharma-ci.com"));
     }
 
     @Test

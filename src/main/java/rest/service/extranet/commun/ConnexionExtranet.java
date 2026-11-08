@@ -137,11 +137,24 @@ public final class ConnexionExtranet {
             if (f.captcha) {
                 throw refus("L'extranet demande un captcha : connexion automatique impossible, collez un cookie");
             }
-            URI action = f.action == null || f.action.trim().isEmpty() ? page.uri : page.uri.resolve(f.action.trim());
+            boolean sansAction = f.action == null || f.action.trim().isEmpty();
+            String ajax = session.source().actionConnexionAjax();
+            boolean json = sansAction && ajax != null;
+            URI action = json ? page.uri.resolve(ajax) : sansAction ? page.uri : page.uri.resolve(f.action.trim());
             verifierMemeSite(action);
             Map<String, String> champs = new LinkedHashMap<>(f.autres);
             champs.put(f.champIdentifiant, id.identifiant);
             champs.put(f.champMotDePasse, id.motDePasse);
+            if (json) {
+                /* envoi du site en AJAX : reponse JSON, pas de page a suivre */
+                lireReponseJson(post(action, page.uri, champs, pot, true), id);
+                Map<String, String> ouverte = pot.pour(origine.getHost());
+                if (ouverte.isEmpty()) {
+                    throw refus("L'extranet n'a ouvert aucune session (aucun cookie reçu)");
+                }
+                session.definirParConnexion(ouverte);
+                return;
+            }
             Page apres = suivre(post(action, page.uri, champs, pot), pot);
             if (apres.statut >= 400) {
                 throw new ExtranetException(ExtranetException.Nature.TRANSPORT,
@@ -159,6 +172,37 @@ public final class ConnexionExtranet {
         } catch (ExtranetException e) {
             session.connexionEchouee(e.getMessage());
             throw e;
+        }
+    }
+
+    /**
+     * Reponse JSON d'une connexion AJAX (TEDIS) : {succes} connecte ; {error} identifiants refuses (plus retentes avant
+     * modification) ; {errorServer} ou {erreurServeurIndisponible} panne de l'extranet (nouvel essai permis) ; tout
+     * autre contenu refuse. Le message de l'extranet n'est jamais journalise.
+     */
+    private void lireReponseJson(Page r, Identifiants id) throws ExtranetException {
+        if (r.statut >= 400) {
+            throw new ExtranetException(ExtranetException.Nature.TRANSPORT,
+                    "Connexion : statut " + r.statut + " sur " + r.uri.getPath());
+        }
+        org.json.JSONObject o;
+        try {
+            o = new org.json.JSONObject(r.corps == null ? "" : r.corps.trim());
+        } catch (org.json.JSONException e) {
+            throw refus("Réponse de connexion inattendue (pas du JSON) : connexion impossible");
+        }
+        String msg = o.optString("msg", "").trim();
+        msg = msg.length() > 200 ? msg.substring(0, 200) : msg;
+        if (o.optBoolean("errorServer") || o.optBoolean("erreurServeurIndisponible")) {
+            throw new ExtranetException(ExtranetException.Nature.TRANSPORT,
+                    "Extranet indisponible" + (msg.isEmpty() ? "" : " : " + msg));
+        }
+        if (o.optBoolean("error")) {
+            empreinteRefusee = id.empreinte;
+            throw refus("Identifiant ou mot de passe refusé par l'extranet" + (msg.isEmpty() ? "" : " : " + msg));
+        }
+        if (!o.optBoolean("succes")) {
+            throw refus("Réponse de connexion inattendue : connexion impossible");
         }
     }
 
@@ -316,6 +360,11 @@ public final class ConnexionExtranet {
     }
 
     private Page post(URI u, URI referer, Map<String, String> champs, Bocal pot) throws ExtranetException {
+        return post(u, referer, champs, pot, false);
+    }
+
+    private Page post(URI u, URI referer, Map<String, String> champs, Bocal pot, boolean ajax)
+            throws ExtranetException {
         StringBuilder corps = new StringBuilder();
         champs.forEach((k, v) -> {
             if (corps.length() > 0) {
@@ -328,12 +377,21 @@ public final class ConnexionExtranet {
                 .POST(HttpRequest.BodyPublishers.ofString(corps.toString(), StandardCharsets.UTF_8))
                 .header("Content-Type", "application/x-www-form-urlencoded")
                 .header("Origin", referer.getScheme() + "://" + referer.getRawAuthority());
-        return envoyer(b, u, referer, pot);
+        if (ajax) {
+            b.header("X-Requested-With", "XMLHttpRequest");
+        }
+        return envoyer(b, u, referer, pot, ajax ? "application/json, text/javascript, */*; q=0.01" : null);
     }
 
     private Page envoyer(HttpRequest.Builder b, URI u, URI referer, Bocal bocal) throws ExtranetException {
+        return envoyer(b, u, referer, bocal, null);
+    }
+
+    private Page envoyer(HttpRequest.Builder b, URI u, URI referer, Bocal bocal, String accept)
+            throws ExtranetException {
         Map<String, String> pot = bocal.pour(u.getHost());
-        b.timeout(delai).header("User-Agent", "Prestige").header("Accept", TransportExtranet.ACCEPT_HTML);
+        b.timeout(delai).header("User-Agent", "Prestige").header("Accept",
+                accept != null ? accept : TransportExtranet.ACCEPT_HTML);
         if (referer != null) {
             b.header("Referer", referer.toString());
         }
