@@ -76,6 +76,8 @@ const sessionsApi = (p) => p.evaluate(() => fetch('../api/v1/extranet/sessions')
   const metierAvant = empreinteMetier();
   const journalServeur = process.env.PAYARA_DOMAINE ? path.join(process.env.PAYARA_DOMAINE, 'logs', 'server.log') : null;
   const tailleJournal = journalServeur && fs.existsSync(journalServeur) ? fs.statSync(journalServeur).size : 0;
+  const cleAvant = q('SELECT COUNT(*) FROM extranet_cle');
+  const FICHIER_CLE = 'D:/prestige/cles/extranet.cle';
   try {
     ok('départ : aucun identifiant UBIPHARM en base', compte().length === 0, JSON.stringify(compte()));
     await vues.connexion(p, ENV_E2E.LOGIN, 'e2etest');
@@ -98,9 +100,13 @@ const sessionsApi = (p) => p.evaluate(() => fetch('../api/v1/extranet/sessions')
     ok('base : mot de passe chiffré (v1:), jamais en clair', c[0][1].startsWith('v1:') && c[0][1].indexOf(MAUVAIS) < 0
       && Buffer.from(c[0][1].slice(3), 'base64').toString('latin1').indexOf(MAUVAIS) < 0);
     const chiffre1 = c[0][1];
+    const cleBase = q('SELECT cle FROM extranet_cle WHERE id = 1');
+    ok('clé : rangée en base (une ligne, 32 octets), aucun fichier sur le poste', Number(q('SELECT COUNT(*) FROM extranet_cle')) === 1
+      && Buffer.from(cleBase, 'base64').length === 32 && !fs.existsSync(FICHIER_CLE));
     ok('écran : champ mot de passe vidé après enregistrement', (await valeur(p, '#exMotDePasseUBIPHARM')) === '');
     let api = await sessionsApi(p);
-    ok('API : ni le mot de passe ni le chiffré', api.indexOf(MAUVAIS) < 0 && api.indexOf(chiffre1.slice(3, 20)) < 0);
+    ok('API : ni le mot de passe, ni le chiffré, ni la clé', api.indexOf(MAUVAIS) < 0 && api.indexOf(chiffre1.slice(3, 20)) < 0
+      && api.indexOf(cleBase.slice(0, 16)) < 0);
     const apiCompte = JSON.parse(api).data.find((s) => s.source === 'UBIPHARM').compte;
     const etatEcran = await texte(p, '#exCompteEtatUBIPHARM');
     ok('rapprochement : identifiant écran = base = API', apiCompte.identifiant === c[0][0] && etatEcran.indexOf(c[0][0]) >= 0
@@ -180,10 +186,12 @@ const sessionsApi = (p) => p.evaluate(() => fetch('../api/v1/extranet/sessions')
     await ENV_E2E.capture(p, 'identifiants-extranet-erreur').catch(() => {});
   } finally {
     q("DELETE FROM extranet_compte WHERE source = 'UBIPHARM'");
+    if (cleAvant === '0') { q('DELETE FROM extranet_cle'); }
     q('DELETE FROM extranet_stock_agence WHERE collecte_id >= ' + premiereCollecte + '; DELETE FROM extranet_produit WHERE collecte_id >= '
       + premiereCollecte + '; DELETE FROM extranet_collecte WHERE id >= ' + premiereCollecte);
     await p.evaluate(() => fetch('../api/v1/extranet/sessions/UBIPHARM', { method: 'DELETE' })).catch(() => {});
-    ok('nettoyage : identifiants et collectes du test retirés', compte().length === 0
+    ok('nettoyage : identifiants, clé créée par le test et collectes retirés', compte().length === 0
+      && q('SELECT COUNT(*) FROM extranet_cle') === cleAvant
       && Number(q('SELECT COUNT(*) FROM extranet_collecte WHERE id >= ' + premiereCollecte)) === 0);
     if (journalServeur && fs.existsSync(journalServeur)) {
       const fd = fs.openSync(journalServeur, 'r');

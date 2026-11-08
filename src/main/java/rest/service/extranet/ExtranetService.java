@@ -75,7 +75,7 @@ public class ExtranetService {
     }
 
     private ComptesExtranet comptes() {
-        return new ComptesExtranet(em, ChiffrementExtranet.duServeur());
+        return new ComptesExtranet(em, ChiffrementExtranet.deLaBase(em));
     }
 
     /**
@@ -92,7 +92,7 @@ public class ExtranetService {
             CoffreSessions.connexion(s).identifiants(null);
             LOG.log(Level.WARNING, "Identifiants {0} illisibles ({1})",
                     new Object[] { s, e.getClass().getSimpleName() });
-            return "Mot de passe enregistré illisible (clé du serveur changée) : saisissez-le de nouveau";
+            return "Mot de passe enregistré illisible (clé des extranets changée) : saisissez-le de nouveau";
         }
     }
 

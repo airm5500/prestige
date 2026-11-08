@@ -428,10 +428,10 @@ extranet : Identifiant, Mot de passe, **Enregistrer**, **Se connecter**, **Effac
 le bouton). Mot de passe laissé vide à l'enregistrement : l'ancien est gardé.
 
 **Fonctionnement** :
-- `extranet_compte` (V7.5.7) : une ligne par extranet ; mot de passe chiffré AES-256-GCM, clé dans un fichier du
-  serveur hors base et hors dépôt (`D:\prestige\cles\extranet.cle`, créé au premier usage ; `EXTRANET_CLE_FICHIER` pour
-  un autre emplacement). Une copie de la base seule ne livre pas le mot de passe. **Perdre la clé oblige à ressaisir les
-  mots de passe** : la sauvegarder avec la configuration du poste.
+- `extranet_compte` (V7.5.7) : une ligne par extranet ; mot de passe chiffré AES-256-GCM. **Décision du 08/11 : la clé
+  est rangée en base** (table `extranet_cle`, V7.5.9, une ligne créée au premier enregistrement), aucun fichier sur le
+  poste ; elle n'est jamais renvoyée par l'API ni journalisée. Conséquence acceptée : une copie complète de la base
+  contient à la fois la clé et les mots de passe chiffrés ; la sauvegarde de la base suffit à tout restaurer.
 - Connexion : le serveur ouvre la page de connexion (champ « Page de connexion » de l'onglet Sessions, `/` si vide ;
   aucun fichier de configuration), lit le formulaire qui porte un champ mot de passe, garde ses champs cachés (jeton),
   remplit l'identifiant (premier champ texte, ou le « Champ identifiant » saisi dans l'onglet) et le mot de passe, puis poste à l'action du formulaire, sur le même
@@ -461,3 +461,8 @@ règlent dans l'onglet Sessions et sont rangés dans `extranet_compte` (V7.5.8),
 `PageConnexionCoherenceTest` (3 000 chemins tirés, graine 20261108), 120 tests extranet au vert ;
 `test-identifiants-extranet.js` 37/37 (autre site refusé, base = écran = API, aucun fichier créé) ;
 `test-rapprochement-extranets.js` 40/40.
+
+Correction du 08/11 (suite) : clé de chiffrement en base (`extranet_cle`, V7.5.9) au lieu du fichier
+`D:\prestige\cles\extranet.cle`. Tests : `ChiffrementExtranetCoherenceTest` adapté (clé fournie, lue une fois, clé
+invalide refusée), 120 tests extranet ; `test-identifiants-extranet.js` 38/38 (clé en base, 32 octets, aucun fichier,
+jamais dans l'API, retirée au nettoyage si créée par le test) ; `test-rapprochement-extranets.js` 40/40.

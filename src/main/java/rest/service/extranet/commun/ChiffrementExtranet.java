@@ -1,21 +1,21 @@
 package rest.service.extranet.commun;
 
+import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
 import java.security.GeneralSecurityException;
 import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.List;
 import javax.crypto.Cipher;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
+import javax.persistence.EntityManager;
 
 /**
- * Chiffrement des mots de passe des extranets (AES-256-GCM). La cle est un fichier du serveur, hors base et hors depot
- * ({@code D:\prestige\cles\extranet.cle}), cree au premier usage : une copie de la base seule ne livre pas les mots de
- * passe. Format enregistre : {@code v1:} + base64(iv de 12 octets + texte chiffre + etiquette).
+ * Chiffrement des mots de passe des extranets (AES-256-GCM). Decision du 08/11 : la cle est rangee EN BASE, dans la
+ * table {@code extranet_cle} (aucun fichier sur le poste), creee au premier usage et jamais renvoyee par l'API ni
+ * journalisee. Format enregistre : {@code v1:} + base64(iv de 12 octets + texte chiffre + etiquette).
  */
 public final class ChiffrementExtranet {
 
@@ -24,49 +24,61 @@ public final class ChiffrementExtranet {
     private static final int ETIQUETTE_BITS = 128;
     private static final SecureRandom ALEA = new SecureRandom();
 
-    private final Path fichierCle;
+    /** Fournit la cle de 32 octets. */
+    public interface SourceCle {
+        byte[] cle() throws GeneralSecurityException;
+    }
+
+    private final SourceCle source;
     private byte[] cle;
 
-    public ChiffrementExtranet(Path fichierCle) {
-        this.fichierCle = fichierCle;
+    public ChiffrementExtranet(SourceCle source) {
+        this.source = source;
     }
 
-    /** Cle du serveur : dossier « cles » de la racine Prestige. */
-    public static ChiffrementExtranet duServeur() {
-        String force = System.getenv("EXTRANET_CLE_FICHIER");
-        if (force == null) {
-            force = System.getProperty("EXTRANET_CLE_FICHIER");
-        }
-        Path p = force != null && !force.trim().isEmpty() ? Path.of(force.trim())
-                : util.StockageDisque.sousDossier("cles").resolve("extranet.cle");
-        return new ChiffrementExtranet(p);
+    /** Cle rangee en base (table extranet_cle, ligne 1), creee si absente. */
+    public static ChiffrementExtranet deLaBase(EntityManager em) {
+        return new ChiffrementExtranet(() -> cleEnBase(em));
     }
 
-    private synchronized byte[] cle() throws GeneralSecurityException {
-        if (cle != null) {
-            return cle;
+    @SuppressWarnings("unchecked")
+    static byte[] cleEnBase(EntityManager em) throws GeneralSecurityException {
+        List<Object> l = em.createNativeQuery("SELECT cle FROM extranet_cle WHERE id = 1").getResultList();
+        if (l.isEmpty()) {
+            byte[] n = new byte[32];
+            ALEA.nextBytes(n);
+            /* INSERT IGNORE : si un autre appel l'a creee en meme temps, on relit la sienne */
+            em.createNativeQuery("INSERT IGNORE INTO extranet_cle (id, cle, creee_le) VALUES (1, ?1, NOW())")
+                    .setParameter(1, Base64.getEncoder().encodeToString(n)).executeUpdate();
+            l = em.createNativeQuery("SELECT cle FROM extranet_cle WHERE id = 1").getResultList();
         }
+        if (l.isEmpty() || l.get(0) == null) {
+            throw new GeneralSecurityException("Clé des extranets absente");
+        }
+        return decoder(l.get(0) instanceof BigInteger ? l.get(0).toString() : (String) l.get(0));
+    }
+
+    static byte[] decoder(String texte) throws GeneralSecurityException {
         try {
-            if (!Files.exists(fichierCle)) {
-                byte[] n = new byte[32];
-                ALEA.nextBytes(n);
-                Files.createDirectories(fichierCle.getParent());
-                try {
-                    Files.write(fichierCle, Base64.getEncoder().encode(n), StandardOpenOption.CREATE_NEW);
-                } catch (java.nio.file.FileAlreadyExistsException deja) {
-                    /* cree en meme temps par un autre appel : on relit le sien */
-                }
-            }
-            byte[] lu = Base64.getDecoder()
-                    .decode(new String(Files.readAllBytes(fichierCle), StandardCharsets.US_ASCII).trim());
+            byte[] lu = Base64.getDecoder().decode(texte.trim());
             if (lu.length != 32) {
                 throw new GeneralSecurityException("Clé des extranets invalide");
             }
-            cle = lu;
-            return cle;
-        } catch (java.io.IOException | IllegalArgumentException e) {
+            return lu;
+        } catch (IllegalArgumentException e) {
             throw new GeneralSecurityException("Clé des extranets illisible", e);
         }
+    }
+
+    private synchronized byte[] cle() throws GeneralSecurityException {
+        if (cle == null) {
+            byte[] lu = source.cle();
+            if (lu == null || lu.length != 32) {
+                throw new GeneralSecurityException("Clé des extranets invalide");
+            }
+            cle = lu;
+        }
+        return cle;
     }
 
     public String chiffrer(String clair) throws GeneralSecurityException {

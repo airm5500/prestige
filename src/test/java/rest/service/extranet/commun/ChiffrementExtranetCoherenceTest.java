@@ -7,28 +7,25 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.security.GeneralSecurityException;
 import java.util.Base64;
 import java.util.HashSet;
 import java.util.Random;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 
 /**
  * Mots de passe des extranets chiffres (AES-GCM) : sur des milliers de mots de passe tires avec une graine fixe, le
  * dechiffrement rend exactement la saisie, le texte enregistre ne contient jamais le clair, deux chiffrements
- * different, une valeur alteree ou une autre cle est refusee, la cle est creee une fois puis reutilisee.
+ * different, une valeur alteree ou une autre cle est refusee, la cle est lue une fois, une cle invalide est refusee.
  */
 class ChiffrementExtranetCoherenceTest {
 
     private static final String ALPHABET = "abcXYZ0129 &=+%#?/\\'\"éèçàùœ€ñ😀\t";
 
     @Test
-    void allerRetourSurDesMilliersDeMotsDePasse(@TempDir Path dir) throws Exception {
-        ChiffrementExtranet c = new ChiffrementExtranet(dir.resolve("cles").resolve("extranet.cle"));
+    void allerRetourSurDesMilliersDeMotsDePasse() throws Exception {
+        ChiffrementExtranet c = cle(1);
         Random r = new Random(20261107L);
         Set<String> chiffres = new HashSet<>();
         for (int cas = 0; cas < 3000; cas++) {
@@ -57,8 +54,8 @@ class ChiffrementExtranetCoherenceTest {
     }
 
     @Test
-    void alterationOuAutreCleRefusees(@TempDir Path dir) throws Exception {
-        ChiffrementExtranet c = new ChiffrementExtranet(dir.resolve("a.cle"));
+    void alterationOuAutreCleRefusees() throws Exception {
+        ChiffrementExtranet c = cle(2);
         String e = c.chiffrer("secret-essai");
         byte[] b = Base64.getDecoder().decode(e.substring(3));
         Random r = new Random(20261107L);
@@ -68,25 +65,39 @@ class ChiffrementExtranetCoherenceTest {
             String altere = "v1:" + Base64.getEncoder().encodeToString(x);
             assertThrows(GeneralSecurityException.class, () -> c.dechiffrer(altere));
         }
-        ChiffrementExtranet autre = new ChiffrementExtranet(dir.resolve("b.cle"));
+        ChiffrementExtranet autre = cle(3);
         assertThrows(GeneralSecurityException.class, () -> autre.dechiffrer(e));
         for (String invalide : new String[] { null, "", "secret-essai", "v1:", "v1:!!", "v2:" + e.substring(3) }) {
             assertThrows(GeneralSecurityException.class, () -> c.dechiffrer(invalide));
         }
     }
 
+    /** Cle aleatoire tiree avec une graine (en officine : table extranet_cle). */
+    private static ChiffrementExtranet cle(long graine) {
+        byte[] k = new byte[32];
+        new Random(graine).nextBytes(k);
+        return new ChiffrementExtranet(() -> k.clone());
+    }
+
     @Test
-    void cleCreeeUneFoisPuisReutilisee(@TempDir Path dir) throws Exception {
-        Path f = dir.resolve("cles").resolve("extranet.cle");
-        String e = new ChiffrementExtranet(f).chiffrer("abc");
-        assertTrue(Files.exists(f));
-        byte[] cle = Files.readAllBytes(f);
-        assertEquals(32, Base64.getDecoder().decode(new String(cle, StandardCharsets.US_ASCII).trim()).length);
-        /* une autre instance (redemarrage du serveur) relit la meme cle */
-        assertEquals("abc", new ChiffrementExtranet(f).dechiffrer(e));
-        assertEquals(new String(cle, StandardCharsets.US_ASCII), Files.readString(f, StandardCharsets.US_ASCII));
-        /* cle corrompue : refus, jamais une nouvelle cle silencieuse */
-        Files.writeString(f, "trop-courte");
-        assertThrows(GeneralSecurityException.class, () -> new ChiffrementExtranet(f).dechiffrer(e));
+    void cleLueUneFoisEtCleInvalideRefusee() throws Exception {
+        int[] lectures = { 0 };
+        byte[] k = new byte[32];
+        new Random(4L).nextBytes(k);
+        ChiffrementExtranet c = new ChiffrementExtranet(() -> {
+            lectures[0]++;
+            return k.clone();
+        });
+        String e = c.chiffrer("abc");
+        assertEquals("abc", c.dechiffrer(e));
+        assertEquals(1, lectures[0]);
+        /* meme cle relue (redemarrage du serveur) : meme resultat */
+        assertEquals("abc", new ChiffrementExtranet(() -> k.clone()).dechiffrer(e));
+        /* cle absente, trop courte ou illisible : refus, jamais une nouvelle cle silencieuse */
+        assertThrows(GeneralSecurityException.class, () -> new ChiffrementExtranet(() -> null).dechiffrer(e));
+        assertThrows(GeneralSecurityException.class, () -> new ChiffrementExtranet(() -> new byte[16]).dechiffrer(e));
+        assertThrows(GeneralSecurityException.class, () -> ChiffrementExtranet.decoder("trop-courte"));
+        assertThrows(GeneralSecurityException.class, () -> ChiffrementExtranet.decoder("!!pas du base64!!"));
+        assertEquals(32, ChiffrementExtranet.decoder(Base64.getEncoder().encodeToString(k)).length);
     }
 }
