@@ -204,6 +204,17 @@ class MonnaieVenteLieeCoherenceTest {
             if (regleAttendu ? regle_.size() != 1 || chiffres(regle_.get(0)) != net : !regle_.isEmpty()) {
                 ecarts.add(v[0] + " : « Réglé » " + regle_ + " (net " + net + ")");
             }
+            /*
+             * le mode de reglement reste imprime : « Différé » pour un differe, « Espèces » quand le versé n'est plus
+             * la
+             */
+            List<String> mode = valeurs(p, "Règlement");
+            boolean aUnNet = avant.stream().anyMatch(l -> l.startsWith("Net à payer"));
+            if (o.differe() && !mode.equals(Collections.singletonList(ReglementTicket.DIFFERE))) {
+                ecarts.add(v[0] + " : mode du differe " + mode);
+            } else if (!o.differe() && o.forme == 0 && aUnNet && !mode.equals(Collections.singletonList("Espèces"))) {
+                ecarts.add(v[0] + " : mode especes " + mode);
+            }
             List<String> liee = valeurs(p, MonnaieVenteLiee.VENTE_LIEE);
             if (liee.size() != 1 || !liee.get(0).equals("n° " + v[5])) {
                 ecarts.add(v[0] + " : renvoi " + liee + " != n° " + v[5]);

@@ -5,7 +5,8 @@
  *    DONT PART CLIENT) ;
  *  - la base apres la cloture (lignes de chaque vente, part de l'organisme, part client, mouvement de caisse) ;
  *  - le ticket assurance relu par l'apercu (lignes assurance seulement, rien sous les lignes au taux de l'assurance (point 5.2 du 06/11), bloc client,
- *    net ; aucune mention de la vente comptant) ;
+ *    net ; aucune ligne de la vente comptant, seulement le renvoi « Vente liée n° … » ; puis le ticket client combine,
+ *    ressorti par la reimpression (decision du 08/11, monnaie des ventes liees)) ;
  *  - le ticket client combine relu par l'apercu (section assurance, section comptant, part du client, comptant, TTC des
  *    deux ventes, net) ;
  *  - le detail de vente (« Ventes terminees ») : vente liee et sa reference, dans les deux sens.
@@ -118,8 +119,11 @@ const arrondi5 = (v) => (v <= 0 ? 0 : (v % 5 === 0 ? v : v + (5 - (v % 5))));
       ta.articles.every((a) => a.credits.length === 0) && Math.abs(parts.reduce((s, x) => s + x, 0) - partTpBase) <= 2,
       JSON.stringify(ta.articles.map((a) => a.credits)) + ' parts ' + parts.join(',') + ' / base ' + partTpBase);
     const blocTp = Object.keys(ta.paires).filter((k) => k.indexOf(TP) === 0).map((k) => C.chiffres(ta.paires[k]))[0];
-    ok('Ticket assurance : bloc client = part de l\'organisme en base, net imprimé = part client affichée, aucune mention de la vente comptant',
-      blocTp === partTpBase && ta.net === rail.partClient.valeur && !JSON.stringify(ap).toUpperCase().includes('COMPTANT') && !porte(JSON.stringify(ap), refsVno),
+    /* decision du 08/11 (monnaie des ventes liees) : le ticket assurance renvoie a la vente comptant par « Vente liée »,
+       sans aucune de ses lignes ni le mot COMPTANT ; la reimpression ressort ensuite le ticket client combine */
+    ok('Ticket assurance : bloc client = part de l\'organisme en base, net imprimé = part client affichée, aucune ligne de la vente comptant, renvoi « Vente liée » à sa référence',
+      blocTp === partTpBase && ta.net === rail.partClient.valeur && !JSON.stringify(ap.tickets[0]).toUpperCase().includes('COMPTANT')
+      && porte(ta.paires['Vente liée'], refsVno) && ap.tickets.length === 2 && ap.tickets[1].modele === 'VENTE_MIXTE',
       'bloc ' + blocTp + ' net ' + ta.net + ' ' + JSON.stringify(ta.paires));
 
     /* ---- le ticket client combine ---- */

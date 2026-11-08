@@ -430,11 +430,15 @@ public final class ConversionTicket {
         boolean modeDit = false;
         boolean remise = false;
         boolean terme = false;
+        /* monnaie des ventes liees (08/11) : « Réglé » et « Vente liée » apres le mode de reglement, sans le masquer */
+        List<String[]> apresReglement = new ArrayList<>();
         for (String l : s.subtotal) {
             String[] p = l.split(";", -1);
             String libelle = p[0].replace(":", "").trim();
             String valeur = p.length > 1 ? p[1].trim() : "";
-            if (libelle.equals("*")) {
+            if (libelle.equals(MonnaieVenteLiee.REGLE) || libelle.equals(MonnaieVenteLiee.VENTE_LIEE)) {
+                apresReglement.add(new String[] { libelle, valeur });
+            } else if (libelle.equals("*")) {
                 remise = true;
                 if (r.remise()) {
                     totaux.paire("*", "− " + montantF(valeur), Style.NORMAL);
@@ -470,6 +474,9 @@ public final class ConversionTicket {
         }
         if (!mode.isEmpty() && !modeDit) {
             reglement.paire("Règlement", mode, Style.NORMAL);
+        }
+        for (String[] a : apresReglement) {
+            reglement.paire(a[0], montantF(a[1]), Style.NORMAL);
         }
         /* total avant remise : seulement s'il apprend quelque chose, et jamais quand la remise est masquee */
         if (!vide(total) && ((remise && r.remise()) || (!remise && terme))) {
