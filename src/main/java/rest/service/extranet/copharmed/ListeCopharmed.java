@@ -15,9 +15,13 @@ public enum ListeCopharmed {
 
     COPHARMED_PROMOTIONS("Promotions", "Promotions",
             Arrays.asList("Promotion", "Début", "Fin", "Type", "Désignation", "Code", "DCI", "Colisage", "Prix HT",
-                    "Remise", "Prix net HT", "Prix public", "Unités gratuites")),
+                    "Taux TVA", "Prix TTC", "Prix public", "Unités gratuites")),
+    /*
+     * 08/11 : la 2e et la 3e valeur de prix de Copharmed sont le taux de TVA (0, 9 ou 18 %) et le prix TTC (prix HT x
+     * (1 + taux), verifie sur les 10 581 lignes gardees), et non une remise et un prix net HT.
+     */
     COPHARMED_CATALOGUE("Produits", "Catalogue produits", Arrays.asList("Désignation", "Code", "DCI", "Colisage",
-            "Prix HT", "Remise", "Prix net HT", "Prix public", "Disponibilité", "Promotion", "Unités gratuites"));
+            "Prix HT", "Taux TVA", "Prix TTC", "Prix public", "Disponibilité", "Promotion", "Unités gratuites"));
 
     public final String rubrique;
     public final String libelle;

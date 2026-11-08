@@ -23,9 +23,10 @@ import rest.service.extranet.ubipharm.ListesUbipharmParseur.Ligne;
 /**
  * Lecture de Copharmed (Intershop, releve du 08/11), GET seulement. Une ligne produit (.product-row) porte : nom
  * (.product-row-name), « Code CIP/ACL/EAN7 : x », « Colisage : x », DCI (liens .product-row-features), prix
- * (.product-row-price : prix HT, remise, prix net HT, prix public, au format « 1.469 CFA » et « 0,0% »), disponibilite
- * (.product-row-buybox : « Indisponible », « Livraison en 48 h », ou champ de quantite = disponible), badge de
- * promotion (.product-row-promotion) et paliers d'unites gratuites (« 300 U.G. / 1.000 »).
+ * (.product-row-price : prix HT, taux de TVA, prix TTC, prix public, au format « 1.469 CFA » et « 18,0% » ; les champs
+ * remise et prixNet portent le taux de TVA et le prix TTC), disponibilite (.product-row-buybox : « Indisponible », «
+ * Livraison en 48 h », ou champ de quantite = disponible), badge de promotion (.product-row-promotion) et paliers
+ * d'unites gratuites (« 300 U.G. / 1.000 »).
  *
  * Une page lue sans session ouverte reste publique sur Copharmed (sans prix) : elle est reconnue a l'absence du lien de
  * deconnexion, la session est alors marquee expiree et la page relue une fois apres reconnexion.

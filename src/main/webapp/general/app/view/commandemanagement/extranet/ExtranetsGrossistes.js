@@ -1259,8 +1259,8 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
                         {text: 'DCI', dataIndex: 'dci', flex: 2, renderer: me.texte},
                         {text: 'Colisage', dataIndex: 'colisage', width: 80, align: 'right', renderer: me.texte},
                         {text: 'Prix HT', dataIndex: 'prixHT', width: 90, align: 'right', renderer: me.montant},
-                        {text: 'Remise', dataIndex: 'remise', width: 70, align: 'right', renderer: me.texte},
-                        {text: 'Prix net HT', dataIndex: 'prixNet', width: 95, align: 'right', renderer: me.montant},
+                        {text: 'Taux TVA', dataIndex: 'remise', width: 70, align: 'right', renderer: me.texte},
+                        {text: 'Prix TTC', dataIndex: 'prixNet', width: 95, align: 'right', renderer: me.montant},
                         {text: 'Prix public', dataIndex: 'prixPublic', width: 90, align: 'right', renderer: me.montant},
                         {text: 'Disponibilité', dataIndex: 'dispo', width: 170, align: 'center', renderer: function (v) {
                                 return me.celluleListe(dispo, v);

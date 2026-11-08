@@ -69,8 +69,9 @@ class CopharmedLecteurTest {
         p.dci2 = r.nextInt(3) == 0 ? "Codeine" : null;
         long ht = r.nextInt(300_000), ppv = ht + r.nextInt(50_000);
         p.ht = String.valueOf(ht);
-        p.remise = r.nextBoolean() ? "0,0%" : (r.nextInt(30)) + ",5%";
-        p.net = String.valueOf(ht);
+        int tva = new int[] { 0, 0, 9, 18 }[r.nextInt(4)];
+        p.remise = tva + ",0%";
+        p.net = String.valueOf(Math.round(ht * (100 + tva) / 100.0));
         p.ppv = String.valueOf(ppv);
         switch (r.nextInt(3)) {
         case 0:
@@ -336,6 +337,34 @@ class CopharmedLecteurTest {
             ExtranetException e = assertThrows(ExtranetException.class, () -> CopharmedLecteur.rechercher(t, "x1"));
             assertEquals(ExtranetException.Nature.CONNEXION_REFUSEE, e.nature());
         }
+    }
+
+    /**
+     * 08/11 : colonnes « Taux TVA » et « Prix TTC » (et non « Remise », « Prix net HT ») ; sur 300 produits lus, prix
+     * TTC = prix HT x (1 + taux), a 1 F pres, en lisant les colonnes par leur titre.
+     */
+    @Test
+    void tauxDeTvaEtPrixTtc() {
+        for (ListeCopharmed l : ListeCopharmed.values()) {
+            assertFalse(l.colonnes.contains("Remise"), l.name());
+            assertFalse(l.colonnes.contains("Prix net HT"), l.name());
+            assertEquals(l.colonnes.indexOf("Prix HT") + 1, l.colonnes.indexOf("Taux TVA"), l.name());
+            assertEquals(l.colonnes.indexOf("Prix HT") + 2, l.colonnes.indexOf("Prix TTC"), l.name());
+        }
+        Random r = new Random(20261109);
+        List<P> ps = new ArrayList<>();
+        for (int i = 0; i < 300; i++) {
+            ps.add(tirer(r, i));
+        }
+        int avecTva = 0;
+        for (CopharmedLecteur.Produit x : CopharmedLecteur.produits(pageProduits(ps, true))) {
+            double taux = Double.parseDouble(x.remise.replace("%", "").replace(',', '.'));
+            long ht = Long.parseLong(x.prixHT), ttc = Long.parseLong(x.prixNet);
+            assertTrue(Math.abs(ttc - ht * (1 + taux / 100)) <= 1, x.nom + " : " + ht + " / " + x.remise + " / " + ttc);
+            assertTrue(ttc >= ht);
+            avecTva += taux > 0 ? 1 : 0;
+        }
+        assertTrue(avecTva > 50 && avecTva < 250, "jeu varie : " + avecTva);
     }
 
     @Test
