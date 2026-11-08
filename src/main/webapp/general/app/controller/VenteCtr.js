@@ -1856,11 +1856,8 @@ Ext.define('testextjs.controller.VenteCtr', {
             return;
         }
 
-        // 3) Si valeur présente, chercher le record dans le store
-        const record = store ? (
-                store.findRecord("lgFAMILLEID", combo.getValue(), 0, false, false, true)
-                || store.findRecord("intCIP", combo.getValue(), 0, false, false, true)
-                ) : null;
+        // 3) Article choisi dans la liste (la valeur est son identifiant) : renseigner puis saisie de la quantite
+        const record = store ? store.findRecord("lgFAMILLEID", v, 0, false, false, true) : null;
 
         if (record) {
             const vnoemplacementId = me.getVnoemplacementField();
@@ -1869,8 +1866,25 @@ Ext.define('testextjs.controller.VenteCtr', {
             me.afficherPeremptionProche(record.get('lgFAMILLEID'));
             me.getVnoqtyField().focus(true, 100);
         } else {
-            // ✅ si pas trouvé localement => douchette (API)
+            // Code tape ou scanne (liste fermee) : douchette (API), ajout direct d'une boite.
+            // Scan perdu du 08/11 (rejeu de l'heure de pointe) : le meme article scanne une seconde fois etait retrouve
+            // dans la liste de la recherche precedente ; l'ecran passait dans « QD » sans rien ajouter, puis la
+            // recherche lancee par la frappe (une demi-seconde apres la derniere touche) rouvrait la liste et ramenait
+            // le curseur dans la recherche. Des que findone + ajout depassaient la demi-seconde, chaque nouveau scan du
+            // meme article etait perdu. Un code tape suit donc toujours le chemin de la douchette, et cette recherche
+            // en attente est annulee : Entree a deja traite le code.
+            me.annulerRechercheEnAttente(combo);
             me.checkDouchette(combo, true);
+        }
+    },
+
+    /** Annule la recherche de la liste programmee par la frappe (ExtJS : doQueryTask, queryDelay). */
+    annulerRechercheEnAttente: function (combo) {
+        try {
+            if (combo && combo.doQueryTask) {
+                combo.doQueryTask.cancel();
+            }
+        } catch (e) {
         }
     },
     onMontantRecuVnoKey: function (field, e, options) {
