@@ -134,18 +134,29 @@ const sessionsApi = (p) => p.evaluate(() => fetch('../api/v1/extranet/sessions')
     const rp = await cliquerEtAttendre(p, ECRAN + ' #exCompteEnregistrerUBIPHARM', '/comptes/UBIPHARM');
     ok('page de connexion : autre site refusé, base inchangée', rp.success === false && /doit être sur/.test(rp.msg)
       && q("SELECT IFNULL(page_connexion, 'NULL') FROM extranet_compte WHERE source = 'UBIPHARM'") === 'NULL', rp.msg);
+    /* ---- identifiant saisi par erreur dans « Nom de la case » (cas du 08/11) : refuse, base inchangee */
+    ok('écran : libellé « Nom de la case », vide par défaut, aide au survol', (await texte(p, '#exChampUBIPHARM')).indexOf('Nom de la case') >= 0
+      && (await texte(p, '#exChampUBIPHARM')).indexOf('Champ identifiant') < 0
+      && (await p.evaluate(() => Ext.ComponentQuery.query('extranetsgrossistes #exChampUBIPHARM')[0].labelEl.dom.getAttribute('data-qtip') || '')).indexOf('Ne saisissez pas votre identifiant') >= 0);
+    await taper(p, '#exPageUBIPHARM', '');
+    await taper(p, '#exChampUBIPHARM', srv.IDENTIFIANT);
+    const rc = await cliquerEtAttendre(p, ECRAN + ' #exCompteEnregistrerUBIPHARM', '/comptes/UBIPHARM');
+    ok('nom de la case = identifiant : refusé avec explication, base inchangée', rc.success === false && /ne doit pas contenir votre identifiant/.test(rc.msg)
+      && q("SELECT IFNULL(champ_identifiant, 'NULL') FROM extranet_compte WHERE source = 'UBIPHARM'") === 'NULL'
+      && (await texte(p, '#exSessionsMsg')).indexOf('laissez-la vide') >= 0, rc.msg);
+    /* ---- case reglee absente du formulaire : la connexion trouve seule la case de l'identifiant */
     await taper(p, '#exPageUBIPHARM', 'http://127.0.0.1:18765/');
-    await taper(p, '#exChampUBIPHARM', 'login');
+    await taper(p, '#exChampUBIPHARM', 'case-absente');
     await cliquerEtAttendre(p, ECRAN + ' #exCompteEnregistrerUBIPHARM', '/comptes/UBIPHARM');
     const pc = lignes("SELECT page_connexion, champ_identifiant FROM extranet_compte WHERE source = 'UBIPHARM'")[0];
     const apiPage = JSON.parse(await sessionsApi(p)).data.find((s) => s.source === 'UBIPHARM').compte;
     const PAGE = 'http://127.0.0.1:18765/';
-    ok('page de connexion : gardée telle que saisie, base = écran = API (champ « login »)', pc[0] === PAGE && pc[1] === 'login'
-      && apiPage.pageConnexion === PAGE && apiPage.champIdentifiant === 'login' && (await valeur(p, '#exPageUBIPHARM')) === PAGE
-      && (await valeur(p, '#exChampUBIPHARM')) === 'login', JSON.stringify(pc));
+    ok('page de connexion : gardée telle que saisie, base = écran = API (case « case-absente »)', pc[0] === PAGE && pc[1] === 'case-absente'
+      && apiPage.pageConnexion === PAGE && apiPage.champIdentifiant === 'case-absente' && (await valeur(p, '#exPageUBIPHARM')) === PAGE
+      && (await valeur(p, '#exChampUBIPHARM')) === 'case-absente', JSON.stringify(pc));
     ok('aucun fichier extranet.properties créé', !fs.existsSync('D:/prestige/extranet.properties'));
     const r4 = await cliquerEtAttendre(p, ECRAN + ' #exConnecterUBIPHARM', '/connexion');
-    ok('connexion : réussie après correction', r4.success === true && r4.session && r4.session.mode === 'CONNEXION', JSON.stringify(r4));
+    ok('connexion : réussie après correction, case absente remplacée par la détection automatique', r4.success === true && r4.session && r4.session.mode === 'CONNEXION', JSON.stringify(r4));
     ok('extranet : deux POST /Login au total, le second réussi', srv.etat.connexions.length === 2 && srv.etat.connexions[1].reussie);
     ok('écran : « Connecté automatiquement »', (await texte(p, '#exCompteEtatUBIPHARM')).indexOf('Connecté automatiquement') >= 0, await texte(p, '#exCompteEtatUBIPHARM'));
     api = await sessionsApi(p);

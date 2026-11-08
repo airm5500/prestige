@@ -220,8 +220,10 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
                                 enforceMaxLength: true, fieldLabel: 'Page de connexion', labelWidth: 110,
                                 margin: '0 0 0 8', emptyText: '/ (par défaut)'},
                             {xtype: 'textfield', itemId: 'exChamp' + source, width: 190, maxLength: 100,
-                                enforceMaxLength: true, fieldLabel: 'Champ identifiant', labelWidth: 105,
-                                margin: '0 0 0 8', emptyText: 'automatique'},
+                                enforceMaxLength: true, fieldLabel: 'Nom de la case', labelWidth: 95,
+                                margin: '0 0 0 8', emptyText: 'laisser vide',
+                                labelAttrTpl: 'data-qtip="Réglage technique, à laisser vide : Prestige trouve seul la'
+                                    + ' case de l\'identifiant. Ne saisissez pas votre identifiant ici."'},
                             {xtype: 'button', text: 'Enregistrer', itemId: 'exCompteEnregistrer' + source,
                                 margin: '0 0 0 6', handler: function () {
                                     me.enregistrerCompte(source);

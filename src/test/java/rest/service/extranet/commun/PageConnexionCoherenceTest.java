@@ -82,6 +82,17 @@ class PageConnexionCoherenceTest {
         for (String mauvais : new String[] { "a b", "a\"b", "<x>", "x".repeat(101) }) {
             assertThrows(IllegalArgumentException.class, () -> ComptesExtranet.normaliserChamp(mauvais));
         }
+        /* identifiant saisi dans la case technique : refuse avant tout acces a la base */
+        ComptesExtranet sansBase = new ComptesExtranet(null, null);
+        for (String[] c : new String[][] { { "mon.identifiant", "mon.identifiant" }, { " Paul.K ", "paul.k" },
+                { "a-b", "A-B" } }) {
+            try {
+                assertEquals("La case « Nom de la case » ne doit pas contenir votre identifiant : laissez-la vide",
+                        sansBase.enregistrer(SourceExtranet.TEDIS, c[0], "mdp", null, c[1], "essai"));
+            } catch (java.security.GeneralSecurityException ex) {
+                throw new AssertionError(ex);
+            }
+        }
         ConnexionExtranet.Identifiants i = new ConnexionExtranet.Identifiants("u", "p", "e", null, " ");
         assertEquals("/", i.pageConnexion);
         assertNull(i.champIdentifiant);

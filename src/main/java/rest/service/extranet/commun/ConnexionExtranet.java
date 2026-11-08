@@ -190,13 +190,13 @@ public final class ConnexionExtranet {
             if (e == mdp || nom.equals(f.champMotDePasse)) {
                 continue;
             }
+            boolean saisissable = type.isEmpty() || type.equals("text") || type.equals("email") || type.equals("tel");
             if (champIdentifiantForce != null) {
-                if (nom.equals(champIdentifiantForce)) {
+                if (saisissable && nom.equals(champIdentifiantForce)) {
                     f.champIdentifiant = nom;
                     continue;
                 }
-            } else if (f.champIdentifiant == null
-                    && (type.isEmpty() || type.equals("text") || type.equals("email") || type.equals("tel"))) {
+            } else if (f.champIdentifiant == null && saisissable) {
                 f.champIdentifiant = nom;
                 continue;
             }
@@ -205,6 +205,10 @@ public final class ConnexionExtranet {
             } else if ((type.equals("checkbox") || type.equals("radio")) && e.hasAttr("checked")) {
                 f.autres.put(nom, e.hasAttr("value") ? e.attr("value") : "on");
             }
+        }
+        if (f.champIdentifiant == null && champIdentifiantForce != null) {
+            /* case reglee absente de ce formulaire (reglage errone) : detection automatique */
+            return lireFormulaire(html, null);
         }
         return f.champIdentifiant == null ? null : f;
     }

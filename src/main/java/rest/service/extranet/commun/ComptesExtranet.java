@@ -128,6 +128,9 @@ public final class ComptesExtranet {
         if (id.length() > IDENTIFIANT_MAX) {
             return "L'identifiant dépasse " + IDENTIFIANT_MAX + " caractères";
         }
+        if (champIdentifiant != null && champIdentifiant.trim().equalsIgnoreCase(id)) {
+            return "La case « Nom de la case » ne doit pas contenir votre identifiant : laissez-la vide";
+        }
         boolean nouveau = motDePasse != null && !motDePasse.isEmpty();
         if (nouveau && motDePasse.length() > MOT_DE_PASSE_MAX) {
             return "Le mot de passe dépasse " + MOT_DE_PASSE_MAX + " caractères";

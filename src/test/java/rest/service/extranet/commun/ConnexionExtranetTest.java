@@ -360,4 +360,25 @@ class ConnexionExtranetTest {
         assertNull(ConnexionExtranet.lireFormulaire("<form><input type='password' name='p'></form>", null));
         assertNull(ConnexionExtranet.lireFormulaire(null, null));
     }
+
+    /**
+     * Case technique reglee mais absente du formulaire (par exemple l'identifiant de l'utilisateur saisi a la place du
+     * nom de la case) : detection automatique, jamais « formulaire introuvable ».
+     */
+    @Test
+    void caseRegleeAbsenteDetectionAutomatique() {
+        String html = "<form action='/Login'><input type='hidden' name='_token' value='j'><input name='login'>"
+                + "<input type='password' name='pwd'></form>";
+        for (String absente : new String[] { "mon.identifiant", "LOGIN", "pwd", "_token", "email" }) {
+            ConnexionExtranet.Formulaire f = ConnexionExtranet.lireFormulaire(html, absente);
+            assertNotNull(f, absente);
+            assertEquals("login", f.champIdentifiant, absente);
+            assertEquals("pwd", f.champMotDePasse, absente);
+            assertEquals("j", f.autres.get("_token"), absente);
+            assertFalse(f.autres.containsKey("login"), absente);
+        }
+        /* toujours pas de case identifiant possible : null */
+        assertNull(ConnexionExtranet.lireFormulaire(
+                "<form><input type='hidden' name='h' value='1'><input type='password' name='p'></form>", "x"));
+    }
 }
