@@ -15,9 +15,9 @@
     <head>
         <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
-        <link rel="shortcut icon" type="image/x-icon" href="../resources/images/favicon.ico" /> 
+        <link rel="icon" type="image/x-icon" sizes="16x16 24x24 32x32 48x48" href="../resources/images/favicon.ico?v=2" /> 
         <!-- version standart //--> 
-        <link rel="shortcut icon" type="image/png" href="../resources/images/favicon.png" />
+        <link rel="icon" type="image/png" sizes="256x256" href="../resources/images/favicon.png?v=2" />
         <%@page import="dal.dataManager"  %>
         <%@page import="java.util.*"  %>
         <%@page import="multilangue.Translate"  %>
