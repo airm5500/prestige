@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Prestige : nouvelles icônes, à partir de zéro (plan du 08/11, point 10)</title>
+<style>
+  :root{--encre:#1d2733;--gris:#5d6b78;--accent:#1d4670}
+  *{box-sizing:border-box}
+  svg,canvas{flex-shrink:0}
+  body{margin:0;font:14px/1.5 Inter,"Segoe UI",Arial,sans-serif;color:var(--encre);background:#f5f7f9}
+  header{padding:28px 40px 8px}
+  h1{margin:0 0 6px;font-size:24px}
+  h2.section{font-size:17px;margin:18px 40px 8px}
+  header p{margin:4px 0;color:var(--gris);max-width:1050px}
+  code{background:#e8edf1;border-radius:4px;padding:0 4px}
+  .bandeau{margin:0 40px;display:flex;flex-direction:column;gap:10px}
+  .onglets{display:flex;gap:2px;padding:8px 8px 0;border-radius:10px 10px 0 0;overflow-x:auto}
+  .onglets.clair{background:#cfd6dd}
+  .onglets.sombre{background:#1b1e23}
+  .onglets .o{display:flex;align-items:center;gap:7px;padding:7px 12px;border-radius:9px 9px 0 0;font-size:12px;white-space:nowrap;min-width:150px}
+  .onglets.clair .o{background:#e9edf1}
+  .onglets.sombre .o{background:#2e333b;color:#e6e9ee}
+  .barre-t{display:flex;gap:4px;align-items:center;justify-content:center;padding:6px 10px;border-radius:8px;flex-wrap:wrap}
+  .barre-t.sombre{background:#1e2229}
+  .barre-t.claire{background:#e6ebf0;border:1px solid #d3dae1}
+  .barre-t .app{width:44px;height:44px;border-radius:6px;display:flex;align-items:center;justify-content:center;position:relative}
+  .barre-t.sombre .app{background:#3a4049}
+  .barre-t.claire .app{background:#fff}
+  .barre-t .app::after{content:"";position:absolute;bottom:2px;width:14px;height:3px;border-radius:2px;background:#4aa8e8}
+  .barre-t .lettre{position:absolute;top:-2px;right:-2px;font-size:10px;font-weight:700;background:var(--encre);color:#fff;border-radius:999px;width:16px;height:16px;display:flex;align-items:center;justify-content:center}
+  .grille{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,600px),1fr));gap:22px;padding:14px 40px 40px}
+  .carte{background:#fff;border:1px solid #e1e6eb;border-radius:14px;padding:18px 20px;box-shadow:0 2px 8px rgba(20,40,60,.05)}
+  .carte h3{margin:0 0 2px;font-size:17px;display:flex;gap:10px;align-items:baseline}
+  .carte h3 .n{color:#fff;background:var(--accent);border-radius:999px;padding:0 9px;font-size:13px}
+  .carte .idee{color:var(--gris);margin:0 0 12px;min-height:42px}
+  .corps{display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap}
+  .gauche{display:flex;flex-direction:column;gap:10px}
+  .tailles{display:flex;align-items:flex-end;gap:16px;padding:10px 14px;border-radius:10px}
+  .tailles.clair{background:#fff;border:1px solid #edf0f3;color:var(--gris)}
+  .tailles.sombre{background:#20242b;color:#aab4be}
+  .tailles figure{margin:0;text-align:center;font-size:11px}
+  .tailles svg,.tailles canvas{display:block;margin:0 auto 4px}
+  canvas.loupe{image-rendering:pixelated;width:64px;height:64px;border:1px solid #d3dae1;border-radius:4px}
+  .tailles.sombre canvas.loupe{border-color:#3a4049}
+  .geant{border-radius:12px;background:repeating-conic-gradient(#f1f3f5 0 25%,#fff 0 50%) 0 0/20px 20px;padding:6px}
+  .mises{display:flex;gap:10px;align-items:stretch;margin-top:12px;flex-wrap:wrap}
+  .onglet{display:flex;align-items:center;gap:8px;border-radius:10px 10px 0 0;padding:7px 12px;width:190px;font-size:12px}
+  .onglet.clair{background:#dee3e8}
+  .onglet.sombre{background:#2b2f36;color:#e6e9ee}
+  .bureau{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;width:92px;padding:8px 0;border-radius:8px;color:#fff;font-size:11px;text-shadow:0 1px 2px rgba(0,0,0,.6)}
+  .bureau.bleu{background:linear-gradient(135deg,#3d6f9e,#2a4d72)}
+  .bureau.clair{background:linear-gradient(135deg,#e9eef3,#c9d6e2);color:#1d2733;text-shadow:none}
+  .bureau.photo{background:linear-gradient(160deg,#7fb4d8 0%,#d9c08f 55%,#6f8f4e 100%)}
+  footer{padding:0 40px 40px;color:var(--gris)}
+  footer li{margin:3px 0}
+</style>
+</head>
+<body>
+<header>
+  <h1>Icône de Prestige : neuf propositions, à partir de zéro</h1>
+  <p>Plan du 08/11, point 10. L'icône actuelle est mise de côté : ni sa forme ni ses couleurs ne sont reprises. Chaque
+    proposition a sa propre palette ; une couleur se change facilement (par exemple « la 4, mais en vert »).</p>
+  <p>Chaque carte montre l'icône en 16, 32, 48 et 256 px, sur fond clair et sur fond sombre, avec une <b>loupe</b> qui
+    agrandit les vrais pixels du 16 px, puis dans un onglet et sur trois fonds de bureau. En 16 et 24 px, une version
+    allégée est utilisée (moins de détails, traits plus épais), comme le fait un <code>.ico</code>.</p>
+  <p>Dites-moi laquelle garder, lesquelles creuser, ou ce qu'il faut mélanger : je propose alors des déclinaisons, puis je
+    produis le SVG source, les PNG, le <code>favicon.ico</code>, et je remplace l'icône partout dans Prestige.</p>
+</header>
+
+<h2 class="section">Toutes côte à côte, en situation réelle</h2>
+<div class="bandeau" id="bandeau"></div>
+
+<h2 class="section">Le détail de chaque proposition</h2>
+<div class="grille" id="grille"></div>
+
+<footer>
+  <ul>
+    <li>Les SVG sont dessinés à la main, sans image extérieure ; une fois l'icône choisie, je retouche le 16 px au pixel près.</li>
+    <li>Le damier derrière le grand format montre la transparence.</li>
+    <li>Pages précédentes : <code>PROPOSITION_ICONES_2026-11-08.html</code> et <code>PROPOSITION_ICONES_PASTILLE_2026-11-08.html</code>.</li>
+  </ul>
+</footer>
+
+<script>
+  var BN1 = '#1d4670', BN2 = '#0f2740', OR1 = '#f3cf6b', OR2 = '#c8952a', CORAIL = '#ef6b4f';
+
+  function lin(id, a, b, diag) {
+    return '<linearGradient id="' + id + '" x1="0" y1="0" x2="' + (diag ? 1 : 0) + '" y2="1"><stop offset="0" stop-color="' + a + '"/>'
+      + '<stop offset="1" stop-color="' + b + '"/></linearGradient>';
+  }
+  function linU(id, a, b) { // degrade en coordonnees de l'icone, pour qu'une decoupe prenne la couleur du fond
+    return '<linearGradient id="' + id + '" gradientUnits="userSpaceOnUse" x1="2" y1="2" x2="62" y2="62"><stop offset="0" stop-color="' + a + '"/>'
+      + '<stop offset="1" stop-color="' + b + '"/></linearGradient>';
+  }
+  function carre(fill) { return '<rect x="2" y="2" width="60" height="60" rx="14" fill="' + fill + '"/>'; }
+
+  var icones = [
+    { id: 'couronne', nom: 'Couronne', palette: 'bleu nuit, or, blanc',
+      idee: 'Une croix blanche coiffée d\'une couronne dorée, sur un carré bleu nuit : la pharmacie et le « prestige » en une image. Sérieux, haut de gamme.',
+      svg: function (p) {
+        return '<defs>' + lin('cb', BN1, BN2) + lin('co', OR1, OR2) + '</defs>' + carre('url(#cb)')
+          + (p ? '<path d="M15 23V9l8.5 6.5L32 7l8.5 8.5L49 9v14z" fill="url(#co)"/>'
+                 + '<rect x="25" y="25" width="14" height="33" rx="2.5" fill="#fff"/><rect x="15.5" y="34.5" width="33" height="14" rx="2.5" fill="#fff"/>'
+               : '<path d="M18 22V12l7 5.5L32 9l7 8.5 7-5.5v10z" fill="url(#co)" stroke="url(#co)" stroke-width="1.5" stroke-linejoin="round"/>'
+                 + '<circle cx="18" cy="11" r="2" fill="' + OR1 + '"/><circle cx="32" cy="8" r="2" fill="' + OR1 + '"/><circle cx="46" cy="11" r="2" fill="' + OR1 + '"/>'
+                 + '<rect x="26" y="26" width="12" height="30" rx="2.5" fill="#fff"/><rect x="17" y="35" width="30" height="12" rx="2.5" fill="#fff"/>');
+      } },
+    { id: 'gelule', nom: 'Gélule', palette: 'turquoise, corail, blanc',
+      idee: 'Une gélule bicolore inclinée, sur un carré turquoise. Moderne et chaleureux, se reconnaît immédiatement comme un logiciel de santé.',
+      svg: function (p) {
+        var y1 = p ? 21 : 23, h = p ? 22 : 18, x1 = p ? 11 : 13, x2 = p ? 53 : 51, r = h / 2;
+        var gauche = 'M32 ' + y1 + 'H' + (x1 + r) + 'a' + r + ' ' + r + ' 0 0 0 0 ' + h + 'H32z';
+        var droite = 'M32 ' + y1 + 'H' + (x2 - r) + 'a' + r + ' ' + r + ' 0 0 1 0 ' + h + 'H32z';
+        return '<defs>' + lin('gt', '#22c1b9', '#0b7a88', true) + '</defs>' + carre('url(#gt)')
+          + '<g transform="rotate(-45 32 32)">'
+          + '<rect x="' + x1 + '" y="' + y1 + '" width="' + (x2 - x1) + '" height="' + h + '" rx="' + r + '" fill="#06464f" fill-opacity=".3" transform="translate(2 1.5)"/>'
+          + '<path d="' + gauche + '" fill="' + CORAIL + '"/><path d="' + droite + '" fill="#fff"/>'
+          + (p ? '' : '<rect x="' + (x1 + 5) + '" y="' + (y1 + 3.5) + '" width="' + (x2 - x1 - 10) + '" height="3" rx="1.5" fill="#fff" fill-opacity=".45"/>')
+          + '</g>';
+      } },
+    { id: 'gemme', nom: 'Croix gemme', palette: 'émeraude',
+      idee: 'Une croix taillée comme une pierre précieuse : facettes claires en haut, sombres en bas. Pas de fond, la forme se suffit. Le « prestige » par la matière.',
+      svg: function (p) {
+        var ext = '<path d="M22 4h20v18h18v20H42v18H22V42H4V22h18z" fill="#0b6b46" stroke="#0b6b46" stroke-width="2" stroke-linejoin="round"/>';
+        if (p) { return '<defs>' + lin('ge', '#45d494', '#14915c') + '</defs>' + ext + '<path d="M25.5 7.5h13v18h18v13h-18v18h-13v-18h-18v-13h18z" fill="url(#ge)"/>'; }
+        return '<defs>' + lin('ge', '#4fdc9c', '#12895a') + '</defs>' + ext
+          + '<path d="M26 8h12v18h18v12H38v18H26V38H8V26h18z" fill="url(#ge)"/>'
+          + '<path d="M22 4h20l-4 4H26z M4 22l4 4v12l-4 4z" fill="#fff" fill-opacity=".38"/>'
+          + '<path d="M42 4l-4 4M60 22l-4 4" stroke="#fff" stroke-opacity=".38" stroke-width="1"/>'
+          + '<path d="M42 60H22l4-4h12z M60 42l-4-4V26l4-4z" fill="#000" fill-opacity=".18"/>'
+          + '<path d="M22 22l4 4M42 22l-4 4M42 42l-4-4M22 42l4-4M22 60l4-4M4 42l4-4" stroke="#fff" stroke-opacity=".3" stroke-width="1"/>'
+          + '<path d="M27 10h4l-3 3z" fill="#fff" fill-opacity=".8"/>';
+      } },
+    { id: 'ecusson', nom: 'Écusson', palette: 'bleu nuit, or, blanc',
+      idee: 'Un blason bleu nuit cerclé d\'or, frappé d\'une croix blanche. Évoque la confiance, l\'institution, la tradition de l\'officine.',
+      svg: function (p) {
+        var bouclier = 'M32 3.5L56 10v20c0 15-10 25-24 31C18 55 8 45 8 30V10z';
+        return '<defs>' + lin('eb', BN1, BN2) + lin('eo', OR1, OR2) + '</defs>'
+          + '<path d="' + bouclier + '" fill="url(#eb)" stroke="url(#eo)" stroke-width="' + (p ? 4 : 3) + '" stroke-linejoin="round"/>'
+          + (p ? '<rect x="25.5" y="13" width="13" height="36" rx="2" fill="#fff"/><rect x="14" y="24.5" width="36" height="13" rx="2" fill="#fff"/>'
+               : '<path d="M32 8.5L51.5 13.8v1.2L32 9.7 12.5 15v-1.2z" fill="#fff" fill-opacity=".25"/>'
+                 + '<rect x="27" y="15" width="10" height="33" rx="2" fill="#fff"/><rect x="16" y="26" width="32" height="10" rx="2" fill="#fff"/>');
+      } },
+    { id: 'mosaique', nom: 'Mosaïque', palette: 'turquoise, vert, bleu, corail',
+      idee: 'Cinq carreaux arrondis forment la croix : chacun une couleur, comme les modules du logiciel (ventes, stock, commandes, comptes). Gai et contemporain.',
+      svg: function (p) {
+        var c = p ? 18.5 : 17, g = p ? 1.2 : 2, m = 32 - c / 2, a = m - c - g, b = m + c + g, r = p ? 3.5 : 4;
+        function k(x, y, f) { return '<rect x="' + x + '" y="' + y + '" width="' + c + '" height="' + c + '" rx="' + r + '" fill="' + f + '"/>'; }
+        return k(m, a, '#1fb5a8') + k(b, m, '#1a8fd0') + k(m, b, '#2c5aa0') + k(a, m, '#17a06c') + k(m, m, CORAIL);
+      } },
+    { id: 'comprime', nom: 'Comprimé P', palette: 'violet, blanc',
+      idee: 'Un comprimé blanc vu de dessus, avec un « P » gravé, sur un carré violet. Le nom du logiciel et le médicament réunis.',
+      svg: function (p) {
+        return '<defs>' + lin('cv', '#7254d0', '#3f2789', true) + lin('cc', '#ffffff', '#e2dcf2', true) + '</defs>' + carre('url(#cv)')
+          + (p ? '<circle cx="32" cy="32" r="24" fill="#fff"/>'
+                 + '<path d="M25.5 45V19h8a7.5 7.5 0 0 1 0 15h-8" fill="none" stroke="#4a2f9c" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round"/>'
+               : '<circle cx="33" cy="34" r="21" fill="#1f1150" fill-opacity=".35"/>'
+                 + '<circle cx="32" cy="32" r="21" fill="url(#cc)" stroke="#d3cbea" stroke-width="1.2"/>'
+                 + '<circle cx="32" cy="32" r="17.5" fill="none" stroke="#fff" stroke-width="1.2"/>'
+                 + '<path d="M27 43V21h6.5a6.5 6.5 0 0 1 0 13H27" fill="none" stroke="#4a2f9c" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>');
+      } },
+    { id: 'hexagone', nom: 'Hexagone', palette: 'pétrole, ambre, blanc',
+      idee: 'Un hexagone, forme de la molécule, porte une croix blanche ; trois atomes ambrés aux angles. Scientifique, rigoureux.',
+      svg: function (p) {
+        return '<defs>' + lin('ht', '#16a8a0', '#0a5f75') + '</defs>'
+          + '<path d="M32 4.5L55.8 18.2v27.6L32 59.5 8.2 45.8V18.2z" fill="url(#ht)" stroke="url(#ht)" stroke-width="5" stroke-linejoin="round"/>'
+          + (p ? '<rect x="25" y="14" width="14" height="36" rx="2" fill="#fff"/><rect x="14" y="25" width="36" height="14" rx="2" fill="#fff"/>'
+               : '<rect x="26.5" y="16" width="11" height="32" rx="2" fill="#fff"/><rect x="16" y="26.5" width="32" height="11" rx="2" fill="#fff"/>'
+                 + '<circle cx="32" cy="8.5" r="3.6" fill="#f4b740" stroke="#fff" stroke-width="1.4"/>'
+                 + '<circle cx="51.5" cy="43.3" r="3.6" fill="#f4b740" stroke="#fff" stroke-width="1.4"/>'
+                 + '<circle cx="12.5" cy="43.3" r="3.6" fill="#f4b740" stroke="#fff" stroke-width="1.4"/>');
+      } },
+    { id: 'mortier', nom: 'Mortier', palette: 'encre, or, émeraude',
+      idee: 'Le mortier et le pilon, outil historique du pharmacien, sur un carré encre ; une petite croix émeraude sur le bol. Classique revisité.',
+      svg: function (p) {
+        return '<defs>' + lin('mb', '#2a3858', '#141c30') + lin('mo', OR1, OR2) + '</defs>' + carre('url(#mb)')
+          + (p ? '<path d="M37 30L50 10" stroke="url(#mo)" stroke-width="8" stroke-linecap="round"/>'
+                 + '<path d="M10 28h44c0 13-9 21-22 21S10 41 10 28z" fill="#fff"/><path d="M22 54h20" stroke="#fff" stroke-width="5" stroke-linecap="round"/>'
+               : '<path d="M36 30L48 12" stroke="url(#mo)" stroke-width="6" stroke-linecap="round"/>'
+                 + '<path d="M13 29h38c0 11-8 18-19 18s-19-7-19-18z" fill="#fff"/><path d="M11.5 29h41" stroke="#fff" stroke-width="3" stroke-linecap="round"/>'
+                 + '<path d="M23 53h18" stroke="#fff" stroke-width="4" stroke-linecap="round"/><path d="M29 47l-2 6M35 47l2 6" stroke="#fff" stroke-width="3"/>'
+                 + '<rect x="30" y="32" width="4" height="11" rx="1" fill="#14a06a"/><rect x="26.5" y="35.5" width="11" height="4" rx="1" fill="#14a06a"/>');
+      } },
+    { id: 'croixp', nom: 'Croix au P', palette: 'bleu vers turquoise, blanc',
+      idee: 'Style application moderne : carré en dégradé bleu-turquoise, grande croix blanche dont le cœur est évidé en « P ». Sobre, net, très actuel.',
+      svg: function (p) {
+        return '<defs>' + linU('pb', '#2b6fe0', '#14b8a6') + '</defs>' + carre('url(#pb)')
+          + (p ? '<rect x="24" y="9" width="16" height="46" rx="3.5" fill="#fff"/><rect x="9" y="24" width="46" height="16" rx="3.5" fill="#fff"/>'
+               : '<rect x="24.5" y="10" width="15" height="44" rx="3.5" fill="#fff"/><rect x="10" y="24.5" width="44" height="15" rx="3.5" fill="#fff"/>'
+                 + '<path d="M29 39.5V25h4.3a4 4 0 0 1 0 8H29" fill="none" stroke="url(#pb)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>');
+      } }
+  ];
+
+  function svg(x, t) {
+    return '<svg xmlns="http://www.w3.org/2000/svg" width="' + t + '" height="' + t + '" viewBox="0 0 64 64">' + x.svg(t <= 24) + '</svg>';
+  }
+  var compteur = 0;
+  function svgUnique(x, t) {
+    var s = svg(x, t), suffixe = '_' + (compteur++);
+    return s.replace(/id="([^"]+)"/g, 'id="$1' + suffixe + '"').replace(/url\(#([^)]+)\)/g, 'url(#$1' + suffixe + ')');
+  }
+  function tailles(x, fond) {
+    return '<div class="tailles ' + fond + '">' + [16, 32, 48].map(function (t) {
+      return '<figure>' + svgUnique(x, t) + t + ' px</figure>';
+    }).join('') + '<figure><canvas class="loupe" width="16" height="16" data-icone="' + x.id + '" data-fond="' + fond + '"></canvas>16 px × 4</figure></div>';
+  }
+  function rangeeOnglets(classe) {
+    return '<div class="onglets ' + classe + '">' + icones.map(function (x, i) {
+      return '<div class="o">' + svgUnique(x, 16) + '<b>' + (i + 1) + '</b> Prestige — Ventes</div>';
+    }).join('') + '</div>';
+  }
+  function barre(classe) {
+    return '<div class="barre-t ' + classe + '">' + icones.map(function (x, i) {
+      return '<span class="app">' + svgUnique(x, 24) + '<span class="lettre">' + (i + 1) + '</span></span>';
+    }).join('') + '</div>';
+  }
+  document.getElementById('bandeau').innerHTML = rangeeOnglets('clair') + rangeeOnglets('sombre') + barre('sombre') + barre('claire');
+
+  document.getElementById('grille').innerHTML = icones.map(function (x, i) {
+    return '<section class="carte"><h3><span class="n">' + (i + 1) + '</span>' + x.nom + '</h3>'
+      + '<p class="idee">' + x.idee + ' <i>Couleurs : ' + x.palette + '.</i></p>'
+      + '<div class="corps"><div class="geant">' + svgUnique(x, 256) + '</div>'
+      + '<div class="gauche">' + tailles(x, 'clair') + tailles(x, 'sombre') + '</div></div>'
+      + '<div class="mises">'
+      + '<div class="onglet clair">' + svgUnique(x, 16) + 'Prestige — Ventes</div>'
+      + '<div class="onglet sombre">' + svgUnique(x, 16) + 'Prestige — Ventes</div>'
+      + '<div class="bureau bleu">' + svgUnique(x, 48) + 'Prestige</div>'
+      + '<div class="bureau clair">' + svgUnique(x, 48) + 'Prestige</div>'
+      + '<div class="bureau photo">' + svgUnique(x, 48) + 'Prestige</div>'
+      + '</div></section>';
+  }).join('');
+
+  Array.prototype.forEach.call(document.querySelectorAll('canvas.loupe'), function (c) {
+    var x = icones.filter(function (y) { return y.id === c.getAttribute('data-icone'); })[0];
+    var img = new Image();
+    img.onload = function () {
+      var ctx = c.getContext('2d');
+      ctx.fillStyle = c.getAttribute('data-fond') === 'sombre' ? '#20242b' : '#ffffff';
+      ctx.fillRect(0, 0, 16, 16);
+      ctx.drawImage(img, 0, 0, 16, 16);
+    };
+    img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg(x, 16));
+  });
+</script>
+</body>
+</html>
