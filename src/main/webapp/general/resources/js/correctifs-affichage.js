@@ -397,10 +397,11 @@ window.PrestigeAffichage.collerAuConteneur = function (panneau, options) {
     }
 
     function ajuster() {
-        var cible, actuelle, element;
+        var cible, actuelle, element, bornesAvant;
         if (!panneau.rendered || panneau.isDestroyed) {
             return false;
         }
+        bornesAvant = panneau.minHeight + '|' + panneau.maxHeight;
         // une hauteur maximale declaree par l'ecran (maxHeight: 800 par exemple) l'emporterait
         // sur la taille demandee et laisserait reapparaitre une bande de fond en bas
         if (panneau.maxHeight) {
@@ -420,6 +421,12 @@ window.PrestigeAffichage.collerAuConteneur = function (panneau, options) {
         panneau.minHeight = Math.min(panneau.minHeight || hauteurMini, hauteurMini);
         // panneau central en disposition « fit » (disposerConteneur) : la taille vient de la mise en page d'ExtJS
         if (panneau.ownerCt && panneau.ownerCt.getLayout && panneau.ownerCt.getLayout().type === 'fit') {
+            // Plan du 08/11, point 3 : ouvert par le menu, un ecran a hauteur fixe (minHeight et maxHeight a 570)
+            // gardait 570 px tant qu'aucune autre mise en page n'avait lieu (« il faut cliquer sur Prestige
+            // navigation »). Les bornes viennent de changer : la mise en page du panneau central est relancee.
+            if (bornesAvant !== panneau.minHeight + '|' + panneau.maxHeight) {
+                panneau.ownerCt.updateLayout();
+            }
             return false;
         }
         cible = placeDisponible();
