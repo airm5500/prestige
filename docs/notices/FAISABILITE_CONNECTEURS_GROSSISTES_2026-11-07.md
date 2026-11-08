@@ -417,3 +417,41 @@ la table à autoriser), réponses aux questions de la section 6.
 - Déploiement : sur domain3, ni `redeploy` ni `undeploy` + `deploy` ne régénéraient la politique JACC des EJB après un
   changement de signature (erreur « Client not authorized », 500). Il a fallu supprimer
   `generated/policy/prestige` entre `undeploy` et `deploy`. À vérifier au déploiement en officine.
+
+## 9. Identifiant et mot de passe des extranets (08/11)
+
+Décision de l'utilisateur : il renseigne lui-même l'identifiant et le mot de passe de chaque extranet ; Prestige se
+connecte seul. Le cookie collé reste possible en secours.
+
+**Où** : menu GESTION DES COMMANDES > Extranets grossistes > onglet **Sessions** (administrateur seulement). Pour chaque
+extranet : Identifiant, Mot de passe, **Enregistrer**, **Se connecter**, **Effacer les identifiants** (confirmation dans
+le bouton). Mot de passe laissé vide à l'enregistrement : l'ancien est gardé.
+
+**Fonctionnement** :
+- `extranet_compte` (V7.5.7) : une ligne par extranet ; mot de passe chiffré AES-256-GCM, clé dans un fichier du
+  serveur hors base et hors dépôt (`D:\prestige\cles\extranet.cle`, créé au premier usage ; `EXTRANET_CLE_FICHIER` pour
+  un autre emplacement). Une copie de la base seule ne livre pas le mot de passe. **Perdre la clé oblige à ressaisir les
+  mots de passe** : la sauvegarder avec la configuration du poste.
+- Connexion : le serveur ouvre la page de connexion (`/` par défaut, réglage `EXTRANET_<SOURCE>_CHEMIN_CONNEXION`), lit
+  le formulaire qui porte un champ mot de passe, garde ses champs cachés (jeton), remplit l'identifiant (premier champ
+  texte, ou `EXTRANET_<SOURCE>_CHAMP_IDENTIFIANT`) et le mot de passe, puis poste à l'action du formulaire, sur le même
+  site seulement. C'est le seul POST du connecteur.
+- Avant chaque collecte, sans session : connexion. Session expirée pendant une collecte : **une** reconnexion, puis le
+  même appel.
+- Garde-fous : captcha → arrêt (jamais contourné) ; identifiants refusés → pas de nouvel essai tant qu'ils ne sont pas
+  modifiés (le compte n'est pas bloqué) ; formulaire vers un autre site → refus ; journal : chemin et statut seulement.
+- Le formulaire réel d'Ubipharm et de TEDIS n'a jamais été vu : si « Se connecter » échoue avec « Formulaire de
+  connexion introuvable », régler `EXTRANET_<SOURCE>_CHEMIN_CONNEXION` (dans `extranet.properties`) sur la page de
+  connexion ; s'il demande un second facteur ou un captcha, revenir au cookie collé.
+
+**Tests** :
+- cohérence : `ChiffrementExtranetCoherenceTest` (3 000 mots de passe tirés, graine 20261107 : aller-retour exact, jamais
+  le clair dans le chiffré, deux chiffrements différents, altération ou autre clé refusées, clé créée une fois) ;
+- unitaires : `ConnexionExtranetTest` (10 cas : jeton caché repris, codage des caractères spéciaux, case cochée gardée,
+  reconnexion unique, pas de boucle, refus non retenté, captcha, autre site, chemin réglé, aucun secret dans les
+  journaux) ; 118 tests extranet au vert ;
+- écran : `extranet/test-identifiants-extranet.js` 34/34 (domain3, faux extranet) : rapprochement identifiant écran =
+  base = API, mot de passe jamais en clair (base, API, écran, journal du serveur), refus puis correction du seul mot de
+  passe, reconnexion seule après expiration, bilan (deux collectes complètes, aucune table métier touchée), effacement,
+  nettoyage ;
+- non-régression : `test-rapprochement-extranets.js` 40/40, `test-reference-ubipharm-fiche.js` 18/18.

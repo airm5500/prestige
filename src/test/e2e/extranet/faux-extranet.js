@@ -14,8 +14,11 @@ const crypto = require('crypto');
 
 const RES = path.resolve(__dirname, '../../resources/extranet/ubipharm');
 const COOKIE = 'SESSIONID=essai-e2e-local';
-const CONNEXION = '<html><body><form action="/Login" method="post"><input name="login">'
-  + '<input type="password" name="pwd"></form></body></html>';
+const CONNEXION = '<html><body><form action="/Login" method="post"><input type="hidden" name="_token" value="jeton-e2e">'
+  + '<input name="login"><input type="password" name="pwd"></form></body></html>';
+/* Identifiants du faux extranet : pas des secrets, ils n'ouvrent que ce serveur local. */
+const IDENTIFIANT = 'essai-e2e';
+const MOT_DE_PASSE = 'faux-mdp-e2e &=é';
 const PDF = Buffer.from('%PDF-1.4\n% faux PDF de reclamation pour les tests\n1 0 obj << >> endobj\ntrailer << >>\n%%EOF\n',
   'latin1');
 
@@ -51,13 +54,27 @@ function lignesReappro(n) {
 }
 
 function demarrer(port) {
-  const etat = { mode: 'normal', appels: [], reappro: lignesReappro(61) };
+  /* cookieAttendu : session reconnue ; cookieDonne : session ouverte par le prochain POST /Login reussi */
+  const etat = { mode: 'normal', appels: [], reappro: lignesReappro(61), cookieAttendu: COOKIE, cookieDonne: COOKIE, connexions: [] };
   const serveur = http.createServer((req, res) => {
     const u = new URL(req.url, 'http://127.0.0.1');
     etat.appels.push({ methode: req.method, chemin: u.pathname, requete: u.search, cookie: req.headers.cookie || '' });
     const envoyer = (statut, type, corps) => { res.writeHead(statut, { 'Content-Type': type }); res.end(corps); };
+    if (req.method === 'POST' && u.pathname === '/Login') {
+      let corps = '';
+      req.on('data', (d) => { corps += d; });
+      req.on('end', () => {
+        const f = new URLSearchParams(corps);
+        const reussie = f.get('_token') === 'jeton-e2e' && f.get('login') === IDENTIFIANT && f.get('pwd') === MOT_DE_PASSE;
+        etat.connexions.push({ reussie, champs: [...f.keys()].sort().join(',') });
+        if (!reussie) { return envoyer(200, 'text/html; charset=utf-8', CONNEXION); }
+        res.writeHead(302, { Location: '/Accueil', 'Set-Cookie': etat.cookieDonne + '; Path=/; HttpOnly' });
+        res.end();
+      });
+      return undefined;
+    }
     if (req.method !== 'GET') { return envoyer(405, 'text/plain', 'lecture seule'); }
-    if (etat.mode === 'expire' || (req.headers.cookie || '').indexOf(COOKIE) < 0) {
+    if (etat.mode === 'expire' || (req.headers.cookie || '').indexOf(etat.cookieAttendu) < 0) {
       return envoyer(200, 'text/html; charset=utf-8', CONNEXION);
     }
     const json = (o) => envoyer(200, 'application/json; charset=utf-8', typeof o === 'string' ? o : JSON.stringify(o));
@@ -81,6 +98,8 @@ function demarrer(port) {
           : html('reclamations/reconstitue-detail-variantes.html');
       case '/ReclamationPDF':
         return envoyer(200, 'application/pdf', PDF);
+      case '/Accueil':
+        return envoyer(200, 'text/html; charset=utf-8', '<html><body>Accueil</body></html>');
       case '/NouveauxProduits':
         return html('nouveaux/reconstitue-nouveaux-produits.html');
       default:
@@ -88,7 +107,7 @@ function demarrer(port) {
     }
   });
   return new Promise((ok) => serveur.listen(port, '127.0.0.1', () => ok({
-    etat, COOKIE, PDF, sha256Pdf: crypto.createHash('sha256').update(PDF).digest('hex'),
+    etat, COOKIE, IDENTIFIANT, MOT_DE_PASSE, PDF, sha256Pdf: crypto.createHash('sha256').update(PDF).digest('hex'),
     arreter: () => new Promise((f) => serveur.close(f))
   })));
 }
