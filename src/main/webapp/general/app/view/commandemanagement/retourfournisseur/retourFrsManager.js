@@ -145,10 +145,26 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.retourFrsManager
                     dataIndex: 'str_STATUT',
                     itemId: 'colEtatRetour',
                     width: 150,
-                    renderer: function (v) {
-                        return v === 'is_Waiting'
+                    renderer: function (v, m, r) {
+                        /* transmission du 07/11 : Refuse (motif, auteur et date dans l'infobulle), Abandonne */
+                        var manquants = r.get('sansSortieStock')
+                                ? '<br><span class="retour-manquants" style="font-size:11px;color:#5b6b7b">Manquants · sans sortie de stock</span>' : '';
+                        if (v === 'is_Refused') {
+                            var tip = 'Refusé' + (r.get('refusLe') ? ' le ' + r.get('refusLe') : '') + (r.get('refusPar') ? ' par ' + r.get('refusPar') : '')
+                                    + ' : ' + (r.get('motifRefus') || '');
+                            m.tdAttr = 'data-qtip="' + Ext.String.htmlEncode(Ext.String.htmlEncode(tip)) + '"';
+                            return '<span class="retour-refuse" style="display:inline-block;padding:1px 8px;border-radius:9px;background:#fdecea;color:#8a1c12;font-weight:600">Refusé</span>' + manquants;
+                        }
+                        if (v === 'is_Abandoned') {
+                            return '<span class="retour-abandonne" style="color:#6b7785">Abandonné</span>' + manquants;
+                        }
+                        if (v === 'is_Waiting' && r.get('attentePar')) {
+                            m.tdAttr = 'data-qtip="' + Ext.String.htmlEncode(Ext.String.htmlEncode('Mis en attente le ' + (r.get('attenteLe') || '') + ' par ' + r.get('attentePar')
+                                    + (r.get('nombreRefus') ? ' (déjà refusé ' + r.get('nombreRefus') + ' fois)' : ''))) + '"';
+                        }
+                        return (v === 'is_Waiting'
                                 ? '<span class="retour-attente" style="display:inline-block;padding:1px 8px;border-radius:9px;background:#fff3cd;color:#8a5a00;font-weight:600">En attente de validation</span>'
-                                : '<span style="color:#17987e">Validé</span>';
+                                : '<span style="color:#17987e">Validé</span>') + manquants;
                     }
                 },
                 {
@@ -197,7 +213,9 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.retourFrsManager
                             scope: this,
                             handler: this.onManageDetailsClick,
                             getClass: function (value, metadata, record) {
-                                if (record.get('str_STATUT') == "is_Process" || record.get('str_STATUT') == "is_Waiting") {  //read your condition from the record
+                                /* transmission du 07/11 : un retour refuse s'ouvre pour etre corrige (auteur ou valideur) */
+                                if (record.get('str_STATUT') == "is_Process" || record.get('str_STATUT') == "is_Waiting"
+                                        || (record.get('str_STATUT') === 'is_Refused' && record.get('peutCorriger'))) {  //read your condition from the record
                                     return ''; //affiche l'icone
                                 } else {
                                     return 'x-hide-display'; //cache l'icone
@@ -211,7 +229,7 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.retourFrsManager
                             handler: this.Response,
                             getClass: function (value, metadata, record) {
                                 /* la reponse du fournisseur suit la validation : rien a saisir sur un retour en attente */
-                                if (!record.get('closed') && record.get('str_STATUT') !== 'is_Waiting') {  //read your condition from the record
+                                if (!record.get('closed') && record.get('str_STATUT') === 'enable') {  //read your condition from the record
                                     return ''; //affiche l'icone
                                 } else {
                                     return 'x-hide-display'; //cache l'icone
@@ -341,6 +359,27 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.retourFrsManager
                                 ]
                             })
                         },
+                /* transmission du 07/11 : filtre par etat (la pastille du menu ouvre la liste sur « En attente ») */
+                {
+                    xtype: 'combo',
+                    id: 'retourFrsEtat',
+                    tooltip: 'État des retours affichés',
+                    flex: 1,
+                    editable: false,
+                    valueField: 'ID',
+                    displayField: 'VALUE',
+                    value: '',
+                    store: Ext.create('Ext.data.Store', {
+                        fields: ['ID', 'VALUE'],
+                        data: [{ID: '', VALUE: 'Tous les états'}, {ID: 'ATTENTE', VALUE: 'En attente de validation'},
+                            {ID: 'REFUSE', VALUE: 'Refusés'}, {ID: 'VALIDE', VALUE: 'Validés'}, {ID: 'ABANDONNE', VALUE: 'Abandonnés'}]
+                    }),
+                    listeners: {
+                        select: function () {
+                            Me.onRechClick();
+                        }
+                    }
+                },
                 
                 
                 {
@@ -446,6 +485,7 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.retourFrsManager
                         myProxy.setExtraParam('fourId', fourId);
                         myProxy.setExtraParam('query', query);
                          myProxy.setExtraParam('filtre', filtre);
+                        myProxy.setExtraParam('etat', Ext.getCmp('retourFrsEtat') ? (Ext.getCmp('retourFrsEtat').getValue() || '') : '');
 
                     }
 
@@ -664,7 +704,8 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.retourFrsManager
                 filtre:Ext.getCmp('filtre').getValue(),
                 dtEnd: Ext.getCmp('datefin').getSubmitValue(),
                 dtStart: Ext.getCmp('datedebut').getSubmitValue(),
-                userId: Ext.getCmp('retourFrsUtilisateur') ? (Ext.getCmp('retourFrsUtilisateur').getValue() || '') : ''
+                userId: Ext.getCmp('retourFrsUtilisateur') ? (Ext.getCmp('retourFrsUtilisateur').getValue() || '') : '',
+                etat: Ext.getCmp('retourFrsEtat') ? (Ext.getCmp('retourFrsEtat').getValue() || '') : ''
             }
         });
 

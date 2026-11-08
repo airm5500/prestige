@@ -576,6 +576,35 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.action.add', {
                             scope: this,
                             handler: this.envoyerPharmaMl
                         },
+                        /* transmission du 07/11 : refus (motif obligatoire), mise en attente, remise en attente, abandon */
+                        {xtype: 'component', id: 'retourRefusInfo', cls: 'retour-refus-info', hidden: true, html: '',
+                            style: 'max-width:380px;padding:2px 8px;border-radius:6px;background:#fdecea;color:#8a1c12;font-size:12px'},
+                        {xtype: 'textfield', id: 'retourMotifRefus', hidden: true, width: 260, maxLength: 500,
+                            emptyText: 'Motif du refus (obligatoire)'},
+                        {
+                            text: 'Refuser',
+                            id: 'btn_refuser',
+                            hidden: true,
+                            tooltip: 'Refuser le retour en attente : il revient à son auteur ; rien ne sort du stock',
+                            scope: this,
+                            handler: this.onbtnrefuser
+                        },
+                        {
+                            text: 'Abandonner',
+                            id: 'btn_abandonner',
+                            hidden: true,
+                            tooltip: 'Clore ce retour refusé sans suite ; rien ne sort du stock',
+                            scope: this,
+                            handler: this.onbtnabandonner
+                        },
+                        {
+                            text: 'Mettre en attente',
+                            id: 'btn_attente',
+                            hidden: true,
+                            tooltip: 'Le retour attend une validation : rien ne sort du stock en attendant',
+                            scope: this,
+                            handler: this.onbtnattente
+                        },
                         {
                             text: 'Valider le retour',
                             id: 'btn_save',
@@ -811,8 +840,138 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.action.add', {
                     b.setTooltip(Me.peutValider ? 'Les quantités sortent du stock'
                             : 'Le retour attend qu\'un profil autorisé le valide : rien ne sort du stock en attendant');
                 }
+                Me.afficherBoutonsEtat();
             }
         });
+    },
+    /*
+     * transmission du 07/11 : boutons selon l'etat du retour ouvert et le droit de validation.
+     *  - en saisie, avec le droit : « Valider le retour » et « Mettre en attente » ;
+     *  - en attente, avec le droit : « Valider le retour » et « Refuser » (motif obligatoire) ;
+     *  - refuse (auteur ou valideur) : le motif du dernier refus reste visible ; « Remettre en attente » et
+     *    « Abandonner » ; la validation directe n'est pas proposee ;
+     *  - sans le droit : « Mettre en attente de validation », comme avant.
+     */
+    statutRetour: function () {
+        var o = this.getOdatasource && this.getOdatasource();
+        return (o && o.str_STATUT) || 'is_Process';
+    },
+    afficherBoutonsEtat: function () {
+        var g = function (id) {
+            var c = Ext.getCmp(id);
+            return c && !c.isDestroyed ? c : null;
+        };
+        var save = g('btn_save'), att = g('btn_attente'), ref = g('btn_refuser'), ab = g('btn_abandonner'),
+                motif = g('retourMotifRefus'), info = g('retourRefusInfo');
+        if (!save) {
+            return;
+        }
+        var statut = Me.statutRetour(), o = Me.getOdatasource() || {};
+        var refuse = statut === 'is_Refused';
+        save.setVisible(!refuse);
+        att.setVisible(refuse ? o.peutCorriger !== false : (Me.peutValider === true && statut !== 'is_Waiting'));
+        att.setText(refuse ? 'Remettre en attente' : 'Mettre en attente');
+        ref.setVisible(Me.peutValider === true && statut === 'is_Waiting');
+        motif.setVisible(Me.peutValider === true && statut === 'is_Waiting');
+        ab.setVisible(refuse && o.peutCorriger !== false);
+        info.setVisible(refuse);
+        if (refuse) {
+            info.update('<b>Refusé</b>' + (o.refusLe ? ' le ' + Ext.String.htmlEncode(o.refusLe) : '')
+                    + (o.refusPar ? ' par ' + Ext.String.htmlEncode(o.refusPar) : '')
+                    + ' : ' + Ext.String.htmlEncode(o.motifRefus || ''));
+        }
+    },
+    /* confirmation dans le bouton : premier clic arme (« Confirmer… »), second clic envoie ; 6 s sans clic : desarme */
+    armer: function (b, texteConfirmation, texteRepos) {
+        if (b.arme) {
+            clearTimeout(b.minuteur);
+            b.arme = false;
+            b.removeCls('pr-fini-ko');
+            b.setText(texteRepos);
+            return true;
+        }
+        b.arme = true;
+        b.setText(texteConfirmation);
+        b.addCls('pr-fini-ko');
+        b.minuteur = setTimeout(function () {
+            if (!b.isDestroyed && b.arme) {
+                b.arme = false;
+                b.removeCls('pr-fini-ko');
+                b.setText(texteRepos);
+            }
+        }, 6000);
+        return false;
+    },
+    envoyerEtat: function (b, url, corps, libelleAttente, libelleFait) {
+        var fin = PrestigeChargement.occuper(b, libelleAttente);
+        Ext.Ajax.request({
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            url: url,
+            params: Ext.JSON.encode(corps || {}),
+            success: function (response) {
+                var object = Ext.JSON.decode(response.responseText, true) || {};
+                if (!object.success) {
+                    fin(object.msg || 'Échec de l\'opération', false);
+                    return;
+                }
+                Me.current = null;
+                fin(libelleFait, true);
+                setTimeout(function () {
+                    testextjs.app.getController('App').onLoadNewComponentWithDataSource('retourfrsmanager', "", "", "");
+                }, 1200);
+            },
+            failure: function (response) {
+                var object = Ext.JSON.decode(response.responseText, true) || {};
+                fin(object.msg || ('Le serveur n\'a pas répondu (' + response.status + ')'), false);
+            }
+        });
+    },
+    onbtnattente: function (b) {
+        b = b || Ext.getCmp('btn_attente');
+        var refuse = Me.statutRetour() === 'is_Refused';
+        var repos = refuse ? 'Remettre en attente' : 'Mettre en attente';
+        if (!Me.armer(b, refuse ? 'Confirmer la remise en attente' : 'Confirmer la mise en attente', repos)) {
+            return;
+        }
+        if (refuse) {
+            Me.envoyerEtat(b, '../api/v1/retourfournisseur/remettre-en-attente/' + encodeURIComponent(Me.idRetour()),
+                    {}, 'Remise en attente', 'Retour remis en attente de validation');
+            return;
+        }
+        Me.envoyerEtat(b, '../api/v1/retourfournisseur/mettre-en-attente', {"ref": Me.idRetour(),
+            "refTwo": Ext.getCmp('str_REPONSE_FRS').getValue(), "description": Ext.getCmp('str_COMMENTAIRE').getValue()},
+                'Mise en attente', 'Retour mis en attente de validation');
+    },
+    onbtnrefuser: function (b) {
+        b = b || Ext.getCmp('btn_refuser');
+        var champ = Ext.getCmp('retourMotifRefus'), motif = Ext.String.trim(champ.getValue() || '');
+        if (!motif) {
+            /* le motif est obligatoire : le bouton le dit, sans fenetre */
+            b.setText('Motif obligatoire');
+            b.addCls('pr-fini-ko');
+            champ.focus();
+            setTimeout(function () {
+                if (!b.isDestroyed && !b.arme) {
+                    b.removeCls('pr-fini-ko');
+                    b.setText('Refuser');
+                }
+            }, 2500);
+            return;
+        }
+        if (!Me.armer(b, 'Confirmer le refus', 'Refuser')) {
+            return;
+        }
+        Me.envoyerEtat(b, '../api/v1/retourfournisseur/refuser/' + encodeURIComponent(Me.idRetour()), {motif: motif},
+                'Refus', 'Retour refusé');
+    },
+    onbtnabandonner: function (b) {
+        b = b || Ext.getCmp('btn_abandonner');
+        if (!Me.armer(b, 'Confirmer l\'abandon', 'Abandonner')) {
+            return;
+        }
+        Me.envoyerEtat(b, '../api/v1/retourfournisseur/abandonner/' + encodeURIComponent(Me.idRetour()), {},
+                'Abandon', 'Retour abandonné');
     },
     onbtnvalider: function (b) {
         b = b || Ext.getCmp('btn_save');

@@ -2550,3 +2550,115 @@ window.PrestigeToast = (function () {
     }
     return {afficher: afficher};
 })();
+/*
+ * Transmission du 07/11 (point 3) : RETOURS FOURNISSEURS EN ATTENTE, SIGNAL AU VALIDEUR. Seuls les profils qui ont
+ * P_VALIDER_RETOUR_FRS le voient (la route repond 403 aux autres : rien n'est affiche) :
+ *  - pastille avec le nombre sur l'entree de menu « Retours fournisseurs » (noeud 'retourfrsmanager') ;
+ *  - a la connexion, un avis discret et non bloquant (choix 3 du 08/11) ; un clic ouvre la liste filtree sur « En
+ *    attente de validation » ;
+ *  - le nombre se met a jour apres chaque validation, refus, mise ou remise en attente, abandon, et toutes les 5 min.
+ */
+window.PrestigeRetoursAttente = (function () {
+    var NOEUD = 'retourfrsmanager', URL = '../api/v1/retourfournisseur/en-attente/nombre';
+    var nombre = null, avisMontre = false, essais = 0;
+    function noeuds() {
+        var l = [];
+        Ext.each(Ext.ComponentQuery.query('treepanel'), function (t) {
+            var st = t.getStore && t.getStore(), n = st && st.getNodeById && st.getNodeById(NOEUD);
+            if (n) {
+                l.push(n);
+            }
+        });
+        return l;
+    }
+    function poser() {
+        Ext.each(noeuds(), function (n) {
+            var texte = String(n.get('text') || '').replace(/\s*<span class="pastille-retours[^>]*>[^<]*<\/span>/, '');
+            if (nombre > 0) {
+                texte += ' <span class="pastille-retours" title="Retours fournisseurs en attente de validation"'
+                        + ' style="display:inline-block;min-width:18px;padding:0 5px;border-radius:9px;background:#c0392b;color:#fff;'
+                        + 'font-size:11px;line-height:16px;text-align:center;font-weight:bold">' + nombre + '</span>';
+            }
+            n.set('text', texte);
+            n.commit && n.commit();
+        });
+    }
+    function ouvrirListe() {
+        var app = window.testextjs && testextjs.app;
+        if (!app) {
+            return;
+        }
+        app.getController('App').onRedirectTo(NOEUD, {});
+        filtrerEnAttente();
+    }
+    /* la liste ouverte (par l'avis, ou par un clic sur la pastille du menu) est filtree sur « En attente » */
+    function filtrerEnAttente() {
+        var tours = 0, filtrer = function () {
+            var c = Ext.getCmp('retourFrsEtat'), g = Ext.ComponentQuery.query('retourfrsmanager')[0];
+            if (c && g && !c.isDestroyed) {
+                c.setValue('ATTENTE');
+                g.onRechClick();
+            } else if (tours++ < 40) {
+                setTimeout(filtrer, 250);
+            }
+        };
+        filtrer();
+    }
+    function avis() {
+        if (avisMontre || !(nombre > 0) || !window.PrestigeToast) {
+            return;
+        }
+        avisMontre = true;
+        var el = PrestigeToast.afficher(nombre + ' retour' + (nombre > 1 ? 's' : '') + ' fournisseur' + (nombre > 1 ? 's' : '')
+                + ' en attente de validation. Cliquer pour ouvrir la liste.', {titre: 'Retours fournisseurs', niveau: 'info', duree: 10000});
+        if (el) {
+            el.className += ' avis-retours-attente';
+            el.addEventListener('mousedown', ouvrirListe);
+        }
+    }
+    function actualiser() {
+        Ext.Ajax.request({
+            url: URL, method: 'GET',
+            success: function (r) {
+                var o = Ext.JSON.decode(r.responseText, true) || {};
+                if (o.success) {
+                    nombre = o.nombre || 0;
+                    poser();
+                    avis();
+                }
+            },
+            failure: function () {
+                nombre = null; // 403 (pas valideur) ou serveur sans la route : aucun signal
+            }
+        });
+    }
+    function demarrer() {
+        if (!window.Ext || !Ext.Ajax || !Ext.ComponentQuery) {
+            setTimeout(demarrer, 1000);
+            return;
+        }
+        if (!noeuds().length && essais++ < 60) {
+            setTimeout(demarrer, 2000); // menu pas encore charge
+            return;
+        }
+        actualiser();
+        setInterval(actualiser, 5 * 60 * 1000);
+        Ext.Ajax.on('requestcomplete', function (c, resp, opts) {
+            var u = String((opts && opts.url) || '');
+            if (/validerretourfour|retourfournisseur\/(refuser|remettre-en-attente|mettre-en-attente|abandonner)|reception\/[^/]+\/retour-manquants/.test(u)) {
+                setTimeout(actualiser, 300);
+            }
+        });
+    }
+    if (/\/general\//.test(location.pathname)) {
+        setTimeout(demarrer, 1500);
+        document.addEventListener('click', function (e) {
+            if (e.target && e.target.closest && e.target.closest('.pastille-retours')) {
+                setTimeout(filtrerEnAttente, 300); // le clic sur l'entree ouvre la liste ; on la filtre ensuite
+            }
+        }, true);
+    }
+    return {actualiser: actualiser, ouvrirListe: ouvrirListe, nombre: function () {
+            return nombre;
+        }};
+})();
