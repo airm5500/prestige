@@ -368,6 +368,52 @@ window.PrestigeAffichage.disposerConteneur = function (conteneur, ecran) {
     }
 };
 
+/**
+ * Plan du 08/11, point 2 : fenetre a la hauteur de son contenu, sans barre de defilement.
+ *
+ * Une fenetre a hauteur fixe (460 px pour « Modifier grossiste », 600 px pour sa fiche) coupait le bas de son contenu
+ * et le faisait defiler alors que l'ecran avait la place. Apres le premier affichage, la fenetre grandit de ce qui
+ * depasse de son panneau, dans la limite de l'ecran (marge de 20 px), puis se recentre. Si l'ecran est vraiment trop
+ * petit, le panneau garde son defilement : rien n'est jamais coupe.
+ *
+ * @param {Ext.window.Window} fenetre fenetre en disposition « fit »
+ * @param {Ext.panel.Panel} panneau son contenu (formulaire)
+ */
+window.PrestigeAffichage.ajusterFenetreAuContenu = function (fenetre, panneau) {
+    'use strict';
+
+    function ajuster() {
+        try {
+            if (!fenetre || fenetre.isDestroyed || !panneau || panneau.isDestroyed || !panneau.body) {
+                return;
+            }
+            var corps = panneau.body.dom,
+                    manque = corps.scrollHeight - corps.clientHeight,
+                    place = Ext.Element.getViewportHeight() - 20,
+                    hauteur;
+            if (manque <= 0) {
+                return;
+            }
+            hauteur = Math.min(fenetre.getHeight() + manque + 2, place);
+            if (hauteur > fenetre.getHeight()) {
+                fenetre.setHeight(hauteur);
+                fenetre.center();
+            }
+        } catch (e) {
+            if (window.console && console.error) {
+                console.error('[Prestige] ajustement de la fenetre a son contenu impossible', e);
+            }
+        }
+    }
+
+    // autoShow : la fenetre est souvent deja affichee (et mise en page) quand on arrive ici
+    if (fenetre.rendered) {
+        Ext.defer(ajuster, 50);
+    } else {
+        fenetre.on('afterlayout', ajuster, null, {single: true, delay: 50});
+    }
+};
+
 window.PrestigeAffichage.collerAuConteneur = function (panneau, options) {
     'use strict';
 

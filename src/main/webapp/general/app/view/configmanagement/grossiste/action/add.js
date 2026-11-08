@@ -613,6 +613,8 @@ Ext.define('testextjs.view.configmanagement.grossiste.action.add', {
                     }
                 }]
         });
+        /* plan du 08/11, point 2 : la fenetre prend la hauteur de son contenu (plus de bas coupe ni de defilement) */
+        window.PrestigeAffichage.ajusterFenetreAuContenu(win, form);
         /* retours du 08/10 (4) : la fiche dit si la cle est enregistree, et si la cle saisie est la meme */
         win.etatCle = function (essai) {
             Ext.Ajax.request({
