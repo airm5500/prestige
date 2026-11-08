@@ -207,6 +207,24 @@ Ce qui reste en place :
 | 4 | `prix_grossiste` (BL, catalogues, fiche Ubipharm), vue par produit | Rapprochement écran = base = BL ligne par ligne. Cohérence : une ligne seulement si la valeur change, HT et TTC jamais mélangés. |
 | 5 | Disponibilité à la demande et cache court | Faux PharmaML et `FauxExtranet` : cache respecté, date affichée = date de lecture, échec affiché sans valeur inventée. |
 
+### 4.6 État d'avancement
+
+- **Lot 1, livré** : moteur sur clés exactes, tables, calcul et API de lecture. Sur `laborex_v1_db` : 15 087 codes,
+  15 047 retenus d'office par le code du grossiste, 40 à valider. Tests : `CorrespondanceReglesCoherenceTest`
+  (20 000 cas), `test-correspondance-lot1.js` (26/26).
+- **Lot 2, livré** :
+  - `ligne_import_grossiste` (V7.6.1) garde le code et la désignation bruts de chaque ligne de fichier importée,
+    reconnue ou non, dans la transaction de l'import ;
+  - à la clôture du BL, après validation et sans pouvoir la bloquer : création (source BL), confirmation,
+    contradiction (AUTO → CONTREDITE, fiche d'origine gardée, fiche reçue notée) ou signalement (VALIDEE, REJETEE :
+    rien ne change) ;
+  - API `POST reception-bl/{blId}` (rejeu, droit `P_CORRESPONDANCE_GROSSISTES`) et `GET import/{commandeId}`.
+  - Tests : `ReceptionBlCoherenceTest` (20 000 cas, oracle) et `test-correspondance-lot2.js` (28/28) : import par la
+    fenêtre « IMPORTER UNE COMMANDE », fichier = traces = API = commande ligne par ligne, bilan de la réception,
+    second passage sans effet, calcul du lot 1 sans écraser l'appris ni le décidé.
+  - Limite : la clôture réelle entre en stock ; le test pose un BL clôturé et rejoue la même méthode par l'API.
+    L'appel ajouté dans `cloturerBonLivraison` n'est donc pas couvert de bout en bout.
+
 ## 5. Questions
 
 1. **Dépendance aux connecteurs.** Cette branche part de `claude/new-session-xm8ptu`, qui n'a pas les connecteurs

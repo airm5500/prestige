@@ -222,8 +222,7 @@ public class CorrespondanceGrossisteService {
                 + " WHERE b.lg_BON_LIVRAISON_ID = ?1 AND b.str_STATUT = 'is_Closed' AND li.dt_application IS NULL"
                 + " AND li.code_normalise IS NOT NULL AND li.lg_GROSSISTE_ID IS NOT NULL"
                 // code_grossiste fait 40 caracteres : un code plus long n'est pas appris (il ferait tout echouer)
-                + " AND CHAR_LENGTH(li.code_normalise) <= 40 ORDER BY li.id")
-                .setParameter(1, blId).getResultList();
+                + " AND CHAR_LENGTH(li.code_normalise) <= 40 ORDER BY li.id").setParameter(1, blId).getResultList();
         // (grossiste, code, fiche) -> ligne du BL, designation, lignes du fichier
         Map<String, Object[]> receptions = new LinkedHashMap<>();
         Set<Long> vues = new LinkedHashSet<>();
@@ -332,11 +331,12 @@ public class CorrespondanceGrossisteService {
 
     private static final String COLONNES = "c.id, c.cle_grossiste, c.lg_GROSSISTE_ID, c.source_extranet,"
             + " g.str_LIBELLE, c.code_grossiste, c.cip, c.ean, c.designation_grossiste, c.lg_FAMILLE_ID,"
-            + " f.str_DESCRIPTION, f.int_CIP, f.str_STATUT, c.etat, c.source, c.motif, c.score, c.candidats,"
+            + " f.str_DESCRIPTION AS famille_libelle, f.int_CIP AS famille_cip, f.str_STATUT AS famille_statut, c.etat, c.source, c.motif, c.score, c.candidats,"
             + " c.nb_confirmations, c.nb_contradictions, DATE_FORMAT(c.dt_creation, " + FORMAT_DATE + "),"
             + " DATE_FORMAT(c.dt_maj, " + FORMAT_DATE + "), DATE_FORMAT(c.dt_derniere_confirmation, " + FORMAT_DATE
             + "), c.lg_USER_VALIDATION, DATE_FORMAT(c.dt_validation, " + FORMAT_DATE + "), c.calcul_id,"
-            + " c.famille_contradiction, fc.str_DESCRIPTION, DATE_FORMAT(c.dt_derniere_contradiction, " + FORMAT_DATE
+            + " c.famille_contradiction, fc.str_DESCRIPTION AS contradiction_libelle, DATE_FORMAT(c.dt_derniere_contradiction, "
+            + FORMAT_DATE
             + ") FROM correspondance_grossiste c LEFT JOIN t_grossiste g ON g.lg_GROSSISTE_ID = c.lg_GROSSISTE_ID"
             + " LEFT JOIN t_famille f ON f.lg_FAMILLE_ID = c.lg_FAMILLE_ID"
             + " LEFT JOIN t_famille fc ON fc.lg_FAMILLE_ID = c.famille_contradiction";
