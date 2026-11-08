@@ -76,6 +76,11 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
                 reader: {type: 'json', root: 'data'}}
         });
         me.agencesFiche = Ext.create('Ext.data.Store', {fields: ['etcode', 'etlib', 'psstk', 'colisages']});
+        me.rafraichissement = Ext.create('Ext.data.Store', {
+            fields: ['source', 'code', 'libelle', 'delai', 'derniereComplete', 'dernierEssai', 'statutDernierEssai',
+                'prochaine'],
+            proxy: {type: 'ajax', url: me.URL + 'rafraichissement', reader: {type: 'json', root: 'data'}}
+        });
         me.rechercheUbipharm = Ext.create('Ext.data.Store', {fields: ['pscode', 'designation', 'cip', 'statut', 'dispo',
                 'prix', 'colisage']});
 
@@ -119,7 +124,7 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
                                 me.ongletListe('TEDIS_HISTORIQUE_COMMANDES', 'Historique de vos commandes'),
                                 me.ongletListe('TEDIS_PROMOS_LABO', 'Promotions laboratoire'),
                                 me.ongletListe('TEDIS_PROMOS_EXCLUSIVES', 'Promotions exclusives')])]),
-                        me.ongletCollectes()],
+                        me.ongletCollectes(), me.ongletRafraichissement()],
                     listeners: {
                         tabchange: function (tp, onglet) {
                             me.chargerActif(onglet);
@@ -247,6 +252,8 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
             me.nouveaux.load();
         } else if (id === 'exOngletCollectes') {
             me.collectes.load();
+        } else if (id === 'exOngletRafraichissement') {
+            me.rafraichissement.load();
         }
     },
 
@@ -933,12 +940,87 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
         }
     },
 
+    /* ---------------------------------------------------------------- rafraîchissement automatique */
+
+    DELAIS: [[0, 'Jamais'], [30, '30 min'], [60, '1 h'], [120, '2 h'], [240, '4 h'], [480, '8 h'], [720, '12 h'],
+        [1440, '24 h']],
+
+    libelleDelai: function (v) {
+        var r = 'Jamais';
+        Ext.each(this.DELAIS, function (d) {
+            if (d[0] === Number(v)) {
+                r = d[1];
+            }
+        });
+        return r;
+    },
+
+    /**
+     * Délai de relecture de chaque liste (demande du 08/11) : Prestige relit seul les listes réglées et garde la
+     * dernière lecture complète en base, consultable sans Internet. Modification enregistrée dès le choix.
+     */
+    ongletRafraichissement: function () {
+        var me = this, date = function (v) {
+            return me.texte(v ? String(v).replace('T', ' ').substring(0, 16) : '');
+        };
+        return {
+            title: 'Rafraîchissement', itemId: 'exOngletRafraichissement', layout: 'fit',
+            dockedItems: [{xtype: 'toolbar', dock: 'top', items: [
+                        {xtype: 'component', html: '<span style="color:#555">Les listes réglées sont relues seules '
+                                    + '(toutes les 10 min, la tâche vérifie les délais) et gardées en base : elles '
+                                    + 'restent consultables sans Internet. Après un échec, nouvel essai 30 min plus '
+                                    + 'tard au plus tôt.</span>'},
+                        '->', {xtype: 'label', itemId: 'exRafraichissementMsg'}]}],
+            items: [{xtype: 'gridpanel', itemId: 'exRafraichissementGrille', store: me.rafraichissement,
+                    columnLines: true, plugins: [Ext.create('Ext.grid.plugin.CellEditing', {clicksToEdit: 1})],
+                    viewConfig: {deferEmptyText: false, emptyText: '<div style="padding:12px">Aucune liste</div>'},
+                    columns: [
+                        {text: 'Grossiste', dataIndex: 'source', width: 90, renderer: me.texte},
+                        {text: 'Liste', dataIndex: 'libelle', flex: 1, renderer: me.texte},
+                        {text: 'Relire tous les', dataIndex: 'delai', width: 120,
+                            renderer: function (v) {
+                                return '<b>' + me.texte(me.libelleDelai(v)) + '</b> ▾';
+                            },
+                            editor: {xtype: 'combo', editable: false, store: me.DELAIS, queryMode: 'local'}},
+                        {text: 'Dernière lecture complète', dataIndex: 'derniereComplete', width: 160, renderer: date},
+                        {text: 'Dernier essai', dataIndex: 'dernierEssai', width: 130, renderer: date},
+                        {text: 'Résultat', dataIndex: 'statutDernierEssai', width: 90, renderer: me.texte},
+                        {text: 'Prochaine lecture', dataIndex: 'prochaine', width: 140, renderer: date}],
+                    listeners: {edit: function (ed, e) {
+                            if (e.field !== 'delai' || e.value === e.originalValue) {
+                                return;
+                            }
+                            me.definirDelai(e.record, e.value);
+                        }}}]
+        };
+    },
+
+    definirDelai: function (rec, delai) {
+        var me = this;
+        Ext.Ajax.request({
+            method: 'PUT', url: me.URL + 'rafraichissement/' + rec.get('code'), jsonData: {delai: delai},
+            callback: function (o, ok, rep) {
+                var r = Ext.decode(rep.responseText, true) || {success: false, msg: 'Erreur ' + rep.status};
+                me.message('#exRafraichissementMsg', r, rec.get('libelle') + ' : ' + me.libelleDelai(delai)
+                        + ' — enregistré');
+                me.rafraichissement.load();
+            }
+        });
+    },
+
     /* ---------------------------------------------------------------- journal des collectes */
 
     ongletCollectes: function () {
         var me = this;
         return {
             title: 'Collectes', itemId: 'exOngletCollectes', layout: 'fit',
+            dockedItems: [{xtype: 'toolbar', dock: 'top', items: [
+                        {xtype: 'combo', itemId: 'exCollectesSource', fieldLabel: 'Grossiste', labelWidth: 65, width: 190,
+                            editable: false, value: 'UBIPHARM', store: [['UBIPHARM', 'Ubipharm'], ['TEDIS', 'TEDIS']],
+                            listeners: {change: function (c, v) {
+                                    me.collectes.getProxy().url = me.URL + v + '/collectes';
+                                    me.collectes.load();
+                                }}}]}],
             items: [{xtype: 'gridpanel', store: me.collectes, columnLines: true,
                     viewConfig: {deferEmptyText: false, emptyText: '<div style="padding:12px">Aucune collecte</div>'},
                     columns: [

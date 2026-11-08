@@ -455,6 +455,119 @@ public class ExtranetService {
         }
     }
 
+    /* ============================================================ rafraichissement automatique des listes */
+
+    /** Listes que l'on peut rafraichir : {source, code, libelle, module}, Ubipharm puis TEDIS. */
+    private static List<String[]> listesRafraichissables() {
+        List<String[]> r = new ArrayList<>();
+        for (ListeUbipharm l : ListeUbipharm.values()) {
+            r.add(new String[] { SourceExtranet.UBIPHARM.name(), l.name(), l.libelle, l.module() });
+        }
+        for (rest.service.extranet.tedis.ListeTedis l : rest.service.extranet.tedis.ListeTedis.values()) {
+            r.add(new String[] { SourceExtranet.TEDIS.name(), l.name(), l.libelle, l.module() });
+        }
+        return r;
+    }
+
+    private static java.time.LocalDateTime date(Object o) {
+        if (o == null) {
+            return null;
+        }
+        if (o instanceof java.sql.Timestamp) {
+            return ((java.sql.Timestamp) o).toLocalDateTime();
+        }
+        if (o instanceof java.time.LocalDateTime) {
+            return (java.time.LocalDateTime) o;
+        }
+        return java.time.LocalDateTime.parse(String.valueOf(o).replace(' ', 'T'));
+    }
+
+    /** {delai, derniereComplete, dernierEssai, statutDernierEssai} d'une liste. */
+    @SuppressWarnings("unchecked")
+    private Object[] etatRafraichissement(String source, String code, String module) {
+        List<Object> d = em.createNativeQuery("SELECT delai_minutes FROM extranet_rafraichissement WHERE liste = ?1")
+                .setParameter(1, code).getResultList();
+        int delai = d.isEmpty() ? 0 : ((Number) d.get(0)).intValue();
+        Object complete = em
+                .createNativeQuery("SELECT MAX(debut) FROM extranet_collecte WHERE source = ?1 AND module = ?2"
+                        + " AND statut = 'COMPLETE'")
+                .setParameter(1, source).setParameter(2, module).getSingleResult();
+        List<Object[]> essai = em
+                .createNativeQuery("SELECT debut, statut FROM extranet_collecte WHERE source = ?1"
+                        + " AND module = ?2 ORDER BY id DESC LIMIT 1")
+                .setParameter(1, source).setParameter(2, module).getResultList();
+        return new Object[] { delai, date(complete), essai.isEmpty() ? null : date(essai.get(0)[0]),
+                essai.isEmpty() ? null : essai.get(0)[1] };
+    }
+
+    public JSONObject rafraichissements() {
+        JSONArray a = new JSONArray();
+        for (String[] l : listesRafraichissables()) {
+            Object[] e = etatRafraichissement(l[0], l[1], l[3]);
+            java.time.LocalDateTime p = rest.service.extranet.commun.Rafraichissement.prochaine((Integer) e[0],
+                    (java.time.LocalDateTime) e[1], (java.time.LocalDateTime) e[2]);
+            a.put(new JSONObject().put("source", l[0]).put("code", l[1]).put("libelle", l[2]).put("delai", e[0])
+                    .put("derniereComplete", e[1] == null ? JSONObject.NULL : e[1].toString())
+                    .put("dernierEssai", e[2] == null ? JSONObject.NULL : e[2].toString())
+                    .put("statutDernierEssai", e[3] == null ? JSONObject.NULL : e[3])
+                    .put("prochaine", p == null ? JSONObject.NULL
+                            : p.equals(java.time.LocalDateTime.MIN) ? "dès que possible" : p.toString()));
+        }
+        return new JSONObject().put("success", true).put("data", a).put("delais",
+                new JSONArray(rest.service.extranet.commun.Rafraichissement.DELAIS));
+    }
+
+    /** Delai d'une liste (0 : jamais) ; une liste inconnue ou un delai hors de la liste proposee est refuse. */
+    public JSONObject definirRafraichissement(String code, int delaiMinutes, String utilisateur) {
+        String[] liste = null;
+        for (String[] l : listesRafraichissables()) {
+            if (l[1].equalsIgnoreCase(code == null ? "" : code.trim())) {
+                liste = l;
+            }
+        }
+        if (liste == null) {
+            return new JSONObject().put("success", false).put("msg", "Liste inconnue");
+        }
+        if (!rest.service.extranet.commun.Rafraichissement.delaiValide(delaiMinutes)) {
+            return new JSONObject().put("success", false).put("msg", "Délai non proposé : " + delaiMinutes + " min");
+        }
+        em.createNativeQuery("INSERT INTO extranet_rafraichissement (liste, source, delai_minutes, modifie_le,"
+                + " modifie_par) VALUES (?1, ?2, ?3, NOW(), ?4) ON DUPLICATE KEY UPDATE delai_minutes = ?3,"
+                + " modifie_le = NOW(), modifie_par = ?4").setParameter(1, liste[1]).setParameter(2, liste[0])
+                .setParameter(3, delaiMinutes).setParameter(4, utilisateur).executeUpdate();
+        return new JSONObject().put("success", true).put("code", liste[1]).put("delai", delaiMinutes);
+    }
+
+    /**
+     * Listes dont la lecture est due maintenant, pour la tache planifiee. Une source sans identifiant enregistre ni
+     * session utilisable est ecartee (rien a lire, aucun essai journalise).
+     */
+    public List<String[]> listesARafraichir() {
+        java.time.LocalDateTime maintenant = java.time.LocalDateTime.now();
+        List<String[]> r = new ArrayList<>();
+        for (String[] l : listesRafraichissables()) {
+            Object[] e = etatRafraichissement(l[0], l[1], l[3]);
+            if (!rest.service.extranet.commun.Rafraichissement.echue((Integer) e[0], (java.time.LocalDateTime) e[1],
+                    (java.time.LocalDateTime) e[2], maintenant)) {
+                continue;
+            }
+            SourceExtranet s = SourceExtranet.valueOf(l[0]);
+            boolean compte = comptes().publique(s, adresse(s)).optBoolean("enregistre");
+            if (compte || CoffreSessions.session(s).utilisable()) {
+                r.add(new String[] { l[0], l[1] });
+            }
+        }
+        return r;
+    }
+
+    /** Lecture d'une liste par la tache planifiee (transaction propre a chaque liste). */
+    public JSONObject rafraichir(String source, String code) {
+        return SourceExtranet.TEDIS.name().equals(source) ? collecterListeTedis(code, UTILISATEUR_AUTOMATIQUE)
+                : collecterListe(code, UTILISATEUR_AUTOMATIQUE);
+    }
+
+    public static final String UTILISATEUR_AUTOMATIQUE = "rafraichissement automatique";
+
     /* ============================================================ Ubipharm : nouveaux produits */
 
     public JSONObject nouveauxEnCache() {

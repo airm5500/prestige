@@ -354,4 +354,31 @@ public class ExtranetRessource {
         Response r = refus();
         return r != null ? r : ok(service.rechercherUbipharm(motif, champs, commencePar, enStock));
     }
+
+    /* ============================================================ rafraichissement automatique des listes */
+
+    @GET
+    @Path("rafraichissement")
+    public Response rafraichissements() {
+        Response r = refus();
+        return r != null ? r : ok(service.rafraichissements());
+    }
+
+    /** Corps : {delai : minutes} (0 : jamais). */
+    @PUT
+    @Path("rafraichissement/{code}")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Response definirRafraichissement(@PathParam("code") String code, String corps) {
+        Response r = refus();
+        if (r != null) {
+            return r;
+        }
+        JSONObject c;
+        try {
+            c = new JSONObject(corps == null ? "{}" : corps);
+        } catch (org.json.JSONException e) {
+            return ok(new JSONObject().put("success", false).put("msg", "Corps JSON attendu"));
+        }
+        return ok(service.definirRafraichissement(code, c.optInt("delai", -1), login()));
+    }
 }
