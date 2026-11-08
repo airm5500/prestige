@@ -1770,11 +1770,8 @@ Ext.define('testextjs.controller.VenteEnDepotCtr', {
             return;
         }
 
-        // 3) Si valeur présente, chercher le record dans le store
-        const record = store ? (
-                store.findRecord("lgFAMILLEID", combo.getValue(), 0, false, false, true)
-                || store.findRecord("intCIP", combo.getValue(), 0, false, false, true)
-                ) : null;
+        // 3) Article choisi dans la liste (la valeur est son identifiant) : renseigner puis saisie de la quantite
+        const record = store ? store.findRecord("lgFAMILLEID", v, 0, false, false, true) : null;
 
         if (record) {
             const vnoemplacementId = me.getVnoemplacementField();
@@ -1783,9 +1780,38 @@ Ext.define('testextjs.controller.VenteEnDepotCtr', {
             me.afficherPeremptionProche(record.get('lgFAMILLEID'));
             me.getVnoqtyField().focus(true, 100);
         } else {
-            // ✅ si pas trouvé localement => douchette (API)
+            // Code tape ou scanne : douchette (API), ajout direct d'une boite. Meme defaut que la vente au comptant
+            // (scan perdu du 08/11) : le meme article scanne de nouveau etait retrouve dans la liste precedente, l'ecran
+            // passait dans « QD » sans ajouter, puis la recherche de la frappe rouvrait la liste et reprenait le curseur.
+            me.annulerRechercheEnAttente(combo);
             me.checkDouchette(combo, true);
         }
+    },
+
+    /** Annule la recherche de la liste programmee par la frappe (ExtJS : doQueryTask, queryDelay). */
+    annulerRechercheEnAttente: function (combo) {
+        try {
+            if (combo && combo.doQueryTask) {
+                combo.doQueryTask.cancel();
+            }
+        } catch (e) {
+        }
+    },
+
+    /**
+     * Remet le curseur dans la recherche produit, texte selectionne, sauf si une saisie y est deja en cours (code
+     * tronque du 08/11 : le rechargement des lignes, revenu pendant la frappe, faisait remplacer les chiffres tapes).
+     */
+    curseurDansRecherche: function (combo) {
+        Ext.defer(function () {
+            if (!combo || combo.isDestroyed || !combo.inputEl) {
+                return;
+            }
+            if (document.activeElement === combo.inputEl.dom && combo.getRawValue()) {
+                return;
+            }
+            combo.focus(true);
+        }, 100);
     },
     onMontantRecuVnoKey: function (field, e, options) {
         let me = this;
@@ -2041,8 +2067,7 @@ Ext.define('testextjs.controller.VenteEnDepotCtr', {
                             }
                             ,
                             callback: function (records, operation, successful) {
-                                me.getVnoproduitCombo()
-                                        .focus(true, 100);
+                                me.curseurDansRecherche(me.getVnoproduitCombo());
                             }
                         }
                 );
