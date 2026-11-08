@@ -20,15 +20,29 @@ class PromotionLigneCoherenceTest {
     private static final long GRAINE = 20261105L;
     private static final int LIGNES = 20000;
 
-    /** Oracle : boites prises une a une ; apres s boites payees, les n suivantes sont offertes, et ainsi de suite. */
+    /**
+     * Oracle « a partir de s » (plan du 06/11, point 3.2, choix du 07/11) : boites prises une a une ; apres s boites
+     * payees, les n suivantes sont offertes, UNE SEULE FOIS ; les suivantes sont payees.
+     */
     private static int offertesBoiteParBoite(int quantite, int s, int n) {
         int offertes = 0;
-        int rang = 0;
         for (int i = 0; i < quantite; i++) {
-            if (rang >= s) {
+            if (i >= s && i < s + n) {
                 offertes++;
             }
-            rang = (rang + 1) % (s + n);
+        }
+        return offertes;
+    }
+
+    /** Oracle « par palier de s » : boites payees comptees une a une ; chaque palier complet de s donne n offertes. */
+    private static int offertesPalierBoiteParBoite(int payees, int s, int n) {
+        int offertes = 0;
+        int compte = 0;
+        for (int i = 0; i < payees; i++) {
+            if (++compte == s) {
+                offertes += n;
+                compte = 0;
+            }
         }
         return offertes;
     }
@@ -39,7 +53,7 @@ class PromotionLigneCoherenceTest {
     }
 
     @Test
-    void unitesGratuitesApresSBoitesLesNSuivantesSontOffertes() {
+    void unitesGratuitesAPartirDeSOffertesUneSeuleFois() {
         Random r = new Random(GRAINE);
         for (int k = 0; k < LIGNES; k++) {
             int s = 1 + r.nextInt(10);
@@ -120,6 +134,70 @@ class PromotionLigneCoherenceTest {
             } else {
                 assertNull(prix, cas);
             }
+        }
+    }
+
+    /**
+     * Par palier de s (demande du 07/11) : les offertes s'AJOUTENT aux boites payees ; 9 payees par palier de 4, 1
+     * offerte : 2 offertes, 11 boites, 9 payees, « PROMOTION 8+2 OFFERT(S) ».
+     */
+    @Test
+    void parPalierLesOffertesSAjoutentAuxBoitesPayees() {
+        assertEquals(2, PromotionLigne.offertesParPalier(9, 4, 1));
+        assertEquals("PROMOTION 8+2 OFFERT(S)",
+                PromotionLigne.mention(PromotionLigne.UNITES_GRATUITES, PromotionLigne.MODE_PALIER, 4, 1, 2));
+        Random r = new Random(GRAINE + 6);
+        for (int k = 0; k < LIGNES; k++) {
+            int s = r.nextInt(11); // 0 : promotion mal saisie, rien d'offert
+            int n = r.nextInt(6);
+            int payees = r.nextInt(5 * (s + 1) + 1);
+            int pu = 5 * (1 + r.nextInt(2000));
+            int off = PromotionLigne.offertesParPalier(payees, s, n);
+            String cas = payees + " payees, " + n + " offertes par palier de " + s;
+            assertEquals(s <= 0 || n <= 0 ? 0 : offertesPalierBoiteParBoite(payees, s, n), off, cas);
+            assertTrue(off >= 0, cas);
+            // ligne : quantite = payees + offertes, montant = prix x payees
+            assertEquals(pu * payees, PromotionLigne.montant(pu, payees + off, off), cas);
+            // une boite payee de plus ne coute jamais moins et ne donne jamais moins d'offertes
+            int off2 = PromotionLigne.offertesParPalier(payees + 1, s, n);
+            assertTrue(off2 >= off && PromotionLigne.montant(pu, payees + 1 + off2, off2) > PromotionLigne.montant(pu,
+                    payees + off, off), cas);
+        }
+    }
+
+    /** Mention du ticket et de l'ecran : « PROMOTION x+n OFFERT(S) », x = boites qui ouvrent droit aux offertes. */
+    @Test
+    void mentionPromotionXPlusNOffertes() {
+        assertEquals("PROMOTION 5+1 OFFERT(S)",
+                PromotionLigne.mention(PromotionLigne.UNITES_GRATUITES, PromotionLigne.MODE_A_PARTIR, 5, 1, 1));
+        assertEquals("PROMOTION", PromotionLigne.mention(PromotionLigne.REMISE, null, null, null, 0));
+        assertEquals("PROMOTION", PromotionLigne.mention(PromotionLigne.PRIX_SPECIAL, null, null, null, 0));
+        // ligne d'avant la copie de la promotion sur la ligne : ancien texte
+        assertEquals("PROMOTION DONT 2 OFFERTE(S)", PromotionLigne.mention(null, null, null, null, 2));
+        assertEquals("PROMOTION", PromotionLigne.mention(null, null, null, null, 0));
+        Random r = new Random(GRAINE + 7);
+        for (int k = 0; k < LIGNES; k++) {
+            int s = 1 + r.nextInt(10);
+            int n = 1 + r.nextInt(5);
+            boolean palier = r.nextBoolean();
+            int q = r.nextInt(5 * (s + n) + 1);
+            int off = palier ? PromotionLigne.offertesParPalier(q, s, n) : PromotionLigne.unitesOffertes(q, s, n);
+            String m = PromotionLigne.mention(PromotionLigne.UNITES_GRATUITES,
+                    palier ? PromotionLigne.MODE_PALIER : PromotionLigne.MODE_A_PARTIR, s, n, off);
+            String cas = (palier ? "par palier de " : "a partir de ") + s + ", " + n + " offertes, quantite " + q;
+            if (off == 0) {
+                assertEquals("PROMOTION", m, cas);
+                continue;
+            }
+            java.util.regex.Matcher x = java.util.regex.Pattern.compile("^PROMOTION (\\d+)\\+(\\d+) OFFERT\\(S\\)$")
+                    .matcher(m);
+            assertTrue(x.matches(), cas + " : " + m);
+            int ouvrent = Integer.parseInt(x.group(1));
+            assertEquals(off, Integer.parseInt(x.group(2)), cas);
+            // x est un multiple du seuil, jamais plus que les boites payees
+            assertEquals(0, ouvrent % s, cas);
+            assertEquals(palier ? (off / n) * s : s, ouvrent, cas);
+            assertTrue(ouvrent <= (palier ? q : q - off), cas);
         }
     }
 

@@ -121,6 +121,18 @@ public class TPromotionProduct implements Serializable {
         this.dbPRICE = dbPRICE;
     }
 
+    /** Demande du 07/11 : unites gratuites « par palier de » (PALIER) ou « a partir de » (A_PARTIR ou NULL). */
+    @Column(name = "str_MODE_UG", length = 10)
+    private String strMODEUG;
+
+    public String getStrMODEUG() {
+        return strMODEUG;
+    }
+
+    public void setStrMODEUG(String strMODEUG) {
+        this.strMODEUG = strMODEUG;
+    }
+
     public Integer getIntACTIVEAT() {
         return intACTIVEAT;
     }

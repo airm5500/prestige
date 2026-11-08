@@ -310,7 +310,9 @@ Ext.define('testextjs.view.Promotions.PromotionManager', {
         // Choix du produit : recherche REST legere dediee (nom ou CIP), la JSP famille
         // historique construisait des lignes tres lourdes et rendait la recherche lente
         var storeFamille = new Ext.data.Store({
-            model: 'testextjs.model.Famille',
+            // plan du 06/11, point 3.3 : CIP, nom, prix et stock de l'officine dans la liste de recherche
+            fields: ['lg_FAMILLE_ID', 'int_CIP', 'str_NAME', 'str_DESCRIPTION',
+                {name: 'int_PRICE', type: 'int'}, {name: 'int_STOCK', type: 'int'}],
             pageSize: 20,
             autoLoad: false,
             proxy: {
@@ -368,7 +370,16 @@ Ext.define('testextjs.view.Promotions.PromotionManager', {
                             hidden: promoType !== 'UNITES GRATUITES',
                             flex: 0.7
                         }, {
-                            header: 'A partir de',
+                            // demande du 07/11 : « à partir de » (une seule fois) ou « par palier de » (à chaque palier)
+                            header: 'Option',
+                            dataIndex: 'str_MODE_UG',
+                            hidden: promoType !== 'UNITES GRATUITES',
+                            flex: 0.7,
+                            renderer: function (v) {
+                                return v === 'PALIER' ? 'Par palier de' : '&Agrave; partir de';
+                            }
+                        }, {
+                            header: 'Quantit&eacute;',
                             dataIndex: 'int_ACTIVE_AT',
                             align: 'right',
                             hidden: promoType !== 'UNITES GRATUITES',
@@ -418,7 +429,28 @@ Ext.define('testextjs.view.Promotions.PromotionManager', {
                             minChars: 3,
                             pageSize: 20,
                             queryMode: 'remote',
-                            flex: 2
+                            // point 3.3 : le champ prend toute la place libre de la barre
+                            flex: 1,
+                            minWidth: 360,
+                            // le theme plafonne a 240 px les listes a flex sans largeur maximale (filtres) : celle-ci
+                            // est la recherche de la barre, elle garde toute la place
+                            maxWidth: 4000,
+                            listConfig: {
+                                minWidth: 560,
+                                getInnerTpl: function () {
+                                    return '<div class="promo-choix" style="display:flex;gap:10px">'
+                                            + '<span style="width:80px">{int_CIP}</span>'
+                                            + '<span style="flex:1;font-weight:600">{str_NAME}</span>'
+                                            + '<span style="width:90px;text-align:right">{[Ext.util.Format.number(values.int_PRICE, "0,000")]} F</span>'
+                                            + '<span style="width:90px;text-align:right">stock {int_STOCK}</span></div>';
+                                }
+                            }
+                        }, {
+                            // point 3.3 : rappel du produit choisi, juste avant le champ a saisir (prix actuel ou stock)
+                            xtype: 'tbtext',
+                            itemId: 'rappelProduit',
+                            cls: 'promo-rappel',
+                            text: ''
                         }, {
                             xtype: 'numberfield',
                             itemId: 'champRemise',
@@ -439,15 +471,27 @@ Ext.define('testextjs.view.Promotions.PromotionManager', {
                         }, {
                             xtype: 'numberfield',
                             itemId: 'champPack',
-                            emptyText: 'Unit&eacute;s gratuites',
+                            emptyText: 'Unités gratuites', // le texte d'attente n'interprete pas le HTML (« &eacute; » s'affichait tel quel)
                             minValue: 1,
                             allowDecimals: false,
                             hidden: promoType !== 'UNITES GRATUITES',
                             width: 130
                         }, {
+                            // demande du 07/11 : « à partir de 5, 1 offerte » une seule fois ; « par palier de 4, 1
+                            // offerte » : 1 offerte pour 4 payées, 2 pour 8, ajoutées aux boîtes payées
+                            xtype: 'combobox',
+                            itemId: 'champModeUg',
+                            store: [['A_PARTIR', 'À partir de'], ['PALIER', 'Par palier de']],
+                            value: 'A_PARTIR',
+                            editable: false,
+                            forceSelection: true,
+                            queryMode: 'local',
+                            hidden: promoType !== 'UNITES GRATUITES',
+                            width: 120
+                        }, {
                             xtype: 'numberfield',
                             itemId: 'champSeuil',
-                            emptyText: 'A partir de (qte)',
+                            emptyText: 'Quantité',
                             minValue: 1,
                             allowDecimals: false,
                             hidden: promoType !== 'UNITES GRATUITES',
@@ -513,7 +557,8 @@ Ext.define('testextjs.view.Promotions.PromotionManager', {
                     int_DISCOUNT: conteneur.down('#champRemise').getValue() || 0,
                     db_PROMOTION_PRICE: conteneur.down('#champPrixPromo').getValue() || 0,
                     int_PACK_NUMBER: conteneur.down('#champPack').getValue() || 0,
-                    int_ACTIVE_AT: conteneur.down('#champSeuil').getValue() || 0
+                    int_ACTIVE_AT: conteneur.down('#champSeuil').getValue() || 0,
+                    str_MODE_UG: promoType === 'UNITES GRATUITES' ? (conteneur.down('#champModeUg').getValue() || 'A_PARTIR') : ''
                 },
                 callback: function () {
                     declencherAjout.enCours = false;
@@ -526,6 +571,7 @@ Ext.define('testextjs.view.Promotions.PromotionManager', {
                     }
                     // Prepare la saisie suivante : champs vides, focus sur la recherche produit
                     conteneur.down('#choixProduit').setValue('');
+                    afficherRappel(null);
                     Ext.each(champsSaisie, function (sel) {
                         var champ = conteneur.down(sel);
                         if (champ) {
@@ -542,10 +588,44 @@ Ext.define('testextjs.view.Promotions.PromotionManager', {
             });
         };
 
+        /*
+         * Plan du 06/11, point 3.3 : rappel du produit choisi avant le champ a saisir.
+         * Prix special : « Prix actuel : X » ; remise : « Prix actuel : X », puis « Prix apres remise : Y » recalcule a
+         * la frappe du % (meme arrondi que le serveur) ; unites gratuites : « Stock : N » (officine, sans les depots).
+         */
+        var produitChoisi = null;
+        var montant = function (v) {
+            return Ext.util.Format.number(v, '0,000') + ' F';
+        };
+        var afficherRappel = function (choisi) {
+            produitChoisi = choisi;
+            var rappel = conteneur.down('#rappelProduit');
+            if (!choisi) {
+                rappel.setText('');
+                return;
+            }
+            var prix = Number(choisi.get('int_PRICE')) || 0;
+            var texte;
+            if (promoType === 'UNITES GRATUITES') {
+                texte = 'Stock : ' + (Number(choisi.get('int_STOCK')) || 0);
+            } else {
+                texte = 'Prix actuel : ' + montant(prix);
+                var remise = conteneur.down('#champRemise').getValue();
+                if (promoType === 'REMISE' && remise > 0 && remise < 100) {
+                    texte += ' &rarr; Prix apr&egrave;s remise : ' + montant(Math.round(prix * (100 - remise) / 100));
+                }
+            }
+            rappel.setText('<span class="promo-rappel-texte">' + texte + '</span>');
+        };
+        conteneur.down('#champRemise').on('change', function () {
+            afficherRappel(produitChoisi);
+        });
+
         // Apres le choix du produit, focus automatique sur le premier champ de saisie visible
         conteneur.down('#choixProduit').on('select', function (combo, records) {
             // audit 05 PR-04 : le prix special reste sous le prix public du produit choisi
             var choisi = Ext.isArray(records) ? records[0] : records;
+            afficherRappel(choisi);
             var prixPromo = conteneur.down('#champPrixPromo');
             if (prixPromo && choisi) {
                 var prixPublic = Number(choisi.get('int_PRICE')) || 0;

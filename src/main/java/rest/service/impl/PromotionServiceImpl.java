@@ -17,7 +17,11 @@ import javax.persistence.Query;
 import org.apache.commons.lang3.StringUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import javax.ejb.EJB;
 import rest.service.PromotionService;
+import rest.service.SessionHelperService;
+import rest.service.promotion.JournalPromotion;
+import rest.service.promotion.PromotionLigne;
 import toolkits.parameters.commonparameter;
 
 /**
@@ -38,6 +42,24 @@ public class PromotionServiceImpl implements PromotionService {
 
     @PersistenceContext(unitName = "JTA_UNIT")
     private EntityManager em;
+    @EJB
+    private SessionHelperService sessionHelperService;
+
+    /** Utilisateur connecte, pour le journal (null hors session : traitement automatique). */
+    private String utilisateur() {
+        try {
+            return sessionHelperService.getCurrentUser() != null ? sessionHelperService.getCurrentUser().getLgUSERID()
+                    : null;
+        } catch (RuntimeException e) {
+            return null;
+        }
+    }
+
+    /** Plan du 06/11, point 3.5 : une ligne du journal des promotions. */
+    private void journal(String action, TPromotion promotion, TFamille famille, TPromotionProduct valeurs,
+            String avant) {
+        em.persist(JournalPromotion.ligne(action, promotion, famille, valeurs, avant, null, utilisateur()));
+    }
 
     private String fmt(Date date) {
         return date != null ? new SimpleDateFormat("dd/MM/yyyy").format(date) : "";
@@ -152,6 +174,8 @@ public class PromotionServiceImpl implements PromotionService {
             promotion.setDtSTARTDATE(debut);
             promotion.setDtENDDATE(fin);
             em.persist(promotion);
+            em.flush();
+            journal(JournalPromotion.CREATION, promotion, null, null, null);
             return json.put("success", SUCCESS).put("errors", "Promotion créée avec succès");
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "createPromotion", e);
@@ -200,12 +224,17 @@ public class PromotionServiceImpl implements PromotionService {
                             + (f != null ? f.getStrNAME() : fam) + " est déjà dans la promotion " + autre);
                 }
             }
+            String avant = JournalPromotion.periode(promotion.getStrTYPE(), promotion.getDtSTARTDATE(),
+                    promotion.getDtENDDATE());
             if (StringUtils.isNotBlank(type) && !type.equals(promotion.getStrTYPE())) {
                 promotion.setStrTYPE(type);
             }
             promotion.setDtSTARTDATE(debut);
             promotion.setDtENDDATE(fin);
             em.merge(promotion);
+            if (!avant.equals(JournalPromotion.periode(promotion.getStrTYPE(), debut, fin))) {
+                journal(JournalPromotion.MODIFICATION_PROMOTION, promotion, null, null, avant);
+            }
             for (Object fam : em
                     .createNativeQuery("SELECT lg_FAMILLE_ID FROM t_promotion_product WHERE lg_CODE_PROMOTION_ID = ?1")
                     .setParameter(1, promotionId).getResultList()) {
@@ -246,9 +275,12 @@ public class PromotionServiceImpl implements PromotionService {
             if (fin.before(truncate(promotion.getDtSTARTDATE()))) {
                 fin = jour;
             }
+            String avant = JournalPromotion.periode(promotion.getStrTYPE(), promotion.getDtSTARTDATE(),
+                    promotion.getDtENDDATE());
             promotion.setDtENDDATE(fin);
             em.merge(promotion);
             em.flush();
+            journal(JournalPromotion.CLOTURE, promotion, null, null, avant);
             // Drapeau promotion recalcule pour chaque produit (une autre promotion peut encore le contenir)
             List<?> familles = em
                     .createNativeQuery("SELECT lg_FAMILLE_ID FROM t_promotion_product WHERE lg_CODE_PROMOTION_ID = ?1")
@@ -273,11 +305,10 @@ public class PromotionServiceImpl implements PromotionService {
                     + " WHERE pp.lg_CODE_PROMOTION_ID = ?1 AND (f.str_NAME LIKE ?2 OR f.int_CIP LIKE ?2)";
             long total = ((Number) em.createNativeQuery("SELECT COUNT(*)" + where).setParameter(1, promotionId)
                     .setParameter(2, like).getSingleResult()).longValue();
-            Query q = em
-                    .createNativeQuery("SELECT pp.lg_PROMOTION_PRODUCT_ID, f.lg_FAMILLE_ID, g.str_LIBELLE,"
-                            + " f.str_NAME, f.str_DESCRIPTION, f.int_CIP, f.int_PRICE, pp.int_DISCOUNT, pp.bl_MODE,"
-                            + " pp.db_PRICE, pp.int_PACK_NUMBER, pp.int_ACTIVE_AT" + where + " ORDER BY f.str_NAME ASC")
-                    .setParameter(1, promotionId).setParameter(2, like);
+            Query q = em.createNativeQuery("SELECT pp.lg_PROMOTION_PRODUCT_ID, f.lg_FAMILLE_ID, g.str_LIBELLE,"
+                    + " f.str_NAME, f.str_DESCRIPTION, f.int_CIP, f.int_PRICE, pp.int_DISCOUNT, pp.bl_MODE,"
+                    + " pp.db_PRICE, pp.int_PACK_NUMBER, pp.int_ACTIVE_AT, pp.str_MODE_UG" + where
+                    + " ORDER BY f.str_NAME ASC").setParameter(1, promotionId).setParameter(2, like);
             if (limit > 0) {
                 q.setFirstResult(Math.max(0, start)).setMaxResults(limit);
             }
@@ -291,7 +322,8 @@ public class PromotionServiceImpl implements PromotionService {
                         .put("int_DISCOUNT", r[7] != null ? String.valueOf(r[7]) : "").put("bl_MODE", versBooleen(r[8]))
                         .put("int_PROMOTION_PRICE", r[9] != null ? ((Number) r[9]).doubleValue() : 0)
                         .put("int_PACK_NUMBER", r[10] != null ? ((Number) r[10]).intValue() : 0)
-                        .put("int_ACTIVE_AT", r[11] != null ? ((Number) r[11]).intValue() : 0));
+                        .put("int_ACTIVE_AT", r[11] != null ? ((Number) r[11]).intValue() : 0)
+                        .put("str_MODE_UG", r[12] != null ? String.valueOf(r[12]) : ""));
             }
             return json.put("total", total).put("results", results);
         } catch (Exception e) {
@@ -324,8 +356,12 @@ public class PromotionServiceImpl implements PromotionService {
                     + " AND (f.str_NAME LIKE ?1 OR f.int_CIP LIKE ?1)";
             long total = ((Number) em.createNativeQuery("SELECT COUNT(*)" + where).setParameter(1, like)
                     .getSingleResult()).longValue();
+            // plan du 06/11, point 3.3 : la liste montre aussi le stock vendable de l'officine (emplacement 1, sans
+            // les depots)
             Query q = em.createNativeQuery("SELECT f.lg_FAMILLE_ID, f.int_CIP, f.str_NAME, f.str_DESCRIPTION,"
-                    + " f.int_PRICE" + where + " ORDER BY f.str_NAME ASC").setParameter(1, like);
+                    + " f.int_PRICE, (SELECT s.int_NUMBER_AVAILABLE FROM t_famille_stock s"
+                    + " WHERE s.lg_FAMILLE_ID = f.lg_FAMILLE_ID AND s.lg_EMPLACEMENT_ID = '1' LIMIT 1)" + where
+                    + " ORDER BY f.str_NAME ASC").setParameter(1, like);
             if (limit > 0) {
                 q.setFirstResult(Math.max(0, start)).setMaxResults(limit);
             }
@@ -333,7 +369,8 @@ public class PromotionServiceImpl implements PromotionService {
                 results.put(new JSONObject().put("lg_FAMILLE_ID", String.valueOf(r[0]))
                         .put("int_CIP", r[1] != null ? r[1] : "").put("str_NAME", r[2] != null ? r[2] : "")
                         .put("str_DESCRIPTION", r[3] != null ? r[3] : "")
-                        .put("int_PRICE", r[4] != null ? ((Number) r[4]).doubleValue() : 0));
+                        .put("int_PRICE", r[4] != null ? ((Number) r[4]).doubleValue() : 0)
+                        .put("int_STOCK", r[5] != null ? ((Number) r[5]).intValue() : 0));
             }
             return json.put("total", total).put("results", results);
         } catch (Exception e) {
@@ -344,7 +381,7 @@ public class PromotionServiceImpl implements PromotionService {
 
     @Override
     public JSONObject addProduit(int promotionId, String familleId, int discount, double promoPrice, int packNumber,
-            int activeAt) {
+            String modeUg, int activeAt) {
         JSONObject json = new JSONObject();
         try {
             TPromotion promotion = em.find(TPromotion.class, promotionId);
@@ -390,6 +427,11 @@ public class PromotionServiceImpl implements PromotionService {
                     return json.put("success", FAILED).put("errors",
                             "Le nombre d'unités gratuites et le seuil de déclenchement doivent être supérieurs à 0");
                 }
+                if (modeUg != null && !modeUg.isEmpty() && !PromotionLigne.MODE_A_PARTIR.equals(modeUg)
+                        && !PromotionLigne.MODE_PALIER.equals(modeUg)) {
+                    return json.put("success", FAILED).put("errors",
+                            "Option inconnue : « à partir de » ou « par palier de »");
+                }
                 prixPromo = famille.getIntPRICE();
                 break;
             default:
@@ -402,12 +444,14 @@ public class PromotionServiceImpl implements PromotionService {
                             + " AND t.lgFAMILLEID.lgFAMILLEID = ?2", TPromotionProduct.class)
                     .setParameter(1, promotionId).setParameter(2, familleId).getResultList();
             TPromotionProduct produit = existants.isEmpty() ? new TPromotionProduct() : existants.get(0);
+            String avant = existants.isEmpty() ? null : JournalPromotion.valeurs(produit);
             produit.setLgCODEPROMOTIONID(promotion);
             produit.setLgFAMILLEID(famille);
             produit.setIntDISCOUNT(discount);
             produit.setBlMODE(TYPE_REMISE.equals(type));
             produit.setIntPACKNUMBER(packNumber);
             produit.setIntACTIVEAT(activeAt);
+            produit.setStrMODEUG(modeUgRetenu(type, modeUg));
             produit.setDbPRICE(prixPromo);
             produit.setDtPROMOTEDDATE(new Date());
             if (existants.isEmpty()) {
@@ -420,22 +464,9 @@ public class PromotionServiceImpl implements PromotionService {
             em.flush();
             recalculerDrapeau(famille.getLgFAMILLEID());
 
-            // Trace dans l'historique des promotions
-            TPromotionHistory histo = new TPromotionHistory();
-            histo.setLgCODEPROMOTIONID(promotionId);
-            histo.setIntCIP(famille.getIntCIP());
-            histo.setLgFAMILLEID(famille.getLgFAMILLEID());
-            histo.setStrNAME(famille.getStrNAME());
-            histo.setDtPROMOTEDDATE(new Date());
-            histo.setDtSTARTDATE(promotion.getDtSTARTDATE());
-            histo.setDtENDDATE(promotion.getDtENDDATE());
-            histo.setStrTYPE(type);
-            histo.setIntDISCOUNT(discount);
-            histo.setBlMODE(TYPE_REMISE.equals(type));
-            histo.setIntPACKNUMBER(packNumber);
-            histo.setIntACTIVEAT(activeAt);
-            histo.setDbPRICE(prixPromo);
-            em.persist(histo);
+            // Trace dans le journal des promotions (plan du 06/11, point 3.5 : ajout ou modification, avec l'avant)
+            journal(existants.isEmpty() ? JournalPromotion.AJOUT : JournalPromotion.MODIFICATION, promotion, famille,
+                    produit, avant);
 
             return json.put("success", SUCCESS).put("errors",
                     "Produit '" + famille.getStrNAME() + "' ajouté à la promotion");
@@ -443,6 +474,14 @@ public class PromotionServiceImpl implements PromotionService {
             LOG.log(Level.SEVERE, "addProduit promotion", e);
             return json.put("success", FAILED).put("errors", "Impossible d'ajouter le produit à la promotion");
         }
+    }
+
+    /** Option des unites gratuites (demande du 07/11) : PALIER ou A_PARTIR ; null pour les autres types. */
+    private static String modeUgRetenu(String type, String modeUg) {
+        if (!TYPE_UNITES_GRATUITES.equals(type)) {
+            return null;
+        }
+        return PromotionLigne.MODE_PALIER.equals(modeUg) ? PromotionLigne.MODE_PALIER : PromotionLigne.MODE_A_PARTIR;
     }
 
     @Override
@@ -454,6 +493,12 @@ public class PromotionServiceImpl implements PromotionService {
                 return json.put("success", FAILED).put("errors", "Produit introuvable dans la promotion");
             }
             TFamille famille = produit.getLgFAMILLEID();
+            /*
+             * plan du 06/11, point 3.5 : le retrait est journalise avec toutes les valeurs du produit retire ; la ligne
+             * reste supprimee comme avant (une douzaine d'ecrans lisent t_promotion_product).
+             */
+            journal(JournalPromotion.RETRAIT, produit.getLgCODEPROMOTIONID(), famille, produit,
+                    JournalPromotion.valeurs(produit));
             em.remove(produit);
             if (famille != null) {
                 em.flush();

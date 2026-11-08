@@ -989,7 +989,7 @@ public class SalesServiceImpl implements SalesService {
         newItem.setIntPRICEOTHER(tp.getIntPRICEOTHER());
         newItem.setIntPRICEDETAILOTHER(tp.getIntPRICEDETAILOTHER());
         newItem.setIntFREEPACKNUMBER(tp.getIntFREEPACKNUMBER());
-        newItem.setPromotionProduitId(tp.getPromotionProduitId());
+        newItem.copierPromotion(tp);
         newItem.setIntPRICEREMISE((-1) * tp.getIntPRICEREMISE());
         newItem.setIntAVOIR((-1) * tp.getIntAVOIR());
         newItem.setIntAVOIRSERVED((-1) * tp.getIntQUANTITYSERVED());
@@ -1668,10 +1668,16 @@ public class SalesServiceImpl implements SalesService {
             if (refuserQuantiteNonPositive(json, salesParams.getQte())) {
                 return json;
             }
-            if (!forcerStock(salesParams.getQte(), salesParams.getProduitId(), emplacementDeSaisie(salesParams))) {
+            // par palier : les offertes s'ajoutent a la quantite saisie, le stock est controle sur le tout
+            TFamille produitSaisi = StringUtils.isBlank(salesParams.getProduitId()) ? null
+                    : emg.find(TFamille.class, salesParams.getProduitId());
+            int qteTotale = quantiteAvecOffertes(
+                    produitSaisi != null && !salesParams.isDepot() ? promotionEnCours(produitSaisi) : null,
+                    salesParams.getQte());
+            if (!forcerStock(qteTotale, salesParams.getProduitId(), emplacementDeSaisie(salesParams))) {
                 return json.put("success", false).put("msg", "Impossible de forcer le stock « voir le gestionnaire »");
             }
-            if (refuserQuantiteDetailInvendable(json, salesParams.getProduitId(), salesParams.getQte(),
+            if (refuserQuantiteDetailInvendable(json, salesParams.getProduitId(), qteTotale,
                     emplacementDeSaisie(salesParams))) {
                 return json;
             }
@@ -1758,8 +1764,10 @@ public class SalesServiceImpl implements SalesService {
         if (promotion == null) {
             return false;
         }
+        Integer prixAvant = d.getIntPRICEUNITAIR();
         if (PROMO_UNITES_GRATUITES.equals(promotion.getLgCODEPROMOTIONID().getStrTYPE())) {
             d.setPromotionProduitId(promotion.getLgPROMOTIONPRODUCTID());
+            noterPromotion(d, promotion, prixAvant);
             return true;
         }
         Integer prix = rest.service.promotion.PromotionLigne.prixUnitaire(promotion.getLgCODEPROMOTIONID().getStrTYPE(),
@@ -1767,26 +1775,105 @@ public class SalesServiceImpl implements SalesService {
         if (prix != null) {
             d.setIntPRICEUNITAIR(prix);
             d.setPromotionProduitId(promotion.getLgPROMOTIONPRODUCTID());
+            noterPromotion(d, promotion, prixAvant);
             return true;
         }
         return false;
     }
 
-    private int unitesGratuites(TPreenregistrementDetail d) {
-        if (d.getPromotionProduitId() == null) {
-            return 0;
+    /**
+     * Points 3.2 et 3.5 du plan du 06/11 : la ligne garde la promotion telle qu'elle est au moment de la vente (type,
+     * option, seuil, unites gratuites, prix d'avant), pour le ticket, la reimpression et les ecrans.
+     */
+    private void noterPromotion(TPreenregistrementDetail d, TPromotionProduct promotion, Integer prixAvant) {
+        String type = promotion.getLgCODEPROMOTIONID().getStrTYPE();
+        d.setPromoType(type);
+        if (prixAvant != null) {
+            d.setPromoPrixAvant(prixAvant);
         }
-        TPromotionProduct promotion = getEm().find(TPromotionProduct.class, d.getPromotionProduitId());
-        if (promotion == null || !PROMO_UNITES_GRATUITES.equals(promotion.getLgCODEPROMOTIONID().getStrTYPE())) {
-            return 0;
+        if (PROMO_UNITES_GRATUITES.equals(type)) {
+            d.setPromoMode(rest.service.promotion.PromotionLigne.palier(promotion.getStrMODEUG())
+                    ? rest.service.promotion.PromotionLigne.MODE_PALIER
+                    : rest.service.promotion.PromotionLigne.MODE_A_PARTIR);
+            d.setPromoSeuil(promotion.getIntACTIVEAT());
+            d.setPromoGratuites(promotion.getIntPACKNUMBER());
+        } else {
+            d.setPromoMode(null);
+            d.setPromoSeuil(null);
+            d.setPromoGratuites(null);
         }
-        return rest.service.promotion.PromotionLigne.unitesOffertes(d.getIntQUANTITY(), promotion.getIntACTIVEAT(),
-                promotion.getIntPACKNUMBER());
     }
 
-    /** Montant de la ligne : unites payees (quantite moins unites gratuites) au prix unitaire. */
+    /** Promotion en unites gratuites appliquee a la ligne, ou null. */
+    private TPromotionProduct promotionUgDeLigne(TPreenregistrementDetail d) {
+        if (d.getPromotionProduitId() == null) {
+            return null;
+        }
+        TPromotionProduct promotion = getEm().find(TPromotionProduct.class, d.getPromotionProduitId());
+        return promotion != null && PROMO_UNITES_GRATUITES.equals(promotion.getLgCODEPROMOTIONID().getStrTYPE())
+                ? promotion : null;
+    }
+
+    private static boolean promotionPalier(TPromotionProduct ug) {
+        return ug != null && rest.service.promotion.PromotionLigne.palier(ug.getStrMODEUG());
+    }
+
+    /** Ligne en promotion « par palier de » : sa quantite compte les boites payees PLUS les offertes. */
+    private static boolean lignePalier(TPreenregistrementDetail d) {
+        return d.getPromotionProduitId() != null && rest.service.promotion.PromotionLigne.palier(d.getPromoMode());
+    }
+
+    /**
+     * Quantite de la ligne pour {@code payees} boites payees : par palier, les offertes s'ajoutent (controle du stock
+     * sur le tout, avant toute modification de la ligne).
+     */
+    private static int quantiteAvecOffertes(TPromotionProduct ug, int payees) {
+        if (!promotionPalier(ug)) {
+            return payees;
+        }
+        return payees + rest.service.promotion.PromotionLigne.offertesParPalier(payees, ug.getIntACTIVEAT(),
+                ug.getIntPACKNUMBER());
+    }
+
+    /**
+     * Par palier : la quantite servie saisie compte les boites payees ; les offertes sont servies avec elles.
+     * {@code offertesDejaServies} : offertes deja comptees dans la quantite servie de la ligne.
+     */
+    private static void servirOffertes(TPreenregistrementDetail d, int offertesDejaServies) {
+        if (!lignePalier(d)) {
+            return;
+        }
+        int offertes = d.getIntFREEPACKNUMBER() != null ? d.getIntFREEPACKNUMBER() : 0;
+        int servie = (d.getIntQUANTITYSERVED() != null ? d.getIntQUANTITYSERVED() : 0) + offertes - offertesDejaServies;
+        d.setIntQUANTITYSERVED(Math.max(0, Math.min(d.getIntQUANTITY(), servie)));
+    }
+
+    /**
+     * Montant de la ligne : unites payees (quantite moins unites gratuites) au prix unitaire.
+     * <ul>
+     * <li>« a partir de s » : les offertes sont prises dans la quantite de la ligne, une seule fois ;</li>
+     * <li>« par palier de s » (demande du 07/11) : boites payees = quantite - offertes deja comptees ; les offertes de
+     * chaque palier s'y ajoutent, et la quantite de la ligne devient payees + offertes. Rejouer le calcul ne change
+     * rien. Pour une saisie, l'appelant remet d'abord les offertes a 0 : la quantite saisie est celle des payees.</li>
+     * </ul>
+     */
     private int montantLigne(TPreenregistrementDetail d) {
-        int gratuites = unitesGratuites(d);
+        TPromotionProduct ug = promotionUgDeLigne(d);
+        int gratuites;
+        if (ug != null) {
+            // la ligne suit la promotion du jour pendant la saisie de la vente
+            noterPromotion(d, ug, null);
+        }
+        if (promotionPalier(ug)) {
+            int dejaComptees = d.getIntFREEPACKNUMBER() != null ? d.getIntFREEPACKNUMBER() : 0;
+            int payees = Math.max(0, d.getIntQUANTITY() - dejaComptees);
+            gratuites = rest.service.promotion.PromotionLigne.offertesParPalier(payees, ug.getIntACTIVEAT(),
+                    ug.getIntPACKNUMBER());
+            d.setIntQUANTITY(payees + gratuites);
+        } else {
+            gratuites = ug == null ? 0 : rest.service.promotion.PromotionLigne.unitesOffertes(d.getIntQUANTITY(),
+                    ug.getIntACTIVEAT(), ug.getIntPACKNUMBER());
+        }
         d.setIntFREEPACKNUMBER(gratuites);
         return rest.service.promotion.PromotionLigne.montant(d.getIntPRICEUNITAIR(), d.getIntQUANTITY(), gratuites);
     }
@@ -1798,12 +1885,26 @@ public class SalesServiceImpl implements SalesService {
     private void retarifierLigne(TPreenregistrement tp, TPreenregistrementDetail d, boolean promotion) {
         int ancienPrix = d.getIntPRICE();
         int ancienneTva = d.getMontantTva();
-        d.setPromotionProduitId(null);
+        int offertes = d.getIntFREEPACKNUMBER() != null ? d.getIntFREEPACKNUMBER() : 0;
+        boolean palierAvant = lignePalier(d);
+        if (palierAvant && offertes > 0) {
+            // par palier : les offertes ajoutees a la ligne sont retirees, il ne reste que les boites payees
+            d.setIntQUANTITY(d.getIntQUANTITY() - offertes);
+            d.setIntQUANTITYSERVED(
+                    Math.max(0, (d.getIntQUANTITYSERVED() != null ? d.getIntQUANTITYSERVED() : 0) - offertes));
+        }
+        d.setIntFREEPACKNUMBER(0);
+        d.effacerPromotion();
         d.setIntPRICEUNITAIR(d.getLgFAMILLEID().getIntPRICE());
         if (promotion) {
             promouvoirLigne(d);
         }
         d.setIntPRICE(montantLigne(d));
+        servirOffertes(d, 0);
+        if ((palierAvant || lignePalier(d)) && d.getIntQUANTITYSERVED() != null) {
+            d.setIntAVOIR(Math.max(0, d.getIntQUANTITY() - d.getIntQUANTITYSERVED()));
+            d.setBISAVOIR(d.getIntAVOIR() > 0);
+        }
         d.setMontantTva(calculeTva(d.getLgFAMILLEID().getLgCODETVAID(), d.getIntPRICE()));
         d.setIntPRICEREMISE(0);
         d.setDtUPDATED(new Date());
@@ -1820,6 +1921,15 @@ public class SalesServiceImpl implements SalesService {
         int n = 0;
         for (TPreenregistrementDetail d : getItems(tp)) {
             if (d.getPromotionProduitId() != null) {
+                /* plan du 06/11, point 3.5 : la promotion retiree de la ligne est journalisee, avec la vente */
+                TPromotionProduct pp = getEm().find(TPromotionProduct.class, d.getPromotionProduitId());
+                if (pp != null && pp.getLgCODEPROMOTIONID() != null) {
+                    getEm().persist(rest.service.promotion.JournalPromotion.ligne(
+                            rest.service.promotion.JournalPromotion.RETRAIT_VENTE_ASSURANCE, pp.getLgCODEPROMOTIONID(),
+                            d.getLgFAMILLEID(), pp, d.mentionPromotion(), tp.getStrREF(),
+                            sessionHelperService.getCurrentUser() != null
+                                    ? sessionHelperService.getCurrentUser().getLgUSERID() : null));
+                }
                 retarifierLigne(tp, d, false);
                 n++;
             }
@@ -1859,6 +1969,7 @@ public class SalesServiceImpl implements SalesService {
         tpd.setValeurTva(tva.getIntVALUE());
         tpd.setIntUG(qteUg);
         tpd.setIntQUANTITYSERVED(qteServie);
+        servirOffertes(tpd, 0);
         tpd.setIntPRICEOTHER(0);
         tpd.setIntPRICEDETAILOTHER(0);
         tpd.setIntPRICEREMISE(0);
@@ -1926,7 +2037,13 @@ public class SalesServiceImpl implements SalesService {
             if (detailOp.isPresent()) {
                 tpd = detailOp.get();
 
-                int qty = tpd.getIntQUANTITY() + params.getQte();
+                int offertesAvant = tpd.getIntFREEPACKNUMBER() != null ? tpd.getIntFREEPACKNUMBER() : 0;
+                // par palier : boites payees de la ligne + boites ajoutees, offertes en plus (stock controle sur le
+                // tout)
+                int qty = lignePalier(tpd)
+                        ? quantiteAvecOffertes(promotionUgDeLigne(tpd),
+                                tpd.getIntQUANTITY() - offertesAvant + params.getQte())
+                        : tpd.getIntQUANTITY() + params.getQte();
                 if (!forcerStock(qty, params.getProduitId(), ContexteVenteDepot.emplacementDeVente(tp))) {
                     return json.put("success", false).put("msg",
                             "Impossible de forcer le stock « voir le gestionnaire »");
@@ -1937,10 +2054,11 @@ public class SalesServiceImpl implements SalesService {
                 }
                 int oldPrice = tpd.getIntPRICE();
                 int montantTva = tpd.getMontantTva();
-                tpd.setIntQUANTITY(qty);
+                tpd.setIntQUANTITY(tpd.getIntQUANTITY() + params.getQte());
                 tpd.setIntPRICE(montantLigne(tpd));
                 tpd.setMontantTva(calculeTva(tva, tpd.getIntPRICE()));
                 tpd.setIntQUANTITYSERVED(tpd.getIntQUANTITYSERVED() + params.getQteServie());
+                servirOffertes(tpd, offertesAvant);
                 tpd.setIntAVOIRSERVED(tpd.getIntQUANTITYSERVED());
                 tpd.setIntAVOIR(tpd.getIntQUANTITY() - tpd.getIntQUANTITYSERVED());
                 tpd.setDtUPDATED(new Date());
@@ -1957,11 +2075,13 @@ public class SalesServiceImpl implements SalesService {
                 afficheurProduit(tpd.getLgFAMILLEID().getStrNAME(), tpd.getIntQUANTITY(), tpd.getIntPRICEUNITAIR(),
                         tpd.getIntPRICE());
             } else {
-                if (!forcerStock(params.getQte(), params.getProduitId(), ContexteVenteDepot.emplacementDeVente(tp))) {
+                int qteTotale = quantiteAvecOffertes(venteAvecPromotion(tp) ? promotionEnCours(famille) : null,
+                        params.getQte());
+                if (!forcerStock(qteTotale, params.getProduitId(), ContexteVenteDepot.emplacementDeVente(tp))) {
                     return json.put("success", false).put("msg",
                             "Impossible de forcer le stock « voir le gestionnaire »");
                 }
-                if (refuserQuantiteDetailInvendable(json, params.getProduitId(), params.getQte(),
+                if (refuserQuantiteDetailInvendable(json, params.getProduitId(), qteTotale,
                         ContexteVenteDepot.emplacementDeVente(tp))) {
                     return json;
                 }
@@ -2024,10 +2144,14 @@ public class SalesServiceImpl implements SalesService {
 
             TFamille famille = detail.getLgFAMILLEID();
             TPreenregistrement tp = detail.getLgPREENREGISTREMENTID();
-            if (!forcerStock(params.getQte(), famille.getLgFAMILLEID(), ContexteVenteDepot.emplacementDeVente(tp))) {
+            // par palier : la quantite saisie est celle des boites payees ; les offertes s'y ajoutent (prix change a
+            // la main : plus de promotion)
+            boolean prixChange = detail.getIntPRICEUNITAIR().compareTo(params.getItemPu()) != 0;
+            int qteTotale = quantiteAvecOffertes(prixChange ? null : promotionUgDeLigne(detail), params.getQte());
+            if (!forcerStock(qteTotale, famille.getLgFAMILLEID(), ContexteVenteDepot.emplacementDeVente(tp))) {
                 return json.put("success", false).put("msg", "Impossible de forcer le stock « voir le gestionnaire »");
             }
-            if (refuserQuantiteDetailInvendable(json, famille.getLgFAMILLEID(), params.getQte(),
+            if (refuserQuantiteDetailInvendable(json, famille.getLgFAMILLEID(), qteTotale,
                     ContexteVenteDepot.emplacementDeVente(tp))) {
                 return json;
             }
@@ -2047,8 +2171,10 @@ public class SalesServiceImpl implements SalesService {
                 // send sms
                 detail.setIntPRICEUNITAIR(params.getItemPu());
                 // audit 05 PR-01 : prix saisi a la main, la promotion ne s'applique plus a la ligne
-                detail.setPromotionProduitId(null);
+                detail.effacerPromotion();
             }
+            // quantite saisie = boites payees (par palier, montantLigne ajoute les offertes)
+            detail.setIntFREEPACKNUMBER(0);
             detail.setIntQUANTITY(params.getQte());
             detail.setIntPRICE(montantLigne(detail));
             detail.setMontantTva(calculeTva(famille.getLgCODETVAID(), detail.getIntPRICE()));
@@ -2058,6 +2184,7 @@ public class SalesServiceImpl implements SalesService {
             if (params.getQteServie() != intQUANTITYSERVEDOLD) {
                 detail.setIntAVOIRSERVED(intAVOIRSERVED < 0 ? intQUANTITYSERVEDOLD : intAVOIRSERVED);
             }
+            servirOffertes(detail, 0);
 
             detail.setIntAVOIR(detail.getIntQUANTITY() - detail.getIntQUANTITYSERVED());
             detail.setBISAVOIR(detail.getIntAVOIR() > 0);
@@ -5273,7 +5400,7 @@ public class SalesServiceImpl implements SalesService {
         newTd.setIntPRICEOTHER(tp.getIntPRICEOTHER());
         newTd.setIntPRICEDETAILOTHER(tp.getIntPRICEDETAILOTHER());
         newTd.setIntFREEPACKNUMBER(tp.getIntFREEPACKNUMBER());
-        newTd.setPromotionProduitId(tp.getPromotionProduitId());
+        newTd.copierPromotion(tp);
         newTd.setIntPRICEREMISE(tp.getIntPRICEREMISE());
         newTd.setIntAVOIR(tp.getIntAVOIR());
         newTd.setIntAVOIRSERVED(tp.getIntQUANTITYSERVED());

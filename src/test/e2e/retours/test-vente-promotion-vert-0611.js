@@ -4,7 +4,7 @@
  * Par l'ecran de vente (compte de test, promotions d'essai posees puis retirees) :
  *  - P en PRIX SPECIAL, U en UNITES GRATUITES (1 offerte a partir de 2, quantite 3), N sans promotion ;
  *  - P et U : « PROMOTION » en vert #2E7D32 (= couleur du « Oui » de l'ecran Promotions, lue a l'ecran), en gras ;
- *    U garde « : dont 1 offerte(s) » ; N n'a pas la mention ;
+ *    U porte « PROMOTION 2+1 OFFERT(S) » (point 3.2, 08/11 ; avant « : dont 1 offerte(s) ») ; N n'a pas la mention ;
  *  - ligne non selectionnee : contraste du vert sur le fond >= 4,5 ;
  *  - ligne selectionnee (clic sur la ligne) : la mention reste lisible, contraste >= 3 (texte gras) ;
  *  - rien n'est ecrit par l'affichage (la vente est retiree a la fin).
@@ -72,7 +72,7 @@ const idCip = (p, cip) => p.evaluate(([g, c]) => { const grille = Ext.ComponentQ
     await p.waitForTimeout(800);
     const mP = await mention(p, C.cip(P)), mU = await mention(p, C.cip(U)), mN = await mention(p, C.cip(N));
     ok('P (prix spécial) : « PROMOTION » en vert #2E7D32, en gras, comme le « Oui » des promotions', mP && mP.texte === 'PROMOTION' && mP.couleur === '46,125,50' && mP.couleur === oui && mP.gras, JSON.stringify(mP));
-    ok('U (unités gratuites, quantité 3) : « PROMOTION : dont 1 offerte(s) » en vert', mU && /^PROMOTION : dont 1 offerte\(s\)$/.test(mU.texte) && mU.couleur === '46,125,50', JSON.stringify(mU));
+    ok('U (unités gratuites, quantité 3) : « PROMOTION 2+1 OFFERT(S) » en vert', mU && /^PROMOTION 2\+1 OFFERT\(S\)$/.test(mU.texte) && mU.couleur === '46,125,50', JSON.stringify(mU));
     ok('N (sans promotion) : pas de mention', mN && mN.texte === null, JSON.stringify(mN));
     const nonSel = await p.evaluate(([g, cs]) => { const grille = Ext.ComponentQuery.query(g)[0];
       return cs.every((c) => !grille.getSelectionModel().isSelected(grille.getStore().findRecord('intCIP', c, 0, false, true, true))); }, [C.GRILLE, [C.cip(P), C.cip(U)]]);

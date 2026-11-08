@@ -50,6 +50,10 @@ public class VenteDetailsDTO implements Serializable {
     }
 
     private Integer unitesOffertes = 0;
+    /** Point 3.2 : « PROMOTION 5+1 OFFERT(S) », meme texte que le ticket ; null hors promotion. */
+    private String mentionPromotion;
+    /** Option « par palier de » : la quantite saisie est celle des boites payees, les offertes s'y ajoutent. */
+    private boolean promotionPalier;
     private String intCIP;
     private String intEAN13;
     private String strSTATUT;
@@ -487,6 +491,8 @@ public class VenteDetailsDTO implements Serializable {
         this.calculationBasePrice = d.getCalculationBasePrice();
         this.promotion = d.getPromotionProduitId() != null;
         this.unitesOffertes = this.promotion && d.getIntFREEPACKNUMBER() != null ? d.getIntFREEPACKNUMBER() : 0;
+        this.mentionPromotion = d.mentionPromotion();
+        this.promotionPalier = this.promotion && rest.service.promotion.PromotionLigne.palier(d.getPromoMode());
         this.comptant = d.isComptant();
     }
 
@@ -496,6 +502,14 @@ public class VenteDetailsDTO implements Serializable {
 
     public Integer getUnitesOffertes() {
         return unitesOffertes;
+    }
+
+    public String getMentionPromotion() {
+        return mentionPromotion;
+    }
+
+    public boolean isPromotionPalier() {
+        return promotionPalier;
     }
 
     public VenteDetailsDTO(TPreenregistrementDetail d, boolean b) {

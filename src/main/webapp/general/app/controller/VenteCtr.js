@@ -4122,6 +4122,17 @@ Ext.define('testextjs.controller.VenteCtr', {
         let url = '../api/v1/vente/update/item/vno';
         let qteServie = record.get('intQUANTITYSERVED');
         if (e.field === 'intQUANTITY') {
+            if (record.get('promotionPalier')) {
+                // promotion « par palier de » : valeur tapee = boites payees ; inchangee, rien a envoyer
+                const payees = parseInt(e.value, 10);
+                // la grille a deja ecrit la valeur tapee dans la ligne : on compare a la quantite d'origine (payees + offertes)
+                const avant = (parseInt(e.originalValue, 10) || 0) - (parseInt(record.get('unitesOffertes'), 10) || 0);
+                if (payees === avant) {
+                    record.reject();
+                    return;
+                }
+                record.set('intQUANTITY', payees);
+            }
             qteServie = record.get('intQUANTITY');
             params = {
                 "itemId": record.get('lgPREENREGISTREMENTDETAILID'),
@@ -4154,11 +4165,13 @@ Ext.define('testextjs.controller.VenteCtr', {
                 });
                 return false;
             } else {
+                // promotion « par palier de » : le serveur attend les boites payees (il ajoute les offertes)
+                const offertesPalier = record.get('promotionPalier') ? (parseInt(record.get('unitesOffertes'), 10) || 0) : 0;
                 params = {
                     "itemId": record.get('lgPREENREGISTREMENTDETAILID'),
                     "itemPu": record.get('intPRICEUNITAIR'),
-                    "qte": record.get('intQUANTITY'),
-                    "qteServie": qteServie,
+                    "qte": record.get('intQUANTITY') - offertesPalier,
+                    "qteServie": Math.max(0, qteServie - offertesPalier),
                     "produitId": record.get('lgFAMILLEID')
                 };
                 me.updateventeOngrid(editor, e, url, params);
@@ -4189,8 +4202,8 @@ Ext.define('testextjs.controller.VenteCtr', {
                 params = {
                     "itemId": record.get('lgPREENREGISTREMENTDETAILID'),
                     "itemPu": record.get('intPRICEUNITAIR'),
-                    "qte": record.get('intQUANTITY'),
-                    "qteServie": qteServie,
+                    "qte": record.get('intQUANTITY') - (record.get('promotionPalier') ? (parseInt(record.get('unitesOffertes'), 10) || 0) : 0),
+                    "qteServie": Math.max(0, qteServie - (record.get('promotionPalier') ? (parseInt(record.get('unitesOffertes'), 10) || 0) : 0)),
                     "produitId": record.get('lgFAMILLEID')
                 };
                 me.updateventeOngrid(editor, e, url, params);
@@ -8379,6 +8392,11 @@ Ext.define('testextjs.controller.VenteCtr', {
         const me = this;
         const ref = e.column && e.column.referenceTp;
         if (!ref) {
+            // demande du 07/11, promotion « par palier de » : la cellule montre les boites payees (sans les offertes,
+            // que le serveur ajoute) ; onGridEdit envoie la valeur tapee
+            if (e.field === 'intQUANTITY' && e.record.get('promotionPalier')) {
+                e.value = (parseInt(e.record.get('intQUANTITY'), 10) || 0) - (parseInt(e.record.get('unitesOffertes'), 10) || 0);
+            }
             return true;
         }
         const vue = me.vueVenteReferenceTp();

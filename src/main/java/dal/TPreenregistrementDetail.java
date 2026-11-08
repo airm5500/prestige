@@ -104,6 +104,20 @@ public class TPreenregistrementDetail implements Serializable {
     @Column(name = "promotion_produit_id")
     private Integer promotionProduitId;
     /**
+     * Points 3.2 et 3.5 du plan du 06/11 : la promotion telle qu'elle etait le jour de la vente (type, option a partir
+     * de / par palier, seuil, unites gratuites, prix d'avant) ; null pour une ligne sans promotion ou vendue avant.
+     */
+    @Column(name = "promo_type", length = 40)
+    private String promoType;
+    @Column(name = "promo_mode", length = 10)
+    private String promoMode;
+    @Column(name = "promo_seuil")
+    private Integer promoSeuil;
+    @Column(name = "promo_gratuites")
+    private Integer promoGratuites;
+    @Column(name = "promo_prix_avant")
+    private Integer promoPrixAvant;
+    /**
      * Cas 1 du 03/11/2026 : ligne cochee « C » (au comptant) dans une vente assurance. Hors du calcul tiers-payant ; a
      * la cloture, elle part dans la vente comptant liee. Toujours 0 sans le parametre KEY_LIGNE_COMPTANT_VO.
      */
@@ -127,6 +141,75 @@ public class TPreenregistrementDetail implements Serializable {
 
     public void setPromotionProduitId(Integer promotionProduitId) {
         this.promotionProduitId = promotionProduitId;
+    }
+
+    public String getPromoType() {
+        return promoType;
+    }
+
+    public void setPromoType(String promoType) {
+        this.promoType = promoType;
+    }
+
+    public String getPromoMode() {
+        return promoMode;
+    }
+
+    public void setPromoMode(String promoMode) {
+        this.promoMode = promoMode;
+    }
+
+    public Integer getPromoSeuil() {
+        return promoSeuil;
+    }
+
+    public void setPromoSeuil(Integer promoSeuil) {
+        this.promoSeuil = promoSeuil;
+    }
+
+    public Integer getPromoGratuites() {
+        return promoGratuites;
+    }
+
+    public void setPromoGratuites(Integer promoGratuites) {
+        this.promoGratuites = promoGratuites;
+    }
+
+    public Integer getPromoPrixAvant() {
+        return promoPrixAvant;
+    }
+
+    public void setPromoPrixAvant(Integer promoPrixAvant) {
+        this.promoPrixAvant = promoPrixAvant;
+    }
+
+    /** Copie la promotion gardee sur la ligne (copie d'une ligne, annulation). */
+    public void copierPromotion(TPreenregistrementDetail p) {
+        this.promotionProduitId = p.getPromotionProduitId();
+        this.promoType = p.getPromoType();
+        this.promoMode = p.getPromoMode();
+        this.promoSeuil = p.getPromoSeuil();
+        this.promoGratuites = p.getPromoGratuites();
+        this.promoPrixAvant = p.getPromoPrixAvant();
+    }
+
+    /** Ligne qui n'est plus en promotion (prix saisi a la main, vente passee en assurance). */
+    public void effacerPromotion() {
+        this.promotionProduitId = null;
+        this.promoType = null;
+        this.promoMode = null;
+        this.promoSeuil = null;
+        this.promoGratuites = null;
+        this.promoPrixAvant = null;
+    }
+
+    /** Mention de la ligne : « PROMOTION x+n OFFERT(S) », « PROMOTION », ou null hors promotion. */
+    public String mentionPromotion() {
+        if (promotionProduitId == null) {
+            return null;
+        }
+        return rest.service.promotion.PromotionLigne.mention(promoType, promoMode, promoSeuil, promoGratuites,
+                intFREEPACKNUMBER != null ? intFREEPACKNUMBER : 0);
     }
 
     public Integer getPrixAchat() {
@@ -398,6 +481,11 @@ public class TPreenregistrementDetail implements Serializable {
         this.intPRICEREMISE = p.getIntPRICEREMISE();
         this.bISAVOIR = p.getBISAVOIR();
         this.intFREEPACKNUMBER = p.getIntFREEPACKNUMBER();
+        this.promoType = p.getPromoType();
+        this.promoMode = p.getPromoMode();
+        this.promoSeuil = p.getPromoSeuil();
+        this.promoGratuites = p.getPromoGratuites();
+        this.promoPrixAvant = p.getPromoPrixAvant();
         this.intPRICEOTHER = p.getIntPRICEOTHER();
         this.intPRICEDETAILOTHER = p.getIntPRICEDETAILOTHER();
         this.lgFAMILLEID = p.getLgFAMILLEID();

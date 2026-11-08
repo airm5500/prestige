@@ -198,6 +198,60 @@ public class TPromotionHistory implements Serializable {
         this.intPACKNUMBER = intPACKNUMBER;
     }
 
+    /** Demande du 07/11 : unites gratuites « par palier de » (PALIER) ou « a partir de » (A_PARTIR ou NULL). */
+    @Column(name = "str_MODE_UG", length = 10)
+    private String strMODEUG;
+
+    public String getStrMODEUG() {
+        return strMODEUG;
+    }
+
+    public void setStrMODEUG(String strMODEUG) {
+        this.strMODEUG = strMODEUG;
+    }
+
+    /* plan du 06/11, point 3.5 : journal des promotions (action, utilisateur, valeurs d'avant, vente) */
+    @Column(name = "str_ACTION", length = 30)
+    private String strACTION;
+    @Column(name = "lg_USER_ID", length = 40)
+    private String lgUSERID;
+    @Column(name = "str_AVANT", length = 500)
+    private String strAVANT;
+    @Column(name = "str_REF_VENTE", length = 40)
+    private String strREFVENTE;
+
+    public String getStrACTION() {
+        return strACTION;
+    }
+
+    public void setStrACTION(String strACTION) {
+        this.strACTION = strACTION;
+    }
+
+    public String getLgUSERID() {
+        return lgUSERID;
+    }
+
+    public void setLgUSERID(String lgUSERID) {
+        this.lgUSERID = lgUSERID;
+    }
+
+    public String getStrAVANT() {
+        return strAVANT;
+    }
+
+    public void setStrAVANT(String strAVANT) {
+        this.strAVANT = strAVANT;
+    }
+
+    public String getStrREFVENTE() {
+        return strREFVENTE;
+    }
+
+    public void setStrREFVENTE(String strREFVENTE) {
+        this.strREFVENTE = strREFVENTE;
+    }
+
     public Integer getIntACTIVEAT() {
         return intACTIVEAT;
     }

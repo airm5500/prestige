@@ -244,8 +244,8 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             // audit 05 PR-01 : le nouveau modele ne lit pas les lignes de l'ancien ticket ; la mention PROMOTION (et
             // les unites offertes) y etait perdue
             if (signe > 0 && d.getPromotionProduitId() != null) {
-                int offertes = d.getIntFREEPACKNUMBER() != null ? d.getIntFREEPACKNUMBER() : 0;
-                mentions.add("PROMOTION" + (offertes > 0 ? " DONT " + offertes + " OFFERTE(S)" : ""));
+                // plan du 06/11, point 3.2 : « PROMOTION 5+1 OFFERT(S) », d'apres la promotion gardee sur la ligne
+                mentions.add(d.mentionPromotion());
             }
             mentions.addAll(credits.getOrDefault(d.getLgPREENREGISTREMENTDETAILID(), Collections.emptyList()));
             res.add(new ConversionTicket.Article(d.getLgFAMILLEID().getStrDESCRIPTION().toUpperCase(), signe * q,
@@ -953,8 +953,7 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
                             + DateConverter.amountFormat(opr.getIntPRICE()));
             // audit 05 PR-01 : ligne en promotion (sans remise client), unites gratuites comprises dans la quantite
             if (opr.getPromotionProduitId() != null) {
-                int offertes = opr.getIntFREEPACKNUMBER() != null ? opr.getIntFREEPACKNUMBER() : 0;
-                datas.add(" ; ;PROMOTION" + (offertes > 0 ? " DONT " + offertes + " OFFERTE(S)" : "") + ";;");
+                datas.add(" ; ;" + opr.mentionPromotion() + ";;");
             }
             // cas 1 du 03/11 (Q1.9) : credit par tiers-payant sous la ligne, parametre actif seulement
             for (String c : credits.getOrDefault(opr.getLgPREENREGISTREMENTDETAILID(), Collections.emptyList())) {

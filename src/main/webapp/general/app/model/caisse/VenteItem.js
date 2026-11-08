@@ -95,6 +95,16 @@ Ext.define('testextjs.model.caisse.VenteItem', {
             type: 'number'
         },
         {
+            /* plan du 06/11, point 3.2 : « PROMOTION 5+1 OFFERT(S) », le texte du ticket, calcule par le serveur */
+            name: 'mentionPromotion',
+            type: 'string'
+        },
+        {
+            /* option « par palier de » : la quantite saisie est celle des boites payees, les offertes s'y ajoutent */
+            name: 'promotionPalier',
+            type: 'boolean'
+        },
+        {
             /* cas 2 du 03/11 : [{tpId, compteTpId, libelle, valeur, taux, type, defaut, prixReferenceId}] par
              * tiers-payant de la vente ; absent (null) quand KEY_PRIX_REF_CAISSE vaut 0 ou hors vente assurance */
             name: 'referencesTp',

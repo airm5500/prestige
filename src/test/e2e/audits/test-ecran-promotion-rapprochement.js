@@ -3,7 +3,8 @@
  *  - P  PRIX SPECIAL (prix public - 135), quantite 2 ;
  *  - R  REMISE 15 %, promotion creee quand le prix public etait plus bas de 500 : la remise suit le prix du jour ;
  *  - U1 UNITES GRATUITES, 2 offertes a partir de 3, quantite 4 : 3 payees, 1 offerte (groupe incomplet) ;
- *  - U2 UNITES GRATUITES, 1 offerte a partir de 2, quantite 7 : 5 payees, 2 offertes ;
+ *  - U2 UNITES GRATUITES, 1 offerte a partir de 2, quantite 7 : 6 payees, 1 offerte (« a partir de » : une seule
+ *    fois, choix du 07/11 ; avant : 5 payees, 2 offertes) ;
  *  - N  sans promotion, quantite 3 : seule ligne remisee par la remise client (10 %).
  * Parcours : SERVICE CLIENT > Ventes > nouvelle vente ; articles scannes ; quantites tapees dans la cellule QD ; remise
  * choisie dans la liste « REMISE » ; Entree dans le champ produit vide (net a payer) ; montant recu ; « TERMINER LA
@@ -51,8 +52,8 @@ const promo = (type, f, remise, prix, seuil, offertes) => {
 const CAS = [
   { f: P, qte: 2, pu: P.pu - 135, offertes: 0, promo: true },
   { f: R, qte: 1, pu: Math.round(R.pu * 85 / 100), offertes: 0, promo: true },
-  { f: U1, qte: 4, pu: U1.pu, offertes: 1, promo: true },
-  { f: U2, qte: 7, pu: U2.pu, offertes: 2, promo: true },
+  { f: U1, qte: 4, pu: U1.pu, offertes: 1, promo: true, seuil: 3 },
+  { f: U2, qte: 7, pu: U2.pu, offertes: 1, promo: true, seuil: 2 },
   { f: N, qte: 3, pu: N.pu, offertes: 0, promo: false },
 ];
 CAS.forEach((c) => { c.montant = c.pu * (c.qte - c.offertes); });
@@ -160,11 +161,12 @@ const compter = (sql) => Number(q(sql));
       const c = CAS[i], base = ligneBase(vente, c.f), e = lignesEcran.find((x) => x.cip === c.f.cip) || {};
       const t = ticket.find((x) => x.pu === c.pu && x.montant === c.montant && x.qte === c.qte) || ticket[i] || {};
       const nom = c.f.cip + ' (' + ['prix spécial', 'remise 15 %', '2 offertes dès 3', '1 offerte dès 2', 'sans promotion'][i] + ')';
-      const mentionAttendue = c.promo ? 'PROMOTION' + (c.offertes ? ' DONT ' + c.offertes + ' OFFERTE(S)' : '') : '';
+      // plan du 06/11, point 3.2 : « PROMOTION s+n OFFERT(S) » (avant : « PROMOTION DONT n OFFERTE(S) »)
+      const mentionAttendue = c.promo ? 'PROMOTION' + (c.offertes ? ' ' + c.seuil + '+' + c.offertes + ' OFFERT(S)' : '') : '';
       ok(`Ligne ${nom} : base = attendu (quantité ${c.qte}, PU ${c.pu}, ${c.offertes} offerte(s), montant ${c.montant}, promotion ${c.promo ? 'oui' : 'non'})`,
         base.qte === c.qte && base.pu === c.pu && base.offertes === c.offertes && base.montant === c.montant && base.promo === c.promo, JSON.stringify(base));
       ok(`Ligne ${nom} : écran = base (quantité, PU, montant, offertes, mention)`, e.qte === base.qte && e.pu === base.pu && e.montant === base.montant
-        && e.offertes === base.offertes && /PROMOTION/.test(e.texte || '') === c.promo && (!c.offertes || new RegExp('dont ' + c.offertes + ' offerte').test(e.texte)),
+        && e.offertes === base.offertes && /PROMOTION/.test(e.texte || '') === c.promo && (!c.offertes || (e.texte || '').includes(mentionAttendue)),
         JSON.stringify(e));
       ok(`Ligne ${nom} : ticket = base (quantité, PU, montant, mention « ${mentionAttendue || 'aucune'} »)`, t.qte === base.qte && t.pu === base.pu
         && t.montant === base.montant && (t.mention || '').trim() === mentionAttendue, JSON.stringify(t));

@@ -118,7 +118,7 @@ public class PromotionRessource {
     public Response addProduit(@FormParam("lg_CODE_PROMOTION_ID") int promotionId,
             @FormParam("lg_FAMILLE_ID") String familleId, @FormParam("int_DISCOUNT") String discount,
             @FormParam("db_PROMOTION_PRICE") String promoPrice, @FormParam("int_PACK_NUMBER") String packNumber,
-            @FormParam("int_ACTIVE_AT") String activeAt) {
+            @FormParam("int_ACTIVE_AT") String activeAt, @FormParam("str_MODE_UG") String modeUg) {
         if (currentUser() == null) {
             return deconnecte();
         }
@@ -135,8 +135,8 @@ public class PromotionRessource {
                             .toString())
                     .build();
         }
-        return Response.ok()
-                .entity(promotionService.addProduit(promotionId, familleId, remise, prix, pack, seuil).toString())
+        return Response.ok().entity(
+                promotionService.addProduit(promotionId, familleId, remise, prix, pack, modeUg, seuil).toString())
                 .build();
     }
 

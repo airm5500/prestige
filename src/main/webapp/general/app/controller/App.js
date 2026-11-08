@@ -260,6 +260,10 @@ Ext.define('testextjs.controller.App', {
         if (xtype === 'saisieperime' && Ext.ClassManager.getNameByAlias('widget.saisieperimeonglets')) {
             return 'saisieperimeonglets';
         }
+        /* plan du 06/11 (point 3.5) : les promotions s'ouvrent dans leur conteneur (promotions, historique, ventes, analyse) */
+        if (xtype === 'promotionmanager' && Ext.ClassManager.getNameByAlias('widget.promotionsonglets')) {
+            return 'promotionsonglets';
+        }
         /* retours du 13/10 (point 21) : la marge sur produits vendus s'ouvre dans son conteneur (liste + analyse) */
         if (xtype === 'margeproducts' && Ext.ClassManager.getNameByAlias('widget.margeonglets')) {
             return 'margeonglets';

@@ -20,7 +20,9 @@ Ext.define('testextjs.model.promotions.PromotionProduct', {
         {name: 'int_PROMOTION_PRICE', type: 'double'},
         {name: 'int_ORIGINAL_PRICE', type: 'double'},
         {name: 'int_PACK_NUMBER', type: 'int'},
-        {name: 'int_ACTIVE_AT', type: 'int'}
+        {name: 'int_ACTIVE_AT', type: 'int'},
+        // demande du 07/11 : A_PARTIR (une seule fois) ou PALIER (a chaque palier)
+        {name: 'str_MODE_UG', type: 'string'}
 
     ]
 });

@@ -604,9 +604,9 @@ Ext.define('testextjs.view.vente.VenteVNO', {
                                                         var t = testextjs.view.vente.VenteVNO.trianglesOrdonnancier(r) + Ext.String.htmlEncode(v);
                                                         if (r.get('promotion')) {
                                                             // plan du 06/11, point 3.1 : en vert, comme le « Oui » de la liste des promotions (vente-theme.css)
-                                                            t += ' <span class="vp-promo-texte">PROMOTION'
-                                                                    + (r.get('unitesOffertes') > 0 ? ' : dont '
-                                                                            + r.get('unitesOffertes') + ' offerte(s)' : '')
+                                                            // point 3.2 : meme texte que le ticket (« PROMOTION 5+1 OFFERT(S) »)
+                                                            t += ' <span class="vp-promo-texte">'
+                                                                    + Ext.String.htmlEncode(r.get('mentionPromotion') || 'PROMOTION')
                                                                     + '</span>';
                                                         }
                                                         // cas 1 du 03/11 : pastille de la ligne cochée « C »

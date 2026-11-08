@@ -4,7 +4,8 @@
  * Parcours : SERVICE CLIENT > Ventes > nouvelle vente au comptant ; trois articles scannes :
  *  - P en PRIX SPECIAL en cours : prix promotionnel sur la ligne, mention « PROMOTION » dans la grille ;
  *  - T dans une promotion a venir : prix public (une promotion qui n'a pas commence ne s'applique pas) ;
- *  - U en UNITES GRATUITES (1 offerte a partir de 2) : quantite 3 saisie dans la grille, 2 payees, « dont 1 offerte » ;
+ *  - U en UNITES GRATUITES (1 offerte a partir de 2) : quantite 3 saisie dans la grille, 2 payees,
+ *    « PROMOTION 2+1 OFFERT(S) » (plan du 06/11, point 3.2 ; avant : « dont 1 offerte ») ;
  *  - remise client choisie dans les listes : rien sur P ni U, la remise sur T ;
  *  - type de vente passe en assurance : P et U reviennent au prix public, total recharge a l'ecran.
  * Donnees : promotions d'essai, codes remise des trois produits, vente d'essai et stock, tout retire a la fin.
@@ -123,7 +124,7 @@ const ligne = (v, f) => q(`SELECT CONCAT_WS(' ', int_QUANTITY, int_PRICE_UNITAIR
     const lu = ligne(vente, U);
     ok('UNITES GRATUITES (1 offerte à partir de 2) : 3 boîtes, 2 payées', lu[0] === '3' && Number(lu[2]) === 2 * U.prix && lu[3] === '1' && lu[5] !== 'NULL', lu.join(' '));
     const texte = await grille();
-    ok('Grille : mention PROMOTION et « dont 1 offerte(s) »', /PROMOTION/.test(texte) && /dont 1 offerte/.test(texte), texte.slice(0, 300));
+    ok('Grille : mention « PROMOTION 2+1 OFFERT(S) » (point 3.2)', /PROMOTION 2\+1 OFFERT\(S\)/.test(texte), texte.slice(0, 300));
     const total = await p.evaluate(() => testextjs.app.getController('VenteCtr').getTotalField().getValue());
     const attendu = (P.prix - 100) + T.prix + 2 * U.prix;
     ok('Total de la vente affiché', Number(String(total).replace(/\D/g, '')) === attendu

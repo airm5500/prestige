@@ -865,7 +865,7 @@ window.PrestigeAffichage.ECRANS_COLLES = [
     // retours du 05/10 (lot A)
     'facturesubrogatoire', 'modelfacture', 'modelfacturedynamique', 'factureenattenteedition',
     // lot B
-    'promotionhistorymanager', 'promotionmanager', 'balanceagee_detail', 'balanceagee', 'remisemanager', 'groupetierspayant',
+    'promotionhistorymanager', 'promotionmanager', 'promotionsonglets', 'balanceagee_detail', 'balanceagee', 'remisemanager', 'groupetierspayant',
     // lot C
     'reservemanager',
     // lot D
@@ -978,7 +978,7 @@ window.PrestigeAffichage.ECRANS_STYLE_VENTE = [
     'facturemanager', 'listecaissemanager', 'visualisercaissemanager', 'caisserecetterecap', 'facturesubrogatoire', 'delayed',
     'factureprovisoire', 'groupeInvoices', 'recapOrganisme', 'modelfacture', 'modelfacturedynamique', 'factureenattenteedition',
     // lot B : clients, tiers payants, promotions, remises
-    'promotionhistorymanager', 'promotionmanager', 'logfile', 'ventesmodifieesmanager', 'tierspayantmanager', 'clientmanager',
+    'promotionhistorymanager', 'promotionmanager', 'promotionsonglets', 'logfile', 'ventesmodifieesmanager', 'tierspayantmanager', 'clientmanager',
     'groupetierspayant', 'reglementdepot', 'balanceagee', 'balanceagee_detail', 'remisemanager', 'suiviremise', 'litige',
     // lot C : achats et stock
     'etatscontrolemanager', 'bonlivraisonmanager', 'i_order_manager', 'retourfrsmanager', 'detailsmanager', 'ajustementmanager',

@@ -107,6 +107,7 @@ Ext.application({
         'testextjs.view.configmanagement.groupefamille.action.add',
         'testextjs.view.Promotions.PromotionManager',
         'testextjs.view.Promotions.PromotionHistoryManager',
+        'testextjs.view.Promotions.PromotionsOnglets',
         'Ext.util.History',
         'testextjs.view.Header',
         'testextjs.view.Navigation',

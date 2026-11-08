@@ -34,7 +34,7 @@ public interface PromotionService {
 
     /** Ajout (ou mise a jour) d'un produit dans la promotion, avec calcul du prix promotionnel selon le type. */
     JSONObject addProduit(int promotionId, String familleId, int discount, double promoPrice, int packNumber,
-            int activeAt);
+            String modeUg, int activeAt);
 
     /** Retrait d'un produit de la promotion (drapeau promotion retire du produit). */
     JSONObject removeProduit(int promotionProductId);
