@@ -71,5 +71,12 @@ public class EtatControlBon {
     private String controlePar;
     private String controleLe;
     private int controleEcarts;
+    /**
+     * Demande 59 : BL entre au reçu ({@code validerbl?mode=RECU}) — boites manquantes, lignes en ecart et detail
+     * (« produit : n »). Zero / vide pour un BL entre en entier.
+     */
+    private int manquants;
+    private int lignesManquantes;
+    private String manquantsDetail;
 
 }

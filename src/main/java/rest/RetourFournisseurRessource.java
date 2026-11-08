@@ -72,9 +72,87 @@ public class RetourFournisseurRessource {
         if (utilisateur() == null) {
             return Response.ok().entity(ResultFactory.getFailResult(util.Constant.DECONNECTED_MESSAGE)).build();
         }
-        return Response.ok()
-                .entity(new org.json.JSONObject().put("success", true).put("peutValider", peutValider()).toString())
-                .build();
+        boolean valideur = peutValider();
+        org.json.JSONObject r = new org.json.JSONObject().put("success", true).put("peutValider", valideur);
+        /* transmission du 07/11 : rappel discret a la connexion (compteur du valideur, retours refuses a corriger) */
+        r.put("enAttente", valideur ? retourAttente.nombreEnAttente() : 0);
+        r.put("refusesACorriger", retourAttente.nombreRefusesDe(utilisateur().getLgUSERID()));
+        return Response.ok().entity(r.toString()).build();
+    }
+
+    @EJB
+    private rest.service.impl.RetourAttenteService retourAttente;
+
+    private static Response repondre(org.json.JSONObject r) {
+        int status = r.optInt("status", 200);
+        r.remove("status");
+        return Response.status(status).type("application/json").entity(r.toString()).build();
+    }
+
+    /**
+     * Transmission du 07/11 : refus d'un retour en attente (droit de validation, motif obligatoire), sans sortie de
+     * stock. Corps : {motif}.
+     */
+    @POST
+    @Path("refuser/{id}")
+    public Response refuser(@PathParam("id") String id, String corps) {
+        Response refus = Droits.refus(servletRequest, "Valider un retour fournisseur", "P_VALIDER_RETOUR_FRS");
+        if (refus != null) {
+            return refus;
+        }
+        String motif;
+        try {
+            motif = corps == null || corps.isBlank() ? null : new org.json.JSONObject(corps).optString("motif", null);
+        } catch (org.json.JSONException e) {
+            motif = null;
+        }
+        return repondre(retourAttente.refuser(id, motif, utilisateur()));
+    }
+
+    /** Transmission du 07/11 : retour refuse, corrige, remis en attente (auteur ou valideur). */
+    @POST
+    @Path("remettre-en-attente/{id}")
+    public Response remettreEnAttente(@PathParam("id") String id) {
+        Response refus = Droits.refus(servletRequest, "Retours fournisseur", "P_SM_RETOUR_FRS",
+                "P_VALIDER_RETOUR_FRS");
+        if (refus != null) {
+            return refus;
+        }
+        return repondre(retourAttente.remettreEnAttente(id, utilisateur(), peutValider()));
+    }
+
+    /** Choix 2 du 08/11 : un retour refuse est clos sans suite (« Abandonner »), sans sortie de stock. */
+    @POST
+    @Path("abandonner/{id}")
+    public Response abandonner(@PathParam("id") String id) {
+        Response refus = Droits.refus(servletRequest, "Retours fournisseur", "P_SM_RETOUR_FRS",
+                "P_VALIDER_RETOUR_FRS");
+        if (refus != null) {
+            return refus;
+        }
+        return repondre(retourAttente.abandonner(id, utilisateur(), peutValider()));
+    }
+
+    /** Transmission du 07/11 : nombre de retours en attente (compteur et pastille), pour le valideur seulement. */
+    @GET
+    @Path("en-attente/nombre")
+    public Response nombreEnAttente() {
+        Response refus = Droits.refus(servletRequest, "Valider un retour fournisseur", "P_VALIDER_RETOUR_FRS");
+        if (refus != null) {
+            return refus;
+        }
+        return Response.ok().entity(new org.json.JSONObject().put("success", true)
+                .put("nombre", retourAttente.nombreEnAttente()).toString()).build();
+    }
+
+    /** Transmission du 07/11 : historique d'un retour (mise en attente, refus, remise en attente, abandon, validation). */
+    @GET
+    @Path("{id}/historique")
+    public Response historique(@PathParam("id") String id) {
+        if (utilisateur() == null) {
+            return ReceptionMobileRessource.sansSession();
+        }
+        return repondre(retourAttente.historique(id));
     }
 
     /* retours du 13/10 (point 1) : sans le droit de validation, le retour est mis en attente ; rien ne sort du stock */

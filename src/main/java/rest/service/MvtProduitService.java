@@ -73,6 +73,10 @@ public interface MvtProduitService {
     JSONObject loadetourFournisseur(String dtStart, String dtEnd, int start, int limit, String fourId, String query,
             boolean cunRemove, String filtre, String userId) throws JSONException;
 
+    /** Transmission du 07/11 : meme liste, filtree par etat (ATTENTE, REFUSE, VALIDE, ABANDONNE ; vide : tous). */
+    JSONObject loadetourFournisseur(String dtStart, String dtEnd, int start, int limit, String fourId, String query,
+            boolean cunRemove, String filtre, String userId, String etat) throws JSONException;
+
     JSONObject validerRetourDepot(String retourId, TUser user) throws JSONException;
 
     List<AjustementDTO> getAllAjustements(SalesStatsParams params);

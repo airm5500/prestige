@@ -60,6 +60,8 @@ public class ProduitRessource {
     @EJB
     MvtProduitService mvtProduitService;
     @EJB
+    rest.service.impl.RetourAttenteService retourAttente;
+    @EJB
     SuggestionService suggestionService;
     @EJB
     ReserveService reserveService;
@@ -621,7 +623,8 @@ public class ProduitRessource {
             @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "start") int start,
             @QueryParam(value = "limit") int limit, @QueryParam(value = "fourId") String fourId,
             @QueryParam(value = "query") String query, @QueryParam(value = "filtre") String filtre,
-            @QueryParam(value = "userId") String userId) throws JSONException {
+            @QueryParam(value = "userId") String userId, @QueryParam(value = "etat") String etat)
+            throws JSONException {
         HttpSession hs = servletRequest.getSession();
         TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
         if (tu == null) {
@@ -635,9 +638,29 @@ public class ProduitRessource {
         }
         List<TPrivilege> lstTPrivilege = (List<TPrivilege>) hs.getAttribute(Constant.USER_LIST_PRIVILEGE);
         boolean asAuthority = DateConverter.hasAuthorityByName(lstTPrivilege, DateConverter.ACTION_DELETE_RETOUR);
-        // demande du 29/10 (point 1) : filtre utilisateur
+        // demande du 29/10 (point 1) : filtre utilisateur ; transmission du 07/11 : filtre par etat
         JSONObject json = mvtProduitService.loadetourFournisseur(dtStart, dtEnd, start, limit, fourId, query,
-                asAuthority, filtre, userId);
+                asAuthority, filtre, userId, etat);
+        /* transmission du 07/11 : etat lisible, motif, auteur et date du refus et de la mise en attente */
+        org.json.JSONArray results = json.optJSONArray("results");
+        if (results != null && results.length() > 0) {
+            List<String> ids = new java.util.ArrayList<>();
+            for (int i = 0; i < results.length(); i++) {
+                ids.add(results.getJSONObject(i).optString("lg_RETOUR_FRS_ID"));
+            }
+            java.util.Map<String, JSONObject> infos = retourAttente.infos(ids);
+            boolean valideur = DateConverter.hasAuthorityByName(lstTPrivilege, DateConverter.P_VALIDER_RETOUR_FRS);
+            for (int i = 0; i < results.length(); i++) {
+                JSONObject r = results.getJSONObject(i);
+                JSONObject x = infos.getOrDefault(r.optString("lg_RETOUR_FRS_ID"), new JSONObject());
+                for (String k : x.keySet()) {
+                    r.put(k, x.get(k));
+                }
+                r.put("etat", rest.service.impl.RetourEtats.libelle(r.optString("str_STATUT")));
+                r.put("peutCorriger", rest.service.impl.RetourEtats.peutCorriger(tu.getLgUSERID(),
+                        r.optString("lgUSERID"), x.optString("auteurAttenteId"), valideur));
+            }
+        }
         return Response.ok().entity(json.toString()).build();
     }
 

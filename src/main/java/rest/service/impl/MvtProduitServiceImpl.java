@@ -1195,7 +1195,7 @@ public class MvtProduitServiceImpl implements MvtProduitService {
             return json.put("success", false).put("msg", "Retour introuvable");
         }
         if (!retourAValider(fournisseur.getStrSTATUT())) {
-            return json.put("success", false).put("msg", "Ce retour est déjà validé : rien n'a été modifié");
+            return json.put("success", false).put("code", "ETAT").put("msg", messageEtat(fournisseur.getStrSTATUT()));
         }
         if (getTRetourFournisseurDetail(params.getRef()).isEmpty()) {
             return json.put("success", false).put("msg", "Le retour ne contient aucun produit");
@@ -1211,7 +1211,21 @@ public class MvtProduitServiceImpl implements MvtProduitService {
                 "UPDATE t_retour_fournisseur SET dt_ATTENTE = NOW(), lg_USER_ATTENTE = ?1 WHERE lg_RETOUR_FRS_ID = ?2")
                 .setParameter(1, params.getOperateur().getLgUSERID()).setParameter(2, fournisseur.getLgRETOURFRSID())
                 .executeUpdate();
+        /* transmission du 07/11 : historique (qui, quand, action) */
+        RetourEtats.tracer(emg, fournisseur.getLgRETOURFRSID(), RetourEtats.MISE_EN_ATTENTE, null,
+                params.getOperateur().getLgUSERID());
         return json.put("success", true).put("msg", "Retour mis en attente de validation : rien n'est sorti du stock");
+    }
+
+    /** Transmission du 07/11 : message d'un retour qui n'est ni en saisie ni en attente. */
+    static String messageEtat(String statut) {
+        if (RetourEtats.REFUSE.equals(statut)) {
+            return "Ce retour a été refusé : corrigez-le puis remettez-le en attente ; rien n'a été modifié";
+        }
+        if (RetourEtats.ABANDONNE.equals(statut)) {
+            return "Ce retour a été abandonné : rien n'a été modifié";
+        }
+        return "Ce retour est déjà validé : rien n'a été modifié";
     }
 
     @Override
@@ -1231,7 +1245,7 @@ public class MvtProduitServiceImpl implements MvtProduitService {
             }
             if (!retourAValider(fournisseur.getStrSTATUT())) {
                 return json.put("success", false).put("code", "ETAT").put("msg",
-                        "Ce retour est déjà validé : rien n'a été modifié");
+                        messageEtat(fournisseur.getStrSTATUT()));
             }
             List<TRetourFournisseurDetail> details = getTRetourFournisseurDetail(params.getRef());
             if (ManquantsReceptionService.sansSortieStock(emg, fournisseur.getLgRETOURFRSID())) {
@@ -1352,6 +1366,8 @@ public class MvtProduitServiceImpl implements MvtProduitService {
             fournisseur.setLgUSERID(params.getOperateur());
             fournisseur.setStrREPONSEFRS(params.getRefTwo());
             emg.merge(fournisseur);
+            RetourEtats.tracer(emg, fournisseur.getLgRETOURFRSID(), RetourEtats.VALIDATION, null,
+                    params.getOperateur().getLgUSERID());
 
             json.put("success", true).put("msg", "Opération effectuée avec success");
         } catch (Exception e) {
@@ -1384,6 +1400,8 @@ public class MvtProduitServiceImpl implements MvtProduitService {
         fournisseur.setLgUSERID(params.getOperateur());
         fournisseur.setStrREPONSEFRS(params.getRefTwo());
         emg.merge(fournisseur);
+        RetourEtats.tracer(emg, fournisseur.getLgRETOURFRSID(), RetourEtats.VALIDATION, "Sans sortie de stock",
+                params.getOperateur().getLgUSERID());
         TBonLivraison bl = fournisseur.getLgBONLIVRAISONID();
         logService.updateItem(params.getOperateur(),
                 bl == null ? fournisseur.getStrREFRETOURFRS() : bl.getStrREFLIVRAISON(),
@@ -1452,8 +1470,26 @@ public class MvtProduitServiceImpl implements MvtProduitService {
         return loadretoursFournisseur(dtStart, dtEnd, start, limit, fourId, query, cunRemove, filtre, null);
     }
 
+    @Override
+    public JSONObject loadetourFournisseur(String dtStart, String dtEnd, int start, int limit, String fourId,
+            String query, boolean cunRemove, String filtre, String userId, String etat) throws JSONException {
+        List<RetourFournisseurDTO> data = loadretoursFournisseur(dtStart, dtEnd, start, limit, fourId, query, cunRemove,
+                filtre, userId, etat);
+        return new JSONObject().put("total", data.size()).put("results", new JSONArray(data));
+    }
+
     private List<RetourFournisseurDTO> loadretoursFournisseur(String dtStart, String dtEnd, int start, int limit,
             String fourId, String query, boolean cunRemove, String filtre, String userId) {
+        return loadretoursFournisseur(dtStart, dtEnd, start, limit, fourId, query, cunRemove, filtre, userId, null);
+    }
+
+    /**
+     * Transmission du 07/11 : filtre par etat de la liste des retours (ATTENTE, REFUSE, VALIDE, ABANDONNE ; vide ou
+     * TOUS = tous). Les retours en attente et refuses restent visibles quelle que soit leur date ; les retours valides
+     * et abandonnes suivent la periode.
+     */
+    private List<RetourFournisseurDTO> loadretoursFournisseur(String dtStart, String dtEnd, int start, int limit,
+            String fourId, String query, boolean cunRemove, String filtre, String userId, String etat) {
         try {
             List<Predicate> predicates = new ArrayList<>();
             CriteriaBuilder cb = getEmg().getCriteriaBuilder();
@@ -1466,8 +1502,26 @@ public class MvtProduitServiceImpl implements MvtProduitService {
              */
             Predicate btw = cb.between(cb.function("DATE", Date.class, root.get(TRetourFournisseur_.dtUPDATED)),
                     java.sql.Date.valueOf(dtStart), java.sql.Date.valueOf(dtEnd));
-            predicates.add(cb.or(cb.and(cb.equal(root.get(TRetourFournisseur_.strSTATUT), STATUT_ENABLE), btw),
-                    cb.equal(root.get(TRetourFournisseur_.strSTATUT), RETOUR_EN_ATTENTE)));
+            javax.persistence.criteria.Path<String> statut = root.get(TRetourFournisseur_.strSTATUT);
+            String etatFiltre = StringUtils.upperCase(StringUtils.trimToEmpty(etat));
+            switch (etatFiltre) {
+            case "ATTENTE":
+                predicates.add(cb.equal(statut, RETOUR_EN_ATTENTE));
+                break;
+            case "REFUSE":
+                predicates.add(cb.equal(statut, RetourEtats.REFUSE));
+                break;
+            case "VALIDE":
+                predicates.add(cb.and(cb.equal(statut, STATUT_ENABLE), btw));
+                break;
+            case "ABANDONNE":
+                predicates.add(cb.and(cb.equal(statut, RetourEtats.ABANDONNE), btw));
+                break;
+            default:
+                predicates.add(cb.or(cb.and(statut.in(STATUT_ENABLE, RetourEtats.ABANDONNE), btw),
+                        statut.in(RETOUR_EN_ATTENTE, RetourEtats.REFUSE)));
+                break;
+            }
             if (StringUtils.isNotBlank(userId)) {
                 predicates.add(cb.equal(root.get(TRetourFournisseur_.lgUSERID).get(TUser_.lgUSERID), userId));
             }
