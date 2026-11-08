@@ -1,6 +1,10 @@
 # Monnaie sur les tickets d'une vente assurance avec vente comptant liée : analyse et proposition
 
-Cette notice part du ticket 1630805530, vu le 07/11 sur le poste local. Rien n'est codé : c'est à valider.
+Cette notice part du ticket 1630805530, vu le 07/11 sur le poste local.
+
+**État au 08/11 : validé (« Oui, comme proposé », avec le ticket combiné ressorti à la réimpression), codé et testé**
+sur `integration/recette-2026-10-29` (`994ad399c`, `0a76ae1a5`), déployé sur le poste local (domain1). Voir la
+section 4.
 
 ## 1. Ce qui s'est passé
 
@@ -110,3 +114,128 @@ Chaque test échoue d'abord sur le code actuel.
   - Part client 0 (assurance à 100 %).
   - Plusieurs tiers-payants (plusieurs exemplaires).
   - Paramètre « ticket unique » à 0 et à 1.
+
+## 4. Réalisation (08/11)
+
+### Ce qui change
+
+- `rest/service/ticket/MonnaieVenteLiee` : la règle unique, pure.
+  - Le récapitulatif d'une vente liée perd « Montant versé » et « Monnaie ».
+  - Il gagne « Réglé » (= net, sauf différé ou net nul) et « Vente liée : n° … ».
+  - La monnaie de l'opération vaut versé − (part client + comptant), jamais négative. Le ticket combiné utilise la
+    même fonction.
+- `GenerateTicketServiceImpl` :
+  - la règle est appliquée à tous les récapitulatifs, à la première impression comme à la réimpression ;
+  - elle ne change rien pour une vente sans vente liée ;
+  - la réimpression d'une vente assurance liée, ou de sa vente comptant, ressort aussi le ticket client combiné.
+- `ConversionTicket` : « Réglé » et « Vente liée » s'impriment après le mode de règlement, sans le masquer
+  (« Règlement : Espèces », « Règlement : Différé »).
+- Base, caisse, recettes et règlements : rien ne change.
+- Réimpression d'une vente liée : deux tickets, le ticket de la vente puis le ticket combiné, jamais trois. Cela
+  remplace la décision du 05/11. `retours/test-reedition-un-ticket.js` a été mis à jour en conséquence.
+- Aperçu réservé aux tests : `POST vente/ticket/vo/apercu-cloture`. Il prend le corps exact envoyé par l'écran à la
+  première impression et construit les tickets sans imprimer.
+
+### Où la donnée apparaît, et le test qui compare
+
+Test de rapprochement : `retours/test-monnaie-vente-liee-0811.js`, joué par le vrai chemin de l'écran.
+
+Il compare :
+- l'écran : net et monnaie affichée ;
+- la première impression : ticket assurance et ticket combiné ;
+- la réimpression de la vente assurance : son ticket et le combiné ;
+- la réimpression de la vente comptant : son ticket et le combiné ;
+- la base : `mvttransaction`, `vente_reglement`, `t_recettes`.
+
+Résultats : 10/26 sur l'ancien code (monnaie imprimée deux fois, pas de combiné à la réimpression), puis **30/30**.
+
+### Règles et test de cohérence
+
+`MonnaieVenteLieeCoherenceTest` : 5 000 opérations tirées au hasard, avec une graine fixe. Chaque ticket passe par la
+conversion réelle.
+
+Règles vérifiées :
+- monnaie = versé − net, jamais négative ;
+- versé de la vente assurance + versé de la vente comptant = montant tendu ;
+- « Monnaie rendue » est imprimée une seule fois, sur le combiné, sauf en différé ;
+- le versé n'apparaît que sur le combiné ;
+- « Réglé » = net ;
+- un seul renvoi « Vente liée », vers l'autre vente ;
+- le mode de règlement reste imprimé ;
+- les autres lignes sont gardées, dans le même ordre.
+
+Preuves que le test voit les défauts :
+- rejoué avec l'ancien ticket, il voit la monnaie comptée plusieurs fois sur chaque opération payée ;
+- rejoué avec la première version de la conversion, il voit « Règlement : Espèces » manquant (2 échecs).
+
+Résultat final : 4/4.
+
+### Traces attendues et test de bilan
+
+Dans `test-monnaie-vente-liee-0811.js`, pour chaque vente, il y a exactement :
+- un mouvement de caisse ;
+- un règlement ;
+- une recette, égale au payé.
+
+Le versé total en base est égal au montant tendu, et la monnaie en base (versé − payé) à celle de l'écran.
+L'impression n'écrit rien en base.
+
+### Cas couverts
+
+- Test d'écran :
+  - opération A : quantité 2 côté assurance et 1 cochée, client qui tend plus que le net (monnaie 1 910) ;
+  - opération B : quantité 1 et 3 cochées, client qui tend le net exact (monnaie 0).
+- Test de cohérence :
+  - espèces seules, espèces et mobile ;
+  - différé ;
+  - part client 0 ;
+  - montant tendu égal au net, au-dessus du net, ou au millier supérieur ;
+  - numéros de ticket tout en chiffres, ou références.
+- Non-régression : différé d'une vente liée (`test-ticket-differe.js`).
+- **Non couverts par un test dédié :**
+  - plusieurs organismes sur une vente liée ;
+  - le paramètre « ticket unique » (`KEY_NOMBRE_TICKETS_VNO`) à 0 et à 1.
+
+  Le code ne dépend pas de ces deux points : la règle porte sur le récapitulatif, imprimé à l'identique sur chaque
+  exemplaire.
+
+### Non-régression rejouée après la correction
+
+16 tests d'écran, joués un à un, tous verts :
+
+| Test | Résultat |
+|---|---|
+| `retours/test-monnaie-vente-liee-0811.js` | 30/30 |
+| `retours/test-reedition-un-ticket.js` | 7/7 |
+| `ligne-comptant/test-rapprochement-ligne-comptant.js` | 19/19 |
+| `ligne-comptant/test-bilan-ligne-comptant.js` | 23/23 |
+| `ligne-comptant/test-une-ligne-cochee.js` | 24/24 |
+| `ligne-comptant/test-ticket-differe.js` | 14/14 |
+| `ligne-comptant/test-non-regression-cloture.js` | 11/11 |
+| `ligne-comptant/test-parametre-0-identique.js` | 12/12 |
+| `ligne-comptant/test-attente-reprise.js` | 9/9 |
+| `ligne-comptant/test-promotion-et-carnet.js` | 10/10 |
+| `prix-reference/test-rapprochement-ticket.js` | 19/19 |
+| `prix-reference/test-base-par-tp-rapprochement-ticket.js` | 23/23 |
+| `retours/test-caisse-vente-scindee.js` | 11/11 |
+| `retours/test-modeles-ticket.js` | 15/15 |
+| `audits/test-ecran-promotion-rapprochement.js` | 39/39 |
+| `retours/test-promotion-palier-0811.js` | 33/33 |
+
+Tests unitaires des tickets et de la vente liée : 129 tests, aucun échec.
+
+Changement d'un contrôle existant : dans `test-rapprochement-ligne-comptant.js`, la règle « aucune mention de la vente
+comptant » sur le ticket assurance devient « aucune ligne de la vente comptant, renvoi Vente liée à sa référence ».
+C'est la conséquence de la décision du 08/11.
+
+Cahier : `CAHIER_RECETTE_2026-11-08.xlsx`, feuille « Monnaie ventes liées 08-11 » : cas MON-01 OK, non-régression 15
+sur 15.
+
+### Mise en officine
+
+Une méthode a été ajoutée à `GenerateTicketService`. Il faut donc suivre la procédure JACC :
+1. undeploy ;
+2. supprimer `generated/policy/prestige` ;
+3. deploy.
+
+Pas de migration.
