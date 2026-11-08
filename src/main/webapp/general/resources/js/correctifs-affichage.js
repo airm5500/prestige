@@ -860,6 +860,8 @@ window.PrestigeAffichage.ECRANS_COLLES = [
     'activiteequipes',
     // menu « Péremptions courtes » (GESTION DES COMMANDES, demande mobile 36 D12)
     'peremptionscourtes',
+    // menu « Extranets grossistes » (GESTION DES COMMANDES, plan du 07/11)
+    'extranetsgrossistes',
     // menu « Modèles de ticket » (PARAMETRAGES, demande du 02/11)
     'modelesticket',
     // retours du 05/10 (lot A)
