@@ -119,10 +119,10 @@ public final class ReglagesTicket {
     public JSONObject json() {
         JSONArray d = new JSONArray();
         disposition.forEach(p -> d.put(p.json()));
-        return new JSONObject().put("ticket", ticket.name()).put("modele", modele).put("remise", remise).put("lot", lot)
-                .put("ccRc", ccRc).put("recapitulatif", recapitulatif).put("commentaires", commentaires)
-                .put("encoursCarnet", encoursCarnet).put("signatureClient", signatureClient)
-                .put("signatures", signatures).put("disposition", d);
+        return new JSONObject().put("ticket", ticket.name()).put("modele", modele).put("remise", remise)
+                .put("lot", lot).put("ccRc", ccRc).put("recapitulatif", recapitulatif)
+                .put("commentaires", commentaires).put("encoursCarnet", encoursCarnet)
+                .put("signatureClient", signatureClient).put("signatures", signatures).put("disposition", d);
     }
 
     /** Reglages lus d'un JSON (base ou ecran) ; une valeur absente garde le defaut. */

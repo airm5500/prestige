@@ -200,8 +200,7 @@ public class BalancePdfServlet extends HttpServlet {
             query = request.getParameter("query");
             file = balance.familleArticle(session.getId(), dtStart, dtEnd, codeFamile, query, oUser, codeRayon,
                     codeGrossiste);
-            response.setHeader(rest.service.utils.CacheEtats.ENTETE,
-                    rest.service.utils.CacheEtats.repris() ? "1" : "0");
+            response.setHeader(rest.service.utils.CacheEtats.ENTETE, rest.service.utils.CacheEtats.repris() ? "1" : "0");
             break;
         case STAT_FAMILLE_ARTICLE_VETO:
             codeFamile = request.getParameter("codeFamile");

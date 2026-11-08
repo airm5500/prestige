@@ -34,8 +34,8 @@ public class AppConfig {
     private String modReappro;
 
     /**
-     * Un seul serveur par reseau (retour du 03/11) : un poste configure en serveur qui n'heberge pas la base, alors que
-     * la machine qui l'heberge est connue comme serveur (t_serveur_poste), ne lance pas les taches planifiees. Decision
+     * Un seul serveur par reseau (retour du 03/11) : un poste configure en serveur qui n'heberge pas la base, alors que la
+     * machine qui l'heberge est connue comme serveur (t_serveur_poste), ne lance pas les taches planifiees. Decision
      * revue toutes les {@link #REVUE_MS} ms ; dans le doute (table absente, base injoignable), rien ne change.
      */
     static final long REVUE_MS = 10 * 60 * 1000L;
@@ -114,8 +114,8 @@ public class AppConfig {
     }
 
     /**
-     * Ce poste lance-t-il les taches du serveur ? Configure en serveur (application.mode) et, s'il n'heberge pas la
-     * base, aucune autre machine connue comme le vrai serveur (voir {@link #estDeclareServeur()} pour le mode saisi).
+     * Ce poste lance-t-il les taches du serveur ? Configure en serveur (application.mode) et, s'il n'heberge pas la base,
+     * aucune autre machine connue comme le vrai serveur (voir {@link #estDeclareServeur()} pour le mode saisi).
      */
     @TransactionAttribute(TransactionAttributeType.NOT_SUPPORTED)
     public boolean isServerMode() {
@@ -144,9 +144,8 @@ public class AppConfig {
                 hote = job.PosteLocal.nomMachine();
             }
             if (!rest.service.impl.serveur.CalculReglages.baseLocale(hote)) {
-                Number n = (Number) em
-                        .createNativeQuery("SELECT COUNT(*) FROM t_serveur_poste WHERE serveur = 1"
-                                + " AND mariadb_locale = 1 AND hote <> ? AND releve_at > NOW() - INTERVAL 30 DAY")
+                Number n = (Number) em.createNativeQuery("SELECT COUNT(*) FROM t_serveur_poste WHERE serveur = 1"
+                        + " AND mariadb_locale = 1 AND hote <> ? AND releve_at > NOW() - INTERVAL 30 DAY")
                         .setParameter(1, hote).getSingleResult();
                 t = rest.service.impl.serveur.PostesReglages.tachesDuServeurIci(true, false, n.longValue() > 0);
             }

@@ -204,8 +204,7 @@ public class DataExportService {
             getEntityManager()
                     .createQuery("SELECT o FROM TFamilleGrossiste o WHERE o.lgFAMILLEID.lgFAMILLEID IN :ids",
                             TFamilleGrossiste.class)
-                    .setFlushMode(FlushModeType.COMMIT).setParameter("ids", lot).getResultList()
-                    .forEach(g -> fournisseurs
+                    .setFlushMode(FlushModeType.COMMIT).setParameter("ids", lot).getResultList().forEach(g -> fournisseurs
                             .computeIfAbsent(g.getLgFAMILLEID().getLgFAMILLEID(), k -> new ArrayList<>()).add(g));
             getEntityManager()
                     .createQuery("SELECT o FROM TFamilleStock o WHERE o.lgFAMILLEID.lgFAMILLEID IN :ids",

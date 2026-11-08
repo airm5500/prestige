@@ -140,8 +140,7 @@ public class DataReportingServlet extends HttpServlet {
             }
             file = dataReporting.articleSurStock(session.getId(), codeFamile, query, oTUser, codeRayon, codeGrossiste,
                     nbreMois, nbreConsommation);
-            response.setHeader(rest.service.utils.CacheEtats.ENTETE,
-                    rest.service.utils.CacheEtats.repris() ? "1" : "0");
+            response.setHeader(rest.service.utils.CacheEtats.ENTETE, rest.service.utils.CacheEtats.repris() ? "1" : "0");
             break;
 
         case COMPARAISON_STOCK:

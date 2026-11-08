@@ -94,11 +94,9 @@ class PostesReglagesTest {
         PostesReglages.Poste c = poste("CAISSE-2", true, 50);
         c.mariadbLocale = false;
         List<String> a = PostesReglages.alertes(Arrays.asList(poste("SERVEUR", true, 50), c), 2, 500, MAINTENANT);
-        assertTrue(a.stream()
-                .anyMatch(x -> x.startsWith("« CAISSE-2 » est configuré en serveur")
-                        && x.contains("la base est sur « SERVEUR »") && x.contains("application.mode=client")
-                        && x.contains("en double")),
-                a.toString());
+        assertTrue(a.stream().anyMatch(x -> x.startsWith("« CAISSE-2 » est configuré en serveur")
+                && x.contains("la base est sur « SERVEUR »") && x.contains("application.mode=client")
+                && x.contains("en double")), a.toString());
         assertEquals(1, a.size(), a.toString());
     }
 
@@ -114,8 +112,7 @@ class PostesReglagesTest {
     @Test
     void serveurPasEncoreReleve() {
         List<String> a = PostesReglages.alertes(Arrays.asList(poste("CAISSE-2", false, 32)), 2, 500, MAINTENANT);
-        assertTrue(a.stream().anyMatch(x -> x.startsWith("Aucun relevé de la machine qui héberge la base")),
-                a.toString());
+        assertTrue(a.stream().anyMatch(x -> x.startsWith("Aucun relevé de la machine qui héberge la base")), a.toString());
     }
 
     @Test
@@ -124,14 +121,13 @@ class PostesReglagesTest {
         a1.mariadbLocale = false;
         a2.mariadbLocale = false;
         List<String> a = PostesReglages.alertes(Arrays.asList(a1, a2), 2, 500, MAINTENANT);
-        assertTrue(
-                a.stream().anyMatch(x -> x.startsWith("Plusieurs machines sont configurées en serveur : PC-1, PC-2")),
+        assertTrue(a.stream().anyMatch(x -> x.startsWith("Plusieurs machines sont configurées en serveur : PC-1, PC-2")),
                 a.toString());
     }
 
     /**
-     * Retour du 03/11 : une caisse configuree en serveur ne lance pas les taches planifiees quand la machine qui
-     * heberge la base est connue comme serveur ; dans le doute, rien ne change.
+     * Retour du 03/11 : une caisse configuree en serveur ne lance pas les taches planifiees quand la machine qui heberge
+     * la base est connue comme serveur ; dans le doute, rien ne change.
      */
     @Test
     void tachesDuServeurSeulementSurLeVraiServeur() {

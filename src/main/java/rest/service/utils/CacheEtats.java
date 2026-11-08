@@ -15,8 +15,8 @@ import org.json.JSONObject;
  * <li>l'ecran calcule toujours ({@link #ecran}) et garde le resultat ;</li>
  * <li>l'edition ({@link #edition}) reprend le resultat de la meme session, du meme etat et des memes filtres, s'il a
  * moins de 5 minutes ; sinon elle calcule comme avant ;</li>
- * <li>le resultat est garde en texte : chaque lecture en refait un objet neuf, que l'edition peut modifier sans toucher
- * a ce qui est garde ;</li>
+ * <li>le resultat est garde en texte : chaque lecture en refait un objet neuf, que l'edition peut modifier sans
+ * toucher a ce qui est garde ;</li>
  * <li>un resultat en echec ({@code success: false}) n'est pas garde ; sans session, rien n'est garde ;</li>
  * <li>taille bornee : au-dela, les plus anciens sortent.</li>
  * <li>les etats dont l'ecran et l'edition partagent des objets (listes de lignes) passent par {@link #ecranObjet} et

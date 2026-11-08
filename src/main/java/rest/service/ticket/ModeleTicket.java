@@ -1,14 +1,19 @@
 package rest.service.ticket;
 
 /**
- * Tickets de caisse parametrables dans le menu « Modeles de ticket » (demande du 02/11) : chacun a son modele (ancien
- * ou nouveau), ses options et sa disposition, par largeur de papier.
+ * Tickets de caisse parametrables dans le menu « Modeles de ticket » (demande du 02/11) : chacun a son modele (ancien ou
+ * nouveau), ses options et sa disposition, par largeur de papier.
  */
 public enum ModeleTicket {
-    PREVENTE("Prévente", "Ventes"), VENTE("Vente comptant", "Ventes"), VENTE_ASSURANCE("Vente assurance", "Ventes"),
-    VENTE_CARNET("Vente carnet", "Ventes"), VENTE_DEPOT("Vente dépôt", "Ventes"),
-    REGLEMENT_DIFFERE("Règlement différé", "Règlements"), REGLEMENT_FACTURE("Règlement facture", "Règlements"),
-    REGLEMENT_CARNET_DEPOT("Règlement carnet / dépôt", "Règlements"), MOUVEMENT_CAISSE("Mouvement de caisse", "Caisse"),
+    PREVENTE("Prévente", "Ventes"),
+    VENTE("Vente comptant", "Ventes"),
+    VENTE_ASSURANCE("Vente assurance", "Ventes"),
+    VENTE_CARNET("Vente carnet", "Ventes"),
+    VENTE_DEPOT("Vente dépôt", "Ventes"),
+    REGLEMENT_DIFFERE("Règlement différé", "Règlements"),
+    REGLEMENT_FACTURE("Règlement facture", "Règlements"),
+    REGLEMENT_CARNET_DEPOT("Règlement carnet / dépôt", "Règlements"),
+    MOUVEMENT_CAISSE("Mouvement de caisse", "Caisse"),
     TICKET_Z("Ticket Z", "Caisse");
 
     private final String libelle;

@@ -59,8 +59,8 @@ public class FamilleArticleRessource {
         /* garde pour l'impression (demande du 02/11) : le PDF reprend ces lignes au lieu de les recalculer */
         org.apache.commons.lang3.tuple.Pair<commonTasks.dto.FamilleArticleStatDTO, List<commonTasks.dto.FamilleArticleStatDTO>> pair = CacheEtats
                 .ecranObjet(hs.getId(), CacheEtats.STAT_FAMILLE,
-                        () -> familleArticleService.statistiqueParFamilleArticle(dtStart, dtEnd, codeFamillle, query,
-                                tu, codeRayon, codeGrossiste),
+                        () -> familleArticleService.statistiqueParFamilleArticle(dtStart, dtEnd, codeFamillle, query, tu,
+                                codeRayon, codeGrossiste),
                         tu.getLgEMPLACEMENTID().getLgEMPLACEMENTID(), dtStart, dtEnd, codeFamillle, query, codeRayon,
                         codeGrossiste);
         JSONObject jsono = new JSONObject().put("success", true).put("total", pair.getRight().size())

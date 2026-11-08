@@ -47,9 +47,9 @@ public final class ExemplesTicket {
                     "Total espèce: ;169.350;F CFA;;1;1", "Total CB (vno/vo): ;12.000;F CFA;;1;1", " ; ; ; ; ; ; ",
                     "RECAPITULATIF DE CAISSE: M.TOURE ; ; ; ;1;0", " ; ; ; ; ; ; ",
                     "Espèce(vno/vo):;91.000; F CFA;;0;1", "Espèce Regl:;6.000; F CFA;;0;1",
-                    "Total espèce: ;97.000;F CFA;;1;1", " ; ; ; ; ; ; ", "TOTAL ESP: ; 266.350; F CFA;;1;1;G",
-                    "TOTAL OM: ; 22.500; F CFA;;1;1;G", "TOTAL (VNO/VO): ;41.200; F CFA;;1;1;G",
-                    "TOTAL CB: ; 12.000; F CFA;;1;1;G");
+                    "Total espèce: ;97.000;F CFA;;1;1", " ; ; ; ; ; ; ",
+                    "TOTAL ESP: ; 266.350; F CFA;;1;1;G", "TOTAL OM: ; 22.500; F CFA;;1;1;G",
+                    "TOTAL (VNO/VO): ;41.200; F CFA;;1;1;G", "TOTAL CB: ; 12.000; F CFA;;1;1;G");
             break;
         case MOUVEMENT_CAISSE:
             s.titre = "Sortie de caisse";
@@ -67,7 +67,8 @@ public final class ExemplesTicket {
             s.infoSellers = Collections.singletonList("Opérateur:: A.KONE");
             s.datas = Arrays.asList("NBRE DOSSIER(S);VERSE;RESTANT",
                     facture ? "2;350 000F CFA;0F CFA" : "3;20 000F CFA;7 450F CFA", " ; ; ");
-            s.subtotal = Arrays.asList("Net à payer: ;     " + (facture ? "350.000" : "27.450") + "; F CFA;1",
+            s.subtotal = Arrays.asList(
+                    "Net à payer: ;     " + (facture ? "350.000" : "27.450") + "; F CFA;1",
                     "Règlement: ;     " + (facture ? "Chèque" : "Espèces") + "; ;0",
                     "Montant Versé: ;     " + (facture ? "350.000" : "20.000") + "; F CFA;0",
                     "Monnaie: ;     0; F CFA;0");
@@ -98,9 +99,9 @@ public final class ExemplesTicket {
         s.titre = "Ticket N° 0127" + (t == ModeleTicket.VENTE ? "" : " | Bon N°:: 558213");
         s.infoSellers = Collections.singletonList("Caissier(e):: A.KONE   |   Vendeur:: M.TOURE");
         s.articles = articles();
-        s.datas = new ArrayList<>(
-                Arrays.asList(" 2; *;DOLIPRANE 1000MG CP;1.205;2.410", " 1; *;AMOXICILLINE BIOGAR;2.150;2.150",
-                        " 1; *;SERUM PHYSIOLOGIQU;650;650", ";;;;------", ";;;;5.210"));
+        s.datas = new ArrayList<>(Arrays.asList(" 2; *;DOLIPRANE 1000MG CP;1.205;2.410",
+                " 1; *;AMOXICILLINE BIOGAR;2.150;2.150", " 1; *;SERUM PHYSIOLOGIQU;650;650", ";;;;------",
+                ";;;;5.210"));
         s.commentaires = Arrays.asList("Merci de votre confiance;0");
         switch (t) {
         case VENTE_ASSURANCE:
