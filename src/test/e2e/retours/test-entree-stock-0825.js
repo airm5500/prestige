@@ -4,6 +4,7 @@
  *  - « Infos générales » : la colonne des etiquettes tient sur 3 lignes, comme les autres (libelles a gauche) ;
  *  - « Retour » et « ENTREE EN STOCK » au style des boutons de « Suivi dossier client » ;
  *  - apres l'entree : fenetre « Seuil de réserve atteint » avec « Imprimer » (impression sans onglet ni fenetre) ;
+ *    plan du 08/11, point 8 : le PDF de l'edition (jrxml) = la fenetre, ligne par ligne, cellule par cellule ;
  *  - « Ouvrir la suggestion » : la suggestion du bon (retour du 04/11, une suggestion par bon) ne contient que le
  *    produit du bon, sans bandeau de filtre ; l'autre produit reste dans la suggestion deja ouverte, intact ;
  *  - sans le droit « Gestion des réserves » : message clair, pas d'ouverture, « Imprimer » reste ;
@@ -14,6 +15,8 @@ const { chromium } = require('playwright-core');
 const ENV_E2E = require('../outils/poste');
 const { execFileSync } = require('child_process');
 const privilegeEssai = require('../support/privilege-essai');
+const { fichierEdition } = require('../support/editions');
+const fs = require('fs');
 const res = [];
 function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : '')); }
 const BASE = ENV_E2E.BASE;
@@ -120,11 +123,24 @@ function remettre() {
       return { imprimer: !!w.down('#btnImprimer') && w.down('#btnImprimer').isVisible(), ouvrir: w.down('#btnOuvrirSuggestion').isVisible(), sansDroit: !!w.getEl().dom.querySelector('.rae-sans-droit') }; });
     ok('Fenêtre « Seuil de réserve atteint » : Imprimer et Ouvrir la suggestion', f.imprimer && f.ouvrir && !f.sansDroit, JSON.stringify(f));
     const avant = pages;
-    await p.evaluate(() => Ext.ComponentQuery.query('reserveapresentree #btnImprimer')[0].btnEl.dom.click());
+    const fenetre = await p.evaluate(() => Ext.ComponentQuery.query('reserveapresentree #grilleReserve')[0].getView().getNodes()
+      .map((n) => Array.from(n.querySelectorAll('td')).map((td) => td.innerText.trim())));
+    const [rep] = await Promise.all([p.waitForResponse((r) => /suggestion-reserve\/apres-entree\/pdf/.test(r.url()), { timeout: 60000 }),
+      p.evaluate(() => Ext.ComponentQuery.query('reserveapresentree #btnImprimer')[0].btnEl.dom.click())]);
+    const o = await rep.json().catch(() => ({}));
     await p.waitForTimeout(1500);
-    const imp = await p.evaluate(() => { const c = document.getElementById('rae-impression'); return c ? c.contentWindow.document.body.innerText : ''; });
+    const fpdf = o.url ? fichierEdition(o.url) : '';
+    const pdf = fpdf && fs.existsSync(fpdf) ? execFileSync('pdftotext', ['-raw', fpdf, '-'], { encoding: 'utf8' }).replace(/\s+/g, ' ') : '';
+    const cadre = await p.evaluate(() => { const c = document.getElementById('rae-impression'); return c ? c.getAttribute('src') : ''; });
     const nomP = q(`SELECT str_NAME FROM t_famille WHERE lg_FAMILLE_ID = '${P}'`);
-    ok('Imprimer : la liste (produit, à déplacer) part à l\'impression, sans onglet ni fenêtre', imp.includes(nomP) && /À déplacer/.test(imp) && pages === avant, imp.slice(0, 160));
+    ok('Imprimer : PDF de l\'édition (jrxml) envoyé à l\'impression par un cadre invisible, sans onglet ni fenêtre',
+      o.success === true && !!pdf && /rp_reserve_apres_entree/.test(o.url) && cadre === '..' + o.url && pages === avant, JSON.stringify({ o, cadre }));
+    /* rapprochement fenetre / PDF : chaque ligne de la fenetre, cellule par cellule, dans l'ordre */
+    /* seule difference admise : la fleche de l'ecran devient « » » dans le PDF (police WinAnsi sans fleche) */
+    const manquantes = fenetre.map((cellules) => cellules.map((c) => c.replace(/ → /g, ' » '))).filter((cellules) => { let k = 0; return !cellules.every((c) => { const x = pdf.indexOf(c, k); if (x < 0) { return false; } k = x + c.length; return true; }); });
+    ok(`PDF = fenêtre : ${fenetre.length} ligne(s), cellule par cellule (CIP, produit, sens, rayon, réserve, seuil, à déplacer), en-tête et titre`,
+      fenetre.length >= 1 && o.lignes === fenetre.length && manquantes.length === 0 && pdf.includes(nomP) && /À déplacer/.test(pdf)
+      && /SEUIL DE RÉSERVE ATTEINT/.test(pdf) && pdf.includes(fenetre.length + ' produit(s)'), JSON.stringify({ manquantes, debut: pdf.slice(0, 300) }));
 
     await p.evaluate(() => Ext.ComponentQuery.query('reserveapresentree #btnOuvrirSuggestion')[0].btnEl.dom.click());
     await p.waitForFunction(() => Ext.ComponentQuery.query('reservetraitementsuggestion').some((w) => w.win && w.win.isVisible() && !w.win.down('grid').getStore().isLoading()), null, { timeout: 30000 });

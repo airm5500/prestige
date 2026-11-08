@@ -256,11 +256,103 @@ public class EditionSectionsTest {
         }
     }
 
+    /**
+     * Plan du 08/11, point 8 : fenetre « Seuil de réserve atteint » en PDF. Sur 2 000 listes tirees au hasard (graine
+     * fixe) : une ligne par produit, colonnes = fenetre (CIP, produit, sens, rayon, reserve, seuil, a deplacer),
+     * produits vers la reserve + vers le rayon = produits ; une suggestion citee une fois ; liste vide : un message.
+     */
+    @Test
+    public void reserveApresEntreeCommeLaFenetre() throws Exception {
+        Random r = new Random(GRAINE + 8);
+        for (int cas = 0; cas < 2000; cas++) {
+            JSONArray t = new JSONArray();
+            int n = r.nextInt(12), vers = 0;
+            for (int i = 0; i < n; i++) {
+                boolean reserve = r.nextBoolean();
+                vers += reserve ? 1 : 0;
+                t.put(new JSONObject().put("cip", String.valueOf(1000000 + r.nextInt(9000000)))
+                        .put("nom", "PRODUIT " + i).put("categorie", reserve ? "RESERVE" : "RAYON")
+                        .put("stockRayon", r.nextInt(3000)).put("stockReserve", r.nextInt(3000))
+                        .put("seuil", r.nextInt(50)).put("quantite", r.nextInt(1500)).put("ref", "SR-" + (i % 2))
+                        .put("bon", i % 2 == 0 ? "BL" + cas : ""));
+            }
+            List<LigneEditionSectionDTO> l = EditionSections.reserveApresEntree(t);
+            String cle = "cas " + cas;
+            assertArrayEquals(new String[] { "CIP", "Produit", "Sens", "Rayon", "Réserve", "Seuil", "À déplacer" },
+                    java.util.Arrays.copyOf(l.get(0).colonnes(), 7), cle);
+            assertEquals(Math.max(n, 1) + 1, l.size(), cle + " : en-tete + une ligne par produit");
+            for (int i = 0; i < n; i++) {
+                JSONObject x = t.getJSONObject(i);
+                assertArrayEquals(
+                        new String[] { x.getString("cip"), x.getString("nom"),
+                                "RESERVE".equals(x.getString("categorie")) ? "Rayon » réserve" : "Réserve » rayon",
+                                String.valueOf(x.getInt("stockRayon")), String.valueOf(x.getInt("stockReserve")),
+                                String.valueOf(x.getInt("seuil")), String.valueOf(x.getInt("quantite")) },
+                        java.util.Arrays.copyOf(l.get(i + 1).colonnes(), 7), cle + " ligne " + i);
+                assertEquals("B", l.get(i + 1).getDisposition(), cle);
+            }
+            if (n == 0) {
+                assertEquals("Aucun produit à déplacer.", l.get(1).colonnes()[0], cle);
+            }
+            assertEquals(n + " produit(s) · " + vers + " vers la réserve · " + (n - vers) + " vers le rayon",
+                    EditionSections.indicateursReserve(t), cle);
+            String refs = EditionSections.suggestionsReserve(t);
+            assertEquals(
+                    n == 0 ? ""
+                            : n == 1 ? "Suggestion SR-0 du BL BL" + cas : "Suggestion SR-0 du BL BL" + cas + ", SR-1",
+                    refs, cle);
+        }
+        /* le modele se remplit avec ces lignes : chaque cellule est dans le document */
+        try (InputStream in = getClass().getResourceAsStream("/reports/rp_edition_sections.jrxml")) {
+            JasperReport rapport = JasperCompileManager.compileReport(in);
+            JSONArray t = new JSONArray();
+            for (int i = 0; i < 40; i++) {
+                t.put(new JSONObject().put("cip", "77" + (10000 + i)).put("nom", "PRODUIT RESERVE " + i)
+                        .put("categorie", i % 3 == 0 ? "RAYON" : "RESERVE").put("stockRayon", 100 + i)
+                        .put("stockReserve", 2000 + i).put("seuil", 10 + i % 7).put("quantite", 300 + i)
+                        .put("ref", "SR-X").put("bon", "BL-9"));
+            }
+            Map<String, Object> parametres = new HashMap<>();
+            parametres.put("P_H_CLT_INFOS", "SEUIL DE RÉSERVE ATTEINT : PRODUITS À DÉPLACER");
+            parametres.put("P_PERIODE", EditionSections.suggestionsReserve(t));
+            parametres.put("P_INDICATEURS", EditionSections.indicateursReserve(t));
+            List<LigneEditionSectionDTO> lignes = EditionSections.reserveApresEntree(t);
+            JasperPrint impression = JasperFillManager.fillReport(rapport, parametres,
+                    new JRBeanCollectionDataSource(lignes));
+            StringBuilder sb = new StringBuilder();
+            impression.getPages().forEach(pg -> pg.getElements().forEach(e -> ajouter(e, sb)));
+            String texte = sb.toString();
+            assertTrue(texte.contains("Suggestion SR-X du BL BL-9")
+                    && texte.contains("40 produit(s) · 26 vers la réserve"), texte);
+            for (LigneEditionSectionDTO l : lignes) {
+                for (String c : l.colonnes()) {
+                    assertTrue(c.isEmpty() || texte.contains(c), "absent du document : " + c);
+                }
+            }
+        }
+    }
+
     private static void ajouter(JRPrintElement e, StringBuilder sb) {
         if (e instanceof JRPrintText) {
             sb.append(((JRPrintText) e).getFullText()).append('\n');
         } else if (e instanceof JRPrintFrame) {
             ((JRPrintFrame) e).getElements().forEach(x -> ajouter(x, sb));
         }
+    }
+
+    /**
+     * Plan du 08/11, point 8 : la police du PDF (Helvetica, jeu WinAnsi) n'a pas la fleche « → », qui disparaissait a
+     * l'impression (« Rayon réserve »). Chaque caractere du sens doit exister dans ce jeu.
+     */
+    @Test
+    void sensImprimableDansLePdf() {
+        java.nio.charset.CharsetEncoder win = java.nio.charset.Charset.forName("windows-1252").newEncoder();
+        for (String cat : new String[] { "RESERVE", "RAYON", "", null }) {
+            String sens = EditionSections.sensReserve(cat);
+            assertTrue(win.canEncode(sens), "sens imprimable : " + sens);
+            assertTrue(sens.matches("(Rayon|Réserve) \\S (réserve|rayon)"), sens);
+        }
+        assertEquals("Rayon » réserve", EditionSections.sensReserve("RESERVE"));
+        assertEquals("Réserve » rayon", EditionSections.sensReserve("RAYON"));
     }
 }

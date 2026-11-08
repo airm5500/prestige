@@ -29,6 +29,51 @@ public final class EditionSections {
     private EditionSections() {
     }
 
+    /* ---------- seuil de reserve atteint apres une entree en stock (plan du 08/11, point 8) ---------- */
+
+    /** Sens d'un deplacement, comme dans la fenetre « Seuil de réserve atteint ». */
+    public static String sensReserve(String categorie) {
+        /* « » » et non « → » : la police du PDF (jeu WinAnsi) n'a pas la fleche, qui disparaissait a l'impression */
+        return "RESERVE".equals(categorie) ? "Rayon » réserve" : "Réserve » rayon";
+    }
+
+    /** Les lignes de la fenetre, colonne par colonne (nombres bruts, comme a l'ecran). */
+    public static List<LigneEditionSectionDTO> reserveApresEntree(JSONArray lignes) {
+        List<LigneEditionSectionDTO> l = new ArrayList<>();
+        String s = "Produits à déplacer";
+        l.add(entete(s, B, "CIP", "Produit", "Sens", "Rayon", "Réserve", "Seuil", "À déplacer"));
+        JSONArray t = lignes == null ? new JSONArray() : lignes;
+        for (int i = 0; i < t.length(); i++) {
+            JSONObject p = t.getJSONObject(i);
+            l.add(ligne(s, B, p.optString("cip", ""), p.optString("nom", ""), sensReserve(p.optString("categorie")),
+                    brut(p, "stockRayon"), brut(p, "stockReserve"), brut(p, "seuil"), brut(p, "quantite")));
+        }
+        vide(l, s, B, t, "Aucun produit à déplacer.");
+        return l;
+    }
+
+    /** « 3 produit(s) · 2 vers la réserve · 1 vers le rayon ». */
+    public static String indicateursReserve(JSONArray lignes) {
+        int n = lignes == null ? 0 : lignes.length(), vers = 0;
+        for (int i = 0; i < n; i++) {
+            if ("RESERVE".equals(lignes.getJSONObject(i).optString("categorie"))) {
+                vers++;
+            }
+        }
+        return n + " produit(s) · " + vers + " vers la réserve · " + (n - vers) + " vers le rayon";
+    }
+
+    /** « Suggestion SR-… du BL … », une fois par suggestion, dans l'ordre des lignes. */
+    public static String suggestionsReserve(JSONArray lignes) {
+        java.util.LinkedHashSet<String> refs = new java.util.LinkedHashSet<>();
+        for (int i = 0; lignes != null && i < lignes.length(); i++) {
+            JSONObject p = lignes.getJSONObject(i);
+            String bon = p.optString("bon", "");
+            refs.add(p.optString("ref", "") + (bon.isEmpty() ? "" : " du BL " + bon));
+        }
+        return refs.isEmpty() ? "" : "Suggestion " + String.join(", ", refs);
+    }
+
     /* ---------- analyse des avoirs ---------- */
 
     public static List<LigneEditionSectionDTO> analyseAvoirs(JSONObject o) {
