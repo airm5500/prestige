@@ -579,3 +579,77 @@ Tests : `ConnexionTedisTest` (4 tests, échoue d'abord sur l'ancien code : « st
 `/`, en AJAX, jeton, identifiant et mot de passe (caractères spéciaux) ; session ouverte puis page protégée lue avec le
 cookie reçu ; refus non retenté, correction acceptée ; 4 réponses de panne ou inattendues. 141 tests extranet au vert.
 Essai réel : à faire par l'utilisateur (« Enregistrer » dans l'onglet Sessions, bloc TEDIS).
+Essai réel fait par l'utilisateur le 08/11 : TEDIS connecté.
+
+## 13. Sessions : état en clair et reconnexion automatique (08/11)
+
+Constat de l'utilisateur : Ubipharm « n'est plus connecté » en revenant dans le menu (session perdue au redéploiement) ;
+TEDIS n'affichait que « identifiants enregistrés ». Correction : l'état est écrit en clair (« ✓ Connecté », « Non
+connecté », « Session expirée ») ; à l'ouverture de l'onglet Sessions, Prestige se reconnecte seul une fois par écran avec
+les identifiants enregistrés, jamais après un refus ni après « Effacer la session ».
+
+## 14. Onglet TEDIS : Produits, Réclamations, Vos documents, Commandes (08/11)
+
+Dix listes, lues en GET seulement (aucune commande, aucune réclamation envoyée), gardées en base (`extranet_liste_ligne`,
+comme les listes Ubipharm) et consultables sans Internet :
+
+| Rubrique | Liste | Adresse TEDIS | Essai réel du 08/11 |
+|---|---|---|---|
+| Produits | Notre catalogue produits | `/catalogueProduitTableData?AgenceId=` (agence choisie sur /catalogueProduit) | 16 940 lignes |
+| Produits | Nos mises en place | même source, statut « MISE EN PLACE » | 1 214 |
+| Produits | Nos sorties de rupture | `/NosReaprovisionnements?AgenceId=` | 487 |
+| Réclamations | Historique de vos réclamations | `/historiqueReclamation` | 0 (aucune) |
+| Vos documents | B.L.V par quinzaine | `/donneequinzaine?idDate=` pour chaque quinzaine proposée | 67 |
+| Vos documents | Facture de quinzaine | `/releveFacture?Annee=` pour chaque année proposée | 116 |
+| Commandes | Commandes en attente | `/CommandeAttente` puis le détail de chaque commande | 3 |
+| Commandes | Historique de vos commandes | `/commandeHistorique` | 5 |
+| Commandes | Promotions laboratoire | `/produitpromo` | 717 |
+| Commandes | Promotions exclusives | `/produitpromoExclusive` | 0 |
+
+Les effectifs concordent avec les pages relevées dans le navigateur. Un champ TEDIS de facture dont le nom contient un mot
+proscrit n'est pas repris. Paliers des promotions (`/getPalierpromoLaboratoire`) : non collectés, à faire plus tard.
+
+Tests : `ListesTedisLecteurTest` (7 tests) : rapprochement source = lignes sur 1 500 produits tirés au hasard, filtre des
+mises en place, sorties, promotions, BL et factures (une sous-liste par quinzaine ou par année), commandes en attente,
+pages HTML, refus (page de connexion renvoyée, titre absent), cohérence des montants sur 5 000 valeurs (graine 20261108).
+
+## 15. Recherche Ubipharm par CIP, nom ou DCI (08/11)
+
+Le champ de la fiche produit accepte désormais une référence Ubipharm (ex. FAR125 : fiche directe) ou un CIP, un nom, une
+DCI : Prestige appelle `GET /ReturnProduitsJSON` (la même lecture que l'écran de recherche d'Ubipharm ; le POST
+`/RechercheProduits` n'apporte rien et un envoi direct est refusé « Erreur CSRF »). Choix : CIP et libellé, DCI, ou les
+deux ; « commence par » ; « en stock seulement ». 100 résultats au plus affichés (le total est donné) ; un clic sur un
+résultat ouvre sa fiche. Motif : 2 à 60 caractères, jamais journalisé.
+Essai réel : « paracetamol » 446 résultats (100 affichés), un CIP 1, « ACECAD » 6.
+Tests : `RechercheUbipharmTest` (3 tests : paramètres envoyés, lecture des résultats et du colisage, refus).
+Le rapprochement des références Ubipharm et TEDIS avec les produits Prestige (nom, CIP, EAN13, champ de référence) vient
+ensuite, comme demandé.
+
+## 16. Rafraîchissement automatique des listes gardées en base (08/11)
+
+Demande : garder en base les données lues et les relire selon un délai, pour les avoir en local si Internet manque.
+
+- Onglet « Rafraîchissement » : une ligne par liste (9 Ubipharm, 10 TEDIS), délai au choix : Jamais, 30 min, 1 h, 2 h,
+  4 h, 8 h, 12 h, 24 h. Le choix dans la liste enregistre aussitôt (ni Entrée ni fenêtre). Colonnes : dernière lecture
+  complète, dernier essai et son résultat, prochaine lecture.
+- Table `extranet_rafraichissement` (migration V7.5.12) : liste, grossiste, délai, date et auteur du réglage.
+  Aucune liste n'est réglée par défaut : rien n'est lu tant que l'administrateur n'a pas choisi.
+- Tâche planifiée `RafraichissementExtranetsScheduler` (toutes les 10 min) : relit les listes dont la dernière lecture
+  complète date de plus que le délai ; après un essai (réussi ou non), pas de nouvel essai avant 30 min (ou le délai s'il
+  est plus court) : sans Internet, l'extranet n'est pas sollicité sans cesse et la dernière lecture complète reste
+  affichée. Grossiste sans identifiants enregistrés ni session : écarté. Journal : code de la liste et résultat, jamais
+  de donnée. Collectes faites au nom de « rafraichissement automatique », visibles dans l'onglet Collectes (choix du
+  grossiste ajouté).
+
+Tests :
+- `RafraichissementCoherenceTest` : règle vérifiée sur 20 000 cas tirés (graine 20261108) : délai 0 jamais, jamais lue
+  due aussitôt, due exactement au délai, jamais deux essais à moins de 30 min, monotonie ; cas limites.
+- `test-rafraichissement-extranets.js` (écran, 17/17) : rapprochement écran = base pour les 19 listes (délai, lecture
+  complète, dernier essai, résultat) ; liste TEDIS déjà lue réglée à 2 h (base relue, auteur, prochaine lecture
+  calculée) ; liste Ubipharm jamais lue à 24 h (« dès que possible ») ; modification 2 h → 30 min (une seule ligne) ;
+  refus d'un délai non proposé, d'un délai négatif et d'une liste inconnue (base inchangée) ; retour à « Jamais » ;
+  bilan : aucune collecte lancée par les clics, tables métier inchangées ; réglages retirés. Le test a d'abord échoué
+  sur l'écran qui demandait « Entrée » après le choix.
+- 153 tests unitaires extranet au vert.
+- Essai réel de la tâche sur domain3 : « Produits supprimés » (Ubipharm, jamais lue) réglée à 24 h à 06:31 ; lue seule au
+  passage de 06:40:40, statut COMPLETE, au nom de « rafraichissement automatique » ; réglage d'essai retiré ensuite.
