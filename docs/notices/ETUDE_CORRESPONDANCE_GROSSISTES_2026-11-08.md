@@ -216,8 +216,10 @@ Ce qui reste en place :
    PharmaML. Sinon, la nouvelle table reste à part et `t_famille_grossiste` n'est que lue.
 4. **Prix publics et HT/TTC.**
    - Seuls 27 à 30 % des prix publics des catalogues égalent `int_PRICE`.
-   - Chez Copharmed, la colonne « Remise » vaut « 18,0 % », et « Prix net HT » (2 700) vaut le prix HT (2 288) × 1,18 :
-     ce sont probablement la TVA et un prix TTC mal nommés. À confirmer avec la session des connecteurs.
+   - Copharmed, réglé le 08/11 : les colonnes s'appellent désormais « Taux TVA » et « Prix TTC » (commit 95130bbb9 des
+     connecteurs ; positions et valeurs inchangées). Catalogue : [4] prix HT, [5] taux TVA (0, 9 ou 18 %), [6] prix
+     TTC, [7] prix public. Promotions : [8] à [11], dans le même ordre. Le prix d'achat à comparer au PAF du BL est le
+     prix HT ([4]).
    - Faut-il seulement afficher l'écart, ou aussi le signaler ?
 5. **Échantillon vérifié à la main.** Qui peut contrôler une centaine de propositions par grossiste ? Je fournis la
    liste. C'est le seul moyen d'avoir le vrai taux d'erreur.
