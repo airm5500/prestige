@@ -563,3 +563,70 @@ Contrôles :
   correction : il ne départage les deux versions que sous charge. Depuis, il contrôle aussi l'acceptation des
   identifiants en moins de 1 s : en échec sur l'ancien code dans les deux essais (3,5 s et 7,5 s), réussi à machine
   calme avec la correction (0,29 s).
+
+## Caisses aux heures de pointe : lenteurs aléatoires (08/11)
+
+**Constat remonté** : à l'ajout d'un produit ou à la validation d'une vente, « en cours de chargement » s'affiche et
+tourne, de façon aléatoire, en forte affluence (une officine qui tourne bien fait 1 700 à 2 000 ventes par jour) et
+parfois aussi aux heures normales.
+
+**Heures de pointe réelles** (ventes terminées sur un an, copies de mesure, date de création de la vente seule) :
+
+| Officine | Ventes/jour (moyenne / record) | Heure la plus chargée | Heures de pointe |
+|---|---|---|---|
+| appaul | 847 / 1 807 (10 jours à plus de 1 500) | 184 ventes, 5 caissiers (15/11/2025, 11 h) | 11 h-12 h, 17 h-19 h |
+| laborex | 735 / 1 376 | 147 ventes, 4 caissiers | 17 h-19 h |
+| zanzan | 456 / 1 319 | 129 ventes, 3 caissiers | 10 h-11 h, 17 h-18 h |
+
+Une heure normale compte 60 à 90 ventes. L'heure de 923 ventes de laborex le 29/10 est l'essai de charge de ce jour-là,
+écartée.
+
+**Méthode** : `perf/charge-officine.js` rejoue la vraie heure de pointe d'appaul (`REJOUER='2025-11-15 11:00'`) : les
+184 ventes, avec leurs articles et quantités, chaque caissier de l'époque sur son poste, à l'instant de l'époque divisé
+par 2 (`ACCELERATION=2`, soit 325 à 368 ventes à l'heure : au-delà du pic d'une officine à 2 000 ventes par jour).
+Gestes par le vrai écran (scan du CIP et Entrée, montant reçu, « Terminer la vente »). Deux sauvegardes complètes
+lancées par le bouton « Sauvegarder maintenant » pendant le rejeu. Base `appaul_perf` (20 Go), domain2 à 5 fils HTTP
+(réglage par défaut, domain1 en a 100), version d'intégration 28e7ffad8. Pour chaque geste de plus de 2 s : ses trois
+requêtes les plus longues avec l'attente du serveur, et les fils du serveur.
+
+**Mesures** (184 ventes sur 184 terminées) :
+
+| Geste | Médiane | 90 % | 99 % | Max |
+|---|---|---|---|---|
+| article ajouté (439) | 0,56 s | 0,81 s | 1,36 s | 1,9 s (hors scan perdu) |
+| vente terminée (184) | 1,55 s | 1,94 s | 4,3 s | 4,9 s |
+
+| Pendant une sauvegarde complète | Article ajouté (médiane / 90 %) | Vente terminée (médiane / 90 %) |
+|---|---|---|
+| non | 0,52 / 0,75 s | 1,52 / 1,79 s |
+| oui | 0,63 / 0,89 s | 1,70 / 2,06 s |
+
+- Le serveur ne fige pas : dans les ventes « lentes » (2 à 4,9 s), la clôture `vente/cloturer/vno` prend 0,3 à 0,55 s
+  côté serveur. Le reste est du temps de l'essai (réponse aux boîtes de dialogue) ou une attente dans le navigateur.
+- **Sauvegarde automatique** : une sauvegarde complète d'appaul dure 4 à 8 min (8 min 07 s pour celle de 16:05,
+  1,66 Go compressés) et revient chaque heure à :05. Elle ralentit les caisses d'environ 0,1 s (médiane) à 0,3 s
+  (90 %) : visible, mais pas un gel.
+- **Appels périodiques de chaque poste** : `notifications-centre/compteurs` 0,42 à 0,68 s de serveur et
+  `horloge/etat` 0,3 à 0,58 s, sur chaque poste et en continu. Ils occupent les 5 fils de domain2 aux côtés des ventes.
+- **Connexion** : le tableau de bord demande `tableau-bord/alertes` (5,7 s), `evolution` (3,8 s) et `tuiles` (2,8 s)
+  à la première ouverture.
+
+**Défaut trouvé : scan perdu** *(mécanisme lu dans le code et vu à l'écran, pas encore prouvé par un test)*. Si Entrée
+arrive pendant que la recherche de l'article est en cours (`VenteCtr.onProduitSpecialKey`), la liste est ouverte mais
+encore vide : l'écran la referme, ne trouve aucune valeur choisie et recalcule le net au lieu d'ajouter l'article. La
+réponse arrive ensuite et rouvre la liste avec l'article ; rien n'est ajouté. La caissière doit rescanner. Plus le
+serveur répond lentement, plus ce cas est fréquent : il est aléatoire par nature. Vu une fois dans le rejeu (deuxième
+scan du même article), et dans l'essai du 29/10 (§ 4.5 du rapport de charge).
+
+**Autre effet de l'écran** : quand la recherche est déjà revenue avant Entrée (deuxième scan du même article
+notamment), l'article n'est pas ajouté directement : le curseur passe dans « QD » et attend une seconde touche Entrée.
+
+**Non reproduit** : aucun « en cours de chargement » de plusieurs secondes côté serveur au pic réel rejoué deux fois
+plus vite, sauvegarde comprise. Ce que l'essai ne reproduit pas encore : des états lourds lancés pendant le pic
+(suggestion, Ticket Z long ; voir le rapport de charge du 29/10, § 4.1 et 4.2 : 5 fils seulement), un poste client
+lent ou un réseau lent, et les ventes à crédit (tiers payant), rejouées ici au comptant.
+
+Contrôles :
+
+- premier rejeu cassé côté essai (seconde touche Entrée non frappée, poste de test à 0,2 Go de mémoire libre) : écarté ;
+- second rejeu : 184/184 ventes, 1 scan perdu, 0 interblocage, tas Java ≤ 2,1 Go, 2 sauvegardes réussies.
