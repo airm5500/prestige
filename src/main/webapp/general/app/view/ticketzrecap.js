@@ -40,10 +40,18 @@ Ext.define('testextjs.view.ticketzrecap', {
                         allowBlank: false},
                     {xtype: 'button', itemId: 'afficher', text: 'Afficher', iconCls: 'searchicon', handler: function () {
                             me.afficher();
-                        }},
-                    '-',
+                        }}
+                ]
+            }, {
+                /* plan du 08/11, point 19 : les envois et l'impression sur une seconde ligne ; en 1366 px, les filtres
+                   et cinq boutons ne tenaient pas sur une seule (« Envoyer WhatsApp » partait dans le menu de debordement) */
+                xtype: 'toolbar', dock: 'top', itemId: 'actions', items: [
                     {xtype: 'button', itemId: 'sms', text: 'Envoyer SMS', handler: function (b) {
                             me.action(b, '../api/v1/caisse/send-sms', 'Envoi…', 'SMS envoyé');
+                        }},
+                    /* plan du 08/11, point 19 : meme texte que le SMS, au meme numero, par WhatsApp */
+                    {xtype: 'button', itemId: 'whatsapp', text: 'Envoyer WhatsApp', handler: function (b) {
+                            me.envoyerWhatsApp(b);
                         }},
                     {xtype: 'button', itemId: 'imprimer', text: 'Imprimer', iconCls: 'printable', handler: function (b) {
                             me.action(b, '../api/v1/caisse/tickez', 'Impression…', 'Envoyé à l\'imprimante');
@@ -193,6 +201,38 @@ Ext.define('testextjs.view.ticketzrecap', {
             },
             failure: function () {
                 finir('Échec : réessayer');
+            }
+        });
+    },
+
+    /** Plan du 08/11, point 19 : l'etat de l'envoi WhatsApp (envoye, simule, refuse) s'affiche dans le bouton. */
+    envoyerWhatsApp: function (b) {
+        var me = this, p = me.params(), texte = b.initialConfig.text;
+        if (!p) {
+            return;
+        }
+        var finir = function (message, ok) {
+            b.setText(message);
+            if (!ok && window.PrestigeToast) {
+                PrestigeToast.afficher(message, {niveau: 'erreur', titre: 'Ticket Z par WhatsApp'});
+            }
+            Ext.defer(function () {
+                if (!b.isDestroyed) {
+                    b.setText(texte);
+                    b.enable();
+                }
+            }, 2500);
+        };
+        b.disable();
+        b.setText('Envoi…');
+        Ext.Ajax.request({
+            url: '../api/v1/caisse/send-whatsapp', method: 'POST', jsonData: p,
+            success: function (r) {
+                var o = Ext.decode(r.responseText, true) || {};
+                finir(o.success ? (o.simule ? 'WhatsApp simulé (test)' : 'WhatsApp envoyé') : (o.message || 'Échec : réessayer'), !!o.success);
+            },
+            failure: function () {
+                finir('Échec : réessayer', false);
             }
         });
     },

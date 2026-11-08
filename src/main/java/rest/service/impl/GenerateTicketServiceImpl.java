@@ -572,6 +572,8 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
     private SessionHelperService sessionHelperService;
     @EJB
     private SmsService smsService;
+    @EJB
+    private rest.service.WhatsAppService whatsAppService;
 
     private File buildBarecode(String data) {
         try {
@@ -3906,7 +3908,26 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
     @Override
     public void sendToSms(Params params) throws JSONException {
         params.setOperateur(this.sessionHelperService.getCurrentUser());
-        TicketRecapWrapper recapWrapper = buildTicketZ(params);
+        this.smsService.sendSMS(texteTicketZ(buildTicketZ(params)));
+    }
+
+    /**
+     * Plan du 08/11, point 19 : le ticket Z par WhatsApp, au numero d'administration du SMS, texte seul (le meme que le
+     * SMS). Le texte n'est jamais journalise ; le jeton reste dans le service WhatsApp.
+     */
+    @Override
+    public JSONObject sendToWhatsApp(Params params) {
+        String numero = util.AppParameters.getInstance().mobile;
+        if (StringUtils.isBlank(numero)) {
+            return new JSONObject().put("success", false).put("statut", "ECHEC").put("message",
+                    "Aucun numéro d'administration (celui du SMS) n'est réglé.");
+        }
+        params.setOperateur(this.sessionHelperService.getCurrentUser());
+        return whatsAppService.envoyerTexte(numero, texteTicketZ(buildTicketZ(params)));
+    }
+
+    /** Texte du ticket Z envoye au numero d'administration (SMS et WhatsApp) : par caissier, puis total general. */
+    static String texteTicketZ(TicketRecapWrapper recapWrapper) {
         StringBuilder sb = new StringBuilder();
         recapWrapper.getDatas().forEach(ticketRecap -> {
             sb.append("RECAPITULATIF DE ").append(ticketRecap.getUser()).append("\n\n");
@@ -3926,7 +3947,6 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             sb.append(modePaymentAmount.getModeLibelle()).append(": ").append(modePaymentAmount.getMontant())
                     .append("\n");
         });
-        this.smsService.sendSMS(sb.toString());
-
+        return sb.toString();
     }
 }

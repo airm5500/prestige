@@ -94,4 +94,9 @@ public interface GenerateTicketService {
 
     void sendToSms(Params params) throws JSONException;
 
+    /**
+     * Plan du 08/11, point 19 : ticket Z par WhatsApp (numero du SMS, texte seul) ; success, simule, statut, message.
+     */
+    JSONObject sendToWhatsApp(Params params);
+
 }
