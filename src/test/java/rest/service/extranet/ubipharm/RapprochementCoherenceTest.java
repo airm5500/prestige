@@ -116,7 +116,8 @@ class RapprochementCoherenceTest {
         Set<String> attendusReference = new LinkedHashSet<>();
         if (!p.isEmpty()) {
             for (Article a : parReference) {
-                if (!"delete".equals(a.statutArticle()) && p.equals(sansBlancs(a.referenceUbipharm()))) {
+                if (!"delete".equals(a.statutArticle()) && p.equalsIgnoreCase(
+                        sansBlancs(a.referenceUbipharm())) /* str_PSCODE : casse ignoree, comme en SQL */) {
                     attendusReference.add(a.familleId());
                 }
             }
@@ -163,6 +164,21 @@ class RapprochementCoherenceTest {
                 Collections.emptyList(), Arrays.asList(a, b));
         assertEquals(Statut.CIP, r.statut());
         assertEquals("B", r.candidats().get(0).familleId());
+    }
+
+    /** str_PSCODE est saisi en majuscules sur la fiche ; la requete SQL ignore la casse : la decision aussi. */
+    @Test
+    void referenceUbipharmSansTenirCompteDeLaCasse() {
+        for (String[] c : new String[][] { { "FAIR248", "fair248" }, { "fair248", "FAIR248" }, { "Fort256", "FORT256" },
+                { " FAIR 248 ", "FAIR248" } }) {
+            Article a = new Article("A", "A", "enable", c[0], Arrays.asList(null, null, null, null, null));
+            Resultat r = RapprochementProduits.decider(c[1], null, Collections.singletonList(a), null);
+            assertEquals(Statut.PSCODE, r.statut(), c[0] + " / " + c[1]);
+            assertEquals("A", r.candidats().get(0).familleId());
+        }
+        Article a = new Article("A", "A", "enable", "FAIR2480", Arrays.asList(null, null, null, null, null));
+        assertEquals(Statut.INTROUVABLE,
+                RapprochementProduits.decider("FAIR248", null, Collections.singletonList(a), null).statut());
     }
 
     @Test

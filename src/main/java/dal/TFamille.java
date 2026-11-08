@@ -328,9 +328,9 @@ public class TFamille implements Serializable {
     private Integer cmuPrice;
     @Column(name = "code_ean_fabriquant")
     private String codeEanFabriquant;
-    /** Reference Ubipharm (PSCODE), saisie sur la fiche article ; sert au rapprochement avec l'extranet. */
-    @Column(name = "code_ubipharm", length = 40)
-    private String codeUbipharm;
+    /** Plan du 06/11, point 15 : reference Ubipharm (PSCODE), facultative, en majuscules. */
+    @Column(name = "str_PSCODE", length = 20)
+    private String strPSCODE;
 
     public int getVersion() {
         return version;
@@ -1024,12 +1024,12 @@ public class TFamille implements Serializable {
         this.codeEanFabriquant = codeEanFabriquant;
     }
 
-    public String getCodeUbipharm() {
-        return codeUbipharm;
+    public String getStrPSCODE() {
+        return strPSCODE;
     }
 
-    public void setCodeUbipharm(String codeUbipharm) {
-        this.codeUbipharm = codeUbipharm;
+    public void setStrPSCODE(String strPSCODE) {
+        this.strPSCODE = strPSCODE;
     }
 
     @XmlTransient

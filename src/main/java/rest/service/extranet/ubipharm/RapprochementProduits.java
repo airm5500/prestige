@@ -17,9 +17,9 @@ import org.json.JSONObject;
  * Rapprochement d'un produit Ubipharm avec les articles de Prestige (analyse du 07/11, §4.1). LECTURE SEULE : aucun
  * article n'est cree ni modifie ; le resultat est une proposition a valider.
  * <ol>
- * <li>{@link Statut#PSCODE} : un article dont la reference Ubipharm de la fiche ({@code t_famille.code_ubipharm}) =
- * pscode (prioritaire). Reponse de l'utilisateur du 07/11 : le PSCODE est range sur la fiche article, comme le code EAN
- * 13, et pas dans {@code t_famille_grossiste} ;</li>
+ * <li>{@link Statut#PSCODE} : un article dont la reference Ubipharm de la fiche ({@code t_famille.str_PSCODE}) = pscode
+ * (prioritaire). Reponse de l'utilisateur du 07/11 : le PSCODE est range sur la fiche article, comme le code EAN 13, et
+ * pas dans {@code t_famille_grossiste} ;</li>
  * <li>{@link Statut#CIP} : un seul article dont int_CIP, int_CIP2 a int_CIP4 ou int_EAN13 = un des codes Ubipharm
  * ;</li>
  * <li>{@link Statut#PLUSIEURS} : plusieurs candidats a la meme etape, tous listes ;</li>
@@ -51,7 +51,7 @@ public final class RapprochementProduits {
 
         /**
          * @param referenceUbipharm
-         *            t_famille.code_ubipharm (PSCODE de la fiche), ou null
+         *            t_famille.str_PSCODE (PSCODE de la fiche), ou null
          * @param codes
          *            int_CIP, int_CIP2, int_CIP3, int_CIP4, int_EAN13 (null permis)
          */
@@ -157,7 +157,7 @@ public final class RapprochementProduits {
      * Decision a partir des candidats lus (pre-filtres ou non : la comparaison exacte est refaite ici).
      *
      * @param parReference
-     *            articles avec leur reference Ubipharm (t_famille.code_ubipharm)
+     *            articles avec leur reference Ubipharm (t_famille.str_PSCODE)
      * @param parCodes
      *            articles avec leurs CIP / EAN13
      */
@@ -165,7 +165,8 @@ public final class RapprochementProduits {
             List<Article> parCodes) {
         String p = code(pscode);
         if (p != null && parReference != null) {
-            List<Article> l = distincts(parReference, a -> p.equals(code(a.referenceUbipharm)));
+            List<Article> l = distincts(parReference,
+                    a -> p.equalsIgnoreCase(String.valueOf(code(a.referenceUbipharm))));
             if (!l.isEmpty()) {
                 return new Resultat(pscode, l.size() == 1 ? Statut.PSCODE : Statut.PLUSIEURS, l, Statut.PSCODE.name());
             }
@@ -204,9 +205,11 @@ public final class RapprochementProduits {
 
     /* ----------------------------------------------------------- requetes */
 
-    /* la reference est enregistree sans blancs (FicheArticleRessource) : comparaison directe, par l'index */
-    static final String PAR_REFERENCE = "SELECT f.lg_FAMILLE_ID, f.str_NAME, f.str_STATUT, f.code_ubipharm"
-            + " FROM t_famille f WHERE f.code_ubipharm IN (:p) AND COALESCE(f.str_STATUT, '') <> 'delete'"
+    /*
+     * str_PSCODE (V7.2.39) : saisi en majuscules sur la fiche ; comparaison par l'index, sans tenir compte de la casse
+     */
+    static final String PAR_REFERENCE = "SELECT f.lg_FAMILLE_ID, f.str_NAME, f.str_STATUT, f.str_PSCODE"
+            + " FROM t_famille f WHERE f.str_PSCODE IN (:p) AND COALESCE(f.str_STATUT, '') <> 'delete'"
             + " ORDER BY f.str_NAME, f.lg_FAMILLE_ID";
     static final String PAR_CODES = "SELECT f.lg_FAMILLE_ID, f.str_NAME, f.str_STATUT, f.int_CIP, f.int_CIP2,"
             + " f.int_CIP3, f.int_CIP4, f.int_EAN13 FROM t_famille f WHERE COALESCE(f.str_STATUT, '') <> 'delete' AND ("

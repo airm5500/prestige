@@ -350,7 +350,7 @@ Décisions métier :
     parapharmacies, TTC pour les médicaments.
 11. ~~Le PSCODE du point 15 est-il bien la référence Ubipharm ? Où le ranger ?~~ **Répondu le 07/11** : c'est la
     référence Ubipharm, rangée sur la fiche article (`t_famille`), comme le code EAN 13, et pas dans
-    `t_famille_grossiste`. Réalisé : voir section 8.
+    `t_famille_grossiste`. Décision du 08/11 : une seule colonne, `t_famille.str_PSCODE` (V7.2.39). Voir section 8.
 12. Que représentent le « numéro associé » des réclamations et la date des réapprovisionnements ?
 13. Quels usages viennent en premier : disponibilité par agence, suivi des réclamations, contrôle des quinzaines
     TEDIS, nouveaux produits ?
@@ -392,25 +392,35 @@ Reste à faire avant tout appel réel : invalider le cookie partagé, autoriser 
 reconstitués par des captures réelles, confirmer le lien PSCODE / `t_famille_grossiste.str_CODE_ARTICLE` (lecture de
 la table à autoriser), réponses aux questions de la section 6.
 
-## 8. Référence Ubipharm (PSCODE) sur la fiche article (07/11)
+## 8. Référence Ubipharm (PSCODE) sur la fiche article (07/11, colonne unique le 08/11)
 
-- Colonne `t_famille.code_ubipharm` (VARCHAR 40, indexée ; V7.5.6), vide par défaut. `t_famille_grossiste` n'est ni
-  lue ni écrite.
-- Fiche article (GESTION DU STOCK > Fiche Article > Modifier) : champ « Référence Ubipharm », sous « Code EAN
-  fabricant ». Enregistré sans aucun blanc ; vide = effacé ; absent de la requête = inchangé (anciens appels, création
-  d'un article détail). En modification, la valeur est lue à part (`GET v1/fichearticle/{id}/code-ubipharm`) et n'est
-  envoyée qu'une fois lue : enregistrer avant son arrivée ne l'efface pas.
-- Rapprochement des nouveaux produits : d'abord la référence de la fiche (statut « trouvé (référence Ubipharm de la
-  fiche) »), puis CIP / EAN 13 ; plusieurs articles avec la même référence → « plusieurs articles », tous listés. Le
-  paramètre `grossisteId` est retiré.
+- **Décision du 08/11** (« oui je ne veux pas de litige ») : une seule colonne, `t_famille.str_PSCODE`, celle de la
+  branche `integration/recette-2026-10-29` (commit 1ed45eacc, point 15 du plan du 06/11 : V7.2.39, 20 caractères,
+  majuscules, indexée, déjà dans la fiche article et la recherche en vente). La colonne `code_ubipharm` (V7.5.6), le
+  champ « Référence Ubipharm » ajouté à la fiche par cette branche et son service `code-ubipharm` sont retirés :
+  `FicheArticleRessource.java` et `add.js` reviennent à leur état d'avant, la migration V7.2.39 et le champ
+  `strPSCODE` de `TFamille` sont repris à l'identique de 1ed45eacc (aucun conflit à la fusion).
+- Rapprochement des nouveaux produits : d'abord `str_PSCODE` (statut « trouvé (référence Ubipharm de la fiche) »),
+  sans tenir compte de la casse, comme la requête SQL ; puis CIP / EAN 13 ; plusieurs articles avec la même référence
+  → « plusieurs articles », tous listés. `t_famille_grossiste` n'est ni lue ni écrite.
+- **Collision de version à signaler** : la branche du cas 4 (lot 4.B, commit bb9afe4a2) a aussi une migration
+  V7.2.39 (`securite_journal`). Sur une base où elle est passée (c'est le cas de `laborex_audit`), Flyway
+  (`validateOnMigrate(false)`) considère V7.2.39 faite et ne crée jamais `str_PSCODE`. Sur `laborex_audit`, la
+  colonne et l'index ont été ajoutés à la main avec les instructions de V7.2.39 ; `code_ubipharm` et la ligne V7.5.6
+  de l'historique Flyway y sont retirées.
 - Tests :
-  - cohérence : `CodeUbipharmCoherenceTest` (5 000 saisies tirées, graine 20261107 : aucun blanc gardé, casse et zéros
-    de tête gardés, idempotence, valeur enregistrée retrouvée par le rapprochement) et `RapprochementCoherenceTest`
-    (20 000 cas) ; 105 tests unitaires extranet, 0 échec ;
-  - rapprochement et bilan (écran) : `src/test/e2e/extranet/test-reference-ubipharm-fiche.js`, 18/18 : saisie à
-    l'écran = base = écran des extranets = API ; seule `code_ubipharm` change sur l'article, aucun autre article,
-    `t_famille_grossiste` identique ; réouverture, enregistrement avant lecture, effacement ; article remis à
-    l'identique. `test-rapprochement-extranets.js` rejoué : 40/40.
+  - cohérence : `RapprochementCoherenceTest` (20 000 cas, oracle passé à la casse ignorée, nouveau cas
+    `referenceUbipharmSansTenirCompteDeLaCasse`) ; 179 tests unitaires extranet et Ubipharm, 0 échec ;
+  - rapprochement et bilan (écran) : `test-reference-ubipharm-fiche.js`, 13/13 : `str_PSCODE` posé en base (la saisie
+    sur la fiche est testée sur la branche d'intégration), écran des extranets = API, un seul candidat, autres
+    produits inchangés ; PSCODE retiré : plus trouvé ; le rapprochement n'écrit rien (fiche, `t_famille_grossiste`).
+  - `test-rapprochement-extranets.js` et `test-identifiants-extranet.js` n'ont pas pu être rejoués : voir l'incident
+    ci-dessous.
+- **Incident du 08/11 (15 h 39, domain3)** : `laborex_audit` contenait les comptes réels de l'utilisateur (Ubipharm,
+  TEDIS, DPCI, Copharmed). En ouvrant l'écran des extranets, le test de la référence a déclenché des connexions aux
+  vrais sites TEDIS, DPCI et Copharmed (connexion et page d'accueil, aucune commande) ; le test des identifiants a
+  effacé le compte Ubipharm enregistré. Les trois tests d'écran des extranets s'arrêtent désormais si la base contient
+  un compte d'extranet.
 - Observations (suspectées, antérieures, non corrigées) : dans la fenêtre « Modifier » de la fiche article, le focus
   est déplacé pendant les premières secondes de chargement : une frappe immédiate perd des caractères (constaté aussi
   sur « Code EAN fabricant »). Le test attend que la fenêtre soit posée.

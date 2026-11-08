@@ -82,6 +82,14 @@ async function taper(p, sel, t) {
 const compte = () => lignes("SELECT identifiant, mot_de_passe_chiffre, modifie_par FROM extranet_compte WHERE source = 'UBIPHARM'");
 const sessionsApi = (p) => p.evaluate(() => fetch('../api/v1/extranet/sessions').then((r) => r.text()));
 
+/* Garde (incident du 08/11) : la base ne doit contenir aucun compte d'extranet. Sinon ce sont des comptes reels :
+ * l'ecran des extranets s'y connecterait sur les vrais sites et le nettoyage du test les effacerait. */
+if (Number(q('SELECT COUNT(*) FROM extranet_compte')) > 0) {
+  console.log('ARRET : ' + ENV_E2E.BASE + ' contient des comptes d’extranet (identifiants réels) : test non lancé.'
+    + ' Utiliser une base sans compte enregistré.');
+  process.exit(2);
+}
+
 (async () => {
   const srv = await faux.demarrer(18765);
   const navigateur = await ENV_E2E.lancer(chromium);
