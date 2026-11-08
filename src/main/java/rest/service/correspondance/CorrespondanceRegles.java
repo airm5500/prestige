@@ -31,14 +31,18 @@ public final class CorrespondanceRegles {
     }
 
     public enum Source {
-        CODE_GROSSISTE, CIP, EAN, HUMAIN, BL
+        CODE_GROSSISTE, CIP, EAN, HUMAIN, BL,
+        /** rapprochement par la designation (lot 3) : toujours a valider */
+        APPROCHE
     }
 
     public enum Motif {
         CONSERVEE, CODE_VIDE, CODE_AMBIGU, DESACCORD_CODE_CLE, CODE_GROSSISTE_CONNU, CLE_UNIQUE, CLE_AMBIGUE,
         INTROUVABLE,
         /** correspondance apprise d'un BL cloture (lot 2), jamais produite par {@link #decider} */
-        RECU_EN_BL
+        RECU_EN_BL,
+        /** proposition par la designation (lot 3, {@link CorrespondanceApprochee}), jamais produite par {@link #decider} */
+        DESIGNATION
     }
 
     /** Score d'une correspondance apprise d'un BL cloture : produit recu et entre en stock sous ce code. */
