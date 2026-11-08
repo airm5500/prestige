@@ -296,7 +296,7 @@ public interface SuggestionReserveService {
      */
     org.json.JSONArray lignesOuvertesAuto(TUser user, java.util.Collection<String> familleIds);
 
-    /** Idem, les lignes des suggestions donnees (celles du bon) en tete. */
+    /** Plan du 08/11 (point 8) : uniquement les lignes des suggestions donnees (celles du bon), une par produit. */
     org.json.JSONArray lignesOuvertesAuto(TUser user, java.util.Collection<String> familleIds,
             java.util.Collection<String> enTete);
 }

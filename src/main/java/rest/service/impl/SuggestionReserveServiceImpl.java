@@ -1693,20 +1693,22 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
     @Override
     public org.json.JSONArray lignesOuvertesAuto(TUser user, java.util.Collection<String> familleIds,
             java.util.Collection<String> enTete) {
-        org.json.JSONArray a = lignesOuvertesAuto(user, familleIds);
+        // Plan du 08/11 (point 8) : seul le mouvement lie a l'entree s'affiche. Les suggestions des bons precedents
+        // restent ouvertes tant qu'on ne les traite pas ; les lire faisait revenir un produit du bon une fois par
+        // ancienne suggestion, meme quand cette entree ne declenchait rien pour lui. Une ligne par produit.
+        org.json.JSONArray retenues = new org.json.JSONArray();
         if (enTete == null || enTete.isEmpty()) {
-            return a;
+            return retenues;
         }
-        org.json.JSONArray tri = new org.json.JSONArray();
-        for (int passe = 0; passe < 2; passe++) {
-            for (int i = 0; i < a.length(); i++) {
-                org.json.JSONObject l = a.getJSONObject(i);
-                if (enTete.contains(l.optString("suggestionId")) == (passe == 0)) {
-                    tri.put(l);
-                }
+        org.json.JSONArray a = lignesOuvertesAuto(user, familleIds);
+        java.util.Set<String> vus = new java.util.HashSet<>();
+        for (int i = 0; i < a.length(); i++) {
+            org.json.JSONObject l = a.getJSONObject(i);
+            if (enTete.contains(l.optString("suggestionId")) && vus.add(l.optString("produitId"))) {
+                retenues.put(l);
             }
         }
-        return tri;
+        return retenues;
     }
 
     @Override
