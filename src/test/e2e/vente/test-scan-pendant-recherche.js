@@ -99,6 +99,9 @@ function quantiteEnVente(venteId, produitId) {
 const venteCourante = (p) => p.evaluate(() => { const v = testextjs.app.getController('VenteCtr').getCurrent(); return v ? v.lgPREENREGISTREMENTID : null; });
 
 let delais = {};
+/* rechargement des lignes de la vente (../vente/deatails) retenu jusqu'au signal du test */
+let lignesRetenues = null;
+let libererLignes = null;
 /* serveur charge, partie 2 : chaque appel de l'ecran de vente (recherche, findone, ajout, liste, net) repond avec un
    retard tire au hasard (graine fixe, rejouable) ; nul hors de la rafale */
 let retardMax = 0;
@@ -150,6 +153,7 @@ async function scanner(p, article) {
   await ctx.route(/\/api\/v1\/vente\//, async (r) => {
     const u = r.request().url().replace(/^.*\/api\/v1\/vente\//, '').replace(/\?.*/, '');
     let d = delais[u.split('/')[0]] || 0;
+    if (/^deatails/.test(u) && lignesRetenues) { const g = lignesRetenues; noter('   (lignes retenues)'); await g; }
     if (retardMax) { d = Math.round(hasard() * retardMax); }
     noter('-> ' + u + ' (+' + d + ' ms)');
     if (d) { await new Promise((f) => setTimeout(f, d)); }
@@ -203,6 +207,54 @@ async function scanner(p, article) {
       const id = await venteCourante(p);
       if (id && ventes.indexOf(id) < 0) { ventes.push(id); }
       ok('Saisie à la main : « QD » 2 puis Entrée ajoute 2 boîtes', quantiteEnVente(id, B.id) - avant === 2, 'quantité +' + (quantiteEnVente(id, B.id) - avant));
+    }
+
+    /* rechargement des lignes qui revient PENDANT la frappe du code suivant (rafale du 08/11, scans n° 8 et 14 : texte
+       « 26179 » au lieu de « 2026179 ») : apres un ajout, l'ecran recharge les lignes puis remet le curseur dans la
+       recherche en selectionnant tout son texte ; les chiffres deja tapes etaient remplaces par la suite du code.
+       Le test retient ce rechargement, tape les 3 premiers chiffres, le libere, puis tape la suite et Entree. */
+    for (const [nom, art] of [['même article', A], ['autre article', B]]) {
+      delais = {};
+      const id0 = await venteCourante(p);
+      const avant = { A: quantiteEnVente(id0, A.id), B: quantiteEnVente(id0, B.id) };
+      lignesRetenues = new Promise((f) => { libererLignes = f; });
+      /* un ajout : la reponse revient, le rechargement des lignes reste en attente */
+      await vues.cliquer(p, CHAMP);
+      await p.keyboard.press('Control+A');
+      const rep1 = p.waitForResponse((r) => /\/vente\/add\/(vno|item)/.test(r.url()), { timeout: 15000 });
+      await p.keyboard.type(A.cip, { delay: 15 });
+      await p.keyboard.press('Enter');
+      await rep1;
+      await p.waitForTimeout(600);
+      /* scan suivant : les premiers chiffres, puis le rechargement revient, puis la suite */
+      await vues.cliquer(p, CHAMP);
+      await p.keyboard.type(art.cip.slice(0, 3), { delay: 15 });
+      const lignes = p.waitForResponse((r) => /\/vente\/deatails/.test(r.url()), { timeout: 15000 });
+      libererLignes(); lignesRetenues = null;
+      await lignes;
+      await p.waitForTimeout(250);
+      await p.keyboard.type(art.cip.slice(3), { delay: 15 });
+      const texte = await p.evaluate((x) => Ext.ComponentQuery.query(x)[0].getRawValue(), CHAMP);
+      const rep2 = p.waitForResponse((r) => /\/vente\/add\/(vno|item)/.test(r.url()), { timeout: 8000 }).catch(() => null);
+      await p.keyboard.press('Enter');
+      const r2 = await rep2;
+      await p.waitForTimeout(1500);
+      const id = await venteCourante(p);
+      if (id && ventes.indexOf(id) < 0) { ventes.push(id); }
+      const plus = { A: quantiteEnVente(id, A.id) - avant.A, B: quantiteEnVente(id, B.id) - avant.B };
+      const attendu = art === A ? { A: 2, B: 0 } : { A: 1, B: 1 };
+      ok('Lignes rechargées pendant la frappe (' + nom + ') : le code tapé reste entier', texte === art.cip, '« ' + texte + ' »');
+      ok('Lignes rechargées pendant la frappe (' + nom + ') : l\'article scanné est ajouté, aucun autre',
+        !!r2 && plus.A === attendu.A && plus.B === attendu.B, 'A +' + plus.A + ', B +' + plus.B);
+      if (await p.evaluate((x) => Ext.ComponentQuery.query(x)[0].isExpanded, CHAMP)) { await p.keyboard.press('Escape'); }
+      await p.waitForTimeout(800);
+    }
+    /* aucune ligne d'un autre article que A et B dans la vente (un code tronque peut designer un autre article) */
+    {
+      const id = await venteCourante(p);
+      const autres = id ? q("SELECT COUNT(*) FROM t_preenregistrement_detail WHERE lg_PREENREGISTREMENT_ID = '" + id + "' AND lg_FAMILLE_ID NOT IN ('"
+        + A.id + "','" + B.id + "')") : '0';
+      ok('Aucun autre article ne s\'est glissé dans la vente', autres === '0', autres);
     }
 
     /* rafale comme au rejeu de l'heure de pointe : scans enchaines 0,6 s apres chaque ajout, le meme article plusieurs
