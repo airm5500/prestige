@@ -173,6 +173,21 @@ public class EtatControlBonServiceImpl implements EtatControlBonService {
                 b.setControleEcarts(c.optInt("ecarts"));
             }
         }
+        /* plan du 08/11, point 20 : le controleur de chaque ligne, pour la fenetre « Voir le detail du controle » */
+        Map<String, org.json.JSONObject> parLigne = rest.service.impl.controle.ControleBl.parLigne(em,
+                bons.stream().map(EtatControlBon::getLgBONLIVRAISONID).collect(Collectors.toList()));
+        for (EtatControlBon b : bons) {
+            if (b.getBonLivraisonDetails() == null) {
+                continue;
+            }
+            for (rest.service.dto.BonLivraisonDetail d : b.getBonLivraisonDetails()) {
+                org.json.JSONObject c = parLigne.get(d.getLgBONLIVRAISONDETAIL());
+                if (c != null) {
+                    d.setControlePar(c.optString("par"));
+                    d.setControleLe(c.optString("le"));
+                }
+            }
+        }
         return bons;
     }
 

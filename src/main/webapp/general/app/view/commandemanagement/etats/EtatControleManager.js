@@ -778,7 +778,10 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
                 stock: stock,
                 comptage: comptage,
                 ecart: comptage - stock,
-                checked: d.checked === true
+                checked: d.checked === true,
+                /* plan du 08/11, point 20 : qui a controle la ligne, et quand */
+                controlePar: d.controlePar || '',
+                controleLe: d.controleLe || ''
             };
         });
 
@@ -791,7 +794,9 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
                 {name: 'stock', type: 'number'},
                 {name: 'comptage', type: 'number'},
                 {name: 'ecart', type: 'number'},
-                {name: 'checked', type: 'boolean'}
+                {name: 'checked', type: 'boolean'},
+                {name: 'controlePar', type: 'string'},
+                {name: 'controleLe', type: 'string'}
             ],
             data: rows
         });
@@ -840,7 +845,13 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
                                 return '<span title="' + tip + '" style="display:inline-block;width:12px;height:12px;'
                                         + 'border-radius:50%;background:' + color + ';"></span>';
                             }
-                        }
+                        },
+                        /* plan du 08/11, point 20 : la personne qui a controle la ligne (application mobile) et quand */
+                        {header: 'Contr&ocirc;l&eacute; par', dataIndex: 'controlePar', itemId: 'colControlePar', flex: 1.2,
+                            renderer: function (v) {
+                                return v ? Ext.String.htmlEncode(v) : '<span style="color:#9e9e9e">&mdash;</span>';
+                            }},
+                        {header: 'Le', dataIndex: 'controleLe', itemId: 'colControleLe', width: 115}
                     ]
                 }]
         });

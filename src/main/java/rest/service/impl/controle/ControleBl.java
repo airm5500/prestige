@@ -45,6 +45,29 @@ public final class ControleBl {
         return m;
     }
 
+    /**
+     * Plan du 08/11, point 20 : controle ligne par ligne (identifiant de la ligne de BL → {par, le}), pour le detail de
+     * l'etat de controle des achats. Seules les lignes controlees (date ou utilisateur de controle) y figurent.
+     */
+    @SuppressWarnings("unchecked")
+    public static Map<String, JSONObject> parLigne(EntityManager em, Collection<String> blIds) {
+        Map<String, JSONObject> m = new HashMap<>();
+        List<String> ids = new ArrayList<>(blIds);
+        for (int i = 0; i < ids.size(); i += 500) {
+            List<String> paquet = ids.subList(i, Math.min(ids.size(), i + 500));
+            for (Object[] r : (List<Object[]>) em.createNativeQuery("SELECT d.lg_BON_LIVRAISON_DETAIL AS ligne,"
+                    + " TRIM(CONCAT(COALESCE(u.str_FIRST_NAME, ''), ' ', COALESCE(u.str_LAST_NAME, ''))) AS par,"
+                    + " DATE_FORMAT(d.dt_CONTROLE, '%d/%m/%Y %H:%i') AS le"
+                    + " FROM t_bon_livraison_detail d LEFT JOIN t_user u ON u.lg_USER_ID = d.lg_CONTROLE_USER"
+                    + " WHERE d.lg_BON_LIVRAISON_ID IN (?1) AND (d.lg_CONTROLE_USER IS NOT NULL OR d.dt_CONTROLE IS NOT NULL)")
+                    .setParameter(1, paquet).getResultList()) {
+                m.put(String.valueOf(r[0]), new JSONObject().put("par", r[1] == null ? "" : String.valueOf(r[1]).trim())
+                        .put("le", r[2] == null ? "" : String.valueOf(r[2])));
+            }
+        }
+        return m;
+    }
+
     private static int n(Object o) {
         return o == null ? 0 : ((Number) o).intValue();
     }

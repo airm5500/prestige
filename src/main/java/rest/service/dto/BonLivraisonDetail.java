@@ -70,4 +70,9 @@ public class BonLivraisonDetail {
     private TZoneGeographique lgZONEGEOID;
 
     private String lgZONEGEONom;
+
+    /** Plan du 08/11, point 20 : qui a controle cette ligne (application mobile) et quand (jj/mm/aaaa hh:mm). */
+    private String controlePar;
+
+    private String controleLe;
 }
