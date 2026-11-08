@@ -19,6 +19,9 @@ import org.json.JSONObject;
  * <li>un total final different du nombre de lignes recues.</li>
  * </ul>
  * Dans tous ces cas, rien n'est presente comme complet.
+ * <p>
+ * Longueur servie (08/11) : si la premiere page, non vide, a moins de lignes que demande alors que la liste en annonce
+ * davantage, le site plafonne ses pages ; la suite est lue avec cette longueur (le total final est toujours verifie).
  */
 public final class ParcoursDataTables {
 
@@ -92,6 +95,10 @@ public final class ParcoursDataTables {
         int draw = 1;
         Enveloppe premiere = Enveloppe.lire(page.lire(0, longueur, draw));
         int attendu = premiere.recordsFiltered;
+        int servie = premiere.data.length();
+        if (servie > 0 && servie < Math.min(longueur, attendu)) {
+            longueur = servie;
+        }
         int pages = pagesAttendues(attendu, longueur);
         if (pages > pagesMax) {
             throw new ExtranetException(ExtranetException.Nature.PAGINATION,

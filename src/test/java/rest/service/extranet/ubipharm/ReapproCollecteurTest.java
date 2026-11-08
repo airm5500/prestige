@@ -21,9 +21,10 @@ import rest.service.extranet.commun.SourceExtranet;
 import rest.service.extranet.commun.TransportExtranet;
 
 /**
- * Collecte des reapprovisionnements contre un faux extranet local (127.0.0.1) : 414 lignes par 25 = 17 appels, start 0
- * a 400 ; parametres DataTables exacts et dans l'ordre ; referer et X-Requested-With ; page de connexion en cours de
- * lecture ; total qui change.
+ * Collecte des reapprovisionnements contre un faux extranet local (127.0.0.1) : 414 lignes par 100 = 5 appels, start 0
+ * a 400 (08/11 : 100 lignes demandees au lieu de 25) ; site qui plafonne a 25 : 17 appels, la suite par 25 ; parametres
+ * DataTables exacts et dans l'ordre ; referer et X-Requested-With ; page de connexion en cours de lecture ; total qui
+ * change.
  */
 class ReapproCollecteurTest {
 
@@ -47,29 +48,46 @@ class ReapproCollecteurTest {
 
     /** Sert la liste par pages, selon start/length/draw de la requete. */
     private static FauxExtranet.Repondeur serveur(List<ReapproJeuEssai.Ligne> jeu, int[] total) {
+        return serveur(jeu, total, 0);
+    }
+
+    /** Idem, en servant au plus plafond lignes par page (0 : pas de plafond). */
+    private static FauxExtranet.Repondeur serveur(List<ReapproJeuEssai.Ligne> jeu, int[] total, int plafond) {
         return q -> {
             Map<String, String> p = decoder(q);
             int start = Integer.parseInt(p.get("start"));
             int length = Integer.parseInt(p.get("length"));
+            if (plafond > 0) {
+                length = Math.min(length, plafond);
+            }
             int draw = Integer.parseInt(p.get("draw"));
             return Reponse.json(ReapproJeuEssai.page(jeu, total[0], start, length, draw).toString());
         };
     }
 
     @Test
-    void quatreCentQuatorzeLignesEnDixSeptAppels() throws Exception {
+    void quatreCentQuatorzeLignesEnCinqAppels() throws Exception {
+        lireQuatreCentQuatorze(0, 5, 100);
+    }
+
+    @Test
+    void sitePlafonneA25DixSeptAppels() throws Exception {
+        lireQuatreCentQuatorze(25, 17, 25);
+    }
+
+    private static void lireQuatreCentQuatorze(int plafond, int nbAppels, int pas) throws Exception {
         List<ReapproJeuEssai.Ligne> jeu = ReapproJeuEssai.generer(new Random(414), 414);
         try (FauxExtranet f = new FauxExtranet()) {
-            f.route(ReapproCollecteur.CHEMIN, serveur(jeu, new int[] { 414 }));
+            f.route(ReapproCollecteur.CHEMIN, serveur(jeu, new int[] { 414 }, plafond));
             TransportExtranet t = f.transport(SourceExtranet.UBIPHARM, 0, "SESSIONID=essai-local");
             ReapproCollecteur.Resultat r = ReapproCollecteur.lire(t, 50);
             assertEquals(414, r.lignes.size());
             assertEquals(414, r.bilan.recordsTotal);
             assertEquals(414, r.bilan.lignes);
-            assertEquals(17, r.bilan.pages);
+            assertEquals(nbAppels, r.bilan.pages);
             List<FauxExtranet.Appel> appels = f.appels();
-            assertEquals(17, appels.size());
-            assertEquals(17, t.appels());
+            assertEquals(nbAppels, appels.size());
+            assertEquals(nbAppels, t.appels());
             for (int i = 0; i < appels.size(); i++) {
                 FauxExtranet.Appel a = appels.get(i);
                 assertEquals("GET", a.methode);
@@ -78,11 +96,11 @@ class ReapproCollecteurTest {
                 assertEquals(f.adresse() + "/ProduitsReappro", a.referer);
                 assertEquals("SESSIONID=essai-local", a.cookie);
                 Map<String, String> p = decoder(a.requete);
-                assertEquals(String.valueOf(i * 25), p.get("start"));
-                assertEquals("25", p.get("length"));
+                assertEquals(String.valueOf(i * pas), p.get("start"));
+                assertEquals(i == 0 ? "100" : String.valueOf(pas), p.get("length"));
                 assertEquals(String.valueOf(i + 1), p.get("draw"));
             }
-            assertEquals("400", decoder(appels.get(16).requete).get("start"));
+            assertEquals("400", decoder(appels.get(nbAppels - 1).requete).get("start"));
             for (int i = 0; i < 414; i++) {
                 assertEquals(i, r.lignes.get(i).position);
                 assertEquals(jeu.get(i).pscode, r.lignes.get(i).pscode);
@@ -111,7 +129,7 @@ class ReapproCollecteurTest {
             attendu.add("order[0][column]=1");
             attendu.add("order[0][dir]=desc");
             attendu.add("start=0");
-            attendu.add("length=25");
+            attendu.add("length=100");
             attendu.add("search[value]=");
             attendu.add("search[regex]=false");
             List<String> recu = new ArrayList<>();
@@ -127,7 +145,7 @@ class ReapproCollecteurTest {
         FauxExtranet.Repondeur normal = serveur(jeu, new int[] { 414 });
         try (FauxExtranet f = new FauxExtranet()) {
             f.route(ReapproCollecteur.CHEMIN,
-                    q -> "50".equals(decoder(q).get("start")) ? Reponse.html(CONNEXION) : normal.repondre(q));
+                    q -> "200".equals(decoder(q).get("start")) ? Reponse.html(CONNEXION) : normal.repondre(q));
             TransportExtranet t = f.transport(SourceExtranet.UBIPHARM, 0, "SESSIONID=essai-local");
             ExtranetException e = assertThrows(ExtranetException.class, () -> ReapproCollecteur.lire(t, 50));
             assertEquals(ExtranetException.Nature.SESSION_EXPIREE, e.nature());
@@ -144,7 +162,7 @@ class ReapproCollecteurTest {
         FauxExtranet.Repondeur normal = serveur(jeu, total);
         try (FauxExtranet f = new FauxExtranet()) {
             f.route(ReapproCollecteur.CHEMIN, q -> {
-                if ("100".equals(decoder(q).get("start"))) {
+                if ("300".equals(decoder(q).get("start"))) {
                     total[0] = 415;
                 }
                 return normal.repondre(q);
@@ -152,7 +170,7 @@ class ReapproCollecteurTest {
             ExtranetException e = assertThrows(ExtranetException.class,
                     () -> ReapproCollecteur.lire(f.transport(SourceExtranet.UBIPHARM, 0, "SESSIONID=x"), 50));
             assertEquals(ExtranetException.Nature.PAGINATION, e.nature());
-            assertEquals(5, f.appels().size());
+            assertEquals(4, f.appels().size());
         }
     }
 
@@ -162,7 +180,7 @@ class ReapproCollecteurTest {
         try (FauxExtranet f = new FauxExtranet()) {
             f.route(ReapproCollecteur.CHEMIN, serveur(jeu, new int[] { 414 }));
             ExtranetException e = assertThrows(ExtranetException.class,
-                    () -> ReapproCollecteur.lire(f.transport(SourceExtranet.UBIPHARM, 0, "SESSIONID=x"), 16));
+                    () -> ReapproCollecteur.lire(f.transport(SourceExtranet.UBIPHARM, 0, "SESSIONID=x"), 4));
             assertEquals(ExtranetException.Nature.PAGINATION, e.nature());
             assertEquals(1, f.appels().size());
         }

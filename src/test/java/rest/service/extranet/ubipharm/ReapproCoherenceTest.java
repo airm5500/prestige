@@ -17,7 +17,7 @@ import rest.service.extranet.commun.ParcoursDataTables;
 
 /**
  * Coherence de la collecte des reapprovisionnements, sur des milliers de lignes tirees au hasard (graine fixe) et
- * servies par pages de 25 :
+ * demandees par pages de 100 (08/11), servies par 100 ou plafonnees a 25 par le site :
  * <ul>
  * <li>toutes les lignes sont lues une fois et une seule, dans l'ordre (position = rang dans la liste) ;</li>
  * <li>un meme produit sur plusieurs agences, ou une ligne repetee, donne autant de lignes (aucun dedoublonnage) ;</li>
@@ -39,18 +39,22 @@ class ReapproCoherenceTest {
             int n = essai == 0 ? 0 : essai == 1 ? 1 : essai == 2 ? 25 : essai == 3 ? 26 : 50 + r.nextInt(600);
             List<ReapproJeuEssai.Ligne> jeu = ReapproJeuEssai.generer(r, n);
             int[] appels = { 0 };
+            int plafond = essai % 2 == 0 ? 0 : 25;
+            int servie = plafond > 0 && n > plafond ? plafond : ReapproCollecteur.LONGUEUR;
             ReapproCollecteur.Resultat res = ReapproCollecteur.parcourir((start, length, draw) -> {
                 appels[0]++;
-                assertEquals(ReapproCollecteur.LONGUEUR, length);
-                return ReapproJeuEssai.page(jeu, jeu.size(), start, length, draw);
+                assertEquals(appels[0] == 1 ? ReapproCollecteur.LONGUEUR : servie, length);
+                return ReapproJeuEssai.page(jeu, jeu.size(), start, plafond > 0 ? Math.min(length, plafond) : length,
+                        draw);
             }, 1000);
             listes++;
             ParcoursDataTables.Bilan b = res.bilan;
             assertEquals(n, b.recordsTotal);
             assertEquals(n, b.lignes);
             assertEquals(n, res.lignes.size());
-            assertEquals(ParcoursDataTables.pagesAttendues(n, 25), appels[0]);
-            assertEquals(ParcoursDataTables.pagesAttendues(n, 25), b.pages);
+            assertEquals(100, ReapproCollecteur.LONGUEUR);
+            assertEquals(ParcoursDataTables.pagesAttendues(n, servie), appels[0]);
+            assertEquals(ParcoursDataTables.pagesAttendues(n, servie), b.pages);
 
             Map<String, Integer> attenduParProduit = new HashMap<>();
             Map<String, Integer> luParProduit = new HashMap<>();

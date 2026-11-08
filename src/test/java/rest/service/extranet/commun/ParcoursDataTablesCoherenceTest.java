@@ -23,6 +23,8 @@ class ParcoursDataTablesCoherenceTest {
     private static final class Liste implements ParcoursDataTables.Page {
         final int total;
         int pageVide = -1, pageRepetee = -1, pageTotalChange = -1, pageTropLongue = -1;
+        /** Lignes servies au plus par page, quelle que soit la longueur demandee (0 : pas de plafond). */
+        int plafond;
         boolean racine;
         final List<int[]> demandes = new ArrayList<>();
 
@@ -33,6 +35,9 @@ class ParcoursDataTablesCoherenceTest {
         @Override
         public JSONObject lire(int start, int length, int draw) {
             demandes.add(new int[] { start, length, draw });
+            if (plafond > 0) {
+                length = Math.min(length, plafond);
+            }
             int p = start / length;
             int debut = p == pageRepetee ? start - length : start;
             JSONArray data = new JSONArray();
@@ -77,6 +82,46 @@ class ParcoursDataTablesCoherenceTest {
                 assertEquals(p + 1, l.demandes.get(p)[2], "draw croissant");
             }
         }
+    }
+
+    /**
+     * Site qui sert moins de lignes que demande (08/11 : 100 demandees pour aller plus vite, 25 servies) : la lecture
+     * se regle sur la longueur servie, lit tout une fois dans l'ordre ; sans plafond, une page par 100 lignes.
+     */
+    @Test
+    void longueurServiePlusCourteQueDemandee() throws Exception {
+        Random r = new Random(GRAINE + 2);
+        for (int k = 0; k < 3000; k++) {
+            int total = r.nextInt(5) == 0 ? r.nextInt(30) : r.nextInt(2000);
+            int plafond = new int[] { 0, 10, 25, 50, 99 }[r.nextInt(5)];
+            Liste l = new Liste(total);
+            l.plafond = plafond;
+            l.racine = r.nextBoolean();
+            List<String> lues = new ArrayList<>();
+            ParcoursDataTables.Bilan b = ParcoursDataTables.parcourir(l, 100, 10000, (pos, c) -> {
+                assertEquals(lues.size(), pos);
+                lues.add(c.getString(0));
+            });
+            assertEquals(total, lues.size(), "plafond " + plafond + ", total " + total);
+            for (int i = 0; i < total; i++) {
+                assertEquals("<a data-pscode='P" + i + "'>P" + i + "</a>", lues.get(i));
+            }
+            int servie = plafond == 0 || total <= plafond ? 100 : plafond;
+            int pages = total == 0 ? 1 : (total + servie - 1) / servie;
+            assertEquals(pages, b.pages);
+            assertEquals(pages, l.demandes.size());
+            for (int p = 1; p < pages; p++) {
+                assertEquals(p * servie, l.demandes.get(p)[0]);
+            }
+        }
+        /* plafond qui fait depasser la limite de pages : refuse apres la premiere page */
+        Liste l = new Liste(1000);
+        l.plafond = 25;
+        ExtranetException e = assertThrows(ExtranetException.class,
+                () -> ParcoursDataTables.parcourir(l, 100, 20, (x, c) -> {
+                }));
+        assertEquals(ExtranetException.Nature.PAGINATION, e.nature());
+        assertEquals(1, l.demandes.size());
     }
 
     @Test

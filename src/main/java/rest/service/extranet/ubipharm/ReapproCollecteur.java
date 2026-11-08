@@ -13,9 +13,10 @@ import rest.service.extranet.commun.ReponseExtranet;
 import rest.service.extranet.commun.TransportExtranet;
 
 /**
- * Collecte complete des reapprovisionnements Ubipharm : GET {@code /ReturnProduitsReapproJSON} page par page (25
- * lignes), referer {@code /ProduitsReappro}, avec les parametres DataTables captures (plan du 07/11, §6), dans l'ordre
- * de la capture. Une version reduite de la requete n'a pas ete testee : on n'en retire rien.
+ * Collecte complete des reapprovisionnements Ubipharm : GET {@code /ReturnProduitsReapproJSON} page par page (100
+ * lignes demandees depuis le 08/11 au lieu de 25 : quatre fois moins d'appels ; si le site en sert moins, la lecture
+ * suit sa longueur), referer {@code /ProduitsReappro}, avec les parametres DataTables captures (plan du 07/11, §6),
+ * dans l'ordre de la capture. Une version reduite de la requete n'a pas ete testee : on n'en retire rien.
  * <p>
  * Lecture seule. Aucun dedoublonnage (cle metier inconnue). Toute anomalie de pagination arrete la collecte : rien
  * n'est presente comme complet.
@@ -25,7 +26,7 @@ public final class ReapproCollecteur {
     public static final String MODULE = "REAPPRO";
     public static final String CHEMIN = "/ReturnProduitsReapproJSON";
     public static final String PAGE_ORIGINE = "/ProduitsReappro";
-    public static final int LONGUEUR = 25;
+    public static final int LONGUEUR = 100;
     static final int COLONNES = 6;
 
     /** Lignes lues et bilan de la lecture paginee. */
