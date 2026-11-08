@@ -151,6 +151,12 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
     }
 
     @Override
+    public List<rest.service.ticket.TicketDocument> apercuTicketVoCloture(ClotureVenteParams clotureVenteParams)
+            throws JSONException {
+        return apercu(() -> lunchPrinterForTicketVo(clotureVenteParams));
+    }
+
+    @Override
     public List<rest.service.ticket.TicketDocument> apercuTicketVno(String id) throws JSONException {
         return apercu(() -> lunchPrinterForTicket(id));
     }
@@ -456,7 +462,7 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             e.reglements = reglements;
             e.verse = Math.abs(mvtVo.getMontantVerse() == null ? 0 : mvtVo.getMontantVerse())
                     + Math.abs(mvtVno.getMontantVerse() == null ? 0 : mvtVno.getMontantVerse());
-            e.monnaie = Math.max(0, e.verse - (e.partClientVo + e.netVno));
+            e.monnaie = rest.service.ticket.MonnaieVenteLiee.monnaie(e.verse, e.partClientVo, e.netVno);
             e.differe = estDiffere(vo, null);
             e.especesDiffere = especesDiffere(mvtVo) + especesDiffere(mvtVno);
             TicketCombine.Sortie sortie = TicketCombine.construire(e);
@@ -480,6 +486,39 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             imp.printTicketVente(1);
         } catch (Exception ex) {
             LOG.log(Level.WARNING, "Ticket client combiné (vente liée)", ex);
+        }
+    }
+
+    /**
+     * Monnaie des ventes liees (08/11) : le recapitulatif d'une vente qui a une vente liee perd le verse et la monnaie
+     * (portes par le seul ticket client combine), gagne « Réglé » et le renvoi a l'autre vente. Inchange sans vente
+     * liee.
+     */
+    private List<String> recapVenteLiee(TPreenregistrement op, List<String> recap) {
+        if (op == null || StringUtils.isBlank(op.getLgVENTELIEEID())) {
+            return recap;
+        }
+        TPreenregistrement liee = getEntityManager().find(TPreenregistrement.class, op.getLgVENTELIEEID());
+        if (liee == null) {
+            return recap;
+        }
+        return rest.service.ticket.MonnaieVenteLiee.sansMonnaie(recap,
+                voirNumeroTicket() ? liee.getStrREF() : liee.getStrREFTICKET());
+    }
+
+    /**
+     * Decision du 08/11 : la reimpression d'une vente comptant liee ressort aussi le ticket client combine de son
+     * operation (construit depuis la vente assurance). Rien pour une vente comptant seule.
+     */
+    private void imprimerCombineDeLaVenteComptant(TPreenregistrement vno, PrintService printService,
+            TImprimante imprimante, TOfficine officine, TEmplacement te) {
+        if (vno == null || StringUtils.isBlank(vno.getLgVENTELIEEID())) {
+            return;
+        }
+        TPreenregistrement vo = getEntityManager().find(TPreenregistrement.class, vno.getLgVENTELIEEID());
+        if (vo != null && vno.getLgPREENREGISTREMENTID().equals(vo.getLgVENTELIEEID())
+                && !Constant.VENTE_COMPTANT_ID.equals(vo.getLgTYPEVENTEID().getLgTYPEVENTEID())) {
+            imprimerTicketCombine(vo, printService, imprimante, officine, te);
         }
     }
 
@@ -646,10 +685,12 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             }
             if (datas.size() <= counter) {
                 imp.buildTicket(datas, infoSellers, infoClientAvoir,
-                        generateDataSummaryVno(oTPreenregistrement, mvtTransaction),
+                        recapVenteLiee(oTPreenregistrement,
+                                generateDataSummaryVno(oTPreenregistrement, mvtTransaction)),
                         generateCommentaire(oTPreenregistrement, mvtTransaction), fileBarecode);
 
                 printCashierReceipt(oTPreenregistrement, imp, isReedit);
+                imprimerCombineDeLaVenteComptant(oTPreenregistrement, printService, imprimante, officine, te);
             } else {
                 page = datas.size() / counter;
                 while (page != pageCurrent) {
@@ -676,11 +717,12 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
                         lstDataFinal.add(datas.get(i));
                     }
                     imp.buildTicket(lstDataFinal, infoSellers, infoClientAvoir,
-                            generateDataSummaryVno(oTPreenregistrement, mvtTransaction),
+                            recapVenteLiee(oTPreenregistrement,
+                                    generateDataSummaryVno(oTPreenregistrement, mvtTransaction)),
                             generateCommentaire(oTPreenregistrement, mvtTransaction), fileBarecode);
                 }
                 printCashierReceipt(oTPreenregistrement, imp, isReedit);
-
+                imprimerCombineDeLaVenteComptant(oTPreenregistrement, printService, imprimante, officine, te);
             }
             json.put("success", true);
         } catch (PrinterException | JSONException e) {
@@ -787,8 +829,9 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
         try {
             TPreenregistrement oTPreenregistrement = getEntityManager().find(TPreenregistrement.class, id);
             /*
-             * retour du 05/11 : la reimpression (Ventes terminees) sort seulement le ticket de cette vente, en un
-             * exemplaire ; ni le ticket client combine de la vente comptant liee, ni les copies du paiement mobile
+             * retour du 05/11 : la reimpression (Ventes terminees) sort le ticket de cette vente en un exemplaire, sans
+             * les copies du paiement mobile. Decision du 08/11 (monnaie des ventes liees) : une vente liee ressort
+             * aussi le ticket client combine, le seul qui porte le verse et la monnaie de l'operation.
              */
             String oldId = id;
             MvtTransaction mvtTransaction = findByPkey(oldId);
@@ -826,9 +869,10 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
 
             if (datas.size() <= counter) {
                 imp.buildTicket(datas, infoSellers, infotiersPayants,
-                        generateDataSummaryVo(oTPreenregistrement, mvtTransaction),
+                        recapVenteLiee(oTPreenregistrement, generateDataSummaryVo(oTPreenregistrement, mvtTransaction)),
                         generateCommentaire(oTPreenregistrement, mvtTransaction), fileBarecode);
                 imp.printTicketVente(1);
+                imprimerTicketCombine(oTPreenregistrement, printService, imprimante, officine, te);
             } else {
                 page = datas.size() / counter;
                 while (page != pageCurrent) {
@@ -855,11 +899,12 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
                         lstDataFinal.add(datas.get(i));
                     }
                     imp.buildTicket(lstDataFinal, infoSellers, infotiersPayants,
-                            generateDataSummaryVo(oTPreenregistrement, mvtTransaction),
+                            recapVenteLiee(oTPreenregistrement,
+                                    generateDataSummaryVo(oTPreenregistrement, mvtTransaction)),
                             generateCommentaire(oTPreenregistrement, mvtTransaction), fileBarecode);
                 }
                 imp.printTicketVente(1);
-
+                imprimerTicketCombine(oTPreenregistrement, printService, imprimante, officine, te);
             }
             json.put("success", true);
         } catch (PrinterException | JSONException e) {
@@ -1310,7 +1355,8 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             imp.setEmplacement(te);
             imp.setOperation(oTPreenregistrement.getDtUPDATED());
             imp.setIntBegin(0);
-            List<String> generateDataSummaryVno = generateDataSummaryVno(oTPreenregistrement, mvtTransaction);
+            List<String> generateDataSummaryVno = recapVenteLiee(oTPreenregistrement,
+                    generateDataSummaryVno(oTPreenregistrement, mvtTransaction));
             List<String> generateCommentaire = generateCommentaire(oTPreenregistrement, mvtTransaction);
             if (oTPreenregistrement.getStrSTATUTVENTE().equalsIgnoreCase(Constant.DIFFERE)
                     || oTPreenregistrement.getBISAVOIR() || clientComptantAImprimer(oTPreenregistrement)) {
@@ -1485,7 +1531,8 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
             infotiersPayants = this.generateDataTiersPayant(oTPreenregistrement, listeVenteTiersPayants);
             title = title + " | Bon N°:: " + oTPreenregistrement.getStrREFBON();
             imp.setTitle("Ticket N° " + title);
-            List<String> generateDataSummarys = generateDataSummaryVo(oTPreenregistrement, clotureVenteParams);
+            List<String> generateDataSummarys = recapVenteLiee(oTPreenregistrement,
+                    generateDataSummaryVo(oTPreenregistrement, clotureVenteParams));
             List<String> commentaires = generateCommentaire(oTPreenregistrement, mvtTransaction);
             if (datas.size() <= counter) {
                 imp.buildTicket(datas, infoSellers, infotiersPayants, generateDataSummarys, commentaires, fileBarecode);
@@ -1840,7 +1887,7 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
 
             if (datas.size() <= counter) {
                 imp.buildTicket(datas, infoSellers, infotiersPayants,
-                        generateDataSummaryVo(oTPreenregistrement, mvtTransaction),
+                        recapVenteLiee(oTPreenregistrement, generateDataSummaryVo(oTPreenregistrement, mvtTransaction)),
                         generateCommentaire(oTPreenregistrement, mvtTransaction), fileBarecode);
                 imp.printTicketVente(1);
                 imprimerTicketCombine(oTPreenregistrement, printService, imprimante, officine, te);
@@ -1870,7 +1917,8 @@ public class GenerateTicketServiceImpl implements GenerateTicketService {
                         lstDataFinal.add(datas.get(i));
                     }
                     imp.buildTicket(lstDataFinal, infoSellers, infotiersPayants,
-                            generateDataSummaryVno(oTPreenregistrement, mvtTransaction),
+                            recapVenteLiee(oTPreenregistrement,
+                                    generateDataSummaryVno(oTPreenregistrement, mvtTransaction)),
                             generateCommentaire(oTPreenregistrement, mvtTransaction), fileBarecode);
                 }
                 imp.printTicketVente(1);

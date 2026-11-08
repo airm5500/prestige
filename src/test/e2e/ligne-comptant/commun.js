@@ -198,22 +198,29 @@ async function terminerVente(p, imprimer, mode) {
     for (let essai = 0; essai < 3; essai++) {
       await vues.cliquer(p, 'doventemanager #contenu #montantRecu');
       await p.keyboard.press('Control+A');
-      await p.keyboard.type(String(r.net.valeur), { delay: 40 });
+      /* mode { verse: n } (monnaie des ventes liees, 08/11) : le client tend n, sinon le net exact */
+      const tendu = mode && mode.verse ? mode.verse : r.net.valeur;
+      await p.keyboard.type(String(tendu), { delay: 40 });
       await p.waitForTimeout(300);
       const saisi = await p.evaluate(() => Number(String(Ext.ComponentQuery.query('doventemanager #contenu #montantRecu')[0].getValue()).replace(/\D/g, '')));
-      if (saisi === r.net.valeur) { break; }
+      if (saisi === tendu) { break; }
     }
     await p.keyboard.press('Tab');
   }
   await p.waitForTimeout(500);
+  /* monnaie affichee a l'ecran avant la cloture */
+  const monnaieEcran = await p.evaluate(() => { const f = Ext.ComponentQuery.query('doventemanager #contenu [xtype=fieldset] [xtype=container] #montantRemis')[0];
+    return f ? Number(String(f.getValue()).replace(/\D/g, '')) || 0 : null; });
   const rep = p.waitForResponse((x) => /\/vente\/cloturer\/assurance/.test(x.url()), { timeout: 120000 });
   rep.catch(() => {});
-  const ticket = p.waitForResponse((x) => /\/vente\/ticket\/vo/.test(x.url()), { timeout: 240000 }).then((x) => ({ http: x.status() })).catch(() => null);
+  /* demande : le corps que l'ecran envoie a ticket/vo (ses parametres de premiere impression) */
+  const ticket = p.waitForResponse((x) => /\/vente\/ticket\/vo/.test(x.url()), { timeout: 240000 }).then((x) => ({ http: x.status(), demande: x.request().postData() })).catch(() => null);
   await vues.cliquer(p, 'doventemanager #contenu [xtype=toolbar] #btnCloture');
   const x = await Promise.race([rep, (async () => { for (let i = 0; i < 60; i++) { await p.waitForTimeout(2000); const m = await vues.texteMessage(p);
     if (m && !/patienter/i.test(m)) { throw new Error('Message à la clôture : ' + m); } } throw new Error('Pas de réponse de clôture'); })()]);
   const corps = await x.json().catch(() => ({}));
   corps.http = x.status();
+  corps.monnaieEcran = monnaieEcran;
   await p.waitForTimeout(800);
   corps.bandeau = await toast(p);
   await p.waitForTimeout(700);

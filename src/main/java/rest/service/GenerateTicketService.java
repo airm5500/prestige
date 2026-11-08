@@ -62,6 +62,13 @@ public interface GenerateTicketService {
      */
     List<rest.service.ticket.TicketDocument> apercuTicketCombine(String voId);
 
+    /**
+     * Tickets de la premiere impression d'une vente assurance (appel de l'ecran apres la cloture, avec ses parametres),
+     * construits sans les imprimer : test de la monnaie des ventes liees du 08/11.
+     */
+    List<rest.service.ticket.TicketDocument> apercuTicketVoCloture(ClotureVenteParams clotureVenteParams)
+            throws JSONException;
+
     /** Idem pour une vente au comptant (tests de rapprochement des promotions, audit 05 PR-01). */
     List<rest.service.ticket.TicketDocument> apercuTicketVno(String id) throws JSONException;
 

@@ -1,6 +1,8 @@
 /* RETOUR DU 05/11 : « à la réédition du ticket d'une vente assurance + comptant (produit coché), on a 3 tickets alors
  * qu'on a juste cliqué sur le bouton imprimer de la vente crédit de cette opération ». Attendu (réponse du 05/11) :
- * seulement le ticket de cette vente.
+ * seulement le ticket de cette vente. Décision du 08/11 (monnaie des ventes liées, ticket 1630805530) : la vente liée
+ * ressort aussi le ticket client combiné, le seul qui porte le versé et la monnaie ; donc deux tickets, jamais trois
+ * (aucune copie par organisme, aucun reçu caisse en plus).
  *
  * Par le vrai chemin : ligne comptant active (KEY_LIGNE_COMPTANT_VO a 1), vente assurance a un tiers-payant, deux
  * articles dont un coché « C », TERMINER LA VENTE sans imprimer ; puis Ventes terminées, recherche de la vente
@@ -74,7 +76,10 @@ function envois(journal, depuis, libelle) {
     await p.waitForTimeout(3000);
     /* le journal du serveur n'est pas en UTF-8 : « réimpression » y est reconnu par son début */
     const n = envois(journal, depuis, 'vente/ticket/vo (r');
-    ok('Un seul ticket imprimé : celui de la vente assurance, ni ticket combiné ni copie', n === 1, n === null ? 'mesure absente du journal' : n + ' ticket(s)');
+    ok('Deux tickets imprimés (décision du 08/11) : celui de la vente assurance et le ticket client combiné, aucune copie', n === 2, n === null ? 'mesure absente du journal' : n + ' ticket(s)');
+    const ap = await C.apercu(p, venteId, false);
+    ok('Aperçu de la réimpression : ticket de la vente assurance puis ticket client combiné', ap.success === true && (ap.tickets || []).map((t) => t.modele).join(',') === 'VENTE_ASSURANCE,VENTE_MIXTE',
+      JSON.stringify((ap.tickets || []).map((t) => t.modele)));
     ok('Aucune erreur JavaScript', sess.erreurs.length === 0, sess.erreurs.join(' | '));
   } catch (e) {
     ok('Parcours sans exception', false, e.stack + ' ' + sess.erreurs.join(' | '));

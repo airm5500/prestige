@@ -161,6 +161,17 @@ public class SalesRessource {
         return apercuTickets(() -> generateTicketService.apercuTicketCombine(id));
     }
 
+    /**
+     * Monnaie des ventes liees (08/11) : les tickets de la premiere impression, construits avec les parametres que
+     * l'ecran envoie a ticket/vo apres la cloture, sans impression. Lecture seule.
+     */
+    @POST
+    @Path("ticket/vo/apercu-cloture")
+    public Response apercuTicketVoCloture(ClotureVenteParams clotureVenteParams) throws JSONException {
+        clotureVenteParams.setUserId((TUser) servletRequest.getSession().getAttribute(Constant.AIRTIME_USER));
+        return apercuTickets(() -> generateTicketService.apercuTicketVoCloture(clotureVenteParams));
+    }
+
     /** Meme apercu pour une vente au comptant (audit 05 PR-01 : rapprochement des promotions). Lecture seule. */
     @GET
     @Path("ticket/vno/{id}/apercu")
