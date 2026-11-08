@@ -80,14 +80,35 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
         });
         me.agencesFiche = Ext.create('Ext.data.Store', {fields: ['etcode', 'etlib', 'psstk', 'colisages']});
 
+        /* un onglet par grossiste (chacun a ses propres pages), rangé par rubrique comme sur son extranet */
+        var rubrique = function (titre, itemId, onglets) {
+            return {xtype: 'tabpanel', title: titre, itemId: itemId, plain: true, items: onglets,
+                listeners: {tabchange: function (tp, onglet) {
+                        me.chargerActif(onglet);
+                    }}};
+        };
         Ext.apply(me, {
             items: [{
                     xtype: 'tabpanel', itemId: 'exOnglets', plain: true,
-                    items: [me.ongletSessions(), me.ongletFiche(), me.ongletReappro(), me.ongletReclamations(),
-                        me.ongletNouveaux(), me.ongletCollectes()],
+                    items: [me.ongletSessions(),
+                        rubrique('Ubipharm', 'exOngletUbipharm', [
+                            rubrique('Produits', 'exRubriqueProduits', [me.ongletFiche(),
+                                me.ongletListe('PROMOTIONS', 'Promotions'),
+                                me.ongletListe('PRODUITS_UG', 'Produits avec UG'), me.ongletNouveaux(),
+                                me.ongletListe('PRODUITS_SUPPRIMES', 'Produits supprimés'), me.ongletReappro()]),
+                            rubrique('Vos documents', 'exRubriqueDocuments', [
+                                me.ongletListe('FACTURES', 'Factures non relevées'),
+                                me.ongletListe('RELEVES', 'Derniers relevés'),
+                                me.ongletListe('AVOIRS', 'Récapitulatifs d\'avoirs')]),
+                            rubrique('Commandes', 'exRubriqueCommandes', [
+                                me.ongletListe('DERNIERES_COMMANDES', 'Vos dernières commandes'),
+                                me.ongletListe('COMMANDES_EXTRANET', 'Vos commandes extranet'),
+                                me.ongletListe('PLUS_ACHETES', 'Les plus achetés')]),
+                            me.ongletReclamations()]),
+                        me.ongletCollectes()],
                     listeners: {
                         tabchange: function (tp, onglet) {
-                            me.chargerOnglet(onglet.itemId);
+                            me.chargerActif(onglet);
                         }
                     }
                 }]
@@ -182,6 +203,22 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
         b.arme = false;
         b.setText(b.texteNormal);
         action();
+    },
+
+    /** Onglet affiché : descend jusqu'au sous-onglet actif des rubriques, puis le charge. */
+    chargerActif: function (onglet) {
+        var me = this;
+        while (onglet && onglet.isXType && onglet.isXType('tabpanel')) {
+            onglet = onglet.getActiveTab() || onglet.items.getAt(0);
+        }
+        if (!onglet) {
+            return;
+        }
+        if (onglet.listeCode) {
+            me.chargerListe(onglet.listeCode, false);
+        } else {
+            me.chargerOnglet(onglet.itemId);
+        }
     },
 
     chargerOnglet: function (id) {
@@ -305,7 +342,8 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
             etat.update(c.enregistre
                     ? 'Identifiants enregistrés : <b>' + Ext.String.htmlEncode(c.identifiant || '') + '</b>, mot de passe '
                     + (c.motDePasseEnregistre ? 'enregistré' : 'absent')
-                    + (c.pageConnexion ? ' — page de connexion ' + Ext.String.htmlEncode(c.pageConnexion) : '')
+                    + (c.pageConnexion ? ' — page de connexion ' + Ext.String.htmlEncode(c.pageConnexion)
+                            : c.pageConnexionParDefaut ? ' — page de connexion par défaut ' + Ext.String.htmlEncode(c.pageConnexionParDefaut) : '')
                     + (c.modifieLe ? ' — modifiés le ' + h(c.modifieLe) + (c.modifiePar ? ' par '
                             + Ext.String.htmlEncode(c.modifiePar) : '') : '')
                     + (s.mode === 'CONNEXION' && s.derniereConnexion && !s.echecConnexion
@@ -317,6 +355,12 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
         }
         if (bloc) {
             bloc.setVisible(admin);
+        }
+        /* page vide : celle par défaut de l'extranet est utilisée, et montrée dans le champ */
+        var page = me.down('#exPage' + s.source);
+        if (page) {
+            page.emptyText = c.pageConnexionParDefaut ? 'par défaut : ' + c.pageConnexionParDefaut : '/ (par défaut)';
+            page.applyEmptyText();
         }
         Ext.each([[id, c.identifiant], [me.down('#exPage' + s.source), c.pageConnexion],
             [me.down('#exChamp' + s.source), c.champIdentifiant]], function (x) {
@@ -337,6 +381,8 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
     enregistrerCompte: function (source) {
         var me = this, id = me.down('#exIdentifiant' + source), mdp = me.down('#exMotDePasse' + source),
                 b = me.down('#exCompteEnregistrer' + source);
+        clearTimeout(b.minuteurEtat);
+        b.setText('Enregistrer');
         b.disable();
         Ext.Ajax.request({
             method: 'PUT', url: me.URL + 'comptes/' + source,
@@ -344,16 +390,32 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
                 pageConnexion: Ext.String.trim(me.down('#exPage' + source).getValue() || ''),
                 champIdentifiant: Ext.String.trim(me.down('#exChamp' + source).getValue() || '')},
             callback: function (o, ok, rep) {
-                b.enable();
                 mdp.setValue('');
                 var r = Ext.decode(rep.responseText, true) || {success: false, msg: 'Erreur ' + rep.status};
-                if (r.success) {
-                    id.resetOriginalValue();
-                    me.down('#exPage' + source).resetOriginalValue();
-                    me.down('#exChamp' + source).resetOriginalValue();
+                if (!r.success) {
+                    b.enable();
+                    me.message('#exSessionsMsg', r);
+                    me.chargerSessions();
+                    return;
                 }
-                me.message('#exSessionsMsg', r, 'Identifiants enregistrés');
-                me.chargerSessions();
+                id.resetOriginalValue();
+                me.down('#exPage' + source).resetOriginalValue();
+                me.down('#exChamp' + source).resetOriginalValue();
+                /* enregistres : connexion aussitot, resultat marque dans le bouton (demande du 08/11) */
+                b.setText('Connexion…');
+                me.appel('POST', 'comptes/' + source + '/connexion', function (c) {
+                    b.enable();
+                    b.setText(c.success ? '✓ Connecté' : '✗ Non connecté');
+                    b.minuteurEtat = setTimeout(function () {
+                        if (!b.isDestroyed) {
+                            b.setText('Enregistrer');
+                        }
+                    }, 15000);
+                    me.message('#exSessionsMsg', c.success ? c : {success: false,
+                        msg: 'Identifiants enregistrés, mais connexion impossible : ' + (c.msg || 'erreur')},
+                            'Identifiants enregistrés — connecté à l\'extranet');
+                    me.chargerSessions();
+                }, me.down('#exSession' + source));
             }
         });
     },
@@ -691,6 +753,78 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
                             }}
                     ]}]
         };
+    },
+
+    /* ---------------------------------------------------------------- listes Ubipharm */
+
+    /**
+     * Liste lue sur l'extranet (promotions, documents, commandes...) : colonnes données par le serveur, cache de
+     * Prestige affiché avec la date de sa collecte, recherche dans toutes les colonnes.
+     */
+    ongletListe: function (code, titre) {
+        var me = this, id = 'exListe' + code;
+        me.listes = me.listes || {};
+        me.listes[code] = Ext.create('Ext.data.Store', {fields: ['position', 'pscode', 'cip', 'agence', 'cellules']});
+        return {
+            title: titre, itemId: id, listeCode: code, layout: 'fit',
+            dockedItems: [{xtype: 'toolbar', dock: 'top', items: [
+                        {text: 'Lire sur l\'extranet', itemId: id + 'Collecter', handler: function () {
+                                me.chargerListe(code, true);
+                            }},
+                        {xtype: 'textfield', itemId: id + 'Recherche', emptyText: 'Rechercher', width: 220,
+                            listeners: {change: function () {
+                                    me.filtrerListe(code);
+                                }}},
+                        '->', {xtype: 'label', itemId: id + 'Msg'}, {xtype: 'tbspacer', width: 12},
+                        {xtype: 'label', itemId: id + 'Nombre'}, {xtype: 'tbspacer', width: 12},
+                        {xtype: 'label', itemId: id + 'Date'}]}],
+            items: [{xtype: 'gridpanel', itemId: id + 'Grille', store: me.listes[code], columnLines: true,
+                    viewConfig: {deferEmptyText: false,
+                        emptyText: '<div style="padding:12px">Aucune ligne. « Lire sur l\'extranet » lit la liste.</div>'},
+                    columns: []}]
+        };
+    },
+
+    /** Affiche le cache (collecter : lit d'abord l'extranet). */
+    chargerListe: function (code, collecter) {
+        var me = this, id = 'exListe' + code, panneau = me.down('#' + id);
+        me.appel(collecter ? 'POST' : 'GET', 'ubipharm/listes/' + code + (collecter ? '/collecte' : ''), function (r) {
+            if (r.success) {
+                me.afficherListe(code, r);
+            }
+            if (collecter || !r.success) {
+                me.message('#' + id + 'Msg', r, 'Liste lue');
+            }
+        }, panneau);
+    },
+
+    afficherListe: function (code, r) {
+        var me = this, id = 'exListe' + code, grille = me.down('#' + id + 'Grille'), colonnes = [];
+        Ext.each(r.colonnes || [], function (titre, i) {
+            colonnes.push({text: me.texte(titre), dataIndex: 'cellules', minWidth: 80,
+                flex: /Produit|Libellé|Description|Disponibilité|Paliers|Prix/.test(titre) ? 2 : 1,
+                renderer: function (v) {
+                    return me.texte(v ? v[i] : '');
+                }});
+        });
+        grille.reconfigure(me.listes[code], colonnes);
+        me.listes[code].loadData(r.lignes || []);
+        me.filtrerListe(code);
+        me.afficherDate('#' + id + 'Date', r);
+    },
+
+    filtrerListe: function (code) {
+        var me = this, id = 'exListe' + code, st = me.listes[code],
+                q = Ext.String.trim(me.valeur('#' + id + 'Recherche')).toLowerCase(), nombre = me.down('#' + id + 'Nombre');
+        st.clearFilter(!!q);
+        if (q) {
+            st.filterBy(function (rec) {
+                return (rec.get('cellules') || []).join(' ').toLowerCase().indexOf(q) >= 0;
+            });
+        }
+        if (nombre) {
+            nombre.setText(st.getCount() + (q && st.snapshot ? ' / ' + st.snapshot.getCount() : '') + ' ligne(s)');
+        }
     },
 
     /* ---------------------------------------------------------------- journal des collectes */

@@ -34,8 +34,15 @@ public final class ComptesExtranet {
 
     /** Ce que l'ecran peut voir : jamais le mot de passe. */
     public JSONObject publique(SourceExtranet s) {
+        return publique(s, null);
+    }
+
+    /** Avec la page de connexion par defaut de l'extranet configure (utilisee quand aucune n'est saisie). */
+    public JSONObject publique(SourceExtranet s, String adresseExtranet) {
         Object[] l = ligne(s);
-        JSONObject o = new JSONObject().put("source", s.name()).put("enregistre", l != null);
+        String defaut = s.pageConnexionParDefaut(adresseExtranet);
+        JSONObject o = new JSONObject().put("source", s.name()).put("enregistre", l != null)
+                .put("pageConnexionParDefaut", defaut == null ? JSONObject.NULL : defaut);
         if (l != null) {
             o.put("identifiant", l[0]).put("motDePasseEnregistre", l[1] != null)
                     .put("modifieLe", l[2] == null ? JSONObject.NULL : l[2].toString())
@@ -48,13 +55,23 @@ public final class ComptesExtranet {
 
     /** Identifiants en clair pour la connexion automatique ; null si aucun. */
     public ConnexionExtranet.Identifiants identifiants(SourceExtranet s) throws GeneralSecurityException {
+        return identifiants(s, null);
+    }
+
+    /**
+     * Avec l'adresse de l'extranet configure : sans page saisie, la page de connexion par defaut de l'extranet reel
+     * (Ubipharm : auth.ubipharm.com) ; une page saisie passe toujours avant.
+     */
+    public ConnexionExtranet.Identifiants identifiants(SourceExtranet s, String adresseExtranet)
+            throws GeneralSecurityException {
         Object[] l = ligne(s);
         if (l == null) {
             return null;
         }
+        String page = l[4] != null ? (String) l[4] : s.pageConnexionParDefaut(adresseExtranet);
         String empreinte = String.valueOf(l[2]) + "|" + Integer.toHexString(String.valueOf(l[1]).hashCode());
         return new ConnexionExtranet.Identifiants((String) l[0], chiffrement.dechiffrer((String) l[1]),
-                empreinte + "|" + l[4] + "|" + l[5], (String) l[4], (String) l[5]);
+                empreinte + "|" + page + "|" + l[5], page, (String) l[5]);
     }
 
     /**

@@ -11,6 +11,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const listes = require('./faux-listes-ubipharm');
 
 const RES = path.resolve(__dirname, '../../resources/extranet/ubipharm');
 const COOKIE = 'SESSIONID=essai-e2e-local';
@@ -55,7 +56,7 @@ function lignesReappro(n) {
 
 function demarrer(port) {
   /* cookieAttendu : session reconnue ; cookieDonne : session ouverte par le prochain POST /Login reussi */
-  const etat = { mode: 'normal', appels: [], reappro: lignesReappro(61), cookieAttendu: COOKIE, cookieDonne: COOKIE, connexions: [] };
+  const etat = { mode: 'normal', appels: [], reappro: lignesReappro(61), cookieAttendu: COOKIE, cookieDonne: COOKIE, connexions: [], listes: listes.generer() };
   const serveur = http.createServer((req, res) => {
     const u = new URL(req.url, 'http://127.0.0.1');
     etat.appels.push({ methode: req.method, chemin: u.pathname, requete: u.search, cookie: req.headers.cookie || '' });
@@ -79,6 +80,8 @@ function demarrer(port) {
     }
     const json = (o) => envoyer(200, 'application/json; charset=utf-8', typeof o === 'string' ? o : JSON.stringify(o));
     const html = (f) => envoyer(200, 'text/html; charset=utf-8', fs.readFileSync(path.join(RES, f)));
+    const liste = listes.repondre(etat.listes, u, json, (h) => envoyer(200, 'text/html; charset=utf-8', h));
+    if (liste !== null) { return liste; }
     switch (u.pathname) {
       case '/SavoirPlusJSON':
         return u.searchParams.get('pscode') === 'FAIR248' ? json(fs.readFileSync(path.join(RES, 'fiche/reconstitue-FAIR248.json'), 'utf8'))

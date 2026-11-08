@@ -39,8 +39,14 @@ const empreinteMetier = () => Object.fromEntries(METIER.map((t) => [t, q('CHECKS
 const ECRAN = 'extranetsgrossistes';
 const magasin = (p, nom) => p.evaluate((n) => Ext.ComponentQuery.query('extranetsgrossistes')[0][n].getRange().map((r) => r.data), nom);
 const texte = (p, sel) => p.evaluate((s) => { const c = Ext.ComponentQuery.query('extranetsgrossistes ' + s)[0]; return c && c.el ? c.el.dom.textContent : ''; }, sel);
+/* onglets ranges par grossiste puis par rubrique : on clique chaque niveau, comme l'utilisateur */
+const CHEMINS = { 'Fiche produit': ['Ubipharm', 'Produits'], 'Réapprovisionnements': ['Ubipharm', 'Produits'],
+  'Nouveaux produits': ['Ubipharm', 'Produits'], 'Réclamations': ['Ubipharm'] };
 async function onglet(p, titre) {
-  await vues.cliquer(p, ECRAN + ' #exOnglets tab[text=' + titre + ']');
+  for (const t of (CHEMINS[titre] || []).concat([titre])) {
+    await vues.cliquer(p, ECRAN + ' #exOnglets tab[text=' + t + ']');
+    await p.waitForTimeout(300);
+  }
   await p.waitForTimeout(400);
 }
 /* clic sur un bouton, en attendant la reponse de l'appel qu'il declenche */

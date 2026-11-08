@@ -2,7 +2,7 @@
  * chemin de l'ecran, contre le FAUX extranet local (faux-extranet.js) : jamais le vrai.
  *
  * Parcours : menu GESTION DES COMMANDES > Extranets grossistes > Sessions ; saisie d'un mauvais mot de passe,
- * « Se connecter » refuse, pas de nouvel essai avec les memes identifiants ; correction du seul mot de passe ;
+ * « Enregistrer » connecte aussitot (refus marque dans le bouton), « Se connecter » : pas de nouvel essai avec les memes identifiants ; correction du seul mot de passe ;
  * connexion reussie ; lecture d'une fiche ; session expiree cote extranet : reconnexion seule et meme lecture ;
  * effacement confirme dans le bouton.
  *
@@ -41,8 +41,14 @@ const ECRAN = 'extranetsgrossistes';
 const texte = (p, sel) => p.evaluate((s) => { const c = Ext.ComponentQuery.query('extranetsgrossistes ' + s)[0]; return c && c.el ? c.el.dom.textContent : ''; }, sel);
 const valeur = (p, sel) => p.evaluate((s) => Ext.ComponentQuery.query('extranetsgrossistes ' + s)[0].getValue(), sel);
 const desactive = (p, sel) => p.evaluate((s) => Ext.ComponentQuery.query('extranetsgrossistes ' + s)[0].isDisabled(), sel);
+/* onglets ranges par grossiste puis par rubrique : on clique chaque niveau, comme l'utilisateur */
+const CHEMINS = { 'Fiche produit': ['Ubipharm', 'Produits'], 'Réapprovisionnements': ['Ubipharm', 'Produits'],
+  'Nouveaux produits': ['Ubipharm', 'Produits'], 'Réclamations': ['Ubipharm'] };
 async function onglet(p, titre) {
-  await vues.cliquer(p, ECRAN + ' #exOnglets tab[text=' + titre + ']');
+  for (const t of (CHEMINS[titre] || []).concat([titre])) {
+    await vues.cliquer(p, ECRAN + ' #exOnglets tab[text=' + t + ']');
+    await p.waitForTimeout(300);
+  }
   await p.waitForTimeout(400);
 }
 async function cliquerEtAttendre(p, requete, morceauUrl) {
@@ -51,6 +57,16 @@ async function cliquerEtAttendre(p, requete, morceauUrl) {
   const rep = await r;
   await p.waitForTimeout(800);
   return rep.json().catch(() => ({}));
+}
+/* « Enregistrer » : PUT des identifiants puis, s'ils sont acceptes, connexion aussitot (demande du 08/11) */
+async function enregistrer(p, connexionAttendue) {
+  const put = p.waitForResponse((x) => x.request().method() === 'PUT' && /\/comptes\/UBIPHARM$/.test(x.url()), { timeout: 180000 });
+  const cnx = connexionAttendue ? p.waitForResponse((x) => /\/comptes\/UBIPHARM\/connexion$/.test(x.url()), { timeout: 180000 }) : null;
+  await vues.cliquer(p, ECRAN + ' #exCompteEnregistrerUBIPHARM');
+  const enr = await (await put).json().catch(() => ({}));
+  const c = cnx ? await (await cnx).json().catch(() => ({})) : null;
+  await p.waitForTimeout(1200);
+  return { enr, cnx: c, bouton: await texte(p, '#exCompteEnregistrerUBIPHARM') };
 }
 /* frappe au clavier dans le champ, valeur verifiee ensuite */
 async function taper(p, sel, t) {
@@ -93,7 +109,14 @@ const sessionsApi = (p) => p.evaluate(() => fetch('../api/v1/extranet/sessions')
     ok('saisie : identifiant tapé', (await taper(p, '#exIdentifiantUBIPHARM', srv.IDENTIFIANT)) === srv.IDENTIFIANT);
     ok('saisie : mot de passe tapé (champ masqué)', (await taper(p, '#exMotDePasseUBIPHARM', MAUVAIS)) === MAUVAIS
       && (await p.evaluate(() => Ext.ComponentQuery.query('#exMotDePasseUBIPHARM')[0].inputEl.dom.type)) === 'password');
-    const r1 = await cliquerEtAttendre(p, ECRAN + ' #exCompteEnregistrerUBIPHARM', '/comptes/UBIPHARM');
+    const e1 = await enregistrer(p, true);
+    const r1 = e1.enr;
+    ok('enregistrer : connexion aussitôt, refusée par l\'extranet, « Non connecté » dans le bouton', e1.cnx && e1.cnx.success === false
+      && e1.cnx.nature === 'CONNEXION_REFUSEE' && e1.bouton.indexOf('Non connecté') >= 0, e1.bouton + ' ' + JSON.stringify(e1.cnx));
+    ok('connexion : un seul POST /Login, avec jeton, identifiant et mot de passe', srv.etat.connexions.length === 1
+      && srv.etat.connexions[0].champs === '_token,login,pwd' && !srv.etat.connexions[0].reussie, JSON.stringify(srv.etat.connexions));
+    ok('écran : échec affiché', (await texte(p, '#exCompteEtatUBIPHARM')).indexOf('Identifiant ou mot de passe refusé') >= 0
+      && (await texte(p, '#exSessionsMsg')).indexOf('connexion impossible') >= 0, await texte(p, '#exSessionsMsg'));
     ok('enregistrement : réponse sans mot de passe', r1.success === true && JSON.stringify(r1).indexOf(MAUVAIS) < 0, JSON.stringify(r1));
     let c = compte();
     ok('base : une ligne, identifiant = saisie, auteur = utilisateur', c.length === 1 && c[0][0] === srv.IDENTIFIANT && c[0][2] === ENV_E2E.LOGIN, JSON.stringify(c.map((l) => [l[0], l[2]])));
@@ -114,24 +137,22 @@ const sessionsApi = (p) => p.evaluate(() => fetch('../api/v1/extranet/sessions')
     ok('écran : « mot de passe enregistré »', etatEcran.indexOf('mot de passe enregistré') >= 0 && apiCompte.motDePasseEnregistre === true, etatEcran);
 
     /* ---- connexion refusee, puis pas de nouvel essai avec les memes identifiants */
-    const r2 = await cliquerEtAttendre(p, ECRAN + ' #exConnecterUBIPHARM', '/connexion');
-    ok('connexion : refusée par l\'extranet', r2.success === false && r2.nature === 'CONNEXION_REFUSEE', JSON.stringify(r2));
-    ok('connexion : un seul POST /Login, avec jeton, identifiant et mot de passe', srv.etat.connexions.length === 1
-      && srv.etat.connexions[0].champs === '_token,login,pwd' && !srv.etat.connexions[0].reussie, JSON.stringify(srv.etat.connexions));
-    ok('écran : échec affiché', (await texte(p, '#exCompteEtatUBIPHARM')).indexOf('Identifiant ou mot de passe refusé') >= 0
-      && (await texte(p, '#exSessionsMsg')).indexOf('refusé') >= 0, await texte(p, '#exCompteEtatUBIPHARM'));
     const r3 = await cliquerEtAttendre(p, ECRAN + ' #exConnecterUBIPHARM', '/connexion');
     ok('connexion : mêmes identifiants refusés sans nouvel essai (compte jamais bloqué)', r3.success === false
       && srv.etat.connexions.length === 1 && /déjà refusés/.test(r3.msg), r3.msg);
 
     /* ---- correction du seul mot de passe (identifiant garde) */
     await taper(p, '#exMotDePasseUBIPHARM', srv.MOT_DE_PASSE);
-    await cliquerEtAttendre(p, ECRAN + ' #exCompteEnregistrerUBIPHARM', '/comptes/UBIPHARM');
+    const e2 = await enregistrer(p, true);
+    ok('enregistrer : connexion aussitôt réussie, « Connecté » dans le bouton et l\'état', e2.cnx && e2.cnx.success === true
+      && e2.bouton.indexOf('✓ Connecté') >= 0 && srv.etat.connexions.length === 2 && srv.etat.connexions[1].reussie
+      && (await texte(p, '#exCompteEtatUBIPHARM')).indexOf('Connecté automatiquement') >= 0
+      && (await texte(p, '#exSessionsMsg')).indexOf('connecté à l\'extranet') >= 0, e2.bouton + ' ' + JSON.stringify(e2.cnx));
     c = compte();
     ok('base : identifiant inchangé, chiffré remplacé', c.length === 1 && c[0][0] === srv.IDENTIFIANT && c[0][1] !== chiffre1 && c[0][1].indexOf(srv.MOT_DE_PASSE) < 0);
     /* ---- page de connexion reglee dans l'ecran (aucun fichier) : autre site refuse, adresse complete ramenee au chemin */
     await taper(p, '#exPageUBIPHARM', 'https://ailleurs.exemple/login');
-    const rp = await cliquerEtAttendre(p, ECRAN + ' #exCompteEnregistrerUBIPHARM', '/comptes/UBIPHARM');
+    const rp = (await enregistrer(p, false)).enr;
     ok('page de connexion : autre site refusé, base inchangée', rp.success === false && /doit être sur/.test(rp.msg)
       && q("SELECT IFNULL(page_connexion, 'NULL') FROM extranet_compte WHERE source = 'UBIPHARM'") === 'NULL', rp.msg);
     /* ---- identifiant saisi par erreur dans « Nom de la case » (cas du 08/11) : refuse, base inchangee */
@@ -140,14 +161,17 @@ const sessionsApi = (p) => p.evaluate(() => fetch('../api/v1/extranet/sessions')
       && (await p.evaluate(() => Ext.ComponentQuery.query('extranetsgrossistes #exChampUBIPHARM')[0].labelEl.dom.getAttribute('data-qtip') || '')).indexOf('Ne saisissez pas votre identifiant') >= 0);
     await taper(p, '#exPageUBIPHARM', '');
     await taper(p, '#exChampUBIPHARM', srv.IDENTIFIANT);
-    const rc = await cliquerEtAttendre(p, ECRAN + ' #exCompteEnregistrerUBIPHARM', '/comptes/UBIPHARM');
+    const rc = (await enregistrer(p, false)).enr;
+    ok('enregistrements refusés : aucune connexion tentée', srv.etat.connexions.length === 2, srv.etat.connexions.length);
     ok('nom de la case = identifiant : refusé avec explication, base inchangée', rc.success === false && /ne doit pas contenir votre identifiant/.test(rc.msg)
       && q("SELECT IFNULL(champ_identifiant, 'NULL') FROM extranet_compte WHERE source = 'UBIPHARM'") === 'NULL'
       && (await texte(p, '#exSessionsMsg')).indexOf('laissez-la vide') >= 0, rc.msg);
     /* ---- case reglee absente du formulaire : la connexion trouve seule la case de l'identifiant */
     await taper(p, '#exPageUBIPHARM', 'http://127.0.0.1:18765/');
     await taper(p, '#exChampUBIPHARM', 'case-absente');
-    await cliquerEtAttendre(p, ECRAN + ' #exCompteEnregistrerUBIPHARM', '/comptes/UBIPHARM');
+    const e3 = await enregistrer(p, true);
+    ok('enregistrer : case absente remplacée par la détection automatique, connecté', e3.cnx && e3.cnx.success === true
+      && e3.bouton.indexOf('✓ Connecté') >= 0 && srv.etat.connexions.length === 3, e3.bouton);
     const pc = lignes("SELECT page_connexion, champ_identifiant FROM extranet_compte WHERE source = 'UBIPHARM'")[0];
     const apiPage = JSON.parse(await sessionsApi(p)).data.find((s) => s.source === 'UBIPHARM').compte;
     const PAGE = 'http://127.0.0.1:18765/';
@@ -156,8 +180,8 @@ const sessionsApi = (p) => p.evaluate(() => fetch('../api/v1/extranet/sessions')
       && (await valeur(p, '#exChampUBIPHARM')) === 'case-absente', JSON.stringify(pc));
     ok('aucun fichier extranet.properties créé', !fs.existsSync('D:/prestige/extranet.properties'));
     const r4 = await cliquerEtAttendre(p, ECRAN + ' #exConnecterUBIPHARM', '/connexion');
-    ok('connexion : réussie après correction, case absente remplacée par la détection automatique', r4.success === true && r4.session && r4.session.mode === 'CONNEXION', JSON.stringify(r4));
-    ok('extranet : deux POST /Login au total, le second réussi', srv.etat.connexions.length === 2 && srv.etat.connexions[1].reussie);
+    ok('« Se connecter » : nouvelle connexion réussie', r4.success === true && r4.session && r4.session.mode === 'CONNEXION', JSON.stringify(r4));
+    ok('extranet : quatre POST /Login au total, le dernier réussi', srv.etat.connexions.length === 4 && srv.etat.connexions[3].reussie);
     ok('écran : « Connecté automatiquement »', (await texte(p, '#exCompteEtatUBIPHARM')).indexOf('Connecté automatiquement') >= 0, await texte(p, '#exCompteEtatUBIPHARM'));
     api = await sessionsApi(p);
     ok('API : jamais la valeur du cookie ouvert par la connexion', api.indexOf('essai-e2e-local') < 0 && api.indexOf(srv.MOT_DE_PASSE) < 0);
@@ -171,14 +195,14 @@ const sessionsApi = (p) => p.evaluate(() => fetch('../api/v1/extranet/sessions')
     srv.etat.cookieDonne = 'SESSIONID=essai-e2e-2';
     const f2 = await cliquerEtAttendre(p, ECRAN + ' #exFicheCollecter', '/collecte');
     ok('expiration : reconnexion seule et même lecture réussie', f2.success === true && f2.fiche && f2.fiche.pscode === 'FAIR248', JSON.stringify(f2).slice(0, 200));
-    ok('expiration : un seul POST de plus', srv.etat.connexions.length === 3 && srv.etat.connexions[2].reussie);
+    ok('expiration : un seul POST de plus', srv.etat.connexions.length === 5 && srv.etat.connexions[4].reussie);
     const source = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../../resources/extranet/ubipharm/fiche/reconstitue-FAIR248.json'), 'utf8'));
     const libelle = (source.produit || source).pslib;
     ok('rapprochement : fiche écran = source', libelle && (await texte(p, '#exFicheEntete')).indexOf(libelle) >= 0, libelle);
     const journal = lignes('SELECT module, statut FROM extranet_collecte WHERE id >= ' + premiereCollecte + ' ORDER BY id').map((l) => l.join(':'));
     ok('bilan : deux collectes de fiche, toutes deux complètes', JSON.stringify(journal) === JSON.stringify(['FICHE_PRODUIT:COMPLETE', 'FICHE_PRODUIT:COMPLETE']), journal.join(', '));
     const nonGet = srv.etat.appels.filter((a) => a.methode !== 'GET').map((a) => a.methode + ' ' + a.chemin);
-    ok('lecture seule : le seul envoi est POST /Login', nonGet.length === 3 && nonGet.every((x) => x === 'POST /Login'), nonGet.join(', '));
+    ok('lecture seule : le seul envoi est POST /Login', nonGet.length === 5 && nonGet.every((x) => x === 'POST /Login'), nonGet.join(', '));
 
     /* ---- effacement des identifiants : confirmation dans le bouton */
     await onglet(p, 'Sessions');

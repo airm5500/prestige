@@ -91,14 +91,14 @@ const RESTE = "CONCAT_WS('|', str_NAME, int_CIP, int_PRICE, int_PAF, IFNULL(int_
     await vues.saisir(p, 'extranetsgrossistes #exCookieUBIPHARM', srv.COOKIE);
     await vues.cliquer(p, 'extranetsgrossistes #exSaisieUBIPHARM button[text=Enregistrer]');
     await p.waitForTimeout(1200);
-    await vues.cliquer(p, 'extranetsgrossistes #exOnglets tab[text=Nouveaux produits]');
+    for (const t of ['Ubipharm', 'Produits', 'Nouveaux produits']) { await vues.cliquer(p, 'extranetsgrossistes #exOnglets tab[text=' + t + ']'); await p.waitForTimeout(300); }
     const collecte = p.waitForResponse((x) => x.url().indexOf('/nouveaux/collecte') >= 0, { timeout: 120000 });
     await vues.cliquer(p, 'extranetsgrossistes #exNouveauxCollecter');
     ok('nouveaux produits lus (faux extranet)', (await (await collecte).json()).success === true);
     await p.waitForTimeout(1000);
 
     async function rapprocher() {
-      await vues.cliquer(p, 'extranetsgrossistes #exOnglets tab[text=Nouveaux produits]');
+      for (const t of ['Ubipharm', 'Produits', 'Nouveaux produits']) { await vues.cliquer(p, 'extranetsgrossistes #exOnglets tab[text=' + t + ']'); await p.waitForTimeout(300); }
       await p.waitForFunction(() => { const st = Ext.ComponentQuery.query('extranetsgrossistes')[0].nouveaux;
         return !st.isLoading() && st.getCount() > 0; }, null, { timeout: 30000 });
       const r = p.waitForResponse((x) => x.url().indexOf('/nouveaux/rapprochement') >= 0, { timeout: 60000 });

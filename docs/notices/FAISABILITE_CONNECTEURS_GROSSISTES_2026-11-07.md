@@ -480,3 +480,83 @@ Correction du 08/11 (retours de l'utilisateur) :
 - Non vérifié : le formulaire réel d'`auth.ubipharm.com` (jamais appelé). Le paramètre `state` de l'adresse copiée est
   fixe ; si Ubipharm le refuse, laisser la page de connexion vide : la page d'accueil de l'extranet redirige elle-même
   vers le serveur d'authentification.
+
+## 10. Onglet Ubipharm : rubriques Produits, Vos documents, Commandes (08/11)
+
+Demande de l'utilisateur : un onglet par grossiste (chacun a ses propres pages) et, pour Ubipharm, les listes des menus
+« Produits », « Vos documents » et « Commandes » de l'extranet.
+
+Constats du 08/11 (connexion automatique réelle réussie, puis fiche FAIR248 lue ; pages relevées dans le navigateur de
+l'utilisateur, en lecture seule, sans aucun clic sur une commande) :
+
+| Rubrique | Liste | Lecture | Volume relevé |
+|---|---|---|---|
+| Produits | Promotions | page HTML `/Promotions`, tableau `#promotions` | 135 |
+| | Produits avec UG | JSON `/ProduitsPromotionsJSON?poform=U` (total annoncé 0) | 698 |
+| | Produits supprimés | page HTML `/ProduitsSupprimes`, tableau `#produits` | 52 |
+| Vos documents | Factures non relevées | page HTML `/ListeFactures`, tableau `#factures` | 39 |
+| | Derniers relevés | JSON paginé `/GetRelevesJSON` (DataTables serveur) | 118 |
+| | Récapitulatifs d'avoirs | JSON paginé `/GetRecapAvoirsJSON` | 106 |
+| Commandes | Vos dernières commandes | page `/DernieresCommandes` (une table par agence), puis JSON `/ReturnDernieresCommandesEtabJSON?etab=` | 1 |
+| | Vos commandes extranet | page HTML `/DernieresCommandesExtranet`, tableau `#lastCdeExt` | 383 |
+| | Les plus achetés | JSON `/ReturnProduitsAchetesJSON` | 197 |
+
+Réalisation :
+- `ListeUbipharm` décrit chaque liste (adresse, mode de lecture, colonnes gardées) ; les colonnes d'action de la page
+  (menu, quantité à commander) ne sont jamais gardées. `ListesUbipharmParseur` lit les cellules (produit : désignation,
+  PSCODE et CIP ; disponibilité : étiquette puis agence : dispo ; paliers d'UG : « 20 U → 2 UG »), sans jamais garder de
+  HTML ni convertir de montant. Une page qui ne ressemble plus au relevé (tableau absent, titre de colonne déplacé,
+  ligne trop courte, code d'agence anormal) arrête la collecte.
+- `ListesUbipharmCollecteur` : GET uniquement ; pages de 100 pour les listes paginées (contrôles de `ParcoursDataTables`) ;
+  total annoncé contrôlé quand l'extranet l'annonce ; une agence « mise à jour en cours » (sStatut ENC) arrête la
+  collecte au lieu de rendre une liste incomplète.
+- Table `extranet_liste_ligne` (V7.5.11) : une ligne par ligne lue, cellules en JSON, PSCODE et CIP à part, rattachée à
+  sa collecte (`extranet_collecte`, module `LISTE_<code>`). Seules les lignes de la dernière collecte complète sont
+  gardées ; un échec laisse le cache précédent. Lecteurs : `GET v1/extranet/ubipharm/listes/{code}` (écran) et les tests.
+- API (administrateur) : `GET ubipharm/listes`, `GET ubipharm/listes/{code}`, `POST ubipharm/listes/{code}/collecte`.
+- Écran : onglets Sessions | Ubipharm | Collectes ; dans Ubipharm : Produits (Fiche produit, Promotions, Produits avec
+  UG, Nouveaux produits, Produits supprimés, Réapprovisionnements), Vos documents (3 listes), Commandes (3 listes),
+  Réclamations. Chaque liste : « Lire sur l'extranet », recherche dans toutes les colonnes, nombre de lignes, date de
+  collecte, message dans l'onglet.
+
+Tests :
+- Rapprochement (unitaire) `ListesUbipharmCollecteurTest` : les 9 listes contre un faux extranet local, ligne par ligne
+  et cellule par cellule (0, 1, 383 et 698 lignes ; 0 à 250 lignes paginées ; 4 agences dont une vide) ; GET seulement,
+  referer et en-tête AJAX ; total annoncé différent, agence en cours de mise à jour, page modifiée : refusés.
+- Cohérence `ListesUbipharmParseurCoherenceTest` : 3 000 cellules tirées (graine 20261108) : produit, PSCODE, CIP,
+  disponibilité par agence, paliers, texte avec caractères spéciaux et champs de saisie ; cas limites.
+- Rapprochement et bilan (écran) `test-listes-ubipharm.js` 87/87 : pour chacune des 9 listes, source (faux extranet) =
+  base (`extranet_liste_ligne`) = écran, ligne par ligne, PSCODE et CIP à part, titres de colonnes ; recherche (1 / 130,
+  puis 130) ; relecture sans doublon ; session expirée : cache gardé en base et à l'écran ; une collecte par lecture,
+  aucune table métier modifiée, uniquement des GET ; données du test retirées.
+- Non-régression : tests d'écran existants adaptés au nouveau rangement des onglets (on clique Ubipharm, puis la
+  rubrique, puis la liste, comme l'utilisateur).
+
+Restent : base Mayité (service extérieur `equivalence.mayite-service.com`, ouvert par un formulaire qui transmet
+l'adresse e-mail Ubipharm ; à voir avec l'utilisateur), TEDIS (connexion refusée en 405 sur `/login` : code de la page
+de connexion attendu), essai des 9 listes sur le vrai extranet.
+
+## 11. Page de connexion Ubipharm par défaut, connexion dès l'enregistrement (08/11)
+
+Demandes : « le lien de login ubipharm doit être mis par défaut » ; « si on enregistre on doit marquer connecté après
+le bouton enregistrer ».
+
+- `SourceExtranet.UBIPHARM` porte la page de connexion relevée le 08/11 (`auth.ubipharm.com`, realm TIC-SSO, retour sur
+  `/CallbackSSO`, arrivée sur `/Identification`). Elle sert quand le champ « Page de connexion » est vide, et seulement
+  pour l'extranet réel (`https://client-cotedivoire.ubipharm.com`) ; une page saisie passe avant. Si Ubipharm la change,
+  saisir la nouvelle adresse dans l'onglet Sessions, puis corriger la valeur dans `SourceExtranet`.
+- L'écran l'affiche : « page de connexion par défaut … » dans l'état du compte et dans le champ vide.
+- « Enregistrer » : les identifiants acceptés, Prestige se connecte aussitôt ; le bouton affiche « Connexion… » puis
+  « ✓ Connecté » ou « ✗ Non connecté » (15 s), le motif s'affiche dans l'onglet. Un enregistrement refusé ne tente
+  aucune connexion. « Se connecter » reste disponible.
+- Message « La page de connexion doit être sur 127.0.0.1 (en http) » : domain3 pointait sur le faux extranet des tests
+  (option `-DEXTRANET_UBIPHARM_URL`) ; option retirée, domain3 redémarré.
+
+Tests :
+- `PageConnexionParDefautTest` (3 tests) : page par défaut pour l'adresse réelle seulement (casse, barre finale), jamais
+  pour le faux extranet, en http ni pour TEDIS ; règle « même domaine, https » respectée ; page saisie prioritaire.
+- `test-identifiants-extranet.js` adapté : enregistrement avec mauvais mot de passe → une connexion refusée,
+  « Non connecté » dans le bouton ; corrigé → connecté, « ✓ Connecté » dans le bouton et l'état ; enregistrements refusés
+  → aucune connexion ; total des POST /Login recompté (5). À rejouer sur domain3 avec le faux extranet quand domain3
+  sera libre (domain3 servait à l'utilisateur au moment du changement).
+- `test-identifiants-extranet.js` 40/40 et `test-listes-ubipharm.js` 87/87 avec la page par défaut (avant le bouton).

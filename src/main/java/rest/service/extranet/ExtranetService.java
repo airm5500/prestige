@@ -22,6 +22,9 @@ import rest.service.extranet.commun.TransportExtranet;
 import rest.service.extranet.ubipharm.FicheProduitCollecteur;
 import rest.service.extranet.ubipharm.FicheProduitDepot;
 import rest.service.extranet.ubipharm.FicheProduitUbipharm;
+import rest.service.extranet.ubipharm.ListeUbipharm;
+import rest.service.extranet.ubipharm.ListesUbipharmCollecteur;
+import rest.service.extranet.ubipharm.ListesUbipharmDepot;
 import rest.service.extranet.ubipharm.ReclamationUbipharm;
 import rest.service.extranet.ubipharm.ReclamationsCollecteur;
 import rest.service.extranet.ubipharm.ReclamationsDepot;
@@ -69,9 +72,14 @@ public class ExtranetService {
         JSONArray l = new JSONArray();
         ComptesExtranet comptes = comptes();
         for (SourceExtranet s : SourceExtranet.values()) {
-            l.put(CoffreSessions.session(s).publique().put("compte", comptes.publique(s)));
+            l.put(CoffreSessions.session(s).publique().put("compte", comptes.publique(s, adresse(s))));
         }
         return new JSONObject().put("success", true).put("data", l);
+    }
+
+    /** Adresse de l'extranet selon la configuration du serveur. */
+    private static String adresse(SourceExtranet s) {
+        return rest.service.extranet.commun.ExtranetConfiguration.duServeur().adresse(s);
     }
 
     private ComptesExtranet comptes() {
@@ -86,7 +94,7 @@ public class ExtranetService {
      */
     private String chargerIdentifiants(SourceExtranet s) {
         try {
-            CoffreSessions.connexion(s).identifiants(comptes().identifiants(s));
+            CoffreSessions.connexion(s).identifiants(comptes().identifiants(s, adresse(s)));
             return null;
         } catch (java.security.GeneralSecurityException e) {
             CoffreSessions.connexion(s).identifiants(null);
@@ -117,13 +125,13 @@ public class ExtranetService {
         }
         em.flush();
         chargerIdentifiants(s);
-        return new JSONObject().put("success", true).put("compte", comptes().publique(s));
+        return new JSONObject().put("success", true).put("compte", comptes().publique(s, adresse(s)));
     }
 
     public JSONObject effacerCompte(SourceExtranet s) {
         comptes().effacer(s);
         CoffreSessions.connexion(s).identifiants(null);
-        return new JSONObject().put("success", true).put("compte", comptes().publique(s));
+        return new JSONObject().put("success", true).put("compte", comptes().publique(s, adresse(s)));
     }
 
     /** Connexion maintenant avec les identifiants enregistres (bouton « Se connecter »). */
@@ -339,6 +347,48 @@ public class ExtranetService {
             journal.fermer(id, JournalCollecte.COMPLETE, r.bilan.recordsFiltered, r.lignes.size(), null);
             d.garderSeulement(id);
             return new JSONObject().put("success", true).put("collecte", journal.une(id));
+        } catch (ExtranetException e) {
+            journal.fermer(id, JournalCollecte.ECHEC, null, 0, e.nature() + " : " + e.getMessage());
+            return new JSONObject().put("success", false).put("nature", e.nature().name()).put("msg", e.getMessage())
+                    .put("collecte", journal.une(id));
+        }
+    }
+
+    /* ============================================================ Ubipharm : listes de l'onglet */
+
+    public JSONObject listesUbipharm() {
+        return new JSONObject().put("success", true).put("data", ListeUbipharm.catalogue());
+    }
+
+    public JSONObject listeEnCache(String code) {
+        ListeUbipharm l = ListeUbipharm.parCode(code);
+        if (l == null) {
+            return new JSONObject().put("success", false).put("msg", "Liste inconnue");
+        }
+        return new ListesUbipharmDepot(em).lire(l).put("success", true);
+    }
+
+    /**
+     * Liste complete. La collecte est fermee COMPLETE avant de retirer les lignes des collectes precedentes (le depot
+     * le verifie) ; en cas d'echec, le cache precedent reste.
+     */
+    public JSONObject collecterListe(String code, String utilisateur) {
+        ListeUbipharm l = ListeUbipharm.parCode(code);
+        if (l == null) {
+            return new JSONObject().put("success", false).put("msg", "Liste inconnue");
+        }
+        SourceExtranet s = SourceExtranet.UBIPHARM;
+        chargerIdentifiants(s);
+        JournalCollecte journal = new JournalCollecte(em);
+        long id = journal.ouvrir(s, l.module(), null, utilisateur);
+        try {
+            ListesUbipharmCollecteur.Resultat r = ListesUbipharmCollecteur.lire(CoffreSessions.transport(s), l,
+                    rest.service.extranet.commun.ExtranetConfiguration.duServeur().pagesMax(s));
+            ListesUbipharmDepot d = new ListesUbipharmDepot(em);
+            d.enregistrer(id, l, r.lignes);
+            journal.fermer(id, JournalCollecte.COMPLETE, r.annoncees, r.lignes.size(), null);
+            d.garderSeulement(l, id);
+            return d.lire(l).put("success", true);
         } catch (ExtranetException e) {
             journal.fermer(id, JournalCollecte.ECHEC, null, 0, e.nature() + " : " + e.getMessage());
             return new JSONObject().put("success", false).put("nature", e.nature().name()).put("msg", e.getMessage())

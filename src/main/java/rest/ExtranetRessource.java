@@ -298,4 +298,27 @@ public class ExtranetRessource {
         Response r = refus();
         return r != null ? r : ok(service.rapprocherNouveaux());
     }
+
+    /* ============================================================ Ubipharm : listes de l'onglet */
+
+    @GET
+    @Path("ubipharm/listes")
+    public Response listes() {
+        Response r = refus();
+        return r != null ? r : ok(service.listesUbipharm());
+    }
+
+    @GET
+    @Path("ubipharm/listes/{code}")
+    public Response liste(@PathParam("code") String code) {
+        Response r = refus();
+        return r != null ? r : ok(service.listeEnCache(code));
+    }
+
+    @POST
+    @Path("ubipharm/listes/{code}/collecte")
+    public Response collecterListe(@PathParam("code") String code) {
+        Response r = refus();
+        return r != null ? r : ok(service.collecterListe(code, login()));
+    }
 }
