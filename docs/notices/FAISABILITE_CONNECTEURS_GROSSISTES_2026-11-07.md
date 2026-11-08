@@ -695,3 +695,28 @@ Copharmed sont enregistrés sur domain3.
 - Listes : genre de colonne déduit du titre ; montants à droite au format « 2 095 », disponibilité en vert ou rouge,
   unités gratuites en violet, largeurs adaptées. La valeur gardée en base ne change pas.
 - 170 tests unitaires extranet au vert.
+
+## 20. DPCI : offres, commandes, documents, réclamations (08/11)
+
+Relevé sur l'extranet connecté (pro2.dpci.ci) : tout passe par des appels JSON `.action` en GET. Sans session, les pages
+redirigent vers /login mais les appels `.action` répondent 500 : Prestige lit donc d'abord la page de la rubrique, ce qui
+déclenche la reconnexion avant toute lecture. Connexion par le formulaire /login.action (identifiant, mot de passe, pas
+de captcha) : carte « DPCI » de l'onglet Sessions.
+
+- Mes offres en cours → « Offres en cours » : AllListOffres.action (137 offres le 08/11), puis GetOffre.action pour
+  chaque offre en cours (relu tant que DPCI répond « loading ») ; une ligne par produit : offre, laboratoire, dates,
+  désignation, code, code facture (EAN), paliers « 25 à 49 : 2 UG ; dès 200 : 50 UG » (remise en % ou en F si présente).
+- Mes commandes → ListCommandes.action sur un an (1 487 commandes le 08/11, pages de 100) : date, n°, référence, type,
+  agence, **état** (« Bon de livraison édité »...) et sa date, lignes, quantité.
+- Mes documents → Bons de livraison, Factures, Relevés, Avoirs : ListDocuments.action sur un an, avec les champs du
+  formulaire de la page (compte, établissement, type) repris tels quels ; montants HT et TTC (négatifs pour les avoirs).
+- Mes réclamations → DonneListReclamationClient.action (consultation ; aucune réclamation envoyée). Vide le 08/11.
+- Non repris : panier, envoi de commande, nouvelle réclamation (écriture) ; PDF des documents et détail d'une commande
+  (GetCommande.action, lignes avec quantités commandées, livrées, facturées) : possibles ensuite, utiles au point
+  « produit en commande / état d'une commande ».
+
+Tests : `DpciLecteurTest` (7) : rapprochement des offres (30 offres tirées, finies et futures écartées, préparation «
+loading »), cohérence des paliers sur 5 000 cas (ordre, un segment par palier avantageux, somme des UG lues = source ;
+le test échoue si le tri est retiré), commandes sur 3 pages, documents avec le formulaire de la page (totaux HT lus =
+source, avoirs négatifs), réclamations puis session perdue et reconnexion, mot de passe refusé, réponse inattendue.
+177 tests unitaires extranet au vert. Essai réel : dès que l'identifiant DPCI est enregistré sur domain3.

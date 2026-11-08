@@ -33,7 +33,12 @@ public enum SourceExtranet {
      * Copharmed (CFAO, Intershop, releve le 08/11) : /fr/login porte un formulaire classique (SynchronizerToken,
      * ShopLoginForm_Login, ShopLoginForm_Password) envoye a ViewUserAccount-ProcessLogin sur le meme site.
      */
-    COPHARMED("https://www.copharmed.com", "EXTRANET_COPHARMED", "https://www.copharmed.com/fr/login", null);
+    COPHARMED("https://www.copharmed.com", "EXTRANET_COPHARMED", "https://www.copharmed.com/fr/login", null),
+    /*
+     * DPCI (releve le 08/11) : /login porte un formulaire classique (identifiant, password, connexionAuto) envoye a
+     * /login.action ; sans session, les pages redirigent vers /login et les appels .action repondent 500.
+     */
+    DPCI("https://pro2.dpci.ci", "EXTRANET_DPCI", "https://pro2.dpci.ci/login", null);
 
     /** Page d'Ubipharm qui ouvre Mayite (formulaire cache vers Mayite). */
     public static final String PASSERELLE_MAYITE = "/themes/boo/html/extranet/stats/statsexternal.jsp";

@@ -130,6 +130,18 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
                                 me.ongletListe('COPHARMED_PROMOTIONS', 'Promotion')]),
                             rubrique('Produits', 'exRubriqueCopharmedProduits', [me.ongletRechercheCopharmed(),
                                 me.ongletListe('COPHARMED_CATALOGUE', 'Catalogue produits')])]),
+                        rubrique('DPCI', 'exOngletDpci', [
+                            rubrique('Mes offres en cours', 'exRubriqueDpciOffres', [
+                                me.ongletListe('DPCI_OFFRES', 'Offres en cours')]),
+                            rubrique('Mes commandes', 'exRubriqueDpciCommandes', [
+                                me.ongletListe('DPCI_COMMANDES', 'Mes commandes')]),
+                            rubrique('Mes documents', 'exRubriqueDpciDocuments', [
+                                me.ongletListe('DPCI_BL', 'Bons de livraison'),
+                                me.ongletListe('DPCI_FACTURES', 'Factures'),
+                                me.ongletListe('DPCI_RELEVES', 'Relevés'),
+                                me.ongletListe('DPCI_AVOIRS', 'Avoirs')]),
+                            rubrique('Mes réclamations', 'exRubriqueDpciReclamations', [
+                                me.ongletListe('DPCI_RECLAMATIONS', 'Mes réclamations')])]),
                         Ext.apply(me.panneauMayite('exMayite'), {title: 'Mayité'}),
                         me.ongletCollectes(), me.ongletRafraichissement()],
                     listeners: {
@@ -354,6 +366,7 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
                 bloc('UBIPHARM', 'Ubipharm', 'SESSIONID=...', 'Côte d\'Ivoire'),
                 bloc('TEDIS', 'TEDIS', 'nom=valeur; nom2=valeur2'),
                 bloc('COPHARMED', 'Copharmed', 'pgid-...=valeur; nom2=valeur2', 'CFAO'),
+                bloc('DPCI', 'DPCI', 'JSESSIONID=valeur; nom2=valeur2'),
                 {xtype: 'container', itemId: 'exSessionMAYITE', padding: '12 14', margin: '0 0 12 0', style: CARTE,
                     items: [entete('MAYITE', 'Mayité', 'base des spécialités'),
                         {xtype: 'component', html: '<span style="color:#555">Aucun identifiant à saisir : Mayité '
@@ -956,7 +969,8 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
     chargerListe: function (code, collecter) {
         var me = this, id = 'exListe' + code, panneau = me.down('#' + id);
         var racine = code.indexOf('TEDIS_') === 0 ? 'tedis/listes/'
-                : code.indexOf('COPHARMED_') === 0 ? 'copharmed/listes/' : 'ubipharm/listes/';
+                : code.indexOf('COPHARMED_') === 0 ? 'copharmed/listes/'
+                : code.indexOf('DPCI_') === 0 ? 'dpci/listes/' : 'ubipharm/listes/';
         me.appel(collecter ? 'POST' : 'GET', racine + code + (collecter ? '/collecte' : ''), function (r) {
             if (r.success) {
                 me.afficherListe(code, r);
@@ -1363,7 +1377,7 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
             title: 'Collectes', itemId: 'exOngletCollectes', layout: 'fit',
             dockedItems: [{xtype: 'toolbar', dock: 'top', items: [
                         {xtype: 'combo', itemId: 'exCollectesSource', fieldLabel: 'Grossiste', labelWidth: 65, width: 190,
-                            editable: false, value: 'UBIPHARM', store: [['UBIPHARM', 'Ubipharm'], ['TEDIS', 'TEDIS'], ['COPHARMED', 'Copharmed']],
+                            editable: false, value: 'UBIPHARM', store: [['UBIPHARM', 'Ubipharm'], ['TEDIS', 'TEDIS'], ['COPHARMED', 'Copharmed'], ['DPCI', 'DPCI']],
                             listeners: {change: function (c, v) {
                                     me.collectes.getProxy().url = me.URL + v + '/collectes';
                                     me.collectes.load();

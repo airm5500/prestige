@@ -385,6 +385,29 @@ public class ExtranetRessource {
         return r != null ? r : ok(service.rechercherCopharmed(motif));
     }
 
+    /* ============================================================ DPCI */
+
+    @GET
+    @Path("dpci/listes")
+    public Response listesDpci() {
+        Response r = refus();
+        return r != null ? r : ok(service.listesDpci());
+    }
+
+    @GET
+    @Path("dpci/listes/{code}")
+    public Response listeDpci(@PathParam("code") String code) {
+        Response r = refus();
+        return r != null ? r : ok(service.listeDpciEnCache(code));
+    }
+
+    @POST
+    @Path("dpci/listes/{code}/collecte")
+    public Response collecterListeDpci(@PathParam("code") String code) {
+        Response r = refus();
+        return r != null ? r : ok(service.collecterListeDpci(code, login()));
+    }
+
     /* ============================================================ Mayite : specialites et monographies */
 
     @GET

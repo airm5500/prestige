@@ -518,6 +518,46 @@ public class ExtranetService {
         }
     }
 
+    /* ============================================================ DPCI */
+
+    public JSONObject listesDpci() {
+        return new JSONObject().put("success", true).put("data", rest.service.extranet.dpci.ListeDpci.catalogue());
+    }
+
+    public JSONObject listeDpciEnCache(String code) {
+        rest.service.extranet.dpci.ListeDpci l = rest.service.extranet.dpci.ListeDpci.parCode(code);
+        if (l == null) {
+            return new JSONObject().put("success", false).put("msg", "Liste inconnue");
+        }
+        return new rest.service.extranet.commun.DepotListes(em)
+                .lire(SourceExtranet.DPCI, l.name(), l.module(), l.description()).put("success", true);
+    }
+
+    /** Comme Copharmed : collecte fermee COMPLETE avant de retirer l'ancien cache ; un echec garde l'ancien. */
+    public JSONObject collecterListeDpci(String code, String utilisateur) {
+        rest.service.extranet.dpci.ListeDpci l = rest.service.extranet.dpci.ListeDpci.parCode(code);
+        if (l == null) {
+            return new JSONObject().put("success", false).put("msg", "Liste inconnue");
+        }
+        SourceExtranet s = SourceExtranet.DPCI;
+        chargerIdentifiants(s);
+        JournalCollecte journal = new JournalCollecte(em);
+        long id = journal.ouvrir(s, l.module(), null, utilisateur);
+        try {
+            List<rest.service.extranet.ubipharm.ListesUbipharmParseur.Ligne> lignes = rest.service.extranet.dpci.DpciLecteur
+                    .lire(CoffreSessions.transport(s), l);
+            rest.service.extranet.commun.DepotListes d = new rest.service.extranet.commun.DepotListes(em);
+            d.enregistrer(id, l.name(), lignes);
+            journal.fermer(id, JournalCollecte.COMPLETE, null, lignes.size(), null);
+            d.garderSeulement(l.name(), l.module(), id);
+            return d.lire(s, l.name(), l.module(), l.description()).put("success", true);
+        } catch (ExtranetException e) {
+            journal.fermer(id, JournalCollecte.ECHEC, null, 0, e.nature() + " : " + e.getMessage());
+            return new JSONObject().put("success", false).put("nature", e.nature().name()).put("msg", e.getMessage())
+                    .put("collecte", journal.une(id));
+        }
+    }
+
     /* ============================================================ Mayite : specialites et monographies */
 
     /** Recherche dans la liste des specialites Mayite (entree par la session Ubipharm). */
@@ -563,6 +603,9 @@ public class ExtranetService {
         for (rest.service.extranet.copharmed.ListeCopharmed l : rest.service.extranet.copharmed.ListeCopharmed
                 .values()) {
             r.add(new String[] { SourceExtranet.COPHARMED.name(), l.name(), l.libelle, l.module() });
+        }
+        for (rest.service.extranet.dpci.ListeDpci l : rest.service.extranet.dpci.ListeDpci.values()) {
+            r.add(new String[] { SourceExtranet.DPCI.name(), l.name(), l.libelle, l.module() });
         }
         return r;
     }
@@ -662,6 +705,9 @@ public class ExtranetService {
     public JSONObject rafraichir(String source, String code) {
         if (SourceExtranet.COPHARMED.name().equals(source)) {
             return collecterListeCopharmed(code, UTILISATEUR_AUTOMATIQUE);
+        }
+        if (SourceExtranet.DPCI.name().equals(source)) {
+            return collecterListeDpci(code, UTILISATEUR_AUTOMATIQUE);
         }
         return SourceExtranet.TEDIS.name().equals(source) ? collecterListeTedis(code, UTILISATEUR_AUTOMATIQUE)
                 : collecterListe(code, UTILISATEUR_AUTOMATIQUE);
