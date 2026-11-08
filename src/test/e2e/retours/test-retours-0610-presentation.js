@@ -25,6 +25,8 @@ const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-charact
     + " WHERE f.str_STATUT = 'enable' AND s.int_NUMBER_AVAILABLE > 0 ORDER BY f.str_NAME LIMIT 1");
   const cip = q("SELECT int_CIP FROM t_famille WHERE lg_FAMILLE_ID = '" + P + "'");
   const S = q("SELECT o.lg_SUGGESTION_ORDER_ID FROM t_suggestion_order o JOIN t_suggestion_order_details d ON d.lg_SUGGESTION_ORDER_ID = o.lg_SUGGESTION_ORDER_ID"
+    /* le bouton ⟳ n'existe que si la disponibilite est active pour le grossiste (int_PHARMAML_DISPO vide ou 1) */
+    + " LEFT JOIN t_grossiste g ON g.lg_GROSSISTE_ID = o.lg_GROSSISTE_ID WHERE IFNULL(g.int_PHARMAML_DISPO, 1) <> 0"
     + " GROUP BY o.lg_SUGGESTION_ORDER_ID ORDER BY o.dt_CREATED DESC LIMIT 1");
   const etatSugg = () => q("SELECT CONCAT_WS('|', str_STATUT, IFNULL(dt_UPDATED, ''), (SELECT COUNT(*) FROM t_suggestion_order_details WHERE lg_SUGGESTION_ORDER_ID = '" + S + "')) FROM t_suggestion_order WHERE lg_SUGGESTION_ORDER_ID = '" + S + "'");
   const avantSugg = S ? etatSugg() : '';

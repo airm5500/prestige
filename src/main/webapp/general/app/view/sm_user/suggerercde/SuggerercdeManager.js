@@ -936,7 +936,33 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
                     // On s'assure que l'ID est bien dans les paramètres du proxy avant de recharger
                     store.getProxy().setExtraParam('orderId', orderIdRef);
 
-                    store.loadPage(1);
+                    // Plan du 08/11 (11.1) : la liste est triee par nom et paginee ; recharger la page 1 laissait le
+                    // produit ajoute sur une autre page, et une recherche en cours pouvait le masquer. On efface la
+                    // recherche, on ouvre la page qui le contient et on le selectionne.
+                    var familleAjoutee = data.familleId;
+                    var rang = JsorResponse && typeof JsorResponse.rang === 'number' ? JsorResponse.rang : -1;
+                    var recherche = Ext.getCmp('rechercherDetail');
+                    if (rang >= 0 && recherche && recherche.getValue()) {
+                        recherche.setValue('');
+                    }
+                    if (rang >= 0) {
+                        store.getProxy().setExtraParam('query', '');
+                    }
+                    var parPage = store.pageSize || 10;
+                    var page = rang >= 0 ? Math.floor(rang / parPage) + 1 : 1;
+                    // apres le chargement, la saisie de QTE s'ouvre sur la ligne du produit ajoute (et non plus sur la
+                    // premiere ligne de la page 1), avec ses infos d'aide a la decision
+                    Me_Window.focusContext = {row: rang >= 0 ? rang % parPage : 0};
+                    store.loadPage(page, {
+                        callback: function () {
+                            var grid = Ext.getCmp('gridpanelSuggestionID');
+                            var rec = grid ? store.findRecord('lg_FAMILLE_ID', familleAjoutee, 0, false, true, true) : null;
+                            var noeud = rec ? grid.getView().getNode(rec) : null;
+                            if (noeud) {
+                                Ext.fly(noeud).highlight('7FD47F', {duration: 1500});
+                            }
+                        }
+                    });
 
                     // La réinitialisation se fait après, pour une meilleure expérience
                     Ext.getCmp('str_NAME').setValue("");

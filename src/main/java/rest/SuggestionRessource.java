@@ -125,10 +125,14 @@ public class SuggestionRessource {
 
     @POST
     @Path("item/add")
-    public Response addItem(SuggestionOrderDetailDTO suggestionOrderDetail) {
+    public Response addItem(SuggestionOrderDetailDTO suggestionOrderDetail) throws JSONException {
 
         this.suggestionService.addItem(suggestionOrderDetail);
-        return Response.ok().entity(ResultFactory.getSuccessResultMsg()).build();
+        // plan du 08/11 (11.1) : rang du produit dans la liste triee, pour que l'ecran affiche la page qui le contient
+        int rang = this.suggestionService.rangDansSuggestion(suggestionOrderDetail.getSuggestionId(),
+                suggestionOrderDetail.getFamilleId());
+        return Response.ok().entity(new JSONObject().put("success", true).put("rang", rang)
+                .put("suggestionId", suggestionOrderDetail.getSuggestionId()).toString()).build();
     }
 
     @POST

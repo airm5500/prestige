@@ -107,6 +107,12 @@ public interface SuggestionService {
 
     void addItem(SuggestionOrderDetailDTO suggestionOrderDetail);
 
+    /**
+     * Plan du 08/11 (11.1) : rang (a partir de 0) de la ligne du produit dans la liste de la suggestion, dans l'ordre
+     * de la grille (nom, puis identifiant de ligne) ; -1 si le produit n'y est pas.
+     */
+    int rangDansSuggestion(String suggestionId, String familleId);
+
     void updateItemSeuil(SuggestionOrderDetailDTO suggestionOrderDetail);
 
     void updateItemQteCmde(SuggestionOrderDetailDTO suggestionOrderDetail);

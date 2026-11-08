@@ -381,17 +381,9 @@ public class SuggestionImpl implements SuggestionService {
 
     private boolean checkQteSeuilCondition(TFamilleStock oFamilleStock, TFamille famille) {
         Integer stock = stockACommander(oFamilleStock, famille);
-        switch (getOptionSuggestion()) {
-        case EQUALS:
-            return stock.compareTo(famille.getIntSEUILMIN()) == 0;
-        case LESS:
-            return stock.compareTo(famille.getIntSEUILMIN()) == -1;
-        case LESS_EQUALS:
-            return stock.compareTo(famille.getIntSEUILMIN()) < 1;
-
-        default:
-            return false;
-        }
+        // plan du 08/11 (11.2) : meme regle que « Nettoyer la suggestion » (RegleSeuilSuggestion)
+        return rest.service.suggestion.RegleSeuilSuggestion.declenche(stock, famille.getIntSEUILMIN(),
+                getOptionSuggestion().getValue());
     }
 
     /**
@@ -1288,6 +1280,25 @@ public class SuggestionImpl implements SuggestionService {
 
     }
 
+    @Override
+    public int rangDansSuggestion(String suggestionId, String familleId) {
+        try {
+            Object[] l = (Object[]) em
+                    .createNativeQuery("SELECT d.lg_SUGGESTION_ORDER_DETAILS_ID, f.str_NAME"
+                            + " FROM t_suggestion_order_details d JOIN t_famille f ON f.lg_FAMILLE_ID = d.lg_FAMILLE_ID"
+                            + " WHERE d.lg_SUGGESTION_ORDER_ID = ?1 AND d.lg_FAMILLE_ID = ?2 LIMIT 1")
+                    .setParameter(1, suggestionId).setParameter(2, familleId).getSingleResult();
+            Object n = em.createNativeQuery("SELECT COUNT(*) FROM t_suggestion_order_details d"
+                    + " JOIN t_famille f ON f.lg_FAMILLE_ID = d.lg_FAMILLE_ID WHERE d.lg_SUGGESTION_ORDER_ID = ?1"
+                    + " AND (f.str_NAME < ?2 OR (f.str_NAME = ?2 AND d.lg_SUGGESTION_ORDER_DETAILS_ID < ?3))")
+                    .setParameter(1, suggestionId).setParameter(2, l[1]).setParameter(3, l[0]).getSingleResult();
+            return ((Number) n).intValue();
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "rangDansSuggestion {0}", e.getMessage());
+            return -1;
+        }
+    }
+
     private TSuggestionOrderDetails isProductExist(String lgFamilleId, String suggId) {
         TSuggestionOrderDetails suggestionOrderDetails = null;
         try {
@@ -1633,7 +1644,8 @@ public class SuggestionImpl implements SuggestionService {
             Root<TSuggestionOrderDetails> root = cq.from(TSuggestionOrderDetails.class);
             Join<TSuggestionOrderDetails, TSuggestionOrder> join = root.join("lgSUGGESTIONORDERID", JoinType.INNER);
             Join<TSuggestionOrderDetails, TFamille> f = root.join("lgFAMILLEID", JoinType.INNER);
-            cq.select(root).orderBy(cb.asc(f.get(TFamille_.strNAME)));
+            // ordre stable (nom, puis ligne) : le rang d'un produit ajoute designe toujours la meme page (11.1)
+            cq.select(root).orderBy(cb.asc(f.get(TFamille_.strNAME)), cb.asc(root.get("lgSUGGESTIONORDERDETAILSID")));
             List<Predicate> predicates = fetchItemsPredicates(cb, f, join, searchValue, suggOrder);
 
             cq.where(cb.and(predicates.toArray(Predicate[]::new)));
@@ -2409,15 +2421,34 @@ public class SuggestionImpl implements SuggestionService {
      */
     private List<String> supprimerLigneSuggestion(String suggestionId, String emplacementId) {
         try {
-            // Requête native MISE À JOUR avec la clause sur l'emplacement
-            Query q = em.createNativeQuery("SELECT sd.lg_SUGGESTION_ORDER_DETAILS_ID AS id "
-                    + "FROM t_suggestion_order_details sd " + "JOIN t_famille f ON f.lg_FAMILLE_ID = sd.lg_FAMILLE_ID "
-                    + "JOIN t_famille_stock stoc ON f.lg_FAMILLE_ID = stoc.lg_FAMILLE_ID "
-                    + "WHERE f.int_SEUIL_MIN < stoc.int_NUMBER_AVAILABLE " + "AND sd.lg_SUGGESTION_ORDER_ID = ?1 "
-                    + "AND stoc.lg_EMPLACEMENT_ID = ?2"); // <-- emplacement
+            // Plan du 08/11 (11.2) : le stock compare au seuil est le rayon, plus la reserve quand le produit y est
+            // gere, comme a l'entree du produit dans la suggestion (RegleSeuilSuggestion). Avant, seul le rayon
+            // comptait : un produit a 26 en rayon, seuil 50, mais 502 en reserve, restait dans la suggestion.
+            Query q = em.createNativeQuery("SELECT sd.lg_SUGGESTION_ORDER_DETAILS_ID, stoc.int_NUMBER_AVAILABLE,"
+                    + " COALESCE(f.bool_RESERVE, 0), f.int_SEUIL_MIN,"
+                    + " (SELECT COALESCE(SUM(t.int_NUMBER), 0) FROM t_type_stock_famille t"
+                    + " WHERE t.lg_FAMILLE_ID = f.lg_FAMILLE_ID AND t.lg_EMPLACEMENT_ID = ?2"
+                    + " AND t.lg_TYPE_STOCK_ID = '2' AND t.str_STATUT = 'enable')"
+                    + " FROM t_suggestion_order_details sd JOIN t_famille f ON f.lg_FAMILLE_ID = sd.lg_FAMILLE_ID"
+                    + " JOIN t_famille_stock stoc ON f.lg_FAMILLE_ID = stoc.lg_FAMILLE_ID"
+                    + " WHERE sd.lg_SUGGESTION_ORDER_ID = ?1 AND stoc.lg_EMPLACEMENT_ID = ?2"
+                    + " AND f.int_SEUIL_MIN IS NOT NULL");
             q.setParameter(1, suggestionId);
-            q.setParameter(2, emplacementId); // On passe le paramètre
-            return q.getResultList();
+            q.setParameter(2, emplacementId);
+            String option = getOptionSuggestion().getValue();
+            List<String> ids = new ArrayList<>();
+            for (Object o : q.getResultList()) {
+                Object[] l = (Object[]) o;
+                int rayon = l[1] == null ? 0 : ((Number) l[1]).intValue();
+                boolean gere = l[2] != null
+                        && (l[2] instanceof Boolean ? (Boolean) l[2] : ((Number) l[2]).intValue() != 0);
+                int seuil = ((Number) l[3]).intValue();
+                int reserve = l[4] == null ? 0 : ((Number) l[4]).intValue();
+                if (rest.service.suggestion.RegleSeuilSuggestion.aRetirer(rayon, reserve, gere, seuil, option)) {
+                    ids.add((String) l[0]);
+                }
+            }
+            return ids;
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "Erreur dans supprimerLigneSuggestion: {0}", e.getLocalizedMessage());
             return Collections.emptyList();
