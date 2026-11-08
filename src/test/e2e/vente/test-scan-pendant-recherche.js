@@ -25,7 +25,12 @@ const BASE = ENV_E2E.BASE;
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).replace(/\r/g, '').trim();
 
 const CAISSE = 'E2E-SCAN-CAISSE';
-const ECRAN = 'doventemanager';
+/* SCAN_ECRAN=depot : meme parcours sur la vente en depot (Gestion depots extensions, depot d'essai choisi en haut) */
+const DEPOT_MODE = process.env.SCAN_ECRAN === 'depot';
+const ECRAN = DEPOT_MODE ? 'doventeendepot' : 'doventemanager';
+const CTRL = DEPOT_MODE ? 'VenteEnDepotCtr' : 'VenteCtr';
+const DEPOT = 'E2E-SCAN-DEPOT';
+const NOM_DEPOT = 'DEPOT E2E SCAN';
 const CHAMP = ECRAN + ' #contenu [xtype=fieldcontainer] #produit';
 const QD = ECRAN + ' #contenu [xtype=fieldcontainer] #qtyField';
 /* temps de reponse du serveur (ms) pour la recherche de la liste, la recherche du code (findone) et l'ajout : de l'heure
@@ -64,12 +69,21 @@ function retirerVentes() {
 
 function nettoyer() {
   try { retirerVentes(); } catch (e) { console.log('Retrait des ventes incomplet : ' + String(e.message).split('\n').pop()); }
-  q("DELETE FROM t_resume_caisse WHERE ld_CAISSE_ID = '" + CAISSE + "'");
+  q("DELETE FROM t_resume_caisse WHERE ld_CAISSE_ID = '" + CAISSE + "';"
+    + " DELETE FROM t_famille_stock WHERE lg_FAMILLE_STOCK_ID LIKE '" + DEPOT + "%'; DELETE FROM t_emplacement WHERE lg_EMPLACEMENT_ID = '" + DEPOT + "'");
   ARTICLES.forEach((a) => q("UPDATE t_famille_stock SET int_NUMBER_AVAILABLE = " + a.dispo + ", int_NUMBER = " + a.total
     + " WHERE lg_EMPLACEMENT_ID = '1' AND lg_FAMILLE_ID = '" + a.id + "'"));
 }
 
 function poser() {
+  if (DEPOT_MODE) {
+    const compte = q("SELECT lg_COMPTE_CLIENT_ID FROM t_compte_client LIMIT 1");
+    q("INSERT INTO t_emplacement (lg_EMPLACEMENT_ID, lg_COMPTE_CLIENT_ID, str_NAME, str_DESCRIPTION, str_LOCALITE, str_FIRST_NAME, str_LAST_NAME,"
+      + " str_PHONE, dt_CREATED, dt_UPDATED, str_STATUT, lg_TYPEDEPOT_ID, bool_SAME_LOCATION) VALUES ('" + DEPOT + "', '" + compte + "', '" + NOM_DEPOT + "',"
+      + " 'E2E', 'E2E', 'E2E', 'E2E', '0000000000', NOW(), NOW(), 'enable', '2', 0)");
+    ARTICLES.forEach((a, i) => q("INSERT INTO t_famille_stock (lg_FAMILLE_STOCK_ID, lg_FAMILLE_ID, int_NUMBER, int_NUMBER_AVAILABLE, dt_CREATED, dt_UPDATED,"
+      + " lg_EMPLACEMENT_ID, str_STATUT, int_UG, VERSION) VALUES ('" + DEPOT + "-" + i + "', '" + a.id + "', 500, 500, NOW(), NOW(), '" + DEPOT + "', 'enable', 0, 0)"));
+  }
   const user = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
   if (q("SELECT COUNT(*) FROM t_resume_caisse WHERE lg_USER_ID = '" + user + "' AND str_STATUT = 'is_Using'") === '0') {
     q("INSERT INTO t_resume_caisse (ld_CAISSE_ID, lg_USER_ID, int_SOLDE_MATIN, int_SOLDE_SOIR, dt_DAY, dt_CREATED, lg_CREATED_BY, dt_UPDATED,"
@@ -96,7 +110,7 @@ function quantiteEnVente(venteId, produitId) {
   return Number(q("SELECT IFNULL(SUM(int_QUANTITY), 0) FROM t_preenregistrement_detail WHERE lg_PREENREGISTREMENT_ID = '" + venteId
     + "' AND lg_FAMILLE_ID = '" + produitId + "'"));
 }
-const venteCourante = (p) => p.evaluate(() => { const v = testextjs.app.getController('VenteCtr').getCurrent(); return v ? v.lgPREENREGISTREMENTID : null; });
+const venteCourante = (p) => p.evaluate((c) => { const v = testextjs.app.getController(c).getCurrent(); return v ? v.lgPREENREGISTREMENTID : null; }, CTRL);
 
 let delais = {};
 /* rechargement des lignes de la vente (../vente/deatails) retenu jusqu'au signal du test */
@@ -166,9 +180,18 @@ async function scanner(p, article) {
     ok('Jeu d\'essai : deux articles simples en stock, CIP sans homonyme', ARTICLES.length === 2, ARTICLES.map((a) => a.cip).join(' '));
     poser();
     await vues.connexion(p, ENV_E2E.LOGIN, 'e2etest');
-    await ouvrirEcran(p, 'cloturerventemanager');
-    await visible(p, 'cloturerventemanager #addBtn');
-    await vues.cliquer(p, 'cloturerventemanager #addBtn');
+    if (DEPOT_MODE) {
+      await ouvrirEcran(p, 'depotextension');
+      await visible(p, 'depotextension #depotEcran');
+      await p.waitForTimeout(1500);
+      await vues.choisir(p, 'depotextension #depotEcran', NOM_DEPOT);
+      await p.waitForFunction((d) => testextjs.app.getController('VenteEnDepotCtr').depotIdDeVente() === d, DEPOT, { timeout: 15000 });
+      ok('Vente en dépôt : le dépôt d\'essai est choisi', true);
+    } else {
+      await ouvrirEcran(p, 'cloturerventemanager');
+      await visible(p, 'cloturerventemanager #addBtn');
+      await vues.cliquer(p, 'cloturerventemanager #addBtn');
+    }
     await visible(p, CHAMP);
     await p.waitForTimeout(1500);
     const [A, B] = ARTICLES;
@@ -305,6 +328,11 @@ async function scanner(p, article) {
     perdus.forEach((x) => console.log('   scan perdu n° ' + x.scan + ' (' + x.cip + ', quantité +' + x.ajoute + ') : ' + JSON.stringify(x.etat) + '\n      ' + x.chrono.join('\n      ')));
     ok('Rafale de ' + N + ' scans, appels retardés jusqu\'à ' + max + ' ms : aucun scan perdu', perdus.length === 0,
       perdus.length + ' perdu(s) : n° ' + perdus.map((x) => x.scan).join(', ') + ' ; secondes Entrées ' + secondes);
+    if (DEPOT_MODE) {
+      const lieux = ventes.length ? q("SELECT IFNULL(GROUP_CONCAT(DISTINCT IFNULL(lg_EMPLACEMENT_VENTE_ID, '?')), '') FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID IN ('"
+        + ventes.join("','") + "')") : '';
+      ok('Vente en dépôt : la vente est bien sur le dépôt d\'essai', lieux === DEPOT, lieux);
+    }
     ok('Aucune erreur JavaScript', erreurs.length === 0, erreurs.join(' | '));
   } catch (e) {
     await p.screenshot({ path: ENV_E2E.TMP + '/scan-pendant-recherche-echec.png' }).catch(() => {});
