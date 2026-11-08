@@ -53,6 +53,11 @@ async function onglet(p, titre) {
 async function cliquerEtAttendre(p, requete, morceauUrl) {
   const r = p.waitForResponse((x) => x.url().indexOf(morceauUrl) >= 0, { timeout: 180000 });
   await vues.cliquer(p, requete);
+  /* retour 10 du 08/11 : donnees deja lues -> confirmation dans le bouton (« Déjà lu le … : relire ? ») : second clic */
+  await p.waitForTimeout(400);
+  if (await p.evaluate((sel) => { const c = Ext.ComponentQuery.query(sel)[0]; return !!c && !!c.getText && /relire \?/.test(c.getText()); }, requete)) {
+    await vues.cliquer(p, requete);
+  }
   const rep = await r;
   await p.waitForTimeout(600);
   return rep.json().catch(() => ({}));
@@ -60,21 +65,30 @@ async function cliquerEtAttendre(p, requete, morceauUrl) {
 
 /* Garde (incident du 08/11) : avec des comptes reels en base, l'ecran s'y connecte seul ; le test n'est accepte que si
  * toutes les sources visent 127.0.0.1 (garde-extranets.js). Ce test n'efface aucun compte (seulement la session collee). */
-require('./garde-extranets').verifier(q, ENV_E2E.BASE, ENV_E2E.PAYARA_DOMAINE);
+const garde = require('./garde-extranets');
+garde.verifier(q, ENV_E2E.BASE, ENV_E2E.PAYARA_DOMAINE);
+/* compte Ubipharm reel en base : l'ecran s'y reconnecte seul ; sa page de connexion (vrai site) est refusee avant envoi */
+const compteReel = q("SELECT COUNT(*) FROM extranet_compte WHERE source = 'UBIPHARM'") !== '0';
 
 (async () => {
   const srv = await faux.demarrer(18765);
   const navigateur = await ENV_E2E.lancer(chromium);
-  const p = await (await navigateur.newContext()).newPage();
+  const p = await (await navigateur.newContext({ viewport: { width: 1600, height: 950 } })).newPage();
   const premiereCollecte = Number(q('SELECT IFNULL(MAX(id), 0) + 1 FROM extranet_collecte'));
   const avant = compter(TABLES);
   const metierAvant = empreinteMetier();
+  const debut = q("SELECT DATE_FORMAT(NOW(), '%Y-%m-%d %H:%i:%s')");
+  const journalTotal = q('SELECT COUNT(*) FROM t_event_log');
+  /* donnees d'extranet deja gardees (lues sur les vrais sites) : copiees avant, remises a l'identique apres */
+  const caches = garde.sauver(q, TABLES);
   let fichierPdf = null;
   try {
     await vues.connexion(p, ENV_E2E.LOGIN, 'e2etest');
     await vues.ouvrirMenu(p, 'GESTION DES COMMANDES', 'Extranets grossistes');
     await p.waitForFunction(() => Ext.ComponentQuery.query('extranetsgrossistes')[0], null, { timeout: 60000 });
+    await p.mouse.move(1200, 600);
     await p.waitForTimeout(1500);
+    await onglet(p, 'Sessions');
 
     /* ---- session : saisie par l'administrateur, jamais reaffichee */
     ok('session : « Non connecté » au départ', (await texte(p, '#exEtatUBIPHARM')).indexOf('État : Non connecté') >= 0, await texte(p, '#exEtatUBIPHARM'));
@@ -188,8 +202,10 @@ require('./garde-extranets').verifier(q, ENV_E2E.BASE, ENV_E2E.PAYARA_DOMAINE);
     const nvAvant = q('SELECT COUNT(*) FROM extranet_nouveau_produit');
     srv.etat.mode = 'expire';
     const re = await cliquerEtAttendre(p, ECRAN + ' #exNouveauxCollecter', '/nouveaux/collecte');
-    ok('expiration : reconnue (page de connexion en 200)', re.success === false && re.nature === 'SESSION_EXPIREE', JSON.stringify(re).slice(0, 200));
-    ok('expiration : message dans l\'onglet', (await texte(p, '#exNouveauxMsg')).indexOf('Sessions') >= 0, await texte(p, '#exNouveauxMsg'));
+    ok('expiration : reconnue (page de connexion en 200)' + (compteReel ? ', compte réel : reconnexion vers un autre site refusée' : ''),
+      re.success === false && (compteReel ? re.nature === 'CONNEXION_REFUSEE' && /autre site/.test(re.msg) : re.nature === 'SESSION_EXPIREE'),
+      JSON.stringify(re).slice(0, 200));
+    ok('expiration : message dans l\'onglet', (await texte(p, '#exNouveauxMsg')).indexOf(compteReel ? 'refusé' : 'Sessions') >= 0, await texte(p, '#exNouveauxMsg'));
     ok('expiration : cache précédent gardé', q('SELECT COUNT(*) FROM extranet_nouveau_produit') === nvAvant);
     await onglet(p, 'Sessions');
     await p.waitForTimeout(800);
@@ -232,6 +248,12 @@ require('./garde-extranets').verifier(q, ENV_E2E.BASE, ENV_E2E.PAYARA_DOMAINE);
     ok('nettoyage : fichier PDF du test retiré du disque', !fichierPdf || !fs.existsSync(fichierPdf), fichierPdf);
     const apres = compter(TABLES);
     ok('nettoyage : tables extranet revenues à leur état de départ', JSON.stringify(avant) === JSON.stringify(apres), JSON.stringify(apres));
+    const ecartsCaches = garde.restaurer(q, TABLES, caches);
+    ok('nettoyage : données d’extranet gardées remises à l’identique (CHECKSUM)', ecartsCaches.length === 0, JSON.stringify(ecartsCaches));
+    /* connexion de l'utilisateur d'essai : trace du test, retiree */
+    q("DELETE FROM t_event_log WHERE dt_CREATED >= '" + debut + "' AND lg_USER_ID = (SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '"
+      + ENV_E2E.LOGIN.replace(/'/g, "''") + "') AND str_TABLE_CONCERN = 'dal.TUser'");
+    ok('bilan : journal des événements revenu à son nombre de lignes de départ', q('SELECT COUNT(*) FROM t_event_log') === journalTotal);
     await p.evaluate(() => fetch('../api/v1/extranet/sessions/UBIPHARM', { method: 'DELETE' })).catch(() => {});
     await navigateur.close();
     await srv.arreter();

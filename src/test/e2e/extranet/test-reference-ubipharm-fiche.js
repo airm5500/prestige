@@ -31,7 +31,10 @@ const RESTE = "CONCAT_WS('|', str_NAME, int_CIP, int_PRICE, int_PAF, IFNULL(int_
 
 /* Garde (incident du 08/11) : avec des comptes reels en base, l'ecran s'y connecte seul ; le test n'est accepte que si
  * toutes les sources visent 127.0.0.1 (garde-extranets.js). Ce test n'efface aucun compte (seulement la session collee). */
-require('./garde-extranets').verifier(q, ENV_E2E.BASE, ENV_E2E.PAYARA_DOMAINE);
+const garde = require('./garde-extranets');
+garde.verifier(q, ENV_E2E.BASE, ENV_E2E.PAYARA_DOMAINE);
+/* donnees d'extranet deja gardees (lues sur les vrais sites) : copiees avant, remises a l'identique apres */
+const CACHES = ['extranet_collecte', 'extranet_nouveau_produit', 'extranet_nouveau_produit_agence'];
 
 (async () => {
   const [P, cip, nom] = q("SELECT CONCAT_WS('|', f.lg_FAMILLE_ID, f.int_CIP, f.str_NAME) FROM t_famille f WHERE f.str_STATUT = 'enable'"
@@ -43,6 +46,13 @@ require('./garde-extranets').verifier(q, ENV_E2E.BASE, ENV_E2E.PAYARA_DOMAINE);
   const grossisteAvant = q('CHECKSUM TABLE t_famille_grossiste');
   const autresAvant = q("SELECT COUNT(*) FROM t_famille WHERE str_PSCODE IS NOT NULL");
   const premiereCollecte = Number(q('SELECT IFNULL(MAX(id), 0) + 1 FROM extranet_collecte'));
+  /* le declencheur de t_famille date chaque UPDATE et ajoute une ligne d'historique : date et historique remis apres */
+  const majAvant = q("SELECT IFNULL(DATE_FORMAT(dt_UPDATED, '%Y-%m-%d %H:%i:%s'), 'NULL') FROM t_famille WHERE lg_FAMILLE_ID = '" + P + "'");
+  const histoMax = q('SELECT IFNULL(MAX(lg_ID), 0) FROM t_famille_history');
+  const histoAvant = q("SELECT COUNT(*) FROM t_famille_history WHERE lg_FAMILLE_ID = '" + P + "'");
+  const debut = q("SELECT DATE_FORMAT(NOW(), '%Y-%m-%d %H:%i:%s')");
+  const journalTotal = q('SELECT COUNT(*) FROM t_event_log');
+  const caches = garde.sauver(q, CACHES);
   const srv = await faux.demarrer(18765);
   const navigateur = await ENV_E2E.lancer(chromium);
   const p = await (await navigateur.newContext({ viewport: { width: 1600, height: 950 } })).newPage();
@@ -58,13 +68,22 @@ require('./garde-extranets').verifier(q, ENV_E2E.BASE, ENV_E2E.PAYARA_DOMAINE);
     /* ---- cache des nouveaux produits (FAIR248 en fait partie), par l'ecran des extranets */
     await vues.ouvrirMenu(p, 'GESTION DES COMMANDES', 'Extranets grossistes');
     await p.waitForFunction(() => Ext.ComponentQuery.query('extranetsgrossistes')[0], null, { timeout: 60000 });
+    await p.mouse.move(1200, 600);
     await p.waitForTimeout(1500);
+    /* saisie dans l'onglet Sessions (retour 5 du 08/11) */
+    await vues.cliquer(p, 'extranetsgrossistes #exOnglets tab[text=Sessions]');
+    await p.waitForTimeout(400);
     await vues.saisir(p, 'extranetsgrossistes #exCookieUBIPHARM', srv.COOKIE);
     await vues.cliquer(p, 'extranetsgrossistes #exSaisieUBIPHARM button[text=Enregistrer]');
     await p.waitForTimeout(1200);
     for (const t of ['Ubipharm', 'Produits', 'Nouveaux produits']) { await vues.cliquer(p, 'extranetsgrossistes #exOnglets tab[text=' + t + ']'); await p.waitForTimeout(300); }
     const collecte = p.waitForResponse((x) => x.url().indexOf('/nouveaux/collecte') >= 0, { timeout: 120000 });
     await vues.cliquer(p, 'extranetsgrossistes #exNouveauxCollecter');
+    /* retour 10 du 08/11 : liste deja lue -> confirmation dans le bouton : second clic */
+    await p.waitForTimeout(400);
+    if (await p.evaluate(() => /relire \?/.test(Ext.ComponentQuery.query('extranetsgrossistes #exNouveauxCollecter')[0].getText()))) {
+      await vues.cliquer(p, 'extranetsgrossistes #exNouveauxCollecter');
+    }
     ok('nouveaux produits lus (faux extranet)', (await (await collecte).json()).success === true);
     await p.waitForTimeout(1000);
 
@@ -116,7 +135,20 @@ require('./garde-extranets').verifier(q, ENV_E2E.BASE, ENV_E2E.PAYARA_DOMAINE);
     await ENV_E2E.capture(p, 'reference-ubipharm-erreur').catch(() => {});
   } finally {
     poser(null);
-    q('DELETE FROM extranet_nouveau_produit WHERE collecte_id >= ' + premiereCollecte + '; DELETE FROM extranet_collecte WHERE id >= ' + premiereCollecte);
+    q((majAvant === 'NULL' ? '' : "SET timestamp = UNIX_TIMESTAMP('" + majAvant + "'); ") + 'UPDATE t_famille SET dt_UPDATED = '
+      + (majAvant === 'NULL' ? 'NULL' : "'" + majAvant + "'") + " WHERE lg_FAMILLE_ID = '" + P + "'; SET timestamp = DEFAULT;");
+    q('DELETE FROM t_famille_history WHERE lg_ID > ' + histoMax + " AND lg_FAMILLE_ID = '" + P + "'");
+    q('DELETE FROM extranet_nouveau_produit_agence WHERE produit_id IN (SELECT id FROM extranet_nouveau_produit WHERE collecte_id >= ' + premiereCollecte
+      + '); DELETE FROM extranet_nouveau_produit WHERE collecte_id >= ' + premiereCollecte + '; DELETE FROM extranet_collecte WHERE id >= ' + premiereCollecte);
+    const ecartsCaches = garde.restaurer(q, CACHES, caches);
+    ok('nettoyage : données d’extranet gardées remises à l’identique (CHECKSUM)', ecartsCaches.length === 0, JSON.stringify(ecartsCaches));
+    q("DELETE FROM t_event_log WHERE dt_CREATED >= '" + debut + "' AND lg_USER_ID = (SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '"
+      + ENV_E2E.LOGIN.replace(/'/g, "''") + "') AND str_TABLE_CONCERN = 'dal.TUser'");
+    ok('bilan : journal des événements revenu à son nombre de lignes de départ', q('SELECT COUNT(*) FROM t_event_log') === journalTotal);
+    ok('nettoyage : date de mise à jour et historique de l’article revenus à l’état de départ',
+      q("SELECT IFNULL(DATE_FORMAT(dt_UPDATED, '%Y-%m-%d %H:%i:%s'), 'NULL') FROM t_famille WHERE lg_FAMILLE_ID = '" + P + "'") === majAvant
+      && q("SELECT COUNT(*) FROM t_famille_history WHERE lg_FAMILLE_ID = '" + P + "'") === histoAvant
+      && q('SELECT COUNT(*) FROM t_famille_history WHERE lg_ID > ' + histoMax) === '0');
     await p.evaluate(() => fetch('../api/v1/extranet/sessions/UBIPHARM', { method: 'DELETE' })).catch(() => {});
     ok('nettoyage : article remis à l\'identique', code() === 'NULL' && reste() === resteAvant);
     await navigateur.close();
