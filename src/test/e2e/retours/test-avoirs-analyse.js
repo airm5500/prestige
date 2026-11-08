@@ -88,7 +88,8 @@ function poser() {
         gris: ['#printPdf', '#exporterExcel', '#creerInventaire'].map((s) => e.down(s).isDisabled()) }; });
     ok('Onglet Analyse : 4 tuiles (avoirs, en cours, taux, délai) et les tableaux', ecran.tuiles === 4 && /Taux de clôture/.test(ecran.texte) && /66,7 %/.test(ecran.texte) && /1,5 j/.test(ecran.texte)
       && /Produits le plus souvent en avoir/.test(ecran.texte) && /Ancienneté/.test(ecran.texte) && /Grossiste habituel/.test(ecran.texte) && ecran.produits === 2, ecran.texte.slice(0, 300));
-    ok('Sur l\'analyse : impression, export et inventaire grisés', ecran.gris.every((x) => x), JSON.stringify(ecran.gris));
+    /* plan du 08/11, point 7 : sur l'analyse, « Imprimer » imprime l'analyse (PDF) ; export et inventaire restent grises */
+    ok('Sur l\'analyse : impression active (PDF de l\'analyse), export et inventaire grisés', !ecran.gris[0] && ecran.gris[1] && ecran.gris[2], JSON.stringify(ecran.gris));
     /* retour a la liste : les listes restent inchangees */
     await p.evaluate(() => { const tp = Ext.ComponentQuery.query('venteavoirmanager #avoirTabs')[0]; tp.setActiveTab(tp.down('#tabEnCours')); });
     await p.waitForFunction(() => !Ext.ComponentQuery.query('venteavoirmanager #gridEnCours')[0].getStore().isLoading(), null, { timeout: 30000 });

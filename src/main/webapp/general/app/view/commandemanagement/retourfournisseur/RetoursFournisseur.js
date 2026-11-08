@@ -136,31 +136,32 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.RetoursFournisse
             userId: t.down('#tbUtilisateur').getValue() || ''};
     },
 
-    /* demande du 29/10 (point 1) : impression du tableau affiche (periode et filtres en tete) */
+    /* demande du 29/10 (point 1) : impression du tableau affiche (periode et filtres en tete).
+       Plan du 08/11, point 7 : PDF jrxml (rp_edition_sections) au lieu de l'impression du navigateur. */
     imprimerTableau: function () {
-        var me = this, t = me.tableau, o = me.donnees, enc = Ext.String.htmlEncode;
-        if (!o) {
+        var me = this, t = me.tableau, bouton = t.down('#tbImprimer');
+        if (!me.donnees) {
             return;
         }
-        var filtres = 'Du ' + enc(t.down('#tbDebut').getRawValue()) + ' au ' + enc(t.down('#tbFin').getRawValue())
-                + (t.down('#tbGrossiste').getValue() ? ' · Grossiste : ' + enc(t.down('#tbGrossiste').getRawValue()) : '')
-                + (t.down('#tbUtilisateur').getValue() ? ' · Utilisateur : ' + enc(t.down('#tbUtilisateur').getRawValue()) : '');
-        var css = Ext.Array.map(Ext.query('link[rel=stylesheet]'), function (l) {
-            return '<link rel="stylesheet" href="' + enc(l.href) + '">';
-        }).join('');
-        var w = window.open('', '_blank');
-        if (!w) {
-            return;
-        }
-        w.document.write('<html><head><meta charset="utf-8"><title>Tableau de bord des retours fournisseurs</title>' + css
-                + '<style>body{background:#fff;padding:16px;font-family:Arial,sans-serif}.rf-tableau-impression h2{margin:0 0 4px}</style></head>'
-                + '<body class="rf-tableau-impression"><h2>Tableau de bord des retours fournisseurs</h2><div style="margin-bottom:12px;color:#444">'
-                + filtres + '</div><div class="rf-tableau">' + me.htmlTableau(o) + '</div></body></html>');
-        w.document.close();
-        w.focus();
-        setTimeout(function () {
-            w.print();
-        }, 400);
+        var c = Ext.apply({}, me.criteresAffiches || me.criteresTableau());
+        bouton.setDisabled(true);
+        Ext.Ajax.request({url: '../api/v1/retourfournisseur/tableau-bord/pdf', method: 'GET', params: c, timeout: 240000,
+            success: function (r) {
+                bouton.setDisabled(false);
+                var o = Ext.decode(r.responseText, true) || {};
+                if (o.success && o.url) {
+                    window.open('..' + o.url, '_blank');
+                } else if (window.PrestigeToast) {
+                    PrestigeToast.afficher(o.msg || 'Le PDF n\'a pas pu être généré.', {niveau: 'erreur', titre: 'Impression'});
+                }
+            },
+            failure: function (r) {
+                bouton.setDisabled(false);
+                var o = Ext.decode(r.responseText, true) || {};
+                if (window.PrestigeToast) {
+                    PrestigeToast.afficher(o.msg || ('Le serveur n\'a pas répondu (' + r.status + ').'), {niveau: 'erreur', titre: 'Impression'});
+                }
+            }});
     },
 
     chargerTableau: function () {
@@ -169,6 +170,11 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.RetoursFournisse
             contenu.update('<span style="color:#b42318">La date de début doit précéder la date de fin.</span>');
             return;
         }
+        var gr = t.down('#tbGrossiste'), ut = t.down('#tbUtilisateur'),
+                libelles = Ext.Array.filter([gr.getValue() ? 'Grossiste : ' + gr.getRawValue() : '',
+                    ut.getValue() ? 'Utilisateur : ' + ut.getRawValue() : ''], function (x) {
+                    return !!x;
+                }).join(' · ');
         t.setLoading('Calcul…');
         Ext.Ajax.request({url: '../api/v1/retourfournisseur/tableau-bord', method: 'GET', params: c, timeout: 240000,
             success: function (r) {
@@ -182,6 +188,9 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.RetoursFournisse
                     return;
                 }
                 me.donnees = o;
+                /* plan du 08/11, point 7 : l'impression reprend les criteres du tableau affiche, et le libelle de ses
+                   filtres (grossiste, utilisateur) tel qu'il etait au calcul */
+                me.criteresAffiches = Ext.apply({filtres: libelles}, c);
                 contenu.update(me.htmlTableau(o));
             },
             failure: function (r) {

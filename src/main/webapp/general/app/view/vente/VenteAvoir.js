@@ -207,7 +207,7 @@ Ext.define('testextjs.view.vente.VenteAvoir', {
                         {xtype: 'selecteurgarde'}, '-',
                         {text: 'rechercher', tooltip: 'rechercher', itemId: 'rechercher', scope: this, iconCls: 'searchicon'},
                         '-',
-                        {text: 'Imprimer', tooltip: 'imprimer', scope: this, itemId: 'printPdf', iconCls: 'printable'},
+                        {text: 'Imprimer', tooltip: 'Imprimer la liste affichée, ou l\'analyse sur l\'onglet Analyse', scope: this, itemId: 'printPdf', iconCls: 'printable'},
                         '-',
                         // Retours des tests du 12/09 (point 6) : la liste s'exporte et s'inventorie
                         {text: 'Exporter en excel', tooltip: 'Exporter la liste affichée (filtres actifs) en Excel',
@@ -287,6 +287,8 @@ Ext.define('testextjs.view.vente.VenteAvoir', {
                     return;
                 }
                 me.analyseAvoirs = o;
+                /* plan du 08/11, point 7 : l'impression reprend la periode de l'analyse affichee */
+                me.periodeAnalyse = {dtStart: dtStart, dtEnd: dtEnd};
                 contenu.update(me.htmlAnalyse(o));
             },
             failure: function (r) {

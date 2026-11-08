@@ -190,8 +190,13 @@ Ext.define('testextjs.controller.ListeAvoirCtr', {
     },
 
     printLit: function () {
-        var me = this,
-                statut = me.activeStatut(),
+        var me = this, tabs = me.getAvoirTabs(), actif = tabs && tabs.getActiveTab();
+        /* Plan du 08/11, point 7 : sur l'onglet Analyse, le bouton imprime l'analyse affichee (PDF jrxml) */
+        if (actif && actif.itemId === 'tabAnalyse') {
+            me.imprimerAnalyse();
+            return;
+        }
+        var statut = me.activeStatut(),
                 query = me.getQueryField().getValue(),
                 dtStart = me.getDtStart().getSubmitValue(),
                 dtEnd = me.getDtEnd().getSubmitValue(),
@@ -210,6 +215,32 @@ Ext.define('testextjs.controller.ListeAvoirCtr', {
                 + '&typeVenteId=' + typeVenteId + '&caissierId=' + caissierId + '&statutAvoir=' + statut;
 
         window.open(linkUrl);
+    },
+
+    /* Plan du 08/11, point 7 : PDF de l'analyse, sur la periode de l'analyse affichee (celle de son dernier calcul) */
+    imprimerAnalyse: function () {
+        var ecran = this.getVenteavoirmanager(), p = ecran.periodeAnalyse || this.buildParams('EN_COURS'),
+                bouton = ecran.down('#printPdf');
+        bouton.setDisabled(true);
+        Ext.Ajax.request({
+            method: 'GET', url: '../api/v1/ventestats/avoirs/analyse/pdf', params: {dtStart: p.dtStart, dtEnd: p.dtEnd},
+            timeout: 120000,
+            success: function (r) {
+                bouton.setDisabled(false);
+                var o = Ext.decode(r.responseText, true) || {};
+                if (o.success && o.url) {
+                    window.open('..' + o.url, '_blank');
+                } else if (window.PrestigeToast) {
+                    PrestigeToast.afficher(o.msg || 'Le PDF n\'a pas pu être généré.', {niveau: 'erreur', titre: 'Impression'});
+                }
+            },
+            failure: function (r) {
+                bouton.setDisabled(false);
+                if (window.PrestigeToast) {
+                    PrestigeToast.afficher('Le serveur n\'a pas répondu (' + r.status + ').', {niveau: 'erreur', titre: 'Impression'});
+                }
+            }
+        });
     },
 
     onEdite: function (rec) {
@@ -354,9 +385,10 @@ Ext.define('testextjs.controller.ListeAvoirCtr', {
             return;
         }
         var active = tabs.getActiveTab();
-        /* impression, export et inventaire portent sur les listes, pas sur l'analyse */
+        /* export et inventaire portent sur les listes, pas sur l'analyse ; l'impression vaut pour les deux
+           (plan du 08/11, point 7 : sur l'onglet Analyse, elle imprime l'analyse) */
         var surAnalyse = active && active.itemId === 'tabAnalyse', ecran = this.getVenteavoirmanager();
-        Ext.each(['#printPdf', '#exporterExcel', '#creerInventaire'], function (s) {
+        Ext.each(['#exporterExcel', '#creerInventaire'], function (s) {
             var b = ecran && ecran.down(s);
             if (b) {
                 b.setDisabled(surAnalyse);

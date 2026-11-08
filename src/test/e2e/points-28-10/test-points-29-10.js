@@ -210,11 +210,16 @@ function nettoyer() {
       await tableauPret();
       const un = await lignesUtilisateurs();
       ok('1. Filtre utilisateur du tableau : lui seul, mêmes retours, 100 %', choisi === nom && un.length === 1 && un[0][0] === nom && un[0][1] === nb && /^100\b/.test(un[0][2]), JSON.stringify({ choisi, un }));
-      /* « Imprimer » : page d'impression avec le filtre et le seul utilisateur */
-      const [impression] = await Promise.all([p.context().waitForEvent('page', { timeout: 30000 }).catch(() => null), cliquer(p, 'retoursfournisseur #tbImprimer')]);
-      const imp = impression ? await impression.waitForLoadState().then(() => impression.evaluate(() => ({ titre: document.title, filtre: /Utilisateur :/.test(document.body.innerText),
-        lignes: document.querySelectorAll('table.rf-utilisateurs tr.rf-utilisateur').length }))).catch((e) => ({ erreur: String(e) })) : null;
-      ok('1. « Imprimer » : page du tableau, filtre utilisateur rappelé', imp && /retours fournisseurs/i.test(imp.titre) && imp.filtre && imp.lignes === 1, JSON.stringify(imp));
+      /* « Imprimer » : PDF du tableau (plan du 08/11, point 7 : jrxml au lieu de l'impression du navigateur), filtre
+         utilisateur rappele en tete, sa seule ligne */
+      const [repImp, impression] = await Promise.all([p.waitForResponse((r) => /tableau-bord\/pdf/.test(r.url()), { timeout: 120000 }).catch(() => null),
+        p.context().waitForEvent('page', { timeout: 120000 }).catch(() => null), cliquer(p, 'retoursfournisseur #tbImprimer')]);
+      const oImp = repImp ? await repImp.json().catch(() => ({})) : {};
+      const fImp = oImp.url ? require('../support/editions').fichierEdition(oImp.url) : '';
+      const tImp = fImp && fs.existsSync(fImp) ? execFileSync('pdftotext', ['-raw', fImp, '-'], { encoding: 'utf8' }).replace(/\s+/g, ' ') : '';
+      const imp = { url: oImp.url, titre: /TABLEAU DE BORD DES RETOURS FOURNISSEURS/.test(tImp), filtre: tImp.includes('Utilisateur : ' + nom),
+        ligne: tImp.includes(nom + ' ' + un[0][1] + ' ') };
+      ok('1. « Imprimer » : PDF du tableau, filtre utilisateur rappelé, sa ligne', imp.titre && imp.filtre && imp.ligne && /\.pdf$/.test(imp.url || ''), JSON.stringify(imp));
       if (impression) { await impression.close().catch(() => {}); }
       /* « Export Excel » : classeur telecharge */
       const telechargement = new Promise((res) => {
