@@ -299,6 +299,56 @@ public class SuggestionReserveRessource {
         return Response.ok().entity(suggestionReserveService.supprimerLigne(user, detailId, motif).toString()).build();
     }
 
+    /**
+     * Plan du 08/11, point 9a : suppression des suggestions cochees, avec un seul motif. Corps : {@code {ids:[...],
+     * motif}}. Chaque suggestion passe par la meme regle que la suppression unitaire (motif obligatoire, refus des
+     * suggestions traitees, annulees, deja supprimees ou ouvertes par un autre poste), dans sa propre transaction : une
+     * suggestion refusee n'empeche pas la suppression des autres. Reponse : nombre supprime et refus detailles.
+     */
+    @POST
+    @Path("supprimer-selection")
+    public Response supprimerSelection(String body) throws JSONException {
+        Response refusDroit = Droits.refus(servletRequest, "Traiter la réserve", "P_TRAITER_RESERVE", "P_SM_RESERVE");
+        if (refusDroit != null) {
+            return refusDroit;
+        }
+        TUser user = currentUser();
+        if (user == null) {
+            return deconnecte();
+        }
+        JSONObject in = new JSONObject(body == null || body.trim().isEmpty() ? "{}" : body);
+        String motif = in.optString("motif", "").trim();
+        JSONArray ids = in.optJSONArray("ids");
+        JSONObject res = new JSONObject();
+        if (motif.isEmpty()) {
+            return Response.ok().entity(
+                    res.put("success", false).put("message", "Le motif de la suppression est obligatoire.").toString())
+                    .build();
+        }
+        if (ids == null || ids.length() == 0) {
+            return Response.ok()
+                    .entity(res.put("success", false).put("message", "Aucune suggestion cochée.").toString()).build();
+        }
+        int supprimees = 0;
+        JSONArray refus = new JSONArray();
+        java.util.Set<String> vus = new java.util.LinkedHashSet<>();
+        for (int i = 0; i < ids.length(); i++) {
+            String id = ids.optString(i, "");
+            if (id.isEmpty() || !vus.add(id)) {
+                continue;
+            }
+            JSONObject r = suggestionReserveService.supprimerSuggestion(user, id, motif);
+            if (r.optBoolean("success", false)) {
+                supprimees++;
+            } else {
+                refus.put(new JSONObject().put("id", id).put("message", r.optString("message", "")));
+            }
+        }
+        return Response.ok()
+                .entity(res.put("success", supprimees > 0).put("supprimees", supprimees).put("refus", refus).toString())
+                .build();
+    }
+
     /** Supprime une suggestion. Refuse des qu'une ligne a deja ete traitee. */
     @DELETE
     @Path("{id}")

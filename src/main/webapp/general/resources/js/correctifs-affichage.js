@@ -2478,7 +2478,49 @@ window.PrestigeConfirmation = (function () {
             }
         });
     }
-    return {icone: icone, ligne: ligne};
+    /*
+     * Plan du 08/11 : la meme confirmation dans un bouton de barre (Ext.button.Button). Premier clic : le bouton
+     * affiche « texte » en rouge ; second clic (apres 400 ms) : l'action. Sans second clic, il revient au bout de 5 s.
+     *   handler: function (b) { PrestigeConfirmation.bouton(b, 'Confirmer : supprimer 3 ?', function () { ... }); }
+     */
+    function bouton(btn, texte, action) {
+        if (!btn || btn.isDestroyed) {
+            return;
+        }
+        var etat = btn.prestigeConfirmation;
+        if (etat) {
+            if (Date.now() - etat.ouvert < GARDE) {
+                return;
+            }
+            clearTimeout(etat.minuterie);
+            rendreBouton(btn);
+            action();
+            return;
+        }
+        btn.prestigeConfirmation = {ouvert: Date.now(), texte: btn.getText(), minuterie: setTimeout(function () {
+                rendreBouton(btn);
+            }, DELAI)};
+        btn.setText(texte || 'Confirmer ?');
+        btn.addCls('prestige-confirmer-bouton');
+        if (btn.getEl()) {
+            btn.getEl().setStyle({background: '#c0392b', borderColor: '#c0392b'});
+            btn.getEl().select('.x-btn-inner').setStyle('color', '#fff');
+        }
+    }
+    function rendreBouton(btn) {
+        var etat = btn.prestigeConfirmation;
+        if (!etat || btn.isDestroyed) {
+            return;
+        }
+        btn.prestigeConfirmation = null;
+        btn.removeCls('prestige-confirmer-bouton');
+        if (btn.getEl()) {
+            btn.getEl().setStyle({background: '', borderColor: ''});
+            btn.getEl().select('.x-btn-inner').setStyle('color', '');
+        }
+        btn.setText(etat.texte);
+    }
+    return {icone: icone, ligne: ligne, bouton: bouton};
 })();
 
 /*

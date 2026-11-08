@@ -173,7 +173,12 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
             {text: 'Rechercher', scope: me, handler: me.onRechercher},
             {text: 'Reinitialiser', scope: me, handler: me.onReinitialiser},
             '-',
-            {text: 'Creer un inventaire', scope: me, handler: me.onCreateInventaireLibre}
+            {text: 'Creer un inventaire', scope: me, handler: me.onCreateInventaireLibre},
+            '-',
+            /* Plan du 08/11, point 9a : suppression des suggestions cochees, un seul motif, confirmation dans le bouton */
+            {xtype: 'textfield', itemId: 'fMotifSuppression', emptyText: 'Motif de suppression', width: 190, maxLength: 500},
+            {text: 'Supprimer la sélection', itemId: 'btnSupprimerSelection', disabled: true, scope: me,
+                handler: me.onSupprimerSelection}
         ];
 
         // Boutons a icone, sur le meme modele que la suppression.
@@ -294,7 +299,15 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
                         return v;
                     }
                 },
-                {header: 'Creee le', dataIndex: 'dt_CREATED', width: 135},
+                {header: 'Creee le', dataIndex: 'dt_CREATED', width: 150,
+                    /* Plan du 08/11, point 9b : une suggestion encore a traiter reste affichee quelle que soit la periode
+                       (retour du 03/11) ; si elle est anterieure a la periode choisie, elle le dit. */
+                    renderer: function (v, m, rec) {
+                        return me.estAnterieure(rec) ? Ext.String.htmlEncode(v || '')
+                                + ' <span class="sugg-ancienne" data-qtip="Encore à traiter : affichée quelle que soit la période choisie."'
+                                + ' style="background:#fde7c8;color:#8a4b00;border-radius:3px;padding:0 4px;font-size:10px;font-weight:bold">ancienne</span>'
+                                : Ext.String.htmlEncode(v || '');
+                    }},
                 {
                     header: 'Sens du mouvement', dataIndex: 'str_CATEGORIE', flex: 1, minWidth: 200,
                     renderer: function (v, m) {
@@ -361,11 +374,95 @@ Ext.define('testextjs.view.stockmanagement.reserve.SuggestionsGrid', {
             listeners: {
                 itemdblclick: function (g, rec) {
                     me.ouvrir(rec);
+                },
+                selectionchange: function () {
+                    me.majBoutonSuppression();
                 }
             }
         });
 
         me.callParent();
+        me.getStore().on('load', me.majBoutonSuppression, me);
+    },
+
+    /** Suggestion encore ouverte, creee avant le debut de la periode filtree. */
+    estAnterieure: function (rec) {
+        var debut = this.down('#fDebut'), d = debut && debut.getValue(), v = rec.get('dt_CREATED') || '',
+                m = /^(\d{2})\/(\d{2})\/(\d{4})/.exec(v), s = rec.get('str_STATUT');
+        if (!d || !m || (s !== 'A_TRAITER' && s !== 'EN_COURS')) {
+            return false;
+        }
+        return new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1])) < Ext.Date.clearTime(d, true);
+    },
+
+    /** Suggestions cochees qu'on peut encore supprimer (ni traitee, ni supprimee, ni annulee). */
+    selectionSupprimable: function () {
+        return Ext.Array.filter(this.getSelectionModel().getSelection() || [], function (r) {
+            var s = r.get('str_STATUT');
+            return s !== 'TRAITEE' && s !== 'SUPPRIMEE' && s !== 'ANNULEE';
+        });
+    },
+
+    majBoutonSuppression: function () {
+        var b = this.down('#btnSupprimerSelection'), n = this.selectionSupprimable().length;
+        if (!b || b.prestigeConfirmation) {
+            return;
+        }
+        b.setText(n > 0 ? 'Supprimer la sélection (' + n + ')' : 'Supprimer la sélection');
+        b.setDisabled(n === 0);
+    },
+
+    /**
+     * Plan du 08/11, point 9a. Premier clic : le bouton demande la confirmation (« Confirmer : supprimer n ? »),
+     * second clic : suppression. Motif obligatoire, saisi dans la barre (aucune fenetre surgissante).
+     */
+    onSupprimerSelection: function (bouton) {
+        var me = this, champ = me.down('#fMotifSuppression'), motif = Ext.String.trim(champ.getValue() || ''),
+                lignes = me.selectionSupprimable();
+        if (!lignes.length) {
+            return;
+        }
+        if (!motif) {
+            champ.markInvalid('Motif obligatoire : il restera le seul moyen de savoir pourquoi ces suggestions ont disparu.');
+            champ.focus(false, 20);
+            return;
+        }
+        if (motif.length > 500) {
+            champ.markInvalid('500 caractères maximum (saisi : ' + motif.length + ').');
+            return;
+        }
+        PrestigeConfirmation.bouton(bouton, 'Confirmer : supprimer ' + lignes.length + ' ?', function () {
+            Ext.Ajax.request({
+                method: 'POST', url: '../api/v1/suggestion-reserve/supprimer-selection',
+                jsonData: {ids: Ext.Array.map(lignes, function (r) {
+                        return r.get('lg_SUGGESTION_RESERVE_ID');
+                    }), motif: motif},
+                success: function (rep) {
+                    var o = Ext.JSON.decode(rep.responseText, true) || {}, refus = o.refus || [],
+                            msg = (o.supprimees || 0) + ' suggestion(s) supprimée(s)' + (refus.length ? ', ' + refus.length + ' refusée(s) : '
+                            + Ext.Array.map(refus, function (x) {
+                                var r = me.getStore().findRecord('lg_SUGGESTION_RESERVE_ID', x.id, 0, false, true, true);
+                                return (r ? r.get('str_REF') + ' - ' : '') + x.message;
+                            }).join(' ; ') : '') + '.';
+                    if (!o.supprimees && !refus.length) {
+                        msg = o.message || 'Suppression impossible.';
+                    }
+                    me.dernierBilanSuppression = msg;
+                    if (window.PrestigeToast) {
+                        PrestigeToast.afficher(msg, {niveau: refus.length || !o.supprimees ? 'alerte' : 'ok', titre: 'Suppression'});
+                    }
+                    champ.setValue('');
+                    me.getSelectionModel().deselectAll();
+                    me.reloadGrid();
+                },
+                failure: function () {
+                    me.dernierBilanSuppression = 'Suppression impossible.';
+                    if (window.PrestigeToast) {
+                        PrestigeToast.afficher('Suppression impossible.', {niveau: 'alerte', titre: 'Suppression'});
+                    }
+                }
+            });
+        });
     },
 
     /** Applique les filtres actifs puis recharge depuis la premiere page. */
