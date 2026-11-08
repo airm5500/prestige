@@ -299,6 +299,17 @@ public class ExtranetRessource {
         return r != null ? r : ok(service.rapprocherNouveaux());
     }
 
+    /**
+     * Retour 6 du 08/11 : enregistre le PSCODE sur les fiches retrouvees sans ambiguite par CIP / EAN 13 (fiche encore
+     * sans reference Ubipharm) ; une ligne de journal par fiche.
+     */
+    @POST
+    @Path("ubipharm/nouveaux/pscode")
+    public Response enregistrerPscode() {
+        Response r = refus();
+        return r != null ? r : ok(service.enregistrerPscodeNouveaux(Droits.utilisateur(requete)));
+    }
+
     /* ============================================================ Ubipharm : listes de l'onglet */
 
     @GET
@@ -416,6 +427,61 @@ public class ExtranetRessource {
             return ok(new JSONObject().put("success", false).put("msg", e.getMessage()));
         }
         return ok(service.collecterListeDpci(code, login(), periode));
+    }
+
+    /* ============================================================ lectures en arriere-plan (08/11) */
+
+    @javax.ejb.EJB
+    private rest.service.extranet.LecturesExtranet lectures;
+
+    /**
+     * Lance la lecture d'une liste en arriere-plan et rend la main tout de suite ; si une lecture de cette liste tourne
+     * deja (autre clic, autre poste), la suit au lieu d'en lancer une autre. Periode (du, au) : DPCI seulement.
+     */
+    @POST
+    @Path("lectures/{famille}/{code}")
+    public Response lancerLecture(@PathParam("famille") String famille, @PathParam("code") String code,
+            @QueryParam("du") String du, @QueryParam("au") String au) {
+        Response r = refus();
+        if (r != null) {
+            return r;
+        }
+        String f = famille == null ? "" : famille.trim().toLowerCase(java.util.Locale.ROOT);
+        if (!rest.service.extranet.LecturesExtranet.familleConnue(f) || code == null
+                || !code.trim().matches("[A-Za-z0-9_]{1,40}")) {
+            return ok(new JSONObject().put("success", false).put("msg", "Liste inconnue"));
+        }
+        rest.service.extranet.commun.Periode periode;
+        try {
+            periode = "dpci".equals(f) ? rest.service.extranet.commun.Periode.lire(du, au) : null;
+        } catch (IllegalArgumentException e) {
+            return ok(new JSONObject().put("success", false).put("msg", e.getMessage()));
+        }
+        rest.service.extranet.commun.EtatLectures etat = rest.service.extranet.commun.EtatLectures.duServeur();
+        String cle = rest.service.extranet.commun.EtatLectures.cle(f, code);
+        rest.service.extranet.commun.EtatLectures.Lecture l = etat.demarrer(cle, login());
+        boolean lancee = l != null;
+        if (lancee) {
+            lectures.lire(l, f, code.trim().toUpperCase(java.util.Locale.ROOT), login(), periode);
+        }
+        rest.service.extranet.commun.EtatLectures.Lecture suivie = etat.etat(cle);
+        return ok(new JSONObject().put("success", true).put("lancee", lancee).put("lecture",
+                suivie == null ? JSONObject.NULL : suivie.toJson(etat.maintenant())));
+    }
+
+    /** Etat de la lecture d'une liste : en cours (depuis combien de secondes), finie (avec son resultat), ou aucune. */
+    @GET
+    @Path("lectures/{famille}/{code}")
+    public Response etatLecture(@PathParam("famille") String famille, @PathParam("code") String code) {
+        Response r = refus();
+        if (r != null) {
+            return r;
+        }
+        rest.service.extranet.commun.EtatLectures etat = rest.service.extranet.commun.EtatLectures.duServeur();
+        rest.service.extranet.commun.EtatLectures.Lecture l = etat
+                .etat(rest.service.extranet.commun.EtatLectures.cle(famille, code));
+        return ok(new JSONObject().put("success", true).put("lecture",
+                l == null ? JSONObject.NULL : l.toJson(etat.maintenant())));
     }
 
     /* ============================================================ Mayite : specialites et monographies */

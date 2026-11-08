@@ -57,7 +57,10 @@ function lignesReappro(n) {
 function demarrer(port) {
   /* cookieAttendu : session reconnue ; cookieDonne : session ouverte par le prochain POST /Login reussi */
   const etat = { mode: 'normal', appels: [], reappro: lignesReappro(61), cookieAttendu: COOKIE, cookieDonne: COOKIE, connexions: [], listes: listes.generer() };
-  const serveur = http.createServer((req, res) => {
+  /* etat.retardMs : chaque GET repond apres ce delai (lecture longue simulee, 08/11) */
+  const serveur = http.createServer((req, res) => (etat.retardMs && req.method === 'GET'
+    ? setTimeout(() => traiter(req, res), etat.retardMs) : traiter(req, res)));
+  function traiter(req, res) {
     const u = new URL(req.url, 'http://127.0.0.1');
     etat.appels.push({ methode: req.method, chemin: u.pathname, requete: u.search, cookie: req.headers.cookie || '' });
     const envoyer = (statut, type, corps) => { res.writeHead(statut, { 'Content-Type': type }); res.end(corps); };
@@ -108,7 +111,7 @@ function demarrer(port) {
       default:
         return envoyer(404, 'text/plain', 'absent');
     }
-  });
+  }
   return new Promise((ok) => serveur.listen(port, '127.0.0.1', () => ok({
     etat, COOKIE, IDENTIFIANT, MOT_DE_PASSE, PDF, sha256Pdf: crypto.createHash('sha256').update(PDF).digest('hex'),
     arreter: () => new Promise((f) => serveur.close(f))

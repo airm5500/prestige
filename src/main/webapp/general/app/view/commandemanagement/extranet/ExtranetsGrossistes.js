@@ -229,6 +229,27 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
         });
     },
 
+    /** Appel sans masque (suivi d'une lecture en arrière-plan : l'onglet reste utilisable). */
+    appelDiscret: function (methode, url, rappel) {
+        var me = this;
+        Ext.Ajax.request({
+            method: methode, url: me.URL + url, timeout: 60000,
+            success: function (rep) {
+                rappel(Ext.decode(rep.responseText, true) || {success: false, msg: 'Réponse illisible'});
+            },
+            failure: function (rep) {
+                var r = Ext.decode(rep.responseText, true) || {};
+                rappel({success: false, msg: r.msg || ('Erreur ' + rep.status)});
+            }
+        });
+    },
+
+    /** Durée lisible : « 45 s », « 2 min 05 s ». */
+    duree: function (s) {
+        s = Math.max(0, Math.round(s || 0));
+        return s < 60 ? s + ' s' : Math.floor(s / 60) + ' min ' + Ext.String.leftPad(String(s % 60), 2, '0') + ' s';
+    },
+
     /** Message dans la barre de l'onglet (pas de fenêtre). */
     message: function (sel, r, texteOk) {
         var l = this.down(sel);
@@ -962,6 +983,24 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
         me.nouveaux.commitChanges();
     },
 
+    /** Lignes du dernier rapprochement dont la fiche peut recevoir le PSCODE (calculé par le serveur). */
+    nombrePscode: function () {
+        var n = 0;
+        Ext.Object.each(this.rapprochement || {}, function (k, x) {
+            n += x && x.aEnregistrer ? 1 : 0;
+        });
+        return n;
+    },
+
+    majBoutonPscode: function () {
+        var b = this.down('#exEnregistrerPscode'), n = this.nombrePscode();
+        if (b && !b.arme) {
+            b.setDisabled(n === 0);
+            b.setText(n ? 'Enregistrer ' + n + ' PSCODE' : 'Enregistrer les PSCODE');
+            b.texteNormal = b.getText();
+        }
+    },
+
     ongletNouveaux: function () {
         var me = this, statuts = {PSCODE: 'trouvé (référence Ubipharm de la fiche)', CIP: 'trouvé (CIP)',
             PLUSIEURS: 'plusieurs articles', INTROUVABLE: 'absent de Prestige'};
@@ -986,7 +1025,21 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
                                     me.rapprochement = r.success ? parPs : null;
                                     me.appliquerRapprochement();
                                     me.message('#exNouveauxMsg', r, 'Rapprochement fait (aucun article modifié)');
+                                    me.majBoutonPscode();
                                 }, me.down('#exOngletNouveaux'));
+                            }},
+                        {text: 'Enregistrer les PSCODE', itemId: 'exEnregistrerPscode', disabled: true,
+                            tooltip: 'Écrit la référence Ubipharm sur les fiches retrouvées par CIP ou EAN 13, seules '
+                                    + 'et encore sans PSCODE. Le nom seul ne suffit jamais.',
+                            handler: function (b) {
+                                var n = me.nombrePscode();
+                                me.confirmerDansBouton(b, 'Écrire ' + n + ' PSCODE ?', function () {
+                                    me.appel('POST', 'ubipharm/nouveaux/pscode', function (r) {
+                                        me.message('#exNouveauxMsg', r, (r.enregistres || 0) + ' PSCODE enregistré(s)'
+                                                + (r.ignores ? ', ' + r.ignores + ' ambigu(s) laissé(s)' : ''));
+                                        me.down('#exRapprocher').handler();
+                                    }, me.down('#exOngletNouveaux'));
+                                });
                             }},
                         '->', {xtype: 'label', itemId: 'exNouveauxMsg'}, {xtype: 'tbspacer', width: 12},
                         {xtype: 'label', itemId: 'exNouveauxNombre'}, {xtype: 'tbspacer', width: 12},
@@ -1139,16 +1192,84 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
         var racine = code.indexOf('TEDIS_') === 0 ? 'tedis/listes/'
                 : code.indexOf('COPHARMED_') === 0 ? 'copharmed/listes/'
                 : code.indexOf('DPCI_') === 0 ? 'dpci/listes/' : 'ubipharm/listes/';
-        var p = collecter && racine === 'dpci/listes/' ? me.periodeListe(code) : null;
-        me.appel(collecter ? 'POST' : 'GET', racine + code + (collecter ? '/collecte' : '')
-                + (p ? '?du=' + p.du + '&au=' + p.au : ''), function (r) {
+        if (collecter) {
+            me.lancerLecture(code, racine.split('/')[0]);
+            return;
+        }
+        me.appel('GET', racine + code, function (r) {
             if (r.success) {
                 me.afficherListe(code, r);
-            }
-            if (collecter || !r.success) {
+            } else {
                 me.message('#' + id + 'Msg', r, 'Liste lue');
             }
-        }, panneau, collecter ? me.DELAI_COLLECTE : null);
+            me.suivreLecture(code, racine.split('/')[0]);
+        }, panneau, null);
+    },
+
+    /**
+     * Retours 8 et 9 du 08/11 : la lecture tourne sur le serveur ; l'onglet reste utilisable avec la liste gardée et
+     * affiche « Lecture en cours depuis… ». Une lecture déjà lancée (autre clic, autre poste) est suivie, pas relancée.
+     */
+    lancerLecture: function (code, famille) {
+        var me = this, id = 'exListe' + code, p = famille === 'dpci' ? me.periodeListe(code) : null;
+        me.suivies = me.suivies || {};
+        me.suivies[code] = true;
+        me.appelDiscret('POST', 'lectures/' + famille + '/' + code + (p ? '?du=' + p.du + '&au=' + p.au : ''),
+                function (r) {
+                    if (!r.success) {
+                        me.suivies[code] = false;
+                        me.message('#' + id + 'Msg', r);
+                        return;
+                    }
+                    me.etatLecture(code, famille, r.lecture);
+                });
+    },
+
+    /** Interroge l'état de la lecture d'une liste (toutes les 3 s tant qu'elle tourne). */
+    suivreLecture: function (code, famille) {
+        var me = this;
+        if (me.isDestroyed) {
+            return;
+        }
+        me.appelDiscret('GET', 'lectures/' + famille + '/' + code, function (r) {
+            if (r.success) {
+                me.etatLecture(code, famille, r.lecture);
+            }
+        });
+    },
+
+    etatLecture: function (code, famille, l) {
+        var me = this, id = 'exListe' + code, b = me.down('#' + id + 'Collecter'), msg = me.down('#' + id + 'Msg');
+        if (me.isDestroyed || !b) {
+            return;
+        }
+        me.suivies = me.suivies || {};
+        if (l && l.enCours) {
+            me.suivies[code] = true;
+            b.setDisabled(true);
+            b.setText('Lecture en cours…');
+            msg.setText('<span style="color:#2471a3">Lecture sur l\'extranet en cours depuis ' + me.duree(l.secondes)
+                    + ' : la liste gardée reste consultable</span>', false);
+            clearTimeout(me['minuteur' + code]);
+            me['minuteur' + code] = setTimeout(function () {
+                me.suivreLecture(code, famille);
+            }, 3000);
+            return;
+        }
+        b.setDisabled(false);
+        b.setText(b.texteNormal || 'Lire sur l\'extranet');
+        if (l && me.suivies[code]) {
+            me.suivies[code] = false;
+            var r = l.resultat || {};
+            me.message('#' + id + 'Msg', r, 'Liste lue en ' + me.duree(l.secondes));
+            if (r.success) {
+                me.appel('GET', (famille === 'ubipharm' ? 'ubipharm' : famille) + '/listes/' + code, function (x) {
+                    if (x.success) {
+                        me.afficherListe(code, x);
+                    }
+                }, me.down('#' + id), null);
+            }
+        }
     },
 
     afficherListe: function (code, r) {

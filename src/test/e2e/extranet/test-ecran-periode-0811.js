@@ -72,7 +72,9 @@ const LISTES = [
   const erreurs = [];
   p.on('pageerror', (e) => erreurs.push(String(e.message)));
   const interceptees = [];
-  await p.route(/\/collecte(\?|$)/, (route) => {
+  const LECTURE = /\/collecte(\?|$)|\/lectures\//;
+  await p.route(LECTURE, (route) => {
+    if (route.request().method() !== 'POST') { return route.continue(); }
     interceptees.push(route.request().url());
     return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: false, msg: 'Lecture interceptée par le test' }) });
   });
@@ -157,9 +159,9 @@ const LISTES = [
     await vues.cliquer(p, ECRAN + ' #exListeDPCI_COMMANDESCollecter');
     await p.waitForTimeout(1500);
     const url = interceptees.slice(avant)[0] || '';
-    ok('DPCI : « Lire sur l\'extranet » envoie du=2026-11-01 et au=le jour', /dpci\/listes\/DPCI_COMMANDES\/collecte\?du=2026-11-01&au=/.test(url)
+    ok('DPCI : « Lire sur l\'extranet » envoie du=2026-11-01 et au=le jour', /lectures\/dpci\/DPCI_COMMANDES\?du=2026-11-01&au=/.test(url)
       && url.endsWith('au=' + aujourdhui), url.replace(/^.*\/api/, '/api'));
-    await p.unroute(/\/collecte(\?|$)/);
+    await p.unroute(LECTURE);
     const refus = await p.evaluate(() => fetch('../api/v1/extranet/dpci/listes/DPCI_BL/collecte?du=2026-11-09&au=2026-11-08', { method: 'POST' }).then((r) => r.json()));
     ok('serveur : période à l\'envers refusée sans rien lire', refus.success === false && /commence après sa fin/.test(refus.msg), JSON.stringify(refus));
     const refus2 = await p.evaluate(() => fetch('../api/v1/extranet/dpci/listes/DPCI_BL/collecte?du=2026-11-08', { method: 'POST' }).then((r) => r.json()));

@@ -26,7 +26,7 @@ const nombre = (s) => Number(String(s).replace(/[^\d,.-]/g, '').replace(',', '.'
   const erreurs = [];
   p.on('pageerror', (e) => erreurs.push(String(e.message)));
   const lectures = [];
-  p.on('request', (r) => { if (/\/collecte(\?|$)/.test(r.url()) && r.method() === 'POST') { lectures.push(r.url()); } });
+  p.on('request', (r) => { if (/\/collecte(\?|$)|\/lectures\//.test(r.url()) && r.method() === 'POST') { lectures.push(r.url()); } });
   try {
     await vues.connexion(p, ENV_E2E.LOGIN, 'e2etest');
     await vues.ouvrirMenu(p, 'GESTION DES COMMANDES', 'Extranets grossistes');

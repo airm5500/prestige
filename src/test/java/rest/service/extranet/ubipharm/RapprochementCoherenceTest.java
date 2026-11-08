@@ -90,6 +90,67 @@ class RapprochementCoherenceTest {
         }
     }
 
+    /**
+     * Retour 6 du 08/11 : le PSCODE n'est propose a l'ecriture que si aucune fiche active ne le porte deja, qu'une
+     * seule fiche active a un des CIP / EAN cherches, que cette fiche n'a pas de PSCODE et que le PSCODE est lisible ;
+     * ecrit sans blancs, en majuscules. Oracle independant, 20 000 cas.
+     */
+    @Test
+    void pscodeAEnregistrerSurDesMilliersDeCas() {
+        Random r = new Random(GRAINE + 6);
+        int oui = 0, non = 0, ficheDejaRemplie = 0;
+        for (int cas = 0; cas < CAS; cas++) {
+            List<Article> articles = new ArrayList<>();
+            for (int i = r.nextInt(6); i > 0; i--) {
+                String id = "F" + r.nextInt(5);
+                List<String> codes = new ArrayList<>();
+                for (int k = 0; k < 5; k++) {
+                    codes.add(r.nextInt(3) == 0 ? tirer(r, CODES) : null);
+                }
+                articles.add(new Article(id, "Article " + id, tirer(r, STATUTS),
+                        r.nextInt(3) == 0 ? tirer(r, PSCODES) : null, codes));
+            }
+            String pscode = tirer(r, PSCODES);
+            List<String> cherches = r.nextInt(5) == 0 ? Collections.emptyList()
+                    : Collections.singletonList(tirer(r, CODES));
+            Resultat res = RapprochementProduits.decider(pscode, cherches, articles, articles);
+            Article choisi = RapprochementProduits.aEnregistrer(res);
+
+            String p = sansBlancs(pscode);
+            Set<String> c = cherches.stream().map(RapprochementCoherenceTest::sansBlancs).filter(x -> !x.isEmpty())
+                    .collect(Collectors.toSet());
+            List<Article> actifs = articles.stream()
+                    .filter(a -> a.statutArticle() == null || !"delete".equalsIgnoreCase(a.statutArticle().trim()))
+                    .collect(Collectors.toList());
+            boolean dejaPorte = !p.isEmpty()
+                    && actifs.stream().anyMatch(a -> sansBlancs(a.referenceUbipharm()).equalsIgnoreCase(p));
+            List<Article> parCode = new ArrayList<>();
+            Set<String> vus = new HashSet<>();
+            for (Article a : actifs) {
+                if (a.codes().stream().anyMatch(x -> c.contains(sansBlancs(x))) && vus.add(a.familleId())) {
+                    parCode.add(a);
+                }
+            }
+            String attendu = !p.isEmpty() && !dejaPorte && parCode.size() == 1
+                    && sansBlancs(parCode.get(0).referenceUbipharm()).isEmpty() ? parCode.get(0).familleId() : null;
+            if (!p.isEmpty() && !dejaPorte && parCode.size() == 1 && attendu == null) {
+                ficheDejaRemplie++;
+            }
+            assertEquals(attendu, choisi == null ? null : choisi.familleId(), "cas " + cas);
+            assertEquals(attendu != null, res.toJson().getBoolean("aEnregistrer"));
+            if (choisi != null) {
+                oui++;
+                assertEquals(p.toUpperCase(java.util.Locale.ROOT), RapprochementProduits.pscodeFiche(pscode));
+                assertEquals(Statut.CIP, res.statut());
+            } else {
+                non++;
+            }
+        }
+        assertTrue(oui > 1000 && non > 1000 && ficheDejaRemplie > 100, oui + " / " + non + " / " + ficheDejaRemplie);
+        assertNull(RapprochementProduits.aEnregistrer(null));
+        assertNull(RapprochementProduits.pscodeFiche("  "));
+    }
+
     /** Oracle ecrit independamment de l'implementation. */
     private static void verifier(Resultat res, String pscode, List<String> cherches, List<Article> parReference,
             List<Article> parCodes) {

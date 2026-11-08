@@ -57,6 +57,9 @@ public class ExtranetService {
     @PersistenceContext(unitName = "JTA_UNIT")
     private EntityManager em;
 
+    @javax.ejb.EJB
+    private rest.service.LogService logService;
+
     public boolean administrateur(String roleId) {
         if (StringUtils.isBlank(roleId)) {
             return false;
@@ -766,5 +769,67 @@ public class ExtranetService {
             r.put(x.toJson());
         }
         return new JSONObject().put("success", true).put("data", r);
+    }
+
+    /** Fiche sans reference Ubipharm : ecrite seulement si elle est encore vide (deux postes en meme temps). */
+    static final String ECRIRE_PSCODE = "UPDATE t_famille SET str_PSCODE = ?1, dt_UPDATED = NOW() WHERE lg_FAMILLE_ID = ?2"
+            + " AND (str_PSCODE IS NULL OR TRIM(str_PSCODE) = '') AND COALESCE(str_STATUT, '') <> 'delete'";
+
+    /**
+     * Retour 6 du 08/11 : enregistre le PSCODE des nouveaux produits Ubipharm sur les fiches retrouvees sans ambiguite
+     * par CIP / EAN 13 ({@link RapprochementProduits#aEnregistrer}). Une ligne de journal par fiche (avant, apres,
+     * CIP). Une fiche remplie entre-temps n'est pas ecrasee.
+     */
+    public JSONObject enregistrerPscodeNouveaux(dal.TUser utilisateur) {
+        JSONArray produits = new NouveauxProduitsDepot(em).lire().optJSONArray("produits");
+        List<RapprochementProduits.Demande> demandes = new ArrayList<>();
+        List<String> cips = new ArrayList<>();
+        for (int i = 0; produits != null && i < produits.length(); i++) {
+            JSONObject p = produits.getJSONObject(i);
+            String cip = p.isNull("cip") ? null : p.getString("cip");
+            demandes.add(new RapprochementProduits.Demande(p.isNull("pscode") ? null : p.getString("pscode"),
+                    cip == null ? java.util.Collections.emptyList() : java.util.Collections.singletonList(cip)));
+            cips.add(cip);
+        }
+        List<RapprochementProduits.Resultat> res = new RapprochementProduits(em).rapprocher(demandes);
+        /* une fiche visee par deux produits, ou un PSCODE vu deux fois : ambigu, rien n'est ecrit pour eux */
+        java.util.Map<String, Integer> parFiche = new java.util.HashMap<>(), parPscode = new java.util.HashMap<>();
+        for (RapprochementProduits.Resultat x : res) {
+            RapprochementProduits.Article a = RapprochementProduits.aEnregistrer(x);
+            if (a != null) {
+                parFiche.merge(a.familleId(), 1, Integer::sum);
+                parPscode.merge(RapprochementProduits.pscodeFiche(x.pscode()), 1, Integer::sum);
+            }
+        }
+        JSONArray faits = new JSONArray();
+        int ignores = 0;
+        for (int i = 0; i < res.size(); i++) {
+            RapprochementProduits.Article a = RapprochementProduits.aEnregistrer(res.get(i));
+            if (a == null) {
+                continue;
+            }
+            String ps = RapprochementProduits.pscodeFiche(res.get(i).pscode());
+            if (parFiche.get(a.familleId()) > 1 || parPscode.get(ps) > 1) {
+                ignores++;
+                continue;
+            }
+            int n = em.createNativeQuery(ECRIRE_PSCODE).setParameter(1, ps).setParameter(2, a.familleId())
+                    .executeUpdate();
+            if (n != 1) {
+                ignores++; /* fiche remplie ou supprimee entre-temps : pas ecrasee */
+                continue;
+            }
+            faits.put(new JSONObject().put("familleId", a.familleId()).put("nom", a.nom()).put("pscode", ps).put("cip",
+                    cips.get(i)));
+            if (logService != null) {
+                logService.journaliserSansRisque(utilisateur, a.familleId(),
+                        "Référence Ubipharm (PSCODE) " + ps + " enregistrée sur la fiche " + a.nom() + " (CIP "
+                                + cips.get(i) + ", extranet Ubipharm)",
+                        dal.enumeration.TypeLog.MODIFICATION_INFO_PRODUIT_COMMANDE, "t_famille",
+                        "str_PSCODE : (vide) -> " + ps);
+            }
+        }
+        return new JSONObject().put("success", true).put("enregistres", faits.length()).put("ignores", ignores)
+                .put("data", faits);
     }
 }

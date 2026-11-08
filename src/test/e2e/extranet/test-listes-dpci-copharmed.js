@@ -82,9 +82,11 @@ async function ouvrir(p, code) {
     for (const code of choisies) {
       await ouvrir(p, code);
       const debut = Date.now();
-      const reponse = p.waitForResponse((x) => x.url().indexOf('/listes/' + code + '/collecte') >= 0, { timeout: 1200000 });
+      /* 08/11 : lecture en arriere-plan ; resultat porte par l'etat « fini » de la lecture */
+      const reponse = p.waitForResponse(async (x) => x.url().indexOf('/lectures/') >= 0 && x.url().indexOf('/' + code) >= 0
+        && (await x.json().catch(() => ({}))).lecture?.enCours === false, { timeout: 1200000 });
       await vues.cliquer(p, ECRAN + ' #exListe' + code + 'Collecter');
-      const r = await (await reponse).json().catch(() => ({ success: false, msg: 'réponse illisible' }));
+      const r = await (await reponse).json().then((j) => j.lecture.resultat || {}).catch(() => ({ success: false, msg: 'réponse illisible' }));
       const duree = Math.round((Date.now() - debut) / 1000);
       ok(code + ' : lecture réussie (' + duree + ' s)', r.success === true, r.msg);
       if (!r.success) {

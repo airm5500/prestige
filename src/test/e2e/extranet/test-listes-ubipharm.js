@@ -51,12 +51,19 @@ async function onglet(p, chemin) {
     await p.waitForTimeout(300);
   }
 }
+/* 08/11 : la lecture tourne en arriere-plan ; on attend l'etat « fini » de la lecture, puis le rechargement de la liste */
 async function cliquerEtAttendre(p, requete, morceauUrl) {
-  const r = p.waitForResponse((x) => x.url().indexOf(morceauUrl) >= 0 && x.request().method() === 'POST', { timeout: 180000 });
+  const m = /\/(\w+)\/listes\/(\w+)\/collecte/.exec(morceauUrl);
+  const url = '/lectures/' + m[1] + '/' + m[2];
+  const finie = p.waitForResponse(async (x) => {
+    if (x.url().indexOf(url) < 0) { return false; }
+    const j = await x.json().catch(() => ({}));
+    return j.lecture && j.lecture.enCours === false;
+  }, { timeout: 180000 });
   await vues.cliquer(p, requete);
-  const rep = await r;
-  await p.waitForTimeout(600);
-  return rep.json().catch(() => ({}));
+  const rep = await (await finie).json();
+  await p.waitForTimeout(1500);
+  return rep.lecture.resultat || {};
 }
 /* lignes affichees par la grille : texte de chaque cellule visible, dans l'ordre */
 const grille = (p, code) => p.evaluate((c) => {
@@ -137,6 +144,40 @@ const baseListe = (code, collecte) => lignes('SELECT HEX(cellules), IFNULL(HEX(p
       && q('SELECT COUNT(*) FROM extranet_liste_ligne WHERE liste = \'PLUS_ACHETES\'') === String(srv.etat.listes.PLUS_ACHETES.attendu.length)
       && q('SELECT COUNT(DISTINCT collecte_id) FROM extranet_liste_ligne WHERE liste = \'PLUS_ACHETES\'') === '1');
 
+    /* ---- lecture longue (08/11) : la demande rend la main, l'onglet reste utilisable, un second clic suit la meme
+       lecture (une seule collecte), puis la liste est rechargee */
+    srv.etat.retardMs = 1500;
+    const debutLongue = Date.now();
+    const lancee = p.waitForResponse((x) => x.url().indexOf('/lectures/ubipharm/PLUS_ACHETES') >= 0 && x.request().method() === 'POST');
+    const finLongue = p.waitForResponse(async (x) => x.url().indexOf('/lectures/ubipharm/PLUS_ACHETES') >= 0
+      && (await x.json().catch(() => ({}))).lecture?.enCours === false, { timeout: 180000 });
+    await vues.cliquer(p, ECRAN + ' #exListePLUS_ACHETESCollecter');
+    const jl = await (await lancee).json();
+    ok('lecture longue : la demande rend la main en moins de 3 s', Date.now() - debutLongue < 3000 && jl.lancee === true
+      && jl.lecture.enCours === true, (Date.now() - debutLongue) + ' ms ' + JSON.stringify(jl).slice(0, 200));
+    await p.waitForTimeout(3500);
+    const pendant = await p.evaluate(() => { const me = Ext.ComponentQuery.query('extranetsgrossistes')[0];
+      return { masque: !!me.down('#exListePLUS_ACHETES').el.isMasked(), ecranMasque: !!me.el.isMasked(),
+        msg: me.down('#exListePLUS_ACHETESMsg').el.dom.textContent, bouton: me.down('#exListePLUS_ACHETESCollecter').getText(),
+        inactif: me.down('#exListePLUS_ACHETESCollecter').isDisabled(), lignes: me.listes.PLUS_ACHETES.getCount() }; });
+    ok('lecture longue : onglet non bloqué, « en cours depuis » affiché, bouton inactif, liste gardée visible', !pendant.masque && !pendant.ecranMasque
+      && /Lecture sur l'extranet en cours depuis \d+ s/.test(pendant.msg) && pendant.inactif && pendant.bouton === 'Lecture en cours…' && pendant.lignes > 0,
+    JSON.stringify(pendant));
+    const second = await p.evaluate(() => fetch('../api/v1/extranet/lectures/ubipharm/PLUS_ACHETES', { method: 'POST' }).then((x) => x.json()));
+    ok('lecture longue : un second lancement suit la lecture en cours', second.lancee === false && second.lecture.enCours === true
+      && second.lecture.debut === jl.lecture.debut, JSON.stringify(second).slice(0, 200));
+    await onglet(p, ['Ubipharm', 'Vos documents', 'Derniers relevés']);
+    ok('lecture longue : un autre onglet reste utilisable pendant la lecture', (await grille(p, 'RELEVES')).length === 130);
+    await onglet(p, ['Ubipharm', 'Commandes', 'Les plus achetés']);
+    const jf = await (await finLongue).json();
+    await p.waitForTimeout(2000);
+    srv.etat.retardMs = 0;
+    ok('lecture longue : finie avec succès, durée affichée', jf.lecture.resultat.success === true
+      && /Liste lue en \d+/.test(await texte(p, '#exListePLUS_ACHETESMsg')), await texte(p, '#exListePLUS_ACHETESMsg'));
+    ok('lecture longue : liste rechargée = base, bouton rendu', JSON.stringify(await grille(p, 'PLUS_ACHETES'))
+      === JSON.stringify(baseListe('PLUS_ACHETES', jf.lecture.resultat.collecte.id).map((b) => b.cellules))
+      && !(await p.evaluate(() => Ext.ComponentQuery.query('extranetsgrossistes #exListePLUS_ACHETESCollecter')[0].isDisabled())));
+
     /* ---- session expiree : echec, cache precedent garde et toujours affiche */
     const avantExp = q('SELECT COUNT(*) FROM extranet_liste_ligne WHERE liste = \'PLUS_ACHETES\'');
     srv.etat.mode = 'expire';
@@ -150,7 +191,8 @@ const baseListe = (code, collecte) => lignes('SELECT HEX(cellules), IFNULL(HEX(p
 
     /* ---- bilan */
     const journal = lignes('SELECT module, statut FROM extranet_collecte WHERE id >= ' + premiereCollecte + ' ORDER BY id').map((l) => l.join(':'));
-    const attendu = LISTES.map((l) => 'LISTE_' + l[0] + ':COMPLETE').concat(['LISTE_PLUS_ACHETES:COMPLETE', 'LISTE_PLUS_ACHETES:ECHEC']);
+    const attendu = LISTES.map((l) => 'LISTE_' + l[0] + ':COMPLETE').concat(['LISTE_PLUS_ACHETES:COMPLETE', 'LISTE_PLUS_ACHETES:COMPLETE',
+      'LISTE_PLUS_ACHETES:ECHEC']);
     ok('bilan : une collecte par lecture, statuts attendus', JSON.stringify(journal) === JSON.stringify(attendu), journal.join(', '));
     ok('bilan : aucune table métier modifiée', JSON.stringify(metierAvant) === JSON.stringify(empreinteMetier()));
     ok('lecture seule : uniquement des GET vers l\'extranet', srv.etat.appels.every((a) => a.methode === 'GET'));

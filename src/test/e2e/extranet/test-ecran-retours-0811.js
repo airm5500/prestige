@@ -37,7 +37,7 @@ const ECRAN = 'extranetsgrossistes';
   const erreurs = [];
   p.on('pageerror', (e) => erreurs.push(String(e.message)));
   const lectures = [];
-  p.on('request', (r) => { if (/\/collecte(\?|$)/.test(r.url()) && r.method() === 'POST') { lectures.push(r.url()); } });
+  p.on('request', (r) => { if (/\/collecte(\?|$)|\/lectures\//.test(r.url()) && r.method() === 'POST') { lectures.push(r.url()); } });
   const onglet = async (titres) => {
     for (const t of titres) { await vues.cliquer(p, ECRAN + ' #exOnglets tab[text=' + t + ']'); await p.waitForTimeout(500); }
   };

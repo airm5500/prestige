@@ -31,6 +31,10 @@ import org.json.JSONObject;
  * tranche.
  * <p>
  * La decision ({@link #decider}) est une fonction pure, testee sans base ; les requetes ne font qu'un pre-filtre.
+ * <p>
+ * Enregistrement du PSCODE (retour 6 du 08/11, {@link #aEnregistrer}) : seulement si un seul article actif a le meme
+ * CIP ou EAN 13, que sa fiche n'a pas encore de reference Ubipharm et qu'aucune fiche ne porte deja ce PSCODE. Le nom
+ * seul ne suffit jamais.
  */
 public final class RapprochementProduits {
 
@@ -127,7 +131,7 @@ public final class RapprochementProduits {
             JSONArray c = new JSONArray();
             candidats.forEach(a -> c.put(a.toJson()));
             return new JSONObject().put("pscode", nul(pscode)).put("statut", statut.name()).put("critere", nul(critere))
-                    .put("candidats", c);
+                    .put("candidats", c).put("aEnregistrer", aEnregistrer(this) != null);
         }
     }
 
@@ -190,6 +194,24 @@ public final class RapprochementProduits {
         return new Resultat(pscode, Statut.INTROUVABLE, Collections.emptyList(), null);
     }
 
+    /**
+     * Article dont la fiche peut recevoir le PSCODE sans risque, ou null : trouve par CIP / EAN 13 et seul (statut CIP,
+     * donc aucune fiche ne porte deja ce PSCODE), sans reference Ubipharm, PSCODE lisible.
+     */
+    public static Article aEnregistrer(Resultat r) {
+        if (r == null || r.statut != Statut.CIP || r.candidats.size() != 1 || code(r.pscode) == null) {
+            return null;
+        }
+        Article a = r.candidats.get(0);
+        return code(a.referenceUbipharm) == null ? a : null;
+    }
+
+    /** PSCODE tel qu'il est range sur la fiche : sans blancs, en majuscules (saisie de la fiche article). */
+    public static String pscodeFiche(String pscode) {
+        String p = code(pscode);
+        return p == null ? null : p.toUpperCase(java.util.Locale.ROOT);
+    }
+
     private static List<Article> distincts(List<Article> l, java.util.function.Predicate<Article> garde) {
         Map<String, Article> m = new LinkedHashMap<>();
         for (Article a : l) {
@@ -212,7 +234,7 @@ public final class RapprochementProduits {
             + " FROM t_famille f WHERE f.str_PSCODE IN (:p) AND COALESCE(f.str_STATUT, '') <> 'delete'"
             + " ORDER BY f.str_NAME, f.lg_FAMILLE_ID";
     static final String PAR_CODES = "SELECT f.lg_FAMILLE_ID, f.str_NAME, f.str_STATUT, f.int_CIP, f.int_CIP2,"
-            + " f.int_CIP3, f.int_CIP4, f.int_EAN13 FROM t_famille f WHERE COALESCE(f.str_STATUT, '') <> 'delete' AND ("
+            + " f.int_CIP3, f.int_CIP4, f.int_EAN13, f.str_PSCODE FROM t_famille f WHERE COALESCE(f.str_STATUT, '') <> 'delete' AND ("
             + " REPLACE(f.int_CIP, ' ', '') IN (:c) OR REPLACE(f.int_CIP2, ' ', '') IN (:c)"
             + " OR REPLACE(f.int_CIP3, ' ', '') IN (:c) OR REPLACE(f.int_CIP4, ' ', '') IN (:c)"
             + " OR REPLACE(f.int_EAN13, ' ', '') IN (:c)) ORDER BY f.str_NAME, f.lg_FAMILLE_ID";
@@ -254,7 +276,7 @@ public final class RapprochementProduits {
         if (!codes.isEmpty()) {
             for (Object[] o : (List<Object[]>) em.createNativeQuery(PAR_CODES).setParameter("c", new ArrayList<>(codes))
                     .getResultList()) {
-                parCodes.add(new Article((String) o[0], (String) o[1], (String) o[2], null,
+                parCodes.add(new Article((String) o[0], (String) o[1], (String) o[2], (String) o[8],
                         Arrays.asList((String) o[3], (String) o[4], (String) o[5], (String) o[6], (String) o[7])));
             }
         }
