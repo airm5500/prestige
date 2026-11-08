@@ -164,6 +164,9 @@ async function relever(palier) {
 /* ---------- un poste ---------- */
 const gestes = [];
 const erreurs = [];
+/* scans qui n'ajoutent pas l'article : l'ecran attend la quantite (seconde touche Entree de la caissiere) */
+const secondeEntree = [];
+let captureEnCours = false;
 async function poste(b, i, fin, palier) {
   const role = ROLES[i];
   const ctx = await b.newContext({ viewport: { width: 1600, height: 900 } });
@@ -172,8 +175,16 @@ async function poste(b, i, fin, palier) {
   const p = await ctx.newPage();
   let enVol = 0, derniere = Date.now();
   const suivi = (r) => ['xhr', 'fetch', 'document', 'script'].indexOf(r.resourceType()) >= 0;
-  p.on('request', (r) => { if (suivi(r)) { enVol++; derniere = Date.now(); } });
-  const finReq = (r) => { if (suivi(r)) { enVol = Math.max(0, enVol - 1); derniere = Date.now(); } };
+  /* duree de chaque requete (depart -> fin de reponse) et attente du serveur (envoi -> premier octet), pour dire si un
+     geste lent attendait le serveur ou le navigateur */
+  const departs = new Map();
+  const requetes = [];
+  p.on('request', (r) => { if (suivi(r)) { enVol++; derniere = Date.now(); departs.set(r, Date.now()); } });
+  const finReq = (r) => { if (suivi(r)) { enVol = Math.max(0, enVol - 1); derniere = Date.now();
+    const d = departs.get(r); departs.delete(r);
+    if (d) { let serveur = null; try { const tm = r.timing(); if (tm.responseStart >= 0 && tm.requestStart >= 0) { serveur = Math.round(tm.responseStart - tm.requestStart); } } catch (e) { /* sans mesure */ }
+      requetes.push({ url: r.method() + ' ' + r.url().replace(/^.*\/prestige/, '').split('?')[0].slice(0, 90), debut: d, ms: Date.now() - d, serveur });
+      if (requetes.length > 400) { requetes.splice(0, 200); } } } };
   p.on('requestfinished', finReq);
   p.on('requestfailed', (r) => { finReq(r); if (!/\/vente\/ticket\//.test(r.url()) && suivi(r)) {
     erreurs.push({ t: Date.now(), palier, poste: i, role, type: 'requete echouee', detail: r.method() + ' ' + r.url().replace(/^.*\/prestige/, '') + ' ' + (r.failure() || {}).errorText }); } });
@@ -207,18 +218,25 @@ async function poste(b, i, fin, palier) {
     let enCours = true;
     const capturer = async () => {
       while (enCours && PID && Date.now() - t0 < GESTE_MAX) {
-        const f = path.join(path.dirname(SORTIE), 'piles-p' + palier + '-poste' + i + '-' + t0 + '-' + (Date.now() - t0) + '.txt');
-        await new Promise((r) => execFile(JSTACK, [PID], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 },
-          (e, out) => { if (!e) { fs.writeFileSync(f, out); piles.push(path.basename(f)); } r(); }));
-        await new Promise((r) => setTimeout(r, 1000));
+        /* une seule capture a la fois pour tous les postes, sinon les captures chargent elles-memes le serveur */
+        if (!captureEnCours) {
+          captureEnCours = true;
+          const f = path.join(path.dirname(SORTIE), 'piles-p' + palier + '-poste' + i + '-' + t0 + '-' + (Date.now() - t0) + '.txt');
+          await new Promise((r) => execFile(JSTACK, [PID], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 },
+            (e, out) => { if (!e) { fs.writeFileSync(f, out); piles.push(path.basename(f)); } r(); }));
+          captureEnCours = false;
+        }
+        await new Promise((r) => setTimeout(r, 2000));
       }
     };
     const minuteurPiles = setTimeout(() => { capturer().catch(() => {}); }, 1500);
     const finir = () => { enCours = false; clearTimeout(minuteurPiles); };
-    try { await action(); const tf = await repos(); finir(); await messageErreur(nom); gestes.push({ t: t0, palier, poste: i, role, nom, ms: Math.max(0, tf - t0), ok, piles }); return; }
+    /* les trois requetes les plus longues du geste */
+    const pires = () => requetes.filter((x) => x.debut >= t0).sort((a, c) => c.ms - a.ms).slice(0, 3);
+    try { await action(); const tf = await repos(); finir(); await messageErreur(nom); gestes.push({ t: t0, palier, poste: i, role, nom, ms: Math.max(0, tf - t0), ok, piles, requetes: pires() }); return; }
     catch (e) { ok = false; detail = String(e.message).split('\n')[0].slice(0, 200); }
     finir();
-    gestes.push({ t: t0, palier, poste: i, role, nom, ms: Date.now() - t0, ok, piles });
+    gestes.push({ t: t0, palier, poste: i, role, nom, ms: Date.now() - t0, ok, piles, requetes: pires() });
     /* ce que montrait l'ecran : boite de message visible et capture */
     const ecran = await vues.texteMessage(p).catch(() => '');
     const capture = path.join(path.dirname(SORTIE), 'echec-p' + palier + '-poste' + i + '-' + Date.now() + '.png');
@@ -305,7 +323,15 @@ async function poste(b, i, fin, palier) {
             await p.keyboard.type(cip, { delay: 15 });
             const rep = p.waitForResponse((r) => /\/vente\/add\/(vno|item)/.test(r.url()), { timeout: GESTE_MAX });
             await p.keyboard.press('Enter');
-            const r = await rep;
+            /* la recherche de l'article etait deja revenue (deuxieme scan du meme article, ou serveur rapide) : l'ecran ne
+               l'ajoute pas, il place le curseur dans « QD » et attend Entree ; la caissiere appuie une seconde fois */
+            let r = await Promise.race([rep, p.waitForTimeout(2500).then(() => null)]);
+            if (!r) {
+              const dansQd = await p.evaluate(() => { const c = Ext.ComponentQuery.query('doventemanager #contenu [xtype=fieldcontainer] #qtyField')[0];
+                return !!c && document.activeElement === c.inputEl.dom; }).catch(() => false);
+              if (dansQd) { secondeEntree.push({ t: Date.now(), palier, poste: i, cip }); await p.keyboard.press('Enter'); }
+              r = await rep;
+            }
             if (r.status() >= 400) { throw new Error('ajout refusé ' + r.status()); }
           });
           await p.waitForTimeout(600);
@@ -508,7 +534,8 @@ async function poste(b, i, fin, palier) {
     const heure = (t) => new Date(t).toTimeString().slice(0, 8);
     g.filter((x) => x.ms > SEUIL_LENT).sort((a, c) => a.t - c.t).forEach((x) => {
       const r = rel.reduce((m, y) => (!m || Math.abs(y.t - x.t) < Math.abs(m.t - x.t) ? y : m), null) || {};
-      console.log(`   lent ${heure(x.t)} poste ${x.poste} ${x.nom} ${x.ms} ms${x.ok ? '' : ' (echec)'} ; MariaDB en cours ${r.Threads_running}, longues ${r.requetesLongues} ; piles ${x.piles && x.piles.length ? x.piles[0] : '-'}`);
+      console.log(`   lent ${heure(x.t)} poste ${x.poste} ${x.nom} ${x.ms} ms${x.ok ? '' : ' (echec)'} ; MariaDB en cours ${r.Threads_running}, longues ${r.requetesLongues}, CPU poste ${r.cpuPoste} %, libre ${r.memLibreGo} Go ; piles ${x.piles && x.piles.length ? x.piles[0] : '-'}`
+        + (x.requetes || []).map((y) => `\n        ${y.url} ${y.ms} ms (serveur ${y.serveur === null ? '?' : y.serveur} ms)`).join(''));
     });
     let sauvegardes = '';
     try {
@@ -517,8 +544,10 @@ async function poste(b, i, fin, palier) {
     } catch (e) { sauvegardes = 'illisible'; }
     synthese.sauvegardes = sauvegardes;
     console.log('   sauvegardes pendant le palier : ' + sauvegardes);
+    synthese.secondeEntree = secondeEntree.filter((x) => x.palier === n).length;
+    console.log('   scans non ajoutés (seconde touche Entrée dans « QD ») : ' + synthese.secondeEntree);
     erreurs.filter((x) => x.palier === n).slice(0, 8).forEach((x) => console.log('   ! poste ' + x.poste + ' (' + x.role + ') ' + x.type + ' : ' + x.detail));
-    fs.writeFileSync(SORTIE, JSON.stringify(Object.assign({}, resultat, { gestes, erreurs, releves })));
+    fs.writeFileSync(SORTIE, JSON.stringify(Object.assign({}, resultat, { gestes, erreurs, releves, secondeEntree })));
   }
   await b.close();
   console.log('\nResultats : ' + SORTIE);
