@@ -70,7 +70,8 @@ class DpciLecteurTest {
     static final String LOGIN = "<html><head><title>Login | Extranet DPCI</title></head><body>"
             + "<form method=\"post\" action=\"/login.action;jsessionid=" + JETON + "\">"
             + "<input type=\"text\" name=\"identifiant\"><input type=\"password\" name=\"password\">"
-            + "<input type=\"checkbox\" name=\"connexionAuto\"><button>Se connecter</button></form>"
+            + "<button type=\"submit\" name=\"method:submit\" value=\"Submit\">Se connecter</button>"
+            + "<input type=\"checkbox\" name=\"connexionAuto\" value=\"true\" checked></form>"
             + "<form method=\"POST\" action=\"/module/compte/DemandeChangementMdp\"><input type=\"hidden\" "
             + "name=\"deblocage\"><input type=\"email\" name=\"demandeChgtMdpIdentifiant\"></form></body></html>";
     static final String CONNECTE = "<html><body><a href=\"/module/compte/Deconnexion.action\">Déconnexion</a>";
@@ -85,7 +86,9 @@ class DpciLecteurTest {
             f.route("/login", Reponse.html(LOGIN));
             f.routeAppel("/login.action;jsessionid=" + JETON, a -> {
                 Map<String, String> c = champs(a.corps);
-                if (!"ESSAI".equals(c.get("identifiant")) || !"secret".equals(c.get("password"))) {
+                /* comme DPCI (Struts) : sans le bouton « method:submit », la page de connexion revient, statut 200 */
+                if (!"ESSAI".equals(c.get("identifiant")) || !"secret".equals(c.get("password"))
+                        || !"Submit".equals(c.get("method:submit")) || !"true".equals(c.get("connexionAuto"))) {
                     return Reponse.html(LOGIN);
                 }
                 return new Reponse(302, "text/html", new byte[0], Map.of("Location", "/", "Set-Cookie",
@@ -551,6 +554,15 @@ class DpciLecteurTest {
                     () -> DpciLecteur.lire(x.transport("secret"), ListeDpci.DPCI_BL, JOUR));
             assertEquals(ExtranetException.Nature.REPONSE_INATTENDUE, e.nature());
         }
+    }
+
+    @Test
+    void journalSansJetonDeSession() {
+        assertEquals("pro2.dpci.ci/login.action", ConnexionExtranet
+                .cheminJournal(java.net.URI.create("https://pro2.dpci.ci/login.action;jsessionid=" + JETON + "?x=1")));
+        assertEquals("pro2.dpci.ci/login",
+                ConnexionExtranet.cheminJournal(java.net.URI.create("https://pro2.dpci.ci/login")));
+        assertEquals("h/a/b", ConnexionExtranet.cheminJournal(java.net.URI.create("http://h/a;JSESSIONID=1/b")));
     }
 
     @Test

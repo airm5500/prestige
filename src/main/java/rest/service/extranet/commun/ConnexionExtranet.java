@@ -73,6 +73,11 @@ public final class ConnexionExtranet {
         String champIdentifiant;
         String champMotDePasse;
         final Map<String, String> autres = new LinkedHashMap<>();
+        /**
+         * Bouton d'envoi nomme (nom, valeur), envoye comme le ferait un navigateur : DPCI (Struts) n'ouvre la session
+         * que s'il recoit « method:submit=Submit » ; sans lui, la page de connexion revient. Null : aucun.
+         */
+        String[] bouton;
         boolean captcha;
     }
 
@@ -221,6 +226,10 @@ public final class ConnexionExtranet {
                 session.definirParConnexion(ouverte);
                 return;
             }
+            if (f.bouton != null) {
+                /* envoi classique : le navigateur joint le bouton clique (pas l'envoi AJAX, qui l'ignore) */
+                champs.putIfAbsent(f.bouton[0], f.bouton[1]);
+            }
             Page apres = suivre(post(action, page.uri, champs, pot), pot);
             if (apres.statut >= 400) {
                 throw new ExtranetException(ExtranetException.Nature.TRANSPORT,
@@ -315,6 +324,10 @@ public final class ConnexionExtranet {
             } else if ((type.equals("checkbox") || type.equals("radio")) && e.hasAttr("checked")) {
                 f.autres.put(nom, e.hasAttr("value") ? e.attr("value") : "on");
             }
+        }
+        Element b = form.selectFirst("button[name]:not([type]), button[type=submit][name], input[type=submit][name]");
+        if (b != null && !b.attr("name").isEmpty() && !b.hasAttr("disabled")) {
+            f.bouton = new String[] { b.attr("name"), b.hasAttr("value") ? b.attr("value") : "" };
         }
         if (f.champIdentifiant == null && champIdentifiantForce != null) {
             /* case reglee absente de ce formulaire (reglage errone) : detection automatique */
@@ -473,7 +486,7 @@ public final class ConnexionExtranet {
             }
             HttpResponse<byte[]> r = client.send(b.build(), HttpResponse.BodyHandlers.ofByteArray());
             LOG.log(Level.INFO, "Extranet {0} connexion {1}{2} : {3}",
-                    new Object[] { session.source(), u.getHost(), u.getPath(), r.statusCode() });
+                    new Object[] { session.source(), cheminJournal(u), "", r.statusCode() });
             bocal.recevoir(u, r.headers().allValues("Set-Cookie"));
             return new Page(u, r.statusCode(), r.headers().firstValue("Location").orElse(null),
                     new String(r.body(), StandardCharsets.UTF_8));
@@ -486,6 +499,15 @@ public final class ConnexionExtranet {
         } finally {
             dernierAppel = System.currentTimeMillis();
         }
+    }
+
+    /**
+     * Chemin ecrit au journal : hote et chemin, sans parametre ni « ;jsessionid=... » (jeton de session porte dans
+     * l'adresse par certains sites, DPCI notamment) : aucun secret au journal.
+     */
+    public static String cheminJournal(URI u) {
+        String c = u.getPath() == null ? "" : u.getPath().replaceAll("(?i);[^/]*", "");
+        return u.getHost() + c;
     }
 
     static void garderCookies(List<String> setCookie, Map<String, String> pot) {
