@@ -1175,7 +1175,9 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
                                     testextjs.app.getController('PilotageCtr').afficherComparateur('comparateur', me.derniereReponseComparateur);
                                 }
                             }};
-                    }))}] : choix ? [{xtype: 'toolbar', dock: 'top', itemId: 'courbes-' + cle, cls: 'pilotage-courbes',
+                    }))}, {xtype: 'component', dock: 'bottom', itemId: 'syntheseComparateur', hidden: true, html: '',
+                    /* plan du 08/11, point 5 : synthese sur la periode, sous la courbe */
+                    style: 'padding:5px 10px;font-weight:bold;color:#1a3d6d;background:#f4f7fb;border-top:1px solid #d0d7e2'}] : choix ? [{xtype: 'toolbar', dock: 'top', itemId: 'courbes-' + cle, cls: 'pilotage-courbes',
                     items: Ext.Array.map(choix, function (c, i) {
                         return {xtype: 'button', itemId: 'courbe-' + c.champ, text: c.texte, cls: 'seg-courbe',
                             toggleGroup: 'courbes-' + cle + '-' + me.id, allowDepress: false, pressed: i === 0,
