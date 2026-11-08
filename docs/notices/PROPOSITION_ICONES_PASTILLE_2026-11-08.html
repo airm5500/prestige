@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Prestige : déclinaisons de la Pastille (plan du 08/11, point 10)</title>
+<style>
+  :root{--vert:#1f8a4c;--vert-f:#13653a;--orange:#f39221;--encre:#1d2733;--gris:#5d6b78}
+  *{box-sizing:border-box}
+  svg,canvas{flex-shrink:0}
+  body{margin:0;font:14px/1.5 Inter,"Segoe UI",Arial,sans-serif;color:var(--encre);background:#f5f7f9}
+  header{padding:28px 40px 8px}
+  h1{margin:0 0 6px;font-size:24px}
+  h2.section{font-size:17px;margin:18px 40px 8px}
+  header p{margin:4px 0;color:var(--gris);max-width:1050px}
+  code{background:#e8edf1;border-radius:4px;padding:0 4px}
+  /* Bandeau de comparaison */
+  .bandeau{margin:0 40px;display:flex;flex-direction:column;gap:10px}
+  .onglets{display:flex;gap:2px;padding:8px 8px 0;border-radius:10px 10px 0 0;overflow-x:auto}
+  .onglets.clair{background:#cfd6dd}
+  .onglets.sombre{background:#1b1e23}
+  .onglets .o{display:flex;align-items:center;gap:7px;padding:7px 12px;border-radius:9px 9px 0 0;font-size:12px;white-space:nowrap;min-width:150px}
+  .onglets.clair .o{background:#e9edf1}
+  .onglets.sombre .o{background:#2e333b;color:#e6e9ee}
+  .onglets .o b{font-weight:600;color:inherit}
+  .barre-t{display:flex;gap:4px;align-items:center;justify-content:center;padding:6px 10px;border-radius:8px}
+  .barre-t.sombre{background:#1e2229}
+  .barre-t.claire{background:#e6ebf0;border:1px solid #d3dae1}
+  .barre-t .app{width:44px;height:44px;border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative}
+  .barre-t.sombre .app.active{background:#3a4049}
+  .barre-t.claire .app.active{background:#fff}
+  .barre-t .app.active::after{content:"";position:absolute;bottom:2px;width:14px;height:3px;border-radius:2px;background:#4aa8e8}
+  .barre-t .lettre{position:absolute;top:-2px;right:-2px;font-size:10px;font-weight:700;background:var(--encre);color:#fff;border-radius:999px;width:16px;height:16px;display:flex;align-items:center;justify-content:center}
+  /* Cartes */
+  .grille{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,600px),1fr));gap:22px;padding:14px 40px 40px}
+  .carte{background:#fff;border:1px solid #e1e6eb;border-radius:14px;padding:18px 20px;box-shadow:0 2px 8px rgba(20,40,60,.05)}
+  .carte.ref{border-style:dashed}
+  .carte h3{margin:0 0 2px;font-size:17px;display:flex;gap:10px;align-items:baseline}
+  .carte h3 .n{color:#fff;background:var(--vert);border-radius:999px;padding:0 9px;font-size:13px}
+  .carte .idee{color:var(--gris);margin:0 0 12px;min-height:42px}
+  .corps{display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap}
+  .gauche{display:flex;flex-direction:column;gap:10px}
+  .tailles{display:flex;align-items:flex-end;gap:16px;padding:10px 14px;border-radius:10px}
+  .tailles.clair{background:#fff;border:1px solid #edf0f3}
+  .tailles.sombre{background:#20242b;color:#aab4be}
+  .tailles figure{margin:0;text-align:center;color:inherit;font-size:11px}
+  .tailles.clair figure{color:var(--gris)}
+  .tailles svg,.tailles canvas{display:block;margin:0 auto 4px}
+  canvas.loupe{image-rendering:pixelated;width:64px;height:64px;border:1px solid #d3dae1;border-radius:4px;background:#fff}
+  .tailles.sombre canvas.loupe{background:#20242b;border-color:#3a4049}
+  .geant{border-radius:12px;background:repeating-conic-gradient(#f1f3f5 0 25%,#fff 0 50%) 0 0/20px 20px;padding:6px}
+  .mises{display:flex;gap:10px;align-items:stretch;margin-top:12px;flex-wrap:wrap}
+  .onglet{display:flex;align-items:center;gap:8px;border-radius:10px 10px 0 0;padding:7px 12px;width:190px;font-size:12px}
+  .onglet.clair{background:#dee3e8}
+  .onglet.sombre{background:#2b2f36;color:#e6e9ee}
+  .bureau{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;width:92px;padding:8px 0;border-radius:8px;color:#fff;font-size:11px;text-shadow:0 1px 2px rgba(0,0,0,.6)}
+  .bureau.bleu{background:linear-gradient(135deg,#3d6f9e,#2a4d72)}
+  .bureau.clair{background:linear-gradient(135deg,#e9eef3,#c9d6e2);color:#1d2733;text-shadow:none}
+  .bureau.photo{background:linear-gradient(160deg,#7fb4d8 0%,#d9c08f 55%,#6f8f4e 100%)}
+  footer{padding:0 40px 40px;color:var(--gris)}
+  footer li{margin:3px 0}
+</style>
+</head>
+<body>
+<header>
+  <h1>Icône de Prestige : la Pastille, sept déclinaisons</h1>
+  <p>Plan du 08/11, point 10. Vous avez retenu la <b>Pastille</b> (proposition 4), mais la trouvez trop simple. Voici sept
+    façons de l'enrichir, toutes en <b>vert</b> et <b>orange</b>, les couleurs de l'icône actuelle. La Pastille d'origine
+    est montrée en tête, pour comparer.</p>
+  <p>Chaque carte montre l'icône en 16, 32, 48 et 256 px, sur fond clair et sur fond sombre, avec une <b>loupe</b> qui
+    agrandit les vrais pixels du 16 px. En 16 et 24 px, une version allégée est utilisée (moins de détails, traits plus
+    épais) : c'est ce que fait un <code>.ico</code>, qui contient une image dessinée pour chaque taille.</p>
+  <p>Dites-moi laquelle garder, ou ce qu'il faut mélanger (par exemple « le relief de la 1 avec la feuille de la 6 ») :
+    je produis ensuite le SVG source, les PNG 16, 32, 48 et 256, le <code>favicon.ico</code>, et je remplace l'icône
+    partout dans Prestige.</p>
+</header>
+
+<h2 class="section">Toutes côte à côte, en situation réelle</h2>
+<div class="bandeau" id="bandeau"></div>
+
+<h2 class="section">Le détail de chaque déclinaison</h2>
+<div class="grille" id="grille"></div>
+
+<footer>
+  <ul>
+    <li>Les SVG sont dessinés à la main, sans image extérieure ; une fois l'icône choisie, je retouche le 16 px au pixel près.</li>
+    <li>Le damier derrière le grand format montre la transparence : seule la pastille est opaque, ses coins restent transparents.</li>
+    <li>La page de la première comparaison reste disponible : <code>PROPOSITION_ICONES_2026-11-08.html</code>.</li>
+  </ul>
+</footer>
+
+<script>
+  // Couleurs de l'icone actuelle
+  var V = '#1f8a4c', VF = '#13653a', VS = '#0e4f2b', O = '#f39221', OC = '#f9b75a', OF = '#e07d0c';
+
+  // Croix blanche (ou autre) : deux rectangles arrondis, bras de 13 sur 40
+  function croix(attrs, k) {
+    k = k || 0; // elargissement pour la petite taille
+    var l = 13 + k, d = 40 + k, a = 32 - l / 2, b = 32 - d / 2;
+    return '<g ' + attrs + '><rect x="' + a + '" y="' + b + '" width="' + l + '" height="' + d + '" rx="2.5"/>'
+      + '<rect x="' + b + '" y="' + a + '" width="' + d + '" height="' + l + '" rx="2.5"/></g>';
+  }
+  function eclat(fill, petit) {
+    if (petit) { return '<circle cx="50" cy="14" r="10.5" fill="' + fill + '" stroke="#fff" stroke-width="3"/>'; }
+    return '<circle cx="50" cy="14" r="9" fill="' + fill + '" stroke="#fff" stroke-width="2.5"/>'
+      + '<path d="M50 8.6l1.6 3.8 3.8 1.6-3.8 1.6-1.6 3.8-1.6-3.8-3.8-1.6 3.8-1.6z" fill="#fff"/>';
+  }
+  // Degrades communs (identifiants propres a chaque icone)
+  function degVert(id) {
+    return '<radialGradient id="' + id + '" cx=".36" cy=".3" r=".78"><stop offset="0" stop-color="#43b673"/>'
+      + '<stop offset=".55" stop-color="' + V + '"/><stop offset="1" stop-color="#105c32"/></radialGradient>';
+  }
+  function degOrange(id) {
+    return '<linearGradient id="' + id + '" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="' + OC + '"/>'
+      + '<stop offset="1" stop-color="' + OF + '"/></linearGradient>';
+  }
+
+  var icones = [
+    { id: 'ref', nom: 'Pastille d\'origine', ref: true,
+      idee: 'La proposition 4 telle que vous l\'avez vue : rond vert plat, croix blanche, éclat orange.',
+      svg: function () {
+        return '<circle cx="32" cy="32" r="29" fill="' + V + '"/>'
+          + '<path d="M26 13h12v13h13v12H38v13H26V38H13V26h13z" fill="#fff"/>' + eclat(O, false);
+      } },
+    { id: 'relief', nom: 'Relief',
+      idee: 'Dégradé vert lumineux en haut à gauche, liseré intérieur clair, ombre douce sous la croix, éclat orange en dégradé. La plus proche de l\'origine.',
+      svg: function (p) {
+        return '<defs>' + degVert('rv') + degOrange('ro') + '</defs>'
+          + '<circle cx="32" cy="32" r="29" fill="url(#rv)"/>'
+          + (p ? '' : '<circle cx="32" cy="32" r="27" fill="none" stroke="#fff" stroke-opacity=".22" stroke-width="1.2"/>')
+          + croix('fill="' + VS + '" fill-opacity=".45" transform="translate(' + (p ? '1.4 1.6' : '1.5 1.8') + ')"', p ? 2 : 0)
+          + croix('fill="#fff"', p ? 2 : 0) + eclat('url(#ro)', p);
+      } },
+    { id: 'lisere', nom: 'Liseré orange',
+      idee: 'Un anneau orange entoure la pastille, séparé du vert par un filet blanc. Plus d\'éclat : l\'orange fait tout le tour, il se voit même dans l\'onglet.',
+      svg: function (p) {
+        return '<defs>' + degVert('lv') + degOrange('lo') + '</defs>'
+          + '<circle cx="32" cy="32" r="30.5" fill="url(#lo)"/>'
+          + (p ? '<circle cx="32" cy="32" r="25" fill="url(#lv)"/>'
+               : '<circle cx="32" cy="32" r="26.2" fill="#fff"/><circle cx="32" cy="32" r="24.6" fill="url(#lv)"/>')
+          + '<g transform="translate(32 32) scale(' + (p ? '.86' : '.8') + ') translate(-32 -32)">' + croix('fill="#fff"', p ? 2 : 0) + '</g>';
+      } },
+    { id: 'detouree', nom: 'Croix orange détourée',
+      idee: 'La croix devient orange, détourée d\'un épais trait blanc, sur la pastille verte en relief. Reprend la croix orange de l\'icône actuelle.',
+      svg: function (p) {
+        return '<defs>' + degVert('dv') + degOrange('do') + '</defs>'
+          + '<circle cx="32" cy="32" r="29" fill="url(#dv)"/>'
+          + croix('fill="#fff" stroke="#fff" stroke-width="' + (p ? 6 : 7) + '" stroke-linejoin="round"', p ? 1 : -1)
+          + croix('fill="url(#do)"', p ? 1 : -1);
+      } },
+    { id: 'monogramme', nom: 'Monogramme P',
+      idee: 'La Pastille en relief, avec un « P » vert gravé au cœur de la croix. Discret de loin, il signe l\'icône en grand format ; il disparaît en 16 px.',
+      svg: function (p) {
+        return '<defs>' + degVert('mv') + degOrange('mo') + '</defs>'
+          + '<circle cx="32" cy="32" r="29" fill="url(#mv)"/>'
+          + croix('fill="' + VS + '" fill-opacity=".45" transform="translate(1.5 1.8)"', p ? 2 : 0)
+          + croix('fill="#fff"', p ? 2 : 0)
+          + (p ? '' : '<path d="M29.2 41V23.5h4.6a4.8 4.8 0 0 1 0 9.6h-4.6" fill="none" stroke="' + VF + '" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>')
+          + eclat('url(#mo)', p);
+      } },
+    { id: 'medaille', nom: 'Médaille',
+      idee: 'Une vraie pièce : ombre portée sous la pastille, bord vert foncé en biseau, croix blanche bombée, éclat orange. La plus riche en grand format.',
+      svg: function (p) {
+        var ombre = p ? '' : '<filter id="mf" x="-20%" y="-50%" width="140%" height="200%"><feGaussianBlur stdDeviation="1.6"/></filter>';
+        return '<defs>' + degVert('mev') + degOrange('meo') + ombre
+          + '<linearGradient id="mec" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#dcebe2"/></linearGradient>'
+          + '<linearGradient id="meb" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2fa060"/><stop offset="1" stop-color="' + VS + '"/></linearGradient></defs>'
+          + (p ? '' : '<ellipse cx="32" cy="58.5" rx="19" ry="3.2" fill="#000" fill-opacity=".28" filter="url(#mf)"/>')
+          + '<circle cx="32" cy="' + (p ? 32 : 30.5) + '" r="' + (p ? 29.5 : 28) + '" fill="url(#meb)"/>'
+          + '<circle cx="32" cy="' + (p ? 32 : 30.5) + '" r="' + (p ? 25.5 : 24.6) + '" fill="url(#mev)"/>'
+          + '<g transform="translate(0 ' + (p ? 0 : -1.5) + ') translate(32 32) scale(' + (p ? '.9' : '.86') + ') translate(-32 -32)">'
+          + croix('fill="' + VS + '" fill-opacity=".4" transform="translate(1.5 1.8)"', p ? 2 : 0)
+          + croix('fill="url(#mec)"', p ? 2 : 0) + '</g>'
+          + eclat('url(#meo)', p);
+      } },
+    { id: 'feuille', nom: 'Feuille',
+      idee: 'L\'éclat laisse place à une feuille orange, rappel des feuilles de l\'icône actuelle. Pastille en relief, croix blanche.',
+      svg: function (p) {
+        return '<defs>' + degVert('fv') + degOrange('fo') + '</defs>'
+          + '<circle cx="32" cy="32" r="29" fill="url(#fv)"/>'
+          + croix('fill="' + VS + '" fill-opacity=".45" transform="translate(1.5 1.8)"', p ? 2 : 0)
+          + croix('fill="#fff"', p ? 2 : 0)
+          + '<path d="M41 23C41 10 49 3.5 61 3.5 61 16 53 23 41 23z" fill="url(#fo)" stroke="#fff" stroke-width="' + (p ? 3 : 2.5) + '" stroke-linejoin="round"/>'
+          + (p ? '' : '<path d="M44.5 19.5C49 14 53 10.5 57.5 7.5" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/>');
+      } },
+    { id: 'coeur', nom: 'Cœur orange',
+      idee: 'Sans éclat : la croix blanche porte en son centre un carré orange. Plus sobre, parfaitement symétrique, très net en 16 px.',
+      svg: function (p) {
+        return '<defs>' + degVert('cv') + degOrange('co') + '</defs>'
+          + '<circle cx="32" cy="32" r="29" fill="url(#cv)"/>'
+          + croix('fill="' + VS + '" fill-opacity=".45" transform="translate(1.5 1.8)"', p ? 2 : 0)
+          + croix('fill="#fff"', p ? 2 : 0)
+          + '<rect x="' + (p ? 26 : 26.5) + '" y="' + (p ? 26 : 26.5) + '" width="' + (p ? 12 : 11) + '" height="' + (p ? 12 : 11) + '" rx="2" fill="url(#co)"/>';
+      } }
+  ];
+
+  // Une icone a la taille t : en 24 px et moins, la version allegee
+  function svg(x, t) {
+    return '<svg xmlns="http://www.w3.org/2000/svg" width="' + t + '" height="' + t + '" viewBox="0 0 64 64">' + x.svg(t <= 24) + '</svg>';
+  }
+  // Pour plusieurs icones dans la page, les identifiants de degrade doivent rester uniques
+  var compteur = 0;
+  function svgUnique(x, t) {
+    var s = svg(x, t), suffixe = '_' + (compteur++);
+    return s.replace(/id="([^"]+)"/g, 'id="$1' + suffixe + '"').replace(/url\(#([^)]+)\)/g, 'url(#$1' + suffixe + ')');
+  }
+  function loupe(x, fond) {
+    return '<canvas class="loupe" width="16" height="16" data-icone="' + x.id + '" data-fond="' + fond + '"></canvas>';
+  }
+  function tailles(x, fond) {
+    return '<div class="tailles ' + fond + '">' + [16, 32, 48].map(function (t) {
+      return '<figure>' + svgUnique(x, t) + t + ' px</figure>';
+    }).join('') + '<figure>' + loupe(x, fond) + '16 px × 4</figure></div>';
+  }
+
+  // Bandeau : toutes les icones dans des onglets et des barres des taches
+  var nums = icones.map(function (x, i) { return x.ref ? 'O' : String(i); });
+  function rangeeOnglets(classe) {
+    return '<div class="onglets ' + classe + '">' + icones.map(function (x, i) {
+      return '<div class="o">' + svgUnique(x, 16) + '<b>' + nums[i] + '</b> Prestige — Ventes</div>';
+    }).join('') + '</div>';
+  }
+  function barre(classe) {
+    return '<div class="barre-t ' + classe + '">' + icones.map(function (x, i) {
+      return '<span class="app active">' + svgUnique(x, 24) + '<span class="lettre">' + nums[i] + '</span></span>';
+    }).join('') + '</div>';
+  }
+  document.getElementById('bandeau').innerHTML = rangeeOnglets('clair') + rangeeOnglets('sombre') + barre('sombre') + barre('claire');
+
+  document.getElementById('grille').innerHTML = icones.map(function (x, i) {
+    return '<section class="carte' + (x.ref ? ' ref' : '') + '"><h3>' + (x.ref ? '' : '<span class="n">' + i + '</span>') + x.nom + '</h3>'
+      + '<p class="idee">' + x.idee + '</p>'
+      + '<div class="corps"><div class="geant">' + svgUnique(x, 256) + '</div>'
+      + '<div class="gauche">' + tailles(x, 'clair') + tailles(x, 'sombre') + '</div></div>'
+      + '<div class="mises">'
+      + '<div class="onglet clair">' + svgUnique(x, 16) + 'Prestige — Ventes</div>'
+      + '<div class="onglet sombre">' + svgUnique(x, 16) + 'Prestige — Ventes</div>'
+      + '<div class="bureau bleu">' + svgUnique(x, 48) + 'Prestige</div>'
+      + '<div class="bureau clair">' + svgUnique(x, 48) + 'Prestige</div>'
+      + '<div class="bureau photo">' + svgUnique(x, 48) + 'Prestige</div>'
+      + '</div></section>';
+  }).join('');
+
+  // Loupes : le 16 px rendu sur un canevas de 16 x 16, puis agrandi sans lissage
+  Array.prototype.forEach.call(document.querySelectorAll('canvas.loupe'), function (c) {
+    var x = icones.filter(function (y) { return y.id === c.getAttribute('data-icone'); })[0];
+    var img = new Image();
+    img.onload = function () {
+      var ctx = c.getContext('2d');
+      ctx.fillStyle = c.getAttribute('data-fond') === 'sombre' ? '#20242b' : '#ffffff';
+      ctx.fillRect(0, 0, 16, 16);
+      ctx.drawImage(img, 0, 0, 16, 16);
+    };
+    img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg(x, 16));
+  });
+</script>
+</body>
+</html>
