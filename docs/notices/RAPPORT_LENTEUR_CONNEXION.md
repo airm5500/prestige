@@ -563,3 +563,97 @@ Contrôles :
   correction : il ne départage les deux versions que sous charge. Depuis, il contrôle aussi l'acceptation des
   identifiants en moins de 1 s : en échec sur l'ancien code dans les deux essais (3,5 s et 7,5 s), réussi à machine
   calme avec la correction (0,29 s).
+
+## Caisses aux heures de pointe : lenteurs aléatoires (08/11)
+
+**Constat remonté** : à l'ajout d'un produit ou à la validation d'une vente, « en cours de chargement » s'affiche et
+tourne, de façon aléatoire, en forte affluence (une officine qui tourne bien fait 1 700 à 2 000 ventes par jour) et
+parfois aussi aux heures normales.
+
+**Heures de pointe réelles** (ventes terminées sur un an, copies de mesure, date de création de la vente seule) :
+
+| Officine | Ventes/jour (moyenne / record) | Heure la plus chargée | Heures de pointe |
+|---|---|---|---|
+| appaul | 847 / 1 807 (10 jours à plus de 1 500) | 184 ventes, 5 caissiers (15/11/2025, 11 h) | 11 h-12 h, 17 h-19 h |
+| laborex | 735 / 1 376 | 147 ventes, 4 caissiers | 17 h-19 h |
+| zanzan | 456 / 1 319 | 129 ventes, 3 caissiers | 10 h-11 h, 17 h-18 h |
+
+Une heure normale compte 60 à 90 ventes. L'heure de 923 ventes de laborex le 29/10 est l'essai de charge de ce jour-là,
+écartée.
+
+**Méthode** : `perf/charge-officine.js` rejoue la vraie heure de pointe d'appaul (`REJOUER='2025-11-15 11:00'`) : les
+184 ventes, avec leurs articles et quantités, chaque caissier de l'époque sur son poste, à l'instant de l'époque divisé
+par 2 (`ACCELERATION=2`, soit 325 à 368 ventes à l'heure : au-delà du pic d'une officine à 2 000 ventes par jour).
+Gestes par le vrai écran (scan du CIP et Entrée, montant reçu, « Terminer la vente »). Deux sauvegardes complètes
+lancées par le bouton « Sauvegarder maintenant » pendant le rejeu. Base `appaul_perf` (20 Go), domain2 à 5 fils HTTP
+(réglage par défaut, domain1 en a 100), version d'intégration 28e7ffad8. Pour chaque geste de plus de 2 s : ses trois
+requêtes les plus longues avec l'attente du serveur, et les fils du serveur.
+
+**Mesures** (184 ventes sur 184 terminées) :
+
+| Geste | Médiane | 90 % | 99 % | Max |
+|---|---|---|---|---|
+| article ajouté (439) | 0,56 s | 0,81 s | 1,36 s | 1,9 s (hors scan perdu, corrigé depuis) |
+| vente terminée (184) | 1,55 s | 1,94 s | 4,3 s | 4,9 s |
+
+| Pendant une sauvegarde complète | Article ajouté (médiane / 90 %) | Vente terminée (médiane / 90 %) |
+|---|---|---|
+| non | 0,52 / 0,75 s | 1,52 / 1,79 s |
+| oui | 0,63 / 0,89 s | 1,70 / 2,06 s |
+
+- Le serveur ne fige pas : dans les ventes « lentes » (2 à 4,9 s), la clôture `vente/cloturer/vno` prend 0,3 à 0,55 s
+  côté serveur. Le reste est du temps de l'essai (réponse aux boîtes de dialogue) ou une attente dans le navigateur.
+- **Sauvegarde automatique** : une sauvegarde complète d'appaul dure 4 à 8 min (8 min 07 s pour celle de 16:05,
+  1,66 Go compressés) et revient chaque heure à :05. Elle ralentit les caisses d'environ 0,1 s (médiane) à 0,3 s
+  (90 %) : visible, mais pas un gel.
+- **Appels périodiques de chaque poste** : `notifications-centre/compteurs` 0,42 à 0,68 s de serveur et
+  `horloge/etat` 0,3 à 0,58 s, sur chaque poste et en continu. Ils occupent les 5 fils de domain2 aux côtés des ventes.
+- **Connexion** : le tableau de bord demande `tableau-bord/alertes` (5,7 s), `evolution` (3,8 s) et `tuiles` (2,8 s)
+  à la première ouverture.
+
+**Défaut : scan perdu** *(reproduit par un test, puis corrigé ; le mécanisme d'abord supposé était faux)*. Le premier
+mécanisme supposé (Entrée pendant la recherche) ne se reproduit pas : le test passe sur l'ancien code avec une liste
+lente jusqu'à 2 s. La chronologie des appels a montré deux défauts réels, tous deux liés à la charge :
+
+1. **Même article scanné de nouveau** : Entrée retrouvait le code dans la liste laissée par la recherche précédente ;
+   l'écran passait dans « QD » sans rien ajouter, puis la recherche lancée par la frappe (une demi-seconde après la
+   dernière touche) rouvrait la liste et ramenait le curseur dans la recherche (ExtJS remet le focus à l'ouverture de
+   la liste). C'est l'état de la capture du rejeu : liste ouverte sur l'article, curseur dans la recherche, rien
+   d'ajouté. Le cas survient dès que findone + ajout dépassent 0,5 s ; avec un serveur rapide, la liste est vidée avant.
+   Correction : un code tapé, liste fermée, suit toujours le chemin de la douchette (ajout direct d'une boîte, comme au
+   premier scan) et la recherche en attente est annulée. Le choix dans la liste, puis « QD », est inchangé.
+2. **Code tronqué** : le rechargement des lignes, revenu pendant la frappe du code suivant, remettait le curseur dans la
+   recherche en sélectionnant tout son texte ; la suite du code remplaçait les chiffres déjà tapés (« 26179 » pour
+   « 2026179 »). findone cherchant par début de code, l'article n'était pas trouvé, ou un autre l'aurait été.
+   Correction : le curseur n'est remis, texte sélectionné, que si aucune saisie n'est en cours.
+
+Test : `src/test/e2e/vente/test-scan-pendant-recherche.js`, par le vrai écran ; les temps de réponse du serveur sont
+imposés au navigateur (retards fixes par appel, rafale de scans à retards tirés au hasard à graine fixe, rechargement
+des lignes retenu jusqu'au milieu de la frappe). Même serveur (domain2, copie appaul), version d'intégration 28e7ffad8
+avant, la même plus les deux corrections après :
+
+| | avant | après |
+|---|---|---|
+| scans répétés, serveur rapide ou liste lente (2 s) | 10/10 ajoutés | 10/10 |
+| scans répétés, findone 0,4 s + ajout 0,5 s | 2/5 ajoutés | 5/5 |
+| scans répétés, 1 s partout | 2/5 ajoutés | 5/5 |
+| rafale de 20 (avant) / 40 (après) scans, retards 0 à 1,5 s | 18 perdus sur 20 | 0 perdu sur 40 |
+| lignes rechargées pendant la frappe | code tronqué (« 6179 »), rien d'ajouté (2 cas) | code entier, ajouté (2 cas) |
+| choix à la main dans la liste, « QD » 2 | 2 boîtes | 2 boîtes |
+| contrôles | 33/46, puis 7/11 pour la frappe | 51/51 |
+
+Non-régression : `ui-clavier-caisse-detail.js` (choix dans la liste, « QD », cellule de quantité, stock insuffisant)
+6/6 avant et après sur domain2. Ce test vise `localhost:8080` en dur : lancé tel quel, il échoue sur un autre serveur
+que celui de sa base ; il a été relancé en réécrivant l'adresse. La vente en dépôt (`VenteEnDepotCtr`) contient le
+même code de recherche produit : non testée, non modifiée.
+
+**Non reproduit** : aucun « en cours de chargement » de plusieurs secondes côté serveur au pic réel rejoué deux fois
+plus vite, sauvegarde comprise. Ce que l'essai ne reproduit pas encore : des états lourds lancés pendant le pic
+(suggestion, Ticket Z long ; voir le rapport de charge du 29/10, § 4.1 et 4.2 : 5 fils seulement), un poste client
+lent ou un réseau lent, et les ventes à crédit (tiers payant), rejouées ici au comptant.
+
+Contrôles :
+
+- premier rejeu cassé côté essai (seconde touche Entrée non frappée, poste de test à 0,2 Go de mémoire libre) : écarté ;
+- second rejeu : 184/184 ventes, 1 scan perdu, 0 interblocage, tas Java ≤ 2,1 Go, 2 sauvegardes réussies ;
+- scan perdu : reproduit par test (avant 33/46), corrigé (après 51/51), non-régression clavier 6/6.
