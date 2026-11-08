@@ -1878,6 +1878,24 @@ Ext.define('testextjs.controller.VenteCtr', {
         }
     },
 
+    /**
+     * Remet le curseur dans la recherche produit, texte selectionne, sauf si une saisie y est deja en cours.
+     * Scan tronque du 08/11 (rafale a l'heure de pointe) : le rechargement des lignes, revenu pendant la frappe du code
+     * suivant, selectionnait tout le texte ; la suite du code remplacait les chiffres deja tapes (« 26179 » pour
+     * « 2026179 »), et findone, qui cherche par debut de code, ne trouvait rien ou un autre article.
+     */
+    curseurDansRecherche: function (combo) {
+        Ext.defer(function () {
+            if (!combo || combo.isDestroyed || !combo.inputEl) {
+                return;
+            }
+            if (document.activeElement === combo.inputEl.dom && combo.getRawValue()) {
+                return;
+            }
+            combo.focus(true);
+        }, 100);
+    },
+
     /** Annule la recherche de la liste programmee par la frappe (ExtJS : doQueryTask, queryDelay). */
     annulerRechercheEnAttente: function (combo) {
         try {
@@ -2141,8 +2159,7 @@ Ext.define('testextjs.controller.VenteCtr', {
                             }
                             ,
                             callback: function (records, operation, successful) {
-                                me.getVnoproduitCombo()
-                                        .focus(true, 100);
+                                me.curseurDansRecherche(me.getVnoproduitCombo());
                                 me.verifierInteractions(venteId);
                             }
                         }
