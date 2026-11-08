@@ -36,6 +36,69 @@ public class ActiviteEquipesRessource {
         return Droits.refus(servletRequest, Constant.LIBELLE_ACTIVITE_EQUIPES, Constant.P_SM_ACTIVITE_EQUIPES);
     }
 
+    /** Plan du 08/11, point 15.6 : l'onglet Anomalies demande en plus son propre droit. */
+    private Response refusAnomalies() {
+        Response r = refus();
+        if (r != null) {
+            return r;
+        }
+        return Droits.a(servletRequest, Constant.P_ACTIVITE_ANOMALIES) ? null
+                : Droits.interdit("Onglet Anomalies de l'activité des équipes");
+    }
+
+    /** Plan du 08/11, point 15.1 : annulations par auteur de la vente et suivi des caissieres. */
+    @GET
+    @Path("annulations")
+    public Response annulations(@QueryParam("debut") String debut, @QueryParam("fin") String fin,
+            @QueryParam("employeId") String employeId) {
+        Response r = refus();
+        if (r != null) {
+            return r;
+        }
+        ActiviteFiltreDTO f = filtre(debut, fin, employeId, null, null);
+        if (f == null) {
+            return dateInvalide();
+        }
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("success", true);
+        m.put("data", service.annulations(f));
+        return Response.ok(m).build();
+    }
+
+    /** Plan du 08/11, point 15.1 : detail d'une ligne (consultation) : vente, motif, par qui, quand. */
+    @GET
+    @Path("annulations/detail")
+    public Response detailAnnulations(@QueryParam("debut") String debut, @QueryParam("fin") String fin,
+            @QueryParam("role") String role, @QueryParam("id") String id) {
+        Response r = refus();
+        if (r != null) {
+            return r;
+        }
+        ActiviteFiltreDTO f = filtre(debut, fin, null, null, null);
+        if (f == null || id == null || id.isBlank()) {
+            return dateInvalide();
+        }
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("success", true);
+        m.put("data", service.detailAnnulations(f.getDebut(), f.getFin(),
+                "CAISSIER".equals(role) ? "CAISSIER" : "VENDEUR", id));
+        return Response.ok(m).build();
+    }
+
+    /** Plan du 08/11, point 15.6 : onglets permis a l'utilisateur connecte (l'ecran cache les autres). */
+    @GET
+    @Path("droits")
+    public Response droits() {
+        Response r = refus();
+        if (r != null) {
+            return r;
+        }
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("success", true);
+        m.put("anomalies", Droits.a(servletRequest, Constant.P_ACTIVITE_ANOMALIES));
+        return Response.ok(m).build();
+    }
+
     @GET
     @Path("employes")
     public Response employes() {
@@ -96,12 +159,48 @@ public class ActiviteEquipesRessource {
         return Response.ok(m).build();
     }
 
+    /** Plan du 08/11, point 15.8 : gardes sans vente et nuits avec des ventes sans garde declaree. */
+    @GET
+    @Path("gardes")
+    public Response gardes(@QueryParam("debut") String debut, @QueryParam("fin") String fin) {
+        Response r = refus();
+        if (r != null) {
+            return r;
+        }
+        ActiviteFiltreDTO f = filtre(debut, fin, null, null, null);
+        if (f == null) {
+            return dateInvalide();
+        }
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("success", true);
+        m.put("data", service.controleGardes(f.getDebut(), f.getFin()));
+        return Response.ok(m).build();
+    }
+
+    /** Plan du 08/11, point 15.8 : carte d'affluence d'une garde choisie dans le selecteur. */
+    @GET
+    @Path("carte-garde/{id}")
+    public Response carteGarde(@javax.ws.rs.PathParam("id") String id) {
+        Response r = refus();
+        if (r != null) {
+            return r;
+        }
+        Map<String, Object> d = service.carteGarde(id);
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("success", d != null);
+        m.put("data", d);
+        if (d == null) {
+            m.put("msg", "Garde introuvable.");
+        }
+        return Response.ok(m).build();
+    }
+
     /** Retour du 24/10 : anomalies par employe et liste des anomalies de la periode. */
     @GET
     @Path("anomalies")
     public Response anomalies(@QueryParam("debut") String debut, @QueryParam("fin") String fin,
             @QueryParam("employeId") String employeId, @QueryParam("famille") String famille) {
-        Response r = refus();
+        Response r = refusAnomalies();
         if (r != null) {
             return r;
         }
@@ -119,7 +218,7 @@ public class ActiviteEquipesRessource {
     @GET
     @Path("anomalies/{id}")
     public Response anomalie(@javax.ws.rs.PathParam("id") long id) {
-        Response r = refus();
+        Response r = refusAnomalies();
         if (r != null) {
             return r;
         }

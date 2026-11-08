@@ -44,6 +44,12 @@ public class ActiviteAnalysesDTO {
     private List<Jour> jours = new ArrayList<>();
     @Builder.Default
     private List<Operateur> operateurs = new ArrayList<>();
+    /** plan du 08/11, points 15.5 et 15.7 : vitesse par type de vente (comptant, assurance, carnet, depot, avoir) */
+    @Builder.Default
+    private List<Operateur> typesVente = new ArrayList<>();
+    /** plan du 08/11, point 15.4 : classement des vendeurs en preventes */
+    @Builder.Default
+    private List<Prevente> preventes = new ArrayList<>();
     @Builder.Default
     private List<Grossiste> grossistes = new ArrayList<>();
     @Builder.Default
@@ -181,6 +187,50 @@ public class ActiviteAnalysesDTO {
         private String code;
         private String libelle;
         private long nombre;
+        /** Plan du 08/11, point 15.2 : grossistes de la tranche (nombre de BL, delai moyen en jours). */
+        @Builder.Default
+        private List<RetardGrossiste> grossistes = new ArrayList<>();
+    }
+
+    /** Plan du 08/11, point 15.2 : un grossiste dans une tranche de delai de saisie des BL. */
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @ToString
+    @Builder
+    @Getter
+    @Setter
+    public static class RetardGrossiste {
+
+        private String nom;
+        private long bl;
+        /** Ecart moyen en jours entre la livraison et l'entree du BL ; null sans date de livraison. */
+        private Double delaiMoyen;
+    }
+
+    /**
+     * Plan du 08/11, point 15.4 : preventes d'un vendeur (vente saisie par lui, encaissee par un autre) : encaissees,
+     * CA et lignes des encaissees, annulees (hors modifications), abandonnees (restees en attente apres le jour de
+     * saisie), taux d'annulees et abandonnees sur le total.
+     */
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @ToString
+    @Builder
+    @Getter
+    @Setter
+    public static class Prevente {
+
+        private String id;
+        private String nom;
+        private long encaissees;
+        private long chiffreAffaires;
+        private long lignes;
+        private long annulees;
+        private long abandonnees;
+        private long total;
+        private double lignesParPrevente;
+        /** (annulees + abandonnees) / total, en % (une decimale) */
+        private double taux;
     }
 
     /** Actions sensibles d'un employe : annulations, modifications de ventes, remises accordees. */
