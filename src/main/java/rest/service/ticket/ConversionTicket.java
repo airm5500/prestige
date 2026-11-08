@@ -214,7 +214,9 @@ public final class ConversionTicket {
             if (s.articles.isEmpty()) {
                 if (p[0].trim().isEmpty()) {
                     // mention sous la ligne (promotion, credit) : pas un article
-                    corps.texte(p[2].trim(), Style.PETIT);
+                    if (r.promotion() || !p[2].trim().startsWith("PROMOTION")) {
+                        corps.texte(p[2].trim(), Style.PETIT);
+                    }
                     continue;
                 }
                 corps.article(p[2].trim(), p[0].trim() + " × " + montant(p[3]), "", montant(p[4]));
@@ -243,6 +245,10 @@ public final class ConversionTicket {
         corps.article(a.designation, a.quantite + " × " + nombre(a.prixUnitaire), r.lot() ? a.lot : "",
                 nombre(a.montant));
         for (String c : a.credits) {
+            if (!r.promotion() && c.startsWith("PROMOTION")) {
+                // plan du 08/11, point 16 : option « Afficher l'information promotion » sur non
+                continue;
+            }
             // retour du 03/11 : le montant du credit en gras
             corps.texte(c.replaceFirst("^(.* : )(\\d[\\d ]*)$",
                     "$1" + TicketDocument.GRAS_DEBUT + "$2" + TicketDocument.GRAS_FIN), Style.PETIT);

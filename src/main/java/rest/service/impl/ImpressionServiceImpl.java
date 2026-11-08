@@ -531,7 +531,8 @@ public class ImpressionServiceImpl implements Printable {
         documentEnCours = null;
         this.codeBar = codeBar;
         this.infoSellers = infoSellers;
-        this.datas = datas;
+        // plan du 08/11, point 16 : option « Afficher l'information promotion » sur non, ancien modele compris
+        this.datas = reglagesTicket != null && !reglagesTicket.promotion() ? sansMentionPromotion(datas) : datas;
         this.infoTiersPayants = infoTiersPayants;
         this.subtotal = subtotal;
         this.commentaires = commentaires;
@@ -541,6 +542,25 @@ public class ImpressionServiceImpl implements Printable {
      * Ligne d'article de l'ancien ticket : une quantite en tete. Les mentions sous la ligne (promotion, credit par
      * tiers-payant, ligne comptant) n'en sont pas : elles ne consomment pas d'article a la mise en page.
      */
+    static List<String> sansMentionPromotion(List<String> datas) {
+        if (datas == null) {
+            return null;
+        }
+        List<String> l = new ArrayList<>(datas.size());
+        for (String d : datas) {
+            if (!estMentionPromotion(d)) {
+                l.add(d);
+            }
+        }
+        return l;
+    }
+
+    /** Mention « PROMOTION … » sous une ligne de l'ancien ticket (« ; ;PROMOTION 5+1 OFFERT(S);; »). */
+    static boolean estMentionPromotion(String l) {
+        String[] p = l == null ? new String[0] : l.split(";", -1);
+        return p.length >= 5 && p[0].trim().isEmpty() && p[2].trim().startsWith("PROMOTION");
+    }
+
     static boolean estLigneArticle(String l) {
         String[] p = l == null ? new String[0] : l.split(";", -1);
         return p.length >= 5 && !p[0].trim().isEmpty();

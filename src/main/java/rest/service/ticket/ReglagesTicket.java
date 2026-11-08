@@ -108,6 +108,8 @@ public final class ReglagesTicket {
     private int version = VERSION;
     private String modele = NOUVEAU;
     private boolean remise = true;
+    /** Plan du 08/11, point 16 : mention « PROMOTION … » sous la ligne (oui par defaut). */
+    private boolean promotion = true;
     private boolean lot = false;
     private boolean ccRc = false;
     private boolean recapitulatif = true;
@@ -181,6 +183,10 @@ public final class ReglagesTicket {
         return remise;
     }
 
+    public boolean promotion() {
+        return promotion;
+    }
+
     public boolean lot() {
         return lot;
     }
@@ -248,10 +254,11 @@ public final class ReglagesTicket {
         JSONArray d = new JSONArray();
         disposition.forEach(p -> d.put(p.json()));
         return new JSONObject().put("ticket", ticket.name()).put("version", version).put("modele", modele)
-                .put("remise", remise).put("lot", lot).put("ccRc", ccRc).put("recapitulatif", recapitulatif)
-                .put("commentaires", commentaires).put("encoursCarnet", encoursCarnet)
-                .put("signatureClient", signatureClient).put("signatures", signatures).put("cadreNet", cadreNet)
-                .put("net", net).put("marge", marge).put("police", police).put("disposition", d);
+                .put("remise", remise).put("promotion", promotion).put("lot", lot).put("ccRc", ccRc)
+                .put("recapitulatif", recapitulatif).put("commentaires", commentaires)
+                .put("encoursCarnet", encoursCarnet).put("signatureClient", signatureClient)
+                .put("signatures", signatures).put("cadreNet", cadreNet).put("net", net).put("marge", marge)
+                .put("police", police).put("disposition", d);
     }
 
     /**
@@ -266,6 +273,7 @@ public final class ReglagesTicket {
         String m = j.optString("modele", r.modele);
         r.modele = ANCIEN.equals(m) || !ticket.nouveauDisponible() ? ANCIEN : NOUVEAU;
         r.remise = j.optBoolean("remise", r.remise);
+        r.promotion = j.optBoolean("promotion", r.promotion);
         r.lot = j.optBoolean("lot", r.lot);
         r.ccRc = j.optBoolean("ccRc", r.ccRc);
         r.recapitulatif = j.optBoolean("recapitulatif", r.recapitulatif);

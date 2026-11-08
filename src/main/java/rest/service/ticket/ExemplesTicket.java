@@ -5,6 +5,7 @@ import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Collections;
 import java.util.List;
+import rest.service.promotion.PromotionLigne;
 
 /**
  * Tickets d'exemple de l'apercu du menu « Modeles de ticket » : donnees fictives, ecrites exactement comme Prestige les
@@ -128,7 +129,9 @@ public final class ExemplesTicket {
                 new ConversionTicket.Article("DOLIPRANE 1000 MG CPR B/8", 2, 1205, 2410, "Lot B2417 · 08/2028"),
                 new ConversionTicket.Article("AMOXICILLINE BIOGARAN 1 G CPR B/14", 1, 2150, 2150,
                         "Lot 4A0931 · 03/2027"),
-                new ConversionTicket.Article("SÉRUM PHYSIOLOGIQUE UNIDOSES B/40", 1, 650, 650, ""));
+                // plan du 08/11, point 16 : une ligne en promotion, pour voir l'option dans l'apercu
+                new ConversionTicket.Article("SÉRUM PHYSIOLOGIQUE UNIDOSES B/40", 1, 650, 650, "",
+                        Collections.singletonList(PromotionLigne.mention(null, null, null, null, 0))));
     }
 
     private static void vente(ConversionTicket.Source s, ModeleTicket t) {
