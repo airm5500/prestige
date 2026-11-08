@@ -220,7 +220,9 @@ public class CorrespondanceGrossisteService {
                 + " FROM t_bon_livraison b JOIN t_bon_livraison_detail d ON d.lg_BON_LIVRAISON_ID = b.lg_BON_LIVRAISON_ID"
                 + " JOIN ligne_import_grossiste li ON li.lg_ORDER_ID = b.lg_ORDER_ID AND li.lg_FAMILLE_ID = d.lg_FAMILLE_ID"
                 + " WHERE b.lg_BON_LIVRAISON_ID = ?1 AND b.str_STATUT = 'is_Closed' AND li.dt_application IS NULL"
-                + " AND li.code_normalise IS NOT NULL AND li.lg_GROSSISTE_ID IS NOT NULL ORDER BY li.id")
+                + " AND li.code_normalise IS NOT NULL AND li.lg_GROSSISTE_ID IS NOT NULL"
+                // code_grossiste fait 40 caracteres : un code plus long n'est pas appris (il ferait tout echouer)
+                + " AND CHAR_LENGTH(li.code_normalise) <= 40 ORDER BY li.id")
                 .setParameter(1, blId).getResultList();
         // (grossiste, code, fiche) -> ligne du BL, designation, lignes du fichier
         Map<String, Object[]> receptions = new LinkedHashMap<>();

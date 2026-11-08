@@ -121,7 +121,7 @@ const sommes = () => q('CHECKSUM TABLE t_famille, t_famille_grossiste').split('\
       + " UNION (SELECT JSON_UNQUOTE(JSON_EXTRACT(candidats,'$[0]')) FROM correspondance_grossiste WHERE etat='PROPOSEE' ORDER BY id LIMIT 10)").map((x) => x[0]);
     let ecartsProduit = [];
     for (const f of fiches) {
-      const attendu = lignes("SELECT id FROM correspondance_grossiste WHERE lg_FAMILLE_ID='" + f + "' OR (lg_FAMILLE_ID IS NULL AND JSON_CONTAINS(candidats, JSON_QUOTE('" + f + "')))").map((x) => Number(x[0])).sort((a, c) => a - c);
+      const attendu = lignes("SELECT id FROM correspondance_grossiste WHERE lg_FAMILLE_ID='" + f + "' OR famille_contradiction='" + f + "' OR (lg_FAMILLE_ID IS NULL AND JSON_CONTAINS(candidats, JSON_QUOTE('" + f + "')))").map((x) => Number(x[0])).sort((a, c) => a - c);
       const rp = await api('produit/' + encodeURIComponent(f));
       const lu = rp.corps.data.map((x) => x.id).sort((a, c) => a - c);
       if (attendu.join(',') !== lu.join(',')) { ecartsProduit.push(f + ' ' + attendu + ' <> ' + lu); }
