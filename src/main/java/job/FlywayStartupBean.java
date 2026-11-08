@@ -69,7 +69,7 @@ public class FlywayStartupBean {
         attendreLaBase();
         try {
             Flyway flyway = Flyway.configure().dataSource(dataSource).baselineOnMigrate(true)
-                    .ignoreMissingMigrations(true).outOfOrder(true).cleanOnValidationError(true)
+                    .ignoreMissingMigrations(true).outOfOrder(true).cleanOnValidationError(false)
                     .validateOnMigrate(false).ignoreFutureMigrations(true).load();
             // Une migration qui a echoue laisse une trace d'echec dans flyway_schema_history, et
             // cette trace bloque toutes les migrations suivantes tant qu'elle n'est pas retiree.
