@@ -29,7 +29,7 @@ Chaque test ci-dessous échoue d'abord sur l'ancien code, puis passe. Les tests 
 | 14 | Code PIN après le badge, facultatif, désactivé par défaut (`KEY_CONNEXION_BADGE_PIN`). | `BadgePinCoherenceTest`, écran 28/28 |
 | 15.1 | Annulations rattachées à l'auteur de la vente. Suivi des caissières. Détail affiché sur place, sans fenêtre. | `AnnulationsAuteursCoherenceTest`, écran 13/13 |
 | 15.2 | Clic sur une part du camembert « Délai de saisie des BL » : grossistes de la tranche, nombre de BL, délai moyen. | `RetardBlGrossistesCoherenceTest`, écran 5/5 |
-| 15.3 | Prise en caisse d'une prévente enregistrée à son ouverture à l'écran de vente (V7.2.48, sans effet sur la vente). Carte « Vitesse des caissières » : préventes encaissées, mesurées, temps moyen et médian de la prise en caisse à l'encaissement, CA. | `VitesseCaissieresCoherenceTest`, écran 14/14 ; non-régression vente 9/9, 11/11, 15/15, 23/23 |
+| 15.3 | Prise en caisse d'une prévente enregistrée à son ouverture à l'écran de vente et à l'écran de vente en dépôt (V7.2.48, sans effet sur la vente). Carte « Vitesse des caissières » : préventes encaissées, mesurées, temps moyen et médian de la prise en caisse à l'encaissement, CA. | `VitesseCaissieresCoherenceTest`, écran 14/14, dépôt 10/10 ; non-régression vente 9/9, 11/11, 15/15, 23/23, dépôt 31/31 et 59/59 |
 | 15.4 | Préventes par vendeur. | `PreventesCoherenceTest`, écran 9/9 |
 | 15.5, 15.7 | Vitesse par type de vente. | `VitesseTypeVenteCoherenceTest`, écran 7/7 |
 | 15.6 | Onglet Anomalies réservé au privilège `P_ACTIVITE_ANOMALIES` (V7.2.47). | écran 9/9 |
@@ -66,7 +66,7 @@ La non-régression de chaque point (les tests existants de l'écran touché) est
   223 écrans du menu restent stables, en 1366 × 768, 1280 × 650 et 1024 × 600. **Question :** sur quel écran l'avez-vous
   vu, avec quelle action, et sur quel poste (taille d'écran, zoom du navigateur) ?
 - **Point 15.3 :** réalisé le 08/11 après votre accord. Les mesures ne portent que sur les préventes ouvertes
-  après la mise à jour. L'écran des ventes en dépôt n'enregistre pas la prise en caisse.
+  après la mise à jour. L'écran des ventes en dépôt l'enregistre aussi depuis le 08/11 au soir.
 
 ## À savoir
 
