@@ -1036,14 +1036,101 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
                             listeners: {change: function () {
                                     me.filtrerListe(code);
                                 }}},
+                        me.champPeriode(id + 'Du', 'Du', code), me.champPeriode(id + 'Au', 'Au', code),
+                        {text: 'Toute la période', itemId: id + 'Tout', enableToggle: true, hidden: true,
+                            tooltip: 'Afficher toutes les lignes gardées, sans tenir compte des dates',
+                            toggleHandler: function (b, appuye) {
+                                me.down('#' + id + 'Du').setDisabled(appuye);
+                                me.down('#' + id + 'Au').setDisabled(appuye);
+                                me.filtrerListe(code);
+                            }},
                         '->', {xtype: 'label', itemId: id + 'Msg'}, {xtype: 'tbspacer', width: 12},
                         {xtype: 'label', itemId: id + 'Nombre'}, {xtype: 'tbspacer', width: 12},
                         {xtype: 'label', itemId: id + 'Date'}]}],
             items: [{xtype: 'gridpanel', itemId: id + 'Grille', store: me.listes[code], columnLines: true,
                     viewConfig: {deferEmptyText: false,
-                        emptyText: '<div style="padding:12px">Aucune ligne. « Lire sur l\'extranet » lit la liste.</div>'},
+                        emptyText: '<div style="padding:12px">Aucune ligne. « Lire sur l\'extranet » lit la liste ;'
+                                + ' « Toute la période » affiche les lignes des autres dates.</div>'},
                     columns: []}]
         };
+    },
+
+    /** Champ de période d'une liste : la date du jour par défaut (demande du 08/11). */
+    champPeriode: function (itemId, libelle, code) {
+        var me = this;
+        return {xtype: 'datefield', itemId: itemId, fieldLabel: libelle, labelWidth: 20, width: 130,
+            format: 'd/m/Y', value: new Date(), allowBlank: false, hidden: true,
+            listeners: {change: function (f) {
+                    if (f.isValid()) {
+                        me.filtrerListe(code);
+                    }
+                }}};
+    },
+
+    /** Période choisie pour une liste : {du, au} en AAAA-MM-JJ, ou null (« Toute la période », ou liste sans date). */
+    periodeListe: function (code) {
+        var me = this, id = 'exListe' + code, du = me.down('#' + id + 'Du'), au = me.down('#' + id + 'Au'),
+                tout = me.down('#' + id + 'Tout');
+        if (!du || du.isHidden() || (tout && tout.pressed) || !du.getValue() || !au.getValue()) {
+            return null;
+        }
+        var a = Ext.Date.format(du.getValue(), 'Y-m-d'), b = Ext.Date.format(au.getValue(), 'Y-m-d');
+        return a <= b ? {du: a, au: b} : {du: b, au: a};
+    },
+
+    /** Date d'une cellule en AAAA-MM-JJ (2026-11-08, 08/11/2026, 08/11/26, 1-11-2026, avec ou sans heure), sinon null. */
+    lireDate: function (v) {
+        var s = Ext.String.trim(String(v === null || v === undefined ? '' : v)),
+                m = /^(\d{4})-(\d{2})-(\d{2})(\D|$)/.exec(s);
+        if (m) {
+            return m[1] + '-' + m[2] + '-' + m[3];
+        }
+        m = /^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4}|\d{2})(\D|$)/.exec(s);
+        if (!m || +m[2] < 1 || +m[2] > 12 || +m[1] < 1 || +m[1] > 31) {
+            return null;
+        }
+        return (m[3].length === 2 ? '20' + m[3] : m[3]) + '-' + Ext.String.leftPad(m[2], 2, '0') + '-'
+                + Ext.String.leftPad(m[1], 2, '0');
+    },
+
+    /** Colonnes de date d'une liste : Début et Fin (offres, promotions), sinon toutes les colonnes de date. */
+    colonnesDate: function (colonnes) {
+        var me = this, r = {debut: -1, fin: -1, autres: []};
+        Ext.each(colonnes || [], function (titre, i) {
+            var t = String(titre || '');
+            if (/^(Date de )?d[ée]but/i.test(t)) {
+                r.debut = i;
+            } else if (/^(Date de )?fin\b/i.test(t)) {
+                r.fin = i;
+            } else if (me.genreColonne(t).nom === 'date') {
+                r.autres.push(i);
+            }
+        });
+        r.avecDates = r.debut >= 0 || r.fin >= 0 || r.autres.length > 0;
+        return r;
+    },
+
+    /**
+     * Ligne dans la période : avec Début et Fin, elle est en cours pendant la période (même règle que le serveur pour
+     * les offres DPCI) ; sinon une de ses dates est dans la période. Une ligne sans date lisible reste affichée.
+     */
+    dansPeriode: function (cd, cellules, p) {
+        var me = this, c = cellules || [];
+        if (cd.debut >= 0 || cd.fin >= 0) {
+            var d = cd.debut >= 0 ? me.lireDate(c[cd.debut]) : null, f = cd.fin >= 0 ? me.lireDate(c[cd.fin]) : null;
+            if (d || f) {
+                return (!d || d <= p.au) && (!f || f >= p.du);
+            }
+        }
+        var lues = 0, dedans = false;
+        Ext.each(cd.autres, function (i) {
+            var x = me.lireDate(c[i]);
+            if (x) {
+                lues++;
+                dedans = dedans || (x >= p.du && x <= p.au);
+            }
+        });
+        return lues === 0 || dedans;
     },
 
     /** Affiche le cache (collecter : lit d'abord l'extranet). */
@@ -1052,7 +1139,9 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
         var racine = code.indexOf('TEDIS_') === 0 ? 'tedis/listes/'
                 : code.indexOf('COPHARMED_') === 0 ? 'copharmed/listes/'
                 : code.indexOf('DPCI_') === 0 ? 'dpci/listes/' : 'ubipharm/listes/';
-        me.appel(collecter ? 'POST' : 'GET', racine + code + (collecter ? '/collecte' : ''), function (r) {
+        var p = collecter && racine === 'dpci/listes/' ? me.periodeListe(code) : null;
+        me.appel(collecter ? 'POST' : 'GET', racine + code + (collecter ? '/collecte' : '')
+                + (p ? '?du=' + p.du + '&au=' + p.au : ''), function (r) {
             if (r.success) {
                 me.afficherListe(code, r);
             }
@@ -1076,8 +1165,19 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
         grille.reconfigure(me.listes[code], colonnes);
         me.donnees = me.donnees || {};
         me.donnees[code] = r.lignes || [];
+        me.datesListe = me.datesListe || {};
+        me.datesListe[code] = me.colonnesDate(r.colonnes);
+        Ext.each(['Du', 'Au', 'Tout'], function (s) {
+            me.down('#' + id + s).setVisible(me.datesListe[code].avecDates);
+        });
         me.filtrerListe(code);
         me.afficherDate('#' + id + 'Date', r);
+        var lue = r.collecte && /du=(\d{4}-\d{2}-\d{2});au=(\d{4}-\d{2}-\d{2})/.exec(r.collecte.parametres || '');
+        if (lue) {
+            var l = me.down('#' + id + 'Date');
+            l.setText(l.text + ' — période lue : ' + Ext.Date.format(Ext.Date.parse(lue[1], 'Y-m-d'), 'd/m/Y') + ' au '
+                    + Ext.Date.format(Ext.Date.parse(lue[2], 'Y-m-d'), 'd/m/Y'));
+        }
     },
 
     /** Genre d'une colonne de liste, d'après son titre : largeur, alignement et rendu. */
@@ -1202,12 +1302,14 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
     filtrerListe: function (code) {
         var me = this, id = 'exListe' + code, st = me.listes[code], tout = (me.donnees || {})[code] || [],
                 q = Ext.String.trim(me.valeur('#' + id + 'Recherche')).toLowerCase(), nombre = me.down('#' + id + 'Nombre'),
-                trouves = !q ? tout : Ext.Array.filter(tout, function (l) {
-                    return (l.cellules || []).join(' ').toLowerCase().indexOf(q) >= 0;
+                p = me.periodeListe(code), cd = (me.datesListe || {})[code],
+                trouves = !q && !p ? tout : Ext.Array.filter(tout, function (l) {
+                    return (!q || (l.cellules || []).join(' ').toLowerCase().indexOf(q) >= 0)
+                            && (!p || !cd || me.dansPeriode(cd, l.cellules, p));
                 });
         st.loadData(trouves.slice(0, me.AFFICHAGE_MAX));
         if (nombre) {
-            nombre.setText(trouves.length + (q ? ' / ' + tout.length : '') + ' ligne(s)'
+            nombre.setText(trouves.length + (q || p ? ' / ' + tout.length : '') + ' ligne(s)'
                     + (trouves.length > me.AFFICHAGE_MAX ? ' — ' + me.AFFICHAGE_MAX + ' affichées : affinez la recherche'
                             : ''));
         }

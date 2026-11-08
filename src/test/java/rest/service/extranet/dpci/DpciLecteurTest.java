@@ -588,4 +588,75 @@ class DpciLecteurTest {
         assertFalse(f.containsKey("selectIdDocument"));
         assertNull(DpciLecteur.formulaireDocuments("<html></html>"));
     }
+
+    /**
+     * Periode choisie a l'ecran (08/11) : DPCI recoit exactement les deux dates, pour les commandes, les documents et
+     * les reclamations ; sans periode, un an jusqu'au jour (rafraichissement automatique, inchange).
+     */
+    @Test
+    void periodeTransmiseADpci() throws Exception {
+        Random r = new Random(20261108L);
+        List<String[]> recus = new ArrayList<>();
+        try (Faux x = new Faux()) {
+            x.page(DpciLecteur.PAGE_COMMANDES, a -> CONNECTE + "commandes</body></html>");
+            x.action(DpciLecteur.COMMANDES, a -> {
+                Map<String, String> q = requete(a);
+                recus.add(new String[] { "C", q.get("dateDebut"), q.get("dateFin") });
+                return new JSONObject().put("draw", q.get("draw")).put("recordsTotal", 0).put("recordsFiltered", 0)
+                        .put("data", new JSONObject().put("commandes", new JSONArray())).toString();
+            });
+            x.page(DpciLecteur.PAGE_DOCUMENTS, a -> pageDocuments(requete(a).get("typeDocument")));
+            x.action(DpciLecteur.DOCUMENTS, a -> {
+                Map<String, String> q = requete(a);
+                recus.add(new String[] { "D", q.get("docuware_debut-DATE_DOCUMENT"),
+                        q.get("docuware_fin-DATE_DOCUMENT") });
+                return new JSONObject().put("recordsTotal", 0).put("recordsFiltered", 0)
+                        .put("data", new JSONObject().put("itemList", new JSONArray())).toString();
+            });
+            x.page(DpciLecteur.PAGE_RECLAMATIONS, a -> CONNECTE + "reclamations</body></html>");
+            x.action(DpciLecteur.RECLAMATIONS, a -> {
+                Map<String, String> q = requete(a);
+                recus.add(new String[] { "R", q.get("dateDebut"), q.get("dateFin") });
+                return new JSONObject().put("recordsTotal", 0).put("recordsFiltered", 0).put("data", new JSONArray())
+                        .toString();
+            });
+            TransportExtranet t = x.transport("secret");
+            ListeDpci[] listes = { ListeDpci.DPCI_COMMANDES, ListeDpci.DPCI_BL, ListeDpci.DPCI_FACTURES,
+                    ListeDpci.DPCI_RELEVES, ListeDpci.DPCI_AVOIRS, ListeDpci.DPCI_RECLAMATIONS };
+            for (int cas = 0; cas < 30; cas++) {
+                LocalDate du = JOUR.minusDays(r.nextInt(400)), au = cas % 3 == 0 ? du : du.plusDays(r.nextInt(366));
+                ListeDpci l = listes[cas % listes.length];
+                recus.clear();
+                assertTrue(DpciLecteur.lire(t, l, du, au).isEmpty());
+                assertEquals(1, recus.size(), l + " : une seule page vide");
+                assertEquals(du.toString(), recus.get(0)[1], l + " du");
+                assertEquals(au.toString(), recus.get(0)[2], l + " au");
+            }
+            recus.clear();
+            DpciLecteur.lire(t, ListeDpci.DPCI_COMMANDES, JOUR);
+            assertEquals("2025-11-08", recus.get(0)[1], "sans periode : un an");
+            assertEquals("2026-11-08", recus.get(0)[2]);
+            getSeulement(x.f);
+        }
+        TransportExtranet sans = null;
+        assertThrows(IllegalArgumentException.class, () -> DpciLecteur.lire(sans, ListeDpci.DPCI_BL, JOUR, JOUR));
+    }
+
+    /** Offre en cours pendant la periode = chevauchement des intervalles (oracle independant, 20 000 cas). */
+    @Test
+    void offreEnCoursPendantLaPeriode() {
+        Random r = new Random(20261108L);
+        LocalDate base = LocalDate.of(2026, 1, 1);
+        for (int cas = 0; cas < 20000; cas++) {
+            LocalDate du = base.plusDays(r.nextInt(300)), au = du.plusDays(r.nextInt(30));
+            boolean sansDebut = r.nextInt(8) == 0, sansFin = r.nextInt(8) == 0;
+            LocalDate d = base.plusDays(r.nextInt(330)), f = d.plusDays(r.nextInt(60));
+            String debut = sansDebut ? "" : d + (r.nextBoolean() ? "T00:00:00" : "T23:59:59");
+            String fin = sansFin ? "" : f + "T00:00:00";
+            boolean attendu = (sansDebut || !d.isAfter(au)) && (sansFin || !f.isBefore(du));
+            assertEquals(attendu, DpciLecteur.enCours(debut, fin, du, au),
+                    debut + " / " + fin + " / " + du + ".." + au);
+            assertEquals(DpciLecteur.enCours(debut, fin, du), DpciLecteur.enCours(debut, fin, du, du));
+        }
+    }
 }

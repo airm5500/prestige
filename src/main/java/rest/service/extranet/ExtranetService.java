@@ -535,6 +535,15 @@ public class ExtranetService {
 
     /** Comme Copharmed : collecte fermee COMPLETE avant de retirer l'ancien cache ; un echec garde l'ancien. */
     public JSONObject collecterListeDpci(String code, String utilisateur) {
+        return collecterListeDpci(code, utilisateur, null);
+    }
+
+    /**
+     * Periode choisie a l'ecran (08/11) : DPCI ne renvoie que la periode ; null : offres du jour et un an pour le reste
+     * (rafraichissement automatique). La periode lue est gardee dans le journal de la collecte.
+     */
+    public JSONObject collecterListeDpci(String code, String utilisateur,
+            rest.service.extranet.commun.Periode periode) {
         rest.service.extranet.dpci.ListeDpci l = rest.service.extranet.dpci.ListeDpci.parCode(code);
         if (l == null) {
             return new JSONObject().put("success", false).put("msg", "Liste inconnue");
@@ -542,10 +551,12 @@ public class ExtranetService {
         SourceExtranet s = SourceExtranet.DPCI;
         chargerIdentifiants(s);
         JournalCollecte journal = new JournalCollecte(em);
-        long id = journal.ouvrir(s, l.module(), null, utilisateur);
+        long id = journal.ouvrir(s, l.module(), periode == null ? null : periode.parametres(), utilisateur);
         try {
-            List<rest.service.extranet.ubipharm.ListesUbipharmParseur.Ligne> lignes = rest.service.extranet.dpci.DpciLecteur
-                    .lire(CoffreSessions.transport(s), l);
+            List<rest.service.extranet.ubipharm.ListesUbipharmParseur.Ligne> lignes = periode == null
+                    ? rest.service.extranet.dpci.DpciLecteur.lire(CoffreSessions.transport(s), l)
+                    : rest.service.extranet.dpci.DpciLecteur.lire(CoffreSessions.transport(s), l, periode.du,
+                            periode.au);
             rest.service.extranet.commun.DepotListes d = new rest.service.extranet.commun.DepotListes(em);
             d.enregistrer(id, l.name(), lignes);
             journal.fermer(id, JournalCollecte.COMPLETE, null, lignes.size(), null);

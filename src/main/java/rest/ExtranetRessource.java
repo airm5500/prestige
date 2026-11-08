@@ -403,9 +403,19 @@ public class ExtranetRessource {
 
     @POST
     @Path("dpci/listes/{code}/collecte")
-    public Response collecterListeDpci(@PathParam("code") String code) {
+    public Response collecterListeDpci(@PathParam("code") String code, @QueryParam("du") String du,
+            @QueryParam("au") String au) {
         Response r = refus();
-        return r != null ? r : ok(service.collecterListeDpci(code, login()));
+        if (r != null) {
+            return r;
+        }
+        rest.service.extranet.commun.Periode periode;
+        try {
+            periode = rest.service.extranet.commun.Periode.lire(du, au);
+        } catch (IllegalArgumentException e) {
+            return ok(new JSONObject().put("success", false).put("msg", e.getMessage()));
+        }
+        return ok(service.collecterListeDpci(code, login(), periode));
     }
 
     /* ============================================================ Mayite : specialites et monographies */

@@ -61,25 +61,35 @@ public final class DpciLecteur {
         return lire(t, l, LocalDate.now());
     }
 
+    /** Sans periode (rafraichissement automatique) : offres en cours le jour donne, le reste sur un an. */
     static List<Ligne> lire(TransportExtranet t, ListeDpci l, LocalDate jour) throws ExtranetException {
-        if (t == null || l == null) {
-            throw new IllegalArgumentException("transport et liste attendus");
+        return l == ListeDpci.DPCI_OFFRES ? lire(t, l, jour, jour) : lire(t, l, jour.minusDays(JOURS), jour);
+    }
+
+    /**
+     * Periode choisie a l'ecran (demande du 08/11 : le jour par defaut, au lieu d'un an) : DPCI ne renvoie que les
+     * commandes, documents et reclamations de la periode ; offres en cours pendant la periode.
+     */
+    public static List<Ligne> lire(TransportExtranet t, ListeDpci l, LocalDate du, LocalDate au)
+            throws ExtranetException {
+        if (t == null || l == null || du == null || au == null || du.isAfter(au)) {
+            throw new IllegalArgumentException("transport, liste et periode (du <= au) attendus");
         }
         switch (l) {
         case DPCI_OFFRES:
-            return offres(t, jour);
+            return offres(t, du, au);
         case DPCI_COMMANDES:
-            return commandes(t, jour);
+            return commandes(t, du, au);
         case DPCI_RECLAMATIONS:
-            return reclamations(t, jour);
+            return reclamations(t, du, au);
         default:
-            return documents(t, l, jour);
+            return documents(t, l, du, au);
         }
     }
 
     /* ============================================================ offres */
 
-    static List<Ligne> offres(TransportExtranet t, LocalDate jour) throws ExtranetException {
+    static List<Ligne> offres(TransportExtranet t, LocalDate du, LocalDate au) throws ExtranetException {
         t.lire(PAGE_OFFRES, null, Attendu.HTML, null);
         JSONObject r = json(t, OFFRES, null, PAGE_OFFRES);
         JSONArray offres = r.optJSONArray("allOffresList");
@@ -99,7 +109,7 @@ public final class DpciLecteur {
                 throw inattendu("offre " + (i + 1) + " sans partenariat ni remise");
             }
             String debut = date(remise.opt("dateDebut")), fin = date(remise.opt("dateFin"));
-            if (!enCours(debut, fin, jour)) {
+            if (!enCours(debut, fin, du, au)) {
                 continue;
             }
             lues++;
@@ -152,9 +162,13 @@ public final class DpciLecteur {
 
     /** Offre en cours le jour donne : commencee (ou sans debut) et non finie (ou sans fin). */
     static boolean enCours(String debut, String fin, LocalDate jour) {
-        String j = jour.toString();
-        return (debut.isEmpty() || debut.substring(0, Math.min(10, debut.length())).compareTo(j) <= 0)
-                && (fin.isEmpty() || fin.substring(0, Math.min(10, fin.length())).compareTo(j) >= 0);
+        return enCours(debut, fin, jour, jour);
+    }
+
+    /** Offre en cours pendant la periode : commencee au plus tard le dernier jour, finie au plus tot le premier. */
+    static boolean enCours(String debut, String fin, LocalDate du, LocalDate au) {
+        return (debut.isEmpty() || debut.substring(0, Math.min(10, debut.length())).compareTo(au.toString()) <= 0)
+                && (fin.isEmpty() || fin.substring(0, Math.min(10, fin.length())).compareTo(du.toString()) >= 0);
     }
 
     /**
@@ -202,13 +216,13 @@ public final class DpciLecteur {
 
     /* ============================================================ commandes */
 
-    static List<Ligne> commandes(TransportExtranet t, LocalDate jour) throws ExtranetException {
+    static List<Ligne> commandes(TransportExtranet t, LocalDate du, LocalDate au) throws ExtranetException {
         t.lire(PAGE_COMMANDES, null, Attendu.HTML, null);
         List<Ligne> lignes = new ArrayList<>();
         ParcoursDataTables.parcourir((start, length, draw) -> {
             Map<String, String> q = dataTables(start, length, draw, "date", "date_commande");
-            q.put("dateDebut", jour.minusDays(JOURS).toString());
-            q.put("dateFin", jour.toString());
+            q.put("dateDebut", du.toString());
+            q.put("dateFin", au.toString());
             JSONObject r = json(t, COMMANDES, q, PAGE_COMMANDES);
             JSONObject d = r.optJSONObject("data");
             JSONArray c = d == null ? null : d.optJSONArray("commandes");
@@ -238,7 +252,8 @@ public final class DpciLecteur {
 
     /* ============================================================ documents */
 
-    static List<Ligne> documents(TransportExtranet t, ListeDpci l, LocalDate jour) throws ExtranetException {
+    static List<Ligne> documents(TransportExtranet t, ListeDpci l, LocalDate du, LocalDate au)
+            throws ExtranetException {
         Map<String, String> page = new LinkedHashMap<>();
         page.put("typeDocument", l.typeDocument);
         Map<String, String> champs = formulaireDocuments(t.lire(PAGE_DOCUMENTS, page, Attendu.HTML, null).texte());
@@ -250,8 +265,8 @@ public final class DpciLecteur {
         ParcoursDataTables.parcourir((start, length, draw) -> {
             Map<String, String> q = dataTables(start, length, draw, "fieldMap.DATE_DOCUMENT.value", "DATE_DOCUMENT");
             q.putAll(champs);
-            q.put("docuware_debut-DATE_DOCUMENT", jour.minusDays(JOURS).toString());
-            q.put("docuware_fin-DATE_DOCUMENT", jour.toString());
+            q.put("docuware_debut-DATE_DOCUMENT", du.toString());
+            q.put("docuware_fin-DATE_DOCUMENT", au.toString());
             JSONObject r = json(t, DOCUMENTS, q, referer);
             JSONObject d = r.optJSONObject("data");
             JSONArray items = d == null ? null : d.optJSONArray("itemList");
@@ -320,15 +335,15 @@ public final class DpciLecteur {
 
     /* ============================================================ reclamations */
 
-    static List<Ligne> reclamations(TransportExtranet t, LocalDate jour) throws ExtranetException {
+    static List<Ligne> reclamations(TransportExtranet t, LocalDate du, LocalDate au) throws ExtranetException {
         t.lire(PAGE_RECLAMATIONS, null, Attendu.HTML, null);
         List<Ligne> lignes = new ArrayList<>();
         ParcoursDataTables.parcourir((start, length, draw) -> {
             Map<String, String> q = dataTables(start, length, draw, "id", "REC_ID");
             q.put("idReclamation", "");
             q.put("idCommande", "");
-            q.put("dateDebut", jour.minusDays(JOURS).toString());
-            q.put("dateFin", jour.toString());
+            q.put("dateDebut", du.toString());
+            q.put("dateFin", au.toString());
             JSONObject r = json(t, RECLAMATIONS, q, PAGE_RECLAMATIONS);
             JSONArray d = r.optJSONArray("data");
             if (d == null) {
