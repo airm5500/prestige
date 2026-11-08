@@ -107,6 +107,10 @@ public class ExtranetService {
     /** Corps : identifiant, motDePasse (vide : inchange). Administrateur seulement (controle dans l'API). */
     public JSONObject enregistrerCompte(SourceExtranet s, String identifiant, String motDePasse, String pageConnexion,
             String champIdentifiant, String utilisateur) {
+        if (s.passerelle() != null) {
+            return new JSONObject().put("success", false).put("msg", s + " s'ouvre par " + s.passerelle()
+                    + " : aucun identifiant à saisir, enregistrez ceux de " + s.passerelle());
+        }
         String refus;
         try {
             String page = ComptesExtranet.normaliserPage(pageConnexion,
@@ -136,6 +140,9 @@ public class ExtranetService {
 
     /** Connexion maintenant avec les identifiants enregistres (bouton « Se connecter »). */
     public JSONObject seConnecter(SourceExtranet s) {
+        if (s.passerelle() != null) {
+            chargerIdentifiants(s.passerelle());
+        }
         String motif = chargerIdentifiants(s);
         if (motif != null) {
             return new JSONObject().put("success", false).put("msg", motif);
@@ -449,6 +456,37 @@ public class ExtranetService {
                     .rechercher(CoffreSessions.transport(SourceExtranet.UBIPHARM), motif,
                             rest.service.extranet.ubipharm.RechercheUbipharm.Champs.lire(champs), commencePar,
                             enStockSeulement)
+                    .put("success", true);
+        } catch (ExtranetException e) {
+            return new JSONObject().put("success", false).put("nature", e.nature().name()).put("msg", e.getMessage());
+        }
+    }
+
+    /* ============================================================ Mayite : specialites et monographies */
+
+    /** Recherche dans la liste des specialites Mayite (entree par la session Ubipharm). */
+    public JSONObject rechercherMayite(String nom, String dci, String forme, String laboratoire) {
+        rest.service.extranet.mayite.RechercheMayite.Criteres c = new rest.service.extranet.mayite.RechercheMayite.Criteres(
+                nom, dci, forme, laboratoire);
+        String refus = c.refus();
+        if (refus != null) {
+            return new JSONObject().put("success", false).put("msg", refus);
+        }
+        chargerIdentifiants(SourceExtranet.UBIPHARM);
+        try {
+            return rest.service.extranet.mayite.RechercheMayite
+                    .rechercher(CoffreSessions.transport(SourceExtranet.MAYITE), c).put("success", true);
+        } catch (ExtranetException e) {
+            return new JSONObject().put("success", false).put("nature", e.nature().name()).put("msg", e.getMessage());
+        }
+    }
+
+    /** Monographie Mayite d'une specialite (identifiant tire de la recherche). */
+    public JSONObject monographieMayite(String id) {
+        chargerIdentifiants(SourceExtranet.UBIPHARM);
+        try {
+            return rest.service.extranet.mayite.MonographieMayite
+                    .lire(CoffreSessions.transport(SourceExtranet.MAYITE), id == null ? "" : id.trim().toLowerCase())
                     .put("success", true);
         } catch (ExtranetException e) {
             return new JSONObject().put("success", false).put("nature", e.nature().name()).put("msg", e.getMessage());

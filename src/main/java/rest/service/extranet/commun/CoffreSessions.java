@@ -36,7 +36,14 @@ public final class CoffreSessions {
 
     /** Connexion automatique de l'extranet (identifiants chargés par le service avant chaque usage). */
     public static synchronized ConnexionExtranet connexion(SourceExtranet s) {
-        return CONNEXIONS.computeIfAbsent(s,
-                x -> new ConnexionExtranet(SESSIONS.get(x), ExtranetConfiguration.duServeur()));
+        return CONNEXIONS.computeIfAbsent(s, x -> {
+            ConnexionExtranet c = new ConnexionExtranet(SESSIONS.get(x), ExtranetConfiguration.duServeur());
+            if (x.passerelle() != null) {
+                c.passerelle(() -> transport(x.passerelle()).lire(SourceExtranet.PASSERELLE_MAYITE,
+                        java.util.Collections.singletonMap("opt", "mayite"), TransportExtranet.Attendu.HTML, null)
+                        .texte());
+            }
+            return c;
+        });
     }
 }

@@ -22,7 +22,16 @@ public enum SourceExtranet {
      * TEDIS (relevee le 08/11) : /login porte un formulaire sans adresse d'envoi ; le site l'envoie en AJAX a la racine
      * « / » et recoit du JSON ({error, msg} / {succes}). Poster sur /login donne 405.
      */
-    TEDIS("https://www.tedispharma-ci.com", "EXTRANET_TEDIS", "https://www.tedispharma-ci.com/login", "/");
+    TEDIS("https://www.tedispharma-ci.com", "EXTRANET_TEDIS", "https://www.tedispharma-ci.com/login", "/"),
+    /*
+     * Mayite (base des specialites, relevee le 08/11) : pas d'identifiant propre. Ubipharm ouvre Mayite par
+     * /themes/boo/html/extranet/stats/statsexternal.jsp?opt=mayite, page qui porte un formulaire cache envoye seul a
+     * Mayite (/external_api/). Prestige refait ce passage avec la session Ubipharm, puis lit Mayite en GET seulement.
+     */
+    MAYITE("https://equivalence.mayite-service.com", "EXTRANET_MAYITE", null, null);
+
+    /** Page d'Ubipharm qui ouvre Mayite (formulaire cache vers Mayite). */
+    public static final String PASSERELLE_MAYITE = "/themes/boo/html/extranet/stats/statsexternal.jsp";
 
     private final String adresseParDefaut;
     private final String prefixeCle;
@@ -72,6 +81,13 @@ public enum SourceExtranet {
     /** Prefixe des cles de configuration : EXTRANET_UBIPHARM_URL, EXTRANET_UBIPHARM_PAUSE_MS... */
     public String prefixeCle() {
         return prefixeCle;
+    }
+
+    /**
+     * Extranet par lequel on entre (Mayite : Ubipharm) ; null si l'extranet a ses propres identifiants.
+     */
+    public SourceExtranet passerelle() {
+        return this == MAYITE ? UBIPHARM : null;
     }
 
     /** Lecture tolerante (« ubipharm », « TEDIS ») ; null si inconnue. */

@@ -125,6 +125,7 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
                                 me.ongletListe('TEDIS_HISTORIQUE_COMMANDES', 'Historique de vos commandes'),
                                 me.ongletListe('TEDIS_PROMOS_LABO', 'Promotions laboratoire'),
                                 me.ongletListe('TEDIS_PROMOS_EXCLUSIVES', 'Promotions exclusives')])]),
+                        Ext.apply(me.panneauMayite('exMayite'), {title: 'Mayité'}),
                         me.ongletCollectes(), me.ongletRafraichissement()],
                     listeners: {
                         tabchange: function (tp, onglet) {
@@ -599,8 +600,18 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
                         {text: 'Statut', dataIndex: 'statut', width: 90, renderer: me.texte},
                         {text: 'Disponibilité', dataIndex: 'dispo', flex: 2, renderer: me.texte},
                         {text: 'Prix', dataIndex: 'prix', flex: 1, renderer: me.texte},
-                        {text: 'Colisage', dataIndex: 'colisage', width: 70, renderer: me.texte}],
-                    listeners: {itemclick: function (v, rec) {
+                        {text: 'Colisage', dataIndex: 'colisage', width: 70, renderer: me.texte},
+                        {text: 'Mayité', width: 95, align: 'center', sortable: false, menuDisabled: true,
+                            renderer: function () {
+                                return '<span class="ex-bouton-mayite" style="cursor:pointer;color:#2980b9;'
+                                        + 'text-decoration:underline">Monographie</span>';
+                            }}],
+                    listeners: {cellclick: function (v, td, col, rec, tr, ligne, e) {
+                            /* bouton Mayité : recherche dans une fenêtre de consultation ; ailleurs : la fiche */
+                            if (e.getTarget('.ex-bouton-mayite')) {
+                                me.fenetreMayite(rec.get('designation'));
+                                return;
+                            }
                             me.down('#exPscode').setValue(rec.get('pscode'));
                             lire(true);
                         }}},
@@ -938,6 +949,167 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
             nombre.setText(trouves.length + (q ? ' / ' + tout.length : '') + ' ligne(s)'
                     + (trouves.length > me.AFFICHAGE_MAX ? ' — ' + me.AFFICHAGE_MAX + ' affichées : affinez la recherche'
                             : ''));
+        }
+    },
+
+    /* ---------------------------------------------------------------- Mayité */
+
+    /**
+     * Base Mayité (demande du 08/11), lue par la session Ubipharm : recherche par nom, DCI, forme ou laboratoire ; un
+     * clic sur une ligne affiche la monographie à droite (et ses spécialités correspondantes, cliquables). Le même
+     * panneau sert à l'onglet Mayité et à la fenêtre ouverte depuis un résultat de la recherche Ubipharm.
+     */
+    panneauMayite: function (prefixe, nomInitial) {
+        var me = this, magasin = Ext.create('Ext.data.Store', {
+            fields: ['id', 'nom', 'dci', 'liste', 'dosages', 'proprietes', 'prix']
+        }), chercher = function (b) {
+            me.rechercherMayite(b.up('#' + prefixe), magasin);
+        }, champ = function (nom, libelle, largeur, valeur) {
+            return {xtype: 'textfield', itemId: nom, fieldLabel: libelle, labelWidth: libelle.length * 6 + 10,
+                width: largeur, value: valeur || '', enableKeyEvents: true, margin: '0 8 0 0',
+                listeners: {specialkey: function (f, e) {
+                        if (e.getKey() === e.ENTER) {
+                            chercher(f);
+                        }
+                    }}};
+        };
+        return {
+            xtype: 'panel', itemId: prefixe, layout: {type: 'hbox', align: 'stretch'}, border: false,
+            dockedItems: [{xtype: 'toolbar', dock: 'top', items: [
+                        champ('exMayiteNom', 'Nom', 210, nomInitial), champ('exMayiteDci', 'DCI', 190),
+                        champ('exMayiteForme', 'Forme', 150), champ('exMayiteLabo', 'Laboratoire', 200),
+                        {text: 'Rechercher', itemId: 'exMayiteRechercher', iconCls: 'searchicon', handler: chercher},
+                        '->', {xtype: 'label', itemId: 'exMayiteMsg'}]}],
+            items: [
+                {xtype: 'gridpanel', itemId: 'exMayiteGrille', flex: 5, store: magasin, columnLines: true,
+                    title: 'Spécialités', margin: '0 4 0 0',
+                    viewConfig: {deferEmptyText: false, emptyText: '<div style="padding:12px;color:#777">Saisissez '
+                                + 'un nom ou une DCI puis « Rechercher »</div>'},
+                    columns: [
+                        {text: 'Nom', dataIndex: 'nom', flex: 3, renderer: me.texte},
+                        {text: 'DCI', dataIndex: 'dci', flex: 3, renderer: me.texte},
+                        {text: 'Liste', dataIndex: 'liste', width: 60, renderer: me.texte},
+                        {text: 'Dosages', dataIndex: 'dosages', flex: 2, renderer: me.texte},
+                        {text: 'Propriétés', dataIndex: 'proprietes', flex: 2, renderer: me.texte},
+                        {text: 'Prix (FCFA)', dataIndex: 'prix', width: 90, align: 'right', renderer: me.montant}],
+                    listeners: {itemclick: function (v, rec) {
+                            me.lireMonographie(v.up('#' + prefixe), rec.get('id'));
+                        }}},
+                {xtype: 'component', itemId: 'exMayiteMonographie', flex: 4, autoScroll: true,
+                    style: 'background:#fff;border:1px solid #d6dde3',
+                    html: '<div style="padding:16px;color:#777">Cliquez une spécialité pour sa monographie.</div>',
+                    listeners: {afterrender: function (c) {
+                            /* spécialités correspondantes : un clic ouvre leur monographie */
+                            c.getEl().on('click', function (e) {
+                                var a = e.getTarget('.ex-mayite-equivalent');
+                                if (a) {
+                                    e.stopEvent();
+                                    me.lireMonographie(c.up('#' + prefixe), a.getAttribute('data-id'));
+                                }
+                            });
+                        }}}
+            ]
+        };
+    },
+
+    /** Montant en FCFA, espace pour les milliers ; vide si inconnu. */
+    montant: function (v) {
+        if (v === null || v === undefined || v === '') {
+            return '';
+        }
+        var n = Number(v), a, ent, dec;
+        if (isNaN(n)) {
+            return Ext.String.htmlEncode(String(v));
+        }
+        /* format fixe, indépendant de la langue d'ExtJS : 12 345,5 */
+        a = Math.round(Math.abs(n) * 100);
+        ent = String(Math.floor(a / 100)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+        dec = a % 100;
+        return (n < 0 ? '-' : '') + ent + (dec ? ',' + String(dec < 10 ? '0' + dec : dec).replace(/0$/, '') : '');
+    },
+
+    rechercherMayite: function (p, magasin) {
+        var me = this, v = function (id) {
+            return Ext.String.trim(p.down('#' + id).getValue() || '');
+        }, msg = p.down('#exMayiteMsg'), grille = p.down('#exMayiteGrille');
+        if (!v('exMayiteNom') && !v('exMayiteDci') && !v('exMayiteForme') && !v('exMayiteLabo')) {
+            msg.setText('<span style="color:#c0392b">Saisissez un nom, une DCI, une forme ou un laboratoire</span>',
+                    false);
+            return;
+        }
+        me.appel('GET', 'mayite/recherche?nom=' + encodeURIComponent(v('exMayiteNom')) + '&dci='
+                + encodeURIComponent(v('exMayiteDci')) + '&forme=' + encodeURIComponent(v('exMayiteForme'))
+                + '&laboratoire=' + encodeURIComponent(v('exMayiteLabo')), function (r) {
+            magasin.loadData(r.success ? r.resultats : []);
+            grille.setTitle('Spécialités' + (r.success ? ' : ' + r.trouves + ' trouvée(s)' + (r.tronque ? ', '
+                    + r.resultats.length + ' affichées — affinez' : '') : ''));
+            if (r.success) {
+                msg.setText('<span style="color:#27ae60">' + r.trouves + ' spécialité(s) — cliquez une ligne pour '
+                        + 'sa monographie</span>', false);
+            } else {
+                msg.setText('<span style="color:#c0392b">' + Ext.String.htmlEncode(r.msg || 'Échec') + '</span>', false);
+            }
+        }, grille);
+    },
+
+    lireMonographie: function (p, id) {
+        var me = this, cible = p.down('#exMayiteMonographie');
+        me.appel('GET', 'mayite/monographie/' + encodeURIComponent(id), function (r) {
+            cible.update(r.success ? me.htmlMonographie(r) : '<div style="padding:16px;color:#c0392b">'
+                    + Ext.String.htmlEncode(r.msg || 'Échec') + '</div>');
+            cible.getEl().dom.scrollTop = 0;
+        }, cible);
+    },
+
+    /** Monographie mise en forme : en-tête, rubriques en blocs, spécialités correspondantes en tableau. */
+    htmlMonographie: function (m) {
+        var me = this, h = function (s) {
+            return Ext.String.htmlEncode(s || '').replace(/\n/g, '<br>');
+        }, html = '<div style="padding:14px 16px;font-size:13px;line-height:1.45">'
+                + '<div style="font-size:17px;font-weight:bold;color:#1f3a56">' + h(m.nom) + '</div>'
+                + '<div style="margin:4px 0 12px 0;color:#555">' + (m.dci ? 'DCI : <b>' + h(m.dci) + '</b>' : '')
+                + (m.prix ? '<span style="margin-left:18px">Prix : <b>' + h(m.prix) + '</b></span>' : '') + '</div>';
+        Ext.each(m.rubriques || [], function (r) {
+            if (!r.texte) {
+                return;
+            }
+            html += '<div class="ex-mayite-rubrique" style="margin:0 0 10px 0;border-left:3px solid #2980b9;'
+                    + 'padding:2px 0 2px 10px"><div style="font-weight:bold;color:#2980b9;margin-bottom:2px">'
+                    + h(r.titre) + '</div><div>' + h(r.texte) + '</div></div>';
+        });
+        if ((m.equivalents || []).length) {
+            html += '<div style="font-weight:bold;color:#1f3a56;margin:14px 0 6px 0">Spécialités correspondantes ('
+                    + m.equivalents.length + ')</div><table style="border-collapse:collapse;width:100%">';
+            Ext.each(m.equivalents, function (e, i) {
+                html += '<tr style="background:' + (i % 2 ? '#f6f8fa' : '#fff') + '"><td style="padding:3px 6px">'
+                        + '<a href="#" class="ex-mayite-equivalent" data-id="' + h(e.id) + '">' + h(e.nom) + '</a></td>'
+                        + '<td style="padding:3px 6px;text-align:right;white-space:nowrap">' + me.montant(e.prix)
+                        + ' FCFA</td></tr>';
+            });
+            html += '</table>';
+        }
+        return html + '<div style="margin-top:14px;color:#999;font-size:11px">Source : Mayité, consultée par la '
+                + 'session Ubipharm</div></div>';
+    },
+
+    /**
+     * Fenêtre de consultation (aucune modification) ouverte par le bouton « Monographie » d'un résultat Ubipharm :
+     * recherche Mayité lancée sur le premier mot de la désignation, modifiable.
+     */
+    fenetreMayite: function (designation) {
+        var me = this, mot = (String(designation || '').match(/[A-Za-zÀ-ÿ0-9][A-Za-zÀ-ÿ0-9-]+/) || [''])[0],
+                taille = Ext.getBody().getViewSize(),
+                f = Ext.create('Ext.window.Window', {
+                    title: 'Mayité — ' + Ext.String.htmlEncode(designation || ''), itemId: 'exFenetreMayite',
+                    modal: true, width: Math.min(1200, taille.width - 40), height: Math.min(680, taille.height - 40),
+                    layout: 'fit', items: [me.panneauMayite('exMayiteFenetre', mot)],
+                    buttons: [{text: 'Fermer', handler: function () {
+                                f.close();
+                            }}]
+                });
+        f.show();
+        if (mot.length >= 2) {
+            me.rechercherMayite(f.down('#exMayiteFenetre'), f.down('#exMayiteGrille').getStore());
         }
     },
 

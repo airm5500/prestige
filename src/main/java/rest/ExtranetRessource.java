@@ -355,6 +355,23 @@ public class ExtranetRessource {
         return r != null ? r : ok(service.rechercherUbipharm(motif, champs, commencePar, enStock));
     }
 
+    /* ============================================================ Mayite : specialites et monographies */
+
+    @GET
+    @Path("mayite/recherche")
+    public Response rechercherMayite(@QueryParam("nom") String nom, @QueryParam("dci") String dci,
+            @QueryParam("forme") String forme, @QueryParam("laboratoire") String laboratoire) {
+        Response r = refus();
+        return r != null ? r : ok(service.rechercherMayite(nom, dci, forme, laboratoire));
+    }
+
+    @GET
+    @Path("mayite/monographie/{id}")
+    public Response monographieMayite(@PathParam("id") String id) {
+        Response r = refus();
+        return r != null ? r : ok(service.monographieMayite(id));
+    }
+
     /* ============================================================ rafraichissement automatique des listes */
 
     @GET

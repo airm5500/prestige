@@ -105,7 +105,63 @@ public final class ConnexionExtranet {
     }
 
     public boolean disponible() {
-        return identifiants != null;
+        return identifiants != null || passerelle != null;
+    }
+
+    /**
+     * Entree par un autre extranet (Mayite par Ubipharm) : rend le HTML de la page de l'autre extranet qui porte le
+     * formulaire cache vers celui-ci. Lue avec la session de l'autre extranet (reconnexion comprise).
+     */
+    public interface Passerelle {
+        String page() throws ExtranetException;
+    }
+
+    private volatile Passerelle passerelle;
+
+    public void passerelle(Passerelle p) {
+        this.passerelle = p;
+    }
+
+    /**
+     * Connexion par passerelle : le formulaire cache rendu par l'autre extranet est envoye tel quel (aucune valeur
+     * ajoutee ni journalisee), seulement s'il vise ce site ; la session est faite des cookies recus.
+     */
+    private void connecterParPasserelle(Passerelle p) throws ExtranetException {
+        Document d = Jsoup.parse(p.page());
+        Element f = d.selectFirst("form[action]");
+        if (f == null) {
+            throw refus("Passerelle " + session.source() + " : formulaire d'entrée introuvable");
+        }
+        URI action;
+        try {
+            action = URI.create(f.attr("action").trim());
+        } catch (IllegalArgumentException e) {
+            throw refus("Passerelle " + session.source() + " : adresse d'entrée illisible");
+        }
+        if (!action.isAbsolute() || !memeDomaine(origine, action)) {
+            throw refus("Passerelle " + session.source() + " : le formulaire envoie vers un autre site, refusé");
+        }
+        Map<String, String> champs = new LinkedHashMap<>();
+        for (Element e : f.select("input[name]")) {
+            champs.put(e.attr("name"), e.attr("value"));
+        }
+        if (champs.isEmpty()) {
+            throw refus("Passerelle " + session.source() + " : formulaire d'entrée vide");
+        }
+        Bocal pot = new Bocal();
+        Page apres = suivre(post(action, origine, champs, pot), pot);
+        if (apres.statut >= 400) {
+            throw new ExtranetException(ExtranetException.Nature.TRANSPORT,
+                    "Entrée " + session.source() + " : statut " + apres.statut + " sur " + apres.uri.getPath());
+        }
+        if (DetecteurPageConnexion.estPageConnexion(apres.corps)) {
+            throw refus(session.source() + " a refusé l'entrée transmise par " + session.source().passerelle());
+        }
+        Map<String, String> ouverte = pot.pour(origine.getHost());
+        if (ouverte.isEmpty()) {
+            throw refus(session.source() + " n'a ouvert aucune session (aucun cookie reçu)");
+        }
+        session.definirParConnexion(ouverte);
     }
 
     /**
@@ -117,6 +173,16 @@ public final class ConnexionExtranet {
      */
     public synchronized void connecter() throws ExtranetException {
         Identifiants id = identifiants;
+        Passerelle pas = passerelle;
+        if (id == null && pas != null) {
+            try {
+                connecterParPasserelle(pas);
+                return;
+            } catch (ExtranetException e) {
+                session.connexionEchouee(e.getMessage());
+                throw e;
+            }
+        }
         if (id == null) {
             throw new ExtranetException(ExtranetException.Nature.SESSION_ABSENTE,
                     "Aucun identifiant enregistré pour " + session.source());
