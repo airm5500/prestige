@@ -73,11 +73,11 @@ async function cliquerEtAttendre(p, requete, morceauUrl) {
     await p.waitForTimeout(1500);
 
     /* ---- session : saisie par l'administrateur, jamais reaffichee */
-    ok('session : non renseignée au départ', (await texte(p, '#exEtatUBIPHARM')).indexOf('non renseignée') >= 0, await texte(p, '#exEtatUBIPHARM'));
+    ok('session : « Non connecté » au départ', (await texte(p, '#exEtatUBIPHARM')).indexOf('État : Non connecté') >= 0, await texte(p, '#exEtatUBIPHARM'));
     await vues.saisir(p, ECRAN + ' #exCookieUBIPHARM', srv.COOKIE);
     await cliquerEtAttendre(p, ECRAN + ' #exSaisieUBIPHARM button[text=Enregistrer]', '/sessions/UBIPHARM');
     await p.waitForTimeout(800);
-    ok('session : renseignée', (await texte(p, '#exEtatUBIPHARM')).indexOf('renseignée') >= 0, await texte(p, '#exEtatUBIPHARM'));
+    ok('session : « Connecté (cookie collé) »', (await texte(p, '#exEtatUBIPHARM')).indexOf('✓ Connecté (cookie collé)') >= 0, await texte(p, '#exEtatUBIPHARM'));
     const etatApi = await p.evaluate(() => fetch('../api/v1/extranet/sessions').then((r) => r.text()));
     ok('session : la valeur n\'est jamais renvoyée par l\'API', etatApi.indexOf('essai-e2e-local') < 0 && etatApi.indexOf('SESSIONID') < 0);
     ok('session : champ vidé après enregistrement', (await p.evaluate(() => Ext.ComponentQuery.query('#exCookieUBIPHARM')[0].getValue())) === '');
@@ -189,7 +189,7 @@ async function cliquerEtAttendre(p, requete, morceauUrl) {
     ok('expiration : cache précédent gardé', q('SELECT COUNT(*) FROM extranet_nouveau_produit') === nvAvant);
     await onglet(p, 'Sessions');
     await p.waitForTimeout(800);
-    ok('expiration : session marquée expirée', (await texte(p, '#exEtatUBIPHARM')).indexOf('expirée') >= 0, await texte(p, '#exEtatUBIPHARM'));
+    ok('expiration : « Session expirée »', (await texte(p, '#exEtatUBIPHARM')).indexOf('Session expirée') >= 0, await texte(p, '#exEtatUBIPHARM'));
     srv.etat.mode = 'normal';
 
     /* ---- journal et bilan avant / apres */
@@ -213,7 +213,7 @@ async function cliquerEtAttendre(p, requete, morceauUrl) {
     await p.waitForTimeout(600);
     await cliquerEtAttendre(p, ECRAN + ' #exEffacerUBIPHARM', '/sessions/UBIPHARM');
     await p.waitForTimeout(800);
-    ok('effacement : session non renseignée', (await texte(p, '#exEtatUBIPHARM')).indexOf('non renseignée') >= 0, await texte(p, '#exEtatUBIPHARM'));
+    ok('effacement : « Non connecté »', (await texte(p, '#exEtatUBIPHARM')).indexOf('État : Non connecté') >= 0, await texte(p, '#exEtatUBIPHARM'));
   } catch (e) {
     ok('déroulé sans erreur', false, e.stack || e);
     await ENV_E2E.capture(p, 'extranets-erreur').catch(() => {});

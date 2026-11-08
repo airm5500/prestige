@@ -204,8 +204,28 @@ const sessionsApi = (p) => p.evaluate(() => fetch('../api/v1/extranet/sessions')
     const nonGet = srv.etat.appels.filter((a) => a.methode !== 'GET').map((a) => a.methode + ' ' + a.chemin);
     ok('lecture seule : le seul envoi est POST /Login', nonGet.length === 5 && nonGet.every((x) => x === 'POST /Login'), nonGet.join(', '));
 
-    /* ---- effacement des identifiants : confirmation dans le bouton */
+    /* ---- serveur redemarre (session videe en memoire, identifiants gardes) : reconnexion seule a l'ouverture de Sessions */
+    await p.evaluate(() => fetch('../api/v1/extranet/sessions/UBIPHARM', { method: 'DELETE' }));
+    const reco = p.waitForResponse((x) => /\/comptes\/UBIPHARM\/connexion$/.test(x.url()), { timeout: 180000 });
     await onglet(p, 'Sessions');
+    const rr = await (await reco).json().catch(() => ({}));
+    await p.waitForTimeout(1500);
+    const etatReco = await texte(p, '#exEtatUBIPHARM');
+    ok('redémarrage : reconnexion seule à l\'ouverture de Sessions, « ✓ Connecté automatiquement »', rr.success === true
+      && srv.etat.connexions.length === 6 && etatReco.indexOf('État : ✓ Connecté automatiquement') >= 0, etatReco);
+    await onglet(p, 'Fiche produit');
+    await onglet(p, 'Sessions');
+    await p.waitForTimeout(1200);
+    ok('session ouverte : aucune reconnexion en rouvrant Sessions', srv.etat.connexions.length === 6, srv.etat.connexions.length);
+    /* « Effacer la session » à la main : pas de reconnexion dans la foulée */
+    await vues.cliquer(p, ECRAN + ' #exEffacerUBIPHARM');
+    await p.waitForTimeout(600);
+    await cliquerEtAttendre(p, ECRAN + ' #exEffacerUBIPHARM', '/sessions/UBIPHARM');
+    await p.waitForTimeout(1500);
+    ok('session effacée à la main : « Non connecté », aucune reconnexion', srv.etat.connexions.length === 6
+      && (await texte(p, '#exEtatUBIPHARM')).indexOf('État : Non connecté') >= 0, await texte(p, '#exEtatUBIPHARM'));
+
+    /* ---- effacement des identifiants : confirmation dans le bouton */
     await vues.cliquer(p, ECRAN + ' #exCompteEffacerUBIPHARM');
     ok('effacement : le premier clic demande confirmation dans le bouton', (await texte(p, '#exCompteEffacerUBIPHARM')).indexOf('Confirmer') >= 0
       && compte().length === 1);

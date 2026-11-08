@@ -22,9 +22,6 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
 
     URL: '../api/v1/extranet/',
 
-    ETATS: {NON_CONFIGUREE: 'non renseignée', A_VERIFIER: 'renseignée, pas encore utilisée', VALIDE: 'valide',
-        EXPIREE: 'expirée : à renseigner de nouveau'},
-
     initComponent: function () {
         var me = this;
         me.reappro = Ext.create('Ext.data.Store', {
@@ -315,14 +312,22 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
                 me.message('#exSessionsMsg', r);
                 return;
             }
+            me.reconnexions = me.reconnexions || {};
             Ext.each(r.data, function (s) {
-                var l = me.down('#exEtat' + s.source), saisie = me.down('#exSaisie' + s.source);
+                var l = me.down('#exEtat' + s.source), saisie = me.down('#exSaisie' + s.source),
+                        c = s.compte || {}, ouverte = s.etat === 'VALIDE' || s.etat === 'A_VERIFIER',
+                        /* identifiants enregistres, aucune session (serveur redemarre, session expiree) : connexion
+                         * seule, une fois par ouverture de l'ecran, jamais apres un refus */
+                        aConnecter = r.administrateur === true && c.enregistre && !ouverte && !s.echecConnexion
+                                && !me.reconnexions[s.source];
                 if (l) {
-                    l.setText('État : ' + (me.ETATS[s.etat] || s.etat)
-                            + (s.definieLe ? ' — renseignée le ' + String(s.definieLe).replace('T', ' ').substring(0, 16)
-                                    + (s.definiePar ? ' par ' + s.definiePar : '') : '')
-                            + (s.derniereReussite ? ' — dernier appel réussi '
-                                    + String(s.derniereReussite).replace('T', ' ').substring(0, 16) : ''));
+                    l.setText(me.libelleEtat(s, aConnecter), false);
+                }
+                if (aConnecter) {
+                    me.reconnexions[s.source] = true;
+                    me.appel('POST', 'comptes/' + s.source + '/connexion', function () {
+                        me.chargerSessions();
+                    }, me.down('#exSession' + s.source));
                 }
                 if (saisie) {
                     saisie.setVisible(r.administrateur === true);
@@ -330,6 +335,34 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
                 me.afficherCompte(s, r.administrateur === true);
             });
         }, me.down('#exOngletSessions'));
+    },
+
+    /** État de la session en clair : Connecté / Non connecté / Session expirée, avec la raison. */
+    libelleEtat: function (s, connexionEnCours) {
+        var c = s.compte || {}, h = function (v) {
+            return Ext.String.htmlEncode(String(v).replace('T', ' ').substring(0, 16));
+        }, couleur, texte;
+        if (s.etat === 'VALIDE' || s.etat === 'A_VERIFIER') {
+            couleur = '#27ae60';
+            texte = '✓ Connecté' + (s.mode === 'CONNEXION' ? ' automatiquement' : ' (cookie collé)')
+                    + (s.definieLe ? ' depuis le ' + h(s.definieLe) : '')
+                    + (s.derniereReussite ? ' — dernier appel réussi ' + h(s.derniereReussite) : '');
+        } else if (connexionEnCours) {
+            couleur = '#555';
+            texte = 'Connexion en cours…';
+        } else if (s.echecConnexion) {
+            couleur = '#c0392b';
+            texte = '✗ Non connecté : ' + Ext.String.htmlEncode(s.echecConnexion);
+        } else if (s.etat === 'EXPIREE') {
+            couleur = '#d35400';
+            texte = 'Session expirée' + (c.enregistre ? ' — reconnexion automatique à la prochaine lecture'
+                    : ' : enregistrez les identifiants ou collez un cookie');
+        } else {
+            couleur = '#555';
+            texte = 'Non connecté' + (c.enregistre ? ' — cliquez « Se connecter »'
+                    : ' : enregistrez l\'identifiant et le mot de passe');
+        }
+        return '<b style="color:' + couleur + '">État : ' + texte + '</b>';
     },
 
     afficherCompte: function (s, admin) {
@@ -458,6 +491,9 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
 
     effacerSession: function (source) {
         var me = this;
+        /* session effacee a la main : pas de reconnexion seule dans la foulee */
+        me.reconnexions = me.reconnexions || {};
+        me.reconnexions[source] = true;
         me.appel('DELETE', 'sessions/' + source, function (r) {
             me.message('#exSessionsMsg', r, 'Session effacée');
             me.chargerSessions();
