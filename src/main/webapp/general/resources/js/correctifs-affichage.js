@@ -2561,26 +2561,73 @@ window.PrestigeToast = (function () {
 window.PrestigeRetoursAttente = (function () {
     var NOEUD = 'retourfrsmanager', URL = '../api/v1/retourfournisseur/en-attente/nombre';
     var nombre = null, avisMontre = false, essais = 0;
+    /* arbre du menu (navigation) qui contient l'entree des retours */
     function noeuds() {
         var l = [];
         Ext.each(Ext.ComponentQuery.query('treepanel'), function (t) {
             var st = t.getStore && t.getStore(), n = st && st.getNodeById && st.getNodeById(NOEUD);
             if (n) {
-                l.push(n);
+                l.push({arbre: t, noeud: n});
             }
         });
         return l;
     }
-    function poser() {
-        Ext.each(noeuds(), function (n) {
-            var texte = String(n.get('text') || '').replace(/\s*<span class="pastille-retours[^>]*>[^<]*<\/span>/, '');
-            if (nombre > 0) {
-                texte += ' <span class="pastille-retours" title="Retours fournisseurs en attente de validation"'
-                        + ' style="display:inline-block;min-width:18px;padding:0 5px;border-radius:9px;background:#c0392b;color:#fff;'
-                        + 'font-size:11px;line-height:16px;text-align:center;font-weight:bold">' + nombre + '</span>';
+    /*
+     * La pastille est ajoutee au DOM, jamais au texte du noeud : ce texte est echappe par le menu flottant et sert de
+     * titre a l'onglet ouvert. Elle se pose a cote du libelle (pas dedans) : le libelle reste lisible tel quel.
+     */
+    function decorer(el) {
+        if (!el) {
+            return;
+        }
+        var b = null;
+        Ext.each(el.children, function (c) {
+            if (c.classList && c.classList.contains('pastille-retours')) {
+                b = c;
             }
-            n.set('text', texte);
-            n.commit && n.commit();
+        });
+        if (!(nombre > 0)) {
+            if (b) {
+                el.removeChild(b);
+            }
+            return;
+        }
+        if (!b) {
+            b = document.createElement('span');
+            b.className = 'pastille-retours';
+            b.title = 'Retours fournisseurs en attente de validation';
+            b.style.cssText = 'display:inline-block;min-width:18px;margin-left:6px;padding:0 5px;border-radius:9px;background:#c0392b;'
+                    + 'color:#fff;font-size:11px;line-height:16px;text-align:center;font-weight:bold;vertical-align:middle';
+            el.appendChild(b);
+        }
+        b.textContent = String(nombre);
+    }
+    function poser() {
+        Ext.each(noeuds(), function (x) {
+            var vue = x.arbre.getView(), parent = x.noeud.parentNode;
+            if (!x.arbre.pastilleRetoursArmee) {
+                /* la ligne est redessinee au rechargement du menu : la pastille est reposee */
+                x.arbre.pastilleRetoursArmee = true;
+                vue.on('refresh', function () {
+                    setTimeout(poser, 0);
+                });
+                vue.on('itemupdate', function () {
+                    setTimeout(poser, 0);
+                });
+            }
+            var ligne = parent && !parent.isRoot() && vue.getNode(parent);
+            decorer(ligne && ligne.querySelector('td'));
+            var libelle = Ext.String.htmlEncode(x.noeud.get('text') || '') + '</span>';
+            Ext.each(Ext.ComponentQuery.query('menu'), function (m) {
+                if (!m.hasCls || !m.hasCls('prestige-flyout-menu') || !m.rendered) {
+                    return;
+                }
+                m.items.each(function (i) {
+                    if (i.text && i.text.indexOf(libelle) >= 0 && i.rendered) {
+                        decorer(i.getEl().dom.querySelector('.x-menu-item-text'));
+                    }
+                });
+            });
         });
     }
     function ouvrirListe() {
@@ -2643,6 +2690,16 @@ window.PrestigeRetoursAttente = (function () {
         }
         actualiser();
         setInterval(actualiser, 5 * 60 * 1000);
+        /* menu flottant d'un menu parent : la pastille est posee sur l'entree des retours a chaque ouverture */
+        if (Ext.util.Observable.observe && Ext.menu && Ext.menu.Menu) {
+            Ext.util.Observable.observe(Ext.menu.Menu, {
+                show: function (m) {
+                    if (m.hasCls && m.hasCls('prestige-flyout-menu') && nombre > 0) {
+                        setTimeout(poser, 0);
+                    }
+                }
+            });
+        }
         Ext.Ajax.on('requestcomplete', function (c, resp, opts) {
             var u = String((opts && opts.url) || '');
             if (/validerretourfour|retourfournisseur\/(refuser|remettre-en-attente|mettre-en-attente|abandonner)|reception\/[^/]+\/retour-manquants/.test(u)) {

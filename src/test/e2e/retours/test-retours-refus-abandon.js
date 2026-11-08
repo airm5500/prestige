@@ -72,8 +72,22 @@ function retirer() {
     let j = null; try { j = await r.json(); } catch (e) { /* vide */ } return { status: r.status, j }; }, [m, u, c]);
   const creer = async () => { const r = await api('POST', '../api/v1/retourfournisseur/new', { lgBONLIVRAISONID: BL, strCOMMENTAIRE: NOTE, items: [{ produitId: PRODUIT, lgMOTIFRETOUR: MOTIF, intNUMBERRETURN: 2 }] });
     return r.j && r.j.data && r.j.data.lgRETOURFRSID; };
-  const pastille = () => p.evaluate(() => { const n = Ext.ComponentQuery.query('treepanel').map((t) => t.getStore().getNodeById && t.getStore().getNodeById('retourfrsmanager')).find(Boolean);
-    const m = n && /class="pastille-retours[^>]*>(\d+)</.exec(n.get('text') || ''); return m ? Number(m[1]) : 0; });
+  /* pastille sur la ligne du menu parent (DOM) ; le texte du noeud reste le libelle seul */
+  const pastille = () => p.evaluate(() => { const e = document.querySelector('.prestige-nav .pastille-retours'); return e ? Number(e.textContent) : 0; });
+  const libelleNoeud = () => p.evaluate(() => { const n = Ext.ComponentQuery.query('treepanel').map((t) => t.getStore().getNodeById && t.getStore().getNodeById('retourfrsmanager')).find(Boolean);
+    return n ? n.get('text') : null; });
+  /* clic sur la ligne du menu parent (volet deplie au besoin), comme ouvrirMenu, sans choisir d'entree */
+  const ouvrirMenuParent = async () => {
+    const visible = (sel) => p.locator(sel).filter({ visible: true });
+    if (await visible('.prestige-nav .x-grid-row').count() === 0) {
+      const id = await p.evaluate(() => { const n = Ext.ComponentQuery.query('navigation')[0]; return n.placeholder ? n.placeholder.getId() : null; });
+      await p.click('#' + id);
+      await visible('.prestige-nav .x-grid-row').first().waitFor({ timeout: 10000 });
+    }
+    await visible('.prestige-nav .x-grid-row').filter({ has: p.getByText(/^\s*GESTION DES COMMANDES\s*$/) }).first().click();
+    await visible('.prestige-flyout-menu .x-menu-item').first().waitFor({ timeout: 10000 });
+    await p.waitForTimeout(300);
+  };
   const avis = () => p.evaluate(() => { const a = document.querySelector('.avis-retours-attente'); return a ? a.textContent.replace(/\s+/g, ' ') : ''; });
   const attendreEtat = async (id, s) => { for (let i = 0; i < 40 && etat(id) !== s; i++) { await p.waitForTimeout(500); } return etat(id); };
   /* liste des retours par le menu, filtre d'etat choisi dans la liste deroulante */
@@ -141,7 +155,17 @@ function retirer() {
     const n1 = enAttente();
     const nb = await api('GET', '../api/v1/retourfournisseur/en-attente/nombre');
     ok('Compteur = retours en attente en base', nb.status === 200 && nb.j && nb.j.nombre === n1, JSON.stringify(nb.j) + ' base ' + n1);
-    ok('Pastille du menu = base', (await pastille()) === n1, (await pastille()) + ' / ' + n1);
+    ok('Pastille du menu = base ; le libellé du menu reste « Retour fournisseur » seul', (await pastille()) === n1 && (await libelleNoeud()) === 'Retour fournisseur',
+      (await pastille()) + ' / ' + n1 + ' / ' + (await libelleNoeud()));
+    /* menu flottant du parent : la pastille sur l'entree, a cote du libelle (le libelle reste entier) */
+    await ouvrirMenuParent();
+    const flot = await p.evaluate(() => { const i = [...document.querySelectorAll('.prestige-flyout-menu .x-menu-item')].find((x) => x.querySelector('.pastille-retours'));
+      return i ? { libelle: [...i.querySelectorAll('.x-menu-item-text > span')].map((s) => s.textContent).find((t) => t && t.trim()), nombre: Number(i.querySelector('.pastille-retours').textContent),
+        brut: /<span/.test(i.textContent) } : null; });
+    ok('Menu flottant : pastille sur « Retour fournisseur », sans HTML affiché', flot && flot.libelle === 'Retour fournisseur' && flot.nombre === n1 && !flot.brut, JSON.stringify(flot));
+    /* second clic sur la ligne parente : le menu flottant se referme (bascule) */
+    await p.locator('.prestige-nav .x-grid-row').filter({ visible: true }).filter({ has: p.getByText(/^\s*GESTION DES COMMANDES\s*$/) }).first().click();
+    await p.waitForTimeout(400);
     const a1 = await avis();
     ok('Avis discret à la connexion, avec le nombre, sans fenêtre', a1.includes(n1 + ' retour') && !(await p.evaluate(() => Ext.ComponentQuery.query('messagebox').some((m) => m.isVisible()))), a1);
     await liste('En attente de validation');
