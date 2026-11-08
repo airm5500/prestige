@@ -51,6 +51,13 @@ async function onglet(p, chemin) {
     await p.waitForTimeout(300);
   }
 }
+/* retour 10 du 08/11 : une liste deja lue demande confirmation dans le bouton (« Déjà lu le … : relire ? ») : second clic */
+async function cliquerConfirme(p, requete) {
+  await vues.cliquer(p, requete);
+  await p.waitForTimeout(400);
+  const arme = await p.evaluate((sel) => { const c = Ext.ComponentQuery.query(sel)[0]; return !!c && /relire \?/.test(c.getText()); }, requete);
+  if (arme) { await vues.cliquer(p, requete); }
+}
 /* 08/11 : la lecture tourne en arriere-plan ; on attend l'etat « fini » de la lecture, puis le rechargement de la liste */
 async function cliquerEtAttendre(p, requete, morceauUrl) {
   const m = /\/(\w+)\/listes\/(\w+)\/collecte/.exec(morceauUrl);
@@ -60,7 +67,7 @@ async function cliquerEtAttendre(p, requete, morceauUrl) {
     const j = await x.json().catch(() => ({}));
     return j.lecture && j.lecture.enCours === false;
   }, { timeout: 180000 });
-  await vues.cliquer(p, requete);
+  await cliquerConfirme(p, requete);
   const rep = await (await finie).json();
   await p.waitForTimeout(1500);
   return rep.lecture.resultat || {};
@@ -77,20 +84,30 @@ const baseListe = (code, collecte) => lignes('SELECT HEX(cellules), IFNULL(HEX(p
   + code + '\' AND collecte_id = ' + collecte + ' ORDER BY position').map((l) => ({ cellules: JSON.parse(deHex(l[0])), pscode: deHex(l[1]), cip: deHex(l[2]) }));
 
 /* Garde : comptes reels en base -> toutes les sources doivent viser 127.0.0.1 (garde-extranets.js) */
-require('./garde-extranets').verifier(q, ENV_E2E.BASE, ENV_E2E.PAYARA_DOMAINE);
+const garde = require('./garde-extranets');
+garde.verifier(q, ENV_E2E.BASE, ENV_E2E.PAYARA_DOMAINE);
+/* donnees d'extranet deja gardees (lues sur les vrais sites) : copiees avant, remises a l'identique apres */
+const CACHES = ['extranet_collecte', 'extranet_liste_ligne'];
 
 (async () => {
   const srv = await faux.demarrer(18765);
   const navigateur = await ENV_E2E.lancer(chromium);
-  const p = await (await navigateur.newContext()).newPage();
+  const p = await (await navigateur.newContext({ viewport: { width: 1600, height: 950 } })).newPage();
   const premiereCollecte = Number(q('SELECT IFNULL(MAX(id), 0) + 1 FROM extranet_collecte'));
   const avant = compterExtranet();
   const metierAvant = empreinteMetier();
+  const debut = q("SELECT DATE_FORMAT(NOW(), '%Y-%m-%d %H:%i:%s')");
+  const journalTotal = q('SELECT COUNT(*) FROM t_event_log');
+  const caches = garde.sauver(q, CACHES);
   try {
     await vues.connexion(p, ENV_E2E.LOGIN, 'e2etest');
     await vues.ouvrirMenu(p, 'GESTION DES COMMANDES', 'Extranets grossistes');
     await p.waitForFunction(() => Ext.ComponentQuery.query('extranetsgrossistes')[0], null, { timeout: 60000 });
+    await p.mouse.move(1200, 600);
     await p.waitForTimeout(1500);
+    /* saisie dans l'onglet Sessions (retour 5 du 08/11, reserve a l'administrateur) */
+    await vues.cliquer(p, ECRAN + ' #exOnglets tab[text=Sessions]');
+    await p.waitForTimeout(400);
     await vues.saisir(p, ECRAN + ' #exCookieUBIPHARM', srv.COOKIE);
     const rs = p.waitForResponse((x) => x.url().indexOf('/sessions/UBIPHARM') >= 0, { timeout: 60000 });
     await vues.cliquer(p, ECRAN + ' #exSaisieUBIPHARM button[text=Enregistrer]');
@@ -116,6 +133,10 @@ require('./garde-extranets').verifier(q, ENV_E2E.BASE, ENV_E2E.PAYARA_DOMAINE);
         ok(titre + ' : référence et CIP rangés à part = source', base.every((b, i) => b.pscode === source[i][0] && (b.cip || '') === source[i][2]),
           JSON.stringify(base.map((b) => [b.pscode, b.cip])));
       }
+      /* retour 2 du 08/11 : liste datee filtree par defaut sur le jour ; « Toute la période » affiche toutes les lignes gardees */
+      const tout = await p.evaluate((sel) => { const c = Ext.ComponentQuery.query(sel)[0]; return !!c && c.isVisible() && !c.pressed; },
+        ECRAN + ' #exListe' + code + 'Tout');
+      if (tout) { await vues.cliquer(p, ECRAN + ' #exListe' + code + 'Tout'); await p.waitForTimeout(500); }
       const ecran = await grille(p, code);
       ok(titre + ' : écran = base, ligne par ligne', JSON.stringify(ecran) === JSON.stringify(base.map((b) => b.cellules)),
         JSON.stringify([ecran.length, ecran[0]]));
@@ -123,7 +144,8 @@ require('./garde-extranets').verifier(q, ENV_E2E.BASE, ENV_E2E.PAYARA_DOMAINE);
       ok(titre + ' : une colonne par cellule' + (avecRef ? ', Référence et CIP présents' : ''), source.length === 0 || t.length === source[0].length
         && (!avecRef || (t[0] === 'Référence' && t.indexOf('CIP') > 0)), t.join('|'));
       ok(titre + ' : date de collecte et nombre de lignes affichés', (await texte(p, '#exListe' + code + 'Date')).indexOf('collectées le') >= 0
-        && (await texte(p, '#exListe' + code + 'Nombre')).indexOf(source.length + ' ligne') === 0, await texte(p, '#exListe' + code + 'Nombre'));
+        && new RegExp('^(' + source.length + ' / )?' + source.length + ' ligne').test(await texte(p, '#exListe' + code + 'Nombre')),
+        await texte(p, '#exListe' + code + 'Nombre'));
       ok(titre + ' : message dans l\'onglet', (await texte(p, '#exListe' + code + 'Msg')).indexOf('Liste lue') >= 0);
     }
 
@@ -149,12 +171,13 @@ require('./garde-extranets').verifier(q, ENV_E2E.BASE, ENV_E2E.PAYARA_DOMAINE);
 
     /* ---- lecture longue (08/11) : la demande rend la main, l'onglet reste utilisable, un second clic suit la meme
        lecture (une seule collecte), puis la liste est rechargee */
-    srv.etat.retardMs = 1500;
+    srv.etat.retardMs = 6000; /* plus long que l'attente de 3,5 s, meme sans pause entre les pages (domain2) */
     const debutLongue = Date.now();
     const lancee = p.waitForResponse((x) => x.url().indexOf('/lectures/ubipharm/PLUS_ACHETES') >= 0 && x.request().method() === 'POST');
     const finLongue = p.waitForResponse(async (x) => x.url().indexOf('/lectures/ubipharm/PLUS_ACHETES') >= 0
       && (await x.json().catch(() => ({}))).lecture?.enCours === false, { timeout: 180000 });
-    await vues.cliquer(p, ECRAN + ' #exListePLUS_ACHETESCollecter');
+    finLongue.catch(() => {});
+    await cliquerConfirme(p, ECRAN + ' #exListePLUS_ACHETESCollecter');
     const jl = await (await lancee).json();
     ok('lecture longue : la demande rend la main en moins de 3 s', Date.now() - debutLongue < 3000 && jl.lancee === true
       && jl.lecture.enCours === true, (Date.now() - debutLongue) + ' ms ' + JSON.stringify(jl).slice(0, 200));
@@ -185,9 +208,15 @@ require('./garde-extranets').verifier(q, ENV_E2E.BASE, ENV_E2E.PAYARA_DOMAINE);
     const avantExp = q('SELECT COUNT(*) FROM extranet_liste_ligne WHERE liste = \'PLUS_ACHETES\'');
     srv.etat.mode = 'expire';
     const re = await cliquerEtAttendre(p, ECRAN + ' #exListePLUS_ACHETESCollecter', '/ubipharm/listes/PLUS_ACHETES/collecte');
-    ok('expiration : reconnue', re.success === false && re.nature === 'SESSION_EXPIREE', JSON.stringify(re).slice(0, 200));
-    ok('expiration : message renvoyant à l\'onglet Sessions', (await texte(p, '#exListePLUS_ACHETESMsg')).indexOf('Sessions') >= 0,
-      await texte(p, '#exListePLUS_ACHETESMsg'));
+    /* avec un compte Ubipharm reel en base, Prestige tente la reconnexion automatique : sa page de connexion
+       (auth.ubipharm.com) n'est pas le faux extranet local, la connexion est refusee AVANT tout envoi (garde) */
+    const compteReel = q("SELECT COUNT(*) FROM extranet_compte WHERE source = 'UBIPHARM'") !== '0';
+    const msgExp = await texte(p, '#exListePLUS_ACHETESMsg');
+    ok('expiration : reconnue' + (compteReel ? ' (compte réel : reconnexion vers un autre site refusée)' : ''), re.success === false
+      && (compteReel ? re.nature === 'CONNEXION_REFUSEE' && /autre site/.test(re.msg) : re.nature === 'SESSION_EXPIREE'),
+      JSON.stringify(re).slice(0, 200));
+    ok('expiration : message ' + (compteReel ? 'de refus affiché' : 'renvoyant à l\'onglet Sessions'),
+      compteReel ? msgExp.indexOf('refusé') >= 0 : msgExp.indexOf('Sessions') >= 0, msgExp);
     ok('expiration : cache précédent gardé en base et à l\'écran', q('SELECT COUNT(*) FROM extranet_liste_ligne WHERE liste = \'PLUS_ACHETES\'') === avantExp
       && (await grille(p, 'PLUS_ACHETES')).length === Number(avantExp));
     srv.etat.mode = 'normal';
@@ -210,6 +239,12 @@ require('./garde-extranets').verifier(q, ENV_E2E.BASE, ENV_E2E.PAYARA_DOMAINE);
     q('DELETE FROM extranet_liste_ligne WHERE collecte_id >= ' + premiereCollecte + '; DELETE FROM extranet_collecte WHERE id >= ' + premiereCollecte);
     const apres = compterExtranet();
     ok('nettoyage : tables extranet revenues à leur état de départ', JSON.stringify(avant) === JSON.stringify(apres), JSON.stringify(apres));
+    const ecartsCaches = garde.restaurer(q, CACHES, caches);
+    ok('nettoyage : données d’extranet gardées remises à l’identique (CHECKSUM)', ecartsCaches.length === 0, JSON.stringify(ecartsCaches));
+    /* connexion de l'utilisateur d'essai : trace du test, retiree */
+    q("DELETE FROM t_event_log WHERE dt_CREATED >= '" + debut + "' AND lg_USER_ID = (SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '"
+      + ENV_E2E.LOGIN.replace(/'/g, "''") + "') AND str_TABLE_CONCERN = 'dal.TUser'");
+    ok('bilan : journal des événements revenu à son nombre de lignes de départ', q('SELECT COUNT(*) FROM t_event_log') === journalTotal);
     await p.evaluate(() => fetch('../api/v1/extranet/sessions/UBIPHARM', { method: 'DELETE' })).catch(() => {});
     await navigateur.close();
     await srv.arreter();
