@@ -31,6 +31,12 @@ public interface UserService {
      */
     TUser connexionParBadge(String contenu, HttpServletRequest request);
 
+    /**
+     * Plan du 08/11, point 14 : connexion par badge, suivie du code PIN quand le parametre KEY_CONNEXION_BADGE_PIN le
+     * demande. Le code n'est jamais trace.
+     */
+    rest.service.dto.ResultatConnexionBadge connexionParBadge(String contenu, String pin, HttpServletRequest request);
+
     boolean deConnexion(HttpServletRequest request, TUser user);
 
     TRoleUser getTRoleUser(String userId);

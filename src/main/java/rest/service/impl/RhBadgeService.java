@@ -382,6 +382,58 @@ public class RhBadgeService {
         return ((Number) l[5]).intValue() == 1 ? "JAMAIS_IMPRIME_EN_QR" : "SECRET";
     }
 
+    /** Plan du 08/11, point 14 : le parametre demande-t-il le code PIN apres le badge ? (desactive par defaut) */
+    public boolean pinDemande() {
+        return util.BadgePin
+                .demande(premier("SELECT str_VALUE FROM t_parameters WHERE str_KEY = ?1", util.BadgePin.PARAMETRE));
+    }
+
+    /** Plan du 08/11, point 14 : l'utilisateur a-t-il defini son code PIN ? */
+    public boolean pinDefini(String userId) {
+        return premier("SELECT lg_USER_ID FROM t_badge_pin WHERE lg_USER_ID = ?1", userId) != null;
+    }
+
+    /** Plan du 08/11, point 14 : le code tape est-il celui de l'utilisateur ? (faux s'il n'en a pas) */
+    @SuppressWarnings("unchecked")
+    public boolean pinJuste(String userId, String pin) {
+        List<Object[]> r = em.createNativeQuery("SELECT sel, empreinte FROM t_badge_pin WHERE lg_USER_ID = ?1")
+                .setParameter(1, userId).setMaxResults(1).getResultList();
+        return !r.isEmpty() && util.BadgePin.verifier(pin, t(r.get(0)[0]), t(r.get(0)[1]));
+    }
+
+    /** Plan du 08/11, point 14 : enregistre (ou remplace) l'empreinte salee du code ; jamais le code. */
+    public void definirPin(String userId, String pin) {
+        String sel = util.BadgePin.nouveauSel();
+        em.createNativeQuery("INSERT INTO t_badge_pin (lg_USER_ID, sel, empreinte, dt_maj) VALUES (?1, ?2, ?3, NOW())"
+                + " ON DUPLICATE KEY UPDATE sel = VALUES(sel), empreinte = VALUES(empreinte), dt_maj = NOW()")
+                .setParameter(1, userId).setParameter(2, sel).setParameter(3, util.BadgePin.empreinte(pin, sel))
+                .executeUpdate();
+    }
+
+    /** Plan du 08/11, point 14 : date de la derniere definition du code, ou {@code null}. */
+    public String pinDate(String userId) {
+        return premier("SELECT DATE_FORMAT(dt_maj, '%d/%m/%Y %H:%i') FROM t_badge_pin WHERE lg_USER_ID = ?1", userId);
+    }
+
+    /** Plan du 08/11, point 14 : l'utilisateur a-t-il un badge actif (sinon le code ne lui sert a rien) ? */
+    public boolean aUnBadgeActif(String userId) {
+        return premier("SELECT b.id FROM t_rh_badge b JOIN t_employe e ON e.id = b.employe_id AND e.statut = 'ACTIF'"
+                + " WHERE e.lg_USER_ID = ?1 AND b.statut = 'ACTIF'", userId) != null;
+    }
+
+    /** Plan du 08/11, point 14 : mot de passe actuel de l'utilisateur (avant de definir son code PIN). */
+    public boolean motDePasseJuste(String userId, String motDePasse) {
+        if (StringUtils.isAnyBlank(userId, motDePasse)) {
+            return false;
+        }
+        String attendu = premier("SELECT str_PASSWORD FROM t_user WHERE lg_USER_ID = ?1 AND str_STATUT = 'enable'",
+                userId);
+        return attendu != null
+                && java.security.MessageDigest.isEqual(attendu.getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                        StringUtils.defaultString(toolkits.security.Md5.encode(motDePasse))
+                                .getBytes(java.nio.charset.StandardCharsets.UTF_8));
+    }
+
     /** Nom abrege de l'officine (bandeau des cartes). */
     public String officine() {
         return StringUtils

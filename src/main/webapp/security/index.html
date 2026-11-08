@@ -113,6 +113,11 @@
               <div id="pl-bz-texte" class="pl-bz__texte" role="status" aria-live="polite">Passez le QR code de votre badge devant la douchette.<br>Aucun mot de passe à taper.</div>
               <div id="pl-bz-encore" class="pl-bz__encore" hidden>Présentez à nouveau un badge pour réessayer.</div>
               <input id="pl-badge-saisie" class="pl-bz__saisie" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Lecture du badge">
+              <!-- Plan du 08/11, point 14 : code PIN apres le badge (si le parametre le demande) -->
+              <div id="pl-bz-pin" class="pl-bz__pin" hidden>
+                <label for="pl-badge-pin" class="pl-bz__pin-libelle">Code PIN (4 chiffres)</label>
+                <input id="pl-badge-pin" class="pl-bz__pin-champ" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" aria-describedby="pl-bz-texte">
+              </div>
             </div>
             <a href="#" id="pl-badge-retour" class="pl-bm__retour">← Revenir à l'identifiant et au mot de passe</a>
           </div>
@@ -177,6 +182,12 @@
     @keyframes pl-bz-tourne{to{transform:rotate(360deg)}}
     .pl-bz[data-etat="refus"] .pl-bz__texte{text-align:left;background:#fdecea;color:#8a1c12;border-radius:10px;padding:10px 14px;margin-top:8px}
     .pl-bz__encore{margin-top:12px;color:#4f5d6b;font-size:12px}
+    .pl-bz__pin[hidden]{display:none}
+    .pl-bz__pin{margin-top:14px;display:flex;flex-direction:column;align-items:center;gap:6px}
+    .pl-bz__pin-libelle{font:600 13px Inter,Arial,sans-serif;color:#0f5c48}
+    .pl-bz__pin-champ{width:150px;text-align:center;letter-spacing:14px;font:700 26px Inter,Arial,sans-serif;padding:8px 6px 8px 20px;border:2px solid #17987e;border-radius:12px;outline:none;color:#0f2a36}
+    .pl-bz__pin-champ:focus{box-shadow:0 0 0 4px rgba(23,152,126,.18)}
+    .pl-bz[data-etat="pin"] .pl-bz__trait{display:none}
     .pl-bz__saisie{position:absolute;left:0;bottom:0;width:1px;height:1px;opacity:0;border:0;padding:0;pointer-events:none}
     .pl-bm__retour{display:inline-block;margin-top:14px;color:#2a3f8f;font:13px Inter,Arial,sans-serif}
   </style>
@@ -243,6 +254,17 @@
     var encore = document.getElementById('pl-bz-encore'), login = document.getElementById('str_login');
     var h2 = document.getElementById('pl-titre-connexion'), sous = document.getElementById('pl-sous-titre-connexion');
     var enCours = false, attente = null;
+    /* plan du 08/11, point 14 : badge reconnu, code PIN attendu ; le contenu lu reste en memoire le temps du code */
+    var boitePin = document.getElementById('pl-bz-pin'), champPin = document.getElementById('pl-badge-pin'), badgeEnAttente = null;
+    function oublierBadge() { badgeEnAttente = null; boitePin.hidden = true; champPin.value = ''; }
+    function demanderPin(numero, message, faux) {
+      etat(faux ? 'refus' : 'pin', faux ? 'Code PIN incorrect' : 'Badge reconnu', noeud(faux ? [message || 'Code PIN incorrect.', '<br>', 'Tapez de nouveau votre code PIN.']
+        : [numero ? 'Badge ' : '', numero ? { b: numero } : '', numero ? ' : ' : '', 'tapez votre code PIN (4 chiffres).']));
+      encore.hidden = true;
+      boitePin.hidden = false;
+      champPin.value = '';
+      champPin.focus();
+    }
 
     function etat(e, t, html) {
       zone.setAttribute('data-etat', e);
@@ -274,6 +296,7 @@
       saisie.focus();
     }
     function fermer() {
+      oublierBadge();
       mode.hidden = true;
       form.hidden = false;
       h2.textContent = 'Connexion';
@@ -328,27 +351,47 @@
       var brut = saisie.value.trim(), contenu = remettre(brut);
       saisie.value = '';
       if (!contenu || enCours) { return; }
+      oublierBadge();
       if (!bienLu(contenu)) { lectureDeformee(contenu, brut); return; }
+      soumettre(contenu, null);
+    }
+    function soumettre(contenu, pin) {
       enCours = true;
-      var numero = numeroDe(contenu);
+      var numero = numeroDe(contenu), corps = { contenu: contenu };
+      if (pin) { corps.pin = pin; }
+      boitePin.hidden = true;
       etat('lu', 'Badge lu', noeud(['Connexion en cours…']));
       fetch('../api/v1/user/auth-badge', { method: 'POST', credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }, body: JSON.stringify({ contenu: contenu }) })
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }, body: JSON.stringify(corps) })
         .then(function (r) { return r.json(); })
         .then(function (d) {
           if (d && d.success) {
+            badgeEnAttente = null;
             var nom = ((d.str_FIRST_NAME || '') + ' ' + (d.str_LAST_NAME || '')).trim() || d.str_LOGIN || '';
             etat('lu', 'Badge lu', noeud(['Connexion de ', { b: nom }, numero ? ' (badge ' + numero + ')…' : '…']));
             connexionAcceptee(d);
             return;
           }
           enCours = false;
-          etat('refus', 'Badge non reconnu', noeud([d && d.attente ? d.message
+          /* plan du 08/11, point 14 : code PIN demande, ou faux (sauf blocage : on revient au badge) */
+          if (d && (d.pinRequis || (d.pinFaux && !d.attente))) {
+            badgeEnAttente = contenu;
+            demanderPin(numero, d.message, !!d.pinFaux);
+            return;
+          }
+          oublierBadge();
+          if (d && d.pinADefinir) {
+            etat('refus', 'Code PIN non défini', noeud([d.message]));
+            saisie.focus();
+            return;
+          }
+          etat('refus', d && d.attente && pin ? 'Trop d\'essais' : 'Badge non reconnu', noeud([d && d.attente ? d.message
             : 'Ce badge ne permet pas de se connecter. S\'il a été réimprimé ou désactivé, utilisez le dernier badge remis ou votre mot de passe.']));
           saisie.focus();
         })
         .catch(function () {
           enCours = false;
+          oublierBadge();
           etat('refus', 'Connexion impossible', noeud(['Le serveur ne répond pas. Vérifiez le réseau et réessayez.']));
           saisie.focus();
         });
@@ -358,7 +401,26 @@
 
     document.getElementById('pl-badge').addEventListener('click', function () { ouvrir(''); });
     document.getElementById('pl-badge-retour').addEventListener('click', function (e) { e.preventDefault(); fermer(); });
-    zone.addEventListener('click', function () { saisie.focus(); });
+    zone.addEventListener('click', function (e) { if (!boitePin.hidden && boitePin.contains(e.target)) { return; } (boitePin.hidden ? saisie : champPin).focus(); });
+    var AZERTY = '&é"\'(-è_çà';
+    champPin.addEventListener('input', function () {
+      /* rangee du haut d'un clavier AZERTY sans Maj (& é " ' ( - è _ ç à) : lue comme les chiffres 1 a 0 */
+      champPin.value = champPin.value.split('').map(function (x) { var i = AZERTY.indexOf(x); return i < 0 ? x : '1234567890'.charAt(i); })
+        .join('').replace(/[^0-9]/g, '').slice(0, 4);
+      if (champPin.value.length === 4 && badgeEnAttente && !enCours) { var p = champPin.value; champPin.value = ''; soumettre(badgeEnAttente, p); }
+    });
+    champPin.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') { fermer(); }
+      else if (e.key === 'Enter') { e.preventDefault(); }
+      /* un autre badge passe a la douchette pendant le code : la lecture reprend (le QR commence par une lettre) */
+      else if (e.key && e.key.length === 1 && /[A-Za-z]/.test(e.key) && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        e.preventDefault();
+        oublierBadge();
+        attendre();
+        saisie.value = e.key;
+        saisie.focus();
+      }
+    });
     saisie.addEventListener('keydown', function (e) {
       if (e.key === 'Enter') { e.preventDefault(); envoyer(); }
       else if (e.key === 'Escape') { fermer(); }
@@ -368,7 +430,7 @@
       if (complet(saisie.value)) { attente = setTimeout(envoyer, 300); }
     });
     saisie.addEventListener('blur', function () {
-      setTimeout(function () { if (!mode.hidden && document.activeElement === document.body) { saisie.focus(); } }, 0);
+      setTimeout(function () { if (!mode.hidden && boitePin.hidden && document.activeElement === document.body) { saisie.focus(); } }, 0);
     });
     /* badge lu dans « Identifiant » : repris par la lecture du badge, le champ est vide */
     login.addEventListener('input', function () {
