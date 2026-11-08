@@ -154,6 +154,13 @@ const ligne = (v, f) => q(`SELECT CONCAT_WS(' ', int_QUANTITY, int_PRICE_UNITAIR
     const totalVo = await p.evaluate(() => testextjs.app.getController('VenteCtr').getTotalField().getValue());
     ok('Total rechargé à l\'écran après le passage en assurance', Number(String(totalVo).replace(/\D/g, '')) === attenduVo
       && !/PROMOTION/.test(await grille()), totalVo + ' / ' + attenduVo);
+    /* plan du 06/11, point 3.5 : la promotion retiree des lignes est journalisee (vente, utilisateur, mention d'avant) */
+    const ref = q(`SELECT str_REF FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID = '${vente}'`);
+    const util = q(`SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '${ENV_E2E.LOGIN}'`);
+    const journal = q(`SELECT IFNULL(GROUP_CONCAT(CONCAT_WS('~', lg_CODE_PROMOTION_ID, int_CIP, str_REF_VENTE, lg_USER_ID, str_AVANT) ORDER BY lg_CODE_PROMOTION_ID SEPARATOR '#'), '')`
+      + ` FROM t_promotion_history WHERE str_ACTION = 'RETRAIT VENTE ASSURANCE' AND lg_CODE_PROMOTION_ID IN (${ids.join(',')})`);
+    ok('Journal : une ligne « retirée d’une vente passée en assurance » par ligne en promotion (P, U), avec la vente, l’utilisateur et la mention d’avant',
+      journal === [`${ids[0]}~${P.cip}~${ref}~${util}~PROMOTION`, `${ids[2]}~${U.cip}~${ref}~${util}~PROMOTION 2+1 OFFERT(S)`].join('#'), journal);
     const msg = await texteMessage(p);
     if (msg) { await repondre(p, 'ok').catch(() => {}); }
     ok('Aucune erreur JavaScript', erreurs.length === 0, erreurs.join(' | '));

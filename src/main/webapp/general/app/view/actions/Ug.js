@@ -40,6 +40,10 @@ Ext.define('testextjs.view.actions.Ug', {
                         {name: 'operateur',
                             type: 'string'
                         },
+                        // plan du 06/11, point 13 : vendeur de la vente
+                        {name: 'vendeur',
+                            type: 'string'
+                        },
                         {name: 'intQUANTITY',
                             type: 'number'
 
@@ -119,6 +123,16 @@ Ext.define('testextjs.view.actions.Ug', {
                             format: 'd/m/Y',
                             value: new Date()
 
+                        }, {
+                            xtype: 'tbseparator'
+                        },
+                        // plan du 06/11, point 13 : la recherche filtre (CIP, nom du produit, reference de la vente)
+                        {
+                            xtype: 'textfield',
+                            itemId: 'query',
+                            emptyText: 'CIP, produit ou référence',
+                            width: 220,
+                            enableKeyEvents: true
                         }, {
                             xtype: 'tbseparator'
                         },
@@ -243,6 +257,11 @@ Ext.define('testextjs.view.actions.Ug', {
                         {
                             header: 'Référence vente',
                             dataIndex: 'strREF',
+                            flex: 1
+                        },
+                        {
+                            header: 'Vendeur',
+                            dataIndex: 'vendeur',
                             flex: 1
                         }
                         

@@ -110,6 +110,12 @@ public interface CaisseService {
 
     List<VenteDetailsDTO> venteUgDTO(LocalDate dtStart, LocalDate dtEnd, String query);
 
+    /**
+     * Plan du 06/11, point 13 : une page des ventes en unites gratuites (start, limit ; limit 0 = tout), total = nombre
+     * de lignes, totaux du bas sur toutes les lignes.
+     */
+    JSONObject venteUg(LocalDate dtStart, LocalDate dtEnd, String query, int start, int limit);
+
     JSONObject balancePara(LocalDate dtStart, LocalDate dtEnd, String emplacementId) throws JSONException;
 
     GenericDTO balanceVenteCaisseReportPara(LocalDate dtStart, LocalDate dtEnd, String emplacementId);

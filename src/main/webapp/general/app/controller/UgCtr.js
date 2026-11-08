@@ -23,6 +23,9 @@ Ext.define('testextjs.controller.UgCtr', {
         }, {
             ref: 'dtEnd',
             selector: 'venteugs #dtEnd'
+        }, {
+            ref: 'query',
+            selector: 'venteugs #query'
         },
         {ref: 'rechercherButton',
             selector: 'venteugs #rechercher'
@@ -50,18 +53,29 @@ Ext.define('testextjs.controller.UgCtr', {
             'venteugs #imprimer': {
                 click: this.onPdfClick
             },
+            'venteugs #query': {
+                specialkey: this.onQuerySpecialKey
+            },
             'venteugs #uggid': {
                 viewready: this.doInitStore
             }
 
         });
     },
-     onPdfClick: function () {
+    // plan du 06/11, point 13 : PDF avec la colonne Vendeur et la recherche de l'ecran
+    onPdfClick: function () {
         var me = this;
-        var dtStart = me.getDtStart().getSubmitValue();
-        var dtEnd = me.getDtEnd().getSubmitValue();
-        var linkUrl = '../SockServlet?mode=UG&dtStart=' + dtStart + '&dtEnd=' + dtEnd;
-        window.open(linkUrl);
+        window.open('../api/v1/caisse/ca/ug/pdf?' + Ext.Object.toQueryString(me.parametres()));
+    },
+    onQuerySpecialKey: function (field, e) {
+        if (e.getKey() === e.ENTER) {
+            this.doSearch();
+        }
+    },
+    parametres: function () {
+        var me = this;
+        return {dtStart: me.getDtStart().getSubmitValue(), dtEnd: me.getDtEnd().getSubmitValue(),
+            query: me.getQuery() ? me.getQuery().getValue() : ''};
     },
     doMetachange: function (store, meta) {
         var me = this;
@@ -71,13 +85,9 @@ Ext.define('testextjs.controller.UgCtr', {
     doBeforechange: function (page, currentPage) {
         var me = this;
         var myProxy = me.getUggid().getStore().getProxy();
-        myProxy.params = {
-            dtEnd: null,
-            dtStart: null
-
-        };
-        myProxy.setExtraParam('dtEnd', me.getDtEnd().getSubmitValue());
-        myProxy.setExtraParam('dtStart', me.getDtStart().getSubmitValue());
+        Ext.Object.each(me.parametres(), function (k, v) {
+            myProxy.setExtraParam(k, v);
+        });
 
     },
 
@@ -87,15 +97,13 @@ Ext.define('testextjs.controller.UgCtr', {
         me.doSearch();
     },
 
+    // plan du 06/11, point 13 : pagination du serveur (start / limit), toujours depuis la premiere page
     doSearch: function () {
-        var me = this;
-        me.getUggid().getStore().load({
-            params: {
-                dtStart: me.getDtStart().getSubmitValue(),
-                dtEnd: me.getDtEnd().getSubmitValue()
-
-            }
+        var me = this, store = me.getUggid().getStore();
+        Ext.Object.each(me.parametres(), function (k, v) {
+            store.getProxy().setExtraParam(k, v);
         });
+        store.loadPage(1);
     },
     buildSummary: function (rec) {
         var me = this;

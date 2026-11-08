@@ -1844,28 +1844,46 @@ public class CaisseServiceImpl implements CaisseService {
 
     @Override
     public JSONObject venteUg(LocalDate dtStart, LocalDate dtEnd, String query) {
-        int montant = 0, nbreVente = 0;
-        List<VenteDetailsDTO> datas = venteUgDTO(dtStart, dtEnd, query);
+        return venteUg(dtStart, dtEnd, query, 0, 0);
+    }
 
+    /**
+     * Plan du 06/11, point 13 : la pagination etait trompeuse (toutes les lignes, total = true) ; la page est
+     * maintenant decoupee ici, le total est le nombre de lignes et les totaux du bas portent sur toute la periode. Le
+     * stock UG restant n'est lu que pour les lignes de la page (lent sur une longue periode).
+     */
+    @Override
+    public JSONObject venteUg(LocalDate dtStart, LocalDate dtEnd, String query, int start, int limit) {
+        int montant = 0, nbreVente = 0;
+        List<VenteDetailsDTO> datas = lignesUg(dtStart, dtEnd, query, false);
         for (VenteDetailsDTO e : datas) {
             montant += e.getMontantUg();
             nbreVente += e.getUniteGratuite();
-
         }
-        return new JSONObject().put("total", true).put("data", new JSONArray(datas)).put("metaData",
+        int debut = Math.min(Math.max(0, start), datas.size());
+        int fin = limit > 0 ? Math.min(datas.size(), debut + limit) : datas.size();
+        List<VenteDetailsDTO> page = new ArrayList<>(datas.subList(debut, fin));
+        page.forEach(e -> e.stockUg(stockUg(e.getLgFAMILLEID(), DateConverter.OFFICINE)));
+        return new JSONObject().put("total", datas.size()).put("data", new JSONArray(page)).put("metaData",
                 new JSONObject().put("montantAchat", montant).put("nbreVente", nbreVente));
-
     }
 
     @Override
     public List<VenteDetailsDTO> venteUgDTO(LocalDate dtStart, LocalDate dtEnd, String query) {
+        return lignesUg(dtStart, dtEnd, query, true);
+    }
+
+    private List<VenteDetailsDTO> lignesUg(LocalDate dtStart, LocalDate dtEnd, String query, boolean avecStock) {
         try {
             List<Predicate> predicates = new ArrayList<>();
             CriteriaBuilder cb = getEntityManager().getCriteriaBuilder();
             CriteriaQuery<TPreenregistrementDetail> cq = cb.createQuery(TPreenregistrementDetail.class);
             Root<TPreenregistrementDetail> root = cq.from(TPreenregistrementDetail.class);
             Join<TPreenregistrementDetail, TPreenregistrement> st = root.join("lgPREENREGISTREMENTID", JoinType.INNER);
-            cq.select(root).orderBy(cb.asc(st.get(TPreenregistrement_.dtUPDATED)));
+            // point 13 : ordre stable d'une page a l'autre (meme heure de vente : reference, puis ligne)
+            cq.select(root).orderBy(cb.asc(st.get(TPreenregistrement_.dtUPDATED)),
+                    cb.asc(st.get(TPreenregistrement_.strREF)),
+                    cb.asc(root.get(TPreenregistrementDetail_.lgPREENREGISTREMENTDETAILID)));
             Predicate btw = cb.between(cb.function("DATE", Date.class, st.get(TPreenregistrement_.dtUPDATED)),
                     java.sql.Date.valueOf(dtStart), java.sql.Date.valueOf(dtEnd));
             predicates.add(btw);
@@ -1885,10 +1903,10 @@ public class CaisseServiceImpl implements CaisseService {
             }
             cq.where(cb.and(predicates.toArray(Predicate[]::new)));
             TypedQuery<TPreenregistrementDetail> q = getEntityManager().createQuery(cq);
-            return q.getResultList().stream()
-                    .map(e -> new VenteDetailsDTO(e)
-                            .stockUg(stockUg(e.getLgFAMILLEID().getLgFAMILLEID(), DateConverter.OFFICINE)))
-                    .collect(Collectors.toList());
+            return q.getResultList().stream().map(e -> {
+                VenteDetailsDTO d = new VenteDetailsDTO(e).vendeur(e.getLgPREENREGISTREMENTID().getLgUSERVENDEURID());
+                return avecStock ? d.stockUg(stockUg(e.getLgFAMILLEID().getLgFAMILLEID(), DateConverter.OFFICINE)) : d;
+            }).collect(Collectors.toList());
 
         } catch (Exception e) {
             LOG.log(Level.SEVERE, null, e);

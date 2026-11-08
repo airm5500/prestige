@@ -435,7 +435,9 @@ public class CaisseRessource {
 
     @GET
     @Path("ca/ug")
-    public Response ugs(@QueryParam(value = "dtStart") String dtStart, @QueryParam(value = "dtEnd") String dtEnd) {
+    public Response ugs(@QueryParam(value = "dtStart") String dtStart, @QueryParam(value = "dtEnd") String dtEnd,
+            @QueryParam(value = "query") String query, @DefaultValue("0") @QueryParam(value = "start") int start,
+            @DefaultValue("0") @QueryParam(value = "limit") int limit) {
         HttpSession hs = servletRequest.getSession();
         TUser tu = (TUser) hs.getAttribute(Constant.AIRTIME_USER);
         if (tu == null) {
@@ -447,8 +449,60 @@ public class CaisseRessource {
             dtEn = LocalDate.parse(dtEnd);
         } catch (Exception e) {
         }
-        JSONObject json = caisseService.venteUg(dtSt, dtEn, null);
+        // plan du 06/11, point 13 : recherche (CIP, nom, reference) et vraie pagination
+        JSONObject json = caisseService.venteUg(dtSt, dtEn, StringUtils.trimToNull(query), start, limit);
         return Response.ok().entity(json.toString()).build();
+    }
+
+    /** Plan du 06/11, point 13 : impression des ventes en unites gratuites, avec le vendeur, comme l'ecran. */
+    @GET
+    @Path("ca/ug/pdf")
+    @Produces("application/pdf")
+    public Response ugsPdf(@QueryParam(value = "dtStart") String dtStart, @QueryParam(value = "dtEnd") String dtEnd,
+            @QueryParam(value = "query") String query) {
+        TUser tu = (TUser) servletRequest.getSession().getAttribute(Constant.AIRTIME_USER);
+        if (tu == null) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+        LocalDate dtSt = LocalDate.now(), dtEn = dtSt;
+        try {
+            dtSt = LocalDate.parse(dtStart);
+            dtEn = LocalDate.parse(dtEnd);
+        } catch (Exception e) {
+            // periode du jour
+        }
+        java.time.format.DateTimeFormatter fr = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy");
+        List<commonTasks.dto.VenteDetailsDTO> lignes = caisseService.venteUgDTO(dtSt, dtEn,
+                StringUtils.trimToNull(query));
+        java.util.List<String[]> l = new java.util.ArrayList<>();
+        long montant = 0, ug = 0;
+        for (commonTasks.dto.VenteDetailsDTO d : lignes) {
+            l.add(new String[] { d.getDateHeure(), d.getStrREF(), StringUtils.defaultString(d.getVendeur()),
+                    d.getIntCIP(), d.getStrNAME(), milliers(d.getIntQUANTITY()), milliers(d.getUniteGratuite()),
+                    milliers(d.getStockUg()), milliers(d.getMontantUg()) });
+            montant += d.getMontantUg();
+            ug += d.getUniteGratuite();
+        }
+        l.add(new String[] { "TOTAL", lignes.size() + " ligne(s)", "", "", "", "", milliers(ug), "",
+                milliers(montant) });
+        rest.report.pdf.TableauPdf.Edition e = new rest.report.pdf.TableauPdf.Edition();
+        e.officine = caisseService.findOfficine() != null ? caisseService.findOfficine().getStrNOMCOMPLET() : "";
+        e.titre = "VENTES UNITÉS GRATUITES";
+        e.sousTitre = "Du " + dtSt.format(fr) + " au " + dtEn.format(fr)
+                + (StringUtils.isBlank(query) ? "" : " ; recherche : " + query.trim());
+        e.imprimePar = (StringUtils.defaultString(tu.getStrFIRSTNAME()) + " "
+                + StringUtils.defaultString(tu.getStrLASTNAME())).trim();
+        e.entetes = new String[] { "Date", "Référence vente", "Vendeur", "CIP", "Libellé", "Qté vente", "Qté UG",
+                "Qté UG restante", "Montant UG" };
+        e.largeurs = new float[] { 11, 10, 12, 8, 25, 7, 7, 8, 9 };
+        e.droite = new boolean[] { false, false, false, false, false, true, true, true, true };
+        return Response.ok(rest.report.pdf.TableauPdf.generer(e, l), "application/pdf")
+                .header("Content-Disposition", "inline; filename=ventes_unites_gratuites.pdf").build();
+    }
+
+    private static String milliers(long v) {
+        String s = String.valueOf(Math.abs(v)).replaceAll("\\B(?=(\\d{3})+(?!\\d))", " ");
+        return (v < 0 ? "-" : "") + s;
     }
 
     @GET

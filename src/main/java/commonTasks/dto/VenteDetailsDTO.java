@@ -272,6 +272,23 @@ public class VenteDetailsDTO implements Serializable {
         return this;
     }
 
+    /* plan du 06/11, point 13 : vendeur de la vente (ecran « Ventes unites gratuites ») */
+    private String vendeur;
+
+    public String getVendeur() {
+        return vendeur;
+    }
+
+    public void setVendeur(String vendeur) {
+        this.vendeur = vendeur;
+    }
+
+    public VenteDetailsDTO vendeur(TUser u) {
+        this.vendeur = u == null ? "" : ((u.getStrFIRSTNAME() == null ? "" : u.getStrFIRSTNAME()) + " "
+                + (u.getStrLASTNAME() == null ? "" : u.getStrLASTNAME())).trim();
+        return this;
+    }
+
     public VenteDetailsDTO stockUg(int stockUg) {
         this.stockUg = stockUg;
         return this;
