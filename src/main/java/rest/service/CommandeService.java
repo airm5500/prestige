@@ -32,6 +32,12 @@ public interface CommandeService {
      */
     JSONObject cloturerBonLivraison(String id, boolean avecEcart) throws JSONException;
 
+    /**
+     * Demande 59 : {@code modeRecu} = n'entrer que le reçu (somme des lots), les manquants vont aux ecarts ; reponse
+     * {success, msg, mode, ecarts:[{detailId, cip, nom, commande, recu, ug, manquant}], totalManquant}.
+     */
+    JSONObject cloturerBonLivraison(String id, boolean avecEcart, boolean modeRecu) throws JSONException;
+
     /** Vrai si l'utilisateur connecte detient le privilege 'Autorisation entrée en stock'. */
     boolean hasEntreeStockPrivilege();
 

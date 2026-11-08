@@ -1234,6 +1234,13 @@ public class MvtProduitServiceImpl implements MvtProduitService {
                         "Ce retour est déjà validé : rien n'a été modifié");
             }
             List<TRetourFournisseurDetail> details = getTRetourFournisseurDetail(params.getRef());
+            if (ManquantsReceptionService.sansSortieStock(emg, fournisseur.getLgRETOURFRSID())) {
+                /*
+                 * demande 59 : retour des manquants d'un BL entre au reçu ; les boites ne sont jamais entrees. La
+                 * validation sert a la reclamation et a l'avoir : aucun stock, aucun mouvement, aucun lot ne bouge.
+                 */
+                return validerSansSortieStock(emg, fournisseur, details, params, json);
+            }
             DoubleAdder amount = new DoubleAdder();
             final TEmplacement empl = params.getOperateur().getLgEMPLACEMENTID();
             final String emplecementId = empl.getLgEMPLACEMENTID();
@@ -1354,6 +1361,38 @@ public class MvtProduitServiceImpl implements MvtProduitService {
 
         return json;
 
+    }
+
+    /** Demande 59 : validation d'un retour des manquants, sans sortie de stock. */
+    private JSONObject validerSansSortieStock(EntityManager emg, TRetourFournisseur fournisseur,
+            List<TRetourFournisseurDetail> details, Params params, JSONObject json) throws JSONException {
+        double montant = 0;
+        int boites = 0;
+        for (TRetourFournisseurDetail d : details) {
+            int q = Objects.requireNonNullElse(d.getIntNUMBERRETURN(), 0);
+            montant += (double) q * Objects.requireNonNullElse(d.getIntPAF(), 0);
+            boites += q;
+            d.setStrSTATUT(STATUT_ENABLE);
+            d.setDtUPDATED(new Date());
+            emg.merge(d);
+        }
+        fournisseur.setStrSTATUT(STATUT_ENABLE);
+        fournisseur.setDtUPDATED(new Date());
+        fournisseur.setDlAMOUNT(montant);
+        fournisseur.setStrCOMMENTAIRE(
+                StringUtils.defaultIfBlank(params.getDescription(), fournisseur.getStrCOMMENTAIRE()));
+        fournisseur.setLgUSERID(params.getOperateur());
+        fournisseur.setStrREPONSEFRS(params.getRefTwo());
+        emg.merge(fournisseur);
+        TBonLivraison bl = fournisseur.getLgBONLIVRAISONID();
+        logService.updateItem(params.getOperateur(),
+                bl == null ? fournisseur.getStrREFRETOURFRS() : bl.getStrREFLIVRAISON(),
+                "Retour des manquants " + fournisseur.getStrREFRETOURFRS() + " validé sans sortie de stock : "
+                        + details.size() + " ligne(s), " + boites + " boîte(s), par "
+                        + params.getOperateur().getStrFIRSTNAME() + " " + params.getOperateur().getStrLASTNAME(),
+                TypeLog.RETOUR_FOURNISSEUR, fournisseur);
+        return json.put("success", true).put("sansSortieStock", true).put("msg",
+                "Retour des manquants validé : rien ne sort du stock");
     }
 
     private List<TRetourFournisseurDetail> getTRetourFournisseurDetail(String id) {
