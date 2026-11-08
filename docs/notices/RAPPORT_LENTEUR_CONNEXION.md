@@ -593,7 +593,7 @@ requêtes les plus longues avec l'attente du serveur, et les fils du serveur.
 
 | Geste | Médiane | 90 % | 99 % | Max |
 |---|---|---|---|---|
-| article ajouté (439) | 0,56 s | 0,81 s | 1,36 s | 1,9 s (hors scan perdu) |
+| article ajouté (439) | 0,56 s | 0,81 s | 1,36 s | 1,9 s (hors scan perdu, corrigé depuis) |
 | vente terminée (184) | 1,55 s | 1,94 s | 4,3 s | 4,9 s |
 
 | Pendant une sauvegarde complète | Article ajouté (médiane / 90 %) | Vente terminée (médiane / 90 %) |
@@ -611,15 +611,41 @@ requêtes les plus longues avec l'attente du serveur, et les fils du serveur.
 - **Connexion** : le tableau de bord demande `tableau-bord/alertes` (5,7 s), `evolution` (3,8 s) et `tuiles` (2,8 s)
   à la première ouverture.
 
-**Défaut trouvé : scan perdu** *(mécanisme lu dans le code et vu à l'écran, pas encore prouvé par un test)*. Si Entrée
-arrive pendant que la recherche de l'article est en cours (`VenteCtr.onProduitSpecialKey`), la liste est ouverte mais
-encore vide : l'écran la referme, ne trouve aucune valeur choisie et recalcule le net au lieu d'ajouter l'article. La
-réponse arrive ensuite et rouvre la liste avec l'article ; rien n'est ajouté. La caissière doit rescanner. Plus le
-serveur répond lentement, plus ce cas est fréquent : il est aléatoire par nature. Vu une fois dans le rejeu (deuxième
-scan du même article), et dans l'essai du 29/10 (§ 4.5 du rapport de charge).
+**Défaut : scan perdu** *(reproduit par un test, puis corrigé ; le mécanisme d'abord supposé était faux)*. Le premier
+mécanisme supposé (Entrée pendant la recherche) ne se reproduit pas : le test passe sur l'ancien code avec une liste
+lente jusqu'à 2 s. La chronologie des appels a montré deux défauts réels, tous deux liés à la charge :
 
-**Autre effet de l'écran** : quand la recherche est déjà revenue avant Entrée (deuxième scan du même article
-notamment), l'article n'est pas ajouté directement : le curseur passe dans « QD » et attend une seconde touche Entrée.
+1. **Même article scanné de nouveau** : Entrée retrouvait le code dans la liste laissée par la recherche précédente ;
+   l'écran passait dans « QD » sans rien ajouter, puis la recherche lancée par la frappe (une demi-seconde après la
+   dernière touche) rouvrait la liste et ramenait le curseur dans la recherche (ExtJS remet le focus à l'ouverture de
+   la liste). C'est l'état de la capture du rejeu : liste ouverte sur l'article, curseur dans la recherche, rien
+   d'ajouté. Le cas survient dès que findone + ajout dépassent 0,5 s ; avec un serveur rapide, la liste est vidée avant.
+   Correction : un code tapé, liste fermée, suit toujours le chemin de la douchette (ajout direct d'une boîte, comme au
+   premier scan) et la recherche en attente est annulée. Le choix dans la liste, puis « QD », est inchangé.
+2. **Code tronqué** : le rechargement des lignes, revenu pendant la frappe du code suivant, remettait le curseur dans la
+   recherche en sélectionnant tout son texte ; la suite du code remplaçait les chiffres déjà tapés (« 26179 » pour
+   « 2026179 »). findone cherchant par début de code, l'article n'était pas trouvé, ou un autre l'aurait été.
+   Correction : le curseur n'est remis, texte sélectionné, que si aucune saisie n'est en cours.
+
+Test : `src/test/e2e/vente/test-scan-pendant-recherche.js`, par le vrai écran ; les temps de réponse du serveur sont
+imposés au navigateur (retards fixes par appel, rafale de scans à retards tirés au hasard à graine fixe, rechargement
+des lignes retenu jusqu'au milieu de la frappe). Même serveur (domain2, copie appaul), version d'intégration 28e7ffad8
+avant, la même plus les deux corrections après :
+
+| | avant | après |
+|---|---|---|
+| scans répétés, serveur rapide ou liste lente (2 s) | 10/10 ajoutés | 10/10 |
+| scans répétés, findone 0,4 s + ajout 0,5 s | 2/5 ajoutés | 5/5 |
+| scans répétés, 1 s partout | 2/5 ajoutés | 5/5 |
+| rafale de 20 (avant) / 40 (après) scans, retards 0 à 1,5 s | 18 perdus sur 20 | 0 perdu sur 40 |
+| lignes rechargées pendant la frappe | code tronqué (« 6179 »), rien d'ajouté (2 cas) | code entier, ajouté (2 cas) |
+| choix à la main dans la liste, « QD » 2 | 2 boîtes | 2 boîtes |
+| contrôles | 33/46, puis 7/11 pour la frappe | 51/51 |
+
+Non-régression : `ui-clavier-caisse-detail.js` (choix dans la liste, « QD », cellule de quantité, stock insuffisant)
+6/6 avant et après sur domain2. Ce test vise `localhost:8080` en dur : lancé tel quel, il échoue sur un autre serveur
+que celui de sa base ; il a été relancé en réécrivant l'adresse. La vente en dépôt (`VenteEnDepotCtr`) contient le
+même code de recherche produit : non testée, non modifiée.
 
 **Non reproduit** : aucun « en cours de chargement » de plusieurs secondes côté serveur au pic réel rejoué deux fois
 plus vite, sauvegarde comprise. Ce que l'essai ne reproduit pas encore : des états lourds lancés pendant le pic
@@ -629,4 +655,5 @@ lent ou un réseau lent, et les ventes à crédit (tiers payant), rejouées ici 
 Contrôles :
 
 - premier rejeu cassé côté essai (seconde touche Entrée non frappée, poste de test à 0,2 Go de mémoire libre) : écarté ;
-- second rejeu : 184/184 ventes, 1 scan perdu, 0 interblocage, tas Java ≤ 2,1 Go, 2 sauvegardes réussies.
+- second rejeu : 184/184 ventes, 1 scan perdu, 0 interblocage, tas Java ≤ 2,1 Go, 2 sauvegardes réussies ;
+- scan perdu : reproduit par test (avant 33/46), corrigé (après 51/51), non-régression clavier 6/6.
