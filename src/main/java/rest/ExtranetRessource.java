@@ -355,6 +355,36 @@ public class ExtranetRessource {
         return r != null ? r : ok(service.rechercherUbipharm(motif, champs, commencePar, enStock));
     }
 
+    /* ============================================================ Copharmed */
+
+    @GET
+    @Path("copharmed/listes")
+    public Response listesCopharmed() {
+        Response r = refus();
+        return r != null ? r : ok(service.listesCopharmed());
+    }
+
+    @GET
+    @Path("copharmed/listes/{code}")
+    public Response listeCopharmed(@PathParam("code") String code) {
+        Response r = refus();
+        return r != null ? r : ok(service.listeCopharmedEnCache(code));
+    }
+
+    @POST
+    @Path("copharmed/listes/{code}/collecte")
+    public Response collecterListeCopharmed(@PathParam("code") String code) {
+        Response r = refus();
+        return r != null ? r : ok(service.collecterListeCopharmed(code, login()));
+    }
+
+    @GET
+    @Path("copharmed/recherche")
+    public Response rechercherCopharmed(@QueryParam("motif") String motif) {
+        Response r = refus();
+        return r != null ? r : ok(service.rechercherCopharmed(motif));
+    }
+
     /* ============================================================ Mayite : specialites et monographies */
 
     @GET

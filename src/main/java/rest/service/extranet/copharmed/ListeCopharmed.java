@@ -1,0 +1,57 @@
+package rest.service.extranet.copharmed;
+
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+/**
+ * Listes de l'onglet Copharmed (demande du 08/11, releve le 08/11 sur l'extranet connecte), lues en GET seulement.
+ * Promotions : liste ViewPromotion-ShowAll (Promotion, Debut, Fin, Type) puis le detail de chacune (produits et paliers
+ * d'unites gratuites « 10 U.G. / 50 »). Catalogue : /fr/products/ par pages (PageSize, PageNumber).
+ */
+public enum ListeCopharmed {
+
+    COPHARMED_PROMOTIONS("Promotions", "Promotions",
+            Arrays.asList("Promotion", "Début", "Fin", "Type", "Désignation", "Code", "DCI", "Colisage", "Prix HT",
+                    "Remise", "Prix net HT", "Prix public", "Unités gratuites")),
+    COPHARMED_CATALOGUE("Produits", "Catalogue produits", Arrays.asList("Désignation", "Code", "DCI", "Colisage",
+            "Prix HT", "Remise", "Prix net HT", "Prix public", "Disponibilité", "Promotion", "Unités gratuites"));
+
+    public final String rubrique;
+    public final String libelle;
+    public final List<String> colonnes;
+
+    ListeCopharmed(String rubrique, String libelle, List<String> colonnes) {
+        this.rubrique = rubrique;
+        this.libelle = libelle;
+        this.colonnes = Collections.unmodifiableList(colonnes);
+    }
+
+    public String module() {
+        return "LISTE_" + name();
+    }
+
+    public JSONObject description() {
+        return new JSONObject().put("code", name()).put("source", "COPHARMED").put("rubrique", rubrique)
+                .put("libelle", libelle).put("colonnes", new JSONArray(colonnes));
+    }
+
+    public static ListeCopharmed parCode(String code) {
+        for (ListeCopharmed l : values()) {
+            if (l.name().equalsIgnoreCase(code == null ? "" : code.trim())) {
+                return l;
+            }
+        }
+        return null;
+    }
+
+    public static JSONArray catalogue() {
+        JSONArray a = new JSONArray();
+        for (ListeCopharmed l : values()) {
+            a.put(l.description());
+        }
+        return a;
+    }
+}

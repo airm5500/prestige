@@ -28,7 +28,12 @@ public enum SourceExtranet {
      * /themes/boo/html/extranet/stats/statsexternal.jsp?opt=mayite, page qui porte un formulaire cache envoye seul a
      * Mayite (/external_api/). Prestige refait ce passage avec la session Ubipharm, puis lit Mayite en GET seulement.
      */
-    MAYITE("https://equivalence.mayite-service.com", "EXTRANET_MAYITE", null, null);
+    MAYITE("https://equivalence.mayite-service.com", "EXTRANET_MAYITE", null, null),
+    /*
+     * Copharmed (CFAO, Intershop, releve le 08/11) : /fr/login porte un formulaire classique (SynchronizerToken,
+     * ShopLoginForm_Login, ShopLoginForm_Password) envoye a ViewUserAccount-ProcessLogin sur le meme site.
+     */
+    COPHARMED("https://www.copharmed.com", "EXTRANET_COPHARMED", "https://www.copharmed.com/fr/login", null);
 
     /** Page d'Ubipharm qui ouvre Mayite (formulaire cache vers Mayite). */
     public static final String PASSERELLE_MAYITE = "/themes/boo/html/extranet/stats/statsexternal.jsp";

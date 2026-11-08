@@ -184,7 +184,7 @@ public final class SessionExtranet {
     }
 
     /** Page de connexion detectee : la session est perdue, sa valeur est effacee. */
-    synchronized void expiree() {
+    public synchronized void expiree() {
         cookies.clear();
         etat = Etat.EXPIREE;
         expireeLe = LocalDateTime.now();

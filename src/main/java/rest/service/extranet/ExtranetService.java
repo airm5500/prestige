@@ -462,6 +462,62 @@ public class ExtranetService {
         }
     }
 
+    /* ============================================================ Copharmed */
+
+    public JSONObject listesCopharmed() {
+        return new JSONObject().put("success", true).put("data",
+                rest.service.extranet.copharmed.ListeCopharmed.catalogue());
+    }
+
+    public JSONObject listeCopharmedEnCache(String code) {
+        rest.service.extranet.copharmed.ListeCopharmed l = rest.service.extranet.copharmed.ListeCopharmed.parCode(code);
+        if (l == null) {
+            return new JSONObject().put("success", false).put("msg", "Liste inconnue");
+        }
+        return new rest.service.extranet.commun.DepotListes(em)
+                .lire(SourceExtranet.COPHARMED, l.name(), l.module(), l.description()).put("success", true);
+    }
+
+    /** Comme TEDIS : collecte fermee COMPLETE avant de retirer l'ancien cache ; un echec garde l'ancien. */
+    public JSONObject collecterListeCopharmed(String code, String utilisateur) {
+        rest.service.extranet.copharmed.ListeCopharmed l = rest.service.extranet.copharmed.ListeCopharmed.parCode(code);
+        if (l == null) {
+            return new JSONObject().put("success", false).put("msg", "Liste inconnue");
+        }
+        SourceExtranet s = SourceExtranet.COPHARMED;
+        chargerIdentifiants(s);
+        JournalCollecte journal = new JournalCollecte(em);
+        long id = journal.ouvrir(s, l.module(), null, utilisateur);
+        try {
+            List<rest.service.extranet.ubipharm.ListesUbipharmParseur.Ligne> lignes = rest.service.extranet.copharmed.CopharmedLecteur
+                    .lire(CoffreSessions.transport(s), l);
+            rest.service.extranet.commun.DepotListes d = new rest.service.extranet.commun.DepotListes(em);
+            d.enregistrer(id, l.name(), lignes);
+            journal.fermer(id, JournalCollecte.COMPLETE, null, lignes.size(), null);
+            d.garderSeulement(l.name(), l.module(), id);
+            return d.lire(s, l.name(), l.module(), l.description()).put("success", true);
+        } catch (ExtranetException e) {
+            journal.fermer(id, JournalCollecte.ECHEC, null, 0, e.nature() + " : " + e.getMessage());
+            return new JSONObject().put("success", false).put("nature", e.nature().name()).put("msg", e.getMessage())
+                    .put("collecte", journal.une(id));
+        }
+    }
+
+    /** Recherche en direct sur Copharmed (rien n'est garde) ; le motif n'est jamais journalise. */
+    public JSONObject rechercherCopharmed(String motif) {
+        String m = motif == null ? "" : motif.replaceAll("[\\p{Cntrl}]", " ").trim();
+        if (m.length() < 2 || m.length() > 60) {
+            return new JSONObject().put("success", false).put("msg", "Saisissez de 2 à 60 caractères");
+        }
+        chargerIdentifiants(SourceExtranet.COPHARMED);
+        try {
+            return rest.service.extranet.copharmed.CopharmedLecteur
+                    .rechercher(CoffreSessions.transport(SourceExtranet.COPHARMED), m).put("success", true);
+        } catch (ExtranetException e) {
+            return new JSONObject().put("success", false).put("nature", e.nature().name()).put("msg", e.getMessage());
+        }
+    }
+
     /* ============================================================ Mayite : specialites et monographies */
 
     /** Recherche dans la liste des specialites Mayite (entree par la session Ubipharm). */
@@ -503,6 +559,10 @@ public class ExtranetService {
         }
         for (rest.service.extranet.tedis.ListeTedis l : rest.service.extranet.tedis.ListeTedis.values()) {
             r.add(new String[] { SourceExtranet.TEDIS.name(), l.name(), l.libelle, l.module() });
+        }
+        for (rest.service.extranet.copharmed.ListeCopharmed l : rest.service.extranet.copharmed.ListeCopharmed
+                .values()) {
+            r.add(new String[] { SourceExtranet.COPHARMED.name(), l.name(), l.libelle, l.module() });
         }
         return r;
     }
@@ -600,6 +660,9 @@ public class ExtranetService {
 
     /** Lecture d'une liste par la tache planifiee (transaction propre a chaque liste). */
     public JSONObject rafraichir(String source, String code) {
+        if (SourceExtranet.COPHARMED.name().equals(source)) {
+            return collecterListeCopharmed(code, UTILISATEUR_AUTOMATIQUE);
+        }
         return SourceExtranet.TEDIS.name().equals(source) ? collecterListeTedis(code, UTILISATEUR_AUTOMATIQUE)
                 : collecterListe(code, UTILISATEUR_AUTOMATIQUE);
     }

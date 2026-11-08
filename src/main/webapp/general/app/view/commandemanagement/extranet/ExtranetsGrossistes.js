@@ -125,6 +125,11 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
                                 me.ongletListe('TEDIS_HISTORIQUE_COMMANDES', 'Historique de vos commandes'),
                                 me.ongletListe('TEDIS_PROMOS_LABO', 'Promotions laboratoire'),
                                 me.ongletListe('TEDIS_PROMOS_EXCLUSIVES', 'Promotions exclusives')])]),
+                        rubrique('Copharmed', 'exOngletCopharmed', [
+                            rubrique('Promotions', 'exRubriqueCopharmedPromotions', [
+                                me.ongletListe('COPHARMED_PROMOTIONS', 'Promotion')]),
+                            rubrique('Produits', 'exRubriqueCopharmedProduits', [me.ongletRechercheCopharmed(),
+                                me.ongletListe('COPHARMED_CATALOGUE', 'Catalogue produits')])]),
                         Ext.apply(me.panneauMayite('exMayite'), {title: 'Mayité'}),
                         me.ongletCollectes(), me.ongletRafraichissement()],
                     listeners: {
@@ -262,70 +267,98 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
     /* ---------------------------------------------------------------- sessions */
 
     ongletSessions: function () {
-        var me = this, bloc = function (source, libelle, aide) {
-            return {
-                xtype: 'fieldset', title: libelle, itemId: 'exSession' + source, padding: 10,
-                items: [
-                    {xtype: 'label', itemId: 'exEtat' + source, text: '...'},
-                    {xtype: 'component', itemId: 'exCompteEtat' + source, margin: '6 0 0 0', html: ''},
-                    {xtype: 'container', layout: 'hbox', margin: '8 0 0 0', itemId: 'exCompte' + source, hidden: true,
+        var me = this, CARTE = 'background:#fff;border:1px solid #d6dde3;border-radius:6px;'
+                + 'box-shadow:0 1px 2px rgba(0,0,0,.05)',
+                champ = function (cfg) {
+                    return Ext.apply({xtype: 'textfield', labelAlign: 'top', labelSeparator: '', margin: '0 10 0 0',
+                        enforceMaxLength: true}, cfg);
+                },
+                bouton = function (cfg) {
+                    return Ext.apply({xtype: 'button', margin: '19 6 0 0', minWidth: 90}, cfg);
+                },
+                entete = function (source, libelle, sousTitre) {
+                    /* mise en page libre : la pastille flotte à droite et garde sa largeur naturelle */
+                    return {xtype: 'container', margin: '0 0 8 0', style: 'overflow:hidden', items: [
+                            {xtype: 'label', itemId: 'exEtat' + source, text: '...', style: 'float:right;margin-left:12px'},
+                            {xtype: 'component', style: 'padding-top:3px', html: '<span style="font-size:15px;'
+                                        + 'font-weight:bold;color:#1f3a56">' + libelle + '</span>' + (sousTitre
+                                        ? '<span style="margin-left:10px;color:#888;font-size:12px">' + sousTitre
+                                        + '</span>' : '')}]};
+                },
+                bloc = function (source, libelle, aide, sousTitre) {
+                    return {
+                        xtype: 'container', itemId: 'exSession' + source, padding: '12 14', margin: '0 0 12 0',
+                        style: CARTE,
                         items: [
-                            {xtype: 'textfield', itemId: 'exIdentifiant' + source, width: 260, maxLength: 200,
-                                fieldLabel: 'Identifiant', labelWidth: 70, enforceMaxLength: true,
-                                inputAttrTpl: 'autocomplete="off"'},
-                            {xtype: 'textfield', itemId: 'exMotDePasse' + source, inputType: 'password', width: 260,
-                                maxLength: 200, enforceMaxLength: true, fieldLabel: 'Mot de passe', labelWidth: 80,
-                                margin: '0 0 0 8', inputAttrTpl: 'autocomplete="new-password"'},
-                            {xtype: 'textfield', itemId: 'exPage' + source, width: 230, maxLength: 1000,
-                                enforceMaxLength: true, fieldLabel: 'Page de connexion', labelWidth: 110,
-                                margin: '0 0 0 8', emptyText: '/ (par défaut)'},
-                            {xtype: 'textfield', itemId: 'exChamp' + source, width: 190, maxLength: 100,
-                                enforceMaxLength: true, fieldLabel: 'Nom de la case', labelWidth: 95,
-                                margin: '0 0 0 8', emptyText: 'laisser vide',
-                                labelAttrTpl: 'data-qtip="Réglage technique, à laisser vide : Prestige trouve seul la'
-                                    + ' case de l\'identifiant. Ne saisissez pas votre identifiant ici."'},
-                            {xtype: 'button', text: 'Enregistrer', itemId: 'exCompteEnregistrer' + source,
-                                margin: '0 0 0 6', handler: function () {
-                                    me.enregistrerCompte(source);
-                                }},
-                            {xtype: 'button', text: 'Se connecter', itemId: 'exConnecter' + source,
-                                margin: '0 0 0 6', handler: function () {
-                                    me.seConnecter(source);
-                                }},
-                            {xtype: 'button', text: 'Effacer les identifiants', itemId: 'exCompteEffacer' + source,
-                                margin: '0 0 0 6', handler: function (b) {
-                                    me.confirmerDansBouton(b, 'Confirmer l\'effacement', function () {
-                                        me.effacerCompte(source);
-                                    });
-                                }}
-                        ]},
-                    {xtype: 'container', layout: 'hbox', margin: '8 0 0 0', itemId: 'exSaisie' + source, hidden: true,
-                        items: [
-                            {xtype: 'textfield', itemId: 'exCookie' + source, inputType: 'password', width: 420,
-                                emptyText: aide, fieldLabel: 'ou cookie', labelWidth: 60},
-                            {xtype: 'button', text: 'Enregistrer', margin: '0 0 0 6', handler: function () {
-                                    me.definirSession(source);
-                                }},
-                            {xtype: 'button', text: 'Effacer la session', itemId: 'exEffacer' + source,
-                                margin: '0 0 0 6', handler: function (b) {
-                                    me.confirmerDansBouton(b, 'Confirmer l\'effacement', function () {
-                                        me.effacerSession(source);
-                                    });
-                                }}
-                        ]}
-                ]
-            };
-        };
+                            entete(source, libelle, sousTitre),
+                            {xtype: 'component', itemId: 'exCompteEtat' + source, html: ''},
+                            {xtype: 'container', layout: 'hbox', margin: '10 0 0 0', itemId: 'exCompte' + source,
+                                hidden: true, items: [
+                                    champ({itemId: 'exIdentifiant' + source, width: 220, maxLength: 200,
+                                        fieldLabel: 'Identifiant', inputAttrTpl: 'autocomplete="off"'}),
+                                    champ({itemId: 'exMotDePasse' + source, inputType: 'password', width: 200,
+                                        maxLength: 200, fieldLabel: 'Mot de passe',
+                                        emptyText: 'vide : inchangé', inputAttrTpl: 'autocomplete="new-password"'}),
+                                    champ({itemId: 'exPage' + source, width: 300, maxLength: 1000,
+                                        fieldLabel: 'Page de connexion', emptyText: '/ (par défaut)'}),
+                                    champ({itemId: 'exChamp' + source, width: 130, maxLength: 100,
+                                        fieldLabel: 'Nom de la case', emptyText: 'laisser vide',
+                                        labelAttrTpl: 'data-qtip="Réglage technique, à laisser vide : Prestige trouve '
+                                                + 'seul la case de l\'identifiant. Ne saisissez pas votre identifiant '
+                                                + 'ici."'}),
+                                    bouton({text: 'Enregistrer', itemId: 'exCompteEnregistrer' + source,
+                                        handler: function () {
+                                            me.enregistrerCompte(source);
+                                        }}),
+                                    bouton({text: 'Se connecter', itemId: 'exConnecter' + source,
+                                        handler: function () {
+                                            me.seConnecter(source);
+                                        }}),
+                                    bouton({text: 'Effacer les identifiants', itemId: 'exCompteEffacer' + source,
+                                        handler: function (b) {
+                                            me.confirmerDansBouton(b, 'Confirmer l\'effacement', function () {
+                                                me.effacerCompte(source);
+                                            });
+                                        }})
+                                ]},
+                            {xtype: 'container', layout: {type: 'hbox', align: 'middle'}, margin: '10 0 0 0',
+                                padding: '6 0 0 0', style: 'border-top:1px dashed #e1e6ea', itemId: 'exSaisie' + source,
+                                hidden: true, items: [
+                                    {xtype: 'component', width: 120, html: '<span style="color:#888;font-size:12px">'
+                                                + 'Secours : cookie</span>'},
+                                    {xtype: 'textfield', itemId: 'exCookie' + source, inputType: 'password',
+                                        width: 410, emptyText: aide, margin: '0 10 0 0'},
+                                    {xtype: 'button', text: 'Enregistrer', minWidth: 90, margin: '0 6 0 0',
+                                        handler: function () {
+                                            me.definirSession(source);
+                                        }},
+                                    {xtype: 'button', text: 'Effacer la session', itemId: 'exEffacer' + source,
+                                        handler: function (b) {
+                                            me.confirmerDansBouton(b, 'Confirmer l\'effacement', function () {
+                                                me.effacerSession(source);
+                                            });
+                                        }}
+                                ]}
+                        ]
+                    };
+                };
         return {
-            title: 'Sessions', itemId: 'exOngletSessions', autoScroll: true, bodyPadding: 12,
+            title: 'Sessions', itemId: 'exOngletSessions', autoScroll: true, bodyPadding: 14,
+            bodyStyle: 'background:#f4f6f8',
             items: [
-                {xtype: 'component', margin: '0 0 10 0', html: '<div style="color:#555">Saisissez l\'identifiant et '
-                            + 'le mot de passe de chaque extranet : Prestige se connecte seul et se reconnecte quand '
-                            + 'la session expire. Le mot de passe est chiffré sur le serveur et n\'est jamais '
-                            + 'réaffiché (laisser le champ vide garde l\'ancien). En secours, un cookie de session '
-                            + 'copié depuis le navigateur peut être collé. Réservé à l\'administrateur.</div>'},
-                bloc('UBIPHARM', 'Ubipharm Côte d\'Ivoire', 'SESSIONID=...'),
+                {xtype: 'component', margin: '0 0 12 0', html: '<div style="color:#555;line-height:1.5">Saisissez '
+                            + 'l\'identifiant et le mot de passe de chaque extranet : Prestige se connecte seul et se '
+                            + 'reconnecte quand la session expire. Le mot de passe est chiffré sur le serveur et n\'est '
+                            + 'jamais réaffiché (laisser le champ vide garde l\'ancien). En secours, un cookie de '
+                            + 'session copié depuis le navigateur peut être collé. Réservé à l\'administrateur.</div>'},
+                bloc('UBIPHARM', 'Ubipharm', 'SESSIONID=...', 'Côte d\'Ivoire'),
                 bloc('TEDIS', 'TEDIS', 'nom=valeur; nom2=valeur2'),
+                bloc('COPHARMED', 'Copharmed', 'pgid-...=valeur; nom2=valeur2', 'CFAO'),
+                {xtype: 'container', itemId: 'exSessionMAYITE', padding: '12 14', margin: '0 0 12 0', style: CARTE,
+                    items: [entete('MAYITE', 'Mayité', 'base des spécialités'),
+                        {xtype: 'component', html: '<span style="color:#555">Aucun identifiant à saisir : Mayité '
+                                    + 's\'ouvre par la session Ubipharm, comme le lien « Base de données Mayite » '
+                                    + 'd\'Ubipharm.</span>'}]},
                 {xtype: 'label', itemId: 'exSessionsMsg'}
             ]
         };
@@ -374,7 +407,7 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
                     + (s.definieLe ? ' depuis le ' + h(s.definieLe) : '')
                     + (s.derniereReussite ? ' — dernier appel réussi ' + h(s.derniereReussite) : '');
         } else if (connexionEnCours) {
-            couleur = '#555';
+            couleur = '#555555';
             texte = 'Connexion en cours…';
         } else if (s.echecConnexion) {
             couleur = '#c0392b';
@@ -383,12 +416,17 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
             couleur = '#d35400';
             texte = 'Session expirée' + (c.enregistre ? ' — reconnexion automatique à la prochaine lecture'
                     : ' : enregistrez les identifiants ou collez un cookie');
+        } else if (s.source === 'MAYITE') {
+            couleur = '#555555';
+            texte = 'Non connecté — ouvert par Ubipharm à la première recherche';
         } else {
-            couleur = '#555';
+            couleur = '#555555';
             texte = 'Non connecté' + (c.enregistre ? ' — cliquez « Se connecter »'
                     : ' : enregistrez l\'identifiant et le mot de passe');
         }
-        return '<b style="color:' + couleur + '">État : ' + texte + '</b>';
+        return '<span style="display:inline-block;padding:3px 10px;border-radius:12px;font-weight:bold;'
+                + 'color:' + couleur + ';background:' + couleur + '1a;border:1px solid ' + couleur + '55">État : '
+                + texte + '</span>';
     },
 
     afficherCompte: function (s, admin) {
@@ -398,19 +436,29 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
                     return Ext.String.htmlEncode(String(v).replace('T', ' ').substring(0, 16));
                 };
         if (etat) {
+            var ligne = function (titre, valeur) {
+                return '<tr><td style="color:#888;padding:2px 14px 2px 0;white-space:nowrap;vertical-align:top">'
+                        + titre + '</td><td style="padding:2px 0">' + valeur + '</td></tr>';
+            }, page = c.pageConnexion || c.pageConnexionParDefaut, courte = function (u) {
+                var m = String(u || '').match(/^(https?:\/\/[^\/?#]+)([^?#]*)/);
+                return m ? m[1] + (m[2] && m[2] !== '/' ? m[2] : '') + (String(u).length > m[0].length ? '…' : '') : u;
+            };
             etat.update(c.enregistre
-                    ? 'Identifiants enregistrés : <b>' + Ext.String.htmlEncode(c.identifiant || '') + '</b>, mot de passe '
-                    + (c.motDePasseEnregistre ? 'enregistré' : 'absent')
-                    + (c.pageConnexion ? ' — page de connexion ' + Ext.String.htmlEncode(c.pageConnexion)
-                            : c.pageConnexionParDefaut ? ' — page de connexion par défaut ' + Ext.String.htmlEncode(c.pageConnexionParDefaut) : '')
-                    + (c.modifieLe ? ' — modifiés le ' + h(c.modifieLe) + (c.modifiePar ? ' par '
-                            + Ext.String.htmlEncode(c.modifiePar) : '') : '')
+                    ? '<div style="color:#1f3a56;margin-bottom:4px">Identifiants enregistrés : <b>'
+                    + Ext.String.htmlEncode(c.identifiant || '') + '</b>, mot de passe '
+                    + (c.motDePasseEnregistre ? 'enregistré' : 'absent') + '</div><table style="font-size:12px">'
+                    + (page ? ligne('Page de connexion', '<span title="' + Ext.String.htmlEncode(page) + '">'
+                            + Ext.String.htmlEncode(courte(page)) + (c.pageConnexion ? '' : ' (par défaut)')
+                            + '</span>') : '')
+                    + (c.modifieLe ? ligne('Modifiés', 'le ' + h(c.modifieLe) + (c.modifiePar ? ' par '
+                            + Ext.String.htmlEncode(c.modifiePar) : '')) : '')
                     + (s.mode === 'CONNEXION' && s.derniereConnexion && !s.echecConnexion
-                            ? '<br><span style="color:#27ae60">Connecté automatiquement le ' + h(s.derniereConnexion)
-                            + '</span>' : '')
-                    + (s.echecConnexion ? '<br><span style="color:#c0392b">Dernière connexion échouée : '
-                            + Ext.String.htmlEncode(s.echecConnexion) + '</span>' : '')
-                    : 'Aucun identifiant enregistré');
+                            ? ligne('Connexion', '<span style="color:#27ae60">Connecté automatiquement le '
+                            + h(s.derniereConnexion) + '</span>') : '')
+                    + (s.echecConnexion ? ligne('Connexion', '<span style="color:#c0392b">Dernière connexion échouée : '
+                            + Ext.String.htmlEncode(s.echecConnexion) + '</span>') : '')
+                    + '</table>'
+                    : '<span style="color:#888">Aucun identifiant enregistré</span>');
         }
         if (bloc) {
             bloc.setVisible(admin);
@@ -907,7 +955,8 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
     /** Affiche le cache (collecter : lit d'abord l'extranet). */
     chargerListe: function (code, collecter) {
         var me = this, id = 'exListe' + code, panneau = me.down('#' + id);
-        var racine = code.indexOf('TEDIS_') === 0 ? 'tedis/listes/' : 'ubipharm/listes/';
+        var racine = code.indexOf('TEDIS_') === 0 ? 'tedis/listes/'
+                : code.indexOf('COPHARMED_') === 0 ? 'copharmed/listes/' : 'ubipharm/listes/';
         me.appel(collecter ? 'POST' : 'GET', racine + code + (collecter ? '/collecte' : ''), function (r) {
             if (r.success) {
                 me.afficherListe(code, r);
@@ -921,10 +970,11 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
     afficherListe: function (code, r) {
         var me = this, id = 'exListe' + code, grille = me.down('#' + id + 'Grille'), colonnes = [];
         Ext.each(r.colonnes || [], function (titre, i) {
-            colonnes.push({text: me.texte(titre), dataIndex: 'cellules', minWidth: 80,
-                flex: /Produit|Libellé|Description|Disponibilité|Paliers|Prix/.test(titre) ? 2 : 1,
+            var genre = me.genreColonne(titre);
+            colonnes.push({text: me.texte(titre), dataIndex: 'cellules', minWidth: genre.min, flex: genre.flex,
+                align: genre.align, tdCls: genre.tdCls,
                 renderer: function (v) {
-                    return me.texte(v ? v[i] : '');
+                    return me.celluleListe(genre, v ? v[i] : '');
                 }});
         });
         grille.reconfigure(me.listes[code], colonnes);
@@ -932,6 +982,126 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
         me.donnees[code] = r.lignes || [];
         me.filtrerListe(code);
         me.afficherDate('#' + id + 'Date', r);
+    },
+
+    /** Genre d'une colonne de liste, d'après son titre : largeur, alignement et rendu. */
+    genreColonne: function (titre) {
+        var t = String(titre || '');
+        if (/Désignation|Produit|Libellé|Promotion$|Description|Nom/.test(t)) {
+            return {nom: 'texte', flex: 3, min: 160};
+        }
+        if (/Dispo/.test(t)) {
+            return {nom: 'dispo', flex: 1, min: 95, align: 'center'};
+        }
+        if (/Unités gratuites|Paliers|UG/.test(t)) {
+            return {nom: 'ug', flex: 2, min: 130};
+        }
+        if (/Remise|Taux|%/.test(t)) {
+            return {nom: 'taux', flex: 1, min: 70, align: 'right'};
+        }
+        if (/Prix|HT|TTC|Total|Montant|Cession|Public|TVA|Solde/.test(t)) {
+            return {nom: 'montant', flex: 1, min: 90, align: 'right'};
+        }
+        if (/Qté|Quantité|Colisage|Stock|Nbre/.test(t)) {
+            return {nom: 'nombre', flex: 1, min: 70, align: 'right'};
+        }
+        if (/^(Code|CIP|EAN|Référence|N°)/.test(t)) {
+            return {nom: 'code', flex: 1, min: 100, tdCls: 'ex-code'};
+        }
+        if (/Date|Début|Fin|Quinzaine|Année/.test(t)) {
+            return {nom: 'date', flex: 1, min: 90};
+        }
+        return {nom: 'texte', flex: 1, min: 80};
+    },
+
+    /** Rendu d'une cellule de liste selon le genre de sa colonne (la valeur gardée en base ne change pas). */
+    celluleListe: function (genre, v) {
+        var me = this, s = v === null || v === undefined ? '' : String(v);
+        if (genre.nom === 'montant' && /^-?\d+(\.\d+)?$/.test(s)) {
+            return me.montant(s);
+        }
+        if (genre.nom === 'dispo') {
+            if (/^(oui|disponible)/i.test(s)) {
+                return '<span style="color:#1e8449;font-weight:bold">' + me.texte(s) + '</span>';
+            }
+            if (/^(non|indisponible|rupture)/i.test(s)) {
+                return '<span style="color:#c0392b;font-weight:bold">' + me.texte(s) + '</span>';
+            }
+        }
+        if (genre.nom === 'ug' && s) {
+            return '<span style="color:#8e44ad">' + me.texte(s) + '</span>';
+        }
+        return me.texte(s);
+    },
+
+    /* ---------------------------------------------------------------- Copharmed : recherche de produit */
+
+    /**
+     * Recherche en direct sur Copharmed (demande du 08/11) : nom, code ou DCI ; prix, disponibilité et paliers
+     * d'unités gratuites ; bouton « Monographie » vers Mayité. Rien n'est gardé en base.
+     */
+    ongletRechercheCopharmed: function () {
+        var me = this, chercher = function () {
+            me.rechercherCopharmed();
+        };
+        me.rechercheCopharmed = Ext.create('Ext.data.Store', {fields: ['designation', 'code', 'dci', 'colisage',
+                'prixHT', 'remise', 'prixNet', 'prixPublic', 'dispo', 'promotion', 'ug']});
+        var dispo = me.genreColonne('Disponibilité'), ug = me.genreColonne('Unités gratuites');
+        return {
+            title: 'Recherche de produit', itemId: 'exOngletRechercheCopharmed', layout: 'fit',
+            dockedItems: [{xtype: 'toolbar', dock: 'top', items: [
+                        {xtype: 'textfield', itemId: 'exCopharmedMotif', fieldLabel: 'Nom, code ou DCI', labelWidth: 110,
+                            width: 360, emptyText: 'ex. doliprane, 36246, paracetamol', enableKeyEvents: true,
+                            listeners: {specialkey: function (f, e) {
+                                    if (e.getKey() === e.ENTER) {
+                                        chercher();
+                                    }
+                                }}},
+                        {text: 'Rechercher', itemId: 'exCopharmedRechercher', iconCls: 'searchicon', handler: chercher},
+                        '->', {xtype: 'label', itemId: 'exCopharmedMsg'}]}],
+            items: [{xtype: 'gridpanel', itemId: 'exCopharmedGrille', store: me.rechercheCopharmed, columnLines: true,
+                    viewConfig: {deferEmptyText: false, emptyText: '<div style="padding:12px;color:#777">Saisissez un '
+                                + 'nom, un code ou une DCI puis « Rechercher »</div>'},
+                    columns: [
+                        {text: 'Désignation', dataIndex: 'designation', flex: 3, minWidth: 180, renderer: me.texte},
+                        {text: 'Code', dataIndex: 'code', width: 115, renderer: me.texte},
+                        {text: 'DCI', dataIndex: 'dci', flex: 2, renderer: me.texte},
+                        {text: 'Colisage', dataIndex: 'colisage', width: 80, align: 'right', renderer: me.texte},
+                        {text: 'Prix HT', dataIndex: 'prixHT', width: 90, align: 'right', renderer: me.montant},
+                        {text: 'Remise', dataIndex: 'remise', width: 70, align: 'right', renderer: me.texte},
+                        {text: 'Prix net HT', dataIndex: 'prixNet', width: 95, align: 'right', renderer: me.montant},
+                        {text: 'Prix public', dataIndex: 'prixPublic', width: 90, align: 'right', renderer: me.montant},
+                        {text: 'Disponibilité', dataIndex: 'dispo', width: 170, align: 'center', renderer: function (v) {
+                                return me.celluleListe(dispo, v);
+                            }},
+                        {text: 'Unités gratuites', dataIndex: 'ug', flex: 2, renderer: function (v) {
+                                return me.celluleListe(ug, v);
+                            }},
+                        {text: 'Mayité', width: 95, align: 'center', sortable: false, menuDisabled: true,
+                            renderer: function () {
+                                return '<span class="ex-bouton-mayite" style="cursor:pointer;color:#2980b9;'
+                                        + 'text-decoration:underline">Monographie</span>';
+                            }}],
+                    listeners: {cellclick: function (v, td, col, rec, tr, ligne, e) {
+                            if (e.getTarget('.ex-bouton-mayite')) {
+                                me.fenetreMayite(rec.get('designation'));
+                            }
+                        }}}]
+        };
+    },
+
+    rechercherCopharmed: function () {
+        var me = this, motif = me.valeur('#exCopharmedMotif'), grille = me.down('#exCopharmedGrille'),
+                msg = me.down('#exCopharmedMsg');
+        if (motif.length < 2) {
+            msg.setText('<span style="color:#c0392b">Saisissez au moins 2 caractères</span>', false);
+            return;
+        }
+        me.appel('GET', 'copharmed/recherche?motif=' + encodeURIComponent(motif), function (r) {
+            me.rechercheCopharmed.loadData(r.success ? r.resultats : []);
+            me.message('#exCopharmedMsg', r, (r.resultats || []).length + ' produit(s)'
+                    + (r.tronque ? ' — les premiers affichés : affinez' : ''));
+        }, grille);
     },
 
     /** Lignes affichées au plus : le catalogue TEDIS (près de 17 000 produits) figerait la grille. */
@@ -1193,7 +1363,7 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
             title: 'Collectes', itemId: 'exOngletCollectes', layout: 'fit',
             dockedItems: [{xtype: 'toolbar', dock: 'top', items: [
                         {xtype: 'combo', itemId: 'exCollectesSource', fieldLabel: 'Grossiste', labelWidth: 65, width: 190,
-                            editable: false, value: 'UBIPHARM', store: [['UBIPHARM', 'Ubipharm'], ['TEDIS', 'TEDIS']],
+                            editable: false, value: 'UBIPHARM', store: [['UBIPHARM', 'Ubipharm'], ['TEDIS', 'TEDIS'], ['COPHARMED', 'Copharmed']],
                             listeners: {change: function (c, v) {
                                     me.collectes.getProxy().url = me.URL + v + '/collectes';
                                     me.collectes.load();
