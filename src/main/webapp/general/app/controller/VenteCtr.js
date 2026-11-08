@@ -4511,6 +4511,11 @@ Ext.define('testextjs.controller.VenteCtr', {
         const vno = Ext.create('testextjs.view.vente.VenteVNO');
         contenu.add(vno);
         me.loadVenteData(venteId);
+        /* plan du 08/11, point 15.3 : prise en caisse d'une prevente (le serveur ne retient que la premiere ouverture
+         * d'une prevente d'un autre vendeur) ; sans effet sur la vente, une erreur est ignoree */
+        if (venteId) {
+            Ext.Ajax.request({method: 'POST', url: '../api/v1/vente/prise-en-caisse/' + encodeURIComponent(venteId), failure: Ext.emptyFn});
+        }
     },
     /**
      * Nomme le bloc et le montant selon le type de vente : « assurance » en vente assurance, « carnet » en

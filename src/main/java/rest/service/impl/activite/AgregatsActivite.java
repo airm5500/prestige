@@ -353,6 +353,50 @@ public final class AgregatsActivite {
         return o instanceof Number ? Math.max(0, ((Number) o).longValue()) : 0;
     }
 
+    /** Plan du 08/11, point 15.3 : duree prise en caisse -> encaissement retenue (au-dela : caisse laissee ouverte). */
+    public static final long PRISE_MAX_SECONDES = 3600;
+
+    /**
+     * Plan du 08/11, point 15.3 : lignes [caissiere, montant, duree en secondes ou null], une par prevente encaissee.
+     * Duree retenue de 0 a PRISE_MAX_SECONDES ; moyenne arrondie ; mediane (moyenne arrondie des deux du milieu) ; tri
+     * : encaissees decroissantes, puis nom.
+     */
+    public static List<ActiviteAnalysesDTO.VitesseCaissiere> vitesseCaissieres(List<Object[]> lignes,
+            Map<String, String> noms) {
+        Map<String, long[]> cumul = new LinkedHashMap<>();
+        Map<String, List<Long>> durees = new HashMap<>();
+        for (Object[] r : lignes) {
+            if (r[0] == null) {
+                continue;
+            }
+            String id = String.valueOf(r[0]);
+            long[] x = cumul.computeIfAbsent(id, k -> new long[2]);
+            x[0]++;
+            x[1] += nombre(r[1]);
+            List<Long> d = durees.computeIfAbsent(id, k -> new ArrayList<>());
+            if (r[2] instanceof Number) {
+                long s = ((Number) r[2]).longValue();
+                if (s >= 0 && s <= PRISE_MAX_SECONDES) {
+                    d.add(s);
+                }
+            }
+        }
+        List<ActiviteAnalysesDTO.VitesseCaissiere> l = new ArrayList<>();
+        cumul.forEach((id, x) -> {
+            List<Long> d = durees.get(id);
+            d.sort(null);
+            long n = d.size(), somme = d.stream().mapToLong(Long::longValue).sum();
+            long mediane = n == 0 ? 0 : n % 2 == 1 ? d.get((int) (n / 2))
+                    : Math.round((d.get((int) n / 2 - 1) + d.get((int) n / 2)) / 2.0);
+            l.add(ActiviteAnalysesDTO.VitesseCaissiere.builder().id(id).nom(noms.getOrDefault(id, "?")).encaissees(x[0])
+                    .chiffreAffaires(x[1]).mesurees(n).tempsMoyen(n == 0 ? 0 : Math.round((double) somme / n))
+                    .tempsMedian(mediane).build());
+        });
+        l.sort(Comparator.comparingLong(ActiviteAnalysesDTO.VitesseCaissiere::getEncaissees).reversed()
+                .thenComparing(ActiviteAnalysesDTO.VitesseCaissiere::getNom));
+        return l;
+    }
+
     public static List<Grossiste> grossistes(List<Bl> bls) {
         Map<String, long[]> m = new LinkedHashMap<>();
         for (Bl b : bls) {

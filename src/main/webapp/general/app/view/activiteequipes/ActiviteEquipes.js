@@ -541,6 +541,11 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                         me.cadre('cPreventes', 'Préventes par vendeur', 'Prévente : vente saisie par un vendeur et encaissée par un autre. Classement par '
                                 + 'préventes encaissées, avec le CA et les lignes ; « annulées » hors modifications, « abandonnées » : restées en attente après '
                                 + 'le jour de saisie. Taux = (annulées + abandonnées) ÷ total.', {xtype: 'component', itemId: 'aePreventes', autoScroll: true, html: ''}),
+                        /* plan du 08/11, point 15.3 : vitesse des caissieres, de la prise en caisse a l'encaissement */
+                        me.cadre('cCaissieres', 'Vitesse des caissières', 'Préventes encaissées par chaque caissière (vendeur différent) et leur CA. '
+                                + 'Temps : de la prise en caisse (ouverture de la prévente à l\'écran de vente) à l\'encaissement ; le temps de saisie reste '
+                                + 'au vendeur. « Mesurées » : préventes dont la prise en caisse est connue (enregistrée depuis la mise à jour du 08/11), '
+                                + 'durées de plus d\'une heure écartées.', {xtype: 'component', itemId: 'aeCaissieres', autoScroll: true, html: ''}),
                         me.cadre('cGrossistes', 'Saisie des BL par grossiste', 'Temps par ligne de BL, de la commande à la clôture du BL (BL de plus de 4 h écartés). '
                                 + 'Un grossiste lent justifie de demander des BL électroniques.', grossistes),
                         me.cadre('cRetard', 'Délai de saisie des BL', 'Écart entre la date de livraison et l\'entrée du BL. Tant qu\'un BL n\'est pas saisi, '
@@ -1046,6 +1051,27 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
             }});
     },
 
+    /* plan du 08/11, point 15.3 : vitesse des caissieres (15 premieres) ; secondes exactes en data-secondes */
+    htmlCaissieres: function (l) {
+        var e = Ext.String.htmlEncode, AE = testextjs.view.activiteequipes.ActiviteEquipes, N = AE.nombre;
+        if (!l.length) {
+            return '<div class="ae-vide">Aucune prévente encaissée sur la période.</div>';
+        }
+        var temps = function (s, n) {
+            return '<td class="n" data-secondes="' + (s || 0) + '">' + (n ? AE.duree(s) : '—') + '</td>';
+        };
+        return '<style>.ae-caiss{border-collapse:collapse;width:100%;font-size:12px;margin:4px 0}.ae-caiss th{background:#e8eef7;color:#1a3d6d;'
+                + 'text-align:left;padding:4px 6px;white-space:nowrap}.ae-caiss td{padding:3px 6px;border-bottom:1px solid #eef1f5}'
+                + '.ae-caiss .n{text-align:right;white-space:nowrap}</style>'
+                + '<table class="ae-caiss"><thead><tr><th>Caissière</th><th class="n">Préventes encaissées</th><th class="n">Mesurées</th>'
+                + '<th class="n">Temps moyen</th><th class="n">Temps médian</th><th class="n">CA</th></tr></thead><tbody>'
+                + Ext.Array.map(l.slice(0, 15), function (x) {
+                    return '<tr data-id="' + e(x.id || '') + '"><td>' + e(x.nom || '') + '</td><td class="n"><b>' + N(x.encaissees) + '</b></td><td class="n">'
+                            + N(x.mesurees) + '</td>' + temps(x.tempsMoyen, x.mesurees) + temps(x.tempsMedian, x.mesurees) + '<td class="n">'
+                            + N(x.chiffreAffaires) + '</td></tr>';
+                }).join('') + '</tbody></table>';
+    },
+
     /* plan du 08/11, point 15.4 : tableau des preventes par vendeur (15 premiers), total en pied */
     htmlPreventes: function (l) {
         var e = Ext.String.htmlEncode, N = testextjs.view.activiteequipes.ActiviteEquipes.nombre;
@@ -1121,6 +1147,9 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
         }));
         if (a.down('#aePreventes')) {
             a.down('#aePreventes').update(me.htmlPreventes(d.preventes || []));
+        }
+        if (a.down('#aeCaissieres')) {
+            a.down('#aeCaissieres').update(me.htmlCaissieres(d.vitesseCaissieres || []));
         }
         me.st.grossistes.loadData(Ext.Array.map(d.grossistes, function (g) {
             return Ext.apply({libelle: g.nom}, g);

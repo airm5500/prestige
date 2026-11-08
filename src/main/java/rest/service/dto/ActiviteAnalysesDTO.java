@@ -50,6 +50,9 @@ public class ActiviteAnalysesDTO {
     /** plan du 08/11, point 15.4 : classement des vendeurs en preventes */
     @Builder.Default
     private List<Prevente> preventes = new ArrayList<>();
+    /** plan du 08/11, point 15.3 : vitesse des caissieres, de la prise en caisse a l'encaissement */
+    @Builder.Default
+    private List<VitesseCaissiere> vitesseCaissieres = new ArrayList<>();
     @Builder.Default
     private List<Grossiste> grossistes = new ArrayList<>();
     @Builder.Default
@@ -190,6 +193,28 @@ public class ActiviteAnalysesDTO {
         /** Plan du 08/11, point 15.2 : grossistes de la tranche (nombre de BL, delai moyen en jours). */
         @Builder.Default
         private List<RetardGrossiste> grossistes = new ArrayList<>();
+    }
+
+    /**
+     * Plan du 08/11, point 15.3 : une caissiere. Preventes encaissees (vendeur different) et leur CA ; mesurees :
+     * celles dont la prise en caisse est connue, duree de 0 a 1 h ; temps moyen et median en secondes, de la prise en
+     * caisse a l'encaissement.
+     */
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @ToString
+    @Builder
+    @Getter
+    @Setter
+    public static class VitesseCaissiere {
+
+        private String id;
+        private String nom;
+        private long encaissees;
+        private long chiffreAffaires;
+        private long mesurees;
+        private long tempsMoyen;
+        private long tempsMedian;
     }
 
     /** Plan du 08/11, point 15.2 : un grossiste dans une tranche de delai de saisie des BL. */

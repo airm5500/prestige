@@ -2,14 +2,13 @@
 
 Branche `plan/08112026-evolutions-rattrapages`, poussée. Rien n'est fusionné.
 
-- **Réalisés et testés :** 18 des 20 points, plus les sous-points 15.1, 15.2 et 15.4 à 15.8.
+- **Réalisés et testés :** 18 des 20 points, avec tous les sous-points du point 15.
 - **Reste :**
   - point 10 (icône), en cours dans une autre session ;
-  - point 12 (tremblement), non reproduit ;
-  - point 15.3 (vitesse des caissières), il manque une donnée.
+  - point 12 (tremblement), non reproduit.
 
 Chaque test ci-dessous échoue d'abord sur l'ancien code, puis passe. Les tests d'écran passent par les vrais clics, un
-à la fois. La suite unitaire complète passe : 1 937 tests verts.
+à la fois. La suite unitaire complète passe : 1 939 tests verts.
 
 ## Ce qui est fait
 
@@ -30,6 +29,7 @@ Chaque test ci-dessous échoue d'abord sur l'ancien code, puis passe. Les tests 
 | 14 | Code PIN après le badge, facultatif, désactivé par défaut (`KEY_CONNEXION_BADGE_PIN`). | `BadgePinCoherenceTest`, écran 28/28 |
 | 15.1 | Annulations rattachées à l'auteur de la vente. Suivi des caissières. Détail affiché sur place, sans fenêtre. | `AnnulationsAuteursCoherenceTest`, écran 13/13 |
 | 15.2 | Clic sur une part du camembert « Délai de saisie des BL » : grossistes de la tranche, nombre de BL, délai moyen. | `RetardBlGrossistesCoherenceTest`, écran 5/5 |
+| 15.3 | Prise en caisse d'une prévente enregistrée à son ouverture à l'écran de vente (V7.2.48, sans effet sur la vente). Carte « Vitesse des caissières » : préventes encaissées, mesurées, temps moyen et médian de la prise en caisse à l'encaissement, CA. | `VitesseCaissieresCoherenceTest`, écran 14/14 ; non-régression vente 9/9, 11/11, 15/15, 23/23 |
 | 15.4 | Préventes par vendeur. | `PreventesCoherenceTest`, écran 9/9 |
 | 15.5, 15.7 | Vitesse par type de vente. | `VitesseTypeVenteCoherenceTest`, écran 7/7 |
 | 15.6 | Onglet Anomalies réservé au privilège `P_ACTIVITE_ANOMALIES` (V7.2.47). | écran 9/9 |
@@ -65,10 +65,8 @@ La non-régression de chaque point (les tests existants de l'écran touché) est
   pendant 2 s les positions de défilement, la barre horizontale flottante et la hauteur de l'écran. Résultat : les
   223 écrans du menu restent stables, en 1366 × 768, 1280 × 650 et 1024 × 600. **Question :** sur quel écran l'avez-vous
   vu, avec quelle action, et sur quel poste (taille d'écran, zoom du navigateur) ?
-- **Point 15.3, vitesse des caissières :** la base n'a pas de date fiable de prise en caisse d'une prévente.
-  Seules existent la création, la dernière mise à jour et l'encaissement. Il faudrait enregistrer cette date quand la
-  caissière ouvre la prévente, ce qui touche l'écran de vente. **Question :** faut-il l'ajouter ? Les mesures ne
-  porteront alors que sur les ventes faites après la mise à jour.
+- **Point 15.3 :** réalisé le 08/11 après votre accord. Les mesures ne portent que sur les préventes ouvertes
+  après la mise à jour. L'écran des ventes en dépôt n'enregistre pas la prise en caisse.
 
 ## À savoir
 

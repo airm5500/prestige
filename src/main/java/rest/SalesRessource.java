@@ -1013,6 +1013,26 @@ public class SalesRessource {
         return Response.ok().entity(salesService.closePreventeVente(tu, id).toString()).build();
     }
 
+    @EJB
+    private rest.service.impl.PriseCaisseService priseCaisseService;
+
+    /**
+     * Plan du 08/11, point 15.3 : prise en caisse d'une prevente, appelee par l'ecran de vente a l'ouverture d'une
+     * vente existante. N'enregistre que la premiere ouverture d'une prevente d'un autre vendeur ; ne touche pas la
+     * vente.
+     */
+    @POST
+    @Path("prise-en-caisse/{id}")
+    public Response priseEnCaisse(@PathParam("id") String id) throws JSONException {
+        HttpSession hs = servletRequest.getSession(false);
+        TUser tu = hs == null ? null : (TUser) hs.getAttribute(Constant.AIRTIME_USER);
+        if (tu == null) {
+            return Response.ok().entity(new JSONObject().put("success", false).toString()).build();
+        }
+        return Response.ok().entity(new JSONObject().put("success", true)
+                .put("enregistree", priseCaisseService.enregistrer(id, tu.getLgUSERID())).toString()).build();
+    }
+
     @PUT
     @Path("clone-devis/{id}")
     public Response clonerDevis(@PathParam("id") String id) throws JSONException {

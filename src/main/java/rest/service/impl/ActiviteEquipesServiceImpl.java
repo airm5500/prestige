@@ -239,6 +239,9 @@ public class ActiviteEquipesServiceImpl implements ActiviteEquipesService {
                 .operateurs(operateurs).typesVente(AgregatsActivite.typesVente(ventes, seuil))
                 .preventes(AgregatsActivite.preventes(
                         lire(SQL_PREVENTES, "p.lg_USER_VENDEUR_ID", f.getDebut(), f.getFin(), f.getEmployeId()), noms))
+                .vitesseCaissieres(AgregatsActivite.vitesseCaissieres(
+                        lire(SQL_CAISSIERES, "p.lg_USER_CAISSIER_ID", f.getDebut(), f.getFin(), f.getEmployeId()),
+                        noms))
                 .grossistes(grossistes).retardBl(retard).sensibles(sensibles)
                 .repartition(AgregatsActivite.repartition(parType, noms)).build();
     }
@@ -266,6 +269,16 @@ public class ActiviteEquipesServiceImpl implements ActiviteEquipesService {
      * et encaissee par un autre ; annulee = annulee hors modification ; abandonnee = restee en attente apres le jour de
      * saisie. Lignes comptees sur les encaissees.
      */
+    /**
+     * Plan du 08/11, point 15.3 : preventes encaissees sur la periode (date d'encaissement), une ligne par vente :
+     * caissiere, montant, duree de sa prise en caisse a l'encaissement (null si la prise n'est pas connue).
+     */
+    static final String SQL_CAISSIERES = "SELECT p.lg_USER_CAISSIER_ID AS emp, p.int_PRICE AS prix,"
+            + " TIMESTAMPDIFF(SECOND, pc.pris_le, p.completion_date) AS duree FROM t_preenregistrement p"
+            + " LEFT JOIN vente_prise_caisse pc ON pc.vente_id = p.lg_PREENREGISTREMENT_ID AND pc.user_id = p.lg_USER_CAISSIER_ID"
+            + " WHERE p.completion_date >= ?1 AND p.completion_date < ?2 AND p.str_STATUT = 'is_Closed' AND p.b_IS_CANCEL = 0"
+            + " AND p.int_PRICE > 0 AND p.lg_TYPE_VENTE_ID <> '5' AND p.lg_USER_VENDEUR_ID IS NOT NULL"
+            + " AND p.lg_USER_VENDEUR_ID <> p.lg_USER_CAISSIER_ID %s";
     static final String SQL_PREVENTES = "SELECT p.lg_USER_VENDEUR_ID AS emp,"
             + " SUM(p.str_STATUT = 'is_Closed' AND p.b_IS_CANCEL = 0 AND p.lg_USER_CAISSIER_ID <> p.lg_USER_VENDEUR_ID) AS enc,"
             + " SUM(CASE WHEN p.str_STATUT = 'is_Closed' AND p.b_IS_CANCEL = 0 AND p.lg_USER_CAISSIER_ID <> p.lg_USER_VENDEUR_ID"
