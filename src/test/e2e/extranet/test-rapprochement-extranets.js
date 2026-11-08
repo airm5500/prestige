@@ -91,7 +91,10 @@ const compteReel = q("SELECT COUNT(*) FROM extranet_compte WHERE source = 'UBIPH
     await onglet(p, 'Sessions');
 
     /* ---- session : saisie par l'administrateur, jamais reaffichee */
-    ok('session : « Non connecté » au départ', (await texte(p, '#exEtatUBIPHARM')).indexOf('État : Non connecté') >= 0, await texte(p, '#exEtatUBIPHARM'));
+    /* compte reel en base : la reconnexion automatique vers le vrai site est refusee avant envoi, l'etat le dit */
+    ok('session : « Non connecté » au départ' + (compteReel ? ' (reconnexion vers un autre site refusée)' : ''), compteReel
+      ? /Non connecté : La connexion envoie vers un autre site/.test(await texte(p, '#exEtatUBIPHARM'))
+      : (await texte(p, '#exEtatUBIPHARM')).indexOf('État : Non connecté') >= 0, await texte(p, '#exEtatUBIPHARM'));
     await vues.saisir(p, ECRAN + ' #exCookieUBIPHARM', srv.COOKIE);
     await cliquerEtAttendre(p, ECRAN + ' #exSaisieUBIPHARM button[text=Enregistrer]', '/sessions/UBIPHARM');
     await p.waitForTimeout(800);
@@ -128,14 +131,14 @@ const compteReel = q("SELECT COUNT(*) FROM extranet_compte WHERE source = 'UBIPH
     ok('fiche : stocks par agence, ligne par ligne, source = base = écran', JSON.stringify(agSource) === JSON.stringify(agBase)
       && JSON.stringify(agSource) === JSON.stringify(agEcran), JSON.stringify([agSource, agBase, agEcran]));
 
-    /* ---- reapprovisionnements : 61 lignes, 3 pages de 25 */
+    /* ---- reapprovisionnements : 261 lignes, 3 pages de 100 (08/11) */
     const appelsAvant = srv.etat.appels.length;
     await onglet(p, 'Réapprovisionnements');
     const rr = await cliquerEtAttendre(p, ECRAN + ' #exReapproCollecter', '/reappro/collecte');
-    ok('réappro : collecte complète, 61 annoncées = 61 reçues', rr.success && rr.collecte && rr.collecte.statut === 'COMPLETE'
-      && rr.collecte.lignesAnnoncees === 61 && rr.collecte.lignesRecues === 61, JSON.stringify(rr.collecte));
+    ok('réappro : collecte complète, 261 annoncées = 261 reçues', rr.success && rr.collecte && rr.collecte.statut === 'COMPLETE'
+      && rr.collecte.lignesAnnoncees === 261 && rr.collecte.lignesRecues === 261, JSON.stringify(rr.collecte));
     const pages = srv.etat.appels.slice(appelsAvant).filter((a) => a.chemin === '/ReturnProduitsReapproJSON').map((a) => new URLSearchParams(a.requete).get('start'));
-    ok('réappro : 3 pages lues (start 0, 25, 50)', pages.join(',') === '0,25,50', pages.join(','));
+    ok('réappro : 3 pages lues (start 0, 100, 200)', pages.join(',') === '0,100,200', pages.join(','));
     const baseR = lignes('SELECT pscode, designation, IFNULL(code, \'\'), code_agence, statut, date_affichee FROM extranet_reappro WHERE collecte_id = '
       + rr.collecte.id + ' ORDER BY position');
     const srcR = srv.etat.reappro.map((x) => [x.pscode, x.designation.replace('&amp;', '&'), x.cip, x.agence, x.statut, x.date]);
@@ -209,7 +212,8 @@ const compteReel = q("SELECT COUNT(*) FROM extranet_compte WHERE source = 'UBIPH
     ok('expiration : cache précédent gardé', q('SELECT COUNT(*) FROM extranet_nouveau_produit') === nvAvant);
     await onglet(p, 'Sessions');
     await p.waitForTimeout(800);
-    ok('expiration : « Session expirée »', (await texte(p, '#exEtatUBIPHARM')).indexOf('Session expirée') >= 0, await texte(p, '#exEtatUBIPHARM'));
+    ok('expiration : « ' + (compteReel ? 'reconnexion refusée' : 'Session expirée') + ' »', (await texte(p, '#exEtatUBIPHARM'))
+      .indexOf(compteReel ? 'autre site' : 'Session expirée') >= 0, await texte(p, '#exEtatUBIPHARM'));
     srv.etat.mode = 'normal';
 
     /* ---- journal et bilan avant / apres */
@@ -246,10 +250,10 @@ const compteReel = q("SELECT COUNT(*) FROM extranet_compte WHERE source = 'UBIPH
       + '; DELETE FROM extranet_nouveau_produit WHERE collecte_id >= ' + premiereCollecte + '; DELETE FROM extranet_collecte WHERE id >= ' + premiereCollecte);
     if (fichierPdf && fs.existsSync(fichierPdf)) { fs.unlinkSync(fichierPdf); }
     ok('nettoyage : fichier PDF du test retiré du disque', !fichierPdf || !fs.existsSync(fichierPdf), fichierPdf);
-    const apres = compter(TABLES);
-    ok('nettoyage : tables extranet revenues à leur état de départ', JSON.stringify(avant) === JSON.stringify(apres), JSON.stringify(apres));
     const ecartsCaches = garde.restaurer(q, TABLES, caches);
     ok('nettoyage : données d’extranet gardées remises à l’identique (CHECKSUM)', ecartsCaches.length === 0, JSON.stringify(ecartsCaches));
+    const apres = compter(TABLES);
+    ok('nettoyage : tables extranet revenues à leur état de départ', JSON.stringify(avant) === JSON.stringify(apres), JSON.stringify(apres));
     /* connexion de l'utilisateur d'essai : trace du test, retiree */
     q("DELETE FROM t_event_log WHERE dt_CREATED >= '" + debut + "' AND lg_USER_ID = (SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '"
       + ENV_E2E.LOGIN.replace(/'/g, "''") + "') AND str_TABLE_CONCERN = 'dal.TUser'");

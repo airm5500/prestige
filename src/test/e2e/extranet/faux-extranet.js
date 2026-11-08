@@ -23,7 +23,7 @@ const MOT_DE_PASSE = 'faux-mdp-e2e &=é';
 const PDF = Buffer.from('%PDF-1.4\n% faux PDF de reclamation pour les tests\n1 0 obj << >> endobj\ntrailer << >>\n%%EOF\n',
   'latin1');
 
-/* Lignes de reapprovisionnement : 61 lignes (3 pages de 25), meme produit sur deux agences, N/A, colisages
+/* Lignes de reapprovisionnement : 261 lignes (3 pages de 100, longueur lue depuis le 08/11), meme produit sur deux agences, N/A, colisages
    multiples, produit sans CIP. */
 const DISPOS = ['En stock', 'Oui', 'Non', 'N/A'];
 const COLIS = [['12', '12'], ['120', '120, 140'], ['24', '24'], ['N/A', 'N/A']];
@@ -56,7 +56,7 @@ function lignesReappro(n) {
 
 function demarrer(port) {
   /* cookieAttendu : session reconnue ; cookieDonne : session ouverte par le prochain POST /Login reussi */
-  const etat = { mode: 'normal', appels: [], reappro: lignesReappro(61), cookieAttendu: COOKIE, cookieDonne: COOKIE, connexions: [], listes: listes.generer() };
+  const etat = { mode: 'normal', appels: [], reappro: lignesReappro(261), cookieAttendu: COOKIE, cookieDonne: COOKIE, connexions: [], listes: listes.generer() };
   /* etat.retardMs : chaque GET repond apres ce delai (lecture longue simulee, 08/11) */
   const serveur = http.createServer((req, res) => (etat.retardMs && req.method === 'GET'
     ? setTimeout(() => traiter(req, res), etat.retardMs) : traiter(req, res)));
