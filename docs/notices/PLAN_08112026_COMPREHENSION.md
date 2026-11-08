@@ -12,6 +12,33 @@ Pour chaque point, le rapport donne :
 
 Rien n'est encore modifié dans le code.
 
+## Réponses du 08/11 et choix retenus
+
+- **Q8** : la liste du point 9 se fait sur `laborex_v1_db` en local.
+- **Q15** : l'annulation reste attribuée à la personne qui l'a faite. La nouvelle statistique compte, pour chaque
+  **auteur de la vente** (le vendeur), ses ventes annulées ensuite, pour repérer qui fait le plus d'erreurs.
+  L'annuleur reste affiché dans le détail.
+- **Q17** : reprendre le sélecteur de garde du menu Ventes terminées dans la carte d'affluence.
+- **Q20** : le détail de l'état de contrôle des achats affiche la personne qui a contrôlé chaque ligne.
+- **Point 14** : le PIN est optionnel et **désactivé par défaut**, par un paramètre. Activé, la connexion se fait en
+  deux actions : badge, puis PIN.
+- Feu vert donné, avec une exigence : **aucune régression**.
+
+Pour les questions sans réponse, j'applique ma recommandation du rapport :
+- Q1 : seul V6.9.36 sort des mises à jour ;
+- Q2 : PharmaML passe dans un onglet si nécessaire ;
+- Q3 : infobulle et clic vers la vente liée ;
+- Q5 : résumé après l'envoi ;
+- Q6 : la vue ignore les anciennes suggestions ;
+- Q7 : choix (b) ;
+- Q10 : court message ;
+- Q11 : VMJ sur la période du paramètre de prévision, couverture = (rayon + réserve) ÷ VMJ ;
+- Q13 : ventes ratées antérieures à l'entrée ;
+- Q18 : motif « Autre » avec un texte libre ;
+- Q19 : même numéro que le SMS, texte seul.
+
+Q4 et Q12 (quel écran) : je mesure moi-même tous les écrans concernés.
+
 ---
 
 ## 1. Migration V6.9.36 (rattrapage des clôtures d'inventaire)
