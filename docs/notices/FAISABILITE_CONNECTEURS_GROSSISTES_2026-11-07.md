@@ -653,3 +653,45 @@ Tests :
 - 153 tests unitaires extranet au vert.
 - Essai réel de la tâche sur domain3 : « Produits supprimés » (Ubipharm, jamais lue) réglée à 24 h à 06:31 ; lue seule au
   passage de 06:40:40, statut COMPLETE, au nom de « rafraichissement automatique » ; réglage d'essai retiré ensuite.
+
+## 17. Mayité : liste des spécialités et monographies (08/11)
+
+Ubipharm ouvre Mayité par une page passerelle (`statsexternal.jsp?opt=mayite`) qui envoie seule un formulaire vers
+`equivalence.mayite-service.com` : aucun mot de passe Mayité. Prestige rejoue ce formulaire avec la session Ubipharm
+(source `MAYITE`, passerelle `UBIPHARM`), comme le lien « Base de données Mayite ».
+
+- Onglet « Mayité » : recherche par nom, DCI, forme et laboratoire (100 résultats au plus, « affinez » au-delà) ;
+  un clic sur une ligne affiche la monographie (rubriques, retours à la ligne gardés, équivalents cliquables).
+- Bouton « Monographie » par ligne dans la recherche Ubipharm et dans la recherche Copharmed : fenêtre de consultation
+  (aucune modification), recherche pré-remplie avec le premier mot de la désignation.
+- Lecture seule, rien n'est gardé en base, aucun motif de recherche journalisé.
+- Extraction en masse dans Prestige (7 788 spécialités) : non faite. Elle demande l'accord de Mayité (licence,
+  conditions d'utilisation). Possible ensuite par script, ou cache des seules monographies consultées.
+
+Tests : `ConnexionMayiteTest` (5), `MayiteLecteurTest` (7) ; `test-mayite-extranets.js` sur le vrai Mayité, 16/16
+(rapprochement grille = réponse, monographie = réponse, équivalent, fenêtre depuis Ubipharm, bilan : rien écrit en base).
+Le test a d'abord échoué sur l'ancien format des prix (« 2.095 »).
+
+## 18. Copharmed (CFAO) : promotions et produits (08/11)
+
+Extranet Intershop, connexion par identifiant et mot de passe (carte « Copharmed » de l'onglet Sessions).
+
+- Promotions → « Promotion » : liste gardée en base (promotion, dates, type, puis chaque produit : code, DCI, colisage,
+  prix HT, remise, net, public, paliers d'unités gratuites « 1 UG / 10 ; 10 UG / 50 »).
+- Produits → « Recherche de produit » (en direct, nom, code ou DCI, disponibilité, UG, bouton Monographie) et
+  « Catalogue produits » (liste gardée en base, paginée par 200).
+- E-commandes → produit : saisie de commande, non reproduite (lecture seule) ; la recherche couvre la consultation.
+- Les deux listes sont rafraîchissables (onglet Rafraîchissement) et collectables (onglet Collectes).
+
+Tests : `CopharmedLecteurTest` (rapprochement de 300 produits tirés, 5 000 cas de cohérence des paliers et montants,
+catalogue sur 3 pages, page publique relue après reconnexion puis refus). Essai réel : à faire dès que les identifiants
+Copharmed sont enregistrés sur domain3.
+
+## 19. Écran Sessions et mise en forme des listes (08/11)
+
+- Sessions : une carte par extranet, état en pastille à droite, informations du compte en tableau aligné (page de
+  connexion raccourcie, adresse complète en infobulle), champs alignés avec libellés au-dessus, cookie de secours sur
+  une ligne à part ; carte Mayité sans identifiant (« ouvert par Ubipharm à la première recherche »).
+- Listes : genre de colonne déduit du titre ; montants à droite au format « 2 095 », disponibilité en vert ou rouge,
+  unités gratuites en violet, largeurs adaptées. La valeur gardée en base ne change pas.
+- 170 tests unitaires extranet au vert.
