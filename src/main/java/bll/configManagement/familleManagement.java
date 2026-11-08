@@ -3868,6 +3868,20 @@ public class familleManagement extends bllBase implements Famillemanagerinterfac
         return isUpdated;
     }
 
+    /** Stock rayon de l'emplacement de l'utilisateur, relu en base apres le transfert du decochage (plan du 08/11). */
+    private int rayonApresDecochage(String familleId) {
+        try {
+            Object v = this.getOdataManager().getEm()
+                    .createNativeQuery("SELECT int_NUMBER_AVAILABLE FROM t_famille_stock WHERE lg_FAMILLE_ID = ?1"
+                            + " AND lg_EMPLACEMENT_ID = ?2 LIMIT 1")
+                    .setParameter(1, familleId)
+                    .setParameter(2, this.getOTUser().getLgEMPLACEMENTID().getLgEMPLACEMENTID()).getSingleResult();
+            return v == null ? 0 : ((Number) v).intValue();
+        } catch (Exception e) {
+            return 0;
+        }
+    }
+
     public boolean update(String lg_FAMILLE_ID, String str_NAME, String int_CIP2, String int_CIP3, String int_CIP4,
             String str_DESCRIPTION, int int_PRICE, int int_PRICE_TIPS, int int_TAUX_MARQUE, int int_PAF, int int_PAT,
             int int_S, String int_T, String int_CIP, String int_EAN13, String lg_GROSSISTE_ID,
@@ -4027,11 +4041,17 @@ public class familleManagement extends bllBase implements Famillemanagerinterfac
                 if (OTFamille.getBoolRESERVE()) {
                     TTypeStockFamille OTTypeStockFamille = new StockManager(this.getOdataManager(), this.getOTUser())
                             .getTTypeStockFamilleByTypestock(lg_TYPE_STOCK_RESERVE_ID, OTFamille.getLgFAMILLEID());
-                    if (new StockManager(this.getOdataManager(), this.getOTUser()).doReassort(
-                            OTTypeStockFamille.getIntNUMBER(), OTFamille.getLgFAMILLEID(), commonparameter.REASSORT)) {
+                    int qteReserve = OTTypeStockFamille.getIntNUMBER() != null ? OTTypeStockFamille.getIntNUMBER() : 0;
+                    boolean transfere = new StockManager(this.getOdataManager(), this.getOTUser())
+                            .doReassort(qteReserve, OTFamille.getLgFAMILLEID(), commonparameter.REASSORT);
+                    if (transfere) {
                         this.delete(OTTypeStockFamille);
                         OTFamille.setIntSEUILRESERVE(0);
                     }
+                    // plan du 08/11 (9d) : trace du transfert et retrait des lignes de suggestion encore ouvertes
+                    DecochageReserve.appliquer(this.getOdataManager(), this.getOTUser(), OTFamille.getLgFAMILLEID(),
+                            transfere ? qteReserve : 0,
+                            transfere ? rayonApresDecochage(OTFamille.getLgFAMILLEID()) : 0);
                 }
             } else {
                 if (!OTFamille.getBoolRESERVE()) {

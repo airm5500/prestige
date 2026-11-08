@@ -166,7 +166,9 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
             return null;
         }
         TFamille famille = em.find(TFamille.class, familleId);
-        if (famille == null) {
+        if (famille == null || !Boolean.TRUE.equals(famille.getBoolRESERVE())) {
+            // plan du 08/11 (9d) : un article dont la case « reserve » de la fiche n'est pas cochee n'a pas de stock
+            // reserve ; sa ligne tomberait en echec au traitement.
             return null;
         }
 
@@ -596,6 +598,11 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
 
     // ------------------------------------------------------------ SAISIE LIGNES
 
+    /** Article dont la case « reserve » de la fiche n'est pas cochee (plan du 08/11, 9d). */
+    static final String CODE_HORS_RESERVE = "PRODUIT_HORS_RESERVE";
+    static final String MESSAGE_HORS_RESERVE = "Article plus gere en reserve : la case « reserve » de sa fiche article"
+            + " n'est pas cochee.";
+
     @Override
     public JSONObject ajouterLigneSaisie(TUser user, String suggestionId, String produitId, int quantite) {
         TSuggestionReserve s = suggestionId == null ? null : em.find(TSuggestionReserve.class, suggestionId);
@@ -620,6 +627,9 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
         }
         if (ligneExiste(s.getLgSUGGESTIONRESERVEID(), famille.getLgFAMILLEID())) {
             return echec("Ce produit est deja dans la suggestion : modifiez sa quantite.").put("code", "DEJA_PRESENT");
+        }
+        if (!Boolean.TRUE.equals(famille.getBoolRESERVE())) {
+            return echec(MESSAGE_HORS_RESERVE).put("code", "NON_GERE_EN_RESERVE");
         }
         JSONObject refus = verifierVerrou(user, s);
         if (refus != null) {
@@ -866,11 +876,19 @@ public class SuggestionReserveServiceImpl implements SuggestionReserveService {
         String familleId = d.getLgFAMILLEID() != null ? d.getLgFAMILLEID().getLgFAMILLEID() : null;
         String categorie = d.getLgSUGGESTIONRESERVEID().getStrCATEGORIE();
 
-        // Le mouvement passe par le service de reserve : verrou sur le stock, controle du disponible et trace dans
-        // t_mouvement_reserve sont ceux deja en place. On utilise la variante qui REJOINT cette transaction : le
-        // mouvement et la mise a jour de la ligne ci-dessous sont ainsi valides ou annules ensemble, ce qui interdit
-        // qu'une ligne reste rejouable apres un stock deja deplace.
-        JSONObject r = reserveService.deplacer(user, familleId, qte, categorie);
+        // plan du 08/11 (9d) : article dont la case « reserve » a ete decochee apres la creation de la ligne. Sans
+        // ce controle, le mouvement echouait en CONFIG_STOCK_INCOMPLETE, sans dire pourquoi.
+        TFamille famille = d.getLgFAMILLEID();
+        JSONObject r;
+        if (famille != null && !Boolean.TRUE.equals(famille.getBoolRESERVE())) {
+            r = echec(MESSAGE_HORS_RESERVE).put("code", CODE_HORS_RESERVE).put("message", MESSAGE_HORS_RESERVE);
+        } else {
+            // Le mouvement passe par le service de reserve : verrou sur le stock, controle du disponible et trace dans
+            // t_mouvement_reserve sont ceux deja en place. On utilise la variante qui REJOINT cette transaction : le
+            // mouvement et la mise a jour de la ligne ci-dessous sont ainsi valides ou annules ensemble, ce qui
+            // interdit qu'une ligne reste rejouable apres un stock deja deplace.
+            r = reserveService.deplacer(user, familleId, qte, categorie);
+        }
 
         if (r.optBoolean("success", false)) {
             d.setStrETAT(TSuggestionReserveDetail.ETAT_TRAITEE);
