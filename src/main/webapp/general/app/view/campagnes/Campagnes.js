@@ -949,7 +949,7 @@ Ext.define('testextjs.view.campagnes.Campagnes', {
             title: 'Journal', itemId: 'ongletJournal', iconCls: 'fa fa-history', layout: 'border',
             items: [{xtype: 'gridpanel', itemId: 'journal', columnLines: true, region: 'center',
                     store: Ext.create('Ext.data.Store', {fields: ['id', 'titre', 'origine', 'statut', 'canal', 'modele', 'cibles', 'envoyes', 'exclus', 'partis',
-                            'distribues', 'lus', 'repondus', 'echecs', 'quand', 'auteur', 'accordExplicite'], data: []}),
+                            'distribues', 'lus', 'repondus', 'echecs', 'enAttente', 'quand', 'auteur', 'accordExplicite'], data: []}),
                     listeners: {select: function (g, r) {
                             me.chargerSuivi(r);
                         }},
@@ -962,6 +962,10 @@ Ext.define('testextjs.view.campagnes.Campagnes', {
                                 return {ENVOYEE: 'Envoyée', ABANDONNEE: 'Abandonnée', EXPIREE: 'Expirée'}[v] || v;
                             }},
                         {text: 'Canal', dataIndex: 'canal', width: 140},
+                        /* plan du 08/11, point 6 : indicateur d'envoi (resume apres l'envoi) ; un clic sur la ligne ouvre le suivi */
+                        {text: 'Envoi', dataIndex: 'partis', width: 410, sortable: false, renderer: function (v, m, r) {
+                                return me.indicateurEnvoi(r, m);
+                            }},
                         {text: 'Modèle', dataIndex: 'modele', width: 160},
                         {text: 'Clients', dataIndex: 'cibles', width: 70, align: 'right'},
                         {text: 'Préparés', dataIndex: 'envoyes', width: 80, align: 'right'},
@@ -993,6 +997,37 @@ Ext.define('testextjs.view.campagnes.Campagnes', {
                     ]}],
             dockedItems: [{xtype: 'component', dock: 'bottom', itemId: 'etat', cls: 'cmp-etat'}]
         };
+    },
+
+    /** Plan du 08/11, point 6 : barre lus / distribues / envoyes / en attente / echecs, et le resume en clair. */
+    indicateurEnvoi: function (r, m) {
+        var n = function (c) {
+            return Number(r.get(c)) || 0;
+        };
+        var envoyes = n('partis'), distribues = n('distribues'), lus = n('lus'), echecs = n('echecs'), attente = n('enAttente');
+        var total = envoyes + echecs + attente;
+        var pluriel = function (x, un, plusieurs) {
+            return x + ' ' + (x > 1 ? plusieurs : un);
+        };
+        var texte = [pluriel(envoyes, 'envoyé', 'envoyés'), pluriel(distribues, 'distribué', 'distribués'), pluriel(lus, 'lu', 'lus'),
+            pluriel(echecs, 'échec', 'échecs')].concat(attente ? [attente + ' en attente'] : []).join(' · ');
+        if (m) {
+            m.tdAttr = 'data-qtip="' + Ext.String.htmlEncode(texte + ' — cliquez pour le suivi des messages') + '"';
+            m.tdCls = (m.tdCls || '') + ' cmp-envoi-cellule';
+        }
+        if (!total) {
+            return '<span class="cmp-envoi-texte" style="color:#7f8c8d">Aucun message</span>';
+        }
+        var seg = function (x, couleur, cls) {
+            return x > 0 ? '<span class="cmp-envoi-seg ' + cls + '" style="display:inline-block;height:100%;width:' + (100 * x / total).toFixed(2)
+                    + '%;background:' + couleur + '"></span>' : '';
+        };
+        return '<div class="cmp-envoi" style="display:flex;align-items:center;gap:6px;cursor:pointer">'
+                + '<span class="cmp-envoi-barre" style="display:inline-flex;flex:0 0 70px;height:9px;border-radius:5px;overflow:hidden;background:#eef1f4">'
+                + seg(lus, '#1e8449', 'lu') + seg(distribues - lus, '#2471a3', 'distribue') + seg(envoyes - distribues, '#85c1e9', 'envoye')
+                + seg(attente, '#d5d8dc', 'attente') + seg(echecs, '#c0392b', 'echec') + '</span>'
+                + '<span class="cmp-envoi-texte" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:11px">'
+                + Ext.String.htmlEncode(texte) + '</span></div>';
     },
 
     chargerJournal: function () {
