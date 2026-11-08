@@ -645,7 +645,12 @@ avant, la même plus les deux corrections après :
 Non-régression : `ui-clavier-caisse-detail.js` (choix dans la liste, « QD », cellule de quantité, stock insuffisant)
 6/6 avant et après sur domain2. Ce test vise `localhost:8080` en dur : lancé tel quel, il échoue sur un autre serveur
 que celui de sa base ; il a été relancé en réécrivant l'adresse. La vente en dépôt (`VenteEnDepotCtr`) contient le
-même code de recherche produit : non testée, non modifiée.
+même code de recherche produit : traitée ensuite, voir ci-dessous.
+
+**Vente en dépôt** (même test, `SCAN_ECRAN=depot`, dépôt d'essai créé puis retiré). Avant (28e7ffad8) : 35/52, mêmes
+deux défauts (scans répétés perdus sous charge, code tronqué « 6179 »), 15 scans perdus sur 20 en rafale. Mêmes
+corrections dans `VenteEnDepotCtr`. Après : 53/53, 0 perdu sur 40, ventes bien sur le dépôt. Non-régression sur la même
+version : vente au comptant 51/51, caisse au clavier 6/6, numérotation des ventes (officine et dépôt) 13/13.
 
 **Non reproduit** : aucun « en cours de chargement » de plusieurs secondes côté serveur au pic réel rejoué deux fois
 plus vite, sauvegarde comprise. Ce que l'essai ne reproduit pas encore : des états lourds lancés pendant le pic
@@ -656,4 +661,5 @@ Contrôles :
 
 - premier rejeu cassé côté essai (seconde touche Entrée non frappée, poste de test à 0,2 Go de mémoire libre) : écarté ;
 - second rejeu : 184/184 ventes, 1 scan perdu, 0 interblocage, tas Java ≤ 2,1 Go, 2 sauvegardes réussies ;
-- scan perdu : reproduit par test (avant 33/46), corrigé (après 51/51), non-régression clavier 6/6.
+- scan perdu : reproduit par test (avant 33/46), corrigé (après 51/51), non-régression clavier 6/6 ;
+- vente en dépôt : reproduit (35/52), corrigé (53/53), non-régression 51/51, 6/6, 13/13.
