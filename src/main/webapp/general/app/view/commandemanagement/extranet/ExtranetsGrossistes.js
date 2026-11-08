@@ -1094,6 +1094,11 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
                                     me.filtrerListe(code);
                                 }}},
                         me.champPeriode(id + 'Du', 'Du', code), me.champPeriode(id + 'Au', 'Au', code),
+                        /* retour du 08/11, point 5 : une action visible apres le choix des dates */
+                        {text: 'Rechercher', itemId: id + 'Chercher', hidden: true,
+                            tooltip: 'Afficher les lignes de la période (et du texte recherché)', handler: function () {
+                                me.rechercherListe(code);
+                            }},
                         {text: 'Toute la période', itemId: id + 'Tout', enableToggle: true, hidden: true,
                             tooltip: 'Afficher toutes les lignes gardées, sans tenir compte des dates',
                             toggleHandler: function (b, appuye) {
@@ -1123,7 +1128,25 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
                     if (f.isValid()) {
                         me.filtrerListe(code);
                     }
+                }, specialkey: function (f, e) {
+                    if (e.getKey() === e.ENTER) {
+                        me.rechercherListe(code);
+                    }
                 }}};
+    },
+
+    /** Bouton « Rechercher » (ou Entrée dans une date) : applique période et texte, et dit ce qui est affiché. */
+    rechercherListe: function (code) {
+        var me = this, id = 'exListe' + code, msg = me.down('#' + id + 'Msg'), du = me.down('#' + id + 'Du'),
+                au = me.down('#' + id + 'Au');
+        if (du && !du.isDisabled() && (!du.isValid() || !au.isValid())) {
+            msg.setText('<span style="color:#c0392b">Date illisible : format JJ/MM/AAAA</span>', false);
+            return;
+        }
+        var n = me.filtrerListe(code), p = me.periodeListe(code), f = function (d) {
+            return Ext.Date.format(Ext.Date.parse(d, 'Y-m-d'), 'd/m/Y');
+        };
+        msg.setText((p ? 'Du ' + f(p.du) + ' au ' + f(p.au) : 'Toute la période') + ' : ' + n + ' ligne(s)');
     },
 
     /** Période choisie pour une liste : {du, au} en AAAA-MM-JJ, ou null (« Toute la période », ou liste sans date). */
@@ -1294,7 +1317,7 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
         me.donnees[code] = r.lignes || [];
         me.datesListe = me.datesListe || {};
         me.datesListe[code] = me.colonnesDate(r.colonnes);
-        Ext.each(['Du', 'Au', 'Tout'], function (s) {
+        Ext.each(['Du', 'Au', 'Chercher', 'Tout'], function (s) {
             me.down('#' + id + s).setVisible(me.datesListe[code].avecDates);
         });
         me.filtrerListe(code);
@@ -1436,6 +1459,7 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
         if (nombre) {
             nombre.setText(trouves.length + (q || p ? ' / ' + tout.length : '') + ' ligne(s)');
         }
+        return trouves.length;
     },
 
     /* ---------------------------------------------------------------- Mayité */

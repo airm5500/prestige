@@ -102,7 +102,7 @@ const LISTES = [
       visibles: ['Du', 'Au', 'Tout'].map((s) => f(s).isVisible(true)), nombre: f('Nombre').el.dom.textContent, date: f('Date').el.dom.textContent };
   }, code);
   const comparer = (nom, attendu, e, total) => {
-    const a = attendu.slice(0, 500);
+    const a = attendu; /* toutes les lignes dans la grille depuis le 08/11 (rendu par tampon, point 3) */
     ok(nom, a.length === e.pos.length && a.every((x, i) => x === e.pos[i])
       && e.nombre.indexOf(attendu.length + ' / ' + total + ' ligne(s)') === 0,
     'attendu ' + attendu.length + ' / ' + total + ', affiché ' + e.pos.length + ' « ' + e.nombre + ' »');
@@ -125,7 +125,7 @@ const LISTES = [
       let e = await etat(l.code);
       if (l.sansDate) {
         ok(l.code + ' : sans colonne de date, champs de période masqués, tout affiché', e.visibles.every((v) => !v)
-          && e.pos.length === Math.min(500, total) && e.nombre.indexOf(total + ' ligne(s)') === 0, JSON.stringify(e.visibles) + ' ' + e.nombre);
+          && e.pos.length === total && e.nombre.indexOf(total + ' ligne(s)') === 0, JSON.stringify(e.visibles) + ' ' + e.nombre);
         continue;
       }
       ok(l.code + ' : Du et Au visibles, à la date du jour par défaut', e.visibles.every((v) => v) && e.du === aujourdhui && e.au === aujourdhui,
@@ -143,7 +143,7 @@ const LISTES = [
       await vues.cliquer(p, ECRAN + ' #exListe' + l.code + 'Tout');
       await p.waitForTimeout(300);
       e = await etat(l.code);
-      ok(l.code + ' : « Toute la période » affiche tout', e.pos.length === Math.min(500, total) && e.nombre.indexOf(total + ' ligne(s)') === 0, e.nombre);
+      ok(l.code + ' : « Toute la période » affiche tout', e.pos.length === total && e.nombre.indexOf(total + ' ligne(s)') === 0, e.nombre);
       await vues.cliquer(p, ECRAN + ' #exListe' + l.code + 'Tout');
       await saisirDate('exListe' + l.code + 'Du', Ext_jour());
       await saisirDate('exListe' + l.code + 'Au', Ext_jour());
