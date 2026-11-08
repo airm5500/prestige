@@ -8,8 +8,9 @@ Données mesurées en lecture seule :
 - `laborex_audit` : catalogues réels lus par les connecteurs le 08/11 (table `extranet_liste_ligne`).
 
 Aucune colonne nominative n'a été lue. Rien n'a été écrit en base. Le code a été lu sur la branche
-`claude/faisabilite-connecteurs-grossistes` : ce worktree part de l'ancien master (`d43494e02`), qui n'a ni les
-connecteurs ni les migrations V6.9 à V7.5 (voir la question 1).
+`claude/faisabilite-connecteurs-grossistes`. La branche de cette étude part maintenant de `claude/new-session-xm8ptu`
+(dernière migration V7.2.32). Celle-ci a `DisponibiliteServiceImpl` et `correctifs-affichage.js`, mais pas les
+connecteurs (voir la question 1).
 
 ---
 
@@ -203,9 +204,12 @@ Ce qui reste en place :
 
 ## 5. Questions
 
-1. **Branche de base.** Ce worktree part de l'ancien master, sans les connecteurs ni les migrations V6.9 à V7.5. Je
-   propose de construire sur `claude/faisabilite-connecteurs-grossistes`, qui a les connecteurs, `DisponibiliteServiceImpl`
-   et `correctifs-affichage.js`. Faut-il plutôt partir d'une branche d'intégration ?
+1. **Dépendance aux connecteurs.** Cette branche part de `claude/new-session-xm8ptu`, qui n'a pas les connecteurs
+   (`extranet_liste_ligne`, `str_PSCODE`, migrations V7.5.x). Ils vivent sur `claude/faisabilite-connecteurs-grossistes`.
+   Ce qui ne dépend pas d'eux peut se faire tout de suite : lot 1 sur `t_famille_grossiste` et les clés exactes, lot 2
+   (import et BL), lot 4 pour les prix des BL. La lecture des catalogues (lots 1, 4 et 5) attend que les connecteurs
+   arrivent sur la branche de travail. Faut-il les y faire venir, ou la lecture des catalogues doit-elle passer par une
+   interface définie avec leur session ?
 2. **Ubipharm** n'est pas dans `t_grossiste`. Faut-il l'y créer, ou garder une clé « source extranet » à côté du
    grossiste ?
 3. **Écrire dans `t_famille_grossiste` après validation ?** Cela profiterait aux écrans existants et à la disponibilité
