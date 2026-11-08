@@ -174,11 +174,15 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
         return c ? Ext.String.trim(c.getValue() || '') : '';
     },
 
-    appel: function (methode, url, rappel, masque) {
+    /** Délai d'une lecture complète de liste : les offres DPCI ou les promotions Copharmed prennent plusieurs minutes. */
+    DELAI_COLLECTE: 1200000,
+
+    appel: function (methode, url, rappel, masque, delai) {
         var me = this, cible = masque || me;
-        cible.setLoading('Lecture en cours...');
+        cible.setLoading(delai ? 'Lecture sur l\'extranet en cours : cela peut prendre plusieurs minutes...'
+                : 'Lecture en cours...');
         Ext.Ajax.request({
-            method: methode, url: me.URL + url, timeout: 300000,
+            method: methode, url: me.URL + url, timeout: delai || 300000,
             success: function (rep) {
                 cible.setLoading(false);
                 var r = Ext.decode(rep.responseText, true) || {success: false, msg: 'Réponse illisible'};
@@ -978,7 +982,7 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
             if (collecter || !r.success) {
                 me.message('#' + id + 'Msg', r, 'Liste lue');
             }
-        }, panneau);
+        }, panneau, collecter ? me.DELAI_COLLECTE : null);
     },
 
     afficherListe: function (code, r) {

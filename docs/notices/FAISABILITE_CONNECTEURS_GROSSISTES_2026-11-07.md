@@ -720,3 +720,41 @@ loading »), cohérence des paliers sur 5 000 cas (ordre, un segment par palier 
 le test échoue si le tri est retiré), commandes sur 3 pages, documents avec le formulaire de la page (totaux HT lus =
 source, avoirs négatifs), réclamations puis session perdue et reconnexion, mot de passe refusé, réponse inattendue.
 177 tests unitaires extranet au vert. Essai réel : dès que l'identifiant DPCI est enregistré sur domain3.
+
+### 20.1 Connexion DPCI refusée à tort (08/11) : cause et correction
+
+Symptôme : « Dernière connexion échouée : Identifiant ou mot de passe refusé par l'extranet » alors que les identifiants
+sont bons. Cause : le bouton « Se connecter » de DPCI porte un nom (`method:submit`, valeur `Submit`) ; DPCI (Struts)
+n'ouvre la session que s'il le reçoit, comme le lui envoie un navigateur. Sans lui, la page de connexion revient (statut
+200) et Prestige concluait à un refus. Correction : l'envoi classique du formulaire joint son bouton d'envoi nommé
+(l'envoi AJAX de TEDIS, qui ne le joint pas, est inchangé).
+
+Défaut vu au passage : le journal de connexion écrivait l'adresse d'envoi avec « ;jsessionid=... » (jeton de session).
+Le chemin écrit au journal est désormais sans paramètre ni jeton.
+
+Test : le faux DPCI exige le bouton ; 6 tests échouaient avant la correction avec le message vu par l'utilisateur. Essai
+réel sur domain3 : DPCI et Copharmed « Connecté automatiquement ».
+
+### 20.2 Lecture réelle par l'écran (08/11)
+
+`test-listes-dpci-copharmed.js` (vrais extranets, identifiants enregistrés, aucun saisi par le test) : pour chaque
+liste, réponse = base (ligne par ligne) = grille (nombre, texte des cellules affichées, montants « 55 260 »),
+collecte COMPLETE au nom de l'utilisateur, cohérence (dates, montants numériques, avoirs négatifs, factures positives,
+paliers bien formés), total HT écran = base ; bilan : aucune table métier touchée ; collectes du test retirées.
+
+| Liste | Lignes | Durée |
+|---|---|---|
+| DPCI Réclamations | 0 | 2 s |
+| DPCI Relevés | 24 | 2 s |
+| DPCI Avoirs | 56 (total HT −932 513) | 3 s |
+| DPCI Factures | 653 (total HT 31 552 537) | 14 s |
+| DPCI Bons de livraison | 1 256 | 25 s |
+| DPCI Commandes | 1 487 | 61 s |
+| DPCI Offres en cours | 750 produits | 181 s (6 min 30 au premier essai : DPCI prépare les offres) |
+| Copharmed Catalogue | 9 426 | 636 s |
+| Copharmed Promotions | 1 156 | 375 s |
+
+Défaut trouvé par ce test : l'écran abandonnait toute lecture après 5 minutes (offres DPCI au premier essai, catalogue
+et promotions Copharmed), alors que le serveur la terminait. « Lire sur l'extranet » attend désormais jusqu'à
+20 minutes et l'annonce (« cela peut prendre plusieurs minutes »). Le test, qui échouait (délai dépassé), passe : 64/64
+sur les 9 listes. Pour un usage courant, le rafraîchissement automatique (onglet Rafraîchissement) évite d'attendre.
