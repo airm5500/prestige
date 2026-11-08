@@ -36,10 +36,19 @@
  * geste qui depasse SEUIL_LENT ms est date et liste ; s'il depasse 1,5 s, les fils du serveur sont captures (jstack,
  * SERVEUR_PID) chaque seconde tant qu'il dure. Les sauvegardes automatiques (t_sauvegarde) du palier sont relevees.
  *
+ * REJEU D'UNE HEURE REELLE : REJOUER='2025-11-15 11:00' rejoue les ventes terminees de cette heure (REJEU_MINUTES,
+ * 60 par defaut), vente par vente, a leur instant (divise par ACCELERATION) : memes articles (tapes par leur CIP ; un
+ * article sans CIP a 7 chiffres unique ou sans stock est remplace par un article tire au hasard), meme quantite (scans
+ * repetes, 3 au plus), chaque caissier de l'epoque sur son poste (PALIERS = nombre de caissiers ; au-dela, modulo). Un
+ * client en retard est servi des que sa caisse se libere, comme une file au comptoir. Toutes les ventes sont rejouees
+ * au comptant. SAUVEGARDES_A='5,35' : un poste super administrateur (E2E_LOGIN_SUPPORT) clique « Sauvegarder
+ * maintenant » (Stabilite du serveur, onglet Sauvegardes) a ces minutes du rejeu.
+ *
  * Variables : BASE, DB_TEST + E2E_BASE_LIBRE=1, MARIADB_OPTIONS, PALIERS (1,2,4,8,15), DUREE_PALIER (300), LOURDS (0),
  * PERIODE_LOURDE (30),
  * PAUSE_CAISSE (8), GESTE_MAX (120), SERVEUR_PID (processus Java de Payara), JSTAT, SORTIE,
- * ROLES (liste separee par des virgules, ou « caisse »), VENTES_HEURE, SEUIL_LENT (2000), JSTACK.
+ * ROLES (liste separee par des virgules, ou « caisse »), VENTES_HEURE, SEUIL_LENT (2000), JSTACK, REJOUER,
+ * REJEU_MINUTES (60), ACCELERATION (1), SAUVEGARDES_A.
  */
 const { chromium } = require('playwright-core');
 const ENV_E2E = require('../outils/poste');
@@ -70,7 +79,15 @@ const JSTACK = process.env.JSTACK || JSTAT.replace(/jstat(\.exe)?$/, 'jstack$1')
 const LOURDS = Number(process.env.LOURDS || 0);
 const PERIODE_LOURDE = Number(process.env.PERIODE_LOURDE || 30);
 for (let k = 0; k < LOURDS; k++) { ROLES[Math.max(...PALIERS) + k] = 'suggestion'; }
-const NB = Math.max(...PALIERS) + LOURDS;
+const SAUVEGARDES_A = (process.env.SAUVEGARDES_A || '').split(',').filter(Boolean).map(Number);
+if (SAUVEGARDES_A.length) { ROLES[Math.max(...PALIERS) + LOURDS] = 'sauvegarde'; }
+const NB = Math.max(...PALIERS) + LOURDS + (SAUVEGARDES_A.length ? 1 : 0);
+const REJOUER = process.env.REJOUER || '';
+const REJEU_MINUTES = Number(process.env.REJEU_MINUTES || 60);
+const ACCELERATION = Number(process.env.ACCELERATION || 1);
+/* le rejeu commence une minute apres le lancement du palier : connexions et ecrans de vente ouverts */
+const REJEU_ATTENTE_MS = 60000;
+let debutRejeu = 0;
 
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', DB, '-sN'], { input: s, encoding: 'utf8',
   maxBuffer: 64 * 1024 * 1024 }).replace(/\r/g, '').trim();
@@ -98,6 +115,21 @@ function preparerComptes() {
 const ARTICLES = q("SELECT CONCAT_WS('|', f.int_CIP, f.int_PRICE) FROM t_famille f JOIN t_famille_stock s ON s.lg_FAMILLE_ID = f.lg_FAMILLE_ID AND s.lg_EMPLACEMENT_ID = '1'"
   + " WHERE f.str_STATUT = 'enable' AND f.int_CIP REGEXP '^[0-9]{7}$' AND f.int_PRICE BETWEEN 300 AND 3000 AND s.int_NUMBER_AVAILABLE > 30"
   + " AND (SELECT COUNT(*) FROM t_famille x WHERE x.int_CIP = f.int_CIP) = 1 ORDER BY RAND(7) LIMIT 300").split('\n').filter(Boolean).map((l) => l.split('|'));
+/* rejeu : ventes de l'heure choisie (decalage en secondes, rang du caissier, lignes « cip:quantite ») ; aucune donnee
+   nominative lue, seulement les articles, quantites, instants et le rang du caissier */
+const VENTES_REJOUEES = !REJOUER ? [] : q("SELECT TIMESTAMPDIFF(SECOND, '" + REJOUER + "', p.dt_CREATED), c.rang,"
+  + " GROUP_CONCAT(CONCAT(IF(f.int_CIP REGEXP '^[0-9]{7}$' AND IFNULL(s.int_NUMBER_AVAILABLE, 0) > d.int_QUANTITY + 5"
+  + " AND (SELECT COUNT(*) FROM t_famille x WHERE x.int_CIP = f.int_CIP) = 1, f.int_CIP, ''), ':', d.int_QUANTITY) ORDER BY d.lg_PREENREGISTREMENT_DETAIL_ID SEPARATOR ' ')"
+  + " FROM t_preenregistrement p JOIN t_preenregistrement_detail d ON d.lg_PREENREGISTREMENT_ID = p.lg_PREENREGISTREMENT_ID"
+  + " JOIN t_famille f ON f.lg_FAMILLE_ID = d.lg_FAMILLE_ID LEFT JOIN t_famille_stock s ON s.lg_FAMILLE_ID = f.lg_FAMILLE_ID AND s.lg_EMPLACEMENT_ID = '1'"
+  + " JOIN (SELECT lg_USER_CAISSIER_ID u, ROW_NUMBER() OVER (ORDER BY COUNT(*) DESC, lg_USER_CAISSIER_ID) - 1 rang FROM t_preenregistrement"
+  + "   WHERE str_STATUT = 'is_Closed' AND b_IS_CANCEL = 0 AND dt_CREATED >= '" + REJOUER + "' AND dt_CREATED < '" + REJOUER + "' + INTERVAL " + REJEU_MINUTES + ' MINUTE'
+  + '   GROUP BY lg_USER_CAISSIER_ID) c ON c.u = p.lg_USER_CAISSIER_ID'
+  + " WHERE p.str_STATUT = 'is_Closed' AND p.b_IS_CANCEL = 0 AND p.dt_CREATED >= '" + REJOUER + "' AND p.dt_CREATED < '" + REJOUER + "' + INTERVAL " + REJEU_MINUTES + ' MINUTE'
+  + ' GROUP BY p.lg_PREENREGISTREMENT_ID ORDER BY p.dt_CREATED').split('\n').filter(Boolean).map((l) => {
+  const [s, rang, lignes] = l.split('\t');
+  return { s: Number(s), rang: Number(rang), lignes: lignes.split(' ').map((x) => { const [cip, qte] = x.split(':'); return { cip, qte: Number(qte) }; }) };
+});
 const MOTS = ['PARA', 'DOLI', 'AMOX', 'VITA', 'SIROP', 'CREME', 'GEL', 'COMP', 'IBU', 'SPASF'];
 const GROSSISTE = q("SELECT lg_GROSSISTE_ID FROM t_grossiste WHERE str_STATUT = 'enable' ORDER BY str_LIBELLE LIMIT 1");
 const hasard = (t) => t[Math.floor(Math.random() * t.length)];
@@ -214,7 +246,7 @@ async function poste(b, i, fin, palier) {
   }
 
   try {
-    await geste('connexion', () => vues.connexion(p, login(i), 'e2etest'));
+    await geste('connexion', () => vues.connexion(p, role === 'sauvegarde' ? ENV_E2E.LOGIN_SUPPORT : login(i), 'e2etest'));
     const aujourdhui = jour(new Date());
     if (role === 'caisse') {
       /* caisse fermee : l'ecran le propose au moment de terminer la vente (« Votre caisse est fermée, voulez-vous
@@ -250,10 +282,23 @@ async function poste(b, i, fin, palier) {
       const CHAMP = 'doventemanager #contenu [xtype=fieldcontainer] #produit';
       await p.waitForFunction((r) => Ext.ComponentQuery.query(r).some((x) => x.isVisible(true)), CHAMP, { timeout: 60000 });
       await p.waitForTimeout(1500);
-      while (Date.now() < fin) {
-        const n = 1 + Math.floor(Math.random() * 3);
-        for (let k = 0; k < n && Date.now() < fin; k++) {
-          const [cip] = hasard(ARTICLES);
+      /* clients : tires au hasard, ou ceux de l'heure rejouee que servait ce poste */
+      const miennes = VENTES_REJOUEES.filter((v) => v.rang % palier === i);
+      let suivant = 0;
+      while (Date.now() < fin && (!REJOUER || suivant < miennes.length)) {
+        let cips;
+        if (REJOUER) {
+          const v = miennes[suivant++];
+          const arrivee = debutRejeu + v.s * 1000 / ACCELERATION;
+          if (arrivee > Date.now()) { await p.waitForTimeout(Math.min(arrivee - Date.now(), Math.max(0, fin - Date.now()))); }
+          if (Date.now() >= fin) { break; }
+          cips = [];
+          v.lignes.forEach((l) => { const c = l.cip || hasard(ARTICLES)[0]; for (let r = 0; r < Math.min(Math.max(1, l.qte), 3); r++) { cips.push(c); } });
+        } else {
+          cips = Array.from({ length: 1 + Math.floor(Math.random() * 3) }, () => hasard(ARTICLES)[0]);
+        }
+        for (let k = 0; k < cips.length && Date.now() < fin; k++) {
+          const cip = cips[k];
           await geste('caisse : article ajouté', async () => {
             await vues.cliquer(p, CHAMP);
             await p.keyboard.press('Control+A');
@@ -289,9 +334,28 @@ async function poste(b, i, fin, palier) {
           }
         });
         /* rythme reel : attente exponentielle, moyenne = postes x 3 600 s / VENTES_HEURE, moins la duree d'une vente (~10 s) */
-        await p.waitForTimeout(VENTES_HEURE ? Math.min(Math.max(0, fin - Date.now()),
+        if (!REJOUER) await p.waitForTimeout(VENTES_HEURE ? Math.min(Math.max(0, fin - Date.now()),
           Math.round(-Math.log(1 - Math.random()) * Math.max(1000, palier * 3600000 / VENTES_HEURE - 10000))) : PAUSE_CAISSE);
       }
+    } else if (role === 'sauvegarde') {
+      /* super administrateur : « Sauvegarder maintenant » aux minutes SAUVEGARDES_A du rejeu (ou du palier) */
+      await ouvrir('supportserveur');
+      await p.locator('.x-tab:visible').filter({ hasText: 'Sauvegardes' }).first().click({ timeout: 60000 });
+      await p.waitForFunction(() => { const b = Ext.ComponentQuery.query('supportserveur #btnSauvMaintenant')[0]; return b && b.isVisible(true); }, null, { timeout: 60000 });
+      for (const m of SAUVEGARDES_A) {
+        const a = debutRejeu + m * 60000 / ACCELERATION;
+        if (a > Date.now()) { await p.waitForTimeout(Math.min(a - Date.now(), Math.max(0, fin - Date.now()))); }
+        if (Date.now() >= fin) { break; }
+        await geste('sauvegarde : lancée', async () => {
+          const id = await p.evaluate(() => Ext.ComponentQuery.query('supportserveur #btnSauvMaintenant')[0].getId());
+          const rep = p.waitForResponse((r) => /\/sauvegardes\/maintenant/.test(r.url()), { timeout: GESTE_MAX });
+          await p.click('#' + id);
+          const r = await rep;
+          const corps = await r.json().catch(() => ({}));
+          if (r.status() >= 400 || corps.success === false) { throw new Error('sauvegarde refusée ' + r.status() + ' ' + String(corps.message || '').slice(0, 120)); }
+        });
+      }
+      while (Date.now() < fin) { await p.waitForTimeout(Math.min(5000, Math.max(0, fin - Date.now()))); }
     } else if (role === 'recherche') {
       await geste('fiche article : ouverture', () => ouvrir('famillemanager'));
       while (Date.now() < fin) {
@@ -400,7 +464,9 @@ async function poste(b, i, fin, palier) {
   const resultat = { base: DB, debut: new Date().toISOString(), paliers: [] };
   for (const n of PALIERS) {
     const debut = Date.now();
-    const fin = debut + DUREE;
+    const fin = debut + (REJOUER ? REJEU_ATTENTE_MS + REJEU_MINUTES * 60000 / ACCELERATION + 180000 : DUREE);
+    debutRejeu = debut + REJEU_ATTENTE_MS;
+    if (REJOUER) { console.log('rejeu de ' + REJOUER + ' : ' + VENTES_REJOUEES.length + ' ventes, ' + (new Set(VENTES_REJOUEES.map((v) => v.rang))).size + ' caissiers, acceleration ' + ACCELERATION); }
     const minuteur = setInterval(() => relever(n).catch(() => {}), 5000);
     await relever(n);
     /* postes lances a 3 s d'intervalle, comme une ouverture d'officine */
@@ -410,6 +476,7 @@ async function poste(b, i, fin, palier) {
       await new Promise((r) => setTimeout(r, 60000));
       for (let k = 0; k < LOURDS; k++) { postes.push(poste(b, Math.max(...PALIERS) + k, fin, n)); }
     }
+    if (SAUVEGARDES_A.length) { postes.push(poste(b, Math.max(...PALIERS) + LOURDS, fin, n)); }
     await Promise.all(postes);
     clearInterval(minuteur);
     await relever(n);
