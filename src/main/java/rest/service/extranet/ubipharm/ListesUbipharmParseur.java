@@ -32,7 +32,7 @@ public final class ListesUbipharmParseur {
         public final String cip;
         public final List<String> cellules;
 
-        Ligne(int position, String agence, String pscode, String cip, List<String> cellules) {
+        public Ligne(int position, String agence, String pscode, String cip, List<String> cellules) {
             this.position = position;
             this.agence = agence;
             this.pscode = pscode;

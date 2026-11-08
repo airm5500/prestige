@@ -30,7 +30,12 @@ public final class TransportExtranet {
     private static final Logger LOG = Logger.getLogger(TransportExtranet.class.getName());
 
     public enum Attendu {
-        JSON, HTML, PDF, IMAGE
+        JSON, HTML, PDF, IMAGE,
+        /**
+         * JSON servi avec un type HTML (TEDIS, releve du 08/11 : « text/html » pour du JSON) : seul le corps fait foi
+         * ({ ou [ en premier caractere), une page de connexion reste reconnue.
+         */
+        JSON_TYPE_LIBRE
     }
 
     static final String ACCEPT_JSON = "application/json, text/javascript, */*; q=0.01";
@@ -113,7 +118,7 @@ public final class TransportExtranet {
         URI uri = URI.create(adresse + chemin + requete(parametres));
         HttpRequest.Builder b = HttpRequest.newBuilder(uri).GET().timeout(delai).header("User-Agent", "Prestige")
                 .header("Cookie", session.enTeteCookie());
-        if (attendu == Attendu.JSON) {
+        if (attendu == Attendu.JSON || attendu == Attendu.JSON_TYPE_LIBRE) {
             b.header("Accept", ACCEPT_JSON).header("X-Requested-With", "XMLHttpRequest");
         } else if (attendu == Attendu.HTML) {
             b.header("Accept", ACCEPT_HTML);
@@ -167,6 +172,10 @@ public final class TransportExtranet {
         case JSON:
             char c = rep.premierCaractere();
             conforme = rep.typeJson() && (c == '{' || c == '[');
+            break;
+        case JSON_TYPE_LIBRE:
+            char d = rep.premierCaractere();
+            conforme = d == '{' || d == '[';
             break;
         case HTML:
             conforme = rep.typeHtml() && !DetecteurPageConnexion.estPageConnexion(rep.texte());

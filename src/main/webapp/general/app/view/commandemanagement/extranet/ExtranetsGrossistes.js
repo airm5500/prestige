@@ -76,6 +76,8 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
                 reader: {type: 'json', root: 'data'}}
         });
         me.agencesFiche = Ext.create('Ext.data.Store', {fields: ['etcode', 'etlib', 'psstk', 'colisages']});
+        me.rechercheUbipharm = Ext.create('Ext.data.Store', {fields: ['pscode', 'designation', 'cip', 'statut', 'dispo',
+                'prix', 'colisage']});
 
         /* un onglet par grossiste (chacun a ses propres pages), rangé par rubrique comme sur son extranet */
         var rubrique = function (titre, itemId, onglets) {
@@ -102,6 +104,21 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
                                 me.ongletListe('COMMANDES_EXTRANET', 'Vos commandes extranet'),
                                 me.ongletListe('PLUS_ACHETES', 'Les plus achetés')]),
                             me.ongletReclamations()]),
+                        rubrique('TEDIS', 'exOngletTedis', [
+                            rubrique('Produits', 'exRubriqueTedisProduits', [
+                                me.ongletListe('TEDIS_CATALOGUE', 'Notre catalogue produits'),
+                                me.ongletListe('TEDIS_MISES_EN_PLACE', 'Nos mises en place'),
+                                me.ongletListe('TEDIS_SORTIES_RUPTURE', 'Nos sorties de rupture')]),
+                            rubrique('Réclamations', 'exRubriqueTedisReclamations', [
+                                me.ongletListe('TEDIS_RECLAMATIONS', 'Historique de vos réclamations')]),
+                            rubrique('Vos documents', 'exRubriqueTedisDocuments', [
+                                me.ongletListe('TEDIS_BL_QUINZAINE', 'B.L.V par quinzaine'),
+                                me.ongletListe('TEDIS_FACTURES_QUINZAINE', 'Facture de quinzaine')]),
+                            rubrique('Commandes', 'exRubriqueTedisCommandes', [
+                                me.ongletListe('TEDIS_COMMANDES_ATTENTE', 'Commandes en attente'),
+                                me.ongletListe('TEDIS_HISTORIQUE_COMMANDES', 'Historique de vos commandes'),
+                                me.ongletListe('TEDIS_PROMOS_LABO', 'Promotions laboratoire'),
+                                me.ongletListe('TEDIS_PROMOS_EXCLUSIVES', 'Promotions exclusives')])]),
                         me.ongletCollectes()],
                     listeners: {
                         tabchange: function (tp, onglet) {
@@ -502,10 +519,36 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
 
     /* ---------------------------------------------------------------- fiche produit */
 
+    /** Référence Ubipharm (ex. FAIR248, ACEC108) : lettres puis chiffres ; sinon la saisie est une recherche. */
+    estReferenceUbipharm: function (v) {
+        return /^[A-Za-z]{3,6}[0-9]{2,5}$/.test(v || '');
+    },
+
+    rechercherUbipharm: function () {
+        var me = this, motif = me.valeur('#exPscode'), grille = me.down('#exRechercheGrille');
+        if (motif.length < 2) {
+            me.message('#exFicheMsg', {success: false, msg: 'Saisissez au moins 2 caractères'});
+            return;
+        }
+        me.appel('GET', 'ubipharm/recherche?motif=' + encodeURIComponent(motif) + '&champs='
+                + me.down('#exRechercheChamps').getValue() + '&enStock=' + me.down('#exRechercheStock').getValue(),
+                function (r) {
+                    me.rechercheUbipharm.loadData(r.success ? r.resultats : []);
+                    grille.setVisible(true);
+                    grille.setTitle('Résultats de la recherche Ubipharm' + (r.success ? ' : ' + r.total + ' produit(s)'
+                            + (r.tronque ? ', ' + r.resultats.length + ' affichés : affinez' : '') : ''));
+                    me.message('#exFicheMsg', r, r.total + ' produit(s) trouvé(s) — cliquez une ligne pour sa fiche');
+                }, me.down('#exOngletFiche'));
+    },
+
     ongletFiche: function () {
         var me = this, lire = function (collecter) {
             var ps = me.valeur('#exPscode').toUpperCase();
             if (!ps) {
+                return;
+            }
+            if (!me.estReferenceUbipharm(ps)) {
+                me.rechercherUbipharm();
                 return;
             }
             me.appel(collecter ? 'POST' : 'GET', 'ubipharm/produits/' + encodeURIComponent(ps)
@@ -517,8 +560,8 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
         return {
             title: 'Fiche produit', itemId: 'exOngletFiche', layout: {type: 'vbox', align: 'stretch'},
             dockedItems: [{xtype: 'toolbar', dock: 'top', items: [
-                        {xtype: 'textfield', itemId: 'exPscode', fieldLabel: 'Référence Ubipharm', labelWidth: 120,
-                            width: 280, emptyText: 'ex. FAIR248', enableKeyEvents: true,
+                        {xtype: 'textfield', itemId: 'exPscode', fieldLabel: 'Référence, CIP, nom ou DCI', labelWidth: 160,
+                            width: 380, emptyText: 'ex. FAIR248, 3000000786710, paracetamol', enableKeyEvents: true,
                             listeners: {specialkey: function (f, e) {
                                     if (e.getKey() === e.ENTER) {
                                         lire(false);
@@ -530,8 +573,29 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
                         {text: 'Lire sur l\'extranet', itemId: 'exFicheCollecter', handler: function () {
                                 lire(true);
                             }},
+                        {text: 'Rechercher', itemId: 'exRechercher', handler: function () {
+                                me.rechercherUbipharm();
+                            }},
+                        {xtype: 'combo', itemId: 'exRechercheChamps', width: 130, editable: false, value: 'TOUT',
+                            store: [['TOUT', 'CIP, nom et DCI'], ['CIP_LIBELLE', 'CIP ou nom'], ['DCI', 'DCI']]},
+                        {xtype: 'checkbox', itemId: 'exRechercheStock', boxLabel: 'En stock seulement', margin: '0 0 0 6'},
                         '->', {xtype: 'label', itemId: 'exFicheMsg'}]}],
             items: [
+                {xtype: 'gridpanel', itemId: 'exRechercheGrille', hidden: true, height: 230, columnLines: true,
+                    store: me.rechercheUbipharm, title: 'Résultats de la recherche Ubipharm',
+                    viewConfig: {deferEmptyText: false, emptyText: '<div style="padding:12px">Aucun produit</div>'},
+                    columns: [
+                        {text: 'Référence', dataIndex: 'pscode', width: 90, renderer: me.texte},
+                        {text: 'Désignation', dataIndex: 'designation', flex: 2, renderer: me.texte},
+                        {text: 'CIP', dataIndex: 'cip', width: 120, renderer: me.texte},
+                        {text: 'Statut', dataIndex: 'statut', width: 90, renderer: me.texte},
+                        {text: 'Disponibilité', dataIndex: 'dispo', flex: 2, renderer: me.texte},
+                        {text: 'Prix', dataIndex: 'prix', flex: 1, renderer: me.texte},
+                        {text: 'Colisage', dataIndex: 'colisage', width: 70, renderer: me.texte}],
+                    listeners: {itemclick: function (v, rec) {
+                            me.down('#exPscode').setValue(rec.get('pscode'));
+                            lire(true);
+                        }}},
                 {xtype: 'component', itemId: 'exFicheEntete', padding: 10, html: ''},
                 {xtype: 'gridpanel', flex: 1, store: me.agencesFiche, title: 'Stock par agence', columnLines: true,
                     viewConfig: {deferEmptyText: false, emptyText: '<div style="padding:12px">Aucune agence</div>'},
@@ -824,7 +888,8 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
     /** Affiche le cache (collecter : lit d'abord l'extranet). */
     chargerListe: function (code, collecter) {
         var me = this, id = 'exListe' + code, panneau = me.down('#' + id);
-        me.appel(collecter ? 'POST' : 'GET', 'ubipharm/listes/' + code + (collecter ? '/collecte' : ''), function (r) {
+        var racine = code.indexOf('TEDIS_') === 0 ? 'tedis/listes/' : 'ubipharm/listes/';
+        me.appel(collecter ? 'POST' : 'GET', racine + code + (collecter ? '/collecte' : ''), function (r) {
             if (r.success) {
                 me.afficherListe(code, r);
             }
@@ -844,22 +909,27 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
                 }});
         });
         grille.reconfigure(me.listes[code], colonnes);
-        me.listes[code].loadData(r.lignes || []);
+        me.donnees = me.donnees || {};
+        me.donnees[code] = r.lignes || [];
         me.filtrerListe(code);
         me.afficherDate('#' + id + 'Date', r);
     },
 
+    /** Lignes affichées au plus : le catalogue TEDIS (près de 17 000 produits) figerait la grille. */
+    AFFICHAGE_MAX: 500,
+
+    /** Recherche dans toutes les colonnes ; au-delà de AFFICHAGE_MAX lignes trouvées, les premières sont affichées. */
     filtrerListe: function (code) {
-        var me = this, id = 'exListe' + code, st = me.listes[code],
-                q = Ext.String.trim(me.valeur('#' + id + 'Recherche')).toLowerCase(), nombre = me.down('#' + id + 'Nombre');
-        st.clearFilter(!!q);
-        if (q) {
-            st.filterBy(function (rec) {
-                return (rec.get('cellules') || []).join(' ').toLowerCase().indexOf(q) >= 0;
-            });
-        }
+        var me = this, id = 'exListe' + code, st = me.listes[code], tout = (me.donnees || {})[code] || [],
+                q = Ext.String.trim(me.valeur('#' + id + 'Recherche')).toLowerCase(), nombre = me.down('#' + id + 'Nombre'),
+                trouves = !q ? tout : Ext.Array.filter(tout, function (l) {
+                    return (l.cellules || []).join(' ').toLowerCase().indexOf(q) >= 0;
+                });
+        st.loadData(trouves.slice(0, me.AFFICHAGE_MAX));
         if (nombre) {
-            nombre.setText(st.getCount() + (q && st.snapshot ? ' / ' + st.snapshot.getCount() : '') + ' ligne(s)');
+            nombre.setText(trouves.length + (q ? ' / ' + tout.length : '') + ' ligne(s)'
+                    + (trouves.length > me.AFFICHAGE_MAX ? ' — ' + me.AFFICHAGE_MAX + ' affichées : affinez la recherche'
+                            : ''));
         }
     },
 

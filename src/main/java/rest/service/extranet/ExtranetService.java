@@ -396,6 +396,65 @@ public class ExtranetService {
         }
     }
 
+    /* ============================================================ TEDIS : listes de l'onglet */
+
+    public JSONObject listesTedis() {
+        return new JSONObject().put("success", true).put("data", rest.service.extranet.tedis.ListeTedis.catalogue());
+    }
+
+    public JSONObject listeTedisEnCache(String code) {
+        rest.service.extranet.tedis.ListeTedis l = rest.service.extranet.tedis.ListeTedis.parCode(code);
+        if (l == null) {
+            return new JSONObject().put("success", false).put("msg", "Liste inconnue");
+        }
+        return new rest.service.extranet.commun.DepotListes(em)
+                .lire(SourceExtranet.TEDIS, l.name(), l.module(), l.description()).put("success", true);
+    }
+
+    /** Comme Ubipharm : collecte fermee COMPLETE avant de retirer l'ancien cache ; un echec garde l'ancien. */
+    public JSONObject collecterListeTedis(String code, String utilisateur) {
+        rest.service.extranet.tedis.ListeTedis l = rest.service.extranet.tedis.ListeTedis.parCode(code);
+        if (l == null) {
+            return new JSONObject().put("success", false).put("msg", "Liste inconnue");
+        }
+        SourceExtranet s = SourceExtranet.TEDIS;
+        chargerIdentifiants(s);
+        JournalCollecte journal = new JournalCollecte(em);
+        long id = journal.ouvrir(s, l.module(), null, utilisateur);
+        try {
+            rest.service.extranet.tedis.ListesTedisLecteur.Resultat r = rest.service.extranet.tedis.ListesTedisLecteur
+                    .lire(CoffreSessions.transport(s), l);
+            rest.service.extranet.commun.DepotListes d = new rest.service.extranet.commun.DepotListes(em);
+            d.enregistrer(id, l.name(), r.lignes);
+            journal.fermer(id, JournalCollecte.COMPLETE, null, r.lignes.size(), null);
+            d.garderSeulement(l.name(), l.module(), id);
+            return d.lire(s, l.name(), l.module(), l.description()).put("success", true);
+        } catch (ExtranetException e) {
+            journal.fermer(id, JournalCollecte.ECHEC, null, 0, e.nature() + " : " + e.getMessage());
+            return new JSONObject().put("success", false).put("nature", e.nature().name()).put("msg", e.getMessage())
+                    .put("collecte", journal.une(id));
+        }
+    }
+
+    /* ============================================================ Ubipharm : recherche CIP, libelle, DCI */
+
+    /** Recherche en direct sur l'extranet (rien n'est garde) ; le motif n'est jamais journalise. */
+    public JSONObject rechercherUbipharm(String motif, String champs, boolean commencePar, boolean enStockSeulement) {
+        if (rest.service.extranet.ubipharm.RechercheUbipharm.motif(motif) == null) {
+            return new JSONObject().put("success", false).put("msg", "Saisissez de 2 à 60 caractères");
+        }
+        chargerIdentifiants(SourceExtranet.UBIPHARM);
+        try {
+            return rest.service.extranet.ubipharm.RechercheUbipharm
+                    .rechercher(CoffreSessions.transport(SourceExtranet.UBIPHARM), motif,
+                            rest.service.extranet.ubipharm.RechercheUbipharm.Champs.lire(champs), commencePar,
+                            enStockSeulement)
+                    .put("success", true);
+        } catch (ExtranetException e) {
+            return new JSONObject().put("success", false).put("nature", e.nature().name()).put("msg", e.getMessage());
+        }
+    }
+
     /* ============================================================ Ubipharm : nouveaux produits */
 
     public JSONObject nouveauxEnCache() {

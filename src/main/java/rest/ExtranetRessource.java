@@ -321,4 +321,37 @@ public class ExtranetRessource {
         Response r = refus();
         return r != null ? r : ok(service.collecterListe(code, login()));
     }
+
+    /* ============================================================ TEDIS : listes de l'onglet */
+
+    @GET
+    @Path("tedis/listes")
+    public Response listesTedis() {
+        Response r = refus();
+        return r != null ? r : ok(service.listesTedis());
+    }
+
+    @GET
+    @Path("tedis/listes/{code}")
+    public Response listeTedis(@PathParam("code") String code) {
+        Response r = refus();
+        return r != null ? r : ok(service.listeTedisEnCache(code));
+    }
+
+    @POST
+    @Path("tedis/listes/{code}/collecte")
+    public Response collecterListeTedis(@PathParam("code") String code) {
+        Response r = refus();
+        return r != null ? r : ok(service.collecterListeTedis(code, login()));
+    }
+
+    /* ============================================================ Ubipharm : recherche CIP, libelle, DCI */
+
+    @GET
+    @Path("ubipharm/recherche")
+    public Response rechercherUbipharm(@QueryParam("motif") String motif, @QueryParam("champs") String champs,
+            @QueryParam("commencePar") boolean commencePar, @QueryParam("enStock") boolean enStock) {
+        Response r = refus();
+        return r != null ? r : ok(service.rechercherUbipharm(motif, champs, commencePar, enStock));
+    }
 }
