@@ -45,4 +45,30 @@ function verifier(q, base, domaine) {
   console.log('Garde : ' + comptes + ' compte(s) réel(s) en base, toutes les sources dirigées vers 127.0.0.1 : test autorisé.');
 }
 
-module.exports = { verifier, sourcesNonLocales, SOURCES };
+/*
+ * Donnees d'extranet deja gardees (lues sur les vrais sites par l'utilisateur) : une lecture du test les remplace et son
+ * nettoyage les effacerait. Copie complete avant le test, remise a l'identique apres (meme contenu, memes id), controlee
+ * par CHECKSUM TABLE.
+ */
+function sauver(q, tables) {
+  const avant = {};
+  for (const t of tables) {
+    q('DROP TABLE IF EXISTS e2e_sauve_' + t + '; CREATE TABLE e2e_sauve_' + t + ' AS SELECT * FROM ' + t);
+    avant[t] = q('CHECKSUM TABLE ' + t).split('\t')[1];
+  }
+  return avant;
+}
+
+/** Remet les tables a leur copie ; renvoie la liste des tables dont l'empreinte differe encore (vide : identique). */
+function restaurer(q, tables, avant) {
+  const ordre = tables.slice().reverse();
+  q('SET FOREIGN_KEY_CHECKS = 0; ' + ordre.map((t) => 'DELETE FROM ' + t + ';').join(' ') + ' '
+    + tables.map((t) => 'INSERT INTO ' + t + ' SELECT * FROM e2e_sauve_' + t + ';').join(' ') + ' SET FOREIGN_KEY_CHECKS = 1;');
+  const ecarts = tables.filter((t) => q('CHECKSUM TABLE ' + t).split('\t')[1] !== avant[t]);
+  if (!ecarts.length) {
+    q(tables.map((t) => 'DROP TABLE e2e_sauve_' + t + ';').join(' '));
+  }
+  return ecarts;
+}
+
+module.exports = { verifier, sourcesNonLocales, SOURCES, sauver, restaurer };

@@ -1016,7 +1016,7 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
                                 }, me.down('#exOngletNouveaux'));
                                 });
                             }},
-                        {text: 'Rapprocher avec Prestige', itemId: 'exRapprocher', handler: function () {
+                        {text: 'Rapprocher avec Prestige', itemId: 'exRapprocher', handler: function (b, e, texteFait) {
                                 me.appel('GET', 'ubipharm/nouveaux/rapprochement', function (r) {
                                     var parPs = {};
                                     Ext.each(r.data || [], function (x) {
@@ -1024,7 +1024,7 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
                                     });
                                     me.rapprochement = r.success ? parPs : null;
                                     me.appliquerRapprochement();
-                                    me.message('#exNouveauxMsg', r, 'Rapprochement fait (aucun article modifié)');
+                                    me.message('#exNouveauxMsg', r, texteFait || 'Rapprochement fait (aucun article modifié)');
                                     me.majBoutonPscode();
                                 }, me.down('#exOngletNouveaux'));
                             }},
@@ -1035,9 +1035,13 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
                                 var n = me.nombrePscode();
                                 me.confirmerDansBouton(b, 'Écrire ' + n + ' PSCODE ?', function () {
                                     me.appel('POST', 'ubipharm/nouveaux/pscode', function (r) {
-                                        me.message('#exNouveauxMsg', r, (r.enregistres || 0) + ' PSCODE enregistré(s)'
-                                                + (r.ignores ? ', ' + r.ignores + ' ambigu(s) laissé(s)' : ''));
-                                        me.down('#exRapprocher').handler();
+                                        var fait = (r.enregistres || 0) + ' PSCODE enregistré(s)'
+                                                + (r.ignores ? ', ' + r.ignores + ' ambigu(s) laissé(s)' : '');
+                                        me.message('#exNouveauxMsg', r, fait);
+                                        /* la relecture du rapprochement garde ce message (retour du 08/11) */
+                                        if (r.success) {
+                                            me.down('#exRapprocher').handler(null, null, fait);
+                                        }
                                     }, me.down('#exOngletNouveaux'));
                                 });
                             }},

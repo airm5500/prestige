@@ -35,7 +35,8 @@ const ECRAN = 'extranetsgrossistes';
 const texte = (p, sel) => p.evaluate((s) => { const c = Ext.ComponentQuery.query('extranetsgrossistes ' + s)[0]; return c && c.el ? c.el.dom.textContent : ''; }, sel);
 
 /* Garde : comptes reels en base -> toutes les sources doivent viser 127.0.0.1 (garde-extranets.js) */
-require('./garde-extranets').verifier(q, ENV_E2E.BASE, ENV_E2E.PAYARA_DOMAINE);
+const garde = require('./garde-extranets');
+garde.verifier(q, ENV_E2E.BASE, ENV_E2E.PAYARA_DOMAINE);
 
 /* codes d'essai absents de la base (préfixe 9 et 13 chiffres) */
 const base = 9000000000000 + (Date.now() % 1000000) * 1000;
@@ -60,6 +61,13 @@ const page = (produits) => '<html><body><table><tbody>' + produits.map((x) => '<
   const etatFiches = () => lignes('SELECT lg_FAMILLE_ID, IFNULL(str_PSCODE, \'NULL\') FROM t_famille WHERE lg_FAMILLE_ID IN ('
     + F.map(sql).join(',') + ') ORDER BY lg_FAMILLE_ID');
   const premiereCollecte = Number(q('SELECT IFNULL(MAX(id), 0) + 1 FROM extranet_collecte'));
+  /* chaque UPDATE de t_famille passe par un declencheur : dt_UPDATED = NOW() et une ligne dans t_famille_history ;
+     la remise en etat rejoue la date d'origine (horloge de session) et retire ces lignes */
+  const histoMax = q('SELECT IFNULL(MAX(lg_ID), 0) FROM t_famille_history');
+  const histoAvant = q('SELECT COUNT(*) FROM t_famille_history WHERE lg_FAMILLE_ID IN (' + F.map(sql).join(',') + ')');
+  const journalTotal = q('SELECT COUNT(*) FROM t_event_log');
+  const CACHES = ['extranet_collecte', 'extranet_nouveau_produit', 'extranet_nouveau_produit_agence'];
+  const caches = garde.sauver(q, CACHES);
   try {
     ok('jeu : 8 fiches d\'essai disponibles, codes d\'essai absents de la base', F.length === 8
       && q('SELECT COUNT(*) FROM t_famille WHERE int_EAN13 LIKE \'' + String(base).slice(0, 10) + '%\' OR int_CIP LIKE \'' + String(base).slice(0, 10) + '%\'') === '0');
@@ -86,6 +94,10 @@ const page = (produits) => '<html><body><table><tbody>' + produits.map((x) => '<
     for (const t of ['Ubipharm', 'Produits', 'Nouveaux produits']) { await vues.cliquer(p, ECRAN + ' #exOnglets tab[text=' + t + ']'); await p.waitForTimeout(400); }
     const rn = p.waitForResponse((x) => x.url().indexOf('/nouveaux/collecte') >= 0, { timeout: 120000 });
     await vues.cliquer(p, ECRAN + ' #exNouveauxCollecter');
+    await p.waitForTimeout(900);
+    if ((await texte(p, '#exNouveauxCollecter')).indexOf('relire') >= 0) { /* liste deja lue : confirmation dans le bouton */
+      await vues.cliquer(p, ECRAN + ' #exNouveauxCollecter');
+    }
     await rn;
     await p.waitForTimeout(1500);
     const rr = p.waitForResponse((x) => x.url().indexOf('/nouveaux/rapprochement') >= 0);
@@ -134,16 +146,25 @@ const page = (produits) => '<html><body><table><tbody>' + produits.map((x) => '<
     ok('déroulé sans erreur', false, e.stack || e);
     await ENV_E2E.capture(p, 'pscode-nouveaux-erreur').catch(() => {});
   } finally {
-    fiches.forEach(([id, ean, ps, maj]) => q('UPDATE t_famille SET int_EAN13 = ' + sql(ean) + ', str_PSCODE = ' + sql(ps) + ', dt_UPDATED = ' + sql(maj)
-      + " WHERE lg_FAMILLE_ID = '" + id + "'"));
+    fiches.forEach(([id, ean, ps, maj]) => q((maj === 'NULL' ? '' : "SET timestamp = UNIX_TIMESTAMP('" + maj + "'); ")
+      + 'UPDATE t_famille SET int_EAN13 = ' + sql(ean) + ', str_PSCODE = ' + sql(ps) + ', dt_UPDATED = ' + sql(maj)
+      + " WHERE lg_FAMILLE_ID = '" + id + "'; SET timestamp = DEFAULT;"));
+    q('DELETE FROM t_famille_history WHERE lg_ID > ' + histoMax + ' AND lg_FAMILLE_ID IN (' + F.map(sql).join(',') + ')');
     q("DELETE FROM t_event_log WHERE str_TABLE_CONCERN = 't_famille' AND str_DETAIL LIKE 'str_PSCODE : (vide) -> E2EPS%' AND dt_CREATED >= '" + debut + "'");
-    q('DELETE FROM extranet_nouveau_produit_agence WHERE produit_id IN (SELECT id FROM extranet_nouveau_produit WHERE collecte_id >= ' + premiereCollecte
-      + '); DELETE FROM extranet_nouveau_produit WHERE collecte_id >= ' + premiereCollecte + '; DELETE FROM extranet_collecte WHERE id >= ' + premiereCollecte);
+    /* connexion de l'utilisateur d'essai (typeLog connexion) : trace du test, retiree aussi */
+    q("DELETE FROM t_event_log WHERE dt_CREATED >= '" + debut + "' AND lg_USER_ID = (SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = "
+      + sql(ENV_E2E.LOGIN) + ") AND str_TABLE_CONCERN = 'dal.TUser'");
+    ok('bilan : journal des événements revenu à son nombre de lignes de départ', q('SELECT COUNT(*) FROM t_event_log') === journalTotal,
+      q('SELECT COUNT(*) FROM t_event_log') + ' / ' + journalTotal);
+    const ecartsCaches = garde.restaurer(q, CACHES, caches);
+    ok('nettoyage : données d’extranet gardées remises à l’identique (CHECKSUM)', ecartsCaches.length === 0, JSON.stringify(ecartsCaches));
+    ok('nettoyage : historique des fiches revenu à l’état de départ', q('SELECT COUNT(*) FROM t_famille_history WHERE lg_FAMILLE_ID IN ('
+      + F.map(sql).join(',') + ')') === histoAvant && q('SELECT COUNT(*) FROM t_famille_history WHERE lg_ID > ' + histoMax) === '0');
     const remis = lignes("SELECT lg_FAMILLE_ID, IFNULL(int_EAN13, 'NULL'), IFNULL(str_PSCODE, 'NULL'), IFNULL(DATE_FORMAT(dt_UPDATED, '%Y-%m-%d %H:%i:%s'), 'NULL')"
       + ' FROM t_famille WHERE lg_FAMILLE_ID IN (' + F.map(sql).join(',') + ') ORDER BY lg_FAMILLE_ID');
     ok('nettoyage : fiches remises à l\'identique, journal et collectes du test retirés', JSON.stringify(remis) === JSON.stringify(fiches)
       && q("SELECT COUNT(*) FROM t_event_log WHERE str_DETAIL LIKE 'str_PSCODE : (vide) -> E2EPS%'") === '0'
-      && q('SELECT COUNT(*) FROM extranet_collecte WHERE id >= ' + premiereCollecte) === '0');
+      && q('SELECT COUNT(*) FROM extranet_collecte WHERE id >= ' + premiereCollecte) === '0', JSON.stringify(remis));
     await p.evaluate(() => fetch('../api/v1/extranet/sessions/UBIPHARM', { method: 'DELETE' })).catch(() => {});
     await navigateur.close();
     await srv.arreter();
