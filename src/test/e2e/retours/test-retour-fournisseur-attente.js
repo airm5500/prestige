@@ -38,7 +38,7 @@ function retirer() {
   const det = q(`SELECT IFNULL(GROUP_CONCAT(CONCAT("'", lg_RETOUR_FRS_DETAIL, "'")), "''") FROM t_retour_fournisseur_detail WHERE lg_RETOUR_FRS_ID IN (${ids})`);
   exec(`DELETE FROM HMvtProduit WHERE pkey IN (${det});`
     /* transmission du 07/11 : historique des etats du retour (mise en attente, validation) */
-    + `DELETE FROM t_retour_fournisseur_historique WHERE lg_RETOUR_FRS_ID IN (${ids});`
+    + (q("SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 't_retour_fournisseur_historique'") === '1' ? `DELETE FROM t_retour_fournisseur_historique WHERE lg_RETOUR_FRS_ID IN (${ids});` : '')
     + `DELETE FROM notification WHERE entity_ref IN (${ids});`
     + `DELETE FROM t_retour_fournisseur_detail WHERE lg_RETOUR_FRS_ID IN (${ids});`
     + `DELETE FROM t_retour_fournisseur WHERE lg_RETOUR_FRS_ID IN (${ids});`);

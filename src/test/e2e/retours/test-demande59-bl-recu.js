@@ -70,18 +70,20 @@ function sauver() {
 function retirer() {
   const ret = retoursDuBl();
   const refs = q(`SELECT IFNULL(GROUP_CONCAT(str_REF_RETOUR_FRS SEPARATOR '|'), '') FROM t_retour_fournisseur WHERE lg_RETOUR_FRS_ID IN (${ret})`).split('|').filter(Boolean);
+  /* codes lus d'abord : une sous-requete dans le DELETE serait rejouee pour chaque etiquette */
+  const etiquettes = q(`SELECT IFNULL(GROUP_CONCAT(CONCAT("'", str_CODE_ETIQUETTE, "'")), "''") FROM t_warehouse WHERE str_REF_LIVRAISON IN ('${REF1}', '${REF2}') AND str_CODE_ETIQUETTE IS NOT NULL`);
   const dets = q(`SELECT IFNULL(GROUP_CONCAT(CONCAT("'", lg_BON_LIVRAISON_DETAIL, "'")), "''") FROM t_bon_livraison_detail WHERE lg_BON_LIVRAISON_ID IN ('${B1}', '${B2}')`);
   exec(`DELETE FROM mobile_client_ref WHERE ref LIKE 'e2e-d59-%';`
-    + `DELETE FROM t_retour_fournisseur_historique WHERE lg_RETOUR_FRS_ID IN (${ret});`
+    + (q("SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 't_retour_fournisseur_historique'") === '1' ? `DELETE FROM t_retour_fournisseur_historique WHERE lg_RETOUR_FRS_ID IN (${ret});` : '')
     + `DELETE FROM notification WHERE entity_ref IN (${ret}) OR entity_ref IN ('${B1}', '${B2}');`
     + `DELETE FROM t_retour_fournisseur_detail WHERE lg_RETOUR_FRS_ID IN (${ret});`
     + `DELETE FROM t_retour_fournisseur WHERE lg_RETOUR_FRS_ID IN (${ret});`
     + `DELETE FROM HMvtProduit WHERE pkey IN (${dets}); DELETE FROM MvtTransaction WHERE pkey IN ('${B1}', '${B2}');`
-    + `DELETE FROM t_etiquette WHERE str_CODE IN (SELECT str_CODE_ETIQUETTE FROM t_warehouse WHERE str_REF_LIVRAISON IN ('${REF1}', '${REF2}')) AND dt_CREATED >= '${debut}';`
+    + `DELETE FROM t_etiquette WHERE str_CODE IN (${etiquettes}) AND dt_CREATED >= '${debut}';`
     + `DELETE FROM t_warehouse WHERE str_REF_LIVRAISON IN ('${REF1}', '${REF2}');`
     + `DELETE FROM t_lot WHERE str_REF_LIVRAISON IN ('${REF1}', '${REF2}');`
-    + `DELETE FROM t_event_log WHERE dt_CREATED >= '${debut}' AND (str_TYPELOG IN ('${REF1}', '${REF2}') OR str_DESCRIPTION LIKE '%${REF1}%' OR str_DESCRIPTION LIKE '%${REF2}%'`
-    + refs.map((r) => ` OR str_DESCRIPTION LIKE '%${r}%' OR str_TYPELOG = '${r}'`).join('') + ');'
+    + `DELETE FROM t_event_log WHERE dt_CREATED >= '${debut}' AND (str_TYPE_LOG IN ('${REF1}', '${REF2}') OR str_DESCRIPTION LIKE '%${REF1}%' OR str_DESCRIPTION LIKE '%${REF2}%'`
+    + refs.map((r) => ` OR str_DESCRIPTION LIKE '%${r}%' OR str_TYPE_LOG = '${r}'`).join('') + ');'
     + `DELETE FROM t_bon_livraison_detail WHERE lg_BON_LIVRAISON_ID IN ('${B1}', '${B2}');`
     + `DELETE FROM t_bon_livraison WHERE lg_BON_LIVRAISON_ID IN ('${B1}', '${B2}');`
     + `DELETE FROM t_order_detail WHERE lg_ORDER_ID IN ('${C1}', '${C2}'); DELETE FROM t_order WHERE lg_ORDER_ID IN ('${C1}', '${C2}');`);
@@ -147,8 +149,10 @@ function poser() {
 
     /* non-regression */
     const v0 = await api('PUT', '../api/v1/commande/validerbl/' + B1);
-    ok('Sans paramètre : refus « Produits non saisis » qui nomme la ligne sans lot', v0.j && v0.j.success === false && /Produits non saisis/.test(v0.j.msg || '')
-      && v0.j.msg.includes(NOM[3]), JSON.stringify(v0.j));
+    /* comportement d'origine : seules les lignes commencees et incompletes sont nommees (une ligne sans lot entrerait
+       en entier) */
+    ok('Sans paramètre : refus « Produits non saisis » qui nomme les lignes incomplètes, comme avant', v0.j && v0.j.success === false
+      && v0.j.code === 'PRODUITS_NON_SAISIS' && v0.j.msg.includes(NOM[0]) && v0.j.msg.includes(NOM[2]) && !v0.j.msg.includes(NOM[1]) && !v0.j.msg.includes(NOM[3]), JSON.stringify(v0.j));
     const v1 = await api('PUT', '../api/v1/commande/validerbl/' + B1 + '?avecEcart=true');
     ok('avecEcart=true : refus, comme avant', v1.j && v1.j.success === false, JSON.stringify(v1.j));
     ok('Rien n\'est entré (BL ouvert, stocks et mouvements inchangés)', statutBl(B1) === 'enable' && P.every((id, i) => stock(id) === STOCK0[i] && mvts(id) === MVT0[i]));
