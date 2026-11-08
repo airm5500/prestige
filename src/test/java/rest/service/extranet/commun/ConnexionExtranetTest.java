@@ -231,6 +231,60 @@ class ConnexionExtranetTest {
         }
     }
 
+    /**
+     * Connexion unique facon Ubipharm (serveur d'authentification OpenID) : page saisie en adresse complete avec
+     * parametres, formulaire a action absolue, puis retour /CallbackSSO?code=... qui ouvre la session de l'extranet.
+     * Les cookies du serveur d'authentification (chemin /realms) ne deviennent pas la session de l'extranet.
+     */
+    @Test
+    void connexionUniqueOpenIdPageCompleteEtRetour() throws Exception {
+        try (FauxExtranet f = new FauxExtranet()) {
+            String auth = "/realms/TIC-SSO/protocol/openid-connect/auth";
+            String page = f.adresse() + auth + "?scope=openid&response_type=code&client_id=ExtranetClientGrossiste02"
+                    + "&redirect_uri="
+                    + java.net.URLEncoder.encode(f.adresse() + "/CallbackSSO", StandardCharsets.UTF_8)
+                    + "&state=L0lkZW50aWZpY2F0aW9u";
+            f.routeAppel(auth, a -> a.requete != null && a.requete.contains("client_id=ExtranetClientGrossiste02")
+                    ? new Reponse(200, "text/html; charset=utf-8", ("<html><body><form id='kc-form-login' method='post'"
+                            + " action='" + f.adresse() + "/realms/TIC-SSO/login-actions/authenticate?session_code=sc1"
+                            + "&amp;execution=e1&amp;tab_id=t1'><input id='username' name='username' type='text'>"
+                            + "<input id='password' name='password' type='password'>"
+                            + "<input type='hidden' id='id-hidden-input' name='credentialId'>"
+                            + "<input type='checkbox' id='rememberMe' name='rememberMe'></form></body></html>")
+                                    .getBytes(StandardCharsets.UTF_8),
+                            Map.of("Set-Cookie", "AUTH_SESSION_ID=a1; Path=/realms/TIC-SSO/"))
+                    : Reponse.html("<html>mauvaise requete</html>"));
+            f.routeAppel("/realms/TIC-SSO/login-actions/authenticate", a -> {
+                Map<String, String> c = champs(a.corps);
+                boolean bon = "sc1"
+                        .equals(a.requete == null ? null : a.requete.replaceAll(".*session_code=([^&]*).*", "$1"))
+                        && IDENTIFIANT.equals(c.get("username")) && MOT_DE_PASSE.equals(c.get("password"))
+                        && a.cookie != null && a.cookie.contains("AUTH_SESSION_ID=a1");
+                return bon ? redirection(f.adresse() + "/CallbackSSO?code=c42&state=L0lkZW50aWZpY2F0aW9u", null)
+                        : Reponse.html(
+                                "<html><form><input name='username'><input type='password' name='password'></form>");
+            });
+            f.routeAppel("/CallbackSSO",
+                    a -> a.requete != null && a.requete.startsWith("code=c42")
+                            ? redirection("/Identification", "SESSIONID=sso-1; Path=/; HttpOnly")
+                            : Reponse.html("<html>refus</html>"));
+            f.routeAppel("/Identification", a -> Reponse.html("<html><body>Accueil</body></html>"));
+            f.routeAppel("/donnees", a -> a.cookie != null && a.cookie.contains("SESSIONID=sso-1")
+                    ? Reponse.json("{\"ok\":1}") : Reponse.html(formulaire("/login", "")));
+            TransportExtranet t = f.transportAvecConnexion(SourceExtranet.UBIPHARM, null,
+                    new ConnexionExtranet.Identifiants(IDENTIFIANT, MOT_DE_PASSE, "e1", page, null));
+            assertTrue(t.lire("/donnees", null, Attendu.JSON, null).texte().contains("ok"));
+            List<Appel> p = posts(f);
+            assertEquals(1, p.size());
+            assertEquals("/realms/TIC-SSO/login-actions/authenticate", p.get(0).chemin);
+            assertEquals("session_code=sc1&execution=e1&tab_id=t1", p.get(0).requete);
+            assertEquals(Map.of("username", IDENTIFIANT, "password", MOT_DE_PASSE, "credentialId", ""),
+                    champs(p.get(0).corps));
+            /* meme machine dans le test : le cookie du serveur d authentification est aussi garde (chemins ignores) */
+            assertEquals(2, t.session().publique().getInt("nombreCookies"));
+        }
+    }
+
     @Test
     void sansIdentifiantsRienNePart() throws Exception {
         AtomicInteger n = new AtomicInteger();

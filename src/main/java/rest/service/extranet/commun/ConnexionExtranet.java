@@ -24,7 +24,9 @@ import org.jsoup.nodes.Element;
  * un champ mot de passe), avec ses champs caches (jeton anti-falsification), puis poste a sa propre adresse.
  *
  * <ul>
- * <li>seul POST du connecteur, et seulement vers l'action du formulaire de connexion, sur le meme site ;</li>
+ * <li>seul POST du connecteur, et seulement vers l'action du formulaire de connexion, sur le domaine de l'extranet (ex.
+ * auth.ubipharm.com pour client-cotedivoire.ubipharm.com : connexion unique) ;</li>
+ * <li>cookies ranges par serveur : ceux du serveur d'authentification ne partent jamais vers l'extranet ;</li>
  * <li>un captcha arrete tout : il n'est jamais contourne ;</li>
  * <li>des identifiants refuses ne sont pas retentes tant qu'ils n'ont pas ete modifies (pas de blocage du compte)
  * ;</li>
@@ -123,9 +125,10 @@ public final class ConnexionExtranet {
             if (id.empreinte != null && id.empreinte.equals(empreinteRefusee)) {
                 throw refus("Identifiants déjà refusés par l'extranet : corrigez-les avant un nouvel essai");
             }
-            Map<String, String> pot = new LinkedHashMap<>();
+            Bocal pot = new Bocal();
             String chemin = id.pageConnexion;
-            Page page = suivre(get(origine.resolve(chemin.substring(1)), null, pot), pot);
+            URI depart = chemin.startsWith("/") ? origine.resolve(chemin.substring(1)) : URI.create(chemin);
+            Page page = suivre(get(depart, null, pot), pot);
             Formulaire f = lireFormulaire(page.corps, id.champIdentifiant);
             if (f == null) {
                 throw refus("Formulaire de connexion introuvable sur " + chemin
@@ -148,10 +151,11 @@ public final class ConnexionExtranet {
                 empreinteRefusee = id.empreinte;
                 throw refus("Identifiant ou mot de passe refusé par l'extranet");
             }
-            if (pot.isEmpty()) {
+            Map<String, String> session0 = pot.pour(origine.getHost());
+            if (session0.isEmpty()) {
                 throw refus("L'extranet n'a ouvert aucune session (aucun cookie reçu)");
             }
-            session.definirParConnexion(pot);
+            session.definirParConnexion(session0);
         } catch (ExtranetException e) {
             session.connexionEchouee(e.getMessage());
             throw e;
@@ -222,13 +226,79 @@ public final class ConnexionExtranet {
     }
 
     private void verifierMemeSite(URI u) throws ExtranetException {
-        if (!Objects.equals(u.getScheme(), origine.getScheme()) || !Objects.equals(u.getHost(), origine.getHost())
-                || u.getPort() != origine.getPort()) {
-            throw refus("Le formulaire de connexion envoie vers un autre site : refusé");
+        if (!memeDomaine(origine, u)) {
+            throw refus("La connexion envoie vers un autre site (" + u.getHost() + ") : refusé");
         }
     }
 
-    private Page suivre(Page p, Map<String, String> pot) throws ExtranetException {
+    /**
+     * Vrai si {@code u} est sur le site de l'extranet, ou sur un autre serveur du meme domaine avec le meme schema (ex.
+     * auth.ubipharm.com et client-cotedivoire.ubipharm.com). Une adresse IP ne vaut que pour elle-meme.
+     */
+    public static boolean memeDomaine(URI extranet, URI u) {
+        if (u == null || u.getHost() == null || !Objects.equals(u.getScheme(), extranet.getScheme())) {
+            return false;
+        }
+        String a = extranet.getHost().toLowerCase(), b = u.getHost().toLowerCase();
+        if (a.equals(b)) {
+            return u.getPort() == extranet.getPort();
+        }
+        String d = domaine(a);
+        return d != null && d.equals(domaine(b));
+    }
+
+    /** Deux derniers libelles du nom (ubipharm.com) ; null pour une adresse IP ou un nom sans point. */
+    static String domaine(String hote) {
+        if (hote == null || hote.matches("[0-9.]+") || hote.contains(":")) {
+            return null;
+        }
+        String[] l = hote.split("\\.");
+        return l.length < 2 ? null : l[l.length - 2] + "." + l[l.length - 1];
+    }
+
+    /** Cookies de la connexion, ranges par serveur (et par domaine pour un cookie « Domain= »). */
+    static final class Bocal {
+        private final Map<String, Map<String, String>> parCle = new LinkedHashMap<>();
+
+        void recevoir(URI u, List<String> setCookie) {
+            String hote = u.getHost().toLowerCase();
+            for (String sc : setCookie) {
+                String cle = hote;
+                for (String attr : sc.split(";")) {
+                    String x = attr.trim().toLowerCase();
+                    if (x.startsWith("domain=")) {
+                        String dom = x.substring(7).trim();
+                        while (dom.startsWith(".")) {
+                            dom = dom.substring(1);
+                        }
+                        /* un serveur ne pose un cookie que pour son propre domaine, jamais pour « com » */
+                        if (dom.contains(".") && (hote.equals(dom) || hote.endsWith("." + dom))) {
+                            cle = "." + dom;
+                        }
+                    }
+                }
+                garderCookies(List.of(sc), parCle.computeIfAbsent(cle, k -> new LinkedHashMap<>()));
+            }
+        }
+
+        /** Cookies a envoyer a ce serveur : ceux de son domaine, puis les siens. */
+        Map<String, String> pour(String hote) {
+            String h = hote.toLowerCase();
+            Map<String, String> m = new LinkedHashMap<>();
+            parCle.forEach((cle, v) -> {
+                if (cle.startsWith(".") && (h.equals(cle.substring(1)) || h.endsWith(cle))) {
+                    m.putAll(v);
+                }
+            });
+            Map<String, String> propres = parCle.get(h);
+            if (propres != null) {
+                m.putAll(propres);
+            }
+            return m;
+        }
+    }
+
+    private Page suivre(Page p, Bocal pot) throws ExtranetException {
         for (int i = 0; i < REDIRECTIONS_MAX && DetecteurPageConnexion.estRedirection(p.statut)
                 && p.location != null; i++) {
             p = get(p.uri.resolve(p.location), p.uri, pot);
@@ -236,13 +306,12 @@ public final class ConnexionExtranet {
         return p;
     }
 
-    private Page get(URI u, URI referer, Map<String, String> pot) throws ExtranetException {
+    private Page get(URI u, URI referer, Bocal pot) throws ExtranetException {
         verifierMemeSite(u);
         return envoyer(HttpRequest.newBuilder(u).GET(), u, referer, pot);
     }
 
-    private Page post(URI u, URI referer, Map<String, String> champs, Map<String, String> pot)
-            throws ExtranetException {
+    private Page post(URI u, URI referer, Map<String, String> champs, Bocal pot) throws ExtranetException {
         StringBuilder corps = new StringBuilder();
         champs.forEach((k, v) -> {
             if (corps.length() > 0) {
@@ -254,11 +323,12 @@ public final class ConnexionExtranet {
         HttpRequest.Builder b = HttpRequest.newBuilder(u)
                 .POST(HttpRequest.BodyPublishers.ofString(corps.toString(), StandardCharsets.UTF_8))
                 .header("Content-Type", "application/x-www-form-urlencoded")
-                .header("Origin", origine.getScheme() + "://" + origine.getRawAuthority());
+                .header("Origin", referer.getScheme() + "://" + referer.getRawAuthority());
         return envoyer(b, u, referer, pot);
     }
 
-    private Page envoyer(HttpRequest.Builder b, URI u, URI referer, Map<String, String> pot) throws ExtranetException {
+    private Page envoyer(HttpRequest.Builder b, URI u, URI referer, Bocal bocal) throws ExtranetException {
+        Map<String, String> pot = bocal.pour(u.getHost());
         b.timeout(delai).header("User-Agent", "Prestige").header("Accept", TransportExtranet.ACCEPT_HTML);
         if (referer != null) {
             b.header("Referer", referer.toString());
@@ -274,9 +344,9 @@ public final class ConnexionExtranet {
                 Thread.sleep(reste);
             }
             HttpResponse<byte[]> r = client.send(b.build(), HttpResponse.BodyHandlers.ofByteArray());
-            LOG.log(Level.INFO, "Extranet {0} connexion {1} : {2}",
-                    new Object[] { session.source(), u.getPath(), r.statusCode() });
-            garderCookies(r.headers().allValues("Set-Cookie"), pot);
+            LOG.log(Level.INFO, "Extranet {0} connexion {1}{2} : {3}",
+                    new Object[] { session.source(), u.getHost(), u.getPath(), r.statusCode() });
+            bocal.recevoir(u, r.headers().allValues("Set-Cookie"));
             return new Page(u, r.statusCode(), r.headers().firstValue("Location").orElse(null),
                     new String(r.body(), StandardCharsets.UTF_8));
         } catch (IOException e) {

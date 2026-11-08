@@ -216,7 +216,7 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
                             {xtype: 'textfield', itemId: 'exMotDePasse' + source, inputType: 'password', width: 260,
                                 maxLength: 200, enforceMaxLength: true, fieldLabel: 'Mot de passe', labelWidth: 80,
                                 margin: '0 0 0 8', inputAttrTpl: 'autocomplete="new-password"'},
-                            {xtype: 'textfield', itemId: 'exPage' + source, width: 230, maxLength: 300,
+                            {xtype: 'textfield', itemId: 'exPage' + source, width: 230, maxLength: 1000,
                                 enforceMaxLength: true, fieldLabel: 'Page de connexion', labelWidth: 110,
                                 margin: '0 0 0 8', emptyText: '/ (par défaut)'},
                             {xtype: 'textfield', itemId: 'exChamp' + source, width: 190, maxLength: 100,

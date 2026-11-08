@@ -466,3 +466,17 @@ Correction du 08/11 (suite) : clé de chiffrement en base (`extranet_cle`, V7.5.
 `D:\prestige\cles\extranet.cle`. Tests : `ChiffrementExtranetCoherenceTest` adapté (clé fournie, lue une fois, clé
 invalide refusée), 120 tests extranet ; `test-identifiants-extranet.js` 38/38 (clé en base, 32 octets, aucun fichier,
 jamais dans l'API, retirée au nettoyage si créée par le test) ; `test-rapprochement-extranets.js` 40/40.
+
+Correction du 08/11 (retours de l'utilisateur) :
+- TEDIS : l'adresse saisie (`https://www.tedispharma-ci.com/login`) était ramenée à `/login`. Elle est maintenant gardée
+  telle que saisie (colonne portée à 1 000 caractères, V7.5.10).
+- Ubipharm : la connexion passe par un serveur d'authentification distinct (`auth.ubipharm.com`, connexion unique
+  OpenID Connect), puis revient sur `client-cotedivoire.ubipharm.com/CallbackSSO`. La règle « même site » le refusait :
+  elle accepte désormais les serveurs du même domaine (`ubipharm.com`), en https, et refuse toujours tout autre site.
+  Les cookies de la connexion sont rangés par serveur : ceux d'`auth.ubipharm.com` ne partent jamais vers l'extranet.
+- Tests : `PageConnexionCoherenceTest` (adresses réelles des deux extranets, 3 000 adresses tirées, domaine, cookies
+  par serveur), `ConnexionExtranetTest` (parcours OpenID simulé : page complète avec paramètres, action absolue,
+  retour CallbackSSO), 124 tests extranet ; écran 38/38 et 40/40.
+- Non vérifié : le formulaire réel d'`auth.ubipharm.com` (jamais appelé). Le paramètre `state` de l'adresse copiée est
+  fixe ; si Ubipharm le refuse, laisser la page de connexion vide : la page d'accueil de l'extranet redirige elle-même
+  vers le serveur d'authentification.

@@ -139,8 +139,9 @@ const sessionsApi = (p) => p.evaluate(() => fetch('../api/v1/extranet/sessions')
     await cliquerEtAttendre(p, ECRAN + ' #exCompteEnregistrerUBIPHARM', '/comptes/UBIPHARM');
     const pc = lignes("SELECT page_connexion, champ_identifiant FROM extranet_compte WHERE source = 'UBIPHARM'")[0];
     const apiPage = JSON.parse(await sessionsApi(p)).data.find((s) => s.source === 'UBIPHARM').compte;
-    ok('page de connexion : base = écran = API (« / », champ « login »)', pc[0] === '/' && pc[1] === 'login'
-      && apiPage.pageConnexion === '/' && apiPage.champIdentifiant === 'login' && (await valeur(p, '#exPageUBIPHARM')) === '/'
+    const PAGE = 'http://127.0.0.1:18765/';
+    ok('page de connexion : gardée telle que saisie, base = écran = API (champ « login »)', pc[0] === PAGE && pc[1] === 'login'
+      && apiPage.pageConnexion === PAGE && apiPage.champIdentifiant === 'login' && (await valeur(p, '#exPageUBIPHARM')) === PAGE
       && (await valeur(p, '#exChampUBIPHARM')) === 'login', JSON.stringify(pc));
     ok('aucun fichier extranet.properties créé', !fs.existsSync('D:/prestige/extranet.properties'));
     const r4 = await cliquerEtAttendre(p, ECRAN + ' #exConnecterUBIPHARM', '/connexion');
@@ -201,7 +202,7 @@ const sessionsApi = (p) => p.evaluate(() => fetch('../api/v1/extranet/sessions')
       fs.closeSync(fd);
       const t = b.toString('utf8');
       ok('journal du serveur : ni mot de passe, ni identifiant, ni cookie', [MAUVAIS, srv.MOT_DE_PASSE, srv.IDENTIFIANT, 'essai-e2e-local', 'essai-e2e-2', 'jeton-e2e']
-        .every((s) => t.indexOf(s) < 0) && t.indexOf('connexion /Login') >= 0, n + ' octets lus');
+        .every((s) => t.indexOf(s) < 0) && t.indexOf('connexion 127.0.0.1/Login') >= 0, n + ' octets lus');
     } else {
       ok('journal du serveur : PAYARA_DOMAINE requis pour le contrôle', false, journalServeur);
     }

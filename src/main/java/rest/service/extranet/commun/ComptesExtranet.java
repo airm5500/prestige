@@ -58,8 +58,8 @@ public final class ComptesExtranet {
     }
 
     /**
-     * Page de connexion saisie : chemin (« /login ») ou adresse complete du meme extranet, ramenee au chemin. Vide :
-     * null (page « / »).
+     * Page de connexion saisie : chemin (« /login ») ou adresse complete, GARDEE TELLE QUELLE, sur le site de
+     * l'extranet ou sur un serveur du meme domaine (connexion unique : auth.ubipharm.com). Vide : null (page « / »).
      *
      * @throws IllegalArgumentException
      *             adresse d'un autre site ou chemin invalide
@@ -69,18 +69,29 @@ public final class ComptesExtranet {
         if (v.isEmpty()) {
             return null;
         }
-        if (v.regionMatches(true, 0, "http", 0, 4)) {
-            java.net.URI u = java.net.URI.create(v);
-            java.net.URI a = java.net.URI.create(adresseExtranet);
-            if (!a.getHost().equalsIgnoreCase(u.getHost() == null ? "" : u.getHost())) {
-                throw new IllegalArgumentException("La page de connexion doit être sur " + a.getHost());
-            }
-            v = (u.getRawPath() == null || u.getRawPath().isEmpty() ? "/" : u.getRawPath())
-                    + (u.getRawQuery() == null ? "" : "?" + u.getRawQuery());
+        if (v.length() > 1000 || v.contains("\\") || v.contains("#") || v.chars().anyMatch(c -> c < 0x21 || c > 0x7E)) {
+            throw new IllegalArgumentException(
+                    "Page de connexion invalide : copiez l'adresse affichée par le navigateur");
         }
-        if (!v.startsWith("/") || v.startsWith("//") || v.length() > 300 || v.contains("\\") || v.contains("#")
-                || v.chars().anyMatch(c -> c < 0x21 || c > 0x7E)) {
-            throw new IllegalArgumentException("Page de connexion invalide : indiquez par exemple /login");
+        if (v.regionMatches(true, 0, "http", 0, 4)) {
+            java.net.URI u;
+            try {
+                u = java.net.URI.create(v);
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException(
+                        "Page de connexion invalide : copiez l'adresse affichée par le navigateur");
+            }
+            java.net.URI a = java.net.URI.create(adresseExtranet);
+            if (!ConnexionExtranet.memeDomaine(a, u)) {
+                String d = ConnexionExtranet.domaine(a.getHost());
+                throw new IllegalArgumentException("La page de connexion doit être sur " + a.getHost()
+                        + (d == null ? "" : " ou un autre serveur de " + d) + " (en " + a.getScheme() + ")");
+            }
+            return v;
+        }
+        if (!v.startsWith("/") || v.startsWith("//")) {
+            throw new IllegalArgumentException(
+                    "Page de connexion invalide : indiquez l'adresse complète ou un chemin comme /login");
         }
         return v;
     }
