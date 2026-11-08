@@ -289,6 +289,26 @@ Ext.define('testextjs.view.vente.VentesFinis', {
                 {
                     xtype: 'gridpanel',
                     store: vente,
+                    listeners: {
+                        /* Plan du 08/11, point 4 : clic sur le repere d'une vente liee : detail de l'autre vente */
+                        cellclick: function (view, td, colIndex, rec, tr, rowIndex, e) {
+                            var cible = e.getTarget('[data-vente-liee]');
+                            if (!cible) {
+                                return;
+                            }
+                            e.stopEvent();
+                            Ext.Ajax.request({
+                                method: 'GET',
+                                url: '../api/v1/ventestats/find-one/' + encodeURIComponent(cible.getAttribute('data-vente-liee')),
+                                success: function (response) {
+                                    var result = Ext.JSON.decode(response.responseText, true);
+                                    if (result && result.data) {
+                                        Ext.create('testextjs.view.vente.DetailVente', {vente: result.data}).show();
+                                    }
+                                }
+                            });
+                        }
+                    },
                     viewConfig: {
                         forceFit: true,
                         columnLines: true,
@@ -302,7 +322,20 @@ Ext.define('testextjs.view.vente.VentesFinis', {
                             menuDisabled: true,
                             header: 'Reference',
                             dataIndex: 'strREF',
-                            flex: 0.8
+                            flex: 0.8,
+                            /* Plan du 08/11, point 4 : vente scindee (assurance + comptant) : repere « ⇄ » sur les deux
+                               ventes du couple ; info-bulle = l'autre vente ; clic = son detail */
+                            renderer: function (v, m, rec) {
+                                var ref = Ext.String.htmlEncode(v || ''), liee = rec.get('venteLiee');
+                                if (!liee) {
+                                    return ref;
+                                }
+                                var autre = Ext.String.htmlEncode(rec.get('venteLieeRef') || liee);
+                                return ref + ' <span class="vente-liee" data-vente-liee="' + Ext.String.htmlEncode(liee) + '"'
+                                        + ' data-qtip="Vente scindée (assurance + comptant) : vente liée n° ' + autre + '.<br>Clic : voir son détail."'
+                                        + ' style="cursor:pointer;display:inline-block;padding:0 5px;border-radius:8px;background:#e3eefc;'
+                                        + 'color:#1f5fae;font-weight:bold;font-size:11px;line-height:15px">&#8644;</span>';
+                            }
                         },
                         {
                             sortable: false,
