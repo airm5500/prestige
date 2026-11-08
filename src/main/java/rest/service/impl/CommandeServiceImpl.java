@@ -518,7 +518,12 @@ public class CommandeServiceImpl implements CommandeService {
             }
             /* retours du 13/10 (point 6) : produits du bon dont le seuil de reserve est atteint, montres a l'ecran */
             try {
-                json.put("reserve", suggestionReserveService.lignesOuvertesAuto(user, famillesEntreesEnStock));
+                /*
+                 * demande 60 (droit « Voir les suggestions de réserve ») : un profil sans ce droit ne voit pas les lignes
+                 * des suggestions ; la suggestion est creee quand meme. Droit absent de la base : comme avant.
+                 */
+                json.put("reserve", voitSuggestionsReserve(user)
+                        ? suggestionReserveService.lignesOuvertesAuto(user, famillesEntreesEnStock) : new JSONArray());
             } catch (Exception e) {
                 LOG.log(Level.WARNING, "Suggestions de reserve non lues apres cloture du BL " + id, e);
             }
@@ -801,6 +806,20 @@ public class CommandeServiceImpl implements CommandeService {
     public boolean hasEntreeStockPrivilege() {
         TUser user = sessionHelperService.getCurrentUser();
         return user != null && hasPrivilege(user, P_ENTREE_EN_STOCK);
+    }
+
+    /** Droit « Voir les suggestions de réserve » (demande 60, migration V7.2.70 d'une autre branche). */
+    static final String P_RESERVE_SUGGESTION = "P_RESERVE_SUGGESTION";
+
+    /**
+     * Demande 60 : les lignes de suggestion de reserve ne sont montrees qu'a un profil qui porte P_RESERVE_SUGGESTION.
+     * Tant que ce droit n'existe pas (actif) en base, rien ne change : tout le monde les voit, comme avant.
+     */
+    private boolean voitSuggestionsReserve(TUser user) {
+        Object existe = this.getEm()
+                .createNativeQuery("SELECT COUNT(*) FROM t_privilege WHERE str_NAME = ?1 AND str_STATUT = 'enable'")
+                .setParameter(1, P_RESERVE_SUGGESTION).getSingleResult();
+        return Integer.parseInt(existe + "") == 0 || hasPrivilege(user, P_RESERVE_SUGGESTION);
     }
 
     private boolean hasPrivilege(TUser user, String privilegeName) {
