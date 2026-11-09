@@ -180,10 +180,9 @@ saisi à l'écran. Le code ne change pas (commit e760bdc1f).
   - `test-pilotage-besoins-1110-b` : « fondsDoux » et « 00h-02h » ;
   - `test-campagnes` : sous-menu « Modèles de messages » ;
   - `test-avis-clients` : pas d'écoute sur le port 8090 de domain1.
-- **Défauts suspectés par la session de la demande 59, non corrigés :**
-  - `POST v1/retourfournisseur/new` n'enregistre que la première ligne de `items` ;
-  - historique d'un retour : il est daté à la seconde, et l'ordre des actions d'une même seconde n'est pas garanti ;
-  - une réponse 409 de `update-item` s'affiche dans une boîte d'erreur standard.
+- **Défauts suspectés par la session de la demande 59 :** les deux premiers sont confirmés et corrigés l'après-midi
+  du 09/11 (§ 9). Reste : une réponse 409 de `update-item` s'affiche dans une boîte d'erreur standard. Le stock
+  cumulé écrit dans chaque lot était déjà corrigé dans l'intégration (audit 06, EN-01).
 - **Sujets qui attendent :**
   - le prix des catalogues et la disponibilité par extranet attendent la fusion des connecteurs ;
   - il n'existe aucun lecteur d'extranet Laborex ;
@@ -191,3 +190,61 @@ saisi à l'écran. Le code ne change pas (commit e760bdc1f).
   - le point 12 du plan du 08/11 (tremblement d'écran), non reproduit.
 - **Éditions jrxml :** sur ce poste, `D:\CONF\LABOREX\REPORTS` prime sur le WAR. Elles n'y sont copiées qu'avec votre
   accord.
+
+## 9. Suite du 09/11 (après-midi)
+
+### 9.1 Retours fournisseurs : deux défauts confirmés et corrigés (commit fb49915a3)
+- **Création avec plusieurs lignes.** `POST v1/retourfournisseur/new` n'enregistrait que la première ligne de `items`,
+  sans message. L'écran web n'en envoie qu'une ; un client mobile peut en envoyer plusieurs.
+  - **Règle :** chaque ligne suit les contrôles de l'ajout de ligne (BL, quantité reçue, plafond, stock, motif, lot).
+    Même produit et même motif : quantités ajoutées ; autre motif : seconde ligne. Une seule ligne refusée et rien
+    n'est créé. Liste vide : refus lisible (avant : erreur 500).
+  - **Test :** `test-retour-new-plusieurs-lignes` ; 4/13 sur l'ancien WAR, 13/13 après.
+  - **Rapprochement :** base = détail lu par l'écran (`retours-items`), ligne par ligne.
+  - **Bilan :** rien ne sort du stock avant la validation ; à la validation, chaque produit perd sa quantité et un
+    mouvement par ligne, ni plus ni moins.
+  - **Cas variés :** trois produits, quantités 1 à 3, deux motifs, même produit répété, quantité au-delà du reçu,
+    produit absent du BL, une seule ligne, liste vide, clé mobile envoyée deux fois.
+- **Historique dans l'ordre des actions.** Deux actions de la même seconde étaient départagées par un identifiant tiré
+  au hasard. Une colonne `ordre` (migration V7.2.105, auto-incrément) sert de second critère de tri, à l'écran comme
+  pour l'auteur de la dernière action.
+  - **Test :** `test-retour-historique-ordre` ; 8 retours enchaînés sans pause (mise en attente, refus, remise en
+    attente, refus, abandon) : 0/8 dans l'ordre avant, 8/8 après.
+  - **Bilan :** cinq lignes d'historique par retour ; stock et mouvements inchangés.
+- **Non-régression :** 16 tests des retours et des droits, tous verts ; JUnit 1 989 tests, aucun échec.
+
+### 9.2 Connecteurs grossistes fusionnés (commits 708500acf et fc60d9ca6)
+- **Conflit :** `RubriqueParametre`, rubrique « Commandes » ; les deux paramètres sont gardés
+  (`KEY_NETTOYER_SUGGESTION` et `KEY_AFFICHER_STOCK_GROSSISTE`). Migrations V7.5.0 à V7.5.14 sans doublon ;
+  V7.2.39 (PSCODE) identique des deux côtés.
+- **Défaut trouvé par la non-régression :** trois filets de couleur sur un seul côté, contraires au retour du 04/11.
+  Deux venaient de l'activité des équipes (plan avoir), un des rubriques Mayité (connecteurs). Remplacés par une
+  pastille et un fond doux, et par un bandeau de titre gris. `test-sans-filet-colore` : 3 filets avant, 7/7 après.
+- **Défaut des tests d'extranet :** sans compte en base, la garde laissait partir un test sur un domaine non redirigé.
+  Sur domain1, une lecture d'essai a ainsi visé le vrai site Ubipharm, avec une session d'essai refusée
+  (« SESSION_EXPIREE »). Aucun identifiant réel n'a été envoyé. La garde est maintenant toujours exigée, et neuf
+  tests qui ne l'appelaient pas l'appellent.
+- **Vérifications :**
+  - JUnit : 2 218 tests ; une erreur passagère de `ChargementEtatJasperTest` (dossier temporaire verrouillé),
+    vert relancé seul ;
+  - tests d'écran sur domain1 : suggestion, réserve, correspondance, paramètres, retours et activité des équipes,
+    24 tests verts (13 de non-régression, 11 de l’activité) ;
+  - deux échecs déjà présents sans les connecteurs, identiques sur l'ancien WAR : `test-derniere-entree` (délai
+    dépassé) et `test-parametre-0-identique` (en-tête de grille différent au pixel, colonnes identiques) ;
+  - les 22 tests d'écran des extranets ne tournent que sur un domaine dont toutes les sources visent 127.0.0.1. Ce
+    n'est pas le cas de domain1 ; ils étaient verts sur la branche des connecteurs.
+
+### 9.3 Version d'essai sur le port 9080 (branche `essai/cas4-9080`, non fusionnée)
+- **Contenu :** l'intégration, les connecteurs, le cas 4 (lots 4.A, 4.B, 4.C) et les correctifs du § 9.1. Base
+  `laborex_perf` (instance 3307).
+- **Cas 4 :** ses migrations V7.2.38, V7.2.39 et V7.2.40 portaient les numéros de trois migrations de l'intégration ;
+  Flyway aurait refusé de démarrer. Elles deviennent V7.2.106, V7.2.107 et V7.2.108, contenu inchangé.
+- **Vérifications :** JUnit 2 254 tests, aucun échec ; toutes les migrations passées sur `laborex_perf` ; connexion,
+  menus et écran des extranets sans erreur JavaScript.
+- **Pas encore dedans :** le correctif des filets du § 9.2 (arrivé après le déploiement).
+
+### 9.4 Présentations des saisies
+- **Demande :** supprimer la branche.
+- **Fait :** le worktree est retiré de Git. Ses modifications non commitées sont gardées sous l'étiquette locale
+  `archive/presentations-saisies-0911`.
+- **Refusé par le contrôle des permissions :** la suppression de la branche locale et distante, à faire à la main.

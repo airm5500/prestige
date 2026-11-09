@@ -22,6 +22,7 @@ fusionnées plus tôt en ont déjà apporté une partie.
 | 7 | `PRES-/avoir-presaisie-bl-b5eb09` (plan avoir 6) | ee10d1ac5 | bd4718e08 | 5 | 13 | `…\worktrees\avoir-presaisie-bl-b5eb09` |
 | 8 | `PRES-/avoir-whatsapp-web-avis-a27062` (plan avoir 9, 10) | 9846a034f | 0a7a9d364 | 7 | 22 | `…\worktrees\avoir-whatsapp-web-avis-a27062` |
 | 9 | `PRES-/avoir-campagnes-f6e4e5` (plan avoir 4, 5) | e23878b4d | f119649f7 | 8 | 19 | `…\worktrees\avoir-campagnes-f6e4e5` |
+| 10 | `claude/faisabilite-connecteurs-grossistes` (connecteurs, après-midi) | ece9e500c | 708500acf | 62 | 173 | `…\worktrees\connecteurs-grossistes` |
 
 `…` remplace `D:\projet\p3\prestige\.claude`.
 
@@ -70,12 +71,22 @@ Aucun numéro n'est en double.
   - Le détail est dans `CAHIER_RECETTE_FUSION_2026-11-09.xlsx`, feuille « Tests de la série ».
 
 ## Non fusionnés
-- `claude/faisabilite-connecteurs-grossistes` (connecteurs Ubipharm / TEDIS) : ils attendent votre test.
-- Cas 4 (archives, lots 4.A, 4.B et 4.C).
-- Présentations des saisies (`PRES-/presentations-saisies-335d16`).
+- **Cas 4** (`PRES-/cas4-lot-4c-archives-e5f376`, lots 4.A, 4.B et 4.C) : seulement dans la version d'essai
+  `essai/cas4-9080` (worktree `D:\projet\p3\prestige-essai-9080`), déployée sur domain2 (port 9080) pour votre test.
+  Ses migrations y sont renumérotées V7.2.106 à V7.2.108 (doublons de numéros avec l'intégration).
+- **Présentations des saisies** : à supprimer, sur votre demande. Le worktree est retiré de Git ; ses modifications
+  sont gardées sous l'étiquette `archive/presentations-saisies-0911`. La suppression des branches locale et distante
+  a été refusée par le contrôle des permissions.
+
+## Après les fusions (après-midi du 09/11)
+- fb49915a3 : retours fournisseurs, création avec plusieurs lignes et historique dans l'ordre (migration V7.2.105) ;
+- 708500acf : fusion des connecteurs ; conflit de `RubriqueParametre`, les deux paramètres gardés ;
+- fc60d9ca6 : plus de filet de couleur (activité des équipes, rubriques Mayité), garde des tests d'extranet.
+
+Détail et vérifications : rapport, § 9.
 
 ## Worktrees qu'on peut retirer
-- **Les neuf worktrees ci-dessus :** leurs branches sont fusionnées et poussées.
+- **Les dix worktrees ci-dessus :** leurs branches sont fusionnées et poussées.
 - **`D:\projet\p3\prestige-plan-08112026` :** son contenu est arrivé avec les branches du plan avoir.
 - **`D:\projet\p3\prestige-ancien-0811` :** une tête détachée qui servait aux comparaisons avec l'ancien WAR.
 
