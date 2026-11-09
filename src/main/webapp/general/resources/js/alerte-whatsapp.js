@@ -114,8 +114,8 @@
                             bouton.disabled = false;
                             bouton.textContent = 'Reconnecter';
                             raison('Le service n\'a pas répondu après ' + Math.round(SUIVI.essais * SUIVI.pas / 1000)
-                                    + ' s : il n\'a pas démarré. Voir la fenêtre « Service WhatsApp Web - Prestige »'
-                                    + ' (réduite dans la barre des tâches) ou le journal du service.');
+                                    + ' s : il n\'a pas démarré. Voir le journal du service (Comptes WhatsApp >'
+                                    + ' Configuration détaillée).');
                         }
                     }, SUIVI.pas);
                 })();
