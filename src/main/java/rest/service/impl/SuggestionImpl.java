@@ -1836,6 +1836,8 @@ public class SuggestionImpl implements SuggestionService {
             data.put("total", count);
 
             long boucleStart = System.currentTimeMillis();
+            /* demande du 09/11 : produits de la page, pour les donnees de l'extranet du grossiste */
+            List<rest.service.extranet.commun.InfosGrossiste.Produit> produitsExtranet = new ArrayList<>();
 
             for (TSuggestionOrderDetails order : detailses) {
                 long lineStart = System.currentTimeMillis();
@@ -1868,6 +1870,12 @@ public class SuggestionImpl implements SuggestionService {
                         familleGrossiste != null ? familleGrossiste.getStrCODEARTICLE() : famille.getIntCIP());
 
                 json.put("str_FAMILLE_NAME", famille.getStrDESCRIPTION());
+                produitsExtranet.add(new rest.service.extranet.commun.InfosGrossiste.Produit(
+                        order.getLgSUGGESTIONORDERDETAILSID(), famille.getStrNAME(),
+                        java.util.Arrays.asList(famille.getIntCIP(), famille.getIntCIP2(), famille.getIntCIP3(),
+                                famille.getIntCIP4(), famille.getIntEAN13()),
+                        java.util.Arrays.asList(famille.getStrPSCODE(),
+                                familleGrossiste != null ? familleGrossiste.getStrCODEARTICLE() : null)));
 
                 json.put("int_DATE_BUTOIR_ARTICLE", famille.getLgCODEGESTIONID() != null
                         ? famille.getLgCODEGESTIONID().getIntDATEBUTOIRARTICLE() : 0);
@@ -1941,6 +1949,7 @@ public class SuggestionImpl implements SuggestionService {
 
             LOG.info("SUGGESTION PERF - boucle totale = " + (System.currentTimeMillis() - boucleStart) + " ms");
             ajouterColisage(arrayObj);
+            ajouterInfosExtranet(arrayObj, produitsExtranet, grossiste, data);
 
             data.put("data", arrayObj);
 
@@ -1951,6 +1960,40 @@ public class SuggestionImpl implements SuggestionService {
         LOG.info("SUGGESTION PERF - total fetchItems = " + (System.currentTimeMillis() - globalStart) + " ms");
 
         return data;
+    }
+
+    /**
+     * Demande du 09/11 : unites gratuites, stock (si KEY_AFFICHER_STOCK_GROSSISTE = 1) et commandes en cours lus dans
+     * les listes gardees de l'extranet lie au grossiste de la suggestion. Ne bloque jamais la suggestion : sans lien ou
+     * en cas d'erreur, les lignes restent telles quelles.
+     */
+    private void ajouterInfosExtranet(JSONArray lignes,
+            List<rest.service.extranet.commun.InfosGrossiste.Produit> produits, TGrossiste grossiste, JSONObject data) {
+        try {
+            rest.service.extranet.commun.SourceExtranet source = grossiste == null ? null
+                    : new rest.service.extranet.commun.LiaisonGrossistes(em).sourceDe(grossiste.getLgGROSSISTEID());
+            if (source == null) {
+                data.put("extranet", JSONObject.NULL);
+                return;
+            }
+            boolean stock = rest.service.extranet.commun.InfosGrossiste.stockAffiche(em);
+            Map<String, JSONObject> infos = rest.service.extranet.commun.InfosGrossiste.pourProduits(em, source,
+                    produits, stock);
+            for (int i = 0; i < lignes.length(); i++) {
+                JSONObject l = lignes.getJSONObject(i);
+                JSONObject o = infos.get(l.optString("lg_SUGGESTION_ORDER_DETAILS_ID"));
+                if (o != null) {
+                    l.put("extranet", o);
+                }
+            }
+            data.put("extranet",
+                    new JSONObject().put("source", source.name())
+                            .put("libelle", rest.service.extranet.commun.LiaisonGrossistes.libelle(source))
+                            .put("stockAffiche", stock));
+        } catch (RuntimeException e) {
+            LOG.log(Level.WARNING, "Suggestion : donnees de l'extranet illisibles ({0})", e.getClass().getSimpleName());
+            data.put("extranet", JSONObject.NULL);
+        }
     }
 
     @Override
