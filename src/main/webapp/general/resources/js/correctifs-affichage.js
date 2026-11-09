@@ -2642,16 +2642,21 @@ window.PrestigeRetoursAttente = (function () {
     }
     /* la liste ouverte (par l'avis, ou par un clic sur la pastille du menu) est filtree sur « En attente » */
     function filtrerEnAttente(avant) {
-        var tours = 0, filtrer = function () {
+        var tours = 0, filtre = null, filtrer = function () {
             var c = Ext.getCmp('retourFrsEtat'),
                     g = Ext.ComponentQuery.query('retourfrsmanager').filter(function (x) {
                         return !x.isDestroyed;
                     }).pop();
-            /* nouvelle liste (ou la meme, si l'ecran n'a pas ete recree, apres une seconde) */
-            if (c && g && !c.isDestroyed && (c !== avant || tours > 4)) {
+            /* nouvelle liste (ou la meme, si l'ecran n'a pas ete recree, apres une seconde) ; une liste recreee apres
+               le filtre (deux ouvertures de suite) est filtree a son tour ; un choix de l'utilisateur sur la meme
+               liste n'est jamais remplace */
+            if (c && g && !c.isDestroyed && c !== filtre && (c !== avant || tours > 4)) {
+                filtre = c;
                 var appliquer = function () {
-                    c.setValue('ATTENTE');
-                    g.onRechClick();
+                    if (!c.isDestroyed && !g.isDestroyed) {
+                        c.setValue('ATTENTE');
+                        g.onRechClick();
+                    }
                 };
                 /* apres son premier chargement, qui sinon remplacerait la liste filtree */
                 if (g.getStore().isLoading()) {
@@ -2659,7 +2664,9 @@ window.PrestigeRetoursAttente = (function () {
                 } else {
                     appliquer();
                 }
-            } else if (tours++ < 40) {
+            }
+            /* on continue de regarder quelques secondes : la liste peut etre recreee une seconde fois */
+            if (tours++ < 40 && (!filtre || tours < 24)) {
                 setTimeout(filtrer, 250);
             }
         };
@@ -2723,11 +2730,27 @@ window.PrestigeRetoursAttente = (function () {
             }
         });
     }
+    /* la pastille peut etre reposee (texte du menu redessine) entre l'affichage et l'appui : l'appui arrive alors sur
+       le texte du menu ; on la reconnait aussi a la position du pointeur */
+    function surPastille(e) {
+        if (e.target && e.target.closest && e.target.closest('.pastille-retours')) {
+            return true;
+        }
+        return [].some.call(document.querySelectorAll('.pastille-retours'), function (b) {
+            var r = b.getBoundingClientRect();
+            return r.width > 0 && e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+        });
+    }
     if (/\/general\//.test(location.pathname)) {
         setTimeout(demarrer, 1500);
-        document.addEventListener('click', function (e) {
-            if (e.target && e.target.closest && e.target.closest('.pastille-retours')) {
-                setTimeout(filtrerEnAttente, 300); // le clic sur l'entree ouvre la liste ; on la filtre ensuite
+        /* a l'appui : le menu flottant se ferme avant le relachement, le clic n'arrive alors pas toujours ici */
+        document.addEventListener('mousedown', function (e) {
+            if (surPastille(e)) {
+                /* le clic sur l'entree ouvre la liste ; on filtre ensuite la nouvelle liste, pas celle d'avant le clic */
+                var avant = Ext.getCmp('retourFrsEtat');
+                setTimeout(function () {
+                    filtrerEnAttente(avant);
+                }, 300);
             }
         }, true);
     }

@@ -102,15 +102,15 @@ function retirer() {
     if (!(await p.evaluate(() => Ext.ComponentQuery.query('retourfrsmanager').some((g) => g.isVisible(true))))) {
       await ouvrirMenu(p, 'GESTION DES COMMANDES', 'Retour fournisseur');
     }
-    await p.waitForFunction(() => { const g = Ext.ComponentQuery.query('retourfrsmanager')[0]; return g && g.isVisible(true) && !g.getStore().isLoading() && Ext.getCmp('retourFrsEtat'); }, null, { timeout: 60000 });
+    await p.waitForFunction(() => { const g = Ext.ComponentQuery.query('retourfrsmanager').filter((x) => !x.isDestroyed && x.isVisible(true)).pop(); return g && g.isVisible(true) && !g.getStore().isLoading() && Ext.getCmp('retourFrsEtat'); }, null, { timeout: 60000 });
     if (filtre) {
       await choisir(p, '#retourFrsEtat', filtre);
       await p.waitForTimeout(400);
-      await p.waitForFunction(() => !Ext.ComponentQuery.query('retourfrsmanager')[0].getStore().isLoading(), null, { timeout: 60000 });
+      await p.waitForFunction(() => !Ext.ComponentQuery.query('retourfrsmanager').filter((x) => !x.isDestroyed && x.isVisible(true)).pop().getStore().isLoading(), null, { timeout: 60000 });
     }
     await p.waitForTimeout(500);
   };
-  const ligne = (id) => p.evaluate((id) => { const g = Ext.ComponentQuery.query('retourfrsmanager')[0], st = g.getStore(), i = st.findExact('lg_RETOUR_FRS_ID', id);
+  const ligne = (id) => p.evaluate((id) => { const g = Ext.ComponentQuery.query('retourfrsmanager').filter((x) => !x.isDestroyed && x.isVisible(true)).pop(), st = g.getStore(), i = st.findExact('lg_RETOUR_FRS_ID', id);
     const statuts = st.collect('str_STATUT');
     if (i < 0) { return { present: false, statuts, total: st.getCount() }; }
     const n = g.getView().getNode(st.getAt(i)), img = [...n.querySelectorAll('img.act-modifier, img[src*="page_white_edit"]')].find((x) => !x.classList.contains('x-hide-display'));
@@ -223,14 +223,15 @@ function retirer() {
     ok('Pastille après la remise en attente : un de plus (= base)', (await pastille()) === enAttente() && enAttente() === n1, (await pastille()) + ' / ' + enAttente() + ' / ' + n1);
     await ouvrirMenuParent();
     await p.locator('.prestige-flyout-menu .pastille-retours').filter({ visible: true }).first().click();
-    await p.waitForFunction(() => { const c = Ext.getCmp('retourFrsEtat'), g = Ext.ComponentQuery.query('retourfrsmanager')[0];
+    await p.waitForFunction(() => { const c = Ext.getCmp('retourFrsEtat'), g = Ext.ComponentQuery.query('retourfrsmanager').filter((x) => !x.isDestroyed && x.isVisible(true)).pop();
       /* liste rechargee avec le filtre (et non l'ancienne liste lue avant le rechargement) */
       return c && g && g.isVisible(true) && c.getValue() === 'ATTENTE' && !g.getStore().isLoading() && g.getStore().getCount() > 0
         && g.getStore().collect('str_STATUT').every((s) => s === 'is_Waiting'); }, null, { timeout: 30000 }).catch(() => {});
     await p.waitForTimeout(800);
     const lp = await ligne(R1);
     ok('Clic sur la pastille : liste « En attente de validation », le retour remis en attente y est', lp.present && lp.statuts.length > 0 && lp.statuts.every((x) => x === 'is_Waiting')
-      && (await p.evaluate(() => Ext.getCmp('retourFrsEtat').getValue())) === 'ATTENTE', JSON.stringify(lp.statuts.slice(0, 5)));
+      && (await p.evaluate(() => Ext.getCmp('retourFrsEtat').getValue())) === 'ATTENTE', JSON.stringify({ present: lp.present, total: lp.total, statuts: lp.statuts.slice(0, 5), etat: await p.evaluate(() => Ext.getCmp('retourFrsEtat').getValue()),
+        listes: await p.evaluate(() => Ext.ComponentQuery.query('retourfrsmanager').map((x) => (x.isDestroyed ? 'd' : '') + (x.isVisible(true) ? 'v' : 'c')).join(',')) }));
     await ouvrirRetour(R1);
     await saisir(p, '#retourMotifRefus', MOTIF2);
     await deuxClics('#btn_refuser');
