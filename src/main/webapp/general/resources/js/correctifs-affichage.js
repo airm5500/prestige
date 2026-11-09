@@ -915,6 +915,8 @@ window.PrestigeAffichage.ECRANS_COLLES = [
     'peremptionscourtes',
     // menu « Modèles de ticket » (PARAMETRAGES, demande du 02/11)
     'modelesticket',
+    // menu « Correspondance grossistes » (GESTION DES COMMANDES, étude du 08/11, lot 3)
+    'correspondancesgrossistes',
     // retours du 05/10 (lot A)
     'facturesubrogatoire', 'modelfacture', 'modelfacturedynamique', 'factureenattenteedition',
     // lot B
@@ -1043,6 +1045,8 @@ window.PrestigeAffichage.ECRANS_STYLE_VENTE = [
     'peremptionscourtes',
     // menu « Modèles de ticket »
     'modelesticket',
+    // menu « Correspondance grossistes »
+    'correspondancesgrossistes',
     // lot D : statistiques, parametres, administration
     'info_officine', 'parametermanager', 'grossistemanager', 'smsfournisseur', 'dcimanager', 'cazonegeomanager', 'analyseFrequentationOffManager', 'gardemanager',
     'tvastat', 'margeproducts', 'abcmanager', 'feuilledematch', 'recap', 'usermanager', 'rolemanager', 'myaccountmanager',

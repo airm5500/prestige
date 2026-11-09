@@ -132,6 +132,9 @@ public class CommandeServiceImpl implements CommandeService {
     private rest.service.SuggestionReserveService suggestionReserveService;
     @EJB
     private rest.service.VentesRateesService ventesRateesService;
+
+    @EJB
+    private rest.service.correspondance.CorrespondanceGrossisteService correspondanceGrossisteService;
     @PersistenceContext(unitName = "JTA_UNIT")
     private EntityManager em;
     @EJB
@@ -526,6 +529,15 @@ public class CommandeServiceImpl implements CommandeService {
 
             });
             userTransaction.commit();
+
+            // Correspondances grossistes (lot 2) : les codes lus a l'import de la commande sont confirmes ou
+            // contredits par ce BL, APRES le commit et dans leur propre transaction. Rien n'est propage : un
+            // incident ici ne remet pas en cause l'entree en stock ; la reception peut etre rejouee (API).
+            try {
+                correspondanceGrossisteService.appliquerReceptionBl(id);
+            } catch (Exception e) {
+                LOG.log(Level.WARNING, "Correspondances grossistes non mises a jour apres cloture du BL " + id, e);
+            }
 
             // Suggestions de reserve : evaluation APRES le commit, sinon le stock lu serait celui
             // d'avant l'entree. Rien n'est propage : un incident de suggestion ne doit pas remettre

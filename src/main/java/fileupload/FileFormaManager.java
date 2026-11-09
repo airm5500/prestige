@@ -68,6 +68,7 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import toolkits.utils.jdom;
+import rest.service.correspondance.TraceImportGrossiste;
 import util.Constant;
 import util.DateConverter;
 import util.DateUtil;
@@ -362,7 +363,7 @@ public class FileFormaManager extends HttpServlet {
                     if (count > 0) {
                         int ligne = createOrderDetailViaCsv(order, cSVRecord.get(4), Integer.parseInt(cSVRecord.get(9)),
                                 Double.valueOf(cSVRecord.get(11)).intValue(), Integer.parseInt(cSVRecord.get(13)),
-                                Integer.parseInt(cSVRecord.get(10)), null, null);
+                                Integer.parseInt(cSVRecord.get(10)), null, null, cSVRecord.get(6));
                         i += ligne;
                         if (ligne == 0) {
                             OrderItem orderItem = new OrderItem().dateBl(cSVRecord.get(0))
@@ -439,7 +440,7 @@ public class FileFormaManager extends HttpServlet {
                 for (CSVRecord cSVRecord : parser) {
                     int ligne = createOrderDetailViaCsv(order, cSVRecord.get(2), Integer.parseInt(cSVRecord.get(6)),
                             Double.valueOf(cSVRecord.get(3)).intValue(), Double.valueOf(cSVRecord.get(4)).intValue(), 0,
-                            null, null);
+                            null, null, cSVRecord.get(1));
                     i += ligne;
                     if (ligne == 0) {
                         OrderItem orderItem = new OrderItem().refBl(cSVRecord.get(8)).cip(cSVRecord.get(2))
@@ -579,6 +580,40 @@ public class FileFormaManager extends HttpServlet {
 
     public int createOrderDetailViaCsv(TOrder order, String codeCip, int qty, int intPafDetail, int pu, int ug,
             String numeroLot, String datePeremption) {
+        return createOrderDetailViaCsv(order, codeCip, qty, intPafDetail, pu, ug, numeroLot, datePeremption, null);
+    }
+
+    /**
+     * Correspondance grossistes (lot 2) : chaque ligne lue, reconnue ou non, garde son code et sa designation chez le
+     * grossiste (ligne_import_grossiste), dans la meme transaction que la ligne de commande.
+     */
+    /**
+     * Correspondance grossistes : la fiche VALIDEE par l'officine pour ce code chez le grossiste de la commande prime
+     * sur la recherche par code (CIP, EAN ou code article en debut de chaine). Null sans validation.
+     */
+    private TFamille familleValidee(TOrder order, String code) {
+        if (order.getLgGROSSISTEID() == null || code == null) {
+            return null;
+        }
+        try {
+            String id = TraceImportGrossiste.familleValidee(em, order.getLgGROSSISTEID().getLgGROSSISTEID(), code);
+            return id == null ? null : em.find(TFamille.class, id);
+        } catch (RuntimeException e) {
+            LOG.log(Level.WARNING, "import de commande : correspondances validees illisibles", e);
+            return null;
+        }
+    }
+
+    private void tracerLigne(TOrder order, String code, String designation, TFamille famille, TOrderDetail detail,
+            int qty, Integer prixAchat) {
+        TraceImportGrossiste.tracer(em, order.getLgORDERID(),
+                order.getLgGROSSISTEID() == null ? null : order.getLgGROSSISTEID().getLgGROSSISTEID(), code,
+                designation, famille == null ? null : famille.getLgFAMILLEID(),
+                detail == null ? null : detail.getLgORDERDETAILID(), qty, prixAchat);
+    }
+
+    public int createOrderDetailViaCsv(TOrder order, String codeCip, int qty, int intPafDetail, int pu, int ug,
+            String numeroLot, String datePeremption, String designation) {
         TOrderDetail oTOrderDetail;
         TFamille oTFamille = null;
         TFamilleGrossiste oTFamilleGrossiste = null;
@@ -590,6 +625,12 @@ public class FileFormaManager extends HttpServlet {
                 }
             } catch (Exception e) {
 
+            }
+            TFamille validee = familleValidee(order, codeCip);
+            if (validee != null
+                    && (oTFamille == null || !validee.getLgFAMILLEID().equals(oTFamille.getLgFAMILLEID()))) {
+                oTFamille = validee;
+                oTFamilleGrossiste = null; // prix public : celui de la fiche validee
             }
             if (oTFamille != null) {
                 oTOrderDetail = findFamilleInTOrderDetail(order.getLgORDERID(), oTFamille.getLgFAMILLEID());
@@ -603,7 +644,9 @@ public class FileFormaManager extends HttpServlet {
                     oTOrderDetail.setIntQTEREPGROSSISTE(qty);
                     oTOrderDetail.setIntQTEMANQUANT(0);
                     oTOrderDetail.setIntPRICE(qty * intPafDetail);
-                    oTOrderDetail.setIntPRICEDETAIL((pu == 0 ? oTFamilleGrossiste.getIntPRICE() : pu));
+                    oTOrderDetail.setIntPRICEDETAIL((pu == 0
+                            ? (oTFamilleGrossiste != null ? oTFamilleGrossiste.getIntPRICE() : oTFamille.getIntPRICE())
+                            : pu));
                     oTOrderDetail.setIntPAFDETAIL(intPafDetail);
                     oTOrderDetail.setPrixAchat(oTOrderDetail.getIntPAFDETAIL());
                     oTOrderDetail.setStrSTATUT(Constant.STATUT_IS_PROGRESS);
@@ -622,10 +665,11 @@ public class FileFormaManager extends HttpServlet {
                     em.merge(oTOrderDetail);
 
                 }
+                tracerLigne(order, codeCip, designation, oTFamille, oTOrderDetail, qty, intPafDetail);
                 return 1;
 
             } else {
-
+                tracerLigne(order, codeCip, designation, null, null, qty, intPafDetail);
                 return 0;
             }
         } catch (Exception e) {
@@ -775,6 +819,10 @@ public class FileFormaManager extends HttpServlet {
             if (oTFamille == null) {
                 oTFamille = findByCodeCipOrEan(codeCip.trim());
             }
+            TFamille validee = familleValidee(order, codeCip);
+            if (validee != null) {
+                oTFamille = validee;
+            }
             if (oTFamille != null) {
                 oTOrderDetail = findFamilleInTOrderDetail(order.getLgORDERID(), oTFamille.getLgFAMILLEID());
                 if (oTOrderDetail == null) {
@@ -806,10 +854,11 @@ public class FileFormaManager extends HttpServlet {
                     em.merge(oTOrderDetail);
 
                 }
+                tracerLigne(order, codeCip, null, oTFamille, oTOrderDetail, qty, prixAchat);
                 return 1;
 
             } else {
-
+                tracerLigne(order, codeCip, null, null, null, qty, prixAchat);
                 return 0;
             }
         } catch (NoResultException e) {
@@ -846,7 +895,7 @@ public class FileFormaManager extends HttpServlet {
     private int buildOrderDetailFromLaborexRecord(TOrder order, CSVRecord cSVRecord) {
         return createOrderDetailViaCsv(order, cSVRecord.get(3), Integer.parseInt(cSVRecord.get(7)),
                 Double.valueOf(cSVRecord.get(8)).intValue(), Double.valueOf(cSVRecord.get(9)).intValue(),
-                Integer.parseInt(cSVRecord.get(6)), null, null);
+                Integer.parseInt(cSVRecord.get(6)), null, null, cSVRecord.get(4));
     }
 
     private void buildOrderItemFromLaborexRecord(CSVRecord cSVRecord) {
