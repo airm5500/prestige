@@ -12,7 +12,8 @@
  *  - rapprochement : reperes carte = fenetre = menu = API = base ; tableau « CA par employe et tranche horaire »
  *    fenetre = menu = API = base, ligne par ligne, cellule par cellule (caissiere 1 h, vendeur 3 h choisis a la
  *    souris) ; API = base pour les 6 tailles et les 2 attributions ; export CSV = API ;
- *  - droit : un profil sans le menu ne voit pas la carte, la route est refusee (403) ;
+ *  - droit : le droit du menu retire au role du compte le temps du controle (remis a l'identique) : pas de carte,
+ *    les autres cartes sont la, routes refusees (403) ;
  *  - aucune erreur JavaScript ; bilan : aucune vente d'essai ne reste, preferences remises.
  */
 const { chromium } = require('playwright-core');
@@ -27,9 +28,18 @@ const M = 'E2E-AETB';
 const U = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
 const [A2, A3] = q("SELECT lg_USER_ID FROM t_user WHERE str_STATUT = 'enable' AND lg_USER_ID <> '" + U + "' AND lg_USER_ID NOT LIKE 'E2E%' ORDER BY lg_USER_ID LIMIT 2").split('\n');
 const J = q('SELECT CURDATE()'), H = q('SELECT CURDATE() - INTERVAL 1 DAY');
-const PRODUIT = q("SELECT lg_FAMILLE_ID FROM t_famille WHERE str_STATUT = 'enable' ORDER BY lg_FAMILLE_ID LIMIT 1");
+const PRODUITS = q("SELECT lg_FAMILLE_ID FROM t_famille WHERE str_STATUT = 'enable' ORDER BY lg_FAMILLE_ID LIMIT 4").split('\n');
 const MODELE = q("SELECT lg_PREENREGISTREMENT_ID FROM t_preenregistrement WHERE lg_TYPE_VENTE_ID = '1' AND str_STATUT = 'is_Closed' LIMIT 1");
-const SANS = { id: 'E2E-AETB-SANS', login: 'e2e-aetb-sans', mdp: 'E2e-Aetb-Sans-8' };
+/* droit du menu sur le role du compte de test : retire le temps du controle, puis remis a l'identique */
+const ROLE = q("SELECT ru.lg_ROLE_ID FROM t_role_user ru JOIN t_role r ON r.lg_ROLE_ID = ru.lg_ROLE_ID WHERE ru.lg_USER_ID = '" + U + "' AND r.str_STATUT = 'enable' LIMIT 1");
+const empreinte = () => q("SELECT IFNULL(MD5(GROUP_CONCAT(CONCAT(lg_ROLE_PRIVILEGE, lg_ROLE_ID, lg_PRIVILEGE_ID) ORDER BY lg_ROLE_PRIVILEGE)), '') FROM t_role_privelege");
+const LIGNE = q("SELECT IFNULL((SELECT CONCAT(rp.lg_ROLE_PRIVILEGE, '|', rp.lg_PRIVILEGE_ID, '|', IFNULL(rp.dt_CREATED, ''), '|', IFNULL(rp.dt_UPDATED, '')) FROM t_role_privelege rp"
+  + " JOIN t_privilege p ON p.lg_PRIVELEGE_ID = rp.lg_PRIVILEGE_ID WHERE p.str_NAME = 'P_SM_ACTIVITE_EQUIPES' AND rp.lg_ROLE_ID = '" + ROLE + "'), '')");
+const DROITS_AVANT = empreinte();
+const remettreDroit = () => { if (LIGNE && q("SELECT COUNT(*) FROM t_role_privelege WHERE lg_ROLE_PRIVILEGE = '" + LIGNE.split('|')[0] + "'") === '0') {
+  const [id, priv, c, u] = LIGNE.split('|');
+  q("INSERT INTO t_role_privelege (lg_ROLE_PRIVILEGE, lg_ROLE_ID, lg_PRIVILEGE_ID, dt_CREATED, dt_UPDATED) VALUES ('" + id + "', '" + ROLE + "', '" + priv + "', "
+    + (c ? "'" + c + "'" : 'NULL') + ', ' + (u ? "'" + u + "'" : 'NULL') + ')'); } };
 const prefAvant = q("SELECT IFNULL((SELECT txt_VALEUR FROM t_preference_utilisateur WHERE lg_USER_ID = '" + U + "' AND str_CLE = 'tableau-bord'), '#AUCUNE#')");
 
 /* [suffixe, jour, caissiere, vendeur, operateur, ouverture, encaissement, prix, annulee, lignes [quantite, prix]] */
@@ -42,8 +52,7 @@ const VENTES = [
   ['6', J, A2, A2, A2, '19:44:00', '19:50:00', 1800, 0, [[5, 1800]]]
 ];
 function retirer() {
-  q(`DELETE FROM t_preenregistrement_detail WHERE lg_PREENREGISTREMENT_ID LIKE '${M}-%'; DELETE FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID LIKE '${M}-%';`
-    + ` DELETE FROM t_role_user WHERE lg_USER_ID = '${SANS.id}'; DELETE FROM t_event_log WHERE lg_USER_ID = '${SANS.id}'; DELETE FROM t_user WHERE lg_USER_ID = '${SANS.id}'`);
+  q(`DELETE FROM t_preenregistrement_detail WHERE lg_PREENREGISTREMENT_ID LIKE '${M}-%'; DELETE FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID LIKE '${M}-%'`);
 }
 function poser() {
   for (const [s, jour, c, v, o, ouv, enc, prix, annulee, lignes] of VENTES) {
@@ -56,11 +65,8 @@ function poser() {
       + ' INSERT INTO t_preenregistrement SELECT * FROM tmp_v; DROP TEMPORARY TABLE tmp_v;');
     lignes.forEach(([qte, montant], i) => q('INSERT INTO t_preenregistrement_detail (lg_PREENREGISTREMENT_DETAIL_ID, lg_PREENREGISTREMENT_ID, lg_FAMILLE_ID,'
       + ' int_QUANTITY, int_QUANTITY_SERVED, int_PRICE, int_PRICE_UNITAIR, str_STATUT, dt_CREATED, dt_UPDATED, int_PRICE_REMISE, montantTva, valeurTva, prixAchat)'
-      + ` VALUES ('${id}-${i}', '${id}', '${PRODUIT}', ${qte}, ${qte}, ${montant}, ${Math.round(montant / qte)}, 'is_Closed', '${jour} ${ouv}', '${jour} ${enc}', 0, 0, 0, 0)`));
+      + ` VALUES ('${id}-${i}', '${id}', '${PRODUITS[i]}', ${qte}, ${qte}, ${montant}, ${Math.round(montant / qte)}, 'is_Closed', '${jour} ${ouv}', '${jour} ${enc}', 0, 0, 0, 0)`));
   }
-  q(`INSERT INTO t_user (lg_USER_ID, str_LOGIN, str_PASSWORD, str_FIRST_NAME, str_LAST_NAME, str_FUNCTION, str_STATUT, lg_EMPLACEMENT_ID, dt_CREATED, int_CONNEXION)`
-    + ` VALUES ('${SANS.id}', '${SANS.login}', MD5('${SANS.mdp}'), 'E2E', 'SANS ACTIVITE', 'Vendeur', 'enable', '1', NOW(), 0)`);
-  q(`INSERT INTO t_role_user (lg_USER_ROLE_ID, lg_ROLE_ID, lg_USER_ID, dt_CREATED) SELECT '${SANS.id}', lg_ROLE_ID, '${SANS.id}', NOW() FROM t_role WHERE str_NAME = 'Vendeur'`);
 }
 
 /* ------------------------------------------------------------ calculs independants depuis la base */
@@ -106,7 +112,7 @@ function resumeBase(d, f) {
   const bl = q(`SELECT COUNT(*), IFNULL(ROUND(AVG(GREATEST(0, DATEDIFF(b.dt_CREATED, b.dt_DATE_LIVRAISON))), 1), '') FROM t_bon_livraison b WHERE b.str_STATUT = 'is_Closed'`
     + ` AND b.dt_CREATED >= '${d}' AND b.dt_CREATED < '${f}' + INTERVAL 1 DAY AND b.dt_DATE_LIVRAISON IS NOT NULL`
     + ' AND EXISTS (SELECT 1 FROM t_order o WHERE o.lg_ORDER_ID = b.lg_ORDER_ID) AND EXISTS (SELECT 1 FROM t_bon_livraison_detail x WHERE x.lg_BON_LIVRAISON_ID = b.lg_BON_LIVRAISON_ID)').split('\t');
-  return { ventesLongues: longues, actionsSensibles: annul + modif, blMesures: Number(bl[0]), delaiMoyenBl: bl[1] === '' ? null : Number(bl[1]) };
+  return { ventesLongues: longues, actionsSensibles: annul + modif, blMesures: Number(bl[0]), delaiMoyenBl: (bl[1] || '') === '' ? null : Number(bl[1]) };
 }
 
 /* ------------------------------------------------------------ lecture des ecrans */
@@ -150,13 +156,13 @@ const N = (v, dec) => { const x = (Number(v) || 0).toFixed(dec ? 1 : 0).split('.
     const apiJour = await p.evaluate(async (j) => (await (await fetch('../api/v1/activite-equipes/analyses?debut=' + j + '&fin=' + j)).json()).data, J);
     const r = apiJour.resume, base = resumeBase(J, J);
     ok('Repères : API = base (ventes de plus de 10 min, actions sensibles, BL datés, délai moyen des BL)', r.ventesLongues === base.ventesLongues && r.actionsSensibles === base.actionsSensibles
-      && r.blMesures === base.blMesures && r.delaiMoyenBl === base.delaiMoyenBl && r.ventesLongues >= 1 && r.actionsSensibles >= 1, JSON.stringify({ api: r, base }));
+      && r.blMesures === base.blMesures && (r.delaiMoyenBl === undefined ? null : r.delaiMoyenBl) === base.delaiMoyenBl && r.ventesLongues >= 1 && r.actionsSensibles >= 1, JSON.stringify({ api: r, base }));
     const eligibles = apiJour.operateurs.filter((o) => o.ventes >= 5 && o.secondesParLigne > 0);
     const min = eligibles.length ? Math.min(...eligibles.map((o) => o.secondesParLigne)) : null;
-    ok('Opérateur le plus rapide = plus petit temps par ligne de la carte « Vitesse par opérateur » (5 ventes ou plus)', min === null ? r.plusRapideId === null
+    ok('Opérateur le plus rapide = plus petit temps par ligne de la carte « Vitesse par opérateur » (5 ventes ou plus)', min === null ? r.plusRapideId == null
       : r.plusRapideSecondesParLigne === min && eligibles.some((o) => o.id === r.plusRapideId && o.secondesParLigne === min), JSON.stringify({ min, r }));
     ok('Repère d\'alerte = constats « ALERTE » de l\'API', r.alertes === apiJour.constats.filter((c) => c.niveau === 'ALERTE').length && carte.ALERTES.split(' | ')[0] === String(r.alertes), carte.ALERTES);
-    const attenduCarte = { LONGUES: N(r.ventesLongues), SENSIBLES: N(r.actionsSensibles), DELAI_BL: r.delaiMoyenBl === null ? '—' : N(r.delaiMoyenBl, true) + ' j', RAPIDE: r.plusRapideNom || '—' };
+    const attenduCarte = { LONGUES: N(r.ventesLongues), SENSIBLES: N(r.actionsSensibles), DELAI_BL: r.delaiMoyenBl == null ? '—' : N(r.delaiMoyenBl, true) + ' j', RAPIDE: r.plusRapideNom || '—' };
     ok('Carte du tableau de bord = API (valeurs affichées)', Object.keys(attenduCarte).every((k) => carte[k].split(' | ')[0] === attenduCarte[k]), JSON.stringify({ carte, attenduCarte }));
 
     /* ---------------------------------------------------------------- fenetre de consultation (vrai clic) */
@@ -255,28 +261,33 @@ const N = (v, dec) => { const x = (Number(v) || 0).toFixed(dec ? 1 : 0).split('.
     ok('Ergonomie : le tableau se lit dans son cadre (défilement si besoin, rien de coupé)', tabMenu.largeurOk);
     await p.context().close();
 
-    /* ---------------------------------------------------------------- droit : profil sans le menu */
+    /* ---------------------------------------------------------------- droit : role sans le menu */
+    ok('Le rôle du compte de test a le droit du menu (base)', !!LIGNE, ROLE);
+    q("DELETE FROM t_role_privelege WHERE lg_ROLE_PRIVILEGE = '" + LIGNE.split('|')[0] + "'");
     const p2 = await (await b.newContext({ viewport: { width: 1600, height: 900 } })).newPage();
     p2.on('pageerror', (e) => erreurs.push(String(e.message)));
-    await connexion(p2, SANS.login, SANS.mdp);
+    await connexion(p2, ENV_E2E.LOGIN, 'e2etest');
     await p2.waitForFunction(() => Ext.ComponentQuery.query('tableaubord').length && document.querySelectorAll('[data-carte]').length > 0, null, { timeout: 90000 }).catch(() => {});
-    await p2.waitForTimeout(1500);
+    await p2.waitForTimeout(3000);
     const sans = await p2.evaluate(async () => ({ cartes: document.querySelectorAll('[data-carte]').length, activite: !!document.querySelector('[data-carte="activite"]'),
       statut: (await fetch('../api/v1/activite-equipes/analyses')).status, tranches: (await fetch('../api/v1/activite-equipes/ca-tranches')).status }));
     ok('Sans le droit : pas de carte (les autres sont là), routes refusées (403)', sans.cartes > 0 && !sans.activite && sans.statut === 403 && sans.tranches === 403, JSON.stringify(sans));
     await p2.context().close();
+    remettreDroit();
     ok('Aucune erreur JavaScript', erreurs.length === 0, erreurs.join(' | '));
   } catch (x) {
     ok('Parcours sans exception', false, x.stack);
   } finally {
     await b.close();
+    remettreDroit();
+    ok('Bilan : droits des rôles identiques avant / après', empreinte() === DROITS_AVANT);
     retirer();
     q(`DELETE FROM t_preference_utilisateur WHERE lg_USER_ID = '${U}' AND str_CLE = 'tableau-bord'`);
     if (prefAvant !== '#AUCUNE#') {
       q(`INSERT INTO t_preference_utilisateur (lg_USER_ID, str_CLE, txt_VALEUR) VALUES ('${U}', 'tableau-bord', '${prefAvant.replace(/\\/g, '\\\\').replace(/'/g, "''")}')`);
     }
-    ok('Bilan : aucune vente d\'essai ni compte d\'essai ne reste', q(`SELECT (SELECT COUNT(*) FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID LIKE '${M}-%')`
-      + ` + (SELECT COUNT(*) FROM t_preenregistrement_detail WHERE lg_PREENREGISTREMENT_ID LIKE '${M}-%') + (SELECT COUNT(*) FROM t_user WHERE lg_USER_ID = '${SANS.id}')`) === '0');
+    ok('Bilan : aucune vente d\'essai ne reste', q(`SELECT (SELECT COUNT(*) FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID LIKE '${M}-%')`
+      + ` + (SELECT COUNT(*) FROM t_preenregistrement_detail WHERE lg_PREENREGISTREMENT_ID LIKE '${M}-%')`) === '0');
   }
   const ko = res.filter((x) => !x.c).length;
   console.log('\n' + (res.length - ko) + '/' + res.length + (ko ? ' ECHEC' : ' OK'));

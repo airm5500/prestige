@@ -1181,6 +1181,8 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
         if (out) {
             out.innerHTML = '<span class="tb-lien" data-activite="1">Détail →</span>';
         }
+        /* quatre reperes et une ligne d'alerte : pas de grand vide sous la carte (hauteur minimale commune de 300 px) */
+        c.style.minHeight = '0';
         c.innerHTML = '<div class="tb-clic tb-activite" data-activite="1" title="Ouvrir le détail : mêmes cartes que le menu Activité des équipes">'
                 + AE.htmlResume(o.data.resume) + '</div>';
     },
