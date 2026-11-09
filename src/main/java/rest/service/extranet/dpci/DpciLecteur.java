@@ -40,6 +40,14 @@ public final class DpciLecteur {
     public static final String COMMANDES = "/module/commande/ListCommandes.action";
     public static final String DOCUMENTS = "/module/geide/ListDocuments.action";
     public static final String RECLAMATIONS = "/module/reclamation/DonneListReclamationClient.action";
+    public static final String PAGE_PRODUITS = "/produits";
+    public static final String PRODUITS = "/module/catalogue/RechercheCatalogue.action";
+    /** Releve du 09/11 : 100 lignes par page au plus (200 : erreur 500 de l'extranet). */
+    static final int TAILLE_PAGE_PRODUITS = 100;
+    /** Recherche de la page /produits sans aucun filtre (tous les produits, toutes disponibilites). */
+    static final String RECHERCHE_TOUS = "{\"rechercheGlobale\":\"\",\"filtreRecherche\":{\"codesProduits\":[],"
+            + "\"libellesProduits\":[],\"libelleDci\":[],\"codeLaboratoire\":\"\"},"
+            + "\"filtreStrict\":{\"codesGroupesProduit\":[]}}";
     /** Profondeur lue pour les commandes, documents et reclamations. */
     static final int JOURS = 365;
     static final int TAILLE_PAGE = 100;
@@ -76,6 +84,8 @@ public final class DpciLecteur {
             throw new IllegalArgumentException("transport, liste et periode (du <= au) attendus");
         }
         switch (l) {
+        case DPCI_PRODUITS:
+            return produits(t);
         case DPCI_OFFRES:
             return offres(t, du, au);
         case DPCI_COMMANDES:
@@ -293,6 +303,68 @@ public final class DpciLecteur {
             r.add(seuil + " : " + String.join(" + ", av));
         }
         return String.join(" ; ", r);
+    }
+
+    /* ============================================================ produits (09/11) */
+
+    /**
+     * Tous les produits de la page /produits, sans filtre ni periode : designation, code (code facture), laboratoire,
+     * agence de commande, statut (Disponible, Manque labo...), colisage, prix pharmacien, prix remise, prix public, TVA
+     * et paliers de l'offre en cours. Code interne garde comme code produit, code facture comme CIP s'il en a la forme.
+     */
+    static List<Ligne> produits(TransportExtranet t) throws ExtranetException {
+        t.lire(PAGE_PRODUITS, null, Attendu.HTML, null);
+        List<Ligne> lignes = new ArrayList<>();
+        List<String> internes = new ArrayList<>();
+        ParcoursDataTables.parcourir((start, length, draw) -> {
+            Map<String, String> q = new LinkedHashMap<>();
+            q.put("draw", String.valueOf(draw));
+            q.put("start", String.valueOf(start));
+            q.put("length", String.valueOf(length));
+            q.put("rechercheJson", RECHERCHE_TOUS);
+            JSONObject r = json(t, PRODUITS, q, PAGE_PRODUITS);
+            JSONArray d = r.optJSONArray("data");
+            if (d == null) {
+                throw inattendu("liste des produits absente");
+            }
+            JSONArray rangs = new JSONArray();
+            for (int i = 0; i < d.length(); i++) {
+                JSONObject x = d.optJSONObject(i);
+                if (x == null) {
+                    throw inattendu("produit illisible");
+                }
+                rangs.put(new JSONArray(celluleProduit(x)));
+                internes.add(texte(x.opt("codeProduitInterne")));
+            }
+            return enveloppe(r, rangs);
+        }, TAILLE_PAGE_PRODUITS, PAGES_MAX, (pos, cel) -> {
+            List<String> c = cellules(cel);
+            String facture = c.size() > 1 ? c.get(1) : "";
+            String interne = pos < internes.size() ? internes.get(pos) : "";
+            /* meme regle que les offres : code facture s'il a la forme d'un CIP, sinon code interne */
+            String cip = CIP.matcher(facture).matches() ? facture : CIP.matcher(interne).matches() ? interne : null;
+            lignes.add(ligne(pos, premier(interne, facture), cip, c));
+        });
+        return lignes;
+    }
+
+    static List<String> celluleProduit(JSONObject x) {
+        JSONObject dp = x.optJSONObject("disponibiliteProduit");
+        JSONObject ac = dp == null ? null : dp.optJSONObject("agenceCommande");
+        JSONObject ol = x.optJSONObject("offreLigne");
+        String colis = texte(x.opt("colisageMultiple"));
+        return Arrays.asList(texte(x.opt("libelleProduit")),
+                premier(texte(x.opt("codeProduitFacture")), texte(x.opt("codeProduitInterne"))),
+                libelle(x.opt("laboratoire")), ac == null ? "" : texte(ac.opt("libelleAgence")),
+                ac == null ? "" : libelle(ac.opt("statut")), "0".equals(colis) ? "" : colis,
+                montant(numerique(x.opt("tarifNonRemise"))), montant(numerique(x.opt("tarifRemise"))),
+                montant(numerique(x.opt("prixPublic"))), x.has("tva") ? texte(x.opt("tva")) : "",
+                ol == null ? "" : paliers(ol.optJSONArray("palierOffreViews")));
+    }
+
+    /** Valeur « numerique » d'un prix {formatSite, numerique} ; null si absente. */
+    static Object numerique(Object o) {
+        return o instanceof JSONObject ? ((JSONObject) o).opt("numerique") : null;
     }
 
     /* ============================================================ commandes */

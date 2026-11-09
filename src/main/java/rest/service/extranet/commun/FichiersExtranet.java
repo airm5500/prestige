@@ -24,9 +24,11 @@ import org.json.JSONObject;
  * <li>DPCI, factures : CSV 9 colonnes et 2 colonnes (/module/geide/ExportDonnee.action ; dates AAAAMMJJ, type, nombre
  * de colonnes, numero de facture) ;</li>
  * <li>Copharmed, factures et avoirs : CSV et XLS (ViewPharmacy-DownloadInvoiceCSVXLS ; InvoiceNo, Type, Format).</li>
+ * <li>Copharmed, releves : PDF (ViewPharmacy-DownloadStatementsPDF ; StatementNo, SpoolName, Year), releve du
+ * 09/11.</li>
  * </ul>
- * Non proposes : les documents que l'extranet ne rend qu'en PDF (BL DPCI, releves) et les avoirs DPCI (le bouton de
- * l'extranet part sans type ni nombre de colonnes).
+ * Non proposes : les BL et releves DPCI (PDF seulement) et les avoirs DPCI (le bouton de l'extranet part sans type ni
+ * nombre de colonnes).
  */
 public final class FichiersExtranet {
 
@@ -34,7 +36,7 @@ public final class FichiersExtranet {
     public static final Pattern REFERENCE = Pattern.compile("[A-Za-z0-9][A-Za-z0-9_./-]{0,39}");
     /** Taille maximale d'un fichier rendu (les BL et factures relevees font quelques dizaines de Ko). */
     public static final int TAILLE_MAX = 20 * 1024 * 1024;
-    private static final Pattern TITRE_NUMERO = Pattern.compile("^N° (BL|facture|document|avoir)$",
+    private static final Pattern TITRE_NUMERO = Pattern.compile("^N° (BL|facture|document|avoir|relevé)$",
             Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
     private static final String INTERSHOP = "/INTERSHOP/web/WFS/EASy-Copharmed-Site/fr_FR/-/XOF/";
 
@@ -181,6 +183,13 @@ public final class FichiersExtranet {
                         d -> ordre("InvoiceNo", d.get("InvoiceNo"), "Type", l[1], "Format", x[2])));
             }
         }
+        /* Copharmed : icone PDF de chaque releve (Mon espace > Releves) */
+        f.add(new Fichier(SourceExtranet.COPHARMED, "COPHARMED_RELEVES", "PDF", "PDF",
+                INTERSHOP + "ViewPharmacy-DownloadStatementsPDF", INTERSHOP + "ViewPharmacy-Statements", "pdf",
+                "application/pdf", "Copharmed_Releve", false,
+                Collections.unmodifiableList(java.util.Arrays.asList("StatementNo", "SpoolName", "Year")),
+                d -> ordre("StatementNo", d.get("StatementNo"), "SpoolName", d.get("SpoolName"), "Year",
+                        d.get("Year"))));
         FICHIERS = Collections.unmodifiableList(f);
     }
 

@@ -32,7 +32,13 @@ public enum ListeDpci {
     DPCI_AVOIRS("Mes documents", "Avoirs", "AVOIR",
             Arrays.asList("Date", "N° facture", "N° commande", "N° BL", "N° relevé", "Montant HT", "Montant TTC")),
     DPCI_RECLAMATIONS("Mes réclamations", "Mes réclamations", null,
-            Arrays.asList("N° réclamation", "N° commande", "Agence", "Statut", "Créée le", "Modifiée le"));
+            Arrays.asList("N° réclamation", "N° commande", "Agence", "Statut", "Créée le", "Modifiée le")),
+    /*
+     * Retour du 09/11 (« je n'ai pas l'onglet produits »), releve du 09/11 : page /produits, liste DataTables
+     * /module/catalogue/RechercheCatalogue.action (GET accepte, 100 lignes par page au plus : 200 repond 500).
+     */
+    DPCI_PRODUITS("Produits", "Tous les produits", null, Arrays.asList("Désignation", "Code", "Laboratoire", "Agence",
+            "Statut", "Colisage", "Prix", "Prix remisé", "Prix public", "TVA", "Offre"));
 
     public final String rubrique;
     public final String libelle;

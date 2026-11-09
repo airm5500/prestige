@@ -135,11 +135,18 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
                             rubrique('Promotions', 'exRubriqueCopharmedPromotions', [
                                 me.ongletListe('COPHARMED_PROMOTIONS', 'Promotion')]),
                             rubrique('Produits', 'exRubriqueCopharmedProduits', [me.ongletRechercheCopharmed(),
-                                me.ongletListe('COPHARMED_CATALOGUE', 'Catalogue produits')]),
-                            /* demande du 09/11, point 4 : factures et avoirs, avec leurs fichiers CSV et Excel */
+                                me.ongletListe('COPHARMED_CATALOGUE', 'Catalogue produits'),
+                                /* retour du 09/11 : blocs Arrivages et Nouveautés de l'accueil de l'extranet */
+                                me.ongletListe('COPHARMED_ARRIVAGES', 'Arrivages'),
+                                me.ongletListe('COPHARMED_NOUVEAUTES', 'Nouveautés')]),
+                            rubrique('Mes commandes', 'exRubriqueCopharmedCommandes', [
+                                me.ongletListe('COPHARMED_COMMANDES', 'E-Commandes'),
+                                me.ongletListe('COPHARMED_PRODUITS_COMMANDES', 'Tous les produits commandés')]),
+                            /* demande du 09/11, point 4 : factures et avoirs (CSV et Excel), relevés (PDF) */
                             rubrique('Mes documents', 'exRubriqueCopharmedDocuments', [
                                 me.ongletListe('COPHARMED_FACTURES', 'Factures'),
-                                me.ongletListe('COPHARMED_AVOIRS', 'Avoirs')])]),
+                                me.ongletListe('COPHARMED_AVOIRS', 'Avoirs'),
+                                me.ongletListe('COPHARMED_RELEVES', 'Relevés')])]),
                         rubrique('DPCI', 'exOngletDpci', [
                             rubrique('Mes offres en cours', 'exRubriqueDpciOffres', [
                                 me.ongletListe('DPCI_OFFRES', 'Offres en cours'), me.ongletOffresDpciDirect()]),
@@ -151,7 +158,11 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
                                 me.ongletListe('DPCI_RELEVES', 'Relevés'),
                                 me.ongletListe('DPCI_AVOIRS', 'Avoirs')]),
                             rubrique('Mes réclamations', 'exRubriqueDpciReclamations', [
-                                me.ongletListe('DPCI_RECLAMATIONS', 'Mes réclamations')])]),
+                                me.ongletListe('DPCI_RECLAMATIONS', 'Mes réclamations')]),
+                            /* retour du 09/11 : « je n'ai pas l'onglet produits » (ajouté en dernier : l'ordre des
+                               rubriques existantes ne change pas) */
+                            rubrique('Produits', 'exRubriqueDpciProduits', [
+                                me.ongletListe('DPCI_PRODUITS', 'Tous les produits')])]),
                         Ext.apply(me.panneauMayite('exMayite'), {title: 'Mayité'}),
                         me.ongletCollectes(), me.ongletRafraichissement(), me.ongletGrossistesLies()],
                     listeners: {

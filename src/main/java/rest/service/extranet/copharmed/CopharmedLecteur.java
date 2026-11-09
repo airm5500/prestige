@@ -107,6 +107,16 @@ public final class CopharmedLecteur {
             return documents(t, FACTURES);
         case COPHARMED_AVOIRS:
             return documents(t, AVOIRS);
+        case COPHARMED_RELEVES:
+            return parPages(t, RELEVES, CopharmedLecteur::releves);
+        case COPHARMED_COMMANDES:
+            return parPages(t, COMMANDES, CopharmedLecteur::commandes);
+        case COPHARMED_PRODUITS_COMMANDES:
+            return parPages(t, PRODUITS_COMMANDES, CopharmedLecteur::produitsCommandes);
+        case COPHARMED_ARRIVAGES:
+            return blocAccueil(t, "Arrivages");
+        case COPHARMED_NOUVEAUTES:
+            return blocAccueil(t, "Nouveautés");
         default:
             return catalogue(t);
         }
@@ -226,6 +236,264 @@ public final class CopharmedLecteur {
             }
         }
         return p;
+    }
+
+    /* ============================================================ releves, e-commandes, produits commandes (09/11) */
+
+    public static final String RELEVES = "/INTERSHOP/web/WFS/EASy-Copharmed-Site/fr_FR/-/XOF/ViewPharmacy-Statements";
+    public static final String COMMANDES = "/INTERSHOP/web/WFS/EASy-Copharmed-Site/fr_FR/-/XOF/ViewOrders-SimpleOrderSearch";
+    public static final String PRODUITS_COMMANDES = "/INTERSHOP/web/WFS/EASy-Copharmed-Site/fr_FR/-/XOF/ViewEASyOrders-SimpleOrderSearch";
+    public static final String ACCUEIL = "/fr/";
+    /** Actions de pagination admises (releve du 09/11) : celle de la page elle-meme, rien d'autre. */
+    static final Pattern ACTION_LISTE = Pattern
+            .compile("View(?:Pharmacy-Paging[A-Za-z]{1,40}|EASyOrders-SimpleOrderSearch|Orders-SimpleOrderSearch)");
+    /** « aller à la page2de4 » : nombre total de pages annonce par les liens. */
+    static final Pattern TOTAL_PAGES = Pattern.compile("de\\s*(\\d{1,4})\\s*$");
+
+    /** Une page d'une liste : cellules et references de fichier par ligne, pages proposees, pagination. */
+    static final class PageListe {
+        final List<List<String>> lignes = new ArrayList<>();
+        final List<Map<String, String>> documents = new ArrayList<>();
+        final Set<Integer> pages = new LinkedHashSet<>();
+        String pageable, pagination, taille;
+        int total;
+    }
+
+    /** Analyse d'une page HTML de liste. */
+    interface Analyse {
+        PageListe lire(String html) throws ExtranetException;
+    }
+
+    /**
+     * Premiere page, puis les pages suivantes proposees par ses liens (PageNumber a partir de 0, meme PageSize et meme
+     * PageableID quand la page en porte un), tant qu'un lien mene plus loin. Le total annonce (« page 2 de 4 ») sert a
+     * l'avancement.
+     */
+    static List<Ligne> parPages(TransportExtranet t, String chemin, Analyse a) throws ExtranetException {
+        List<Ligne> r = new ArrayList<>();
+        PageListe p = a.lire(page(t, chemin, null));
+        if (p.total > 1) {
+            rest.service.extranet.commun.Avancement.restants(Math.min(p.total, PAGES_MAX) - 1);
+        }
+        int courante = 0;
+        for (int n = 0; n < PAGES_MAX; n++) {
+            for (int i = 0; i < p.lignes.size() && r.size() < LIGNES_MAX; i++) {
+                r.add(new Ligne(r.size(), null, null, null, p.lignes.get(i), p.documents.get(i)));
+            }
+            int suivante = -1;
+            for (int k : p.pages) {
+                if (k > courante && (suivante < 0 || k < suivante)) {
+                    suivante = k;
+                }
+            }
+            if (suivante < 0 || p.pagination == null || r.size() >= LIGNES_MAX) {
+                break;
+            }
+            Map<String, String> q = new LinkedHashMap<>();
+            q.put("PageNumber", String.valueOf(suivante));
+            q.put("PageSize", p.taille == null ? "25" : p.taille);
+            q.put("ViewType", "");
+            if (p.pageable != null) {
+                q.put("PageableID", p.pageable);
+            }
+            String pageable = p.pageable, pagination = p.pagination, taille = p.taille;
+            p = a.lire(page(t, INTERSHOP + pagination, q));
+            p.pageable = p.pageable == null ? pageable : p.pageable;
+            p.pagination = p.pagination == null ? pagination : p.pagination;
+            p.taille = p.taille == null ? taille : p.taille;
+            courante = suivante;
+        }
+        return r;
+    }
+
+    /** Liens de pagination d'une page : numeros proposes, PageableID, PageSize, action et total annonce. */
+    static void pagination(Document d, PageListe p) {
+        for (Element a : d.select("a[href*=PageNumber]")) {
+            String href = a.attr("href");
+            Matcher m = ACTION_LISTE.matcher(href);
+            if (!m.find()) {
+                continue;
+            }
+            String n = parametre(href, "PageNumber"), id = parametre(href, "PageableID"),
+                    taille = parametre(href, "PageSize");
+            if (n == null || !n.matches("\\d{1,4}")) {
+                continue;
+            }
+            p.pages.add(Integer.parseInt(n));
+            p.pagination = m.group();
+            if (id != null && PAGEABLE.matcher(id).matches()) {
+                p.pageable = id;
+            }
+            if (taille != null && taille.matches("\\d{1,3}")) {
+                p.taille = taille;
+            }
+            Matcher tot = TOTAL_PAGES.matcher(a.text().trim());
+            if (tot.find()) {
+                p.total = Math.max(p.total, Integer.parseInt(tot.group(1)));
+            }
+        }
+    }
+
+    /** Tableau dont les premiers titres commencent par ceux donnes ; null si absent. */
+    static Element tableau(Document d, String... titres) {
+        for (Element t : d.select("table")) {
+            Elements th = t.select("> thead > tr > th");
+            boolean ok = th.size() >= titres.length;
+            for (int i = 0; ok && i < titres.length; i++) {
+                ok = th.get(i).text().trim().toLowerCase().startsWith(titres[i].toLowerCase());
+            }
+            if (ok) {
+                return t;
+            }
+        }
+        return null;
+    }
+
+    static Document document(String html) {
+        Document d = Jsoup.parse(html == null ? "" : html);
+        d.select("script, noscript, template").remove();
+        return d;
+    }
+
+    static ExtranetException introuvable(String quoi) {
+        return new ExtranetException(ExtranetException.Nature.REPONSE_INATTENDUE,
+                "Copharmed : " + quoi + " introuvable (page modifiée ou session expirée)");
+    }
+
+    /**
+     * Releves : Date / Numero de releve, et le lien PDF (ViewPharmacy-DownloadStatementsPDF : StatementNo, SpoolName,
+     * Year) garde quand ses trois references sont lisibles.
+     */
+    static PageListe releves(String html) throws ExtranetException {
+        Document d = document(html);
+        Element table = tableau(d, "Date", "N");
+        if (table == null) {
+            throw introuvable("tableau des relevés");
+        }
+        PageListe p = new PageListe();
+        for (Element tr : table.select("> tbody > tr")) {
+            Elements td = tr.select("> td");
+            if (td.size() < 2) {
+                continue;
+            }
+            Map<String, String> doc = null;
+            Element a = tr.selectFirst("a[href*=DownloadStatementsPDF]");
+            if (a != null) {
+                Map<String, String> m = new LinkedHashMap<>();
+                for (String cle : new String[] { "StatementNo", "SpoolName", "Year" }) {
+                    String v = rest.service.extranet.commun.FichiersExtranet.reference(parametre(a.attr("href"), cle));
+                    if (v != null) {
+                        m.put(cle, v);
+                    }
+                }
+                doc = m.size() == 3 ? m : null;
+            }
+            p.lignes.add(Arrays.asList(texte(td.get(0)), texte(td.get(1))));
+            p.documents.add(doc);
+        }
+        pagination(d, p);
+        return p;
+    }
+
+    /** Tous les produits commandes : sept colonnes telles que la page les montre. */
+    static PageListe produitsCommandes(String html) throws ExtranetException {
+        Document d = document(html);
+        Element table = tableau(d, "Date", "Code Article", "Libell");
+        if (table == null) {
+            throw introuvable("tableau des produits commandés");
+        }
+        PageListe p = new PageListe();
+        for (Element tr : table.select("> tbody > tr")) {
+            Elements td = tr.select("> td");
+            if (td.size() < 7) {
+                continue;
+            }
+            List<String> c = new ArrayList<>();
+            for (int i = 0; i < 7; i++) {
+                c.add(texte(td.get(i)));
+            }
+            p.lignes.add(c);
+            p.documents.add(null);
+        }
+        pagination(d, p);
+        return p;
+    }
+
+    /**
+     * E-Commandes : liste (.list-body .list-item-row) ; colonnes de la page : date, total, lien de detail, numero (lien
+     * ViewOrders-Detail) suivi de « Quantité commandée : n » et « Quantité à livrer : n », nom d'utilisateur (non
+     * garde), etat (« État : En cours »). Une page sans en-tete de liste est refusee ; une liste vide rend zero ligne.
+     */
+    static PageListe commandes(String html) throws ExtranetException {
+        Document d = document(html);
+        if (d.selectFirst(".list-header") == null && d.selectFirst(".list-body") == null) {
+            throw introuvable("liste des e-commandes");
+        }
+        PageListe p = new PageListe();
+        for (Element row : d.select(".list-body .list-item-row")) {
+            /* le numero est le lien de la cellule qui porte les quantites (l'autre lien dit « Détails ») */
+            Element lien = null;
+            for (Element c : row.select("> .list-item")) {
+                Element a = c.selectFirst("a[href*=ViewOrders-Detail]");
+                if (a != null && c.ownText().toLowerCase().contains("quantit")) {
+                    lien = a;
+                    break;
+                }
+            }
+            if (lien == null) {
+                continue;
+            }
+            String date = "", total = "", etat = "", commandee = "", aLivrer = "";
+            for (Element c : row.select("> .list-item")) {
+                String s = texte(c);
+                if (date.isEmpty() && s.matches("\\d{2}/\\d{2}/\\d{4}.*")) {
+                    date = s;
+                } else if (total.isEmpty() && s.matches("(?i)-?[\\d .,\\u00a0]+\\s*(f?cfa|xof)")) {
+                    total = s;
+                } else if (s.matches("(?i)^[ÉE]tat\\s*:.*")) {
+                    etat = s.replaceFirst("^[^:]*:\\s*", "");
+                }
+                if (c.select("a").contains(lien)) {
+                    for (org.jsoup.nodes.TextNode tn : c.textNodes()) {
+                        String l = rest.service.extranet.commun.Normalisation.texte(tn.text());
+                        if (l.matches("(?i)^Quantit[ée] command[ée]e\\s*:.*")) {
+                            commandee = l.replaceFirst("^[^:]*:\\s*", "");
+                        } else if (l.matches("(?i)^Quantit[ée] [àa] livrer\\s*:.*")) {
+                            aLivrer = l.replaceFirst("^[^:]*:\\s*", "");
+                        }
+                    }
+                }
+            }
+            p.lignes.add(Arrays.asList(date, texte(lien), commandee, aLivrer, etat, total));
+            p.documents.add(null);
+        }
+        pagination(d, p);
+        return p;
+    }
+
+    /**
+     * Arrivages et Nouveautes : blocs de l'accueil (section dont le titre est « Arrivages » ou « Nouveautés »), lignes
+     * produit lues comme le catalogue. Bloc absent : page modifiee ou session perdue.
+     */
+    static List<Ligne> blocAccueil(TransportExtranet t, String titre) throws ExtranetException {
+        Document d = document(page(t, ACCUEIL, null));
+        Element bloc = null;
+        for (Element s : d.select("section")) {
+            Element h = s.selectFirst("h2, h3");
+            if (h != null && h.text().trim().equalsIgnoreCase(titre)) {
+                bloc = s;
+                break;
+            }
+        }
+        if (bloc == null) {
+            throw introuvable("bloc « " + titre + " » de l'accueil");
+        }
+        List<Ligne> r = new ArrayList<>();
+        for (Produit x : produits(bloc.outerHtml())) {
+            r.add(ligne(r.size(), x, Arrays.asList(x.nom, x.code, x.dci, x.colisage, x.prixHT, x.remise, x.prixNet,
+                    x.prixPublic, x.dispo, x.promotion, x.ug)));
+        }
+        return r;
     }
 
     private static String texte(Element e) {

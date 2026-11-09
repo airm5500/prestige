@@ -685,7 +685,7 @@ class DpciLecteurTest {
         assertTrue(DpciLecteur.enCours("2026-11-08T00:00:00", "2026-11-08T00:00:00", JOUR));
         assertFalse(DpciLecteur.enCours("2026-11-09T00:00:00", "", JOUR));
         assertFalse(DpciLecteur.enCours("", "2026-11-07T23:59:59", JOUR));
-        assertEquals(7, ListeDpci.values().length);
+        assertEquals(8, ListeDpci.values().length, "09/11 : Tous les produits ajoute");
         assertEquals("LISTE_DPCI_FACTURES", ListeDpci.DPCI_FACTURES.module());
         assertEquals(ListeDpci.DPCI_AVOIRS, ListeDpci.parCode(" dpci_avoirs "));
         assertNull(ListeDpci.parCode("COPHARMED_CATALOGUE"));

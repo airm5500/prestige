@@ -28,7 +28,25 @@ public enum ListeCopharmed {
      * pages de 25, icones PDF, CSV et XLS par ligne). Les fichiers CSV et XLS se telechargent depuis l'onglet.
      */
     COPHARMED_FACTURES("Mes documents", "Factures", Arrays.asList("N° facture", "Date", "Montant HT")),
-    COPHARMED_AVOIRS("Mes documents", "Avoirs", Arrays.asList("N° avoir", "Date", "Montant HT"));
+    COPHARMED_AVOIRS("Mes documents", "Avoirs", Arrays.asList("N° avoir", "Date", "Montant HT")),
+    /*
+     * Retour du 09/11 (« je n'ai que les onglets promotions et produits »), releve du 09/11 sur l'extranet connecte :
+     * Mon espace > Releves (Date / Numero de releve / PDF, pages de 25), Commandes > E-Commandes (liste de 10 par page
+     * : date, numero, quantites, etat, total ; le nom d'utilisateur n'est pas garde), Tous les produits commandes
+     * (pages de 25), et les blocs Arrivages et Nouveautes de l'accueil (les pages « Voir tout » renvoient tout le
+     * catalogue ou une page remplie par script).
+     */
+    COPHARMED_RELEVES("Mes documents", "Relevés", Arrays.asList("Date", "N° relevé")),
+    COPHARMED_COMMANDES("Mes commandes", "E-Commandes",
+            Arrays.asList("Date", "N° e-commande", "Quantité commandée", "Quantité à livrer", "État", "Total")),
+    COPHARMED_PRODUITS_COMMANDES("Mes commandes", "Tous les produits commandés",
+            Arrays.asList("Date", "Code article", "Libellé article", "Quantité commandée", "Quantité livrée",
+                    "Montant total", "N° facture")),
+    COPHARMED_ARRIVAGES("Produits", "Arrivages",
+            Arrays.asList("Désignation", "Code", "DCI", "Colisage", "Prix HT", "Taux TVA", "Prix TTC", "Prix public",
+                    "Disponibilité", "Promotion", "Unités gratuites")),
+    COPHARMED_NOUVEAUTES("Produits", "Nouveautés", Arrays.asList("Désignation", "Code", "DCI", "Colisage", "Prix HT",
+            "Taux TVA", "Prix TTC", "Prix public", "Disponibilité", "Promotion", "Unités gratuites"));
 
     public final String rubrique;
     public final String libelle;

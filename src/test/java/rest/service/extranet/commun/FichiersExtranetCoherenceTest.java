@@ -57,7 +57,9 @@ class FichiersExtranetCoherenceTest {
                 "COPHARMED COPHARMED_FACTURES CSV ViewPharmacy-DownloadInvoiceCSVXLS csv",
                 "COPHARMED COPHARMED_FACTURES EXCEL ViewPharmacy-DownloadInvoiceCSVXLS xls",
                 "COPHARMED COPHARMED_AVOIRS CSV ViewPharmacy-DownloadInvoiceCSVXLS csv",
-                "COPHARMED COPHARMED_AVOIRS EXCEL ViewPharmacy-DownloadInvoiceCSVXLS xls");
+                "COPHARMED COPHARMED_AVOIRS EXCEL ViewPharmacy-DownloadInvoiceCSVXLS xls",
+                /* releve du 09/11 : icone PDF de chaque releve Copharmed */
+                "COPHARMED COPHARMED_RELEVES PDF ViewPharmacy-DownloadStatementsPDF pdf");
         List<String> vu = new ArrayList<>();
         for (FichiersExtranet.Fichier f : FichiersExtranet.tous()) {
             String c = f.chemin.substring(f.chemin.lastIndexOf('/') + (f.source == SourceExtranet.COPHARMED ? 1 : 0));
@@ -123,6 +125,12 @@ class FichiersExtranetCoherenceTest {
                 assertEquals("FACTURE", p.get("typeDocument"));
                 assertEquals(f.format.substring(4), p.get("nbColonnes"));
                 assertEquals(doc.get("id"), p.get("selectIdDocument"));
+            } else if (f.source == SourceExtranet.COPHARMED && "COPHARMED_RELEVES".equals(f.liste)) {
+                /* releve : les trois references du lien PDF, dans son ordre, rien d'autre */
+                assertEquals(Arrays.asList("StatementNo", "SpoolName", "Year"), new ArrayList<>(p.keySet()));
+                for (String c : p.keySet()) {
+                    assertEquals(doc.get(c), p.get(c));
+                }
             } else if (f.source == SourceExtranet.COPHARMED) {
                 assertEquals(doc.get("InvoiceNo"), p.get("InvoiceNo"));
                 assertEquals(f.liste.endsWith("FACTURES") ? "Invoices" : "CreditNotes", p.get("Type"));
