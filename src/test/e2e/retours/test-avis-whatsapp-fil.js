@@ -93,19 +93,19 @@ const DEBUT = q('SELECT NOW() - INTERVAL 1 SECOND');
   const modeDefaut = (m) => q(`UPDATE t_parameters SET str_VALUE = '${m}' WHERE str_KEY = 'KEY_WHATSAPP_MODE_DEFAUT';`);
   const traces = (num) => q(`SELECT CONCAT_WS('|', (SELECT COUNT(*) FROM whatsapp_message WHERE telephone = '${num}' AND created_at >= '${DEBUT}'),`
     + ` (SELECT COUNT(*) FROM whatsapp_discussion WHERE numero = '${num}'))`);
-  const avis = (cle) => q(`SELECT CONCAT_WS('|', statut, IFNULL(canal_reponse, '-'), IFNULL(statut_reponse, '-'), IFNULL(reponse, '-')) FROM t_avis_client WHERE texte = '${MARQUE} ${cle}'`);
+  const avis = (cle) => q(`SELECT CONCAT_WS('|', statut, IFNULL(canal_reponse, '-'), IFNULL(statut_reponse, '-'), IFNULL(reponse, '-')) FROM t_avis_client WHERE texte = '${MARQUE}${cle}'`);
   try {
     nettoyer();
     const pris = q("SELECT COUNT(*) FROM t_client WHERE lg_CLIENT_ID NOT LIKE 'E2E-%' AND (" + Object.values(N).map((n) => `REPLACE(REPLACE(str_ADRESSE,' ',''),'.','') LIKE '%${n.slice(2)}'`).join(' OR ') + ')');
     if (pris !== '0') { throw new Error('Un client de la base porte un numéro de l\'essai : essai arrêté.'); }
     /* avis de l'essai : notes et coordonnees differentes d'un cas a l'autre */
     q('INSERT INTO t_avis_client (id, dt_CREATED, note, texte, anonyme, nom, telephone, email, rappel, statut) VALUES'
-      + ` ('E2E-AVFIL-A', NOW(), 1, '${MARQUE} A', 0, 'Awa A.', '07 09 99 01 01', NULL, 1, 'NOUVEAU'),`
-      + ` ('E2E-AVFIL-B', NOW(), 4, '${MARQUE} B', 0, 'Ble B.', '${N.B}', NULL, 1, 'NOUVEAU'),`
-      + ` ('E2E-AVFIL-C', NOW(), 5, '${MARQUE} C', 0, 'Cisse C.', NULL, '${EMAIL_C}', 1, 'NOUVEAU'),`
-      + ` ('E2E-AVFIL-D', NOW(), 2, '${MARQUE} D', 0, 'Diallo D.', '${N.D}', NULL, 0, 'NOUVEAU'),`
-      + ` ('E2E-AVFIL-E', NOW(), 3, '${MARQUE} E', 0, 'Essoh E.', '${N.E}', NULL, 1, 'LU'),`
-      + ` ('E2E-AVFIL-F', NOW(), 1, '${MARQUE} F', 0, 'Fofana F.', '${N.F}', NULL, 1, 'NOUVEAU');`
+      + ` ('E2E-AVFIL-A', NOW(), 1, '${MARQUE}A', 0, 'Awa A.', '07 09 99 01 01', NULL, 1, 'NOUVEAU'),`
+      + ` ('E2E-AVFIL-B', NOW(), 4, '${MARQUE}B', 0, 'Ble B.', '${N.B}', NULL, 1, 'NOUVEAU'),`
+      + ` ('E2E-AVFIL-C', NOW(), 5, '${MARQUE}C', 0, 'Cisse C.', NULL, '${EMAIL_C}', 1, 'NOUVEAU'),`
+      + ` ('E2E-AVFIL-D', NOW(), 2, '${MARQUE}D', 0, 'Diallo D.', '${N.D}', NULL, 0, 'NOUVEAU'),`
+      + ` ('E2E-AVFIL-E', NOW(), 3, '${MARQUE}E', 0, 'Essoh E.', '${N.E}', NULL, 1, 'LU'),`
+      + ` ('E2E-AVFIL-F', NOW(), 1, '${MARQUE}F', 0, 'Fofana F.', '${N.F}', NULL, 1, 'NOUVEAU');`
       + "INSERT INTO t_client (lg_CLIENT_ID, str_FIRST_NAME, str_LAST_NAME, lg_TYPE_CLIENT_ID, str_ADRESSE, str_SEXE, dt_CREATED, dt_UPDATED, str_STATUT, bool_CONSENT_WHATSAPP)"
       + ` VALUES ('E2E-AVFIL-STOP', 'Fanta', 'ZZAVFIL', '1', '${N.F}', 'F', NOW(), NOW(), 'enable', 0);`);
     compteWeb(1, 0);
@@ -120,13 +120,13 @@ const DEBUT = q('SELECT NOW() - INTERVAL 1 SECOND');
     const ouvrir = async (cle) => {
       await cliquer(p, 'avisclients #contient');
       await p.keyboard.press('Control+A');
-      await p.keyboard.type(MARQUE + ' ' + cle, { delay: 30 });
+      await p.keyboard.type(MARQUE + cle, { delay: 30 });
       await p.waitForFunction((t) => { const g = Ext.ComponentQuery.query('avisclients #grilleAvis')[0]; const s = g.getStore();
-        return !s.isLoading() && s.getCount() === 1 && s.getAt(0).get('texte') === t; }, MARQUE + ' ' + cle, { timeout: 20000 });
+        return !s.isLoading() && s.getCount() === 1 && s.getAt(0).get('texte') === t; }, MARQUE + cle, { timeout: 20000 });
       await attendre();
       await p.evaluate(() => Ext.ComponentQuery.query('avisclients #grilleAvis')[0].getView().getNode(0).setAttribute('data-e2e', 'ligneAvis'));
       await p.click('[data-e2e=ligneAvis]');
-      await p.waitForFunction((t) => { const v = Ext.ComponentQuery.query('avisclients')[0]; return v.avis && v.avis.texte === t && v.down('#traitement').isVisible(); }, MARQUE + ' ' + cle, { timeout: 15000 });
+      await p.waitForFunction((t) => { const v = Ext.ComponentQuery.query('avisclients')[0]; return v.avis && v.avis.texte === t && v.down('#traitement').isVisible(); }, MARQUE + cle, { timeout: 15000 });
     };
     /* ecrit la reponse et clique « Envoyer la réponse » ; rend le message affiche sous le bouton */
     const repondre = async (texte) => {
