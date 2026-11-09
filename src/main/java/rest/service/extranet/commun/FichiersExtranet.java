@@ -95,6 +95,23 @@ public final class FichiersExtranet {
             return htmlAdmis ? TransportExtranet.Attendu.FICHIER_HTML_ADMIS : TransportExtranet.Attendu.FICHIER;
         }
 
+        /** Classeur xlsx (archive ZIP « PK\3\4 ») : essai reel du 09/11, BLV Excel d'Ubipharm. */
+        private boolean xlsx(byte[] octets) {
+            return "EXCEL".equals(format) && octets != null && octets.length >= 4 && octets[0] == 0x50
+                    && octets[1] == 0x4B && octets[2] == 0x03 && octets[3] == 0x04;
+        }
+
+        /** Type rendu selon le fichier recu : un Excel xlsx garde son type, sinon le type declare. */
+        public String typeMime(byte[] octets) {
+            return xlsx(octets) ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" : typeMime;
+        }
+
+        /** Nom rendu selon le fichier recu : « .xlsx » pour un classeur xlsx, sinon l'extension declaree. */
+        public String nom(String numero, byte[] octets) {
+            String n = nom(numero);
+            return xlsx(octets) ? n.substring(0, n.length() - extension.length()) + "xlsx" : n;
+        }
+
         /** Nom du fichier rendu : prefixe, numero du document, extension ; caracteres surs seulement. */
         public String nom(String numero) {
             String n = numero == null ? ""

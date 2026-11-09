@@ -63,6 +63,11 @@ function contenu(chemin, fcnum, etcoda) {
   if (chemin === '/BLVExcel') {
     const b = Buffer.alloc(1536);
     for (let i = 0; i < b.length; i++) { b[i] = graine[i % 32] ^ (i & 0xff); }
+    /* essai reel du 09/11 : le BLV Excel d'Ubipharm est un classeur xlsx (signature ZIP) ; l'ancien xls (OLE) reste couvert */
+    if (fcnum === '2699205') {
+      b[0] = 0x50; b[1] = 0x4B; b[2] = 0x03; b[3] = 0x04;
+      return { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', corps: b };
+    }
     b[0] = 0xD0; b[1] = 0xCF; b[2] = 0x11; b[3] = 0xE0;
     return { type: 'application/vnd.ms-excel', corps: b };
   }
@@ -173,7 +178,7 @@ function contenu(chemin, fcnum, etcoda) {
       await p.mouse.click(pos.x, pos.y);
     };
     const cas = [['F2699201', 'CSV', '/BLVCSV', 'csv'], ['F2699202', 'Excel', '/BLVExcel', 'xls'], ['BKE/999204', 'TXT', '/BLVTxt', 'txt'],
-      ['BKE/999204', 'CSV', '/BLVCSV', 'csv'], ['F2699205', 'Excel', '/BLVExcel', 'xls'], ['F2699206', 'TXT', '/BLVTxt', 'txt']];
+      ['BKE/999204', 'CSV', '/BLVCSV', 'csv'], ['F2699205', 'Excel', '/BLVExcel', 'xlsx'], ['F2699206', 'TXT', '/BLVTxt', 'txt']];
     for (const [n, lib, chemin, ext] of cas) {
       const f = FACTURES.find((x) => x.n === n);
       const avantAppels = srv.etat.appels.length;

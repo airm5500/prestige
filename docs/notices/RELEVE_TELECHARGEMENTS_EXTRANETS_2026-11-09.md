@@ -46,8 +46,33 @@ Les BL du grossiste, ligne par ligne, sont disponibles chez **Ubipharm** (BLV CS
   l'extranet en GET avec la session du connecteur et rend le fichier tel quel (`<Grossiste>_<document>_<n°>.<ext>`).
   Une page HTML reçue à la place d'un CSV ou d'un TXT est refusée ; une page de connexion fait expirer la session.
 - Non proposés : avoirs DPCI (le bouton de l'extranet part sans type ni nombre de colonnes), documents en PDF seul.
-- Vérifié contre le faux extranet seulement : le format exact des fichiers réels n'a pas été téléchargé pendant le
-  relevé (lecture seule). Le premier essai réel dira si DPCI accepte la date du document comme période.
+- Vérifié d'abord contre le faux extranet, puis par l'essai réel ci-dessous.
+
+## Essai réel du 09/11 (lecture seule)
+
+Fait dans le Chrome de l'utilisateur, connecté par lui-même : un document par extranet, mêmes GET que Prestige. Seule
+la forme des fichiers a été relevée (statut, type, signature, séparateurs, nombre de lignes), jamais le contenu.
+
+| Grossiste | Fichier | Statut | Type annoncé | Forme |
+|---|---|---|---|---|
+| Ubipharm | BLV CSV | 200 | `text/csv`, pièce jointe `.csv` | ligne de titres + lignes, 17 champs « ; », CRLF |
+| Ubipharm | BLV Excel | 200 | `…spreadsheetml.sheet`, pièce jointe `.xlsx` | **classeur xlsx** (signature ZIP « PK ») |
+| Ubipharm | BLV TXT | 200 | `text/plain`, pièce jointe `.txt` | 4 champs séparés par tabulation, CRLF |
+| TEDIS | BL TXT | 200 | texte | 9 champs séparés par tabulation |
+| TEDIS | BL CSV | 200 | texte | 8 champs « ; », sans ligne de titres |
+| DPCI | Facture CSV 9 colonnes | 200 | CSV | 10 champs « ; » (point-virgule final) ; 3 factures : 19, 12, 17 lignes, chacune seulement la sienne |
+| DPCI | Facture CSV 2 colonnes | 200 | CSV | répond avec la date de la facture comme période |
+| Copharmed | Facture CSV | 200 | **`text/html`**, pièce jointe `.csv` | ligne de titres + ligne, 15 champs « ; » ; le corps ne commence pas par une balise : admis |
+| Copharmed | Facture XLS | 200 | `application/ms-excel`, pièce jointe `.xls` | classeur xls (signature OLE « D0 CF ») |
+
+- DPCI accepte la date de la facture comme période : point incertain levé.
+- Copharmed connecté : la page Factures porte bien le lien `/fr/logout` (contrôle de session) ; 25 lignes par page,
+  liens de pagination présents ; `InvoiceNo` = numéro affiché sans le préfixe d'année ni les tirets.
+- **Défaut trouvé et corrigé** : le BLV Excel d'Ubipharm est un xlsx, que Prestige nommait `.xls` (Excel signale
+  alors un format qui ne correspond pas à l'extension). L'extension et le type rendus suivent désormais la signature
+  du fichier reçu : `.xlsx` pour un classeur ZIP, `.xls` sinon. Tests : `extensionSelonSignature_hasard`
+  (3 000 cas, tous les fichiers) et `test-ecran-fichiers-0911.js` (Excel xlsx et xls servis ; 35/36 sur l'ancien code,
+  36/36 après).
 
 ## Proposition d'implémentation
 

@@ -161,6 +161,55 @@ class FichiersExtranetCoherenceTest {
         assertEquals("TEDIS_BLV.txt", tedis.nom(""));
     }
 
+    /**
+     * Essai reel du 09/11 : le BLV Excel d'Ubipharm est un classeur xlsx (signature ZIP « PK »), l'Excel de Copharmed
+     * un xls (signature OLE « D0 CF 11 E0 »). L'extension et le type rendus suivent la signature du fichier recu,
+     * jamais une extension figee qu'Excel signalerait a l'ouverture. Jeux tires au hasard (graine fixe), tous les
+     * fichiers.
+     */
+    @Test
+    void extensionSelonSignature_hasard() {
+        byte[] zip = { 0x50, 0x4B, 0x03, 0x04 };
+        byte[] ole = { (byte) 0xD0, (byte) 0xCF, 0x11, (byte) 0xE0 };
+        byte[] html = "<table><tr><td>1</td></tr></table>".getBytes(StandardCharsets.UTF_8);
+        Random r = new Random(9112026L);
+        int xlsx = 0, xls = 0, autres = 0;
+        for (int t = 0; t < 3000; t++) {
+            FichiersExtranet.Fichier f = FichiersExtranet.tous().get(r.nextInt(FichiersExtranet.tous().size()));
+            byte[] corps = new byte[r.nextInt(3) == 0 ? r.nextInt(4) : 4 + r.nextInt(500)];
+            r.nextBytes(corps);
+            int genre = r.nextInt(4);
+            byte[] tete = genre == 0 ? zip : genre == 1 ? ole : genre == 2 ? html : new byte[0];
+            System.arraycopy(tete, 0, corps, 0, Math.min(tete.length, corps.length));
+            boolean complet = corps.length >= tete.length;
+            String numero = "N" + r.nextInt(1_000_000);
+            String nom = f.nom(numero, corps);
+            String type = f.typeMime(corps);
+            if ("EXCEL".equals(f.format) && complet && genre == 0) {
+                assertTrue(nom.endsWith(".xlsx"), nom);
+                assertEquals("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", type);
+                xlsx++;
+            } else if ("EXCEL".equals(f.format)) {
+                assertTrue(nom.endsWith(".xls"), nom);
+                assertEquals("application/vnd.ms-excel", type);
+                xls++;
+            } else {
+                /* CSV et TXT : toujours l'extension et le type declares, quel que soit le debut du corps */
+                assertEquals(f.nom(numero), nom);
+                assertEquals(f.typeMime, type);
+                autres++;
+            }
+            assertEquals(f.nom(numero).replaceAll("\\.[a-z]+$", ""), nom.replaceAll("\\.[a-z]+$", ""), nom);
+        }
+        assertTrue(xlsx > 100 && xls > 100 && autres > 1000, xlsx + " / " + xls + " / " + autres);
+        assertEquals("Ubipharm_BLV_BKE-765220.xlsx",
+                FichiersExtranet.un(SourceExtranet.UBIPHARM, "FACTURES", "EXCEL").nom("BKE/765220", zip));
+        assertEquals("Copharmed_Facture_26-999999-99.xls",
+                FichiersExtranet.un(SourceExtranet.COPHARMED, "COPHARMED_FACTURES", "EXCEL").nom("26-999999-99", ole));
+        FichiersExtranet.Fichier ubi = FichiersExtranet.un(SourceExtranet.UBIPHARM, "FACTURES", "EXCEL");
+        assertEquals(ubi.nom("x"), ubi.nom("x", null));
+    }
+
     @Test
     void colonneDuNumero() {
         assertEquals(3, FichiersExtranet

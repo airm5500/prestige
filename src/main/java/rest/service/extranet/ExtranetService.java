@@ -619,7 +619,7 @@ public class ExtranetService {
             if (r.taille() > rest.service.extranet.commun.FichiersExtranet.TAILLE_MAX) {
                 return FichierRendu.refus(502, "Fichier trop volumineux");
             }
-            return new FichierRendu(r.octets(), f.nom(numero), f.typeMime, null, 200);
+            return new FichierRendu(r.octets(), f.nom(numero, r.octets()), f.typeMime(r.octets()), null, 200);
         } catch (ExtranetException e) {
             return FichierRendu.refus(502, e.getMessage());
         }
