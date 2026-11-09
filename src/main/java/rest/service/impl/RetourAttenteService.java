@@ -29,9 +29,10 @@ public class RetourAttenteService {
     /** Etat du retour, verrouille jusqu'a la fin de la transaction : {statut, auteur, auteurAttente} ou null. */
     @SuppressWarnings("unchecked")
     private Object[] verrouiller(String id) {
-        List<Object[]> l = em.createNativeQuery("SELECT str_STATUT, lg_USER_ID, lg_USER_ATTENTE, str_REF_RETOUR_FRS"
-                + " FROM t_retour_fournisseur WHERE lg_RETOUR_FRS_ID = ?1 FOR UPDATE").setParameter(1, id)
-                .getResultList();
+        List<Object[]> l = em
+                .createNativeQuery("SELECT str_STATUT, lg_USER_ID, lg_USER_ATTENTE, str_REF_RETOUR_FRS"
+                        + " FROM t_retour_fournisseur WHERE lg_RETOUR_FRS_ID = ?1 FOR UPDATE")
+                .setParameter(1, id).getResultList();
         return l.isEmpty() ? null : l.get(0);
     }
 
@@ -47,8 +48,9 @@ public class RetourAttenteService {
             l = em.createNativeQuery("SELECT str_STATUT FROM t_retour_fournisseur WHERE lg_RETOUR_FRS_ID = ?1")
                     .setParameter(1, retourId).getResultList();
         } else if (StringUtils.isNotBlank(ligneId)) {
-            l = em.createNativeQuery("SELECT r.str_STATUT FROM t_retour_fournisseur r JOIN t_retour_fournisseur_detail d"
-                    + " ON d.lg_RETOUR_FRS_ID = r.lg_RETOUR_FRS_ID WHERE d.lg_RETOUR_FRS_DETAIL = ?1")
+            l = em.createNativeQuery(
+                    "SELECT r.str_STATUT FROM t_retour_fournisseur r JOIN t_retour_fournisseur_detail d"
+                            + " ON d.lg_RETOUR_FRS_ID = r.lg_RETOUR_FRS_ID WHERE d.lg_RETOUR_FRS_DETAIL = ?1")
                     .setParameter(1, ligneId).getResultList();
         } else {
             return null;
@@ -97,10 +99,12 @@ public class RetourAttenteService {
                     + RetourEtats.libelle(etat) + ") ; rien n'a été modifié.");
         }
         if (!RetourEtats.peutCorriger(user.getLgUSERID(), texte(r[1]), texte(r[2]), valideur)) {
-            return interdit("Seul l'auteur du retour, ou un profil qui valide les retours, peut le remettre en attente.");
+            return interdit(
+                    "Seul l'auteur du retour, ou un profil qui valide les retours, peut le remettre en attente.");
         }
-        Number lignes = (Number) em.createNativeQuery("SELECT COUNT(*) FROM t_retour_fournisseur_detail"
-                + " WHERE lg_RETOUR_FRS_ID = ?1 AND str_STATUT <> 'enable' AND str_STATUT <> 'delete'")
+        Number lignes = (Number) em
+                .createNativeQuery("SELECT COUNT(*) FROM t_retour_fournisseur_detail"
+                        + " WHERE lg_RETOUR_FRS_ID = ?1 AND str_STATUT <> 'enable' AND str_STATUT <> 'delete'")
                 .setParameter(1, id).getSingleResult();
         if (lignes.intValue() == 0) {
             return statut(409, "VIDE", "Le retour ne contient aucun produit.");
@@ -127,9 +131,9 @@ public class RetourAttenteService {
         if (!RetourEtats.peutCorriger(user.getLgUSERID(), texte(r[1]), texte(r[2]), valideur)) {
             return interdit("Seul l'auteur du retour, ou un profil qui valide les retours, peut l'abandonner.");
         }
-        em.createNativeQuery("UPDATE t_retour_fournisseur SET str_STATUT = ?1, dt_UPDATED = NOW()"
-                + " WHERE lg_RETOUR_FRS_ID = ?2").setParameter(1, RetourEtats.ABANDONNE).setParameter(2, id)
-                .executeUpdate();
+        em.createNativeQuery(
+                "UPDATE t_retour_fournisseur SET str_STATUT = ?1, dt_UPDATED = NOW()" + " WHERE lg_RETOUR_FRS_ID = ?2")
+                .setParameter(1, RetourEtats.ABANDONNE).setParameter(2, id).executeUpdate();
         RetourEtats.tracer(em, id, RetourEtats.ABANDON, null, user.getLgUSERID());
         return ok(id, RetourEtats.ABANDONNE, "Retour " + texte(r[3]) + " abandonné : rien n'est sorti du stock.");
     }
@@ -142,9 +146,10 @@ public class RetourAttenteService {
 
     /** Retours refuses dont l'utilisateur est l'auteur (a corriger). */
     public int nombreRefusesDe(String userId) {
-        return ((Number) em.createNativeQuery("SELECT COUNT(*) FROM t_retour_fournisseur WHERE str_STATUT = ?1"
-                + " AND (lg_USER_ID = ?2 OR lg_USER_ATTENTE = ?2)").setParameter(1, RetourEtats.REFUSE)
-                .setParameter(2, userId).getSingleResult()).intValue();
+        return ((Number) em
+                .createNativeQuery("SELECT COUNT(*) FROM t_retour_fournisseur WHERE str_STATUT = ?1"
+                        + " AND (lg_USER_ID = ?2 OR lg_USER_ATTENTE = ?2)")
+                .setParameter(1, RetourEtats.REFUSE).setParameter(2, userId).getSingleResult()).intValue();
     }
 
     @SuppressWarnings("unchecked")
@@ -154,7 +159,8 @@ public class RetourAttenteService {
                 + " TRIM(CONCAT(COALESCE(u.str_FIRST_NAME, ''), ' ', COALESCE(u.str_LAST_NAME, ''))), h.lg_USER_ID,"
                 + " DATE_FORMAT(h.dt_ACTION, '%Y-%m-%dT%H:%i:%s') FROM t_retour_fournisseur_historique h"
                 + " LEFT JOIN t_user u ON u.lg_USER_ID = h.lg_USER_ID WHERE h.lg_RETOUR_FRS_ID = ?1"
-                + " ORDER BY h.dt_ACTION, h.id").setParameter(1, id).getResultList()) {
+                /* 09/11 : ordre d'insertion pour deux actions de la meme seconde (avant : UUID, au hasard) */
+                + " ORDER BY h.dt_ACTION, h.ordre").setParameter(1, id).getResultList()) {
             data.put(new JSONObject().put("action", texte(r[0])).put("motif", r[1] == null ? JSONObject.NULL : r[1])
                     .put("par", texte(r[2])).put("parId", texte(r[3])).put("le", texte(r[4])));
         }
@@ -192,16 +198,17 @@ public class RetourAttenteService {
                                 .put("auteurAttenteId", texte(r[7])).put("nombreRefus", nombre(r[8])));
                 /* partie 2 de la demande 59 : etat, auteur et date de l'etat, memes regles partout */
                 String statut = texte(r[9]);
-                String[] abandon = StringUtils.split(texte(r[12]), '|'), validation = StringUtils.split(texte(r[13]), '|');
+                String[] abandon = StringUtils.split(texte(r[12]), '|'),
+                        validation = StringUtils.split(texte(r[13]), '|');
                 String abandonPar = partie(abandon, 0), abandonLe = partie(abandon, 1);
                 String validePar = partie(validation, 0), valideLe = partie(validation, 1);
                 String date = RetourEtats.REFUSE.equals(statut) ? texte(r[3])
-                        : RetourEtats.EN_ATTENTE.equals(statut) ? texte(r[5])
-                        : RetourEtats.ABANDONNE.equals(statut) ? abandonLe
-                        : RetourEtats.VALIDE.equals(statut) ? valideLe : "";
+                        : RetourEtats.EN_ATTENTE.equals(statut) ? texte(r[5]) : RetourEtats.ABANDONNE.equals(statut)
+                                ? abandonLe : RetourEtats.VALIDE.equals(statut) ? valideLe : "";
                 m.get(texte(r[0])).put("etat", RetourEtats.libelle(statut))
-                        .put("auteur", RetourEtats.auteur(statut, texte(r[2]), texte(r[4]), abandonPar, validePar,
-                                texte(r[10])))
+                        .put("auteur",
+                                RetourEtats.auteur(statut, texte(r[2]), texte(r[4]), abandonPar, validePar,
+                                        texte(r[10])))
                         .put("dateEtat", StringUtils.isNotBlank(date) ? date : texte(r[11]));
             }
         }
@@ -233,7 +240,7 @@ public class RetourAttenteService {
         return "(SELECT CONCAT(TRIM(CONCAT(COALESCE(u.str_FIRST_NAME, ''), ' ', COALESCE(u.str_LAST_NAME, ''))), '|',"
                 + " DATE_FORMAT(h.dt_ACTION, '%d/%m/%Y %H:%i')) FROM t_retour_fournisseur_historique h"
                 + " LEFT JOIN t_user u ON u.lg_USER_ID = h.lg_USER_ID WHERE h.lg_RETOUR_FRS_ID = r.lg_RETOUR_FRS_ID"
-                + " AND h.action = '" + action + "' ORDER BY h.dt_ACTION DESC LIMIT 1)";
+                + " AND h.action = '" + action + "' ORDER BY h.dt_ACTION DESC, h.ordre DESC LIMIT 1)";
     }
 
     private static String partie(String[] t, int i) {
