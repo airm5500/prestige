@@ -99,7 +99,11 @@ function mesurer(cle) {
   if (cle === 'kpi') {
     const k = e.down('#casesKpi'), kb = k.body.dom;
     m.kpi = { defileH: kb.scrollWidth > kb.clientWidth + 1, defileV: kb.scrollHeight > kb.clientHeight + 1,
-      cases: k.query('checkbox').length, sw: kb.scrollWidth, cw: kb.clientWidth, sh: kb.scrollHeight, ch: kb.clientHeight };
+      cases: k.query('checkbox').length, sw: kb.scrollWidth, cw: kb.clientWidth, sh: kb.scrollHeight, ch: kb.clientHeight,
+      /* une case dont le libelle passe sous la case (ou deborde du cadre) */
+      libellesDecales: k.query('checkbox').filter((c) => { const i = c.getEl().dom.querySelector('input'), lb = c.getEl().dom.querySelector('label.x-form-cb-label');
+        if (!i || !lb) { return false; } const ri = i.getBoundingClientRect(), rl = lb.getBoundingClientRect();
+        return rl.top >= ri.bottom - 1 || rl.right > kb.getBoundingClientRect().right + 1; }).map((c) => c.cleKpi) };
   }
   return m;
 }
@@ -166,6 +170,7 @@ function mesurer(cle) {
         }
         if (m.kpi) {
           ok(`${T} KPI — cases sans défilement horizontal ni vertical (toutes visibles)`, m.kpi.cases > 0 && !m.kpi.defileH && !m.kpi.defileV, JSON.stringify(m.kpi));
+          ok(`${T} KPI — chaque libellé reste à côté de sa case`, !m.kpi.libellesDecales.length, m.kpi.libellesDecales.join(','));
         }
       }
       await p.context().close();
