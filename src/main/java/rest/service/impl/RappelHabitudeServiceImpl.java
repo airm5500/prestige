@@ -33,6 +33,7 @@ import rest.service.NotificationService;
 import rest.service.RappelHabitudeService;
 import util.MessageModele;
 import util.TelephoneCi;
+import util.TelephoneClient;
 
 /**
  * Rappels aux patients chroniques par HABITUDE D'ACHAT (plan d'octobre, section 4.1, lot L10).
@@ -124,7 +125,8 @@ public class RappelHabitudeServiceImpl implements RappelHabitudeService {
             String emplacementId) {
         StringBuilder sql = new StringBuilder("SELECT r.id, r.lg_CLIENT_ID AS clientId,"
                 + " TRIM(CONCAT(COALESCE(c.str_FIRST_NAME,''),' ',COALESCE(c.str_LAST_NAME,''))) AS client,"
-                + " c.str_ADRESSE AS telephone, c.bool_CONSENT_SMS AS consent, c.bool_MSG_MEDICAMENTS AS citer,"
+                + " c.str_TELEPHONE AS telephone, c.str_ADRESSE AS adresse, c.bool_CONSENT_SMS AS consent,"
+                + " c.bool_MSG_MEDICAMENTS AS citer,"
                 + " r.lg_FAMILLE_ID AS familleId, f.int_CIP AS cip, f.str_NAME AS produit,"
                 + " (SELECT COALESCE(SUM(s.int_NUMBER_AVAILABLE),0) FROM t_famille_stock s"
                 + " WHERE s.lg_FAMILLE_ID = r.lg_FAMILLE_ID AND s.lg_EMPLACEMENT_ID = ?1) AS stock,"
@@ -146,8 +148,8 @@ public class RappelHabitudeServiceImpl implements RappelHabitudeService {
             params.add("%" + recherche.trim() + "%");
             int i = params.size();
             sql.append(" AND (CONCAT(COALESCE(c.str_FIRST_NAME,''),' ',COALESCE(c.str_LAST_NAME,'')) LIKE ?").append(i)
-                    .append(" OR c.str_ADRESSE LIKE ?").append(i).append(" OR f.str_NAME LIKE ?").append(i)
-                    .append(" OR f.int_CIP LIKE ?").append(i).append(")");
+                    .append(" OR c.str_ADRESSE LIKE ?").append(i).append(" OR c.str_TELEPHONE LIKE ?").append(i)
+                    .append(" OR f.str_NAME LIKE ?").append(i).append(" OR f.int_CIP LIKE ?").append(i).append(")");
         }
         if (du != null) {
             params.add(java.sql.Date.valueOf(du));
@@ -168,7 +170,8 @@ public class RappelHabitudeServiceImpl implements RappelHabitudeService {
             d.setId(t.get("id", String.class));
             d.setClientId(t.get("clientId", String.class));
             d.setClient(t.get("client", String.class));
-            d.setTelephone(t.get("telephone", String.class));
+            /* plan avoir du 08/11, point 4 : meme lecture du numero que les campagnes et l'envoi */
+            d.setTelephone(TelephoneClient.affiche(t.get("telephone", String.class), t.get("adresse", String.class)));
             Object consent = t.get("consent");
             d.setConsentSms(consent == null ? null : vrai(consent));
             d.setMsgMedicaments(t.get("citer") == null || vrai(t.get("citer")));
@@ -266,7 +269,7 @@ public class RappelHabitudeServiceImpl implements RappelHabitudeService {
             String nom = client == null ? "" : (StringUtils.defaultString(client.getStrFIRSTNAME()) + " "
                     + StringUtils.defaultString(client.getStrLASTNAME())).trim();
             String motif = null;
-            TelephoneCi.Resultat tel = client == null ? null : TelephoneCi.controler(client.getStrADRESSE());
+            TelephoneCi.Resultat tel = client == null ? null : TelephoneClient.controler(client);
             if (client == null) {
                 motif = "Client introuvable.";
             } else if (refuse(client, whatsapp, sms)) {

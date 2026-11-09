@@ -23,7 +23,9 @@ public final class Campagnes {
 
     public enum Categorie {
         ANNIVERSAIRE("Anniversaires"), FETE("Fêtes"), INFO_CLIENTS("Infos clients"), INFO_PHARMACIE("Infos pharmacie"),
-        PERSONNALISE("Personnalisé");
+        PERSONNALISE("Personnalisé"),
+        /** Plan avoir du 08/11, point 5 : ciblage libre des rappels des traitements (« clients ayant acheté »). */
+        TRAITEMENT("Rappel traitement");
 
         public final String libelle;
 

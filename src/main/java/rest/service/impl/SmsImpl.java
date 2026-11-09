@@ -272,18 +272,22 @@ public class SmsImpl implements SmsService {
             int total = 0;
             for (NotificationClient toClient : toClients) {
                 TClient tc = toClient.getClient();
-                if (tc == null || StringUtils.isEmpty(tc.getStrADRESSE())) {
+                // Plan avoir du 08/11, point 4 : le numero du client (str_TELEPHONE, a defaut l'ancien champ adresse),
+                // lu comme dans les campagnes et les rappels.
+                util.TelephoneCi.Resultat telClient = util.TelephoneClient.controler(tc);
+                String brut = tc == null ? null : StringUtils.defaultIfBlank(tc.getStrTELEPHONE(), tc.getStrADRESSE());
+                if (tc == null || (!telClient.isValide() && StringUtils.isEmpty(brut))) {
                     continue;
                 }
                 total++;
                 // Derniere normalisation avant le fournisseur (point 2) : un numero saisi avec espaces, « + » ou
                 // indicatif est ramene au format local a 10 chiffres ; un numero non reconnu part tel quel.
-                String numero = util.TelephoneCi.localOuSaisie(tc.getStrADRESSE());
+                String numero = telClient.isValide() ? telClient.getLocal() : util.TelephoneCi.localOuSaisie(brut);
                 // customData = id du destinataire : corrélation exacte des accusés de réception.
                 SmsSendResult result = provider.send(numero, message, toClient.getId());
                 applyResultToClient(toClient, result, provider.getCode());
                 LOG.log(Level.INFO, "sendSMS >>> notification={0}, client={1}, numero={2}, fournisseur={3}, {4}",
-                        new Object[] { notification.getId(), toClient.getId(), tc.getStrADRESSE(), provider.getCode(),
+                        new Object[] { notification.getId(), toClient.getId(), numero, provider.getCode(),
                                 result.toLog() });
                 if (result.isAccepted()) {
                     sent++;
@@ -300,7 +304,7 @@ public class SmsImpl implements SmsService {
                     signalerRefus(result, provider.getCode(),
                             "Envoi SMS refuse par " + provider.getCode() + " (code " + result.getErrorCode() + ")",
                             "Notification " + notification.getId() + ", destinataire " + toClient.getId() + ", numero "
-                                    + tc.getStrADRESSE() + ". Erreur : " + result.getErrorMessage());
+                                    + numero + ". Erreur : " + result.getErrorMessage());
                     if (envoisSuspendus()) {
                         // Inutile de derouler la liste des destinataires : chacun recevrait le meme refus.
                         break;
