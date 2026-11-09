@@ -73,6 +73,10 @@ public class RetourFournisseurServiceImpl implements RetourFournisseurService {
 
     private TRetourFournisseur create(RetourFournisseurDTO params) {
         params.setUser(sessionHelperService.getCurrentUser());
+        if (params.getItems() == null || params.getItems().isEmpty()) {
+            // 09/11 : avant, erreur technique (get(0) sur une liste vide)
+            throw new RefusMetier("Aucune ligne à retourner.");
+        }
         TBonLivraison bonLivraison = bonVise(params);
         boolean ancienAppel = StringUtils.isBlank(params.getBlId()) && StringUtils.isBlank(params.getLgGROSSISTEID());
         TRetourFournisseurDetail item = newItem(params.getItems().get(0), bonLivraison,
@@ -85,6 +89,20 @@ public class RetourFournisseurServiceImpl implements RetourFournisseurService {
         getEntityManager().persist(fournisseur);
         item.setLgRETOURFRSID(fournisseur);
         getEntityManager().persist(item);
+        /*
+         * 09/11 : les lignes suivantes (client mobile) etaient ignorees sans message. Elles suivent les regles de
+         * add-item (meme produit et meme motif : quantites ajoutees ; autre motif : nouvelle ligne ; plafond du recu ;
+         * stock). Une seule refusee : RefusMetier annule la transaction, rien n'est cree.
+         */
+        for (int i = 1; i < params.getItems().size(); i++) {
+            getEntityManager().flush();
+            RetourDetailsDTO suivante = params.getItems().get(i);
+            suivante.setLgRETOURFRSID(fournisseur.getLgRETOURFRSID());
+            if (addItem(suivante) == null) {
+                throw new RefusMetier(
+                        "Ligne " + (i + 1) + " : quantité à retourner supérieure à la quantité reçue sur ce BL.");
+            }
+        }
         return fournisseur;
     }
 
@@ -581,8 +599,8 @@ public class RetourFournisseurServiceImpl implements RetourFournisseurService {
             t.ajouter(s(r[0]), s(r[1]), s(r[2]), s(r[3]), s(r[4]), s(r[5]), s(r[6]), n(r[7]), n(r[8]), n(r[9]));
             t.utilisateur(s(r[1]), s(r[10]), s(r[11]), n(r[7]), n(r[8]), (long) n(r[7]) * n(r[9]));
         }
-        return t.json(nbProduits).put("debut", dtStart).put("fin", dtEnd)
-                .put("etats", etats(dtStart, dtEnd, parGrossiste ? fourId : null, parUtilisateur ? userId.trim() : null));
+        return t.json(nbProduits).put("debut", dtStart).put("fin", dtEnd).put("etats",
+                etats(dtStart, dtEnd, parGrossiste ? fourId : null, parUtilisateur ? userId.trim() : null));
     }
 
     /**
@@ -593,15 +611,16 @@ public class RetourFournisseurServiceImpl implements RetourFournisseurService {
      */
     @SuppressWarnings("unchecked")
     private org.json.JSONObject etats(String dtStart, String dtEnd, String fourId, String userId) {
-        javax.persistence.Query q = em.createNativeQuery("SELECT r.lg_RETOUR_FRS_ID, r.str_REF_RETOUR_FRS, r.str_STATUT,"
-                + " COUNT(d.lg_RETOUR_FRS_DETAIL), COALESCE(SUM(d.int_NUMBER_RETURN), 0), MAX(r.dt_UPDATED)"
-                + " FROM t_retour_fournisseur r LEFT JOIN t_retour_fournisseur_detail d ON d.lg_RETOUR_FRS_ID = r.lg_RETOUR_FRS_ID"
-                + " WHERE ((r.str_STATUT IN ('enable', 'is_Abandoned') AND DATE(r.dt_UPDATED) BETWEEN ?1 AND ?2)"
-                + " OR r.str_STATUT IN ('is_Waiting', 'is_Refused'))"
-                /* parametres numerotes sans trou (filtre utilisateur seul : ?3) */
-                + (fourId != null ? " AND r.lg_GROSSISTE_ID = ?3" : "")
-                + (userId != null ? " AND r.lg_USER_ID = ?" + (fourId != null ? 4 : 3) : "")
-                + " GROUP BY r.lg_RETOUR_FRS_ID, r.str_REF_RETOUR_FRS, r.str_STATUT ORDER BY MAX(r.dt_UPDATED) DESC")
+        javax.persistence.Query q = em
+                .createNativeQuery("SELECT r.lg_RETOUR_FRS_ID, r.str_REF_RETOUR_FRS, r.str_STATUT,"
+                        + " COUNT(d.lg_RETOUR_FRS_DETAIL), COALESCE(SUM(d.int_NUMBER_RETURN), 0), MAX(r.dt_UPDATED)"
+                        + " FROM t_retour_fournisseur r LEFT JOIN t_retour_fournisseur_detail d ON d.lg_RETOUR_FRS_ID = r.lg_RETOUR_FRS_ID"
+                        + " WHERE ((r.str_STATUT IN ('enable', 'is_Abandoned') AND DATE(r.dt_UPDATED) BETWEEN ?1 AND ?2)"
+                        + " OR r.str_STATUT IN ('is_Waiting', 'is_Refused'))"
+                        /* parametres numerotes sans trou (filtre utilisateur seul : ?3) */
+                        + (fourId != null ? " AND r.lg_GROSSISTE_ID = ?3" : "")
+                        + (userId != null ? " AND r.lg_USER_ID = ?" + (fourId != null ? 4 : 3) : "")
+                        + " GROUP BY r.lg_RETOUR_FRS_ID, r.str_REF_RETOUR_FRS, r.str_STATUT ORDER BY MAX(r.dt_UPDATED) DESC")
                 .setParameter(1, java.sql.Date.valueOf(dtStart)).setParameter(2, java.sql.Date.valueOf(dtEnd));
         if (fourId != null) {
             q.setParameter(3, fourId);

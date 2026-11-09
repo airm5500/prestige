@@ -46,7 +46,7 @@ const [M1, LIB1] = motifs[0] || [], [M2] = motifs[1] || [];
 const stockDe = (pr) => Number(q(`SELECT int_NUMBER_AVAILABLE FROM t_famille_stock WHERE lg_FAMILLE_ID = '${pr}' AND lg_EMPLACEMENT_ID = '1'`));
 const mvtsDe = (pr) => Number(q(`SELECT COUNT(*) FROM HMvtProduit WHERE lg_FAMILLE_ID = '${pr}'`));
 const etat = (id) => q(`SELECT str_STATUT FROM t_retour_fournisseur WHERE lg_RETOUR_FRS_ID = '${id}'`);
-const historique = (id) => q(`SELECT IFNULL(GROUP_CONCAT(action ORDER BY dt_ACTION, id SEPARATOR '|'), '') FROM t_retour_fournisseur_historique WHERE lg_RETOUR_FRS_ID = '${id}'`);
+const historique = (id) => q(`SELECT IFNULL(GROUP_CONCAT(action ORDER BY dt_ACTION, ordre SEPARATOR '|'), '') FROM t_retour_fournisseur_historique WHERE lg_RETOUR_FRS_ID = '${id}'`);
 /* lignes du retour : produit:motif:lot:quantite, triees */
 const lignes = (id) => q(`SELECT IFNULL(GROUP_CONCAT(x ORDER BY x SEPARATOR ','), '') FROM (SELECT CONCAT_WS(':', IF(d.lg_FAMILLE_ID = '${P1}', 'P1', 'P2'),`
   + ` IF(d.lg_MOTIF_RETOUR = '${M1}', 'M1', 'M2'), IFNULL(d.num_lot, '-'), d.int_NUMBER_RETURN) x FROM t_retour_fournisseur_detail d WHERE d.lg_RETOUR_FRS_ID = '${id}') t`);

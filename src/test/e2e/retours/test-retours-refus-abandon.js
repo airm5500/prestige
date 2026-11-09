@@ -38,7 +38,7 @@ const stock = () => q(`SELECT int_NUMBER_AVAILABLE FROM t_famille_stock WHERE lg
 const mvts = () => q(`SELECT COUNT(*) FROM HMvtProduit WHERE lg_FAMILLE_ID = '${PRODUIT}'`);
 const etat = (id) => q(`SELECT str_STATUT FROM t_retour_fournisseur WHERE lg_RETOUR_FRS_ID = '${id}'`);
 const enAttente = () => Number(q("SELECT COUNT(*) FROM t_retour_fournisseur WHERE str_STATUT = 'is_Waiting'"));
-const historique = (id) => q(`SELECT IFNULL(GROUP_CONCAT(CONCAT_WS(':', action, IFNULL(motif, ''), lg_USER_ID = '${ADMIN}') ORDER BY dt_ACTION, id SEPARATOR '|'), '')`
+const historique = (id) => q(`SELECT IFNULL(GROUP_CONCAT(CONCAT_WS(':', action, IFNULL(motif, ''), lg_USER_ID = '${ADMIN}') ORDER BY dt_ACTION, ordre SEPARATOR '|'), '')`
   + ` FROM t_retour_fournisseur_historique WHERE lg_RETOUR_FRS_ID = '${id}'`);
 const STOCK0 = stock(), MVT0 = mvts();
 

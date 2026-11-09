@@ -281,7 +281,7 @@ function poser() {
     for (let i = 0; i < 40 && q(`SELECT str_STATUT FROM t_retour_fournisseur WHERE lg_RETOUR_FRS_ID = '${retourId}'`) !== 'enable'; i++) { await p.waitForTimeout(500); }
     ok('Validation à l\'écran : confirmation dans le bouton, aucune fenêtre', /Valider le retour/.test(t1) && /Confirmer|sortent/.test(arme.texte) && !arme.boite, t1 + ' / ' + JSON.stringify(arme));
     const vb = q(`SELECT CONCAT_WS('|', r.str_STATUT, (SELECT COUNT(*) FROM t_retour_fournisseur_detail d WHERE d.lg_RETOUR_FRS_ID = r.lg_RETOUR_FRS_ID AND d.str_STATUT = 'enable'),
-      (SELECT GROUP_CONCAT(action ORDER BY dt_ACTION, id) FROM t_retour_fournisseur_historique h WHERE h.lg_RETOUR_FRS_ID = r.lg_RETOUR_FRS_ID)) FROM t_retour_fournisseur r WHERE r.lg_RETOUR_FRS_ID = '${retourId}'`);
+      (SELECT GROUP_CONCAT(action ORDER BY dt_ACTION, ordre) FROM t_retour_fournisseur_historique h WHERE h.lg_RETOUR_FRS_ID = r.lg_RETOUR_FRS_ID)) FROM t_retour_fournisseur r WHERE r.lg_RETOUR_FRS_ID = '${retourId}'`);
     ok('Validé, lignes validées, historique tracé', vb.startsWith('enable|' + attendus.length + '|') && /VALIDATION/.test(vb), vb);
     await p.waitForTimeout(1000);
     ok('Validation du retour des manquants : stocks et mouvements inchangés (rien n\'est sorti)', P.every((id, i) => stock(id) === STOCK1[i] && mvts(id) === MVT1[i]),
