@@ -156,8 +156,19 @@ public class TableauBordRessource {
         if (u == null) {
             return deconnecte();
         }
-        return cache("alertes|" + per + "|" + rup + "|" + ren + "|" + sug + "|" + nv + "|" + emplacement(u), COURT,
-                frais == 1, () -> service.alertes(per, rup, ren, sug, nv, emplacement(u)));
+        Response r = cache("alertes|" + per + "|" + rup + "|" + ren + "|" + sug + "|" + nv + "|" + emplacement(u),
+                COURT, frais == 1, () -> service.alertes(per, rup, ren, sug, nv, emplacement(u)));
+        if (Droits.a(servletRequest, SuggestionReserveRessource.P_VOIR_SUGGESTIONS)) {
+            return r;
+        }
+        /*
+         * demande 60 : sans le droit de voir les suggestions de reserve, leurs compteurs ne sont pas envoyes (le cache
+         * est commun a tous les profils : on retire les champs de la reponse, pas de la lecture)
+         */
+        JSONObject o = new JSONObject((String) r.getEntity());
+        o.remove("suggestionsReserve");
+        o.remove("suggestionsRayon");
+        return Response.ok(o.toString()).build();
     }
 
     @GET
@@ -168,6 +179,10 @@ public class TableauBordRessource {
         TUser u = utilisateur();
         if (u == null) {
             return deconnecte();
+        }
+        /* demande 60 : la liste « rayon » est faite des lignes des suggestions de reserve a traiter */
+        if ("rayon".equals(type) && !Droits.a(servletRequest, SuggestionReserveRessource.P_VOIR_SUGGESTIONS)) {
+            return Droits.interdit(SuggestionReserveRessource.LIBELLE_VOIR_SUGGESTIONS);
         }
         JSONObject o = service.alerteListe(StringUtils.defaultString(type), per, rup, nv, emplacement(u), limite);
         return Response.ok(o.put("success", !o.optBoolean("erreur", false)).toString()).build();

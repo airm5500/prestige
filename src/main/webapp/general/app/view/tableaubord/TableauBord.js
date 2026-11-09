@@ -890,8 +890,9 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
                         + '</b> vendus ces <b>' + a.rup + '</b> derniers jours')
                 + ligne('data-liste="peremptions"', 'Péremption', 'p-a', '<b>' + me.fmt(o.peremptions.lots) + '</b> lots périment sous <b>' + a.per + '</b> mois ('
                         + (Math.round(o.peremptions.valeurAchat / 1e5) / 10).toLocaleString('fr-FR') + ' M)')
-                + ligne(menuOu('reservemanager'), 'Sugg. réserve', 'p-b', '<b>' + me.fmt(o.suggestionsReserve) + '</b> suggestions de réserve à traiter')
-                + ligne('data-liste="rayon"', 'Sugg. rayon', 'p-b', '<b>' + me.fmt(o.suggestionsRayon) + '</b> suggestions de rayon à traiter')
+                /* demande 60 : compteurs absents de la reponse sans le droit « Voir les suggestions de reserve » */
+                + (o.suggestionsReserve === undefined ? '' : ligne(menuOu('reservemanager'), 'Sugg. réserve', 'p-b', '<b>' + me.fmt(o.suggestionsReserve) + '</b> suggestions de réserve à traiter'))
+                + (o.suggestionsRayon === undefined ? '' : ligne('data-liste="rayon"', 'Sugg. rayon', 'p-b', '<b>' + me.fmt(o.suggestionsRayon) + '</b> suggestions de rayon à traiter'))
                 + ligne(menuOu('i_sugg_manager'), 'Sugg. commande', 'p-v', '<b>' + me.fmt(o.suggestionsCommande.cloturees) + '</b> suggestions de commande clôturées depuis <b>'
                         + a.sug + '</b> j, non commandées')
                 + ligne(menuOu('ordonnanceclient'), 'Renouvellement', 'p-g', '<b>' + me.fmt(o.renouvellements.patients) + '</b> ordonnances à renouveler sous <b>' + a.ren + '</b> j')

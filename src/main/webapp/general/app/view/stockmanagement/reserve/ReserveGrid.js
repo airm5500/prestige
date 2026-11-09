@@ -570,6 +570,10 @@ Ext.define('testextjs.view.stockmanagement.reserve.ReserveGrid', {
 
     // Bascule sur l'onglet SUGGESTIONS apres une creation reussie.
     allerAuxSuggestions: function (res) {
+        /* demande 60 : sans le droit de voir les suggestions, la demande n'est pas ouverte */
+        if (window.PrestigeDroitsReserve && PrestigeDroitsReserve.demandeCreee(res)) {
+            return;
+        }
         var manager = Ext.getCmp('reservemanagerID');
         var onglet = manager ? manager.down('#ongletSuggestions') : null;
         if (manager && onglet) {

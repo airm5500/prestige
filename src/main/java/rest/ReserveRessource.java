@@ -236,7 +236,10 @@ public class ReserveRessource {
         return Response.ok()
                 .entity(new JSONObject().put("success", true)
                         .put("traiter", Droits.a(servletRequest, "P_TRAITER_RESERVE", "P_SM_RESERVE"))
-                        .put("annulerMouvement", Droits.a(servletRequest, "P_ANNULER_MOUVEMENT_RESERVE")).toString())
+                        .put("annulerMouvement", Droits.a(servletRequest, "P_ANNULER_MOUVEMENT_RESERVE"))
+                        /* demande 60 : voir et ouvrir les suggestions de reserve (onglet SUGGESTIONS, mobile) */
+                        .put("voirSuggestions", Droits.a(servletRequest, SuggestionReserveRessource.P_VOIR_SUGGESTIONS))
+                        .toString())
                 .build();
     }
 
