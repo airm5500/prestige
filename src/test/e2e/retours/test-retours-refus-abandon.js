@@ -171,7 +171,8 @@ function retirer() {
         brut: /<span/.test(i.textContent) } : null; });
     ok('Menu flottant : pastille sur « Retour fournisseur », sans HTML affiché', flot && flot.libelle === 'Retour fournisseur' && flot.nombre === n1 && !flot.brut, JSON.stringify(flot));
     /* second clic sur la ligne parente : le menu flottant se referme (bascule) */
-    await p.locator('.prestige-nav .x-grid-row').filter({ visible: true }).filter({ has: p.getByText(/^\s*GESTION DES COMMANDES\s*$/) }).first().click();
+    /* clic dans la partie gauche de la ligne (icone), que le menu flottant ouvert a cote ne couvre pas */
+    await p.locator('.prestige-nav .x-grid-row').filter({ visible: true }).filter({ has: p.getByText(/^\s*GESTION DES COMMANDES\s*$/) }).first().click({ position: { x: 20, y: 12 } });
     await p.waitForTimeout(400);
     const a1 = await avis();
     ok('Avis discret à la connexion, avec le nombre, sans fenêtre', a1.includes(n1 + ' retour') && !(await p.evaluate(() => Ext.ComponentQuery.query('messagebox').some((m) => m.isVisible()))), a1);
