@@ -238,6 +238,64 @@ public class WhatsAppWebServiceImpl implements WhatsAppWebService {
         return new JSONObject().put("success", true).put("msg", "Démarrage du service WhatsApp Web lancé.");
     }
 
+    /** Libelles des etats du service : ceux de l'onglet « WhatsApp Web : connexion et règles ». */
+    static String libelleEtat(String etat) {
+        switch (StringUtils.defaultString(etat)) {
+        case "CONNECTE":
+            return "Connecté";
+        case "QR":
+            return "En attente du scan";
+        case "INITIALISATION":
+            return "Démarrage…";
+        case "AUTHENTIFIE":
+            return "Connexion en cours…";
+        case "DECONNECTE":
+            return "Déconnecté";
+        case "ECHEC_AUTH":
+            return "Échec de connexion";
+        case "NON_CONFIGURE":
+            return "Service non configuré";
+        case "INJOIGNABLE":
+            return "Service injoignable";
+        case "JETON_REFUSE":
+            return "Jeton refusé";
+        case "ADRESSE_INCORRECTE":
+            return "Adresse incorrecte";
+        default:
+            return StringUtils.defaultIfBlank(etat, "Inconnu");
+        }
+    }
+
+    /** Port de l'adresse du service (80 ou 443 si elle n'en donne pas), ou null si l'adresse est absente ou fausse. */
+    static Integer port(String adresse) {
+        if (StringUtils.isBlank(adresse)) {
+            return null;
+        }
+        try {
+            java.net.URI u = java.net.URI.create(adresse.trim());
+            if (u.getHost() == null) {
+                return null;
+            }
+            return u.getPort() > 0 ? u.getPort() : ("https".equalsIgnoreCase(u.getScheme()) ? 443 : 80);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    @Override
+    public JSONObject configuration() {
+        WhatsAppCompte c = compte(WhatsAppCompte.WEB);
+        String adresse = c == null ? "" : StringUtils.trimToEmpty(c.webUrl);
+        JSONObject r = LancementServiceWhatsApp.configuration(c == null ? null : c.webRepertoire);
+        /* etat en direct : seuls le code et le message sont repris (aucun champ du service n'est recopie tel quel) */
+        JSONObject e = etat();
+        String et = e.optBoolean("success") ? e.optString("etat") : e.optString("etat", "INJOIGNABLE");
+        Integer port = port(adresse);
+        return r.put("success", true).put("adresse", adresse).put("port", port == null ? JSONObject.NULL : port)
+                .put("etat", StringUtils.defaultString(et)).put("etatLibelle", libelleEtat(et))
+                .put("etatMessage", e.optBoolean("success") ? "" : StringUtils.defaultString(e.optString("message")));
+    }
+
     @Override
     public boolean administrateur(String roleId) {
         if (StringUtils.isBlank(roleId)) {

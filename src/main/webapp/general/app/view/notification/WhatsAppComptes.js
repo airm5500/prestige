@@ -78,10 +78,17 @@ Ext.define('testextjs.view.notification.WhatsAppComptes', {
                                     me.secret('webJeton', 'Jeton partagé', 'JETON du fichier config.json du service'),
                                     {xtype: 'displayfield', fieldLabel: 'Avertissement',
                                         value: '<span style="color:#b9770e">Débit lent conseillé : un numéro qui envoie trop vite peut être bloqué par WhatsApp. Pour les tests et les faibles volumes.</span>'},
-                                    {xtype: 'button', text: 'Enregistrer le compte Web', itemId: 'btnEnregistrerWEB', cls: 'fen-btn-principal',
-                                        handler: function () {
-                                            me.enregistrer('WEB');
-                                        }}
+                                    {xtype: 'container', layout: 'hbox', items: [
+                                            {xtype: 'button', text: 'Enregistrer le compte Web', itemId: 'btnEnregistrerWEB', cls: 'fen-btn-principal',
+                                                handler: function () {
+                                                    me.enregistrer('WEB');
+                                                }},
+                                            /* plan avoir du 08/11, point 9 : fenetre de consultation (rien n'y est modifie) */
+                                            {xtype: 'button', text: 'Configuration détaillée', itemId: 'btnConfigurationWeb', margin: '0 0 0 8',
+                                                tooltip: 'Mode de démarrage, état, port, dossier, journaux et étapes de chaque mode',
+                                                handler: function () {
+                                                    me.configurationDetaillee();
+                                                }}]}
                                 ])]
                         }]
                 }, section('Mode par défaut et essai', [{
@@ -579,6 +586,53 @@ Ext.define('testextjs.view.notification.WhatsAppComptes', {
                         }}]});
         }
         zone.show();
+    },
+
+    /*
+     * Plan avoir du 08/11, point 9 : configuration detaillee du service WhatsApp Web, en consultation. Mode de demarrage
+     * (1 : service Windows prestige-whatsapp, 2 : lancement direct par demarrer.bat), etat, port, dossier, journaux et
+     * etapes de chaque mode. Le serveur ne renvoie aucun jeton.
+     */
+    configurationDetaillee: function () {
+        var me = this;
+        me.appel('GET', '../api/v1/whatsapp/web/configuration', null, function (c) {
+            var ligne = function (cle, libelle, valeur) {
+                return '<tr><th>' + libelle + '</th><td data-cle="' + cle + '">' + (valeur === null || valeur === undefined || valeur === '' ? '—' : me.esc(valeur)) + '</td></tr>';
+            };
+            var etapes = function (mode, titre, liste) {
+                var h = '<div class="wa-cfg-mode' + (c.mode === mode ? ' wa-cfg-actif' : '') + '" data-mode="' + mode + '"><b>' + mode + '. ' + titre
+                        + (c.mode === mode ? ' (mode utilisé)' : '') + '</b><ol>';
+                Ext.each(liste || [], function (e) {
+                    h += '<li>' + me.esc(e) + '</li>';
+                });
+                return h + '</ol></div>';
+            };
+            var s = c.serviceWindows || {};
+            var html = '<table class="wa-cfg">'
+                    + ligne('mode', 'Mode de démarrage', c.mode + ' : ' + c.modeLibelle)
+                    + ligne('etat', 'État du service', c.etatLibelle + (c.etatMessage ? ' — ' + c.etatMessage : ''))
+                    + ligne('adresse', 'Adresse', c.adresse)
+                    + ligne('port', 'Port', c.port)
+                    + ligne('dossier', 'Dossier du service', c.dossier)
+                    + ligne('demarrage', 'Démarrage par', c.demarrage)
+                    + ligne('journaux', 'Journaux', c.journaux)
+                    + ligne('serviceWindows', 'Service Windows', s.installe ? s.nom + ' installé' + (s.etat ? ' (' + s.etat + ')' : '') + (s.dossier ? ' — ' + s.dossier : '') : 'non installé')
+                    + '</table>'
+                    + etapes(1, 'Par service Windows (prestige-whatsapp, WinSW) : démarre avec Windows, sans fenêtre', c.etapesService)
+                    + etapes(2, 'Par lancement direct (demarrer.bat)', c.etapesDirect);
+            Ext.create('Ext.window.Window', {
+                title: 'Configuration détaillée du service WhatsApp Web', itemId: 'fenConfigurationWeb', modal: true,
+                width: Math.min(820, Ext.getBody().getViewSize().width - 20), maxHeight: Ext.getBody().getViewSize().height - 40,
+                autoScroll: true, bodyPadding: 12,
+                items: [{xtype: 'component', itemId: 'contenuConfigurationWeb', html: '<style>.wa-cfg{border-collapse:collapse;width:100%;margin-bottom:10px}'
+                                + '.wa-cfg th{text-align:left;width:180px;padding:4px 8px;background:#f4f6f7;vertical-align:top}.wa-cfg td{padding:4px 8px;word-break:break-all}'
+                                + '.wa-cfg-mode{border:1px solid #d5d8dc;border-radius:4px;padding:6px 10px;margin-top:8px}.wa-cfg-actif{border-color:#1e8449;background:#f4fbf6}'
+                                + '.wa-cfg-mode ol{margin:6px 0 0 18px;padding:0}</style>' + html}],
+                buttons: [{text: 'Fermer', itemId: 'btnFermerConfigurationWeb', handler: function (b) {
+                            b.up('window').close();
+                        }}]
+            }).show();
+        });
     },
 
     enregistrer: function (mode) {
