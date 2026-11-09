@@ -23,6 +23,10 @@ import rest.service.correspondance.CorrespondanceGrossisteService;
  * <li>POST calculer : recalcule les correspondances a partir des codes deja connus par grossiste et des CIP / EAN
  * (droit P_CORRESPONDANCE_GROSSISTES) ; une correspondance validee, rejetee ou contredite est conservee ;</li>
  * <li>GET produit/{familleId} : correspondances d'un produit, chez chaque grossiste ;</li>
+ * <li>GET produit/{familleId}/prix : prix lus sur les BL (dernier connu et historique) ;</li>
+ * <li>GET ecarts-prix, POST seuil-ecart-prix : ecarts entre prix public du grossiste et prix Prestige ;</li>
+ * <li>GET produit/{familleId}/disponibilite, POST produit/{familleId}/disponibilite/{grossisteId}, GET et POST
+ * sources-disponibilite : disponibilite a la demande (lot 5) ;</li>
  * <li>GET liste : liste filtree (etat, grossiste), paginee ;</li>
  * <li>GET mesures : effectifs par grossiste, etat et source, et dernier calcul ;</li>
  * <li>GET calculs : journal des calculs.</li>
@@ -40,6 +44,9 @@ public class CorrespondanceGrossisteRessource {
 
     @EJB
     private CorrespondanceGrossisteService service;
+
+    @EJB
+    private rest.service.correspondance.DisponibiliteGrossisteService disponibilites;
 
     private Response nonConnecte() {
         return Droits.utilisateur(servletRequest) == null ? Response.status(Response.Status.UNAUTHORIZED)
@@ -119,6 +126,92 @@ public class CorrespondanceGrossisteRessource {
     public Response fiches(@QueryParam("q") String q, @DefaultValue("20") @QueryParam("limit") int limit) {
         Response r = nonConnecte();
         return r != null ? r : Response.ok(service.rechercherFiches(q, limit).toString()).build();
+    }
+
+    /** Lot 5 : derniere disponibilite connue du produit chez chaque grossiste (sans appel). */
+    @GET
+    @Path("produit/{familleId}/disponibilite")
+    public Response disponibilites(@PathParam("familleId") String familleId) {
+        Response r = nonConnecte();
+        return r != null ? r : Response.ok(disponibilites.dernieres(familleId).toString()).build();
+    }
+
+    /**
+     * Lot 5 : verifie la disponibilite du produit chez le grossiste, par la ou les sources reglees (information
+     * produit, jamais une commande) ; lecture de moins de 15 minutes rendue telle quelle sauf {@code forcer=true}.
+     */
+    @POST
+    @Path("produit/{familleId}/disponibilite/{grossisteId}")
+    public Response verifierDisponibilite(@PathParam("familleId") String familleId,
+            @PathParam("grossisteId") String grossisteId, @DefaultValue("false") @QueryParam("forcer") boolean forcer) {
+        Response r = nonConnecte();
+        if (r != null) {
+            return r;
+        }
+        JSONObject o = disponibilites.verifier(familleId, grossisteId, forcer, Droits.utilisateur(servletRequest));
+        return Response.status(o.getBoolean("success") ? 200 : 404).entity(o.toString()).build();
+    }
+
+    /** Lot 5 : source(s) de disponibilite de chaque grossiste actif. */
+    @GET
+    @Path("sources-disponibilite")
+    public Response sourcesDisponibilite() {
+        Response r = nonConnecte();
+        return r != null ? r : Response.ok(disponibilites.sources().toString()).build();
+    }
+
+    /** Lot 5 : regle la source d'un grossiste ({"reglage": 0 PharmaML, 1 extranet, 2 les deux}). */
+    @POST
+    @Path("sources-disponibilite/{grossisteId}")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Response regleSource(@PathParam("grossisteId") String grossisteId, String corps) {
+        Response refus = Droits.refus(servletRequest, "Correspondances grossistes", DROIT);
+        if (refus != null) {
+            return refus;
+        }
+        JSONObject c = new JSONObject(corps == null || corps.trim().isEmpty() ? "{}" : corps);
+        if (!(c.opt("reglage") instanceof Number)) {
+            return Response.status(400).entity(
+                    new JSONObject().put("success", false).put("msg", "Réglage attendu : 0, 1 ou 2.").toString())
+                    .build();
+        }
+        JSONObject o = disponibilites.enregistrerSource(grossisteId, c.getInt("reglage"));
+        return Response.status(o.getBoolean("success") ? 200 : 400).entity(o.toString()).build();
+    }
+
+    /** Lot 4 : produits dont le prix public d'un grossiste s'ecarte du prix Prestige au-dela du seuil. */
+    @GET
+    @Path("ecarts-prix")
+    public Response ecartsPrix(@DefaultValue("0") @QueryParam("start") int start,
+            @DefaultValue("50") @QueryParam("limit") int limit) {
+        Response r = nonConnecte();
+        return r != null ? r : Response.ok(service.ecartsPrix(start, Math.min(limit, 1000)).toString()).build();
+    }
+
+    /** Lot 4 : seuil d'ecart toléré (FCFA) ; modification reservee au droit des correspondances. */
+    @POST
+    @Path("seuil-ecart-prix")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Response seuilEcartPrix(String corps) {
+        Response refus = Droits.refus(servletRequest, "Correspondances grossistes", DROIT);
+        if (refus != null) {
+            return refus;
+        }
+        org.json.JSONObject o = new org.json.JSONObject(corps == null || corps.isEmpty() ? "{}" : corps);
+        if (!o.has("seuil") || !(o.get("seuil") instanceof Number)) {
+            return Response.status(400).entity(new org.json.JSONObject().put("success", false)
+                    .put("msg", "Seuil attendu (nombre entier).").toString()).build();
+        }
+        org.json.JSONObject res = service.enregistrerSeuilEcartPrix(o.getInt("seuil"));
+        return Response.status(res.getBoolean("success") ? 200 : 400).entity(res.toString()).build();
+    }
+
+    /** Lot 4 : prix d'un produit chez chaque grossiste (dernier connu et historique). */
+    @GET
+    @Path("produit/{familleId}/prix")
+    public Response prixProduit(@PathParam("familleId") String familleId) {
+        Response r = nonConnecte();
+        return r != null ? r : Response.ok(service.prixProduit(familleId).toString()).build();
     }
 
     @GET

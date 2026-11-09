@@ -236,9 +236,51 @@ Ce qui reste en place :
     changé depuis la lecture.
   - Tests : `ApprocheeCoherenceTest` (6 000 variantes générées, score = calcul refait à part, autre dosage ou autre
     marque jamais au seuil fort ; échoue si l'on retire les pénalités) et `test-correspondance-lot3.js` (27/27).
-  - Reste ouvert (question 3) : une correspondance validée n'est pas encore relue par l'import des fichiers ; la
-    ligne reste non reconnue au prochain import tant qu'on n'écrit pas dans `t_famille_grossiste` ou que l'import ne
-    lit pas `correspondance_grossiste`.
+- **Relecture à l'import, livrée** (accord du 09/11) :
+  - l'import des fichiers (`FileFormaManager`, tous formats) relit `correspondance_grossiste` : une correspondance
+    VALIDEE pour ce grossiste et ce code (normalisé : blancs et casse ignorés) l'emporte sur la recherche par code,
+    si sa fiche est active et non déconditionnée ; REJETEE, PROPOSEE ou fiche inactive : rien ne change ;
+  - `t_famille_grossiste` n'est toujours pas écrite (question 3 : seulement la partie « l'import lit la table »).
+  - Test : `test-correspondance-import-validee.js` (9/9 ; 5/9 sur l'ancien import) : code inconnu validé, même code
+    en minuscules avec des blancs, code connu validé pour un autre produit, code rejeté, code proposé, témoin.
+- **Lot 4, partie BL, livrée** :
+  - `prix_grossiste` (V7.6.3) : à chaque réception de BL clôturé (même appel que le lot 2, après le commit), prix
+    d'achat (`int_PAF`) et prix public (`int_PRIX_VENTE`) de chaque ligne, avec le code chez le grossiste, le BL, sa
+    ligne et sa date ; une ligne seulement si un prix change pour ce produit chez ce grossiste ; un prix 0 (unités
+    gratuites) n'est jamais écrit ; un BL n'est lu qu'une fois ;
+  - prix public TTC (décision du 09/11 : c'est le prix de vente au public) ; prix d'achat de nature `INCONNUE`, le
+    BL ne le précise pas ; HT, TTC et inconnue ne sont jamais comparés entre eux (règle `PrixGrossisteRegles`) ;
+  - écart de prix public (décision du 09/11) : dernier prix public TTC lu chez un grossiste − prix de vente Prestige
+    (`t_famille.int_PRICE`, TTC) ; affiché dans la vue par produit, signalé en rouge au-delà d'un seuil réglable
+    (`KEY_CORRESPONDANCE_SEUIL_ECART_PRIX`, V7.6.4, 0 FCFA par défaut : tout écart) ; liste « Écarts de prix
+    publics » (plus grands écarts d'abord, nombre sur le bouton de la file), seuil réglé dans cette liste et confirmé
+    dans le bouton ; expliqué dans l'aide « ? » ;
+  - API `GET produit/{familleId}/prix` (derniers prix, écart et historique), `GET ecarts-prix`,
+    `POST seuil-ecart-prix` (droit) ; écran « Correspondance
+    grossistes » > « Par produit » : recherche par CIP, EAN ou désignation, une ligne par grossiste (code,
+    correspondance, dernier prix d'achat, prix public, date et BL), puis l'historique.
+  - Tests : `PrixGrossisteCoherenceTest` (4 000 suites de lectures et 20 000 écarts tirés, oracles ; échoue si l'on
+    mélange les natures ou si un seuil négatif n'est pas ramené à 0) et `test-correspondance-lot4.js` : quatre BL,
+    deux grossistes, BL = base = API = écran ligne par ligne, écarts aux seuils 0 et 100 = calcul SQL refait sur toute
+    la table = écran, bilan.
+  - Reste, après la fusion des connecteurs (question 1) : prix des catalogues et de la fiche Ubipharm.
+- **Lot 5, livré sans les catalogues** (décisions du 09/11) :
+  - « Vérifier » dans la vue par produit : disponibilité du produit chez le grossiste de la ligne, demande
+    d'information PharmaML (`DisponibiliteService.verifier`, jamais une commande), résultat enregistré dans
+    `t_disponibilite_produit` et affiché avec sa source et son heure de lecture ; une lecture de moins de 15 minutes,
+    quelle que soit son origine, est reprise sans appel (« Relire » force l'appel) ; un échec est affiché tel quel,
+    sans valeur ;
+  - source par grossiste (`t_grossiste.int_SOURCE_DISPO`, V7.6.5) : 0 PharmaML seul (comportement d'avant, défaut),
+    1 extranet seul, 2 les deux, chaque réponse avec sa source ; réglée dans « Sources de disponibilité », confirmée
+    dans le bouton. La source extranet répond « absente » tant que les connecteurs ne sont pas sur la branche (aucun
+    lecteur Laborex n'existe d'ailleurs dans la branche des connecteurs) ;
+  - API `GET produit/{familleId}/disponibilite`, `POST produit/{familleId}/disponibilite/{grossisteId}[?forcer=true]`,
+    `GET` et `POST sources-disponibilite[/{grossisteId}]` (droit pour régler).
+  - Tests : `DisponibiliteCoherenceTest` (sources des réglages 0, 1, 2 et hors bornes ; cache sur 20 000 cas tirés,
+    bord de 15 minutes, lecture dans le futur) et `test-correspondance-lot5.js` (faux PharmaML) : réglages 0, 1 et 2,
+    cache puis « Relire », panne, écran = base = faux grossiste, bilan des lignes écrites.
+  - Reste, après la fusion des connecteurs : lecteur extranet (listes, fiche Ubipharm, recherche Copharmed) derrière
+    la source EXTRANET, et « d'après le catalogue du … » quand on se contente de la dernière collecte.
 
 ## 5. Questions
 
@@ -248,6 +290,8 @@ Ce qui reste en place :
    (import et BL), lot 4 pour les prix des BL. La lecture des catalogues (lots 1, 4 et 5) attend que les connecteurs
    arrivent sur la branche de travail. Faut-il les y faire venir, ou la lecture des catalogues doit-elle passer par une
    interface définie avec leur session ?
+   - **Réponse du 09/11** : la partie catalogues attend la fusion des connecteurs, qui restent hors de cette branche ;
+     tout le reste est fait (prix des BL, vue par produit, PharmaML).
 2. **Ubipharm** n'est pas dans `t_grossiste`. Faut-il l'y créer, ou garder une clé « source extranet » à côté du
    grossiste ?
 3. **Écrire dans `t_famille_grossiste` après validation ?** Cela profiterait aux écrans existants et à la disponibilité
@@ -259,10 +303,15 @@ Ce qui reste en place :
      TTC, [7] prix public. Promotions : [8] à [11], dans le même ordre. Le prix d'achat à comparer au PAF du BL est le
      prix HT ([4]).
    - Faut-il seulement afficher l'écart, ou aussi le signaler ?
+   - **Réponse du 09/11** : comparer en TTC ; afficher l'écart et le signaler au-delà d'un seuil réglable, 0 FCFA par
+     défaut ; l'expliquer dans l'aide « ? ». Fait au lot 4.
 5. **Échantillon vérifié à la main.** Qui peut contrôler une centaine de propositions par grossiste ? Je fournis la
    liste. C'est le seul moyen d'avoir le vrai taux d'erreur.
 6. **Laborex.** Il n'y a ni connecteur ni PharmaML actif. Le prix et le code viennent donc des BL ; la disponibilité
    n'a pas de source. PharmaML est-il prévu pour Laborex ?
+   - **Réponse du 09/11** : les deux en option, choisis par un paramètre ; par défaut le comportement actuel ; les deux
+     actifs : les deux résultats avec leur source. Fait au lot 5, réglage par grossiste ; la source extranet attend les
+     connecteurs (aucun lecteur Laborex n'existe encore).
 7. **Défauts suspectés, hors de cette étude** (lus dans le code, pas encore prouvés par un test) :
    - commande PharmaML : `PharmaMlServiceImpl.buildLigne` teste `isEmpty(code article)` au lieu de `!isEmpty`. Le code du
      grossiste n'est donc jamais envoyé : c'est toujours le CIP qui part ;

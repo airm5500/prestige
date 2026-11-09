@@ -296,10 +296,210 @@ public class CorrespondanceGrossisteService {
         for (CorrespondanceRegles.Reception.Action a : CorrespondanceRegles.Reception.Action.values()) {
             res.put(a.name().toLowerCase(), compte.getOrDefault(a, 0));
         }
+        // Lot 4 : prix lus sur ce BL (une ligne d'historique seulement si un prix change)
+        res.put("prix", enregistrerPrixBl(blId));
         if (!receptions.isEmpty()) {
             LOG.log(Level.INFO, "Correspondances grossistes, BL {0} : {1}", new Object[] { blId, res });
         }
         return res;
+    }
+
+    /**
+     * Lot 4 : prix d'achat et prix public de chaque ligne d'un BL cloture, ecrits dans prix_grossiste quand ils
+     * different du dernier prix connu de meme nature pour ce produit chez ce grossiste ({@link PrixGrossisteRegles}).
+     * Le prix public est TTC (decision du 09/11 : c'est le prix de vente au public) ; le BL ne dit pas si le prix
+     * d'achat est HT ou TTC : nature INCONNUE, jamais deduite. Un BL deja lu ne l'est pas deux fois (rejeu de l'API,
+     * double cloture). Renvoie le nombre de lignes ecrites.
+     */
+    int enregistrerPrixBl(String blId) {
+        @SuppressWarnings("unchecked")
+        List<Object> bl = em
+                .createNativeQuery("SELECT lg_BON_LIVRAISON_ID FROM t_bon_livraison"
+                        + " WHERE lg_BON_LIVRAISON_ID = ?1 AND str_STATUT = 'is_Closed' FOR UPDATE")
+                .setParameter(1, blId).getResultList();
+        if (bl.isEmpty() || ((Number) em
+                .createNativeQuery("SELECT COUNT(*) FROM prix_grossiste WHERE source = 'BL' AND piece = ?1")
+                .setParameter(1, blId).getSingleResult()).intValue() > 0) {
+            return 0;
+        }
+        @SuppressWarnings("unchecked")
+        List<Object[]> l = em.createNativeQuery("SELECT x.detail_id, x.famille_id, x.grossiste_id, x.paf, x.prix_vente,"
+                + " x.dt_piece, COALESCE((SELECT li.code_normalise FROM ligne_import_grossiste li"
+                + " WHERE li.lg_ORDER_ID = x.order_id AND li.lg_FAMILLE_ID = x.famille_id"
+                + " AND li.lg_GROSSISTE_ID = x.grossiste_id AND li.code_normalise IS NOT NULL ORDER BY li.id LIMIT 1),"
+                + " (SELECT MIN(fg.str_CODE_ARTICLE) FROM t_famille_grossiste fg WHERE fg.lg_FAMILLE_ID = x.famille_id"
+                + " AND fg.lg_GROSSISTE_ID = x.grossiste_id AND fg.str_STATUT = 'enable')) AS code_piece"
+                + " FROM (SELECT d.lg_BON_LIVRAISON_DETAIL AS detail_id, d.lg_FAMILLE_ID AS famille_id,"
+                + " COALESCE(d.lg_GROSSISTE_ID, o.lg_GROSSISTE_ID) AS grossiste_id, d.int_PAF AS paf,"
+                + " d.int_PRIX_VENTE AS prix_vente, b.dt_DATE_LIVRAISON AS dt_piece, b.lg_ORDER_ID AS order_id,"
+                + " d.dt_CREATED AS dt_ligne FROM t_bon_livraison b"
+                + " JOIN t_bon_livraison_detail d ON d.lg_BON_LIVRAISON_ID = b.lg_BON_LIVRAISON_ID"
+                + " LEFT JOIN t_order o ON o.lg_ORDER_ID = b.lg_ORDER_ID WHERE b.lg_BON_LIVRAISON_ID = ?1) x"
+                + " WHERE x.famille_id IS NOT NULL AND x.grossiste_id IS NOT NULL ORDER BY x.dt_ligne, x.detail_id")
+                .setParameter(1, blId).getResultList();
+        int ecrites = 0;
+        for (Object[] r : l) {
+            String famille = (String) r[1], grossiste = (String) r[2];
+            PrixGrossisteRegles.Lecture lu = new PrixGrossisteRegles.Lecture((Number) r[3],
+                    PrixGrossisteRegles.Nature.INCONNUE, (Number) r[4], PrixGrossisteRegles.Nature.TTC);
+            if (lu.vide()) {
+                continue;
+            }
+            Integer dernierAchat = dernierPrix("prix_achat", "nature_achat", famille, grossiste, lu.natureAchat);
+            Integer dernierPublic = dernierPrix("prix_public", "nature_public", famille, grossiste, lu.naturePublic);
+            if (!PrixGrossisteRegles.aEcrire(dernierAchat, dernierPublic, lu)) {
+                continue;
+            }
+            String code = (String) r[6];
+            ecrites += em.createNativeQuery("INSERT INTO prix_grossiste (cle_grossiste, lg_GROSSISTE_ID, lg_FAMILLE_ID,"
+                    + " code_grossiste, prix_achat, nature_achat, prix_public, nature_public, source, piece, piece_ligne,"
+                    + " dt_piece, dt_lecture) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 'BL', ?9, ?10, ?11, NOW(3))")
+                    .setParameter(1, grossiste).setParameter(2, grossiste).setParameter(3, famille)
+                    .setParameter(4, code == null || code.length() <= 60 ? code : code.substring(0, 60))
+                    .setParameter(5, lu.achat).setParameter(6, lu.natureAchat.name()).setParameter(7, lu.pub)
+                    .setParameter(8, lu.naturePublic.name()).setParameter(9, blId).setParameter(10, (String) r[0])
+                    .setParameter(11, r[5]).executeUpdate();
+        }
+        return ecrites;
+    }
+
+    private Integer dernierPrix(String colonne, String colonneNature, String famille, String grossiste,
+            PrixGrossisteRegles.Nature nature) {
+        @SuppressWarnings("unchecked")
+        List<Object> v = em
+                .createNativeQuery("SELECT " + colonne + " FROM prix_grossiste WHERE lg_FAMILLE_ID = ?1"
+                        + " AND cle_grossiste = ?2 AND " + colonne + " IS NOT NULL AND " + colonneNature + " = ?3"
+                        + " ORDER BY id DESC LIMIT 1")
+                .setParameter(1, famille).setParameter(2, grossiste).setParameter(3, nature.name()).getResultList();
+        return v.isEmpty() ? null : ((Number) v.get(0)).intValue();
+    }
+
+    /**
+     * Lot 4, lecteur de prix_grossiste : historique des prix d'un produit chez chaque grossiste, du plus recent au plus
+     * ancien, et le dernier prix d'achat et prix public connus chez chaque grossiste.
+     */
+    public JSONObject prixProduit(String familleId) {
+        @SuppressWarnings("unchecked")
+        List<Object[]> l = em.createNativeQuery("SELECT p.id, p.cle_grossiste, g.str_LIBELLE, p.code_grossiste,"
+                + " p.prix_achat, p.nature_achat, p.prix_public, p.nature_public, p.source, p.piece, p.piece_ligne,"
+                + " DATE_FORMAT(p.dt_piece, " + FORMAT_DATE + ") AS date_piece, DATE_FORMAT(p.dt_lecture, "
+                + FORMAT_DATE + ") AS date_lecture, b.str_REF_LIVRAISON FROM prix_grossiste p"
+                + " LEFT JOIN t_grossiste g ON g.lg_GROSSISTE_ID = p.lg_GROSSISTE_ID"
+                + " LEFT JOIN t_bon_livraison b ON p.source = 'BL' AND b.lg_BON_LIVRAISON_ID = p.piece"
+                + " WHERE p.lg_FAMILLE_ID = ?1 ORDER BY p.id DESC LIMIT 500").setParameter(1, familleId)
+                .getResultList();
+        JSONArray historique = new JSONArray();
+        Map<String, JSONObject> derniers = new LinkedHashMap<>();
+        for (Object[] r : l) {
+            Object date = r[11] != null ? r[11] : r[12];
+            historique.put(new JSONObject().put("id", ((Number) r[0]).longValue()).put("cleGrossiste", r[1])
+                    .put("grossiste", nul(r[2])).put("code", nul(r[3])).put("prixAchat", nul(r[4]))
+                    .put("natureAchat", r[5]).put("prixPublic", nul(r[6])).put("naturePublic", r[7]).put("source", r[8])
+                    .put("piece", nul(r[9])).put("pieceLigne", nul(r[10])).put("datePiece", nul(r[11]))
+                    .put("dateLecture", r[12]).put("refPiece", nul(r[13])));
+            JSONObject d = derniers.computeIfAbsent((String) r[1],
+                    k -> new JSONObject().put("cleGrossiste", k).put("grossiste", nul(r[2])).put("code", nul(r[3])));
+            // du plus recent au plus ancien : le premier prix rencontre est le dernier connu
+            if (!d.has("prixAchat") && r[4] != null) {
+                d.put("prixAchat", r[4]).put("natureAchat", r[5]).put("dateAchat", nul(date))
+                        .put("refAchat", nul(r[13])).put("sourceAchat", r[8]);
+            }
+            if (!d.has("prixPublic") && r[6] != null) {
+                d.put("prixPublic", r[6]).put("naturePublic", r[7]).put("datePublic", nul(date)).put("sourcePublic",
+                        r[8]);
+            }
+        }
+        @SuppressWarnings("unchecked")
+        List<Object> prestige = em.createNativeQuery("SELECT int_PRICE FROM t_famille WHERE lg_FAMILLE_ID = ?1")
+                .setParameter(1, familleId).getResultList();
+        Number prixPrestige = prestige.isEmpty() ? null : (Number) prestige.get(0);
+        int seuil = seuilEcartPrix();
+        for (JSONObject d : derniers.values()) {
+            PrixGrossisteRegles.Ecart e = PrixGrossisteRegles.ecartPublic(
+                    d.has("prixPublic") ? ((Number) d.get("prixPublic")).intValue() : null,
+                    enumOuNull(PrixGrossisteRegles.Nature.class, d.optString("naturePublic", null)), prixPrestige,
+                    seuil);
+            if (e != null) {
+                d.put("ecartPublic", e.valeur).put("alerteEcart", e.alerte);
+            }
+        }
+        return new JSONObject().put("success", true).put("familleId", familleId)
+                .put("prixPrestige", prixPrestige == null ? JSONObject.NULL : prixPrestige).put("seuilEcart", seuil)
+                .put("derniers", new JSONArray(derniers.values())).put("historique", historique);
+    }
+
+    /** Parametre : ecart toléré entre prix public du grossiste et prix Prestige (FCFA), 0 par defaut : tout ecart. */
+    public static final String CLE_SEUIL_ECART = "KEY_CORRESPONDANCE_SEUIL_ECART_PRIX";
+
+    public int seuilEcartPrix() {
+        @SuppressWarnings("unchecked")
+        List<Object> v = em.createNativeQuery("SELECT str_VALUE FROM t_parameters WHERE str_KEY = ?1")
+                .setParameter(1, CLE_SEUIL_ECART).getResultList();
+        return PrixGrossisteRegles.seuil(v.isEmpty() || v.get(0) == null ? null : v.get(0).toString());
+    }
+
+    /** Enregistre le seuil (entier >= 0) ; renvoie la valeur relue. */
+    public JSONObject enregistrerSeuilEcartPrix(int seuil) {
+        if (seuil < 0) {
+            return new JSONObject().put("success", false).put("msg", "Le seuil doit être positif ou nul.");
+        }
+        int n = em.createNativeQuery("UPDATE t_parameters SET str_VALUE = ?1, dt_UPDATED = NOW() WHERE str_KEY = ?2")
+                .setParameter(1, String.valueOf(seuil)).setParameter(2, CLE_SEUIL_ECART).executeUpdate();
+        if (n == 0) {
+            em.createNativeQuery("INSERT INTO t_parameters (str_KEY, str_VALUE, str_DESCRIPTION, str_TYPE, str_STATUT,"
+                    + " dt_CREATED, dt_UPDATED) VALUES (?1, ?2, ?3, 'CUSTOMER', 'enable', NOW(), NOW())")
+                    .setParameter(1, CLE_SEUIL_ECART).setParameter(2, String.valueOf(seuil))
+                    .setParameter(3, "ECART TOLERE ENTRE PRIX PUBLIC GROSSISTE ET PRIX PRESTIGE (FCFA)")
+                    .executeUpdate();
+        }
+        return new JSONObject().put("success", true).put("seuilEcart", seuilEcartPrix()).put("msg",
+                "Seuil enregistré.");
+    }
+
+    /**
+     * Lot 4 : produits actifs dont le dernier prix public TTC lu chez un grossiste s'ecarte du prix Prestige au-dela du
+     * seuil, les plus grands ecarts d'abord. La regle est celle de {@link PrixGrossisteRegles#ecartPublic}.
+     */
+    public JSONObject ecartsPrix(int start, int limit) {
+        int seuil = seuilEcartPrix();
+        @SuppressWarnings("unchecked")
+        List<Object[]> l = em.createNativeQuery("SELECT p.id, p.lg_FAMILLE_ID, p.cle_grossiste, g.str_LIBELLE,"
+                + " f.str_DESCRIPTION AS famille_libelle, f.int_CIP, p.code_grossiste, p.prix_public, p.nature_public,"
+                + " f.int_PRICE, DATE_FORMAT(IFNULL(p.dt_piece, p.dt_lecture), " + FORMAT_DATE + ") AS date_prix,"
+                + " b.str_REF_LIVRAISON, p.source FROM prix_grossiste p"
+                + " JOIN (SELECT MAX(id) AS id FROM prix_grossiste WHERE prix_public IS NOT NULL"
+                + " GROUP BY lg_FAMILLE_ID, cle_grossiste, nature_public) m ON m.id = p.id"
+                + " JOIN t_famille f ON f.lg_FAMILLE_ID = p.lg_FAMILLE_ID AND f.str_STATUT = 'enable'"
+                + " LEFT JOIN t_grossiste g ON g.lg_GROSSISTE_ID = p.lg_GROSSISTE_ID"
+                + " LEFT JOIN t_bon_livraison b ON p.source = 'BL' AND b.lg_BON_LIVRAISON_ID = p.piece")
+                .getResultList();
+        List<JSONObject> ecarts = new ArrayList<>();
+        for (Object[] r : l) {
+            PrixGrossisteRegles.Ecart e = PrixGrossisteRegles.ecartPublic(
+                    r[7] == null ? null : ((Number) r[7]).intValue(),
+                    enumOuNull(PrixGrossisteRegles.Nature.class, (String) r[8]), (Number) r[9], seuil);
+            if (e != null && e.alerte) {
+                ecarts.add(new JSONObject().put("id", ((Number) r[0]).longValue()).put("familleId", r[1])
+                        .put("cleGrossiste", r[2]).put("grossiste", nul(r[3])).put("famille", nul(r[4]))
+                        .put("cip", nul(r[5])).put("code", nul(r[6])).put("prixPublic", r[7]).put("prixPrestige", r[9])
+                        .put("ecart", e.valeur).put("date", nul(r[10])).put("refPiece", nul(r[11]))
+                        .put("source", r[12]));
+            }
+        }
+        ecarts.sort((a, b) -> {
+            int c = Integer.compare(Math.abs(b.getInt("ecart")), Math.abs(a.getInt("ecart")));
+            return c != 0 ? c : Long.compare(a.getLong("id"), b.getLong("id"));
+        });
+        JSONArray page = new JSONArray();
+        for (int i = Math.max(0, start); i < ecarts.size() && i < Math.max(0, start) + Math.max(1, limit); i++) {
+            page.put(ecarts.get(i));
+        }
+        return new JSONObject().put("success", true).put("seuilEcart", seuil).put("total", ecarts.size()).put("data",
+                page);
+    }
+
+    private static Object nul(Object o) {
+        return o == null ? JSONObject.NULL : o;
     }
 
     /** Lignes importees d'une commande, dans l'ordre du fichier (lecteur de ligne_import_grossiste). */
