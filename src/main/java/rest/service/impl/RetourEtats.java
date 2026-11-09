@@ -81,6 +81,26 @@ public final class RetourEtats {
         return VALIDE.equals(statut) ? "Validé" : StringUtils.defaultString(statut);
     }
 
+    /**
+     * Partie 2 de la demande 59 : auteur de l'etat actuel, le meme dans la liste, l'infobulle, le tableau de bord, l'export
+     * Excel et la reponse mobile. Refuse : le valideur qui a refuse ; en attente : qui l'a mis (ou remis) en attente ;
+     * abandonne : qui l'a abandonne (historique) ; valide : qui l'a valide (historique). A defaut, l'operateur du retour.
+     */
+    public static String auteur(String statut, String refusPar, String attentePar, String abandonPar, String validePar,
+            String operateur) {
+        String a = null;
+        if (REFUSE.equals(statut)) {
+            a = refusPar;
+        } else if (EN_ATTENTE.equals(statut)) {
+            a = attentePar;
+        } else if (ABANDONNE.equals(statut)) {
+            a = abandonPar;
+        } else if (VALIDE.equals(statut)) {
+            a = validePar;
+        }
+        return StringUtils.isNotBlank(a) ? a.trim() : StringUtils.trimToEmpty(operateur);
+    }
+
     /** Une ligne d'historique, dans la transaction en cours. */
     public static void tracer(EntityManager em, String retourId, String action, String motif, String userId) {
         em.createNativeQuery("INSERT INTO t_retour_fournisseur_historique (id, lg_RETOUR_FRS_ID, action, motif,"

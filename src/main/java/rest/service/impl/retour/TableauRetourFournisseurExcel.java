@@ -16,6 +16,10 @@ import org.json.JSONObject;
  */
 public final class TableauRetourFournisseurExcel {
 
+    /** Cles du JSON « etats » et libelles, dans l'ordre de l'ecran (les libelles de la liste). */
+    static final String[][] ETATS = { { "attente", "En attente de validation" }, { "refuse", "Refusé" },
+            { "abandonne", "Abandonné" }, { "valide", "Validé" } };
+
     private TableauRetourFournisseurExcel() {
     }
 
@@ -47,6 +51,21 @@ public final class TableauRetourFournisseurExcel {
                             "Montant" },
                     o -> new Object[] { o.optString("libelle"), o.optInt("retours"), o.optDouble("part"),
                             o.optInt("lignes"), o.optInt("quantite"), o.optLong("montant") });
+            /* partie 2 de la demande 59 : retours par etat et detail des retours en attente, refuses, abandonnes */
+            JSONObject etats = t.optJSONObject("etats") == null ? new JSONObject() : t.getJSONObject("etats");
+            JSONArray parEtat = new JSONArray();
+            for (String[] e : ETATS) {
+                JSONObject x = etats.optJSONObject(e[0]) == null ? new JSONObject() : etats.getJSONObject(e[0]);
+                parEtat.put(new JSONObject(x.toString()).put("libelle", e[1]));
+            }
+            feuille(wb, entete, "États", parEtat, new String[] { "État", "Retours", "Lignes", "Qté" },
+                    o -> new Object[] { o.optString("libelle"), o.optInt("retours"), o.optInt("lignes"),
+                            o.optInt("quantite") });
+            feuille(wb, entete, "Retours à traiter", etats.optJSONArray("aTraiter"),
+                    new String[] { "Référence", "État", "Motif du refus", "Auteur de l'état", "Date de l'état",
+                            "Lignes", "Qté" },
+                    o -> new Object[] { o.optString("ref"), o.optString("etat"), o.optString("motifRefus"),
+                            o.optString("auteur"), o.optString("dateEtat"), o.optInt("lignes"), o.optInt("quantite") });
             wb.write(out);
             return out.toByteArray();
         }

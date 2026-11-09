@@ -11,6 +11,7 @@ import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.apache.commons.lang3.StringUtils;
 
 /**
  * Transmission du 07/11 : retours fournisseurs en attente — refus (motif obligatoire, verrou sur la ligne), correction
@@ -147,15 +148,32 @@ public class RetourAttenteService {
                     + " TRIM(CONCAT(COALESCE(ua.str_FIRST_NAME, ''), ' ', COALESCE(ua.str_LAST_NAME, ''))),"
                     + " DATE_FORMAT(r.dt_ATTENTE, '%d/%m/%Y %H:%i'), r.bool_SANS_SORTIE_STOCK, r.lg_USER_ATTENTE,"
                     + " (SELECT COUNT(*) FROM t_retour_fournisseur_historique h"
-                    + "   WHERE h.lg_RETOUR_FRS_ID = r.lg_RETOUR_FRS_ID AND h.action = 'REFUS')"
+                    + "   WHERE h.lg_RETOUR_FRS_ID = r.lg_RETOUR_FRS_ID AND h.action = 'REFUS'),"
+                    + " r.str_STATUT, TRIM(CONCAT(COALESCE(uo.str_FIRST_NAME, ''), ' ', COALESCE(uo.str_LAST_NAME, ''))),"
+                    + " DATE_FORMAT(r.dt_UPDATED, '%d/%m/%Y %H:%i'), " + derniere("ABANDON") + ", "
+                    + derniere("VALIDATION")
                     + " FROM t_retour_fournisseur r LEFT JOIN t_user ur ON ur.lg_USER_ID = r.lg_USER_REFUS"
-                    + " LEFT JOIN t_user ua ON ua.lg_USER_ID = r.lg_USER_ATTENTE WHERE r.lg_RETOUR_FRS_ID IN (?1)")
+                    + " LEFT JOIN t_user ua ON ua.lg_USER_ID = r.lg_USER_ATTENTE"
+                    + " LEFT JOIN t_user uo ON uo.lg_USER_ID = r.lg_USER_ID WHERE r.lg_RETOUR_FRS_ID IN (?1)")
                     .setParameter(1, paquet).getResultList()) {
                 m.put(texte(r[0]),
                         new JSONObject().put("motifRefus", texte(r[1])).put("refusPar", texte(r[2]))
                                 .put("refusLe", texte(r[3])).put("attentePar", texte(r[4]))
                                 .put("attenteLe", texte(r[5])).put("sansSortieStock", nombre(r[6]) == 1)
                                 .put("auteurAttenteId", texte(r[7])).put("nombreRefus", nombre(r[8])));
+                /* partie 2 de la demande 59 : etat, auteur et date de l'etat, memes regles partout */
+                String statut = texte(r[9]);
+                String[] abandon = StringUtils.split(texte(r[12]), '|'), validation = StringUtils.split(texte(r[13]), '|');
+                String abandonPar = partie(abandon, 0), abandonLe = partie(abandon, 1);
+                String validePar = partie(validation, 0), valideLe = partie(validation, 1);
+                String date = RetourEtats.REFUSE.equals(statut) ? texte(r[3])
+                        : RetourEtats.EN_ATTENTE.equals(statut) ? texte(r[5])
+                        : RetourEtats.ABANDONNE.equals(statut) ? abandonLe
+                        : RetourEtats.VALIDE.equals(statut) ? valideLe : "";
+                m.get(texte(r[0])).put("etat", RetourEtats.libelle(statut))
+                        .put("auteur", RetourEtats.auteur(statut, texte(r[2]), texte(r[4]), abandonPar, validePar,
+                                texte(r[10])))
+                        .put("dateEtat", StringUtils.isNotBlank(date) ? date : texte(r[11]));
             }
         }
         return m;
@@ -179,6 +197,18 @@ public class RetourAttenteService {
             return ((Boolean) o) ? 1 : 0;
         }
         return o instanceof Number ? ((Number) o).intValue() : 0;
+    }
+
+    /** Auteur et date de la derniere action donnee de l'historique, sous la forme « nom|jj/mm/aaaa hh:mm ». */
+    private static String derniere(String action) {
+        return "(SELECT CONCAT(TRIM(CONCAT(COALESCE(u.str_FIRST_NAME, ''), ' ', COALESCE(u.str_LAST_NAME, ''))), '|',"
+                + " DATE_FORMAT(h.dt_ACTION, '%d/%m/%Y %H:%i')) FROM t_retour_fournisseur_historique h"
+                + " LEFT JOIN t_user u ON u.lg_USER_ID = h.lg_USER_ID WHERE h.lg_RETOUR_FRS_ID = r.lg_RETOUR_FRS_ID"
+                + " AND h.action = '" + action + "' ORDER BY h.dt_ACTION DESC LIMIT 1)";
+    }
+
+    private static String partie(String[] t, int i) {
+        return t != null && t.length > i ? t[i].trim() : "";
     }
 
     private static String texte(Object o) {

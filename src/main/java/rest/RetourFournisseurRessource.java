@@ -227,11 +227,19 @@ public class RetourFournisseurRessource {
     public Response exportExcel(@QueryParam(value = "dtStart") String dtStart,
             @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "fourId") String fourId,
             @QueryParam(value = "query") String query, @QueryParam(value = "filtre") String filtre,
-            @QueryParam(value = "userId") String userId) throws Exception {
+            @QueryParam(value = "userId") String userId, @QueryParam(value = "etat") String etat) throws Exception {
+        /*
+         * partie 2 de la demande 59 : avec le parametre etat (l'ecran l'envoie toujours, TOUS par defaut), l'export suit
+         * le filtre d'etat de la liste et porte l'etat, le motif du refus, l'auteur et la date de l'etat ; sans lui,
+         * l'export reste celui des retours valides de la periode.
+         */
         List<RetourDetailsDTO> details = mvtProduitService.loadretoursFournisseur(defaultDate(dtStart),
-                defaultDate(dtEnd), fourId, query, filtre, userId);
+                defaultDate(dtEnd), fourId, query, filtre, userId, etat);
+        java.util.Map<String, org.json.JSONObject> infos = retourAttente.infos(details.stream()
+                .map(RetourDetailsDTO::getLgRETOURFRSID).filter(java.util.Objects::nonNull)
+                .collect(java.util.stream.Collectors.toSet()));
         String[] headers = new String[] { "N° BL", "Date retour", "Heure", "Fournisseur", "Code produit", "Libelle",
-                "Quantite retournee", "Utilisateur" };
+                "Quantite retournee", "Utilisateur", "Etat", "Motif du refus", "Auteur de l'etat", "Date de l'etat" };
         String title = "Produits des retours fournisseur du " + defaultDate(dtStart) + " au " + defaultDate(dtEnd);
         byte[] data = reportExcelExportService.createExcelReport(title, headers, details, (row, dto) -> {
             row.createCell(0).setCellValue(dto.getReferenceBl() == null ? "" : dto.getReferenceBl());
@@ -242,6 +250,11 @@ public class RetourFournisseurRessource {
             row.createCell(5).setCellValue(dto.getStrNAME() == null ? "" : dto.getStrNAME());
             row.createCell(6).setCellValue(dto.getIntNUMBERRETURN() == null ? 0 : dto.getIntNUMBERRETURN());
             row.createCell(7).setCellValue(dto.getOperateur() == null ? "" : dto.getOperateur());
+            org.json.JSONObject x = infos.getOrDefault(dto.getLgRETOURFRSID(), new org.json.JSONObject());
+            row.createCell(8).setCellValue(x.optString("etat"));
+            row.createCell(9).setCellValue(x.optString("motifRefus"));
+            row.createCell(10).setCellValue(x.optString("auteur"));
+            row.createCell(11).setCellValue(x.optString("dateEtat"));
         });
         return Response.ok(data)
                 .header("Content-Disposition", "attachment; filename=\"retours_fournisseur_produits.xls\"").build();

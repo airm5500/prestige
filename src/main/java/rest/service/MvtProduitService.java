@@ -93,6 +93,10 @@ public interface MvtProduitService {
     List<RetourDetailsDTO> loadretoursFournisseur(String dtStart, String dtEnd, String fourId, String query,
             String filtre, String userId);
 
+    /** Partie 2 de la demande 59 : etat null = retours valides de la periode ; sinon le filtre d'etat de la liste. */
+    List<RetourDetailsDTO> loadretoursFournisseur(String dtStart, String dtEnd, String fourId, String query,
+            String filtre, String userId, String etat);
+
     void validerFullBlRetourFournisseur(TRetourFournisseur fournisseur);
 
     void validerFullBlRetourFournisseur(TRetourFournisseur retourFournisseur, TMotifRetour motifRetour,

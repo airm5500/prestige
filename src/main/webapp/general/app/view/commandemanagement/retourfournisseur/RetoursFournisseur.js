@@ -212,12 +212,38 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.RetoursFournisse
         };
         var pctAccepte = tot.quantite ? Math.round(tot.acceptee * 100 / tot.quantite) : 0;
         var html = '<div class="pml-tuiles rf-tuiles">'
-                + tuile('info', 'Retours', nb(tot.retours), nb(tot.lignes) + ' ligne(s) · ' + nb(tot.produits) + ' produit(s)', 'Retours clôturés sur la période')
+                + tuile('info', 'Retours', nb(tot.retours), nb(tot.lignes) + ' ligne(s) · ' + nb(tot.produits) + ' produit(s)', 'Retours validés sur la période')
                 + tuile('', 'Quantité retournée', nb(tot.quantite), 'unités', 'Total des quantités retournées')
                 + tuile(pctAccepte >= 80 ? 'ok' : 'alerte', 'Acceptée en avoir', nb(tot.acceptee), pctAccepte + ' % du retourné',
                         'Quantités acceptées par le fournisseur (réponse saisie)')
                 + tuile('', 'Montant retourné', nb(tot.montant) + ' F', 'au prix d\'achat', 'Somme de (prix d\'achat × quantité retournée)')
                 + '</div>';
+        /* partie 2 de la demande 59 : retours par état ; seuls les validés entrent dans les autres rubriques */
+        var et = o.etats || {}, e = function (k) {
+            return et[k] || {};
+        };
+        html += '<div class="pml-tuiles rf-etats" style="margin-top:10px">'
+                + tuile('alerte rf-etat-attente', 'En attente de validation', nb(e('attente').retours), nb(e('attente').quantite) + ' unité(s)',
+                        'Retours en attente de validation, quelle que soit leur date')
+                + tuile('alerte rf-etat-refuse', 'Refusés', nb(e('refuse').retours), nb(e('refuse').quantite) + ' unité(s)',
+                        'Retours refusés, à corriger ou à abandonner par leur auteur')
+                + tuile('rf-etat-abandonne', 'Abandonnés', nb(e('abandonne').retours), nb(e('abandonne').quantite) + ' unité(s)',
+                        'Retours refusés puis abandonnés sur la période : rien n\'est sorti du stock')
+                + tuile('ok rf-etat-valide', 'Validés', nb(e('valide').retours), nb(e('valide').quantite) + ' unité(s)',
+                        'Retours validés sur la période : les seuls comptés dans les rubriques ci-dessous')
+                + '</div>';
+        var lignesEtat = '';
+        Ext.each(et.aTraiter || [], function (r) {
+            lignesEtat += '<tr class="rf-a-traiter-ligne" data-ref="' + enc(r.ref || '') + '"><td>' + enc(r.ref || '') + '</td><td class="rf-etat">'
+                    + enc(r.etat || '') + '</td><td class="rf-motif-refus">' + enc(r.motifRefus || '') + '</td><td class="rf-auteur">'
+                    + enc(r.auteur || '') + '</td><td class="rf-date-etat">' + enc(r.dateEtat || '') + '</td><td class="n">' + r.lignes
+                    + '</td><td class="n">' + nb(r.quantite) + '</td></tr>';
+        });
+        html += '<div class="ac-bloc-t" style="margin-top:14px">Retours en attente, refusés ou abandonnés</div>'
+                + '<table class="ac-table rf-a-traiter"><tr><th>Référence</th><th>État</th><th>Motif du refus</th><th>Auteur de l\'état</th>'
+                + '<th>Date de l\'état</th><th class="n">Lignes</th><th class="n">Qté</th></tr>'
+                + (lignesEtat || '<tr><td colspan="7" style="color:#7f8c8d">Aucun retour en attente, refusé ou abandonné.</td></tr>') + '</table>';
+
         var max = 0;
         Ext.each(o.mois || [], function (m) {
             max = Math.max(max, m.quantite);

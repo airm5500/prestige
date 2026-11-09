@@ -165,4 +165,42 @@ class RetourEtatsCoherenceTest {
                         + remises + " " + abandons + " " + refusSansMotif + " " + refusDoubles + " " + interditsTiers
                         + " " + stockInsuffisant);
     }
+
+    @Test
+    @DisplayName("Partie 2 de la demande 59 : auteur de l'etat et repartition du tableau de bord, 5 000 retours")
+    void auteurEtRepartition() {
+        Random r = new Random(GRAINE + 59);
+        String[] statuts = { RetourEtats.SAISIE, RetourEtats.EN_ATTENTE, RetourEtats.REFUSE, RetourEtats.ABANDONNE,
+                RetourEtats.VALIDE };
+        String[] noms = { null, "", "  ", "Alice Kone", "Bruno Diallo", " Chantal Yao " };
+        java.util.Map<String, Integer> parCle = new java.util.HashMap<>();
+        int valides = 0;
+        for (int i = 0; i < 5000; i++) {
+            String statut = statuts[r.nextInt(statuts.length)];
+            String refusPar = noms[r.nextInt(noms.length)], attentePar = noms[r.nextInt(noms.length)];
+            String abandonPar = noms[r.nextInt(noms.length)], validePar = noms[r.nextInt(noms.length)];
+            String operateur = noms[r.nextInt(noms.length)];
+            String a = RetourEtats.auteur(statut, refusPar, attentePar, abandonPar, validePar, operateur);
+            String attendu = RetourEtats.REFUSE.equals(statut) ? refusPar
+                    : RetourEtats.EN_ATTENTE.equals(statut) ? attentePar
+                    : RetourEtats.ABANDONNE.equals(statut) ? abandonPar
+                    : RetourEtats.VALIDE.equals(statut) ? validePar : null;
+            String repli = operateur == null ? "" : operateur.trim();
+            assertEquals(attendu != null && !attendu.trim().isEmpty() ? attendu.trim() : repli, a, statut);
+            assertTrue(a != null && a.equals(a.trim()), "jamais null, jamais d'espace autour");
+            if (!RetourEtats.SAISIE.equals(statut)) {
+                String cle = RetourFournisseurServiceImpl.cleEtat(statut);
+                parCle.merge(cle, 1, Integer::sum);
+                if ("valide".equals(cle)) {
+                    assertEquals(RetourEtats.VALIDE, statut, "un retour refuse ou abandonne n'est jamais compte valide");
+                }
+                valides += RetourEtats.VALIDE.equals(statut) ? 1 : 0;
+            }
+        }
+        assertEquals(4, parCle.size(), "quatre etats au tableau de bord");
+        assertEquals(valides, (int) parCle.get("valide"));
+        assertEquals("attente", RetourFournisseurServiceImpl.cleEtat(RetourEtats.EN_ATTENTE));
+        assertEquals("refuse", RetourFournisseurServiceImpl.cleEtat(RetourEtats.REFUSE));
+        assertEquals("abandonne", RetourFournisseurServiceImpl.cleEtat(RetourEtats.ABANDONNE));
+    }
 }

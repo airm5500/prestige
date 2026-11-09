@@ -627,7 +627,9 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.retourFrsManager
         };
     },
     exportToExcel: function () {
-        var filters = this.getActiveFilters();
+        var filters = this.getActiveFilters(), etat = Ext.getCmp('retourFrsEtat');
+        /* partie 2 de la demande 59 : l'export suit le filtre d'etat de la liste (TOUS : la liste par defaut) */
+        filters.etat = (etat && etat.getValue()) || 'TOUS';
         window.open('../api/v1/retourfournisseur/export-excel?' + Ext.Object.toQueryString(filters));
     },
     onCreateInventaire: function () {

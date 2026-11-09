@@ -1484,6 +1484,29 @@ public class MvtProduitServiceImpl implements MvtProduitService {
     }
 
     /**
+     * Transmission du 07/11 : filtre par etat, commun a la liste et a l'export Excel (partie 2 de la demande 59).
+     * ATTENTE et REFUSE : quelle que soit la date ; VALIDE et ABANDONNE : sur la periode ; vide ou TOUS : les retours
+     * valides ou abandonnes de la periode, plus tous les retours en attente ou refuses.
+     */
+    private static Predicate predicatEtat(CriteriaBuilder cb, Root<TRetourFournisseur> root, Predicate btw,
+            String etat) {
+        javax.persistence.criteria.Path<String> statut = root.get(TRetourFournisseur_.strSTATUT);
+        switch (StringUtils.upperCase(StringUtils.trimToEmpty(etat))) {
+        case "ATTENTE":
+            return cb.equal(statut, RETOUR_EN_ATTENTE);
+        case "REFUSE":
+            return cb.equal(statut, RetourEtats.REFUSE);
+        case "VALIDE":
+            return cb.and(cb.equal(statut, STATUT_ENABLE), btw);
+        case "ABANDONNE":
+            return cb.and(cb.equal(statut, RetourEtats.ABANDONNE), btw);
+        default:
+            return cb.or(cb.and(statut.in(STATUT_ENABLE, RetourEtats.ABANDONNE), btw),
+                    statut.in(RETOUR_EN_ATTENTE, RetourEtats.REFUSE));
+        }
+    }
+
+    /**
      * Transmission du 07/11 : filtre par etat de la liste des retours (ATTENTE, REFUSE, VALIDE, ABANDONNE ; vide ou
      * TOUS = tous). Les retours en attente et refuses restent visibles quelle que soit leur date ; les retours valides
      * et abandonnes suivent la periode.
@@ -1502,26 +1525,7 @@ public class MvtProduitServiceImpl implements MvtProduitService {
              */
             Predicate btw = cb.between(cb.function("DATE", Date.class, root.get(TRetourFournisseur_.dtUPDATED)),
                     java.sql.Date.valueOf(dtStart), java.sql.Date.valueOf(dtEnd));
-            javax.persistence.criteria.Path<String> statut = root.get(TRetourFournisseur_.strSTATUT);
-            String etatFiltre = StringUtils.upperCase(StringUtils.trimToEmpty(etat));
-            switch (etatFiltre) {
-            case "ATTENTE":
-                predicates.add(cb.equal(statut, RETOUR_EN_ATTENTE));
-                break;
-            case "REFUSE":
-                predicates.add(cb.equal(statut, RetourEtats.REFUSE));
-                break;
-            case "VALIDE":
-                predicates.add(cb.and(cb.equal(statut, STATUT_ENABLE), btw));
-                break;
-            case "ABANDONNE":
-                predicates.add(cb.and(cb.equal(statut, RetourEtats.ABANDONNE), btw));
-                break;
-            default:
-                predicates.add(cb.or(cb.and(statut.in(STATUT_ENABLE, RetourEtats.ABANDONNE), btw),
-                        statut.in(RETOUR_EN_ATTENTE, RetourEtats.REFUSE)));
-                break;
-            }
+            predicates.add(predicatEtat(cb, root, btw, etat));
             if (StringUtils.isNotBlank(userId)) {
                 predicates.add(cb.equal(root.get(TRetourFournisseur_.lgUSERID).get(TUser_.lgUSERID), userId));
             }
@@ -1578,6 +1582,16 @@ public class MvtProduitServiceImpl implements MvtProduitService {
     @Override
     public List<RetourDetailsDTO> loadretoursFournisseur(String dtStart, String dtEnd, String fourId, String query,
             String filtre, String userId) {
+        return loadretoursFournisseur(dtStart, dtEnd, fourId, query, filtre, userId, null);
+    }
+
+    /**
+     * Partie 2 de la demande 59 : etat null = retours valides de la periode (comportement d'origine, impression PDF) ;
+     * sinon, le meme filtre d'etat que la liste (l'export Excel suit la liste affichee).
+     */
+    @Override
+    public List<RetourDetailsDTO> loadretoursFournisseur(String dtStart, String dtEnd, String fourId, String query,
+            String filtre, String userId, String etat) {
         try {
             List<Predicate> predicates = new ArrayList<>();
             CriteriaBuilder cb = getEmg().getCriteriaBuilder();
@@ -1585,10 +1599,14 @@ public class MvtProduitServiceImpl implements MvtProduitService {
             Root<TRetourFournisseur> root = cq.from(TRetourFournisseur.class);
 
             cq.select(root).distinct(true);
-            predicates.add(cb.equal(root.get(TRetourFournisseur_.strSTATUT), STATUT_ENABLE));
             Predicate btw = cb.between(cb.function("DATE", Date.class, root.get(TRetourFournisseur_.dtUPDATED)),
                     java.sql.Date.valueOf(dtStart), java.sql.Date.valueOf(dtEnd));
-            predicates.add(btw);
+            if (etat == null) {
+                predicates.add(cb.equal(root.get(TRetourFournisseur_.strSTATUT), STATUT_ENABLE));
+                predicates.add(btw);
+            } else {
+                predicates.add(predicatEtat(cb, root, btw, etat));
+            }
             if (StringUtils.isNotBlank(userId)) {
                 predicates.add(cb.equal(root.get(TRetourFournisseur_.lgUSERID).get(TUser_.lgUSERID), userId));
             }
