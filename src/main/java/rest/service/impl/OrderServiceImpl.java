@@ -179,6 +179,9 @@ public class OrderServiceImpl implements OrderService {
                 remarque = " (N° de séquence ignoré : 20 caractères au plus, chiffres et lettres)";
             }
         }
+        /* plan avoir du 08/11 (6) : la pre-saisie de ce BL (meme grossiste, meme numero) passe a « Traite » */
+        rest.service.presaisie.PresaisieBlService.marquerTraite(getEmg(), grossiste.getLgGROSSISTEID(), params.getRef(),
+                oBonLivraison.getLgBONLIVRAISONID(), params.getOperateur().getLgUSERID());
         return json.put("success", true).put("count", count).put("nb", count2).put("data", new JSONArray(erro))
                 .put("msg", "Opération effectuée avec success" + remarque);
     }
