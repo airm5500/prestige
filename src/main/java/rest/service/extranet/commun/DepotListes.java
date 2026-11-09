@@ -57,6 +57,7 @@ public final class DepotListes {
                             + " FROM extranet_liste_ligne WHERE liste = ?1 AND collecte_id = ?2 ORDER BY position")
                     .setParameter(1, liste).setParameter(2, collecte.getLong("id")).getResultList();
             boolean avecFichiers = !FichiersExtranet.de(source, liste).isEmpty();
+            int colNumero = FichiersExtranet.colonneNumero(description.optJSONArray("colonnes"));
             for (Object[] o : rows) {
                 JSONObject l = new JSONObject().put("position", ((Number) o[0]).intValue())
                         .put("agence", o[1] == null ? JSONObject.NULL : o[1])
@@ -67,8 +68,9 @@ public final class DepotListes {
                  * demande du 09/11, point 4 : formats proposes par l'extranet ; les references restent sur le serveur
                  */
                 if (avecFichiers) {
-                    l.put("fichiers",
-                            FichiersExtranet.formats(source, liste, FichiersExtranet.lireDocument((String) o[5])));
+                    String numero = colNumero >= 0 ? l.getJSONArray("cellules").optString(colNumero, "") : "";
+                    l.put("fichiers", FichiersExtranet.formats(source, liste,
+                            FichiersExtranet.lireDocument((String) o[5]), numero));
                 }
                 lignes.put(l);
             }

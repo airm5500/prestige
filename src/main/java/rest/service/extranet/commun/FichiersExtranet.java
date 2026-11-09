@@ -95,21 +95,35 @@ public final class FichiersExtranet {
             return htmlAdmis ? TransportExtranet.Attendu.FICHIER_HTML_ADMIS : TransportExtranet.Attendu.FICHIER;
         }
 
-        /** Classeur xlsx (archive ZIP « PK\3\4 ») : essai reel du 09/11, BLV Excel d'Ubipharm. */
-        private boolean xlsx(byte[] octets) {
-            return "EXCEL".equals(format) && octets != null && octets.length >= 4 && octets[0] == 0x50
-                    && octets[1] == 0x4B && octets[2] == 0x03 && octets[3] == 0x04;
+        /** Classeur xlsx (archive ZIP « PK ») : essai reel du 09/11, BLV Excel d'Ubipharm. */
+        private static boolean zip(byte[] o) {
+            return o != null && o.length >= 4 && o[0] == 0x50 && o[1] == 0x4B && o[2] == 0x03 && o[3] == 0x04;
         }
 
-        /** Type rendu selon le fichier recu : un Excel xlsx garde son type, sinon le type declare. */
+        /**
+         * Extension rendue selon le fichier recu : pour un Excel, « xlsx » si classeur ZIP, « xls » sinon (classeur OLE
+         * ou tableau HTML) ; l'extension declaree sinon, et quand rien n'a ete recu.
+         */
+        public String extension(byte[] octets) {
+            if (!"EXCEL".equals(format) || octets == null) {
+                return extension;
+            }
+            return zip(octets) ? "xlsx" : "xls";
+        }
+
+        /** Type rendu selon le fichier recu (meme regle que {@link #extension(byte[])}). */
         public String typeMime(byte[] octets) {
-            return xlsx(octets) ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" : typeMime;
+            if (!"EXCEL".equals(format) || octets == null) {
+                return typeMime;
+            }
+            return zip(octets) ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    : "application/vnd.ms-excel";
         }
 
-        /** Nom rendu selon le fichier recu : « .xlsx » pour un classeur xlsx, sinon l'extension declaree. */
+        /** Nom rendu selon le fichier recu : extension de {@link #extension(byte[])}. */
         public String nom(String numero, byte[] octets) {
             String n = nom(numero);
-            return xlsx(octets) ? n.substring(0, n.length() - extension.length()) + "xlsx" : n;
+            return n.substring(0, n.length() - extension.length()) + extension(octets);
         }
 
         /** Nom du fichier rendu : prefixe, numero du document, extension ; caracteres surs seulement. */
@@ -130,7 +144,8 @@ public final class FichiersExtranet {
         List<Fichier> f = new ArrayList<>();
         /* Ubipharm : liens « Exporter le BLV au format CSV / Excel / TXT » de chaque facture non relevee */
         for (String[] x : new String[][] { { "CSV", "CSV", "/BLVCSV", "csv", "text/csv" },
-                { "EXCEL", "Excel", "/BLVExcel", "xls", "application/vnd.ms-excel" },
+                { "EXCEL", "Excel", "/BLVExcel", "xlsx",
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" },
                 { "TXT", "TXT", "/BLVTxt", "txt", "text/plain" } }) {
             f.add(new Fichier(SourceExtranet.UBIPHARM, "FACTURES", x[0], x[1], x[2], "/ListeFactures", x[3], x[4],
                     "Ubipharm_BLV", "EXCEL".equals(x[0]),
@@ -216,6 +231,14 @@ public final class FichiersExtranet {
 
     /** Formats proposes pour une ligne : ceux de la liste dont la ligne porte toutes les references. */
     public static JSONArray formats(SourceExtranet source, String liste, Map<String, String> document) {
+        return formats(source, liste, document, null);
+    }
+
+    /**
+     * Formats proposes pour une ligne, avec le nom de fichier propose (« Enregistrer sous ») quand le numero du
+     * document est connu.
+     */
+    public static JSONArray formats(SourceExtranet source, String liste, Map<String, String> document, String numero) {
         JSONArray a = new JSONArray();
         if (document == null) {
             return a;
@@ -223,7 +246,7 @@ public final class FichiersExtranet {
         for (Fichier f : de(source, liste)) {
             try {
                 f.parametres(document);
-                a.put(new JSONObject().put("format", f.format).put("libelle", f.libelle));
+                a.put(new JSONObject().put("format", f.format).put("libelle", f.libelle).put("nom", f.nom(numero)));
             } catch (IllegalArgumentException e) {
                 /* reference absente : format non propose pour cette ligne */
             }

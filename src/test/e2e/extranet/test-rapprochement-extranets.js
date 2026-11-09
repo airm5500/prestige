@@ -15,6 +15,7 @@ const vues = require('../outils/vues');
 const faux = require('./faux-extranet');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const { execFileSync } = require('child_process');
 const { chromium } = require('playwright-core');
 
@@ -180,7 +181,27 @@ const compteReel = q("SELECT COUNT(*) FROM extranet_compte WHERE source = 'UBIPH
       && detBase[0][1] === '3000000218945' && detBase[0][2] === '1' && Number(detBase[0][3]) === 2736 && detBase[0][4] === 'PEREMPTION PROCHE.', JSON.stringify(detBase[0]));
     ok('réclamation : écran = base, ligne par ligne', JSON.stringify(detEcran) === JSON.stringify(detBase.map((l) => [l[0], l[1], l[2], l[4]])),
       JSON.stringify(detEcran));
+    /* demande du 09/11 : « Télécharger le PDF » ouvre « Enregistrer sous » (fausse fenetre : nom propose, octets ecrits) */
+    await p.evaluate(() => {
+      window.__ecrits = [];
+      window.__proposes = [];
+      window.showSaveFilePicker = (o) => {
+        window.__proposes.push(o && o.suggestedName);
+        return Promise.resolve({ name: o.suggestedName, createWritable: async () => {
+          const parts = [];
+          return { write: async (b) => { parts.push(...new Uint8Array(await b.arrayBuffer())); },
+            close: async () => { window.__ecrits.push(parts); } };
+        } });
+      };
+    });
     const rp = await cliquerEtAttendre(p, ECRAN + ' #exPdfCollecter', '/reclamations/pdf/collecte');
+    await p.waitForFunction(() => window.__ecrits.length > 0, null, { timeout: 60000 }).catch(() => null);
+    const ecritPdf = await p.evaluate(() => ({ proposes: window.__proposes, octets: window.__ecrits[0] || [] }));
+    const shaEcrit = crypto.createHash('sha256').update(Buffer.from(ecritPdf.octets)).digest('hex');
+    ok('PDF : « Enregistrer sous » proposé au clic (Ubipharm_Reclamation_….pdf), fichier écrit = PDF de l\'extranet',
+      ecritPdf.proposes.length === 1 && /^Ubipharm_Reclamation_[A-Za-z0-9._-]+\.pdf$/.test(ecritPdf.proposes[0]) && shaEcrit === srv.sha256Pdf,
+      JSON.stringify(ecritPdf.proposes) + ' ' + shaEcrit);
+    await p.evaluate(() => { delete window.showSaveFilePicker; });
     const doc = lignes("SELECT sha256, taille, fichier FROM extranet_document WHERE type_document = 'RECLAMATION' ORDER BY id DESC LIMIT 1")[0] || [];
     fichierPdf = doc[2] ? path.join(ENV_E2E.STOCKAGE, doc[2]) : null;
     ok('PDF : téléchargé, SHA-256 et taille = source', rp.success && doc[0] === srv.sha256Pdf && Number(doc[1]) === srv.PDF.length, doc.join('|'));

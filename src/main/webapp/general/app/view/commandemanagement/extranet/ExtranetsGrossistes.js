@@ -976,9 +976,29 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
         if (!r) {
             return;
         }
-        me.appel('POST', 'ubipharm/reclamations/pdf/collecte?' + me.cleReclamation(r), function (x) {
-            me.message('#exDetailMsg', x, 'PDF téléchargé');
-        }, me.down('#exDetailReclamation'));
+        /* demande du 09/11 : le PDF est lu sur l'extranet puis enregistré à l'emplacement choisi */
+        var cle = me.cleReclamation(r), nom = 'Ubipharm_Reclamation_' + String(r.get('reference') || r.get('id') || '')
+                .replace(/[^A-Za-z0-9._-]+/g, '-').replace(/^[-.]+|[-.]+$/g, '') + '.pdf';
+        me.enregistrerSous(nom, '#exDetailMsg', 'Lecture du PDF sur l\'extranet…', function () {
+            return fetch(me.URL + 'ubipharm/reclamations/pdf/collecte?' + cle, {method: 'POST', credentials: 'same-origin'})
+                    .then(function (rep) {
+                        return rep.json()['catch'](function () {
+                            return {success: false};
+                        });
+                    }).then(function (x) {
+                if (!x.success) {
+                    throw new Error(x.msg || 'PDF non téléchargé');
+                }
+                return fetch(me.URL + 'ubipharm/reclamations/pdf?' + cle, {credentials: 'same-origin'});
+            }).then(function (rep) {
+                if (!rep.ok) {
+                    throw new Error('PDF non téléchargé');
+                }
+                return rep.blob();
+            }).then(function (b) {
+                return {b: b, nom: nom};
+            });
+        });
     },
 
     /* ---------------------------------------------------------------- nouveaux produits */
@@ -1143,7 +1163,11 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
                             var a = e.getTarget('a.exFichier');
                             if (a) {
                                 e.stopEvent();
-                                me.telechargerFichier(code, rec.get('position'), a.getAttribute('data-format'));
+                                var fmt = a.getAttribute('data-format'), x = Ext.Array.findBy(rec.get('fichiers') || [],
+                                        function (y) {
+                                            return y.format === fmt;
+                                        });
+                                me.telechargerFichier(code, rec.get('position'), fmt, x && x.nom);
                             }
                         }},
                     /* toutes les lignes atteignables a la molette (retour du 08/11, point 3) */
@@ -1583,42 +1607,79 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
      * Demande du 09/11, point 4 : télécharge le fichier d'un document (BL, facture, avoir) tel que l'extranet le
      * propose ; le serveur le lit avec la session du connecteur et le rend sans le garder.
      */
-    telechargerFichier: function (code, position, format) {
-        var me = this, msg = me.down('#exListe' + code + 'Msg'), source = me.grossisteListe(code).toLowerCase();
-        if (msg) {
-            msg.setText('Téléchargement du fichier ' + Ext.String.htmlEncode(format) + ' sur l\'extranet…');
-        }
-        fetch(me.URL + source + '/listes/' + encodeURIComponent(code) + '/fichier?position=' + encodeURIComponent(position)
-                + '&format=' + encodeURIComponent(format), {credentials: 'same-origin'})
-                .then(function (r) {
-                    if (!r.ok) {
-                        return r.json()['catch'](function () {
-                            return {};
-                        }).then(function (j) {
-                            throw new Error(j.msg || 'Téléchargement impossible');
+    telechargerFichier: function (code, position, format, nomPropose) {
+        var me = this, source = me.grossisteListe(code).toLowerCase();
+        me.enregistrerSous(nomPropose || 'document', '#exListe' + code + 'Msg',
+                'Téléchargement du fichier ' + format + ' sur l\'extranet…', function () {
+            return fetch(me.URL + source + '/listes/' + encodeURIComponent(code) + '/fichier?position='
+                    + encodeURIComponent(position) + '&format=' + encodeURIComponent(format), {credentials: 'same-origin'})
+                    .then(function (r) {
+                        if (!r.ok) {
+                            return r.json()['catch'](function () {
+                                return {};
+                            }).then(function (j) {
+                                throw new Error(j.msg || 'Téléchargement impossible');
+                            });
+                        }
+                        var cd = r.headers.get('Content-Disposition') || '', m = /filename\*=UTF-8''([^;]+)/.exec(cd);
+                        return r.blob().then(function (b) {
+                            return {b: b, nom: m ? decodeURIComponent(m[1]) : nomPropose || 'document'};
                         });
-                    }
-                    var cd = r.headers.get('Content-Disposition') || '', m = /filename\*=UTF-8''([^;]+)/.exec(cd);
-                    return r.blob().then(function (b) {
-                        return {b: b, nom: m ? decodeURIComponent(m[1]) : 'document'};
                     });
-                }).then(function (o) {
-            var a = document.createElement('a');
-            a.href = URL.createObjectURL(o.b);
-            a.download = o.nom;
-            document.body.appendChild(a);
-            a.click();
-            setTimeout(function () {
-                URL.revokeObjectURL(a.href);
-                document.body.removeChild(a);
-            }, 2000);
+        });
+    },
+
+    /**
+     * Demande du 09/11 : « Télécharger » laisse choisir l'emplacement. Quand le navigateur le permet (Chrome ou Edge,
+     * adresse sûre : https ou localhost), la fenêtre « Enregistrer sous » s'ouvre au clic, avant tout appel à
+     * l'extranet ; annuler n'appelle rien. Sinon, le fichier part dans les téléchargements du navigateur (son réglage
+     * « Toujours demander où enregistrer » s'applique alors). obtenir() rend une promesse de {b: Blob, nom}.
+     */
+    enregistrerSous: function (nomPropose, selMsg, texteAttente, obtenir) {
+        var me = this, msg = me.down(selMsg), afficher = function (t, erreur) {
             if (msg) {
-                msg.setText('Fichier téléchargé : ' + Ext.String.htmlEncode(o.nom));
+                msg.setText(erreur ? '<span style="color:#c0392b">' + Ext.String.htmlEncode(t) + '</span>'
+                        : Ext.String.htmlEncode(t), false);
             }
-        })['catch'](function (e) {
-            if (msg) {
-                msg.setText('<span style="color:#c0392b">' + Ext.String.htmlEncode(e.message) + '</span>', false);
-            }
+        }, ecrire = function (handle) {
+            afficher(texteAttente);
+            return obtenir().then(function (o) {
+                if (handle) {
+                    return handle.createWritable().then(function (w) {
+                        return w.write(o.b).then(function () {
+                            return w.close();
+                        });
+                    }).then(function () {
+                        return handle.name || o.nom;
+                    });
+                }
+                var a = document.createElement('a');
+                a.href = URL.createObjectURL(o.b);
+                a.download = o.nom;
+                document.body.appendChild(a);
+                a.click();
+                setTimeout(function () {
+                    URL.revokeObjectURL(a.href);
+                    document.body.removeChild(a);
+                }, 2000);
+                return o.nom;
+            }).then(function (nom) {
+                afficher('Fichier téléchargé : ' + nom);
+            });
+        }, p;
+        if (typeof window.showSaveFilePicker === 'function' && window.isSecureContext) {
+            p = window.showSaveFilePicker({suggestedName: nomPropose}).then(ecrire, function (e) {
+                if (e && e.name === 'AbortError') {
+                    afficher('Enregistrement annulé : rien n\'a été demandé à l\'extranet');
+                    return null;
+                }
+                return ecrire(null);
+            });
+        } else {
+            p = ecrire(null);
+        }
+        p['catch'](function (e) {
+            afficher(e && e.message ? e.message : 'Téléchargement impossible', true);
         });
     },
 

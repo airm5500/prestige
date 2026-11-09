@@ -49,7 +49,7 @@ class FichiersExtranetCoherenceTest {
     void catalogueReleve() throws Exception {
         /* ce que l'extranet propose, ni plus ni moins (releve du 09/11) */
         List<String> attendu = Arrays.asList("UBIPHARM FACTURES CSV /BLVCSV csv",
-                "UBIPHARM FACTURES EXCEL /BLVExcel xls", "UBIPHARM FACTURES TXT /BLVTxt txt",
+                "UBIPHARM FACTURES EXCEL /BLVExcel xlsx", "UBIPHARM FACTURES TXT /BLVTxt txt",
                 "TEDIS TEDIS_BL_QUINZAINE TXT /exportationsBlTxt txt",
                 "TEDIS TEDIS_BL_QUINZAINE CSV /exportationsBlQuizainecsv csv",
                 "DPCI DPCI_FACTURES CSV_9 /ExportDonnee.action csv",
@@ -154,7 +154,7 @@ class FichiersExtranetCoherenceTest {
         }
         FichiersExtranet.Fichier tedis = FichiersExtranet.un(SourceExtranet.TEDIS, "TEDIS_BL_QUINZAINE", "TXT");
         assertEquals("TEDIS_BLV_2629645160-BKE.txt", tedis.nom("2629645160-BKE"));
-        assertEquals("Ubipharm_BLV_BKE-765220.xls",
+        assertEquals("Ubipharm_BLV_BKE-765220.xlsx",
                 FichiersExtranet.un(SourceExtranet.UBIPHARM, "FACTURES", "EXCEL").nom("BKE/765220"));
         assertEquals("DPCI_Facture_9col_R40237756.csv",
                 FichiersExtranet.un(SourceExtranet.DPCI, "DPCI_FACTURES", "CSV_9").nom("R40237756"));
@@ -208,6 +208,27 @@ class FichiersExtranetCoherenceTest {
                 FichiersExtranet.un(SourceExtranet.COPHARMED, "COPHARMED_FACTURES", "EXCEL").nom("26-999999-99", ole));
         FichiersExtranet.Fichier ubi = FichiersExtranet.un(SourceExtranet.UBIPHARM, "FACTURES", "EXCEL");
         assertEquals(ubi.nom("x"), ubi.nom("x", null));
+    }
+
+    /** Nom propose a « Enregistrer sous » : le meme que celui du fichier rendu, pour chaque format de la ligne. */
+    @Test
+    void nomProposeParFormat() {
+        Map<String, String> d = new LinkedHashMap<>();
+        d.put("fcnum", "765220");
+        d.put("etcoda", "BKE");
+        JSONArray a = FichiersExtranet.formats(SourceExtranet.UBIPHARM, "FACTURES", d, "BKE/765220");
+        assertEquals(3, a.length());
+        assertEquals("Ubipharm_BLV_BKE-765220.csv", a.getJSONObject(0).getString("nom"));
+        assertEquals("Ubipharm_BLV_BKE-765220.xlsx", a.getJSONObject(1).getString("nom"));
+        assertEquals("Ubipharm_BLV_BKE-765220.txt", a.getJSONObject(2).getString("nom"));
+        for (FichiersExtranet.Fichier f : FichiersExtranet.de(SourceExtranet.UBIPHARM, "FACTURES")) {
+            assertEquals(f.nom("BKE/765220"),
+                    FichiersExtranet.formats(SourceExtranet.UBIPHARM, "FACTURES", d, "BKE/765220")
+                            .getJSONObject(FichiersExtranet.de(SourceExtranet.UBIPHARM, "FACTURES").indexOf(f))
+                            .getString("nom"));
+        }
+        assertEquals("Ubipharm_BLV.csv", FichiersExtranet.formats(SourceExtranet.UBIPHARM, "FACTURES", d, null)
+                .getJSONObject(0).getString("nom"));
     }
 
     @Test

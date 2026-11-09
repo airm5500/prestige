@@ -102,6 +102,30 @@ function contenu(chemin, fcnum, etcoda) {
 
   const navigateur = await ENV_E2E.lancer(chromium);
   const ctx = await navigateur.newContext({ viewport: { width: 1600, height: 950 }, acceptDownloads: true });
+  /*
+   * fenetre « Enregistrer sous » du navigateur (demande du 09/11) : remplacee par une fausse fenetre qui garde le nom
+   * propose et les octets ecrits ; mode « absent » = navigateur sans cette fenetre (telechargement classique).
+   */
+  await ctx.addInitScript(() => {
+    window.__ecrits = [];
+    window.__choix = { mode: 'absent', proposes: [] };
+    Object.defineProperty(window, 'showSaveFilePicker', {
+      configurable: true,
+      get() {
+        if (window.__choix.mode === 'absent') { return undefined; }
+        return (o) => {
+          const nom = o && o.suggestedName;
+          window.__choix.proposes.push(nom);
+          if (window.__choix.mode === 'annuler') { return Promise.reject(new DOMException('Annulé', 'AbortError')); }
+          return Promise.resolve({ name: nom, createWritable: async () => {
+            const parts = [];
+            return { write: async (b) => { parts.push(...new Uint8Array(await b.arrayBuffer())); },
+              close: async () => { window.__ecrits.push({ nom, octets: parts }); } };
+          } });
+        };
+      }
+    });
+  });
   const p = await ctx.newPage();
   const erreurs = [];
   p.on('pageerror', (e) => erreurs.push(String(e.message)));
@@ -165,6 +189,10 @@ function contenu(chemin, fcnum, etcoda) {
 
     /* telechargements : clic reel sur le lien de la ligne */
     const cliquerFormat = async (n, libelle) => {
+      /* l'infobulle du lien precedent peut couvrir le lien suivant : souris ecartee, infobulle masquee */
+      await p.mouse.move(10, 700);
+      await p.evaluate(() => { const t = Ext.tip.QuickTipManager.getQuickTip(); if (t) { t.hide(); } });
+      await p.waitForTimeout(150);
       const pos = await p.evaluate(([num, lib]) => {
         const g = Ext.ComponentQuery.query('extranetsgrossistes #exListeFACTURESGrille')[0];
         const col = g.headerCt.getGridColumns().filter((c) => c.text === 'Fichier')[0];
@@ -196,9 +224,47 @@ function contenu(chemin, fcnum, etcoda) {
       ok(n + ' ' + lib + ' : un seul appel GET, références de la ligne', appels.length === 1 && appels[0].methode === 'GET'
         && new URLSearchParams(appels[0].requete).get('fcnum') === f.fcnum && new URLSearchParams(appels[0].requete).get('etcoda') === f.etcoda,
       JSON.stringify(appels));
-      const msg = await p.evaluate(() => Ext.ComponentQuery.query('extranetsgrossistes #exListeFACTURESMsg')[0].text);
+      await p.waitForTimeout(300);
+      const msg = await p.evaluate(() => Ext.ComponentQuery.query('extranetsgrossistes #exListeFACTURESMsg')[0].el.dom.textContent);
       ok(n + ' ' + lib + ' : message « Fichier téléchargé »', /^Fichier téléchargé : Ubipharm_BLV_/.test(msg), msg);
     }
+
+    /* « Enregistrer sous » : la fenetre s'ouvre au clic avec le nom propose ; le fichier ecrit = fichier servi */
+    await p.evaluate(() => { window.__choix.mode = 'fichier'; });
+    let telechargeClassique = false;
+    const surveillerClassique = () => { telechargeClassique = true; };
+    p.on('download', surveillerClassique);
+    for (const [n, lib, chemin, ext] of [['F2699205', 'Excel', '/BLVExcel', 'xlsx'], ['F2699201', 'CSV', '/BLVCSV', 'csv'], ['BKE/999204', 'TXT', '/BLVTxt', 'txt']]) {
+      const f = FACTURES.find((x) => x.n === n);
+      const nom = 'Ubipharm_BLV_' + n.replace('/', '-') + '.' + ext;
+      const avantAppels = srv.etat.appels.length;
+      const avantEcrits = await p.evaluate(() => window.__ecrits.length);
+      await cliquerFormat(n, lib);
+      await p.waitForFunction((k) => window.__ecrits.length > k, avantEcrits, { timeout: 60000 });
+      const e = await p.evaluate(() => window.__ecrits[window.__ecrits.length - 1]);
+      const propose = await p.evaluate(() => window.__choix.proposes[window.__choix.proposes.length - 1]);
+      ok(n + ' ' + lib + ' : « Enregistrer sous » propose « ' + nom + ' »', propose === nom && e.nom === nom, propose);
+      const recu = crypto.createHash('sha256').update(Buffer.from(e.octets)).digest('hex');
+      const servi = servis.filter((x) => x.chemin === chemin && x.fcnum === f.fcnum && x.etcoda === f.etcoda).pop();
+      ok(n + ' ' + lib + ' : fichier écrit à l\'emplacement choisi = fichier servi, octet pour octet', servi && servi.sha === recu, (servi || {}).sha + ' / ' + recu);
+      const appels = srv.etat.appels.slice(avantAppels).filter((a) => a.chemin === chemin);
+      ok(n + ' ' + lib + ' : un seul appel GET', appels.length === 1 && appels[0].methode === 'GET', JSON.stringify(appels));
+      await p.waitForTimeout(300);
+      const msg = await p.evaluate(() => Ext.ComponentQuery.query('extranetsgrossistes #exListeFACTURESMsg')[0].el.dom.textContent);
+      ok(n + ' ' + lib + ' : message « Fichier téléchargé : ' + nom + ' »', msg === 'Fichier téléchargé : ' + nom, msg);
+    }
+    /* annulation : aucun appel a l'extranet, aucun fichier */
+    await p.evaluate(() => { window.__choix.mode = 'annuler'; });
+    const avantAnnul = srv.etat.appels.length;
+    const ecritsAnnul = await p.evaluate(() => window.__ecrits.length);
+    await cliquerFormat('F2699206', 'CSV');
+    await p.waitForTimeout(2000);
+    const msgAnnul = await p.evaluate(() => Ext.ComponentQuery.query('extranetsgrossistes #exListeFACTURESMsg')[0].el.dom.textContent);
+    ok('annulation de « Enregistrer sous » : aucun appel à l\'extranet, aucun fichier, message « annulé »',
+      srv.etat.appels.length === avantAnnul && (await p.evaluate(() => window.__ecrits.length)) === ecritsAnnul && /annulé/.test(msgAnnul), msgAnnul);
+    p.off('download', surveillerClassique);
+    ok('« Enregistrer sous » : aucun téléchargement classique en plus', !telechargeClassique);
+    await p.evaluate(() => { window.__choix.mode = 'absent'; });
 
     /* extranet en erreur : message rouge, aucun fichier */
     let telecharge = false;
