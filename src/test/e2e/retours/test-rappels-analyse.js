@@ -52,7 +52,8 @@ function nettoyer() {
     await p.waitForFunction(() => { const l = Ext.ComponentQuery.query('rappelshabitude')[0]; return l && l.isVisible() && l.rendered && !l.getStore().isLoading(); }, null, { timeout: 60000 });
     const hub = await p.evaluate(() => { const h = Ext.ComponentQuery.query('rappelstraitement')[0];
       return { hub: !!h, onglets: h ? h.query('#ongletsRp button').map((x) => x.getText()) : [] }; });
-    ok('Le menu ouvre « Liste » / « Analyse »', hub.hub && JSON.stringify(hub.onglets) === '["Liste","Analyse"]', JSON.stringify(hub));
+    /* plan avoir du 08/11, point 5 : « Ciblage libre » et l'aide « ? » s'ajoutent a la suite */
+    ok('Le menu ouvre « Liste » / « Analyse » (puis « Ciblage libre » et « ? »)', hub.hub && JSON.stringify(hub.onglets) === '["Liste","Analyse","Ciblage libre","?"]', JSON.stringify(hub));
     const sansTip = await p.evaluate(() => Ext.ComponentQuery.query('rappelshabitude')[0].getDockedItems('toolbar[dock=top]')
       .reduce((a, t) => a.concat(t.query('button,combobox,datefield,textfield').filter((x) => !x.tooltip && !x.up('menu')).map((x) => x.getText ? x.getText() : x.itemId)), []));
     ok('Infobulle sur chaque bouton et critère des deux barres', sansTip.length === 0, JSON.stringify(sansTip));
