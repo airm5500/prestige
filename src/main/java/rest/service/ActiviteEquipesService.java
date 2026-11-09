@@ -31,6 +31,30 @@ public interface ActiviteEquipesService {
      */
     rest.service.dto.ActiviteAnomaliesDTO anomalies(ActiviteFiltreDTO filtre, String famille);
 
+    /**
+     * Plan du 08/11, point 15.8 : controle des gardes de la periode (gardes sans vente, nuits 21 h - 6 h avec des
+     * ventes sans garde declaree).
+     */
+    java.util.Map<String, Object> controleGardes(java.time.LocalDate debut, java.time.LocalDate fin);
+
+    /**
+     * Plan du 08/11, point 15.8 : carte d'affluence d'une garde (ventes ouvertes pendant la garde) ; null si absente.
+     */
+    java.util.Map<String, Object> carteGarde(String gardeId);
+
+    /** Plan du 08/11, point 15.1 : annulations par auteur de la vente et suivi des caissieres. */
+    java.util.Map<String, Object> annulations(ActiviteFiltreDTO f);
+
+    /** Plan du 08/11, point 15.1 : detail d'une ligne (role VENDEUR ou CAISSIER) : vente, motif, par qui, quand. */
+    java.util.List<java.util.Map<String, Object>> detailAnnulations(java.time.LocalDate debut, java.time.LocalDate fin,
+            String role, String id);
+
+    /**
+     * Plan avoir du 08/11, point 1 : CA par employe et par tranche horaire (taille 1 a 6 h ; attribution CAISSIER ou
+     * VENDEUR), totaux par ligne et par colonne.
+     */
+    java.util.Map<String, Object> caTranches(ActiviteFiltreDTO f, Integer taille, String attribution);
+
     /** Une anomalie avec le fil de ce que l'employe a fait juste avant ; null si elle n'existe pas. */
     rest.service.dto.ActiviteAnomaliesDTO.Element anomalie(long id);
 }

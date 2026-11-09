@@ -98,6 +98,8 @@ public final class Constant {
     public static final String LIBELLE_CLOTURE_VENTE = "Terminer une vente (menu « Ventes »)";
     /** Menu « Activité des équipes » (ANALYSE DE GESTION) : journal, recherches et analyses de productivite. */
     public static final String P_SM_ACTIVITE_EQUIPES = "P_SM_ACTIVITE_EQUIPES";
+    /** Plan du 08/11, point 15.6 : onglet Anomalies de l'activite des equipes. */
+    public static final String P_ACTIVITE_ANOMALIES = "P_ACTIVITE_ANOMALIES";
     public static final String P_SM_WHATSAPP_DISCUSSIONS = "P_SM_WHATSAPP_DISCUSSIONS";
     /** Retours du 25/10 (point 2) : onglets « Parametres » et « Analyse » de Fidelite clients. */
     public static final String P_FIDELITE_ONGLET_PARAMETRES = "P_FIDELITE_ONGLET_PARAMETRES";

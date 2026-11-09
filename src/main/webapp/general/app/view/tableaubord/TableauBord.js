@@ -38,6 +38,9 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
             {id: 'encaissements', titre: 'Encaissements du jour', ico: 'fa-money-bill-wave', t: 't-vert', l: 'l4'},
             {id: 'mouvements', titre: 'Mouvements de caisse du jour', ico: 'fa-right-left', t: 't-violet', l: 'l4'},
             {id: 'alertes', titre: 'Alertes', ico: 'fa-bell', t: 't-ambre', l: 'l4'},
+            /* Plan avoir du 08/11, point 1 : reperes du jour de l'activite des equipes ; reservee au droit du menu
+               (droit : xtype du menu, la carte n'est pas construite s'il manque au menu de l'utilisateur) */
+            {id: 'activite', titre: 'Activité des équipes (jour)', ico: 'fa-user-clock', t: 't-violet', l: 'l12', droit: 'activiteequipes'},
             /* Retours du 06/10 : frequentation par tranche de 2 h, semaine precedente et semaine en cours. */
             {id: 'frequentation', titre: 'Fréquentation par tranche horaire', ico: 'fa-clock', t: 't-cyan', l: 'l12'},
             /* Retour du 24/10 : carte d'affluence jour x heure, semaine au choix */
@@ -261,7 +264,7 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
             var d = Ext.Array.findBy(S.CARTES, function (x) {
                 return x.id === id;
             });
-            if (me.retire(id)) {
+            if (me.retire(id) || (d.droit && !me.menu(d.droit))) {
                 return;
             }
             var el = document.createElement('div');
@@ -551,6 +554,12 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
                     me.dessinerBarres('emplacements', o, '#f59e0b', 'emplacements', '<span class="tb-seg" data-seg="empl">'
                             + '<button data-v="emplacement" class="' + (axe === 'emplacement' ? 'on' : '') + '">Emplacement</button>'
                             + '<button data-v="famille" class="' + (axe === 'famille' ? 'on' : '') + '">Famille</button></span> ');
+                });
+            },
+            activite: function () {
+                /* meme route et memes chiffres que le menu Activite des equipes (onglet Analyses, bandeau Reperes) */
+                lire('../api/v1/activite-equipes/analyses', {debut: j, fin: j}, function (o) {
+                    me.dessinerActivite(o);
                 });
             },
             tiers: function () {
@@ -1157,6 +1166,47 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
         });
     },
 
+    /* ------------------------------------------------------------------ activite des equipes (plan avoir du 08/11, point 1) */
+
+    dessinerActivite: function (o) {
+        var me = this, c = me.corps('activite'), AE = testextjs.view.activiteequipes.ActiviteEquipes;
+        if (!c) {
+            return;
+        }
+        if (!o || !o.success || !o.data) {
+            me.erreur('activite');
+            return;
+        }
+        AE.styles();
+        var out = me.outils('activite');
+        if (out) {
+            out.innerHTML = '<span class="tb-lien" data-activite="1">Détail →</span>';
+        }
+        /* quatre reperes et une ligne d'alerte : pas de grand vide sous la carte (hauteur minimale commune de 300 px) */
+        c.style.minHeight = '0';
+        c.innerHTML = '<div class="tb-clic tb-activite" data-activite="1" title="Ouvrir le détail : mêmes cartes que le menu Activité des équipes">'
+                + AE.htmlResume(o.data.resume) + '</div>';
+    },
+
+    /** Fenetre de consultation : le composant du menu, onglet Analyses seul, periode du jour (Hier, 3 jours, 1 semaine). */
+    ouvrirActivite: function () {
+        var me = this, vue = Ext.getBody().getViewSize(), pied = [];
+        if (me.menu('activiteequipes')) {
+            pied.push({text: 'Ouvrir le menu Activité des équipes', itemId: 'tbActiviteMenu', cls: 'fen-btn-principal', handler: function (b) {
+                    b.up('window').close();
+                    me.ouvrirMenu('activiteequipes');
+                }});
+        }
+        pied.push({text: 'Fermer', itemId: 'tbActiviteFermer', cls: 'fen-btn', handler: function (b) {
+                b.up('window').close();
+            }});
+        Ext.create('Ext.window.Window', {
+            title: 'Activité des équipes', itemId: 'tbActiviteFenetre', modal: true, layout: 'fit', cls: 'tb-fenetre fen-theme',
+            width: Math.min(1400, vue.width - 40), height: vue.height - 60,
+            items: [{xtype: 'activiteequipes', modeFenetre: true, dateReference: Ext.Date.parse(me.jour(), 'Y-m-d')}], buttons: pied
+        }).show();
+    },
+
     /* ------------------------------------------------------------------ fenetres de consultation */
 
     fenetre: function (titre, html, menu) {
@@ -1462,6 +1512,10 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
             if (cible('[data-mm]')) {
                 me.mmOuvert = !me.mmOuvert;
                 me.dessinerEncaissements(me.donneesEnc);
+                return;
+            }
+            if (cible('[data-activite]')) {
+                me.ouvrirActivite();
                 return;
             }
             if ((x = cible('[data-plus]'))) {

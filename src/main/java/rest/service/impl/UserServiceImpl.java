@@ -93,16 +93,22 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public TUser connexionParBadge(String contenu, HttpServletRequest request) {
+        return connexionParBadge(contenu, null, request).getUser();
+    }
+
+    @Override
+    public rest.service.dto.ResultatConnexionBadge connexionParBadge(String contenu, String pin,
+            HttpServletRequest request) {
         try {
             /* coupee seulement par '0' : le parametre absent laisse la connexion par badge permise */
             if ("0".equals(StringUtils.trimToEmpty(parametre(Constant.KEY_CONNEXION_BADGE)))) {
-                return null;
+                return rest.service.dto.ResultatConnexionBadge.REFUS;
             }
             String[] c = BadgeQr.champs(contenu);
             if (c == null) {
                 /* retour du 23/10 : la raison du refus est notee (jamais le contenu lu, qui porte le secret) */
                 LOG.info("connexion par badge refusee : FORMAT (" + BadgeQr.defautFormat(contenu) + ")");
-                return null;
+                return rest.service.dto.ResultatConnexionBadge.REFUS;
             }
             String id = rhBadgeService.utilisateurDuBadge(c[0], c[1], c[2]);
             TUser user = id == null ? null : getEm().find(TUser.class, id);
@@ -110,13 +116,27 @@ public class UserServiceImpl implements UserService {
                 LOG.info("connexion par badge refusee (badge "
                         + StringUtils.abbreviate(c[0].replaceAll("[^A-Za-z0-9-]", "?"), 30) + ") : "
                         + rhBadgeService.raisonDuRefus(c[0], c[1]));
-                return null;
+                return rest.service.dto.ResultatConnexionBadge.REFUS;
             }
-            return ouvrir(user, request, " par badge " + c[0]);
+            /* plan du 08/11, point 14 : code PIN apres le badge, si le parametre le demande (jamais trace) */
+            boolean demande = rhBadgeService.pinDemande();
+            boolean defini = demande && rhBadgeService.pinDefini(user.getLgUSERID());
+            boolean tape = StringUtils.isNotBlank(pin);
+            util.BadgePin.Etat etat = util.BadgePin.etat(demande, defini, pin,
+                    demande && defini && tape && rhBadgeService.pinJuste(user.getLgUSERID(), pin.trim()));
+            if (etat != util.BadgePin.Etat.ACCEPTE) {
+                if (etat == util.BadgePin.Etat.PIN_FAUX) {
+                    LOG.info("connexion par badge refusee (badge "
+                            + StringUtils.abbreviate(c[0].replaceAll("[^A-Za-z0-9-]", "?"), 30) + ") : CODE_PIN");
+                }
+                return new rest.service.dto.ResultatConnexionBadge(null, etat);
+            }
+            return new rest.service.dto.ResultatConnexionBadge(
+                    ouvrir(user, request, " par badge " + c[0] + (demande ? " et code PIN" : "")), etat);
         } catch (Exception e) {
             /* jamais le contenu lu dans la trace : il porte le secret du badge */
             LOG.log(Level.SEVERE, "connexion par badge : " + e.getClass().getName());
-            return null;
+            return rest.service.dto.ResultatConnexionBadge.REFUS;
         }
     }
 

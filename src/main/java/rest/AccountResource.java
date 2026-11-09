@@ -47,6 +47,8 @@ public class AccountResource {
 
     @EJB
     private UserService userService;
+    @EJB
+    private rest.service.impl.RhBadgeService rhBadgeService;
     @Inject
     HttpServletRequest request;
 
@@ -112,11 +114,24 @@ public class AccountResource {
         if (request.getSession(false) != null) {
             request.changeSessionId();
         }
-        TUser tu = userService.connexionParBadge(contenu, request);
+        rest.service.dto.ResultatConnexionBadge r = userService.connexionParBadge(contenu,
+                lu == null ? null : lu.getPin(), request);
+        TUser tu = r.getUser();
+        /* plan du 08/11, point 14 : badge reconnu, code PIN a taper ou a definir (pas un echec, aucune session) */
+        if (tu == null
+                && (r.getEtat() == util.BadgePin.Etat.PIN_REQUIS || r.getEtat() == util.BadgePin.Etat.PIN_A_DEFINIR)) {
+            boolean requis = r.getEtat() == util.BadgePin.Etat.PIN_REQUIS;
+            return Response.ok().entity(json.put("success", false).put(requis ? "pinRequis" : "pinADefinir", true)
+                    .put("message", requis ? "Tapez votre code PIN." : MSG_PIN_A_DEFINIR).toString()).build();
+        }
         if (tu == null) {
             long bloque = limite.echec(cle, ip);
-            json.put("success", false).put("message",
-                    bloque > 0 ? rest.securite.LimiteConnexion.message(bloque) : Constant.MSG_BADGE_NON_RECONNU);
+            boolean pinFaux = r.getEtat() == util.BadgePin.Etat.PIN_FAUX;
+            json.put("success", false).put("message", bloque > 0 ? rest.securite.LimiteConnexion.message(bloque)
+                    : pinFaux ? "Code PIN incorrect." : Constant.MSG_BADGE_NON_RECONNU);
+            if (pinFaux) {
+                json.put("pinFaux", true);
+            }
             if (bloque > 0) {
                 json.put("attente", bloque);
                 LOG.log(Level.WARNING, "Connexion par badge bloquee {0} s apres plusieurs echecs depuis {1}",
@@ -126,6 +141,69 @@ public class AccountResource {
         }
         limite.succes(cle, ip);
         return sessionOuverte(tu);
+    }
+
+    static final String MSG_PIN_A_DEFINIR = "Code PIN non défini : connectez-vous avec votre mot de passe,"
+            + " puis définissez votre code dans Mon compte.";
+
+    /**
+     * Plan du 08/11, point 14 : etat du code PIN du badge de l'utilisateur connecte (Mon compte) : demande par le
+     * parametre, defini (et quand), badge actif.
+     */
+    @GET
+    @Path("badge-pin")
+    public Response badgePin() {
+        HttpSession hs = request.getSession(false);
+        TUser tu = hs == null ? null : (TUser) hs.getAttribute(Constant.AIRTIME_USER);
+        if (tu == null) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+        String date = rhBadgeService.pinDate(tu.getLgUSERID());
+        return Response.ok()
+                .entity(new JSONObject().put("demande", rhBadgeService.pinDemande()).put("defini", date != null)
+                        .put("date", date == null ? "" : date)
+                        .put("badge", rhBadgeService.aUnBadgeActif(tu.getLgUSERID())).toString())
+                .build();
+    }
+
+    /**
+     * Plan du 08/11, point 14 : definit (ou change) le code PIN du badge de l'utilisateur connecte. Exige le mot de
+     * passe actuel : une session ouverte par une photo du badge ne peut pas fixer le code. Essais limites comme la
+     * connexion. Ni le mot de passe ni le code ne sont traces.
+     */
+    @POST
+    @Path("badge-pin")
+    public Response definirBadgePin(rest.service.dto.DefinitionPinDTO d) {
+        HttpSession hs = request.getSession(false);
+        TUser tu = hs == null ? null : (TUser) hs.getAttribute(Constant.AIRTIME_USER);
+        if (tu == null) {
+            return Response.status(Response.Status.UNAUTHORIZED).build();
+        }
+        JSONObject json = new JSONObject().put("success", false);
+        String cle = "pin-compte:" + tu.getLgUSERID(), ip = request.getRemoteAddr();
+        rest.securite.LimiteConnexion limite = rest.securite.LimiteConnexion.instance();
+        long attente = limite.attenteSecondes(cle, ip);
+        if (attente > 0) {
+            return Response.ok().entity(json.put("message", rest.securite.LimiteConnexion.message(attente)).toString())
+                    .build();
+        }
+        if (!rhBadgeService.motDePasseJuste(tu.getLgUSERID(), d == null ? null : d.getMotDePasse())) {
+            long bloque = limite.echec(cle, ip);
+            return Response.ok().entity(json.put("message",
+                    bloque > 0 ? rest.securite.LimiteConnexion.message(bloque) : "Mot de passe actuel incorrect.")
+                    .toString()).build();
+        }
+        String pin = d.getPin() == null ? null : d.getPin().trim();
+        String refus = util.BadgePin.refusFormat(pin);
+        if (refus != null) {
+            return Response.ok().entity(json.put("message", refus).toString()).build();
+        }
+        limite.succes(cle, ip);
+        rhBadgeService.definirPin(tu.getLgUSERID(), pin);
+        LOG.log(Level.INFO, "Code PIN du badge defini par {0}", tu.getStrLOGIN());
+        String date = rhBadgeService.pinDate(tu.getLgUSERID());
+        return Response.ok().entity(json.put("success", true).put("date", date)
+                .put("message", "Code PIN enregistré le " + date + ".").toString()).build();
     }
 
     /** Session d'un utilisateur dont la connexion vient d'etre acceptee (mot de passe ou badge). */

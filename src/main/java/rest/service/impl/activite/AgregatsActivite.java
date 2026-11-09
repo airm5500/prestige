@@ -54,9 +54,15 @@ public final class AgregatsActivite {
         final LocalDateTime encaissement;
         final long lignes;
         final long montant;
+        /** plan du 08/11, point 15.5 : type de vente (libelle de {@link #typeVente}) */
+        final String type;
 
         public String employeId() {
             return employeId;
+        }
+
+        public LocalDateTime ouvertureVente() {
+            return ouverture;
         }
 
         public Vente(String employeId, LocalDateTime ouverture, LocalDateTime derniereLigne, LocalDateTime encaissement,
@@ -67,6 +73,19 @@ public final class AgregatsActivite {
             this.encaissement = encaissement;
             this.lignes = lignes;
             this.montant = montant;
+            this.type = "Autre";
+        }
+
+        /** Plan du 08/11, point 15.5 : avec le type de vente (identifiant t_type_vente et avoir). */
+        public Vente(String employeId, LocalDateTime ouverture, LocalDateTime derniereLigne, LocalDateTime encaissement,
+                long lignes, long montant, String typeVenteId, boolean avoir) {
+            this.employeId = employeId;
+            this.ouverture = ouverture;
+            this.derniereLigne = derniereLigne;
+            this.encaissement = encaissement;
+            this.lignes = lignes;
+            this.montant = montant;
+            this.type = typeVente(typeVenteId, avoir);
         }
 
         long duree() {
@@ -254,6 +273,130 @@ public final class AgregatsActivite {
         return l;
     }
 
+    /** Ordre d'affichage des types de vente. */
+    public static final List<String> TYPES_VENTE = List.of("Comptant", "Assurance", "Carnet", "Dépôt", "Avoir",
+            "Autre");
+
+    /**
+     * Plan du 08/11, point 15.5 : type de vente lisible. Un avoir l'emporte sur le type ; 1 comptant, 2 assurance, 3
+     * carnet, 4 et 5 depot (t_type_vente) ; autre sinon.
+     */
+    public static String typeVente(String typeVenteId, boolean avoir) {
+        if (avoir) {
+            return "Avoir";
+        }
+        switch (typeVenteId == null ? "" : typeVenteId.trim()) {
+        case "1":
+            return "Comptant";
+        case "2":
+            return "Assurance";
+        case "3":
+            return "Carnet";
+        case "4":
+        case "5":
+            return "Dépôt";
+        default:
+            return "Autre";
+        }
+    }
+
+    /**
+     * Plan du 08/11, points 15.5 et 15.7 : vitesse par type de vente, memes calculs que la vitesse par operateur (un «
+     * operateur » par type : id = nom = type). Seuls les types qui ont des ventes ; ordre de {@link #TYPES_VENTE}.
+     */
+    public static List<Operateur> typesVente(List<Vente> ventes, SeuilDuree seuil) {
+        Map<String, List<Vente>> parType = new LinkedHashMap<>();
+        TYPES_VENTE.forEach(t -> parType.put(t, new ArrayList<>()));
+        ventes.forEach(v -> parType.computeIfAbsent(v.type, k -> new ArrayList<>()).add(v));
+        List<Operateur> l = new ArrayList<>();
+        parType.forEach((type, vs) -> {
+            if (vs.isEmpty()) {
+                return;
+            }
+            Totaux t = totaux(vs, List.of(), 0, seuil);
+            long retenues = vs.stream().filter(Vente::retenue).count();
+            l.add(Operateur.builder().id(type).nom(type).jours(t.jours).ventes(t.ventes)
+                    .ventesParJour(arrondi(t.ventesParJour()))
+                    .lignesParVente(arrondi(retenues == 0 ? 0 : (double) t.lignes / retenues))
+                    .secondesParLigne(arrondi(t.secondesParLigne())).chiffreAffaires(t.montant)
+                    .panierMoyen(Math.round(t.panier())).ventesLongues(t.longues).build());
+        });
+        return l;
+    }
+
+    /**
+     * Plan du 08/11, point 15.4 : classement des vendeurs en preventes. Ligne lue : [vendeur, encaissees, CA, lignes,
+     * annulees, abandonnees]. Total = encaissees + annulees + abandonnees ; taux = (annulees + abandonnees) / total ;
+     * vendeurs sans prevente ecartes ; tri par encaissees, puis CA, puis nom.
+     */
+    public static List<ActiviteAnalysesDTO.Prevente> preventes(List<Object[]> lignes, Map<String, String> noms) {
+        List<ActiviteAnalysesDTO.Prevente> l = new ArrayList<>();
+        for (Object[] r : lignes) {
+            long enc = nombre(r[1]), ca = nombre(r[2]), li = nombre(r[3]), ann = nombre(r[4]), aba = nombre(r[5]);
+            long total = enc + ann + aba;
+            if (r[0] == null || total == 0) {
+                continue;
+            }
+            String id = String.valueOf(r[0]);
+            l.add(ActiviteAnalysesDTO.Prevente.builder().id(id).nom(noms.getOrDefault(id, "?")).encaissees(enc)
+                    .chiffreAffaires(ca).lignes(li).annulees(ann).abandonnees(aba).total(total)
+                    .lignesParPrevente(arrondi(enc == 0 ? 0 : (double) li / enc))
+                    .taux(arrondi(100.0 * (ann + aba) / total)).build());
+        }
+        l.sort(Comparator.comparingLong(ActiviteAnalysesDTO.Prevente::getEncaissees).reversed()
+                .thenComparing(Comparator.comparingLong(ActiviteAnalysesDTO.Prevente::getChiffreAffaires).reversed())
+                .thenComparing(ActiviteAnalysesDTO.Prevente::getNom));
+        return l;
+    }
+
+    private static long nombre(Object o) {
+        return o instanceof Number ? Math.max(0, ((Number) o).longValue()) : 0;
+    }
+
+    /** Plan du 08/11, point 15.3 : duree prise en caisse -> encaissement retenue (au-dela : caisse laissee ouverte). */
+    public static final long PRISE_MAX_SECONDES = 3600;
+
+    /**
+     * Plan du 08/11, point 15.3 : lignes [caissiere, montant, duree en secondes ou null], une par prevente encaissee.
+     * Duree retenue de 0 a PRISE_MAX_SECONDES ; moyenne arrondie ; mediane (moyenne arrondie des deux du milieu) ; tri
+     * : encaissees decroissantes, puis nom.
+     */
+    public static List<ActiviteAnalysesDTO.VitesseCaissiere> vitesseCaissieres(List<Object[]> lignes,
+            Map<String, String> noms) {
+        Map<String, long[]> cumul = new LinkedHashMap<>();
+        Map<String, List<Long>> durees = new HashMap<>();
+        for (Object[] r : lignes) {
+            if (r[0] == null) {
+                continue;
+            }
+            String id = String.valueOf(r[0]);
+            long[] x = cumul.computeIfAbsent(id, k -> new long[2]);
+            x[0]++;
+            x[1] += nombre(r[1]);
+            List<Long> d = durees.computeIfAbsent(id, k -> new ArrayList<>());
+            if (r[2] instanceof Number) {
+                long s = ((Number) r[2]).longValue();
+                if (s >= 0 && s <= PRISE_MAX_SECONDES) {
+                    d.add(s);
+                }
+            }
+        }
+        List<ActiviteAnalysesDTO.VitesseCaissiere> l = new ArrayList<>();
+        cumul.forEach((id, x) -> {
+            List<Long> d = durees.get(id);
+            d.sort(null);
+            long n = d.size(), somme = d.stream().mapToLong(Long::longValue).sum();
+            long mediane = n == 0 ? 0 : n % 2 == 1 ? d.get((int) (n / 2))
+                    : Math.round((d.get((int) n / 2 - 1) + d.get((int) n / 2)) / 2.0);
+            l.add(ActiviteAnalysesDTO.VitesseCaissiere.builder().id(id).nom(noms.getOrDefault(id, "?")).encaissees(x[0])
+                    .chiffreAffaires(x[1]).mesurees(n).tempsMoyen(n == 0 ? 0 : Math.round((double) somme / n))
+                    .tempsMedian(mediane).build());
+        });
+        l.sort(Comparator.comparingLong(ActiviteAnalysesDTO.VitesseCaissiere::getEncaissees).reversed()
+                .thenComparing(ActiviteAnalysesDTO.VitesseCaissiere::getNom));
+        return l;
+    }
+
     public static List<Grossiste> grossistes(List<Bl> bls) {
         Map<String, long[]> m = new LinkedHashMap<>();
         for (Bl b : bls) {
@@ -274,21 +417,47 @@ public final class AgregatsActivite {
 
     public static List<Tranche> retardBl(List<Bl> bls) {
         long[] n = new long[4];
+        /* plan du 08/11, point 15.2 : par tranche, grossiste -> [BL, somme des ecarts en jours] */
+        List<Map<String, long[]>> parGrossiste = new ArrayList<>();
+        for (int i = 0; i < 4; i++) {
+            parGrossiste.add(new java.util.TreeMap<>());
+        }
         for (Bl b : bls) {
+            int t;
+            long j = 0;
             if (b.livraison == null) {
-                n[3]++;
-                continue;
+                t = 3;
+            } else {
+                j = ChronoUnit.DAYS.between(b.livraison, b.creation.toLocalDate());
+                t = j <= 0 ? 0 : j == 1 ? 1 : 2;
             }
-            long j = ChronoUnit.DAYS.between(b.livraison, b.creation.toLocalDate());
-            n[j <= 0 ? 0 : j == 1 ? 1 : 2]++;
+            n[t]++;
+            long[] x = parGrossiste.get(t).computeIfAbsent(b.grossiste == null ? "Sans grossiste" : b.grossiste,
+                    k -> new long[2]);
+            x[0]++;
+            x[1] += j;
         }
         List<Tranche> l = new ArrayList<>();
-        l.add(Tranche.builder().code("J0").libelle("Le jour même").nombre(n[0]).build());
-        l.add(Tranche.builder().code("J1").libelle("Le lendemain").nombre(n[1]).build());
-        l.add(Tranche.builder().code("J2").libelle("2 jours ou plus après").nombre(n[2]).build());
+        l.add(Tranche.builder().code("J0").libelle("Le jour même").nombre(n[0])
+                .grossistes(grossistesRetard(parGrossiste.get(0), true)).build());
+        l.add(Tranche.builder().code("J1").libelle("Le lendemain").nombre(n[1])
+                .grossistes(grossistesRetard(parGrossiste.get(1), true)).build());
+        l.add(Tranche.builder().code("J2").libelle("2 jours ou plus après").nombre(n[2])
+                .grossistes(grossistesRetard(parGrossiste.get(2), true)).build());
         if (n[3] > 0) {
-            l.add(Tranche.builder().code("SANS").libelle("Date de livraison absente").nombre(n[3]).build());
+            l.add(Tranche.builder().code("SANS").libelle("Date de livraison absente").nombre(n[3])
+                    .grossistes(grossistesRetard(parGrossiste.get(3), false)).build());
         }
+        return l;
+    }
+
+    /** Grossistes d'une tranche, tri : BL decroissants, puis nom ; delai moyen arrondi au dixieme de jour. */
+    static List<ActiviteAnalysesDTO.RetardGrossiste> grossistesRetard(Map<String, long[]> m, boolean avecDelai) {
+        List<ActiviteAnalysesDTO.RetardGrossiste> l = new ArrayList<>();
+        m.forEach((nom, x) -> l.add(ActiviteAnalysesDTO.RetardGrossiste.builder().nom(nom).bl(x[0])
+                .delaiMoyen(avecDelai ? arrondi((double) x[1] / x[0]) : null).build()));
+        l.sort(Comparator.comparingLong(ActiviteAnalysesDTO.RetardGrossiste::getBl).reversed()
+                .thenComparing(ActiviteAnalysesDTO.RetardGrossiste::getNom));
         return l;
     }
 
@@ -450,6 +619,77 @@ public final class AgregatsActivite {
         l.sort(Comparator.comparingLong((ActiviteAnalysesDTO.Repartition x) -> x.getActions().values().stream()
                 .mapToLong(Long::longValue).sum()).reversed());
         return l;
+    }
+
+    /** Operateurs montres un par un dans le graphique des ventes longues ; les suivants vont dans « Autres ». */
+    public static final int LONGUES_MAX = 15;
+    public static final String ID_AUTRES = "AUTRES";
+
+    /**
+     * Graphique des ventes longues : les {@link #LONGUES_MAX} premiers operateurs (ordre de la liste : ventes
+     * decroissantes), puis une ligne « Autres (N opérateurs) » qui additionne les suivants. Le total du graphique est
+     * ainsi celui de la tuile, quel que soit le nombre d'operateurs.
+     */
+    public static List<Operateur> longues(List<Operateur> ops, int max) {
+        List<Operateur> l = new ArrayList<>();
+        long longues = 0, ventes = 0;
+        int autres = 0;
+        for (int i = 0; i < ops.size(); i++) {
+            Operateur o = ops.get(i);
+            if (i < max) {
+                l.add(Operateur.builder().id(o.getId()).nom(o.getNom()).ventes(o.getVentes())
+                        .ventesLongues(o.getVentesLongues()).build());
+            } else {
+                longues += o.getVentesLongues();
+                ventes += o.getVentes();
+                autres++;
+            }
+        }
+        if (autres > 0) {
+            l.add(Operateur.builder().id(ID_AUTRES)
+                    .nom("Autres (" + autres + " opérateur" + (autres > 1 ? "s" : "") + ")").ventes(ventes)
+                    .ventesLongues(longues).build());
+        }
+        return l;
+    }
+
+    /** Plan avoir du 08/11, point 1 : ventes minimales pour designer l'operateur le plus rapide. */
+    public static final long VENTES_MIN_RAPIDE = 5;
+
+    /**
+     * Plan avoir du 08/11, point 1 : resume de la periode, repris par la carte du tableau de bord et par les titres des
+     * cartes du menu. Delai moyen des BL : jours entre la livraison et l'entree du BL (0 si saisi avant la livraison),
+     * BL sans date de livraison ecartes.
+     */
+    public static ActiviteAnalysesDTO.Resume resume(Totaux t, List<Bl> bls,
+            List<ActiviteAnalysesDTO.Sensible> sensibles, List<Operateur> ops, List<Constat> constats,
+            SeuilDuree seuil) {
+        long annulations = 0, modifications = 0, jours = 0, mesures = 0;
+        for (ActiviteAnalysesDTO.Sensible s : sensibles) {
+            annulations += s.getAnnulations();
+            modifications += s.getModifications();
+        }
+        for (Bl b : bls) {
+            if (b.livraison != null && b.creation != null) {
+                jours += Math.max(0, ChronoUnit.DAYS.between(b.livraison, b.creation.toLocalDate()));
+                mesures++;
+            }
+        }
+        Operateur rapide = ops.stream().filter(o -> o.getVentes() >= VENTES_MIN_RAPIDE && o.getSecondesParLigne() > 0)
+                .min(Comparator.comparingDouble(Operateur::getSecondesParLigne)
+                        .thenComparing(Comparator.comparingLong(Operateur::getVentes).reversed())
+                        .thenComparing(Operateur::getNom))
+                .orElse(null);
+        List<Constat> alertes = new ArrayList<>();
+        constats.stream().filter(c -> "ALERTE".equals(c.getNiveau())).forEach(alertes::add);
+        return ActiviteAnalysesDTO.Resume.builder().ventesLongues(t.longues).seuilLibelle(seuil.libelle())
+                .annulations(annulations).modifications(modifications).actionsSensibles(annulations + modifications)
+                .delaiMoyenBl(mesures == 0 ? null : arrondi((double) jours / mesures)).blMesures(mesures)
+                .plusRapideId(rapide == null ? null : rapide.getId())
+                .plusRapideNom(rapide == null ? null : rapide.getNom())
+                .plusRapideSecondesParLigne(rapide == null ? null : rapide.getSecondesParLigne())
+                .plusRapideVentes(rapide == null ? 0 : rapide.getVentes()).alertes(alertes.size())
+                .premiereAlerte(alertes.isEmpty() ? null : alertes.get(0).getTitre()).build();
     }
 
     /** Actions sensibles par employe a partir des comptes lus par le service. */

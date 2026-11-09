@@ -230,22 +230,63 @@ public class ActiviteEquipesServiceImpl implements ActiviteEquipesService {
                         + " WHERE a.u IS NOT NULL AND a.t <> 'CONNEXION' GROUP BY a.u, a.t",
                 pr);
 
+        List<ActiviteAnalysesDTO.Constat> constats = AgregatsActivite.constats(heures, operateurs, grossistes, retard,
+                sensibles, t, p, seuil);
         return ActiviteAnalysesDTO.builder().debut(f.getDebut().toString()).fin(f.getFin().toString())
                 .debutPrecedent(debutP.toString()).finPrecedent(finP.toString())
-                .indicateurs(AgregatsActivite.indicateurs(t, p, actifs.size(), seuil))
-                .constats(AgregatsActivite.constats(heures, operateurs, grossistes, retard, sensibles, t, p, seuil))
+                .indicateurs(AgregatsActivite.indicateurs(t, p, actifs.size(), seuil)).constats(constats)
+                .resume(AgregatsActivite.resume(t, bls, sensibles, operateurs, constats, seuil))
                 .seuilOperateur(seuil.getOperateur()).seuilMinutes(seuil.getMinutes()).seuilLibelle(seuil.libelle())
                 .heures(heures).carte(AgregatsActivite.carte(ventes)).jours(AgregatsActivite.jours(ventes, bls))
-                .operateurs(operateurs).grossistes(grossistes).retardBl(retard).sensibles(sensibles)
+                .operateurs(operateurs).longues(AgregatsActivite.longues(operateurs, AgregatsActivite.LONGUES_MAX))
+                .typesVente(AgregatsActivite.typesVente(ventes, seuil))
+                .preventes(AgregatsActivite.preventes(
+                        lire(SQL_PREVENTES, "p.lg_USER_VENDEUR_ID", f.getDebut(), f.getFin(), f.getEmployeId()), noms))
+                .vitesseCaissieres(AgregatsActivite.vitesseCaissieres(
+                        lire(SQL_CAISSIERES, "p.lg_USER_CAISSIER_ID", f.getDebut(), f.getFin(), f.getEmployeId()),
+                        noms))
+                .grossistes(grossistes).retardBl(retard).sensibles(sensibles)
                 .repartition(AgregatsActivite.repartition(parType, noms)).build();
     }
 
     /** Ventes encaissees de la periode : une ligne par vente (operateur = lg_USER_ID, comme les requetes de mesure). */
     static final String SQL_VENTES = "SELECT p.lg_USER_ID AS emp, p.dt_CREATED AS ouverture, MAX(d.dt_UPDATED) AS derniere,"
-            + " COALESCE(p.completion_date, p.dt_UPDATED) AS encaissement, COUNT(d.lg_PREENREGISTREMENT_DETAIL_ID) AS lignes, p.int_PRICE AS montant FROM t_preenregistrement p"
+            + " COALESCE(p.completion_date, p.dt_UPDATED) AS encaissement, COUNT(d.lg_PREENREGISTREMENT_DETAIL_ID) AS lignes, p.int_PRICE AS montant,"
+            + " p.lg_TYPE_VENTE_ID AS typ, p.b_IS_AVOIR AS avoir FROM t_preenregistrement p"
             + " JOIN t_preenregistrement_detail d ON d.lg_PREENREGISTREMENT_ID = p.lg_PREENREGISTREMENT_ID"
             + " WHERE p.str_STATUT = 'is_Closed' AND p.b_IS_CANCEL = 0 AND p.int_PRICE > 0 AND p.lg_TYPE_VENTE_ID <> '5'"
             + " AND p.dt_UPDATED >= ?1 AND p.dt_UPDATED < ?2 %s GROUP BY p.lg_PREENREGISTREMENT_ID";
+    /**
+     * Plan avoir du 08/11, point 1 : memes ventes que SQL_VENTES (memes regles), avec la caissiere, le vendeur et
+     * l'operateur, pour le rapport employe x tranche horaire x CA.
+     */
+    static final String SQL_CA_TRANCHES = "SELECT p.lg_USER_CAISSIER_ID AS caissier, p.lg_USER_VENDEUR_ID AS vendeur,"
+            + " p.lg_USER_ID AS operateur, COALESCE(p.completion_date, p.dt_UPDATED) AS encaissement, p.int_PRICE AS montant,"
+            + " p.dt_CREATED AS ouverture, MAX(d.dt_UPDATED) AS derniere FROM t_preenregistrement p"
+            + " JOIN t_preenregistrement_detail d ON d.lg_PREENREGISTREMENT_ID = p.lg_PREENREGISTREMENT_ID"
+            + " WHERE p.str_STATUT = 'is_Closed' AND p.b_IS_CANCEL = 0 AND p.int_PRICE > 0 AND p.lg_TYPE_VENTE_ID <> '5'"
+            + " AND p.dt_UPDATED >= ?1 AND p.dt_UPDATED < ?2 GROUP BY p.lg_PREENREGISTREMENT_ID";
+
+    @Override
+    public Map<String, Object> caTranches(ActiviteFiltreDTO f, Integer taille, String attribution) {
+        List<rest.service.impl.activite.CaTranchesEmploye.Vente> l = new ArrayList<>();
+        for (Object[] r : lire(SQL_CA_TRANCHES, "", f.getDebut(), f.getFin(), null)) {
+            /* memes ventes ecartees que ventes() : ouverture, derniere ligne ou encaissement inconnus */
+            if (r[3] == null || r[5] == null || r[6] == null) {
+                continue;
+            }
+            l.add(new rest.service.impl.activite.CaTranchesEmploye.Vente(r[0] == null ? null : String.valueOf(r[0]),
+                    r[1] == null ? null : String.valueOf(r[1]), r[2] == null ? null : String.valueOf(r[2]), heure(r[3]),
+                    r[4] == null ? 0 : ((Number) r[4]).longValue()));
+        }
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("debut", f.getDebut().toString());
+        m.put("fin", f.getFin().toString());
+        m.putAll(rest.service.impl.activite.CaTranchesEmploye.calculer(l, taille, attribution, noms(),
+                f.getEmployeId()));
+        return m;
+    }
+
     /** BL clotures entres sur la periode : une ligne par BL. */
     static final String SQL_BL = "SELECT b.lg_USER_ID AS emp, g.str_LIBELLE AS grossiste, o.dt_CREATED AS commande, b.dt_CREATED AS creation,"
             + " MAX(d.dt_UPDATED) AS fin_saisie, b.dt_DATE_LIVRAISON AS livraison, COUNT(*) AS lignes"
@@ -257,6 +298,76 @@ public class ActiviteEquipesServiceImpl implements ActiviteEquipesService {
             + " AND NOT EXISTS (SELECT 1 FROM vente_modifiee vm WHERE vm.vente_origine_id = p.lg_PREENREGISTREMENT_ID) GROUP BY p.lg_USER_ID";
     static final String SQL_MODIFICATIONS = "SELECT v.user_id AS emp, COUNT(*) AS n FROM vente_modifiee v WHERE v.mvt_date >= ?1 AND v.mvt_date < ?2 %s"
             + " GROUP BY v.user_id";
+    /**
+     * Plan du 08/11, point 15.4 : preventes par vendeur, saisies sur la periode. Prevente = vente saisie par un vendeur
+     * et encaissee par un autre ; annulee = annulee hors modification ; abandonnee = restee en attente apres le jour de
+     * saisie. Lignes comptees sur les encaissees.
+     */
+    /**
+     * Plan du 08/11, point 15.3 : preventes encaissees sur la periode (date d'encaissement), une ligne par vente :
+     * caissiere, montant, duree de sa prise en caisse a l'encaissement (null si la prise n'est pas connue).
+     */
+    static final String SQL_CAISSIERES = "SELECT p.lg_USER_CAISSIER_ID AS emp, p.int_PRICE AS prix,"
+            + " TIMESTAMPDIFF(SECOND, pc.pris_le, p.completion_date) AS duree FROM t_preenregistrement p"
+            + " LEFT JOIN vente_prise_caisse pc ON pc.vente_id = p.lg_PREENREGISTREMENT_ID AND pc.user_id = p.lg_USER_CAISSIER_ID"
+            + " WHERE p.completion_date >= ?1 AND p.completion_date < ?2 AND p.str_STATUT = 'is_Closed' AND p.b_IS_CANCEL = 0"
+            + " AND p.int_PRICE > 0 AND p.lg_TYPE_VENTE_ID <> '5' AND p.lg_USER_VENDEUR_ID IS NOT NULL"
+            + " AND p.lg_USER_VENDEUR_ID <> p.lg_USER_CAISSIER_ID %s";
+    static final String SQL_PREVENTES = "SELECT p.lg_USER_VENDEUR_ID AS emp,"
+            + " SUM(p.str_STATUT = 'is_Closed' AND p.b_IS_CANCEL = 0 AND p.lg_USER_CAISSIER_ID <> p.lg_USER_VENDEUR_ID) AS enc,"
+            + " SUM(CASE WHEN p.str_STATUT = 'is_Closed' AND p.b_IS_CANCEL = 0 AND p.lg_USER_CAISSIER_ID <> p.lg_USER_VENDEUR_ID"
+            + "   THEN p.int_PRICE ELSE 0 END) AS ca,"
+            + " SUM(CASE WHEN p.str_STATUT = 'is_Closed' AND p.b_IS_CANCEL = 0 AND p.lg_USER_CAISSIER_ID <> p.lg_USER_VENDEUR_ID"
+            + "   THEN IFNULL(dl.n, 0) ELSE 0 END) AS lignes,"
+            + " SUM(p.str_STATUT = 'is_Closed' AND p.b_IS_CANCEL = 1 AND p.lg_USER_CAISSIER_ID <> p.lg_USER_VENDEUR_ID"
+            + "   AND NOT EXISTS (SELECT 1 FROM vente_modifiee vm WHERE vm.vente_origine_id = p.lg_PREENREGISTREMENT_ID)) AS annulees,"
+            + " SUM(p.str_STATUT IN ('is_Process', 'pending') AND p.dt_UPDATED < CURDATE() AND dl.n > 0) AS abandonnees"
+            + " FROM t_preenregistrement p LEFT JOIN (SELECT d.lg_PREENREGISTREMENT_ID AS id, COUNT(*) AS n"
+            + "   FROM t_preenregistrement_detail d JOIN t_preenregistrement x ON x.lg_PREENREGISTREMENT_ID = d.lg_PREENREGISTREMENT_ID"
+            + "   WHERE x.dt_CREATED >= ?1 AND x.dt_CREATED < ?2 GROUP BY d.lg_PREENREGISTREMENT_ID) dl ON dl.id = p.lg_PREENREGISTREMENT_ID"
+            + " WHERE p.dt_CREATED >= ?1 AND p.dt_CREATED < ?2 AND p.int_PRICE > 0 AND p.lg_TYPE_VENTE_ID <> '5'"
+            + " AND p.lg_USER_VENDEUR_ID IS NOT NULL %s GROUP BY p.lg_USER_VENDEUR_ID";
+    private static final String HORS_MODIFICATION = " AND NOT EXISTS (SELECT 1 FROM vente_modifiee vm"
+            + " WHERE vm.vente_origine_id = p.lg_PREENREGISTREMENT_ID)";
+    /** Plan du 08/11, point 15.1 : ventes saisies sur la periode par vendeur, dont annulees ensuite. */
+    static final String SQL_ANNULATIONS_VENDEUR = "SELECT p.lg_USER_VENDEUR_ID AS emp, COUNT(*) AS ventes,"
+            + " SUM(p.b_IS_CANCEL = 1) AS annulees FROM t_preenregistrement p WHERE p.str_STATUT = 'is_Closed'"
+            + " AND p.int_PRICE > 0 AND p.lg_TYPE_VENTE_ID <> '5' AND p.dt_CREATED >= ?1 AND p.dt_CREATED < ?2 %1$s"
+            + " AND p.lg_USER_VENDEUR_ID IS NOT NULL" + HORS_MODIFICATION + " GROUP BY p.lg_USER_VENDEUR_ID";
+    /**
+     * Plan du 08/11, point 15.1 : par caissiere (qui a encaisse la vente), operations faites sur la periode :
+     * annulations au comptant, modifications au comptant, modifications a credit (assurance, carnet).
+     */
+    static final String SQL_ANNULATIONS_CAISSIER = "SELECT p.lg_USER_CAISSIER_ID AS emp, COUNT(*) AS ac, 0 AS mc, 0 AS mk"
+            + " FROM t_preenregistrement p WHERE p.str_STATUT = 'is_Closed' AND p.b_IS_CANCEL = 1 AND p.int_PRICE > 0"
+            + " AND p.lg_TYPE_VENTE_ID = '1' AND p.dt_ANNULER >= ?1 AND p.dt_ANNULER < ?2 %1$s" + HORS_MODIFICATION
+            + " GROUP BY p.lg_USER_CAISSIER_ID"
+            + " UNION ALL SELECT p.lg_USER_CAISSIER_ID AS emp, 0 AS ac, SUM(p.lg_TYPE_VENTE_ID = '1') AS mc,"
+            + " SUM(p.lg_TYPE_VENTE_ID IN ('2', '3')) AS mk FROM vente_modifiee vm JOIN t_preenregistrement p"
+            + " ON p.lg_PREENREGISTREMENT_ID = COALESCE(vm.vente_origine_id, vm.vente_id)"
+            + " WHERE vm.mvt_date >= ?1 AND vm.mvt_date < ?2 %1$s GROUP BY p.lg_USER_CAISSIER_ID";
+    private static final String DETAIL_COLONNES = "SELECT p.str_REF, p.dt_CREATED, p.int_PRICE, %s, vmo.motif_libelle,"
+            + " vmo.commentaire, %s, %s, p.lg_TYPE_VENTE_ID FROM ";
+    static final String SQL_DETAIL_VENDEUR = String.format(DETAIL_COLONNES, "'Annulation'", "p.lg_USER_ID",
+            "p.dt_ANNULER")
+            + "t_preenregistrement p LEFT JOIN vente_motif vmo ON vmo.vente_id = p.lg_PREENREGISTREMENT_ID"
+            + " AND vmo.type_operation = 'ANNULATION' AND vmo.statut = 'VALIDEE'"
+            + " WHERE p.str_STATUT = 'is_Closed' AND p.int_PRICE > 0 AND p.b_IS_CANCEL = 1 AND p.lg_TYPE_VENTE_ID <> '5'"
+            + " AND p.dt_CREATED >= ?1 AND p.dt_CREATED < ?2 AND p.lg_USER_VENDEUR_ID = ?3" + HORS_MODIFICATION
+            + " ORDER BY 8 DESC LIMIT 300";
+    static final String SQL_DETAIL_CAISSIER = String.format(DETAIL_COLONNES, "'Annulation'", "p.lg_USER_ID",
+            "p.dt_ANNULER")
+            + "t_preenregistrement p LEFT JOIN vente_motif vmo ON vmo.vente_id = p.lg_PREENREGISTREMENT_ID"
+            + " AND vmo.type_operation = 'ANNULATION' AND vmo.statut = 'VALIDEE'"
+            + " WHERE p.str_STATUT = 'is_Closed' AND p.b_IS_CANCEL = 1 AND p.int_PRICE > 0 AND p.lg_TYPE_VENTE_ID = '1'"
+            + " AND p.dt_ANNULER >= ?1 AND p.dt_ANNULER < ?2 AND p.lg_USER_CAISSIER_ID = ?3" + HORS_MODIFICATION
+            + " UNION ALL "
+            + String.format(DETAIL_COLONNES, "CONCAT('Modification (', vm.type_modification, ')')", "vm.user_id",
+                    "vm.mvt_date")
+            + "vente_modifiee vm JOIN t_preenregistrement p ON p.lg_PREENREGISTREMENT_ID = COALESCE(vm.vente_origine_id, vm.vente_id)"
+            + " LEFT JOIN vente_motif vmo ON vmo.vente_id = p.lg_PREENREGISTREMENT_ID AND vmo.type_operation = 'MODIFICATION'"
+            + " AND vmo.statut = 'VALIDEE' WHERE vm.mvt_date >= ?1 AND vm.mvt_date < ?2 AND p.lg_USER_CAISSIER_ID = ?3"
+            + " AND p.lg_TYPE_VENTE_ID IN ('1', '2', '3') ORDER BY 8 DESC LIMIT 300";
     static final String SQL_REMISES = "SELECT p.lg_USER_CAISSIER_ID AS emp, SUM(p.int_PRICE_REMISE) AS n FROM t_preenregistrement p"
             + " WHERE p.str_STATUT = 'is_Closed' AND p.b_IS_CANCEL = 0 AND p.int_PRICE_REMISE > 0 AND p.dt_UPDATED >= ?1 AND p.dt_UPDATED < ?2 %s"
             + " GROUP BY p.lg_USER_CAISSIER_ID";
@@ -274,6 +385,54 @@ public class ActiviteEquipesServiceImpl implements ActiviteEquipesService {
         return liste(String.format(gabarit, filtre), params);
     }
 
+    @Override
+    public Map<String, Object> annulations(ActiviteFiltreDTO f) {
+        Map<String, String> noms = noms();
+        Map<String, Object> m = new java.util.LinkedHashMap<>();
+        m.put("debut", f.getDebut().toString());
+        m.put("fin", f.getFin().toString());
+        m.put("parVendeur", rest.service.impl.activite.AnnulationsAuteurs.parVendeur(
+                lire(SQL_ANNULATIONS_VENDEUR, "p.lg_USER_VENDEUR_ID", f.getDebut(), f.getFin(), f.getEmployeId()),
+                noms));
+        m.put("parCaissier", rest.service.impl.activite.AnnulationsAuteurs.parCaissier(
+                lire(SQL_ANNULATIONS_CAISSIER, "p.lg_USER_CAISSIER_ID", f.getDebut(), f.getFin(), f.getEmployeId()),
+                noms));
+        return m;
+    }
+
+    @Override
+    public List<Map<String, Object>> detailAnnulations(LocalDate debut, LocalDate fin, String role, String id) {
+        Map<String, String> noms = noms();
+        List<Object> params = new ArrayList<>();
+        params.add(Timestamp.valueOf(debut.atStartOfDay()));
+        params.add(Timestamp.valueOf(fin.plusDays(1).atStartOfDay()));
+        params.add(id);
+        java.time.format.DateTimeFormatter fmt = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+        List<Map<String, Object>> l = new ArrayList<>();
+        for (Object[] r : liste("CAISSIER".equals(role) ? SQL_DETAIL_CAISSIER : SQL_DETAIL_VENDEUR, params)) {
+            Map<String, Object> x = new java.util.LinkedHashMap<>();
+            x.put("reference", r[0] == null ? "" : String.valueOf(r[0]));
+            x.put("dateVente", r[1] == null ? "" : heure(r[1]).format(fmt));
+            x.put("montant", r[2] == null ? 0 : ((Number) r[2]).longValue());
+            x.put("operation", String.valueOf(r[3]));
+            x.put("motif", r[4] == null ? "" : String.valueOf(r[4]));
+            x.put("commentaire", r[5] == null ? "" : String.valueOf(r[5]));
+            x.put("parQui", r[6] == null ? "" : noms.getOrDefault(String.valueOf(r[6]), "?"));
+            x.put("quand", r[7] == null ? "" : heure(r[7]).format(fmt));
+            x.put("typeVente", AgregatsActivite.typeVente(r[8] == null ? null : String.valueOf(r[8]), false));
+            l.add(x);
+        }
+        return l;
+    }
+
+    /** tinyint(1) ou bit : Boolean ou nombre selon le pilote. */
+    static boolean vrai(Object o) {
+        if (o instanceof Boolean) {
+            return (Boolean) o;
+        }
+        return o instanceof Number && ((Number) o).intValue() == 1;
+    }
+
     private List<AgregatsActivite.Vente> ventes(LocalDate debut, LocalDate fin, String employeId) {
         List<AgregatsActivite.Vente> l = new ArrayList<>();
         for (Object[] r : lire(SQL_VENTES, "p.lg_USER_ID", debut, fin, employeId)) {
@@ -281,9 +440,59 @@ public class ActiviteEquipesServiceImpl implements ActiviteEquipesService {
                 continue;
             }
             l.add(new AgregatsActivite.Vente(String.valueOf(r[0]), heure(r[1]), heure(r[2]), heure(r[3]),
-                    ((Number) r[4]).longValue(), r[5] == null ? 0 : ((Number) r[5]).longValue()));
+                    ((Number) r[4]).longValue(), r[5] == null ? 0 : ((Number) r[5]).longValue(),
+                    r[6] == null ? null : String.valueOf(r[6]), vrai(r[7])));
         }
         return l;
+    }
+
+    private List<rest.service.impl.activite.ControleGardes.Garde> gardes(java.time.LocalDateTime debut,
+            java.time.LocalDateTime fin) {
+        List<Object> p = new ArrayList<>();
+        p.add(Timestamp.valueOf(fin));
+        p.add(Timestamp.valueOf(debut));
+        List<rest.service.impl.activite.ControleGardes.Garde> l = new ArrayList<>();
+        for (Object[] r : liste("SELECT g.id, g.libelle, g.date_debut, g.date_fin FROM garde g"
+                + " WHERE g.date_debut < ?1 AND g.date_fin > ?2 ORDER BY g.date_debut", p)) {
+            l.add(new rest.service.impl.activite.ControleGardes.Garde(String.valueOf(r[0]), String.valueOf(r[1]),
+                    heure(r[2]), heure(r[3])));
+        }
+        return l;
+    }
+
+    @Override
+    public Map<String, Object> controleGardes(LocalDate debut, LocalDate fin) {
+        /* la nuit du dernier jour va jusqu'au lendemain 6 h : les ventes sont lues un jour de plus */
+        List<java.time.LocalDateTime> ouvertures = new ArrayList<>();
+        ventes(debut, fin.plusDays(1), null).forEach(v -> ouvertures.add(v.ouvertureVente()));
+        Map<String, Object> m = rest.service.impl.activite.ControleGardes
+                .analyser(ouvertures,
+                        gardes(debut.atStartOfDay(),
+                                fin.plusDays(1).atTime(rest.service.impl.activite.ControleGardes.FIN_NUIT, 0)),
+                        debut, fin);
+        m.put("debut", debut.toString());
+        m.put("fin", fin.toString());
+        return m;
+    }
+
+    @Override
+    public Map<String, Object> carteGarde(String gardeId) {
+        List<Object> p = new ArrayList<>();
+        p.add(gardeId);
+        List<Object[]> g = liste("SELECT g.libelle, g.date_debut, g.date_fin FROM garde g WHERE g.id = ?1", p);
+        if (g.isEmpty()) {
+            return null;
+        }
+        java.time.LocalDateTime de = heure(g.get(0)[1]), a = heure(g.get(0)[2]);
+        List<AgregatsActivite.Vente> pendant = rest.service.impl.activite.ControleGardes
+                .pendant(ventes(de.toLocalDate(), a.toLocalDate(), null), de, a);
+        Map<String, Object> m = new java.util.LinkedHashMap<>();
+        m.put("libelle", String.valueOf(g.get(0)[0]));
+        m.put("debut", de.toString());
+        m.put("fin", a.toString());
+        m.put("ventes", pendant.size());
+        m.put("carte", AgregatsActivite.carte(pendant));
+        return m;
     }
 
     private List<AgregatsActivite.Bl> bls(LocalDate debut, LocalDate fin, String employeId) {

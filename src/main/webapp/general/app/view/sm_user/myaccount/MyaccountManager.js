@@ -157,7 +157,7 @@ Ext.define('testextjs.view.sm_user.myaccount.MyaccountManager', {
                     lg_USER_ID,
                     str_STATUT
                 ]
-            }];
+            }, this.sectionPinBadge()];
 
         this.callParent();
     },
@@ -258,6 +258,134 @@ Ext.define('testextjs.view.sm_user.myaccount.MyaccountManager', {
                 }
             });
         }
+    },
+
+    /*
+     * Plan du 08/11, point 14 : code PIN a 4 chiffres demande apres le badge (si le parametre KEY_CONNEXION_BADGE_PIN
+     * le demande). Le mot de passe actuel est exige ; la confirmation se fait dans le bouton (deux clics), le resultat
+     * s'affiche sous le bouton, sans fenetre.
+     */
+    sectionPinBadge: function () {
+        const me = this;
+        const champ = (itemId, libelle) => ({
+            xtype: 'textfield', itemId: itemId, fieldLabel: libelle, inputType: 'password', submitValue: false,
+            labelWidth: 170, anchor: '100%', enforceMaxLength: true, maxLength: itemId === 'pinMotDePasse' ? 200 : 4,
+            listeners: {
+                afterrender: (c) => {
+                    if (itemId !== 'pinMotDePasse') {
+                        c.inputEl.set({inputmode: 'numeric', autocomplete: 'off'});
+                    } else {
+                        c.inputEl.set({autocomplete: 'current-password'});
+                    }
+                },
+                change: () => me.remettreBoutonPin()
+            }
+        });
+        return {
+            xtype: 'fieldset', itemId: 'sectionPinBadge', title: 'Code PIN du badge',
+            defaults: {anchor: '100%'},
+            items: [
+                {xtype: 'component', itemId: 'pinEtat', html: 'Lecture…', margin: '0 0 8 0'},
+                champ('pinMotDePasse', 'Mot de passe actuel'),
+                champ('pinCode', 'Nouveau code PIN (4 chiffres)'),
+                champ('pinConfirme', 'Confirmer le code PIN'),
+                {
+                    xtype: 'container', layout: {type: 'hbox', align: 'middle'}, items: [
+                        {xtype: 'button', itemId: 'pinEnregistrer', text: 'Enregistrer le code PIN', minWidth: 190,
+                            handler: () => me.enregistrerPin()},
+                        {xtype: 'component', itemId: 'pinResultat', flex: 1, margin: '0 0 0 12', html: ''}
+                    ]
+                }
+            ],
+            listeners: {afterrender: () => me.lirePin()}
+        };
+    },
+
+    lirePin: function () {
+        const me = this, etat = me.down('#pinEtat');
+        Ext.Ajax.request({
+            method: 'GET', url: '../api/v1/user/badge-pin',
+            success: (r) => {
+                const d = Ext.JSON.decode(r.responseText, true) || {};
+                const lignes = [
+                    'Code PIN : <b>' + (d.defini ? 'défini le ' + Ext.String.htmlEncode(d.date) : 'non défini') + '</b>',
+                    'Demandé après le badge à la connexion : <b>' + (d.demande ? 'oui' : 'non') + '</b>'
+                            + (d.demande ? '' : ' (le badge seul suffit ; paramètre KEY_CONNEXION_BADGE_PIN)')
+                ];
+                if (d.demande && !d.defini) {
+                    lignes.push('<span style="color:#c0392b">Sans code, votre badge ne permet pas de vous connecter.</span>');
+                }
+                if (!d.badge) {
+                    lignes.push('<span style="color:#6b7785">Vous n\'avez pas de badge actif.</span>');
+                }
+                if (etat && !etat.isDestroyed) {
+                    etat.update('<div class="pin-etat" data-defini="' + (d.defini ? 1 : 0) + '" data-demande="' + (d.demande ? 1 : 0)
+                            + '" style="line-height:1.7">' + lignes.join('<br>') + '</div>');
+                }
+            },
+            failure: () => etat && !etat.isDestroyed && etat.update('<span style="color:#c0392b">État du code PIN illisible.</span>')
+        });
+    },
+
+    remettreBoutonPin: function () {
+        const b = this.down('#pinEnregistrer');
+        if (b && b.confirmer) {
+            b.confirmer = false;
+            b.setText('Enregistrer le code PIN');
+        }
+    },
+
+    resultatPin: function (ok, texte) {
+        const r = this.down('#pinResultat');
+        r.update('<span class="pin-resultat" data-ok="' + (ok ? 1 : 0) + '" style="font-weight:600;color:' + (ok ? '#17987e' : '#c0392b') + '">'
+                + Ext.String.htmlEncode(texte) + '</span>');
+    },
+
+    enregistrerPin: function () {
+        const me = this, b = me.down('#pinEnregistrer');
+        const mdp = me.down('#pinMotDePasse').getValue(), pin = me.down('#pinCode').getValue(), conf = me.down('#pinConfirme').getValue();
+        if (!mdp) {
+            me.remettreBoutonPin();
+            return me.resultatPin(false, 'Tapez votre mot de passe actuel.');
+        }
+        if (!/^[0-9]{4}$/.test(pin || '')) {
+            me.remettreBoutonPin();
+            return me.resultatPin(false, 'Le code PIN doit compter exactement 4 chiffres.');
+        }
+        if (pin !== conf) {
+            me.remettreBoutonPin();
+            return me.resultatPin(false, 'Les deux codes PIN sont différents.');
+        }
+        /* confirmation dans le bouton : premier clic « Confirmer ? », second clic enregistre */
+        if (!b.confirmer) {
+            b.confirmer = true;
+            b.setText('Confirmer le nouveau code ?');
+            me.resultatPin(true, '');
+            return;
+        }
+        b.confirmer = false;
+        b.disable();
+        Ext.Ajax.request({
+            method: 'POST', url: '../api/v1/user/badge-pin', headers: {'Content-Type': 'application/json'},
+            params: Ext.JSON.encode({motDePasse: mdp, pin: pin}),
+            success: (r) => {
+                const d = Ext.JSON.decode(r.responseText, true) || {};
+                b.enable();
+                b.setText('Enregistrer le code PIN');
+                me.resultatPin(!!d.success, d.message || 'Réponse illisible.');
+                me.down('#pinMotDePasse').setRawValue('');
+                if (d.success) {
+                    me.down('#pinCode').setRawValue('');
+                    me.down('#pinConfirme').setRawValue('');
+                    me.lirePin();
+                }
+            },
+            failure: () => {
+                b.enable();
+                b.setText('Enregistrer le code PIN');
+                me.resultatPin(false, 'Enregistrement impossible : le serveur ne répond pas.');
+            }
+        });
     },
 
     fetchAccount: function (str_FIRST_NAME,

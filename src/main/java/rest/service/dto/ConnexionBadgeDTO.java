@@ -14,4 +14,7 @@ import lombok.Setter;
 public class ConnexionBadgeDTO {
 
     private String contenu;
+
+    /** Plan du 08/11, point 14 : code PIN tape apres le badge (si le parametre le demande). Jamais trace. */
+    private String pin;
 }
