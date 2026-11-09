@@ -48,11 +48,19 @@ if not errorlevel 1 goto DEJA_LANCE
 
 :LANCER
 echo.
+if defined AUTO goto LANCER_AUTO
 echo  Demarrage du service sur le port %PORT%... (laissez cette fenetre OUVERTE)
 echo  Pour ARRETER : Ctrl+C dans cette fenetre, ou arreter.bat (arret propre).
 echo  Ne fermez pas la fenetre d'un coup : les cles de chiffrement risquent
 echo  d'etre a demi ecrites (messages illisibles ensuite).
 echo.
+goto NODE
+
+:LANCER_AUTO
+REM Lance par Prestige sans fenetre (plan avoir du 08/11) : journal dans journaux\demarrer.log ; arret par arreter.bat.
+echo  Demarrage du service sur le port %PORT% (sans fenetre). Pour ARRETER : arreter.bat.
+
+:NODE
 node src\serveur.js
 echo.
 echo  ** Le service s'est arrete. **
