@@ -185,7 +185,7 @@ function lireClasseur(chemin) {
     await p.waitForFunction(() => !Ext.ComponentQuery.query('retourfrsmanager')[0].getStore().isLoading(), null, { timeout: 60000 });
     const lignesListe = await p.evaluate((ids) => { const g = Ext.ComponentQuery.query('retourfrsmanager')[0], st = g.getStore(), o = {}, colonne = g.down('#colEtatRetour');
       Object.keys(ids).forEach((k) => { const i = st.findExact('lg_RETOUR_FRS_ID', ids[k]); if (i < 0) { return; }
-        const n = g.getView().getNode(st.getAt(i)), td = n && n.querySelector('td.x-grid-cell-' + colonne.id);
+        const c = g.getView().getCell(st.getAt(i), colonne), td = c && (c.dom || c);
         o[k] = { texte: td ? td.innerText.replace(/\s+/g, ' ').trim() : '', tip: td ? (td.getAttribute('data-qtip') || '') : '' }; });
       return o; }, ids);
     const decode = (s) => s.replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>');

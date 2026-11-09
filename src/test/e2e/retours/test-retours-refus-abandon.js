@@ -216,7 +216,9 @@ function retirer() {
     await ouvrirMenuParent();
     await p.locator('.prestige-flyout-menu .pastille-retours').filter({ visible: true }).first().click();
     await p.waitForFunction(() => { const c = Ext.getCmp('retourFrsEtat'), g = Ext.ComponentQuery.query('retourfrsmanager')[0];
-      return c && g && g.isVisible(true) && c.getValue() === 'ATTENTE' && !g.getStore().isLoading(); }, null, { timeout: 30000 }).catch(() => {});
+      /* liste rechargee avec le filtre (et non l'ancienne liste lue avant le rechargement) */
+      return c && g && g.isVisible(true) && c.getValue() === 'ATTENTE' && !g.getStore().isLoading() && g.getStore().getCount() > 0
+        && g.getStore().collect('str_STATUT').every((s) => s === 'is_Waiting'); }, null, { timeout: 30000 }).catch(() => {});
     await p.waitForTimeout(800);
     const lp = await ligne(R1);
     ok('Clic sur la pastille : liste « En attente de validation », le retour remis en attente y est', lp.present && lp.statuts.length > 0 && lp.statuts.every((x) => x === 'is_Waiting')
