@@ -249,12 +249,25 @@ public class CampagneService {
             if (ids.isEmpty()) {
                 return new ArrayList<>();
             }
-            Filtres g = copie(f);
-            g.clientIds = ids.size() > MAX_CIBLES ? ids.subList(0, MAX_CIBLES) : ids;
-            g.produitId = null;
-            g.minAchats = null;
-            g.montantMin = null;
-            List<Cible> l = population(g);
+            /* croisement par paquets : couper la liste AVANT de croiser avec les autres filtres (nom, sexe, age...)
+             * perdait des clients qui y repondaient (un montant seul retient souvent plus de MAX_CIBLES clients) */
+            List<Cible> l = new ArrayList<>();
+            for (int i = 0; i < ids.size(); i += MAX_CIBLES) {
+                Filtres g = copie(f);
+                g.clientIds = ids.subList(i, Math.min(ids.size(), i + MAX_CIBLES));
+                g.produitId = null;
+                g.minAchats = null;
+                g.montantMin = null;
+                l.addAll(population(g));
+            }
+            if (ids.size() > MAX_CIBLES) {
+                l.sort(java.util.Comparator
+                        .comparing((Cible c) -> StringUtils.defaultString(c.prenom), String.CASE_INSENSITIVE_ORDER)
+                        .thenComparing(c -> StringUtils.defaultString(c.nom), String.CASE_INSENSITIVE_ORDER));
+                if (l.size() > MAX_CIBLES) {
+                    l = new ArrayList<>(l.subList(0, MAX_CIBLES));
+                }
+            }
             for (Cible c : l) {
                 c.achats = achats.get(c.clientId);
             }
