@@ -165,13 +165,19 @@ const lignesTable = (p, racine, sel, sauf) => p.evaluate(([r, s, x]) => [...Ext.
     const nbB = ['mois', 'produits', 'motifs', 'utilisateurs'].reduce((s, k) => s + (apiB[k] || []).length, 0);
     ok(`B. Tableau de bord depuis le 01/01/2024 : lignes écran = API (${tabB.length} = ${nbB}), plusieurs mois et produits`,
       tabB.length === nbB && (apiB.mois || []).length > 1 && (apiB.produits || []).length > 1, tabB.length + ' / ' + nbB);
-    const tuilesB = await p.evaluate((r) => [...Ext.ComponentQuery.query(r)[0].getEl().dom.querySelectorAll('.pml-tuile-valeur')].map((t) => t.innerText.replace(/[\s ]+/g, ' ').trim()), racineB);
+    const tuilesB = await p.evaluate((r) => [...Ext.ComponentQuery.query(r)[0].getEl().dom.querySelectorAll('.rf-tuiles .pml-tuile-valeur')].map((t) => t.innerText.replace(/[\s ]+/g, ' ').trim()), racineB);
+    /* demande 59, partie 2 : tuiles des retours par etat (titre, nombre, unites), a retrouver aussi dans le PDF */
+    const etatsB = await p.evaluate((r) => [...Ext.ComponentQuery.query(r)[0].getEl().dom.querySelectorAll('.rf-etats .pml-tuile')]
+      .map((t) => ['titre', 'valeur', 'detail'].map((k) => t.querySelector('.pml-tuile-' + k).innerText.replace(/\s+/g, ' ').trim())), racineB);
     const impB = await imprimer(p, 'retoursfournisseur #tbImprimer', /tableau-bord\/pdf/);
     ok('B. Le clic sur Imprimer écrit un PDF rp_tableau_bord_retours_fournisseur', impB.o.success === true && /rp_tableau_bord_retours_fournisseur_/.test(impB.o.url) && impB.existe, JSON.stringify(impB.o));
     const pdfB = impB.existe ? textePdf(impB.f) : '';
     ok('B. En-tête du PDF : titre et période', /TABLEAU DE BORD DES RETOURS FOURNISSEURS/.test(pdfB) && pdfB.includes('Du 01/01/2024 au'), pdfB.slice(0, 200));
     ok('B. Indicateurs écran = PDF (retours, quantité, acceptée, montant)', tuilesB.length === 4 && pdfB.includes('Retours : ' + tuilesB[0]) && pdfB.includes('Quantité retournée : ' + tuilesB[1])
       && pdfB.includes('Acceptée en avoir : ' + tuilesB[2]) && pdfB.includes('Montant retourné : ' + tuilesB[3]), JSON.stringify(tuilesB));
+    const pdfBPlat = pdfB.replace(/\s+/g, ' ');
+    ok('B. Retours par état écran = PDF (en attente, refusés, abandonnés, validés : nombre et unités)', etatsB.length === 4
+      && etatsB.every(([titre, valeur, detail]) => pdfBPlat.includes(titre + ' : ' + valeur + ' (' + detail + ')')), JSON.stringify(etatsB));
     const manqueB = rapprocher(tabB, pdfB);
     ok(`B. Chaque ligne de l'écran (${tabB.length}) est dans le PDF, cellule par cellule, dans l'ordre`, manqueB.length === 0, manqueB.slice(0, 3).join(' || '));
 

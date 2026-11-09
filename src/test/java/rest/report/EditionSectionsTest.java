@@ -220,6 +220,41 @@ public class EditionSectionsTest {
         }
     }
 
+    /**
+     * Fusion du 09/11 : les retours par etat (demande 59, partie 2) affiches en tuiles a l'ecran figurent aussi dans
+     * les indicateurs du PDF, avec le meme titre, le meme nombre et les memes unites ; etat absent = 0.
+     */
+    @Test
+    public void lesRetoursParEtatSontDansLesIndicateursDuPdf() {
+        Random r = new Random(GRAINE);
+        String[][] etats = { { "attente", "En attente de validation" }, { "refuse", "Refusés" },
+                { "abandonne", "Abandonnés" }, { "valide", "Validés" } };
+        for (int cas = 0; cas < 2_000; cas++) {
+            JSONObject o = new JSONObject().put("total", new JSONObject().put("retours", r.nextInt(5000)));
+            JSONObject et = new JSONObject();
+            int[][] attendu = new int[4][2];
+            for (int i = 0; i < 4; i++) {
+                if (r.nextInt(5) == 0) {
+                    continue; // etat absent de la reponse : 0 attendu
+                }
+                attendu[i][0] = r.nextInt(3) == 0 ? 0 : r.nextInt(30_000);
+                attendu[i][1] = r.nextInt(3) == 0 ? 0 : r.nextInt(3_000_000);
+                et.put(etats[i][0], new JSONObject().put("retours", attendu[i][0]).put("quantite", attendu[i][1]));
+            }
+            if (r.nextInt(10) > 0) {
+                o.put("etats", et);
+            } else {
+                attendu = new int[4][2]; // pas d'etats du tout : tout a 0
+            }
+            String ind = EditionSections.indicateursRetours(o);
+            for (int i = 0; i < 4; i++) {
+                String morceau = etats[i][1] + " : " + entierEcran(attendu[i][0]) + " (" + entierEcran(attendu[i][1])
+                        + " unité(s))";
+                assertTrue(ind.contains(morceau), "cas " + cas + " : " + morceau + " absent de « " + ind + " »");
+            }
+        }
+    }
+
     @Test
     public void leModeleSeRemplitSurPlusieursPages() throws Exception {
         try (InputStream in = getClass().getResourceAsStream("/reports/rp_edition_sections.jrxml")) {

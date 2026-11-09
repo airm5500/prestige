@@ -189,7 +189,28 @@ public final class EditionSections {
         return "Retours : " + entier(t, "retours") + " (" + entier(t, "lignes") + " ligne(s) · " + entier(t, "produits")
                 + " produit(s))   ·   Quantité retournée : " + entier(t, "quantite")
                 + " unités   ·   Acceptée en avoir : " + entier(t, "acceptee") + " (" + pctAccepte
-                + " % du retourné)   ·   Montant retourné : " + entier(t, "montant") + " F au prix d'achat";
+                + " % du retourné)   ·   Montant retourné : " + entier(t, "montant") + " F au prix d'achat"
+                + etatsRetours(o.optJSONObject("etats"));
+    }
+
+    /**
+     * Fusion du 09/11 : retours par etat (demande 59, partie 2), comme les tuiles de l'ecran (titre, nombre, unites),
+     * sur une seconde ligne (le champ des indicateurs s'agrandit). Seuls les valides entrent dans les autres rubriques.
+     */
+    private static String etatsRetours(JSONObject et) {
+        JSONObject etats = et == null ? new JSONObject() : et;
+        String[][] libelles = { { "attente", "En attente de validation" }, { "refuse", "Refusés" },
+                { "abandonne", "Abandonnés" }, { "valide", "Validés" } };
+        StringBuilder sb = new StringBuilder("\nPar état : ");
+        for (int i = 0; i < libelles.length; i++) {
+            JSONObject e = etats.optJSONObject(libelles[i][0]);
+            if (e == null) {
+                e = new JSONObject();
+            }
+            sb.append(i == 0 ? "" : "   ·   ").append(libelles[i][1]).append(" : ").append(entier(e, "retours"))
+                    .append(" (").append(entier(e, "quantite")).append(" unité(s))");
+        }
+        return sb.toString();
     }
 
     /* ---------- mise en forme, identique a l'ecran ---------- */
