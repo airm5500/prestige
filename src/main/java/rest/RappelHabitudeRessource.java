@@ -184,6 +184,101 @@ public class RappelHabitudeRessource {
         return reponse(o.put("canal", c));
     }
 
+    /* ------------------------------------------------------------ plan avoir du 08/11, point 5 : ciblage libre */
+
+    @EJB
+    private rest.service.impl.campagne.CampagneService campagnes;
+
+    /** Filtres du ciblage : ceux des campagnes, categorie « Rappel traitement ». */
+    private static rest.service.impl.campagne.CampagneService.Filtres filtresCiblage(String corps) {
+        JSONObject o;
+        try {
+            o = new JSONObject(StringUtils.defaultIfBlank(corps, "{}"));
+        } catch (org.json.JSONException e) {
+            o = new JSONObject();
+        }
+        o.put("categorie", rest.service.impl.campagne.Campagnes.Categorie.TRAITEMENT.name());
+        return rest.service.impl.campagne.CampagneService.Filtres.depuis(o);
+    }
+
+    /**
+     * « Clients ayant acheté » un produit, une famille ou une DCI sur une periode, avec un nombre minimal d'achats : le
+     * meme calcul que les campagnes (CampagneService.population), pour cet ecran et pour l'onglet des campagnes.
+     */
+    @POST
+    @Path("ciblage")
+    public Response ciblage(String corps) {
+        Response r = controle();
+        if (r != null) {
+            return r;
+        }
+        rest.service.impl.campagne.CampagneService.Filtres f = filtresCiblage(corps);
+        if (f.produitId == null) {
+            return refus("Choisissez le produit, la famille ou la DCI.");
+        }
+        JSONArray a = new JSONArray();
+        int joignables = 0;
+        for (rest.service.impl.campagne.CampagneService.Cible x : campagnes.population(f)) {
+            a.put(x.json());
+            joignables += x.motif == null ? 1 : 0;
+        }
+        return reponse(new JSONObject().put("success", true).put("data", a).put("total", a.length()).put("joignables",
+                joignables));
+    }
+
+    /**
+     * « Envoyer aux résultats » : une campagne « Rappel traitement » (journal des campagnes), par le chemin commun des
+     * campagnes (consentement et numero recontroles), PUIS l'envoi en tache de fond.
+     */
+    @POST
+    @Path("ciblage/envoyer")
+    public Response ciblageEnvoyer(String corps) {
+        Response r = controle();
+        if (r != null) {
+            return r;
+        }
+        rest.service.impl.campagne.CampagneService.Filtres f = filtresCiblage(corps);
+        JSONObject o;
+        try {
+            o = new JSONObject(StringUtils.defaultIfBlank(corps, "{}"));
+        } catch (org.json.JSONException e) {
+            o = new JSONObject();
+        }
+        try {
+            JSONObject res = campagnes.envoyer(f, o.optString("modeleId", null), o.optString("message", null),
+                    utilisateur().getLgUSERID());
+            String c = rest.service.impl.campagne.Campagnes.canal(res.optString("canal"));
+            JSONArray n = res.optJSONArray("notifications");
+            for (int i = 0; n != null && i < n.length(); i++) {
+                if ("SMS".equals(c)) {
+                    smsService.sendSMSByNotificationIdAsync(n.getString(i));
+                } else {
+                    whatsAppService.envoyerNotificationAsync(n.getString(i), "SMS_WHATSAPP".equals(c));
+                }
+            }
+            return reponse(res);
+        } catch (javax.ejb.EJBException | IllegalArgumentException e) {
+            Throwable t = e;
+            while (t instanceof javax.ejb.EJBException && t.getCause() != null) {
+                t = t.getCause();
+            }
+            if (t instanceof IllegalArgumentException) {
+                return refus(t.getMessage());
+            }
+            java.util.logging.Logger.getLogger(RappelHabitudeRessource.class.getName())
+                    .log(java.util.logging.Level.SEVERE, "Rappels : envoi du ciblage", e);
+            return refus("Opération impossible : erreur du serveur.");
+        }
+    }
+
+    @GET
+    @Path("ciblage/references")
+    public Response ciblageReferences(@QueryParam("type") String type, @QueryParam("q") String q) {
+        Response r = controle();
+        return r != null ? r
+                : reponse(new JSONObject().put("success", true).put("data", campagnes.references(type, q)));
+    }
+
     /* ------------------------------------------------------------ retours du 10/10 (section 13) */
 
     private static final java.time.format.DateTimeFormatter JJ = java.time.format.DateTimeFormatter

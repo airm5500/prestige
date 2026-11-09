@@ -31,8 +31,10 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 import rest.service.NotificationService;
 import rest.service.impl.campagne.Campagnes.Categorie;
+import rest.service.impl.MessageTraitement;
 import util.MessageModele;
 import util.TelephoneCi;
+import util.TelephoneClient;
 
 /**
  * CAMPAGNES SMS / WHATSAPP (besoins du 11/10, lot 4). Population visee, apercu, envoi par la file de notifications
@@ -73,6 +75,19 @@ public class CampagneService {
         public List<String> clientIds;
         public String canal = "SMS";
         public boolean accordExplicite;
+        /**
+         * Plan avoir du 08/11, points 4 et 5 : « clients ayant acheté » un produit, une famille ou une DCI
+         * (facultatif), sur une periode, avec un nombre minimal d'achats et un montant cumule minimal.
+         */
+        public String produitType, produitId;
+        public LocalDate achatDu, achatAu;
+        public Integer minAchats;
+        public Long montantMin;
+
+        /** Vrai si un critere d'achat est demande (produit, nombre d'achats ou montant). */
+        public boolean ciblageAchats() {
+            return produitId != null || minAchats != null || montantMin != null;
+        }
 
         public static Filtres depuis(JSONObject o) {
             Filtres f = new Filtres();
@@ -105,7 +120,33 @@ public class CampagneService {
             }
             f.canal = Campagnes.canal(o.optString("canal"));
             f.accordExplicite = o.optBoolean("accordExplicite", false);
+            String t = StringUtils.trimToEmpty(o.optString("produitType")).toUpperCase(java.util.Locale.ROOT);
+            f.produitId = StringUtils.left(StringUtils.trimToNull(o.optString("produitId", null)), 40);
+            f.produitType = f.produitId == null ? null : "FAMILLE".equals(t) || "DCI".equals(t) ? t : "PRODUIT";
+            f.achatDu = jour(o, "achatDu");
+            f.achatAu = jour(o, "achatAu");
+            f.minAchats = entier(o, "minAchats", 1, 1000);
+            if (o.has("montantMin") && !o.isNull("montantMin") && StringUtils.isNotBlank(o.optString("montantMin"))) {
+                long m = o.optLong("montantMin", -1);
+                f.montantMin = m < 0 ? null : m;
+            }
             return f;
+        }
+
+        private static LocalDate jour(JSONObject o, String cle) {
+            String j = StringUtils.trimToNull(o.optString(cle, null));
+            try {
+                return j == null ? null : LocalDate.parse(j.substring(0, Math.min(10, j.length())));
+            } catch (RuntimeException e) {
+                return null;
+            }
+        }
+
+        /** Periode des achats : du (sinon N mois avant le jour, sinon 12 mois) au (sinon le jour), bornes comprises. */
+        public LocalDate[] periodeAchats() {
+            LocalDate au = achatAu == null ? jour : achatAu;
+            LocalDate du = achatDu != null ? achatDu : au.minusMonths(moisAchat == null ? 12 : moisAchat);
+            return new LocalDate[] { du, au };
         }
 
         private static Integer entier(JSONObject o, String cle, int min, int max) {
@@ -122,15 +163,24 @@ public class CampagneService {
         public String clientId, nom, prenom, telephone, motif;
         public LocalDate naissance;
         public Integer age;
+        /** Fiche client : les medicaments peuvent etre cites dans les messages (rappels des traitements). */
+        public boolean citerMedicaments = true;
+        /** Ciblage par les achats : resume des achats retenus (null sans ce ciblage). */
+        public Ciblage.Resume achats;
 
         public String nomComplet() {
             return (StringUtils.defaultString(nom) + " " + StringUtils.defaultString(prenom)).trim();
         }
 
         public JSONObject json() {
-            return new JSONObject().put("clientId", clientId).put("client", nomComplet())
+            JSONObject o = new JSONObject().put("clientId", clientId).put("client", nomComplet())
                     .put("telephone", StringUtils.defaultString(telephone)).put("age", age == null ? "" : age)
                     .put("joignable", motif == null).put("motif", StringUtils.defaultString(motif));
+            if (achats != null) {
+                o.put("achats", achats.achats).put("montant", achats.montant).put("dernierAchat",
+                        achats.dernier == null ? "" : achats.dernier.toString());
+            }
+            return o;
         }
     }
 
@@ -186,10 +236,50 @@ public class CampagneService {
     /** Population visee, avec pour chacun le motif d'exclusion eventuel (consentement, numero). */
     @SuppressWarnings("unchecked")
     public List<Cible> population(Filtres f) {
+        /* plan avoir du 08/11 : ciblage par les achats, calcule a part puis croise avec les autres filtres */
+        Map<String, Ciblage.Resume> achats = null;
+        if (f.ciblageAchats()) {
+            achats = Ciblage.retenir(achats(f), f.minAchats, f.montantMin);
+            List<String> ids = new ArrayList<>();
+            for (String id : achats.keySet()) {
+                if (f.clientIds == null || f.clientIds.contains(id)) {
+                    ids.add(id);
+                }
+            }
+            if (ids.isEmpty()) {
+                return new ArrayList<>();
+            }
+            /*
+             * croisement par paquets : couper la liste AVANT de croiser avec les autres filtres (nom, sexe, age...)
+             * perdait des clients qui y repondaient (un montant seul retient souvent plus de MAX_CIBLES clients)
+             */
+            List<Cible> l = new ArrayList<>();
+            for (int i = 0; i < ids.size(); i += MAX_CIBLES) {
+                Filtres g = copie(f);
+                g.clientIds = ids.subList(i, Math.min(ids.size(), i + MAX_CIBLES));
+                g.produitId = null;
+                g.minAchats = null;
+                g.montantMin = null;
+                l.addAll(population(g));
+            }
+            if (ids.size() > MAX_CIBLES) {
+                l.sort(java.util.Comparator
+                        .comparing((Cible c) -> StringUtils.defaultString(c.prenom), String.CASE_INSENSITIVE_ORDER)
+                        .thenComparing(c -> StringUtils.defaultString(c.nom), String.CASE_INSENSITIVE_ORDER));
+                if (l.size() > MAX_CIBLES) {
+                    l = new ArrayList<>(l.subList(0, MAX_CIBLES));
+                }
+            }
+            for (Cible c : l) {
+                c.achats = achats.get(c.clientId);
+            }
+            return l;
+        }
+        /* plan avoir du 08/11, point 4 : le numero est dans str_TELEPHONE (a defaut, l'ancien champ adresse) */
         StringBuilder sql = new StringBuilder("SELECT c.lg_CLIENT_ID AS id, c.str_FIRST_NAME AS prenom,"
-                + " c.str_LAST_NAME AS nom, c.str_ADRESSE AS tel, c.dt_NAISSANCE AS naissance,"
-                + " c.bool_CONSENT_SMS AS csms, c.bool_CONSENT_WHATSAPP AS cwa FROM t_client c"
-                + " WHERE c.str_STATUT = 'enable'");
+                + " c.str_LAST_NAME AS nom, c.str_ADRESSE AS adresse, c.dt_NAISSANCE AS naissance,"
+                + " c.bool_CONSENT_SMS AS csms, c.bool_CONSENT_WHATSAPP AS cwa, c.str_TELEPHONE AS tel,"
+                + " c.bool_MSG_MEDICAMENTS AS citer FROM t_client c WHERE c.str_STATUT = 'enable'");
         List<Object> p = new ArrayList<>();
         if (f.categorie == Categorie.ANNIVERSAIRE) {
             LocalDate j = f.jour;
@@ -209,7 +299,8 @@ public class CampagneService {
             sql.append(" AND (CONCAT(COALESCE(c.str_FIRST_NAME,''),' ',COALESCE(c.str_LAST_NAME,'')) LIKE ?")
                     .append(p.size() + 1)
                     .append(" OR CONCAT(COALESCE(c.str_LAST_NAME,''),' ',COALESCE(c.str_FIRST_NAME,'')) LIKE ?")
-                    .append(p.size() + 1).append(" OR c.str_ADRESSE LIKE ?").append(p.size() + 1).append(")");
+                    .append(p.size() + 1).append(" OR c.str_ADRESSE LIKE ?").append(p.size() + 1)
+                    .append(" OR c.str_TELEPHONE LIKE ?").append(p.size() + 1).append(")");
             p.add("%" + f.recherche.replace("%", "").replace("_", "") + "%");
         }
         if (f.moisAchat != null) {
@@ -253,12 +344,123 @@ public class CampagneService {
                     || (f.ageMax != null && (c.age == null || c.age > f.ageMax))) {
                 continue;
             }
-            TelephoneCi.Resultat tel = TelephoneCi.controler(texte(r[3]));
-            c.telephone = tel.isValide() ? tel.getLocal() : texte(r[3]);
+            TelephoneCi.Resultat tel = TelephoneClient.controler(texte(r[7]), texte(r[3]));
+            c.telephone = TelephoneClient.affiche(texte(r[7]), texte(r[3]));
             c.motif = Campagnes.motifExclusion(f.canal, bool(r[5]), bool(r[6]), f.accordExplicite, tel.isValide());
+            c.citerMedicaments = !Boolean.FALSE.equals(bool(r[8]));
             l.add(c);
         }
         return l;
+    }
+
+    private static Filtres copie(Filtres f) {
+        Filtres g = new Filtres();
+        g.categorie = f.categorie;
+        g.jour = f.jour;
+        g.sexe = f.sexe;
+        g.recherche = f.recherche;
+        g.feteCode = f.feteCode;
+        g.liste = f.liste;
+        g.ageMin = f.ageMin;
+        g.ageMax = f.ageMax;
+        g.moisAchat = f.moisAchat;
+        g.clientIds = f.clientIds;
+        g.canal = f.canal;
+        g.accordExplicite = f.accordExplicite;
+        g.produitType = f.produitType;
+        g.produitId = f.produitId;
+        g.achatDu = f.achatDu;
+        g.achatAu = f.achatAu;
+        g.minAchats = f.minAchats;
+        g.montantMin = f.montantMin;
+        return g;
+    }
+
+    /**
+     * Achats de la periode (ventes cloturees, non annulees, d'un client nomme) : par vente, son montant ; avec un
+     * produit, une famille ou une DCI, seulement les lignes visees de la vente.
+     */
+    @SuppressWarnings("unchecked")
+    List<Ciblage.Achat> achats(Filtres f) {
+        LocalDate[] periode = f.periodeAchats();
+        StringBuilder sql = new StringBuilder();
+        if (f.produitId == null) {
+            sql.append("SELECT p.lg_CLIENT_ID, p.lg_PREENREGISTREMENT_ID, DATE(p.dt_UPDATED), p.int_PRICE")
+                    .append(" FROM t_preenregistrement p WHERE ");
+        } else {
+            sql.append("SELECT p.lg_CLIENT_ID, p.lg_PREENREGISTREMENT_ID, DATE(p.dt_UPDATED), SUM(d.int_PRICE)")
+                    .append(" FROM t_preenregistrement_detail d JOIN t_preenregistrement p")
+                    .append(" ON p.lg_PREENREGISTREMENT_ID = d.lg_PREENREGISTREMENT_ID");
+            if ("FAMILLE".equals(f.produitType)) {
+                sql.append(
+                        " JOIN t_famille fa ON fa.lg_FAMILLE_ID = d.lg_FAMILLE_ID WHERE fa.lg_FAMILLEARTICLE_ID = ?3 AND ");
+            } else if ("DCI".equals(f.produitType)) {
+                sql.append(" WHERE EXISTS (SELECT 1 FROM t_famille_dci fd WHERE fd.lg_FAMILLE_ID = d.lg_FAMILLE_ID")
+                        .append(" AND fd.lg_DCI_ID = ?3) AND ");
+            } else {
+                sql.append(" WHERE d.lg_FAMILLE_ID = ?3 AND ");
+            }
+        }
+        sql.append(
+                "p.lg_CLIENT_ID IS NOT NULL AND p.str_STATUT = 'is_Closed' AND p.b_IS_CANCEL = 0 AND p.int_PRICE > 0")
+                .append(" AND p.dt_UPDATED >= ?1 AND p.dt_UPDATED < ?2");
+        if (f.produitId != null) {
+            sql.append(" GROUP BY p.lg_PREENREGISTREMENT_ID, p.lg_CLIENT_ID, DATE(p.dt_UPDATED)");
+        }
+        Query q = em.createNativeQuery(sql.toString()).setParameter(1, java.sql.Date.valueOf(periode[0]))
+                .setParameter(2, java.sql.Date.valueOf(periode[1].plusDays(1)));
+        if (f.produitId != null) {
+            q.setParameter(3, f.produitId);
+        }
+        List<Ciblage.Achat> l = new ArrayList<>();
+        for (Object[] r : (List<Object[]>) q.getResultList()) {
+            l.add(new Ciblage.Achat(texte(r[0]), texte(r[1]), date(r[2]),
+                    r[3] == null ? 0 : ((Number) r[3]).longValue()));
+        }
+        return l;
+    }
+
+    /** Produits, familles ou DCI dont le nom (ou le CIP) contient la frappe : 30 au plus, pour la liste de choix. */
+    @SuppressWarnings("unchecked")
+    public JSONArray references(String type, String frappe) {
+        JSONArray a = new JSONArray();
+        String t = StringUtils.left(StringUtils.trimToEmpty(frappe), 60).replace("%", "").replace("_", "");
+        if (t.length() < 2) {
+            return a;
+        }
+        String sql;
+        switch (StringUtils.defaultString(type).toUpperCase(java.util.Locale.ROOT)) {
+        case "FAMILLE":
+            sql = "SELECT lg_FAMILLEARTICLE_ID, str_LIBELLE, '' FROM t_famillearticle WHERE str_STATUT = 'enable'"
+                    + " AND (str_LIBELLE LIKE ?1 OR str_CODE_FAMILLE LIKE ?1) ORDER BY str_LIBELLE LIMIT 30";
+            break;
+        case "DCI":
+            sql = "SELECT lg_DCI_ID, str_NAME, '' FROM t_dci WHERE str_STATUT = 'enable'"
+                    + " AND (str_NAME LIKE ?1 OR str_CODE LIKE ?1) ORDER BY str_NAME LIMIT 30";
+            break;
+        default:
+            sql = "SELECT lg_FAMILLE_ID, str_NAME, int_CIP FROM t_famille WHERE str_STATUT = 'enable'"
+                    + " AND (str_NAME LIKE ?1 OR int_CIP LIKE ?1) ORDER BY str_NAME LIMIT 30";
+        }
+        for (Object[] r : (List<Object[]>) em.createNativeQuery(sql).setParameter(1, "%" + t + "%").getResultList()) {
+            String cip = texte(r[2]);
+            a.put(new JSONObject().put("id", texte(r[0])).put("libelle", texte(r[1])).put("affiche",
+                    (cip.isEmpty() ? "" : cip + " · ") + texte(r[1])));
+        }
+        return a;
+    }
+
+    /** Nom du produit, de la famille ou de la DCI ; vide s'il est inconnu. */
+    @SuppressWarnings("unchecked")
+    public String libelleReference(String type, String id) {
+        if (id == null) {
+            return "";
+        }
+        String sql = "FAMILLE".equals(type) ? "SELECT str_LIBELLE FROM t_famillearticle WHERE lg_FAMILLEARTICLE_ID = ?1"
+                : "DCI".equals(type) ? "SELECT str_NAME FROM t_dci WHERE lg_DCI_ID = ?1"
+                        : "SELECT str_NAME FROM t_famille WHERE lg_FAMILLE_ID = ?1";
+        List<Object> r = em.createNativeQuery(sql).setParameter(1, id).getResultList();
+        return r.isEmpty() ? "" : texte(r.get(0));
     }
 
     /** Nom et telephone de l'officine. */
@@ -285,10 +487,20 @@ public class CampagneService {
 
     /** Message d'un destinataire : variables habituelles, plus {fete} et {age}. */
     public static String message(String modele, Cible c, String[] officine, String fete) {
-        Map<String, String> v = MessageModele.valeurs(c.nom, c.prenom, "", officine[0], officine[1], "");
+        return message(modele, c, officine, fete, null);
+    }
+
+    /**
+     * Meme message, avec {medicament} (rappels des traitements, plan avoir du 08/11, point 5) : le produit, la famille
+     * ou la DCI visee ; un message neutre si la fiche client interdit de citer les medicaments.
+     */
+    public static String message(String modele, Cible c, String[] officine, String fete, String medicament) {
+        boolean neutre = medicament != null && !c.citerMedicaments;
+        String m = medicament == null ? "" : neutre || medicament.isEmpty() ? MessageTraitement.NEUTRE : medicament;
+        Map<String, String> v = MessageModele.valeurs(c.nom, c.prenom, m, officine[0], officine[1], "");
         v.put("fete", StringUtils.defaultString(fete));
         v.put("age", c.age == null ? "" : String.valueOf(c.age));
-        return MessageModele.personnaliser(modele, v);
+        return MessageModele.personnaliser(neutre ? MessageTraitement.modeleNeutre(modele) : modele, v);
     }
 
     /* ============================================================================================ fetes */
@@ -528,6 +740,8 @@ public class CampagneService {
                     .setParameter(4, piece.nomFichier).setParameter(5, id).executeUpdate();
         }
         String[] officine = officine();
+        /* rappel des traitements : {medicament} = le produit, la famille ou la DCI visee */
+        String medicament = f.categorie == Categorie.TRAITEMENT ? libelleReference(f.produitType, f.produitId) : null;
         JSONArray notifications = new JSONArray(), refus = new JSONArray();
         for (String clientId : demandes) {
             Cible c = cibles.get(clientId);
@@ -539,7 +753,7 @@ public class CampagneService {
                 }
                 continue;
             }
-            String n = notification(categorie, auteur, c, message(modele, c, officine, fete));
+            String n = notification(categorie, auteur, c, message(modele, c, officine, fete, medicament));
             ligne(id, clientId, "PREPARE", null, n);
             notifications.put(n);
         }
@@ -660,10 +874,12 @@ public class CampagneService {
         JSONArray a = new JSONArray();
         for (Object[] r : (List<Object[]>) em.createNativeQuery("SELECT l.lg_CLIENT_ID AS id,"
                 + " TRIM(CONCAT(COALESCE(c.str_FIRST_NAME,''),' ',COALESCE(c.str_LAST_NAME,''))) AS client,"
-                + " c.str_ADRESSE AS tel, l.statut AS statut, l.motif AS motif FROM t_campagne_ligne l"
+                + " c.str_ADRESSE AS adresse, l.statut AS statut, l.motif AS motif, c.str_TELEPHONE AS tel"
+                + " FROM t_campagne_ligne l"
                 + " JOIN t_client c ON c.lg_CLIENT_ID = l.lg_CLIENT_ID WHERE l.campagne_id = ?1"
                 + " ORDER BY l.statut DESC, client").setParameter(1, id).getResultList()) {
-            a.put(new JSONObject().put("clientId", texte(r[0])).put("client", texte(r[1])).put("telephone", texte(r[2]))
+            a.put(new JSONObject().put("clientId", texte(r[0])).put("client", texte(r[1]))
+                    .put("telephone", TelephoneClient.affiche(texte(r[5]), texte(r[2])))
                     .put("joignable", "PROPOSE".equals(texte(r[3]))).put("motif", texte(r[4])));
         }
         return a;
@@ -823,11 +1039,13 @@ public class CampagneService {
         JSONArray a = new JSONArray();
         for (Object[] r : (List<Object[]>) em
                 .createNativeQuery("SELECT c.lg_CLIENT_ID AS id, TRIM(CONCAT(COALESCE(c.str_FIRST_NAME, ''),"
-                        + " ' ', COALESCE(c.str_LAST_NAME, ''))) AS client, c.str_ADRESSE AS tel, lc.ajoute_at AS quand"
+                        + " ' ', COALESCE(c.str_LAST_NAME, ''))) AS client, c.str_ADRESSE AS adresse, lc.ajoute_at AS quand,"
+                        + " c.str_TELEPHONE AS tel"
                         + " FROM t_campagne_liste_client lc JOIN t_client c ON c.lg_CLIENT_ID = lc.lg_CLIENT_ID"
                         + " WHERE lc.liste_id = ?1 AND c.str_STATUT = 'enable' ORDER BY client")
                 .setParameter(1, id).getResultList()) {
-            a.put(new JSONObject().put("clientId", texte(r[0])).put("client", texte(r[1])).put("telephone", texte(r[2]))
+            a.put(new JSONObject().put("clientId", texte(r[0])).put("client", texte(r[1]))
+                    .put("telephone", TelephoneClient.affiche(texte(r[4]), texte(r[2])))
                     .put("ajouteLe", r[3] instanceof Timestamp ? JJ.format(((Timestamp) r[3]).toLocalDateTime()) : ""));
         }
         return a;
@@ -844,6 +1062,24 @@ public class CampagneService {
                     .setParameter(1, id).setParameter(2, c).executeUpdate();
         }
         return n;
+    }
+
+    /**
+     * Plan avoir du 08/11, point 4 : « Ajouter tous les résultats » d'une recherche filtree (sexe, age, achats,
+     * produit, famille ou DCI, montant) a la liste. La population est recalculee ici, avec les memes filtres que
+     * l'ecran ; rend le nombre de clients trouves et d'ajouts (ceux deja inscrits ne comptent pas).
+     */
+    @TransactionAttribute(TransactionAttributeType.REQUIRED)
+    public int[] ajouterResultats(String id, Filtres f) {
+        existeListe(id);
+        Filtres g = copie(f);
+        g.liste = null;
+        g.categorie = Categorie.INFO_CLIENTS;
+        List<String> ids = new ArrayList<>();
+        for (Cible c : population(g)) {
+            ids.add(c.clientId);
+        }
+        return new int[] { ids.size(), ids.isEmpty() ? 0 : ajouterMembres(id, ids) };
     }
 
     /** Retire des clients de la liste ; rend le nombre de retraits. */
@@ -875,13 +1111,14 @@ public class CampagneService {
         }
         for (Object[] r : (List<Object[]>) em
                 .createNativeQuery("SELECT c.lg_CLIENT_ID AS id, TRIM(CONCAT(COALESCE(c.str_FIRST_NAME, ''),"
-                        + " ' ', COALESCE(c.str_LAST_NAME, ''))) AS client, c.str_ADRESSE AS tel FROM t_client c WHERE c.str_STATUT = 'enable'"
+                        + " ' ', COALESCE(c.str_LAST_NAME, ''))) AS client, c.str_ADRESSE AS adresse, c.str_TELEPHONE AS tel"
+                        + " FROM t_client c WHERE c.str_STATUT = 'enable'"
                         + " AND (CONCAT(COALESCE(c.str_FIRST_NAME,''),' ',COALESCE(c.str_LAST_NAME,'')) LIKE ?1"
-                        + " OR CONCAT(COALESCE(c.str_LAST_NAME,''),' ',COALESCE(c.str_FIRST_NAME,'')) LIKE ?1 OR c.str_ADRESSE LIKE ?1)"
-                        + " ORDER BY client LIMIT 50")
+                        + " OR CONCAT(COALESCE(c.str_LAST_NAME,''),' ',COALESCE(c.str_FIRST_NAME,'')) LIKE ?1 OR c.str_ADRESSE LIKE ?1"
+                        + " OR c.str_TELEPHONE LIKE ?1)" + " ORDER BY client LIMIT 50")
                 .setParameter(1, "%" + t + "%").getResultList()) {
             a.put(new JSONObject().put("clientId", texte(r[0])).put("client", texte(r[1])).put("telephone",
-                    texte(r[2])));
+                    TelephoneClient.affiche(texte(r[3]), texte(r[2]))));
         }
         return a;
     }
@@ -984,13 +1221,17 @@ public class CampagneService {
         }
     }
 
-    /** Lignes des campagnes donnees : [campagne, retenu, statut WhatsApp, statut SMS, livraison SMS, repondu]. */
+    /**
+     * Lignes des campagnes donnees : [campagne, retenu, statut WhatsApp, statut SMS, livraison SMS, repondu, client,
+     * telephone de l'envoi, motif, quand, telephone de la fiche, adresse de la fiche].
+     */
     private static String lignesCampagnes(String filtre, int delai) {
         return "SELECT l.campagne_id AS campagne, l.retenu AS retenu, w.statut AS wstatut, nc.statut AS ncstatut,"
                 + " nc.delivery_status AS livraison, CASE WHEN w.id IS NULL THEN 0 WHEN " + repondu(delai)
                 + " THEN 1 ELSE 0 END AS repondu,"
                 + " TRIM(CONCAT(COALESCE(cl.str_FIRST_NAME, ''), ' ', COALESCE(cl.str_LAST_NAME, ''))) AS client,"
-                + " COALESCE(w.telephone, cl.str_ADRESSE) AS tel, l.motif AS motif, COALESCE(w.created_at, nc.sent_at) AS quand"
+                + " w.telephone AS tel, l.motif AS motif, COALESCE(w.created_at, nc.sent_at) AS quand,"
+                + " cl.str_TELEPHONE AS ftel, cl.str_ADRESSE AS fadresse"
                 + " FROM t_campagne_ligne l LEFT JOIN t_client cl ON cl.lg_CLIENT_ID = l.lg_CLIENT_ID"
                 + " LEFT JOIN whatsapp_message w ON w.notification_id = l.lg_NOTIFICATION_ID"
                 + " LEFT JOIN notification_client nc ON nc.notification_id = l.lg_NOTIFICATION_ID AND nc.client_id = l.lg_CLIENT_ID"
@@ -1030,9 +1271,20 @@ public class CampagneService {
      * suivent l'envoi (KEY_CAMPAGNE_DELAI_REPONSE, 7 par defaut ; fils de discussion WhatsApp).
      */
     static String repondu(int jours) {
+        /*
+         * Plan avoir du 08/11, point 4 : seul un VRAI message du client, recu APRES l'envoi, compte. Ne sont pas des
+         * reponses les evenements entrants sans contenu que le fil garde pourtant : « request_welcome » de l'API
+         * officielle (le client a seulement OUVERT la conversation), reactions, messages systeme ou non pris en charge
+         * (type AUTRE), et, en WhatsApp Web, les messages techniques que le service range en « [message] ».
+         */
         return "EXISTS (SELECT 1 FROM whatsapp_discussion d WHERE d.sens = 'E' AND d.numero = w.telephone"
-                + " AND d.created_at >= w.created_at AND d.created_at < w.created_at + INTERVAL " + jours + " DAY)";
+                + " AND d.created_at > w.created_at AND d.created_at < w.created_at + INTERVAL " + jours + " DAY"
+                + " AND d.type IN ('TEXTE', 'IMAGE', 'VIDEO', 'DOCUMENT', 'AUDIO')"
+                + " AND NOT (d.type = 'TEXTE' AND COALESCE(TRIM(d.texte), '') IN ('', '" + MESSAGE_TECHNIQUE + "')))";
     }
+
+    /** Texte que le service WhatsApp Web donne a un message entrant sans contenu lisible (baileys-outils.js). */
+    static final String MESSAGE_TECHNIQUE = "[message]";
 
     /** Delai de reponse parametre (7 jours par defaut, borne a 1..90). */
     int delaiReponse() {
@@ -1061,8 +1313,13 @@ public class CampagneService {
             String etat = etatMessage(retenu, texte(r[2]), texte(r[3]), texte(r[4]));
             t.compter(etat, repondu);
             Object quand = r[9];
-            lignes.put(new JSONObject().put("client", texte(r[6]).trim()).put("telephone", texte(r[7]))
-                    .put("etat", etat).put("motif", retenu ? "" : texte(r[8])).put("repondu", repondu)
+            /*
+             * plan avoir du 08/11, point 4 : telephone de l'envoi, sinon celui de la fiche (colonne telephone ou
+             * adresse)
+             */
+            String tel = texte(r[7]).isEmpty() ? TelephoneClient.affiche(texte(r[10]), texte(r[11])) : texte(r[7]);
+            lignes.put(new JSONObject().put("client", texte(r[6]).trim()).put("telephone", tel).put("etat", etat)
+                    .put("motif", retenu ? "" : texte(r[8])).put("repondu", repondu)
                     .put("envoyeLe", quand instanceof Timestamp
                             ? ((Timestamp) quand).toLocalDateTime().toString().replace('T', ' ').substring(0, 16)
                             : ""));

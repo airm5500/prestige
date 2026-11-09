@@ -219,7 +219,8 @@ public class WhatsAppServiceImpl implements WhatsAppService {
             if (tc == null) {
                 continue;
             }
-            TelephoneCi.Resultat tel = TelephoneCi.controler(tc.getStrADRESSE());
+            /* plan avoir du 08/11, point 4 : str_TELEPHONE, a defaut l'ancien champ adresse (util.TelephoneClient) */
+            TelephoneCi.Resultat tel = util.TelephoneClient.controler(tc);
             Boolean consent = consentWhatsApp(tc.getLgCLIENTID());
             WhatsAppEnvoi.Resultat r;
             if (Boolean.FALSE.equals(consent)) {

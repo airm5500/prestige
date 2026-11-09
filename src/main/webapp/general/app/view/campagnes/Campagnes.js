@@ -22,11 +22,12 @@ Ext.define('testextjs.view.campagnes.Campagnes', {
     URL: '../api/v1/campagnes/',
     config: {nameintern: '', titre: '', odatasource: ''},
 
+    TOUS: 'TOUS',
     CANAUX: [{v: 'SMS', t: 'SMS'}, {v: 'WHATSAPP', t: 'WhatsApp'}, {v: 'SMS_WHATSAPP', t: 'WhatsApp, repli SMS'}],
     MODELE_DEFAUT: {ANNIVERSAIRE: 'MODELE_ANNIVERSAIRE', FETE: 'MODELE_FETE', INFO_PHARMACIE: 'MODELE_INFO_PHARMACIE', INFO_CLIENTS: 'MODELE_CONTACT'},
     AIDE: {
         ANNIVERSAIRE: 'Clients dont c\'est l\'anniversaire le jour choisi (date de naissance de la fiche client).',
-        FETE: 'Tous les clients actifs, pour la fête choisie. Les dates des fêtes musulmanes se saisissent chaque année dans le calendrier.',
+        FETE: 'Choisissez la fête, puis la liste de diffusion (ou « Tous les clients actifs ») : rien n\'est chargé avant ce choix. Les dates des fêtes musulmanes se saisissent chaque année dans le calendrier.',
         INFO_CLIENTS: 'Information ciblée : filtrez par sexe, âge, achats récents ou nom.',
         INFO_PHARMACIE: 'Information de la pharmacie (horaires, garde, nouveautés) à vos clients actifs.',
         PERSONNALISE: 'Message libre aux clients que vous choisissez.'
@@ -37,13 +38,22 @@ Ext.define('testextjs.view.campagnes.Campagnes', {
         me.styles();
         /* retours du 25/10 (point 14) : listes de diffusion, partagees par les onglets d'envoi et l'onglet Listes */
         me.listesStore = Ext.create('Ext.data.Store', {fields: ['id', 'nom', 'nombre', 'affiche'], data: []});
+        /* plan avoir du 08/11, point 4 : l'onglet Fetes choisit d'abord sa liste (ou tous les clients actifs) */
+        me.listesFeteStore = Ext.create('Ext.data.Store', {fields: ['id', 'nom', 'nombre', 'affiche'], data: [{id: me.TOUS, affiche: 'Tous les clients actifs'}]});
         me.items = [me.ongletPropositions()];
         Ext.each(['ANNIVERSAIRE', 'FETE', 'INFO_CLIENTS', 'INFO_PHARMACIE', 'PERSONNALISE'], function (c) {
             me.items.push(me.ongletCategorie(c));
         });
-        me.items.push({title: 'Rappels traitement', itemId: 'ongletRappels', layout: 'fit', hidden: true, iconCls: 'fa fa-medkit'});
+        /* plan avoir du 08/11, point 4 : l'onglet s'explique a l'ecran (le « ? » de l'ecran donne le detail) */
+        me.items.push({title: 'Rappels traitement', itemId: 'ongletRappels', layout: {type: 'vbox', align: 'stretch'}, hidden: true, iconCls: 'fa fa-medkit',
+            tabConfig: {tooltip: 'Traitements à renouveler (habitudes d\'achat) et ciblage libre des clients ayant acheté un produit'},
+            items: [{xtype: 'component', itemId: 'aideRappels', html: '<div class="cmp-aide"><b>Rappels traitement</b> : la liste montre les clients dont le '
+                            + 'traitement habituel arrive à renouvellement (même produit acheté au moins 3 fois en un an, à intervalles réguliers ; '
+                            + 'prochain achat attendu dans les 3 jours). On prépare le traitement, puis on envoie le rappel. « Ciblage libre » écrit aux '
+                            + 'clients ayant acheté un produit, une famille ou une DCI. Le bouton « ? » à droite donne le détail.</div>'}]});
         me.items.push(me.ongletListes(), me.ongletJournal(), me.ongletParametres());
         me.callParent(arguments);
+        me.panier.on('datachanged', me.majPanier, me);
         me.on('afterrender', function () {
             me.chargerContexte();
         });
@@ -59,8 +69,8 @@ Ext.define('testextjs.view.campagnes.Campagnes', {
                 me.chargerJournal();
             } else if (t.itemId === 'ongletParametres') {
                 me.chargerParametres();
-            } else if (t.itemId === 'ongletRappels' && !t.items.getCount()) {
-                t.add({xtype: 'rappelstraitement'});
+            } else if (t.itemId === 'ongletRappels' && !t.down('rappelstraitement')) {
+                t.add({xtype: 'rappelstraitement', flex: 1});
             } else if (t.categorie && !t.charge) {
                 t.charge = true;
                 me.initialiserCategorie(t);
@@ -218,6 +228,14 @@ Ext.define('testextjs.view.campagnes.Campagnes', {
                 listeners: {change: function () {
                         me.apercu(me.down('#onglet-FETE'));
                     }}});
+            /* plan avoir du 08/11, point 4 : la liste de diffusion d'abord ; rien n'est charge avant ce choix */
+            filtres.push({xtype: 'combobox', itemId: 'liste', fieldLabel: 'Liste', labelWidth: 30, width: 230, editable: false, queryMode: 'local',
+                emptyText: 'Choisir la liste de diffusion', store: me.listesFeteStore, displayField: 'affiche', valueField: 'id',
+                listeners: {expand: function () {
+                        me.chargerListes();
+                    }, select: function () {
+                        me.chargerPopulation(me.down('#onglet-FETE'));
+                    }}});
         }
         if (code === 'INFO_CLIENTS' || code === 'PERSONNALISE') {
             filtres.push({xtype: 'combobox', itemId: 'sexe', fieldLabel: 'Sexe', labelWidth: 35, width: 130, editable: false, queryMode: 'local', value: '',
@@ -320,13 +338,16 @@ Ext.define('testextjs.view.campagnes.Campagnes', {
         me.chargerModeles(o, o.down('#canal').getValue(), me.MODELE_DEFAUT[o.categorie]);
         if (o.categorie === 'FETE') {
             me.chargerFetes(o);
+            me.chargerListes();
         }
-        /* Fetes : destinataires charges une fois la prochaine fete choisie. Personnalise, Infos clients et Infos pharmacie
-         * (retours du 25/10, point 14 : jusqu'a 5 000 clients a l'ouverture de l'onglet) : a la demande */
+        /* Personnalise, Infos clients et Infos pharmacie (retours du 25/10, point 14 : jusqu'a 5 000 clients a
+         * l'ouverture de l'onglet) et Fetes (plan avoir du 08/11, point 4 : la liste de diffusion d'abord) : a la demande */
         if (o.categorie === 'ANNIVERSAIRE') {
             me.chargerPopulation(o);
-        } else if (o.categorie !== 'FETE') {
-            o.down('#destinataires').getView().emptyText = '<div class="cmp-vide">Choisissez les filtres puis cliquez sur « Voir les destinataires ».</div>';
+        } else {
+            o.down('#destinataires').getView().emptyText = o.categorie === 'FETE'
+                    ? '<div class="cmp-vide">Choisissez la fête et la liste de diffusion : les destinataires s\'affichent alors.</div>'
+                    : '<div class="cmp-vide">Choisissez les filtres puis cliquez sur « Voir les destinataires ».</div>';
             o.down('#destinataires').getView().refresh();
         }
     },
@@ -366,6 +387,9 @@ Ext.define('testextjs.view.campagnes.Campagnes', {
                 f[k] = x;
             }
         });
+        if (f.liste === this.TOUS) {
+            delete f.liste;
+        }
         return f;
     },
 
@@ -384,6 +408,10 @@ Ext.define('testextjs.view.campagnes.Campagnes', {
         var me = this, g = o.down('#destinataires');
         if (o.categorie === 'FETE' && !o.down('#fete').getValue()) {
             me.etat(o, 'Choisissez la fête.', 'cmp-erreur');
+            return;
+        }
+        if (o.categorie === 'FETE' && !o.down('#liste').getValue()) {
+            me.etat(o, 'Choisissez la liste de diffusion (ou « Tous les clients actifs »).', 'cmp-erreur');
             return;
         }
         g.setLoading('Recherche des destinataires...');
@@ -607,7 +635,10 @@ Ext.define('testextjs.view.campagnes.Campagnes', {
                 prochaine = prochaine || l[0];
                 if (prochaine) {
                     c.setValue(prochaine.code);
-                    me.chargerPopulation(o);
+                    /* plan avoir du 08/11, point 4 : rien n'est charge avant le choix de la liste de diffusion */
+                    if (o.down('#liste').getValue()) {
+                        me.chargerPopulation(o);
+                    }
                 }
             }
         });
@@ -780,7 +811,92 @@ Ext.define('testextjs.view.campagnes.Campagnes', {
      * Infos pharmacie ou Personnalise avec le filtre « Liste ». Les confirmations se font dans les boutons. */
     ongletListes: function () {
         var me = this;
-        var cocheMembres = Ext.create('Ext.selection.CheckboxModel', {checkOnly: true}), cocheTrouves = Ext.create('Ext.selection.CheckboxModel', {checkOnly: true});
+        /* plan avoir du 08/11, point 4 : les clients coches vont dans un panier « Clients sélectionnés », garde d'une
+         * recherche a l'autre (avant, chaque recherche remplacait la liste et perdait les clients coches) */
+        var cocheMembres = Ext.create('Ext.selection.CheckboxModel', {checkOnly: true}), cocheTrouves = Ext.create('Ext.selection.CheckboxModel', {checkOnly: true,
+            listeners: {select: function (sm, r) {
+                    me.panierAjouter([r]);
+                }, deselect: function (sm, r) {
+                    if (!me.rechargementTrouves) {
+                        me.panierRetirer(r.get('clientId'));
+                    }
+                }}});
+        /* pas d'ecouteur a la creation : le magasin le declencherait pendant initComponent, avant les onglets */
+        me.panier = Ext.create('Ext.data.Store', {fields: ['clientId', 'client', 'telephone'], data: []});
+        var references = Ext.create('Ext.data.Store', {fields: ['id', 'libelle', 'affiche'],
+            proxy: {type: 'ajax', url: me.URL + 'references', extraParams: {type: 'PRODUIT'}, reader: {type: 'json', root: 'data'}}});
+        var surEntree = {specialkey: function (c, e) {
+                if (e.getKey() === e.ENTER) {
+                    me.chercherClients();
+                }
+            }};
+        var zoneAjout = {xtype: 'panel', itemId: 'zoneAjout', title: 'Ajouter des clients', flex: 3, layout: {type: 'hbox', align: 'stretch'},
+            dockedItems: [{xtype: 'toolbar', dock: 'top', itemId: 'filtresAjout', items: [
+                        {xtype: 'textfield', itemId: 'rechercheClient', emptyText: 'Nom ou téléphone', width: 170, disabled: true,
+                            listeners: Ext.apply({change: {buffer: 400, fn: function () {
+                                        me.chercherClients(true);
+                                    }}}, surEntree)},
+                        {xtype: 'combobox', itemId: 'ajSexe', width: 90, editable: false, queryMode: 'local', value: '', displayField: 't', valueField: 'v',
+                            store: Ext.create('Ext.data.Store', {fields: ['v', 't'], data: [{v: '', t: 'Sexe'}, {v: 'F', t: 'Femmes'}, {v: 'M', t: 'Hommes'}]})},
+                        {xtype: 'numberfield', itemId: 'ajAgeMin', fieldLabel: 'Âge de', labelWidth: 42, width: 92, minValue: 0, maxValue: 130, hideTrigger: true, allowDecimals: false},
+                        {xtype: 'numberfield', itemId: 'ajAgeMax', fieldLabel: 'à', labelWidth: 10, width: 55, minValue: 0, maxValue: 130, hideTrigger: true, allowDecimals: false},
+                        {xtype: 'combobox', itemId: 'ajMoisAchat', width: 165, editable: false, queryMode: 'local', value: '', displayField: 't', valueField: 'v',
+                            tooltip: 'Période des achats', store: Ext.create('Ext.data.Store', {fields: ['v', 't'], data: [{v: '', t: 'Achats : tous'},
+                                    {v: 1, t: 'Achats depuis 1 mois'}, {v: 3, t: 'Achats depuis 3 mois'}, {v: 6, t: 'Achats depuis 6 mois'}, {v: 12, t: 'Achats depuis 12 mois'}]})}]},
+                {xtype: 'toolbar', dock: 'top', itemId: 'filtresAchats', items: [
+                        {xtype: 'combobox', itemId: 'ajType', width: 90, editable: false, queryMode: 'local', value: 'PRODUIT', displayField: 't', valueField: 'v',
+                            store: Ext.create('Ext.data.Store', {fields: ['v', 't'], data: [{v: 'PRODUIT', t: 'Produit'}, {v: 'FAMILLE', t: 'Famille'}, {v: 'DCI', t: 'DCI'}]}),
+                            listeners: {change: function (c, v) {
+                                    var ref = me.down('#ongletListes #ajReference');
+                                    references.getProxy().setExtraParam('type', v);
+                                    references.removeAll();
+                                    ref.clearValue();
+                                    ref.lastQuery = null;
+                                }}},
+                        /* champ vide en sortie : le filtre produit est retire (sinon le champ remettait le produit choisi avant) */
+                        {xtype: 'combobox', itemId: 'ajReference', width: 210, store: references, queryMode: 'remote', queryParam: 'q', minChars: 2,
+                            assertValue: function () {
+                                if (!Ext.String.trim(this.getRawValue() || '')) {
+                                    this.lastSelection = [];
+                                    this.clearValue();
+                                    this.collapse();
+                                    return;
+                                }
+                                Ext.form.field.ComboBox.prototype.assertValue.apply(this, arguments);
+                            },
+                            displayField: 'affiche', valueField: 'id', hideTrigger: true, forceSelection: true, emptyText: 'acheté (nom ou CIP)'},
+                        {xtype: 'numberfield', itemId: 'ajMinAchats', fieldLabel: 'Achats au moins', labelWidth: 92, width: 135, minValue: 1, maxValue: 1000, allowDecimals: false},
+                        {xtype: 'numberfield', itemId: 'ajMontant', fieldLabel: 'Montant au moins', labelWidth: 100, width: 175, minValue: 0, hideTrigger: true, allowDecimals: false},
+                        {xtype: 'button', itemId: 'chercherAjout', text: 'Chercher', iconCls: 'fa fa-search', disabled: true, handler: function () {
+                                me.chercherClients();
+                            }}]}],
+            items: [{xtype: 'gridpanel', itemId: 'trouves', flex: 3, columnLines: true, selModel: cocheTrouves, title: 'Résultats',
+                    store: Ext.create('Ext.data.Store', {fields: ['clientId', 'client', 'telephone', 'achats', 'montant'], data: []}),
+                    viewConfig: {emptyText: '<div class="cmp-vide">Nom ou téléphone (3 caractères au moins), ou des filtres puis « Chercher ».</div>', deferEmptyText: false, markDirty: false},
+                    columns: [{text: 'Client', dataIndex: 'client', flex: 1, minWidth: 150}, {text: 'Téléphone', dataIndex: 'telephone', width: 105},
+                        {text: 'Achats', dataIndex: 'achats', width: 60, align: 'right'}],
+                    bbar: [{xtype: 'button', itemId: 'ajouterResultats', text: 'Ajouter tous les résultats', iconCls: 'fa fa-plus-square', disabled: true, handler: function (b) {
+                                var n = me.down('#ongletListes #trouves').getStore().getCount();
+                                me.confirmer(b, 'Confirmer : ajouter les ' + n + ' résultat(s)', function () {
+                                    me.ajouterResultats();
+                                });
+                            }}]},
+                {xtype: 'gridpanel', itemId: 'panier', flex: 2, margin: '0 0 0 8', columnLines: true, title: 'Clients sélectionnés (0)', store: me.panier,
+                    viewConfig: {emptyText: '<div class="cmp-vide">Cochez des clients : ils restent ici d\'une recherche à l\'autre.</div>', deferEmptyText: false},
+                    columns: [{text: 'Client', dataIndex: 'client', flex: 1}, {text: 'Téléphone', dataIndex: 'telephone', width: 100},
+                        {text: '', width: 62, align: 'center', renderer: function () {
+                                return '<span class="cmp-retirer" style="color:#c0392b;cursor:pointer" title="Retirer de la sélection"><i class="fa fa-times"></i> Retirer</span>';
+                            }}],
+                    listeners: {cellclick: function (v, td, i, r, tr, l, e) {
+                            if (e.getTarget('.cmp-retirer')) {
+                                me.panierRetirer(r.get('clientId'), true);
+                            }
+                        }},
+                    bbar: [{xtype: 'button', itemId: 'ajouterMembres', text: 'Ajouter les clients sélectionnés', iconCls: 'fa fa-plus', disabled: true, handler: function () {
+                                me.modifierMembres('ajouter', me.panier.collect('clientId'));
+                            }}, '->', {xtype: 'button', itemId: 'viderPanier', text: 'Vider', disabled: true, handler: function () {
+                                me.viderPanier();
+                            }}]}]};
         return {
             title: 'Listes de diffusion', itemId: 'ongletListes', iconCls: 'fa fa-list-ul', layout: {type: 'hbox', align: 'stretch'}, bodyPadding: 8,
             items: [{xtype: 'gridpanel', itemId: 'listes', width: 330, title: 'Listes', columnLines: true, store: me.listesStore,
@@ -809,9 +925,13 @@ Ext.define('testextjs.view.campagnes.Campagnes', {
                     listeners: {selectionchange: function (sm, sel) {
                             me.down('#ongletListes #supprimerListe').setDisabled(!sel.length);
                             me.down('#ongletListes #rechercheClient').setDisabled(!sel.length);
+                            me.down('#ongletListes #chercherAjout').setDisabled(!sel.length);
                             me.chargerMembres();
+                            me.majPanier();
                         }}},
-                {xtype: 'gridpanel', itemId: 'membres', flex: 1, margin: '0 0 0 10', title: 'Clients de la liste', columnLines: true, selModel: cocheMembres,
+                /* plan avoir du 08/11, point 4 : « Ajouter des clients » AVANT les clients de la liste */
+                {xtype: 'container', flex: 1, margin: '0 0 0 10', layout: {type: 'vbox', align: 'stretch'}, items: [zoneAjout,
+                {xtype: 'gridpanel', itemId: 'membres', flex: 2, margin: '8 0 0 0', title: 'Clients de la liste', columnLines: true, selModel: cocheMembres,
                     store: Ext.create('Ext.data.Store', {fields: ['clientId', 'client', 'telephone', 'ajouteLe'], data: []}),
                     viewConfig: {emptyText: '<div class="cmp-vide">Choisissez une liste.</div>', deferEmptyText: false},
                     columns: [{text: 'Client', dataIndex: 'client', flex: 1}, {text: 'Téléphone', dataIndex: 'telephone', width: 130}, {text: 'Ajouté le', dataIndex: 'ajouteLe', width: 100}],
@@ -825,23 +945,7 @@ Ext.define('testextjs.view.campagnes.Campagnes', {
                             }}],
                     listeners: {selectionchange: function (sm, sel) {
                             me.down('#ongletListes #retirerMembres').setDisabled(!sel.length);
-                        }}},
-                {xtype: 'gridpanel', itemId: 'trouves', flex: 1, margin: '0 0 0 10', title: 'Ajouter des clients', columnLines: true, selModel: cocheTrouves,
-                    store: Ext.create('Ext.data.Store', {fields: ['clientId', 'client', 'telephone'], data: []}),
-                    viewConfig: {emptyText: '<div class="cmp-vide">Nom ou téléphone : 3 caractères au moins.</div>', deferEmptyText: false},
-                    tbar: [{xtype: 'textfield', itemId: 'rechercheClient', emptyText: 'Nom ou téléphone', flex: 1, disabled: true,
-                            listeners: {change: {buffer: 400, fn: function (c, v) {
-                                        me.chercherClients(v);
-                                    }}}}],
-                    columns: [{text: 'Client', dataIndex: 'client', flex: 1}, {text: 'Téléphone', dataIndex: 'telephone', width: 130}],
-                    bbar: [{xtype: 'button', itemId: 'ajouterMembres', text: 'Ajouter les clients cochés', iconCls: 'fa fa-plus', disabled: true, handler: function () {
-                                me.modifierMembres('ajouter', Ext.Array.map(cocheTrouves.getSelection(), function (r) {
-                                    return r.get('clientId');
-                                }));
-                            }}],
-                    listeners: {selectionchange: function (sm, sel) {
-                            me.down('#ongletListes #ajouterMembres').setDisabled(!sel.length || !me.listeChoisie());
-                        }}}],
+                        }}}]}],
             dockedItems: [{xtype: 'component', dock: 'bottom', itemId: 'etat', cls: 'cmp-etat'}]
         };
     },
@@ -862,6 +966,7 @@ Ext.define('testextjs.view.campagnes.Campagnes', {
                 l.affiche = l.nom + ' (' + l.nombre + ')';
             });
             me.listesStore.loadData(r.data || []);
+            me.listesFeteStore.loadData([{id: me.TOUS, affiche: 'Tous les clients actifs'}].concat(r.data || []));
             var g = me.down('#ongletListes #listes'), rec = id ? me.listesStore.getById(id) || me.listesStore.findRecord('id', id, 0, false, true, true) : null;
             if (g && rec) {
                 g.getSelectionModel().select(rec, false, true);
@@ -909,16 +1014,147 @@ Ext.define('testextjs.view.campagnes.Campagnes', {
         });
     },
 
-    chercherClients: function (texte) {
-        var me = this, g = me.down('#ongletListes #trouves');
-        if (Ext.String.trim(texte || '').length < 3) {
-            g.getStore().removeAll();
+    /** Filtres de la zone « Ajouter des clients » (memes noms que ceux des campagnes) ; null s'il n'y a rien a chercher. */
+    filtresAjout: function () {
+        var o = this.down('#ongletListes'), v = function (id) {
+            var c = o.down('#' + id), x = c ? c.getValue() : null;
+            return x === '' || x === undefined ? null : x;
+        };
+        var texte = Ext.String.trim(v('rechercheClient') || ''), f = {categorie: 'INFO_CLIENTS', canal: 'WHATSAPP'}, autres = false;
+        Ext.each([['sexe', 'ajSexe'], ['ageMin', 'ajAgeMin'], ['ageMax', 'ajAgeMax'], ['moisAchat', 'ajMoisAchat'], ['produitId', 'ajReference'],
+            ['minAchats', 'ajMinAchats'], ['montantMin', 'ajMontant']], function (k) {
+            var x = v(k[1]);
+            if (x !== null) {
+                f[k[0]] = x;
+                autres = true;
+            }
+        });
+        if (f.produitId) {
+            f.produitType = v('ajType');
+        }
+        if (texte.length >= 3) {
+            f.recherche = texte;
+        } else if (!autres) {
+            return null;
+        }
+        return f;
+    },
+
+    /* recherche : nom ou telephone (3 caracteres), et/ou les filtres (sexe, age, achats, produit, montant). Les clients
+     * deja coches (panier) restent coches dans les nouveaux resultats. */
+    chercherClients: function (frappe) {
+        var me = this, o = me.down('#ongletListes'), g = o.down('#trouves'), f = me.filtresAjout();
+        if (!f) {
+            me.chargerTrouves([]);
+            o.derniersFiltres = null;
             return;
         }
-        me.appel('GET', 'clients?q=' + encodeURIComponent(texte), null, function (r) {
-            if (r.success) {
-                g.getStore().loadData(r.data || []);
+        if (frappe && !f.recherche) {
+            return;
+        }
+        g.setLoading('Recherche…');
+        me.appel('POST', 'population', f, function (r) {
+            g.setLoading(false);
+            if (!r.success) {
+                me.etat(o, r.message, 'cmp-erreur');
+                return;
             }
+            o.derniersFiltres = f;
+            me.chargerTrouves(r.data || []);
+            g.setTitle('Résultats : ' + r.total);
+        });
+    },
+
+    chargerTrouves: function (data) {
+        var me = this, o = me.down('#ongletListes'), g = o.down('#trouves'), coches = [];
+        me.rechargementTrouves = true;
+        try {
+            g.getStore().loadData(data);
+            g.getStore().each(function (r) {
+                if (me.panier.findExact('clientId', r.get('clientId')) >= 0) {
+                    coches.push(r);
+                }
+            });
+            g.getSelectionModel().select(coches, false, true);
+        } finally {
+            me.rechargementTrouves = false;
+        }
+        if (!data.length) {
+            g.setTitle('Résultats');
+        }
+        me.majPanier();
+    },
+
+    panierAjouter: function (recs) {
+        var me = this, nouveaux = [];
+        Ext.each(recs, function (r) {
+            if (me.panier.findExact('clientId', r.get('clientId')) < 0) {
+                nouveaux.push({clientId: r.get('clientId'), client: r.get('client'), telephone: r.get('telephone')});
+            }
+        });
+        if (nouveaux.length) {
+            me.panier.add(nouveaux);
+        }
+    },
+
+    /** Retire un client du panier ; depuis le panier, il est aussi decoche dans les resultats. */
+    panierRetirer: function (clientId, decocher) {
+        var me = this, i = me.panier.findExact('clientId', clientId);
+        if (i >= 0) {
+            me.panier.removeAt(i);
+        }
+        if (decocher) {
+            var g = me.down('#ongletListes #trouves'), r = g.getStore().findRecord('clientId', clientId, 0, false, true, true);
+            if (r) {
+                me.rechargementTrouves = true;
+                g.getSelectionModel().deselect(r);
+                me.rechargementTrouves = false;
+            }
+        }
+    },
+
+    viderPanier: function () {
+        var me = this, g = me.down('#ongletListes #trouves');
+        me.panier.removeAll();
+        me.rechargementTrouves = true;
+        g.getSelectionModel().deselectAll();
+        me.rechargementTrouves = false;
+        me.majPanier();
+    },
+
+    majPanier: function () {
+        var me = this, o = me.rendered ? me.down('#ongletListes') : null;
+        if (!o || !o.down('#panier')) {
+            return;
+        }
+        var n = me.panier.getCount(), liste = !!me.listeChoisie(), resultats = o.down('#trouves').getStore().getCount();
+        o.down('#panier').setTitle('Clients sélectionnés (' + n + ')');
+        var b = o.down('#ajouterMembres');
+        b.setText(n ? 'Ajouter les ' + n + ' client(s)' : 'Ajouter les clients sélectionnés');
+        b.setDisabled(!n || !liste);
+        o.down('#viderPanier').setDisabled(!n);
+        var t = o.down('#ajouterResultats');
+        if (!t.enConfirmation) {
+            t.texteInitial = null;
+            t.setText(resultats ? 'Ajouter tous les résultats (' + resultats + ')' : 'Ajouter tous les résultats');
+        }
+        t.setDisabled(!resultats || !liste || !o.derniersFiltres);
+    },
+
+    /** « Ajouter tous les résultats » : le serveur recalcule la recherche avec les memes filtres et ajoute tout. */
+    ajouterResultats: function () {
+        var me = this, o = me.down('#ongletListes'), l = me.listeChoisie();
+        if (!l || !o.derniersFiltres) {
+            return;
+        }
+        me.appel('POST', 'listes/' + encodeURIComponent(l.get('id')) + '/ajouter-resultats', o.derniersFiltres, function (r) {
+            if (!r.success) {
+                me.etat(o, r.message, 'cmp-erreur');
+                return;
+            }
+            me.etat(o, r.ajoutes + ' client(s) ajouté(s)' + (r.trouves > r.ajoutes ? ' (' + (r.trouves - r.ajoutes) + ' déjà dans la liste)' : '') + '.', 'cmp-info');
+            me.chargerMembres();
+            me.chargerListes();
         });
     },
 
@@ -934,7 +1170,7 @@ Ext.define('testextjs.view.campagnes.Campagnes', {
             }
             me.etat(o, action === 'ajouter' ? r.ajoutes + ' client(s) ajouté(s).' : r.retires + ' client(s) retiré(s).', 'cmp-info');
             if (action === 'ajouter') {
-                o.down('#trouves').getSelectionModel().deselectAll();
+                me.viderPanier();
             }
             me.chargerMembres();
             me.chargerListes();

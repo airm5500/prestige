@@ -414,6 +414,30 @@ public class CampagneRessource {
         }
     }
 
+    /** Plan avoir du 08/11, point 4 : ajoute a la liste tous les clients trouves avec ces filtres. */
+    @POST
+    @Path("listes/{id}/ajouter-resultats")
+    public Response ajouterResultats(@PathParam("id") String id, String c) {
+        Response r = controle();
+        if (r != null) {
+            return r;
+        }
+        try {
+            int[] n = service.ajouterResultats(id, Filtres.depuis(corps(c)));
+            return ok(new JSONObject().put("trouves", n[0]).put("ajoutes", n[1]));
+        } catch (Exception e) {
+            return erreur("ajout des resultats a une liste", e);
+        }
+    }
+
+    /** Plan avoir du 08/11, points 4 et 5 : produits, familles ou DCI pour le filtre « clients ayant acheté ». */
+    @GET
+    @Path("references")
+    public Response references(@QueryParam("type") String type, @QueryParam("q") String q) {
+        Response r = controle();
+        return r != null ? r : ok(new JSONObject().put("data", service.references(type, q)));
+    }
+
     @GET
     @Path("clients")
     public Response chercherClients(@QueryParam("q") String q) {

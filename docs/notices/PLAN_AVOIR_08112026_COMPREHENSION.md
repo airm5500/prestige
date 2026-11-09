@@ -163,3 +163,16 @@ et dans la branche du plan du 08/11 (`plan/08112026-evolutions-rattrapages`, non
 4. **Point 6 :** pré-saisie des BL, phase 1.
 5. **Points 9 et 10 :** WhatsApp Web.
 6. **Point 2 :** après la fusion des connecteurs.
+
+## Réponses du 09/11 et lancement
+- **Q1 :** des tranches de 1 h à 6 h, au choix. La vente est attribuée par défaut à la caissière, avec un choix « vendeur (prévente) » pour cette statistique.
+- **Q3 :** un ordinateur portable de 15 pouces. Les tests se font en 1366 × 768, 1536 × 864 et 1280 × 720, en plus de 1024 × 600.
+- **Q4 :** le numéro concerné est transmis à la seule session des campagnes, pour l'enquête. Il n'est écrit nulle part.
+- **Autres questions :** les propositions du rapport sont retenues (« lance tout »).
+- **Sessions lancées le 09/11 :**
+  - points 3, 7, 8 : affichage ;
+  - points 4, 5 : campagnes et rappels ;
+  - point 1 : activité des équipes ;
+  - point 6 : pré-saisie des BL, phase 1 ;
+  - points 9, 10 : WhatsApp Web et avis.
+- **Point 2 :** il attend la fusion de la branche des connecteurs.
