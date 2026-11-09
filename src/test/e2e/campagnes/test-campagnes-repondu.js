@@ -54,8 +54,10 @@ function nettoyer(debut) {
   exec("UPDATE whatsapp_compte SET actif = 1, mode_test = 1, phone_number_id = COALESCE(phone_number_id, '1234567890'), access_token = COALESCE(access_token, 'E2E-CMP-JETON'), app_secret = '" + SECRET + "' WHERE mode = 'API';"
     + "UPDATE t_parameters SET str_VALUE = 'API' WHERE str_KEY = 'KEY_WHATSAPP_MODE_DEFAUT';"
     + "UPDATE t_parameters SET str_VALUE = '7' WHERE str_KEY = 'KEY_CAMPAGNE_DELAI_REPONSE';"
-    + IDS.map((id, i) => "INSERT INTO t_client (lg_CLIENT_ID, str_FIRST_NAME, str_LAST_NAME, str_TELEPHONE, lg_TYPE_CLIENT_ID, str_STATUT, dt_CREATED, dt_UPDATED, bool_CONSENT_WHATSAPP)"
-      + ` VALUES ('${id}', 'ZZREP', 'R${i + 1}', '${TEL(i + 1)}', '6', 'enable', NOW(), NOW(), 1);`).join(''));
+    /* numero dans les deux champs : le test ne depend pas de la regle du telephone (ancien code : adresse) et
+     * isole le defaut « répondu » */
+    + IDS.map((id, i) => "INSERT INTO t_client (lg_CLIENT_ID, str_FIRST_NAME, str_LAST_NAME, str_TELEPHONE, str_ADRESSE, lg_TYPE_CLIENT_ID, str_STATUT, dt_CREATED, dt_UPDATED, bool_CONSENT_WHATSAPP)"
+      + ` VALUES ('${id}', 'ZZREP', 'R${i + 1}', '${TEL(i + 1)}', '${TEL(i + 1)}', '6', 'enable', NOW(), NOW(), 1);`).join(''));
 
   const b = await ENV_E2E.lancer(chromium);
   const p = await (await b.newContext({ viewport: { width: 1366, height: 768 } })).newPage();
