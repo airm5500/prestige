@@ -2,7 +2,7 @@
 -- Audit (lecture seule) du rattrapage des clotures d'inventaire REST
 -- ---------------------------------------------------------------------
 -- A executer avant ou apres la migration
--- V6.9.36__rattrapage_cloture_inventaire_rest.sql pour voir ce qu'elle a
+-- outils/scripts-manuels/rattrapage_cloture_inventaire_rest.sql (ancienne migration V6.9.36) pour voir ce qu'elle a
 -- fait, ou ce qu'il resterait a faire. Ce script N'ECRIT RIEN.
 --
 --   mysql <base> < audit_cloture_inventaire_rest.sql

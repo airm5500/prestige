@@ -34,6 +34,8 @@ function nettoyer() {
     + "CREATE TEMPORARY TABLE e2e_p29_r AS SELECT lg_REGLEMENT_ID id FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID IN (" + v + ") AND lg_REGLEMENT_ID IS NOT NULL;"
     + "DELETE FROM vente_modifiee_ligne WHERE modification_id IN (SELECT id FROM vente_modifiee WHERE vente_id IN (" + v + ") OR vente_origine_id IN (" + v + "));"
     + "DELETE FROM vente_modifiee WHERE vente_id IN (" + v + ") OR vente_origine_id IN (" + v + ");"
+    + (q("SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'vente_motif'") === '1'
+      ? "DELETE FROM vente_motif WHERE vente_id IN (" + v + ") OR nouvelle_vente_id IN (" + v + ");" : '')
     + "DELETE FROM vente_reglement WHERE vente_id IN (" + v + ");"
     + "DELETE FROM annulation_recette WHERE preenregistrement_id IN (" + v + ");"
     + "DELETE FROM hmvtproduit WHERE pkey IN (SELECT id FROM e2e_p29_l);"
@@ -98,6 +100,9 @@ function nettoyer() {
     }, id);
     if (!cible || cible.startsWith('ABSENTE:')) { throw new Error('Icône « Modifier » absente ou masquée pour la vente ' + id + ' ' + cible); }
     await p.click('#' + cible);
+    /* plan du 08/11, point 18 : vente modifiable -> menu des motifs sur l'icone ; « Erreur de saisie » (ancien code : rien) */
+    const motif = p.locator('.prestige-motif-vente .prestige-motif-item').filter({ hasText: 'Erreur de saisie' }).first();
+    if (await motif.waitFor({ state: 'visible', timeout: 5000 }).then(() => true).catch(() => false)) { await motif.click(); }
   };
   const copieChargee = () => p.waitForFunction(() => { const c = testextjs.app.getController('VenteCtr'); return c.current && c.current.lgPREENREGISTREMENTID
     && Ext.ComponentQuery.query('doventemanager #btnCloture').some((x) => x.isVisible(true)) && c.getVnoproduitCombo && c.getVnoproduitCombo(); }, null, { timeout: 30000 }).then(() => true, () => false);
@@ -210,11 +215,16 @@ function nettoyer() {
       await tableauPret();
       const un = await lignesUtilisateurs();
       ok('1. Filtre utilisateur du tableau : lui seul, mêmes retours, 100 %', choisi === nom && un.length === 1 && un[0][0] === nom && un[0][1] === nb && /^100\b/.test(un[0][2]), JSON.stringify({ choisi, un }));
-      /* « Imprimer » : page d'impression avec le filtre et le seul utilisateur */
-      const [impression] = await Promise.all([p.context().waitForEvent('page', { timeout: 30000 }).catch(() => null), cliquer(p, 'retoursfournisseur #tbImprimer')]);
-      const imp = impression ? await impression.waitForLoadState().then(() => impression.evaluate(() => ({ titre: document.title, filtre: /Utilisateur :/.test(document.body.innerText),
-        lignes: document.querySelectorAll('table.rf-utilisateurs tr.rf-utilisateur').length }))).catch((e) => ({ erreur: String(e) })) : null;
-      ok('1. « Imprimer » : page du tableau, filtre utilisateur rappelé', imp && /retours fournisseurs/i.test(imp.titre) && imp.filtre && imp.lignes === 1, JSON.stringify(imp));
+      /* « Imprimer » : PDF du tableau (plan du 08/11, point 7 : jrxml au lieu de l'impression du navigateur), filtre
+         utilisateur rappele en tete, sa seule ligne */
+      const [repImp, impression] = await Promise.all([p.waitForResponse((r) => /tableau-bord\/pdf/.test(r.url()), { timeout: 120000 }).catch(() => null),
+        p.context().waitForEvent('page', { timeout: 120000 }).catch(() => null), cliquer(p, 'retoursfournisseur #tbImprimer')]);
+      const oImp = repImp ? await repImp.json().catch(() => ({})) : {};
+      const fImp = oImp.url ? require('../support/editions').fichierEdition(oImp.url) : '';
+      const tImp = fImp && fs.existsSync(fImp) ? execFileSync('pdftotext', ['-raw', fImp, '-'], { encoding: 'utf8' }).replace(/\s+/g, ' ') : '';
+      const imp = { url: oImp.url, titre: /TABLEAU DE BORD DES RETOURS FOURNISSEURS/.test(tImp), filtre: tImp.includes('Utilisateur : ' + nom),
+        ligne: tImp.includes(nom + ' ' + un[0][1] + ' ') };
+      ok('1. « Imprimer » : PDF du tableau, filtre utilisateur rappelé, sa ligne', imp.titre && imp.filtre && imp.ligne && /\.pdf$/.test(imp.url || ''), JSON.stringify(imp));
       if (impression) { await impression.close().catch(() => {}); }
       /* « Export Excel » : classeur telecharge */
       const telechargement = new Promise((res) => {

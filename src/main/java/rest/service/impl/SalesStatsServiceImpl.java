@@ -3156,6 +3156,7 @@ public class SalesStatsServiceImpl implements SalesStatsService {
         }
         List<VenteDTO> ventes = tuples.stream().map(tuple -> tupleToVenteDTO(tuple, canexport, params))
                 .collect(Collectors.toList());
+        marquerVentesLiees(ventes);
         if (params.isOnlyAvoir()) {
             // Les produits en avoir sont ramenes pour toute la page en une fois : voir avoirItems.
             Map<String, List<VenteDetailsDTO>> parVente = avoirItems(
@@ -3164,6 +3165,46 @@ public class SalesStatsServiceImpl implements SalesStatsService {
                     .setItems(parVente.getOrDefault(vente.getLgPREENREGISTREMENTID(), Collections.emptyList())));
         }
         return ventes;
+    }
+
+    /**
+     * Plan du 08/11, point 4 : vente scindee (assurance + comptant, cas 1 du 03/11). Chaque vente du couple porte
+     * l'identifiant et la reference de l'autre (lg_VENTE_LIEE_ID, pose sur les deux ventes) : la liste affiche un
+     * repere sur les deux. Une seule requete pour toute la page ; aucune erreur de lecture ne vide la liste.
+     */
+    void marquerVentesLiees(List<VenteDTO> ventes) {
+        List<String> ids = ventes.stream().map(VenteDTO::getLgPREENREGISTREMENTID).filter(Objects::nonNull)
+                .collect(Collectors.toList());
+        if (ids.isEmpty()) {
+            return;
+        }
+        try {
+            StringBuilder marques = new StringBuilder();
+            for (int i = 0; i < ids.size(); i++) {
+                marques.append(i == 0 ? "?" : ", ?").append(i + 1);
+            }
+            Query q = getEntityManager().createNativeQuery(
+                    "SELECT p.lg_PREENREGISTREMENT_ID AS vente, l.lg_PREENREGISTREMENT_ID AS liee, l.str_REF AS ref_liee"
+                            + " FROM t_preenregistrement p JOIN t_preenregistrement l ON l.lg_PREENREGISTREMENT_ID = p.lg_VENTE_LIEE_ID"
+                            + " WHERE p.lg_PREENREGISTREMENT_ID IN (" + marques + ")");
+            for (int i = 0; i < ids.size(); i++) {
+                q.setParameter(i + 1, ids.get(i));
+            }
+            Map<String, Object[]> liees = new HashMap<>();
+            for (Object o : q.getResultList()) {
+                Object[] r = (Object[]) o;
+                liees.put(String.valueOf(r[0]), r);
+            }
+            ventes.forEach(v -> {
+                Object[] r = liees.get(v.getLgPREENREGISTREMENTID());
+                if (r != null) {
+                    v.setVenteLiee(String.valueOf(r[1]));
+                    v.setVenteLieeRef(r[2] != null ? String.valueOf(r[2]) : null);
+                }
+            });
+        } catch (RuntimeException e) {
+            LOG.log(Level.WARNING, "ventes liees de la liste des ventes terminees", e);
+        }
     }
 
     /**

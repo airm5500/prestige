@@ -107,6 +107,12 @@ public interface SuggestionService {
 
     void addItem(SuggestionOrderDetailDTO suggestionOrderDetail);
 
+    /**
+     * Plan du 08/11 (11.1) : rang (a partir de 0) de la ligne du produit dans la liste de la suggestion, dans l'ordre
+     * de la grille (nom, puis identifiant de ligne) ; -1 si le produit n'y est pas.
+     */
+    int rangDansSuggestion(String suggestionId, String familleId);
+
     void updateItemSeuil(SuggestionOrderDetailDTO suggestionOrderDetail);
 
     void updateItemQteCmde(SuggestionOrderDetailDTO suggestionOrderDetail);
@@ -132,6 +138,14 @@ public interface SuggestionService {
     JSONObject fetchItems(String orderId, String search, int start, int limit);
 
     void cleanSuggestion(String suggestionId, TUser tUser);
+
+    /**
+     * Plan du 08/11, point 11.5 : a l'ouverture d'une suggestion, nettoyage si KEY_NETTOYER_SUGGESTION_OUVERTURE vaut
+     * 1.
+     *
+     * @return nombre de lignes retirees, ou -1 si le parametre est a 0 (rien n'est fait)
+     */
+    int nettoyerALOuverture(String suggestionId, TUser tUser);
 
     void deleteSuggestion(String suggestionId);
 

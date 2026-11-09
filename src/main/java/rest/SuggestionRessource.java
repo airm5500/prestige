@@ -125,10 +125,14 @@ public class SuggestionRessource {
 
     @POST
     @Path("item/add")
-    public Response addItem(SuggestionOrderDetailDTO suggestionOrderDetail) {
+    public Response addItem(SuggestionOrderDetailDTO suggestionOrderDetail) throws JSONException {
 
         this.suggestionService.addItem(suggestionOrderDetail);
-        return Response.ok().entity(ResultFactory.getSuccessResultMsg()).build();
+        // plan du 08/11 (11.1) : rang du produit dans la liste triee, pour que l'ecran affiche la page qui le contient
+        int rang = this.suggestionService.rangDansSuggestion(suggestionOrderDetail.getSuggestionId(),
+                suggestionOrderDetail.getFamilleId());
+        return Response.ok().entity(new JSONObject().put("success", true).put("rang", rang)
+                .put("suggestionId", suggestionOrderDetail.getSuggestionId()).toString()).build();
     }
 
     @POST
@@ -338,6 +342,30 @@ public class SuggestionRessource {
 
         suggestionService.cleanSuggestion(suggestionId, user);
         return Response.ok(new JSONObject().put("success", true).toString()).build();
+    }
+
+    /**
+     * Plan du 08/11, point 11.5 : appele a l'ouverture d'une suggestion. Parametre KEY_NETTOYER_SUGGESTION_OUVERTURE a
+     * 1 : nettoyage (meme regle que le bouton), « retires » = lignes sorties ; a 0 : « actif » faux, rien n'est fait.
+     */
+    @POST
+    @Path("ouverture")
+    @Consumes(MediaType.APPLICATION_FORM_URLENCODED)
+    public Response ouverture(@QueryParam("suggestionId") String suggestionId) {
+        TUser user = (TUser) servletRequest.getSession().getAttribute(Constant.AIRTIME_USER);
+        if (user == null) {
+            return Response
+                    .ok(new JSONObject().put("success", false).put("message", Constant.DECONNECTED_MESSAGE).toString())
+                    .build();
+        }
+        if (suggestionId == null || suggestionId.isEmpty()) {
+            return Response.ok(new JSONObject().put("success", false)
+                    .put("message", "L'identifiant de la suggestion est requis.").toString()).build();
+        }
+        int n = suggestionService.nettoyerALOuverture(suggestionId, user);
+        return Response.ok(
+                new JSONObject().put("success", true).put("actif", n >= 0).put("retires", Math.max(n, 0)).toString())
+                .build();
     }
 
 }

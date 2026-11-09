@@ -1684,6 +1684,8 @@ public class PilotageService {
                     "A vaut " + String.format(java.util.Locale.FRANCE, "%+.1f", variation) + " % de plus que B");
         }
         tuiles.put(ecart);
+        /* plan du 08/11, point 5 : ce que l'on regarde, en clair, et la synthese sur la periode */
+        String synthese = syntheseComparaison(serieA.libelle, serieB.libelle, serieA.total, serieB.total);
 
         /* Une ligne par mois : A, B, leur ecart et leur rapport. */
         Map<String, JSONObject> lignes = moisDeLaFenetre(axe.graphique);
@@ -1697,14 +1699,50 @@ public class PilotageService {
             m.put("a", arrondi(va)).put("b", arrondi(vb)).put("ecart", arrondi(va - vb)).put("rapport",
                     vb == 0 ? 0 : arrondi(va / vb));
         }
-        return new JSONObject().put("tuiles", tuiles).put("mois", mois)
-                .put("comparaison",
-                        new JSONObject().put("type", genre).put("grandeur", mesure).put("libelleA", serieA.libelle)
-                                .put("libelleB", serieB.libelle).put("libelleGrandeur", libelleKpi(mesure)))
+        return new JSONObject().put("tuiles", tuiles).put("mois", mois).put("comparaison", new JSONObject()
+                .put("type", genre).put("grandeur", mesure).put("libelleA", serieA.libelle)
+                .put("libelleB", serieB.libelle).put("libelleGrandeur", libelleKpi(mesure))
+                .put("phrase",
+                        phraseComparaison(libelleKpi(mesure), serieA.libelle, serieB.libelle,
+                                mois.length() > 0 ? mois.getJSONObject(0).optString("libelle") : "",
+                                mois.length() > 0 ? mois.getJSONObject(mois.length() - 1).optString("libelle") : ""))
+                .put("synthese", synthese))
                 .put("note",
                         COMPARER_GROSSISTES.equals(genre)
                                 ? "Deux grossistes se comparent sur ce qu'on leur achète : un grossiste ne vend rien."
                                 : "Les deux séries sont calculées par la même requête, sur la même période.");
+    }
+
+    /**
+     * Plan du 08/11, point 5 : la phrase au-dessus de la courbe du comparateur, par exemple « Chiffre d'affaires TTC
+     * mois par mois : Famille X (bleu) comparé à Famille Y (orange), de Janvier 2026 à Octobre 2026 ».
+     */
+    static String phraseComparaison(String grandeur, String a, String b, String premierMois, String dernierMois) {
+        String periode = StringUtils.isBlank(premierMois) ? ""
+                : premierMois.equals(dernierMois) ? ", en " + premierMois : ", de " + premierMois + " à " + dernierMois;
+        return StringUtils.defaultIfBlank(grandeur, "Valeur") + " mois par mois : " + a + " (bleu) comparé à " + b
+                + " (orange)" + periode;
+    }
+
+    /**
+     * Plan du 08/11, point 5 : la synthese sous la courbe, sur la periode choisie (memes totaux que les tuiles A et B).
+     * « X fait 12,0 % de plus que Y sur la période » ; « de moins » quand X est en dessous ; sans pourcentage quand Y
+     * est a zero ou que l'ecart est hors d'echelle.
+     */
+    static String syntheseComparaison(String a, String b, double totalA, double totalB) {
+        if (totalA == 0d && totalB == 0d) {
+            return a + " et " + b + " sont à zéro sur la période.";
+        }
+        Double v = PilotagePeriodes.variation(totalA, totalB);
+        if (v == null) {
+            return totalB == 0d ? b + " est à zéro sur la période : l'écart ne se mesure pas en pourcentage."
+                    : a + " fait plus de cent fois " + b + " sur la période.";
+        }
+        if (Math.abs(v) < 0.05d) {
+            return a + " et " + b + " font autant sur la période.";
+        }
+        return a + " fait " + String.format(java.util.Locale.FRANCE, "%.1f", Math.abs(v)) + " % "
+                + (v > 0 ? "de plus" : "de moins") + " que " + b + " sur la période.";
     }
 
     /**

@@ -890,45 +890,139 @@ public class CampagneService {
     @SuppressWarnings("unchecked")
     public JSONArray journal(int limite) {
         JSONArray a = new JSONArray();
-        for (Object[] r : (List<Object[]>) em.createNativeQuery("SELECT c.id AS id, c.categorie AS categorie,"
+        List<Object[]> campagnes = (List<Object[]>) em.createNativeQuery("SELECT c.id AS id, c.categorie AS categorie,"
                 + " f.libelle AS fete, c.date_cible AS jour, c.origine AS origine, c.statut AS statut, c.canal AS canal,"
                 + " m.libelle AS modele, c.nb_cibles AS cibles, c.nb_envoyes AS envoyes, c.nb_exclus AS exclus,"
                 + " COALESCE(c.traitee_at, c.created_at) AS quand,"
                 + " TRIM(CONCAT(COALESCE(u.str_FIRST_NAME,''),' ',COALESCE(u.str_LAST_NAME,''))) AS auteur,"
-                + " (SELECT COUNT(*) FROM t_campagne_ligne l JOIN notification_client nc"
-                + "   ON nc.notification_id = l.lg_NOTIFICATION_ID WHERE l.campagne_id = c.id AND nc.statut = 'SENT') AS partis,"
-                + " c.accord_explicite AS accord,"
-                /* retours du 25/10 (point 14) : suivi des messages WhatsApp de la campagne */
-                + " (SELECT COUNT(*) FROM t_campagne_ligne l JOIN whatsapp_message w ON w.notification_id = l.lg_NOTIFICATION_ID"
-                + "   WHERE l.campagne_id = c.id AND w.statut IN ('DELIVRE', 'LU')) AS distribues,"
-                + " (SELECT COUNT(*) FROM t_campagne_ligne l JOIN whatsapp_message w ON w.notification_id = l.lg_NOTIFICATION_ID"
-                + "   WHERE l.campagne_id = c.id AND w.statut = 'LU') AS lus,"
-                + " (SELECT COUNT(*) FROM t_campagne_ligne l JOIN whatsapp_message w ON w.notification_id = l.lg_NOTIFICATION_ID"
-                + "   WHERE l.campagne_id = c.id AND w.statut = 'ECHEC') AS echecs,"
-                + " (SELECT COUNT(*) FROM t_campagne_ligne l JOIN whatsapp_message w ON w.notification_id = l.lg_NOTIFICATION_ID"
-                + "   WHERE l.campagne_id = c.id AND " + repondu(delaiReponse()) + ") AS repondus"
-                + " FROM t_campagne c LEFT JOIN t_fete f ON f.code = c.fete_code"
+                + " c.accord_explicite AS accord" + " FROM t_campagne c LEFT JOIN t_fete f ON f.code = c.fete_code"
                 + " LEFT JOIN modele_message m ON m.id = c.lg_MODELE"
                 + " LEFT JOIN t_user u ON u.lg_USER_ID = COALESCE(c.lg_USER_TRAITE, c.lg_USER_ID)"
                 + " WHERE c.statut <> 'PROPOSEE' ORDER BY quand DESC LIMIT " + Math.max(1, Math.min(500, limite)))
-                .getResultList()) {
+                .getResultList();
+        /* plan du 08/11, point 6 : les lignes des seules campagnes affichees */
+        List<String> ids = new ArrayList<>();
+        campagnes.forEach(r -> ids.add(texte(r[0])));
+        Map<String, Totaux> totaux = totauxDesCampagnes(ids);
+        for (Object[] r : campagnes) {
             Object q = r[11];
+            /* plan du 08/11, point 6 : compteurs du journal = ceux du suivi (meme regle, SMS compris) */
+            Totaux t = totaux.computeIfAbsent(texte(r[0]), k -> new Totaux());
             a.put(new JSONObject().put("id", texte(r[0])).put("titre", titre(texte(r[1]), texte(r[2]), r[3]))
                     .put("categorie", texte(r[1]))
                     .put("origine", "AUTO".equals(texte(r[4])) ? "Proposition" : "Manuelle").put("statut", texte(r[5]))
                     .put("canal", Campagnes.libelleCanal(texte(r[6])))
                     .put("modele", StringUtils.defaultIfBlank(texte(r[7]), "Message saisi"))
                     .put("cibles", ((Number) r[8]).intValue()).put("envoyes", ((Number) r[9]).intValue())
-                    .put("exclus", ((Number) r[10]).intValue()).put("partis", ((Number) r[13]).intValue())
+                    .put("exclus", ((Number) r[10]).intValue()).put("partis", t.envoyes)
                     .put("quand",
                             q instanceof Timestamp
                                     ? ((Timestamp) q).toLocalDateTime().toString().replace('T', ' ').substring(0, 16)
                                     : texte(q))
-                    .put("auteur", texte(r[12])).put("accordExplicite", Boolean.TRUE.equals(bool(r[14])))
-                    .put("distribues", ((Number) r[15]).intValue()).put("lus", ((Number) r[16]).intValue())
-                    .put("echecs", ((Number) r[17]).intValue()).put("repondus", ((Number) r[18]).intValue()));
+                    .put("auteur", texte(r[12])).put("accordExplicite", Boolean.TRUE.equals(bool(r[13])))
+                    .put("distribues", t.distribues).put("lus", t.lus).put("echecs", t.echecs)
+                    .put("repondus", t.repondus).put("enAttente", t.attente));
         }
         return a;
+    }
+
+    /**
+     * Plan du 08/11, point 6 : etat d'un message de campagne. Une seule regle pour le journal (compteurs, indicateur «
+     * Envoi ») et le suivi message par message, WhatsApp comme SMS (avant : le journal ne comptait distribues, lus et
+     * echecs que pour WhatsApp, et « partis » que pour les SMS).
+     */
+    static String etatMessage(boolean retenu, String wstatut, String ncstatut, String livraison) {
+        String w = StringUtils.defaultString(wstatut);
+        if (!retenu) {
+            return "Exclu";
+        }
+        if ("ECHEC".equals(w)) {
+            return "Échec";
+        }
+        if ("LU".equals(w)) {
+            return "Lu";
+        }
+        if ("DELIVRE".equals(w) || (w.isEmpty() && "DELIVERED_TO_TERMINAL".equals(livraison))) {
+            return "Distribué";
+        }
+        if ("ENVOYE".equals(w) || "SIMULE".equals(w) || "SENT".equals(ncstatut)) {
+            return "Envoyé";
+        }
+        return "En attente";
+    }
+
+    /** Totaux d'une campagne : un lu est aussi distribue et envoye, un distribue aussi envoye. */
+    static final class Totaux {
+        int envoyes, distribues, lus, repondus, echecs, attente, exclus;
+
+        void compter(String etat, boolean repondu) {
+            switch (etat) {
+            case "Exclu":
+                exclus++;
+                break;
+            case "Échec":
+                echecs++;
+                break;
+            case "Lu":
+                lus++;
+                distribues++;
+                envoyes++;
+                break;
+            case "Distribué":
+                distribues++;
+                envoyes++;
+                break;
+            case "Envoyé":
+                envoyes++;
+                break;
+            default:
+                attente++;
+            }
+            if (repondu) {
+                repondus++;
+            }
+        }
+    }
+
+    /** Lignes des campagnes donnees : [campagne, retenu, statut WhatsApp, statut SMS, livraison SMS, repondu]. */
+    private static String lignesCampagnes(String filtre, int delai) {
+        return "SELECT l.campagne_id AS campagne, l.retenu AS retenu, w.statut AS wstatut, nc.statut AS ncstatut,"
+                + " nc.delivery_status AS livraison, CASE WHEN w.id IS NULL THEN 0 WHEN " + repondu(delai)
+                + " THEN 1 ELSE 0 END AS repondu,"
+                + " TRIM(CONCAT(COALESCE(cl.str_FIRST_NAME, ''), ' ', COALESCE(cl.str_LAST_NAME, ''))) AS client,"
+                + " COALESCE(w.telephone, cl.str_ADRESSE) AS tel, l.motif AS motif, COALESCE(w.created_at, nc.sent_at) AS quand"
+                + " FROM t_campagne_ligne l LEFT JOIN t_client cl ON cl.lg_CLIENT_ID = l.lg_CLIENT_ID"
+                + " LEFT JOIN whatsapp_message w ON w.notification_id = l.lg_NOTIFICATION_ID"
+                + " LEFT JOIN notification_client nc ON nc.notification_id = l.lg_NOTIFICATION_ID AND nc.client_id = l.lg_CLIENT_ID"
+                + " WHERE " + filtre;
+    }
+
+    /**
+     * Compteurs seulement : memes colonnes 0 a 5 que {@link #lignesCampagnes}, sans le client (la jointure sur t_client
+     * parcourait toute la table pour chaque ligne : journal de 27 s sur le banc).
+     */
+    static String lignesTotaux(String filtre, int delai) {
+        return "SELECT l.campagne_id AS campagne, l.retenu AS retenu, w.statut AS wstatut, nc.statut AS ncstatut,"
+                + " nc.delivery_status AS livraison, CASE WHEN w.id IS NULL THEN 0 WHEN " + repondu(delai)
+                + " THEN 1 ELSE 0 END AS repondu" + " FROM t_campagne_ligne l"
+                + " LEFT JOIN whatsapp_message w ON w.notification_id = l.lg_NOTIFICATION_ID"
+                + " LEFT JOIN notification_client nc ON nc.notification_id = l.lg_NOTIFICATION_ID AND nc.client_id = l.lg_CLIENT_ID"
+                + " WHERE " + filtre;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Totaux> totauxDesCampagnes(List<String> ids) {
+        Map<String, Totaux> m = new HashMap<>();
+        if (ids.isEmpty()) {
+            return m;
+        }
+        for (Object[] r : (List<Object[]>) em.createNativeQuery(lignesTotaux("l.campagne_id IN (:ids)", delaiReponse()))
+                .setParameter("ids", ids).getResultList()) {
+            m.computeIfAbsent(texte(r[0]), k -> new Totaux()).compter(
+                    etatMessage(Boolean.TRUE.equals(bool(r[1])), texte(r[2]), texte(r[3]), texte(r[4])),
+                    r[5] != null && ((Number) r[5]).intValue() == 1);
+        }
+        return m;
     }
 
     /**
@@ -958,53 +1052,23 @@ public class CampagneService {
     @SuppressWarnings("unchecked")
     public JSONObject suivi(String campagneId) {
         JSONArray lignes = new JSONArray();
-        int envoyes = 0, distribues = 0, lus = 0, repondus = 0, echecs = 0, attente = 0, exclus = 0;
+        Totaux t = new Totaux();
         for (Object[] r : (List<Object[]>) em
-                .createNativeQuery("SELECT TRIM(CONCAT(COALESCE(cl.str_FIRST_NAME, ''), ' ',"
-                        + " COALESCE(cl.str_LAST_NAME, ''))) AS client, COALESCE(w.telephone, cl.str_ADRESSE) AS tel,"
-                        + " l.retenu AS retenu, l.motif AS motif, w.statut AS wstatut, COALESCE(w.created_at, nc.sent_at) AS quand,"
-                        + " CASE WHEN w.id IS NULL THEN 0 WHEN " + repondu(delaiReponse())
-                        + " THEN 1 ELSE 0 END AS repondu," + " nc.statut AS ncstatut, nc.delivery_status AS livraison"
-                        + " FROM t_campagne_ligne l LEFT JOIN t_client cl ON cl.lg_CLIENT_ID = l.lg_CLIENT_ID"
-                        + " LEFT JOIN whatsapp_message w ON w.notification_id = l.lg_NOTIFICATION_ID"
-                        + " LEFT JOIN notification_client nc ON nc.notification_id = l.lg_NOTIFICATION_ID AND nc.client_id = l.lg_CLIENT_ID"
-                        + " WHERE l.campagne_id = ?1 ORDER BY 1")
+                .createNativeQuery(lignesCampagnes("l.campagne_id = ?1", delaiReponse()) + " ORDER BY client")
                 .setParameter(1, campagneId).getResultList()) {
-            boolean retenu = Boolean.TRUE.equals(bool(r[2]));
-            String statut = texte(r[4]), etat;
-            boolean repondu = r[6] != null && ((Number) r[6]).intValue() == 1;
-            if (!retenu) {
-                etat = "Exclu";
-                exclus++;
-            } else if ("ECHEC".equals(statut)) {
-                etat = "Échec";
-                echecs++;
-            } else if ("LU".equals(statut)) {
-                etat = "Lu";
-                lus++;
-                distribues++;
-                envoyes++;
-            } else if ("DELIVRE".equals(statut) || (statut.isEmpty() && "DELIVERED_TO_TERMINAL".equals(texte(r[8])))) {
-                etat = "Distribué";
-                distribues++;
-                envoyes++;
-            } else if ("ENVOYE".equals(statut) || "SIMULE".equals(statut) || "SENT".equals(texte(r[7]))) {
-                etat = "Envoyé";
-                envoyes++;
-            } else {
-                etat = "En attente";
-                attente++;
-            }
-            if (repondu) {
-                repondus++;
-            }
-            Object quand = r[5];
-            lignes.put(new JSONObject().put("client", texte(r[0]).trim()).put("telephone", texte(r[1]))
-                    .put("etat", etat).put("motif", retenu ? "" : texte(r[3])).put("repondu", repondu)
+            boolean retenu = Boolean.TRUE.equals(bool(r[1]));
+            boolean repondu = r[5] != null && ((Number) r[5]).intValue() == 1;
+            String etat = etatMessage(retenu, texte(r[2]), texte(r[3]), texte(r[4]));
+            t.compter(etat, repondu);
+            Object quand = r[9];
+            lignes.put(new JSONObject().put("client", texte(r[6]).trim()).put("telephone", texte(r[7]))
+                    .put("etat", etat).put("motif", retenu ? "" : texte(r[8])).put("repondu", repondu)
                     .put("envoyeLe", quand instanceof Timestamp
                             ? ((Timestamp) quand).toLocalDateTime().toString().replace('T', ' ').substring(0, 16)
                             : ""));
         }
+        int envoyes = t.envoyes, distribues = t.distribues, lus = t.lus, repondus = t.repondus, echecs = t.echecs,
+                attente = t.attente, exclus = t.exclus;
         return new JSONObject().put("success", true).put("data", lignes).put("total", lignes.length()).put("totaux",
                 new JSONObject().put("envoyes", envoyes).put("distribues", distribues).put("lus", lus)
                         .put("repondus", repondus).put("echecs", echecs).put("enAttente", attente)

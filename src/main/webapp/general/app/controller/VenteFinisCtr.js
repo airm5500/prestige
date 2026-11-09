@@ -158,6 +158,14 @@ Ext.define('testextjs.controller.VenteFinisCtr', {
     },
     onEdite: function (view, rowIndex, colIndex, item, e, rec, row) {
         if (rec.get('intPRICE') > 0 && !rec.get('cancel') && rec.get('modification')) {
+            this.ouvrirModification(rec, e && e.getTarget ? e.getTarget() : null);
+        }
+    },
+    /* plan du 08/11, point 18 : la vente est d'abord verifiee (facturee : message, pas de motif demande) ; le motif est
+       ensuite choisi dans un menu ancre sur l'icone, garde (en cours), puis l'ecran de vente s'ouvre */
+    ouvrirModification: function (rec, cible) {
+        const me = this;
+        {
             /* demande du 28/10 (point 7) : la liste est rouverte avec ces criteres si la modification est refusee */
             this.filtresRetour = this.etatFiltres();
             const data = {'isEdit': true, 'record': rec.data, 'isDevis': false, 'categorie': 'COPY'};
@@ -174,20 +182,46 @@ Ext.define('testextjs.controller.VenteFinisCtr', {
                             buttons: Ext.MessageBox.OK, icon: Ext.MessageBox.WARNING});
                         return;
                     }
-                    testextjs.app.getController('App').onRedirectTo(xtype, data);
+                    PrestigeMotifVente.choisir(cible, {titre: 'Motif de la modification'}, function (motif) {
+                        me.enregistrerMotifPuisOuvrir(rec, motif, xtype, data);
+                    });
                 },
                 failure: function () {
-                    testextjs.app.getController('App').onRedirectTo(xtype, data);
+                    /* verification indisponible : comportement d'avant (ouverture), le motif reste demande */
+                    PrestigeMotifVente.choisir(cible, {titre: 'Motif de la modification'}, function (motif) {
+                        me.enregistrerMotifPuisOuvrir(rec, motif, xtype, data);
+                    });
                 }
             });
         }
 
     },
+    enregistrerMotifPuisOuvrir: function (rec, motif, xtype, data) {
+        Ext.Ajax.request({
+            method: 'POST', url: '../api/v1/vente-motifs/modification/' + rec.get('lgPREENREGISTREMENTID'),
+            jsonData: {motifId: motif.motifId, commentaire: motif.commentaire},
+            success: function (rm) {
+                const m = Ext.JSON.decode(rm.responseText, true) || {};
+                if (m.success === false) {
+                    if (window.PrestigeToast) {
+                        PrestigeToast.afficher(m.msg || 'Motif refusé.', {niveau: 'erreur', titre: 'Modification de la vente'});
+                    }
+                    return;
+                }
+                testextjs.app.getController('App').onRedirectTo(xtype, data);
+            },
+            failure: function () {
+                if (window.PrestigeToast) {
+                    PrestigeToast.afficher('Motif non enregistré : réessayer.', {niveau: 'erreur', titre: 'Modification de la vente'});
+                }
+            }
+        });
+    },
     testSuppression: function (view, rowIndex, colIndex, item, e, record, row) {
         const me = this;
         if (record.get('intPRICE') > 0) {
             if (record.get('beCancel') && !record.get('cancel')) {
-                me.onRemoveClick(record);
+                me.onRemoveClick(record, e && e.getTarget ? e.getTarget() : null);
             }
         }
     },
@@ -335,17 +369,19 @@ Ext.define('testextjs.controller.VenteFinisCtr', {
 
         });
     },
-    onRemoveClick: function (rec) {
+    /* plan du 08/11, point 18 : motif obligatoire, choisi dans un menu ancre sur l'icone ; la confirmation se fait
+       dans le motif choisi (second clic), plus de fenetre « Voulez-Vous Annuler La Vente » */
+    onRemoveClick: function (rec, cible) {
         const me = this;
-        Ext.MessageBox.confirm('Message',
-                'Voulez-Vous Annuler La Vente',
-                function (btn) {
-                    if (btn === 'yes') {
+        PrestigeMotifVente.choisir(cible, {titre: 'Motif de l\'annulation', confirmer: 'Confirmer l\'annulation'},
+                function (motif) {
+                    {
                         let progress = Ext.MessageBox.wait('Veuillez patienter . . .', 'En cours de traitement!');
                         Ext.Ajax.request({
                             timeout: 240000,
-                            method: 'GET',
-                            url: '../api/v1/vente/annulation/' + rec.get('lgPREENREGISTREMENTID'),
+                            method: 'POST',
+                            url: '../api/v1/vente-motifs/annulation/' + rec.get('lgPREENREGISTREMENTID'),
+                            jsonData: {motifId: motif.motifId, commentaire: motif.commentaire},
                             success: function (response)
                             {
                                 progress.hide();

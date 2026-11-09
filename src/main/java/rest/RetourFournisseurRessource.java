@@ -219,6 +219,57 @@ public class RetourFournisseurRessource {
                 "attachment; filename=\"tableau_retours_fournisseur_" + debut + "_" + fin + ".xlsx\"").build();
     }
 
+    @EJB
+    private rest.report.ReportUtil reportUtil;
+
+    /**
+     * Plan du 08/11, point 7 : le tableau de bord affiche, en PDF (rp_edition_sections.jrxml) au lieu de l'impression
+     * du navigateur. Memes filtres et meme service que l'ecran ; « filtres » est le libelle des filtres tel que l'ecran
+     * l'affiche (grossiste, utilisateur), repris en tete. Rend {success, url}.
+     */
+    @GET
+    @Path("tableau-bord/pdf")
+    public Response tableauBordPdf(@QueryParam(value = "dtStart") String dtStart,
+            @QueryParam(value = "dtEnd") String dtEnd, @QueryParam(value = "fourId") String fourId,
+            @QueryParam(value = "limite") Integer limite, @QueryParam(value = "userId") String userId,
+            @QueryParam(value = "filtres") String filtres) {
+        TUser user = utilisateur();
+        if (user == null) {
+            return Response.ok().entity(new org.json.JSONObject().put("success", false)
+                    .put("msg", util.Constant.DECONNECTED_MESSAGE).toString()).build();
+        }
+        String debut = defaultDate(dtStart), fin = defaultDate(dtEnd);
+        try {
+            java.time.LocalDate.parse(debut);
+            java.time.LocalDate.parse(fin);
+        } catch (java.time.format.DateTimeParseException e) {
+            return Response.status(Response.Status.BAD_REQUEST).entity(new org.json.JSONObject().put("success", false)
+                    .put("msg", "Date invalide (attendu AAAA-MM-JJ)").toString()).build();
+        }
+        if (debut.compareTo(fin) > 0) {
+            return Response.status(Response.Status.BAD_REQUEST).entity(new org.json.JSONObject().put("success", false)
+                    .put("msg", "La date de début doit précéder la date de fin").toString()).build();
+        }
+        int n = limite == null || limite <= 0 ? 20 : Math.min(limite, 200);
+        org.json.JSONObject t = retourFournisseurService.tableauBord(debut, fin, fourId, n, userId);
+        java.util.Map<String, Object> params = reportUtil.officineData(user);
+        params.put("P_H_CLT_INFOS", "TABLEAU DE BORD DES RETOURS FOURNISSEURS");
+        String complement = filtres == null ? "" : filtres.trim();
+        if (complement.length() > 300) {
+            complement = complement.substring(0, 300);
+        }
+        params.put("P_PERIODE", "Du " + rest.report.EditionSections.date(debut) + " au "
+                + rest.report.EditionSections.date(fin) + (complement.isEmpty() ? "" : " · " + complement));
+        params.put("P_INDICATEURS", rest.report.EditionSections.indicateursRetours(t));
+        String url = reportUtil.buildReport(params, "rp_edition_sections",
+                rest.report.EditionSections.tableauRetours(t), "rp_tableau_bord_retours_fournisseur");
+        if (!reportUtil.editionEcrite(url)) {
+            return Response.ok(new org.json.JSONObject().put("success", false)
+                    .put("msg", "L'édition n'a pas pu être générée.").toString()).build();
+        }
+        return Response.ok(new org.json.JSONObject().put("success", true).put("url", url).toString()).build();
+    }
+
     @GET
     @Path("retours-items")
     public Response loadDetailsRetouFournisseurs(@QueryParam(value = "retourId") String retourId) {

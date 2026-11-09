@@ -132,6 +132,9 @@ function nettoyer() {
     'CREATE TEMPORARY TABLE za_f AS SELECT lg_FACTURE_ID id FROM t_facture WHERE lg_FACTURE_ID IN ' + factures,
     'DELETE FROM vente_modifiee_ligne WHERE modification_id IN (SELECT id FROM vente_modifiee WHERE vente_id IN (SELECT id FROM za_v) OR vente_origine_id IN (SELECT id FROM za_v))',
     'DELETE FROM vente_modifiee WHERE vente_id IN (SELECT id FROM za_v) OR vente_origine_id IN (SELECT id FROM za_v)',
+    /* plan du 08/11, point 18 : motifs d'annulation / de modification (table absente sur l'ancien code) */
+    ...(q("SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'vente_motif'") === '1'
+      ? ['DELETE FROM vente_motif WHERE vente_id IN (SELECT id FROM za_v) OR nouvelle_vente_id IN (SELECT id FROM za_v)'] : []),
     'DELETE FROM vente_exclu WHERE preenregistrement_id IN (SELECT id FROM za_v) OR tiersPayant_id IN ' + tps,
     'DELETE FROM vente_reglement WHERE vente_id IN (SELECT id FROM za_v)',
     'DELETE FROM annulation_recette WHERE preenregistrement_id IN (SELECT id FROM za_v)',

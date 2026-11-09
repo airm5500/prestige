@@ -22,6 +22,9 @@ Ext.define('testextjs.model.caisse.Vente', {
             name: 'strREF',
             type: 'string'
         },
+        /* plan du 08/11, point 4 : vente scindee (assurance + comptant) : l'autre vente du couple */
+        {name: 'venteLiee', type: 'string'},
+        {name: 'venteLieeRef', type: 'string'},
         {
             name: 'strREFTICKET',
             type: 'string'

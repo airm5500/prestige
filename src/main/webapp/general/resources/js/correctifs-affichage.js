@@ -368,6 +368,52 @@ window.PrestigeAffichage.disposerConteneur = function (conteneur, ecran) {
     }
 };
 
+/**
+ * Plan du 08/11, point 2 : fenetre a la hauteur de son contenu, sans barre de defilement.
+ *
+ * Une fenetre a hauteur fixe (460 px pour « Modifier grossiste », 600 px pour sa fiche) coupait le bas de son contenu
+ * et le faisait defiler alors que l'ecran avait la place. Apres le premier affichage, la fenetre grandit de ce qui
+ * depasse de son panneau, dans la limite de l'ecran (marge de 20 px), puis se recentre. Si l'ecran est vraiment trop
+ * petit, le panneau garde son defilement : rien n'est jamais coupe.
+ *
+ * @param {Ext.window.Window} fenetre fenetre en disposition « fit »
+ * @param {Ext.panel.Panel} panneau son contenu (formulaire)
+ */
+window.PrestigeAffichage.ajusterFenetreAuContenu = function (fenetre, panneau) {
+    'use strict';
+
+    function ajuster() {
+        try {
+            if (!fenetre || fenetre.isDestroyed || !panneau || panneau.isDestroyed || !panneau.body) {
+                return;
+            }
+            var corps = panneau.body.dom,
+                    manque = corps.scrollHeight - corps.clientHeight,
+                    place = Ext.Element.getViewportHeight() - 20,
+                    hauteur;
+            if (manque <= 0) {
+                return;
+            }
+            hauteur = Math.min(fenetre.getHeight() + manque + 2, place);
+            if (hauteur > fenetre.getHeight()) {
+                fenetre.setHeight(hauteur);
+                fenetre.center();
+            }
+        } catch (e) {
+            if (window.console && console.error) {
+                console.error('[Prestige] ajustement de la fenetre a son contenu impossible', e);
+            }
+        }
+    }
+
+    // autoShow : la fenetre est souvent deja affichee (et mise en page) quand on arrive ici
+    if (fenetre.rendered) {
+        Ext.defer(ajuster, 50);
+    } else {
+        fenetre.on('afterlayout', ajuster, null, {single: true, delay: 50});
+    }
+};
+
 window.PrestigeAffichage.collerAuConteneur = function (panneau, options) {
     'use strict';
 
@@ -397,10 +443,11 @@ window.PrestigeAffichage.collerAuConteneur = function (panneau, options) {
     }
 
     function ajuster() {
-        var cible, actuelle, element;
+        var cible, actuelle, element, bornesAvant;
         if (!panneau.rendered || panneau.isDestroyed) {
             return false;
         }
+        bornesAvant = panneau.minHeight + '|' + panneau.maxHeight;
         // une hauteur maximale declaree par l'ecran (maxHeight: 800 par exemple) l'emporterait
         // sur la taille demandee et laisserait reapparaitre une bande de fond en bas
         if (panneau.maxHeight) {
@@ -420,6 +467,12 @@ window.PrestigeAffichage.collerAuConteneur = function (panneau, options) {
         panneau.minHeight = Math.min(panneau.minHeight || hauteurMini, hauteurMini);
         // panneau central en disposition « fit » (disposerConteneur) : la taille vient de la mise en page d'ExtJS
         if (panneau.ownerCt && panneau.ownerCt.getLayout && panneau.ownerCt.getLayout().type === 'fit') {
+            // Plan du 08/11, point 3 : ouvert par le menu, un ecran a hauteur fixe (minHeight et maxHeight a 570)
+            // gardait 570 px tant qu'aucune autre mise en page n'avait lieu (« il faut cliquer sur Prestige
+            // navigation »). Les bornes viennent de changer : la mise en page du panneau central est relancee.
+            if (bornesAvant !== panneau.minHeight + '|' + panneau.maxHeight) {
+                panneau.ownerCt.updateLayout();
+            }
             return false;
         }
         cible = placeDisponible();
@@ -2425,7 +2478,60 @@ window.PrestigeConfirmation = (function () {
             }
         });
     }
-    return {icone: icone, ligne: ligne};
+    /*
+     * Plan du 08/11 : la meme confirmation dans un bouton de barre (Ext.button.Button). Premier clic : le bouton
+     * affiche « texte » en rouge ; second clic (apres 400 ms) : l'action. Sans second clic, il revient au bout de 5 s.
+     *   handler: function (b) { PrestigeConfirmation.bouton(b, 'Confirmer : supprimer 3 ?', function () { ... }); }
+     */
+    function bouton(btn, texte, action) {
+        if (!btn || btn.isDestroyed) {
+            return;
+        }
+        var etat = btn.prestigeConfirmation;
+        if (etat) {
+            if (Date.now() - etat.ouvert < GARDE) {
+                return;
+            }
+            clearTimeout(etat.minuterie);
+            rendreBouton(btn);
+            action();
+            return;
+        }
+        btn.prestigeConfirmation = {ouvert: Date.now(), texte: btn.getText(), infobulle: btn.tooltip, minuterie: setTimeout(function () {
+                rendreBouton(btn);
+            }, DELAI)};
+        /* plan du 08/11, point 11.3 : l'infobulle du bouton s'affichait sous la souris, par-dessus le bouton, et
+           prenait le second clic ; elle est retiree le temps de la confirmation */
+        if (btn.tooltip && btn.setTooltip) {
+            btn.setTooltip('');
+        }
+        if (Ext.tip && Ext.tip.QuickTipManager && Ext.tip.QuickTipManager.getQuickTip()) {
+            Ext.tip.QuickTipManager.getQuickTip().hide();
+        }
+        btn.setText(texte || 'Confirmer ?');
+        btn.addCls('prestige-confirmer-bouton');
+        if (btn.getEl()) {
+            btn.getEl().setStyle({background: '#c0392b', borderColor: '#c0392b'});
+            btn.getEl().select('.x-btn-inner').setStyle('color', '#fff');
+        }
+    }
+    function rendreBouton(btn) {
+        var etat = btn.prestigeConfirmation;
+        if (!etat || btn.isDestroyed) {
+            return;
+        }
+        btn.prestigeConfirmation = null;
+        if (etat.infobulle && btn.setTooltip) {
+            btn.setTooltip(etat.infobulle);
+        }
+        btn.removeCls('prestige-confirmer-bouton');
+        if (btn.getEl()) {
+            btn.getEl().setStyle({background: '', borderColor: ''});
+            btn.getEl().select('.x-btn-inner').setStyle('color', '');
+        }
+        btn.setText(etat.texte);
+    }
+    return {icone: icone, ligne: ligne, bouton: bouton};
 })();
 
 /*
@@ -2574,4 +2680,98 @@ window.PrestigeToast = (function () {
         return el;
     }
     return {afficher: afficher};
+})();
+
+/*
+ * Plan du 08/11, point 18 : motif obligatoire d'une annulation ou d'une modification de vente. Un menu ancre sur l'icone
+ * (pas de fenetre) liste les motifs ; « Autre » demande un texte. Avec « confirmer », le premier clic sur un motif
+ * l'affiche en rouge (« Confirmer … (motif) ? »), le second (apres 400 ms) valide ; sans « confirmer », un clic suffit.
+ *   PrestigeMotifVente.choisir(element, {titre: 'Motif de l\'annulation', confirmer: 'Confirmer l\'annulation'},
+ *       function (motif) { motif.motifId, motif.commentaire, motif.libelle });
+ */
+window.PrestigeMotifVente = (function () {
+    var GARDE = 400, cache = null;
+    function charger(fin) {
+        if (cache) {
+            fin(cache);
+            return;
+        }
+        Ext.Ajax.request({
+            url: '../api/v1/vente-motifs/motifs', method: 'GET',
+            success: function (r) {
+                var o = Ext.decode(r.responseText, true) || {};
+                if (o.success && o.data && o.data.length) {
+                    cache = o.data;
+                    fin(cache);
+                } else if (window.PrestigeToast) {
+                    PrestigeToast.afficher(o.msg || 'Motifs indisponibles.', {niveau: 'erreur'});
+                }
+            },
+            failure: function () {
+                if (window.PrestigeToast) {
+                    PrestigeToast.afficher('Motifs indisponibles : réessayer.', {niveau: 'erreur'});
+                }
+            }
+        });
+    }
+    function choisir(cible, options, fin) {
+        options = options || {};
+        charger(function (motifs) {
+            var menu, arme = null, items = [{xtype: 'component', cls: 'prestige-motif-titre',
+                    html: Ext.String.htmlEncode(options.titre || 'Motif'),
+                    style: 'padding:6px 10px;font-weight:bold;color:#1a3d6d;border-bottom:1px solid #d0d7e2'}];
+            Ext.Array.each(motifs, function (m) {
+                if (m.texteLibre) {
+                    items.push({xtype: 'textfield', itemId: 'texte-' + m.id, cls: 'prestige-motif-texte', width: 260,
+                        margin: '4 8 0 8', maxLength: 255, enforceMaxLength: true, emptyText: 'Préciser le motif (' + m.libelle + ')'});
+                }
+                items.push({text: m.libelle, itemId: 'motif-' + m.id, cls: 'prestige-motif-item', hideOnClick: false,
+                    motif: m, handler: function (item) {
+                        var champ = m.texteLibre ? menu.down('#texte-' + m.id) : null,
+                                texte = champ ? Ext.String.trim(champ.getValue() || '') : '';
+                        if (m.texteLibre && !texte) {
+                            item.setText('Précisez le motif ci-dessus');
+                            item.getEl().setStyle('color', '#c0392b');
+                            champ.focus();
+                            return;
+                        }
+                        var motif = {motifId: m.id, commentaire: texte, libelle: m.libelle};
+                        if (!options.confirmer) {
+                            menu.hide();
+                            fin(motif);
+                            return;
+                        }
+                        if (arme && arme.item === item) {
+                            if (Date.now() - arme.ouvert < GARDE) {
+                                return;
+                            }
+                            menu.hide();
+                            fin(motif);
+                            return;
+                        }
+                        if (arme) {
+                            arme.item.setText(arme.item.motif.libelle);
+                            arme.item.getEl().setStyle({color: '', background: ''});
+                            arme.item.getEl().select('.x-menu-item-text').setStyle('color', '');
+                        }
+                        arme = {item: item, ouvert: Date.now()};
+                        item.setText(options.confirmer + ' (' + m.libelle + ') ?');
+                        item.getEl().setStyle({background: '#c0392b'});
+                        item.getEl().select('.x-menu-item-text').setStyle('color', '#fff');
+                    }});
+            });
+            menu = Ext.create('Ext.menu.Menu', {cls: 'prestige-motif-vente', plain: true, minWidth: 280, items: items,
+                listeners: {hide: function () {
+                        Ext.defer(function () {
+                            menu.destroy();
+                        }, 50);
+                    }}});
+            if (cible && cible.nodeType) {
+                menu.showBy(Ext.get(cible), 'tr-br?');
+            } else {
+                menu.showAt(Ext.EventObject.getXY ? Ext.EventObject.getXY() : [200, 200]);
+            }
+        });
+    }
+    return {choisir: choisir};
 })();

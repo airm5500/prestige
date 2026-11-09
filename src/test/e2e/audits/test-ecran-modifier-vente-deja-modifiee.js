@@ -43,6 +43,9 @@ const { ok, q } = C;
     await ligne.waitFor({ timeout: 60000 });
     const reponse = p.waitForResponse((r) => r.url().includes('vente/modifier-vente-terme/'), { timeout: 60000 });
     await ligne.locator('img[data-qtip="Modifier"]').click();
+    /* plan du 08/11, point 18 : menu des motifs sur l'icone ; « Erreur de saisie » ouvre la modification (ancien code : rien) */
+    const motif = p.locator('.prestige-motif-vente .prestige-motif-item').filter({ hasText: 'Erreur de saisie' }).first();
+    if (await motif.waitFor({ state: 'visible', timeout: 5000 }).then(() => true).catch(() => false)) { await motif.click(); }
     const r = await (await reponse).json();
     ok('« Modifier » : le serveur ouvre la modification de la vente déjà modifiée', r && r.success, JSON.stringify(r).slice(0, 200));
     if (r && r.data) { C.etat.ventes.push(r.data.lgPREENREGISTREMENTID); }

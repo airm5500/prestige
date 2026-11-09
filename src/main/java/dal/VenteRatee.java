@@ -75,6 +75,17 @@ public class VenteRatee implements Serializable {
 
     @Column(name = "lg_USER_COMMANDE_ID", length = 40)
     private String lgUSERCOMMANDEID;
+    /** Plan du 08/11, point 13 : reference du BL dont l'entree en stock a marque la demande « Commandé ». */
+    @Column(name = "str_REF_ENTREE", length = 40)
+    private String strREFENTREE;
+
+    public String getStrREFENTREE() {
+        return strREFENTREE;
+    }
+
+    public void setStrREFENTREE(String strREFENTREE) {
+        this.strREFENTREE = strREFENTREE;
+    }
 
     @Column(name = "dt_RATTACHEMENT")
     @Temporal(TemporalType.TIMESTAMP)

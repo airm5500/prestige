@@ -182,9 +182,11 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.traitementSuggestion',
             plugins: [cellEditing],
             columns: [
                 {header: 'CIP', dataIndex: 'int_CIP', width: 85},
-                {header: 'Designation', dataIndex: 'str_NAME', flex: 2, minWidth: 180},
+                /* Plan du 08/11, point 9c : largeurs minimales revues pour tenir dans la fenetre sans defilement
+                   horizontal (somme des minimums : 1 250 px avant, 1 080 px apres) */
+                {header: 'Designation', dataIndex: 'str_NAME', flex: 2, minWidth: 160},
                 {
-                    header: 'Declencheur', dataIndex: 'str_FORMULE', flex: 2, minWidth: 200,
+                    header: 'Declencheur', dataIndex: 'str_FORMULE', flex: 2, minWidth: 150,
                     renderer: function (v, m, rec) {
                         // Regle appliquee, en clair, telle qu'elle a ete constatee a la creation.
                         m.tdAttr = 'data-qtip="' + Ext.String.htmlEncode(v || '') + '"';
@@ -192,22 +194,25 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.traitementSuggestion',
                     }
                 },
                 {
-                    header: 'Stock a la creation', dataIndex: 'int_STOCK_RAYON', width: 110, align: 'center',
+                    /* Plan du 08/11, point 9c : « Stock a la creation » et « Stock actuel » en une seule colonne,
+                       « rayon / reserve » ; la fleche n'apparait que si le stock a change depuis la creation. */
+                    header: 'Stock rayon / réserve', itemId: 'colStock', dataIndex: 'int_STOCK_RAYON', width: 140, align: 'center',
+                    tooltip: 'Stock rayon / stock réserve à la création de la suggestion, puis (→) le stock actuel s\'il a changé.',
                     renderer: function (v, m, rec) {
-                        return 'rayon ' + v + ' / reserve ' + rec.get('int_STOCK_RESERVE');
-                    }
-                },
-                {
-                    header: 'Stock actuel', dataIndex: 'int_STOCK_RAYON_ACTUEL', width: 110, align: 'center',
-                    renderer: function (v, m, rec) {
+                        var avant = v + ' / ' + rec.get('int_STOCK_RESERVE'),
+                                rayon = rec.get('int_STOCK_RAYON_ACTUEL'), reserve = rec.get('int_STOCK_RESERVE_ACTUEL'),
+                                connu = rayon !== undefined && rayon !== null,
+                                maintenant = rayon + ' / ' + reserve;
                         // Signale une proposition qui a vieilli depuis sa creation.
-                        var perime = (v !== rec.get('int_STOCK_RAYON'))
-                                || (rec.get('int_STOCK_RESERVE_ACTUEL') !== rec.get('int_STOCK_RESERVE'));
-                        if (perime) {
+                        if (connu && (rayon !== v || reserve !== rec.get('int_STOCK_RESERVE'))) {
                             m.style = 'color:#b06000;font-weight:bold;';
-                            m.tdAttr = 'data-qtip="Le stock a change depuis la creation de la suggestion."';
+                            m.tdAttr = 'data-qtip="A la création : rayon ' + v + ', réserve ' + rec.get('int_STOCK_RESERVE')
+                                    + '<br>Aujourd\'hui : rayon ' + rayon + ', réserve ' + reserve
+                                    + '<br>Le stock a changé depuis la création de la suggestion."';
+                            return avant + ' → ' + maintenant;
                         }
-                        return 'rayon ' + v + ' / reserve ' + rec.get('int_STOCK_RESERVE_ACTUEL');
+                        m.tdAttr = 'data-qtip="Rayon ' + v + ', réserve ' + rec.get('int_STOCK_RESERVE') + ' (inchangé depuis la création)"';
+                        return avant;
                     }
                 },
                 {header: 'Cible', dataIndex: 'int_CIBLE', width: 55, align: 'center'},
@@ -221,7 +226,7 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.traitementSuggestion',
                     }
                 },
                 {
-                    header: 'Qte retenue', dataIndex: 'int_QTE_RETENUE', width: 90, align: 'center',
+                    header: 'Qte retenue', dataIndex: 'int_QTE_RETENUE', width: 85, align: 'center',
                     editor: {
                         xtype: 'numberfield', minValue: 0, allowBlank: false, selectOnFocus: true,
                         enableKeyEvents: true, hideTrigger: true,
@@ -276,10 +281,10 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.traitementSuggestion',
                         return v;
                     }
                 },
-                {header: 'Deplacee', dataIndex: 'int_QTE_DEPLACEE', width: 75, align: 'center'},
+                {header: 'Deplacee', dataIndex: 'int_QTE_DEPLACEE', width: 70, align: 'center'},
                 colEtat,
                 {
-                    header: 'Motif / echec', dataIndex: 'str_MOTIF_LIGNE', flex: 1, minWidth: 140,
+                    header: 'Motif / echec', dataIndex: 'str_MOTIF_LIGNE', flex: 1, minWidth: 120,
                     renderer: function (v, m, rec) {
                         var code = rec.get('str_CODE_ECHEC');
                         var txt = (code ? '[' + code + '] ' : '') + (v || '');
@@ -780,7 +785,9 @@ Ext.define('testextjs.view.stockmanagement.reserve.action.traitementSuggestion',
         var win = new Ext.window.Window({
             autoShow: true,
             title: 'Traitement de la suggestion',
-            width: 1150,
+            /* Plan du 08/11, point 9c : la fenetre suit la largeur de l'ecran (1 150 px au moins quand l'ecran le
+               permet, 1 400 px au plus) : toutes les colonnes tiennent, sans barre horizontale */
+            width: Math.min(Ext.Element.getViewportWidth() - 20, Math.max(1150, Math.min(Ext.Element.getViewportWidth() - 80, 1400))),
             height: 620,
             minWidth: 800,
             minHeight: 400,

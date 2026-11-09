@@ -452,6 +452,47 @@ public class SalesStatsRessource {
     }
 
     /**
+     * Plan du 08/11, point 7 : l'onglet « Analyse » des avoirs en PDF (rp_edition_sections.jrxml), memes chiffres que
+     * l'ecran (meme service, meme periode). Rend {success, url} ; url est relative au contexte.
+     */
+    @GET
+    @Path("avoirs/analyse/pdf")
+    public Response analyserAvoirsPdf(@QueryParam(value = "dtStart") String dtStart,
+            @QueryParam(value = "dtEnd") String dtEnd) throws JSONException {
+        javax.servlet.http.HttpSession hs = servletRequest.getSession(false);
+        TUser tu = hs == null ? null : (TUser) hs.getAttribute(Constant.AIRTIME_USER);
+        if (tu == null) {
+            return Response.ok().entity(ResultFactory.getFailResult(Constant.DECONNECTED_MESSAGE)).build();
+        }
+        LocalDate debut, fin;
+        try {
+            fin = StringUtils.isBlank(dtEnd) ? LocalDate.now() : LocalDate.parse(dtEnd);
+            debut = StringUtils.isBlank(dtStart) ? fin.withDayOfMonth(1) : LocalDate.parse(dtStart);
+        } catch (java.time.format.DateTimeParseException e) {
+            return Response.ok(new JSONObject().put("success", false).put("msg", "Dates invalides.").toString())
+                    .build();
+        }
+        if (debut.isAfter(fin)) {
+            return Response.ok(new JSONObject().put("success", false)
+                    .put("msg", "La date de début doit précéder la date de fin.").toString()).build();
+        }
+        JSONObject analyse = analyseAvoirs.analyser(debut, fin);
+        java.util.Map<String, Object> params = reportUtil.officineData(tu);
+        params.put("P_H_CLT_INFOS", "ANALYSE DES AVOIRS");
+        params.put("P_PERIODE", "Du " + rest.report.EditionSections.date(debut.toString()) + " au "
+                + rest.report.EditionSections.date(fin.toString()));
+        params.put("P_INDICATEURS", rest.report.EditionSections.indicateursAvoirs(analyse));
+        String url = reportUtil.buildReport(params, "rp_edition_sections",
+                rest.report.EditionSections.analyseAvoirs(analyse), "rp_analyse_avoirs");
+        if (!reportUtil.editionEcrite(url)) {
+            return Response.ok(
+                    new JSONObject().put("success", false).put("msg", "L'édition n'a pas pu être générée.").toString())
+                    .build();
+        }
+        return Response.ok(new JSONObject().put("success", true).put("url", url).toString()).build();
+    }
+
+    /**
      * Plafond de lignes de l'export Excel. Le fichier reste ouvrable et la memoire du serveur bornee. Au-dela, une
      * derniere ligne du tableau le dit explicitement : un export tronque en silence se lirait comme un export complet.
      */

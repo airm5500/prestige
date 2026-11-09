@@ -9,7 +9,7 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
 const BASE = ENV_E2E.BASE;
 const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, BASE, '-e', s], { encoding: 'utf8' });
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
-const script = require('path').join(__dirname, '../../../main/resources/db/migration/V6.9.36__rattrapage_cloture_inventaire_rest.sql');
+const script = require('path').join(__dirname, '../../../../outils/scripts-manuels/rattrapage_cloture_inventaire_rest.sql');
 const jouerScript = () => execFileSync('mariadb', [...ENV_E2E.MARIADB, BASE], { input: require('fs').readFileSync(script), encoding: 'utf8' });
 
 const A = 'E2E-RATT-REST';      // cloture par l'ancienne version REST : a rattraper

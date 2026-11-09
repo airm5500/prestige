@@ -1145,6 +1145,11 @@ Ext.define('testextjs.controller.PilotageCtr', {
             var panneau = ecran.down('#graphiquePanneau-comparateur');
             if (panneau) {
                 panneau.setTitle((comparaison.libelleGrandeur || 'Grandeur') + ' par ' + (comparaison.libelleAxe || 'axe').toLowerCase());
+                /* un croisement n'a pas de synthese A / B */
+                var sansSynthese = panneau.down('#syntheseComparateur');
+                if (sansSynthese) {
+                    sansSynthese.hide();
+                }
             }
             return;
         }
@@ -1182,9 +1187,16 @@ Ext.define('testextjs.controller.PilotageCtr', {
             /* Comparer deux GRANDEURS : leurs noms disent déjà ce qui est mesuré, répéter la grandeur
                donnerait « Chiffre d'affaires et Achats — Chiffre d'affaires ». */
             var deuxGrandeurs = (comparaison.type || '') === 'GRANDEUR';
-            panneau.setTitle('Évolution comparée : ' + (comparaison.libelleA || 'objet A') + ' et '
+            /* plan du 08/11, point 5 : la phrase dit ce que l'on regarde (couleurs, periode) */
+            panneau.setTitle(comparaison.phrase ? Ext.String.htmlEncode(comparaison.phrase)
+                    : 'Évolution comparée : ' + (comparaison.libelleA || 'objet A') + ' et '
                     + (comparaison.libelleB || 'objet B')
                     + (!deuxGrandeurs && comparaison.libelleGrandeur ? ' — ' + comparaison.libelleGrandeur : ''));
+            var synthese = panneau.down('#syntheseComparateur');
+            if (synthese) {
+                synthese.update(comparaison.synthese ? '<div class="pilotage-synthese">' + Ext.String.htmlEncode(comparaison.synthese) + '</div>' : '');
+                synthese.setVisible(!!comparaison.synthese);
+            }
         }
     },
 

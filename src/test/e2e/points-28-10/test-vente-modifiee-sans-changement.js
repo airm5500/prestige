@@ -7,6 +7,8 @@
  *  - apres « OK », « Ventes terminées » se rouvre avec le meme critere de recherche et la vente dans la liste ;
  *  - une vraie modification (quantite changee) est toujours validee (l'origine est annulee) ;
  *  - aucune erreur JavaScript. Tout ce que le test cree est retire, stock remis.
+ * Plan du 08/11, point 18 : « Modifier » demande d'abord un motif (menu sur l'icone, « Erreur de saisie ») ; motif
+ * EN_COURS a l'ouverture, retire si la copie n'est pas validee, VALIDE avec la nouvelle vente sinon (une seule ligne).
  */
 const { chromium } = require('playwright-core');
 const ENV_E2E = require('../outils/poste');
@@ -31,6 +33,7 @@ function nettoyer() {
     + "CREATE TEMPORARY TABLE e2e_p7_r AS SELECT lg_REGLEMENT_ID id FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID IN (" + v + ") AND lg_REGLEMENT_ID IS NOT NULL;"
     + "DELETE FROM vente_modifiee_ligne WHERE modification_id IN (SELECT id FROM vente_modifiee WHERE vente_id IN (" + v + ") OR vente_origine_id IN (" + v + "));"
     + "DELETE FROM vente_modifiee WHERE vente_id IN (" + v + ") OR vente_origine_id IN (" + v + ");"
+    + "DELETE FROM vente_motif WHERE vente_id IN (" + v + ");"
     + "DELETE FROM vente_reglement WHERE vente_id IN (" + v + ");"
     + "DELETE FROM annulation_recette WHERE preenregistrement_id IN (" + v + ");"
     + "DELETE FROM hmvtproduit WHERE pkey IN (SELECT id FROM e2e_p7_l);"
@@ -70,6 +73,9 @@ function nettoyer() {
     const r = await fetch(u, { method: m, headers: { 'Content-Type': 'application/json' }, body: c ? JSON.stringify(c) : undefined });
     const t = await r.text(); try { return JSON.parse(t); } catch (e) { return { success: false, brut: t.slice(0, 200) }; }
   }, [methode, url, corps]);
+  /* plan du 08/11, point 18 : lignes de motif d'une vente d'origine */
+  const motifs = (id) => q("SELECT IFNULL(GROUP_CONCAT(CONCAT_WS('|', type_operation, statut, motif_libelle, IFNULL(nouvelle_vente_id, ''), montant, IFNULL(vendeur_id, ''), operateur_id) SEPARATOR ';'), '')"
+    + " FROM vente_motif WHERE vente_id = '" + id + "'");
   const etat = (id) => q("SELECT CONCAT(b_IS_CANCEL, '|', str_STATUT) FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID = '" + id + "'");
   const message = () => p.evaluate(() => (Ext.Msg.isVisible() ? Ext.Msg.msg.getEl().dom.innerText : null));
   const clicMsg = (x) => p.evaluate((id) => { Ext.Msg.down('button[itemId=' + id + ']').btnEl.dom.click(); }, x);
@@ -89,9 +95,12 @@ function nettoyer() {
       if (s.isLoading()) { return false; }
       const i = s.findExact('lgPREENREGISTREMENTID', id);
       if (i < 0) { return false; }
-      testextjs.app.getController('VenteFinisCtr').onEdite(g.getView(), i, 0, null, null, s.getAt(i), null);
+      const n = g.getView().getNode(i), icone = n && (n.querySelector('.x-action-col-icon') || n);
+      testextjs.app.getController('VenteFinisCtr').onEdite(g.getView(), i, 0, null, { getTarget: () => icone }, s.getAt(i), null);
       return true;
     }, venteId, { timeout: 60000 });
+    /* plan du 08/11, point 18 : motif obligatoire, choisi dans le menu (pas de fenetre) */
+    await p.click('.prestige-motif-vente .x-menu-item:has-text("Erreur de saisie")', { timeout: 15000 });
     await p.waitForFunction(() => { const c = testextjs.app.getController('VenteCtr'); return c.current && c.current.lgPREENREGISTREMENTID && Ext.ComponentQuery.query('doventemanager #btnCloture').some((x) => x.isVisible(true)); }, null, { timeout: 60000 });
     await p.waitForTimeout(1500);
     return p.evaluate(() => testextjs.app.getController('VenteCtr').current.lgPREENREGISTREMENTID);
@@ -144,9 +153,11 @@ function nettoyer() {
       return g ? { critere: Ext.ComponentQuery.query('ventemanager #query')[0].getValue(), presente: g.getStore().findExact('lgPREENREGISTREMENTID', id) >= 0, lignes: g.getStore().getCount() } : null; }, vente);
     ok('Retour à « Ventes terminées » avec le même critère de recherche', liste && l && l.critere === ref && l.presente, JSON.stringify(l));
     ok('La copie est retirée', q("SELECT COUNT(*) FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID = '" + copie + "' AND str_STATUT = 'is_Process'") === '0');
+    ok('Point 18 : modification non validée, son motif est retiré', motifs(vente) === '', motifs(vente));
 
     /* vraie modification : toujours validee */
     const copie2 = await ouvrirModification(vente, ref);
+    ok('Point 18 : motif « Erreur de saisie » en cours à l\'ouverture de la modification (un seul)', motifs(vente) === 'MODIFICATION|EN_COURS|Erreur de saisie||' + produit.pu + '|' + ADMIN + '|' + ADMIN, motifs(vente));
     const ligne = q("SELECT lg_PREENREGISTREMENT_DETAIL_ID FROM t_preenregistrement_detail WHERE lg_PREENREGISTREMENT_ID = '" + copie2 + "' LIMIT 1");
     /* comme la grille de l'ecran (onGridEdit) */
     const maj = await api('POST', '../api/v1/vente/update/item/vno', { itemId: ligne, qte: 2, qteServie: 2, itemPu: produit.pu, produitId: produit.id });
@@ -157,6 +168,8 @@ function nettoyer() {
     await p.waitForTimeout(4000);
     ok('Vraie modification (quantité 1 → 2) : validée, l\'origine est annulée', etat(vente).startsWith('1|')
       && q("SELECT str_STATUT FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID = '" + copie2 + "'") === 'is_Closed', JSON.stringify(maj).slice(0, 120) + ' origine ' + etat(vente) + ' msg ' + (await message()));
+    ok('Point 18 : motif validé avec la nouvelle vente (une seule ligne, vendeur d\'origine, montant d\'origine)',
+      motifs(vente) === 'MODIFICATION|VALIDEE|Erreur de saisie|' + copie2 + '|' + produit.pu + '|' + ADMIN + '|' + ADMIN, motifs(vente));
     ok('Aucune erreur JavaScript', err.length === 0, JSON.stringify(err));
   } catch (e) {
     ok('Parcours sans exception', false, e.stack);

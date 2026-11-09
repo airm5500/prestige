@@ -478,6 +478,17 @@ input:focus {
   transform: rotate(135deg) scale(1.12);
 }
 
+/* Badge portant l'icone de Prestige : pas de rotation au survol, l'icone n'est pas symetrique */
+.pl-brand__mark--icone img {
+  display: block;
+  width: 28px;
+  height: 28px;
+}
+
+.pl-brand:hover .pl-brand__mark--icone {
+  transform: scale(1.12);
+}
+
 .pl-brand__logo {
   position: relative;
   z-index: 1;

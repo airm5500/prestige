@@ -608,4 +608,11 @@ public class CaisseRessource {
         generateTicketService.sendToSms(params);
         return Response.ok().entity("Envoie en cours").build();
     }
+
+    /** Plan du 08/11, point 19 : ticket Z par WhatsApp, au numero du SMS, texte seul. */
+    @POST
+    @Path("send-whatsapp")
+    public Response sendWhatsApp(Params params) throws JSONException {
+        return Response.ok().entity(generateTicketService.sendToWhatsApp(params).toString()).build();
+    }
 }

@@ -44,10 +44,57 @@ public class SuggestionReserveRessource {
     private @EJB SuggestionReserveService suggestionReserveService;
     private @EJB rest.service.ReserveService reserveService;
     private @EJB rest.service.mobile.MobileClientRefService mobileClientRefService;
+    private @EJB rest.report.ReportUtil reportUtil;
 
     private TUser currentUser() {
         HttpSession hs = servletRequest.getSession();
         return (TUser) hs.getAttribute(Constant.AIRTIME_USER);
+    }
+
+    /**
+     * Plan du 08/11, point 8 : la fenetre « Seuil de réserve atteint » imprimee en PDF (jrxml). Les lignes sont relues
+     * en base, comme a l'affichage : produits du bon dans les suggestions du bon, une ligne par produit. Sans droit «
+     * Réserve » : la liste reste imprimable pour la personne chargee de la reserve.
+     */
+    @GET
+    @Path("apres-entree/pdf")
+    public Response apresEntreePdf(@QueryParam("suggestions") String suggestions,
+            @QueryParam("produits") String produits) throws JSONException {
+        TUser user = currentUser();
+        if (user == null) {
+            return deconnecte();
+        }
+        List<String> s = liste(suggestions), p = liste(produits);
+        if (s.isEmpty() || p.isEmpty()) {
+            return Response
+                    .ok(new JSONObject().put("success", false).put("msg", "Aucun produit à imprimer.").toString())
+                    .build();
+        }
+        JSONArray lignes = suggestionReserveService.lignesOuvertesAuto(user, p, s);
+        java.util.Map<String, Object> params = reportUtil.officineData(user);
+        params.put("P_H_CLT_INFOS", "SEUIL DE RÉSERVE ATTEINT : PRODUITS À DÉPLACER");
+        params.put("P_PERIODE", rest.report.EditionSections.suggestionsReserve(lignes));
+        params.put("P_INDICATEURS", rest.report.EditionSections.indicateursReserve(lignes));
+        String url = reportUtil.buildReport(params, "rp_edition_sections",
+                rest.report.EditionSections.reserveApresEntree(lignes), "rp_reserve_apres_entree");
+        if (!reportUtil.editionEcrite(url)) {
+            return Response.ok(
+                    new JSONObject().put("success", false).put("msg", "L'édition n'a pas pu être générée.").toString())
+                    .build();
+        }
+        return Response
+                .ok(new JSONObject().put("success", true).put("url", url).put("lignes", lignes.length()).toString())
+                .build();
+    }
+
+    private static List<String> liste(String v) {
+        List<String> l = new ArrayList<>();
+        for (String x : (v == null ? "" : v).split(",")) {
+            if (!x.trim().isEmpty() && l.size() < 500) {
+                l.add(x.trim());
+            }
+        }
+        return l;
     }
 
     private Response deconnecte() {
@@ -344,6 +391,56 @@ public class SuggestionReserveRessource {
             return deconnecte();
         }
         return Response.ok().entity(suggestionReserveService.supprimerLigne(user, detailId, motif).toString()).build();
+    }
+
+    /**
+     * Plan du 08/11, point 9a : suppression des suggestions cochees, avec un seul motif. Corps : {@code {ids:[...],
+     * motif}}. Chaque suggestion passe par la meme regle que la suppression unitaire (motif obligatoire, refus des
+     * suggestions traitees, annulees, deja supprimees ou ouvertes par un autre poste), dans sa propre transaction : une
+     * suggestion refusee n'empeche pas la suppression des autres. Reponse : nombre supprime et refus detailles.
+     */
+    @POST
+    @Path("supprimer-selection")
+    public Response supprimerSelection(String body) throws JSONException {
+        Response refusDroit = Droits.refus(servletRequest, "Traiter la réserve", "P_TRAITER_RESERVE", "P_SM_RESERVE");
+        if (refusDroit != null) {
+            return refusDroit;
+        }
+        TUser user = currentUser();
+        if (user == null) {
+            return deconnecte();
+        }
+        JSONObject in = new JSONObject(body == null || body.trim().isEmpty() ? "{}" : body);
+        String motif = in.optString("motif", "").trim();
+        JSONArray ids = in.optJSONArray("ids");
+        JSONObject res = new JSONObject();
+        if (motif.isEmpty()) {
+            return Response.ok().entity(
+                    res.put("success", false).put("message", "Le motif de la suppression est obligatoire.").toString())
+                    .build();
+        }
+        if (ids == null || ids.length() == 0) {
+            return Response.ok()
+                    .entity(res.put("success", false).put("message", "Aucune suggestion cochée.").toString()).build();
+        }
+        int supprimees = 0;
+        JSONArray refus = new JSONArray();
+        java.util.Set<String> vus = new java.util.LinkedHashSet<>();
+        for (int i = 0; i < ids.length(); i++) {
+            String id = ids.optString(i, "");
+            if (id.isEmpty() || !vus.add(id)) {
+                continue;
+            }
+            JSONObject r = suggestionReserveService.supprimerSuggestion(user, id, motif);
+            if (r.optBoolean("success", false)) {
+                supprimees++;
+            } else {
+                refus.put(new JSONObject().put("id", id).put("message", r.optString("message", "")));
+            }
+        }
+        return Response.ok()
+                .entity(res.put("success", supprimees > 0).put("supprimees", supprimees).put("refus", refus).toString())
+                .build();
     }
 
     /** Supprime une suggestion. Refuse des qu'une ligne a deja ete traitee. */

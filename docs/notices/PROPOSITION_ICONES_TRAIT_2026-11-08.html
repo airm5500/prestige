@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Prestige : icônes au trait (plan du 08/11, point 10)</title>
+<style>
+  :root{--encre:#1d2733;--gris:#5d6b78;--accent:#1d4670}
+  *{box-sizing:border-box}
+  svg,canvas{flex-shrink:0}
+  body{margin:0;font:14px/1.5 Inter,"Segoe UI",Arial,sans-serif;color:var(--encre);background:#f5f7f9}
+  header{padding:28px 40px 8px}
+  h1{margin:0 0 6px;font-size:24px}
+  h2.section{font-size:17px;margin:18px 40px 8px}
+  header p{margin:4px 0;color:var(--gris);max-width:1050px}
+  code{background:#e8edf1;border-radius:4px;padding:0 4px}
+  .bandeau{margin:0 40px;display:flex;flex-direction:column;gap:10px}
+  .onglets{display:flex;gap:2px;padding:8px 8px 0;border-radius:10px 10px 0 0;overflow-x:auto}
+  .onglets.clair{background:#cfd6dd}
+  .onglets.sombre{background:#1b1e23}
+  .onglets .o{display:flex;align-items:center;gap:7px;padding:7px 12px;border-radius:9px 9px 0 0;font-size:12px;white-space:nowrap;min-width:150px}
+  .onglets.clair .o{background:#e9edf1}
+  .onglets.sombre .o{background:#2e333b;color:#e6e9ee}
+  .barre-t{display:flex;gap:4px;align-items:center;justify-content:center;padding:6px 10px;border-radius:8px;flex-wrap:wrap}
+  .barre-t.sombre{background:#1e2229}
+  .barre-t.claire{background:#e6ebf0;border:1px solid #d3dae1}
+  .barre-t .app{width:44px;height:44px;border-radius:6px;display:flex;align-items:center;justify-content:center;position:relative}
+  .barre-t.sombre .app{background:#3a4049}
+  .barre-t.claire .app{background:#fff}
+  .barre-t .app::after{content:"";position:absolute;bottom:2px;width:14px;height:3px;border-radius:2px;background:#4aa8e8}
+  .barre-t .lettre{position:absolute;top:-2px;right:-2px;font-size:10px;font-weight:700;background:var(--encre);color:#fff;border-radius:999px;width:16px;height:16px;display:flex;align-items:center;justify-content:center}
+  .grille{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,600px),1fr));gap:22px;padding:14px 40px 40px}
+  .carte{background:#fff;border:1px solid #e1e6eb;border-radius:14px;padding:18px 20px;box-shadow:0 2px 8px rgba(20,40,60,.05)}
+  .carte h3{margin:0 0 2px;font-size:17px;display:flex;gap:10px;align-items:baseline}
+  .carte h3 .n{color:#fff;background:var(--accent);border-radius:999px;padding:0 9px;font-size:13px}
+  .carte .idee{color:var(--gris);margin:0 0 12px;min-height:42px}
+  .corps{display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap}
+  .gauche{display:flex;flex-direction:column;gap:10px}
+  .tailles{display:flex;align-items:flex-end;gap:16px;padding:10px 14px;border-radius:10px}
+  .tailles.clair{background:#fff;border:1px solid #edf0f3;color:var(--gris)}
+  .tailles.sombre{background:#20242b;color:#aab4be}
+  .tailles figure{margin:0;text-align:center;font-size:11px}
+  .tailles svg,.tailles canvas{display:block;margin:0 auto 4px}
+  canvas.loupe{image-rendering:pixelated;width:64px;height:64px;border:1px solid #d3dae1;border-radius:4px}
+  .tailles.sombre canvas.loupe{border-color:#3a4049}
+  .geant{border-radius:12px;background:repeating-conic-gradient(#f1f3f5 0 25%,#fff 0 50%) 0 0/20px 20px;padding:6px}
+  .mises{display:flex;gap:10px;align-items:stretch;margin-top:12px;flex-wrap:wrap}
+  .onglet{display:flex;align-items:center;gap:8px;border-radius:10px 10px 0 0;padding:7px 12px;width:190px;font-size:12px}
+  .onglet.clair{background:#dee3e8}
+  .onglet.sombre{background:#2b2f36;color:#e6e9ee}
+  .bureau{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;width:92px;padding:8px 0;border-radius:8px;color:#fff;font-size:11px;text-shadow:0 1px 2px rgba(0,0,0,.6)}
+  .bureau.bleu{background:linear-gradient(135deg,#3d6f9e,#2a4d72)}
+  .bureau.clair{background:linear-gradient(135deg,#e9eef3,#c9d6e2);color:#1d2733;text-shadow:none}
+  .bureau.photo{background:linear-gradient(160deg,#7fb4d8 0%,#d9c08f 55%,#6f8f4e 100%)}
+  footer{padding:0 40px 40px;color:var(--gris)}
+  footer li{margin:3px 0}
+</style>
+</head>
+<body>
+<header>
+  <h1>Icône de Prestige : le mortier, et six autres au même style</h1>
+  <p><b>Votre choix</b> (en tête, n° 1) : le mortier aux feuilles avec la gélule couchée à terre. Les sept propositions
+    d'origine suivent, renumérotées de 2 à 8.</p>
+  <p>Plan du 08/11, point 10. Vous avez proposé un modèle : un mortier vert menthe marqué d'une croix, avec le pilon et des
+    feuilles, dessiné au trait noir épais. La proposition 1 le redessine entièrement (aucune image reprise) ; les six autres
+    gardent le même style : contour noir, aplats menthe, crème et ambre, une face ombrée à droite.</p>
+  <p>Chaque carte montre l'icône en 16, 32, 48 et 256 px, sur fond clair et sur fond sombre, avec une <b>loupe</b> qui
+    agrandit les vrais pixels du 16 px, puis dans un onglet et sur trois fonds de bureau. En 16 et 24 px, une version
+    allégée est utilisée : contour plus épais, sans ombre ni petits détails, comme le fait un <code>.ico</code>.</p>
+  <p>Dites-moi laquelle garder, ou ce qu'il faut changer : je produis ensuite le SVG source, les PNG, le
+    <code>favicon.ico</code>, et je remplace l'icône partout dans Prestige.</p>
+</header>
+
+<h2 class="section">Toutes côte à côte, en situation réelle</h2>
+<div class="bandeau" id="bandeau"></div>
+
+<h2 class="section">Le détail de chaque proposition</h2>
+<div class="grille" id="grille"></div>
+
+<footer>
+  <ul>
+    <li>Les SVG sont dessinés à la main, sans image extérieure ; une fois l'icône choisie, je retouche le 16 px au pixel près.</li>
+    <li>Le damier derrière le grand format montre la transparence : ces icônes n'ont pas de fond, sauf la 7.</li>
+    <li>Pages précédentes : <code>PROPOSITION_ICONES_2026-11-08.html</code> et <code>PROPOSITION_ICONES_PASTILLE_2026-11-08.html</code>, <code>PROPOSITION_ICONES_NOUVELLES_2026-11-08.html</code>.</li>
+  </ul>
+</footer>
+
+<script>
+  // Style « trait et couleur » : contour sombre epais, aplats, une face ombree a droite
+  var K = '#1c1c1c', M = '#0fefa9', MF = '#11cf8f', F = '#12c98a', C = '#fff4d6', CF = '#fde3a0', A = '#ffb547', AF = '#f0952a';
+  function trait(p) { return 'stroke="' + K + '" stroke-width="' + (p ? 3.8 : 2.4) + '" stroke-linejoin="round" stroke-linecap="round"'; }
+  function croixP(cx, cy, l, b, fill, p) { // croix en un seul trace : l = largeur du bras, b = demi-longueur
+    var h = l / 2;
+    return '<path d="M' + (cx - h) + ' ' + (cy - b) + 'h' + l + 'v' + (b - h) + 'h' + (b - h) + 'v' + l + 'h' + (h - b) + 'v' + (b - h)
+      + 'h' + (-l) + 'v' + (h - b) + 'h' + (h - b) + 'v' + (-l) + 'h' + (b - h) + 'z" fill="' + fill + '" ' + trait(p) + '/>';
+  }
+
+  var icones = [
+    { id: 'mortier', nom: 'Mortier aux feuilles', palette: 'menthe, crème, contour noir',
+      idee: 'Votre modèle, redessiné : le mortier vert menthe marqué d\'une croix crème, le pilon et deux feuilles. Contour noir épais, face droite ombrée.',
+      svg: function (p) {
+        var t = trait(p);
+        return '<path d="M8 31C6 21 12 14 21 14c3 7 1 13-3 17z" fill="' + F + '" ' + t + '/>'
+          + '<path d="M18 31c-2-11 4-19 14-19 3 8 1 15-5 19z" fill="' + M + '" ' + t + '/>'
+          + '<g transform="translate(44 21) rotate(40)"><circle cx="0" cy="-9" r="' + (p ? 6.5 : 6) + '" fill="' + C + '" ' + t + '/>'
+          + '<rect x="-3.2" y="-5" width="6.4" height="22" rx="3.2" fill="' + C + '" ' + t + '/></g>'
+          + '<rect x="20" y="54.5" width="24" height="6" rx="3" fill="' + C + '" ' + t + '/>'
+          + '<path d="M9 36h46c-1 11-8 17-15 18.5H24C17 53 10 47 9 36z" fill="' + M + '"/>'
+          + (p ? '' : '<path d="M46 36h9c-1 11-8 17-15 18.5h-3c6-3 9-9 9-18.5z" fill="' + MF + '"/>')
+          + '<path d="M9 36h46c-1 11-8 17-15 18.5H24C17 53 10 47 9 36z" fill="none" ' + t + '/>'
+          + '<rect x="5" y="29" width="54" height="8" rx="4" fill="' + C + '" ' + t + '/>'
+          + (p ? '' : '<path d="M48 30.4h7a2.6 2.6 0 0 1 0 5.2h-7z" fill="' + CF + '"/>'
+                 + '<circle cx="36.5" cy="8.5" r="1.4" fill="' + K + '"/><circle cx="39.5" cy="14" r="1.4" fill="' + K + '"/>')
+          + croixP(32, 45.5, p ? 6 : 5, p ? 7 : 7, C, p);
+      } },
+    { id: 'flacon', nom: 'Flacon', palette: 'ambre, menthe, crème',
+      idee: 'Le flacon de pharmacie ambré, bouchon menthe, étiquette crème à croix verte. Familier au comptoir, très lisible.',
+      svg: function (p) {
+        var t = trait(p);
+        return '<rect x="25" y="13" width="14" height="6" fill="' + CF + '" ' + t + '/>'
+          + '<rect x="12" y="18" width="40" height="42" rx="9" fill="' + A + '" ' + t + '/>'
+          + (p ? '' : '<path d="M42 19.5h1a7.5 7.5 0 0 1 7.5 7.5v24a7.5 7.5 0 0 1-7.5 7.5h-1c3-2 4-5 4-9V28c0-4-1-7-4-8.5z" fill="' + AF + '"/>'
+                 + '<rect x="12" y="18" width="40" height="42" rx="9" fill="none" ' + t + '/>')
+          + '<rect x="21" y="4" width="22" height="10" rx="2.5" fill="' + M + '" ' + t + '/>'
+          + (p ? '' : '<path d="M27 6.5v5M32 6.5v5M37 6.5v5" ' + t + ' stroke-width="1.6"/>')
+          + '<rect x="17" y="28" width="30" height="22" rx="3" fill="' + C + '" ' + t + '/>'
+          + croixP(32, 39, p ? 6 : 5, p ? 8 : 7, M, p);
+      } },
+    { id: 'croixfeuilles', nom: 'Croix aux feuilles', palette: 'menthe, vert, contour noir',
+      idee: 'Une croix menthe aux angles arrondis, d\'où sortent deux feuilles : la pharmacie et la plante. Symétrique, se lit bien en petit.',
+      svg: function (p) {
+        var t = trait(p);
+        return '<path d="M40 24c0-10 7-18 19-18 0 11-7 18-19 18z" fill="' + F + '" ' + t + '/>'
+          + '<path d="M24 40c0 10-7 18-19 18 0-11 7-18 19-18z" fill="' + F + '" ' + t + '/>'
+          + '<path d="M24 8h16a2.5 2.5 0 0 1 2.5 2.5V21.5H53.5A2.5 2.5 0 0 1 56 24v16a2.5 2.5 0 0 1-2.5 2.5H42.5V53.5A2.5 2.5 0 0 1 40 56H24a2.5 2.5 0 0 1-2.5-2.5V42.5H10.5A2.5 2.5 0 0 1 8 40V24a2.5 2.5 0 0 1 2.5-2.5H21.5V10.5A2.5 2.5 0 0 1 24 8z" fill="' + M + '" ' + t + '/>'
+          + (p ? '' : '<path d="M42.5 23h10.5a1.5 1.5 0 0 1 1.5 1.5v15a1.5 1.5 0 0 1-1.5 1.5H42.5zM36 42.5h6.5v11a1.5 1.5 0 0 1-1.5 1.5h-5z" fill="' + MF + '"/>'
+                 + '<rect x="25" y="11" width="3.2" height="9" rx="1.6" fill="#fff" fill-opacity=".75"/>'
+                 + '<path d="M44 20c4-4 8-7 11-10M20 44c-4 4-8 7-11 10" ' + t + ' stroke-width="1.6" fill="none"/>');
+      } },
+    { id: 'gelule', nom: 'Gélule et feuille', palette: 'menthe, crème, vert',
+      idee: 'Une gélule menthe et crème, avec une feuille : le médicament et le naturel. Gaie, sans fond.',
+      svg: function (p) {
+        var t = trait(p);
+        return '<path d="M34 58c-2-10 4-18 14-19 3 8 0 16-6 19z" fill="' + F + '" ' + t + '/>'
+          + '<g transform="rotate(-45 30 30)">'
+          + '<path d="M30 20H15a10 10 0 0 0 0 20h15z" fill="' + M + '" ' + t + '/>'
+          + '<path d="M30 20h15a10 10 0 0 1 0 20H30z" fill="' + C + '" ' + t + '/>'
+          + (p ? '' : '<rect x="11" y="24" width="14" height="3" rx="1.5" fill="#fff" fill-opacity=".7"/><path d="M30 36h15a6 6 0 0 0 5.5-3.5" stroke="' + CF + '" stroke-width="3" fill="none" stroke-linecap="round"/>')
+          + '</g>'
+          + (p ? '' : '<circle cx="52" cy="12" r="1.5" fill="' + K + '"/><circle cx="57" cy="20" r="1.5" fill="' + K + '"/>');
+      } },
+    { id: 'bocal', nom: 'Pot d\'apothicaire', palette: 'menthe, crème, contour noir',
+      idee: 'Le pot à pharmacie de l\'officine d\'autrefois, couvercle crème, étiquette marquée d\'une croix. Évoque la tradition.',
+      svg: function (p) {
+        var t = trait(p);
+        return '<circle cx="32" cy="8" r="' + (p ? 4.5 : 3.8) + '" fill="' + C + '" ' + t + '/>'
+          + '<path d="M12 22c0-5 4-9 9-9h22c5 0 9 4 9 9v28c0 6-4 10-10 10H22c-6 0-10-4-10-10z" fill="' + M + '" ' + t + '/>'
+          + (p ? '' : '<path d="M44 20h2c2.5 0 4 2 4 4.5V50c0 4-3 8-8 8h-2c3-2 4-5 4-9z" fill="' + MF + '"/>'
+                 + '<path d="M12 22c0-5 4-9 9-9h22c5 0 9 4 9 9v28c0 6-4 10-10 10H22c-6 0-10-4-10-10z" fill="none" ' + t + '/>')
+          + '<rect x="15" y="11" width="34" height="7" rx="3.5" fill="' + C + '" ' + t + '/>'
+          + '<rect x="18" y="27" width="28" height="22" rx="3" fill="' + C + '" ' + t + '/>'
+          + croixP(32, 38, p ? 6 : 5, p ? 8 : 7, M, p);
+      } },
+    { id: 'feuillecroix', nom: 'Feuille à la croix', palette: 'vert, menthe, crème',
+      idee: 'Une grande feuille, marquée d\'une croix crème : la phytothérapie et la pharmacie. Organique, chaleureux.',
+      svg: function (p) {
+        var t = trait(p);
+        return '<path d="M12 52L5 59" ' + t + ' fill="none"/>'
+          + '<path d="M11 53C8 27 26 8 57 7c2 29-17 47-46 46z" fill="' + M + '" ' + t + '/>'
+          + (p ? '' : '<path d="M57 7c2 29-17 47-46 46 25-6 40-22 46-46z" fill="' + MF + '"/>'
+                 + '<path d="M11 53C8 27 26 8 57 7c2 29-17 47-46 46z" fill="none" ' + t + '/>'
+                 + '<path d="M14 50L48 16" ' + t + ' stroke-width="1.8" fill="none"/>')
+          + croixP(33, 31, p ? 7 : 6, p ? 10 : 9, C, p);
+      } },
+    { id: 'mortierpastille', nom: 'Mortier en pastille', palette: 'menthe, crème, vert foncé',
+      idee: 'Le mortier simplifié (sans feuilles ni pilon détaillé), posé sur une pastille vert foncé. Plus compact, pensé pour rester net dans l\'onglet.',
+      svg: function (p) {
+        var t = trait(p);
+        return '<circle cx="32" cy="32" r="29" fill="#0d6b4f" ' + t + '/>'
+          + '<path d="M38 27L49 12" ' + t + ' stroke-width="' + (p ? 9 : 8) + '"/><path d="M38 27L49 12" stroke="' + C + '" stroke-width="' + (p ? 4.5 : 5) + '" stroke-linecap="round"/>'
+          + '<path d="M14 31h36c-1 9-7 14-12 15H26c-5-1-11-6-12-15z" fill="' + M + '" ' + t + '/>'
+          + '<rect x="11" y="26" width="42" height="7" rx="3.5" fill="' + C + '" ' + t + '/>'
+          + '<rect x="23" y="46" width="18" height="5.5" rx="2.75" fill="' + C + '" ' + t + '/>'
+          + (p ? '' : croixP(32, 38.5, 4, 5, C, p));
+      } }
+  ];
+
+  // Votre choix : le mortier de la 1, avec la gelule de la 4 couchee a terre
+  function geluleCouchee(cx, cy, l, h, angle, p) {
+    var t = trait(p), r = h / 2, x1 = cx - l / 2, x2 = cx + l / 2, y1 = cy - r;
+    return '<g transform="rotate(' + angle + ' ' + cx + ' ' + cy + ')">'
+      + '<path d="M' + cx + ' ' + y1 + 'H' + (x1 + r) + 'a' + r + ' ' + r + ' 0 0 0 0 ' + h + 'H' + cx + 'z" fill="' + M + '" ' + t + '/>'
+      + '<path d="M' + cx + ' ' + y1 + 'H' + (x2 - r) + 'a' + r + ' ' + r + ' 0 0 1 0 ' + h + 'H' + cx + 'z" fill="' + C + '" ' + t + '/>'
+      + (p ? '' : '<rect x="' + (x1 + 3) + '" y="' + (y1 + 2.2) + '" width="' + (l / 2 - 5) + '" height="2.2" rx="1.1" fill="#fff" fill-opacity=".75"/>'
+               + '<path d="M' + (cx + 1.5) + ' ' + (cy + r - 2.2) + 'H' + (x2 - r) + 'a' + (r - 2.2) + ' ' + (r - 2.2) + ' 0 0 0 ' + (r - 2.8) + ' -2' + '" stroke="' + CF + '" stroke-width="2.2" fill="none" stroke-linecap="round"/>')
+      + '</g>';
+  }
+  var mortier = icones[0];
+  icones.unshift({ id: 'mortiergelule', nom: 'Mortier et gélule (votre choix : 1 + 4)', palette: 'menthe, crème, contour noir',
+    idee: 'Le mortier aux feuilles de la 1, un peu réduit et remonté, avec la gélule de la 4 couchée à terre, au pied du mortier.',
+    svg: function (p) {
+      // le pied du mortier et la gelule reposent sur la meme ligne de sol
+      return '<g transform="translate(' + (p ? '-2 7.5' : '-1.5 7.8') + ') scale(' + (p ? .86 : .87) + ')">' + mortier.svg(p) + '</g>'
+        + geluleCouchee(p ? 50 : 50.5, p ? 53.2 : 55, p ? 24 : 22, p ? 12 : 11, -6, p);
+    } });
+
+  function svg(x, t) {
+    return '<svg xmlns="http://www.w3.org/2000/svg" width="' + t + '" height="' + t + '" viewBox="0 0 64 64">' + x.svg(t <= 24) + '</svg>';
+  }
+  var compteur = 0;
+  function svgUnique(x, t) {
+    var s = svg(x, t), suffixe = '_' + (compteur++);
+    return s.replace(/id="([^"]+)"/g, 'id="$1' + suffixe + '"').replace(/url\(#([^)]+)\)/g, 'url(#$1' + suffixe + ')');
+  }
+  function tailles(x, fond) {
+    return '<div class="tailles ' + fond + '">' + [16, 32, 48].map(function (t) {
+      return '<figure>' + svgUnique(x, t) + t + ' px</figure>';
+    }).join('') + '<figure><canvas class="loupe" width="16" height="16" data-icone="' + x.id + '" data-fond="' + fond + '"></canvas>16 px × 4</figure></div>';
+  }
+  function rangeeOnglets(classe) {
+    return '<div class="onglets ' + classe + '">' + icones.map(function (x, i) {
+      return '<div class="o">' + svgUnique(x, 16) + '<b>' + (i + 1) + '</b> Prestige — Ventes</div>';
+    }).join('') + '</div>';
+  }
+  function barre(classe) {
+    return '<div class="barre-t ' + classe + '">' + icones.map(function (x, i) {
+      return '<span class="app">' + svgUnique(x, 24) + '<span class="lettre">' + (i + 1) + '</span></span>';
+    }).join('') + '</div>';
+  }
+  document.getElementById('bandeau').innerHTML = rangeeOnglets('clair') + rangeeOnglets('sombre') + barre('sombre') + barre('claire');
+
+  document.getElementById('grille').innerHTML = icones.map(function (x, i) {
+    return '<section class="carte"><h3><span class="n">' + (i + 1) + '</span>' + x.nom + '</h3>'
+      + '<p class="idee">' + x.idee + ' <i>Couleurs : ' + x.palette + '.</i></p>'
+      + '<div class="corps"><div class="geant">' + svgUnique(x, 256) + '</div>'
+      + '<div class="gauche">' + tailles(x, 'clair') + tailles(x, 'sombre') + '</div></div>'
+      + '<div class="mises">'
+      + '<div class="onglet clair">' + svgUnique(x, 16) + 'Prestige — Ventes</div>'
+      + '<div class="onglet sombre">' + svgUnique(x, 16) + 'Prestige — Ventes</div>'
+      + '<div class="bureau bleu">' + svgUnique(x, 48) + 'Prestige</div>'
+      + '<div class="bureau clair">' + svgUnique(x, 48) + 'Prestige</div>'
+      + '<div class="bureau photo">' + svgUnique(x, 48) + 'Prestige</div>'
+      + '</div></section>';
+  }).join('');
+
+  Array.prototype.forEach.call(document.querySelectorAll('canvas.loupe'), function (c) {
+    var x = icones.filter(function (y) { return y.id === c.getAttribute('data-icone'); })[0];
+    var img = new Image();
+    img.onload = function () {
+      var ctx = c.getContext('2d');
+      ctx.fillStyle = c.getAttribute('data-fond') === 'sombre' ? '#20242b' : '#ffffff';
+      ctx.fillRect(0, 0, 16, 16);
+      ctx.drawImage(img, 0, 0, 16, 16);
+    };
+    img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg(x, 16));
+  });
+</script>
+</body>
+</html>

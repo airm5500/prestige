@@ -720,6 +720,11 @@ public class InventaireRessource {
                 total = manager.getCountInventaireTouche(search, inv, famille, zone, grossiste, false, utilisateur);
                 lignes = manager.listInventaireTouche(search, inv, famille, zone, grossiste, false, start, limit,
                         utilisateur);
+            } else if ("PAF_SUP_PV".equalsIgnoreCase(type)) {
+                /* plan du 08/11, point 17 : prix d'achat superieur au prix de vente */
+                total = manager.getCountInventairePrixAchatSup(search, inv, famille, zone, grossiste, utilisateur);
+                lignes = manager.listInventairePrixAchatSup(search, inv, famille, zone, grossiste, start, limit,
+                        utilisateur);
             } else if ("NEGATIF".equalsIgnoreCase(type)) {
                 total = manager.getCountInventaireNegatif(search, inv, famille, zone, grossiste, utilisateur);
                 lignes = manager.listInventaireNegatif(search, inv, famille, zone, grossiste, start, limit,
@@ -807,6 +812,83 @@ public class InventaireRessource {
         json.put("is_AUTHORIZE_STOCK", colonneStockVisible);
         json.put("int_NUMBER_AVAILABLE", ligne.getIntNUMBER());
         return json;
+    }
+
+    @EJB
+    private rest.report.ReportUtil reportUtil;
+
+    /**
+     * Plan du 08/11, point 17 : « Imprimer filtre courant » pour le filtre « Prix achat &gt; prix vente ». Le modele
+     * filtre de l'officine (rp_fiche_inventaire_filtre, dans le repertoire des rapports) ne connait pas ce filtre dans
+     * sa requete : il est donc rempli ici avec les lignes memes de l'ecran (meme requete, meme ordre), sans toucher au
+     * modele. Colonne stock machine : seulement avec le privilege ET la case « Afficher stock ». Rend {success, url}.
+     */
+    @GET
+    @Path("filtre/pdf")
+    public Response imprimerFiltre(@DefaultValue("") @QueryParam("lg_INVENTAIRE_ID") String inventaireId,
+            @DefaultValue("") @QueryParam("search_value") String recherche,
+            @DefaultValue("") @QueryParam("str_TYPE") String type,
+            @DefaultValue("") @QueryParam("lg_FAMILLEARTICLE_ID") String familleArticleId,
+            @DefaultValue("") @QueryParam("lg_ZONE_GEO_ID") String zoneGeoId,
+            @DefaultValue("") @QueryParam("lg_GROSSISTE_ID") String grossisteId,
+            @DefaultValue("") @QueryParam("lg_USER_ID") String userId,
+            @DefaultValue("false") @QueryParam("showStock") boolean afficherStock) {
+        TUser user = currentUser();
+        if (user == null) {
+            return deconnecte();
+        }
+        if (!"PAF_SUP_PV".equalsIgnoreCase(type) || StringUtils.isBlank(inventaireId)) {
+            return Response
+                    .ok(new JSONObject().put("success", false)
+                            .put("msg", "Impression disponible pour le filtre « Prix achat > prix vente ».").toString())
+                    .build();
+        }
+        dataManager odm = new dataManager();
+        odm.initEntityManager();
+        try {
+            InventaireManager manager = new InventaireManager(odm);
+            boolean stock = afficherStock
+                    && new privilege(odm, user).isColonneStockMachineIsAuthorize(commonparameter.P_SHOW_INVENTAIRE);
+            java.util.List<dal.TInventaireFamille> lignes = manager.listInventairePrixAchatSup(
+                    StringUtils.defaultString(recherche), inventaireId, defautJoker(familleArticleId),
+                    defautJoker(zoneGeoId), defautJoker(grossisteId), 0, Integer.MAX_VALUE, defautJoker(userId));
+            java.util.List<java.util.Map<String, Object>> donnees = new java.util.ArrayList<>();
+            for (dal.TInventaireFamille l : lignes) {
+                dal.TFamille f = l.getLgFAMILLEID();
+                java.util.Map<String, Object> m = new java.util.HashMap<>();
+                int init = l.getIntNUMBERINIT() == null ? 0 : l.getIntNUMBERINIT();
+                int compte = l.getIntNUMBER() == null ? 0 : l.getIntNUMBER();
+                m.put("inventaire_name", l.getLgINVENTAIREID().getStrNAME());
+                m.put("cip", f.getIntCIP());
+                m.put("designation", f.getStrDESCRIPTION());
+                m.put("emplacement", f.getLgZONEGEOID() == null ? "" : f.getLgZONEGEOID().getStrLIBELLEE());
+                m.put("stock_machine", init);
+                m.put("stock_rayon", compte);
+                m.put("ecart", compte - init);
+                m.put("paf", f.getIntPAF() == null ? 0 : f.getIntPAF());
+                m.put("prix_vente", f.getIntPRICE() == null ? 0 : f.getIntPRICE());
+                m.put("touche", l.getDtUPDATED() != null ? "Oui" : "Non");
+                donnees.add(m);
+            }
+            java.util.Map<String, Object> parametres = reportUtil.officineData(user);
+            parametres.put("P_REFERENCE", inventaireId);
+            parametres.put("P_FILTRE", "PAF_SUP_PV");
+            parametres.put("P_FILTRE_LIBELLE",
+                    "Prix achat > prix vente (" + lignes.size() + " article" + (lignes.size() > 1 ? "s" : "") + ")");
+            parametres.put("P_H_CLT_INFOS", "LISTE D'INVENTAIRE");
+            String url = reportUtil.buildReport(parametres,
+                    stock ? "rp_fiche_inventaire_filtre" : "rp_fiche_inventaire_filtre_agent", donnees,
+                    "fiche_inventaire_filtre_prix");
+            if (!reportUtil.editionEcrite(url)) {
+                return Response.ok(new JSONObject().put("success", false)
+                        .put("msg", "L'édition n'a pas pu être générée.").toString()).build();
+            }
+            return Response
+                    .ok(new JSONObject().put("success", true).put("url", url).put("lignes", lignes.size()).toString())
+                    .build();
+        } finally {
+            odm.closeEntityManager();
+        }
     }
 
     private TUser currentUser() {

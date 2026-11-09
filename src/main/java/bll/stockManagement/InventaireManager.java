@@ -2335,6 +2335,53 @@ public class InventaireManager extends bllBase {
     // fin liste des lignes encore negatives
 
     /*
+     * Plan du 08/11, point 17 : lignes dont le prix d'achat (PAF de la fiche) depasse le prix de vente. Memes criteres
+     * que les autres filtres (inventaire, grossiste, emplacement, famille, recherche, utilisateur, lignes incluses) ;
+     * les prix sont lus sur la fiche produit au moment de l'affichage : un prix corrige fait sortir la ligne.
+     */
+    private static final String INVENTAIRE_PRIX_ACHAT_SUP_WHERE = INVENTAIRE_NEGATIF_WHERE.replace(
+            "AND t.intNUMBER < 0", "AND COALESCE(t.lgFAMILLEID.intPAF, 0) > COALESCE(t.lgFAMILLEID.intPRICE, 0)");
+
+    public List<TInventaireFamille> listInventairePrixAchatSup(String search_value, String lg_INVENTAIRE_ID,
+            String lg_FAMILLEARTICLE_ID, String lg_ZONE_GEO_ID, String lg_GROSSISTE_ID, int start, int limit,
+            String lg_USER_ID) {
+        List<TInventaireFamille> lignes = new ArrayList<>();
+        try {
+            String recherche = search_value == null || "".equals(search_value) ? "%%" : search_value;
+            String jpql = "SELECT t" + INVENTAIRE_PRIX_ACHAT_SUP_WHERE + " " + buildOrderByInventaire(lg_INVENTAIRE_ID);
+            lignes = this.getOdataManager().getEm().createQuery(jpql).setParameter(1, lg_INVENTAIRE_ID)
+                    .setParameter(2, lg_GROSSISTE_ID).setParameter(3, lg_ZONE_GEO_ID)
+                    .setParameter(4, lg_FAMILLEARTICLE_ID).setParameter(6, "%" + recherche + "%").setParameter(8, true)
+                    .setParameter(9, lg_USER_ID).setFirstResult(start).setMaxResults(limit)
+                    .setHint("javax.persistence.cache.retrieveMode", CacheRetrieveMode.BYPASS).getResultList();
+        } catch (Exception e) {
+            e.printStackTrace();
+            this.setMessage(commonparameter.PROCESS_FAILED);
+        }
+        return lignes;
+    }
+
+    public long getCountInventairePrixAchatSup(String search_value, String lg_INVENTAIRE_ID,
+            String lg_FAMILLEARTICLE_ID, String lg_ZONE_GEO_ID, String lg_GROSSISTE_ID, String lg_USER_ID) {
+        long count = 0L;
+        try {
+            String recherche = search_value == null || "".equals(search_value) ? "%%" : search_value;
+            Object object = this.getOdataManager().getEm()
+                    .createQuery("SELECT COUNT(t)" + INVENTAIRE_PRIX_ACHAT_SUP_WHERE).setParameter(1, lg_INVENTAIRE_ID)
+                    .setParameter(2, lg_GROSSISTE_ID).setParameter(3, lg_ZONE_GEO_ID)
+                    .setParameter(4, lg_FAMILLEARTICLE_ID).setParameter(6, "%" + recherche + "%").setParameter(8, true)
+                    .setParameter(9, lg_USER_ID)
+                    .setHint("javax.persistence.cache.retrieveMode", CacheRetrieveMode.BYPASS).getSingleResult();
+            count = Long.valueOf(object + "");
+        } catch (Exception e) {
+            e.printStackTrace();
+            this.setMessage(commonparameter.PROCESS_FAILED);
+        }
+        return count;
+    }
+    // fin liste des lignes au prix d'achat superieur au prix de vente
+
+    /*
      * 'Check EMPLACEMENT' : etat d'avancement du comptage par emplacement (zone geographique) pour un inventaire, sur
      * les seules lignes incluses (bool_INVENTAIRE = true). Regles : aucune ligne touchee -> Non fait ; toutes touchees
      * -> Termine ; sinon -> En cours. Un emplacement sans aucune ligne dans l'inventaire n'apparait pas (il ne peut pas

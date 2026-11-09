@@ -130,36 +130,60 @@ Ext.define('testextjs.view.commandemanagement.ReserveApresEntreeFenetre', {
         me.callParent(arguments);
     },
 
-    /** Impression de la liste (cadre invisible : ni onglet ni fenetre du navigateur). */
+    /**
+     * Impression de la liste (cadre invisible : ni onglet ni fenetre du navigateur). Plan du 08/11, point 8 : le PDF
+     * de l\'edition (jrxml), lu en base comme la fenetre, remplace la page HTML construite ici.
+     */
     imprimer: function () {
-        var me = this, enc = Ext.String.htmlEncode;
-        var lignes = Ext.Array.map(me.lignes, function (l) {
-            return '<tr><td>' + enc(l.cip || '') + '</td><td>' + enc(l.nom || '') + '</td><td>' + (l.categorie === 'RESERVE' ? 'Rayon → réserve' : 'Réserve → rayon')
-                    + '</td><td class="n">' + (l.stockRayon || 0) + '</td><td class="n">' + (l.stockReserve || 0) + '</td><td class="n"><b>' + (l.quantite || 0) + '</b></td></tr>';
-        }).join('');
-        var html = '<html><head><meta charset="utf-8"><title>Produits à déplacer</title><style>body{font:12px Arial,sans-serif;margin:16px}'
-                + 'h1{font-size:16px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #999;padding:4px 6px;text-align:left}.n{text-align:right}</style></head>'
-                + '<body><h1>Seuil de réserve atteint : produits à déplacer</h1><p>Suggestion ' + enc(Ext.Array.unique(Ext.Array.map(me.lignes, function (l) {
-                    return l.ref + (l.bon ? ' du BL ' + l.bon : '');
-                })).join(', ')) + ' · ' + Ext.Date.format(new Date(), 'd/m/Y H:i') + '</p>'
-                + '<table><thead><tr><th>CIP</th><th>Produit</th><th>Sens</th><th class="n">Rayon</th><th class="n">Réserve</th><th class="n">À déplacer</th></tr></thead>'
-                + '<tbody>' + lignes + '</tbody></table></body></html>';
-        var cadre = document.getElementById('rae-impression');
-        if (cadre) {
-            cadre.parentNode.removeChild(cadre);
+        var me = this, b = me.down('#btnImprimer');
+        var ids = function (cle) {
+            return Ext.Array.unique(Ext.Array.filter(Ext.Array.map(me.lignes, function (l) {
+                return l[cle];
+            }), function (x) {
+                return !!x;
+            })).join(',');
+        };
+        if (b) {
+            b.disable();
         }
-        cadre = document.createElement('iframe');
-        cadre.id = 'rae-impression';
-        cadre.style.cssText = 'position:absolute;width:0;height:0;border:0;left:-1000px';
-        document.body.appendChild(cadre);
-        var d = cadre.contentWindow.document;
-        d.open();
-        d.write(html);
-        d.close();
-        me.impression = html;
-        Ext.defer(function () {
-            cadre.contentWindow.focus();
-            cadre.contentWindow.print();
-        }, 100);
+        Ext.Ajax.request({
+            url: '../api/v1/suggestion-reserve/apres-entree/pdf', method: 'GET',
+            params: {suggestions: ids('suggestionId'), produits: ids('produitId')},
+            callback: function (opt, succes, rep) {
+                if (b && !b.isDestroyed) {
+                    b.enable();
+                }
+                var o = null;
+                try {
+                    o = Ext.decode(rep.responseText);
+                } catch (e) {
+                    o = null;
+                }
+                if (!succes || !o || !o.success || !o.url) {
+                    if (window.PrestigeToast) {
+                        PrestigeToast.afficher((o && o.msg) || 'Impression impossible.', {niveau: 'erreur', titre: 'Impression'});
+                    }
+                    return;
+                }
+                var cadre = document.getElementById('rae-impression');
+                if (cadre) {
+                    cadre.parentNode.removeChild(cadre);
+                }
+                cadre = document.createElement('iframe');
+                cadre.id = 'rae-impression';
+                cadre.style.cssText = 'position:absolute;width:0;height:0;border:0;left:-1000px';
+                cadre.onload = function () {
+                    try {
+                        cadre.contentWindow.focus();
+                        cadre.contentWindow.print();
+                    } catch (e) {
+                        window.open('..' + o.url);
+                    }
+                };
+                me.impression = o.url;
+                cadre.src = '..' + o.url;
+                document.body.appendChild(cadre);
+            }
+        });
     }
 });

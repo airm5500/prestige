@@ -26,7 +26,7 @@ Ext.define('testextjs.view.ventesratees.VentesRateesManager', {
         var storeRegistre = new Ext.data.Store({
             fields: ['id', 'familleId', 'cip', 'designation', 'clientId', 'nomClient', 'telephone', 'motifId',
                 'motif', 'commentaire', 'date', 'utilisateur', 'etat', 'dateCommande', 'utilisateurCommande',
-                'produitRattache', {name: 'quantite', type: 'int'}, {name: 'commande', type: 'boolean'},
+                'produitRattache', 'entreeBl', {name: 'quantite', type: 'int'}, {name: 'commande', type: 'boolean'},
                 {name: 'connu', type: 'boolean'}, {name: 'rattache', type: 'boolean'}],
             pageSize: 50,
             autoLoad: false,
@@ -65,7 +65,13 @@ Ext.define('testextjs.view.ventesratees.VentesRateesManager', {
 
         var etatRenderer = function (v, meta, record) {
             var couleur = record.get('commande') ? '#1e8449' : '#c0392b';
-            return '<span style="color:' + couleur + ';font-weight:bold;">' + v + '</span>';
+            var html = '<span style="color:' + couleur + ';font-weight:bold;">' + v + '</span>';
+            /* plan du 08/11, point 13 : demande marquee par l'entree en stock du produit */
+            if (record.get('commande') && record.get('entreeBl')) {
+                html += ' <span style="color:#5d6d7e;">· BL ' + Ext.String.htmlEncode(record.get('entreeBl')) + '</span>';
+                meta.tdAttr = 'data-qtip="' + Ext.String.htmlEncode('Commandé à l\'entrée en stock du BL ' + record.get('entreeBl')) + '"';
+            }
+            return html;
         };
         var produitRenderer = function (v, meta, record) {
             var texte = Ext.String.htmlEncode(v || '');
@@ -138,7 +144,7 @@ Ext.define('testextjs.view.ventesratees.VentesRateesManager', {
                         {header: 'Motif', dataIndex: 'motif', flex: 1},
                         {header: 'Commentaire', dataIndex: 'commentaire', flex: 1},
                         {header: 'Utilisateur', dataIndex: 'utilisateur', width: 110},
-                        {header: 'État', dataIndex: 'etat', width: 105, renderer: etatRenderer},
+                        {header: 'État', dataIndex: 'etat', width: 220, renderer: etatRenderer},
                         {
                             /* Croix de suppression, une par ligne. Elle reste CACHEE tant que le
                              * service n'a pas annonce que l'utilisateur en a le droit : c'est le

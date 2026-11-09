@@ -44,7 +44,8 @@ Ext.define('testextjs.view.configmanagement.grossiste.action.grossisteview', {
         Omode = this.getMode();
         ref = this.getOdatasource().lg_GROSSISTE_ID;
         Me = this;
-        url_services_data_etats_list = '../webservices/commandemanagement/etats/ws_data.jsp?lg_GROSSISTE_ID=' + ref;
+        /* Plan du 08/11, point 2 : API REST a la place de etats/ws_data.jsp (les dates s'ajoutent derriere « ? ») */
+        url_services_data_etats_list = '../api/v1/grossistes/' + encodeURIComponent(ref) + '/etat-controle-achat?_=1';
 
         valdatedebut = "";
         valdatefin = "";
@@ -809,6 +810,8 @@ Ext.define('testextjs.view.configmanagement.grossiste.action.grossisteview', {
                     }
                 }]
         });
+        /* plan du 08/11, point 2 : la fenetre prend la hauteur de son contenu (plus de bas coupe ni de defilement) */
+        window.PrestigeAffichage.ajusterFenetreAuContenu(win, form);
     },
     onbtnsave: function() {
 

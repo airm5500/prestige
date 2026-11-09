@@ -14,9 +14,9 @@ Ext.define('testextjs.view.vente.Removed', {
     height: 'auto',
     minHeight: 570,
     cls: 'custompanel',
+    /* plan du 08/11, point 18 : deux onglets (liste, analyse par motif) */
     layout: {
-        type: 'fit'
-//        align: 'stretch'
+        type: 'card'
     },
     initComponent: function () {
 
@@ -59,7 +59,22 @@ Ext.define('testextjs.view.vente.Removed', {
 
         Ext.applyIf(me, {
             dockedItems: [
-
+                /* plan du 08/11, point 18 : onglets « Liste » et « Analyse par motif » (annulations et modifications) */
+                {
+                    xtype: 'toolbar', dock: 'top', itemId: 'ongletsAnnulees', cls: 'cec-onglets',
+                    layout: {type: 'hbox', pack: 'start', align: 'middle'},
+                    items: [
+                        {xtype: 'button', itemId: 'ongletListe', text: 'Liste des ventes annulées', cls: 'cec-onglet', toggleGroup: 'va-onglets-' + me.id,
+                            allowDepress: false, pressed: true, handler: function () {
+                                me.afficherOnglet('liste');
+                            }},
+                        {xtype: 'button', itemId: 'ongletAnalyse', text: 'Analyse par motif', cls: 'cec-onglet', toggleGroup: 'va-onglets-' + me.id,
+                            allowDepress: false, tooltip: 'Annulations et modifications de vente par motif et par auteur de la vente',
+                            handler: function () {
+                                me.afficherOnglet('analyse');
+                            }}
+                    ]
+                },
                 {
                     xtype: 'toolbar',
                     dock: 'top',
@@ -295,10 +310,110 @@ Ext.define('testextjs.view.vente.Removed', {
                             }
                         ]
                     }
-                }]
+                }
+                ,
+                {
+                    xtype: 'panel', itemId: 'analyseMotifs', autoScroll: true, bodyPadding: 10, border: false,
+                    dockedItems: [{xtype: 'toolbar', dock: 'top', items: [
+                                {xtype: 'combobox', itemId: 'analyseType', fieldLabel: 'Opérations', labelWidth: 70, width: 290, editable: false,
+                                    queryMode: 'local', valueField: 'v', displayField: 't', value: '',
+                                    store: {fields: ['v', 't'], data: [{v: '', t: 'Annulations et modifications'},
+                                            {v: 'ANNULATION', t: 'Annulations seulement'}, {v: 'MODIFICATION', t: 'Modifications seulement'}]},
+                                    listeners: {select: function () {
+                                            me.chargerAnalyse();
+                                        }}},
+                                {xtype: 'tbtext', itemId: 'analyseAide', text: 'Période : celle du haut de l\'écran (bouton « rechercher »).'}
+                            ]}],
+                    html: ''
+                }
+]
         });
         me.callParent(arguments);
+        /* plan du 08/11, point 18 : « rechercher » recharge aussi l'analyse quand son onglet est ouvert */
+        me.down('#rechercher').on('click', function () {
+            if (me.getLayout().getActiveItem() === me.down('#analyseMotifs')) {
+                me.chargerAnalyse();
+            }
+        });
+        if (!Ext.util.CSS.getRule('.va-analyse')) {
+            Ext.util.CSS.createStyleSheet(
+                    '.va-analyse-titre{margin:14px 0 6px;font-size:14px;color:#1a3d6d}'
+                    + '.va-analyse{border-collapse:collapse;width:100%;max-width:1100px;font-size:12px;margin-bottom:8px}'
+                    + '.va-analyse th{background:#e8eef7;color:#1a3d6d;text-align:left;padding:5px 8px;border:1px solid #d0d7e2}'
+                    + '.va-analyse td{padding:4px 8px;border:1px solid #e1e6ee}'
+                    + '.va-analyse .n{text-align:right;white-space:nowrap}'
+                    + '.va-analyse tfoot th{background:#f3f6fa}'
+                    + '.va-analyse-vide{color:#64748b;font-style:italic;padding:8px}', 'va-analyse-styles');
+        }
     },
+    /* plan du 08/11, point 18 : onglets de l'ecran */
+    afficherOnglet: function (cle) {
+        var me = this, analyse = me.down('#analyseMotifs');
+        me.down('#ongletListe').toggle(cle !== 'analyse', true);
+        me.down('#ongletAnalyse').toggle(cle === 'analyse', true);
+        me.getLayout().setActiveItem(cle === 'analyse' ? analyse : me.down('gridpanel'));
+        if (cle === 'analyse') {
+            me.chargerAnalyse();
+        }
+    },
+
+    /* plan du 08/11, point 18 : recapitulatif par motif, par auteur de la vente d'origine, et detail */
+    chargerAnalyse: function () {
+        var me = this, panneau = me.down('#analyseMotifs'), d = me.down('#dtStart').getSubmitValue(),
+                f = me.down('#dtEnd').getSubmitValue(), type = me.down('#analyseType').getValue() || '';
+        panneau.update('<div class="va-analyse-chargement">Chargement…</div>');
+        Ext.Ajax.request({
+            url: '../api/v1/vente-motifs/recap', method: 'GET', params: {dtStart: d, dtEnd: f, type: type},
+            success: function (r) {
+                var o = Ext.decode(r.responseText, true) || {};
+                panneau.update(o.success ? me.htmlAnalyse(o) : '<div class="va-analyse-vide">' + Ext.String.htmlEncode(o.msg || 'Analyse indisponible.') + '</div>');
+            },
+            failure: function () {
+                panneau.update('<div class="va-analyse-vide">Analyse indisponible : réessayer.</div>');
+            }
+        });
+    },
+
+    htmlAnalyse: function (o) {
+        var e = Ext.String.htmlEncode, t = o.total || {};
+        var n = function (v) {
+            return String(Math.round(v || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+        };
+        var pct = function (v) {
+            return t.nb ? (Math.round(v * 1000 / t.nb) / 10) + ' %' : '0 %';
+        };
+        var tableau = function (titre, classe, entetes, lignes, pied) {
+            return '<h3 class="va-analyse-titre">' + titre + '</h3><table class="va-analyse ' + classe + '"><thead><tr>'
+                    + entetes.map(function (h) {
+                        return '<th>' + h + '</th>';
+                    }).join('') + '</tr></thead><tbody>' + (lignes.length ? lignes.join('')
+                    : '<tr><td colspan="' + entetes.length + '" class="va-analyse-vide">Aucune annulation ni modification avec motif sur la période.</td></tr>')
+                    + '</tbody>' + (pied || '') + '</table>';
+        };
+        var ligneTotal = function (x, nom) {
+            return '<tr><td>' + e(nom) + '</td><td class="n">' + n(x.annulations) + '</td><td class="n">' + n(x.modifications)
+                    + '</td><td class="n"><b>' + n(x.nb) + '</b></td><td class="n">' + pct(x.nb) + '</td><td class="n">' + n(x.montant) + '</td></tr>';
+        };
+        var pied = '<tfoot><tr><th>Total</th><th class="n">' + n(t.annulations) + '</th><th class="n">' + n(t.modifications)
+                + '</th><th class="n">' + n(t.nb) + '</th><th class="n">' + (t.nb ? '100 %' : '0 %') + '</th><th class="n">' + n(t.montant) + '</th></tr></tfoot>';
+        var motifs = (o.parMotif || []).map(function (m) {
+            return ligneTotal(m, m.motif);
+        });
+        var auteurs = (o.parAuteur || []).map(function (a) {
+            return ligneTotal(a, a.auteur);
+        });
+        var detail = (o.detail || []).map(function (x) {
+            return '<tr><td>' + e(x.date) + '</td><td>' + e(x.type) + '</td><td>' + e(x.ref) + '</td><td class="n">' + n(x.montant)
+                    + '</td><td>' + e(x.motif) + '</td><td>' + e(x.commentaire) + '</td><td>' + e(x.auteur) + '</td><td>' + e(x.operateur) + '</td></tr>';
+        });
+        var entetes = ['Annulations', 'Modifications', 'Total', 'Part', 'Montant'];
+        return '<div class="va-analyse-bloc">'
+                + tableau('Par motif', 'va-par-motif', ['Motif'].concat(entetes), motifs, pied)
+                + tableau('Par auteur de la vente d\'origine', 'va-par-auteur', ['Auteur de la vente'].concat(entetes), auteurs, pied)
+                + tableau('Détail', 'va-detail', ['Date', 'Opération', 'Référence', 'Montant', 'Motif', 'Précision', 'Auteur de la vente', 'Fait par'], detail)
+                + '</div>';
+    },
+
     getGridStore: function () {
         return this.down('gridpanel').getStore();
     },

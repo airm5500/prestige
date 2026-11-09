@@ -115,7 +115,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
             /* 'NEGATIF' : articles dont la quantite retenue par l'inventaire est encore negative.
              * Une ligne non comptee porte toujours le stock machine du depart : ces articles
              * resteront en stock negatif si l'inventaire est cloture en l'etat. */
-            data: [{str_TYPE: 'ALL', str_desc: 'Tous'}, {str_TYPE: 'MANQUANT', str_desc: 'Articles manquants'}, {str_TYPE: 'SURPLUS', str_desc: 'Articles surplus'}, {str_TYPE: 'MANQUANTSURPLUS', str_desc: 'Tous les ecarts'}, {str_TYPE: 'ALERTE', str_desc: 'Articles alertes'}, {str_TYPE: 'TOUCHE', str_desc: 'Articles inventoriés'}, {str_TYPE: 'NONTOUCHE', str_desc: 'Articles non inventoriés'}, {str_TYPE: 'NEGATIF', str_desc: 'Articles encore négatifs'}]
+            data: [{str_TYPE: 'ALL', str_desc: 'Tous'}, {str_TYPE: 'MANQUANT', str_desc: 'Articles manquants'}, {str_TYPE: 'SURPLUS', str_desc: 'Articles surplus'}, {str_TYPE: 'MANQUANTSURPLUS', str_desc: 'Tous les ecarts'}, {str_TYPE: 'ALERTE', str_desc: 'Articles alertes'}, {str_TYPE: 'TOUCHE', str_desc: 'Articles inventoriés'}, {str_TYPE: 'NONTOUCHE', str_desc: 'Articles non inventoriés'}, {str_TYPE: 'NEGATIF', str_desc: 'Articles encore négatifs'}, {str_TYPE: 'PAF_SUP_PV', str_desc: 'Prix achat > prix vente'}]
         });
 
         var store_grossiste = new Ext.data.Store({
@@ -1372,6 +1372,25 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
         }
         var chkShowStock = Ext.getCmp('chk_show_stock_print');
         p.showStock = (chkShowStock && chkShowStock.getValue()) ? 'true' : 'false';
+        /* plan du 08/11, point 17 : le filtre « Prix achat > prix vente » s'imprime par le service REST, avec les
+           lignes memes de l'ecran (le modele de l'officine ne connait pas ce filtre) */
+        if (p.str_TYPE === 'PAF_SUP_PV') {
+            Ext.Ajax.request({url: '../api/v1/inventaire/filtre/pdf', method: 'GET', params: p, timeout: 240000,
+                success: function (r) {
+                    var o = Ext.decode(r.responseText, true) || {};
+                    if (o.success && o.url) {
+                        window.open('..' + o.url, '_blank');
+                    } else if (window.PrestigeToast) {
+                        PrestigeToast.afficher(o.msg || 'Le PDF n’a pas pu être généré.', {niveau: 'erreur', titre: 'Impression'});
+                    }
+                },
+                failure: function (r) {
+                    if (window.PrestigeToast) {
+                        PrestigeToast.afficher('Le serveur n’a pas répondu (' + r.status + ').', {niveau: 'erreur', titre: 'Impression'});
+                    }
+                }});
+            return;
+        }
         var linkUrl = '../webservices/stockmanagement/inventaire/ws_generate_pdf_filtre.jsp?'
                 + Ext.Object.toQueryString(p);
         window.open(linkUrl);
