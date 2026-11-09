@@ -63,6 +63,9 @@ async function ouvrir(p, code) {
   await p.waitForTimeout(1500);
 }
 
+/* 09/11 : jamais un vrai extranet (sources dirigees vers 127.0.0.1, sinon arret) */
+require('./garde-extranets').verifier(q, ENV_E2E.BASE, ENV_E2E.PAYARA_DOMAINE);
+
 (async () => {
   const nav = await ENV_E2E.lancer(chromium);
   const p = await (await nav.newContext({ viewport: { width: 1500, height: 950 } })).newPage();

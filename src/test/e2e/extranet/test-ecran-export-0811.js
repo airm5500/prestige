@@ -53,6 +53,9 @@ function lireXlsx(chemin) {
   return JSON.parse(execFileSync('python', ['-X', 'utf8', '-W', 'ignore', '-I', '-c', py, chemin], { encoding: 'utf8', maxBuffer: 512 * 1024 * 1024 }));
 }
 
+/* 09/11 : jamais un vrai extranet (sources dirigees vers 127.0.0.1, sinon arret) */
+require('./garde-extranets').verifier(q, ENV_E2E.BASE, ENV_E2E.PAYARA_DOMAINE);
+
 (async () => {
   const avant = { collectes: q('SELECT COUNT(*) FROM extranet_collecte'), comptes: q('CHECKSUM TABLE extranet_compte'),
     lignes: q('CHECKSUM TABLE extranet_liste_ligne') };

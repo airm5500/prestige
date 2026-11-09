@@ -90,6 +90,9 @@ if (Number(q('SELECT COUNT(*) FROM extranet_compte')) > 0) {
   process.exit(2);
 }
 
+/* 09/11 : jamais un vrai extranet (sources dirigees vers 127.0.0.1, sinon arret) */
+require('./garde-extranets').verifier(q, ENV_E2E.BASE, ENV_E2E.PAYARA_DOMAINE);
+
 (async () => {
   const srv = await faux.demarrer(18765);
   const navigateur = await ENV_E2E.lancer(chromium);

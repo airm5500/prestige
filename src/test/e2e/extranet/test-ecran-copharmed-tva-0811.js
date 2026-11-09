@@ -19,6 +19,9 @@ function ok(n, c, d) {
 const ECRAN = 'extranetsgrossistes';
 const nombre = (s) => Number(String(s).replace(/[^\d,.-]/g, '').replace(',', '.'));
 
+/* 09/11 : jamais un vrai extranet (sources dirigees vers 127.0.0.1, sinon arret) */
+require('./garde-extranets').verifier(q, ENV_E2E.BASE, ENV_E2E.PAYARA_DOMAINE);
+
 (async () => {
   const collecteAvant = q('SELECT IFNULL(MAX(id), 0) FROM extranet_collecte');
   const navigateur = await ENV_E2E.lancer(chromium);

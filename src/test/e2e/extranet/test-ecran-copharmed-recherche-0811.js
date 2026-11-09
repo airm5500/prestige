@@ -30,6 +30,9 @@ const ECRAN = 'extranetsgrossistes';
 let graine = 20261108;
 const hasard = (n) => { graine = (graine * 1103515245 + 12345) % 2147483648; return graine % n; };
 
+/* 09/11 : jamais un vrai extranet (sources dirigees vers 127.0.0.1, sinon arret) */
+require('./garde-extranets').verifier(q, ENV_E2E.BASE, ENV_E2E.PAYARA_DOMAINE);
+
 (async () => {
   const id = q("SELECT IFNULL(MAX(id), 0) FROM extranet_collecte WHERE module = 'LISTE_COPHARMED_CATALOGUE' AND statut = 'COMPLETE'");
   if (id === '0') { console.log('ARRET : aucun catalogue Copharmed gardé dans ' + ENV_E2E.BASE + ' : test non lancé.'); process.exit(2); }

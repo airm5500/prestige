@@ -148,8 +148,11 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                     + '.ae-graphe .x-toolbar.ae-seuil{background:#f8fafc;border:0;border-bottom:1px solid #eef2f7;padding:4px 12px}'
                     /* plan avoir du 08/11, point 1 : reperes (menu, fenetre, carte du tableau de bord) */
                     + '.ae-reps{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px;margin-bottom:8px}'
-                    + '.ae-rep{background:#fff;border:1px solid #e2e8f0;border-left:4px solid #1b7f3b;border-radius:8px;padding:7px 10px;min-width:0}'
-                    + '.ae-rep.ae-rep-mal{border-left-color:#c62828}'
+                    /* retour du 04/11 : pas de filet de couleur ; etat par une pastille (tuiles C) et un fond doux (messages A) */
+                    + '.ae-rep{background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:7px 10px;min-width:0}'
+                    + '.ae-rep .l::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:#1b7f3b;margin-right:6px;vertical-align:middle}'
+                    + '.ae-rep.ae-rep-mal{background:#fdf2f2;border-color:#f5c6c6}'
+                    + '.ae-rep.ae-rep-mal .l::before{background:#c62828}'
                     + '.ae-rep .l{font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.3px;white-space:normal}'
                     + '.ae-rep .v{font-size:18px;font-weight:700;color:#0f172a;font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}'
                     + '.ae-rep .d{font-size:11px;color:#64748b;white-space:normal}'

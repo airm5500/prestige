@@ -29,6 +29,9 @@ function ok(n, c, d) {
 }
 const ECRAN = 'extranetsgrossistes';
 
+/* 09/11 : jamais un vrai extranet (sources dirigees vers 127.0.0.1, sinon arret) */
+require('./garde-extranets').verifier(q, ENV_E2E.BASE, ENV_E2E.PAYARA_DOMAINE);
+
 (async () => {
   const comptesAvant = q('SELECT CONCAT_WS(\'|\', source, modifie_le) FROM extranet_compte ORDER BY source');
   const collecteAvant = q('SELECT IFNULL(MAX(id), 0) FROM extranet_collecte');

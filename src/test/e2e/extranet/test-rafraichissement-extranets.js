@@ -71,6 +71,9 @@ async function regler(p, code, delai) {
 const enBase = (code) => lignes("SELECT source, delai_minutes, modifie_par, modifie_le IS NOT NULL FROM extranet_rafraichissement"
   + " WHERE liste = '" + code + "'")[0] || null;
 
+/* 09/11 : jamais un vrai extranet (sources dirigees vers 127.0.0.1, sinon arret) */
+require('./garde-extranets').verifier(q, ENV_E2E.BASE, ENV_E2E.PAYARA_DOMAINE);
+
 (async () => {
   const navigateur = await ENV_E2E.lancer(chromium);
   const p = await (await navigateur.newContext()).newPage();

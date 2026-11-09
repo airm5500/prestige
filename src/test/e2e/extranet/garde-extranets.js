@@ -25,12 +25,12 @@ function sourcesNonLocales(domaine) {
   return SOURCES.filter((s) => !o.some((x) => new RegExp('^-DEXTRANET_' + s + '_URL=https?\\\\?://(127\\.0\\.0\\.1|localhost)\\\\?:').test(x)));
 }
 
-/** Arrete le processus (code 2) si des comptes existent et qu'une source peut atteindre un vrai site. */
+/**
+ * Arrete le processus (code 2) si une source peut atteindre un vrai site. 09/11 : exige meme sans compte en base (avant :
+ * sans compte, le test partait ; sur domain1, sans redirection, la lecture d'essai a vise le vrai site Ubipharm).
+ */
 function verifier(q, base, domaine) {
   const comptes = Number(q('SELECT COUNT(*) FROM extranet_compte'));
-  if (comptes === 0) {
-    return;
-  }
   let reste;
   try {
     reste = sourcesNonLocales(domaine);
@@ -38,11 +38,11 @@ function verifier(q, base, domaine) {
     reste = ['domain.xml illisible (' + domaine + ')'];
   }
   if (reste.length) {
-    console.log('ARRET : ' + base + ' contient ' + comptes + ' compte(s) d’extranet (identifiants réels) et le domaine '
-      + domaine + ' ne dirige pas vers une adresse locale : ' + reste.join(', ') + '. Test non lancé.');
+    console.log('ARRET : le domaine ' + domaine + ' (' + base + ', ' + comptes + ' compte(s) d’extranet en base) ne dirige pas'
+      + ' vers une adresse locale : ' + reste.join(', ') + '. Test non lancé (il viserait un vrai extranet).');
     process.exit(2);
   }
-  console.log('Garde : ' + comptes + ' compte(s) réel(s) en base, toutes les sources dirigées vers 127.0.0.1 : test autorisé.');
+  console.log('Garde : toutes les sources dirigées vers 127.0.0.1 (' + comptes + ' compte(s) en base) : test autorisé.');
 }
 
 /*

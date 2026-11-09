@@ -2056,8 +2056,9 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
             if (!r.texte) {
                 return;
             }
-            html += '<div class="ex-mayite-rubrique" style="margin:0 0 10px 0;border-left:3px solid #2980b9;'
-                    + 'padding:2px 0 2px 10px"><div style="font-weight:bold;color:#2980b9;margin-bottom:2px">'
+            /* retour du 04/11 : pas de filet de couleur ; bandeau de titre gris (sections B) */
+            html += '<div class="ex-mayite-rubrique" style="margin:0 0 10px 0">'
+                    + '<div style="font-weight:bold;color:#1e3a5f;background:#eef2f7;padding:3px 8px;margin-bottom:4px">'
                     + h(r.titre) + '</div><div>' + h(r.texte) + '</div></div>';
         });
         if ((m.equivalents || []).length) {
