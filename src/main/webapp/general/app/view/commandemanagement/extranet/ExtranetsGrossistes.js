@@ -142,7 +142,7 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
                                 me.ongletListe('COPHARMED_AVOIRS', 'Avoirs')])]),
                         rubrique('DPCI', 'exOngletDpci', [
                             rubrique('Mes offres en cours', 'exRubriqueDpciOffres', [
-                                me.ongletListe('DPCI_OFFRES', 'Offres en cours')]),
+                                me.ongletListe('DPCI_OFFRES', 'Offres en cours'), me.ongletOffresDpciDirect()]),
                             rubrique('Mes commandes', 'exRubriqueDpciCommandes', [
                                 me.ongletListe('DPCI_COMMANDES', 'Mes commandes')]),
                             rubrique('Mes documents', 'exRubriqueDpciDocuments', [
@@ -1327,6 +1327,15 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
         });
     },
 
+    /** Option A du 09/11 : « — page 12 / 48 » quand le total est connu, « — 12 pages lues » sinon. */
+    avancementLecture: function (l) {
+        var n = l && l.appels ? l.appels : 0, t = l && l.prevus ? l.prevus : 0;
+        if (!n) {
+            return '';
+        }
+        return t >= n ? ' — page ' + n + ' / ' + t : ' — ' + n + ' page' + (n > 1 ? 's' : '') + ' lue' + (n > 1 ? 's' : '');
+    },
+
     etatLecture: function (code, famille, l) {
         var me = this, id = 'exListe' + code, b = me.down('#' + id + 'Collecter'), msg = me.down('#' + id + 'Msg');
         if (me.isDestroyed || !b) {
@@ -1337,7 +1346,9 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
             me.suivies[code] = true;
             b.setDisabled(true);
             b.setText('Lecture en cours…');
-            msg.setText('<span style="color:#2471a3">Lecture sur l\'extranet en cours depuis ' + me.duree(l.secondes)
+            msg.setText('<span style="color:#2471a3">' + (l.utilisateur === 'rafraichissement automatique'
+                    ? 'Rafraîchissement automatique' : 'Lecture sur l\'extranet') + ' en cours depuis '
+                    + me.duree(l.secondes) + me.avancementLecture(l)
                     + ' : la liste gardée reste consultable</span>', false);
             clearTimeout(me['minuteur' + code]);
             me['minuteur' + code] = setTimeout(function () {
@@ -1470,6 +1481,87 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
             return '<span style="color:#8e44ad">' + me.texte(s) + '</span>';
         }
         return me.texte(s);
+    },
+
+    /* ---------------------------------------------------------------- DPCI : consultation en direct */
+
+    /**
+     * Option A du 09/11 : les offres DPCI comme sur l'extranet. La liste de la période arrive en un appel, le détail
+     * d'une offre au clic (un appel) ; rien n'est gardé. La liste complète « Offres en cours » reste lue en
+     * arrière-plan pour les suggestions et le rapprochement.
+     */
+    ongletOffresDpciDirect: function () {
+        var me = this, jour = new Date();
+        me.offresDpci = Ext.create('Ext.data.Store', {fields: ['nom', 'labo', 'debut', 'fin', 'codeSociete',
+                'idPartenariat', 'numeroRemise']});
+        me.detailOffreDpci = Ext.create('Ext.data.Store', {fields: ['produit', 'code', 'codeFacture', 'cip', 'paliers']});
+        return {title: 'Consultation en direct', itemId: 'exOngletDpciDirect', layout: {type: 'vbox', align: 'stretch'},
+            dockedItems: [{xtype: 'toolbar', dock: 'top', items: [
+                        {xtype: 'datefield', itemId: 'exDpciDirectDu', fieldLabel: 'Du', labelWidth: 20, width: 130,
+                            format: 'd/m/Y', value: jour, allowBlank: false},
+                        {xtype: 'datefield', itemId: 'exDpciDirectAu', fieldLabel: 'Au', labelWidth: 20, width: 130,
+                            format: 'd/m/Y', value: jour, allowBlank: false},
+                        {text: 'Afficher les offres', itemId: 'exDpciDirectLire', iconCls: 'searchicon', handler: function () {
+                                me.lireOffresDpciDirect();
+                            }},
+                        '->', {xtype: 'label', itemId: 'exDpciDirectMsg',
+                            text: 'Lecture en direct sur l\'extranet : rien n\'est gardé'}]}],
+            items: [{xtype: 'gridpanel', itemId: 'exDpciDirectOffres', store: me.offresDpci, flex: 1, columnLines: true,
+                    title: 'Offres de la période — un clic affiche le détail',
+                    viewConfig: {deferEmptyText: false,
+                        emptyText: '<div style="padding:12px">Choisissez la période, puis « Afficher les offres ».</div>'},
+                    columns: [
+                        {text: 'Offre', dataIndex: 'nom', flex: 2, renderer: me.texte},
+                        {text: 'Laboratoire', dataIndex: 'labo', flex: 1, renderer: me.texte},
+                        {text: 'Début', dataIndex: 'debut', width: 110, renderer: me.texte},
+                        {text: 'Fin', dataIndex: 'fin', width: 110, renderer: me.texte}],
+                    listeners: {select: function (sm, rec) {
+                            me.lireOffreDpciDirect(rec);
+                        }}},
+                {xtype: 'gridpanel', itemId: 'exDpciDirectDetail', store: me.detailOffreDpci, flex: 1, columnLines: true,
+                    title: 'Détail de l\'offre',
+                    viewConfig: {deferEmptyText: false,
+                        emptyText: '<div style="padding:12px">Cliquez sur une offre.</div>'},
+                    columns: [
+                        {text: 'Produit', dataIndex: 'produit', flex: 2, renderer: me.texte},
+                        {text: 'Code', dataIndex: 'code', width: 120, renderer: me.texte},
+                        {text: 'Code facture', dataIndex: 'codeFacture', width: 140, renderer: me.texte},
+                        {text: 'Paliers', dataIndex: 'paliers', flex: 2, renderer: me.texte}]}]};
+    },
+
+    lireOffresDpciDirect: function () {
+        var me = this, du = me.down('#exDpciDirectDu'), au = me.down('#exDpciDirectAu'), f = function (d) {
+            return Ext.Date.format(d, 'Y-m-d');
+        };
+        if (!du.isValid() || !au.isValid() || !du.getValue() || !au.getValue()) {
+            me.down('#exDpciDirectMsg').setText('<span style="color:#c0392b">Date illisible : format JJ/MM/AAAA</span>', false);
+            return;
+        }
+        me.numeroOffreDpci = (me.numeroOffreDpci || 0) + 1;
+        me.detailOffreDpci.removeAll();
+        me.down('#exDpciDirectDetail').setTitle('Détail de l\'offre');
+        me.appel('GET', 'dpci/direct/offres?du=' + f(du.getValue()) + '&au=' + f(au.getValue()), function (r) {
+            me.offresDpci.loadData(r.success ? r.offres : []);
+            me.message('#exDpciDirectMsg', r, (r.offres || []).length + ' offre(s), lues en direct : rien n\'est gardé');
+        }, me.down('#exDpciDirectOffres'));
+    },
+
+    lireOffreDpciDirect: function (rec) {
+        var me = this, g = me.down('#exDpciDirectDetail'), n = (me.numeroOffreDpci || 0) + 1;
+        /* un clic sur une autre offre pendant la lecture : seule la dernière offre choisie s'affiche */
+        me.numeroOffreDpci = n;
+        me.appel('GET', 'dpci/direct/offre?' + Ext.Object.toQueryString({codeSociete: rec.get('codeSociete'),
+            idPartenariat: rec.get('idPartenariat'), numeroRemise: rec.get('numeroRemise')}), function (r) {
+            if (n !== me.numeroOffreDpci) {
+                return;
+            }
+            me.detailOffreDpci.loadData(r.success ? r.lignes : []);
+            g.setTitle('Détail de l\'offre ' + Ext.String.htmlEncode(rec.get('nom') || '')
+                    + (r.success ? ' — ' + r.lignes.length + ' produit(s)' : ''));
+            if (!r.success) {
+                me.message('#exDpciDirectMsg', r);
+            }
+        }, g);
     },
 
     /* ---------------------------------------------------------------- Copharmed : recherche de produit */

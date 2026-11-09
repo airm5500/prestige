@@ -34,7 +34,18 @@ public class RafraichissementExtranetsScheduler {
         }
         for (String[] l : dues) {
             try {
-                JSONObject r = service.rafraichir(l[0], l[1]);
+                /*
+                 * option A du 09/11 : meme verrou que les lectures lancees a l'ecran ; une liste deja en lecture n'est
+                 * pas relue une seconde fois, et l'ecran suit la lecture automatique comme une lecture manuelle
+                 */
+                JSONObject r = rest.service.extranet.commun.EtatLectures.duServeur().executer(
+                        rest.service.extranet.commun.EtatLectures.cle(l[0], l[1]),
+                        ExtranetService.UTILISATEUR_AUTOMATIQUE, () -> service.rafraichir(l[0], l[1]));
+                if (r == null) {
+                    LOG.log(Level.INFO, "Rafraîchissement {0} {1} : lecture déjà en cours, non doublée",
+                            new Object[] { l[0], l[1] });
+                    continue;
+                }
                 LOG.log(Level.INFO, "Rafraîchissement {0} {1} : {2}", new Object[] { l[0], l[1],
                         r.optBoolean("success") ? "lue" : "échec " + r.optString("nature", "") });
             } catch (Exception e) {

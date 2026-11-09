@@ -54,6 +54,10 @@ public class ExtranetService {
     public static final String RECLAMATION_DETAIL = "RECLAMATION_DETAIL";
     public static final String RECLAMATION_PDF = "RECLAMATION_PDF";
 
+    /** ecritures des lectures de listes en transactions courtes (option A du 09/11) */
+    @javax.ejb.EJB
+    private CollectesListes collectes;
+
     @PersistenceContext(unitName = "JTA_UNIT")
     private EntityManager em;
 
@@ -382,27 +386,61 @@ public class ExtranetService {
      * Liste complete. La collecte est fermee COMPLETE avant de retirer les lignes des collectes precedentes (le depot
      * le verifie) ; en cas d'echec, le cache precedent reste.
      */
+    @javax.ejb.TransactionAttribute(javax.ejb.TransactionAttributeType.NOT_SUPPORTED)
     public JSONObject collecterListe(String code, String utilisateur) {
         ListeUbipharm l = ListeUbipharm.parCode(code);
         if (l == null) {
             return new JSONObject().put("success", false).put("msg", "Liste inconnue");
         }
         SourceExtranet s = SourceExtranet.UBIPHARM;
-        chargerIdentifiants(s);
-        JournalCollecte journal = new JournalCollecte(em);
-        long id = journal.ouvrir(s, l.module(), null, utilisateur);
-        try {
+        return collecterEnEtapes(s, l.name(), l.module(), l.description(), null, utilisateur, () -> {
             ListesUbipharmCollecteur.Resultat r = ListesUbipharmCollecteur.lire(CoffreSessions.transport(s), l,
                     rest.service.extranet.commun.ExtranetConfiguration.duServeur().pagesMax(s));
-            ListesUbipharmDepot d = new ListesUbipharmDepot(em);
-            d.enregistrer(id, l, r.lignes);
-            journal.fermer(id, JournalCollecte.COMPLETE, r.annoncees, r.lignes.size(), null);
-            d.garderSeulement(l, id);
-            return d.lire(l).put("success", true);
+            return new Lu(r.lignes, r.annoncees);
+        });
+    }
+
+    /** Lignes lues sur l'extranet et nombre annonce par lui (null s'il n'en annonce pas). */
+    static final class Lu {
+        final List<rest.service.extranet.ubipharm.ListesUbipharmParseur.Ligne> lignes;
+        final Integer annoncees;
+
+        Lu(List<rest.service.extranet.ubipharm.ListesUbipharmParseur.Ligne> lignes, Integer annoncees) {
+            this.lignes = lignes;
+            this.annoncees = annoncees;
+        }
+    }
+
+    @FunctionalInterface
+    interface LecteurListe {
+        Lu lire() throws ExtranetException;
+    }
+
+    /**
+     * Lecture d'une liste en etapes courtes (option A du 09/11) : journal ouvert et visible tout de suite, lecture sur
+     * l'extranet sans transaction ni connexion a la base, lignes ecrites par paquets, puis fermeture COMPLETE et
+     * retrait de l'ancien cache ensemble. En cas d'echec, les lignes deja ecrites sont retirees et l'ancien cache
+     * reste.
+     */
+    private JSONObject collecterEnEtapes(SourceExtranet s, String liste, String module, JSONObject description,
+            String parametres, String utilisateur, LecteurListe lecteur) {
+        chargerIdentifiants(s);
+        long id = collectes.ouvrir(s, module, parametres, utilisateur);
+        try {
+            Lu lu = lecteur.lire();
+            for (int i = 0; i < lu.lignes.size(); i += CollectesListes.PAQUET) {
+                collectes.enregistrer(id, liste,
+                        new ArrayList<>(lu.lignes.subList(i, Math.min(lu.lignes.size(), i + CollectesListes.PAQUET))));
+            }
+            return collectes.terminer(s, liste, module, description, id, lu.annoncees, lu.lignes.size()).put("success",
+                    true);
         } catch (ExtranetException e) {
-            journal.fermer(id, JournalCollecte.ECHEC, null, 0, e.nature() + " : " + e.getMessage());
             return new JSONObject().put("success", false).put("nature", e.nature().name()).put("msg", e.getMessage())
-                    .put("collecte", journal.une(id));
+                    .put("collecte", collectes.echec(id, liste, e.nature() + " : " + e.getMessage()));
+        } catch (RuntimeException e) {
+            /* jamais de collecte laissee EN_COURS ni de lignes orphelines */
+            collectes.echec(id, liste, "Erreur interne : " + e.getClass().getSimpleName());
+            throw e;
         }
     }
 
@@ -422,28 +460,16 @@ public class ExtranetService {
     }
 
     /** Comme Ubipharm : collecte fermee COMPLETE avant de retirer l'ancien cache ; un echec garde l'ancien. */
+    @javax.ejb.TransactionAttribute(javax.ejb.TransactionAttributeType.NOT_SUPPORTED)
     public JSONObject collecterListeTedis(String code, String utilisateur) {
         rest.service.extranet.tedis.ListeTedis l = rest.service.extranet.tedis.ListeTedis.parCode(code);
         if (l == null) {
             return new JSONObject().put("success", false).put("msg", "Liste inconnue");
         }
         SourceExtranet s = SourceExtranet.TEDIS;
-        chargerIdentifiants(s);
-        JournalCollecte journal = new JournalCollecte(em);
-        long id = journal.ouvrir(s, l.module(), null, utilisateur);
-        try {
-            rest.service.extranet.tedis.ListesTedisLecteur.Resultat r = rest.service.extranet.tedis.ListesTedisLecteur
-                    .lire(CoffreSessions.transport(s), l);
-            rest.service.extranet.commun.DepotListes d = new rest.service.extranet.commun.DepotListes(em);
-            d.enregistrer(id, l.name(), r.lignes);
-            journal.fermer(id, JournalCollecte.COMPLETE, null, r.lignes.size(), null);
-            d.garderSeulement(l.name(), l.module(), id);
-            return d.lire(s, l.name(), l.module(), l.description()).put("success", true);
-        } catch (ExtranetException e) {
-            journal.fermer(id, JournalCollecte.ECHEC, null, 0, e.nature() + " : " + e.getMessage());
-            return new JSONObject().put("success", false).put("nature", e.nature().name()).put("msg", e.getMessage())
-                    .put("collecte", journal.une(id));
-        }
+        return collecterEnEtapes(s, l.name(), l.module(), l.description(), null, utilisateur,
+                () -> new Lu(rest.service.extranet.tedis.ListesTedisLecteur.lire(CoffreSessions.transport(s), l).lignes,
+                        null));
     }
 
     /* ============================================================ Ubipharm : recherche CIP, libelle, DCI */
@@ -482,28 +508,16 @@ public class ExtranetService {
     }
 
     /** Comme TEDIS : collecte fermee COMPLETE avant de retirer l'ancien cache ; un echec garde l'ancien. */
+    @javax.ejb.TransactionAttribute(javax.ejb.TransactionAttributeType.NOT_SUPPORTED)
     public JSONObject collecterListeCopharmed(String code, String utilisateur) {
         rest.service.extranet.copharmed.ListeCopharmed l = rest.service.extranet.copharmed.ListeCopharmed.parCode(code);
         if (l == null) {
             return new JSONObject().put("success", false).put("msg", "Liste inconnue");
         }
         SourceExtranet s = SourceExtranet.COPHARMED;
-        chargerIdentifiants(s);
-        JournalCollecte journal = new JournalCollecte(em);
-        long id = journal.ouvrir(s, l.module(), null, utilisateur);
-        try {
-            List<rest.service.extranet.ubipharm.ListesUbipharmParseur.Ligne> lignes = rest.service.extranet.copharmed.CopharmedLecteur
-                    .lire(CoffreSessions.transport(s), l);
-            rest.service.extranet.commun.DepotListes d = new rest.service.extranet.commun.DepotListes(em);
-            d.enregistrer(id, l.name(), lignes);
-            journal.fermer(id, JournalCollecte.COMPLETE, null, lignes.size(), null);
-            d.garderSeulement(l.name(), l.module(), id);
-            return d.lire(s, l.name(), l.module(), l.description()).put("success", true);
-        } catch (ExtranetException e) {
-            journal.fermer(id, JournalCollecte.ECHEC, null, 0, e.nature() + " : " + e.getMessage());
-            return new JSONObject().put("success", false).put("nature", e.nature().name()).put("msg", e.getMessage())
-                    .put("collecte", journal.une(id));
-        }
+        return collecterEnEtapes(s, l.name(), l.module(), l.description(), null, utilisateur,
+                () -> new Lu(rest.service.extranet.copharmed.CopharmedLecteur.lire(CoffreSessions.transport(s), l),
+                        null));
     }
 
     /** Recherche en direct sur Copharmed (rien n'est garde) ; le motif n'est jamais journalise. */
@@ -667,6 +681,7 @@ public class ExtranetService {
     }
 
     /** Comme Copharmed : collecte fermee COMPLETE avant de retirer l'ancien cache ; un echec garde l'ancien. */
+    @javax.ejb.TransactionAttribute(javax.ejb.TransactionAttributeType.NOT_SUPPORTED)
     public JSONObject collecterListeDpci(String code, String utilisateur) {
         return collecterListeDpci(code, utilisateur, null);
     }
@@ -675,6 +690,7 @@ public class ExtranetService {
      * Periode choisie a l'ecran (08/11) : DPCI ne renvoie que la periode ; null : offres du jour et un an pour le reste
      * (rafraichissement automatique). La periode lue est gardee dans le journal de la collecte.
      */
+    @javax.ejb.TransactionAttribute(javax.ejb.TransactionAttributeType.NOT_SUPPORTED)
     public JSONObject collecterListeDpci(String code, String utilisateur,
             rest.service.extranet.commun.Periode periode) {
         rest.service.extranet.dpci.ListeDpci l = rest.service.extranet.dpci.ListeDpci.parCode(code);
@@ -682,23 +698,61 @@ public class ExtranetService {
             return new JSONObject().put("success", false).put("msg", "Liste inconnue");
         }
         SourceExtranet s = SourceExtranet.DPCI;
-        chargerIdentifiants(s);
-        JournalCollecte journal = new JournalCollecte(em);
-        long id = journal.ouvrir(s, l.module(), periode == null ? null : periode.parametres(), utilisateur);
+        return collecterEnEtapes(s, l.name(), l.module(), l.description(),
+                periode == null ? null : periode.parametres(), utilisateur,
+                () -> new Lu(
+                        periode == null ? rest.service.extranet.dpci.DpciLecteur.lire(CoffreSessions.transport(s), l)
+                                : rest.service.extranet.dpci.DpciLecteur.lire(CoffreSessions.transport(s), l,
+                                        periode.du, periode.au),
+                        null));
+    }
+
+    /**
+     * Offres DPCI en direct, comme sur l'extranet (option A du 09/11) : la liste des offres de la periode en un appel,
+     * sans leur detail ; rien n'est garde. Periode nulle : offres en cours aujourd'hui.
+     */
+    @javax.ejb.TransactionAttribute(javax.ejb.TransactionAttributeType.NOT_SUPPORTED)
+    public JSONObject offresDpciDirect(rest.service.extranet.commun.Periode periode) {
+        java.time.LocalDate du = periode == null ? java.time.LocalDate.now() : periode.du;
+        java.time.LocalDate au = periode == null ? du : periode.au;
+        chargerIdentifiants(SourceExtranet.DPCI);
         try {
-            List<rest.service.extranet.ubipharm.ListesUbipharmParseur.Ligne> lignes = periode == null
-                    ? rest.service.extranet.dpci.DpciLecteur.lire(CoffreSessions.transport(s), l)
-                    : rest.service.extranet.dpci.DpciLecteur.lire(CoffreSessions.transport(s), l, periode.du,
-                            periode.au);
-            rest.service.extranet.commun.DepotListes d = new rest.service.extranet.commun.DepotListes(em);
-            d.enregistrer(id, l.name(), lignes);
-            journal.fermer(id, JournalCollecte.COMPLETE, null, lignes.size(), null);
-            d.garderSeulement(l.name(), l.module(), id);
-            return d.lire(s, l.name(), l.module(), l.description()).put("success", true);
+            JSONArray a = new JSONArray();
+            for (rest.service.extranet.dpci.DpciLecteur.Offre o : rest.service.extranet.dpci.DpciLecteur
+                    .listeOffres(CoffreSessions.transport(SourceExtranet.DPCI), du, au)) {
+                JSONObject x = new JSONObject().put("nom", o.nom).put("labo", o.labo).put("debut", o.debut).put("fin",
+                        o.fin);
+                o.cle.forEach(x::put);
+                a.put(x);
+            }
+            return new JSONObject().put("success", true).put("offres", a).put("du", du.toString()).put("au",
+                    au.toString());
         } catch (ExtranetException e) {
-            journal.fermer(id, JournalCollecte.ECHEC, null, 0, e.nature() + " : " + e.getMessage());
-            return new JSONObject().put("success", false).put("nature", e.nature().name()).put("msg", e.getMessage())
-                    .put("collecte", journal.une(id));
+            return new JSONObject().put("success", false).put("nature", e.nature().name()).put("msg", e.getMessage());
+        }
+    }
+
+    /** Detail d'une offre DPCI en direct : un appel ; rien n'est garde. */
+    @javax.ejb.TransactionAttribute(javax.ejb.TransactionAttributeType.NOT_SUPPORTED)
+    public JSONObject offreDpciDirect(String codeSociete, String idPartenariat, String numeroRemise) {
+        rest.service.extranet.dpci.DpciLecteur.Offre o = rest.service.extranet.dpci.DpciLecteur
+                .offreDesignee(codeSociete, idPartenariat, numeroRemise);
+        if (o == null) {
+            return new JSONObject().put("success", false).put("msg", "Offre inconnue : relisez la liste des offres");
+        }
+        chargerIdentifiants(SourceExtranet.DPCI);
+        try {
+            JSONArray a = new JSONArray();
+            for (rest.service.extranet.ubipharm.ListesUbipharmParseur.Ligne l : rest.service.extranet.dpci.DpciLecteur
+                    .detailOffre(CoffreSessions.transport(SourceExtranet.DPCI), o)) {
+                /* cellules : offre, labo, debut, fin, produit, code, code facture, paliers */
+                a.put(new JSONObject().put("produit", l.cellules.get(4)).put("code", l.cellules.get(5))
+                        .put("codeFacture", l.cellules.get(6)).put("paliers", l.cellules.get(7))
+                        .put("cip", l.cip == null ? JSONObject.NULL : l.cip));
+            }
+            return new JSONObject().put("success", true).put("lignes", a);
+        } catch (ExtranetException e) {
+            return new JSONObject().put("success", false).put("nature", e.nature().name()).put("msg", e.getMessage());
         }
     }
 
@@ -846,6 +900,7 @@ public class ExtranetService {
     }
 
     /** Lecture d'une liste par la tache planifiee (transaction propre a chaque liste). */
+    @javax.ejb.TransactionAttribute(javax.ejb.TransactionAttributeType.NOT_SUPPORTED)
     public JSONObject rafraichir(String source, String code) {
         if (SourceExtranet.COPHARMED.name().equals(source)) {
             return collecterListeCopharmed(code, UTILISATEUR_AUTOMATIQUE);

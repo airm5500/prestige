@@ -104,6 +104,7 @@ public final class ParcoursDataTables {
             throw new ExtranetException(ExtranetException.Nature.PAGINATION,
                     attendu + " lignes, soit " + pages + " pages : au-delà de la limite de " + pagesMax);
         }
+        Avancement.restants(Math.max(0, pages - 1));
         int recues = 0;
         byte[] precedente = null;
         Enveloppe e = premiere;

@@ -249,6 +249,7 @@ public final class CopharmedLecteur {
 
     static List<Ligne> promotions(TransportExtranet t) throws ExtranetException {
         List<Promotion> ps = promotions(page(t, PROMOTIONS, null));
+        rest.service.extranet.commun.Avancement.restants(ps.size());
         List<Ligne> r = new ArrayList<>();
         for (Promotion p : ps) {
             Map<String, String> q = new LinkedHashMap<>();

@@ -33,6 +33,8 @@ public class LecturesExtranet {
     @Asynchronous
     public void lire(EtatLectures.Lecture lecture, String famille, String code, String utilisateur, Periode periode) {
         JSONObject r;
+        /* option A du 09/11 : appels comptes pour l'avancement affiche */
+        rest.service.extranet.commun.Avancement.suivre(lecture);
         try {
             switch (famille) {
             case "tedis":
@@ -51,6 +53,8 @@ public class LecturesExtranet {
             /* le message technique reste au journal du serveur ; jamais de texte de page ni de cookie */
             LOG.log(Level.WARNING, "Lecture en arriere-plan " + lecture.cle + " en erreur", e);
             r = new JSONObject().put("success", false).put("msg", "Erreur pendant la lecture : à relancer");
+        } finally {
+            rest.service.extranet.commun.Avancement.finir();
         }
         EtatLectures.duServeur().terminer(lecture, r);
     }

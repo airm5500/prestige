@@ -315,6 +315,107 @@ class DpciLecteurTest {
         }
     }
 
+    /**
+     * Option A du 09/11, consultation en direct : la liste des offres (un appel, aucun detail) puis le detail d'une
+     * offre au clic (un appel GetOffre, relu tant que DPCI le prepare). Rapprochement avec la lecture complete gardee
+     * pour les suggestions : memes offres, memes produits, memes paliers, ligne par ligne ; jeux tires au hasard.
+     */
+    @Test
+    void consultationEnDirect_rapprochement() throws Exception {
+        Random r = new Random(9112026);
+        for (int essai = 0; essai < 6; essai++) {
+            JSONArray liste = new JSONArray();
+            Map<String, JSONArray> details = new HashMap<>();
+            Map<String, Integer> chargements = new HashMap<>();
+            int n = essai == 0 ? 0 : 1 + r.nextInt(40);
+            for (int i = 0; i < n; i++) {
+                String code = "P" + essai + "X" + i;
+                int numero = 1 + r.nextInt(3);
+                String debut = r.nextInt(8) == 0 ? "2026-12-01T00:00:00"
+                        : "2026-0" + (1 + r.nextInt(9)) + "-01T00:00:00";
+                String fin = r.nextInt(6) == 0 ? "2026-11-07T00:00:00" : "2027-0" + (1 + r.nextInt(9)) + "-28T00:00:00";
+                liste.put(new JSONObject().put("libelleRemise", "OFFRE " + essai + "-" + i)
+                        .put("remise",
+                                new JSONObject().put("numero", numero).put("dateDebut", debut).put("dateFin", fin))
+                        .put("partenariat", new JSONObject().put("code", code)
+                                .put("laboratoire", new JSONObject().put("code", "L" + i).put("libelle", "LABO " + i))
+                                .put("societe", new JSONObject().put("code", r.nextBoolean() ? "DREP" : "DPCI"))));
+                JSONArray lignes = new JSONArray();
+                for (int k = 0; k < r.nextInt(7); k++) {
+                    String pc = String.valueOf(1_000_000 + r.nextInt(8_000_000));
+                    JSONArray pj = new JSONArray();
+                    tirerPaliers(r).forEach(p -> pj.put(p.json()));
+                    lignes.put(new JSONObject().put("codeProduit", pc).put("palierOffreViews", pj).put("produit",
+                            new JSONObject().put("code", pc)
+                                    .put("codeFacture",
+                                            r.nextInt(4) == 0 ? ""
+                                                    : String.valueOf(3_000_000_000_000L + r.nextInt(999_999)))
+                                    .put("libelle", "PRODUIT " + i + "-" + k)));
+                }
+                details.put(code + "|" + numero, lignes);
+                chargements.put(code, r.nextInt(4) == 0 ? 1 : 0);
+            }
+            try (Faux x = new Faux()) {
+                x.page(DpciLecteur.PAGE_OFFRES, a -> CONNECTE + "offres</body></html>");
+                x.action(DpciLecteur.OFFRES, a -> new JSONObject().put("allOffresList", liste).toString());
+                x.action(DpciLecteur.OFFRE, a -> {
+                    Map<String, String> q = requete(a);
+                    String c = q.get("idPartenariat");
+                    int reste = chargements.get(c);
+                    if (reste > 0) {
+                        chargements.put(c, reste - 1);
+                        return new JSONObject().put("offreVue", new JSONObject().put("loading", true)).toString();
+                    }
+                    return new JSONObject().put("offreVue", new JSONObject().put("loading", false).put("offreLigneList",
+                            details.get(c + "|" + q.get("numeroRemise")))).toString();
+                });
+                TransportExtranet t = x.transport("secret");
+                List<Ligne> complete = DpciLecteur.lire(t, ListeDpci.DPCI_OFFRES, JOUR);
+                Map<String, Integer> remis = new HashMap<>(chargements);
+                chargements.replaceAll((k, v) -> 0);
+                int avant = x.f.appels().size();
+                List<DpciLecteur.Offre> offres = DpciLecteur.listeOffres(t, JOUR, JOUR);
+                List<Appel> appelsListe = x.f.appels().subList(avant, x.f.appels().size());
+                assertEquals(1, appelsListe.stream().filter(a -> a.chemin.equals(DpciLecteur.OFFRES)).count());
+                assertEquals(0, appelsListe.stream().filter(a -> a.chemin.equals(DpciLecteur.OFFRE)).count(),
+                        "liste en direct : aucun detail lu");
+                /* chaque offre en direct, puis son detail : memes lignes que la lecture complete, dans le meme ordre */
+                List<Ligne> direct = new ArrayList<>();
+                for (DpciLecteur.Offre o : offres) {
+                    int a0 = x.f.appels().size();
+                    List<Ligne> d = DpciLecteur.detailOffre(t, o);
+                    long getOffre = x.f.appels().subList(a0, x.f.appels().size()).stream()
+                            .filter(a -> a.chemin.equals(DpciLecteur.OFFRE)).count();
+                    assertEquals(1, getOffre, "detail : un appel GetOffre");
+                    DpciLecteur.Offre designee = DpciLecteur.offreDesignee(o.cle.get("codeSociete"),
+                            o.cle.get("idPartenariat"), o.cle.get("numeroRemise"));
+                    List<Ligne> d2 = DpciLecteur.detailOffre(t, designee);
+                    assertEquals(d.size(), d2.size());
+                    for (int k = 0; k < d.size(); k++) {
+                        assertEquals(d.get(k).cellules.subList(4, 8), d2.get(k).cellules.subList(4, 8),
+                                "offre designee par ses references (ecran) : memes produits");
+                        assertEquals(d.get(k).cip, d2.get(k).cip);
+                    }
+                    direct.addAll(d);
+                }
+                assertEquals(complete.size(), direct.size(), "essai " + essai);
+                for (int k = 0; k < complete.size(); k++) {
+                    assertEquals(complete.get(k).cellules, direct.get(k).cellules, "essai " + essai + " ligne " + k);
+                    assertEquals(complete.get(k).cip, direct.get(k).cip);
+                    assertEquals(complete.get(k).pscode, direct.get(k).pscode);
+                }
+                assertTrue(remis.values().stream().allMatch(v -> v >= 0));
+                getSeulement(x.f);
+            }
+        }
+        for (String[] v : new String[][] { { null, "P", "1" }, { "DREP", "", "1" }, { "DREP", "P&x=1", "1" },
+                { "DREP", "P", "../1" }, { "DREP", "P", "1".repeat(41) }, { "DREP", "P", " 1" } }) {
+            assertNull(DpciLecteur.offreDesignee(v[0], v[1], v[2]), String.join("|", java.util.Arrays.asList(v)));
+        }
+        assertEquals("{codeSociete=DREP, idPartenariat=PART-1.2_x, numeroRemise=3}",
+                DpciLecteur.offreDesignee("DREP", "PART-1.2_x", "3").cle.toString());
+    }
+
     /* ============================================================ commandes */
 
     @Test

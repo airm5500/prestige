@@ -20,15 +20,38 @@ public final class DepotListes {
         this.em = em;
     }
 
+    /** Lignes par instruction INSERT (option A du 09/11 : moins d'allers-retours avec la base). */
+    static final int LIGNES_PAR_INSERT = 100;
+
     public void enregistrer(long collecteId, String liste, List<Ligne> lignes) {
-        for (Ligne x : lignes) {
-            em.createNativeQuery("INSERT INTO extranet_liste_ligne (collecte_id, liste, position, agence, pscode, cip,"
-                    + " cellules, document) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)").setParameter(1, collecteId)
-                    .setParameter(2, liste).setParameter(3, x.position).setParameter(4, x.agence)
-                    .setParameter(5, x.pscode).setParameter(6, x.cip)
-                    .setParameter(7, new JSONArray(x.cellules).toString())
-                    .setParameter(8, FichiersExtranet.ecrireDocument(x.document)).executeUpdate();
+        for (int debut = 0; debut < lignes.size(); debut += LIGNES_PAR_INSERT) {
+            List<Ligne> bloc = lignes.subList(debut, Math.min(lignes.size(), debut + LIGNES_PAR_INSERT));
+            StringBuilder sql = new StringBuilder(
+                    "INSERT INTO extranet_liste_ligne (collecte_id, liste, position, agence,"
+                            + " pscode, cip, cellules, document) VALUES ");
+            for (int i = 0; i < bloc.size(); i++) {
+                int b = i * 8;
+                sql.append(i == 0 ? "" : ", ").append("(?").append(b + 1).append(", ?").append(b + 2).append(", ?")
+                        .append(b + 3).append(", ?").append(b + 4).append(", ?").append(b + 5).append(", ?")
+                        .append(b + 6).append(", ?").append(b + 7).append(", ?").append(b + 8).append(')');
+            }
+            javax.persistence.Query q = em.createNativeQuery(sql.toString());
+            for (int i = 0; i < bloc.size(); i++) {
+                Ligne x = bloc.get(i);
+                int b = i * 8;
+                q.setParameter(b + 1, collecteId).setParameter(b + 2, liste).setParameter(b + 3, x.position)
+                        .setParameter(b + 4, x.agence).setParameter(b + 5, x.pscode).setParameter(b + 6, x.cip)
+                        .setParameter(b + 7, new JSONArray(x.cellules).toString())
+                        .setParameter(b + 8, FichiersExtranet.ecrireDocument(x.document));
+            }
+            q.executeUpdate();
         }
+    }
+
+    /** Lignes d'une collecte en echec : retirees (option A du 09/11), l'ancien cache reste. */
+    public int retirerCollecte(String liste, long collecteId) {
+        return em.createNativeQuery("DELETE FROM extranet_liste_ligne WHERE liste = ?1 AND collecte_id = ?2")
+                .setParameter(1, liste).setParameter(2, collecteId).executeUpdate();
     }
 
     /**

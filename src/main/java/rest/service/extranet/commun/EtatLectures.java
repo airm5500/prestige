@@ -26,6 +26,9 @@ public final class EtatLectures {
         public final Instant debut;
         volatile Instant fin;
         volatile JSONObject resultat;
+        /** appels a l'extranet deja faits, et total prevu (0 : inconnu) ; option A du 09/11 */
+        final java.util.concurrent.atomic.AtomicInteger appels = new java.util.concurrent.atomic.AtomicInteger();
+        volatile int prevus;
 
         Lecture(String cle, String utilisateur, Instant debut) {
             this.cle = cle;
@@ -40,7 +43,8 @@ public final class EtatLectures {
         public JSONObject toJson(Instant maintenant) {
             JSONObject o = new JSONObject().put("cle", cle).put("enCours", enCours()).put("debut", debut.toString())
                     .put("utilisateur", utilisateur == null ? JSONObject.NULL : utilisateur)
-                    .put("secondes", java.time.Duration.between(debut, fin == null ? maintenant : fin).getSeconds());
+                    .put("secondes", java.time.Duration.between(debut, fin == null ? maintenant : fin).getSeconds())
+                    .put("appels", appels.get()).put("prevus", prevus > 0 && appels.get() <= prevus ? prevus : 0);
             if (fin != null) {
                 o.put("fin", fin.toString()).put("resultat", resultat == null ? new JSONObject() : resultat);
             }
@@ -85,6 +89,30 @@ public final class EtatLectures {
         }
         l.resultat = resultat;
         l.fin = horloge.instant();
+    }
+
+    /**
+     * Lecture faite sur ce fil sous la cle (rafraichissement automatique, option A du 09/11) : si une lecture de la
+     * meme liste tourne deja (clic d'un poste, autre passage de la tache), rien n'est lance et null est rendu ; sinon
+     * la lecture est suivie (avancement, ecran) comme une lecture lancee a l'ecran, et son resultat garde.
+     */
+    public JSONObject executer(String cle, String utilisateur, java.util.function.Supplier<JSONObject> lecture) {
+        Lecture l = demarrer(cle, utilisateur);
+        if (l == null) {
+            return null;
+        }
+        JSONObject r = null;
+        Avancement.suivre(l);
+        try {
+            r = lecture.get();
+            return r;
+        } catch (RuntimeException e) {
+            r = new JSONObject().put("success", false).put("msg", "Erreur pendant la lecture : à relancer");
+            throw e;
+        } finally {
+            Avancement.finir();
+            terminer(l, r);
+        }
     }
 
     /** Lecture en cours ou finie depuis moins de {@link #GARDE_SECONDES} ; null sinon. */

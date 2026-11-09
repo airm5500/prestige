@@ -89,60 +89,141 @@ public final class DpciLecteur {
 
     /* ============================================================ offres */
 
-    static List<Ligne> offres(TransportExtranet t, LocalDate du, LocalDate au) throws ExtranetException {
+    /** En-tete d'une offre de la liste : nom, laboratoire, periode et references de son detail (GetOffre). */
+    public static final class Offre {
+        public final String nom, labo, debut, fin;
+        /** codeSociete, idPartenariat, numeroRemise */
+        public final Map<String, String> cle;
+
+        Offre(String nom, String labo, String debut, String fin, Map<String, String> cle) {
+            this.nom = nom;
+            this.labo = labo;
+            this.debut = debut;
+            this.fin = fin;
+            this.cle = cle;
+        }
+    }
+
+    /** Toutes les offres (un appel AllListOffres, apres la page des offres). */
+    static JSONArray toutesOffres(TransportExtranet t) throws ExtranetException {
         t.lire(PAGE_OFFRES, null, Attendu.HTML, null);
         JSONObject r = json(t, OFFRES, null, PAGE_OFFRES);
         JSONArray offres = r.optJSONArray("allOffresList");
         if (offres == null) {
             throw inattendu("liste des offres absente");
         }
+        return offres;
+    }
+
+    static Offre entete(JSONObject o, int i) throws ExtranetException {
+        if (o == null) {
+            throw inattendu("offre " + (i + 1) + " illisible");
+        }
+        JSONObject part = o.optJSONObject("partenariat");
+        JSONObject remise = o.optJSONObject("remise");
+        if (part == null || remise == null) {
+            throw inattendu("offre " + (i + 1) + " sans partenariat ni remise");
+        }
+        String nom = premier(texte(o.opt("libelleRemise")), texte(remise.opt("libelleMarketing")),
+                texte(remise.opt("libelle")), texte(part.opt("libelle")));
+        Map<String, String> q = new LinkedHashMap<>();
+        q.put("codeSociete", libelleOuCode(part.opt("societe"), "code"));
+        q.put("idPartenariat", texte(part.opt("code")));
+        q.put("numeroRemise", texte(remise.opt("numero")));
+        return new Offre(nom, libelle(part.opt("laboratoire")), date(remise.opt("dateDebut")),
+                date(remise.opt("dateFin")), q);
+    }
+
+    static List<Ligne> offres(TransportExtranet t, LocalDate du, LocalDate au) throws ExtranetException {
+        JSONArray offres = toutesOffres(t);
         List<Ligne> lignes = new ArrayList<>();
         int lues = 0;
+        /* option A du 09/11 : une page de detail (GetOffre) par offre de la periode */
+        int aLire = 0;
+        for (int i = 0; i < offres.length(); i++) {
+            JSONObject o = offres.optJSONObject(i), rm = o == null ? null : o.optJSONObject("remise");
+            if (rm != null && enCours(date(rm.opt("dateDebut")), date(rm.opt("dateFin")), du, au)) {
+                aLire++;
+            }
+        }
+        rest.service.extranet.commun.Avancement.restants(Math.min(aLire, OFFRES_MAX));
         for (int i = 0; i < offres.length() && lues < OFFRES_MAX; i++) {
-            JSONObject o = offres.optJSONObject(i);
-            if (o == null) {
-                throw inattendu("offre " + (i + 1) + " illisible");
-            }
-            JSONObject part = o.optJSONObject("partenariat");
-            JSONObject remise = o.optJSONObject("remise");
-            if (part == null || remise == null) {
-                throw inattendu("offre " + (i + 1) + " sans partenariat ni remise");
-            }
-            String debut = date(remise.opt("dateDebut")), fin = date(remise.opt("dateFin"));
-            if (!enCours(debut, fin, du, au)) {
+            Offre e = entete(offres.optJSONObject(i), i);
+            if (!enCours(e.debut, e.fin, du, au)) {
                 continue;
             }
             lues++;
-            String nom = premier(texte(o.opt("libelleRemise")), texte(remise.opt("libelleMarketing")),
-                    texte(remise.opt("libelle")), texte(part.opt("libelle")));
-            String labo = libelle(part.opt("laboratoire"));
-            Map<String, String> q = new LinkedHashMap<>();
-            q.put("codeSociete", libelleOuCode(part.opt("societe"), "code"));
-            q.put("idPartenariat", texte(part.opt("code")));
-            q.put("numeroRemise", texte(remise.opt("numero")));
-            JSONArray l = offre(t, q).optJSONArray("offreLigneList");
-            if (l == null) {
-                throw inattendu("offre « " + nom + " » sans liste de produits");
-            }
-            for (int k = 0; k < l.length(); k++) {
-                JSONObject x = l.optJSONObject(k);
-                JSONObject p = x == null ? null : x.optJSONObject("produit");
-                if (p == null) {
-                    throw inattendu("offre « " + nom + " » : produit " + (k + 1) + " illisible");
-                }
-                if (lignes.size() >= LIGNES_MAX) {
-                    return lignes;
-                }
-                String code = premier(texte(p.opt("code")), texte(x.opt("codeProduit")));
-                String facture = texte(p.opt("codeFacture"));
-                lignes.add(ligne(lignes.size(), code,
-                        CIP.matcher(facture).matches() ? facture : CIP.matcher(code).matches() ? code : null,
-                        Arrays.asList(nom, labo, debut, fin, texte(p.opt("libelle")), code, facture,
-                                paliers(x.optJSONArray("palierOffreViews")))));
+            if (!produits(e, offre(t, e.cle).optJSONArray("offreLigneList"), lignes)) {
+                return lignes;
             }
         }
         return lignes;
     }
+
+    /** Lignes produit d'une offre ajoutees a la liste ; false si la limite de lignes est atteinte. */
+    static boolean produits(Offre e, JSONArray l, List<Ligne> lignes) throws ExtranetException {
+        if (l == null) {
+            throw inattendu("offre « " + e.nom + " » sans liste de produits");
+        }
+        for (int k = 0; k < l.length(); k++) {
+            JSONObject x = l.optJSONObject(k);
+            JSONObject p = x == null ? null : x.optJSONObject("produit");
+            if (p == null) {
+                throw inattendu("offre « " + e.nom + " » : produit " + (k + 1) + " illisible");
+            }
+            if (lignes.size() >= LIGNES_MAX) {
+                return false;
+            }
+            String code = premier(texte(p.opt("code")), texte(x.opt("codeProduit")));
+            String facture = texte(p.opt("codeFacture"));
+            lignes.add(ligne(lignes.size(), code,
+                    CIP.matcher(facture).matches() ? facture : CIP.matcher(code).matches() ? code : null,
+                    Arrays.asList(e.nom, e.labo, e.debut, e.fin, texte(p.opt("libelle")), code, facture,
+                            paliers(x.optJSONArray("palierOffreViews")))));
+        }
+        return true;
+    }
+
+    /**
+     * Consultation en direct, comme sur l'extranet (option A du 09/11) : la liste des offres de la periode, sans leur
+     * detail. Un seul appel ; rien n'est garde.
+     */
+    public static List<Offre> listeOffres(TransportExtranet t, LocalDate du, LocalDate au) throws ExtranetException {
+        JSONArray offres = toutesOffres(t);
+        List<Offre> r = new ArrayList<>();
+        for (int i = 0; i < offres.length(); i++) {
+            Offre e = entete(offres.optJSONObject(i), i);
+            if (enCours(e.debut, e.fin, du, au)) {
+                r.add(e);
+            }
+        }
+        return r;
+    }
+
+    /** Detail d'une offre en direct : un appel GetOffre (relu tant que DPCI le prepare) ; rien n'est garde. */
+    public static List<Ligne> detailOffre(TransportExtranet t, Offre e) throws ExtranetException {
+        List<Ligne> lignes = new ArrayList<>();
+        produits(e, offre(t, e.cle).optJSONArray("offreLigneList"), lignes);
+        return lignes;
+    }
+
+    /** Offre designee par ses references (venues de l'ecran) ; null si l'une manque ou n'a pas la forme attendue. */
+    public static Offre offreDesignee(String codeSociete, String idPartenariat, String numeroRemise) {
+        String[] v = { codeSociete, idPartenariat, numeroRemise };
+        for (String x : v) {
+            if (x == null || !REFERENCE_OFFRE.matcher(x).matches()) {
+                return null;
+            }
+        }
+        Map<String, String> q = new LinkedHashMap<>();
+        q.put("codeSociete", codeSociete);
+        q.put("idPartenariat", idPartenariat);
+        q.put("numeroRemise", numeroRemise);
+        return new Offre("", "", "", "", q);
+    }
+
+    private static final java.util.regex.Pattern REFERENCE_OFFRE = java.util.regex.Pattern
+            .compile("[A-Za-z0-9][A-Za-z0-9_.-]{0,39}");
 
     /** Detail d'une offre ; relu tant que DPCI le prepare (« loading »), dans la limite des essais. */
     static JSONObject offre(TransportExtranet t, Map<String, String> q) throws ExtranetException {

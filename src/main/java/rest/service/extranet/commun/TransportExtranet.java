@@ -101,6 +101,7 @@ public final class TransportExtranet {
         if (referer != null) {
             verifierChemin(referer);
         }
+        Avancement.appel();
         ConnexionExtranet c = connexion;
         if (!session.utilisable()) {
             if (c == null || !c.disponible()) {

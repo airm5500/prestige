@@ -429,6 +429,34 @@ public class ExtranetRessource {
         return ok(service.collecterListeDpci(code, login(), periode));
     }
 
+    /* ============================================================ DPCI en direct (option A du 09/11) */
+
+    /** Liste des offres de la periode, lue en direct (un appel) ; rien n'est garde. */
+    @GET
+    @Path("dpci/direct/offres")
+    public Response offresDpciDirect(@QueryParam("du") String du, @QueryParam("au") String au) {
+        Response r = refus();
+        if (r != null) {
+            return r;
+        }
+        rest.service.extranet.commun.Periode periode;
+        try {
+            periode = du == null && au == null ? null : rest.service.extranet.commun.Periode.lire(du, au);
+        } catch (IllegalArgumentException e) {
+            return ok(new JSONObject().put("success", false).put("msg", e.getMessage()));
+        }
+        return ok(service.offresDpciDirect(periode));
+    }
+
+    /** Detail d'une offre, lu en direct au clic (un appel) ; rien n'est garde. */
+    @GET
+    @Path("dpci/direct/offre")
+    public Response offreDpciDirect(@QueryParam("codeSociete") String codeSociete,
+            @QueryParam("idPartenariat") String idPartenariat, @QueryParam("numeroRemise") String numeroRemise) {
+        Response r = refus();
+        return r != null ? r : ok(service.offreDpciDirect(codeSociete, idPartenariat, numeroRemise));
+    }
+
     /* ============================================================ fichiers des documents (09/11, point 4) */
 
     /**
