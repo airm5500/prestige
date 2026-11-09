@@ -873,4 +873,22 @@ public class ExtranetService {
         return new JSONObject().put("success", true).put("enregistres", faits.length()).put("ignores", ignores)
                 .put("data", faits);
     }
+
+    /* ============================================================ grossistes lies (demande du 09/11) */
+
+    public JSONObject grossistesLies() {
+        return new rest.service.extranet.commun.LiaisonGrossistes(em).lire();
+    }
+
+    /** Corps : {"liaisons": [{"grossiste": id, "source": "UBIPHARM" | ""}]}. Administrateur seulement (API). */
+    public JSONObject lierGrossistes(org.json.JSONArray liaisons, String utilisateur) {
+        rest.service.extranet.commun.LiaisonGrossistes l = new rest.service.extranet.commun.LiaisonGrossistes(em);
+        int[] n = new int[1];
+        String refus = l.enregistrer(liaisons, utilisateur, n);
+        if (refus != null) {
+            return new JSONObject().put("success", false).put("msg", refus);
+        }
+        em.flush();
+        return l.lire().put("changes", n[0]);
+    }
 }

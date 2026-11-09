@@ -571,4 +571,35 @@ public class ExtranetRessource {
             return Response.serverError().type(MediaType.APPLICATION_JSON)
                     .entity(new JSONObject().put("success", false).put("msg", "Export impossible").toString()).build();
         }
-    }}
+    }
+
+    /* ============================================================ grossistes lies (demande du 09/11) */
+
+    @GET
+    @Path("grossistes")
+    public Response grossistesLies() {
+        Response r = refus();
+        return r != null ? r : ok(service.grossistesLies());
+    }
+
+    /** Corps : {"liaisons": [{"grossiste": id, "source": "UBIPHARM" | ""}]} ; administrateur seulement. */
+    @PUT
+    @Path("grossistes")
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Response lierGrossistes(String corps) {
+        Response r = refus();
+        if (r != null) {
+            return r;
+        }
+        if (!administrateur()) {
+            return Droits.interdit("Lier les grossistes aux extranets (administrateur)");
+        }
+        JSONObject in;
+        try {
+            in = new JSONObject(corps == null ? "{}" : corps);
+        } catch (Exception e) {
+            in = new JSONObject();
+        }
+        return ok(service.lierGrossistes(in.optJSONArray("liaisons"), login()));
+    }
+}

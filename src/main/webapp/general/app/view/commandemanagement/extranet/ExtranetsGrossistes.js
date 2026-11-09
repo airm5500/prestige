@@ -80,6 +80,8 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
                 reader: {type: 'json', root: 'data'}}
         });
         me.agencesFiche = Ext.create('Ext.data.Store', {fields: ['etcode', 'etlib', 'psstk', 'colisages']});
+        me.grossistesLies = Ext.create('Ext.data.Store', {fields: ['id', 'libelle', 'code', 'actif', 'source',
+                'propose', 'modifieLe', 'modifiePar', 'avant']});
         me.rafraichissement = Ext.create('Ext.data.Store', {
             fields: ['source', 'code', 'libelle', 'delai', 'derniereComplete', 'dernierEssai', 'statutDernierEssai',
                 'prochaine'],
@@ -147,7 +149,7 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
                             rubrique('Mes réclamations', 'exRubriqueDpciReclamations', [
                                 me.ongletListe('DPCI_RECLAMATIONS', 'Mes réclamations')])]),
                         Ext.apply(me.panneauMayite('exMayite'), {title: 'Mayité'}),
-                        me.ongletCollectes(), me.ongletRafraichissement()],
+                        me.ongletCollectes(), me.ongletRafraichissement(), me.ongletGrossistesLies()],
                     listeners: {
                         tabchange: function (tp, onglet) {
                             me.chargerActif(onglet);
@@ -347,6 +349,8 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
             me.collectes.load();
         } else if (id === 'exOngletRafraichissement') {
             me.rafraichissement.load();
+        } else if (id === 'exOngletGrossistesLies') {
+            me.chargerGrossistesLies();
         }
     },
 
@@ -1882,6 +1886,157 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
             }
         });
     },
+
+    /* ---------------------------------------------------------------- grossistes liés (demande du 09/11) */
+
+    SOURCES_LIABLES: [['', '— aucun —'], ['UBIPHARM', 'Ubipharm'], ['TEDIS', 'TEDIS'], ['COPHARMED', 'Copharmed'],
+        ['DPCI', 'DPCI']],
+
+    libelleSource: function (v) {
+        var t = '';
+        Ext.each(this.SOURCES_LIABLES, function (c) {
+            if (c[0] === v) {
+                t = c[1];
+            }
+        });
+        return v ? t || v : '';
+    },
+
+    /**
+     * Lien entre chaque grossiste de Prestige et l'extranet qui le sert : utilisé par le traitement des suggestions
+     * (unités gratuites, stock et commandes du grossiste) et pour vérifier la saisie des BL. Plusieurs grossistes
+     * peuvent être servis par le même extranet (Ubipharm : une agence LABOREX-CI par grossiste).
+     */
+    ongletGrossistesLies: function () {
+        var me = this, edition = Ext.create('Ext.grid.plugin.CellEditing', {clicksToEdit: 1});
+        return {
+            title: 'Grossistes liés', itemId: 'exOngletGrossistesLies', layout: 'fit',
+            dockedItems: [{xtype: 'toolbar', dock: 'top', items: [
+                        {xtype: 'checkbox', itemId: 'exLiesFiltre', boxLabel: 'Seulement les grossistes liés ou proposés',
+                            checked: true, listeners: {change: function () {
+                                    me.filtrerGrossistesLies();
+                                }}},
+                        {xtype: 'tbspacer', width: 10},
+                        {text: 'Reprendre les propositions', itemId: 'exLiesProposer',
+                            tooltip: 'Lie chaque grossiste encore sans extranet à l\'extranet proposé (à enregistrer ensuite)',
+                            handler: function () {
+                                me.grossistesLies.each(function (r) {
+                                    if (!r.get('source') && r.get('propose')) {
+                                        r.set('source', r.get('propose'));
+                                    }
+                                });
+                                me.majBoutonLies();
+                            }},
+                        {text: 'Enregistrer', itemId: 'exLiesEnregistrer', disabled: true, handler: function (b) {
+                                var n = me.changementsLies().length;
+                                me.confirmerDansBouton(b, 'Enregistrer ' + n + ' changement(s) ?', function () {
+                                    me.enregistrerGrossistesLies();
+                                });
+                            }},
+                        {text: 'Annuler', itemId: 'exLiesAnnuler', disabled: true, handler: function () {
+                                me.grossistesLies.each(function (r) {
+                                    r.set('source', r.get('avant'));
+                                });
+                                me.majBoutonLies();
+                            }},
+                        '->', {xtype: 'label', itemId: 'exLiesResume'}, {xtype: 'tbspacer', width: 12},
+                        {xtype: 'label', itemId: 'exLiesMsg'}]}],
+            items: [{xtype: 'gridpanel', itemId: 'exLiesGrille', store: me.grossistesLies, columnLines: true,
+                    plugins: [edition],
+                    viewConfig: {deferEmptyText: false, emptyText: '<div style="padding:12px">Aucun grossiste</div>'},
+                    columns: [
+                        {text: 'Grossiste de Prestige', dataIndex: 'libelle', flex: 1, renderer: function (v, m, r) {
+                                return me.texte(v) + (r.get('actif') ? '' : ' <i style="color:#999">(désactivé)</i>');
+                            }},
+                        {text: 'Code', dataIndex: 'code', width: 110, renderer: me.texte},
+                        {text: 'Extranet', dataIndex: 'source', width: 150, renderer: function (v, m, r) {
+                                var t = v ? '<b>' + me.texte(me.libelleSource(v)) + '</b>'
+                                        : '<span style="color:#999">aucun</span>';
+                                return t + ' ▾' + (v !== r.get('avant') ? ' <span style="color:#d35400">●</span>' : '');
+                            },
+                            editor: {xtype: 'combo', editable: false, store: me.SOURCES_LIABLES, queryMode: 'local',
+                                listeners: {select: function () {
+                                        edition.completeEdit();
+                                    }}}},
+                        {text: 'Proposé', dataIndex: 'propose', width: 110, renderer: function (v) {
+                                return me.texte(me.libelleSource(v));
+                            }},
+                        {text: 'Modifié le', dataIndex: 'modifieLe', width: 140, renderer: function (v) {
+                                return me.texte(v ? String(v).replace('T', ' ').substring(0, 16) : '');
+                            }},
+                        {text: 'Par', dataIndex: 'modifiePar', width: 100, renderer: me.texte}],
+                    listeners: {edit: function () {
+                            me.majBoutonLies();
+                        }}}]
+        };
+    },
+
+    chargerGrossistesLies: function (texteOk) {
+        var me = this;
+        me.appel('GET', 'grossistes', function (r) {
+            if (!r.success) {
+                me.message('#exLiesMsg', r);
+                return;
+            }
+            Ext.each(r.grossistes || [], function (g) {
+                g.avant = g.source;
+            });
+            me.grossistesLies.loadData(r.grossistes || []);
+            me.filtrerGrossistesLies();
+            me.down('#exLiesResume').setText(Ext.Array.map(r.sources || [], function (s) {
+                return Ext.String.htmlEncode(s.libelle) + ' : ' + s.lies;
+            }).join(' · '));
+            me.majBoutonLies();
+            if (texteOk) {
+                me.message('#exLiesMsg', {success: true}, texteOk);
+            }
+        }, me.down('#exOngletGrossistesLies'));
+    },
+
+    filtrerGrossistesLies: function () {
+        var st = this.grossistesLies, seul = this.down('#exLiesFiltre').getValue();
+        st.clearFilter(seul);
+        if (seul) {
+            st.filterBy(function (r) {
+                return !!(r.get('source') || r.get('avant') || r.get('propose'));
+            });
+        }
+    },
+
+    /** Lignes modifiées (filtre compris) : {grossiste, source}. */
+    changementsLies: function () {
+        var l = [], st = this.grossistesLies;
+        (st.snapshot || st.data).each(function (r) {
+            if (r.get('source') !== r.get('avant')) {
+                l.push({grossiste: r.get('id'), source: r.get('source') || ''});
+            }
+        });
+        return l;
+    },
+
+    majBoutonLies: function () {
+        var n = this.changementsLies().length;
+        this.down('#exLiesEnregistrer').setDisabled(n === 0);
+        this.down('#exLiesAnnuler').setDisabled(n === 0);
+        this.down('#exLiesEnregistrer').setText(n ? 'Enregistrer (' + n + ')' : 'Enregistrer');
+        this.down('#exLiesEnregistrer').texteNormal = this.down('#exLiesEnregistrer').getText();
+    },
+
+    enregistrerGrossistesLies: function () {
+        var me = this, l = me.changementsLies();
+        Ext.Ajax.request({
+            method: 'PUT', url: me.URL + 'grossistes', jsonData: {liaisons: l},
+            callback: function (o, ok, rep) {
+                var r = Ext.decode(rep.responseText, true) || {success: false, msg: 'Erreur ' + rep.status};
+                if (!r.success) {
+                    me.message('#exLiesMsg', r);
+                    return;
+                }
+                me.chargerGrossistesLies(r.changes + ' lien(s) enregistré(s)');
+            }
+        });
+    },
+
 
     /* ---------------------------------------------------------------- journal des collectes */
 
