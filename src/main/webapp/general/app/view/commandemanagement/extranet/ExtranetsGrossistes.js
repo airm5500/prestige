@@ -735,6 +735,7 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
                         {xtype: 'combo', itemId: 'exRechercheChamps', width: 130, editable: false, value: 'TOUT',
                             store: [['TOUT', 'CIP, nom et DCI'], ['CIP_LIBELLE', 'CIP ou nom'], ['DCI', 'DCI']]},
                         {xtype: 'checkbox', itemId: 'exRechercheStock', boxLabel: 'En stock seulement', margin: '0 0 0 6'},
+                        me.boutonExporter('exFicheExport', '#exAgencesGrille', 'Ubipharm', 'Stock par agence', '#exFicheMsg'),
                         '->', {xtype: 'label', itemId: 'exFicheMsg'}]}],
             items: [
                 {xtype: 'gridpanel', itemId: 'exRechercheGrille', hidden: true, height: 200, columnLines: true,
@@ -839,8 +840,10 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
                                 }, me.down('#exOngletReappro'));
                                 });
                             }},
-                        '->', {xtype: 'label', itemId: 'exReapproMsg'}, {xtype: 'label', itemId: 'exReapproDate'}]}],
-            items: [{xtype: 'gridpanel', store: me.reappro, columnLines: true,
+                        me.boutonExporter('exReapproExport', '#exReapproGrille', 'Ubipharm', 'Réapprovisionnements', '#exReapproMsg', function (rendre) {
+                            me.toutesLignesReappro(rendre);
+                        }), '->', {xtype: 'label', itemId: 'exReapproMsg'}, {xtype: 'label', itemId: 'exReapproDate'}]}],
+            items: [{xtype: 'gridpanel', itemId: 'exReapproGrille', store: me.reappro, columnLines: true,
                     viewConfig: {deferEmptyText: false, emptyText: '<div style="padding:12px">Aucune ligne</div>'},
                     columns: [
                         {text: 'Référence', dataIndex: 'pscode', width: 100, renderer: me.texte},
@@ -889,6 +892,7 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
                                 }, me.down('#exOngletReclamations'));
                                 });
                             }},
+                        me.boutonExporter('exReclamationsExport', '#exGrilleReclamations', 'Ubipharm', 'Réclamations', '#exReclamationsMsg'),
                         '->', {xtype: 'label', itemId: 'exReclamationsMsg'},
                         {xtype: 'label', itemId: 'exReclamationsDate'}]}],
             items: [
@@ -1045,10 +1049,11 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
                                     }, me.down('#exOngletNouveaux'));
                                 });
                             }},
+                        me.boutonExporter('exNouveauxExport', '#exNouveauxGrille', 'Ubipharm', 'Nouveaux produits', '#exNouveauxMsg'),
                         '->', {xtype: 'label', itemId: 'exNouveauxMsg'}, {xtype: 'tbspacer', width: 12},
                         {xtype: 'label', itemId: 'exNouveauxNombre'}, {xtype: 'tbspacer', width: 12},
                         {xtype: 'label', itemId: 'exNouveauxDate'}]}],
-            items: [{xtype: 'gridpanel', store: me.nouveaux, columnLines: true,
+            items: [{xtype: 'gridpanel', itemId: 'exNouveauxGrille', store: me.nouveaux, columnLines: true,
                     viewConfig: {deferEmptyText: false, emptyText: '<div style="padding:12px">Aucun produit</div>'},
                     columns: [
                         {text: 'Référence', dataIndex: 'pscode', width: 100, renderer: me.texte},
@@ -1106,6 +1111,13 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
                                 me.down('#' + id + 'Au').setDisabled(appuye);
                                 me.filtrerListe(code);
                             }},
+                        me.champDispo(id + 'Dispo', function () {
+                            me.filtrerListe(code);
+                        }, true),
+                        me.boutonExporter(id + 'Export', '#' + id + 'Grille', me.grossisteListe(code), titre, '#' + id + 'Msg',
+                                function (rendre) {
+                                    rendre((me.donnees || {})[code] || []);
+                                }),
                         '->', {xtype: 'label', itemId: id + 'Msg'}, {xtype: 'tbspacer', width: 12},
                         {xtype: 'label', itemId: id + 'Nombre'}, {xtype: 'tbspacer', width: 12},
                         {xtype: 'label', itemId: id + 'Date'}]}],
@@ -1306,7 +1318,7 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
         Ext.each(r.colonnes || [], function (titre, i) {
             var genre = me.genreColonne(titre);
             colonnes.push({text: me.texte(titre), dataIndex: 'cellules', minWidth: genre.min, flex: genre.flex,
-                align: genre.align, tdCls: genre.tdCls,
+                align: genre.align, tdCls: genre.tdCls, celluleIndex: i,
                 renderer: function (v, meta) {
                     me.bulle(meta, v ? v[i] : '');
                     return me.celluleListe(genre, v ? v[i] : '');
@@ -1320,6 +1332,15 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
         Ext.each(['Du', 'Au', 'Chercher', 'Tout'], function (s) {
             me.down('#' + id + s).setVisible(me.datesListe[code].avecDates);
         });
+        /* filtre Disponibles / Non disponibles quand la liste a une colonne de disponibilite (point 2) */
+        me.dispoListe = me.dispoListe || {};
+        me.dispoListe[code] = -1;
+        Ext.each(r.colonnes || [], function (titre, i) {
+            if (me.dispoListe[code] < 0 && me.genreColonne(titre).nom === 'dispo') {
+                me.dispoListe[code] = i;
+            }
+        });
+        me.down('#' + id + 'Dispo').setVisible(me.dispoListe[code] >= 0);
         me.filtrerListe(code);
         me.afficherDate('#' + id + 'Date', r);
         var lue = r.collecte && /du=(\d{4}-\d{2}-\d{2});au=(\d{4}-\d{2}-\d{2})/.exec(r.collecte.parametres || '');
@@ -1399,6 +1420,9 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
                                     }
                                 }}},
                         {text: 'Rechercher', itemId: 'exCopharmedRechercher', iconCls: 'searchicon', handler: chercher},
+                        me.champDispo('exCopharmedDispo', function () {
+                            me.filtrerDispoCopharmed();
+                        }), me.boutonExporter('exCopharmedExport', '#exCopharmedGrille', 'Copharmed', 'Recherche de produit', '#exCopharmedMsg'),
                         '->', {xtype: 'label', itemId: 'exCopharmedMsg'}]}],
             items: [{xtype: 'gridpanel', itemId: 'exCopharmedGrille', store: me.rechercheCopharmed, columnLines: true,
                     viewConfig: {deferEmptyText: false, emptyText: '<div style="padding:12px;color:#777">Saisissez un '
@@ -1463,15 +1487,167 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
         var me = this, id = 'exListe' + code, st = me.listes[code], tout = (me.donnees || {})[code] || [],
                 q = Ext.String.trim(me.valeur('#' + id + 'Recherche')).toLowerCase(), nombre = me.down('#' + id + 'Nombre'),
                 p = me.periodeListe(code), cd = (me.datesListe || {})[code],
-                trouves = !q && !p ? tout : Ext.Array.filter(tout, function (l) {
+                cd2 = me.down('#' + id + 'Dispo'), d = cd2 && cd2.isVisible() ? cd2.getValue() : '',
+                kd = (me.dispoListe || {})[code],
+                trouves = !q && !p && !d ? tout : Ext.Array.filter(tout, function (l) {
                     return (!q || (l.cellules || []).join(' ').toLowerCase().indexOf(q) >= 0)
-                            && (!p || !cd || me.dansPeriode(cd, l.cellules, p));
+                            && (!p || !cd || me.dansPeriode(cd, l.cellules, p))
+                            && (!d || me.selonDispo(d, (l.cellules || [])[kd]));
                 });
         st.loadData(trouves);
         if (nombre) {
-            nombre.setText(trouves.length + (q || p ? ' / ' + tout.length : '') + ' ligne(s)');
+            nombre.setText(trouves.length + (q || p || d ? ' / ' + tout.length : '') + ' ligne(s)');
         }
         return trouves.length;
+    },
+
+    /* ---------------------------------------------------------------- export CSV / Excel (retour du 08/11, point 2) */
+
+    /** Grossiste d'une liste, d'après son code (nom du fichier exporté). */
+    grossisteListe: function (code) {
+        return code.indexOf('TEDIS_') === 0 ? 'TEDIS' : code.indexOf('COPHARMED_') === 0 ? 'Copharmed'
+                : code.indexOf('DPCI_') === 0 ? 'DPCI' : 'Ubipharm';
+    },
+
+    /** Liste déroulante « Disponibilité » : toutes, disponibles, non disponibles. */
+    champDispo: function (itemId, action, cache) {
+        return {xtype: 'combo', itemId: itemId, width: 160, editable: false, value: '', hidden: !!cache,
+            store: [['', 'Disponibilité : toutes'], ['oui', 'Disponibles'], ['non', 'Non disponibles']],
+            listeners: {change: action}};
+    },
+
+    /** Vrai si la valeur de disponibilité correspond au choix (oui : disponible, non : indisponible). */
+    selonDispo: function (choix, v) {
+        var s = v === null || v === undefined ? '' : String(v);
+        return choix === 'oui' ? this.DISPO_OUI.test(s) : choix === 'non' ? this.DISPO_NON.test(s) : true;
+    },
+
+    filtrerDispoCopharmed: function () {
+        var me = this, d = me.down('#exCopharmedDispo').getValue(), st = me.rechercheCopharmed;
+        st.clearFilter(!!d);
+        if (d) {
+            st.filterBy(function (r) {
+                return me.selonDispo(d, r.get('dispo'));
+            });
+        }
+    },
+
+    /**
+     * Bouton « Exporter » : lignes affichées ou toutes les lignes, en CSV ou en Excel. {@code toutes(rendre)} donne
+     * toutes les lignes (sinon : toutes celles du magasin, filtre local retiré).
+     */
+    boutonExporter: function (itemId, grilleSel, grossiste, onglet, msgSel, toutes) {
+        var me = this, choix = function (texte, tout, format) {
+            return {text: texte, itemId: itemId + (tout ? 'Toutes' : 'Affichage') + (format === 'csv' ? 'Csv' : 'Excel'),
+                handler: function () {
+                    me.exporter(grilleSel, typeof grossiste === 'function' ? grossiste() : grossiste, onglet, msgSel,
+                            tout ? (toutes || 'magasin') : null, format);
+                }};
+        };
+        return {text: 'Exporter', itemId: itemId,
+            tooltip: 'Exporter en CSV ou en Excel (nom du grossiste dans le nom du fichier)',
+            menu: [choix('Lignes affichées — CSV', false, 'csv'), choix('Lignes affichées — Excel', false, 'xlsx'), '-',
+                choix('Toutes les lignes — CSV', true, 'csv'), choix('Toutes les lignes — Excel', true, 'xlsx')]};
+    },
+
+    /** Texte sans balises (titre de colonne, valeur rendue). */
+    sansBalises: function (h) {
+        var d = document.createElement('div');
+        d.innerHTML = h === null || h === undefined ? '' : String(h);
+        return (d.textContent || '').replace(/\s+/g, ' ').trim();
+    },
+
+    exporter: function (grilleSel, grossiste, onglet, msgSel, toutes, format) {
+        var me = this, grille = me.down(grilleSel), msg = msgSel ? me.down(msgSel) : null;
+        if (!grille) {
+            return;
+        }
+        var cols = Ext.Array.filter(grille.headerCt.getGridColumns(), function (c) {
+            return !c.isHidden() && c.text && (c.celluleIndex !== undefined || c.dataIndex);
+        });
+        var colonnes = Ext.Array.map(cols, function (c) {
+            var t = me.sansBalises(c.text), g = me.genreColonne(t).nom;
+            return {titre: t, nombre: g === 'montant' || g === 'nombre'};
+        });
+        var valeur = function (data, c) {
+            var v = c.celluleIndex !== undefined ? (data.cellules || [])[c.celluleIndex] : data[c.dataIndex];
+            if (v === null || v === undefined) {
+                return '';
+            }
+            if (typeof v === 'object') {
+                return c.renderer ? me.sansBalises(c.renderer.call(c.scope || me, v, {}, {data: data, get: function (k) {
+                        return data[k];
+                    }})) : JSON.stringify(v);
+            }
+            return String(v);
+        };
+        var envoyer = function (datas) {
+            var lignes = Ext.Array.map(datas, function (d) {
+                return Ext.Array.map(cols, function (c) {
+                    return valeur(d, c);
+                });
+            });
+            if (msg) {
+                msg.setText('Export de ' + lignes.length + ' ligne(s)…');
+            }
+            fetch(me.URL + 'export', {method: 'POST', credentials: 'same-origin', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({format: format, grossiste: grossiste, onglet: onglet, colonnes: colonnes, lignes: lignes})})
+                    .then(function (r) {
+                        if (!r.ok) {
+                            return r.json().then(function (j) {
+                                throw new Error(j.msg || 'Export impossible');
+                            });
+                        }
+                        var cd = r.headers.get('Content-Disposition') || '', m = /filename\*=UTF-8''([^;]+)/.exec(cd);
+                        return r.blob().then(function (b) {
+                            return {b: b, nom: m ? decodeURIComponent(m[1]) : 'export.' + format};
+                        });
+                    }).then(function (o) {
+                var a = document.createElement('a');
+                a.href = URL.createObjectURL(o.b);
+                a.download = o.nom;
+                document.body.appendChild(a);
+                a.click();
+                setTimeout(function () {
+                    URL.revokeObjectURL(a.href);
+                    document.body.removeChild(a);
+                }, 2000);
+                if (msg) {
+                    msg.setText(lignes.length + ' ligne(s) exportée(s) : ' + Ext.String.htmlEncode(o.nom));
+                }
+            })['catch'](function (e) {
+                if (msg) {
+                    msg.setText('<span style="color:#c0392b">' + Ext.String.htmlEncode(e.message) + '</span>', false);
+                }
+            });
+        };
+        var st = grille.getStore(), donnees = function (recs) {
+            return Ext.Array.map(recs, function (r) {
+                return r.data;
+            });
+        };
+        if (!toutes) {
+            envoyer(donnees(st.getRange()));
+        } else if (toutes === 'magasin') {
+            envoyer(donnees(st.snapshot ? st.snapshot.getRange() : st.getRange()));
+        } else {
+            toutes(envoyer);
+        }
+    },
+
+    /** Toutes les lignes des réapprovisionnements gardées (au-delà de la page affichée), recherche comprise. */
+    toutesLignesReappro: function (rendre) {
+        var me = this, tout = [], recherche = encodeURIComponent(me.valeur('#exReapproRecherche')), page = function (n) {
+            me.appel('GET', 'ubipharm/reappro?page=' + n + '&limit=200&recherche=' + recherche, function (r) {
+                tout = tout.concat(r.lignes || []);
+                if ((r.lignes || []).length === 200 && tout.length < (r.total || 0)) {
+                    page(n + 1);
+                } else {
+                    rendre(tout);
+                }
+            }, me.down('#exOngletReappro'));
+        };
+        page(1);
     },
 
     /* ---------------------------------------------------------------- Mayité */
@@ -1719,8 +1895,10 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
                             listeners: {change: function (c, v) {
                                     me.collectes.getProxy().url = me.URL + v + '/collectes';
                                     me.collectes.load();
-                                }}}]}],
-            items: [{xtype: 'gridpanel', store: me.collectes, columnLines: true,
+                                }}}, me.boutonExporter('exCollectesExport', '#exCollectesGrille', function () {
+                            return me.down('#exCollectesSource').getRawValue();
+                        }, 'Collectes', null)]}],
+            items: [{xtype: 'gridpanel', itemId: 'exCollectesGrille', store: me.collectes, columnLines: true,
                     viewConfig: {deferEmptyText: false, emptyText: '<div style="padding:12px">Aucune collecte</div>'},
                     columns: [
                         {text: 'Début', dataIndex: 'debut', width: 140, renderer: me.texte},

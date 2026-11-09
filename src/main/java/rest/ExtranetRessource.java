@@ -527,4 +527,48 @@ public class ExtranetRessource {
         }
         return ok(service.definirRafraichissement(code, c.optInt("delai", -1), login()));
     }
-}
+
+    /* ============================================================ export CSV / Excel (retour du 08/11, point 2) */
+
+    /**
+     * Corps : {format : csv | xlsx, grossiste, onglet, colonnes : [{titre, nombre}], lignes : [[...]]} (lignes
+     * affichees ou toutes les lignes gardees, au choix de l'ecran). Rend le fichier, nom « Grossiste - Onglet - date ».
+     * Rien n'est lu sur l'extranet ni ecrit en base.
+     */
+    @POST
+    @Path("export")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.WILDCARD)
+    public Response exporter(String corps) {
+        Response r = refus();
+        if (r != null) {
+            return r;
+        }
+        rest.service.extranet.commun.ExportExtranet.Demande d;
+        try {
+            d = new rest.service.extranet.commun.ExportExtranet.Demande(new JSONObject(corps == null ? "{}" : corps));
+        } catch (org.json.JSONException | IllegalArgumentException e) {
+            return Response.status(Response.Status.BAD_REQUEST).type(MediaType.APPLICATION_JSON)
+                    .entity(new JSONObject().put("success", false)
+                            .put("msg", e instanceof IllegalArgumentException ? e.getMessage() : "Corps JSON attendu")
+                            .toString())
+                    .build();
+        }
+        try {
+            boolean csv = "csv".equals(d.format);
+            byte[] b = csv ? rest.service.extranet.commun.ExportExtranet.csv(d)
+                    : rest.service.extranet.commun.ExportExtranet.xlsx(d);
+            String nom = rest.service.extranet.commun.ExportExtranet.nomFichier(d.grossiste, d.onglet,
+                    java.time.LocalDate.now(), d.format);
+            return Response.ok(b)
+                    .type(csv ? "text/csv; charset=UTF-8"
+                            : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                    .header("Content-Disposition", "attachment; filename=\""
+                            + rest.service.extranet.commun.ExportExtranet.nomAscii(nom).replace("\"", "")
+                            + "\"; filename*=UTF-8''" + java.net.URLEncoder.encode(nom, "UTF-8").replace("+", "%20"))
+                    .header("Access-Control-Expose-Headers", "Content-Disposition").build();
+        } catch (java.io.IOException e) {
+            return Response.serverError().type(MediaType.APPLICATION_JSON)
+                    .entity(new JSONObject().put("success", false).put("msg", "Export impossible").toString()).build();
+        }
+    }}
