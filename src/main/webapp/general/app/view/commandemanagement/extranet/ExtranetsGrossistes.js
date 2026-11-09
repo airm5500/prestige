@@ -1386,13 +1386,13 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
             me.rechercherCopharmed();
         };
         me.rechercheCopharmed = Ext.create('Ext.data.Store', {fields: ['designation', 'code', 'dci', 'colisage',
-                'prixHT', 'remise', 'prixNet', 'prixPublic', 'dispo', 'promotion', 'ug']});
+                'prixHT', 'remise', 'prixNet', 'prixPublic', 'dispo', 'promotion', 'ug', 'source']});
         var dispo = me.genreColonne('Disponibilité'), ug = me.genreColonne('Unités gratuites');
         return {
             title: 'Recherche de produit', itemId: 'exOngletRechercheCopharmed', layout: 'fit',
             dockedItems: [{xtype: 'toolbar', dock: 'top', items: [
                         {xtype: 'textfield', itemId: 'exCopharmedMotif', fieldLabel: 'Nom, code ou DCI', labelWidth: 110,
-                            width: 360, emptyText: 'ex. doliprane, 36246, paracetamol', enableKeyEvents: true,
+                            width: 380, emptyText: 'ex. doli 1000, 36246, paracetamol (morceaux de mots)', enableKeyEvents: true,
                             listeners: {specialkey: function (f, e) {
                                     if (e.getKey() === e.ENTER) {
                                         chercher();
@@ -1407,6 +1407,14 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
                         {text: 'Désignation', dataIndex: 'designation', flex: 3, minWidth: 180, renderer: me.texte},
                         {text: 'Code', dataIndex: 'code', width: 115, renderer: me.texte},
                         {text: 'DCI', dataIndex: 'dci', flex: 2, renderer: me.texte},
+                        /* retour du 08/11, point 1 : produit trouve en direct, ou dans le catalogue garde (morceaux de mots) */
+                        {text: 'Source', dataIndex: 'source', width: 115, renderer: function (v, meta) {
+                                var c = me.catalogueCopharmed ? ' du ' + me.catalogueCopharmed : '';
+                                me.bulle(meta, v === 'catalogue' ? 'Trouvé dans le catalogue gardé' + c
+                                        + ' : prix et disponibilité de cette date' : 'Trouvé en direct sur l’extranet');
+                                return v === 'catalogue' ? '<span style="color:#7f8c8d">catalogue' + c + '</span>'
+                                        : '<span style="color:#1e8449">en direct</span>';
+                            }},
                         {text: 'Colisage', dataIndex: 'colisage', width: 80, align: 'right', renderer: me.texte},
                         {text: 'Prix HT', dataIndex: 'prixHT', width: 90, align: 'right', renderer: me.montant},
                         {text: 'Taux TVA', dataIndex: 'remise', width: 70, align: 'right', renderer: me.texte},
@@ -1439,9 +1447,13 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
             return;
         }
         me.appel('GET', 'copharmed/recherche?motif=' + encodeURIComponent(motif), function (r) {
+            me.catalogueCopharmed = r.catalogue ? Ext.Date.format(new Date(String(r.catalogue).replace(' ', 'T')), 'd/m/Y') : null;
             me.rechercheCopharmed.loadData(r.success ? r.resultats : []);
-            me.message('#exCopharmedMsg', r, (r.resultats || []).length + ' produit(s)'
-                    + (r.tronque ? ' — les premiers affichés : affinez' : ''));
+            me.message('#exCopharmedMsg', r, (r.resultats || []).length + ' produit(s) : ' + (r.direct || 0) + ' en direct'
+                    + (r.duCatalogue ? ', ' + r.duCatalogue + ' du catalogue gardé' : '')
+                    + (!r.catalogue ? ' — lisez le catalogue Copharmed pour chercher par morceaux de mots' : '')
+                    + (r.tronque ? ' — les premiers affichés : affinez' : '')
+                    + (r.avertissement ? ' — ' + r.avertissement : ''));
         }, grille);
     },
 

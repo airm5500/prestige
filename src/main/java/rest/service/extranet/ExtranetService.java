@@ -512,13 +512,54 @@ public class ExtranetService {
         if (m.length() < 2 || m.length() > 60) {
             return new JSONObject().put("success", false).put("msg", "Saisissez de 2 à 60 caractères");
         }
+        /*
+         * retour du 08/11, point 1 : le site ne reconnait que des mots entiers ; le catalogue garde complete la
+         * recherche (morceaux de mots, ordre libre, nom, code et DCI). Les produits trouves en direct passent d'abord.
+         */
+        rest.service.extranet.copharmed.ListeCopharmed cat = rest.service.extranet.copharmed.ListeCopharmed.COPHARMED_CATALOGUE;
+        JSONObject garde = new rest.service.extranet.commun.DepotListes(em).lire(SourceExtranet.COPHARMED, cat.name(),
+                cat.module(), new JSONObject());
+        int max = rest.service.extranet.copharmed.CopharmedLecteur.RESULTATS_MAX;
+        java.util.List<JSONObject> locaux = rest.service.extranet.copharmed.RechercheCatalogue
+                .chercher(garde.optJSONArray("lignes"), m, max);
+        Object collecte = garde.opt("collecte");
+        JSONObject r;
+        String erreur = null, nature = null;
         chargerIdentifiants(SourceExtranet.COPHARMED);
         try {
-            return rest.service.extranet.copharmed.CopharmedLecteur
-                    .rechercher(CoffreSessions.transport(SourceExtranet.COPHARMED), m).put("success", true);
+            r = rest.service.extranet.copharmed.CopharmedLecteur
+                    .rechercher(CoffreSessions.transport(SourceExtranet.COPHARMED), m);
         } catch (ExtranetException e) {
-            return new JSONObject().put("success", false).put("nature", e.nature().name()).put("msg", e.getMessage());
+            r = new JSONObject().put("resultats", new JSONArray()).put("tronque", false);
+            erreur = e.getMessage();
+            nature = e.nature().name();
         }
+        JSONArray tous = r.getJSONArray("resultats");
+        java.util.Set<String> vus = new java.util.HashSet<>();
+        for (int i = 0; i < tous.length(); i++) {
+            tous.getJSONObject(i).put("source", "direct");
+            vus.add(tous.getJSONObject(i).optString("code", ""));
+        }
+        int direct = tous.length(), duCatalogue = 0;
+        for (JSONObject p : locaux) {
+            if (tous.length() >= max) {
+                r.put("tronque", true);
+                break;
+            }
+            if (vus.add(p.optString("code", ""))) {
+                tous.put(p.put("source", "catalogue"));
+                duCatalogue++;
+            }
+        }
+        if (erreur != null && tous.length() == 0) {
+            return new JSONObject().put("success", false).put("nature", nature).put("msg", erreur);
+        }
+        r.put("success", true).put("direct", direct).put("duCatalogue", duCatalogue).put("catalogue",
+                collecte == null || collecte == JSONObject.NULL ? JSONObject.NULL : ((JSONObject) collecte).opt("fin"));
+        if (erreur != null) {
+            r.put("avertissement", "Extranet non joint (" + erreur + ") : résultats du catalogue gardé seulement");
+        }
+        return r;
     }
 
     /* ============================================================ DPCI */
