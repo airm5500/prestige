@@ -587,6 +587,23 @@ public class FileFormaManager extends HttpServlet {
      * Correspondance grossistes (lot 2) : chaque ligne lue, reconnue ou non, garde son code et sa designation chez le
      * grossiste (ligne_import_grossiste), dans la meme transaction que la ligne de commande.
      */
+    /**
+     * Correspondance grossistes : la fiche VALIDEE par l'officine pour ce code chez le grossiste de la commande prime
+     * sur la recherche par code (CIP, EAN ou code article en debut de chaine). Null sans validation.
+     */
+    private TFamille familleValidee(TOrder order, String code) {
+        if (order.getLgGROSSISTEID() == null || code == null) {
+            return null;
+        }
+        try {
+            String id = TraceImportGrossiste.familleValidee(em, order.getLgGROSSISTEID().getLgGROSSISTEID(), code);
+            return id == null ? null : em.find(TFamille.class, id);
+        } catch (RuntimeException e) {
+            LOG.log(Level.WARNING, "import de commande : correspondances validees illisibles", e);
+            return null;
+        }
+    }
+
     private void tracerLigne(TOrder order, String code, String designation, TFamille famille, TOrderDetail detail,
             int qty, Integer prixAchat) {
         TraceImportGrossiste.tracer(em, order.getLgORDERID(),
@@ -609,6 +626,12 @@ public class FileFormaManager extends HttpServlet {
             } catch (Exception e) {
 
             }
+            TFamille validee = familleValidee(order, codeCip);
+            if (validee != null
+                    && (oTFamille == null || !validee.getLgFAMILLEID().equals(oTFamille.getLgFAMILLEID()))) {
+                oTFamille = validee;
+                oTFamilleGrossiste = null; // prix public : celui de la fiche validee
+            }
             if (oTFamille != null) {
                 oTOrderDetail = findFamilleInTOrderDetail(order.getLgORDERID(), oTFamille.getLgFAMILLEID());
                 if (oTOrderDetail == null) {
@@ -621,7 +644,9 @@ public class FileFormaManager extends HttpServlet {
                     oTOrderDetail.setIntQTEREPGROSSISTE(qty);
                     oTOrderDetail.setIntQTEMANQUANT(0);
                     oTOrderDetail.setIntPRICE(qty * intPafDetail);
-                    oTOrderDetail.setIntPRICEDETAIL((pu == 0 ? oTFamilleGrossiste.getIntPRICE() : pu));
+                    oTOrderDetail.setIntPRICEDETAIL((pu == 0
+                            ? (oTFamilleGrossiste != null ? oTFamilleGrossiste.getIntPRICE() : oTFamille.getIntPRICE())
+                            : pu));
                     oTOrderDetail.setIntPAFDETAIL(intPafDetail);
                     oTOrderDetail.setPrixAchat(oTOrderDetail.getIntPAFDETAIL());
                     oTOrderDetail.setStrSTATUT(Constant.STATUT_IS_PROGRESS);
@@ -793,6 +818,10 @@ public class FileFormaManager extends HttpServlet {
             }
             if (oTFamille == null) {
                 oTFamille = findByCodeCipOrEan(codeCip.trim());
+            }
+            TFamille validee = familleValidee(order, codeCip);
+            if (validee != null) {
+                oTFamille = validee;
             }
             if (oTFamille != null) {
                 oTOrderDetail = findFamilleInTOrderDetail(order.getLgORDERID(), oTFamille.getLgFAMILLEID());

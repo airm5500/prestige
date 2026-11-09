@@ -61,6 +61,10 @@ function retirer() {
       + ` DELETE FROM ligne_import_grossiste WHERE lg_ORDER_ID = '${commande}'; DELETE FROM t_order_detail WHERE lg_ORDER_ID = '${commande}';`
       + ` DELETE FROM t_order WHERE lg_ORDER_ID = '${commande}';`);
   }
+  // lot 4 : la reception du BL ecrit aussi ses prix
+  if (q("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'prix_grossiste'") === '1') {
+    q(`DELETE FROM prix_grossiste WHERE source = 'BL' AND piece = '${M}B1'`);
+  }
   if (parametre !== null) {
     q("UPDATE t_parameters SET str_VALUE = '" + parametre.replace(/'/g, "''") + "' WHERE str_KEY = 'KEY_LAST_ORDER_COMMAND_NUMBER'");
   }
@@ -92,7 +96,7 @@ function retirer() {
     + ` VALUES ('${G}', '${G}', '${code}', ${famille ? "'" + famille + "'" : 'NULL'}, '${etat}', '${source}', '${motif}', 1.000, '${JSON.stringify(candidats)}', NOW(3) - INTERVAL 1 DAY, NOW(3) - INTERVAL 1 DAY)`);
   poser(C[0], F[0], 'AUTO_EXACTE', 'CODE_GROSSISTE', 'CODE_GROSSISTE_CONNU', [F[0]]); // confirmee
   poser(C[1], F[7], 'AUTO_EXACTE', 'CODE_GROSSISTE', 'CODE_GROSSISTE_CONNU', [F[7]]); // contredite
-  poser(C[2], F[7], 'VALIDEE', 'HUMAIN', 'CONSERVEE', [F[7]]); // signalee, reste validee
+  // C[2] : validee pour une autre fiche APRES l'import (l'import suit une validation : voir plus bas)
   poser(C[4], null, 'PROPOSEE', 'CODE_GROSSISTE', 'CODE_AMBIGU', [F[7], F[4]]); // confirmee (candidate)
   poser(C[5], null, 'REJETEE', 'HUMAIN', 'CONSERVEE', [F[5]]); // signalee, reste rejetee
   poser(C[6], F[6], 'AUTO_EXACTE', 'CODE_GROSSISTE', 'CODE_GROSSISTE_CONNU', [F[6]]); // importee, non recue
@@ -199,6 +203,8 @@ function retirer() {
     ok('API import/{commande} = base, ligne par ligne', r.status === 200 && r.corps.data.length === 9 && ecartsApi.length === 0, ecartsApi.slice(0, 2));
     ok('l\'import ne touche pas aux correspondances', autres() === autresAvant && ligneCorr(C[0])[4] === '0' && ligneCorr(C[3]).length === 0);
 
+    /* validation faite entre l'import et la reception : C[2] valide pour une autre fiche que celle du fichier */
+    poser(C[2], F[7], 'VALIDEE', 'HUMAIN', 'CONSERVEE', [F[7]]);
     /* ---- 2) BL de la commande : F0..F5 recues, F6 non recue */
     q(`INSERT INTO t_bon_livraison (lg_BON_LIVRAISON_ID, str_REF_LIVRAISON, dt_DATE_LIVRAISON, int_MHT, int_TVA, int_HTTC, lg_ORDER_ID, str_STATUT, dt_CREATED, dt_UPDATED, lg_USER_ID, direct_import)
       VALUES ('${M}B1', '${M}BL1', CURDATE(), 0, 0, 0, '${commande}', 'enable', NOW(), NOW(), '${ADMIN}', 1);`

@@ -22,6 +22,27 @@ public final class TraceImportGrossiste {
     }
 
     /**
+     * Fiche d'une correspondance VALIDEE par l'officine (ecran « Correspondance grossistes ») pour ce code chez ce
+     * grossiste, si elle est active et non deconditionnee ; sinon null. Code compare normalise (blancs retires, casse
+     * ignoree). Une correspondance rejetee, proposee ou automatique n'est pas prise : seule une decision humaine change
+     * le resultat de l'import.
+     */
+    public static String familleValidee(EntityManager em, String grossisteId, String code) {
+        String normalise = CorrespondanceRegles.normaliser(code);
+        if (grossisteId == null || normalise.isEmpty()) {
+            return null;
+        }
+        @SuppressWarnings("unchecked")
+        java.util.List<Object> l = em
+                .createNativeQuery("SELECT c.lg_FAMILLE_ID FROM correspondance_grossiste c"
+                        + " JOIN t_famille f ON f.lg_FAMILLE_ID = c.lg_FAMILLE_ID WHERE c.cle_grossiste = ?1"
+                        + " AND c.code_grossiste = ?2 AND c.etat = 'VALIDEE' AND f.str_STATUT = 'enable'"
+                        + " AND COALESCE(f.bool_DECONDITIONNE, 0) = 0")
+                .setParameter(1, grossisteId).setParameter(2, normalise).getResultList();
+        return l.isEmpty() ? null : (String) l.get(0);
+    }
+
+    /**
      * @param familleId
      *            fiche retenue par l'import, ou null si la ligne n'a pas ete reconnue
      * @param detailId
