@@ -781,6 +781,7 @@ Ext.application({
         'testextjs.view.vente.HistoriqueOrdonnancier',
         'testextjs.view.configmanagement.modeleticket.ModelesTicket',
         'testextjs.view.commandemanagement.correspondance.CorrespondancesGrossistes',
+        'testextjs.view.commandemanagement.presaisie.PresaisieBl',
         'testextjs.view.actions.action',
         'testextjs.view.configmanagement.famille.Products',
         'testextjs.view.configmanagement.famille.ProduitsOnglets',

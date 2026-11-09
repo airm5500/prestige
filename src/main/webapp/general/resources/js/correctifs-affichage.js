@@ -917,6 +917,8 @@ window.PrestigeAffichage.ECRANS_COLLES = [
     'modelesticket',
     // menu « Correspondance grossistes » (GESTION DES COMMANDES, étude du 08/11, lot 3)
     'correspondancesgrossistes',
+    // menu « Pré-saisie des BL » (GESTION DES COMMANDES, plan avoir du 08/11, point 6)
+    'presaisiebl',
     // retours du 05/10 (lot A)
     'facturesubrogatoire', 'modelfacture', 'modelfacturedynamique', 'factureenattenteedition',
     // lot B
@@ -1047,6 +1049,8 @@ window.PrestigeAffichage.ECRANS_STYLE_VENTE = [
     'modelesticket',
     // menu « Correspondance grossistes »
     'correspondancesgrossistes',
+    // menu « Pré-saisie des BL »
+    'presaisiebl',
     // lot D : statistiques, parametres, administration
     'info_officine', 'parametermanager', 'grossistemanager', 'smsfournisseur', 'dcimanager', 'cazonegeomanager', 'analyseFrequentationOffManager', 'gardemanager',
     'tvastat', 'margeproducts', 'abcmanager', 'feuilledematch', 'recap', 'usermanager', 'rolemanager', 'myaccountmanager',

@@ -104,6 +104,7 @@ window.PrestigeMetroIcones = {
     "peremptionscourtes": "timer", // Péremptions courtes
     "correspondancesgrossistes": "git-compare", // Correspondance grossistes
     "modelesticket": "receipt", // Modèles de ticket
+    "presaisiebl": "clipboard-pen", // Pré-saisie des BL
     "traitementcommandemanager": "cog", // Traitement Commande
     "warehouseorder": "repeat", // Transaction Commande
     "bonlivraisonmanager": "package-check", // Gestion des entrées
