@@ -53,6 +53,7 @@ Ext.define('testextjs.view.campagnes.Campagnes', {
                             + 'clients ayant acheté un produit, une famille ou une DCI. Le bouton « ? » à droite donne le détail.</div>'}]});
         me.items.push(me.ongletListes(), me.ongletJournal(), me.ongletParametres());
         me.callParent(arguments);
+        me.panier.on('datachanged', me.majPanier, me);
         me.on('afterrender', function () {
             me.chargerContexte();
         });
@@ -820,9 +821,8 @@ Ext.define('testextjs.view.campagnes.Campagnes', {
                         me.panierRetirer(r.get('clientId'));
                     }
                 }}});
-        me.panier = Ext.create('Ext.data.Store', {fields: ['clientId', 'client', 'telephone'], data: [], listeners: {datachanged: function () {
-                    me.majPanier();
-                }}});
+        /* pas d'ecouteur a la creation : le magasin le declencherait pendant initComponent, avant les onglets */
+        me.panier = Ext.create('Ext.data.Store', {fields: ['clientId', 'client', 'telephone'], data: []});
         var references = Ext.create('Ext.data.Store', {fields: ['id', 'libelle', 'affiche'],
             proxy: {type: 'ajax', url: me.URL + 'references', extraParams: {type: 'PRODUIT'}, reader: {type: 'json', root: 'data'}}});
         var surEntree = {specialkey: function (c, e) {
@@ -1113,7 +1113,7 @@ Ext.define('testextjs.view.campagnes.Campagnes', {
     },
 
     majPanier: function () {
-        var me = this, o = me.down('#ongletListes');
+        var me = this, o = me.rendered ? me.down('#ongletListes') : null;
         if (!o || !o.down('#panier')) {
             return;
         }

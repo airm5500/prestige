@@ -73,13 +73,13 @@ function nettoyer(debut) {
     + "UPDATE t_parameters SET str_VALUE = 'API' WHERE str_KEY = 'KEY_WHATSAPP_MODE_DEFAUT';"
     + JEU.map((x) => "INSERT INTO t_client (lg_CLIENT_ID, str_FIRST_NAME, str_LAST_NAME, str_TELEPHONE, str_ADRESSE, str_SEXE, lg_TYPE_CLIENT_ID, str_STATUT, dt_CREATED, dt_UPDATED, bool_CONSENT_WHATSAPP)"
       + ` VALUES ('${x[0]}', '${x[1]}', 'ESSAI', ${x[2] ? "'" + x[2] + "'" : 'NULL'}, ${x[3] ? "'" + x[3] + "'" : 'NULL'}, '${x[4]}', '6', 'enable', NOW(), NOW(), 1);`).join('')
-    /* A : 3 achats du produit (3 000) ; B : 1 achat (1 000) ; C : 2 achats d'un autre produit (2 x 1 500) ; D : 2 achats du produit dans la meme vente */
+    /* A : 3 achats du produit (3 000) ; B : 1 achat (1 000) ; C : 2 achats d'un autre produit (2 x 1 500) ; D : 1 vente mixte (produit + autre produit) */
     + vente('E2E-PAN-V1', 'E2E-PAN-A', P1, q('SELECT CURDATE() - INTERVAL 70 DAY'), 1000) + vente('E2E-PAN-V2', 'E2E-PAN-A', P1, q('SELECT CURDATE() - INTERVAL 40 DAY'), 1000)
     + vente('E2E-PAN-V3', 'E2E-PAN-A', P1, q('SELECT CURDATE() - INTERVAL 10 DAY'), 1000) + vente('E2E-PAN-V4', 'E2E-PAN-B', P1, q('SELECT CURDATE() - INTERVAL 20 DAY'), 1000)
     + vente('E2E-PAN-V5', 'E2E-PAN-C', P2, q('SELECT CURDATE() - INTERVAL 30 DAY'), 1500) + vente('E2E-PAN-V6', 'E2E-PAN-C', P2, q('SELECT CURDATE() - INTERVAL 5 DAY'), 1500)
     + vente('E2E-PAN-V7', 'E2E-PAN-D', P1, q('SELECT CURDATE() - INTERVAL 15 DAY'), 800)
     + "INSERT INTO t_preenregistrement_detail (lg_PREENREGISTREMENT_DETAIL_ID, lg_PREENREGISTREMENT_ID, lg_FAMILLE_ID, int_QUANTITY, int_PRICE, prixAchat, dt_CREATED, dt_UPDATED)"
-    + ` SELECT 'E2E-PAN-V7-D2', 'E2E-PAN-V7', '${P1}', 1, 700, 500, dt_CREATED, dt_UPDATED FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID = 'E2E-PAN-V7';`
+    + ` SELECT 'E2E-PAN-V7-D2', 'E2E-PAN-V7', '${P2}', 1, 700, 500, dt_CREATED, dt_UPDATED FROM t_preenregistrement WHERE lg_PREENREGISTREMENT_ID = 'E2E-PAN-V7';`
     /* lignes de rappel (habitudes) pour comparer le numero affiche par l'ecran des rappels */
     + IDS.map((id, i) => `INSERT INTO t_rappel_habitude (id, lg_CLIENT_ID, lg_FAMILLE_ID, dt_DERNIER_ACHAT, dt_PREVU, int_FREQUENCE, int_ACHATS, str_STATUT, dt_CREATED)
        VALUES ('E2E-PAN-R${i}', '${id}', '${P1}', CURDATE() - INTERVAL 28 DAY, CURDATE() + INTERVAL 2 DAY, 30, 3, 'A_PREPARER', NOW());`).join(''));
@@ -193,7 +193,7 @@ function nettoyer(debut) {
       WHERE p.lg_CLIENT_ID IN ${clients} AND d.lg_FAMILLE_ID = '${P1}' AND p.str_STATUT = 'is_Closed' AND p.b_IS_CANCEL = 0 AND p.int_PRICE > 0 AND p.dt_UPDATED >= CURDATE() - INTERVAL 12 MONTH
       GROUP BY p.lg_CLIENT_ID HAVING COUNT(DISTINCT p.lg_PREENREGISTREMENT_ID) >= ${n}) x`);
     const r1 = await filtrer({ rechercheClient: 'ZZPAN', ajReference: NOM_P1, ajMinAchats: 2 });
-    ok('Filtre produit, 2 achats au moins : A seul (D : deux lignes d\'une même vente = 1 achat) = calcul SQL', r1 === 'E2E-PAN-A' && r1 === sqlProduit(2), r1 + ' / sql ' + sqlProduit(2));
+    ok('Filtre produit, 2 achats au moins : A seul (D : une vente mixte = 1 achat) = calcul SQL', r1 === 'E2E-PAN-A' && r1 === sqlProduit(2), r1 + ' / sql ' + sqlProduit(2));
     const r2 = await filtrer({ rechercheClient: 'ZZPAN', ajReference: NOM_P1 });
     ok('Filtre produit, sans minimum : A, B, D = calcul SQL', r2 === 'E2E-PAN-A,E2E-PAN-B,E2E-PAN-D' && r2 === sqlProduit(1), r2 + ' / sql ' + sqlProduit(1));
     const sqlMontant = (m) => q(`SELECT COALESCE(GROUP_CONCAT(x.c ORDER BY x.c), '') FROM (SELECT p.lg_CLIENT_ID c FROM t_preenregistrement p WHERE p.lg_CLIENT_ID IN ${clients}

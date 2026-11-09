@@ -1,7 +1,7 @@
 /* RAPPELS TRAITEMENT : CIBLAGE LIBRE ET « ENVOYER AUX RÉSULTATS » (plan avoir du 08/11, point 5).
  *
  * Jeu d'essai (8 clients « ZZCIB », numeros fictifs 0100993xxx, ventes datees, retires a la fin), produit P1 :
- *  C1 3 ventes de P1 (dont une a 2 lignes de P1 : une seule vente), telephone     -> retenu, joignable, 3 achats
+ *  C1 3 ventes de P1 (dont 2 mixtes P1 + P2 : seul P1 compte au montant), tel.  -> retenu, joignable, 3 achats
  *  C2 2 ventes, numero seulement dans l'ancien champ adresse                     -> retenu, joignable
  *  C3 1 vente (minimum 2)                                                        -> ecarte
  *  C4 2 ventes dont 1 annulee                                                    -> ecarte
@@ -71,7 +71,7 @@ function nettoyer(debut) {
   const s = (v) => (v === null ? 'NULL' : "'" + v + "'");
   exec(IDS.map((id, i) => "INSERT INTO t_client (lg_CLIENT_ID, str_FIRST_NAME, str_LAST_NAME, str_TELEPHONE, str_ADRESSE, lg_TYPE_CLIENT_ID, str_STATUT, dt_CREATED, dt_UPDATED, bool_CONSENT_WHATSAPP, bool_MSG_MEDICAMENTS)"
     + ` VALUES ('${id}', 'ZZCIB', 'C${i + 1}', ${s(fiches[i][0])}, ${s(fiches[i][1])}, '6', 'enable', NOW(), NOW(), 1, ${fiches[i][2]});`).join('')
-    + vente(IDS[0], 10, [[P1, 2, 3000], [P1, 1, 1500]]) + vente(IDS[0], 40, [[P1, 1, 1500], [P2, 1, 800]]) + vente(IDS[0], 70, [[P1, 3, 4500]])
+    + vente(IDS[0], 10, [[P1, 3, 4500], [P2, 1, 600]]) + vente(IDS[0], 40, [[P1, 1, 1500], [P2, 1, 800]]) + vente(IDS[0], 70, [[P1, 3, 4500]])
     + vente(IDS[1], 15, [[P1, 1, 1500]]) + vente(IDS[1], 100, [[P1, 1, 1450]])
     + vente(IDS[2], 20, [[P1, 1, 1500]])
     + vente(IDS[3], 25, [[P1, 1, 1500]]) + vente(IDS[3], 30, [[P1, 1, 1500]], true)
