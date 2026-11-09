@@ -227,7 +227,8 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
                     menuDisabled: true,
                     items: [{
                             icon: 'resources/images/icons/fam/paste_plain.png',
-                            tooltip: 'Editer un inventaire',
+                            /* plan avoir du 08/11, point 8 : « Editer un inventaire » devient « Ouvrir l'inventaire » */
+                            tooltip: 'Ouvrir l\'inventaire',
                             scope: this,
                             handler: this.onEditClick,
                             getClass: function(value, metadata, record) {
@@ -810,7 +811,7 @@ Ext.define('testextjs.view.stockmanagement.inventaire.InventaireManager', {
         }
         var xtype = "editinventaireManager";
         var alias = 'widget.' + xtype;
-        testextjs.app.getController('App').onLoadNewComponentWithDataSource(xtype, "Modification de la fiche d'inventaire", rec.get('lg_INVENTAIRE_ID'), rec.data);
+        testextjs.app.getController('App').onLoadNewComponentWithDataSource(xtype, "Ouvrir l'inventaire", rec.get('lg_INVENTAIRE_ID'), rec.data);
     },
     onDetailClick: function(grid, rowIndex) {
         var rec = grid.getStore().getAt(rowIndex);
