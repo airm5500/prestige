@@ -155,12 +155,21 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.retourFrsManager
                             m.tdAttr = 'data-qtip="' + Ext.String.htmlEncode(Ext.String.htmlEncode(tip)) + '"';
                             return '<span class="retour-refuse" style="display:inline-block;padding:1px 8px;border-radius:9px;background:#fdecea;color:#8a1c12;font-weight:600">Refusé</span>' + manquants;
                         }
+                        /* partie 2 de la demande 59 : auteur et date de l'etat en infobulle, pour un retour abandonne ou valide aussi */
+                        var tipEtat = function (libelle) {
+                            m.tdAttr = 'data-qtip="' + Ext.String.htmlEncode(Ext.String.htmlEncode(libelle + (r.get('dateEtat') ? ' le ' + r.get('dateEtat') : '')
+                                    + (r.get('auteur') ? ' par ' + r.get('auteur') : '') + (r.get('motifRefus') ? ' : ' + r.get('motifRefus') : ''))) + '"';
+                        };
                         if (v === 'is_Abandoned') {
+                            tipEtat('Abandonné');
                             return '<span class="retour-abandonne" style="color:#6b7785">Abandonné</span>' + manquants;
                         }
                         if (v === 'is_Waiting' && r.get('attentePar')) {
                             m.tdAttr = 'data-qtip="' + Ext.String.htmlEncode(Ext.String.htmlEncode('Mis en attente le ' + (r.get('attenteLe') || '') + ' par ' + r.get('attentePar')
                                     + (r.get('nombreRefus') ? ' (déjà refusé ' + r.get('nombreRefus') + ' fois)' : ''))) + '"';
+                        }
+                        if (v === 'enable' && r.get('auteur')) {
+                            tipEtat('Validé');
                         }
                         return (v === 'is_Waiting'
                                 ? '<span class="retour-attente" style="display:inline-block;padding:1px 8px;border-radius:9px;background:#fff3cd;color:#8a5a00;font-weight:600">En attente de validation</span>'

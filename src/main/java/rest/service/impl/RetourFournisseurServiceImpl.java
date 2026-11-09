@@ -540,14 +540,16 @@ public class RetourFournisseurServiceImpl implements RetourFournisseurService {
                 + " FROM t_retour_fournisseur r LEFT JOIN t_retour_fournisseur_detail d ON d.lg_RETOUR_FRS_ID = r.lg_RETOUR_FRS_ID"
                 + " WHERE ((r.str_STATUT IN ('enable', 'is_Abandoned') AND DATE(r.dt_UPDATED) BETWEEN ?1 AND ?2)"
                 + " OR r.str_STATUT IN ('is_Waiting', 'is_Refused'))"
-                + (fourId != null ? " AND r.lg_GROSSISTE_ID = ?3" : "") + (userId != null ? " AND r.lg_USER_ID = ?4" : "")
+                /* parametres numerotes sans trou (filtre utilisateur seul : ?3) */
+                + (fourId != null ? " AND r.lg_GROSSISTE_ID = ?3" : "")
+                + (userId != null ? " AND r.lg_USER_ID = ?" + (fourId != null ? 4 : 3) : "")
                 + " GROUP BY r.lg_RETOUR_FRS_ID, r.str_REF_RETOUR_FRS, r.str_STATUT ORDER BY MAX(r.dt_UPDATED) DESC")
                 .setParameter(1, java.sql.Date.valueOf(dtStart)).setParameter(2, java.sql.Date.valueOf(dtEnd));
         if (fourId != null) {
             q.setParameter(3, fourId);
         }
         if (userId != null) {
-            q.setParameter(4, userId);
+            q.setParameter(fourId != null ? 4 : 3, userId);
         }
         List<Object[]> lignes = q.getResultList();
         java.util.Map<String, int[]> parEtat = new java.util.LinkedHashMap<>();

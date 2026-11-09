@@ -108,7 +108,7 @@ Ext.define('testextjs.model.RetourFournisseur', {
              type: 'boolean'
         },
         /* transmission du 07/11 et demande 59 : etat lisible, refus, attente, retour des manquants */
-        'etat', 'motifRefus', 'refusPar', 'refusLe', 'attentePar', 'attenteLe', 'lgUSERID',
+        'etat', 'auteur', 'dateEtat', 'motifRefus', 'refusPar', 'refusLe', 'attentePar', 'attenteLe', 'lgUSERID',
         {name: 'nombreRefus', type: 'int'},
         {name: 'sansSortieStock', type: 'boolean'},
         {name: 'peutCorriger', type: 'boolean', defaultValue: true}

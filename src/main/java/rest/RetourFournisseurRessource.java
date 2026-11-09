@@ -239,7 +239,7 @@ public class RetourFournisseurRessource {
                 .map(RetourDetailsDTO::getLgRETOURFRSID).filter(java.util.Objects::nonNull)
                 .collect(java.util.stream.Collectors.toSet()));
         String[] headers = new String[] { "N° BL", "Date retour", "Heure", "Fournisseur", "Code produit", "Libelle",
-                "Quantite retournee", "Utilisateur", "Etat", "Motif du refus", "Auteur de l'etat", "Date de l'etat" };
+                "Quantite retournee", "Utilisateur", "Etat", "Motif du refus", "Auteur de l'etat", "Date de l'etat", "Reference du retour" };
         String title = "Produits des retours fournisseur du " + defaultDate(dtStart) + " au " + defaultDate(dtEnd);
         byte[] data = reportExcelExportService.createExcelReport(title, headers, details, (row, dto) -> {
             row.createCell(0).setCellValue(dto.getReferenceBl() == null ? "" : dto.getReferenceBl());
@@ -255,6 +255,7 @@ public class RetourFournisseurRessource {
             row.createCell(9).setCellValue(x.optString("motifRefus"));
             row.createCell(10).setCellValue(x.optString("auteur"));
             row.createCell(11).setCellValue(x.optString("dateEtat"));
+            row.createCell(12).setCellValue(dto.getStrREFRETOURFRS() == null ? "" : dto.getStrREFRETOURFRS());
         });
         return Response.ok(data)
                 .header("Content-Disposition", "attachment; filename=\"retours_fournisseur_produits.xls\"").build();
@@ -373,6 +374,10 @@ public class RetourFournisseurRessource {
             return refusDroit;
         }
 
+        org.json.JSONObject etatLignes = retourAttente.controlerLignes(params.getLgRETOURFRSID(), null);
+        if (etatLignes != null) {
+            return repondre(etatLignes);
+        }
         /* D17 : la meme cle d'evenement (X-Client-Ref ou clientEventId) n'ajoute la ligne qu'une fois */
         String cle = org.apache.commons.lang3.StringUtils.defaultIfBlank(clientRef, params.getClientEventId());
         if (MobileClientRefService.normaliser(cle) == null) {
@@ -426,6 +431,10 @@ public class RetourFournisseurRessource {
             return refusDroit;
         }
 
+        org.json.JSONObject etatLignes = retourAttente.controlerLignes(null, params.getLgRETOURFRSDETAIL());
+        if (etatLignes != null) {
+            return repondre(etatLignes);
+        }
         RetourDetailsDTO data;
         try {
             data = retourFournisseurService.updateItem(params);
@@ -450,6 +459,10 @@ public class RetourFournisseurRessource {
             return refusDroit;
         }
 
+        org.json.JSONObject etatLignes = retourAttente.controlerLignes(null, id);
+        if (etatLignes != null) {
+            return repondre(etatLignes);
+        }
         retourFournisseurService.removeItem(id);
         return Response.ok().entity(ResultFactory.getSuccessResultMsg()).build();
 

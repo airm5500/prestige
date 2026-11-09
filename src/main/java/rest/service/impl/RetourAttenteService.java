@@ -35,6 +35,35 @@ public class RetourAttenteService {
         return l.isEmpty() ? null : l.get(0);
     }
 
+    /**
+     * Ajout, correction ou suppression d'une ligne : refuse (409 ETAT) sur un retour valide ou abandonne, rien n'est
+     * modifie. Le retour est donne par son identifiant, ou par celui d'une de ses lignes. Null : la modification peut
+     * se faire (retour introuvable compris : la suite repond comme avant).
+     */
+    @SuppressWarnings("unchecked")
+    public JSONObject controlerLignes(String retourId, String ligneId) {
+        List<Object> l;
+        if (StringUtils.isNotBlank(retourId)) {
+            l = em.createNativeQuery("SELECT str_STATUT FROM t_retour_fournisseur WHERE lg_RETOUR_FRS_ID = ?1")
+                    .setParameter(1, retourId).getResultList();
+        } else if (StringUtils.isNotBlank(ligneId)) {
+            l = em.createNativeQuery("SELECT r.str_STATUT FROM t_retour_fournisseur r JOIN t_retour_fournisseur_detail d"
+                    + " ON d.lg_RETOUR_FRS_ID = r.lg_RETOUR_FRS_ID WHERE d.lg_RETOUR_FRS_DETAIL = ?1")
+                    .setParameter(1, ligneId).getResultList();
+        } else {
+            return null;
+        }
+        if (l.isEmpty()) {
+            return null;
+        }
+        String etat = texte(l.get(0));
+        if (RetourEtats.peutModifierLignes(etat)) {
+            return null;
+        }
+        return statut(409, "ETAT", "Les lignes d'un retour " + RetourEtats.libelle(etat).toLowerCase()
+                + " ne se modifient plus ; rien n'a été modifié.");
+    }
+
     public JSONObject refuser(String id, String motifBrut, TUser user) {
         String motif = RetourEtats.motif(motifBrut);
         if (motif == null) {
@@ -150,8 +179,8 @@ public class RetourAttenteService {
                     + " (SELECT COUNT(*) FROM t_retour_fournisseur_historique h"
                     + "   WHERE h.lg_RETOUR_FRS_ID = r.lg_RETOUR_FRS_ID AND h.action = 'REFUS'),"
                     + " r.str_STATUT, TRIM(CONCAT(COALESCE(uo.str_FIRST_NAME, ''), ' ', COALESCE(uo.str_LAST_NAME, ''))),"
-                    + " DATE_FORMAT(r.dt_UPDATED, '%d/%m/%Y %H:%i'), " + derniere("ABANDON") + ", "
-                    + derniere("VALIDATION")
+                    + " DATE_FORMAT(r.dt_UPDATED, '%d/%m/%Y %H:%i'), " + derniere("ABANDON") + " AS abandon_etat, "
+                    + derniere("VALIDATION") + " AS validation_etat"
                     + " FROM t_retour_fournisseur r LEFT JOIN t_user ur ON ur.lg_USER_ID = r.lg_USER_REFUS"
                     + " LEFT JOIN t_user ua ON ua.lg_USER_ID = r.lg_USER_ATTENTE"
                     + " LEFT JOIN t_user uo ON uo.lg_USER_ID = r.lg_USER_ID WHERE r.lg_RETOUR_FRS_ID IN (?1)")

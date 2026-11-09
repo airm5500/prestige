@@ -119,7 +119,7 @@ Un retour refusé ou abandonné ne se valide pas. La validation renvoie `{succes
 | Route | Droit | Corps | Effet |
 |---|---|---|---|
 | `GET v1/retourfournisseur/droits` | session | — | `{peutValider, enAttente, refusesACorriger}` |
-| `POST v1/retourfournisseur/mettre-en-attente` | `P_SM_RETOUR_FRS` | `{ref, refTwo, description}` | inchangé, trace `MISE_EN_ATTENTE` |
+| `POST v1/retourfournisseur/mettre-en-attente` | `P_SM_RETOUR_FRS` | `{ref, refTwo, description}` | trace `MISE_EN_ATTENTE` ; sans `description` ni `refTwo`, le commentaire et la réponse du retour sont gardés (avant : effacés) |
 | `POST v1/retourfournisseur/refuser/{id}` | `P_VALIDER_RETOUR_FRS` | `{motif}` (obligatoire) | `is_Waiting` → `is_Refused` |
 | `POST v1/retourfournisseur/remettre-en-attente/{id}` | auteur ou valideur | — | `is_Refused` → `is_Waiting` ; le motif est effacé |
 | `POST v1/retourfournisseur/abandonner/{id}` | auteur ou valideur | — | `is_Refused` → `is_Abandoned` |
@@ -142,6 +142,11 @@ Un retour refusé ou abandonné ne se valide pas. La validation renvoie `{succes
 - **Auteur** : l'utilisateur du retour (`lg_USER_ID`) ou celui qui l'a mis en attente (`lg_USER_ATTENTE`). C'est lui,
   ou un valideur, qui corrige un retour refusé (choix 1 du 08/11). La correction des lignes passe par les routes
   habituelles (`update-item`, `add-item`, `remove-item`), puis par `remettre-en-attente`.
+  - Lignes, quantités, motifs et lots se corrigent ainsi. Pour changer le motif ou le lot d'une ligne : la retirer
+    (`remove-item`), puis la reprendre (`add-item` avec `lgMOTIFRETOUR` et `lotId` ou `numLot`).
+  - Un lot non reçu sur ce BL pour ce produit est refusé (`success:false`), rien n'est ajouté.
+  - **Nouveau** : sur un retour validé ou abandonné, ces trois routes répondent 409 `ETAT` et ne modifient rien.
+    Avant, une ligne d'un retour validé pouvait encore changer après la sortie du stock.
 - **Historique** (`t_retour_fournisseur_historique`) : actions `MISE_EN_ATTENTE`, `REFUS` (avec le motif),
   `REMISE_EN_ATTENTE`, `ABANDON`, `VALIDATION`, avec l'auteur et la date.
 - **Colonnes du refus** :
@@ -156,6 +161,37 @@ Un retour refusé ou abandonné ne se valide pas. La validation renvoie `{succes
     refusés, quelle que soit leur date.
 - **Champs ajoutés à chaque ligne** : `etat`, `motifRefus`, `refusPar`, `refusLe`, `attentePar`, `attenteLe`,
   `nombreRefus`, `sansSortieStock` et `peutCorriger`.
+
+### État, motif et auteur : les mêmes partout
+
+- **Auteur de l'état** (champ `auteur`, avec `dateEtat` au format `jj/mm/aaaa hh:mm`) :
+  - refusé : le valideur qui a refusé ;
+  - en attente : qui l'a mis, ou remis, en attente ;
+  - abandonné : qui l'a abandonné (historique) ;
+  - validé : qui l'a validé (historique) ; pour un retour validé avant l'historique, l'opérateur du retour.
+- `GET v1/produit/retours-data` renvoie aussi `auteur` et `dateEtat` sur chaque ligne. La liste web les montre en
+  infobulle de l'état, pour tous les états.
+- **Export Excel de la liste** (`GET v1/retourfournisseur/export-excel`) :
+  - nouveau paramètre `etat`, mêmes valeurs que la liste, plus `TOUS`. L'écran l'envoie toujours : l'export suit le
+    filtre d'état affiché ;
+  - sans `etat`, l'export reste celui des seuls retours validés de la période, comme avant ;
+  - cinq colonnes ajoutées après les huit d'origine : « Etat », « Motif du refus », « Auteur de l'etat », « Date de
+    l'etat » et « Reference du retour ».
+- **Tableau de bord** (`GET v1/retourfournisseur/tableau-bord`) : nouveau bloc `etats`.
+
+  ```json
+  "etats": {"attente": {"retours": 2, "lignes": 3, "quantite": 5}, "refuse": {…}, "abandonne": {…}, "valide": {…},
+            "aTraiter": [{"id": "…", "ref": "…", "statut": "is_Refused", "etat": "Refusé", "motifRefus": "…",
+                          "auteur": "…", "dateEtat": "…", "lignes": 1, "quantite": 3}]}
+  ```
+
+  - Même règle que la liste par défaut : validés et abandonnés de la période ; en attente et refusés quelle que soit
+    leur date. Les filtres grossiste et utilisateur s'appliquent.
+  - Les autres rubriques (totaux, mois, produits, motifs, utilisateurs) ne comptent que les retours validés : un
+    retour refusé ou abandonné n'y entre jamais.
+  - `aTraiter` liste les retours en attente, refusés et abandonnés (200 au plus, les plus récents d'abord).
+  - L'écran montre quatre tuiles par état et le tableau « Retours en attente, refusés ou abandonnés ».
+  - Le classeur (`tableau-bord/excel`) garde ses feuilles et en ajoute deux : « États » et « Retours à traiter ».
 
 ### Le « droit introuvable » `P_VALIDER_RETOUR_FRS`
 
@@ -185,9 +221,16 @@ suggestions de réserve automatiques, que montre la fenêtre « Seuil de réserv
 
 - **Cohérence** (unitaires, graine fixe) :
   - `ReceptionEcartCoherenceTest` : 5 000 BL ;
-  - `RetourEtatsCoherenceTest` : 5 000 enchaînements d'états.
+  - `RetourEtatsCoherenceTest` : 5 000 enchaînements d'états, et 5 000 retours pour l'auteur de l'état et la
+    répartition du tableau de bord.
 - **Écran et rapprochement** (e2e) :
   - `retours/test-demande59-bl-recu.js` ;
   - `retours/test-retours-refus-abandon.js` ;
   - `retours/test-retour-fournisseur-attente.js` (existant, nettoyage complété) ;
   - `retours/test-reserve-apres-entree-droit-suggestions.js`.
+  - `retours/test-retours-rapprochement-etats.js` : état, motif et auteur comparés à six endroits (base, réponse
+    mobile, historique, liste et infobulle, tableau de bord, export Excel de la liste et classeur du tableau).
+  - `retours/test-retours-correction-lots.js` : correction d'un retour refusé par les clics (quantité, ligne
+    supprimée, autre motif), remise en attente et validation ; sur le mobile, deux lots, correction du lot et du motif,
+    validation (chaque lot perd ses boîtes), seconde validation sans effet ; lignes d'un retour validé ou abandonné
+    non modifiables (409 `ETAT`).

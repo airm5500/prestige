@@ -1203,8 +1203,13 @@ public class MvtProduitServiceImpl implements MvtProduitService {
         /* rien ne sort du stock : le retour attend qu'un profil autorise le valide */
         fournisseur.setStrSTATUT(RETOUR_EN_ATTENTE);
         fournisseur.setDtUPDATED(new Date());
-        fournisseur.setStrCOMMENTAIRE(params.getDescription());
-        fournisseur.setStrREPONSEFRS(params.getRefTwo());
+        /* commentaire et reponse : ceux de l'ecran ; un appel qui ne les envoie pas (mobile : {ref}) les garde */
+        if (params.getDescription() != null) {
+            fournisseur.setStrCOMMENTAIRE(params.getDescription());
+        }
+        if (params.getRefTwo() != null) {
+            fournisseur.setStrREPONSEFRS(params.getRefTwo());
+        }
         emg.merge(fournisseur);
         emg.flush();
         emg.createNativeQuery(

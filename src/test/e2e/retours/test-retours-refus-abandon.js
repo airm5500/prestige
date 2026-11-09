@@ -168,6 +168,14 @@ function retirer() {
     await p.waitForTimeout(400);
     const a1 = await avis();
     ok('Avis discret à la connexion, avec le nombre, sans fenêtre', a1.includes(n1 + ' retour') && !(await p.evaluate(() => Ext.ComponentQuery.query('messagebox').some((m) => m.isVisible()))), a1);
+    /* point 4 : un valideur voit les deux boutons sur un retour en saisie (« Valider le retour » et « Mettre en attente ») */
+    const R3 = await creer();
+    await p.evaluate(([id, note]) => testextjs.app.getController('App').onLoadNewComponentWithDataSource('retourfournisseurmanagerlist', 'Modification fiche retour fournisseur', id,
+      { lg_RETOUR_FRS_ID: id, str_REF_LIVRAISON: '', str_REPONSE_FRS: '', str_COMMENTAIRE: note, str_GROSSISTE_LIBELLE: '' }), [R3, NOTE]);
+    await p.waitForFunction(() => { const b = Ext.getCmp('btn_save'); return b && /Valider/.test(b.getText()); }, null, { timeout: 15000 }).catch(() => {});
+    await p.waitForTimeout(1500);
+    const bt3 = await boutons();
+    ok('Valideur, retour en saisie : « Valider le retour » et « Mettre en attente », ni Refuser ni Abandonner', /Valider le retour/.test(bt3.valider) && bt3.attente === 'Mettre en attente' && !bt3.refuser && !bt3.abandonner, JSON.stringify(bt3));
     await liste('En attente de validation');
     let l = await ligne(R1);
     ok('Filtre « En attente » : le retour y est, rien d\'autre que des retours en attente', l.present && l.statuts.every((s) => s === 'is_Waiting'), JSON.stringify(l.statuts.slice(0, 10)));
@@ -203,6 +211,16 @@ function retirer() {
     ok('Remise en attente : confirmation dans le bouton, motif effacé, historique', am.texte === 'Confirmer la remise en attente' && !am.boite && r2 === 'is_Waiting' && efface === '-|-'
       && /\|REMISE_EN_ATTENTE::1$/.test(historique(R1)), am.texte + ' / ' + efface + ' / ' + historique(R1));
     await p.waitForTimeout(2000);
+    /* point 3 : la pastille suit la remise en attente ; un clic sur elle ouvre la liste filtrée sur « En attente » */
+    ok('Pastille après la remise en attente : un de plus (= base)', (await pastille()) === enAttente() && enAttente() === n1, (await pastille()) + ' / ' + enAttente() + ' / ' + n1);
+    await ouvrirMenuParent();
+    await p.locator('.prestige-flyout-menu .pastille-retours').filter({ visible: true }).first().click();
+    await p.waitForFunction(() => { const c = Ext.getCmp('retourFrsEtat'), g = Ext.ComponentQuery.query('retourfrsmanager')[0];
+      return c && g && g.isVisible(true) && c.getValue() === 'ATTENTE' && !g.getStore().isLoading(); }, null, { timeout: 30000 }).catch(() => {});
+    await p.waitForTimeout(800);
+    const lp = await ligne(R1);
+    ok('Clic sur la pastille : liste « En attente de validation », le retour remis en attente y est', lp.present && lp.statuts.length > 0 && lp.statuts.every((x) => x === 'is_Waiting')
+      && (await p.evaluate(() => Ext.getCmp('retourFrsEtat').getValue())) === 'ATTENTE', JSON.stringify(lp.statuts.slice(0, 5)));
     await ouvrirRetour(R1);
     await saisir(p, '#retourMotifRefus', MOTIF2);
     await deuxClics('#btn_refuser');

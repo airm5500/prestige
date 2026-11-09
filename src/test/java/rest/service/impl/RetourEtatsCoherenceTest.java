@@ -57,6 +57,11 @@ class RetourEtatsCoherenceTest {
         assertEquals("En attente de validation", RetourEtats.libelle("is_Waiting"));
         assertEquals("Abandonné", RetourEtats.libelle("is_Abandoned"));
         assertEquals("Validé", RetourEtats.libelle("enable"));
+        assertTrue(RetourEtats.peutModifierLignes("is_Process"));
+        assertTrue(RetourEtats.peutModifierLignes("is_Waiting"));
+        assertTrue(RetourEtats.peutModifierLignes("is_Refused"), "correction apres refus");
+        assertFalse(RetourEtats.peutModifierLignes("enable"), "le stock est deja sorti");
+        assertFalse(RetourEtats.peutModifierLignes("is_Abandoned"), "clos sans suite");
     }
 
     /** Un retour simule : etat, quantite, auteur, nombre de validations. */
@@ -73,7 +78,7 @@ class RetourEtatsCoherenceTest {
     void enchainements() {
         Random r = new Random(GRAINE);
         int validations = 0, refus = 0, remises = 0, abandons = 0, refusSansMotif = 0, refusDoubles = 0,
-                interditsTiers = 0, stockInsuffisant = 0;
+                interditsTiers = 0, stockInsuffisant = 0, lignesModifiees = 0, lignesRefusees = 0;
         for (int s = 0; s < 5000; s++) {
             int stock = r.nextInt(30);
             List<Retour> retours = new ArrayList<>();
@@ -90,7 +95,8 @@ class RetourEtatsCoherenceTest {
                 boolean valideur = r.nextBoolean();
                 int stockAvant = stock;
                 String etatAvant = x.etat;
-                switch (r.nextInt(6)) {
+                int quantiteAvant = x.quantite;
+                switch (r.nextInt(7)) {
                 case 0: // mettre en attente (saisie ou deja en attente)
                     if (RetourEtats.peutValider(x.etat)) {
                         x.etat = RetourEtats.EN_ATTENTE;
@@ -133,6 +139,14 @@ class RetourEtatsCoherenceTest {
                         abandons++;
                     }
                     break;
+                case 5: // modifier une ligne (ajout, quantite, suppression) : jamais apres validation ou abandon
+                    if (RetourEtats.peutModifierLignes(x.etat)) {
+                        x.quantite = 1 + r.nextInt(8);
+                        lignesModifiees++;
+                    } else {
+                        lignesRefusees++;
+                    }
+                    break;
                 default: // valider (valideur) : tout ou rien, jamais sous zero
                     if (valideur && RetourEtats.peutValider(x.etat)) {
                         if (x.quantite <= stock) {
@@ -154,6 +168,7 @@ class RetourEtatsCoherenceTest {
                 assertTrue(x.validations <= 1, "jamais valide deux fois");
                 if (RetourEtats.VALIDE.equals(etatAvant) || RetourEtats.ABANDONNE.equals(etatAvant)) {
                     assertEquals(etatAvant, x.etat, "un retour valide ou abandonne ne change plus");
+                    assertEquals(quantiteAvant, x.quantite, "ses lignes non plus");
                 }
                 long attente = retours.stream().filter(y -> RetourEtats.EN_ATTENTE.equals(y.etat)).count();
                 assertEquals(attente, retours.stream().filter(y -> RetourEtats.peutRefuser(y.etat)).count(),
@@ -161,7 +176,8 @@ class RetourEtatsCoherenceTest {
             }
         }
         assertTrue(validations > 1000 && refus > 1000 && remises > 300 && abandons > 100 && refusSansMotif > 100
-                && refusDoubles > 30 && interditsTiers > 50 && stockInsuffisant > 50, validations + " " + refus + " "
+                && refusDoubles > 30 && interditsTiers > 50 && stockInsuffisant > 50 && lignesModifiees > 1000
+                && lignesRefusees > 1000, lignesModifiees + " " + lignesRefusees + " " + validations + " " + refus + " "
                         + remises + " " + abandons + " " + refusSansMotif + " " + refusDoubles + " " + interditsTiers
                         + " " + stockInsuffisant);
     }

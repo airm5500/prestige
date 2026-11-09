@@ -51,6 +51,14 @@ public final class RetourEtats {
         return REFUSE.equals(statut);
     }
 
+    /**
+     * Lignes (ajout, quantite, suppression) : modifiables tant que le retour n'est ni valide (le stock est deja sorti)
+     * ni abandonne (clos sans suite). En saisie, en attente et refuse (correction) : comme avant.
+     */
+    public static boolean peutModifierLignes(String statut) {
+        return !VALIDE.equals(statut) && !ABANDONNE.equals(statut);
+    }
+
     /** Un retour refuse est corrige par son auteur, ou par un profil qui a le droit de validation (choix 1). */
     public static boolean peutCorriger(String utilisateurId, String auteurId, String auteurAttenteId,
             boolean valideur) {

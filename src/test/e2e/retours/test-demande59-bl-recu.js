@@ -37,6 +37,9 @@ const REF1 = 'E2ED59A' + String(Date.now()).slice(-5), REF2 = 'E2ED59B' + String
 const CLE = 'e2e-d59-' + Date.now();
 const debut = q('SELECT NOW()');
 const droitEntree = privilegeEssai(q, exec, ENV_E2E.LOGIN, 'P_ENTREE_EN_STOCK');
+/* peremption obligatoire : valeur du poste (0 en general), remise a la fin */
+const PEREMPTION0 = q("SELECT IFNULL(MAX(str_VALUE), '') FROM t_parameters WHERE str_KEY = 'KEY_ACTIVATE_PEREMPTION_DATE'");
+const peremptionObligatoire = (v) => exec(`UPDATE t_parameters SET str_VALUE = '${v}' WHERE str_KEY = 'KEY_ACTIVATE_PEREMPTION_DATE'`);
 const ADMIN = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
 const G = q("SELECT lg_GROSSISTE_ID FROM t_grossiste WHERE str_STATUT = 'enable' ORDER BY lg_GROSSISTE_ID LIMIT 1");
 /* 4 produits au rayon, une seule ligne de stock, hors reserve, sans avoir en attente (aucun SMS ne part) */
@@ -176,10 +179,23 @@ function poser() {
     const v3 = await api('PUT', '../api/v1/commande/validerbl/' + B2 + '?mode=RECU', undefined, CLE + '-vide');
     ok('BL sans aucun lot : refus AUCUN_RECU, BL ouvert', v3.j && v3.j.success === false && v3.j.code === 'AUCUN_RECU' && statutBl(B2) === 'enable', JSON.stringify(v3.j));
 
-    /* cloture au recu */
+    /* peremption obligatoire (parametre a 1, produits controles) : un lot saisi sans date refuse la cloture au recu ;
+       la ligne sans lot n'a rien a controler. Le parametre a 0 (valeur du poste) : aucun controle, cas de la cloture
+       des versions precedentes de ce test. */
+    peremptionObligatoire('1');
+    exec(`UPDATE t_famille SET bool_CHECKEXPIRATIONDATE = 1 WHERE lg_FAMILLE_ID IN (${liste(P)})`);
+    exec("INSERT INTO t_lot (lg_LOT_ID, lg_USER_ID, lg_FAMILLE_ID, int_NUM_LOT, int_NUMBER, dt_CREATED, dt_UPDATED, dt_PEREMPTION, str_STATUT, current_stock, str_REF_LIVRAISON, int_NUMBER_GRATUIT)"
+      + ` VALUES ('${M}LND', '${ADMIN}', '${P[1]}', 'E2ED59ND', 1, NOW(), NOW(), NULL, 'enable', 1, '${REF1}', 0)`);
+    const vp = await api('PUT', '../api/v1/commande/validerbl/' + B1 + '?mode=RECU', undefined, CLE + '-peremption');
+    ok('Péremption obligatoire (paramètre à 1) : un lot sans date refuse la clôture au reçu, rien n\'entre', vp.j && vp.j.success === false && /péremption/i.test(vp.j.msg || '')
+      && statutBl(B1) === 'enable' && P.every((id, i) => stock(id) === STOCK0[i] && mvts(id) === MVT0[i]), JSON.stringify(vp.j));
+    exec(`DELETE FROM t_lot WHERE lg_LOT_ID = '${M}LND'`);
+
+    /* cloture au recu, peremption obligatoire : lots dates, ligne sans lot acceptee */
     const v4 = await api('PUT', '../api/v1/commande/validerbl/' + B1 + '?mode=RECU', undefined, CLE + '-cloture');
-    ok('Clôture au reçu : succès, mode RECU, écarts ligne par ligne, total manquant', v4.status === 200 && v4.j && v4.j.success === true && v4.j.mode === 'RECU'
+    ok('Clôture au reçu (péremption obligatoire, lots datés, une ligne sans lot) : succès, mode RECU, écarts ligne par ligne, total manquant', v4.status === 200 && v4.j && v4.j.success === true && v4.j.mode === 'RECU'
       && memesEcarts(v4.j.ecarts) && v4.j.totalManquant === TOTAL_MANQUANT, JSON.stringify(v4.j));
+    peremptionObligatoire(PEREMPTION0);
     const STOCK1 = P.map(stock), MVT1 = P.map(mvts);
     const v5 = await api('PUT', '../api/v1/commande/validerbl/' + B1 + '?mode=RECU', undefined, CLE + '-cloture');
     ok('Rejeu de la même clé : même réponse, rien de plus en stock', JSON.stringify(v5.j) === JSON.stringify(v4.j) && P.every((id, i) => stock(id) === STOCK1[i] && mvts(id) === MVT1[i]), JSON.stringify(v5.j).slice(0, 200));
@@ -277,6 +293,7 @@ function poser() {
   } finally {
     await b.close();
     droitEntree.remettre();
+    if (PEREMPTION0 !== '') { peremptionObligatoire(PEREMPTION0); }
     retirer();
     ok('Données d\'essai retirées, produits remis, droit remis', q(`SELECT COUNT(*) FROM t_bon_livraison WHERE lg_BON_LIVRAISON_ID IN ('${B1}', '${B2}')`) === '0'
       && q(`SELECT COUNT(*) FROM t_lot WHERE str_REF_LIVRAISON IN ('${REF1}', '${REF2}')`) === '0'

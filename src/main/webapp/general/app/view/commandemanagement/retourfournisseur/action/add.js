@@ -632,6 +632,9 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.action.add', {
             single: true
         });
         if (titre === "Modification fiche retour fournisseur") {
+            /* retour ouvert : ses lignes dans la grille, et « Ajouter » complete ce retour (add-item) au lieu d'en
+               creer un autre */
+            Me.current = this.getNameintern();
 
             Ext.getCmp('lg_BON_LIVRAISON_ID').setValue(this.getOdatasource().str_REF_LIVRAISON);
             Ext.getCmp('str_REPONSE_FRS').setValue(this.getOdatasource().str_REPONSE_FRS);
@@ -726,6 +729,9 @@ Ext.define('testextjs.view.commandemanagement.retourfournisseur.action.add', {
     },
 
     loadStore: function () {
+        /* transmission du 07/11 (correction d'un retour refuse) : en modification, les lignes du retour ouvert ; sans
+           identifiant, la grille restait vide */
+        Ext.getCmp('gridpanelID').getStore().getProxy().setExtraParam('retourId', Me.getCurrent() || '');
         Ext.getCmp('gridpanelID').getStore().load({
             callback: this.onStoreLoad
         });
