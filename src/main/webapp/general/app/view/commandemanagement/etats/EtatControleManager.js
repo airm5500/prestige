@@ -206,6 +206,8 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
                     type: 'string'
                 },
                 'controleResume', {name: 'controleEcarts', type: 'int'},
+                /* demande 59 : manquants d'un BL entre au reçu */
+                {name: 'manquants', type: 'int'}, {name: 'lignesManquantes', type: 'int'}, 'manquantsDetail',
                 {
                     name: 'bonLivraisonDetails',
                     type: 'auto'
@@ -317,6 +319,23 @@ Ext.define('testextjs.view.commandemanagement.etats.EtatControleManager', {
                         }
                         m.tdAttr = 'data-qtip="' + Ext.String.htmlEncode(Ext.String.htmlEncode(v)) + '"';
                         return '<span style="color:' + (r.get('controleEcarts') > 0 ? '#b42318' : '#17795f') + '">' + Ext.String.htmlEncode(v) + '</span>';
+                    }
+                },
+                /* demande 59 : BL entre au reçu, boites manquantes (detail des produits dans l'infobulle) */
+                {
+                    header: 'Manquants',
+                    dataIndex: 'manquants',
+                    width: 110,
+                    align: 'center',
+                    sortable: false,
+                    renderer: function (v, m, r) {
+                        if (!v) {
+                            return '<span style="color:#9aa8b6">—</span>';
+                        }
+                        m.tdAttr = 'data-qtip="' + Ext.String.htmlEncode(Ext.String.htmlEncode(r.get('manquantsDetail') || '')) + '"';
+                        var n = r.get('lignesManquantes');
+                        return '<span class="bl-manquants" style="color:#b42318;font-weight:600">' + v + ' boîte' + (v > 1 ? 's' : '')
+                            + ' · ' + n + ' ligne' + (n > 1 ? 's' : '') + '</span>';
                     }
                 },
                 {

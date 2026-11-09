@@ -55,6 +55,8 @@ public class RetourFournisseurServiceImpl implements RetourFournisseurService {
     private MvtProduitService mvtProduitService;
     @EJB
     private SessionHelperService sessionHelperService;
+    @EJB
+    private RetourAttenteService retourAttente;
 
     public EntityManager getEntityManager() {
         return em;
@@ -579,7 +581,77 @@ public class RetourFournisseurServiceImpl implements RetourFournisseurService {
             t.ajouter(s(r[0]), s(r[1]), s(r[2]), s(r[3]), s(r[4]), s(r[5]), s(r[6]), n(r[7]), n(r[8]), n(r[9]));
             t.utilisateur(s(r[1]), s(r[10]), s(r[11]), n(r[7]), n(r[8]), (long) n(r[7]) * n(r[9]));
         }
-        return t.json(nbProduits).put("debut", dtStart).put("fin", dtEnd);
+        return t.json(nbProduits).put("debut", dtStart).put("fin", dtEnd)
+                .put("etats", etats(dtStart, dtEnd, parGrossiste ? fourId : null, parUtilisateur ? userId.trim() : null));
+    }
+
+    /**
+     * Partie 2 de la demande 59 : retours par etat, avec la regle de la liste par defaut (valides et abandonnes de la
+     * periode ; en attente et refuses quelle que soit leur date). Seuls les retours valides entrent dans les autres
+     * rubriques du tableau : un retour refuse ou abandonne n'est jamais compte comme valide. « aTraiter » detaille les
+     * retours en attente, refuses et abandonnes (etat, motif du refus, auteur et date de l'etat, comme la liste).
+     */
+    @SuppressWarnings("unchecked")
+    private org.json.JSONObject etats(String dtStart, String dtEnd, String fourId, String userId) {
+        javax.persistence.Query q = em.createNativeQuery("SELECT r.lg_RETOUR_FRS_ID, r.str_REF_RETOUR_FRS, r.str_STATUT,"
+                + " COUNT(d.lg_RETOUR_FRS_DETAIL), COALESCE(SUM(d.int_NUMBER_RETURN), 0), MAX(r.dt_UPDATED)"
+                + " FROM t_retour_fournisseur r LEFT JOIN t_retour_fournisseur_detail d ON d.lg_RETOUR_FRS_ID = r.lg_RETOUR_FRS_ID"
+                + " WHERE ((r.str_STATUT IN ('enable', 'is_Abandoned') AND DATE(r.dt_UPDATED) BETWEEN ?1 AND ?2)"
+                + " OR r.str_STATUT IN ('is_Waiting', 'is_Refused'))"
+                /* parametres numerotes sans trou (filtre utilisateur seul : ?3) */
+                + (fourId != null ? " AND r.lg_GROSSISTE_ID = ?3" : "")
+                + (userId != null ? " AND r.lg_USER_ID = ?" + (fourId != null ? 4 : 3) : "")
+                + " GROUP BY r.lg_RETOUR_FRS_ID, r.str_REF_RETOUR_FRS, r.str_STATUT ORDER BY MAX(r.dt_UPDATED) DESC")
+                .setParameter(1, java.sql.Date.valueOf(dtStart)).setParameter(2, java.sql.Date.valueOf(dtEnd));
+        if (fourId != null) {
+            q.setParameter(3, fourId);
+        }
+        if (userId != null) {
+            q.setParameter(fourId != null ? 4 : 3, userId);
+        }
+        List<Object[]> lignes = q.getResultList();
+        java.util.Map<String, int[]> parEtat = new java.util.LinkedHashMap<>();
+        for (String e : new String[] { "attente", "refuse", "abandonne", "valide" }) {
+            parEtat.put(e, new int[3]);
+        }
+        List<Object[]> aTraiter = new java.util.ArrayList<>();
+        for (Object[] r : lignes) {
+            String cle = cleEtat(s(r[2]));
+            int[] c = parEtat.get(cle);
+            c[0]++;
+            c[1] += n(r[3]);
+            c[2] += n(r[4]);
+            if (!"valide".equals(cle) && aTraiter.size() < 200) {
+                aTraiter.add(r);
+            }
+        }
+        org.json.JSONObject o = new org.json.JSONObject();
+        for (java.util.Map.Entry<String, int[]> e : parEtat.entrySet()) {
+            o.put(e.getKey(), new org.json.JSONObject().put("retours", e.getValue()[0]).put("lignes", e.getValue()[1])
+                    .put("quantite", e.getValue()[2]));
+        }
+        java.util.Map<String, org.json.JSONObject> infos = retourAttente
+                .infos(aTraiter.stream().map(r -> s(r[0])).collect(java.util.stream.Collectors.toList()));
+        org.json.JSONArray liste = new org.json.JSONArray();
+        for (Object[] r : aTraiter) {
+            org.json.JSONObject x = infos.getOrDefault(s(r[0]), new org.json.JSONObject());
+            liste.put(new org.json.JSONObject().put("id", s(r[0])).put("ref", s(r[1])).put("statut", s(r[2]))
+                    .put("etat", RetourEtats.libelle(s(r[2]))).put("motifRefus", x.optString("motifRefus"))
+                    .put("auteur", x.optString("auteur")).put("dateEtat", x.optString("dateEtat"))
+                    .put("lignes", n(r[3])).put("quantite", n(r[4])));
+        }
+        return o.put("aTraiter", liste);
+    }
+
+    /** Cle de l'etat dans le tableau de bord ; un retour en saisie n'y figure pas (filtre de la requete). */
+    static String cleEtat(String statut) {
+        if (RetourEtats.EN_ATTENTE.equals(statut)) {
+            return "attente";
+        }
+        if (RetourEtats.REFUSE.equals(statut)) {
+            return "refuse";
+        }
+        return RetourEtats.ABANDONNE.equals(statut) ? "abandonne" : "valide";
     }
 
     private static String s(Object o) {

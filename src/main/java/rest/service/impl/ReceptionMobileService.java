@@ -43,7 +43,9 @@ public class ReceptionMobileService {
                 .put("moisPeremptionCourte", entier(parametre("KEY_RECEPTION_MOIS_PEREMPTION_COURTE", "6"), 6))
                 .put("motifObligatoirePeremptionCourte",
                         "1".equals(parametre("KEY_RECEPTION_MOTIF_PEREMPTION_COURTE", "1")))
-                .put("scansRepetesActifs", "1".equals(parametre("KEY_RECEPTION_SCANS_REPETES", "1")));
+                .put("scansRepetesActifs", "1".equals(parametre("KEY_RECEPTION_SCANS_REPETES", "1")))
+                /* demande 59 : validerbl?mode=RECU et POST v1/reception/{blId}/retour-manquants */
+                .put("clotureRecu", true).put("retourManquants", true);
     }
 
     /* ------------------------------------------------------------------ D11 */

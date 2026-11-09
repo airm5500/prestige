@@ -188,6 +188,7 @@ public class EtatControlBonServiceImpl implements EtatControlBonService {
                 }
             }
         }
+        manquants(bons);
         return bons;
     }
 
@@ -252,6 +253,36 @@ public class EtatControlBonServiceImpl implements EtatControlBonService {
                 .collect(Collectors.toMap(TBonLivraison::getLgBONLIVRAISONID, b -> b));
         return mettreEnForme(ids.stream().map(parId::get).filter(Objects::nonNull).collect(Collectors.toList()),
                 fullAuth);
+    }
+
+    /**
+     * Demande 59 : manquants des BL entres au reçu (int_MANQUANT_RECEPTION renseigne), memes lignes que GET
+     * v1/reception/{blId}/ecarts (reçu &lt; commande).
+     */
+    @SuppressWarnings("unchecked")
+    private void manquants(List<EtatControlBon> bons) {
+        Map<String, EtatControlBon> parId = new java.util.HashMap<>();
+        bons.forEach(b -> parId.put(b.getLgBONLIVRAISONID(), b));
+        List<String> ids = new ArrayList<>(parId.keySet());
+        for (int i = 0; i < ids.size(); i += 500) {
+            List<String> paquet = ids.subList(i, Math.min(ids.size(), i + 500));
+            for (Object[] r : (List<Object[]>) em.createNativeQuery("SELECT d.lg_BON_LIVRAISON_ID,"
+                    + " SUM(COALESCE(d.int_QTE_MANQUANT, 0)), COUNT(*),"
+                    + " GROUP_CONCAT(CONCAT(f.str_NAME, ' : ', COALESCE(d.int_QTE_MANQUANT, 0))"
+                    + "   ORDER BY f.str_NAME, d.lg_BON_LIVRAISON_DETAIL SEPARATOR ' ; ')"
+                    + " FROM t_bon_livraison_detail d JOIN t_bon_livraison b ON b.lg_BON_LIVRAISON_ID = d.lg_BON_LIVRAISON_ID"
+                    + " JOIN t_famille f ON f.lg_FAMILLE_ID = d.lg_FAMILLE_ID"
+                    + " WHERE d.lg_BON_LIVRAISON_ID IN (?1) AND b.int_MANQUANT_RECEPTION IS NOT NULL"
+                    + " AND COALESCE(d.int_QTE_RECUE, 0) < COALESCE(d.int_QTE_CMDE, 0)"
+                    + " GROUP BY d.lg_BON_LIVRAISON_ID").setParameter(1, paquet).getResultList()) {
+                EtatControlBon b = parId.get(String.valueOf(r[0]));
+                if (b != null) {
+                    b.setManquants(((Number) r[1]).intValue());
+                    b.setLignesManquantes(((Number) r[2]).intValue());
+                    b.setManquantsDetail(r[3] == null ? "" : String.valueOf(r[3]));
+                }
+            }
+        }
     }
 
     private long count(String search, String dtStart, String dtEnd, String grossisteId, String dateType,

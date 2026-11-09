@@ -2775,3 +2775,212 @@ window.PrestigeMotifVente = (function () {
     }
     return {choisir: choisir};
 })();
+
+/*
+ * Transmission du 07/11 (point 3) : RETOURS FOURNISSEURS EN ATTENTE, SIGNAL AU VALIDEUR. Seuls les profils qui ont
+ * P_VALIDER_RETOUR_FRS le voient (la route repond 403 aux autres : rien n'est affiche) :
+ *  - pastille avec le nombre sur l'entree de menu « Retours fournisseurs » (noeud 'retourfrsmanager') ;
+ *  - a la connexion, un avis discret et non bloquant (choix 3 du 08/11) ; un clic ouvre la liste filtree sur « En
+ *    attente de validation » ;
+ *  - le nombre se met a jour apres chaque validation, refus, mise ou remise en attente, abandon, et toutes les 5 min.
+ */
+window.PrestigeRetoursAttente = (function () {
+    var NOEUD = 'retourfrsmanager', URL = '../api/v1/retourfournisseur/en-attente/nombre';
+    var nombre = null, avisMontre = false, essais = 0;
+    /* arbre du menu (navigation) qui contient l'entree des retours */
+    function noeuds() {
+        var l = [];
+        Ext.each(Ext.ComponentQuery.query('treepanel'), function (t) {
+            var st = t.getStore && t.getStore(), n = st && st.getNodeById && st.getNodeById(NOEUD);
+            if (n) {
+                l.push({arbre: t, noeud: n});
+            }
+        });
+        return l;
+    }
+    /*
+     * La pastille est ajoutee au DOM, jamais au texte du noeud : ce texte est echappe par le menu flottant et sert de
+     * titre a l'onglet ouvert. Elle se pose a cote du libelle (pas dedans) : le libelle reste lisible tel quel.
+     */
+    function decorer(el) {
+        if (!el) {
+            return;
+        }
+        var b = null;
+        Ext.each(el.children, function (c) {
+            if (c.classList && c.classList.contains('pastille-retours')) {
+                b = c;
+            }
+        });
+        if (!(nombre > 0)) {
+            if (b) {
+                el.removeChild(b);
+            }
+            return;
+        }
+        if (!b) {
+            b = document.createElement('span');
+            b.className = 'pastille-retours';
+            b.title = 'Retours fournisseurs en attente de validation';
+            b.style.cssText = 'display:inline-block;min-width:18px;margin-left:6px;padding:0 5px;border-radius:9px;background:#c0392b;'
+                    + 'color:#fff;font-size:11px;line-height:16px;text-align:center;font-weight:bold;vertical-align:middle';
+            el.appendChild(b);
+        }
+        b.textContent = String(nombre);
+    }
+    function poser() {
+        Ext.each(noeuds(), function (x) {
+            var vue = x.arbre.getView(), parent = x.noeud.parentNode;
+            if (!x.arbre.pastilleRetoursArmee) {
+                /* la ligne est redessinee au rechargement du menu : la pastille est reposee */
+                x.arbre.pastilleRetoursArmee = true;
+                vue.on('refresh', function () {
+                    setTimeout(poser, 0);
+                });
+                vue.on('itemupdate', function () {
+                    setTimeout(poser, 0);
+                });
+            }
+            var ligne = parent && !parent.isRoot() && vue.getNode(parent);
+            decorer(ligne && ligne.querySelector('td'));
+            var libelle = Ext.String.htmlEncode(x.noeud.get('text') || '') + '</span>';
+            Ext.each(Ext.ComponentQuery.query('menu'), function (m) {
+                if (!m.hasCls || !m.hasCls('prestige-flyout-menu') || !m.rendered) {
+                    return;
+                }
+                m.items.each(function (i) {
+                    if (i.text && i.text.indexOf(libelle) >= 0 && i.rendered) {
+                        decorer(i.getEl().dom.querySelector('.x-menu-item-text'));
+                    }
+                });
+            });
+        });
+    }
+    function ouvrirListe() {
+        var app = window.testextjs && testextjs.app;
+        if (!app) {
+            return;
+        }
+        /* liste deja ouverte : l'ecran est recree ; le filtre va a la nouvelle liste, pas a l'ancienne */
+        var avant = Ext.getCmp('retourFrsEtat');
+        app.getController('App').onRedirectTo(NOEUD, {});
+        filtrerEnAttente(avant);
+    }
+    /* la liste ouverte (par l'avis, ou par un clic sur la pastille du menu) est filtree sur « En attente » */
+    function filtrerEnAttente(avant) {
+        var tours = 0, filtre = null, filtrer = function () {
+            var c = Ext.getCmp('retourFrsEtat'),
+                    g = Ext.ComponentQuery.query('retourfrsmanager').filter(function (x) {
+                        return !x.isDestroyed;
+                    }).pop();
+            /* nouvelle liste (ou la meme, si l'ecran n'a pas ete recree, apres une seconde) ; une liste recreee apres
+               le filtre (deux ouvertures de suite) est filtree a son tour ; un choix de l'utilisateur sur la meme
+               liste n'est jamais remplace */
+            if (c && g && !c.isDestroyed && c !== filtre && (c !== avant || tours > 4)) {
+                filtre = c;
+                var appliquer = function () {
+                    if (!c.isDestroyed && !g.isDestroyed) {
+                        c.setValue('ATTENTE');
+                        g.onRechClick();
+                    }
+                };
+                /* apres son premier chargement, qui sinon remplacerait la liste filtree */
+                if (g.getStore().isLoading()) {
+                    g.getStore().on('load', appliquer, null, {single: true});
+                } else {
+                    appliquer();
+                }
+            }
+            /* on continue de regarder quelques secondes : la liste peut etre recreee une seconde fois */
+            if (tours++ < 40 && (!filtre || tours < 24)) {
+                setTimeout(filtrer, 250);
+            }
+        };
+        /* le chargement automatique de la nouvelle liste (sans filtre) part juste apres sa creation : on le laisse
+           commencer, puis on filtre apres lui */
+        setTimeout(filtrer, 300);
+    }
+    function avis() {
+        if (avisMontre || !(nombre > 0) || !window.PrestigeToast) {
+            return;
+        }
+        avisMontre = true;
+        var el = PrestigeToast.afficher(nombre + ' retour' + (nombre > 1 ? 's' : '') + ' fournisseur' + (nombre > 1 ? 's' : '')
+                + ' en attente de validation. Cliquer pour ouvrir la liste.', {titre: 'Retours fournisseurs', niveau: 'info', duree: 10000});
+        if (el) {
+            el.className += ' avis-retours-attente';
+            el.addEventListener('mousedown', ouvrirListe);
+        }
+    }
+    function actualiser() {
+        Ext.Ajax.request({
+            url: URL, method: 'GET',
+            success: function (r) {
+                var o = Ext.JSON.decode(r.responseText, true) || {};
+                if (o.success) {
+                    nombre = o.nombre || 0;
+                    poser();
+                    avis();
+                }
+            },
+            failure: function () {
+                nombre = null; // 403 (pas valideur) ou serveur sans la route : aucun signal
+            }
+        });
+    }
+    function demarrer() {
+        if (!window.Ext || !Ext.Ajax || !Ext.ComponentQuery) {
+            setTimeout(demarrer, 1000);
+            return;
+        }
+        if (!noeuds().length && essais++ < 60) {
+            setTimeout(demarrer, 2000); // menu pas encore charge
+            return;
+        }
+        actualiser();
+        setInterval(actualiser, 5 * 60 * 1000);
+        /* menu flottant d'un menu parent : la pastille est posee sur l'entree des retours a chaque ouverture */
+        if (Ext.util.Observable.observe && Ext.menu && Ext.menu.Menu) {
+            Ext.util.Observable.observe(Ext.menu.Menu, {
+                show: function (m) {
+                    if (m.hasCls && m.hasCls('prestige-flyout-menu') && nombre > 0) {
+                        setTimeout(poser, 0);
+                    }
+                }
+            });
+        }
+        Ext.Ajax.on('requestcomplete', function (c, resp, opts) {
+            var u = String((opts && opts.url) || '');
+            if (/validerretourfour|retourfournisseur\/(refuser|remettre-en-attente|mettre-en-attente|abandonner)|reception\/[^/]+\/retour-manquants/.test(u)) {
+                setTimeout(actualiser, 300);
+            }
+        });
+    }
+    /* la pastille peut etre reposee (texte du menu redessine) entre l'affichage et l'appui : l'appui arrive alors sur
+       le texte du menu ; on la reconnait aussi a la position du pointeur */
+    function surPastille(e) {
+        if (e.target && e.target.closest && e.target.closest('.pastille-retours')) {
+            return true;
+        }
+        return [].some.call(document.querySelectorAll('.pastille-retours'), function (b) {
+            var r = b.getBoundingClientRect();
+            return r.width > 0 && e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+        });
+    }
+    if (/\/general\//.test(location.pathname)) {
+        setTimeout(demarrer, 1500);
+        /* a l'appui : le menu flottant se ferme avant le relachement, le clic n'arrive alors pas toujours ici */
+        document.addEventListener('mousedown', function (e) {
+            if (surPastille(e)) {
+                /* le clic sur l'entree ouvre la liste ; on filtre ensuite la nouvelle liste, pas celle d'avant le clic */
+                var avant = Ext.getCmp('retourFrsEtat');
+                setTimeout(function () {
+                    filtrerEnAttente(avant);
+                }, 300);
+            }
+        }, true);
+    }
+    return {actualiser: actualiser, ouvrirListe: ouvrirListe, nombre: function () {
+            return nombre;
+        }};
+})();

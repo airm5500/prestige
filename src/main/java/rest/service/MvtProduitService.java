@@ -76,6 +76,10 @@ public interface MvtProduitService {
     JSONObject loadetourFournisseur(String dtStart, String dtEnd, int start, int limit, String fourId, String query,
             boolean cunRemove, String filtre, String userId) throws JSONException;
 
+    /** Transmission du 07/11 : meme liste, filtree par etat (ATTENTE, REFUSE, VALIDE, ABANDONNE ; vide : tous). */
+    JSONObject loadetourFournisseur(String dtStart, String dtEnd, int start, int limit, String fourId, String query,
+            boolean cunRemove, String filtre, String userId, String etat) throws JSONException;
+
     JSONObject validerRetourDepot(String retourId, TUser user) throws JSONException;
 
     List<AjustementDTO> getAllAjustements(SalesStatsParams params);
@@ -91,6 +95,10 @@ public interface MvtProduitService {
     /** Demande du 29/10 (point 1) : memes details, filtres sur l'utilisateur du retour (vide : tous). */
     List<RetourDetailsDTO> loadretoursFournisseur(String dtStart, String dtEnd, String fourId, String query,
             String filtre, String userId);
+
+    /** Partie 2 de la demande 59 : etat null = retours valides de la periode ; sinon le filtre d'etat de la liste. */
+    List<RetourDetailsDTO> loadretoursFournisseur(String dtStart, String dtEnd, String fourId, String query,
+            String filtre, String userId, String etat);
 
     void validerFullBlRetourFournisseur(TRetourFournisseur fournisseur);
 

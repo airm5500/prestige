@@ -197,7 +197,27 @@ public class CommandeServiceImpl implements CommandeService {
 
     @Override
     public JSONObject cloturerBonLivraison(String id, boolean avecEcart) throws JSONException {
+        return cloturerBonLivraison(id, avecEcart, false);
+    }
+
+    /** Demande 59 : lots d'une ligne sous la forme {intNUMBER, intNUMBERGRATUIT} (regle ReceptionEcart). */
+    private static List<int[]> quantitesDesLots(List<TLot> lots) {
+        return lots.stream().map(l -> new int[] { Objects.requireNonNullElse(l.getIntNUMBER(), 0),
+                Objects.requireNonNullElse(l.getIntNUMBERGRATUIT(), 0) }).collect(Collectors.toList());
+    }
+
+    /**
+     * Demande 59 (plan du 08/11) : avec {@code modeRecu}, la cloture entre en stock SEULEMENT ce qui a ete reçu (somme
+     * des lots, UG comprises, plafond actuel) ; une ligne sans lot n'entre rien ({@code int_QTE_RECUE} = 0,
+     * {@code int_QTE_MANQUANT} = commande) ; la peremption n'est controlee que sur les lots saisis ; un BL sans aucun
+     * lot est refuse. La reponse porte {@code ecarts} et {@code totalManquant}. Sans {@code modeRecu}, comportement
+     * strictement inchange (avec ou sans ecart).
+     */
+    @Override
+    public JSONObject cloturerBonLivraison(String id, boolean avecEcart, boolean modeRecu) throws JSONException {
         JSONObject json = new JSONObject();
+        JSONArray ecarts = new JSONArray();
+        int totalManquant = 0;
 
         try {
             TParameters tp = findParameter(Constant.KEY_ACTIVATE_PEREMPTION_DATE);
@@ -225,7 +245,18 @@ public class CommandeServiceImpl implements CommandeService {
                         "Impossible de trouver ce bon. Verifier s'il ce bon n'est pas deja cloturé");
             }
             List<TBonLivraisonDetail> lstTBonLivraisonDetail = bonLivraisonDetail(id);
-            List<String> nonSaisis = produitsNonSaisis(bonLivraison, lstTBonLivraisonDetail, avecEcart);
+            if (modeRecu) {
+                /* demande 59, choix par defaut : un BL dont aucune ligne n'a de lot n'est pas entre */
+                List<Integer> nbLots = lstTBonLivraisonDetail.stream()
+                        .map(bn -> getLot(bn.getLgFAMILLEID().getLgFAMILLEID(), bonLivraison).size())
+                        .collect(Collectors.toList());
+                if (ReceptionEcart.aucunProduitRecu(nbLots)) {
+                    return json.put("success", false).put("code", "AUCUN_RECU").put("msg",
+                            "Aucun produit reçu : rien n'est entré en stock. Saisissez au moins un lot, ou laissez le BL ouvert.");
+                }
+            }
+            List<String> nonSaisis = modeRecu ? List.of()
+                    : produitsNonSaisis(bonLivraison, lstTBonLivraisonDetail, avecEcart);
             if (!nonSaisis.isEmpty()) {
                 return json.put("success", false).put("code", Constant.CODE_PRODUITS_NON_SAISIS)
                         .put("produits", new JSONArray(nonSaisis))
@@ -240,10 +271,13 @@ public class CommandeServiceImpl implements CommandeService {
             Set<String> produitsRecus = new java.util.LinkedHashSet<>();
             for (TBonLivraisonDetail bn : lstTBonLivraisonDetail) {
                 TFamille oFamille = bn.getLgFAMILLEID();
-                famillesEntreesEnStock.add(oFamille.getLgFAMILLEID());
                 List<TLot> lots = getLot(oFamille.getLgFAMILLEID(), bonLivraison);
+                if (!modeRecu || !lots.isEmpty()) {
+                    famillesEntreesEnStock.add(oFamille.getLgFAMILLEID());
+                }
                 if (peremptionDateIsEnabled && oFamille.getBoolCHECKEXPIRATIONDATE()
-                        && (lots.isEmpty() || lots.stream().anyMatch(l -> Objects.isNull(l.getDtPEREMPTION())))) {
+                        && ReceptionEcart.peremptionManquante(modeRecu, lots.size(),
+                                (int) lots.stream().filter(l -> Objects.isNull(l.getDtPEREMPTION())).count())) {
                     if (userTransaction.getStatus() == Status.STATUS_ACTIVE) {
                         userTransaction.rollback();
                     }
@@ -259,6 +293,32 @@ public class CommandeServiceImpl implements CommandeService {
                 /* demande du 28/10 (point 22) : quantite reellement entree et stock qui en resulte */
                 int quantiteEntree;
                 int stockApres;
+                ReceptionEcart.Ligne r = null;
+                if (modeRecu) {
+                    /*
+                     * demande 59 : seulement le reçu ; les quantites de la ligne sont ecrites telles qu'entrees. Le
+                     * plafond (commande + UG prevues) est lu AVANT de reecrire int_QTE_UG.
+                     */
+                    r = ReceptionEcart.calculer(Objects.requireNonNullElse(bn.getIntQTECMDE(), 0),
+                            Objects.requireNonNullElse(bn.getIntQTEUG(), 0), quantitesDesLots(lots));
+                    bn.setIntQTERECUE(r.recu);
+                    bn.setIntQTEMANQUANT(r.manquant);
+                    bn.setIntQTEUG(r.ug);
+                    if (r.enEcart()) {
+                        totalManquant += r.manquant;
+                        ecarts.put(new JSONObject().put("detailId", bn.getLgBONLIVRAISONDETAIL())
+                                .put("cip", oFamille.getIntCIP()).put("nom", oFamille.getStrNAME())
+                                .put("commande", r.commande).put("recu", r.recu).put("ug", r.ug)
+                                .put("manquant", r.manquant));
+                    }
+                    if (lots.isEmpty()) {
+                        /* rien n'est entre : ni lot, ni stock, ni prix ; la ligne est seulement close */
+                        bn.setStrSTATUT(Constant.STATUT_IS_CLOSED);
+                        bn.setDtUPDATED(new Date());
+                        this.getEm().merge(bn);
+                        continue;
+                    }
+                }
                 if (lots.isEmpty()) {
                     /*
                      * Audit 06, EN-03 : BL cree depuis un BLV PharmaML, la quantite recue est celle que le grossiste
@@ -289,7 +349,7 @@ public class CommandeServiceImpl implements CommandeService {
                     }
 
                     Integer entree = LotsBonLivraison.quantiteEntree(lots, bn.getIntQTECMDE(), bn.getIntQTEUG());
-                    if (entree == null) {
+                    if (!modeRecu && entree == null) {
                         LOG.log(Level.INFO,
                                 String.format("La reception de certains produits n'a pas ete faite %s %d %d  ",
                                         oFamille.getIntCIP(), cmde, bn.getIntQTECMDE()));
@@ -299,7 +359,11 @@ public class CommandeServiceImpl implements CommandeService {
                         return json.put("success", false).put("msg",
                                 "La reception de certains produits n'a pas ete faite. Veuillez verifier vos saisie");
                     }
-                    cmde = entree;
+                    if (r != null) {
+                        cmde = r.aEntrer; // demande 59 : meme plafond, lu avant la reecriture des UG
+                    } else {
+                        cmde = entree;
+                    }
                     quantiteEntree = cmde;
                     stockApres = addToStock(bn.getIntPRIXVENTE(), bn.getIntPAF(), bn.getLgBONLIVRAISONDETAIL(), user,
                             cmde, qu, oFamille);
@@ -393,6 +457,25 @@ public class CommandeServiceImpl implements CommandeService {
             String comm = "ENTREE EN STOCK DU BL " + bonLivraison.getStrREFLIVRAISON() + " PAR "
                     + user.getStrFIRSTNAME() + " " + user.getStrLASTNAME();
             logService.updateItem(user, bonLivraison.getStrREFLIVRAISON(), comm, TypeLog.ENTREE_EN_STOCK, bonLivraison);
+            if (modeRecu) {
+                /*
+                 * demande 59 : le BL est marque « entre au reçu » avec son total manquant (lu par la route des ecarts,
+                 * l'etat de controle des achats et le retour des manquants)
+                 */
+                this.getEm().flush();
+                this.getEm()
+                        .createNativeQuery("UPDATE t_bon_livraison SET int_MANQUANT_RECEPTION = ?1"
+                                + " WHERE lg_BON_LIVRAISON_ID = ?2")
+                        .setParameter(1, totalManquant).setParameter(2, bonLivraison.getLgBONLIVRAISONID())
+                        .executeUpdate();
+                if (ecarts.length() > 0) {
+                    logService.updateItem(user, bonLivraison.getStrREFLIVRAISON(),
+                            "BL " + bonLivraison.getStrREFLIVRAISON() + " entré avec écart : " + ecarts.length()
+                                    + " ligne(s), " + totalManquant + " boîte(s) manquante(s), par "
+                                    + user.getStrFIRSTNAME() + " " + user.getStrLASTNAME(),
+                            TypeLog.ENTREE_EN_STOCK, bonLivraison);
+                }
+            }
 
             Map<String, Object> donnee = new HashMap<>();
             donnee.put(NotificationUtils.NUM_BL.getId(), bonLivraison.getStrREFLIVRAISON());
@@ -457,8 +540,13 @@ public class CommandeServiceImpl implements CommandeService {
             }
             /* retours du 13/10 (point 6) : produits du bon dont le seuil de reserve est atteint, montres a l'ecran */
             try {
-                json.put("reserve",
-                        suggestionReserveService.lignesOuvertesAuto(user, famillesEntreesEnStock, suggestionsDuBon));
+                /*
+                 * demande 60 (droit « Voir les suggestions de réserve ») : un profil sans ce droit ne voit pas les
+                 * lignes des suggestions ; la suggestion est creee quand meme. Droit absent de la base : comme avant.
+                 */
+                json.put("reserve", voitSuggestionsReserve(user)
+                        ? suggestionReserveService.lignesOuvertesAuto(user, famillesEntreesEnStock, suggestionsDuBon)
+                        : new JSONArray());
             } catch (Exception e) {
                 LOG.log(Level.WARNING, "Suggestions de reserve non lues apres cloture du BL " + id, e);
             }
@@ -501,6 +589,13 @@ public class CommandeServiceImpl implements CommandeService {
             } catch (SystemException ex) {
                 LOG.log(Level.SEVERE, null, ex);
             }
+        }
+        if (modeRecu) {
+            return json.put("success", true).put("mode", "RECU").put("ecarts", ecarts)
+                    .put("totalManquant", totalManquant).put("msg",
+                            ecarts.length() == 0 ? "BL entré en stock : tout a été reçu"
+                                    : "BL entré en stock avec écart : " + ecarts.length() + " ligne(s), "
+                                            + totalManquant + " boîte(s) manquante(s)");
         }
         return json.put("success", true).put("msg", "Opération effectuée avec success");
     }
@@ -749,6 +844,20 @@ public class CommandeServiceImpl implements CommandeService {
     public boolean hasEntreeStockPrivilege() {
         TUser user = sessionHelperService.getCurrentUser();
         return user != null && hasPrivilege(user, P_ENTREE_EN_STOCK);
+    }
+
+    /** Droit « Voir les suggestions de réserve » (demande 60, migration V7.2.70 d'une autre branche). */
+    static final String P_RESERVE_SUGGESTION = "P_RESERVE_SUGGESTION";
+
+    /**
+     * Demande 60 : les lignes de suggestion de reserve ne sont montrees qu'a un profil qui porte P_RESERVE_SUGGESTION.
+     * Tant que ce droit n'existe pas (actif) en base, rien ne change : tout le monde les voit, comme avant.
+     */
+    private boolean voitSuggestionsReserve(TUser user) {
+        Object existe = this.getEm()
+                .createNativeQuery("SELECT COUNT(*) FROM t_privilege WHERE str_NAME = ?1 AND str_STATUT = 'enable'")
+                .setParameter(1, P_RESERVE_SUGGESTION).getSingleResult();
+        return Integer.parseInt(existe + "") == 0 || hasPrivilege(user, P_RESERVE_SUGGESTION);
     }
 
     private boolean hasPrivilege(TUser user, String privilegeName) {

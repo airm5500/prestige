@@ -1255,7 +1255,7 @@ public class MvtProduitServiceImpl implements MvtProduitService {
             return json.put("success", false).put("msg", "Retour introuvable");
         }
         if (!retourAValider(fournisseur.getStrSTATUT())) {
-            return json.put("success", false).put("msg", "Ce retour est déjà validé : rien n'a été modifié");
+            return json.put("success", false).put("code", "ETAT").put("msg", messageEtat(fournisseur.getStrSTATUT()));
         }
         if (getTRetourFournisseurDetail(params.getRef()).isEmpty()) {
             return json.put("success", false).put("msg", "Le retour ne contient aucun produit");
@@ -1263,14 +1263,22 @@ public class MvtProduitServiceImpl implements MvtProduitService {
         /* rien ne sort du stock : le retour attend qu'un profil autorise le valide */
         fournisseur.setStrSTATUT(RETOUR_EN_ATTENTE);
         fournisseur.setDtUPDATED(new Date());
-        fournisseur.setStrCOMMENTAIRE(params.getDescription());
-        fournisseur.setStrREPONSEFRS(params.getRefTwo());
+        /* commentaire et reponse : ceux de l'ecran ; un appel qui ne les envoie pas (mobile : {ref}) les garde */
+        if (params.getDescription() != null) {
+            fournisseur.setStrCOMMENTAIRE(params.getDescription());
+        }
+        if (params.getRefTwo() != null) {
+            fournisseur.setStrREPONSEFRS(params.getRefTwo());
+        }
         emg.merge(fournisseur);
         emg.flush();
         emg.createNativeQuery(
                 "UPDATE t_retour_fournisseur SET dt_ATTENTE = NOW(), lg_USER_ATTENTE = ?1 WHERE lg_RETOUR_FRS_ID = ?2")
                 .setParameter(1, params.getOperateur().getLgUSERID()).setParameter(2, fournisseur.getLgRETOURFRSID())
                 .executeUpdate();
+        /* transmission du 07/11 : historique (qui, quand, action) */
+        RetourEtats.tracer(emg, fournisseur.getLgRETOURFRSID(), RetourEtats.MISE_EN_ATTENTE, null,
+                params.getOperateur().getLgUSERID());
         return json.put("success", true).put("msg", "Retour mis en attente de validation : rien n'est sorti du stock");
     }
 
@@ -1307,6 +1315,17 @@ public class MvtProduitServiceImpl implements MvtProduitService {
         }
     }
 
+    /** Transmission du 07/11 : message d'un retour qui n'est ni en saisie ni en attente. */
+    static String messageEtat(String statut) {
+        if (RetourEtats.REFUSE.equals(statut)) {
+            return "Ce retour a été refusé : corrigez-le puis remettez-le en attente ; rien n'a été modifié";
+        }
+        if (RetourEtats.ABANDONNE.equals(statut)) {
+            return "Ce retour a été abandonné : rien n'a été modifié";
+        }
+        return "Ce retour est déjà validé : rien n'a été modifié";
+    }
+
     @Override
     public JSONObject validerRetourFournisseur(Params params) throws JSONException {
         JSONObject json = new JSONObject();
@@ -1324,9 +1343,16 @@ public class MvtProduitServiceImpl implements MvtProduitService {
             }
             if (!retourAValider(fournisseur.getStrSTATUT())) {
                 return json.put("success", false).put("code", "ETAT").put("msg",
-                        "Ce retour est déjà validé : rien n'a été modifié");
+                        messageEtat(fournisseur.getStrSTATUT()));
             }
             List<TRetourFournisseurDetail> details = getTRetourFournisseurDetail(params.getRef());
+            if (ManquantsReceptionService.sansSortieStock(emg, fournisseur.getLgRETOURFRSID())) {
+                /*
+                 * demande 59 : retour des manquants d'un BL entre au reçu ; les boites ne sont jamais entrees. La
+                 * validation sert a la reclamation et a l'avoir : aucun stock, aucun mouvement, aucun lot ne bouge.
+                 */
+                return validerSansSortieStock(emg, fournisseur, details, params, json);
+            }
             DoubleAdder amount = new DoubleAdder();
             final TEmplacement empl = params.getOperateur().getLgEMPLACEMENTID();
             final String emplecementId = empl.getLgEMPLACEMENTID();
@@ -1445,6 +1471,8 @@ public class MvtProduitServiceImpl implements MvtProduitService {
             fournisseur.setLgUSERID(params.getOperateur());
             fournisseur.setStrREPONSEFRS(params.getRefTwo());
             emg.merge(fournisseur);
+            RetourEtats.tracer(emg, fournisseur.getLgRETOURFRSID(), RetourEtats.VALIDATION, null,
+                    params.getOperateur().getLgUSERID());
 
             json.put("success", true).put("msg", "Opération effectuée avec success");
         } catch (Exception e) {
@@ -1454,6 +1482,40 @@ public class MvtProduitServiceImpl implements MvtProduitService {
 
         return json;
 
+    }
+
+    /** Demande 59 : validation d'un retour des manquants, sans sortie de stock. */
+    private JSONObject validerSansSortieStock(EntityManager emg, TRetourFournisseur fournisseur,
+            List<TRetourFournisseurDetail> details, Params params, JSONObject json) throws JSONException {
+        double montant = 0;
+        int boites = 0;
+        for (TRetourFournisseurDetail d : details) {
+            int q = Objects.requireNonNullElse(d.getIntNUMBERRETURN(), 0);
+            montant += (double) q * Objects.requireNonNullElse(d.getIntPAF(), 0);
+            boites += q;
+            d.setStrSTATUT(STATUT_ENABLE);
+            d.setDtUPDATED(new Date());
+            emg.merge(d);
+        }
+        fournisseur.setStrSTATUT(STATUT_ENABLE);
+        fournisseur.setDtUPDATED(new Date());
+        fournisseur.setDlAMOUNT(montant);
+        fournisseur.setStrCOMMENTAIRE(
+                StringUtils.defaultIfBlank(params.getDescription(), fournisseur.getStrCOMMENTAIRE()));
+        fournisseur.setLgUSERID(params.getOperateur());
+        fournisseur.setStrREPONSEFRS(params.getRefTwo());
+        emg.merge(fournisseur);
+        RetourEtats.tracer(emg, fournisseur.getLgRETOURFRSID(), RetourEtats.VALIDATION, "Sans sortie de stock",
+                params.getOperateur().getLgUSERID());
+        TBonLivraison bl = fournisseur.getLgBONLIVRAISONID();
+        logService.updateItem(params.getOperateur(),
+                bl == null ? fournisseur.getStrREFRETOURFRS() : bl.getStrREFLIVRAISON(),
+                "Retour des manquants " + fournisseur.getStrREFRETOURFRS() + " validé sans sortie de stock : "
+                        + details.size() + " ligne(s), " + boites + " boîte(s), par "
+                        + params.getOperateur().getStrFIRSTNAME() + " " + params.getOperateur().getStrLASTNAME(),
+                TypeLog.RETOUR_FOURNISSEUR, fournisseur);
+        return json.put("success", true).put("sansSortieStock", true).put("msg",
+                "Retour des manquants validé : rien ne sort du stock");
     }
 
     private List<TRetourFournisseurDetail> getTRetourFournisseurDetail(String id) {
@@ -1513,8 +1575,49 @@ public class MvtProduitServiceImpl implements MvtProduitService {
         return loadretoursFournisseur(dtStart, dtEnd, start, limit, fourId, query, cunRemove, filtre, null);
     }
 
+    @Override
+    public JSONObject loadetourFournisseur(String dtStart, String dtEnd, int start, int limit, String fourId,
+            String query, boolean cunRemove, String filtre, String userId, String etat) throws JSONException {
+        List<RetourFournisseurDTO> data = loadretoursFournisseur(dtStart, dtEnd, start, limit, fourId, query, cunRemove,
+                filtre, userId, etat);
+        return new JSONObject().put("total", data.size()).put("results", new JSONArray(data));
+    }
+
     private List<RetourFournisseurDTO> loadretoursFournisseur(String dtStart, String dtEnd, int start, int limit,
             String fourId, String query, boolean cunRemove, String filtre, String userId) {
+        return loadretoursFournisseur(dtStart, dtEnd, start, limit, fourId, query, cunRemove, filtre, userId, null);
+    }
+
+    /**
+     * Transmission du 07/11 : filtre par etat, commun a la liste et a l'export Excel (partie 2 de la demande 59).
+     * ATTENTE et REFUSE : quelle que soit la date ; VALIDE et ABANDONNE : sur la periode ; vide ou TOUS : les retours
+     * valides ou abandonnes de la periode, plus tous les retours en attente ou refuses.
+     */
+    private static Predicate predicatEtat(CriteriaBuilder cb, Root<TRetourFournisseur> root, Predicate btw,
+            String etat) {
+        javax.persistence.criteria.Path<String> statut = root.get(TRetourFournisseur_.strSTATUT);
+        switch (StringUtils.upperCase(StringUtils.trimToEmpty(etat))) {
+        case "ATTENTE":
+            return cb.equal(statut, RETOUR_EN_ATTENTE);
+        case "REFUSE":
+            return cb.equal(statut, RetourEtats.REFUSE);
+        case "VALIDE":
+            return cb.and(cb.equal(statut, STATUT_ENABLE), btw);
+        case "ABANDONNE":
+            return cb.and(cb.equal(statut, RetourEtats.ABANDONNE), btw);
+        default:
+            return cb.or(cb.and(statut.in(STATUT_ENABLE, RetourEtats.ABANDONNE), btw),
+                    statut.in(RETOUR_EN_ATTENTE, RetourEtats.REFUSE));
+        }
+    }
+
+    /**
+     * Transmission du 07/11 : filtre par etat de la liste des retours (ATTENTE, REFUSE, VALIDE, ABANDONNE ; vide ou
+     * TOUS = tous). Les retours en attente et refuses restent visibles quelle que soit leur date ; les retours valides
+     * et abandonnes suivent la periode.
+     */
+    private List<RetourFournisseurDTO> loadretoursFournisseur(String dtStart, String dtEnd, int start, int limit,
+            String fourId, String query, boolean cunRemove, String filtre, String userId, String etat) {
         try {
             List<Predicate> predicates = new ArrayList<>();
             CriteriaBuilder cb = getEmg().getCriteriaBuilder();
@@ -1527,8 +1630,7 @@ public class MvtProduitServiceImpl implements MvtProduitService {
              */
             Predicate btw = cb.between(cb.function("DATE", Date.class, root.get(TRetourFournisseur_.dtUPDATED)),
                     java.sql.Date.valueOf(dtStart), java.sql.Date.valueOf(dtEnd));
-            predicates.add(cb.or(cb.and(cb.equal(root.get(TRetourFournisseur_.strSTATUT), STATUT_ENABLE), btw),
-                    cb.equal(root.get(TRetourFournisseur_.strSTATUT), RETOUR_EN_ATTENTE)));
+            predicates.add(predicatEtat(cb, root, btw, etat));
             if (StringUtils.isNotBlank(userId)) {
                 predicates.add(cb.equal(root.get(TRetourFournisseur_.lgUSERID).get(TUser_.lgUSERID), userId));
             }
@@ -1585,6 +1687,16 @@ public class MvtProduitServiceImpl implements MvtProduitService {
     @Override
     public List<RetourDetailsDTO> loadretoursFournisseur(String dtStart, String dtEnd, String fourId, String query,
             String filtre, String userId) {
+        return loadretoursFournisseur(dtStart, dtEnd, fourId, query, filtre, userId, null);
+    }
+
+    /**
+     * Partie 2 de la demande 59 : etat null = retours valides de la periode (comportement d'origine, impression PDF) ;
+     * sinon, le meme filtre d'etat que la liste (l'export Excel suit la liste affichee).
+     */
+    @Override
+    public List<RetourDetailsDTO> loadretoursFournisseur(String dtStart, String dtEnd, String fourId, String query,
+            String filtre, String userId, String etat) {
         try {
             List<Predicate> predicates = new ArrayList<>();
             CriteriaBuilder cb = getEmg().getCriteriaBuilder();
@@ -1592,10 +1704,14 @@ public class MvtProduitServiceImpl implements MvtProduitService {
             Root<TRetourFournisseur> root = cq.from(TRetourFournisseur.class);
 
             cq.select(root).distinct(true);
-            predicates.add(cb.equal(root.get(TRetourFournisseur_.strSTATUT), STATUT_ENABLE));
             Predicate btw = cb.between(cb.function("DATE", Date.class, root.get(TRetourFournisseur_.dtUPDATED)),
                     java.sql.Date.valueOf(dtStart), java.sql.Date.valueOf(dtEnd));
-            predicates.add(btw);
+            if (etat == null) {
+                predicates.add(cb.equal(root.get(TRetourFournisseur_.strSTATUT), STATUT_ENABLE));
+                predicates.add(btw);
+            } else {
+                predicates.add(predicatEtat(cb, root, btw, etat));
+            }
             if (StringUtils.isNotBlank(userId)) {
                 predicates.add(cb.equal(root.get(TRetourFournisseur_.lgUSERID).get(TUser_.lgUSERID), userId));
             }

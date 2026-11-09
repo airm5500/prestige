@@ -213,4 +213,36 @@ public class ReceptionMobileRessource {
     public Response presents(@PathParam("blId") String blId) {
         return utilisateur() == null ? sansSession() : repondre(service.presents(blId));
     }
+
+    @EJB
+    private rest.service.impl.ManquantsReceptionService manquants;
+    @EJB
+    private rest.service.mobile.MobileClientRefService mobileClientRefService;
+
+    /**
+     * Demande 59 : lignes du BL ou reçu &lt; commande (BL clos au reçu : quantites de la cloture ; BL ouvert : calcul
+     * provisoire sur les lots saisis). Meme liste que la reponse de {@code validerbl?mode=RECU}.
+     */
+    @GET
+    @Path("{blId}/ecarts")
+    public Response ecarts(@PathParam("blId") String blId) {
+        return utilisateur() == null ? sansSession() : repondre(manquants.ecarts(blId));
+    }
+
+    /**
+     * Demande 59 : retour fournisseur des manquants, en attente, motif « Manquant », SANS sortie de stock. Un seul par
+     * BL (un second appel renvoie le premier) ; meme X-Client-Ref = meme reponse.
+     */
+    @POST
+    @Path("{blId}/retour-manquants")
+    public Response retourManquants(@PathParam("blId") String blId,
+            @javax.ws.rs.HeaderParam("X-Client-Ref") String clientRef) {
+        Response refus = Droits.refus(servletRequest, "Retours fournisseur", "P_SM_RETOUR_FRS", "P_VALIDER_RETOUR_FRS");
+        if (refus != null) {
+            return refus;
+        }
+        TUser u = utilisateur();
+        return repondre(new JSONObject(mobileClientRefService.uneFois(clientRef, "RETOUR_MANQUANTS",
+                () -> manquants.creerRetourManquants(blId, u), r -> r.optString("retourId", null))));
+    }
 }
