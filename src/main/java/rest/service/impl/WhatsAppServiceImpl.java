@@ -302,8 +302,22 @@ public class WhatsAppServiceImpl implements WhatsAppService {
     /* ------------------------------------------------------------------ fils de discussion (demande du 25/10) */
 
     @Override
-    @SuppressWarnings("unchecked")
     public JSONObject repondreDiscussion(String numero, String texte, PieceJointe piece, String userId) {
+        return envoyerDansLeFil(numero, texte, piece, userId, true);
+    }
+
+    /**
+     * Plan avoir du 08/11, point 10 : la reponse a un avis client part par le meme envoi que les discussions (mode par
+     * defaut, donc WhatsApp Web quand c'est le compte actif) et entre dans le fil du client avec son statut. Le texte,
+     * deja ecrit pour ce client, n'est pas personnalise.
+     */
+    @Override
+    public JSONObject repondreAvis(String numero, String texte, String userId) {
+        return envoyerDansLeFil(numero, texte, null, userId, false);
+    }
+
+    @SuppressWarnings("unchecked")
+    private JSONObject envoyerDansLeFil(String numero, String texte, PieceJointe piece, String userId, boolean modele) {
         String refus = rest.service.impl.whatsapp.DiscussionRegles.refusReponse(texte, piece != null);
         if (refus != null) {
             return refus(refus);
@@ -334,7 +348,8 @@ public class WhatsAppServiceImpl implements WhatsAppService {
             }
         }
         WhatsAppCompte c = compte(modeDefaut());
-        String t = rest.service.impl.whatsapp.DiscussionRegles.nettoyer(personnaliser(texte, r.clientId));
+        String t = rest.service.impl.whatsapp.DiscussionRegles
+                .nettoyer(modele ? personnaliser(texte, r.clientId) : texte);
         WhatsAppEnvoi.Resultat res = WhatsAppEnvoi.envoyer(c, TelephoneCi.controler(r.numero).getInternational(), t,
                 piece);
         journaliser(null, r.clientId, r.numero, c == null ? modeDefaut() : c.mode, res, false);

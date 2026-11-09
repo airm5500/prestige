@@ -84,6 +84,13 @@ public class AvisClientRessource {
         return null;
     }
 
+    /** Identifiant de l'utilisateur connecte : auteur de la reponse dans le fil WhatsApp (plan avoir du 08/11). */
+    private String utilisateurId() {
+        HttpSession s = servletRequest.getSession(false);
+        Object u = s == null ? null : s.getAttribute(commonparameter.AIRTIME_USER);
+        return u instanceof TUser ? ((TUser) u).getLgUSERID() : null;
+    }
+
     private static JSONObject echec(String msg) {
         return new JSONObject().put("success", false).put("msg", msg).put("message", msg);
     }
@@ -228,7 +235,8 @@ public class AvisClientRessource {
         }
         try {
             JSONObject j = new JSONObject(StringUtils.defaultIfBlank(corps, "{}"));
-            JSONObject e = service.repondre(id, j.optString("canal"), j.optString("texte", null), utilisateur());
+            JSONObject e = service.repondre(id, j.optString("canal"), j.optString("texte", null), utilisateur(),
+                    utilisateurId());
             return json(e.put("data", service.detail(id, false)));
         } catch (IllegalArgumentException | JSONException e) {
             return json(echec(e.getMessage()));

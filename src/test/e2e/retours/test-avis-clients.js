@@ -31,7 +31,9 @@ const TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'e2e-avis-'));
 
 function nettoyer() {
   q("DELETE FROM t_avis_client WHERE dt_CREATED >= '" + DEBUT + "';"
-    + "DELETE FROM whatsapp_message WHERE created_at >= '" + DEBUT + "' AND notification_id IS NULL AND client_id IS NULL;");
+    + "DELETE FROM whatsapp_message WHERE created_at >= '" + DEBUT + "' AND notification_id IS NULL AND (client_id IS NULL OR telephone = '0708091011');"
+    /* plan avoir du 08/11, point 10 : la reponse WhatsApp entre aussi dans le fil du client */
+    + "DELETE FROM whatsapp_discussion WHERE created_at >= '" + DEBUT + "' AND numero = '0708091011' AND sens = 'S';");
   CLES.forEach((k) => q("UPDATE t_parameters SET str_VALUE = '" + origine[k].replace(/'/g, "''") + "' WHERE str_KEY = '" + k + "'"));
 }
 const decoder = (fichierPng) => execFileSync('python3', ['-I', '-c',
@@ -59,6 +61,10 @@ const texteXls = (f) => execFileSync('python3', ['-I', '-c', "import sys,xlrd;s=
   try {
     repondre.remettre(); reglages.remettre();
     nettoyer();
+    /* plan avoir du 08/11 : la reponse WhatsApp doit rester simulee, meme sur un poste dont le compte envoie pour de vrai
+       (comptes gardes en base, sans que leurs jetons passent par le test, remis a la fin) */
+    q('DROP TABLE IF EXISTS zz_e2e_avis_compte; CREATE TABLE zz_e2e_avis_compte AS SELECT mode, mode_test FROM whatsapp_compte;'
+      + 'UPDATE whatsapp_compte SET mode_test = 1;');
     await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
     await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 60000 });
@@ -371,6 +377,9 @@ const texteXls = (f) => execFileSync('python3', ['-I', '-c', "import sys,xlrd;s=
   } finally {
     try { repondre.remettre(); reglages.remettre(); } catch (e) { console.log('droits : ' + e.message); }
     try { nettoyer(); } catch (e) { console.log('nettoyage : ' + e.message); }
+    try {
+      q('UPDATE whatsapp_compte c JOIN zz_e2e_avis_compte s ON s.mode = c.mode SET c.mode_test = s.mode_test; DROP TABLE zz_e2e_avis_compte;');
+    } catch (e) { console.log('comptes WhatsApp : ' + e.message); }
     ok('Nettoyage : avis d\'essai retirés, réglages remis', q("SELECT COUNT(*) FROM t_avis_client WHERE dt_CREATED >= '" + DEBUT + "'") === '0'
       && CLES.every((k) => q("SELECT IFNULL(str_VALUE, '') FROM t_parameters WHERE str_KEY = '" + k + "'") === origine[k]));
     await b.close();
