@@ -48,8 +48,17 @@ function nettoyer() {
   const attendreRecherche = (avant) => p.waitForFunction(([s, t]) => Ext.ComponentQuery.query(s + ' #destinataires')[0].title !== t, [F, avant], { timeout: 120000 });
   const choisirListe = async (texte) => {
     await p.click('#' + await p.evaluate((s) => Ext.ComponentQuery.query(s + ' #liste')[0].inputEl.dom.id, F));
-    await p.waitForFunction(() => Ext.ComponentQuery.query('boundlist').some((l) => l.isVisible() && l.getStore().getCount() > 1), null, { timeout: 15000 });
-    await p.locator('.x-boundlist:visible .x-boundlist-item', { hasText: texte }).first().click();
+    /* la liste deroulante de CE champ (une autre, deja ouverte, peut rester dans la page) */
+    await p.waitForTimeout(300);
+    /* champ deja actif : le clic a pu refermer la liste ; on rouvre par le bouton du champ, comme l'utilisateur */
+    if (!await p.evaluate((s) => Ext.ComponentQuery.query(s + ' #liste')[0].isExpanded, F)) {
+      await p.click('#' + await p.evaluate((s) => Ext.ComponentQuery.query(s + ' #liste')[0].triggerEl.first().dom.id, F));
+    }
+    await p.waitForFunction((s) => Ext.ComponentQuery.query(s + ' #liste')[0].isExpanded, F, { timeout: 15000 });
+    const liste = await p.evaluate((s) => Ext.ComponentQuery.query(s + ' #liste')[0].getPicker().getEl().dom.id, F);
+    /* les listes arrivent du serveur : attendre que la ligne voulue soit affichee, puis cliquer (re-resolue a chaque essai) */
+    await p.waitForFunction(([s, t]) => { const c = Ext.ComponentQuery.query(s + ' #liste')[0]; return !c.getStore().isLoading() && c.getStore().find('affiche', t) >= 0; }, [F, texte], { timeout: 15000 });
+    await p.locator('#' + liste + ' .x-boundlist-item', { hasText: texte }).first().click({ timeout: 15000 });
   };
   try {
     await connexion(p, ENV_E2E.LOGIN, 'e2etest');

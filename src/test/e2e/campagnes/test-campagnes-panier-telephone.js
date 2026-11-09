@@ -174,16 +174,26 @@ function nettoyer(debut) {
       await p.evaluate(([s, v]) => {
         const o = Ext.ComponentQuery.query(s)[0];
         ['rechercheClient', 'ajSexe', 'ajAgeMin', 'ajAgeMax', 'ajMoisAchat', 'ajMinAchats', 'ajMontant'].forEach((k) => { const c = o.down('#' + k); c.suspendEvents(); c.setValue(k === 'ajSexe' || k === 'ajMoisAchat' ? '' : null); c.resumeEvents(); });
-        o.down('#ajReference').clearValue();
         Object.keys(v).forEach((k) => { if (k !== 'ajReference') { const c = o.down('#' + k); c.suspendEvents(); c.setValue(v[k]); c.resumeEvents(); } });
       }, [L, valeurs]);
+      /* produit choisi avant : l'effacer comme l'utilisateur (tout selectionner, effacer, quitter le champ) */
+      if (await p.evaluate((s) => !!Ext.ComponentQuery.query(s + ' #ajReference')[0].getValue(), L)) {
+        await p.click('#' + await p.evaluate((s) => Ext.ComponentQuery.query(s + ' #ajReference')[0].inputEl.dom.id, L));
+        await p.keyboard.press('Control+A'); await p.keyboard.press('Backspace'); await p.keyboard.press('Tab');
+        await p.waitForTimeout(300);
+      }
       if (valeurs.ajReference) {
         /* produit : par la liste de choix (frappe de 2 lettres au moins, puis choix) */
         await taper(L + ' #ajReference', valeurs.ajReference.slice(0, 8));
         await p.waitForFunction(([s, nom]) => { const c = Ext.ComponentQuery.query(s + ' #ajReference')[0]; return c.getStore().findExact('libelle', nom) >= 0; }, [L, valeurs.ajReference], { timeout: 15000 });
         await p.evaluate(([s, nom]) => { const c = Ext.ComponentQuery.query(s + ' #ajReference')[0]; const r = c.getStore().getAt(c.getStore().findExact('libelle', nom)); c.select(r); c.fireEvent('select', c, [r]); c.collapse(); }, [L, valeurs.ajReference]);
       }
+      /* attendre la reponse de CETTE recherche (le titre « Résultats » de la precedente ne suffit pas) */
+      await p.evaluate((s) => Ext.ComponentQuery.query(s + ' #trouves')[0].setTitle('…'), L);
+      const reponse = p.waitForResponse((r) => r.url().includes('/campagnes/population'), { timeout: 30000 });
       await cliquer(p, L + ' #chercherAjout');
+      await reponse;
+      ok('Recherche : produit envoyé = produit choisi (' + (valeurs.ajReference ? 'oui' : 'aucun') + ')', !!(await p.evaluate((s) => Ext.ComponentQuery.query(s + ' #ajReference')[0].getValue(), L)) === !!valeurs.ajReference);
       await p.waitForFunction((s) => /Résultats/.test(Ext.ComponentQuery.query(s + ' #trouves')[0].title) && !Ext.ComponentQuery.query(s + ' #trouves')[0].el.isMasked(), L, { timeout: 30000 });
       await p.waitForTimeout(500);
       return (await grille(L + ' #trouves')).map((r) => r.clientId).filter((id) => id.startsWith('E2E-PAN-')).sort().join(',');
@@ -263,8 +273,9 @@ function nettoyer(debut) {
     const lignes = q(`SELECT GROUP_CONCAT(CONCAT(l.lg_CLIENT_ID, ':', l.statut) ORDER BY l.lg_CLIENT_ID) FROM t_campagne_ligne l JOIN t_campagne c ON c.id = l.campagne_id WHERE c.created_at >= '${debut}' AND l.lg_CLIENT_ID IN ${clients}`);
     const notifs = q(`SELECT COUNT(*) FROM notification WHERE type_notification = ${CAT} AND entity_ref IN ${clients}`);
     const notifsR = q(`SELECT COUNT(*) FROM notification WHERE type_notification IN (${CAT_RAPPEL}) AND entity_ref IN ${clients}`);
-    ok('Bilan : une campagne (5 clients, 3 préparés, 2 écartés), 3 notifications de campagne, 3 de rappel', camp === 'INFO_CLIENTS:5:3:2'
-      && lignes === 'E2E-PAN-A:PREPARE,E2E-PAN-B:PREPARE,E2E-PAN-C:PREPARE,E2E-PAN-D:EXCLU,E2E-PAN-E:EXCLU' && notifs === '3' && notifsR === '3', [camp, lignes, notifs, notifsR].join(' | '));
+    /* seuls les joignables se cochent et partent : D et E (non joignables) ne sont pas inscrits dans la campagne */
+    ok('Bilan : une campagne (3 clients cochés, 3 préparés, aucun écarté), 3 notifications de campagne, 3 de rappel', camp === 'INFO_CLIENTS:3:3:0'
+      && lignes === 'E2E-PAN-A:PREPARE,E2E-PAN-B:PREPARE,E2E-PAN-C:PREPARE' && notifs === '3' && notifsR === '3', [camp, lignes, notifs, notifsR].join(' | '));
     ok('Aucune erreur JavaScript, aucune fenêtre surgissante du navigateur', erreurs.length === 0 && dialogues.length === 0, erreurs.concat(dialogues).join(' | '));
   } catch (x) {
     ok('Parcours sans exception', false, x.stack);

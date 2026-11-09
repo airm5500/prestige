@@ -28,8 +28,13 @@ const BASE = ENV_E2E.BASE;
 const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-sN', '-e', s], { encoding: 'utf8' }).trim();
 const exec = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', BASE, '-e', s], { encoding: 'utf8' });
 
-const P1 = q("SELECT f.lg_FAMILLE_ID FROM t_famille f WHERE f.str_STATUT = 'enable' AND f.str_NAME LIKE 'DOLIPRANE 1000%' AND f.int_CIP IS NOT NULL AND f.int_CIP <> '' ORDER BY f.str_NAME LIMIT 1");
-const P2 = q("SELECT f.lg_FAMILLE_ID FROM t_famille f WHERE f.str_STATUT = 'enable' AND f.str_NAME LIKE 'AMOXICILLINE%' ORDER BY f.str_NAME LIMIT 1");
+/* deux produits sans aucune vente depuis 400 jours : seuls les clients d'essai les ont achetes, aucun client reel
+ * n'apparait dans les resultats ni ne recoit de message (meme simule) ; CIP unique pour le choix dans la liste */
+const SANS_VENTE = "f.str_STATUT = 'enable' AND NOT EXISTS (SELECT 1 FROM t_preenregistrement_detail d JOIN t_preenregistrement v ON v.lg_PREENREGISTREMENT_ID = d.lg_PREENREGISTREMENT_ID"
+  + " WHERE d.lg_FAMILLE_ID = f.lg_FAMILLE_ID AND v.dt_UPDATED >= DATE_SUB(NOW(), INTERVAL 400 DAY))";
+const P1 = q("SELECT f.lg_FAMILLE_ID FROM t_famille f WHERE " + SANS_VENTE + " AND CHAR_LENGTH(f.int_CIP) >= 7"
+  + " AND (SELECT COUNT(*) FROM t_famille g WHERE g.int_CIP LIKE CONCAT('%', f.int_CIP, '%') OR g.str_NAME LIKE CONCAT('%', f.int_CIP, '%')) = 1 ORDER BY f.lg_FAMILLE_ID LIMIT 1");
+const P2 = q("SELECT f.lg_FAMILLE_ID FROM t_famille f WHERE " + SANS_VENTE + " AND f.lg_FAMILLE_ID <> '" + P1 + "' ORDER BY f.lg_FAMILLE_ID LIMIT 1");
 const CIP1 = q(`SELECT int_CIP FROM t_famille WHERE lg_FAMILLE_ID = '${P1}'`);
 const NOM1 = q(`SELECT str_NAME FROM t_famille WHERE lg_FAMILLE_ID = '${P1}'`);
 const IDS = [1, 2, 3, 4, 5, 6, 7, 8].map((i) => 'E2E-CIB-' + i);
@@ -132,6 +137,9 @@ function nettoyer(debut) {
     const ecranCampagnes = await lignes();
     const crit = await hub("const f = h.filtresCiblage(); return [f.achatDu, f.achatAu, f.minAchats];");
     const base = attenduBase(crit[0], crit[1]);
+    /* garde-fou : aucun client reel dans les resultats (sinon arret avant tout envoi, sans afficher de nom) */
+    const horsEssai = (l) => l.split(' | ').filter((x) => x && !x.startsWith('ZZCIB ')).length;
+    if (horsEssai(ecranCampagnes)) { throw new Error(horsEssai(ecranCampagnes) + ' client(s) hors jeu d\'essai dans les résultats : arrêt avant envoi'); }
     ok('Rapprochement campagnes = base (4 retenus : C1 3 achats, C2 par l\'adresse, C5 non joignable, C8)', ecranCampagnes === base && base.split(' | ').length === 4 && crit[2] === 2, ecranCampagnes + ' || ' + base);
 
     /* 2. Menu Rappels traitement > Ciblage libre */
@@ -139,11 +147,12 @@ function nettoyer(debut) {
     await p.waitForFunction(() => Ext.ComponentQuery.query('rappelstraitement').some((h) => h.isVisible(true) && !h.up('campagnes')), null, { timeout: 60000 });
     await cliquerHub('#rp-aide');
     const aide = await hub("const a = h.down('#rp-texte-aide'); return a.isVisible() ? a.getEl().dom.innerText : '';");
-    ok('Aide « ? » : liste par défaut (3 achats, 35 jours, 3 jours), « préparer » et ciblage expliqués', /3 achats/.test(aide) && /35 jours/.test(aide) && /3 jours/.test(aide) && /prépar/i.test(aide) && /ciblage/i.test(aide), aide.slice(0, 300));
+    ok('Aide « ? » : liste par défaut (3 achats, 35 jours, 3 jours), « préparer » et ciblage expliqués', /au moins 3 fois en un an/.test(aide) && /35 jours/.test(aide) && /3 jours/.test(aide) && /prépar/i.test(aide) && /ciblage/i.test(aide), aide.slice(0, 300));
     await cliquerHub('#rp-aide');
     ok('Aide « ? » : refermée au second clic', await hub("return !h.down('#rp-texte-aide').isVisible();"));
     const choixR = await cibler();
     const ecranRappels = await lignes();
+    if (horsEssai(ecranRappels)) { throw new Error(horsEssai(ecranRappels) + ' client(s) hors jeu d\'essai dans les résultats : arrêt avant envoi'); }
     ok('Rapprochement rappels = campagnes = base, ligne par ligne', choixR === P1 && ecranRappels === ecranCampagnes && ecranRappels === base, ecranRappels);
     ok('Seuls les joignables sont cochés (3), C5 affiche son motif', await hub("return h.down('#cbResultats').getSelectionModel().getCount();") === 3
       && /\S/.test(await hub("const s = h.down('#cbResultats').getStore(); return s.getAt(s.findBy((r) => !r.get('joignable'))).get('motif') || '';")));

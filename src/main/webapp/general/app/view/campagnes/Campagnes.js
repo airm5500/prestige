@@ -853,7 +853,17 @@ Ext.define('testextjs.view.campagnes.Campagnes', {
                                     ref.clearValue();
                                     ref.lastQuery = null;
                                 }}},
+                        /* champ vide en sortie : le filtre produit est retire (sinon le champ remettait le produit choisi avant) */
                         {xtype: 'combobox', itemId: 'ajReference', width: 210, store: references, queryMode: 'remote', queryParam: 'q', minChars: 2,
+                            assertValue: function () {
+                                if (!Ext.String.trim(this.getRawValue() || '')) {
+                                    this.lastSelection = [];
+                                    this.clearValue();
+                                    this.collapse();
+                                    return;
+                                }
+                                Ext.form.field.ComboBox.prototype.assertValue.apply(this, arguments);
+                            },
                             displayField: 'affiche', valueField: 'id', hideTrigger: true, forceSelection: true, emptyText: 'acheté (nom ou CIP)'},
                         {xtype: 'numberfield', itemId: 'ajMinAchats', fieldLabel: 'Achats au moins', labelWidth: 92, width: 135, minValue: 1, maxValue: 1000, allowDecimals: false},
                         {xtype: 'numberfield', itemId: 'ajMontant', fieldLabel: 'Montant au moins', labelWidth: 100, width: 175, minValue: 0, hideTrigger: true, allowDecimals: false},
