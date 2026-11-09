@@ -1159,9 +1159,11 @@ Ext.define('testextjs.view.stockmanagement.inventaire.action.editInventaireManag
 
 
 
-        if (my_view_title === "Modification de la fiche d'inventaire") {
+        /* plan avoir du 08/11, point 8 : la fiche s'ouvre sous le titre « Ouvrir l'inventaire » ; l'ancien libelle
+           reste reconnu (appels plus anciens, tests) et s'affiche desormais lui aussi « Ouvrir l'inventaire ». */
+        if (my_view_title === "Ouvrir l'inventaire" || my_view_title === "Modification de la fiche d'inventaire") {
 
-            this.title = my_view_title + " ::  " + this.getOdatasource().str_NAME;
+            this.title = "Ouvrir l'inventaire ::  " + this.getOdatasource().str_NAME;
             ref = this.getOdatasource().lg_INVENTAIRE_ID;
         }
 

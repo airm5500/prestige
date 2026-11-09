@@ -1136,7 +1136,12 @@ window.PrestigeAffichage.ICONES_TRAIT_INFOBULLE = [
     // plan du 06/11, point 9 (Ventes terminees) : meme imprimante pour le ticket et la facture, meme crayon pour la
     // vente et le client ; la facture et le client ont leur propre dessin
     [/^re-?imprimer la facture$/i, 'act-facture'],
-    [/^modifier info client$/i, 'act-client']
+    [/^modifier info client$/i, 'act-client'],
+    // plan avoir du 08/11, point 8 (Gestion des inventaires) : les trois icones donnaient l'oeil (application_view_list
+    // et paste_plain) ; choisies par l'infobulle, elles ne changent pas les autres ecrans qui utilisent ces images
+    [/^effectuer une analyse simple$/i, 'act-analyse'],
+    [/^ouvrir l'inventaire$/i, 'act-ouvrir'],
+    [/^valorisation d'inventaire$/i, 'act-valorisation']
 ];
 
 window.PrestigeAffichage.ICONES_TRAIT = [

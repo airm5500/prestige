@@ -10,6 +10,7 @@ Ext.define('testextjs.view.support.SupportContact', {
     height: 'auto',
     minHeight: 570,
     cls: 'custompanel',
+    autoScroll: true,
     layout: {
         type: 'vbox',
         align: 'stretch'
@@ -185,8 +186,12 @@ Ext.define('testextjs.view.support.SupportContact', {
                     ]
                 },
                 {
+                    /* Plan avoir du 08/11, point 7 : la grille avait 320 px fixes et laissait une bande vide sous
+                       elle ; elle prend maintenant le reste de la hauteur de l'ecran (au moins son en-tete, quelques
+                       lignes et la pagination ; en dessous, c'est l'ecran qui defile). */
                     xtype: 'gridpanel',
-                    height: 320,
+                    flex: 1,
+                    minHeight: 160,
                     title: 'Mes demandes',
                     store: store,
                     viewConfig: {
