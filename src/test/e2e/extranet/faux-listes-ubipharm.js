@@ -141,4 +141,4 @@ function repondre(L, u, json, html) {
   return null;
 }
 
-module.exports = { generer, repondre };
+module.exports = { generer, repondre, page };

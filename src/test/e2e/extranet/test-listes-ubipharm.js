@@ -75,11 +75,12 @@ async function cliquerEtAttendre(p, requete, morceauUrl) {
 /* lignes affichees par la grille : texte de chaque cellule visible, dans l'ordre */
 const grille = (p, code) => p.evaluate((c) => {
   const g = Ext.ComponentQuery.query('extranetsgrossistes #exListe' + c + 'Grille')[0];
-  const cols = g.headerCt.getGridColumns();
+  /* colonnes des cellules de l'extranet seulement (la colonne « Saisi dans Prestige » du 09/11 est ajoutee par Prestige) */
+  const cols = g.headerCt.getGridColumns().filter((x) => x.dataIndex === 'cellules');
   return g.getStore().getRange().map((r) => cols.map((col, i) => { const v = r.get('cellules'); return v ? v[i] : ''; }));
 }, code);
 const titres = (p, code) => p.evaluate((c) => Ext.ComponentQuery.query('extranetsgrossistes #exListe' + c + 'Grille')[0]
-  .headerCt.getGridColumns().map((x) => x.text), code);
+  .headerCt.getGridColumns().filter((x) => x.dataIndex === 'cellules').map((x) => x.text), code);
 const baseListe = (code, collecte) => lignes('SELECT HEX(cellules), IFNULL(HEX(pscode), \'NULL\'), IFNULL(HEX(cip), \'NULL\') FROM extranet_liste_ligne WHERE liste = \''
   + code + '\' AND collecte_id = ' + collecte + ' ORDER BY position').map((l) => ({ cellules: JSON.parse(deHex(l[0])), pscode: deHex(l[1]), cip: deHex(l[2]) }));
 

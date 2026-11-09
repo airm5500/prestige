@@ -1089,7 +1089,8 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
     ongletListe: function (code, titre) {
         var me = this, id = 'exListe' + code;
         me.listes = me.listes || {};
-        me.listes[code] = Ext.create('Ext.data.Store', {fields: ['position', 'pscode', 'cip', 'agence', 'cellules']});
+        me.listes[code] = Ext.create('Ext.data.Store', {fields: ['position', 'pscode', 'cip', 'agence', 'cellules',
+                'saisi']});
         return {
             title: titre, itemId: id, listeCode: code, layout: 'fit',
             dockedItems: [{xtype: 'toolbar', dock: 'top', items: [
@@ -1118,6 +1119,13 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
                         me.champDispo(id + 'Dispo', function () {
                             me.filtrerListe(code);
                         }, true),
+                        /* demande du 09/11 : BL du grossiste saisis ou non dans Prestige */
+                        {xtype: 'combo', itemId: id + 'Saisie', width: 190, editable: false, value: '', hidden: true,
+                            store: [['', 'Saisie dans Prestige : tous'], ['non', 'Non saisis'], ['oui', 'Saisis'],
+                                ['autre', 'Saisis sous un autre grossiste']],
+                            listeners: {change: function () {
+                                    me.filtrerListe(code);
+                                }}},
                         me.boutonExporter(id + 'Export', '#' + id + 'Grille', me.grossisteListe(code), titre, '#' + id + 'Msg',
                                 function (rendre) {
                                     rendre((me.donnees || {})[code] || []);
@@ -1328,6 +1336,18 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
                     return me.celluleListe(genre, v ? v[i] : '');
                 }});
         });
+        if (r.saisie) {
+            colonnes.push({text: 'Saisi dans Prestige', dataIndex: 'saisi', width: 230, renderer: function (v, meta) {
+                    var t = me.texteSaisi(v);
+                    meta.tdAttr = 'data-qtip="' + Ext.String.htmlEncode(v ? 'Référence saisie : ' + v.reference
+                            : 'Aucun BL saisi avec ce numéro (' + r.saisie.colonnes.join(', ') + ')') + '"';
+                    return '<span style="color:' + (!v ? '#c0392b' : v.autreGrossiste || v.enCours ? '#d35400'
+                            : '#27ae60') + '">' + Ext.String.htmlEncode(t) + '</span>';
+                }});
+        }
+        me.down('#' + id + 'Saisie').setVisible(!!r.saisie);
+        me.saisieListe = me.saisieListe || {};
+        me.saisieListe[code] = r.saisie || null;
         grille.reconfigure(me.listes[code], colonnes);
         me.donnees = me.donnees || {};
         me.donnees[code] = r.lignes || [];
@@ -1493,16 +1513,39 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
                 p = me.periodeListe(code), cd = (me.datesListe || {})[code],
                 cd2 = me.down('#' + id + 'Dispo'), d = cd2 && cd2.isVisible() ? cd2.getValue() : '',
                 kd = (me.dispoListe || {})[code],
-                trouves = !q && !p && !d ? tout : Ext.Array.filter(tout, function (l) {
+                cs = me.down('#' + id + 'Saisie'), sa = cs && cs.isVisible() ? cs.getValue() : '',
+                trouves = !q && !p && !d && !sa ? tout : Ext.Array.filter(tout, function (l) {
                     return (!q || (l.cellules || []).join(' ').toLowerCase().indexOf(q) >= 0)
                             && (!p || !cd || me.dansPeriode(cd, l.cellules, p))
-                            && (!d || me.selonDispo(d, (l.cellules || [])[kd]));
+                            && (!d || me.selonDispo(d, (l.cellules || [])[kd]))
+                            && (!sa || me.selonSaisie(sa, l.saisi));
                 });
         st.loadData(trouves);
         if (nombre) {
-            nombre.setText(trouves.length + (q || p || d ? ' / ' + tout.length : '') + ' ligne(s)');
+            var nonSaisis = 0;
+            Ext.each(trouves, function (l) {
+                nonSaisis += l.saisi ? 0 : 1;
+            });
+            nombre.setText(trouves.length + (q || p || d || sa ? ' / ' + tout.length : '') + ' ligne(s)'
+                    + ((me.saisieListe || {})[code] ? ' — ' + nonSaisis + ' non saisi(s)' : ''));
         }
         return trouves.length;
+    },
+
+    /** Texte de la colonne « Saisi dans Prestige » (aussi exporté). */
+    texteSaisi: function (v) {
+        if (!v) {
+            return 'Non saisi';
+        }
+        var d = v.date ? Ext.Date.format(Ext.Date.parse(v.date, 'Y-m-d'), 'd/m/Y') : '';
+        return (v.enCours ? 'En cours de saisie' : 'Saisi') + (d ? ' le ' + d : '')
+                + (v.grossiste ? (v.autreGrossiste ? ' sous ' : ' — ') + v.grossiste : '')
+                + (v.autreGrossiste ? ' (autre grossiste)' : '');
+    },
+
+    /** Filtre « Saisie dans Prestige » : non saisis, saisis, saisis sous un autre grossiste. */
+    selonSaisie: function (choix, v) {
+        return choix === 'non' ? !v : choix === 'oui' ? !!v : choix === 'autre' ? !!(v && v.autreGrossiste) : true;
     },
 
     /* ---------------------------------------------------------------- export CSV / Excel (retour du 08/11, point 2) */
@@ -1574,6 +1617,9 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
             return {titre: t, nombre: g === 'montant' || g === 'nombre'};
         });
         var valeur = function (data, c) {
+            if (c.dataIndex === 'saisi') {
+                return me.texteSaisi(data.saisi);
+            }
             var v = c.celluleIndex !== undefined ? (data.cellules || [])[c.celluleIndex] : data[c.dataIndex];
             if (v === null || v === undefined) {
                 return '';

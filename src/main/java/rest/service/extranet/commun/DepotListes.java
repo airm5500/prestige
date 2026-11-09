@@ -63,7 +63,10 @@ public final class DepotListes {
                         .put("cellules", new JSONArray((String) o[4])));
             }
         }
-        return r.put("lignes", lignes);
+        r.put("lignes", lignes);
+        /* listes de documents : chaque BL ou facture marque saisi ou non dans Prestige (demande du 09/11) */
+        BlSaisis.marquer(em, source, liste, r);
+        return r;
     }
 
     /** Nombre de lignes gardees pour une collecte (controle de bilan). */
