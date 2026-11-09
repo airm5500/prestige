@@ -35,6 +35,7 @@ Ext.define('testextjs.view.support.SupportServeur', {
         me.callParent(arguments);
         me.on('afterrender', function () {
             me.chargerEtat();
+            me.ongletSecuriteSiActif();
         });
         me.on('tabchange', function (p, t) {
             if (t.itemId === 'ongletEtat') {
@@ -52,6 +53,8 @@ Ext.define('testextjs.view.support.SupportServeur', {
                 me.chargerSauvegardes(true);
             } else if (t.itemId === 'ongletLexique') {
                 me.afficherLexique();
+            } else if (t.itemId === 'ongletSecurite') {
+                me.chargerSecurite();
             }
         });
         /* monitoring en direct : l'onglet Etat se rafraichit toutes les 15 s tant qu'il est affiche */
@@ -93,7 +96,21 @@ Ext.define('testextjs.view.support.SupportServeur', {
                 + '.srv-lex-ici{background:#f4f6f8;border-radius:4px;padding:1px 6px;margin-left:6px}'
                 + '.srv-confirmer,.srv-confirmer .x-btn-inner{background:#c0392b !important;color:#fff !important}'
                 + '.srv-compte-rendu{margin:4px 0 4px 18px;padding:0}.srv-compte-rendu li{margin:2px 0}'
-                + '.srv-jeton{font-family:Consolas,monospace;background:#f4f6f8;padding:2px 6px;border-radius:4px;user-select:all}', 'srv-styles');
+                + '.srv-jeton{font-family:Consolas,monospace;background:#f4f6f8;padding:2px 6px;border-radius:4px;user-select:all}'
+                /* cas 4, lot 4.B : onglet Securite */
+                + '.srv-sec-alerte{margin:6px 10px;padding:8px 12px;border-radius:6px;background:#fdecea;color:#7a1f14;border:1px solid #f5c2bd;border-left:5px solid #c0392b;font-weight:bold}'
+                + '.srv-sec-alerte.ok{background:#e8f5e9;color:#1b5e20;border-color:#a5d6a7;border-left-color:#2e7d32}'
+                + '.srv-sec-alerte.warn{background:#fff8e1;color:#8a4b00;border-color:#f0d27a;border-left-color:#e07b18}'
+                + '.srv-sec-bloc{border:1px solid #d5dbe1;border-radius:8px;background:#fff;padding:8px 12px 10px;margin:6px 10px}'
+                + '.srv-sec-bloc h4{margin:0 0 6px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#1e3a5f}'
+                + '.srv-sec-ligne{display:flex;align-items:center;gap:10px;padding:5px 0;border-bottom:1px solid #eef2f6}.srv-sec-ligne:last-child{border-bottom:none}'
+                + '.srv-sec-ligne .lib{width:320px;font-weight:bold}.srv-sec-ligne .small{font-size:11px;color:#5a6b7c}'
+                + '.srv-sec-etat{display:inline-block;padding:2px 9px;border-radius:12px;font-size:10.5px;font-weight:800;letter-spacing:.05em;color:#fff;background:#5a6b7c}'
+                + '.srv-sec-etat.ok{background:#2e7d32}.srv-sec-etat.ko{background:#c0392b}.srv-sec-etat.warn{background:#e07b18}'
+                + '.srv-sec-etapes{list-style:none;padding:0;margin:4px 0 0}.srv-sec-etapes li{padding:3px 0 3px 22px;position:relative}'
+                + '.srv-sec-etapes li::before{content:"";position:absolute;left:4px;top:7px;width:10px;height:10px;border-radius:50%;background:#c9d5e1}'
+                + '.srv-sec-etapes li.ok::before{background:#2e7d32}.srv-sec-etapes li.ko::before{background:#c0392b}'
+                + '.srv-sec-mode .x-btn-pressed,.srv-sec-mode .x-btn-pressed .x-btn-inner{background:#1e3a5f !important;color:#fff !important}', 'srv-styles');
     },
 
     esc: function (v) {
@@ -961,11 +978,14 @@ Ext.define('testextjs.view.support.SupportServeur', {
                 o.down('#sauvGarderJours').setValue(r.garderJours);
                 o.down('#sauvActive').setValue(r.active);
             }
+            var ch = r.chiffrement || {};
             e.update((r.enCours ? '<span class="srv-encours">Sauvegarde en cours depuis ' + me.esc(r.enCoursDepuis.substring(11)) + '…</span><br>' : '')
                     + 'Dernière sauvegarde réussie : ' + (r.derniereReussie ? '<b>' + me.esc(r.derniereReussie) + '</b>' : '<span class="srv-critique">aucune</span>')
                     + (r.active ? '' : ' · <span class="srv-ajuster">sauvegarde automatique coupée</span>')
                     + '<br>Outil de sauvegarde : ' + (r.outil ? me.esc(r.outil) : '<span class="srv-critique">introuvable (mariadb-dump)</span>')
-                    + ' · Espace libre : ' + (r.espaceLibreMo === null ? '—' : me.nombre(r.espaceLibreMo) + ' Mo'));
+                    + ' · Espace libre : ' + (r.espaceLibreMo === null ? '—' : me.nombre(r.espaceLibreMo) + ' Mo')
+                    + '<br>Archives : ' + (ch.actif ? '<span class="srv-ok">chiffrées (AES, clé des archives du pharmacien)</span>'
+                    : ch.securite ? '<span class="srv-critique">NON chiffrées : clé absente (' + me.esc(ch.fichierCle) + ', 7-cle-archive.ps1 -Creer)</span>' : 'en clair (sécurité de la base inactive)'));
             o.down('#sauvListe').getStore().loadData(r.liste);
             var dernier = '';
             Ext.each(r.liste, function (l) {
@@ -973,10 +993,12 @@ Ext.define('testextjs.view.support.SupportServeur', {
                     dernier = l.fichier;
                 }
             });
-            var base = me.esc(r.base), f = me.esc(dernier || 'prestige_' + r.base + '_AAAAMMJJ_HHMM.sql.gz'), sql = f.replace(/\.gz$/, '');
+            var chiffre = /\.aes$/.test(dernier || '') || (!dernier && ch.actif);
+            var base = me.esc(r.base), f = me.esc(dernier || 'prestige_' + r.base + '_AAAAMMJJ_HHMM.sql.gz' + (chiffre ? '.aes' : '')), gz = f.replace(/\.aes$/, ''), sql = gz.replace(/\.gz$/, '');
             o.down('#sauvRestaurer').update('<div class="srv-lex"><div class="srv-lex-terme">Restaurer une sauvegarde</div>'
                     + '<div>1. Arrêter Prestige (Payara) sur le serveur : plus aucune vente pendant la restauration.</div>'
-                    + '<div>2. Décompresser le fichier ' + f + ' (7-Zip : clic droit &gt; Extraire ici).</div>'
+                    + (chiffre ? '<div>2. Déchiffrer avec la clé des archives (gardée par le pharmacien) : <code class="srv-jeton">powershell -File outils\\officine\\7-cle-archive.ps1 -Dechiffrer ' + f + '</code>, puis décompresser ' + gz + ' (7-Zip : clic droit &gt; Extraire ici).</div>'
+                        : '<div>2. Décompresser le fichier ' + f + ' (7-Zip : clic droit &gt; Extraire ici).</div>')
                     + '<div>3. Dans une invite de commandes, dossier <code>bin</code> de MariaDB, recréer la base puis la recharger :<br>'
                     + '<code class="srv-jeton">mariadb -u root -p -e "DROP DATABASE ' + base + '; CREATE DATABASE ' + base + ' CHARACTER SET utf8mb4"</code><br>'
                     + '<code class="srv-jeton">mariadb -u root -p --default-character-set=utf8mb4 ' + base + ' &lt; ' + sql + '</code></div>'
@@ -1009,6 +1031,345 @@ Ext.define('testextjs.view.support.SupportServeur', {
             m.setText('<span class="' + (r.success ? 'srv-ok' : 'srv-critique') + '">' + me.esc(r.message) + '</span>');
             me.chargerSauvegardes(false);
         });
+    },
+
+    /* ============================================================================================ securite (cas 4, lot 4.B) */
+
+    /* l'onglet « Sécurité » n'existe que pour le super administrateur et quand KEY_SECURITE_BASE vaut 1 */
+    ongletSecuriteSiActif: function () {
+        var me = this;
+        me.appel('GET', 'securite/etat', null, function (r) {
+            if (me.isDestroyed || !r.success || !r.actif || me.down('#ongletSecurite')) {
+                return;
+            }
+            me.insert(me.items.indexOf(me.down('#ongletLexique')), me.ongletSecurite());
+            me.etatSecurite = r;
+            me.afficherSecurite(r);
+        });
+    },
+
+    ongletSecurite: function () {
+        var me = this;
+        var journal = Ext.create('Ext.data.Store', {fields: ['date', 'login', 'action', 'resultat', 'detail'], data: []});
+        var actions = {ROTATION: 'Rotation du mot de passe de la base', ALIAS: 'Alias Payara posé sur le pool', PURGE_COPIES: 'Purge des copies de domain.xml',
+            CLE_ARCHIVE: 'Clé des archives de sauvegarde (script 7)', ESSAI_RESTAURATION: 'Essai de restauration (script 6)'};
+        var resultats = {OK: ['ok', 'OK'], ECHEC: ['ko', 'Échec'], RETOUR_ARRIERE: ['warn', 'Retour arrière'], REFUSE: ['ko', 'Refusé']};
+        var mdp = function (itemId, label, largeur) {
+            return {xtype: 'textfield', itemId: itemId, inputType: 'password', fieldLabel: label, labelAlign: 'top', width: largeur || 230, margin: '0 10 0 0',
+                autoComplete: false, inputAttrTpl: 'autocomplete="new-password"'};
+        };
+        return {
+            title: 'Sécurité', itemId: 'ongletSecurite', iconCls: 'fa fa-shield', layout: {type: 'vbox', align: 'stretch'}, autoScroll: true,
+            items: [{xtype: 'component', itemId: 'secAlerte', html: ''},
+                {xtype: 'container', layout: {type: 'hbox', align: 'stretch'}, items: [
+                        {xtype: 'component', itemId: 'secStockage', flex: 1, html: ''},
+                        {xtype: 'component', itemId: 'secRotationEtat', flex: 1, html: ''}]},
+                /* actions : la re-saisie du mot de passe de session vaut pour chacune (Q4.1) ; confirmation dans le bouton */
+                {xtype: 'panel', cls: 'srv-sec-bloc', itemId: 'secActions', title: 'Actions', bodyPadding: '4 0 0 0', border: false,
+                    items: [{xtype: 'container', layout: {type: 'hbox', align: 'bottom'}, items: [
+                                mdp('secMdpSession', 'Votre mot de passe Prestige (second facteur, pour chaque action)', 330),
+                                {xtype: 'button', itemId: 'btnSecRotation', text: 'Changer le mot de passe de la base…', iconCls: 'fa fa-key', margin: '0 8 0 0', handler: function () {
+                                        var f = me.down('#secFormulaire');
+                                        f.setVisible(!f.isVisible());
+                                        if (f.isVisible()) {
+                                            me.down('#secModeGenerer').toggle(true);
+                                        }
+                                    }},
+                                {xtype: 'button', itemId: 'btnSecAlias', text: 'Protéger le mot de passe du pool (alias Payara)', iconCls: 'fa fa-lock', margin: '0 8 0 0', handler: function (b) {
+                                        me.confirmerDansBouton(b, 'Confirmer : poser l\'alias (coupure ≈ 10 s)', function () {
+                                            me.actionSecurite('alias', {}, 'Pose de l\'alias Payara…');
+                                        });
+                                    }},
+                                {xtype: 'button', itemId: 'btnSecPurger', text: 'Purger les copies de domain.xml', iconCls: 'fa fa-trash', margin: '0 8 0 0', handler: function (b) {
+                                        me.confirmerDansBouton(b, 'Confirmer la suppression des copies', function () {
+                                            me.actionSecurite('purger-copies', {}, 'Purge des copies…');
+                                        });
+                                    }}]},
+                        {xtype: 'component', itemId: 'secMessage', cls: 'srv-etat', html: ''},
+                        {xtype: 'component', padding: '2 10 4 10', html: '<span class="small" style="color:#5a6b7c">Actions réservées au super administrateur, journalisées (qui, quand, quoi : jamais la valeur) ; chacune se confirme dans son bouton. '
+                                    + 'La rotation est recommandée à chaque départ d\'un employé et tous les 6 mois.</span>'}]},
+                /* vue 2 : rotation en un bouton */
+                {xtype: 'panel', cls: 'srv-sec-bloc', itemId: 'secFormulaire', title: 'Changer le mot de passe de la base', hidden: true, border: false, bodyPadding: '4 0 0 0',
+                    items: [{xtype: 'container', layout: {type: 'hbox', align: 'top'}, items: [
+                                {xtype: 'fieldset', title: '1. Compte d\'administration MariaDB (pour cette opération, jamais conservé)', flex: 1, margin: '0 8 0 0', layout: {type: 'hbox', align: 'bottom'},
+                                    items: [{xtype: 'textfield', itemId: 'secCompteRotation', fieldLabel: 'Utilisateur MariaDB', labelAlign: 'top', value: 'root', width: 200, margin: '0 10 0 0'},
+                                        mdp('secMdpRotation', 'Son mot de passe')]},
+                                {xtype: 'fieldset', title: '2. Nouveau mot de passe de la base', flex: 1, layout: {type: 'vbox', align: 'left'},
+                                    items: [{xtype: 'container', cls: 'srv-sec-mode', layout: 'hbox', items: [
+                                                {xtype: 'button', itemId: 'secModeGenerer', text: 'Générer (recommandé)', enableToggle: true, toggleGroup: 'secMode', allowDepress: false, pressed: true, margin: '0 6 6 0',
+                                                    toggleHandler: function (b, p) {
+                                                        if (p) {
+                                                            me.modeSecurite('GENERER');
+                                                        }
+                                                    }},
+                                                {xtype: 'button', itemId: 'secModeSaisir', text: 'Saisir moi-même', enableToggle: true, toggleGroup: 'secMode', allowDepress: false, margin: '0 0 6 0',
+                                                    toggleHandler: function (b, p) {
+                                                        if (p) {
+                                                            me.modeSecurite('SAISIR');
+                                                        }
+                                                    }}]},
+                                        {xtype: 'component', itemId: 'secModeTexte', html: ''},
+                                        {xtype: 'container', itemId: 'secSaisie', hidden: true, layout: {type: 'hbox', align: 'bottom'}, items: [
+                                                Ext.apply(mdp('secNouveau', 'Nouveau mot de passe'), {enableKeyEvents: true, checkChangeBuffer: 50, listeners: {keyup: function () {
+                                                            me.forceSecurite();
+                                                        }, change: function () {
+                                                            me.forceSecurite();
+                                                        }}}),
+                                                Ext.apply(mdp('secConfirmation', 'Confirmer'), {enableKeyEvents: true, checkChangeBuffer: 50, listeners: {keyup: function () {
+                                                            me.forceSecurite();
+                                                        }, change: function () {
+                                                            me.forceSecurite();
+                                                        }}}),
+                                                {xtype: 'component', itemId: 'secForce', html: '', margin: '0 0 6 0'}]}]}]},
+                        {xtype: 'component', itemId: 'secEtapes', html: ''},
+                        {xtype: 'toolbar', border: false, items: [
+                                {xtype: 'button', itemId: 'btnSecLancer', text: 'Lancer la rotation', iconCls: 'fa fa-refresh', handler: function (b) {
+                                        me.confirmerDansBouton(b, 'Confirmer : changer le mot de passe maintenant (coupure ≈ 10 s)', function () {
+                                            me.lancerRotation();
+                                        });
+                                    }},
+                                {xtype: 'button', itemId: 'btnSecAnnuler', text: 'Annuler', handler: function () {
+                                        me.viderRotation();
+                                        me.down('#secFormulaire').hide();
+                                    }},
+                                {xtype: 'tbtext', itemId: 'secRotationMessage', text: ''}]}]},
+                {xtype: 'gridpanel', itemId: 'secJournal', title: 'Journal des actions de sécurité', height: 220, margin: '6 10 10 10', columnLines: true, store: journal,
+                    viewConfig: {emptyText: 'Aucune action pour l\'instant.', deferEmptyText: false},
+                    columns: [{text: 'Date', dataIndex: 'date', width: 140},
+                        {text: 'Qui', dataIndex: 'login', width: 120, renderer: function (v) {
+                                return me.esc(v);
+                            }},
+                        {text: 'Action', dataIndex: 'action', width: 250, renderer: function (v) {
+                                return me.esc(actions[v] || v);
+                            }},
+                        {text: 'Résultat', dataIndex: 'resultat', width: 120, renderer: function (v) {
+                                var s = resultats[v] || ['', v];
+                                return '<span class="srv-sec-etat ' + s[0] + '">' + me.esc(s[1]) + '</span>';
+                            }},
+                        {text: 'Détail', dataIndex: 'detail', flex: 1, renderer: function (v) {
+                                return me.esc(v);
+                            }}]}]
+        };
+    },
+
+    chargerSecurite: function () {
+        var me = this;
+        me.appel('GET', 'securite/etat', null, function (r) {
+            if (me.isDestroyed || !me.down('#ongletSecurite')) {
+                return;
+            }
+            if (!r.success) {
+                me.down('#secAlerte').update('<div class="srv-sec-alerte">' + me.esc(r.message) + '</div>');
+                return;
+            }
+            me.etatSecurite = r;
+            me.afficherSecurite(r);
+        });
+    },
+
+    /* vues 1 et 3 : ou vit le mot de passe, sous quelle forme, derniere rotation ; jamais une valeur */
+    afficherSecurite: function (r) {
+        var me = this, o = me.down('#ongletSecurite');
+        if (!o) {
+            return;
+        }
+        var etat = function (cls, t) {
+            return '<span class="srv-sec-etat ' + cls + '">' + me.esc(t) + '</span>';
+        };
+        var ligne = function (lib, badge, small) {
+            return '<div class="srv-sec-ligne"><span class="lib">' + lib + '</span>' + badge + (small ? '<span class="small">' + small + '</span>' : '') + '</div>';
+        };
+        var p = r.pool || {}, c = r.copies || {}, s = r.sauvegarde || {}, a = r.archives || {};
+        var clair = (p.forme === 'CLAIR' ? 1 : 0) + (c.enClair || 0);
+        /* lot 4.C : archives chiffrees et essai de restauration mensuel obligatoire */
+        var alerteArchives = (a.clePresente ? '' : '<div class="srv-sec-alerte">⚠ Archives de sauvegarde NON chiffrées : clé absente (' + me.esc(a.fichierCle) + ') · sur le serveur : <code>7-cle-archive.ps1 -Creer</code>, la clé reste chez le pharmacien.</div>')
+                + (a.rappelEssai ? '<div class="srv-sec-alerte warn">Essai de restauration obligatoire chaque mois : ' + (a.dernierEssai ? 'dernier le ' + me.esc(a.dernierEssai) + ' (' + me.esc(a.dernierEssaiResultat || '') + '), plus d\'un mois' : 'jamais fait')
+                        + ' · sur le serveur : <code>6-essai-restauration.ps1</code> avec la clé gardée hors du serveur.</div>' : '');
+        var alerte = clair > 0 ? '<div class="srv-sec-alerte">⚠ Le mot de passe de la base est lisible en clair à ' + clair + ' endroit(s) sur ce serveur'
+                + (r.rappel ? ' · Dernière rotation : ' + (r.derniereRotation ? me.esc(r.derniereRotation) + ' (plus de ' + r.rappelMois + ' mois : rotation recommandée)' : 'jamais') : '') + '.</div>'
+                : r.rappel ? '<div class="srv-sec-alerte warn">Aucune copie en clair · Dernière rotation : ' + (r.derniereRotation ? me.esc(r.derniereRotation) + ' (plus de ' + r.rappelMois + ' mois : rotation recommandée)' : 'jamais') + '.</div>'
+                : '<div class="srv-sec-alerte ok">✔ Aucune copie en clair du mot de passe de la base sur ce serveur · Dernière rotation : ' + me.esc(r.derniereRotation) + '.</div>';
+        o.down('#secAlerte').update(alerte + alerteArchives);
+        o.down('#secStockage').update('<div class="srv-sec-bloc"><h4>Où est stocké le mot de passe de la base</h4>'
+                + ligne('Pool Payara <code>' + me.esc(p.nom) + '</code> (domain.xml)', p.forme === 'ALIAS' ? etat('ok', 'ALIAS PAYARA') : p.forme === 'CLAIR' ? etat('ko', 'EN CLAIR') : etat('', 'INCONNU'),
+                        p.forme === 'ALIAS' ? 'alias ' + me.esc(p.alias) + ' · compte ' + me.esc(p.utilisateur) : p.forme === 'CLAIR' ? 'protection possible : alias Payara · compte ' + me.esc(p.utilisateur) : 'pool non décrit')
+                + ligne('Anciens écrans (JSP, éditions)', etat('ok', 'POOL JNDI'), 'plus d\'URL JDBC avec le mot de passe')
+                + ligne('Sauvegarde intégrée (toutes les heures)', s.present && s.chiffre ? etat('ok', 'COMPTE DÉDIÉ, FICHIER CHIFFRÉ') : s.present ? etat('warn', 'COMPTE DÉDIÉ, FICHIER EN CLAIR') : etat('ko', 'FICHIER ABSENT'),
+                        me.esc(s.fichier) + (s.present ? '' : ' : lancez 2-configurer-mariadb.ps1 -CreerCompte'))
+                + ligne('Archives de sauvegarde (<code>.sql.gz</code> de Prestige, <code>.sql.zst</code> et journaux des scripts)', a.clePresente ? etat('ok', 'CHIFFRÉES (AES)') : etat('ko', 'NON CHIFFRÉES'),
+                        a.clePresente ? 'clé posée' + (a.cleDate ? ' le ' + me.esc(a.cleDate) : '') + ', gardée hors du serveur par le pharmacien' + (a.derniereArchive ? ' · dernière sauvegarde intégrée : ' + me.esc(a.derniereArchive) + (a.derniereArchiveChiffree ? ' (chiffrée)' : ' (en clair)') : '')
+                            : 'clé absente : ' + me.esc(a.fichierCle) + ' · 7-cle-archive.ps1 -Creer')
+                + ligne('Dernier essai de restauration (obligatoire chaque mois)', a.dernierEssai ? etat(a.dernierEssaiResultat === 'CONFORME' ? 'ok' : 'ko', me.esc(a.dernierEssai) + ' — ' + me.esc(a.dernierEssaiResultat || '')) : etat('ko', 'JAMAIS FAIT'),
+                        a.rappelEssai ? 'à faire maintenant : 6-essai-restauration.ps1 sur le serveur, clé saisie' : 'prochain au plus tard : ' + me.esc(a.prochainEssai))
+                + ligne('Copies <code>domain.xml.avant-prestige-*</code>', c.nombre ? etat(c.enClair ? 'ko' : 'warn', c.nombre + ' FICHIER(S)' + (c.enClair ? ', ' + c.enClair + ' EN CLAIR' : '')) : etat('ok', 'AUCUNE'),
+                        c.nombre ? 'contiennent l\'ancien mot de passe : à purger après rotation' : me.esc(c.dossier))
+                + ligne('Master password de Payara (protège l\'alias)', etat('warn', 'À CHANGER SUR LE SERVEUR'), 'par le pharmacien : <code class="srv-jeton">' + me.esc(r.masterPasswordCommande) + '</code>')
+                + '</div>');
+        o.down('#secRotationEtat').update('<div class="srv-sec-bloc"><h4>Rotation du mot de passe</h4>'
+                + ligne('Dernière rotation', r.derniereRotation ? etat('', me.esc(r.derniereRotation) + (r.derniereRotationPar ? ' — par ' + me.esc(r.derniereRotationPar) : '')) : etat('ko', 'JAMAIS'),
+                        r.prochaine ? 'prochaine recommandée : ' + me.esc(r.prochaine) : 'recommandée dès maintenant')
+                + ligne('Politique (Q4.6)', etat('', 'À CHAQUE DÉPART + TOUS LES 6 MOIS'), '')
+                + ligne('Lancement d\'asadmin depuis Prestige', r.asadmin ? etat('ok', 'POSSIBLE') : etat('ko', 'IMPOSSIBLE'), r.asadmin ? 'rotation et alias depuis cet écran' : 'cet écran ne peut agir que sur le serveur Payara')
+                + '</div>');
+        var bA = o.down('#btnSecAlias'), bP = o.down('#btnSecPurger');
+        bA.setDisabled(p.forme !== 'CLAIR' || !r.asadmin);
+        bP.setText(c.nombre ? 'Purger les ' + c.nombre + ' copie(s) de domain.xml' : 'Purger les copies de domain.xml');
+        bP.setDisabled(!c.nombre);
+        o.down('#btnSecRotation').setDisabled(!r.asadmin);
+        o.down('#secJournal').getStore().loadData(r.journal || []);
+    },
+
+    modeSecurite: function (mode) {
+        var me = this, o = me.down('#ongletSecurite');
+        me.modeRotation = mode;
+        o.down('#secSaisie').setVisible(mode === 'SAISIR');
+        o.down('#secModeTexte').update('<span class="small" style="color:#5a6b7c">' + (mode === 'GENERER'
+                ? 'Le serveur tire un mot de passe fort de 24 caractères, jamais affiché ni renvoyé : personne ne le connaît.'
+                : '12 caractères minimum, lettres + chiffres + un symbole parmi <code>#*+-./:;=@[]_~</code> ; ni espace, ni &amp; ? \' " % ! ^ | &lt; &gt; ( ) $ { } \\. Transmis une seule fois, jamais journalisé ni renvoyé ; champs vidés après validation.') + '</span>');
+        me.afficherEtapesSecurite(null);
+    },
+
+    /* controle de force cote ecran (meme regle que le serveur, qui tranche) */
+    forceSecurite: function () {
+        var me = this, o = me.down('#ongletSecurite'), v = o.down('#secNouveau').getValue() || '', c = o.down('#secConfirmation').getValue() || '', m = '';
+        if (v.length < 12) {
+            m = ['ko', 'TROP COURT'];
+        } else if (!/^[A-Za-z0-9#*+\-./:;=@\[\]_~]+$/.test(v)) {
+            m = ['ko', 'CARACTÈRE NON ADMIS'];
+        } else if (!/[A-Za-z]/.test(v) || !/[0-9]/.test(v) || !/[#*+\-./:;=@\[\]_~]/.test(v)) {
+            m = ['warn', 'LETTRES + CHIFFRES + SYMBOLE'];
+        } else if (c !== v) {
+            m = ['warn', 'CONFIRMATION DIFFÉRENTE'];
+        } else {
+            m = ['ok', 'FORT'];
+        }
+        o.down('#secForce').update('<span class="srv-sec-etat ' + m[0] + '">' + m[1] + '</span>');
+    },
+
+    afficherEtapesSecurite: function (r) {
+        var me = this, o = me.down('#ongletSecurite'), h = '<div class="srv-sec-bloc"><h4>Ce qui sera fait, dans l\'ordre</h4><ul class="srv-sec-etapes">';
+        if (!r) {
+            var p = (me.etatSecurite || {}).pool || {};
+            h += '<li>Vérifier asadmin et la connexion du compte d\'administration (rien n\'est changé avant)</li>'
+                    + '<li>' + (me.modeRotation === 'SAISIR' ? 'Prendre le mot de passe saisi' : 'Tirer un mot de passe fort de 24 caractères') + ' — jamais affiché</li>'
+                    + '<li><code>ALTER USER \'' + me.esc(p.utilisateur) + '\'@… IDENTIFIED BY …</code></li>'
+                    + '<li>Mettre à jour le pool Payara (' + (p.forme === 'ALIAS' ? 'alias ' + me.esc(p.alias) : 'propriété du pool, en clair tant que l\'alias n\'est pas posé') + ') et le redémarrer</li>'
+                    + '<li>Tester la nouvelle connexion ; <b>sinon revenir à l\'ancien mot de passe</b></li>'
+                    + '<li>Noter la rotation dans le journal (sans la valeur)</li>';
+        } else {
+            Ext.each(r.etapes || [], function (e) {
+                h += '<li class="' + (/refus|échec|inconnu|non rétabli|toujours/i.test(e) ? 'ko' : 'ok') + '">' + me.esc(e) + '</li>';
+            });
+        }
+        o.down('#secEtapes').update(h + '</ul></div>');
+    },
+
+    viderRotation: function () {
+        var o = this.down('#ongletSecurite');
+        Ext.each(['secMdpRotation', 'secNouveau', 'secConfirmation'], function (id) {
+            o.down('#' + id).setValue('');
+        });
+        o.down('#secForce').update('');
+    },
+
+    lancerRotation: function () {
+        var me = this, o = me.down('#ongletSecurite'), m = o.down('#secRotationMessage'), b = o.down('#btnSecLancer');
+        var corps = {motDePasseSession: o.down('#secMdpSession').getValue(), compteRotation: o.down('#secCompteRotation').getValue(),
+            motDePasseRotation: o.down('#secMdpRotation').getValue(), mode: me.modeRotation || 'GENERER'};
+        if (me.modeRotation === 'SAISIR') {
+            corps.nouveauMotDePasse = o.down('#secNouveau').getValue();
+            corps.confirmation = o.down('#secConfirmation').getValue();
+        }
+        if (!corps.motDePasseSession) {
+            m.setText('<span class="srv-critique">Saisissez votre mot de passe Prestige (second facteur).</span>');
+            return;
+        }
+        if (!corps.compteRotation || !corps.motDePasseRotation) {
+            m.setText('<span class="srv-critique">Compte d\'administration MariaDB et son mot de passe sont obligatoires.</span>');
+            return;
+        }
+        b.disable();
+        m.setText('<span class="srv-encours">Rotation en cours : ALTER USER, pool Payara, test de connexion…</span>');
+        Ext.Ajax.request({url: me.URL + 'securite/rotation', method: 'POST', jsonData: corps, timeout: 600000,
+            success: function (rep) {
+                corps = null;
+                var r = Ext.decode(rep.responseText, true) || {success: false, message: 'Réponse illisible.'};
+                if (me.isDestroyed) {
+                    return;
+                }
+                b.enable();
+                /* les champs sont vides apres validation, quel que soit le resultat */
+                me.viderRotation();
+                m.setText('<span class="' + (r.success ? 'srv-ok' : r.incoherent ? 'srv-critique' : 'srv-ajuster') + '">' + me.esc(r.message) + '</span>');
+                if (r.etapes) {
+                    me.afficherEtapesSecurite(r);
+                }
+                if (r.success) {
+                    o.down('#secMdpSession').setValue('');
+                }
+                if (r.redemarrage) {
+                    me.redemarrageSecurite();
+                } else {
+                    me.chargerSecurite();
+                }
+            },
+            failure: function (rep) {
+                corps = null;
+                if (!me.isDestroyed) {
+                    b.enable();
+                    me.viderRotation();
+                    m.setText('<span class="srv-critique">' + (rep.status === 401 ? 'Session expirée.' : 'Le serveur ne répond pas.') + '</span>');
+                }
+            }});
+    },
+
+    /* Payara redemarre (rotation ou alias reussis) : plus aucune action possible ici, l'utilisateur se reconnecte */
+    redemarrageSecurite: function () {
+        var me = this, o = me.down('#ongletSecurite');
+        Ext.each(['btnSecRotation', 'btnSecAlias', 'btnSecPurger', 'btnSecLancer'], function (id) {
+            var b = o.down('#' + id);
+            if (b) {
+                b.disable();
+            }
+        });
+        o.down('#secAlerte').update('<div class="srv-sec-alerte warn">Payara redémarre (environ une minute) pour reprendre le nouveau réglage du pool :'
+                + ' reconnectez-vous ensuite et rouvrez cet onglet pour voir l\'état à jour.</div>');
+    },
+
+    actionSecurite: function (chemin, corps, enCours) {
+        var me = this, o = me.down('#ongletSecurite'), m = o.down('#secMessage');
+        corps.motDePasseSession = o.down('#secMdpSession').getValue();
+        if (!corps.motDePasseSession) {
+            m.update('<span class="srv-critique">Saisissez votre mot de passe Prestige (second facteur).</span>');
+            return;
+        }
+        m.update('<span class="srv-encours">' + me.esc(enCours) + '</span>');
+        Ext.Ajax.request({url: me.URL + 'securite/' + chemin, method: 'POST', jsonData: corps, timeout: 600000,
+            success: function (rep) {
+                var r = Ext.decode(rep.responseText, true) || {success: false, message: 'Réponse illisible.'};
+                if (me.isDestroyed) {
+                    return;
+                }
+                var etapes = '';
+                Ext.each(r.etapes || [], function (e) {
+                    etapes += '<li>' + me.esc(e) + '</li>';
+                });
+                m.update('<span class="' + (r.success ? 'srv-ok' : r.incoherent ? 'srv-critique' : 'srv-ajuster') + '">' + me.esc(r.message) + '</span>'
+                        + (etapes ? '<ul class="srv-compte-rendu">' + etapes + '</ul>' : ''));
+                if (r.success) {
+                    o.down('#secMdpSession').setValue('');
+                }
+                if (r.redemarrage) {
+                    me.redemarrageSecurite();
+                } else {
+                    me.chargerSecurite();
+                }
+            },
+            failure: function (rep) {
+                if (!me.isDestroyed) {
+                    m.update('<span class="srv-critique">' + (rep.status === 401 ? 'Session expirée.' : 'Le serveur ne répond pas.') + '</span>');
+                }
+            }});
     },
 
     ongletLexique: function () {

@@ -300,6 +300,107 @@ public class SupportServeurRessource {
 
     @EJB
     private rest.service.LogService logService;
+    @EJB
+    private rest.service.impl.securite.SecuriteBaseService securite;
+
+    /* ------------------------------------------------------------ cas 4, lot 4.B : onglet « Securite » */
+
+    /**
+     * Etat de la protection du mot de passe de la base (super administrateur ; {actif: false} quand KEY_SECURITE_BASE
+     * vaut 0 : l'onglet n'existe pas). Jamais une valeur de mot de passe.
+     */
+    @GET
+    @Path("securite/etat")
+    public Response securiteEtat() {
+        Response r = controleApplication();
+        if (r != null) {
+            return r;
+        }
+        try {
+            return ok(securite.etat());
+        } catch (Exception e) {
+            LOG.log(Level.WARNING, "etat de la securite", e);
+            return echec("État illisible : " + e.getClass().getSimpleName());
+        }
+    }
+
+    /**
+     * Q4.1 : droit de l'ecran, super administrateur, securite active et mot de passe de session re-saisi (corps
+     * {motDePasseSession}) ; un refus est journalise.
+     */
+    private Response controleSecurite(JSONObject in, String action) {
+        Response r = controleApplication();
+        if (r != null) {
+            return r;
+        }
+        if (!securite.actif()) {
+            return echec("Sécurité de la base inactive (paramètre KEY_SECURITE_BASE).");
+        }
+        TUser u = utilisateur();
+        String m = securite.verifierMotDePasseSession(u.getStrLOGIN(), u.getStrPASSWORD(),
+                in.optString("motDePasseSession", ""));
+        if (m != null) {
+            securite.journaliser(u.getStrLOGIN(), action, "REFUSE", "mot de passe de session : " + m);
+            return echec(m);
+        }
+        return null;
+    }
+
+    private static Response resultatSecurite(rest.service.impl.securite.RotationMotDePasse.Resultat r) {
+        JSONObject o = new JSONObject().put("success", r.ok).put("message", r.message)
+                .put("retourArriere", r.retourArriere).put("incoherent", r.incoherent).put("redemarrage", r.redemarrage)
+                .put("etapes", new JSONArray(r.etapes));
+        return Response.ok(o.toString()).build();
+    }
+
+    /**
+     * Rotation du mot de passe de la base en un appel : corps {motDePasseSession, compteRotation, motDePasseRotation,
+     * mode: GENERER|SAISIR, nouveauMotDePasse?, confirmation?}. Le compte de rotation n'est ni garde ni journalise
+     * (Q4.2) ; la valeur du nouveau mot de passe ne revient jamais.
+     */
+    @POST
+    @Path("securite/rotation")
+    public Response securiteRotation(String corps) {
+        JSONObject in = new JSONObject(StringUtils.defaultIfBlank(corps, "{}"));
+        Response r = controleSecurite(in, "ROTATION");
+        if (r != null) {
+            return r;
+        }
+        rest.service.impl.securite.SecuriteBaseService.Demande d = new rest.service.impl.securite.SecuriteBaseService.Demande();
+        d.login = utilisateur().getStrLOGIN();
+        d.compteRotation = StringUtils.trimToEmpty(in.optString("compteRotation", ""));
+        d.motDePasseRotation = in.optString("motDePasseRotation", "");
+        d.mode = in.optString("mode", "GENERER");
+        d.nouveau = in.optString("nouveauMotDePasse", "");
+        d.confirmation = in.optString("confirmation", "");
+        return resultatSecurite(securite.rotation(d));
+    }
+
+    /** Alias Payara pose sur le pool (S2) : corps {motDePasseSession}. */
+    @POST
+    @Path("securite/alias")
+    public Response securiteAlias(String corps) {
+        JSONObject in = new JSONObject(StringUtils.defaultIfBlank(corps, "{}"));
+        Response r = controleSecurite(in, "ALIAS");
+        if (r != null) {
+            return r;
+        }
+        return resultatSecurite(securite.alias(utilisateur().getStrLOGIN()));
+    }
+
+    /** Purge des copies domain.xml.avant-prestige-* : corps {motDePasseSession}. */
+    @POST
+    @Path("securite/purger-copies")
+    public Response securitePurgerCopies(String corps) {
+        JSONObject in = new JSONObject(StringUtils.defaultIfBlank(corps, "{}"));
+        Response r = controleSecurite(in, "PURGE_COPIES");
+        if (r != null) {
+            return r;
+        }
+        int[] n = securite.purgerCopies(utilisateur().getStrLOGIN());
+        return ok(new JSONObject().put("supprimees", n[0]).put("restantes", n[1]).put("message", n[0]
+                + " copie(s) supprimée(s)" + (n[1] > 0 ? ", " + n[1] + " non supprimée(s) (droits ?)" : "") + "."));
+    }
 
     private TUser utilisateur() {
         HttpSession s = servletRequest.getSession(false);
