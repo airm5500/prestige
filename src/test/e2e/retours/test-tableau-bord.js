@@ -73,7 +73,7 @@ const n = (v) => Number(v || 0);
     ok('KEY_TABLEAU_BORD_VERSION = NOUVEAU : nouveau tableau de bord, sans iframe', await tb() && await p.evaluate(() => !Ext.ComponentQuery.query('dashboard')[0].getEl().dom.querySelector('iframe')));
     await reconstruire(D);
     const S = await p.evaluate(() => ({ tuiles: document.querySelectorAll('.tb-tuile .tb-ico i').length, cartes: document.querySelectorAll('.tb-carte').length, iconesCartes: document.querySelectorAll('.tb-carte .tb-tete > .fa-solid').length }));
-    ok('5 tuiles avec icône, 14 cartes avec icône (dont la fréquentation et l\'affluence)', S.tuiles === 5 && S.cartes === 14 && S.iconesCartes === 14, JSON.stringify(S));
+    ok('5 tuiles avec icône, 15 cartes avec icône (dont la fréquentation, l\'affluence et l\'activité des équipes)', S.tuiles === 5 && S.cartes === 15 && S.iconesCartes === 15, JSON.stringify(S));
     ok('Chargement progressif : les cartes du bas ne sont pas lues tant qu\'elles ne sont pas visibles', routes.indexOf('tiers-payants') < 0 && routes.indexOf('emplacements') < 0, routes.join(','));
 
     // Memes chiffres que l'ancien tableau de bord (formules de bll.report.Dashboard a la date D)
