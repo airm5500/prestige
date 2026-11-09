@@ -69,6 +69,40 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
             var x = (Number(v) || 0).toFixed(dec ? 1 : 0).split('.');
             return x[0].replace(/\B(?=(\d{3})+(?!\d))/g, '\u00a0') + (x[1] && x[1] !== '0' ? ',' + x[1] : '');
         },
+        /* plan avoir du 08/11, point 1 : textes du resume (data.resume des analyses), les memes dans les titres des
+           cartes du menu, dans la fenetre et sur la carte du tableau de bord */
+        resumeTextes: function (r) {
+            var N = this.nombre;
+            r = r || {};
+            return {
+                longues: N(r.ventesLongues),
+                sensibles: N(r.actionsSensibles),
+                sensiblesDetail: N(r.annulations) + ' annulation' + (r.annulations > 1 ? 's' : '') + ', ' + N(r.modifications)
+                        + ' modification' + (r.modifications > 1 ? 's' : ''),
+                delaiBl: r.delaiMoyenBl === null || r.delaiMoyenBl === undefined ? '\u2014' : N(r.delaiMoyenBl, true) + ' j',
+                delaiBlDetail: N(r.blMesures) + ' BL dat\u00e9' + (r.blMesures > 1 ? 's' : ''),
+                rapide: r.plusRapideNom ? r.plusRapideNom : '\u2014',
+                rapideDetail: r.plusRapideNom ? N(r.plusRapideSecondesParLigne, true) + ' s par ligne, ' + N(r.plusRapideVentes) + ' ventes'
+                        : 'aucun op\u00e9rateur avec 5 ventes ou plus'
+            };
+        },
+        /* bandeau des reperes : 4 chiffres et le repere d'alerte (menu, fenetre et carte du tableau de bord) */
+        htmlResume: function (r) {
+            var e = Ext.String.htmlEncode, T = this.resumeTextes(r);
+            r = r || {};
+            var tuile = function (code, libelle, valeur, detail, mauvais) {
+                return '<div class="ae-rep' + (mauvais ? ' ae-rep-mal' : '') + '" data-rep="' + code + '"><div class="l">' + e(libelle) + '</div>'
+                        + '<div class="v">' + e(valeur) + '</div><div class="d">' + e(detail) + '</div></div>';
+            };
+            var alerte = r.alertes > 0
+                    ? '<div class="ae-rep-alerte mal" data-alertes="' + r.alertes + '">\u26a0 ' + r.alertes + ' alerte' + (r.alertes > 1 ? 's' : '') + ' : '
+                    + e(r.premiereAlerte || '') + '</div>'
+                    : '<div class="ae-rep-alerte bon" data-alertes="0">\u2713 Aucune alerte</div>';
+            return '<div class="ae-reps">' + tuile('LONGUES', r.seuilLibelle || 'Ventes de plus de 10 min', T.longues, 'vente laiss\u00e9e ouverte', r.ventesLongues > 0)
+                    + tuile('SENSIBLES', 'Actions sensibles', T.sensibles, T.sensiblesDetail, r.actionsSensibles > 0)
+                    + tuile('DELAI_BL', 'D\u00e9lai moyen de saisie des BL', T.delaiBl, T.delaiBlDetail, r.delaiMoyenBl >= 2)
+                    + tuile('RAPIDE', 'Op\u00e9rateur le plus rapide', T.rapide, T.rapideDetail, false) + '</div>' + alerte;
+        },
         styles: function () {
             if (Ext.get('activite-equipes-styles')) {
                 return;
@@ -111,7 +145,16 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                     + 'background-image:none!important;box-shadow:none!important}'
                     + '.ae-graphe>.x-panel-header .x-header-text,.ae-graphe>.x-panel-header .x-title-text{color:#1e3a5f!important;font-size:13px!important;font-weight:700!important}'
                     + '.ae-graphe>.x-panel-body{border:0!important;background:#fff!important}'
-                    + '.ae-graphe .x-toolbar.ae-seuil{background:#f8fafc;border:0;border-bottom:1px solid #eef2f7;padding:4px 12px}',
+                    + '.ae-graphe .x-toolbar.ae-seuil{background:#f8fafc;border:0;border-bottom:1px solid #eef2f7;padding:4px 12px}'
+                    /* plan avoir du 08/11, point 1 : reperes (menu, fenetre, carte du tableau de bord) */
+                    + '.ae-reps{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px;margin-bottom:8px}'
+                    + '.ae-rep{background:#fff;border:1px solid #e2e8f0;border-left:4px solid #1b7f3b;border-radius:8px;padding:7px 10px;min-width:0}'
+                    + '.ae-rep.ae-rep-mal{border-left-color:#c62828}'
+                    + '.ae-rep .l{font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.3px;white-space:normal}'
+                    + '.ae-rep .v{font-size:18px;font-weight:700;color:#0f172a;font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}'
+                    + '.ae-rep .d{font-size:11px;color:#64748b;white-space:normal}'
+                    + '.ae-rep-alerte{border-radius:8px;padding:6px 10px;font-size:12px;font-weight:600;margin-bottom:12px}'
+                    + '.ae-rep-alerte.mal{background:#fef2f2;color:#b91c1c}.ae-rep-alerte.bon{background:#f0fdf4;color:#15803d}',
                     'activite-equipes-styles');
         }
     },
@@ -131,6 +174,33 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                 }
             }
         });
+        /* plan avoir du 08/11, point 1 : fenetre de consultation du tableau de bord = le meme composant, onglet Analyses
+           seul, periode du jour de reference et boutons Hier, 3 jours, 1 semaine */
+        if (me.modeFenetre) {
+            aujourdhui = me.dateReference || aujourdhui;
+            me.analyses = me.creerAnalyses();
+            Ext.apply(me, {
+                items: [me.analyses],
+                dockedItems: [{
+                        xtype: 'toolbar', dock: 'top', itemId: 'aeFiltres', items: me.boutonsPeriode().concat([
+                            {xtype: 'tbseparator'},
+                            {xtype: 'datefield', itemId: 'aeDebut', fieldLabel: 'Du', labelWidth: 22, width: 135, format: 'd/m/Y', submitFormat: 'Y-m-d',
+                                value: aujourdhui, maxValue: aujourdhui},
+                            {xtype: 'datefield', itemId: 'aeFin', fieldLabel: 'au', labelWidth: 20, width: 133, format: 'd/m/Y', submitFormat: 'Y-m-d',
+                                value: aujourdhui, maxValue: aujourdhui, listeners: {select: function () {
+                                        me.marquerBoutonPeriode(null);
+                                    }}},
+                            me.choixEmploye(),
+                            {text: 'Actualiser', itemId: 'aeActualiser', iconCls: 'refresh', tooltip: 'Relire la période', handler: function () {
+                                    me.marquerBoutonPeriode(null);
+                                    me.actualiser();
+                                }}])
+                    }]
+            });
+            me.callParent(arguments);
+            me.on('afterrender', me.actualiser, me, {single: true});
+            return;
+        }
         me.donnees = me.creerDonnees();
         me.analyses = me.creerAnalyses();
         me.anomaliesPanel = me.creerAnomalies();
@@ -152,16 +222,7 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                             value: Ext.Date.getFirstDateOfMonth(aujourdhui), maxValue: aujourdhui},
                         {xtype: 'datefield', itemId: 'aeFin', fieldLabel: 'au', labelWidth: 20, width: 133, format: 'd/m/Y', submitFormat: 'Y-m-d',
                             value: aujourdhui, maxValue: aujourdhui, plugins: [{ptype: 'raccourcisperiode', debut: 'aeDebut', declencher: 'aeActualiser'}]},
-                        {xtype: 'combobox', itemId: 'aeEmploye', fieldLabel: 'Employé', labelWidth: 55, width: 270, store: me.employes,
-                            queryMode: 'local', displayField: 'nom', valueField: 'id', emptyText: 'Tous les employés', forceSelection: true,
-                            anyMatch: true, editable: true, typeAhead: true,
-                            tpl: Ext.create('Ext.XTemplate', '<tpl for="."><div class="x-boundlist-item">{nom:htmlEncode}'
-                                    + '<tpl if="!actif"> <span style="color:#94a3b8">(inactif)</span></tpl></div></tpl>'),
-                            listeners: {
-                                select: function () {
-                                    me.actualiser();
-                                }
-                            }},
+                        me.choixEmploye(),
                         {text: 'Actualiser', itemId: 'aeActualiser', iconCls: 'refresh', tooltip: 'Relire la période', handler: function () {
                                 me.actualiser();
                             }},
@@ -178,6 +239,51 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
             me.actualiser();
             me.lireDroits();
         }, me, {single: true});
+    },
+
+    /* liste « Employé » de la barre (menu et fenetre) */
+    choixEmploye: function () {
+        var me = this;
+        return {xtype: 'combobox', itemId: 'aeEmploye', fieldLabel: 'Employé', labelWidth: 55, width: 270, store: me.employes,
+            queryMode: 'local', displayField: 'nom', valueField: 'id', emptyText: 'Tous les employés', forceSelection: true,
+            anyMatch: true, editable: true, typeAhead: true,
+            tpl: Ext.create('Ext.XTemplate', '<tpl for="."><div class="x-boundlist-item">{nom:htmlEncode}'
+                    + '<tpl if="!actif"> <span style="color:#94a3b8">(inactif)</span></tpl></div></tpl>'),
+            listeners: {
+                select: function () {
+                    me.actualiser();
+                }
+            }};
+    },
+
+    /* plan avoir du 08/11, point 1 : boutons de la fenetre ; les periodes sont celles du selecteur commun
+       (RaccourcisPeriode), calculees depuis le jour de reference */
+    PERIODES_FENETRE: [['aeHier', 'Hier', 'Hier'], ['ae3Jours', '3 jours', '3 derniers jours'], ['aeSemaine', '1 semaine', '7 derniers jours']],
+
+    boutonsPeriode: function () {
+        var me = this, toutes = testextjs.view.commun.RaccourcisPeriode.periodes();
+        return Ext.Array.map(me.PERIODES_FENETRE, function (b) {
+            var calcul = Ext.Array.findBy(toutes, function (p) {
+                return p[0] === b[2];
+            })[1];
+            return {xtype: 'button', itemId: b[0], text: b[1], enableToggle: true, toggleGroup: 'ae-periode-' + me.id, allowDepress: false,
+                cls: 'ordo-btn', margin: '0 4 0 0', tooltip: b[2], handler: function () {
+                    var d = calcul(Ext.Date.clearTime(me.dateReference || new Date()));
+                    me.down('#aeDebut').setValue(d[0]);
+                    me.down('#aeFin').setValue(d[1]);
+                    me.actualiser();
+                }};
+        });
+    },
+
+    marquerBoutonPeriode: function (itemId) {
+        var me = this;
+        Ext.each(me.PERIODES_FENETRE, function (b) {
+            var x = me.down('#' + b[0]);
+            if (x && x.pressed !== (b[0] === itemId)) {
+                x.toggle(b[0] === itemId, true);
+            }
+        });
     },
 
     /* plan du 08/11, point 15.6 : onglet Anomalies montre seulement avec le droit P_ACTIVITE_ANOMALIES */
@@ -336,7 +442,9 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
             }
             return;
         }
-        me.journal.loadPage(1);
+        if (me.journal) {
+            me.journal.loadPage(1);
+        }
         if (me.getLayout().getActiveItem() === me.analyses) {
             me.chargerAnalyses();
         }
@@ -525,6 +633,8 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
             itemId: 'aeAnalyses', autoScroll: true, bodyPadding: '12 2 12 12', bodyStyle: 'background:#f8fafc',
             items: [
                 {xtype: 'component', itemId: 'aeTuiles', html: ''},
+                /* plan avoir du 08/11, point 1 : memes reperes que la carte du tableau de bord */
+                {xtype: 'component', itemId: 'aeResume', html: ''},
                 {xtype: 'component', itemId: 'aeConstats', html: ''},
                 {xtype: 'container', layout: 'column', items: [
                         me.cadre('cHeures', 'Affluence et vitesse par heure', 'Barres : ventes ouvertes à chaque heure. Courbe : saisie moyenne d\'une vente. '
@@ -568,7 +678,15 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                                                 me.detailAnnulations(t.getAttribute('data-role'), t.getAttribute('data-id'), t.getAttribute('data-nom'));
                                             }, null, {delegate: 'tr[data-role]'});
                                         }}}, 1), {height: 420}),
-                        me.cadre('cRepartition', 'Répartition des tâches', 'Ce que fait chaque employé sur la période, par type d\'action.', repartition)
+                        me.cadre('cRepartition', 'Répartition des tâches', 'Ce que fait chaque employé sur la période, par type d\'action.', repartition),
+                        /* plan avoir du 08/11, point 1 : employe x tranche horaire x CA realise */
+                        Ext.apply(me.cadre('cCaTranches', 'CA par employé et tranche horaire', 'Chiffre d\'affaires réalisé par chaque employé, '
+                                + 'tranche horaire par tranche horaire (heure de l\'encaissement), avec le nombre de ventes sous le montant. '
+                                + 'Ventes retenues : clôturées, non annulées, d\'un montant supérieur à 0, hors dépôt (mêmes règles que le reste de l\'écran). '
+                                + 'Attribution « Caissière » : celle qui a encaissé la vente ; « Vendeur » : celui qui a saisi la prévente (à défaut, la caissière). '
+                                + 'Chaque vente compte une seule fois : le total est le même dans les deux cas. Totaux par employé et par tranche ; '
+                                + '« Export CSV » pour Excel.', {xtype: 'component', itemId: 'aeCaTranches', autoScroll: true, html: ''}, 1),
+                                {height: 420, dockedItems: [me.barreCaTranches()]})
                     ]}
             ]
         });
@@ -602,6 +720,100 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                         }
                     }},
                 {xtype: 'tbtext', text: 'min'}]};
+    },
+
+    /* ------------------------------------------------------------------ CA PAR EMPLOYE ET TRANCHE (plan avoir du 08/11, point 1) */
+
+    barreCaTranches: function () {
+        var me = this, relire = function () {
+            me.chargerCaTranches(me.filtres());
+        };
+        return {xtype: 'toolbar', dock: 'top', cls: 'ae-seuil', items: [
+                {xtype: 'combo', itemId: 'aeTrancheTaille', fieldLabel: 'Tranche', labelWidth: 50, width: 115, editable: false, queryMode: 'local',
+                    forceSelection: true, value: 1, store: [[1, '1 h'], [2, '2 h'], [3, '3 h'], [4, '4 h'], [5, '5 h'], [6, '6 h']],
+                    listeners: {select: relire}},
+                {xtype: 'combo', itemId: 'aeTrancheAttribution', fieldLabel: 'CA attribué à', labelWidth: 85, width: 290, editable: false,
+                    queryMode: 'local', forceSelection: true, value: 'CAISSIER',
+                    store: [['CAISSIER', 'Caissière (encaissement)'], ['VENDEUR', 'Vendeur (prévente)']], listeners: {select: relire}},
+                '->',
+                {text: 'Export CSV', itemId: 'aeTrancheExport', iconCls: 'excel', tooltip: 'Le tableau affiché, totaux compris (ouvert par Excel)',
+                    handler: function (b) {
+                        var url = '../api/v1/activite-equipes/ca-tranches/csv?' + Ext.Object.toQueryString(me.paramsCaTranches(me.filtres()));
+                        if (window.PrestigeChargement && PrestigeChargement.telecharger) {
+                            PrestigeChargement.telecharger(b, url, 'Export…');
+                        } else {
+                            window.open(url);
+                        }
+                    }}]};
+    },
+
+    paramsCaTranches: function (f) {
+        var me = this;
+        return Ext.apply({taille: me.down('#aeTrancheTaille').getValue(), attribution: me.down('#aeTrancheAttribution').getValue()}, f);
+    },
+
+    chargerCaTranches: function (f) {
+        var me = this, z = me.down('#aeCaTranches'), cadre = me.down('#cCaTranches');
+        if (!z) {
+            return;
+        }
+        var version = me.versionCaTranches = (me.versionCaTranches || 0) + 1;
+        cadre.setLoading('Calcul…');
+        Ext.Ajax.request({url: '../api/v1/activite-equipes/ca-tranches', method: 'GET', params: me.paramsCaTranches(f), timeout: 180000,
+            success: function (r) {
+                if (me.isDestroyed || version !== me.versionCaTranches) {
+                    return;
+                }
+                cadre.setLoading(false);
+                var o = Ext.decode(r.responseText, true) || {};
+                me.donneesCaTranches = o.data;
+                z.update(o.success ? me.htmlCaTranches(o.data) : '<div class="ae-vide">' + Ext.String.htmlEncode(o.msg || 'Tableau indisponible') + '</div>');
+            },
+            failure: function (r) {
+                if (!me.isDestroyed && version === me.versionCaTranches) {
+                    cadre.setLoading(false);
+                    z.update('<div class="ae-vide">Le serveur n\'a pas répondu (' + r.status + ').</div>');
+                }
+            }});
+    },
+
+    htmlCaTranches: function (d) {
+        var e = Ext.String.htmlEncode, N = testextjs.view.activiteequipes.ActiviteEquipes.nombre;
+        if (!d || !d.lignes || !d.lignes.length) {
+            return '<div class="ae-vide">Aucune vente sur la période.</div>';
+        }
+        var max = 1;
+        Ext.each(d.lignes, function (l) {
+            Ext.each(l.cellules, function (c) {
+                max = Math.max(max, c.ca);
+            });
+        });
+        var cellule = function (c, total) {
+            if (!c.ventes) {
+                return '<td class="n ae-ct-vide">·</td>';
+            }
+            var fond = total ? '' : ' style="background:rgba(37,99,235,' + (0.06 + 0.34 * c.ca / max).toFixed(2) + ')"';
+            return '<td class="n"' + fond + '><b>' + N(c.ca) + '</b><small>' + N(c.ventes) + ' v.</small></td>';
+        };
+        var ligne = function (l, total) {
+            return '<td class="ae-ct-nom">' + e(l.nom) + '</td>' + Ext.Array.map(l.cellules, function (c) {
+                return cellule(c, total);
+            }).join('') + '<td class="n ae-ct-total"><b>' + N(l.ca) + '</b><small>' + N(l.ventes) + ' v.</small></td>';
+        };
+        return '<style>.ae-ct{border-collapse:collapse;font-size:12px;margin:4px 0;min-width:100%}.ae-ct th{background:#e8eef7;color:#1a3d6d;'
+                + 'padding:4px 6px;white-space:nowrap;text-align:right}.ae-ct th:first-child{text-align:left}.ae-ct td{padding:3px 6px;border-bottom:1px solid #eef1f5;'
+                + 'white-space:nowrap}.ae-ct .n{text-align:right}.ae-ct small{display:block;color:#64748b;font-size:10px}.ae-ct .ae-ct-vide{color:#cbd5e1}'
+                + '.ae-ct .ae-ct-total{background:#f1f5f9}.ae-ct tfoot th,.ae-ct tfoot td{background:#e8eef7;font-weight:bold}.ae-ct .ae-ct-nom{max-width:190px;'
+                + 'overflow:hidden;text-overflow:ellipsis}</style>'
+                + '<table class="ae-ct" data-taille="' + d.taille + '" data-attribution="' + d.attribution + '"><thead><tr><th>'
+                + (d.attribution === 'VENDEUR' ? 'Vendeur' : 'Caissière') + '</th>'
+                + Ext.Array.map(d.tranches, function (t) {
+                    return '<th data-t="' + t.index + '">' + e(t.libelle) + '</th>';
+                }).join('') + '<th>Total</th></tr></thead><tbody>'
+                + Ext.Array.map(d.lignes, function (l) {
+                    return '<tr data-id="' + e(l.id) + '">' + ligne(l, false) + '</tr>';
+                }).join('') + '</tbody><tfoot><tr>' + ligne(Ext.apply({nom: 'Total (' + d.lignes.length + ' employé' + (d.lignes.length > 1 ? 's' : '') + ')'}, d.totaux), true)
+                + '</tr></tfoot></table>';
     },
 
     /* ------------------------------------------------------------------ ANOMALIES (retour du 24/10) */
@@ -822,6 +1034,7 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                 me.chargerMotifs(f);
                 me.chargerAnnulations(f);
                 me.chargerGardes(f);
+                me.chargerCaTranches(f);
             },
             failure: function (r) {
                 if (!a.isDestroyed) {
@@ -1178,6 +1391,7 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                 axe.setTitle(d.seuilLibelle.replace(/^Ventes /, ''));
             }
         }
+        a.down('#aeResume').update('<div class="ae-titre-bloc">Repères</div>' + AE.htmlResume(d.resume));
         /* graphique sans donnees : un message plutot qu'un cadre vide */
         Ext.each([['cHeures', 'heures'], ['cJours', 'jours'], ['cOperateurs', 'operateurs'], ['cTypesVente', 'typesVente'], ['cGrossistes', 'grossistes'], ['cRetard', 'retard'],
             ['cLongues', 'operateurs'], ['cSensibles', 'sensibles'], ['cRepartition', 'repartition']], function (x) {

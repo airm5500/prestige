@@ -5,7 +5,7 @@
  * champs de date existants.
  *
  * Plugin pose sur le champ de FIN ; il retrouve le champ de debut par son itemId (option debut) dans le meme conteneur.
- * Il ajoute juste apres un bouton « Période ▾ » dont le menu pose les deux dates (Aujourd'hui, Hier, 7 jours,
+ * Il ajoute juste apres un bouton « Période ▾ » dont le menu pose les deux dates (Aujourd'hui, Hier, 3 jours, 7 jours,
  * 30 jours, 3 semaines, Ce mois, Mois dernier, 3 mois, 12 mois, Cette année, Année N-1). Les champs restent ceux que lisent les controleurs ; apres un
  * raccourci, 'select' est emis sur le champ de fin comme si l'utilisateur l'avait choisi dans le calendrier, puis le
  * bouton « declencher » (s'il est donne) recoit un clic.
@@ -29,6 +29,10 @@ Ext.define('testextjs.view.commun.RaccourcisPeriode', {
                 ['Hier', function (j) {
                         var h = D.add(j, D.DAY, -1);
                         return [h, h];
+                    }],
+                /* plan avoir du 08/11, point 1 : 3 derniers jours, aujourd'hui compris */
+                ['3 derniers jours', function (j) {
+                        return [D.add(j, D.DAY, -2), j];
                     }],
                 ['7 derniers jours', function (j) {
                         return [D.add(j, D.DAY, -6), j];
