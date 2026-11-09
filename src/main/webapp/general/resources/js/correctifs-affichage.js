@@ -2635,21 +2635,37 @@ window.PrestigeRetoursAttente = (function () {
         if (!app) {
             return;
         }
+        /* liste deja ouverte : l'ecran est recree ; le filtre va a la nouvelle liste, pas a l'ancienne */
+        var avant = Ext.getCmp('retourFrsEtat');
         app.getController('App').onRedirectTo(NOEUD, {});
-        filtrerEnAttente();
+        filtrerEnAttente(avant);
     }
     /* la liste ouverte (par l'avis, ou par un clic sur la pastille du menu) est filtree sur « En attente » */
-    function filtrerEnAttente() {
+    function filtrerEnAttente(avant) {
         var tours = 0, filtrer = function () {
-            var c = Ext.getCmp('retourFrsEtat'), g = Ext.ComponentQuery.query('retourfrsmanager')[0];
-            if (c && g && !c.isDestroyed) {
-                c.setValue('ATTENTE');
-                g.onRechClick();
+            var c = Ext.getCmp('retourFrsEtat'),
+                    g = Ext.ComponentQuery.query('retourfrsmanager').filter(function (x) {
+                        return !x.isDestroyed;
+                    }).pop();
+            /* nouvelle liste (ou la meme, si l'ecran n'a pas ete recree, apres une seconde) */
+            if (c && g && !c.isDestroyed && (c !== avant || tours > 4)) {
+                var appliquer = function () {
+                    c.setValue('ATTENTE');
+                    g.onRechClick();
+                };
+                /* apres son premier chargement, qui sinon remplacerait la liste filtree */
+                if (g.getStore().isLoading()) {
+                    g.getStore().on('load', appliquer, null, {single: true});
+                } else {
+                    appliquer();
+                }
             } else if (tours++ < 40) {
                 setTimeout(filtrer, 250);
             }
         };
-        filtrer();
+        /* le chargement automatique de la nouvelle liste (sans filtre) part juste apres sa creation : on le laisse
+           commencer, puis on filtre apres lui */
+        setTimeout(filtrer, 300);
     }
     function avis() {
         if (avisMontre || !(nombre > 0) || !window.PrestigeToast) {
