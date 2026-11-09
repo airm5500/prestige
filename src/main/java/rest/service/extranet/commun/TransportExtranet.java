@@ -35,7 +35,16 @@ public final class TransportExtranet {
          * JSON servi avec un type HTML (TEDIS, releve du 08/11 : « text/html » pour du JSON) : seul le corps fait foi
          * ({ ou [ en premier caractere), une page de connexion reste reconnue.
          */
-        JSON_TYPE_LIBRE
+        JSON_TYPE_LIBRE,
+        /**
+         * Fichier d'un document (CSV, TXT, XLS : demande du 09/11, point 4) : corps non vide, jamais une page HTML (une
+         * page de connexion reste reconnue).
+         */
+        FICHIER,
+        /**
+         * Fichier Excel qu'un extranet peut servir sous forme de tableau HTML : seule la page de connexion est refusee.
+         */
+        FICHIER_HTML_ADMIS
     }
 
     static final String ACCEPT_JSON = "application/json, text/javascript, */*; q=0.01";
@@ -183,6 +192,12 @@ public final class TransportExtranet {
         case PDF:
             conforme = rep.signaturePdf();
             break;
+        case FICHIER:
+            conforme = rep.taille() > 0 && !pageHtml(rep);
+            break;
+        case FICHIER_HTML_ADMIS:
+            conforme = rep.taille() > 0 && !(pageHtml(rep) && DetecteurPageConnexion.estPageConnexion(rep.texte()));
+            break;
         default:
             conforme = rep.typeContenu().toLowerCase().startsWith("image/");
         }
@@ -196,6 +211,17 @@ public final class TransportExtranet {
         }
         throw new ExtranetException(ExtranetException.Nature.REPONSE_INATTENDUE, "Réponse inattendue sur "
                 + rep.chemin() + " : " + attendu + " attendu, « " + rep.typeContenu() + " » reçu");
+    }
+
+    /** Page HTML (et non un fichier) : type HTML annonce ou corps commencant par une balise de document. */
+    static boolean pageHtml(ReponseExtranet rep) {
+        if (rep.premierCaractere() != '<') {
+            return false;
+        }
+        String debut = rep.texte();
+        debut = debut.substring(0, Math.min(debut.length(), 400)).toLowerCase(java.util.Locale.ROOT);
+        return rep.typeHtml() || debut.contains("<html") || debut.contains("<!doctype") || debut.contains("<body")
+                || debut.contains("<head");
     }
 
     private void attendre() throws ExtranetException {

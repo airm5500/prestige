@@ -2,7 +2,9 @@ package rest.service.extranet.ubipharm;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Pattern;
 import org.json.JSONArray;
 import org.jsoup.Jsoup;
@@ -31,13 +33,25 @@ public final class ListesUbipharmParseur {
         public final String pscode;
         public final String cip;
         public final List<String> cellules;
+        /**
+         * References du document attendues par l'extranet pour rendre son fichier (demande du 09/11, point 4) ; null :
+         * ligne sans fichier. Textes courts, controles a la lecture ; jamais de cookie ni de jeton.
+         */
+        public final Map<String, String> document;
 
         public Ligne(int position, String agence, String pscode, String cip, List<String> cellules) {
+            this(position, agence, pscode, cip, cellules, null);
+        }
+
+        public Ligne(int position, String agence, String pscode, String cip, List<String> cellules,
+                Map<String, String> document) {
             this.position = position;
             this.agence = agence;
             this.pscode = pscode;
             this.cip = cip;
             this.cellules = Collections.unmodifiableList(cellules);
+            this.document = document == null || document.isEmpty() ? null
+                    : Collections.unmodifiableMap(new LinkedHashMap<>(document));
         }
     }
 
@@ -91,9 +105,44 @@ public final class ListesUbipharmParseur {
             for (Element td : tds) {
                 html.add(td.html());
             }
-            r.add(construire(l, r.size(), null, html));
+            Ligne x = construire(l, r.size(), null, html);
+            if (l == ListeUbipharm.FACTURES) {
+                /* demande du 09/11, point 4 : references du BLV (liens CSV, Excel, TXT de la ligne) */
+                x = new Ligne(x.position, x.agence, x.pscode, x.cip, x.cellules, documentBlv(tr));
+            }
+            r.add(x);
         }
         return r;
+    }
+
+    /** Liens « Exporter le BLV » d'une facture : {fcnum, etcoda} du premier lien BLV ; null si absent ou illisible. */
+    static Map<String, String> documentBlv(Element tr) {
+        for (Element a : tr.select("a[href]")) {
+            String href = a.attr("href");
+            int q = href.indexOf('?');
+            String chemin = q < 0 ? href : href.substring(0, q);
+            if (q < 0 || !chemin.matches("(.*/)?BLV(CSV|Excel|Txt)")) {
+                continue;
+            }
+            Map<String, String> p = new LinkedHashMap<>();
+            for (String kv : href.substring(q + 1).split("&")) {
+                int e = kv.indexOf('=');
+                if (e > 0) {
+                    p.put(kv.substring(0, e),
+                            java.net.URLDecoder.decode(kv.substring(e + 1), java.nio.charset.StandardCharsets.UTF_8));
+                }
+            }
+            String fcnum = rest.service.extranet.commun.FichiersExtranet.reference(p.get("fcnum"));
+            String etcoda = rest.service.extranet.commun.FichiersExtranet.reference(p.get("etcoda"));
+            if (fcnum == null || etcoda == null) {
+                return null;
+            }
+            Map<String, String> d = new LinkedHashMap<>();
+            d.put("fcnum", fcnum);
+            d.put("etcoda", etcoda);
+            return d;
+        }
+        return null;
     }
 
     /** Codes des agences (identifiants des tableaux) de la page des dernieres commandes. */

@@ -469,6 +469,12 @@ class DpciLecteurTest {
                     List<String> g = l.get(i).cellules;
                     assertEquals(e.getKey().colonnes.size(), g.size());
                     assertEquals(f.getJSONObject("DATE_DOCUMENT").getString("value").substring(0, 10), g.get(0));
+                    /* 09/11, point 4 : references de l'export CSV des factures (case cochee, date du document) */
+                    if (e.getKey() == ListeDpci.DPCI_FACTURES) {
+                        assertEquals(Map.of("id", "R11" + i, "date", g.get(0)), l.get(i).document, "ligne " + i);
+                    } else {
+                        assertNull(l.get(i).document, e.getValue() + " : pas de fichier");
+                    }
                     String cmd = f.getJSONObject("NUMERO_COMMANDE").isNull("value") ? ""
                             : f.getJSONObject("NUMERO_COMMANDE").getString("value");
                     switch (e.getValue()) {

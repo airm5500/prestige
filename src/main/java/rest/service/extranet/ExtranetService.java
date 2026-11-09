@@ -562,6 +562,95 @@ public class ExtranetService {
         return r;
     }
 
+    /* ============================================================ fichiers des documents (09/11, point 4) */
+
+    /** Fichier rendu par l'extranet, ou refus (msg). */
+    public static final class FichierRendu {
+        public final byte[] octets;
+        public final String nom;
+        public final String type;
+        public final String msg;
+        /** 400 demande invalide, 404 ligne absente, 502 extranet en echec */
+        public final int statut;
+
+        FichierRendu(byte[] octets, String nom, String type, String msg, int statut) {
+            this.octets = octets;
+            this.nom = nom;
+            this.type = type;
+            this.msg = msg;
+            this.statut = statut;
+        }
+
+        static FichierRendu refus(int statut, String msg) {
+            return new FichierRendu(null, null, null, msg, statut);
+        }
+    }
+
+    /**
+     * Telecharge sur l'extranet le fichier d'un document d'une liste gardee (ligne de la derniere collecte complete,
+     * format propose par l'extranet) et le rend tel quel. Rien n'est ecrit (ni fichier, ni base) ; le journal ne garde
+     * que le chemin, le statut et la taille (TransportExtranet), jamais le contenu ni les references.
+     */
+    public FichierRendu fichierDocument(SourceExtranet s, String liste, int position, String format) {
+        rest.service.extranet.commun.FichiersExtranet.Fichier f = s == null || liste == null ? null
+                : rest.service.extranet.commun.FichiersExtranet.un(s, liste.trim().toUpperCase(java.util.Locale.ROOT),
+                        format);
+        if (f == null) {
+            return FichierRendu.refus(400, "Ce fichier n'est pas proposé par l'extranet pour cette liste");
+        }
+        JSONObject l = new rest.service.extranet.commun.DepotListes(em).ligne(s, f.liste, "LISTE_" + f.liste, position);
+        if (l == null) {
+            return FichierRendu.refus(404, "Ligne introuvable : relisez la liste sur l'extranet");
+        }
+        java.util.Map<String, String> document = l.isNull("document") ? null
+                : rest.service.extranet.commun.FichiersExtranet.lireDocument(l.getJSONObject("document").toString());
+        java.util.Map<String, String> parametres;
+        try {
+            parametres = f.parametres(document);
+        } catch (IllegalArgumentException e) {
+            return FichierRendu.refus(404, e.getMessage() + " : relisez la liste sur l'extranet");
+        }
+        int col = rest.service.extranet.commun.FichiersExtranet.colonneNumero(colonnesListe(s, f.liste));
+        String numero = col >= 0 ? l.getJSONArray("cellules").optString(col, "") : "";
+        chargerIdentifiants(s);
+        try {
+            rest.service.extranet.commun.ReponseExtranet r = CoffreSessions.transport(s).lire(f.chemin, parametres,
+                    f.attendu(), f.referer);
+            if (r.taille() > rest.service.extranet.commun.FichiersExtranet.TAILLE_MAX) {
+                return FichierRendu.refus(502, "Fichier trop volumineux");
+            }
+            return new FichierRendu(r.octets(), f.nom(numero), f.typeMime, null, 200);
+        } catch (ExtranetException e) {
+            return FichierRendu.refus(502, e.getMessage());
+        }
+    }
+
+    /** Titres des colonnes d'une liste (pour trouver la colonne du numero de document). */
+    private static JSONArray colonnesListe(SourceExtranet s, String liste) {
+        JSONObject d = null;
+        switch (s) {
+        case UBIPHARM:
+            ListeUbipharm u = ListeUbipharm.parCode(liste);
+            d = u == null ? null : u.description();
+            break;
+        case TEDIS:
+            rest.service.extranet.tedis.ListeTedis t = rest.service.extranet.tedis.ListeTedis.parCode(liste);
+            d = t == null ? null : t.description();
+            break;
+        case COPHARMED:
+            rest.service.extranet.copharmed.ListeCopharmed c = rest.service.extranet.copharmed.ListeCopharmed
+                    .parCode(liste);
+            d = c == null ? null : c.description();
+            break;
+        case DPCI:
+            rest.service.extranet.dpci.ListeDpci p = rest.service.extranet.dpci.ListeDpci.parCode(liste);
+            d = p == null ? null : p.description();
+            break;
+        default:
+        }
+        return d == null ? new JSONArray() : d.optJSONArray("colonnes");
+    }
+
     /* ============================================================ DPCI */
 
     public JSONObject listesDpci() {

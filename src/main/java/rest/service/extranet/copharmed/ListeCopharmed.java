@@ -20,8 +20,15 @@ public enum ListeCopharmed {
      * 08/11 : la 2e et la 3e valeur de prix de Copharmed sont le taux de TVA (0, 9 ou 18 %) et le prix TTC (prix HT x
      * (1 + taux), verifie sur les 10 581 lignes gardees), et non une remise et un prix net HT.
      */
-    COPHARMED_CATALOGUE("Produits", "Catalogue produits", Arrays.asList("Désignation", "Code", "DCI", "Colisage",
-            "Prix HT", "Taux TVA", "Prix TTC", "Prix public", "Disponibilité", "Promotion", "Unités gratuites"));
+    COPHARMED_CATALOGUE("Produits", "Catalogue produits",
+            Arrays.asList("Désignation", "Code", "DCI", "Colisage", "Prix HT", "Taux TVA", "Prix TTC", "Prix public",
+                    "Disponibilité", "Promotion", "Unités gratuites")),
+    /*
+     * Demande du 09/11, point 4 : Mon espace > Factures et Avoirs (releve du 09/11 : tableau N° / Date / Montant HT,
+     * pages de 25, icones PDF, CSV et XLS par ligne). Les fichiers CSV et XLS se telechargent depuis l'onglet.
+     */
+    COPHARMED_FACTURES("Mes documents", "Factures", Arrays.asList("N° facture", "Date", "Montant HT")),
+    COPHARMED_AVOIRS("Mes documents", "Avoirs", Arrays.asList("N° avoir", "Date", "Montant HT"));
 
     public final String rubrique;
     public final String libelle;

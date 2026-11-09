@@ -100,7 +100,151 @@ public final class CopharmedLecteur {
     /* ============================================================ lecture des listes */
 
     public static List<Ligne> lire(TransportExtranet t, ListeCopharmed l) throws ExtranetException {
-        return l == ListeCopharmed.COPHARMED_PROMOTIONS ? promotions(t) : catalogue(t);
+        switch (l) {
+        case COPHARMED_PROMOTIONS:
+            return promotions(t);
+        case COPHARMED_FACTURES:
+            return documents(t, FACTURES);
+        case COPHARMED_AVOIRS:
+            return documents(t, AVOIRS);
+        default:
+            return catalogue(t);
+        }
+    }
+
+    /* ============================================================ factures et avoirs (09/11) */
+
+    public static final String FACTURES = "/INTERSHOP/web/WFS/EASy-Copharmed-Site/fr_FR/-/XOF/ViewPharmacy-Invoices";
+    public static final String AVOIRS = "/INTERSHOP/web/WFS/EASy-Copharmed-Site/fr_FR/-/XOF/ViewPharmacy-CreditNotes";
+    static final String INTERSHOP = "/INTERSHOP/web/WFS/EASy-Copharmed-Site/fr_FR/-/XOF/";
+    /** Page suivante : action de pagination de la page elle-meme (ex. ViewPharmacy-PagingInvoices). */
+    static final Pattern ACTION_PAGES = Pattern.compile("ViewPharmacy-Paging[A-Za-z]{1,40}");
+    static final Pattern PAGEABLE = Pattern.compile("[A-Za-z0-9_.-]{1,80}");
+
+    /**
+     * Une page de documents : lignes {numero, date, montant, InvoiceNo}, pages proposees et identifiant de pagination.
+     */
+    static final class PageDocuments {
+        final List<String[]> lignes = new ArrayList<>();
+        final Set<Integer> pages = new LinkedHashSet<>();
+        String pageable;
+        String pagination;
+    }
+
+    /**
+     * Factures ou avoirs : premiere page, puis les pages suivantes proposees par ses liens (PageNumber a partir de 0,
+     * meme PageableID), tant qu'un lien mene plus loin. Une page sans tableau arrete la lecture.
+     */
+    static List<Ligne> documents(TransportExtranet t, String chemin) throws ExtranetException {
+        List<Ligne> r = new ArrayList<>();
+        Set<String> vus = new LinkedHashSet<>();
+        PageDocuments p = documents(page(t, chemin, null));
+        int courante = 0;
+        for (int n = 0; n < PAGES_MAX; n++) {
+            for (String[] x : p.lignes) {
+                if (vus.add(x[0] + "|" + x[3]) && r.size() < LIGNES_MAX) {
+                    Map<String, String> d = null;
+                    String inv = rest.service.extranet.commun.FichiersExtranet.reference(x[3]);
+                    if (inv != null) {
+                        d = new LinkedHashMap<>();
+                        d.put("InvoiceNo", inv);
+                    }
+                    r.add(new Ligne(r.size(), null, null, null, Arrays.asList(x[0], x[1], x[2]), d));
+                }
+            }
+            int suivante = -1;
+            for (int k : p.pages) {
+                if (k > courante && (suivante < 0 || k < suivante)) {
+                    suivante = k;
+                }
+            }
+            if (suivante < 0 || p.pageable == null || p.pagination == null) {
+                break;
+            }
+            Map<String, String> q = new LinkedHashMap<>();
+            q.put("PageNumber", String.valueOf(suivante));
+            q.put("PageSize", "25");
+            q.put("ViewType", "");
+            q.put("PageableID", p.pageable);
+            String pageable = p.pageable, pagination = p.pagination;
+            p = documents(page(t, INTERSHOP + pagination, q));
+            if (p.pageable == null) {
+                p.pageable = pageable;
+            }
+            if (p.pagination == null) {
+                p.pagination = pagination;
+            }
+            courante = suivante;
+        }
+        return r;
+    }
+
+    /** Tableau de la page Factures ou Avoirs (N° / Date / Montant HT / liens). */
+    static PageDocuments documents(String html) throws ExtranetException {
+        Document d = Jsoup.parse(html == null ? "" : html);
+        d.select("script, noscript, template").remove();
+        Element table = null;
+        for (Element t : d.select("table")) {
+            Elements th = t.select("> thead > tr > th");
+            if (th.size() >= 3 && th.get(0).text().trim().startsWith("N°")
+                    && th.get(1).text().trim().equalsIgnoreCase("Date")) {
+                table = t;
+                break;
+            }
+        }
+        if (table == null) {
+            throw new ExtranetException(ExtranetException.Nature.REPONSE_INATTENDUE,
+                    "Copharmed : tableau des documents introuvable (page modifiée ou session expirée)");
+        }
+        PageDocuments p = new PageDocuments();
+        for (Element tr : table.select("> tbody > tr")) {
+            Elements td = tr.select("> td");
+            if (td.size() < 3) {
+                continue;
+            }
+            String inv = null;
+            for (Element a : tr.select("a[href*=DownloadInvoice]")) {
+                String v = parametre(a.attr("href"), "InvoiceNo");
+                if (v != null) {
+                    inv = v;
+                    break;
+                }
+            }
+            p.lignes.add(new String[] { texte(td.get(0)), texte(td.get(1)), texte(td.get(2)), inv });
+        }
+        for (Element a : d.select("a[href*=Paging]")) {
+            String n = parametre(a.attr("href"), "PageNumber"), id = parametre(a.attr("href"), "PageableID");
+            if (n != null && n.matches("\\d{1,4}")) {
+                p.pages.add(Integer.parseInt(n));
+            }
+            if (id != null && PAGEABLE.matcher(id).matches()) {
+                p.pageable = id;
+            }
+            Matcher m = ACTION_PAGES.matcher(a.attr("href"));
+            if (m.find()) {
+                p.pagination = m.group();
+            }
+        }
+        return p;
+    }
+
+    private static String texte(Element e) {
+        return rest.service.extranet.commun.Normalisation.texte(e.text());
+    }
+
+    /** Valeur d'un parametre d'une adresse ; null si absent. */
+    static String parametre(String href, String nom) {
+        int q = href == null ? -1 : href.indexOf('?');
+        if (q < 0) {
+            return null;
+        }
+        for (String kv : href.substring(q + 1).split("&")) {
+            int e = kv.indexOf('=');
+            if (e > 0 && kv.substring(0, e).equals(nom)) {
+                return java.net.URLDecoder.decode(kv.substring(e + 1), java.nio.charset.StandardCharsets.UTF_8);
+            }
+        }
+        return null;
     }
 
     static List<Ligne> promotions(TransportExtranet t) throws ExtranetException {

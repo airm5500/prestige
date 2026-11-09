@@ -429,6 +429,45 @@ public class ExtranetRessource {
         return ok(service.collecterListeDpci(code, login(), periode));
     }
 
+    /* ============================================================ fichiers des documents (09/11, point 4) */
+
+    /**
+     * Fichier d'un document d'une liste gardee (BL Ubipharm et TEDIS, factures DPCI, factures et avoirs Copharmed),
+     * telecharge sur l'extranet et rendu tel quel en piece jointe ; nom : grossiste, document, numero.
+     */
+    @GET
+    @Path("{source}/listes/{code}/fichier")
+    @Produces(MediaType.WILDCARD)
+    public Response fichierDocument(@PathParam("source") String source, @PathParam("code") String code,
+            @QueryParam("position") @javax.ws.rs.DefaultValue("-1") int position, @QueryParam("format") String format) {
+        Response r = refus();
+        if (r != null) {
+            return r;
+        }
+        SourceExtranet s = SourceExtranet.lire(source);
+        if (s == null) {
+            return sourceInconnue();
+        }
+        if (code == null || !code.trim().matches("[A-Za-z0-9_]{1,40}") || position < 0) {
+            return erreurFichier(400, "Demande invalide");
+        }
+        ExtranetService.FichierRendu f = service.fichierDocument(s, code, position, format);
+        if (f.octets == null) {
+            return erreurFichier(f.statut, f.msg);
+        }
+        String nom = f.nom;
+        return Response.ok(f.octets, f.type)
+                .header("Content-Disposition",
+                        "attachment; filename=\"" + nom + "\"; filename*=UTF-8''" + java.net.URLEncoder
+                                .encode(nom, java.nio.charset.StandardCharsets.UTF_8).replace("+", "%20"))
+                .header("Cache-Control", "no-store").build();
+    }
+
+    private static Response erreurFichier(int statut, String msg) {
+        return Response.status(statut).type(MediaType.APPLICATION_JSON)
+                .entity(new JSONObject().put("success", false).put("msg", msg).toString()).build();
+    }
+
     /* ============================================================ lectures en arriere-plan (08/11) */
 
     @javax.ejb.EJB

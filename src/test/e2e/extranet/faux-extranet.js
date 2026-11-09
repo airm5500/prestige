@@ -83,6 +83,11 @@ function demarrer(port) {
     }
     const json = (o) => envoyer(200, 'application/json; charset=utf-8', typeof o === 'string' ? o : JSON.stringify(o));
     const html = (f) => envoyer(200, 'text/html; charset=utf-8', fs.readFileSync(path.join(RES, f)));
+    /* etat.fichiers : fichiers de documents servis par un test (09/11, point 4) : chemin -> (url) => {type, corps} */
+    if (etat.fichiers && etat.fichiers[u.pathname]) {
+      const f = etat.fichiers[u.pathname](u);
+      return f ? envoyer(200, f.type, f.corps) : envoyer(404, 'text/plain', 'absent');
+    }
     const liste = listes.repondre(etat.listes, u, json, (h) => envoyer(200, 'text/html; charset=utf-8', h));
     if (liste !== null) { return liste; }
     switch (u.pathname) {

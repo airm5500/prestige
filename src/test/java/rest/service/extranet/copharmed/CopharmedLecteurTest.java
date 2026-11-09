@@ -348,6 +348,11 @@ class CopharmedLecteurTest {
         for (ListeCopharmed l : ListeCopharmed.values()) {
             assertFalse(l.colonnes.contains("Remise"), l.name());
             assertFalse(l.colonnes.contains("Prix net HT"), l.name());
+            if (!l.colonnes.contains("Prix HT")) {
+                /* 09/11 : factures et avoirs (montant du document, sans prix de produit) */
+                assertFalse(l.colonnes.contains("Taux TVA"), l.name());
+                continue;
+            }
             assertEquals(l.colonnes.indexOf("Prix HT") + 1, l.colonnes.indexOf("Taux TVA"), l.name());
             assertEquals(l.colonnes.indexOf("Prix HT") + 2, l.colonnes.indexOf("Prix TTC"), l.name());
         }

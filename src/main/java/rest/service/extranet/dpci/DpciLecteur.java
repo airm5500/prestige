@@ -262,6 +262,7 @@ public final class DpciLecteur {
         }
         String referer = PAGE_DOCUMENTS;
         List<Ligne> lignes = new ArrayList<>();
+        List<Map<String, String>> documents = new ArrayList<>();
         ParcoursDataTables.parcourir((start, length, draw) -> {
             Map<String, String> q = dataTables(start, length, draw, "fieldMap.DATE_DOCUMENT.value", "DATE_DOCUMENT");
             q.putAll(champs);
@@ -281,9 +282,14 @@ public final class DpciLecteur {
                     throw inattendu("document illisible");
                 }
                 rangs.put(new JSONArray(celluleDocument(l, f)));
+                documents.add(documentFacture(l, f));
             }
             return enveloppe(r, rangs);
-        }, TAILLE_PAGE, PAGES_MAX, (pos, cel) -> lignes.add(ligne(pos, null, null, cellules(cel))));
+        }, TAILLE_PAGE, PAGES_MAX, (pos, cel) -> {
+            Ligne x = ligne(pos, null, null, cellules(cel));
+            lignes.add(new Ligne(x.position, x.agence, x.pscode, x.cip, x.cellules,
+                    pos < documents.size() ? documents.get(pos) : null));
+        });
         return lignes;
     }
 
@@ -301,6 +307,25 @@ public final class DpciLecteur {
                     texte(champ(f, "NUMERO_COMMANDE")), texte(champ(f, "NUMERO_BL")), texte(champ(f, "NUMERO_RELEVE")),
                     montant(champ(f, "MONTANT_HT")), montant(champ(f, "MONTANT_TTC")));
         }
+    }
+
+    /**
+     * Demande du 09/11, point 4 : facture DPCI, references de l'export CSV de l'extranet (numero de facture coche, date
+     * du document) ; null hors factures ou si une reference manque.
+     */
+    static Map<String, String> documentFacture(ListeDpci l, JSONObject f) {
+        if (l != ListeDpci.DPCI_FACTURES) {
+            return null;
+        }
+        String id = rest.service.extranet.commun.FichiersExtranet.reference(texte(champ(f, "NUMERO_FACTURE")));
+        String date = date(champ(f, "DATE_DOCUMENT"));
+        if (id == null || !date.matches("\\d{4}-\\d{2}-\\d{2}")) {
+            return null;
+        }
+        Map<String, String> d = new LinkedHashMap<>();
+        d.put("id", id);
+        d.put("date", date);
+        return d;
     }
 
     static Object champ(JSONObject fieldMap, String nom) {

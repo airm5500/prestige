@@ -35,6 +35,20 @@ peut donc les récupérer depuis Prestige avec `TransportExtranet`, comme les li
 Les BL du grossiste, ligne par ligne, sont disponibles chez **Ubipharm** (BLV CSV/Excel/TXT), **TEDIS** (BL TXT/CSV),
 **DPCI** (factures en CSV 9 colonnes) et **Copharmed** (factures CSV/XLS). C'est ce qu'il faut pour importer un BL.
 
+## Réalisé le 09/11
+
+- Colonne « Fichier » dans les onglets : Ubipharm › Factures non relevées (BLV CSV, Excel, TXT), TEDIS › B.L.V par
+  quinzaine (TXT, CSV), DPCI › Factures (CSV 9 colonnes, CSV 2 colonnes), Copharmed › Mes documents › Factures et
+  Avoirs (nouveaux onglets ; CSV, Excel).
+- La lecture de la liste garde, par ligne, les références que l'extranet attend (colonne `document` de
+  `extranet_liste_ligne`, migration V7.5.14) ; l'écran ne reçoit que les formats proposés.
+- `GET v1/extranet/{source}/listes/{code}/fichier?position=…&format=…` : le serveur relit la ligne gardée, appelle
+  l'extranet en GET avec la session du connecteur et rend le fichier tel quel (`<Grossiste>_<document>_<n°>.<ext>`).
+  Une page HTML reçue à la place d'un CSV ou d'un TXT est refusée ; une page de connexion fait expirer la session.
+- Non proposés : avoirs DPCI (le bouton de l'extranet part sans type ni nombre de colonnes), documents en PDF seul.
+- Vérifié contre le faux extranet seulement : le format exact des fichiers réels n'a pas été téléchargé pendant le
+  relevé (lecture seule). Le premier essai réel dira si DPCI accepte la date du document comme période.
+
 ## Proposition d'implémentation
 
 1. Dans chaque onglet de document (Factures non relevées Ubipharm, BL de quinzaine TEDIS, Factures et Avoirs DPCI,

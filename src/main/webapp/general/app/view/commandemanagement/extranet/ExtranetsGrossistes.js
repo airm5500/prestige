@@ -135,7 +135,11 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
                             rubrique('Promotions', 'exRubriqueCopharmedPromotions', [
                                 me.ongletListe('COPHARMED_PROMOTIONS', 'Promotion')]),
                             rubrique('Produits', 'exRubriqueCopharmedProduits', [me.ongletRechercheCopharmed(),
-                                me.ongletListe('COPHARMED_CATALOGUE', 'Catalogue produits')])]),
+                                me.ongletListe('COPHARMED_CATALOGUE', 'Catalogue produits')]),
+                            /* demande du 09/11, point 4 : factures et avoirs, avec leurs fichiers CSV et Excel */
+                            rubrique('Mes documents', 'exRubriqueCopharmedDocuments', [
+                                me.ongletListe('COPHARMED_FACTURES', 'Factures'),
+                                me.ongletListe('COPHARMED_AVOIRS', 'Avoirs')])]),
                         rubrique('DPCI', 'exOngletDpci', [
                             rubrique('Mes offres en cours', 'exRubriqueDpciOffres', [
                                 me.ongletListe('DPCI_OFFRES', 'Offres en cours')]),
@@ -1090,7 +1094,7 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
         var me = this, id = 'exListe' + code;
         me.listes = me.listes || {};
         me.listes[code] = Ext.create('Ext.data.Store', {fields: ['position', 'pscode', 'cip', 'agence', 'cellules',
-                'saisi']});
+                'saisi', 'fichiers']});
         return {
             title: titre, itemId: id, listeCode: code, layout: 'fit',
             dockedItems: [{xtype: 'toolbar', dock: 'top', items: [
@@ -1134,6 +1138,14 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
                         {xtype: 'label', itemId: id + 'Nombre'}, {xtype: 'tbspacer', width: 12},
                         {xtype: 'label', itemId: id + 'Date'}]}],
             items: [{xtype: 'gridpanel', itemId: id + 'Grille', store: me.listes[code], columnLines: true,
+                    /* demande du 09/11, point 4 : un clic sur un format télécharge le fichier de l'extranet */
+                    listeners: {cellclick: function (v, td, ci, rec, tr, ri, e) {
+                            var a = e.getTarget('a.exFichier');
+                            if (a) {
+                                e.stopEvent();
+                                me.telechargerFichier(code, rec.get('position'), a.getAttribute('data-format'));
+                            }
+                        }},
                     /* toutes les lignes atteignables a la molette (retour du 08/11, point 3) */
                     plugins: [{ptype: 'bufferedrenderer'}],
                     viewConfig: {deferEmptyText: false,
@@ -1345,6 +1357,22 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
                             : '#27ae60') + '">' + Ext.String.htmlEncode(t) + '</span>';
                 }});
         }
+        if (r.fichiers && r.fichiers.length) {
+            /* sans dataIndex : la colonne n'entre pas dans l'export CSV / Excel de la liste */
+            colonnes.push({text: 'Fichier', itemId: id + 'Fichiers', width: 170, sortable: false, menuDisabled: true,
+                renderer: function (v, meta, rec) {
+                    var f = rec.get('fichiers') || [];
+                    if (!f.length) {
+                        meta.tdAttr = 'data-qtip="Aucun fichier proposé par l\'extranet pour cette ligne"';
+                        return '';
+                    }
+                    return Ext.Array.map(f, function (x) {
+                        return '<a href="#" class="exFichier" data-format="' + Ext.String.htmlEncode(x.format)
+                                + '" data-qtip="Télécharger le fichier ' + Ext.String.htmlEncode(x.libelle)
+                                + ' de l\'extranet">' + Ext.String.htmlEncode(x.libelle) + '</a>';
+                    }).join(' · ');
+                }});
+        }
         me.down('#' + id + 'Saisie').setVisible(!!r.saisie);
         me.saisieListe = me.saisieListe || {};
         me.saisieListe[code] = r.saisie || null;
@@ -1551,6 +1579,49 @@ Ext.define('testextjs.view.commandemanagement.extranet.ExtranetsGrossistes', {
     /* ---------------------------------------------------------------- export CSV / Excel (retour du 08/11, point 2) */
 
     /** Grossiste d'une liste, d'après son code (nom du fichier exporté). */
+    /**
+     * Demande du 09/11, point 4 : télécharge le fichier d'un document (BL, facture, avoir) tel que l'extranet le
+     * propose ; le serveur le lit avec la session du connecteur et le rend sans le garder.
+     */
+    telechargerFichier: function (code, position, format) {
+        var me = this, msg = me.down('#exListe' + code + 'Msg'), source = me.grossisteListe(code).toLowerCase();
+        if (msg) {
+            msg.setText('Téléchargement du fichier ' + Ext.String.htmlEncode(format) + ' sur l\'extranet…');
+        }
+        fetch(me.URL + source + '/listes/' + encodeURIComponent(code) + '/fichier?position=' + encodeURIComponent(position)
+                + '&format=' + encodeURIComponent(format), {credentials: 'same-origin'})
+                .then(function (r) {
+                    if (!r.ok) {
+                        return r.json()['catch'](function () {
+                            return {};
+                        }).then(function (j) {
+                            throw new Error(j.msg || 'Téléchargement impossible');
+                        });
+                    }
+                    var cd = r.headers.get('Content-Disposition') || '', m = /filename\*=UTF-8''([^;]+)/.exec(cd);
+                    return r.blob().then(function (b) {
+                        return {b: b, nom: m ? decodeURIComponent(m[1]) : 'document'};
+                    });
+                }).then(function (o) {
+            var a = document.createElement('a');
+            a.href = URL.createObjectURL(o.b);
+            a.download = o.nom;
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(function () {
+                URL.revokeObjectURL(a.href);
+                document.body.removeChild(a);
+            }, 2000);
+            if (msg) {
+                msg.setText('Fichier téléchargé : ' + Ext.String.htmlEncode(o.nom));
+            }
+        })['catch'](function (e) {
+            if (msg) {
+                msg.setText('<span style="color:#c0392b">' + Ext.String.htmlEncode(e.message) + '</span>', false);
+            }
+        });
+    },
+
     grossisteListe: function (code) {
         return code.indexOf('TEDIS_') === 0 ? 'TEDIS' : code.indexOf('COPHARMED_') === 0 ? 'Copharmed'
                 : code.indexOf('DPCI_') === 0 ? 'DPCI' : 'Ubipharm';

@@ -144,9 +144,27 @@ public final class ListesTedisLecteur {
                     cip = v;
                 }
             }
-            r.add(new Ligne(depart + r.size(), contexte, reference, cip, cellules));
+            r.add(new Ligne(depart + r.size(), contexte, reference, cip, cellules, document(l, o)));
         }
         return r;
+    }
+
+    /**
+     * Demande du 09/11, point 4 : BL de quinzaine, identifiant attendu par les exports TXT et CSV de l'extranet
+     * (IDFACTURECLIENT) ; null pour les autres listes ou si l'identifiant manque.
+     */
+    static java.util.Map<String, String> document(ListeTedis l, JSONObject o) {
+        if (l.mode != ListeTedis.Mode.BL_QUINZAINE) {
+            return null;
+        }
+        Object v = o.opt("IDFACTURECLIENT");
+        if (v == null || v == JSONObject.NULL) {
+            return null;
+        }
+        String s = v instanceof Number ? new BigDecimal(v.toString()).stripTrailingZeros().toPlainString()
+                : String.valueOf(v);
+        s = rest.service.extranet.commun.FichiersExtranet.reference(s);
+        return s == null ? null : java.util.Collections.singletonMap("IDFACTURECLIENT", s);
     }
 
     /**

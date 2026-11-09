@@ -195,7 +195,7 @@ class ListesTedisLecteurTest {
                     if (("idDate=" + quinzaines[q][0]).equals(a.requete)) {
                         JSONArray d = new JSONArray();
                         for (int i = 0; i < nombres[q]; i++) {
-                            d.put(new JSONObject().put("IDFACTURECLIENT", i)
+                            d.put(new JSONObject().put("IDFACTURECLIENT", 7_000_000 + q * 100 + i)
                                     .put("DateFactureClient", "2026-10-1" + i % 10)
                                     .put("LibelleTypeFactureClient", i % 2 == 0 ? "BL" : "AVOIR")
                                     .put("NumeroFactureClient", "BL-" + quinzaines[q][0] + "-" + i)
@@ -234,8 +234,15 @@ class ListesTedisLecteurTest {
             for (int i = 0; i < bl.size(); i++) {
                 assertEquals(i, bl.get(i).position);
             }
+            /* 09/11, point 4 : identifiant des exports TXT et CSV du BL, ligne par ligne (quinzaines 249 puis 248) */
+            for (int i = 0; i < bl.size(); i++) {
+                int q = i < 13 ? 1 : 2, k = i < 13 ? i : i - 13;
+                assertEquals(java.util.Map.of("IDFACTURECLIENT", String.valueOf(7_000_000 + q * 100 + k)),
+                        bl.get(i).document, "ligne " + i);
+            }
             List<Ligne> fa = ListesTedisLecteur.lire(transport(f), ListeTedis.TEDIS_FACTURES_QUINZAINE).lignes;
             assertEquals(44, fa.size(), "20 factures 2026 + 24 factures 2025");
+            assertTrue(fa.stream().allMatch(x -> x.document == null), "factures de quinzaine : impression seulement");
             assertEquals(Arrays.asList("2026", "15/01/2026", "FQ2026-0", "P", "0 F", "0 F", "0 F", "0 F"),
                     fa.get(0).cellules);
             assertEquals(Arrays.asList("2025", "15/06/2025", "FQ2025-23", "", "23000 F", "0 F", "0 F", "23000 F"),
