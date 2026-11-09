@@ -62,4 +62,12 @@ public interface WhatsAppService {
      * l'arret (STOP). Gardee dans le fil avec son statut et son auteur ; le texte n'est jamais journalise.
      */
     JSONObject repondreDiscussion(String numero, String texte, util.whatsapp.PieceJointe piece, String userId);
+
+    /**
+     * Plan avoir du 08/11, point 10 : reponse a un avis client par le meme envoi que les discussions (mode par defaut :
+     * WhatsApp Web quand c'est le compte actif, API sinon, simulee en mode test). Refusee si le client a demande
+     * l'arret (STOP). Gardee dans le fil du numero avec son statut et son auteur ; le texte n'est jamais journalise.
+     * Resultat : success, simule, statut (ENVOYE, SIMULE, ECHEC), message.
+     */
+    JSONObject repondreAvis(String numero, String texte, String userId);
 }

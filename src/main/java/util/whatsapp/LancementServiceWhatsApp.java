@@ -23,8 +23,8 @@ import org.json.JSONObject;
  * lancements existent, sans aucune commande libre :
  * <ul>
  * <li>service Windows « prestige-whatsapp » installe (WinSW, outils/whatsapp-web/service-windows) : sc start ;</li>
- * <li>sinon, demarrer.bat du dossier du service en mode automatique (/auto : ni pause ni question), dans une fenetre a
- * part ; hors Windows, demarrer.sh du meme dossier.</li>
+ * <li>sinon, demarrer.bat du dossier du service en mode automatique (/auto : ni pause ni question), sans fenetre (plan
+ * avoir du 08/11), journal dans journaux\demarrer.log ; hors Windows, demarrer.sh du meme dossier.</li>
  * </ul>
  * Le service Windows n'est demarre que s'il est celui du dossier indique (ou si aucun dossier n'est indique) : un autre
  * dossier, une instance d'essai par exemple, est lance par son propre script, sans toucher au service installe (retour
@@ -140,7 +140,12 @@ public final class LancementServiceWhatsApp {
         }
     }
 
-    /** Vrai si le service Windows installe doit servir : aucun dossier indique, ou le dossier de ce service. */
+    /**
+     * Vrai si le service Windows installe doit servir : aucun dossier indique, le dossier de ce service, ou un dossier
+     * qui n'est pas celui du compagnon (plan avoir du 08/11 : la valeur par defaut C:\prestige\whatsapp-web peut n'etre
+     * que le dossier des donnees du service Windows, ou ne pas exister). Un autre dossier du compagnon (une instance
+     * d'essai) est lance par son propre script.
+     */
     static boolean parLeServiceWindows(File installe, String dossier) {
         if (installe == null) {
             return false;
@@ -148,7 +153,8 @@ public final class LancementServiceWhatsApp {
         if (StringUtils.isBlank(dossier)) {
             return true;
         }
-        return memeDossier(installe, new File(dossier.trim()));
+        File d = new File(dossier.trim());
+        return memeDossier(installe, d) || !estService(d);
     }
 
     private static boolean memeDossier(File a, File b) {
@@ -170,6 +176,139 @@ public final class LancementServiceWhatsApp {
                     + "démarrez-le depuis les Services de Windows.";
         }
         return "Le démarrage du service WhatsApp Web a échoué (code " + code + ").";
+    }
+
+    /** Taille au-dela de laquelle le journal du lancement direct est mis de cote (demarrer.1.log). */
+    static final long JOURNAL_MAX = 5L * 1024 * 1024;
+
+    /** Journal du lancement direct : journaux\demarrer.log du dossier du service. */
+    public static File journalDirect(File d) {
+        return new File(new File(d, "journaux"), "demarrer.log");
+    }
+
+    /**
+     * Cree le dossier des journaux ; un journal trop gros est garde sous demarrer.1.log (le precedent est remplace).
+     */
+    static void preparerJournal(File journal) {
+        File dossier = journal.getParentFile();
+        if (dossier != null && !dossier.isDirectory() && !dossier.mkdirs()) {
+            return;
+        }
+        if (journal.length() > JOURNAL_MAX) {
+            File ancien = new File(dossier, "demarrer.1.log");
+            if (ancien.exists() && !ancien.delete()) {
+                return;
+            }
+            journal.renameTo(ancien);
+        }
+    }
+
+    /**
+     * Commande du lancement direct (sans service Windows) : demarrer.bat du dossier, en mode automatique. Plan avoir du
+     * 08/11, point 9 (« je ne veux pas que l'ecran noir reste affiche ») : plus de « start », qui ouvre toujours une
+     * console, meme reduite. cmd est lance directement par Java, qui cree ses processus sans fenetre (CREATE_NO_WINDOW)
+     * ; node et les commandes du script heritent de cette console invisible. La sortie va dans journaux\demarrer.log du
+     * dossier, l'entree est vide (NUL) : ni pause ni question.
+     */
+    static ProcessBuilder commandeDirecte(File d, boolean windows) {
+        String chemin = new File(d, windows ? "demarrer.bat" : "demarrer.sh").getAbsolutePath();
+        ProcessBuilder pb = windows ? new ProcessBuilder("cmd.exe", "/c", chemin, "/auto")
+                : new ProcessBuilder("sh", chemin, "--auto");
+        pb.directory(d);
+        pb.redirectErrorStream(true).redirectOutput(ProcessBuilder.Redirect.appendTo(journalDirect(d)))
+                .redirectInput(ProcessBuilder.Redirect.from(new File(windows ? "NUL" : "/dev/null")));
+        return pb;
+    }
+
+    /* ------------------------------------------------ configuration détaillée (plan avoir du 08/11, point 9) */
+
+    private static final Pattern ETAT_SERVICE = Pattern.compile("STATE\\s*:\\s*\\d+\\s+([A-Z_]+)");
+    private static final Pattern LOGPATH = Pattern.compile("<logpath>\\s*([^<]+?)\\s*</logpath>");
+
+    /** Étapes du mode 1 (service Windows), d'après service-windows\LISEZMOI.txt. */
+    static final String[] ETAPES_SERVICE = { "Installer Node.js 18 ou plus sur le serveur (https://nodejs.org).",
+            "Copier WinSW 2.12 (WinSW-x64.exe) dans le dossier service-windows du service, renommé "
+                    + "prestige-whatsapp.exe.",
+            "Créer C:\\prestige\\whatsapp-web\\config.json à partir de config.exemple.json et y renseigner JETON, le "
+                    + "même que le « Jeton partagé » de Prestige.",
+            "Clic droit sur service-windows\\installer-service.bat > Exécuter en tant qu'administrateur : le service "
+                    + "« Prestige - WhatsApp » démarre avec Windows, sans fenêtre.",
+            "Dans Prestige, onglet « WhatsApp Web : connexion et règles » : scanner le QR code.",
+            "Arrêt propre : service-windows\\arreter-service.bat (jamais par le Gestionnaire des tâches)." };
+
+    /** Étapes du mode 2 (lancement direct par demarrer.bat). */
+    static final String[] ETAPES_DIRECT = { "Installer Node.js 18 ou plus sur le serveur (https://nodejs.org).",
+            "Dans le dossier du service, copier config.exemple.json en config.json et y renseigner JETON, le même "
+                    + "que le « Jeton partagé » de Prestige.",
+            "Indiquer ce dossier dans « Dossier du service » et enregistrer le compte Web.",
+            "« Reconnecter » (bannière WhatsApp) démarre demarrer.bat sans fenêtre ; sa sortie va dans "
+                    + "journaux\\demarrer.log du dossier. Un double-clic sur demarrer.bat l'ouvre au contraire dans une "
+                    + "fenêtre.",
+            "Dans Prestige, onglet « WhatsApp Web : connexion et règles » : scanner le QR code.",
+            "Arrêt propre : arreter.bat du dossier." };
+
+    /** État du service Windows d'après la sortie de « sc query » (RUNNING, STOPPED...), ou null. */
+    static String etatServiceWindows(String sortieScQuery) {
+        Matcher m = ETAT_SERVICE.matcher(StringUtils.defaultString(sortieScQuery));
+        return m.find() ? m.group(1) : null;
+    }
+
+    /** Dossier des journaux du service Windows : logpath de service-windows\prestige-whatsapp.xml, sinon le défaut. */
+    static String journauxService(File installe) {
+        File xml = installe == null ? null : new File(new File(installe, "service-windows"), SERVICE_WINDOWS + ".xml");
+        if (xml != null && xml.isFile()) {
+            try {
+                Matcher m = LOGPATH.matcher(new String(Files.readAllBytes(xml.toPath()), StandardCharsets.UTF_8));
+                if (m.find()) {
+                    return m.group(1);
+                }
+            } catch (IOException e) {
+                /* illisible : le dossier par defaut */
+            }
+        }
+        return WhatsAppCompte.DEFAUT_WEB_REPERTOIRE + File.separator + "journaux";
+    }
+
+    private static String scQuery() {
+        try {
+            Process p = new ProcessBuilder("sc.exe", "query", SERVICE_WINDOWS).redirectErrorStream(true).start();
+            String sortie = new String(p.getInputStream().readAllBytes(), StandardCharsets.ISO_8859_1);
+            return p.waitFor(10, TimeUnit.SECONDS) ? sortie : null;
+        } catch (IOException e) {
+            return null;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return null;
+        }
+    }
+
+    /** Configuration détaillée du démarrage, pour le dossier enregistré dans le compte Web. Aucun jeton. */
+    public static JSONObject configuration(String dossier) {
+        boolean w = windows();
+        File installe = w ? serviceWindowsInstalle() : null;
+        return configuration(w, installe, installe == null ? null : etatServiceWindows(scQuery()), dossier);
+    }
+
+    /**
+     * Mode 1 (service Windows) quand « Reconnecter » demarrerait le service installe, sinon mode 2 (lancement direct) :
+     * meme regle que {@link #lancer(String)}.
+     */
+    static JSONObject configuration(boolean windows, File installe, String etatService, String dossier) {
+        boolean parService = windows && parLeServiceWindows(installe, dossier);
+        String d = StringUtils.trimToEmpty(dossier);
+        String journaux = parService ? journauxService(installe)
+                : d.isEmpty() ? "" : journalDirect(new File(d)).getPath();
+        JSONObject service = new JSONObject().put("nom", SERVICE_WINDOWS).put("installe", installe != null)
+                .put("dossier", installe == null || installe.getPath().isEmpty() ? "" : installe.getAbsolutePath())
+                .put("etat", StringUtils.defaultString(etatService));
+        return new JSONObject().put("mode", parService ? 1 : 2)
+                .put("modeLibelle", parService ? "Par service Windows" : "Par lancement direct")
+                .put("demarrage",
+                        parService ? "sc start " + SERVICE_WINDOWS
+                                : (d.isEmpty() ? "" : new File(d, windows ? "demarrer.bat" : "demarrer.sh").getPath()))
+                .put("serviceWindows", service).put("dossier", d).put("journaux", journaux)
+                .put("etapesService", new JSONArray(Arrays.asList(ETAPES_SERVICE)))
+                .put("etapesDirect", new JSONArray(Arrays.asList(ETAPES_DIRECT)));
     }
 
     /** Lance le service ; rend null si le lancement est parti, sinon la raison (pour l'administrateur). */
@@ -194,16 +333,19 @@ public final class LancementServiceWhatsApp {
              * dossier courant, ce que Windows refuse quand NoDefaultCurrentDirectoryInExePath est pose dans
              * l'environnement de Payara : la fenetre s'ouvrait et se refermait sans rien lancer.
              */
-            String chemin = new File(d, script).getAbsolutePath();
-            pb = windows ? new ProcessBuilder("cmd.exe", "/c", "start", "Service WhatsApp Web - Prestige", "/min",
-                    "cmd.exe", "/c", chemin, "/auto") : new ProcessBuilder("sh", chemin, "--auto");
-            pb.directory(d);
+            pb = commandeDirecte(d, windows);
+            preparerJournal(journalDirect(d));
         }
-        pb.redirectErrorStream(true).redirectOutput(ProcessBuilder.Redirect.DISCARD);
+        if (parService) {
+            pb.redirectErrorStream(true).redirectOutput(ProcessBuilder.Redirect.DISCARD);
+        }
         try {
             Process p = pb.start();
-            /* sc start et « start » rendent la main tout de suite ; un echec immediat est signale */
-            if (p.waitFor(15, TimeUnit.SECONDS)) {
+            /*
+             * sc start rend la main tout de suite ; le lancement direct, lui, dure autant que le service : un echec
+             * immediat (script absent, cmd refuse) est signale, sinon le lancement est parti.
+             */
+            if (p.waitFor(parService ? 15 : 3, TimeUnit.SECONDS)) {
                 return resultat(parService, p.exitValue());
             }
             return null;

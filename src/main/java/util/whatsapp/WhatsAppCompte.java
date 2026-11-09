@@ -8,6 +8,12 @@ public class WhatsAppCompte {
 
     public static final String API = "API";
     public static final String WEB = "WEB";
+    /**
+     * Plan avoir du 08/11, point 9 : valeurs d'une nouvelle installation (migration V7.2.100), celles du service
+     * compagnon (config.exemple.json, service Windows).
+     */
+    public static final String DEFAUT_WEB_URL = "http://localhost:3010";
+    public static final String DEFAUT_WEB_REPERTOIRE = "C:\\prestige\\whatsapp-web";
 
     public String mode;
     public boolean actif;

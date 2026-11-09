@@ -293,6 +293,10 @@ Ext.define('testextjs.view.avisclients.AvisClients', {
                             return me.badge(v);
                         }},
                     {text: 'Réponse', dataIndex: 'reponse', width: 108, sortable: false, menuDisabled: true, renderer: function (v, m, r) {
+                            /* plan avoir du 08/11, point 10 : un envoi en echec reste signale a l'avis */
+                            if (r.get('statutReponse') === 'ECHEC') {
+                                return '<span style="color:#c0392b" title="Le dernier envoi de réponse a échoué">✗ Échec</span>';
+                            }
                             if (r.get('reponse')) {
                                 return '<span style="color:#1e8449">✓ ' + (r.get('canalReponse') === 'EMAIL' ? 'E-mail' : 'WhatsApp') + '</span>';
                             }
@@ -453,7 +457,9 @@ Ext.define('testextjs.view.avisclients.AvisClients', {
             h.push('<div class="av-bloc av-reponse"><b>Réponse ' + (a.canalReponse === 'EMAIL' ? 'par e-mail' : 'par WhatsApp')
                     + (a.statutReponse === 'SIMULE' ? ' (simulée)' : '') + '</b> — ' + me.esc(a.dateReponse) + ', ' + me.esc(a.auteurReponse)
                     + '\n' + me.esc(a.reponse) + '</div>');
-        } else if (a.statutReponse === 'ECHEC') {
+        }
+        /* plan avoir du 08/11, point 10 : meme apres une premiere reponse, un nouvel envoi en echec reste signale */
+        if (a.statutReponse === 'ECHEC') {
             h.push('<div class="av-bloc" style="background:#fdecea;color:#a93226">Le dernier envoi de réponse a échoué.</div>');
         }
         h.push('</div>');
@@ -532,7 +538,7 @@ Ext.define('testextjs.view.avisclients.AvisClients', {
     majLigne: function (a) {
         var st = this.down('#grilleAvis').getStore(), rec = st.findRecord('id', a.id, 0, false, true, true);
         if (rec) {
-            rec.set({statut: a.statut, reponse: a.reponse, canalReponse: a.canalReponse, reponseAttendue: a.reponseAttendue});
+            rec.set({statut: a.statut, reponse: a.reponse, canalReponse: a.canalReponse, statutReponse: a.statutReponse, reponseAttendue: a.reponseAttendue});
             rec.commit();
         }
     },
@@ -548,6 +554,13 @@ Ext.define('testextjs.view.avisclients.AvisClients', {
             me.majLigne(r.data);
             me.down('#etatReponse').setText('<span style="color:#1e8449">' + me.esc(r.message || 'Réponse envoyée.') + '</span>');
         }, function (r) {
+            /* plan avoir du 08/11, point 10 : l'echec est garde a l'avis (detail et liste) ; le texte saisi est conserve */
+            if (r.data) {
+                me.remplirDetail(r.data);
+                me.majLigne(r.data);
+                me.down('#canal').setValue({avCanal: canal});
+                me.down('#texteReponse').setValue(texte);
+            }
             me.down('#etatReponse').setText('<span style="color:#c0392b">' + me.esc(r.message || r.msg || 'Envoi impossible.') + '</span>');
         });
     },

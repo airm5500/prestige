@@ -53,6 +53,12 @@ public interface WhatsAppWebService {
      */
     JSONObject demarrer(TUser operateur);
 
+    /**
+     * Plan avoir du 08/11, point 9 : configuration detaillee du service compagnon (mode de demarrage 1 service Windows
+     * ou 2 lancement direct, etat, adresse, port, dossier, journaux, etapes de chaque mode). Aucun jeton.
+     */
+    JSONObject configuration();
+
     /** Vrai si le role (identifiant) est un role administrateur (Administrateur ou Super administrateur). */
     boolean administrateur(String roleId);
 }

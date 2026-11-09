@@ -411,6 +411,14 @@ public class AvisClientService {
      * avec l'avis, jamais ecrit dans les journaux.
      */
     public JSONObject repondre(String id, String canal, String texte, String auteur) {
+        return repondre(id, canal, texte, auteur, null);
+    }
+
+    /**
+     * Plan avoir du 08/11, point 10 : par WhatsApp, la reponse part par le meme envoi que les discussions (WhatsApp Web
+     * quand c'est le compte actif) et entre dans le fil du client, avec son statut et son auteur (userId).
+     */
+    public JSONObject repondre(String id, String canal, String texte, String auteur, String userId) {
         JSONObject a = detail(id, false);
         if (a == null) {
             throw new AvisRefus("Avis introuvable.");
@@ -427,7 +435,7 @@ public class AvisClientService {
             if (a.getString("telephone").isEmpty()) {
                 throw new AvisRefus("Le client n'a pas laissé de numéro.");
             }
-            r = whatsAppService.envoyerTexte(a.getString("telephone"), t);
+            r = whatsAppService.repondreAvis(a.getString("telephone"), t, userId);
         } else if ("EMAIL".equals(canal)) {
             if (a.getString("email").isEmpty()) {
                 throw new AvisRefus("Le client n'a pas laissé d'e-mail.");

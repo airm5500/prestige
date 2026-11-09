@@ -142,6 +142,23 @@ public class WhatsAppRessource {
         return Response.ok(web.demarrer(utilisateur()).toString()).build();
     }
 
+    /**
+     * Plan avoir du 08/11, point 9 : « Configuration détaillée » du service WhatsApp Web (administrateur seulement :
+     * chemins du serveur). Aucun jeton.
+     */
+    @GET
+    @Path("web/configuration")
+    public Response webConfiguration() {
+        Response r = controle();
+        if (r != null) {
+            return r;
+        }
+        if (!administrateur()) {
+            return Droits.interdit("Configuration du service WhatsApp Web (administrateur)");
+        }
+        return Response.ok(web.configuration().toString()).build();
+    }
+
     /** Retour du 31/10 : « Parcourir » le dossier du service sur ce serveur (administrateur seulement). */
     @GET
     @Path("web/dossiers")
