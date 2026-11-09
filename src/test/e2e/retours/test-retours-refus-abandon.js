@@ -79,6 +79,13 @@ function retirer() {
   /* clic sur la ligne du menu parent (volet deplie au besoin), comme ouvrirMenu, sans choisir d'entree */
   const ouvrirMenuParent = async () => {
     const visible = (sel) => p.locator(sel).filter({ visible: true });
+    /* menu flottant d'une etape precedente encore ouvert : il couvrirait la ligne du menu parent */
+    if (await visible('.prestige-flyout-menu .x-menu-item').count() > 0) {
+      await p.keyboard.press('Escape');
+      await p.mouse.click(900, 80);
+      await p.waitForFunction(() => ![...document.querySelectorAll('.prestige-flyout-menu')].some((m) => m.offsetWidth > 0), null, { timeout: 5000 }).catch(() => {});
+      await p.waitForTimeout(300);
+    }
     if (await visible('.prestige-nav .x-grid-row').count() === 0) {
       const id = await p.evaluate(() => { const n = Ext.ComponentQuery.query('navigation')[0]; return n.placeholder ? n.placeholder.getId() : null; });
       await p.click('#' + id);

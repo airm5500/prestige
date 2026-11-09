@@ -193,7 +193,11 @@ function remettreStock() {
     ok('Web : bilan, une sortie par ligne (2 et 1 boîtes), un mouvement par ligne', stockDe(P1) === STOCK1 - 2 && stockDe(P2) === STOCK2 - 1 && mvtsDe(P1) === MVT1 + 1 && mvtsDe(P2) === MVT2 + 1
       && Number(q(`SELECT COUNT(*) FROM HMvtProduit m JOIN t_retour_fournisseur_detail d ON d.lg_RETOUR_FRS_DETAIL = m.pkey WHERE d.lg_RETOUR_FRS_ID = '${ids.RW}'`)) === 2,
     [stockDe(P1), STOCK1, stockDe(P2), STOCK2, mvtsDe(P1), MVT1, mvtsDe(P2), MVT2].join(' '));
-    ok('Web : historique mise en attente, refus, remise en attente, validation', historique(ids.RW) === 'MISE_EN_ATTENTE|REFUS|REMISE_EN_ATTENTE|VALIDATION', historique(ids.RW));
+    /* mise en attente et refus sont poses dans la meme seconde (date de l'action a la seconde) : leur ordre n'est pas
+       garanti ; les quatre actions y sont, une fois chacune, et la validation vient en dernier */
+    const h = historique(ids.RW).split('|');
+    ok('Web : historique mise en attente, refus, remise en attente, validation (une fois chacune, validation en dernier)',
+      h.slice().sort().join('|') === 'MISE_EN_ATTENTE|REFUS|REMISE_EN_ATTENTE|VALIDATION' && h[3] === 'VALIDATION', h.join('|'));
     await p.waitForTimeout(1500);
 
     /* ===== 2. mobile : deux lots, refus, correction, remise en attente, validation ===== */
