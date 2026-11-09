@@ -779,6 +779,7 @@ Ext.application({
         'testextjs.view.activiteequipes.ActiviteEquipes',
         'testextjs.view.receptionmobile.PeremptionsCourtes',
         'testextjs.view.vente.HistoriqueOrdonnancier',
+        'testextjs.view.commandemanagement.extranet.ExtranetsGrossistes',
         'testextjs.view.configmanagement.modeleticket.ModelesTicket',
         'testextjs.view.commandemanagement.correspondance.CorrespondancesGrossistes',
         'testextjs.view.commandemanagement.presaisie.PresaisieBl',

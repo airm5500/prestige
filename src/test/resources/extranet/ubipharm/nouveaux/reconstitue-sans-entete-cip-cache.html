@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<!-- RECONSTITUE : variante tolerante, pas une capture reelle. Tableau sans titres de colonnes, CIP dans un champ cache
+     cip_*, deux liens a.popup-produit sur la meme ligne (image + texte), data-etcoda porte par un element interieur,
+     bulle d'agences rangee dans un attribut data-content. Donnees fictives. -->
+<html>
+<head><meta charset="utf-8"><title>Nouveaux produits</title></head>
+<body>
+<table>
+  <tr>
+    <td><a class="popup-produit" data-pscode="DOLI500" data-sheettype="1"><img src="/img/p.png" alt=""></a>
+        <a class="popup-produit" data-pscode="DOLI500" data-sheettype="1">DOLIPRANE 500 MG CPR B/16</a>
+        <input type="hidden" name="cip_DOLI500" value=" 3400930000014 "></td>
+    <td>MEDICAMENT</td>
+    <td>01/11/2026</td>
+    <td>Mise en place</td>
+    <td>
+      <div class="tip-viewStock">
+        <div class="tip-viewStock-lgetlib">Stock par agence</div>
+        <div class="ligne-agence"><span data-etcoda="BKE" class="tip-viewStock-etlib">UBIPHARM BOUAKE</span>
+          <span class="tip-viewStock-dispo">En stock</span><span class="tip-viewStock-colisage">24</span></div>
+        <div class="ligne-agence"><span data-etcoda="VRI" class="tip-viewStock-etlib">UBIPHARM ZONE 4</span>
+          <span class="tip-viewStock-dispo">Oui</span><span class="tip-viewStock-colisage">120, 140</span></div>
+      </div>
+    </td>
+  </tr>
+  <tr>
+    <td><a class="popup-produit" data-pscode="AMOX1G" data-sheettype="3">AMOXICILLINE 1 G</a>
+        <input type="hidden" id="cip_AMOX1G" value="00012345"></td>
+    <td>MEDICAMENT</td>
+    <td>31/10/2026</td>
+    <td>Mise en place</td>
+    <td><span class="stock-info" data-content="&lt;div class=&quot;tip-viewStock&quot;&gt;&lt;p data-etcoda=&quot;GNA&quot; data-colisage=&quot;N/A&quot;&gt;&lt;b class=&quot;tip-viewStock-etlib&quot;&gt;UBIPHARM GAGNOA&lt;/b&gt; &lt;i class=&quot;tip-viewStock-dispo&quot;&gt;N/A&lt;/i&gt;&lt;/p&gt;&lt;/div&gt;">Voir</span></td>
+  </tr>
+</table>
+</body>
+</html>

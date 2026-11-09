@@ -1,0 +1,160 @@
+/* REFERENCE UBIPHARM (PSCODE) DE LA FICHE ARTICLE ET RAPPROCHEMENT DES NOUVEAUX PRODUITS.
+ * Decision du 08/11 : une seule colonne, t_famille.str_PSCODE (V7.2.39, branche integration/recette-2026-10-29,
+ * point 15 du plan du 06/11). La saisie sur la fiche article et sa recherche sont testees sur cette branche ; ici la
+ * valeur est posee en base a la place de la fiche, puis tout le reste passe par le vrai chemin de l'ecran :
+ *  - GESTION DES COMMANDES > Extranets grossistes, Ubipharm > Produits > Nouveaux produits, « Rapprocher avec
+ *    Prestige » : statut « référence Ubipharm de la fiche » pour l'article qui porte le PSCODE ;
+ *  - rapprochement : base = ecran = API, un seul candidat, les autres produits inchanges ;
+ *  - PSCODE retire : le rapprochement ne le trouve plus par la reference ;
+ *  - bilan : le rapprochement n'ecrit rien (fiche, t_famille_grossiste) ; donnees du test retirees.
+ * Le faux extranet local (faux-extranet.js) sert la page des nouveaux produits : jamais le vrai.
+ *
+ * Lancement (domain3, laborex_audit, Payara demarre avec -DEXTRANET_UBIPHARM_URL=http://127.0.0.1:18765) :
+ *   BASE=http://localhost:10090/prestige DB_TEST=laborex_audit E2E_BASE_LIBRE=1 node test-reference-ubipharm-fiche.js
+ */
+const ENV_E2E = require('../outils/poste');
+const vues = require('../outils/vues');
+const faux = require('./faux-extranet');
+const { execFileSync } = require('child_process');
+const { chromium } = require('playwright-core');
+
+const q = (s) => execFileSync('mariadb', [...ENV_E2E.MARIADB, '--default-character-set=utf8mb4', ENV_E2E.BASE, '-sN', '-e', s],
+  { encoding: 'utf8' }).replace(/\r/g, '').trim();
+const res = [];
+function ok(n, c, d) {
+  res.push({ n, c: !!c });
+  console.log((c ? 'PASS' : 'FAIL') + '  ' + n + (d !== undefined ? '  [' + String(d).slice(0, 300) + ']' : ''));
+}
+
+const RESTE = "CONCAT_WS('|', str_NAME, int_CIP, int_PRICE, int_PAF, IFNULL(int_EAN13, ''), IFNULL(code_ean_fabriquant, ''),"
+  + " IFNULL(str_CODE_GEO_ARTICLE, ''), lg_ZONE_GEO_ID, str_STATUT, IFNULL(lg_GROSSISTE_ID, ''))";
+
+/* Garde (incident du 08/11) : avec des comptes reels en base, l'ecran s'y connecte seul ; le test n'est accepte que si
+ * toutes les sources visent 127.0.0.1 (garde-extranets.js). Ce test n'efface aucun compte (seulement la session collee). */
+const garde = require('./garde-extranets');
+garde.verifier(q, ENV_E2E.BASE, ENV_E2E.PAYARA_DOMAINE);
+/* donnees d'extranet deja gardees (lues sur les vrais sites) : copiees avant, remises a l'identique apres */
+const CACHES = ['extranet_collecte', 'extranet_nouveau_produit', 'extranet_nouveau_produit_agence'];
+
+(async () => {
+  const [P, cip, nom] = q("SELECT CONCAT_WS('|', f.lg_FAMILLE_ID, f.int_CIP, f.str_NAME) FROM t_famille f WHERE f.str_STATUT = 'enable'"
+    + " AND COALESCE(f.bool_DECONDITIONNE, 0) = 0 AND f.int_CIP REGEXP '^[0-9]{7}$' AND f.str_PSCODE IS NULL"
+    + " ORDER BY f.str_NAME LIMIT 1 OFFSET 5").split('|');
+  const code = () => q("SELECT IFNULL(str_PSCODE, 'NULL') FROM t_famille WHERE lg_FAMILLE_ID = '" + P + "'");
+  const reste = () => q('SELECT ' + RESTE + " FROM t_famille WHERE lg_FAMILLE_ID = '" + P + "'");
+  const resteAvant = reste();
+  const grossisteAvant = q('CHECKSUM TABLE t_famille_grossiste');
+  const autresAvant = q("SELECT COUNT(*) FROM t_famille WHERE str_PSCODE IS NOT NULL");
+  const premiereCollecte = Number(q('SELECT IFNULL(MAX(id), 0) + 1 FROM extranet_collecte'));
+  /* le declencheur de t_famille date chaque UPDATE et ajoute une ligne d'historique : date et historique remis apres */
+  const majAvant = q("SELECT IFNULL(DATE_FORMAT(dt_UPDATED, '%Y-%m-%d %H:%i:%s'), 'NULL') FROM t_famille WHERE lg_FAMILLE_ID = '" + P + "'");
+  const histoMax = q('SELECT IFNULL(MAX(lg_ID), 0) FROM t_famille_history');
+  const histoAvant = q("SELECT COUNT(*) FROM t_famille_history WHERE lg_FAMILLE_ID = '" + P + "'");
+  const debut = q("SELECT DATE_FORMAT(NOW(), '%Y-%m-%d %H:%i:%s')");
+  const journalTotal = q('SELECT COUNT(*) FROM t_event_log');
+  const caches = garde.sauver(q, CACHES);
+  const srv = await faux.demarrer(18765);
+  const navigateur = await ENV_E2E.lancer(chromium);
+  const p = await (await navigateur.newContext({ viewport: { width: 1600, height: 950 } })).newPage();
+  const erreurs = [];
+  p.on('pageerror', (e) => erreurs.push(String(e.message)));
+
+  /* a la place de la fiche article (branche d'integration) : PSCODE pose ou retire en base */
+  const poser = (v) => q("UPDATE t_famille SET str_PSCODE = " + (v ? "'" + v + "'" : 'NULL') + " WHERE lg_FAMILLE_ID = '" + P + "'");
+
+  try {
+    await vues.connexion(p, ENV_E2E.LOGIN, 'e2etest');
+
+    /* ---- cache des nouveaux produits (FAIR248 en fait partie), par l'ecran des extranets */
+    await vues.ouvrirMenu(p, 'GESTION DES COMMANDES', 'Extranets grossistes');
+    await p.waitForFunction(() => Ext.ComponentQuery.query('extranetsgrossistes')[0], null, { timeout: 60000 });
+    await p.mouse.move(1200, 600);
+    await p.waitForTimeout(1500);
+    /* saisie dans l'onglet Sessions (retour 5 du 08/11) */
+    await vues.cliquer(p, 'extranetsgrossistes #exOnglets tab[text=Sessions]');
+    await p.waitForTimeout(400);
+    await vues.saisir(p, 'extranetsgrossistes #exCookieUBIPHARM', srv.COOKIE);
+    await vues.cliquer(p, 'extranetsgrossistes #exSaisieUBIPHARM button[text=Enregistrer]');
+    await p.waitForTimeout(1200);
+    for (const t of ['Ubipharm', 'Produits', 'Nouveaux produits']) { await vues.cliquer(p, 'extranetsgrossistes #exOnglets tab[text=' + t + ']'); await p.waitForTimeout(300); }
+    const collecte = p.waitForResponse((x) => x.url().indexOf('/nouveaux/collecte') >= 0, { timeout: 120000 });
+    await vues.cliquer(p, 'extranetsgrossistes #exNouveauxCollecter');
+    /* retour 10 du 08/11 : liste deja lue -> confirmation dans le bouton : second clic */
+    await p.waitForTimeout(400);
+    if (await p.evaluate(() => /relire \?/.test(Ext.ComponentQuery.query('extranetsgrossistes #exNouveauxCollecter')[0].getText()))) {
+      await vues.cliquer(p, 'extranetsgrossistes #exNouveauxCollecter');
+    }
+    ok('nouveaux produits lus (faux extranet)', (await (await collecte).json()).success === true);
+    await p.waitForTimeout(1000);
+
+    async function rapprocher() {
+      for (const t of ['Ubipharm', 'Produits', 'Nouveaux produits']) { await vues.cliquer(p, 'extranetsgrossistes #exOnglets tab[text=' + t + ']'); await p.waitForTimeout(300); }
+      await p.waitForFunction(() => { const st = Ext.ComponentQuery.query('extranetsgrossistes')[0].nouveaux;
+        return !st.isLoading() && st.getCount() > 0; }, null, { timeout: 30000 });
+      const r = p.waitForResponse((x) => x.url().indexOf('/nouveaux/rapprochement') >= 0, { timeout: 60000 });
+      await vues.cliquer(p, 'extranetsgrossistes #exRapprocher');
+      const api = await (await r).json();
+      await p.waitForTimeout(800);
+      const ecran = await p.evaluate(() => Ext.ComponentQuery.query('extranetsgrossistes')[0].nouveaux.getRange()
+        .map((x) => ({ pscode: x.get('pscode'), prestige: x.get('prestige') })));
+      const cellule = await p.evaluate(() => { const g = Ext.ComponentQuery.query('extranetsgrossistes #exOngletNouveaux gridpanel')[0];
+        const i = g.getStore().findExact('pscode', 'FAIR248'); const n = i >= 0 && g.getView().getNode(i); return n ? n.textContent : ''; });
+      return { api, ecran, cellule, fair: ecran.find((x) => x.pscode === 'FAIR248') };
+    }
+    const avant = await rapprocher();
+    ok('avant saisie : FAIR248 absent de Prestige par la référence', avant.fair && avant.fair.prestige
+      && avant.fair.prestige.statut !== 'PSCODE', JSON.stringify(avant.fair));
+
+    /* ---- PSCODE pose sur l'article */
+    poser('FAIR248');
+    ok('base : str_PSCODE = FAIR248 sur l’article choisi', code() === 'FAIR248', code());
+
+    /* ---- rapprochement : base = ecran des extranets = API */
+    const apres = await rapprocher();
+    const pApi = apres.api.data.find((x) => x.pscode === 'FAIR248');
+    ok('rapprochement : FAIR248 trouvé par la référence de la fiche, un seul article = celui modifié', apres.fair && apres.fair.prestige
+      && apres.fair.prestige.statut === 'PSCODE' && apres.fair.prestige.candidats.length === 1
+      && apres.fair.prestige.candidats[0].familleId === P, JSON.stringify(apres.fair));
+    ok('rapprochement : écran = API', JSON.stringify(pApi) === JSON.stringify(apres.fair.prestige));
+    ok('rapprochement : libellé et nom de l\'article affichés', apres.cellule.indexOf('référence Ubipharm de la fiche') >= 0
+      && apres.cellule.indexOf(nom.slice(0, 15)) >= 0, apres.cellule);
+    ok('rapprochement : les autres produits ne changent pas', JSON.stringify(apres.ecran.filter((x) => x.pscode !== 'FAIR248'))
+      === JSON.stringify(avant.ecran.filter((x) => x.pscode !== 'FAIR248')));
+
+    /* ---- PSCODE retire : plus trouve par la reference */
+    poser(null);
+    const fin = await rapprocher();
+    ok('PSCODE retiré : FAIR248 n’est plus trouvé par la référence', fin.fair && fin.fair.prestige
+      && fin.fair.prestige.statut !== 'PSCODE' && JSON.stringify(fin.fair) === JSON.stringify(avant.fair), JSON.stringify(fin.fair));
+    ok('bilan : le rapprochement n’écrit rien sur la fiche', reste() === resteAvant && code() === 'NULL');
+    ok('bilan : aucun autre article ne reçoit de PSCODE', q("SELECT COUNT(*) FROM t_famille WHERE str_PSCODE IS NOT NULL") === autresAvant);
+    ok('bilan : t_famille_grossiste inchangée', q('CHECKSUM TABLE t_famille_grossiste') === grossisteAvant);
+    ok('aucune erreur JavaScript', erreurs.length === 0, JSON.stringify(erreurs));
+  } catch (e) {
+    ok('déroulé sans erreur', false, e.stack || e);
+    await ENV_E2E.capture(p, 'reference-ubipharm-erreur').catch(() => {});
+  } finally {
+    poser(null);
+    q((majAvant === 'NULL' ? '' : "SET timestamp = UNIX_TIMESTAMP('" + majAvant + "'); ") + 'UPDATE t_famille SET dt_UPDATED = '
+      + (majAvant === 'NULL' ? 'NULL' : "'" + majAvant + "'") + " WHERE lg_FAMILLE_ID = '" + P + "'; SET timestamp = DEFAULT;");
+    q('DELETE FROM t_famille_history WHERE lg_ID > ' + histoMax + " AND lg_FAMILLE_ID = '" + P + "'");
+    q('DELETE FROM extranet_nouveau_produit_agence WHERE produit_id IN (SELECT id FROM extranet_nouveau_produit WHERE collecte_id >= ' + premiereCollecte
+      + '); DELETE FROM extranet_nouveau_produit WHERE collecte_id >= ' + premiereCollecte + '; DELETE FROM extranet_collecte WHERE id >= ' + premiereCollecte);
+    const ecartsCaches = garde.restaurer(q, CACHES, caches);
+    ok('nettoyage : données d’extranet gardées remises à l’identique (CHECKSUM)', ecartsCaches.length === 0, JSON.stringify(ecartsCaches));
+    q("DELETE FROM t_event_log WHERE dt_CREATED >= '" + debut + "' AND lg_USER_ID = (SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '"
+      + ENV_E2E.LOGIN.replace(/'/g, "''") + "') AND str_TABLE_CONCERN = 'dal.TUser'");
+    ok('bilan : journal des événements revenu à son nombre de lignes de départ', q('SELECT COUNT(*) FROM t_event_log') === journalTotal);
+    ok('nettoyage : date de mise à jour et historique de l’article revenus à l’état de départ',
+      q("SELECT IFNULL(DATE_FORMAT(dt_UPDATED, '%Y-%m-%d %H:%i:%s'), 'NULL') FROM t_famille WHERE lg_FAMILLE_ID = '" + P + "'") === majAvant
+      && q("SELECT COUNT(*) FROM t_famille_history WHERE lg_FAMILLE_ID = '" + P + "'") === histoAvant
+      && q('SELECT COUNT(*) FROM t_famille_history WHERE lg_ID > ' + histoMax) === '0');
+    await p.evaluate(() => fetch('../api/v1/extranet/sessions/UBIPHARM', { method: 'DELETE' })).catch(() => {});
+    ok('nettoyage : article remis à l\'identique', code() === 'NULL' && reste() === resteAvant);
+    await navigateur.close();
+    await srv.arreter();
+    const ko = res.filter((x) => !x.c).length;
+    console.log('\n' + (res.length - ko) + '/' + res.length + (ko ? ' ECHEC' : ' OK'));
+    process.exit(ko ? 1 : 0);
+  }
+})();

@@ -33,6 +33,7 @@ window.PrestigeMetroIcones = {
     "ordonnanceclient": "folder-heart", // Suivi dossier client
     "ordonnancier": "notebook-pen", // Ordonnancier
     "historiqueordonnancier": "history", // Historique ordonnancier (retour du 05/11)
+    "extranetsgrossistes": "network", // Extranets grossistes (plan du 07/11)
     "fideliteclients": "award", // Points fidélité
     "ventemanagerbis": "file-warning", // Ventes sans n° de bon
     "vendeurcaissiermanager": "contact-round", // Vendeurs et caissiers

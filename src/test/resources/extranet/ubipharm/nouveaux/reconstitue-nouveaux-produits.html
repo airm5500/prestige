@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<!-- RECONSTITUE : ce n'est pas une capture reelle. Seuls les selecteurs et attributs du plan du 07/11 (§3) sont
+     fideles (a.popup-produit, data-pscode, data-sheettype, .td-detail, .tip-viewStock-*, data-etcoda, data-colisage).
+     Le balisage autour (tableau, titres de colonnes, bulle) est suppose. Donnees fictives. -->
+<html>
+<head>
+<meta charset="utf-8">
+<title>Nouveaux produits</title>
+<script>
+  var modele = '<tr><td><a class="popup-produit" data-pscode="SCRIPT1">Produit du script</a></td></tr>';
+  document.write('<a class="popup-produit" data-pscode="SCRIPT2">Autre</a>');
+</script>
+</head>
+<body>
+<h1>Nouveaux produits</h1>
+<table id="table-nouveaux" class="table">
+  <thead>
+    <tr><th>D&eacute;signation</th><th>Code CIP</th><th>Cat&eacute;gorie</th><th>Date</th><th>Mouvement</th><th>Disponibilit&eacute;</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><a href="#" class="popup-produit" data-pscode="FAIR248" data-sheettype="1">FAIRE &amp; D&Eacute;FAIRE CR&Egrave;ME 50 ML</a></td>
+      <td class="td-detail">3000001262862</td>
+      <td>PARAPHARMACIE</td>
+      <td>07/11/2026</td>
+      <td>Mise en place</td>
+      <td>En stock
+        <div class="tip-viewStock" style="display:none">
+          <p>Stock par agence</p>
+          <table>
+            <tr data-etcoda="BKE" data-colisage="12"><td class="tip-viewStock-lgetlib">Agence de Bouak&eacute;</td><td class="tip-viewStock-etlib">UBIPHARM BOUAKE</td><td class="tip-viewStock-dispo">Oui</td><td class="tip-viewStock-colisage">12</td></tr>
+            <tr data-etcoda="GNA" data-colisage="N/A"><td class="tip-viewStock-lgetlib">Agence de Gagnoa</td><td class="tip-viewStock-etlib">UBIPHARM GAGNOA</td><td class="tip-viewStock-dispo">N/A</td><td class="tip-viewStock-colisage">N/A</td></tr>
+            <tr data-etcoda="YOP" data-colisage="12, 24"><td class="tip-viewStock-lgetlib">Yopougon</td><td class="tip-viewStock-etlib">YOPOUGON CLIENT</td><td class="tip-viewStock-dispo">En stock</td><td class="tip-viewStock-colisage">12, 24</td></tr>
+          </table>
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td><a href="#" class="popup-produit" data-pscode="0042ABC" data-sheettype="2">L&#39;HUILE D&rsquo;ARGAN &lt;BIO&gt;</a></td>
+      <td class="td-detail">CIP : 0123456</td>
+      <td>COSM&Eacute;TIQUE</td>
+      <td>06/11/2026 14:35</td>
+      <td>Nouveau r&eacute;f&eacute;rencement</td>
+      <td>N/A
+        <div class="tip-viewStock" style="display:none">
+          <table>
+            <tr data-etcoda="VRI"><td class="tip-viewStock-etlib">UBIPHARM ZONE 4</td><td class="tip-viewStock-dispo">Oui</td><td class="tip-viewStock-colisage" data-colisage="6;10;20">6;10;20</td></tr>
+            <tr data-etcoda="BKE"><td class="tip-viewStock-etlib">UBIPHARM BOUAKE</td><td class="tip-viewStock-dispo">0</td><td class="tip-viewStock-colisage"></td></tr>
+          </table>
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td><a href="#" class="popup-produit" data-pscode="" data-sheettype="1">PRODUIT SANS R&Eacute;F&Eacute;RENCE</a></td>
+      <td class="td-detail"></td>
+      <td></td>
+      <td></td>
+      <td>Mise en place</td>
+      <td>Oui</td>
+    </tr>
+  </tbody>
+</table>
+</body>
+</html>

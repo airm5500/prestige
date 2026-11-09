@@ -228,6 +228,14 @@
             <version>6.18.1</version>
         </dependency>
 
+        <!-- Connecteurs extranets grossistes : lecture du HTML (deja present dans le war par le plugin de formatage,
+             declare ici pour ne plus en dependre ; n'execute aucun script) -->
+        <dependency>
+            <groupId>org.jsoup</groupId>
+            <artifactId>jsoup</artifactId>
+            <version>1.16.1</version>
+        </dependency>
+
         <!-- Jackson for JSON processing in export -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
