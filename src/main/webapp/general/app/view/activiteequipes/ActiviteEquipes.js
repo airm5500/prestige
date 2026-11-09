@@ -490,7 +490,7 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
     creerAnalyses: function () {
         var me = this, AE = testextjs.view.activiteequipes.ActiviteEquipes, N = AE.nombre, D = AE.duree;
         me.st = {};
-        Ext.each(['heures', 'jours', 'operateurs', 'typesVente', 'grossistes', 'retard', 'sensibles', 'repartition'], function (k) {
+        Ext.each(['heures', 'jours', 'operateurs', 'longues', 'typesVente', 'grossistes', 'retard', 'sensibles', 'repartition'], function (k) {
             me.st[k] = Ext.create('Ext.data.Store', {fields: [{name: 'libelle'}, {name: 'id'}, {name: 'ventes', type: 'float'},
                     {name: 'saisieMoyenne', type: 'float'}, {name: 'saisieVentes', type: 'float'}, {name: 'saisieBl', type: 'float'},
                     {name: 'bl', type: 'float'}, {name: 'secondesParLigne', type: 'float'}, {name: 'ventesParJour', type: 'float'},
@@ -596,7 +596,7 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                         }
                     }}]};
 
-        var longues = {xtype: 'chart', itemId: 'gLongues', animate: true, shadow: false, store: me.st.operateurs,
+        var longues = {xtype: 'chart', itemId: 'gLongues', animate: true, shadow: false, store: me.st.longues,
             axes: [axeNum(['ventesLongues'], 'left', 'de plus de 10 min'), axeCat('libelle', 'bottom')],
             series: [{type: 'column', axis: 'left', xField: 'libelle', yField: 'ventesLongues', highlight: true, renderer: couleur('#e67e22'),
                     tips: AE.infobulle(function (r) {
@@ -1355,6 +1355,10 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
         me.st.operateurs.loadData(Ext.Array.map(d.operateurs.slice(0, 15), function (o) {
             return Ext.apply({libelle: o.nom}, o);
         }));
+        /* ventes longues : 15 operateurs puis « Autres », prepares par le serveur (total du graphique = tuile) */
+        me.st.longues.loadData(Ext.Array.map(d.longues || [], function (o) {
+            return Ext.apply({libelle: o.nom}, o);
+        }));
         me.st.typesVente.loadData(Ext.Array.map(d.typesVente || [], function (o) {
             return Ext.apply({libelle: o.nom}, o);
         }));
@@ -1394,7 +1398,7 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
         a.down('#aeResume').update('<div class="ae-titre-bloc">Repères</div>' + AE.htmlResume(d.resume));
         /* graphique sans donnees : un message plutot qu'un cadre vide */
         Ext.each([['cHeures', 'heures'], ['cJours', 'jours'], ['cOperateurs', 'operateurs'], ['cTypesVente', 'typesVente'], ['cGrossistes', 'grossistes'], ['cRetard', 'retard'],
-            ['cLongues', 'operateurs'], ['cSensibles', 'sensibles'], ['cRepartition', 'repartition']], function (x) {
+            ['cLongues', 'longues'], ['cSensibles', 'sensibles'], ['cRepartition', 'repartition']], function (x) {
             var p = a.down('#' + x[0]), vide = me.st[x[1]].getCount() === 0;
             p.setTitle(p.title.replace(/ — aucune donnée$/, '') + (vide ? ' — aucune donnée' : ''));
         });

@@ -64,7 +64,7 @@ function ok(n, c, d) { res.push({ n, c: !!c }); console.log((c ? 'PASS' : 'FAIL'
     const etat = () => p.evaluate(() => { const v = Ext.ComponentQuery.query('activiteequipes')[0];
       const t = Array.from(document.querySelectorAll('.ae-tuile')).find((x) => x.getAttribute('data-code') === 'LONGUES');
       return { titre: v.down('#cLongues').title, tuileLibelle: t ? t.querySelector('.l').textContent : null,
-        tuile: t ? Number(t.querySelector('.v').getAttribute('data-cible')) : null, somme: v.st.operateurs.sum('ventesLongues'),
+        tuile: t ? Number(t.querySelector('.v').getAttribute('data-cible')) : null, somme: v.down('#gLongues').store.sum('ventesLongues'),
         op: v.down('#aeSeuilOp') ? v.down('#aeSeuilOp').getValue() : null, min: v.down('#aeSeuilMin') ? v.down('#aeSeuilMin').getValue() : null }; });
     const depart = await etat();
     ok('Critère par défaut : « plus de 10 min », sélecteur dans le cadre', depart.op === 'GT' && depart.min === 10 && /plus de 10 min/i.test(depart.titre), JSON.stringify(depart));

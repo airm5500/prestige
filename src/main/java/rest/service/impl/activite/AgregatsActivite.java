@@ -621,6 +621,38 @@ public final class AgregatsActivite {
         return l;
     }
 
+    /** Operateurs montres un par un dans le graphique des ventes longues ; les suivants vont dans « Autres ». */
+    public static final int LONGUES_MAX = 15;
+    public static final String ID_AUTRES = "AUTRES";
+
+    /**
+     * Graphique des ventes longues : les {@link #LONGUES_MAX} premiers operateurs (ordre de la liste : ventes
+     * decroissantes), puis une ligne « Autres (N opérateurs) » qui additionne les suivants. Le total du graphique est
+     * ainsi celui de la tuile, quel que soit le nombre d'operateurs.
+     */
+    public static List<Operateur> longues(List<Operateur> ops, int max) {
+        List<Operateur> l = new ArrayList<>();
+        long longues = 0, ventes = 0;
+        int autres = 0;
+        for (int i = 0; i < ops.size(); i++) {
+            Operateur o = ops.get(i);
+            if (i < max) {
+                l.add(Operateur.builder().id(o.getId()).nom(o.getNom()).ventes(o.getVentes())
+                        .ventesLongues(o.getVentesLongues()).build());
+            } else {
+                longues += o.getVentesLongues();
+                ventes += o.getVentes();
+                autres++;
+            }
+        }
+        if (autres > 0) {
+            l.add(Operateur.builder().id(ID_AUTRES)
+                    .nom("Autres (" + autres + " opérateur" + (autres > 1 ? "s" : "") + ")").ventes(ventes)
+                    .ventesLongues(longues).build());
+        }
+        return l;
+    }
+
     /** Plan avoir du 08/11, point 1 : ventes minimales pour designer l'operateur le plus rapide. */
     public static final long VENTES_MIN_RAPIDE = 5;
 

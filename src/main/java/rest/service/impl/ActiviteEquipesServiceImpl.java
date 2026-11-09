@@ -238,7 +238,8 @@ public class ActiviteEquipesServiceImpl implements ActiviteEquipesService {
                 .resume(AgregatsActivite.resume(t, bls, sensibles, operateurs, constats, seuil))
                 .seuilOperateur(seuil.getOperateur()).seuilMinutes(seuil.getMinutes()).seuilLibelle(seuil.libelle())
                 .heures(heures).carte(AgregatsActivite.carte(ventes)).jours(AgregatsActivite.jours(ventes, bls))
-                .operateurs(operateurs).typesVente(AgregatsActivite.typesVente(ventes, seuil))
+                .operateurs(operateurs).longues(AgregatsActivite.longues(operateurs, AgregatsActivite.LONGUES_MAX))
+                .typesVente(AgregatsActivite.typesVente(ventes, seuil))
                 .preventes(AgregatsActivite.preventes(
                         lire(SQL_PREVENTES, "p.lg_USER_VENDEUR_ID", f.getDebut(), f.getFin(), f.getEmployeId()), noms))
                 .vitesseCaissieres(AgregatsActivite.vitesseCaissieres(

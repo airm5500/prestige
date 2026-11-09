@@ -44,6 +44,9 @@ public class ActiviteAnalysesDTO {
     private List<Jour> jours = new ArrayList<>();
     @Builder.Default
     private List<Operateur> operateurs = new ArrayList<>();
+    /** graphique des ventes longues : 15 operateurs puis « Autres » (total = tuile) */
+    @Builder.Default
+    private List<Operateur> longues = new ArrayList<>();
     /** plan du 08/11, points 15.5 et 15.7 : vitesse par type de vente (comptant, assurance, carnet, depot, avoir) */
     @Builder.Default
     private List<Operateur> typesVente = new ArrayList<>();
