@@ -63,6 +63,40 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
     layout: {type: 'vbox', align: 'stretch'},
 
     statics: {
+        /**
+         * Plan avoir du 08/11, point 3 : le detail mensuel prend la hauteur de toutes ses lignes.
+         *
+         * <p>
+         * La hauteur se mesure sur le tableau dessine (lignes et total), et non par scrollHeight, qui ne descend
+         * jamais sous la hauteur visible : le tableau peut ainsi grandir et se reduire. Un tableau masque (onglet
+         * ferme) n'est pas mesure : il le sera a l'ouverture de son onglet.
+         *
+         * @param {Ext.grid.Panel} grille le detail mensuel
+         */
+        ajusterHauteurDetail: function (grille) {
+            if (!grille || grille.isDestroyed || !grille.rendered || !grille.isVisible(true)) {
+                return;
+            }
+            var vue = grille.getView(), el = vue && vue.getEl();
+            if (!el) {
+                return;
+            }
+            /*
+             * La hauteur A FAIRE DEFILER, telle que le navigateur la compte (marges et habillage du theme compris : le
+             * cadre defilait encore de 36 px de plus que le tableau dessine). Le cadre est ramene a zero le temps de
+             * la lecture, faute de quoi scrollHeight ne descendrait jamais sous la hauteur visible ; tout se passe
+             * dans la meme tache, sans rien dessiner entre deux.
+             */
+            var avant = el.dom.style.height, contenu;
+            el.dom.style.height = '0px';
+            contenu = el.dom.scrollHeight;
+            el.dom.style.height = avant;
+            var besoin = Math.max(grille.minHeight || 200, grille.getHeight() - el.dom.clientHeight + contenu + 2);
+            if (Math.abs(besoin - grille.getHeight()) > 2) {
+                grille.setHeight(besoin);
+            }
+        },
+
         /*
          * LE FORMATAGE DES NOMBRES DE L'ECRAN, EN UN SEUL ENDROIT.
          *
@@ -310,7 +344,7 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
         {cle: 'achats', titre: 'Achats', icone: 'fa-truck'},
         {cle: 'caisse', titre: 'Caisse & tiers-payant', icone: 'fa-cash-register'},
         {cle: 'stock', titre: 'Stock', icone: 'fa-boxes-stacked'},
-        {cle: 'qualite', titre: 'Qualité–Exploitation', icone: 'fa-clipboard-check'},
+        {cle: 'qualite', titre: 'Exploitation', icone: 'fa-clipboard-check'}, // plan avoir du 08/11, point 3 : « Qualité–Exploitation »
         {cle: 'kpi', titre: 'KPI Analyse', icone: 'fa-chart-line'},
         {cle: 'comparateur', titre: 'Comparateur', icone: 'fa-scale-balanced'},
         /*
@@ -547,7 +581,9 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
                         }, {
                             xtype: 'combobox',
                             itemId: 'axe',
-                            width: 250,
+                            /* plan avoir du 08/11, point 3 : resserres (250 -> 210, 150 -> 136) pour qu'en 1024 px de
+                               large « Imprimer / exporter la vue » ne soit plus coupe au bord droit */
+                            width: 210,
                             store: me.storeAxes,
                             displayField: 'libelle',
                             valueField: 'code',
@@ -558,8 +594,8 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
                             xtype: 'datefield',
                             itemId: 'dtStart',
                             fieldLabel: 'Du',
-                            labelWidth: 24,
-                            width: 150,
+                            labelWidth: 20,
+                            width: 136,
                             format: 'd/m/Y',
                             /* Les dates ne servent QUE pour l'axe « période personnalisée ». */
                             disabled: true
@@ -567,8 +603,8 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
                             xtype: 'datefield',
                             itemId: 'dtEnd',
                             fieldLabel: 'au',
-                            labelWidth: 24,
-                            width: 150,
+                            labelWidth: 20,
+                            width: 136,
                             format: 'd/m/Y',
                             disabled: true
                         }, {
@@ -595,7 +631,9 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
                         }, {
                             xtype: 'button',
                             itemId: 'imprimer',
-                            text: 'Imprimer / exporter la vue',
+                            /* plan avoir du 08/11, point 3 : libelle raccourci (coupe au bord droit en 1024 px) */
+                            text: 'Imprimer / exporter',
+                            tooltip: 'Imprimer ou exporter la vue affichée',
                             iconCls: 'printable',
                             menu: [{itemId: 'imprimerPdf', text: 'Imprimer (PDF)', iconCls: 'printable'},
                                 {itemId: 'exporterExcel', text: 'Exporter Excel', iconCls: 'icon-excel'}]
@@ -651,6 +689,18 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
             flex: 1,
             minHeight: 520,
             activeTab: 0,
+            listeners: {
+                /* plan avoir du 08/11, point 3 : un onglet ouvert apres le chargement mesure son detail */
+                tabchange: function (t, onglet) {
+                    Ext.each([50, 600], function (delai) {
+                        Ext.defer(function () {
+                            if (!onglet.isDestroyed) {
+                                testextjs.view.pilotage.PilotageManager.ajusterHauteurDetail(onglet.down('#detail-' + onglet.cleOnglet));
+                            }
+                        }, delai);
+                    });
+                }
+            },
             plugins: [Ext.create('Ext.ux.TabReorderer', {listeners: {drop: function (r, barre) {
                             me.memoriserOrdre(barre);
                         }}})],
@@ -713,6 +763,38 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
             margin: '0 0 4 0',
             items: [gauche, droite]
         };
+    },
+
+    /**
+     * Plan avoir du 08/11, point 3 : la hauteur du bandeau suit ses tuiles.
+     *
+     * <p>
+     * Le bandeau garde au moins sa hauteur d'origine (272 px, 420 px pour les Achats) ; quand les tuiles demandent
+     * plus (portable de 15 pouces, petit ecran : trois rangees ou plus), il grandit d'autant, et c'est le defilement
+     * de l'onglet qui montre la suite. Dans l'onglet Achats, la bande de tuiles (190 px a l'origine) grandit aussi,
+     * la courbe gardant au moins 226 px sous elle.
+     *
+     * @param {String} cle onglet
+     * @param {Ext.view.View} vue la bande de tuiles
+     * @param {Number} contenu hauteur mesuree des tuiles (marge comprise)
+     */
+    ajusterBandeau: function (cle, vue, contenu) {
+        var reglage = this.DEUX_COLONNES[cle], bandeau = this.down('#bandeau-' + cle), cible;
+        if (!reglage || !bandeau) {
+            return;
+        }
+        if (reglage.graphiqueDessous) {
+            var tuiles = Math.max(190, contenu);
+            if (Math.abs(vue.getHeight() - tuiles) > 2) {
+                vue.setHeight(tuiles);
+            }
+            cible = Math.max(reglage.hauteur, tuiles + 230);
+        } else {
+            cible = Math.max(reglage.hauteur, contenu);
+        }
+        if (Math.abs(bandeau.getHeight() - cible) > 2) {
+            bandeau.setHeight(cible);
+        }
     },
 
     onglet: function (onglet) {
@@ -990,9 +1072,7 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
                     if (vue.up('pilotage') && vue.up('pilotage').TUILES_RANGEABLES[cle]) {
                         vue.up('pilotage').brancherGlisserTuiles(vue, cle);
                     }
-                    /* Quand la bande est posee en COLONNE a cote du graphique, sa hauteur est celle du
-                       bandeau : la mesurer sur le contenu la ferait grandir a chaque chargement. */
-                    if (!corps || vue.ajustementHauteur === false) {
+                    if (!corps) {
                         return;
                     }
                     /*
@@ -1017,8 +1097,30 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
                         bas = Math.max(bas, cadre.bottom);
                     });
                     var hauteur = Math.round(bas - haut) + 10;
+                    /*
+                     * Plan avoir du 08/11, point 3 : posee en COLONNE a cote du graphique, la bande prenait la
+                     * hauteur FIXE du bandeau (272 px, 420 px pour les Achats). Sur un portable de 15 pouces, les
+                     * tuiles passent sur trois rangees et la derniere etait coupee. Le bandeau grandit maintenant
+                     * a la hauteur des tuiles (jamais sous sa hauteur d'origine, la courbe garde sa place).
+                     */
+                    if (vue.ajustementHauteur === false) {
+                        if (hauteur > 20 && vue.up('pilotage')) {
+                            vue.up('pilotage').ajusterBandeau(cle, vue, hauteur);
+                        }
+                        return;
+                    }
                     if (hauteur > 20 && Math.abs(hauteur - vue.getHeight()) > 2) {
                         vue.setHeight(hauteur);
+                    }
+                },
+                /* la fenetre change de largeur : les tuiles passent (ou non) a la ligne, la hauteur est remesuree */
+                resize: function (vue, largeur, hauteur, ancienneLargeur) {
+                    if (ancienneLargeur !== undefined && Math.abs(largeur - ancienneLargeur) > 1) {
+                        Ext.defer(function () {
+                            if (!vue.isDestroyed && vue.rendered) {
+                                vue.fireEvent('refresh', vue);
+                            }
+                        }, 1);
                     }
                 }
             },
@@ -2211,12 +2313,49 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
                 }])
             },
             store: this.stores[cle].detail,
-            flex: 1,
+            /*
+             * Plan avoir du 08/11, point 3 : le detail etait en « flex » (au moins 200 px) et se partageait la
+             * hauteur avec le graphique ; sur un portable de 15 pouces, il ne montrait que quatre ou cinq mois et
+             * defilait dans son propre cadre. Il prend maintenant la hauteur de TOUTES ses lignes (les 12 mois et
+             * le total), et c'est le defilement general de l'onglet qui amene la suite a l'ecran.
+             */
+            height: 200,
             minHeight: 200,
+            listeners: {
+                /* les lignes peuvent changer de hauteur apres le premier dessin (cellules a deux lignes, total) :
+                   chaque mise en page remesure ; une fois la hauteur juste, la mesure ne change plus rien */
+                afterlayout: {
+                    fn: function (g) {
+                        testextjs.view.pilotage.PilotageManager.ajusterHauteurDetail(g);
+                    },
+                    buffer: 60
+                },
+                resize: function (g, largeur, hauteur, ancienneLargeur) {
+                    /* une autre largeur peut replier les cellules a deux lignes : la hauteur est remesuree */
+                    if (ancienneLargeur !== undefined && Math.abs(largeur - ancienneLargeur) > 1) {
+                        Ext.defer(testextjs.view.pilotage.PilotageManager.ajusterHauteurDetail, 1, null, [g]);
+                    }
+                }
+            },
             columnLines: true,
             features: [{ftype: 'summary'}],
             columns: colonnes,
             viewConfig: {
+                listeners: {
+                    refresh: function (vue) {
+                        /* le texte des cellules prend sa taille definitive un peu apres le dessin (polices) : mesures
+                           successives, sans effet quand la hauteur est deja juste */
+                        var g = vue.up('gridpanel'), F = testextjs.view.pilotage.PilotageManager;
+                        Ext.each([1, 400, 1500], function (delai) {
+                            Ext.defer(F.ajusterHauteurDetail, delai, null, [g]);
+                        });
+                        if (document.fonts && document.fonts.ready) {
+                            document.fonts.ready.then(function () {
+                                F.ajusterHauteurDetail(g);
+                            });
+                        }
+                    }
+                },
                 /* Le mois en cours est incomplet : il se lit en italique pour qu'on ne le compare pas
                  * naïvement aux mois pleins. Il est en TÊTE du tableau, le détail étant trié du mois
                  * actuel au plus ancien — demande de l'officine du 19/09. */
@@ -2252,10 +2391,15 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
             itemId: 'casesKpi',
             title: 'Indicateurs à analyser (cochez ce que vous voulez suivre)',
             bodyPadding: 6,
-            layout: {type: 'vbox', align: 'stretch'},
-            height: 196,
-            /* besoins du 11/10 (point 11) : recherches enregistrees (indicateurs coches + periode), par utilisateur */
-            dockedItems: [{xtype: 'toolbar', dock: 'top', itemId: 'recherchesKpi', items: [
+            /*
+             * Plan avoir du 08/11, point 3 : le cadre avait 196 px fixes et cinq colonnes de cases : sur un portable de
+             * 15 pouces, il defilait en largeur et en hauteur et des cases restaient cachees. Il prend maintenant la
+             * hauteur de ses cases, qui passent a la ligne selon la largeur (disposition « auto », voir listeKpi).
+             */
+            layout: 'auto',
+            /* besoins du 11/10 (point 11) : recherches enregistrees (indicateurs coches + periode), par utilisateur ;
+               plan avoir du 08/11 : sur un petit ecran, les boutons qui ne tiennent pas passent dans le menu » */
+            dockedItems: [{xtype: 'toolbar', dock: 'top', itemId: 'recherchesKpi', enableOverflow: true, items: [
                         {xtype: 'combobox', itemId: 'rechercheKpi', fieldLabel: 'Recherches enregistrées', labelWidth: 150, width: 380,
                             store: me.storeRecherches, queryMode: 'local', displayField: 'nom', valueField: 'nom', editable: false,
                             emptyText: 'Choisir une recherche…', listeners: {select: function (c) {
@@ -2287,7 +2431,8 @@ Ext.define('testextjs.view.pilotage.PilotageManager', {
             items: [{
                     xtype: 'container',
                     itemId: 'listeKpi',
-                    layout: {type: 'table', columns: 5},
+                    cls: 'pilotage-liste-kpi',
+                    layout: 'auto',
                     items: []
                 }, {
                     /*
