@@ -65,6 +65,74 @@ public class ActiviteEquipesRessource {
         return Response.ok(m).build();
     }
 
+    /**
+     * Plan avoir du 08/11, point 1 : CA realise par employe et par tranche horaire (taille de 1 a 6 h, attribution
+     * CAISSIER par defaut ou VENDEUR).
+     */
+    @GET
+    @Path("ca-tranches")
+    public Response caTranches(@QueryParam("debut") String debut, @QueryParam("fin") String fin,
+            @QueryParam("employeId") String employeId, @QueryParam("taille") Integer taille,
+            @QueryParam("attribution") String attribution) {
+        Response r = refus();
+        if (r != null) {
+            return r;
+        }
+        ActiviteFiltreDTO f = filtre(debut, fin, employeId, null, null);
+        if (f == null) {
+            return dateInvalide();
+        }
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("success", true);
+        m.put("data", service.caTranches(f, taille, attribution));
+        return Response.ok(m).build();
+    }
+
+    /** Plan avoir du 08/11, point 1 : le meme tableau en CSV (ouvert par Excel), totaux compris. */
+    @GET
+    @Path("ca-tranches/csv")
+    @Produces("text/csv")
+    @SuppressWarnings("unchecked")
+    public Response caTranchesCsv(@QueryParam("debut") String debut, @QueryParam("fin") String fin,
+            @QueryParam("employeId") String employeId, @QueryParam("taille") Integer taille,
+            @QueryParam("attribution") String attribution) {
+        Response r = refus();
+        if (r != null) {
+            return r;
+        }
+        ActiviteFiltreDTO f = filtre(debut, fin, employeId, null, null);
+        if (f == null) {
+            return dateInvalide();
+        }
+        Map<String, Object> d = service.caTranches(f, taille, attribution);
+        java.util.List<Map<String, Object>> tranches = (java.util.List<Map<String, Object>>) d.get("tranches");
+        StringBuilder csv = new StringBuilder("﻿")
+                .append(champ(rest.service.impl.activite.CaTranchesEmploye.VENDEUR.equals(d.get("attribution"))
+                        ? "Vendeur" : "Caissière"));
+        for (Map<String, Object> t : tranches) {
+            csv.append(';').append(champ(t.get("libelle") + " CA")).append(';')
+                    .append(champ(t.get("libelle") + " ventes"));
+        }
+        csv.append(";\"Total CA\";\"Total ventes\"\r\n");
+        for (Map<String, Object> l : (java.util.List<Map<String, Object>>) d.get("lignes")) {
+            ligneCsv(csv, String.valueOf(l.get("nom")), l);
+        }
+        ligneCsv(csv, "Total", (Map<String, Object>) d.get("totaux"));
+        String nom = "ca_tranches_" + d.get("taille") + "h_" + f.getDebut() + "_" + f.getFin() + ".csv";
+        return Response.ok(csv.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8))
+                .header("Content-Disposition", "attachment; filename=\"" + nom + "\"").type("text/csv; charset=UTF-8")
+                .build();
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void ligneCsv(StringBuilder csv, String nom, Map<String, Object> l) {
+        csv.append(champ(nom));
+        for (Map<String, Object> c : (java.util.List<Map<String, Object>>) l.get("cellules")) {
+            csv.append(';').append(c.get("ca")).append(';').append(c.get("ventes"));
+        }
+        csv.append(';').append(l.get("ca")).append(';').append(l.get("ventes")).append("\r\n");
+    }
+
     /** Plan du 08/11, point 15.1 : detail d'une ligne (consultation) : vente, motif, par qui, quand. */
     @GET
     @Path("annulations/detail")

@@ -621,6 +621,45 @@ public final class AgregatsActivite {
         return l;
     }
 
+    /** Plan avoir du 08/11, point 1 : ventes minimales pour designer l'operateur le plus rapide. */
+    public static final long VENTES_MIN_RAPIDE = 5;
+
+    /**
+     * Plan avoir du 08/11, point 1 : resume de la periode, repris par la carte du tableau de bord et par les titres des
+     * cartes du menu. Delai moyen des BL : jours entre la livraison et l'entree du BL (0 si saisi avant la livraison),
+     * BL sans date de livraison ecartes.
+     */
+    public static ActiviteAnalysesDTO.Resume resume(Totaux t, List<Bl> bls,
+            List<ActiviteAnalysesDTO.Sensible> sensibles, List<Operateur> ops, List<Constat> constats,
+            SeuilDuree seuil) {
+        long annulations = 0, modifications = 0, jours = 0, mesures = 0;
+        for (ActiviteAnalysesDTO.Sensible s : sensibles) {
+            annulations += s.getAnnulations();
+            modifications += s.getModifications();
+        }
+        for (Bl b : bls) {
+            if (b.livraison != null && b.creation != null) {
+                jours += Math.max(0, ChronoUnit.DAYS.between(b.livraison, b.creation.toLocalDate()));
+                mesures++;
+            }
+        }
+        Operateur rapide = ops.stream().filter(o -> o.getVentes() >= VENTES_MIN_RAPIDE && o.getSecondesParLigne() > 0)
+                .min(Comparator.comparingDouble(Operateur::getSecondesParLigne)
+                        .thenComparing(Comparator.comparingLong(Operateur::getVentes).reversed())
+                        .thenComparing(Operateur::getNom))
+                .orElse(null);
+        List<Constat> alertes = new ArrayList<>();
+        constats.stream().filter(c -> "ALERTE".equals(c.getNiveau())).forEach(alertes::add);
+        return ActiviteAnalysesDTO.Resume.builder().ventesLongues(t.longues).seuilLibelle(seuil.libelle())
+                .annulations(annulations).modifications(modifications).actionsSensibles(annulations + modifications)
+                .delaiMoyenBl(mesures == 0 ? null : arrondi((double) jours / mesures)).blMesures(mesures)
+                .plusRapideId(rapide == null ? null : rapide.getId())
+                .plusRapideNom(rapide == null ? null : rapide.getNom())
+                .plusRapideSecondesParLigne(rapide == null ? null : rapide.getSecondesParLigne())
+                .plusRapideVentes(rapide == null ? 0 : rapide.getVentes()).alertes(alertes.size())
+                .premiereAlerte(alertes.isEmpty() ? null : alertes.get(0).getTitre()).build();
+    }
+
     /** Actions sensibles par employe a partir des comptes lus par le service. */
     public static List<ActiviteAnalysesDTO.Sensible> sensibles(Map<String, Long> ventes, Map<String, Long> annulations,
             Map<String, Long> modifications, Map<String, Long> remises, Map<String, String> noms) {

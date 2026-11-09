@@ -49,6 +49,12 @@ public interface ActiviteEquipesService {
     java.util.List<java.util.Map<String, Object>> detailAnnulations(java.time.LocalDate debut, java.time.LocalDate fin,
             String role, String id);
 
+    /**
+     * Plan avoir du 08/11, point 1 : CA par employe et par tranche horaire (taille 1 a 6 h ; attribution CAISSIER ou
+     * VENDEUR), totaux par ligne et par colonne.
+     */
+    java.util.Map<String, Object> caTranches(ActiviteFiltreDTO f, Integer taille, String attribution);
+
     /** Une anomalie avec le fil de ce que l'employe a fait juste avant ; null si elle n'existe pas. */
     rest.service.dto.ActiviteAnomaliesDTO.Element anomalie(long id);
 }

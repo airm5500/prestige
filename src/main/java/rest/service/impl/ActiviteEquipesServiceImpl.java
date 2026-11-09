@@ -230,10 +230,12 @@ public class ActiviteEquipesServiceImpl implements ActiviteEquipesService {
                         + " WHERE a.u IS NOT NULL AND a.t <> 'CONNEXION' GROUP BY a.u, a.t",
                 pr);
 
+        List<ActiviteAnalysesDTO.Constat> constats = AgregatsActivite.constats(heures, operateurs, grossistes, retard,
+                sensibles, t, p, seuil);
         return ActiviteAnalysesDTO.builder().debut(f.getDebut().toString()).fin(f.getFin().toString())
                 .debutPrecedent(debutP.toString()).finPrecedent(finP.toString())
-                .indicateurs(AgregatsActivite.indicateurs(t, p, actifs.size(), seuil))
-                .constats(AgregatsActivite.constats(heures, operateurs, grossistes, retard, sensibles, t, p, seuil))
+                .indicateurs(AgregatsActivite.indicateurs(t, p, actifs.size(), seuil)).constats(constats)
+                .resume(AgregatsActivite.resume(t, bls, sensibles, operateurs, constats, seuil))
                 .seuilOperateur(seuil.getOperateur()).seuilMinutes(seuil.getMinutes()).seuilLibelle(seuil.libelle())
                 .heures(heures).carte(AgregatsActivite.carte(ventes)).jours(AgregatsActivite.jours(ventes, bls))
                 .operateurs(operateurs).typesVente(AgregatsActivite.typesVente(ventes, seuil))
@@ -253,6 +255,37 @@ public class ActiviteEquipesServiceImpl implements ActiviteEquipesService {
             + " JOIN t_preenregistrement_detail d ON d.lg_PREENREGISTREMENT_ID = p.lg_PREENREGISTREMENT_ID"
             + " WHERE p.str_STATUT = 'is_Closed' AND p.b_IS_CANCEL = 0 AND p.int_PRICE > 0 AND p.lg_TYPE_VENTE_ID <> '5'"
             + " AND p.dt_UPDATED >= ?1 AND p.dt_UPDATED < ?2 %s GROUP BY p.lg_PREENREGISTREMENT_ID";
+    /**
+     * Plan avoir du 08/11, point 1 : memes ventes que SQL_VENTES (memes regles), avec la caissiere, le vendeur et
+     * l'operateur, pour le rapport employe x tranche horaire x CA.
+     */
+    static final String SQL_CA_TRANCHES = "SELECT p.lg_USER_CAISSIER_ID AS caissier, p.lg_USER_VENDEUR_ID AS vendeur,"
+            + " p.lg_USER_ID AS operateur, COALESCE(p.completion_date, p.dt_UPDATED) AS encaissement, p.int_PRICE AS montant,"
+            + " p.dt_CREATED AS ouverture, MAX(d.dt_UPDATED) AS derniere FROM t_preenregistrement p"
+            + " JOIN t_preenregistrement_detail d ON d.lg_PREENREGISTREMENT_ID = p.lg_PREENREGISTREMENT_ID"
+            + " WHERE p.str_STATUT = 'is_Closed' AND p.b_IS_CANCEL = 0 AND p.int_PRICE > 0 AND p.lg_TYPE_VENTE_ID <> '5'"
+            + " AND p.dt_UPDATED >= ?1 AND p.dt_UPDATED < ?2 GROUP BY p.lg_PREENREGISTREMENT_ID";
+
+    @Override
+    public Map<String, Object> caTranches(ActiviteFiltreDTO f, Integer taille, String attribution) {
+        List<rest.service.impl.activite.CaTranchesEmploye.Vente> l = new ArrayList<>();
+        for (Object[] r : lire(SQL_CA_TRANCHES, "", f.getDebut(), f.getFin(), null)) {
+            /* memes ventes ecartees que ventes() : ouverture, derniere ligne ou encaissement inconnus */
+            if (r[3] == null || r[5] == null || r[6] == null) {
+                continue;
+            }
+            l.add(new rest.service.impl.activite.CaTranchesEmploye.Vente(r[0] == null ? null : String.valueOf(r[0]),
+                    r[1] == null ? null : String.valueOf(r[1]), r[2] == null ? null : String.valueOf(r[2]), heure(r[3]),
+                    r[4] == null ? 0 : ((Number) r[4]).longValue()));
+        }
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("debut", f.getDebut().toString());
+        m.put("fin", f.getFin().toString());
+        m.putAll(rest.service.impl.activite.CaTranchesEmploye.calculer(l, taille, attribution, noms(),
+                f.getEmployeId()));
+        return m;
+    }
+
     /** BL clotures entres sur la periode : une ligne par BL. */
     static final String SQL_BL = "SELECT b.lg_USER_ID AS emp, g.str_LIBELLE AS grossiste, o.dt_CREATED AS commande, b.dt_CREATED AS creation,"
             + " MAX(d.dt_UPDATED) AS fin_saisie, b.dt_DATE_LIVRAISON AS livraison, COUNT(*) AS lignes"
