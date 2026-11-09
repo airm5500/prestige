@@ -120,6 +120,7 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
 
                     var grid = Ext.getCmp('gridpanelSuggestionID');
                     Me_Window.getSuggestionAmount(orderIdRef);
+                    Me_Window.majColonnesExtranet(grid, store);
                     
                     if (grid && store.getCount() === 0 && store.currentPage > 1) {
                         grid.down('pagingtoolbar').movePrevious();
@@ -319,6 +320,37 @@ Ext.define('testextjs.view.sm_user.suggerercde.SuggerercdeManager', {
                                         meta.style = Me_Window.manageColor(record);
                                         return testextjs.view.commandemanagement.disponibilite.DisponibilitePharmaMl.renduAvecVerif(
                                                 (Me_Window.etatDispo || {})[record.get('lg_FAMILLE_ID')], meta, Me_Window.dispoActive === false);
+                                    }},
+                                /* Demande du 09/11 : donnees de l'extranet du grossiste lie (onglet « Grossistes lies » des extranets).
+                                   Une valeur dans la cellule, toutes au survol. Stock : seulement si KEY_AFFICHER_STOCK_GROSSISTE = 1. */
+                                {text: 'UG', itemId: 'colUgGrossiste', width: 120, sortable: false, menuDisabled: true, hidden: true,
+                                    tooltip: 'Unités gratuites proposées par le grossiste (dernière lecture de son extranet)',
+                                    renderer: function (v, meta, record) {
+                                        meta.style = Me_Window.manageColor(record);
+                                        return Me_Window.celluleExtranet(meta, ((record.raw || {}).extranet || {}).ug, '#16a085');
+                                    }},
+                                {text: 'STOCK GROS.', itemId: 'colStockGrossiste', width: 105, sortable: false, menuDisabled: true, hidden: true,
+                                    tooltip: 'Disponibilité chez le grossiste (dernière lecture de son extranet)',
+                                    renderer: function (v, meta, record) {
+                                        meta.style = Me_Window.manageColor(record);
+                                        return Me_Window.celluleExtranet(meta, ((record.raw || {}).extranet || {}).stock, '#2c3e50');
+                                    }},
+                                {text: 'EN CDE GROS.', itemId: 'colEnCdeGrossiste', width: 95, sortable: false, menuDisabled: true, hidden: true,
+                                    align: 'center', tooltip: 'Produit déjà en commande chez le grossiste (commandes en attente de son extranet)',
+                                    renderer: function (v, meta, record) {
+                                        meta.style = Me_Window.manageColor(record);
+                                        var l = ((record.raw || {}).extranet || {}).enCommande || [];
+                                        if (!l.length) {
+                                            return '';
+                                        }
+                                        var q = 0;
+                                        Ext.each(l, function (c) {
+                                            q += parseInt(String(c.quantite).replace(/\s/g, ''), 10) || 0;
+                                        });
+                                        meta.tdAttr = 'data-qtip="' + Ext.String.htmlEncode(Ext.Array.map(l, function (c) {
+                                            return Ext.String.htmlEncode(c.date + ' : ' + c.quantite + ' — ' + c.designation);
+                                        }).join('<br>')) + '"';
+                                        return '<b style="color:#d35400">Oui (' + q + ')</b>';
                                     }},
                                 /* Repere « ≡ DCI » : n'apparait qu'apres un clic sur « Équivalents DCI » (rien n'est calcule a l'ouverture). */
                                 {text: 'DCI', itemId: 'colEquivalentDci', width: 64, sortable: false, menuDisabled: true, hidden: true, align: 'center',
@@ -1334,6 +1366,45 @@ onRemoveClick: function (grid, rowIndex) {
         });
     },
     
+    /**
+     * Demande du 09/11 : colonnes de l'extranet du grossiste, visibles seulement si le grossiste de la suggestion est
+     * lié à un extranet ; le stock, seulement si le paramètre « afficher stock grossiste » vaut 1 (le serveur ne
+     * l'envoie pas sinon).
+     */
+    majColonnesExtranet: function (grid, store) {
+        if (!grid) {
+            return;
+        }
+        var reader = store.getProxy().getReader(), brut = reader.jsonData || reader.rawData || {},
+                ext = brut.extranet || null, me = this;
+        me.extranetSuggestion = ext;
+        var col = function (id) {
+            return grid.down('#' + id);
+        };
+        Ext.suspendLayouts();
+        col('colUgGrossiste').setVisible(!!ext);
+        col('colEnCdeGrossiste').setVisible(!!ext);
+        col('colStockGrossiste').setVisible(!!(ext && ext.stockAffiche));
+        if (ext) {
+            col('colUgGrossiste').setText('UG ' + ext.libelle);
+            col('colStockGrossiste').setText('STOCK ' + ext.libelle.toUpperCase());
+        }
+        Ext.resumeLayouts(true);
+    },
+
+    /** Cellule d'une liste de valeurs : la première, « +N » s'il y en a d'autres, toutes au survol. */
+    celluleExtranet: function (meta, liste, couleur) {
+        var l = liste || [];
+        if (!l.length) {
+            return '';
+        }
+        meta.tdAttr = 'data-qtip="' + Ext.String.htmlEncode(Ext.Array.map(l, function (x) {
+            return Ext.String.htmlEncode(x);
+        }).join('<br>')) + '"';
+        return '<span style="color:' + couleur + '">' + Ext.String.htmlEncode(l[0]) + '</span>'
+                + (l.length > 1 ? ' <span class="ug-plus" style="color:#7f8c8d;font-size:10px">+' + (l.length - 1) + '</span>' : '');
+    },
+
     manageColor: function (r) {
         const produitStates = r?.data?.produitState;
         if (!produitStates) return '';

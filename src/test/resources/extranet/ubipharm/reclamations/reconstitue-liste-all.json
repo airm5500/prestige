@@ -1,0 +1,14 @@
+{
+  "msg": [],
+  "datatables": {
+    "recordsFiltered": 5,
+    "data": [
+      ["<a href=\"AfficherReclamation?id=1408456&amp;eta=VRI&amp;appl=EXT\" class=\"btn\"><i class=\"fa fa-eye\"></i></a>", "EXT1408456VRI", "704579", "En traitement", "06/11/2026", "06/11/2026"],
+      ["<a href=\"/AfficherReclamation?appl=YOP&amp;eta=GNA&amp;id=1410730\">Voir</a>", "YOP1410730GNA", "700001 700002", "Cl&ocirc;tur&eacute;e", "01/10/2026", "15/10/2026"],
+      ["<a href='https://extranet.invalid/AfficherReclamation?id=1399001&eta=EXT&appl=VRI'>Voir</a>", "VRI1399001EXT", "", "Supprim&eacute;e", "02/09/2026", "03/09/2026"],
+      ["<a href=\"AfficherReclamation?id=1400002&amp;eta=ABJ&amp;appl=EXT\"></a>", "EXT1400002ABJ", "  701  702   703 ", "En traitement", "28/02/2026", ""],
+      ["<a href=\"AfficherReclamation?id=1400003&amp;eta=SP&amp;appl=EXT\"></a>", "EXT1400003SP", null, "Cl&ocirc;tur&eacute;e", "31/02/2026", "N/A"]
+    ],
+    "recordsTotal": 5
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "reappro": [],
+  "produit": {
+    "pscode": "ESSAI-001",
+    "pslib": "PRODUIT  D'ESSAI RECONSTITUE",
+    "pslibc": "",
+    "picode": "0001234567890",
+    "cmcode": null,
+    "falib": "",
+    "stlib": "Normal",
+    "psdtcr": "07/11/2026",
+    "pspven": "1 234,50",
+    "psppub": null,
+    "tvtaux": 0,
+    "psstkSoc": "N/A",
+    "nbProduitsSubstitution": 0,
+    "infosParEtablissement": [
+      { "etcode": "BKE", "etlib": "UBIPHARM BOUAKE", "psstk": 0, "colisages": [] },
+      { "etcode": "GNA", "etlib": "UBIPHARM GAGNOA", "psstk": "N/A", "colisages": "N/A" },
+      { "etcode": "VRI", "etlib": "UBIPHARM ZONE 4", "psstk": 140, "colisages": [120, 140] },
+      { "etcode": "YOP", "etlib": "YOPOUGON CLIENT", "psstk": null, "colisages": null },
+      { "etcode": "YOP", "etlib": "YOPOUGON CLIENT", "colisages": "120, 140" }
+    ],
+    "produitsSubstitution": []
+  },
+  "cips": ["0012345678901", 3400930000000, "00042"],
+  "promos": [],
+  "arrivage": null,
+  "qttcde": []
+}

@@ -27,6 +27,7 @@ class RubriqueParametreTest {
         assertEquals("AFFICHAGE", r("COULEUR_SURVOL_LIGNE"));
         assertEquals("PREVISION", r("KEY_OBJECTIF_TAUX_MARGE"));
         assertEquals("STOCK", r("KEY_OBJECTIF_TAUX_PEREMPTION"));
+        assertEquals("COMMANDE", r("KEY_AFFICHER_STOCK_GROSSISTE"));
     }
 
     @Test

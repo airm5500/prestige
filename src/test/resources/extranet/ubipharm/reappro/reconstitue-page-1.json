@@ -1,0 +1,50 @@
+{
+  "msg": [],
+  "datatables": {
+    "recordsFiltered": 5,
+    "data": [
+      [
+        "<a href='#' class='popup-produit' data-pscode='FAIR248' data-sheettype='P'>XTRA 1000ML</a><br><span class='td-detail'>3000001262862</span><br><span class='td-detail'>PARAPHARMACIE</span>",
+        "06/11/2026",
+        "BKE",
+        "Normal",
+        "<div class='tip-viewStock'><div class='tip-viewStock-lgetlib' data-etcoda='BKE'><span class='tip-viewStock-etlib'>BOUAKE</span> <span class='tip-viewStock-dispo'>En stock</span> <span class='tip-viewStock-colisage' data-colisage=\"120\">120, 140</span></div><div class='tip-viewStock-lgetlib' data-etcoda='YOP'><span class='tip-viewStock-etlib'>ABIDJAN YOPOUGON</span> <span class='tip-viewStock-dispo'>N/A</span> <span class='tip-viewStock-colisage' data-colisage=''>N/A</span></div></div>",
+        "<input type='hidden' name='pscode_FAIR248' value='FAIR248'><input type='hidden' name='cip_FAIR248' value='3000001262862'><input type='hidden' name='etcoda_FAIR248' value='BKE'><input type='number' name='qte_FAIR248' value='0'>"
+      ],
+      [
+        "<a href='#' class='popup-produit' data-pscode='0071AB'>COMPRESSES STERILES 10X10</a>",
+        "05/11/2026",
+        "YOP",
+        "Normal",
+        "<div class='tip-viewStock-lgetlib' data-etcoda='YOP'><span class='tip-viewStock-etlib'>ABIDJAN YOPOUGON</span><span class='tip-viewStock-dispo'>Oui</span><span class='tip-viewStock-colisage' data-colisage='50'>50</span></div>",
+        "<input type='hidden' name='pscode_0071AB' value='0071AB'><input type='hidden' name='cip_0071AB' value=''><input type='hidden' name='etcoda_0071AB' value='YOP'>"
+      ],
+      [
+        "<a href='#' class='popup-produit' data-pscode='CREM31'>CR&Egrave;ME HYDRATANTE &amp; R&eacute;paratrice</a><span class='td-detail'>0034009123456</span><span class='td-detail'>DERMO &amp; SOINS</span><script>document.write('PIEGE')</script>",
+        "04/11/2026",
+        "GNA",
+        "Rupture",
+        "<script>var x = 'PIEGE';</script><div class='tip-viewStock-lgetlib' data-etcoda='GNA'><span class='tip-viewStock-etlib'>GAGNOA</span><span class='tip-viewStock-dispo'>Non</span><span class='tip-viewStock-colisage' data-colisage='6'>6, 12, 24</span></div><div class='tip-viewStock-lgetlib' data-etcoda='VRI'><span class='tip-viewStock-etlib'>ABIDJAN VRIDI</span><span class='tip-viewStock-dispo'>En stock</span><span class='tip-viewStock-colisage' data-colisage='12'>12</span></div><div class='tip-viewStock-lgetlib' data-etcoda='BKE'><span class='tip-viewStock-etlib'>BOUAKE</span><span class='tip-viewStock-dispo'>En stock</span><span class='tip-viewStock-colisage'></span></div>",
+        "<input type='hidden' name='pscode_CREM31' value='CREM31'><input type='hidden' name='cip_CREM31' value='0034009123456'><input type='hidden' name='etcoda_CREM31' value='GNA'>"
+      ],
+      [
+        "<a href='#' class='popup-produit' data-pscode='FAIR248'>XTRA 1000ML</a><span class='td-detail'>3000001262862</span>",
+        "06/11/2026",
+        "YOP",
+        "Normal",
+        "<div class='tip-viewStock-lgetlib' data-etcoda='YOP'><span class='tip-viewStock-etlib'>ABIDJAN YOPOUGON</span><span class='tip-viewStock-dispo'>En stock</span><span class='tip-viewStock-colisage' data-colisage='0'>0</span></div>",
+        "<input type='hidden' name='pscode_FAIR248' value='FAIR248'><input type='hidden' name='cip_FAIR248' value='3000001262862'><input type='hidden' name='etcoda_FAIR248' value='YOP'>"
+      ],
+      [
+        "<span>Produit sans lien</span>",
+        "2026-11-03",
+        "",
+        null,
+        "",
+        "<input type='text' name='cip_X' value='NE PAS LIRE'>"
+      ]
+    ],
+    "draw": "1",
+    "recordsTotal": 5
+  }
+}

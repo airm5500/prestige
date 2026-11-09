@@ -913,6 +913,8 @@ window.PrestigeAffichage.ECRANS_COLLES = [
     'activiteequipes',
     // menu « Péremptions courtes » (GESTION DES COMMANDES, demande mobile 36 D12)
     'peremptionscourtes',
+    // menu « Extranets grossistes » (GESTION DES COMMANDES, plan du 07/11)
+    'extranetsgrossistes',
     // menu « Modèles de ticket » (PARAMETRAGES, demande du 02/11)
     'modelesticket',
     // menu « Correspondance grossistes » (GESTION DES COMMANDES, étude du 08/11, lot 3)
@@ -1043,6 +1045,8 @@ window.PrestigeAffichage.ECRANS_STYLE_VENTE = [
     'saisieperime', 'saisieperimeonglets', 'margeonglets', 'gestionsurstock', 'i_sugg_manager',
     // menu « Activité des équipes »
     'activiteequipes',
+    // menu « Extranets grossistes » (GESTION DES COMMANDES, plan du 07/11)
+    'extranetsgrossistes',
     // menu « Péremptions courtes »
     'peremptionscourtes',
     // menu « Modèles de ticket »
