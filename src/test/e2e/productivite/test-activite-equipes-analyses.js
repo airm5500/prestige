@@ -74,7 +74,7 @@ const retirer = () => q(`DELETE FROM t_role_user WHERE lg_USER_ID = '${ID}'; DEL
     });
     ok('Les 8 graphiques sont dessinés, carte d\'affluence de 7 jours', Object.entries(graphes).filter(([k]) => /^g/.test(k)).every(([, n]) => n > 0)
       && graphes.carte === 7, JSON.stringify(graphes));
-    ok('Ergonomie : chaque cadre (9 graphiques + « Annulations et modifications par motif », « Vitesse par type de vente », « Préventes par vendeur », « Annulations par auteur de la vente » et « Vitesse des caissières », plan du 08/11) a son aide « ? »', graphes.aides === 14, graphes.aides);
+    ok('Ergonomie : chaque cadre (9 graphiques + « Annulations et modifications par motif », « Vitesse par type de vente », « Préventes par vendeur », « Annulations par auteur de la vente » et « Vitesse des caissières », plan du 08/11 ; « CA par employé et tranche horaire », plan avoir du 08/11) a son aide « ? »', graphes.aides === 15, graphes.aides);
 
     /* survol d'une barre d'operateur : infobulle avec le detail */
     const cOp = p.locator('#' + await p.evaluate(() => Ext.ComponentQuery.query('activiteequipes')[0].analyses.down('#cOperateurs').id));

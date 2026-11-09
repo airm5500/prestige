@@ -360,7 +360,7 @@ const n = (v) => Number(v || 0);
     await cliquer('[data-tb="defaut"]');
     await p.waitForTimeout(1500);
     const def = await p.evaluate(() => ({ cartes: document.querySelectorAll('[data-dd="cartes"] > [data-id]').length, tuiles: document.querySelectorAll('[data-dd="tuiles"] > [data-id]').length, premier: document.querySelector('[data-dd="cartes"] > [data-id]').getAttribute('data-id') }));
-    ok('« Rétablir la disposition par défaut »', def.cartes === 14 && def.tuiles === 5 && def.premier === 'evolution', JSON.stringify(def));
+    ok('« Rétablir la disposition par défaut »', def.cartes === 15 && def.tuiles === 5 && def.premier === 'evolution', JSON.stringify(def));
     await cliquer('[data-tb="perso"]');
 
     // Clic -> menu lie (mouvements de caisse)
