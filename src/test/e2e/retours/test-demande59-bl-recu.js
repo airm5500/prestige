@@ -184,8 +184,9 @@ function poser() {
        des versions precedentes de ce test. */
     peremptionObligatoire('1');
     exec(`UPDATE t_famille SET bool_CHECKEXPIRATIONDATE = 1 WHERE lg_FAMILLE_ID IN (${liste(P)})`);
-    exec("INSERT INTO t_lot (lg_LOT_ID, lg_USER_ID, lg_FAMILLE_ID, int_NUM_LOT, int_NUMBER, dt_CREATED, dt_UPDATED, dt_PEREMPTION, str_STATUT, current_stock, str_REF_LIVRAISON, int_NUMBER_GRATUIT)"
-      + ` VALUES ('${M}LND', '${ADMIN}', '${P[1]}', 'E2ED59ND', 1, NOW(), NOW(), NULL, 'enable', 1, '${REF1}', 0)`);
+    /* lot du grossiste du BL, comme ceux saisis a l'ecran : la cloture ne compte que les lots de ce grossiste (audit 06, EN-02) */
+    exec("INSERT INTO t_lot (lg_LOT_ID, lg_USER_ID, lg_FAMILLE_ID, int_NUM_LOT, int_NUMBER, dt_CREATED, dt_UPDATED, dt_PEREMPTION, str_STATUT, current_stock, str_REF_LIVRAISON, int_NUMBER_GRATUIT, lg_GROSSISTE_ID)"
+      + ` VALUES ('${M}LND', '${ADMIN}', '${P[1]}', 'E2ED59ND', 1, NOW(), NOW(), NULL, 'enable', 1, '${REF1}', 0, '${G}')`);
     const vp = await api('PUT', '../api/v1/commande/validerbl/' + B1 + '?mode=RECU', undefined, CLE + '-peremption');
     ok('Péremption obligatoire (paramètre à 1) : un lot sans date refuse la clôture au reçu, rien n\'entre', vp.j && vp.j.success === false && /péremption/i.test(vp.j.msg || '')
       && statutBl(B1) === 'enable' && P.every((id, i) => stock(id) === STOCK0[i] && mvts(id) === MVT0[i]), JSON.stringify(vp.j));
