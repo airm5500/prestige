@@ -149,7 +149,7 @@ Ext.define('testextjs.view.commandemanagement.presaisie.PresaisieBl', {
                         }
                     },
                     dockedItems: [{
-                            xtype: 'toolbar', dock: 'top', itemId: 'psFiltres', enableOverflow: true, items: [
+                            xtype: 'toolbar', dock: 'top', itemId: 'psFiltres', items: [
                                 {xtype: 'combobox', itemId: 'fGrossiste', fieldLabel: 'Grossiste', labelWidth: 60, width: 230, store: grossistesFiltre,
                                     queryMode: 'local', displayField: 'libelle', valueField: 'id', value: '', editable: false,
                                     emptyText: 'Tous les grossistes', listeners: {select: function () {
@@ -160,7 +160,11 @@ Ext.define('testextjs.view.commandemanagement.presaisie.PresaisieBl', {
                                     store: Ext.create('Ext.data.Store', {fields: ['code', 'libelle'], data: me.ETATS}),
                                     listeners: {select: function () {
                                             me.rechercher();
-                                        }}},
+                                        }}}
+                            ]
+                        }, {
+                            /* seconde ligne de filtres : tout reste visible a 1366 px (pas de menu de debordement) */
+                            xtype: 'toolbar', dock: 'top', itemId: 'psFiltres2', items: [
                                 {xtype: 'datefield', itemId: 'fDu', fieldLabel: 'Du', labelWidth: 22, width: 130, format: 'd/m/Y', submitFormat: 'Y-m-d'},
                                 {xtype: 'datefield', itemId: 'fAu', fieldLabel: 'au', labelWidth: 20, width: 128, format: 'd/m/Y', submitFormat: 'Y-m-d'},
                                 {xtype: 'textfield', itemId: 'fNumero', emptyText: 'N° de BL', width: 110, enableKeyEvents: true,

@@ -28,7 +28,7 @@ const ROLE = q("SELECT ru.lg_ROLE_ID FROM t_user u JOIN t_role_user ru ON ru.lg_
 const MOI = q("SELECT lg_USER_ID FROM t_user WHERE str_LOGIN = '" + ENV_E2E.LOGIN + "'");
 const G2 = q("SELECT lg_GROSSISTE_ID FROM t_grossiste WHERE str_STATUT = 'enable' AND lg_GROSSISTE_ID <> '" + G1 + "' AND str_LIBELLE IS NOT NULL AND str_LIBELLE <> '' ORDER BY str_LIBELLE LIMIT 1");
 const LIB = (g) => q("SELECT str_LIBELLE FROM t_grossiste WHERE lg_GROSSISTE_ID = '" + g + "'");
-const fmt = (d) => d.toISOString().slice(0, 10);
+const fmt = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 const jour = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return d; };
 const fr = (d) => fmt(d).split('-').reverse().join('/');
 let droit = null, P = [];
@@ -46,8 +46,8 @@ function nettoyer() {
 function poser(cmd) {
   exec("INSERT INTO t_order (lg_ORDER_ID, str_REF_ORDER, int_LINE, lg_GROSSISTE_ID, lg_USER_ID, str_STATUT, dt_CREATED, dt_UPDATED, int_PRICE, recu, direct_import)"
     + " VALUES ('" + cmd + "', '" + cmd + "', 2, '" + G1 + "', '" + MOI + "', 'is_Process', NOW(), NOW(), 0, 0, 0)");
-  P.forEach((p, i) => exec("INSERT INTO t_order_detail (lg_ORDERDETAIL_ID, lg_ORDER_ID, lg_FAMILLE_ID, lg_GROSSISTE_ID, int_NUMBER, int_QTE_REP_GROSSISTE, int_PRICE, int_PAF_DETAIL, int_PRICE_DETAIL, str_STATUT, dt_CREATED, dt_UPDATED)"
-    + " VALUES ('" + cmd + "-" + i + "', '" + cmd + "', '" + p + "', '" + G1 + "', " + (i + 2) + ", " + (i + 2) + ", " + ((i + 2) * 1000) + ", 1000, 2000, 'is_Process', NOW(), NOW())"));
+  P.forEach((p, i) => exec("INSERT INTO t_order_detail (lg_ORDERDETAIL_ID, lg_ORDER_ID, lg_FAMILLE_ID, lg_GROSSISTE_ID, int_NUMBER, int_QTE_REP_GROSSISTE, int_PRICE, int_PAF_DETAIL, int_PRICE_DETAIL, prixUnitaire, prixAchat, str_STATUT, dt_CREATED, dt_UPDATED)"
+    + " VALUES ('" + cmd + "-" + i + "', '" + cmd + "', '" + p + "', '" + G1 + "', " + (i + 2) + ", " + (i + 2) + ", " + ((i + 2) * 1000) + ", 1000, 2000, 2000, 1000, 'is_Process', NOW(), NOW())"));
 }
 /* comptes de lignes par table (bilan avant / après) */
 function compter() {
@@ -59,7 +59,7 @@ function compter() {
 const ecart = (a, b) => { const d = {}; Object.keys(a).forEach((k) => { if (b[k] !== a[k]) { d[k] = b[k] - a[k]; } }); return d; };
 const presaisies = () => q("SELECT GROUP_CONCAT(CONCAT_WS('|', lg_GROSSISTE_ID, str_NUMERO, DATE_FORMAT(dt_DATE_BL, '%Y-%m-%d'), int_MHT, int_TVA, int_TTC, IFNULL(str_SEQ_CLIENT, ''),"
   + " IFNULL(lg_ORDER_ID, ''), str_ETAT, lg_CREE_PAR, IFNULL(lg_BON_LIVRAISON_ID, ''), IFNULL(lg_TRAITE_PAR, ''), dt_TRAITE IS NOT NULL, IFNULL(str_MOTIF_SUPPRESSION, ''))"
-  + " ORDER BY lg_GROSSISTE_ID, str_NUMERO, str_ETAT SEPARATOR '\\n') FROM t_presaisie_bl WHERE str_NUMERO LIKE 'E2EPSB-%'");
+  + " ORDER BY lg_GROSSISTE_ID, str_NUMERO, str_ETAT SEPARATOR '~') FROM t_presaisie_bl WHERE str_NUMERO LIKE 'E2EPSB-%'");
 
 (async () => {
   const lus = q("SELECT GROUP_CONCAT(lg_FAMILLE_ID ORDER BY str_NAME SEPARATOR '|') FROM (SELECT f.lg_FAMILLE_ID, f.str_NAME FROM t_famille f WHERE f.str_STATUT = 'enable'"
@@ -133,12 +133,12 @@ const presaisies = () => q("SELECT GROUP_CONCAT(CONCAT_WS('|', lg_GROSSISTE_ID, 
     const ecran = await lignesEcran();
     const api = await p.evaluate(async (e) => (await (await fetch('../api/v1/presaisie-bl?etat=' + e + '&numero=E2EPSB-&limit=500')).json()).data, etat);
     const base = q("SELECT GROUP_CONCAT(CONCAT_WS('|', p.lg_GROSSISTE_ID, p.str_NUMERO, DATE_FORMAT(p.dt_DATE_BL, '%Y-%m-%d'), p.int_MHT, p.int_TVA, p.int_TTC, IFNULL(p.str_SEQ_CLIENT, ''),"
-      + " IFNULL(p.lg_ORDER_ID, ''), p.str_ETAT, TRIM(CONCAT(IFNULL(u.str_FIRST_NAME, ''), ' ', IFNULL(u.str_LAST_NAME, ''))), IFNULL(b.str_REF_LIVRAISON, '')) ORDER BY 1 SEPARATOR '\\n')"
+      + " IFNULL(p.lg_ORDER_ID, ''), p.str_ETAT, TRIM(CONCAT(IFNULL(u.str_FIRST_NAME, ''), ' ', IFNULL(u.str_LAST_NAME, ''))), IFNULL(b.str_REF_LIVRAISON, '')) ORDER BY 1 SEPARATOR '~')"
       + " FROM t_presaisie_bl p JOIN t_user u ON u.lg_USER_ID = p.lg_CREE_PAR LEFT JOIN t_bon_livraison b ON b.lg_BON_LIVRAISON_ID = p.lg_BON_LIVRAISON_ID WHERE p.str_NUMERO LIKE 'E2EPSB-%'"
       + (etat === 'TOUS' ? " AND p.str_ETAT <> 'SUPPRIME'" : " AND p.str_ETAT = '" + etat + "'"));
     const lig = (x) => [x.grossisteId, x.numero, x.date, x.montantHt, x.montantTva, x.montantTtc, x.sequence, x.commandeId, x.etat, x.creePar, x.bonLivraisonRef].join('|');
     const e = ecran.map(lig).sort().join('\n'), a = (api || []).filter((x) => /^E2EPSB-/.test(x.numero)).map(lig).sort().join('\n');
-    const bt = base.split('\n').sort().join('\n');
+    const bt = base.split('~').sort().join('\n');
     /* ce que la grille affiche (cellules rendues) : montants formatés = montants en base */
     const cellules = await p.evaluate(() => { const g = Ext.ComponentQuery.query('presaisiebl #psGrille')[0];
       return g.getStore().getRange().filter((r) => /^E2EPSB-/.test(r.get('numero'))).map((r) => [...g.getView().getNode(r).querySelectorAll('td')].map((td) => td.textContent.trim())); });
@@ -171,7 +171,7 @@ const presaisies = () => q("SELECT GROUP_CONCAT(CONCAT_WS('|', lg_GROSSISTE_ID, 
     ok('Même numéro chez un autre grossiste : permis', /pré-saisi : à saisir/.test(m), m);
     const relus = presaisies();
     ok('Données écrites relues en base : numéro en majuscules, TTC = HT + TVA, commande seulement sur la première, saisi par l\'opérateur',
-      relus.split('\n').sort().join('\n') === [G1 + '|E2EPSB-101|' + fmt(jour(2)) + '|125000|0|125000|48|' + CMD_A + '|A_SAISIR|' + MOI + '|||0|',
+      relus.split('~').sort().join('\n') === [G1 + '|E2EPSB-101|' + fmt(jour(2)) + '|125000|0|125000|48|' + CMD_A + '|A_SAISIR|' + MOI + '|||0|',
         G1 + '|E2EPSB-102|' + fmt(jour(1)) + '|54321|9778|64099|||A_SAISIR|' + MOI + '|||0|',
         G2 + '|E2EPSB-101|' + fmt(jour(5)) + '|70000|12600|82600|7||A_SAISIR|' + MOI + '|||0|'].sort().join('\n'), relus);
 
@@ -242,10 +242,16 @@ const presaisies = () => q("SELECT GROUP_CONCAT(CONCAT_WS('|', lg_GROSSISTE_ID, 
       await p.evaluate(() => { Ext.getCmp('rechecher').setValue('E2E-PSB'); Ext.ComponentQuery.query('i_order_manager')[0].onRechClick(); });
       await p.waitForFunction((c) => { const st = Ext.ComponentQuery.query('i_order_manager')[0].getStore(); return !st.isLoading() && st.findExact('str_REF_ORDER', c) >= 0; }, cmd, { timeout: 30000 });
       await p.waitForTimeout(600);
-      await p.evaluate((c) => { document.querySelectorAll('#e2e-creer-bl, #e2e-oui, #e2e-enregistrer-bl').forEach((x) => x.removeAttribute('id'));
-        const g = Ext.ComponentQuery.query('i_order_manager')[0], r = g.getStore().getAt(g.getStore().findExact('str_REF_ORDER', c));
-        g.getView().getNode(r).querySelector('img[data-qtip="Créer le bon de livraisson"]').id = 'e2e-creer-bl'; }, cmd);
-      await p.click('#e2e-creer-bl');
+      /* la grille peut se recharger (chargement initial puis recherche) : on remarque l'icône et on réessaie */
+      for (let essai = 0; essai < 6; essai++) {
+        await p.evaluate((c) => { document.querySelectorAll('#e2e-creer-bl, #e2e-oui, #e2e-enregistrer-bl').forEach((x) => x.removeAttribute('id'));
+          const g = Ext.ComponentQuery.query('i_order_manager')[0], r = g.getStore().getAt(g.getStore().findExact('str_REF_ORDER', c));
+          const img = g.getView().getNode(r).querySelector('img[data-qtip="Créer le bon de livraisson"]'); img.id = 'e2e-creer-bl'; img.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }, cmd);
+        try { await p.click('#e2e-creer-bl', { timeout: 4000 }); break; } catch (e) {
+          if (essai === 5) { await p.screenshot({ path: SORTIE + '/presaisie-bl-icone.png' }); throw e; }
+          await p.waitForTimeout(800);
+        }
+      }
       await p.waitForFunction(() => { const c = Ext.getCmp('str_REF_LIVRAISON'); return c && c.isVisible(); }, null, { timeout: 20000 });
       await p.waitForTimeout(500);
       await p.fill('#' + await p.evaluate(() => Ext.getCmp('str_REF_LIVRAISON').inputEl.dom.id), numero);
@@ -275,7 +281,7 @@ const presaisies = () => q("SELECT GROUP_CONCAT(CONCAT_WS('|', lg_GROSSISTE_ID, 
     const dA = ecart(avantA, apresA), dB = ecart(avantB, apresB);
     ok('Bilan : la création du BL avec pré-saisie laisse exactement les mêmes traces que sans (mêmes tables, mêmes nombres de lignes, stock inchangé)',
       JSON.stringify(dA) === JSON.stringify(dB) && !('stockTotal' in dA) && !('t_presaisie_bl' in dA), 'avec : ' + JSON.stringify(dA) + ' sans : ' + JSON.stringify(dB));
-    const lignesChangees = psApresA.split('\n').filter((l) => psAvantA.split('\n').indexOf(l) < 0);
+    const lignesChangees = psApresA.split('~').filter((l) => psAvantA.split('~').indexOf(l) < 0);
     ok('Bilan : une seule pré-saisie a changé (G1 / E2EPSB-101) ; le même numéro chez G2 et le BL E2EPSB-102 restent « à saisir »',
       lignesChangees.length === 1 && lignesChangees[0].indexOf(G1 + '|E2EPSB-101|') === 0
       && q("SELECT GROUP_CONCAT(CONCAT(lg_GROSSISTE_ID = '" + G1 + "', ':', str_NUMERO, ':', str_ETAT) ORDER BY 1 SEPARATOR ' ') FROM t_presaisie_bl WHERE str_NUMERO LIKE 'E2EPSB-%' AND NOT (lg_GROSSISTE_ID = '" + G1 + "' AND str_NUMERO = 'E2EPSB-101')")
@@ -312,8 +318,11 @@ const presaisies = () => q("SELECT GROUP_CONCAT(CONCAT_WS('|', lg_GROSSISTE_ID, 
       e.down('#psGrille').headerCt.getGridColumns().forEach((c) => { const i = c.getEl() && c.getEl().dom.querySelector('.x-column-header-inner'); if (i && c.isVisible(true) && i.scrollWidth > i.clientWidth + 1) { coupes.push(c.text); } });
       const boutons = e.query('button').filter((x) => x.isVisible(true)).filter((x) => { const r = x.getEl().dom.getBoundingClientRect(), t = x.getEl().dom.querySelector('.x-btn-inner'); return r.right > window.innerWidth + 1 || (t && t.scrollWidth > t.clientWidth + 1); }).map((x) => x.getText());
       const libelles = e.down('#psFormulaire').query('field').filter((f) => f.isVisible(true) && f.labelEl).filter((f) => f.labelEl.dom.scrollWidth > f.labelEl.dom.clientWidth + 1).map((f) => f.fieldLabel);
-      return { coupes, boutons, libelles, defil: document.body.scrollWidth > document.body.clientWidth + 1 }; });
-    ok('Mise en page 1366 × 768 : en-têtes, libellés et boutons entiers, pas de défilement horizontal', !mp.coupes.length && !mp.boutons.length && !mp.libelles.length && !mp.defil, JSON.stringify(mp));
+      const filtres = ['fGrossiste', 'fEtat', 'fNumero', 'fDu', 'fAu', 'fRechercher'].filter((i) => { const c = e.down('#' + i), r = c.getEl().dom.getBoundingClientRect();
+        return !c.isVisible(true) || r.width === 0 || r.right > e.getEl().dom.getBoundingClientRect().right + 1; });
+      return { coupes, boutons, libelles, filtres, defil: document.body.scrollWidth > document.body.clientWidth + 1 }; });
+    ok('Mise en page 1366 × 768 : en-têtes, libellés, boutons et filtres entiers et visibles (pas de menu de débordement), pas de défilement horizontal',
+      !mp.coupes.length && !mp.boutons.length && !mp.libelles.length && !mp.filtres.length && !mp.defil, JSON.stringify(mp));
 
     /* 9. sans le droit */
     droit = q("SELECT CONCAT(rp.lg_ROLE_PRIVILEGE, '|', rp.lg_ROLE_ID, '|', rp.lg_PRIVILEGE_ID) FROM t_role_privelege rp JOIN t_privilege pr ON pr.lg_PRIVELEGE_ID = rp.lg_PRIVILEGE_ID"
