@@ -787,3 +787,43 @@ Les deux tests étaient rouges sur l'ancien code.
 **Non-régression (domain3) :** verts : analyse-commande, parametres-prevision, previsions-onglet, previsions-analyse, en-cours-relecture, demande-saisonniere, lot1-defauts, tableau-bord (61), pilotage-besoins-1110, pilotage-disposition, retours-0710b, activite-tableau-bord-avoir (27), activite-indicateurs (29), couleurs (9), equipes-analyses (11), tableau-bord-affluence (8) ; tests unitaires de la prévision sans échec.
 - `test-risque-rupture` : un échec au premier passage, 17 / 17 à la relance (lié aux données).
 - `test-pilotage-besoins-1110-b` : 29 / 30. Le contrôle « fonds doux des tuiles » attend des tuiles sur fond coloré, alors que le style C du 04/11 leur a donné un cadre gris. Ma branche ne touche ni au pilotage ni à la CSS : défaut antérieur, non corrigé ici.
+
+---
+
+## Point 7 : fait le 10/11 (commit `5573869c0`, branche `plan/09112026`)
+
+**Ce qui change :**
+- **Déconnexion :** elle vide les données de la session, mais garde le nom du poste (et le choix déjà fait sur le bandeau « Nommez cet appareil »). Avant, `Header.js` vidait tout le stockage du navigateur.
+- **Connexion :** la page de connexion envoie le nom du poste. La ligne « Authentification … nom poste » du fichier journal et le journal RH des connexions portent ce nom, et non plus le nom réseau.
+- **Paramétrages › rubrique « Poste (ce poste et postes connus) » :**
+  - le nom de ce poste, avec « Enregistrer » et « Effacer », confirmés dans le bouton ; c'est le même réglage que « Fichier journal › Ce poste » ;
+  - la liste des postes connus : poste, dernière connexion, utilisateur et adresse de cette connexion, nombre de connexions, sur 365 jours, la plus récente en tête ; « (ce poste) » marque le poste en cours.
+- La liste est lue dans le journal des connexions (`t_session_utilisateur`), qui gardait déjà le poste : pas de nouvelle table. Route `GET v1/postes/connus`, réservée au droit du Paramétrage général ou au profil administrateur ; 401 sans session.
+- La rubrique est ajoutée par l'écran : elle ne regroupe aucun paramètre de la base, et `RubriqueParametre` n'est pas modifié.
+
+**Défauts d'ergonomie trouvés par les captures, et corrigés :**
+- le panneau masquait la liste des rubriques : on ne pouvait plus revenir aux autres paramètres ;
+- un bouton armé le restait si l'on quittait la rubrique, et le clic suivant aurait effacé le nom.
+
+**Où la donnée apparaît, et test de rapprochement :** `test-poste-garde-1011` (23 / 23 sur domain3 et sur 8080 ; rouge sur l'ancien code), par de vrais clics :
+- nom saisi dans la rubrique = stockage du poste = réglage du fichier journal ;
+- après déconnexion et reconnexion : nom dans le journal et dans le journal RH des connexions ;
+- liste de l'écran = API = calcul indépendant sur la base, ligne par ligne ;
+- « Effacer » : la connexion suivante reprend le nom réseau ;
+- bouton armé puis rubrique quittée : rien n'est effacé (contrôle rouge sans son correctif) ;
+- API refusée sans session.
+
+**Règles et test de cohérence :** `PostesConnusCoherenceTest`, 4 000 journaux tirés au hasard (graine 20261111) :
+- une ligne par poste ; les noms qui ne diffèrent que par la casse sont un seul poste ; poste vide ignoré ;
+- dernière connexion = la plus récente ; utilisateur et adresse = ceux de cette connexion ;
+- somme des connexions = connexions avec un poste ; ordre du plus récent au plus ancien ; limite de 200 lignes.
+
+**Traces (bilan) :** aucune donnée nouvelle en base. Les sessions et lignes de journal portant le nom d'essai sont retirées ; aucun paramètre touché.
+
+**Cas couverts :** nom accentué (« E2E Poste é 1011 »), nom absent puis effacé, plusieurs postes connus, connexions à la même seconde, casse différente, limite atteinte.
+
+**À savoir :** un poste sans connexion depuis un an n'apparaît plus dans la liste.
+
+**Tests adaptés :** `test-parametres-rubriques` (la rubrique « Poste » s'ajoute à celles du serveur).
+
+**Non-régression (domain3) :** verts : nom d'appareil 53-54 (6), 56 (10), poste mobile (9), rubriques (8), journal complet (18), connexion (18), sessions (12), badge (16), badge et code (28), droits serveur (26), colonnes de « Ventes terminées » (14), allers-retours de connexion (9).
