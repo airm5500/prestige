@@ -736,3 +736,54 @@ Tous ces tests étaient rouges sur l'ancien code.
 - Sur la copie d'essai, aucune remise ni aucun conseil n'est saisi en octobre : ces deux cartes ne s'alimenteront qu'avec l'usage.
 
 **Non-régression :** les 18 tests d'écran de l'activité sont verts sur domain3 (anomalies, données, gardes, préventes, pastilles, tableau de bord…). Les tests unitaires de l'activité sont verts : 49.
+
+---
+
+## Points 5 et 6 : faits le 10/11 (commit `20c49b767`, branche `plan/09112026`)
+
+**Taux de rupture, une seule règle pour la Prévision et le tableau de bord :**
+- Un produit est « vendu fréquemment » s'il s'est vendu dans au moins N mois des M derniers mois complets, pour au moins Q unités en tout. Si N dépasse M, N est ramené à M.
+- Taux = produits fréquents dont le stock actuel (rayon + réserve) est nul ou négatif, divisés par les produits fréquents, au dixième.
+- Produits retenus : famille active, emplacement principal.
+- Trois paramètres dans l'écran Prévision (migration V7.6.7) : M = 3, N = 2, Q = 3 par défaut. La tuile se met à jour dès l'enregistrement.
+- Le tableau de bord affiche le même taux dans la tuile Ruptures ; un clic ouvre « Produits fréquents à stock nul (n) ». Il suit un nouveau réglage après « Actualiser » ou au bout d'une minute (cache de la tuile).
+
+**Onglet Prévisions :**
+- le filtre « En rupture (vendus fréquemment) » donne exactement les produits comptés dans le taux ;
+- nouveau filtre « Fiabilité ≥ X % » (vide = pas de filtre), appliqué aussi aux exports Excel et PDF ;
+- le texte « 6 derniers mois » suit le paramètre des mois d'essai.
+
+**Carte Activité du tableau de bord :** quatre tuiles en plus, à bordure fine grise (sans cadre coloré) ; un clic ouvre le détail.
+- Préventes perdues : annulées et abandonnées, sur le total des préventes, avec le pourcentage.
+- Ventes annulées.
+- BL entrés, avec la part saisie à J+2 ou plus.
+- CA conseillé, avec le nombre de conseils et de ventes conseillées.
+- « BL en attente » est remplacé par « BL entrés » : ce chiffre n'existe pas encore dans les données de l'activité. Les « ventes longues » restaient déjà dans les repères d'origine.
+
+**Où la donnée apparaît, et tests de rapprochement :**
+
+| Test | Ce qui est rapproché | Résultat |
+|---|---|---|
+| `test-taux-rupture-1011` | calcul indépendant sur la base = API du tableau = API rupture = tuile de la Prévision = tuile du tableau de bord, sur 4 réglages : (3,2,3), (6,1,1), (2,2,10), (1,4,1) ; filtre « En rupture » ; liste du tableau de bord ligne par ligne (nom, CIP, vendus, mois vendus, stock) ; fiabilité à 0, 60 et 100, et même total par la route des exports (le contenu des fichiers Excel et PDF n'est pas relu) ; refus de M = 0 | 35 / 35 |
+| `test-activite-tuiles-plus-1011` | tuile = API = base pour les 4 tuiles, sur le 17/10, le 05/10 et aujourd'hui ; bordure grise ; 4 repères d'origine intacts ; clic vers le détail | 23 / 23 |
+
+Les deux tests étaient rouges sur l'ancien code.
+
+**Règles de calcul et test de cohérence :** `TauxRuptureCoherenceTest`, 3 000 catalogues tirés au hasard (graine 20261110) :
+- fréquents et ruptures égaux à un calcul de référence indépendant ;
+- taux = ruptures ÷ fréquents au dixième, entre 0 et 100, 0 sans produit fréquent ;
+- chaque produit de la liste : stock nul ou négatif sans réserve, au moins Q unités et au moins N mois vendus, du plus vendu au moins vendu ; tous les produits comptés sont identifiés ;
+- un réglage plus exigeant ne donne jamais plus de produits fréquents ;
+- bornes : historiques de 0 à 36 mois, M = 1, N = 1, Q = 1, N > M ; mois hors période ignorés ; la réserve évite la rupture.
+
+**Traces (bilan) :**
+- Les seuls enregistrements sont les 3 paramètres (`t_parameters`), relus par le service, par l'écran et par le test, puis remis à leur valeur d'origine.
+- Le test des tuiles donne un conseil à 3 ventes du 17/10 le temps du test, puis les remet à l'identique (vérifié en base).
+
+**Cas couverts :** N = 1 et Q = 1, N > M, Q = 10, M = 6 ; stocks nuls, négatifs et positifs ; un jour avec des BL et un jour sans ; ventes avec et sans conseil ; fiabilité vide, 0, 60 et 100.
+
+**Tests adaptés :** `test-parametres-prevision` et `ParametresPrevisionTest` (13 paramètres au lieu de 10), `test-analyse-commande` (nouvelle règle du taux), `test-activite-tableau-bord-avoir-0811` (les nouvelles tuiles sont vérifiées à part).
+
+**Non-régression (domain3) :** verts : analyse-commande, parametres-prevision, previsions-onglet, previsions-analyse, en-cours-relecture, demande-saisonniere, lot1-defauts, tableau-bord (61), pilotage-besoins-1110, pilotage-disposition, retours-0710b, activite-tableau-bord-avoir (27), activite-indicateurs (29), couleurs (9), equipes-analyses (11), tableau-bord-affluence (8) ; tests unitaires de la prévision sans échec.
+- `test-risque-rupture` : un échec au premier passage, 17 / 17 à la relance (lié aux données).
+- `test-pilotage-besoins-1110-b` : 29 / 30. Le contrôle « fonds doux des tuiles » attend des tuiles sur fond coloré, alors que le style C du 04/11 leur a donné un cadre gris. Ma branche ne touche ni au pilotage ni à la CSS : défaut antérieur, non corrigé ici.
