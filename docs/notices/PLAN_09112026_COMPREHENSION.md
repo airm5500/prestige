@@ -457,3 +457,24 @@ Le test d'écran couvre :
 - `test-releve-modele.js` (DPCI par colonnes) : 23 / 23.
 
 **À fournir :** les relevés **DPCI** et **Copharmed** en PDF. Je n'ai reçu que des captures d'écran. Le relevé TEDIS a été vérifié sur le vrai fichier.
+
+## Points 9, 11 et 19 : faits le 10/11
+
+Branche `plan/09112026`, commit `6b930cd3f`, essayé sur domain3.
+
+| Point | Correction | Test (rouge sur l'ancien code, puis vert) |
+|---|---|---|
+| 9 | Détail d'une vente terminée : sections empilées sans chevauchement, chaque libellé et chaque valeur sur une ligne, valeur trop longue raccourcie par « … » avec le texte complet en info-bulle, défilement vertical seulement ; « Prénom du client » et « Montant » | `test-detail-vente-0911.js`, en 1366 × 768 et 1280 × 720 : 18 / 18 |
+| 11 | Scan du QR ou saisie du n° d'une prévente sur l'écran de prévente : la vue de prévente reste, pas de prise en caisse | `test-prevente-scan-vue-0911.js` : 10 / 10 |
+| 19 | Porte-voix violet pour « CAMPAGNES SMS / WHATSAPP » ; la cloche reste aux notifications | `test-icone-campagnes-0911.js` : 5 / 5 |
+
+**Rapprochement (point 9) :** fenêtre = base pour la référence, le montant total, le net, la part client, le montant et le taux du tiers payant.
+
+**Bilan (point 11) :** ventes (statut, montant, annulation, lignes) et stock inchangés ; aucune ligne dans `vente_prise_caisse`.
+
+**Non-régression :**
+- même scan à l'écran de vente : encaissement et prise en caisse comme avant ;
+- `test-prise-en-caisse-0811.js` : 14 / 14 ;
+- les 21 menus de la base gardent leur icône, sauf les campagnes.
+
+**À signaler :** la copie d'essai `laborex_audit` avait reçu, d'une autre branche (« sécurité »), des migrations 7.2.38 et 7.2.39 d'un autre contenu. Les scripts de même numéro de cette branche (`prix_reference_saisie`, `str_PSCODE`) n'y avaient donc jamais été joués, et toute vente assurance échouait. Je les ai joués à la main sur cette copie. Avant de fusionner la branche « sécurité », il faudra renuméroter ses deux migrations, sinon une base qui les reçoit en premier sautera les nôtres.
