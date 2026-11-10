@@ -118,26 +118,11 @@ const arrondi5 = (v) => (v <= 0 ? 0 : (v % 5 === 0 ? v : v + (5 - (v % 5))));
     ok('Deux tickets imprimés : assurance (un tiers-payant) et client combiné, sans reçu caisse (journal du serveur)', exemplaires === 2, exemplaires === null ? 'mesure absente du journal (impression rapide)' : exemplaires);
 
     /* 4. annulation de la vente comptant, par la liste des ventes terminees */
-    await C.ouvrirEcran(p, 'ventemanager');
-    await C.visible(p, 'ventemanager #query');
-    await C.vues.cliquer(p, 'ventemanager #query');
-    await p.keyboard.press('Control+A');
-    await p.keyboard.type(vno.ref, { delay: 20 });
-    await C.vues.cliquer(p, 'ventemanager #rechercher');
-    await p.waitForTimeout(2500);
-    const rangee = p.locator('.x-grid-row').filter({ visible: true, hasText: vno.ref }).first();
-    await rangee.waitFor({ timeout: 30000 });
-    const repAnnul = p.waitForResponse((x) => /\/vente\/annulation\//.test(x.url()), { timeout: 120000 });
-    repAnnul.catch(() => {});
-    await rangee.locator('img[data-qtip="Annuler.Vente"]').first().click();
-    await C.vues.attendreMessage(p, 'Annuler', 15000);
-    await C.vues.repondre(p, 'yes');
-    const ra = await repAnnul;
-    await p.waitForTimeout(2000);
-    if (/impression du ticket/i.test(await C.vues.texteMessage(p))) { await C.vues.repondre(p, 'no'); }
+    /* plan du 08/11, point 18 : le motif est choisi dans un menu sur l'icone, confirme dans le motif (aide commune) */
+    const statutAnnul = await C.annulerVente(p, vno.ref);
     const voApres = C.vente(venteId), vnoApres = C.vente(vnoId);
     const annulee = vnoApres.annulee || q("SELECT COUNT(*) FROM t_preenregistrement WHERE lg_PREENGISTREMENT_ANNULE_ID = '" + vnoId + "'") !== '0';
-    ok('Annulation de la vente comptant acceptée (' + ra.status() + ')', ra.status() === 200 && annulee, JSON.stringify(vnoApres));
+    ok('Annulation de la vente comptant acceptée (' + statutAnnul + ')', statutAnnul === 200 && annulee, JSON.stringify(vnoApres));
     ok('La vente assurance n\'est pas touchée : toujours close, non annulée, même part client, lien conservé', voApres.statut === 'is_Closed' && !voApres.annulee
       && voApres.partClient === vo.partClient && voApres.liee === vnoId && C.mouvements(venteId) === mvtVo, JSON.stringify(voApres));
     ok('Aucune erreur JavaScript', sess.erreurs.length === 0, sess.erreurs.join(' | '));
