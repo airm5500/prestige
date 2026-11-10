@@ -19,19 +19,13 @@ import java.util.regex.Pattern;
  * <li>montants compares en valeur absolue, a la tolerance pres : RAPPROCHE ou ECART ;</li>
  * <li>sans correspondant : ABSENT_PRESTIGE (a saisir chez nous) ; BL / avoir Prestige de la periode absent du releve :
  * ABSENT_RELEVE (a reclamer ou a verifier aupres du grossiste).</li>
- * <li>plan du 09/11 : un avoir est aussi rapproche par son propre numero (TEDIS « AV-2627127450-BKE », saisi en
- * reference d'avoir) ; sans numero correspondant, une piece seule candidate de meme nature, de meme montant a la
- * tolerance pres et datee a {@value #FENETRE_REPLI_JOURS} jours pres est proposee « a confirmer » (PROBABLE), jamais
- * pointee automatiquement.</li>
  * </ul>
  * Classe pure, sans base.
  */
 public final class RapprochementBL {
 
     public enum Statut {
-        RAPPROCHE, ECART, PROBABLE, ABSENT_PRESTIGE, ABSENT_RELEVE,
-        /** plan du 09/11 : ligne du releve qui n'est pas une livraison (abonnement...), gardee a part par le service */
-        IGNOREE
+        RAPPROCHE, ECART, ABSENT_PRESTIGE, ABSENT_RELEVE
     }
 
     /** BL ou avoir enregistre dans Prestige. */
@@ -77,9 +71,6 @@ public final class RapprochementBL {
             this.ecart = ecart;
         }
     }
-
-    /** Plan du 09/11 : ecart de dates maximal (jours) pour proposer une piece « a confirmer ». */
-    public static final int FENETRE_REPLI_JOURS = 3;
 
     private static final Pattern CHIFFRES = Pattern.compile("\\d+");
 
@@ -137,38 +128,11 @@ public final class RapprochementBL {
                 utilisees.add(choix[i].id);
             }
         }
-        /* 3e passage (plan du 09/11) : repli, piece seule candidate par nature, montant et date */
-        boolean[] repli = new boolean[releve.size()];
-        for (int i = 0; i < releve.size(); i++) {
-            if (choix[i] != null) {
-                continue;
-            }
-            ReleveGrossiste.Ligne l = releve.get(i);
-            Piece seule = null;
-            int n = 0;
-            for (Piece p : prestige) {
-                if (!utilisees.contains(p.id) && p.avoir == (l.type == ReleveGrossiste.Type.AVOIR)
-                        && Math.abs(Math.abs(l.montantHt) - Math.abs(p.montantHt)) <= tol && l.date != null
-                        && p.date != null && Math.abs(
-                                java.time.temporal.ChronoUnit.DAYS.between(l.date, p.date)) <= FENETRE_REPLI_JOURS) {
-                    seule = p;
-                    n++;
-                }
-            }
-            if (n == 1) {
-                choix[i] = seule;
-                repli[i] = true;
-                utilisees.add(seule.id);
-            }
-        }
         List<Resultat> sortie = new ArrayList<>();
         for (int i = 0; i < releve.size(); i++) {
             ReleveGrossiste.Ligne l = releve.get(i);
             if (choix[i] == null) {
                 sortie.add(new Resultat(Statut.ABSENT_PRESTIGE, l, null, 0));
-            } else if (repli[i]) {
-                sortie.add(new Resultat(Statut.PROBABLE, l, choix[i],
-                        Math.abs(l.montantHt) - Math.abs(choix[i].montantHt)));
             } else {
                 long ecart = Math.abs(l.montantHt) - Math.abs(choix[i].montantHt);
                 sortie.add(new Resultat(Math.abs(ecart) <= tol ? Statut.RAPPROCHE : Statut.ECART, l, choix[i], ecart));
@@ -187,8 +151,7 @@ public final class RapprochementBL {
         String num = numero(l.numeroBl);
         List<Piece> c = new ArrayList<>();
         for (Piece p : prestige) {
-            if (p.avoir == avoir && !utilisees.contains(p.id) && (num.equals(numero(p.reference))
-                    || avoir && p.referenceAvoir != null && num.equals(numero(p.referenceAvoir)))) {
+            if (p.avoir == avoir && !utilisees.contains(p.id) && num.equals(numero(p.reference))) {
                 c.add(p);
             }
         }
@@ -204,15 +167,16 @@ public final class RapprochementBL {
             return 0;
         }
         String r = p.referenceAvoir.replaceAll("\\s", "");
-        /* plan du 09/11 : ou numero propre de l'avoir (TEDIS « AV-2627127450-BKE ») */
-        boolean propre = l.indiceAvoir.isEmpty() && numero(r).equals(numero(l.numeroBl));
-        return r.endsWith(l.numeroBl + l.indiceAvoir) || propre ? 1 : -1;
+        return r.endsWith(l.numeroBl + l.indiceAvoir) ? 1 : -1;
     }
 
     /** Deux pieces Prestige de meme numero : reference d'avoir, puis sequence, puis montant le plus proche. */
     private static Piece meilleure(ReleveGrossiste.Ligne l, Piece a, Piece b) {
         if (l.type == ReleveGrossiste.Type.AVOIR) {
-            boolean ra = referenceAvoir(l, a) == 1, rb = referenceAvoir(l, b) == 1;
+            boolean ra = a.referenceAvoir != null
+                    && a.referenceAvoir.replaceAll("\\s", "").endsWith(l.numeroBl + l.indiceAvoir);
+            boolean rb = b.referenceAvoir != null
+                    && b.referenceAvoir.replaceAll("\\s", "").endsWith(l.numeroBl + l.indiceAvoir);
             if (ra != rb) {
                 return ra ? a : b;
             }

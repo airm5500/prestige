@@ -18,12 +18,8 @@ Ext.define('testextjs.view.commandemanagement.pointage.PointageBL', {
     STATUTS: [
         {cle: 'RAPPROCHE', texte: 'Rapprochés', couleur: '#17795f', fond: '#e3f6ef', info: 'Même numéro et même montant des deux côtés'},
         {cle: 'ECART', texte: 'Écarts de montant', couleur: '#b26a00', fond: '#fff4e0', info: 'Même numéro, montants différents'},
-        /* plan du 09/11 : numero different, meme montant, date proche ; jamais pointe automatiquement */
-        {cle: 'PROBABLE', texte: 'À confirmer', couleur: '#6d28d9', fond: '#f1eafe', info: 'Numéro différent, même montant et date à 3 jours près : vérifiez le numéro saisi ou la référence d\'avoir'},
         {cle: 'ABSENT_PRESTIGE', texte: 'Absents chez nous', couleur: '#b42318', fond: '#fde7e6', info: 'Sur le relevé du grossiste, pas dans Prestige : à saisir ou à vérifier'},
-        {cle: 'ABSENT_RELEVE', texte: 'Absents du relevé', couleur: '#1f5f9e', fond: '#e4effa', info: 'Dans Prestige, pas sur le relevé : à réclamer ou à vérifier auprès du grossiste'},
-        /* plan du 09/11 : abonnement (TEDIS « PR-ABO »)... : pas une livraison */
-        {cle: 'IGNOREE', texte: 'Ignorées', couleur: '#475569', fond: '#eef2f6', info: 'Ligne du relevé qui n\'est pas une livraison (abonnement...) : ni rapprochée, ni comptée dans les totaux'}
+        {cle: 'ABSENT_RELEVE', texte: 'Absents du relevé', couleur: '#1f5f9e', fond: '#e4effa', info: 'Dans Prestige, pas sur le relevé : à réclamer ou à vérifier auprès du grossiste'}
     ],
     TYPES: {BL: 'BL', RETOUR: 'Avoir (retour)', RECEPTION: 'Avoir (manquants à la réception)'},
     /* champs du releve a designer (ReleveModele.Champ) */
@@ -223,8 +219,8 @@ Ext.define('testextjs.view.commandemanagement.pointage.PointageBL', {
                                             }},
                                         {xtype: 'tbtext', itemId: 'etatModele', text: ''},
                                         {text: 'Revenir au format standard', itemId: 'oublierModele', hidden: true,
-                                            tooltip: 'Oublier le réglage des colonnes mémorisé pour ce grossiste', handler: function (b) {
-                                                me.oublierModele(b);
+                                            tooltip: 'Oublier le réglage des colonnes mémorisé pour ce grossiste', handler: function () {
+                                                me.oublierModele();
                                             }},
                                         '->',
                                         {text: 'Imprimer', itemId: 'imprimerReleve', iconCls: 'printable', disabled: true,
@@ -234,8 +230,8 @@ Ext.define('testextjs.view.commandemanagement.pointage.PointageBL', {
                                                 }
                                             }},
                                         {text: 'Pointer les pièces rapprochées', itemId: 'pointerRapproches', cls: 'btn-primary', disabled: true,
-                                            tooltip: 'Coche « Pointé » sur les BL et avoirs rapprochés de ce relevé (non encore pointés)', handler: function (b) {
-                                                me.pointerRapproches(b);
+                                            tooltip: 'Coche « Pointé » sur les BL et avoirs rapprochés de ce relevé (non encore pointés)', handler: function () {
+                                                me.pointerRapproches();
                                             }}
                                     ]
                                 }, {
@@ -291,16 +287,6 @@ Ext.define('testextjs.view.commandemanagement.pointage.PointageBL', {
                                                         }}};
                                             }).concat([{xtype: 'textfield', itemId: 'marqueursAvoir', fieldLabel: 'Texte d\'un avoir (colonne Type)', value: 'AV',
                                                     maxLength: 60, enforceMaxLength: true, maskRe: /[A-Za-z0-9\/ ,;-]/,
-                                                    listeners: {change: function () {
-                                                            me.essayerBuffer();
-                                                        }}},
-                                                /* plan du 09/11 : lignes a ignorer (abonnement TEDIS) et montant TTC (Copharmed) */
-                                                {xtype: 'textfield', itemId: 'marqueursIgnores', fieldLabel: 'Ligne à ignorer (colonne Type)', value: 'ABO',
-                                                    maxLength: 60, enforceMaxLength: true, maskRe: /[A-Za-z0-9\/ ,;-]/,
-                                                    listeners: {change: function () {
-                                                            me.essayerBuffer();
-                                                        }}},
-                                                {xtype: 'checkboxfield', itemId: 'montantTtc', fieldLabel: 'Montant du relevé', boxLabel: 'TTC (comparé au TTC des BL)',
                                                     listeners: {change: function () {
                                                             me.essayerBuffer();
                                                         }}}])
@@ -569,12 +555,6 @@ Ext.define('testextjs.view.commandemanagement.pointage.PointageBL', {
         me.down('#marqueursAvoir').suspendEvents();
         me.down('#marqueursAvoir').setValue(o.marqueursAvoir || 'AV');
         me.down('#marqueursAvoir').resumeEvents();
-        me.down('#marqueursIgnores').suspendEvents();
-        me.down('#marqueursIgnores').setValue(o.marqueursIgnores === undefined ? 'ABO' : o.marqueursIgnores);
-        me.down('#marqueursIgnores').resumeEvents();
-        me.down('#montantTtc').suspendEvents();
-        me.down('#montantTtc').setValue(!!o.montantTtc);
-        me.down('#montantTtc').resumeEvents();
         Ext.Array.each(cols, function (c) {
             fields.push('c' + c.rang);
         });
@@ -624,8 +604,7 @@ Ext.define('testextjs.view.commandemanagement.pointage.PointageBL', {
                 champs[c.champ] = v;
             }
         });
-        return {jeton: me.jeton, champs: champs, marqueursAvoir: me.down('#marqueursAvoir').getValue(),
-            marqueursIgnores: me.down('#marqueursIgnores').getValue(), montantTtc: me.down('#montantTtc').getValue()};
+        return {jeton: me.jeton, champs: champs, marqueursAvoir: me.down('#marqueursAvoir').getValue()};
     },
 
     essayerBuffer: function () {
@@ -655,7 +634,7 @@ Ext.define('testextjs.view.commandemanagement.pointage.PointageBL', {
                 store.each(function (rec) {
                     var x = parN[rec.get('n')];
                     rec.set('lu', !!x);
-                    rec.set('resume', x ? (x.type === 'AVOIR' ? 'Avoir ' : x.type === 'IGNOREE' ? 'Ignorée ' : 'BL ') + x.numero + (x.sequence ? ' / ' + x.sequence : '') + ' · ' + x.date + ' · ' + n(x.montantHt) : '');
+                    rec.set('resume', x ? (x.type === 'AVOIR' ? 'Avoir ' : 'BL ') + x.numero + (x.sequence ? ' / ' + x.sequence : '') + ' · ' + x.date + ' · ' + n(x.montantHt) : '');
                     rec.commit(true);
                 });
                 store.resumeEvents();
@@ -666,7 +645,6 @@ Ext.define('testextjs.view.commandemanagement.pointage.PointageBL', {
                         + ' Les lignes lues sont en vert, les en-têtes et totaux sont ignorés.</div>'
                         + (o.msg ? '<div><b style="color:#b26a00">' + enc(o.msg) + '</b></div>'
                                 : '<div class="pb-totaux"><b>' + o.nombre + '</b> ligne(s) lue(s) : BL <b>' + n(o.totalBl) + '</b>, avoirs <b>' + n(o.totalAvoirs) + '</b>'
-                                + (o.ignorees ? ', <b>' + o.ignorees + '</b> ignorée(s)' : '')
                                 + (me.apercu.tronque ? ' (aperçu limité aux 400 premières lignes)' : '') + '</div>'));
                 me.down('#appliquerModele').setDisabled(!!o.msg || !o.nombre);
             }
@@ -693,13 +671,15 @@ Ext.define('testextjs.view.commandemanagement.pointage.PointageBL', {
         });
     },
 
-    /* plan du 09/11 : confirmation dans le bouton (plus de fenetre surgissante) */
-    oublierModele: function (bouton) {
+    oublierModele: function () {
         var me = this, g = me.down('#grossiste').getValue();
         if (!g) {
             return;
         }
-        PrestigeConfirmation.bouton(bouton || me.down('#oublierModele'), 'Confirmer : oublier le réglage ?', function () {
+        Ext.MessageBox.confirm('Relevé du grossiste', 'Oublier le réglage des colonnes de ce grossiste ? Ses relevés seront de nouveau lus au format standard.', function (b) {
+            if (b !== 'yes') {
+                return;
+            }
             Ext.Ajax.request({
                 url: '../api/v1/pointage-bl/modele?grossiste=' + encodeURIComponent(g), method: 'DELETE',
                 success: function () {
@@ -709,18 +689,20 @@ Ext.define('testextjs.view.commandemanagement.pointage.PointageBL', {
         });
     },
 
-    /* plan du 09/11 : confirmation dans le bouton, resultat en avis non bloquant ; les « a confirmer » ne sont jamais pointes */
-    pointerRapproches: function (bouton) {
+    pointerRapproches: function () {
         var me = this, o = me.releveCourant;
         if (!o) {
             return;
         }
-        PrestigeConfirmation.bouton(bouton || me.down('#pointerRapproches'), 'Confirmer : pointer ' + (o.compteurs.RAPPROCHE || 0) + ' pièce(s) ?', function () {
+        Ext.MessageBox.confirm('Pointage', 'Pointer les ' + (o.compteurs.RAPPROCHE || 0) + ' pièce(s) rapprochée(s) de ce relevé ?', function (b) {
+            if (b !== 'yes') {
+                return;
+            }
             Ext.Ajax.request({
                 url: '../api/v1/pointage-bl/releve/' + encodeURIComponent(o.id) + '/pointer', method: 'PUT',
                 success: function (r) {
                     var x = Ext.decode(r.responseText, true) || {};
-                    PrestigeToast.afficher(x.msg || (x.success ? 'Pièces pointées.' : 'Pointage impossible.'), {niveau: x.success ? 'ok' : 'erreur'});
+                    Ext.MessageBox.alert('Pointage', Ext.String.htmlEncode(x.msg || (x.success ? 'Pièces pointées.' : 'Pointage impossible.')));
                     me.charger();
                 }
             });

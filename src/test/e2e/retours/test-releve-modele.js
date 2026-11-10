@@ -74,7 +74,7 @@ function nettoyer() {
   const lus = async () => (await ev(E + '.down("#grilleApercu").getStore().getRange().filter(function(r){return r.get("lu");}).map(function(r){return r.get("resume");})'))
     .map((x) => x.replace(/(\d)[\u00a0\u202f .](?=\d{3}\b)/g, '$1 '));
   try {
-    await p.goto((process.env.BASE || 'http://localhost:8080/prestige') + '/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
+    await p.goto('http://localhost:8080/prestige/security/index.jsp?content=panelInfos.jsp&lng=fr', { waitUntil: 'domcontentloaded' });
     await p.fill('#str_login', ENV_E2E.LOGIN); await p.fill('#str_password', 'e2etest'); await p.click('#login');
     await p.waitForURL('**/general/**', { timeout: 40000 });
     await p.waitForFunction(() => window.Ext && window.testextjs && testextjs.app, null, { timeout: 90000 });
@@ -137,11 +137,9 @@ function nettoyer() {
     ok('Annuler : retour à la liste, réglage du grossiste inchangé', await carte() === 'grilleReleve' && q("SELECT str_MODELE FROM t_releve_modele WHERE lg_GROSSISTE_ID = '" + G + "'") === m);
 
     /* 5. retour au format standard (pas de regression) */
-    /* plan du 09/11 : confirmation dans le bouton (deux clics) */
-    const idOublier = await ev(E + '.down("#oublierModele").getId()');
-    await p.click('#' + idOublier);
-    await p.waitForTimeout(600);
-    await p.click('#' + idOublier);
+    await ev(E + '.down("#oublierModele").btnEl.dom.click()');
+    await p.waitForFunction(() => Ext.MessageBox.isVisible() && Ext.MessageBox.msgButtons.yes.isVisible(), null, { timeout: 10000 });
+    await p.evaluate(() => Ext.MessageBox.msgButtons.yes.btnEl.dom.click());
     await p.waitForTimeout(1500);
     ok('« Revenir au format standard » : réglage oublié', q("SELECT COUNT(*) FROM t_releve_modele WHERE lg_GROSSISTE_ID = '" + G + "'") === '0' && !(await ev(E + '.down("#oublierModele").isVisible()')));
     await importer('releve-e2e-pointage.pdf');
