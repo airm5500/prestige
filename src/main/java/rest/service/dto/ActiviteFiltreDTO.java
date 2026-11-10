@@ -1,6 +1,7 @@
 package rest.service.dto;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -31,4 +32,10 @@ public class ActiviteFiltreDTO {
     private String seuilOperateur;
     /** en minutes (vide : 10) */
     private Integer seuilMinutes;
+    /**
+     * Plan du 09/11, point 10 : plage a l'heure pres (garde choisie), [de, a[. Vide : journees entieres du debut a la
+     * fin.
+     */
+    private LocalDateTime de;
+    private LocalDateTime a;
 }

@@ -32,6 +32,8 @@ public class ActiviteAnalysesDTO {
     private String seuilOperateur;
     private int seuilMinutes;
     private String seuilLibelle;
+    /** plan du 09/11, point 10 : garde choisie (libelle, debut, fin) ; absente pour une periode en jours */
+    private java.util.Map<String, String> garde;
     @Builder.Default
     private List<Indicateur> indicateurs = new ArrayList<>();
     @Builder.Default

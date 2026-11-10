@@ -188,12 +188,13 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                         xtype: 'toolbar', dock: 'top', itemId: 'aeFiltres', items: me.boutonsPeriode().concat([
                             {xtype: 'tbseparator'},
                             {xtype: 'datefield', itemId: 'aeDebut', fieldLabel: 'Du', labelWidth: 22, width: 135, format: 'd/m/Y', submitFormat: 'Y-m-d',
-                                value: aujourdhui, maxValue: aujourdhui},
+                                value: aujourdhui, maxValue: aujourdhui, listeners: {change: me.dateChangee, scope: me}},
                             {xtype: 'datefield', itemId: 'aeFin', fieldLabel: 'au', labelWidth: 20, width: 133, format: 'd/m/Y', submitFormat: 'Y-m-d',
                                 value: aujourdhui, maxValue: aujourdhui, listeners: {select: function () {
                                         me.marquerBoutonPeriode(null);
-                                    }}},
+                                    }, change: me.dateChangee, scope: me}},
                             me.choixEmploye(),
+                            me.choixGardePeriode(),
                             {text: 'Actualiser', itemId: 'aeActualiser', iconCls: 'refresh', tooltip: 'Relire la période', handler: function () {
                                     me.marquerBoutonPeriode(null);
                                     me.actualiser();
@@ -222,10 +223,12 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                 }, {
                     xtype: 'toolbar', dock: 'top', itemId: 'aeFiltres', items: [
                         {xtype: 'datefield', itemId: 'aeDebut', fieldLabel: 'Du', labelWidth: 22, width: 135, format: 'd/m/Y', submitFormat: 'Y-m-d',
-                            value: Ext.Date.getFirstDateOfMonth(aujourdhui), maxValue: aujourdhui},
+                            value: Ext.Date.getFirstDateOfMonth(aujourdhui), maxValue: aujourdhui, listeners: {change: me.dateChangee, scope: me}},
                         {xtype: 'datefield', itemId: 'aeFin', fieldLabel: 'au', labelWidth: 20, width: 133, format: 'd/m/Y', submitFormat: 'Y-m-d',
-                            value: aujourdhui, maxValue: aujourdhui, plugins: [{ptype: 'raccourcisperiode', debut: 'aeDebut', declencher: 'aeActualiser'}]},
+                            value: aujourdhui, maxValue: aujourdhui, plugins: [{ptype: 'raccourcisperiode', debut: 'aeDebut', declencher: 'aeActualiser'}],
+                            listeners: {change: me.dateChangee, scope: me}},
                         me.choixEmploye(),
+                        me.choixGardePeriode(),
                         {text: 'Actualiser', itemId: 'aeActualiser', iconCls: 'refresh', tooltip: 'Relire la période', handler: function () {
                                 me.actualiser();
                             }},
@@ -261,7 +264,9 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
 
     /* plan avoir du 08/11, point 1 : boutons de la fenetre ; les periodes sont celles du selecteur commun
        (RaccourcisPeriode), calculees depuis le jour de reference */
-    PERIODES_FENETRE: [['aeHier', 'Hier', 'Hier'], ['ae3Jours', '3 jours', '3 derniers jours'], ['aeSemaine', '1 semaine', '7 derniers jours']],
+    /* plan du 09/11, point 10 : « 1 mois » (30 derniers jours) apres « 1 semaine » */
+    PERIODES_FENETRE: [['aeHier', 'Hier', 'Hier'], ['ae3Jours', '3 jours', '3 derniers jours'], ['aeSemaine', '1 semaine', '7 derniers jours'],
+        ['aeMois', '1 mois', '30 derniers jours']],
 
     boutonsPeriode: function () {
         var me = this, toutes = testextjs.view.commun.RaccourcisPeriode.periodes();
@@ -272,6 +277,7 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
             return {xtype: 'button', itemId: b[0], text: b[1], enableToggle: true, toggleGroup: 'ae-periode-' + me.id, allowDepress: false,
                 cls: 'ordo-btn', margin: '0 4 0 0', tooltip: b[2], handler: function () {
                     var d = calcul(Ext.Date.clearTime(me.dateReference || new Date()));
+                    me.quitterGarde();
                     me.down('#aeDebut').setValue(d[0]);
                     me.down('#aeFin').setValue(d[1]);
                     me.actualiser();
@@ -304,8 +310,51 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
     },
 
     /* filtres communs, au format des routes */
+    /* plan du 09/11, point 10 : selecteur de garde de la periode. La garde choisie fixe le debut et la fin a l'heure
+       pres (ventes de la nuit ou du dimanche) ; un bouton de periode ou une date changee a la main la quitte. */
+    choixGardePeriode: function () {
+        var me = this;
+        var gardes = Ext.create('Ext.data.Store', {
+            fields: ['id', 'libelle', 'dateDebut', 'dateFin', {name: 'libelleComplet', convert: function (v, r) {
+                        return r.get('libelle') + '  (' + r.get('dateDebut') + ' → ' + r.get('dateFin') + ')';
+                    }}],
+            autoLoad: true, proxy: {type: 'ajax', url: '../api/v1/gardes', reader: {type: 'json', root: 'data', totalProperty: 'total'}}
+        });
+        return {xtype: 'combobox', itemId: 'aeGardePeriode', fieldLabel: 'Garde', labelWidth: 40, width: 260, store: gardes, queryMode: 'local',
+            editable: false, valueField: 'id', displayField: 'libelleComplet', emptyText: 'Suivre une garde…', matchFieldWidth: false,
+            listConfig: {minWidth: 380}, tooltip: 'Limite les analyses aux heures de la garde choisie',
+            listeners: {select: function (c, r) {
+                    var g = r[0], de = Ext.Date.parse(g.get('dateDebut'), 'Y-m-d H:i:s'), a = Ext.Date.parse(g.get('dateFin'), 'Y-m-d H:i:s');
+                    if (!de || !a) {
+                        return;
+                    }
+                    me.gardeId = g.get('id');
+                    me.gardeEnCours = true;
+                    me.down('#aeDebut').setValue(Ext.Date.clearTime(de));
+                    me.down('#aeFin').setValue(Ext.Date.clearTime(new Date(a.getTime() - 1000)));
+                    me.gardeEnCours = false;
+                    me.marquerBoutonPeriode(null);
+                    me.actualiser();
+                }}};
+    },
+
+    dateChangee: function () {
+        if (!this.gardeEnCours) {
+            this.quitterGarde();
+        }
+    },
+
+    quitterGarde: function () {
+        var me = this, c = me.down('#aeGardePeriode');
+        me.gardeId = null;
+        if (c && c.getValue()) {
+            c.clearValue();
+        }
+    },
+
     viderChamps: function () {
         var me = this, aujourdhui = Ext.Date.clearTime(new Date());
+        me.quitterGarde();
         me.down('#aeDebut').setValue(Ext.Date.getFirstDateOfMonth(aujourdhui));
         me.down('#aeFin').setValue(aujourdhui);
         me.down('#aeEmploye').clearValue();
@@ -317,7 +366,11 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
 
     filtres: function () {
         var me = this, e = me.down('#aeEmploye').getValue();
-        return {debut: me.down('#aeDebut').getSubmitValue(), fin: me.down('#aeFin').getSubmitValue(), employeId: e || ''};
+        var f = {debut: me.down('#aeDebut').getSubmitValue(), fin: me.down('#aeFin').getSubmitValue(), employeId: e || ''};
+        if (me.gardeId) {
+            f.gardeId = me.gardeId;
+        }
+        return f;
     },
 
     creerDonnees: function () {
@@ -1323,6 +1376,9 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
         var me = this, AE = testextjs.view.activiteequipes.ActiviteEquipes, N = AE.nombre, D = AE.duree, a = me.analyses;
         var periode = 'Comparé au ' + Ext.Date.format(Ext.Date.parse(d.debutPrecedent, 'Y-m-d'), 'd/m/Y') + ' – '
                 + Ext.Date.format(Ext.Date.parse(d.finPrecedent, 'Y-m-d'), 'd/m/Y');
+        if (d.garde) {
+            periode = Ext.String.htmlEncode(d.garde.libelle) + ' : du ' + d.garde.debut + ' au ' + d.garde.fin + ', comparée à la même plage 7 jours plus tôt';
+        }
         var valeur = function (i, v) {
             return i.format === 'DUREE' ? D(v) : i.format === 'POURCENT' ? N(v, true) + ' %' : i.format === 'MONTANT' ? N(v) + ' F' : N(v, v % 1 !== 0);
         };

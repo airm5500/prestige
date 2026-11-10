@@ -42,6 +42,9 @@ public interface ActiviteEquipesService {
      */
     java.util.Map<String, Object> carteGarde(String gardeId);
 
+    /** Plan du 09/11, point 10 : libelle (String), debut et fin (LocalDateTime) d'une garde ; null si absente. */
+    java.util.Map<String, Object> fenetreGarde(String gardeId);
+
     /** Plan du 08/11, point 15.1 : annulations par auteur de la vente et suivi des caissieres. */
     java.util.Map<String, Object> annulations(ActiviteFiltreDTO f);
 

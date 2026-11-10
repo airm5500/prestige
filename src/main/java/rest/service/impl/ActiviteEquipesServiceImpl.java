@@ -153,9 +153,9 @@ public class ActiviteEquipesServiceImpl implements ActiviteEquipesService {
                 sql.append(" UNION ALL ");
             }
             sql.append(b.select).append(" AND ").append(b.date).append(" >= ?").append(params.size() + 1);
-            params.add(Timestamp.valueOf(f.getDebut().atStartOfDay()));
+            params.add(Timestamp.valueOf(borneDebut(f)));
             sql.append(" AND ").append(b.date).append(" < ?").append(params.size() + 1);
-            params.add(Timestamp.valueOf(f.getFin().plusDays(1).atStartOfDay()));
+            params.add(Timestamp.valueOf(borneFin(f)));
             if (!vide(f.getEmployeId())) {
                 sql.append(" AND ").append(b.employe).append(" = ?").append(params.size() + 1);
                 params.add(f.getEmployeId());
@@ -195,19 +195,40 @@ public class ActiviteEquipesServiceImpl implements ActiviteEquipesService {
         return ActiviteJournalDTO.builder().total(total).lignes(lignes).compteurs(compteurs).build();
     }
 
+    /** Plan du 09/11, point 10 : debut de la plage lue, a l'heure pres si une garde est choisie. */
+    static java.time.LocalDateTime borneDebut(ActiviteFiltreDTO f) {
+        return f.getDe() != null ? f.getDe() : f.getDebut().atStartOfDay();
+    }
+
+    /** Fin (exclue) de la plage lue. */
+    static java.time.LocalDateTime borneFin(ActiviteFiltreDTO f) {
+        return f.getA() != null ? f.getA() : f.getFin().plusDays(1).atStartOfDay();
+    }
+
     @Override
     public ActiviteAnalysesDTO analyses(ActiviteFiltreDTO f) {
-        long jours = ChronoUnit.DAYS.between(f.getDebut(), f.getFin()) + 1;
-        LocalDate finP = f.getDebut().minusDays(1), debutP = finP.minusDays(jours - 1);
+        /*
+         * plan du 09/11, point 10 : plage [de, a[ ; une garde (plage a l'heure) se compare a la meme plage 7 jours plus
+         * tot, une periode en jours a autant de jours juste avant
+         */
+        java.time.LocalDateTime de = borneDebut(f), a = borneFin(f), deP, aP;
+        if (f.getDe() != null) {
+            deP = de.minusWeeks(1);
+            aP = a.minusWeeks(1);
+        } else {
+            long jours = ChronoUnit.DAYS.between(f.getDebut(), f.getFin()) + 1;
+            deP = de.minusDays(jours);
+            aP = de;
+        }
+        LocalDate debutP = deP.toLocalDate(), finP = aP.minusSeconds(1).toLocalDate();
         Map<String, String> noms = noms();
         SeuilDuree seuil = SeuilDuree.de(f.getSeuilOperateur(), f.getSeuilMinutes());
-        List<AgregatsActivite.Vente> ventes = ventes(f.getDebut(), f.getFin(), f.getEmployeId());
-        List<AgregatsActivite.Bl> bls = bls(f.getDebut(), f.getFin(), f.getEmployeId());
-        Map<String, Long> annulations = parEmploye(SQL_ANNULATIONS, f.getDebut(), f.getFin(), f.getEmployeId());
+        List<AgregatsActivite.Vente> ventes = ventes(de, a, f.getEmployeId());
+        List<AgregatsActivite.Bl> bls = bls(de, a, f.getEmployeId());
+        Map<String, Long> annulations = parEmploye(SQL_ANNULATIONS, de, a, f.getEmployeId());
         AgregatsActivite.Totaux t = AgregatsActivite.totaux(ventes, bls, somme(annulations), seuil);
-        AgregatsActivite.Totaux p = AgregatsActivite.totaux(ventes(debutP, finP, f.getEmployeId()),
-                bls(debutP, finP, f.getEmployeId()), somme(parEmploye(SQL_ANNULATIONS, debutP, finP, f.getEmployeId())),
-                seuil);
+        AgregatsActivite.Totaux p = AgregatsActivite.totaux(ventes(deP, aP, f.getEmployeId()),
+                bls(deP, aP, f.getEmployeId()), somme(parEmploye(SQL_ANNULATIONS, deP, aP, f.getEmployeId())), seuil);
 
         Map<String, Long> ventesParEmploye = new HashMap<>();
         ventes.forEach(v -> ventesParEmploye.merge(v.employeId(), 1L, Long::sum));
@@ -219,12 +240,12 @@ public class ActiviteEquipesServiceImpl implements ActiviteEquipesService {
         List<ActiviteAnalysesDTO.Grossiste> grossistes = AgregatsActivite.grossistes(bls);
         List<ActiviteAnalysesDTO.Tranche> retard = AgregatsActivite.retardBl(bls);
         List<ActiviteAnalysesDTO.Sensible> sensibles = AgregatsActivite.sensibles(ventesParEmploye, annulations,
-                parEmploye(SQL_MODIFICATIONS, f.getDebut(), f.getFin(), f.getEmployeId()),
-                parEmploye(SQL_REMISES, f.getDebut(), f.getFin(), f.getEmployeId()), noms);
+                parEmploye(SQL_MODIFICATIONS, de, a, f.getEmployeId()),
+                parEmploye(SQL_REMISES, de, a, f.getEmployeId()), noms);
 
         List<Object> pr = new ArrayList<>();
-        ActiviteFiltreDTO sansType = ActiviteFiltreDTO.builder().debut(f.getDebut()).fin(f.getFin())
-                .employeId(f.getEmployeId()).build();
+        ActiviteFiltreDTO sansType = ActiviteFiltreDTO.builder().debut(f.getDebut()).fin(f.getFin()).de(f.getDe())
+                .a(f.getA()).employeId(f.getEmployeId()).build();
         List<Object[]> parType = liste(
                 "SELECT a.u AS emp, a.t AS typ, COUNT(*) AS n FROM (" + reunion(sansType, pr, true) + ") a"
                         + " WHERE a.u IS NOT NULL AND a.t <> 'CONNEXION' GROUP BY a.u, a.t",
@@ -240,11 +261,10 @@ public class ActiviteEquipesServiceImpl implements ActiviteEquipesService {
                 .heures(heures).carte(AgregatsActivite.carte(ventes)).jours(AgregatsActivite.jours(ventes, bls))
                 .operateurs(operateurs).longues(AgregatsActivite.longues(operateurs, AgregatsActivite.LONGUES_MAX))
                 .typesVente(AgregatsActivite.typesVente(ventes, seuil))
-                .preventes(AgregatsActivite.preventes(
-                        lire(SQL_PREVENTES, "p.lg_USER_VENDEUR_ID", f.getDebut(), f.getFin(), f.getEmployeId()), noms))
+                .preventes(AgregatsActivite
+                        .preventes(lire(SQL_PREVENTES, "p.lg_USER_VENDEUR_ID", de, a, f.getEmployeId()), noms))
                 .vitesseCaissieres(AgregatsActivite.vitesseCaissieres(
-                        lire(SQL_CAISSIERES, "p.lg_USER_CAISSIER_ID", f.getDebut(), f.getFin(), f.getEmployeId()),
-                        noms))
+                        lire(SQL_CAISSIERES, "p.lg_USER_CAISSIER_ID", de, a, f.getEmployeId()), noms))
                 .grossistes(grossistes).retardBl(retard).sensibles(sensibles)
                 .repartition(AgregatsActivite.repartition(parType, noms)).build();
     }
@@ -270,7 +290,7 @@ public class ActiviteEquipesServiceImpl implements ActiviteEquipesService {
     @Override
     public Map<String, Object> caTranches(ActiviteFiltreDTO f, Integer taille, String attribution) {
         List<rest.service.impl.activite.CaTranchesEmploye.Vente> l = new ArrayList<>();
-        for (Object[] r : lire(SQL_CA_TRANCHES, "", f.getDebut(), f.getFin(), null)) {
+        for (Object[] r : lire(SQL_CA_TRANCHES, "", borneDebut(f), borneFin(f), null)) {
             /* memes ventes ecartees que ventes() : ouverture, derniere ligne ou encaissement inconnus */
             if (r[3] == null || r[5] == null || r[6] == null) {
                 continue;
@@ -374,9 +394,15 @@ public class ActiviteEquipesServiceImpl implements ActiviteEquipesService {
 
     private List<Object[]> lire(String gabarit, String colonneEmploye, LocalDate debut, LocalDate fin,
             String employeId) {
+        return lire(gabarit, colonneEmploye, debut.atStartOfDay(), fin.plusDays(1).atStartOfDay(), employeId);
+    }
+
+    /** Plan du 09/11, point 10 : lecture sur une plage [de, a[ a l'heure pres. */
+    private List<Object[]> lire(String gabarit, String colonneEmploye, java.time.LocalDateTime de,
+            java.time.LocalDateTime a, String employeId) {
         List<Object> params = new ArrayList<>();
-        params.add(Timestamp.valueOf(debut.atStartOfDay()));
-        params.add(Timestamp.valueOf(fin.plusDays(1).atStartOfDay()));
+        params.add(Timestamp.valueOf(de));
+        params.add(Timestamp.valueOf(a));
         String filtre = "";
         if (!vide(employeId)) {
             filtre = "AND " + colonneEmploye + " = ?3";
@@ -392,10 +418,10 @@ public class ActiviteEquipesServiceImpl implements ActiviteEquipesService {
         m.put("debut", f.getDebut().toString());
         m.put("fin", f.getFin().toString());
         m.put("parVendeur", rest.service.impl.activite.AnnulationsAuteurs.parVendeur(
-                lire(SQL_ANNULATIONS_VENDEUR, "p.lg_USER_VENDEUR_ID", f.getDebut(), f.getFin(), f.getEmployeId()),
+                lire(SQL_ANNULATIONS_VENDEUR, "p.lg_USER_VENDEUR_ID", borneDebut(f), borneFin(f), f.getEmployeId()),
                 noms));
         m.put("parCaissier", rest.service.impl.activite.AnnulationsAuteurs.parCaissier(
-                lire(SQL_ANNULATIONS_CAISSIER, "p.lg_USER_CAISSIER_ID", f.getDebut(), f.getFin(), f.getEmployeId()),
+                lire(SQL_ANNULATIONS_CAISSIER, "p.lg_USER_CAISSIER_ID", borneDebut(f), borneFin(f), f.getEmployeId()),
                 noms));
         return m;
     }
@@ -434,8 +460,13 @@ public class ActiviteEquipesServiceImpl implements ActiviteEquipesService {
     }
 
     private List<AgregatsActivite.Vente> ventes(LocalDate debut, LocalDate fin, String employeId) {
+        return ventes(debut.atStartOfDay(), fin.plusDays(1).atStartOfDay(), employeId);
+    }
+
+    private List<AgregatsActivite.Vente> ventes(java.time.LocalDateTime de, java.time.LocalDateTime a,
+            String employeId) {
         List<AgregatsActivite.Vente> l = new ArrayList<>();
-        for (Object[] r : lire(SQL_VENTES, "p.lg_USER_ID", debut, fin, employeId)) {
+        for (Object[] r : lire(SQL_VENTES, "p.lg_USER_ID", de, a, employeId)) {
             if (r[1] == null || r[2] == null || r[3] == null) {
                 continue;
             }
@@ -495,9 +526,35 @@ public class ActiviteEquipesServiceImpl implements ActiviteEquipesService {
         return m;
     }
 
+    @Override
+    public Map<String, Object> fenetreGarde(String gardeId) {
+        if (vide(gardeId)) {
+            return null;
+        }
+        List<Object> p = new ArrayList<>();
+        p.add(gardeId);
+        List<Object[]> g = liste("SELECT g.libelle, g.date_debut, g.date_fin FROM garde g WHERE g.id = ?1", p);
+        if (g.isEmpty() || g.get(0)[1] == null || g.get(0)[2] == null) {
+            return null;
+        }
+        java.time.LocalDateTime de = heure(g.get(0)[1]), a = heure(g.get(0)[2]);
+        if (!a.isAfter(de)) {
+            return null;
+        }
+        Map<String, Object> m = new java.util.LinkedHashMap<>();
+        m.put("libelle", String.valueOf(g.get(0)[0]));
+        m.put("debut", de);
+        m.put("fin", a);
+        return m;
+    }
+
     private List<AgregatsActivite.Bl> bls(LocalDate debut, LocalDate fin, String employeId) {
+        return bls(debut.atStartOfDay(), fin.plusDays(1).atStartOfDay(), employeId);
+    }
+
+    private List<AgregatsActivite.Bl> bls(java.time.LocalDateTime de, java.time.LocalDateTime a, String employeId) {
         List<AgregatsActivite.Bl> l = new ArrayList<>();
-        for (Object[] r : lire(SQL_BL, "b.lg_USER_ID", debut, fin, employeId)) {
+        for (Object[] r : lire(SQL_BL, "b.lg_USER_ID", de, a, employeId)) {
             l.add(new AgregatsActivite.Bl(String.valueOf(r[0]), r[1] == null ? null : String.valueOf(r[1]),
                     r[2] == null ? null : heure(r[2]), heure(r[3]), r[4] == null ? null : heure(r[4]),
                     r[5] == null ? null : heure(r[5]).toLocalDate(), ((Number) r[6]).longValue()));
@@ -506,10 +563,15 @@ public class ActiviteEquipesServiceImpl implements ActiviteEquipesService {
     }
 
     private Map<String, Long> parEmploye(String gabarit, LocalDate debut, LocalDate fin, String employeId) {
+        return parEmploye(gabarit, debut.atStartOfDay(), fin.plusDays(1).atStartOfDay(), employeId);
+    }
+
+    private Map<String, Long> parEmploye(String gabarit, java.time.LocalDateTime de, java.time.LocalDateTime a,
+            String employeId) {
         String colonne = gabarit == SQL_MODIFICATIONS ? "v.user_id"
                 : gabarit == SQL_REMISES ? "p.lg_USER_CAISSIER_ID" : "p.lg_USER_ID";
         Map<String, Long> m = new HashMap<>();
-        for (Object[] r : lire(gabarit, colonne, debut, fin, employeId)) {
+        for (Object[] r : lire(gabarit, colonne, de, a, employeId)) {
             if (r[0] != null && r[1] != null) {
                 m.put(String.valueOf(r[0]), ((Number) r[1]).longValue());
             }
