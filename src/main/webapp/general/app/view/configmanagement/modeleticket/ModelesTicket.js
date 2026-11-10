@@ -49,6 +49,9 @@ Ext.define('testextjs.view.configmanagement.modeleticket.ModelesTicket', {
         {cle: 'signatures', libelle: 'Signatures caissier et responsable', aide: 'Contrôle de la caisse', pour: ['TICKET_Z']}
     ],
 
+    /* plan du 09/11, point 15 : nom long du tiers payant, sur une ligne (raccourci par « … ») ou sur deux lignes */
+    TIERS_PAYANT_POUR: ['VENTE', 'VENTE_ASSURANCE', 'VENTE_CARNET', 'VENTE_DEPOT', 'VENTE_MIXTE'],
+
     initComponent: function () {
         var me = this;
         me.etat = {largeur: 80, donnees: null, ticket: 'VENTE', brouillons: {}, selection: null, apercu: null, demande: 0};
@@ -235,6 +238,11 @@ Ext.define('testextjs.view.configmanagement.modeleticket.ModelesTicket', {
             h.push('<div class="mtk-champ"><span>' + enc(o.libelle) + (o.aide ? '<small>' + enc(o.aide) + '</small>' : '') + '</span>'
                     + '<button type="button" class="mtk-bascule' + (r[o.cle] ? ' mtk-on' : '') + '" data-option="' + o.cle + '" role="switch" aria-checked="' + !!r[o.cle] + '" aria-label="' + enc(o.libelle) + '"' + (me.droit() && r.modele === 'NOUVEAU' ? '' : ' disabled') + '></button></div>');
         });
+        if (me.TIERS_PAYANT_POUR.indexOf(me.etat.ticket) >= 0) {
+            h.push('<div class="mtk-champ"><span>Nom long du tiers payant<small>Une ligne : nom raccourci par « … ». Deux lignes : taux et montant centrés à droite</small></span>'
+                    + me.choix('tiersPayant', [{v: 'UNE_LIGNE', l: 'Une ligne'}, {v: 'DEUX_LIGNES', l: 'Deux lignes'}], r.tiersPayant || 'UNE_LIGNE',
+                            !me.droit() || r.modele !== 'NOUVEAU') + '</div>');
+        }
         var modifie = !!me.etat.brouillons[me.cle()];
         /* retour du 05/11 : les boutons remontent dans la place libre, sous les reglages du bloc (a gauche de l'apercu) */
         var boutons = '<div class="mtk-boutons">'
@@ -632,6 +640,10 @@ Ext.define('testextjs.view.configmanagement.modeleticket.ModelesTicket', {
         } else if (nom === 'police') {
             me.modifier(function (r) {
                 r.police = valeur;
+            });
+        } else if (nom === 'tiersPayant') {
+            me.modifier(function (r) {
+                r.tiersPayant = valeur;
             });
         } else if (nom === 'alignement') {
             var id = me.etat.selection;

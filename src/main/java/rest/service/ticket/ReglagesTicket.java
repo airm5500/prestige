@@ -121,6 +121,10 @@ public final class ReglagesTicket {
     private boolean net;
     private int marge = 0;
     private String police = POLICE_DEFAUT;
+    /** Plan du 09/11, point 15 : nom long du tiers payant sur une ligne (raccourci par « … ») ou sur deux lignes. */
+    public static final String TP_UNE_LIGNE = "UNE_LIGNE";
+    public static final String TP_DEUX_LIGNES = "DEUX_LIGNES";
+    private String tiersPayant = TP_UNE_LIGNE;
     private List<Position> disposition = new ArrayList<>();
 
     /** Reglages par defaut d'un ticket jamais enregistre (valeurs du retour du 05/11). */
@@ -233,6 +237,11 @@ public final class ReglagesTicket {
     }
 
     /** Retour du 03/11 : police du nouveau modele, l'une de {@link #POLICES}. */
+    /** Plan du 09/11, point 15 : {@link #TP_UNE_LIGNE} (defaut) ou {@link #TP_DEUX_LIGNES}. */
+    public String tiersPayant() {
+        return tiersPayant;
+    }
+
     public String police() {
         return police;
     }
@@ -258,7 +267,7 @@ public final class ReglagesTicket {
                 .put("recapitulatif", recapitulatif).put("commentaires", commentaires)
                 .put("encoursCarnet", encoursCarnet).put("signatureClient", signatureClient)
                 .put("signatures", signatures).put("cadreNet", cadreNet).put("net", net).put("marge", marge)
-                .put("police", police).put("disposition", d);
+                .put("police", police).put("tiersPayant", tiersPayant).put("disposition", d);
     }
 
     /**
@@ -286,6 +295,8 @@ public final class ReglagesTicket {
         r.marge = Math.max(0, Math.min(MARGE_MAX, j.optInt("marge", r.marge)));
         String police = j.optString("police", r.police);
         r.police = POLICES.contains(police) ? police : r.police;
+        String tp = j.optString("tiersPayant", r.tiersPayant);
+        r.tiersPayant = TP_DEUX_LIGNES.equals(tp) ? TP_DEUX_LIGNES : TP_UNE_LIGNE;
         JSONArray d = j.optJSONArray("disposition");
         if (d != null) {
             r.disposition = new ArrayList<>();

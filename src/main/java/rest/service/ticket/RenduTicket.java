@@ -146,6 +146,8 @@ public final class RenduTicket {
     private double largeur;
     /** Bloc retreci : chaque texte tient sur une ligne, termine par « … ». */
     private boolean uneLigne;
+    /** Plan du 09/11, point 15 : nom long du tiers payant sur deux lignes (reglage du modele), sinon sur une ligne. */
+    private boolean tpDeuxLignes;
     private final int base;
     private final String police;
     private final Resultat res = new Resultat();
@@ -191,6 +193,7 @@ public final class RenduTicket {
             int pourcent = p != null && !TicketDocument.PIED.equals(id) ? p.largeur : 100;
             rendu.largeur = rendu.largeurTotale * pourcent / 100.0;
             rendu.uneLigne = pourcent < 100;
+            rendu.tpDeuxLignes = ReglagesTicket.TP_DEUX_LIGNES.equals(r.tiersPayant());
             double x0 = "C".equals(alignement) ? (rendu.largeurTotale - rendu.largeur) / 2
                     : "D".equals(alignement) ? rendu.largeurTotale - rendu.largeur : 0;
             rendu.position = p;
@@ -314,7 +317,27 @@ public final class RenduTicket {
         if (wd > l + 0.5) {
             res.debordements.add(sansMarques(droite));
         }
-        List<String> lignes = couper(gauche, Math.max(20, l - wd - 6));
+        double place = Math.max(20, l - wd - 6);
+        /* plan du 09/11, point 15 : nom long du tiers payant, taux et montant toujours visibles */
+        if (tpDeuxLignes && !uneLigne) {
+            String[] deux = organismeDeuxLignes(gauche, place);
+            if (deux != null) {
+                int haut = y;
+                for (int i = 0; i < 2; i++) {
+                    y += fm.getAscent();
+                    dessinerTexte(deux[i], decalage, y);
+                    y += fm.getDescent() + 1;
+                }
+                int milieu = haut + (y - haut) / 2 + (fm.getAscent() - fm.getDescent()) / 2;
+                dessinerTexte(deux[2], decalage + place - largeurTexte(deux[2]), milieu);
+                if (!droite.isEmpty()) {
+                    dessinerTexte(droite, decalage + l - wd, milieu);
+                }
+                return;
+            }
+        }
+        String une = organismeUneLigne(gauche, place);
+        List<String> lignes = une != null ? java.util.Collections.singletonList(une) : couper(gauche, place);
         for (int i = 0; i < lignes.size(); i++) {
             y += fm.getAscent();
             dessinerTexte(lignes.get(i), decalage, y);
@@ -627,6 +650,107 @@ public final class RenduTicket {
             g.fillRect(xx, y0, w, h);
             xx += w + 1 + (k * 5 % 2);
             k++;
+        }
+    }
+
+    /**
+     * Plan du 09/11, point 15 : libelle d'un tiers payant, « NOM [80%] », « NOM [80%] : » ou « NOM 80 % ». Groupe 1 :
+     * le nom ; groupe 2 : le taux et ce qui le suit.
+     */
+    private static final java.util.regex.Pattern ORGANISME = java.util.regex.Pattern
+            .compile("^(.*\\S)(\\s*\\[[^\\]]*%[^\\]]*\\]\\s*:?|\\s+\\d+(?:[.,]\\d+)?\\s*%\\s*:?)$");
+
+    /**
+     * Plan du 09/11, point 15 : un libelle de tiers payant trop large pour {@code l} tient sur UNE ligne : le nom est
+     * raccourci par « … », le taux reste entier. Null si le libelle tient, n'a pas de taux, ou si meme une lettre et le
+     * taux ne tiennent pas (la coupure ordinaire s'applique alors).
+     */
+    String organismeUneLigne(String gauche, double l) {
+        String t = gauche == null ? "" : gauche.trim().replaceAll("\\s+", " ");
+        if (t.isEmpty() || largeurTexte(t) <= l) {
+            return null;
+        }
+        java.util.regex.Matcher m = ORGANISME.matcher(t);
+        if (!m.matches()) {
+            return null;
+        }
+        String suffixe = m.group(2);
+        double reste = l - largeurTexte(suffixe);
+        if (reste <= 0) {
+            return null;
+        }
+        String nom = points(m.group(1), reste);
+        return "…".equals(nom) ? null : nom + suffixe;
+    }
+
+    /**
+     * Plan du 09/11, point 15, presentation « deux lignes » : {nom ligne 1, nom ligne 2, taux} ; le nom occupe deux
+     * lignes au plus a gauche (la seconde raccourcie par « … » s'il le faut), le taux est place a droite du nom, centre
+     * sur les deux lignes avec le montant. Null si le libelle tient sur une ligne, n'a pas de taux, ou si la place
+     * manque.
+     */
+    String[] organismeDeuxLignes(String gauche, double l) {
+        String t = gauche == null ? "" : gauche.trim().replaceAll("\\s+", " ");
+        if (t.isEmpty() || largeurTexte(t) <= l) {
+            return null;
+        }
+        java.util.regex.Matcher m = ORGANISME.matcher(t);
+        if (!m.matches()) {
+            return null;
+        }
+        String taux = m.group(2).trim();
+        double place = l - largeurTexte(taux) - 4;
+        if (place < 20) {
+            return null;
+        }
+        List<String> lignes = couper(m.group(1), place);
+        if (lignes.isEmpty()) {
+            return null;
+        }
+        if (lignes.size() < 2) {
+            return null;
+        }
+        String l1 = lignes.get(0);
+        String l2 = String.join(" ", lignes.subList(1, lignes.size()));
+        if (largeurTexte(l2) > place) {
+            l2 = points(l2, place);
+        }
+        return new String[] { l1, l2, taux };
+    }
+
+    /** {@link #organismeDeuxLignes} en police Dialog 9 (pour les tests). */
+    static String[] organismeDeuxPour(String t, double l) {
+        BufferedImage img = new BufferedImage(4, 4, BufferedImage.TYPE_INT_RGB);
+        Graphics2D gi = img.createGraphics();
+        try {
+            gi.setFont(new Font("Dialog", Font.PLAIN, 9));
+            return new RenduTicket(gi, l, 9, "Dialog").organismeDeuxLignes(t, l);
+        } finally {
+            gi.dispose();
+        }
+    }
+
+    /** {@link #organismeUneLigne} en police Dialog 9 (pour les tests). */
+    static String organismePour(String t, double l) {
+        BufferedImage img = new BufferedImage(4, 4, BufferedImage.TYPE_INT_RGB);
+        Graphics2D gi = img.createGraphics();
+        try {
+            gi.setFont(new Font("Dialog", Font.PLAIN, 9));
+            return new RenduTicket(gi, l, 9, "Dialog").organismeUneLigne(t, l);
+        } finally {
+            gi.dispose();
+        }
+    }
+
+    /** Largeur d'un texte (marques de gras comprises) en police Dialog 9 (pour les tests). */
+    static int largeurPour(String t) {
+        BufferedImage img = new BufferedImage(4, 4, BufferedImage.TYPE_INT_RGB);
+        Graphics2D gi = img.createGraphics();
+        try {
+            gi.setFont(new Font("Dialog", Font.PLAIN, 9));
+            return new RenduTicket(gi, 100, 9, "Dialog").largeurTexte(t);
+        } finally {
+            gi.dispose();
         }
     }
 

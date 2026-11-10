@@ -151,7 +151,8 @@ public final class ExemplesTicket {
                     "Montant Versé: ;     1.000; F CFA;0", "Monnaie: ;     10; F CFA;0");
             break;
         case VENTE_CARNET:
-            s.infoTiersPayants = Arrays.asList("Nom du Client:: N. ESSAI", "SOCIÉTÉ ESSAI SA   100% :: 4.950  CFA");
+            s.infoTiersPayants = Arrays.asList("Nom du Client:: N. ESSAI",
+                    "SOCIÉTÉ IVOIRIENNE D'ESSAI ET DE DISTRIBUTION SA   100% :: 4.950  CFA");
             s.subtotal = Arrays.asList("* ;(-) 260; F CFA;1", "Vente à terme: ;    4.950; F CFA;1",
                     "Net à payer: ;     0; F CFA;1");
             s.encoursCarnet = "48 200 F CFA";
