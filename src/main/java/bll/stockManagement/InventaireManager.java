@@ -2382,6 +2382,90 @@ public class InventaireManager extends bllBase {
     // fin liste des lignes au prix d'achat superieur au prix de vente
 
     /*
+     * Plan du 09/11, point 12 : produits de l'inventaire vendus depuis sa creation. Une vente compte si elle est
+     * encaissee (is_Closed), non annulee, de montant positif (la contre-ecriture d'une annulation est negative), faite
+     * sur l'emplacement de l'inventaire, et encaissee a partir de la date de creation de l'inventaire. Memes criteres
+     * que les autres filtres (inventaire, grossiste, emplacement, famille, recherche, utilisateur, lignes incluses).
+     */
+    static final String VENTE_APRES_INVENTAIRE = "d.lgPREENREGISTREMENTID.strSTATUT = 'is_Closed'"
+            + " AND d.lgPREENREGISTREMENTID.bISCANCEL = FALSE AND d.lgPREENREGISTREMENTID.intPRICE > 0"
+            + " AND d.lgPREENREGISTREMENTID.dtUPDATED >= t.lgINVENTAIREID.dtCREATED"
+            + " AND d.lgPREENREGISTREMENTID.lgUSERID.lgEMPLACEMENTID.lgEMPLACEMENTID"
+            + " = t.lgINVENTAIREID.lgEMPLACEMENTID.lgEMPLACEMENTID";
+    private static final String INVENTAIRE_VENDUS_APRES_WHERE = INVENTAIRE_NEGATIF_WHERE.replace("AND t.intNUMBER < 0",
+            "AND EXISTS (SELECT 1 FROM TPreenregistrementDetail d WHERE d.lgFAMILLEID.lgFAMILLEID"
+                    + " = t.lgFAMILLEID.lgFAMILLEID AND " + VENTE_APRES_INVENTAIRE + ")");
+
+    public List<TInventaireFamille> listInventaireVendusApres(String search_value, String lg_INVENTAIRE_ID,
+            String lg_FAMILLEARTICLE_ID, String lg_ZONE_GEO_ID, String lg_GROSSISTE_ID, int start, int limit,
+            String lg_USER_ID) {
+        List<TInventaireFamille> lignes = new ArrayList<>();
+        try {
+            String recherche = search_value == null || "".equals(search_value) ? "%%" : search_value;
+            String jpql = "SELECT t" + INVENTAIRE_VENDUS_APRES_WHERE + " " + buildOrderByInventaire(lg_INVENTAIRE_ID);
+            lignes = this.getOdataManager().getEm().createQuery(jpql).setParameter(1, lg_INVENTAIRE_ID)
+                    .setParameter(2, lg_GROSSISTE_ID).setParameter(3, lg_ZONE_GEO_ID)
+                    .setParameter(4, lg_FAMILLEARTICLE_ID).setParameter(6, "%" + recherche + "%").setParameter(8, true)
+                    .setParameter(9, lg_USER_ID).setFirstResult(start).setMaxResults(limit)
+                    .setHint("javax.persistence.cache.retrieveMode", CacheRetrieveMode.BYPASS).getResultList();
+        } catch (Exception e) {
+            e.printStackTrace();
+            this.setMessage(commonparameter.PROCESS_FAILED);
+        }
+        return lignes;
+    }
+
+    public long getCountInventaireVendusApres(String search_value, String lg_INVENTAIRE_ID, String lg_FAMILLEARTICLE_ID,
+            String lg_ZONE_GEO_ID, String lg_GROSSISTE_ID, String lg_USER_ID) {
+        long count = 0L;
+        try {
+            String recherche = search_value == null || "".equals(search_value) ? "%%" : search_value;
+            Object object = this.getOdataManager().getEm()
+                    .createQuery("SELECT COUNT(t)" + INVENTAIRE_VENDUS_APRES_WHERE).setParameter(1, lg_INVENTAIRE_ID)
+                    .setParameter(2, lg_GROSSISTE_ID).setParameter(3, lg_ZONE_GEO_ID)
+                    .setParameter(4, lg_FAMILLEARTICLE_ID).setParameter(6, "%" + recherche + "%").setParameter(8, true)
+                    .setParameter(9, lg_USER_ID)
+                    .setHint("javax.persistence.cache.retrieveMode", CacheRetrieveMode.BYPASS).getSingleResult();
+            count = Long.valueOf(object + "");
+        } catch (Exception e) {
+            e.printStackTrace();
+            this.setMessage(commonparameter.PROCESS_FAILED);
+        }
+        return count;
+    }
+
+    /**
+     * Quantite vendue depuis la creation de l'inventaire, par ligne d'inventaire (meme regle que le filtre). Une ligne
+     * sans vente n'est pas dans la table rendue.
+     */
+    public Map<Long, Long> quantitesVenduesApres(List<TInventaireFamille> lignes) {
+        Map<Long, Long> quantites = new HashMap<>();
+        if (lignes == null || lignes.isEmpty()) {
+            return quantites;
+        }
+        List<Long> ids = new ArrayList<>();
+        for (TInventaireFamille l : lignes) {
+            ids.add(l.getLgINVENTAIREFAMILLEID());
+        }
+        try {
+            List<Object[]> res = this.getOdataManager().getEm().createQuery(
+                    "SELECT t.lgINVENTAIREFAMILLEID, SUM(d.intQUANTITY) FROM TInventaireFamille t, TPreenregistrementDetail d"
+                            + " WHERE t.lgINVENTAIREFAMILLEID IN :ids AND d.lgFAMILLEID.lgFAMILLEID = t.lgFAMILLEID.lgFAMILLEID"
+                            + " AND " + VENTE_APRES_INVENTAIRE + " GROUP BY t.lgINVENTAIREFAMILLEID",
+                    Object[].class).setParameter("ids", ids)
+                    .setHint("javax.persistence.cache.retrieveMode", CacheRetrieveMode.BYPASS).getResultList();
+            for (Object[] r : res) {
+                quantites.put(((Number) r[0]).longValue(), r[1] == null ? 0L : ((Number) r[1]).longValue());
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            this.setMessage(commonparameter.PROCESS_FAILED);
+        }
+        return quantites;
+    }
+    // fin liste des lignes vendues apres la creation de l'inventaire
+
+    /*
      * 'Check EMPLACEMENT' : etat d'avancement du comptage par emplacement (zone geographique) pour un inventaire, sur
      * les seules lignes incluses (bool_INVENTAIRE = true). Regles : aucune ligne touchee -> Non fait ; toutes touchees
      * -> Termine ; sinon -> En cours. Un emplacement sans aucune ligne dans l'inventaire n'apparait pas (il ne peut pas

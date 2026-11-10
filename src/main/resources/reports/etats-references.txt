@@ -25,6 +25,7 @@ detail_ca_ligne
 facture_detail_articles
 garde
 historique_deconditionnements
+inventaire_vendus_apres
 liste_produits_detailles
 liste_reglements
 ordonnancier

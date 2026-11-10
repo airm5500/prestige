@@ -725,6 +725,11 @@ public class InventaireRessource {
                 total = manager.getCountInventairePrixAchatSup(search, inv, famille, zone, grossiste, utilisateur);
                 lignes = manager.listInventairePrixAchatSup(search, inv, famille, zone, grossiste, start, limit,
                         utilisateur);
+            } else if (VENDUS_APRES.equalsIgnoreCase(type)) {
+                /* plan du 09/11, point 12 : vendus depuis la creation de l'inventaire */
+                total = manager.getCountInventaireVendusApres(search, inv, famille, zone, grossiste, utilisateur);
+                lignes = manager.listInventaireVendusApres(search, inv, famille, zone, grossiste, start, limit,
+                        utilisateur);
             } else if ("NEGATIF".equalsIgnoreCase(type)) {
                 total = manager.getCountInventaireNegatif(search, inv, famille, zone, grossiste, utilisateur);
                 lignes = manager.listInventaireNegatif(search, inv, famille, zone, grossiste, start, limit,
@@ -738,8 +743,14 @@ public class InventaireRessource {
             long tRequetes = System.currentTimeMillis();
 
             JSONArray resultats = new JSONArray();
+            java.util.Map<Long, Long> vendus = VENDUS_APRES.equalsIgnoreCase(type)
+                    ? manager.quantitesVenduesApres(lignes) : null;
             for (dal.TInventaireFamille ligne : lignes) {
-                resultats.put(ligneDetailInventaire(ligne, colonneStockVisible));
+                JSONObject json = ligneDetailInventaire(ligne, colonneStockVisible);
+                if (vendus != null) {
+                    json.put("int_VENDU_DEPUIS", vendus.getOrDefault(ligne.getLgINVENTAIREFAMILLEID(), 0L));
+                }
+                resultats.put(json);
             }
             long tFin = System.currentTimeMillis();
             LOG.log(Level.INFO,
@@ -757,6 +768,9 @@ public class InventaireRessource {
             odm.closeEntityManager();
         }
     }
+
+    /** Filtre « Vendus après la création de l'inventaire » (plan du 09/11, point 12). */
+    static final String VENDUS_APRES = "VENDUS_APRES";
 
     private String defautJoker(String valeur) {
         return StringUtils.isBlank(valeur) ? "%%" : valeur;
@@ -837,6 +851,10 @@ public class InventaireRessource {
         if (user == null) {
             return deconnecte();
         }
+        if (VENDUS_APRES.equalsIgnoreCase(type) && StringUtils.isNotBlank(inventaireId)) {
+            return imprimerVendusApres(user, inventaireId, recherche, familleArticleId, zoneGeoId, grossisteId, userId,
+                    afficherStock);
+        }
         if (!"PAF_SUP_PV".equalsIgnoreCase(type) || StringUtils.isBlank(inventaireId)) {
             return Response
                     .ok(new JSONObject().put("success", false)
@@ -879,6 +897,66 @@ public class InventaireRessource {
             String url = reportUtil.buildReport(parametres,
                     stock ? "rp_fiche_inventaire_filtre" : "rp_fiche_inventaire_filtre_agent", donnees,
                     "fiche_inventaire_filtre_prix");
+            if (!reportUtil.editionEcrite(url)) {
+                return Response.ok(new JSONObject().put("success", false)
+                        .put("msg", "L'édition n'a pas pu être générée.").toString()).build();
+            }
+            return Response
+                    .ok(new JSONObject().put("success", true).put("url", url).put("lignes", lignes.size()).toString())
+                    .build();
+        } finally {
+            odm.closeEntityManager();
+        }
+    }
+
+    /**
+     * Plan du 09/11, point 12 : impression du filtre « Vendus après la création de l'inventaire », avec les lignes
+     * memes de l'ecran (meme requete, meme ordre) et la quantite vendue depuis la creation. Modele embarque
+     * inventaire_vendus_apres (colonnes stock theorique et ecart seulement avec le privilege ET la case « Afficher
+     * stock »). Rend {success, url, lignes}.
+     */
+    private Response imprimerVendusApres(TUser user, String inventaireId, String recherche, String familleArticleId,
+            String zoneGeoId, String grossisteId, String userId, boolean afficherStock) {
+        dataManager odm = new dataManager();
+        odm.initEntityManager();
+        try {
+            InventaireManager manager = new InventaireManager(odm);
+            boolean stock = afficherStock
+                    && new privilege(odm, user).isColonneStockMachineIsAuthorize(commonparameter.P_SHOW_INVENTAIRE);
+            java.util.List<dal.TInventaireFamille> lignes = manager.listInventaireVendusApres(
+                    StringUtils.defaultString(recherche), inventaireId, defautJoker(familleArticleId),
+                    defautJoker(zoneGeoId), defautJoker(grossisteId), 0, Integer.MAX_VALUE, defautJoker(userId));
+            java.util.Map<Long, Long> vendus = manager.quantitesVenduesApres(lignes);
+            java.util.List<java.util.Map<String, Object>> donnees = new java.util.ArrayList<>();
+            String nom = "";
+            String creation = "";
+            for (dal.TInventaireFamille l : lignes) {
+                dal.TFamille f = l.getLgFAMILLEID();
+                java.util.Map<String, Object> m = new java.util.HashMap<>();
+                int init = l.getIntNUMBERINIT() == null ? 0 : l.getIntNUMBERINIT();
+                int compte = l.getIntNUMBER() == null ? 0 : l.getIntNUMBER();
+                nom = l.getLgINVENTAIREID().getStrNAME();
+                if (l.getLgINVENTAIREID().getDtCREATED() != null) {
+                    creation = new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm")
+                            .format(l.getLgINVENTAIREID().getDtCREATED());
+                }
+                m.put("cip", f.getIntCIP());
+                m.put("designation", f.getStrDESCRIPTION());
+                m.put("emplacement", f.getLgZONEGEOID() == null ? "" : f.getLgZONEGEOID().getStrLIBELLEE());
+                m.put("stockTheorique", init);
+                m.put("compte", compte);
+                m.put("ecart", compte - init);
+                m.put("vendus", vendus.getOrDefault(l.getLgINVENTAIREFAMILLEID(), 0L).intValue());
+                donnees.add(m);
+            }
+            java.util.Map<String, Object> parametres = reportUtil.officineData(user);
+            parametres.put("P_FILTRE_LIBELLE", "Vendus après la création de l'inventaire (" + lignes.size() + " article"
+                    + (lignes.size() > 1 ? "s" : "") + ")");
+            parametres.put("P_INVENTAIRE", nom + (creation.isEmpty() ? "" : " — créé le " + creation));
+            parametres.put("P_STOCK", stock);
+            parametres.put("P_H_CLT_INFOS", "LISTE D'INVENTAIRE");
+            String url = reportUtil.buildReport(parametres, "inventaire_vendus_apres", donnees,
+                    "fiche_inventaire_vendus_apres");
             if (!reportUtil.editionEcrite(url)) {
                 return Response.ok(new JSONObject().put("success", false)
                         .put("msg", "L'édition n'a pas pu être générée.").toString()).build();

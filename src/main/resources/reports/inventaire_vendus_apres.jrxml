@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Inventaire en cours, filtre « Vendus après la création de l'inventaire » (API v1/inventaire/filtre/pdf, plan du
+     09/11, point 12). Alimente par les lignes memes de l'ecran. Colonnes stock theorique et ecart seulement si P_STOCK
+     (privilege et case « Afficher stock »). La quantite vendue depuis la creation est la derniere colonne. -->
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd"
+              name="inventaire_vendus_apres" pageWidth="842" pageHeight="595" orientation="Landscape" columnWidth="802"
+              leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20" whenNoDataType="NoDataSection">
+    <parameter name="P_H_INSTITUTION" class="java.lang.String"/>
+    <parameter name="P_PRINTED_BY" class="java.lang.String"/>
+    <parameter name="P_H_CLT_INFOS" class="java.lang.String"/>
+    <parameter name="P_FILTRE_LIBELLE" class="java.lang.String"/>
+    <parameter name="P_INVENTAIRE" class="java.lang.String"/>
+    <parameter name="P_STOCK" class="java.lang.Boolean"/>
+    <field name="cip" class="java.lang.String"/>
+    <field name="designation" class="java.lang.String"/>
+    <field name="emplacement" class="java.lang.String"/>
+    <field name="stockTheorique" class="java.lang.Integer"/>
+    <field name="compte" class="java.lang.Integer"/>
+    <field name="ecart" class="java.lang.Integer"/>
+    <field name="vendus" class="java.lang.Integer"/>
+    <title>
+        <band height="72">
+            <textField isBlankWhenNull="true"><reportElement x="0" y="0" width="560" height="16"/><textElement><font size="11" isBold="true"/></textElement><textFieldExpression><![CDATA[$P{P_H_INSTITUTION}]]></textFieldExpression></textField>
+            <textField><reportElement x="600" y="0" width="202" height="12"/><textElement textAlignment="Right"><font size="7"/></textElement><textFieldExpression><![CDATA["Imprimé le " + new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm").format(new java.util.Date())]]></textFieldExpression></textField>
+            <textField isBlankWhenNull="true"><reportElement x="600" y="13" width="202" height="12"/><textElement textAlignment="Right"><font size="7"/></textElement><textFieldExpression><![CDATA["Par : " + $P{P_PRINTED_BY}]]></textFieldExpression></textField>
+            <textField isBlankWhenNull="true"><reportElement x="0" y="26" width="802" height="16"/><textElement textAlignment="Center"><font size="12" isBold="true"/></textElement><textFieldExpression><![CDATA[$P{P_H_CLT_INFOS}]]></textFieldExpression></textField>
+            <textField isBlankWhenNull="true"><reportElement x="0" y="42" width="802" height="13"/><textElement textAlignment="Center"><font size="9"/></textElement><textFieldExpression><![CDATA[$P{P_INVENTAIRE}]]></textFieldExpression></textField>
+            <textField isBlankWhenNull="true"><reportElement x="0" y="56" width="802" height="13"/><textElement textAlignment="Center"><font size="9" isBold="true"/></textElement><textFieldExpression><![CDATA[$P{P_FILTRE_LIBELLE}]]></textFieldExpression></textField>
+        </band>
+    </title>
+    <columnHeader>
+        <band height="18">
+            <frame>
+                <reportElement mode="Opaque" x="0" y="0" width="802" height="18" backcolor="#1E3A5F"/>
+                <staticText><reportElement x="4" y="0" width="70" height="18" forecolor="#FFFFFF"/><textElement verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><text><![CDATA[CIP]]></text></staticText>
+                <staticText><reportElement x="76" y="0" width="330" height="18" forecolor="#FFFFFF"/><textElement verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><text><![CDATA[Désignation]]></text></staticText>
+                <staticText><reportElement x="408" y="0" width="130" height="18" forecolor="#FFFFFF"/><textElement verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><text><![CDATA[Emplacement]]></text></staticText>
+                <staticText><reportElement x="540" y="0" width="64" height="18" forecolor="#FFFFFF"><printWhenExpression><![CDATA[Boolean.TRUE.equals($P{P_STOCK})]]></printWhenExpression></reportElement><textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><text><![CDATA[Stock théorique]]></text></staticText>
+                <staticText><reportElement x="606" y="0" width="56" height="18" forecolor="#FFFFFF"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><text><![CDATA[Compté]]></text></staticText>
+                <staticText><reportElement x="664" y="0" width="56" height="18" forecolor="#FFFFFF"><printWhenExpression><![CDATA[Boolean.TRUE.equals($P{P_STOCK})]]></printWhenExpression></reportElement><textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><text><![CDATA[Écart]]></text></staticText>
+                <staticText><reportElement x="722" y="0" width="76" height="18" forecolor="#FFFFFF"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="8" isBold="true"/></textElement><text><![CDATA[Vendus depuis]]></text></staticText>
+            </frame>
+        </band>
+    </columnHeader>
+    <detail>
+        <band height="15">
+            <line><reportElement positionType="FixRelativeToBottom" x="0" y="14" width="802" height="1" forecolor="#E0E0E0"/></line>
+            <textField isBlankWhenNull="true"><reportElement x="4" y="0" width="70" height="13"/><textElement verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{cip}]]></textFieldExpression></textField>
+            <textField isBlankWhenNull="true"><reportElement x="76" y="0" width="330" height="13"/><textElement verticalAlignment="Middle"><font size="7" isBold="true"/></textElement><textFieldExpression><![CDATA[$F{designation}]]></textFieldExpression></textField>
+            <textField isBlankWhenNull="true"><reportElement x="408" y="0" width="130" height="13"/><textElement verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{emplacement}]]></textFieldExpression></textField>
+            <textField pattern="#,##0" isBlankWhenNull="true"><reportElement x="540" y="0" width="64" height="13"><printWhenExpression><![CDATA[Boolean.TRUE.equals($P{P_STOCK})]]></printWhenExpression></reportElement><textElement textAlignment="Right" verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{stockTheorique}]]></textFieldExpression></textField>
+            <textField pattern="#,##0" isBlankWhenNull="true"><reportElement x="606" y="0" width="56" height="13"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{compte}]]></textFieldExpression></textField>
+            <textField pattern="#,##0" isBlankWhenNull="true"><reportElement x="664" y="0" width="56" height="13"><printWhenExpression><![CDATA[Boolean.TRUE.equals($P{P_STOCK})]]></printWhenExpression></reportElement><textElement textAlignment="Right" verticalAlignment="Middle"><font size="7"/></textElement><textFieldExpression><![CDATA[$F{ecart}]]></textFieldExpression></textField>
+            <textField pattern="#,##0" isBlankWhenNull="true"><reportElement x="722" y="0" width="76" height="13"/><textElement textAlignment="Right" verticalAlignment="Middle"><font size="7" isBold="true"/></textElement><textFieldExpression><![CDATA[$F{vendus}]]></textFieldExpression></textField>
+        </band>
+    </detail>
+    <pageFooter>
+        <band height="14"><textField><reportElement x="702" y="2" width="100" height="12"/><textElement textAlignment="Right"><font size="6"/></textElement><textFieldExpression><![CDATA["Page " + $V{PAGE_NUMBER}]]></textFieldExpression></textField></band>
+    </pageFooter>
+    <noData>
+        <band height="30"><staticText><reportElement x="0" y="8" width="802" height="14"/><textElement textAlignment="Center"><font size="9"/></textElement><text><![CDATA[Aucun article de l'inventaire n'a été vendu depuis sa création.]]></text></staticText></band>
+    </noData>
+</jasperReport>
