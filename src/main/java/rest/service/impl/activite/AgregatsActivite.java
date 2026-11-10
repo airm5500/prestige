@@ -41,6 +41,11 @@ public final class AgregatsActivite {
     public static final long VENTE_MAX_SECONDES = 3600;
     public static final long VENTE_LONGUE_SECONDES = 600;
     public static final long BL_MAX_SECONDES = 4 * 3600;
+    /**
+     * Plan du 09/11, point 10 : temps au clavier compte au plus pour une vente (15 min) ; au-dela, la vente est restee
+     * ouverte sans saisie (client absent, poste quitte) et fausserait la charge du jour.
+     */
+    public static final long CLAVIER_VENTE_MAX_SECONDES = 900;
 
     private AgregatsActivite() {
     }
@@ -56,6 +61,11 @@ public final class AgregatsActivite {
         final long montant;
         /** plan du 08/11, point 15.5 : type de vente (libelle de {@link #typeVente}) */
         final String type;
+        /**
+         * plan du 09/11, point 10 : prevente reprise en caisse (vendeur different de la caissiere) ; sa saisie n'est
+         * pas celle de l'operateur, elle est ecartee de sa vitesse.
+         */
+        final boolean reprise;
 
         public String employeId() {
             return employeId;
@@ -74,11 +84,18 @@ public final class AgregatsActivite {
             this.lignes = lignes;
             this.montant = montant;
             this.type = "Autre";
+            this.reprise = false;
         }
 
         /** Plan du 08/11, point 15.5 : avec le type de vente (identifiant t_type_vente et avoir). */
         public Vente(String employeId, LocalDateTime ouverture, LocalDateTime derniereLigne, LocalDateTime encaissement,
                 long lignes, long montant, String typeVenteId, boolean avoir) {
+            this(employeId, ouverture, derniereLigne, encaissement, lignes, montant, typeVenteId, avoir, false);
+        }
+
+        /** Plan du 09/11, point 10 : avec l'indication de prevente reprise en caisse. */
+        public Vente(String employeId, LocalDateTime ouverture, LocalDateTime derniereLigne, LocalDateTime encaissement,
+                long lignes, long montant, String typeVenteId, boolean avoir, boolean reprise) {
             this.employeId = employeId;
             this.ouverture = ouverture;
             this.derniereLigne = derniereLigne;
@@ -86,14 +103,43 @@ public final class AgregatsActivite {
             this.lignes = lignes;
             this.montant = montant;
             this.type = typeVente(typeVenteId, avoir);
+            this.reprise = reprise;
         }
 
         long duree() {
             return Duration.between(ouverture, encaissement).getSeconds();
         }
 
+        /**
+         * Saisie : de l'ouverture a la derniere ligne, jamais plus que la vente elle-meme (plan du 09/11, point 10 :
+         * une ligne retouchee apres l'encaissement donnait des milliers de secondes par ligne).
+         */
         long saisie() {
-            return Math.max(0, Duration.between(ouverture, derniereLigne).getSeconds());
+            return Math.max(0, Math.min(Duration.between(ouverture, derniereLigne).getSeconds(), duree()));
+        }
+
+        /** Temps au clavier compte dans la charge du jour : la saisie, plafonnee a 15 min. */
+        long clavier() {
+            return Math.min(saisie(), CLAVIER_VENTE_MAX_SECONDES);
+        }
+
+        /** Vente saisie par l'operateur lui-meme (retenue, pas une prevente reprise). */
+        boolean saisieParLui() {
+            return retenue() && !reprise;
+        }
+
+        /**
+         * Vente mesuree pour la vitesse : saisie par l'operateur et d'au moins 2 lignes. La vente et sa premiere ligne
+         * naissent a la meme seconde : la saisie mesure les intervalles entre lignes, une vente d'une ligne n'en a
+         * aucun.
+         */
+        boolean mesuree() {
+            return saisieParLui() && lignes >= 2;
+        }
+
+        /** Secondes entre deux lignes saisies (vente mesuree). */
+        double secondesEntreLignes() {
+            return (double) saisie() / (lignes - 1);
         }
 
         boolean retenue() {
@@ -128,8 +174,12 @@ public final class AgregatsActivite {
             this.lignes = lignes;
         }
 
+        /**
+         * Plan du 09/11, point 10 : temps de saisie du BL, de son ouverture (creation du BL) a sa derniere ligne. Il
+         * etait compte depuis la commande, ce qui ajoutait l'attente de la livraison.
+         */
         long total() {
-            return commande == null || finSaisie == null ? -1 : Duration.between(commande, finSaisie).getSeconds();
+            return creation == null || finSaisie == null ? -1 : Duration.between(creation, finSaisie).getSeconds();
         }
 
         boolean retenu() {
@@ -236,7 +286,7 @@ public final class AgregatsActivite {
             Jour j = m.computeIfAbsent(v.encaissement.toLocalDate(), d -> Jour.builder().date(d.toString()).build());
             j.setVentes(j.getVentes() + 1);
             if (v.retenue()) {
-                j.setSaisieVentes(j.getSaisieVentes() + v.saisie());
+                j.setSaisieVentes(j.getSaisieVentes() + v.clavier());
             }
         }
         for (Bl b : bls) {
@@ -261,16 +311,38 @@ public final class AgregatsActivite {
         ventes.forEach(v -> parEmploye.computeIfAbsent(v.employeId, k -> new ArrayList<>()).add(v));
         List<Operateur> l = new ArrayList<>();
         parEmploye.forEach((id, vs) -> {
-            Totaux t = totaux(vs, List.of(), 0, seuil);
-            long retenues = vs.stream().filter(Vente::retenue).count();
-            l.add(Operateur.builder().id(id).nom(noms.getOrDefault(id, "?")).jours(t.jours).ventes(t.ventes)
-                    .ventesParJour(arrondi(t.ventesParJour()))
-                    .lignesParVente(arrondi(retenues == 0 ? 0 : (double) t.lignes / retenues))
-                    .secondesParLigne(arrondi(t.secondesParLigne())).chiffreAffaires(t.montant)
-                    .panierMoyen(Math.round(t.panier())).ventesLongues(t.longues).build());
+            l.add(vitesse(id, noms.getOrDefault(id, "?"), vs, seuil));
         });
         l.sort(Comparator.comparingLong(Operateur::getVentes).reversed());
         return l;
+    }
+
+    /**
+     * Plan du 09/11, point 10 : une ligne de vitesse (par operateur ou par type de vente), meme calcul pour les deux.
+     * Vitesse = mediane des secondes entre deux lignes des ventes mesurees (saisies par lui, d'au moins 2 lignes,
+     * preventes reprises ecartees) : une vente aberrante ne fait plus bouger le chiffre. Lignes par vente sur toutes
+     * les ventes saisies par lui.
+     */
+    static Operateur vitesse(String id, String nom, List<Vente> vs, SeuilDuree seuil) {
+        Totaux t = totaux(vs, List.of(), 0, seuil);
+        List<Vente> mesurees = new ArrayList<>();
+        vs.stream().filter(Vente::mesuree).forEach(mesurees::add);
+        long parLui = vs.stream().filter(Vente::saisieParLui).count();
+        long lignes = vs.stream().filter(Vente::saisieParLui).mapToLong(v -> v.lignes).sum();
+        return Operateur.builder().id(id).nom(nom).jours(t.jours).ventes(t.ventes)
+                .ventesParJour(arrondi(t.ventesParJour()))
+                .lignesParVente(arrondi(parLui == 0 ? 0 : (double) lignes / parLui))
+                .secondesParLigne(arrondi(medianeParLigne(mesurees))).ventesMesurees(mesurees.size())
+                .chiffreAffaires(t.montant).panierMoyen(Math.round(t.panier())).ventesLongues(t.longues).build();
+    }
+
+    /** Plan du 09/11, point 10 : mediane des secondes entre deux lignes des ventes mesurees ; 0 sans vente. */
+    static double medianeParLigne(List<Vente> ventes) {
+        double[] d = ventes.stream().filter(Vente::mesuree).mapToDouble(Vente::secondesEntreLignes).sorted().toArray();
+        if (d.length == 0) {
+            return 0;
+        }
+        return d.length % 2 == 1 ? d[d.length / 2] : (d[d.length / 2 - 1] + d[d.length / 2]) / 2;
     }
 
     /** Ordre d'affichage des types de vente. */
@@ -313,13 +385,7 @@ public final class AgregatsActivite {
             if (vs.isEmpty()) {
                 return;
             }
-            Totaux t = totaux(vs, List.of(), 0, seuil);
-            long retenues = vs.stream().filter(Vente::retenue).count();
-            l.add(Operateur.builder().id(type).nom(type).jours(t.jours).ventes(t.ventes)
-                    .ventesParJour(arrondi(t.ventesParJour()))
-                    .lignesParVente(arrondi(retenues == 0 ? 0 : (double) t.lignes / retenues))
-                    .secondesParLigne(arrondi(t.secondesParLigne())).chiffreAffaires(t.montant)
-                    .panierMoyen(Math.round(t.panier())).ventesLongues(t.longues).build());
+            l.add(vitesse(type, type, vs, seuil));
         });
         return l;
     }

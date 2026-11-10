@@ -16,6 +16,8 @@ import java.util.Map;
  * journée s'arrête à 24 h ;</li>
  * <li>attribution CAISSIER (par défaut) : la caissière qui a encaissé, à défaut l'opérateur de la vente ;</li>
  * <li>attribution VENDEUR : le vendeur qui a saisi la vente (prévente), à défaut la caissière, puis l'opérateur ;</li>
+ * <li>attribution CONSEIL (plan du 09/11, point 10) : l'employé choisi dans « Conseil » à la vente ; les ventes sans
+ * conseil forment la ligne « Sans conseil » ;</li>
  * <li>chaque vente compte une fois, dans une seule case : la somme des cases égale le CA de la période, quelle que soit
  * l'attribution.</li>
  * </ul>
@@ -24,6 +26,9 @@ public final class CaTranchesEmploye {
 
     public static final String CAISSIER = "CAISSIER";
     public static final String VENDEUR = "VENDEUR";
+    public static final String CONSEIL = "CONSEIL";
+    /** Ligne des ventes sans conseil (attribution CONSEIL). */
+    public static final String SANS_CONSEIL = "SANS_CONSEIL";
     public static final int TAILLE_MIN = 1;
     public static final int TAILLE_MAX = 6;
 
@@ -38,13 +43,21 @@ public final class CaTranchesEmploye {
         final String operateur;
         final LocalDateTime encaissement;
         final long montant;
+        /** plan du 09/11, point 10 : employé qui a conseillé le client (facultatif) */
+        final String conseil;
 
         public Vente(String caissier, String vendeur, String operateur, LocalDateTime encaissement, long montant) {
+            this(caissier, vendeur, operateur, encaissement, montant, null);
+        }
+
+        public Vente(String caissier, String vendeur, String operateur, LocalDateTime encaissement, long montant,
+                String conseil) {
             this.caissier = caissier;
             this.vendeur = vendeur;
             this.operateur = operateur;
             this.encaissement = encaissement;
             this.montant = montant;
+            this.conseil = conseil;
         }
     }
 
@@ -53,9 +66,13 @@ public final class CaTranchesEmploye {
         return t == null ? 2 : Math.max(TAILLE_MIN, Math.min(TAILLE_MAX, t));
     }
 
-    /** VENDEUR ou CAISSIER (défaut). */
+    /** VENDEUR, CONSEIL ou CAISSIER (défaut). */
     public static String attribution(String a) {
-        return VENDEUR.equalsIgnoreCase(a == null ? "" : a.trim()) ? VENDEUR : CAISSIER;
+        String x = a == null ? "" : a.trim();
+        if (VENDEUR.equalsIgnoreCase(x)) {
+            return VENDEUR;
+        }
+        return CONSEIL.equalsIgnoreCase(x) ? CONSEIL : CAISSIER;
     }
 
     static boolean vide(String s) {
@@ -64,6 +81,9 @@ public final class CaTranchesEmploye {
 
     /** Employé à qui revient la vente selon l'attribution (jamais null : « ? » si rien n'est connu). */
     public static String employe(Vente v, String attribution) {
+        if (CONSEIL.equals(attribution)) {
+            return vide(v.conseil) ? SANS_CONSEIL : v.conseil;
+        }
         if (VENDEUR.equals(attribution) && !vide(v.vendeur)) {
             return v.vendeur;
         }
@@ -140,7 +160,7 @@ public final class CaTranchesEmploye {
             }
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("id", id);
-            m.put("nom", noms.getOrDefault(id, "?"));
+            m.put("nom", SANS_CONSEIL.equals(id) ? "Sans conseil" : noms.getOrDefault(id, "?"));
             m.put("cellules", cellules(l, p, d));
             m.put("ca", c);
             m.put("ventes", k);

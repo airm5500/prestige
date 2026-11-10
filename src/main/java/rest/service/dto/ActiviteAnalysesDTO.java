@@ -196,8 +196,10 @@ public class ActiviteAnalysesDTO {
         private long ventes;
         private double ventesParJour;
         private double lignesParVente;
-        /** saisie par ligne, en secondes */
+        /** saisie par ligne, en secondes (operateurs : mediane des ventes mesurees, plan du 09/11, point 10) */
         private double secondesParLigne;
+        /** plan du 09/11, point 10 : ventes saisies par l'operateur lui-meme et retenues pour sa vitesse */
+        private long ventesMesurees;
         private long chiffreAffaires;
         private long panierMoyen;
         /** ventes de plus de 10 minutes */

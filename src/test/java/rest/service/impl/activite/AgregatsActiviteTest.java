@@ -80,7 +80,10 @@ class AgregatsActiviteTest {
         assertEquals(2, a.getJours());
         assertEquals(3, a.getVentes());
         assertEquals(1.5, a.getVentesParJour());
-        assertEquals(16.7, a.getSecondesParLigne()); // 100 s pour 6 lignes
+        // plan du 09/11 : mediane des secondes entre deux lignes (30 s / 1 et 60 s / 2) ; la vente d'une ligne n'en a
+        // pas
+        assertEquals(30.0, a.getSecondesParLigne());
+        assertEquals(2, a.getVentesMesurees());
         assertEquals(1, a.getVentesLongues());
         assertEquals(1100, a.getPanierMoyen());
     }
@@ -93,8 +96,9 @@ class AgregatsActiviteTest {
         List<ActiviteAnalysesDTO.Grossiste> g = AgregatsActivite.grossistes(l);
         assertEquals("DPCI", g.get(0).getNom());
         assertEquals(1, g.get(0).getBl());
-        assertEquals(240.0, g.get(0).getSecondesParLigne());
-        assertEquals(68.0, g.get(1).getSecondesParLigne());
+        // plan du 09/11 : compte depuis l'ouverture du BL (1 min apres la commande)
+        assertEquals(234.0, g.get(0).getSecondesParLigne());
+        assertEquals(62.0, g.get(1).getSecondesParLigne());
     }
 
     @Test
@@ -122,7 +126,7 @@ class AgregatsActiviteTest {
         assertEquals(2, j.get(0).getVentes());
         assertEquals(50, j.get(0).getSaisieVentes());
         assertEquals(1, j.get(0).getBl());
-        assertEquals(600, j.get(0).getSaisieBl());
+        assertEquals(540, j.get(0).getSaisieBl()); // plan du 09/11 : depuis l'ouverture du BL
     }
 
     @Test

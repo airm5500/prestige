@@ -114,7 +114,8 @@ public class ActiviteEquipesRessource {
         java.util.List<Map<String, Object>> tranches = (java.util.List<Map<String, Object>>) d.get("tranches");
         StringBuilder csv = new StringBuilder("﻿")
                 .append(champ(rest.service.impl.activite.CaTranchesEmploye.VENDEUR.equals(d.get("attribution"))
-                        ? "Vendeur" : "Caissière"));
+                        ? "Vendeur" : rest.service.impl.activite.CaTranchesEmploye.CONSEIL.equals(d.get("attribution"))
+                                ? "Conseil" : "Caissière"));
         for (Map<String, Object> t : tranches) {
             csv.append(';').append(champ(t.get("libelle") + " CA")).append(';')
                     .append(champ(t.get("libelle") + " ventes"));
@@ -157,6 +158,22 @@ public class ActiviteEquipesRessource {
         m.put("data", service.detailAnnulations(f.getDebut(), f.getFin(),
                 "CAISSIER".equals(role) ? "CAISSIER" : "VENDEUR", id));
         return Response.ok(m).build();
+    }
+
+    /**
+     * Plan du 09/11, point 10 : enregistre pour tous le critere de duree des ventes (onglet principal, Anomalies, carte
+     * du tableau de bord). Le bouton de l'ecran demande la confirmation dans le bouton lui-meme.
+     */
+    @javax.ws.rs.POST
+    @Path("seuil")
+    @javax.ws.rs.Consumes(MediaType.APPLICATION_FORM_URLENCODED)
+    public Response enregistrerSeuil(@javax.ws.rs.FormParam("seuilOperateur") String seuilOperateur,
+            @javax.ws.rs.FormParam("seuilMinutes") Integer seuilMinutes) {
+        Response r = refus();
+        if (r != null) {
+            return r;
+        }
+        return Response.ok(service.enregistrerSeuil(seuilOperateur, seuilMinutes)).build();
     }
 
     /** Plan du 08/11, point 15.6 : onglets permis a l'utilisateur connecte (l'ecran cache les autres). */
@@ -317,7 +334,8 @@ public class ActiviteEquipesRessource {
     @GET
     @Path("anomalies")
     public Response anomalies(@QueryParam("debut") String debut, @QueryParam("fin") String fin,
-            @QueryParam("employeId") String employeId, @QueryParam("famille") String famille) {
+            @QueryParam("employeId") String employeId, @QueryParam("famille") String famille,
+            @QueryParam("seuilOperateur") String seuilOperateur, @QueryParam("seuilMinutes") Integer seuilMinutes) {
         Response r = refusAnomalies();
         if (r != null) {
             return r;
@@ -326,6 +344,8 @@ public class ActiviteEquipesRessource {
         if (f == null) {
             return dateInvalide();
         }
+        f.setSeuilOperateur(seuilOperateur);
+        f.setSeuilMinutes(seuilMinutes);
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("success", true);
         m.put("data", service.anomalies(f, famille));

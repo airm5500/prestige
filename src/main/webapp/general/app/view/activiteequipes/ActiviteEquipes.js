@@ -552,6 +552,7 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                     {name: 'bl', type: 'float'}, {name: 'secondesParLigne', type: 'float'}, {name: 'ventesParJour', type: 'float'},
                     {name: 'lignesParVente', type: 'float'}, {name: 'panierMoyen', type: 'float'}, {name: 'chiffreAffaires', type: 'float'},
                     {name: 'ventesLongues', type: 'float'}, {name: 'jours', type: 'float'}, {name: 'lignesParBl', type: 'float'},
+                    {name: 'ventesMesurees', type: 'float'},
                     {name: 'nombre', type: 'float'}, {name: 'annulations', type: 'float'}, {name: 'modifications', type: 'float'},
                     {name: 'remises', type: 'float'}, {name: 'tauxAnnulation', type: 'float'}, {name: 'total', type: 'float'}, {name: 'grossistes'}, {name: 'code'}]
                         .concat(Ext.Array.map(me.TACHES, function (t) {
@@ -603,7 +604,8 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                             return N(v, true) + ' s';
                         }},
                     tips: AE.infobulle(function (r) {
-                        return '<b>' + Ext.String.htmlEncode(r.get('libelle')) + '</b><br>' + N(r.get('secondesParLigne'), true) + ' s par ligne<br>'
+                        return '<b>' + Ext.String.htmlEncode(r.get('libelle')) + '</b><br>' + N(r.get('secondesParLigne'), true) + ' s par ligne : temps entre deux produits (médiane de '
+                                + N(r.get('ventesMesurees')) + ' ventes de 2 lignes ou plus saisies par lui, préventes reprises écartées)<br>'
                                 + N(r.get('ventes')) + ' ventes sur ' + N(r.get('jours')) + ' jours (' + N(r.get('ventesParJour'), true) + ' par jour)<br>'
                                 + N(r.get('lignesParVente'), true) + ' lignes par vente, panier ' + N(r.get('panierMoyen')) + '<br>'
                                 + N(r.get('ventesLongues')) + ' ' + (me.seuilLibelle || 'Ventes de plus de 10 min').toLowerCase()
@@ -623,7 +625,8 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                             return N(v, true) + ' s';
                         }},
                     tips: AE.infobulle(function (r) {
-                        return '<b>' + Ext.String.htmlEncode(r.get('libelle')) + '</b><br>' + N(r.get('secondesParLigne'), true) + ' s par ligne<br>'
+                        return '<b>' + Ext.String.htmlEncode(r.get('libelle')) + '</b><br>' + N(r.get('secondesParLigne'), true) + ' s par ligne : temps entre deux produits (médiane de '
+                                + N(r.get('ventesMesurees')) + ' ventes de 2 lignes ou plus)<br>'
                                 + N(r.get('ventes')) + ' ventes, ' + N(r.get('lignesParVente'), true) + ' lignes par vente, panier ' + N(r.get('panierMoyen')) + '<br>'
                                 + N(r.get('ventesLongues')) + ' ' + (me.seuilLibelle || 'Ventes de plus de 10 min').toLowerCase();
                     })}]};
@@ -698,11 +701,23 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                         me.cadre('cCarte', 'Carte d\'affluence (jour × heure)', 'Plus la case est foncée, plus il y a de ventes : pour placer les présences '
                                 + 'et les pauses. Toujours de 0 h à 23 h, cases grises sans activité, nuit (21 h - 6 h) repérée. Le sélecteur de garde affiche '
                                 + 'la carte d\'une garde ; sous la carte, le contrôle des gardes de la période.', me.contenuCarte()),
-                        me.cadre('cJours', 'Charge au clavier par jour', 'Temps cumulé passé à saisir les ventes et les BL, jour par jour : base du planning.', jours, 1),
-                        me.cadre('cOperateurs', 'Vitesse par opérateur', 'Secondes par ligne scannée ou cherchée. C\'est une aide pour accompagner '
-                                + '(douchette, formation), pas un classement. Cliquer une barre filtre sur l\'employé.', operateurs),
-                        me.cadre('cTypesVente', 'Vitesse par type de vente', 'Secondes par ligne selon le type de vente : comptant, assurance, carnet, '
-                                + 'dépôt, avoir. Une vente à l\'assurance demande plus de saisie (organisme, bon) : à comparer entre types, pas entre personnes.', typesVente),
+                        me.cadre('cJours', 'Charge au clavier par jour', '<b>Mesure</b> : temps passé à saisir, jour par jour. Ventes : de l\'ouverture '
+                                + 'à la dernière ligne, 15 min au plus par vente (une vente restée ouverte ne compte pas comme du travail). BL : de l\'ouverture '
+                                + 'du BL à sa dernière ligne, BL de plus de 4 h écartés.<br><b>Ce que cela apprend</b> : les jours où le comptoir est chargé '
+                                + 'et la part prise par les BL.<br><b>Gain</b> : placer les présences et la saisie des BL sur les jours calmes '
+                                + '(planning des équipes).', jours, 1),
+                        me.cadre('cOperateurs', 'Vitesse par opérateur', '<b>Mesure</b> : temps médian entre deux produits saisis (scan ou recherche) '
+                                + 'dans une même vente, sur les ventes de 2 lignes ou plus que l\'employé a saisies lui-même ; les préventes reprises en '
+                                + 'caisse sont écartées et une vente aberrante ne compte pas. Exemple : 9 s par ligne = il faut 9 s pour passer au produit '
+                                + 'suivant ; « 1,4 ligne par vente » = la plupart des clients prennent un seul produit.<br>'
+                                + '<b>Ce que cela apprend</b> : qui cherche les produits au lieu de les scanner.<br><b>Gain</b> : former ou équiper '
+                                + '(douchette) la bonne personne, et des clients servis plus vite. Une aide pour accompagner, pas un classement. '
+                                + 'Cliquer une barre filtre sur l\'employé.', operateurs),
+                        me.cadre('cTypesVente', 'Vitesse par type de vente', '<b>Mesure</b> : temps médian entre deux produits saisis selon le type de vente '
+                                + '(comptant, assurance, carnet, dépôt, avoir), même calcul que par opérateur. 11 s par ligne = 11 s pour passer au '
+                                + 'produit suivant, organisme et bon compris.<br><b>Ce que cela apprend</b> : le temps en plus d\'une vente à l\'assurance par '
+                                + 'rapport au comptant.<br><b>Gain</b> : prévoir plus de monde en caisse aux heures des assurés, ou préparer les bons '
+                                + 'à l\'avance. À comparer entre types, pas entre personnes.', typesVente),
                         /* plan du 08/11, point 15.4 : classement des vendeurs en preventes */
                         me.cadre('cPreventes', 'Préventes par vendeur', 'Prévente : vente saisie par un vendeur et encaissée par un autre. Classement par '
                                 + 'préventes encaissées, avec le CA et les lignes ; « annulées » hors modifications, « abandonnées » : restées en attente après '
@@ -712,7 +727,7 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                                 + 'Temps : de la prise en caisse (ouverture de la prévente à l\'écran de vente) à l\'encaissement ; le temps de saisie reste '
                                 + 'au vendeur. « Mesurées » : préventes dont la prise en caisse est connue (enregistrée depuis la mise à jour du 08/11), '
                                 + 'durées de plus d\'une heure écartées.', {xtype: 'component', itemId: 'aeCaissieres', autoScroll: true, html: ''}),
-                        me.cadre('cGrossistes', 'Saisie des BL par grossiste', 'Temps par ligne de BL, de la commande à la clôture du BL (BL de plus de 4 h écartés). '
+                        me.cadre('cGrossistes', 'Saisie des BL par grossiste', 'Temps par ligne de BL, de l\'ouverture du BL à sa dernière ligne (BL de plus de 4 h écartés). '
                                 + 'Un grossiste lent justifie de demander des BL électroniques.', grossistes),
                         me.cadre('cRetard', 'Délai de saisie des BL', 'Écart entre la date de livraison et l\'entrée du BL. Tant qu\'un BL n\'est pas saisi, '
                                 + 'le stock est faux.', retard),
@@ -727,8 +742,9 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                         /* plan du 08/11, point 15.1 : annulations rattachees a l'auteur de la vente, suivi des caissieres */
                         Ext.apply(me.cadre('cAnnulAuteurs', 'Annulations par auteur de la vente', 'Par vendeur : ses ventes de la période et celles '
                                 + 'annulées ensuite (hors modifications), quel que soit celui qui annule. Par caissière (celle qui a encaissé) : annulations '
-                                + 'et modifications de ventes au comptant, modifications de ventes à crédit. Cliquer une ligne : le détail (vente, motif, '
-                                + 'par qui, quand).', {xtype: 'component', itemId: 'aeAnnulAuteurs', autoScroll: true, html: '',
+                                + 'et modifications de ventes au comptant, modifications de ventes à crédit, chacune avec son taux sur les ventes encaissées '
+                                + 'du même type ; à droite, le taux global (opérations ÷ ventes encaissées). Cliquer une ligne : le détail (vente, motif, '
+                                + 'par qui, quand, encaissé par).', {xtype: 'component', itemId: 'aeAnnulAuteurs', autoScroll: true, html: '',
                                     listeners: {afterrender: function (c) {
                                             c.getEl().on('click', function (ev, t) {
                                                 me.detailAnnulations(t.getAttribute('data-role'), t.getAttribute('data-id'), t.getAttribute('data-nom'));
@@ -753,6 +769,7 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
         var me = this, relancer = function () {
             var m = me.down('#aeSeuilMin');
             if (m && m.isValid() && m.getValue()) {
+                me.majSeuilModifie();
                 me.chargerAnalyses();
             }
         };
@@ -775,7 +792,134 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                             }
                         }
                     }},
-                {xtype: 'tbtext', text: 'min'}]};
+                {xtype: 'tbtext', text: 'min'},
+                {xtype: 'tbtext', itemId: 'aeSeuilEtat', text: ''},
+                '->',
+                {text: 'Enregistrer pour tous', itemId: 'aeSeuilEnregistrer', disabled: true, iconCls: 'save',
+                    tooltip: 'Le critère essayé devient celui de tous les postes : cet onglet, l\'onglet Anomalies et la carte du tableau de bord',
+                    handler: function (b) {
+                        me.confirmerDansBouton(b, 'Confirmer pour tous ?', function () {
+                            me.enregistrerSeuil(b);
+                        });
+                    }}]};
+    },
+
+    /*
+     * Plan du 09/11, point 10 : le critere de duree est enregistre pour tous (parametre). L'ecran l'essaie sans
+     * l'enregistrer tant qu'il differe ; le bouton « Enregistrer pour tous » le rend persistant partout.
+     */
+    seuilAffiche: function () {
+        var o = this.down('#aeSeuilOp'), m = this.down('#aeSeuilMin');
+        return o && m ? {op: o.getValue(), min: m.getValue()} : null;
+    },
+
+    majSeuilModifie: function () {
+        var me = this, a = me.seuilAffiche(), e = me.seuilEnregistre, b = me.down('#aeSeuilEnregistrer'), t = me.down('#aeSeuilEtat');
+        me.seuilModifie = !!(a && e && (a.op !== e.op || a.min !== e.min));
+        if (b) {
+            b.setDisabled(!me.seuilModifie);
+        }
+        if (t) {
+            t.setText(me.seuilModifie ? '<span style="color:#b45309">essai, non enregistré</span>' : '');
+        }
+    },
+
+    /* apres une reponse sans critere demande : les champs montrent le critere enregistre */
+    afficherSeuilEnregistre: function (op, min) {
+        var me = this, o = me.down('#aeSeuilOp'), m = me.down('#aeSeuilMin');
+        me.seuilEnregistre = {op: op, min: min};
+        if (o && m && !me.seuilModifie) {
+            o.suspendEvents(false);
+            m.suspendEvents(false);
+            o.setValue(op);
+            m.setValue(min);
+            o.resumeEvents();
+            m.resumeEvents();
+        }
+        me.majSeuilModifie();
+    },
+
+    ajouterSeuil: function (f) {
+        var a = this.seuilAffiche();
+        if (this.seuilModifie && a) {
+            f.seuilOperateur = a.op;
+            f.seuilMinutes = a.min;
+        }
+        return f;
+    },
+
+    enregistrerSeuil: function (b) {
+        var me = this, a = me.seuilAffiche();
+        if (!a) {
+            return;
+        }
+        b.disable();
+        Ext.Ajax.request({url: '../api/v1/activite-equipes/seuil', method: 'POST', params: {seuilOperateur: a.op, seuilMinutes: a.min},
+            success: function (r) {
+                if (me.isDestroyed) {
+                    return;
+                }
+                var o = Ext.decode(r.responseText, true) || {};
+                if (!o.success) {
+                    me.majSeuilModifie();
+                    if (window.PrestigeToast) {
+                        PrestigeToast.afficher(o.msg || 'Le critère n\'a pas été enregistré.', {niveau: 'alerte'});
+                    }
+                    return;
+                }
+                me.seuilModifie = false;
+                me.afficherSeuilEnregistre(o.seuilOperateur, o.seuilMinutes);
+                if (window.PrestigeToast) {
+                    PrestigeToast.afficher(o.msg);
+                }
+                me.chargerAnalyses();
+            },
+            failure: function (r) {
+                if (!me.isDestroyed) {
+                    me.majSeuilModifie();
+                    if (window.PrestigeToast) {
+                        PrestigeToast.afficher('Le critère n\'a pas été enregistré (' + r.status + ').', {niveau: 'alerte'});
+                    }
+                }
+            }});
+    },
+
+    /** Premier clic : le bouton demande confirmation ; second clic dans les 6 s : l'action (pas de fenetre). */
+    confirmerDansBouton: function (b, texteConfirmation, action) {
+        var maintenant = Date.now();
+        if (!b.arme) {
+            b.arme = maintenant;
+            b.texteNormal = b.texteNormal || b.getText();
+            b.setText(texteConfirmation);
+            if (window.PrestigeConfirmation) {
+                PrestigeConfirmation.armer(b);
+            }
+            b.minuteur = setTimeout(function () {
+                if (!b.isDestroyed) {
+                    b.arme = false;
+                    if (window.PrestigeConfirmation) {
+                        PrestigeConfirmation.desarmer(b);
+                    }
+                    b.setText(b.texteNormal);
+                }
+            }, 6000);
+            return;
+        }
+        if (maintenant - b.arme < 400) {
+            return; /* un double-clic ne vaut pas confirmation */
+        }
+        clearTimeout(b.minuteur);
+        b.arme = false;
+        if (window.PrestigeConfirmation) {
+            PrestigeConfirmation.desarmer(b);
+        }
+        b.setText(b.texteNormal);
+        action();
+    },
+
+    /* « Ventes > 10 min » : en-tete court de la colonne des anomalies */
+    enteteSeuil: function (op, min) {
+        return 'Ventes ' + ({GT: '>', GE: '≥', LT: '<', LE: '≤'}[op] || '>') + ' ' + min + ' min';
     },
 
     /* ------------------------------------------------------------------ CA PAR EMPLOYE ET TRANCHE (plan avoir du 08/11, point 1) */
@@ -790,7 +934,8 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                     listeners: {select: relire}},
                 {xtype: 'combo', itemId: 'aeTrancheAttribution', fieldLabel: 'CA attribué à', labelWidth: 85, width: 290, editable: false,
                     queryMode: 'local', forceSelection: true, value: 'CAISSIER',
-                    store: [['CAISSIER', 'Caissière (encaissement)'], ['VENDEUR', 'Vendeur (prévente)']], listeners: {select: relire}},
+                    store: [['CAISSIER', 'Caissière (encaissement)'], ['VENDEUR', 'Vendeur (prévente)'], ['CONSEIL', 'Conseil (qui a conseillé le client)']],
+                    listeners: {select: relire}},
                 '->',
                 {text: 'Export CSV', itemId: 'aeTrancheExport', iconCls: 'excel', tooltip: 'Le tableau affiché, totaux compris (ouvert par Excel)',
                     handler: function (b) {
@@ -824,6 +969,7 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                 var o = Ext.decode(r.responseText, true) || {};
                 me.donneesCaTranches = o.data;
                 z.update(o.success ? me.htmlCaTranches(o.data) : '<div class="ae-vide">' + Ext.String.htmlEncode(o.msg || 'Tableau indisponible') + '</div>');
+                me.ecouterTriCaTranches(z);
             },
             failure: function (r) {
                 if (!me.isDestroyed && version === me.versionCaTranches) {
@@ -833,11 +979,57 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
             }});
     },
 
+    /*
+     * Plan du 09/11, point 10 : tri du tableau du CA par un clic sur l'en-tete (employe, une tranche, total, ventes) ;
+     * un second clic inverse le sens. Le pied (totaux) ne bouge pas.
+     */
+    ecouterTriCaTranches: function (z) {
+        var me = this;
+        if (!z.getEl() || z.triEcoute) {
+            return;
+        }
+        z.triEcoute = true;
+        z.getEl().on('click', function (ev, t) {
+            var col = t.getAttribute('data-tri');
+            if (!me.donneesCaTranches) {
+                return;
+            }
+            var tri = me.triCaTranches || {};
+            me.triCaTranches = {col: col, sens: tri.col === col ? -tri.sens : (col === 'nom' ? 1 : -1)};
+            z.update(me.htmlCaTranches(me.donneesCaTranches));
+        }, null, {delegate: 'th[data-tri]'});
+    },
+
+    trierCaTranches: function (lignes) {
+        var tri = this.triCaTranches;
+        if (!tri || !tri.col) {
+            return lignes;
+        }
+        var valeur = function (l) {
+            if (tri.col === 'nom') {
+                return String(l.nom || '').toLowerCase();
+            }
+            if (tri.col === 'total') {
+                return l.ca;
+            }
+            var c = l.cellules[Number(tri.col)];
+            return c ? c.ca : 0;
+        };
+        return Ext.Array.sort(lignes.slice(), function (a, b) {
+            var x = valeur(a), y = valeur(b);
+            return (x < y ? -1 : x > y ? 1 : 0) * tri.sens;
+        });
+    },
+
     htmlCaTranches: function (d) {
-        var e = Ext.String.htmlEncode, N = testextjs.view.activiteequipes.ActiviteEquipes.nombre;
+        var me = this, e = Ext.String.htmlEncode, N = testextjs.view.activiteequipes.ActiviteEquipes.nombre;
         if (!d || !d.lignes || !d.lignes.length) {
             return '<div class="ae-vide">Aucune vente sur la période.</div>';
         }
+        var tri = me.triCaTranches || {};
+        var fleche = function (col) {
+            return tri.col === col ? (tri.sens > 0 ? ' ▲' : ' ▼') : '';
+        };
         var max = 1;
         Ext.each(d.lignes, function (l) {
             Ext.each(l.cellules, function (c) {
@@ -849,24 +1041,28 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                 return '<td class="n ae-ct-vide">·</td>';
             }
             var fond = total ? '' : ' style="background:rgba(37,99,235,' + (0.06 + 0.34 * c.ca / max).toFixed(2) + ')"';
-            return '<td class="n"' + fond + '><b>' + N(c.ca) + '</b><small>' + N(c.ventes) + ' v.</small></td>';
+            return '<td class="n"' + fond + '><b>' + N(c.ca) + '</b><small class="ae-ct-nb">' + N(c.ventes) + ' v.</small></td>';
         };
         var ligne = function (l, total) {
             return '<td class="ae-ct-nom">' + e(l.nom) + '</td>' + Ext.Array.map(l.cellules, function (c) {
                 return cellule(c, total);
-            }).join('') + '<td class="n ae-ct-total"><b>' + N(l.ca) + '</b><small>' + N(l.ventes) + ' v.</small></td>';
+            }).join('') + '<td class="n ae-ct-total"><b>' + N(l.ca) + '</b><small class="ae-ct-nb">' + N(l.ventes) + ' v.</small></td>';
         };
         return '<style>.ae-ct{border-collapse:collapse;font-size:12px;margin:4px 0;min-width:100%}.ae-ct th{background:#e8eef7;color:#1a3d6d;'
                 + 'padding:4px 6px;white-space:nowrap;text-align:right}.ae-ct th:first-child{text-align:left}.ae-ct td{padding:3px 6px;border-bottom:1px solid #eef1f5;'
-                + 'white-space:nowrap}.ae-ct .n{text-align:right}.ae-ct small{display:block;color:#64748b;font-size:10px}.ae-ct .ae-ct-vide{color:#cbd5e1}'
+                + 'white-space:nowrap}.ae-ct .n{text-align:right}.ae-ct small{display:block;color:#64748b;font-size:10px}'
+                + '.ae-ct small.ae-ct-nb{color:#7c3aed;font-size:12px;font-weight:bold}.ae-ct .ae-ct-ventes{color:#7c3aed;font-weight:bold;font-size:13px}'
+                + '.ae-ct th[data-tri]{cursor:pointer;user-select:none}.ae-ct th[data-tri]:hover{background:#dbe5f3}'
+                + '.ae-ct .ae-ct-vide{color:#cbd5e1}'
                 + '.ae-ct .ae-ct-total{background:#f1f5f9}.ae-ct tfoot th,.ae-ct tfoot td{background:#e8eef7;font-weight:bold}.ae-ct .ae-ct-nom{max-width:190px;'
                 + 'overflow:hidden;text-overflow:ellipsis}</style>'
-                + '<table class="ae-ct" data-taille="' + d.taille + '" data-attribution="' + d.attribution + '"><thead><tr><th>'
-                + (d.attribution === 'VENDEUR' ? 'Vendeur' : 'Caissière') + '</th>'
-                + Ext.Array.map(d.tranches, function (t) {
-                    return '<th data-t="' + t.index + '">' + e(t.libelle) + '</th>';
-                }).join('') + '<th>Total</th></tr></thead><tbody>'
-                + Ext.Array.map(d.lignes, function (l) {
+                + '<table class="ae-ct" data-taille="' + d.taille + '" data-attribution="' + d.attribution + '"><thead><tr><th data-tri="nom" data-qtip="Cliquer pour trier">'
+                + ({VENDEUR: 'Vendeur', CONSEIL: 'Conseil'}[d.attribution] || 'Caissière') + fleche('nom') + '</th>'
+                + Ext.Array.map(d.tranches, function (t, i) {
+                    return '<th data-t="' + t.index + '" data-tri="' + i + '" data-qtip="Cliquer pour trier">' + e(t.libelle) + fleche(String(i)) + '</th>';
+                }).join('') + '<th data-tri="total" data-qtip="Cliquer pour trier">Total' + fleche('total') + '</th>'
+                + '</tr></thead><tbody>'
+                + Ext.Array.map(me.trierCaTranches(d.lignes), function (l) {
                     return '<tr data-id="' + e(l.id) + '">' + ligne(l, false) + '</tr>';
                 }).join('') + '</tbody><tfoot><tr>' + ligne(Ext.apply({nom: 'Total (' + d.lignes.length + ' employé' + (d.lignes.length > 1 ? 's' : '') + ')'}, d.totaux), true)
                 + '</tr></tfoot></table>';
@@ -915,7 +1111,7 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                         {header: 'Remises (F)', dataIndex: 'remises', width: 105, align: 'right', renderer: function (v) {
                                 return v ? N(v) : '<span style="color:#94a3b8">0</span>';
                             }},
-                        {header: 'Ventes longues', dataIndex: 'ventesLongues', width: 115, align: 'right', renderer: nb},
+                        {header: 'Ventes longues', itemId: 'anoColLongues', dataIndex: 'ventesLongues', width: 115, align: 'right', renderer: nb},
                         {header: 'Pour 100 ventes', dataIndex: 'pour100', width: 120, align: 'right', renderer: function (v) {
                                 return '<span data-qtip="(refus + annulations + modifications) pour 100 ventes">' + N(v, true) + '</span>';
                             }},
@@ -972,6 +1168,7 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
             return;
         }
         f.famille = me.down('#anoFamille').getValue() || '';
+        me.ajouterSeuil(f);
         me.anoEmployeChoisi = f.employeId || null;
         a.setLoading('Lecture des anomalies…');
         Ext.Ajax.request({url: '../api/v1/activite-equipes/anomalies', method: 'GET', params: f, timeout: 180000,
@@ -984,6 +1181,11 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                 var d = o.data || {};
                 me.anoEmployes.loadData(d.employes || []);
                 me.anoListe.loadData(d.anomalies || []);
+                var col = me.down('#anoColLongues');
+                if (col && d.seuilLibelle) {
+                    col.setText(me.enteteSeuil(d.seuilOperateur, d.seuilMinutes));
+                    col.tooltip = d.seuilLibelle;
+                }
                 me.down('#anoFil').update('<div style="color:#64748b">Cliquez une anomalie pour voir les dernières actions de l\'employé.</div>');
             },
             failure: function (r) {
@@ -1070,10 +1272,7 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
             return;
         }
         a.setLoading('Calcul des analyses…');
-        if (me.down('#aeSeuilOp')) {
-            f.seuilOperateur = me.down('#aeSeuilOp').getValue();
-            f.seuilMinutes = me.down('#aeSeuilMin').getValue();
-        }
+        me.ajouterSeuil(f);
         Ext.Ajax.request({url: '../api/v1/activite-equipes/analyses', method: 'GET', params: f, timeout: 180000,
             success: function (r) {
                 if (a.isDestroyed) {
@@ -1274,6 +1473,7 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
         var style = '<style>.ae-ann{border-collapse:collapse;width:100%;font-size:12px;margin:2px 0 8px}.ae-ann th{background:#e8eef7;color:#1a3d6d;'
                 + 'text-align:left;padding:4px 6px;white-space:nowrap}.ae-ann td{padding:3px 6px;border-bottom:1px solid #eef1f5}.ae-ann .n{text-align:right}'
                 + '.ae-ann tbody tr{cursor:pointer}.ae-ann tbody tr:hover{background:#f3f7fc}.ae-ann .ae-taux-haut{color:#c0392b;font-weight:bold}'
+                + '.ae-ann .ae-pct{color:#64748b;font-size:11px}'
                 + '.ae-ann-titre{font-weight:bold;color:#1a3d6d;margin:4px 0 2px}.ae-ann-cols{display:flex;gap:14px}.ae-ann-cols>div{flex:1;min-width:0}'
                 + '.ae-ann-detail{margin-top:6px}</style>';
         var vendeurs = d.parVendeur || [], caissiers = d.parCaissier || [];
@@ -1283,11 +1483,21 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                             + '</td><td class="n">' + N(x.ventes) + '</td><td class="n"><b>' + N(x.annulees) + '</b></td><td class="n'
                             + (x.taux >= 2 ? ' ae-taux-haut' : '') + '">' + N(x.taux, true) + ' %</td></tr>';
                 }).join('') + '</tbody></table>' : '<div class="ae-vide">Aucune vente sur la période.</div>';
-        var tc = caissiers.length ? '<table class="ae-ann ae-ann-caissiers"><thead><tr><th>Caissière</th><th class="n">Annul. comptant</th>'
-                + '<th class="n">Modif. comptant</th><th class="n">Modif. crédit</th></tr></thead><tbody>' + Ext.Array.map(caissiers.slice(0, 12), function (x) {
+        /* plan du 09/11, point 10 : chaque operation et son taux sur les ventes de son type ; taux global a droite */
+        var pct = function (t, sur) {
+            return '<span class="ae-pct" data-taux="' + (t === null || t === undefined ? '' : t) + '" data-qtip="sur ' + N(sur) + ' ventes encaissées">'
+                    + (t === null || t === undefined ? '—' : N(t, true) + ' %') + '</span>';
+        };
+        var tc = caissiers.length ? '<table class="ae-ann ae-ann-caissiers"><thead><tr><th>Caissière</th><th class="n">Ventes comptant</th>'
+                + '<th class="n">Annul. comptant</th><th class="n">Modif. comptant</th><th class="n">Ventes crédit</th><th class="n">Modif. crédit</th>'
+                + '<th class="n">Taux</th></tr></thead><tbody>' + Ext.Array.map(caissiers.slice(0, 12), function (x) {
                     return '<tr data-role="CAISSIER" data-id="' + e(x.id) + '" data-nom="' + e(x.nom) + '" data-qtip="Cliquer : le détail des opérations"><td>' + e(x.nom)
-                            + '</td><td class="n">' + N(x.annulationsComptant) + '</td><td class="n">' + N(x.modificationsComptant) + '</td><td class="n">'
-                            + N(x.modificationsCredit) + '</td></tr>';
+                            + '</td><td class="n">' + N(x.ventesComptant) + '</td><td class="n"><span class="ae-nb">' + N(x.annulationsComptant) + '</span> '
+                            + pct(x.tauxAnnulationsComptant, x.ventesComptant) + '</td><td class="n"><span class="ae-nb">' + N(x.modificationsComptant) + '</span> '
+                            + pct(x.tauxModificationsComptant, x.ventesComptant) + '</td><td class="n">' + N(x.ventesCredit) + '</td><td class="n"><span class="ae-nb">'
+                            + N(x.modificationsCredit) + '</span> ' + pct(x.tauxModificationsCredit, x.ventesCredit) + '</td><td class="n ae-taux'
+                            + (x.taux >= 2 ? ' ae-taux-haut' : '') + '" data-taux="' + (x.taux === null || x.taux === undefined ? '' : x.taux) + '">'
+                            + (x.taux === null || x.taux === undefined ? '—' : '<b>' + N(x.taux, true) + ' %</b>') + '</td></tr>';
                 }).join('') + '</tbody></table>' : '<div class="ae-vide">Aucune annulation ni modification sur la période.</div>';
         return style + '<div class="ae-ann-cols"><div><div class="ae-ann-titre">Par auteur de la vente (vendeur)</div>' + tv + '</div>'
                 + '<div><div class="ae-ann-titre">Par caissière (qui a encaissé)</div>' + tc + '</div></div><div class="ae-ann-detail"></div>';
@@ -1307,11 +1517,11 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                 var o = Ext.decode(r.responseText, true) || {}, l = o.data || [];
                 zone.innerHTML = '<div class="ae-ann-titre">' + (role === 'CAISSIER' ? 'Opérations sur les ventes encaissées par ' : 'Ventes annulées de ') + e(nom || '')
                         + ' (' + l.length + ')</div>' + (l.length ? '<table class="ae-ann ae-ann-liste"><thead><tr><th>Vente</th><th>Type</th><th>Date de la vente</th>'
-                        + '<th class="n">Montant</th><th>Opération</th><th>Motif</th><th>Par qui</th><th>Quand</th></tr></thead><tbody>'
+                        + '<th class="n">Montant</th><th>Opération</th><th>Motif</th><th>Par qui</th><th>Quand</th><th>Encaissé par</th></tr></thead><tbody>'
                         + Ext.Array.map(l, function (x) {
                             return '<tr><td>' + e(x.reference) + '</td><td>' + e(x.typeVente) + '</td><td>' + e(x.dateVente) + '</td><td class="n">' + N(x.montant)
                                     + '</td><td>' + e(x.operation) + '</td><td>' + e(x.motif || '—') + (x.commentaire ? ' : ' + e(x.commentaire) : '') + '</td><td>'
-                                    + e(x.parQui) + '</td><td>' + e(x.quand) + '</td></tr>';
+                                    + e(x.parQui) + '</td><td>' + e(x.quand) + '</td><td>' + e(x.encaissePar || '') + '</td></tr>';
                         }).join('') + '</tbody></table>' : '<div class="ae-vide">Aucune opération.</div>');
                 c.getEl().dom.scrollTop = zone.offsetTop;
             },
@@ -1446,6 +1656,9 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
             a.down('#aeCartePeriode').disable();
         }
         a.down('#aeCarte').update(me.htmlCarte(d.carte, ''));
+        if (d.seuilOperateur && !me.seuilModifie) {
+            me.afficherSeuilEnregistre(d.seuilOperateur, d.seuilMinutes);
+        }
         if (d.seuilLibelle) {
             me.seuilLibelle = d.seuilLibelle;
             a.down('#cLongues').setTitle(d.seuilLibelle);

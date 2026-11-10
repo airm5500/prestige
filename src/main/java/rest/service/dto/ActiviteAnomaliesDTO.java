@@ -18,6 +18,10 @@ import lombok.ToString;
 @Setter
 public class ActiviteAnomaliesDTO {
 
+    /** plan du 09/11, point 10 : critere de duree retenu pour la colonne « Ventes longues » */
+    private String seuilLibelle;
+    private String seuilOperateur;
+    private int seuilMinutes;
     @Builder.Default
     private List<Ligne> employes = new ArrayList<>();
     @Builder.Default

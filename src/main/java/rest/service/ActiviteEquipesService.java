@@ -42,6 +42,15 @@ public interface ActiviteEquipesService {
      */
     java.util.Map<String, Object> carteGarde(String gardeId);
 
+    /**
+     * Plan du 09/11, point 10 : critere de duree des ventes enregistre pour tous (parametres
+     * KEY_TABLEAU_BORD_SEUIL_VENTE_LONGUE_OP et _MIN) ; plus de 10 min s'il manque ou s'il est illisible.
+     */
+    rest.service.impl.activite.SeuilDuree seuilEnregistre();
+
+    /** Enregistre le critere pour tous : success, seuilOperateur, seuilMinutes, seuilLibelle, msg. */
+    java.util.Map<String, Object> enregistrerSeuil(String operateur, Integer minutes);
+
     /** Plan du 09/11, point 10 : libelle (String), debut et fin (LocalDateTime) d'une garde ; null si absente. */
     java.util.Map<String, Object> fenetreGarde(String gardeId);
 
