@@ -1,5 +1,5 @@
 /* PARAMETRES DES PREVISIONS ET DU RISQUE DE RUPTURE DANS L'ECRAN (retours du 10/10, lot 3).
- *  - Onglet Tableau : definition de chaque methode ; panneau « Parametres de calcul » (10 parametres) avec les valeurs
+ *  - Onglet Tableau : definition de chaque methode ; panneau « Parametres de calcul » (13 parametres) avec les valeurs
  *    de la base ; modification dans l'ecran (pas de fenetre) et enregistrement ; saisie hors bornes refusee (ecran et
  *    serveur) ; effet reel : filtre « Prevision peu fiable » suit le nouveau seuil ;
  *  - Risque de rupture : panneau des 7 parametres du risque ; modification enregistree et liste rechargee ;
@@ -50,9 +50,11 @@ const valeur = (c) => q("SELECT str_VALUE FROM t_parameters WHERE str_KEY = '" +
     });
     ok('Tableau : définition des 4 méthodes affichée', ['Moyenne 3 mois', 'Saisonnière', 'Tendance (Holt)', 'Tendance + saison'].every((m) => vue.methodes.indexOf(m) >= 0) && /mois d'essai/.test(vue.methodes), vue.methodes.slice(0, 200));
     const attendus = ['KEY_PREVISION_COUVERTURE_JOURS', 'KEY_PREVISION_DELAI_JOURS', 'KEY_PREVISION_JOURS_EN_COURS', 'KEY_PREVISION_SURSTOCK_JOURS', 'KEY_PREVISION_ROTATION_LENTE_JOURS',
-      'KEY_PREVISION_ECART_ABERRANT', 'KEY_PREVISION_PRIX_ECART', 'KEY_PREVISION_MOIS_TEST', 'KEY_PREVISION_PLAFOND_COUVERTURE', 'KEY_PREVISION_SEUIL_PEU_FIABLE'];
-    ok('Paramètres de calcul : les 10 paramètres, valeurs de la base, modifiables (droit admin), dans l\'écran (aucune fenêtre)',
-      vue.n === 10 && attendus.every((c) => String(vue.valeurs[c]) === valeur(c)) && !vue.lecture && vue.enregistrer && vue.fenetres === 0, JSON.stringify(vue));
+      'KEY_PREVISION_ECART_ABERRANT', 'KEY_PREVISION_PRIX_ECART', 'KEY_PREVISION_MOIS_TEST', 'KEY_PREVISION_PLAFOND_COUVERTURE', 'KEY_PREVISION_SEUIL_PEU_FIABLE',
+      /* plan du 09/11, points 5 et 6 : reglage du taux de rupture */
+      'KEY_PREVISION_RUPTURE_MOIS', 'KEY_PREVISION_RUPTURE_MOIS_VENTE', 'KEY_PREVISION_RUPTURE_QTE_MIN'];
+    ok('Paramètres de calcul : les 13 paramètres, valeurs de la base, modifiables (droit admin), dans l\'écran (aucune fenêtre)',
+      vue.n === 13 && attendus.every((c) => String(vue.valeurs[c]) === valeur(c)) && !vue.lecture && vue.enregistrer && vue.fenetres === 0, JSON.stringify(vue));
 
     /* saisie hors bornes : champ invalide ; le serveur refuse aussi */
     const invalide = await p.evaluate(() => { const c = Ext.ComponentQuery.query('analysecommande #p-KEY_PREVISION_SEUIL_PEU_FIABLE')[0]; c.setValue(150); return !c.isValid(); });

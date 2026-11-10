@@ -424,7 +424,12 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
         /* meme libelle que la ligne « Rupture » de la carte Alertes (retours du 07/10) */
         poser('ruptures', '<div class="tb-v tb-clic" data-liste="ruptures" title="Produits à stock zéro, vendus ces 90 derniers jours">' + f(o.ruptures.produits)
                 + '</div><div class="tb-d"><span class="tb-baisse">produits à zéro, dont <b>' + f(o.ruptures.vendusRecemment)
-                + '</b> vendus ces <b>' + o.ruptures.jours + '</b> derniers jours</span></div>');
+                + '</b> vendus ces <b>' + o.ruptures.jours + '</b> derniers jours</span></div>'
+                /* plan du 09/11, point 6 : le taux de rupture du menu Prevision (memes parametres, meme chiffre) */
+                + (o.ruptures.taux === undefined ? '' : '<div class="tb-d tb-clic" data-liste="tauxRupture" data-taux="' + o.ruptures.taux + '" title="Produits vendus au moins '
+                        + o.ruptures.moisVente + ' mois sur les ' + o.ruptures.mois + ' derniers et au moins ' + o.ruptures.quantiteMin
+                        + ' unités : part de ceux dont le stock actuel est nul (réglage du menu Prévision). Clic : la liste.">Taux de rupture : <b>'
+                        + o.ruptures.taux.toLocaleString('fr-FR') + ' %</b> (' + f(o.ruptures.frequentsAZero) + ' sur ' + f(o.ruptures.frequents) + ' produits fréquents)</div>'));
         me.animerNombres(me.q('[data-tb="tuiles"]'));
     },
 
@@ -560,6 +565,12 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
                 /* meme route et memes chiffres que le menu Activite des equipes (onglet Analyses, bandeau Reperes) */
                 lire('../api/v1/activite-equipes/analyses', {debut: j, fin: j}, function (o) {
                     me.dessinerActivite(o);
+                    /* plan du 09/11, point 6 : CA conseille du jour, meme route que le menu (indicateur Conseil) */
+                    if (o && o.success && o.data) {
+                        lire('../api/v1/activite-equipes/indicateurs', {debut: j, fin: j}, function (i) {
+                            me.dessinerConseil(i);
+                        });
+                    }
                 });
             },
             tiers: function () {
@@ -1185,7 +1196,56 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
         /* quatre reperes et une ligne d'alerte : pas de grand vide sous la carte (hauteur minimale commune de 300 px) */
         c.style.minHeight = '0';
         c.innerHTML = '<div class="tb-clic tb-activite" data-activite="1" title="Ouvrir le détail : mêmes cartes que le menu Activité des équipes">'
-                + AE.htmlResume(o.data.resume) + '</div>';
+                + AE.htmlResume(o.data.resume) + me.htmlActivitePlus(o.data) + '</div>';
+    },
+
+    /**
+     * Plan du 09/11, point 6 : tuiles de plus sur la carte Activite (raccourci avant le clic sur le detail), memes
+     * chiffres que le menu : preventes perdues (annulees + abandonnees), ventes annulees, BL entres et part saisie a
+     * J+2 ou plus, CA conseille (rempli a l'arrivee de l'indicateur Conseil). Meme style que les reperes, sans cadre
+     * de couleur.
+     */
+    htmlActivitePlus: function (d) {
+        var me = this, N = function (v) {
+            return me.fmt(Math.round(Number(v) || 0));
+        };
+        var ind = {};
+        Ext.each(d.indicateurs || [], function (i) {
+            ind[i.code] = i;
+        });
+        var perdues = 0, total = 0;
+        Ext.each(d.preventes || [], function (p) {
+            perdues += (Number(p.annulees) || 0) + (Number(p.abandonnees) || 0);
+            total += Number(p.total) || 0;
+        });
+        var v = function (c) {
+            return ind[c] ? Number(ind[c].valeur) || 0 : 0;
+        };
+        /* sans cadre colore (proposition du 09/11) : bordure fine grise, quelle que soit la valeur */
+        var tuile = function (code, libelle, valeur, detail, nombre) {
+            return '<div class="ae-rep" data-rep="' + code + '" data-v="' + nombre + '"><div class="l">' + me.esc(libelle)
+                    + '</div><div class="v">' + valeur + '</div><div class="d">' + detail + '</div></div>';
+        };
+        return '<div class="ae-reps tb-activite-plus">'
+                + tuile('PREVENTES_PERDUES', 'Préventes perdues', N(perdues), 'sur ' + N(total) + ' préventes'
+                        + (total ? ' (' + (Math.round(perdues * 1000 / total) / 10).toLocaleString('fr-FR') + ' %)' : ''), perdues)
+                + tuile('ANNULATIONS', 'Ventes annulées', N(v('ANNULATIONS')), 'annulées dans la journée', v('ANNULATIONS'))
+                + tuile('BL', 'BL entrés', N(v('BL')), v('BL') ? (v('BL_RETARD').toLocaleString('fr-FR') + ' % saisis à J+2 ou plus') : 'aucun BL clôturé', v('BL'))
+                + tuile('CONSEIL', 'CA conseillé', '…', 'ventes avec un conseil', '')
+                + '</div>';
+    },
+
+    /** Plan du 09/11, point 6 : tuile « CA conseille » de la carte Activite (indicateur Conseil du menu). */
+    dessinerConseil: function (o) {
+        var me = this, c = me.corps('activite'), t = c && c.querySelector('[data-rep="CONSEIL"]');
+        if (!t) {
+            return;
+        }
+        var x = o && o.success && o.data && o.data.CONSEIL ? o.data.CONSEIL.total || {} : null;
+        t.setAttribute('data-v', x ? Number(x.caConseille) || 0 : '');
+        t.querySelector('.v').innerHTML = x ? me.fmt(Number(x.caConseille) || 0) : '—';
+        t.querySelector('.d').innerHTML = x ? me.fmt(Number(x.conseils) || 0) + ' conseil' + ((Number(x.conseils) || 0) > 1 ? 's' : '') + ', '
+                + me.fmt(Number(x.ventesConseillees) || 0) + ' vente' + ((Number(x.ventesConseillees) || 0) > 1 ? 's' : '') : 'indisponible';
     },
 
     /** Fenetre de consultation : le composant du menu, onglet Analyses seul, periode du jour (Hier, 3 jours, 1 semaine). */
@@ -1265,6 +1325,15 @@ Ext.define('testextjs.view.tableaubord.TableauBord', {
                                     + me.esc(x.grossiste) + '</td></tr>';
                         }).join('');
                 me.fenetre('Produits en rupture (' + l.length + ')', '<table class="tb-fixe">' + t + '</table><div class="tb-note" style="margin-top:8px">Stock à zéro, vendus sur les 90 derniers jours.</div>',
+                        {xtype: 'i_sugg_manager', texte: 'Ouvrir les suggestions de commande'});
+            } else if (type === 'tauxRupture') {
+                t = '<tr><th style="width:50%">Produit</th><th>CIP</th><th class="tb-n">Vendus</th><th class="tb-n">Mois vendus</th><th class="tb-n">Stock rayon</th></tr>'
+                        + l.map(function (x) {
+                            return '<tr><td class="tb-nom1" title="' + me.esc(x.libelle) + '">' + me.esc(x.libelle) + '</td><td>' + me.esc(x.cip) + '</td><td class="tb-n">'
+                                    + me.fmt(x.vendus) + '</td><td class="tb-n">' + me.fmt(x.moisVendus) + '</td><td class="tb-n">' + me.fmt(x.rayon) + '</td></tr>';
+                        }).join('');
+                me.fenetre('Produits fréquents à stock nul (' + l.length + ')', '<table class="tb-fixe">' + t + '</table><div class="tb-note" style="margin-top:8px">'
+                        + 'Ceux que compte le taux de rupture, du plus vendu au moins vendu ; même liste que « En rupture (vendus fréquemment) » du menu Prévision.</div>',
                         {xtype: 'i_sugg_manager', texte: 'Ouvrir les suggestions de commande'});
             } else if (type === 'nonvendus') {
                 t = '<tr><th style="width:44%">Produit</th><th>CIP</th><th>Entré le</th><th class="tb-n">Qté entrée</th><th>Grossiste</th></tr>' + l.map(function (x) {

@@ -34,7 +34,7 @@ class ParametresPrevisionTest {
                 .filter(d -> d.ecrans.contains(ParametresPrevision.PREVISIONS)).count();
         long risque = ParametresPrevision.catalogue().values().stream()
                 .filter(d -> d.ecrans.contains(ParametresPrevision.RISQUE)).count();
-        assertEquals(10, previsions);
+        assertEquals(13, previsions, "10 + les 3 du taux de rupture (plan du 09/11, points 5 et 6)");
         assertEquals(7, risque);
     }
 

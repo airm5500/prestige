@@ -119,7 +119,7 @@ function resumeBase(d, f) {
 /* ------------------------------------------------------------ lecture des ecrans */
 const lireReperes = (p, racine) => p.evaluate((r) => { const el = r === 'tb' ? document.querySelector('[data-carte="activite"]') : Ext.ComponentQuery.query(r)[0].getEl().dom;
   if (!el) { return null; }
-  const v = {}; el.querySelectorAll('.ae-rep').forEach((x) => { v[x.getAttribute('data-rep')] = x.querySelector('.v').textContent + ' | ' + x.querySelector('.d').textContent; });
+  const v = {}; el.querySelectorAll('.ae-rep').forEach((x) => { if (!x.closest('.tb-activite-plus')) { v[x.getAttribute('data-rep')] = x.querySelector('.v').textContent + ' | ' + x.querySelector('.d').textContent; } }); /* plan du 09/11, point 6 : tuiles de plus testees a part */
   const a = el.querySelector('.ae-rep-alerte'); v.ALERTES = a ? a.getAttribute('data-alertes') + ' | ' + a.textContent : null; return v; }, racine);
 const lireTableau = (p, racine) => p.evaluate((r) => { const t = Ext.ComponentQuery.query(r)[0].getEl().dom.querySelector('table.ae-ct');
   if (!t) { return null; }
