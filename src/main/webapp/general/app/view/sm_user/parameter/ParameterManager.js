@@ -426,7 +426,22 @@ Ext.define('testextjs.view.sm_user.parameter.ParameterManager', {
         if (column && column.itemId === 'paramInfoColumn') {
             if (rec.get('explication')) {
                 rec.explicationOuverte = !rec.explicationOuverte;
-                view.refreshNode(rowIndex);
+                // la ligne d'explication (rowbody) suit la ligne du parametre : elle est mise a jour sur place, le
+                // rafraichissement d'une ligne ne la redessine pas ; un rechargement repasse par getAdditionalData
+                var ligne = view.getNode(rec), corps = ligne ? ligne.nextElementSibling : null;
+                if (corps && /x-grid-rowbody-tr/.test(corps.className)) {
+                    var zone = corps.querySelector('.x-grid-rowbody');
+                    if (zone) {
+                        zone.innerHTML = rec.explicationOuverte ? Me_parametres_rendreExplication(rec.get('explication')) : '';
+                    }
+                    Ext.fly(corps).removeCls(['param-explication-ouverte', 'param-explication-fermee']);
+                    Ext.fly(corps).addCls(rec.explicationOuverte ? 'param-explication-ouverte' : 'param-explication-fermee');
+                }
+                var bouton = td ? td.querySelector('.param-info') : null;
+                if (bouton) {
+                    Ext.fly(bouton)[rec.explicationOuverte ? 'addCls' : 'removeCls']('param-info-ouvert');
+                }
+                this.updateLayout();
             }
             return;
         }

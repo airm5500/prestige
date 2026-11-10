@@ -133,7 +133,8 @@ const tri = (a) => a.slice().sort().join(';');
     ok('Ticket : sous la ligne 1, seulement « B · Taux 100 % : ' + P1.pu + ' » (A, part nulle sur la ligne, n\'est pas imprimée) ; rien sous la ligne 2',
       t.articles.length === 2 && t.articles[0].credits.length === 1 && t.articles[0].credits[0].nom === TB && t.articles[0].credits[0].taux === 100
       && t.articles[0].credits[0].part === P1.pu && t.articles[1].credits.length === 0, JSON.stringify(t.articles.map((a) => a.credits.map((c) => c.texte))));
-    ok('Ticket : récapitulatif A = ' + attA1 + ' et B = ' + attB1 + ' (= base), net = écran', C.chiffres(t.paires[TA]) === attA1 && C.chiffres(t.paires[TB]) === attB1 && t.net === rail.net.valeur, JSON.stringify(t.paires));
+    ok('Ticket : récapitulatif A = ' + attA1 + ' et B = ' + attB1 + ' (= base), part du client = net affiché (vente à terme si 0)', C.chiffres(t.paires[TA]) === attA1 && C.chiffres(t.paires[TB]) === attB1
+      && (t.net === rail.net.valeur || (t.net === null && rail.net.valeur === 0 && C.chiffres(t.paires['Part du client']) === 0)), JSON.stringify(t.paires));
 
     /* ---------- 2. une ligne : prix de reference, marque retiree puis reposee, recapitulatif sans A ---------- */
     await C.nouvelleVente(p);
