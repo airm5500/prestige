@@ -600,3 +600,62 @@ Branche `plan/09112026`, commit `b66c1172f`, essayé sur domain3.
 **Non-régression :** verrou du double clic 15 / 15 ; fiche article (point 1) 21 / 21 ; détail de vente 18 / 18 ; dernière vente de la fiche 5 / 5 ; ergonomie du détail article 9 / 9 et monographie à la demande 6 / 6 sur 8080 (sur domain3, le service des monographies est inactif : précondition non remplie, sans lien avec ce changement).
 
 **Déployé :** domain3 (tests) et 8080. Si l'erreur revenait, recharger la page (F5) : un onglet ouvert avant le déploiement garde l'ancien code.
+
+---
+
+## Point 3 : fait le 10/11 (commit `ad1278f0f`, branche `claude/pointage-releves`, non fusionné)
+
+**Pointer les BL / Avoirs :** une liste « Période selon » propose « Date du BL » (par défaut, comme avant) ou « Date d'entrée » (jour où le BL ou le retour a été saisi dans Prestige). La grille montre les deux dates (« Date BL » et « Saisi le »). L'édition PDF reprend le choix (sous-titre « (date du BL) » ou « (date d'entrée) », colonne « Saisi le »).
+
+**Où la donnée apparaît et test de rapprochement :** grille, réponse du serveur, base et PDF. `test-pointage-selon-date-0911.js` (14 / 14, rouge sur l'ancien code) : grossiste DPCI, un jour J choisi pour que les deux modes diffèrent ; dans chaque mode, grille = base ligne par ligne (type, n° BL, date du BL, date d'entrée, montant) ; le PDF part avec le même choix.
+
+**Règles de calcul et cohérence :** dans les deux modes, total BL = somme des BL de la grille, net = BL + avoirs ; en « Date d'entrée », des BL datés d'avant J apparaissent bien.
+
+**Traces :** lecture seule, rien n'est écrit.
+
+**Cas couverts :** BL, retours (date de l'avoir ou d'entrée), manquants à la réception ; plusieurs montants ; les deux modes sur le même jour.
+
+**Non-régression :** pointage BL 18 / 18, par grossiste 7 / 7, groupe de contrôle 12 / 12, formats des grossistes 18 / 18, relevé modèle 23 / 23, routes « nombre » 12 / 12 ; tests unitaires du pointage et des relevés verts.
+
+**À décider :** ce point est sur la branche du pointage, pas encore sur `plan/09112026` ni sur l'intégration 29/10.
+
+---
+
+## Point 4 : fait le 10/11 (commit `beded02d3`, branche `plan/09112026`)
+
+**Retour fournisseur, recherche « contient » :**
+- **Liste des retours :** un morceau pris au milieu du nom du produit, du CIP, de l'EAN, du n° de BL ou de la référence du retour trouve le retour. Avant, seul le début était cherché.
+- **Nouveau retour :** les listes « Bon de livraison » et « Article » cherchent aussi en « contient » (textes d'aide : « une partie suffit »).
+- **Au passage :** Entrée relance bien la recherche, et la recherche ne retarde plus d'une frappe (elle partait avec la valeur précédente du champ).
+
+**Où la donnée apparaît et test de rapprochement :** liste des retours, listes du nouveau retour et base. `test-retour-recherche-0911.js` (13 / 13 ; 5 échecs et un plantage sur l'ancien code) : sur un retour réel, un morceau du milieu du nom et un morceau du milieu du n° de BL trouvent le retour ; chaque retour affiché vérifie la règle en base ; un texte absent ne ramène rien ; les listes du nouveau retour proposent le BL et le produit, et chaque proposition contient le texte tapé.
+
+**Règle et test de cohérence :** même règle que le point 2 (`CommandeServiceImpl.motifContient`, jokers SQL neutralisés), vérifiée par `RechercheContientTest` (5 000 cas, graine fixe).
+
+**Traces :** lecture seule ; bilan : aucun retour créé par le test.
+
+**Non-régression :** retour en attente 17 / 17, écran retour fournisseur 9 / 9, retours par lots 7 / 7, pilotage des retours 48 / 48, tests unitaires des retours 43 / 43.
+
+---
+
+## Point 12 : fait le 10/11 (commit `00054b60a`, branche `plan/09112026`)
+
+**Inventaire en cours, filtre « Vendus après la création de l'inventaire » :** les produits de l'inventaire vendus depuis sa création. Une vente compte si elle est encaissée, non annulée, de montant positif, faite sur l'emplacement de l'inventaire. La colonne « Vendus depuis » donne la quantité vendue ; elle n'apparaît qu'avec ce filtre.
+
+**Impression (« Imprimer filtre courant ») :** les colonnes validées. CIP, désignation, emplacement, stock théorique, compté, écart, vendus depuis. Le stock théorique et l'écart ne s'impriment qu'avec le droit de voir le stock et « Afficher stock : OUI », comme les autres impressions de l'inventaire. Le titre donne l'inventaire, sa date de création et le nombre d'articles.
+
+**Où la donnée apparaît et test de rapprochement :** écran, réponse du serveur, PDF et base. `test-filtre-vendus-apres-creation-1011.js` (19 / 19 ; rouge sur l'ancien code) :
+- inventaire d'essai de 10 lignes créé à une date passée ;
+- écran = base, CIP par CIP et quantité par quantité ;
+- PDF = base, ligne par ligne, avec puis sans les colonnes de stock ;
+- rapprochement à grande échelle : 4 inventaires réels, 11 464 lignes, dont 6 635 vendues. Pour chaque ligne, présente dans le filtre si et seulement si la quantité vendue calculée en SQL, indépendamment de l'application, est positive ; et quantité identique.
+
+**Règles et cohérence :** filtre (5) + hors filtre (5) = « Tous » (10) ; chaque quantité vendue > 0 ; écart du PDF = compté − théorique.
+
+**Traces (bilan) :** aucun stock ni aucune ligne d'inventaire modifiés par le filtre ni par l'impression ; inventaire d'essai retiré.
+
+**Cas couverts :** 5 produits vendus après la création (quantités 1, 3 et 5), 3 vendus seulement avant, 2 dont les seules ventes après sont annulées ; lignes comptées et non comptées ; « Afficher stock » OUI et NON.
+
+**Temps :** une page du filtre sur un inventaire de 11 000 lignes répond en 0,7 à 0,8 s.
+
+**Non-régression :** filtre prix d'achat 12 / 12 (il compte maintenant 10 filtres), icônes de l'inventaire 11 / 11, colonnes 7 / 7, clôture 12 / 12, suite unitaire 2 224 tests verts.
