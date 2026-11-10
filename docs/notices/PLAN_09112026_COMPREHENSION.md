@@ -856,3 +856,81 @@ Les deux tests étaient rouges sur l'ancien code.
 **Cas couverts :** formes « NOM [80%] », « NOM [80%] : » et « NOM 80 % », taux décimaux, nom court, nom sans taux, nom accentué, largeurs 58 et 80 mm, plusieurs tiers payants sur un ticket, valeur inconnue.
 
 **Non-régression :** 92 tests du ticket verts ; modèles de ticket 15, 19 (05/11), 10 (date), 11 (cadre net), 13 (promotion), 14 (police).
+
+## Vérifications du 10/11 au soir : `plan/09112026` redéployé sur 8080
+
+- Point 15 : 13 / 13 ; point 7 : 23 / 23.
+- **Défaut signalé par une autre session (`test-une-ligne-cochee`, 21 / 22) : pas un défaut du code.** Le test attendait encore la fenêtre « Annuler ». Depuis le point 18 du plan du 08/11, l'annulation passe par le menu des motifs. Six tests étaient dans ce cas ; ils passent par deux aides communes (`confirmerAnnulation`, `choisirMotif`) :
+  - une ligne cochée 24 / 24 ;
+  - ventes UG 16 / 16 ;
+  - suivi des promotions 35 / 35 ;
+  - palier 33 / 33 ;
+  - rapprochement promotion 39 / 39 ;
+  - recette et date de vente 17 / 17.
+- **Défaut des tests des modèles de ticket, corrigé :** la remise en état perdait l'utilisateur des lignes. Sous Windows, chaque ligne lue se termine par `\r`, sauf la dernière. `test-ticket-police` était à 13 / 14 ; il passe à 14 / 14, et les modèles à 15 / 15.
+
+## Point 16 : fait le 10/11 (commit `269a26ef7`, branche `plan/09112026`)
+
+**Ce qui change :** votre `prestige3.ico` remplace l'ancienne icône partout :
+- onglet du navigateur : `favicon.ico`, avec les sept tailles du fichier ;
+- PNG de 16 à 256 px, tirés du même fichier ;
+- logo de la page de connexion ;
+- bandeau de l'application : l'icône remplace la croix, et un clic ramène toujours au menu principal ;
+- « À propos » : l'icône et « PRESTIGE 3 » ; « PRESTIGE II » est corrigé.
+
+Les liens passent en version 3, pour que les navigateurs ne gardent pas l'ancienne icône. Les anciens SVG (mortier) ne servaient plus nulle part : ils sont retirés.
+
+**Où l'icône apparaît, et test de rapprochement :** `test-icone-prestige3-1011` (16 / 16 sur 8080 ; rouge sur l'ancien code, 6 / 16). Il couvre la connexion, l'application, l'espace produit, le bandeau et « À propos ». Pour chaque endroit, il vérifie :
+- l'image chargée et visible ;
+- le repère violet de la nouvelle icône ;
+- la version 3 des liens ;
+- les sept tailles du `.ico` ;
+- `favicon.png` = `icone-prestige-256.png`, pixel pour pixel ;
+- « À propos » sans débordement ;
+- aucune erreur JavaScript.
+
+**Traces :** aucune donnée en base.
+
+## Point 20 : clos sans changement
+
+Votre réponse : on garde « Ajouter des clients » au-dessus de « Clients de la liste ». L'écran reste comme il est.
+
+## Point 13 : fait le 10/11 (commit `31188c7e0`, branche `plan/09112026`)
+
+**Ce qui change :**
+- **Chaque envoi WhatsApp porte son origine et son utilisateur.** Origines : ticket Z, campagne, rappel, discussion, avis client, essai, lien wa.me.
+  - Deux colonnes sont ajoutées au journal (migration V7.6.40).
+  - Envois antérieurs : l'origine est reprise quand elle est sûre (une notification de campagne est une campagne, une autre notification est un rappel). Sinon, « Non précisée ».
+- **Comptes WhatsApp › « Derniers envois » :** colonnes Origine, Utilisateur et Suivi.
+  - Le suivi est un indicateur de quatre pastilles (préparé, envoyé, distribué, lu), mis à jour par les statuts que WhatsApp renvoie.
+  - Un échec est en rouge.
+  - Un envoi simulé (mode test) reste à « préparé ».
+- **Ticket Z au pharmacien, par WhatsApp et par SMS :** une ligne au journal des événements, par exemple « Ticket Z envoyé au pharmacien (WhatsApp) : Envoyé ». Elle porte la date et l'utilisateur, type « Envoi de message ».
+  - Jamais le texte du ticket.
+  - Le cas « aucun numéro réglé » est tracé aussi.
+- **Liens wa.me de Campagne client :** le clic est gardé (origine « Lien wa.me », état « Lien ouvert »). Prestige ne voit pas l'envoi réel, qui part du WhatsApp du téléphone.
+
+**Où la donnée apparaît, et test de rapprochement :** `test-traces-whatsapp-1011` (16 / 16 sur 8080 ; rouge sur l'ancien code), par de vrais clics :
+- Ticket Z › « Envoyer WhatsApp » : ligne au journal des événements, avec l'utilisateur et le type « Envoi de message » ;
+- Comptes WhatsApp › « Envoyer un essai » : ligne d'origine Essai, avec l'utilisateur ;
+- Clients › Suivi de consommation › SMS / WhatsApp › Préparer les liens › clic sur le lien : ligne d'origine Lien wa.me, avec le client et l'utilisateur ;
+- grille « Derniers envois » = API = base, ligne par ligne ;
+- l'indicateur avance (distribué : 3 pastilles, lu : 4, échec : rouge) après actualisation.
+
+**Règles et test de cohérence :**
+- `OrigineEnvoiCoherenceTest`, 6 000 lignes de journal tirées au hasard (graine 20261113) :
+  - l'origine enregistrée prime ; sinon, la déduction est sûre ou « non précisée » ;
+  - les étapes vont de 0 à 4, avec 0 seulement en cas d'échec ;
+  - un lien a deux étapes ;
+  - l'ordre des étapes suit celui des statuts.
+- `TicketZTraceTest`, 3 000 cas : la trace dit le canal et l'état, jamais le texte, et tient en 255 caractères.
+
+**Traces (bilan) :** exactement une ligne par envoi au journal WhatsApp, avec son origine et son utilisateur, et une ligne d'événement par ticket Z. Rien d'autre. Le test retire tout ce qu'il a créé.
+
+**Limites des essais, à savoir :**
+- Sur ce poste, aucun numéro d'administration n'est réglé (il est dans le fichier de configuration, que je n'ouvre pas). L'envoi réussi du ticket Z n'a donc été joué que par son chemin commun (`envoyerTexte`, origine Ticket Z), pas de bout en bout ; le test a vérifié la trace « Non envoyé ».
+- Le ticket Z par SMS n'est pas joué en test d'écran : le fournisseur SMS peut être réel. Sa trace est vérifiée par `TicketZTraceTest`.
+
+**Cas couverts :** ticket Z sans numéro, essai simulé, lien ouvert, passage à distribué, à lu et en échec, envois antérieurs sans origine, plusieurs origines dans la même grille.
+
+**Non-régression (8080) :** WhatsApp 28 / 28 ; ticket Z WhatsApp 9 / 9 ; journal des campagnes 13 / 13. Tests Java : campagnes, indicateur d'envoi, webhook, WhatsApp Web et discussions, tous verts.
