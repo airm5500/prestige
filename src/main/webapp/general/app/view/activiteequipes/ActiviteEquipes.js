@@ -22,9 +22,13 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
         odatasource: ''
     },
 
-    ONGLETS: [{cle: 'donnees', texte: 'Données & recherches', aide: 'Journal de tout ce que fait chaque employé, filtres et recherche'},
-        {cle: 'analyses', texte: 'Analyses', aide: 'Productivité, affluence, saisie des BL, actions sensibles et aide à la décision'},
-        {cle: 'anomalies', texte: 'Anomalies', aide: 'Par employé : refus affichés, opérations à risque, erreurs du logiciel ; et ce qu\'il a fait juste avant'}],
+    /* plan du 09/11, point 10 : une couleur par onglet, celles des cartes du tableau de bord */
+    ONGLETS: [{cle: 'donnees', texte: 'Données & recherches', couleur: '#1d4ed8', doux: '#e6eeff',
+            aide: 'Journal de tout ce que fait chaque employé, filtres et recherche'},
+        {cle: 'analyses', texte: 'Analyses', couleur: '#7c3aed', doux: '#efe7ff',
+            aide: 'Productivité, affluence, saisie des BL, actions sensibles et aide à la décision'},
+        {cle: 'anomalies', texte: 'Anomalies', couleur: '#e11d48', doux: '#fde7ec',
+            aide: 'Par employé : refus affichés, opérations à risque, erreurs du logiciel ; et ce qu\'il a fait juste avant'}],
 
     /* couleur de chaque type d'action (pastilles, colonne Action, graphiques) */
     COULEURS: {VENTE: '#1b7f3b', VENDEUR: '#2563eb', ANNULATION: '#c62828', MODIFICATION: '#e67e22', BL: '#7c3aed',
@@ -86,7 +90,8 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                         : 'aucun op\u00e9rateur avec 5 ventes ou plus'
             };
         },
-        /* bandeau des reperes : 4 chiffres et le repere d'alerte (menu, fenetre et carte du tableau de bord) */
+        /* bandeau des reperes : 4 chiffres (menu, fenetre et carte du tableau de bord) ; plan du 09/11, point 10 : la ligne
+         * d'alerte est retiree (elle redisait un constat deja visible dans les analyses) */
         htmlResume: function (r) {
             var e = Ext.String.htmlEncode, T = this.resumeTextes(r);
             r = r || {};
@@ -94,14 +99,10 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                 return '<div class="ae-rep' + (mauvais ? ' ae-rep-mal' : '') + '" data-rep="' + code + '"><div class="l">' + e(libelle) + '</div>'
                         + '<div class="v">' + e(valeur) + '</div><div class="d">' + e(detail) + '</div></div>';
             };
-            var alerte = r.alertes > 0
-                    ? '<div class="ae-rep-alerte mal" data-alertes="' + r.alertes + '">\u26a0 ' + r.alertes + ' alerte' + (r.alertes > 1 ? 's' : '') + ' : '
-                    + e(r.premiereAlerte || '') + '</div>'
-                    : '<div class="ae-rep-alerte bon" data-alertes="0">\u2713 Aucune alerte</div>';
             return '<div class="ae-reps">' + tuile('LONGUES', r.seuilLibelle || 'Ventes de plus de 10 min', T.longues, 'vente laiss\u00e9e ouverte', r.ventesLongues > 0)
                     + tuile('SENSIBLES', 'Actions sensibles', T.sensibles, T.sensiblesDetail, r.actionsSensibles > 0)
                     + tuile('DELAI_BL', 'D\u00e9lai moyen de saisie des BL', T.delaiBl, T.delaiBlDetail, r.delaiMoyenBl >= 2)
-                    + tuile('RAPIDE', 'Op\u00e9rateur le plus rapide', T.rapide, T.rapideDetail, false) + '</div>' + alerte;
+                    + tuile('RAPIDE', 'Op\u00e9rateur le plus rapide', T.rapide, T.rapideDetail, false) + '</div>';
         },
         styles: function () {
             if (Ext.get('activite-equipes-styles')) {
@@ -126,10 +127,14 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                     + '.ae-tuile .v{font-size:22px;font-weight:700;color:#0f172a;margin-top:2px;font-variant-numeric:tabular-nums}'
                     + '.ae-tuile .e{font-size:12px;margin-top:2px}.ae-tuile .e.bon{color:#1b7f3b}.ae-tuile .e.mal{color:#c62828}.ae-tuile .e.neutre{color:#94a3b8}'
                     + '.ae-constats{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:10px;margin-bottom:14px}'
-                    + '.ae-constat{border-radius:10px;padding:10px 12px 10px 14px;border-left:5px solid;background:#fff;box-shadow:0 1px 2px rgba(15,23,42,.06);'
+                    /* plan du 09/11, point 10 : pas de filet de couleur a gauche ; fond doux, bordure fine et pastille */
+                    + '.ae-constat{border-radius:10px;padding:10px 12px;border:1px solid #e2e8f0;background:#fff;box-shadow:0 1px 2px rgba(15,23,42,.06);'
                     + 'animation:ae-entree .45s ease both}'
-                    + '.ae-constat b{display:block;margin-bottom:3px}.ae-constat.ALERTE{border-color:#c62828;background:#fef2f2}'
-                    + '.ae-constat.CONSEIL{border-color:#e67e22;background:#fff7ed}.ae-constat.INFO{border-color:#1e3a5f;background:#f1f5f9}'
+                    + '.ae-constat b{display:block;margin-bottom:3px}.ae-constat b::before{content:"";display:inline-block;width:8px;height:8px;'
+                    + 'border-radius:50%;margin-right:6px;vertical-align:middle;background:#1e3a5f}'
+                    + '.ae-constat.ALERTE{border-color:#f5c6c6;background:#fef2f2}.ae-constat.ALERTE b::before{background:#c62828}'
+                    + '.ae-constat.CONSEIL{border-color:#fbd9b5;background:#fff7ed}.ae-constat.CONSEIL b::before{background:#e67e22}'
+                    + '.ae-constat.INFO{border-color:#dbe3ec;background:#f1f5f9}'
                     + '.ae-titre-bloc{font-weight:700;color:#1e3a5f;margin:4px 0 8px;font-size:13px}'
                     + '.ae-carte{border-collapse:separate;border-spacing:2px;width:100%;font-size:11px}'
                     + '.ae-carte td{height:22px;text-align:center;border-radius:3px;color:#0f172a;transition:transform .12s}'
@@ -157,8 +162,21 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                     + '.ae-rep .v{font-size:18px;font-weight:700;color:#0f172a;font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}'
                     + '.ae-rep .d{font-size:11px;color:#64748b;white-space:normal}'
                     + '.ae-rep-alerte{border-radius:8px;padding:6px 10px;font-size:12px;font-weight:600;margin-bottom:12px}'
-                    + '.ae-rep-alerte.mal{background:#fef2f2;color:#b91c1c}.ae-rep-alerte.bon{background:#f0fdf4;color:#15803d}',
+                    + '.ae-rep-alerte.mal{background:#fef2f2;color:#b91c1c}.ae-rep-alerte.bon{background:#f0fdf4;color:#15803d}'
+                    + testextjs.view.activiteequipes.ActiviteEquipes.cssOnglets(),
                     'activite-equipes-styles');
+        },
+        /* plan du 09/11, point 10 : chaque onglet porte sa couleur (texte et fond doux), plein quand il est choisi */
+        cssOnglets: function () {
+            return Ext.Array.map(testextjs.view.activiteequipes.ActiviteEquipes.prototype.ONGLETS, function (o) {
+                /* classe triplee : passe devant les regles .cec-hub de vente-theme.css */
+                var k = '.ae-onglet-' + o.cle, b = '.cec-onglets .x-btn.cec-onglet' + k + k + k, c = o.couleur;
+                return b + '{background:' + o.doux + '!important;background-image:none!important;border-color:' + c + '!important}'
+                        + b + ':hover{background:' + o.doux + '!important;filter:brightness(.96)}'
+                        + b + ' .x-btn-inner{color:' + c + '!important}'
+                        + b + '.x-btn-pressed,' + b + '.x-btn-pressed:hover{background:' + c + '!important;border-color:' + c + '!important}'
+                        + b + '.x-btn-pressed .x-btn-inner{color:#fff!important}';
+            }).join('');
         }
     },
 
@@ -214,7 +232,7 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                     xtype: 'toolbar', dock: 'top', itemId: 'ongletsAe', cls: 'cec-onglets', layout: {type: 'hbox', pack: 'start', align: 'middle'},
                     items: Ext.Array.map(me.ONGLETS, function (o) {
                         /* plan du 08/11, point 15.6 : l'onglet Anomalies reste cache tant que le droit n'est pas confirme */
-                        return {xtype: 'button', itemId: 'ae-' + o.cle, text: o.texte, cls: 'cec-onglet', toggleGroup: 'ae-onglets-' + me.id,
+                        return {xtype: 'button', itemId: 'ae-' + o.cle, text: o.texte, cls: 'cec-onglet ae-onglet-' + o.cle, toggleGroup: 'ae-onglets-' + me.id,
                             hidden: o.cle === 'anomalies',
                             allowDepress: false, pressed: o.cle === 'donnees', tooltip: o.aide, handler: function () {
                                 me.afficher(o.cle);
@@ -579,6 +597,7 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
         var heures = {xtype: 'chart', itemId: 'gHeures', animate: true, shadow: false, store: me.st.heures, legend: {position: 'bottom'},
             axes: [axeNum(['ventes'], 'left', 'Ventes'), axeNum(['saisieMoyenne'], 'right', 'Saisie (s)'), axeCat()],
             series: [{type: 'column', axis: 'left', xField: 'libelle', yField: 'ventes', title: 'Ventes', highlight: true, renderer: couleur('#2563eb'),
+                    style: {fill: '#2563eb'},
                     tips: AE.infobulle(function (r) {
                         return '<b>' + r.get('libelle') + '</b><br>' + N(r.get('ventes')) + ' ventes<br>Saisie moyenne : ' + D(r.get('saisieMoyenne'));
                     })},
@@ -1245,7 +1264,7 @@ Ext.define('testextjs.view.activiteequipes.ActiviteEquipes', {
                 }).join('');
                 p.update('<div style="margin-bottom:8px"><span class="ae-type" style="background:' + f[1] + '">' + enc(f[0]) + '</span> <b>' + enc(a.employe) + '</b> — ' + enc(a.date)
                         + '<br><span style="color:#475569">Écran : ' + enc(a.ecran || '-') + ' · Poste : ' + enc(a.poste || '-') + '</span>'
-                        + '<div style="margin-top:6px;padding:8px 10px;background:#fff7ed;border-left:4px solid ' + f[1] + ';border-radius:6px">' + enc(a.message) + '</div></div>'
+                        + '<div style="margin-top:6px;padding:8px 10px;background:#fff7ed;border:1px solid #fbd9b5;border-radius:6px">' + enc(a.message) + '</div></div>'
                         + '<div style="font-weight:700;color:#1e3a5f;margin:6px 0">Dernières actions (la plus récente en bas)</div>'
                         + (lignes ? '<ol style="padding-left:18px;margin:0">' + lignes + '</ol>' : '<div style="color:#64748b">Aucune action enregistrée.</div>')
                         + '<div style="margin-top:6px;color:#b45309;font-weight:700">↳ anomalie</div>');
